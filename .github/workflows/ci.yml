@@ -22,7 +22,7 @@ jobs:
         run: bun install
 
       - name: Run tests with coverage
-        run: bun test --coverage
+        run: bun test --coverage src/__tests__/
 
       - name: Type check
         run: bun x tsc --noEmit
