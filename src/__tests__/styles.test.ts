@@ -14,7 +14,7 @@ import type { DiagramColors } from '../theme.ts'
 describe('THEMES', () => {
   it('contains well-known theme palettes with valid colors', () => {
     for (const name of ['zinc-light', 'zinc-dark', 'tokyo-night', 'catppuccin-mocha', 'nord'] as const) {
-      const theme = THEMES[name]
+      const theme = THEMES[name]!
       expect(theme.bg).toMatch(/^#[0-9a-fA-F]{6}$/)
       expect(theme.fg).toMatch(/^#[0-9a-fA-F]{6}$/)
     }
