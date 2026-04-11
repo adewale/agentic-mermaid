@@ -194,7 +194,7 @@ describe('xychart ASCII – titles and axes', () => {
       x-axis [A, B]
       bar [10, 20]`)
     const titleLine = result.split('\n').find(l => l.includes('My Chart'))
-    expect(titleLine).toBeDefined()
+    expect(titleLine).toContain('My Chart')
   })
 
   it('renders x-axis title', () => {

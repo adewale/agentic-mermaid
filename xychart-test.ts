@@ -42,11 +42,16 @@ const THEME_LABELS: Record<string, string> = {
   'one-dark': 'One Dark',
 }
 
+let _highlighter: Awaited<ReturnType<typeof createHighlighter>> | null = null
+
 async function generateHtml(): Promise<string> {
-  const highlighter = await createHighlighter({
-    langs: ['mermaid'],
-    themes: ['github-light'],
-  })
+  if (!_highlighter) {
+    _highlighter = await createHighlighter({
+      langs: ['mermaid'],
+      themes: ['github-light'],
+    })
+  }
+  const highlighter = _highlighter
 
   // Bundle the mermaid renderer for client-side SVG rendering
   const buildResult = await Bun.build({

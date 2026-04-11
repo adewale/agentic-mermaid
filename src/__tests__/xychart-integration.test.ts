@@ -89,10 +89,10 @@ xychart
 
 function getSvgSize(svg: string): { width: number; height: number } {
   const sizeMatch = svg.match(/<svg[^>]*viewBox="0 0 (\d+) (\d+)"/)
-  expect(sizeMatch).toBeTruthy()
+  if (!sizeMatch) throw new Error('SVG missing viewBox attribute')
   return {
-    width: Number(sizeMatch![1]),
-    height: Number(sizeMatch![2]),
+    width: Number(sizeMatch[1]),
+    height: Number(sizeMatch[2]),
   }
 }
 

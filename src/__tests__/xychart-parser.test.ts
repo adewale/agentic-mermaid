@@ -340,8 +340,7 @@ xychart
 
     expect(chart.xAxis.range).toBeUndefined()
     expect(chart.yAxis.title).toBeUndefined()
-    expect(chart.yAxis.range).toBeDefined()
-    expect(chart.yAxis.range!.min).toBe(0)
+    expect(chart.yAxis.range).toEqual({ min: 0, max: expect.any(Number) })
     expect(chart.yAxis.range!.max).toBeGreaterThan(30)
   })
 
@@ -351,7 +350,7 @@ xychart
       bar [10, 20, 30]`)
 
     expect(chart.yAxis.categories).toBeUndefined()
-    expect(chart.yAxis.range).toBeDefined()
+    expect(chart.yAxis.range).toEqual({ min: expect.any(Number), max: expect.any(Number) })
   })
 
   it('falls back to the default y-axis range when there is no series data', () => {

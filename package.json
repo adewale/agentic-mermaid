@@ -49,7 +49,8 @@
     "build:samples": "bun run index.ts && mkdir -p site && mv index.html site/ && cp -r public/* site/",
     "deploy": "bun run build:samples && wrangler pages deploy site --project-name craft-agents-mermaid",
     "xychart-test": "bun run xychart-test.ts",
-    "prepublishOnly": "npm run build"
+    "prepublishOnly": "npm run build",
+    "mutation-test": "npx stryker run"
   },
   "dependencies": {
     "elkjs": "^0.11.0",

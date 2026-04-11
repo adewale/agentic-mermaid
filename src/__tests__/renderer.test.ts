@@ -542,3 +542,103 @@ describe('renderSvg – CSS variable theming', () => {
     expect(svg).toContain('fill="var(--_arrow)"')
   })
 })
+
+// ============================================================================
+// Sad paths / degenerate inputs
+// ============================================================================
+
+describe('renderSvg – sad paths / degenerate inputs', () => {
+  it('empty node/edge arrays produce valid SVG (no crash)', () => {
+    const graph = makeGraph({ nodes: [], edges: [], groups: [] })
+    const svg = renderSvg(graph, lightColors)
+    // Must still be a well-formed SVG document
+    expect(svg).toContain('<svg xmlns="http://www.w3.org/2000/svg"')
+    expect(svg).toContain('</svg>')
+    // No node, edge, or group elements should be present
+    expect(svg).not.toContain('<polyline')
+    expect(svg).not.toContain('class="node"')
+    expect(svg).not.toContain('class="subgraph"')
+  })
+
+  it('edges referencing nonexistent nodes render with orphan IDs', () => {
+    const edge = makeEdge({
+      source: 'MISSING_SRC',
+      target: 'MISSING_TGT',
+      points: [{ x: 10, y: 20 }, { x: 30, y: 40 }],
+    })
+    const graph = makeGraph({ nodes: [], edges: [edge] })
+    const svg = renderSvg(graph, lightColors)
+    // Edge should still render as a polyline — renderer doesn't validate references
+    expect(svg).toContain('<polyline')
+    expect(svg).toContain('data-from="MISSING_SRC"')
+    expect(svg).toContain('data-to="MISSING_TGT"')
+    // No node elements since we gave none
+    expect(svg).not.toContain('class="node"')
+  })
+
+  it('zero-dimension nodes (width: 0, height: 0) produce valid SVG', () => {
+    const node = makeNode({ width: 0, height: 0 })
+    const graph = makeGraph({ nodes: [node] })
+    const svg = renderSvg(graph, lightColors)
+    // Must still produce a complete SVG document
+    expect(svg).toContain('<svg xmlns="http://www.w3.org/2000/svg"')
+    expect(svg).toContain('</svg>')
+    // Node wrapper should exist with the degenerate dimensions
+    expect(svg).toContain('class="node"')
+    expect(svg).toContain('width="0"')
+    expect(svg).toContain('height="0"')
+  })
+
+  it('nodes with very long labels (1000+ chars) render without truncation', () => {
+    const longLabel = 'A'.repeat(1200)
+    const node = makeNode({ label: longLabel })
+    const graph = makeGraph({ nodes: [node] })
+    const svg = renderSvg(graph, lightColors)
+    // The full label must appear in the SVG (no truncation)
+    expect(svg).toContain(longLabel)
+    // Node wrapper must have the label in data-label attribute
+    expect(svg).toContain(`data-label="${longLabel}"`)
+    // The SVG must still be well-formed
+    expect(svg).toContain('</svg>')
+  })
+
+  it('edges with empty points array (0 points) are skipped', () => {
+    const edge = makeEdge({ points: [] })
+    const graph = makeGraph({ edges: [edge] })
+    const svg = renderSvg(graph, lightColors)
+    // renderEdge returns '' for < 2 points, so no polyline
+    expect(svg).not.toContain('<polyline')
+    // Edge label should also not render since edge has no label by default
+    expect(svg).not.toContain('class="edge-label"')
+    // SVG document must still be valid
+    expect(svg).toContain('</svg>')
+  })
+
+  it('groups with zero dimensions produce valid SVG', () => {
+    const group: PositionedGroup = {
+      id: 'zero', label: 'Empty',
+      x: 50, y: 50, width: 0, height: 0, children: [],
+    }
+    const graph = makeGraph({ groups: [group] })
+    const svg = renderSvg(graph, lightColors)
+    // Group should still render
+    expect(svg).toContain('class="subgraph"')
+    expect(svg).toContain('data-id="zero"')
+    expect(svg).toContain('>Empty</text>')
+    // Degenerate rect dimensions should appear
+    expect(svg).toContain('width="0" height="0"')
+  })
+
+  it('nodes with negative coordinates render at those positions', () => {
+    const node = makeNode({ x: -100, y: -50, width: 80, height: 40 })
+    const graph = makeGraph({ nodes: [node] })
+    const svg = renderSvg(graph, lightColors)
+    // The negative coordinates must appear in the SVG element attributes
+    expect(svg).toContain('x="-100"')
+    expect(svg).toContain('y="-50"')
+    // Node wrapper must still exist
+    expect(svg).toContain('class="node"')
+    // The SVG must still close properly
+    expect(svg).toContain('</svg>')
+  })
+})

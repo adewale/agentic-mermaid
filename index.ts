@@ -76,14 +76,24 @@ export interface GenerateHtmlOptions {
   visibleThemes?: Set<string>
 }
 
+// Lazy singleton Shiki highlighter — avoids creating multiple instances
+// when generateHtml is called repeatedly (e.g. in property-based tests).
+let _highlighter: Awaited<ReturnType<typeof createHighlighter>> | null = null
+async function getHighlighter() {
+  if (!_highlighter) {
+    _highlighter = await createHighlighter({
+      langs: ['mermaid'],
+      themes: ['github-light'],
+    })
+  }
+  return _highlighter
+}
+
 export async function generateHtml(options: GenerateHtmlOptions = {}): Promise<string> {
-  // Step 0: Create Shiki highlighter for mermaid syntax highlighting in source panels.
+  // Step 0: Get (or create) Shiki highlighter for mermaid syntax highlighting.
   // We use 'github-light' as the base theme — its hex colors get overridden by CSS
   // color-mix() rules derived from --t-fg / --t-bg so tokens adapt to any theme.
-  const highlighter = await createHighlighter({
-    langs: ['mermaid'],
-    themes: ['github-light'],
-  })
+  const highlighter = await getHighlighter()
 
   // Step 1: Bundle the mermaid renderer for the browser
   const buildResult = await Bun.build({

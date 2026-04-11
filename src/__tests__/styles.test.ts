@@ -12,12 +12,12 @@ import type { DiagramColors } from '../theme.ts'
 // ============================================================================
 
 describe('THEMES', () => {
-  it('contains well-known theme palettes', () => {
-    expect(THEMES['zinc-light']).toBeDefined()
-    expect(THEMES['zinc-dark']).toBeDefined()
-    expect(THEMES['tokyo-night']).toBeDefined()
-    expect(THEMES['catppuccin-mocha']).toBeDefined()
-    expect(THEMES['nord']).toBeDefined()
+  it('contains well-known theme palettes with valid colors', () => {
+    for (const name of ['zinc-light', 'zinc-dark', 'tokyo-night', 'catppuccin-mocha', 'nord'] as const) {
+      const theme = THEMES[name]
+      expect(theme.bg).toMatch(/^#[0-9a-fA-F]{6}$/)
+      expect(theme.fg).toMatch(/^#[0-9a-fA-F]{6}$/)
+    }
   })
 
   it('each theme has valid bg and fg colors', () => {

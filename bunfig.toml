@@ -1,0 +1,6 @@
+[test]
+coverage = true
+coverageReporter = ["text", "lcov"]
+
+# Only measure coverage on production source, not test files or scripts
+coverageSkipTestFiles = true

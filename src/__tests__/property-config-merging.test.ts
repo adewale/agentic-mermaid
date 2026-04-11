@@ -316,8 +316,7 @@ describe('property-based config merging', () => {
 
         const result = preprocessMermaidSource(text)
         const tv = getFrontmatterMap(result.frontmatter, ['themeVariables'])
-        expect(tv).toBeDefined()
-        expect(tv!.primaryColor).toBe(initColor)
+        expect(tv).toEqual(expect.objectContaining({ primaryColor: initColor }))
       }),
       { numRuns: NUM_RUNS },
     )
@@ -533,7 +532,7 @@ describe('property-based config merging', () => {
       fc.property(hostileYamlArb, (text) => {
         // Must not throw
         const result = preprocessMermaidSource(text)
-        expect(result).toBeDefined()
+        expect(typeof result.body).toBe('string')
         expect(result.lines.length).toBeGreaterThan(0)
         expect(allLeavesAreFiniteScalars(result.frontmatter)).toBe(true)
       }),

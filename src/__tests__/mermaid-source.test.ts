@@ -84,6 +84,8 @@ Ship : Done`)
     expect(normalized.config.fontFamily).toBe('IBM Plex Sans')
     expect(normalized.config.timeline?.disableMulticolor).toBe(true)
     expect(normalized.config.timeline?.sectionColours).toEqual(['#111111', '#222222'])
-    expect(getFrontmatterMap(normalized.frontmatter, ['timeline'])).toBeDefined()
+    expect(getFrontmatterMap(normalized.frontmatter, ['timeline'])).toEqual(expect.objectContaining({
+      disableMulticolor: true,
+    }))
   })
 })
