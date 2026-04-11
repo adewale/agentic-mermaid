@@ -41,6 +41,7 @@
   "files": ["src/", "dist/", "LICENSE", "README.md"],
   "scripts": {
     "test": "bun test src/__tests__/",
+    "test:browser": "bun test e2e/ --timeout 600000",
     "samples": "bun run index.ts",
     "dev": "bun run dev.ts",
     "bench": "bun run bench.ts",
