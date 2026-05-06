@@ -1266,7 +1266,7 @@ async function generateHtml(): Promise<string> {
         <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><g transform="translate(3.4502, 3)" fill="currentColor"><path d="M3.17890888,3.6 L3.17890888,0 L16,0 L16,3.6 L3.17890888,3.6 Z M9.642,7.2 L9.64218223,10.8 L0,10.8 L0,3.6 L16,3.6 L16,7.2 L9.642,7.2 Z M3.17890888,18 L3.178,14.4 L0,14.4 L0,10.8 L16,10.8 L16,18 L3.17890888,18 Z" fill-rule="nonzero"></path></g></svg>
         Use in Craft Agents
       </a>
-      <a href="editor" class="hero-btn hero-btn-secondary">
+      <a href="editor" id="editor-link" class="hero-btn hero-btn-secondary">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
         Editor
       </a>
@@ -1512,6 +1512,14 @@ ${bundleJs}
   }
 
   // -- Random theme button --
+  // Resolve the Editor link against the current path so it works under both
+  // / (direct Pages URL) and /mermaid (Worker proxy, with or without trailing slash).
+  var editorLink = document.getElementById('editor-link');
+  if (editorLink) {
+    var basePath = location.pathname.replace(/\/index\.html$|\/$/, '');
+    editorLink.href = basePath + '/editor';
+  }
+
   var randomThemeBtn = document.getElementById('random-theme-btn');
   var themeKeys = Object.keys(THEMES);
   var currentThemeKey = localStorage.getItem('mermaid-theme') || '';
