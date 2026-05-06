@@ -1106,11 +1106,14 @@ async function generateHtml(): Promise<string> {
       padding: 0.75rem 1.25rem;
       font-size: 0.875rem;
       font-weight: 500;
+      line-height: 1.25;
       border-radius: 12px;
       text-decoration: none;
       transition: opacity 0.15s, transform 0.1s;
       cursor: pointer;
       border: none;
+      margin: 0;
+      box-sizing: border-box;
       font-family: inherit;
     }
     .hero-btn:hover {
