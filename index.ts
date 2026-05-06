@@ -1514,9 +1514,18 @@ ${bundleJs}
   // -- Random theme button --
   // Resolve the Editor link against the current path so it works under both
   // / (direct Pages URL) and /mermaid (Worker proxy, with or without trailing slash).
+  // Note: this script is embedded inside a TypeScript template literal, so regex
+  // backslashes get consumed during string interpolation. We use endsWith/slice
+  // here instead of a regex literal to avoid escaping pitfalls.
   var editorLink = document.getElementById('editor-link');
   if (editorLink) {
-    var basePath = location.pathname.replace(/\/index\.html$|\/$/, '');
+    var basePath = location.pathname;
+    if (basePath.indexOf('/index.html', basePath.length - 11) !== -1) {
+      basePath = basePath.slice(0, basePath.length - 11);
+    }
+    if (basePath.charAt(basePath.length - 1) === '/') {
+      basePath = basePath.slice(0, basePath.length - 1);
+    }
     editorLink.href = basePath + '/editor';
   }
 
