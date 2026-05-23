@@ -31,9 +31,13 @@ jobs:
       - name: Build samples site
         run: |
           bun run new-diagrams.ts
-          mkdir -p _site
+          bun run editor.ts
+          mkdir -p _site/editor
           mv new-diagrams.html _site/index.html
+          cp editor.html _site/editor.html
+          cp editor.html _site/editor/index.html
           cp -r public/* _site/
+          cp -r public/* _site/editor/
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3

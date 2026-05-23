@@ -13,6 +13,9 @@ import { layoutErDiagramSync } from '../er/layout.ts'
 import { renderErSvg } from '../er/renderer.ts'
 import { renderMermaidASCII } from '../ascii/index.ts'
 
+const githubLight = THEMES['github-light']!
+const githubDark = THEMES['github-dark']!
+
 const themeCases = [
   ['timeline', `timeline\n  title Release plan\n  section Now\n    2026 : Ship`, 'timeline-period'],
   ['xychart', `xychart-beta\n  title Sales\n  x-axis [A, B]\n  bar [1, 2]`, 'xychart-bar'],
@@ -24,7 +27,7 @@ const themeCases = [
 describe('TODO coverage – theme rendering across diagram families', () => {
   for (const [name, source, marker] of themeCases) {
     it(`${name} renders with light and dark enriched palettes`, () => {
-      for (const theme of [THEMES['github-light'], THEMES['github-dark']]) {
+      for (const theme of [githubLight, githubDark]) {
         const svg = renderMermaidSVG(source, theme)
         expect(svg).toContain(`--bg:${theme.bg}`)
         expect(svg).toContain(`--fg:${theme.fg}`)
@@ -53,7 +56,7 @@ describe('TODO coverage – sequence renderer and ASCII regressions', () => {
   it('renders semantic sequence SVG components directly', () => {
     const parsed = parseSequenceDiagram(['sequenceDiagram', 'participant A as Alice', 'participant B as Bob', 'A->>B: Hello'])
     const positioned = layoutSequenceDiagram(parsed)
-    const svg = renderSequenceSvg(positioned, THEMES['github-light'])
+    const svg = renderSequenceSvg(positioned, githubLight)
     expect(svg).toContain('class="actor" data-id="A"')
     expect(svg).toContain('class="message" data-from="A" data-to="B"')
     expect(svg).toContain('Hello')
@@ -84,7 +87,7 @@ describe('TODO coverage – class and ER layout/renderer units', () => {
 
   it('renders class SVG compartments and relationship markers directly', () => {
     const positioned = layoutClassDiagramSync(parseClassDiagram(['classDiagram', 'Animal <|-- Dog', 'class Animal {', '+eat() void', '}']))
-    const svg = renderClassSvg(positioned, THEMES['github-light'])
+    const svg = renderClassSvg(positioned, githubLight)
     expect(svg).toContain('class="class-node"')
     expect(svg).toContain('marker-start="url(#cls-inherit)"')
     expect(svg).toContain('eat()')
@@ -109,7 +112,7 @@ describe('TODO coverage – class and ER layout/renderer units', () => {
       'string id PK "primary key"',
       '}',
     ]))
-    const svg = renderErSvg(positioned, THEMES['github-light'])
+    const svg = renderErSvg(positioned, githubLight)
     expect(svg).toContain('class="entity" data-id="CUSTOMER"')
     expect(svg).toContain('class="er-relationship"')
     expect(svg).toContain('places')
