@@ -1,0 +1,146 @@
+/* Floating toolbar — positioned over the preview area */
+.preview-toolbar {
+  position: absolute;
+  top: 10px;
+  left: 12px;
+  right: 12px;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  pointer-events: none;
+}
+.preview-toolbar > * {
+  pointer-events: auto;
+}
+
+/* Craft Agents section label: text-[11px] font-medium text-muted-foreground uppercase tracking-wider */
+.preview-label {
+  font-size: 11px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--fg3);
+  user-select: none;
+}
+
+.toolbar-spacer {
+  flex: 1;
+}
+
+.zoom-controls {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 3px;
+  border-radius: 8px;
+  background: var(--t-bg);
+  box-shadow: var(--shadow-minimal);
+}
+
+/* Craft Agents PanelHeaderCenterButton style */
+.toolbar-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--fg);
+  opacity: 0.5;
+  cursor: default;
+  user-select: none;
+  transition: opacity 0.15s;
+}
+.toolbar-btn:hover {
+  opacity: 1;
+}
+.toolbar-btn.active {
+  opacity: 1;
+  background: color-mix(in srgb, var(--t-fg) 5%, var(--t-bg));
+}
+.toolbar-btn svg {
+  width: 14px;
+  height: 14px;
+}
+
+.zoom-label {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--fg3);
+  min-width: 40px;
+  text-align: center;
+  font-family: "JetBrains Mono", monospace;
+}
+
+.preview-body {
+  flex: 1;
+  overflow: auto;
+  padding: 2rem;
+  padding-top: 2.75rem;
+  box-sizing: border-box;
+  position: relative;
+  z-index: 0;
+  background: var(--bg2);
+}
+.preview-body.pan-mode {
+  cursor: grab;
+}
+.preview-body.pan-mode.panning {
+  cursor: grabbing;
+  user-select: none;
+}
+.preview-body.cmd-pan {
+  cursor: grab;
+}
+.preview-body.cmd-pan.panning {
+  cursor: grabbing;
+  user-select: none;
+}
+
+.preview-inner {
+  min-width: 100%;
+  min-height: 100%;
+  width: max-content;
+  height: max-content;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.preview-inner svg {
+  display: block;
+  flex-shrink: 0;
+}
+
+.preview-error {
+  color: var(--red);
+  font-family: "JetBrains Mono", monospace;
+  font-size: 0.8rem;
+  padding: 1.5rem;
+  background: color-mix(in srgb, var(--red) 6%, var(--bg2));
+  border: 1px solid color-mix(in srgb, var(--red) 15%, transparent);
+  border-radius: var(--radius);
+  white-space: pre-wrap;
+  max-width: 600px;
+}
+
+.preview-placeholder {
+  color: var(--fg4);
+  font-size: 0.875rem;
+  text-align: center;
+}
+
+.preview-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 0.75rem;
+  height: 28px;
+  background: var(--bg2);
+  font-family: "JetBrains Mono", monospace;
+  font-size: 11px;
+  color: var(--fg3);
+  flex-shrink: 0;
+}

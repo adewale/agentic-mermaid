@@ -1,0 +1,92 @@
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+:root {
+  /* 6-color foundation — identical to showcase site (index.ts) */
+  --t-bg: #ffffff;
+  --t-fg: #27272a;
+  --t-accent: #3b82f6;
+
+  /* Shadow system */
+  --foreground-rgb: 39, 39, 42;
+  --shadow-border-opacity: 0.08;
+  --shadow-blur-opacity: 0.06;
+
+  /* Shadow tokens (matches showcase .shadow-minimal / .shadow-modal-small) */
+  --shadow-minimal:
+    rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px,
+    rgba(var(--foreground-rgb), 0.06) 0px 0px 0px 1px,
+    rgba(0, 0, 0, var(--shadow-blur-opacity)) 0px 1px 1px -0.5px,
+    rgba(0, 0, 0, var(--shadow-blur-opacity)) 0px 3px 3px -1.5px;
+  --shadow-modal:
+    rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px,
+    rgba(var(--foreground-rgb), 0.06) 0px 0px 0px 1px,
+    rgba(0, 0, 0, calc(var(--shadow-blur-opacity) * 0.67)) 0px 1px 1px -0.5px,
+    rgba(0, 0, 0, calc(var(--shadow-blur-opacity) * 0.67)) 0px 3px 3px 0px,
+    rgba(0, 0, 0, calc(var(--shadow-blur-opacity) * 0.33)) 0px 6px 6px 0px,
+    rgba(0, 0, 0, calc(var(--shadow-blur-opacity) * 0.33)) 0px 12px 12px 0px,
+    rgba(0, 0, 0, calc(var(--shadow-blur-opacity) * 0.33)) 0px 24px 24px 0px;
+
+  /* Semantic colors — derived exactly like the showcase site (index.ts).
+   * Showcase uses color-mix(in srgb, var(--t-bg) N%, var(--t-fg)) for surfaces
+   * and color-mix(in srgb, var(--t-fg) N%, var(--t-bg)) for text/borders.
+   * All use SOLID mixes (bg-based), never transparent-based.
+   *
+   * Showcase surface levels:
+   *   body bg    = fg 4% + bg
+   *   panel bg   = var(--t-bg)  (pure)
+   *   button bg  = bg 97% + fg  (= fg 3% + bg)
+   *   hover bg   = bg 92% + fg  (= fg 8% + bg)
+   *
+   * Showcase text levels:
+   *   primary    = var(--t-fg)
+   *   secondary  = fg 80% + bg  (buttons, controls)
+   *   muted      = fg 50% + bg  (labels, descriptions)
+   *   faint      = fg 35% + bg  (line numbers, placeholders)
+   */
+  --bg: color-mix(in srgb, var(--t-fg) 4%, var(--t-bg));
+  --bg2: var(--t-bg);
+  --bg3: color-mix(in srgb, var(--t-bg) 97%, var(--t-fg));
+  --bg-hover: color-mix(in srgb, var(--t-bg) 92%, var(--t-fg));
+  --border: color-mix(in srgb, var(--t-fg) 5%, var(--t-bg));
+  --fg: var(--t-fg);
+  --fg2: color-mix(in srgb, var(--t-fg) 80%, var(--t-bg));
+  --fg3: color-mix(in srgb, var(--t-fg) 50%, var(--t-bg));
+  --fg4: color-mix(in srgb, var(--t-fg) 35%, var(--t-bg));
+  --accent: var(--t-accent);
+  --accent2: color-mix(in srgb, var(--t-accent) 80%, var(--t-bg));
+  --radius: 8px;
+
+  /* Semantic status colors */
+  --green: #16a34a;
+  --red: #dc2626;
+}
+
+html,
+body {
+  height: 100%;
+  overflow: hidden;
+}
+
+body {
+  font-family:
+    "Geist",
+    system-ui,
+    -apple-system,
+    sans-serif;
+  background: var(--bg);
+  color: var(--fg);
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  transition:
+    background 0.2s,
+    color 0.2s;
+}

@@ -1,0 +1,117 @@
+.export-wrap {
+  position: relative;
+  display: flex;
+  gap: 0;
+}
+.export-wrap .btn-primary:first-child {
+  border-radius: 8px 0 0 8px;
+}
+.export-chevron {
+  border-radius: 0 8px 8px 0 !important;
+  padding: 0 8px;
+  border-left: 1px solid color-mix(in srgb, var(--t-bg) 20%, var(--t-fg)) !important;
+}
+.export-dropdown {
+  display: none;
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  min-width: 220px;
+  background: var(--t-bg);
+  border-radius: 8px;
+  padding: 4px;
+  z-index: 2000;
+  flex-direction: column;
+  box-shadow: var(--shadow-modal);
+}
+.export-dropdown.open {
+  display: flex;
+}
+.export-item {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  width: 100%;
+  padding: 6px 8px;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--fg);
+  font-size: 13px;
+  font-family: inherit;
+  cursor: default;
+  text-align: left;
+  user-select: none;
+}
+.export-item:hover {
+  background: color-mix(in srgb, var(--t-fg) 5%, var(--t-bg));
+}
+.export-item-icon {
+  width: 15px;
+  height: 15px;
+  flex-shrink: 0;
+  color: var(--fg2);
+}
+.export-item-label {
+  flex: 1;
+}
+.export-item-kbd {
+  display: flex;
+  gap: 2px;
+  margin-left: auto;
+}
+.export-item-kbd kbd {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 3px;
+  border-radius: 4px;
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  font-size: 10px;
+  font-family: inherit;
+  color: var(--fg3);
+}
+.export-divider {
+  height: 1px;
+  background: var(--border);
+  margin: 3px 0;
+}
+.export-size-row {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  padding: 0.4rem 0.6rem;
+  color: var(--fg);
+  font-size: 13px;
+}
+.size-pills {
+  display: flex;
+  gap: 3px;
+  margin-left: auto;
+}
+.size-pill {
+  height: 22px;
+  padding: 0 8px;
+  border-radius: 6px;
+  border: none;
+  background: color-mix(in srgb, var(--t-bg) 97%, var(--t-fg));
+  color: var(--fg2);
+  font-size: 11px;
+  font-weight: 500;
+  font-family: inherit;
+  cursor: default;
+  transition:
+    color 0.15s,
+    background 0.15s;
+}
+.size-pill:hover {
+  color: var(--fg);
+  background: color-mix(in srgb, var(--t-bg) 92%, var(--t-fg));
+}
+.size-pill.active {
+  background: var(--t-fg);
+  color: var(--t-bg);
+}
