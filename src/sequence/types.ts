@@ -7,6 +7,10 @@
 
 /** Parsed sequence diagram — logical structure from mermaid text */
 export interface SequenceDiagram {
+  /** Optional accessibility title (Mermaid accTitle) */
+  accessibilityTitle?: string
+  /** Optional accessibility description (Mermaid accDescr) */
+  accessibilityDescription?: string
   /** Ordered list of actors/participants */
   actors: Actor[]
   /** Messages between actors in chronological order */
@@ -69,6 +73,8 @@ export interface Note {
 export interface PositionedSequenceDiagram {
   width: number
   height: number
+  accessibilityTitle?: string
+  accessibilityDescription?: string
   actors: PositionedActor[]
   lifelines: Lifeline[]
   messages: PositionedMessage[]

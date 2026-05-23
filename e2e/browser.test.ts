@@ -42,6 +42,17 @@ async function waitForRender(timeoutMs = 30_000): Promise<void> {
   )
 }
 
+/** Wait for the live editor preview to show a successful SVG render. */
+async function waitForEditorRender(timeoutMs = 30_000): Promise<void> {
+  await page.waitForFunction(
+    () => {
+      const status = document.getElementById('status-text')?.textContent
+      return status === 'OK' && document.querySelector('#preview-inner svg') !== null
+    },
+    { timeout: timeoutMs },
+  )
+}
+
 /** Take a screenshot to a named file. */
 async function takeScreenshot(name: string): Promise<string> {
   const path = join(SCREENSHOT_DIR, `${name}.png`)
@@ -56,10 +67,17 @@ async function takeScreenshot(name: string): Promise<string> {
 let server: ReturnType<typeof Bun.serve>
 
 beforeAll(async () => {
-  // Ensure index.html exists
+  // Ensure generated pages exist
   const indexPath = join(ROOT, 'index.html')
   if (!(await Bun.file(indexPath).exists())) {
     const proc = Bun.spawn(['bun', 'run', join(ROOT, 'index.ts')], {
+      cwd: ROOT, stdout: 'inherit', stderr: 'inherit',
+    })
+    await proc.exited
+  }
+  const editorPath = join(ROOT, 'editor.html')
+  if (!(await Bun.file(editorPath).exists())) {
+    const proc = Bun.spawn(['bun', 'run', join(ROOT, 'editor.ts')], {
       cwd: ROOT, stdout: 'inherit', stderr: 'inherit',
     })
     await proc.exited
@@ -73,7 +91,12 @@ beforeAll(async () => {
     port: PORT,
     async fetch(req) {
       const url = new URL(req.url)
-      const filePath = join(ROOT, url.pathname === '/' ? 'index.html' : url.pathname)
+      const route = url.pathname === '/'
+        ? 'index.html'
+        : url.pathname === '/editor'
+          ? 'editor.html'
+          : url.pathname
+      const filePath = join(ROOT, route)
       const file = Bun.file(filePath)
       if (await file.exists()) return new Response(file)
       // Try public/ for static assets
@@ -96,7 +119,10 @@ beforeAll(async () => {
 afterAll(async () => {
   // Cleanup: reset to default theme before closing
   try {
-    await page.evaluate(() => localStorage.removeItem('mermaid-theme'))
+    await page.evaluate(() => {
+      localStorage.removeItem('mermaid-theme')
+      localStorage.removeItem('bm-editor-theme')
+    })
   } catch {}
 
   try { await browser?.close() } catch {}
@@ -375,22 +401,78 @@ describe('browser: random theme button', () => {
     await page.goto(BASE)
     await waitForRender(60_000)
 
-    const bgBefore = await page.evaluate(
-      () => getComputedStyle(document.body).getPropertyValue('--t-bg').trim(),
-    )
-    expect(bgBefore).toBe('#FFFFFF')
+    const savedBefore = await page.evaluate(() => localStorage.getItem('mermaid-theme'))
+    expect(savedBefore).toBeNull()
 
-    // Click random -- this triggers a theme change + re-renders
+    // Click random -- this triggers a theme change + re-renders. Some valid light
+    // themes also use a white background, so assert the persisted theme key rather
+    // than coupling this test to background color.
     await page.evaluate(() => document.getElementById('random-theme-btn')?.click())
-    // Wait until the CSS var changes away from white
     await page.waitForFunction(
-      () => getComputedStyle(document.body).getPropertyValue('--t-bg').trim() !== '#FFFFFF',
+      () => localStorage.getItem('mermaid-theme') !== null,
       { timeout: 30_000 },
     )
-    const bgAfter = await page.evaluate(
-      () => getComputedStyle(document.body).getPropertyValue('--t-bg').trim(),
+    const savedAfter = await page.evaluate(() => localStorage.getItem('mermaid-theme'))
+    expect(savedAfter).toBeTruthy()
+  }, 120_000)
+
+})
+
+describe('browser: live editor integration', () => {
+
+  it('opens /editor and renders fork-added diagram families through the bundled renderer', async () => {
+    await page.goto(`${BASE}/editor`)
+    await waitForEditorRender(60_000)
+
+    await page.fill('#code-editor', `architecture-beta
+  group app(cloud)[Application]
+  service api(server)[Public API] in app
+  service db(database)[Postgres] in app
+  api:B --> T:db`)
+    await page.waitForFunction(
+      () => document.querySelector('#preview-inner svg')?.outerHTML.includes('Public API') ?? false,
+      { timeout: 60_000 },
     )
-    expect(bgAfter).not.toBe('#FFFFFF')
+    expect(await page.evaluate(
+      () => document.querySelector('#preview-inner svg')?.outerHTML.includes('Public API') ?? false,
+    )).toBe(true)
+
+    await page.fill('#code-editor', `xychart-beta
+  title "Editor Sales"
+  x-axis [Widgets, Gadgets, Gizmos]
+  bar [150, 230, 180]
+  line [120, 210, 200]`)
+    await page.waitForFunction(
+      () => document.querySelector('#preview-inner svg')?.outerHTML.includes('Editor Sales') ?? false,
+      { timeout: 60_000 },
+    )
+    expect(await page.evaluate(
+      () => document.querySelector('#preview-inner svg')?.outerHTML.includes('Editor Sales') ?? false,
+    )).toBe(true)
+  }, 120_000)
+
+  it('uses local theme registry entries in the editor theme dropdown', async () => {
+    await page.goto(`${BASE}/editor`)
+    await waitForEditorRender(60_000)
+
+    const salmonBg = await page.evaluate(
+      () => (window as unknown as { __mermaid: { THEMES: Record<string, { bg: string }> } })
+        .__mermaid.THEMES.salmon.bg,
+    )
+
+    await page.click('#theme-dropdown-btn')
+    await page.click('.theme-dropdown-item[data-theme="salmon"]')
+    await page.waitForFunction(
+      (bg: string) => getComputedStyle(document.documentElement).getPropertyValue('--t-bg').trim() === bg,
+      salmonBg,
+      { timeout: 30_000 },
+    )
+    await waitForEditorRender(60_000)
+
+    expect(await page.evaluate(() => localStorage.getItem('bm-editor-theme'))).toBe('salmon')
+    expect(await page.evaluate(
+      () => document.querySelector('#preview-inner svg')?.getAttribute('style')?.includes('--bg') ?? false,
+    )).toBe(true)
   }, 120_000)
 
 })

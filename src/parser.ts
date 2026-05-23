@@ -1,4 +1,4 @@
-import type { MermaidGraph, MermaidNode, MermaidEdge, MermaidSubgraph, Direction, NodeShape, EdgeStyle } from './types.ts'
+import type { MermaidGraph, MermaidNode, MermaidEdge, MermaidSubgraph, Direction, NodeShape, EdgeStyle, EdgeMarker } from './types.ts'
 import { normalizeBrTags } from './multiline-utils.ts'
 
 // ============================================================================
@@ -393,10 +393,11 @@ function parseStyleProps(propsStr: string): Record<string, string> {
  *   -.-> -.-       dotted arrow / dotted line
  *   ==>  ===       thick arrow / thick line
  *   <--> <-.-> <==>  bidirectional variants
+ *   --o --x o--o o--x x--o x--x  circle / cross endpoint markers
  *
  * Optional label: -->|label text|
  */
-const ARROW_REGEX = /^(<)?(-->|-.->|==>|---|-\.-|===)(?:\|([^|]*)\|)?/
+const ARROW_REGEX = /^(<)?(-->|-.->|==>|---|-\.-|===|--o|--x|o--o|o--x|x--o|x--x)(?:\|([^|]*)\|)?/
 
 /**
  * Text-embedded label regex — matches "-- label -->", "-. label .->", "== label ==>" syntax.
@@ -466,17 +467,21 @@ function parseEdgeLine(
     let hasArrowStart: boolean
     let style: EdgeStyle
     let hasArrowEnd: boolean
+    let startMarker: EdgeMarker | undefined
+    let endMarker: EdgeMarker | undefined
     let edgeLabel: string | undefined
 
     const arrowMatch = remaining.match(ARROW_REGEX)
     if (arrowMatch) {
-      hasArrowStart = Boolean(arrowMatch[1])
       const arrowOp = arrowMatch[2]!
       const rawEdgeLabel = arrowMatch[3]?.trim()
       edgeLabel = rawEdgeLabel ? normalizeBrTags(rawEdgeLabel) : undefined
       remaining = remaining.slice(arrowMatch[0].length).trim()
       style = arrowStyleFromOp(arrowOp)
-      hasArrowEnd = arrowOp.endsWith('>')
+      startMarker = startMarkerForOp(arrowOp, Boolean(arrowMatch[1]))
+      endMarker = endMarkerForOp(arrowOp)
+      hasArrowStart = startMarker !== undefined
+      hasArrowEnd = endMarker !== undefined
     } else {
       // Fallback: text-embedded label syntax (-- Yes -->, -. Maybe .->, == Sure ==>)
       const textMatch = remaining.match(TEXT_ARROW_REGEX)
@@ -489,6 +494,8 @@ function parseEdgeLine(
       remaining = remaining.slice(textMatch[0].length).trim()
       style = textArrowStyleFromOps(openOp, closeOp)
       hasArrowEnd = closeOp.endsWith('>')
+      startMarker = hasArrowStart ? 'arrow' : undefined
+      endMarker = hasArrowEnd ? 'arrow' : undefined
     }
 
     // Parse the next node group
@@ -507,6 +514,8 @@ function parseEdgeLine(
           style,
           hasArrowStart,
           hasArrowEnd,
+          startMarker,
+          endMarker,
         })
       }
     }
@@ -642,4 +651,19 @@ function textArrowStyleFromOps(openOp: string, closeOp: string): EdgeStyle {
   if (openOp === '-.' || closeOp === '.->' || closeOp === '-.-') return 'dotted'
   if (openOp === '==' || closeOp === '==>' || closeOp === '===') return 'thick'
   return 'solid'
+}
+
+function startMarkerForOp(op: string, hasLeftAngle: boolean): EdgeMarker | undefined {
+  if (hasLeftAngle) return 'arrow'
+  if (op.startsWith('o')) return 'circle'
+  if (op.startsWith('x')) return 'cross'
+  return undefined
+}
+
+function endMarkerForOp(op: string): EdgeMarker | undefined {
+  const last = op[op.length - 1]
+  if (last === '>') return 'arrow'
+  if (last === 'o') return 'circle'
+  if (last === 'x') return 'cross'
+  return undefined
 }

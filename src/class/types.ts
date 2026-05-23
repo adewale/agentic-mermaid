@@ -7,6 +7,10 @@
 
 /** Parsed class diagram — logical structure from mermaid text */
 export interface ClassDiagram {
+  /** Optional accessibility title (Mermaid accTitle) */
+  accessibilityTitle?: string
+  /** Optional accessibility description (Mermaid accDescr) */
+  accessibilityDescription?: string
   /** All class definitions */
   classes: ClassNode[]
   /** Relationships between classes */
@@ -83,6 +87,8 @@ export interface ClassNamespace {
 export interface PositionedClassDiagram {
   width: number
   height: number
+  accessibilityTitle?: string
+  accessibilityDescription?: string
   classes: PositionedClassNode[]
   relationships: PositionedClassRelationship[]
 }

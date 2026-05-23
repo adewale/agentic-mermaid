@@ -169,6 +169,8 @@ function extractClassLayout(
   return {
     width: result.width ?? 600,
     height: result.height ?? 400,
+    accessibilityTitle: diagram.accessibilityTitle,
+    accessibilityDescription: diagram.accessibilityDescription,
     classes: positionedClasses,
     relationships,
   }
@@ -182,7 +184,7 @@ export function layoutClassDiagramSync(
   options: RenderOptions = {}
 ): PositionedClassDiagram {
   if (diagram.classes.length === 0) {
-    return { width: 0, height: 0, classes: [], relationships: [] }
+    return { width: 0, height: 0, accessibilityTitle: diagram.accessibilityTitle, accessibilityDescription: diagram.accessibilityDescription, classes: [], relationships: [] }
   }
 
   const { elkGraph, classSizes } = buildClassElkGraph(diagram, options)

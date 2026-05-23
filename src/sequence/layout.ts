@@ -57,7 +57,7 @@ export function layoutSequenceDiagram(
   _options: RenderOptions = {}
 ): PositionedSequenceDiagram {
   if (diagram.actors.length === 0) {
-    return { width: 0, height: 0, actors: [], lifelines: [], messages: [], activations: [], blocks: [], notes: [] }
+    return { width: 0, height: 0, accessibilityTitle: diagram.accessibilityTitle, accessibilityDescription: diagram.accessibilityDescription, actors: [], lifelines: [], messages: [], activations: [], blocks: [], notes: [] }
   }
 
   // 1. Calculate actor widths and assign horizontal positions (center X)
@@ -132,6 +132,46 @@ export function layoutSequenceDiagram(
   const activations: Activation[] = []
   const nestingOffset = 4 // Horizontal offset per nesting level
 
+  const positionNote = (note: typeof diagram.notes[number], noteY: number): PositionedNote => {
+    const noteW = Math.max(
+      SEQ.noteWidth,
+      estimateTextWidth(note.text, FONT_SIZES.edgeLabel, FONT_WEIGHTS.edgeLabel) + SEQ.notePadX * 2
+    )
+    const noteH = FONT_SIZES.edgeLabel + SEQ.notePadY * 2
+    const firstActorIdx = actorIndex.get(note.actorIds[0] ?? '') ?? 0
+    let noteX: number
+    if (note.position === 'left') {
+      noteX = actorCenterX[firstActorIdx]! - actorWidths[firstActorIdx]! / 2 - noteW - SEQ.noteGap
+    } else if (note.position === 'right') {
+      noteX = actorCenterX[firstActorIdx]! + actorWidths[firstActorIdx]! / 2 + SEQ.noteGap
+    } else if (note.actorIds.length > 1) {
+      const lastActorIdx = actorIndex.get(note.actorIds[note.actorIds.length - 1] ?? '') ?? firstActorIdx
+      noteX = (actorCenterX[firstActorIdx]! + actorCenterX[lastActorIdx]!) / 2 - noteW / 2
+    } else {
+      noteX = actorCenterX[firstActorIdx]! - noteW / 2
+    }
+    return {
+      text: note.text,
+      x: noteX,
+      y: noteY,
+      width: noteW,
+      height: noteH,
+      position: note.position,
+      actors: note.actorIds,
+    }
+  }
+
+  const notesBeforeFirstMsg = notesByAfterIndex.get(-1)
+  if (notesBeforeFirstMsg && notesBeforeFirstMsg.length > 0) {
+    let noteY = messageY
+    for (const note of notesBeforeFirstMsg) {
+      const positioned = positionNote(note, noteY)
+      positionedNotes.push(positioned)
+      noteY += positioned.height + 4
+    }
+    messageY = Math.max(messageY, noteY + SEQ.messageRowHeight / 2)
+  }
+
   for (let msgIdx = 0; msgIdx < diagram.messages.length; msgIdx++) {
     const msg = diagram.messages[msgIdx]!
     const fromIdx = actorIndex.get(msg.from) ?? 0
@@ -199,40 +239,9 @@ export function layoutSequenceDiagram(
       let noteY = messages[msgIdx]!.y + selfLoopExtra + 8
 
       for (const note of notesForMsg) {
-        const noteW = Math.max(
-          SEQ.noteWidth,
-          estimateTextWidth(note.text, FONT_SIZES.edgeLabel, FONT_WEIGHTS.edgeLabel) + SEQ.notePadX * 2
-        )
-        const noteH = FONT_SIZES.edgeLabel + SEQ.notePadY * 2
-
-        // X positioning based on actor position and note type
-        const firstActorIdx = actorIndex.get(note.actorIds[0] ?? '') ?? 0
-        let noteX: number
-        if (note.position === 'left') {
-          noteX = actorCenterX[firstActorIdx]! - actorWidths[firstActorIdx]! / 2 - noteW - SEQ.noteGap
-        } else if (note.position === 'right') {
-          noteX = actorCenterX[firstActorIdx]! + actorWidths[firstActorIdx]! / 2 + SEQ.noteGap
-        } else {
-          // over — center between first and last actor
-          if (note.actorIds.length > 1) {
-            const lastActorIdx = actorIndex.get(note.actorIds[note.actorIds.length - 1] ?? '') ?? firstActorIdx
-            noteX = (actorCenterX[firstActorIdx]! + actorCenterX[lastActorIdx]!) / 2 - noteW / 2
-          } else {
-            noteX = actorCenterX[firstActorIdx]! - noteW / 2
-          }
-        }
-
-        positionedNotes.push({
-          text: note.text,
-          x: noteX,
-          y: noteY,
-          width: noteW,
-          height: noteH,
-          position: note.position,
-          actors: note.actorIds,
-        })
-
-        noteY += noteH + 4 // Stack next note below with gap
+        const positioned = positionNote(note, noteY)
+        positionedNotes.push(positioned)
+        noteY += positioned.height + 4 // Stack next note below with gap
       }
 
       // Push messageY forward if notes extended beyond the normal advance.
@@ -400,6 +409,8 @@ export function layoutSequenceDiagram(
   return {
     width: Math.max(diagramWidth, 200),
     height: Math.max(diagramHeight, 100),
+    accessibilityTitle: diagram.accessibilityTitle,
+    accessibilityDescription: diagram.accessibilityDescription,
     actors,
     lifelines,
     messages,

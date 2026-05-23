@@ -324,6 +324,37 @@ describe('renderSvg – edges', () => {
     expect(svg).toContain('marker-end="url(#arrowhead)"')
     expect(svg).toContain('marker-start="url(#arrowhead-start)"')
   })
+
+  it('renders circle and cross endpoint marker families only when needed', () => {
+    const graph = makeGraph({
+      edges: [
+        makeEdge({ hasArrowStart: true, hasArrowEnd: true, startMarker: 'circle', endMarker: 'cross' }),
+      ],
+    })
+    const svg = renderSvg(graph, lightColors)
+    expect(svg).toContain('<marker id="circlehead"')
+    expect(svg).toContain('<marker id="crosshead"')
+    expect(svg).toContain('marker-start="url(#circlehead-start)"')
+    expect(svg).toContain('marker-end="url(#crosshead)"')
+    expect(svg).toContain('data-marker-start="circle"')
+    expect(svg).toContain('data-marker-end="cross"')
+  })
+
+  it('uses custom-stroke circle/cross marker defs when linkStyle changes edge color', () => {
+    const graph = makeGraph({
+      edges: [makeEdge({ hasArrowEnd: true, endMarker: 'circle', inlineStyle: { stroke: '#ff0000' } })],
+    })
+    const svg = renderSvg(graph, lightColors)
+    expect(svg).toContain('<marker id="circlehead-23ff0000"')
+    expect(svg).toContain('marker-end="url(#circlehead-23ff0000)"')
+    expect(svg).toContain('stroke="#ff0000"')
+  })
+
+  it('does not emit circle/cross marker defs for ordinary arrows', () => {
+    const svg = renderSvg(makeGraph({ edges: [makeEdge()] }), lightColors)
+    expect(svg).not.toContain('<marker id="circlehead"')
+    expect(svg).not.toContain('<marker id="crosshead"')
+  })
 })
 
 // ============================================================================
@@ -422,6 +453,20 @@ describe('renderSvg – inline styles', () => {
     const graph = makeGraph({ nodes: [node] })
     const svg = renderSvg(graph, lightColors)
     expect(svg).toContain('fill="#0000ff"')
+  })
+
+  it('auto-selects readable text for concrete custom fills without explicit color', () => {
+    const lightFill = renderSvg(makeGraph({ nodes: [makeNode({ inlineStyle: { fill: '#FFFACD' } })] }), darkColors)
+    expect(lightFill).toContain('fill="#000000"')
+
+    const darkFill = renderSvg(makeGraph({ nodes: [makeNode({ inlineStyle: { fill: 'rgb(20, 20, 30)' } })] }), lightColors)
+    expect(darkFill).toContain('fill="#FFFFFF"')
+  })
+
+  it('does not auto-contrast unresolved CSS variable fills', () => {
+    const node = makeNode({ inlineStyle: { fill: 'var(--custom-fill)' } })
+    const svg = renderSvg(makeGraph({ nodes: [node] }), darkColors)
+    expect(svg).toContain('fill="var(--_text)"')
   })
 
   it('falls back to theme when no inline style', () => {

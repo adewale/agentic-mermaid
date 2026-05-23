@@ -33,22 +33,22 @@ Issues found by auditing architecture against all other diagram types (2026-03-2
 
 ### Cross-cutting
 
-- [ ] Add theme tests for timeline, xychart, sequence, class, and ER diagrams
-- [ ] Add SVG snapshot tests for timeline, xychart, and older diagram types
-- [ ] Add property-based tests for timeline, journey, and architecture diagrams
-- [ ] Add accessibility (accTitle/accDescr) support to sequence, class, and ER parsers/renderers
+- [x] Add theme tests for timeline, xychart, sequence, class, and ER diagrams
+- [x] Add SVG structural snapshot tests for timeline, xychart, and older diagram types
+- [x] Add property-based tests for timeline, journey, and architecture diagrams
+- [x] Add accessibility (accTitle/accDescr) support to sequence, class, and ER parsers/renderers
 
 ### Sequence
 
-- [ ] Add dedicated renderer unit tests
-- [ ] Add ASCII test file
+- [x] Add dedicated renderer unit tests
+- [x] Add ASCII test coverage for notes before the first message
 
 ### Class
 
-- [ ] Add layout tests
-- [ ] Add dedicated renderer unit tests
+- [x] Add layout tests
+- [x] Add dedicated renderer unit tests
 
 ### ER
 
-- [ ] Add layout tests
-- [ ] Add dedicated renderer unit tests
+- [x] Add layout tests
+- [x] Add dedicated renderer unit tests

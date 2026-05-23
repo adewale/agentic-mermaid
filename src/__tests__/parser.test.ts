@@ -329,6 +329,38 @@ describe('parseMermaid – bidirectional arrows', () => {
 })
 
 // ============================================================================
+// Circle/cross endpoint markers (--o/--x)
+// ============================================================================
+
+describe('parseMermaid – circle/cross endpoint markers', () => {
+  it('parses --o and --x as target markers without dropping the target node', () => {
+    const circle = parseMermaid('graph LR\n  A --o B')
+    expect(circle.nodes.has('B')).toBe(true)
+    expect(circle.edges[0]).toMatchObject({ source: 'A', target: 'B', endMarker: 'circle', hasArrowEnd: true })
+
+    const cross = parseMermaid('graph LR\n  A --x B')
+    expect(cross.nodes.has('B')).toBe(true)
+    expect(cross.edges[0]).toMatchObject({ source: 'A', target: 'B', endMarker: 'cross', hasArrowEnd: true })
+  })
+
+  it('parses mixed source and target circle/cross markers', () => {
+    const graph = parseMermaid('graph LR\n  A o--x B\n  C x--o D')
+    expect(graph.edges[0]).toMatchObject({ startMarker: 'circle', endMarker: 'cross', hasArrowStart: true, hasArrowEnd: true })
+    expect(graph.edges[1]).toMatchObject({ startMarker: 'cross', endMarker: 'circle', hasArrowStart: true, hasArrowEnd: true })
+  })
+
+  it('keeps default arrow marker semantics for existing arrow syntax', () => {
+    const graph = parseMermaid('graph LR\n  A <--> B')
+    expect(graph.edges[0]).toMatchObject({ startMarker: 'arrow', endMarker: 'arrow' })
+  })
+
+  it('parses labels on circle/cross marker edges', () => {
+    const graph = parseMermaid('graph LR\n  A --o|maybe| B')
+    expect(graph.edges[0]).toMatchObject({ label: 'maybe', endMarker: 'circle' })
+  })
+})
+
+// ============================================================================
 // Text-embedded edge labels (fixes #32)
 // Based on PR #36 by @liuxiaopai-ai
 // ============================================================================

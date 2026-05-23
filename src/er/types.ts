@@ -7,6 +7,10 @@
 
 /** Parsed ER diagram — logical structure from mermaid text */
 export interface ErDiagram {
+  /** Optional accessibility title (Mermaid accTitle) */
+  accessibilityTitle?: string
+  /** Optional accessibility description (Mermaid accDescr) */
+  accessibilityDescription?: string
   /** All entity definitions */
   entities: ErEntity[]
   /** Relationships between entities */
@@ -61,6 +65,8 @@ export interface ErRelationship {
 export interface PositionedErDiagram {
   width: number
   height: number
+  accessibilityTitle?: string
+  accessibilityDescription?: string
   entities: PositionedErEntity[]
   relationships: PositionedErRelationship[]
 }

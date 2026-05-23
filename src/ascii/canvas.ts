@@ -8,6 +8,7 @@
 
 import type { Canvas, DrawingCoord, RoleCanvas, CharRole, AsciiTheme, ColorMode } from './types.ts'
 import { colorizeLine, DEFAULT_ASCII_THEME } from './ansi.ts'
+import { charVisualWidth, WIDE_CHAR_CONTINUATION } from './width.ts'
 
 /**
  * Create a blank canvas filled with spaces.
@@ -294,7 +295,8 @@ export function canvasToString(canvas: Canvas, options?: CanvasToStringOptions):
       // Plain text output — no colors
       let line = ''
       for (let x = 0; x <= maxX; x++) {
-        line += canvas[x]![y]!
+        const ch = canvas[x]![y]!
+        if (ch !== WIDE_CHAR_CONTINUATION) line += ch
       }
       lines.push(line)
     } else {
@@ -302,8 +304,11 @@ export function canvasToString(canvas: Canvas, options?: CanvasToStringOptions):
       const chars: string[] = []
       const roles: (CharRole | null)[] = []
       for (let x = 0; x <= maxX; x++) {
-        chars.push(canvas[x]![y]!)
-        roles.push(roleCanvas[x]?.[y] ?? null)
+        const ch = canvas[x]![y]!
+        if (ch !== WIDE_CHAR_CONTINUATION) {
+          chars.push(ch)
+          roles.push(roleCanvas[x]?.[y] ?? null)
+        }
       }
       lines.push(colorizeLine(chars, roles, theme, colorMode))
     }
@@ -387,14 +392,21 @@ export function drawText(
   text: string,
   forceOverwrite = false
 ): void {
-  increaseSize(canvas, start.x + text.length, start.y)
-  for (let i = 0; i < text.length; i++) {
-    const x = start.x + i
+  let width = 0
+  for (const ch of text) width += charVisualWidth(ch)
+  increaseSize(canvas, start.x + width, start.y)
+  let offset = 0
+  for (const ch of text) {
+    const x = start.x + offset
     const current = canvas[x]![start.y]!
     // Only write if target is empty or we're forcing overwrite
     if (forceOverwrite || current === ' ') {
-      canvas[x]![start.y] = text[i]!
+      canvas[x]![start.y] = ch
+      if (charVisualWidth(ch) === 2 && x + 1 < canvas.length) {
+        canvas[x + 1]![start.y] = WIDE_CHAR_CONTINUATION
+      }
     }
+    offset += charVisualWidth(ch)
   }
 }
 

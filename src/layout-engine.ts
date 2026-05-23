@@ -787,6 +787,8 @@ function extractEdgesRecursively(
       style: originalEdge.style,
       hasArrowStart: originalEdge.hasArrowStart,
       hasArrowEnd: originalEdge.hasArrowEnd,
+      startMarker: originalEdge.startMarker,
+      endMarker: originalEdge.endMarker,
       points: orthogonalPoints,
       labelPosition,
       inlineStyle: resolveEdgeStyle(edgeIndex, graph),

@@ -102,6 +102,33 @@ export function renderSequenceAscii(text: string, config: AsciiConfig, colorMode
 
   let curY = actorBoxH // start right below header boxes
 
+  const positionNote = (note: SequenceDiagram['notes'][number], y: number) => {
+    const nLines = splitLines(note.text)
+    const nWidth = Math.max(...nLines.map(line => maxLineWidth(line)), 0) + 4
+    const nHeight = nLines.length + 2
+    const aIdx = actorIdx.get(note.actorIds[0]!) ?? 0
+    let nx: number
+    if (note.position === 'left') {
+      nx = llX[aIdx]! - nWidth - 1
+    } else if (note.position === 'right') {
+      nx = llX[aIdx]! + 2
+    } else if (note.actorIds.length >= 2) {
+      const aIdx2 = actorIdx.get(note.actorIds[note.actorIds.length - 1]!) ?? aIdx
+      nx = Math.floor((llX[aIdx]! + llX[aIdx2]!) / 2) - Math.floor(nWidth / 2)
+    } else {
+      nx = llX[aIdx]! - Math.floor(nWidth / 2)
+    }
+    return { x: Math.max(0, nx), y, width: nWidth, height: nHeight, lines: nLines }
+  }
+
+  for (const note of diagram.notes) {
+    if (note.afterIndex !== -1) continue
+    curY += 1
+    const positioned = positionNote(note, curY)
+    notePositions.push(positioned)
+    curY += positioned.height
+  }
+
   for (let m = 0; m < diagram.messages.length; m++) {
     // Block openings at this message
     for (let b = 0; b < diagram.blocks.length; b++) {
@@ -147,30 +174,9 @@ export function renderSequenceAscii(text: string, config: AsciiConfig, colorMode
       if (diagram.notes[n]!.afterIndex === m) {
         curY += 1
         const note = diagram.notes[n]!
-        const nLines = splitLines(note.text)
-        const nWidth = Math.max(...nLines.map(l => l.length)) + 4
-        const nHeight = nLines.length + 2
-
-        // Determine x position based on note.position
-        const aIdx = actorIdx.get(note.actorIds[0]!) ?? 0
-        let nx: number
-        if (note.position === 'left') {
-          nx = llX[aIdx]! - nWidth - 1
-        } else if (note.position === 'right') {
-          nx = llX[aIdx]! + 2
-        } else {
-          // 'over' — center over actor(s)
-          if (note.actorIds.length >= 2) {
-            const aIdx2 = actorIdx.get(note.actorIds[1]!) ?? aIdx
-            nx = Math.floor((llX[aIdx]! + llX[aIdx2]!) / 2) - Math.floor(nWidth / 2)
-          } else {
-            nx = llX[aIdx]! - Math.floor(nWidth / 2)
-          }
-        }
-        nx = Math.max(0, nx)
-
-        notePositions.push({ x: nx, y: curY, width: nWidth, height: nHeight, lines: nLines })
-        curY += nHeight
+        const positioned = positionNote(note, curY)
+        notePositions.push(positioned)
+        curY += positioned.height
       }
     }
 

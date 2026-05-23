@@ -102,6 +102,28 @@ describe('ASCII edge styles', () => {
     })
   })
 
+  describe('circle and cross endpoint markers', () => {
+    it('renders --o and --x target markers while preserving target nodes', () => {
+      const circle = renderMermaidAscii('graph LR\n  A --o B')
+      expect(circle).toContain('◯')
+      expect(circle).toContain('B')
+
+      const cross = renderMermaidAscii('graph LR\n  A --x B')
+      expect(cross).toContain('✕')
+      expect(cross).toContain('B')
+    })
+
+    it('renders mixed endpoint markers in unicode and ascii modes', () => {
+      const unicode = renderMermaidAscii('graph LR\n  A o--x B')
+      expect(unicode).toContain('◯')
+      expect(unicode).toContain('✕')
+
+      const ascii = renderMermaidAscii('graph LR\n  A x--o B', { useAscii: true })
+      expect(ascii).toContain('x')
+      expect(ascii).toContain('o')
+    })
+  })
+
   describe('mixed edge styles', () => {
     it('renders different styles in the same diagram', () => {
       const result = renderMermaidAscii(`

@@ -39,14 +39,25 @@ export function renderErSvg(
   transparent: boolean = false
 ): string {
   const parts: string[] = []
+  const uid = `er-${hashAccessibility(diagram.width, diagram.height, diagram.entities.length, diagram.relationships.length)}`
+  const titleId = `${uid}-title`
+  const descId = `${uid}-desc`
+  const rootAttrs = buildAccessibilityAttrs(diagram.accessibilityTitle, diagram.accessibilityDescription, titleId, descId)
 
   // SVG root with CSS variables + style block (with mono font) + defs
-  parts.push(svgOpenTag(diagram.width, diagram.height, colors, transparent))
+  parts.push(svgOpenTag(diagram.width, diagram.height, colors, transparent, rootAttrs))
   parts.push(buildStyleBlock(font, true, colors.shadow))
   parts.push('<defs>')
   const shadowDefs = buildShadowDefs(colors)
   if (shadowDefs) parts.push(shadowDefs)
   parts.push('</defs>')
+
+  if (diagram.accessibilityTitle) {
+    parts.push(`<title id="${titleId}">${escapeXml(diagram.accessibilityTitle)}</title>`)
+  }
+  if (diagram.accessibilityDescription) {
+    parts.push(`<desc id="${descId}">${escapeXml(diagram.accessibilityDescription)}</desc>`)
+  }
 
   // 1. Relationship lines
   for (const rel of diagram.relationships) {
@@ -409,6 +420,29 @@ function midpoint(points: Array<{ x: number; y: number }>): { x: number; y: numb
 
 // Use shared escapeXml from multiline-utils
 const escapeXml = escapeXmlUtil
+
+function buildAccessibilityAttrs(
+  title: string | undefined,
+  description: string | undefined,
+  titleId: string,
+  descId: string,
+): Record<string, string> {
+  if (!title && !description) return {}
+  const attrs: Record<string, string> = { role: 'img' }
+  if (title) attrs['aria-labelledby'] = titleId
+  if (description) attrs['aria-describedby'] = descId
+  return attrs
+}
+
+function hashAccessibility(...values: Array<string | number>): string {
+  let h = 0x811c9dc5
+  const text = values.join('|')
+  for (let i = 0; i < text.length; i++) {
+    h ^= text.charCodeAt(i)
+    h = Math.imul(h, 0x01000193)
+  }
+  return (h >>> 0).toString(36)
+}
 
 /**
  * Escape a string for use as an XML/HTML attribute value.

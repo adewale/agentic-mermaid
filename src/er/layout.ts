@@ -139,6 +139,8 @@ function extractErLayout(
   return {
     width: result.width ?? 600,
     height: result.height ?? 400,
+    accessibilityTitle: diagram.accessibilityTitle,
+    accessibilityDescription: diagram.accessibilityDescription,
     entities: positionedEntities,
     relationships,
   }
@@ -152,7 +154,7 @@ export function layoutErDiagramSync(
   options: RenderOptions = {}
 ): PositionedErDiagram {
   if (diagram.entities.length === 0) {
-    return { width: 0, height: 0, entities: [], relationships: [] }
+    return { width: 0, height: 0, accessibilityTitle: diagram.accessibilityTitle, accessibilityDescription: diagram.accessibilityDescription, entities: [], relationships: [] }
   }
 
   const { elkGraph, entitySizes } = buildErElkGraph(diagram, options)

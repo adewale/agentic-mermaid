@@ -1,4 +1,4 @@
-import type { PositionedGraph, PositionedNode, PositionedEdge, PositionedGroup, Point } from './types.ts'
+import type { PositionedGraph, PositionedNode, PositionedEdge, PositionedGroup, Point, EdgeMarker } from './types.ts'
 import type { DiagramColors } from './theme.ts'
 import { svgOpenTag, buildStyleBlock, buildShadowDefs } from './theme.ts'
 import { FONT_SIZES, FONT_WEIGHTS, STROKE_WIDTHS, ARROW_HEAD, estimateTextWidth, TEXT_BASELINE_SHIFT } from './styles.ts'
@@ -49,13 +49,19 @@ export function renderSvg(
   if (shadowDefs) parts.push(shadowDefs)
   // Per-color arrow markers for edges with custom stroke via linkStyle
   const customStrokeColors = new Set<string>()
+  let needsCircle = false
+  let needsCross = false
   for (const edge of graph.edges) {
-    if (edge.inlineStyle?.stroke) {
-      customStrokeColors.add(edge.inlineStyle.stroke)
-    }
+    if (edge.inlineStyle?.stroke) customStrokeColors.add(edge.inlineStyle.stroke)
+    if (edge.startMarker === 'circle' || edge.endMarker === 'circle') needsCircle = true
+    if (edge.startMarker === 'cross' || edge.endMarker === 'cross') needsCross = true
   }
+  if (needsCircle) parts.push(circleMarkerDefs())
+  if (needsCross) parts.push(crossMarkerDefs())
   for (const color of customStrokeColors) {
     parts.push(arrowMarkerDefsForColor(color))
+    if (needsCircle) parts.push(circleMarkerDefs(color))
+    if (needsCross) parts.push(crossMarkerDefs(color))
   }
   parts.push('</defs>')
 
@@ -109,9 +115,10 @@ function arrowMarkerDefs(): string {
     `  <marker id="arrowhead" markerWidth="${w}" markerHeight="${h}" refX="${refX}" refY="${h / 2}" orient="auto">` +
     `\n    <polygon points="0 0, ${w} ${h / 2}, 0 ${h}" ${arrowStyle} />` +
     `\n  </marker>` +
-    // Reverse arrow (marker-start) — refX=1 so it sits at the line start with slight offset, auto-start-reverse flips it
-    `\n  <marker id="arrowhead-start" markerWidth="${w}" markerHeight="${h}" refX="1" refY="${h / 2}" orient="auto-start-reverse">` +
-    `\n    <polygon points="${w} 0, 0 ${h / 2}, ${w} ${h}" ${arrowStyle} />` +
+    // Reverse arrow (marker-start) uses the same geometry as marker-end;
+    // auto-start-reverse handles orientation without a hand-flipped polygon.
+    `\n  <marker id="arrowhead-start" markerWidth="${w}" markerHeight="${h}" refX="${refX}" refY="${h / 2}" orient="auto-start-reverse">` +
+    `\n    <polygon points="0 0, ${w} ${h / 2}, 0 ${h}" ${arrowStyle} />` +
     `\n  </marker>`
   )
 }
@@ -131,10 +138,51 @@ function arrowMarkerDefsForColor(color: string): string {
     `  <marker id="arrowhead-${suffix}" markerWidth="${w}" markerHeight="${h}" refX="${refX}" refY="${h / 2}" orient="auto">` +
     `\n    <polygon points="0 0, ${w} ${h / 2}, 0 ${h}" ${arrowStyle} />` +
     `\n  </marker>` +
-    `\n  <marker id="arrowhead-start-${suffix}" markerWidth="${w}" markerHeight="${h}" refX="1" refY="${h / 2}" orient="auto-start-reverse">` +
-    `\n    <polygon points="${w} 0, 0 ${h / 2}, ${w} ${h}" ${arrowStyle} />` +
+    `\n  <marker id="arrowhead-start-${suffix}" markerWidth="${w}" markerHeight="${h}" refX="${refX}" refY="${h / 2}" orient="auto-start-reverse">` +
+    `\n    <polygon points="0 0, ${w} ${h / 2}, 0 ${h}" ${arrowStyle} />` +
     `\n  </marker>`
   )
+}
+
+function circleMarkerDefs(color?: string): string {
+  const size = ARROW_HEAD.width
+  const suffix = color ? `-${markerSuffix(color)}` : ''
+  const stroke = color ? escapeAttr(color) : 'var(--_arrow)'
+  const r = size / 2 - 0.75
+  return (
+    `  <marker id="circlehead${suffix}" markerWidth="${size}" markerHeight="${size}" refX="${size - 0.5}" refY="${size / 2}" orient="auto">` +
+    `\n    <circle cx="${size / 2}" cy="${size / 2}" r="${r}" fill="none" stroke="${stroke}" stroke-width="1" />` +
+    `\n  </marker>` +
+    `\n  <marker id="circlehead-start${suffix}" markerWidth="${size}" markerHeight="${size}" refX="0.5" refY="${size / 2}" orient="auto-start-reverse">` +
+    `\n    <circle cx="${size / 2}" cy="${size / 2}" r="${r}" fill="none" stroke="${stroke}" stroke-width="1" />` +
+    `\n  </marker>`
+  )
+}
+
+function crossMarkerDefs(color?: string): string {
+  const size = ARROW_HEAD.width
+  const suffix = color ? `-${markerSuffix(color)}` : ''
+  const stroke = color ? escapeAttr(color) : 'var(--_arrow)'
+  const pad = 1.25
+  const a = pad
+  const b = size - pad
+  const style = `stroke="${stroke}" stroke-width="1.25" stroke-linecap="round"`
+  return (
+    `  <marker id="crosshead${suffix}" markerWidth="${size}" markerHeight="${size}" refX="${size / 2}" refY="${size / 2}" orient="auto">` +
+    `\n    <line x1="${a}" y1="${a}" x2="${b}" y2="${b}" ${style} />` +
+    `\n    <line x1="${a}" y1="${b}" x2="${b}" y2="${a}" ${style} />` +
+    `\n  </marker>` +
+    `\n  <marker id="crosshead-start${suffix}" markerWidth="${size}" markerHeight="${size}" refX="${size / 2}" refY="${size / 2}" orient="auto-start-reverse">` +
+    `\n    <line x1="${a}" y1="${a}" x2="${b}" y2="${b}" ${style} />` +
+    `\n    <line x1="${a}" y1="${b}" x2="${b}" y2="${a}" ${style} />` +
+    `\n  </marker>`
+  )
+}
+
+function markerIdPrefix(marker: EdgeMarker): string {
+  if (marker === 'circle') return 'circlehead'
+  if (marker === 'cross') return 'crosshead'
+  return 'arrowhead'
 }
 
 /** Sanitize a color value into a collision-free SVG ID suffix.
@@ -209,8 +257,14 @@ function renderEdge(edge: PositionedEdge): string {
   // Use color-specific markers when edge has a custom stroke from linkStyle
   const suffix = edge.inlineStyle?.stroke ? `-${markerSuffix(edge.inlineStyle.stroke)}` : ''
   let markers = ''
-  if (edge.hasArrowEnd) markers += ` marker-end="url(#arrowhead${suffix})"`
-  if (edge.hasArrowStart) markers += ` marker-start="url(#arrowhead-start${suffix})"`
+  if (edge.hasArrowEnd) {
+    const prefix = markerIdPrefix(edge.endMarker ?? 'arrow')
+    markers += ` marker-end="url(#${prefix}${suffix})"`
+  }
+  if (edge.hasArrowStart) {
+    const prefix = markerIdPrefix(edge.startMarker ?? 'arrow')
+    markers += ` marker-start="url(#${prefix}-start${suffix})"`
+  }
 
   // Semantic data attributes for edge identification and inspection:
   // - class="edge": CSS targeting and type identification
@@ -226,6 +280,8 @@ function renderEdge(edge: PositionedEdge): string {
     `data-arrow-start="${edge.hasArrowStart}"`,
     `data-arrow-end="${edge.hasArrowEnd}"`,
   ]
+  if (edge.hasArrowStart) dataAttrs.push(`data-marker-start="${edge.startMarker ?? 'arrow'}"`)
+  if (edge.hasArrowEnd) dataAttrs.push(`data-marker-end="${edge.endMarker ?? 'arrow'}"`)
   if (edge.label) {
     dataAttrs.push(`data-label="${escapeAttr(edge.label)}"`)
   }
@@ -569,6 +625,44 @@ function renderStateEnd(x: number, y: number, w: number, h: number): string {
 // Node label rendering
 // ============================================================================
 
+function parseHexToRgb(hex: string): { r: number; g: number; b: number } | null {
+  const match = hex.match(/^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$/)
+  if (!match) return null
+  const raw = match[1]!
+  const full = raw.length === 3
+    ? raw.split('').map(ch => ch + ch).join('')
+    : raw
+  return {
+    r: Number.parseInt(full.slice(0, 2), 16),
+    g: Number.parseInt(full.slice(2, 4), 16),
+    b: Number.parseInt(full.slice(4, 6), 16),
+  }
+}
+
+function parseRgbFunction(color: string): { r: number; g: number; b: number } | null {
+  const match = color.match(/^rgba?\(\s*(\d{1,3})(?:\s*,\s*|\s+)(\d{1,3})(?:\s*,\s*|\s+)(\d{1,3})/i)
+  if (!match) return null
+  const rgb = {
+    r: Number.parseInt(match[1]!, 10),
+    g: Number.parseInt(match[2]!, 10),
+    b: Number.parseInt(match[3]!, 10),
+  }
+  return Object.values(rgb).every(v => v >= 0 && v <= 255) ? rgb : null
+}
+
+function contrastTextColor(fill: string): string | undefined {
+  const rgb = parseHexToRgb(fill) ?? parseRgbFunction(fill)
+  if (!rgb) return undefined
+  const brightness = (rgb.r * 299 + rgb.g * 587 + rgb.b * 114) / 1000
+  return brightness > 140 ? '#000000' : '#FFFFFF'
+}
+
+function nodeTextColor(node: PositionedNode): string {
+  if (node.inlineStyle?.color) return node.inlineStyle.color
+  if (node.inlineStyle?.fill) return contrastTextColor(node.inlineStyle.fill) ?? 'var(--_text)'
+  return 'var(--_text)'
+}
+
 function renderNodeLabel(node: PositionedNode, font: string): string {
   // State pseudostates have no label
   if (node.shape === 'state-start' || node.shape === 'state-end') {
@@ -578,8 +672,7 @@ function renderNodeLabel(node: PositionedNode, font: string): string {
   const cx = node.x + node.width / 2
   const cy = node.y + node.height / 2
 
-  // Resolve text color — inline styles can override the CSS variable default
-  const textColor = escapeAttr(node.inlineStyle?.color ?? 'var(--_text)')
+  const textColor = escapeAttr(nodeTextColor(node))
 
   return renderMultilineText(
     node.label,

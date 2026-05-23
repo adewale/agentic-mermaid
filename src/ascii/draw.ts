@@ -8,7 +8,7 @@
 
 import type {
   Canvas, DrawingCoord, GridCoord, Direction,
-  AsciiGraph, AsciiNode, AsciiEdge, AsciiSubgraph, AsciiEdgeStyle, EdgeBundle,
+  AsciiGraph, AsciiNode, AsciiEdge, AsciiSubgraph, AsciiEdgeStyle, EdgeBundle, EdgeMarker,
 } from './types.ts'
 import {
   Up, Down, Left, Right, UpperLeft, UpperRight, LowerLeft, LowerRight, Middle,
@@ -19,6 +19,7 @@ import type { RoleCanvas, CharRole } from './types.ts'
 import { determineDirection, dirEquals } from './edge-routing.ts'
 import { gridToDrawingCoord, lineToDrawing } from './grid.ts'
 import { splitLines } from './multiline-utils.ts'
+import { visualWidth } from './width.ts'
 import { getCorners } from './shapes/corners.ts'
 import { getShapeAttachmentPoint } from './shapes/index.ts'
 
@@ -104,12 +105,8 @@ function drawBoxWithGridDimensions(node: AsciiNode, graph: AsciiGraph): Canvas {
 
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i]!
-    const textX = from.x + Math.floor(w / 2) - Math.ceil(line.length / 2) + 1
-    for (let j = 0; j < line.length; j++) {
-      if (textX + j >= 0 && textX + j < box.length && startY + i >= 0 && startY + i < box[0]!.length) {
-        box[textX + j]![startY + i] = line[j]!
-      }
-    }
+    const textX = from.x + Math.floor(w / 2) - Math.ceil(visualWidth(line) / 2) + 1
+    drawText(box, { x: textX, y: startY + i }, line, true)
   }
 
   return box
@@ -147,7 +144,7 @@ export function drawMultiBox(
   let maxTextWidth = 0
   for (const section of sections) {
     for (const line of section) {
-      maxTextWidth = Math.max(maxTextWidth, line.length)
+      maxTextWidth = Math.max(maxTextWidth, visualWidth(line))
     }
   }
   const innerWidth = maxTextWidth + 2 * padding
@@ -198,9 +195,7 @@ export function drawMultiBox(
     // Draw section text lines
     for (const line of lines) {
       const startX = 1 + padding
-      for (let i = 0; i < line.length; i++) {
-        canvas[startX + i]![row] = line[i]!
-      }
+      drawText(canvas, { x: startX, y: row }, line, true)
       row++
     }
 
@@ -390,13 +385,14 @@ export function drawArrow(
   const [pathCanvas, linesDrawn, lineDirs] = drawPath(graph, edge.path, edge.style)
   const boxStartCanvas = drawBoxStart(graph, edge.path, linesDrawn[0]!, edge.from.shape)
 
-  // Draw end arrowhead only if hasArrowEnd is true (default behavior)
+  // Draw end marker only if hasArrowEnd is true (default behavior)
   let arrowHeadEndCanvas: Canvas
   if (edge.hasArrowEnd) {
-    arrowHeadEndCanvas = drawArrowHead(
+    arrowHeadEndCanvas = drawEndpointMarker(
       graph,
       linesDrawn[linesDrawn.length - 1]!,
       lineDirs[lineDirs.length - 1]!,
+      edge.endMarker,
     )
   } else {
     arrowHeadEndCanvas = copyCanvas(graph.canvas)
@@ -418,9 +414,9 @@ export function drawArrow(
     else if (dirEquals(lineDirs[0]!, Down)) arrowPos.y = firstPoint.y - 1
     else if (dirEquals(lineDirs[0]!, Up)) arrowPos.y = firstPoint.y + 1
 
-    // Create a synthetic line ending at the arrow position for drawArrowHead
+    // Create a synthetic line ending at the marker position.
     const syntheticLine: DrawingCoord[] = [firstPoint, arrowPos]
-    arrowHeadStartCanvas = drawArrowHead(graph, syntheticLine, startDir)
+    arrowHeadStartCanvas = drawEndpointMarker(graph, syntheticLine, startDir, edge.startMarker)
   } else {
     arrowHeadStartCanvas = copyCanvas(graph.canvas)
   }
@@ -508,6 +504,28 @@ function drawBoxStart(
   else if (dirEquals(dir, Right)) canvas[from.x - 1]![from.y] = '├'
 
   return canvas
+}
+
+function endpointMarkerChar(marker: Exclude<EdgeMarker, 'arrow'>, useAscii: boolean): string {
+  if (useAscii) return marker === 'circle' ? 'o' : 'x'
+  return marker === 'circle' ? '◯' : '✕'
+}
+
+function drawEndpointMarker(
+  graph: AsciiGraph,
+  lastLine: DrawingCoord[],
+  fallbackDir: Direction,
+  marker: EdgeMarker | undefined,
+): Canvas {
+  if (marker === 'circle' || marker === 'cross') {
+    const canvas = copyCanvas(graph.canvas)
+    if (lastLine.length === 0) return canvas
+    const lastPos = lastLine[lastLine.length - 1]!
+    canvas[lastPos.x]![lastPos.y] = endpointMarkerChar(marker, graph.config.useAscii)
+    return canvas
+  }
+
+  return drawArrowHead(graph, lastLine, fallbackDir)
 }
 
 /**
