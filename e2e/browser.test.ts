@@ -424,31 +424,59 @@ describe('browser: live editor integration', () => {
     await page.goto(`${BASE}/editor`)
     await waitForEditorRender(60_000)
 
-    await page.fill('#code-editor', `architecture-beta
+    const cases = [
+      {
+        source: `architecture-beta
   group app(cloud)[Application]
   service api(server)[Public API] in app
   service db(database)[Postgres] in app
-  api:B --> T:db`)
-    await page.waitForFunction(
-      () => document.querySelector('#preview-inner svg')?.outerHTML.includes('Public API') ?? false,
-      { timeout: 60_000 },
-    )
-    expect(await page.evaluate(
-      () => document.querySelector('#preview-inner svg')?.outerHTML.includes('Public API') ?? false,
-    )).toBe(true)
-
-    await page.fill('#code-editor', `xychart-beta
+  api:B --> T:db`,
+        markers: ['Public API', 'Postgres', 'architecture-group'],
+      },
+      {
+        source: `timeline
+  title Product roadmap
+  section Foundation
+  2024 : Private alpha
+       : Public beta`,
+        markers: ['Product roadmap', 'Private alpha', 'timeline-period'],
+      },
+      {
+        source: `journey
+  title Onboarding
+  section Discover
+    Read docs: 4: User
+    Try editor: 5: User, Developer`,
+        markers: ['Onboarding', 'Try editor', 'journey-task'],
+      },
+      {
+        source: `xychart-beta
   title "Editor Sales"
   x-axis [Widgets, Gadgets, Gizmos]
   bar [150, 230, 180]
-  line [120, 210, 200]`)
-    await page.waitForFunction(
-      () => document.querySelector('#preview-inner svg')?.outerHTML.includes('Editor Sales') ?? false,
-      { timeout: 60_000 },
-    )
-    expect(await page.evaluate(
-      () => document.querySelector('#preview-inner svg')?.outerHTML.includes('Editor Sales') ?? false,
-    )).toBe(true)
+  line [120, 210, 200]`,
+        markers: ['Editor Sales', 'xychart-bar', 'xychart-line'],
+      },
+    ]
+
+    for (const testCase of cases) {
+      await page.fill('#code-editor', testCase.source)
+      await page.waitForFunction(
+        (markers: string[]) => {
+          const html = document.querySelector('#preview-inner svg')?.outerHTML ?? ''
+          return markers.every(marker => html.includes(marker))
+        },
+        testCase.markers,
+        { timeout: 60_000 },
+      )
+      expect(await page.evaluate(
+        (markers: string[]) => {
+          const html = document.querySelector('#preview-inner svg')?.outerHTML ?? ''
+          return markers.every(marker => html.includes(marker))
+        },
+        testCase.markers,
+      )).toBe(true)
+    }
   }, 120_000)
 
   it('uses local theme registry entries in the editor theme dropdown', async () => {
