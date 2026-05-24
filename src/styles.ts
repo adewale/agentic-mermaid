@@ -223,6 +223,9 @@ export function resolveRenderStyle(
   const edge = options.style?.edge
   const group = options.style?.group
   const explicitGroupPaddingX = nonNegativeNumber(undefined, group?.paddingX)
+  const cornerRadius = defaults.nodeCornerRadius == null
+    ? nonNegativeNumber(undefined, node?.cornerRadius)
+    : nonNegativeNumber(defaults.nodeCornerRadius, node?.cornerRadius)
 
   return {
     nodeLabelFontSize: positiveNumber(defaults.nodeLabelFontSize, node?.fontSize, text?.fontSize),
@@ -237,7 +240,7 @@ export function resolveRenderStyle(
     nodePaddingX: nonNegativeNumber(defaults.nodePaddingX, node?.paddingX),
     nodePaddingY: nonNegativeNumber(defaults.nodePaddingY, node?.paddingY),
     diamondExtraPadding: defaults.diamondExtraPadding ?? NODE_PADDING.diamondExtra,
-    cornerRadius: nonNegativeNumber(defaults.nodeCornerRadius, node?.cornerRadius),
+    cornerRadius,
     nodeLineWidth: positiveNumber(defaults.nodeLineWidth ?? STROKE_WIDTHS.innerBox, node?.lineWidth),
     lineWidth: positiveNumber(defaults.edgeLineWidth, edge?.lineWidth),
     edgeBendRadius: nonNegativeNumber(defaults.edgeBendRadius ?? 0, edge?.bendRadius),
