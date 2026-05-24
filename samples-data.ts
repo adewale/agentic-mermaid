@@ -10,14 +10,57 @@
  * variant is exercised by at least one sample.
  */
 
+import type { RenderOptions } from './src/types.ts'
+
 export interface Sample {
   title: string
   description: string
   source: string
   /** Optional category tag for grouping in the Table of Contents */
   category?: string
-  options?: { bg?: string; fg?: string; line?: string; accent?: string; muted?: string; surface?: string; border?: string; font?: string; padding?: number; transparent?: boolean; interactive?: boolean }
+  options?: RenderOptions
 }
+
+const semanticRoleShowcaseOptions = {
+  bg: '#fffaf3',
+  fg: '#2f2418',
+  line: '#b45309',
+  accent: '#ea580c',
+  muted: '#78716c',
+  surface: '#ffedd5',
+  border: '#fdba74',
+  font: 'Geist',
+  style: {
+    text: { fontSize: 13, letterSpacing: 0.1 },
+    node: {
+      fontSize: 15,
+      fontWeight: 600,
+      letterSpacing: -0.1,
+      paddingX: 22,
+      paddingY: 14,
+      cornerRadius: 16,
+      lineWidth: 1.5,
+    },
+    edge: {
+      fontSize: 12,
+      fontWeight: 600,
+      letterSpacing: 0.1,
+      lineWidth: 2.25,
+      bendRadius: 12,
+    },
+    group: {
+      fontSize: 12,
+      fontWeight: 700,
+      letterSpacing: 0.8,
+      textTransform: 'uppercase',
+      paddingX: 24,
+      paddingY: 18,
+      cornerRadius: 18,
+      borderColor: '#f97316',
+      lineWidth: 1.5,
+    },
+  },
+} satisfies RenderOptions
 
 export const samples: Sample[] = [
 
@@ -1451,5 +1494,125 @@ export const samples: Sample[] = [
     line [72, 65, 58, 50, 45, 38, 30, 22, 12, 0]
     line [72, 65, 58, 50, 43, 36, 29, 22, 14, 0]`,
     options: { interactive: true },
+  },
+
+  // ══════════════════════════════════════════════════════════════════════════
+  //  SEMANTIC ROLE STYLE SHOWCASE
+  // ══════════════════════════════════════════════════════════════════════════
+
+  {
+    title: 'Style: Flowchart Roles',
+    category: 'Role Styles',
+    description: 'A flowchart using semantic `text`, `node`, `edge`, and `group` style roles instead of diagram-specific CSS selectors.',
+    source: `flowchart TD
+  subgraph product [Product Loop]
+    A[Capture request] --> B{Ready?}
+    B -->|yes| C[Ship]
+    B -.->|needs work| D[Refine]
+  end`,
+    options: semanticRoleShowcaseOptions,
+  },
+  {
+    title: 'Style: Architecture Roles',
+    category: 'Role Styles',
+    description: 'Architecture services, groups, and connectors consume the same role-based style options as flowcharts.',
+    source: `architecture-beta
+  group edge(cloud)[Edge Layer]
+  group core(server)[Core Services]
+  service web(server)[Web App] in edge
+  service api(server)[API] in core
+  service db(database)[Postgres] in core
+  web:R --> L:api
+  api:R --> L:db`,
+    options: semanticRoleShowcaseOptions,
+  },
+  {
+    title: 'Style: Sequence Roles',
+    category: 'Role Styles',
+    description: 'Sequence participants use `style.node` while messages and labels use `style.edge`.',
+    source: `sequenceDiagram
+  participant U as User
+  participant E as Editor
+  participant R as Renderer
+  U->>E: Change style role
+  E->>R: render(source, options.style)
+  R-->>E: SVG`,
+    options: semanticRoleShowcaseOptions,
+  },
+  {
+    title: 'Style: Class Roles',
+    category: 'Role Styles',
+    description: 'Class boxes, compartments, and relationships are styled through the shared semantic roles.',
+    source: `classDiagram
+  class Renderer {
+    +renderSVG(source) string
+    +renderASCII(source) string
+  }
+  class StyleResolver {
+    +resolveRenderStyle(options) object
+  }
+  Renderer --> StyleResolver : uses`,
+    options: semanticRoleShowcaseOptions,
+  },
+  {
+    title: 'Style: ER Roles',
+    category: 'Role Styles',
+    description: 'ER entities and relationships inherit the same node and edge typography/geometry controls.',
+    source: `erDiagram
+  USER {
+    string id PK
+    string email
+  }
+  DIAGRAM {
+    string id PK
+    string source
+  }
+  EXPORT {
+    string id PK
+    string format
+  }
+  USER ||--o{ DIAGRAM : creates
+  DIAGRAM ||--o{ EXPORT : renders`,
+    options: semanticRoleShowcaseOptions,
+  },
+  {
+    title: 'Style: Timeline Roles',
+    category: 'Role Styles',
+    description: 'Timeline periods and events use semantic card/group roles with matching layout and SVG output.',
+    source: `timeline
+  title Fork Roadmap
+  section Discover
+  2024 Q2 : Audit forks
+          : Extract small PRs
+  section Ship
+  2024 Q3 : Style roles
+          : Live editor presets`,
+    options: semanticRoleShowcaseOptions,
+  },
+  {
+    title: 'Style: Journey Roles',
+    category: 'Role Styles',
+    description: 'Journey task cards, section frames, actor chips, and score blocks follow the role-based style API.',
+    source: `journey
+  title Editor adoption
+  section Try
+    Open preset: 5: User
+    Tune roles: 4: Designer, Developer
+  section Share
+    Copy URL: 5: User
+    Export SVG: 4: Developer`,
+    options: semanticRoleShowcaseOptions,
+  },
+  {
+    title: 'Style: XY Chart Roles',
+    category: 'Role Styles',
+    description: 'XY chart title, axes, grid, and series labels consume the supported shared text/group/edge roles while chart-specific config still controls axes.',
+    source: `xychart
+  title "Styled Adoption"
+  x-axis [Mon, Tue, Wed, Thu, Fri]
+  y-axis "Renders" 0 --> 100
+  bar [25, 42, 58, 74, 88]
+  line [18, 35, 52, 70, 95]`,
+    options: { ...semanticRoleShowcaseOptions, interactive: true },
   },
 ]

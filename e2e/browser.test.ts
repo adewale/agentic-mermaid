@@ -503,6 +503,41 @@ describe('browser: live editor integration', () => {
     )).toBe(true)
   }, 120_000)
 
+  it('loads semantic role style examples from the editor examples dropdown', async () => {
+    await page.goto(`${BASE}/editor`)
+    await waitForEditorRender(60_000)
+
+    await page.click('#example-dropdown-btn')
+    await page.click('.example-dropdown-item[data-example="styled-xychart"]')
+
+    await page.waitForFunction(
+      () => {
+        const html = document.querySelector('#preview-inner svg')?.outerHTML ?? ''
+        return html.includes('Styled Adoption')
+          && html.includes('xychart-bar')
+          && html.includes('stroke-width: 2.25')
+      },
+      { timeout: 60_000 },
+    )
+
+    const hashConfig = await page.evaluate(() => {
+      const hash = window.location.hash.slice(1)
+      const decoded = decodeURIComponent(escape(atob(hash)))
+      const obj = JSON.parse(decoded)
+      return obj.config
+    })
+
+    expect(hashConfig).toMatchObject({
+      style: {
+        node: { cornerRadius: 16 },
+        edge: { lineWidth: 2.25 },
+        group: { textTransform: 'uppercase' },
+      },
+      interactive: true,
+    })
+    expect(await page.evaluate(() => localStorage.getItem('bm-editor-theme'))).toBe('solarized-light')
+  }, 120_000)
+
 })
 
 describe('browser: visual regression', () => {

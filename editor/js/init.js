@@ -84,6 +84,9 @@ var DEFAULT_SOURCE =
 var hashSource = getHashSource();
 if (hashSource) {
   editor.value = hashSource;
+  applyThemeToPage(state.theme);
+  updateThemeButton();
+  refreshAllColorUIs();
 } else {
   editor.value = DEFAULT_SOURCE;
 }

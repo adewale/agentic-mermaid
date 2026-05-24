@@ -73,6 +73,7 @@ async function readJsFiles(): Promise<string> {
     'js/zoom.js',
     'js/pan.js',
     'js/editor-helpers.js',
+    'js/examples.js',
     'js/config-panel.js',
     'js/color-picker.js',
     'js/font-picker.js',

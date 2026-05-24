@@ -11,9 +11,11 @@ Ultra-fast, fully themeable, zero DOM dependencies. Built for the AI era.
 [![npm version](https://img.shields.io/npm/v/beautiful-mermaid.svg)](https://www.npmjs.com/package/beautiful-mermaid)
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
-[**Live Demo & Samples**](https://agents.craft.do/mermaid)
+[**Live Demo & Samples**](https://agents.craft.do/mermaid) · [GitHub Pages mirror](https://adewale.github.io/beautiful-mermaid/) · [Live Editor](https://adewale.github.io/beautiful-mermaid/editor)
 
 **[→ Use it live in Craft Agents](https://agents.craft.do)**
+
+Fork docs: [What changed in this fork](./FORK_DIFFERENCES.md) · [Changelog](./CHANGELOG.md)
 
 </div>
 
@@ -46,6 +48,14 @@ The ASCII rendering engine is based on [mermaid-ascii](https://github.com/Alexan
 - **Mono mode** — Beautiful diagrams from just 2 colors
 - **Zero DOM dependencies** — Pure TypeScript, works everywhere
 - **Ultra-fast** — Renders 100+ diagrams in under 500ms
+
+## Discovering Fork Features
+
+This fork adds several capabilities beyond the current upstream baseline. The fastest discovery paths are:
+
+- Browse the [live sample gallery](https://adewale.github.io/beautiful-mermaid/) and open **Contents → Role Styles** for semantic `style.text/node/edge/group` examples.
+- Try the [live editor](https://adewale.github.io/beautiful-mermaid/editor), then choose **Examples → Styled flowchart / architecture / sequence / class / ER / timeline / journey / xychart**.
+- Read [What changed in this fork](./FORK_DIFFERENCES.md) for fork-vs-upstream context and [CHANGELOG.md](./CHANGELOG.md) for user-facing release notes.
 
 ## Installation
 
@@ -654,7 +664,7 @@ Style overrides are expressed as semantic roles so every diagram family can adop
 | `style.edge` | `fontSize`, `fontWeight`, `letterSpacing`, `lineWidth`, `bendRadius` | Connectors/messages/relationships and their labels |
 | `style.group` | `fontSize`, `fontWeight`, `letterSpacing`, `fontFamily`, `textTransform`, `paddingX`, `paddingY`, `cornerRadius`, `borderColor`, `lineWidth` | Subgraphs/sections/blocks/group containers |
 
-All SVG diagram families consume the roles they support, and each mapping updates both layout sizing and rendered SVG attributes. Diagram-specific Mermaid config remains available for specialized controls such as xychart axes or architecture icons.
+All SVG diagram families consume the roles they support, and each mapping updates both layout sizing and rendered SVG attributes. Diagram-specific Mermaid config remains available for specialized controls such as xychart axes or architecture icons. See the [live Role Styles samples](https://adewale.github.io/beautiful-mermaid/) or load the styled presets from the [editor examples menu](https://adewale.github.io/beautiful-mermaid/editor).
 
 **Auto-detection:** Supported diagram families are routed from the header line automatically, including `architecture-beta`, `timeline`, `journey`, `sequenceDiagram`, `classDiagram`, `erDiagram`, and `xychart-beta`. For xychart, the `accent` color option drives the series palette unless Mermaid config provides `plotColorPalette`, and Mermaid `xyChart.width` / `height` are treated as total chart dimensions, matching Mermaid's own renderer.
 
