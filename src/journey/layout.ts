@@ -8,6 +8,8 @@ import type {
 } from './types.ts'
 import type { RenderOptions } from '../types.ts'
 import { measureMultilineText, measureTextWidth } from '../text-metrics.ts'
+import { STROKE_WIDTHS, resolveRenderStyle } from '../styles.ts'
+import type { RenderStyleDefaults } from '../styles.ts'
 import { stripFormattingTags } from '../multiline-utils.ts'
 
 // ============================================================================
@@ -51,6 +53,25 @@ const JY = {
   actorMinWidth: 44,
 } as const
 
+const JOURNEY_STYLE_DEFAULTS: RenderStyleDefaults = {
+  nodeLabelFontSize: JY.taskFontSize,
+  edgeLabelFontSize: JY.actorFontSize,
+  groupHeaderFontSize: JY.sectionFontSize,
+  nodeLabelFontWeight: JY.taskFontWeight,
+  edgeLabelFontWeight: JY.actorFontWeight,
+  groupHeaderFontWeight: JY.sectionFontWeight,
+  nodePaddingX: JY.taskPadX,
+  nodePaddingY: JY.taskPadY,
+  nodeCornerRadius: 0,
+  nodeLineWidth: STROKE_WIDTHS.outerBox,
+  edgeLineWidth: STROKE_WIDTHS.connector,
+  groupCornerRadius: 0,
+  groupPaddingX: JY.sectionPadX,
+  groupPaddingY: JY.sectionPadY,
+  groupLabelPaddingX: JY.sectionHeaderPadX,
+  groupLineWidth: STROKE_WIDTHS.outerBox,
+}
+
 interface ActorPillMetric {
   label: string
   width: number
@@ -82,8 +103,9 @@ const SCORE_TRACK_WIDTH = JY.scoreCellSize * 5 + JY.scoreCellGap * 4
  */
 export function layoutJourneyDiagram(
   diagram: JourneyDiagram,
-  _options: RenderOptions = {}
+  options: RenderOptions = {}
 ): PositionedJourneyDiagram {
+  const style = resolveRenderStyle(options, JOURNEY_STYLE_DEFAULTS)
   const hasNamedSections = diagram.sections.some(section => !!section.label)
   const showSectionFrames = diagram.sections.length > 1 || hasNamedSections
 
@@ -93,7 +115,7 @@ export function layoutJourneyDiagram(
 
   const headerHeights = diagram.sections
     .map(section => section.label
-      ? measureMultilineText(section.label, JY.sectionFontSize, JY.sectionFontWeight).height + JY.sectionHeaderPadY * 2
+      ? measureMultilineText(section.label, style.groupHeaderFontSize, style.groupHeaderFontWeight).height + Math.max(0, style.groupPaddingY / 3) * 2
       : 0)
   const sectionHeaderHeight = hasNamedSections
     ? Math.max(JY.sectionHeaderMinHeight, ...headerHeights)
@@ -101,20 +123,20 @@ export function layoutJourneyDiagram(
 
   const sectionMetrics: SectionMetric[] = diagram.sections.map(section => {
     const headerWidth = section.label
-      ? measureMultilineText(section.label, JY.sectionFontSize, JY.sectionFontWeight).width + JY.sectionHeaderPadX * 2
+      ? measureMultilineText(section.label, style.groupHeaderFontSize, style.groupHeaderFontWeight).width + style.groupLabelPaddingX * 2
       : 0
 
     const taskMetrics: TaskMetric[] = section.tasks.map(task => {
-      const text = measureMultilineText(task.text, JY.taskFontSize, JY.taskFontWeight)
+      const text = measureMultilineText(task.text, style.nodeLabelFontSize, style.nodeLabelFontWeight)
       const topAreaHeight = Math.max(text.height, JY.scoreCellSize)
 
       const actorPills: ActorPillMetric[] = task.actors.map(actor => {
         const plain = stripFormattingTags(actor)
         const width = Math.max(
           JY.actorMinWidth,
-          measureTextWidth(plain, JY.actorFontSize, JY.actorFontWeight) + JY.actorPadX * 2,
+          measureTextWidth(plain, style.edgeLabelFontSize, style.edgeLabelFontWeight) + JY.actorPadX * 2,
         )
-        const height = measureMultilineText(actor, JY.actorFontSize, JY.actorFontWeight).height + JY.actorPadY * 2
+        const height = measureMultilineText(actor, style.edgeLabelFontSize, style.edgeLabelFontWeight).height + JY.actorPadY * 2
         return { label: actor, width, height }
       })
 
@@ -126,11 +148,11 @@ export function layoutJourneyDiagram(
 
       const minWidth = Math.max(
         JY.taskMinWidth,
-        text.width + JY.taskToScoreGap + SCORE_TRACK_WIDTH + JY.taskPadX * 2 + JY.taskAccentWidth,
-        actorRowWidth > 0 ? actorRowWidth + JY.taskPadX * 2 + JY.taskAccentWidth : 0,
+        text.width + JY.taskToScoreGap + SCORE_TRACK_WIDTH + style.nodePaddingX * 2 + JY.taskAccentWidth,
+        actorRowWidth > 0 ? actorRowWidth + style.nodePaddingX * 2 + JY.taskAccentWidth : 0,
       )
 
-      const height = JY.taskPadY * 2
+      const height = style.nodePaddingY * 2
         + topAreaHeight
         + (actorRowHeight > 0 ? JY.actorGapTop + actorRowHeight : 0)
 
@@ -158,7 +180,7 @@ export function layoutJourneyDiagram(
 
     const height = sectionHeaderHeight
       + (hasNamedSections ? JY.sectionHeaderGap : 0)
-      + (showSectionFrames ? JY.sectionPadY * 2 : 0)
+      + (showSectionFrames ? style.groupPaddingY * 2 : 0)
       + taskStackHeight
 
     return { headerWidth, tasks: taskMetrics, innerWidth, height }
@@ -177,12 +199,12 @@ export function layoutJourneyDiagram(
   for (let sectionIndex = 0; sectionIndex < diagram.sections.length; sectionIndex++) {
     const section = diagram.sections[sectionIndex]!
     const metric = sectionMetrics[sectionIndex]!
-    const sectionWidth = metric.innerWidth + (showSectionFrames ? JY.sectionPadX * 2 : 0)
-    const sectionInnerX = cursorX + (showSectionFrames ? JY.sectionPadX : 0)
+    const sectionWidth = metric.innerWidth + (showSectionFrames ? style.groupPaddingX * 2 : 0)
+    const sectionInnerX = cursorX + (showSectionFrames ? style.groupPaddingX : 0)
     const taskStartY = contentTop
       + sectionHeaderHeight
       + (hasNamedSections ? JY.sectionHeaderGap : 0)
-      + (showSectionFrames ? JY.sectionPadY : 0)
+      + (showSectionFrames ? style.groupPaddingY : 0)
 
     let taskCursorY = taskStartY
     const tasks: PositionedJourneyTask[] = []
@@ -190,9 +212,9 @@ export function layoutJourneyDiagram(
     for (let taskIndex = 0; taskIndex < section.tasks.length; taskIndex++) {
       const task = section.tasks[taskIndex]!
       const taskMetric = metric.tasks[taskIndex]!
-      const topAreaY = taskCursorY + JY.taskPadY
+      const topAreaY = taskCursorY + style.nodePaddingY
       const meterY = topAreaY + (taskMetric.topAreaHeight - JY.scoreCellSize) / 2
-      const meterStartX = sectionInnerX + metric.innerWidth - JY.taskPadX - SCORE_TRACK_WIDTH
+      const meterStartX = sectionInnerX + metric.innerWidth - style.nodePaddingX - SCORE_TRACK_WIDTH
 
       const scoreCells: PositionedJourneyScoreCell[] = Array.from({ length: 5 }, (_, scoreIndex) => ({
         x: meterStartX + scoreIndex * (JY.scoreCellSize + JY.scoreCellGap),
@@ -201,7 +223,7 @@ export function layoutJourneyDiagram(
         filled: scoreIndex < task.score,
       }))
 
-      let pillCursorX = sectionInnerX + JY.taskAccentWidth + JY.taskPadX
+      let pillCursorX = sectionInnerX + JY.taskAccentWidth + style.nodePaddingX
       const pillY = topAreaY + taskMetric.topAreaHeight + JY.actorGapTop
       const actorPills: PositionedJourneyActorPill[] = taskMetric.actorPills.map(pill => {
         const positioned = {
@@ -225,7 +247,7 @@ export function layoutJourneyDiagram(
         y: taskCursorY,
         width: metric.innerWidth,
         height: taskMetric.height,
-        textX: sectionInnerX + JY.taskAccentWidth + JY.taskPadX,
+        textX: sectionInnerX + JY.taskAccentWidth + style.nodePaddingX,
         textY: topAreaY + taskMetric.topAreaHeight / 2,
         scoreCells,
         actorPills,

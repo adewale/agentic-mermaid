@@ -1,15 +1,33 @@
 import type { DiagramColors } from '../theme.ts'
 import type { MermaidFrontmatterMap, MermaidConfigValue } from '../mermaid-source.ts'
 import type { RenderOptions } from '../types.ts'
+import { resolveRenderStyle } from '../styles.ts'
+import type { RenderStyleDefaults } from '../styles.ts'
 
 export interface ArchitectureVisualConfig {
   groupHeaderHeight: number
   groupFontSize: number
   groupFontWeight: number
+  groupLetterSpacing: number
+  groupFont?: string
+  groupTextTransform?: 'uppercase' | 'lowercase' | 'capitalize'
+  groupPaddingX: number
+  groupPaddingY: number
+  groupLabelPaddingX: number
+  groupCornerRadius: number
+  groupLineWidth: number
   serviceFontSize: number
   serviceFontWeight: number
+  serviceLetterSpacing: number
+  servicePaddingX: number
+  servicePaddingY: number
+  serviceCornerRadius: number
+  serviceLineWidth: number
   edgeFontSize: number
   edgeFontWeight: number
+  edgeLetterSpacing: number
+  edgeLineWidth: number
+  edgeBendRadius: number
   iconSize: number
   serviceIconSize: number
   junctionOuterRadius: number
@@ -29,10 +47,24 @@ export const DEFAULT_ARCHITECTURE_VISUAL: ArchitectureVisualConfig = {
   groupHeaderHeight: 28,
   groupFontSize: 12,
   groupFontWeight: 600,
+  groupLetterSpacing: 0,
+  groupPaddingX: 16,
+  groupPaddingY: 16,
+  groupLabelPaddingX: 12,
+  groupCornerRadius: 0,
+  groupLineWidth: 1,
   serviceFontSize: 13,
   serviceFontWeight: 500,
+  serviceLetterSpacing: 0,
+  servicePaddingX: 20,
+  servicePaddingY: 10,
+  serviceCornerRadius: 0,
+  serviceLineWidth: 1,
   edgeFontSize: 11,
   edgeFontWeight: 400,
+  edgeLetterSpacing: 0,
+  edgeLineWidth: 1,
+  edgeBendRadius: 0,
   iconSize: 16,
   serviceIconSize: 18,
   junctionOuterRadius: 8,
@@ -49,6 +81,7 @@ export const DEFAULT_ARCHITECTURE_VISUAL: ArchitectureVisualConfig = {
 export function resolveArchitectureVisualConfig(
   mermaidConfig: MermaidFrontmatterMap,
   colors: DiagramColors,
+  options: RenderOptions = {},
 ): ResolvedArchitectureVisualConfig {
   const themeVariables = getMap(mermaidConfig, 'themeVariables')
   const architecture = getMap(mermaidConfig, 'architecture')
@@ -78,20 +111,57 @@ export function resolveArchitectureVisualConfig(
   const junctionOuterRadius = clamp(Math.round(serviceIconSize * 0.44), 8, 18)
   const junctionInnerRadius = Number((junctionOuterRadius * 0.56).toFixed(1))
 
+  const styleDefaults: RenderStyleDefaults = {
+    nodeLabelFontSize: baseFontSize,
+    edgeLabelFontSize: edgeFontSize,
+    groupHeaderFontSize: groupFontSize,
+    nodeLabelFontWeight: DEFAULT_ARCHITECTURE_VISUAL.serviceFontWeight,
+    edgeLabelFontWeight: DEFAULT_ARCHITECTURE_VISUAL.edgeFontWeight,
+    groupHeaderFontWeight: DEFAULT_ARCHITECTURE_VISUAL.groupFontWeight,
+    nodePaddingX: DEFAULT_ARCHITECTURE_VISUAL.servicePaddingX,
+    nodePaddingY: DEFAULT_ARCHITECTURE_VISUAL.servicePaddingY,
+    nodeCornerRadius: DEFAULT_ARCHITECTURE_VISUAL.serviceCornerRadius,
+    nodeLineWidth: DEFAULT_ARCHITECTURE_VISUAL.serviceLineWidth,
+    edgeLineWidth: DEFAULT_ARCHITECTURE_VISUAL.edgeLineWidth,
+    edgeBendRadius: DEFAULT_ARCHITECTURE_VISUAL.edgeBendRadius,
+    groupCornerRadius: DEFAULT_ARCHITECTURE_VISUAL.groupCornerRadius,
+    groupPaddingX: DEFAULT_ARCHITECTURE_VISUAL.groupPaddingX,
+    groupPaddingY: DEFAULT_ARCHITECTURE_VISUAL.groupPaddingY,
+    groupLabelPaddingX: DEFAULT_ARCHITECTURE_VISUAL.groupLabelPaddingX,
+    groupLineWidth: DEFAULT_ARCHITECTURE_VISUAL.groupLineWidth,
+  }
+  const style = resolveRenderStyle(options, styleDefaults)
+
   const visual: ArchitectureVisualConfig = {
-    groupHeaderHeight,
-    groupFontSize,
-    groupFontWeight: DEFAULT_ARCHITECTURE_VISUAL.groupFontWeight,
-    serviceFontSize: baseFontSize,
-    serviceFontWeight: DEFAULT_ARCHITECTURE_VISUAL.serviceFontWeight,
-    edgeFontSize,
-    edgeFontWeight: DEFAULT_ARCHITECTURE_VISUAL.edgeFontWeight,
+    groupHeaderHeight: Math.max(groupHeaderHeight, style.groupHeaderFontSize + 12),
+    groupFontSize: style.groupHeaderFontSize,
+    groupFontWeight: style.groupHeaderFontWeight,
+    groupLetterSpacing: style.groupLetterSpacing,
+    groupFont: style.groupFont,
+    groupTextTransform: style.groupTextTransform,
+    groupPaddingX: style.groupPaddingX,
+    groupPaddingY: style.groupPaddingY,
+    groupLabelPaddingX: style.groupLabelPaddingX,
+    groupCornerRadius: style.groupCornerRadius,
+    groupLineWidth: style.groupLineWidth,
+    serviceFontSize: style.nodeLabelFontSize,
+    serviceFontWeight: style.nodeLabelFontWeight,
+    serviceLetterSpacing: style.nodeLetterSpacing,
+    servicePaddingX: style.nodePaddingX,
+    servicePaddingY: style.nodePaddingY,
+    serviceCornerRadius: style.cornerRadius ?? 0,
+    serviceLineWidth: style.nodeLineWidth,
+    edgeFontSize: style.edgeLabelFontSize,
+    edgeFontWeight: style.edgeLabelFontWeight,
+    edgeLetterSpacing: style.edgeLetterSpacing,
+    edgeLineWidth: style.lineWidth,
+    edgeBendRadius: style.edgeBendRadius,
     iconSize,
     serviceIconSize,
     junctionOuterRadius,
     junctionInnerRadius,
     groupSurface: pickString(themeVariables, 'clusterBkg') ?? colors.surface,
-    groupBorder: pickString(themeVariables, 'clusterBorder') ?? colors.border,
+    groupBorder: style.groupBorderColor ?? pickString(themeVariables, 'clusterBorder') ?? colors.border,
     serviceSurface: pickString(themeVariables, 'mainBkg', 'secondaryColor') ?? colors.surface,
     serviceBorder: pickString(themeVariables, 'primaryBorderColor') ?? colors.border,
   }

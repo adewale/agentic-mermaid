@@ -1,7 +1,9 @@
 import type { PositionedClassDiagram, PositionedClassNode, PositionedClassRelationship, ClassMember, RelationshipType } from './types.ts'
+import type { RenderOptions } from '../types.ts'
 import type { DiagramColors } from '../theme.ts'
 import { svgOpenTag, buildStyleBlock, buildShadowDefs } from '../theme.ts'
-import { FONT_SIZES, FONT_WEIGHTS, STROKE_WIDTHS, estimateTextWidth, TEXT_BASELINE_SHIFT } from '../styles.ts'
+import { FONT_SIZES, FONT_WEIGHTS, STROKE_WIDTHS, estimateTextWidth, TEXT_BASELINE_SHIFT, resolveRenderStyle } from '../styles.ts'
+import type { RenderStyleDefaults, ResolvedRenderStyle } from '../styles.ts'
 import { CLS } from './layout.ts'
 import { renderMultilineText, escapeXml as escapeXmlUtil } from '../multiline-utils.ts'
 
@@ -17,6 +19,25 @@ import { renderMultilineText, escapeXml as escapeXmlUtil } from '../multiline-ut
 //   3. Relationship endpoint markers (diamonds, triangles)
 //   4. Labels and cardinality
 // ============================================================================
+
+
+const CLASS_STYLE_DEFAULTS: RenderStyleDefaults = {
+  nodeLabelFontSize: FONT_SIZES.nodeLabel,
+  edgeLabelFontSize: FONT_SIZES.edgeLabel,
+  groupHeaderFontSize: FONT_SIZES.groupHeader,
+  nodeLabelFontWeight: 700,
+  edgeLabelFontWeight: FONT_WEIGHTS.edgeLabel,
+  groupHeaderFontWeight: FONT_WEIGHTS.groupHeader,
+  nodePaddingX: CLS.boxPadX,
+  nodePaddingY: CLS.sectionPadY,
+  nodeCornerRadius: 0,
+  nodeLineWidth: STROKE_WIDTHS.outerBox,
+  edgeLineWidth: STROKE_WIDTHS.connector,
+  groupCornerRadius: 0,
+  groupPaddingX: CLS.boxPadX,
+  groupPaddingY: CLS.sectionPadY,
+  groupLineWidth: STROKE_WIDTHS.outerBox,
+}
 
 /** Font sizes specific to class diagrams */
 const CLS_FONT = {
@@ -36,9 +57,11 @@ export function renderClassSvg(
   diagram: PositionedClassDiagram,
   colors: DiagramColors,
   font: string = 'Inter',
-  transparent: boolean = false
+  transparent: boolean = false,
+  options: RenderOptions = {},
 ): string {
   const parts: string[] = []
+  const style = resolveRenderStyle(options, CLASS_STYLE_DEFAULTS)
   const uid = `class-${hashAccessibility(diagram.width, diagram.height, diagram.classes.length, diagram.relationships.length)}`
   const titleId = `${uid}-title`
   const descId = `${uid}-desc`
@@ -62,17 +85,17 @@ export function renderClassSvg(
 
   // 1. Relationship lines (rendered behind boxes)
   for (const rel of diagram.relationships) {
-    parts.push(renderRelationship(rel))
+    parts.push(renderRelationship(rel, style))
   }
 
   // 2. Class boxes
   for (const cls of diagram.classes) {
-    parts.push(renderClassBox(cls))
+    parts.push(renderClassBox(cls, style))
   }
 
   // 3. Relationship labels and cardinality
   for (const rel of diagram.relationships) {
-    parts.push(renderRelationshipLabels(rel))
+    parts.push(renderRelationshipLabels(rel, style))
   }
 
   parts.push('</svg>')
@@ -124,7 +147,7 @@ function relationshipMarkerDefs(): string {
  * Render a class box with 3 compartments: header, attributes, methods.
  * Wrapped in <g class="class-node"> with semantic data attributes.
  */
-function renderClassBox(cls: PositionedClassNode): string {
+function renderClassBox(cls: PositionedClassNode, style: ResolvedRenderStyle): string {
   const { x, y, width, height, headerHeight, attrHeight, methodHeight } = cls
   const parts: string[] = []
 
@@ -140,13 +163,13 @@ function renderClassBox(cls: PositionedClassNode): string {
   // Outer rectangle (full box)
   parts.push(
     `  <rect x="${x}" y="${y}" width="${width}" height="${height}" ` +
-    `rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="${STROKE_WIDTHS.outerBox}" />`
+    `rx="${style.cornerRadius ?? 0}" ry="${style.cornerRadius ?? 0}" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="${style.nodeLineWidth}" />`
   )
 
   // Header background
   parts.push(
     `  <rect x="${x}" y="${y}" width="${width}" height="${headerHeight}" ` +
-    `rx="0" ry="0" fill="var(--_group-hdr)" stroke="var(--_node-stroke)" stroke-width="${STROKE_WIDTHS.outerBox}" />`
+    `rx="${style.cornerRadius ?? 0}" ry="${style.cornerRadius ?? 0}" fill="var(--_group-hdr)" stroke="var(--_node-stroke)" stroke-width="${style.nodeLineWidth}" />`
   )
 
   // Annotation (<<interface>>, <<abstract>>, etc.)
@@ -167,8 +190,8 @@ function renderClassBox(cls: PositionedClassNode): string {
       cls.label,
       x + width / 2,
       nameY,
-      FONT_SIZES.nodeLabel,
-      `text-anchor="middle" font-size="${FONT_SIZES.nodeLabel}" font-weight="700" fill="var(--_text)"`
+      style.nodeLabelFontSize,
+      `text-anchor="middle" font-size="${style.nodeLabelFontSize}" font-weight="${style.nodeLabelFontWeight}"${letterAttr(style.nodeLetterSpacing)} fill="var(--_text)"`
     )
   )
 
@@ -176,7 +199,7 @@ function renderClassBox(cls: PositionedClassNode): string {
   const attrTop = y + headerHeight
   parts.push(
     `  <line x1="${x}" y1="${attrTop}" x2="${x + width}" y2="${attrTop}" ` +
-    `stroke="var(--_node-stroke)" stroke-width="${STROKE_WIDTHS.innerBox}" />`
+    `stroke="var(--_node-stroke)" stroke-width="${Math.min(style.nodeLineWidth, STROKE_WIDTHS.innerBox)}" />`
   )
 
   // Attributes
@@ -184,21 +207,21 @@ function renderClassBox(cls: PositionedClassNode): string {
   for (let i = 0; i < cls.attributes.length; i++) {
     const member = cls.attributes[i]!
     const memberY = attrTop + 4 + i * memberRowH + memberRowH / 2
-    parts.push('  ' + renderMember(member, x + CLS.boxPadX, memberY))
+    parts.push('  ' + renderMember(member, x + style.nodePaddingX, memberY))
   }
 
   // Divider line between attributes and methods
   const methodTop = attrTop + attrHeight
   parts.push(
     `  <line x1="${x}" y1="${methodTop}" x2="${x + width}" y2="${methodTop}" ` +
-    `stroke="var(--_node-stroke)" stroke-width="${STROKE_WIDTHS.innerBox}" />`
+    `stroke="var(--_node-stroke)" stroke-width="${Math.min(style.nodeLineWidth, STROKE_WIDTHS.innerBox)}" />`
   )
 
   // Methods
   for (let i = 0; i < cls.methods.length; i++) {
     const member = cls.methods[i]!
     const memberY = methodTop + 4 + i * memberRowH + memberRowH / 2
-    parts.push('  ' + renderMember(member, x + CLS.boxPadX, memberY))
+    parts.push('  ' + renderMember(member, x + style.nodePaddingX, memberY))
   }
 
   parts.push('</g>')
@@ -251,7 +274,7 @@ function renderMember(member: ClassMember, x: number, y: number): string {
  * Render a relationship line with appropriate markers and semantic attributes.
  * Includes data-* attributes for programmatic inspection.
  */
-function renderRelationship(rel: PositionedClassRelationship): string {
+function renderRelationship(rel: PositionedClassRelationship, style: ResolvedRenderStyle): string {
   if (rel.points.length < 2) return ''
 
   const pathData = rel.points.map(p => `${p.x},${p.y}`).join(' ')
@@ -285,9 +308,16 @@ function renderRelationship(rel: PositionedClassRelationship): string {
     dataAttrs.push(`data-to-cardinality="${escapeAttr(rel.toCardinality)}"`)
   }
 
+  if (style.edgeBendRadius > 0 && rel.points.length > 2) {
+    return (
+      `<path ${dataAttrs.join(' ')} d="${pointsToPathD(rel.points, style.edgeBendRadius)}" fill="none" stroke="var(--_line)" ` +
+      `stroke-width="${style.lineWidth}"${dashArray}${markers} />`
+    )
+  }
+
   return (
     `<polyline ${dataAttrs.join(' ')} points="${pathData}" fill="none" stroke="var(--_line)" ` +
-    `stroke-width="${STROKE_WIDTHS.connector}"${dashArray}${markers} />`
+    `stroke-width="${style.lineWidth}"${dashArray}${markers} />`
   )
 }
 
@@ -327,7 +357,7 @@ function getMarkerDefId(type: RelationshipType): string | null {
 }
 
 /** Render relationship labels and cardinality text (supports multi-line) */
-function renderRelationshipLabels(rel: PositionedClassRelationship): string {
+function renderRelationshipLabels(rel: PositionedClassRelationship, style: ResolvedRenderStyle): string {
   if (!rel.label && !rel.fromCardinality && !rel.toCardinality) return ''
   if (rel.points.length < 2) return ''
 
@@ -337,8 +367,8 @@ function renderRelationshipLabels(rel: PositionedClassRelationship): string {
   if (rel.label) {
     const pos = rel.labelPosition ?? midpoint(rel.points)
     parts.push(
-      renderMultilineText(rel.label, pos.x, pos.y - 8, FONT_SIZES.edgeLabel,
-        `font-size="${FONT_SIZES.edgeLabel}" text-anchor="middle" font-weight="${FONT_WEIGHTS.edgeLabel}" fill="var(--_text-muted)"`)
+      renderMultilineText(rel.label, pos.x, pos.y - 8, style.edgeLabelFontSize,
+        `font-size="${style.edgeLabelFontSize}" text-anchor="middle" font-weight="${style.edgeLabelFontWeight}"${letterAttr(style.edgeLetterSpacing)} fill="var(--_text-muted)"`)
     )
   }
 
@@ -348,8 +378,8 @@ function renderRelationshipLabels(rel: PositionedClassRelationship): string {
     const next = rel.points[1]!
     const offset = cardinalityOffset(p, next)
     parts.push(
-      renderMultilineText(rel.fromCardinality, p.x + offset.x, p.y + offset.y, FONT_SIZES.edgeLabel,
-        `font-size="${FONT_SIZES.edgeLabel}" text-anchor="middle" font-weight="${FONT_WEIGHTS.edgeLabel}" fill="var(--_text-muted)"`)
+      renderMultilineText(rel.fromCardinality, p.x + offset.x, p.y + offset.y, style.edgeLabelFontSize,
+        `font-size="${style.edgeLabelFontSize}" text-anchor="middle" font-weight="${style.edgeLabelFontWeight}"${letterAttr(style.edgeLetterSpacing)} fill="var(--_text-muted)"`)
     )
   }
 
@@ -359,12 +389,47 @@ function renderRelationshipLabels(rel: PositionedClassRelationship): string {
     const prev = rel.points[rel.points.length - 2]!
     const offset = cardinalityOffset(p, prev)
     parts.push(
-      renderMultilineText(rel.toCardinality, p.x + offset.x, p.y + offset.y, FONT_SIZES.edgeLabel,
-        `font-size="${FONT_SIZES.edgeLabel}" text-anchor="middle" font-weight="${FONT_WEIGHTS.edgeLabel}" fill="var(--_text-muted)"`)
+      renderMultilineText(rel.toCardinality, p.x + offset.x, p.y + offset.y, style.edgeLabelFontSize,
+        `font-size="${style.edgeLabelFontSize}" text-anchor="middle" font-weight="${style.edgeLabelFontWeight}"${letterAttr(style.edgeLetterSpacing)} fill="var(--_text-muted)"`)
     )
   }
 
   return parts.join('\n')
+}
+
+function pointsToPathD(points: Array<{ x: number; y: number }>, radius: number): string {
+  if (points.length === 0) return ''
+  if (points.length === 1) return `M${points[0]!.x},${points[0]!.y}`
+  const parts = [`M${points[0]!.x},${points[0]!.y}`]
+  for (let i = 1; i < points.length - 1; i++) {
+    const prev = points[i - 1]!
+    const curr = points[i]!
+    const next = points[i + 1]!
+    const prevLen = Math.abs(curr.x - prev.x) + Math.abs(curr.y - prev.y)
+    const nextLen = Math.abs(next.x - curr.x) + Math.abs(next.y - curr.y)
+    const r = Math.min(radius, prevLen / 2, nextLen / 2)
+    if (r <= 0) {
+      parts.push(`L${curr.x},${curr.y}`)
+      continue
+    }
+    const before = pointToward(curr, prev, r)
+    const after = pointToward(curr, next, r)
+    parts.push(`L${before.x},${before.y}`)
+    parts.push(`Q${curr.x},${curr.y} ${after.x},${after.y}`)
+  }
+  const last = points[points.length - 1]!
+  parts.push(`L${last.x},${last.y}`)
+  return parts.join(' ')
+}
+
+function pointToward(from: { x: number; y: number }, to: { x: number; y: number }, distance: number): { x: number; y: number } {
+  const total = Math.abs(to.x - from.x) + Math.abs(to.y - from.y)
+  if (total === 0) return { ...from }
+  const t = distance / total
+  return {
+    x: Math.round((from.x + (to.x - from.x) * t) * 1000) / 1000,
+    y: Math.round((from.y + (to.y - from.y) * t) * 1000) / 1000,
+  }
 }
 
 /** Get the midpoint of a point array */
@@ -393,6 +458,10 @@ function cardinalityOffset(
 // ============================================================================
 // Utilities
 // ============================================================================
+
+function letterAttr(value: number): string {
+  return value !== 0 ? ` letter-spacing="${value}"` : ''
+}
 
 // Use shared escapeXml from multiline-utils
 const escapeXml = escapeXmlUtil

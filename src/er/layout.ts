@@ -9,7 +9,8 @@
 import type { ElkNode, ElkExtendedEdge } from 'elkjs'
 import type { ErDiagram, ErEntity, PositionedErDiagram, PositionedErEntity, PositionedErRelationship } from './types.ts'
 import type { RenderOptions, Point } from '../types.ts'
-import { estimateTextWidth, estimateMonoTextWidth, FONT_SIZES, FONT_WEIGHTS } from '../styles.ts'
+import { estimateTextWidth, estimateMonoTextWidth, FONT_SIZES, FONT_WEIGHTS, STROKE_WIDTHS, resolveRenderStyle } from '../styles.ts'
+import type { RenderStyleDefaults } from '../styles.ts'
 import { measureMultilineText } from '../text-metrics.ts'
 import { elkLayoutSync } from '../elk-instance.ts'
 
@@ -26,26 +27,46 @@ const ER = {
   layerSpacing: 90,
 } as const
 
-type EntitySizeMap = Map<string, { width: number; height: number }>
+const ER_STYLE_DEFAULTS: RenderStyleDefaults = {
+  nodeLabelFontSize: FONT_SIZES.nodeLabel,
+  edgeLabelFontSize: FONT_SIZES.edgeLabel,
+  groupHeaderFontSize: FONT_SIZES.groupHeader,
+  nodeLabelFontWeight: FONT_WEIGHTS.nodeLabel,
+  edgeLabelFontWeight: FONT_WEIGHTS.edgeLabel,
+  groupHeaderFontWeight: FONT_WEIGHTS.groupHeader,
+  nodePaddingX: ER.boxPadX,
+  nodePaddingY: 8,
+  nodeCornerRadius: 0,
+  nodeLineWidth: STROKE_WIDTHS.outerBox,
+  edgeLineWidth: STROKE_WIDTHS.connector,
+  groupCornerRadius: 0,
+  groupPaddingX: ER.boxPadX,
+  groupPaddingY: 8,
+  groupLineWidth: STROKE_WIDTHS.outerBox,
+}
+
+type EntitySizeMap = Map<string, { width: number; height: number; headerHeight: number }>
 
 /** Build ELK graph and size map from an ER diagram. */
 function buildErElkGraph(
   diagram: ErDiagram,
-  _options: RenderOptions
+  options: RenderOptions
 ): { elkGraph: ElkNode; entitySizes: EntitySizeMap } {
+  const style = resolveRenderStyle(options, ER_STYLE_DEFAULTS)
   const entitySizes: EntitySizeMap = new Map()
 
   for (const entity of diagram.entities) {
-    const headerTextW = estimateTextWidth(entity.label, FONT_SIZES.nodeLabel, FONT_WEIGHTS.nodeLabel)
+    const headerTextW = estimateTextWidth(entity.label, style.nodeLabelFontSize, style.nodeLabelFontWeight)
     let maxAttrW = 0
     for (const attr of entity.attributes) {
       const attrText = `${attr.type}  ${attr.name}${attr.keys.length > 0 ? '  ' + attr.keys.join(',') : ''}`
       const w = estimateMonoTextWidth(attrText, ER.attrFontSize)
       if (w > maxAttrW) maxAttrW = w
     }
-    const width = Math.max(ER.minWidth, headerTextW + ER.boxPadX * 2, maxAttrW + ER.boxPadX * 2)
-    const height = ER.headerHeight + Math.max(entity.attributes.length, 1) * ER.rowHeight
-    entitySizes.set(entity.id, { width, height })
+    const width = Math.max(ER.minWidth, headerTextW + style.nodePaddingX * 2, maxAttrW + style.nodePaddingX * 2)
+    const headerHeight = Math.max(ER.headerHeight, measureMultilineText(entity.label, style.nodeLabelFontSize, style.nodeLabelFontWeight).height + style.nodePaddingY * 2)
+    const height = headerHeight + Math.max(entity.attributes.length, 1) * ER.rowHeight
+    entitySizes.set(entity.id, { width, height, headerHeight })
   }
 
   const elkGraph: ElkNode = {
@@ -70,7 +91,7 @@ function buildErElkGraph(
 
   for (let i = 0; i < diagram.relationships.length; i++) {
     const rel = diagram.relationships[i]!
-    const metrics = measureMultilineText(rel.label, FONT_SIZES.edgeLabel, FONT_WEIGHTS.edgeLabel)
+    const metrics = measureMultilineText(rel.label, style.edgeLabelFontSize, style.edgeLabelFontWeight)
     const edge: ElkExtendedEdge = { id: `e${i}`, sources: [rel.entity1], targets: [rel.entity2] }
     if (rel.label) {
       edge.labels = [{ text: rel.label, width: metrics.width + 8, height: metrics.height + 6 }]
@@ -102,7 +123,7 @@ function extractErLayout(
         y: child.y ?? 0,
         width: child.width ?? entitySizes.get(entity.id)!.width,
         height: child.height ?? entitySizes.get(entity.id)!.height,
-        headerHeight: ER.headerHeight,
+        headerHeight: entitySizes.get(entity.id)!.headerHeight,
         rowHeight: ER.rowHeight,
       })
     }

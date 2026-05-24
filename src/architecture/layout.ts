@@ -1,4 +1,5 @@
 import type { Point, RenderOptions } from '../types.ts'
+import type { ArchitectureVisualConfig } from './config.ts'
 import { layoutGraphSync } from '../layout.ts'
 import { architectureToMermaidGraph } from './parser.ts'
 import type {
@@ -44,12 +45,44 @@ interface ResolvedEndpoint {
 export function layoutArchitectureDiagram(
   diagram: ArchitectureDiagram,
   options: RenderOptions = {},
+  visual?: ArchitectureVisualConfig,
 ): PositionedArchitectureDiagram {
   const graph = architectureToMermaidGraph(diagram)
   const positioned = layoutGraphSync(graph, {
-    ...options,
+    padding: options.padding ?? 40,
     nodeSpacing: options.nodeSpacing ?? 36,
     layerSpacing: options.layerSpacing ?? 56,
+    componentSpacing: options.componentSpacing,
+    style: visual ? {
+      node: {
+        fontSize: visual.serviceFontSize,
+        fontWeight: visual.serviceFontWeight,
+        letterSpacing: visual.serviceLetterSpacing,
+        paddingX: visual.servicePaddingX,
+        paddingY: visual.servicePaddingY,
+        cornerRadius: visual.serviceCornerRadius,
+        lineWidth: visual.serviceLineWidth,
+      },
+      edge: {
+        fontSize: visual.edgeFontSize,
+        fontWeight: visual.edgeFontWeight,
+        letterSpacing: visual.edgeLetterSpacing,
+        lineWidth: visual.edgeLineWidth,
+        bendRadius: visual.edgeBendRadius,
+      },
+      group: {
+        fontSize: visual.groupFontSize,
+        fontWeight: visual.groupFontWeight,
+        letterSpacing: visual.groupLetterSpacing,
+        fontFamily: visual.groupFont,
+        textTransform: visual.groupTextTransform,
+        paddingX: visual.groupPaddingX,
+        paddingY: visual.groupPaddingY,
+        cornerRadius: visual.groupCornerRadius,
+        borderColor: visual.groupBorder,
+        lineWidth: visual.groupLineWidth,
+      },
+    } : undefined,
   })
 
   const servicesById = new Map(diagram.services.map((service) => [service.id, service]))

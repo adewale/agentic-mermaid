@@ -1,7 +1,10 @@
 import type { PositionedJourneyDiagram, PositionedJourneySection, PositionedJourneyTask, PositionedJourneyActorPill } from './types.ts'
+import type { RenderOptions } from '../types.ts'
 import type { DiagramColors } from '../theme.ts'
 import { svgOpenTag, buildStyleBlock, buildShadowDefs } from '../theme.ts'
 import { renderMultilineText, escapeXml } from '../multiline-utils.ts'
+import { STROKE_WIDTHS, resolveRenderStyle } from '../styles.ts'
+import type { RenderStyleDefaults, ResolvedRenderStyle } from '../styles.ts'
 
 // ============================================================================
 // Journey diagram SVG renderer
@@ -25,6 +28,25 @@ const JY = {
   taskAccentWidth: 4,
 } as const
 
+const JOURNEY_STYLE_DEFAULTS: RenderStyleDefaults = {
+  nodeLabelFontSize: JY.taskFontSize,
+  edgeLabelFontSize: JY.actorFontSize,
+  groupHeaderFontSize: JY.sectionFontSize,
+  nodeLabelFontWeight: JY.taskFontWeight,
+  edgeLabelFontWeight: JY.actorFontWeight,
+  groupHeaderFontWeight: JY.sectionFontWeight,
+  nodePaddingX: JY.taskPadX,
+  nodePaddingY: 12,
+  nodeCornerRadius: 0,
+  nodeLineWidth: STROKE_WIDTHS.outerBox,
+  edgeLineWidth: STROKE_WIDTHS.connector,
+  groupCornerRadius: 0,
+  groupPaddingX: 18,
+  groupPaddingY: 18,
+  groupLabelPaddingX: 12,
+  groupLineWidth: STROKE_WIDTHS.outerBox,
+}
+
 /**
  * Render a positioned journey diagram as an SVG string.
  */
@@ -32,9 +54,11 @@ export function renderJourneySvg(
   diagram: PositionedJourneyDiagram,
   colors: DiagramColors,
   font: string = 'Inter',
-  transparent: boolean = false
+  transparent: boolean = false,
+  options: RenderOptions = {},
 ): string {
   const parts: string[] = []
+  const style = resolveRenderStyle(options, JOURNEY_STYLE_DEFAULTS)
 
   const accessibility = buildJourneyAccessibility(diagram)
   const uid = `journey-${hashJourney(diagram)}`
@@ -51,17 +75,17 @@ export function renderJourneySvg(
   parts.push(buildStyleBlock(font, false, colors.shadow))
   const shadowDefs = buildShadowDefs(colors)
   if (shadowDefs) parts.push(`<defs>${shadowDefs}</defs>`)
-  parts.push(journeyStyles())
+  parts.push(journeyStyles(style))
 
   for (const section of diagram.sections) {
     if (section.framed) {
-      parts.push(renderSectionFrame(section))
+      parts.push(renderSectionFrame(section, style))
     }
   }
 
   for (const section of diagram.sections) {
     for (const task of section.tasks) {
-      parts.push(renderTask(task, section.label))
+      parts.push(renderTask(task, section.label, style))
     }
   }
 
@@ -107,13 +131,13 @@ function openJourneySvgTag(
     .replace('>', ` ${attrs.join(' ')}>`)
 }
 
-function journeyStyles(): string {
+function journeyStyles(style: ResolvedRenderStyle): string {
   return `<style>
   .journey-title { fill: var(--_text); }
-  .journey-section-bg { fill: color-mix(in srgb, var(--_node-fill) 88%, var(--bg)); stroke: var(--_node-stroke); stroke-width: 1; }
-  .journey-section-band { fill: color-mix(in srgb, var(--_arrow) 8%, var(--bg)); stroke: var(--_node-stroke); stroke-width: 1; }
+  .journey-section-bg { fill: color-mix(in srgb, var(--_node-fill) 88%, var(--bg)); stroke: ${style.groupBorderColor ?? 'var(--_node-stroke)'}; stroke-width: ${style.groupLineWidth}; }
+  .journey-section-band { fill: color-mix(in srgb, var(--_arrow) 8%, var(--bg)); stroke: ${style.groupBorderColor ?? 'var(--_node-stroke)'}; stroke-width: ${style.groupLineWidth}; }
   .journey-section-label { fill: var(--_text-sec); }
-  .journey-task-card { fill: var(--_node-fill); stroke: var(--_node-stroke); stroke-width: 1; }
+  .journey-task-card { fill: var(--_node-fill); stroke: var(--_node-stroke); stroke-width: ${style.nodeLineWidth}; }
   .journey-task-accent { fill: color-mix(in srgb, var(--_arrow) 18%, var(--bg)); }
   .journey-task-text { fill: var(--_text); }
   .journey-score-cell-filled { fill: var(--_arrow); stroke: var(--_arrow); stroke-width: 1; }
@@ -123,28 +147,28 @@ function journeyStyles(): string {
 </style>`
 }
 
-function renderSectionFrame(section: PositionedJourneySection): string {
+function renderSectionFrame(section: PositionedJourneySection, style: ResolvedRenderStyle): string {
   const parts: string[] = []
   const labelAttr = section.label ? ` data-label="${escapeAttr(section.label)}"` : ''
 
   parts.push(`<g class="journey-section" data-id="${escapeAttr(section.id)}"${labelAttr}>`)
   parts.push(
-    `  <rect class="journey-section-bg" x="${section.x}" y="${section.y}" width="${section.width}" height="${section.height}" rx="0" ry="0" />`
+    `  <rect class="journey-section-bg" x="${section.x}" y="${section.y}" width="${section.width}" height="${section.height}" rx="${style.groupCornerRadius}" ry="${style.groupCornerRadius}" />`
   )
 
   if (section.headerHeight > 0) {
     parts.push(
-      `  <rect class="journey-section-band" x="${section.x}" y="${section.y}" width="${section.width}" height="${section.headerHeight}" rx="0" ry="0" />`
+      `  <rect class="journey-section-band" x="${section.x}" y="${section.y}" width="${section.width}" height="${section.headerHeight}" rx="${style.groupCornerRadius}" ry="${style.groupCornerRadius}" />`
     )
 
     if (section.label) {
       parts.push(
         '  ' + renderMultilineText(
           section.label,
-          section.x + 12,
+          section.x + style.groupLabelPaddingX,
           section.y + section.headerHeight / 2,
-          JY.sectionFontSize,
-          `class="journey-section-label" text-anchor="start" font-size="${JY.sectionFontSize}" font-weight="${JY.sectionFontWeight}"`,
+          style.groupHeaderFontSize,
+          `class="journey-section-label" text-anchor="start" font-size="${style.groupHeaderFontSize}" font-weight="${style.groupHeaderFontWeight}"${style.groupFont ? ` font-family="${escapeAttr(style.groupFont)}"` : ''}${letterAttr(style.groupLetterSpacing)}`,
         )
       )
     }
@@ -154,7 +178,7 @@ function renderSectionFrame(section: PositionedJourneySection): string {
   return parts.join('\n')
 }
 
-function renderTask(task: PositionedJourneyTask, sectionLabel?: string): string {
+function renderTask(task: PositionedJourneyTask, sectionLabel: string | undefined, style: ResolvedRenderStyle): string {
   const parts: string[] = []
   const sectionAttr = sectionLabel ? ` data-section="${escapeAttr(sectionLabel)}"` : ''
   const actorAttr = task.actors.length > 0 ? ` data-actors="${escapeAttr(task.actors.join(', '))}"` : ''
@@ -163,7 +187,7 @@ function renderTask(task: PositionedJourneyTask, sectionLabel?: string): string 
     `<g class="journey-task" data-id="${escapeAttr(task.id)}" data-score="${task.score}"${sectionAttr}${actorAttr}>`
   )
   parts.push(
-    `  <rect class="journey-task-card" x="${task.x}" y="${task.y}" width="${task.width}" height="${task.height}" rx="0" ry="0" />`
+    `  <rect class="journey-task-card" x="${task.x}" y="${task.y}" width="${task.width}" height="${task.height}" rx="${style.cornerRadius ?? 0}" ry="${style.cornerRadius ?? 0}" />`
   )
   parts.push(
     `  <rect class="journey-task-accent" x="${task.x}" y="${task.y}" width="${JY.taskAccentWidth}" height="${task.height}" rx="0" ry="0" />`
@@ -173,8 +197,8 @@ function renderTask(task: PositionedJourneyTask, sectionLabel?: string): string 
       task.text,
       task.textX,
       task.textY,
-      JY.taskFontSize,
-      `class="journey-task-text" text-anchor="start" font-size="${JY.taskFontSize}" font-weight="${JY.taskFontWeight}"`,
+      style.nodeLabelFontSize,
+      `class="journey-task-text" text-anchor="start" font-size="${style.nodeLabelFontSize}" font-weight="${style.nodeLabelFontWeight}"${letterAttr(style.nodeLetterSpacing)}`,
     )
   )
 
@@ -185,14 +209,14 @@ function renderTask(task: PositionedJourneyTask, sectionLabel?: string): string 
   }
 
   for (const pill of task.actorPills) {
-    parts.push(renderActorPill(pill))
+    parts.push(renderActorPill(pill, style))
   }
 
   parts.push('</g>')
   return parts.join('\n')
 }
 
-function renderActorPill(pill: PositionedJourneyActorPill): string {
+function renderActorPill(pill: PositionedJourneyActorPill, style: ResolvedRenderStyle): string {
   return [
     `  <g class="journey-actor" data-actor="${escapeAttr(pill.label)}">`,
     `    <rect class="journey-actor-pill" x="${pill.x}" y="${pill.y}" width="${pill.width}" height="${pill.height}" rx="${pill.height / 2}" ry="${pill.height / 2}" />`,
@@ -200,11 +224,15 @@ function renderActorPill(pill: PositionedJourneyActorPill): string {
       pill.label,
       pill.x + pill.width / 2,
       pill.y + pill.height / 2,
-      JY.actorFontSize,
-      `class="journey-actor-text" text-anchor="middle" font-size="${JY.actorFontSize}" font-weight="${JY.actorFontWeight}"`,
+      style.edgeLabelFontSize,
+      `class="journey-actor-text" text-anchor="middle" font-size="${style.edgeLabelFontSize}" font-weight="${style.edgeLabelFontWeight}"${letterAttr(style.edgeLetterSpacing)}`,
     ),
     '  </g>',
   ].join('\n')
+}
+
+function letterAttr(value: number): string {
+  return value !== 0 ? ` letter-spacing="${value}"` : ''
 }
 
 function hashJourney(diagram: PositionedJourneyDiagram): string {

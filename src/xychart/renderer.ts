@@ -1,7 +1,9 @@
 import type { PositionedBar, PositionedXYChart } from './types.ts'
+import type { RenderOptions } from '../types.ts'
 import type { DiagramColors } from '../theme.ts'
 import { svgOpenTag, buildStyleBlock, buildShadowDefs } from '../theme.ts'
-import { TEXT_BASELINE_SHIFT, estimateTextWidth } from '../styles.ts'
+import { TEXT_BASELINE_SHIFT, estimateTextWidth, STROKE_WIDTHS, resolveRenderStyle } from '../styles.ts'
+import type { RenderStyleDefaults } from '../styles.ts'
 import { getSeriesColor, CHART_ACCENT_FALLBACK } from './colors.ts'
 
 // ============================================================================
@@ -20,6 +22,23 @@ const CHART_FONT = {
   lineWidth: 3,
 } as const
 
+const XY_STYLE_DEFAULTS: RenderStyleDefaults = {
+  nodeLabelFontSize: 14,
+  edgeLabelFontSize: 16,
+  groupHeaderFontSize: 20,
+  nodeLabelFontWeight: CHART_FONT.labelWeight,
+  edgeLabelFontWeight: CHART_FONT.axisTitleWeight,
+  groupHeaderFontWeight: CHART_FONT.titleWeight,
+  nodePaddingX: 0,
+  nodePaddingY: 0,
+  nodeLineWidth: 0,
+  edgeLineWidth: CHART_FONT.lineWidth,
+  groupCornerRadius: 0,
+  groupPaddingX: 0,
+  groupPaddingY: 0,
+  groupLineWidth: STROKE_WIDTHS.outerBox,
+}
+
 const TIP = {
   fontSize: 15,
   fontWeight: 500,
@@ -37,8 +56,10 @@ export function renderXYChartSvg(
   font: string = 'Inter',
   transparent: boolean = false,
   interactive: boolean = false,
+  options: RenderOptions = {},
 ): string {
   const parts: string[] = []
+  const style = resolveRenderStyle(options, XY_STYLE_DEFAULTS)
 
   const maxColorIdx = Math.max(0, ...chart.bars.map(bar => bar.colorIndex), ...chart.lines.map(line => line.colorIndex))
   const svgMeta = buildSvgMetadata(chart)
@@ -47,8 +68,8 @@ export function renderXYChartSvg(
   parts.push(svgTag)
   parts.push(buildStyleBlock(font, false, colors.shadow))
 
-  const { style, defs } = chartStyles(chart, interactive, colors.accent, colors.bg)
-  parts.push(style)
+  const { style: chartStyle, defs } = chartStyles(chart, interactive, colors.accent, colors.bg, options)
+  parts.push(chartStyle)
   if (defs) parts.push(defs)
   if (svgMeta.title) parts.push(svgMeta.title)
   if (svgMeta.description) parts.push(svgMeta.description)
@@ -114,20 +135,20 @@ export function renderXYChartSvg(
       parts.push(
         `<text x="${r(label.x)}" y="${r(label.y)}" text-anchor="${label.anchor}" ` +
         `${label.dominantBaseline ? `dominant-baseline="${label.dominantBaseline}" ` : ''}` +
-        `font-size="${label.fontSize}" font-weight="400" class="xychart-data-label">${escapeXml(label.text)}</text>`
+        `font-size="${label.fontSize}" font-weight="${style.nodeLabelFontWeight}"${letterAttr(style.nodeLetterSpacing)} class="xychart-data-label">${escapeXml(label.text)}</text>`
       )
     }
   }
 
-  renderAxisLabels(parts, chart.xAxis.ticks, chart.xAxis.config.labelFontSize, 'x')
-  renderAxisLabels(parts, chart.yAxis.ticks, chart.yAxis.config.labelFontSize, 'y')
+  renderAxisLabels(parts, chart.xAxis.ticks, chart.xAxis.config.labelFontSize, 'x', style)
+  renderAxisLabels(parts, chart.yAxis.ticks, chart.yAxis.config.labelFontSize, 'y', style)
 
   if (chart.xAxis.title) {
     const title = chart.xAxis.title
     const transform = title.rotate ? ` transform="rotate(${title.rotate},${title.x},${title.y})"` : ''
     parts.push(
       `<text x="${title.x}" y="${title.y}" text-anchor="middle"${transform} ` +
-      `font-size="${chart.xAxis.config.titleFontSize}" font-weight="${CHART_FONT.axisTitleWeight}" ` +
+      `font-size="${chart.xAxis.config.titleFontSize}" font-weight="${style.edgeLabelFontWeight}"${letterAttr(style.edgeLetterSpacing)} ` +
       `dy="${TEXT_BASELINE_SHIFT}" class="xychart-axis-title xychart-x-axis-title">${escapeXml(title.text)}</text>`
     )
   }
@@ -137,7 +158,7 @@ export function renderXYChartSvg(
     const transform = title.rotate ? ` transform="rotate(${title.rotate},${title.x},${title.y})"` : ''
     parts.push(
       `<text x="${title.x}" y="${title.y}" text-anchor="middle"${transform} ` +
-      `font-size="${chart.yAxis.config.titleFontSize}" font-weight="${CHART_FONT.axisTitleWeight}" ` +
+      `font-size="${chart.yAxis.config.titleFontSize}" font-weight="${style.edgeLabelFontWeight}"${letterAttr(style.edgeLetterSpacing)} ` +
       `dy="${TEXT_BASELINE_SHIFT}" class="xychart-axis-title xychart-y-axis-title">${escapeXml(title.text)}</text>`
     )
   }
@@ -145,7 +166,7 @@ export function renderXYChartSvg(
   if (chart.title) {
     parts.push(
       `<text x="${chart.title.x}" y="${chart.title.y}" text-anchor="middle" ` +
-      `font-size="${chart.config.titleFontSize}" font-weight="${CHART_FONT.titleWeight}" ` +
+      `font-size="${chart.config.titleFontSize}" font-weight="${style.groupHeaderFontWeight}"${letterAttr(style.groupLetterSpacing)} ` +
       `dy="${TEXT_BASELINE_SHIFT}" class="xychart-title">${escapeXml(chart.title.text)}</text>`
     )
   }
@@ -179,13 +200,14 @@ function renderAxisLabels(
   ticks: PositionedXYChart['xAxis']['ticks'],
   fontSize: number,
   axisName: 'x' | 'y',
+  style: ReturnType<typeof resolveRenderStyle>,
 ): void {
   for (const tick of ticks) {
     const middleBaseline = tick.textAnchor === 'end' ? ' dominant-baseline="middle"' : ''
     const dy = tick.textAnchor === 'end' ? '' : ` dy="${TEXT_BASELINE_SHIFT}"`
     parts.push(
       `<text x="${tick.labelX}" y="${tick.labelY}" text-anchor="${tick.textAnchor}"${middleBaseline} ` +
-      `font-size="${fontSize}" font-weight="${CHART_FONT.labelWeight}"${dy} class="xychart-label xychart-${axisName}-label">` +
+      `font-size="${fontSize}" font-weight="${style.nodeLabelFontWeight}"${letterAttr(style.nodeLetterSpacing)}${dy} class="xychart-label xychart-${axisName}-label">` +
       `${escapeXml(tick.label)}</text>`
     )
   }
@@ -196,7 +218,9 @@ function chartStyles(
   interactive: boolean,
   themeAccent?: string,
   bgColor?: string,
+  options: RenderOptions = {},
 ): { style: string; defs: string } {
+  const renderStyle = resolveRenderStyle(options, XY_STYLE_DEFAULTS)
   const accentHex = themeAccent ?? CHART_ACCENT_FALLBACK
   const themeOverrides = chart.theme
   const colorIndices = new Set<number>()
@@ -249,7 +273,7 @@ function chartStyles(
   .xychart-x-tick { stroke: ${xAxisTickColor}; }
   .xychart-y-tick { stroke: ${yAxisTickColor}; }
   .xychart-bar { stroke: none; }
-  .xychart-line { fill: none; stroke-width: ${CHART_FONT.lineWidth}; stroke-linecap: round; stroke-linejoin: round; }
+  .xychart-line { fill: none; stroke-width: ${renderStyle.lineWidth}; stroke-linecap: round; stroke-linejoin: round; }
   .xychart-dot { stroke: var(--bg); stroke-width: 2; }
   .xychart-label { fill: var(--_text); }
   .xychart-x-label { fill: ${xAxisLabelColor}; }
@@ -356,6 +380,10 @@ function formatTipValue(value: number): string {
 
 function r(value: number): string {
   return (Math.round(value * 100) / 100).toString()
+}
+
+function letterAttr(value: number): string {
+  return value !== 0 ? ` letter-spacing="${value}"` : ''
 }
 
 function escapeXml(text: string): string {

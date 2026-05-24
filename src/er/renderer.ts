@@ -1,7 +1,9 @@
 import type { PositionedErDiagram, PositionedErEntity, PositionedErRelationship, ErAttribute, Cardinality } from './types.ts'
+import type { RenderOptions } from '../types.ts'
 import type { DiagramColors } from '../theme.ts'
 import { svgOpenTag, buildStyleBlock, buildShadowDefs } from '../theme.ts'
-import { FONT_SIZES, FONT_WEIGHTS, STROKE_WIDTHS, estimateTextWidth, TEXT_BASELINE_SHIFT } from '../styles.ts'
+import { FONT_SIZES, FONT_WEIGHTS, STROKE_WIDTHS, estimateTextWidth, TEXT_BASELINE_SHIFT, resolveRenderStyle } from '../styles.ts'
+import type { RenderStyleDefaults, ResolvedRenderStyle } from '../styles.ts'
 import { renderMultilineText, escapeXml as escapeXmlUtil } from '../multiline-utils.ts'
 import { measureMultilineText } from '../text-metrics.ts'
 
@@ -17,6 +19,25 @@ import { measureMultilineText } from '../text-metrics.ts'
 //   3. Cardinality markers (crow's foot notation)
 //   4. Relationship labels
 // ============================================================================
+
+
+const ER_STYLE_DEFAULTS: RenderStyleDefaults = {
+  nodeLabelFontSize: FONT_SIZES.nodeLabel,
+  edgeLabelFontSize: FONT_SIZES.edgeLabel,
+  groupHeaderFontSize: FONT_SIZES.groupHeader,
+  nodeLabelFontWeight: 700,
+  edgeLabelFontWeight: FONT_WEIGHTS.edgeLabel,
+  groupHeaderFontWeight: FONT_WEIGHTS.groupHeader,
+  nodePaddingX: 14,
+  nodePaddingY: 8,
+  nodeCornerRadius: 0,
+  nodeLineWidth: STROKE_WIDTHS.outerBox,
+  edgeLineWidth: STROKE_WIDTHS.connector,
+  groupCornerRadius: 0,
+  groupPaddingX: 14,
+  groupPaddingY: 8,
+  groupLineWidth: STROKE_WIDTHS.outerBox,
+}
 
 /** Font sizes specific to ER diagrams */
 const ER_FONT = {
@@ -36,9 +57,11 @@ export function renderErSvg(
   diagram: PositionedErDiagram,
   colors: DiagramColors,
   font: string = 'Inter',
-  transparent: boolean = false
+  transparent: boolean = false,
+  options: RenderOptions = {},
 ): string {
   const parts: string[] = []
+  const style = resolveRenderStyle(options, ER_STYLE_DEFAULTS)
   const uid = `er-${hashAccessibility(diagram.width, diagram.height, diagram.entities.length, diagram.relationships.length)}`
   const titleId = `${uid}-title`
   const descId = `${uid}-desc`
@@ -61,22 +84,22 @@ export function renderErSvg(
 
   // 1. Relationship lines
   for (const rel of diagram.relationships) {
-    parts.push(renderRelationshipLine(rel))
+    parts.push(renderRelationshipLine(rel, style))
   }
 
   // 2. Entity boxes
   for (const entity of diagram.entities) {
-    parts.push(renderEntityBox(entity))
+    parts.push(renderEntityBox(entity, style))
   }
 
   // 3. Cardinality markers at relationship endpoints
   for (const rel of diagram.relationships) {
-    parts.push(renderCardinality(rel))
+    parts.push(renderCardinality(rel, style))
   }
 
   // 4. Relationship labels
   for (const rel of diagram.relationships) {
-    parts.push(renderRelationshipLabel(rel))
+    parts.push(renderRelationshipLabel(rel, style))
   }
 
   parts.push('</svg>')
@@ -91,7 +114,7 @@ export function renderErSvg(
  * Render an entity box with header and attribute rows.
  * Wrapped in <g class="entity"> with semantic data attributes.
  */
-function renderEntityBox(entity: PositionedErEntity): string {
+function renderEntityBox(entity: PositionedErEntity, style: ResolvedRenderStyle): string {
   const { id, x, y, width, height, headerHeight, rowHeight, label, attributes } = entity
   const parts: string[] = []
 
@@ -103,13 +126,13 @@ function renderEntityBox(entity: PositionedErEntity): string {
   // Outer rectangle
   parts.push(
     `  <rect x="${x}" y="${y}" width="${width}" height="${height}" ` +
-    `rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="${STROKE_WIDTHS.outerBox}" />`
+    `rx="${style.cornerRadius ?? 0}" ry="${style.cornerRadius ?? 0}" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="${style.nodeLineWidth}" />`
   )
 
   // Header background
   parts.push(
     `  <rect x="${x}" y="${y}" width="${width}" height="${headerHeight}" ` +
-    `rx="0" ry="0" fill="var(--_group-hdr)" stroke="var(--_node-stroke)" stroke-width="${STROKE_WIDTHS.outerBox}" />`
+    `rx="${style.cornerRadius ?? 0}" ry="${style.cornerRadius ?? 0}" fill="var(--_group-hdr)" stroke="var(--_node-stroke)" stroke-width="${style.nodeLineWidth}" />`
   )
 
   // Entity name (supports multi-line via <br> tags)
@@ -118,8 +141,8 @@ function renderEntityBox(entity: PositionedErEntity): string {
       label,
       x + width / 2,
       y + headerHeight / 2,
-      FONT_SIZES.nodeLabel,
-      `text-anchor="middle" font-size="${FONT_SIZES.nodeLabel}" font-weight="700" fill="var(--_text)"`
+      style.nodeLabelFontSize,
+      `text-anchor="middle" font-size="${style.nodeLabelFontSize}" font-weight="${style.nodeLabelFontWeight}"${letterAttr(style.nodeLetterSpacing)} fill="var(--_text)"`
     )
   )
 
@@ -127,14 +150,14 @@ function renderEntityBox(entity: PositionedErEntity): string {
   const attrTop = y + headerHeight
   parts.push(
     `  <line x1="${x}" y1="${attrTop}" x2="${x + width}" y2="${attrTop}" ` +
-    `stroke="var(--_node-stroke)" stroke-width="${STROKE_WIDTHS.innerBox}" />`
+    `stroke="var(--_node-stroke)" stroke-width="${Math.min(style.nodeLineWidth, STROKE_WIDTHS.innerBox)}" />`
   )
 
   // Attribute rows
   for (let i = 0; i < attributes.length; i++) {
     const attr = attributes[i]!
     const rowY = attrTop + i * rowHeight + rowHeight / 2
-    parts.push('  ' + renderAttribute(attr, x, rowY, width).replace(/\n/g, '\n  '))
+    parts.push('  ' + renderAttribute(attr, x, rowY, width, style).replace(/\n/g, '\n  '))
   }
 
   // Empty row placeholder when no attributes
@@ -157,7 +180,7 @@ function renderEntityBox(entity: PositionedErEntity): string {
  * Key badge uses var(--_key-badge) for background tint.
  * Comments are shown as tooltips via SVG <title> element.
  */
-function renderAttribute(attr: ErAttribute, boxX: number, y: number, boxWidth: number): string {
+function renderAttribute(attr: ErAttribute, boxX: number, y: number, boxWidth: number, style: ResolvedRenderStyle): string {
   const parts: string[] = []
 
   // Wrap in a group if there's a comment (for tooltip support)
@@ -174,17 +197,17 @@ function renderAttribute(attr: ErAttribute, boxX: number, y: number, boxWidth: n
     const keyText = attr.keys.join(',')
     keyWidth = estimateTextWidth(keyText, ER_FONT.keySize, ER_FONT.keyWeight) + 8
     parts.push(
-      `<rect x="${boxX + 6}" y="${y - 7}" width="${keyWidth}" height="14" rx="2" ry="2" ` +
+      `<rect x="${boxX + Math.max(6, style.nodePaddingX / 2)}" y="${y - 7}" width="${keyWidth}" height="14" rx="2" ry="2" ` +
       `fill="var(--_key-badge)" />`
     )
     parts.push(
-      `<text x="${boxX + 6 + keyWidth / 2}" y="${y}" text-anchor="middle" dy="${TEXT_BASELINE_SHIFT}" ` +
+      `<text x="${boxX + Math.max(6, style.nodePaddingX / 2) + keyWidth / 2}" y="${y}" text-anchor="middle" dy="${TEXT_BASELINE_SHIFT}" ` +
       `font-size="${ER_FONT.keySize}" font-weight="${ER_FONT.keyWeight}" fill="var(--_text-sec)">${attr.keys.join(',')}</text>`
     )
   }
 
   // Type (left-aligned after keys, monospace with syntax highlighting)
-  const typeX = boxX + 8 + (keyWidth > 0 ? keyWidth + 6 : 0)
+  const typeX = boxX + Math.max(8, style.nodePaddingX / 2) + (keyWidth > 0 ? keyWidth + 6 : 0)
   parts.push(
     `<text x="${typeX}" y="${y}" class="mono" dy="${TEXT_BASELINE_SHIFT}" ` +
     `font-size="${ER_FONT.attrSize}" font-weight="${ER_FONT.attrWeight}">` +
@@ -192,7 +215,7 @@ function renderAttribute(attr: ErAttribute, boxX: number, y: number, boxWidth: n
   )
 
   // Name (right-aligned, monospace with syntax highlighting)
-  const nameX = boxX + boxWidth - 8
+  const nameX = boxX + boxWidth - Math.max(8, style.nodePaddingX / 2)
   parts.push(
     `<text x="${nameX}" y="${y}" class="mono" text-anchor="end" dy="${TEXT_BASELINE_SHIFT}" ` +
     `font-size="${ER_FONT.attrSize}" font-weight="${ER_FONT.attrWeight}">` +
@@ -214,7 +237,7 @@ function renderAttribute(attr: ErAttribute, boxX: number, y: number, boxWidth: n
 /**
  * Render a relationship line with semantic data attributes.
  */
-function renderRelationshipLine(rel: PositionedErRelationship): string {
+function renderRelationshipLine(rel: PositionedErRelationship, style: ResolvedRenderStyle): string {
   if (rel.points.length < 2) return ''
 
   const pathData = rel.points.map(p => `${p.x},${p.y}`).join(' ')
@@ -231,18 +254,25 @@ function renderRelationshipLine(rel: PositionedErRelationship): string {
     `data-identifying="${rel.identifying}"`,
   ]
 
+  if (style.edgeBendRadius > 0 && rel.points.length > 2) {
+    return (
+      `<path ${dataAttrs.join(' ')}${labelAttr} d="${pointsToPathD(rel.points, style.edgeBendRadius)}" fill="none" stroke="var(--_line)" ` +
+      `stroke-width="${style.lineWidth}"${dashArray} />`
+    )
+  }
+
   return (
     `<polyline ${dataAttrs.join(' ')}${labelAttr} points="${pathData}" fill="none" stroke="var(--_line)" ` +
-    `stroke-width="${STROKE_WIDTHS.connector}"${dashArray} />`
+    `stroke-width="${style.lineWidth}"${dashArray} />`
   )
 }
 
 /** Render a relationship label at the midpoint (supports multi-line) */
-function renderRelationshipLabel(rel: PositionedErRelationship): string {
+function renderRelationshipLabel(rel: PositionedErRelationship, style: ResolvedRenderStyle): string {
   if (!rel.label || rel.points.length < 2) return ''
 
   const mid = midpoint(rel.points)
-  const metrics = measureMultilineText(rel.label, FONT_SIZES.edgeLabel, FONT_WEIGHTS.edgeLabel)
+  const metrics = measureMultilineText(rel.label, style.edgeLabelFontSize, style.edgeLabelFontWeight)
 
   // Background pill for readability
   const bgW = metrics.width + 8
@@ -251,8 +281,8 @@ function renderRelationshipLabel(rel: PositionedErRelationship): string {
   return (
     `<rect x="${mid.x - bgW / 2}" y="${mid.y - bgH / 2}" width="${bgW}" height="${bgH}" rx="2" ry="2" ` +
     `fill="var(--bg)" stroke="var(--_inner-stroke)" stroke-width="0.5" />` +
-    `\n${renderMultilineText(rel.label, mid.x, mid.y, FONT_SIZES.edgeLabel,
-      `text-anchor="middle" font-size="${FONT_SIZES.edgeLabel}" font-weight="${FONT_WEIGHTS.edgeLabel}" fill="var(--_text-muted)"`)}`
+    `\n${renderMultilineText(rel.label, mid.x, mid.y, style.edgeLabelFontSize,
+      `text-anchor="middle" font-size="${style.edgeLabelFontSize}" font-weight="${style.edgeLabelFontWeight}"${letterAttr(style.edgeLetterSpacing)} fill="var(--_text-muted)"`)}`
   )
 }
 
@@ -265,19 +295,19 @@ function renderRelationshipLabel(rel: PositionedErRelationship): string {
  *   'many':      ─╢─   (crow's foot + single line)
  *   'zero-many': ─o╣─  (circle + crow's foot)
  */
-function renderCardinality(rel: PositionedErRelationship): string {
+function renderCardinality(rel: PositionedErRelationship, style: ResolvedRenderStyle): string {
   if (rel.points.length < 2) return ''
   const parts: string[] = []
 
   // Entity1 side (first point, direction toward second point)
   const p1 = rel.points[0]!
   const p2 = rel.points[1]!
-  parts.push(renderCrowsFoot(p1, p2, rel.cardinality1))
+  parts.push(renderCrowsFoot(p1, p2, rel.cardinality1, style))
 
   // Entity2 side (last point, direction toward second-to-last point)
   const pN = rel.points[rel.points.length - 1]!
   const pN1 = rel.points[rel.points.length - 2]!
-  parts.push(renderCrowsFoot(pN, pN1, rel.cardinality2))
+  parts.push(renderCrowsFoot(pN, pN1, rel.cardinality2, style))
 
   return parts.join('\n')
 }
@@ -289,10 +319,11 @@ function renderCardinality(rel: PositionedErRelationship): string {
 function renderCrowsFoot(
   point: { x: number; y: number },
   toward: { x: number; y: number },
-  cardinality: Cardinality
+  cardinality: Cardinality,
+  style: ResolvedRenderStyle,
 ): string {
   const parts: string[] = []
-  const sw = STROKE_WIDTHS.connector + 0.25
+  const sw = style.lineWidth + 0.25
 
   // Calculate direction from toward → point (unit vector)
   const dx = point.x - toward.x
@@ -376,6 +407,41 @@ function renderCrowsFoot(
   return parts.join('\n')
 }
 
+function pointsToPathD(points: Array<{ x: number; y: number }>, radius: number): string {
+  if (points.length === 0) return ''
+  if (points.length === 1) return `M${points[0]!.x},${points[0]!.y}`
+  const parts = [`M${points[0]!.x},${points[0]!.y}`]
+  for (let i = 1; i < points.length - 1; i++) {
+    const prev = points[i - 1]!
+    const curr = points[i]!
+    const next = points[i + 1]!
+    const prevLen = Math.abs(curr.x - prev.x) + Math.abs(curr.y - prev.y)
+    const nextLen = Math.abs(next.x - curr.x) + Math.abs(next.y - curr.y)
+    const r = Math.min(radius, prevLen / 2, nextLen / 2)
+    if (r <= 0) {
+      parts.push(`L${curr.x},${curr.y}`)
+      continue
+    }
+    const before = pointToward(curr, prev, r)
+    const after = pointToward(curr, next, r)
+    parts.push(`L${before.x},${before.y}`)
+    parts.push(`Q${curr.x},${curr.y} ${after.x},${after.y}`)
+  }
+  const last = points[points.length - 1]!
+  parts.push(`L${last.x},${last.y}`)
+  return parts.join(' ')
+}
+
+function pointToward(from: { x: number; y: number }, to: { x: number; y: number }, distance: number): { x: number; y: number } {
+  const total = Math.abs(to.x - from.x) + Math.abs(to.y - from.y)
+  if (total === 0) return { ...from }
+  const t = distance / total
+  return {
+    x: Math.round((from.x + (to.x - from.x) * t) * 1000) / 1000,
+    y: Math.round((from.y + (to.y - from.y) * t) * 1000) / 1000,
+  }
+}
+
 /** Compute the arc-length midpoint of a polyline path.
  *  Walks along each segment, finds the point at exactly 50% of total path length.
  *  This ensures the label sits ON the path even for orthogonal routes with bends,
@@ -417,6 +483,10 @@ function midpoint(points: Array<{ x: number; y: number }>): { x: number; y: numb
 // ============================================================================
 // Utilities
 // ============================================================================
+
+function letterAttr(value: number): string {
+  return value !== 0 ? ` letter-spacing="${value}"` : ''
+}
 
 // Use shared escapeXml from multiline-utils
 const escapeXml = escapeXmlUtil

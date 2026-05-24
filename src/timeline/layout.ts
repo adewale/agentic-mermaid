@@ -7,6 +7,8 @@ import type {
 } from './types.ts'
 import type { RenderOptions } from '../types.ts'
 import { measureMultilineText, measureTextWidth } from '../text-metrics.ts'
+import { STROKE_WIDTHS, resolveRenderStyle } from '../styles.ts'
+import type { RenderStyleDefaults } from '../styles.ts'
 import { stripFormattingTags } from '../multiline-utils.ts'
 
 // ============================================================================
@@ -53,6 +55,25 @@ const TL = {
   eventGap: 10,
 } as const
 
+const TIMELINE_STYLE_DEFAULTS: RenderStyleDefaults = {
+  nodeLabelFontSize: TL.eventFontSize,
+  edgeLabelFontSize: TL.pillFontSize,
+  groupHeaderFontSize: TL.sectionFontSize,
+  nodeLabelFontWeight: TL.eventFontWeight,
+  edgeLabelFontWeight: TL.pillFontWeight,
+  groupHeaderFontWeight: TL.sectionFontWeight,
+  nodePaddingX: TL.eventPadX,
+  nodePaddingY: TL.eventPadY,
+  nodeCornerRadius: 0,
+  nodeLineWidth: STROKE_WIDTHS.outerBox,
+  edgeLineWidth: 1.5,
+  groupCornerRadius: 0,
+  groupPaddingX: TL.sectionPadX,
+  groupPaddingY: TL.sectionPadBottom,
+  groupLabelPaddingX: TL.sectionHeaderPadX,
+  groupLineWidth: STROKE_WIDTHS.outerBox,
+}
+
 interface PeriodMetric {
   label: string
   pillWidth: number
@@ -76,12 +97,13 @@ interface SectionMetric {
  */
 export function layoutTimelineDiagram(
   diagram: TimelineDiagram,
-  _options: RenderOptions = {}
+  options: RenderOptions = {}
 ): PositionedTimelineDiagram {
+  const style = resolveRenderStyle(options, TIMELINE_STYLE_DEFAULTS)
   const hasNamedSections = diagram.sections.some(section => !!section.label)
   const showSectionFrames = diagram.sections.length > 1 || hasNamedSections
-  const sectionHeaderHeight = hasNamedSections ? TL.sectionHeaderHeight : 0
-  const sectionPadX = showSectionFrames ? TL.sectionPadX : 0
+  const sectionHeaderHeight = hasNamedSections ? Math.max(TL.sectionHeaderHeight, style.groupHeaderFontSize + style.groupPaddingY) : 0
+  const sectionPadX = showSectionFrames ? style.groupPaddingX : 0
   const titleText = diagram.title
     ? wrapTimelineText(diagram.title, TL.titleWrapWidth, TL.titleFontSize, TL.titleFontWeight)
     : undefined
@@ -92,21 +114,21 @@ export function layoutTimelineDiagram(
 
   const metrics: SectionMetric[] = diagram.sections.map(section => {
     const wrappedSectionLabel = section.label
-      ? wrapTimelineText(section.label, TL.sectionWrapWidth, TL.sectionFontSize, TL.sectionFontWeight)
+      ? wrapTimelineText(section.label, TL.sectionWrapWidth, style.groupHeaderFontSize, style.groupHeaderFontWeight)
       : undefined
     const periodMetrics: PeriodMetric[] = section.periods.map(period => {
-      const wrappedPeriodLabel = wrapTimelineText(period.label, TL.pillWrapWidth, TL.pillFontSize, TL.pillFontWeight)
-      const pillText = measureMultilineText(wrappedPeriodLabel, TL.pillFontSize, TL.pillFontWeight)
-      const pillWidth = Math.max(TL.pillMinWidth, pillText.width + TL.pillPadX * 2)
-      const pillHeight = pillText.height + TL.pillPadY * 2
+      const wrappedPeriodLabel = wrapTimelineText(period.label, TL.pillWrapWidth, style.edgeLabelFontSize, style.edgeLabelFontWeight)
+      const pillText = measureMultilineText(wrappedPeriodLabel, style.edgeLabelFontSize, style.edgeLabelFontWeight)
+      const pillWidth = Math.max(TL.pillMinWidth, pillText.width + style.nodePaddingX * 2)
+      const pillHeight = pillText.height + style.nodePaddingY * 2
 
       const eventMetrics = period.events.map(event => {
-        const wrappedEventText = wrapTimelineText(event.text, TL.eventWrapWidth, TL.eventFontSize, TL.eventFontWeight)
-        const text = measureMultilineText(wrappedEventText, TL.eventFontSize, TL.eventFontWeight)
+        const wrappedEventText = wrapTimelineText(event.text, TL.eventWrapWidth, style.nodeLabelFontSize, style.nodeLabelFontWeight)
+        const text = measureMultilineText(wrappedEventText, style.nodeLabelFontSize, style.nodeLabelFontWeight)
         return {
           text: wrappedEventText,
-          width: Math.max(TL.eventMinWidth, text.width + TL.eventPadX * 2),
-          height: text.height + TL.eventPadY * 2,
+          width: Math.max(TL.eventMinWidth, text.width + style.nodePaddingX * 2),
+          height: text.height + style.nodePaddingY * 2,
         }
       })
 
@@ -136,7 +158,7 @@ export function layoutTimelineDiagram(
     }, 0)
 
     const headerWidth = wrappedSectionLabel
-      ? measureMultilineText(wrappedSectionLabel, TL.sectionFontSize, TL.sectionFontWeight).width + TL.sectionHeaderPadX * 2
+      ? measureMultilineText(wrappedSectionLabel, style.groupHeaderFontSize, style.groupHeaderFontWeight).width + style.groupLabelPaddingX * 2
       : 0
 
     const innerWidth = Math.max(columnAreaWidth, headerWidth)
@@ -229,7 +251,7 @@ export function layoutTimelineDiagram(
       periodCursorX += periodMetric.columnWidth + TL.columnGap
     }
 
-    sectionBottom += TL.sectionPadBottom
+    sectionBottom += style.groupPaddingY
     maxBottom = Math.max(maxBottom, sectionBottom)
 
     sections.push({

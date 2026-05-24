@@ -196,26 +196,26 @@ export function renderMermaidSVG(
 
   switch (diagramType) {
     case 'architecture': {
-      const archVisual = resolveArchitectureVisualConfig(normalizedSource.frontmatter, colors)
+      const archVisual = resolveArchitectureVisualConfig(normalizedSource.frontmatter, colors, options)
       const archOptions = archVisual.padding != null ? { ...options, padding: options.padding ?? archVisual.padding } : options
       const diagram = parseArchitectureDiagram(lines)
-      const positioned = layoutArchitectureDiagram(diagram, archOptions)
+      const positioned = layoutArchitectureDiagram(diagram, archOptions, archVisual.visual)
       return renderArchitectureSvg(positioned, colors, font, transparent, archVisual.visual)
     }
     case 'sequence': {
       const diagram = parseSequenceDiagram(lines)
       const positioned = layoutSequenceDiagram(diagram, options)
-      return resolve(renderSequenceSvg(positioned, colors, font, transparent))
+      return resolve(renderSequenceSvg(positioned, colors, font, transparent, options))
     }
     case 'class': {
       const diagram = parseClassDiagram(lines)
       const positioned = layoutClassDiagramSync(diagram, options)
-      return resolve(renderClassSvg(positioned, colors, font, transparent))
+      return resolve(renderClassSvg(positioned, colors, font, transparent, options))
     }
     case 'er': {
       const diagram = parseErDiagram(lines)
       const positioned = layoutErDiagramSync(diagram, options)
-      return resolve(renderErSvg(positioned, colors, font, transparent))
+      return resolve(renderErSvg(positioned, colors, font, transparent, options))
     }
     case 'timeline': {
       const diagram = parseTimelineDiagram(lines)
@@ -227,12 +227,13 @@ export function renderMermaidSVG(
         transparent,
         normalizedSource.config.timeline,
         normalizedSource.config.themeVariables,
+        options,
       ))
     }
     case 'journey': {
       const diagram = parseJourneyDiagram(lines)
       const positioned = layoutJourneyDiagram(diagram, options)
-      return resolve(renderJourneySvg(positioned, colors, font, transparent))
+      return resolve(renderJourneySvg(positioned, colors, font, transparent, options))
     }
     case 'xychart': {
       const chart = parseXYChart(lines, normalizedSource.frontmatter)
@@ -240,13 +241,13 @@ export function renderMermaidSVG(
       const chartColors = !options.bg && chart.theme.backgroundColor
         ? { ...colors, bg: chart.theme.backgroundColor }
         : colors
-      return resolve(renderXYChartSvg(positioned, chartColors, font, transparent, options.interactive ?? false), chartColors)
+      return resolve(renderXYChartSvg(positioned, chartColors, font, transparent, options.interactive ?? false, options), chartColors)
     }
     case 'flowchart':
     default: {
       const graph = parseMermaid(normalizedSource.text)
       const positioned = layoutGraphSync(graph, options)
-      return resolve(renderSvg(positioned, colors, font, transparent))
+      return resolve(renderSvg(positioned, colors, font, transparent, options))
     }
   }
 }

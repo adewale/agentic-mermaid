@@ -140,6 +140,59 @@ export interface PositionedGroup {
 // See src/theme.ts for the full variable system.
 // ============================================================================
 
+export type TextTransform = 'uppercase' | 'lowercase' | 'capitalize'
+
+export interface TextRoleStyle {
+  /** Font size in px for this semantic text role. */
+  fontSize?: number
+  /** Font weight for this semantic text role. */
+  fontWeight?: number
+  /** Letter spacing in px for this semantic text role. */
+  letterSpacing?: number
+}
+
+export interface BoxRoleStyle {
+  /** Horizontal padding in px for rectangular/card-like elements. */
+  paddingX?: number
+  /** Vertical padding in px for rectangular/card-like elements. */
+  paddingY?: number
+  /** Corner radius in px for rectangular/card-like elements. */
+  cornerRadius?: number
+  /** Border/stroke width in px for rectangular/card-like elements. */
+  lineWidth?: number
+}
+
+export interface NodeRoleStyle extends TextRoleStyle, BoxRoleStyle {}
+
+export interface EdgeRoleStyle extends TextRoleStyle {
+  /** Connector stroke width in px. */
+  lineWidth?: number
+  /** Orthogonal connector bend radius in px. */
+  bendRadius?: number
+}
+
+export interface GroupRoleStyle extends TextRoleStyle, BoxRoleStyle {
+  /** Header/label font family override. Defaults to the main font. */
+  fontFamily?: string
+  /** Header/label text transform. */
+  textTransform?: TextTransform
+  /** Border color for group-like containers. */
+  borderColor?: string
+  /** Border stroke width in px for group-like containers. */
+  lineWidth?: number
+}
+
+export interface DiagramStyleOptions {
+  /** Shared fallback text style for semantic roles that do not override it. */
+  text?: TextRoleStyle
+  /** Style for primary node/card/entity/participant/task/service-like roles. */
+  node?: NodeRoleStyle
+  /** Style for connector/message/relationship-like roles. */
+  edge?: EdgeRoleStyle
+  /** Style for subgraph/section/block/group-like container roles. */
+  group?: GroupRoleStyle
+}
+
 export interface RenderOptions {
   /** Background color → CSS variable --bg. Default: '#FFFFFF' */
   bg?: string
@@ -161,6 +214,10 @@ export interface RenderOptions {
 
   /** Font family for all text. Default: 'Inter' */
   font?: string
+
+  /** Role-based SVG style overrides. Diagram families consume the semantic roles they support. */
+  style?: DiagramStyleOptions
+
   /** Canvas padding in px. Default: 40 */
   padding?: number
   /** Horizontal spacing between sibling nodes. Default: 24 */

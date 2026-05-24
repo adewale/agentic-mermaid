@@ -633,6 +633,7 @@ Render a Mermaid diagram to SVG. Synchronous. Auto-detects diagram type.
 | `surface` | `string?` | — | Node fill tint |
 | `border` | `string?` | — | Node stroke color |
 | `font` | `string` | `Inter` | Font family |
+| `style` | `DiagramStyleOptions` | — | Role-based SVG style overrides for `text`, `node`, `edge`, and `group` roles |
 | `transparent` | `boolean` | `false` | Render with transparent background |
 | `padding` | `number` | `40` | Canvas padding in px |
 | `nodeSpacing` | `number` | `24` | Horizontal spacing between sibling nodes |
@@ -641,6 +642,19 @@ Render a Mermaid diagram to SVG. Synchronous. Auto-detects diagram type.
 | `thoroughness` | `number` | `3` | Crossing minimization trials (1-7, higher = better but slower) |
 | `interactive` | `boolean` | `false` | Enable hover tooltips on XY chart bars and data points |
 | `mermaidConfig` | `MermaidRuntimeConfig` | — | Optional Mermaid-style config merged with frontmatter and `%%{init}` / `%%{initialize}` directives |
+
+**DiagramStyleOptions:**
+
+Style overrides are expressed as semantic roles so every diagram family can adopt the same API without pretending all diagrams have the same primitives.
+
+| Role | Fields | Meaning |
+|------|--------|---------|
+| `style.text` | `fontSize`, `fontWeight`, `letterSpacing` | Shared fallback typography for roles that do not override it |
+| `style.node` | `fontSize`, `fontWeight`, `letterSpacing`, `paddingX`, `paddingY`, `cornerRadius`, `lineWidth` | Primary cards/boxes/entities/participants/tasks/services |
+| `style.edge` | `fontSize`, `fontWeight`, `letterSpacing`, `lineWidth`, `bendRadius` | Connectors/messages/relationships and their labels |
+| `style.group` | `fontSize`, `fontWeight`, `letterSpacing`, `fontFamily`, `textTransform`, `paddingX`, `paddingY`, `cornerRadius`, `borderColor`, `lineWidth` | Subgraphs/sections/blocks/group containers |
+
+All SVG diagram families consume the roles they support, and each mapping updates both layout sizing and rendered SVG attributes. Diagram-specific Mermaid config remains available for specialized controls such as xychart axes or architecture icons.
 
 **Auto-detection:** Supported diagram families are routed from the header line automatically, including `architecture-beta`, `timeline`, `journey`, `sequenceDiagram`, `classDiagram`, `erDiagram`, and `xychart-beta`. For xychart, the `accent` color option drives the series palette unless Mermaid config provides `plotColorPalette`, and Mermaid `xyChart.width` / `height` are treated as total chart dimensions, matching Mermaid's own renderer.
 

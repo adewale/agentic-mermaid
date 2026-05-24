@@ -1,7 +1,8 @@
-import type { PositionedGraph, PositionedNode, PositionedEdge, PositionedGroup, Point, EdgeMarker } from './types.ts'
+import type { PositionedGraph, PositionedNode, PositionedEdge, PositionedGroup, Point, EdgeMarker, RenderOptions } from './types.ts'
 import type { DiagramColors } from './theme.ts'
 import { svgOpenTag, buildStyleBlock, buildShadowDefs } from './theme.ts'
-import { FONT_SIZES, FONT_WEIGHTS, STROKE_WIDTHS, ARROW_HEAD, estimateTextWidth, TEXT_BASELINE_SHIFT } from './styles.ts'
+import { STROKE_WIDTHS, ARROW_HEAD, resolveRenderStyle } from './styles.ts'
+import type { ResolvedRenderStyle } from './styles.ts'
 import { measureMultilineText } from './text-metrics.ts'
 import { renderMultilineText, renderMultilineTextWithBackground, escapeXml } from './multiline-utils.ts'
 
@@ -36,9 +37,11 @@ export function renderSvg(
   graph: PositionedGraph,
   colors: DiagramColors,
   font: string = 'Inter',
-  transparent: boolean = false
+  transparent: boolean = false,
+  options: RenderOptions = {},
 ): string {
   const parts: string[] = []
+  const style = resolveRenderStyle(options)
 
   // SVG root with CSS variables + style block + defs
   parts.push(svgOpenTag(graph.width, graph.height, colors, transparent))
@@ -67,26 +70,26 @@ export function renderSvg(
 
   // 1. Subgraph backgrounds (group rectangles with header bands)
   for (const group of graph.groups) {
-    parts.push(renderGroup(group, font))
+    parts.push(renderGroup(group, font, style))
   }
 
   // 2. Edges (polylines — rendered behind nodes)
   // Each edge is a <polyline> with semantic data-* attributes
   for (const edge of graph.edges) {
-    parts.push(renderEdge(edge))
+    parts.push(renderEdge(edge, style))
   }
 
   // 3. Edge labels (positioned at midpoint of edge)
   // Each label is wrapped in <g class="edge-label">
   for (const edge of graph.edges) {
     if (edge.label) {
-      parts.push(renderEdgeLabel(edge, font))
+      parts.push(renderEdgeLabel(edge, font, style))
     }
   }
 
   // 4. Nodes (shape + label wrapped in <g class="node">)
   for (const node of graph.nodes) {
-    parts.push(renderNode(node, font))
+    parts.push(renderNode(node, font, style))
   }
 
   parts.push('</svg>')
@@ -196,8 +199,8 @@ function markerSuffix(color: string): string {
 // Group rendering (subgraph backgrounds)
 // ============================================================================
 
-function renderGroup(group: PositionedGroup, font: string): string {
-  const headerHeight = FONT_SIZES.groupHeader + 16
+function renderGroup(group: PositionedGroup, font: string, style: ResolvedRenderStyle): string {
+  const headerHeight = style.groupHeaderFontSize + 16
   const parts: string[] = []
 
   // Opening <g> with semantic attributes for subgraph identification
@@ -210,29 +213,29 @@ function renderGroup(group: PositionedGroup, font: string): string {
   // Outer rectangle
   parts.push(
     `  <rect x="${group.x}" y="${group.y}" width="${group.width}" height="${group.height}" ` +
-    `rx="0" ry="0" fill="var(--_group-fill)" stroke="var(--_node-stroke)" stroke-width="${STROKE_WIDTHS.outerBox}" />`
+    `rx="${style.groupCornerRadius}" ry="${style.groupCornerRadius}" fill="var(--_group-fill)" stroke="${escapeAttr(style.groupBorderColor ?? 'var(--_node-stroke)')}" stroke-width="${style.groupLineWidth}" />`
   )
 
   // Header band
   parts.push(
     `  <rect x="${group.x}" y="${group.y}" width="${group.width}" height="${headerHeight}" ` +
-    `rx="0" ry="0" fill="var(--_group-hdr)" stroke="var(--_node-stroke)" stroke-width="${STROKE_WIDTHS.outerBox}" />`
+    `rx="${style.groupCornerRadius}" ry="${style.groupCornerRadius}" fill="var(--_group-hdr)" stroke="${escapeAttr(style.groupBorderColor ?? 'var(--_node-stroke)')}" stroke-width="${style.groupLineWidth}" />`
   )
 
   // Header label (supports multi-line via <br> tags)
   parts.push(
     '  ' + renderMultilineText(
-      group.label,
-      group.x + 12,
+      transformText(group.label, style.groupTextTransform),
+      group.x + style.groupLabelPaddingX,
       group.y + headerHeight / 2,
-      FONT_SIZES.groupHeader,
-      `font-size="${FONT_SIZES.groupHeader}" font-weight="${FONT_WEIGHTS.groupHeader}" fill="var(--_text-sec)"`
+      style.groupHeaderFontSize,
+      `font-size="${style.groupHeaderFontSize}" font-weight="${style.groupHeaderFontWeight}"${style.groupFont ? ` font-family="${escapeAttr(style.groupFont)}"` : ''}${style.groupLetterSpacing !== 0 ? ` letter-spacing="${style.groupLetterSpacing}"` : ''} fill="var(--_text-sec)"`
     )
   )
 
   // Render nested groups recursively (inside this group)
   for (const child of group.children) {
-    parts.push(renderGroup(child, font))
+    parts.push(renderGroup(child, font, style))
   }
 
   parts.push('</g>')
@@ -244,12 +247,12 @@ function renderGroup(group: PositionedGroup, font: string): string {
 // Edge rendering
 // ============================================================================
 
-function renderEdge(edge: PositionedEdge): string {
+function renderEdge(edge: PositionedEdge, style: ResolvedRenderStyle): string {
   if (edge.points.length < 2) return ''
 
-  const pathData = pointsToPolylinePath(edge.points)
+  const pathData = style.edgeBendRadius > 0 ? pointsToPathD(edge.points, style.edgeBendRadius) : pointsToPolylinePath(edge.points)
   const dashArray = edge.style === 'dotted' ? ' stroke-dasharray="4 4"' : ''
-  const baseStrokeWidth = edge.style === 'thick' ? STROKE_WIDTHS.connector * 2 : STROKE_WIDTHS.connector
+  const baseStrokeWidth = edge.style === 'thick' ? style.lineWidth * 2 : style.lineWidth
   const strokeColor = escapeAttr(edge.inlineStyle?.stroke ?? 'var(--_line)')
   const strokeWidth = escapeAttr(edge.inlineStyle?.['stroke-width'] ?? String(baseStrokeWidth))
 
@@ -286,6 +289,13 @@ function renderEdge(edge: PositionedEdge): string {
     dataAttrs.push(`data-label="${escapeAttr(edge.label)}"`)
   }
 
+  if (style.edgeBendRadius > 0) {
+    return (
+      `<path ${dataAttrs.join(' ')} d="${pathData}" fill="none" stroke="${strokeColor}" ` +
+      `stroke-width="${strokeWidth}"${dashArray}${markers} />`
+    )
+  }
+
   return (
     `<polyline ${dataAttrs.join(' ')} points="${pathData}" fill="none" stroke="${strokeColor}" ` +
     `stroke-width="${strokeWidth}"${dashArray}${markers} />`
@@ -297,7 +307,54 @@ function pointsToPolylinePath(points: Point[]): string {
   return points.map(p => `${p.x},${p.y}`).join(' ')
 }
 
-function renderEdgeLabel(edge: PositionedEdge, font: string): string {
+function pointsToPathD(points: Point[], radius: number): string {
+  if (points.length === 0) return ''
+  if (points.length === 1) return `M${points[0]!.x},${points[0]!.y}`
+  if (radius <= 0 || points.length < 3) {
+    return `M${points.map(p => `${p.x},${p.y}`).join(' L')}`
+  }
+
+  const parts: string[] = [`M${points[0]!.x},${points[0]!.y}`]
+
+  for (let i = 1; i < points.length - 1; i++) {
+    const prev = points[i - 1]!
+    const curr = points[i]!
+    const next = points[i + 1]!
+    const prevLen = dist(prev, curr)
+    const nextLen = dist(curr, next)
+    const r = Math.min(radius, prevLen / 2, nextLen / 2)
+
+    if (r <= 0) {
+      parts.push(`L${curr.x},${curr.y}`)
+      continue
+    }
+
+    const before = pointAlong(curr, prev, r)
+    const after = pointAlong(curr, next, r)
+    parts.push(`L${before.x},${before.y}`)
+    parts.push(`Q${curr.x},${curr.y} ${after.x},${after.y}`)
+  }
+
+  const last = points[points.length - 1]!
+  parts.push(`L${last.x},${last.y}`)
+  return parts.join(' ')
+}
+
+function pointAlong(from: Point, to: Point, distance: number): Point {
+  const total = dist(from, to)
+  if (total === 0) return { ...from }
+  const t = distance / total
+  return {
+    x: roundPathCoord(from.x + (to.x - from.x) * t),
+    y: roundPathCoord(from.y + (to.y - from.y) * t),
+  }
+}
+
+function roundPathCoord(value: number): number {
+  return Math.round(value * 1000) / 1000
+}
+
+function renderEdgeLabel(edge: PositionedEdge, font: string, style: ResolvedRenderStyle): string {
   // Use layout-computed label position when available (layout-aware, avoids collisions).
   // Fall back to geometric midpoint of the edge polyline.
   const mid = edge.labelPosition ?? edgeMidpoint(edge.points)
@@ -305,7 +362,7 @@ function renderEdgeLabel(edge: PositionedEdge, font: string): string {
   const padding = 8
 
   // Measure text (works for both single and multi-line)
-  const metrics = measureMultilineText(label, FONT_SIZES.edgeLabel, FONT_WEIGHTS.edgeLabel)
+  const metrics = measureMultilineText(label, style.edgeLabelFontSize, style.edgeLabelFontWeight)
 
   // Wrap in <g class="edge-label"> with reference to the edge it belongs to
   const content = renderMultilineTextWithBackground(
@@ -314,10 +371,10 @@ function renderEdgeLabel(edge: PositionedEdge, font: string): string {
     mid.y,
     metrics.width,
     metrics.height,
-    FONT_SIZES.edgeLabel,
+    style.edgeLabelFontSize,
     padding,
     // Use --_text-sec for better contrast (was --_text-muted)
-    `text-anchor="middle" font-size="${FONT_SIZES.edgeLabel}" font-weight="${FONT_WEIGHTS.edgeLabel}" fill="var(--_text-sec)"`,
+    `text-anchor="middle" font-size="${style.edgeLabelFontSize}" font-weight="${style.edgeLabelFontWeight}"${style.edgeLetterSpacing !== 0 ? ` letter-spacing="${style.edgeLetterSpacing}"` : ''} fill="var(--_text-sec)"`,
     // Increased stroke width from 0.5 to 1 for better label separation from edges
     `rx="2" ry="2" fill="var(--bg)" stroke="var(--_inner-stroke)" stroke-width="1"`
   )
@@ -374,9 +431,9 @@ function dist(a: Point, b: Point): number {
  * - data-label: display label text
  * - data-shape: shape type (rectangle, diamond, circle, etc.)
  */
-function renderNode(node: PositionedNode, font: string): string {
-  const shape = renderNodeShape(node)
-  const label = renderNodeLabel(node, font)
+function renderNode(node: PositionedNode, font: string, style: ResolvedRenderStyle): string {
+  const shape = renderNodeShape(node, style)
+  const label = renderNodeLabel(node, font, style)
 
   // Combine shape and label inside a semantic group
   // This enables reliable node identification without heuristics
@@ -393,7 +450,7 @@ function renderNode(node: PositionedNode, font: string): string {
   return parts.join('\n')
 }
 
-function renderNodeShape(node: PositionedNode): string {
+function renderNodeShape(node: PositionedNode, style: ResolvedRenderStyle): string {
   const { x, y, width, height, shape, inlineStyle } = node
 
   // Resolve fill and stroke — inline styles (from mermaid `style` directives)
@@ -401,21 +458,21 @@ function renderNodeShape(node: PositionedNode): string {
   // CSS variable handles theming automatically via color-mix() derivation.
   const fill = escapeAttr(inlineStyle?.fill ?? 'var(--_node-fill)')
   const stroke = escapeAttr(inlineStyle?.stroke ?? 'var(--_node-stroke)')
-  const sw = escapeAttr(inlineStyle?.['stroke-width'] ?? String(STROKE_WIDTHS.innerBox))
+  const sw = escapeAttr(inlineStyle?.['stroke-width'] ?? String(style.nodeLineWidth))
 
   switch (shape) {
     case 'service':
-      return renderRect(x, y, width, height, fill, stroke, sw)
+      return renderRect(x, y, width, height, fill, stroke, sw, style.cornerRadius ?? 0)
     case 'diamond':
       return renderDiamond(x, y, width, height, fill, stroke, sw)
     case 'rounded':
-      return renderRoundedRect(x, y, width, height, fill, stroke, sw)
+      return renderRoundedRect(x, y, width, height, fill, stroke, sw, style.cornerRadius ?? 6)
     case 'stadium':
       return renderStadium(x, y, width, height, fill, stroke, sw)
     case 'circle':
       return renderCircle(x, y, width, height, fill, stroke, sw)
     case 'subroutine':
-      return renderSubroutine(x, y, width, height, fill, stroke, sw)
+      return renderSubroutine(x, y, width, height, fill, stroke, sw, style.cornerRadius ?? 0)
     case 'doublecircle':
       return renderDoubleCircle(x, y, width, height, fill, stroke, sw)
     case 'hexagon':
@@ -434,23 +491,23 @@ function renderNodeShape(node: PositionedNode): string {
       return renderStateEnd(x, y, width, height)
     case 'rectangle':
     default:
-      return renderRect(x, y, width, height, fill, stroke, sw)
+      return renderRect(x, y, width, height, fill, stroke, sw, style.cornerRadius ?? 0)
   }
 }
 
 // --- Basic shapes ---
 
-function renderRect(x: number, y: number, w: number, h: number, fill: string, stroke: string, sw: string): string {
+function renderRect(x: number, y: number, w: number, h: number, fill: string, stroke: string, sw: string, radius: number = 0): string {
   return (
     `<rect x="${x}" y="${y}" width="${w}" height="${h}" ` +
-    `rx="0" ry="0" fill="${fill}" stroke="${stroke}" stroke-width="${sw}" />`
+    `rx="${radius}" ry="${radius}" fill="${fill}" stroke="${stroke}" stroke-width="${sw}" />`
   )
 }
 
-function renderRoundedRect(x: number, y: number, w: number, h: number, fill: string, stroke: string, sw: string): string {
+function renderRoundedRect(x: number, y: number, w: number, h: number, fill: string, stroke: string, sw: string, radius: number = 6): string {
   return (
     `<rect x="${x}" y="${y}" width="${w}" height="${h}" ` +
-    `rx="6" ry="6" fill="${fill}" stroke="${stroke}" stroke-width="${sw}" />`
+    `rx="${radius}" ry="${radius}" fill="${fill}" stroke="${stroke}" stroke-width="${sw}" />`
   )
 }
 
@@ -492,11 +549,11 @@ function renderDiamond(x: number, y: number, w: number, h: number, fill: string,
 // --- Batch 1 shapes ---
 
 /** Subroutine: rectangle with double vertical borders on left and right */
-function renderSubroutine(x: number, y: number, w: number, h: number, fill: string, stroke: string, sw: string): string {
+function renderSubroutine(x: number, y: number, w: number, h: number, fill: string, stroke: string, sw: string, radius: number = 0): string {
   const inset = 8 // distance from edge to inner vertical line
   return (
     `<rect x="${x}" y="${y}" width="${w}" height="${h}" ` +
-    `rx="0" ry="0" fill="${fill}" stroke="${stroke}" stroke-width="${sw}" />` +
+    `rx="${radius}" ry="${radius}" fill="${fill}" stroke="${stroke}" stroke-width="${sw}" />` +
     `\n<line x1="${x + inset}" y1="${y}" x2="${x + inset}" y2="${y + h}" ` +
     `stroke="${stroke}" stroke-width="${sw}" />` +
     `\n<line x1="${x + w - inset}" y1="${y}" x2="${x + w - inset}" y2="${y + h}" ` +
@@ -663,7 +720,7 @@ function nodeTextColor(node: PositionedNode): string {
   return 'var(--_text)'
 }
 
-function renderNodeLabel(node: PositionedNode, font: string): string {
+function renderNodeLabel(node: PositionedNode, font: string, style: ResolvedRenderStyle): string {
   // State pseudostates have no label
   if (node.shape === 'state-start' || node.shape === 'state-end') {
     if (!node.label) return ''
@@ -678,14 +735,27 @@ function renderNodeLabel(node: PositionedNode, font: string): string {
     node.label,
     cx,
     cy,
-    FONT_SIZES.nodeLabel,
-    `text-anchor="middle" font-size="${FONT_SIZES.nodeLabel}" font-weight="${FONT_WEIGHTS.nodeLabel}" fill="${textColor}"`
+    style.nodeLabelFontSize,
+    `text-anchor="middle" font-size="${style.nodeLabelFontSize}" font-weight="${style.nodeLabelFontWeight}"${style.nodeLetterSpacing !== 0 ? ` letter-spacing="${style.nodeLetterSpacing}"` : ''} fill="${textColor}"`
   )
 }
 
 // ============================================================================
 // Utilities
 // ============================================================================
+
+function transformText(text: string, transform: string | undefined): string {
+  switch (transform?.toLowerCase()) {
+    case 'uppercase':
+      return text.toUpperCase()
+    case 'lowercase':
+      return text.toLowerCase()
+    case 'capitalize':
+      return text.replace(/\b\p{L}/gu, ch => ch.toUpperCase())
+    default:
+      return text
+  }
+}
 
 /**
  * Escape a string for use as an XML/HTML attribute value.

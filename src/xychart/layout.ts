@@ -10,7 +10,8 @@ import type {
   XYChart,
 } from './types.ts'
 import type { RenderOptions } from '../types.ts'
-import { estimateTextWidth } from '../styles.ts'
+import { estimateTextWidth, STROKE_WIDTHS, resolveRenderStyle } from '../styles.ts'
+import type { RenderStyleDefaults } from '../styles.ts'
 import { resolveXYChartRenderConfig } from './config.ts'
 import { formatTickValue, getCategoryLabels, getDataCount, getDataXValues, getPointSpacing, linearTicks } from './axis-utils.ts'
 
@@ -24,11 +25,46 @@ import { formatTickValue, getCategoryLabels, getDataCount, getDataXValues, getPo
 
 const BAR_PADDING_PERCENT = 0.05
 
+const XY_STYLE_DEFAULTS: RenderStyleDefaults = {
+  nodeLabelFontSize: 14,
+  edgeLabelFontSize: 16,
+  groupHeaderFontSize: 20,
+  nodeLabelFontWeight: 400,
+  edgeLabelFontWeight: 400,
+  groupHeaderFontWeight: 500,
+  nodePaddingX: 0,
+  nodePaddingY: 0,
+  nodeLineWidth: 0,
+  edgeLineWidth: 2,
+  groupCornerRadius: 0,
+  groupPaddingX: 0,
+  groupPaddingY: 0,
+  groupLineWidth: STROKE_WIDTHS.outerBox,
+}
+
 export function layoutXYChart(
   chart: XYChart,
-  _options: RenderOptions = {},
+  options: RenderOptions = {},
 ): PositionedXYChart {
+  const style = resolveRenderStyle(options, XY_STYLE_DEFAULTS)
   const config = resolveXYChartRenderConfig(chart.config)
+  if (options.style?.group?.fontSize != null || options.style?.text?.fontSize != null) {
+    config.titleFontSize = style.groupHeaderFontSize
+  }
+  if (options.style?.node?.fontSize != null || options.style?.text?.fontSize != null) {
+    config.xAxis.labelFontSize = style.nodeLabelFontSize
+    config.yAxis.labelFontSize = style.nodeLabelFontSize
+  }
+  if (options.style?.edge?.fontSize != null || options.style?.text?.fontSize != null) {
+    config.xAxis.titleFontSize = style.edgeLabelFontSize
+    config.yAxis.titleFontSize = style.edgeLabelFontSize
+  }
+  if (options.style?.edge?.lineWidth != null) {
+    config.xAxis.axisLineWidth = style.lineWidth
+    config.yAxis.axisLineWidth = style.lineWidth
+    config.xAxis.tickWidth = style.lineWidth
+    config.yAxis.tickWidth = style.lineWidth
+  }
   if (chart.horizontal) return layoutHorizontal(chart, config)
   return layoutVertical(chart, config)
 }
