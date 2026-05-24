@@ -52,3 +52,57 @@ Issues found by auditing architecture against all other diagram types (2026-03-2
 
 - [x] Add layout tests
 - [x] Add dedicated renderer unit tests
+
+# Fork Feature Backlog
+
+Potential ports from the fork audit. Keep upstreamable work split into small branches based on `lukilabs/main`; keep editor/demo/product-specific work on the fork.
+
+## High-confidence ports
+
+- [ ] Add a focused CLI based on `vinceyyy/beautiful-mermaid:feat/cli`
+  - [ ] `beautiful-mermaid render <file> --ascii`
+  - [ ] `beautiful-mermaid render <file> --svg -o <out.svg>`
+  - [ ] stdin input support
+  - [ ] theme listing / `--theme`
+  - [ ] CLI parser, render, diagram smoke, and E2E tests
+- [ ] Add `quadrantChart` SVG support based on `zachwill/beautiful-mermaid:feat/quadrant-chart`
+  - [ ] Parser/layout/renderer/types
+  - [ ] Interactive point tooltips via `interactive: true`
+  - [ ] Clear unsupported behavior or implementation for ASCII output
+  - [ ] README, samples, editor/E2E coverage
+- [ ] Add Vercel-inspired themes
+  - [ ] `vercel-dark`
+  - [ ] `vercel-light`
+  - [ ] Theme tests and editor theme-list coverage
+- [ ] Port any remaining Vercel-inspired visual ideas on top of semantic style roles
+  - [x] Use `options.style.text/node/edge/group` rather than flat render aliases
+  - [x] Apply supported roles consistently across SVG diagram families with layout + renderer coverage
+  - [ ] Evaluate theme presets separately from styling API changes
+  - [ ] Keep animation experiments fork-first and separate from core styling
+- [ ] Add package/browser export improvements if useful
+  - [ ] Browser/global export entrypoint
+  - [ ] Package export fallback compatibility
+  - [ ] Build and package tests
+
+## Larger feature ports
+
+- [ ] Add C4 diagram support from `kristjanakkermann/beautiful-mermaid`
+  - [ ] Start with C4 parser/layout/SVG/tests
+  - [ ] Follow with C4 ASCII if SVG path is accepted
+  - [ ] Preserve focused PR boundaries; avoid bundling ArchiMate in the same upstream PR
+- [ ] Add ArchiMate layered diagram support from `kristjanakkermann/beautiful-mermaid`
+  - [ ] Parser/layout/SVG/tests
+  - [ ] ASCII renderer as a follow-up
+  - [ ] Reconcile custom `archimate-layered` DSL with Mermaid compatibility expectations
+- [ ] Consider Vercel-style SVG animation as fork-first work
+  - [ ] `animate: true | AnimationOptions`
+  - [ ] Rank/dependency delay model compatible with current ELK layout pipeline
+  - [ ] CSS/SMIL edge draw and moving arrowheads
+  - [ ] `prefers-reduced-motion` handling
+  - [ ] Visual regression/browser tests
+
+## Deliberate non-goals / defer
+
+- [ ] Do not port Vercel package rename, committed `dist/`, `.vercel`, or branding into upstream branches
+- [ ] Do not fold `zhenhuaa/mdv` wholesale into the package; treat terminal Markdown viewing as a separate tool or future companion package
+- [ ] Do not port old dagre-specific layout code directly; translate only ideas that still apply to the current ELK/layout-engine architecture
