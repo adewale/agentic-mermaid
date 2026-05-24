@@ -11,7 +11,7 @@ Ultra-fast, fully themeable, zero DOM dependencies. Built for the AI era.
 [![npm version](https://img.shields.io/npm/v/beautiful-mermaid.svg)](https://www.npmjs.com/package/beautiful-mermaid)
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
-[**Live Demo & Samples**](https://agents.craft.do/mermaid) · [GitHub Pages mirror](https://adewale.github.io/beautiful-mermaid/) · [Live Editor](https://adewale.github.io/beautiful-mermaid/editor)
+[**Live Demo & Samples**](https://adewale.github.io/beautiful-mermaid/) · [Live Editor](https://adewale.github.io/beautiful-mermaid/editor)
 
 **[→ Use it live in Craft Agents](https://agents.craft.do)**
 

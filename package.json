@@ -49,7 +49,7 @@
     "bench": "bun run bench.ts",
     "build": "tsup",
     "build:site": "bun run index.ts && bun run editor.ts && mkdir -p site && mv index.html editor.html site/ && cp -r public/* site/",
-    "deploy": "bun run build:site && wrangler pages deploy site --project-name craft-agents-mermaid",
+    "deploy": "echo 'GitHub Pages deploys from main via .github/workflows/pages.yml; Cloudflare deployment is upstream-owned.'",
     "xychart-test": "bun run xychart-test.ts",
     "prepublishOnly": "npm run build",
     "mutation-test": "npx stryker run"

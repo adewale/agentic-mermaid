@@ -2,13 +2,12 @@
 
 This document describes the user-facing differences in `adewale/beautiful-mermaid` relative to upstream `lukilabs/beautiful-mermaid` at the time of this fork work. It is intentionally product/documentation focused; upstreamable changes should still be split into small PRs.
 
-## Live sites
+## Fork-owned live sites
 
-- Canonical Craft/Cloudflare URL when available: <https://agents.craft.do/mermaid>
-- GitHub Pages mirror: <https://adewale.github.io/beautiful-mermaid/>
-- Live editor mirror: <https://adewale.github.io/beautiful-mermaid/editor>
+- GitHub Pages gallery: <https://adewale.github.io/beautiful-mermaid/>
+- GitHub Pages live editor: <https://adewale.github.io/beautiful-mermaid/editor>
 
-The Cloudflare Pages deployment currently requires access to the account/project that owns `craft-agents-mermaid`; GitHub Pages is deployed from this fork and is the reliable public mirror.
+This branch owns the GitHub Pages deployment. The Craft/Cloudflare site is upstream-owned and is not a deployment target for this fork.
 
 ## New and expanded diagram support
 
@@ -74,8 +73,6 @@ Users can discover fork features through:
 ## What is intentionally not in this fork
 
 - No committed `dist/` artifacts.
-- No Vercel branding or package rename.
-- No wholesale import of terminal Markdown viewers such as `zhenhuaa/mdv`.
 - No large bundled upstream PR: upstream contributions should remain focused and independently reviewable.
 
 ## Upstreaming strategy

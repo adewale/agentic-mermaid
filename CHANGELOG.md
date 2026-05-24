@@ -14,6 +14,7 @@ This changelog tracks user-facing changes in the `adewale/beautiful-mermaid` for
 ### Changed
 - SVG style customization is now role-based and diagram-family aware; removed flat render style aliases are intentionally ignored.
 - Showcase and editor docs now point users to live examples and presets.
+- Fork docs and deploy script now treat GitHub Pages as the fork-owned site and avoid the upstream-owned Craft/Cloudflare deployment target.
 
 ### Fixed
 - TypeScript CI failures in journey style padding and optional node corner-radius resolution.
