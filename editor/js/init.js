@@ -77,9 +77,8 @@ if (savedTheme && THEMES[savedTheme]) {
 applyThemeToPage(state.theme);
 updateThemeButton();
 
-// Load from URL hash or use default
-var DEFAULT_SOURCE =
-  "graph TD\n  A[Start] --> B{Decision?}\n  B -->|Yes| C[Do the thing]\n  B -->|No| D[Skip it]\n  C --> E[End]\n  D --> E";
+// Load from URL hash or start blank.
+var DEFAULT_SOURCE = "";
 
 var hashSource = getHashSource();
 if (hashSource) {

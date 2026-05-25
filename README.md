@@ -54,7 +54,7 @@ The ASCII rendering engine is based on [mermaid-ascii](https://github.com/Alexan
 This fork adds several capabilities beyond the current upstream baseline. The fastest discovery paths are:
 
 - Browse the [live sample gallery](https://adewale.github.io/beautiful-mermaid/) and open **Contents → Role Styles** for semantic `style.text/node/edge/group` examples.
-- Try the [live editor](https://adewale.github.io/beautiful-mermaid/editor), then choose **Examples → Styled flowchart / architecture / sequence / class / ER / timeline / journey / xychart**.
+- Try the [live editor](https://adewale.github.io/beautiful-mermaid/editor), which starts blank; choose **Examples** for every supported diagram type plus role-style presets.
 - Read [What changed in this fork](./FORK_DIFFERENCES.md) for fork-vs-upstream context and [CHANGELOG.md](./CHANGELOG.md) for user-facing release notes.
 
 ## Installation

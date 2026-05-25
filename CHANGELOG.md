@@ -6,7 +6,7 @@ This changelog tracks user-facing changes in the `adewale/beautiful-mermaid` for
 
 ### Added
 - Live editor deployment on GitHub Pages at <https://adewale.github.io/beautiful-mermaid/editor>.
-- Editor examples menu with styled presets for flowchart, architecture, sequence, class, ER, timeline, journey, and xychart diagrams.
+- Editor examples palette with presets for every supported diagram family: flowchart, state, architecture, sequence, class, ER, timeline, journey, and xychart.
 - Semantic role-based SVG styling via `options.style.text`, `options.style.node`, `options.style.edge`, and `options.style.group`.
 - Role-style showcase samples in the live gallery under **Contents → Role Styles**.
 - Fork documentation describing differences from upstream in [`FORK_DIFFERENCES.md`](./FORK_DIFFERENCES.md).
@@ -15,6 +15,7 @@ This changelog tracks user-facing changes in the `adewale/beautiful-mermaid` for
 - SVG style customization is now role-based and diagram-family aware; removed flat render style aliases are intentionally ignored.
 - Showcase and editor docs now point users to live examples and presets.
 - Fork docs and deploy script now treat GitHub Pages as the fork-owned site and avoid the upstream-owned Craft/Cloudflare deployment target.
+- Live editor now starts blank by default, uses a larger grouped Examples palette, and includes Copy SVG alongside Save SVG/PNG export.
 
 ### Fixed
 - TypeScript CI failures in journey style padding and optional node corner-radius resolution.

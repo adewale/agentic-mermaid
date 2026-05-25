@@ -66,7 +66,7 @@ These are merged with `options.mermaidConfig` where supported. XY chart and arch
 Users can discover fork features through:
 
 1. The [live gallery](https://adewale.github.io/beautiful-mermaid/), especially **Contents → Role Styles**.
-2. The [live editor](https://adewale.github.io/beautiful-mermaid/editor), especially **Examples → Styled flowchart / architecture / sequence / class / ER / timeline / journey / xychart**.
+2. The [live editor](https://adewale.github.io/beautiful-mermaid/editor), which starts blank and has **Examples** for every supported diagram family plus role-style presets.
 3. [`README.md`](./README.md) API docs.
 4. [`CHANGELOG.md`](./CHANGELOG.md) for user-facing change history.
 

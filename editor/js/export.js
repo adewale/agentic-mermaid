@@ -28,8 +28,12 @@ function getSvgEl() {
   return el;
 }
 
+function serializeSvg(svgEl) {
+  return new XMLSerializer().serializeToString(svgEl);
+}
+
 function svgToPngBlob(svgEl, scale, cb) {
-  var serialized = new XMLSerializer().serializeToString(svgEl);
+  var serialized = serializeSvg(svgEl);
   var svgBlob = new Blob([serialized], { type: 'image/svg+xml;charset=utf-8' });
   var url = URL.createObjectURL(svgBlob);
   var img = new Image();
@@ -63,7 +67,7 @@ function exportPNG() {
 
 function exportSVG() {
   var svgEl = getSvgEl(); if (!svgEl) return;
-  var data = new XMLSerializer().serializeToString(svgEl);
+  var data = serializeSvg(svgEl);
   var blob = new Blob([data], { type: 'image/svg+xml;charset=utf-8' });
   var url = URL.createObjectURL(blob);
   var a = document.createElement('a');
@@ -71,6 +75,16 @@ function exportSVG() {
   URL.revokeObjectURL(url);
   showToast('SVG saved!');
   exportDropdown.classList.remove('open');
+}
+
+function copySVG() {
+  var svgEl = getSvgEl(); if (!svgEl) return;
+  navigator.clipboard.writeText(serializeSvg(svgEl)).then(function() {
+    showToast('SVG copied to clipboard!');
+    exportDropdown.classList.remove('open');
+  }).catch(function() {
+    showToast('Copy SVG failed.');
+  });
 }
 
 function copyImage() {
@@ -95,6 +109,7 @@ function copyURL() {
 
 document.getElementById('export-png-btn').addEventListener('click', exportPNG);
 document.getElementById('export-svg-btn').addEventListener('click', exportSVG);
+document.getElementById('copy-svg-btn').addEventListener('click', copySVG);
 document.getElementById('copy-image-btn').addEventListener('click', copyImage);
 document.getElementById('copy-link-btn').addEventListener('click', copyURL);
 

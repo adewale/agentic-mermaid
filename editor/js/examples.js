@@ -33,8 +33,160 @@ var EDITOR_SEMANTIC_STYLE = {
 
 var EDITOR_EXAMPLES = [
   {
+    id: 'flowchart-basic',
+    label: 'Flowchart',
+    category: 'Supported diagrams',
+    diagramType: 'Flowchart',
+    description: 'Decision flow with labeled branches.',
+    theme: '',
+    source: `flowchart TD
+  A[Start] --> B{Decision?}
+  B -->|Yes| C[Do the thing]
+  B -->|No| D[Skip it]
+  C --> E[End]
+  D --> E`,
+  },
+  {
+    id: 'state-basic',
+    label: 'State diagram',
+    category: 'Supported diagrams',
+    diagramType: 'State',
+    description: 'Lifecycle using Mermaid stateDiagram-v2 syntax.',
+    theme: '',
+    source: `stateDiagram-v2
+  [*] --> Idle
+  Idle --> Processing: start
+  Processing --> Complete: done
+  Processing --> Failed: error
+  Failed --> Idle: retry
+  Complete --> [*]`,
+  },
+  {
+    id: 'architecture-basic',
+    label: 'Architecture',
+    category: 'Supported diagrams',
+    diagramType: 'Architecture',
+    description: 'Services, groups, icons, and routed connections.',
+    theme: '',
+    source: `architecture-beta
+  group app(cloud)[Application]
+  group data(database)[Data]
+  service web(server)[Web App] in app
+  service api(server)[API] in app
+  service db(database)[Postgres] in data
+  web:R --> L:api
+  api:R --> L:db`,
+  },
+  {
+    id: 'sequence-basic',
+    label: 'Sequence',
+    category: 'Supported diagrams',
+    diagramType: 'Sequence',
+    description: 'Request/response messages between participants.',
+    theme: '',
+    source: `sequenceDiagram
+  participant User
+  participant App
+  participant API
+  User->>App: Click export
+  App->>API: Render SVG
+  API-->>App: SVG string
+  App-->>User: Download`,
+  },
+  {
+    id: 'class-basic',
+    label: 'Class',
+    category: 'Supported diagrams',
+    diagramType: 'Class',
+    description: 'Classes with members and relationships.',
+    theme: '',
+    source: `classDiagram
+  class Renderer {
+    +renderSVG(source) string
+    +renderASCII(source) string
+  }
+  class Theme {
+    +bg string
+    +fg string
+  }
+  Renderer --> Theme : uses`,
+  },
+  {
+    id: 'er-basic',
+    label: 'ER diagram',
+    category: 'Supported diagrams',
+    diagramType: 'ER',
+    description: 'Entities, attributes, keys, and cardinality markers.',
+    theme: '',
+    source: `erDiagram
+  CUSTOMER {
+    string id PK
+    string email
+  }
+  ORDER {
+    string id PK
+    date created
+  }
+  LINE_ITEM {
+    string id PK
+    int quantity
+  }
+  CUSTOMER ||--o{ ORDER : places
+  ORDER ||--|{ LINE_ITEM : contains`,
+  },
+  {
+    id: 'timeline-basic',
+    label: 'Timeline',
+    category: 'Supported diagrams',
+    diagramType: 'Timeline',
+    description: 'Chronological milestones with sections.',
+    theme: '',
+    source: `timeline
+  title Product roadmap
+  section Foundation
+  2024 Q1 : Prototype
+          : Parser coverage
+  section Launch
+  2024 Q2 : Public editor
+          : SVG export`,
+  },
+  {
+    id: 'journey-basic',
+    label: 'User journey',
+    category: 'Supported diagrams',
+    diagramType: 'Journey',
+    description: 'Scored user tasks grouped by section.',
+    theme: '',
+    source: `journey
+  title Editor adoption
+  section Try
+    Open editor: 5: User
+    Load example: 4: User, Developer
+  section Share
+    Copy URL: 5: User
+    Export SVG: 4: Developer`,
+  },
+  {
+    id: 'xychart-basic',
+    label: 'XY chart',
+    category: 'Supported diagrams',
+    diagramType: 'XY Chart',
+    description: 'Bar and line series using xychart syntax.',
+    theme: '',
+    source: `xychart
+  title "Weekly renders"
+  x-axis [Mon, Tue, Wed, Thu, Fri]
+  y-axis "Renders" 0 --> 100
+  bar [25, 42, 58, 74, 88]
+  line [18, 35, 52, 70, 95]`,
+    options: { interactive: true },
+  },
+  {
     id: 'styled-flowchart',
     label: 'Styled flowchart',
+    category: 'Role style presets',
+    diagramType: 'Flowchart',
+    description: 'Flowchart using semantic node, edge, text, and group roles.',
     theme: 'solarized-light',
     source: `flowchart TD
   subgraph product [Product Loop]
@@ -45,8 +197,26 @@ var EDITOR_EXAMPLES = [
     options: EDITOR_SEMANTIC_STYLE,
   },
   {
+    id: 'styled-state',
+    label: 'Styled state',
+    category: 'Role style presets',
+    diagramType: 'State',
+    description: 'State diagram consuming the same flowchart/state role mapping.',
+    theme: 'solarized-light',
+    source: `stateDiagram-v2
+  [*] --> Draft
+  Draft --> Review: submit
+  Review --> Draft: request changes
+  Review --> Published: approve
+  Published --> [*]`,
+    options: EDITOR_SEMANTIC_STYLE,
+  },
+  {
     id: 'styled-architecture',
     label: 'Styled architecture',
+    category: 'Role style presets',
+    diagramType: 'Architecture',
+    description: 'Architecture services, groups, and connectors styled semantically.',
     theme: 'solarized-light',
     source: `architecture-beta
   group edge(cloud)[Edge Layer]
@@ -61,6 +231,9 @@ var EDITOR_EXAMPLES = [
   {
     id: 'styled-sequence',
     label: 'Styled sequence',
+    category: 'Role style presets',
+    diagramType: 'Sequence',
+    description: 'Participants use node style; messages use edge style.',
     theme: 'solarized-light',
     source: `sequenceDiagram
   participant U as User
@@ -74,6 +247,9 @@ var EDITOR_EXAMPLES = [
   {
     id: 'styled-class',
     label: 'Styled class',
+    category: 'Role style presets',
+    diagramType: 'Class',
+    description: 'Class boxes and relationships through shared style roles.',
     theme: 'solarized-light',
     source: `classDiagram
   class Renderer {
@@ -89,6 +265,9 @@ var EDITOR_EXAMPLES = [
   {
     id: 'styled-er',
     label: 'Styled ER',
+    category: 'Role style presets',
+    diagramType: 'ER',
+    description: 'ER entities and relationships inherit node/edge roles.',
     theme: 'solarized-light',
     source: `erDiagram
   USER {
@@ -110,6 +289,9 @@ var EDITOR_EXAMPLES = [
   {
     id: 'styled-timeline',
     label: 'Styled timeline',
+    category: 'Role style presets',
+    diagramType: 'Timeline',
+    description: 'Timeline periods and events styled as semantic cards/groups.',
     theme: 'solarized-light',
     source: `timeline
   title Fork Roadmap
@@ -124,6 +306,9 @@ var EDITOR_EXAMPLES = [
   {
     id: 'styled-journey',
     label: 'Styled journey',
+    category: 'Role style presets',
+    diagramType: 'Journey',
+    description: 'Journey sections, task cards, and actor chips use role styles.',
     theme: 'solarized-light',
     source: `journey
   title Editor adoption
@@ -138,6 +323,9 @@ var EDITOR_EXAMPLES = [
   {
     id: 'styled-xychart',
     label: 'Styled xychart',
+    category: 'Role style presets',
+    diagramType: 'XY Chart',
+    description: 'XY chart title, axes, grid, and series labels with shared roles.',
     theme: 'solarized-light',
     source: `xychart
   title "Styled Adoption"
@@ -148,6 +336,8 @@ var EDITOR_EXAMPLES = [
     options: Object.assign({}, EDITOR_SEMANTIC_STYLE, { interactive: true }),
   },
 ];
+
+var selectedExampleId = '';
 
 function cloneEditorConfig(config) {
   return config ? JSON.parse(JSON.stringify(config)) : {};
@@ -160,12 +350,53 @@ function findEditorExample(id) {
   return null;
 }
 
+function exampleGroups() {
+  var groups = [];
+  var groupMap = {};
+  EDITOR_EXAMPLES.forEach(function(example) {
+    var category = example.category || 'Examples';
+    if (!groupMap[category]) {
+      groupMap[category] = { category: category, examples: [] };
+      groups.push(groupMap[category]);
+    }
+    groupMap[category].examples.push(example);
+  });
+  return groups;
+}
+
+function renderExamplePalette() {
+  if (!exampleDropdownMenu) return;
+  exampleDropdownMenu.innerHTML = exampleGroups().map(function(group) {
+    return '<section class="example-category">'
+      + '<div class="example-category-title">' + escHtml(group.category) + '</div>'
+      + '<div class="example-category-grid">'
+      + group.examples.map(function(example) {
+        return '<button class="example-dropdown-item" data-example="' + escAttr(example.id) + '" data-diagram="' + escAttr(example.diagramType || '') + '" title="' + escAttr(example.description || example.label) + '">'
+          + '<span class="example-item-title">' + escHtml(example.label) + '</span>'
+          + '<span class="example-item-meta">' + escHtml(example.diagramType || '') + '</span>'
+          + '<span class="example-item-description">' + escHtml(example.description || '') + '</span>'
+          + '</button>';
+      }).join('')
+      + '</div>'
+      + '</section>';
+  }).join('');
+}
+
+function markActiveExample(id) {
+  selectedExampleId = id || '';
+  if (!exampleDropdownMenu) return;
+  exampleDropdownMenu.querySelectorAll('.example-dropdown-item').forEach(function(item) {
+    item.classList.toggle('active', item.dataset.example === selectedExampleId);
+  });
+}
+
 function loadEditorExample(id) {
   var example = findEditorExample(id);
   if (!example) return;
 
   editor.value = example.source.trim();
   state.config = cloneEditorConfig(example.options);
+  markActiveExample(example.id);
 
   if (typeof setTheme === 'function') {
     setTheme(example.theme || '');
@@ -184,6 +415,8 @@ var exampleDropdownBtn = document.getElementById('example-dropdown-btn');
 var exampleDropdownMenu = document.getElementById('example-dropdown-menu');
 var exampleDropdownWrap = document.getElementById('example-dropdown-wrap');
 
+renderExamplePalette();
+
 if (exampleDropdownBtn && exampleDropdownMenu && exampleDropdownWrap) {
   exampleDropdownBtn.addEventListener('click', function(e) {
     e.stopPropagation();
@@ -200,7 +433,7 @@ if (exampleDropdownBtn && exampleDropdownMenu && exampleDropdownWrap) {
   });
 
   document.addEventListener('click', function(e) {
-    if (!exampleDropdownWrap.contains(e.target)) {
+    if (!exampleDropdownWrap.contains(e.target) && !exampleDropdownMenu.contains(e.target)) {
       exampleDropdownMenu.classList.remove('open');
       exampleDropdownBtn.classList.remove('open');
     }

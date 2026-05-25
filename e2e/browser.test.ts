@@ -420,9 +420,19 @@ describe('browser: random theme button', () => {
 
 describe('browser: live editor integration', () => {
 
+  it('opens /editor to a blank canvas by default', async () => {
+    await page.goto(`${BASE}/editor`)
+    await page.waitForSelector('#code-editor', { timeout: 30_000 })
+
+    expect(await page.inputValue('#code-editor')).toBe('')
+    expect(await page.evaluate(() => document.getElementById('status-text')?.textContent)).toBe('Ready')
+    expect(await page.evaluate(() => document.querySelector('#preview-inner svg') === null)).toBe(true)
+    expect(await page.evaluate(() => document.getElementById('preview-inner')?.textContent?.includes('Start typing') ?? false)).toBe(true)
+  }, 60_000)
+
   it('opens /editor and renders fork-added diagram families through the bundled renderer', async () => {
     await page.goto(`${BASE}/editor`)
-    await waitForEditorRender(60_000)
+    await page.waitForSelector('#code-editor', { timeout: 30_000 })
 
     const cases = [
       {
@@ -481,6 +491,8 @@ describe('browser: live editor integration', () => {
 
   it('uses local theme registry entries in the editor theme dropdown', async () => {
     await page.goto(`${BASE}/editor`)
+    await page.waitForSelector('#code-editor', { timeout: 30_000 })
+    await page.fill('#code-editor', 'graph TD\n  A[Theme] --> B[Render]')
     await waitForEditorRender(60_000)
 
     const salmonBg = await page.evaluate(
@@ -503,9 +515,53 @@ describe('browser: live editor integration', () => {
     )).toBe(true)
   }, 120_000)
 
+  it('examples palette includes every supported diagram type and stays within the viewport', async () => {
+    await page.goto(`${BASE}/editor`)
+    await page.waitForSelector('#code-editor', { timeout: 30_000 })
+
+    await page.click('#example-dropdown-btn')
+    await page.waitForFunction(
+      () => document.getElementById('example-dropdown-menu')?.classList.contains('open') === true,
+      { timeout: 10_000 },
+    )
+
+    const diagramTypes = await page.evaluate(() => Array.from(
+      new Set(Array.from(document.querySelectorAll('.example-dropdown-item'))
+        .map(el => (el as HTMLElement).dataset.diagram)
+        .filter(Boolean)),
+    ).sort())
+
+    expect(diagramTypes).toEqual([
+      'Architecture',
+      'Class',
+      'ER',
+      'Flowchart',
+      'Journey',
+      'Sequence',
+      'State',
+      'Timeline',
+      'XY Chart',
+    ].sort())
+
+    const box = await page.locator('#example-dropdown-menu').boundingBox()
+    const viewport = page.viewportSize()
+    expect(box).not.toBeNull()
+    expect(viewport).not.toBeNull()
+    expect(box!.width).toBeGreaterThan(400)
+    expect(box!.x).toBeGreaterThanOrEqual(0)
+    expect(box!.x + box!.width).toBeLessThanOrEqual(viewport!.width)
+
+    await page.click('.example-dropdown-item[data-example="state-basic"]')
+    await page.waitForFunction(
+      () => (document.querySelector('#preview-inner svg')?.outerHTML ?? '').includes('Processing'),
+      { timeout: 60_000 },
+    )
+    expect(await page.inputValue('#code-editor')).toContain('stateDiagram-v2')
+  }, 120_000)
+
   it('loads semantic role style examples from the editor examples dropdown', async () => {
     await page.goto(`${BASE}/editor`)
-    await waitForEditorRender(60_000)
+    await page.waitForSelector('#code-editor', { timeout: 30_000 })
 
     await page.click('#example-dropdown-btn')
     await page.click('.example-dropdown-item[data-example="styled-xychart"]')

@@ -67,34 +67,83 @@
 }
 .example-dropdown-menu {
   display: none;
-  position: absolute;
-  top: calc(100% + 6px);
-  right: 0;
-  min-width: 180px;
-  padding: 4px;
-  border-radius: 8px;
+  position: fixed;
+  top: 64px;
+  left: 12px;
+  width: min(640px, calc(100vw - 24px));
+  max-height: min(680px, calc(100vh - 80px));
+  padding: 12px;
+  border-radius: 12px;
   background: var(--t-bg);
   box-shadow: var(--shadow-modal);
   z-index: 2000;
-  flex-direction: column;
+  overflow-y: auto;
+  border: 1px solid color-mix(in srgb, var(--t-fg) 8%, transparent);
 }
 .example-dropdown-menu.open {
-  display: flex;
+  display: block;
+}
+.example-category + .example-category {
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid color-mix(in srgb, var(--t-fg) 8%, transparent);
+}
+.example-category-title {
+  margin: 0 0 8px;
+  padding: 0 2px;
+  color: var(--fg3);
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+.example-category-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(188px, 1fr));
+  gap: 6px;
 }
 .example-dropdown-item {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 4px 8px;
+  align-items: start;
   border: none;
-  border-radius: 5px;
+  border-radius: 8px;
   background: transparent;
   color: var(--fg);
   font: inherit;
   font-size: 12px;
   text-align: left;
-  padding: 7px 8px;
+  padding: 10px;
   cursor: default;
+  min-height: 72px;
+}
+.example-dropdown-item:hover,
+.example-dropdown-item.active {
+  background: color-mix(in srgb, var(--t-fg) 5%, var(--t-bg));
+}
+.example-dropdown-item.active {
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--t-accent) 38%, transparent);
+}
+.example-item-title {
+  font-weight: 600;
+  line-height: 1.25;
+}
+.example-item-meta {
+  color: var(--fg3);
+  font-size: 10px;
+  line-height: 1.2;
   white-space: nowrap;
 }
-.example-dropdown-item:hover {
-  background: color-mix(in srgb, var(--t-fg) 5%, var(--t-bg));
+.example-item-description {
+  grid-column: 1 / -1;
+  color: var(--fg3);
+  font-size: 11px;
+  line-height: 1.35;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 
 .panel-header {

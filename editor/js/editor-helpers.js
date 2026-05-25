@@ -19,6 +19,7 @@ editor.addEventListener('scroll', function() {
 });
 
 editor.addEventListener('input', function() {
+  if (typeof markActiveExample === 'function') markActiveExample('');
   updateLineNumbers();
   scheduleRender();
 });
