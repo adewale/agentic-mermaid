@@ -799,7 +799,7 @@ describe('browser: live editor integration', () => {
 
 describe('browser: visual regression', () => {
 
-  it('architecture rounded fills match screenshot baseline without seams', async () => {
+  it('architecture rounded fills match screenshot baseline without decorative rails', async () => {
     await page.setViewportSize({ width: 1280, height: 720 })
     await page.goto(`${BASE}/editor?visual=architecture-rounded-fill#${ARCHITECTURE_ROUNDED_FILL_HASH}`)
     await waitForEditorRender(60_000)
@@ -818,10 +818,11 @@ describe('browser: visual regression', () => {
     const svgHtml = await page.locator('#preview-inner svg').evaluate(el => el.outerHTML)
     expect(svgHtml).toContain('<path class="architecture-group-band"')
     expect(svgHtml).toContain('<rect class="architecture-group-outline"')
-    expect(svgHtml).toContain('<path class="architecture-service-accent"')
     expect(svgHtml).toContain('<rect class="architecture-service-outline"')
+    expect(svgHtml).not.toContain('architecture-service-accent')
+    expect(svgHtml).not.toContain('architecture-icon-bg')
+    expect(svgHtml).not.toContain('architecture-icon-fill')
     expect(svgHtml).not.toContain('<rect class="architecture-group-band"')
-    expect(svgHtml).not.toContain('<rect class="architecture-service-accent"')
 
     const currentPath = join(SCREENSHOT_DIR, 'current-architecture-rounded-fill.png')
     const baselinePath = join(SCREENSHOT_DIR, 'baseline-architecture-rounded-fill.png')
@@ -844,7 +845,7 @@ describe('browser: visual regression', () => {
     expect(diff.diffRatio).toBeLessThanOrEqual(ROUNDED_FILL_SCREENSHOT_MAX_DIFF)
   }, 120_000)
 
-  it('rounded partial fills match screenshot baselines for all affected diagram families', async () => {
+  it('rounded header fills and slop-free cards match screenshot baselines', async () => {
     await page.setViewportSize({ width: 1280, height: 720 })
     const cases = [
       {
@@ -899,8 +900,8 @@ describe('browser: visual regression', () => {
     Try editor: 5: User
   section Deliver
     Deploy fix: 4: Engineer`,
-        required: ['<path class="journey-section-band"', '<path class="journey-task-accent"'],
-        forbidden: ['<rect class="journey-section-band"', '<rect class="journey-task-accent"'],
+        required: ['<path class="journey-section-band"'],
+        forbidden: ['<rect class="journey-section-band"', 'journey-task-accent'],
       },
       {
         name: 'timeline-rounded-fill',
@@ -911,8 +912,8 @@ describe('browser: visual regression', () => {
        : Beta
   section Launch
   2025 : GA`,
-        required: ['<path class="timeline-section-band"', '<path class="timeline-event-accent"'],
-        forbidden: ['<rect class="timeline-section-band"', '<rect class="timeline-event-accent"'],
+        required: ['<path class="timeline-section-band"'],
+        forbidden: ['<rect class="timeline-section-band"', 'timeline-event-accent'],
       },
     ]
 

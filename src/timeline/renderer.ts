@@ -6,7 +6,7 @@ import { renderMultilineText, escapeXml } from '../multiline-utils.ts'
 import { STROKE_WIDTHS, resolveRenderStyle } from '../styles.ts'
 import type { RenderStyleDefaults, ResolvedRenderStyle } from '../styles.ts'
 import type { MermaidThemeVariables, TimelineRuntimeConfig } from '../mermaid-source.ts'
-import { leftRoundedRectPath, topRoundedRectPath } from '../svg-paths.ts'
+import { topRoundedRectPath } from '../svg-paths.ts'
 
 // ============================================================================
 // Timeline diagram SVG renderer
@@ -15,8 +15,8 @@ import { leftRoundedRectPath, topRoundedRectPath } from '../svg-paths.ts'
 //   - crisp section frames aligned with the rest of beautiful-mermaid
 //   - a single horizontal rail
 //   - period pills above the rail
-//   - stacked event cards below with a subtle accent strip
-//   - color families grouped by section (or by period when unsectioned)
+//   - stacked event cards below the rail
+//   - color families only when explicitly configured by Mermaid/theme variables
 // ============================================================================
 
 const TL = {
@@ -30,7 +30,6 @@ const TL = {
   eventFontWeight: 400,
   markerOuterRadius: 8,
   markerInnerRadius: 4.5,
-  eventAccentWidth: 4,
 } as const
 
 const TIMELINE_STYLE_DEFAULTS: RenderStyleDefaults = {
@@ -59,22 +58,6 @@ interface TimelineFamilyPalette {
   line: string
 }
 
-const TL_THEME_FAMILY_ACCENTS = [
-  'var(--_arrow)',
-  mix('var(--_arrow)', 'var(--_line)', 72),
-  mix('var(--_arrow)', 'var(--_text-sec)', 60),
-  mix('var(--_line)', 'var(--_text)', 56),
-  mix('var(--_arrow)', 'var(--_node-stroke)', 46),
-] as const
-
-const TL_DEFAULT_FAMILY_ACCENTS = [
-  '#5B7FFF',
-  '#159A72',
-  '#D18A24',
-  '#CC5A5A',
-  '#6B7280',
-] as const
-
 /**
  * Render a positioned timeline diagram as an SVG string.
  */
@@ -92,7 +75,7 @@ export function renderTimelineSvg(
   const useSectionFamilies = diagram.sections.some(section => Boolean(section.label))
   const accessibleTitle = diagram.accessibilityTitle ?? diagram.title?.text.replace(/\n+/g, ' ')
   const accessibleDescription = diagram.accessibilityDescription
-  const familyPalettes = getTimelineFamilyPalettes(colors, timelineConfig, themeVariables)
+  const familyPalettes = getTimelineFamilyPalettes(timelineConfig, themeVariables)
   const allowMulticolor = !(timelineConfig.disableMulticolor && !useSectionFamilies)
   const uid = `tl-${hashTimeline(diagram)}`
   const titleId = `${uid}-title`
@@ -163,7 +146,6 @@ function timelineStyles(style: ResolvedRenderStyle): string {
   .timeline-period-pill { fill: var(--tl-pill-fill, color-mix(in srgb, var(--_arrow) 7%, var(--bg))); stroke: var(--tl-pill-stroke, color-mix(in srgb, var(--_arrow) 20%, var(--bg))); stroke-width: ${style.nodeLineWidth}; }
   .timeline-period-text { fill: var(--tl-label, var(--_text)); }
   .timeline-event-card { fill: var(--tl-event-fill, var(--_node-fill)); stroke: var(--tl-line, var(--_node-stroke)); stroke-width: ${style.nodeLineWidth}; }
-  .timeline-event-accent { fill: var(--tl-event-accent, color-mix(in srgb, var(--_arrow) 18%, var(--bg))); }
   .timeline-event-text { fill: var(--tl-label, var(--_text-muted)); }
 </style>`
 }
@@ -260,10 +242,9 @@ function renderEvent(
   return [
     `<g class="timeline-event" data-id="${escapeAttr(event.id)}" data-period="${escapeAttr(event.periodLabel)}"${sectionAttr}${familyAttr}>`,
     `  <rect class="timeline-event-card" x="${event.x}" y="${event.y}" width="${event.width}" height="${event.height}" rx="${style.cornerRadius ?? 0}" ry="${style.cornerRadius ?? 0}" />`,
-    `  <path class="timeline-event-accent" d="${leftRoundedRectPath(event.x, event.y, TL.eventAccentWidth, event.height, style.cornerRadius ?? 0)}" />`,
     '  ' + renderMultilineText(
       event.text,
-      event.x + TL.eventAccentWidth + 12,
+      event.x + style.nodePaddingX,
       event.y + event.height / 2,
       style.nodeLabelFontSize,
       `class="timeline-event-text" text-anchor="start" font-size="${style.nodeLabelFontSize}" font-weight="${style.nodeLabelFontWeight}"${letterAttr(style.nodeLetterSpacing)}`,
@@ -289,41 +270,30 @@ function renderFamilyAttr(familyIndex: number, familyPalettes: readonly Timeline
     `--tl-pill-fill:${mix(palette.fill, 'var(--bg)', 11)}`,
     `--tl-pill-stroke:${mix(palette.fill, palette.line, 36)}`,
     `--tl-event-fill:${mix(palette.fill, 'var(--_node-fill)', 16)}`,
-    `--tl-event-accent:${mix(palette.fill, 'var(--bg)', 26)}`,
   ].join(';')
 
   return ` data-family="${family}" style="${escapeAttr(style)}"`
 }
 
 function getTimelineFamilyPalettes(
-  colors: DiagramColors,
   timelineConfig: TimelineRuntimeConfig,
   themeVariables?: MermaidThemeVariables,
 ): readonly TimelineFamilyPalette[] {
   const customFills = timelineConfig.sectionFills ?? []
   const customLabels = timelineConfig.sectionColours ?? []
-  const hasThemeEnrichment = Boolean(
-    colors.accent ||
-    colors.line ||
-    colors.muted ||
-    colors.surface ||
-    colors.border
-  )
 
   return Array.from({ length: 12 }, (_, index) => {
-    const defaultFill = hasThemeEnrichment
-      ? TL_THEME_FAMILY_ACCENTS[index % TL_THEME_FAMILY_ACCENTS.length]!
-      : TL_DEFAULT_FAMILY_ACCENTS[index % TL_DEFAULT_FAMILY_ACCENTS.length]!
-    const fill = customFills[index % Math.max(customFills.length, 1)]
+    const explicitFill = customFills[index % Math.max(customFills.length, 1)]
       ?? readTimelineScale(themeVariables, 'cScale', index)
-      ?? defaultFill
+    const fill = explicitFill ?? 'var(--_node-fill)'
     const label = customLabels[index % Math.max(customLabels.length, 1)]
       ?? readTimelineScale(themeVariables, 'cScaleLabel', index)
       ?? 'var(--_text)'
     const line = readTimelineScale(themeVariables, 'cScaleInv', index)
-      ?? mix(fill, 'var(--_line)', 48)
+      ?? (explicitFill ? mix(fill, 'var(--_line)', 48) : 'var(--_line)')
+    const accent = explicitFill ?? 'var(--_arrow)'
 
-    return { accent: fill, fill, label, line }
+    return { accent, fill, label, line }
   })
 }
 

@@ -12,7 +12,7 @@ import type { Point } from '../types.ts'
 import { svgOpenTag, buildStyleBlock } from '../theme.ts'
 import { renderMultilineText, renderMultilineTextWithBackground, escapeXml } from '../multiline-utils.ts'
 import { measureMultilineText } from '../text-metrics.ts'
-import { leftRoundedRectPath, topRoundedRectPath } from '../svg-paths.ts'
+import { topRoundedRectPath } from '../svg-paths.ts'
 
 /**
  * Render a positioned architecture diagram as SVG.
@@ -89,16 +89,13 @@ function architectureStyles(visual: ArchitectureVisualConfig): string {
   .architecture-group-label { fill: var(--_text-sec); }
   .architecture-service-card { fill: var(--arch-service-fill, color-mix(in srgb, var(--_node-fill) 92%, var(--bg))); stroke: none; }
   .architecture-service-outline { fill: none; stroke: var(--arch-service-stroke, var(--_node-stroke)); stroke-width: ${visual.serviceLineWidth}; }
-  .architecture-service-accent { fill: color-mix(in srgb, var(--_arrow) 18%, var(--bg)); }
   .architecture-service-label { fill: var(--_text); }
   .architecture-edge { fill: none; stroke: var(--_line); stroke-width: ${visual.edgeLineWidth}; stroke-linejoin: round; }
   .architecture-edge-label-bg { fill: color-mix(in srgb, var(--bg) 90%, var(--_group-hdr)); stroke: color-mix(in srgb, var(--_line) 18%, var(--bg)); stroke-width: 0.75; }
   .architecture-edge-label-text { fill: var(--_text-muted); }
   .architecture-junction-ring { fill: var(--bg); stroke: var(--_arrow); stroke-width: 1.25; }
   .architecture-junction-core { fill: color-mix(in srgb, var(--_arrow) 24%, var(--bg)); stroke: var(--_arrow); stroke-width: 0.75; }
-  .architecture-icon-bg { fill: color-mix(in srgb, var(--_arrow) 12%, var(--bg)); stroke: color-mix(in srgb, var(--_arrow) 26%, var(--bg)); stroke-width: 1; }
   .architecture-icon-mark { fill: none; stroke: var(--_arrow); stroke-width: 1.25; stroke-linecap: round; stroke-linejoin: round; }
-  .architecture-icon-fill { fill: color-mix(in srgb, var(--_arrow) 30%, var(--bg)); stroke: var(--_arrow); stroke-width: 0.75; }
   .architecture-icon-glyph { fill: var(--_arrow); }
 </style>`
 }
@@ -119,7 +116,7 @@ function renderGroup(group: PositionedArchitectureGroup, visual: ArchitectureVis
   )
 
   if (group.icon) {
-    parts.push(`  ${renderIconBadge(group.x + 10, group.y + 6, visual.iconSize, group.icon, true)}`)
+    parts.push(`  ${renderIcon(group.x + 10, group.y + 6, visual.iconSize, group.icon, true)}`)
   }
 
   parts.push(
@@ -142,10 +139,12 @@ function renderGroup(group: PositionedArchitectureGroup, visual: ArchitectureVis
 
 function renderService(service: PositionedArchitectureService, visual: ArchitectureVisualConfig): string {
   const parts: string[] = []
-  const accentWidth = 4
-  const iconX = service.x + Math.max(10, visual.servicePaddingX * 0.7)
+  const hasIcon = Boolean(service.icon)
+  const iconX = service.x + visual.servicePaddingX
   const iconY = service.y + service.height / 2 - visual.serviceIconSize / 2
-  const labelX = iconX + visual.serviceIconSize + Math.max(10, visual.servicePaddingX * 0.7)
+  const labelX = hasIcon
+    ? iconX + visual.serviceIconSize + Math.max(10, visual.servicePaddingX * 0.7)
+    : service.x + visual.servicePaddingX
 
   parts.push(
     `<g class="architecture-service" data-id="${escapeAttr(service.id)}" data-label="${escapeAttr(service.label)}">`
@@ -154,21 +153,11 @@ function renderService(service: PositionedArchitectureService, visual: Architect
     `  <rect class="architecture-service-card" x="${service.x}" y="${service.y}" width="${service.width}" height="${service.height}" rx="${visual.serviceCornerRadius}" ry="${visual.serviceCornerRadius}" />`
   )
   parts.push(
-    `  <path class="architecture-service-accent" d="${leftRoundedRectPath(service.x, service.y, accentWidth, service.height, visual.serviceCornerRadius)}" />`
-  )
-  parts.push(
     `  <rect class="architecture-service-outline" x="${service.x}" y="${service.y}" width="${service.width}" height="${service.height}" rx="${visual.serviceCornerRadius}" ry="${visual.serviceCornerRadius}" />`
   )
 
   if (service.icon) {
-    parts.push(`  ${renderIconBadge(iconX, iconY, visual.serviceIconSize, service.icon, false)}`)
-  } else {
-    parts.push(
-      `  <rect class="architecture-icon-bg" x="${iconX}" y="${iconY}" width="${visual.serviceIconSize}" height="${visual.serviceIconSize}" rx="0" ry="0" />`
-    )
-    parts.push(
-      `  <rect class="architecture-icon-fill" x="${iconX + 5}" y="${iconY + 5}" width="${visual.serviceIconSize - 10}" height="${visual.serviceIconSize - 10}" rx="0" ry="0" />`
-    )
+    parts.push(`  ${renderIcon(iconX, iconY, visual.serviceIconSize, service.icon, false)}`)
   }
 
   parts.push(
@@ -237,10 +226,9 @@ function renderEdgeLabel(edge: PositionedArchitectureEdge, visual: ArchitectureV
   )
 }
 
-function renderIconBadge(x: number, y: number, size: number, icon: string, compact: boolean): string {
+function renderIcon(x: number, y: number, size: number, icon: string, compact: boolean): string {
   const parts: string[] = []
   parts.push(`<g class="architecture-icon" data-icon="${escapeAttr(icon)}">`)
-  parts.push(`  <rect class="architecture-icon-bg" x="${x}" y="${y}" width="${size}" height="${size}" rx="0" ry="0" />`)
   parts.push(`  ${renderIconGlyph(x, y, size, icon, compact)}`)
   parts.push('</g>')
   return parts.join('\n')
@@ -286,8 +274,6 @@ function renderIconGlyph(x: number, y: number, size: number, icon: string, compa
         `<rect class="architecture-icon-mark" x="${cx - s * 0.22}" y="${cy - s * 0.24}" width="${s * 0.44}" height="${s * 0.48}" rx="0" ry="0" />`,
         `<path class="architecture-icon-mark" d="M ${cx - s * 0.16} ${cy - s * 0.08} H ${cx + s * 0.16}" />`,
         `<path class="architecture-icon-mark" d="M ${cx - s * 0.16} ${cy + s * 0.06} H ${cx + s * 0.16}" />`,
-        `<circle class="architecture-icon-fill" cx="${cx - s * 0.12}" cy="${cy + s * 0.16}" r="${s * 0.03}" />`,
-        `<circle class="architecture-icon-fill" cx="${cx + s * 0.12}" cy="${cy + s * 0.16}" r="${s * 0.03}" />`,
       ].join('\n')
     default: {
       const glyph = fallbackIconGlyph(icon)

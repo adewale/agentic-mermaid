@@ -5,14 +5,14 @@ import { svgOpenTag, buildStyleBlock, buildShadowDefs } from '../theme.ts'
 import { renderMultilineText, escapeXml } from '../multiline-utils.ts'
 import { STROKE_WIDTHS, resolveRenderStyle } from '../styles.ts'
 import type { RenderStyleDefaults, ResolvedRenderStyle } from '../styles.ts'
-import { leftRoundedRectPath, topRoundedRectPath } from '../svg-paths.ts'
+import { topRoundedRectPath } from '../svg-paths.ts'
 
 // ============================================================================
 // Journey diagram SVG renderer
 //
 // Visual language:
 //   - crisp section frames consistent with timeline / class / ER styling
-//   - stacked task cards with an accent rail
+//   - stacked task cards
 //   - compact score meters and actor pills for readable metadata
 //   - root SVG accessibility metadata sourced from Mermaid accTitle/accDescr
 // ============================================================================
@@ -28,7 +28,6 @@ const JY = {
   taskPadY: 12,
   actorFontSize: 11,
   actorFontWeight: 600,
-  taskAccentWidth: 4,
 } as const
 
 const JOURNEY_STYLE_DEFAULTS: RenderStyleDefaults = {
@@ -141,7 +140,6 @@ function journeyStyles(style: ResolvedRenderStyle): string {
   .journey-section-band { fill: color-mix(in srgb, var(--_arrow) 8%, var(--bg)); stroke: ${style.groupBorderColor ?? 'var(--_node-stroke)'}; stroke-width: ${style.groupLineWidth}; }
   .journey-section-label { fill: var(--_text-sec); }
   .journey-task-card { fill: var(--_node-fill); stroke: var(--_node-stroke); stroke-width: ${style.nodeLineWidth}; }
-  .journey-task-accent { fill: color-mix(in srgb, var(--_arrow) 18%, var(--bg)); }
   .journey-task-text { fill: var(--_text); }
   .journey-score-cell-filled { fill: var(--_arrow); stroke: var(--_arrow); stroke-width: 1; }
   .journey-score-cell-empty { fill: color-mix(in srgb, var(--bg) 55%, var(--_node-fill)); stroke: color-mix(in srgb, var(--_node-stroke) 82%, var(--bg)); stroke-width: 1; }
@@ -191,9 +189,6 @@ function renderTask(task: PositionedJourneyTask, sectionLabel: string | undefine
   )
   parts.push(
     `  <rect class="journey-task-card" x="${task.x}" y="${task.y}" width="${task.width}" height="${task.height}" rx="${style.cornerRadius ?? 0}" ry="${style.cornerRadius ?? 0}" />`
-  )
-  parts.push(
-    `  <path class="journey-task-accent" d="${leftRoundedRectPath(task.x, task.y, JY.taskAccentWidth, task.height, style.cornerRadius ?? 0)}" />`
   )
   parts.push(
     '  ' + renderMultilineText(

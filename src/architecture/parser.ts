@@ -267,13 +267,13 @@ function validateEndpoint(
 }
 
 export function architectureToMermaidGraph(diagram: ArchitectureDiagram): MermaidGraph {
-  const nodes = new Map<string, { id: string; label: string; shape: 'service' | 'state-start' }>()
+  const nodes = new Map<string, { id: string; label: string; shape: 'rectangle' | 'service' | 'state-start' }>()
 
   for (const service of diagram.services) {
     nodes.set(service.id, {
       id: service.id,
       label: service.label,
-      shape: 'service',
+      shape: service.icon ? 'service' : 'rectangle',
     })
   }
 

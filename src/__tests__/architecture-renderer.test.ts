@@ -88,7 +88,7 @@ describe('renderArchitectureSvg', () => {
     expect(svg).toContain('fill="var(--_arrow)"')
   })
 
-  it('draws partial architecture fills as paths instead of over-rounded rectangles', () => {
+  it('draws structural header fills as paths and omits decorative service rails', () => {
     const svg = renderArchitectureSvg(makeDiagram(), lightColors, 'Inter', false, {
       ...DEFAULT_ARCHITECTURE_VISUAL,
       groupCornerRadius: 18,
@@ -97,7 +97,8 @@ describe('renderArchitectureSvg', () => {
 
     expect(svg).toContain('<path class="architecture-group-band"')
     expect(svg).not.toContain('<rect class="architecture-group-band"')
-    expect(svg).toContain('<path class="architecture-service-accent"')
-    expect(svg).not.toContain('<rect class="architecture-service-accent"')
+    expect(svg).not.toContain('architecture-service-accent')
+    expect(svg).not.toContain('architecture-icon-bg')
+    expect(svg).not.toContain('architecture-icon-fill')
   })
 })

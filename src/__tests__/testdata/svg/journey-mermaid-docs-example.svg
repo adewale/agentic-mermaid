@@ -25,7 +25,6 @@
   .journey-section-band { fill: #f0f0f1; stroke: #d4d4d4; stroke-width: 1; }
   .journey-section-label { fill: #7d7d7f; }
   .journey-task-card { fill: #f9f9f9; stroke: #d4d4d4; stroke-width: 1; }
-  .journey-task-accent { fill: #dedede; }
   .journey-task-text { fill: #27272A; }
   .journey-score-cell-filled { fill: #47474a; stroke: #47474a; stroke-width: 1; }
   .journey-score-cell-empty { fill: #fcfcfc; stroke: #dcdcdc; stroke-width: 1; }
@@ -44,76 +43,71 @@
 </g>
 <g class="journey-task" data-id="task-0" data-score="5" data-section="Go to work" data-actors="Me">
   <rect class="journey-task-card" x="50" y="135" width="220" height="79.2" rx="0" ry="0" />
-  <path class="journey-task-accent" d="M50,135 H54 V214.2 H50 Z" />
-  <text x="68" y="155.45" class="journey-task-text" text-anchor="start" font-size="13" font-weight="500" dy="4.55">Make tea</text>
+  <text x="64" y="155.45" class="journey-task-text" text-anchor="start" font-size="13" font-weight="500" dy="4.55">Make tea</text>
   <rect class="journey-score-cell-filled" x="186" y="150.45" width="10" height="10" rx="2" ry="2" />
   <rect class="journey-score-cell-filled" x="201" y="150.45" width="10" height="10" rx="2" ry="2" />
   <rect class="journey-score-cell-filled" x="216" y="150.45" width="10" height="10" rx="2" ry="2" />
   <rect class="journey-score-cell-filled" x="231" y="150.45" width="10" height="10" rx="2" ry="2" />
   <rect class="journey-score-cell-filled" x="246" y="150.45" width="10" height="10" rx="2" ry="2" />
   <g class="journey-actor" data-actor="Me">
-    <rect class="journey-actor-pill" x="68" y="175.9" width="44" height="26.3" rx="13.15" ry="13.15" />
-    <text x="90" y="189.05" class="journey-actor-text" text-anchor="middle" font-size="11" font-weight="600" dy="3.8499999999999996">Me</text>
+    <rect class="journey-actor-pill" x="64" y="175.9" width="44" height="26.3" rx="13.15" ry="13.15" />
+    <text x="86" y="189.05" class="journey-actor-text" text-anchor="middle" font-size="11" font-weight="600" dy="3.8499999999999996">Me</text>
   </g>
 </g>
 <g class="journey-task" data-id="task-1" data-score="3" data-section="Go to work" data-actors="Me">
   <rect class="journey-task-card" x="50" y="228.2" width="220" height="79.2" rx="0" ry="0" />
-  <path class="journey-task-accent" d="M50,228.2 H54 V307.4 H50 Z" />
-  <text x="68" y="248.64999999999998" class="journey-task-text" text-anchor="start" font-size="13" font-weight="500" dy="4.55">Go upstairs</text>
+  <text x="64" y="248.64999999999998" class="journey-task-text" text-anchor="start" font-size="13" font-weight="500" dy="4.55">Go upstairs</text>
   <rect class="journey-score-cell-filled" x="186" y="243.64999999999998" width="10" height="10" rx="2" ry="2" />
   <rect class="journey-score-cell-filled" x="201" y="243.64999999999998" width="10" height="10" rx="2" ry="2" />
   <rect class="journey-score-cell-filled" x="216" y="243.64999999999998" width="10" height="10" rx="2" ry="2" />
   <rect class="journey-score-cell-empty" x="231" y="243.64999999999998" width="10" height="10" rx="2" ry="2" />
   <rect class="journey-score-cell-empty" x="246" y="243.64999999999998" width="10" height="10" rx="2" ry="2" />
   <g class="journey-actor" data-actor="Me">
-    <rect class="journey-actor-pill" x="68" y="269.09999999999997" width="44" height="26.3" rx="13.15" ry="13.15" />
-    <text x="90" y="282.24999999999994" class="journey-actor-text" text-anchor="middle" font-size="11" font-weight="600" dy="3.8499999999999996">Me</text>
+    <rect class="journey-actor-pill" x="64" y="269.09999999999997" width="44" height="26.3" rx="13.15" ry="13.15" />
+    <text x="86" y="282.24999999999994" class="journey-actor-text" text-anchor="middle" font-size="11" font-weight="600" dy="3.8499999999999996">Me</text>
   </g>
 </g>
 <g class="journey-task" data-id="task-2" data-score="1" data-section="Go to work" data-actors="Me, Cat">
   <rect class="journey-task-card" x="50" y="321.4" width="220" height="79.2" rx="0" ry="0" />
-  <path class="journey-task-accent" d="M50,321.4 H54 V400.59999999999997 H50 Z" />
-  <text x="68" y="341.84999999999997" class="journey-task-text" text-anchor="start" font-size="13" font-weight="500" dy="4.55">Do work</text>
+  <text x="64" y="341.84999999999997" class="journey-task-text" text-anchor="start" font-size="13" font-weight="500" dy="4.55">Do work</text>
   <rect class="journey-score-cell-filled" x="186" y="336.84999999999997" width="10" height="10" rx="2" ry="2" />
   <rect class="journey-score-cell-empty" x="201" y="336.84999999999997" width="10" height="10" rx="2" ry="2" />
   <rect class="journey-score-cell-empty" x="216" y="336.84999999999997" width="10" height="10" rx="2" ry="2" />
   <rect class="journey-score-cell-empty" x="231" y="336.84999999999997" width="10" height="10" rx="2" ry="2" />
   <rect class="journey-score-cell-empty" x="246" y="336.84999999999997" width="10" height="10" rx="2" ry="2" />
   <g class="journey-actor" data-actor="Me">
-    <rect class="journey-actor-pill" x="68" y="362.29999999999995" width="44" height="26.3" rx="13.15" ry="13.15" />
-    <text x="90" y="375.44999999999993" class="journey-actor-text" text-anchor="middle" font-size="11" font-weight="600" dy="3.8499999999999996">Me</text>
+    <rect class="journey-actor-pill" x="64" y="362.29999999999995" width="44" height="26.3" rx="13.15" ry="13.15" />
+    <text x="86" y="375.44999999999993" class="journey-actor-text" text-anchor="middle" font-size="11" font-weight="600" dy="3.8499999999999996">Me</text>
   </g>
   <g class="journey-actor" data-actor="Cat">
-    <rect class="journey-actor-pill" x="118" y="362.29999999999995" width="44" height="26.3" rx="13.15" ry="13.15" />
-    <text x="140" y="375.44999999999993" class="journey-actor-text" text-anchor="middle" font-size="11" font-weight="600" dy="3.8499999999999996">Cat</text>
+    <rect class="journey-actor-pill" x="114" y="362.29999999999995" width="44" height="26.3" rx="13.15" ry="13.15" />
+    <text x="136" y="375.44999999999993" class="journey-actor-text" text-anchor="middle" font-size="11" font-weight="600" dy="3.8499999999999996">Cat</text>
   </g>
 </g>
 <g class="journey-task" data-id="task-3" data-score="5" data-section="Go home" data-actors="Me">
   <rect class="journey-task-card" x="334" y="135" width="220" height="79.2" rx="0" ry="0" />
-  <path class="journey-task-accent" d="M334,135 H338 V214.2 H334 Z" />
-  <text x="352" y="155.45" class="journey-task-text" text-anchor="start" font-size="13" font-weight="500" dy="4.55">Go downstairs</text>
+  <text x="348" y="155.45" class="journey-task-text" text-anchor="start" font-size="13" font-weight="500" dy="4.55">Go downstairs</text>
   <rect class="journey-score-cell-filled" x="470" y="150.45" width="10" height="10" rx="2" ry="2" />
   <rect class="journey-score-cell-filled" x="485" y="150.45" width="10" height="10" rx="2" ry="2" />
   <rect class="journey-score-cell-filled" x="500" y="150.45" width="10" height="10" rx="2" ry="2" />
   <rect class="journey-score-cell-filled" x="515" y="150.45" width="10" height="10" rx="2" ry="2" />
   <rect class="journey-score-cell-filled" x="530" y="150.45" width="10" height="10" rx="2" ry="2" />
   <g class="journey-actor" data-actor="Me">
-    <rect class="journey-actor-pill" x="352" y="175.9" width="44" height="26.3" rx="13.15" ry="13.15" />
-    <text x="374" y="189.05" class="journey-actor-text" text-anchor="middle" font-size="11" font-weight="600" dy="3.8499999999999996">Me</text>
+    <rect class="journey-actor-pill" x="348" y="175.9" width="44" height="26.3" rx="13.15" ry="13.15" />
+    <text x="370" y="189.05" class="journey-actor-text" text-anchor="middle" font-size="11" font-weight="600" dy="3.8499999999999996">Me</text>
   </g>
 </g>
 <g class="journey-task" data-id="task-4" data-score="3" data-section="Go home" data-actors="Me">
   <rect class="journey-task-card" x="334" y="228.2" width="220" height="79.2" rx="0" ry="0" />
-  <path class="journey-task-accent" d="M334,228.2 H338 V307.4 H334 Z" />
-  <text x="352" y="248.64999999999998" class="journey-task-text" text-anchor="start" font-size="13" font-weight="500" dy="4.55">Sit down</text>
+  <text x="348" y="248.64999999999998" class="journey-task-text" text-anchor="start" font-size="13" font-weight="500" dy="4.55">Sit down</text>
   <rect class="journey-score-cell-filled" x="470" y="243.64999999999998" width="10" height="10" rx="2" ry="2" />
   <rect class="journey-score-cell-filled" x="485" y="243.64999999999998" width="10" height="10" rx="2" ry="2" />
   <rect class="journey-score-cell-filled" x="500" y="243.64999999999998" width="10" height="10" rx="2" ry="2" />
   <rect class="journey-score-cell-empty" x="515" y="243.64999999999998" width="10" height="10" rx="2" ry="2" />
   <rect class="journey-score-cell-empty" x="530" y="243.64999999999998" width="10" height="10" rx="2" ry="2" />
   <g class="journey-actor" data-actor="Me">
-    <rect class="journey-actor-pill" x="352" y="269.09999999999997" width="44" height="26.3" rx="13.15" ry="13.15" />
-    <text x="374" y="282.24999999999994" class="journey-actor-text" text-anchor="middle" font-size="11" font-weight="600" dy="3.8499999999999996">Me</text>
+    <rect class="journey-actor-pill" x="348" y="269.09999999999997" width="44" height="26.3" rx="13.15" ry="13.15" />
+    <text x="370" y="282.24999999999994" class="journey-actor-text" text-anchor="middle" font-size="11" font-weight="600" dy="3.8499999999999996">Me</text>
   </g>
 </g>
 <text x="302" y="39.7" class="journey-title" text-anchor="middle" font-size="18" font-weight="600" dy="6.3">My working day</text>

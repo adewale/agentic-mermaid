@@ -41,7 +41,6 @@ const JY = {
   taskPadX: 14,
   taskPadY: 12,
   taskToScoreGap: 18,
-  taskAccentWidth: 4,
   scoreCellSize: 10,
   scoreCellGap: 5,
   actorGapTop: 12,
@@ -148,8 +147,8 @@ export function layoutJourneyDiagram(
 
       const minWidth = Math.max(
         JY.taskMinWidth,
-        text.width + JY.taskToScoreGap + SCORE_TRACK_WIDTH + style.nodePaddingX * 2 + JY.taskAccentWidth,
-        actorRowWidth > 0 ? actorRowWidth + style.nodePaddingX * 2 + JY.taskAccentWidth : 0,
+        text.width + JY.taskToScoreGap + SCORE_TRACK_WIDTH + style.nodePaddingX * 2,
+        actorRowWidth > 0 ? actorRowWidth + style.nodePaddingX * 2 : 0,
       )
 
       const height = style.nodePaddingY * 2
@@ -223,7 +222,7 @@ export function layoutJourneyDiagram(
         filled: scoreIndex < task.score,
       }))
 
-      let pillCursorX = sectionInnerX + JY.taskAccentWidth + style.nodePaddingX
+      let pillCursorX = sectionInnerX + style.nodePaddingX
       const pillY = topAreaY + taskMetric.topAreaHeight + JY.actorGapTop
       const actorPills: PositionedJourneyActorPill[] = taskMetric.actorPills.map(pill => {
         const positioned = {
@@ -247,7 +246,7 @@ export function layoutJourneyDiagram(
         y: taskCursorY,
         width: metric.innerWidth,
         height: taskMetric.height,
-        textX: sectionInnerX + JY.taskAccentWidth + style.nodePaddingX,
+        textX: sectionInnerX + style.nodePaddingX,
         textY: topAreaY + taskMetric.topAreaHeight / 2,
         scoreCells,
         actorPills,

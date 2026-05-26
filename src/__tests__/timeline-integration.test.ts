@@ -48,7 +48,7 @@ describe('renderMermaidSVG – timeline diagrams', () => {
     expect(svg).toContain('Launch')
   })
 
-  it('renders Mermaid docs social media example with distinct unsectioned color families', () => {
+  it('renders Mermaid docs social media example with semantic period families but no default rainbow palette', () => {
     const svg = render(MERMAID_DOCS_SOCIAL_TIMELINE)
     const periodCount = (svg.match(/class="timeline-period"/g) ?? []).length
     const eventCount = (svg.match(/class="timeline-event"/g) ?? []).length
@@ -63,6 +63,8 @@ describe('renderMermaidSVG – timeline diagrams', () => {
     expect(periodCount).toBe(4)
     expect(eventCount).toBe(5)
     expect(familyIds).toEqual(['0', '1', '2', '3'])
+    expect(svg).not.toContain('#5B7FFF')
+    expect(svg).not.toContain('#159A72')
   })
 
   it('renders multiple events for a single period', () => {

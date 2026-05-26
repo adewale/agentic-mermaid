@@ -25,16 +25,13 @@
   .architecture-group-label { fill: var(--_text-sec); }
   .architecture-service-card { fill: var(--arch-service-fill, color-mix(in srgb, var(--_node-fill) 92%, var(--bg))); stroke: none; }
   .architecture-service-outline { fill: none; stroke: var(--arch-service-stroke, var(--_node-stroke)); stroke-width: 1; }
-  .architecture-service-accent { fill: color-mix(in srgb, var(--_arrow) 18%, var(--bg)); }
   .architecture-service-label { fill: var(--_text); }
   .architecture-edge { fill: none; stroke: var(--_line); stroke-width: 1; stroke-linejoin: round; }
   .architecture-edge-label-bg { fill: color-mix(in srgb, var(--bg) 90%, var(--_group-hdr)); stroke: color-mix(in srgb, var(--_line) 18%, var(--bg)); stroke-width: 0.75; }
   .architecture-edge-label-text { fill: var(--_text-muted); }
   .architecture-junction-ring { fill: var(--bg); stroke: var(--_arrow); stroke-width: 1.25; }
   .architecture-junction-core { fill: color-mix(in srgb, var(--_arrow) 24%, var(--bg)); stroke: var(--_arrow); stroke-width: 0.75; }
-  .architecture-icon-bg { fill: color-mix(in srgb, var(--_arrow) 12%, var(--bg)); stroke: color-mix(in srgb, var(--_arrow) 26%, var(--bg)); stroke-width: 1; }
   .architecture-icon-mark { fill: none; stroke: var(--_arrow); stroke-width: 1.25; stroke-linecap: round; stroke-linejoin: round; }
-  .architecture-icon-fill { fill: color-mix(in srgb, var(--_arrow) 30%, var(--bg)); stroke: var(--_arrow); stroke-width: 0.75; }
   .architecture-icon-glyph { fill: var(--_arrow); }
 </style>
 <defs>
@@ -50,7 +47,6 @@
   <path class="architecture-group-band" d="M40,40 H40 V68 H40 Z" />
   <rect class="architecture-group-outline" x="40" y="40" width="0" height="0" rx="0" ry="0" />
   <g class="architecture-icon" data-icon="cloud">
-  <rect class="architecture-icon-bg" x="50" y="46" width="16" height="16" rx="0" ry="0" />
   <circle class="architecture-icon-mark" cx="55.3504" cy="54.2944" r="2.3552" />
 <circle class="architecture-icon-mark" cx="58.2944" cy="52.8224" r="2.9440000000000004" />
 <circle class="architecture-icon-mark" cx="60.944" cy="54.2944" r="2.208" />
@@ -63,12 +59,9 @@
   <path class="architecture-group-band" d="M40,76 H420.58500000000004 V104 H40 Z" />
   <rect class="architecture-group-outline" x="40" y="76" width="380.58500000000004" height="110" rx="0" ry="0" />
   <g class="architecture-icon" data-icon="server">
-  <rect class="architecture-icon-bg" x="50" y="82" width="16" height="16" rx="0" ry="0" />
   <rect class="architecture-icon-mark" x="54.7616" y="86.4672" width="6.4768" height="7.0656" rx="0" ry="0" />
 <path class="architecture-icon-mark" d="M 55.644800000000004 88.8224 H 60.355199999999996" />
 <path class="architecture-icon-mark" d="M 55.644800000000004 90.8832 H 60.355199999999996" />
-<circle class="architecture-icon-fill" cx="56.2336" cy="92.3552" r="0.4416" />
-<circle class="architecture-icon-fill" cx="59.7664" cy="92.3552" r="0.4416" />
 </g>
   <text x="76" y="90" class="architecture-group-label" text-anchor="start" font-size="12" font-weight="600" dy="4.199999999999999">Application</text>
 </g>
@@ -82,30 +75,24 @@
 </g>
 <g class="architecture-service" data-id="db" data-label="Primary DB">
   <rect class="architecture-service-card" x="482.58500000000004" y="134" width="143.381" height="48" rx="0" ry="0" />
-  <path class="architecture-service-accent" d="M482.58500000000004,134 H486.58500000000004 V182 H482.58500000000004 Z" />
   <rect class="architecture-service-outline" x="482.58500000000004" y="134" width="143.381" height="48" rx="0" ry="0" />
   <g class="architecture-icon" data-icon="database">
-  <rect class="architecture-icon-bg" x="496.58500000000004" y="149" width="18" height="18" rx="0" ry="0" />
-  <ellipse class="architecture-icon-mark" cx="505.58500000000004" cy="155.12" rx="4.32" ry="1.8" />
-<path class="architecture-icon-mark" d="M 501.26500000000004 155.12 V 161.6" />
-<path class="architecture-icon-mark" d="M 509.90500000000003 155.12 V 161.6" />
-<ellipse class="architecture-icon-mark" cx="505.58500000000004" cy="158.36" rx="4.32" ry="1.8" />
-<ellipse class="architecture-icon-mark" cx="505.58500000000004" cy="161.6" rx="4.32" ry="1.8" />
+  <ellipse class="architecture-icon-mark" cx="511.58500000000004" cy="155.12" rx="4.32" ry="1.8" />
+<path class="architecture-icon-mark" d="M 507.26500000000004 155.12 V 161.6" />
+<path class="architecture-icon-mark" d="M 515.9050000000001 155.12 V 161.6" />
+<ellipse class="architecture-icon-mark" cx="511.58500000000004" cy="158.36" rx="4.32" ry="1.8" />
+<ellipse class="architecture-icon-mark" cx="511.58500000000004" cy="161.6" rx="4.32" ry="1.8" />
 </g>
-  <text x="528.585" y="158" class="architecture-service-label" text-anchor="start" font-size="13" font-weight="500" dy="4.55">Primary DB</text>
+  <text x="534.585" y="158" class="architecture-service-label" text-anchor="start" font-size="13" font-weight="500" dy="4.55">Primary DB</text>
 </g>
 <g class="architecture-service" data-id="api" data-label="Public API">
   <rect class="architecture-service-card" x="56" y="122" width="135.971" height="48" rx="0" ry="0" />
-  <path class="architecture-service-accent" d="M56,122 H60 V170 H56 Z" />
   <rect class="architecture-service-outline" x="56" y="122" width="135.971" height="48" rx="0" ry="0" />
   <g class="architecture-icon" data-icon="server">
-  <rect class="architecture-icon-bg" x="70" y="137" width="18" height="18" rx="0" ry="0" />
-  <rect class="architecture-icon-mark" x="75.04" y="141.68" width="7.92" height="8.64" rx="0" ry="0" />
-<path class="architecture-icon-mark" d="M 76.12 144.56 H 81.88" />
-<path class="architecture-icon-mark" d="M 76.12 147.08 H 81.88" />
-<circle class="architecture-icon-fill" cx="76.84" cy="148.88" r="0.54" />
-<circle class="architecture-icon-fill" cx="81.16" cy="148.88" r="0.54" />
+  <rect class="architecture-icon-mark" x="81.04" y="141.68" width="7.92" height="8.64" rx="0" ry="0" />
+<path class="architecture-icon-mark" d="M 82.12 144.56 H 87.88" />
+<path class="architecture-icon-mark" d="M 82.12 147.08 H 87.88" />
 </g>
-  <text x="102" y="146" class="architecture-service-label" text-anchor="start" font-size="13" font-weight="500" dy="4.55">Public API</text>
+  <text x="108" y="146" class="architecture-service-label" text-anchor="start" font-size="13" font-weight="500" dy="4.55">Public API</text>
 </g>
 </svg>

@@ -230,7 +230,7 @@ export interface RenderOptions {
   transparent?: boolean
   /** Enable hover tooltips on chart data points (xychart only). Default: false */
   interactive?: boolean
-  /** Enable subtle drop shadows on node shapes. Default: false */
+  /** Optional explicit drop shadows on node shapes. Default: false */
   shadow?: boolean
   /** Optional Mermaid-style runtime config (analogous to initialize/frontmatter config). */
   mermaidConfig?: MermaidRuntimeConfig

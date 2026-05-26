@@ -44,7 +44,7 @@ export interface DiagramColors {
 
   // -- Optional visual effects --
 
-  /** Enable subtle drop shadows on node shapes. Default: false */
+  /** Optional explicit drop shadows on node shapes. Default: false */
   shadow?: boolean
 }
 
@@ -170,12 +170,12 @@ export const THEMES: Record<string, DiagramColors> = {
   'tufte': {
     bg: '#FFFFF8', fg: '#111111',
     line: '#AAAAAA', accent: '#7A0000', muted: '#888888',
-    surface: '#F5F0E8', border: '#CCCCCC', shadow: true,
+    surface: '#F5F0E8', border: '#CCCCCC',
   },
   'tufte-dark': {
     bg: '#1C1C1A', fg: '#E8E4DC',
     line: '#666660', accent: '#C87070', muted: '#908880',
-    surface: '#2A2926', border: '#444440', shadow: true,
+    surface: '#2A2926', border: '#444440',
   },
 } as const
 

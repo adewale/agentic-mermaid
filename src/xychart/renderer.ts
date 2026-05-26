@@ -246,7 +246,7 @@ function chartStyles(
 
   const tipRules = interactive ? `
   .xychart-tip { opacity: 0; pointer-events: none; }
-  .xychart-tip-bg { fill: var(--_text); filter: drop-shadow(0 1px 3px color-mix(in srgb, var(--fg) 20%, transparent)); }
+  .xychart-tip-bg { fill: var(--_text); }
   .xychart-tip-text { fill: var(--bg); font-size: ${TIP.fontSize}px; font-weight: ${TIP.fontWeight}; }
   .xychart-tip-ptr { fill: var(--_text); }
   .xychart-bar-group:hover .xychart-tip,

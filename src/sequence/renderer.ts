@@ -329,35 +329,17 @@ function renderBlock(block: PositionedBlock, style: ResolvedRenderStyle): string
  * Wrapped in <g class="note"> with semantic data attributes.
  */
 function renderNote(note: PositionedNote, style: ResolvedRenderStyle): string {
-  // Dog-ear note: polygon with clipped top-right corner + fold triangle
-  const foldSize = 6
   const { x, y, width: w, height: h } = note
 
-  // Build actor reference attribute if present
   const actorsAttr = note.actors && note.actors.length > 0
     ? ` data-actors="${note.actors.map(escapeAttr).join(',')}"`
     : ''
   const positionAttr = note.position ? ` data-position="${escapeAttr(note.position)}"` : ''
 
-  // Note body: polygon with top-right corner cut off
-  //   (x,y) → (x+w-fold,y) → (x+w,y+fold) → (x+w,y+h) → (x,y+h)
-  const bodyPoints = [
-    `${x},${y}`,
-    `${x + w - foldSize},${y}`,
-    `${x + w},${y + foldSize}`,
-    `${x + w},${y + h}`,
-    `${x},${y + h}`,
-  ].join(' ')
-
   return (
     `<g class="note"${positionAttr}${actorsAttr}>` +
-    // Note body with bg fill and clipped corner
-    `\n  <polygon points="${bodyPoints}" ` +
+    `\n  <rect x="${x}" y="${y}" width="${w}" height="${h}" rx="${style.cornerRadius ?? 0}" ry="${style.cornerRadius ?? 0}" ` +
     `fill="var(--bg)" stroke="var(--_node-stroke)" stroke-width="${STROKE_WIDTHS.innerBox}" />` +
-    // Fold triangle (the folded-over corner)
-    `\n  <polygon points="${x + w - foldSize},${y} ${x + w},${y + foldSize} ${x + w - foldSize},${y + foldSize}" ` +
-    `fill="var(--_inner-stroke)" stroke="var(--_node-stroke)" stroke-width="${STROKE_WIDTHS.innerBox}" />` +
-    // Note text (supports multi-line)
     `\n  ${renderMultilineText(note.text, x + w / 2, y + h / 2, style.nodeLabelFontSize,
       `font-size="${style.nodeLabelFontSize}" text-anchor="middle" font-weight="${style.nodeLabelFontWeight}"${letterAttr(style.nodeLetterSpacing)} fill="var(--_text-muted)"`)}` +
     `\n</g>`

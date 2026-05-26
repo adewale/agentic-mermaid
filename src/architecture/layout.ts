@@ -109,6 +109,7 @@ export function layoutArchitectureDiagram(
 
   const flatGroups = new Map<string, PositionedArchitectureGroup>()
   const groups = positioned.groups.map((group) => mapGroup(group, groupsById, flatGroups))
+  expandGroupBounds(groups, services, junctions)
 
   const edges = diagram.edges.map((edge) =>
     routeArchitectureEdge(edge, servicesById, serviceBounds, junctionBounds, flatGroups)
@@ -158,6 +159,42 @@ function mapGroup(
   }
   flatGroups.set(mapped.id, mapped)
   return mapped
+}
+
+function expandGroupBounds(
+  groups: PositionedArchitectureGroup[],
+  services: PositionedArchitectureService[],
+  junctions: PositionedArchitectureJunction[],
+): void {
+  for (const group of groups) expandSingleGroup(group, services, junctions)
+}
+
+function expandSingleGroup(
+  group: PositionedArchitectureGroup,
+  services: PositionedArchitectureService[],
+  junctions: PositionedArchitectureJunction[],
+): Bounds {
+  const childBounds: Bounds[] = []
+  for (const child of group.children) childBounds.push(expandSingleGroup(child, services, junctions))
+  for (const service of services) {
+    if (service.parentId === group.id) childBounds.push(service)
+  }
+  for (const junction of junctions) {
+    if (junction.parentId === group.id) childBounds.push(junction)
+  }
+
+  if (childBounds.length === 0) return group
+
+  const minX = Math.min(group.x, ...childBounds.map(child => child.x))
+  const minY = Math.min(group.y, ...childBounds.map(child => child.y))
+  const maxX = Math.max(group.x + group.width, ...childBounds.map(child => child.x + child.width))
+  const maxY = Math.max(group.y + group.height, ...childBounds.map(child => child.y + child.height))
+
+  group.x = minX
+  group.y = minY
+  group.width = maxX - minX
+  group.height = maxY - minY
+  return group
 }
 
 function routeArchitectureEdge(

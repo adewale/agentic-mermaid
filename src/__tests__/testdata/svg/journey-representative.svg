@@ -25,7 +25,6 @@
   .journey-section-band { fill: #f0f0f1; stroke: #d4d4d4; stroke-width: 1; }
   .journey-section-label { fill: #7d7d7f; }
   .journey-task-card { fill: #f9f9f9; stroke: #d4d4d4; stroke-width: 1; }
-  .journey-task-accent { fill: #dedede; }
   .journey-task-text { fill: #27272A; }
   .journey-score-cell-filled { fill: #47474a; stroke: #47474a; stroke-width: 1; }
   .journey-score-cell-empty { fill: #fcfcfc; stroke: #dcdcdc; stroke-width: 1; }
@@ -44,56 +43,53 @@
 </g>
 <g class="journey-task" data-id="task-0" data-score="4" data-section="Discover" data-actors="PM, Research">
   <rect class="journey-task-card" x="50" y="135" width="220" height="79.2" rx="0" ry="0" />
-  <path class="journey-task-accent" d="M50,135 H54 V214.2 H50 Z" />
-  <text x="68" y="155.45" class="journey-task-text" text-anchor="start" font-size="13" font-weight="500" dy="4.55">Interview users</text>
+  <text x="64" y="155.45" class="journey-task-text" text-anchor="start" font-size="13" font-weight="500" dy="4.55">Interview users</text>
   <rect class="journey-score-cell-filled" x="186" y="150.45" width="10" height="10" rx="2" ry="2" />
   <rect class="journey-score-cell-filled" x="201" y="150.45" width="10" height="10" rx="2" ry="2" />
   <rect class="journey-score-cell-filled" x="216" y="150.45" width="10" height="10" rx="2" ry="2" />
   <rect class="journey-score-cell-filled" x="231" y="150.45" width="10" height="10" rx="2" ry="2" />
   <rect class="journey-score-cell-empty" x="246" y="150.45" width="10" height="10" rx="2" ry="2" />
   <g class="journey-actor" data-actor="PM">
-    <rect class="journey-actor-pill" x="68" y="175.9" width="44" height="26.3" rx="13.15" ry="13.15" />
-    <text x="90" y="189.05" class="journey-actor-text" text-anchor="middle" font-size="11" font-weight="600" dy="3.8499999999999996">PM</text>
+    <rect class="journey-actor-pill" x="64" y="175.9" width="44" height="26.3" rx="13.15" ry="13.15" />
+    <text x="86" y="189.05" class="journey-actor-text" text-anchor="middle" font-size="11" font-weight="600" dy="3.8499999999999996">PM</text>
   </g>
   <g class="journey-actor" data-actor="Research">
-    <rect class="journey-actor-pill" x="118" y="175.9" width="70.44999999999999" height="26.3" rx="13.15" ry="13.15" />
-    <text x="153.225" y="189.05" class="journey-actor-text" text-anchor="middle" font-size="11" font-weight="600" dy="3.8499999999999996">Research</text>
+    <rect class="journey-actor-pill" x="114" y="175.9" width="70.44999999999999" height="26.3" rx="13.15" ry="13.15" />
+    <text x="149.225" y="189.05" class="journey-actor-text" text-anchor="middle" font-size="11" font-weight="600" dy="3.8499999999999996">Research</text>
   </g>
 </g>
 <g class="journey-task" data-id="task-1" data-score="3" data-section="Deliver" data-actors="Design, Eng">
   <rect class="journey-task-card" x="334" y="135" width="220" height="96.1" rx="0" ry="0" />
-  <path class="journey-task-accent" d="M334,135 H338 V231.1 H334 Z" />
-  <text x="352" y="163.9" class="journey-task-text" text-anchor="start" font-size="13" font-weight="500"><tspan x="352" dy="-3.9000000000000012">Prototype</tspan><tspan x="352" dy="16.900000000000002">review</tspan></text>
+  <text x="348" y="163.9" class="journey-task-text" text-anchor="start" font-size="13" font-weight="500"><tspan x="348" dy="-3.9000000000000012">Prototype</tspan><tspan x="348" dy="16.900000000000002">review</tspan></text>
   <rect class="journey-score-cell-filled" x="470" y="158.9" width="10" height="10" rx="2" ry="2" />
   <rect class="journey-score-cell-filled" x="485" y="158.9" width="10" height="10" rx="2" ry="2" />
   <rect class="journey-score-cell-filled" x="500" y="158.9" width="10" height="10" rx="2" ry="2" />
   <rect class="journey-score-cell-empty" x="515" y="158.9" width="10" height="10" rx="2" ry="2" />
   <rect class="journey-score-cell-empty" x="530" y="158.9" width="10" height="10" rx="2" ry="2" />
   <g class="journey-actor" data-actor="Design">
-    <rect class="journey-actor-pill" x="352" y="192.8" width="54.60999999999999" height="26.3" rx="13.15" ry="13.15" />
-    <text x="379.305" y="205.95000000000002" class="journey-actor-text" text-anchor="middle" font-size="11" font-weight="600" dy="3.8499999999999996">Design</text>
+    <rect class="journey-actor-pill" x="348" y="192.8" width="54.60999999999999" height="26.3" rx="13.15" ry="13.15" />
+    <text x="375.305" y="205.95000000000002" class="journey-actor-text" text-anchor="middle" font-size="11" font-weight="600" dy="3.8499999999999996">Design</text>
   </g>
   <g class="journey-actor" data-actor="Eng">
-    <rect class="journey-actor-pill" x="412.61" y="192.8" width="44" height="26.3" rx="13.15" ry="13.15" />
-    <text x="434.61" y="205.95000000000002" class="journey-actor-text" text-anchor="middle" font-size="11" font-weight="600" dy="3.8499999999999996">Eng</text>
+    <rect class="journey-actor-pill" x="408.61" y="192.8" width="44" height="26.3" rx="13.15" ry="13.15" />
+    <text x="430.61" y="205.95000000000002" class="journey-actor-text" text-anchor="middle" font-size="11" font-weight="600" dy="3.8499999999999996">Eng</text>
   </g>
 </g>
 <g class="journey-task" data-id="task-2" data-score="5" data-section="Deliver" data-actors="Eng, QA">
   <rect class="journey-task-card" x="334" y="245.1" width="220" height="79.2" rx="0" ry="0" />
-  <path class="journey-task-accent" d="M334,245.1 H338 V324.3 H334 Z" />
-  <text x="352" y="265.55" class="journey-task-text" text-anchor="start" font-size="13" font-weight="500" dy="4.55">Ship</text>
+  <text x="348" y="265.55" class="journey-task-text" text-anchor="start" font-size="13" font-weight="500" dy="4.55">Ship</text>
   <rect class="journey-score-cell-filled" x="470" y="260.55" width="10" height="10" rx="2" ry="2" />
   <rect class="journey-score-cell-filled" x="485" y="260.55" width="10" height="10" rx="2" ry="2" />
   <rect class="journey-score-cell-filled" x="500" y="260.55" width="10" height="10" rx="2" ry="2" />
   <rect class="journey-score-cell-filled" x="515" y="260.55" width="10" height="10" rx="2" ry="2" />
   <rect class="journey-score-cell-filled" x="530" y="260.55" width="10" height="10" rx="2" ry="2" />
   <g class="journey-actor" data-actor="Eng">
-    <rect class="journey-actor-pill" x="352" y="286" width="44" height="26.3" rx="13.15" ry="13.15" />
-    <text x="374" y="299.15" class="journey-actor-text" text-anchor="middle" font-size="11" font-weight="600" dy="3.8499999999999996">Eng</text>
+    <rect class="journey-actor-pill" x="348" y="286" width="44" height="26.3" rx="13.15" ry="13.15" />
+    <text x="370" y="299.15" class="journey-actor-text" text-anchor="middle" font-size="11" font-weight="600" dy="3.8499999999999996">Eng</text>
   </g>
   <g class="journey-actor" data-actor="QA">
-    <rect class="journey-actor-pill" x="402" y="286" width="44" height="26.3" rx="13.15" ry="13.15" />
-    <text x="424" y="299.15" class="journey-actor-text" text-anchor="middle" font-size="11" font-weight="600" dy="3.8499999999999996">QA</text>
+    <rect class="journey-actor-pill" x="398" y="286" width="44" height="26.3" rx="13.15" ry="13.15" />
+    <text x="420" y="299.15" class="journey-actor-text" text-anchor="middle" font-size="11" font-weight="600" dy="3.8499999999999996">QA</text>
   </g>
 </g>
 <text x="302" y="39.7" class="journey-title" text-anchor="middle" font-size="18" font-weight="600" dy="6.3">Product journey</text>
