@@ -38,7 +38,6 @@ var EDITOR_EXAMPLES = [
     category: 'Supported diagrams',
     diagramType: 'Flowchart',
     description: 'Decision flow with labeled branches.',
-    theme: '',
     source: `flowchart TD
   A[Start] --> B{Decision?}
   B -->|Yes| C[Do the thing]
@@ -52,7 +51,6 @@ var EDITOR_EXAMPLES = [
     category: 'Supported diagrams',
     diagramType: 'State',
     description: 'Lifecycle using Mermaid stateDiagram-v2 syntax.',
-    theme: '',
     source: `stateDiagram-v2
   [*] --> Idle
   Idle --> Processing: start
@@ -67,7 +65,6 @@ var EDITOR_EXAMPLES = [
     category: 'Supported diagrams',
     diagramType: 'Architecture',
     description: 'Services, groups, icons, and routed connections.',
-    theme: '',
     source: `architecture-beta
   group app(cloud)[Application]
   group data(database)[Data]
@@ -83,7 +80,6 @@ var EDITOR_EXAMPLES = [
     category: 'Supported diagrams',
     diagramType: 'Sequence',
     description: 'Request/response messages between participants.',
-    theme: '',
     source: `sequenceDiagram
   participant User
   participant App
@@ -99,7 +95,6 @@ var EDITOR_EXAMPLES = [
     category: 'Supported diagrams',
     diagramType: 'Class',
     description: 'Classes with members and relationships.',
-    theme: '',
     source: `classDiagram
   class Renderer {
     +renderSVG(source) string
@@ -117,7 +112,6 @@ var EDITOR_EXAMPLES = [
     category: 'Supported diagrams',
     diagramType: 'ER',
     description: 'Entities, attributes, keys, and cardinality markers.',
-    theme: '',
     source: `erDiagram
   CUSTOMER {
     string id PK
@@ -140,7 +134,6 @@ var EDITOR_EXAMPLES = [
     category: 'Supported diagrams',
     diagramType: 'Timeline',
     description: 'Chronological milestones with sections.',
-    theme: '',
     source: `timeline
   title Product roadmap
   section Foundation
@@ -156,7 +149,6 @@ var EDITOR_EXAMPLES = [
     category: 'Supported diagrams',
     diagramType: 'Journey',
     description: 'Scored user tasks grouped by section.',
-    theme: '',
     source: `journey
   title Editor adoption
   section Try
@@ -172,7 +164,6 @@ var EDITOR_EXAMPLES = [
     category: 'Supported diagrams',
     diagramType: 'XY Chart',
     description: 'Bar and line series using xychart syntax.',
-    theme: '',
     source: `xychart
   title "Weekly renders"
   x-axis [Mon, Tue, Wed, Thu, Fri]
@@ -187,7 +178,6 @@ var EDITOR_EXAMPLES = [
     category: 'Role style presets',
     diagramType: 'Flowchart',
     description: 'Flowchart using semantic node, edge, text, and group roles.',
-    theme: 'solarized-light',
     source: `flowchart TD
   subgraph product [Product Loop]
     A[Capture request] --> B{Ready?}
@@ -202,7 +192,6 @@ var EDITOR_EXAMPLES = [
     category: 'Role style presets',
     diagramType: 'State',
     description: 'State diagram consuming the same flowchart/state role mapping.',
-    theme: 'solarized-light',
     source: `stateDiagram-v2
   [*] --> Draft
   Draft --> Review: submit
@@ -217,7 +206,6 @@ var EDITOR_EXAMPLES = [
     category: 'Role style presets',
     diagramType: 'Architecture',
     description: 'Architecture services, groups, and connectors styled semantically.',
-    theme: 'solarized-light',
     source: `architecture-beta
   group edge(cloud)[Edge Layer]
   group core(server)[Core Services]
@@ -234,7 +222,6 @@ var EDITOR_EXAMPLES = [
     category: 'Role style presets',
     diagramType: 'Sequence',
     description: 'Participants use node style; messages use edge style.',
-    theme: 'solarized-light',
     source: `sequenceDiagram
   participant U as User
   participant E as Editor
@@ -250,7 +237,6 @@ var EDITOR_EXAMPLES = [
     category: 'Role style presets',
     diagramType: 'Class',
     description: 'Class boxes and relationships through shared style roles.',
-    theme: 'solarized-light',
     source: `classDiagram
   class Renderer {
     +renderSVG(source) string
@@ -268,7 +254,6 @@ var EDITOR_EXAMPLES = [
     category: 'Role style presets',
     diagramType: 'ER',
     description: 'ER entities and relationships inherit node/edge roles.',
-    theme: 'solarized-light',
     source: `erDiagram
   USER {
     string id PK
@@ -292,7 +277,6 @@ var EDITOR_EXAMPLES = [
     category: 'Role style presets',
     diagramType: 'Timeline',
     description: 'Timeline periods and events styled as semantic cards/groups.',
-    theme: 'solarized-light',
     source: `timeline
   title Fork Roadmap
   section Discover
@@ -309,7 +293,6 @@ var EDITOR_EXAMPLES = [
     category: 'Role style presets',
     diagramType: 'Journey',
     description: 'Journey sections, task cards, and actor chips use role styles.',
-    theme: 'solarized-light',
     source: `journey
   title Editor adoption
   section Try
@@ -326,7 +309,6 @@ var EDITOR_EXAMPLES = [
     category: 'Role style presets',
     diagramType: 'XY Chart',
     description: 'XY chart title, axes, grid, and series labels with shared roles.',
-    theme: 'solarized-light',
     source: `xychart
   title "Styled Adoption"
   x-axis [Mon, Tue, Wed, Thu, Fri]
@@ -398,11 +380,9 @@ function loadEditorExample(id) {
   state.config = cloneEditorConfig(example.options);
   markActiveExample(example.id);
 
-  if (typeof setTheme === 'function') {
-    setTheme(example.theme || '');
-  } else {
-    state.theme = example.theme || '';
-  }
+  // Examples are source/config presets only; keep the user's selected theme.
+  if (typeof applyThemeToPage === 'function') applyThemeToPage(state.theme);
+  if (typeof updateThemeButton === 'function') updateThemeButton();
 
   updateLineNumbers();
   updateCursorPos();

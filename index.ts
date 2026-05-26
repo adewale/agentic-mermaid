@@ -1680,12 +1680,15 @@ ${bundleJs}
     // Re-render SVG (async — renderMermaid returns a Promise)
     var svgContainer = document.getElementById('svg-' + index);
     try {
-      var svg = await renderMermaid(source, samples[index].options);
+      var editTheme = activeThemeKey && THEMES[activeThemeKey] ? THEMES[activeThemeKey] : null;
+      var editSvgOpts = editTheme
+        ? Object.assign({}, samples[index].options || {}, { bg: editTheme.bg, fg: editTheme.fg, line: editTheme.line, accent: editTheme.accent, muted: editTheme.muted, surface: editTheme.surface, border: editTheme.border })
+        : samples[index].options;
+      var svg = await renderMermaid(source, editSvgOpts || {});
       svgContainer.innerHTML = svg;
       var svgEl = svgContainer.querySelector('svg');
-      var activeTheme = localStorage.getItem('mermaid-theme');
-      if (svgEl && activeTheme && THEMES[activeTheme]) {
-        applySvgThemeVars(svgEl, THEMES[activeTheme]);
+      if (svgEl && editTheme) {
+        applySvgThemeVars(svgEl, editTheme);
       }
     } catch (err) {
       svgContainer.innerHTML = '<div class="render-error">' + escapeHtml(String(err)) + '</div>';
@@ -1695,7 +1698,6 @@ ${bundleJs}
     var asciiContainer = document.getElementById('ascii-' + index);
     if (asciiContainer) {
       try {
-        var activeThemeKey = localStorage.getItem('mermaid-theme');
         var editAsciiOpts = activeThemeKey && THEMES[activeThemeKey]
           ? { theme: diagramColorsToAsciiTheme(THEMES[activeThemeKey]) }
           : {};

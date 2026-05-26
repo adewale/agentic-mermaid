@@ -522,9 +522,16 @@ describe('browser: live editor integration', () => {
     )).toBe(true)
   }, 120_000)
 
-  it('examples controls have stable sizing and the palette includes every supported diagram type', async () => {
+  it('examples controls have stable sizing and basic examples keep the selected theme', async () => {
     await page.goto(`${BASE}/editor`)
     await page.waitForSelector('#code-editor', { timeout: 30_000 })
+
+    await page.click('#theme-dropdown-btn')
+    await page.click('.theme-dropdown-item[data-theme="salmon"]')
+    await page.waitForFunction(
+      () => getComputedStyle(document.documentElement).getPropertyValue('--t-bg').trim() === '#FFFBF5',
+      { timeout: 30_000 },
+    )
 
     const sourceActionsBox = await page.locator('.source-actions').boundingBox()
     const examplesBox = await page.locator('#example-dropdown-btn').boundingBox()
@@ -571,6 +578,8 @@ describe('browser: live editor integration', () => {
       { timeout: 60_000 },
     )
     expect(await page.inputValue('#code-editor')).toContain('stateDiagram-v2')
+    expect(await page.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue('--t-bg').trim())).toBe('#FFFBF5')
+    expect(await page.evaluate(() => localStorage.getItem('bm-editor-theme'))).toBe('salmon')
   }, 120_000)
 
   it('topbar button dimensions do not shift when toggling day/dark mode', async () => {
@@ -593,9 +602,16 @@ describe('browser: live editor integration', () => {
     expect(themeAfter!.height).toBe(themeBefore!.height)
   }, 60_000)
 
-  it('loads semantic role style examples from the editor examples dropdown', async () => {
+  it('loads semantic role style examples without overriding the selected theme', async () => {
     await page.goto(`${BASE}/editor`)
     await page.waitForSelector('#code-editor', { timeout: 30_000 })
+
+    await page.click('#theme-dropdown-btn')
+    await page.click('.theme-dropdown-item[data-theme="dracula"]')
+    await page.waitForFunction(
+      () => getComputedStyle(document.documentElement).getPropertyValue('--t-bg').trim() === '#282a36',
+      { timeout: 30_000 },
+    )
 
     await page.click('#example-dropdown-btn')
     await page.click('.example-dropdown-item[data-example="styled-xychart"]')
@@ -610,14 +626,13 @@ describe('browser: live editor integration', () => {
       { timeout: 60_000 },
     )
 
-    const hashConfig = await page.evaluate(() => {
+    const hashState = await page.evaluate(() => {
       const hash = window.location.hash.slice(1)
       const decoded = decodeURIComponent(escape(atob(hash)))
-      const obj = JSON.parse(decoded)
-      return obj.config
+      return JSON.parse(decoded)
     })
 
-    expect(hashConfig).toMatchObject({
+    expect(hashState.config).toMatchObject({
       style: {
         node: { cornerRadius: 16 },
         edge: { lineWidth: 2.25 },
@@ -625,7 +640,9 @@ describe('browser: live editor integration', () => {
       },
       interactive: true,
     })
-    expect(await page.evaluate(() => localStorage.getItem('bm-editor-theme'))).toBe('solarized-light')
+    expect(hashState.theme).toBe('dracula')
+    expect(await page.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue('--t-bg').trim())).toBe('#282a36')
+    expect(await page.evaluate(() => localStorage.getItem('bm-editor-theme'))).toBe('dracula')
   }, 120_000)
 
 })

@@ -17,6 +17,7 @@ This changelog tracks user-facing changes in the `adewale/beautiful-mermaid` for
 - Fork docs and deploy script now treat GitHub Pages as the fork-owned site and avoid the upstream-owned Craft/Cloudflare deployment target.
 - Live editor now starts blank by default, uses salmon as the default theme, uses a larger grouped Examples palette, and includes Copy SVG alongside Save SVG/PNG export.
 - Homepage deployment now builds the full sample gallery, defaults to salmon, and removes text that implied Craft affiliation.
+- Editor example presets now preserve the currently selected theme instead of forcing Default or Solarized Light.
 
 ### Fixed
 - TypeScript CI failures in journey style padding and optional node corner-radius resolution.
