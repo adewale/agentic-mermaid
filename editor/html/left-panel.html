@@ -1,25 +1,25 @@
-<div class="panel-left" id="panel-left">
+<section class="panel-left" id="panel-left" aria-label="Source editor and diagram settings">
   <!-- Source toolbar — floating label + actions -->
   <div class="source-toolbar" id="source-toolbar">
     <span class="source-label">Source</span>
     <div class="toolbar-spacer"></div>
     <div class="source-actions">
       <div class="example-dropdown-wrap" id="example-dropdown-wrap">
-        <button class="toolbar-btn example-dropdown-btn" id="example-dropdown-btn" title="Load a styled example">
+        <button class="toolbar-btn example-dropdown-btn" id="example-dropdown-btn" type="button" title="Load a styled example" aria-haspopup="menu" aria-expanded="false">
           Examples
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
             <polyline points="6 9 12 15 18 9" />
           </svg>
         </button>
-        <div class="example-dropdown-menu" id="example-dropdown-menu" aria-label="Example diagrams"></div>
+        <div class="example-dropdown-menu" id="example-dropdown-menu" role="menu" aria-label="Example diagrams"></div>
       </div>
-      <button class="toolbar-btn" id="copy-source-btn" title="Copy source">
+      <button class="toolbar-btn" id="copy-source-btn" type="button" title="Copy source" aria-label="Copy source">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
           <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
         </svg>
       </button>
-      <button class="toolbar-btn" id="clear-btn" title="Clear editor">
+      <button class="toolbar-btn" id="clear-btn" type="button" title="Clear editor" aria-label="Clear editor">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <polyline points="3 6 5 6 21 6"/>
           <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
@@ -50,42 +50,42 @@
       <div class="config-section-title">Colors</div>
       <div class="color-field">
         <span class="color-field-label">Background</span>
-        <button class="color-edit-btn" data-cfg="bg">
+        <button class="color-edit-btn" type="button" data-cfg="bg">
           <span class="cfg-hex-label" id="cfg-bg-label">—</span>
           <span class="color-swatch" id="cfg-bg-swatch"></span>
         </button>
       </div>
       <div class="color-field">
         <span class="color-field-label">Foreground</span>
-        <button class="color-edit-btn" data-cfg="fg">
+        <button class="color-edit-btn" type="button" data-cfg="fg">
           <span class="cfg-hex-label" id="cfg-fg-label">—</span>
           <span class="color-swatch" id="cfg-fg-swatch"></span>
         </button>
       </div>
       <div class="color-field">
         <span class="color-field-label">Accent</span>
-        <button class="color-edit-btn" data-cfg="accent">
+        <button class="color-edit-btn" type="button" data-cfg="accent">
           <span class="cfg-hex-label" id="cfg-accent-label">—</span>
           <span class="color-swatch" id="cfg-accent-swatch"></span>
         </button>
       </div>
       <div class="color-field">
         <span class="color-field-label">Line</span>
-        <button class="color-edit-btn" data-cfg="line">
+        <button class="color-edit-btn" type="button" data-cfg="line">
           <span class="cfg-hex-label" id="cfg-line-label">—</span>
           <span class="color-swatch" id="cfg-line-swatch"></span>
         </button>
       </div>
       <div class="color-field">
         <span class="color-field-label">Muted</span>
-        <button class="color-edit-btn" data-cfg="muted">
+        <button class="color-edit-btn" type="button" data-cfg="muted">
           <span class="cfg-hex-label" id="cfg-muted-label">—</span>
           <span class="color-swatch" id="cfg-muted-swatch"></span>
         </button>
       </div>
       <div class="color-field">
         <span class="color-field-label">Surface</span>
-        <button class="color-edit-btn" data-cfg="surface">
+        <button class="color-edit-btn" type="button" data-cfg="surface">
           <span class="cfg-hex-label" id="cfg-surface-label">—</span>
           <span class="color-swatch" id="cfg-surface-swatch"></span>
         </button>
@@ -97,7 +97,7 @@
       <div class="config-section-title">Typography</div>
       <div class="font-field">
         <span class="font-field-label">Font family</span>
-        <button class="font-select-btn" id="font-select-btn">
+        <button class="font-select-btn" id="font-select-btn" type="button">
           <span id="font-select-label">Default</span>
           <span class="font-select-caret">▼</span>
         </button>
@@ -181,7 +181,7 @@
   <div class="color-popup" id="color-popup">
     <div class="color-popup-header">
       <span class="color-popup-title" id="color-popup-title">Color</span>
-      <button class="color-popup-close" id="color-popup-close">×</button>
+      <button class="color-popup-close" id="color-popup-close" type="button" aria-label="Close color picker">×</button>
     </div>
     <div class="color-hex-row">
       <input type="color" class="color-native" id="color-native-input" />
@@ -192,7 +192,7 @@
         placeholder="#rrggbb"
         maxlength="9"
       />
-      <button class="color-clear-btn" id="color-clear-btn">Clear</button>
+      <button class="color-clear-btn" id="color-clear-btn" type="button">Clear</button>
     </div>
     <div class="color-palette-title">Presets</div>
     <div class="color-palette" id="color-palette"></div>
@@ -230,4 +230,4 @@
     </div>
   </div>
 
-</div>
+</section>

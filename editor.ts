@@ -127,9 +127,9 @@ async function generateEditorHtml(): Promise<string> {
   console.log(`Browser bundle: ${(bundleJs.length / 1024).toFixed(1)} KB`)
 
   const themeItems = [
-    `<button class="theme-dropdown-item active" data-theme="">Default</button>`,
+    `<button class="theme-dropdown-item active" type="button" role="option" data-theme="">Default</button>`,
     ...Object.keys(THEMES).map(
-      key => `<button class="theme-dropdown-item" data-theme="${key}"><span class="theme-swatch" style="background:${THEMES[key].bg}"></span>${THEME_LABELS[key] ?? key}</button>`
+      key => `<button class="theme-dropdown-item" type="button" role="option" data-theme="${key}"><span class="theme-swatch" style="background:${THEMES[key].bg}"></span>${THEME_LABELS[key] ?? key}</button>`
     ),
   ].join('\n      ')
 
@@ -150,7 +150,7 @@ async function generateEditorHtml(): Promise<string> {
   <link rel="apple-touch-icon" href="apple-touch-icon.png" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
   <style>
 ${css}
   </style>
@@ -161,14 +161,14 @@ ${css}
 ${html.topbar}
 
 <!-- Main -->
-<div class="main">
+<main class="main" id="editor-main" aria-label="Mermaid editor workspace">
 
   <!-- Persistent examples sidebar -->
   <aside class="examples-sidebar" id="examples-sidebar" aria-label="Example diagrams" aria-hidden="true">
     <div class="examples-sidebar-inner">
       <div class="examples-sidebar-header">
         <span>Examples</span>
-        <button class="toolbar-btn" id="examples-sidebar-close" title="Close examples sidebar" aria-label="Close examples sidebar">
+        <button class="toolbar-btn" id="examples-sidebar-close" type="button" title="Close examples sidebar" aria-label="Close examples sidebar">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <line x1="18" y1="6" x2="6" y2="18"/>
             <line x1="6" y1="6" x2="18" y2="18"/>
@@ -188,9 +188,9 @@ ${html.leftPanel}
   <!-- Right panel -->
 ${html.rightPanel}
 
-</div>
+</main>
 
-<div class="toast" id="toast"></div>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
 
 <!-- Bundled renderer -->
 <script type="module">

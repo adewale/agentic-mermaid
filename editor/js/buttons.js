@@ -9,5 +9,6 @@ document.getElementById('clear-btn').addEventListener('click', function() {
   statusText.textContent = 'Ready';
   statusText.className = '';
   renderTime.textContent = '';
+  if (typeof updateExportAvailability === 'function') updateExportAvailability();
   window.history.replaceState(null, '', window.location.pathname);
 });

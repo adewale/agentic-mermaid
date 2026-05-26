@@ -70,6 +70,7 @@ async function doRender() {
     statusText.className = "";
     statusDot.className = "status-dot";
     renderTime.textContent = "";
+    if (typeof updateExportAvailability === "function") updateExportAvailability();
     return;
   }
 
@@ -87,15 +88,16 @@ async function doRender() {
     statusText.className = "status-ok";
     statusDot.className = "status-dot ok";
     renderTime.textContent = "Rendered in " + ms + "ms";
+    if (typeof updateExportAvailability === "function") updateExportAvailability();
     updateHash();
   } catch (err) {
     var ms = (performance.now() - t0).toFixed(0);
-    previewInner.innerHTML =
-      '<div class="preview-error">' + escHtml(String(err)) + "</div>";
+    previewInner.innerHTML = formatRenderErrorHtml(err);
     statusText.textContent = "Error";
     statusText.className = "status-err";
     statusDot.className = "status-dot err";
-    renderTime.textContent = "";
+    renderTime.textContent = "Failed in " + ms + "ms";
+    if (typeof updateExportAvailability === "function") updateExportAvailability();
   } finally {
     spinner.classList.remove("visible");
   }

@@ -1,19 +1,21 @@
-<div class="topbar">
-  <a href="/beautiful-mermaid/" class="logo">
+<header class="topbar" role="banner">
+  <h1 class="sr-only">Beautiful Mermaid Live Editor</h1>
+  <a href="/beautiful-mermaid/" class="logo" aria-label="Beautiful Mermaid homepage">
     <span><strong>Beautiful Mermaid</strong><span class="logo-sub">Live Editor</span></span>
   </a>
 
-  <div class="topbar-sep"></div>
+  <div class="topbar-sep" aria-hidden="true"></div>
 
-  <div class="tab-group">
-    <button class="tab active" id="tab-code" data-panel="code">Code</button>
-    <button class="tab" id="tab-config" data-panel="config">Config</button>
+  <nav class="tab-group" aria-label="Editor panes">
+    <button class="tab active" id="tab-code" type="button" data-panel="code">Code</button>
+    <button class="tab" id="tab-config" type="button" data-panel="config">Config</button>
+    <button class="tab mobile-only" id="tab-preview" type="button" data-panel="preview">Preview</button>
     <button class="tab" id="examples-sidebar-btn" type="button" aria-pressed="false" aria-expanded="false" aria-controls="examples-sidebar">Examples</button>
-  </div>
+  </nav>
 
   <div class="spacer"></div>
 
-  <button class="btn" id="dark-light-btn" title="Toggle dark/light mode">
+  <button class="btn" id="dark-light-btn" type="button" title="Toggle dark/light mode">
     <svg
       id="icon-moon"
       viewBox="0 0 24 24"
@@ -49,7 +51,7 @@
   <div class="topbar-sep"></div>
 
   <div class="theme-dropdown-wrap" id="theme-dropdown-wrap">
-    <button class="theme-dropdown-btn" id="theme-dropdown-btn">
+    <button class="theme-dropdown-btn" id="theme-dropdown-btn" type="button" aria-haspopup="listbox" aria-expanded="false">
       <span class="theme-swatch" id="theme-btn-swatch"></span>
       <span id="theme-btn-label">Default</span>
       <svg
@@ -63,7 +65,7 @@
         <polyline points="6 9 12 15 18 9" />
       </svg>
     </button>
-    <div class="theme-dropdown-menu" id="theme-dropdown-menu">
+    <div class="theme-dropdown-menu" id="theme-dropdown-menu" role="listbox" aria-label="Theme">
       {{THEME_ITEMS}}
     </div>
   </div>
@@ -71,7 +73,7 @@
   <div class="topbar-sep"></div>
 
   <div class="export-wrap" id="export-wrap">
-    <button class="btn btn-primary" id="export-main-btn" title="Save PNG (⌘S)">
+    <button class="btn btn-primary" id="export-main-btn" type="button" title="Save PNG (⌘S)" disabled aria-disabled="true">
       <svg
         viewBox="0 0 24 24"
         fill="none"
@@ -89,7 +91,10 @@
     <button
       class="btn btn-primary export-chevron"
       id="export-chevron-btn"
+      type="button"
       title="More export options"
+      disabled
+      aria-disabled="true"
     >
       <svg
         width="12"
@@ -106,7 +111,7 @@
     </button>
 
     <div class="export-dropdown" id="export-dropdown">
-      <button class="export-item" id="export-png-btn">
+      <button class="export-item" id="export-png-btn" type="button" disabled aria-disabled="true">
         <svg
           class="export-item-icon"
           viewBox="0 0 24 24"
@@ -124,7 +129,7 @@
         <span class="export-item-kbd"><kbd>⌘</kbd><kbd>S</kbd></span>
       </button>
 
-      <button class="export-item" id="export-svg-btn">
+      <button class="export-item" id="export-svg-btn" type="button" disabled aria-disabled="true">
         <svg
           class="export-item-icon"
           viewBox="0 0 24 24"
@@ -146,7 +151,7 @@
 
       <div class="export-divider"></div>
 
-      <button class="export-item" id="copy-svg-btn">
+      <button class="export-item" id="copy-svg-btn" type="button" disabled aria-disabled="true">
         <svg
           class="export-item-icon"
           viewBox="0 0 24 24"
@@ -162,7 +167,7 @@
         <span class="export-item-label">Copy SVG</span>
       </button>
 
-      <button class="export-item" id="copy-image-btn">
+      <button class="export-item" id="copy-image-btn" type="button" disabled aria-disabled="true">
         <svg
           class="export-item-icon"
           viewBox="0 0 24 24"
@@ -179,7 +184,7 @@
         <span class="export-item-kbd"><kbd>⌘</kbd><kbd>C</kbd></span>
       </button>
 
-      <button class="export-item" id="copy-link-btn">
+      <button class="export-item" id="copy-link-btn" type="button">
         <svg
           class="export-item-icon"
           viewBox="0 0 24 24"
@@ -221,11 +226,11 @@
         </svg>
         <span class="export-item-label">Size</span>
         <div class="size-pills" id="size-pills">
-          <button class="size-pill" data-scale="1">1x</button>
-          <button class="size-pill" data-scale="2">2x</button>
-          <button class="size-pill active" data-scale="4">4x</button>
+          <button class="size-pill" type="button" data-scale="1">1x</button>
+          <button class="size-pill" type="button" data-scale="2">2x</button>
+          <button class="size-pill active" type="button" data-scale="4">4x</button>
         </div>
       </div>
     </div>
   </div>
-</div>
+</header>

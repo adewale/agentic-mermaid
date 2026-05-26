@@ -15,8 +15,8 @@
 
 /* Section label */
 .preview-label {
-  font-size: 11px;
-  font-weight: 500;
+  font-size: 12px;
+  font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.05em;
   color: var(--fg3);
@@ -72,7 +72,7 @@
 }
 
 .zoom-label {
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 500;
   color: var(--fg3);
   min-width: 40px;
@@ -122,15 +122,38 @@
 }
 
 .preview-error {
-  color: var(--red);
-  font-family: "JetBrains Mono", monospace;
-  font-size: 0.8rem;
-  padding: 1.5rem;
+  color: color-mix(in srgb, var(--red) 82%, var(--fg));
+  font-size: 0.875rem;
+  line-height: 1.5;
+  padding: 1.25rem;
   background: color-mix(in srgb, var(--red) 6%, var(--bg2));
-  border: 1px solid color-mix(in srgb, var(--red) 15%, transparent);
-  border-radius: var(--radius);
+  border: 1px solid color-mix(in srgb, var(--red) 16%, transparent);
+  border-radius: 14px;
+  white-space: normal;
+  max-width: 640px;
+  box-shadow: var(--shadow-minimal);
+}
+.preview-error-title {
+  display: block;
+  color: var(--fg);
+  font-size: 1rem;
+  margin-bottom: 0.35rem;
+}
+.preview-error-copy {
+  display: block;
+  color: var(--fg2);
+  margin-bottom: 0.75rem;
+}
+.preview-error-detail {
+  display: block;
+  padding: 0.75rem;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--red) 5%, var(--t-bg));
+  color: color-mix(in srgb, var(--red) 80%, var(--fg));
+  font-family: "JetBrains Mono", monospace;
+  font-size: 0.8125rem;
   white-space: pre-wrap;
-  max-width: 600px;
+  overflow-x: auto;
 }
 
 .preview-placeholder {
@@ -149,7 +172,7 @@
 }
 .placeholder-kicker {
   color: var(--fg3);
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 700;
   letter-spacing: 0.06em;
   text-transform: uppercase;
@@ -162,9 +185,15 @@
 }
 .placeholder-copy {
   color: var(--fg3);
-  font-size: 13px;
+  font-size: 14px;
   line-height: 1.45;
   text-wrap: pretty;
+}
+.placeholder-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 6px;
 }
 .placeholder-example-btn {
   height: 34px;
@@ -188,6 +217,27 @@
 .placeholder-example-btn:active {
   transform: scale(0.96);
 }
+.placeholder-chip {
+  height: 30px;
+  padding: 0 10px;
+  border: none;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--t-accent) 9%, var(--t-bg));
+  color: color-mix(in srgb, var(--t-accent) 76%, var(--t-fg));
+  font: inherit;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: default;
+  transition:
+    background 0.15s,
+    transform 0.1s;
+}
+.placeholder-chip:hover {
+  background: color-mix(in srgb, var(--t-accent) 14%, var(--t-bg));
+}
+.placeholder-chip:active {
+  transform: scale(0.96);
+}
 
 .preview-footer {
   display: flex;
@@ -197,7 +247,7 @@
   height: 28px;
   background: var(--bg2);
   font-family: "JetBrains Mono", monospace;
-  font-size: 11px;
+  font-size: 12px;
   color: var(--fg3);
   flex-shrink: 0;
   font-variant-numeric: tabular-nums;

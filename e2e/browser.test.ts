@@ -182,10 +182,25 @@ describe('browser: page loads and renders', () => {
     expect(text).not.toContain('Use in Craft')
     expect(text).not.toContain('Built by the team')
     expect(text).not.toContain('Craft Docs')
+    expect(text).not.toContain('open Contents → Role Styles')
 
     const sectionCount = await page.evaluate(() => document.querySelectorAll('section.sample').length)
     const timing = await page.evaluate(() => document.getElementById('total-timing')?.textContent || '')
     expect(timing).toContain(`${sectionCount} examples rendered in`)
+  }, 120_000)
+
+  it('homepage sample search and category filters narrow the showcase', async () => {
+    await page.goto(BASE)
+    await waitForRender(60_000)
+
+    await page.fill('#sample-search', 'timeline')
+    const searchVisible = await page.evaluate(() => Array.from(document.querySelectorAll('section.sample[data-category]')).filter(el => !(el as HTMLElement).hidden).length)
+    expect(searchVisible).toBeGreaterThan(0)
+    expect(searchVisible).toBeLessThan(await page.evaluate(() => document.querySelectorAll('section.sample[data-category]').length))
+
+    await page.click('.sample-filter-pill[data-filter="Role Styles"]')
+    const visibleCategories = await page.evaluate(() => Array.from(document.querySelectorAll('section.sample[data-category]')).filter(el => !(el as HTMLElement).hidden).map(el => (el as HTMLElement).dataset.category))
+    expect(new Set(visibleCategories)).toEqual(new Set(['Role Styles']))
   }, 120_000)
 
 })
@@ -436,6 +451,22 @@ describe('browser: live editor integration', () => {
     expect(await page.evaluate(() => document.getElementById('preview-inner')?.textContent?.includes('Load an example') ?? false)).toBe(true)
     expect(await page.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue('--t-bg').trim())).toBe('#FFFBF5')
     expect(await page.evaluate(() => localStorage.getItem('bm-editor-theme'))).toBeNull()
+  }, 60_000)
+
+  it('mobile editor uses pane tabs instead of clipping the workspace', async () => {
+    await page.setViewportSize({ width: 390, height: 844 })
+    await page.goto(`${BASE}/editor`)
+    await page.waitForSelector('#code-editor', { timeout: 30_000 })
+
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true)
+    expect(await page.locator('#tab-preview').isVisible()).toBe(true)
+    await page.click('#tab-preview')
+    expect(await page.evaluate(() => getComputedStyle(document.getElementById('panel-left')!).display)).toBe('none')
+    expect(await page.evaluate(() => getComputedStyle(document.getElementById('panel-right')!).display)).toBe('flex')
+
+    await page.click('#tab-code')
+    expect(await page.evaluate(() => getComputedStyle(document.getElementById('panel-left')!).display)).toBe('flex')
+    await page.setViewportSize({ width: 1280, height: 720 })
   }, 60_000)
 
   it('empty-state CTA opens a persistent examples sidebar', async () => {

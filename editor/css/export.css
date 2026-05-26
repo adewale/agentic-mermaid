@@ -51,8 +51,16 @@
 .export-item:hover {
   background: color-mix(in srgb, var(--t-fg) 5%, var(--t-bg));
 }
+.export-item:disabled:hover,
+.export-item[aria-disabled="true"]:hover {
+  background: transparent;
+}
 .export-item:active {
   transform: scale(0.96);
+}
+.export-item:disabled:active,
+.export-item[aria-disabled="true"]:active {
+  transform: none;
 }
 .export-item-icon {
   width: 15px;

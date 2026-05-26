@@ -140,6 +140,7 @@ export async function generateHtml(options: GenerateHtmlOptions = {}): Promise<s
     Sequence: '#10b981',
     Class: '#f59e0b',
     ER: '#ef4444',
+    Timeline: '#db2777',
     Journey: '#14b8a6',
     'XY Chart': '#f97316',
     'Role Styles': '#f97316',
@@ -166,7 +167,6 @@ export async function generateHtml(options: GenerateHtmlOptions = {}): Promise<s
   const tocSections = [...categories.entries()]
     .filter(([cat]) => cat !== 'Hero') // Skip Hero from TOC
     .map(([cat, indices]) => {
-    const badgeColor = categoryBadgeColors[cat] ?? '#71717a'
     const prefix = categoryPrefixes[cat]
     const items = indices.map(i => {
       let title = filteredSamples[i]!.title
@@ -182,6 +182,13 @@ export async function generateHtml(options: GenerateHtmlOptions = {}): Promise<s
           </ol>
         </div>`
   }).join('\n')
+
+  const sampleFilterPills = [
+    `<button class="sample-filter-pill active" type="button" data-filter="">All</button>`,
+    ...[...categories.keys()]
+      .filter(cat => cat !== 'Hero')
+      .map(cat => `<button class="sample-filter-pill" type="button" data-filter="${escapeHtml(cat)}"><span class="filter-dot" style="background:${categoryBadgeColors[cat] ?? '#71717a'}"></span>${escapeHtml(cat)}</button>`),
+  ].join('\n      ')
 
   // Step 3b: Build theme selector pills (build-time so we include swatches)
   // Only show Default, Dracula, and Solarized inline; rest go in "More" dropdown
@@ -252,6 +259,8 @@ export async function generateHtml(options: GenerateHtmlOptions = {}): Promise<s
   filteredSamples.forEach((sample, i) => {
     const bg = sample.options?.bg ?? ''
     const isHero = sample.category === 'Hero'
+    const sampleCategory = sample.category ?? 'Other'
+    const sampleSearch = `${sample.title} ${sample.description} ${sample.source} ${sampleCategory}`.toLowerCase()
 
     if (isHero) {
       // Hero sample: full-width SVG only, no header/source/ASCII panels
@@ -265,7 +274,7 @@ export async function generateHtml(options: GenerateHtmlOptions = {}): Promise<s
     </section>`)
     } else {
       regularCards.push(`
-    <section class="sample" id="sample-${i}">
+    <section class="sample" id="sample-${i}" data-category="${escapeHtml(sampleCategory)}" data-search="${escapeHtml(sampleSearch)}">
       <div class="sample-header">
         <h2>${escapeHtml(sample.title)}</h2>
         <p class="description">${formatDescription(sample.description)}</p>
@@ -318,7 +327,7 @@ export async function generateHtml(options: GenerateHtmlOptions = {}): Promise<s
   <meta name="twitter:image" content="https://adewale.github.io/beautiful-mermaid/og-image.png" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
   <style>
     /* -- Reset & base -- */
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -341,13 +350,28 @@ export async function generateHtml(options: GenerateHtmlOptions = {}): Promise<s
       --shadow-blur-opacity: 0.06;
       --theme-bar-bg: #f8f2eb;  /* Mixed bg for theme bar and top gradient — updated by JS on theme change */
 
-      font-family: 'Geist', system-ui, -apple-system, sans-serif;
+      font-family: 'Atkinson Hyperlegible', system-ui, -apple-system, sans-serif;
       background: color-mix(in srgb, var(--t-fg) 4%, var(--t-bg));
       color: var(--t-fg);
       line-height: 1.6;
       margin: 0;
       -webkit-font-smoothing: antialiased;
       -moz-osx-font-smoothing: grayscale;
+    }
+    .sr-only {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      white-space: nowrap;
+      border: 0;
+    }
+    :where(button, a, input, textarea):focus-visible {
+      outline: 2px solid color-mix(in srgb, var(--t-accent) 72%, var(--t-bg));
+      outline-offset: 2px;
     }
     .content-wrapper {
       max-width: 1440px;
@@ -407,8 +431,8 @@ export async function generateHtml(options: GenerateHtmlOptions = {}): Promise<s
       }
     }
     .theme-label {
-      font-size: 0.7rem;
-      font-weight: 600;
+      font-size: 0.8125rem;
+      font-weight: 700;
       text-transform: uppercase;
       letter-spacing: 0.06em;
       color: color-mix(in srgb, var(--t-fg) 35%, var(--t-bg));
@@ -437,14 +461,14 @@ export async function generateHtml(options: GenerateHtmlOptions = {}): Promise<s
     .theme-pill {
       display: flex;
       align-items: center;
-      height: 30px;
+      height: 32px;
       gap: 8px;
       padding: 0 14px 0 12px;
       border: none;
       border-radius: 8px;
       background: color-mix(in srgb, var(--t-bg) 97%, var(--t-fg));
       color: color-mix(in srgb, var(--t-fg) 80%, var(--t-bg));
-      font-size: 12px;
+      font-size: 13px;
       font-weight: 500;
       font-family: inherit;
       cursor: pointer;
@@ -519,15 +543,15 @@ export async function generateHtml(options: GenerateHtmlOptions = {}): Promise<s
     .brand-badge {
       display: flex;
       align-items: center;
-      height: 30px;
+      height: 32px;
       gap: 6px;
       padding: 0 12px;
       border: none;
       border-radius: 8px;
       background: color-mix(in srgb, var(--t-bg) 97%, var(--t-fg));
       color: color-mix(in srgb, var(--t-fg) 80%, var(--t-bg));
-      font-size: 12px;
-      font-weight: 400;
+      font-size: 13px;
+      font-weight: 500;
       font-family: inherit;
       white-space: nowrap;
       cursor: default;
@@ -588,14 +612,14 @@ export async function generateHtml(options: GenerateHtmlOptions = {}): Promise<s
       transform: translateX(-50%);
       display: flex;
       align-items: center;
-      height: 30px;
+      height: 32px;
       gap: 6px;
       padding: 0 12px;
       border: none;
       border-radius: 8px;
       background: color-mix(in srgb, var(--t-bg) 97%, var(--t-fg));
       color: color-mix(in srgb, var(--t-fg) 80%, var(--t-bg));
-      font-size: 12px;
+      font-size: 13px;
       font-weight: 500;
       font-family: inherit;
       cursor: pointer;
@@ -1028,8 +1052,8 @@ export async function generateHtml(options: GenerateHtmlOptions = {}): Promise<s
     }
     .ascii-output {
       padding: 1rem;
-      font-size: 0.7rem;
-      line-height: 1.3;
+      font-size: 0.75rem;
+      line-height: 1.35;
       overflow-x: auto;   /* horizontal scroll only */
       overflow-y: hidden;  /* scale to height, no vertical scroll */
       white-space: pre;
@@ -1053,8 +1077,8 @@ export async function generateHtml(options: GenerateHtmlOptions = {}): Promise<s
 
     /* -- Timing badge -- */
     .timing {
-      font-size: 0.7rem;
-      font-weight: 400;
+      font-size: 0.75rem;
+      font-weight: 500;
       color: color-mix(in srgb, var(--t-fg) 30%, var(--t-bg));
       margin-left: 0.5rem;
       text-transform: none;
@@ -1194,14 +1218,101 @@ export async function generateHtml(options: GenerateHtmlOptions = {}): Promise<s
       color: var(--t-fg);
     }
 
-    /* -- Section title -- */
+    /* -- Sample search and filters -- */
     .section-title {
       font-size: 1.875rem;
       font-weight: 800;
       line-height: 1.2;
       margin: 0;
-      padding: 2.5rem 0 1.5rem;
       color: var(--t-fg);
+    }
+    .sample-tools {
+      display: grid;
+      grid-template-columns: minmax(240px, 1fr) minmax(220px, 360px);
+      gap: 0.875rem 1rem;
+      align-items: end;
+      margin: 3rem 0 1.5rem;
+      padding: 1rem;
+      border-radius: 18px;
+      background: color-mix(in srgb, var(--t-fg) 2.5%, var(--t-bg));
+      box-shadow: var(--shadow-minimal);
+    }
+    .sample-tools-copy {
+      margin-top: 0.15rem;
+      color: color-mix(in srgb, var(--t-fg) 58%, var(--t-bg));
+      font-size: 0.9375rem;
+      max-width: 62ch;
+    }
+    .sample-search-label {
+      display: block;
+    }
+    .sample-search {
+      width: 100%;
+      height: 40px;
+      border: none;
+      border-radius: 12px;
+      padding: 0 0.875rem;
+      background: var(--t-bg);
+      box-shadow: var(--shadow-minimal);
+      color: var(--t-fg);
+      font: inherit;
+      font-size: 0.9375rem;
+    }
+    .sample-search::placeholder {
+      color: color-mix(in srgb, var(--t-fg) 40%, var(--t-bg));
+    }
+    .sample-filter-pills {
+      grid-column: 1 / -1;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.4rem;
+    }
+    .sample-filter-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      min-height: 34px;
+      padding: 0 0.75rem;
+      border: none;
+      border-radius: 999px;
+      background: color-mix(in srgb, var(--t-bg) 96%, var(--t-fg));
+      color: color-mix(in srgb, var(--t-fg) 72%, var(--t-bg));
+      box-shadow: var(--shadow-minimal);
+      font: inherit;
+      font-size: 0.8125rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: background 0.15s, color 0.15s, transform 0.1s;
+    }
+    .sample-filter-pill:hover,
+    .sample-filter-pill.active {
+      background: var(--t-bg);
+      color: var(--t-fg);
+    }
+    .sample-filter-pill:active {
+      transform: scale(0.97);
+    }
+    .filter-dot {
+      width: 0.55rem;
+      height: 0.55rem;
+      border-radius: 999px;
+      box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--t-bg) 35%, transparent);
+    }
+    .sample-result-count {
+      grid-column: 1 / -1;
+      min-height: 1.2em;
+      color: color-mix(in srgb, var(--t-fg) 55%, var(--t-bg));
+      font-size: 0.875rem;
+      font-variant-numeric: tabular-nums;
+    }
+    .sample[hidden] {
+      display: none;
+    }
+    @media (max-width: 760px) {
+      .sample-tools {
+        grid-template-columns: 1fr;
+        padding: 0.875rem;
+      }
     }
 
     /* -- Footer -- */
@@ -1215,7 +1326,7 @@ export async function generateHtml(options: GenerateHtmlOptions = {}): Promise<s
       max-width: 1440px;
       width: 100%;
       margin: 0 auto;
-      font-size: 12px;
+      font-size: 13px;
       color: color-mix(in srgb, var(--t-fg) 50%, var(--t-bg));
     }
     @media (min-width: 1000px) {
@@ -1292,7 +1403,7 @@ export async function generateHtml(options: GenerateHtmlOptions = {}): Promise<s
     <div class="hero-meta">
       <p class="meta" id="total-timing">Rendering ${filteredSamples.length} examples\u2026</p>
       <div class="meta">ASCII rendering based on <a href="https://github.com/AlexanderGrooff/mermaid-ascii" target="_blank" rel="noopener">Mermaid-ASCII</a></div>
-      <div class="meta">New fork features: open <strong>Contents → Role Styles</strong> or the editor <strong>Examples</strong> menu.</div>
+      <div class="meta">New fork features: explore <strong>Role Styles</strong> in the samples, or open the editor <strong>Examples</strong> menu.</div>
       <div class="meta">Early preview — actively evolving</div>
     </div>
   </header>
@@ -1301,7 +1412,20 @@ export async function generateHtml(options: GenerateHtmlOptions = {}): Promise<s
 
 ${heroCardsHtml}
 
-  <h2 class="section-title">Samples</h2>
+  <section class="sample-tools" aria-label="Filter samples">
+    <div>
+      <h2 class="section-title">Samples</h2>
+      <p class="sample-tools-copy">Search by diagram family, feature, syntax, or fork capability.</p>
+    </div>
+    <label class="sample-search-label">
+      <span class="sr-only">Search samples</span>
+      <input id="sample-search" class="sample-search" type="search" placeholder="Search samples" autocomplete="off" />
+    </label>
+    <div class="sample-filter-pills" id="sample-filter-pills" aria-label="Diagram category filters">
+      ${sampleFilterPills}
+    </div>
+    <p class="sample-result-count" id="sample-result-count"></p>
+  </section>
 
 ${regularCardsHtml}
 
@@ -1565,6 +1689,46 @@ ${bundleJs}
     if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
   });
 
+  // -- Sample search + category filtering --
+  var sampleSearchInput = document.getElementById('sample-search');
+  var sampleFilterPillsEl = document.getElementById('sample-filter-pills');
+  var sampleResultCount = document.getElementById('sample-result-count');
+  var activeSampleFilter = '';
+
+  function updateSampleFilters() {
+    var query = (sampleSearchInput && sampleSearchInput.value || '').trim().toLowerCase();
+    var visible = 0;
+    var allCards = Array.prototype.slice.call(document.querySelectorAll('section.sample[data-category]'));
+    allCards.forEach(function(card) {
+      var categoryMatch = !activeSampleFilter || card.dataset.category === activeSampleFilter;
+      var searchMatch = !query || (card.dataset.search || '').indexOf(query) !== -1;
+      var show = categoryMatch && searchMatch;
+      card.hidden = !show;
+      if (show) visible++;
+    });
+    if (sampleResultCount) {
+      sampleResultCount.textContent = visible === allCards.length
+        ? allCards.length + ' samples'
+        : visible + ' of ' + allCards.length + ' samples';
+    }
+  }
+
+  if (sampleSearchInput) {
+    sampleSearchInput.addEventListener('input', updateSampleFilters);
+  }
+  if (sampleFilterPillsEl) {
+    sampleFilterPillsEl.addEventListener('click', function(e) {
+      var pill = e.target.closest('.sample-filter-pill');
+      if (!pill) return;
+      activeSampleFilter = pill.dataset.filter || '';
+      sampleFilterPillsEl.querySelectorAll('.sample-filter-pill').forEach(function(other) {
+        other.classList.toggle('active', other === pill);
+      });
+      updateSampleFilters();
+    });
+  }
+  updateSampleFilters();
+
   // -- Restore saved theme, otherwise use salmon without writing localStorage --
   var savedTheme = localStorage.getItem('mermaid-theme');
   var initialThemeKey = savedTheme && THEMES[savedTheme] ? savedTheme : DEFAULT_PAGE_THEME;
@@ -1580,6 +1744,15 @@ ${bundleJs}
   // ============================================================================
 
   var totalStart = performance.now();
+  function yieldToBrowser() {
+    return new Promise(function(resolve) {
+      if ('requestIdleCallback' in window) {
+        window.requestIdleCallback(resolve, { timeout: 80 });
+      } else {
+        requestAnimationFrame(function() { resolve(); });
+      }
+    });
+  }
 
   for (var i = 0; i < samples.length; i++) {
     var sample = samples[i];
@@ -1626,6 +1799,7 @@ ${bundleJs}
       }
     }
 
+    if (i > 0 && i % 6 === 0) await yieldToBrowser();
   }
 
   // Done — show total time

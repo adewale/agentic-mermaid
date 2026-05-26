@@ -1,12 +1,40 @@
 var exportScale = 4;
 var exportDropdown = document.getElementById('export-dropdown');
+var exportMainBtn = document.getElementById('export-main-btn');
+var exportChevronBtn = document.getElementById('export-chevron-btn');
+var exportRequiresSvgButtons = [
+  exportMainBtn,
+  exportChevronBtn,
+  document.getElementById('export-png-btn'),
+  document.getElementById('export-svg-btn'),
+  document.getElementById('copy-svg-btn'),
+  document.getElementById('copy-image-btn'),
+].filter(Boolean);
+
+function hasRenderedSvg() {
+  return previewInner.querySelector('svg') !== null;
+}
+
+function updateExportAvailability() {
+  var enabled = hasRenderedSvg();
+  exportRequiresSvgButtons.forEach(function(btn) {
+    btn.disabled = !enabled;
+    btn.setAttribute('aria-disabled', enabled ? 'false' : 'true');
+  });
+  if (!enabled) exportDropdown.classList.remove('open');
+}
 
 function toggleExportDropdown(e) {
   e.stopPropagation();
+  if (!hasRenderedSvg()) {
+    showToast('Load or write a diagram before exporting.');
+    updateExportAvailability();
+    return;
+  }
   exportDropdown.classList.toggle('open');
 }
-document.getElementById('export-chevron-btn').addEventListener('click', toggleExportDropdown);
-document.getElementById('export-main-btn').addEventListener('click', function() {
+exportChevronBtn.addEventListener('click', toggleExportDropdown);
+exportMainBtn.addEventListener('click', function() {
   exportPNG();
 });
 
@@ -24,7 +52,11 @@ document.getElementById('size-pills').addEventListener('click', function(e) {
 
 function getSvgEl() {
   var el = previewInner.querySelector('svg');
-  if (!el) { showToast('Render a diagram first.'); return null; }
+  if (!el) {
+    showToast('Load or write a diagram before exporting.');
+    updateExportAvailability();
+    return null;
+  }
   return el;
 }
 
@@ -112,6 +144,7 @@ document.getElementById('export-svg-btn').addEventListener('click', exportSVG);
 document.getElementById('copy-svg-btn').addEventListener('click', copySVG);
 document.getElementById('copy-image-btn').addEventListener('click', copyImage);
 document.getElementById('copy-link-btn').addEventListener('click', copyURL);
+updateExportAvailability();
 
 document.addEventListener('keydown', function(e) {
   if (e.target === editor) return;

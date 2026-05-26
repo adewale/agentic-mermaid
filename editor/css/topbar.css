@@ -2,7 +2,7 @@
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  height: 52px;
+  min-height: 52px;
   padding: 0 1rem;
   background: transparent;
   flex-shrink: 0;
@@ -24,8 +24,8 @@
   border-radius: 10px;
   background: color-mix(in srgb, var(--t-bg) 97%, var(--t-fg));
   box-shadow: var(--shadow-minimal);
-  font-weight: 400;
-  font-size: 12px;
+  font-weight: 500;
+  font-size: 13px;
   color: color-mix(in srgb, var(--t-fg) 80%, var(--t-bg));
   text-decoration: none;
   white-space: nowrap;
@@ -69,6 +69,9 @@
   border-radius: 12px;
   padding: 4px;
 }
+.mobile-only {
+  display: none;
+}
 .tab {
   height: 30px;
   padding: 0 14px;
@@ -76,7 +79,7 @@
   border-radius: 8px;
   background: transparent;
   color: var(--fg2);
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 500;
   font-family: inherit;
   cursor: default;
@@ -121,7 +124,7 @@
   background: color-mix(in srgb, var(--t-bg) 97%, var(--t-fg));
   box-shadow: var(--shadow-minimal);
   color: color-mix(in srgb, var(--t-fg) 80%, var(--t-bg));
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 500;
   font-family: inherit;
   cursor: default;
@@ -237,7 +240,7 @@
   background: color-mix(in srgb, var(--t-bg) 97%, var(--t-fg));
   box-shadow: var(--shadow-minimal);
   color: color-mix(in srgb, var(--t-fg) 80%, var(--t-bg));
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 500;
   font-family: inherit;
   cursor: default;
@@ -314,4 +317,57 @@
   opacity: 0.9;
   background: var(--t-fg);
   color: var(--t-bg);
+}
+.btn-primary:disabled:hover,
+.btn-primary[aria-disabled="true"]:hover {
+  opacity: 0.45;
+  background: var(--t-fg);
+  color: var(--t-bg);
+}
+
+@media (max-width: 760px) {
+  .topbar {
+    gap: 0.375rem;
+    padding: 8px 10px;
+    overflow-x: auto;
+    overflow-y: hidden;
+    scrollbar-width: none;
+  }
+  .topbar::-webkit-scrollbar {
+    display: none;
+  }
+  .logo {
+    padding: 0 10px;
+  }
+  .logo strong {
+    font-size: 0;
+  }
+  .logo strong::after {
+    content: "BM";
+    font-size: 13px;
+  }
+  .logo-sub {
+    display: none;
+  }
+  .topbar-sep {
+    display: none;
+  }
+  .mobile-only {
+    display: inline-flex;
+  }
+  .spacer {
+    flex: 0 0 8px;
+  }
+  .theme-dropdown-btn {
+    min-width: 116px;
+  }
+  #export-main-btn {
+    width: 48px;
+    padding: 0;
+    font-size: 0;
+    gap: 0;
+  }
+  #export-main-btn svg {
+    margin: 0;
+  }
 }

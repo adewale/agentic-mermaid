@@ -346,14 +346,30 @@ function exampleGroups() {
   return groups;
 }
 
+function exampleGlyph(example) {
+  var type = example.diagramType || 'Example';
+  var glyphs = {
+    Flowchart: 'F',
+    State: 'S',
+    Architecture: 'A',
+    Sequence: 'Q',
+    Class: 'C',
+    ER: 'ER',
+    Timeline: 'T',
+    Journey: 'J',
+    'XY Chart': 'XY',
+  };
+  return glyphs[type] || type.slice(0, 2).toUpperCase();
+}
+
 function renderExamplePaletteHtml() {
   return exampleGroups().map(function(group) {
     return '<section class="example-category">'
       + '<div class="example-category-title">' + escHtml(group.category) + '</div>'
       + '<div class="example-category-grid">'
       + group.examples.map(function(example) {
-        return '<button class="example-dropdown-item" data-example="' + escAttr(example.id) + '" data-diagram="' + escAttr(example.diagramType || '') + '" title="' + escAttr(example.description || example.label) + '">'
-          + '<span class="example-item-title">' + escHtml(example.label) + '</span>'
+        return '<button class="example-dropdown-item" type="button" role="menuitem" data-example="' + escAttr(example.id) + '" data-diagram="' + escAttr(example.diagramType || '') + '" title="' + escAttr(example.description || example.label) + '">'
+          + '<span class="example-item-title"><span class="example-item-glyph" aria-hidden="true">' + escHtml(exampleGlyph(example)) + '</span>' + escHtml(example.label) + '</span>'
           + '<span class="example-item-meta">' + escHtml(example.diagramType || '') + '</span>'
           + '<span class="example-item-description">' + escHtml(example.description || '') + '</span>'
           + '</button>';
@@ -426,6 +442,7 @@ function closeExampleDropdown() {
   if (!exampleDropdownMenu || !exampleDropdownBtn) return;
   exampleDropdownMenu.classList.remove('open');
   exampleDropdownBtn.classList.remove('open');
+  exampleDropdownBtn.setAttribute('aria-expanded', 'false');
 }
 
 renderExamplePalettes();
@@ -451,6 +468,11 @@ if (examplesSidebarList) {
 }
 
 document.addEventListener('click', function(e) {
+  var starter = e.target.closest('.placeholder-chip[data-example]');
+  if (starter) {
+    loadEditorExample(starter.dataset.example || '');
+    return;
+  }
   if (e.target.closest('[data-action="load-example"]')) {
     openExamplesSidebar();
   }
@@ -461,6 +483,7 @@ if (exampleDropdownBtn && exampleDropdownMenu && exampleDropdownWrap) {
     e.stopPropagation();
     var isOpen = exampleDropdownMenu.classList.toggle('open');
     exampleDropdownBtn.classList.toggle('open', isOpen);
+    exampleDropdownBtn.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
   });
 
   exampleDropdownMenu.addEventListener('click', function(e) {
@@ -480,4 +503,8 @@ if (exampleDropdownBtn && exampleDropdownMenu && exampleDropdownWrap) {
 document.addEventListener('keydown', function(e) {
   if (e.key !== 'Escape') return;
   closeExampleDropdown();
+  if (examplesSidebar && examplesSidebar.classList.contains('open')) {
+    setExamplesSidebarOpen(false);
+    if (examplesSidebarBtn) examplesSidebarBtn.focus();
+  }
 });

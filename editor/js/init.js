@@ -40,6 +40,7 @@ themeDropdownBtn.addEventListener("click", function (e) {
   e.stopPropagation();
   var isOpen = themeMenu.classList.toggle("open");
   themeDropdownBtn.classList.toggle("open", isOpen);
+  themeDropdownBtn.setAttribute("aria-expanded", isOpen ? "true" : "false");
 });
 
 // Click item
@@ -49,6 +50,7 @@ themeMenu.addEventListener("click", function (e) {
   setTheme(item.dataset.theme || "");
   themeMenu.classList.remove("open");
   themeDropdownBtn.classList.remove("open");
+  themeDropdownBtn.setAttribute("aria-expanded", "false");
 });
 
 // Close on outside click
@@ -56,7 +58,15 @@ document.addEventListener("click", function (e) {
   if (!document.getElementById("theme-dropdown-wrap").contains(e.target)) {
     themeMenu.classList.remove("open");
     themeDropdownBtn.classList.remove("open");
+    themeDropdownBtn.setAttribute("aria-expanded", "false");
   }
+});
+
+document.addEventListener("keydown", function(e) {
+  if (e.key !== "Escape") return;
+  themeMenu.classList.remove("open");
+  themeDropdownBtn.classList.remove("open");
+  themeDropdownBtn.setAttribute("aria-expanded", "false");
 });
 
 // Store label data for lookup

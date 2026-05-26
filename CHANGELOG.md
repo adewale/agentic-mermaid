@@ -10,6 +10,9 @@ This changelog tracks user-facing changes in the `adewale/beautiful-mermaid` for
 - Semantic role-based SVG styling via `options.style.text`, `options.style.node`, `options.style.edge`, and `options.style.group`.
 - Role-style showcase samples in the live gallery under **Contents → Role Styles**.
 - Fork documentation describing differences from upstream in [`FORK_DIFFERENCES.md`](./FORK_DIFFERENCES.md).
+- Product/design context documents (`PRODUCT.md`, `DESIGN.md`) for future design-system aligned work.
+- Homepage sample search and category filters for browsing the full showcase.
+- Mobile editor pane switching for Code, Config, Preview, and Examples.
 
 ### Changed
 - SVG style customization is now role-based and diagram-family aware; removed flat render style aliases are intentionally ignored.
@@ -20,9 +23,16 @@ This changelog tracks user-facing changes in the `adewale/beautiful-mermaid` for
 - Editor example presets now preserve the currently selected theme instead of forcing Default or Solarized Light.
 - Live editor now offers a persistent Examples sidebar and a blank-state “Load an example” CTA.
 - Editor controls, empty state, sidebar, and dropdowns received polish for concentric radii, tactile press states, smoother icon transitions, tabular numbers, and cleaner text wrapping.
+- Homepage and editor typography now use Atkinson Hyperlegible for a more distinctive, readable UI face.
+- Homepage rendering yields between sample batches to keep the page responsive while the full gallery renders.
+- Editor empty state now includes quick starter chips for Flowchart, Sequence, and Role styled examples.
+- Example rows now include compact diagram-family glyphs for faster scanning.
 
 ### Fixed
 - TypeScript CI failures in journey style padding and optional node corner-radius resolution.
+- Editor export actions are disabled until a diagram exists and parser errors now include recovery-oriented copy.
+- Editor menus, sidebar, and theme controls now close with Escape and expose stronger ARIA/focus states.
+- Removed layout-property sidebar animation in favor of opacity/transform-based motion.
 
 ## Fork baseline before this changelog
 
