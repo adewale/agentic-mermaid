@@ -65,8 +65,7 @@ function buildOptions() {
 async function doRender() {
   var source = editor.value.trim();
   if (!source) {
-    previewInner.innerHTML =
-      '<div class="preview-placeholder">Start typing to render your diagram</div>';
+    previewInner.innerHTML = emptyPreviewHtml();
     statusText.textContent = "Ready";
     statusText.className = "";
     statusDot.className = "status-dot";

@@ -5,7 +5,7 @@ document.getElementById('copy-source-btn').addEventListener('click', function() 
 document.getElementById('clear-btn').addEventListener('click', function() {
   editor.value = '';
   updateLineNumbers();
-  previewInner.innerHTML = '<div class="preview-placeholder">Start typing to render your diagram</div>';
+  previewInner.innerHTML = emptyPreviewHtml();
   statusText.textContent = 'Ready';
   statusText.className = '';
   renderTime.textContent = '';

@@ -163,6 +163,22 @@ ${html.topbar}
 <!-- Main -->
 <div class="main">
 
+  <!-- Persistent examples sidebar -->
+  <aside class="examples-sidebar" id="examples-sidebar" aria-label="Example diagrams" aria-hidden="true">
+    <div class="examples-sidebar-inner">
+      <div class="examples-sidebar-header">
+        <span>Examples</span>
+        <button class="toolbar-btn" id="examples-sidebar-close" title="Close examples sidebar" aria-label="Close examples sidebar">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="18" y1="6" x2="6" y2="18"/>
+            <line x1="6" y1="6" x2="18" y2="18"/>
+          </svg>
+        </button>
+      </div>
+      <div class="examples-sidebar-list" id="examples-sidebar-list"></div>
+    </div>
+  </aside>
+
   <!-- Left panel -->
 ${html.leftPanel}
 

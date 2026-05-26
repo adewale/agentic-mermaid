@@ -1,8 +1,8 @@
 var sourceToolbar = document.getElementById('source-toolbar');
-document.querySelectorAll(".tab").forEach(function (tab) {
+document.querySelectorAll(".tab[data-panel]").forEach(function (tab) {
   tab.addEventListener("click", function () {
     var panel = tab.dataset.panel;
-    document.querySelectorAll(".tab").forEach(function (t) {
+    document.querySelectorAll(".tab[data-panel]").forEach(function (t) {
       t.classList.remove("active");
     });
     tab.classList.add("active");

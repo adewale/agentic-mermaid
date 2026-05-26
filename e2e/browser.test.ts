@@ -433,9 +433,35 @@ describe('browser: live editor integration', () => {
     expect(await page.evaluate(() => document.getElementById('status-text')?.textContent)).toBe('Ready')
     expect(await page.evaluate(() => document.querySelector('#preview-inner svg') === null)).toBe(true)
     expect(await page.evaluate(() => document.getElementById('preview-inner')?.textContent?.includes('Start typing') ?? false)).toBe(true)
+    expect(await page.evaluate(() => document.getElementById('preview-inner')?.textContent?.includes('Load an example') ?? false)).toBe(true)
     expect(await page.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue('--t-bg').trim())).toBe('#FFFBF5')
     expect(await page.evaluate(() => localStorage.getItem('bm-editor-theme'))).toBeNull()
   }, 60_000)
+
+  it('empty-state CTA opens a persistent examples sidebar', async () => {
+    await page.goto(`${BASE}/editor`)
+    await page.waitForSelector('#code-editor', { timeout: 30_000 })
+
+    expect(await page.evaluate(() => document.getElementById('examples-sidebar')?.classList.contains('open'))).toBe(false)
+    await page.click('[data-action="load-example"]')
+    await page.waitForFunction(
+      () => document.getElementById('examples-sidebar')?.classList.contains('open') === true,
+      { timeout: 10_000 },
+    )
+
+    await page.waitForFunction(
+      () => (document.getElementById('examples-sidebar')?.getBoundingClientRect().width ?? 0) >= 280,
+      { timeout: 10_000 },
+    )
+    const sidebarBox = await page.locator('#examples-sidebar').boundingBox()
+    expect(sidebarBox).not.toBeNull()
+    expect(sidebarBox!.width).toBeGreaterThanOrEqual(280)
+
+    await page.click('#examples-sidebar .example-dropdown-item[data-example="flowchart-basic"]')
+    await waitForEditorRender(60_000)
+    expect(await page.inputValue('#code-editor')).toContain('flowchart TD')
+    expect(await page.evaluate(() => document.getElementById('examples-sidebar')?.classList.contains('open'))).toBe(true)
+  }, 120_000)
 
   it('opens /editor and renders fork-added diagram families through the bundled renderer', async () => {
     await page.goto(`${BASE}/editor`)
@@ -547,7 +573,7 @@ describe('browser: live editor integration', () => {
     )
 
     const diagramTypes = await page.evaluate(() => Array.from(
-      new Set(Array.from(document.querySelectorAll('.example-dropdown-item'))
+      new Set(Array.from(document.querySelectorAll('#example-dropdown-menu .example-dropdown-item'))
         .map(el => (el as HTMLElement).dataset.diagram)
         .filter(Boolean)),
     ).sort())
@@ -572,7 +598,7 @@ describe('browser: live editor integration', () => {
     expect(box!.x).toBeGreaterThanOrEqual(0)
     expect(box!.x + box!.width).toBeLessThanOrEqual(viewport!.width)
 
-    await page.click('.example-dropdown-item[data-example="state-basic"]')
+    await page.click('#example-dropdown-menu .example-dropdown-item[data-example="state-basic"]')
     await page.waitForFunction(
       () => (document.querySelector('#preview-inner svg')?.outerHTML ?? '').includes('Processing'),
       { timeout: 60_000 },
@@ -614,7 +640,7 @@ describe('browser: live editor integration', () => {
     )
 
     await page.click('#example-dropdown-btn')
-    await page.click('.example-dropdown-item[data-example="styled-xychart"]')
+    await page.click('#example-dropdown-menu .example-dropdown-item[data-example="styled-xychart"]')
 
     await page.waitForFunction(
       () => {
