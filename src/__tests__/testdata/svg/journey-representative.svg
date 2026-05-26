@@ -34,17 +34,17 @@
 </style>
 <g class="journey-section" data-id="section-0" data-label="Discover">
   <rect class="journey-section-bg" x="32" y="75.4" width="256" height="156.8" rx="0" ry="0" />
-  <rect class="journey-section-band" x="32" y="75.4" width="256" height="27.6" rx="0" ry="0" />
+  <path class="journey-section-band" d="M32,75.4 H288 V103 H32 Z" />
   <text x="44" y="89.2" class="journey-section-label" text-anchor="start" font-size="12" font-weight="600" dy="4.199999999999999">Discover</text>
 </g>
 <g class="journey-section" data-id="section-1" data-label="Deliver">
   <rect class="journey-section-bg" x="316" y="75.4" width="256" height="266.9" rx="0" ry="0" />
-  <rect class="journey-section-band" x="316" y="75.4" width="256" height="27.6" rx="0" ry="0" />
+  <path class="journey-section-band" d="M316,75.4 H572 V103 H316 Z" />
   <text x="328" y="89.2" class="journey-section-label" text-anchor="start" font-size="12" font-weight="600" dy="4.199999999999999">Deliver</text>
 </g>
 <g class="journey-task" data-id="task-0" data-score="4" data-section="Discover" data-actors="PM, Research">
   <rect class="journey-task-card" x="50" y="135" width="220" height="79.2" rx="0" ry="0" />
-  <rect class="journey-task-accent" x="50" y="135" width="4" height="79.2" rx="0" ry="0" />
+  <path class="journey-task-accent" d="M50,135 H54 V214.2 H50 Z" />
   <text x="68" y="155.45" class="journey-task-text" text-anchor="start" font-size="13" font-weight="500" dy="4.55">Interview users</text>
   <rect class="journey-score-cell-filled" x="186" y="150.45" width="10" height="10" rx="2" ry="2" />
   <rect class="journey-score-cell-filled" x="201" y="150.45" width="10" height="10" rx="2" ry="2" />
@@ -62,7 +62,7 @@
 </g>
 <g class="journey-task" data-id="task-1" data-score="3" data-section="Deliver" data-actors="Design, Eng">
   <rect class="journey-task-card" x="334" y="135" width="220" height="96.1" rx="0" ry="0" />
-  <rect class="journey-task-accent" x="334" y="135" width="4" height="96.1" rx="0" ry="0" />
+  <path class="journey-task-accent" d="M334,135 H338 V231.1 H334 Z" />
   <text x="352" y="163.9" class="journey-task-text" text-anchor="start" font-size="13" font-weight="500"><tspan x="352" dy="-3.9000000000000012">Prototype</tspan><tspan x="352" dy="16.900000000000002">review</tspan></text>
   <rect class="journey-score-cell-filled" x="470" y="158.9" width="10" height="10" rx="2" ry="2" />
   <rect class="journey-score-cell-filled" x="485" y="158.9" width="10" height="10" rx="2" ry="2" />
@@ -80,7 +80,7 @@
 </g>
 <g class="journey-task" data-id="task-2" data-score="5" data-section="Deliver" data-actors="Eng, QA">
   <rect class="journey-task-card" x="334" y="245.1" width="220" height="79.2" rx="0" ry="0" />
-  <rect class="journey-task-accent" x="334" y="245.1" width="4" height="79.2" rx="0" ry="0" />
+  <path class="journey-task-accent" d="M334,245.1 H338 V324.3 H334 Z" />
   <text x="352" y="265.55" class="journey-task-text" text-anchor="start" font-size="13" font-weight="500" dy="4.55">Ship</text>
   <rect class="journey-score-cell-filled" x="470" y="260.55" width="10" height="10" rx="2" ry="2" />
   <rect class="journey-score-cell-filled" x="485" y="260.55" width="10" height="10" rx="2" ry="2" />

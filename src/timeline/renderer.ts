@@ -6,6 +6,7 @@ import { renderMultilineText, escapeXml } from '../multiline-utils.ts'
 import { STROKE_WIDTHS, resolveRenderStyle } from '../styles.ts'
 import type { RenderStyleDefaults, ResolvedRenderStyle } from '../styles.ts'
 import type { MermaidThemeVariables, TimelineRuntimeConfig } from '../mermaid-source.ts'
+import { leftRoundedRectPath, topRoundedRectPath } from '../svg-paths.ts'
 
 // ============================================================================
 // Timeline diagram SVG renderer
@@ -183,7 +184,7 @@ function renderSectionFrame(
 
   if (section.headerHeight > 0) {
     parts.push(
-      `  <rect class="timeline-section-band" x="${section.x}" y="${section.y}" width="${section.width}" height="${section.headerHeight}" rx="${style.groupCornerRadius}" ry="${style.groupCornerRadius}" />`
+      `  <path class="timeline-section-band" d="${topRoundedRectPath(section.x, section.y, section.width, section.headerHeight, style.groupCornerRadius)}" />`
     )
     if (section.label) {
       parts.push(
@@ -259,7 +260,7 @@ function renderEvent(
   return [
     `<g class="timeline-event" data-id="${escapeAttr(event.id)}" data-period="${escapeAttr(event.periodLabel)}"${sectionAttr}${familyAttr}>`,
     `  <rect class="timeline-event-card" x="${event.x}" y="${event.y}" width="${event.width}" height="${event.height}" rx="${style.cornerRadius ?? 0}" ry="${style.cornerRadius ?? 0}" />`,
-    `  <rect class="timeline-event-accent" x="${event.x}" y="${event.y}" width="${TL.eventAccentWidth}" height="${event.height}" rx="0" ry="0" />`,
+    `  <path class="timeline-event-accent" d="${leftRoundedRectPath(event.x, event.y, TL.eventAccentWidth, event.height, style.cornerRadius ?? 0)}" />`,
     '  ' + renderMultilineText(
       event.text,
       event.x + TL.eventAccentWidth + 12,

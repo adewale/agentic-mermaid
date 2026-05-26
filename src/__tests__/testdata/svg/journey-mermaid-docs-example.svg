@@ -34,17 +34,17 @@
 </style>
 <g class="journey-section" data-id="section-0" data-label="Go to work">
   <rect class="journey-section-bg" x="32" y="75.4" width="256" height="343.20000000000005" rx="0" ry="0" />
-  <rect class="journey-section-band" x="32" y="75.4" width="256" height="27.6" rx="0" ry="0" />
+  <path class="journey-section-band" d="M32,75.4 H288 V103 H32 Z" />
   <text x="44" y="89.2" class="journey-section-label" text-anchor="start" font-size="12" font-weight="600" dy="4.199999999999999">Go to work</text>
 </g>
 <g class="journey-section" data-id="section-1" data-label="Go home">
   <rect class="journey-section-bg" x="316" y="75.4" width="256" height="250" rx="0" ry="0" />
-  <rect class="journey-section-band" x="316" y="75.4" width="256" height="27.6" rx="0" ry="0" />
+  <path class="journey-section-band" d="M316,75.4 H572 V103 H316 Z" />
   <text x="328" y="89.2" class="journey-section-label" text-anchor="start" font-size="12" font-weight="600" dy="4.199999999999999">Go home</text>
 </g>
 <g class="journey-task" data-id="task-0" data-score="5" data-section="Go to work" data-actors="Me">
   <rect class="journey-task-card" x="50" y="135" width="220" height="79.2" rx="0" ry="0" />
-  <rect class="journey-task-accent" x="50" y="135" width="4" height="79.2" rx="0" ry="0" />
+  <path class="journey-task-accent" d="M50,135 H54 V214.2 H50 Z" />
   <text x="68" y="155.45" class="journey-task-text" text-anchor="start" font-size="13" font-weight="500" dy="4.55">Make tea</text>
   <rect class="journey-score-cell-filled" x="186" y="150.45" width="10" height="10" rx="2" ry="2" />
   <rect class="journey-score-cell-filled" x="201" y="150.45" width="10" height="10" rx="2" ry="2" />
@@ -58,7 +58,7 @@
 </g>
 <g class="journey-task" data-id="task-1" data-score="3" data-section="Go to work" data-actors="Me">
   <rect class="journey-task-card" x="50" y="228.2" width="220" height="79.2" rx="0" ry="0" />
-  <rect class="journey-task-accent" x="50" y="228.2" width="4" height="79.2" rx="0" ry="0" />
+  <path class="journey-task-accent" d="M50,228.2 H54 V307.4 H50 Z" />
   <text x="68" y="248.64999999999998" class="journey-task-text" text-anchor="start" font-size="13" font-weight="500" dy="4.55">Go upstairs</text>
   <rect class="journey-score-cell-filled" x="186" y="243.64999999999998" width="10" height="10" rx="2" ry="2" />
   <rect class="journey-score-cell-filled" x="201" y="243.64999999999998" width="10" height="10" rx="2" ry="2" />
@@ -72,7 +72,7 @@
 </g>
 <g class="journey-task" data-id="task-2" data-score="1" data-section="Go to work" data-actors="Me, Cat">
   <rect class="journey-task-card" x="50" y="321.4" width="220" height="79.2" rx="0" ry="0" />
-  <rect class="journey-task-accent" x="50" y="321.4" width="4" height="79.2" rx="0" ry="0" />
+  <path class="journey-task-accent" d="M50,321.4 H54 V400.59999999999997 H50 Z" />
   <text x="68" y="341.84999999999997" class="journey-task-text" text-anchor="start" font-size="13" font-weight="500" dy="4.55">Do work</text>
   <rect class="journey-score-cell-filled" x="186" y="336.84999999999997" width="10" height="10" rx="2" ry="2" />
   <rect class="journey-score-cell-empty" x="201" y="336.84999999999997" width="10" height="10" rx="2" ry="2" />
@@ -90,7 +90,7 @@
 </g>
 <g class="journey-task" data-id="task-3" data-score="5" data-section="Go home" data-actors="Me">
   <rect class="journey-task-card" x="334" y="135" width="220" height="79.2" rx="0" ry="0" />
-  <rect class="journey-task-accent" x="334" y="135" width="4" height="79.2" rx="0" ry="0" />
+  <path class="journey-task-accent" d="M334,135 H338 V214.2 H334 Z" />
   <text x="352" y="155.45" class="journey-task-text" text-anchor="start" font-size="13" font-weight="500" dy="4.55">Go downstairs</text>
   <rect class="journey-score-cell-filled" x="470" y="150.45" width="10" height="10" rx="2" ry="2" />
   <rect class="journey-score-cell-filled" x="485" y="150.45" width="10" height="10" rx="2" ry="2" />
@@ -104,7 +104,7 @@
 </g>
 <g class="journey-task" data-id="task-4" data-score="3" data-section="Go home" data-actors="Me">
   <rect class="journey-task-card" x="334" y="228.2" width="220" height="79.2" rx="0" ry="0" />
-  <rect class="journey-task-accent" x="334" y="228.2" width="4" height="79.2" rx="0" ry="0" />
+  <path class="journey-task-accent" d="M334,228.2 H338 V307.4 H334 Z" />
   <text x="352" y="248.64999999999998" class="journey-task-text" text-anchor="start" font-size="13" font-weight="500" dy="4.55">Sit down</text>
   <rect class="journey-score-cell-filled" x="470" y="243.64999999999998" width="10" height="10" rx="2" ry="2" />
   <rect class="journey-score-cell-filled" x="485" y="243.64999999999998" width="10" height="10" rx="2" ry="2" />

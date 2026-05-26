@@ -19,10 +19,12 @@
   }
 </style>
 <style>
-  .architecture-group-frame { fill: var(--arch-group-fill, color-mix(in srgb, var(--_node-fill) 82%, var(--bg))); stroke: var(--arch-group-stroke, var(--_node-stroke)); stroke-width: 1; }
-  .architecture-group-band { fill: color-mix(in srgb, var(--_arrow) 5%, var(--arch-group-fill, var(--bg))); stroke: var(--arch-group-stroke, var(--_node-stroke)); stroke-width: 1; }
+  .architecture-group-frame { fill: var(--arch-group-fill, color-mix(in srgb, var(--_node-fill) 82%, var(--bg))); stroke: none; }
+  .architecture-group-band { fill: color-mix(in srgb, var(--_arrow) 5%, var(--arch-group-fill, var(--bg))); stroke: none; }
+  .architecture-group-outline { fill: none; stroke: var(--arch-group-stroke, var(--_node-stroke)); stroke-width: 1; }
   .architecture-group-label { fill: var(--_text-sec); }
-  .architecture-service-card { fill: var(--arch-service-fill, color-mix(in srgb, var(--_node-fill) 92%, var(--bg))); stroke: var(--arch-service-stroke, var(--_node-stroke)); stroke-width: 1; }
+  .architecture-service-card { fill: var(--arch-service-fill, color-mix(in srgb, var(--_node-fill) 92%, var(--bg))); stroke: none; }
+  .architecture-service-outline { fill: none; stroke: var(--arch-service-stroke, var(--_node-stroke)); stroke-width: 1; }
   .architecture-service-accent { fill: color-mix(in srgb, var(--_arrow) 18%, var(--bg)); }
   .architecture-service-label { fill: var(--_text); }
   .architecture-edge { fill: none; stroke: var(--_line); stroke-width: 1; stroke-linejoin: round; }
@@ -45,7 +47,8 @@
 </defs>
 <g class="architecture-group" data-id="edge" data-label="Edge">
   <rect class="architecture-group-frame" x="40" y="40" width="0" height="0" rx="0" ry="0" />
-  <rect class="architecture-group-band" x="40" y="40" width="0" height="28" rx="0" ry="0" />
+  <path class="architecture-group-band" d="M40,40 H40 V68 H40 Z" />
+  <rect class="architecture-group-outline" x="40" y="40" width="0" height="0" rx="0" ry="0" />
   <g class="architecture-icon" data-icon="cloud">
   <rect class="architecture-icon-bg" x="50" y="46" width="16" height="16" rx="0" ry="0" />
   <circle class="architecture-icon-mark" cx="55.3504" cy="54.2944" r="2.3552" />
@@ -57,7 +60,8 @@
 </g>
 <g class="architecture-group" data-id="app" data-label="Application">
   <rect class="architecture-group-frame" x="40" y="76" width="380.58500000000004" height="110" rx="0" ry="0" />
-  <rect class="architecture-group-band" x="40" y="76" width="380.58500000000004" height="28" rx="0" ry="0" />
+  <path class="architecture-group-band" d="M40,76 H420.58500000000004 V104 H40 Z" />
+  <rect class="architecture-group-outline" x="40" y="76" width="380.58500000000004" height="110" rx="0" ry="0" />
   <g class="architecture-icon" data-icon="server">
   <rect class="architecture-icon-bg" x="50" y="82" width="16" height="16" rx="0" ry="0" />
   <rect class="architecture-icon-mark" x="54.7616" y="86.4672" width="6.4768" height="7.0656" rx="0" ry="0" />
@@ -78,7 +82,8 @@
 </g>
 <g class="architecture-service" data-id="db" data-label="Primary DB">
   <rect class="architecture-service-card" x="482.58500000000004" y="134" width="143.381" height="48" rx="0" ry="0" />
-  <rect class="architecture-service-accent" x="482.58500000000004" y="134" width="4" height="48" rx="0" ry="0" />
+  <path class="architecture-service-accent" d="M482.58500000000004,134 H486.58500000000004 V182 H482.58500000000004 Z" />
+  <rect class="architecture-service-outline" x="482.58500000000004" y="134" width="143.381" height="48" rx="0" ry="0" />
   <g class="architecture-icon" data-icon="database">
   <rect class="architecture-icon-bg" x="496.58500000000004" y="149" width="18" height="18" rx="0" ry="0" />
   <ellipse class="architecture-icon-mark" cx="505.58500000000004" cy="155.12" rx="4.32" ry="1.8" />
@@ -91,7 +96,8 @@
 </g>
 <g class="architecture-service" data-id="api" data-label="Public API">
   <rect class="architecture-service-card" x="56" y="122" width="135.971" height="48" rx="0" ry="0" />
-  <rect class="architecture-service-accent" x="56" y="122" width="4" height="48" rx="0" ry="0" />
+  <path class="architecture-service-accent" d="M56,122 H60 V170 H56 Z" />
+  <rect class="architecture-service-outline" x="56" y="122" width="135.971" height="48" rx="0" ry="0" />
   <g class="architecture-icon" data-icon="server">
   <rect class="architecture-icon-bg" x="70" y="137" width="18" height="18" rx="0" ry="0" />
   <rect class="architecture-icon-mark" x="75.04" y="141.68" width="7.92" height="8.64" rx="0" ry="0" />

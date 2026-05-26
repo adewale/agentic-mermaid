@@ -5,6 +5,7 @@ import { svgOpenTag, buildStyleBlock, buildShadowDefs } from '../theme.ts'
 import { renderMultilineText, escapeXml } from '../multiline-utils.ts'
 import { STROKE_WIDTHS, resolveRenderStyle } from '../styles.ts'
 import type { RenderStyleDefaults, ResolvedRenderStyle } from '../styles.ts'
+import { leftRoundedRectPath, topRoundedRectPath } from '../svg-paths.ts'
 
 // ============================================================================
 // Journey diagram SVG renderer
@@ -160,7 +161,7 @@ function renderSectionFrame(section: PositionedJourneySection, style: ResolvedRe
 
   if (section.headerHeight > 0) {
     parts.push(
-      `  <rect class="journey-section-band" x="${section.x}" y="${section.y}" width="${section.width}" height="${section.headerHeight}" rx="${style.groupCornerRadius}" ry="${style.groupCornerRadius}" />`
+      `  <path class="journey-section-band" d="${topRoundedRectPath(section.x, section.y, section.width, section.headerHeight, style.groupCornerRadius)}" />`
     )
 
     if (section.label) {
@@ -192,7 +193,7 @@ function renderTask(task: PositionedJourneyTask, sectionLabel: string | undefine
     `  <rect class="journey-task-card" x="${task.x}" y="${task.y}" width="${task.width}" height="${task.height}" rx="${style.cornerRadius ?? 0}" ry="${style.cornerRadius ?? 0}" />`
   )
   parts.push(
-    `  <rect class="journey-task-accent" x="${task.x}" y="${task.y}" width="${JY.taskAccentWidth}" height="${task.height}" rx="0" ry="0" />`
+    `  <path class="journey-task-accent" d="${leftRoundedRectPath(task.x, task.y, JY.taskAccentWidth, task.height, style.cornerRadius ?? 0)}" />`
   )
   parts.push(
     '  ' + renderMultilineText(

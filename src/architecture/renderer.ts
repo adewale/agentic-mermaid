@@ -12,6 +12,7 @@ import type { Point } from '../types.ts'
 import { svgOpenTag, buildStyleBlock } from '../theme.ts'
 import { renderMultilineText, renderMultilineTextWithBackground, escapeXml } from '../multiline-utils.ts'
 import { measureMultilineText } from '../text-metrics.ts'
+import { leftRoundedRectPath, topRoundedRectPath } from '../svg-paths.ts'
 
 /**
  * Render a positioned architecture diagram as SVG.
@@ -82,10 +83,12 @@ export function renderArchitectureSvg(
 
 function architectureStyles(visual: ArchitectureVisualConfig): string {
   return `<style>
-  .architecture-group-frame { fill: var(--arch-group-fill, color-mix(in srgb, var(--_node-fill) 82%, var(--bg))); stroke: var(--arch-group-stroke, var(--_node-stroke)); stroke-width: ${visual.groupLineWidth}; }
-  .architecture-group-band { fill: color-mix(in srgb, var(--_arrow) 5%, var(--arch-group-fill, var(--bg))); stroke: var(--arch-group-stroke, var(--_node-stroke)); stroke-width: ${visual.groupLineWidth}; }
+  .architecture-group-frame { fill: var(--arch-group-fill, color-mix(in srgb, var(--_node-fill) 82%, var(--bg))); stroke: none; }
+  .architecture-group-band { fill: color-mix(in srgb, var(--_arrow) 5%, var(--arch-group-fill, var(--bg))); stroke: none; }
+  .architecture-group-outline { fill: none; stroke: var(--arch-group-stroke, var(--_node-stroke)); stroke-width: ${visual.groupLineWidth}; }
   .architecture-group-label { fill: var(--_text-sec); }
-  .architecture-service-card { fill: var(--arch-service-fill, color-mix(in srgb, var(--_node-fill) 92%, var(--bg))); stroke: var(--arch-service-stroke, var(--_node-stroke)); stroke-width: ${visual.serviceLineWidth}; }
+  .architecture-service-card { fill: var(--arch-service-fill, color-mix(in srgb, var(--_node-fill) 92%, var(--bg))); stroke: none; }
+  .architecture-service-outline { fill: none; stroke: var(--arch-service-stroke, var(--_node-stroke)); stroke-width: ${visual.serviceLineWidth}; }
   .architecture-service-accent { fill: color-mix(in srgb, var(--_arrow) 18%, var(--bg)); }
   .architecture-service-label { fill: var(--_text); }
   .architecture-edge { fill: none; stroke: var(--_line); stroke-width: ${visual.edgeLineWidth}; stroke-linejoin: round; }
@@ -109,7 +112,10 @@ function renderGroup(group: PositionedArchitectureGroup, visual: ArchitectureVis
     `  <rect class="architecture-group-frame" x="${group.x}" y="${group.y}" width="${group.width}" height="${group.height}" rx="${visual.groupCornerRadius}" ry="${visual.groupCornerRadius}" />`
   )
   parts.push(
-    `  <rect class="architecture-group-band" x="${group.x}" y="${group.y}" width="${group.width}" height="${visual.groupHeaderHeight}" rx="${visual.groupCornerRadius}" ry="${visual.groupCornerRadius}" />`
+    `  <path class="architecture-group-band" d="${topRoundedRectPath(group.x, group.y, group.width, visual.groupHeaderHeight, visual.groupCornerRadius)}" />`
+  )
+  parts.push(
+    `  <rect class="architecture-group-outline" x="${group.x}" y="${group.y}" width="${group.width}" height="${group.height}" rx="${visual.groupCornerRadius}" ry="${visual.groupCornerRadius}" />`
   )
 
   if (group.icon) {
@@ -148,7 +154,10 @@ function renderService(service: PositionedArchitectureService, visual: Architect
     `  <rect class="architecture-service-card" x="${service.x}" y="${service.y}" width="${service.width}" height="${service.height}" rx="${visual.serviceCornerRadius}" ry="${visual.serviceCornerRadius}" />`
   )
   parts.push(
-    `  <rect class="architecture-service-accent" x="${service.x}" y="${service.y}" width="${accentWidth}" height="${service.height}" rx="${visual.serviceCornerRadius}" ry="${visual.serviceCornerRadius}" />`
+    `  <path class="architecture-service-accent" d="${leftRoundedRectPath(service.x, service.y, accentWidth, service.height, visual.serviceCornerRadius)}" />`
+  )
+  parts.push(
+    `  <rect class="architecture-service-outline" x="${service.x}" y="${service.y}" width="${service.width}" height="${service.height}" rx="${visual.serviceCornerRadius}" ry="${visual.serviceCornerRadius}" />`
   )
 
   if (service.icon) {

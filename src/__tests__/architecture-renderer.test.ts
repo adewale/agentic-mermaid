@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'bun:test'
 import type { DiagramColors } from '../theme.ts'
 import { renderArchitectureSvg } from '../architecture/renderer.ts'
+import { DEFAULT_ARCHITECTURE_VISUAL } from '../architecture/config.ts'
 import type { PositionedArchitectureDiagram } from '../architecture/types.ts'
 
 const lightColors: DiagramColors = { bg: '#FFFFFF', fg: '#27272A' }
@@ -85,5 +86,18 @@ describe('renderArchitectureSvg', () => {
     expect(svg).toContain('class="architecture-edge"')
     expect(svg).toContain('stroke: var(--_line);')
     expect(svg).toContain('fill="var(--_arrow)"')
+  })
+
+  it('draws partial architecture fills as paths instead of over-rounded rectangles', () => {
+    const svg = renderArchitectureSvg(makeDiagram(), lightColors, 'Inter', false, {
+      ...DEFAULT_ARCHITECTURE_VISUAL,
+      groupCornerRadius: 18,
+      serviceCornerRadius: 16,
+    })
+
+    expect(svg).toContain('<path class="architecture-group-band"')
+    expect(svg).not.toContain('<rect class="architecture-group-band"')
+    expect(svg).toContain('<path class="architecture-service-accent"')
+    expect(svg).not.toContain('<rect class="architecture-service-accent"')
   })
 })

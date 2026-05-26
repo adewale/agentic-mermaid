@@ -19,10 +19,12 @@
   }
 </style>
 <style>
-  .architecture-group-frame { fill: var(--arch-group-fill, color-mix(in srgb, var(--_node-fill) 82%, var(--bg))); stroke: var(--arch-group-stroke, var(--_node-stroke)); stroke-width: 1; }
-  .architecture-group-band { fill: color-mix(in srgb, var(--_arrow) 5%, var(--arch-group-fill, var(--bg))); stroke: var(--arch-group-stroke, var(--_node-stroke)); stroke-width: 1; }
+  .architecture-group-frame { fill: var(--arch-group-fill, color-mix(in srgb, var(--_node-fill) 82%, var(--bg))); stroke: none; }
+  .architecture-group-band { fill: color-mix(in srgb, var(--_arrow) 5%, var(--arch-group-fill, var(--bg))); stroke: none; }
+  .architecture-group-outline { fill: none; stroke: var(--arch-group-stroke, var(--_node-stroke)); stroke-width: 1; }
   .architecture-group-label { fill: var(--_text-sec); }
-  .architecture-service-card { fill: var(--arch-service-fill, color-mix(in srgb, var(--_node-fill) 92%, var(--bg))); stroke: var(--arch-service-stroke, var(--_node-stroke)); stroke-width: 1; }
+  .architecture-service-card { fill: var(--arch-service-fill, color-mix(in srgb, var(--_node-fill) 92%, var(--bg))); stroke: none; }
+  .architecture-service-outline { fill: none; stroke: var(--arch-service-stroke, var(--_node-stroke)); stroke-width: 1; }
   .architecture-service-accent { fill: color-mix(in srgb, var(--_arrow) 18%, var(--bg)); }
   .architecture-service-label { fill: var(--_text); }
   .architecture-edge { fill: none; stroke: var(--_line); stroke-width: 1; stroke-linejoin: round; }
@@ -46,7 +48,8 @@
 <g class="architecture-group" data-id="edge" data-label="Edge
 Layer">
   <rect class="architecture-group-frame" x="60" y="60" width="228.784" height="111" rx="0" ry="0" />
-  <rect class="architecture-group-band" x="60" y="60" width="228.784" height="35" rx="0" ry="0" />
+  <path class="architecture-group-band" d="M60,60 H288.784 V95 H60 Z" />
+  <rect class="architecture-group-outline" x="60" y="60" width="228.784" height="111" rx="0" ry="0" />
   <g class="architecture-icon" data-icon="cloud">
   <rect class="architecture-icon-bg" x="70" y="66" width="23" height="23" rx="0" ry="0" />
   <circle class="architecture-icon-mark" cx="77.6912" cy="77.9232" r="3.3856" />
@@ -61,7 +64,8 @@ Layer">
 <text x="396.61999999999995" y="131" class="architecture-edge-label-text" text-anchor="middle" font-size="14" font-weight="400" dy="4.8999999999999995">reads &lt;records&gt;</text>
 <g class="architecture-service" data-id="db" data-label="Primary DB">
   <rect class="architecture-service-card" x="520.4559999999999" y="107" width="159.392" height="48" rx="0" ry="0" />
-  <rect class="architecture-service-accent" x="520.4559999999999" y="107" width="4" height="48" rx="0" ry="0" />
+  <path class="architecture-service-accent" d="M520.4559999999999,107 H524.4559999999999 V155 H520.4559999999999 Z" />
+  <rect class="architecture-service-outline" x="520.4559999999999" y="107" width="159.392" height="48" rx="0" ry="0" />
   <g class="architecture-icon" data-icon="database">
   <rect class="architecture-icon-bg" x="534.4559999999999" y="118" width="26" height="26" rx="0" ry="0" />
   <ellipse class="architecture-icon-mark" cx="547.4559999999999" cy="126.84" rx="6.24" ry="2.6" />
@@ -74,7 +78,8 @@ Layer">
 </g>
 <g class="architecture-service" data-id="api" data-label="API &amp; &lt;Gateway&gt;">
   <rect class="architecture-service-card" x="76" y="107" width="196.784" height="48" rx="0" ry="0" />
-  <rect class="architecture-service-accent" x="76" y="107" width="4" height="48" rx="0" ry="0" />
+  <path class="architecture-service-accent" d="M76,107 H80 V155 H76 Z" />
+  <rect class="architecture-service-outline" x="76" y="107" width="196.784" height="48" rx="0" ry="0" />
   <g class="architecture-icon" data-icon="server">
   <rect class="architecture-icon-bg" x="90" y="118" width="26" height="26" rx="0" ry="0" />
   <rect class="architecture-icon-mark" x="97.28" y="124.76" width="11.44" height="12.48" rx="0" ry="0" />

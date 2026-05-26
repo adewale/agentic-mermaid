@@ -5,6 +5,7 @@ import { STROKE_WIDTHS, ARROW_HEAD, resolveRenderStyle } from './styles.ts'
 import type { ResolvedRenderStyle } from './styles.ts'
 import { measureMultilineText } from './text-metrics.ts'
 import { renderMultilineText, renderMultilineTextWithBackground, escapeXml } from './multiline-utils.ts'
+import { topRoundedRectPath } from './svg-paths.ts'
 
 // ============================================================================
 // SVG renderer — converts a PositionedGraph into an SVG string.
@@ -218,8 +219,8 @@ function renderGroup(group: PositionedGroup, font: string, style: ResolvedRender
 
   // Header band
   parts.push(
-    `  <rect x="${group.x}" y="${group.y}" width="${group.width}" height="${headerHeight}" ` +
-    `rx="${style.groupCornerRadius}" ry="${style.groupCornerRadius}" fill="var(--_group-hdr)" stroke="${escapeAttr(style.groupBorderColor ?? 'var(--_node-stroke)')}" stroke-width="${style.groupLineWidth}" />`
+    `  <path d="${topRoundedRectPath(group.x, group.y, group.width, headerHeight, style.groupCornerRadius)}" ` +
+    `fill="var(--_group-hdr)" stroke="${escapeAttr(style.groupBorderColor ?? 'var(--_node-stroke)')}" stroke-width="${style.groupLineWidth}" />`
   )
 
   // Header label (supports multi-line via <br> tags)

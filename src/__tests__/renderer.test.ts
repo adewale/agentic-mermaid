@@ -408,8 +408,8 @@ describe('renderSvg – groups', () => {
     }
     const graph = makeGraph({ groups: [group] })
     const svg = renderSvg(graph, lightColors)
-    const rectCount = (svg.match(/x="20" y="20"/g) ?? []).length
-    expect(rectCount).toBeGreaterThanOrEqual(2)
+    expect(svg).toContain('<rect x="20" y="20" width="200" height="150"')
+    expect(svg).toContain('<path d="M20,20 H220 V48 H20 Z" fill="var(--_group-hdr)"')
     expect(svg).toContain('>Backend</text>')
   })
 

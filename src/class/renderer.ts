@@ -6,6 +6,7 @@ import { FONT_SIZES, FONT_WEIGHTS, STROKE_WIDTHS, estimateTextWidth, TEXT_BASELI
 import type { RenderStyleDefaults, ResolvedRenderStyle } from '../styles.ts'
 import { CLS } from './layout.ts'
 import { renderMultilineText, escapeXml as escapeXmlUtil } from '../multiline-utils.ts'
+import { topRoundedRectPath } from '../svg-paths.ts'
 
 // ============================================================================
 // Class diagram SVG renderer
@@ -168,8 +169,8 @@ function renderClassBox(cls: PositionedClassNode, style: ResolvedRenderStyle): s
 
   // Header background
   parts.push(
-    `  <rect x="${x}" y="${y}" width="${width}" height="${headerHeight}" ` +
-    `rx="${style.cornerRadius ?? 0}" ry="${style.cornerRadius ?? 0}" fill="var(--_group-hdr)" stroke="var(--_node-stroke)" stroke-width="${style.nodeLineWidth}" />`
+    `  <path d="${topRoundedRectPath(x, y, width, headerHeight, style.cornerRadius ?? 0)}" ` +
+    `fill="var(--_group-hdr)" stroke="var(--_node-stroke)" stroke-width="${style.nodeLineWidth}" />`
   )
 
   // Annotation (<<interface>>, <<abstract>>, etc.)
