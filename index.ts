@@ -185,7 +185,8 @@ export async function generateHtml(options: GenerateHtmlOptions = {}): Promise<s
 
   // Step 3b: Build theme selector pills (build-time so we include swatches)
   // Only show Default, Dracula, and Solarized inline; rest go in "More" dropdown
-  const VISIBLE_THEMES = options.visibleThemes ?? new Set(['dracula', 'solarized-light'])
+  const DEFAULT_THEME_KEY: string = 'salmon'
+  const VISIBLE_THEMES = options.visibleThemes ?? new Set([DEFAULT_THEME_KEY, 'dracula', 'solarized-light'])
 
   function buildThemePill(key: string, colors: { bg: string; fg: string }, active = false): string {
     const isDark = parseInt(colors.bg.replace('#', '').slice(0, 2), 16) < 0x80
@@ -198,15 +199,15 @@ export async function generateHtml(options: GenerateHtmlOptions = {}): Promise<s
   const themeEntries = Object.entries(THEMES)
   // Visible inline pills: Default + Dracula + Solarized
   const visiblePills = [
-    '<button class="theme-pill shadow-minimal active" data-theme=""><span class="theme-swatch" style="background:#FFFFFF;box-shadow:inset 0 0 0 1px rgba(0,0,0,0.1)"></span>Default</button>',
+    buildThemePill('', { bg: '#FFFFFF', fg: '#27272A' }, DEFAULT_THEME_KEY === ''),
     ...themeEntries
       .filter(([key]) => VISIBLE_THEMES.has(key))
-      .map(([key, colors]) => buildThemePill(key, colors)),
+      .map(([key, colors]) => buildThemePill(key, colors, key === DEFAULT_THEME_KEY)),
   ]
-  // All themes go in the dropdown (including Default, Dracula, Solarized)
+  // All themes go in the dropdown (including Default, Salmon, Dracula, Solarized)
   const allDropdownPills = [
-    buildThemePill('', { bg: '#FFFFFF', fg: '#27272A' }, true),
-    ...themeEntries.map(([key, colors]) => buildThemePill(key, colors)),
+    buildThemePill('', { bg: '#FFFFFF', fg: '#27272A' }, DEFAULT_THEME_KEY === ''),
+    ...themeEntries.map(([key, colors]) => buildThemePill(key, colors, key === DEFAULT_THEME_KEY)),
   ]
   const totalThemes = allDropdownPills.length
 
@@ -300,7 +301,7 @@ export async function generateHtml(options: GenerateHtmlOptions = {}): Promise<s
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <meta name="theme-color" id="theme-color-meta" content="#f9f9fa" />
+  <meta name="theme-color" id="theme-color-meta" content="#f8f2eb" />
   <title>${escapeHtml(options.title ?? 'Beautiful Mermaid — Mermaid Rendering, Made Beautiful')}</title>
   <meta name="description" content="${escapeHtml(options.description ?? 'Open source diagram rendering library built for the AI era. Ultra-fast, fully themeable, outputs to SVG and ASCII. Supports Flowchart, State, Architecture, Sequence, Class, ER, Timeline, Journey, and XY diagrams.')}" />
   <link rel="icon" type="image/svg+xml" href="/mermaid/favicon.svg" />
@@ -308,15 +309,13 @@ export async function generateHtml(options: GenerateHtmlOptions = {}): Promise<s
   <link rel="apple-touch-icon" href="/mermaid/apple-touch-icon.png" />
   <meta property="og:title" content="Beautiful Mermaid" />
   <meta property="og:description" content="Open source diagram rendering library built for the AI era. Ultra-fast, fully themeable, outputs to SVG and ASCII." />
-  <meta property="og:image" content="https://agents.craft.do/mermaid/og-image.png" />
+  <meta property="og:image" content="https://adewale.github.io/beautiful-mermaid/og-image.png" />
   <meta property="og:type" content="website" />
-  <meta property="og:url" content="https://agents.craft.do/mermaid" />
+  <meta property="og:url" content="https://adewale.github.io/beautiful-mermaid/" />
   <meta name="twitter:card" content="summary_large_image" />
   <meta name="twitter:title" content="Beautiful Mermaid" />
   <meta name="twitter:description" content="Mermaid rendering, made beautiful. Ultra-fast, fully themeable, outputs to SVG and ASCII." />
-  <meta name="twitter:image" content="https://agents.craft.do/mermaid/og-image.png" />
-  <!-- Plausible Analytics -->
-  <script defer data-domain="agents.craft.do/mermaid" src="https://plausible.io/js/script.js"></script>
+  <meta name="twitter:image" content="https://adewale.github.io/beautiful-mermaid/og-image.png" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
@@ -333,14 +332,14 @@ export async function generateHtml(options: GenerateHtmlOptions = {}): Promise<s
      * <body> — and the whole page adapts instantly.
      * ----------------------------------------------------------------- */
     body {
-      --t-bg: #FFFFFF;
-      --t-fg: #27272A;
-      --t-accent: #3b82f6;
-      --foreground-rgb: 39, 39, 42;
-      --accent-rgb: 59, 130, 246;
+      --t-bg: #FFFBF5;
+      --t-fg: #521000;
+      --t-accent: #FF4801;
+      --foreground-rgb: 82, 16, 0;
+      --accent-rgb: 255, 72, 1;
       --shadow-border-opacity: 0.08;
       --shadow-blur-opacity: 0.06;
-      --theme-bar-bg: #f9f9fa;  /* Mixed bg for theme bar and top gradient — updated by JS on theme change */
+      --theme-bar-bg: #f8f2eb;  /* Mixed bg for theme bar and top gradient — updated by JS on theme change */
 
       font-family: 'Geist', system-ui, -apple-system, sans-serif;
       background: color-mix(in srgb, var(--t-fg) 4%, var(--t-bg));
@@ -531,24 +530,8 @@ export async function generateHtml(options: GenerateHtmlOptions = {}): Promise<s
       font-weight: 400;
       font-family: inherit;
       white-space: nowrap;
-      cursor: pointer;
-      transition: color 0.15s, background 0.15s, box-shadow 0.2s, transform 0.1s;
-    }
-    .brand-badge:hover {
-      color: var(--t-fg);
-      background: color-mix(in srgb, var(--t-bg) 92%, var(--t-fg));
-    }
-    .brand-badge.active {
-      color: var(--t-fg);
-      background: var(--t-bg);
-    }
-    .brand-badge:active {
-      transform: translateY(0.5px);
-    }
-    .brand-logo {
-      width: 14px;
-      height: 14px;
-      flex-shrink: 0;
+      cursor: default;
+      transition: color 0.15s, background 0.15s, box-shadow 0.2s;
     }
 
     /* -- Brand dropdown -- */
@@ -642,7 +625,7 @@ export async function generateHtml(options: GenerateHtmlOptions = {}): Promise<s
         display: none !important;
       }
     }
-    /* -- Craft shadow + radius utilities -- */
+    /* -- Shadow + radius utilities -- */
     .rounded-6px { border-radius: 6px; }
     .shadow-minimal {
       box-shadow:
@@ -1267,17 +1250,7 @@ export async function generateHtml(options: GenerateHtmlOptions = {}): Promise<s
   <!-- Navigation + theme bar -->
   <div class="theme-bar" id="theme-bar">
     <div class="brand-badge-wrapper">
-      <button class="brand-badge shadow-minimal" id="brand-badge-btn"><svg class="brand-logo" viewBox="0 0 299 300" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M137.879,300.001 L137.875,300.001 C62.3239,300.001 0.966154,239.232 0.0117188,163.908 L2.56478e-10,162.126 L137.879,162.126 L137.879,300.001 Z" fill="#06367A"/><path d="M137.879,0 L137.875,0 C61.729,0 0,61.729 0,137.875 L0,137.878 L137.879,137.878 L137.879,0 Z" fill="#FF51FF"/><path d="M160.558,137.883 L160.561,137.883 C236.707,137.883 298.436,76.1537 298.436,0.00758561 L298.436,0.00562043 L160.558,0.00562043 L160.558,137.883 Z" fill="#007CFF"/><path d="M160.558,162.123 L160.561,162.123 C236.112,162.123 297.471,222.891 298.426,298.216 L298.436,299.998 L160.558,299.998 L160.558,162.123 Z" fill="#0A377B"/></svg><span><strong>Beautiful Mermaid</strong> by Craft</span></button>
-      <div class="brand-dropdown shadow-modal-small" id="brand-dropdown">
-        <a href="https://agents.craft.do" class="brand-dropdown-item" target="_blank" rel="noopener">
-          <svg width="18" height="18" class="brand-dropdown-logo" style="margin-left: -4px;" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><g transform="translate(3.4502, 3)" fill="#9570BE"><path d="M3.17890888,3.6 L3.17890888,0 L16,0 L16,3.6 L3.17890888,3.6 Z M9.642,7.2 L9.64218223,10.8 L0,10.8 L0,3.6 L16,3.6 L16,7.2 L9.642,7.2 Z M3.17890888,18 L3.178,14.4 L0,14.4 L0,10.8 L16,10.8 L16,18 L3.17890888,18 Z" fill-rule="nonzero"></path></g></svg>
-          <span style="margin-left: -2px;">Craft Agents<span class="tagline">Simply mind-blowing</span></span>
-        </a>
-        <a href="https://craft.do" class="brand-dropdown-item" target="_blank" rel="noopener">
-          <svg width="12" height="12" class="brand-dropdown-logo" viewBox="0 0 299 300" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M137.879 300L137.875 300.001C62.3239 300.001 0.966154 239.232 0.0117188 163.908L2.56478e-10 162.126H137.879V300Z" fill="currentColor"/><path d="M137.879 0.000976562L137.875 0C61.729 6.6569e-06 0.000194275 61.729 0 137.875L2.56478e-10 137.878L137.879 137.878L137.879 0.000976562Z" fill="currentColor"/><path d="M160.558 137.882L160.561 137.883C236.707 137.882 298.436 76.1537 298.436 0.00758561V0.00563248L160.558 0.00562043L160.558 137.882Z" fill="currentColor"/><path d="M160.558 162.124L160.561 162.123C236.112 162.123 297.471 222.891 298.426 298.216L298.436 299.998H160.558V162.124Z" fill="currentColor"/></svg>
-          <span>Craft Docs<span class="tagline">Amazing Notes &amp; Docs</span></span>
-        </a>
-      </div>
+      <div class="brand-badge shadow-minimal" id="brand-badge"><span><strong>Beautiful Mermaid</strong></span></div>
     </div>
     <button class="contents-btn shadow-minimal" id="contents-btn"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><line x1="3" y1="4" x2="13" y2="4"/><line x1="3" y1="8" x2="13" y2="8"/><line x1="3" y1="12" x2="10" y2="12"/></svg>Contents</button>
     <div class="theme-pills" id="theme-pills">
@@ -1295,16 +1268,11 @@ export async function generateHtml(options: GenerateHtmlOptions = {}): Promise<s
     <h1 class="hero-title">Beautiful Mermaid</h1>
     <p class="hero-tagline">Mermaid Rendering, made beautiful.</p>
     <p class="hero-description">
-      An open source library for rendering diagrams, designed for the age of AI: <a href="https://www.npmjs.com/package/beautiful-mermaid" target="_blank" rel="noopener"><code>beautiful-mermaid</code></a>.
-      Ultra-fast, fully themeable, and outputs to both SVG and ASCII.<br>
-      Built by the team at <a href="https://craft.do" target="_blank" rel="noopener">Craft</a> — because diagrams deserve great design too.
+      An open source library for rendering Mermaid diagrams as polished SVG and terminal-friendly ASCII: <a href="https://www.npmjs.com/package/beautiful-mermaid" target="_blank" rel="noopener"><code>beautiful-mermaid</code></a>.
+      Fast, fully themeable, and dependency-light. This fork adds a live editor, expanded diagram coverage, semantic role styling, and export tools.
     </p>
     <div class="hero-buttons">
-      <a href="https://agents.craft.do" target="_blank" rel="noopener" class="hero-btn hero-btn-primary">
-        <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><g transform="translate(3.4502, 3)" fill="currentColor"><path d="M3.17890888,3.6 L3.17890888,0 L16,0 L16,3.6 L3.17890888,3.6 Z M9.642,7.2 L9.64218223,10.8 L0,10.8 L0,3.6 L16,3.6 L16,7.2 L9.642,7.2 Z M3.17890888,18 L3.178,14.4 L0,14.4 L0,10.8 L16,10.8 L16,18 L3.17890888,18 Z" fill-rule="nonzero"></path></g></svg>
-        Use in Craft Agents
-      </a>
-      <a href="editor" id="editor-link" class="hero-btn hero-btn-secondary">
+      <a href="editor" id="editor-link" class="hero-btn hero-btn-primary">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
         Editor
       </a>
@@ -1322,7 +1290,7 @@ export async function generateHtml(options: GenerateHtmlOptions = {}): Promise<s
       </button>
     </div>
     <div class="hero-meta">
-      <p class="meta" id="total-timing">Rendering ${filteredSamples.length * 2} samples\u2026</p>
+      <p class="meta" id="total-timing">Rendering ${filteredSamples.length} examples\u2026</p>
       <div class="meta">ASCII rendering based on <a href="https://github.com/AlexanderGrooff/mermaid-ascii" target="_blank" rel="noopener">Mermaid-ASCII</a></div>
       <div class="meta">New fork features: open <strong>Contents → Role Styles</strong> or the editor <strong>Examples</strong> menu.</div>
       <div class="meta">Early preview — actively evolving</div>
@@ -1371,6 +1339,9 @@ ${bundleJs}
       b: intValue & 255,
     };
   }
+
+  var DEFAULT_PAGE_THEME = 'salmon';
+  var activeThemeKey = '';
 
   function setShadowVars(theme) {
     var body = document.body;
@@ -1422,7 +1393,9 @@ ${bundleJs}
   }
 
   // Set page-level CSS variables, pills, and localStorage — no re-rendering.
-  function applyPageTheme(themeKey) {
+  function applyPageTheme(themeKey, persist) {
+    if (typeof persist === 'undefined') persist = true;
+    activeThemeKey = themeKey || '';
     var theme = themeKey ? THEMES[themeKey] : null;
     var body = document.body;
 
@@ -1445,10 +1418,12 @@ ${bundleJs}
       pills[j].classList.toggle('shadow-tinted', isActive);
     }
 
-    if (themeKey) {
-      localStorage.setItem('mermaid-theme', themeKey);
-    } else {
-      localStorage.removeItem('mermaid-theme');
+    if (persist) {
+      if (themeKey) {
+        localStorage.setItem('mermaid-theme', themeKey);
+      } else {
+        localStorage.removeItem('mermaid-theme');
+      }
     }
   }
 
@@ -1562,7 +1537,7 @@ ${bundleJs}
 
   var randomThemeBtn = document.getElementById('random-theme-btn');
   var themeKeys = Object.keys(THEMES);
-  var currentThemeKey = localStorage.getItem('mermaid-theme') || '';
+  var currentThemeKey = activeThemeKey || localStorage.getItem('mermaid-theme') || '';
 
   if (randomThemeBtn) {
     randomThemeBtn.addEventListener('click', function() {
@@ -1573,10 +1548,6 @@ ${bundleJs}
       applyTheme(newThemeKey);
     });
   }
-
-  var brandBtn = document.getElementById('brand-badge-btn');
-  var brandDropdown = document.getElementById('brand-dropdown');
-  if (brandBtn && brandDropdown) setupDropdown(brandBtn, brandDropdown, '.brand-badge-wrapper');
 
   var contentsBtn = document.getElementById('contents-btn');
   var megaMenu = document.getElementById('mega-menu');
@@ -1594,13 +1565,10 @@ ${bundleJs}
     if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
   });
 
-  // -- Restore saved theme (page-level only — diagrams haven't rendered yet) --
+  // -- Restore saved theme, otherwise use salmon without writing localStorage --
   var savedTheme = localStorage.getItem('mermaid-theme');
-  if (savedTheme && THEMES[savedTheme]) {
-    applyPageTheme(savedTheme);
-  } else {
-    setShadowVars(null);
-  }
+  var initialThemeKey = savedTheme && THEMES[savedTheme] ? savedTheme : DEFAULT_PAGE_THEME;
+  applyPageTheme(initialThemeKey, Boolean(savedTheme));
 
   // Enable smooth transitions for future theme switches (not on initial load)
   requestAnimationFrame(function() {
@@ -1628,15 +1596,15 @@ ${bundleJs}
       // Store the SVG's original inline style for Default mode restoration
       var svgEl = svgContainer.querySelector('svg');
       // If a global theme is active, apply its colors to the SVG
-      if (svgEl && savedTheme && THEMES[savedTheme]) {
-        applySvgThemeVars(svgEl, THEMES[savedTheme]);
+      if (svgEl && activeThemeKey && THEMES[activeThemeKey]) {
+        applySvgThemeVars(svgEl, THEMES[activeThemeKey]);
       }
 
       // Set panel background to match the SVG (skip for hero panels - keep transparent)
       var isHeroPanel = svgPanel.classList.contains('hero-diagram-panel');
       if (!isHeroPanel) {
-        if (savedTheme && THEMES[savedTheme]) {
-          svgPanel.style.background = THEMES[savedTheme].bg;
+        if (activeThemeKey && THEMES[activeThemeKey]) {
+          svgPanel.style.background = THEMES[activeThemeKey].bg;
         } else {
           var sampleBg = svgPanel.getAttribute('data-sample-bg');
           if (sampleBg) svgPanel.style.background = sampleBg;
@@ -1649,8 +1617,8 @@ ${bundleJs}
     // Hero samples don't have ASCII panels
     if (asciiContainer) {
       try {
-        var asciiOpts = savedTheme && THEMES[savedTheme]
-          ? { theme: diagramColorsToAsciiTheme(THEMES[savedTheme]) }
+        var asciiOpts = activeThemeKey && THEMES[activeThemeKey]
+          ? { theme: diagramColorsToAsciiTheme(THEMES[activeThemeKey]) }
           : {};
         asciiContainer.innerHTML = renderMermaidAscii(sample.source, asciiOpts);
       } catch (e) {
@@ -1662,7 +1630,7 @@ ${bundleJs}
 
   // Done — show total time
   var totalMs = (performance.now() - totalStart).toFixed(0);
-  totalTimingEl.textContent = (samples.length * 2) + ' samples (SVG+ASCII) rendered in ' + totalMs + ' ms';
+  totalTimingEl.textContent = samples.length + ' examples rendered in ' + totalMs + ' ms';
 
   function escapeHtml(text) {
     return text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
@@ -1776,9 +1744,8 @@ ${bundleJs}
   </div><!-- .content-wrapper -->
 
   <footer class="site-footer">
-    <span>&copy; 2026 Craft Docs Limited, Inc. All rights reserved.</span>
+    <span>Open source under the MIT License.</span>
     <div class="footer-links">
-      <a href="mailto:agents@craft.do">Contact</a>
       <a href="https://github.com/adewale/beautiful-mermaid/blob/main/FORK_DIFFERENCES.md" target="_blank" rel="noopener noreferrer">Fork notes</a>
       <a href="https://github.com/adewale/beautiful-mermaid/blob/main/CHANGELOG.md" target="_blank" rel="noopener noreferrer">Changelog</a>
       <a href="https://github.com/adewale/beautiful-mermaid" target="_blank" rel="noopener noreferrer">
@@ -1786,11 +1753,7 @@ ${bundleJs}
           <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/>
         </svg>
       </a>
-      <a href="https://x.com/craftdocs" target="_blank" rel="noopener noreferrer">
-        <svg viewBox="0 0 24 24" fill="currentColor">
-          <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
-        </svg>
-      </a>
+
     </div>
   </footer>
 </body>

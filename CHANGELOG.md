@@ -15,7 +15,8 @@ This changelog tracks user-facing changes in the `adewale/beautiful-mermaid` for
 - SVG style customization is now role-based and diagram-family aware; removed flat render style aliases are intentionally ignored.
 - Showcase and editor docs now point users to live examples and presets.
 - Fork docs and deploy script now treat GitHub Pages as the fork-owned site and avoid the upstream-owned Craft/Cloudflare deployment target.
-- Live editor now starts blank by default, uses a larger grouped Examples palette, and includes Copy SVG alongside Save SVG/PNG export.
+- Live editor now starts blank by default, uses salmon as the default theme, uses a larger grouped Examples palette, and includes Copy SVG alongside Save SVG/PNG export.
+- Homepage deployment now builds the full sample gallery, defaults to salmon, and removes text that implied Craft affiliation.
 
 ### Fixed
 - TypeScript CI failures in journey style padding and optional node corner-radius resolution.

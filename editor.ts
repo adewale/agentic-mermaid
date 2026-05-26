@@ -34,6 +34,10 @@ const THEME_LABELS: Record<string, string> = {
   'solarized-light': 'Solarized',
   'solarized-dark': 'Solar Dark',
   'one-dark': 'One Dark',
+  'salmon': 'Salmon',
+  'salmon-dark': 'Salmon Dark',
+  'tufte': 'Tufte',
+  'tufte-dark': 'Tufte Dark',
 }
 
 

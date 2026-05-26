@@ -40,29 +40,42 @@
 .source-actions {
   display: flex;
   align-items: center;
-  gap: 2px;
+  gap: 3px;
+  min-width: 158px;
   padding: 3px;
   border-radius: 8px;
   background: var(--t-bg);
   box-shadow: var(--shadow-minimal);
+  box-sizing: border-box;
 }
 .example-dropdown-wrap {
   position: relative;
 }
-.example-dropdown-btn {
-  width: auto;
-  min-width: 0;
-  gap: 4px;
-  padding: 0 8px;
+.source-actions .example-dropdown-btn {
+  width: 92px;
+  min-width: 92px;
+  justify-content: center;
+  gap: 5px;
+  padding: 0 10px;
+  border-radius: 7px;
+  background: color-mix(in srgb, var(--t-fg) 5%, var(--t-bg));
+  color: var(--fg);
+  opacity: 1;
   font-size: 11px;
-  font-weight: 500;
+  font-weight: 600;
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--t-fg) 7%, transparent);
 }
-.example-dropdown-btn svg {
+.source-actions .example-dropdown-btn:hover,
+.source-actions .example-dropdown-btn.open {
+  opacity: 1;
+  background: color-mix(in srgb, var(--t-fg) 8%, var(--t-bg));
+}
+.source-actions .example-dropdown-btn svg {
   width: 10px;
   height: 10px;
   transition: transform 0.15s;
 }
-.example-dropdown-btn.open svg {
+.source-actions .example-dropdown-btn.open svg {
   transform: rotate(180deg);
 }
 .example-dropdown-menu {

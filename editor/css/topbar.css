@@ -8,6 +8,10 @@
   flex-shrink: 0;
   z-index: 100;
 }
+.topbar button,
+.topbar a {
+  box-sizing: border-box;
+}
 
 /* Logo — matches showcase brand-badge */
 .logo {
@@ -30,11 +34,6 @@
   color: var(--t-fg);
   background: color-mix(in srgb, var(--t-bg) 92%, var(--t-fg));
 }
-.logo svg {
-  width: 14px;
-  height: 14px;
-  flex-shrink: 0;
-}
 .logo strong {
   font-weight: 600;
 }
@@ -55,7 +54,7 @@
   margin: 0 0.25rem;
 }
 
-/* Tabs — shadcn/Craft Agents segmented control style */
+/* Tabs — segmented control style */
 .tab-group {
   display: flex;
   gap: 1px;
@@ -99,6 +98,8 @@
   align-items: center;
   gap: 8px;
   height: 30px;
+  min-width: 132px;
+  justify-content: space-between;
   padding: 0 10px;
   border: none;
   border-radius: 8px;
@@ -199,6 +200,7 @@
 .btn {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: 6px;
   height: 30px;
   padding: 0 12px;
@@ -224,6 +226,19 @@
   width: 14px;
   height: 14px;
   flex-shrink: 0;
+}
+#dark-light-btn {
+  width: 30px;
+  min-width: 30px;
+  padding: 0;
+}
+#export-main-btn {
+  width: 132px;
+}
+#export-chevron-btn {
+  width: 30px;
+  min-width: 30px;
+  padding: 0;
 }
 
 /* Primary button — inverted fg/bg */

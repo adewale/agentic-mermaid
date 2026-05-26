@@ -2,8 +2,8 @@ var isDark = localStorage.getItem("bm-editor-dark") === "true";
 var iconMoon = document.getElementById("icon-moon");
 var iconSun = document.getElementById("icon-sun");
 
-var AUTO_DARK_DIAGRAM_THEME = "zinc-dark";
-var AUTO_LIGHT_DIAGRAM_THEME = "";
+var AUTO_DARK_DIAGRAM_THEME = "salmon-dark";
+var AUTO_LIGHT_DIAGRAM_THEME = DEFAULT_EDITOR_THEME;
 
 var diagramThemeIsAuto = true;
 

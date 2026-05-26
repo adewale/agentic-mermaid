@@ -13,7 +13,7 @@
   pointer-events: auto;
 }
 
-/* Craft Agents section label: text-[11px] font-medium text-muted-foreground uppercase tracking-wider */
+/* Section label */
 .preview-label {
   font-size: 11px;
   font-weight: 500;
@@ -37,7 +37,7 @@
   box-shadow: var(--shadow-minimal);
 }
 
-/* Craft Agents PanelHeaderCenterButton style */
+/* Panel header button style */
 .toolbar-btn {
   display: inline-flex;
   align-items: center;

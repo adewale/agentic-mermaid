@@ -169,11 +169,30 @@ describe('browser: page loads and renders', () => {
     expect(text).toContain('rendered in')
   }, 60_000)
 
+  it('homepage defaults to salmon, uses fork-owned copy, and reports the rendered example count accurately', async () => {
+    await page.evaluate(() => localStorage.removeItem('mermaid-theme'))
+    await page.goto(BASE)
+    await waitForRender(60_000)
+
+    expect(await page.evaluate(() => getComputedStyle(document.body).getPropertyValue('--t-bg').trim())).toBe('#FFFBF5')
+    expect(await page.evaluate(() => localStorage.getItem('mermaid-theme'))).toBeNull()
+
+    const text = await page.evaluate(() => document.body.textContent || '')
+    expect(text).not.toContain('by Craft')
+    expect(text).not.toContain('Use in Craft')
+    expect(text).not.toContain('Built by the team')
+    expect(text).not.toContain('Craft Docs')
+
+    const sectionCount = await page.evaluate(() => document.querySelectorAll('section.sample').length)
+    const timing = await page.evaluate(() => document.getElementById('total-timing')?.textContent || '')
+    expect(timing).toContain(`${sectionCount} examples rendered in`)
+  }, 120_000)
+
 })
 
 describe('browser: theme switching', () => {
 
-  it('default theme has white background', async () => {
+  it('Default theme pill restores white background', async () => {
     // Ensure we're on default
     await page.evaluate(() =>
       (document.querySelector('[data-theme=""]') as HTMLElement)?.click(),
@@ -286,24 +305,10 @@ describe('browser: dropdowns', () => {
     )).toBe(false)
   }, 60_000)
 
-  it('Brand dropdown opens and closes', async () => {
-    await page.evaluate(() => document.getElementById('brand-badge-btn')?.click())
-    await page.waitForFunction(
-      () => document.getElementById('brand-dropdown')?.classList.contains('open') === true,
-      { timeout: 10_000 },
-    )
-    expect(await page.evaluate(
-      () => document.getElementById('brand-dropdown')?.classList.contains('open'),
-    )).toBe(true)
-
-    await page.keyboard.press('Escape')
-    await page.waitForFunction(
-      () => document.getElementById('brand-dropdown')?.classList.contains('open') === false,
-      { timeout: 10_000 },
-    )
-    expect(await page.evaluate(
-      () => document.getElementById('brand-dropdown')?.classList.contains('open'),
-    )).toBe(false)
+  it('Brand badge has no Craft icon or dropdown', async () => {
+    expect(await page.evaluate(() => document.querySelector('#brand-badge svg') === null)).toBe(true)
+    expect(await page.evaluate(() => document.getElementById('brand-dropdown') === null)).toBe(true)
+    expect(await page.evaluate(() => document.getElementById('brand-badge')?.textContent?.trim())).toBe('Beautiful Mermaid')
   }, 60_000)
 
 })
@@ -420,7 +425,7 @@ describe('browser: random theme button', () => {
 
 describe('browser: live editor integration', () => {
 
-  it('opens /editor to a blank canvas by default', async () => {
+  it('opens /editor to a blank salmon-themed canvas by default', async () => {
     await page.goto(`${BASE}/editor`)
     await page.waitForSelector('#code-editor', { timeout: 30_000 })
 
@@ -428,6 +433,8 @@ describe('browser: live editor integration', () => {
     expect(await page.evaluate(() => document.getElementById('status-text')?.textContent)).toBe('Ready')
     expect(await page.evaluate(() => document.querySelector('#preview-inner svg') === null)).toBe(true)
     expect(await page.evaluate(() => document.getElementById('preview-inner')?.textContent?.includes('Start typing') ?? false)).toBe(true)
+    expect(await page.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue('--t-bg').trim())).toBe('#FFFBF5')
+    expect(await page.evaluate(() => localStorage.getItem('bm-editor-theme'))).toBeNull()
   }, 60_000)
 
   it('opens /editor and renders fork-added diagram families through the bundled renderer', async () => {
@@ -515,9 +522,16 @@ describe('browser: live editor integration', () => {
     )).toBe(true)
   }, 120_000)
 
-  it('examples palette includes every supported diagram type and stays within the viewport', async () => {
+  it('examples controls have stable sizing and the palette includes every supported diagram type', async () => {
     await page.goto(`${BASE}/editor`)
     await page.waitForSelector('#code-editor', { timeout: 30_000 })
+
+    const sourceActionsBox = await page.locator('.source-actions').boundingBox()
+    const examplesBox = await page.locator('#example-dropdown-btn').boundingBox()
+    expect(sourceActionsBox).not.toBeNull()
+    expect(examplesBox).not.toBeNull()
+    expect(sourceActionsBox!.width).toBeGreaterThanOrEqual(158)
+    expect(examplesBox!.width).toBeGreaterThanOrEqual(90)
 
     await page.click('#example-dropdown-btn')
     await page.waitForFunction(
@@ -558,6 +572,26 @@ describe('browser: live editor integration', () => {
     )
     expect(await page.inputValue('#code-editor')).toContain('stateDiagram-v2')
   }, 120_000)
+
+  it('topbar button dimensions do not shift when toggling day/dark mode', async () => {
+    await page.goto(`${BASE}/editor`)
+    await page.waitForSelector('#code-editor', { timeout: 30_000 })
+
+    const before = await page.locator('#dark-light-btn').boundingBox()
+    const themeBefore = await page.locator('#theme-dropdown-btn').boundingBox()
+    await page.click('#dark-light-btn')
+    const after = await page.locator('#dark-light-btn').boundingBox()
+    const themeAfter = await page.locator('#theme-dropdown-btn').boundingBox()
+
+    expect(before).not.toBeNull()
+    expect(after).not.toBeNull()
+    expect(themeBefore).not.toBeNull()
+    expect(themeAfter).not.toBeNull()
+    expect(after!.width).toBe(before!.width)
+    expect(after!.height).toBe(before!.height)
+    expect(themeAfter!.width).toBe(themeBefore!.width)
+    expect(themeAfter!.height).toBe(themeBefore!.height)
+  }, 60_000)
 
   it('loads semantic role style examples from the editor examples dropdown', async () => {
     await page.goto(`${BASE}/editor`)

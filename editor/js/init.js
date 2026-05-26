@@ -68,11 +68,14 @@ themeMenu.querySelectorAll(".theme-dropdown-item").forEach(function (item) {
 // Apply initial dark/light mode (must happen after all DOM refs + functions are ready)
 applyColorMode(isDark);
 
-// Restore saved theme
+// Restore saved theme, otherwise start on the fork's default salmon theme.
 var savedTheme = localStorage.getItem("bm-editor-theme") || "";
 if (savedTheme && THEMES[savedTheme]) {
   state.theme = savedTheme;
   diagramThemeIsAuto = false;
+} else if (!state.theme || !THEMES[state.theme]) {
+  state.theme = DEFAULT_EDITOR_THEME;
+  diagramThemeIsAuto = true;
 }
 applyThemeToPage(state.theme);
 updateThemeButton();
