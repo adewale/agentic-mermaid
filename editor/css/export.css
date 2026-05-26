@@ -4,12 +4,14 @@
   gap: 0;
 }
 .export-wrap .btn-primary:first-child {
-  border-radius: 8px 0 0 8px;
+  border-radius: 10px 0 0 10px;
 }
 .export-chevron {
-  border-radius: 0 8px 8px 0 !important;
+  border-radius: 0 10px 10px 0 !important;
   padding: 0 8px;
-  border-left: 1px solid color-mix(in srgb, var(--t-bg) 20%, var(--t-fg)) !important;
+  box-shadow:
+    inset 1px 0 0 color-mix(in srgb, var(--t-bg) 20%, var(--t-fg)),
+    var(--shadow-minimal) !important;
 }
 .export-dropdown {
   display: none;
@@ -18,8 +20,8 @@
   right: 0;
   min-width: 220px;
   background: var(--t-bg);
-  border-radius: 8px;
-  padding: 4px;
+  border-radius: 12px;
+  padding: 6px;
   z-index: 2000;
   flex-direction: column;
   box-shadow: var(--shadow-modal);
@@ -32,9 +34,9 @@
   align-items: center;
   gap: 0.625rem;
   width: 100%;
-  padding: 6px 8px;
+  padding: 7px 8px;
   border: none;
-  border-radius: 4px;
+  border-radius: 6px;
   background: transparent;
   color: var(--fg);
   font-size: 13px;
@@ -42,9 +44,15 @@
   cursor: default;
   text-align: left;
   user-select: none;
+  transition:
+    background 0.15s,
+    transform 0.1s;
 }
 .export-item:hover {
   background: color-mix(in srgb, var(--t-fg) 5%, var(--t-bg));
+}
+.export-item:active {
+  transform: scale(0.96);
 }
 .export-item-icon {
   width: 15px;
@@ -73,6 +81,7 @@
   font-size: 10px;
   font-family: inherit;
   color: var(--fg3);
+  font-variant-numeric: tabular-nums;
 }
 .export-divider {
   height: 1px;
@@ -105,7 +114,9 @@
   cursor: default;
   transition:
     color 0.15s,
-    background 0.15s;
+    background 0.15s,
+    transform 0.1s;
+  font-variant-numeric: tabular-nums;
 }
 .size-pill:hover {
   color: var(--fg);
@@ -114,4 +125,7 @@
 .size-pill.active {
   background: var(--t-fg);
   color: var(--t-bg);
+}
+.size-pill:active {
+  transform: scale(0.96);
 }

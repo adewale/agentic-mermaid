@@ -7,7 +7,9 @@ function escAttr(s) {
 
 function emptyPreviewHtml() {
   return '<div class="preview-placeholder" id="preview-placeholder">'
-    + '<span>Start typing to render your diagram</span>'
+    + '<span class="placeholder-kicker">Blank canvas</span>'
+    + '<strong class="placeholder-title">No diagram yet</strong>'
+    + '<span class="placeholder-copy">Start typing Mermaid syntax, or load a preset to see SVG output.</span>'
     + '<button class="placeholder-example-btn" type="button" data-action="load-example">Load an example</button>'
     + '</div>';
 }

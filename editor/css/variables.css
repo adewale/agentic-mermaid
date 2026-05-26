@@ -71,6 +71,8 @@ html,
 body {
   height: 100%;
   overflow: hidden;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 body {
@@ -84,8 +86,6 @@ body {
   display: flex;
   flex-direction: column;
   height: 100vh;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
   transition:
     background 0.2s,
     color 0.2s;

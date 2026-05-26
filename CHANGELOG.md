@@ -19,6 +19,7 @@ This changelog tracks user-facing changes in the `adewale/beautiful-mermaid` for
 - Homepage deployment now builds the full sample gallery, defaults to salmon, and removes text that implied Craft affiliation.
 - Editor example presets now preserve the currently selected theme instead of forcing Default or Solarized Light.
 - Live editor now offers a persistent Examples sidebar and a blank-state “Load an example” CTA.
+- Editor controls, empty state, sidebar, and dropdowns received polish for concentric radii, tactile press states, smoother icon transitions, tabular numbers, and cleaner text wrapping.
 
 ### Fixed
 - TypeScript CI failures in journey style padding and optional node corner-radius resolution.

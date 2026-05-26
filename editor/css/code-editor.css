@@ -49,6 +49,7 @@
   font-size: 11px;
   color: var(--fg3);
   flex-shrink: 0;
+  font-variant-numeric: tabular-nums;
 }
 .status-left {
   display: flex;

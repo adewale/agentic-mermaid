@@ -1,6 +1,4 @@
 var isDark = localStorage.getItem("bm-editor-dark") === "true";
-var iconMoon = document.getElementById("icon-moon");
-var iconSun = document.getElementById("icon-sun");
 
 var AUTO_DARK_DIAGRAM_THEME = "salmon-dark";
 var AUTO_LIGHT_DIAGRAM_THEME = DEFAULT_EDITOR_THEME;
@@ -9,13 +7,10 @@ var diagramThemeIsAuto = true;
 
 function applyColorMode(dark, force) {
   isDark = dark;
-  // Toggle icon visibility
-  if (dark) {
-    iconMoon.style.display = "none";
-    iconSun.style.display = "";
-  } else {
-    iconMoon.style.display = "";
-    iconSun.style.display = "none";
+  var darkLightBtn = document.getElementById("dark-light-btn");
+  if (darkLightBtn) {
+    darkLightBtn.classList.toggle("is-dark", dark);
+    darkLightBtn.setAttribute("aria-label", dark ? "Switch to light mode" : "Switch to dark mode");
   }
   localStorage.setItem("bm-editor-dark", dark ? "true" : "false");
 
