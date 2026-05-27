@@ -89,7 +89,12 @@ The SVG is the visual projection of the layout JSON. Two `RenderResult`s are equ
 New entry point, sibling to `render`:
 
 ```ts
-verifyMermaid(source: string | ValidDiagram, options?): VerifyResult
+verifyMermaid(source: string | ValidDiagram, options?: VerifyOptions): VerifyResult
+
+interface VerifyOptions {
+  suppress?: WarningCode[]      // codes to omit, e.g. ['UNKNOWN_SHAPE']
+  layoutContext?: LayoutContext
+}
 
 interface VerifyResult {
   ok: boolean
@@ -107,6 +112,14 @@ type LayoutWarning =
   | { code: 'UNKNOWN_SHAPE',     node: NodeId, shape: string }
   | { code: 'EMPTY_DIAGRAM' }
 ```
+
+**The warning vocabulary is a versioned contract.** The set of `code` values is the surface agents reason about. Every code:
+
+- Appears in `FORMAT_SPEC.md` with a one-line description and a declared severity.
+- Carries severity in code (`error` blocks; `warning` advises) and is asserted against the doc.
+- Is doc-sync tested both ways — emitting an undocumented code fails CI; documenting an unemitted code fails CI.
+
+Agents can omit known-irrelevant codes via `VerifyOptions.suppress`. Silent suppression is not a feature; the suppression list is visible to the caller and shows up in `VerifyResult.suppressed` so an audit log can recover what was hidden.
 
 The data already exists. The layout pass computes bounds and discards them. The implementation is plumbing, not new analysis.
 
@@ -192,6 +205,7 @@ Two new constructs in source syntax, both ignored by upstream Mermaid (they appe
 - `@include` resolves relative to `LayoutContext.basePath`.
 - `@template` is hygienic — identifiers in the body are namespaced to the expansion site.
 - Stable IDs: every expansion gets a deterministic ID derived from `hash(template_name, args_canonical, expansion_site)`. Re-ordering `@use` calls re-runs IDs in the same order. Adding a new `@use` does not perturb existing IDs.
+- Explicit ID override: an `@use` call accepts an optional `id:` field for cases where an agent needs the expansion's identity to persist across template refactors (the structural hash changes if the template definition changes shape, which is sometimes wrong). The override is opt-in; default behavior is structural.
 
 The composed `ValidDiagram` is the post-expansion artifact. The pre-expansion source is preserved in `meta` so `serializeMermaid` round-trips back to the composable form, not the expanded one.
 
@@ -210,16 +224,16 @@ renderMermaidSVG(input: ValidDiagram | string, opts?):     string
 renderMermaidASCII(input: ValidDiagram | string, opts?):   string
 
 // Agent surfaces
-verifyMermaid(input: ValidDiagram | string, opts?):        VerifyResult
+verifyMermaid(input: ValidDiagram | string, opts?: VerifyOptions): VerifyResult
 serializeMermaid(d: ValidDiagram):                         string
 mutate(d: ValidDiagram, op: MutationOp):                   Result<ValidDiagram, MutationError>
 diffDiagrams(a: ValidDiagram, b: ValidDiagram):            StructuralDiff
 explainDiagram(d: ValidDiagram):                           DiagramSummary
 ```
 
-- **CLI** (`am <verb>`) with `--json` everywhere: `render`, `verify`, `parse`, `serialize`, `mutate`, `diff`, `explain`, `compose`, `format`.
-- **MCP server** (`agentic-mermaid-mcp`) exposing the verbs above as tools.
-- **JSON Schema** for `RenderOptions`, `LayoutContext`, `MutationOp`, `LayoutWarning`, and `VerifyResult` exported as sibling artifacts to the TS types.
+- **CLI** (`am <verb>`) with `--json` everywhere: `render`, `verify`, `parse`, `serialize`, `mutate`, `diff`, `explain`, `compose`, `format`. Plus `am --agent-instructions`, which prints the canonical agent-use guide embedded in the binary at build time — agents read the doc that ships with the tool, not whatever their training set indexed.
+- **MCP server** (`agentic-mermaid-mcp`) exposing the verbs above as tools. Schema sourced from the same JSON Schema export — no separate definition.
+- **JSON Schema** for `RenderOptions`, `LayoutContext`, `MutationOp`, `LayoutWarning`, `VerifyOptions`, and `VerifyResult` exported as sibling artifacts to the TS types.
 - **HTTP endpoint** colocated with the editor: `POST /render`, `POST /verify`, `POST /mutate`.
 
 ---
@@ -241,6 +255,22 @@ The PRODUCT.md, FORK_DIFFERENCES.md, and DESIGN.md framings stay for the visual 
 
 ---
 
+## Distribution & discovery
+
+The library API plus the verbs above are necessary but not sufficient. Agents find and adopt tools through specific channels; the fork ships explicit artifacts for each, all generated from or asserted against a single source of truth.
+
+- **`AGENTS.md`** at repo root. Workflow doc: the verify-after-mutate pattern, expected-warning suppression list, `MutationOp` taxonomy, severity policy, quick-start. The same content is embedded in the binary at build time and emitted by `am --agent-instructions`. A test asserts the two are byte-identical.
+- **`FORMAT_SPEC.md`** sibling to this doc. Versioned (`Version: 1`, `Status: Draft`) schema for canonical layout JSON, `ValidDiagram`, `LayoutWarning` codes (with severity + one-line description), `MutationOp` taxonomy. Round-trip contracts stated as testable claims with version stamps. Agents that key on the version know when their assumptions might break.
+- **`.claude/skills/agentic-mermaid/`** Claude Code skill bundle. Master `SKILL.md` routes by diagram family to per-family references; progressive disclosure means the LLM only loads the syntax reference it needs. Drop-in distribution via `cp` or git submodule.
+- **Upstream-doc sync GitHub Action.** Weekly cron pulls `mermaid-js/mermaid` syntax docs into `references/`, alongside our extensions (`@include` / `@template` syntax, `LayoutWarning` codes, `MutationOp` taxonomy). The skill stays current without manual labor.
+- **MCP server** (`agentic-mermaid-mcp`) — the verbs as tools, schema sourced from the JSON Schema export.
+- **HTTP endpoint** colocated with the editor: `POST /render`, `POST /verify`, `POST /mutate`. Stateless. For agents that don't ship the library.
+- **Editor WebSocket watch.** The editor pushes file-change events to connected clients. An agent edits a `.mmd`, the editor re-renders, a structured event is emitted. Lets the agent run an outer loop without polling: edit → wait for render event → read warnings → next edit.
+
+The thread connecting these is **anti-drift**. Every external surface is derived from a single internal artifact (the binary embeds AGENTS.md; the JSON Schema generates MCP tool defs; the skill references are synced from upstream; the warning vocabulary is doc-sync tested). Agents that depend on these surfaces can rely on them not silently diverging from each other.
+
+---
+
 ## Sequencing
 
 | Stage | What lands | Notes |
@@ -249,10 +279,11 @@ The PRODUCT.md, FORK_DIFFERENCES.md, and DESIGN.md framings stay for the visual 
 | **2. Verifiable rendering** | `verify()`, `LayoutWarning`, branded coord types, model-gap tests | Mostly plumbing data the layout pass already computes. |
 | **3. Round-trip** | `ValidDiagram`, `serializeMermaid`, `mutate`, golden-file corpus with promoted diffs | The largest type-system change. Removes `MermaidGraph`. |
 | **4. Composition** | `@include`, `@template`, hygienic expansion, stable expansion IDs | Sugar on top once (1)–(3) hold. |
-| **5. Agent surfaces** | CLI with `--json`, MCP server, JSON Schema export, HTTP endpoint | Thin wrappers on the library API. |
-| **6. Polish** | `AGENTS.md`, `llms.txt`, differential corpus vs Mermaid.js, docs-as-tests | Discovery, drift detection. |
+| **5. Agent surfaces** | CLI with `--json`, MCP server, JSON Schema export, HTTP endpoint, `am --agent-instructions` | Thin wrappers on the library API. |
+| **6. Distribution** | `AGENTS.md`, `FORMAT_SPEC.md`, `.claude/skills/agentic-mermaid/`, upstream-doc sync Action, editor WebSocket watch | Discovery and anti-drift surfaces. |
+| **7. Polish** | `llms.txt`, differential corpus vs Mermaid.js, docs-as-tests | Drift detection across the whole surface. |
 
-Stages 1 and 2 are independently shippable. Stages 3 and 4 are paired (composition is hollow without round-trip). Stage 5 should arrive incrementally as each verb lands.
+Stages 1 and 2 are independently shippable. Stages 3 and 4 are paired (composition is hollow without round-trip). Stage 5 arrives incrementally as each verb lands. Stage 6 turns the library into something agents actually find and use; without it the rest is theoretical.
 
 ---
 
@@ -263,7 +294,7 @@ Stages 1 and 2 are independently shippable. Stages 3 and 4 are paired (compositi
 - **Property tests** for both round-trip identities. (Karpathy `minbpe`.)
 - **Property tests** for the model gap: any error-severity warning is a renderer bug, not a test bug. (Alexis King, correctness-by-construction.)
 - **Differential corpus** vs Mermaid.js for structural equivalence — diff layout JSON, not pixels. (Karpathy, Csmith.)
-- **Doc-sync tests**: every `LayoutWarning` code, every CLI flag, every `MutationOp` kind, every diagram family must appear in docs. CI fails on drift. (Simon Willison.)
+- **Doc-sync tests** (both directions): every `LayoutWarning` code, every `MutationOp` kind, every CLI flag, and every diagram family must appear in `FORMAT_SPEC.md` with severity and one-line description. Emitting an undocumented code fails CI; documenting an unemitted code also fails CI. Separately, `am --agent-instructions` output must equal the build-time canonicalization of `AGENTS.md` byte-for-byte. (Simon Willison; Syscribe rule-reference pattern.)
 - **Assertions inside the layout engine** (TigerBeetle's "two assertions per function") so invariant violations fail fast in production, with a structured error agents can act on, rather than producing silently-wrong SVG.
 
 ---
@@ -302,3 +333,5 @@ Together they close a loop:
 6. Compose — build a library of reusable pieces that hold under all of the above.
 
 That loop is the agent-native claim. Today it's open at every step: the renderer's output isn't comparable across runs, the agent gets only pass/fail from a parser, edits regenerate the whole source, and composition is copy-paste. Closing those gaps replaces several rounds of vision-on-PNG with one structured query — and that is what makes a coding agent reach for this fork before any other Mermaid library.
+
+One last thing the API alone does not buy. An agent that has `verify()` available but does not call it after every `mutate()` is back where doc-injection-only skills are: source generation with no feedback loop. The closing move is the *workflow*, encoded in `AGENTS.md`, embedded in the binary via `am --agent-instructions`, and asserted by the verify-after-mutate examples in the skill bundle. The library makes the loop possible; the workflow doc and the surfaces in Stage 6 make it a habit. Both ship together.
