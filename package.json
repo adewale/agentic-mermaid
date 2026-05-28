@@ -12,7 +12,17 @@
       "import": "./dist/index.js",
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
+    },
+    "./agent": {
+      "bun": "./src/agent/index.ts",
+      "import": "./dist/agent.js",
+      "types": "./dist/agent.d.ts",
+      "default": "./dist/agent.js"
     }
+  },
+  "bin": {
+    "am": "./bin/am.ts",
+    "agentic-mermaid-mcp": "./bin/agentic-mermaid-mcp.ts"
   },
   "repository": {
     "type": "git",
@@ -39,7 +49,7 @@
     "theming"
   ],
   "author": "Craft Docs",
-  "files": ["src/", "dist/", "LICENSE", "README.md"],
+  "files": ["src/", "dist/", "bin/", "AGENTS.md", "AGENT_NATIVE.md", "LICENSE", "README.md"],
   "scripts": {
     "test": "bun test src/__tests__/",
     "test:browser": "bun test e2e/ --timeout 600000",
