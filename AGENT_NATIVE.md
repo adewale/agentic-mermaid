@@ -277,6 +277,27 @@ The single number that decides whether the bet was right: **MermaidSeqBench scor
 
 ---
 
+## What Code Mode unlocks
+
+The Code Mode MCP raises the ceiling on what an agent can do with the library in one call. We initially framed the agent surface as a fixed set of verbs (parse, verify, mutate, serialize) where each verb is one round-trip. Code Mode reframes the surface as a typed library that the agent composes against — and the only thing we ship is the small set of primitives plus a sandbox. The agent supplies the algorithm.
+
+Concrete consequences, in roughly descending impact:
+
+1. **Composition without shipping composition.** `@include`, `@template`, vars/`${}` are deferred indefinitely. An agent can implement its own splice or template flavor in TS — load two diagrams, parse both, build a new `ValidDiagram` body from selected parts of each, verify, serialize — in one round-trip. Whatever shape the agent needs, it writes. The spec stays smaller.
+2. **Multi-diagram repo operations.** "Rename `AuthService` across every architecture diagram in this repo, verify each, and report which now have warnings." With verb-per-tool MCP that's `N × 3` round-trips. With Code Mode: one `execute()` walks the file list. Cross-cutting refactors become tractable.
+3. **Auto-fix loops in one round-trip.** `verify` → identify mechanically fixable warnings → apply fixes → `verify` again, as a `while (!result.ok)` block. The agent only sees the final state plus a structured audit trail.
+4. **Diagram-as-tests / CI gate.** A repo installs `agentic-mermaid-mcp` and writes a Code Mode snippet that verifies every `.mmd` on push. Diagrams become test artifacts that fail CI when they break.
+5. **No need to ship `diffDiagrams` or `explainDiagram`.** Already cut. Code Mode confirms the cut: an agent that wants structural diff writes it from `parse` + `ValidDiagram` inspection in TS. Every "would be nice to have a verb for" becomes "write the code for it in `execute()`."
+6. **Library as the cross-tool agent interface for diagrams.** A Mermaid linter, a `mermaid → d2` converter, a `graphviz → mermaid` importer can each expose the same Code Mode shape. Any agent then writes one TS snippet that composes across libraries. We've effectively defined the agent interface for diagrams in this language.
+7. **Benchmark eval at speed.** MermaidSeqBench (and any future eval) runs as one `execute()` per case rather than N round-trips. Internal velocity multiplier.
+8. **Cross-language reach via the Worker path.** Wrapping our library with `@cloudflare/codemode` + `DynamicWorkerExecutor` exposes it to any MCP-speaking model — not just Anthropic's. TypeScript is more universal than per-tool MCP definitions.
+9. **The skill becomes runnable, not just descriptive.** `references/code-mode.md` ships canonical TS snippets the agent copy-pastes into `execute()`. Skill stops being prose; starts being a library of executable patterns.
+10. **A diagram REPL falls out almost free.** `am repl` becomes an interactive Code Mode shell — paste TS, get structured results, iterate. Same sandbox, different transport.
+
+The biggest single consequence is #1: it gives us permission to never grow the spec for composition, queries, diffing, explaining, or any "we should probably have a verb for that" feature. **The verb set is intentionally small; Code Mode makes it sufficient.**
+
+---
+
 ## Why totality matters
 
 Each property alone leaves a gap. Determinism alone — agents can diff outputs but can't edit without regenerating. Round-trip alone — every edit shuffles the layout, drowning the signal. Verify alone — outputs aren't reproducible across runs, so a warning fixed in one run silently returns in the next.
