@@ -1,10 +1,7 @@
 import { defineConfig } from 'tsup'
 
 export default defineConfig({
-  entry: {
-    index: 'src/index.ts',
-    agent: 'src/agent/index.ts',
-  },
+  entry: ['src/index.ts'],
   format: ['esm'],
   dts: true,
   splitting: false,
@@ -12,5 +9,5 @@ export default defineConfig({
   clean: true,
   target: 'es2022',
   outDir: 'dist',
-  external: ['elkjs', 'entities', 'node:vm', 'node:fs', 'node:path'],
+  external: ['elkjs', 'entities'],
 })

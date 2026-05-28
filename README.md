@@ -15,7 +15,7 @@ Ultra-fast, fully themeable, zero DOM dependencies. Built for the AI era.
 
 **[→ Use it live in Craft Agents](https://agents.craft.do)**
 
-Fork docs: [What changed in this fork](./FORK_DIFFERENCES.md) · [Changelog](./CHANGELOG.md) · [Agent-native plan](./AGENT_NATIVE.md) · [AGENTS.md](./AGENTS.md)
+Fork docs: [What changed in this fork](./FORK_DIFFERENCES.md) · [Changelog](./CHANGELOG.md)
 
 </div>
 
