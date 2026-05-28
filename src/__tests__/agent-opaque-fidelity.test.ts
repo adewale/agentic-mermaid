@@ -8,22 +8,12 @@ import { parseMermaid } from '../agent/parse.ts'
 import { serializeMermaid } from '../agent/serialize.ts'
 
 describe('opaque-body fidelity (indentation + blank lines)', () => {
+  // NOTE: class and ER are now structured (Phase C). Their round-trip uses
+  // the structured renderer, not the verbatim opaque-source path, so
+  // arbitrary-source byte-equality is no longer guaranteed (the canonical
+  // form is rebuilt). They get their own structured-round-trip coverage in
+  // agent-class.test.ts and agent-er.test.ts.
   const cases: Array<[string, string]> = [
-    ['class', `classDiagram
-  class Animal {
-    +String name
-    +int age
-    +eat()
-  }
-  class Dog
-  Animal <|-- Dog`],
-    ['er', `erDiagram
-  CUSTOMER ||--o{ ORDER : places
-  ORDER ||--|{ LINE_ITEM : contains
-  CUSTOMER {
-    string name
-    string email
-  }`],
     ['journey', `journey
   title My day
   section Morning
@@ -75,21 +65,21 @@ describe('opaque-body fidelity (indentation + blank lines)', () => {
     })
   }
 
-  test('frontmatter + indented opaque body: both preserved', () => {
+  test('frontmatter + indented opaque body (journey): both preserved', () => {
     const src = `---
-title: Pet hierarchy
+title: Coffee day
 ---
-classDiagram
-  class Animal {
-    +String name
-  }
-  Animal <|-- Dog`
+journey
+  title My day
+  section Morning
+    Wake up: 3: Me`
     const p = parseMermaid(src)
     expect(p.ok).toBe(true)
     if (!p.ok) return
+    expect(p.value.body.kind).toBe('opaque')
     const out = serializeMermaid(p.value)
-    expect(out).toContain('  class Animal {')
-    expect(out).toContain('    +String name')
-    expect(out).toContain('title: Pet hierarchy')
+    expect(out).toContain('  section Morning')
+    expect(out).toContain('    Wake up: 3: Me')
+    expect(out).toContain('title: Coffee day')
   })
 })

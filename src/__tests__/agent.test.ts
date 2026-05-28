@@ -39,14 +39,17 @@ describe('parseMermaid', () => {
     const r = parseMermaid('notADiagram\n X'); expect(r.ok).toBe(false)
     if (!r.ok) expect(r.error[0]!.code).toBe('UNKNOWN_HEADER')
   })
-  test('class/er stay opaque (no structured body); timeline is now structured', () => {
-    for (const [s, k] of [['classDiagram\n  A <|-- B','class'],['erDiagram\n  A ||--o{ B : x','er']] as const) {
+  test('journey/xychart/architecture stay opaque; flowchart/sequence/timeline/class/er are structured', () => {
+    // Structured families
+    expect(parse('classDiagram\n  A <|-- B').body.kind).toBe('class')
+    expect(parse('erDiagram\n  A ||--o{ B : x').body.kind).toBe('er')
+    expect(parse('timeline\n  2020 : A').body.kind).toBe('timeline')
+    // Opaque-only families
+    for (const [s, k] of [['journey\n  title T\n  section S\n    Wake: 3: Me','journey'],
+                          ['xychart-beta\n  bar [1,2,3]','xychart'],
+                          ['architecture-beta\n  group g(server)[g]','architecture']] as const) {
       const d = parse(s); expect(d.kind).toBe(k); expect(d.body.kind).toBe('opaque')
     }
-    // Timeline is a structured family as of loop 4.
-    const t = parse('timeline\n  2020 : A')
-    expect(t.kind).toBe('timeline')
-    expect(t.body.kind).toBe('timeline')
   })
 })
 

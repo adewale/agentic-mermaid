@@ -10,6 +10,8 @@ import type {
 import { ok, err } from './types.ts'
 import type { MermaidGraph, MermaidNode, MermaidEdge } from '../types.ts'
 import YAML from 'yaml'
+import { renderClass } from './class-body.ts'
+import { renderEr } from './er-body.ts'
 
 export function serializeMermaid(d: ValidDiagram): string {
   return renderMeta(d.meta) + renderBody(d.body, d.kind)
@@ -28,6 +30,8 @@ function renderBody(body: DiagramBody, kind: ValidDiagram['kind']): string {
   if (body.kind === 'flowchart') return renderFlowchart(body.graph, kind)
   if (body.kind === 'sequence') return renderSequence(body)
   if (body.kind === 'timeline') return renderTimeline(body)
+  if (body.kind === 'class') return renderClass(body)
+  if (body.kind === 'er') return renderEr(body)
   return body.source.endsWith('\n') ? body.source : body.source + '\n'
 }
 

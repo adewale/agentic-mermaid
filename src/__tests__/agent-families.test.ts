@@ -36,9 +36,11 @@ describe('family registry', () => {
 describe('Phase B: universal LABEL_OVERFLOW on opaque bodies', () => {
   const long = 'X'.repeat(80)
 
+  // NOTE: class and ER moved to structured bodies (Phase C). Their
+  // LABEL_OVERFLOW is now covered by verifyClass/verifyErBody, not the
+  // opaque-body extractLabels path. The cases below are the remaining
+  // families that still use opaque bodies for these constructs.
   const cases: Array<[string, string]> = [
-    ['class', `classDiagram\n  class Animal {\n    +method() "${long}"\n  }`],
-    ['er', `erDiagram\n  CUSTOMER ||--o{ ORDER : "${long}"`],
     ['journey', `journey\n  title ${long}`],
     ['xychart', `xychart-beta\n  title "${long}"`],
     ['architecture', `architecture-beta\n  group api(cloud)[${long}]`],

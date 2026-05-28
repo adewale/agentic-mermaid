@@ -211,9 +211,36 @@ Two contracts:
 | `remove_event`       | `sectionIndex`, `periodIndex`, `eventIndex`               | `add_event(...)` |
 | `set_event_text`     | `sectionIndex`, `periodIndex`, `eventIndex`, `text`       | `set_event_text(... prev_text)` |
 
-**Sequence fidelity rule (v4): structured-or-opaque, never lossy.** The sequence parser only produces a structured `SequenceBody` when it fully understands every non-blank, non-comment line (participant/actor declarations and simple `A->>B: text` messages). If the source contains *any* construct the parser doesn't model — `Note over`, `alt`/`opt`/`par`/`loop`/`end` blocks, `activate`/`deactivate`, `autonumber`, `+`/`-` activation prefixes, multi-line messages — parsing **falls back to an opaque body**. The diagram still parses, renders, verifies (structurally), and round-trips losslessly via `canonicalSource`; it simply isn't offered for structured mutation (`asSequence` returns `null`). This guarantees the parser never silently drops information. Earlier drafts dropped unrecognized lines on the floor; v4 does not.
+**Class MutationOp kinds** (10):
 
-For the 6 other diagram families (class, ER, timeline, journey, xychart, architecture), cross-cutting edits live at the source level — string operations against `canonicalSource`, composed by the agent in Code Mode. Adding structured mutation for each follows the same pattern: narrowed type + body parser + serializer + per-family ops. v1 ships flowchart + state + sequence to prove the pattern; expanding is multiplicative work.
+| Kind | Required | Inverse |
+|---|---|---|
+| `set_title`         | `title \| null`                                      | `set_title(prev_title)` |
+| `add_class`         | `id` (+ optional `label`, `members: string[]`)        | `remove_class(id)` |
+| `remove_class`      | `id`                                                  | `add_class(id, label, members)` |
+| `rename_class`      | `from`, `to`                                          | `rename_class(to, from)` |
+| `add_member`        | `class`, `text`                                       | `remove_member(class, index)` |
+| `remove_member`     | `class`, `index`                                      | `add_member(class, text)` |
+| `add_relation`      | `from`, `to`, `relKind` (+ optional `label`)          | `remove_relation(index)` |
+| `remove_relation`   | `index`                                               | `add_relation(...)` |
+| `add_note`          | `text` (+ optional `for: class`)                       | `remove_note(index)` |
+| `remove_note`       | `index`                                               | `add_note(text, for)` |
+
+**ER MutationOp kinds** (7):
+
+| Kind | Required | Inverse |
+|---|---|---|
+| `add_entity`        | `id` (+ optional `attributes: string[]`)             | `remove_entity(id)` |
+| `remove_entity`     | `id`                                                  | `add_entity(id, attributes)` |
+| `rename_entity`     | `from`, `to`                                          | `rename_entity(to, from)` |
+| `add_attribute`     | `entity`, `text`                                      | `remove_attribute(entity, index)` |
+| `remove_attribute`  | `entity`, `index`                                     | `add_attribute(entity, text)` |
+| `add_relation`      | `from`, `to`, `leftCard`, `rightCard` (+ `dashed`, `label`) | `remove_relation(index)` |
+| `remove_relation`   | `index`                                               | `add_relation(...)` |
+
+**Structured-or-opaque rule (v4): never lossy.** The parser only produces a structured body when it fully understands every non-blank, non-comment line. If the source contains *any* construct the parser doesn't model — `Note over` / `alt` / `loop` / `activate` in sequence, `direction TB` in class, etc. — parsing **falls back to an opaque body**. The diagram still parses, renders, verifies (structurally), and round-trips losslessly via `canonicalSource`; it simply isn't offered for structured mutation (the narrower returns `null`). This guarantees the parser never silently drops information. Earlier drafts dropped unrecognized lines on the floor; v4 does not.
+
+For the 3 remaining opaque-only families (journey, xychart, architecture), cross-cutting edits live at the source level — string operations against `canonicalSource`, composed by the agent in Code Mode. Adding structured mutation for each follows the same pattern: narrowed type + body parser + serializer + per-family ops.
 
 Convention bans constructing `ValidDiagram` outside `parseMermaid`, `mutate`, and `synthesizeFromGraph`.
 

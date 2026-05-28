@@ -9,6 +9,8 @@
 
 import { parseMermaid as parseFlowchartLegacy } from '../parser.ts'
 import { normalizeMermaidSource } from '../mermaid-source.ts'
+import { parseClassBody } from './class-body.ts'
+import { parseErBody } from './er-body.ts'
 import type {
   ValidDiagram, ParseError, Result, DiagramKind, ValidDiagramMeta,
   SourceMap, InitDirective, SequenceBody, SequenceParticipant,
@@ -71,6 +73,22 @@ export function parseMermaid(source: string): Result<ValidDiagram, ParseError[]>
 
   if (kind === 'timeline') {
     const body = parseTimelineBody(normalized.lines.slice(1))
+    if (body) return ok<ValidDiagram>({ kind, meta, body, source: sourceMap, canonicalSource })
+    return ok<ValidDiagram>({
+      kind, meta, body: { kind: 'opaque', family: kind, source: opaqueSource }, source: sourceMap, canonicalSource,
+    })
+  }
+
+  if (kind === 'class') {
+    const body = parseClassBody(normalized.lines.slice(1))
+    if (body) return ok<ValidDiagram>({ kind, meta, body, source: sourceMap, canonicalSource })
+    return ok<ValidDiagram>({
+      kind, meta, body: { kind: 'opaque', family: kind, source: opaqueSource }, source: sourceMap, canonicalSource,
+    })
+  }
+
+  if (kind === 'er') {
+    const body = parseErBody(normalized.lines.slice(1))
     if (body) return ok<ValidDiagram>({ kind, meta, body, source: sourceMap, canonicalSource })
     return ok<ValidDiagram>({
       kind, meta, body: { kind: 'opaque', family: kind, source: opaqueSource }, source: sourceMap, canonicalSource,

@@ -4,23 +4,61 @@
 
 import type {
   FlowchartValidDiagram, SequenceValidDiagram, TimelineValidDiagram,
+  ClassValidDiagram, ErValidDiagram,
   FlowchartMutationOp, SequenceMutationOp, TimelineMutationOp,
+  ClassMutationOp, ErMutationOp,
   MutationError, Result, SequenceParticipant, SequenceMessage,
   TimelineBody, TimelineSection, TimelinePeriod,
 } from './types.ts'
 import { ok, err } from './types.ts'
 import type { MermaidGraph, MermaidNode, MermaidEdge } from '../types.ts'
+import { mutateClass as _mutateClass } from './class-body.ts'
+import { mutateEr as _mutateEr } from './er-body.ts'
+import { renderClass } from './class-body.ts'
+import { renderEr } from './er-body.ts'
 
 export function mutate(d: FlowchartValidDiagram, op: FlowchartMutationOp): Result<FlowchartValidDiagram, MutationError>
 export function mutate(d: SequenceValidDiagram, op: SequenceMutationOp): Result<SequenceValidDiagram, MutationError>
 export function mutate(d: TimelineValidDiagram, op: TimelineMutationOp): Result<TimelineValidDiagram, MutationError>
+export function mutate(d: ClassValidDiagram, op: ClassMutationOp): Result<ClassValidDiagram, MutationError>
+export function mutate(d: ErValidDiagram, op: ErMutationOp): Result<ErValidDiagram, MutationError>
 export function mutate(
-  d: FlowchartValidDiagram | SequenceValidDiagram | TimelineValidDiagram,
-  op: FlowchartMutationOp | SequenceMutationOp | TimelineMutationOp,
-): Result<FlowchartValidDiagram | SequenceValidDiagram | TimelineValidDiagram, MutationError> {
+  d: FlowchartValidDiagram | SequenceValidDiagram | TimelineValidDiagram | ClassValidDiagram | ErValidDiagram,
+  op: FlowchartMutationOp | SequenceMutationOp | TimelineMutationOp | ClassMutationOp | ErMutationOp,
+): Result<FlowchartValidDiagram | SequenceValidDiagram | TimelineValidDiagram | ClassValidDiagram | ErValidDiagram, MutationError> {
   if (d.body.kind === 'flowchart') return mutateFlowchart(d as FlowchartValidDiagram, op as FlowchartMutationOp)
   if (d.body.kind === 'sequence') return mutateSequence(d as SequenceValidDiagram, op as SequenceMutationOp)
-  return mutateTimeline(d as TimelineValidDiagram, op as TimelineMutationOp)
+  if (d.body.kind === 'timeline') return mutateTimeline(d as TimelineValidDiagram, op as TimelineMutationOp)
+  if (d.body.kind === 'class') return mutateClass(d as ClassValidDiagram, op as ClassMutationOp)
+  return mutateEr(d as ErValidDiagram, op as ErMutationOp)
+}
+
+function mutateClass(d: ClassValidDiagram, op: ClassMutationOp): Result<ClassValidDiagram, MutationError> {
+  const r = _mutateClass(d.body, op)
+  if (!r.ok) return r
+  const next: ClassValidDiagram = { ...d, body: r.value }
+  const meta = renderMetaForRebuild(d.meta)
+  const canonicalSource = meta + renderClass(r.value)
+  return ok({ ...next, canonicalSource })
+}
+
+function mutateEr(d: ErValidDiagram, op: ErMutationOp): Result<ErValidDiagram, MutationError> {
+  const r = _mutateEr(d.body, op)
+  if (!r.ok) return r
+  const next: ErValidDiagram = { ...d, body: r.value }
+  const meta = renderMetaForRebuild(d.meta)
+  const canonicalSource = meta + renderEr(r.value)
+  return ok({ ...next, canonicalSource })
+}
+
+function renderMetaForRebuild(meta: import('./types.ts').ValidDiagramMeta): string {
+  const parts: string[] = []
+  if (meta.frontmatter && Object.keys(meta.frontmatter).length > 0) {
+    const YAML = require('yaml')
+    parts.push(`---\n${YAML.stringify(meta.frontmatter).trimEnd()}\n---\n`)
+  }
+  for (const d of meta.initDirectives) parts.push(d.raw.trimEnd() + '\n')
+  return parts.join('')
 }
 
 // ---- Flowchart ------------------------------------------------------------

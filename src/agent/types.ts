@@ -78,6 +78,87 @@ export interface TimelineBody {
   sections: TimelineSection[]
 }
 
+// ---- Class diagram body ---------------------------------------------------
+
+export type ClassRelationKind =
+  | 'inheritance'    // <|--
+  | 'composition'    // *--
+  | 'aggregation'    // o--
+  | 'association'    // -->  (or --)
+  | 'dependency'     // ..>
+  | 'realization'    // ..|>
+  | 'link-solid'     // --
+  | 'link-dashed'    // ..
+
+export interface ClassNode {
+  /** The bare class name (e.g., 'Animal'). */
+  id: string
+  /** Optional display label (e.g., from `class X["My Label"]` or `class X as "..."`). */
+  label?: string
+  /** Members, each as the raw source string ('+String name', '+eat()', '<<interface>>'). */
+  members: string[]
+}
+
+export interface ClassRelation {
+  from: string
+  to: string
+  kind: ClassRelationKind
+  /** Optional relationship label, e.g., from `A --> B : uses`. */
+  label?: string
+  /** Optional cardinality on the `from` side (e.g., '"1"'). */
+  fromCardinality?: string
+  /** Optional cardinality on the `to` side. */
+  toCardinality?: string
+}
+
+export interface ClassNote {
+  text: string
+  /** Class id the note is attached to (undefined = freestanding). */
+  for?: string
+}
+
+export interface ClassBody {
+  kind: 'class'
+  title?: string
+  classes: ClassNode[]
+  relations: ClassRelation[]
+  notes: ClassNote[]
+}
+
+// ---- ER body --------------------------------------------------------------
+
+export type ErCardinality =
+  | 'one-only'         // ||
+  | 'zero-or-one'      // |o or o|
+  | 'zero-or-many'     // }o or o{
+  | 'one-or-many'      // }| or |{
+
+export interface ErAttribute {
+  /** The full source line (e.g., 'string name PK "comment"'). */
+  text: string
+}
+
+export interface ErEntity {
+  id: string
+  attributes: ErAttribute[]
+}
+
+export interface ErRelation {
+  from: string
+  to: string
+  leftCard: ErCardinality
+  rightCard: ErCardinality
+  /** Solid (--) or dashed (..) line. */
+  dashed: boolean
+  label?: string
+}
+
+export interface ErBody {
+  kind: 'er'
+  entities: ErEntity[]
+  relations: ErRelation[]
+}
+
 // ---- Meta + IR ------------------------------------------------------------
 
 export interface SourceComment { text: string; line: number }
@@ -101,6 +182,8 @@ export type DiagramBody =
   | { kind: 'flowchart'; graph: MermaidGraph }
   | SequenceBody
   | TimelineBody
+  | ClassBody
+  | ErBody
   | { kind: 'opaque'; family: DiagramKind; source: string }
 
 export interface ValidDiagram {
@@ -115,7 +198,9 @@ export interface ValidDiagram {
 export type FlowchartValidDiagram = ValidDiagram & { body: { kind: 'flowchart'; graph: MermaidGraph } }
 export type SequenceValidDiagram = ValidDiagram & { body: SequenceBody }
 export type TimelineValidDiagram = ValidDiagram & { body: TimelineBody }
-export type MutableValidDiagram = FlowchartValidDiagram | SequenceValidDiagram | TimelineValidDiagram
+export type ClassValidDiagram = ValidDiagram & { body: ClassBody }
+export type ErValidDiagram = ValidDiagram & { body: ErBody }
+export type MutableValidDiagram = FlowchartValidDiagram | SequenceValidDiagram | TimelineValidDiagram | ClassValidDiagram | ErValidDiagram
 
 export function asFlowchart(d: ValidDiagram): FlowchartValidDiagram | null {
   return d.body.kind === 'flowchart' ? (d as FlowchartValidDiagram) : null
@@ -128,6 +213,14 @@ export function asTimeline(d: ValidDiagram): TimelineValidDiagram | null {
   return d.body.kind === 'timeline' ? (d as TimelineValidDiagram) : null
 }
 
+export function asClass(d: ValidDiagram): ClassValidDiagram | null {
+  return d.body.kind === 'class' ? (d as ClassValidDiagram) : null
+}
+
+export function asEr(d: ValidDiagram): ErValidDiagram | null {
+  return d.body.kind === 'er' ? (d as ErValidDiagram) : null
+}
+
 // ---- Errors ---------------------------------------------------------------
 
 export interface ParseError { code: string; message: string; line?: number; col?: number }
@@ -137,7 +230,9 @@ export interface MutationError {
     | 'NODE_NOT_FOUND' | 'EDGE_NOT_FOUND'
     | 'PARTICIPANT_NOT_FOUND' | 'MESSAGE_NOT_FOUND'
     | 'SECTION_NOT_FOUND' | 'PERIOD_NOT_FOUND' | 'EVENT_NOT_FOUND'
-    | 'DUPLICATE_NODE' | 'DUPLICATE_PARTICIPANT'
+    | 'CLASS_NOT_FOUND' | 'MEMBER_NOT_FOUND' | 'RELATION_NOT_FOUND' | 'NOTE_NOT_FOUND'
+    | 'ENTITY_NOT_FOUND' | 'ATTRIBUTE_NOT_FOUND'
+    | 'DUPLICATE_NODE' | 'DUPLICATE_PARTICIPANT' | 'DUPLICATE_CLASS' | 'DUPLICATE_ENTITY'
     | 'INVALID_OP'
   message: string
 }
@@ -176,7 +271,28 @@ export type TimelineMutationOp =
   | { kind: 'remove_event'; sectionIndex: number; periodIndex: number; eventIndex: number }
   | { kind: 'set_event_text'; sectionIndex: number; periodIndex: number; eventIndex: number; text: string }
 
-export type AnyMutationOp = FlowchartMutationOp | SequenceMutationOp | TimelineMutationOp
+export type ClassMutationOp =
+  | { kind: 'set_title'; title: string | null }
+  | { kind: 'add_class'; id: string; label?: string; members?: string[] }
+  | { kind: 'remove_class'; id: string }
+  | { kind: 'rename_class'; from: string; to: string }
+  | { kind: 'add_member'; class: string; text: string }
+  | { kind: 'remove_member'; class: string; index: number }
+  | { kind: 'add_relation'; from: string; to: string; relKind: ClassRelationKind; label?: string }
+  | { kind: 'remove_relation'; index: number }
+  | { kind: 'add_note'; text: string; for?: string }
+  | { kind: 'remove_note'; index: number }
+
+export type ErMutationOp =
+  | { kind: 'add_entity'; id: string; attributes?: string[] }
+  | { kind: 'remove_entity'; id: string }
+  | { kind: 'rename_entity'; from: string; to: string }
+  | { kind: 'add_attribute'; entity: string; text: string }
+  | { kind: 'remove_attribute'; entity: string; index: number }
+  | { kind: 'add_relation'; from: string; to: string; leftCard: ErCardinality; rightCard: ErCardinality; dashed?: boolean; label?: string }
+  | { kind: 'remove_relation'; index: number }
+
+export type AnyMutationOp = FlowchartMutationOp | SequenceMutationOp | TimelineMutationOp | ClassMutationOp | ErMutationOp
 export type MutationOp = FlowchartMutationOp // legacy alias
 
 // ---- Branded Finite -------------------------------------------------------

@@ -40,11 +40,22 @@ describe('vocabulary doc-sync', () => {
       expect(WARNING_TIER[code as keyof typeof WARNING_TIER]).toMatch(/^(structural|geometric)$/)
     }
   })
-  test('every MutationOp kind (both families) in spec', () => {
+  test('every MutationOp kind (all families) in spec', () => {
     const spec = readFileSync(join(REPO, 'AGENT_NATIVE.md'), 'utf8')
-    for (const op of ['add_node', 'remove_node', 'rename_node', 'set_label', 'add_edge', 'remove_edge',
+    for (const op of [
+      // flowchart
+      'add_node', 'remove_node', 'rename_node', 'set_label', 'add_edge', 'remove_edge',
+      // sequence
       'add_participant', 'remove_participant', 'add_message', 'remove_message', 'set_message_text',
-      'set_title', 'add_section', 'remove_section', 'set_section_label', 'add_period', 'remove_period', 'set_period_label', 'add_event', 'remove_event', 'set_event_text']) {
+      // timeline
+      'set_title', 'add_section', 'remove_section', 'set_section_label', 'add_period', 'remove_period',
+      'set_period_label', 'add_event', 'remove_event', 'set_event_text',
+      // class
+      'add_class', 'remove_class', 'rename_class', 'add_member', 'remove_member',
+      'add_relation', 'remove_relation', 'add_note', 'remove_note',
+      // ER
+      'add_entity', 'remove_entity', 'rename_entity', 'add_attribute', 'remove_attribute',
+    ]) {
       expect(spec).toContain(op)
     }
   })
