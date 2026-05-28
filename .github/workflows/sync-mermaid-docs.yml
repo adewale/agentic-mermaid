@@ -1,0 +1,40 @@
+name: Sync upstream Mermaid syntax docs
+
+on:
+  schedule:
+    # Weekly on Sundays at 00:00 UTC.
+    - cron: "0 0 * * 0"
+  workflow_dispatch:
+
+jobs:
+  sync-docs:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout current repository
+        uses: actions/checkout@v4
+
+      - name: Checkout upstream Mermaid
+        uses: actions/checkout@v4
+        with:
+          repository: mermaid-js/mermaid
+          path: mermaid-upstream
+          sparse-checkout: |
+            packages/mermaid/src/docs/syntax
+          sparse-checkout-cone-mode: true
+
+      - name: Refresh upstream/ references
+        run: |
+          SKILL_REFS=".claude/skills/agentic-mermaid/references/upstream"
+          rm -rf "$SKILL_REFS"
+          mkdir -p "$SKILL_REFS"
+          find mermaid-upstream/packages/mermaid/src/docs/syntax -maxdepth 1 -name "*.md" -exec cp {} "$SKILL_REFS/" \;
+          rm -rf mermaid-upstream
+
+      - name: Commit and push if changed
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: "chore(skill): sync upstream Mermaid syntax references"
+          file_pattern: ".claude/skills/agentic-mermaid/references/upstream/**"

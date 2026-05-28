@@ -1,0 +1,39 @@
+{
+  "root": true,
+  "parser": "@typescript-eslint/parser",
+  "parserOptions": {
+    "ecmaVersion": 2022,
+    "sourceType": "module"
+  },
+  "rules": {
+    "no-restricted-syntax": "off"
+  },
+  "overrides": [
+    {
+      "files": ["src/agent/**/*.ts", "src/layout-engine.ts"],
+      "rules": {
+        "no-restricted-syntax": [
+          "error",
+          {
+            "selector": "MemberExpression[object.name='Math'][property.name='random']",
+            "message": "Use LayoutContext.rng instead of Math.random in the substrate path. See AGENT_NATIVE.md § (0) Substrate. Exempt: src/agent/context.ts (createSeededRNG) and src/agent/context.ts withSeededRandom which intentionally manipulate Math.random."
+          },
+          {
+            "selector": "MemberExpression[object.name='Date'][property.name='now']",
+            "message": "Use LayoutContext.clock instead of Date.now in the substrate path."
+          },
+          {
+            "selector": "MemberExpression[object.name='performance'][property.name='now']",
+            "message": "Use LayoutContext.clock instead of performance.now in the substrate path."
+          }
+        ]
+      }
+    },
+    {
+      "files": ["src/agent/context.ts"],
+      "rules": {
+        "no-restricted-syntax": "off"
+      }
+    }
+  ]
+}
