@@ -63,19 +63,36 @@ function renderFlowchart(graph: MermaidGraph, kind: ValidDiagram['kind']): strin
   const lines: string[] = [kind === 'state' ? 'stateDiagram-v2' : `flowchart ${graph.direction}`]
   const declaredInline = new Set<string>()
 
+  // Subgraph blocks MUST come before edges: the legacy parser associates a
+  // node with the subgraph in whose block it FIRST appears. If an edge at the
+  // top declared the node first, a later bare reference inside the subgraph is
+  // ignored and membership is lost on re-parse. Emitting members (with their
+  // shape declaration) inside the block first makes round-trip stable.
+  const membersDeclared = new Set<string>()
+  const renderSubgraph = (sg: MermaidGraph['subgraphs'][number], indent: string) => {
+    lines.push(`${indent}subgraph ${sg.id}${sg.label !== sg.id ? `[${sg.label}]` : ''}`)
+    if (sg.direction) lines.push(`${indent}  direction ${sg.direction}`)
+    for (const child of sg.children) renderSubgraph(child, indent + '  ')
+    for (const nid of sg.nodeIds) {
+      const node = graph.nodes.get(nid)
+      if (node && needsExplicitDeclaration(node)) {
+        lines.push(`${indent}  ${node.id}${renderShape(node)}`)
+        declaredInline.add(nid)
+      } else {
+        lines.push(`${indent}  ${nid}`)
+      }
+      membersDeclared.add(nid)
+    }
+    lines.push(`${indent}end`)
+  }
+  for (const sg of graph.subgraphs) renderSubgraph(sg, '  ')
+
   for (const edge of graph.edges) lines.push('  ' + renderEdge(edge, graph.nodes, declaredInline))
 
   for (const [id, node] of graph.nodes) {
-    if (declaredInline.has(id)) continue
+    if (declaredInline.has(id) || membersDeclared.has(id)) continue
     const orphan = graph.edges.every(e => e.source !== id && e.target !== id)
     if (orphan || needsExplicitDeclaration(node)) lines.push('  ' + `${node.id}${renderShape(node)}`)
-  }
-
-  for (const sg of graph.subgraphs) {
-    lines.push(`  subgraph ${sg.id}${sg.label !== sg.id ? `[${sg.label}]` : ''}`)
-    if (sg.direction) lines.push(`    direction ${sg.direction}`)
-    for (const nid of sg.nodeIds) lines.push(`    ${nid}`)
-    lines.push('  end')
   }
 
   for (const [name, props] of graph.classDefs) lines.push(`  classDef ${name} ${styleProps(props)}`)
