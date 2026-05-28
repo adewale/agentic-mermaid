@@ -129,6 +129,27 @@ describe('CLI — sad paths via runCli', () => {
     expect(v.out).not.toEqual(g.out)
   })
 
+  test('REGRESSION: am parse | am serialize preserves flowchart styling (lossless)', () => {
+    const tmp = `/tmp/cli-styled-${Date.now()}.mmd`
+    require('node:fs').writeFileSync(tmp, 'flowchart TD\n  A[Start] --> B[End]\n  classDef hot fill:#f00\n  class A hot\n  style B stroke:#0f0\n  linkStyle 0 stroke:#00f\n')
+    const parsed = capture(() => runCli(['parse', tmp]))
+    expect(parsed.code).toBe(0)
+    const tmpJson = `/tmp/cli-styled-json-${Date.now()}.json`
+    require('node:fs').writeFileSync(tmpJson, parsed.out)
+    // Feed the parse JSON back through serialize via a stdin shim: write to fd 0
+    // is awkward in-process, so re-synthesize directly to assert the data path.
+    const { synthesizeFromGraph } = require('../agent/serialize.ts')
+    const { serializeMermaid } = require('../agent/serialize.ts')
+    const payload = JSON.parse(parsed.out)
+    const r = synthesizeFromGraph(payload)
+    expect(r.ok).toBe(true)
+    const out = serializeMermaid(r.value)
+    expect(out).toContain('classDef hot fill:#f00')
+    expect(out).toContain('class A hot')
+    expect(out).toContain('style B stroke:#0f0')
+    expect(out).toContain('linkStyle 0 stroke:#00f')
+  })
+
   test('format idempotent over 3 rounds', () => {
     const tmp = `/tmp/cli-fmt-${Date.now()}.mmd`
     require('node:fs').writeFileSync(tmp, 'flowchart TD\n  A[Alpha] --> B{D}\n  B -->|yes| C((End))\n')

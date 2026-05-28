@@ -190,13 +190,19 @@ function cmdFormat(args: ParsedArgs): number {
 
 function toJsonSafe(d: ValidDiagram): unknown {
   if (d.body.kind === 'flowchart') {
+    const g = d.body.graph
     return {
       kind: d.kind, meta: d.meta,
       body: { kind: 'flowchart', graph: {
-        direction: d.body.graph.direction,
-        nodes: Object.fromEntries(d.body.graph.nodes),
-        edges: d.body.graph.edges,
-        subgraphs: d.body.graph.subgraphs,
+        direction: g.direction,
+        nodes: Object.fromEntries(g.nodes),
+        edges: g.edges,
+        subgraphs: g.subgraphs,
+        // Preserve styling so `am parse | am serialize` is lossless.
+        classDefs: Object.fromEntries(g.classDefs),
+        classAssignments: Object.fromEntries(g.classAssignments),
+        nodeStyles: Object.fromEntries(g.nodeStyles),
+        linkStyles: Object.fromEntries([...g.linkStyles].map(([k, v]) => [String(k), v])),
       } },
       canonicalSource: d.canonicalSource,
     }
