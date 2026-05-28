@@ -166,7 +166,7 @@ serializeMermaid(d: ValidDiagram):                         string
 mutate(d: ValidDiagram, op: MutationOp):                   Result<ValidDiagram, MutationError>
 ```
 
-**CLI** (`am <verb>`) with `--json` everywhere: `render`, `verify`, `parse`, `serialize`, `mutate`, `format`. Plus `am --agent-instructions` printing the canonical agent-use guide embedded in the binary at build time — agents read the doc that ships with the tool, not whatever their training set indexed.
+**CLI** (`am <verb>`) with `--json` everywhere: `render`, `verify`, `parse`, `serialize`, `mutate`, `format`. Plus `am --agent-instructions` printing the canonical agent-use guide embedded in the binary at build time — agents read the doc that ships with the tool, not whatever their training set indexed. The CLI's role is one-shot operations, shell-only contexts (CI, Bash-tool agents), and human inspection; multi-step editing belongs in the library or Code Mode, not in shell pipelines.
 
 ---
 
@@ -186,7 +186,7 @@ mutate(d: ValidDiagram, op: MutationOp):                   Result<ValidDiagram, 
 Four artifacts, all derived from this doc:
 
 - **npm package** `agentic-mermaid`. The full TypeScript API. Agents with shell access import the library directly and compose verbs in their own TS; no MCP wrapper required.
-- **`.claude/skills/agentic-mermaid/`** Claude Code skill bundle. Master `SKILL.md` routes by diagram family to per-family references; progressive disclosure means the LLM loads only the reference it needs. References sync from upstream Mermaid docs weekly via GitHub Action, alongside our additions (LayoutWarning codes, MutationOp taxonomy).
+- **`.claude/skills/agentic-mermaid/`** Claude Code skill bundle. Master `SKILL.md` routes by *both* diagram family and composition channel: it picks Code Mode when the MCP is connected, library import when the agent can `import` and run TS, the CLI for shell-only contexts. Per-family references (`flowchart.md`, `sequence.md`, etc.) describe syntax. Two channel references — `code-mode.md` (the canonical multi-step pattern) and `cli.md` (shell-only) — describe composition. Progressive disclosure means the LLM loads only what it needs. Family references sync from upstream Mermaid docs weekly via GitHub Action, alongside our additions (LayoutWarning codes, MutationOp taxonomy).
 - **`agentic-mermaid-mcp`** Code Mode MCP server. **One tool, `execute(code: string)`**. The model writes an async arrow against the typed `mermaid.*` SDK declaration embedded in the system prompt; the server runs the arrow's body in a `node:vm` sandbox with the library exposed as `mermaid` and the arrow's return value captured as the structured result. The verify-after-mutate loop becomes one round-trip rather than N. Hosting: local stdio launched by the MCP client (Claude Desktop, Claude Code, Cursor) — same deployment shape as filesystem-MCP, git-MCP, sqlite-MCP. No infrastructure on our side or the user's. The pattern follows Cloudflare's `@cloudflare/codemode/mcp` design; we ship our own Node executor because our library is pure-functional and doesn't need `WorkerLoader` bindings. The same binary supports `--http` for self-hosted HTTP/SSE, and the architecture admits a Cloudflare Worker deployment via `DynamicWorkerExecutor` for orgs that want one, but we ship neither as a hosted service.
 - **`AGENTS.md`** at repo root, hard-capped under 100 lines. `am --agent-instructions` prints the workflow section below at runtime; a doc-sync test asserts the two are byte-identical.
 
@@ -199,6 +199,8 @@ No HTTP endpoint or editor WebSocket watch in v1. The skill teaches Code Mode fo
 (This section is the canonical agent-use guide. `am --agent-instructions` prints exactly this section.)
 
 ### Quick start
+
+The code below runs unchanged whether you import the library, call it inside Code Mode `execute()` (as an async arrow returning the final value), or compose its CLI equivalents. Prefer Code Mode or library import for multi-step edits; reach for the CLI for one-shot operations.
 
 ```ts
 import { parseMermaid, mutate, verifyMermaid, serializeMermaid } from 'agentic-mermaid'
