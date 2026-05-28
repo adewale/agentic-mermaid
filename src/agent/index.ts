@@ -73,7 +73,8 @@ export {
 import { renderMermaidSVG as _renderSVG } from '../index.ts'
 import { renderMermaidASCII as _renderASCII } from '../ascii/index.ts'
 import { layoutGraphSync } from '../layout-engine.ts'
-import type { ValidDiagram, RenderedLayout, LayoutContext } from './types.ts'
+import type { ValidDiagram, RenderedLayout, LayoutContext, Finite } from './types.ts'
+import { toFinite } from './types.ts'
 
 export function renderMermaidSVG(
   input: ValidDiagram | string,
@@ -91,6 +92,8 @@ export function renderMermaidASCII(
   return _renderASCII(source, opts)
 }
 
+const f = (n: number): Finite => toFinite(Math.round(n))
+
 export function layoutMermaid(
   d: ValidDiagram,
   _ctx?: LayoutContext,
@@ -104,10 +107,10 @@ export function layoutMermaid(
       kind: d.kind,
       nodes: positioned.nodes.map(n => ({
         id: n.id,
-        x: Math.round(n.x),
-        y: Math.round(n.y),
-        w: Math.round(n.width),
-        h: Math.round(n.height),
+        x: f(n.x),
+        y: f(n.y),
+        w: f(n.width),
+        h: f(n.height),
         shape: n.shape,
         label: n.label,
       })),
@@ -115,25 +118,21 @@ export function layoutMermaid(
         id: `${e.source}->${e.target}`,
         from: e.source,
         to: e.target,
-        path: e.points.map(p => [Math.round(p.x), Math.round(p.y)] as [number, number]),
+        path: e.points.map(p => [f(p.x), f(p.y)] as [Finite, Finite]),
         label: e.label && e.labelPosition
-          ? {
-              x: Math.round(e.labelPosition.x),
-              y: Math.round(e.labelPosition.y),
-              text: e.label,
-            }
+          ? { x: f(e.labelPosition.x), y: f(e.labelPosition.y), text: e.label }
           : undefined,
       })),
       groups: positioned.groups.map(g => ({
         id: g.id,
-        x: Math.round(g.x),
-        y: Math.round(g.y),
-        w: Math.round(g.width),
-        h: Math.round(g.height),
+        x: f(g.x),
+        y: f(g.y),
+        w: f(g.width),
+        h: f(g.height),
         members: [],
         label: g.label,
       })),
-      bounds: { w: Math.round(positioned.width), h: Math.round(positioned.height) },
+      bounds: { w: f(positioned.width), h: f(positioned.height) },
     }
   }
   return {
@@ -143,6 +142,6 @@ export function layoutMermaid(
     nodes: [],
     edges: [],
     groups: [],
-    bounds: { w: 0, h: 0 },
+    bounds: { w: f(0), h: f(0) },
   }
 }

@@ -20,8 +20,9 @@ import type {
   RenderedLayoutNode,
   RenderedLayoutEdge,
   WarningCode,
+  Finite,
 } from './types.ts'
-import { WARNING_SEVERITY } from './types.ts'
+import { WARNING_SEVERITY, toFinite } from './types.ts'
 import type { PositionedGraph, PositionedNode, PositionedEdge } from '../types.ts'
 
 export function verifyMermaid(
@@ -209,7 +210,7 @@ function emptyLayout(kind: RenderedLayout['kind']): RenderedLayout {
     nodes: [],
     edges: [],
     groups: [],
-    bounds: { w: 0, h: 0 },
+    bounds: { w: toFinite(0), h: toFinite(0) },
   }
 }
 
@@ -225,24 +226,24 @@ function positionedToRenderedLayout(
     edges: p.edges.map(toRenderedEdge),
     groups: p.groups.map(g => ({
       id: g.id,
-      x: round(g.x),
-      y: round(g.y),
-      w: round(g.width),
-      h: round(g.height),
+      x: roundFinite(g.x),
+      y: roundFinite(g.y),
+      w: roundFinite(g.width),
+      h: roundFinite(g.height),
       members: [],
       label: g.label,
     })),
-    bounds: { w: round(p.width), h: round(p.height) },
+    bounds: { w: roundFinite(p.width), h: roundFinite(p.height) },
   }
 }
 
 function toRenderedNode(n: PositionedNode): RenderedLayoutNode {
   return {
     id: n.id,
-    x: round(n.x),
-    y: round(n.y),
-    w: round(n.width),
-    h: round(n.height),
+    x: roundFinite(n.x),
+    y: roundFinite(n.y),
+    w: roundFinite(n.width),
+    h: roundFinite(n.height),
     shape: n.shape,
     label: n.label,
   }
@@ -253,17 +254,24 @@ function toRenderedEdge(e: PositionedEdge): RenderedLayoutEdge {
     id: `${e.source}->${e.target}`,
     from: e.source,
     to: e.target,
-    path: e.points.map(p => [round(p.x), round(p.y)] as [number, number]),
+    path: e.points.map(p => [roundFinite(p.x), roundFinite(p.y)] as [Finite, Finite]),
     label: e.label && e.labelPosition
-      ? { x: round(e.labelPosition.x), y: round(e.labelPosition.y), text: e.label }
+      ? {
+          x: roundFinite(e.labelPosition.x),
+          y: roundFinite(e.labelPosition.y),
+          text: e.label,
+        }
       : undefined,
   }
 }
 
-function round(n: number): number {
+function roundFinite(n: number): Finite {
   // Quantize to integers for stable layout JSON equality. Sub-pixel
-  // differences in ELK output are noise for the agent loop.
-  return Math.round(n)
+  // differences in ELK output are noise for the agent loop. The toFinite
+  // wrapper enforces that NaN / Infinity never reach the renderer — a real
+  // class of bugs in upstream Mermaid's renderer that this fork prevents
+  // by construction.
+  return toFinite(Math.round(n))
 }
 
 function rectIntersection(
