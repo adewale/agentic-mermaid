@@ -7,7 +7,7 @@ This is the canonical agent-use guide. The same content is emitted by `am --agen
 The code below runs unchanged whether you import the library, call it inside Code Mode `execute()` (as an async arrow returning the final value), or compose its CLI equivalents. Prefer Code Mode or library import for multi-step edits; reach for the CLI for one-shot operations.
 
 ```ts
-import { parseMermaid, asFlowchart, asSequence, asTimeline, mutate, verifyMermaid, serializeMermaid } from 'beautiful-mermaid/agent'
+import { parseMermaid, asFlowchart, asSequence, asTimeline, asClass, asEr, mutate, verifyMermaid, serializeMermaid } from 'beautiful-mermaid/agent'
 
 const d0 = parseMermaid(source)
 if (!d0.ok) throw new Error('parse')
@@ -26,9 +26,11 @@ if (seq) {
   return serializeMermaid(d1.value)
 }
 
-// class / ER / timeline / journey / xychart / architecture, plus any
-// sequence diagram with notes/alt/loop/activate (which falls back to opaque):
-// edit d0.value.canonicalSource as a string. The library never silently
+// asClass / asEr / asTimeline narrow to their typed bodies similarly.
+
+// journey / xychart / architecture, plus any opaque-fallback body
+// (e.g., a sequence diagram with notes/alt/loop/activate): edit
+// d0.value.canonicalSource as a string. The library never silently
 // drops constructs it does not model.
 ```
 
@@ -47,4 +49,4 @@ Tier 2 (geometric, advisory): `NODE_OVERLAP`, `ROUTE_SELF_CROSS`. These correctl
 - Regenerating source instead of mutating. Defeats round-trip; produces noise.
 - Verifying once at the end of a long chain. Loses precision about which op broke it.
 - Concatenating Mermaid source strings. Use `mutate` and `serializeMermaid`.
-- Calling `mutate` on a class / ER / journey / xychart / architecture diagram (or any opaque-fallback body) — the type system rejects it; edit `canonicalSource` directly.
+- Calling `mutate` on a journey / xychart / architecture diagram (or any opaque-fallback body) — the type system rejects it; edit `canonicalSource` directly.

@@ -5,19 +5,23 @@
 // ============================================================================
 
 export type {
-  Result, ValidDiagram, FlowchartValidDiagram, SequenceValidDiagram, TimelineValidDiagram, MutableValidDiagram,
+  Result, ValidDiagram, FlowchartValidDiagram, SequenceValidDiagram, TimelineValidDiagram,
+  ClassValidDiagram, ErValidDiagram, MutableValidDiagram,
   ValidDiagramMeta, ValidDiagramPayload, SerializedFlowchartGraph, DiagramBody, DiagramKind,
   SequenceBody, SequenceParticipant, SequenceMessage, SequenceMessageStyle,
   TimelineBody, TimelineSection, TimelinePeriod, TimelineEvent,
+  ClassBody, ClassNode, ClassRelation, ClassRelationKind, ClassNote,
+  ErBody, ErEntity, ErRelation, ErAttribute, ErCardinality,
   SourceMap, SourceComment, InitDirective, Accessibility,
-  ParseError, MutationError, MutationOp, FlowchartMutationOp, SequenceMutationOp, TimelineMutationOp, AnyMutationOp,
+  ParseError, MutationError, MutationOp, FlowchartMutationOp, SequenceMutationOp, TimelineMutationOp,
+  ClassMutationOp, ErMutationOp, AnyMutationOp,
   NodeId, EdgeId, GroupId, ParticipantId,
   LayoutWarning, WarningCode, Tier1WarningCode, Tier2WarningCode, WarningSeverity, WarningTier,
   VerifyOptions, VerifyResult, RenderedLayout, RenderedLayoutNode, RenderedLayoutEdge, RenderedLayoutGroup,
   Finite,
 } from './types.ts'
 
-export { WARNING_SEVERITY, WARNING_TIER, DEFAULT_LABEL_CHAR_CAP, ok, err, toFinite, asFlowchart, asSequence, asTimeline } from './types.ts'
+export { WARNING_SEVERITY, WARNING_TIER, DEFAULT_LABEL_CHAR_CAP, ok, err, toFinite, asFlowchart, asSequence, asTimeline, asClass, asEr } from './types.ts'
 export { parseMermaid } from './parse.ts'
 export { serializeMermaid, synthesizeFromGraph } from './serialize.ts'
 export { mutate, edgeIdOf } from './mutate.ts'

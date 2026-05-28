@@ -15,6 +15,8 @@ import { WARNING_SEVERITY, DEFAULT_LABEL_CHAR_CAP } from './types.ts'
 import { positionedToRenderedLayout, emptyRenderedLayout } from './layout-to-rendered.ts'
 import { getFamily, extractLabelsGeneric } from './families.ts'
 import './families-builtin.ts'  // registers built-in families at import time
+import { verifyClass } from './class-body.ts'
+import { verifyErBody } from './er-body.ts'
 
 const KNOWN_SHAPES = new Set([
   'rectangle', 'service', 'rounded', 'diamond', 'stadium', 'circle',
@@ -30,6 +32,14 @@ export function verifyMermaid(input: ValidDiagram | string, opts: VerifyOptions 
 
   if (d.body.kind === 'sequence') return verifySequence(d.body, d.kind, cap, opts)
   if (d.body.kind === 'timeline') return verifyTimeline(d.body, d.kind, cap, opts)
+  if (d.body.kind === 'class') {
+    const w = verifyClass(d.body, opts)
+    return finalize(w, emptyRenderedLayout(d.kind), opts)
+  }
+  if (d.body.kind === 'er') {
+    const w = verifyErBody(d.body, opts)
+    return finalize(w, emptyRenderedLayout(d.kind), opts)
+  }
 
   if (d.body.kind === 'opaque') {
     const isEmpty = d.body.source.trim().split('\n').length <= 1
