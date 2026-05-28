@@ -11,13 +11,22 @@ import { describe, test, expect } from 'bun:test'
 import { verifyMermaid } from '../agent/verify.ts'
 
 const DIRECTIONS = ['TD', 'BT', 'LR', 'RL'] as const
-const NODE_COUNTS = [2, 3, 5, 8]
-const DENSITY: Array<'sparse' | 'dense'> = ['sparse', 'dense']
+const NODE_COUNTS = [2, 3, 4, 5, 6, 7, 8, 9, 10, 12]
+const DENSITY: Array<'sparse' | 'dense' | 'star'> = ['sparse', 'dense', 'star']
 
-function makeDiagram(direction: string, n: number, density: 'sparse' | 'dense'): string {
+function makeDiagram(
+  direction: string,
+  n: number,
+  density: 'sparse' | 'dense' | 'star',
+): string {
   const ids = Array.from({ length: n }, (_, i) => `N${i}`)
   const lines = [`flowchart ${direction}`]
-  // Sparse: chain. Dense: chain + every node connects to N0.
+  if (density === 'star') {
+    // Star: every other node connects to N0.
+    for (let i = 1; i < n; i++) lines.push(`  ${ids[0]} --> ${ids[i]}`)
+    return lines.join('\n')
+  }
+  // Sparse: chain. Dense: chain + back-references to N0.
   for (let i = 0; i < n - 1; i++) {
     lines.push(`  ${ids[i]} --> ${ids[i + 1]}`)
   }

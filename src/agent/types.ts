@@ -215,12 +215,29 @@ export interface VerifyOptions {
   layoutContext?: LayoutContext
 }
 
+// Branded coordinate type. `RenderedLayout` only carries Finite values —
+// `toFinite()` is the only constructor and throws on NaN / Infinity. This
+// catches a real class of bugs: a layout that emits NaN coordinates would
+// otherwise silently produce invalid SVG.
+export type Finite = number & { readonly __finite: unique symbol }
+
+/**
+ * Assert that a number is finite (not NaN, not ±Infinity) and brand it.
+ * Throws RangeError on invalid input.
+ */
+export function toFinite(n: number): Finite {
+  if (!Number.isFinite(n)) {
+    throw new RangeError(`expected a finite number, got ${String(n)}`)
+  }
+  return n as Finite
+}
+
 export interface RenderedLayoutNode {
   id: NodeId
-  x: number
-  y: number
-  w: number
-  h: number
+  x: Finite
+  y: Finite
+  w: Finite
+  h: Finite
   shape: string
   label?: string
 }
@@ -229,16 +246,16 @@ export interface RenderedLayoutEdge {
   id: EdgeId
   from: NodeId
   to: NodeId
-  path: [number, number][]
-  label?: { x: number; y: number; text: string }
+  path: [Finite, Finite][]
+  label?: { x: Finite; y: Finite; text: string }
 }
 
 export interface RenderedLayoutGroup {
   id: GroupId
-  x: number
-  y: number
-  w: number
-  h: number
+  x: Finite
+  y: Finite
+  w: Finite
+  h: Finite
   members: NodeId[]
   label?: string
 }
@@ -250,7 +267,7 @@ export interface RenderedLayout {
   nodes: RenderedLayoutNode[]
   edges: RenderedLayoutEdge[]
   groups: RenderedLayoutGroup[]
-  bounds: { w: number; h: number }
+  bounds: { w: Finite; h: Finite }
 }
 
 export interface VerifyResult {
