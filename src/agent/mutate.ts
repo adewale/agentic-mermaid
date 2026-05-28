@@ -3,20 +3,24 @@
 // ============================================================================
 
 import type {
-  FlowchartValidDiagram, SequenceValidDiagram, FlowchartMutationOp,
-  SequenceMutationOp, MutationError, Result, SequenceParticipant, SequenceMessage,
+  FlowchartValidDiagram, SequenceValidDiagram, TimelineValidDiagram,
+  FlowchartMutationOp, SequenceMutationOp, TimelineMutationOp,
+  MutationError, Result, SequenceParticipant, SequenceMessage,
+  TimelineBody, TimelineSection, TimelinePeriod,
 } from './types.ts'
 import { ok, err } from './types.ts'
 import type { MermaidGraph, MermaidNode, MermaidEdge } from '../types.ts'
 
 export function mutate(d: FlowchartValidDiagram, op: FlowchartMutationOp): Result<FlowchartValidDiagram, MutationError>
 export function mutate(d: SequenceValidDiagram, op: SequenceMutationOp): Result<SequenceValidDiagram, MutationError>
+export function mutate(d: TimelineValidDiagram, op: TimelineMutationOp): Result<TimelineValidDiagram, MutationError>
 export function mutate(
-  d: FlowchartValidDiagram | SequenceValidDiagram,
-  op: FlowchartMutationOp | SequenceMutationOp,
-): Result<FlowchartValidDiagram | SequenceValidDiagram, MutationError> {
+  d: FlowchartValidDiagram | SequenceValidDiagram | TimelineValidDiagram,
+  op: FlowchartMutationOp | SequenceMutationOp | TimelineMutationOp,
+): Result<FlowchartValidDiagram | SequenceValidDiagram | TimelineValidDiagram, MutationError> {
   if (d.body.kind === 'flowchart') return mutateFlowchart(d as FlowchartValidDiagram, op as FlowchartMutationOp)
-  return mutateSequence(d as SequenceValidDiagram, op as SequenceMutationOp)
+  if (d.body.kind === 'sequence') return mutateSequence(d as SequenceValidDiagram, op as SequenceMutationOp)
+  return mutateTimeline(d as TimelineValidDiagram, op as TimelineMutationOp)
 }
 
 // ---- Flowchart ------------------------------------------------------------
@@ -137,6 +141,112 @@ function ensureParticipant(ps: SequenceParticipant[], id: string): void {
 
 function rebuildSeq(d: SequenceValidDiagram, participants: SequenceParticipant[], messages: SequenceMessage[]): SequenceValidDiagram {
   return { ...d, body: { kind: 'sequence', participants, messages } } as SequenceValidDiagram
+}
+
+// ============================================================================
+// Timeline mutation
+// ============================================================================
+
+function cloneTimeline(b: TimelineBody): TimelineBody {
+  return {
+    kind: 'timeline',
+    title: b.title,
+    sections: b.sections.map(s => ({
+      id: s.id, label: s.label,
+      periods: s.periods.map(p => ({ id: p.id, label: p.label, events: p.events.map(e => ({ id: e.id, text: e.text })) })),
+    })),
+  }
+}
+
+function nextId(prefix: string, body: TimelineBody): string {
+  let n = 0
+  const seen = new Set<string>()
+  for (const s of body.sections) {
+    seen.add(s.id)
+    for (const p of s.periods) { seen.add(p.id); for (const e of p.events) seen.add(e.id) }
+  }
+  while (seen.has(`${prefix}-${n}`)) n++
+  return `${prefix}-${n}`
+}
+
+function mutateTimeline(d: TimelineValidDiagram, op: TimelineMutationOp): Result<TimelineValidDiagram, MutationError> {
+  const body = cloneTimeline(d.body)
+
+  const getSection = (i: number): TimelineSection | undefined => body.sections[i]
+  const getPeriod = (si: number, pi: number): TimelinePeriod | undefined => getSection(si)?.periods[pi]
+
+  switch (op.kind) {
+    case 'set_title': {
+      if (op.title === null) delete body.title
+      else body.title = op.title
+      break
+    }
+    case 'add_section': {
+      body.sections.push({ id: nextId('section', body), label: op.label, periods: [] })
+      break
+    }
+    case 'remove_section': {
+      if (!getSection(op.index)) return err({ code: 'SECTION_NOT_FOUND', message: `No section at index ${op.index}` })
+      body.sections.splice(op.index, 1)
+      break
+    }
+    case 'set_section_label': {
+      const s = getSection(op.index)
+      if (!s) return err({ code: 'SECTION_NOT_FOUND', message: `No section at index ${op.index}` })
+      s.label = op.label
+      break
+    }
+    case 'add_period': {
+      const s = getSection(op.sectionIndex)
+      if (!s) return err({ code: 'SECTION_NOT_FOUND', message: `No section at index ${op.sectionIndex}` })
+      const period: TimelinePeriod = {
+        id: nextId('period', body),
+        label: op.label,
+        events: (op.events ?? []).map(text => ({ id: nextId('event', body), text })),
+      }
+      s.periods.push(period)
+      break
+    }
+    case 'remove_period': {
+      const s = getSection(op.sectionIndex)
+      if (!s) return err({ code: 'SECTION_NOT_FOUND', message: `No section at index ${op.sectionIndex}` })
+      if (!s.periods[op.periodIndex]) return err({ code: 'PERIOD_NOT_FOUND', message: `No period at index ${op.periodIndex}` })
+      s.periods.splice(op.periodIndex, 1)
+      break
+    }
+    case 'set_period_label': {
+      const p = getPeriod(op.sectionIndex, op.periodIndex)
+      if (!p) return err({ code: 'PERIOD_NOT_FOUND', message: `No period at (${op.sectionIndex},${op.periodIndex})` })
+      p.label = op.label
+      break
+    }
+    case 'add_event': {
+      const p = getPeriod(op.sectionIndex, op.periodIndex)
+      if (!p) return err({ code: 'PERIOD_NOT_FOUND', message: `No period at (${op.sectionIndex},${op.periodIndex})` })
+      p.events.push({ id: nextId('event', body), text: op.text })
+      break
+    }
+    case 'remove_event': {
+      const p = getPeriod(op.sectionIndex, op.periodIndex)
+      if (!p) return err({ code: 'PERIOD_NOT_FOUND', message: `No period at (${op.sectionIndex},${op.periodIndex})` })
+      if (!p.events[op.eventIndex]) return err({ code: 'EVENT_NOT_FOUND', message: `No event at index ${op.eventIndex}` })
+      p.events.splice(op.eventIndex, 1)
+      break
+    }
+    case 'set_event_text': {
+      const p = getPeriod(op.sectionIndex, op.periodIndex)
+      if (!p) return err({ code: 'PERIOD_NOT_FOUND', message: `No period at (${op.sectionIndex},${op.periodIndex})` })
+      const e = p.events[op.eventIndex]
+      if (!e) return err({ code: 'EVENT_NOT_FOUND', message: `No event at index ${op.eventIndex}` })
+      e.text = op.text
+      break
+    }
+    default: {
+      const _x: never = op
+      return err({ code: 'INVALID_OP', message: `Unknown op: ${JSON.stringify(_x)}` })
+    }
+  }
+  return ok({ ...d, body } as TimelineValidDiagram)
 }
 
 // ---- Flowchart helpers ----------------------------------------------------

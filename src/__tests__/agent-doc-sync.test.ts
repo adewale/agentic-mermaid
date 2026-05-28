@@ -43,7 +43,8 @@ describe('vocabulary doc-sync', () => {
   test('every MutationOp kind (both families) in spec', () => {
     const spec = readFileSync(join(REPO, 'AGENT_NATIVE.md'), 'utf8')
     for (const op of ['add_node', 'remove_node', 'rename_node', 'set_label', 'add_edge', 'remove_edge',
-      'add_participant', 'remove_participant', 'add_message', 'remove_message', 'set_message_text']) {
+      'add_participant', 'remove_participant', 'add_message', 'remove_message', 'set_message_text',
+      'set_title', 'add_section', 'remove_section', 'set_section_label', 'add_period', 'remove_period', 'set_period_label', 'add_event', 'remove_event', 'set_event_text']) {
       expect(spec).toContain(op)
     }
   })

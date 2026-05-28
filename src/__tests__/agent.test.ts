@@ -39,10 +39,14 @@ describe('parseMermaid', () => {
     const r = parseMermaid('notADiagram\n X'); expect(r.ok).toBe(false)
     if (!r.ok) expect(r.error[0]!.code).toBe('UNKNOWN_HEADER')
   })
-  test('class/er/timeline stay opaque', () => {
-    for (const [s, k] of [['classDiagram\n  A <|-- B','class'],['erDiagram\n  A ||--o{ B : x','er'],['timeline\n  2020 : A','timeline']] as const) {
+  test('class/er stay opaque (no structured body); timeline is now structured', () => {
+    for (const [s, k] of [['classDiagram\n  A <|-- B','class'],['erDiagram\n  A ||--o{ B : x','er']] as const) {
       const d = parse(s); expect(d.kind).toBe(k); expect(d.body.kind).toBe('opaque')
     }
+    // Timeline is a structured family as of loop 4.
+    const t = parse('timeline\n  2020 : A')
+    expect(t.kind).toBe('timeline')
+    expect(t.body.kind).toBe('timeline')
   })
 })
 

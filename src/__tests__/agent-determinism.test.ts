@@ -48,6 +48,38 @@ describe('determinism — REAL cross-process (the test I claimed but never wrote
   }
 })
 
+describe('determinism — cross-runtime (bun vs node)', () => {
+  // Determinism in the prior loop was tested cross-PROCESS on bun only.
+  // This loop tightens the claim: layout JSON is identical when emitted by
+  // bun AND by node, on the same machine. Run via the built `dist/agent.js`
+  // so node can consume it without TS resolution issues.
+  const NODE = '/opt/node22/bin/node'
+  const DIST = join(import.meta.dir, '..', '..', 'dist', 'agent.js')
+  const haveNode = (() => {
+    try { return spawnSync(NODE, ['--version'], { encoding: 'utf8' }).status === 0 } catch { return false }
+  })()
+  const haveDist = (() => { try { return require('node:fs').existsSync(DIST) } catch { return false } })()
+
+  const fn = haveNode && haveDist ? test : test.skip
+  for (const src of [
+    'flowchart LR\n  A --> B',
+    'flowchart TD\n  A --> B\n  B --> C\n  C --> D',
+    'flowchart LR\n  A --> B\n  A --> C\n  B --> D\n  C --> D\n  D --> E\n  E --> A',
+  ]) {
+    fn(`bun layout ≡ node layout for: ${src.slice(0, 30).replace(/\n/g, ' ')}…`, () => {
+      const bunLayout = verifyMermaid(src).layout
+      const nodeOut = spawnSync(NODE, ['-e', `
+        const { verifyMermaid } = require('${DIST}')
+        process.stdout.write(JSON.stringify(verifyMermaid(${JSON.stringify(src)}).layout))
+      `], { encoding: 'utf8' })
+      expect(nodeOut.status).toBe(0)
+      // Compare structurally (parsed JSON), immune to whitespace differences.
+      const nodeLayout = JSON.parse(nodeOut.stdout)
+      expect(nodeLayout).toEqual(bunLayout)
+    })
+  }
+})
+
 describe('drift sentinel', () => {
   const SENTINELS = [
     'flowchart TD\n  A --> B',
