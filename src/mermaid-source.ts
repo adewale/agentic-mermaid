@@ -53,6 +53,7 @@ export interface ProcessedMermaidSource {
 
 export interface NormalizedMermaidSource {
   text: string
+  body: string
   lines: string[]
   firstLine: string
   config: MermaidRuntimeConfig
@@ -70,6 +71,7 @@ export function normalizeMermaidSource(
 
   return {
     text: processed.lines.join('\n'),
+    body: processed.body,
     lines: processed.lines,
     firstLine: processed.lines[0]?.toLowerCase() ?? '',
     config: normalizeMermaidRuntimeConfig(processed.frontmatter),

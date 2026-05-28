@@ -13,6 +13,8 @@ import type {
 } from './types.ts'
 import { WARNING_SEVERITY, DEFAULT_LABEL_CHAR_CAP } from './types.ts'
 import { positionedToRenderedLayout, emptyRenderedLayout } from './layout-to-rendered.ts'
+import { getFamily, extractLabelsGeneric } from './families.ts'
+import './families-builtin.ts'  // registers built-in families at import time
 
 const KNOWN_SHAPES = new Set([
   'rectangle', 'service', 'rounded', 'diamond', 'stadium', 'circle',
@@ -31,7 +33,23 @@ export function verifyMermaid(input: ValidDiagram | string, opts: VerifyOptions 
 
   if (d.body.kind === 'opaque') {
     const isEmpty = d.body.source.trim().split('\n').length <= 1
-    return finalize(isEmpty ? [{ code: 'EMPTY_DIAGRAM' }] : [], emptyRenderedLayout(d.kind), opts)
+    if (isEmpty) return finalize([{ code: 'EMPTY_DIAGRAM' }], emptyRenderedLayout(d.kind), opts)
+    // Universal Tier 1 LABEL_OVERFLOW via family-specific (or generic) label
+    // extraction. Closes the gap where opaque-body diagrams (class / ER /
+    // journey / xychart / architecture / sequence-with-alt/etc.) never got
+    // label-cap checking.
+    const plugin = getFamily(d.kind)
+    const labels = (plugin?.extractLabels ?? extractLabelsGeneric)(d.body.source)
+    const warnings: LayoutWarning[] = []
+    const seen = new Set<string>()
+    for (const lbl of labels) {
+      if (lbl.text.length <= cap) continue
+      const key = `${lbl.target}:${lbl.text}`
+      if (seen.has(key)) continue
+      seen.add(key)
+      warnings.push({ code: 'LABEL_OVERFLOW', target: lbl.target, charCount: lbl.text.length, limit: cap })
+    }
+    return finalize(warnings, emptyRenderedLayout(d.kind), opts)
   }
 
   const graph = d.body.graph
