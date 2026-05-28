@@ -1,0 +1,1484 @@
+[
+  {
+    "family": "flowchart",
+    "source": "---\ntitle: Node\n---\nflowchart LR\n    id",
+    "origin": "syntax/flowchart.md",
+    "index": 0
+  },
+  {
+    "family": "flowchart",
+    "source": "---\ntitle: Node with text\n---\nflowchart LR\n    id1[This is the text in the box]",
+    "origin": "syntax/flowchart.md",
+    "index": 1
+  },
+  {
+    "family": "flowchart",
+    "source": "flowchart LR\n    id[\"This ❤ Unicode\"]",
+    "origin": "syntax/flowchart.md",
+    "index": 2
+  },
+  {
+    "family": "flowchart",
+    "source": "---\nconfig:\n  htmlLabels: false\n---\nflowchart LR\n    markdown[\"`This **is** _Markdown_`\"]\n    newLines[\"`Line1\n    Line 2\n    Line 3`\"]\n    markdown --> newLines",
+    "origin": "syntax/flowchart.md",
+    "index": 3
+  },
+  {
+    "family": "flowchart",
+    "source": "flowchart TD\n    Start --> Stop",
+    "origin": "syntax/flowchart.md",
+    "index": 4
+  },
+  {
+    "family": "flowchart",
+    "source": "flowchart LR\n    Start --> Stop",
+    "origin": "syntax/flowchart.md",
+    "index": 5
+  },
+  {
+    "family": "flowchart",
+    "source": "flowchart LR\n    id1(This is the text in the box)",
+    "origin": "syntax/flowchart.md",
+    "index": 6
+  },
+  {
+    "family": "flowchart",
+    "source": "flowchart LR\n    id1([This is the text in the box])",
+    "origin": "syntax/flowchart.md",
+    "index": 7
+  },
+  {
+    "family": "flowchart",
+    "source": "flowchart LR\n    id1[[This is the text in the box]]",
+    "origin": "syntax/flowchart.md",
+    "index": 8
+  },
+  {
+    "family": "flowchart",
+    "source": "flowchart LR\n    id1[(Database)]",
+    "origin": "syntax/flowchart.md",
+    "index": 9
+  },
+  {
+    "family": "flowchart",
+    "source": "flowchart LR\n    id1((This is the text in the circle))",
+    "origin": "syntax/flowchart.md",
+    "index": 10
+  },
+  {
+    "family": "flowchart",
+    "source": "flowchart LR\n    id1>This is the text in the box]",
+    "origin": "syntax/flowchart.md",
+    "index": 11
+  },
+  {
+    "family": "flowchart",
+    "source": "flowchart LR\n    id1{This is the text in the box}",
+    "origin": "syntax/flowchart.md",
+    "index": 12
+  },
+  {
+    "family": "flowchart",
+    "source": "flowchart LR\n    id1{{This is the text in the box}}",
+    "origin": "syntax/flowchart.md",
+    "index": 13
+  },
+  {
+    "family": "flowchart",
+    "source": "flowchart TD\n    id1[/This is the text in the box/]",
+    "origin": "syntax/flowchart.md",
+    "index": 14
+  },
+  {
+    "family": "flowchart",
+    "source": "flowchart TD\n    id1[\\This is the text in the box\\]",
+    "origin": "syntax/flowchart.md",
+    "index": 15
+  },
+  {
+    "family": "flowchart",
+    "source": "flowchart TD\n    A[/Christmas\\]",
+    "origin": "syntax/flowchart.md",
+    "index": 16
+  },
+  {
+    "family": "flowchart",
+    "source": "flowchart TD\n    B[\\Go shopping/]",
+    "origin": "syntax/flowchart.md",
+    "index": 17
+  },
+  {
+    "family": "flowchart",
+    "source": "flowchart TD\n    id1(((This is the text in the circle)))",
+    "origin": "syntax/flowchart.md",
+    "index": 18
+  },
+  {
+    "family": "flowchart",
+    "source": "flowchart RL\n    A@{ shape: manual-file, label: \"File Handling\"}\n    B@{ shape: manual-input, label: \"User Input\"}\n    C@{ shape: docs, label: \"Multiple Documents\"}\n    D@{ shape: procs, label: \"Process Automation\"}\n    E@{ shape: paper-tape, label: \"Paper Records\"}",
+    "origin": "syntax/flowchart.md",
+    "index": 19
+  },
+  {
+    "family": "flowchart",
+    "source": "flowchart TD\n    A@{ shape: rect, label: \"This is a process\" }",
+    "origin": "syntax/flowchart.md",
+    "index": 20
+  },
+  {
+    "family": "flowchart",
+    "source": "flowchart TD\n    A@{ shape: rounded, label: \"This is an event\" }",
+    "origin": "syntax/flowchart.md",
+    "index": 21
+  },
+  {
+    "family": "flowchart",
+    "source": "flowchart TD\n    A@{ shape: stadium, label: \"Terminal point\" }",
+    "origin": "syntax/flowchart.md",
+    "index": 22
+  },
+  {
+    "family": "flowchart",
+    "source": "flowchart TD\n    A@{ shape: subproc, label: \"This is a subprocess\" }",
+    "origin": "syntax/flowchart.md",
+    "index": 23
+  },
+  {
+    "family": "flowchart",
+    "source": "flowchart TD\n    A@{ shape: cyl, label: \"Database\" }",
+    "origin": "syntax/flowchart.md",
+    "index": 24
+  },
+  {
+    "family": "flowchart",
+    "source": "flowchart TD\n    A@{ shape: circle, label: \"Start\" }",
+    "origin": "syntax/flowchart.md",
+    "index": 25
+  },
+  {
+    "family": "flowchart",
+    "source": "flowchart TD\n    A@{ shape: odd, label: \"Odd shape\" }",
+    "origin": "syntax/flowchart.md",
+    "index": 26
+  },
+  {
+    "family": "flowchart",
+    "source": "flowchart TD\n    A@{ shape: diamond, label: \"Decision\" }",
+    "origin": "syntax/flowchart.md",
+    "index": 27
+  },
+  {
+    "family": "flowchart",
+    "source": "flowchart TD\n    A@{ shape: hex, label: \"Prepare conditional\" }",
+    "origin": "syntax/flowchart.md",
+    "index": 28
+  },
+  {
+    "family": "flowchart",
+    "source": "flowchart TD\n    A@{ shape: lean-r, label: \"Input/Output\" }",
+    "origin": "syntax/flowchart.md",
+    "index": 29
+  },
+  {
+    "family": "flowchart",
+    "source": "flowchart TD\n    A@{ shape: lean-l, label: \"Output/Input\" }",
+    "origin": "syntax/flowchart.md",
+    "index": 30
+  },
+  {
+    "family": "flowchart",
+    "source": "flowchart TD\n    A@{ shape: datastore, label: \"Datastore\" }",
+    "origin": "syntax/flowchart.md",
+    "index": 31
+  },
+  {
+    "family": "flowchart",
+    "source": "flowchart TD\n    A@{ shape: trap-b, label: \"Priority action\" }",
+    "origin": "syntax/flowchart.md",
+    "index": 32
+  },
+  {
+    "family": "flowchart",
+    "source": "flowchart TD\n    A@{ shape: trap-t, label: \"Manual operation\" }",
+    "origin": "syntax/flowchart.md",
+    "index": 33
+  },
+  {
+    "family": "flowchart",
+    "source": "flowchart TD\n    A@{ shape: dbl-circ, label: \"Stop\" }",
+    "origin": "syntax/flowchart.md",
+    "index": 34
+  },
+  {
+    "family": "flowchart",
+    "source": "flowchart TD\n    A@{ shape: text, label: \"This is a text block\" }",
+    "origin": "syntax/flowchart.md",
+    "index": 35
+  },
+  {
+    "family": "flowchart",
+    "source": "flowchart TD\n    A@{ shape: notch-rect, label: \"Card\" }",
+    "origin": "syntax/flowchart.md",
+    "index": 36
+  },
+  {
+    "family": "flowchart",
+    "source": "flowchart TD\n    A@{ shape: lin-rect, label: \"Lined process\" }",
+    "origin": "syntax/flowchart.md",
+    "index": 37
+  },
+  {
+    "family": "flowchart",
+    "source": "flowchart TD\n    A@{ shape: sm-circ, label: \"Small start\" }",
+    "origin": "syntax/flowchart.md",
+    "index": 38
+  },
+  {
+    "family": "flowchart",
+    "source": "flowchart TD\n    A@{ shape: framed-circle, label: \"Stop\" }",
+    "origin": "syntax/flowchart.md",
+    "index": 39
+  },
+  {
+    "family": "flowchart",
+    "source": "flowchart TD\n    A@{ shape: fork, label: \"Fork or Join\" }",
+    "origin": "syntax/flowchart.md",
+    "index": 40
+  },
+  {
+    "family": "flowchart",
+    "source": "flowchart TD\n    A@{ shape: hourglass, label: \"Collate\" }",
+    "origin": "syntax/flowchart.md",
+    "index": 41
+  },
+  {
+    "family": "flowchart",
+    "source": "flowchart TD\n    A@{ shape: comment, label: \"Comment\" }",
+    "origin": "syntax/flowchart.md",
+    "index": 42
+  },
+  {
+    "family": "flowchart",
+    "source": "flowchart TD\n    A@{ shape: brace-r, label: \"Comment\" }",
+    "origin": "syntax/flowchart.md",
+    "index": 43
+  },
+  {
+    "family": "flowchart",
+    "source": "flowchart TD\n    A@{ shape: braces, label: \"Comment\" }",
+    "origin": "syntax/flowchart.md",
+    "index": 44
+  },
+  {
+    "family": "flowchart",
+    "source": "flowchart TD\n    A@{ shape: bolt, label: \"Communication link\" }",
+    "origin": "syntax/flowchart.md",
+    "index": 45
+  },
+  {
+    "family": "flowchart",
+    "source": "flowchart TD\n    A@{ shape: doc, label: \"Document\" }",
+    "origin": "syntax/flowchart.md",
+    "index": 46
+  },
+  {
+    "family": "flowchart",
+    "source": "flowchart TD\n    A@{ shape: delay, label: \"Delay\" }",
+    "origin": "syntax/flowchart.md",
+    "index": 47
+  },
+  {
+    "family": "flowchart",
+    "source": "flowchart TD\n    A@{ shape: das, label: \"Direct access storage\" }",
+    "origin": "syntax/flowchart.md",
+    "index": 48
+  },
+  {
+    "family": "flowchart",
+    "source": "flowchart TD\n    A@{ shape: lin-cyl, label: \"Disk storage\" }",
+    "origin": "syntax/flowchart.md",
+    "index": 49
+  },
+  {
+    "family": "flowchart",
+    "source": "flowchart TD\n    A@{ shape: curv-trap, label: \"Display\" }",
+    "origin": "syntax/flowchart.md",
+    "index": 50
+  },
+  {
+    "family": "flowchart",
+    "source": "flowchart TD\n    A@{ shape: div-rect, label: \"Divided process\" }",
+    "origin": "syntax/flowchart.md",
+    "index": 51
+  },
+  {
+    "family": "flowchart",
+    "source": "flowchart TD\n    A@{ shape: tri, label: \"Extract\" }",
+    "origin": "syntax/flowchart.md",
+    "index": 52
+  },
+  {
+    "family": "flowchart",
+    "source": "flowchart TD\n    A@{ shape: win-pane, label: \"Internal storage\" }",
+    "origin": "syntax/flowchart.md",
+    "index": 53
+  },
+  {
+    "family": "flowchart",
+    "source": "flowchart TD\n    A@{ shape: f-circ, label: \"Junction\" }",
+    "origin": "syntax/flowchart.md",
+    "index": 54
+  },
+  {
+    "family": "flowchart",
+    "source": "flowchart TD\n    A@{ shape: lin-doc, label: \"Lined document\" }",
+    "origin": "syntax/flowchart.md",
+    "index": 55
+  },
+  {
+    "family": "flowchart",
+    "source": "flowchart TD\n    A@{ shape: notch-pent, label: \"Loop limit\" }",
+    "origin": "syntax/flowchart.md",
+    "index": 56
+  },
+  {
+    "family": "flowchart",
+    "source": "flowchart TD\n    A@{ shape: flip-tri, label: \"Manual file\" }",
+    "origin": "syntax/flowchart.md",
+    "index": 57
+  },
+  {
+    "family": "flowchart",
+    "source": "flowchart TD\n    A@{ shape: sl-rect, label: \"Manual input\" }",
+    "origin": "syntax/flowchart.md",
+    "index": 58
+  },
+  {
+    "family": "flowchart",
+    "source": "flowchart TD\n    A@{ shape: docs, label: \"Multiple documents\" }",
+    "origin": "syntax/flowchart.md",
+    "index": 59
+  },
+  {
+    "family": "flowchart",
+    "source": "flowchart TD\n    A@{ shape: processes, label: \"Multiple processes\" }",
+    "origin": "syntax/flowchart.md",
+    "index": 60
+  },
+  {
+    "family": "flowchart",
+    "source": "flowchart TD\n    A@{ shape: flag, label: \"Paper tape\" }",
+    "origin": "syntax/flowchart.md",
+    "index": 61
+  },
+  {
+    "family": "flowchart",
+    "source": "flowchart TD\n    A@{ shape: bow-rect, label: \"Stored data\" }",
+    "origin": "syntax/flowchart.md",
+    "index": 62
+  },
+  {
+    "family": "flowchart",
+    "source": "flowchart TD\n    A@{ shape: cross-circ, label: \"Summary\" }",
+    "origin": "syntax/flowchart.md",
+    "index": 63
+  },
+  {
+    "family": "flowchart",
+    "source": "flowchart TD\n    A@{ shape: tag-doc, label: \"Tagged document\" }",
+    "origin": "syntax/flowchart.md",
+    "index": 64
+  },
+  {
+    "family": "flowchart",
+    "source": "flowchart TD\n    A@{ shape: tag-rect, label: \"Tagged process\" }",
+    "origin": "syntax/flowchart.md",
+    "index": 65
+  },
+  {
+    "family": "flowchart",
+    "source": "flowchart TD\n    A@{ icon: \"fa:user\", form: \"square\", label: \"User Icon\", pos: \"t\", h: 60 }",
+    "origin": "syntax/flowchart.md",
+    "index": 66
+  },
+  {
+    "family": "flowchart",
+    "source": "flowchart TD\n  %% My image with a constrained aspect ratio\n  A@{ img: \"https://mermaid.js.org/favicon.svg\", label: \"My example image label\", pos: \"t\", h: 60, constraint: \"on\" }",
+    "origin": "syntax/flowchart.md",
+    "index": 67
+  },
+  {
+    "family": "flowchart",
+    "source": "flowchart LR\n    A-->B",
+    "origin": "syntax/flowchart.md",
+    "index": 68
+  },
+  {
+    "family": "flowchart",
+    "source": "flowchart LR\n    A --- B",
+    "origin": "syntax/flowchart.md",
+    "index": 69
+  },
+  {
+    "family": "flowchart",
+    "source": "flowchart LR\n    A-- This is the text! ---B",
+    "origin": "syntax/flowchart.md",
+    "index": 70
+  },
+  {
+    "family": "flowchart",
+    "source": "flowchart LR\n    A---|This is the text|B",
+    "origin": "syntax/flowchart.md",
+    "index": 71
+  },
+  {
+    "family": "flowchart",
+    "source": "flowchart LR\n    A-->|text|B",
+    "origin": "syntax/flowchart.md",
+    "index": 72
+  },
+  {
+    "family": "flowchart",
+    "source": "flowchart LR\n    A-- text -->B",
+    "origin": "syntax/flowchart.md",
+    "index": 73
+  },
+  {
+    "family": "flowchart",
+    "source": "flowchart LR\n   A-.->B;",
+    "origin": "syntax/flowchart.md",
+    "index": 74
+  },
+  {
+    "family": "flowchart",
+    "source": "flowchart LR\n   A-. text .-> B",
+    "origin": "syntax/flowchart.md",
+    "index": 75
+  },
+  {
+    "family": "flowchart",
+    "source": "flowchart LR\n   A ==> B",
+    "origin": "syntax/flowchart.md",
+    "index": 76
+  },
+  {
+    "family": "flowchart",
+    "source": "flowchart LR\n   A == text ==> B",
+    "origin": "syntax/flowchart.md",
+    "index": 77
+  },
+  {
+    "family": "flowchart",
+    "source": "flowchart LR\n    A ~~~ B",
+    "origin": "syntax/flowchart.md",
+    "index": 78
+  },
+  {
+    "family": "flowchart",
+    "source": "flowchart LR\n   A -- text --> B -- text2 --> C",
+    "origin": "syntax/flowchart.md",
+    "index": 79
+  },
+  {
+    "family": "flowchart",
+    "source": "flowchart LR\n   a --> b & c--> d",
+    "origin": "syntax/flowchart.md",
+    "index": 80
+  },
+  {
+    "family": "flowchart",
+    "source": "flowchart TB\n    A & B--> C & D",
+    "origin": "syntax/flowchart.md",
+    "index": 81
+  },
+  {
+    "family": "flowchart",
+    "source": "flowchart TB\n    A --> C\n    A --> D\n    B --> C\n    B --> D",
+    "origin": "syntax/flowchart.md",
+    "index": 82
+  },
+  {
+    "family": "flowchart",
+    "source": "flowchart LR\n  A e1@--> B",
+    "origin": "syntax/flowchart.md",
+    "index": 83
+  },
+  {
+    "family": "flowchart",
+    "source": "flowchart LR\n  A e1@==> B\n  e1@{ animate: true }",
+    "origin": "syntax/flowchart.md",
+    "index": 84
+  },
+  {
+    "family": "flowchart",
+    "source": "flowchart LR\n  A e1@--> B\n  e1@{ animation: fast }",
+    "origin": "syntax/flowchart.md",
+    "index": 85
+  },
+  {
+    "family": "flowchart",
+    "source": "flowchart LR\n  A e1@--> B\n  classDef animate stroke-dasharray: 9,5,stroke-dashoffset: 900,animation: dash 25s linear infinite;\n  class e1 animate",
+    "origin": "syntax/flowchart.md",
+    "index": 86
+  },
+  {
+    "family": "flowchart",
+    "source": "flowchart LR\n    A --o B",
+    "origin": "syntax/flowchart.md",
+    "index": 87
+  },
+  {
+    "family": "flowchart",
+    "source": "flowchart LR\n    A --x B",
+    "origin": "syntax/flowchart.md",
+    "index": 88
+  },
+  {
+    "family": "flowchart",
+    "source": "flowchart LR\n    A o--o B\n    B <--> C\n    C x--x D",
+    "origin": "syntax/flowchart.md",
+    "index": 89
+  },
+  {
+    "family": "flowchart",
+    "source": "flowchart TD\n    A[Start] --> B{Is it?}\n    B -->|Yes| C[OK]\n    C --> D[Rethink]\n    D --> B\n    B ---->|No| E[End]",
+    "origin": "syntax/flowchart.md",
+    "index": 90
+  },
+  {
+    "family": "flowchart",
+    "source": "flowchart TD\n    A[Start] --> B{Is it?}\n    B -- Yes --> C[OK]\n    C --> D[Rethink]\n    D --> B\n    B -- No ----> E[End]",
+    "origin": "syntax/flowchart.md",
+    "index": 91
+  },
+  {
+    "family": "flowchart",
+    "source": "flowchart LR\n    id1[\"This is the (text) in the box\"]",
+    "origin": "syntax/flowchart.md",
+    "index": 92
+  },
+  {
+    "family": "flowchart",
+    "source": "flowchart LR\n        A[\"A double quote:#quot;\"] --> B[\"A dec char:#9829;\"]",
+    "origin": "syntax/flowchart.md",
+    "index": 93
+  },
+  {
+    "family": "flowchart",
+    "source": "flowchart TB\n    c1-->a2\n    subgraph one\n    a1-->a2\n    end\n    subgraph two\n    b1-->b2\n    end\n    subgraph three\n    c1-->c2\n    end",
+    "origin": "syntax/flowchart.md",
+    "index": 94
+  },
+  {
+    "family": "flowchart",
+    "source": "flowchart TB\n    c1-->a2\n    subgraph ide1 [one]\n    a1-->a2\n    end",
+    "origin": "syntax/flowchart.md",
+    "index": 95
+  },
+  {
+    "family": "flowchart",
+    "source": "flowchart TB\n    c1-->a2\n    subgraph one\n    a1-->a2\n    end\n    subgraph two\n    b1-->b2\n    end\n    subgraph three\n    c1-->c2\n    end\n    one --> two\n    three --> two\n    two --> c2",
+    "origin": "syntax/flowchart.md",
+    "index": 96
+  },
+  {
+    "family": "flowchart",
+    "source": "flowchart LR\n  subgraph TOP\n    direction TB\n    subgraph B1\n        direction RL\n        i1 -->f1\n    end\n    subgraph B2\n        direction BT\n        i2 -->f2\n    end\n  end\n  A --> TOP --> B\n  B1 --> B2",
+    "origin": "syntax/flowchart.md",
+    "index": 97
+  },
+  {
+    "family": "flowchart",
+    "source": "flowchart LR\n    subgraph subgraph1\n        direction TB\n        top1[top] --> bottom1[bottom]\n    end\n    subgraph subgraph2\n        direction TB\n        top2[top] --> bottom2[bottom]\n    end\n    %% ^ These subgraphs are identical, except for the links to them:\n\n    %% Link *to* subgraph1: subgraph1 direction is maintained\n    outside --> subgraph1\n    %% Link *within* subgraph2:\n    %% subgraph2 inherits the direction of the top-level graph (LR)\n    outside ---> top2",
+    "origin": "syntax/flowchart.md",
+    "index": 98
+  },
+  {
+    "family": "flowchart",
+    "source": "---\nconfig:\n  htmlLabels: false\n---\nflowchart LR\nsubgraph \"One\"\n  a(\"`The **cat**\n  in the hat`\") -- \"edge label\" --> b{{\"`The **dog** in the hog`\"}}\nend\nsubgraph \"`**Two**`\"\n  c(\"`The **cat**\n  in the hat`\") -- \"`Bold **edge label**`\" --> d(\"The dog in the hog\")\nend",
+    "origin": "syntax/flowchart.md",
+    "index": 99
+  },
+  {
+    "family": "flowchart",
+    "source": "flowchart LR\n    A-->B\n    B-->C\n    C-->D\n    click A callback \"Tooltip for a callback\"\n    click B \"https://www.github.com\" \"This is a tooltip for a link\"\n    click C call callback() \"Tooltip for a callback\"\n    click D href \"https://www.github.com\" \"This is a tooltip for a link\"",
+    "origin": "syntax/flowchart.md",
+    "index": 100
+  },
+  {
+    "family": "flowchart",
+    "source": "flowchart LR\n    A-->B\n    B-->C\n    C-->D\n    D-->E\n    click A \"https://www.github.com\" _blank\n    click B \"https://www.github.com\" \"Open this in a new tab\" _blank\n    click C href \"https://www.github.com\" _blank\n    click D href \"https://www.github.com\" \"Open this in a new tab\" _blank",
+    "origin": "syntax/flowchart.md",
+    "index": 101
+  },
+  {
+    "family": "flowchart",
+    "source": "flowchart LR\n%% this is a comment A -- text --> B{node}\n   A -- text --> B -- text2 --> C",
+    "origin": "syntax/flowchart.md",
+    "index": 102
+  },
+  {
+    "family": "flowchart",
+    "source": "flowchart LR\n    A e1@==> B\n    A e2@--> C\n    e1@{ curve: linear }\n    e2@{ curve: natural }",
+    "origin": "syntax/flowchart.md",
+    "index": 103
+  },
+  {
+    "family": "flowchart",
+    "source": "flowchart LR\n    id1(Start)-->id2(Stop)\n    style id1 fill:#f9f,stroke:#333,stroke-width:4px\n    style id2 fill:#bbf,stroke:#f66,stroke-width:2px,color:#fff,stroke-dasharray: 5 5",
+    "origin": "syntax/flowchart.md",
+    "index": 104
+  },
+  {
+    "family": "flowchart",
+    "source": "flowchart LR\n    A:::someclass --> B\n    classDef someclass fill:#f96",
+    "origin": "syntax/flowchart.md",
+    "index": 105
+  },
+  {
+    "family": "flowchart",
+    "source": "flowchart LR\n    A:::foo & B:::bar --> C:::foobar\n    classDef foo stroke:#f00\n    classDef bar stroke:#0f0\n    classDef foobar stroke:#00f",
+    "origin": "syntax/flowchart.md",
+    "index": 106
+  },
+  {
+    "family": "flowchart",
+    "source": "flowchart LR\n    A:::myStyle --> B\n    classDef myStyle fill:#ff0000,stroke:#ffff00,stroke-width:4px",
+    "origin": "syntax/flowchart.md",
+    "index": 107
+  },
+  {
+    "family": "flowchart",
+    "source": "flowchart TD\n    B[\"fa:fa-twitter for peace\"]\n    B-->C[fa:fa-ban forbidden]\n    B-->D(fa:fa-spinner)\n    B-->E(A fa:fa-camera-retro perhaps?)",
+    "origin": "syntax/flowchart.md",
+    "index": 108
+  },
+  {
+    "family": "flowchart",
+    "source": "flowchart TD\n    B[\"fa:fa-twitter for peace\"]\n    B-->C[\"fab:fa-truck-bold a custom icon\"]",
+    "origin": "syntax/flowchart.md",
+    "index": 109
+  },
+  {
+    "family": "flowchart",
+    "source": "flowchart LR\n    A[Hard edge] -->|Link text| B(Round edge)\n    B --> C{Decision}\n    C -->|One| D[Result one]\n    C -->|Two| E[Result two]",
+    "origin": "syntax/flowchart.md",
+    "index": 110
+  },
+  {
+    "family": "state",
+    "source": "---\ntitle: Simple sample\n---\nstateDiagram-v2\n    [*] --> Still\n    Still --> [*]\n\n    Still --> Moving\n    Moving --> Still\n    Moving --> Crash\n    Crash --> [*]",
+    "origin": "syntax/stateDiagram.md",
+    "index": 0
+  },
+  {
+    "family": "state",
+    "source": "stateDiagram\n    [*] --> Still\n    Still --> [*]\n\n    Still --> Moving\n    Moving --> Still\n    Moving --> Crash\n    Crash --> [*]",
+    "origin": "syntax/stateDiagram.md",
+    "index": 1
+  },
+  {
+    "family": "state",
+    "source": "stateDiagram-v2\n    stateId",
+    "origin": "syntax/stateDiagram.md",
+    "index": 2
+  },
+  {
+    "family": "state",
+    "source": "stateDiagram-v2\n    state \"This is a state description\" as s2",
+    "origin": "syntax/stateDiagram.md",
+    "index": 3
+  },
+  {
+    "family": "state",
+    "source": "stateDiagram-v2\n    s2 : This is a state description",
+    "origin": "syntax/stateDiagram.md",
+    "index": 4
+  },
+  {
+    "family": "state",
+    "source": "stateDiagram-v2\n    s1 --> s2",
+    "origin": "syntax/stateDiagram.md",
+    "index": 5
+  },
+  {
+    "family": "state",
+    "source": "stateDiagram-v2\n    s1 --> s2: A transition",
+    "origin": "syntax/stateDiagram.md",
+    "index": 6
+  },
+  {
+    "family": "state",
+    "source": "stateDiagram-v2\n    [*] --> s1\n    s1 --> [*]",
+    "origin": "syntax/stateDiagram.md",
+    "index": 7
+  },
+  {
+    "family": "state",
+    "source": "stateDiagram-v2\n    [*] --> First\n    state First {\n        [*] --> second\n        second --> [*]\n    }\n\n    [*] --> NamedComposite\n    NamedComposite: Another Composite\n    state NamedComposite {\n        [*] --> namedSimple\n        namedSimple --> [*]\n        namedSimple: Another simple\n    }",
+    "origin": "syntax/stateDiagram.md",
+    "index": 8
+  },
+  {
+    "family": "state",
+    "source": "stateDiagram-v2\n    [*] --> First\n\n    state First {\n        [*] --> Second\n\n        state Second {\n            [*] --> second\n            second --> Third\n\n            state Third {\n                [*] --> third\n                third --> [*]\n            }\n        }\n    }",
+    "origin": "syntax/stateDiagram.md",
+    "index": 9
+  },
+  {
+    "family": "state",
+    "source": "stateDiagram-v2\n    [*] --> First\n    First --> Second\n    First --> Third\n\n    state First {\n        [*] --> fir\n        fir --> [*]\n    }\n    state Second {\n        [*] --> sec\n        sec --> [*]\n    }\n    state Third {\n        [*] --> thi\n        thi --> [*]\n    }",
+    "origin": "syntax/stateDiagram.md",
+    "index": 10
+  },
+  {
+    "family": "state",
+    "source": "stateDiagram-v2\n    state if_state <<choice>>\n    [*] --> IsPositive\n    IsPositive --> if_state\n    if_state --> False: if n < 0\n    if_state --> True : if n >= 0",
+    "origin": "syntax/stateDiagram.md",
+    "index": 11
+  },
+  {
+    "family": "state",
+    "source": "stateDiagram-v2\n    state fork_state <<fork>>\n      [*] --> fork_state\n      fork_state --> State2\n      fork_state --> State3\n\n      state join_state <<join>>\n      State2 --> join_state\n      State3 --> join_state\n      join_state --> State4\n      State4 --> [*]",
+    "origin": "syntax/stateDiagram.md",
+    "index": 12
+  },
+  {
+    "family": "state",
+    "source": "stateDiagram-v2\n        State1: The state with a note\n        note right of State1\n            Important information! You can write\n            notes.\n        end note\n        State1 --> State2\n        note left of State2 : This is the note to the left.",
+    "origin": "syntax/stateDiagram.md",
+    "index": 13
+  },
+  {
+    "family": "state",
+    "source": "stateDiagram-v2\n    [*] --> Active\n\n    state Active {\n        [*] --> NumLockOff\n        NumLockOff --> NumLockOn : EvNumLockPressed\n        NumLockOn --> NumLockOff : EvNumLockPressed\n        --\n        [*] --> CapsLockOff\n        CapsLockOff --> CapsLockOn : EvCapsLockPressed\n        CapsLockOn --> CapsLockOff : EvCapsLockPressed\n        --\n        [*] --> ScrollLockOff\n        ScrollLockOff --> ScrollLockOn : EvScrollLockPressed\n        ScrollLockOn --> ScrollLockOff : EvScrollLockPressed\n    }",
+    "origin": "syntax/stateDiagram.md",
+    "index": 14
+  },
+  {
+    "family": "state",
+    "source": "stateDiagram\n    direction LR\n    [*] --> A\n    A --> B\n    B --> C\n    state B {\n      direction LR\n      a --> b\n    }\n    B --> D",
+    "origin": "syntax/stateDiagram.md",
+    "index": 15
+  },
+  {
+    "family": "state",
+    "source": "stateDiagram-v2\n    [*] --> Still\n    Still --> [*]\n%% this is a comment\n    Still --> Moving\n    Moving --> Still %% another comment\n    Moving --> Crash\n    Crash --> [*]",
+    "origin": "syntax/stateDiagram.md",
+    "index": 16
+  },
+  {
+    "family": "state",
+    "source": "stateDiagram\n   direction TB\n\n   accTitle: This is the accessible title\n   accDescr: This is an accessible description\n\n   classDef notMoving fill:white\n   classDef movement font-style:italic\n   classDef badBadEvent fill:#f00,color:white,font-weight:bold,stroke-width:2px,stroke:yellow\n\n   [*]--> Still\n   Still --> [*]\n   Still --> Moving\n   Moving --> Still\n   Moving --> Crash\n   Crash --> [*]\n\n   class Still notMoving\n   class Moving, Crash movement\n   class Crash badBadEvent\n   class end badBadEvent",
+    "origin": "syntax/stateDiagram.md",
+    "index": 17
+  },
+  {
+    "family": "state",
+    "source": "stateDiagram\n   direction TB\n\n   accTitle: This is the accessible title\n   accDescr: This is an accessible description\n\n   classDef notMoving fill:white\n   classDef movement font-style:italic;\n   classDef badBadEvent fill:#f00,color:white,font-weight:bold,stroke-width:2px,stroke:yellow\n\n   [*] --> Still:::notMoving\n   Still --> [*]\n   Still --> Moving:::movement\n   Moving --> Still\n   Moving --> Crash:::movement\n   Crash:::badBadEvent --> [*]",
+    "origin": "syntax/stateDiagram.md",
+    "index": 18
+  },
+  {
+    "family": "state",
+    "source": "stateDiagram\n    classDef yourState font-style:italic,font-weight:bold,fill:white\n\n    yswsii: Your state with spaces in it\n    [*] --> yswsii:::yourState\n    [*] --> SomeOtherState\n    SomeOtherState --> YetAnotherState\n    yswsii --> YetAnotherState\n    YetAnotherState --> [*]",
+    "origin": "syntax/stateDiagram.md",
+    "index": 19
+  },
+  {
+    "family": "sequence",
+    "source": "sequenceDiagram\n    Alice->>John: Hello John, how are you?\n    John-->>Alice: Great!\n    Alice-)John: See you later!",
+    "origin": "syntax/sequenceDiagram.md",
+    "index": 0
+  },
+  {
+    "family": "sequence",
+    "source": "sequenceDiagram\n    participant Alice\n    participant Bob\n    Bob->>Alice: Hi Alice\n    Alice->>Bob: Hi Bob",
+    "origin": "syntax/sequenceDiagram.md",
+    "index": 1
+  },
+  {
+    "family": "sequence",
+    "source": "sequenceDiagram\n    actor Alice\n    actor Bob\n    Alice->>Bob: Hi Bob\n    Bob->>Alice: Hi Alice",
+    "origin": "syntax/sequenceDiagram.md",
+    "index": 2
+  },
+  {
+    "family": "sequence",
+    "source": "sequenceDiagram\n    participant Alice@{ \"type\" : \"boundary\" }\n    participant Bob\n    Alice->>Bob: Request from boundary\n    Bob->>Alice: Response to boundary",
+    "origin": "syntax/sequenceDiagram.md",
+    "index": 3
+  },
+  {
+    "family": "sequence",
+    "source": "sequenceDiagram\n    participant Alice@{ \"type\" : \"control\" }\n    participant Bob\n    Alice->>Bob: Control request\n    Bob->>Alice: Control response",
+    "origin": "syntax/sequenceDiagram.md",
+    "index": 4
+  },
+  {
+    "family": "sequence",
+    "source": "sequenceDiagram\n    participant Alice@{ \"type\" : \"entity\" }\n    participant Bob\n    Alice->>Bob: Entity request\n    Bob->>Alice: Entity response",
+    "origin": "syntax/sequenceDiagram.md",
+    "index": 5
+  },
+  {
+    "family": "sequence",
+    "source": "sequenceDiagram\n    participant Alice@{ \"type\" : \"database\" }\n    participant Bob\n    Alice->>Bob: DB query\n    Bob->>Alice: DB result",
+    "origin": "syntax/sequenceDiagram.md",
+    "index": 6
+  },
+  {
+    "family": "sequence",
+    "source": "sequenceDiagram\n    participant Alice@{ \"type\" : \"collections\" }\n    participant Bob\n    Alice->>Bob: Collections request\n    Bob->>Alice: Collections response",
+    "origin": "syntax/sequenceDiagram.md",
+    "index": 7
+  },
+  {
+    "family": "sequence",
+    "source": "sequenceDiagram\n    participant Alice@{ \"type\" : \"queue\" }\n    participant Bob\n    Alice->>Bob: Queue message\n    Bob->>Alice: Queue response",
+    "origin": "syntax/sequenceDiagram.md",
+    "index": 8
+  },
+  {
+    "family": "sequence",
+    "source": "sequenceDiagram\n    participant A as Alice\n    participant J as John\n    A->>J: Hello John, how are you?\n    J->>A: Great!",
+    "origin": "syntax/sequenceDiagram.md",
+    "index": 9
+  },
+  {
+    "family": "sequence",
+    "source": "sequenceDiagram\n    participant API@{ \"type\": \"boundary\" } as Public API\n    actor DB@{ \"type\": \"database\" } as User Database\n    participant Svc@{ \"type\": \"control\" } as Auth Service\n    API->>Svc: Authenticate\n    Svc->>DB: Query user\n    DB-->>Svc: User data\n    Svc-->>API: Token",
+    "origin": "syntax/sequenceDiagram.md",
+    "index": 10
+  },
+  {
+    "family": "sequence",
+    "source": "sequenceDiagram\n    participant API@{ \"type\": \"boundary\", \"alias\": \"Public API\" }\n    participant Auth@{ \"type\": \"control\", \"alias\": \"Auth Service\" }\n    participant DB@{ \"type\": \"database\", \"alias\": \"User Database\" }\n    API->>Auth: Login request\n    Auth->>DB: Query user\n    DB-->>Auth: User data\n    Auth-->>API: Access token",
+    "origin": "syntax/sequenceDiagram.md",
+    "index": 11
+  },
+  {
+    "family": "sequence",
+    "source": "sequenceDiagram\n    participant API@{ \"type\": \"boundary\", \"alias\": \"Internal Name\" } as External Name\n    participant DB@{ \"type\": \"database\", \"alias\": \"Internal DB\" } as External DB\n    API->>DB: Query\n    DB-->>API: Result",
+    "origin": "syntax/sequenceDiagram.md",
+    "index": 12
+  },
+  {
+    "family": "sequence",
+    "source": "sequenceDiagram\n    Alice->>Bob: Hello Bob, how are you ?\n    Bob->>Alice: Fine, thank you. And you?\n    create participant Carl\n    Alice->>Carl: Hi Carl!\n    create actor D as Donald\n    Carl->>D: Hi!\n    destroy Carl\n    Alice-xCarl: We are too many\n    destroy Bob\n    Bob->>Alice: I agree",
+    "origin": "syntax/sequenceDiagram.md",
+    "index": 13
+  },
+  {
+    "family": "sequence",
+    "source": "sequenceDiagram\n    box Purple Alice & John\n    participant A\n    participant J\n    end\n    box Another Group\n    participant B\n    participant C\n    end\n    A->>J: Hello John, how are you?\n    J->>A: Great!\n    A->>B: Hello Bob, how is Charley?\n    B->>C: Hello Charley, how are you?",
+    "origin": "syntax/sequenceDiagram.md",
+    "index": 14
+  },
+  {
+    "family": "sequence",
+    "source": "sequenceDiagram\n    participant Alice\n    participant John\n    Alice->>()John: Hello John\n    Alice()->>John: How are you?\n    John()->>()Alice: Great!",
+    "origin": "syntax/sequenceDiagram.md",
+    "index": 15
+  },
+  {
+    "family": "sequence",
+    "source": "sequenceDiagram\n    Alice->>John: Hello John, how are you?\n    activate John\n    John-->>Alice: Great!\n    deactivate John",
+    "origin": "syntax/sequenceDiagram.md",
+    "index": 16
+  },
+  {
+    "family": "sequence",
+    "source": "sequenceDiagram\n    Alice->>+John: Hello John, how are you?\n    John-->>-Alice: Great!",
+    "origin": "syntax/sequenceDiagram.md",
+    "index": 17
+  },
+  {
+    "family": "sequence",
+    "source": "sequenceDiagram\n    Alice->>+John: Hello John, how are you?\n    Alice->>+John: John, can you hear me?\n    John-->>-Alice: Hi Alice, I can hear you!\n    John-->>-Alice: I feel great!",
+    "origin": "syntax/sequenceDiagram.md",
+    "index": 18
+  },
+  {
+    "family": "sequence",
+    "source": "sequenceDiagram\n    participant John\n    Note right of John: Text in note",
+    "origin": "syntax/sequenceDiagram.md",
+    "index": 19
+  },
+  {
+    "family": "sequence",
+    "source": "sequenceDiagram\n    Alice->John: Hello John, how are you?\n    Note over Alice,John: A typical interaction",
+    "origin": "syntax/sequenceDiagram.md",
+    "index": 20
+  },
+  {
+    "family": "sequence",
+    "source": "sequenceDiagram\n    Alice->John: Hello John,<br/>how are you?\n    Note over Alice,John: A typical interaction<br/>But now in two lines",
+    "origin": "syntax/sequenceDiagram.md",
+    "index": 21
+  },
+  {
+    "family": "sequence",
+    "source": "sequenceDiagram\n    participant Alice as Alice<br/>Johnson\n    Alice->John: Hello John,<br/>how are you?\n    Note over Alice,John: A typical interaction<br/>But now in two lines",
+    "origin": "syntax/sequenceDiagram.md",
+    "index": 22
+  },
+  {
+    "family": "sequence",
+    "source": "sequenceDiagram\n    Alice->John: Hello John, how are you?\n    loop Every minute\n        John-->Alice: Great!\n    end",
+    "origin": "syntax/sequenceDiagram.md",
+    "index": 23
+  },
+  {
+    "family": "sequence",
+    "source": "sequenceDiagram\n    Alice->>Bob: Hello Bob, how are you?\n    alt is sick\n        Bob->>Alice: Not so good :(\n    else is well\n        Bob->>Alice: Feeling fresh like a daisy\n    end\n    opt Extra response\n        Bob->>Alice: Thanks for asking\n    end",
+    "origin": "syntax/sequenceDiagram.md",
+    "index": 24
+  },
+  {
+    "family": "sequence",
+    "source": "sequenceDiagram\n    par Alice to Bob\n        Alice->>Bob: Hello guys!\n    and Alice to John\n        Alice->>John: Hello guys!\n    end\n    Bob-->>Alice: Hi Alice!\n    John-->>Alice: Hi Alice!",
+    "origin": "syntax/sequenceDiagram.md",
+    "index": 25
+  },
+  {
+    "family": "sequence",
+    "source": "sequenceDiagram\n    par Alice to Bob\n        Alice->>Bob: Go help John\n    and Alice to John\n        Alice->>John: I want this done today\n        par John to Charlie\n            John->>Charlie: Can we do this today?\n        and John to Diana\n            John->>Diana: Can you help us today?\n        end\n    end",
+    "origin": "syntax/sequenceDiagram.md",
+    "index": 26
+  },
+  {
+    "family": "sequence",
+    "source": "sequenceDiagram\n    critical Establish a connection to the DB\n        Service-->DB: connect\n    option Network timeout\n        Service-->Service: Log error\n    option Credentials rejected\n        Service-->Service: Log different error\n    end",
+    "origin": "syntax/sequenceDiagram.md",
+    "index": 27
+  },
+  {
+    "family": "sequence",
+    "source": "sequenceDiagram\n    critical Establish a connection to the DB\n        Service-->DB: connect\n    end",
+    "origin": "syntax/sequenceDiagram.md",
+    "index": 28
+  },
+  {
+    "family": "sequence",
+    "source": "sequenceDiagram\n    Consumer-->API: Book something\n    API-->BookingService: Start booking process\n    break when the booking process fails\n        API-->Consumer: show failure\n    end\n    API-->BillingService: Start billing process",
+    "origin": "syntax/sequenceDiagram.md",
+    "index": 29
+  },
+  {
+    "family": "sequence",
+    "source": "sequenceDiagram\n    participant Alice\n    participant John\n\n    rect rgb(191, 223, 255)\n    note right of Alice: Alice calls John.\n    Alice->>+John: Hello John, how are you?\n    rect rgb(200, 150, 255)\n    Alice->>+John: John, can you hear me?\n    John-->>-Alice: Hi Alice, I can hear you!\n    end\n    John-->>-Alice: I feel great!\n    end\n    Alice ->>+ John: Did you want to go to the game tonight?\n    John -->>- Alice: Yeah! See you there.",
+    "origin": "syntax/sequenceDiagram.md",
+    "index": 30
+  },
+  {
+    "family": "sequence",
+    "source": "sequenceDiagram\n    Alice->>John: Hello John, how are you?\n    %% this is a comment\n    John-->>Alice: Great!",
+    "origin": "syntax/sequenceDiagram.md",
+    "index": 31
+  },
+  {
+    "family": "sequence",
+    "source": "sequenceDiagram\n    A->>B: I #9829; you!\n    B->>A: I #9829; you #infin; times more!",
+    "origin": "syntax/sequenceDiagram.md",
+    "index": 32
+  },
+  {
+    "family": "sequence",
+    "source": "sequenceDiagram\n    autonumber\n    Alice->>John: Hello John, how are you?\n    loop HealthCheck\n        John->>John: Fight against hypochondria\n    end\n    Note right of John: Rational thoughts!\n    John-->>Alice: Great!\n    John->>Bob: How about you?\n    Bob-->>John: Jolly good!",
+    "origin": "syntax/sequenceDiagram.md",
+    "index": 33
+  },
+  {
+    "family": "sequence",
+    "source": "sequenceDiagram\n    participant Alice\n    participant John\n    link Alice: Dashboard @ https://dashboard.contoso.com/alice\n    link Alice: Wiki @ https://wiki.contoso.com/alice\n    link John: Dashboard @ https://dashboard.contoso.com/john\n    link John: Wiki @ https://wiki.contoso.com/john\n    Alice->>John: Hello John, how are you?\n    John-->>Alice: Great!\n    Alice-)John: See you later!",
+    "origin": "syntax/sequenceDiagram.md",
+    "index": 34
+  },
+  {
+    "family": "sequence",
+    "source": "sequenceDiagram\n    participant Alice\n    participant John\n    links Alice: {\"Dashboard\": \"https://dashboard.contoso.com/alice\", \"Wiki\": \"https://wiki.contoso.com/alice\"}\n    links John: {\"Dashboard\": \"https://dashboard.contoso.com/john\", \"Wiki\": \"https://wiki.contoso.com/john\"}\n    Alice->>John: Hello John, how are you?\n    John-->>Alice: Great!\n    Alice-)John: See you later!",
+    "origin": "syntax/sequenceDiagram.md",
+    "index": 35
+  },
+  {
+    "family": "class",
+    "source": "---\ntitle: Animal example\n---\nclassDiagram\n    note \"From Duck till Zebra\"\n    Animal <|-- Duck\n    note for Duck \"can fly<br>can swim<br>can dive<br>can help in debugging\"\n    Animal <|-- Fish\n    Animal <|-- Zebra\n    Animal : +int age\n    Animal : +String gender\n    Animal: +isMammal()\n    Animal: +mate()\n    class Duck{\n        +String beakColor\n        +swim()\n        +quack()\n    }\n    class Fish{\n        -int sizeInFeet\n        -canEat()\n    }\n    class Zebra{\n        +bool is_wild\n        +run()\n    }",
+    "origin": "syntax/classDiagram.md",
+    "index": 0
+  },
+  {
+    "family": "class",
+    "source": "---\ntitle: Bank example\n---\nclassDiagram\n    class BankAccount\n    BankAccount : +String owner\n    BankAccount : +Bigdecimal balance\n    BankAccount : +deposit(amount)\n    BankAccount : +withdrawal(amount)",
+    "origin": "syntax/classDiagram.md",
+    "index": 1
+  },
+  {
+    "family": "class",
+    "source": "classDiagram\n    class Animal\n    Vehicle <|-- Car",
+    "origin": "syntax/classDiagram.md",
+    "index": 2
+  },
+  {
+    "family": "class",
+    "source": "classDiagram\n    class Animal[\"Animal with a label\"]\n    class Car[\"Car with *! symbols\"]\n    Animal --> Car",
+    "origin": "syntax/classDiagram.md",
+    "index": 3
+  },
+  {
+    "family": "class",
+    "source": "classDiagram\n    class `Animal Class!`\n    class `Car Class`\n    `Animal Class!` --> `Car Class`",
+    "origin": "syntax/classDiagram.md",
+    "index": 4
+  },
+  {
+    "family": "class",
+    "source": "classDiagram\nclass BankAccount\nBankAccount : +String owner\nBankAccount : +BigDecimal balance\nBankAccount : +deposit(amount)\nBankAccount : +withdrawal(amount)",
+    "origin": "syntax/classDiagram.md",
+    "index": 5
+  },
+  {
+    "family": "class",
+    "source": "classDiagram\nclass BankAccount{\n    +String owner\n    +BigDecimal balance\n    +deposit(amount)\n    +withdrawal(amount)\n}",
+    "origin": "syntax/classDiagram.md",
+    "index": 6
+  },
+  {
+    "family": "class",
+    "source": "classDiagram\nclass BankAccount{\n    +String owner\n    +BigDecimal balance\n    +deposit(amount) bool\n    +withdrawal(amount) int\n}",
+    "origin": "syntax/classDiagram.md",
+    "index": 7
+  },
+  {
+    "family": "class",
+    "source": "classDiagram\nclass Square~Shape~{\n    int id\n    List~int~ position\n    setPoints(List~int~ points)\n    getPoints() List~int~\n}\n\nSquare : -List~string~ messages\nSquare : +setMessages(List~string~ messages)\nSquare : +getMessages() List~string~\nSquare : +getDistanceMatrix() List~List~int~~",
+    "origin": "syntax/classDiagram.md",
+    "index": 8
+  },
+  {
+    "family": "class",
+    "source": "classDiagram\nclassA <|-- classB\nclassC *-- classD\nclassE o-- classF\nclassG <-- classH\nclassI -- classJ\nclassK <.. classL\nclassM <|.. classN\nclassO .. classP",
+    "origin": "syntax/classDiagram.md",
+    "index": 9
+  },
+  {
+    "family": "class",
+    "source": "classDiagram\nclassA --|> classB : Inheritance\nclassC --* classD : Composition\nclassE --o classF : Aggregation\nclassG --> classH : Association\nclassI -- classJ : Link(Solid)\nclassK ..> classL : Dependency\nclassM ..|> classN : Realization\nclassO .. classP : Link(Dashed)",
+    "origin": "syntax/classDiagram.md",
+    "index": 10
+  },
+  {
+    "family": "class",
+    "source": "classDiagram\nclassA <|-- classB : implements\nclassC *-- classD : composition\nclassE o-- classF : aggregation",
+    "origin": "syntax/classDiagram.md",
+    "index": 11
+  },
+  {
+    "family": "class",
+    "source": "classDiagram\n    Animal <|--|> Zebra",
+    "origin": "syntax/classDiagram.md",
+    "index": 12
+  },
+  {
+    "family": "class",
+    "source": "classDiagram\n  bar ()-- foo",
+    "origin": "syntax/classDiagram.md",
+    "index": 13
+  },
+  {
+    "family": "class",
+    "source": "classDiagram\n  class Class01 {\n    int amount\n    draw()\n  }\n  Class01 --() bar\n  Class02 --() bar\n\n  foo ()-- Class01",
+    "origin": "syntax/classDiagram.md",
+    "index": 14
+  },
+  {
+    "family": "class",
+    "source": "classDiagram\nnamespace BaseShapes {\n    class Triangle\n    class Rectangle {\n      double width\n      double height\n    }\n}",
+    "origin": "syntax/classDiagram.md",
+    "index": 15
+  },
+  {
+    "family": "class",
+    "source": "classDiagram\n    namespace Auth[\"Authentication Service\"] {\n        class UserService {\n            +login()\n            +logout()\n        }\n    }",
+    "origin": "syntax/classDiagram.md",
+    "index": 16
+  },
+  {
+    "family": "class",
+    "source": "classDiagram\n    namespace Company.Engineering.Backend {\n        class Developer {\n            +writeCode()\n        }\n    }\n    namespace Company.Engineering.Frontend {\n        class Designer {\n            +createMockup()\n        }\n    }\n    namespace Company.Engineering {\n        class TechLead {\n            +planSprint()\n        }\n    }\n    TechLead --> Developer : leads\n    TechLead --> Designer : leads",
+    "origin": "syntax/classDiagram.md",
+    "index": 17
+  },
+  {
+    "family": "class",
+    "source": "classDiagram\n    namespace Platform {\n        namespace Auth {\n            class UserService {\n                +login()\n                +logout()\n            }\n        }\n        namespace Data {\n            class Repository {\n                +find()\n                +save()\n            }\n        }\n        class Gateway {\n            +route()\n        }\n    }\n    Gateway --> UserService : delegates\n    Gateway --> Repository : delegates",
+    "origin": "syntax/classDiagram.md",
+    "index": 18
+  },
+  {
+    "family": "class",
+    "source": "---\nconfig:\n  class:\n    hierarchicalNamespaces: false\n---\nclassDiagram\n    namespace Company.Engineering.Backend {\n        class Developer {\n            +writeCode()\n        }\n    }\n    namespace Company.Engineering.Frontend {\n        class Designer {\n            +createMockup()\n        }\n    }\n    namespace Company {\n        class CEO {\n            +makeDecisions()\n        }\n    }\n    CEO --> Developer : oversees\n    CEO --> Designer : oversees",
+    "origin": "syntax/classDiagram.md",
+    "index": 19
+  },
+  {
+    "family": "class",
+    "source": "classDiagram\n    Customer \"1\" --> \"*\" Ticket\n    Student \"1\" --> \"1..*\" Course\n    Galaxy --> \"many\" Star : Contains",
+    "origin": "syntax/classDiagram.md",
+    "index": 20
+  },
+  {
+    "family": "class",
+    "source": "classDiagram\n  class Shape <<interface>>",
+    "origin": "syntax/classDiagram.md",
+    "index": 21
+  },
+  {
+    "family": "class",
+    "source": "classDiagram\nclass Shape\n<<interface>> Shape\nShape : noOfVertices\nShape : draw()",
+    "origin": "syntax/classDiagram.md",
+    "index": 22
+  },
+  {
+    "family": "class",
+    "source": "classDiagram\nclass Shape{\n    <<interface>>\n    noOfVertices\n    draw()\n}\nclass Color{\n    <<enumeration>>\n    RED\n    BLUE\n    GREEN\n    WHITE\n    BLACK\n}",
+    "origin": "syntax/classDiagram.md",
+    "index": 23
+  },
+  {
+    "family": "class",
+    "source": "classDiagram\n%% This whole line is a comment classDiagram class Shape <<interface>>\nclass Shape{\n    <<interface>>\n    noOfVertices\n    draw()\n}",
+    "origin": "syntax/classDiagram.md",
+    "index": 24
+  },
+  {
+    "family": "class",
+    "source": "classDiagram\n  direction RL\n  class Student {\n    -idCard : IdCard\n  }\n  class IdCard{\n    -id : int\n    -name : string\n  }\n  class Bike{\n    -id : int\n    -name : string\n  }\n  Student \"1\" --o \"1\" IdCard : carries\n  Student \"1\" --o \"1\" Bike : rides",
+    "origin": "syntax/classDiagram.md",
+    "index": 25
+  },
+  {
+    "family": "class",
+    "source": "classDiagram\n    note \"This is a general note\"\n    note for MyClass \"This is a note for a class\"\n    class MyClass{\n    }",
+    "origin": "syntax/classDiagram.md",
+    "index": 26
+  },
+  {
+    "family": "class",
+    "source": "classDiagram\nclass Shape\nlink Shape \"https://www.github.com\" \"This is a tooltip for a link\"\nclass Shape2\nclick Shape2 href \"https://www.github.com\" \"This is a tooltip for a link\"",
+    "origin": "syntax/classDiagram.md",
+    "index": 27
+  },
+  {
+    "family": "class",
+    "source": "classDiagram\nclass Shape\ncallback Shape \"callbackFunction\" \"This is a tooltip for a callback\"\nclass Shape2\nclick Shape2 call callbackFunction() \"This is a tooltip for a callback\"",
+    "origin": "syntax/classDiagram.md",
+    "index": 28
+  },
+  {
+    "family": "class",
+    "source": "classDiagram\n    class Class01\n    class Class02\n    callback Class01 \"callbackFunction\" \"Callback tooltip\"\n    link Class02 \"https://www.github.com\" \"This is a link\"\n    class Class03\n    class Class04\n    click Class03 call callbackFunction() \"Callback tooltip\"\n    click Class04 href \"https://www.github.com\" \"This is a link\"",
+    "origin": "syntax/classDiagram.md",
+    "index": 29
+  },
+  {
+    "family": "class",
+    "source": "classDiagram\n  class Animal\n  class Mineral\n  style Animal fill:#f9f,stroke:#333,stroke-width:4px\n  style Mineral fill:#bbf,stroke:#f66,stroke-width:2px,color:#fff,stroke-dasharray: 5 5",
+    "origin": "syntax/classDiagram.md",
+    "index": 30
+  },
+  {
+    "family": "class",
+    "source": "classDiagram\n    class Animal:::someclass\n    classDef someclass fill:#f96",
+    "origin": "syntax/classDiagram.md",
+    "index": 31
+  },
+  {
+    "family": "class",
+    "source": "classDiagram\n    class Animal:::someclass {\n        -int sizeInFeet\n        -canEat()\n    }\n    classDef someclass fill:#f96",
+    "origin": "syntax/classDiagram.md",
+    "index": 32
+  },
+  {
+    "family": "class",
+    "source": "classDiagram\n  class Animal:::pink\n  class Mineral\n\n  classDef default fill:#f96,color:red\n  classDef pink color:#f9f",
+    "origin": "syntax/classDiagram.md",
+    "index": 33
+  },
+  {
+    "family": "class",
+    "source": "classDiagram\n    class Animal:::styleClass",
+    "origin": "syntax/classDiagram.md",
+    "index": 34
+  },
+  {
+    "family": "class",
+    "source": "---\n  config:\n    class:\n      hideEmptyMembersBox: true\n---\nclassDiagram\n  class Duck",
+    "origin": "syntax/classDiagram.md",
+    "index": 35
+  },
+  {
+    "family": "er",
+    "source": "---\ntitle: Order example\n---\nerDiagram\n    CUSTOMER ||--o{ ORDER : places\n    ORDER ||--|{ LINE-ITEM : contains\n    CUSTOMER }|..|{ DELIVERY-ADDRESS : uses",
+    "origin": "syntax/entityRelationshipDiagram.md",
+    "index": 0
+  },
+  {
+    "family": "er",
+    "source": "erDiagram\n    CUSTOMER ||--o{ ORDER : places\n    CUSTOMER {\n        string name\n        string custNumber\n        string sector\n    }\n    ORDER ||--|{ LINE-ITEM : contains\n    ORDER {\n        int orderNumber\n        string deliveryAddress\n    }\n    LINE-ITEM {\n        string productCode\n        int quantity\n        float pricePerUnit\n    }",
+    "origin": "syntax/entityRelationshipDiagram.md",
+    "index": 1
+  },
+  {
+    "family": "er",
+    "source": "erDiagram\n    \"This ❤ Unicode\"",
+    "origin": "syntax/entityRelationshipDiagram.md",
+    "index": 2
+  },
+  {
+    "family": "er",
+    "source": "erDiagram\n    \"This **is** _Markdown_\"",
+    "origin": "syntax/entityRelationshipDiagram.md",
+    "index": 3
+  },
+  {
+    "family": "er",
+    "source": "erDiagram\n    CAR ||--o{ NAMED-DRIVER : allows\n    PERSON }o..o{ NAMED-DRIVER : is",
+    "origin": "syntax/entityRelationshipDiagram.md",
+    "index": 4
+  },
+  {
+    "family": "er",
+    "source": "erDiagram\n    CAR 1 to zero or more NAMED-DRIVER : allows\n    PERSON many(0) optionally to 0+ NAMED-DRIVER : is",
+    "origin": "syntax/entityRelationshipDiagram.md",
+    "index": 5
+  },
+  {
+    "family": "er",
+    "source": "erDiagram\n    CAR ||--o{ NAMED-DRIVER : allows\n    CAR {\n        string registrationNumber\n        string make\n        string model\n    }\n    PERSON ||--o{ NAMED-DRIVER : is\n    PERSON {\n        string firstName\n        string lastName\n        int age\n    }",
+    "origin": "syntax/entityRelationshipDiagram.md",
+    "index": 6
+  },
+  {
+    "family": "er",
+    "source": "erDiagram\n    p[Person] {\n        string firstName\n        string lastName\n    }\n    a[\"Customer Account\"] {\n        string email\n    }\n    p ||--o| a : has",
+    "origin": "syntax/entityRelationshipDiagram.md",
+    "index": 7
+  },
+  {
+    "family": "er",
+    "source": "erDiagram\n    CAR ||--o{ NAMED-DRIVER : allows\n    CAR {\n        string registrationNumber PK\n        string make\n        string model\n        string[] parts\n    }\n    PERSON ||--o{ NAMED-DRIVER : is\n    PERSON {\n        string driversLicense PK \"The license #\"\n        string(99) firstName \"Only 99 characters are allowed\"\n        string lastName\n        string phone UK\n        int age\n    }\n    NAMED-DRIVER {\n        string carRegistrationNumber PK, FK\n        string driverLicence PK, FK\n    }\n    MANUFACTURER only one to zero or more CAR : makes",
+    "origin": "syntax/entityRelationshipDiagram.md",
+    "index": 8
+  },
+  {
+    "family": "er",
+    "source": "erDiagram\n    direction TB\n    CUSTOMER ||--o{ ORDER : places\n    CUSTOMER {\n        string name\n        string custNumber\n        string sector\n    }\n    ORDER ||--|{ LINE-ITEM : contains\n    ORDER {\n        int orderNumber\n        string deliveryAddress\n    }\n    LINE-ITEM {\n        string productCode\n        int quantity\n        float pricePerUnit\n    }",
+    "origin": "syntax/entityRelationshipDiagram.md",
+    "index": 9
+  },
+  {
+    "family": "er",
+    "source": "erDiagram\n    direction LR\n    CUSTOMER ||--o{ ORDER : places\n    CUSTOMER {\n        string name\n        string custNumber\n        string sector\n    }\n    ORDER ||--|{ LINE-ITEM : contains\n    ORDER {\n        int orderNumber\n        string deliveryAddress\n    }\n    LINE-ITEM {\n        string productCode\n        int quantity\n        float pricePerUnit\n    }",
+    "origin": "syntax/entityRelationshipDiagram.md",
+    "index": 10
+  },
+  {
+    "family": "er",
+    "source": "erDiagram\n    id1||--||id2 : label\n    style id1 fill:#f9f,stroke:#333,stroke-width:4px\n    style id2 fill:#bbf,stroke:#f66,stroke-width:2px,color:#fff,stroke-dasharray: 5 5",
+    "origin": "syntax/entityRelationshipDiagram.md",
+    "index": 11
+  },
+  {
+    "family": "er",
+    "source": "erDiagram\n    direction TB\n    CAR:::someclass {\n        string registrationNumber\n        string make\n        string model\n    }\n    PERSON:::someclass {\n        string firstName\n        string lastName\n        int age\n    }\n    HOUSE:::someclass\n\n    classDef someclass fill:#f96",
+    "origin": "syntax/entityRelationshipDiagram.md",
+    "index": 12
+  },
+  {
+    "family": "er",
+    "source": "erDiagram\n    CAR {\n        string registrationNumber\n        string make\n        string model\n    }\n    PERSON {\n        string firstName\n        string lastName\n        int age\n    }\n    PERSON:::foo ||--|| CAR : owns\n    PERSON o{--|| HOUSE:::bar : has\n\n    classDef foo stroke:#f00\n    classDef bar stroke:#0f0\n    classDef foobar stroke:#00f",
+    "origin": "syntax/entityRelationshipDiagram.md",
+    "index": 13
+  },
+  {
+    "family": "er",
+    "source": "erDiagram\n    CAR {\n        string registrationNumber\n        string make\n        string model\n    }\n    PERSON {\n        string firstName\n        string lastName\n        int age\n    }\n    PERSON:::foo ||--|| CAR : owns\n    PERSON o{--|| HOUSE:::bar : has\n\n    classDef default fill:#f9f,stroke-width:4px\n    classDef foo stroke:#f00\n    classDef bar stroke:#0f0\n    classDef foobar stroke:#00f",
+    "origin": "syntax/entityRelationshipDiagram.md",
+    "index": 14
+  },
+  {
+    "family": "er",
+    "source": "---\ntitle: Order example\nconfig:\n    layout: elk\n---\nerDiagram\n    CUSTOMER ||--o{ ORDER : places\n    ORDER ||--|{ LINE-ITEM : contains\n    CUSTOMER }|..|{ DELIVERY-ADDRESS : uses",
+    "origin": "syntax/entityRelationshipDiagram.md",
+    "index": 15
+  },
+  {
+    "family": "timeline",
+    "source": "timeline\n    title History of Social Media Platform\n    2002 : LinkedIn\n    2004 : Facebook\n         : Google\n    2005 : YouTube\n    2006 : Twitter",
+    "origin": "syntax/timeline.md",
+    "index": 0
+  },
+  {
+    "family": "timeline",
+    "source": "timeline\n    title History of Social Media Platform\n    2002 : LinkedIn\n    2004 : Facebook : Google\n    2005 : YouTube\n    2006 : Twitter",
+    "origin": "syntax/timeline.md",
+    "index": 1
+  },
+  {
+    "family": "timeline",
+    "source": "timeline\n    title Timeline of Industrial Revolution\n    section 17th-20th century\n        Industry 1.0 : Machinery, Water power, Steam <br>power\n        Industry 2.0 : Electricity, Internal combustion engine, Mass production\n        Industry 3.0 : Electronics, Computers, Automation\n    section 21st century\n        Industry 4.0 : Internet, Robotics, Internet of Things\n        Industry 5.0 : Artificial intelligence, Big data, 3D printing",
+    "origin": "syntax/timeline.md",
+    "index": 2
+  },
+  {
+    "family": "timeline",
+    "source": "timeline\n        title England's History Timeline\n        section Stone Age\n          7600 BC : Britain's oldest known house was built in Orkney, Scotland\n          6000 BC : Sea levels rise and Britain becomes an island.<br> The people who live here are hunter-gatherers.\n        section Bronze Age\n          2300 BC : People arrive from Europe and settle in Britain. <br>They bring farming and metalworking.\n                  : New styles of pottery and ways of burying the dead appear.\n          2200 BC : The last major building works are completed at Stonehenge.<br> People now bury their dead in stone circles.\n                  : The first metal objects are made in Britain.Some other nice things happen. it is a good time to be alive.",
+    "origin": "syntax/timeline.md",
+    "index": 3
+  },
+  {
+    "family": "timeline",
+    "source": "timeline\n        title MermaidChart 2023 Timeline\n        section 2023 Q1 <br> Release Personal Tier\n          Bullet 1 : sub-point 1a : sub-point 1b\n               : sub-point 1c\n          Bullet 2 : sub-point 2a : sub-point 2b\n        section 2023 Q2 <br> Release XYZ Tier\n          Bullet 3 : sub-point <br> 3a : sub-point 3b\n               : sub-point 3c\n          Bullet 4 : sub-point 4a : sub-point 4b",
+    "origin": "syntax/timeline.md",
+    "index": 4
+  },
+  {
+    "family": "timeline",
+    "source": "timeline TD\n  title MermaidChart 2023 Timeline\n    section 2023 Q1 <br> Release Personal Tier\n      Bullet 1 : sub-point 1a : sub-point 1b\n      Bullet 2 : sub-point 2a : sub-point 2b\n    section 2023 Q2 <br> Release XYZ Tier\n      Bullet 3 : sub-point <br> 3a : sub-point 3b\n      Bullet 4 : sub-point 4a : sub-point 4b",
+    "origin": "syntax/timeline.md",
+    "index": 5
+  },
+  {
+    "family": "timeline",
+    "source": "timeline\n        title History of Social Media Platform\n          2002 : LinkedIn\n          2004 : Facebook : Google\n          2005 : YouTube\n          2006 : Twitter",
+    "origin": "syntax/timeline.md",
+    "index": 6
+  },
+  {
+    "family": "timeline",
+    "source": "---\nconfig:\n  logLevel: 'debug'\n  theme: 'base'\n  timeline:\n    disableMulticolor: true\n---\n    timeline\n        title History of Social Media Platform\n          2002 : LinkedIn\n          2004 : Facebook : Google\n          2005 : YouTube\n          2006 : Twitter",
+    "origin": "syntax/timeline.md",
+    "index": 7
+  },
+  {
+    "family": "timeline",
+    "source": "---\nconfig:\n  logLevel: 'debug'\n  theme: 'default'\n  themeVariables:\n    cScale0: '#ff0000'\n    cScaleLabel0: '#ffffff'\n    cScale1: '#00ff00'\n    cScale2: '#0000ff'\n    cScaleLabel2: '#ffffff'\n---\n       timeline\n        title History of Social Media Platform\n          2002 : LinkedIn\n          2004 : Facebook : Google\n          2005 : YouTube\n          2006 : Twitter\n          2007 : Tumblr\n          2008 : Instagram\n          2010 : Pinterest",
+    "origin": "syntax/timeline.md",
+    "index": 8
+  },
+  {
+    "family": "timeline",
+    "source": "---\nconfig:\n  logLevel: 'debug'\n  theme: 'base'\n---\n    timeline\n        title History of Social Media Platform\n          2002 : LinkedIn\n          2004 : Facebook : Google\n          2005 : YouTube\n          2006 : Twitter\n          2007 : Tumblr\n          2008 : Instagram\n          2010 : Pinterest",
+    "origin": "syntax/timeline.md",
+    "index": 9
+  },
+  {
+    "family": "timeline",
+    "source": "---\nconfig:\n  logLevel: 'debug'\n  theme: 'forest'\n---\n    timeline\n        title History of Social Media Platform\n          2002 : LinkedIn\n          2004 : Facebook : Google\n          2005 : YouTube\n          2006 : Twitter\n          2007 : Tumblr\n          2008 : Instagram\n          2010 : Pinterest",
+    "origin": "syntax/timeline.md",
+    "index": 10
+  },
+  {
+    "family": "timeline",
+    "source": "---\nconfig:\n  logLevel: 'debug'\n  theme: 'dark'\n---\n    timeline\n        title History of Social Media Platform\n          2002 : LinkedIn\n          2004 : Facebook : Google\n          2005 : YouTube\n          2006 : Twitter\n          2007 : Tumblr\n          2008 : Instagram\n          2010 : Pinterest",
+    "origin": "syntax/timeline.md",
+    "index": 11
+  },
+  {
+    "family": "timeline",
+    "source": "---\nconfig:\n  logLevel: 'debug'\n  theme: 'default'\n---\n    timeline\n        title History of Social Media Platform\n          2002 : LinkedIn\n          2004 : Facebook : Google\n          2005 : YouTube\n          2006 : Twitter\n          2007 : Tumblr\n          2008 : Instagram\n          2010 : Pinterest",
+    "origin": "syntax/timeline.md",
+    "index": 12
+  },
+  {
+    "family": "timeline",
+    "source": "---\nconfig:\n  logLevel: 'debug'\n  theme: 'neutral'\n---\n    timeline\n        title History of Social Media Platform\n          2002 : LinkedIn\n          2004 : Facebook : Google\n          2005 : YouTube\n          2006 : Twitter\n          2007 : Tumblr\n          2008 : Instagram\n          2010 : Pinterest",
+    "origin": "syntax/timeline.md",
+    "index": 13
+  },
+  {
+    "family": "journey",
+    "source": "journey\n    title My working day\n    section Go to work\n      Make tea: 5: Me\n      Go upstairs: 3: Me\n      Do work: 1: Me, Cat\n    section Go home\n      Go downstairs: 5: Me\n      Sit down: 5: Me",
+    "origin": "syntax/userJourney.md",
+    "index": 0
+  },
+  {
+    "family": "xychart",
+    "source": "xychart\n    title \"Sales Revenue\"\n    x-axis [jan, feb, mar, apr, may, jun, jul, aug, sep, oct, nov, dec]\n    y-axis \"Revenue (in $)\" 4000 --> 11000\n    bar [5000, 6000, 7500, 8200, 9500, 10500, 11000, 10200, 9200, 8500, 7000, 6000]\n    line [5000, 6000, 7500, 8200, 9500, 10500, 11000, 10200, 9200, 8500, 7000, 6000]",
+    "origin": "syntax/xyChart.md",
+    "index": 0
+  },
+  {
+    "family": "xychart",
+    "source": "---\nconfig:\n  themeVariables:\n    xyChart:\n      plotColorPalette: '#000000, #0000FF, #00FF00, #FF0000'\n---\nxychart\ntitle \"Different Colors in xyChart\"\nx-axis \"categoriesX\" [\"Category 1\", \"Category 2\", \"Category 3\", \"Category 4\"]\ny-axis \"valuesY\" 0 --> 50\n%% Black line\nline [10,20,30,40]\n%% Blue bar\nbar [20,30,25,35]\n%% Green bar\nbar [15,25,20,30]\n%% Red line\nline [5,15,25,35]",
+    "origin": "syntax/xyChart.md",
+    "index": 1
+  },
+  {
+    "family": "xychart",
+    "source": "---\nconfig:\n    xyChart:\n        showDataLabel: true\n---\nxychart\n    title \"Genres in top 100 book survey of 2025\"\n    x-axis [comedy, romance, mystery, crime, \"non fiction\", other]\n    y-axis \"Number of Books\" 0 --> 30\n    bar [12,2,20,25,17,24]",
+    "origin": "syntax/xyChart.md",
+    "index": 2
+  },
+  {
+    "family": "xychart",
+    "source": "---\nconfig:\n    xyChart:\n        showDataLabel: true\n        showDataLabelOutsideBar: true\n---\nxychart\n    title \"Genres in top 100 book survey of 2025\"\n    x-axis [comedy, romance, mystery, crime, \"non fiction\", other]\n    y-axis \"Number of Books\" 0 --> 30\n    bar [12,2,20,25,17,24]",
+    "origin": "syntax/xyChart.md",
+    "index": 3
+  },
+  {
+    "family": "xychart",
+    "source": "xychart\n    title \"Smallest AI models scoring above 60% on MMLU\"\n    x-axis \"Date\" [\"Apr 2022\", \"Feb 2023\", \"Jul 2023\", \"Sep 2023\", \"Apr 2024\"]\n    y-axis \"Parameters (B)\" 0 --> 600\n    line [540 \"PaLM\", 65 \"LLaMA-65B\", 34 \"Llama 2 34B\", 7 \"Mistral 7B\", 3.8 \"Phi-3-mini\"]",
+    "origin": "syntax/xyChart.md",
+    "index": 4
+  },
+  {
+    "family": "xychart",
+    "source": "xychart\n    title \"Quarterly Performance\"\n    x-axis [Q1, Q2, Q3, Q4]\n    y-axis \"Revenue ($M)\" 0 --> 100\n    line [25 \"Launch\", 45, 72, 90 \"Target Hit\"]",
+    "origin": "syntax/xyChart.md",
+    "index": 5
+  },
+  {
+    "family": "xychart",
+    "source": "---\nconfig:\n    xyChart:\n        width: 900\n        height: 600\n        showDataLabel: true\n    themeVariables:\n        xyChart:\n            titleColor: \"#ff0000\"\n---\nxychart\n    title \"Sales Revenue\"\n    x-axis [jan, feb, mar, apr, may, jun, jul, aug, sep, oct, nov, dec]\n    y-axis \"Revenue (in $)\" 4000 --> 11000\n    bar [5000, 6000, 7500, 8200, 9500, 10500, 11000, 10200, 9200, 8500, 7000, 6000]\n    line [5000, 6000, 7500, 8200, 9500, 10500, 11000, 10200, 9200, 8500, 7000, 6000]",
+    "origin": "syntax/xyChart.md",
+    "index": 6
+  },
+  {
+    "family": "architecture",
+    "source": "architecture-beta\n    group api(cloud)[API]\n\n    service db(database)[Database] in api\n    service disk1(disk)[Storage] in api\n    service disk2(disk)[Storage] in api\n    service server(server)[Server] in api\n\n    db:L -- R:server\n    disk1:T -- B:server\n    disk2:T -- B:db",
+    "origin": "syntax/architecture.md",
+    "index": 0
+  },
+  {
+    "family": "architecture",
+    "source": "architecture-beta\n    group api(cloud)[API]\n    service db1(database)[DB1] in api\n    service db2(database)[DB2] in api\n    service db3(database)[DB3] in api\n    service mcp(server)[MCP] in api\n    db1:R --> L:mcp\n    db2:R --> L:mcp\n    db3:R --> L:mcp\n    align column db1 db2 db3",
+    "origin": "syntax/architecture.md",
+    "index": 1
+  },
+  {
+    "family": "architecture",
+    "source": "architecture-beta\n    service src1(server)[Source 1]\n    service src2(server)[Source 2]\n    service src3(server)[Source 3]\n    service proc(server)[Processor]\n    src1:B --> T:proc\n    src2:B --> T:proc\n    src3:B --> T:proc\n    align row src1 src2 src3",
+    "origin": "syntax/architecture.md",
+    "index": 2
+  },
+  {
+    "family": "architecture",
+    "source": "architecture-beta\n    group sources(cloud)[Sources]\n        service src_a(server)[Source A] in sources\n        service src_b(server)[Source B] in sources\n        service src_c(server)[Source C] in sources\n\n    group storage(database)[Storage]\n        service db_one(database)[DB One] in storage\n        service db_two(database)[DB Two] in storage\n        service db_three(database)[DB Three] in storage\n\n    group output(disk)[Output]\n        service brief(disk)[Brief] in output\n        service analyst(server)[Analyst] in output\n        service delivery(cloud)[Delivery] in output\n\n    src_a:B --> T:db_one\n    src_b:B --> T:db_two\n    src_c:B --> T:db_three\n    db_two:B --> T:brief\n    brief:R --> L:analyst\n    analyst:R --> L:delivery\n\n    align row src_a src_b src_c\n    align row db_one db_two db_three\n    align row brief analyst delivery\n\n    align column src_a db_one\n    align column src_b db_two brief\n    align column src_c db_three",
+    "origin": "syntax/architecture.md",
+    "index": 3
+  },
+  {
+    "family": "architecture",
+    "source": "architecture-beta\n    service left_disk(disk)[Disk]\n    service top_disk(disk)[Disk]\n    service bottom_disk(disk)[Disk]\n    service top_gateway(internet)[Gateway]\n    service bottom_gateway(internet)[Gateway]\n    junction junctionCenter\n    junction junctionRight\n\n    left_disk:R -- L:junctionCenter\n    top_disk:B -- T:junctionCenter\n    bottom_disk:T -- B:junctionCenter\n    junctionCenter:R -- L:junctionRight\n    top_gateway:B -- T:junctionRight\n    bottom_gateway:T -- B:junctionRight",
+    "origin": "syntax/architecture.md",
+    "index": 4
+  },
+  {
+    "family": "architecture",
+    "source": "architecture-beta\n    group api(logos:aws-lambda)[API]\n\n    service db(logos:aws-aurora)[Database] in api\n    service disk1(logos:aws-glacier)[Storage] in api\n    service disk2(logos:aws-s3)[Storage] in api\n    service server(logos:aws-ec2)[Server] in api\n\n    db:L -- R:server\n    disk1:T -- B:server\n    disk2:T -- B:db",
+    "origin": "syntax/architecture.md",
+    "index": 5
+  }
+]
