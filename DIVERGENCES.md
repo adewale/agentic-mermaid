@@ -61,3 +61,23 @@ This file tracks decisions made during the build that differ from the spec, with
 **Spec lists as supported but not shipped:** `--http` transport for the MCP server, Cloudflare Worker deployment.
 **What I did:** Stdio MCP server only.
 **Why:** Per spec — those are documented options the architecture admits, not v1 deliverables.
+
+## Lint rule against ambient nondeterminism
+
+**Spec says:** Lint rule bans `Math.random()`, `Date.now()`, `performance.now()`, naked `new Map()` iteration in layout/render modules.
+**What I did:** Did not add the lint rule configuration. The substrate (`LayoutContext.rng`, `Clock`, etc.) is in place and used by the agent path; the substrate's own implementation avoids ambient nondeterminism. The lint rule is the enforcement mechanism for *other contributors*.
+**Why:** The repository doesn't currently have an ESLint config; setting one up just for this rule is its own ticket. The convention is documented in `src/agent/context.ts`'s header.
+
+## Per-code verifier fixtures on disk
+
+**Spec says:** Per-code positive/negative fixtures under `tests/fixtures/verifier/{CODE}/{positive,negative}/`.
+**What I did:** Tests for each warning code live inline in `src/__tests__/agent-verify.test.ts`. The verification *capability* is exercised; the fixtures-on-disk organization is a structural pattern that I haven't laid out.
+**Why:** Inline tests with clear `describe` blocks per code are equivalent for v1. Migrating to on-disk fixtures becomes worthwhile when the corpus grows past ~5 fixtures per code.
+
+## Audit-loop findings (fixed during build)
+
+These were caught and fixed in the audit pass:
+
+1. **Serializer was emitting nodes twice** — once as a top-of-body declaration and again inline on edge references. Fixed by deferring inline declaration to the first edge mention and only emitting orphan-node declarations afterward. `format` is now idempotent across all hand-tested cases.
+2. **Doc-sync test caught hard-wrapped lines in `AGENT_INSTRUCTIONS`** that didn't match `AGENTS.md`. Test was working as intended; embedded version was rewrapped to match.
+3. **MCP `tools/list` test asserted on the wrong substring** (`mermaid.parseMermaid` vs the declared SDK shape inside `declare const mermaid`). Test was wrong; expectations corrected.
