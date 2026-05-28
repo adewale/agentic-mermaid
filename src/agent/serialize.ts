@@ -172,12 +172,16 @@ export function synthesizeFromGraph(payload: ValidDiagramPayload): Result<ValidD
       graph: {
         direction: sg.direction,
         nodes: nodesMap,
-        edges: sg.edges,
-        subgraphs: sg.subgraphs ?? [],
-        classDefs: new Map(),
-        classAssignments: new Map(),
-        nodeStyles: new Map(),
-        linkStyles: new Map(),
+        edges: sg.edges ?? [],
+        // Defensive: the SDK-declared subgraph shape omits `children`/`direction`.
+        // Normalize recursively so cloneSubgraph / findSubgraphById never hit
+        // `undefined.map`. (A crash reachable straight from the documented SDK.)
+        subgraphs: normalizeSubgraphs(sg.subgraphs),
+        // Round-trip styling too, so `am parse | am serialize` is lossless.
+        classDefs: toMap(sg.classDefs),
+        classAssignments: toMap(sg.classAssignments),
+        nodeStyles: toMap(sg.nodeStyles),
+        linkStyles: toLinkStyleMap(sg.linkStyles),
       },
     }
   } else if (payload.body.kind === 'sequence' || payload.body.kind === 'opaque') {
@@ -192,4 +196,39 @@ export function synthesizeFromGraph(payload: ValidDiagramPayload): Result<ValidD
     canonicalSource: '',
   }
   return ok({ ...draft, canonicalSource: serializeMermaid(draft) })
+}
+
+interface LooseSubgraph {
+  id: string
+  label?: string
+  nodeIds?: string[]
+  children?: LooseSubgraph[]
+  direction?: import('../types.ts').Direction
+}
+
+function normalizeSubgraphs(input: unknown): import('../types.ts').MermaidSubgraph[] {
+  if (!Array.isArray(input)) return []
+  return (input as LooseSubgraph[]).map(sg => ({
+    id: sg.id,
+    label: sg.label ?? sg.id,
+    nodeIds: sg.nodeIds ?? [],
+    children: normalizeSubgraphs(sg.children),
+    direction: sg.direction,
+  }))
+}
+
+function toMap<V>(input: unknown): Map<string, V> {
+  if (input instanceof Map) return input as Map<string, V>
+  if (Array.isArray(input)) return new Map(input as [string, V][])
+  if (input && typeof input === 'object') return new Map(Object.entries(input as Record<string, V>))
+  return new Map()
+}
+
+function toLinkStyleMap(input: unknown): Map<number | 'default', Record<string, string>> {
+  const raw = toMap<Record<string, string>>(input)
+  const out = new Map<number | 'default', Record<string, string>>()
+  for (const [k, v] of raw) {
+    out.set(k === 'default' ? 'default' : Number(k), v)
+  }
+  return out
 }

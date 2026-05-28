@@ -60,9 +60,10 @@ export function verifyMermaid(input: ValidDiagram | string, opts: VerifyOptions 
     }
   }
   for (const n of positioned.nodes) {
-    if (n.x < 0 || n.y < 0) warnings.push({ code: 'OFF_CANVAS', target: n.id, axis: n.x < 0 ? 'x' : 'y' })
-    else if (n.x + n.width > positioned.width + 1) warnings.push({ code: 'OFF_CANVAS', target: n.id, axis: 'x' })
-    else if (n.y + n.height > positioned.height + 1) warnings.push({ code: 'OFF_CANVAS', target: n.id, axis: 'y' })
+    // Report x and y independently so a node off-canvas on both axes surfaces
+    // both, instead of masking the second behind an else-if.
+    if (n.x < 0 || n.x + n.width > positioned.width + 1) warnings.push({ code: 'OFF_CANVAS', target: n.id, axis: 'x' })
+    if (n.y < 0 || n.y + n.height > positioned.height + 1) warnings.push({ code: 'OFF_CANVAS', target: n.id, axis: 'y' })
   }
   for (const g of positioned.groups) {
     const visit = (group: typeof g) => {

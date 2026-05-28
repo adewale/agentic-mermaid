@@ -222,8 +222,15 @@ export interface VerifyResult {
 export interface SerializedFlowchartGraph {
   direction: import('../types.ts').Direction
   nodes: Record<string, import('../types.ts').MermaidNode> | Array<[string, import('../types.ts').MermaidNode]>
-  edges: import('../types.ts').MermaidEdge[]
-  subgraphs?: import('../types.ts').MermaidSubgraph[]
+  edges?: import('../types.ts').MermaidEdge[]
+  // Loose by design: payloads built from the SDK-declared shape may omit
+  // `children`/`direction` on subgraphs, or styling maps entirely.
+  // synthesizeFromGraph normalizes all of these defensively.
+  subgraphs?: unknown
+  classDefs?: unknown
+  classAssignments?: unknown
+  nodeStyles?: unknown
+  linkStyles?: unknown
 }
 
 export interface ValidDiagramPayload {
