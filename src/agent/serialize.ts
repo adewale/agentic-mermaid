@@ -181,25 +181,39 @@ function inlineNodeRef(
 }
 
 function renderEdgeArrow(edge: MermaidEdge): string {
-  const body = edge.style === 'dotted' ? '-.-' : edge.style === 'thick' ? '==' : '--'
-  const startMarker = edge.hasArrowStart ? renderMarker(edge.startMarker ?? 'arrow', true) : ''
-  const endMarker = edge.hasArrowEnd ? renderMarker(edge.endMarker ?? 'arrow', false) : ''
-  // body needs a trailing `-` for solid/dotted to attach end markers (e.g. -->),
-  // == for thick attaches directly (==>).
-  if (edge.style === 'thick') {
-    return `${startMarker}${body}${endMarker}>`.replace(/>$/, edge.hasArrowEnd ? '>' : '')
+  // Compose: <startMarker><body><endMarker>
+  // - solid:  base body is "--" with no-arrow form padded to "---"
+  // - dotted: base body is "-.-" (no padding needed)
+  // - thick:  base body is "==" with no-arrow form padded to "==="
+  const startMarker = edge.hasArrowStart
+    ? markerChar(edge.startMarker ?? 'arrow', /* isStart */ true)
+    : ''
+  const endMarker = edge.hasArrowEnd
+    ? markerChar(edge.endMarker ?? 'arrow', /* isStart */ false)
+    : ''
+
+  switch (edge.style) {
+    case 'solid': {
+      // "---" no arrows, "-->" arrow end, "o--o" double circles, etc.
+      const body =
+        !edge.hasArrowStart && !edge.hasArrowEnd ? '---' : '--'
+      return `${startMarker}${body}${endMarker}`
+    }
+    case 'dotted': {
+      // "-.-" no arrows, "-.->" arrow end, "o-.-o" double circles.
+      return `${startMarker}-.-${endMarker}`
+    }
+    case 'thick': {
+      // "===" no arrows, "==>" arrow end, "o==o" double circles.
+      const body =
+        !edge.hasArrowStart && !edge.hasArrowEnd ? '===' : '=='
+      return `${startMarker}${body}${endMarker}`
+    }
   }
-  // For solid/dotted, the basic arrow form is `-->` or `-.->`
-  if (edge.style === 'dotted') {
-    return `${startMarker}-.${endMarker || '-'}>`.replace(/>$/, edge.hasArrowEnd ? '>' : '')
-  }
-  // Solid
-  const tail = edge.hasArrowEnd ? '>' : '-'
-  return `${startMarker}${body}${endMarker}${tail}`
 }
 
-function renderMarker(marker: 'arrow' | 'circle' | 'cross', isStart: boolean): string {
-  if (marker === 'arrow') return isStart ? '<' : ''
+function markerChar(marker: 'arrow' | 'circle' | 'cross', isStart: boolean): string {
+  if (marker === 'arrow') return isStart ? '<' : '>'
   if (marker === 'circle') return 'o'
   return 'x'
 }
