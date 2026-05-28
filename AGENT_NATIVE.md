@@ -196,6 +196,21 @@ Two contracts:
 | `remove_message`     | `index`               | —       | `add_message(...)` |
 | `set_message_text`   | `index`, `text`       | —       | `set_message_text(index, prev_text)` |
 
+**Timeline MutationOp kinds** (10):
+
+| Kind | Required | Inverse |
+|---|---|---|
+| `set_title`          | `title \| null`                                           | `set_title(prev_title)` |
+| `add_section`        | `label`                                                   | `remove_section(index)` |
+| `remove_section`     | `index`                                                   | `add_section(label)` |
+| `set_section_label`  | `index`, `label`                                          | `set_section_label(index, prev_label)` |
+| `add_period`         | `sectionIndex`, `label` (+ optional `events: string[]`)   | `remove_period(sectionIndex, periodIndex)` |
+| `remove_period`      | `sectionIndex`, `periodIndex`                             | `add_period(...)` |
+| `set_period_label`   | `sectionIndex`, `periodIndex`, `label`                    | `set_period_label(... prev_label)` |
+| `add_event`          | `sectionIndex`, `periodIndex`, `text`                     | `remove_event(... eventIndex)` |
+| `remove_event`       | `sectionIndex`, `periodIndex`, `eventIndex`               | `add_event(...)` |
+| `set_event_text`     | `sectionIndex`, `periodIndex`, `eventIndex`, `text`       | `set_event_text(... prev_text)` |
+
 **Sequence fidelity rule (v4): structured-or-opaque, never lossy.** The sequence parser only produces a structured `SequenceBody` when it fully understands every non-blank, non-comment line (participant/actor declarations and simple `A->>B: text` messages). If the source contains *any* construct the parser doesn't model — `Note over`, `alt`/`opt`/`par`/`loop`/`end` blocks, `activate`/`deactivate`, `autonumber`, `+`/`-` activation prefixes, multi-line messages — parsing **falls back to an opaque body**. The diagram still parses, renders, verifies (structurally), and round-trips losslessly via `canonicalSource`; it simply isn't offered for structured mutation (`asSequence` returns `null`). This guarantees the parser never silently drops information. Earlier drafts dropped unrecognized lines on the floor; v4 does not.
 
 For the 6 other diagram families (class, ER, timeline, journey, xychart, architecture), cross-cutting edits live at the source level — string operations against `canonicalSource`, composed by the agent in Code Mode. Adding structured mutation for each follows the same pattern: narrowed type + body parser + serializer + per-family ops. v1 ships flowchart + state + sequence to prove the pattern; expanding is multiplicative work.
@@ -340,7 +355,7 @@ MermaidSeqBench remains the eventual external eval; it requires the dataset and 
 ## Risks (honest, v4)
 
 - **Determinism is empirical, not proven.** It's established by cross-process test over a corpus + the drift sentinel, plus reading ELK's config (`considerModelOrder: NODES_AND_EDGES`, no `randomSeed`). An ELK upgrade could in principle change this; the cross-process test and sentinel would catch it. There is no seed to fall back on because seeding never affected output.
-- **Cross-machine (different CPU) determinism is not claimed.** Float arithmetic can differ across architectures. Structural determinism within one ELK version on one machine is what's tested and claimed.
+- **Determinism claim, precisely.** Layout JSON is byte-identical (after structural parse) across processes AND across JS runtimes (bun, node) on the same x86_64 machine and same ELK version. This is the verified claim. The IEEE-754 float behavior used by ELK is well-defined for all x86 vendors, so this likely extends across x86 machines. **Cross-architecture (x86 vs ARM) is NOT tested** — float operation ordering differences could in principle yield different ELK outputs there.
 - **Sequence structured coverage is deliberately narrow.** Only participant declarations + simple messages get a mutable structured body; everything else falls back to opaque (lossless, but not mutable). This is the honest tradeoff that replaced silent information loss.
 - **Six families have no structured mutation.** class / ER / timeline / journey / xychart / architecture. Multiplicative work; sequence proved the pattern.
 - **MermaidSeqBench not wired.** External dataset; the "single decisive number" is a follow-up, not a current result.

@@ -50,6 +50,34 @@ export interface SequenceBody {
   messages: SequenceMessage[]
 }
 
+// ---- Timeline body --------------------------------------------------------
+
+export interface TimelineEvent {
+  /** Stable within one parse; recomputed each parse. Not a durable identifier. */
+  id: string
+  text: string
+}
+
+export interface TimelinePeriod {
+  id: string
+  /** The temporal label (e.g., "2020", "Q1 2024"). */
+  label: string
+  events: TimelineEvent[]
+}
+
+export interface TimelineSection {
+  id: string
+  /** Undefined = implicit/ungrouped section. */
+  label?: string
+  periods: TimelinePeriod[]
+}
+
+export interface TimelineBody {
+  kind: 'timeline'
+  title?: string
+  sections: TimelineSection[]
+}
+
 // ---- Meta + IR ------------------------------------------------------------
 
 export interface SourceComment { text: string; line: number }
@@ -72,6 +100,7 @@ export interface SourceMap {
 export type DiagramBody =
   | { kind: 'flowchart'; graph: MermaidGraph }
   | SequenceBody
+  | TimelineBody
   | { kind: 'opaque'; family: DiagramKind; source: string }
 
 export interface ValidDiagram {
@@ -85,13 +114,18 @@ export interface ValidDiagram {
 
 export type FlowchartValidDiagram = ValidDiagram & { body: { kind: 'flowchart'; graph: MermaidGraph } }
 export type SequenceValidDiagram = ValidDiagram & { body: SequenceBody }
-export type MutableValidDiagram = FlowchartValidDiagram | SequenceValidDiagram
+export type TimelineValidDiagram = ValidDiagram & { body: TimelineBody }
+export type MutableValidDiagram = FlowchartValidDiagram | SequenceValidDiagram | TimelineValidDiagram
 
 export function asFlowchart(d: ValidDiagram): FlowchartValidDiagram | null {
   return d.body.kind === 'flowchart' ? (d as FlowchartValidDiagram) : null
 }
 export function asSequence(d: ValidDiagram): SequenceValidDiagram | null {
   return d.body.kind === 'sequence' ? (d as SequenceValidDiagram) : null
+}
+
+export function asTimeline(d: ValidDiagram): TimelineValidDiagram | null {
+  return d.body.kind === 'timeline' ? (d as TimelineValidDiagram) : null
 }
 
 // ---- Errors ---------------------------------------------------------------
@@ -102,6 +136,7 @@ export interface MutationError {
   code:
     | 'NODE_NOT_FOUND' | 'EDGE_NOT_FOUND'
     | 'PARTICIPANT_NOT_FOUND' | 'MESSAGE_NOT_FOUND'
+    | 'SECTION_NOT_FOUND' | 'PERIOD_NOT_FOUND' | 'EVENT_NOT_FOUND'
     | 'DUPLICATE_NODE' | 'DUPLICATE_PARTICIPANT'
     | 'INVALID_OP'
   message: string
@@ -129,7 +164,19 @@ export type SequenceMutationOp =
   | { kind: 'remove_message'; index: number }
   | { kind: 'set_message_text'; index: number; text: string }
 
-export type AnyMutationOp = FlowchartMutationOp | SequenceMutationOp
+export type TimelineMutationOp =
+  | { kind: 'set_title'; title: string | null }
+  | { kind: 'add_section'; label: string }
+  | { kind: 'remove_section'; index: number }
+  | { kind: 'set_section_label'; index: number; label: string }
+  | { kind: 'add_period'; sectionIndex: number; label: string; events?: string[] }
+  | { kind: 'remove_period'; sectionIndex: number; periodIndex: number }
+  | { kind: 'set_period_label'; sectionIndex: number; periodIndex: number; label: string }
+  | { kind: 'add_event'; sectionIndex: number; periodIndex: number; text: string }
+  | { kind: 'remove_event'; sectionIndex: number; periodIndex: number; eventIndex: number }
+  | { kind: 'set_event_text'; sectionIndex: number; periodIndex: number; eventIndex: number; text: string }
+
+export type AnyMutationOp = FlowchartMutationOp | SequenceMutationOp | TimelineMutationOp
 export type MutationOp = FlowchartMutationOp // legacy alias
 
 // ---- Branded Finite -------------------------------------------------------

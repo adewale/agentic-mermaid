@@ -27,6 +27,7 @@ export function verifyMermaid(input: ValidDiagram | string, opts: VerifyOptions 
   const cap = opts.labelCharCap ?? DEFAULT_LABEL_CHAR_CAP
 
   if (d.body.kind === 'sequence') return verifySequence(d.body, d.kind, cap, opts)
+  if (d.body.kind === 'timeline') return verifyTimeline(d.body, d.kind, cap, opts)
 
   if (d.body.kind === 'opaque') {
     const isEmpty = d.body.source.trim().split('\n').length <= 1
@@ -93,6 +94,27 @@ export function verifyMermaid(input: ValidDiagram | string, opts: VerifyOptions 
   }
 
   return finalize(warnings, layout, opts)
+}
+
+function verifyTimeline(body: import('./types.ts').TimelineBody, kind: ValidDiagram['kind'], cap: number, opts: VerifyOptions): VerifyResult {
+  const warnings: LayoutWarning[] = []
+  const hasContent = body.sections.some(s => s.periods.length > 0) || body.title !== undefined
+  if (!hasContent) return finalize([{ code: 'EMPTY_DIAGRAM' }], emptyRenderedLayout(kind), opts)
+  if (body.title !== undefined && body.title.length > cap) {
+    warnings.push({ code: 'LABEL_OVERFLOW', target: 'title', charCount: body.title.length, limit: cap })
+  }
+  for (const s of body.sections) {
+    if (s.label !== undefined && s.label.length > cap) {
+      warnings.push({ code: 'LABEL_OVERFLOW', target: s.id, charCount: s.label.length, limit: cap })
+    }
+    for (const p of s.periods) {
+      if (p.label.length > cap) warnings.push({ code: 'LABEL_OVERFLOW', target: p.id, charCount: p.label.length, limit: cap })
+      for (const e of p.events) {
+        if (e.text.length > cap) warnings.push({ code: 'LABEL_OVERFLOW', target: e.id, charCount: e.text.length, limit: cap })
+      }
+    }
+  }
+  return finalize(warnings, emptyRenderedLayout(kind), opts)
 }
 
 function verifySequence(body: SequenceBody, kind: ValidDiagram['kind'], cap: number, opts: VerifyOptions): VerifyResult {

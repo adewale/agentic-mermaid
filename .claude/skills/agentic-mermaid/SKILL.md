@@ -20,7 +20,9 @@ A typed editing surface for Mermaid. Parse to a `ValidDiagram`, mutate with type
 | Flowchart, State | ✓ | full (Tier 1+2) | ✓ | 6 ops | structured |
 | Sequence (simple) | ✓ | structural | ✓ | 5 ops | structured |
 | Sequence (notes/alt/loop/…) | ✓ | structural | ✓ | — (opaque) | verbatim |
-| Class, ER, Timeline, Journey, XY, Architecture | ✓ | structural | ✓ | — | verbatim |
+| **Timeline (simple)** | ✓ | structural | ✓ | **10 ops** | structured |
+| Timeline (unmodeled syntax) | ✓ | structural | ✓ | — (opaque) | verbatim |
+| Class, ER, Journey, XY, Architecture | ✓ | structural | ✓ | — | verbatim |
 
 A sequence diagram with constructs we don't model falls back to an **opaque** body: it still parses, renders, verifies, and round-trips losslessly — it just isn't offered for structured mutation (`asSequence` returns null). The parser never silently drops anything.
 

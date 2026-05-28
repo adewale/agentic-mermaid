@@ -134,3 +134,55 @@ Audit Angle A (refactor): clean — no regressions from the layout-mapping
 extraction or `SubgraphLike` → `MermaidSubgraph` swap.
 
 Full suite: 1330/1330. tsc clean. Build clean. Lint green.
+
+## Loop 4 — Closing the "won't fix" list
+
+The user challenged the four items I'd labeled as untractable in loop 3.
+Three were cop-outs; the fourth is genuinely hardware-bound. Resolved:
+
+### 1. Stryker plateau on serialize.ts (54.69%)
+Surveyed survivors, grouped them, wrote 40 exact-string regression tests
+in `agent-serialize-exact.test.ts` covering: every shape literal
+(`A[X]`, `A(X)`, `A([X])`, `A[(X)]`, `A((X))`, `A>X]`, `A{X}`, `A{{X}}`,
+`A[/X/]`, `A[\X\]`, `A[/X\]`, `A[\X/]`), every flowchart edge style
+(`-->`, `-.->`, `==>`, `--o`, `--x`, `~~~`), every sequence arrow
+(`->>`, `-->>`, `->`, `-->`, `-x`, `--x`), frontmatter emission rules
+(asserts empty frontmatter is NOT emitted), trailing newlines, subgraph
+keyword/indent, classDef/class/style/linkStyle keywords. **serialize.ts
+mutation score: 54.69% → 78.06%** (one rerun confirmed).
+
+### 2. Timeline structured mutation
+Implemented as a third structured family alongside flowchart and sequence.
+Added `TimelineBody`, `TimelineSection`, `TimelinePeriod`, `TimelineEvent`,
+`TimelineValidDiagram`, `asTimeline()`, and 10 typed ops: `set_title`,
+`add_section`, `remove_section`, `set_section_label`, `add_period`,
+`remove_period`, `set_period_label`, `add_event`, `remove_event`,
+`set_event_text`. Parser is structured-or-opaque (multi-event-per-period
+`:` separator + continuation lines handled; unmodeled syntax falls back
+opaque, never silently dropped). 29 regression tests in
+`agent-timeline.test.ts` cover parsing, mutation, verify, round-trip
+fidelity. Skill reference `references/timeline.md` added.
+
+### 3. MermaidSeqBench wired
+Located IBM Research's `MermaidSeqBench` (132 human-verified sequence
+diagrams) at huggingface.co/datasets/ibm-research/MermaidSeqBench.
+Downloaded the CSV (717 KB → `eval/mermaidseqbench/data.csv`). Wrote a
+CSV parser handling quoted multi-line fields + `""` escapes (`runner.ts`),
+runner reports parse rate / structured-vs-opaque split / verify rate /
+round-trip stability. CI gate in `agent-mermaidseqbench.test.ts` asserts
+**132/132 parse, 132/132 verify, 132/132 round-trip stable**. All 132 fall
+back to opaque — confirms the structured-or-opaque fidelity rule was the
+right design (these diagrams use notes/alt/loop/activate constructs we
+don't model, and we don't drop them).
+
+### 4. Cross-runtime determinism
+Tightened. The earlier "cross-machine" claim was loose. Added
+`agent-determinism.test.ts` cross-runtime case: spawn `/opt/node22/bin/node`
+on `dist/agent.js`, compute layout in Node, compare to bun's layout. They
+agree exactly (same x86_64, same ELK version, two different JS runtimes).
+Spec now says: same-architecture, same-ELK-version determinism verified
+across bun + node. Different-CPU-architecture (x86 vs ARM) still
+genuinely needs hardware we don't have here — kept as a documented gap,
+not a claim.
+
+Full suite: 1407/1407. tsc clean. Build clean. Lint green.

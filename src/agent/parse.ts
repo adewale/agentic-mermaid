@@ -58,10 +58,15 @@ export function parseMermaid(source: string): Result<ValidDiagram, ParseError[]>
 
   if (kind === 'sequence') {
     const body = parseSequenceBody(normalized.lines.slice(1))
-    if (body) {
-      return ok<ValidDiagram>({ kind, meta, body, source: sourceMap, canonicalSource })
-    }
-    // Fidelity fallback: unmodeled construct present → opaque, lossless.
+    if (body) return ok<ValidDiagram>({ kind, meta, body, source: sourceMap, canonicalSource })
+    return ok<ValidDiagram>({
+      kind, meta, body: { kind: 'opaque', family: kind, source: canonicalSource }, source: sourceMap, canonicalSource,
+    })
+  }
+
+  if (kind === 'timeline') {
+    const body = parseTimelineBody(normalized.lines.slice(1))
+    if (body) return ok<ValidDiagram>({ kind, meta, body, source: sourceMap, canonicalSource })
     return ok<ValidDiagram>({
       kind, meta, body: { kind: 'opaque', family: kind, source: canonicalSource }, source: sourceMap, canonicalSource,
     })
@@ -70,6 +75,84 @@ export function parseMermaid(source: string): Result<ValidDiagram, ParseError[]>
   return ok<ValidDiagram>({
     kind, meta, body: { kind: 'opaque', family: kind, source: canonicalSource }, source: sourceMap, canonicalSource,
   })
+}
+
+// ---- Timeline body parser (structured-or-null, same pattern as sequence) ---
+
+const TL_TITLE_RE = /^title\s+(.+)$/i
+const TL_SECTION_RE = /^section\s+(.+)$/i
+const TL_PERIOD_RE = /^([^:]+?)\s*:\s*(.+)$/
+const TL_CONT_RE = /^:\s*(.+)$/  // continuation of previous period
+
+import type { TimelineBody, TimelineSection, TimelinePeriod, TimelineEvent } from './types.ts'
+
+/**
+ * Parse the body lines of a timeline diagram. Returns a structured body only
+ * if EVERY non-blank, non-comment line is one of: title, section, period
+ * (`<label> : <event>` and `: <event>` continuations), or a multi-event line
+ * with extra `:` separators. Otherwise returns null so caller falls back to
+ * a lossless opaque body.
+ *
+ * Mirrors the legacy parser's accepted syntax (src/timeline/parser.ts).
+ */
+export function parseTimelineBody(lines: string[]): TimelineBody | null {
+  const body: TimelineBody = { kind: 'timeline', sections: [] }
+  let currentSection: TimelineSection | undefined
+  let currentPeriod: TimelinePeriod | undefined
+  let sIdx = 0, pIdx = 0, eIdx = 0
+
+  const implicitSection = (): TimelineSection => {
+    if (!currentSection) {
+      currentSection = { id: `section-${sIdx++}`, periods: [] }
+      body.sections.push(currentSection)
+    }
+    return currentSection
+  }
+
+  for (const raw of lines) {
+    const line = raw.trim()
+    if (!line) continue
+    if (line.startsWith('%%')) continue
+
+    const tm = line.match(TL_TITLE_RE)
+    if (tm) { body.title = tm[1]!.trim(); continue }
+
+    const sm = line.match(TL_SECTION_RE)
+    if (sm) {
+      currentSection = { id: `section-${sIdx++}`, label: sm[1]!.trim(), periods: [] }
+      body.sections.push(currentSection)
+      currentPeriod = undefined
+      continue
+    }
+
+    // `: <continuation>` — extra event on the previous period.
+    const cont = line.match(TL_CONT_RE)
+    if (cont && !line.match(TL_PERIOD_RE)) {
+      if (!currentPeriod) return null
+      currentPeriod.events.push({ id: `event-${eIdx++}`, text: cont[1]!.trim() })
+      continue
+    }
+
+    // `<label> : <event> [ : <event2> : <event3> …]`
+    const pm = line.match(TL_PERIOD_RE)
+    if (pm) {
+      const label = pm[1]!.trim()
+      const restRaw = pm[2]!
+      // Multi-event lines allow `: extra` segments to add more events to the same period.
+      const events: TimelineEvent[] = restRaw.split(/\s*:\s*/).filter(Boolean).map(text => ({
+        id: `event-${eIdx++}`, text,
+      }))
+      const period: TimelinePeriod = { id: `period-${pIdx++}`, label, events }
+      implicitSection().periods.push(period)
+      currentPeriod = period
+      continue
+    }
+
+    // Unmodeled line → opaque fallback.
+    return null
+  }
+
+  return body
 }
 
 // ---- Sequence body parser (structured-or-null) ---------------------------

@@ -4,7 +4,7 @@
 // ============================================================================
 
 import type {
-  ValidDiagram, ValidDiagramMeta, DiagramBody, SequenceBody,
+  ValidDiagram, ValidDiagramMeta, DiagramBody, SequenceBody, TimelineBody,
   SequenceMessageStyle, ValidDiagramPayload, ParseError, Result,
 } from './types.ts'
 import { ok, err } from './types.ts'
@@ -27,7 +27,29 @@ function renderMeta(meta: ValidDiagramMeta): string {
 function renderBody(body: DiagramBody, kind: ValidDiagram['kind']): string {
   if (body.kind === 'flowchart') return renderFlowchart(body.graph, kind)
   if (body.kind === 'sequence') return renderSequence(body)
+  if (body.kind === 'timeline') return renderTimeline(body)
   return body.source.endsWith('\n') ? body.source : body.source + '\n'
+}
+
+// ---- Timeline -------------------------------------------------------------
+
+function renderTimeline(body: TimelineBody): string {
+  const lines: string[] = ['timeline']
+  if (body.title) lines.push(`  title ${body.title}`)
+  for (const section of body.sections) {
+    if (section.label !== undefined) lines.push(`  section ${section.label}`)
+    for (const period of section.periods) {
+      // First event on the same line as the period label; extra events on
+      // continuation lines (`: text`). Matches Mermaid timeline syntax.
+      if (period.events.length === 0) {
+        lines.push(`  ${period.label} :`)
+        continue
+      }
+      lines.push(`  ${period.label} : ${period.events[0]!.text}`)
+      for (const e of period.events.slice(1)) lines.push(`       : ${e.text}`)
+    }
+  }
+  return lines.join('\n') + '\n'
 }
 
 // ---- Sequence -------------------------------------------------------------

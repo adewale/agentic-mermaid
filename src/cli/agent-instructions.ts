@@ -7,7 +7,7 @@ This is the canonical agent-use guide. The same content lives in AGENTS.md.
 The code below runs unchanged whether you import the library, call it inside Code Mode \`execute()\` (as an async arrow returning the final value), or compose its CLI equivalents. Prefer Code Mode or library import for multi-step edits; reach for the CLI for one-shot operations.
 
 \`\`\`ts
-import { parseMermaid, asFlowchart, asSequence, mutate, verifyMermaid, serializeMermaid } from 'beautiful-mermaid/agent'
+import { parseMermaid, asFlowchart, asSequence, asTimeline, mutate, verifyMermaid, serializeMermaid } from 'beautiful-mermaid/agent'
 
 const d0 = parseMermaid(source)
 if (!d0.ok) throw new Error('parse')
@@ -47,5 +47,5 @@ Tier 2 (geometric, advisory): \`NODE_OVERLAP\`, \`ROUTE_SELF_CROSS\`. These corr
 - Regenerating source instead of mutating. Defeats round-trip; produces noise.
 - Verifying once at the end of a long chain. Loses precision about which op broke it.
 - Concatenating Mermaid source strings. Use \`mutate\` and \`serializeMermaid\`.
-- Calling \`mutate\` on a non-flowchart, non-sequence diagram — the type system rejects it; edit \`canonicalSource\` directly.
+- Calling \`mutate\` on a class / ER / journey / xychart / architecture diagram (or any opaque-fallback body) — the type system rejects it; edit \`canonicalSource\` directly.
 `
