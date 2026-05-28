@@ -104,3 +104,33 @@ to avoid a large refactor in the same change that ships the feature.
   lossless round-trip + verify.
 - **MermaidSeqBench** still needs external dataset.
 - **Cross-machine determinism** still requires multiple-CPU hardware.
+
+## Loop 3 audit pass — three more real bugs (found + fixed)
+
+The audit (code-review skill on the loop-3 diff) caught three serialize.ts
+defensive-helper bugs I'd written but never adversarial-tested. All
+reproduced via standalone runs; all fixed with regression tests:
+
+1. **CRASH: cyclic subgraph stack-overflow.** `normalizeSubgraphs` recursed
+   without a visited set; `subgraphs:[a]` where `a.children.push(a)` blew
+   the stack. Fix: per-call visited set drops the cyclic edge.
+2. **CRASH: null subgraph element.** `[null]` in `subgraphs` triggered
+   `TypeError reading .id`. Fix: skip null/non-object elements.
+3. **CRASH: non-tuple Array in `toMap`.** `classDefs: ['foo','bar']` threw
+   "Iterator value foo is not an entry object". Fix: only accept
+   well-formed `[k, v]` tuples; ignore the rest.
+4. **DATA LOSS: NaN-keyed `toLinkStyleMap`.** Non-numeric string keys
+   (`abc`) silently became NaN-keyed entries unreachable by index lookup;
+   fractional keys (`'1.5'`) similarly stored unreachable floats. Fix:
+   only accept non-negative integer keys and the literal `'default'`.
+
+Also fixed (subtle): `toMap` now coerces non-string Map keys to strings so
+`new Map([[0, ...]])` → `.get('0')` works.
+
+Plus the sandbox `ensureReturn` heuristic — the audit confirmed my own
+working-tree replacement already covered all four C-angle findings.
+
+Audit Angle A (refactor): clean — no regressions from the layout-mapping
+extraction or `SubgraphLike` → `MermaidSubgraph` swap.
+
+Full suite: 1330/1330. tsc clean. Build clean. Lint green.

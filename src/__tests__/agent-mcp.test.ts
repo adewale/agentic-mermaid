@@ -49,18 +49,40 @@ describe('sandbox — isolation + sad paths', () => {
   })
 })
 
-describe('sandbox — ensureReturn shapes (no implicit-return surprises)', () => {
-  test('bare single expression returns the value', async () => {
+describe('sandbox — expression-first wrap handles every common code shape', () => {
+  // The naive heuristic in earlier loops mishandled trailing-semi, multi-line
+  // template literals, multi-line args, and object literals. Expression-first
+  // try/fallback covers them all.
+  test('bare single expression returns value', async () => {
     expect((await executeInSandbox(`1 + 2`)).value).toBe(3)
   })
-  test('bare call returns the value', async () => {
-    expect((await executeInSandbox(`mermaid.parseMermaid('flowchart TD\\n A --> B').ok`)).value).toBe(true)
+  test('expression with trailing semicolon returns value (not null)', async () => {
+    expect((await executeInSandbox(`1 + 2;`)).value).toBe(3)
   })
-  test('multi-statement no-return → ok with null (not non-serializable)', async () => {
+  test('template literal with embedded newline returns the string', async () => {
+    expect((await executeInSandbox('`a\nb`')).value).toBe('a\nb')
+  })
+  test('multi-line argument (no semi) returns the value', async () => {
+    expect((await executeInSandbox(`JSON.stringify({\n  a: 1\n})`)).value).toBe('{"a":1}')
+  })
+  test('object literal as bare expression returns the object', async () => {
+    expect((await executeInSandbox(`{a: 1}`)).value).toEqual({ a: 1 })
+  })
+  test('ternary as bare expression', async () => {
+    expect((await executeInSandbox(`1 > 0 ? "yes" : "no"`)).value).toBe('yes')
+  })
+  test('arrow value returns null (function not JSON-serializable; no crash)', async () => {
+    const r = await executeInSandbox(`(x => x + 1)`)
+    expect(r.ok).toBe(true); expect(r.value).toBeNull()
+  })
+  test('top-level await works', async () => {
+    expect((await executeInSandbox(`await Promise.resolve(42)`)).value).toBe(42)
+  })
+  test('multi-statement no-return → ok with null', async () => {
     const r = await executeInSandbox(`const x = 5\nconst y = 10`)
     expect(r.ok).toBe(true); expect(r.value).toBeNull()
   })
-  test('explicit return still works after const decl', async () => {
+  test('explicit return after const decl', async () => {
     expect((await executeInSandbox(`const x = 5; return x * 2`)).value).toBe(10)
   })
 })
