@@ -58,16 +58,21 @@ function renderFlowchart(graph: MermaidGraph, kind: ValidDiagram['kind']): strin
     kind === 'state' ? 'stateDiagram-v2' : `flowchart ${graph.direction}`
   lines.push(header)
 
-  // Node declarations (only nodes referenced with custom shape/label).
-  for (const [id, node] of graph.nodes) {
-    if (needsExplicitDeclaration(node)) {
-      lines.push('  ' + renderNodeDeclaration(node))
-    }
+  // Two-pass strategy to avoid emitting shape declarations twice:
+  // (1) Inline a node's shape on its first edge reference.
+  // (2) Nodes that don't appear in any edge get their own declaration line.
+  const declaredInline = new Set<string>()
+
+  for (const edge of graph.edges) {
+    lines.push('  ' + renderEdge(edge, graph.nodes, declaredInline))
   }
 
-  // Edges
-  for (const edge of graph.edges) {
-    lines.push('  ' + renderEdge(edge, graph.nodes))
+  // Orphan node declarations (nodes not referenced by any edge).
+  for (const [id, node] of graph.nodes) {
+    if (declaredInline.has(id)) continue
+    if (needsExplicitDeclaration(node) || graph.edges.every(e => e.source !== id && e.target !== id)) {
+      lines.push('  ' + renderNodeDeclaration(node))
+    }
   }
 
   // Subgraphs (groups)
@@ -149,19 +154,27 @@ function escapeLabel(label: string): string {
   return label
 }
 
-function renderEdge(edge: MermaidEdge, nodes: Map<string, MermaidNode>): string {
-  // Use the node declaration form inline if needed.
-  const src = inlineNodeRef(edge.source, nodes)
-  const dst = inlineNodeRef(edge.target, nodes)
+function renderEdge(
+  edge: MermaidEdge,
+  nodes: Map<string, MermaidNode>,
+  declaredInline: Set<string>,
+): string {
+  const src = inlineNodeRef(edge.source, nodes, declaredInline)
+  const dst = inlineNodeRef(edge.target, nodes, declaredInline)
   const arrow = renderEdgeArrow(edge)
   const labelPart = edge.label ? `|${escapeLabel(edge.label)}|` : ''
   return `${src} ${arrow}${labelPart} ${dst}`
 }
 
-function inlineNodeRef(id: string, nodes: Map<string, MermaidNode>): string {
+function inlineNodeRef(
+  id: string,
+  nodes: Map<string, MermaidNode>,
+  declaredInline: Set<string>,
+): string {
   const n = nodes.get(id)
   if (!n) return id
-  if (needsExplicitDeclaration(n)) {
+  if (needsExplicitDeclaration(n) && !declaredInline.has(id)) {
+    declaredInline.add(id)
     return `${id}${renderShape(n)}`
   }
   return id
