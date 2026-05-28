@@ -9,6 +9,10 @@ This document describes the user-facing differences in `adewale/beautiful-mermai
 
 This branch owns the GitHub Pages deployment. The Craft/Cloudflare site is upstream-owned and is not a deployment target for this fork.
 
+## Agent-native surface (largest fork-vs-upstream gap)
+
+This fork adds a typed editing surface for AI agents under the `beautiful-mermaid/agent` subpath export, plus an `am` CLI and an `agentic-mermaid-mcp` Code Mode MCP server. Agents parse Mermaid into a sealed `ValidDiagram`, apply typed structural mutations (flowchart, state, and simple sequence diagrams), verify rendering correctness via structured `LayoutWarning` codes (no PNG/vision), and serialize back to canonical source. Layout is deterministic and verified byte-identical across processes. Other diagram families round-trip losslessly via the preserved canonical source. See [`AGENT_NATIVE.md`](./AGENT_NATIVE.md) and [`AGENTS.md`](./AGENTS.md). Upstream has no equivalent.
+
 ## New and expanded diagram support
 
 This fork renders a wider set of Mermaid families in both the gallery and editor:
