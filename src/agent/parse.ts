@@ -25,8 +25,10 @@ const ACC_DESCR_BLOCK_START = /^\s*accDescr\s*\{\s*$/i
 
 export function parseMermaid(source: string): Result<ValidDiagram, ParseError[]> {
   const errors: ParseError[] = []
-  const meta = extractMeta(source)
+  // Normalize once and reuse its frontmatter in extractMeta, rather than
+  // re-running the full preprocess a second time just for frontmatter.
   const normalized = normalizeMermaidSource(source)
+  const meta = extractMeta(source, normalized.frontmatter)
   const canonicalSource = normalized.text
 
   if (normalized.lines.length === 0) {
@@ -162,14 +164,11 @@ function detectKind(header: string): DiagramKind | null {
 
 // ---- Meta extraction -----------------------------------------------------
 
-function extractMeta(rawSource: string): ValidDiagramMeta {
+function extractMeta(rawSource: string, frontmatter?: Record<string, unknown>): ValidDiagramMeta {
   const meta: ValidDiagramMeta = { initDirectives: [], comments: [], accessibility: {} }
 
-  if (FRONTMATTER_REGEX.test(rawSource)) {
-    try {
-      const norm = normalizeMermaidSource(rawSource)
-      if (Object.keys(norm.frontmatter).length > 0) meta.frontmatter = norm.frontmatter
-    } catch { /* ignore */ }
+  if (frontmatter && Object.keys(frontmatter).length > 0) {
+    meta.frontmatter = frontmatter as ValidDiagramMeta['frontmatter']
   }
 
   const directiveRegex = new RegExp(INIT_DIRECTIVE_REGEX.source, 'gm')

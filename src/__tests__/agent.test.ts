@@ -171,13 +171,24 @@ describe('round-trip stability', () => {
     '---\ntitle: T\n---\nflowchart TD\n  A --> B',
     'sequenceDiagram\n  Alice->>Bob: Hi\n  Bob-->>Alice: Hello',
     'sequenceDiagram\n  participant A as Alice\n  A->>B: Hi',
+    // REGRESSION: subgraphs must round-trip (members were lost when edges were
+    // emitted before the subgraph block).
+    'flowchart TD\n  subgraph G\n    A --> B\n  end\n  B --> C',
+    'flowchart TD\n  subgraph G\n    A[Start] --> B{D}\n  end\n  B --> C',
+    'flowchart LR\n  subgraph Outer\n    subgraph Inner\n      X --> Y\n    end\n  end\n  Y --> Z',
   ]
   for (const src of corpus) {
-    test(`stable: ${src.split('\n')[0]} ...`, () => {
+    test(`stable: ${src.split('\n')[0]} ${src.includes('subgraph') ? '(subgraph)' : ''}...`, () => {
       const d = parse(src); const s1 = serializeMermaid(d)
       const d2 = parse(s1); expect(serializeMermaid(d2)).toBe(s1)
     })
   }
+  test('subgraph membership survives round-trip', () => {
+    const d = parse('flowchart TD\n  subgraph G\n    A --> B\n  end\n  B --> C')
+    const d2 = parse(serializeMermaid(d))
+    if (d2.body.kind !== 'flowchart') throw new Error('x')
+    expect(d2.body.graph.subgraphs[0]!.nodeIds.sort()).toEqual(['A', 'B'])
+  })
   test('edge styles + markers preserved', () => {
     for (const e of ['-->', '---', '--o', '--x', '<-->', '-.->', '-.-', '==>', '===']) {
       const src = `flowchart TD\n  A ${e} B`
