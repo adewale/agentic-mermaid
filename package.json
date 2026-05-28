@@ -49,7 +49,15 @@
     "theming"
   ],
   "author": "Craft Docs",
-  "files": ["src/", "dist/", "bin/", "AGENTS.md", "AGENT_NATIVE.md", "LICENSE", "README.md"],
+  "files": [
+    "src/",
+    "dist/",
+    "bin/",
+    "AGENTS.md",
+    "AGENT_NATIVE.md",
+    "LICENSE",
+    "README.md"
+  ],
   "scripts": {
     "test": "bun test src/__tests__/",
     "test:browser": "bun test e2e/ --timeout 600000",
@@ -62,7 +70,8 @@
     "deploy": "echo 'GitHub Pages deploys from main via .github/workflows/pages.yml; Cloudflare deployment is upstream-owned.'",
     "xychart-test": "bun run xychart-test.ts",
     "prepublishOnly": "npm run build",
-    "mutation-test": "npx stryker run"
+    "mutation-test": "npx stryker run",
+    "lint": "bun test src/__tests__/agent-substrate-lint.test.ts"
   },
   "dependencies": {
     "elkjs": "^0.11.0",

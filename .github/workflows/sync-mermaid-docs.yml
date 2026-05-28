@@ -1,0 +1,37 @@
+name: Sync upstream Mermaid syntax docs
+
+on:
+  schedule:
+    - cron: "0 0 * * 0"
+  workflow_dispatch:
+
+jobs:
+  sync-docs:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Checkout upstream Mermaid docs
+        uses: actions/checkout@v4
+        with:
+          repository: mermaid-js/mermaid
+          path: mermaid-upstream
+          sparse-checkout: |
+            docs/syntax
+          sparse-checkout-cone-mode: true
+      - name: Refresh upstream references
+        run: |
+          DEST=".claude/skills/agentic-mermaid/references/upstream"
+          rm -rf "$DEST"; mkdir -p "$DEST"
+          if [ -d mermaid-upstream/docs/syntax ]; then
+            find mermaid-upstream/docs/syntax -maxdepth 1 -name '*.md' -exec cp {} "$DEST/" \;
+          else
+            echo "::warning::upstream docs/syntax path not found; layout may have changed"
+          fi
+          rm -rf mermaid-upstream
+      - name: Commit if changed
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: "chore(skill): sync upstream Mermaid syntax references"
+          file_pattern: ".claude/skills/agentic-mermaid/references/upstream/**"

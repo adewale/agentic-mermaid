@@ -48,6 +48,28 @@ The ASCII rendering engine is based on [mermaid-ascii](https://github.com/Alexan
 - **Mono mode** — Beautiful diagrams from just 2 colors
 - **Zero DOM dependencies** — Pure TypeScript, works everywhere
 - **Ultra-fast** — Renders 100+ diagrams in under 500ms
+- **Agent-native surface** — Typed parse → mutate → verify → serialize loop for AI agents (see below)
+
+## Agent-native surface
+
+The `beautiful-mermaid/agent` subpath export gives AI agents a typed editing loop that never needs to render to an image to know whether an edit worked:
+
+```ts
+import { parseMermaid, asFlowchart, mutate, verifyMermaid, serializeMermaid } from 'beautiful-mermaid/agent'
+
+const d0 = parseMermaid('flowchart TD\n  API --> DB')
+if (!d0.ok) throw new Error('parse')
+const flow = asFlowchart(d0.value)!
+const d1 = mutate(flow, { kind: 'add_node', id: 'Cache', label: 'Cache' })
+if (d1.ok && verifyMermaid(d1.value).ok) console.log(serializeMermaid(d1.value))
+```
+
+- **`verifyMermaid`** returns structured `LayoutWarning` codes (label overflow, off-canvas, mis-anchored edges, …) — no PNG, no vision.
+- **`mutate`** applies typed structural edits to flowchart, state, and simple sequence diagrams; other families round-trip losslessly via `canonicalSource`.
+- **Deterministic layout**, verified byte-identical across processes.
+- Ships an **`am` CLI** and an **`agentic-mermaid-mcp`** Code Mode MCP server.
+
+See [`AGENT_NATIVE.md`](./AGENT_NATIVE.md), [`AGENTS.md`](./AGENTS.md), and [`examples/agent-loop.ts`](./examples/agent-loop.ts).
 
 ## Discovering Fork Features
 
