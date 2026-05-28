@@ -1,95 +1,83 @@
 # Agent-Native Beautiful Mermaid — Plan
 
-**Status.** Working spec, single source of truth. Branch: `claude/agentic-mermaid-blocks-r5lzs`. Not intended for upstream — this fork takes the breaking changes Beautiful Mermaid can't.
+**Status.** Working spec, single source of truth. Branch: `claude/agentic-mermaid-blocks-r5lzs`. Not intended for upstream.
 
-**One-line thesis.** Beautiful Mermaid is biased for humans looking at images. This fork is the same renderer biased for agents reading structures: every output an agent needs is structured, every input it produces is type-checked, and every re-render produces the same artifact for the same input.
-
-## Contents
-
-- [Why this fork exists](#why-this-fork-exists)
-- [The four properties, ranked by leverage](#the-four-properties-ranked-by-leverage)
-- [(0) The substrate move](#0-the-substrate-move)
-- [(1) Deterministic layout](#1-deterministic-layout)
-- [(2) Verifiable rendering](#2-verifiable-rendering)
-- [(3) Round-trippable](#3-round-trippable)
-- [(4) Composable](#4-composable)
-- [Public API](#public-api)
-- [Format specification (Version 1, Draft)](#format-specification-version-1-draft)
-- [Breaking changes from Beautiful Mermaid](#breaking-changes-from-beautiful-mermaid)
-- [Distribution & discovery](#distribution--discovery)
-- [Agent workflow](#agent-workflow)
-- [Sequencing](#sequencing)
-- [Measurement & test infrastructure](#measurement--test-infrastructure)
-- [Risks and open questions](#risks-and-open-questions)
-- [Anchor metric](#anchor-metric)
-- [Why the totality matters](#why-the-totality-matters)
+**Thesis.** Agents authoring Mermaid diagrams today regenerate the whole source on every edit, or render to PNG and read it back with vision. Beautiful Mermaid already fixed the worst of the rendering side (sync + DOM-free + ASCII). This fork adds the editing surface — structured verification, typed mutation, round-trippable IR — so an agent can edit one node and trust the result without ever opening an image.
 
 ---
 
-## Why this fork exists
+## Why fork Beautiful Mermaid
 
-An agent authoring a Mermaid diagram today has to render it to PNG and read the PNG back with vision to know whether its edit worked. That is expensive in tokens, brittle in interpretation, and breaks the loop that makes agents useful in the first place. Every other affordance — themes, color schemes, hero galleries — is irrelevant to that loop.
+The stack is three layers, each contributing something the others can't:
 
-This fork keeps the renderer and throws out the bias. The library a coding agent should reach for first is one where:
+| Layer | Contribution |
+|---|---|
+| **Mermaid (grammar)** | 20+ diagram families. Rendered inline by GitHub, GitLab, Obsidian, Notion. Frontmatter + init + runtime config plane. `accTitle`/`accDescr` directives. **The corpus moat.** |
+| **Beautiful Mermaid (renderer)** | Synchronous, zero DOM, pure TypeScript. ASCII output. Two-color theming. Semantic role styling. 9 diagram families with full layout/render coverage. Property + mutation + e2e test scaffold already in place. **The AI-era renderer Craft built for Craft Agents.** |
+| **Agentic Mermaid (this spec)** | `ValidDiagram` IR. Deterministic layout. `verify()`. `mutate()` + round-trip `serializeMermaid`. Claude Code skill, CLI, `--agent-instructions`. **The editing surface.** |
 
-- It can hand back the same source and get the same SVG.
-- It can ask "did this render cleanly?" and get a structured answer.
-- It can mutate one node and serialize the result back to valid Mermaid.
-- It can compose reusable pieces without those pieces shuffling on re-layout.
-
-Those are the four properties. Everything else in this spec is in service of them.
+D2 has a better language than Mermaid. Beautiful Mermaid has a better renderer than D2 for agent contexts. Mermaid has a corpus neither of them has. The bet: stacking the three wins.
 
 ---
 
-## The four properties, ranked by leverage
+## The three properties
 
 1. **Deterministic layout** — same input → byte-identical canonical artifact.
-2. **Verifiable rendering** — programmatic "did this render cleanly?" check (label overflow, off-canvas, edge anchors, overlaps).
-3. **Round-trippable** — parse → mutate → emit valid Mermaid with semantics preserved.
-4. **Composable** — subgraphs, includes, named layouts that hold under composition.
+2. **Verifiable rendering** — structured "did this render cleanly?" check.
+3. **Round-trippable** — parse → mutate → serialize, semantics preserved.
 
-These are not parallel. (1) is a prerequisite for (2), (3), and (4). Skip it and the others check moving targets.
+(Composition — `@include`, templates, layered scenarios — was the fourth in earlier drafts and is deferred. Agents do not currently reach for composition; they paste and edit. Add when evidence demands.)
+
+(1) is a prerequisite for (2) and (3). Skip it and the others check moving targets.
 
 ---
 
-## (0) The substrate move
+## (0) Substrate
 
-Every source of nondeterminism in the layout/render path is parameterized via a `LayoutContext` plumbed from the public entry points:
+Every source of nondeterminism in the layout/render path is parameterized via `LayoutContext`:
 
 ```ts
 interface LayoutContext {
   rng: SeededRNG            // seeded LCG; default seed 0
-  fontMetrics: MetricsTable // frozen JSON table shipped with the package
-  clock: Clock              // mock by default; real only for telemetry
-  basePath?: string         // resolution root for @include
+  fontMetrics: MetricsTable // frozen JSON shipped with the package
+  clock: Clock              // mock by default
 }
 ```
 
-Concrete enforcement:
+Enforcement:
 
 - **Lint rule** bans `Math.random()`, `Date.now()`, `performance.now()`, and naked `new Map()` iteration in `src/{layout,renderer,architecture,xychart,sequence,class,er,timeline,journey}/**`.
-- **ELK call sites** swap from `thoroughness`-driven randomized trials to a seeded crossing minimizer (or a deterministic re-implementation for the deterministic path).
-- **Frozen font-metric table** is generated once via headless browser, checked into the repo at `assets/font-metrics.json`, and regenerated by a script when font assets change. CI fails if the live measurement diverges from the table beyond tolerance.
-- **Source code does not call platform measurement** inside layout — it reads the table.
+- **ELK call sites** swap from `thoroughness`-driven randomized trials to a seeded crossing minimizer.
+- **Frozen font-metric table** is generated once via headless browser, checked in at `assets/font-metrics.json`. CI fails if live measurement diverges beyond tolerance.
 
-This is the move the rest of the spec sits on top of. Without it, none of (1)–(4) hold.
+This is the move the rest of the spec sits on top of.
 
 ---
 
 ## (1) Deterministic layout
 
-`deterministic: true` is the default. The fork's whole point is that you do not have to ask for it.
+`deterministic: true` is the default. The canonical artifact is the **layout JSON**, not the SVG:
 
-The canonical artifact is the **layout JSON**, not the SVG. (Full schema in the [Format specification](#format-specification-version-1-draft) below.) The SVG is the visual projection of the layout JSON. Two `RenderResult`s are equal iff their layout JSONs are equal. This sidesteps the rathole of sorting every attribute and stamping every version.
+```json
+{
+  "version": 1,
+  "seed": 0,
+  "kind": "flowchart",
+  "nodes":  [{ "id": "A", "x": 12, "y": 36, "w": 80, "h": 40, "shape": "rect" }, ...],
+  "edges":  [{ "id": "A->B", "from": "A", "to": "B", "path": [[..],[..]], "label": {...} }, ...],
+  "groups": [{ "id": "g1", "x": 0, "y": 0, "w": 200, "h": 120, "members": ["A","B"] }, ...],
+  "bounds": { "w": 320, "h": 180 }
+}
+```
+
+SVG is the visual projection. Two render results are equal iff their layout JSONs are equal. Equality is structural deep equality. This sidesteps the rathole of sorting every SVG attribute.
 
 ---
 
 ## (2) Verifiable rendering
 
-New entry point, sibling to `render`:
-
 ```ts
-verifyMermaid(source: string | ValidDiagram, options?: VerifyOptions): VerifyResult
+verifyMermaid(source: string | ValidDiagram, opts?: VerifyOptions): VerifyResult
 
 interface VerifyOptions {
   suppress?: WarningCode[]      // codes to omit, e.g. ['UNKNOWN_SHAPE']
@@ -98,41 +86,35 @@ interface VerifyOptions {
 
 interface VerifyResult {
   ok: boolean
-  warnings: LayoutWarning[]     // emitted warnings (after suppression filter)
-  suppressed: LayoutWarning[]   // warnings that were filtered (audit trail)
+  warnings: LayoutWarning[]
   layout: RenderedLayout
 }
 ```
 
-**The warning vocabulary is a versioned contract.** The set of `code` values is the surface agents reason about. Every code:
+| Code | Severity | Description |
+|---|---|---|
+| `LABEL_OVERFLOW`   | error   | Label exceeds container bounds |
+| `OFF_CANVAS`       | error   | Node or edge segment lies outside canvas |
+| `EDGE_MISANCHORED` | error   | Edge endpoint does not attach to a real node |
+| `GROUP_BREACH`     | error   | Member node lies outside its group's bounds |
+| `EMPTY_DIAGRAM`    | error   | Diagram contains no renderable elements |
+| `NODE_OVERLAP`     | warning | Two nodes overlap (sometimes intentional) |
+| `ROUTE_SELF_CROSS` | warning | Edge route crosses itself |
+| `UNKNOWN_SHAPE`    | warning | Shape unrecognized; default used |
 
-- Appears in the [Format specification](#format-specification-version-1-draft) below with a one-line description and a declared severity.
-- Carries severity in code (`error` blocks; `warning` advises) and is asserted against the doc.
-- Is doc-sync tested both ways — emitting an undocumented code fails CI; documenting an unemitted code fails CI.
+Codes are the contract surface agents reason about. Emitting an undocumented code fails CI; documenting an unemitted one also fails CI. Agents omit known-irrelevant codes via `VerifyOptions.suppress`.
 
-Agents can omit known-irrelevant codes via `VerifyOptions.suppress`. Silent suppression is not a feature; the suppression list is visible to the caller and shows up in `VerifyResult.suppressed` so an audit log can recover what was hidden.
+The data already exists — the layout pass computes bounds and discards them. Plumbing, not new analysis.
 
-The data already exists. The layout pass computes bounds and discards them. The implementation is plumbing, not new analysis.
+**Branded coordinate types** (`Finite`, `ValidCoord`) prevent invalid values from reaching the renderer.
 
-**Branded types** prevent invalid coordinates from leaking through:
-
-```ts
-type Finite       = number & { readonly __finite: true }
-type ValidCoord   = { x: Finite, y: Finite }
-type RenderedLayout = { /* carries invariants by construction */ }
-```
-
-**Model-gap tests** (Alexis King, correctness-by-construction): for every generated `D` that parses successfully, `verify(D).warnings` filtered to severity ≥ `error` must be empty. Any counterexample is a renderer bug — not a test that needs updating.
+**Model-gap property test**: for every generated `D` that parses successfully, `verify(D).warnings` filtered to severity `error` must be empty. Counterexamples are renderer bugs.
 
 ---
 
 ## (3) Round-trippable
 
-This is the deepest move — it's type-system reform.
-
-**Today.** `parseMermaid` returns a lossy `MermaidGraph`. `mermaid-source.ts` strips frontmatter, init directives, and comments before the AST forms.
-
-**Target.** A sealed `ValidDiagram` that carries everything the source had:
+A sealed `ValidDiagram` that preserves everything the source had:
 
 ```ts
 interface ValidDiagram {
@@ -143,454 +125,166 @@ interface ValidDiagram {
     comments: Comment[]
     accessibility: { title?: string, descr?: string }
   }
-  readonly body: DiagramBody       // family-specific, but always a tagged union
-  readonly source: SourceMap        // (line, col) ↔ node/edge/group IDs
+  readonly body: DiagramBody
+  readonly source: SourceMap
 }
 
-parseMermaid(source: string):       Result<ValidDiagram, ParseError[]>
-serializeMermaid(d: ValidDiagram):  string
+parseMermaid(source: string):           Result<ValidDiagram, ParseError[]>
+serializeMermaid(d: ValidDiagram):      string
 mutate(d: ValidDiagram, op: MutationOp): Result<ValidDiagram, MutationError>
 ```
 
-**Two contracts** (Karpathy's decode/encode identity):
+Two contracts:
 
 - `serializeMermaid(parseMermaid(s)) ≡ normalize(s)` for canonical input.
-- `parseMermaid(serializeMermaid(d)) ≡ d` for every reachable `d`.
+- `parseMermaid(serializeMermaid(d)) ≡ d` for every `d` produced by parse or mutate.
 
-**Mutation is typed and total.** An agent never produces a half-edited document because the mutation type system does not let it. The full `MutationOp` taxonomy lives in the [Format specification](#format-specification-version-1-draft) below.
+Six `MutationOp` kinds for v1 — they cover ~80% of agent edits:
 
----
+| Kind | Required | Optional | Inverse |
+|---|---|---|---|
+| `add_node`    | `id`, `label`     | `shape`, `parent` | `remove_node(id)` |
+| `remove_node` | `id`              | —                 | `add_node(id, label, shape, parent)` |
+| `rename_node` | `from`, `to`      | —                 | `rename_node(to, from)` |
+| `set_label`   | `target`, `label` | —                 | `set_label(target, prev_label)` |
+| `add_edge`    | `from`, `to`      | `label`, `style`  | `remove_edge(id)` |
+| `remove_edge` | `id`              | —                 | `add_edge(from, to, label, style)` |
 
-## (4) Composable
-
-Two new constructs in source syntax, both ignored by upstream Mermaid (they appear in `%%` comments and are picked up by our preprocessor):
-
-```mermaid
-%%@include components/auth.mmd
-
-%%@template service(name, kind="server")
-  service ${name}(${kind})[${name}]
-%%@end
-
-%%@use service(name="api")
-%%@use service(name="db", kind="database")
-```
-
-- `@include` resolves relative to `LayoutContext.basePath`.
-- `@template` is hygienic — identifiers in the body are namespaced to the expansion site.
-- Stable IDs: every expansion gets a deterministic ID derived from `hash(template_name, args_canonical, expansion_site)`. Re-ordering `@use` calls re-runs IDs in the same order. Adding a new `@use` does not perturb existing IDs.
-- Explicit ID override: an `@use` call accepts an optional `id:` field for cases where an agent needs the expansion's identity to persist across template refactors (the structural hash changes if the template definition changes shape, which is sometimes wrong). The override is opt-in; default behavior is structural.
-
-The composed `ValidDiagram` is the post-expansion artifact. The pre-expansion source is preserved in `meta` so `serializeMermaid` round-trips back to the composable form, not the expanded one.
-
-Without (1) and (3), composition is worthless: composed pieces shuffle on every layout, and you cannot edit them without copy-pasting expansion output.
+Add more ops as evidence accumulates. Lint rule bans constructing `ValidDiagram` outside `parseMermaid` and `mutate`.
 
 ---
 
 ## Public API
 
 ```ts
-// Pipeline (each stage is callable on its own)
 parseMermaid(source: string):                              Result<ValidDiagram, ParseError[]>
-composeMermaid(source: string, ctx: LayoutContext):        Result<ValidDiagram, ComposeError[]>
 layoutMermaid(d: ValidDiagram, ctx?: LayoutContext):       RenderedLayout
 renderMermaidSVG(input: ValidDiagram | string, opts?):     string
 renderMermaidASCII(input: ValidDiagram | string, opts?):   string
-
-// Agent surfaces
 verifyMermaid(input: ValidDiagram | string, opts?: VerifyOptions): VerifyResult
 serializeMermaid(d: ValidDiagram):                         string
 mutate(d: ValidDiagram, op: MutationOp):                   Result<ValidDiagram, MutationError>
-diffDiagrams(a: ValidDiagram, b: ValidDiagram):            StructuralDiff
-explainDiagram(d: ValidDiagram):                           DiagramSummary
 ```
 
-- **CLI** (`am <verb>`) with `--json` everywhere: `render`, `verify`, `parse`, `serialize`, `mutate`, `diff`, `explain`, `compose`, `format`. Plus `am --agent-instructions`, which prints the canonical agent-use guide embedded in the binary at build time — agents read the doc that ships with the tool, not whatever their training set indexed.
-- **MCP server** (`agentic-mermaid-mcp`) exposing the verbs above as tools. Schema sourced from the same JSON Schema export — no separate definition.
-- **JSON Schema** for `RenderOptions`, `LayoutContext`, `MutationOp`, `LayoutWarning`, `VerifyOptions`, and `VerifyResult` exported as sibling artifacts to the TS types.
-- **HTTP endpoint** colocated with the editor: `POST /render`, `POST /verify`, `POST /mutate`.
-
----
-
-## Format specification (Version 1, Draft)
-
-**Status.** Version `1`, Status `Draft`. The version stamps every emitted layout JSON and every CLI/MCP response. Agents that key on `version` know exactly when their assumptions might break.
-
-**Deprecation policy.** Codes and `MutationOp` kinds may be added in minor versions; removal or signature changes require a major version bump. Renames are not allowed within a major.
-
-### Canonical layout JSON
-
-```ts
-interface RenderedLayout {
-  version: 1
-  seed: number              // RNG seed used; 0 by default
-  kind: DiagramKind         // 'flowchart' | 'sequence' | ...
-  nodes:  LayoutNode[]
-  edges:  LayoutEdge[]
-  groups: LayoutGroup[]
-  bounds: { w: number, h: number }
-}
-
-interface LayoutNode  { id: NodeId,  x: Finite, y: Finite, w: Finite, h: Finite, shape: Shape, label?: string }
-interface LayoutEdge  { id: EdgeId,  from: NodeId, to: NodeId, path: [Finite, Finite][], label?: LabelPlacement }
-interface LayoutGroup { id: GroupId, x: Finite, y: Finite, w: Finite, h: Finite, members: NodeId[], label?: string }
-```
-
-All coordinate fields are `Finite`. Equality of two `RenderedLayout`s is structural (deep equality across all fields). Two runs with the same `(ValidDiagram, LayoutContext)` produce equal `RenderedLayout`.
-
-### ValidDiagram
-
-```ts
-interface ValidDiagram {
-  readonly version: 1
-  readonly kind: DiagramKind
-  readonly meta: {
-    frontmatter?: Frontmatter
-    initDirectives: InitDirective[]
-    comments: Comment[]
-    accessibility: { title?: string, descr?: string }
-    composable?: { preExpansion: string }   // round-trip target if composed
-  }
-  readonly body: DiagramBody                 // family-specific tagged union
-  readonly source: SourceMap                 // (line, col) ↔ element IDs
-}
-```
-
-Only `parseMermaid` and `mutate` construct `ValidDiagram`. A lint rule bans construction elsewhere.
-
-### LayoutWarning vocabulary
-
-| Code | Severity | Description | Payload |
-|------|----------|-------------|---------|
-| `LABEL_OVERFLOW`   | error   | A label exceeds its container's bounds | `target`, `overflowPx` |
-| `OFF_CANVAS`       | error   | A node or edge segment lies outside the canvas | `target`, `axis` |
-| `EDGE_MISANCHORED` | error   | An edge endpoint does not attach to a real node | `edge`, `from?`, `to?` |
-| `GROUP_BREACH`     | error   | A member node lies outside its group's bounds | `group`, `member` |
-| `EMPTY_DIAGRAM`    | error   | The diagram contains no renderable elements | — |
-| `NODE_OVERLAP`     | warning | Two nodes overlap (sometimes intentional) | `a`, `b`, `areaPx` |
-| `ROUTE_SELF_CROSS` | warning | An edge route crosses itself | `edge`, `count` |
-| `UNKNOWN_SHAPE`    | warning | Shape name unrecognized; default shape used | `node`, `shape` |
-
-Codes are doc-sync tested in both directions. Adding a new code requires (a) a row in this table, (b) an emit site, (c) a positive fixture, (d) a negative fixture. CI rejects any combination of the four that is incomplete.
-
-### MutationOp taxonomy
-
-| Kind | Required fields | Optional fields | Inverse |
-|------|-----------------|-----------------|---------|
-| `add_node`        | `id`, `label`     | `shape`, `parent`     | `remove_node(id)` |
-| `remove_node`     | `id`              | —                     | `add_node(id, label, shape, parent)` |
-| `rename_node`     | `from`, `to`      | —                     | `rename_node(to, from)` |
-| `set_label`       | `target`, `label` | —                     | `set_label(target, prev_label)` |
-| `add_edge`        | `from`, `to`      | `label`, `style`      | `remove_edge(id)` |
-| `remove_edge`     | `id`              | —                     | `add_edge(from, to, label, style)` |
-| `set_style`       | `target`, `style` | —                     | `set_style(target, prev_style)` |
-| `move_to_group`   | `node`, `group`   | —                     | `move_to_group(node, prev_group)` |
-| `set_frontmatter` | `key`, `value`    | —                     | `set_frontmatter(key, prev_value)` |
-
-`mutate` returns `Result<ValidDiagram, MutationError>`. Mutations are total — every defined op on a `ValidDiagram` produces either a valid result or a typed error (never a partial state).
-
-### Round-trip contracts
-
-| ID | Claim | Test type |
-|----|-------|-----------|
-| `RT-1` | `serializeMermaid(parseMermaid(s)) ≡ normalize(s)` for canonical `s` | Property test, 10K cases nightly |
-| `RT-2` | `parseMermaid(serializeMermaid(d)) ≡ d` for reachable `d` | Property test, 10K cases nightly |
-| `RT-3` | `apply(d, op)` then `apply(_, inverse(op))` returns `d`, for symmetric ops | Property test, exhaustive over ops |
-| `DET-1` | `layoutMermaid(d, ctx)` deterministic in `(d, ctx)` across runs | Determinism grid, every commit |
-| `DET-2` | `layoutMermaid(d, ctx)` deterministic across Linux/macOS | Cross-platform CI matrix |
-| `VER-1` | For valid generated `d`, `verify(d).warnings` of severity `error` is empty | Model-gap property test |
-
-These IDs are referenced from test names so the contract a failing test enforces is recoverable from the test report.
+**CLI** (`am <verb>`) with `--json` everywhere: `render`, `verify`, `parse`, `serialize`, `mutate`, `format`. Plus `am --agent-instructions` printing the canonical agent-use guide embedded in the binary at build time — agents read the doc that ships with the tool, not whatever their training set indexed.
 
 ---
 
 ## Breaking changes from Beautiful Mermaid
 
-We are not upstreaming. We take them all:
-
 - **Package renamed** to `agentic-mermaid` on npm. No drop-in claim.
-- **Deterministic by default.** `nondeterministic: true` exists for the rare caller who wants thoroughness-driven layout.
-- **IDs are content-hashed and stable.** Random/incremental IDs are removed everywhere.
-- **`MermaidGraph` is removed** in favor of `ValidDiagram`. Anything that consumed `MermaidGraph` migrates to the staged pipeline.
-- **`renderMermaidSVGAsync` is removed.** The sync path is deterministic; there is no reason for async.
-- **Default theme is high-contrast neutral**, not salmon. Default outputs are good for screenshot diffs. Salmon stays as a named theme.
-- **`mermaidConfig` precedence is documented and enforced** by tests, with a single merge function. The current "frontmatter < init < render options" rule becomes a typed precedence chain.
-- **Themes are pruned** to the ones with snapshot coverage. Decorative themes without tests are removed.
-
-The PRODUCT.md, FORK_DIFFERENCES.md, and DESIGN.md framings stay for the visual fork's deployment. This spec replaces them as the source of truth for the agent-native fork.
+- **Deterministic layout is the default.**
+- **IDs are content-hashed and stable** across runs.
+- **`MermaidGraph` is removed** in favor of `ValidDiagram`.
+- **`renderMermaidSVGAsync` is removed** — sync path is deterministic; no reason for async.
+- **`mermaidConfig` precedence** (frontmatter < init < render options) is enforced by tests via a single merge function.
 
 ---
 
-## Distribution & discovery
+## Distribution
 
-The library API plus the verbs above are necessary but not sufficient. Agents find and adopt tools through specific channels; the fork ships explicit artifacts for each, all derived from or asserted against a single source of truth.
+Three artifacts, all derived from this doc:
 
-- **This spec.** Plan + format spec + agent workflow in one file. All other artifacts are derived from sections of it.
-- **`.claude/skills/agentic-mermaid/`** Claude Code skill bundle. Master `SKILL.md` routes by diagram family to per-family references; progressive disclosure means the LLM only loads the syntax reference it needs. Drop-in distribution via `cp` or git submodule.
-- **Upstream-doc sync GitHub Action.** Weekly cron pulls `mermaid-js/mermaid` syntax docs into `references/`, alongside our extensions (`@include` / `@template` syntax, `LayoutWarning` codes, `MutationOp` taxonomy). The skill stays current without manual labor.
-- **`am --agent-instructions`.** Prints the [Agent workflow](#agent-workflow) section, embedded in the binary at build time via something equivalent to Rust's `include_str!`. A test asserts the binary output equals the canonicalization of this section byte-for-byte.
-- **MCP server** (`agentic-mermaid-mcp`) — the verbs as tools, schema sourced from the JSON Schema export.
-- **HTTP endpoint** colocated with the editor: `POST /render`, `POST /verify`, `POST /mutate`. Stateless. For agents that don't ship the library.
-- **Editor WebSocket watch.** Editor pushes file-change events to connected clients. An agent edits a `.mmd`, the editor re-renders, a structured event is emitted. Lets the agent run an outer loop without polling: edit → wait for render event → read warnings → next edit.
+- **npm package** `agentic-mermaid`.
+- **`.claude/skills/agentic-mermaid/`** Claude Code skill bundle. Master `SKILL.md` routes by diagram family to per-family references; progressive disclosure means the LLM loads only the reference it needs. References sync from upstream Mermaid docs weekly via GitHub Action, alongside our additions (LayoutWarning codes, MutationOp taxonomy).
+- **`AGENTS.md`** at repo root, hard-capped under 100 lines. `am --agent-instructions` prints the workflow section below at runtime; a doc-sync test asserts the two are byte-identical.
 
-The thread connecting these is **anti-drift**. Every external surface derives from a single internal artifact (the binary embeds this doc's Agent workflow section; the JSON Schema generates MCP tool defs; the skill references are synced from upstream; the warning vocabulary is doc-sync tested). Agents depending on these surfaces can rely on them not silently diverging.
+No MCP server, no HTTP endpoint, no editor WebSocket watch in v1. Skill + CLI is enough. Add other channels only if evidence justifies the maintenance.
 
 ---
 
 ## Agent workflow
 
-This section is the canonical agent-use guide. `am --agent-instructions` prints exactly this section.
+(This section is the canonical agent-use guide. `am --agent-instructions` prints exactly this section.)
 
 ### Quick start
 
 ```ts
 import { parseMermaid, mutate, verifyMermaid, serializeMermaid } from 'agentic-mermaid'
 
-const source = `
-flowchart TD
-  API[API] --> DB[(Database)]
-`
-
-// 1. Parse
 const d0 = parseMermaid(source).unwrap()
-
-// 2. Mutate in typed ops, never by string concatenation
 const d1 = mutate(d0, { kind: 'add_node', id: 'Cache', label: 'Cache' }).unwrap()
 const d2 = mutate(d1, { kind: 'add_edge', from: 'API', to: 'Cache' }).unwrap()
-const d3 = mutate(d2, { kind: 'add_edge', from: 'Cache', to: 'DB' }).unwrap()
 
-// 3. Verify before committing the result
-const result = verifyMermaid(d3)
+const result = verifyMermaid(d2)
 if (!result.ok) {
-  // result.warnings is structured; result.layout is still available for inspection
-  // back up to the last valid ValidDiagram and try a different op
+  // result.warnings is structured; back up to d1 and try a different op
 }
 
-// 4. Serialize only after verify passes
-const newSource = serializeMermaid(d3)
+const out = serializeMermaid(d2)
 ```
 
 ### The verify-after-mutate rule
 
-Run `verifyMermaid` at every **commit point** — anywhere the result would be saved, sent, or shown to a human. Inside an editing session you may batch several `mutate` calls between verifications, but never serialize or persist a `ValidDiagram` whose `verify` result you have not inspected.
+Run `verifyMermaid` at every **commit point** — anywhere the result would be saved, sent, or shown. You may batch several `mutate` calls between verifications, but never serialize a `ValidDiagram` whose `verify` result you have not inspected.
 
-This is the workflow lesson from the Syscribe corpus: "Write a batch, validate, fix, continue." It is cheaper than vision-on-PNG and infinitely more precise.
+### Expected warnings
 
-### Working in batches
-
-For multi-step edits, group related mutations and verify after each group:
-
-1. **Skeleton** — add nodes and groups first. Verify; fix `EMPTY_DIAGRAM`, `OFF_CANVAS`.
-2. **Wiring** — add edges. Verify; fix `EDGE_MISANCHORED`.
-3. **Styling** — apply styles and labels. Verify; fix `LABEL_OVERFLOW`.
-4. **Layout sanity check** — verify; review `NODE_OVERLAP` and `ROUTE_SELF_CROSS` (sometimes intentional; suppress if so).
-
-If verification fails at any batch, revert to the last good `ValidDiagram` rather than patching the broken one — partial fixes accumulate confusion.
-
-### Expected warnings and when to suppress
-
-Some warnings are expected for legitimate use cases. Suppress them explicitly via `VerifyOptions.suppress`; suppressed warnings still appear in `VerifyResult.suppressed` for audit.
-
-| Code | When suppressing is appropriate |
-|------|-----|
-| `UNKNOWN_SHAPE`    | When intentionally using a Mermaid-syntax shape that has no fork-specific renderer; the default shape is acceptable. |
-| `NODE_OVERLAP`     | When overlap is intentional (e.g. annotation badges over a node). |
-| `ROUTE_SELF_CROSS` | When a dense bidirectional flow is unavoidable. |
-
-Never suppress `LABEL_OVERFLOW`, `OFF_CANVAS`, `EDGE_MISANCHORED`, `GROUP_BREACH`, or `EMPTY_DIAGRAM` — these indicate rendering bugs or malformed input.
+Suppress `UNKNOWN_SHAPE`, `NODE_OVERLAP`, or `ROUTE_SELF_CROSS` when intentional. Never suppress `LABEL_OVERFLOW`, `OFF_CANVAS`, `EDGE_MISANCHORED`, `GROUP_BREACH`, or `EMPTY_DIAGRAM` — these indicate rendering bugs or malformed input.
 
 ### Anti-patterns
 
-- **Regenerating source instead of mutating.** Defeats the round-trip guarantee and produces unnecessary diff noise. Always prefer `mutate(d, op)`.
-- **Verifying once at the end of a long edit chain.** You lose precision about which op introduced the warning. Verify per batch.
-- **Reading SVG for feedback.** The structured `VerifyResult` already contains everything the SVG would tell you. If you find yourself opening the SVG to debug, that is a verifier coverage gap — file an issue.
-- **Treating warnings of severity `warning` as errors.** They're advisory. Suppress with intent; do not auto-error.
-- **Concatenating Mermaid source strings.** Use `mutate` and `serializeMermaid`. String concatenation breaks the round-trip contract.
-
-### Error codes glossary
-
-See the [LayoutWarning vocabulary table](#layoutwarning-vocabulary) above for the full code list, severity, and payload schema.
+- Regenerating source instead of mutating. Defeats round-trip; produces noise.
+- Verifying once at the end of a long chain. Loses precision about which op broke it.
+- Concatenating Mermaid source strings. Use `mutate` and `serializeMermaid`.
 
 ---
 
 ## Sequencing
 
-| Stage | What lands | Notes |
-|------|-----------|------|
-| **1. Substrate** | `LayoutContext`, lint rule, frozen metric table, seeded ELK path | Touches every family. Snapshot churn is the cost of admission. Land behind `deterministic: true`, flip default once fixtures settle. |
-| **2. Verifiable rendering** | `verify()`, `LayoutWarning`, branded coord types, model-gap tests | Mostly plumbing data the layout pass already computes. |
-| **3. Round-trip** | `ValidDiagram`, `serializeMermaid`, `mutate`, golden-file corpus with promoted diffs | The largest type-system change. Removes `MermaidGraph`. |
-| **4. Composition** | `@include`, `@template`, hygienic expansion, stable expansion IDs | Sugar on top once (1)–(3) hold. |
-| **5. Agent surfaces** | CLI with `--json`, MCP server, JSON Schema export, HTTP endpoint, `am --agent-instructions` | Thin wrappers on the library API. |
-| **6. Distribution** | `.claude/skills/agentic-mermaid/`, upstream-doc sync Action, editor WebSocket watch | Discovery and anti-drift surfaces. |
-| **7. Polish** | `llms.txt`, differential corpus vs Mermaid.js, docs-as-tests | Drift detection across the whole surface. |
+Three phases, not stages:
 
-Stages 1 and 2 are independently shippable. Stages 3 and 4 are paired (composition is hollow without round-trip). Stage 5 arrives incrementally as each verb lands. Stage 6 turns the library into something agents actually find and use; without it the rest is theoretical.
+| Phase | Lands | Notes |
+|---|---|---|
+| **Ship** | Substrate + `verify` + `mutate` + `serialize` + 6 MutationOp kinds + CLI + skill + `AGENTS.md` | The minimum lethal version. |
+| **Learn** | Run against MermaidSeqBench. Watch how the skill gets used. Track which MutationOps are missing. | Decide what next-phase work is justified by evidence. |
+| **Expand** | More MutationOps, composition primitives, MCP server (if traffic justifies), additional diagram families | Earn by evidence, not by spec. |
 
 ---
 
-## Measurement & test infrastructure
+## Measurement
 
-Three distinct questions need three different instrumentation strategies:
-
-1. **Do the properties hold?** — measurement.
-2. **Do our tests for those properties actually catch regressions?** — verifier-of-verifiers.
-3. **Does the totality actually help agents?** — the end-to-end claim.
-
-### Per-property measurement
-
-**(1) Deterministic layout.**
-
-| Metric | Target | How |
+| What | How | Target |
 |---|---|---|
-| Layout JSON byte-equality across runs | 100% at N=10 runs | Determinism grid every commit |
-| Layout JSON byte-equality across platforms | 100% on Linux + macOS | CI matrix every PR |
-| Determinism under memory pressure | 100% | Vary `--max-old-space-size`; force GC |
+| Layout JSON byte-equality across runs | Determinism grid, ~100 cases (4 directions × 2..10 nodes × sparse\|dense) | 100% |
+| Drift sentinel | 30 hand-picked canonical layout JSONs committed to the repo; any change without explicit acknowledgment fails CI | — |
+| Verifier recall | Per-code positive fixtures (5–10 each) under `tests/fixtures/verifier/{CODE}/positive/` | ≥95% |
+| Verifier precision | Per-code negative fixtures (5–10 each) under `tests/fixtures/verifier/{CODE}/negative/` | ≥98% |
+| Round-trip identity | 30-fixture golden corpus with promoted diffs | 100% |
+| Round-trip property | Property test (fast-check), 1K cases per PR | 100% |
+| MermaidSeqBench score | Against vanilla Mermaid + vision baseline | Move the number |
 
-Tests:
-- **Exhaustive determinism grid** — `{direction (4) × nodes (2..10) × density (sparse|dense) × family (9)}` ≈ 600 cases, rendered twice, layout JSON compared byte-for-byte. Fast; every commit.
-- **Property test** — for any generated `D` and seed `k`, `layout(D, k) === layout(D, k)`. 1K cases on PRs, 10K nightly.
-- **Drift sentinel** — 30 hand-picked canonical layout JSONs in the repo. Any change without explicit acknowledgment fails CI. Forces intentional rebaselines.
+Cross-cutting:
 
-Verifier-of-verifier: Stryker mutates the seeded RNG plumbing; introducing nondeterminism must be killed by the grid. Mutation score ≥90% on `src/layout/**`.
+- **Doc-sync** (both directions): every `LayoutWarning` code and `MutationOp` kind must appear in the tables above. Emitting an undocumented code fails CI; documenting an unemitted one fails CI. `am --agent-instructions` output must equal the canonicalized Agent workflow section byte-for-byte.
+- **Stryker mutation testing** runs on PRs touching `src/`. Act on findings; no fixed percentage target.
+- **Property tests** (fast-check, already in the suite) extend with model-gap tests.
 
-**(2) Verifiable rendering.**
-
-| Metric | Target | How |
-|---|---|---|
-| Warning recall on broken-fixture corpus | ≥95% | Per-code positive fixtures |
-| Warning precision | ≥98% | Per-code negative fixtures |
-| Verifier output determinism | 100% | Re-run verify, byte-compare |
-
-Tests:
-- **Broken-fixture corpus** at `tests/fixtures/verifier/{CODE}/{positive,negative}/` — 5–10 of each per code. Positive cases must fire; negative cases must not.
-- **Model-gap property test** — for any generated `D` that parses successfully, `verify(D).warnings.filter(severity = 'error')` must be empty. Counterexample = renderer bug.
-- **Severity discipline** — every code maps to a severity in code; doc-sync test asserts the mapping matches the table in this spec.
-
-Verifier-of-verifier: Stryker mutates label-fitting and bounds checking; broken-fixture corpus must kill those mutants. Target ≥90% on label/anchor/bounds code.
-
-**(3) Round-trippable.**
-
-| Metric | Target | How |
-|---|---|---|
-| `serialize(parse(s)) ≡ normalize(s)` | 100% on canonical input | Property test + golden corpus |
-| `parse(serialize(d)) ≡ d` | 100% on reachable `d` | Property test, 10K cases nightly |
-| Mutation idempotence on symmetric ops | 100% | Property test |
-| `(MutationOp.kind × diagram family)` coverage | 100% of cells | Coverage tracker, fail CI on empty |
-
-Tests:
-- **Property tests for `RT-1`, `RT-2`, `RT-3`** — generated `ValidDiagram` arbitrary across every family, every `MutationOp` kind, every `meta` field.
-- **Golden corpus with promoted diffs** — 200+ real diagrams, per-fixture snapshots of `normalize(s)`, layout JSON, and serialized form. Promote workflow gates rebaselines.
-- **Differential vs Mermaid.js** — parse the same source with both, emit a structural fingerprint, document or fix divergences.
-
-Verifier-of-verifier: Stryker on parser/serializer, target ≥85%; corpus reach tracked across the `(MutationOp.kind × family)` matrix — empty cells fail CI.
-
-**(4) Composable.**
-
-| Metric | Target | How |
-|---|---|---|
-| Expansion-ID stability under reorder/append | 100% | Perturbation suite |
-| Layout stability under `@use` append | 100% | Perturbation suite |
-| Hygienic-expansion isolation | 100% | Property test |
-
-Tests:
-- **ID stability suite** — baseline expansion IDs; perturb by adding/removing/reordering `@use`; assert untouched IDs are byte-identical.
-- **Hygienic-expansion property** — generated `@template` definitions with random identifier sets must not collide with caller scope.
-- **Composition × round-trip** — `serialize(parse(composed))` round-trips to the *composable* form, never the expanded one.
-
-Verifier-of-verifier: Stryker on the expansion engine + property tests.
-
-### End-to-end agent-loop eval
-
-The above measures each property. This test measures the totality — does an agent inside the loop actually converge without rendering to images?
-
-**Task corpus.** Each task is shaped:
-
-> *Given diagram `D` and instruction `I` ("add a Cache node between API and DB"; "fix the off-canvas labels"; "split AuthService into two"), produce `D'` such that:*
-> - `verify(D').ok === true`
-> - `D' === foldl(mutate, D, ops)` for some sequence of ops
-> - the structural diff matches an instruction-specific rubric
-> - the agent's trace never includes a render-to-PNG call
-
-Run across Haiku / Sonnet / Opus. Track:
-
-| Metric | Target |
-|---|---|
-| Loop-closure rate (no vision call) | ≥80% on Sonnet |
-| Token economy vs control | ≥40% reduction |
-| Edit precision (Jaccard on node/edge sets vs reference) | median ≥0.85 |
-| Verifier reliance (% edits gated on `verify`) | High — evidence the verifier is load-bearing |
-| Mutation-API usage (% edits using `mutate` vs source rewrite) | High — evidence round-trip is used in practice |
-
-**Baselines that run alongside:**
-- Mermaid.js + vision call (status quo).
-- Beautiful Mermaid (visual fork; same renderer, no agent affordances).
-- Agentic Mermaid (this fork).
-
-If the totality matters, the third option dominates on loop-closure and tokens. If it doesn't, the bet was wrong and we want to know.
-
-### CI cadence
-
-| Frequency | What runs |
-|---|---|
-| **Every commit** | Determinism grid; broken-fixture verifier suite; round-trip property tests (1K); golden corpus diff |
-| **Per PR** | Above + cross-platform Linux/macOS + Stryker on touched files |
-| **Nightly** | Round-trip at 10K cases; differential vs Mermaid.js; full Stryker |
-| **Weekly** | Agent-loop eval (Sonnet + Haiku + Opus); baseline comparisons |
-| **Per release** | Font-metric table regeneration + drift check; doc-sync over all warning codes / CLI flags / `MutationOp` kinds; `am --agent-instructions` ≡ canonicalized Agent workflow section |
-
-### Cross-cutting test infrastructure
-
-- **Exhaustive generation** over small state spaces (Graydon, `exhaustigen`).
-- **Promoted-diff golden files** (Jane Street `ppx_expect`; Kepano `defuddle`).
-- **Property tests** for every contract `RT-*`, `DET-*`, `VER-*` named in the format spec, with the contract ID in the test name.
-- **Differential corpus** vs Mermaid.js for structural equivalence (Karpathy, Csmith).
-- **Doc-sync tests** (both directions): every `LayoutWarning` code, every `MutationOp` kind, every CLI flag, every diagram family must appear in the [Format specification](#format-specification-version-1-draft) table with severity and one-line description. Emitting an undocumented code fails CI; documenting an unemitted code also fails CI. `am --agent-instructions` output must equal the build-time canonicalization of the Agent workflow section byte-for-byte. (Simon Willison; Syscribe rule-reference pattern.)
-- **Assertions inside the layout engine** (TigerBeetle's "two assertions per function") so invariant violations fail fast in production with a structured error.
-
-### Where to start (test infra sequencing)
-
-1. **Run the determinism grid against today's code first.** It will fail. Those failures are the baseline — measure how often and where the renderer is already nondeterministic before changing anything.
-2. **Build the broken-fixture verifier corpus *before* writing `verify()`.** TDD the API into existence.
-3. **Build the golden corpus *before* the type-system reform.** It's the safety net while `MermaidGraph` becomes `ValidDiagram`.
-4. **Run the agent-loop eval against today's Beautiful Mermaid as the control baseline before changing anything.** Otherwise we can't claim the fork helped, only that the new tests pass. This is the step most teams skip and most regret.
+The single number that decides whether the bet was right: **MermaidSeqBench score against the Mermaid + vision baseline**. If it doesn't move, the spec was wrong.
 
 ---
 
-## Risks and open questions
+## Risks
 
-- **ELK determinism.** If ELK with seed pinning still drifts, options are: (a) fork ELK, (b) replace it with a deterministic minimizer on the deterministic path, (c) accept layout-level fuzz and only guarantee structural-JSON determinism (counts, endpoints, topology) rather than exact coordinates. (a) is the most work; (c) is the cheapest and may be enough for the agent loop. Decide after measuring how often ELK actually drifts under a pinned seed.
-- **Font metric table drift.** Add a CI check that fails if live measurement diverges from the table; regenerate as part of the release script when fonts change.
-- **`ValidDiagram` sealing.** TypeScript can't enforce sealed types across module boundaries. We rely on convention plus a lint rule that bans constructing `ValidDiagram` outside `parseMermaid` and `mutate`.
-- **Mermaid.js semantic divergence.** A differential corpus will surface places where our parser interprets syntax differently. We document each divergence rather than chase upstream byte-for-byte.
-- **Doc-sync churn.** A bidirectional doc-sync test makes every new warning a small PR (code + emit + positive + negative + table row). This is the price of the contract; lower the barrier with a `make new-warning CODE=...` scaffold.
-
----
-
-## Anchor metric
-
-An agent should be able to make ten micro-edits to a diagram and produce an audit log of exactly which `{node, edge, group}` changed at each step, with verified rendering at every step, **never having looked at an image**. If that loop runs end-to-end without raster output, the fork has done its job.
+- **ELK determinism.** If seeded ELK still drifts, options: fork ELK, replace it with a deterministic minimizer on the deterministic path, or accept structural-JSON determinism (counts, endpoints, topology) without exact coordinates. Decide after measuring.
+- **Font-metric table drift.** CI check fails if live measurement diverges from the table.
+- **`ValidDiagram` sealing.** TypeScript can't enforce sealed types across module boundaries. Lint rule bans construction outside `parseMermaid` and `mutate`.
+- **Bloat in agent-facing docs.** InfoQ 2026 research measured a 4pp regression on SWE-bench Lite plus ~20% token cost from oversize AGENTS.md files. Keep `AGENTS.md` under 100 lines, reviewed manually on every change.
 
 ---
 
-## Why the totality matters
+## Why totality matters
 
-Each of the four properties on its own leaves a different gap open:
-
-- **Determinism without round-trip.** The agent can diff its own outputs, but cannot edit the source without regenerating the whole thing.
-- **Round-trip without determinism.** The agent can edit the source, but every edit shuffles the layout — the diff is dominated by noise, not the edit.
-- **Verifiable without determinism.** The verifier's output isn't reproducible across runs. The agent can't trust that a warning fixed in one run stays fixed in the next.
-- **Composition without the other three.** The agent assembles a diagram from reusable pieces, but each composition shuffles every reference and there's no way to edit a piece without copy-pasting expansion output.
+Each property alone leaves a gap. Determinism alone — agents can diff outputs but can't edit without regenerating. Round-trip alone — every edit shuffles the layout, drowning the signal. Verify alone — outputs aren't reproducible across runs, so a warning fixed in one run silently returns in the next.
 
 Together they close a loop:
 
-1. Generate source.
-2. Render — deterministic, produces a stable artifact.
-3. Verify — structured warnings tell the agent whether anything broke.
-4. If broken, mutate the `ValidDiagram`; the IR guarantees the edit produces valid Mermaid.
-5. Re-render — determinism guarantees only the intended change appears in the diff.
-6. Compose — build a library of reusable pieces that hold under all of the above.
+1. Parse the source into `ValidDiagram`.
+2. `mutate` one node — the IR guarantees the edit produces valid Mermaid.
+3. `verify` — structured warnings tell the agent whether anything broke.
+4. If broken, back up to the previous `ValidDiagram` and try a different op.
+5. `serializeMermaid` only after verify passes.
 
-That loop is the agent-native claim. Today it's open at every step: the renderer's output isn't comparable across runs, the agent gets only pass/fail from a parser, edits regenerate the whole source, and composition is copy-paste. Closing those gaps replaces several rounds of vision-on-PNG with one structured query — and that is what makes a coding agent reach for this fork before any other Mermaid library.
+That loop is the agent-native claim. Replacing several rounds of vision-on-PNG with one structured query is what makes a coding agent reach for this fork before any other Mermaid library.
 
-One last thing the API alone does not buy. An agent that has `verify()` available but does not call it after every `mutate()` is back where doc-injection-only skills are: source generation with no feedback loop. The closing move is the *workflow*, encoded in the [Agent workflow](#agent-workflow) section above, embedded in the binary via `am --agent-instructions`, and asserted by the verify-after-mutate examples in the skill bundle. The library makes the loop possible; the workflow doc and the surfaces in Stage 6 make it a habit. Both ship together.
+The API makes the loop possible. `AGENTS.md` and `am --agent-instructions` make it a habit. Both ship together.
