@@ -270,6 +270,92 @@ describe('synthesizeFromGraph', () => {
     expect(r.ok).toBe(false)
   })
 
+  test('synthesizeFromGraph: cyclic subgraph does not stack-overflow', () => {
+    const a: { id: string; children: unknown[] } = { id: 'a', children: [] }
+    a.children.push(a)
+    const r = synthesizeFromGraph({
+      kind: 'flowchart',
+      body: { kind: 'flowchart', graph: {
+        direction: 'TD',
+        nodes: { N: { id: 'N', label: 'N', shape: 'rectangle' } },
+        edges: [],
+        subgraphs: [a] as never,
+      } },
+    })
+    expect(r.ok).toBe(true)
+  })
+
+  test('synthesizeFromGraph: null subgraph elements are skipped (no TypeError)', () => {
+    const r = synthesizeFromGraph({
+      kind: 'flowchart',
+      body: { kind: 'flowchart', graph: {
+        direction: 'TD',
+        nodes: { N: { id: 'N', label: 'N', shape: 'rectangle' } },
+        edges: [],
+        subgraphs: [null, undefined, { id: 'G', label: 'G', nodeIds: ['N'] }] as never,
+      } },
+    })
+    expect(r.ok).toBe(true)
+    if (!r.ok) return
+    if (r.value.body.kind !== 'flowchart') throw new Error('x')
+    expect(r.value.body.graph.subgraphs).toHaveLength(1)
+    expect(r.value.body.graph.subgraphs[0]!.id).toBe('G')
+  })
+
+  test('synthesizeFromGraph: non-tuple Array entries are ignored (no "not an entry object")', () => {
+    const r = synthesizeFromGraph({
+      kind: 'flowchart',
+      body: { kind: 'flowchart', graph: {
+        direction: 'TD',
+        nodes: { N: { id: 'N', label: 'N', shape: 'rectangle' } },
+        edges: [],
+        classDefs: ['foo', 'bar'] as never, // not [k,v] tuples
+        nodeStyles: [['ok', { fill: '#000' }], 'bad', null] as never,
+      } },
+    })
+    expect(r.ok).toBe(true)
+    if (!r.ok) return
+    if (r.value.body.kind !== 'flowchart') throw new Error('x')
+    expect(r.value.body.graph.classDefs.size).toBe(0)
+    expect(r.value.body.graph.nodeStyles.size).toBe(1)
+  })
+
+  test('synthesizeFromGraph: non-numeric / fractional linkStyle keys are silently dropped (not NaN)', () => {
+    const r = synthesizeFromGraph({
+      kind: 'flowchart',
+      body: { kind: 'flowchart', graph: {
+        direction: 'TD',
+        nodes: { A: { id: 'A', label: 'A', shape: 'rectangle' }, B: { id: 'B', label: 'B', shape: 'rectangle' } },
+        edges: [{ source: 'A', target: 'B', style: 'solid', hasArrowStart: false, hasArrowEnd: true }],
+        linkStyles: { abc: { stroke: 'red' }, '1.5': { stroke: 'blue' }, '0': { stroke: 'green' }, 'default': { stroke: 'gray' } } as never,
+      } },
+    })
+    expect(r.ok).toBe(true)
+    if (!r.ok) return
+    if (r.value.body.kind !== 'flowchart') throw new Error('x')
+    const keys = [...r.value.body.graph.linkStyles.keys()]
+    expect(keys.sort()).toEqual([0, 'default'] as never)
+    expect(keys.some(k => typeof k === 'number' && Number.isNaN(k))).toBe(false)
+  })
+
+  test('synthesizeFromGraph: Map with non-string keys is coerced (lookup-by-string works)', () => {
+    const m = new Map([[0, { fill: '#0f0' }] as [number, Record<string, string>]])
+    const r = synthesizeFromGraph({
+      kind: 'flowchart',
+      body: { kind: 'flowchart', graph: {
+        direction: 'TD',
+        nodes: { A: { id: 'A', label: 'A', shape: 'rectangle' } },
+        edges: [],
+        nodeStyles: m as never,
+      } },
+    })
+    expect(r.ok).toBe(true)
+    if (!r.ok) return
+    if (r.value.body.kind !== 'flowchart') throw new Error('x')
+    // Lookup by string '0' should succeed even though the input Map used number 0.
+    expect(r.value.body.graph.nodeStyles.get('0')).toEqual({ fill: '#0f0' })
+  })
+
   test('synthesizeFromGraph: null/undefined style maps default to empty (no throw)', () => {
     // Kills the `input && typeof input === 'object'` short-circuit mutants:
     // if mutated to `||`, Object.entries(null) would throw.

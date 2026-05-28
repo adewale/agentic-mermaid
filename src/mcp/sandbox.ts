@@ -24,40 +24,62 @@ export async function executeInSandbox(code: string, opts: ExecuteOptions = {}):
     },
   }
   const context = vm.createContext(sandbox, { name: 'agentic-mermaid-codemode', microtaskMode: 'afterEvaluate' })
-  const wrapped = `(async () => { ${ensureReturn(code)} })()`
-
-  let script: vm.Script
-  try { script = new vm.Script(wrapped, { filename: 'codemode.ts' }) }
-  catch (e) { return { ok: false, error: `compile: ${(e as Error).message}` } }
-
+  // Try expression form first; if it throws a SyntaxError at RUN-TIME (bun's
+  // vm.Script is lazy — compile succeeds, body parses on first eval), fall
+  // through to the statement form. Real thrown values, timeouts, and
+  // isolation breaches propagate as failures without retry.
+  const wraps = expressionFirstWraps(code)
   let result: unknown
-  try { result = await withTimeout(script.runInContext(context, { timeout: timeoutMs }) as Promise<unknown>, timeoutMs) }
-  catch (e) { return { ok: false, error: e instanceof Error ? e.message : String(e), logs } }
+  let runErr: Error | null = null
+  for (const wrapped of wraps) {
+    let script: vm.Script
+    try { script = new vm.Script(wrapped, { filename: 'codemode.ts' }) }
+    catch (e) { runErr = e as Error; continue }
+    try {
+      result = await withTimeout(script.runInContext(context, { timeout: timeoutMs }) as Promise<unknown>, timeoutMs)
+      runErr = null
+      break
+    } catch (e) {
+      runErr = e as Error
+      if (e instanceof SyntaxError || /SyntaxError/.test(String(e))) continue
+      break
+    }
+  }
+  if (runErr) return { ok: false, error: runErr.message, logs }
 
   // `undefined` isn't valid JSON; promote it to null so code with no explicit
   // return value still produces ok:true with a well-defined payload.
   if (result === undefined) return { ok: true, value: null, logs }
-  try { return { ok: true, value: JSON.parse(JSON.stringify(result, jsonReplacer)), logs } }
+  // Functions / symbols / other non-JSON values: JSON.stringify returns
+  // undefined for them. Treat the same as a missing value (null) rather
+  // than calling JSON.parse('undefined').
+  const stringified = JSON.stringify(result, jsonReplacer)
+  if (stringified === undefined) return { ok: true, value: null, logs }
+  try { return { ok: true, value: JSON.parse(stringified), logs } }
   catch (e) { return { ok: false, error: `non-serializable: ${(e as Error).message}`, logs } }
 }
 
-function ensureReturn(code: string): string {
+/**
+ * Generate candidate wrappings in order of preference: expression form first
+ * (handles bare expressions including objects/arrows/templates), then
+ * statement form (handles multi-statement bodies with `return` etc.). The
+ * first that compiles wins. Always async-IIFE so `await` works at "top level".
+ */
+function expressionFirstWraps(code: string): string[] {
   const t = code.trim()
-  // 1. Self-invoked async arrow / async function — invoke and return.
+  // Special case: explicit async arrow / function — invoke directly.
   if (/^async\s*\(.*?\)\s*=>/.test(t) || /^async\s+function/.test(t)) {
-    return `return await (${t})()`
+    return [`(async () => { return await (${t})() })()`]
   }
-  // 2. Already has a top-level (or last-statement) explicit return — pass through.
-  if (/(^|[\n;])\s*return\b/.test(t)) return t
-  // 3. Bare single expression (no statement terminator, no semicolons,
-  //    no `;` separators between statements) — wrap as the return value.
-  //    Heuristic: if the trimmed code parses as a single expression candidate
-  //    (no top-level `;` and no `\n`-separated statement), prepend `return`.
-  if (!/[;\n]/.test(t) && !/^\s*(const|let|var|if|for|while|switch|function|class|throw|try|do|{)\b/.test(t)) {
-    return `return ${t}`
-  }
-  // 4. Multi-statement body without explicit return — execute and return undefined.
-  return t
+  const stripped = t.replace(/;\s*$/, '') // drop a single trailing semicolon
+  return [
+    // Expression form: forces expression context so {a:1}, (x=>x), `a\nb`,
+    // ternaries, multi-line calls all parse correctly.
+    `(async () => { return (\n${stripped}\n) })()`,
+    // Statement form: for code with explicit returns, multiple statements,
+    // declarations, etc.
+    `(async () => { ${code} })()`,
+  ]
 }
 function withTimeout<T>(p: Promise<T>, ms: number): Promise<T> {
   let timer: ReturnType<typeof setTimeout>
