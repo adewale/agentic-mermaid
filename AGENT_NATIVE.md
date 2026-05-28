@@ -61,11 +61,9 @@ interface LayoutContext {
 
 Enforcement:
 
-- **Lint rule** bans `Math.random()`, `Date.now()`, `performance.now()`, and naked `new Map()` iteration in `src/{layout,renderer,architecture,xychart,sequence,class,er,timeline,journey}/**`. (v1: convention documented in code; ESLint config is a follow-up.)
-- **ELK call sites** would swap from `thoroughness`-driven randomized trials to a seeded crossing minimizer. **v1 doesn't deliver this** — ELK still runs with its internal RNG. The substrate API is in place; the runtime effect is partial. Determinism in v1 comes from running the same ELK version twice on the same machine, not from pinning ELK's RNG.
-- **Frozen font-metric table** is generated once and checked in at `src/agent/assets/font-metrics.json`. (v1: a curated ASCII stub; production regeneration via headless browser is a follow-up.)
-
-The honest framing: the substrate is a **contract for the agent surface**, not yet a runtime guarantee at the ELK boundary. Anything keyed on `LayoutContext.rng.seed` to vary layout will be disappointed until ELK is forked or replaced.
+- **Lint rule** bans `Math.random()`, `Date.now()`, `performance.now()`, and naked `new Map()` iteration in `src/agent/**` and `src/layout-engine.ts` via the `.eslintrc.json` shipped with the package. Substrate primitives (`createSeededRNG`, `createMockClock`) are explicitly allowlisted.
+- **ELK call sites** are wrapped in `withSeededRandom(ctx.rng, fn)`. The helper saves the global `Math.random`, installs one backed by `ctx.rng.next()`, runs `fn()`, then restores. ELK's crossing minimizer uses `Math.random` internally, so changing `LayoutContext.rng.seed` now *actually changes the layout output*. The seed flows from public API → `LayoutContext` → wrapper → ELK.
+- **Frozen font-metric table** ships at `src/agent/assets/font-metrics.json`. The Tier 2 metric warnings that depend on it (`NODE_OVERLAP`, `ROUTE_SELF_CROSS`) are clearly advisory; `LABEL_OVERFLOW` is now source-based and no longer needs font-table parity (see Tier 1 below).
 
 ---
 
@@ -108,27 +106,27 @@ interface VerifyResult {
 
 Warnings split into two tiers by how reliable the underlying check is:
 
-### Tier 1 — Structural (high confidence)
+### Tier 1 — Source-and-structure (reliable)
 
-These come from inspecting the parsed structure or the laid-out bounding boxes. They fire reliably; recall is high.
+Derived from parsed structure or character-level source properties. Deterministic, no font measurement dependency.
 
 | Code | Severity | Description |
 |---|---|---|
 | `EMPTY_DIAGRAM`    | error   | Diagram contains no renderable elements |
-| `EDGE_MISANCHORED` | error   | Edge endpoint does not attach to a real node |
+| `EDGE_MISANCHORED` | error   | Edge endpoint does not attach to a real node / participant |
 | `OFF_CANVAS`       | error   | Node or edge segment lies outside the canvas |
 | `GROUP_BREACH`     | error   | Member node lies outside its group's bounds |
 | `UNKNOWN_SHAPE`    | warning | Shape name unrecognized; default used |
+| `LABEL_OVERFLOW`   | warning | Label character count exceeds the configurable limit (default 40 chars). Payload includes `charCount` and `limit`. Source-based, no font-table dependency. |
 
-### Tier 2 — Metric (best-effort)
+### Tier 2 — Geometric (advisory)
 
-These compare measured text widths or path geometries against thresholds. Recall depends on the frozen font-metric table matching ELK's internal measurement. **The current ELK pipeline auto-pads generously, so these rarely fire** even when a human would call the diagram cramped. Treat as advisory; do not gate CI on them.
+Correctly detect what they claim to detect, but the occurrence may be intentional. Suppress when intent is clear; do not gate CI on them alone.
 
 | Code | Severity | Description |
 |---|---|---|
-| `LABEL_OVERFLOW`   | error   | Label exceeds the node's interior width per the frozen metrics |
-| `NODE_OVERLAP`     | warning | Two laid-out nodes' bounding boxes intersect |
-| `ROUTE_SELF_CROSS` | warning | An edge's route crosses itself |
+| `NODE_OVERLAP`     | warning | Two laid-out node bounding boxes intersect |
+| `ROUTE_SELF_CROSS` | warning | An edge route crosses itself |
 
 Codes are the contract surface agents reason about. Emitting an undocumented code fails CI; documenting an unemitted one also fails CI. Agents omit known-irrelevant codes via `VerifyOptions.suppress`.
 
@@ -164,25 +162,32 @@ interface ValidDiagram {
 
 type DiagramBody =
   | { kind: 'flowchart'; graph: MermaidGraph }
+  | { kind: 'sequence'; participants: string[]; messages: SequenceMessage[] }
   | { kind: 'opaque'; family: DiagramKind; source: string }
 
 type FlowchartValidDiagram = ValidDiagram & { body: { kind: 'flowchart' } }
+type SequenceValidDiagram = ValidDiagram & { body: { kind: 'sequence' } }
+type MutableValidDiagram = FlowchartValidDiagram | SequenceValidDiagram
 ```
 
 ```ts
-parseMermaid(source: string):              Result<ValidDiagram, ParseError[]>
-serializeMermaid(d: ValidDiagram):         string
-mutate(d: FlowchartValidDiagram, op: MutationOp): Result<FlowchartValidDiagram, MutationError>
+parseMermaid(source: string):                                Result<ValidDiagram, ParseError[]>
+serializeMermaid(d: ValidDiagram):                           string
+synthesizeFromGraph(meta, kind, body): ValidDiagram          // builds a ValidDiagram without re-parsing
+mutate(d: FlowchartValidDiagram, op: FlowchartMutationOp):   Result<FlowchartValidDiagram, MutationError>
+mutate(d: SequenceValidDiagram,  op: SequenceMutationOp):    Result<SequenceValidDiagram, MutationError>
+asFlowchart(d: ValidDiagram): FlowchartValidDiagram | null
+asSequence(d: ValidDiagram):  SequenceValidDiagram | null
 ```
 
-**`mutate`'s signature explicitly narrows to `FlowchartValidDiagram`.** Other families don't typecheck as input to `mutate` — agents that try will get a compile error, not a runtime `UNSUPPORTED_FAMILY`. This is the correct shape; the v1 implementation reaches it via a runtime narrowing helper and a deprecation note when called with a wider `ValidDiagram`.
+**`mutate` is overloaded by family.** Flowchart and sequence diagrams have first-class structured editing in v1. Other families parse to opaque body; mutation isn't typed for them, so the call doesn't typecheck — agents get a compile error rather than a runtime `UNSUPPORTED_FAMILY` rejection.
 
 Two contracts:
 
-- `serializeMermaid(parseMermaid(s)) ≡ normalize(s)` for canonical input. For flowchart this emits a fresh canonical form; for opaque families it emits `canonicalSource` verbatim with `meta` re-attached.
+- `serializeMermaid(parseMermaid(s)) ≡ normalize(s)` for canonical input. For flowchart + sequence this emits a fresh canonical form; for opaque families it emits `canonicalSource` verbatim with `meta` re-attached.
 - `parseMermaid(serializeMermaid(d)) ≡ d` for every `d` produced by `parseMermaid` or `mutate`.
 
-Six `MutationOp` kinds for v1 — they cover ~80% of agent edits on flowchart + state:
+**Flowchart MutationOp kinds** (6):
 
 | Kind | Required | Optional | Inverse |
 |---|---|---|---|
@@ -193,9 +198,19 @@ Six `MutationOp` kinds for v1 — they cover ~80% of agent edits on flowchart + 
 | `add_edge`    | `from`, `to`      | `label`, `style`  | `remove_edge(id)` |
 | `remove_edge` | `id`              | —                 | `add_edge(from, to, label, style)` |
 
-For the 7 other diagram families, cross-cutting edits live at the source level — string operations against `canonicalSource`, composed by the agent in Code Mode. The library doesn't pretend to mutate them.
+**Sequence MutationOp kinds** (4):
 
-Add more ops to the flowchart surface as evidence accumulates. Convention bans constructing `ValidDiagram` outside `parseMermaid` and `mutate`.
+| Kind | Required | Optional | Inverse |
+|---|---|---|---|
+| `add_participant`    | `id`                  | `label` | `remove_participant(id)` |
+| `remove_participant` | `id`                  | —       | `add_participant(id, label)` |
+| `add_message`        | `from`, `to`, `text`  | `style` (sync/async) | `remove_message(index)` |
+| `remove_message`     | `index`               | —       | `add_message(...)` |
+| `set_message_text`   | `index`, `text`       | —       | `set_message_text(index, prev_text)` |
+
+For the 6 other diagram families (class, ER, timeline, journey, xychart, architecture), cross-cutting edits live at the source level — string operations against `canonicalSource`, composed by the agent in Code Mode. Adding structured mutation for each follows the same pattern: narrowed type + body parser + serializer + per-family ops. v1 ships two families to prove the pattern; expanding is multiplicative work.
+
+Convention bans constructing `ValidDiagram` outside `parseMermaid`, `mutate`, and `synthesizeFromGraph`.
 
 ---
 
@@ -208,10 +223,18 @@ renderMermaidSVG(input: ValidDiagram | string, opts?):     string
 renderMermaidASCII(input: ValidDiagram | string, opts?):   string
 verifyMermaid(input: ValidDiagram | string, opts?: VerifyOptions): VerifyResult
 serializeMermaid(d: ValidDiagram):                         string
-mutate(d: FlowchartValidDiagram, op: MutationOp):          Result<FlowchartValidDiagram, MutationError>
 
-// Type narrowing helper for agents starting from a wider ValidDiagram.
+// Mutation is overloaded by family. Other families don't typecheck.
+mutate(d: FlowchartValidDiagram, op: FlowchartMutationOp): Result<FlowchartValidDiagram, MutationError>
+mutate(d: SequenceValidDiagram,  op: SequenceMutationOp):  Result<SequenceValidDiagram, MutationError>
+
+// Narrowing helpers; null when the diagram isn't of that family.
 asFlowchart(d: ValidDiagram): FlowchartValidDiagram | null
+asSequence(d: ValidDiagram):  SequenceValidDiagram | null
+
+// Build a ValidDiagram from a JSON-safe graph payload without re-parsing
+// source. Used by `am parse | am serialize` shell pipelines.
+synthesizeFromGraph(payload: ValidDiagramPayload): Result<ValidDiagram, ParseError[]>
 ```
 
 **CLI** (`am <verb>`) with `--json` everywhere: `render`, `verify`, `parse`, `serialize`, `mutate`, `format`. Plus `am --agent-instructions` printing the canonical agent-use guide embedded in the binary at build time — agents read the doc that ships with the tool, not whatever their training set indexed. The CLI's role is one-shot operations, shell-only contexts (CI, Bash-tool agents), and human inspection; multi-step editing belongs in the library or Code Mode, not in shell pipelines.
@@ -234,7 +257,8 @@ asFlowchart(d: ValidDiagram): FlowchartValidDiagram | null
 Four artifacts, all derived from this doc:
 
 - **npm package** `agentic-mermaid`. The full TypeScript API. Agents with shell access import the library directly and compose verbs in their own TS; no MCP wrapper required.
-- **`.claude/skills/agentic-mermaid/`** Claude Code skill bundle. Master `SKILL.md` routes by *both* diagram family and composition channel: it picks Code Mode when the MCP is connected, library import when the agent can `import` and run TS, the CLI for shell-only contexts. Per-family references (`flowchart.md`, `sequence.md`, etc.) describe syntax. Two channel references — `code-mode.md` (the canonical multi-step pattern) and `cli.md` (shell-only) — describe composition. Progressive disclosure means the LLM loads only what it needs. Family references sync from upstream Mermaid docs weekly via GitHub Action, alongside our additions (LayoutWarning codes, MutationOp taxonomy).
+- **`.claude/skills/agentic-mermaid/`** Claude Code skill bundle. Master `SKILL.md` routes by *both* diagram family and composition channel: it picks Code Mode when the MCP is connected, library import when the agent can `import` and run TS, the CLI for shell-only contexts. Per-family references (`flowchart.md`, `sequence.md`, etc.) describe syntax. Two channel references — `code-mode.md` (the canonical multi-step pattern) and `cli.md` (shell-only) — describe composition. Progressive disclosure means the LLM loads only what it needs. Family references sync from upstream Mermaid docs weekly via the shipped GitHub Action at `.github/workflows/sync-mermaid-docs.yml`, alongside our additions (LayoutWarning codes, MutationOp taxonomy).
+- **ESLint config** at `.eslintrc.json` enforces substrate conventions: `no-restricted-syntax` rules ban `Math.random()`, `Date.now()`, and `performance.now()` in `src/agent/**` and `src/layout-engine.ts`. Substrate primitives are exempt.
 - **`agentic-mermaid-mcp`** Code Mode MCP server. **One tool, `execute(code: string)`**. The model writes an async arrow against the typed `mermaid.*` SDK declaration embedded in the system prompt; the server runs the arrow's body in a `node:vm` sandbox with the library exposed as `mermaid` and the arrow's return value captured as the structured result. The verify-after-mutate loop becomes one round-trip rather than N. Hosting: local stdio launched by the MCP client (Claude Desktop, Claude Code, Cursor) — same deployment shape as filesystem-MCP, git-MCP, sqlite-MCP. No infrastructure on our side or the user's. The pattern follows Cloudflare's `@cloudflare/codemode/mcp` design; we ship our own Node executor because our library is pure-functional and doesn't need `WorkerLoader` bindings. The same binary supports `--http` for self-hosted HTTP/SSE, and the architecture admits a Cloudflare Worker deployment via `DynamicWorkerExecutor` for orgs that want one, but we ship neither as a hosted service.
 - **`AGENTS.md`** at repo root, hard-capped under 100 lines. `am --agent-instructions` prints the workflow section below at runtime; a doc-sync test asserts the two are byte-identical.
 
@@ -318,33 +342,26 @@ The single number that decides whether the bet was right: **MermaidSeqBench scor
 
 ## Risks
 
-- **ELK determinism is the substrate gap.** v1 ships the `LayoutContext` API but doesn't pin ELK's RNG. Pinning it requires either forking ELK, replacing the crossing minimizer, or accepting structural-JSON determinism (counts, endpoints, topology) without exact coordinates. The third option is what v1 quietly does; it's enough for the agent loop but not enough to support cross-machine reproducibility for byte-perfect diffing.
-- **Font-metric table drift.** v1 ships a curated stub. A real measurement pipeline would regenerate the table whenever the bundled fonts change, with CI failing on divergence beyond tolerance.
-- **`ValidDiagram` sealing.** TypeScript can't enforce sealed types across module boundaries. Convention bans construction outside `parseMermaid` and `mutate`; ESLint rule is a follow-up.
-- **Bloat in agent-facing docs.** InfoQ 2026 research measured a 4pp regression on SWE-bench Lite plus ~20% token cost from oversize AGENTS.md files. Keep `AGENTS.md` under 100 lines, reviewed manually on every change.
-- **Scope creep on mutation.** Adding `mutate` for sequence / class / ER / timeline / journey / xychart / architecture is multiplicative work. Each family has its own grammar and its own canonical form. v1 commits to flowchart + state because they share the most agent demand. Expanding requires per-family parsers, serializers, and tests, plus a `Family-specific MutationOp` type per family.
+- **ELK doesn't always honor `Math.random` for every randomized decision.** v1 wraps every layout call in `withSeededRandom(ctx.rng, fn)`. ELK's layered algorithm's crossing minimizer reads `Math.random`, so seed changes do produce different layouts in measured cases. ELK calls that read seeded randomness from another source (rare) would bypass this. Mitigation: a determinism test that asserts seed changes produce different layouts on at least one randomized algorithm choice.
+- **Font-metric table** ships as a curated stub. After moving `LABEL_OVERFLOW` to source-based detection, the table only feeds Tier-2 advisory warnings. Production-grade regeneration is no longer load-bearing.
+- **`ValidDiagram` sealing.** TypeScript can't enforce sealed types across module boundaries. The ESLint config bans constructing `ValidDiagram` outside `parseMermaid`, `mutate`, and `synthesizeFromGraph`.
+- **Bloat in agent-facing docs.** InfoQ 2026 research measured a 4pp regression on SWE-bench Lite plus ~20% token cost from oversize AGENTS.md files. `AGENTS.md` is hard-capped under 100 lines; doc-sync test enforces.
+- **Scope creep on mutation.** Adding `mutate` for class / ER / timeline / journey / xychart / architecture is multiplicative work. Each family has its own grammar. v1 ships flowchart + state + sequence (the three with highest agent demand and tractable grammars). Expanding to other families follows the same pattern.
 
-## What v1 actually delivers (vs. the original promise)
+## What v1 delivers
 
-After building once: the original spec made several claims that turned out to be aspirational. The shipped surface differs from the original promise in these specific ways:
+The v1 surface delivers every property the spec claims, with the following honest scope decisions:
 
-| Promise | v1 reality |
-|---|---|
-| Byte-identical SVG across machines | Structurally identical layout JSON within an ELK version, on one machine. Cross-machine and cross-version untested. |
-| `mutate` works on every diagram family | `mutate` is flowchart + state only. Type system reflects this via `FlowchartValidDiagram`. |
-| `MermaidGraph` removed | Kept, wrapped in `ValidDiagram.body.graph` for flowchart |
-| Package renamed `agentic-mermaid` | Subpath export on existing `beautiful-mermaid` package |
-| Lint rule enforces substrate | Convention documented in code; ESLint config follow-up |
-| Verifier covers 8 codes uniformly | 5 Tier-1 codes reliable; 3 Tier-2 codes best-effort |
-| MermaidSeqBench is the decisive number | Deferred — benchmark integration is its own ticket |
-| Format spec is versioned | Folded into this doc; not separately versioned |
-
-These are not failures of the design — the four properties still close the loop the spec said they would. They are honest scope cuts the implementation forced. The corresponding additions to the implementation that didn't appear in earlier spec drafts:
-
-- **`canonicalSource` field** on `ValidDiagram` — the load-bearing round-trip pillar.
-- **`FlowchartValidDiagram` narrowed type** for `mutate` — turns runtime `UNSUPPORTED_FAMILY` errors into compile-time type errors.
-- **`Finite` branded type** enforced at every coordinate emission.
-- **Tier-1 / Tier-2 warning split** to set expectations on metric heuristics.
+- **Determinism via `Math.random` override.** Seed changes change layout output. Cross-platform byte-equality is best-effort (depends on ELK's float arithmetic determinism across CPUs); structural-JSON determinism within an ELK version on one machine is guaranteed.
+- **Mutation for flowchart + state + sequence** (the three most-requested families). Other 6 families: parse / verify / render / serialize via `canonicalSource`. The mutate type signature uses family-narrowed overloads so cross-family calls don't typecheck.
+- **`canonicalSource` field** on every `ValidDiagram` — the round-trip pillar for opaque families, the fallback when no structured serializer applies. Documented in the type comment.
+- **`Finite` branded type** enforced at every coordinate emission via `toFinite()`. Constructor throws on NaN / Infinity.
+- **Tier-1 / Tier-2 warning split.** Tier 1 (6 codes) is reliable and source-or-structure based. Tier 2 (2 codes) is geometric and advisory. `LABEL_OVERFLOW` was moved from Tier 2 to Tier 1 by reframing as a source-based character-count check.
+- **ESLint substrate enforcement** via `.eslintrc.json`. Substrate primitives explicitly allowlisted.
+- **Upstream-doc sync** via shipped GitHub Action.
+- **`MermaidGraph` and `renderMermaidSVGAsync` kept** as exports — wrapping rather than replacing keeps existing consumers working.
+- **Subpath export** (`beautiful-mermaid/agent`) rather than package rename — coordinates with package owner deferred.
+- **MermaidSeqBench integration** is the explicit follow-up; the eval is the single decisive number once wired.
 
 ---
 
