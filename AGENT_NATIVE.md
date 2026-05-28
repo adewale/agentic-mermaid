@@ -22,13 +22,28 @@ D2 has a better language than Mermaid. Beautiful Mermaid has a better renderer t
 
 ## The three properties
 
-1. **Deterministic layout** — same input → byte-identical canonical artifact.
-2. **Verifiable rendering** — structured "did this render cleanly?" check.
-3. **Round-trippable** — parse → mutate → serialize, semantics preserved.
+1. **Deterministic layout** — same input → structurally identical layout JSON across runs with the same ELK version. (Not "byte-identical SVG across versions" — that's a stronger claim that needs a forked ELK to actually deliver.)
+2. **Verifiable rendering** — structured "did this render cleanly?" check. Structural warnings (anchors, bounds, emptiness, group containment) are reliable; metric warnings (label fit, overlap) are best-effort because they depend on font-measurement parity with ELK.
+3. **Round-trippable** — `parseMermaid` produces a `ValidDiagram` that carries the canonical source verbatim plus structured access to it. For flowchart + state, `mutate` operates on the structured form; for other families, the canonical source *is* the round-trip mechanism.
 
 (Composition — `@include`, templates, layered scenarios — was the fourth in earlier drafts and is deferred. Agents do not currently reach for composition; they paste and edit. Add when evidence demands.)
 
 (1) is a prerequisite for (2) and (3). Skip it and the others check moving targets.
+
+## Honest scope
+
+What this v1 actually delivers and what it doesn't:
+
+| | Flowchart + State | Sequence, Class, ER, Timeline, Journey, XY, Architecture |
+|---|---|---|
+| `parseMermaid` | Full structured AST | Source preserved verbatim in `canonicalSource`, kind detected |
+| `verifyMermaid` | All warning codes apply | Structural-only (emptiness, parseability); metric codes don't apply |
+| `mutate` | All six op kinds | **Not supported** — the type signature reflects this |
+| `serializeMermaid` | Re-emit from structured form, canonical | Re-emit `canonicalSource` verbatim |
+| `renderMermaidSVG` / `ASCII` | Full | Full (via existing Beautiful Mermaid family renderers) |
+| Determinism | Layout JSON byte-stable within an ELK version | N/A (renderers vary by family) |
+
+The implication: for the 7 non-mutable families, the agent's tool surface is *parse → verify → render → serialize*, not *parse → mutate → verify → serialize*. Cross-cutting edits on those families happen at the source level (string operations against `canonicalSource`), not at the AST level. Code Mode opportunity #1 (composition without shipping composition) covers this for the small minority of cases where it matters.
 
 ---
 
@@ -46,11 +61,11 @@ interface LayoutContext {
 
 Enforcement:
 
-- **Lint rule** bans `Math.random()`, `Date.now()`, `performance.now()`, and naked `new Map()` iteration in `src/{layout,renderer,architecture,xychart,sequence,class,er,timeline,journey}/**`.
-- **ELK call sites** swap from `thoroughness`-driven randomized trials to a seeded crossing minimizer.
-- **Frozen font-metric table** is generated once via headless browser, checked in at `assets/font-metrics.json`. CI fails if live measurement diverges beyond tolerance.
+- **Lint rule** bans `Math.random()`, `Date.now()`, `performance.now()`, and naked `new Map()` iteration in `src/{layout,renderer,architecture,xychart,sequence,class,er,timeline,journey}/**`. (v1: convention documented in code; ESLint config is a follow-up.)
+- **ELK call sites** would swap from `thoroughness`-driven randomized trials to a seeded crossing minimizer. **v1 doesn't deliver this** — ELK still runs with its internal RNG. The substrate API is in place; the runtime effect is partial. Determinism in v1 comes from running the same ELK version twice on the same machine, not from pinning ELK's RNG.
+- **Frozen font-metric table** is generated once and checked in at `src/agent/assets/font-metrics.json`. (v1: a curated ASCII stub; production regeneration via headless browser is a follow-up.)
 
-This is the move the rest of the spec sits on top of.
+The honest framing: the substrate is a **contract for the agent surface**, not yet a runtime guarantee at the ELK boundary. Anything keyed on `LayoutContext.rng.seed` to vary layout will be disappointed until ELK is forked or replaced.
 
 ---
 
@@ -91,30 +106,41 @@ interface VerifyResult {
 }
 ```
 
+Warnings split into two tiers by how reliable the underlying check is:
+
+### Tier 1 — Structural (high confidence)
+
+These come from inspecting the parsed structure or the laid-out bounding boxes. They fire reliably; recall is high.
+
 | Code | Severity | Description |
 |---|---|---|
-| `LABEL_OVERFLOW`   | error   | Label exceeds container bounds |
-| `OFF_CANVAS`       | error   | Node or edge segment lies outside canvas |
-| `EDGE_MISANCHORED` | error   | Edge endpoint does not attach to a real node |
-| `GROUP_BREACH`     | error   | Member node lies outside its group's bounds |
 | `EMPTY_DIAGRAM`    | error   | Diagram contains no renderable elements |
-| `NODE_OVERLAP`     | warning | Two nodes overlap (sometimes intentional) |
-| `ROUTE_SELF_CROSS` | warning | Edge route crosses itself |
-| `UNKNOWN_SHAPE`    | warning | Shape unrecognized; default used |
+| `EDGE_MISANCHORED` | error   | Edge endpoint does not attach to a real node |
+| `OFF_CANVAS`       | error   | Node or edge segment lies outside the canvas |
+| `GROUP_BREACH`     | error   | Member node lies outside its group's bounds |
+| `UNKNOWN_SHAPE`    | warning | Shape name unrecognized; default used |
+
+### Tier 2 — Metric (best-effort)
+
+These compare measured text widths or path geometries against thresholds. Recall depends on the frozen font-metric table matching ELK's internal measurement. **The current ELK pipeline auto-pads generously, so these rarely fire** even when a human would call the diagram cramped. Treat as advisory; do not gate CI on them.
+
+| Code | Severity | Description |
+|---|---|---|
+| `LABEL_OVERFLOW`   | error   | Label exceeds the node's interior width per the frozen metrics |
+| `NODE_OVERLAP`     | warning | Two laid-out nodes' bounding boxes intersect |
+| `ROUTE_SELF_CROSS` | warning | An edge's route crosses itself |
 
 Codes are the contract surface agents reason about. Emitting an undocumented code fails CI; documenting an unemitted one also fails CI. Agents omit known-irrelevant codes via `VerifyOptions.suppress`.
 
-The data already exists — the layout pass computes bounds and discards them. Plumbing, not new analysis.
+**Branded coordinate types** (`Finite`) prevent NaN / Infinity from reaching the renderer. `toFinite()` is the only constructor; it throws on invalid input.
 
-**Branded coordinate types** (`Finite`, `ValidCoord`) prevent invalid values from reaching the renderer.
-
-**Model-gap property test**: for every generated `D` that parses successfully, `verify(D).warnings` filtered to severity `error` must be empty. Counterexamples are renderer bugs.
+**Model-gap property test**: for every generated `D` that parses successfully, `verify(D).warnings` filtered to Tier-1 `error` codes must be empty. Counterexamples are renderer bugs. Tier-2 warnings are excluded from this property because of the heuristic mismatch noted above.
 
 ---
 
 ## (3) Round-trippable
 
-A sealed `ValidDiagram` that preserves everything the source had:
+A sealed `ValidDiagram` that preserves everything the source had — and carries the canonical source verbatim as the round-trip pillar:
 
 ```ts
 interface ValidDiagram {
@@ -127,19 +153,36 @@ interface ValidDiagram {
   }
   readonly body: DiagramBody
   readonly source: SourceMap
+  /**
+   * The canonical preprocessed source — frontmatter, init directives, and
+   * comments stripped; line breaks normalized. THE LOAD-BEARING FIELD:
+   * round-trip through `serializeMermaid` relies on this for families that
+   * don't have structured serializers (i.e., all except flowchart + state).
+   */
+  readonly canonicalSource: string
 }
 
-parseMermaid(source: string):           Result<ValidDiagram, ParseError[]>
-serializeMermaid(d: ValidDiagram):      string
-mutate(d: ValidDiagram, op: MutationOp): Result<ValidDiagram, MutationError>
+type DiagramBody =
+  | { kind: 'flowchart'; graph: MermaidGraph }
+  | { kind: 'opaque'; family: DiagramKind; source: string }
+
+type FlowchartValidDiagram = ValidDiagram & { body: { kind: 'flowchart' } }
 ```
+
+```ts
+parseMermaid(source: string):              Result<ValidDiagram, ParseError[]>
+serializeMermaid(d: ValidDiagram):         string
+mutate(d: FlowchartValidDiagram, op: MutationOp): Result<FlowchartValidDiagram, MutationError>
+```
+
+**`mutate`'s signature explicitly narrows to `FlowchartValidDiagram`.** Other families don't typecheck as input to `mutate` — agents that try will get a compile error, not a runtime `UNSUPPORTED_FAMILY`. This is the correct shape; the v1 implementation reaches it via a runtime narrowing helper and a deprecation note when called with a wider `ValidDiagram`.
 
 Two contracts:
 
-- `serializeMermaid(parseMermaid(s)) ≡ normalize(s)` for canonical input.
-- `parseMermaid(serializeMermaid(d)) ≡ d` for every `d` produced by parse or mutate.
+- `serializeMermaid(parseMermaid(s)) ≡ normalize(s)` for canonical input. For flowchart this emits a fresh canonical form; for opaque families it emits `canonicalSource` verbatim with `meta` re-attached.
+- `parseMermaid(serializeMermaid(d)) ≡ d` for every `d` produced by `parseMermaid` or `mutate`.
 
-Six `MutationOp` kinds for v1 — they cover ~80% of agent edits:
+Six `MutationOp` kinds for v1 — they cover ~80% of agent edits on flowchart + state:
 
 | Kind | Required | Optional | Inverse |
 |---|---|---|---|
@@ -150,7 +193,9 @@ Six `MutationOp` kinds for v1 — they cover ~80% of agent edits:
 | `add_edge`    | `from`, `to`      | `label`, `style`  | `remove_edge(id)` |
 | `remove_edge` | `id`              | —                 | `add_edge(from, to, label, style)` |
 
-Add more ops as evidence accumulates. Lint rule bans constructing `ValidDiagram` outside `parseMermaid` and `mutate`.
+For the 7 other diagram families, cross-cutting edits live at the source level — string operations against `canonicalSource`, composed by the agent in Code Mode. The library doesn't pretend to mutate them.
+
+Add more ops to the flowchart surface as evidence accumulates. Convention bans constructing `ValidDiagram` outside `parseMermaid` and `mutate`.
 
 ---
 
@@ -163,7 +208,10 @@ renderMermaidSVG(input: ValidDiagram | string, opts?):     string
 renderMermaidASCII(input: ValidDiagram | string, opts?):   string
 verifyMermaid(input: ValidDiagram | string, opts?: VerifyOptions): VerifyResult
 serializeMermaid(d: ValidDiagram):                         string
-mutate(d: ValidDiagram, op: MutationOp):                   Result<ValidDiagram, MutationError>
+mutate(d: FlowchartValidDiagram, op: MutationOp):          Result<FlowchartValidDiagram, MutationError>
+
+// Type narrowing helper for agents starting from a wider ValidDiagram.
+asFlowchart(d: ValidDiagram): FlowchartValidDiagram | null
 ```
 
 **CLI** (`am <verb>`) with `--json` everywhere: `render`, `verify`, `parse`, `serialize`, `mutate`, `format`. Plus `am --agent-instructions` printing the canonical agent-use guide embedded in the binary at build time — agents read the doc that ships with the tool, not whatever their training set indexed. The CLI's role is one-shot operations, shell-only contexts (CI, Bash-tool agents), and human inspection; multi-step editing belongs in the library or Code Mode, not in shell pipelines.
@@ -172,12 +220,12 @@ mutate(d: ValidDiagram, op: MutationOp):                   Result<ValidDiagram, 
 
 ## Breaking changes from Beautiful Mermaid
 
-- **Package renamed** to `agentic-mermaid` on npm. No drop-in claim.
-- **Deterministic layout is the default.**
-- **IDs are content-hashed and stable** across runs.
-- **`MermaidGraph` is removed** in favor of `ValidDiagram`.
-- **`renderMermaidSVGAsync` is removed** — sync path is deterministic; no reason for async.
-- **`mermaidConfig` precedence** (frontmatter < init < render options) is enforced by tests via a single merge function.
+- **Agent surface exposed via the `./agent` subpath export** on the existing `beautiful-mermaid` package. The package-rename to `agentic-mermaid` is a v1-ship operation, not a v1-implementation one — it requires coordinating with the package owner and invalidates every existing consumer. The subpath export keeps both surfaces side by side.
+- **Deterministic-by-default *contract*.** The `LayoutContext` API is in place and the layout JSON is structurally deterministic. The runtime guarantee at the ELK boundary is partial (see Substrate). Callers that need cross-machine byte equality should pin ELK versions and run on a single platform until ELK seed-pinning lands.
+- **IDs are content-hashed and stable** across runs (within an ELK version).
+- **`MermaidGraph` is kept** as an exported type — `ValidDiagram` wraps it in `body.graph` for flowchart, rather than replacing it. The original spec called for removal; the implementation showed it would break 61 test files and the Craft Agents consumer. The wrapping shape costs nothing.
+- **`renderMermaidSVGAsync` is kept**. Removing it was a v1-aspiration that turned out to break consumers for no win at the agent surface.
+- **`mermaidConfig` precedence** (frontmatter < init < render options) is enforced by tests via a single merge function — unchanged from the existing pipeline.
 
 ---
 
@@ -249,14 +297,14 @@ Three phases, not stages:
 
 | What | How | Target |
 |---|---|---|
-| Layout JSON byte-equality across runs | Determinism grid, ~100 cases (4 directions × 2..10 nodes × sparse\|dense) | 100% |
-| Drift sentinel | 30 hand-picked canonical layout JSONs committed to the repo; any change without explicit acknowledgment fails CI | — |
-| Verifier recall | Per-code positive fixtures (5–10 each) under `tests/fixtures/verifier/{CODE}/positive/` | ≥95% |
-| Verifier precision | Per-code negative fixtures (5–10 each) under `tests/fixtures/verifier/{CODE}/negative/` | ≥98% |
-| Round-trip identity | 30-fixture golden corpus with promoted diffs | 100% |
-| Round-trip property | Property test (fast-check), 1K cases per PR | 100% |
+| Layout JSON byte-equality across runs | Determinism grid (4 directions × node-counts 2..12 × {sparse, dense, star}) | 100% within one ELK version on one machine |
+| Drift sentinel | 8 hand-picked canonical layout JSONs as snapshots; any change without explicit acknowledgment fails CI | — |
+| Tier-1 verifier recall on broken-fixture cases | Inline tests per Tier-1 code | ≥95% |
+| Tier-2 verifier precision | Inline tests per Tier-2 code | best-effort; do not gate CI |
+| Round-trip identity | Small golden corpus + property test | 100% on canonical input |
+| Round-trip property | Property test (fast-check), 100–1000 cases per PR | 100% on parseable input |
 | Code Mode sandbox isolation | Property test: arbitrary TS input to `execute()` cannot reach the filesystem, network, `process`, `eval`, or `Function`; only `mermaid.*` globals are reachable | 100% |
-| MermaidSeqBench score | Against vanilla Mermaid + vision baseline | Move the number |
+| MermaidSeqBench score | Against vanilla Mermaid + vision baseline | Move the number — **deferred from v1**; benchmark integration is its own ticket |
 
 Cross-cutting:
 
@@ -270,10 +318,33 @@ The single number that decides whether the bet was right: **MermaidSeqBench scor
 
 ## Risks
 
-- **ELK determinism.** If seeded ELK still drifts, options: fork ELK, replace it with a deterministic minimizer on the deterministic path, or accept structural-JSON determinism (counts, endpoints, topology) without exact coordinates. Decide after measuring.
-- **Font-metric table drift.** CI check fails if live measurement diverges from the table.
-- **`ValidDiagram` sealing.** TypeScript can't enforce sealed types across module boundaries. Lint rule bans construction outside `parseMermaid` and `mutate`.
+- **ELK determinism is the substrate gap.** v1 ships the `LayoutContext` API but doesn't pin ELK's RNG. Pinning it requires either forking ELK, replacing the crossing minimizer, or accepting structural-JSON determinism (counts, endpoints, topology) without exact coordinates. The third option is what v1 quietly does; it's enough for the agent loop but not enough to support cross-machine reproducibility for byte-perfect diffing.
+- **Font-metric table drift.** v1 ships a curated stub. A real measurement pipeline would regenerate the table whenever the bundled fonts change, with CI failing on divergence beyond tolerance.
+- **`ValidDiagram` sealing.** TypeScript can't enforce sealed types across module boundaries. Convention bans construction outside `parseMermaid` and `mutate`; ESLint rule is a follow-up.
 - **Bloat in agent-facing docs.** InfoQ 2026 research measured a 4pp regression on SWE-bench Lite plus ~20% token cost from oversize AGENTS.md files. Keep `AGENTS.md` under 100 lines, reviewed manually on every change.
+- **Scope creep on mutation.** Adding `mutate` for sequence / class / ER / timeline / journey / xychart / architecture is multiplicative work. Each family has its own grammar and its own canonical form. v1 commits to flowchart + state because they share the most agent demand. Expanding requires per-family parsers, serializers, and tests, plus a `Family-specific MutationOp` type per family.
+
+## What v1 actually delivers (vs. the original promise)
+
+After building once: the original spec made several claims that turned out to be aspirational. The shipped surface differs from the original promise in these specific ways:
+
+| Promise | v1 reality |
+|---|---|
+| Byte-identical SVG across machines | Structurally identical layout JSON within an ELK version, on one machine. Cross-machine and cross-version untested. |
+| `mutate` works on every diagram family | `mutate` is flowchart + state only. Type system reflects this via `FlowchartValidDiagram`. |
+| `MermaidGraph` removed | Kept, wrapped in `ValidDiagram.body.graph` for flowchart |
+| Package renamed `agentic-mermaid` | Subpath export on existing `beautiful-mermaid` package |
+| Lint rule enforces substrate | Convention documented in code; ESLint config follow-up |
+| Verifier covers 8 codes uniformly | 5 Tier-1 codes reliable; 3 Tier-2 codes best-effort |
+| MermaidSeqBench is the decisive number | Deferred — benchmark integration is its own ticket |
+| Format spec is versioned | Folded into this doc; not separately versioned |
+
+These are not failures of the design — the four properties still close the loop the spec said they would. They are honest scope cuts the implementation forced. The corresponding additions to the implementation that didn't appear in earlier spec drafts:
+
+- **`canonicalSource` field** on `ValidDiagram` — the load-bearing round-trip pillar.
+- **`FlowchartValidDiagram` narrowed type** for `mutate` — turns runtime `UNSUPPORTED_FAMILY` errors into compile-time type errors.
+- **`Finite` branded type** enforced at every coordinate emission.
+- **Tier-1 / Tier-2 warning split** to set expectations on metric heuristics.
 
 ---
 
