@@ -30,6 +30,11 @@ export function parseMermaid(source: string): Result<ValidDiagram, ParseError[]>
   const normalized = normalizeMermaidSource(source)
   const meta = extractMeta(source, normalized.frontmatter)
   const canonicalSource = normalized.text
+  // For opaque bodies, preserve original indentation/blank lines so the
+  // serializer can re-emit the untouched body. canonicalSource at the
+  // ValidDiagram level remains the normalized (line-trimmed) form for
+  // back-compat with the existing flowchart/legacy paths.
+  const opaqueSource = normalized.body
 
   if (normalized.lines.length === 0) {
     errors.push({ code: 'EMPTY', message: 'Empty diagram' })
@@ -60,7 +65,7 @@ export function parseMermaid(source: string): Result<ValidDiagram, ParseError[]>
     const body = parseSequenceBody(normalized.lines.slice(1))
     if (body) return ok<ValidDiagram>({ kind, meta, body, source: sourceMap, canonicalSource })
     return ok<ValidDiagram>({
-      kind, meta, body: { kind: 'opaque', family: kind, source: canonicalSource }, source: sourceMap, canonicalSource,
+      kind, meta, body: { kind: 'opaque', family: kind, source: opaqueSource }, source: sourceMap, canonicalSource,
     })
   }
 
@@ -68,12 +73,12 @@ export function parseMermaid(source: string): Result<ValidDiagram, ParseError[]>
     const body = parseTimelineBody(normalized.lines.slice(1))
     if (body) return ok<ValidDiagram>({ kind, meta, body, source: sourceMap, canonicalSource })
     return ok<ValidDiagram>({
-      kind, meta, body: { kind: 'opaque', family: kind, source: canonicalSource }, source: sourceMap, canonicalSource,
+      kind, meta, body: { kind: 'opaque', family: kind, source: opaqueSource }, source: sourceMap, canonicalSource,
     })
   }
 
   return ok<ValidDiagram>({
-    kind, meta, body: { kind: 'opaque', family: kind, source: canonicalSource }, source: sourceMap, canonicalSource,
+    kind, meta, body: { kind: 'opaque', family: kind, source: opaqueSource }, source: sourceMap, canonicalSource,
   })
 }
 
