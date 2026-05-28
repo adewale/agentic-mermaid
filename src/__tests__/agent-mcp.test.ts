@@ -49,6 +49,22 @@ describe('sandbox — isolation + sad paths', () => {
   })
 })
 
+describe('sandbox — ensureReturn shapes (no implicit-return surprises)', () => {
+  test('bare single expression returns the value', async () => {
+    expect((await executeInSandbox(`1 + 2`)).value).toBe(3)
+  })
+  test('bare call returns the value', async () => {
+    expect((await executeInSandbox(`mermaid.parseMermaid('flowchart TD\\n A --> B').ok`)).value).toBe(true)
+  })
+  test('multi-statement no-return → ok with null (not non-serializable)', async () => {
+    const r = await executeInSandbox(`const x = 5\nconst y = 10`)
+    expect(r.ok).toBe(true); expect(r.value).toBeNull()
+  })
+  test('explicit return still works after const decl', async () => {
+    expect((await executeInSandbox(`const x = 5; return x * 2`)).value).toBe(10)
+  })
+})
+
 describe('MCP — JSON-RPC happy + sad', () => {
   test('initialize', async () => {
     const r = await handleRequest({ jsonrpc: '2.0', id: 1, method: 'initialize' })

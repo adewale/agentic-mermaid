@@ -34,13 +34,29 @@ export async function executeInSandbox(code: string, opts: ExecuteOptions = {}):
   try { result = await withTimeout(script.runInContext(context, { timeout: timeoutMs }) as Promise<unknown>, timeoutMs) }
   catch (e) { return { ok: false, error: e instanceof Error ? e.message : String(e), logs } }
 
+  // `undefined` isn't valid JSON; promote it to null so code with no explicit
+  // return value still produces ok:true with a well-defined payload.
+  if (result === undefined) return { ok: true, value: null, logs }
   try { return { ok: true, value: JSON.parse(JSON.stringify(result, jsonReplacer)), logs } }
   catch (e) { return { ok: false, error: `non-serializable: ${(e as Error).message}`, logs } }
 }
 
 function ensureReturn(code: string): string {
   const t = code.trim()
-  if (/^async\s*\(.*?\)\s*=>/.test(t) || /^async\s+function/.test(t)) return `return await (${t})()`
+  // 1. Self-invoked async arrow / async function — invoke and return.
+  if (/^async\s*\(.*?\)\s*=>/.test(t) || /^async\s+function/.test(t)) {
+    return `return await (${t})()`
+  }
+  // 2. Already has a top-level (or last-statement) explicit return — pass through.
+  if (/(^|[\n;])\s*return\b/.test(t)) return t
+  // 3. Bare single expression (no statement terminator, no semicolons,
+  //    no `;` separators between statements) — wrap as the return value.
+  //    Heuristic: if the trimmed code parses as a single expression candidate
+  //    (no top-level `;` and no `\n`-separated statement), prepend `return`.
+  if (!/[;\n]/.test(t) && !/^\s*(const|let|var|if|for|while|switch|function|class|throw|try|do|{)\b/.test(t)) {
+    return `return ${t}`
+  }
+  // 4. Multi-statement body without explicit return — execute and return undefined.
   return t
 }
 function withTimeout<T>(p: Promise<T>, ms: number): Promise<T> {

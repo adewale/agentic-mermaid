@@ -75,6 +75,33 @@ describe('no-tautology guard for our own test suite', () => {
   })
 })
 
+describe('detector drift guard (agent vs legacy)', () => {
+  // The agent's parse.ts has its own header detector (it returns 'state' and
+  // 'architecture' which the legacy detectors omit). Three detectors exist —
+  // consolidating them would change renderer routing. Instead, lock them
+  // against drift on the families they share.
+  test('agent.parseMermaid and legacy detectDiagramType agree on common families', async () => {
+    const { parseMermaid: agentParse } = await import('../agent/parse.ts')
+    const { detectDiagramType } = await import('../mermaid-source.ts')
+    const cases: Array<[string, string]> = [
+      ['flowchart TD\n  A --> B', 'flowchart'],
+      ['sequenceDiagram\n  A->>B: x', 'sequence'],
+      ['classDiagram\n  A <|-- B', 'class'],
+      ['erDiagram\n  A ||--o{ B : x', 'er'],
+      ['timeline\n  2020 : A', 'timeline'],
+      ['journey\n  title T\n  section S\n    Wake: 3: Me', 'journey'],
+      ['xychart-beta\n  bar [1,2,3]', 'xychart'],
+    ]
+    for (const [src, expected] of cases) {
+      const agentR = agentParse(src)
+      expect(agentR.ok).toBe(true)
+      if (!agentR.ok) continue
+      expect(agentR.value.kind).toBe(expected as never)
+      expect(detectDiagramType(src)).toBe(expected as never)
+    }
+  })
+})
+
 describe('shipped distribution artifacts present', () => {
   test('skill bundle + workflow + examples', () => {
     expect(existsSync(join(REPO, '.claude/skills/agentic-mermaid/SKILL.md'))).toBe(true)

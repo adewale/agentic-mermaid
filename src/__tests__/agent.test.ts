@@ -242,6 +242,128 @@ describe('synthesizeFromGraph', () => {
     expect(r.ok && r.value.canonicalSource.includes('A->>B: Hi')).toBe(true)
   })
 
+  test('synthesizeFromGraph: nodes can be array-of-tuples too', () => {
+    const r = synthesizeFromGraph({
+      kind: 'flowchart',
+      body: { kind: 'flowchart', graph: {
+        direction: 'TD',
+        nodes: [['A', { id: 'A', label: 'A', shape: 'rectangle' }], ['B', { id: 'B', label: 'B', shape: 'rectangle' }]],
+        edges: [{ source: 'A', target: 'B', style: 'solid', hasArrowStart: false, hasArrowEnd: true }],
+      } },
+    })
+    expect(r.ok && r.value.canonicalSource.includes('A --> B')).toBe(true)
+  })
+
+  test('synthesizeFromGraph: missing edges defaults to []', () => {
+    const r = synthesizeFromGraph({
+      kind: 'flowchart',
+      body: { kind: 'flowchart', graph: {
+        direction: 'TD',
+        nodes: { A: { id: 'A', label: 'A', shape: 'rectangle' } },
+      } as never },
+    })
+    expect(r.ok).toBe(true)
+  })
+
+  test('synthesizeFromGraph: invalid body.kind returns error', () => {
+    const r = synthesizeFromGraph({ kind: 'flowchart', body: { kind: 'unknown' } } as never)
+    expect(r.ok).toBe(false)
+  })
+
+  test('synthesizeFromGraph: null/undefined style maps default to empty (no throw)', () => {
+    // Kills the `input && typeof input === 'object'` short-circuit mutants:
+    // if mutated to `||`, Object.entries(null) would throw.
+    const r = synthesizeFromGraph({
+      kind: 'flowchart',
+      body: { kind: 'flowchart', graph: {
+        direction: 'TD',
+        nodes: { A: { id: 'A', label: 'A', shape: 'rectangle' } },
+        edges: [],
+        classDefs: null as never,
+        classAssignments: undefined as never,
+        nodeStyles: 'not-an-object' as never,
+        linkStyles: 42 as never,
+      } },
+    })
+    expect(r.ok).toBe(true)
+    if (!r.ok) return
+    if (r.value.body.kind !== 'flowchart') throw new Error('x')
+    expect(r.value.body.graph.classDefs.size).toBe(0)
+    expect(r.value.body.graph.classAssignments.size).toBe(0)
+    expect(r.value.body.graph.nodeStyles.size).toBe(0)
+    expect(r.value.body.graph.linkStyles.size).toBe(0)
+  })
+
+  test('synthesizeFromGraph: subgraphs as non-array becomes empty', () => {
+    const r = synthesizeFromGraph({
+      kind: 'flowchart',
+      body: { kind: 'flowchart', graph: {
+        direction: 'TD',
+        nodes: { A: { id: 'A', label: 'A', shape: 'rectangle' } },
+        edges: [],
+        subgraphs: null as never,
+      } },
+    })
+    expect(r.ok).toBe(true)
+    if (!r.ok) return
+    if (r.value.body.kind !== 'flowchart') throw new Error('x')
+    expect(r.value.body.graph.subgraphs).toEqual([])
+  })
+
+  test('synthesizeFromGraph: subgraph with explicit label/nodeIds undefined → defaults', () => {
+    const r = synthesizeFromGraph({
+      kind: 'flowchart',
+      body: { kind: 'flowchart', graph: {
+        direction: 'TD',
+        nodes: { A: { id: 'A', label: 'A', shape: 'rectangle' } },
+        edges: [],
+        subgraphs: [{ id: 'G' } as never],
+      } },
+    })
+    expect(r.ok).toBe(true)
+    if (!r.ok) return
+    if (r.value.body.kind !== 'flowchart') throw new Error('x')
+    expect(r.value.body.graph.subgraphs[0]!.label).toBe('G')
+    expect(r.value.body.graph.subgraphs[0]!.nodeIds).toEqual([])
+  })
+
+  test('synthesizeFromGraph: linkStyles accept Map, Array, plain object, and `default` key', () => {
+    // Plain object with numeric + 'default' keys
+    const r1 = synthesizeFromGraph({
+      kind: 'flowchart',
+      body: { kind: 'flowchart', graph: {
+        direction: 'TD',
+        nodes: { A: { id: 'A', label: 'A', shape: 'rectangle' }, B: { id: 'B', label: 'B', shape: 'rectangle' } },
+        edges: [{ source: 'A', target: 'B', style: 'solid', hasArrowStart: false, hasArrowEnd: true }],
+        linkStyles: { '0': { stroke: '#f00' }, 'default': { stroke: '#888' } },
+      } },
+    })
+    expect(r1.ok && r1.value.canonicalSource.includes('linkStyle 0 stroke:#f00')).toBe(true)
+    expect(r1.ok && r1.value.canonicalSource.includes('linkStyle default stroke:#888')).toBe(true)
+    // Array-of-tuples
+    const r2 = synthesizeFromGraph({
+      kind: 'flowchart',
+      body: { kind: 'flowchart', graph: {
+        direction: 'TD',
+        nodes: { A: { id: 'A', label: 'A', shape: 'rectangle' }, B: { id: 'B', label: 'B', shape: 'rectangle' } },
+        edges: [{ source: 'A', target: 'B', style: 'solid', hasArrowStart: false, hasArrowEnd: true }],
+        nodeStyles: [['A', { fill: '#0f0' }]] as never,
+      } },
+    })
+    expect(r2.ok && r2.value.canonicalSource.includes('style A fill:#0f0')).toBe(true)
+    // Pre-built Map
+    const r3 = synthesizeFromGraph({
+      kind: 'flowchart',
+      body: { kind: 'flowchart', graph: {
+        direction: 'TD',
+        nodes: { A: { id: 'A', label: 'A', shape: 'rectangle' } },
+        edges: [],
+        classDefs: new Map([['hot', { fill: '#f00' }]]) as never,
+      } },
+    })
+    expect(r3.ok && r3.value.canonicalSource.includes('classDef hot fill:#f00')).toBe(true)
+  })
+
   test('REGRESSION: subgraph payload missing children (SDK shape) does not crash mutate/verify', () => {
     const r = synthesizeFromGraph({
       kind: 'flowchart',
@@ -347,6 +469,28 @@ describe('warning vocabulary', () => {
 
 describe('toFinite', () => {
   test('accepts finite', () => { expect(toFinite(3.14)).toBe(3.14 as never) })
-  test('throws on NaN', () => { expect(() => toFinite(NaN)).toThrow(RangeError) })
-  test('throws on Infinity', () => { expect(() => toFinite(Infinity)).toThrow(RangeError) })
+  test('throws on NaN with informative message', () => {
+    expect(() => toFinite(NaN)).toThrow(/expected a finite number, got NaN/)
+  })
+  test('throws on Infinity with informative message', () => {
+    expect(() => toFinite(Infinity)).toThrow(/expected a finite number, got Infinity/)
+  })
+})
+
+describe('asFlowchart / asSequence return null on the wrong family (close mutation gap)', () => {
+  // Stryker survivor: an always-true mutant of the conditional was undetected
+  // because tests went through `parse(...).body.kind` not through asFlowchart
+  // on a non-flowchart input. These tests exercise the negative branch.
+  test('asFlowchart returns null for sequence body', () => {
+    expect(asFlowchart(parse('sequenceDiagram\n  A->>B: Hi'))).toBeNull()
+  })
+  test('asFlowchart returns null for opaque body (class)', () => {
+    expect(asFlowchart(parse('classDiagram\n  A <|-- B'))).toBeNull()
+  })
+  test('asSequence returns null for flowchart body', () => {
+    expect(asSequence(parse('flowchart TD\n  A --> B'))).toBeNull()
+  })
+  test('asSequence returns null for opaque sequence (notes)', () => {
+    expect(asSequence(parse('sequenceDiagram\n  A->>B: Hi\n  Note over A: thinking'))).toBeNull()
+  })
 })
