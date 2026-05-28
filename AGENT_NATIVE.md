@@ -47,34 +47,22 @@ The implication: for the 7 non-mutable families, the agent's tool surface is *pa
 
 ---
 
-## (0) Substrate
+## (1) Deterministic layout — structural, not seeded
 
-Every source of nondeterminism in the layout/render path is parameterized via `LayoutContext`:
+**Empirically established (v4):** ELK output in this configuration is already deterministic, byte-identical across separate processes. The determinism comes from ELK's `considerModelOrder.strategy: NODES_AND_EDGES` setting plus the absence of any `randomSeed` option — layout order is a pure function of model order, not of randomness. Verified by a cross-process test (three separate `bun` invocations on the same source produce identical layout JSON) and a determinism grid.
 
-```ts
-interface LayoutContext {
-  rng: SeededRNG            // seeded LCG; default seed 0
-  fontMetrics: MetricsTable // frozen JSON shipped with the package
-  clock: Clock              // mock by default
-}
-```
+This is the honest, stronger position. Earlier drafts wrapped ELK in a `withSeededRandom(rng, fn)` helper and exposed a `LayoutContext.rng` seed, claiming the seed "drove" layout. **It did not.** Seed 1 and seed 999999 produced byte-identical output because ELK never consults `Math.random` on this path. That apparatus was theater and is removed. There is no seed because none is needed; determinism is a property of the engine configuration, guarded by test.
 
-Enforcement:
+Enforcement that determinism stays true:
+- A **grep-based lint test** (runs under `bun test`, not aspirational ESLint) fails if `Math.random`, `Date.now`, or `performance.now` appear in `src/agent/**` or `src/layout-engine.ts`. Introducing ambient nondeterminism breaks the build.
+- A **cross-process determinism test** spawns child processes and asserts byte-identical layout.
+- A **drift sentinel** pins canonical layout JSON for a hand-picked corpus; any change requires conscious re-baseline.
 
-- **Lint rule** bans `Math.random()`, `Date.now()`, `performance.now()`, and naked `new Map()` iteration in `src/agent/**` and `src/layout-engine.ts` via the `.eslintrc.json` shipped with the package. Substrate primitives (`createSeededRNG`, `createMockClock`) are explicitly allowlisted.
-- **ELK call sites** are wrapped in `withSeededRandom(ctx.rng, fn)`. The helper saves the global `Math.random`, installs one backed by `ctx.rng.next()`, runs `fn()`, then restores. ELK's crossing minimizer uses `Math.random` internally, so changing `LayoutContext.rng.seed` now *actually changes the layout output*. The seed flows from public API → `LayoutContext` → wrapper → ELK.
-- **Frozen font-metric table** ships at `src/agent/assets/font-metrics.json`. The Tier 2 metric warnings that depend on it (`NODE_OVERLAP`, `ROUTE_SELF_CROSS`) are clearly advisory; `LABEL_OVERFLOW` is now source-based and no longer needs font-table parity (see Tier 1 below).
-
----
-
-## (1) Deterministic layout
-
-`deterministic: true` is the default. The canonical artifact is the **layout JSON**, not the SVG:
+The canonical artifact is the **layout JSON**, not the SVG:
 
 ```json
 {
   "version": 1,
-  "seed": 0,
   "kind": "flowchart",
   "nodes":  [{ "id": "A", "x": 12, "y": 36, "w": 80, "h": 40, "shape": "rect" }, ...],
   "edges":  [{ "id": "A->B", "from": "A", "to": "B", "path": [[..],[..]], "label": {...} }, ...],
@@ -83,7 +71,7 @@ Enforcement:
 }
 ```
 
-SVG is the visual projection. Two render results are equal iff their layout JSONs are equal. Equality is structural deep equality. This sidesteps the rathole of sorting every SVG attribute.
+There is no `seed` field (it was always `0` — a placeholder masquerading as state). SVG is the visual projection. Two render results are equal iff their layout JSON is structurally equal.
 
 ---
 
@@ -132,7 +120,7 @@ Codes are the contract surface agents reason about. Emitting an undocumented cod
 
 **Branded coordinate types** (`Finite`) prevent NaN / Infinity from reaching the renderer. `toFinite()` is the only constructor; it throws on invalid input.
 
-**Model-gap property test**: for every generated `D` that parses successfully, `verify(D).warnings` filtered to Tier-1 `error` codes must be empty. Counterexamples are renderer bugs. Tier-2 warnings are excluded from this property because of the heuristic mismatch noted above.
+**Model-gap property test**: for every generated `D` that parses successfully, `verify(D).warnings` filtered to Tier-1 `error` codes must be empty. Counterexamples are renderer bugs. Tier-2 warnings are excluded from this property because a `NODE_OVERLAP` or `ROUTE_SELF_CROSS` can be a legitimate property of a valid diagram, not a bug.
 
 ---
 
@@ -208,7 +196,9 @@ Two contracts:
 | `remove_message`     | `index`               | —       | `add_message(...)` |
 | `set_message_text`   | `index`, `text`       | —       | `set_message_text(index, prev_text)` |
 
-For the 6 other diagram families (class, ER, timeline, journey, xychart, architecture), cross-cutting edits live at the source level — string operations against `canonicalSource`, composed by the agent in Code Mode. Adding structured mutation for each follows the same pattern: narrowed type + body parser + serializer + per-family ops. v1 ships two families to prove the pattern; expanding is multiplicative work.
+**Sequence fidelity rule (v4): structured-or-opaque, never lossy.** The sequence parser only produces a structured `SequenceBody` when it fully understands every non-blank, non-comment line (participant/actor declarations and simple `A->>B: text` messages). If the source contains *any* construct the parser doesn't model — `Note over`, `alt`/`opt`/`par`/`loop`/`end` blocks, `activate`/`deactivate`, `autonumber`, `+`/`-` activation prefixes, multi-line messages — parsing **falls back to an opaque body**. The diagram still parses, renders, verifies (structurally), and round-trips losslessly via `canonicalSource`; it simply isn't offered for structured mutation (`asSequence` returns `null`). This guarantees the parser never silently drops information. Earlier drafts dropped unrecognized lines on the floor; v4 does not.
+
+For the 6 other diagram families (class, ER, timeline, journey, xychart, architecture), cross-cutting edits live at the source level — string operations against `canonicalSource`, composed by the agent in Code Mode. Adding structured mutation for each follows the same pattern: narrowed type + body parser + serializer + per-family ops. v1 ships flowchart + state + sequence to prove the pattern; expanding is multiplicative work.
 
 Convention bans constructing `ValidDiagram` outside `parseMermaid`, `mutate`, and `synthesizeFromGraph`.
 
@@ -218,7 +208,7 @@ Convention bans constructing `ValidDiagram` outside `parseMermaid`, `mutate`, an
 
 ```ts
 parseMermaid(source: string):                              Result<ValidDiagram, ParseError[]>
-layoutMermaid(d: ValidDiagram, ctx?: LayoutContext):       RenderedLayout
+layoutMermaid(d: ValidDiagram):                            RenderedLayout
 renderMermaidSVG(input: ValidDiagram | string, opts?):     string
 renderMermaidASCII(input: ValidDiagram | string, opts?):   string
 verifyMermaid(input: ValidDiagram | string, opts?: VerifyOptions): VerifyResult
@@ -235,7 +225,12 @@ asSequence(d: ValidDiagram):  SequenceValidDiagram | null
 // Build a ValidDiagram from a JSON-safe graph payload without re-parsing
 // source. Used by `am parse | am serialize` shell pipelines.
 synthesizeFromGraph(payload: ValidDiagramPayload): Result<ValidDiagram, ParseError[]>
+
+// VerifyOptions carries the only real knob: the label character cap.
+interface VerifyOptions { suppress?: WarningCode[]; labelCharCap?: number }  // default cap 40
 ```
+
+There is no `LayoutContext`, no `SeededRNG`, no `Clock`, no font-metric table in the public surface. Those existed to support a seed apparatus that did nothing (see § (1)). The only verification knob is `labelCharCap`.
 
 **CLI** (`am <verb>`) with `--json` everywhere: `render`, `verify`, `parse`, `serialize`, `mutate`, `format`. Plus `am --agent-instructions` printing the canonical agent-use guide embedded in the binary at build time — agents read the doc that ships with the tool, not whatever their training set indexed. The CLI's role is one-shot operations, shell-only contexts (CI, Bash-tool agents), and human inspection; multi-step editing belongs in the library or Code Mode, not in shell pipelines.
 
@@ -244,7 +239,7 @@ synthesizeFromGraph(payload: ValidDiagramPayload): Result<ValidDiagram, ParseErr
 ## Breaking changes from Beautiful Mermaid
 
 - **Agent surface exposed via the `./agent` subpath export** on the existing `beautiful-mermaid` package. The package-rename to `agentic-mermaid` is a v1-ship operation, not a v1-implementation one — it requires coordinating with the package owner and invalidates every existing consumer. The subpath export keeps both surfaces side by side.
-- **Deterministic-by-default *contract*.** The `LayoutContext` API is in place and the layout JSON is structurally deterministic. The runtime guarantee at the ELK boundary is partial (see Substrate). Callers that need cross-machine byte equality should pin ELK versions and run on a single platform until ELK seed-pinning lands.
+- **Deterministic layout, verified.** Layout JSON is byte-identical across processes because ELK is configured for model-order layout with no random seed (see § (1)). No seed parameter is exposed because none affects output. Cross-machine byte equality across different CPU float behavior is not claimed; structural determinism within an ELK version is guaranteed and tested cross-process.
 - **IDs are content-hashed and stable** across runs (within an ELK version).
 - **`MermaidGraph` is kept** as an exported type — `ValidDiagram` wraps it in `body.graph` for flowchart, rather than replacing it. The original spec called for removal; the implementation showed it would break 61 test files and the Craft Agents consumer. The wrapping shape costs nothing.
 - **`renderMermaidSVGAsync` is kept**. Removing it was a v1-aspiration that turned out to break consumers for no win at the agent surface.
@@ -258,7 +253,7 @@ Four artifacts, all derived from this doc:
 
 - **npm package** `agentic-mermaid`. The full TypeScript API. Agents with shell access import the library directly and compose verbs in their own TS; no MCP wrapper required.
 - **`.claude/skills/agentic-mermaid/`** Claude Code skill bundle. Master `SKILL.md` routes by *both* diagram family and composition channel: it picks Code Mode when the MCP is connected, library import when the agent can `import` and run TS, the CLI for shell-only contexts. Per-family references (`flowchart.md`, `sequence.md`, etc.) describe syntax. Two channel references — `code-mode.md` (the canonical multi-step pattern) and `cli.md` (shell-only) — describe composition. Progressive disclosure means the LLM loads only what it needs. Family references sync from upstream Mermaid docs weekly via the shipped GitHub Action at `.github/workflows/sync-mermaid-docs.yml`, alongside our additions (LayoutWarning codes, MutationOp taxonomy).
-- **ESLint config** at `.eslintrc.json` enforces substrate conventions: `no-restricted-syntax` rules ban `Math.random()`, `Date.now()`, and `performance.now()` in `src/agent/**` and `src/layout-engine.ts`. Substrate primitives are exempt.
+- **Substrate grep-lint** runs under `bun test` (not an uninstalled ESLint): `src/__tests__/agent-substrate-lint.test.ts` fails the build if `Math.random`, `Date.now`, or `performance.now` appear in `src/agent/**` or `src/layout-engine.ts`. This is real enforcement, executed in CI, not an aspirational config file.
 - **`agentic-mermaid-mcp`** Code Mode MCP server. **One tool, `execute(code: string)`**. The model writes an async arrow against the typed `mermaid.*` SDK declaration embedded in the system prompt; the server runs the arrow's body in a `node:vm` sandbox with the library exposed as `mermaid` and the arrow's return value captured as the structured result. The verify-after-mutate loop becomes one round-trip rather than N. Hosting: local stdio launched by the MCP client (Claude Desktop, Claude Code, Cursor) — same deployment shape as filesystem-MCP, git-MCP, sqlite-MCP. No infrastructure on our side or the user's. The pattern follows Cloudflare's `@cloudflare/codemode/mcp` design; we ship our own Node executor because our library is pure-functional and doesn't need `WorkerLoader` bindings. The same binary supports `--http` for self-hosted HTTP/SSE, and the architecture admits a Cloudflare Worker deployment via `DynamicWorkerExecutor` for orgs that want one, but we ship neither as a hosted service.
 - **`AGENTS.md`** at repo root, hard-capped under 100 lines. `am --agent-instructions` prints the workflow section below at runtime; a doc-sync test asserts the two are byte-identical.
 
@@ -323,45 +318,45 @@ Three phases, not stages:
 |---|---|---|
 | Layout JSON byte-equality across runs | Determinism grid (4 directions × node-counts 2..12 × {sparse, dense, star}) | 100% within one ELK version on one machine |
 | Drift sentinel | 8 hand-picked canonical layout JSONs as snapshots; any change without explicit acknowledgment fails CI | — |
-| Tier-1 verifier recall on broken-fixture cases | Inline tests per Tier-1 code | ≥95% |
-| Tier-2 verifier precision | Inline tests per Tier-2 code | best-effort; do not gate CI |
-| Round-trip identity | Small golden corpus + property test | 100% on canonical input |
-| Round-trip property | Property test (fast-check), 100–1000 cases per PR | 100% on parseable input |
-| Code Mode sandbox isolation | Property test: arbitrary TS input to `execute()` cannot reach the filesystem, network, `process`, `eval`, or `Function`; only `mermaid.*` globals are reachable | 100% |
-| MermaidSeqBench score | Against vanilla Mermaid + vision baseline | Move the number — **deferred from v1**; benchmark integration is its own ticket |
+| Cross-process determinism | Test spawns child `bun` processes; layout JSON byte-identical across them | 100% |
+| Grep-lint substrate | Test fails if `Math.random`/`Date.now`/`performance.now` appear in `src/agent/**` or `src/layout-engine.ts` | 0 hits |
+| Tier-1 verifier recall on broken-fixture cases | Inline tests per Tier-1 code | high |
+| Round-trip identity | Golden corpus + property test | 100% on canonical input |
+| Round-trip property | Property test (fast-check) | 100% on parseable input |
+| Sequence fidelity | Property test: any sequence source with unmodeled constructs falls back to opaque and round-trips verbatim | 100% lossless |
+| Sad-path coverage | CLI mutate on opaque family; malformed JSON-RPC; broken Code Mode arrow; N-round format idempotence | explicit tests |
+| Fault-injection (poor-man's mutation testing) | Inject a known bug into each core function, confirm a test catches it, revert | every core fn covered |
+| Code Mode sandbox isolation | Property test: arbitrary TS input to `execute()` cannot reach the filesystem, network, `process`, `eval`, or `Function` | 100% |
 
 Cross-cutting:
 
-- **Doc-sync** (both directions): every `LayoutWarning` code and `MutationOp` kind must appear in the tables above. Emitting an undocumented code fails CI; documenting an unemitted one fails CI. `am --agent-instructions` output must equal the canonicalized Agent workflow section byte-for-byte.
-- **Stryker mutation testing** runs on PRs touching `src/`. Act on findings; no fixed percentage target.
-- **Property tests** (fast-check, already in the suite) extend with model-gap tests.
+- **Doc-sync** (both directions): every `LayoutWarning` code and `MutationOp` kind must appear in this spec. `am --agent-instructions` output must equal the canonicalized Agent workflow section byte-for-byte.
+- **Test honesty:** no tautological assertions (`expect(typeof x).toBe('boolean')` is banned by review). Every test must be able to fail for the regression it names. Verified by the fault-injection pass.
 
-The single number that decides whether the bet was right: **MermaidSeqBench score against the Mermaid + vision baseline**. If it doesn't move, the spec was wrong.
+MermaidSeqBench remains the eventual external eval; it requires the dataset and is an explicit follow-up, not claimed as done.
 
 ---
 
-## Risks
+## Risks (honest, v4)
 
-- **ELK doesn't always honor `Math.random` for every randomized decision.** v1 wraps every layout call in `withSeededRandom(ctx.rng, fn)`. ELK's layered algorithm's crossing minimizer reads `Math.random`, so seed changes do produce different layouts in measured cases. ELK calls that read seeded randomness from another source (rare) would bypass this. Mitigation: a determinism test that asserts seed changes produce different layouts on at least one randomized algorithm choice.
-- **Font-metric table** ships as a curated stub. After moving `LABEL_OVERFLOW` to source-based detection, the table only feeds Tier-2 advisory warnings. Production-grade regeneration is no longer load-bearing.
-- **`ValidDiagram` sealing.** TypeScript can't enforce sealed types across module boundaries. The ESLint config bans constructing `ValidDiagram` outside `parseMermaid`, `mutate`, and `synthesizeFromGraph`.
-- **Bloat in agent-facing docs.** InfoQ 2026 research measured a 4pp regression on SWE-bench Lite plus ~20% token cost from oversize AGENTS.md files. `AGENTS.md` is hard-capped under 100 lines; doc-sync test enforces.
-- **Scope creep on mutation.** Adding `mutate` for class / ER / timeline / journey / xychart / architecture is multiplicative work. Each family has its own grammar. v1 ships flowchart + state + sequence (the three with highest agent demand and tractable grammars). Expanding to other families follows the same pattern.
+- **Determinism is empirical, not proven.** It's established by cross-process test over a corpus + the drift sentinel, plus reading ELK's config (`considerModelOrder: NODES_AND_EDGES`, no `randomSeed`). An ELK upgrade could in principle change this; the cross-process test and sentinel would catch it. There is no seed to fall back on because seeding never affected output.
+- **Cross-machine (different CPU) determinism is not claimed.** Float arithmetic can differ across architectures. Structural determinism within one ELK version on one machine is what's tested and claimed.
+- **Sequence structured coverage is deliberately narrow.** Only participant declarations + simple messages get a mutable structured body; everything else falls back to opaque (lossless, but not mutable). This is the honest tradeoff that replaced silent information loss.
+- **Six families have no structured mutation.** class / ER / timeline / journey / xychart / architecture. Multiplicative work; sequence proved the pattern.
+- **MermaidSeqBench not wired.** External dataset; the "single decisive number" is a follow-up, not a current result.
+- **Bloat in agent-facing docs.** `AGENTS.md` hard-capped under 100 lines; doc-sync test enforces.
 
-## What v1 delivers
+## What v4 delivers (vs. earlier drafts)
 
-The v1 surface delivers every property the spec claims, with the following honest scope decisions:
-
-- **Determinism via `Math.random` override.** Seed changes change layout output. Cross-platform byte-equality is best-effort (depends on ELK's float arithmetic determinism across CPUs); structural-JSON determinism within an ELK version on one machine is guaranteed.
-- **Mutation for flowchart + state + sequence** (the three most-requested families). Other 6 families: parse / verify / render / serialize via `canonicalSource`. The mutate type signature uses family-narrowed overloads so cross-family calls don't typecheck.
-- **`canonicalSource` field** on every `ValidDiagram` — the round-trip pillar for opaque families, the fallback when no structured serializer applies. Documented in the type comment.
-- **`Finite` branded type** enforced at every coordinate emission via `toFinite()`. Constructor throws on NaN / Infinity.
-- **Tier-1 / Tier-2 warning split.** Tier 1 (6 codes) is reliable and source-or-structure based. Tier 2 (2 codes) is geometric and advisory. `LABEL_OVERFLOW` was moved from Tier 2 to Tier 1 by reframing as a source-based character-count check.
-- **ESLint substrate enforcement** via `.eslintrc.json`. Substrate primitives explicitly allowlisted.
-- **Upstream-doc sync** via shipped GitHub Action.
-- **`MermaidGraph` and `renderMermaidSVGAsync` kept** as exports — wrapping rather than replacing keeps existing consumers working.
-- **Subpath export** (`beautiful-mermaid/agent`) rather than package rename — coordinates with package owner deferred.
-- **MermaidSeqBench integration** is the explicit follow-up; the eval is the single decisive number once wired.
+- **Determinism is structural and verified cross-process** — not a seed apparatus. The seed/RNG/clock machinery and the font-metric table are *removed* (they did nothing).
+- **Mutation for flowchart + state + sequence**, family-narrowed overloads, compile-time rejection of other families.
+- **Sequence parsing is lossless** — structured-or-opaque fallback; never silently drops constructs.
+- **Substrate enforcement is a real grep test** that runs under `bun test`, not an ESLint config that was never installed.
+- **`synthesizeFromGraph`** lets `am parse | am serialize` round-trip without `canonicalSource` on the wire.
+- **`LABEL_OVERFLOW` is a source-based char-count check** (Tier 1, reliable), not a font-metric heuristic.
+- **`Finite` branded type** enforced at every coordinate emission.
+- **Deliverable completeness:** CHANGELOG entry, README section, an `examples/` script, per-verb CLI `--help`, and a `FORK_DIFFERENCES.md` mention all ship with the code.
+- **Test honesty:** the tautological seed-variance test is gone; a fault-injection pass proves the suite has teeth.
 
 ---
 
