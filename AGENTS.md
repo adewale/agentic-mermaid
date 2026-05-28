@@ -40,9 +40,9 @@ Run `verifyMermaid` at every commit point — anywhere the result would be saved
 
 ## Tier 1 vs Tier 2 warnings
 
-Tier 1 (structural, reliable): `EMPTY_DIAGRAM`, `EDGE_MISANCHORED`, `OFF_CANVAS`, `GROUP_BREACH`, `UNKNOWN_SHAPE`, `LABEL_OVERFLOW` (a source-based character-count check, default 40). Never suppress Tier 1 errors.
+Tier 1 (structural, reliable, universal): `EMPTY_DIAGRAM`, `EDGE_MISANCHORED`, `OFF_CANVAS`, `GROUP_BREACH`, `UNKNOWN_SHAPE`, `LABEL_OVERFLOW` (a source-based character-count check, default 40). Applies to every family (where the warning makes sense). Never suppress Tier 1 errors.
 
-Tier 2 (geometric, advisory): `NODE_OVERLAP`, `ROUTE_SELF_CROSS`. These correctly detect what they name; the occurrence may be intentional. Suppress when so. Do not gate CI on Tier 2 alone.
+Tier 2 (geometric, advisory, flowchart-specific): `NODE_OVERLAP`, `ROUTE_SELF_CROSS`. These are flowchart-shaped concepts and only fire for flowchart/state bodies. For non-flowchart families, geometric concerns are surfaced via perceptual metrics (`measureQuality(layoutMermaid(d))`): edge crossings, label legibility, whitespace balance, label-edge proximity. See `QUALITY.md` for the rubric. Don't gate CI on Tier 2 alone.
 
 ## Anti-patterns
 

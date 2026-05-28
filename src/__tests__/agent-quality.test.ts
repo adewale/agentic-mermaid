@@ -93,6 +93,58 @@ describe('checkQuality — verdict', () => {
   })
 })
 
+describe('quality on non-flowchart families (Phase D)', () => {
+  test('sequence produces a real layout (not empty)', () => {
+    const p = parseMermaid(`sequenceDiagram
+  participant A
+  participant B
+  A->>B: hi`)
+    expect(p.ok).toBe(true)
+    if (!p.ok) return
+    const layout = layoutMermaid(p.value)
+    expect(layout.nodes.length).toBe(2)
+    expect(layout.edges.length).toBe(1)
+    expect(layout.bounds.w).toBeGreaterThan(0)
+  })
+
+  test('timeline produces a real layout (not empty)', () => {
+    const p = parseMermaid(`timeline
+  title T
+  2020 : event1
+  2021 : event2`)
+    expect(p.ok).toBe(true)
+    if (!p.ok) return
+    const layout = layoutMermaid(p.value)
+    expect(layout.nodes.length).toBeGreaterThan(0)
+    expect(layout.bounds.w).toBeGreaterThan(0)
+  })
+
+  test('sequence quality metrics within bounds', () => {
+    const p = parseMermaid(`sequenceDiagram
+  participant Alice
+  participant Bob
+  Alice->>Bob: Hi
+  Bob-->>Alice: Hello`)
+    expect(p.ok).toBe(true)
+    if (!p.ok) return
+    const m = measureQuality(layoutMermaid(p.value))
+    expect(m.edgeCrossings).toBe(0)
+    expect(m.nodeCount).toBe(2)
+    expect(m.edgeCount).toBe(2)
+  })
+
+  test('timeline quality: each event becomes a node', () => {
+    const p = parseMermaid(`timeline
+  2020 : a : b : c
+  2021 : d`)
+    expect(p.ok).toBe(true)
+    if (!p.ok) return
+    const layout = layoutMermaid(p.value)
+    // 2 period labels + 4 events = 6 nodes
+    expect(layout.nodes.length).toBe(6)
+  })
+})
+
 describe('quality regression baseline (flowchart corpus median + p90)', () => {
   test('median/p90 metrics within fixed bounds', () => {
     const metrics: ReturnType<typeof measureQuality>[] = []
