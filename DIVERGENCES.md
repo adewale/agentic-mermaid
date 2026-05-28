@@ -186,3 +186,102 @@ genuinely needs hardware we don't have here — kept as a documented gap,
 not a claim.
 
 Full suite: 1407/1407. tsc clean. Build clean. Lint green.
+
+## Loop 5 — Comprehensive coverage push (Phases A→F)
+
+In response to "I want comprehensive support for all diagram types and
+hooks so that new diagram types automatically get support. All the tiers
+should be supported or explained to me." — six phases in order.
+
+### Phase A — Bug fix (opaque-body indentation loss)
+The old `canonicalSource` was `normalized.text` (line-trimmed). All
+opaque-body diagrams (class, ER, journey, xychart, architecture,
+sequence-with-alt/loop/activate/Note — and 132/132 of MermaidSeqBench)
+were therefore round-tripping with **flattened indentation** — agents
+calling parse → serialize lost formatting silently. Fix exposes the
+original body on NormalizedMermaidSource and routes it to `body.source`
+for opaque constructions. New `agent-opaque-fidelity.test.ts` asserts
+byte-exact serialize-equals-input across families.
+
+### Phase B — Family-plugin registry
+New `src/agent/families.ts` defines `registerFamily(plugin)` for
+extension families and exposes `getFamily(kind)` for built-ins.
+`families-builtin.ts` registers all 9 families with family-specific
+label extractors. `verify.ts` now applies LABEL_OVERFLOW to opaque
+bodies via the registry — closing the gap where 5+ families never got
+label-cap checking. Future external families can plug in by calling
+`registerFamily` (exposed from `beautiful-mermaid/agent`).
+
+### Phase E — 247-sample mermaid-js corpus
+New `eval/mermaid-docs-corpus/build-corpus.ts` mines all 9 families
+from `packages/mermaid/src/docs/syntax/*.md`. Output: **247 examples**
+(flowchart 111, class 36, sequence 36, state 20, ER 16, timeline 14,
+xychart 7, architecture 6, journey 1). CI gate per family. Baseline
+shows all families at 100% parse/verify/round-trip **except state**,
+which round-trips at 5% — state currently shares the flowchart IR body,
+so the legacy parser rewrites state-specific syntax (`[*]` → `_start`).
+Documented; structured state body is future incremental work.
+
+### Phase F — Perceptual quality + LLM-as-judge harness
+New `src/agent/quality.ts` ships `measureQuality()` returning 5
+deterministic metrics (edgeCrossings, labelLegibility, whitespaceBalance,
+labelEdgeProximity, aspectRatio) and `checkQuality(bounds)` for CI
+gating. New `eval/llm-judge/judge.ts` ships the harness:
+`buildJudgeRequest`, `runWithJudge(JudgeFn)`, `aggregateScores`,
+`RUBRIC`. The CI test uses a deterministic mock judge derived from the
+quality metrics; the real judge is intended for periodic runs (nightly /
+pre-release), not per-PR. New `QUALITY.md` documents the
+"good looking" definition: Tier 1 clean + perceptual bounds + LLM-judge
+median ≥ 4 on stratified corpus sample. Honest notes on what we DON'T
+claim (no pixel comparison, no font substitution check, no WCAG
+contrast yet).
+
+### Phase C — Structured mutation for class (10 ops) + ER (7 ops)
+New `class-body.ts` ships parser + serializer + mutator + verifier for
+class diagrams: 10 typed ops (set_title, add/remove/rename_class,
+add/remove_member, add/remove_relation, add/remove_note) covering CRUD
+plus cascading delete (relations + notes drop when class removed).
+Supported syntax: bare class, `class X { members }`, `class X["label"]`,
+`class X as "label"`, all 6 relation kinds (inheritance, composition,
+aggregation, association, dependency, realization, link-solid,
+link-dashed), cardinality + relation label, notes (attached and free),
+title. From the corpus: 14/36 class diagrams parse structurally + 22
+fall back to opaque (all 36 round-trip).
+
+New `er-body.ts` ships full ER support: 7 typed ops, all 4 cardinality
+glyphs both sides, solid + dashed lines, quoted labels. From corpus:
+5/16 structured + 11 opaque (all 16 round-trip).
+
+mutate() now overloads to 5 families (was 3). `asClass`, `asEr`
+narrowers exported. journey / xychart / architecture remain opaque-only
+in this loop — the Phase B family-plugin registry is ready for them as
+future incremental commits.
+
+### Phase D — Real RenderedLayout for sequence + timeline
+`layoutMermaid()` now produces real geometric layouts for sequence and
+timeline (was previously `emptyRenderedLayout`). Sequence uses the
+existing `layoutSequenceDiagram` and maps actors → nodes, messages →
+edges. Timeline gets a synthetic grid layout: each event becomes a
+node arranged by section then period. Perceptual metrics from Phase F
+now apply uniformly to every family that has a layout.
+
+**Honest framing on Tier 2:** NODE_OVERLAP / ROUTE_SELF_CROSS are
+flowchart-shaped concepts. They don't translate cleanly to sequence
+(actor boxes are placed with mandatory gaps; messages are straight) or
+timeline (events are grid-arranged). Rather than inventing fake
+warnings that would produce noise, Tier 2 is documented as
+flowchart-specific by design, and the geometric question for
+non-flowchart families is answered by the Phase F perceptual metrics.
+
+### Result
+- 6 structured families (flowchart, state, sequence, timeline, class, ER)
+- 3 opaque-only families with plugin slot ready (journey, xychart, architecture)
+- Plugin registry for new families
+- Universal Tier 1 LABEL_OVERFLOW
+- Perceptual quality metrics on every family with a layout
+- LLM-as-judge harness (mock in CI, real periodically)
+- 247-sample mermaid-js corpus + CI gate
+- Documented "good looking" rubric in `QUALITY.md`
+- Bug fix: opaque-body indentation preserved (was being silently flattened)
+
+Full suite: 1492/1492. tsc + build + lint green.
