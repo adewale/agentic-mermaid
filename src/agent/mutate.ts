@@ -162,20 +162,20 @@ function ensureNode(graph: MermaidGraph, id: string): void {
   if (!graph.nodes.has(id)) graph.nodes.set(id, { id, label: id, shape: 'rectangle' })
 }
 
-interface SubgraphLike { id: string; label: string; nodeIds: string[]; children: SubgraphLike[]; direction?: import('../types.ts').Direction }
+type Subgraph = import('../types.ts').MermaidSubgraph
 
-function findSubgraph(graph: MermaidGraph, id: string): SubgraphLike | null {
-  const search = (list: SubgraphLike[]): SubgraphLike | null => {
+function findSubgraph(graph: MermaidGraph, id: string): Subgraph | null {
+  const search = (list: Subgraph[]): Subgraph | null => {
     for (const sg of list) { if (sg.id === id) return sg; const c = search(sg.children); if (c) return c }
     return null
   }
-  return search(graph.subgraphs as SubgraphLike[])
+  return search(graph.subgraphs)
 }
-function removeFromSubgraph(sg: SubgraphLike, id: string): void {
+function removeFromSubgraph(sg: Subgraph, id: string): void {
   sg.nodeIds = sg.nodeIds.filter(n => n !== id)
   for (const c of sg.children) removeFromSubgraph(c, id)
 }
-function renameInSubgraph(sg: SubgraphLike, from: string, to: string): void {
+function renameInSubgraph(sg: Subgraph, from: string, to: string): void {
   sg.nodeIds = sg.nodeIds.map(n => (n === from ? to : n))
   for (const c of sg.children) renameInSubgraph(c, from, to)
 }
