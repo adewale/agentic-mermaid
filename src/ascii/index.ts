@@ -65,6 +65,14 @@ export interface AsciiRenderOptions {
   theme?: Partial<AsciiTheme>
   /** Optional Mermaid-style runtime config (analogous to initialize/frontmatter config). */
   mermaidConfig?: MermaidRuntimeConfig
+  /**
+   * Loop 9 M13: cap output width in characters. When set, node labels wrap
+   * at word boundaries to fit within `maxWidth / 3` per node. Single words
+   * longer than `maxWidth / 2` render anyway (with a console.warn). The
+   * overall canvas may still exceed `maxWidth` if the diagram has many
+   * parallel columns; this is best-effort wrapping, not hard truncation.
+   */
+  maxWidth?: number
 }
 
 /**
@@ -138,7 +146,12 @@ export function renderMermaidASCII(
 
   // Merge user theme with defaults
   const theme: AsciiTheme = { ...DEFAULT_ASCII_THEME, ...options.theme }
-  const normalizedSource = normalizeMermaidSource(text, options.mermaidConfig ?? {})
+  // Loop 9 M13: apply pre-render label wrapping if maxWidth is set. Walks
+  // the source and rewrites bracket-quoted labels to insert <br/> at word
+  // boundaries when the label exceeds (maxWidth / 3). Family-agnostic
+  // because every renderer respects <br/> as a hard line break.
+  const sourceText = options.maxWidth ? wrapLabelsInSource(text, options.maxWidth) : text
+  const normalizedSource = normalizeMermaidSource(sourceText, options.mermaidConfig ?? {})
 
   const diagramType = detectDiagramType(normalizedSource.firstLine)
 
@@ -209,3 +222,51 @@ export function renderMermaidASCII(
 
 /** @deprecated Use `renderMermaidASCII` */
 export const renderMermaidAscii = renderMermaidASCII
+
+/**
+ * Loop 9 M13: wrap a single label string at word boundaries to fit a column
+ * width. Words longer than `maxLineWidth` emit a warn and render as-is.
+ * Returns the label with `<br/>` separators between wrapped lines.
+ */
+export function wrapLabel(text: string, maxLineWidth: number): string {
+  if (text.length <= maxLineWidth) return text
+  const words = text.split(/\s+/).filter(Boolean)
+  const lines: string[] = []
+  let current = ''
+  for (const word of words) {
+    if (word.length > maxLineWidth) {
+      // Word can't fit on its own line — emit warning, render anyway.
+      // eslint-disable-next-line no-console
+      console.warn(`wrapLabel: word "${word.slice(0, 20)}..." exceeds maxLineWidth=${maxLineWidth}`)
+      if (current) lines.push(current)
+      lines.push(word)
+      current = ''
+      continue
+    }
+    if (current.length === 0) current = word
+    else if (current.length + 1 + word.length <= maxLineWidth) current += ' ' + word
+    else { lines.push(current); current = word }
+  }
+  if (current) lines.push(current)
+  return lines.join('<br/>')
+}
+
+/**
+ * Walk Mermaid source and wrap bracket-quoted labels (`["..."]`, `[...]`,
+ * `(...)`, `{...}`, `((...))`) whose contents exceed `maxWidth / 3` columns.
+ * Family-agnostic — works on flowchart node labels, sequence message text,
+ * class members, etc.
+ */
+function wrapLabelsInSource(source: string, maxWidth: number): string {
+  const perLabel = Math.max(8, Math.floor(maxWidth / 3))
+  // Match bracket-quoted labels: ["text"], [text], (text), {text}, ((text))
+  // Skip already-wrapped labels (those containing <br/>) and identifier-only labels.
+  return source.replace(/(\[\[|\(\(|\[|\(|\{)("?)([^\[\]\(\)\{\}\n]+)\2(\]\]|\)\)|\]|\)|\})/g,
+    (full, open: string, quote: string, inner: string, close: string) => {
+      if (inner.length <= perLabel || inner.includes('<br/>')) return full
+      // Don't wrap identifier-like content (no spaces, looks like a variable)
+      if (!inner.includes(' ')) return full
+      const wrapped = wrapLabel(inner, perLabel)
+      return open + quote + wrapped + quote + close
+    })
+}
