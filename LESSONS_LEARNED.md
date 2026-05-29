@@ -1,9 +1,8 @@
-# Lessons Learned — Loops 1 through 7
+# Lessons Learned — Loops 1 through 14
 
 This document replaces the Loop 1 retrospective. It is the cumulative
-narrative across seven loops of work on the agentic-mermaid fork. Each
-section reflects what a critic or implementer wished they had known when
-they started.
+narrative across the agentic-mermaid fork. Each section reflects what a
+critic or implementer wished they had known when they started.
 
 ## (a) What we wish we'd known
 
@@ -284,3 +283,47 @@ Smaller Loop 13 notes:
 - Extracting `renderFileOnce` made --watch testable without fighting
   fs.watch timing — same "pure core + thin imperative shell" move that
   made the post-pass features (namespaceSvgIds etc.) testable.
+
+## Loop 14 lesson — consistency is a feature, not cleanup
+
+Rebasing PR #11 onto `main` was mechanically easy; the dangerous part was
+not the code merge, it was the contract drift hiding in docs and capability
+metadata. The branch had accumulated several small inconsistencies:
+
+- PR title still described Loop 7 even though the branch had become Loops
+  7-13.
+- `FEATURES.md` and generated `llms.txt` claimed MCP `query`/`xref` tools
+  that do not exist. The real surface is primary `execute` plus narrow
+  `render_png` and `describe` helpers.
+- `am capabilities` under-reported output formats (`svg`, `ascii`, `png`)
+  even though the CLI also supports `unicode` and `json`.
+- The capability envelope was reporting plugin-internal hooks rather than
+  the public agent surface, so it implied most families could not parse,
+  serialize, or verify even though `parseMermaid` / `serializeMermaid` /
+  `verifyMermaid` support all registered families.
+- Tier 3 docs described an opt-in lint layer as if it shipped today. The
+  honest state is: plugin verify hooks are wired, built-ins use them for
+  Tier 1 structural checks, and Tier 3 lint codes are reserved.
+
+These are not cosmetic mismatches. Agent-facing software is consumed by
+machines that rely on the manifest. A stale `capabilities` response sends
+agents down the wrong path; a doc-only MCP tool wastes a tool call and
+teaches distrust; a stale PR title causes reviewers to review the wrong
+change. For agent-native products, **the docs, schemas, generated digests,
+CLI help, and PR title are part of the runtime surface**.
+
+Two practical rules came out of the rebase:
+
+1. **After every scope-changing loop, run a contract-drift audit.** Grep
+   for old tool names, output formats, package names, and roadmap statuses;
+   then compare the results to live CLI/MCP output. In this loop, the
+   decisive command was `am capabilities --json`, not reading the docs.
+2. **Regenerate ignored artifacts before browser/e2e tests.** The first
+   post-rebase browser run failed because ignored `editor.html` was stale
+   from a previous branch. `bun run editor.ts && bun run test:browser` is
+   the safe sequence. A generated file outside git can still poison local
+   verification.
+
+The deeper lesson: once a branch is large, consistency work is no longer
+"polish." It is how you make the branch reviewable and trustworthy enough
+to merge. Stop feature work, align the contract, then ship.
