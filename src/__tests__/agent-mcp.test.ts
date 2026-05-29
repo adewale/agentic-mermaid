@@ -95,7 +95,8 @@ describe('MCP — JSON-RPC happy + sad', () => {
   test('tools/list has execute with SDK', async () => {
     const r = await handleRequest({ jsonrpc: '2.0', id: 2, method: 'tools/list' })
     const tools = (r!.result as any).tools
-    expect(tools).toHaveLength(1)
+    // Loop 9 M1 + M12: render_png and describe joined execute.
+    expect(tools.map((t: any) => t.name)).toEqual(['execute', 'render_png', 'describe'])
     expect(tools[0].description).toContain('asSequence')
   })
   test('tools/call execute', async () => {
