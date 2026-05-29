@@ -18,8 +18,15 @@ Corpus: the 247-sample mermaid-js docs corpus (`eval/mermaid-docs-corpus`).
 | SVG output size | 2.9 KB | 7.3 KB | 14.6 KB |
 
 - Parse success rate: **247/247 (100%)**.
-- Cold start (CLI process, one diagram): **~870 ms** (Bun runtime startup +
-  module load dominates; the render itself is single-digit ms).
+- Cold start (CLI process, one diagram):
+  - `bun run bin/am.ts` (TS source, transpile + resolve): ~570–870 ms
+  - **`bun build --compile` single binary (#1018, Loop 13): ~440 ms** —
+    skips TS transpilation + module resolution. Roughly halves cold-start,
+    but does NOT reach termaid's ~102 ms: Bun runtime init is the floor.
+    Honest read: the binary is the right distribution artifact (no runtime
+    dependency, one file, all formats incl. PNG embed) and meaningfully
+    improves cold-start, but a Go/Python single-file still wins pure
+    startup. The render itself is single-digit ms in all cases.
 - Determinism: byte-identical across runs, processes, and runtimes
   (bun ≡ node, x86_64) — separately gated in the test suite.
 

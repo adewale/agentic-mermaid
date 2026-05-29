@@ -66,6 +66,7 @@
     "dev": "bun run dev.ts",
     "bench": "bun run bench.ts",
     "build": "tsup",
+    "build:binary": "bun build ./bin/am.ts --compile --outfile dist/am",
     "build:site": "bun run index.ts && bun run editor.ts && mkdir -p site && mv index.html editor.html site/ && cp -r public/* site/",
     "deploy": "echo 'GitHub Pages deploys from main via .github/workflows/pages.yml; Cloudflare deployment is upstream-owned.'",
     "xychart-test": "bun run xychart-test.ts",
