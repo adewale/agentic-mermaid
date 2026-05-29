@@ -249,3 +249,42 @@ describe('Diagonal validation', () => {
     expect(hasDiagonalLines('+---+\n| A |\n+---+')).toBe(false)
   })
 })
+
+describe('Sequence pre-message notes (Loop 7 A2 — rnbguy#54)', () => {
+  // Regression coverage: a `Note over X: foo` placed BEFORE the first message
+  // in a sequenceDiagram must render in the canvas above the first message
+  // row. Upstream rnbguy#54 was the inspiration; this test pins our coverage.
+
+  it('renders a pre-message Note over the first message rows', () => {
+    const src = `sequenceDiagram
+  participant A
+  participant B
+  Note over A: setup before flow
+  A->>B: ping`
+    const result = renderMermaidAscii(src)
+    expect(result).toContain('setup before flow')
+    expect(result).toContain('ping')
+    // The note row must appear ABOVE the message row (smaller y index).
+    const lines = result.split('\n')
+    const noteRow = lines.findIndex(l => l.includes('setup before flow'))
+    const msgRow = lines.findIndex(l => l.includes('ping'))
+    expect(noteRow).toBeGreaterThanOrEqual(0)
+    expect(msgRow).toBeGreaterThan(noteRow)
+  })
+
+  it('renders a pre-message Note over multiple participants', () => {
+    const src = `sequenceDiagram
+  participant A
+  participant B
+  Note over A,B: shared preamble
+  A->>B: go`
+    const result = renderMermaidAscii(src)
+    expect(result).toContain('shared preamble')
+    expect(result).toContain('go')
+    const lines = result.split('\n')
+    const noteRow = lines.findIndex(l => l.includes('shared preamble'))
+    const msgRow = lines.findIndex(l => l.includes('go'))
+    expect(noteRow).toBeGreaterThanOrEqual(0)
+    expect(msgRow).toBeGreaterThan(noteRow)
+  })
+})
