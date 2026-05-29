@@ -234,4 +234,13 @@ export interface RenderOptions {
   shadow?: boolean
   /** Optional Mermaid-style runtime config (analogous to initialize/frontmatter config). */
   mermaidConfig?: MermaidRuntimeConfig
+  /**
+   * Whether to embed the Google Fonts `@import` line in the SVG `<style>` block.
+   * Default: `true` (preserves wire compatibility with all existing consumers).
+   *
+   * CLI / PNG paths set `false` explicitly to render offline / CSP-friendly.
+   * The CSS variable `--font` is always emitted on the SVG root regardless,
+   * so the family stays overridable post-render even when the @import is gone.
+   */
+  embedFontImport?: boolean
 }
