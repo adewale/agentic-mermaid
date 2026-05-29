@@ -30,20 +30,26 @@ export function verifyMermaid(input: ValidDiagram | string, opts: VerifyOptions 
 
   const cap = opts.labelCharCap ?? DEFAULT_LABEL_CHAR_CAP
 
-  if (d.body.kind === 'sequence') return verifySequence(d.body, d.kind, cap, opts)
-  if (d.body.kind === 'timeline') return verifyTimeline(d.body, d.kind, cap, opts)
+  // Family-plugin verify dispatcher pass: every registered family's `verify`
+  // hook gets a chance to contribute warnings. Runs ahead of per-body branches
+  // so plugins can hook into any body kind (structured or opaque). Closes the
+  // dead-code gap where `FamilyPlugin.verify` was declared but never invoked.
+  const pluginWarnings = dispatchFamilyVerify(d, opts)
+
+  if (d.body.kind === 'sequence') return mergeFinalize(verifySequence(d.body, d.kind, cap, opts), pluginWarnings, opts)
+  if (d.body.kind === 'timeline') return mergeFinalize(verifyTimeline(d.body, d.kind, cap, opts), pluginWarnings, opts)
   if (d.body.kind === 'class') {
     const w = verifyClass(d.body, opts)
-    return finalize(w, emptyRenderedLayout(d.kind), opts)
+    return finalize([...w, ...pluginWarnings], emptyRenderedLayout(d.kind), opts)
   }
   if (d.body.kind === 'er') {
     const w = verifyErBody(d.body, opts)
-    return finalize(w, emptyRenderedLayout(d.kind), opts)
+    return finalize([...w, ...pluginWarnings], emptyRenderedLayout(d.kind), opts)
   }
 
   if (d.body.kind === 'opaque') {
     const isEmpty = d.body.source.trim().split('\n').length <= 1
-    if (isEmpty) return finalize([{ code: 'EMPTY_DIAGRAM' }], emptyRenderedLayout(d.kind), opts)
+    if (isEmpty) return finalize([{ code: 'EMPTY_DIAGRAM' }, ...pluginWarnings], emptyRenderedLayout(d.kind), opts)
     // Universal Tier 1 LABEL_OVERFLOW via family-specific (or generic) label
     // extraction. Closes the gap where opaque-body diagrams (class / ER /
     // journey / xychart / architecture / sequence-with-alt/etc.) never got
@@ -59,7 +65,7 @@ export function verifyMermaid(input: ValidDiagram | string, opts: VerifyOptions 
       seen.add(key)
       warnings.push({ code: 'LABEL_OVERFLOW', target: lbl.target, charCount: lbl.text.length, limit: cap })
     }
-    return finalize(warnings, emptyRenderedLayout(d.kind), opts)
+    return finalize([...warnings, ...pluginWarnings], emptyRenderedLayout(d.kind), opts)
   }
 
   const graph = d.body.graph
@@ -121,7 +127,29 @@ export function verifyMermaid(input: ValidDiagram | string, opts: VerifyOptions 
     if (c > 0) warnings.push({ code: 'ROUTE_SELF_CROSS', edge: `${e.source}->${e.target}`, count: c })
   }
 
-  return finalize(warnings, layout, opts)
+  return finalize([...warnings, ...pluginWarnings], layout, opts)
+}
+
+/**
+ * Run the registered FamilyPlugin.verify hook for this diagram's kind.
+ * Returns the warnings the plugin produced, or [] when no plugin / no hook.
+ */
+function dispatchFamilyVerify(d: ValidDiagram, opts: VerifyOptions): LayoutWarning[] {
+  const plugin = getFamily(d.kind)
+  if (!plugin?.verify) return []
+  try {
+    return plugin.verify(d.body, opts)
+  } catch {
+    // A faulty plugin shouldn't blow up verifyMermaid. Silent skip is acceptable
+    // for an optional hook; the test suite catches bugs in built-in plugins.
+    return []
+  }
+}
+
+/** finalize() variant that merges an already-finalized result with extra warnings. */
+function mergeFinalize(prev: VerifyResult, extra: LayoutWarning[], opts: VerifyOptions): VerifyResult {
+  if (extra.length === 0) return prev
+  return finalize([...prev.warnings, ...extra], prev.layout, opts)
 }
 
 function verifyTimeline(body: import('./types.ts').TimelineBody, kind: ValidDiagram['kind'], cap: number, opts: VerifyOptions): VerifyResult {
