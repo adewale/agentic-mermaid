@@ -1,3 +1,45 @@
+# Project Backlog
+
+The single source of truth for what's left. (Test-coverage matrix + the
+historical architecture audit follow below.) Changelog = DIVERGENCES.md;
+capability inventory = FEATURES.md; forward plan = ROADMAP.md.
+
+## Blocking / owner-decision (not code — these gate everything downstream)
+
+- [ ] **Renaming + publish decision.** The package is still
+  `beautiful-mermaid@1.1.3` ("render Mermaid as SVG/ASCII"); the agent
+  surface ships as the `./agent` subpath. Decide the published name
+  (e.g. `agentic-mermaid`) and whether/when to publish to npm. Owner
+  decision — blocks any release.
+- [ ] **Merge or explicitly park PR #11.** 6+ loops of work sit in one
+  unmerged PR. The longer it grows, the harder the eventual review.
+- [ ] **Get a real external consumer.** Every quality signal so far is
+  self-generated (our tests, our corpus, our benchmark, our judge). One
+  actual agent/TUI using `beautiful-mermaid/agent` would surface more
+  than another build loop. Highest-value non-code item.
+
+## Build backlog
+
+- [x] Single-binary distribution (#1018) — Loop 13 (`bun build --compile`)
+- [x] glob / multi-input (#959) — Loop 13
+- [x] `--watch` (#930) — Loop 13
+- [x] Agent-usage validation harness — Loop 13
+- [ ] Collapsible subgraphs (#7785) — large; real readability win for
+  agent-generated architecture diagrams
+- [ ] Formal Trusted Types browser verification (#7695) — needs a real
+  browser; our output is static/CSP-compatible but unverified against a
+  live TT policy
+
+## Blocked (cannot do in this environment)
+
+- [ ] mermaid-ast journey/xychart structured uplift — `mermaid-ast`'s
+  transitive dep chain (langium → vscode-jsonrpc → @chevrotain) is broken
+  in this sandbox; confirmed Loops 9 + 12. Needs a working install.
+- [ ] ARM64 PNG parity — bun ≡ node verified on x86_64; ARM untested,
+  needs ARM hardware.
+
+---
+
 # Test Coverage Matrix
 
 Test category coverage across diagram types. Use this to identify gaps when adding or auditing diagram support.
