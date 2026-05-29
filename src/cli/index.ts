@@ -7,7 +7,8 @@ import { parseMermaid } from '../agent/parse.ts'
 import { serializeMermaid, synthesizeFromGraph } from '../agent/serialize.ts'
 import { mutate } from '../agent/mutate.ts'
 import { verifyMermaid } from '../agent/verify.ts'
-import { renderMermaidSVG, renderMermaidASCII } from '../agent/index.ts'
+import { renderMermaidSVG, renderMermaidASCII, layoutMermaid } from '../agent/index.ts'
+import { describeMermaidSource } from '../agent/describe.ts'
 import { asFlowchart, asSequence } from '../agent/types.ts'
 import type { ValidDiagram, WarningCode, FlowchartMutationOp, SequenceMutationOp, AnyMutationOp, MutationError, Result, FlowchartValidDiagram, SequenceValidDiagram } from '../agent/types.ts'
 import { WARNING_SEVERITY, WARNING_TIER } from '../agent/types.ts'
@@ -75,9 +76,14 @@ Exit codes:
 `
 
 const COMMAND_HELP: Record<string, string> = {
-  render: `am render <file|-> [--ascii] [--json]
-Render a diagram to SVG (default) or ASCII (--ascii). With --json, wraps
-output as {"svg": "..."} or {"ascii": "..."}.`,
+  render: `am render <file|-> [--format svg|ascii|unicode|json|png] [--ascii] [--json]
+Render a diagram. Default is SVG.
+  --format svg      SVG markup (default)
+  --format ascii    7-bit ASCII art (also via --ascii)
+  --format unicode  Unicode box-drawing ASCII art
+  --format json     Layout JSON (nodes, edges, groups, bounds)
+  --format png      PNG bytes; requires -o <file.png>
+With --json, the svg/ascii/unicode forms wrap output as {"<format>": "..."}.`,
   verify: `am verify <file|-> [--suppress A,B] [--label-cap N]
 Always emits JSON: {ok, warnings[], layout}. Tier-1 error codes flip ok=false:
 EMPTY_DIAGRAM, EDGE_MISANCHORED, OFF_CANVAS, GROUP_BREACH. Warnings:
@@ -157,9 +163,23 @@ function cmdRender(args: ParsedArgs, json: boolean): number {
     // returns void; we use a synchronous wrapper that buffers.
     return renderPngSync(source, { scale, background }, outFile, json)
   }
-  if (format === 'ascii') {
-    const ascii = renderMermaidASCII(source)
-    process.stdout.write(json ? JSON.stringify({ ascii }) + '\n' : (ascii.endsWith('\n') ? ascii : ascii + '\n'))
+  if (format === 'json') {
+    // Loop 9 M3 — structured layout JSON. parseMermaid → layoutMermaid →
+    // emit nodes/edges/groups/bounds with stable key ordering.
+    const parsed = parseMermaid(source)
+    if (!parsed.ok) {
+      process.stdout.write(JSON.stringify({ ok: false, error: { code: 'PARSE_FAILED', message: JSON.stringify(parsed.error) } }) + '\n')
+      return EXIT_ARG_ERROR
+    }
+    const layout = layoutMermaid(parsed.value)
+    process.stdout.write(JSON.stringify(layout) + '\n')
+    return EXIT_OK
+  }
+  if (format === 'ascii' || format === 'unicode') {
+    // Loop 9 M4 — `unicode` is the default ASCII renderer (Unicode box
+    // drawing). `ascii` flips the useAscii bit for pure 7-bit output.
+    const ascii = renderMermaidASCII(source, { useAscii: format === 'ascii' })
+    process.stdout.write(json ? JSON.stringify({ [format]: ascii }) + '\n' : (ascii.endsWith('\n') ? ascii : ascii + '\n'))
     return EXIT_OK
   }
   const svg = renderMermaidSVG(source)
