@@ -1,0 +1,44 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "AmCapabilitiesEnvelope",
+  "description": "Shape emitted by `am capabilities`. Loop 7 / A3.1.",
+  "type": "object",
+  "required": ["sdkVersion", "families", "warningCodes", "outputFormats"],
+  "properties": {
+    "sdkVersion": {
+      "type": "string",
+      "description": "package.json version of the running CLI."
+    },
+    "families": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "hasParse", "hasSerialize", "hasMutate", "hasVerify", "hasExtractLabels"],
+        "properties": {
+          "id": { "type": "string" },
+          "hasParse": { "type": "boolean" },
+          "hasSerialize": { "type": "boolean" },
+          "hasMutate": { "type": "boolean" },
+          "hasVerify": { "type": "boolean" },
+          "hasExtractLabels": { "type": "boolean" }
+        }
+      }
+    },
+    "warningCodes": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["code", "tier", "severity"],
+        "properties": {
+          "code": { "type": "string" },
+          "tier": { "type": "string", "enum": ["structural", "geometric"] },
+          "severity": { "type": "string", "enum": ["error", "warning"] }
+        }
+      }
+    },
+    "outputFormats": {
+      "type": "array",
+      "items": { "type": "string" }
+    }
+  }
+}
