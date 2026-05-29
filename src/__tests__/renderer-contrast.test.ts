@@ -48,9 +48,11 @@ describe('#116 auto-contrast node text on custom fills', () => {
     expect(firstTextFill(svg)).toBe('#FFFFFF')
   })
 
-  // NOTE: `style A fill:rgb(10,10,10)` does NOT currently work — the `style`
-  // statement parser splits on commas, mangling `rgb(10,10,10)` into
-  // `rgb(10`. This is a style-parser bug (separate from contrast, which
-  // handles valid rgb() via parseRgbFunction). Tracked as a Loop 11 candidate
-  // in DIVERGENCES.md. Hex fills are the supported path for now.
+  // Loop 12 M4: `style A fill:rgb(10,10,10)` now works — the style parser
+  // splits on top-level commas only, so rgb()/rgba()/hsl() survive intact
+  // and drive contrast end-to-end.
+  test('rgb() fill drives contrast (Loop 12 M4 fix)', () => {
+    const svg = renderMermaidSVG('flowchart TD\n A\n style A fill:rgb(10,10,10)')
+    expect(firstTextFill(svg)).toBe('#FFFFFF')
+  })
 })
