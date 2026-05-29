@@ -80,6 +80,54 @@ describe('determinism — cross-runtime (bun vs node)', () => {
   }
 })
 
+describe('determinism — cross-runtime PNG (Loop 8)', () => {
+  // PNG-determinism extension. Renders the same fixture in bun and node,
+  // compares SHA-256 byte-hashes. Per Loop 8 critic 2 pre-declared threshold:
+  // if >0 bytes diverge, this test fails — we drop the cross-runtime PNG
+  // claim and document in DIVERGENCES (don't fake-pass it).
+  //
+  // resvg-js is napi-rs based, so both runtimes call into the SAME prebuilt
+  // .node binary; p(this passes) ~= 0.9 per Loop 8 critic 1. If it fails,
+  // we still ship deterministic-per-runtime PNG (the in-process test in
+  // agent-png-determinism.test.ts proves that).
+  const NODE = '/opt/node22/bin/node'
+  const DIST = join(import.meta.dir, '..', '..', 'dist', 'agent.js')
+  const haveNode = (() => {
+    try { return spawnSync(NODE, ['--version'], { encoding: 'utf8' }).status === 0 } catch { return false }
+  })()
+  const haveDist = (() => { try { return require('node:fs').existsSync(DIST) } catch { return false } })()
+  const haveResvg = (() => {
+    try { require('@resvg/resvg-js'); return true } catch { return false }
+  })()
+
+  const fn = haveNode && haveDist && haveResvg ? test : test.skip
+  fn('bun PNG SHA-256 ≡ node PNG SHA-256 (with warm-up)', async () => {
+    // Module-level import already gives us renderMermaidPNG; import lazily so
+    // skip path doesn't fail on environments without resvg.
+    const { renderMermaidPNG } = await import('../agent/png.ts')
+    const src = 'flowchart LR\n  A[Start] --> B[End]'
+
+    // Warm-up render in bun, then take the second hash.
+    renderMermaidPNG(src)
+    const bunBytes = renderMermaidPNG(src)
+    const bunHash = require('node:crypto').createHash('sha256').update(bunBytes).digest('hex')
+
+    // Same warm-up pattern in the node subprocess.
+    const script = `
+      const m = require('${DIST}');
+      m.renderMermaidPNG(${JSON.stringify(src)});  // warm-up
+      const png = m.renderMermaidPNG(${JSON.stringify(src)});
+      process.stdout.write(require('node:crypto').createHash('sha256').update(png).digest('hex'))
+    `
+    const r = spawnSync(NODE, ['-e', script], { encoding: 'utf8' })
+    expect(r.status).toBe(0)
+    const nodeHash = r.stdout.trim()
+
+    // Honest comparison. Pre-declared threshold: any byte divergence fails.
+    expect(nodeHash).toBe(bunHash)
+  })
+})
+
 describe('drift sentinel', () => {
   const SENTINELS = [
     'flowchart TD\n  A --> B',

@@ -60,11 +60,10 @@ can lift the design directly.
   the user's vision asked for.
 - **[shipped] `normalize`.** Our verb is named `format`. Idempotent,
   same shape as Pillar 3's `normalize`.
-- **[cut for Loop 7, planned Loop 8] `render --format ascii|unicode|svg|json`.**
-  Currently `am render` defaults to SVG and takes `--ascii` to switch.
-  A `--format` flag with `unicode` (the default ASCII mode) +
-  `json` (the layout JSON) is a small extension. Deferred to Loop 8
-  to keep this loop scoped.
+- **[partial, Loop 8] `render --format ascii|svg|png|json`.**
+  Loop 8 added `--format png` (writes to `--output file.png`; PNG bytes
+  would corrupt terminals so stdout is rejected). The remaining
+  unicode/json modes deferred to Loop 9 — they don't block PNG.
 - **[cut] `describe` for alt text / LLM summaries.** A verb that
   emits an English-language description of a diagram — "five-node
   flowchart, A flows into B and C which both flow into D, …" —
@@ -84,8 +83,8 @@ can lift the design directly.
 - A web playground or hosted service. The MCP server runs locally
   via stdio; the CLI runs locally as `bun run am`. The library is
   pure-functional and ships in npm.
-- PNG / PDF output formats. Out of scope; agents that need these
-  pipe `am render` SVG into a separate `resvg` or `pdfkit` step.
-  Inspiration: GauBen/mermaid-compact-svg ships compact SVG output
-  that is friendlier to downstream image pipelines; Loop 8 may
-  bring an `--compact` flag.
+- PDF output. Out of scope; agents that need it pipe `am render`
+  SVG into a separate `pdfkit` step. PNG export DID ship in Loop 8
+  via `@resvg/resvg-js` (pinned 2.6.2, napi-rs native build, bundled
+  DejaVu Sans fonts for cross-runtime determinism). See `AGENT_NATIVE.md`
+  "Distribution" + `QUALITY.md` "PNG determinism" for the trade-offs.

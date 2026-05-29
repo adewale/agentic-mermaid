@@ -393,3 +393,82 @@ confirmed all 7 milestones complete.
   was holding work in-flight).
 - Use autopilot Workflow for end-to-end cycles (5 critics catch the cuts
   before the implementer wastes effort).
+
+## Loop 8 — PNG export + SVG polish + 2 audit items
+
+User ask: "I also want to be able to export PNGs." Autopilot ran the
+full cycle (plan + 5 critics + implementer + cleanup). Implementer
+agent completed M1-M4 then terminated mid-M5 with a content-filter
+error; I picked up and finished M5 + M6 directly.
+
+### Milestones landed
+- **M1 (A2)** Wired `FamilyPlugin.detect` in `parse.ts:detectKind` —
+  registry-driven detection replaces the hard-coded if-cascade.
+- **M2 (S2)** CSS-variable fonts via `--font` on SVG root + gate
+  Google Fonts `@import` behind new `RenderOptions.embedFontImport`.
+  **Default kept `true`** per critic 3 (existing
+  `renderer.test.ts:77-81` asserts `fonts.googleapis.com` in default
+  SVG; 4 fixtures bake it in). Loop 7 simplicity critic was wrong to
+  recommend flipping the default.
+- **M3 (S1)** SVG `--compact` mode — round coords ≤2dp, collapse
+  whitespace, keep `data-*` and `class` attrs (agent inspection hooks).
+- **M4 (A1)** Registered `verify` hooks on built-in class/ER plugins.
+  Per-body branches in `verify.ts` left in place; Loop 7 review fix's
+  `dedupedConcat` makes the double-call observationally invisible.
+  Branch removal deferred to Loop 9 (requires careful layout handling).
+- **M5+M6 (P)** PNG export via `@resvg/resvg-js@2.6.2` (exact pin, no
+  caret), napi-rs native build (NOT WASM — same `.node` binary under
+  Bun and Node via N-API compat), `loadSystemFonts: false`, bundled
+  DejaVu Sans fonts. `renderMermaidPNG(input, opts): Uint8Array` —
+  synchronous (resvg's `.render()` is native-sync; only the import was
+  async). CLI: `am render --format png --output file.png`. MCP tool
+  deferred (small follow-up). 21 new tests across 3 files.
+
+### Cross-runtime PNG result
+**Bun ≡ Node SHA-256 on x86_64.** The Loop 8 critic 2 pre-declared
+threshold ("if >0 bytes diverge, weaken claim") was NOT triggered.
+The critic-2 prediction of p~0.9 success held. Documented in
+`QUALITY.md` "PNG determinism" with honest gaps (cross-arch x86 vs
+ARM untested; resvg version drift; system-font substitution).
+
+### Architectural notes
+- napi-rs over WASM: critic 1 was right. Same prebuilt binary +
+  N-API compat = no init-time divergence between Bun and Node.
+- Bundled fonts in `assets/fonts/` (DejaVu Sans + Bold, 1.4 MB total,
+  permissively licensed) are load-bearing. Without them, resvg falls
+  back to system fonts and parity collapses.
+- Sync `renderMermaidPNG`: deliberate. Bundles resvg eagerly into
+  `dist/agent.js` (~5 MB additional weight) but eliminates an entire
+  class of CLI integration headaches. Library consumers who care about
+  bundle weight can ship their own dynamic import wrapper.
+
+### Implementer agent stall (handoff lesson)
+Loop 6 implementer stalled silently; Loop 7 implementer succeeded
+fully; Loop 8 implementer stalled mid-M5 with an "Output blocked by
+content filtering policy" error after 19 minutes. The four committed
+milestones (M1-M4) all landed cleanly because the agent followed the
+"commit per milestone" rule from the hardened plan. Handoff cost was
+minimal: I picked up at M5 with the dependency + fonts already prepped,
+wrote the PNG implementation + tests in ~10 minutes of focused work.
+
+The hardened-plan + commit-per-milestone discipline is what made the
+handoff possible. The Loop 6 stall failed because it held all work in
+flight; Loop 8 stall recovered because each milestone was a clean
+checkpoint.
+
+### Numbers
+- Tests: 1523 → 1552 in `src/__tests__/` (+29 across 3 new files), plus
+  4 new e2e/ tests for the PNG CLI path
+- Build: dist/agent.js grew from 571 KB to ~5.7 MB (resvg napi binary
+  bundled inline). dist/index.js unchanged.
+- 247-corpus + MermaidSeqBench floors: hold.
+- Bundled fonts: +1.4 MB to package install size.
+
+### Cut from Loop 8 (deferred Loop 9)
+- MCP `render_png` tool — the library function is the dependency; an
+  MCP wrapper is a thin shim. Defer until first MCP consumer asks.
+- `--format unicode` and `--format json` from the user's stated vision.
+- `renderAsciiWithMeta()` for TUI integration (raiscui inspiration).
+- Cross-architecture (ARM64) PNG parity — needs hardware.
+- Delete the class/ER per-body verify branches now that A1 wired the
+  plugin hooks. Requires careful layout-handling restructure.

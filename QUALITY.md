@@ -110,3 +110,42 @@ What the guard does NOT yet cover:
   does not stress edge-insertion order. A Set whose iteration order
   depends on insertion order would pass this test and fail a different
   one. Loop 8 candidate.
+
+## PNG determinism
+
+Loop 8 added PNG export via `@resvg/resvg-js` (pinned exact `2.6.2`,
+napi-rs native build). The rasterizer choice was hardened by the Loop 8
+critic pass:
+
+- `loadSystemFonts: false` is mandatory — fontconfig differs between
+  OSes and CI images, so system fonts would collapse cross-runtime
+  parity.
+- Bundled `assets/fonts/DejaVuSans.ttf` + `-Bold.ttf` ship with the
+  package. `defaultFontFamily: 'DejaVu Sans'` so resvg has a known
+  font for every text node.
+- SVG input passes `embedFontImport: false` so resvg doesn't fetch
+  Google Fonts at rasterization time. CSS variable `--font` still
+  declares family preference for browser consumers.
+
+What's tested:
+- `agent-png.test.ts` (6 tests) — PNG magic bytes, scale proportionality,
+  ValidDiagram input, background variation.
+- `agent-png-determinism.test.ts` (3 tests) — 5x same-input SHA-256
+  stability with a warm-up render to factor out napi init differences.
+  Plus length-stable defence against partial-buffer truncation
+  masquerading as a hash collision.
+- `agent-determinism.test.ts` "cross-runtime PNG" — renders in bun,
+  spawns Node on `dist/agent.js`, compares SHA-256. **As of Loop 8: this
+  test passes.** bun ≡ node on the same x86_64 machine.
+
+What's NOT tested (honest gaps):
+- **Cross-architecture (x86_64 vs ARM64).** Resvg's tiny-skia
+  intentionally avoids system float libraries to make this *theoretically*
+  deterministic, but we don't have ARM hardware to verify.
+- **Resvg version drift.** A future bump of `@resvg/resvg-js` may
+  change PNG bytes (zlib compression, font hinting). The version is
+  pinned exact (no caret) to prevent silent drift on `npm install`,
+  but a deliberate bump needs re-baseline.
+- **Different system fonts.** Bundled DejaVu is what we render with;
+  consumers post-processing the output font-substituted SVGs will get
+  different pixels. By design.
