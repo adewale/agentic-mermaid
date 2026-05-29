@@ -40,19 +40,22 @@ can lift the design directly.
   ASCII bugs in sequence (self-arrow multi-line split, alt-block
   width math, CJK label centering, FE0F/ZWJ, pathfinder
   determinism guard). Three new test files lock the fixes.
-- **[cut for Loop 7, planned Loop 8] `maxWidth` + word wrapping.**
-  Agents rendering ASCII into a terminal want to constrain the
-  canvas width. The renderer currently lets the column-greedy
-  layout pick the width; a `maxWidth` option that wraps labels
-  and re-runs layout would close this. Inspiration: the upstream
-  AlexanderGrooff/mermaid-ascii has a `--maxWidth` flag we can
-  port directly.
-- **[cut for Loop 7, planned Loop 8] `renderAsciiWithMeta()` for
-  TUI.** A version of `renderMermaidAscii` that returns
-  `{ canvas, regions }` where `regions` maps `(node|edge|label) →
-  { x, y, w, h }` so a TUI can attach click handlers, color
-  schemes, or pop-ups. Inspiration: raiscui/mermaid-ascii has a
-  prototype with the right shape.
+- **[shipped, Loop 9] `maxWidth` + word wrapping.** `renderMermaidASCII`
+  takes `maxWidth?: number`; a label-wrapping preprocessor wraps
+  bracket-quoted labels at word boundaries. `wrapLabel` is exported.
+- **[shipped, Loop 9] `renderAsciiWithMeta()` for TUI.**
+  `renderMermaidASCIIWithMeta` returns `{ ascii, regions }` where each
+  region carries kind/id/canvasRow/colStart/colEnd for click-mapping.
+- **[shipped, Loop 10] A* OOM guard (#66).** Pathfinder bounds search
+  to grid extent + iteration cap; walled targets fall back to a direct
+  route instead of hanging.
+- **[shipped, Loop 10] fanout trunk-sharing (#113).** Already present
+  in edge-bundling.ts; Loop 10 added regression + determinism coverage.
+- **[shipped, Loop 10] reverse ASCII→Mermaid (raiscui).** `asciiToMermaid`
+  recovers nodes + edges (best-effort, flowchart, lossy — synthesized
+  ids, structural round-trip). Exported from `beautiful-mermaid/agent`.
+- **[Loop 11] #69 fan-in grouping** — deferred (layout aesthetics, risks
+  determinism snapshots).
 
 ## Pillar 3 — Agent experience first-class
 
@@ -60,19 +63,27 @@ can lift the design directly.
   the user's vision asked for.
 - **[shipped] `normalize`.** Our verb is named `format`. Idempotent,
   same shape as Pillar 3's `normalize`.
-- **[partial, Loop 8] `render --format ascii|svg|png|json`.**
-  Loop 8 added `--format png` (writes to `--output file.png`; PNG bytes
-  would corrupt terminals so stdout is rejected). The remaining
-  unicode/json modes deferred to Loop 9 — they don't block PNG.
-- **[cut] `describe` for alt text / LLM summaries.** A verb that
-  emits an English-language description of a diagram — "five-node
-  flowchart, A flows into B and C which both flow into D, …" —
-  would let an agent write alt-text without re-implementing the
-  prose generator. Not in Loop 8's scope yet; the right
-  implementation likely sits on top of the Code Mode `execute`
-  surface (the agent writes the prose; we just expose the IR).
+- **[shipped, Loop 8+9] `render --format ascii|unicode|svg|png|json`.**
+  Loop 8 added `png` (writes to `--output file.png`). Loop 9 added
+  `json` (layout shape) and `unicode`/`ascii` aliases.
+- **[shipped, Loop 9] `describe` for alt text / LLM summaries.**
+  `describeMermaid(d)` + `am describe <file>` + MCP `describe` tool.
+  Per-family prose: flowchart entry/sink nodes, sequence
+  participants/messages, etc.
 - **[shipped] `capabilities --json`.** Loop 7. The agent
   introspects the SDK once and never guesses.
+
+## AX / semantic hooks
+
+- **[shipped, Loop 10] external CSS class emission (#81).** Node `<g>`
+  carries user-assigned Mermaid class names so external stylesheets can
+  target semantic classes.
+- **[shipped, pre-Loop-10, tested Loop 10] auto-contrast on custom fills
+  (#116).** `contrastTextColor` picks black/white label text by fill
+  luminance. Loop 10 added the regression coverage.
+- **[Loop 11] rgb()/comma values in `style` statements** — real parser
+  bug found in Loop 10 M2: `style A fill:rgb(10,10,10)` is comma-split.
+  Hex fills are the supported path until fixed.
 
 ## What is not on the roadmap
 

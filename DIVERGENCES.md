@@ -555,3 +555,79 @@ them recoverable.
 - 247-corpus floor holds; MermaidSeqBench 132/132 holds
 - 11 commits on the branch from Loop 9 work
 - 3 items cut (B14, C15, C16) — documented above as Loop 10 candidates
+
+## Loop 10 — close the verified ecosystem gaps
+
+User: "Resolve the remaining gaps (except SkillKit)." Ran the gap list
+from the fork-network crawl against current code. Notable theme: THREE
+of the five "gaps" turned out to be ALREADY IMPLEMENTED — the earlier
+verification pass had checked the wrong file. Honest correction over
+re-building.
+
+### M1 (#81) — external CSS class emission: BUILT
+Node `<g>` carried only structural `class="node"`. Now appends user-assigned
+Mermaid class names (`class A hot` → `<g class="node hot">`) so external
+stylesheets can target semantic classes. classAssignments flows graph →
+PositionedNode.classNames → renderer; names sanitized to valid CSS idents.
+data-* attrs + classDef inline styling unchanged. 6 tests.
+
+### M2 (#116) — auto-contrast on custom fills: ALREADY DONE
+Verification miss: I checked theme.ts's `isColorDark` (used only for
+drop-shadow flood-color) and concluded #116 was absent. In fact
+renderer.ts's `contrastTextColor` + `nodeTextColor` already implement it:
+dark fill → white text, light fill → black text, no custom fill → theme
+default. Added the missing regression coverage (6 tests). Discovered a
+SEPARATE real bug while testing: `style A fill:rgb(10,10,10)` is mangled
+by the style-statement parser (comma split → `rgb(10`). Logged as a
+Loop 11 candidate; hex fills are the supported path.
+
+### M3 (#113) — fanout trunk-sharing: ALREADY DONE
+Verification miss: src/ascii/edge-bundling.ts already implements fan-out
+bundles with shared paths + junctions. rmvegasm #113 fixed #111/#112 in
+an earlier upstream state; our fork already produces correct shared
+trunks (TD + LR), deterministically. Added regression coverage: fork
+glyph present, no floating connectors (#112), determinism over 10 runs.
+5 tests.
+
+### M4 (ktrysmt #66/#67) — ASCII robustness: #66 BUILT, #67 ALREADY DONE
+- #66 A* OOM guard (REAL BUG FIXED): pathfinder's `isFreeInGrid` only
+  guarded x/y < 0 — no upper bound. An unreachable/walled target let A*
+  explore the +x/+y plane unboundedly → OOM/hang. Now bounds to grid
+  extent + 4-cell margin, plus a hard iteration cap (max(10k, area*4));
+  on exhaustion returns null → caller falls back to a direct route.
+- #67 root detection: already implemented in grid.ts (`initialRoots`,
+  no-incoming-edge nodes at top, subgraph-aware). Added 2 tests.
+- #69 fan-in grouping: DEFERRED to Loop 11 (layout aesthetics, risks
+  determinism snapshots for marginal gain).
+5 tests.
+
+### M5 (raiscui) — reverse ASCII→Mermaid: BUILT (best-effort)
+New src/ascii/reverse.ts: `asciiToMermaid(ascii, {direction})`. Detects
+boxes (Unicode + ASCII) → nodes, arrowheads → edges by adjacency, with
+junction-hopping across fan-out trunks. LOSSY BY DESIGN: ASCII carries
+labels not ids, so ids are synthesized (N0…); round-trip is structural
+(label set + edge count), not byte-identical. Edge labels / shapes /
+subgraphs / styling not recovered. Reliable for linear chains + simple
+fan-outs. 7 tests. Exported from beautiful-mermaid/agent.
+
+### Honest takeaway
+The Loop 10 verification pass was wrong on 3 of 5 items — I grepped the
+wrong files (#116 contrast, #113 trunk-sharing) or under-counted existing
+coverage (#67). The lesson: a verification pass that greps ONE file and
+concludes "not done" is unreliable. Better: render the actual feature and
+observe behavior before claiming a gap. The cost here was low (added
+regression tests for already-working features — net positive), but the
+same mistake on a "build it" call would have meant rebuilding what exists.
+
+### Loop 11 candidates
+- #69 fan-in grouping (deferred)
+- rgb()/comma values in `style` statements (real parser bug found in M2)
+- C15 mermaid-ast journey/xychart (dep chain still broken — Loop 9 blocker)
+- C16 family-plugin parse/serialize/mutate consolidation (Loop 9 cut)
+- B14 was Loop 9's pathfinder trunk item — resolved here as M3 (already done)
+
+### Numbers
+- Tests: 1592 → 1621 (+29 across 5 new test files)
+- All pass; tsc + build + lint green
+- 247-corpus + MermaidSeqBench 132/132 floors hold; determinism snapshots unchanged
+- 5 milestone commits (M1-M5)

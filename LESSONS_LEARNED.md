@@ -158,3 +158,34 @@ not always-on.
   critics, isolated context windows), but a third consecutive stall
   would have been wasted minutes. Direct execution + per-milestone
   commit is the fallback recovery mode.
+
+## Loop 10 lesson — verification passes must observe behavior, not grep
+
+Loop 10's pre-flight verification claimed 5 ecosystem gaps were open.
+THREE were already implemented:
+- #116 auto-contrast: I grepped `theme.ts` (found only shadow-luminance)
+  and missed `renderer.ts`'s `contrastTextColor`. The feature worked.
+- #113 fanout trunk-sharing: I never checked `edge-bundling.ts`, which
+  already does fan-out bundles with shared trunks.
+- #67 root detection: already in `grid.ts`; I under-counted coverage.
+
+Only #81 (CSS classes) and #66 (A* OOM guard) were genuine gaps.
+
+The mistake: a verification pass that greps ONE plausibly-related file
+and concludes "not done." The fix: **render the actual feature and
+observe the output** before declaring a gap. For #116 that's one
+`renderMermaidSVG('...style A fill:#000') → check text fill` — 10
+seconds, definitive. Grepping the wrong file is worse than not checking,
+because it produces false confidence.
+
+Cost this time was low — I added regression tests for already-working
+features (net positive: they were untested). But the same false-negative
+on a "build it from scratch" item would have meant rebuilding what
+exists, or worse, a second parallel implementation. When the verification
+says "gap," the bar to act on it is: reproduce the absence by running the
+code, not by reading one file.
+
+The flip side worked well: committing per milestone with honest commit
+messages ("already implemented; added coverage") kept the record
+truthful. The PR history shows exactly which items were built vs
+already-present vs documented-cut — no inflation.

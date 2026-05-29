@@ -54,6 +54,8 @@ Tier 3 (lint, advisory, opt-in): produced by `FamilyPlugin.verify` hooks. Defaul
 `am describe <file>` — natural-language summary per family (entry/sink nodes for flowcharts; participants/messages for sequences; etc.). Library: `describeMermaid(d): string`.
 Exit codes: `0` ok, `2` arg error, `3` verify-failed, `4` internal.
 
+Library extras: `renderMermaidASCIIWithMeta(src)` → `{ ascii, regions }` for TUI click-mapping; `asciiToMermaid(ascii)` reverses a flowchart ASCII render back to Mermaid (best-effort, lossy — synthesized ids, structural round-trip).
+
 ## Anti-patterns
 
 - Regenerating source instead of mutating. Defeats round-trip; produces noise.
