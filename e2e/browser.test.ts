@@ -672,7 +672,7 @@ describe('browser: live editor integration', () => {
     )).toBe(true)
   }, 120_000)
 
-  it('examples controls have stable sizing and basic examples keep the selected theme', async () => {
+  it('examples sidebar keeps the selected theme and exposes blank reset without a floating source toolbar', async () => {
     await page.goto(`${BASE}/editor`)
     await page.waitForSelector('#code-editor', { timeout: 30_000 })
 
@@ -683,21 +683,26 @@ describe('browser: live editor integration', () => {
       { timeout: 30_000 },
     )
 
-    const sourceActionsBox = await page.locator('.source-actions').boundingBox()
-    const examplesBox = await page.locator('#example-dropdown-btn').boundingBox()
-    expect(sourceActionsBox).not.toBeNull()
-    expect(examplesBox).not.toBeNull()
-    expect(sourceActionsBox!.width).toBeGreaterThanOrEqual(158)
-    expect(examplesBox!.width).toBeGreaterThanOrEqual(90)
+    expect(await page.locator('#source-toolbar').count()).toBe(0)
+    expect(await page.locator('#example-dropdown-btn').count()).toBe(0)
+    expect(await page.locator('#copy-source-btn').count()).toBe(1)
 
-    await page.click('#example-dropdown-btn')
+    await page.click('#export-chevron-btn')
     await page.waitForFunction(
-      () => document.getElementById('example-dropdown-menu')?.classList.contains('open') === true,
+      () => document.getElementById('export-dropdown')?.classList.contains('open') === true,
+      { timeout: 10_000 },
+    )
+    expect(await page.locator('#copy-source-btn').isVisible()).toBe(true)
+    expect(await page.locator('#export-png-btn').isDisabled()).toBe(true)
+
+    await page.click('#examples-sidebar-btn')
+    await page.waitForFunction(
+      () => document.getElementById('examples-sidebar')?.classList.contains('open') === true,
       { timeout: 10_000 },
     )
 
     const diagramTypes = await page.evaluate(() => Array.from(
-      new Set(Array.from(document.querySelectorAll('#example-dropdown-menu .example-dropdown-item'))
+      new Set(Array.from(document.querySelectorAll('#examples-sidebar .example-dropdown-item'))
         .map(el => (el as HTMLElement).dataset.diagram)
         .filter(Boolean)),
     ).sort())
@@ -714,15 +719,11 @@ describe('browser: live editor integration', () => {
       'XY Chart',
     ].sort())
 
-    const box = await page.locator('#example-dropdown-menu').boundingBox()
-    const viewport = page.viewportSize()
-    expect(box).not.toBeNull()
-    expect(viewport).not.toBeNull()
-    expect(box!.width).toBeGreaterThan(400)
-    expect(box!.x).toBeGreaterThanOrEqual(0)
-    expect(box!.x + box!.width).toBeLessThanOrEqual(viewport!.width)
+    const sidebarBox = await page.locator('#examples-sidebar').boundingBox()
+    expect(sidebarBox).not.toBeNull()
+    expect(sidebarBox!.width).toBeGreaterThanOrEqual(280)
 
-    await page.click('#example-dropdown-menu .example-dropdown-item[data-example="state-basic"]')
+    await page.click('#examples-sidebar .example-dropdown-item[data-example="state-basic"]')
     await page.waitForFunction(
       () => (document.querySelector('#preview-inner svg')?.outerHTML ?? '').includes('Processing'),
       { timeout: 60_000 },
@@ -730,6 +731,11 @@ describe('browser: live editor integration', () => {
     expect(await page.inputValue('#code-editor')).toContain('stateDiagram-v2')
     expect(await page.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue('--t-bg').trim())).toBe('#FFFBF5')
     expect(await page.evaluate(() => localStorage.getItem('bm-editor-theme'))).toBe('salmon')
+
+    await page.click('#examples-sidebar [data-action="clear-editor"]')
+    expect(await page.inputValue('#code-editor')).toBe('')
+    expect(await page.evaluate(() => document.getElementById('status-text')?.textContent)).toBe('Ready')
+    expect(await page.evaluate(() => document.querySelector('#preview-inner svg') === null)).toBe(true)
   }, 120_000)
 
   it('topbar button dimensions do not shift when toggling day/dark mode', async () => {
@@ -763,8 +769,8 @@ describe('browser: live editor integration', () => {
       { timeout: 30_000 },
     )
 
-    await page.click('#example-dropdown-btn')
-    await page.click('#example-dropdown-menu .example-dropdown-item[data-example="styled-xychart"]')
+    await page.click('#examples-sidebar-btn')
+    await page.click('#examples-sidebar .example-dropdown-item[data-example="styled-xychart"]')
 
     await page.waitForFunction(
       () => {

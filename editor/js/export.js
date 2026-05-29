@@ -4,7 +4,6 @@ var exportMainBtn = document.getElementById('export-main-btn');
 var exportChevronBtn = document.getElementById('export-chevron-btn');
 var exportRequiresSvgButtons = [
   exportMainBtn,
-  exportChevronBtn,
   document.getElementById('export-png-btn'),
   document.getElementById('export-svg-btn'),
   document.getElementById('copy-svg-btn'),
@@ -21,16 +20,11 @@ function updateExportAvailability() {
     btn.disabled = !enabled;
     btn.setAttribute('aria-disabled', enabled ? 'false' : 'true');
   });
-  if (!enabled) exportDropdown.classList.remove('open');
 }
 
 function toggleExportDropdown(e) {
   e.stopPropagation();
-  if (!hasRenderedSvg()) {
-    showToast('Load or write a diagram before exporting.');
-    updateExportAvailability();
-    return;
-  }
+  updateExportAvailability();
   exportDropdown.classList.toggle('open');
 }
 exportChevronBtn.addEventListener('click', toggleExportDropdown);

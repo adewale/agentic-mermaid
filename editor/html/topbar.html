@@ -93,8 +93,7 @@
       id="export-chevron-btn"
       type="button"
       title="More export options"
-      disabled
-      aria-disabled="true"
+      aria-disabled="false"
     >
       <svg
         width="12"
@@ -150,6 +149,22 @@
       </button>
 
       <div class="export-divider"></div>
+
+      <button class="export-item" id="copy-source-btn" type="button" data-action="copy-source">
+        <svg
+          class="export-item-icon"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1.75"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          <polyline points="16 18 22 12 16 6" />
+          <polyline points="8 6 2 12 8 18" />
+        </svg>
+        <span class="export-item-label">Copy Source</span>
+      </button>
 
       <button class="export-item" id="copy-svg-btn" type="button" disabled aria-disabled="true">
         <svg

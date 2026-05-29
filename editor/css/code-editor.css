@@ -6,7 +6,7 @@
 }
 
 .line-numbers {
-  padding: 2.75rem 0.5rem 1rem 0.75rem;
+  padding: 1rem 0.5rem 1rem 0.75rem;
   font-family: "JetBrains Mono", monospace;
   font-size: 13px;
   line-height: 1.6;
@@ -22,7 +22,7 @@
 
 .code-editor {
   flex: 1;
-  padding: 2.75rem 1rem 1rem 0.5rem;
+  padding: 1rem 1rem 1rem 0.5rem;
   background: transparent;
   border: none;
   outline: none;

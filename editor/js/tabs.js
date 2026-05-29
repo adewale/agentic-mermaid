@@ -1,4 +1,3 @@
-var sourceToolbar = document.getElementById('source-toolbar');
 function setMobilePanel(panel) {
   document.body.dataset.mobilePanel = panel;
 }
@@ -18,11 +17,9 @@ document.querySelectorAll(".tab[data-panel]").forEach(function (tab) {
     if (panel === "code") {
       editorView.style.display = "flex";
       configView.classList.remove("visible");
-      if (sourceToolbar) sourceToolbar.style.display = "";
     } else {
       editorView.style.display = "none";
       configView.classList.add("visible");
-      if (sourceToolbar) sourceToolbar.style.display = "none";
       refreshAllColorUIs();
     }
   });
