@@ -153,11 +153,14 @@ describe('CLI — sad paths via runCli', () => {
     expect(out).toContain('UNSUPPORTED_FAMILY')
   })
 
-  test('verify exit code 2 on empty', () => {
+  test('verify exit code 3 on empty (Loop 7: EXIT_VERIFY_FAILED)', () => {
+    // Was 2 in Loop ≤6 (when verify-failed shared an exit code with arg
+    // errors); Loop 7 split out a dedicated EXIT_VERIFY_FAILED=3 so a CI
+    // script can branch on cause-of-failure.
     const tmp = `/tmp/cli-empty-${Date.now()}.mmd`
     require('node:fs').writeFileSync(tmp, '')
     const { code } = capture(() => runCli(['verify', tmp]))
-    expect(code).toBe(2)
+    expect(code).toBe(3)
   })
 
   test('--help per command differs from global', () => {
