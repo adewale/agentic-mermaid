@@ -36,6 +36,7 @@ export { renderMermaidASCIIWithMeta } from '../ascii/meta.ts'
 export type { AsciiRegion, AsciiWithMeta, RegionKind } from '../ascii/meta.ts'
 export { describeMermaid, describeMermaidSource } from './describe.ts'
 export type { DescribeOptions } from './describe.ts'
+export { asciiToMermaid } from '../ascii/reverse.ts'
 
 import { renderMermaidSVG as _svg } from '../index.ts'
 import { renderMermaidASCII as _ascii } from '../ascii/index.ts'
