@@ -9,6 +9,7 @@ import { mutate } from '../agent/mutate.ts'
 import { verifyMermaid } from '../agent/verify.ts'
 import { renderMermaidSVG, renderMermaidASCII, layoutMermaid } from '../agent/index.ts'
 import { describeMermaidSource } from '../agent/describe.ts'
+import { collectBatched } from '../shared/batched.ts'
 import { asFlowchart, asSequence } from '../agent/types.ts'
 import type { ValidDiagram, WarningCode, FlowchartMutationOp, SequenceMutationOp, AnyMutationOp, MutationError, Result, FlowchartValidDiagram, SequenceValidDiagram } from '../agent/types.ts'
 import { WARNING_SEVERITY, WARNING_TIER } from '../agent/types.ts'
@@ -411,11 +412,13 @@ export function runBatchLine(rawLine: string): BatchOutput {
 
 function cmdBatch(): number {
   const stdin = readSourceArg('-')
-  const lines = stdin.split('\n')
-  for (const line of lines) {
-    if (line.trim() === '') continue
-    const out = runBatchLine(line)
-    process.stdout.write(JSON.stringify(out) + '\n')
+  const lines = stdin.split('\n').filter(l => l.trim() !== '')
+  // Loop 9 M8: shared per-item iteration via collectBatched. Same scaffold
+  // as runWithJudge — see src/shared/batched.ts.
+  const results = collectBatched(lines, (line) => runBatchLine(line), 'BATCH_HANDLER_ERROR')
+  for (const r of results) {
+    if (r.ok) process.stdout.write(JSON.stringify(r.value) + '\n')
+    else process.stdout.write(JSON.stringify({ ok: false, error: r.error }) + '\n')
   }
   // Per-line errors don't abort the batch; the process always exits OK.
   return EXIT_OK

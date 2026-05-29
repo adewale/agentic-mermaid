@@ -14,6 +14,7 @@ import { parseMermaid } from '../../src/agent/parse.ts'
 import { renderMermaidSVG } from '../../src/agent/index.ts'
 import { measureQuality, type QualityMetrics } from '../../src/agent/quality.ts'
 import { layoutMermaid } from '../../src/agent/index.ts'
+import { runBatchedOperations } from '../../src/shared/batched.ts'
 
 export interface JudgeRequest {
   origin: string
@@ -96,13 +97,18 @@ export function aggregateScores(scores: JudgeScore[]): {
 export type JudgeFn = (req: JudgeRequest) => Promise<JudgeScore>
 
 export async function runWithJudge(requests: JudgeRequest[], judge: JudgeFn): Promise<JudgeScore[]> {
-  const scores: JudgeScore[] = []
-  for (const req of requests) {
-    try { scores.push(await judge(req)) } catch (e) {
-      scores.push({ origin: req.origin, readability: 1, faithfulness: 1, aesthetics: 1, notes: [`judge error: ${String(e)}`] })
+  // Loop 9 M8: delegate to the shared runBatchedOperations scaffold. The
+  // judge's per-request fallback (minimum scores + judge error note) is
+  // restored from the failure entry on the way out.
+  const results = await runBatchedOperations(requests, judge, { errorCode: 'JUDGE_ERROR' })
+  return results.map((entry, i) => {
+    if (entry.ok) return entry.value
+    return {
+      origin: requests[i]!.origin,
+      readability: 1, faithfulness: 1, aesthetics: 1,
+      notes: [`judge error: ${entry.error.message}`],
     }
-  }
-  return scores
+  })
 }
 
 // ---- CLI entry: write requests to disk for a separate runner -------------
