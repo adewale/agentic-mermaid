@@ -360,7 +360,7 @@ interface BatchOutput {
  * Execute a single batch line. Exported for tests; the CLI just shuttles
  * lines into and out of this function.
  */
-export function runBatchLine(rawLine: string): BatchOutput {
+export function runBatchLine(rawLine: string, lineIndex = 0): BatchOutput {
   let parsed: BatchLine
   try {
     parsed = JSON.parse(rawLine) as BatchLine
@@ -376,7 +376,11 @@ export function runBatchLine(rawLine: string): BatchOutput {
       case 'render': {
         const options = parsed.options ?? {}
         const asAscii = Boolean((options as { ascii?: boolean }).ascii)
-        const out = asAscii ? renderMermaidASCII(parsed.source) : renderMermaidSVG(parsed.source)
+        // #7540: auto-namespace SVG ids per batch line so the rendered
+        // diagrams can coexist on one HTML page without def-id collisions.
+        const out = asAscii
+          ? renderMermaidASCII(parsed.source)
+          : renderMermaidSVG(parsed.source, { idPrefix: `d${lineIndex}-` })
         return { ok: true, op, data: asAscii ? { ascii: out } : { svg: out } }
       }
       case 'verify': {
@@ -415,7 +419,7 @@ function cmdBatch(): number {
   const lines = stdin.split('\n').filter(l => l.trim() !== '')
   // Loop 9 M8: shared per-item iteration via collectBatched. Same scaffold
   // as runWithJudge — see src/shared/batched.ts.
-  const results = collectBatched(lines, (line) => runBatchLine(line), 'BATCH_HANDLER_ERROR')
+  const results = collectBatched(lines, (line, i) => runBatchLine(line, i), 'BATCH_HANDLER_ERROR')
   for (const r of results) {
     if (r.ok) process.stdout.write(JSON.stringify(r.value) + '\n')
     else process.stdout.write(JSON.stringify({ ok: false, error: r.error }) + '\n')

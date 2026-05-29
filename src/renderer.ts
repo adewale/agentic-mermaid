@@ -414,6 +414,27 @@ export function compactSvg(svg: string): string {
   }).join('')
 }
 
+/**
+ * #7540: namespace every SVG def id and its `url(#…)` references with a prefix,
+ * so multiple diagrams rendered onto one HTML page don't collide on shared def
+ * ids (`arrowhead`, `bm-shadow`, etc.). Node/subgraph groups use `data-id`, not
+ * `id`, so this only touches defs/markers/filters — exactly the colliding set.
+ *
+ * Pure string rewrite, deterministic. Idempotent only if the prefix isn't
+ * already applied (callers pass a fresh prefix per diagram). Skips the xmlns
+ * and any id that already starts with the prefix.
+ */
+export function namespaceSvgIds(svg: string, prefix: string): string {
+  if (!prefix) return svg
+  // Collect declared ids so we only rewrite refs that point at our defs
+  // (never an accidental `url(#…)` inside escaped label text).
+  const declared = new Set<string>()
+  for (const m of svg.matchAll(/\sid="([^"]+)"/g)) declared.add(m[1]!)
+  let out = svg.replace(/(\sid=")([^"]+)(")/g, (_full, pre, id: string, post) => `${pre}${prefix}${id}${post}`)
+  out = out.replace(/url\(#([^)]+)\)/g, (full, id: string) => declared.has(id) ? `url(#${prefix}${id})` : full)
+  return out
+}
+
 function renderEdgeLabel(edge: PositionedEdge, font: string, style: ResolvedRenderStyle): string {
   // Use layout-computed label position when available (layout-aware, avoids collisions).
   // Fall back to geometric midpoint of the edge polyline.

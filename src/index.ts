@@ -35,7 +35,7 @@ export { parseArchitectureDiagram, architectureToMermaidGraph } from './architec
 import { decodeXML } from 'entities'
 import { parseMermaid } from './parser.ts'
 import { layoutGraphSync } from './layout.ts'
-import { renderSvg, compactSvg } from './renderer.ts'
+import { renderSvg, compactSvg, namespaceSvgIds } from './renderer.ts'
 import type { RenderOptions } from './types.ts'
 import type { DiagramColors } from './theme.ts'
 import { DEFAULTS, THEMES, inlineResolvedColors } from './theme.ts'
@@ -200,9 +200,14 @@ export function renderMermaidSVG(
   // resolve() inlines CSS variables for non-browser renderers (resvg).
   // When `compact` is on we additionally round coords and collapse whitespace.
   const compact = options.compact ?? false
+  const idPrefix = options.idPrefix ?? ''
   const resolve = (svg: string, c: DiagramColors = colors) => {
-    const resolved = inlineResolvedColors(svg, c)
-    return compact ? compactSvg(resolved) : resolved
+    let out = inlineResolvedColors(svg, c)
+    // #7540: namespace def ids so multiple diagrams on one page don't collide.
+    // Opt-in (default '' = unchanged). Applied before compaction so the
+    // rewritten ids survive whitespace collapse.
+    if (idPrefix) out = namespaceSvgIds(out, idPrefix)
+    return compact ? compactSvg(out) : out
   }
 
   switch (diagramType) {

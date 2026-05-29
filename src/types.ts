@@ -258,4 +258,14 @@ export interface RenderOptions {
    * sensitive consumers.
    */
   compact?: boolean
+  /**
+   * Namespace prefix for all generated SVG def ids (markers, filters) and
+   * their `url(#…)` references. Default '' = current behavior (back-compat,
+   * zero snapshot churn). Set a distinct prefix per diagram when rendering
+   * multiple diagrams onto one HTML page so their `<defs>` don't collide
+   * (e.g. two `arrowhead` markers — the browser dedupes by id and the second
+   * diagram's arrows break). `am batch` auto-assigns per-line prefixes.
+   * Must be deterministic per call site to preserve render determinism.
+   */
+  idPrefix?: string
 }
