@@ -243,4 +243,17 @@ export interface RenderOptions {
    * so the family stays overridable post-render even when the @import is gone.
    */
   embedFontImport?: boolean
+
+  /**
+   * Compact SVG output. Default `false`. When true:
+   *  - Numeric coords with 3+ fractional digits are rounded (via `roundCoord`).
+   *  - Newlines between SVG elements are collapsed (whitespace inside `<style>`
+   *    is preserved so CSS declarations don't break).
+   *  - `data-*` and `class=` attributes are preserved (agent inspection hooks).
+   *
+   * Typical reduction: 30-40% of bytes on flowchart graphs. Useful for the
+   * PNG render path (no need for human-readable SVG) and for bandwidth-
+   * sensitive consumers.
+   */
+  compact?: boolean
 }

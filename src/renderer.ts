@@ -346,13 +346,72 @@ function pointAlong(from: Point, to: Point, distance: number): Point {
   if (total === 0) return { ...from }
   const t = distance / total
   return {
-    x: roundPathCoord(from.x + (to.x - from.x) * t),
-    y: roundPathCoord(from.y + (to.y - from.y) * t),
+    x: roundCoord(from.x + (to.x - from.x) * t),
+    y: roundCoord(from.y + (to.y - from.y) * t),
   }
 }
 
-function roundPathCoord(value: number): number {
+/**
+ * Round a coordinate to 3 decimal places (sub-pixel precision).
+ * Exported for the compact-SVG post-processor and any external renderer that
+ * wants to emit identical wire bytes to the built-in path.
+ * (Renamed from `roundPathCoord` per the Loop 7 audit consolidation note.)
+ */
+export function roundCoord(value: number): number {
   return Math.round(value * 1000) / 1000
+}
+
+/**
+ * Post-process an SVG string into compact form:
+ *  - Numbers with 3+ fractional digits get rounded via `roundCoord` (so
+ *    e.g. "123.456789" → "123.457", "100.0001" → "100"). This shrinks ELK-
+ *    produced layouts where floats hit 13-digit precision.
+ *  - Newlines between elements collapse to nothing — EXCEPT inside <style>
+ *    blocks, where CSS line breaks are load-bearing (some CSS parsers tolerate
+ *    everything but conservatively we leave the style block formatted).
+ *  - `data-*` attributes and `class=` attributes survive — they're agent
+ *    inspection hooks (Loop 7 audit). The number-rounding regex only
+ *    touches floating-point literals, not identifier strings.
+ *
+ * Determinism: pure function of the input string. Safe to apply to any SVG
+ * the renderer produces; idempotent on already-compact input.
+ */
+export function compactSvg(svg: string): string {
+  // Split into segments alternating non-style and style; only collapse
+  // whitespace in non-style segments. Style segments keep their formatting
+  // so we don't accidentally break CSS rules that span lines.
+  const STYLE_BLOCK_RE = /<style\b[\s\S]*?<\/style>/gi
+  const segments: { kind: 'plain' | 'style'; text: string }[] = []
+  let last = 0
+  let m: RegExpExecArray | null
+  while ((m = STYLE_BLOCK_RE.exec(svg)) !== null) {
+    if (m.index > last) segments.push({ kind: 'plain', text: svg.slice(last, m.index) })
+    segments.push({ kind: 'style', text: m[0] })
+    last = m.index + m[0].length
+  }
+  if (last < svg.length) segments.push({ kind: 'plain', text: svg.slice(last) })
+
+  return segments.map(seg => {
+    if (seg.kind === 'style') return seg.text
+    // Round numeric literals with 3+ fractional digits.
+    //
+    // The lookbehind allows SVG path command letters (MLHVCSQTAZ + lowercase)
+    // and structural punctuation as valid prefixes — they're how the renderer
+    // emits coords (`M78.6115`, `L 202.94`, `cx="50.5"`). It rejects word/
+    // dash chars otherwise so we don't touch identifier-like literals
+    // (e.g. `data-version="1.0.1234"`).
+    let out = seg.text.replace(/(?<=[MLHVCSQTAZmlhvcsqtaz\s,"'(=])(\d+\.\d{3,})/g, (_, num) => {
+      const n = parseFloat(num)
+      return String(roundCoord(n))
+    })
+    // Also catch the very first character of the string segment (no prefix).
+    out = out.replace(/^(\d+\.\d{3,})/, (_, num) => String(roundCoord(parseFloat(num))))
+    // Collapse newlines (the indentation `\n  ` produced by string templates).
+    // Tabs and runs of spaces inside attribute values are not affected because
+    // attribute values are quoted and don't contain newlines in this renderer.
+    out = out.replace(/\n\s*/g, '')
+    return out
+  }).join('')
 }
 
 function renderEdgeLabel(edge: PositionedEdge, font: string, style: ResolvedRenderStyle): string {

@@ -35,7 +35,7 @@ export { parseArchitectureDiagram, architectureToMermaidGraph } from './architec
 import { decodeXML } from 'entities'
 import { parseMermaid } from './parser.ts'
 import { layoutGraphSync } from './layout.ts'
-import { renderSvg } from './renderer.ts'
+import { renderSvg, compactSvg } from './renderer.ts'
 import type { RenderOptions } from './types.ts'
 import type { DiagramColors } from './theme.ts'
 import { DEFAULTS, THEMES, inlineResolvedColors } from './theme.ts'
@@ -197,7 +197,13 @@ export function renderMermaidSVG(
   const transparent = options.transparent ?? false
   const diagramType = detectDiagramType(normalizedSource.firstLine)
   const lines = normalizedSource.lines
-  const resolve = (svg: string, c: DiagramColors = colors) => inlineResolvedColors(svg, c)
+  // resolve() inlines CSS variables for non-browser renderers (resvg).
+  // When `compact` is on we additionally round coords and collapse whitespace.
+  const compact = options.compact ?? false
+  const resolve = (svg: string, c: DiagramColors = colors) => {
+    const resolved = inlineResolvedColors(svg, c)
+    return compact ? compactSvg(resolved) : resolved
+  }
 
   switch (diagramType) {
     case 'architecture': {
@@ -205,7 +211,10 @@ export function renderMermaidSVG(
       const archOptions = archVisual.padding != null ? { ...options, padding: options.padding ?? archVisual.padding } : options
       const diagram = parseArchitectureDiagram(lines)
       const positioned = layoutArchitectureDiagram(diagram, archOptions, archVisual.visual)
-      return renderArchitectureSvg(positioned, colors, font, transparent, archVisual.visual)
+      // Architecture renderer already inlines its own variables; apply compact
+      // post-processing on the way out so the --compact flag is honored.
+      const rawArch = renderArchitectureSvg(positioned, colors, font, transparent, archVisual.visual)
+      return compact ? compactSvg(rawArch) : rawArch
     }
     case 'sequence': {
       const diagram = parseSequenceDiagram(lines)
