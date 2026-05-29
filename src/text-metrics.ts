@@ -7,7 +7,13 @@
 //
 // Width ratios are normalized where 1.0 = average lowercase letter.
 // Final pixel width = sum(charWidths) * fontSize * baseRatio
+//
+// CJK / emoji / combining-mark codepoint range tables live in
+// src/shared/unicode-ranges.ts (shared with the ASCII renderer so both
+// modules agree on which codepoints are wide).
 // ============================================================================
+
+import { isWideRange, isZeroWidth } from './shared/unicode-ranges.ts'
 
 /**
  * Narrow characters - visually thin glyphs.
@@ -32,68 +38,15 @@ const VERY_WIDE_CHARS = new Set(['W', 'M'])
  */
 const SEMI_NARROW_PUNCT = new Set(['(', ')', '[', ']', '{', '}', '/', '\\', '-', '"', '`'])
 
-/**
- * Check if a code point is a combining diacritical mark (zero-width overlay)
- */
+// Combining-mark / zero-width and CJK-fullwidth checks delegate to the
+// shared range tables so the ASCII renderer and the SVG metrics module
+// can never drift on what counts as wide / zero-width.
 function isCombiningMark(code: number): boolean {
-  // Combining Diacritical Marks: U+0300–U+036F
-  // Combining Diacritical Marks Extended: U+1AB0–U+1AFF
-  // Combining Diacritical Marks Supplement: U+1DC0–U+1DFF
-  // Combining Diacritical Marks for Symbols: U+20D0–U+20FF
-  // Combining Half Marks: U+FE20–U+FE2F
-  return (
-    (code >= 0x0300 && code <= 0x036f) ||
-    (code >= 0x1ab0 && code <= 0x1aff) ||
-    (code >= 0x1dc0 && code <= 0x1dff) ||
-    (code >= 0x20d0 && code <= 0x20ff) ||
-    (code >= 0xfe20 && code <= 0xfe2f)
-  )
+  return isZeroWidth(code)
 }
 
-/**
- * Check if a code point is fullwidth (CJK, emoji, etc.)
- * These characters occupy approximately 2x the width of Latin letters.
- */
 function isFullwidth(code: number): boolean {
-  // CJK Radicals Supplement: U+2E80–U+2EFF
-  // Kangxi Radicals: U+2F00–U+2FDF
-  // CJK Symbols and Punctuation: U+3000–U+303F
-  // Hiragana: U+3040–U+309F
-  // Katakana: U+30A0–U+30FF
-  // Bopomofo: U+3100–U+312F
-  // Hangul Compatibility Jamo: U+3130–U+318F
-  // Kanbun: U+3190–U+319F
-  // Bopomofo Extended: U+31A0–U+31BF
-  // CJK Strokes: U+31C0–U+31EF
-  // Katakana Phonetic Extensions: U+31F0–U+31FF
-  // Enclosed CJK Letters and Months: U+3200–U+32FF
-  // CJK Compatibility: U+3300–U+33FF
-  // CJK Unified Ideographs Extension A: U+3400–U+4DBF
-  // CJK Unified Ideographs: U+4E00–U+9FFF
-  // Hangul Syllables: U+AC00–U+D7AF
-  // CJK Compatibility Ideographs: U+F900–U+FAFF
-  // Halfwidth and Fullwidth Forms (fullwidth part): U+FF00–U+FF60, U+FFE0–U+FFE6
-  // CJK Unified Ideographs Extension B+: U+20000–U+2A6DF (and beyond)
-
-  return (
-    (code >= 0x1100 && code <= 0x115f) || // Hangul Jamo
-    (code >= 0x2e80 && code <= 0x2eff) || // CJK Radicals Supplement
-    (code >= 0x2f00 && code <= 0x2fdf) || // Kangxi Radicals
-    (code >= 0x3000 && code <= 0x303f) || // CJK Symbols and Punctuation
-    (code >= 0x3040 && code <= 0x309f) || // Hiragana
-    (code >= 0x30a0 && code <= 0x30ff) || // Katakana
-    (code >= 0x3100 && code <= 0x312f) || // Bopomofo
-    (code >= 0x3130 && code <= 0x318f) || // Hangul Compatibility Jamo
-    (code >= 0x3190 && code <= 0x31ff) || // Kanbun + extensions
-    (code >= 0x3200 && code <= 0x33ff) || // Enclosed CJK + Compatibility
-    (code >= 0x3400 && code <= 0x4dbf) || // CJK Extension A
-    (code >= 0x4e00 && code <= 0x9fff) || // CJK Unified Ideographs
-    (code >= 0xac00 && code <= 0xd7af) || // Hangul Syllables
-    (code >= 0xf900 && code <= 0xfaff) || // CJK Compatibility Ideographs
-    (code >= 0xff00 && code <= 0xff60) || // Fullwidth ASCII
-    (code >= 0xffe0 && code <= 0xffe6) || // Fullwidth symbols
-    code >= 0x20000 // CJK Extension B and beyond
-  )
+  return isWideRange(code)
 }
 
 /**
