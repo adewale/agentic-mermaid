@@ -70,6 +70,73 @@ describe('Phase B: universal LABEL_OVERFLOW on opaque bodies', () => {
   }
 })
 
+describe('FamilyPlugin.verify dispatcher', () => {
+  test('plugin verify hook is called and warnings surface in verifyMermaid result', () => {
+    // Pick a family whose body stays opaque without any custom parser so we
+    // can rely on the registered plugin's verify hook firing on the opaque
+    // body. Use 'journey' (opaque-by-default in this fork).
+    const original = getFamily('journey')
+    expect(original).toBeDefined()
+
+    const syntheticWarning = { code: 'UNKNOWN_SHAPE' as const, node: 'synthetic-verify-marker', shape: 'plugin-verify' }
+    registerFamily({
+      ...original!,
+      verify: () => [syntheticWarning],
+    })
+
+    try {
+      const src = 'journey\n  title Test\n  section Buy\n    Browse: 5: Me'
+      const p = parseMermaid(src)
+      expect(p.ok).toBe(true)
+      if (!p.ok) return
+      const v = verifyMermaid(p.value)
+      const hit = v.warnings.find(w => w.code === 'UNKNOWN_SHAPE' && (w as { node?: string }).node === 'synthetic-verify-marker')
+      expect(hit).toBeDefined()
+    } finally {
+      // Restore the built-in plugin so other tests see the original.
+      registerFamily(original!)
+    }
+  })
+
+  test('a plugin without a verify hook is a no-op (does not throw)', () => {
+    const original = getFamily('xychart')
+    expect(original).toBeDefined()
+    // Re-register without verify; verifyMermaid must still return ok.
+    registerFamily({ ...original!, verify: undefined })
+    try {
+      const src = 'xychart-beta\n  title "X"\n  x-axis [a, b, c]\n  y-axis "y" 0 --> 10\n  bar [1, 2, 3]'
+      const p = parseMermaid(src)
+      expect(p.ok).toBe(true)
+      if (!p.ok) return
+      const v = verifyMermaid(p.value)
+      expect(v).toBeDefined()
+      expect(Array.isArray(v.warnings)).toBe(true)
+    } finally {
+      registerFamily(original!)
+    }
+  })
+
+  test('a faulty plugin verify hook does not crash verifyMermaid', () => {
+    const original = getFamily('architecture')
+    expect(original).toBeDefined()
+    registerFamily({
+      ...original!,
+      verify: () => { throw new Error('intentional plugin fault') },
+    })
+    try {
+      const src = 'architecture-beta\n  group api(cloud)[API]\n  service db(database)[DB] in api'
+      const p = parseMermaid(src)
+      expect(p.ok).toBe(true)
+      if (!p.ok) return
+      // Must not throw — faulty plugin warnings are silently dropped.
+      const v = verifyMermaid(p.value)
+      expect(v).toBeDefined()
+    } finally {
+      registerFamily(original!)
+    }
+  })
+})
+
 describe('generic label extractor', () => {
   test('finds quoted strings and bracketed text', () => {
     const out = extractLabelsGeneric('some [label one] and "label two"')
