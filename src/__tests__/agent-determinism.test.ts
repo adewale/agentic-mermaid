@@ -128,6 +128,44 @@ describe('determinism — cross-runtime PNG (Loop 8)', () => {
   })
 })
 
+describe('determinism — cross-runtime ASCII (Loop 9 M7)', () => {
+  // Mirrors the cross-runtime PNG test pattern. Renders the same source as
+  // ASCII in bun + in node (via dist/agent.js), compares SHA-256 byte-hashes.
+  // If diverges, the test is marked test.todo with a clear comment and the
+  // gap goes into DIVERGENCES.md. Don't fake-pass.
+  const NODE = '/opt/node22/bin/node'
+  const DIST = join(import.meta.dir, '..', '..', 'dist', 'agent.js')
+  const haveNode = (() => {
+    try { return spawnSync(NODE, ['--version'], { encoding: 'utf8' }).status === 0 } catch { return false }
+  })()
+  const haveDist = (() => { try { return require('node:fs').existsSync(DIST) } catch { return false } })()
+
+  const fn = haveNode && haveDist ? test : test.skip
+  for (const src of [
+    'flowchart LR\n  A --> B',
+    'flowchart TD\n  A --> B\n  B --> C\n  C --> D',
+    'flowchart LR\n  A --> B\n  A --> C\n  B --> D\n  C --> D',
+  ]) {
+    fn(`bun ASCII SHA-256 ≡ node ASCII SHA-256: ${src.slice(0, 30).replace(/\n/g, ' ')}…`, async () => {
+      const { renderMermaidASCII } = await import('../agent/index.ts')
+      const bunAscii = renderMermaidASCII(src)
+      const bunHash = require('node:crypto').createHash('sha256').update(bunAscii).digest('hex')
+
+      const script = `
+        const m = require('${DIST}');
+        const ascii = m.renderMermaidASCII(${JSON.stringify(src)});
+        process.stdout.write(require('node:crypto').createHash('sha256').update(ascii).digest('hex'))
+      `
+      const r = spawnSync(NODE, ['-e', script], { encoding: 'utf8' })
+      expect(r.status).toBe(0)
+      const nodeHash = r.stdout.trim()
+      // Honest comparison. Any divergence fails — convert to test.todo +
+      // document in DIVERGENCES if it does.
+      expect(nodeHash).toBe(bunHash)
+    })
+  }
+})
+
 describe('drift sentinel', () => {
   const SENTINELS = [
     'flowchart TD\n  A --> B',
