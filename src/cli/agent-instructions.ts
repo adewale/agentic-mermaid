@@ -50,7 +50,8 @@ Tier 3 (lint, advisory, opt-in): produced by \`FamilyPlugin.verify\` hooks. Defa
 
 \`am capabilities --json\` — JSON envelope listing families, mutation ops, warning codes, output formats (\`svg\`, \`ascii\`, \`png\`). Schema-stable; use it to self-discover.
 \`am batch --jsonl\` — JSONL stdin → JSONL stdout. Malformed lines surface error but don't abort the stream.
-\`am render --format png --output file.png\` — PNG export via bundled resvg + DejaVu Sans (cross-runtime deterministic on x86_64; see QUALITY.md). Library: \`renderMermaidPNG(input, opts): Uint8Array\`.
+\`am render --format svg|ascii|unicode|png|json [--output file]\` — PNG via resvg + DejaVu (deterministic on x86_64); JSON emits layout shape; unicode == default ASCII; --output required for PNG.
+\`am describe <file>\` — natural-language summary per family (entry/sink nodes for flowcharts; participants/messages for sequences; etc.). Library: \`describeMermaid(d): string\`.
 Exit codes: \`0\` ok, \`2\` arg error, \`3\` verify-failed, \`4\` internal.
 
 ## Anti-patterns

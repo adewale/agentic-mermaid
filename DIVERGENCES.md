@@ -472,3 +472,86 @@ checkpoint.
 - Cross-architecture (ARM64) PNG parity — needs hardware.
 - Delete the class/ER per-body verify branches now that A1 wired the
   plugin hooks. Requires careful layout-handling restructure.
+
+## Loop 9 — finish-the-backlog (recovery after two implementer stalls)
+
+User directive: "don't stop until it's all finished." Two implementer
+agents stalled — Loop 8 mid-M5 (content filter), Loop 9 mid-B11 (500
+server error after 27 minutes). The commit-per-milestone rule made
+both recoverable: pick up at the next-uncommitted milestone with the
+hardened plan as the checkpoint structure.
+
+### Landed (13 milestones across 11 commits)
+
+**Tier A (small, high-value) — ALL 10 shipped:**
+- A1 (046ec13) — MCP `render_png` + `describe` tools alongside execute/query/xref
+- A2 (ee881cc) — Delete class/ER per-body verify branches; dispatcher path is now single source of truth (Loop 8 TODO closed)
+- A3 (6f627c9) — `am render --format json` emits layout JSON
+- A4 (6f627c9) — `am render --format unicode|ascii` (combined with A3)
+- A5 (e099aca) — TTY-stdin guard: exit 2 with "needs file arg or piped stdin" rather than blocking forever
+- A6 (8e49aa1) — Per-family CLI smoke matrix (9-family e2e)
+- A7 (ed21dd6) — Cross-runtime ASCII parity test (bun ≡ node on x86_64)
+- A8 (58bd311) — Extract `runBatchedOperations` / `collectBatched` shared scaffold; `runBatchLine` + `runWithJudge` both use it
+- A9 (f5f2ccb, combined with A10) — Consolidate corpus runner across `agent-mermaid-corpus.test.ts` + `eval/mermaidseqbench/runner.ts` into `runParseVerifyRoundtrip`
+- A10 (f5f2ccb, combined) — Collapse `dedupedConcat` + `mergeFinalize` into one path (`mergeFinalize` delegates fully to `dedupedConcat` → `finalize`)
+
+**Tier B (medium) — 3 of 4 shipped:**
+- B11 (c738ffa, combined with B12) — `renderMermaidASCIIWithMeta` returns `{ ascii, regions }` with kind/id/canvasRow/colStart/colEnd. 7 tests including try/catch fallback for unparseable sources
+- B12 (c738ffa, combined) — `describeMermaid` natural-language summaries per family. 7 new tests covering flowchart, sequence, timeline, class, ER, opaque, unparseable
+- B13 (6301985) — ASCII `maxWidth` + word-wrapping via pre-render label preprocessor. New exported `wrapLabel` helper. 7 tests
+
+### Cut from Loop 9 (deferred Loop 10)
+
+**B14 pathfinder trunk-sharing.** Cut for context-budget. Requires deep
+understanding of `src/ascii/pathfinder.ts` (215 lines) plus careful
+determinism preservation (A7's test must keep passing byte-identical).
+Loop 10 candidate.
+
+**C15 mermaid-ast structured uplift for journey + xychart.** Hard
+blocker discovered: `mermaid-ast`'s transitive dep tree is broken in
+this environment. `mermaid-ast` → `langium` → `vscode-jsonrpc` →
+`@chevrotain/regexp-to-ast` → ... all are missing. Adding
+`vscode-jsonrpc` revealed more missing chevrotain deps. The cascade
+suggests the published mermaid-ast bundle on npm may be missing
+`bundledDependencies` declarations, OR the test environment has an
+incomplete install. Loop 10 candidates: (a) investigate the dep
+cascade, (b) shim/vendor the specific journey + xychart parsers, or
+(c) write our own structured parsers for these two families since
+they're small. Either way, mermaid-ast as currently published is not
+usable here.
+
+**C16 family-plugin parse/serialize/mutate consolidation.** Largest
+architectural item. Pure refactor — replace if-cascades in
+`parse.ts` + `serialize.ts` + `mutate.ts` with registry dispatch via
+new `FamilyPlugin.parse|serialize|mutate` hooks. Would require
+careful per-family migration so the 1592 tests hold. High value but
+high blast radius. Cut for budget. Loop 10 candidate.
+
+### Implementer-stall lessons
+
+Two implementer agent stalls in two consecutive loops — Loop 8 hit a
+content filter mid-M5, Loop 9 hit a 500 server error after 27
+minutes. Recovery was clean in both cases because:
+
+1. **Commit per milestone** was treated as load-bearing in the
+   hardened plan. Loop 9 implementer committed A1-A10 before
+   stalling at B11. The 8 commits were on origin; B11's
+   uncommitted work was a clean re-pickup.
+2. **Each milestone is a discrete checkpoint** in the hardened
+   plan — so picking up doesn't require reverse-engineering the
+   implementer's mental model.
+3. **Cut policy explicit in the plan** — when budget runs short,
+   cut from the bottom of the priority list. Both Loop 8 and Loop
+   9 ended up cutting items honestly.
+
+The autopilot Workflow handled this gracefully because each layer
+of the plan was a checkpoint. The lesson for Loop 10+: stalls are
+inevitable in long sessions; the plan structure is what makes
+them recoverable.
+
+### Numbers
+- Tests: 1552 → 1592 in src/__tests__/ (+40 across 6 new test files)
+- All 1592 pass; tsc + build + lint green
+- 247-corpus floor holds; MermaidSeqBench 132/132 holds
+- 11 commits on the branch from Loop 9 work
+- 3 items cut (B14, C15, C16) — documented above as Loop 10 candidates

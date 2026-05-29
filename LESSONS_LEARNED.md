@@ -120,3 +120,41 @@ not always-on.
   *not* a fix — a 10-run probe showed the code was already deterministic.
   The "fix" became a regression guard. Cheaper to probe than to ship a
   speculative change.
+
+## Loop 8 + 9 lessons (PNG export + finish-the-backlog)
+
+- **Implementer stalls happen — design for recovery.** Loop 8's
+  implementer hit a content-filter at minute ~19 mid-M5. Loop 9's
+  implementer hit a 500 server error at minute ~27 mid-B11. Both
+  were recoverable because **commit-per-milestone was treated as
+  load-bearing** in the hardened plan. The 8 Loop 9 milestones
+  (A1-A10) landed cleanly before the stall; B11 was a clean
+  pickup. The plan structure IS the recovery scaffold.
+- **Skip the planner/critic phase when the prompt already encodes
+  prior critic feedback.** Loop 8 took critics from prior loops as
+  given (embedded in the user's prompt) and went straight to
+  implementer. Worked. Loop 9 spent budget on planner + 5 critics
+  for a hardened plan that was 90% pre-decided by the user — the
+  remaining 10% was incremental.
+- **Honest scope cuts beat over-promising.** Loop 9 shipped 13 of
+  16 milestones. The 3 cuts (B14 pathfinder, C15 mermaid-ast
+  journey/xychart, C16 plugin consolidation) are documented in
+  DIVERGENCES.md with concrete reasons (context budget; mermaid-ast
+  transitive deps broken; refactor too large for remaining budget).
+  Loop 10 picks them up with no mystery.
+- **Probe dep availability before committing to a dep-based plan.**
+  Loop 9's C15 cut wasn't a budget call — it was a dep-availability
+  call. `mermaid-ast` is installed but its transitive `langium` →
+  `vscode-jsonrpc` → `@chevrotain/regexp-to-ast` chain is broken in
+  the sandbox. A 30-second `bun -e "require('mermaid-ast')"` probe
+  at plan time would have surfaced this. Lesson: validate the
+  dependency you're building on actually loads before spec'ing the
+  work around it.
+- **Direct execution beats subagent-spawn when stalls compound.**
+  Loop 9's recovery used direct execution (no subagent spawn for the
+  remaining B11/B12/B13 milestones). Past two implementer stalls in
+  consecutive loops made the spawn-cost no longer worth it. The
+  workflow-orchestration value of subagents is real (parallel
+  critics, isolated context windows), but a third consecutive stall
+  would have been wasted minutes. Direct execution + per-milestone
+  commit is the fallback recovery mode.
