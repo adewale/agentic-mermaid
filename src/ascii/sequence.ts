@@ -14,6 +14,7 @@ import type { SequenceDiagram, Block } from '../sequence/types.ts'
 import type { Canvas, AsciiConfig, RoleCanvas, CharRole, AsciiTheme, ColorMode } from './types.ts'
 import { mkCanvas, mkRoleCanvas, canvasToString, increaseSize, increaseRoleCanvasSize, setRole } from './canvas.ts'
 import { splitLines, maxLineWidth, lineCount } from './multiline-utils.ts'
+import { visualWidth, charVisualWidth } from './width.ts'
 
 /** Classify a box-drawing character as 'border' or 'text'. */
 function classifyBoxChar(ch: string): CharRole {
@@ -199,12 +200,14 @@ export function renderSequenceAscii(text: string, config: AsciiConfig, colorMode
   const lastHalf = halfBox[halfBox.length - 1] ?? 0
   let totalW = lastLL + lastHalf + 2
 
-  // Ensure canvas is wide enough for self-message labels and notes
+  // Ensure canvas is wide enough for self-message labels and notes.
+  // Use maxLineWidth so multi-line self labels (e.g. "hello<br/>world") get
+  // sized by the longest line rather than the raw concatenated string length.
   for (let m = 0; m < diagram.messages.length; m++) {
     const msg = diagram.messages[m]!
     if (msg.from === msg.to) {
       const fi = actorIdx.get(msg.from)!
-      const selfRight = llX[fi]! + 6 + 2 + msg.label.length
+      const selfRight = llX[fi]! + 6 + 2 + maxLineWidth(msg.label)
       totalW = Math.max(totalW, selfRight + 1)
     }
   }
@@ -237,16 +240,21 @@ export function renderSequenceAscii(text: string, config: AsciiConfig, colorMode
     for (let x = 1; x < w - 1; x++) setC(left + x, topY, H, 'border')
     setC(left + w - 1, topY, TR, 'border')
 
-    // Content lines (centered horizontally within the box)
+    // Content lines (centered horizontally within the box).
+    // Use terminal-column width so CJK / emoji labels sit symmetric in the
+    // box, and iterate codepoints (not UTF-16 units) so a single emoji
+    // surrogate pair counts as one glyph.
     for (let i = 0; i < lines.length; i++) {
       const row = topY + 1 + i
       setC(left, row, V, 'border')
       setC(left + w - 1, row, V, 'border')
-      // Center this line within the box
       const line = lines[i]!
-      const ls = left + 1 + boxPad + Math.floor((maxW - line.length) / 2)
-      for (let j = 0; j < line.length; j++) {
-        setC(ls + j, row, line[j]!, 'text')
+      const lineW = visualWidth(line)
+      const ls = left + 1 + boxPad + Math.floor((maxW - lineW) / 2)
+      let cursor = ls
+      for (const ch of line) {
+        setC(cursor, row, ch, 'text')
+        cursor += charVisualWidth(ch)
       }
     }
 
@@ -296,47 +304,65 @@ export function renderSequenceAscii(text: string, config: AsciiConfig, colorMode
     const lineChar = isDashed ? (useAscii ? '.' : '╌') : H
 
     if (isSelf) {
-      // Self-message: 3-row loop to the right of the lifeline
+      // Self-message: an N+2 row loop to the right of the lifeline. For a
+      // single-line label that's the classic 3-row form:
       //   ├──┐           (row 0 = msgArrowY)
       //   │  │ Label     (row 1)
       //   │◄─┘           (row 2)
+      // For an N-line label the middle row repeats N times so each line gets
+      // its own row with a continuing right-side wall.
       const y0 = msgArrowY[m]!
-      const loopW = Math.max(4, 4)
+      const loopW = 4
+      const selfLines = splitLines(msg.label)
 
       // Row 0: start junction + horizontal + top-right corner
       setC(fromX, y0, JL, 'junction')
       for (let x = fromX + 1; x < fromX + loopW; x++) setC(x, y0, lineChar, 'line')
       setC(fromX + loopW, y0, useAscii ? '+' : '┐', 'corner')
 
-      // Row 1: vertical on right side + label
-      setC(fromX + loopW, y0 + 1, V, 'line')
+      // Middle rows: vertical wall on the right + the label line for each row.
       const labelX = fromX + loopW + 2
-      for (let i = 0; i < msg.label.length; i++) {
-        if (labelX + i < totalW) setC(labelX + i, y0 + 1, msg.label[i]!, 'text')
+      for (let lineIdx = 0; lineIdx < selfLines.length; lineIdx++) {
+        const row = y0 + 1 + lineIdx
+        // Lifeline wall on the source side (kept by lifeline pass, but make
+        // sure the right-hand wall is continuous so multi-line labels look
+        // contained).
+        setC(fromX + loopW, row, V, 'line')
+        const line = selfLines[lineIdx]!
+        for (let i = 0; i < line.length; i++) {
+          if (labelX + i < totalW) setC(labelX + i, row, line[i]!, 'text')
+        }
       }
 
-      // Row 2: arrow-back + horizontal + bottom-right corner
+      // Row N+1: arrow-back + horizontal + bottom-right corner.
       const arrowChar = isFilled ? (useAscii ? '<' : '◀') : (useAscii ? '<' : '◁')
-      setC(fromX, y0 + 2, arrowChar, 'arrow')
-      for (let x = fromX + 1; x < fromX + loopW; x++) setC(x, y0 + 2, lineChar, 'line')
-      setC(fromX + loopW, y0 + 2, useAscii ? '+' : '┘', 'corner')
+      const bottomRow = y0 + 1 + selfLines.length
+      setC(fromX, bottomRow, arrowChar, 'arrow')
+      for (let x = fromX + 1; x < fromX + loopW; x++) setC(x, bottomRow, lineChar, 'line')
+      setC(fromX + loopW, bottomRow, useAscii ? '+' : '┘', 'corner')
     } else {
       // Normal message: label on row above, arrow on row below
       const labelY = msgLabelY[m]!
       const arrowY = msgArrowY[m]!
       const leftToRight = fromX < toX
 
-      // Draw label centered between the two lifelines (supports multi-line)
-      const midX = Math.floor((fromX + toX) / 2)
+      // Draw label centered between the two lifelines (supports multi-line).
+      // Center by terminal column width so CJK / emoji labels sit symmetric
+      // on the arrow and so left-pad rounding follows box parity, not line
+      // parity. Iterate codepoints (not UTF-16 code units) so emoji surrogate
+      // pairs render as one glyph.
+      const boxWidth = Math.abs(toX - fromX)
       const msgLines = splitLines(msg.label)
 
       for (let lineIdx = 0; lineIdx < msgLines.length; lineIdx++) {
         const line = msgLines[lineIdx]!
-        const labelStart = midX - Math.floor(line.length / 2)
+        const lineCells = visualWidth(line)
+        const labelStart = Math.min(fromX, toX) + Math.floor((boxWidth - lineCells) / 2)
         const y = labelY + lineIdx
-        for (let i = 0; i < line.length; i++) {
-          const lx = labelStart + i
-          if (lx >= 0 && lx < totalW) setC(lx, y, line[i]!, 'text')
+        let cursor = labelStart
+        for (const ch of line) {
+          if (cursor >= 0 && cursor < totalW) setC(cursor, y, ch, 'text')
+          cursor += charVisualWidth(ch)
         }
       }
 
@@ -362,7 +388,10 @@ export function renderSequenceAscii(text: string, config: AsciiConfig, colorMode
     const botY = blockEndY.get(b)
     if (topY === undefined || botY === undefined) continue
 
-    // Find the leftmost/rightmost lifelines involved in this block's messages
+    // Find the leftmost/rightmost lifelines involved in this block's messages.
+    // For self-messages the visible extent runs PAST the lifeline column —
+    // it's `llX[f] + loopW + 2 + max-label-line-width`. Treat that as the
+    // right edge for self-arrows so the block frame doesn't clip the label.
     let minLX = totalW
     let maxLX = 0
     for (let m = block.startIndex; m <= block.endIndex; m++) {
@@ -371,7 +400,16 @@ export function renderSequenceAscii(text: string, config: AsciiConfig, colorMode
       const f = actorIdx.get(msg.from) ?? 0
       const t = actorIdx.get(msg.to) ?? 0
       minLX = Math.min(minLX, llX[Math.min(f, t)]!)
-      maxLX = Math.max(maxLX, llX[Math.max(f, t)]!)
+      if (f === t) {
+        // Self-arrow: the label sits at llX[f] + 4 + 2 = llX[f] + 6 with the
+        // longest line determining the extra width. Match the totalW math
+        // (llX[f] + 6 + maxLineWidth(label)) and add a 2-cell breathing room
+        // so the right border doesn't sit immediately on the last glyph.
+        const selfRight = llX[f]! + 6 + maxLineWidth(msg.label) + 2
+        maxLX = Math.max(maxLX, selfRight)
+      } else {
+        maxLX = Math.max(maxLX, llX[Math.max(f, t)]!)
+      }
     }
 
     const bLeft = Math.max(0, minLX - 4)

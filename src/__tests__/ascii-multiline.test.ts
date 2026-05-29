@@ -78,6 +78,23 @@ describe('ASCII multi-line labels', () => {
       expect(ascii).toContain('Line2')
     })
 
+    it('splits multi-line self-arrow labels into separate rows (bug 3.1)', () => {
+      const ascii = renderMermaidAscii(`sequenceDiagram
+        participant A
+        A->>A: hello<br/>world
+      `, { useAscii: false })
+      // Both lines must appear in the canvas — Loop 7 fix replaces the
+      // single-line draw with splitLines + per-line rendering.
+      expect(ascii).toContain('hello')
+      expect(ascii).toContain('world')
+      // And they must sit on different visible rows.
+      const lines = ascii.split('\n')
+      const helloRow = lines.findIndex(l => l.includes('hello'))
+      const worldRow = lines.findIndex(l => l.includes('world'))
+      expect(helloRow).toBeGreaterThanOrEqual(0)
+      expect(worldRow).toBeGreaterThan(helloRow)
+    })
+
     it('preserves existing note multi-line support', () => {
       const ascii = renderMermaidAscii(`sequenceDiagram
         participant A
