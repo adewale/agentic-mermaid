@@ -329,8 +329,12 @@ export function renderSequenceAscii(text: string, config: AsciiConfig, colorMode
         // contained).
         setC(fromX + loopW, row, V, 'line')
         const line = selfLines[lineIdx]!
-        for (let i = 0; i < line.length; i++) {
-          if (labelX + i < totalW) setC(labelX + i, row, line[i]!, 'text')
+        // Use codepoint+stride pattern (same as actor box at lines 256-257) so
+        // CJK / emoji / surrogate-pair labels render with correct column width.
+        let cursor = labelX
+        for (const ch of line) {
+          if (cursor < totalW) setC(cursor, row, ch, 'text')
+          cursor += charVisualWidth(ch)
         }
       }
 

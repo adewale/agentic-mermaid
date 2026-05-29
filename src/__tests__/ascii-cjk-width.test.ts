@@ -84,4 +84,20 @@ describe('ASCII CJK/fullwidth display width', () => {
     const { visualWidth } = require('../ascii/width.ts') as typeof import('../ascii/width.ts')
     expect(visualWidth('\u{1F468}\u{200D}\u{1F4BB}')).toBe(2)
   })
+
+  it('self-arrow CJK label uses codepoint+stride (Loop 7 review fix)', () => {
+    // The M3.3 fix replaced .length with visualWidth() at three sites in
+    // sequence.ts (lines ~207, 359-360, 408). The Loop 7 review-bughunt
+    // found a fourth site at the self-arrow label-drawing loop (was using
+    // line[i] + labelX + i). With the codepoint+stride fix, each CJK char
+    // occupies its own canvas cell and is followed by a blank stride cell
+    // (so the terminal renders it as a width-2 glyph). The bug would have
+    // placed code-unit halves at consecutive columns, breaking surrogate
+    // pairs entirely.
+    const out = renderMermaidASCII('sequenceDiagram\n  participant A\n  A->>A: 你好世界')
+    // Each CJK codepoint appears intact in the output (no surrogate halves).
+    for (const ch of '你好世界') expect(out).toContain(ch)
+    // And the canvas pattern is each CJK char with a stride-blank after it.
+    expect(out).toContain('你 好 世 界')
+  })
 })

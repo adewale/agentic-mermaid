@@ -40,11 +40,11 @@ export function verifyMermaid(input: ValidDiagram | string, opts: VerifyOptions 
   if (d.body.kind === 'timeline') return mergeFinalize(verifyTimeline(d.body, d.kind, cap, opts), pluginWarnings, opts)
   if (d.body.kind === 'class') {
     const w = verifyClass(d.body, opts)
-    return finalize([...w, ...pluginWarnings], emptyRenderedLayout(d.kind), opts)
+    return finalize(dedupedConcat(w, pluginWarnings), emptyRenderedLayout(d.kind), opts)
   }
   if (d.body.kind === 'er') {
     const w = verifyErBody(d.body, opts)
-    return finalize([...w, ...pluginWarnings], emptyRenderedLayout(d.kind), opts)
+    return finalize(dedupedConcat(w, pluginWarnings), emptyRenderedLayout(d.kind), opts)
   }
 
   if (d.body.kind === 'opaque') {
@@ -65,7 +65,7 @@ export function verifyMermaid(input: ValidDiagram | string, opts: VerifyOptions 
       seen.add(key)
       warnings.push({ code: 'LABEL_OVERFLOW', target: lbl.target, charCount: lbl.text.length, limit: cap })
     }
-    return finalize([...warnings, ...pluginWarnings], emptyRenderedLayout(d.kind), opts)
+    return finalize(dedupedConcat(warnings, pluginWarnings), emptyRenderedLayout(d.kind), opts)
   }
 
   const graph = d.body.graph
@@ -127,7 +127,14 @@ export function verifyMermaid(input: ValidDiagram | string, opts: VerifyOptions 
     if (c > 0) warnings.push({ code: 'ROUTE_SELF_CROSS', edge: `${e.source}->${e.target}`, count: c })
   }
 
-  return finalize([...warnings, ...pluginWarnings], layout, opts)
+  return finalize(dedupedConcat(warnings, pluginWarnings), layout, opts)
+}
+
+function dedupedConcat(a: LayoutWarning[], b: LayoutWarning[]): LayoutWarning[] {
+  if (b.length === 0) return a
+  const seen = new Set(a.map(warningKey))
+  const novel = b.filter(w => !seen.has(warningKey(w)))
+  return novel.length === 0 ? a : [...a, ...novel]
 }
 
 /**
@@ -146,10 +153,26 @@ function dispatchFamilyVerify(d: ValidDiagram, opts: VerifyOptions): LayoutWarni
   }
 }
 
-/** finalize() variant that merges an already-finalized result with extra warnings. */
+/** finalize() variant that merges an already-finalized result with extra warnings.
+ *  Dedupes on (code, target/edge/node) so a plugin verify hook returning a
+ *  warning identical to one the per-body verify already produced doesn't
+ *  surface twice. The dispatcher is now live (since Loop 7 M1) so this
+ *  hazard exists; closing it pre-emptively. */
 function mergeFinalize(prev: VerifyResult, extra: LayoutWarning[], opts: VerifyOptions): VerifyResult {
   if (extra.length === 0) return prev
-  return finalize([...prev.warnings, ...extra], prev.layout, opts)
+  const seen = new Set(prev.warnings.map(warningKey))
+  const novel = extra.filter(w => !seen.has(warningKey(w)))
+  if (novel.length === 0) return prev
+  return finalize([...prev.warnings, ...novel], prev.layout, opts)
+}
+
+function warningKey(w: LayoutWarning): string {
+  if ('target' in w) return `${w.code}:${w.target}`
+  if ('edge' in w) return `${w.code}:${w.edge}`
+  if ('node' in w) return `${w.code}:${w.node}`
+  if ('group' in w) return `${w.code}:${w.group}`
+  if ('a' in w && 'b' in w) return `${w.code}:${w.a}|${w.b}`
+  return w.code
 }
 
 function verifyTimeline(body: import('./types.ts').TimelineBody, kind: ValidDiagram['kind'], cap: number, opts: VerifyOptions): VerifyResult {
