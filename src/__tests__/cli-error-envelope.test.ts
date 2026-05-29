@@ -7,8 +7,7 @@ import { runCli } from '../cli/index.ts'
 function capture(fn: () => number): { code: number; out: string } {
   const chunks: string[] = []
   const orig = process.stdout.write.bind(process.stdout)
-  // @ts-expect-error test shim
-  process.stdout.write = (s: string) => { chunks.push(typeof s === 'string' ? s : String(s)); return true }
+  process.stdout.write = ((s: string) => { chunks.push(typeof s === 'string' ? s : String(s)); return true }) as typeof process.stdout.write
   let code = -1
   try { code = fn() } finally { process.stdout.write = orig }
   return { code, out: chunks.join('') }
