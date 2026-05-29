@@ -17,6 +17,19 @@ import { knownFamilies, getFamily } from '../agent/families.ts'
 import '../agent/families-builtin.ts'
 import { AGENT_INSTRUCTIONS } from './agent-instructions.ts'
 import { EXIT_OK, EXIT_ARG_ERROR, EXIT_VERIFY_FAILED, EXIT_INTERNAL } from './exit-codes.ts'
+import type { ParseError } from '../agent/types.ts'
+
+/**
+ * Loop 12 M1: build a structured CLI error envelope. Keeps `message` a short
+ * human string (the first error's message) and carries the full structured
+ * ParseError[] in `details` — so an agent reads `error.details` instead of
+ * re-parsing a JSON string buried in `error.message`.
+ */
+function parseErrorEnvelope(errors: ParseError[]): { ok: false; error: { code: string; message: string; details: ParseError[] } } {
+  const first = errors[0]
+  const message = first ? `${first.code}: ${first.message}` : 'parse error'
+  return { ok: false, error: { code: 'PARSE_FAILED', message, details: errors } }
+}
 
 interface ParsedArgs { command?: string; positional: string[]; flags: Record<string, string | boolean> }
 
@@ -180,7 +193,7 @@ function cmdRender(args: ParsedArgs, json: boolean): number {
     // emit nodes/edges/groups/bounds with stable key ordering.
     const parsed = parseMermaid(source)
     if (!parsed.ok) {
-      process.stdout.write(JSON.stringify({ ok: false, error: { code: 'PARSE_FAILED', message: JSON.stringify(parsed.error) } }) + '\n')
+      process.stdout.write(JSON.stringify(parseErrorEnvelope(parsed.error)) + '\n')
       return EXIT_ARG_ERROR
     }
     const layout = layoutMermaid(parsed.value)
@@ -232,7 +245,7 @@ function cmdParse(args: ParsedArgs): number {
     // Error envelope matches the documented batch shape (cli/index.ts:107).
     // Success emits the bare ValidDiagram payload — pipeable into `am serialize`
     // without unwrapping, which preserves existing consumer contracts.
-    process.stdout.write(JSON.stringify({ ok: false, error: { code: 'PARSE_FAILED', message: JSON.stringify(r.error) } }) + '\n')
+    process.stdout.write(JSON.stringify(parseErrorEnvelope(r.error)) + '\n')
     return EXIT_ARG_ERROR
   }
   process.stdout.write(JSON.stringify(toJsonSafe(r.value), replacer) + '\n')
@@ -257,7 +270,7 @@ function cmdMutate(args: ParsedArgs, json: boolean): number {
   try { op = JSON.parse(opStr) as AnyMutationOp } catch (e) { process.stderr.write(`mutate: invalid --op JSON: ${(e as Error).message}\n`); return EXIT_ARG_ERROR }
   const r0 = parseMermaid(source)
   if (!r0.ok) {
-    process.stdout.write(JSON.stringify({ ok: false, error: { code: 'PARSE_FAILED', message: JSON.stringify(r0.error) } }) + '\n')
+    process.stdout.write(JSON.stringify(parseErrorEnvelope(r0.error)) + '\n')
     return EXIT_ARG_ERROR
   }
 
@@ -483,7 +496,7 @@ export function runBatchLine(rawLine: string, lineIndex = 0): BatchOutput {
       }
       case 'parse': {
         const r = parseMermaid(parsed.source)
-        if (!r.ok) return { ok: false, op, error: { code: 'PARSE_FAILED', message: JSON.stringify(r.error) } }
+        if (!r.ok) { const env = parseErrorEnvelope(r.error); return { ok: false, op, error: env.error } }
         return { ok: true, op, data: JSON.parse(JSON.stringify(toJsonSafe(r.value), replacer)) }
       }
       case 'serialize': {

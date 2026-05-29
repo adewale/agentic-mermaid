@@ -115,10 +115,9 @@ registerFamily({
   id: 'class',
   detect: l => l.startsWith('classdiagram'),
   extractLabels: extractClassLabels,
-  // Loop 8 A1: wire the structured class verifier into the plugin so the
-  // dispatcher (Loop 7 M1) actually fires on built-in families. The per-body
-  // verify branch in verify.ts still runs and the dispatcher dedupes warnings
-  // against it — see Loop 9 TODO below.
+  // Loop 8 A1: the structured class verifier IS the verify path — verifyMermaid
+  // routes class diagrams through this plugin hook (Loop 9 M2 removed the
+  // duplicate per-body branch). Single source of truth.
   verify: (body, opts) => body.kind === 'class' ? verifyClass(body, opts) : [],
 })
 
@@ -146,16 +145,10 @@ registerFamily({
   id: 'er',
   detect: l => l.startsWith('erdiagram'),
   extractLabels: extractErLabels,
-  // Loop 8 A1: same as class above — wire the structured ER verifier.
+  // Loop 8 A1: same as class — this hook is the verify path for ER (Loop 9 M2
+  // removed the duplicate per-body branch in verify.ts).
   verify: (body, opts) => body.kind === 'er' ? verifyErBody(body, opts) : [],
 })
-
-// TODO (Loop 9): the per-body class/er branches in verify.ts now duplicate
-// what the plugin hooks return. The Loop 7 review fix added dedupedConcat /
-// mergeFinalize so the duplication is observationally invisible but does
-// redundant compute. Deleting the branches requires moving the
-// emptyRenderedLayout(d.kind) handling to a fall-through that's safe across
-// all body kinds — out of scope for Loop 8.
 
 // ---- Journey --------------------------------------------------------------
 // title T, section S, task: 3: Me
