@@ -6,9 +6,7 @@
 import { describe, test, expect } from 'bun:test'
 import { readFileSync, existsSync } from 'node:fs'
 import { join } from 'node:path'
-import { parseMermaid } from '../agent/parse.ts'
-import { verifyMermaid } from '../agent/verify.ts'
-import { serializeMermaid } from '../agent/serialize.ts'
+import { runParseVerifyRoundtrip } from '../../eval/shared/run-bench.ts'
 
 const CORPUS_PATH = join(import.meta.dir, '..', '..', 'eval', 'mermaid-docs-corpus', 'corpus.json')
 
@@ -55,19 +53,11 @@ describe('mermaid-js docs corpus (247 examples, 9 families)', () => {
     if (entries.length === 0) continue
 
     test(`${family}: ${entries.length} examples — parse / verify / round-trip rates`, () => {
-      let parseOk = 0, verifyOk = 0, roundTripOk = 0
-      for (const e of entries) {
-        const p1 = parseMermaid(e.source)
-        if (!p1.ok) continue
-        parseOk++
-        const v = verifyMermaid(p1.value)
-        if (v.ok) verifyOk++
-        try {
-          const s1 = serializeMermaid(p1.value)
-          const p2 = parseMermaid(s1)
-          if (p2.ok && serializeMermaid(p2.value) === s1) roundTripOk++
-        } catch { /* round-trip fail */ }
-      }
+      // Loop 9 M9: shared parse-verify-roundtrip helper. Counts identical.
+      const { counts } = runParseVerifyRoundtrip(entries.map(e => ({ source: e.source, label: e.origin })))
+      const parseOk = counts.parseOk
+      const verifyOk = counts.verifyOk
+      const roundTripOk = counts.roundTripStable
       const N = entries.length
       const ex = expected[family]!
       // Report as helpful failure message

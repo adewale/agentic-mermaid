@@ -152,16 +152,15 @@ function dispatchFamilyVerify(d: ValidDiagram, opts: VerifyOptions): LayoutWarni
 }
 
 /** finalize() variant that merges an already-finalized result with extra warnings.
- *  Dedupes on (code, target/edge/node) so a plugin verify hook returning a
- *  warning identical to one the per-body verify already produced doesn't
- *  surface twice. The dispatcher is now live (since Loop 7 M1) so this
- *  hazard exists; closing it pre-emptively. */
+ *  Loop 9 M10: now delegates fully to dedupedConcat → finalize. Dedupes on
+ *  (code, target/edge/node) so a plugin verify hook returning a warning
+ *  identical to one the per-body verify already produced doesn't surface twice.
+ *  The dispatcher has been live since Loop 7 M1, so this hazard remains real. */
 function mergeFinalize(prev: VerifyResult, extra: LayoutWarning[], opts: VerifyOptions): VerifyResult {
   if (extra.length === 0) return prev
-  const seen = new Set(prev.warnings.map(warningKey))
-  const novel = extra.filter(w => !seen.has(warningKey(w)))
-  if (novel.length === 0) return prev
-  return finalize([...prev.warnings, ...novel], prev.layout, opts)
+  const merged = dedupedConcat(prev.warnings, extra)
+  if (merged === prev.warnings) return prev
+  return finalize(merged, prev.layout, opts)
 }
 
 function warningKey(w: LayoutWarning): string {

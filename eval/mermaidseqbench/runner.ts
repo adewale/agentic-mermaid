@@ -8,10 +8,8 @@
 
 import { readFileSync, existsSync } from 'node:fs'
 import { join } from 'node:path'
-import { parseMermaid } from '../../src/agent/parse.ts'
-import { serializeMermaid } from '../../src/agent/serialize.ts'
-import { verifyMermaid } from '../../src/agent/verify.ts'
 import { asSequence } from '../../src/agent/types.ts'
+import { runParseVerifyRoundtrip } from '../shared/run-bench.ts'
 
 const DATA = join(import.meta.dir, 'data.csv')
 
@@ -64,24 +62,29 @@ export interface Counts {
 }
 
 export function runBench(rows: BenchRow[]): Counts {
-  const c: Counts = {
-    total: rows.length, parseOk: 0, structured: 0, opaque: 0,
-    verifyOk: 0, roundTripStable: 0, parseErrors: [],
+  // Loop 9 M9: delegate the parse-verify-roundtrip pass to the shared
+  // helper; thread the per-row "structured vs opaque" tally via the extra
+  // hook.
+  type Extra = { structured: number; opaque: number }
+  const r = runParseVerifyRoundtrip<Extra>(
+    rows.map(row => ({ source: row.expected, label: row.title })),
+    {
+      initial: { structured: 0, opaque: 0 },
+      extra: (_row, d, acc) => {
+        if (d.body.kind === 'opaque') acc.opaque++
+        else if (asSequence(d)) acc.structured++
+      },
+    },
+  )
+  return {
+    total: r.counts.total,
+    parseOk: r.counts.parseOk,
+    structured: r.extra.structured,
+    opaque: r.extra.opaque,
+    verifyOk: r.counts.verifyOk,
+    roundTripStable: r.counts.roundTripStable,
+    parseErrors: r.counts.parseErrors,
   }
-  for (const r of rows) {
-    const p1 = parseMermaid(r.expected)
-    if (!p1.ok) { c.parseErrors.push(r.title + ': ' + JSON.stringify(p1.error[0])); continue }
-    c.parseOk++
-    if (p1.value.body.kind === 'opaque') c.opaque++
-    else if (asSequence(p1.value)) c.structured++
-
-    if (verifyMermaid(p1.value).ok) c.verifyOk++
-
-    const s1 = serializeMermaid(p1.value)
-    const p2 = parseMermaid(s1)
-    if (p2.ok && serializeMermaid(p2.value) === s1) c.roundTripStable++
-  }
-  return c
 }
 
 if (import.meta.main) {
