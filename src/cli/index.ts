@@ -155,6 +155,7 @@ export function runCli(argv: string[]): number {
       case 'capabilities': return cmdCapabilities()
       case 'llms-txt': return cmdLlmsTxt()
       case 'batch': return cmdBatch()
+      case 'render-markdown': return cmdRenderMarkdown(args)
       default:
         process.stderr.write(`Unknown command: ${args.command}\n${GLOBAL_USAGE}`)
         return EXIT_ARG_ERROR
@@ -444,6 +445,44 @@ verifyNoExternalRefs } from 'beautiful-mermaid/agent'\`
 
 function cmdLlmsTxt(): number {
   process.stdout.write(buildLlmsTxt())
+  return EXIT_OK
+}
+
+// ---- Loop 12 M5 (#543): render-markdown — convert fenced blocks ------------
+
+export interface MarkdownBlockResult {
+  index: number
+  ok: boolean
+  format?: string
+  output?: string
+  error?: { code: string; message: string }
+}
+
+/**
+ * Extract ```mermaid fenced blocks from markdown and render each. A bad
+ * diagram yields an { ok:false } entry and does NOT abort the rest (#543:
+ * "skip invalid diagrams instead of failing the whole conversion").
+ */
+export function renderMarkdownBlocks(md: string, format: 'svg' | 'ascii' = 'svg'): MarkdownBlockResult[] {
+  const FENCE = /```mermaid[ \t]*\r?\n([\s\S]*?)\r?\n```/g
+  const blocks: string[] = []
+  for (const m of md.matchAll(FENCE)) blocks.push(m[1]!)
+  return collectBatched(blocks, (src, i): MarkdownBlockResult => {
+    try {
+      const output = format === 'ascii' ? renderMermaidASCII(src) : renderMermaidSVG(src)
+      return { index: i, ok: true, format, output }
+    } catch (e) {
+      return { index: i, ok: false, error: { code: 'RENDER_FAILED', message: (e as Error).message } }
+    }
+  }, 'MARKDOWN_BLOCK_ERROR').map((r, i) => r.ok ? r.value : { index: i, ok: false, error: r.error })
+}
+
+function cmdRenderMarkdown(args: ParsedArgs): number {
+  const md = readSourceArg(args.positional[0])
+  const format = args.flags.ascii ? 'ascii' as const : 'svg' as const
+  const results = renderMarkdownBlocks(md, format)
+  process.stdout.write(JSON.stringify({ ok: true, blocks: results }) + '\n')
+  // Per-block failures don't fail the command (#543) — exit OK.
   return EXIT_OK
 }
 
