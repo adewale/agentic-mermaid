@@ -498,8 +498,15 @@ function renderNode(node: PositionedNode, font: string, style: ResolvedRenderSty
   // Combine shape and label inside a semantic group
   // This enables reliable node identification without heuristics
   const parts: string[] = []
+  // #81: append user-assigned Mermaid class names so external stylesheets can
+  // target semantic node classes (e.g. `.hot { ... }`). Sanitize to valid CSS
+  // identifier chars; structural `node` class always comes first.
+  const userClasses = (node.classNames ?? [])
+    .map(c => c.replace(/[^A-Za-z0-9_-]/g, ''))
+    .filter(Boolean)
+  const classAttr = ['node', ...userClasses].join(' ')
   parts.push(
-    `<g class="node" data-id="${escapeAttr(node.id)}" data-label="${escapeAttr(node.label)}" data-shape="${node.shape}">`
+    `<g class="${classAttr}" data-id="${escapeAttr(node.id)}" data-label="${escapeAttr(node.label)}" data-shape="${node.shape}">`
   )
   parts.push(`  ${shape.replace(/\n/g, '\n  ')}`)
   if (label) {

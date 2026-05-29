@@ -95,6 +95,8 @@ export interface PositionedNode {
   height: number
   /** Inline styles resolved from classDef + explicit `style` statements — override theme defaults */
   inlineStyle?: Record<string, string>
+  /** User-assigned Mermaid class names (from `class X myClass` / `:::myClass`). Emitted as SVG CSS classes so external stylesheets can target them. */
+  classNames?: string[]
 }
 
 export interface PositionedEdge {

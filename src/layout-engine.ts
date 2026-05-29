@@ -636,6 +636,9 @@ function extractNodesAndGroups(
       if (mNode) {
         // Resolve inline styles from nodeStyles map and classDefs
         const inlineStyle = resolveNodeStyle(child.id, graph)
+        // User-assigned Mermaid class name(s) for external CSS targeting (#81).
+        const assigned = graph.classAssignments.get(child.id)
+        const classNames = assigned ? assigned.split(/\s+/).filter(Boolean) : undefined
 
         nodes.push({
           id: child.id,
@@ -646,6 +649,7 @@ function extractNodesAndGroups(
           width,
           height,
           inlineStyle,
+          classNames,
         })
       }
 
