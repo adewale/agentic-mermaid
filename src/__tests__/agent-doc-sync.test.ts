@@ -17,7 +17,7 @@ describe('AGENTS.md', () => {
   test('canonical sections byte-match am --agent-instructions', () => {
     const agents = readFileSync(join(REPO, 'AGENTS.md'), 'utf8').trim()
     const embedded = AGENT_INSTRUCTIONS.trim()
-    for (const h of ['## Quick start', '## The verify-after-mutate rule', '## Tier 1 vs Tier 2 warnings', '## Anti-patterns']) {
+    for (const h of ['## Quick start', '## The verify-after-mutate rule', '## Tier 1 vs Tier 2 vs Tier 3 warnings', '## CLI verbs', '## Anti-patterns']) {
       const a = section(agents, h), b = section(embedded, h)
       expect(a.length).toBeGreaterThan(0)
       expect(b).toEqual(a)

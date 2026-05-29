@@ -38,11 +38,19 @@ if (seq) {
 
 Run `verifyMermaid` at every commit point — anywhere the result would be saved, sent, or shown. You may batch several `mutate` calls between verifications, but never serialize a `ValidDiagram` whose `verify` result you have not inspected.
 
-## Tier 1 vs Tier 2 warnings
+## Tier 1 vs Tier 2 vs Tier 3 warnings
 
-Tier 1 (structural, reliable, universal): `EMPTY_DIAGRAM`, `EDGE_MISANCHORED`, `OFF_CANVAS`, `GROUP_BREACH`, `UNKNOWN_SHAPE`, `LABEL_OVERFLOW` (a source-based character-count check, default 40). Applies to every family (where the warning makes sense). Never suppress Tier 1 errors.
+Tier 1 (structural, reliable, universal): `EMPTY_DIAGRAM`, `EDGE_MISANCHORED`, `OFF_CANVAS`, `GROUP_BREACH`, `UNKNOWN_SHAPE`, `LABEL_OVERFLOW` (source-based char-count check, default 40). Applies to every family. Never suppress Tier 1 errors.
 
-Tier 2 (geometric, advisory, flowchart-specific): `NODE_OVERLAP`, `ROUTE_SELF_CROSS`. These are flowchart-shaped concepts and only fire for flowchart/state bodies. For non-flowchart families, geometric concerns are surfaced via perceptual metrics (`measureQuality(layoutMermaid(d))`): edge crossings, label legibility, whitespace balance, label-edge proximity. See `QUALITY.md` for the rubric. Don't gate CI on Tier 2 alone.
+Tier 2 (geometric, advisory, flowchart-specific): `NODE_OVERLAP`, `ROUTE_SELF_CROSS`. Only fire for flowchart/state. For other families, geometric concerns surface via perceptual metrics (`measureQuality(layoutMermaid(d))`). See `QUALITY.md`. Don't gate CI on Tier 2 alone.
+
+Tier 3 (lint, advisory, opt-in): produced by `FamilyPlugin.verify` hooks. Default `verifyMermaid` does not run Tier 3. No built-in family ships Tier 3 rules yet — registry is wired, catalogue is empty.
+
+## CLI verbs
+
+`am capabilities --json` — JSON envelope listing families, mutation ops, warning codes, output formats. Schema-stable; use it to self-discover.
+`am batch --jsonl` — JSONL stdin → JSONL stdout. Malformed lines surface error but don't abort the stream.
+Exit codes: `0` ok, `2` arg error, `3` verify-failed, `4` internal.
 
 ## Anti-patterns
 

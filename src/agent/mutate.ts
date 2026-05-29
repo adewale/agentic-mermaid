@@ -4,9 +4,9 @@
 
 import type {
   FlowchartValidDiagram, SequenceValidDiagram, TimelineValidDiagram,
-  ClassValidDiagram, ErValidDiagram,
+  ClassValidDiagram, ErValidDiagram, MutableValidDiagram,
   FlowchartMutationOp, SequenceMutationOp, TimelineMutationOp,
-  ClassMutationOp, ErMutationOp,
+  ClassMutationOp, ErMutationOp, AnyMutationOp,
   MutationError, Result, SequenceParticipant, SequenceMessage,
   TimelineBody, TimelineSection, TimelinePeriod,
 } from './types.ts'
@@ -23,9 +23,9 @@ export function mutate(d: TimelineValidDiagram, op: TimelineMutationOp): Result<
 export function mutate(d: ClassValidDiagram, op: ClassMutationOp): Result<ClassValidDiagram, MutationError>
 export function mutate(d: ErValidDiagram, op: ErMutationOp): Result<ErValidDiagram, MutationError>
 export function mutate(
-  d: FlowchartValidDiagram | SequenceValidDiagram | TimelineValidDiagram | ClassValidDiagram | ErValidDiagram,
-  op: FlowchartMutationOp | SequenceMutationOp | TimelineMutationOp | ClassMutationOp | ErMutationOp,
-): Result<FlowchartValidDiagram | SequenceValidDiagram | TimelineValidDiagram | ClassValidDiagram | ErValidDiagram, MutationError> {
+  d: MutableValidDiagram,
+  op: AnyMutationOp,
+): Result<MutableValidDiagram, MutationError> {
   if (d.body.kind === 'flowchart') return mutateFlowchart(d as FlowchartValidDiagram, op as FlowchartMutationOp)
   if (d.body.kind === 'sequence') return mutateSequence(d as SequenceValidDiagram, op as SequenceMutationOp)
   if (d.body.kind === 'timeline') return mutateTimeline(d as TimelineValidDiagram, op as TimelineMutationOp)

@@ -81,3 +81,32 @@ combination above gives:
   approximation; under condensed fonts it under-estimates fit.
 - **No color contrast.** We don't yet check WCAG contrast on
   label-on-fill pairs. Tracked as future work.
+
+## ASCII determinism
+
+Loop 7 added an ASCII determinism guard at
+`src/__tests__/ascii-determinism.test.ts`. It hashes the output of
+`renderMermaidASCII()` over 10 invocations on three multi-edge fixtures
+and asserts a single SHA-256 across all 30 runs per fixture. The probe
+that motivated it (per the Loop 7 plan: "probe FIRST, then act") found
+the existing code already byte-identical across 10 runs — the test
+lands as a regression guard, not a behavior change.
+
+What the guard catches:
+- Any future introduction of `Math.random()` / `Date.now()` /
+  `performance.now()` into an ASCII rendering or pathfinder code path
+  (set size > 1 → fail).
+- Set / Map iteration-order surprises if a code path adopts a hash key
+  whose ordering changes between Bun and Node.
+
+What the guard does NOT yet cover:
+- **Cross-runtime parity** (bun ≡ node on the SAME fixture). We have
+  this for SVG layout (`src/__tests__/agent-determinism.test.ts`
+  spawns `node` on `dist/agent.js` and compares). Not yet for ASCII —
+  deferred to Loop 8 per `ROADMAP.md`.
+- **Cross-architecture parity** (x86_64 vs ARM). Same as SVG: needs
+  hardware we don't have.
+- **Input-order independence.** The current 10-run-same-input test
+  does not stress edge-insertion order. A Set whose iteration order
+  depends on insertion order would pass this test and fail a different
+  one. Loop 8 candidate.

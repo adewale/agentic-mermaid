@@ -134,7 +134,7 @@ export function runCli(argv: string[]): number {
     }
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e)
-    if (json) process.stdout.write(JSON.stringify({ error: msg }) + '\n')
+    if (json) process.stdout.write(JSON.stringify({ ok: false, error: { code: 'INTERNAL', message: msg } }) + '\n')
     else process.stderr.write(`Error: ${msg}\n`)
     return EXIT_INTERNAL
   }
@@ -164,7 +164,13 @@ function cmdVerify(args: ParsedArgs): number {
 
 function cmdParse(args: ParsedArgs): number {
   const r = parseMermaid(readSourceArg(args.positional[0]))
-  if (!r.ok) { process.stdout.write(JSON.stringify({ ok: false, errors: r.error }) + '\n'); return EXIT_ARG_ERROR }
+  if (!r.ok) {
+    // Error envelope matches the documented batch shape (cli/index.ts:107).
+    // Success emits the bare ValidDiagram payload — pipeable into `am serialize`
+    // without unwrapping, which preserves existing consumer contracts.
+    process.stdout.write(JSON.stringify({ ok: false, error: { code: 'PARSE_FAILED', message: JSON.stringify(r.error) } }) + '\n')
+    return EXIT_ARG_ERROR
+  }
   process.stdout.write(JSON.stringify(toJsonSafe(r.value), replacer) + '\n')
   return EXIT_OK
 }
@@ -186,7 +192,10 @@ function cmdMutate(args: ParsedArgs, json: boolean): number {
   let op: AnyMutationOp
   try { op = JSON.parse(opStr) as AnyMutationOp } catch (e) { process.stderr.write(`mutate: invalid --op JSON: ${(e as Error).message}\n`); return EXIT_ARG_ERROR }
   const r0 = parseMermaid(source)
-  if (!r0.ok) { process.stdout.write(JSON.stringify({ ok: false, errors: r0.error }) + '\n'); return EXIT_ARG_ERROR }
+  if (!r0.ok) {
+    process.stdout.write(JSON.stringify({ ok: false, error: { code: 'PARSE_FAILED', message: JSON.stringify(r0.error) } }) + '\n')
+    return EXIT_ARG_ERROR
+  }
 
   const flow = asFlowchart(r0.value)
   if (flow) return emit(mutate(flow, op as FlowchartMutationOp), json)

@@ -285,3 +285,111 @@ non-flowchart families is answered by the Phase F perceptual metrics.
 - Bug fix: opaque-body indentation preserved (was being silently flattened)
 
 Full suite: 1492/1492. tsc + build + lint green.
+
+## Loop 6 — Abandoned mermaid-ast integration
+
+**Status:** Dependency installed (`mermaid-ast 0.8.2`, pinned exact, in
+`package.json`); implementer agent stalled silently with no code commits.
+The architectural call (do NOT replace our parsers; use as cross-validator)
+was the correct one — `mermaid-ast`'s `render()` re-emits canonical form
+which would break the byte-exact opaque-body round-trip established in
+Loop 5 Phase A. The structured-or-opaque rule with byte-fidelity round-trip
+is load-bearing; `mermaid-ast` doesn't preserve it.
+
+What we kept for Loop 8: the dependency, the architectural reasoning
+(documented in `LESSONS_LEARNED.md`), the cross-validation pattern
+sketched in the Loop 6 plan.
+
+What we cut: the structured-uplift for journey + xychart via `mermaid-ast`
+(can ship as cross-family-via-plugin in Loop 8); the parallel parser
+comparison test gate (defer until we have evidence it catches anything
+the 247-corpus doesn't).
+
+The Loop 6 implementer is also the cautionary tale that drove the
+"commit per milestone, push on every commit" rule in Loop 7's plan.
+
+## Loop 7 — Network survey + ASCII fixes + agent-contract verbs
+
+In response to "we should make sure they make sense locally and rewrite
+them to better match our quality/verification/testing standards" — a
+9-item network research sweep across `lukilabs/beautiful-mermaid` PRs/
+forks + adjacent repos (LeviTK/bm-cli, raiscui, ktrysmt, zhenhuaa/mdv,
+etc.) produced a backlog the autopilot workflow then hardened with 5
+critics and shipped as seven milestones.
+
+### Milestone landings
+- **M1 Wire FamilyPlugin.verify dispatcher** — was declared in `families.ts`
+  but never called. `verify.ts:33-37,137-147` now dispatches to plugins
+  alongside per-body verifiers. 3 new tests. Loop 7 review fix added
+  warning dedup via `warningKey()` so plugin and per-body verifiers
+  returning the same warning don't double-count.
+- **M2 Consolidate Unicode ranges** — `src/shared/unicode-ranges.ts`
+  (neutral module) replaces duplicated ranges in `width.ts` +
+  `text-metrics.ts`. Avoids ascii→core import direction the correctness
+  critic flagged.
+- **M3 Six ASCII bugs fixed:**
+  - 3.1 Self-arrow `<br/>` not split (`sequence.ts:316-335`)
+  - 3.2 Self-arrow extent in `alt`/`loop` block width (`sequence.ts:408`)
+  - 3.3 CJK sequence-label centering uses `visualWidth()` at 3 sites + a
+    4th site (self-arrow drawing loop) caught by Loop 7 review bug-hunt
+  - 3.4 FE0F / FE0E / ZWJ width handling via lookahead in `visualWidth()`
+  - 3.5 Pathfinder determinism — probe first found the existing code is
+    already byte-identical across 10 runs; landed as a regression guard,
+    not a behavior change (faithful to "probe FIRST, then act" plan)
+  - 3.6 (rolled into M2)
+- **M4 Regression tests for 3 already-covered upstream items:**
+  yhatt PR #74 (CJS exports), mk668a PR #110 (`--o`/`--x` markers),
+  rnbguy PR #54 (pre-message notes).
+- **M5 Agent-contract verbs:**
+  - `am capabilities --json` emits `{ sdkVersion, families, warningCodes,
+    outputFormats }` from the registry. JSON Schema fixture committed at
+    `src/__tests__/__fixtures__/capabilities.schema.json`.
+  - `am batch --jsonl` reads JSONL stdin, emits per-line JSON envelopes,
+    continues past malformed lines.
+  - Exit codes 0/2/3/4 in `src/cli/exit-codes.ts`; `EXIT_VERIFY_FAILED=3`
+    is the new code Loop 7 introduces.
+- **M6 Code Mode justification** — paragraph in `AGENT_NATIVE.md` citing
+  manuareraa PR #42 as the render-tool-per-format counter-example.
+- **M7 Docs** — `LESSONS_LEARNED.md` rewritten across loops 1-7; new
+  top-level `ROADMAP.md` tracks the three pillars.
+
+### Network items cut from Loop 7 (deferred to Loop 8)
+- SVG `--compact` mode (rounding + whitespace) per GauBen #77 — keeps
+  data-* attrs (they're agent inspection hooks)
+- CSS-variable fonts + `embedFontImport: false` (offline/CSP friendly)
+  per 2017fighting fork
+- Per-family CLI smoke matrix per vinceyyy #51
+- TTY-stdin guard per vinceyyy #51 — needs `node-pty` for honest test
+- mermaid-ast structured-uplift for journey + xychart
+- `renderAsciiWithMeta()` for TUI integration per raiscui fork +
+  zhenhuaa/mdv consumer signal
+- Cross-runtime ASCII parity (bun ≡ node), Loop 5 has this for SVG
+- Pathfinder trunk-sharing for fanouts per rmvegasm PR #113 (advanced)
+
+### Network items rejected (counter-examples, documented)
+- manuareraa PR #42 (4-tool render-only MCP) — conflicts with Code Mode
+  bet
+- mingway426 fork (Cloudflare Workers MCP) — subset of #42 with even less
+  to recommend
+
+### Loop 7 review pass — autopilot Review phase
+Two reviewers: bug-hunt (rapid) + completeness (deep). Bug-hunt caught
+1 ship-blocker (M3.3 missed a 4th self-arrow drawing site) + 1 soft
+hazard (plugin-verify warnings not deduped against per-body warnings).
+Both fixed in commit `0c295b6` with regression test. Completeness check
+confirmed all 7 milestones complete.
+
+### Numbers
+- Test count: 1492 → 1523 (one Loop-7-review test included)
+- 247-sample mermaid-docs corpus: floor holds
+- MermaidSeqBench: 132/132 holds
+- Build + tsc + lint: all clean
+- 9 commits on `claude/agentic-mermaid-on-ast`; PR #11 open
+
+### Process lessons (also in `LESSONS_LEARNED.md`)
+- Survey the ecosystem BEFORE building (would have saved several days
+  on the parser rewrites had we found mermaid-ast in Loop 1).
+- Commit per milestone (Loop 6 implementer stalled silently because it
+  was holding work in-flight).
+- Use autopilot Workflow for end-to-end cycles (5 critics catch the cuts
+  before the implementer wastes effort).

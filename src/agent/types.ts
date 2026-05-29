@@ -184,6 +184,13 @@ export type DiagramBody =
   | TimelineBody
   | ClassBody
   | ErBody
+  /**
+   * Opaque body — the parser understood the family header but encountered
+   * unmodeled syntax. `source` is the ORIGINAL body with indentation, blank
+   * lines, and comments PRESERVED (per the Loop 5 Phase A fix), so the
+   * serializer can re-emit byte-for-byte. Distinct from `ValidDiagram.canonicalSource`,
+   * which for structured bodies is the rebuilt canonical form.
+   */
   | { kind: 'opaque'; family: DiagramKind; source: string }
 
 export interface ValidDiagram {
@@ -191,7 +198,23 @@ export interface ValidDiagram {
   readonly meta: ValidDiagramMeta
   readonly body: DiagramBody
   readonly source: SourceMap
-  /** Load-bearing round-trip pillar. See AGENT_NATIVE.md § (3). */
+  /**
+   * Load-bearing round-trip pillar. See AGENT_NATIVE.md § (3).
+   *
+   * For STRUCTURED bodies, `canonicalSource` is the normalized text
+   * (`normalized.text` from `mermaid-source.ts`) — used by `renderMermaidSVG`
+   * + the legacy parser for the flowchart pathway. After `serializeMermaid`,
+   * the re-emitted source is rebuilt from the structured body.
+   *
+   * For OPAQUE bodies, the serializer emits `body.source` directly (NOT
+   * `canonicalSource`) so original indentation and blank lines round-trip
+   * byte-for-byte. `canonicalSource` is still set, but it's the normalized
+   * (line-trimmed) form — useful for layout / rendering, not for fidelity.
+   *
+   * This split exists because the legacy flowchart parser needs trimmed
+   * lines, but opaque-fallback round-trip needs the original. Treat
+   * `body.source` as the source of truth for opaque-body fidelity.
+   */
   readonly canonicalSource: string
 }
 
@@ -308,13 +331,21 @@ export function toFinite(n: number): Finite {
 // ---- Verify ---------------------------------------------------------------
 
 export type WarningSeverity = 'error' | 'warning'
-export type WarningTier = 'structural' | 'geometric'
+export type WarningTier = 'structural' | 'geometric' | 'lint'
 
 export type Tier1WarningCode =
   | 'EMPTY_DIAGRAM' | 'EDGE_MISANCHORED' | 'OFF_CANVAS'
   | 'GROUP_BREACH' | 'UNKNOWN_SHAPE' | 'LABEL_OVERFLOW'
 export type Tier2WarningCode = 'NODE_OVERLAP' | 'ROUTE_SELF_CROSS'
-export type WarningCode = Tier1WarningCode | Tier2WarningCode
+/**
+ * Tier 3 (advisory lint). Produced by `FamilyPlugin.verify` hooks; opt-in via
+ * `VerifyOptions.tier === 3`. As of Loop 7, no built-in family ships Tier 3
+ * rules — the type is reserved (empty union) so the spec, registry, and
+ * verify dispatcher have a stable contract surface to extend. See
+ * AGENT_NATIVE.md "Tier 3 — Lint" for the planned catalogue.
+ */
+export type Tier3WarningCode = never
+export type WarningCode = Tier1WarningCode | Tier2WarningCode | Tier3WarningCode
 
 export type LayoutWarning =
   | { code: 'EMPTY_DIAGRAM' }

@@ -118,9 +118,17 @@ Correctly detect what they claim to detect, but the occurrence may be intentiona
 
 Codes are the contract surface agents reason about. Emitting an undocumented code fails CI; documenting an unemitted one also fails CI. Agents omit known-irrelevant codes via `VerifyOptions.suppress`.
 
+### Tier 3 — Lint (advisory, opt-in, family-plugin driven)
+
+Tier 3 is an *advisory* layer for "common LLM mistakes" — things the parser accepts but the agent probably didn't intend. Tier 3 is **opt-in**: default `verifyMermaid` does not run it. Tier 3 warnings are produced by the `FamilyPlugin.verify` hook (see `src/agent/families.ts`); the hook is called by `verifyMermaid`'s dispatcher pass (`src/agent/verify.ts:33-37, 137-147`) for every registered family. A faulty plugin verify hook is silently caught — it must not blow up `verifyMermaid`.
+
+Plugin-produced warnings are deduped (`warningKey()` in `verify.ts`) against the per-body verifier output so a Tier 3 rule duplicating a Tier 1 finding doesn't double-report.
+
+As of Loop 7, no built-in family ships Tier 3 rules — the dispatcher and registry are wired but the catalogue is empty. Loop 8 candidates: `LINT_UNQUOTED_LABEL`, `LINT_MISSING_HEADER` (caught at parse for our IR; lint would catch near-misses like leading whitespace), `LINT_DUPLICATE_NODE_ID` (legacy parser dedupes, so the rule runs on raw source).
+
 **Branded coordinate types** (`Finite`) prevent NaN / Infinity from reaching the renderer. `toFinite()` is the only constructor; it throws on invalid input.
 
-**Model-gap property test**: for every generated `D` that parses successfully, `verify(D).warnings` filtered to Tier-1 `error` codes must be empty. Counterexamples are renderer bugs. Tier-2 warnings are excluded from this property because a `NODE_OVERLAP` or `ROUTE_SELF_CROSS` can be a legitimate property of a valid diagram, not a bug.
+**Model-gap property test**: for every generated `D` that parses successfully, `verify(D).warnings` filtered to Tier-1 `error` codes must be empty. Counterexamples are renderer bugs. Tier-2 warnings are excluded from this property because a `NODE_OVERLAP` or `ROUTE_SELF_CROSS` can be a legitimate property of a valid diagram, not a bug. Tier-3 is excluded by being opt-in.
 
 ---
 
@@ -300,6 +308,18 @@ Four artifacts, all derived from this doc:
 - **`AGENTS.md`** at repo root, hard-capped under 100 lines. `am --agent-instructions` prints the workflow section below at runtime; a doc-sync test asserts the two are byte-identical.
 
 No HTTP endpoint or editor WebSocket watch in v1. The skill teaches Code Mode for both paths: agents-with-shell write TS against the imported library; agents-without-shell write TS against the MCP's `mermaid.*` SDK. Same surface in both cases.
+
+---
+
+## Agent-contract verbs (CLI)
+
+Three CLI verbs were added in Loop 7 for explicit agent self-discovery and batch operation:
+
+- `am capabilities [--json]` — emit `{ sdkVersion, families: [{ id, hasParse, hasSerialize, hasMutate, hasVerify, hasExtractLabels }], warningCodes: [{ code, tier, severity }], outputFormats: ["svg","ascii"] }`. Sourced directly from the family-plugin registry + `WARNING_SEVERITY` / `WARNING_TIER` tables — so the contract is self-describing, not hand-maintained. A JSON Schema is committed at `src/__tests__/__fixtures__/capabilities.schema.json`; any shape drift fails the test loudly.
+- `am batch --jsonl` — read JSONL from stdin, dispatch per-line to render/verify/parse/serialize handlers, emit one JSON envelope per result. Malformed lines surface `{ ok: false, error: { code: 'INVALID_JSON' } }` and do **not** abort the stream. Pattern intentionally mirrors the `runWithJudge` shape in `eval/llm-judge/judge.ts`.
+- **Exit codes** are widened to 4: `EXIT_OK=0`, `EXIT_ARG_ERROR=2`, `EXIT_VERIFY_FAILED=3`, `EXIT_INTERNAL=4` (in `src/cli/exit-codes.ts`). The CLI was previously `0` or `2` only. `EXIT_VERIFY_FAILED=3` is the new code for "valid args, but the diagram failed verify" — important for agents wrapping `am verify` in batch.
+
+**Counter-example, documented.** manuareraa PR #42 on `lukilabs/beautiful-mermaid` ships an MCP server with 4 render-only tools (`render_svg` / `render_ascii` / `list_themes` / `parse`). We rejected this design: a render-tool-per-format MCP forces the agent to chain calls and loses ValidDiagram context. Our `execute()` + typed `query` + `xref` Code Mode design keeps one round-trip per multi-step edit. PR #42 is preserved here as the documented counter-example so future contributors understand why we chose Code Mode.
 
 ---
 
