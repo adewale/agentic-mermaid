@@ -116,6 +116,59 @@ describe('FamilyPlugin.verify dispatcher', () => {
     }
   })
 
+  test('Loop 8 A1: built-in class plugin registers a verify hook that fires through the dispatcher', () => {
+    // Audit Item A1 — before Loop 8, the class plugin had no `verify` hook so
+    // the dispatcher branch in verify.ts was unreachable for class diagrams
+    // (only the per-body verifyClass branch ran). With the hook now wired,
+    // overriding the plugin with a sentinel warning must surface through
+    // verifyMermaid's result — proving the dispatcher path is non-vestigial.
+    const original = getFamily('class')
+    expect(original).toBeDefined()
+    expect(original!.verify).toBeDefined()  // confirms M4 wired it
+
+    const sentinel = { code: 'UNKNOWN_SHAPE' as const, node: 'A1-sentinel', shape: 'class-plugin-verify' }
+    registerFamily({
+      ...original!,
+      verify: () => [sentinel],
+    })
+
+    try {
+      const src = 'classDiagram\n  class Foo {\n    +bar()\n  }'
+      const p = parseMermaid(src)
+      expect(p.ok).toBe(true)
+      if (!p.ok) return
+      const v = verifyMermaid(p.value)
+      const hit = v.warnings.find(w => w.code === 'UNKNOWN_SHAPE' && (w as { node?: string }).node === 'A1-sentinel')
+      expect(hit).toBeDefined()
+    } finally {
+      registerFamily(original!)
+    }
+  })
+
+  test('Loop 8 A1: built-in ER plugin registers a verify hook that fires through the dispatcher', () => {
+    const original = getFamily('er')
+    expect(original).toBeDefined()
+    expect(original!.verify).toBeDefined()  // confirms M4 wired it
+
+    const sentinel = { code: 'UNKNOWN_SHAPE' as const, node: 'A1-er-sentinel', shape: 'er-plugin-verify' }
+    registerFamily({
+      ...original!,
+      verify: () => [sentinel],
+    })
+
+    try {
+      const src = 'erDiagram\n  CUSTOMER ||--o{ ORDER : places'
+      const p = parseMermaid(src)
+      expect(p.ok).toBe(true)
+      if (!p.ok) return
+      const v = verifyMermaid(p.value)
+      const hit = v.warnings.find(w => w.code === 'UNKNOWN_SHAPE' && (w as { node?: string }).node === 'A1-er-sentinel')
+      expect(hit).toBeDefined()
+    } finally {
+      registerFamily(original!)
+    }
+  })
+
   test('a faulty plugin verify hook does not crash verifyMermaid', () => {
     const original = getFamily('architecture')
     expect(original).toBeDefined()

@@ -9,6 +9,8 @@
 // ============================================================================
 
 import { registerFamily, extractLabelsGeneric, type ExtractedLabel } from './families.ts'
+import { verifyClass } from './class-body.ts'
+import { verifyErBody } from './er-body.ts'
 
 // ---- Flowchart / State ----------------------------------------------------
 // Flowchart-specific label extraction:
@@ -109,7 +111,16 @@ function extractClassLabels(source: string): ExtractedLabel[] {
   return out
 }
 
-registerFamily({ id: 'class', detect: l => l.startsWith('classdiagram'), extractLabels: extractClassLabels })
+registerFamily({
+  id: 'class',
+  detect: l => l.startsWith('classdiagram'),
+  extractLabels: extractClassLabels,
+  // Loop 8 A1: wire the structured class verifier into the plugin so the
+  // dispatcher (Loop 7 M1) actually fires on built-in families. The per-body
+  // verify branch in verify.ts still runs and the dispatcher dedupes warnings
+  // against it — see Loop 9 TODO below.
+  verify: (body, opts) => body.kind === 'class' ? verifyClass(body, opts) : [],
+})
 
 // ---- ER -------------------------------------------------------------------
 // CUSTOMER ||--o{ ORDER : places, attributes inside braces.
@@ -131,7 +142,20 @@ function extractErLabels(source: string): ExtractedLabel[] {
   return out
 }
 
-registerFamily({ id: 'er', detect: l => l.startsWith('erdiagram'), extractLabels: extractErLabels })
+registerFamily({
+  id: 'er',
+  detect: l => l.startsWith('erdiagram'),
+  extractLabels: extractErLabels,
+  // Loop 8 A1: same as class above — wire the structured ER verifier.
+  verify: (body, opts) => body.kind === 'er' ? verifyErBody(body, opts) : [],
+})
+
+// TODO (Loop 9): the per-body class/er branches in verify.ts now duplicate
+// what the plugin hooks return. The Loop 7 review fix added dedupedConcat /
+// mergeFinalize so the duplication is observationally invisible but does
+// redundant compute. Deleting the branches requires moving the
+// emptyRenderedLayout(d.kind) handling to a fall-through that's safe across
+// all body kinds — out of scope for Loop 8.
 
 // ---- Journey --------------------------------------------------------------
 // title T, section S, task: 3: Me
