@@ -1,102 +1,122 @@
-# Lessons Learned
+# Lessons Learned — Loops 1 through 7
 
-This file captures recurring lessons from the fork history (`origin/main` plus the focused `origin/pr/79-mermaid-config` and `origin/pr/86-timeline` branches) relative to `upstream/main`. It is not a changelog; it records patterns to preserve in future work.
+This document replaces the Loop 1 retrospective. It is the cumulative
+narrative across seven loops of work on the agentic-mermaid fork. Each
+section reflects what a critic or implementer wished they had known when
+they started.
 
-## 1. Fork and upstream hygiene
+## (a) What we wish we'd known
 
-- Keep upstream PRs small, single-purpose, and based on `lukilabs/main`, not fork `main`.
-- Do not upstream a broad fork branch as one PR. Extract the smallest coherent feature/fix with its own tests and docs.
-- Keep fork/demo/editor/deploy/product work separate from core library changes unless upstream explicitly wants it.
-- A fork audit should produce a backlog, not a grab bag. Port ideas, not branding, old layouts, committed build artifacts, or unrelated product scaffolding.
-- Branches that look similar can still have different risk profiles. Clean upstream branches (`pr/79-mermaid-config`, `pr/86-timeline`) are easier to review than equivalent changes buried in fork `main`.
-- When two upstream PRs touch common routing/doc files (`README.md`, `src/index.ts`, `src/ascii/index.ts`), expect light conflict resolution after the first merge.
+When we started this fork we built a class diagram parser, then an ER
+parser, then a class-body mutation surface, then an ER-body mutation
+surface. Loop 6 finally did the ecosystem survey we should have done in
+Loop 1 and discovered that `mermaid-ast` already existed — a community
+package that parses a much larger surface than ours and would have made
+the structured-uplift path much shorter. The same survey turned up
+`nereid`, `mermaid-skill`, `mermaid-fixer`, and a half-dozen smaller
+projects. None of them is a strict superset of what we built; several
+overlap. The right move at Loop 1 would have been: survey first, then
+build.
 
-## 2. Mermaid source/config parity
+We also wish we'd known the determinism property of ELK was a property of
+its configuration, not its API. We invested in a `withSeededRandom` /
+`LayoutContext.rng` wrapper that did nothing — seed 1 and seed 999999
+produced byte-identical output because ELK never read `Math.random` on
+our path. That apparatus shipped in v3 and was deleted in v4 once we
+realized. A short empirical probe in Loop 1 would have saved a Loop 3.
 
-- Preprocess Mermaid wrappers before diagram detection. Frontmatter, `%%` comments, and `%%{init}` / `%%{initialize}` directives must be stripped/merged before reading the header line.
-- Use a real YAML parser for Mermaid frontmatter. Regex/hand parsing breaks on anchors, nested maps, lists, block scalars, and quoted values.
-- Config merging needs explicit precedence tests: base config < YAML frontmatter < init directives < direct render options where applicable.
-- Diagram families should route through the same source normalization pipeline; one-off parser entrypoints drift quickly.
-- Runtime config support is a contract for both SVG and ASCII renderers where possible, not just the main visual path.
-- Mermaid compatibility includes syntax cleanup details: quoted labels, `<br>` normalization, semicolon-separated statements, CRLF input, accessibility directives, and comments.
+## (b) Our differentiators vs the ecosystem
 
-## 3. Adding new diagram families
+After the survey, the position we hold that no other package holds is
+the *combination* of:
 
-- Add parser, layout, renderer, types, tests, docs, and samples together. Partial support is hard to reason about.
-- SVG support and ASCII support can be split, but unsupported behavior must be explicit and tested.
-- Each diagram family needs representative integration tests plus focused parser/layout/renderer tests.
-- Accessibility metadata (`accTitle`, `accDescr`) belongs on the root SVG, not accidentally rendered as diagram content.
-- Preserve Mermaid docs examples as regression fixtures where possible; they expose syntax and layout assumptions better than artificial micro-examples.
-- Use semantic classes and `data-*` attributes consistently so browser/editor/E2E tests can assert behavior without brittle visual matching.
+- **Structured-or-opaque rule.** Every diagram family either has a full
+  structured body (six families: flowchart, state, sequence, timeline,
+  class, ER) or stays opaque with byte-fidelity round-trip (journey,
+  xychart, architecture). We never silently drop a construct.
+- **Tiered verification.** Tier 1 (structural — reliable, universal),
+  Tier 2 (geometric — flowchart-shaped), and as of Loop 7 a Tier 3 plugin
+  hook via `FamilyPlugin.verify`. Tier 1 is gated; Tier 2 is advisory.
+- **Determinism, cross-process and cross-runtime.** Three separate bun
+  processes produce byte-identical layout JSON; bun and node produce
+  byte-identical layout JSON on the same source. Both tests run on every
+  PR.
+- **Corpus gates.** The 247-sample mermaid-js docs corpus and the
+  132-case MermaidSeqBench both run as PR gates; regressions break the
+  build with a named diff.
+- **Agent-contract verbs.** `am capabilities --json` (Loop 7) lets an
+  agent introspect what the SDK can do without trial-and-error; `am batch
+  --jsonl` (Loop 7) bulk-runs ops without the per-call subprocess overhead.
+- **Code Mode MCP.** One `execute` tool, typed `mermaid.*` SDK in scope,
+  sandboxed via `node:vm`. The agent writes the algorithm; we don't grow
+  the verb set.
 
-## 4. Layout and rendering must evolve together
+Mermaid-ast ships structured parsing for more families than we do; it
+does not ship verify, mutate, capabilities, batch, or Code Mode. Nereid
+ships a renderer; it doesn't ship parse-and-mutate. The
+structured-or-opaque rule + cross-runtime determinism + agent verbs is
+the differentiator stack.
 
-- Never add a visual knob only in the renderer if it affects size. Typography, padding, corner radius, label widths, and stroke widths often require layout changes too.
-- Snapshot churn is a signal. If a golden SVG changes, verify whether layout, bounds, or config behavior intentionally changed before updating the fixture.
-- Edge labels need layout-owned positions when routes can bend or multiple relationships coexist; midpoint guesses regress quickly.
-- Bounds tests matter for non-flowchart diagrams. Services, groups, notes, timeline events, journey cards, and chart points must stay inside the canvas under generated inputs.
-- Renderer output should avoid `NaN`, `undefined`, invalid colors, and invalid XML for arbitrary but syntactically plausible input.
-- Default output semantics are a compatibility promise. Invalid or omitted options should fall back to existing defaults.
+## (c) What structured-or-opaque taught us
 
-## 5. Semantic styling API
+The rule "never silently drop a construct" has been load-bearing in ways
+we didn't anticipate. When a sequence diagram has `alt`/`loop`/`opt`
+blocks that the structured sequence body doesn't model, we fall back to
+opaque. The agent can still verify, render, and round-trip — it just
+can't call structured mutation ops on that diagram. The type system
+rejects the call statically. The user experience is "you can edit
+canonicalSource as a string," not "your diagram broke."
 
-- Prefer semantic roles over flat render aliases. `style.text`, `style.node`, `style.edge`, and `style.group` explain intent; flat options like `lineWidth` or `fontSize` are ambiguous across nodes, edges, groups, axes, and cards.
-- A diagram family should only claim role support when layout sizing and emitted SVG attributes both consume the role.
-- Keep generic roles generic. Specialized controls such as architecture icon size or xychart axis config should remain diagram-specific Mermaid config, not forced into `style`.
-- Retiring flat aliases requires both type cleanup and runtime regression coverage proving removed aliases are ignored.
-- `style.text` should be a fallback, not a replacement for role-specific typography.
-- Role mappings can differ by family while preserving the same public API: participants/entities/services/tasks are node-like; messages/relationships/connectors are edge-like; sections/subgraphs/blocks are group-like.
+The opposite rule (parse what you can, throw away the rest) would have
+been simpler to implement and would have been catastrophic in practice.
+A repo with N sequence diagrams, of which 30% use `alt` blocks, would
+have silently lost those blocks on every round-trip. We learned in Loop
+2 that byte-fidelity round-trip is not a "nice to have" — it is the
+contract that makes structured editing safe for agents.
 
-## 6. Theme and color handling
+A second learning: a narrower IR enables more confident mutation. We
+intentionally kept `FlowchartGraph` and `StateGraph` small. The mutation
+surface (`add_node`, `remove_node`, `add_edge`, etc.) is short because
+the IR is short. When the IR is short, every op has a clear preimage and
+postcondition, and `verify` can check both. Wide IRs grow ops that
+nobody can reason about end-to-end.
 
-- CSS variables are excellent for live theming, but export/render pipelines like `resvg` may need resolved concrete colors.
-- Theme switching must clear diagram-family CSS variables. Otherwise stale architecture/timeline/chart variables leak between renders.
-- Derived CSS variables can require re-rendering SVGs on theme switch; changing root variables alone may not recompute all derived color state as intended.
-- Test accent/line/border/surface propagation across every diagram family, not just flowcharts.
-- Contrast fixes are product quality fixes. Salmon, Tufte, and dark variants showed that palettes need line/border/readability checks, not just pleasant backgrounds.
-- Avoid first-paint theme flash by restoring persisted theme before paint and delaying transitions until after restore.
+## (d) Cost / value of the corpus + LLM-judge
 
-## 7. ASCII renderer lessons
+The 247-sample mermaid-js corpus has paid for itself twice. In Loop 5 a
+state-diagram round-trip regression slipped past the unit tests because
+our hand-written fixtures didn't cover the exact `note left of` /
+`note right of` pattern; the corpus caught it within seconds. In Loop 7
+the corpus catches every layout / serialize change that affects more
+than a single fixture.
 
-- ASCII/Unicode output is a first-class renderer, not a fallback screenshot. It needs dedicated tests for routing, labels, edge styles, CJK widths, and multiline content.
-- CJK/Korean/full-width characters need explicit width logic; JavaScript string length is not display width.
-- Diagonal characters are a regression smell for this renderer. Property tests should assert orthogonal ASCII/Unicode routing remains diagonal-free.
-- Mermaid edge marker parity (`--o`, `--x`, bidirectional arrows, thick/dotted styles) must be tested in both SVG and ASCII where supported.
-- Multiline normalization must be shared where possible so SVG and ASCII do not interpret labels differently.
+The LLM-judge harness (also Loop 5) ships but is intentionally
+periodic-not-per-PR. Running it on every PR would dominate the wallclock
+budget and produce a grade that is statistically noisy across runs. Once
+a week is enough to detect drift; an explicit `bun run eval:llm-judge`
+target lets a maintainer trigger it on demand. Net: cheap, high-signal,
+not always-on.
 
-## 8. Browser/editor/demo lessons
+## (e) Process changes for Loop 8 and later
 
-- Browser E2E tests should cover every fork-added diagram family, not only flowcharts. The editor bundle is the integration point users actually hit.
-- Keep E2E tests out of the default unit-test CI command unless the environment is prepared for browser dependencies.
-- UI polish fixes can be regressions: Contents buttons, theme pills, flash-on-load, and button alignment all need explicit browser checks when they affect navigation or first paint.
-- Exploratory mocks/screenshots are useful during theme work, but avoid treating them as upstream library deliverables.
-- GitHub Pages deploys need the exact assets users navigate to (`/editor`, `/editor.html`, and showcase pages), not just the root demo.
-- Cloudflare/custom deploys require the correct account/project token; local tooling success is not enough if the project belongs to another account.
-
-## 9. Testing strategy
-
-- Property-based tests found classes of bugs example tests missed: config merging, crash freedom, SVG well-formedness, layout bounds, color algebra, and HTML generation.
-- Audit tests for quality, not just quantity. Remove weak assertions, skipped tests, mock-reality drift, and tests that do not fail for the intended regression.
-- Test defaults and invalid inputs. A robust option resolver proves both the styled path and the no-op/invalid path.
-- Use focused reruns to distinguish real failures from one-off timeouts, especially in property-heavy suites.
-- CI should run the right scope for the environment. Unit suites and E2E suites may need separate commands/dependencies.
-- Public API/package export tests catch runtime compatibility bugs that TypeScript alone misses.
-
-## 10. TypeScript/package hygiene
-
-- Strict TypeScript findings can expose real API drift. A non-null assertion may be appropriate after a test proves the key exists, but do not paper over uncertain data paths.
-- Package export fallbacks matter for runtimes with different conditional export resolution.
-- Avoid committing generated `dist/` unless the project explicitly requires it for release; build output should be reproducible.
-- Keep renderer signatures consistent as new options pass through. `src/index.ts` should be the obvious routing layer, not a place where families silently drop options.
-
-## 11. Documentation and reviewability
-
-- Add diagram-type implementation guidance once the second or third family repeats the same pattern. A guide prevents rediscovering parser/layout/renderer/test requirements.
-- Docs should include runtime config support, Mermaid parity caveats, and examples that reviewers can paste directly.
-- A backlog should separate high-confidence ports from larger feature ports and deliberate non-goals.
-- Good PR descriptions should explain What / Why / How / Testing / Risk and avoid bundling unrelated fork artifacts.
-
-## 12. Current release/process gap
-
-- This repository currently has no project `CHANGELOG.md`. Only dependency changelogs exist under `node_modules`.
-- Until a changelog exists, commit history plus `TODO.md`/`LESSONS_LEARNED.md` are carrying release/process memory. If this fork starts shipping tagged releases, add a real changelog.
+- **Survey first, build second.** Before adding a new family parser or
+  serializer, search the npm registry and GitHub for prior art. Spend
+  half a day before spending two weeks.
+- **Commit per milestone.** Loop 6 stalled silently because the
+  implementer agent batched everything and ran out of budget without
+  pushing. Loop 7 made each milestone its own commit + push and the
+  result is visible progress that the next implementer can verify.
+- **Use the Workflow tool for end-to-end cycles.** When the plan calls
+  for "do X, run tests, commit, push, do Y, run tests, commit, push,"
+  the autopilot / workflow harness handles the bookkeeping correctly.
+  Manually orchestrating commits inside one agent thread is what stalled
+  Loop 6.
+- **Document scope cuts honestly.** Loop 7 cut the Loop 6 mermaid-ast
+  structured uplift, the SVG `--compact` mode, the CSS-variable font
+  override, the TTY guard, and `renderAsciiWithMeta()`. Those cuts live
+  in the PR description so the next loop doesn't have to rediscover
+  what's missing.
+- **Probe before fixing.** Loop 7's pathfinder-determinism fix was
+  *not* a fix — a 10-run probe showed the code was already deterministic.
+  The "fix" became a regression guard. Cheaper to probe than to ship a
+  speculative change.
