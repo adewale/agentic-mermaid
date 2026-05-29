@@ -50,7 +50,7 @@ Tier 3 (lint, advisory, opt-in): produced by \`FamilyPlugin.verify\` hooks. Defa
 
 \`am capabilities --json\` — JSON envelope listing families, mutation ops, warning codes, output formats (\`svg\`, \`ascii\`, \`png\`). Schema-stable; use it to self-discover.
 \`am batch --jsonl\` — JSONL stdin → JSONL stdout. Malformed lines surface error but don't abort the stream.
-\`am render --format svg|ascii|unicode|png|json [--output file] [--security strict]\` — PNG via resvg+DejaVu (deterministic x86_64); JSON emits layout shape; --security strict = no external-fetch refs (untrusted/agent diagrams); --output required for PNG.
+\`am render <file…> --format svg|ascii|unicode|png|json [--output f] [--security strict] [--watch]\` — PNG via resvg+DejaVu (deterministic x86_64); JSON = layout shape; --security strict = no external-fetch refs; --output required for PNG; multiple files → results array; --watch re-renders on change.
 \`am describe <file> [--format text|json]\` — prose summary or structured AX tree (\`{nodes,edges,entryPoints,sinks}\`, #7349). Library: \`describeMermaid(d, {format})\`.
 \`am llms-txt\` — agent-discovery digest (llms.txt convention).
 \`am render-markdown <file.md> [--ascii]\` — render each \`\`\`mermaid fenced block; skips invalid diagrams, never aborts the file. JSON: \`{blocks:[{index,ok,output|error}]}\`.

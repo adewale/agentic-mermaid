@@ -741,3 +741,41 @@ exit 0. 6 tests.
 - #1018 single-binary (would close the cold-start gap the benchmark exposed)
 - #7785 collapsible subgraphs; #7695 formal Trusted Types browser test
 - mermaid-ast journey/xychart (dep chain broken); ARM64 PNG parity (hardware)
+
+## Loop 13 — distribution + conveniences + agent-usage testing + hygiene
+
+Direct execution per milestone. Verify by observation.
+
+- **M1 TODO.md** — prepended a Project Backlog: blocking owner-decisions
+  (rename+publish, merge PR #11, get a real consumer), build backlog,
+  blocked items. The three non-code blockers are now first-class.
+- **M2 LESSONS_LEARNED** — the meta-lesson: 13 loops in one unmerged PR
+  with only self-generated quality signal; should have sought merge +
+  real consumer around Loop 5-6. Closed build→self-review loop has a
+  ceiling.
+- **M3 single-binary (#1018)** — `bun build --compile` → dist/am (112MB,
+  gitignored), full surface incl. PNG (resvg native addon embeds).
+  MEASURED cold-start: binary ~440ms vs bun-run ~570-870ms — halves it,
+  does NOT reach termaid's ~102ms (Bun runtime init is the floor).
+  Reported honestly in RESULTS.md. 5 e2e tests.
+- **M4 multi-input (#959)** — `am render <a> <b> <c>` → results array,
+  skips bad files. Single-input unchanged.
+- **M5 --watch (#930)** — fs.watch re-render; pure renderFileOnce core is
+  unit-tested; live-watch timing smoke-only (documented).
+- **M6 agent-usage harness** — 3 layers: scripted scenarios + anti-pattern
+  linter (CI) + real-LLM eval (design). The honest answer to "how do we
+  test how agents use it"; even L1 uses a scripted not real agent — L3
+  (real model + AGENTS.md + tasks) is the true validation, needs a live
+  model + ideally a real consumer's tasks.
+- **M7 FEATURES.md** — full capability inventory by area.
+
+### Numbers
+- Tests: 1672 → 1686 (+14 src) + 5 e2e binary tests
+- tsc + build + lint green; corpus + determinism floors hold
+- 8 commits
+
+### Loop 14+ — the recommendation is NOT more features
+Per TODO.md + LESSONS_LEARNED: merge/park PR #11, make the rename+publish
+decision, get one real external consumer. Remaining build items
+(collapsible subgraphs #7785, Trusted Types #7695) and blocked items
+(mermaid-ast deps, ARM PNG) are documented but secondary to leaving the lab.

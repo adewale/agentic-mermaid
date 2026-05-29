@@ -106,10 +106,20 @@ can lift the design directly.
 - **[shipped, Loop 7] batch (#959 partial).** `am batch --jsonl`.
 - **[shipped, Loop 12] markdown skip-bad-diagrams (#543).**
   `am render-markdown` renders fenced blocks, continues past invalid ones.
-- **[Loop 13] single-binary (#1018), --watch (#930), glob (#959),
-  `.well-known/skills` (no settled standard).** The Loop 12 benchmark
-  showed single-binary (#1018) is the highest-value of these — it would
-  close our cold-start gap vs termaid/Go.
+- **[shipped, Loop 13] single-binary (#1018).** `bun run build:binary` →
+  standalone `dist/am`, full surface incl. PNG. Cold-start ~440ms
+  (halves bun-run; doesn't beat termaid/Go — Bun init is the floor).
+- **[shipped, Loop 13] multi-input (#959) + --watch (#930).**
+- **[Loop 14] `.well-known/skills`** — no settled standard.
+- **[shipped, Loop 13] agent-usage validation harness.** Scenarios +
+  anti-pattern linter (CI) + real-LLM eval design. See eval/agent-usage/.
+
+## The non-code blockers (TODO.md) — now the priority
+
+- [ ] **Rename + publish decision** (still `beautiful-mermaid@1.1.3`).
+- [ ] **Merge or park PR #11** (13 loops unmerged).
+- [ ] **Get a real external consumer** — all quality signal is currently
+  self-generated. This, not more features, is the next real step.
 
 ## Benchmarks
 

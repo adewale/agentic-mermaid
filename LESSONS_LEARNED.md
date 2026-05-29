@@ -244,3 +244,43 @@ Also Loop 12: a fixed bug (M4 rgb-comma-split) had been deferred twice
 real bugs accumulate interest when deferred; a "found it, here's the one
 -liner repro" item should usually be fixed in the loop it's found, not
 filed.
+
+## Loop 13 lesson — the closed loop is the real risk now
+
+The single most important realization of this whole arc: **13 loops of
+work sit in one unmerged PR (#11), and every quality signal is
+self-generated.** Our tests, our 247-corpus, our MermaidSeqBench wiring,
+our benchmark, our LLM-judge, our agent-usage harness — all authored by
+the same effort that authored the code. That's not worthless (it caught
+real bugs: the state round-trip regression, the marker-id collision, the
+A* OOM, the rgb-comma split), but it has a ceiling. A closed build→
+self-review→build loop produces breadth and internal consistency and
+*cannot* produce the one thing that matters most: evidence that a real
+external consumer is served.
+
+We should have sought a merge + a real consumer around Loop 5-6, not
+Loop 13. The pattern to avoid in future efforts: treating "more features,
+all green" as progress when the artifact has never left the lab. Shipping
+surface is not the same as shipping value.
+
+What Loop 13 itself added that points the right way:
+- **The agent-usage harness (M6)** is the closest we've come to measuring
+  the thing that matters — but even it has a scripted agent, not a real
+  one. The real validation (Layer 3) needs a live model and, ideally,
+  real tasks from a real consumer.
+- **The benchmark + single-binary (M3)** were both honesty wins: the
+  binary halves cold-start but doesn't beat termaid/Go, and we said so.
+- **The TODO.md backlog (M1)** finally names the three non-code blockers
+  (rename, merge, consumer) as first-class items instead of leaving them
+  implicit.
+
+The recommendation that's now written into TODO.md: stop adding features;
+merge, name, publish, and get one real consumer. The next loop that adds
+a feature instead of pursuing those is probably the wrong loop.
+
+Smaller Loop 13 notes:
+- bun-compiled binaries embed the runtime (112MB) and the resvg native
+  addon embeds cleanly — PNG works from the single binary. Good surprise.
+- Extracting `renderFileOnce` made --watch testable without fighting
+  fs.watch timing — same "pure core + thin imperative shell" move that
+  made the post-pass features (namespaceSvgIds etc.) testable.
