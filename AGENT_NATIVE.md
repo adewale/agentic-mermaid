@@ -421,6 +421,10 @@ Concrete consequences, in roughly descending impact:
 
 The biggest single consequence is #1: it gives us permission to never grow the spec for composition, queries, diffing, explaining, or any "we should probably have a verb for that" feature. **The verb set is intentionally small; Code Mode makes it sufficient.**
 
+### Counter-example: why we did not ship a `render-tool-per-format` MCP
+
+Upstream [manuareraa PR #42](https://github.com/lukilabs/beautiful-mermaid/pull/42) takes the opposite design: an MCP server with one tool per output format (`render_svg`, `render_ascii`, `render_png`, etc.), each pinned to a specific renderer call. We considered cloning that surface and decided against it for two reasons. First, the verb explosion is unbounded — every new output format means a new tool, every option flag means a new tool variant, and every cross-cutting workflow (parse → verify → render → write back) requires the agent to glue tools together via the host's tool-call protocol, multiplying round-trips. Second, the per-tool typing pushes structure into the tool schema where the agent can only see what the schema declares; it can't introspect `ValidDiagram`, can't compose `mutate` with `verify`, and can't write the algorithm that uses the answer. Code Mode inverts both: one `execute` tool with a typed `mermaid.*` SDK declaration in scope, where `query` (read-only inspection) and `xref` (cross-diagram lookups) are TypeScript methods rather than additional MCP tools. The agent writes the algorithm against types it can actually see. Anything PR #42's surface could do — render-to-format with options — is one line of TS inside `execute`; anything our surface can do that PR #42's can't includes every multi-step workflow that touches more than one verb. The asymmetry justifies the cut.
+
 ---
 
 ## Why totality matters
