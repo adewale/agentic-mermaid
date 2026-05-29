@@ -140,6 +140,7 @@ export function runCli(argv: string[]): number {
       case 'mutate': return cmdMutate(args, json)
       case 'format': return cmdFormat(args)
       case 'capabilities': return cmdCapabilities()
+      case 'llms-txt': return cmdLlmsTxt()
       case 'batch': return cmdBatch()
       default:
         process.stderr.write(`Unknown command: ${args.command}\n${GLOBAL_USAGE}`)
@@ -340,6 +341,96 @@ export function buildCapabilities(): CapabilitiesEnvelope {
 
 function cmdCapabilities(): number {
   process.stdout.write(JSON.stringify(buildCapabilities()) + '\n')
+  return EXIT_OK
+}
+
+// ---- Loop 11 / M4 (#6430): llms.txt agent-discovery digest ----------------
+
+/**
+ * Build an llms.txt digest (https://llmstxt.org) for agent discovery.
+ * Derived from buildCapabilities() so the family list, warning codes, and
+ * output formats stay in sync with the actual SDK surface.
+ */
+export function buildLlmsTxt(): string {
+  const cap = buildCapabilities()
+  const families = cap.families.map(f => f.id).join(', ')
+  const structured = cap.families.filter(f => f.hasMutate || f.hasParse).map(f => f.id)
+  const formats = cap.outputFormats.join(', ')
+  const codes = cap.warningCodes.map(w => `${w.code} (${w.tier}/${w.severity})`).join(', ')
+  return `# agentic-mermaid
+
+> Agent-native Mermaid runtime: parse, verify, mutate, and round-trip
+> Mermaid diagrams with a typed IR. Deterministic SVG / ASCII / PNG. No
+> browser required. CLI + MCP + library.
+
+Version: ${cap.sdkVersion}
+
+## What it does
+
+A typed editing surface over Mermaid for AI agents. Parse a diagram to a
+ValidDiagram, mutate it with typed ops, verify structurally (no pixels),
+serialize back to canonical source. Layout is deterministic (verified
+cross-process and cross-runtime on x86_64).
+
+## The agent loop
+
+parse → (narrow per family) → mutate → verify → serialize. Run verify at
+every commit point. Never serialize a diagram whose verify result you
+haven't inspected.
+
+## CLI verbs (\`am <verb>\`)
+
+- render --format ${formats}|unicode [--security strict] [--output file] — render a diagram
+- parse — diagram → ValidDiagram JSON
+- verify — structural validation (exit 3 if invalid)
+- mutate --op '<json>' — apply a typed mutation
+- format — normalize / canonicalize source
+- describe [--format text|json] — natural-language or AX-tree summary
+- capabilities --json — machine-readable capability envelope
+- batch --jsonl — bulk ops, one JSON envelope per line
+- llms-txt — this document
+
+Exit codes: 0 ok, 2 arg error, 3 verify-failed, 4 internal.
+
+## MCP tools
+
+Code Mode \`execute(code)\` (typed mermaid.* SDK in a node:vm sandbox) plus
+typed tools: query, xref, render_png, describe. render_png is offline.
+
+## Output formats
+
+${formats}. SVG strict mode (security: 'strict') emits zero external-fetch
+references — safe for untrusted/agent-generated diagrams. See SECURITY.md.
+
+## Diagram families
+
+All families parse, verify, render, round-trip: ${families}.
+Structured mutation: ${structured.join(', ')}. Others round-trip losslessly
+via an opaque body (never silently dropped).
+
+## Warning codes
+
+${codes}
+
+## Library
+
+\`import { parseMermaid, mutate, verifyMermaid, serializeMermaid,
+renderMermaidSVG, renderMermaidPNG, renderMermaidASCII,
+renderMermaidASCIIWithMeta, describeMermaid, asciiToMermaid,
+verifyNoExternalRefs } from 'beautiful-mermaid/agent'\`
+
+## Docs
+
+- AGENTS.md — canonical agent-use guide
+- AGENT_NATIVE.md — the spec
+- QUALITY.md — determinism + "good looking" rubric
+- SECURITY.md — threat model + strict-mode guarantee
+- ROADMAP.md — three-pillar status
+`
+}
+
+function cmdLlmsTxt(): number {
+  process.stdout.write(buildLlmsTxt())
   return EXIT_OK
 }
 
