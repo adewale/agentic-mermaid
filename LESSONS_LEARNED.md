@@ -189,3 +189,26 @@ The flip side worked well: committing per milestone with honest commit
 messages ("already implemented; added coverage") kept the record
 truthful. The PR history shows exactly which items were built vs
 already-present vs documented-cut — no inflation.
+
+## Loop 11 lesson — observation-first verification worked
+
+Loop 10's failure was grep-based verification (3 of 5 "gaps" were already
+built). Loop 11 applied the corrected method: before scoping the work, I
+RAN the code and inspected output — rendered two diagrams and diffed their
+ids (#7540 confirmed real), rendered with accTitle and checked for <title>
+(#7254 confirmed absent), scanned output for external-fetch vectors (#7645
+confirmed @import-only). All 5 targeted items were genuine. Zero false
+negatives, zero rebuilt-what-existed waste.
+
+The cost of observation-first is ~5 minutes of running snippets up front;
+the cost of getting it wrong (Loop 10) was rebuilding-risk + a misleading
+scorecard. Observation-first is now the default for any "are we missing X?"
+question.
+
+A second Loop 11 note: the localized-post-pass pattern (namespaceSvgIds,
+injectAccessibility) keeps paying off. Both #7540 and #7254 could have been
+threaded through the 8 family renderers; instead a single post-render
+string rewrite in the resolve() funnel handled every family at once, with
+no blast radius into renderer signatures. When a feature is expressible as
+"rewrite the finished SVG," prefer that over threading state through the
+render tree — it's testable in isolation and family-agnostic by default.

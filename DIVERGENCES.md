@@ -631,3 +631,54 @@ same mistake on a "build it" call would have meant rebuilding what exists.
 - All pass; tsc + build + lint green
 - 247-corpus + MermaidSeqBench 132/132 floors hold; determinism snapshots unchanged
 - 5 milestone commits (M1-M5)
+
+## Loop 11 — agent-runtime hardening (security + AX + batch + discovery)
+
+Crawl requirements (mermaid-cli + Mermaid PR signals). Verification done by
+OBSERVATION first (render + inspect), per the Loop 10 lesson — and this time
+the verification was accurate: all 5 targeted items were genuine gaps/bugs,
+no false negatives.
+
+### M1 (#7540/#6621) — unique SVG ids: REAL BUG FIXED
+Two diagrams on one HTML page collided on shared <defs> ids (arrowhead,
+bm-shadow, color-suffixed markers). New RenderOptions.idPrefix (default ''
+= unchanged) + namespaceSvgIds post-pass rewrites def ids + url(#…) refs.
+am batch auto-assigns d{lineIndex}-. Determinism + 247-corpus snapshots
+unchanged (default off). 7 tests.
+
+### M2 (#7254/#7255 + #7349) — SVG AX + AX tree: BUILT
+- accTitle→<title>, accDescr→<desc>, role="img"+aria-labelledby, injected
+  via localized post-pass (legacy SVG path doesn't carry acc through the
+  parser; no threading through 8 family renderers). idPrefix-aware,
+  XML-escaped, back-compat (no acc → no title).
+- describeMermaid(d,{format:'json'}) + describeMermaidTree(d) → structured
+  { kind, nodes, edges, entryPoints, sinks } AX tree. 15 tests.
+
+### M3 (#7645/#7695) — strict security mode: BUILT
+External-fetch surface audit: the ONLY real vector is the Google Fonts
+@import (remaining http:// is the xmlns declaration, not a fetch).
+RenderOptions.security:'strict' forces embedFontImport off → zero external
+refs. verifyNoExternalRefs(svg) scanner (excludes xmlns) as CI gate +
+agent self-check. CLI --security strict. MCP already strict-by-construction
+(render_png offline; SVG via execute). SECURITY.md documents the threat
+model + guarantee. 8 tests.
+
+### M4 (#6430) — llms.txt: BUILT
+am llms-txt + buildLlmsTxt() derived from capabilities; committed snapshot
++ doc-sync test. 6 tests.
+
+### Deferred (Loop 12 candidates)
+- #7785 collapsible subgraphs (large layout work)
+- #1018 single-binary distribution (needs publish access + bundling)
+- #543 markdown fenced-block conversion with skip-bad-diagrams
+- #930 --watch, #959 glob input (CLI conveniences)
+- termaid / mmd-cli / mmdc benchmark harness (separate eval)
+- #7695 formal Trusted Types browser verification (static markup is
+  CSP-compatible but unverified against a live TT policy)
+- rgb()/comma values in `style` statements (Loop 10 parser bug, still open)
+
+### Numbers
+- Tests: 1621 → 1652 (+31 across 4 new test files)
+- tsc + build + lint green; 247-corpus + MermaidSeqBench 132/132 floors hold
+- All determinism (SVG/PNG/ASCII, in-process + cross-runtime) byte-identical
+- 5 commits (M1-M4 + docs)

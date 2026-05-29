@@ -50,11 +50,12 @@ Tier 3 (lint, advisory, opt-in): produced by \`FamilyPlugin.verify\` hooks. Defa
 
 \`am capabilities --json\` — JSON envelope listing families, mutation ops, warning codes, output formats (\`svg\`, \`ascii\`, \`png\`). Schema-stable; use it to self-discover.
 \`am batch --jsonl\` — JSONL stdin → JSONL stdout. Malformed lines surface error but don't abort the stream.
-\`am render --format svg|ascii|unicode|png|json [--output file]\` — PNG via resvg + DejaVu (deterministic on x86_64); JSON emits layout shape; unicode == default ASCII; --output required for PNG.
-\`am describe <file>\` — natural-language summary per family (entry/sink nodes for flowcharts; participants/messages for sequences; etc.). Library: \`describeMermaid(d): string\`.
+\`am render --format svg|ascii|unicode|png|json [--output file] [--security strict]\` — PNG via resvg+DejaVu (deterministic x86_64); JSON emits layout shape; --security strict = no external-fetch refs (untrusted/agent diagrams); --output required for PNG.
+\`am describe <file> [--format text|json]\` — prose summary or structured AX tree (\`{nodes,edges,entryPoints,sinks}\`, #7349). Library: \`describeMermaid(d, {format})\`.
+\`am llms-txt\` — agent-discovery digest (llms.txt convention).
 Exit codes: \`0\` ok, \`2\` arg error, \`3\` verify-failed, \`4\` internal.
 
-Library extras: \`renderMermaidASCIIWithMeta(src)\` → \`{ ascii, regions }\` for TUI click-mapping; \`asciiToMermaid(ascii)\` reverses a flowchart ASCII render back to Mermaid (best-effort, lossy — synthesized ids, structural round-trip).
+Library extras: \`renderMermaidASCIIWithMeta(src)\` → \`{ascii,regions}\` for TUI click-mapping; \`asciiToMermaid(ascii)\` reverses flowchart ASCII (best-effort, lossy); \`verifyNoExternalRefs(svg)\` asserts no external fetch; \`renderMermaidSVG(src,{idPrefix})\` namespaces def ids for multi-diagram pages. See SECURITY.md.
 
 ## Anti-patterns
 

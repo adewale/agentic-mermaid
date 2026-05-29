@@ -81,9 +81,32 @@ can lift the design directly.
 - **[shipped, pre-Loop-10, tested Loop 10] auto-contrast on custom fills
   (#116).** `contrastTextColor` picks black/white label text by fill
   luminance. Loop 10 added the regression coverage.
-- **[Loop 11] rgb()/comma values in `style` statements** — real parser
+- **[shipped, Loop 11] SVG title/desc + ARIA (#7254/#7255).** accTitle→
+  `<title>`, accDescr→`<desc>`, `role="img"`+`aria-labelledby` on root.
+- **[shipped, Loop 11] AX tree (#7349).** `describeMermaid(d,{format:'json'})`
+  returns a structured node/edge list with entry points + sinks.
+- **[Loop 12] rgb()/comma values in `style` statements** — real parser
   bug found in Loop 10 M2: `style A fill:rgb(10,10,10)` is comma-split.
   Hex fills are the supported path until fixed.
+
+## Security (treat security as product)
+
+- **[shipped, Loop 11] strict mode (#7645).** `security:'strict'` /
+  `am render --security strict` emits zero external-fetch references
+  (no Google Fonts `@import`). `verifyNoExternalRefs(svg)` asserts it.
+  MCP `render_png` is offline by construction. See SECURITY.md.
+- **[shipped, Loop 11] no click/href/image injection.** Always-on.
+- **[Loop 12] formal Trusted Types verification (#7695).** Output is
+  static markup (CSP-compatible) but unverified against a live TT policy.
+
+## Distribution / discovery
+
+- **[shipped, Loop 11] llms.txt (#6430).** `am llms-txt` + committed
+  snapshot, derived from capabilities.
+- **[shipped, Loop 7] batch (#959 partial).** `am batch --jsonl`.
+- **[Loop 12] single-binary (#1018), --watch (#930), glob (#959),
+  markdown skip-bad-diagrams (#543), `.well-known/skills` (no settled
+  standard).**
 
 ## What is not on the roadmap
 
