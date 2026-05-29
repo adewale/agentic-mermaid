@@ -11,6 +11,10 @@ import { parseMermaid as parseFlowchartLegacy } from '../parser.ts'
 import { normalizeMermaidSource } from '../mermaid-source.ts'
 import { parseClassBody } from './class-body.ts'
 import { parseErBody } from './er-body.ts'
+import { getFamily, knownFamilies } from './families.ts'
+// Importing the built-in family registrations ensures the registry is populated
+// before detectKind runs (registry-driven detection per Loop 8 audit item A2).
+import './families-builtin.ts'
 import type {
   ValidDiagram, ParseError, Result, DiagramKind, ValidDiagramMeta,
   SourceMap, InitDirective, SequenceBody, SequenceParticipant,
@@ -254,17 +258,16 @@ function styleForArrow(a: string): SequenceMessageStyle {
 }
 
 // ---- Family detection ----------------------------------------------------
+// Registry-driven. Each FamilyPlugin.detect is a `startsWith` predicate on the
+// already-lowercased first line. Order matters only insofar as conflicting
+// prefixes; built-in plugins are written so no two `detect`s overlap on a
+// valid header (e.g. "statediagram" doesn't start with "flowchart"/"graph").
 
 function detectKind(header: string): DiagramKind | null {
-  if (/^statediagram(-v2)?\b/i.test(header)) return 'state'
-  if (/^(graph|flowchart)\b/i.test(header)) return 'flowchart'
-  if (/^sequencediagram\b/i.test(header)) return 'sequence'
-  if (/^classdiagram\b/i.test(header)) return 'class'
-  if (/^erdiagram\b/i.test(header)) return 'er'
-  if (/^timeline\b/i.test(header)) return 'timeline'
-  if (/^journey\b/i.test(header)) return 'journey'
-  if (/^xychart(-beta)?\b/i.test(header)) return 'xychart'
-  if (/^architecture(-beta)?\b/i.test(header)) return 'architecture'
+  for (const id of knownFamilies()) {
+    const plugin = getFamily(id)
+    if (plugin?.detect?.(header)) return id
+  }
   return null
 }
 
