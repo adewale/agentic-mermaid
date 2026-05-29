@@ -31,14 +31,14 @@
         "required": ["code", "tier", "severity"],
         "properties": {
           "code": { "type": "string" },
-          "tier": { "type": "string", "enum": ["structural", "geometric"] },
+          "tier": { "type": "string", "enum": ["structural", "geometric", "lint"] },
           "severity": { "type": "string", "enum": ["error", "warning"] }
         }
       }
     },
     "outputFormats": {
       "type": "array",
-      "items": { "type": "string" }
+      "items": { "type": "string", "enum": ["svg", "ascii", "png"] }
     }
   }
 }

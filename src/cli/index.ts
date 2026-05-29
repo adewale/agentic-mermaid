@@ -100,7 +100,7 @@ Emits a single JSON object describing the SDK's capability surface:
   { sdkVersion, families: [{ id, hasParse, hasSerialize, hasMutate,
     hasVerify, hasExtractLabels }],
     warningCodes: [{ code, tier, severity }],
-    outputFormats: ["svg", "ascii"] }
+    outputFormats: ["svg", "ascii", "png"] }
 Use this to introspect what the CLI can do without running every command.`,
   batch: `am batch  (reads JSONL from stdin)
 Each line: { op: "render"|"verify"|"parse"|"serialize", source: string,
@@ -142,7 +142,22 @@ export function runCli(argv: string[]): number {
 
 function cmdRender(args: ParsedArgs, json: boolean): number {
   const source = readSourceArg(args.positional[0])
-  if (args.flags.ascii) {
+  const format = typeof args.flags.format === 'string' ? args.flags.format : (args.flags.ascii ? 'ascii' : 'svg')
+
+  if (format === 'png') {
+    const outFile = typeof args.flags.o === 'string' ? args.flags.o : (typeof args.flags.output === 'string' ? args.flags.output : '')
+    if (!outFile) {
+      process.stderr.write('am render --format png requires -o <file.png> (PNG bytes corrupt terminals if piped to stdout)\n')
+      return EXIT_ARG_ERROR
+    }
+    const scale = typeof args.flags.scale === 'string' ? Number(args.flags.scale) : 2
+    const background = typeof args.flags.bg === 'string' ? args.flags.bg : 'white'
+    // PNG render is async — emit synchronously via a top-level await shim.
+    // The renderMermaidPNG export is dynamic-import inside, but the caller
+    // returns void; we use a synchronous wrapper that buffers.
+    return renderPngSync(source, { scale, background }, outFile, json)
+  }
+  if (format === 'ascii') {
     const ascii = renderMermaidASCII(source)
     process.stdout.write(json ? JSON.stringify({ ascii }) + '\n' : (ascii.endsWith('\n') ? ascii : ascii + '\n'))
     return EXIT_OK
@@ -150,6 +165,21 @@ function cmdRender(args: ParsedArgs, json: boolean): number {
   const svg = renderMermaidSVG(source)
   process.stdout.write(json ? JSON.stringify({ svg }) + '\n' : (svg.endsWith('\n') ? svg : svg + '\n'))
   return EXIT_OK
+}
+
+function renderPngSync(source: string, opts: { scale: number; background: string }, outFile: string, json: boolean): number {
+  const { renderMermaidPNG } = require('../agent/png.ts') as typeof import('../agent/png.ts')
+  const { writeFileSync } = require('node:fs') as typeof import('node:fs')
+  try {
+    const png = renderMermaidPNG(source, opts)
+    writeFileSync(outFile, png)
+    if (json) process.stdout.write(JSON.stringify({ ok: true, path: outFile, bytes: png.length }) + '\n')
+    return EXIT_OK
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e)
+    process.stderr.write(`am render --format png: ${msg}\n`)
+    return EXIT_INTERNAL
+  }
 }
 
 function cmdVerify(args: ParsedArgs): number {
@@ -272,7 +302,7 @@ export function buildCapabilities(): CapabilitiesEnvelope {
     tier: WARNING_TIER[code],
     severity: WARNING_SEVERITY[code],
   }))
-  return { sdkVersion, families, warningCodes, outputFormats: ['svg', 'ascii'] }
+  return { sdkVersion, families, warningCodes, outputFormats: ['svg', 'ascii', 'png'] }
 }
 
 function cmdCapabilities(): number {

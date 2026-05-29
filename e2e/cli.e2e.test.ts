@@ -31,7 +31,7 @@ describe('am capabilities', () => {
     expect(payload.families.length).toBeGreaterThan(0)
     expect(Array.isArray(payload.warningCodes)).toBe(true)
     expect(payload.warningCodes.length).toBeGreaterThan(0)
-    expect(payload.outputFormats).toEqual(['svg', 'ascii'])
+    expect(payload.outputFormats).toEqual(['svg', 'ascii', 'png'])
   })
 })
 
@@ -108,5 +108,43 @@ describe('am exit codes', () => {
   test('mutate with malformed --op JSON exits 2', () => {
     const r = spawnSync('bun', ['run', AM, 'mutate', '-', '--op', '{bad'], { encoding: 'utf8', input: 'flowchart LR\n  A --> B\n' })
     expect(r.status).toBe(2)
+  })
+
+  test('Loop 8 P: render --format png writes a valid PNG to -o file', () => {
+    const { writeFileSync, readFileSync, existsSync, unlinkSync } = require('node:fs') as typeof import('node:fs')
+    const tmpSrc = `/tmp/loop8-png-input-${Date.now()}.mmd`
+    const tmpOut = `/tmp/loop8-png-output-${Date.now()}.png`
+    writeFileSync(tmpSrc, 'flowchart LR\n  A --> B --> C\n')
+    try {
+      const r = spawnSync('bun', ['run', AM, 'render', '--format', 'png', tmpSrc, '--output', tmpOut], { encoding: 'utf8' })
+      expect(r.status).toBe(0)
+      expect(existsSync(tmpOut)).toBe(true)
+      const png = readFileSync(tmpOut)
+      // PNG magic bytes
+      expect([png[0], png[1], png[2], png[3]]).toEqual([0x89, 0x50, 0x4E, 0x47])
+      expect(png.length).toBeGreaterThan(100)
+    } finally {
+      if (existsSync(tmpSrc)) unlinkSync(tmpSrc)
+      if (existsSync(tmpOut)) unlinkSync(tmpOut)
+    }
+  })
+
+  test('Loop 8 P: render --format png without -o exits 2 (would corrupt stdout)', () => {
+    const { writeFileSync, existsSync, unlinkSync } = require('node:fs') as typeof import('node:fs')
+    const tmpSrc = `/tmp/loop8-png-noout-${Date.now()}.mmd`
+    writeFileSync(tmpSrc, 'flowchart LR\n  A --> B\n')
+    try {
+      const r = spawnSync('bun', ['run', AM, 'render', '--format', 'png', tmpSrc], { encoding: 'utf8' })
+      expect(r.status).toBe(2)
+    } finally {
+      if (existsSync(tmpSrc)) unlinkSync(tmpSrc)
+    }
+  })
+
+  test('Loop 8 P: capabilities now advertises png in outputFormats', () => {
+    const r = runAm(['capabilities', '--json'])
+    expect(r.status).toBe(0)
+    const cap = JSON.parse(r.stdout) as { outputFormats: string[] }
+    expect(cap.outputFormats).toContain('png')
   })
 })

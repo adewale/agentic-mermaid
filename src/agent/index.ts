@@ -30,6 +30,8 @@ export { measureQuality, checkQuality, DEFAULT_BOUNDS } from './quality.ts'
 export type { QualityMetrics, QualityBounds, QualityVerdict } from './quality.ts'
 export { registerFamily, getFamily, knownFamilies } from './families.ts'
 export type { FamilyPlugin, ExtractedLabel } from './families.ts'
+export { renderMermaidPNG } from './png.ts'
+export type { PngOptions } from './png.ts'
 
 import { renderMermaidSVG as _svg } from '../index.ts'
 import { renderMermaidASCII as _ascii } from '../ascii/index.ts'

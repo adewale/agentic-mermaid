@@ -14,7 +14,7 @@ describe('am capabilities', () => {
     expect(cap.sdkVersion.length).toBeGreaterThan(0)
     expect(Array.isArray(cap.families)).toBe(true)
     expect(Array.isArray(cap.warningCodes)).toBe(true)
-    expect(cap.outputFormats).toEqual(['svg', 'ascii'])
+    expect(cap.outputFormats).toEqual(['svg', 'ascii', 'png'])
   })
 
   it('includes every registered family in the families list', () => {
