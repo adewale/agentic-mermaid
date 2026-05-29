@@ -15,8 +15,6 @@ import { WARNING_SEVERITY, DEFAULT_LABEL_CHAR_CAP } from './types.ts'
 import { positionedToRenderedLayout, emptyRenderedLayout } from './layout-to-rendered.ts'
 import { getFamily, extractLabelsGeneric } from './families.ts'
 import './families-builtin.ts'  // registers built-in families at import time
-import { verifyClass } from './class-body.ts'
-import { verifyErBody } from './er-body.ts'
 
 const KNOWN_SHAPES = new Set([
   'rectangle', 'service', 'rounded', 'diamond', 'stadium', 'circle',
@@ -38,13 +36,13 @@ export function verifyMermaid(input: ValidDiagram | string, opts: VerifyOptions 
 
   if (d.body.kind === 'sequence') return mergeFinalize(verifySequence(d.body, d.kind, cap, opts), pluginWarnings, opts)
   if (d.body.kind === 'timeline') return mergeFinalize(verifyTimeline(d.body, d.kind, cap, opts), pluginWarnings, opts)
-  if (d.body.kind === 'class') {
-    const w = verifyClass(d.body, opts)
-    return finalize(dedupedConcat(w, pluginWarnings), emptyRenderedLayout(d.kind), opts)
-  }
-  if (d.body.kind === 'er') {
-    const w = verifyErBody(d.body, opts)
-    return finalize(dedupedConcat(w, pluginWarnings), emptyRenderedLayout(d.kind), opts)
+  // class + ER: the FamilyPlugin.verify hooks (registered in families-builtin.ts)
+  // already produce the per-body warnings. Loop 9 M2 removes the duplicate
+  // explicit branches; the dispatcher path + emptyRenderedLayout fall-through
+  // does the work. Dedup is unnecessary now (single source of truth) so we
+  // emit pluginWarnings directly.
+  if (d.body.kind === 'class' || d.body.kind === 'er') {
+    return finalize(pluginWarnings, emptyRenderedLayout(d.kind), opts)
   }
 
   if (d.body.kind === 'opaque') {
