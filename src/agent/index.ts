@@ -40,6 +40,7 @@ export type { DescribeOptions } from './describe.ts'
 export { asciiToMermaid } from '../ascii/reverse.ts'
 
 import { renderMermaidSVG as _svg } from '../index.ts'
+export { verifyNoExternalRefs } from '../index.ts'
 import { renderMermaidASCII as _ascii } from '../ascii/index.ts'
 import { layoutGraphSync } from '../layout-engine.ts'
 import type { ValidDiagram, RenderedLayout } from './types.ts'

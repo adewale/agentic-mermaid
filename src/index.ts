@@ -203,6 +203,28 @@ function injectAccessibility(svg: string, acc: { title?: string; descr?: string 
 }
 
 /**
+ * #7645/#7695: scan an SVG for external-fetch references — `@import` URLs,
+ * `<image href>`/`xlink:href` to http(s), `<use href>` to external, `url(http…)`
+ * in styles, `<script>`, `<foreignObject>`. The `xmlns="http://www.w3.org/…"`
+ * namespace declaration is NOT a fetch and is excluded. Returns the offending
+ * references so it can serve as a CI gate and an agent self-check.
+ */
+export function verifyNoExternalRefs(svg: string): { ok: boolean; refs: string[] } {
+  const refs: string[] = []
+  // @import url(...) or @import "..."
+  for (const m of svg.matchAll(/@import\s+(?:url\()?["']?([^"')]+)/g)) refs.push(`@import ${m[1]}`)
+  // href / xlink:href / src to http(s) (xmlns excluded — it's a declaration, not a ref)
+  for (const m of svg.matchAll(/(?:xlink:href|href|src)\s*=\s*["'](https?:\/\/[^"']+)["']/g)) refs.push(m[1]!)
+  // url(http…) inside style/attr values
+  for (const m of svg.matchAll(/url\(\s*["']?(https?:\/\/[^"')]+)/g)) refs.push(m[1]!)
+  // active content that can fetch/exfiltrate
+  if (/<script\b/i.test(svg)) refs.push('<script>')
+  if (/<foreignObject\b/i.test(svg)) refs.push('<foreignObject>')
+  if (/<image\b/i.test(svg)) refs.push('<image>')
+  return { ok: refs.length === 0, refs }
+}
+
+/**
  * Render Mermaid diagram text to an SVG string — synchronously.
  *
  * Uses elk.bundled.js with a direct FakeWorker bypass (no setTimeout(0) delay).
@@ -243,7 +265,15 @@ export function renderMermaidSVG(
     ?? normalizedSource.config.fontFamily
     ?? readThemeValue(normalizedSource.config.themeVariables, 'fontFamily')
     ?? 'Inter'
-  const colors = buildColors(options, normalizedSource.config, font)
+  // #7645/#7695: strict security mode forces the Google Fonts @import off so
+  // the SVG has zero external-fetch references. The --font CSS variable still
+  // declares the family. (embedFontImport:false is the only lever needed —
+  // the external-fetch surface audit found @import is the sole vector;
+  // remaining http:// in output is the xmlns namespace decl, not a fetch.)
+  const effectiveOptions: RenderOptions = options.security === 'strict'
+    ? { ...options, embedFontImport: false }
+    : options
+  const colors = buildColors(effectiveOptions, normalizedSource.config, font)
   const transparent = options.transparent ?? false
   const diagramType = detectDiagramType(normalizedSource.firstLine)
   const lines = normalizedSource.lines

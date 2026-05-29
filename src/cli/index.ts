@@ -193,7 +193,9 @@ function cmdRender(args: ParsedArgs, json: boolean): number {
     process.stdout.write(json ? JSON.stringify({ [format]: ascii }) + '\n' : (ascii.endsWith('\n') ? ascii : ascii + '\n'))
     return EXIT_OK
   }
-  const svg = renderMermaidSVG(source)
+  // #7645/#7695: `--security strict` → no external-fetch refs in the SVG.
+  const security = args.flags.security === 'strict' ? 'strict' as const : 'default' as const
+  const svg = renderMermaidSVG(source, { security })
   process.stdout.write(json ? JSON.stringify({ svg }) + '\n' : (svg.endsWith('\n') ? svg : svg + '\n'))
   return EXIT_OK
 }

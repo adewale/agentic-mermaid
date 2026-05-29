@@ -268,4 +268,14 @@ export interface RenderOptions {
    * Must be deterministic per call site to preserve render determinism.
    */
   idPrefix?: string
+
+  /**
+   * Security posture for the rendered output. Default `'default'`.
+   * `'strict'` (agent / untrusted-diagram mode): guarantees no external-fetch
+   * references in the SVG — forces `embedFontImport` off (no Google Fonts
+   * `@import`), so the SVG renders with no network calls. The `--font` CSS
+   * variable still declares the family. Use `verifyNoExternalRefs(svg)` to
+   * assert the guarantee. MCP render tools default to strict. See SECURITY.md.
+   */
+  security?: 'default' | 'strict'
 }
