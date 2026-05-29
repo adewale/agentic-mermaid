@@ -32,6 +32,8 @@ describe('am capabilities', () => {
     expect(Array.isArray(payload.warningCodes)).toBe(true)
     expect(payload.warningCodes.length).toBeGreaterThan(0)
     expect(payload.outputFormats).toEqual(['svg', 'ascii', 'unicode', 'png', 'json'])
+    const flowchart = payload.families.find((f: any) => f.id === 'flowchart')
+    expect(flowchart.mutationOps).toContain('add_node')
   })
 })
 
@@ -108,6 +110,15 @@ describe('am exit codes', () => {
   test('mutate with malformed --op JSON exits 2', () => {
     const r = spawnSync('bun', ['run', AM, 'mutate', '-', '--op', '{bad'], { encoding: 'utf8', input: 'flowchart LR\n  A --> B\n' })
     expect(r.status).toBe(2)
+  })
+
+  test('mutate verifies before emitting invalid output', () => {
+    const r = spawnSync('bun', ['run', AM, 'mutate', '-', '--op', '{"kind":"remove_node","id":"A"}', '--json'], { encoding: 'utf8', input: 'flowchart LR\n  A[Only]\n' })
+    expect(r.status).toBe(3)
+    const payload = JSON.parse(r.stdout)
+    expect(payload.ok).toBe(false)
+    expect(payload.error.code).toBe('VERIFY_FAILED')
+    expect(payload.source).toBeUndefined()
   })
 
   test('Loop 8 P: render --format png writes a valid PNG to -o file', () => {

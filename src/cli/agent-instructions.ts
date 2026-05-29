@@ -1,6 +1,6 @@
 export const AGENT_INSTRUCTIONS = `# agentic-mermaid — agent-use guide
 
-This is the canonical agent-use guide. The same content lives in AGENTS.md.
+This is the canonical agent-use guide. The same content is emitted by \`am --agent-instructions\`. A doc-sync test asserts the two are byte-identical.
 
 ## Quick start
 
@@ -16,17 +16,21 @@ const flow = asFlowchart(d0.value)
 if (flow) {
   const d1 = mutate(flow, { kind: 'add_node', id: 'Cache', label: 'Cache' })
   if (!d1.ok) throw new Error('mutate')
-  if (verifyMermaid(d1.value).ok) return serializeMermaid(d1.value)
+  const flowVerify = verifyMermaid(d1.value)
+  if (!flowVerify.ok) throw new Error('verify')
+  return serializeMermaid(d1.value)
 }
 
 const seq = asSequence(d0.value)
 if (seq) {
   const d1 = mutate(seq, { kind: 'add_message', from: 'Alice', to: 'Bob', text: 'Hi' })
   if (!d1.ok) throw new Error('mutate')
+  const seqVerify = verifyMermaid(d1.value)
+  if (!seqVerify.ok) throw new Error('verify')
   return serializeMermaid(d1.value)
 }
 
-// asClass / asEr / asTimeline narrow to their typed bodies similarly.
+// asTimeline / asClass / asEr narrow to typed mutable bodies similarly.
 
 // journey / xychart / architecture, plus any opaque-fallback body
 // (e.g., a sequence diagram with notes/alt/loop/activate): edit
@@ -48,12 +52,13 @@ Tier 3 (lint, advisory): reserved for future family-specific lint codes. \`Famil
 
 ## CLI verbs
 
-\`am capabilities --json\` — JSON envelope listing families, mutation ops, warning codes, output formats (\`svg\`, \`ascii\`, \`unicode\`, \`png\`, \`json\`). Schema-stable; use it to self-discover.
+\`am capabilities --json\` — JSON envelope listing families, \`families[].mutationOps\`, warning codes, output formats (\`svg\`, \`ascii\`, \`unicode\`, \`png\`, \`json\`). Schema-stable; use it to self-discover.
 \`am batch --jsonl\` — JSONL stdin → JSONL stdout. Malformed lines surface error but don't abort the stream.
 \`am render <file…> --format svg|ascii|unicode|png|json [--output f] [--security strict] [--watch]\` — PNG via resvg+DejaVu (deterministic x86_64); JSON = layout shape; --security strict = no external-fetch refs; --output required for PNG; multiple files → results array; --watch re-renders on change.
+\`am mutate <file> --op '<JSON>' [--json]\` — apply one mutation, run verify, emit source only if verify succeeds. JSON success includes \`{ok,source,verify}\`; verify failure exits 3 and omits source.
 \`am describe <file> [--format text|json]\` — prose summary or structured AX tree (\`{nodes,edges,entryPoints,sinks}\`, #7349). Library: \`describeMermaid(d, {format})\`.
 \`am llms-txt\` — agent-discovery digest (llms.txt convention).
-\`am render-markdown <file.md> [--ascii]\` — render each \`\`\`mermaid fenced block; skips invalid diagrams, never aborts the file. JSON: \`{blocks:[{index,ok,output|error}]}\`.
+\`am render-markdown <file.md> [--ascii]\` — render each Mermaid fenced block; skips invalid diagrams, never aborts the file. JSON: \`{blocks:[{index,ok,output|error}]}\`.
 Exit codes: \`0\` ok, \`2\` arg error, \`3\` verify-failed, \`4\` internal. Errors carry \`error.details\` (structured ParseError[]), not a stringified blob.
 
 Library extras: \`renderMermaidASCIIWithMeta(src)\` → \`{ascii,regions}\` for TUI click-mapping; \`asciiToMermaid(ascii)\` reverses flowchart ASCII (best-effort, lossy); \`verifyNoExternalRefs(svg)\` asserts no external fetch; \`renderMermaidSVG(src,{idPrefix})\` namespaces def ids for multi-diagram pages. See SECURITY.md.

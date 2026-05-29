@@ -53,7 +53,7 @@
     "src/",
     "dist/",
     "bin/",
-    "AGENTS.md",
+    "Instructions_for_agents.md",
     "AGENT_NATIVE.md",
     "LICENSE",
     "README.md"

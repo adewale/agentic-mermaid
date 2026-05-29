@@ -69,7 +69,7 @@ export async function handleRequest(req: JsonRpcRequest): Promise<JsonRpcRespons
         protocolVersion: PROTOCOL_VERSION,
         serverInfo: { name: SERVER_NAME, version: SERVER_VERSION },
         capabilities: { tools: {} },
-        instructions: 'agentic-mermaid Code Mode server. One tool, execute, runs TS against the typed mermaid.* SDK in a sandbox. mutate is overloaded by family; narrow via asFlowchart/asSequence. Layout is deterministic; there is no seed.',
+        instructions: 'agentic-mermaid Code Mode server. One tool, execute, runs TS against the typed mermaid.* SDK in a sandbox. mutate is overloaded by family; narrow via asFlowchart/asSequence/asTimeline/asClass/asEr. Layout is deterministic; there is no seed.',
       })
     case 'notifications/initialized': return null
     case 'ping': return reply(id, {})

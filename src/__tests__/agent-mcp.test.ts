@@ -11,6 +11,7 @@ describe('sandbox — happy', () => {
       const r0 = mermaid.parseMermaid('flowchart TD\\n  A --> B')
       const flow = mermaid.asFlowchart(r0.value); if (!flow) return { kind: r0.value.kind }
       const r1 = mermaid.mutate(flow, { kind: 'add_node', id: 'C', label: 'Cache' })
+      const v = mermaid.verifyMermaid(r1.value); if (!v.ok) return { warnings: v.warnings }
       return { source: mermaid.serializeMermaid(r1.value) }
     `)
     expect(r.ok && (r.value as any).source.includes('Cache')).toBe(true)
@@ -20,6 +21,7 @@ describe('sandbox — happy', () => {
       const r0 = mermaid.parseMermaid('sequenceDiagram\\n  A->>B: Hi')
       const seq = mermaid.asSequence(r0.value); if (!seq) return { kind: r0.value.kind }
       const r1 = mermaid.mutate(seq, { kind: 'add_message', from: 'B', to: 'A', text: 'Bye', style: 'reply' })
+      const v = mermaid.verifyMermaid(r1.value); if (!v.ok) return { warnings: v.warnings }
       return { msgs: r1.value.body.messages.length }
     `)
     expect(r.ok && (r.value as any).msgs).toBe(2)
@@ -97,7 +99,9 @@ describe('MCP — JSON-RPC happy + sad', () => {
     const tools = (r!.result as any).tools
     // Loop 9 M1 + M12: render_png and describe joined execute.
     expect(tools.map((t: any) => t.name)).toEqual(['execute', 'render_png', 'describe'])
-    expect(tools[0].description).toContain('asSequence')
+    for (const token of ['asFlowchart', 'asSequence', 'asTimeline', 'asClass', 'asEr', 'TimelineMutationOp', 'ClassMutationOp', 'ErMutationOp']) {
+      expect(tools[0].description).toContain(token)
+    }
   })
   test('tools/call execute', async () => {
     const r = await handleRequest({ jsonrpc: '2.0', id: 3, method: 'tools/call', params: { name: 'execute', arguments: { code: 'return mermaid.verifyMermaid("flowchart TD\\n A --> B").ok' } } })
@@ -136,11 +140,9 @@ describe('CLI — sad paths via runCli', () => {
     return { code, out: chunks.join('') }
   }
 
-  test('mutate on opaque family returns UNSUPPORTED_FAMILY (exit 2)', () => {
-    // Pipe a class diagram via a temp file path is overkill; use stdin shim by
-    // writing the source to a temp file.
-    const tmp = `/tmp/cli-class-${Date.now()}.mmd`
-    require('node:fs').writeFileSync(tmp, 'classDiagram\n  Animal <|-- Duck\n')
+  test('mutate on non-mutable family returns UNSUPPORTED_FAMILY (exit 2)', () => {
+    const tmp = `/tmp/cli-journey-${Date.now()}.mmd`
+    require('node:fs').writeFileSync(tmp, 'journey\n  title Day\n  section Work\n    Code: 5: Me\n')
     const { code, out } = capture(() => runCli(['mutate', tmp, '--op', '{"kind":"add_node","id":"X","label":"X"}']))
     expect(code).toBe(2)
     expect(out).toContain('UNSUPPORTED_FAMILY')
@@ -152,6 +154,39 @@ describe('CLI — sad paths via runCli', () => {
     const { code, out } = capture(() => runCli(['mutate', tmp, '--op', '{"kind":"add_message","from":"A","to":"B","text":"x"}']))
     expect(code).toBe(2)
     expect(out).toContain('UNSUPPORTED_FAMILY')
+  })
+
+  test('mutate verifies before emitting and exits 3 when the result is invalid', () => {
+    const tmp = `/tmp/cli-mutate-invalid-${Date.now()}.mmd`
+    require('node:fs').writeFileSync(tmp, 'flowchart TD\n  A[Only]\n')
+    const { code, out } = capture(() => runCli(['mutate', tmp, '--op', '{"kind":"remove_node","id":"A"}', '--json']))
+    expect(code).toBe(3)
+    const payload = JSON.parse(out)
+    expect(payload.ok).toBe(false)
+    expect(payload.error.code).toBe('VERIFY_FAILED')
+    expect(payload.error.details.map((w: any) => w.code)).toContain('EMPTY_DIAGRAM')
+    expect(payload.source).toBeUndefined()
+  })
+
+  test('mutate --json includes verify warnings on success', () => {
+    const tmp = `/tmp/cli-mutate-warning-${Date.now()}.mmd`
+    require('node:fs').writeFileSync(tmp, 'flowchart TD\n  A --> B\n')
+    const long = 'X'.repeat(80)
+    const { code, out } = capture(() => runCli(['mutate', tmp, '--op', JSON.stringify({ kind: 'add_node', id: 'C', label: long }), '--json']))
+    expect(code).toBe(0)
+    const payload = JSON.parse(out)
+    expect(payload.ok).toBe(true)
+    expect(payload.source).toContain('C')
+    expect(payload.verify.warnings.map((w: any) => w.code)).toContain('LABEL_OVERFLOW')
+  })
+
+  test('mutate supports class diagrams through the public CLI surface', () => {
+    const tmp = `/tmp/cli-class-${Date.now()}.mmd`
+    require('node:fs').writeFileSync(tmp, 'classDiagram\n  class Animal\n')
+    const { code, out } = capture(() => runCli(['mutate', tmp, '--op', JSON.stringify({ kind: 'add_class', id: 'Duck', members: ['+quack()'] })]))
+    expect(code).toBe(0)
+    expect(out).toContain('Duck')
+    expect(out).toContain('+quack()')
   })
 
   test('verify exit code 3 on empty (Loop 7: EXIT_VERIFY_FAILED)', () => {

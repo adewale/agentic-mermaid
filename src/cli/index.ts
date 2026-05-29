@@ -10,8 +10,12 @@ import { verifyMermaid } from '../agent/verify.ts'
 import { renderMermaidSVG, renderMermaidASCII, layoutMermaid } from '../agent/index.ts'
 import { describeMermaidSource } from '../agent/describe.ts'
 import { collectBatched } from '../shared/batched.ts'
-import { asFlowchart, asSequence } from '../agent/types.ts'
-import type { ValidDiagram, WarningCode, FlowchartMutationOp, SequenceMutationOp, AnyMutationOp, MutationError, Result, FlowchartValidDiagram, SequenceValidDiagram } from '../agent/types.ts'
+import { asFlowchart, asSequence, asTimeline, asClass, asEr } from '../agent/types.ts'
+import type {
+  ValidDiagram, WarningCode,
+  FlowchartMutationOp, SequenceMutationOp, TimelineMutationOp, ClassMutationOp, ErMutationOp, AnyMutationOp,
+  MutationError, Result, MutableValidDiagram,
+} from '../agent/types.ts'
 import { WARNING_SEVERITY, WARNING_TIER } from '../agent/types.ts'
 import { knownFamilies, getFamily } from '../agent/families.ts'
 import '../agent/families-builtin.ts'
@@ -74,9 +78,9 @@ Commands:
   verify <file|->        Verify; emits structured JSON warnings
   parse <file|->         Parse; emits ValidDiagram JSON
   serialize              Read ValidDiagram JSON from stdin; emit canonical source
-  mutate <file|-> --op '<JSON>'  Apply one MutationOp; emit new source
+  mutate <file|-> --op '<JSON>'  Apply one MutationOp; verify + emit source
   format <file|->        Idempotent reformat
-  capabilities           Emit JSON describing supported families + warning codes
+  capabilities           Emit JSON describing families + warning codes + mutation ops
   batch                  Read JSONL ops from stdin; emit one JSON envelope per line
 
 Flags:
@@ -116,15 +120,16 @@ Pipe to 'am serialize' to round-trip.`,
 Emits canonical Mermaid source. Accepts the JSON shape that 'am parse' emits;
 rebuilds the diagram via synthesizeFromGraph without re-parsing source.`,
   mutate: `am mutate <file|-> --op '<JSON>' [--json]
-Applies one MutationOp and emits new source. Flowchart/state accept
-FlowchartMutationOp; sequence accepts SequenceMutationOp; other families
-return a structured UNSUPPORTED_FAMILY error (exit 2).`,
+Applies one MutationOp, verifies the mutated diagram, then emits new source.
+Flowchart/state, sequence, timeline, class, and ER have typed mutation ops;
+journey, xychart, architecture, and opaque-fallback diagrams return a
+structured UNSUPPORTED_FAMILY error (exit 2). Verify failures exit 3.`,
   format: `am format <file|->
 Parse then re-serialize to canonical form. Idempotent.`,
   capabilities: `am capabilities [--json]
 Emits a single JSON object describing the SDK's capability surface:
   { sdkVersion, families: [{ id, hasParse, hasSerialize, hasMutate,
-    hasVerify, hasExtractLabels }],
+    hasVerify, hasExtractLabels, mutationOps }],
     warningCodes: [{ code, tier, severity }],
     outputFormats: ["svg", "ascii", "unicode", "png", "json"] }
 Use this to introspect what the CLI can do without running every command.`,
@@ -332,21 +337,36 @@ function cmdMutate(args: ParsedArgs, json: boolean): number {
   }
 
   const flow = asFlowchart(r0.value)
-  if (flow) return emit(mutate(flow, op as FlowchartMutationOp), json)
+  if (flow) return emitMutation(mutate(flow, op as FlowchartMutationOp), json)
   const seq = asSequence(r0.value)
-  if (seq) return emit(mutate(seq, op as SequenceMutationOp), json)
+  if (seq) return emitMutation(mutate(seq, op as SequenceMutationOp), json)
+  const timeline = asTimeline(r0.value)
+  if (timeline) return emitMutation(mutate(timeline, op as TimelineMutationOp), json)
+  const klass = asClass(r0.value)
+  if (klass) return emitMutation(mutate(klass, op as ClassMutationOp), json)
+  const er = asEr(r0.value)
+  if (er) return emitMutation(mutate(er, op as ErMutationOp), json)
 
   process.stdout.write(JSON.stringify({
     ok: false,
-    error: { code: 'UNSUPPORTED_FAMILY', message: `mutate supports flowchart, state, and simple sequence diagrams; got ${r0.value.kind}${r0.value.body.kind === 'opaque' ? ' (opaque — likely contains constructs not modeled for structured editing)' : ''}` },
+    error: { code: 'UNSUPPORTED_FAMILY', message: `mutate supports flowchart, state, sequence, timeline, class, and ER diagrams; got ${r0.value.kind}${r0.value.body.kind === 'opaque' ? ' (opaque — likely contains constructs not modeled for structured editing)' : ''}` },
   }) + '\n')
   return EXIT_ARG_ERROR
 }
 
-function emit(r: Result<FlowchartValidDiagram | SequenceValidDiagram, MutationError>, json: boolean): number {
+function emitMutation(r: Result<MutableValidDiagram, MutationError>, json: boolean): number {
   if (!r.ok) { process.stdout.write(JSON.stringify({ ok: false, error: r.error }) + '\n'); return EXIT_ARG_ERROR }
+  const verify = verifyMermaid(r.value)
+  if (!verify.ok) {
+    process.stdout.write(JSON.stringify({
+      ok: false,
+      error: { code: 'VERIFY_FAILED', message: 'mutated diagram failed verify; source was not emitted', details: verify.warnings },
+      verify,
+    }, replacer) + '\n')
+    return EXIT_VERIFY_FAILED
+  }
   const out = serializeMermaid(r.value)
-  process.stdout.write(json ? JSON.stringify({ ok: true, source: out }) + '\n' : out)
+  process.stdout.write(json ? JSON.stringify({ ok: true, source: out, verify }, replacer) + '\n' : out)
   return EXIT_OK
 }
 
@@ -366,6 +386,7 @@ interface FamilyCapability {
   hasMutate: boolean
   hasVerify: boolean
   hasExtractLabels: boolean
+  mutationOps: string[]
 }
 
 interface WarningCodeCapability {
@@ -381,6 +402,17 @@ interface CapabilitiesEnvelope {
   outputFormats: string[]
 }
 
+export const MUTATION_OPS_BY_FAMILY = {
+  flowchart: ['add_node', 'remove_node', 'rename_node', 'set_label', 'add_edge', 'remove_edge'],
+  state: ['add_node', 'remove_node', 'rename_node', 'set_label', 'add_edge', 'remove_edge'],
+  sequence: ['add_participant', 'remove_participant', 'add_message', 'remove_message', 'set_message_text'],
+  timeline: ['set_title', 'add_section', 'remove_section', 'set_section_label', 'add_period', 'remove_period', 'set_period_label', 'add_event', 'remove_event', 'set_event_text'],
+  class: ['set_title', 'add_class', 'remove_class', 'rename_class', 'add_member', 'remove_member', 'add_relation', 'remove_relation', 'add_note', 'remove_note'],
+  er: ['add_entity', 'remove_entity', 'rename_entity', 'add_attribute', 'remove_attribute', 'add_relation', 'remove_relation'],
+} as const
+
+type MutableFamilyId = keyof typeof MUTATION_OPS_BY_FAMILY
+
 export function buildCapabilities(): CapabilitiesEnvelope {
   const sdkVersion = (() => {
     try {
@@ -390,9 +422,10 @@ export function buildCapabilities(): CapabilitiesEnvelope {
       return 'unknown'
     }
   })()
-  const mutableFamilies = new Set(['flowchart', 'state', 'sequence', 'timeline', 'class', 'er'])
+  const mutableFamilies = new Set(Object.keys(MUTATION_OPS_BY_FAMILY))
   const families: FamilyCapability[] = knownFamilies().map((id) => {
     const p = getFamily(id)!
+    const mutationOps = id in MUTATION_OPS_BY_FAMILY ? [...MUTATION_OPS_BY_FAMILY[id as MutableFamilyId]] : []
     return {
       id,
       // Capabilities describe the public agent surface, not whether the
@@ -404,6 +437,7 @@ export function buildCapabilities(): CapabilitiesEnvelope {
       hasMutate: mutableFamilies.has(id),
       hasVerify: true,
       hasExtractLabels: Boolean(p.extractLabels),
+      mutationOps,
     }
   })
   const warningCodes: WarningCodeCapability[] = (Object.keys(WARNING_SEVERITY) as WarningCode[]).map(code => ({
@@ -458,10 +492,10 @@ haven't inspected.
 - render --format ${formats} [--security strict] [--output file] — render a diagram
 - parse — diagram → ValidDiagram JSON
 - verify — structural validation (exit 3 if invalid)
-- mutate --op '<json>' — apply a typed mutation
+- mutate --op '<json>' — apply a typed mutation, verify, then emit source
 - format — normalize / canonicalize source
 - describe [--format text|json] — natural-language or AX-tree summary
-- capabilities --json — machine-readable capability envelope
+- capabilities --json — machine-readable capability envelope incl. mutationOps
 - batch --jsonl — bulk ops, one JSON envelope per line
 - render-markdown <file.md> — render fenced mermaid blocks, skip invalid ones
 - llms-txt — this document
@@ -497,11 +531,12 @@ verifyNoExternalRefs } from 'beautiful-mermaid/agent'\`
 
 ## Docs
 
-- AGENTS.md — canonical agent-use guide
-- AGENT_NATIVE.md — the spec
+- Instructions_for_agents.md — canonical agent-use guide
+- AGENT_NATIVE.md — architecture/spec rationale
+- FEATURES.md — current capability inventory
+- TODO.md — only active backlog
 - QUALITY.md — determinism + "good looking" rubric
 - SECURITY.md — threat model + strict-mode guarantee
-- ROADMAP.md — three-pillar status
 `
 }
 

@@ -27,11 +27,13 @@ reachable and rewarding.
 ## Layer 2 — Anti-pattern linter (tooling)
 
 `lintAgentTrace(trace)` takes a sequence of SDK calls and flags the
-anti-patterns AGENTS.md warns about:
+anti-patterns Instructions_for_agents.md warns about:
 
 | Code | Trigger |
 |---|---|
-| `SERIALIZE_WITHOUT_VERIFY` | a `serialize` after a `mutate` with no intervening `verify` |
+| `SERIALIZE_WITHOUT_VERIFY` | a `serialize` after a `mutate` with no inspected successful `verify` for the same diagram |
+| `SERIALIZE_AFTER_FAILED_VERIFY` | `verify(ok:false)` followed by `serialize` |
+| `VERIFY_NOT_INSPECTED` | a `verify` result was produced but `ok`/`warnings`/`layout` was never inspected |
 | `STRING_CONCAT` | building source by hand instead of `mutate` |
 | `REGENERATE` | re-emitting whole source instead of mutating |
 | `MUTATE_ON_OPAQUE` | `mutate` on an opaque body (statically impossible in real TS; caught here in trace analysis) |
@@ -41,23 +43,23 @@ This is the instrument Layer 3 uses to score real agent transcripts.
 ## Layer 3 — Real-LLM eval (periodic, the real validation)
 
 Layers 1-2 are a proxy: a *human-scripted* agent and a static linter.
-The real question — "does a frontier model, given only AGENTS.md + a task,
-stay on the structured path?" — needs a real model. The design (parallel to
-the Phase F LLM-as-judge, intentionally periodic not per-PR):
+The real question — "does a frontier model, given only Instructions_for_agents.md + a task,
+stay on the structured path?" — needs a real model. `run.ts` provides the
+executable harness without putting nondeterministic model calls in PR CI:
 
-1. Give the model the AGENTS.md guide + the Code Mode SDK declaration.
+1. Give the model the Instructions_for_agents.md guide + the Code Mode SDK declaration.
 2. Pose tasks: "add a cache between API and DB"; "this diagram fails to
    render, fix it"; "rename every node in the auth subgraph".
-3. Capture the Code Mode `execute()` script (or the verb sequence) the
-   model produces.
-4. Run it through `lintAgentTrace` + check task success.
+3. Capture the Code Mode `execute()` script the model produces.
+4. Run it through `executeInSandbox({ trace: true })`, `lintAgentTrace`, and
+   task-specific success checks.
 5. Score: % of tasks completed on the structured path with zero
    anti-patterns. Track the number over time + across model versions.
 
-This is the only layer that validates the *instructions* (AGENTS.md,
-llms.txt, capabilities) actually work — i.e. that the documentation, not
-just the API, steers behavior. It's not wired to a live model in CI (cost +
-nondeterminism), exactly like the quality judge; run it on demand /
-pre-release. Layers 1-2 ship the scenarios + the linter it would reuse.
+`baseline.json` records the deterministic stored-script baseline. Live-model
+transcripts are tracked as `EVAL-1` in `TODO.md`; run them on demand /
+pre-release and compare to the same fields. PR CI keeps only the stored
+scripts to avoid cost and nondeterminism.
 
-Run layers 1-2: `bun run eval/agent-usage/harness.ts`
+Run deterministic layers: `bun run eval/agent-usage/harness.ts`
+Run stored Code Mode eval: `bun run eval/agent-usage/run.ts`

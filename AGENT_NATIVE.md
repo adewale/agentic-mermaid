@@ -1,6 +1,6 @@
 # Agent-Native Beautiful Mermaid — Plan
 
-**Status.** Working spec, single source of truth for branch `claude/agentic-mermaid-on-ast`. Not intended for upstream.
+**Status.** Architecture/spec rationale for branch `claude/agentic-mermaid-on-ast`. Current capabilities live in `FEATURES.md`; active work lives only in `TODO.md`. Not intended for upstream.
 
 **Thesis.** Agents authoring Mermaid diagrams today regenerate the whole source on every edit, or render to PNG and read it back with vision. Beautiful Mermaid already fixed the worst of the rendering side (sync + DOM-free + ASCII). This fork adds the editing surface — structured verification, typed mutation, round-trippable IR — so an agent can edit one node and trust the result without ever opening an image.
 
@@ -24,7 +24,7 @@ D2 has a better language than Mermaid. Beautiful Mermaid has a better renderer t
 
 1. **Deterministic layout** — same input → structurally identical layout JSON across runs with the same ELK version. (Not "byte-identical SVG across versions" — that's a stronger claim that needs a forked ELK to actually deliver.)
 2. **Verifiable rendering** — structured "did this render cleanly?" check. Structural warnings (anchors, bounds, emptiness, group containment) are reliable; metric warnings (label fit, overlap) are best-effort because they depend on font-measurement parity with ELK.
-3. **Round-trippable** — `parseMermaid` produces a `ValidDiagram` that carries the canonical source verbatim plus structured access to it. For flowchart + state, `mutate` operates on the structured form; for other families, the canonical source *is* the round-trip mechanism.
+3. **Round-trippable** — `parseMermaid` produces a `ValidDiagram` that carries source needed to re-emit the diagram. For flowchart/state, sequence, timeline, class, and ER, `mutate` operates on structured bodies; for journey, xychart, architecture, and opaque-fallback bodies, preserved source is the round-trip mechanism.
 
 (Composition — `@include`, templates, layered scenarios — was the fourth in earlier drafts and is deferred. Agents do not currently reach for composition; they paste and edit. Add when evidence demands.)
 
@@ -32,18 +32,18 @@ D2 has a better language than Mermaid. Beautiful Mermaid has a better renderer t
 
 ## Honest scope
 
-What this v1 actually delivers and what it doesn't:
+What this branch actually delivers and what it doesn't:
 
-| | Flowchart + State | Sequence, Class, ER, Timeline, Journey, XY, Architecture |
+| Family | Parse / verify / render / round-trip | Structured mutation |
 |---|---|---|
-| `parseMermaid` | Full structured AST | Source preserved verbatim in `canonicalSource`, kind detected |
-| `verifyMermaid` | All warning codes apply | Structural-only (emptiness, parseability); metric codes don't apply |
-| `mutate` | All six op kinds | **Not supported** — the type signature reflects this |
-| `serializeMermaid` | Re-emit from structured form, canonical | Re-emit `canonicalSource` verbatim |
-| `renderMermaidSVG` / `ASCII` | Full | Full (via existing Beautiful Mermaid family renderers) |
-| Determinism | Layout JSON byte-stable within an ELK version | N/A (renderers vary by family) |
+| Flowchart, State | Full | ✅ 6 ops |
+| Sequence | Full for simple messages; unmodeled blocks fall back to opaque losslessly | ✅ 5 ops when structured |
+| Timeline | Full | ✅ 10 ops |
+| Class | Full | ✅ 10 ops |
+| ER | Full | ✅ 7 ops |
+| Journey, XY, Architecture | Full lossless source round-trip | Opaque/source-level edits only |
 
-The implication: for the 7 non-mutable families, the agent's tool surface is *parse → verify → render → serialize*, not *parse → mutate → verify → serialize*. Cross-cutting edits on those families happen at the source level (string operations against `canonicalSource`), not at the AST level. Code Mode opportunity #1 (composition without shipping composition) covers this for the small minority of cases where it matters.
+The implication: for journey, xychart, architecture, and any opaque fallback, the agent's tool surface is *parse → verify → render → serialize*, not *parse → mutate → verify → serialize*. Cross-cutting edits on those families happen at the source level (`canonicalSource` / preserved opaque body), not at the typed mutation layer. Code Mode opportunity #1 covers this for the cases where it matters.
 
 ---
 
@@ -150,37 +150,39 @@ interface ValidDiagram {
   /**
    * The canonical preprocessed source — frontmatter, init directives, and
    * comments stripped; line breaks normalized. THE LOAD-BEARING FIELD:
-   * round-trip through `serializeMermaid` relies on this for families that
-   * don't have structured serializers (i.e., all except flowchart + state).
+   * round-trip through `serializeMermaid` relies on this for opaque/source-level
+   * families and as renderer input for structured families.
    */
   readonly canonicalSource: string
 }
 
 type DiagramBody =
   | { kind: 'flowchart'; graph: MermaidGraph }
-  | { kind: 'sequence'; participants: string[]; messages: SequenceMessage[] }
+  | SequenceBody | TimelineBody | ClassBody | ErBody
   | { kind: 'opaque'; family: DiagramKind; source: string }
 
-type FlowchartValidDiagram = ValidDiagram & { body: { kind: 'flowchart' } }
-type SequenceValidDiagram = ValidDiagram & { body: { kind: 'sequence' } }
-type MutableValidDiagram = FlowchartValidDiagram | SequenceValidDiagram
+type MutableValidDiagram =
+  | FlowchartValidDiagram | SequenceValidDiagram | TimelineValidDiagram
+  | ClassValidDiagram | ErValidDiagram
 ```
 
 ```ts
 parseMermaid(source: string):                                Result<ValidDiagram, ParseError[]>
 serializeMermaid(d: ValidDiagram):                           string
-synthesizeFromGraph(meta, kind, body): ValidDiagram          // builds a ValidDiagram without re-parsing
+synthesizeFromGraph(payload):                                Result<ValidDiagram, ParseError[]>
 mutate(d: FlowchartValidDiagram, op: FlowchartMutationOp):   Result<FlowchartValidDiagram, MutationError>
 mutate(d: SequenceValidDiagram,  op: SequenceMutationOp):    Result<SequenceValidDiagram, MutationError>
-asFlowchart(d: ValidDiagram): FlowchartValidDiagram | null
-asSequence(d: ValidDiagram):  SequenceValidDiagram | null
+mutate(d: TimelineValidDiagram,  op: TimelineMutationOp):    Result<TimelineValidDiagram, MutationError>
+mutate(d: ClassValidDiagram,     op: ClassMutationOp):       Result<ClassValidDiagram, MutationError>
+mutate(d: ErValidDiagram,        op: ErMutationOp):          Result<ErValidDiagram, MutationError>
+asFlowchart/asSequence/asTimeline/asClass/asEr(d):           narrowed diagram | null
 ```
 
-**`mutate` is overloaded by family.** Flowchart and sequence diagrams have first-class structured editing in v1. Other families parse to opaque body; mutation isn't typed for them, so the call doesn't typecheck — agents get a compile error rather than a runtime `UNSUPPORTED_FAMILY` rejection.
+**`mutate` is overloaded by family.** Flowchart/state, simple sequence, timeline, class, and ER diagrams have first-class structured editing. Journey, xychart, architecture, and opaque-fallback diagrams are not typed for mutation, so agents get a compile-time/null-narrower stop rather than a lossy edit path.
 
 Two contracts:
 
-- `serializeMermaid(parseMermaid(s)) ≡ normalize(s)` for canonical input. For flowchart + sequence this emits a fresh canonical form; for opaque families it emits `canonicalSource` verbatim with `meta` re-attached.
+- `serializeMermaid(parseMermaid(s)) ≡ normalize(s)` for canonical input. For structured families this emits a fresh canonical form; for opaque families it emits preserved source with `meta` re-attached.
 - `parseMermaid(serializeMermaid(d)) ≡ d` for every `d` produced by `parseMermaid` or `mutate`.
 
 **Flowchart MutationOp kinds** (6):
@@ -264,13 +266,19 @@ renderMermaidASCII(input: ValidDiagram | string, opts?):   string
 verifyMermaid(input: ValidDiagram | string, opts?: VerifyOptions): VerifyResult
 serializeMermaid(d: ValidDiagram):                         string
 
-// Mutation is overloaded by family. Other families don't typecheck.
+// Mutation is overloaded by family. Opaque/source-only families don't typecheck.
 mutate(d: FlowchartValidDiagram, op: FlowchartMutationOp): Result<FlowchartValidDiagram, MutationError>
 mutate(d: SequenceValidDiagram,  op: SequenceMutationOp):  Result<SequenceValidDiagram, MutationError>
+mutate(d: TimelineValidDiagram,  op: TimelineMutationOp):  Result<TimelineValidDiagram, MutationError>
+mutate(d: ClassValidDiagram,     op: ClassMutationOp):     Result<ClassValidDiagram, MutationError>
+mutate(d: ErValidDiagram,        op: ErMutationOp):        Result<ErValidDiagram, MutationError>
 
-// Narrowing helpers; null when the diagram isn't of that family.
+// Narrowing helpers; null when the diagram isn't of that family or is opaque.
 asFlowchart(d: ValidDiagram): FlowchartValidDiagram | null
 asSequence(d: ValidDiagram):  SequenceValidDiagram | null
+asTimeline(d: ValidDiagram):  TimelineValidDiagram | null
+asClass(d: ValidDiagram):     ClassValidDiagram | null
+asEr(d: ValidDiagram):        ErValidDiagram | null
 
 // Build a ValidDiagram from a JSON-safe graph payload without re-parsing
 // source. Used by `am parse | am serialize` shell pipelines.
@@ -305,7 +313,7 @@ Four artifacts, all derived from this doc:
 - **`.claude/skills/agentic-mermaid/`** Claude Code skill bundle. Master `SKILL.md` routes by *both* diagram family and composition channel: it picks Code Mode when the MCP is connected, library import when the agent can `import` and run TS, the CLI for shell-only contexts. Per-family references (`flowchart.md`, `sequence.md`, etc.) describe syntax. Two channel references — `code-mode.md` (the canonical multi-step pattern) and `cli.md` (shell-only) — describe composition. Progressive disclosure means the LLM loads only what it needs. Family references sync from upstream Mermaid docs weekly via the shipped GitHub Action at `.github/workflows/sync-mermaid-docs.yml`, alongside our additions (LayoutWarning codes, MutationOp taxonomy).
 - **Substrate grep-lint** runs under `bun test` (not an uninstalled ESLint): `src/__tests__/agent-substrate-lint.test.ts` fails the build if `Math.random`, `Date.now`, or `performance.now` appear in `src/agent/**` or `src/layout-engine.ts`. This is real enforcement, executed in CI, not an aspirational config file.
 - **`agentic-mermaid-mcp`** Code Mode MCP server. The primary tool is `execute(code: string)`: the model writes an async arrow against the typed `mermaid.*` SDK declaration embedded in the system prompt; the server runs the arrow's body in a `node:vm` sandbox with the library exposed as `mermaid` and the arrow's return value captured as the structured result. The server also exposes narrow `render_png` and `describe` helpers for binary output and summaries. The verify-after-mutate loop becomes one round-trip rather than N. Hosting: local stdio launched by the MCP client (Claude Desktop, Claude Code, Cursor) — same deployment shape as filesystem-MCP, git-MCP, sqlite-MCP. No infrastructure on our side or the user's. The pattern follows Cloudflare's `@cloudflare/codemode/mcp` design; we ship our own Node executor because our library is pure-functional and doesn't need `WorkerLoader` bindings. HTTP/SSE transport and Cloudflare Worker deployment remain future options, not shipped artifacts.
-- **`AGENTS.md`** at repo root, hard-capped under 100 lines. `am --agent-instructions` prints the workflow section below at runtime; a doc-sync test asserts the two are byte-identical.
+- **`Instructions_for_agents.md`** at repo root, hard-capped under 100 lines. `am --agent-instructions` prints the same content at runtime; a doc-sync test asserts the two are byte-identical.
 
 No HTTP endpoint or editor WebSocket watch in v1. The skill teaches Code Mode for both paths: agents-with-shell write TS against the imported library; agents-without-shell write TS against the MCP's `mermaid.*` SDK. Same surface in both cases.
 
@@ -315,7 +323,7 @@ No HTTP endpoint or editor WebSocket watch in v1. The skill teaches Code Mode fo
 
 Three CLI verbs were added in Loop 7 for explicit agent self-discovery and batch operation:
 
-- `am capabilities [--json]` — emit `{ sdkVersion, families: [{ id, hasParse, hasSerialize, hasMutate, hasVerify, hasExtractLabels }], warningCodes: [{ code, tier, severity }], outputFormats: ["svg","ascii","unicode","png","json"] }`. Sourced from the public dispatch surface, family-plugin registry, and `WARNING_SEVERITY` / `WARNING_TIER` tables — so the contract is self-describing, not hand-maintained. A JSON Schema is committed at `src/__tests__/__fixtures__/capabilities.schema.json`; any shape drift fails the test loudly.
+- `am capabilities [--json]` — emit `{ sdkVersion, families: [{ id, hasParse, hasSerialize, hasMutate, hasVerify, hasExtractLabels, mutationOps }], warningCodes: [{ code, tier, severity }], outputFormats: ["svg","ascii","unicode","png","json"] }`. Sourced from the public dispatch surface, family-plugin registry, and `WARNING_SEVERITY` / `WARNING_TIER` tables — so the contract is self-describing, not hand-maintained. A JSON Schema is committed at `src/__tests__/__fixtures__/capabilities.schema.json`; any shape drift fails the test loudly.
 - `am batch --jsonl` — read JSONL from stdin, dispatch per-line to render/verify/parse/serialize handlers, emit one JSON envelope per result. Malformed lines surface `{ ok: false, error: { code: 'INVALID_JSON' } }` and do **not** abort the stream. Pattern intentionally mirrors the `runWithJudge` shape in `eval/llm-judge/judge.ts`.
 - **Exit codes** are widened to 4: `EXIT_OK=0`, `EXIT_ARG_ERROR=2`, `EXIT_VERIFY_FAILED=3`, `EXIT_INTERNAL=4` (in `src/cli/exit-codes.ts`). The CLI was previously `0` or `2` only. `EXIT_VERIFY_FAILED=3` is the new code for "valid args, but the diagram failed verify" — important for agents wrapping `am verify` in batch.
 
@@ -347,6 +355,7 @@ if (!d2.ok) throw new Error(d2.error.message)
 const result = verifyMermaid(d2.value)
 if (!result.ok) {
   // result.warnings is structured; back up to d1 and try a different op
+  throw new Error('verify')
 }
 
 const out = serializeMermaid(d2.value)
@@ -368,15 +377,15 @@ Suppress `UNKNOWN_SHAPE`, `NODE_OVERLAP`, or `ROUTE_SELF_CROSS` when intentional
 
 ---
 
-## Sequencing
+## Release discipline
 
-Three phases, not stages:
+This section records the design discipline for the branch, not an active roadmap. Active work lives only in `TODO.md`.
 
-| Phase | Lands | Notes |
-|---|---|---|
-| **Ship** | Substrate + `verify` + `mutate` + `serialize` + 6 MutationOp kinds + CLI + skill + Code Mode MCP + `AGENTS.md` | The minimum lethal version. |
-| **Learn** | Run against MermaidSeqBench. Watch how the skill and MCP get used. Track which MutationOps are missing. | Decide what next-phase work is justified by evidence. |
-| **Expand** | More MutationOps, composition primitives, HTTP/SSE MCP transport (if remote deployments materialize), additional diagram families | Earn by evidence, not by spec. |
+| Principle | Meaning |
+|---|---|
+| **Ship** | Keep the minimum lethal surface together: substrate + `verify` + `mutate` + `serialize` + typed MutationOps + CLI + skill + Code Mode MCP + `Instructions_for_agents.md`. |
+| **Learn** | Use MermaidSeqBench, stored Code Mode evals, live model transcripts, and real consumers to decide what is missing. |
+| **Expand by evidence** | Promote more MutationOps, composition primitives, HTTP/SSE MCP transport, or additional structured families only when evidence justifies them. |
 
 ---
 
@@ -398,10 +407,10 @@ Three phases, not stages:
 
 Cross-cutting:
 
-- **Doc-sync** (both directions): every `LayoutWarning` code and `MutationOp` kind must appear in this spec. `am --agent-instructions` output must equal the canonicalized Agent workflow section byte-for-byte.
+- **Doc-sync** (both directions): every `LayoutWarning` code and `MutationOp` kind must appear in this spec. `am --agent-instructions` output must equal `Instructions_for_agents.md` byte-for-byte.
 - **Test honesty:** no tautological assertions (`expect(typeof x).toBe('boolean')` is banned by review). Every test must be able to fail for the regression it names. Verified by the fault-injection pass.
 
-MermaidSeqBench remains the eventual external eval; it requires the dataset and is an explicit follow-up, not claimed as done.
+MermaidSeqBench is wired as an external corpus signal; live model transcript evaluation remains periodic / pre-release rather than PR CI.
 
 ---
 
@@ -410,14 +419,14 @@ MermaidSeqBench remains the eventual external eval; it requires the dataset and 
 - **Determinism is empirical, not proven.** It's established by cross-process test over a corpus + the drift sentinel, plus reading ELK's config (`considerModelOrder: NODES_AND_EDGES`, no `randomSeed`). An ELK upgrade could in principle change this; the cross-process test and sentinel would catch it. There is no seed to fall back on because seeding never affected output.
 - **Determinism claim, precisely.** Layout JSON is byte-identical (after structural parse) across processes AND across JS runtimes (bun, node) on the same x86_64 machine and same ELK version. This is the verified claim. The IEEE-754 float behavior used by ELK is well-defined for all x86 vendors, so this likely extends across x86 machines. **Cross-architecture (x86 vs ARM) is NOT tested** — float operation ordering differences could in principle yield different ELK outputs there.
 - **Sequence structured coverage is deliberately narrow.** Only participant declarations + simple messages get a mutable structured body; everything else falls back to opaque (lossless, but not mutable). This is the honest tradeoff that replaced silent information loss.
-- **Six families have no structured mutation.** class / ER / timeline / journey / xychart / architecture. Multiplicative work; sequence proved the pattern.
-- **MermaidSeqBench not wired.** External dataset; the "single decisive number" is a follow-up, not a current result.
-- **Bloat in agent-facing docs.** `AGENTS.md` hard-capped under 100 lines; doc-sync test enforces.
+- **Three families remain source-level only.** journey / xychart / architecture still have no structured mutation. Opaque fallback is deliberate and lossless.
+- **Live-model agent-usage eval is periodic, not PR CI.** Stored Code Mode scripts, sandbox traces, and task oracles run in CI; live model transcripts are tracked in `TODO.md` because they need model access and real tasks.
+- **Bloat in agent-facing docs.** `Instructions_for_agents.md` is hard-capped under 100 lines; doc-sync test enforces.
 
 ## What v4 delivers (vs. earlier drafts)
 
 - **Determinism is structural and verified cross-process** — not a seed apparatus. The seed/RNG/clock machinery and the font-metric table are *removed* (they did nothing).
-- **Mutation for flowchart + state + sequence**, family-narrowed overloads, compile-time rejection of other families.
+- **Mutation for flowchart/state, sequence, timeline, class, and ER**, family-narrowed overloads, compile-time rejection of opaque/source-only families.
 - **Sequence parsing is lossless** — structured-or-opaque fallback; never silently drops constructs.
 - **Substrate enforcement is a real grep test** that runs under `bun test`, not an ESLint config that was never installed.
 - **`synthesizeFromGraph`** lets `am parse | am serialize` round-trip without `canonicalSource` on the wire.
@@ -467,4 +476,4 @@ Together they close a loop:
 
 That loop is the agent-native claim. Replacing several rounds of vision-on-PNG with one structured verification pass is what makes a coding agent reach for this fork before any other Mermaid library.
 
-The API makes the loop possible. `AGENTS.md` and `am --agent-instructions` make it a habit. Both ship together.
+The API makes the loop possible. `Instructions_for_agents.md` and `am --agent-instructions` make it a habit. Both ship together.

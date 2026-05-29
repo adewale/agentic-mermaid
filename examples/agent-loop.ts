@@ -2,7 +2,7 @@
 //   bun run examples/agent-loop.ts
 //
 // Demonstrates parse → narrow → mutate (flowchart + sequence) → verify →
-// serialize, plus the opaque fallback for diagrams we don't structurally model.
+// serialize, plus the opaque fallback for constructs we don't structurally model.
 
 import {
   parseMermaid, asFlowchart, asSequence, mutate, verifyMermaid, serializeMermaid,
@@ -22,6 +22,7 @@ function line(s: string) { process.stdout.write(s + '\n') }
   const c = mutate(b.value, { kind: 'add_edge', from: 'Cache', to: 'DB' })
   if (!c.ok) throw new Error(c.error.message)
   const v = verifyMermaid(c.value)
+  if (!v.ok) throw new Error('verify failed')
   line('--- flowchart ---')
   line(`verify ok: ${v.ok}  warnings: ${v.warnings.length}`)
   line(serializeMermaid(c.value))
@@ -34,8 +35,10 @@ function line(s: string) { process.stdout.write(s + '\n') }
   const seq = asSequence(d0.value)!
   const a = mutate(seq, { kind: 'add_message', from: 'Bob', to: 'Alice', text: 'Hello', style: 'reply' })
   if (!a.ok) throw new Error(a.error.message)
+  const v = verifyMermaid(a.value)
+  if (!v.ok) throw new Error('verify failed')
   line('--- sequence ---')
-  line(`verify ok: ${verifyMermaid(a.value).ok}`)
+  line(`verify ok: ${v.ok}  warnings: ${v.warnings.length}`)
   line(serializeMermaid(a.value))
 }
 

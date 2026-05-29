@@ -8,12 +8,12 @@ This changelog tracks user-facing changes in the `adewale/beautiful-mermaid` for
 - **Agent-native surface** (`beautiful-mermaid/agent` subpath export): a typed editing API for agents and tools.
   - `parseMermaid` → sealed `ValidDiagram` IR carrying frontmatter, init directives, comments, accessibility, and the canonical source.
   - `verifyMermaid` → structured `LayoutWarning` codes in two tiers (Tier 1 structural/reliable, Tier 2 geometric/advisory). No vision/PNG needed.
-  - `mutate` → typed, family-narrowed structural edits for flowchart, state, and (simple) sequence diagrams. Six flowchart ops, five sequence ops. Other families and sequence diagrams with unmodeled constructs fall back to a lossless opaque body.
+  - `mutate` → typed, family-narrowed structural edits for flowchart/state, simple sequence, timeline, class, and ER diagrams. Journey, xychart, architecture, and diagrams with unmodeled constructs fall back to a lossless opaque/source-level body.
   - `serializeMermaid` / `synthesizeFromGraph` → round-trip back to canonical Mermaid source.
   - Deterministic layout JSON, verified byte-identical across processes (ELK is configured for model-order layout; there is no seed).
-- **`am` CLI**: `render`, `verify`, `parse`, `serialize`, `mutate`, `format`, `--json`, per-command `--help`, and `--agent-instructions`.
+- **`am` CLI**: `render`, `verify`, `parse`, `serialize`, `mutate` (verify-before-emit), `format`, `describe`, `capabilities`, `batch`, `render-markdown`, `llms-txt`, `--json`, per-command `--help`, and `--agent-instructions`.
 - **`agentic-mermaid-mcp`**: a Code Mode MCP server (one `execute` tool, `node:vm` sandbox) so agents compose the whole verify-after-mutate loop in one round-trip.
-- **`AGENTS.md`** and a Claude Code skill bundle at `.claude/skills/agentic-mermaid/`.
+- **`Instructions_for_agents.md`** and a Claude Code skill bundle at `.claude/skills/agentic-mermaid/`.
 - See [`AGENT_NATIVE.md`](./AGENT_NATIVE.md) for the design and [`examples/agent-loop.ts`](./examples/agent-loop.ts) for a runnable walkthrough.
 - Live editor deployment on GitHub Pages at <https://adewale.github.io/beautiful-mermaid/editor>.
 - Editor examples palette with presets for every supported diagram family: flowchart, state, architecture, sequence, class, ER, timeline, journey, and xychart.

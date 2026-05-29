@@ -13,14 +13,18 @@
       "type": "array",
       "items": {
         "type": "object",
-        "required": ["id", "hasParse", "hasSerialize", "hasMutate", "hasVerify", "hasExtractLabels"],
+        "required": ["id", "hasParse", "hasSerialize", "hasMutate", "hasVerify", "hasExtractLabels", "mutationOps"],
         "properties": {
           "id": { "type": "string" },
           "hasParse": { "type": "boolean" },
           "hasSerialize": { "type": "boolean" },
           "hasMutate": { "type": "boolean" },
           "hasVerify": { "type": "boolean" },
-          "hasExtractLabels": { "type": "boolean" }
+          "hasExtractLabels": { "type": "boolean" },
+          "mutationOps": {
+            "type": "array",
+            "items": { "type": "string" }
+          }
         }
       }
     },

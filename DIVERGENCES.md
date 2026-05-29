@@ -1,6 +1,6 @@
 # Divergences — v4 implementation
 
-Decisions made during the v4 build that differ from, or go beyond, AGENT_NATIVE.md. Carried forward across loops (not deleted on rollback — that was a documented failure of the previous loop).
+Decisions made during the v4 build that differ from, or go beyond, AGENT_NATIVE.md. This is an implementation history, not an active backlog; active work lives only in TODO.md.
 
 ## Honored from the spec
 
@@ -14,16 +14,16 @@ Decisions made during the v4 build that differ from, or go beyond, AGENT_NATIVE.
 
 - **Package name unchanged (`beautiful-mermaid`).** Agent surface via `./agent` subpath. Renaming is a publish-time action needing the owner; out of scope for implementation. (Same as prior loops.)
 - **`MermaidGraph` / `renderMermaidSVGAsync` kept**, not removed. Removing them breaks 60+ test files and the Craft Agents consumer. `ValidDiagram` wraps `MermaidGraph` for flowchart.
-- **`state` diagrams share the flowchart body** (`body.kind: 'flowchart'`), because the legacy parser produces a `MermaidGraph` for both. `asFlowchart` accepts both; `kind` distinguishes them. So "flowchart + state + sequence" = two body shapes, three kinds.
+- **`state` diagrams share the flowchart body** (`body.kind: 'flowchart'`), because the legacy parser produces a `MermaidGraph` for both. `asFlowchart` accepts both; `kind` distinguishes them.
 - **Sequence message styles** modeled as `sync | reply | async | async-dashed | lost | lost-dashed`. Mermaid has more (bidirectional, etc.); these six cover the common arrows. Unmodeled arrow forms trigger the opaque fallback.
 - **`am parse` JSON shape**: Maps serialized to plain objects via a replacer. `synthesizeFromGraph` reverses it.
 
-## Known limitations (carried, not hidden)
+## Current limitations (not backlog)
 
-- Six families (class, ER, timeline, journey, xychart, architecture) parse to opaque; no structured mutation. Documented in spec.
-- Cross-machine (different-CPU) float determinism not claimed; cross-process same-machine is tested.
-- MermaidSeqBench not wired (external dataset).
-- Stryker not installed; substituted with an in-repo fault-injection test that proves the suite catches injected bugs.
+- Journey, xychart, architecture, and opaque-fallback bodies are source-level only; no structured mutation is exposed for them.
+- Cross-machine / cross-architecture float determinism is not claimed; cross-process same-machine is tested.
+- Live-model agent-usage evaluation is periodic/pre-release, not PR CI.
+- Stryker is available but not part of the default verification contract; the in-repo fault-injection tests provide the lightweight mutation-style guard.
 
 ## Audit-loop findings (code-review skill, high effort) — fixed
 
@@ -350,8 +350,9 @@ critics and shipped as seven milestones.
     is the new code Loop 7 introduces.
 - **M6 Code Mode justification** — paragraph in `AGENT_NATIVE.md` citing
   manuareraa PR #42 as the render-tool-per-format counter-example.
-- **M7 Docs** — `LESSONS_LEARNED.md` rewritten across loops 1-7; new
-  top-level `ROADMAP.md` tracks the three pillars.
+- **M7 Docs** — `LESSONS_LEARNED.md` rewritten across loops 1-7; at the
+  time, a top-level roadmap tracked the three pillars (later consolidated
+  into `TODO.md` as the only active backlog).
 
 ### Network items cut from Loop 7 (deferred to Loop 8)
 - SVG `--compact` mode (rounding + whitespace) per GauBen #77 — keeps
@@ -765,8 +766,8 @@ Direct execution per milestone. Verify by observation.
 - **M6 agent-usage harness** — 3 layers: scripted scenarios + anti-pattern
   linter (CI) + real-LLM eval (design). The honest answer to "how do we
   test how agents use it"; even L1 uses a scripted not real agent — L3
-  (real model + AGENTS.md + tasks) is the true validation, needs a live
-  model + ideally a real consumer's tasks.
+  (real model + Instructions_for_agents.md + tasks) is the true validation,
+  needs a live model + ideally a real consumer's tasks.
 - **M7 FEATURES.md** — full capability inventory by area.
 
 ### Numbers

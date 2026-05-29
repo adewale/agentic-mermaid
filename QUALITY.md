@@ -79,8 +79,9 @@ combination above gives:
 - **No font-substitution check.** Different OSes render different
   default fonts. Our `labelLegibility` heuristic uses a 7 px-per-char
   approximation; under condensed fonts it under-estimates fit.
-- **No color contrast.** We don't yet check WCAG contrast on
-  label-on-fill pairs. Tracked as future work.
+- **No quality-metric color-contrast score.** Runtime auto-contrast exists
+  for custom fills, but `measureQuality` does not include a separate WCAG
+  contrast metric. Promote to `TODO.md` only if it becomes release-gating.
 
 ## ASCII determinism
 
@@ -100,16 +101,14 @@ What the guard catches:
   whose ordering changes between Bun and Node.
 
 What the guard does NOT yet cover:
-- **Cross-runtime parity** (bun ≡ node on the SAME fixture). We have
-  this for SVG layout (`src/__tests__/agent-determinism.test.ts`
-  spawns `node` on `dist/agent.js` and compares). Not yet for ASCII —
-  deferred to Loop 8 per `ROADMAP.md`.
+- **Full-corpus coverage.** The current ASCII guard covers representative
+  fixtures. `BUILD-3` in `TODO.md` tracks extending byte-identity coverage
+  to the 247-sample corpus.
 - **Cross-architecture parity** (x86_64 vs ARM). Same as SVG: needs
   hardware we don't have.
-- **Input-order independence.** The current 10-run-same-input test
-  does not stress edge-insertion order. A Set whose iteration order
-  depends on insertion order would pass this test and fail a different
-  one. Loop 8 candidate.
+- **Input-order independence.** The current 10-run-same-input test does not
+  stress edge-insertion order. If this becomes release-gating, fold it into
+  `BUILD-3` in `TODO.md` rather than tracking it here.
 
 ## PNG determinism
 

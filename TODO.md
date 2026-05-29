@@ -1,150 +1,79 @@
 # Project Backlog
 
-The single source of truth for what's left. (Test-coverage matrix + the
-historical architecture audit follow below.) Changelog = DIVERGENCES.md;
-capability inventory = FEATURES.md; forward plan = ROADMAP.md.
+`TODO.md` is the only active backlog. No other root doc may carry unchecked
+project TODOs. Docs map: `FEATURES.md` = current capabilities;
+`DIVERGENCES.md` = implementation history; `LESSONS_LEARNED.md` = process
+lessons; `AGENT_NATIVE.md` = architecture/spec rationale;
+`Instructions_for_agents.md` = runtime guide; `CHANGELOG.md` = user-facing
+release notes.
 
-## Blocking / owner-decision (not code — these gate everything downstream)
+Status legend: `todo` | `blocked` | `owner-decision` | `parked`.
 
-- [ ] **Renaming + publish decision.** The package is still
-  `beautiful-mermaid@1.1.3` ("render Mermaid as SVG/ASCII"); the agent
-  surface ships as the `./agent` subpath. Decide the published name
-  (e.g. `agentic-mermaid`) and whether/when to publish to npm. Owner
-  decision — blocks any release.
-- [ ] **Merge or explicitly park PR #11.** 13 loops of work sit in one
-  unmerged PR. The longer it grows, the harder the eventual review.
-- [ ] **Get a real external consumer.** Every quality signal so far is
-  self-generated (our tests, our corpus, our benchmark, our judge). One
-  actual agent/TUI using `beautiful-mermaid/agent` would surface more
-  than another build loop. Highest-value non-code item.
+## 0. Release / owner decisions
 
-## Build backlog
+- [ ] **DEC-1 — Rename + publish decision** (`owner-decision`). The package
+  is still `beautiful-mermaid@1.1.3`; the agent surface ships as the
+  `./agent` subpath. Decide the published name (for example
+  `agentic-mermaid`) and whether/when to publish to npm.
+- [ ] **DEC-2 — Merge or explicitly park PR #11** (`owner-decision`). The
+  agent-native milestone is large and should stop accumulating feature work
+  until this decision is made.
+- [ ] **DEC-3 — Get one real external consumer** (`todo`). Validate
+  `beautiful-mermaid/agent`, `am`, or `agentic-mermaid-mcp` in a real agent,
+  TUI, CI gate, or editor integration outside this repo.
 
-- [x] Single-binary distribution (#1018) — Loop 13 (`bun build --compile`)
-- [x] glob / multi-input (#959) — Loop 13
-- [x] `--watch` (#930) — Loop 13
-- [x] Agent-usage validation harness — Loop 13
-- [ ] Collapsible subgraphs (#7785) — large; real readability win for
-  agent-generated architecture diagrams
-- [ ] Formal Trusted Types browser verification (#7695) — needs a real
-  browser; our output is static/CSP-compatible but unverified against a
-  live TT policy
+## 1. Ready build backlog
 
-## Blocked (cannot do in this environment)
+- [ ] **BUILD-1 — Collapsible subgraphs (#7785)** (`todo`). Large, but a real
+  readability win for agent-generated architecture diagrams.
+- [ ] **BUILD-2 — Formal Trusted Types browser verification (#7695)**
+  (`todo`). Static/CSP-compatible output exists; still needs a live browser
+  TT/CSP policy test.
+- [ ] **BUILD-3 — Full-corpus ASCII determinism guard** (`todo`). Current
+  guard covers representative multi-edge fixtures; extend to the 247-sample
+  corpus before claiming full-corpus byte identity.
+- [ ] **BUILD-4 — `process --mode validate|canonicalize` triage** (`todo`).
+  Current verbs are `verify` and `format`; decide whether a single `process`
+  wrapper improves agent ergonomics enough to justify another command.
+- [ ] **BUILD-5 — Family-plugin consolidation** (`todo`). Evaluate whether
+  parse/serialize/mutate dispatch should move fully into `FamilyPlugin` now
+  that timeline/class/ER mutation exists.
 
-- [ ] mermaid-ast journey/xychart structured uplift — `mermaid-ast`'s
-  transitive dep chain (langium → vscode-jsonrpc → @chevrotain) is broken
-  in this sandbox; confirmed Loops 9 + 12. Needs a working install.
-- [ ] ARM64 PNG parity — bun ≡ node verified on x86_64; ARM untested,
-  needs ARM hardware.
+## 2. Agent-usage verification backlog
 
----
+- [ ] **EVAL-1 — Run live-model agent-usage transcripts before release**
+  (`todo`). The deterministic stored Code Mode eval is wired; a live model
+  run should record prompts, scripts, traces, task scores, anti-patterns, and
+  model/version metadata.
+- [ ] **EVAL-2 — Add more real-agent failure fixtures** (`todo`). Include
+  tempting bad outputs: string concatenation, whole-source regeneration,
+  verify-not-inspected, verify-wrong-diagram, CLI mutate-without-follow-up,
+  and copied stale examples.
 
-# Test Coverage Matrix
+## 3. Blocked / external resource needed
 
-Test category coverage across diagram types. Use this to identify gaps when adding or auditing diagram support.
+- [ ] **BLOCKED-1 — mermaid-ast journey/xychart structured uplift**
+  (`blocked`). `mermaid-ast`'s transitive dependency chain is broken in this
+  sandbox; needs a working install before implementation.
+- [ ] **BLOCKED-2 — ARM64 PNG parity** (`blocked`). Bun ≡ Node PNG parity is
+  verified on x86_64 only; needs ARM hardware.
 
-| Test type      | Flowchart | Sequence | Class | ER  | Timeline | Journey | XY Chart | Architecture |
-|----------------|-----------|----------|-------|-----|----------|---------|----------|--------------|
-| Parser         | yes       | yes      | yes   | yes | yes      | yes     | yes      | yes          |
-| Layout         | yes       | yes      | -     | -   | yes      | yes     | yes      | yes          |
-| Renderer       | yes       | -        | -     | -   | -        | -       | yes      | yes          |
-| ASCII          | yes       | -        | -     | -   | yes      | yes     | yes      | yes          |
-| Integration    | yes       | yes      | yes   | yes | yes      | yes     | yes      | yes          |
-| Theme          | -         | -        | -     | -   | -        | yes     | -        | yes          |
-| SVG Snapshot   | -         | -        | -     | -   | -        | yes     | -        | yes          |
-| Config         | -         | -        | -     | -   | -        | -       | -        | yes          |
-| Accessibility  | -         | -        | -     | -   | yes      | yes     | yes      | yes          |
-| Property-based | yes       | -        | -     | -   | -        | -       | yes      | -            |
-| Edge styles    | yes       | -        | -     | -   | -        | -       | -        | -            |
-| Multiline      | yes       | -        | -     | -   | -        | -       | -        | -            |
+## 4. Parked / evidence-required ideas
 
-# Architecture Audit — Resolved Issues
+- [ ] **PARK-1 — #69 fan-in grouping** (`parked`). Aesthetics improvement,
+  but risks determinism snapshots; revisit only with concrete diagrams.
+- [ ] **PARK-2 — `.well-known/skills` discovery** (`parked`). Watch the
+  ecosystem; do not implement until a standard settles.
+- [ ] **PARK-3 — Fork feature ports** (`parked`). QuadrantChart, Vercel
+  themes, browser/package export tweaks, C4, ArchiMate, and animation remain
+  fork-audit ideas. Promote one only with a focused issue and owner.
 
-Issues found by auditing architecture against all other diagram types (2026-03-20).
+## 5. Non-goals
 
-| Issue | Severity | Resolution |
-|-------|----------|------------|
-| Config duplication | Medium | Removed duplicate `MERMAID_THEME_COLORS` and color resolution from `config.ts`. Architecture now uses the shared `buildColors()` pipeline for color resolution. `resolveArchitectureVisualConfig()` only computes architecture-specific visual metrics (font sizes, icon sizes, junction radii) and surface/border overrides from `clusterBkg`/`clusterBorder`. |
-| Double-parsing in ASCII | Low | Architecture parser now accepts `lines[]` instead of raw text. ASCII dispatch passes `normalizedSource.lines` — preprocessing runs once, not twice. |
-| Parser input inconsistency | Low | `parseArchitectureDiagram()` signature changed from `(text: string)` to `(lines: string[])`, matching the convention used by sequence, class, ER, timeline, and journey parsers. |
-| ARIA ID uniqueness | Low | All diagram types (architecture, journey, timeline) now generate content-hash-based ARIA IDs (e.g., `arch-1a2b3c-title`) instead of hardcoded IDs. XYChart already used hash-based IDs. Safe for multiple diagrams on one page. |
-| Missing `role="img"` on xychart | Note | Added `role="img"` to xychart SVG output when accessibility metadata is present, matching the convention used by timeline, journey, and architecture. |
-
-# Remaining Gaps
-
-### Cross-cutting
-
-- [x] Add theme tests for timeline, xychart, sequence, class, and ER diagrams
-- [x] Add SVG structural snapshot tests for timeline, xychart, and older diagram types
-- [x] Add property-based tests for timeline, journey, and architecture diagrams
-- [x] Add accessibility (accTitle/accDescr) support to sequence, class, and ER parsers/renderers
-
-### Sequence
-
-- [x] Add dedicated renderer unit tests
-- [x] Add ASCII test coverage for notes before the first message
-
-### Class
-
-- [x] Add layout tests
-- [x] Add dedicated renderer unit tests
-
-### ER
-
-- [x] Add layout tests
-- [x] Add dedicated renderer unit tests
-
-# Fork Feature Backlog
-
-Potential ports from the fork audit. Keep upstreamable work split into small branches based on `lukilabs/main`; keep editor/demo/product-specific work on the fork.
-
-## High-confidence ports
-
-- [ ] Add a focused CLI based on `vinceyyy/beautiful-mermaid:feat/cli`
-  - [ ] `beautiful-mermaid render <file> --ascii`
-  - [ ] `beautiful-mermaid render <file> --svg -o <out.svg>`
-  - [ ] stdin input support
-  - [ ] theme listing / `--theme`
-  - [ ] CLI parser, render, diagram smoke, and E2E tests
-- [ ] Add `quadrantChart` SVG support based on `zachwill/beautiful-mermaid:feat/quadrant-chart`
-  - [ ] Parser/layout/renderer/types
-  - [ ] Interactive point tooltips via `interactive: true`
-  - [ ] Clear unsupported behavior or implementation for ASCII output
-  - [ ] README, samples, editor/E2E coverage
-- [ ] Add Vercel-inspired themes
-  - [ ] `vercel-dark`
-  - [ ] `vercel-light`
-  - [ ] Theme tests and editor theme-list coverage
-- [ ] Port any remaining Vercel-inspired visual ideas on top of semantic style roles
-  - [x] Use `options.style.text/node/edge/group` rather than flat render aliases
-  - [x] Apply supported roles consistently across SVG diagram families with layout + renderer coverage
-  - [ ] Evaluate theme presets separately from styling API changes
-  - [ ] Keep animation experiments fork-first and separate from core styling
-- [ ] Add package/browser export improvements if useful
-  - [ ] Browser/global export entrypoint
-  - [ ] Package export fallback compatibility
-  - [ ] Build and package tests
-
-## Larger feature ports
-
-- [ ] Add C4 diagram support from `kristjanakkermann/beautiful-mermaid`
-  - [ ] Start with C4 parser/layout/SVG/tests
-  - [ ] Follow with C4 ASCII if SVG path is accepted
-  - [ ] Preserve focused PR boundaries; avoid bundling ArchiMate in the same upstream PR
-- [ ] Add ArchiMate layered diagram support from `kristjanakkermann/beautiful-mermaid`
-  - [ ] Parser/layout/SVG/tests
-  - [ ] ASCII renderer as a follow-up
-  - [ ] Reconcile custom `archimate-layered` DSL with Mermaid compatibility expectations
-- [ ] Consider Vercel-style SVG animation as fork-first work
-  - [ ] `animate: true | AnimationOptions`
-  - [ ] Rank/dependency delay model compatible with current ELK layout pipeline
-  - [ ] CSS/SMIL edge draw and moving arrowheads
-  - [ ] `prefers-reduced-motion` handling
-  - [ ] Visual regression/browser tests
-
-## Deliberate non-goals / defer
-
-- [ ] Do not port Vercel package rename, committed `dist/`, `.vercel`, or branding into upstream branches
-- [ ] Do not fold `zhenhuaa/mdv` wholesale into the package; treat terminal Markdown viewing as a separate tool or future companion package
-- [ ] Do not port old dagre-specific layout code directly; translate only ideas that still apply to the current ELK/layout-engine architecture
+- Do not port Vercel package rename, committed `dist/`, `.vercel`, or branding.
+- Do not fold `zhenhuaa/mdv` wholesale into this package; terminal Markdown
+  viewing belongs in a separate tool or companion package.
+- Do not port old dagre-specific layout code directly; translate only ideas
+  that still apply to the current ELK/layout-engine architecture.
+- Do not treat historical `DIVERGENCES.md` or process notes as backlog unless
+  an item is promoted here with an ID.

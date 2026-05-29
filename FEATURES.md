@@ -2,8 +2,7 @@
 
 What the `beautiful-mermaid/agent` surface in this fork can do, organized
 by capability area. This is the user-facing inventory; the per-loop
-changelog is `DIVERGENCES.md`, the forward plan is `ROADMAP.md`, the
-backlog is `TODO.md`.
+implementation log is `DIVERGENCES.md`; active backlog is only `TODO.md`.
 
 ## Core IR & editing loop
 
@@ -78,7 +77,8 @@ or preserves source verbatim. Constructs are never silently dropped.
 `render` (svg/ascii/unicode/png/json, `--compact`, `--security strict`,
 `--output`, `--watch`, multi-input), `render-markdown` (skip bad blocks),
 `parse`, `verify`, `mutate`, `format`, `describe` (text/json),
-`capabilities --json`, `batch --jsonl`, `llms-txt`, `--agent-instructions`.
+`capabilities --json` (including `families[].mutationOps`), `batch --jsonl`,
+`llms-txt`, `--agent-instructions`. `mutate` verifies before emitting source.
 Exit codes 0/2/3/4; structured `error.details`.
 
 ## MCP server
@@ -100,9 +100,9 @@ plus narrow helper tools: `render_png` and `describe`.
 - **Corpus gates** — 247-sample mermaid-js docs corpus + 132-case
   MermaidSeqBench, gated in CI.
 - **Benchmarks** — `eval/benchmark/RESULTS.md` (measured vs mmdc, termaid).
-- **Agent-usage validation** — `eval/agent-usage/` scenarios +
-  anti-pattern linter + real-LLM eval design.
-- **~1686 tests**, tsc + build + lint clean.
+- **Agent-usage validation** — `eval/agent-usage/` scenarios,
+  anti-pattern linter, sandbox trace instrumentation, and stored Code Mode eval runner.
+- **~1695 unit tests + 56 e2e tests**, tsc + build + lint clean.
 
 ## Not browser-dependent
 

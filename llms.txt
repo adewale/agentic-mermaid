@@ -24,10 +24,10 @@ haven't inspected.
 - render --format svg, ascii, unicode, png, json [--security strict] [--output file] — render a diagram
 - parse — diagram → ValidDiagram JSON
 - verify — structural validation (exit 3 if invalid)
-- mutate --op '<json>' — apply a typed mutation
+- mutate --op '<json>' — apply a typed mutation, verify, then emit source
 - format — normalize / canonicalize source
 - describe [--format text|json] — natural-language or AX-tree summary
-- capabilities --json — machine-readable capability envelope
+- capabilities --json — machine-readable capability envelope incl. mutationOps
 - batch --jsonl — bulk ops, one JSON envelope per line
 - render-markdown <file.md> — render fenced mermaid blocks, skip invalid ones
 - llms-txt — this document
@@ -63,8 +63,9 @@ verifyNoExternalRefs } from 'beautiful-mermaid/agent'`
 
 ## Docs
 
-- AGENTS.md — canonical agent-use guide
-- AGENT_NATIVE.md — the spec
+- Instructions_for_agents.md — canonical agent-use guide
+- AGENT_NATIVE.md — architecture/spec rationale
+- FEATURES.md — current capability inventory
+- TODO.md — only active backlog
 - QUALITY.md — determinism + "good looking" rubric
 - SECURITY.md — threat model + strict-mode guarantee
-- ROADMAP.md — three-pillar status

@@ -1,7 +1,7 @@
 // Loop 7 A3.1: `am capabilities --json` — registry-driven introspection.
 
 import { describe, it, expect } from 'bun:test'
-import { buildCapabilities } from '../cli/index.ts'
+import { buildCapabilities, MUTATION_OPS_BY_FAMILY } from '../cli/index.ts'
 import { knownFamilies } from '../agent/families.ts'
 import { WARNING_SEVERITY } from '../agent/types.ts'
 import { readFileSync, existsSync } from 'node:fs'
@@ -27,7 +27,7 @@ describe('am capabilities', () => {
 
   it('each family entry reports the public agent surface, not plugin internals', () => {
     const cap = buildCapabilities()
-    const mutable = new Set(['flowchart', 'state', 'sequence', 'timeline', 'class', 'er'])
+    const mutable = new Set(Object.keys(MUTATION_OPS_BY_FAMILY))
     for (const f of cap.families) {
       expect(typeof f.id).toBe('string')
       expect(f.hasParse).toBe(true)
@@ -35,6 +35,21 @@ describe('am capabilities', () => {
       expect(f.hasVerify).toBe(true)
       expect(f.hasMutate).toBe(mutable.has(f.id))
       expect(typeof f.hasExtractLabels).toBe('boolean')
+      expect(f.mutationOps).toEqual(f.id in MUTATION_OPS_BY_FAMILY ? [...MUTATION_OPS_BY_FAMILY[f.id as keyof typeof MUTATION_OPS_BY_FAMILY]] : [])
+    }
+  })
+
+  it('advertises mutation ops for every mutable family', () => {
+    const cap = buildCapabilities()
+    for (const [family, ops] of Object.entries(MUTATION_OPS_BY_FAMILY)) {
+      const entry = cap.families.find(f => f.id === family)
+      expect(entry).toBeDefined()
+      expect(entry!.hasMutate).toBe(true)
+      expect(entry!.mutationOps).toEqual([...ops])
+      expect(entry!.mutationOps.length).toBeGreaterThan(0)
+    }
+    for (const f of cap.families.filter(f => !f.hasMutate)) {
+      expect(f.mutationOps).toEqual([])
     }
   })
 
