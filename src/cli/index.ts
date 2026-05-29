@@ -40,7 +40,13 @@ function parseArgs(argv: string[]): ParsedArgs {
 }
 
 function readSourceArg(arg: string | undefined): string {
-  if (!arg || arg === '-') { try { return readFileSync(0).toString('utf8') } catch { return '' } }
+  if (!arg || arg === '-') {
+    // Loop 9 M5: TTY-stdin guard. When stdin is an interactive TTY (no
+    // pipe), the read blocks forever waiting for the user to paste + Ctrl-D
+    // — confusing UX. Fail fast with a clear hint.
+    if (process.stdin.isTTY) throw new Error('needs a file argument or piped stdin')
+    try { return readFileSync(0).toString('utf8') } catch { return '' }
+  }
   if (!existsSync(arg)) throw new Error(`File not found: ${arg}`)
   return readFileSync(arg, 'utf8')
 }
@@ -140,9 +146,13 @@ export function runCli(argv: string[]): number {
     }
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e)
-    if (json) process.stdout.write(JSON.stringify({ ok: false, error: { code: 'INTERNAL', message: msg } }) + '\n')
+    // Loop 9 M5: argument-shape errors (missing file, TTY stdin, etc.) get
+    // exit 2 per the documented contract. Heuristic: messages thrown from
+    // readSourceArg / arg parsing are advisory rather than internal bugs.
+    const isArgError = /^needs a file argument|^File not found:/.test(msg)
+    if (json) process.stdout.write(JSON.stringify({ ok: false, error: { code: isArgError ? 'ARG' : 'INTERNAL', message: msg } }) + '\n')
     else process.stderr.write(`Error: ${msg}\n`)
-    return EXIT_INTERNAL
+    return isArgError ? EXIT_ARG_ERROR : EXIT_INTERNAL
   }
 }
 
