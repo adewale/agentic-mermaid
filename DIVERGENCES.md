@@ -682,3 +682,62 @@ am llms-txt + buildLlmsTxt() derived from capabilities; committed snapshot
 - tsc + build + lint green; 247-corpus + MermaidSeqBench 132/132 floors hold
 - All determinism (SVG/PNG/ASCII, in-process + cross-runtime) byte-identical
 - 5 commits (M1-M4 + docs)
+
+## Loop 12 — consistency fixes + benchmark numbers + feature backlog
+
+User authorized all three explicitly. Executed directly per milestone
+(four prior implementer-agent stalls → direct execution is the reliable
+mode). Verification by observation throughout (Loop 10 lesson).
+
+### M1 — CLI structured error envelope (consistency wart #1)
+The CLI buried ParseError[] as a JSON-stringified string in error.message.
+New parseErrorEnvelope() emits { code:'PARSE_FAILED', message:<human>,
+details:<ParseError[]> } at every PARSE_FAILED site. Success path (bare
+ValidDiagram JSON) unchanged — pipe contract intact. 3 tests.
+
+### M2 — removed stale Loop-9 TODO comments (consistency wart #2)
+families-builtin.ts claimed verify.ts still had duplicate per-body class/er
+branches; Loop 9 M2 had already deleted them (confirmed: verify.ts routes
+class/er through pluginWarnings only). Doc-rot removed.
+
+### M3 — benchmark harness + RESULTS.md (HONESTY-CRITICAL)
+Measured ours over the 247-corpus: SVG p50 3.7ms/p90 14.9ms, ASCII p50
+0.37ms, SVG p50 2.9KB, parse 247/247, cold CLI ~870ms. Competitors
+attempted LIVE, reported faithfully:
+- mmdc: installs; headless Chrome refuses root without --no-sandbox (the
+  #750/#1015/#1013 pain). With --no-sandbox: ~3000ms cold, 10.8KB output
+  (4.8x ours). Browserless win measured.
+- termaid: installs, renders Unicode well, ~102ms cold — FASTER than our
+  Bun CLI cold-start. Reported honestly: termaid wins on cold ASCII; our
+  edge is the agent surface (AST/verify/mutate/SVG/PNG/MCP) it lacks.
+- mmd-cli (Go): not built; assessed from architecture (single-binary =
+  Loop 13 distribution lesson #1018).
+No fabricated head-to-head latency. The honest finding — termaid beats our
+cold-start — is in RESULTS.md, not spun.
+
+### M4 — rgb()/rgba()/hsl() in style statements (real bug, Loop 10 deferral)
+parseStyleProps split on every comma, mangling fill:rgb(10,10,10) →
+"rgb(10". New splitTopLevelCommas splits at paren-depth 0 only. rgb fill
+now drives auto-contrast end-to-end (closes the Loop 10 M2 documented gap).
+Multi-prop hex still splits (no regression). Applies to style + classDef.
+8 tests.
+
+### M5 (#543) — render-markdown, skip-bad-diagrams
+am render-markdown extracts ```mermaid fenced blocks, renders each,
+continues past invalid ones. { blocks:[{index,ok,format,output|error}] },
+exit 0. 6 tests.
+
+### Cut
+- M6 (#959 glob/multi-input) — context budget. Loop 13.
+
+### Numbers
+- Tests: 1652 → 1672 (+20 across 5 new test files)
+- tsc + build + lint green; 247-corpus + MermaidSeqBench floors hold
+- determinism (SVG/PNG/ASCII, in-process + cross-runtime) byte-identical
+- 6 commits (M1+M2, M3, M4, M5, docs)
+
+### Loop 13 candidates
+- #959 glob/multi-input; #930 --watch
+- #1018 single-binary (would close the cold-start gap the benchmark exposed)
+- #7785 collapsible subgraphs; #7695 formal Trusted Types browser test
+- mermaid-ast journey/xychart (dep chain broken); ARM64 PNG parity (hardware)

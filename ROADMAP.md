@@ -96,7 +96,7 @@ can lift the design directly.
   (no Google Fonts `@import`). `verifyNoExternalRefs(svg)` asserts it.
   MCP `render_png` is offline by construction. See SECURITY.md.
 - **[shipped, Loop 11] no click/href/image injection.** Always-on.
-- **[Loop 12] formal Trusted Types verification (#7695).** Output is
+- **[Loop 13] formal Trusted Types verification (#7695).** Output is
   static markup (CSP-compatible) but unverified against a live TT policy.
 
 ## Distribution / discovery
@@ -104,9 +104,28 @@ can lift the design directly.
 - **[shipped, Loop 11] llms.txt (#6430).** `am llms-txt` + committed
   snapshot, derived from capabilities.
 - **[shipped, Loop 7] batch (#959 partial).** `am batch --jsonl`.
-- **[Loop 12] single-binary (#1018), --watch (#930), glob (#959),
-  markdown skip-bad-diagrams (#543), `.well-known/skills` (no settled
-  standard).**
+- **[shipped, Loop 12] markdown skip-bad-diagrams (#543).**
+  `am render-markdown` renders fenced blocks, continues past invalid ones.
+- **[Loop 13] single-binary (#1018), --watch (#930), glob (#959),
+  `.well-known/skills` (no settled standard).** The Loop 12 benchmark
+  showed single-binary (#1018) is the highest-value of these — it would
+  close our cold-start gap vs termaid/Go.
+
+## Benchmarks
+
+- **[shipped, Loop 12] benchmark harness + RESULTS.md.** Ours measured
+  over the 247-corpus (SVG p50 3.7ms, ASCII p50 0.37ms, SVG 2.9KB).
+  Competitors run live where possible: decisive vs mmdc (browserless,
+  3x faster cold, 5x smaller); honest peer-on-ASCII vs termaid (it
+  cold-starts faster; we win on the agent surface it lacks). See
+  `eval/benchmark/RESULTS.md`.
+
+## Consistency / correctness
+
+- **[shipped, Loop 12] structured CLI errors.** ParseError[] carried in
+  `error.details`, not stringified into `message`.
+- **[shipped, Loop 12] rgb()/rgba()/hsl() in style statements.** Style
+  props split on top-level commas only.
 
 ## What is not on the roadmap
 

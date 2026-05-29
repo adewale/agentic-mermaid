@@ -402,6 +402,7 @@ haven't inspected.
 - describe [--format text|json] — natural-language or AX-tree summary
 - capabilities --json — machine-readable capability envelope
 - batch --jsonl — bulk ops, one JSON envelope per line
+- render-markdown <file.md> — render fenced mermaid blocks, skip invalid ones
 - llms-txt — this document
 
 Exit codes: 0 ok, 2 arg error, 3 verify-failed, 4 internal.

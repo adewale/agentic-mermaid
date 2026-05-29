@@ -212,3 +212,35 @@ string rewrite in the resolve() funnel handled every family at once, with
 no blast radius into renderer signatures. When a feature is expressible as
 "rewrite the finished SVG," prefer that over threading state through the
 render tree — it's testable in isolation and family-agnostic by default.
+
+## Loop 12 lesson — benchmark honesty, even when it stings
+
+The benchmark milestone was the one most at risk of motivated reasoning:
+we'd been claiming "compete on correctness" for several loops with zero
+numbers. The temptation is to measure only the axes we win.
+
+What actually happened when I ran it: **termaid cold-starts in ~102ms;
+our Bun CLI takes ~870ms.** termaid beats us on the exact thing (ASCII to
+terminal) we'd positioned as our turf. The honest move — recorded in
+RESULTS.md and the commit — was to say so plainly, and to relocate our
+actual differentiator: not ASCII speed, but the agent surface (AST,
+verify, mutate, SVG/PNG, MCP, determinism, structured errors) that
+termaid doesn't have. Against mmdc the story IS decisive (browserless,
+3x faster cold, 5x smaller), and that's measured too.
+
+Two process notes:
+1. Attempting the competitor installs for real was worth it. mmdc's
+   "headless Chrome refuses to run as root" failure isn't a number I
+   could have honestly asserted from docs — running it turned a claimed
+   weakness into a demonstrated one. And termaid actually running turned
+   an assumed win into an honest loss-on-one-axis. Observation beat
+   assumption in both directions.
+2. The benchmark exposed a concrete roadmap item (single-binary, #1018)
+   that would close the cold-start gap. A benchmark that only flattered
+   us would not have produced that.
+
+Also Loop 12: a fixed bug (M4 rgb-comma-split) had been deferred twice
+(found Loop 10, deferred Loop 11). The fix was ~15 lines. Lesson: small
+real bugs accumulate interest when deferred; a "found it, here's the one
+-liner repro" item should usually be fixed in the loop it's found, not
+filed.

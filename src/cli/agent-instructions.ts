@@ -53,7 +53,8 @@ Tier 3 (lint, advisory, opt-in): produced by \`FamilyPlugin.verify\` hooks. Defa
 \`am render --format svg|ascii|unicode|png|json [--output file] [--security strict]\` — PNG via resvg+DejaVu (deterministic x86_64); JSON emits layout shape; --security strict = no external-fetch refs (untrusted/agent diagrams); --output required for PNG.
 \`am describe <file> [--format text|json]\` — prose summary or structured AX tree (\`{nodes,edges,entryPoints,sinks}\`, #7349). Library: \`describeMermaid(d, {format})\`.
 \`am llms-txt\` — agent-discovery digest (llms.txt convention).
-Exit codes: \`0\` ok, \`2\` arg error, \`3\` verify-failed, \`4\` internal.
+\`am render-markdown <file.md> [--ascii]\` — render each \`\`\`mermaid fenced block; skips invalid diagrams, never aborts the file. JSON: \`{blocks:[{index,ok,output|error}]}\`.
+Exit codes: \`0\` ok, \`2\` arg error, \`3\` verify-failed, \`4\` internal. Errors carry \`error.details\` (structured ParseError[]), not a stringified blob.
 
 Library extras: \`renderMermaidASCIIWithMeta(src)\` → \`{ascii,regions}\` for TUI click-mapping; \`asciiToMermaid(ascii)\` reverses flowchart ASCII (best-effort, lossy); \`verifyNoExternalRefs(svg)\` asserts no external fetch; \`renderMermaidSVG(src,{idPrefix})\` namespaces def ids for multi-diagram pages. See SECURITY.md.
 
