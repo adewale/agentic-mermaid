@@ -17,26 +17,75 @@ import type {
 } from './types.ts'
 
 export interface DescribeOptions {
-  /** Reserved — currently always returns text. JSON shape is in scope for a future loop. */
+  /** 'text' (default): prose summary. 'json': structured AX tree (#7349). */
   format?: 'text' | 'json'
+}
+
+/** Structured accessibility tree (#7349): the graph as a list of nodes + edges. */
+export interface DescribeTree {
+  kind: string
+  nodes: Array<{ id: string; label: string }>
+  edges: Array<{ from: string; to: string; label?: string }>
+  entryPoints: string[]
+  sinks: string[]
 }
 
 export function describeMermaidSource(source: string, opts: DescribeOptions = {}): string {
   const r = parseMermaid(source)
   if (!r.ok) {
     const first = Array.isArray(r.error) ? r.error[0] : undefined
+    if (opts.format === 'json') {
+      return JSON.stringify({ error: first?.message ?? 'parse error', nodes: [], edges: [] })
+    }
     return `Unparseable Mermaid source: ${first?.message ?? 'parse error'}.`
   }
   return describeMermaid(r.value, opts)
 }
 
-export function describeMermaid(d: ValidDiagram, _opts: DescribeOptions = {}): string {
+export function describeMermaid(d: ValidDiagram, opts: DescribeOptions = {}): string {
+  if (opts.format === 'json') return JSON.stringify(describeMermaidTree(d))
   if (d.body.kind === 'flowchart') return describeFlowchart(d as FlowchartValidDiagram)
   if (d.body.kind === 'sequence') return describeSequence(d as SequenceValidDiagram)
   if (d.body.kind === 'timeline') return describeTimeline(d as TimelineValidDiagram)
   if (d.body.kind === 'class') return describeClass(d as ClassValidDiagram)
   if (d.body.kind === 'er') return describeEr(d as ErValidDiagram)
   return `A ${d.kind} diagram (structured editing not yet supported).`
+}
+
+/**
+ * #7349: machine-readable accessibility tree — the graph as a flat node/edge
+ * list with entry points and sinks. More useful to agents and screen-reader
+ * tooling than prose. Covers the structured families; opaque families return
+ * their kind with empty node/edge lists.
+ */
+export function describeMermaidTree(d: ValidDiagram): DescribeTree {
+  const tree: DescribeTree = { kind: d.kind, nodes: [], edges: [], entryPoints: [], sinks: [] }
+  if (d.body.kind === 'flowchart') {
+    const g = d.body.graph
+    for (const n of g.nodes.values()) tree.nodes.push({ id: n.id, label: n.label || n.id })
+    for (const e of g.edges) tree.edges.push({ from: e.source, to: e.target, label: e.label || undefined })
+  } else if (d.body.kind === 'sequence') {
+    for (const p of d.body.participants) tree.nodes.push({ id: p.id, label: p.label || p.id })
+    d.body.messages.forEach(m => tree.edges.push({ from: m.from, to: m.to, label: m.text || undefined }))
+  } else if (d.body.kind === 'class') {
+    for (const c of d.body.classes) tree.nodes.push({ id: c.id, label: c.label || c.id })
+    for (const r of d.body.relations) tree.edges.push({ from: r.from, to: r.to, label: r.label || r.kind })
+  } else if (d.body.kind === 'er') {
+    for (const e of d.body.entities) tree.nodes.push({ id: e.id, label: e.id })
+    for (const r of d.body.relations) tree.edges.push({ from: r.from, to: r.to, label: r.label || undefined })
+  } else if (d.body.kind === 'timeline') {
+    for (const s of d.body.sections) for (const p of s.periods) {
+      tree.nodes.push({ id: p.id, label: p.label })
+    }
+  }
+  // Entry points (no incoming) and sinks (no outgoing) from the edge list.
+  const incoming = new Set(tree.edges.map(e => e.to))
+  const outgoing = new Set(tree.edges.map(e => e.from))
+  for (const n of tree.nodes) {
+    if (!incoming.has(n.id) && outgoing.has(n.id)) tree.entryPoints.push(n.id)
+    if (!outgoing.has(n.id) && incoming.has(n.id)) tree.sinks.push(n.id)
+  }
+  return tree
 }
 
 function describeFlowchart(d: FlowchartValidDiagram): string {

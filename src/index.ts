@@ -153,6 +153,56 @@ function readThemeValue(vars: MermaidThemeVariables | undefined, ...keys: string
 }
 
 /**
+ * #7254/#7255: extract `accTitle:` and `accDescr:` (inline or `accDescr { … }`
+ * block) from normalized source lines. These are Mermaid's accessibility
+ * directives; we surface them as SVG <title>/<desc>.
+ */
+function extractAccessibility(lines: string[]): { title?: string; descr?: string } {
+  const out: { title?: string; descr?: string } = {}
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i]!.trim()
+    let m: RegExpMatchArray | null
+    if ((m = line.match(/^accTitle\s*:\s*(.+)$/i))) out.title = m[1]!.trim()
+    else if ((m = line.match(/^accDescr\s*:\s*(.+)$/i))) out.descr = m[1]!.trim()
+    else if (/^accDescr\s*\{\s*$/i.test(line)) {
+      const block: string[] = []
+      for (let j = i + 1; j < lines.length; j++) {
+        if (lines[j]!.trim() === '}') break
+        block.push(lines[j]!.trim())
+      }
+      out.descr = block.join(' ').trim()
+    }
+  }
+  return out
+}
+
+function escapeXmlText(s: string): string {
+  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+}
+
+/**
+ * #7254/#7255: inject `<title>`/`<desc>` + `role="img"` + `aria-labelledby`
+ * into the root <svg>. Localized post-pass (mirrors namespaceSvgIds) so we
+ * don't thread accessibility through every family renderer. The title/desc ids
+ * carry the same idPrefix as the rest of the doc to stay collision-free.
+ */
+function injectAccessibility(svg: string, acc: { title?: string; descr?: string }, idPrefix: string): string {
+  const titleId = `${idPrefix}svg-title`
+  const descId = `${idPrefix}svg-desc`
+  const labelledby: string[] = []
+  const children: string[] = []
+  if (acc.title) { labelledby.push(titleId); children.push(`<title id="${titleId}">${escapeXmlText(acc.title)}</title>`) }
+  if (acc.descr) { labelledby.push(descId); children.push(`<desc id="${descId}">${escapeXmlText(acc.descr)}</desc>`) }
+  if (children.length === 0) return svg
+  // Add role + aria-labelledby to the opening <svg …> tag (once).
+  svg = svg.replace(/<svg\b([^>]*)>/, (full, attrs: string) => {
+    const add = `${/\brole=/.test(attrs) ? '' : ' role="img"'} aria-labelledby="${labelledby.join(' ')}"`
+    return `<svg${attrs}${add}>${children.join('')}`
+  })
+  return svg
+}
+
+/**
  * Render Mermaid diagram text to an SVG string — synchronously.
  *
  * Uses elk.bundled.js with a direct FakeWorker bypass (no setTimeout(0) delay).
@@ -201,12 +251,16 @@ export function renderMermaidSVG(
   // When `compact` is on we additionally round coords and collapse whitespace.
   const compact = options.compact ?? false
   const idPrefix = options.idPrefix ?? ''
+  // #7254/#7255: extract accTitle/accDescr from source for SVG <title>/<desc>
+  // + ARIA. The legacy SVG path doesn't carry these through the parser, so we
+  // extract here and inject as a post-pass (localized, no renderer threading).
+  const acc = extractAccessibility(lines)
   const resolve = (svg: string, c: DiagramColors = colors) => {
     let out = inlineResolvedColors(svg, c)
     // #7540: namespace def ids so multiple diagrams on one page don't collide.
-    // Opt-in (default '' = unchanged). Applied before compaction so the
-    // rewritten ids survive whitespace collapse.
     if (idPrefix) out = namespaceSvgIds(out, idPrefix)
+    // #7254/#7255: inject <title>/<desc>/role="img"/aria-labelledby.
+    if (acc.title || acc.descr) out = injectAccessibility(out, acc, idPrefix)
     return compact ? compactSvg(out) : out
   }
 
