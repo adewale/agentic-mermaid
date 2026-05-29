@@ -123,6 +123,26 @@ export function getPath(
   from: GridCoord,
   to: GridCoord,
 ): GridCoord[] | null {
+  // #66 (ktrysmt): bound the search. `isFreeInGrid` only guards x/y < 0, so an
+  // unreachable target (walled off) would let A* explore +x/+y unboundedly →
+  // OOM/hang. Derive an upper bound from the grid extent + the from/to coords,
+  // plus a hard iteration cap. On exhaustion we return null and the caller
+  // falls back to a direct route, rather than exhausting memory.
+  let maxX = Math.max(from.x, to.x)
+  let maxY = Math.max(from.y, to.y)
+  for (const key of grid.keys()) {
+    const comma = key.indexOf(',')
+    const kx = Number(key.slice(0, comma))
+    const ky = Number(key.slice(comma + 1))
+    if (kx > maxX) maxX = kx
+    if (ky > maxY) maxY = ky
+  }
+  // Margin lets routes detour slightly around obstacles past the extent.
+  const boundX = maxX + 4
+  const boundY = maxY + 4
+  // Iteration cap proportional to the bounded grid area (with a floor).
+  const maxIterations = Math.max(10_000, (boundX + 1) * (boundY + 1) * 4)
+
   const pq = new MinHeap()
   pq.push({ coord: from, priority: 0 })
 
@@ -132,7 +152,9 @@ export function getPath(
   const cameFrom = new Map<string, GridCoord | null>()
   cameFrom.set(gridKey(from), null)
 
+  let iterations = 0
   while (pq.length > 0) {
+    if (++iterations > maxIterations) return null // #66 guard: bail to caller's fallback
     const current = pq.pop()!.coord
 
     if (gridCoordEquals(current, to)) {
@@ -150,6 +172,10 @@ export function getPath(
 
     for (const dir of MOVE_DIRS) {
       const next: GridCoord = { x: current.x + dir.x, y: current.y + dir.y }
+
+      // #66 guard: never expand past the bounded extent. Without this, an
+      // unreachable target lets the search wander the unbounded +x/+y plane.
+      if (next.x > boundX || next.y > boundY) continue
 
       // Allow moving to the destination even if it's occupied (it's a node boundary)
       if (!isFreeInGrid(grid, next) && !gridCoordEquals(next, to)) {
