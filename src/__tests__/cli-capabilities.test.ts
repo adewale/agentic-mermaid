@@ -14,7 +14,7 @@ describe('am capabilities', () => {
     expect(cap.sdkVersion.length).toBeGreaterThan(0)
     expect(Array.isArray(cap.families)).toBe(true)
     expect(Array.isArray(cap.warningCodes)).toBe(true)
-    expect(cap.outputFormats).toEqual(['svg', 'ascii', 'png'])
+    expect(cap.outputFormats).toEqual(['svg', 'ascii', 'unicode', 'png', 'json'])
   })
 
   it('includes every registered family in the families list', () => {
@@ -25,14 +25,15 @@ describe('am capabilities', () => {
     }
   })
 
-  it('each family entry reports hasParse / hasSerialize / hasMutate / hasVerify / hasExtractLabels', () => {
+  it('each family entry reports the public agent surface, not plugin internals', () => {
     const cap = buildCapabilities()
+    const mutable = new Set(['flowchart', 'state', 'sequence', 'timeline', 'class', 'er'])
     for (const f of cap.families) {
       expect(typeof f.id).toBe('string')
-      expect(typeof f.hasParse).toBe('boolean')
-      expect(typeof f.hasSerialize).toBe('boolean')
-      expect(typeof f.hasMutate).toBe('boolean')
-      expect(typeof f.hasVerify).toBe('boolean')
+      expect(f.hasParse).toBe(true)
+      expect(f.hasSerialize).toBe(true)
+      expect(f.hasVerify).toBe(true)
+      expect(f.hasMutate).toBe(mutable.has(f.id))
       expect(typeof f.hasExtractLabels).toBe('boolean')
     }
   })

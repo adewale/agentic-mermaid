@@ -65,7 +65,7 @@ if (d1.ok && verifyMermaid(d1.value).ok) console.log(serializeMermaid(d1.value))
 ```
 
 - **`verifyMermaid`** returns structured `LayoutWarning` codes (label overflow, off-canvas, mis-anchored edges, …) — no PNG, no vision.
-- **`mutate`** applies typed structural edits to flowchart, state, and simple sequence diagrams; other families round-trip losslessly via `canonicalSource`.
+- **`mutate`** applies typed structural edits to flowchart/state, sequence, timeline, class, and ER diagrams; journey, XY chart, and architecture round-trip losslessly via `canonicalSource`.
 - **Deterministic layout**, verified byte-identical across processes.
 - Ships an **`am` CLI** and an **`agentic-mermaid-mcp`** Code Mode MCP server.
 

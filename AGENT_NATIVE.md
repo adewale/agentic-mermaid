@@ -1,6 +1,6 @@
 # Agent-Native Beautiful Mermaid — Plan
 
-**Status.** Working spec, single source of truth. Branch: `claude/agentic-mermaid-blocks-r5lzs`. Not intended for upstream.
+**Status.** Working spec, single source of truth for branch `claude/agentic-mermaid-on-ast`. Not intended for upstream.
 
 **Thesis.** Agents authoring Mermaid diagrams today regenerate the whole source on every edit, or render to PNG and read it back with vision. Beautiful Mermaid already fixed the worst of the rendering side (sync + DOM-free + ASCII). This fork adds the editing surface — structured verification, typed mutation, round-trippable IR — so an agent can edit one node and trust the result without ever opening an image.
 
@@ -118,17 +118,17 @@ Correctly detect what they claim to detect, but the occurrence may be intentiona
 
 Codes are the contract surface agents reason about. Emitting an undocumented code fails CI; documenting an unemitted one also fails CI. Agents omit known-irrelevant codes via `VerifyOptions.suppress`.
 
-### Tier 3 — Lint (advisory, opt-in, family-plugin driven)
+### Tier 3 — Lint (advisory, reserved)
 
-Tier 3 is an *advisory* layer for "common LLM mistakes" — things the parser accepts but the agent probably didn't intend. Tier 3 is **opt-in**: default `verifyMermaid` does not run it. Tier 3 warnings are produced by the `FamilyPlugin.verify` hook (see `src/agent/families.ts`); the hook is called by `verifyMermaid`'s dispatcher pass (`src/agent/verify.ts:33-37, 137-147`) for every registered family. A faulty plugin verify hook is silently caught — it must not blow up `verifyMermaid`.
+Tier 3 is reserved for future family-specific lint warnings: "common LLM mistakes" that the parser accepts but the agent probably didn't intend. No Tier 3 warning codes ship today (`Tier3WarningCode = never`), and `VerifyOptions` has no tier toggle.
 
-Plugin-produced warnings are deduped (`warningKey()` in `verify.ts`) against the per-body verifier output so a Tier 3 rule duplicating a Tier 1 finding doesn't double-report.
+`FamilyPlugin.verify` hooks are wired and run today, but built-ins use them for Tier 1 structural warnings (for example class/ER `EMPTY_DIAGRAM`, `EDGE_MISANCHORED`, `LABEL_OVERFLOW`), not for lint. When lint codes are added, the contract should grow deliberately: add codes to `WARNING_TIER`, document them here, and test that emitted codes and documented codes stay in sync.
 
-As of Loop 7, no built-in family ships Tier 3 rules — the dispatcher and registry are wired but the catalogue is empty. Loop 8 candidates: `LINT_UNQUOTED_LABEL`, `LINT_MISSING_HEADER` (caught at parse for our IR; lint would catch near-misses like leading whitespace), `LINT_DUPLICATE_NODE_ID` (legacy parser dedupes, so the rule runs on raw source).
+Candidate future codes: `LINT_UNQUOTED_LABEL`, `LINT_MISSING_HEADER` (caught at parse for our IR; lint would catch near-misses like leading whitespace), `LINT_DUPLICATE_NODE_ID` (legacy parser dedupes, so the rule runs on raw source).
 
 **Branded coordinate types** (`Finite`) prevent NaN / Infinity from reaching the renderer. `toFinite()` is the only constructor; it throws on invalid input.
 
-**Model-gap property test**: for every generated `D` that parses successfully, `verify(D).warnings` filtered to Tier-1 `error` codes must be empty. Counterexamples are renderer bugs. Tier-2 warnings are excluded from this property because a `NODE_OVERLAP` or `ROUTE_SELF_CROSS` can be a legitimate property of a valid diagram, not a bug. Tier-3 is excluded by being opt-in.
+**Model-gap property test**: for every generated `D` that parses successfully, `verify(D).warnings` filtered to Tier-1 `error` codes must be empty. Counterexamples are renderer bugs. Tier-2 warnings are excluded from this property because a `NODE_OVERLAP` or `ROUTE_SELF_CROSS` can be a legitimate property of a valid diagram, not a bug. Tier-3 is excluded because no lint codes ship yet.
 
 ---
 
@@ -301,10 +301,10 @@ There is no `LayoutContext`, no `SeededRNG`, no `Clock`, no font-metric table in
 
 Four artifacts, all derived from this doc:
 
-- **npm package** `agentic-mermaid`. The full TypeScript API. Agents with shell access import the library directly and compose verbs in their own TS; no MCP wrapper required.
+- **npm package** `beautiful-mermaid` with the `beautiful-mermaid/agent` subpath. The full TypeScript API. Agents with shell access import the library directly and compose verbs in their own TS; no MCP wrapper required. A future rename to `agentic-mermaid` remains an owner/release decision.
 - **`.claude/skills/agentic-mermaid/`** Claude Code skill bundle. Master `SKILL.md` routes by *both* diagram family and composition channel: it picks Code Mode when the MCP is connected, library import when the agent can `import` and run TS, the CLI for shell-only contexts. Per-family references (`flowchart.md`, `sequence.md`, etc.) describe syntax. Two channel references — `code-mode.md` (the canonical multi-step pattern) and `cli.md` (shell-only) — describe composition. Progressive disclosure means the LLM loads only what it needs. Family references sync from upstream Mermaid docs weekly via the shipped GitHub Action at `.github/workflows/sync-mermaid-docs.yml`, alongside our additions (LayoutWarning codes, MutationOp taxonomy).
 - **Substrate grep-lint** runs under `bun test` (not an uninstalled ESLint): `src/__tests__/agent-substrate-lint.test.ts` fails the build if `Math.random`, `Date.now`, or `performance.now` appear in `src/agent/**` or `src/layout-engine.ts`. This is real enforcement, executed in CI, not an aspirational config file.
-- **`agentic-mermaid-mcp`** Code Mode MCP server. **One tool, `execute(code: string)`**. The model writes an async arrow against the typed `mermaid.*` SDK declaration embedded in the system prompt; the server runs the arrow's body in a `node:vm` sandbox with the library exposed as `mermaid` and the arrow's return value captured as the structured result. The verify-after-mutate loop becomes one round-trip rather than N. Hosting: local stdio launched by the MCP client (Claude Desktop, Claude Code, Cursor) — same deployment shape as filesystem-MCP, git-MCP, sqlite-MCP. No infrastructure on our side or the user's. The pattern follows Cloudflare's `@cloudflare/codemode/mcp` design; we ship our own Node executor because our library is pure-functional and doesn't need `WorkerLoader` bindings. The same binary supports `--http` for self-hosted HTTP/SSE, and the architecture admits a Cloudflare Worker deployment via `DynamicWorkerExecutor` for orgs that want one, but we ship neither as a hosted service.
+- **`agentic-mermaid-mcp`** Code Mode MCP server. The primary tool is `execute(code: string)`: the model writes an async arrow against the typed `mermaid.*` SDK declaration embedded in the system prompt; the server runs the arrow's body in a `node:vm` sandbox with the library exposed as `mermaid` and the arrow's return value captured as the structured result. The server also exposes narrow `render_png` and `describe` helpers for binary output and summaries. The verify-after-mutate loop becomes one round-trip rather than N. Hosting: local stdio launched by the MCP client (Claude Desktop, Claude Code, Cursor) — same deployment shape as filesystem-MCP, git-MCP, sqlite-MCP. No infrastructure on our side or the user's. The pattern follows Cloudflare's `@cloudflare/codemode/mcp` design; we ship our own Node executor because our library is pure-functional and doesn't need `WorkerLoader` bindings. HTTP/SSE transport and Cloudflare Worker deployment remain future options, not shipped artifacts.
 - **`AGENTS.md`** at repo root, hard-capped under 100 lines. `am --agent-instructions` prints the workflow section below at runtime; a doc-sync test asserts the two are byte-identical.
 
 No HTTP endpoint or editor WebSocket watch in v1. The skill teaches Code Mode for both paths: agents-with-shell write TS against the imported library; agents-without-shell write TS against the MCP's `mermaid.*` SDK. Same surface in both cases.
@@ -315,11 +315,11 @@ No HTTP endpoint or editor WebSocket watch in v1. The skill teaches Code Mode fo
 
 Three CLI verbs were added in Loop 7 for explicit agent self-discovery and batch operation:
 
-- `am capabilities [--json]` — emit `{ sdkVersion, families: [{ id, hasParse, hasSerialize, hasMutate, hasVerify, hasExtractLabels }], warningCodes: [{ code, tier, severity }], outputFormats: ["svg","ascii"] }`. Sourced directly from the family-plugin registry + `WARNING_SEVERITY` / `WARNING_TIER` tables — so the contract is self-describing, not hand-maintained. A JSON Schema is committed at `src/__tests__/__fixtures__/capabilities.schema.json`; any shape drift fails the test loudly.
+- `am capabilities [--json]` — emit `{ sdkVersion, families: [{ id, hasParse, hasSerialize, hasMutate, hasVerify, hasExtractLabels }], warningCodes: [{ code, tier, severity }], outputFormats: ["svg","ascii","unicode","png","json"] }`. Sourced from the public dispatch surface, family-plugin registry, and `WARNING_SEVERITY` / `WARNING_TIER` tables — so the contract is self-describing, not hand-maintained. A JSON Schema is committed at `src/__tests__/__fixtures__/capabilities.schema.json`; any shape drift fails the test loudly.
 - `am batch --jsonl` — read JSONL from stdin, dispatch per-line to render/verify/parse/serialize handlers, emit one JSON envelope per result. Malformed lines surface `{ ok: false, error: { code: 'INVALID_JSON' } }` and do **not** abort the stream. Pattern intentionally mirrors the `runWithJudge` shape in `eval/llm-judge/judge.ts`.
 - **Exit codes** are widened to 4: `EXIT_OK=0`, `EXIT_ARG_ERROR=2`, `EXIT_VERIFY_FAILED=3`, `EXIT_INTERNAL=4` (in `src/cli/exit-codes.ts`). The CLI was previously `0` or `2` only. `EXIT_VERIFY_FAILED=3` is the new code for "valid args, but the diagram failed verify" — important for agents wrapping `am verify` in batch.
 
-**Counter-example, documented.** manuareraa PR #42 on `lukilabs/beautiful-mermaid` ships an MCP server with 4 render-only tools (`render_svg` / `render_ascii` / `list_themes` / `parse`). We rejected this design: a render-tool-per-format MCP forces the agent to chain calls and loses ValidDiagram context. Our `execute()` + typed `query` + `xref` Code Mode design keeps one round-trip per multi-step edit. PR #42 is preserved here as the documented counter-example so future contributors understand why we chose Code Mode.
+**Counter-example, documented.** manuareraa PR #42 on `lukilabs/beautiful-mermaid` ships an MCP server with 4 render-only tools (`render_svg` / `render_ascii` / `list_themes` / `parse`). We rejected this design: a render-tool-per-format MCP forces the agent to chain calls and loses ValidDiagram context. Our Code Mode design keeps one primary `execute()` surface for multi-step edits; `render_png` and `describe` are narrow helpers, not a render-tool-per-format API. PR #42 is preserved here as the documented counter-example so future contributors understand why we chose Code Mode.
 
 ---
 
@@ -332,18 +332,24 @@ Three CLI verbs were added in Loop 7 for explicit agent self-discovery and batch
 The code below runs unchanged whether you import the library, call it inside Code Mode `execute()` (as an async arrow returning the final value), or compose its CLI equivalents. Prefer Code Mode or library import for multi-step edits; reach for the CLI for one-shot operations.
 
 ```ts
-import { parseMermaid, mutate, verifyMermaid, serializeMermaid } from 'agentic-mermaid'
+import { parseMermaid, asFlowchart, mutate, verifyMermaid, serializeMermaid } from 'beautiful-mermaid/agent'
 
-const d0 = parseMermaid(source).unwrap()
-const d1 = mutate(d0, { kind: 'add_node', id: 'Cache', label: 'Cache' }).unwrap()
-const d2 = mutate(d1, { kind: 'add_edge', from: 'API', to: 'Cache' }).unwrap()
+const d0 = parseMermaid(source)
+if (!d0.ok) throw new Error('parse')
+const flow = asFlowchart(d0.value)
+if (!flow) throw new Error('not a mutable flowchart/state diagram')
 
-const result = verifyMermaid(d2)
+const d1 = mutate(flow, { kind: 'add_node', id: 'Cache', label: 'Cache' })
+if (!d1.ok) throw new Error(d1.error.message)
+const d2 = mutate(d1.value, { kind: 'add_edge', from: 'API', to: 'Cache' })
+if (!d2.ok) throw new Error(d2.error.message)
+
+const result = verifyMermaid(d2.value)
 if (!result.ok) {
   // result.warnings is structured; back up to d1 and try a different op
 }
 
-const out = serializeMermaid(d2)
+const out = serializeMermaid(d2.value)
 ```
 
 ### The verify-after-mutate rule
@@ -443,7 +449,7 @@ The biggest single consequence is #1: it gives us permission to never grow the s
 
 ### Counter-example: why we did not ship a `render-tool-per-format` MCP
 
-Upstream [manuareraa PR #42](https://github.com/lukilabs/beautiful-mermaid/pull/42) takes the opposite design: an MCP server with one tool per output format (`render_svg`, `render_ascii`, `render_png`, etc.), each pinned to a specific renderer call. We considered cloning that surface and decided against it for two reasons. First, the verb explosion is unbounded — every new output format means a new tool, every option flag means a new tool variant, and every cross-cutting workflow (parse → verify → render → write back) requires the agent to glue tools together via the host's tool-call protocol, multiplying round-trips. Second, the per-tool typing pushes structure into the tool schema where the agent can only see what the schema declares; it can't introspect `ValidDiagram`, can't compose `mutate` with `verify`, and can't write the algorithm that uses the answer. Code Mode inverts both: one `execute` tool with a typed `mermaid.*` SDK declaration in scope, where `query` (read-only inspection) and `xref` (cross-diagram lookups) are TypeScript methods rather than additional MCP tools. The agent writes the algorithm against types it can actually see. Anything PR #42's surface could do — render-to-format with options — is one line of TS inside `execute`; anything our surface can do that PR #42's can't includes every multi-step workflow that touches more than one verb. The asymmetry justifies the cut.
+Upstream [manuareraa PR #42](https://github.com/lukilabs/beautiful-mermaid/pull/42) takes the opposite design: an MCP server with one tool per output format (`render_svg`, `render_ascii`, `render_png`, etc.), each pinned to a specific renderer call. We considered cloning that surface and decided against it for two reasons. First, the verb explosion is unbounded — every new output format means a new tool, every option flag means a new tool variant, and every cross-cutting workflow (parse → verify → render → write back) requires the agent to glue tools together via the host's tool-call protocol, multiplying round-trips. Second, the per-tool typing pushes structure into the tool schema where the agent can only see what the schema declares; it can't introspect `ValidDiagram`, can't compose `mutate` with `verify`, and can't write the algorithm that uses the answer. Code Mode inverts both: one `execute` tool with a typed `mermaid.*` SDK declaration in scope. Read-only inspection, cross-diagram lookups, and custom transforms are ordinary TypeScript inside that execution context rather than additional MCP tools. Anything PR #42's surface could do — render-to-format with options — is one line of TS inside `execute`; anything our surface can do that PR #42's can't includes every multi-step workflow that touches more than one verb. The asymmetry justifies the cut.
 
 ---
 
@@ -459,6 +465,6 @@ Together they close a loop:
 4. If broken, back up to the previous `ValidDiagram` and try a different op.
 5. `serializeMermaid` only after verify passes.
 
-That loop is the agent-native claim. Replacing several rounds of vision-on-PNG with one structured query is what makes a coding agent reach for this fork before any other Mermaid library.
+That loop is the agent-native claim. Replacing several rounds of vision-on-PNG with one structured verification pass is what makes a coding agent reach for this fork before any other Mermaid library.
 
 The API makes the loop possible. `AGENTS.md` and `am --agent-instructions` make it a habit. Both ship together.

@@ -1,6 +1,6 @@
 # Features — capability inventory
 
-What `agentic-mermaid` (the agent surface of this fork) can do, organized
+What the `beautiful-mermaid/agent` surface in this fork can do, organized
 by capability area. This is the user-facing inventory; the per-loop
 changelog is `DIVERGENCES.md`, the forward plan is `ROADMAP.md`, the
 backlog is `TODO.md`.
@@ -53,7 +53,7 @@ or preserves source verbatim. Constructs are never silently dropped.
 - **Tier 1 (structural, universal):** EMPTY_DIAGRAM, EDGE_MISANCHORED,
   OFF_CANVAS, GROUP_BREACH, UNKNOWN_SHAPE, LABEL_OVERFLOW.
 - **Tier 2 (geometric, flowchart):** NODE_OVERLAP, ROUTE_SELF_CROSS.
-- **Tier 3 (lint, opt-in):** via `FamilyPlugin.verify` hooks.
+- **Tier 3 (lint):** reserved; plugin hooks are wired, no built-in lint codes yet.
 - **Perceptual quality** — `measureQuality` / `checkQuality` (edge
   crossings, label legibility, whitespace balance, …). See QUALITY.md.
 
@@ -83,8 +83,8 @@ Exit codes 0/2/3/4; structured `error.details`.
 
 ## MCP server
 
-Code Mode `execute(code)` (typed `mermaid.*` SDK in a `node:vm` sandbox)
-plus typed tools: `query`, `xref`, `render_png`, `describe`.
+Code Mode `execute(code)` (typed `mermaid.*` SDK in a `node:vm` sandbox),
+plus narrow helper tools: `render_png` and `describe`.
 
 ## Distribution
 

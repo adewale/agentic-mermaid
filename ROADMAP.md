@@ -10,9 +10,9 @@ can lift the design directly.
 - **[shipped] Official CLI `am`.** `render`, `verify`, `parse`,
   `serialize`, `mutate`, `format`, and as of Loop 7 `capabilities`
   and `batch`. Stable JSON envelope on every command.
-- **[shipped] MCP server.** Code Mode design: one `execute` tool,
+- **[shipped] MCP server.** Code Mode design: primary `execute` tool,
   typed `mermaid.*` SDK declaration injected into the system prompt,
-  sandboxed via `node:vm`.
+  sandboxed via `node:vm`, plus narrow `render_png` and `describe` helpers.
 - **[partial] Deterministic ASCII output.** Loop 7 added a
   10-run byte-identity guard on three multi-edge fixtures. Probe
   showed the existing pathfinder is already deterministic; the
@@ -85,9 +85,9 @@ can lift the design directly.
   `<title>`, accDescr→`<desc>`, `role="img"`+`aria-labelledby` on root.
 - **[shipped, Loop 11] AX tree (#7349).** `describeMermaid(d,{format:'json'})`
   returns a structured node/edge list with entry points + sinks.
-- **[Loop 12] rgb()/comma values in `style` statements** — real parser
-  bug found in Loop 10 M2: `style A fill:rgb(10,10,10)` is comma-split.
-  Hex fills are the supported path until fixed.
+- **[shipped, Loop 12] rgb()/comma values in `style` statements.**
+  `style A fill:rgb(10,10,10)`, `rgba(...)`, and `hsl(...)` now split
+  on top-level commas only.
 
 ## Security (treat security as product)
 

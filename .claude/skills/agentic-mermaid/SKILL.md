@@ -33,7 +33,7 @@ Any diagram with constructs we don't model falls back to an **opaque** body: it 
 ## Workflow
 
 1. `parseMermaid(source)` → `ValidDiagram`.
-2. `asFlowchart(d)` / `asSequence(d)` to narrow before mutating.
+2. `asFlowchart(d)` / `asSequence(d)` / `asTimeline(d)` / `asClass(d)` / `asEr(d)` to narrow before mutating.
 3. `mutate(d, op)` (typed per family).
 4. `verifyMermaid(d)` — structured warnings.
 5. On `!ok`, revert to the previous `ValidDiagram`, try another op.

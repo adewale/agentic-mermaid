@@ -1,8 +1,9 @@
 # Code Mode (preferred channel)
 
-`agentic-mermaid-mcp` exposes one tool, `execute(code)`. The server runs your
-async-arrow body in a `node:vm` sandbox with `mermaid.*` as a global. The
-whole verify-after-mutate loop is one round-trip.
+`agentic-mermaid-mcp` exposes a primary Code Mode tool, `execute(code)`, plus
+narrow `render_png` and `describe` helpers. The server runs your async-arrow
+body in a `node:vm` sandbox with `mermaid.*` as a global. The whole
+verify-after-mutate loop is one round-trip.
 
 ## SDK
 

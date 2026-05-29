@@ -21,7 +21,7 @@ haven't inspected.
 
 ## CLI verbs (`am <verb>`)
 
-- render --format svg, ascii, png|unicode [--security strict] [--output file] — render a diagram
+- render --format svg, ascii, unicode, png, json [--security strict] [--output file] — render a diagram
 - parse — diagram → ValidDiagram JSON
 - verify — structural validation (exit 3 if invalid)
 - mutate --op '<json>' — apply a typed mutation
@@ -37,17 +37,17 @@ Exit codes: 0 ok, 2 arg error, 3 verify-failed, 4 internal.
 ## MCP tools
 
 Code Mode `execute(code)` (typed mermaid.* SDK in a node:vm sandbox) plus
-typed tools: query, xref, render_png, describe. render_png is offline.
+narrow helper tools: render_png and describe. render_png is offline.
 
 ## Output formats
 
-svg, ascii, png. SVG strict mode (security: 'strict') emits zero external-fetch
+svg, ascii, unicode, png, json. SVG strict mode (security: 'strict') emits zero external-fetch
 references — safe for untrusted/agent-generated diagrams. See SECURITY.md.
 
 ## Diagram families
 
 All families parse, verify, render, round-trip: flowchart, state, sequence, timeline, class, er, journey, xychart, architecture.
-Structured mutation: . Others round-trip losslessly
+Structured mutation: flowchart, state, sequence, timeline, class, er. Others round-trip losslessly
 via an opaque body (never silently dropped).
 
 ## Warning codes

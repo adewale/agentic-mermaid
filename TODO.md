@@ -11,7 +11,7 @@ capability inventory = FEATURES.md; forward plan = ROADMAP.md.
   surface ships as the `./agent` subpath. Decide the published name
   (e.g. `agentic-mermaid`) and whether/when to publish to npm. Owner
   decision — blocks any release.
-- [ ] **Merge or explicitly park PR #11.** 6+ loops of work sit in one
+- [ ] **Merge or explicitly park PR #11.** 13 loops of work sit in one
   unmerged PR. The longer it grows, the harder the eventual review.
 - [ ] **Get a real external consumer.** Every quality signal so far is
   self-generated (our tests, our corpus, our benchmark, our judge). One

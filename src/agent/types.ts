@@ -338,11 +338,10 @@ export type Tier1WarningCode =
   | 'GROUP_BREACH' | 'UNKNOWN_SHAPE' | 'LABEL_OVERFLOW'
 export type Tier2WarningCode = 'NODE_OVERLAP' | 'ROUTE_SELF_CROSS'
 /**
- * Tier 3 (advisory lint). Produced by `FamilyPlugin.verify` hooks; opt-in via
- * `VerifyOptions.tier === 3`. As of Loop 7, no built-in family ships Tier 3
- * rules — the type is reserved (empty union) so the spec, registry, and
- * verify dispatcher have a stable contract surface to extend. See
- * AGENT_NATIVE.md "Tier 3 — Lint" for the planned catalogue.
+ * Tier 3 (advisory lint). Reserved for future family-specific lint codes.
+ * `FamilyPlugin.verify` is already wired, but built-ins currently emit only
+ * Tier 1 structural warnings through that hook. The empty union keeps the
+ * public contract honest: no lint warning code is documented until it exists.
  */
 export type Tier3WarningCode = never
 export type WarningCode = Tier1WarningCode | Tier2WarningCode | Tier3WarningCode

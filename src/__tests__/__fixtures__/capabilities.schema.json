@@ -38,7 +38,7 @@
     },
     "outputFormats": {
       "type": "array",
-      "items": { "type": "string", "enum": ["svg", "ascii", "png"] }
+      "items": { "type": "string", "enum": ["svg", "ascii", "unicode", "png", "json"] }
     }
   }
 }

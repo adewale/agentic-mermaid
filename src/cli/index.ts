@@ -108,7 +108,7 @@ With --json, the svg/ascii/unicode forms wrap output as {"<format>": "..."}.`,
 Always emits JSON: {ok, warnings[], layout}. Tier-1 error codes flip ok=false:
 EMPTY_DIAGRAM, EDGE_MISANCHORED, OFF_CANVAS, GROUP_BREACH. Warnings:
 UNKNOWN_SHAPE, LABEL_OVERFLOW (char-cap), NODE_OVERLAP, ROUTE_SELF_CROSS.
-Exit 0 if ok, 2 if not ok.`,
+Exit 0 if ok, 3 if verify reports severity='error'.`,
   parse: `am parse <file|->
 Emits ValidDiagram JSON (Maps serialized to objects). Exit 2 on parse error.
 Pipe to 'am serialize' to round-trip.`,
@@ -126,7 +126,7 @@ Emits a single JSON object describing the SDK's capability surface:
   { sdkVersion, families: [{ id, hasParse, hasSerialize, hasMutate,
     hasVerify, hasExtractLabels }],
     warningCodes: [{ code, tier, severity }],
-    outputFormats: ["svg", "ascii", "png"] }
+    outputFormats: ["svg", "ascii", "unicode", "png", "json"] }
 Use this to introspect what the CLI can do without running every command.`,
   batch: `am batch  (reads JSONL from stdin)
 Each line: { op: "render"|"verify"|"parse"|"serialize", source: string,
@@ -390,14 +390,19 @@ export function buildCapabilities(): CapabilitiesEnvelope {
       return 'unknown'
     }
   })()
+  const mutableFamilies = new Set(['flowchart', 'state', 'sequence', 'timeline', 'class', 'er'])
   const families: FamilyCapability[] = knownFamilies().map((id) => {
     const p = getFamily(id)!
     return {
       id,
-      hasParse: Boolean(p.parse),
-      hasSerialize: Boolean(p.serialize),
-      hasMutate: Boolean(p.mutate),
-      hasVerify: Boolean(p.verify),
+      // Capabilities describe the public agent surface, not whether the
+      // implementation currently lives in a FamilyPlugin hook or central
+      // dispatch. All registered families parse, serialize, verify, render,
+      // and round-trip through parseMermaid/serializeMermaid/verifyMermaid.
+      hasParse: true,
+      hasSerialize: true,
+      hasMutate: mutableFamilies.has(id),
+      hasVerify: true,
       hasExtractLabels: Boolean(p.extractLabels),
     }
   })
@@ -406,7 +411,7 @@ export function buildCapabilities(): CapabilitiesEnvelope {
     tier: WARNING_TIER[code],
     severity: WARNING_SEVERITY[code],
   }))
-  return { sdkVersion, families, warningCodes, outputFormats: ['svg', 'ascii', 'png'] }
+  return { sdkVersion, families, warningCodes, outputFormats: ['svg', 'ascii', 'unicode', 'png', 'json'] }
 }
 
 function cmdCapabilities(): number {
@@ -424,7 +429,7 @@ function cmdCapabilities(): number {
 export function buildLlmsTxt(): string {
   const cap = buildCapabilities()
   const families = cap.families.map(f => f.id).join(', ')
-  const structured = cap.families.filter(f => f.hasMutate || f.hasParse).map(f => f.id)
+  const structured = cap.families.filter(f => f.hasMutate).map(f => f.id)
   const formats = cap.outputFormats.join(', ')
   const codes = cap.warningCodes.map(w => `${w.code} (${w.tier}/${w.severity})`).join(', ')
   return `# agentic-mermaid
@@ -450,7 +455,7 @@ haven't inspected.
 
 ## CLI verbs (\`am <verb>\`)
 
-- render --format ${formats}|unicode [--security strict] [--output file] — render a diagram
+- render --format ${formats} [--security strict] [--output file] — render a diagram
 - parse — diagram → ValidDiagram JSON
 - verify — structural validation (exit 3 if invalid)
 - mutate --op '<json>' — apply a typed mutation
@@ -466,7 +471,7 @@ Exit codes: 0 ok, 2 arg error, 3 verify-failed, 4 internal.
 ## MCP tools
 
 Code Mode \`execute(code)\` (typed mermaid.* SDK in a node:vm sandbox) plus
-typed tools: query, xref, render_png, describe. render_png is offline.
+narrow helper tools: render_png and describe. render_png is offline.
 
 ## Output formats
 

@@ -484,7 +484,7 @@ hardened plan as the checkpoint structure.
 ### Landed (13 milestones across 11 commits)
 
 **Tier A (small, high-value) — ALL 10 shipped:**
-- A1 (046ec13) — MCP `render_png` + `describe` tools alongside execute/query/xref
+- A1 (046ec13) — MCP `render_png` + `describe` helpers alongside the primary `execute` tool
 - A2 (ee881cc) — Delete class/ER per-body verify branches; dispatcher path is now single source of truth (Loop 8 TODO closed)
 - A3 (6f627c9) — `am render --format json` emits layout JSON
 - A4 (6f627c9) — `am render --format unicode|ascii` (combined with A3)

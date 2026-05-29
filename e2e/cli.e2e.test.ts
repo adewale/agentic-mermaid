@@ -31,7 +31,7 @@ describe('am capabilities', () => {
     expect(payload.families.length).toBeGreaterThan(0)
     expect(Array.isArray(payload.warningCodes)).toBe(true)
     expect(payload.warningCodes.length).toBeGreaterThan(0)
-    expect(payload.outputFormats).toEqual(['svg', 'ascii', 'png'])
+    expect(payload.outputFormats).toEqual(['svg', 'ascii', 'unicode', 'png', 'json'])
   })
 })
 

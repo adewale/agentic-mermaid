@@ -44,11 +44,11 @@ Tier 1 (structural, reliable, universal): \`EMPTY_DIAGRAM\`, \`EDGE_MISANCHORED\
 
 Tier 2 (geometric, advisory, flowchart-specific): \`NODE_OVERLAP\`, \`ROUTE_SELF_CROSS\`. Only fire for flowchart/state. For other families, geometric concerns surface via perceptual metrics (\`measureQuality(layoutMermaid(d))\`). See \`QUALITY.md\`. Don't gate CI on Tier 2 alone.
 
-Tier 3 (lint, advisory, opt-in): produced by \`FamilyPlugin.verify\` hooks. Default \`verifyMermaid\` does not run Tier 3. No built-in family ships Tier 3 rules yet — registry is wired, catalogue is empty.
+Tier 3 (lint, advisory): reserved for future family-specific lint codes. \`FamilyPlugin.verify\` hooks are wired today, but built-ins currently emit only Tier 1 structural warnings through that hook. No built-in lint catalogue exists yet.
 
 ## CLI verbs
 
-\`am capabilities --json\` — JSON envelope listing families, mutation ops, warning codes, output formats (\`svg\`, \`ascii\`, \`png\`). Schema-stable; use it to self-discover.
+\`am capabilities --json\` — JSON envelope listing families, mutation ops, warning codes, output formats (\`svg\`, \`ascii\`, \`unicode\`, \`png\`, \`json\`). Schema-stable; use it to self-discover.
 \`am batch --jsonl\` — JSONL stdin → JSONL stdout. Malformed lines surface error but don't abort the stream.
 \`am render <file…> --format svg|ascii|unicode|png|json [--output f] [--security strict] [--watch]\` — PNG via resvg+DejaVu (deterministic x86_64); JSON = layout shape; --security strict = no external-fetch refs; --output required for PNG; multiple files → results array; --watch re-renders on change.
 \`am describe <file> [--format text|json]\` — prose summary or structured AX tree (\`{nodes,edges,entryPoints,sinks}\`, #7349). Library: \`describeMermaid(d, {format})\`.
