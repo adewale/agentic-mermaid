@@ -173,8 +173,32 @@ export function runCli(argv: string[]): number {
 }
 
 function cmdRender(args: ParsedArgs, json: boolean): number {
-  const source = readSourceArg(args.positional[0])
   const format = typeof args.flags.format === 'string' ? args.flags.format : (args.flags.ascii ? 'ascii' : 'svg')
+
+  // #959: multi-input — when more than one positional file is given, render
+  // each and emit a JSON array of results, skipping bad files (like #543).
+  // Single-input keeps the existing single-output behavior.
+  if (args.positional.length > 1 && format !== 'png') {
+    const results = args.positional.map((file, index) => {
+      try {
+        const src = readSourceArg(file)
+        const output = format === 'svg' ? renderMermaidSVG(src)
+          : renderMermaidASCII(src, { useAscii: format === 'ascii' })
+        return { index, file, ok: true, output }
+      } catch (e) {
+        return { index, file, ok: false, error: { code: 'RENDER_FAILED', message: (e as Error).message } }
+      }
+    })
+    process.stdout.write(JSON.stringify({ ok: true, files: results }) + '\n')
+    return EXIT_OK
+  }
+
+  // #930: watch mode — re-render on file change.
+  if (args.flags.watch && typeof args.positional[0] === 'string' && args.positional[0] !== '-') {
+    return cmdRenderWatch(args.positional[0], format, args, json)
+  }
+
+  const source = readSourceArg(args.positional[0])
 
   if (format === 'png') {
     const outFile = typeof args.flags.o === 'string' ? args.flags.o : (typeof args.flags.output === 'string' ? args.flags.output : '')
@@ -212,6 +236,38 @@ function cmdRender(args: ParsedArgs, json: boolean): number {
   const security = args.flags.security === 'strict' ? 'strict' as const : 'default' as const
   const svg = renderMermaidSVG(source, { security })
   process.stdout.write(json ? JSON.stringify({ svg }) + '\n' : (svg.endsWith('\n') ? svg : svg + '\n'))
+  return EXIT_OK
+}
+
+/**
+ * #930: pure re-render step for watch mode — reads the file, renders to the
+ * requested format, returns the output string. Extracted so it's unit-testable
+ * without fs.watch timing.
+ */
+export function renderFileOnce(file: string, format: string): string {
+  const src = readFileSync(file, 'utf8')
+  if (format === 'ascii' || format === 'unicode') return renderMermaidASCII(src, { useAscii: format === 'ascii' })
+  if (format === 'json') {
+    const p = parseMermaid(src)
+    return p.ok ? JSON.stringify(layoutMermaid(p.value)) : JSON.stringify(parseErrorEnvelope(p.error))
+  }
+  return renderMermaidSVG(src)
+}
+
+function cmdRenderWatch(file: string, format: string, args: ParsedArgs, _json: boolean): number {
+  const { watch } = require('node:fs') as typeof import('node:fs')
+  const outFile = typeof args.flags.output === 'string' ? args.flags.output : ''
+  const emit = () => {
+    try {
+      const out = renderFileOnce(file, format)
+      if (outFile) { (require('node:fs') as typeof import('node:fs')).writeFileSync(outFile, out) ; process.stderr.write(`rendered → ${outFile}\n`) }
+      else process.stdout.write(out + (out.endsWith('\n') ? '' : '\n'))
+    } catch (e) { process.stderr.write(`render error: ${(e as Error).message}\n`) }
+  }
+  emit() // initial render
+  process.stderr.write(`watching ${file} (Ctrl-C to stop)…\n`)
+  watch(file, { persistent: true }, (event) => { if (event === 'change') emit() })
+  // Block forever — the watcher keeps the event loop alive.
   return EXIT_OK
 }
 
