@@ -66,7 +66,7 @@ export function renderXYChartSvg(
   const svgTag = svgOpenTag(chart.width, chart.height, colors, transparent, svgMeta.openTag)
     .replace('<svg ', `<svg data-xychart-colors="${maxColorIdx}" `)
   parts.push(svgTag)
-  parts.push(buildStyleBlock(font, false, colors.shadow))
+  parts.push(buildStyleBlock(font, false, colors.shadow, colors.embedFontImport))
 
   const { style: chartStyle, defs } = chartStyles(chart, interactive, colors.accent, colors.bg, options)
   parts.push(chartStyle)

@@ -46,7 +46,7 @@ export function renderSvg(
 
   // SVG root with CSS variables + style block + defs
   parts.push(svgOpenTag(graph.width, graph.height, colors, transparent))
-  parts.push(buildStyleBlock(font, false, colors.shadow))
+  parts.push(buildStyleBlock(font, false, colors.shadow, colors.embedFontImport))
   parts.push('<defs>')
   parts.push(arrowMarkerDefs())
   const shadowDefs = buildShadowDefs(colors)

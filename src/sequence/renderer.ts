@@ -63,7 +63,7 @@ export function renderSequenceSvg(
 
   // SVG root with CSS variables + style block + defs
   parts.push(svgOpenTag(diagram.width, diagram.height, colors, transparent, rootAttrs))
-  parts.push(buildStyleBlock(font, false, colors.shadow))
+  parts.push(buildStyleBlock(font, false, colors.shadow, colors.embedFontImport))
   parts.push('<defs>')
 
   // Arrow marker definitions

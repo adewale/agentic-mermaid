@@ -51,7 +51,7 @@ export function renderArchitectureSvg(
   }))
   if (hasTitle) parts.push(`<title id="${titleId}">${escapeXml(diagram.accessibilityTitle!)}</title>`)
   if (hasDesc) parts.push(`<desc id="${descId}">${escapeXml(diagram.accessibilityDescription!)}</desc>`)
-  parts.push(buildStyleBlock(font, false))
+  parts.push(buildStyleBlock(font, false, undefined, colors.embedFontImport))
   parts.push(architectureStyles(visual))
   parts.push('<defs>')
   parts.push(arrowMarkerDefs())

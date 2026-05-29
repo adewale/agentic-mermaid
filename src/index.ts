@@ -114,7 +114,7 @@ const MERMAID_THEME_COLORS: Record<string, DiagramColors> = {
   forest: { bg: '#f0fdf4', fg: '#14532d', line: '#4d7c0f', accent: '#15803d', muted: '#65a30d', border: '#86efac' },
 }
 
-function buildColors(options: RenderOptions, config: MermaidRuntimeConfig): DiagramColors {
+function buildColors(options: RenderOptions, config: MermaidRuntimeConfig, font?: string): DiagramColors {
   const theme = resolveThemeColors(config.theme)
   const vars = config.themeVariables
 
@@ -127,6 +127,11 @@ function buildColors(options: RenderOptions, config: MermaidRuntimeConfig): Diag
     surface: options.surface ?? readThemeValue(vars, 'primaryColor', 'nodeBkg', 'mainBkg') ?? theme?.surface,
     border: options.border ?? readThemeValue(vars, 'primaryBorderColor', 'secondaryBorderColor') ?? theme?.border,
     shadow: options.shadow ?? theme?.shadow,
+    // Threaded so `--font:<family>` lands on the SVG root via svgOpenTag.
+    font,
+    // Renderers read this to gate the Google Fonts @import. Default true preserves
+    // wire compat; CLI / PNG paths set it false.
+    embedFontImport: options.embedFontImport,
   }
 }
 
@@ -184,11 +189,11 @@ export function renderMermaidSVG(
   text = decodeXML(text)
   const normalizedSource = normalizeMermaidSource(text, options.mermaidConfig ?? {})
 
-  const colors = buildColors(options, normalizedSource.config)
   const font = options.font
     ?? normalizedSource.config.fontFamily
     ?? readThemeValue(normalizedSource.config.themeVariables, 'fontFamily')
     ?? 'Inter'
+  const colors = buildColors(options, normalizedSource.config, font)
   const transparent = options.transparent ?? false
   const diagramType = detectDiagramType(normalizedSource.firstLine)
   const lines = normalizedSource.lines

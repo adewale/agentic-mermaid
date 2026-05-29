@@ -70,7 +70,7 @@ export function renderErSvg(
 
   // SVG root with CSS variables + style block (with mono font) + defs
   parts.push(svgOpenTag(diagram.width, diagram.height, colors, transparent, rootAttrs))
-  parts.push(buildStyleBlock(font, true, colors.shadow))
+  parts.push(buildStyleBlock(font, true, colors.shadow, colors.embedFontImport))
   parts.push('<defs>')
   const shadowDefs = buildShadowDefs(colors)
   if (shadowDefs) parts.push(shadowDefs)

@@ -74,7 +74,7 @@ export function renderJourneySvg(
   if (accessibility.description) {
     parts.push(`<desc id="${descId}">${escapeXml(accessibility.description)}</desc>`)
   }
-  parts.push(buildStyleBlock(font, false, colors.shadow))
+  parts.push(buildStyleBlock(font, false, colors.shadow, colors.embedFontImport))
   const shadowDefs = buildShadowDefs(colors)
   if (shadowDefs) parts.push(`<defs>${shadowDefs}</defs>`)
   parts.push(journeyStyles(style))
