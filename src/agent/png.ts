@@ -14,8 +14,9 @@
 // - PNG bytes returned as Uint8Array (runtime-neutral, Code Mode friendly).
 //
 // What's tested: in-process determinism (5x same-input SHA-256 stable),
-// cross-runtime determinism (bun ≡ node on x86_64), basic PNG validity.
-// What's NOT tested: cross-architecture (x86 vs ARM), resvg version drift
+// cross-runtime determinism (bun ≡ node on same-machine x86_64/ARM64 when
+// Node + built dist are present), basic PNG validity.
+// What's NOT tested: direct x86_64-vs-ARM64 byte equality, resvg version drift
 // across npm install runs. See QUALITY.md "PNG determinism".
 // ============================================================================
 
@@ -62,7 +63,8 @@ function resolveFontDir(): string | null {
 
 /**
  * Render a Mermaid diagram (source string or ValidDiagram) to a PNG byte array.
- * Deterministic within one runtime; cross-runtime parity verified on x86_64.
+ * Deterministic within one runtime; cross-runtime parity is guarded for
+ * same-machine Bun ≡ Node on x86_64/ARM64 when Node + built dist are present.
  *
  * Synchronous: resvg's `.render()` is native-sync, and static import keeps
  * the CLI/MCP integration straightforward. Library consumers can wrap in

@@ -385,10 +385,10 @@ MermaidSeqBench is wired as an external corpus signal; live model transcript eva
 ## Risks (honest, v4)
 
 - **Determinism is empirical, not proven.** It's established by cross-process test over a corpus + the drift sentinel, plus reading ELK's config (`considerModelOrder: NODES_AND_EDGES`, no `randomSeed`). An ELK upgrade could in principle change this; the cross-process test and sentinel would catch it. There is no seed to fall back on because seeding never affected output.
-- **Determinism claim, precisely.** Layout JSON is byte-identical (after structural parse) across processes AND across JS runtimes (bun, node) on the same x86_64 machine and same ELK version. This is the verified claim. The IEEE-754 float behavior used by ELK is well-defined for all x86 vendors, so this likely extends across x86 machines. **Cross-architecture (x86 vs ARM) is NOT tested** — float operation ordering differences could in principle yield different ELK outputs there.
+- **Determinism claim, precisely.** Layout JSON is byte-identical (after structural parse) across processes AND across JS runtimes (bun, node) on the same machine and same ELK version; this is verified on same-machine x86_64 and ARM64 when Node + built `dist/` are present. Direct cross-architecture byte equality (x86_64 output compared to ARM64 output) is still not a separate claim.
 - **Sequence structured coverage is deliberately narrow.** Only participant declarations + simple messages get a mutable structured body; everything else falls back to opaque (lossless, but not mutable). This is the honest tradeoff that replaced silent information loss.
 - **Three families remain source-level only.** journey / xychart / architecture still have no structured mutation. Opaque fallback is deliberate and lossless.
-- **Live-model agent-usage eval is periodic, not PR CI.** Stored Code Mode scripts, sandbox traces, and task oracles run in CI; live model transcripts are tracked in `TODO.md` because they need model access and real tasks.
+- **Live-model agent-usage eval is periodic, not PR CI.** Stored Code Mode scripts, sandbox traces, task oracles, and the committed pi-subagent transcript replay run in CI; API-backed release-model transcripts remain in `TODO.md` because they need model access and selected release tasks.
 - **Bloat in agent-facing docs.** `Instructions_for_agents.md` is hard-capped under 100 lines; doc-sync test enforces.
 
 ## What v4 delivers (vs. earlier drafts)

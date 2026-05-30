@@ -34,7 +34,7 @@ ${SDK_DECLARATION}`,
   {
     name: 'render_png',
     description: `Rasterize a Mermaid source string to PNG. Returns base64-encoded PNG bytes.
-Uses the bundled resvg + DejaVu Sans for cross-runtime determinism (x86_64).
+Uses bundled resvg + DejaVu Sans for same-machine cross-runtime determinism where verified.
 For non-PNG output (SVG, ASCII), use execute() with mermaid.renderMermaidSVG /
 renderMermaidASCII — those are streaming-text and don't need a dedicated tool.`,
     inputSchema: {

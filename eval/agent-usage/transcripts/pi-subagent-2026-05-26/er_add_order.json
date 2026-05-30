@@ -1,0 +1,24 @@
+{
+  "schemaVersion": 1,
+  "capturedAt": "2026-05-26T00:00:00.000Z",
+  "provider": "pi-subagent",
+  "model": "delegate-fresh-default",
+  "caseId": "er_add_order",
+  "task": {
+    "prompt": "Add an ORDER entity with string id using structured mutation, verify, then serialize.",
+    "input": "erDiagram\n  CUSTOMER {\n    string id\n  }"
+  },
+  "prompts": {
+    "system": "pi subagent live-model pass: delegate agent, fresh context; instructed to return only synchronous Agentic Mermaid Code Mode JavaScript body.",
+    "user": "Live-model eval task. You are given the agentic-mermaid Code Mode contract: synchronous JavaScript body only; global mermaid.* SDK; no async/await; parse, narrow, mutate, verify, inspect verify.ok/warnings before serialize; SDK results are read-only. Return ONLY executable JavaScript body, no markdown. Task ID er_add_order. Input Mermaid: erDiagram\\n  CUSTOMER {\\n    string id\\n  }. Task: add an ORDER entity with string id using structured mutation, verify, then serialize."
+  },
+  "rawResponse": "const r0 = mermaid.parseMermaid('erDiagram\\n  CUSTOMER {\\n    string id\\n  }')\nif (!r0.ok) return { phase: 'parse', errors: r0.error }\n\nconst er = mermaid.asEr(r0.value)\nif (!er) return { phase: 'narrow', kind: r0.value.kind }\n\nconst r1 = mermaid.mutate(er, { kind: 'add_entity', id: 'ORDER', attributes: ['string id'] })\nif (!r1.ok) return { phase: 'mutate', error: r1.error }\n\nconst verify = mermaid.verifyMermaid(r1.value)\nconst ok = verify.ok\nconst warnings = verify.warnings\nif (!ok) return { phase: 'verify', warnings: warnings }\n\nreturn { source: mermaid.serializeMermaid(r1.value) }",
+  "script": "const r0 = mermaid.parseMermaid('erDiagram\\n  CUSTOMER {\\n    string id\\n  }')\nif (!r0.ok) return { phase: 'parse', errors: r0.error }\n\nconst er = mermaid.asEr(r0.value)\nif (!er) return { phase: 'narrow', kind: r0.value.kind }\n\nconst r1 = mermaid.mutate(er, { kind: 'add_entity', id: 'ORDER', attributes: ['string id'] })\nif (!r1.ok) return { phase: 'mutate', error: r1.error }\n\nconst verify = mermaid.verifyMermaid(r1.value)\nconst ok = verify.ok\nconst warnings = verify.warnings\nif (!ok) return { phase: 'verify', warnings: warnings }\n\nreturn { source: mermaid.serializeMermaid(r1.value) }",
+  "result": {
+    "id": "er_add_order",
+    "ok": true,
+    "taskOk": true,
+    "traceOk": true,
+    "findings": []
+  }
+}

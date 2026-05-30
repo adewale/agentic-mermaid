@@ -40,7 +40,7 @@ or preserves source verbatim. Constructs are never silently dropped.
 - **ASCII / Unicode** — `renderMermaidASCII` (CJK/emoji width, FE0F/ZWJ,
   `maxWidth` wrapping, trunk-shared fanouts).
 - **PNG** — `renderMermaidPNG` (offline `@resvg/resvg-js`, bundled DejaVu,
-  cross-runtime deterministic on x86_64).
+  cross-runtime deterministic on same-machine x86_64/ARM64 where Node + built `dist/` are present).
 - **JSON layout** — `layoutMermaid` / `am render --format json`.
 - **ASCII with metadata** — `renderMermaidASCIIWithMeta` → `{ascii, regions}`
   for TUI click-mapping.
@@ -97,8 +97,9 @@ Code Mode `execute(code)` (JavaScript in a `node:vm` sandbox with a typed
 ## Guarantees & evidence
 
 - **Determinism** — byte-identical across repeated runs and processes for
-  SVG layout/ASCII; cross-runtime guards exist for bun ≡ node on x86_64 when
-  Node + built `dist/` artifacts are present. ARM parity remains in TODO.
+  SVG layout/ASCII; full-corpus ASCII repeated-run guard; cross-runtime guards
+  exist for bun ≡ node on same-machine x86_64/ARM64 when Node + built `dist/`
+  artifacts are present.
 - **Corpus gates** — 247-sample mermaid-js docs corpus + 132-case
   MermaidSeqBench, gated in CI.
 - **Benchmarks** — `eval/benchmark/RESULTS.md` (measured vs mmdc, termaid).

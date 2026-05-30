@@ -69,10 +69,10 @@ gate or an agent self-check after rendering.
 - **We do not sanitize arbitrary third-party SVG.** `verifyNoExternalRefs`
   is a scanner for *our* output shape, not a general SVG sanitizer. Don't
   feed it untrusted SVG and treat a pass as safe.
-- **Trusted Types (#7695):** our output is static markup with no inline
-  event handlers, so it is compatible with a strict CSP that forbids inline
-  script. We have not formally verified against a Trusted Types policy in a
-  browser; that's tracked as future work.
+- **Trusted Types (#7695):** strict-mode output is exercised in Chromium under
+  a CSP with `require-trusted-types-for 'script'`. A raw `innerHTML` string
+  assignment is blocked, then the same SVG is inserted through a named
+  TrustedHTML policy with no external requests and no active SVG tags.
 
 ## Recommended posture for agent runtimes
 

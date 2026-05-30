@@ -100,15 +100,17 @@ What the guard catches:
 - Set / Map iteration-order surprises if a code path adopts a hash key
   whose ordering changes between Bun and Node.
 
+What the guard covers now:
+- **Representative pathfinder fixtures** over 10 invocations.
+- **Full 247-sample mermaid-js docs corpus**: every entry must have a stable
+  ASCII outcome (byte hash or deterministic error) across repeated runs.
+
 What the guard does NOT yet cover:
-- **Full-corpus coverage.** The current ASCII guard covers representative
-  fixtures. `BUILD-3` in `TODO.md` tracks extending byte-identity coverage
-  to the 247-sample corpus.
-- **Cross-architecture parity** (x86_64 vs ARM). Same as SVG: needs
-  hardware we don't have.
-- **Input-order independence.** The current 10-run-same-input test does not
-  stress edge-insertion order. If this becomes release-gating, fold it into
-  `BUILD-3` in `TODO.md` rather than tracking it here.
+- **Cross-architecture byte equality** (x86_64 output hash compared directly
+  to ARM64 output hash from a recorded manifest).
+- **Input-order independence.** The current same-input tests do not
+  stress edge-insertion order. If this becomes release-gating, add a focused
+  property/differential test rather than treating corpus determinism as proof.
 
 ## PNG determinism
 
@@ -137,12 +139,13 @@ What's tested:
   spawns Node on `dist/agent.js`, compares SHA-256 when Node and built `dist/`
   artifacts are present. In bare `bun test` environments it skips rather than
   pretending cross-runtime evidence exists. In the full local verification loop
-  after `bun run build`, bun ≡ node on the same x86_64 machine.
+  after `bun run build`, bun ≡ node on same-machine x86_64 and ARM64 hosts
+  where those runtimes and native resvg are installed.
 
 What's NOT tested (honest gaps):
-- **Cross-architecture (x86_64 vs ARM64).** Resvg's tiny-skia
-  intentionally avoids system float libraries to make this *theoretically*
-  deterministic, but we don't have ARM hardware to verify.
+- **Cross-architecture byte equality (x86_64 hash compared to ARM64 hash).**
+  The guard verifies Bun ≡ Node on the current machine/architecture, not that
+  two different CPU architectures emit identical PNG bytes to each other.
 - **Resvg version drift.** A future bump of `@resvg/resvg-js` may
   change PNG bytes (zlib compression, font hinting). The version is
   pinned exact (no caret) to prevent silent drift on `npm install`,

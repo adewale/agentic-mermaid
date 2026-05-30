@@ -77,7 +77,8 @@
     "xychart-test": "bun run xychart-test.ts",
     "prepublishOnly": "npm run build",
     "mutation-test": "npx stryker run",
-    "lint": "bun test src/__tests__/agent-substrate-lint.test.ts"
+    "lint": "bun test src/__tests__/agent-substrate-lint.test.ts",
+    "eval:agent-live": "bun run eval/agent-usage/live.ts"
   },
   "dependencies": {
     "@resvg/resvg-js": "2.6.2",

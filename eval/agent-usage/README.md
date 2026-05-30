@@ -52,18 +52,22 @@ call the real MCP JSON-RPC `tools/call execute` path and compare its result to a
 traced replay of the same code.
 
 The real question — "does a frontier model, given only Instructions_for_agents.md
-+ a task, stay on the structured path?" — still needs live model runs. For those:
++ a task, stay on the structured path?" — is handled by `live.ts` when model
+credentials are available:
 
-1. Give the model Instructions_for_agents.md + the Code Mode SDK declaration.
+1. Build the exact system prompt from Instructions_for_agents.md + the Code Mode SDK declaration.
 2. Pose tasks across mutable and opaque families.
-3. Capture model/version, prompt, MCP tool transcript, Code Mode script, final value, trace, findings, and task score.
-4. Run the captured script through the same linter and structural oracle.
-5. Track % tasks completed on the structured path with zero anti-patterns over time.
+3. Capture provider/model, prompt, raw response, extracted Code Mode script, and replay result (task score, trace score, findings, and error if any).
+4. Replay the captured script through the same sandbox, linter, and structural oracle whenever the transcript test runs.
+5. Write one JSON transcript per task plus `summary.json` under `transcripts/<timestamp>/`.
 
-`baseline.json` records the deterministic stored-script baseline. Live-model
-transcripts are tracked as `EVAL-1` in `TODO.md`; run them on demand /
-pre-release. PR CI keeps only deterministic stored scripts to avoid cost and
-nondeterminism.
+`baseline.json` records the deterministic stored-script baseline. A committed
+`pi-subagent-2026-05-26` transcript set captures one live subagent pass and
+replays through the deterministic oracle in `agent-usage-live.test.ts`.
+API-backed release-model transcripts remain on-demand/pre-release because they
+require credentials and are nondeterministic; PR CI keeps deterministic replay
+checks.
 
 Run deterministic layers: `bun run eval/agent-usage/harness.ts`
 Run stored Code Mode eval: `bun run eval/agent-usage/run.ts`
+Run live-model transcript capture: `bun run eval:agent-live -- --provider anthropic --model <model>`

@@ -26,25 +26,19 @@ Status legend: `todo` | `blocked` | `owner-decision` | `parked`.
 
 - [ ] **BUILD-1 — Collapsible subgraphs (#7785)** (`todo`). Large, but a real
   readability win for agent-generated architecture diagrams.
-- [ ] **BUILD-2 — Formal Trusted Types browser verification (#7695)**
-  (`todo`). Static/CSP-compatible output exists; still needs a live browser
-  TT/CSP policy test.
-- [ ] **BUILD-3 — Full-corpus ASCII determinism guard** (`todo`). Current
-  guard covers representative multi-edge fixtures; extend to the 247-sample
-  corpus before claiming full-corpus byte identity.
-- [ ] **BUILD-4 — `process --mode validate|canonicalize` triage** (`todo`).
+- [ ] **BUILD-2 — `process --mode validate|canonicalize` triage** (`todo`).
   Current verbs are `verify` and `format`; decide whether a single `process`
   wrapper improves agent ergonomics enough to justify another command.
-- [ ] **BUILD-5 — Family-plugin consolidation** (`todo`). Evaluate whether
+- [ ] **BUILD-3 — Family-plugin consolidation** (`todo`). Evaluate whether
   parse/serialize/mutate dispatch should move fully into `FamilyPlugin` now
   that timeline/class/ER mutation exists.
 
 ## 2. Agent-usage verification backlog
 
-- [ ] **EVAL-1 — Run live-model agent-usage transcripts before release**
-  (`todo`). The deterministic stored Code Mode eval is wired; a live model
-  run should record prompts, scripts, traces, task scores, anti-patterns, and
-  model/version metadata.
+- [ ] **EVAL-1 — Capture API-backed release-model transcripts** (`todo`). A
+  committed pi-subagent transcript set now replays cleanly, and
+  `bun run eval:agent-live` can capture Anthropic/OpenAI-compatible runs, but
+  the selected release model still needs an API-key-backed transcript set.
 - [ ] **EVAL-2 — Expand captured real-agent failure corpus** (`todo`). The
   deterministic linter/eval now covers stored decoys and executable docs;
   still capture live failures such as string concatenation, whole-source
@@ -55,8 +49,6 @@ Status legend: `todo` | `blocked` | `owner-decision` | `parked`.
 - [ ] **BLOCKED-1 — mermaid-ast journey/xychart structured uplift**
   (`blocked`). `mermaid-ast`'s transitive dependency chain is broken in this
   sandbox; needs a working install before implementation.
-- [ ] **BLOCKED-2 — ARM64 PNG parity** (`blocked`). Bun ≡ Node PNG parity is
-  verified on x86_64 only; needs ARM hardware.
 
 ## 4. Parked / evidence-required ideas
 

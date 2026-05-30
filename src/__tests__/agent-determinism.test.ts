@@ -6,6 +6,14 @@ import { spawnSync } from 'node:child_process'
 import { join } from 'node:path'
 import { verifyMermaid } from '../agent/verify.ts'
 
+function findNodeBinary(): string | null {
+  const candidates = [process.env.NODE_BINARY, 'node', '/opt/node22/bin/node'].filter((x): x is string => Boolean(x))
+  for (const candidate of candidates) {
+    try { if (spawnSync(candidate, ['--version'], { encoding: 'utf8' }).status === 0) return candidate } catch {}
+  }
+  return null
+}
+
 const DIRECTIONS = ['TD', 'BT', 'LR', 'RL'] as const
 const NODE_COUNTS = [2, 3, 4, 5, 6, 7, 8, 9, 10, 12]
 const DENSITY = ['sparse', 'dense', 'star'] as const
@@ -53,10 +61,10 @@ describe('determinism — cross-runtime (bun vs node)', () => {
   // This loop tightens the claim: layout JSON is identical when emitted by
   // bun AND by node, on the same machine. Run via the built `dist/agent.js`
   // so node can consume it without TS resolution issues.
-  const NODE = '/opt/node22/bin/node'
+  const NODE = findNodeBinary()
   const DIST = join(import.meta.dir, '..', '..', 'dist', 'agent.js')
   const haveNode = (() => {
-    try { return spawnSync(NODE, ['--version'], { encoding: 'utf8' }).status === 0 } catch { return false }
+    try { return NODE !== null && spawnSync(NODE, ['--version'], { encoding: 'utf8' }).status === 0 } catch { return false }
   })()
   const haveDist = (() => { try { return require('node:fs').existsSync(DIST) } catch { return false } })()
 
@@ -68,7 +76,7 @@ describe('determinism — cross-runtime (bun vs node)', () => {
   ]) {
     fn(`bun layout ≡ node layout for: ${src.slice(0, 30).replace(/\n/g, ' ')}…`, () => {
       const bunLayout = verifyMermaid(src).layout
-      const nodeOut = spawnSync(NODE, ['-e', `
+      const nodeOut = spawnSync(NODE!, ['-e', `
         const { verifyMermaid } = require('${DIST}')
         process.stdout.write(JSON.stringify(verifyMermaid(${JSON.stringify(src)}).layout))
       `], { encoding: 'utf8' })
@@ -90,10 +98,10 @@ describe('determinism — cross-runtime PNG (Loop 8)', () => {
   // .node binary; p(this passes) ~= 0.9 per Loop 8 critic 1. If it fails,
   // we still ship deterministic-per-runtime PNG (the in-process test in
   // agent-png-determinism.test.ts proves that).
-  const NODE = '/opt/node22/bin/node'
+  const NODE = findNodeBinary()
   const DIST = join(import.meta.dir, '..', '..', 'dist', 'agent.js')
   const haveNode = (() => {
-    try { return spawnSync(NODE, ['--version'], { encoding: 'utf8' }).status === 0 } catch { return false }
+    try { return NODE !== null && spawnSync(NODE, ['--version'], { encoding: 'utf8' }).status === 0 } catch { return false }
   })()
   const haveDist = (() => { try { return require('node:fs').existsSync(DIST) } catch { return false } })()
   const haveResvg = (() => {
@@ -101,7 +109,7 @@ describe('determinism — cross-runtime PNG (Loop 8)', () => {
   })()
 
   const fn = haveNode && haveDist && haveResvg ? test : test.skip
-  fn('bun PNG SHA-256 ≡ node PNG SHA-256 (with warm-up)', async () => {
+  fn(`bun PNG SHA-256 ≡ node PNG SHA-256 on ${process.platform}/${process.arch} (with warm-up)`, async () => {
     // Module-level import already gives us renderMermaidPNG; import lazily so
     // skip path doesn't fail on environments without resvg.
     const { renderMermaidPNG } = await import('../agent/png.ts')
@@ -119,7 +127,7 @@ describe('determinism — cross-runtime PNG (Loop 8)', () => {
       const png = m.renderMermaidPNG(${JSON.stringify(src)});
       process.stdout.write(require('node:crypto').createHash('sha256').update(png).digest('hex'))
     `
-    const r = spawnSync(NODE, ['-e', script], { encoding: 'utf8' })
+    const r = spawnSync(NODE!, ['-e', script], { encoding: 'utf8' })
     expect(r.status).toBe(0)
     const nodeHash = r.stdout.trim()
 
@@ -133,10 +141,10 @@ describe('determinism — cross-runtime ASCII (Loop 9 M7)', () => {
   // ASCII in bun + in node (via dist/agent.js), compares SHA-256 byte-hashes.
   // If diverges, the test is marked test.todo with a clear comment and the
   // gap goes into DIVERGENCES.md. Don't fake-pass.
-  const NODE = '/opt/node22/bin/node'
+  const NODE = findNodeBinary()
   const DIST = join(import.meta.dir, '..', '..', 'dist', 'agent.js')
   const haveNode = (() => {
-    try { return spawnSync(NODE, ['--version'], { encoding: 'utf8' }).status === 0 } catch { return false }
+    try { return NODE !== null && spawnSync(NODE, ['--version'], { encoding: 'utf8' }).status === 0 } catch { return false }
   })()
   const haveDist = (() => { try { return require('node:fs').existsSync(DIST) } catch { return false } })()
 
@@ -156,7 +164,7 @@ describe('determinism — cross-runtime ASCII (Loop 9 M7)', () => {
         const ascii = m.renderMermaidASCII(${JSON.stringify(src)});
         process.stdout.write(require('node:crypto').createHash('sha256').update(ascii).digest('hex'))
       `
-      const r = spawnSync(NODE, ['-e', script], { encoding: 'utf8' })
+      const r = spawnSync(NODE!, ['-e', script], { encoding: 'utf8' })
       expect(r.status).toBe(0)
       const nodeHash = r.stdout.trim()
       // Honest comparison. Any divergence fails — convert to test.todo +
