@@ -321,7 +321,7 @@ Two practical rules came out of the rebase:
    decisive command was `am capabilities --json`, not reading the docs.
 2. **Regenerate ignored artifacts before browser/e2e tests.** The first
    post-rebase browser run failed because ignored `editor.html` was stale
-   from a previous branch. `bun run editor.ts && bun run test:browser` is
+   from a previous branch. `bun run editor && bun run test:browser` is
    the safe sequence. A generated file outside git can still poison local
    verification.
 

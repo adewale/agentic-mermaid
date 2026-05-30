@@ -1,3 +1,6 @@
+/// <reference lib="dom" />
+/// <reference lib="dom.iterable" />
+
 /**
  * Investigate blue color persistence: screenshot every sample under Tufte theme,
  * and scan all SVG elements for blue-ish computed colors.
@@ -7,10 +10,10 @@ import { chromium } from 'playwright'
 import { mkdirSync } from 'node:fs'
 import { join } from 'node:path'
 
-const outDir = join(import.meta.dir, 'theme-screenshots')
+const outDir = join(import.meta.dir, '..', 'assets', 'theme-screenshots')
 mkdirSync(outDir, { recursive: true })
 
-const url = `file://${join(import.meta.dir, 'new-diagrams.html')}`
+const url = `file://${join(import.meta.dir, '..', 'examples', 'showcases', 'new-diagrams.html')}`
 const browser = await chromium.launch()
 const page = await browser.newPage({ viewport: { width: 1440, height: 900 } })
 

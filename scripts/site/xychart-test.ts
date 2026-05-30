@@ -1,7 +1,7 @@
 /**
- * Generates xychart-test.html showcasing xychart-beta Mermaid examples.
+ * Generates examples/showcases/xychart-test.html showcasing xychart-beta Mermaid examples.
  *
- * Usage: bun run xychart-test.ts
+ * Usage: bun run scripts/site/xychart-test.ts
  *
  * For each example, renders a 3-column grid:
  *   1. Shiki-highlighted mermaid source
@@ -10,7 +10,7 @@
  */
 
 import { xychartSamples } from './xychart-samples-data.ts'
-import { THEMES } from './src/theme.ts'
+import { THEMES } from '../../src/theme.ts'
 import { createHighlighter } from 'shiki'
 
 function escapeHtml(text: string): string {
@@ -55,12 +55,16 @@ async function generateHtml(): Promise<string> {
 
   // Bundle the mermaid renderer for client-side SVG rendering
   const buildResult = await Bun.build({
-    entrypoints: [new URL('./src/browser.ts', import.meta.url).pathname],
+    entrypoints: [new URL('../../src/browser.ts', import.meta.url).pathname],
     target: 'browser',
     format: 'esm',
     minify: true,
   })
-  const bundleJs = await buildResult.outputs[0].text()
+  if (!buildResult.success) {
+    console.error('Bundle build failed:', buildResult.logs)
+    process.exit(1)
+  }
+  const bundleJs = await buildResult.outputs[0]!.text()
 
   // Group samples by category for TOC
   const categories = new Map<string, number[]>()
@@ -1055,6 +1059,6 @@ if (window.__renderAllSvgs) window.__renderAllSvgs(window.__initThemeKey);
 }
 
 const html = await generateHtml()
-const outPath = new URL('./xychart-test.html', import.meta.url).pathname
+const outPath = new URL('../../examples/showcases/xychart-test.html', import.meta.url).pathname
 await Bun.write(outPath, html)
 console.log(`Written to ${outPath} (${(html.length / 1024).toFixed(1)} KB)`)

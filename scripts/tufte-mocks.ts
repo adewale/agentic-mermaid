@@ -1,13 +1,15 @@
 /**
  * Generate mock SVG + PNG images demonstrating the Tufte theme.
- * Run: bun tufte-mocks.ts
+ * Run: bun scripts/tufte-mocks.ts
  */
-import { renderMermaidSVG } from './src/index.ts'
-import { THEMES } from './src/theme.ts'
+import { renderMermaidSVG } from '../src/index.ts'
+import { THEMES } from '../src/theme.ts'
 import { writeFileSync, mkdirSync } from 'fs'
+import { join } from 'path'
 import { Resvg } from '@resvg/resvg-js'
 
-mkdirSync('tufte-mocks', { recursive: true })
+const outDir = join(import.meta.dir, '..', 'assets', 'tufte-mocks')
+mkdirSync(outDir, { recursive: true })
 
 const tufte = THEMES['tufte']!
 const tufteOpts = { ...tufte, font: 'Palatino' }
@@ -243,16 +245,16 @@ let pngCount = 0
 for (const { name, source } of diagrams) {
   for (const { suffix, opts } of themes) {
     const svg = renderMermaidSVG(source, opts)
-    writeFileSync(`tufte-mocks/${name}-${suffix}.svg`, svg)
+    writeFileSync(join(outDir, `${name}-${suffix}.svg`), svg)
     svgCount++
 
     const png = svgToPng(svg)
-    writeFileSync(`tufte-mocks/${name}-${suffix}.png`, png)
+    writeFileSync(join(outDir, `${name}-${suffix}.png`), png)
     pngCount++
   }
 }
 
-console.log(`Generated ${svgCount} SVGs + ${pngCount} PNGs in tufte-mocks/`)
+console.log(`Generated ${svgCount} SVGs + ${pngCount} PNGs in ${outDir}`)
 console.log('\nDiagram types:')
 for (const { name } of diagrams) {
   console.log(`  ${name}`)

@@ -1,7 +1,7 @@
 /**
  * Generates editor.html — a live Mermaid editor similar to mermaid.live.
  *
- * Usage: bun run editor.ts
+ * Usage: bun run scripts/site/editor.ts
  *
  * The generated HTML is fully self-contained:
  *   - Bundles the mermaid renderer client-side
@@ -17,7 +17,7 @@
  *   - editor/html/ — HTML partials (topbar, left-panel, right-panel)
  */
 
-import { THEMES } from './src/theme.ts'
+import { THEMES } from '../../src/theme.ts'
 
 const THEME_LABELS: Record<string, string> = {
   'zinc-dark': 'Zinc Dark',
@@ -43,7 +43,7 @@ const THEME_LABELS: Record<string, string> = {
 
 // ── File helpers ──────────────────────────────────────────────────────────────
 
-const editorDir = new URL('./editor/', import.meta.url).pathname
+const editorDir = new URL('../../editor/', import.meta.url).pathname
 
 async function readFile(relativePath: string): Promise<string> {
   const file = Bun.file(editorDir + relativePath)
@@ -114,7 +114,7 @@ async function readHtmlPartials(themeItems: string): Promise<{
 
 async function generateEditorHtml(): Promise<string> {
   const buildResult = await Bun.build({
-    entrypoints: [new URL('./src/browser.ts', import.meta.url).pathname],
+    entrypoints: [new URL('../../src/browser.ts', import.meta.url).pathname],
     target: 'browser',
     format: 'esm',
     minify: true,
@@ -128,9 +128,10 @@ async function generateEditorHtml(): Promise<string> {
 
   const themeItems = [
     `<button class="theme-dropdown-item active" type="button" role="option" data-theme="">Default</button>`,
-    ...Object.keys(THEMES).map(
-      key => `<button class="theme-dropdown-item" type="button" role="option" data-theme="${key}"><span class="theme-swatch" style="background:${THEMES[key].bg}"></span>${THEME_LABELS[key] ?? key}</button>`
-    ),
+    ...Object.keys(THEMES).map((key) => {
+      const theme = THEMES[key]!
+      return `<button class="theme-dropdown-item" type="button" role="option" data-theme="${key}"><span class="theme-swatch" style="background:${theme.bg}"></span>${THEME_LABELS[key] ?? key}</button>`
+    }),
   ].join('\n      ')
 
   const [css, appJs, html] = await Promise.all([
@@ -204,6 +205,6 @@ ${appJs}
 }
 
 const result = await generateEditorHtml()
-const outPath = new URL('./editor.html', import.meta.url).pathname
+const outPath = new URL('../../editor.html', import.meta.url).pathname
 await Bun.write(outPath, result)
 console.log(`Written to ${outPath} (${(result.length / 1024).toFixed(1)} KB)`)

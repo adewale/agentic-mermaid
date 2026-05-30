@@ -56,7 +56,7 @@ Follow these repo standards:
 - Use shared theme helpers and CSS custom properties instead of hardcoded colors where theme tokens already exist.
 - Reuse existing text measurement, multiline, spacing, and escaping utilities before inventing new ones.
 - Match the repo's visual language: readable labels, balanced padding, clear hierarchy, and outputs that still look good across built-in themes and CSS-variable inputs.
-- If the diagram needs unusual rendering rules, add a short design note like [xychart-design.md](./xychart-design.md).
+- If the diagram needs unusual rendering rules, add a short design note like [docs/design/xychart.md](./docs/design/xychart.md).
 
 ## 4. Mermaid Compatibility Checklist
 
@@ -79,7 +79,7 @@ New diagram support should normally include most of these layers:
 - Theme and compatibility tests for dark/light themes, CSS variable inputs, and frontmatter/config handling where relevant
 - ASCII tests when ASCII rendering is supported, including Unicode mode and ASCII-safe mode
 - Regression tests for easy-to-break behavior such as ordering, escaping, markers, label normalization, or routing
-- Sample coverage in `samples-data.ts` when the feature should appear on the visual samples page
+- Sample coverage in `scripts/site/samples-data.ts` when the feature should appear on the visual samples page
 - README updates for the new supported diagram type and any intentional compatibility gaps
 
 Use the existing naming pattern where possible:

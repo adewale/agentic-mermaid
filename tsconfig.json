@@ -29,6 +29,6 @@
     "declaration": true,
     "declarationMap": true
   },
-  "include": ["src/**/*", "index.ts", "samples-data.ts"],
+  "include": ["src/**/*", "scripts/**/*.ts"],
   "exclude": ["node_modules", "dist"]
 }

@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'bun:test'
 import fc from 'fast-check'
 
-import { generateHtml, type GenerateHtmlOptions } from '../../index.ts'
-import { samples, type Sample } from '../../samples-data.ts'
+import { generateHtml, type GenerateHtmlOptions } from '../../scripts/site/generate.ts'
+import { samples, type Sample } from '../../scripts/site/samples-data.ts'
 
 // generateHtml is async and does Bun.build internally (~1-2s per call).
 // Keep numRuns low to avoid excessive build time.
@@ -18,7 +18,7 @@ function countSamplesForCategories(cats: Set<string>): number {
   return samples.filter(s => cats.has(s.category ?? 'Other')).length
 }
 
-/** Replicate the escapeHtml logic from index.ts for title matching. */
+/** Replicate the escapeHtml logic from scripts/site/generate.ts for title matching. */
 function escapeHtml(text: string): string {
   return text
     .replace(/&/g, '&amp;')

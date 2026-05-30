@@ -67,7 +67,7 @@ Current SVG rendering decisions:
 
 ## Compatibility Notes
 
-Supported Mermaid compatibility surface is documented in [README.md](./README.md).
+Supported Mermaid compatibility surface is documented in [README.md](../../README.md).
 
 Intentional gap today:
 
@@ -82,4 +82,4 @@ XY chart changes should keep the following layers covered:
 - renderer tests for semantic classes, escaping, and theme token usage
 - integration tests for full parse -> layout -> render behavior
 - ASCII tests for unicode and ASCII-safe rendering
-- `samples-data.ts` coverage so the visual samples page exercises the feature
+- `scripts/site/samples-data.ts` coverage so the visual samples page exercises the feature

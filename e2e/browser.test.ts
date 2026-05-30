@@ -163,14 +163,14 @@ beforeAll(async () => {
   // Ensure generated pages exist
   const indexPath = join(ROOT, 'index.html')
   if (!(await Bun.file(indexPath).exists())) {
-    const proc = Bun.spawn(['bun', 'run', join(ROOT, 'index.ts')], {
+    const proc = Bun.spawn(['bun', 'run', join(ROOT, 'scripts/site/generate.ts')], {
       cwd: ROOT, stdout: 'inherit', stderr: 'inherit',
     })
     await proc.exited
   }
   const editorPath = join(ROOT, 'editor.html')
   if (!(await Bun.file(editorPath).exists())) {
-    const proc = Bun.spawn(['bun', 'run', join(ROOT, 'editor.ts')], {
+    const proc = Bun.spawn(['bun', 'run', join(ROOT, 'scripts/site/editor.ts')], {
       cwd: ROOT, stdout: 'inherit', stderr: 'inherit',
     })
     await proc.exited

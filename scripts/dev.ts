@@ -1,11 +1,11 @@
 /**
  * Development server with live reload for mermaid samples.
  *
- * Usage: bun run packages/mermaid/dev.ts
+ * Usage: bun run scripts/dev.ts
  *
- * - Runs `index.ts` to generate index.html on startup
- * - Runs `editor.ts` to generate editor.html on startup
- * - Watches `src/` and `index.ts` for file changes
+ * - Runs `scripts/site/generate.ts` to generate index.html on startup
+ * - Runs `scripts/site/editor.ts` to generate editor.html on startup
+ * - Watches the project for source/script changes
  * - On change, rebuilds index.html and notifies browsers via SSE
  * - Serves index.html with an injected live-reload script
  *
@@ -21,7 +21,7 @@ import { watch } from 'fs'
 import { join } from 'path'
 
 const PORT = 3456
-const ROOT = import.meta.dir
+const ROOT = join(import.meta.dir, '..')
 
 // ============================================================================
 // Build management
@@ -36,12 +36,12 @@ async function rebuild(): Promise<void> {
   console.log('\x1b[36m[dev]\x1b[0m Rebuilding samples...')
   const t0 = performance.now()
 
-  const samplesProc = Bun.spawn(['bun', 'run', join(ROOT, 'index.ts')], {
+  const samplesProc = Bun.spawn(['bun', 'run', join(ROOT, 'scripts/site/generate.ts')], {
     cwd: ROOT,
     stdout: 'inherit',
     stderr: 'inherit',
   })
-  const editorProc = Bun.spawn(['bun', 'run', join(ROOT, 'editor.ts')], {
+  const editorProc = Bun.spawn(['bun', 'run', join(ROOT, 'scripts/site/editor.ts')], {
     cwd: ROOT,
     stdout: 'inherit',
     stderr: 'inherit',

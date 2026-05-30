@@ -2,15 +2,15 @@
  * Sample definitions for the beautiful-mermaid visual test suite.
  *
  * Shared by:
- *   - index.ts     — generates the HTML visual test page
- *   - bench.ts     — runs performance benchmarks in Bun (no browser)
- *   - dev.ts       — dev server with live reload
+ *   - scripts/site/generate.ts — generates the HTML visual test page
+ *   - eval/benchmark/sample-bench.ts — runs performance benchmarks in Bun
+ *   - scripts/dev.ts — dev server with live reload
  *
  * Every supported feature, shape, edge type, block construct, and theme
  * variant is exercised by at least one sample.
  */
 
-import type { RenderOptions } from './src/types.ts'
+import type { RenderOptions } from '../../src/types.ts'
 
 export interface Sample {
   title: string

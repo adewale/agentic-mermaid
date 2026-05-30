@@ -1,14 +1,14 @@
 /**
- * Generates new-diagrams.html — a focused showcase for the recently added
+ * Generates examples/showcases/new-diagrams.html — a focused showcase for the recently added
  * diagram types: Architecture, Timeline, and Journey.
  *
- * Usage: bun run new-diagrams.ts
+ * Usage: bun run scripts/site/new-diagrams.ts
  *
- * Reuses the exact same generator as the main gallery (index.ts), just
+ * Reuses the exact same generator as the main gallery (scripts/site/generate.ts), just
  * filtered to the three new diagram families with additional samples.
  */
 
-import { generateHtml } from './index.ts'
+import { generateHtml } from './generate.ts'
 import type { Sample } from './samples-data.ts'
 
 const extraSamples: Sample[] = [
@@ -166,6 +166,6 @@ const html = await generateHtml({
   visibleThemes: new Set(['tufte', 'tufte-dark', 'salmon', 'salmon-dark']),
 })
 
-const outPath = new URL('./new-diagrams.html', import.meta.url).pathname
+const outPath = new URL('../../examples/showcases/new-diagrams.html', import.meta.url).pathname
 await Bun.write(outPath, html)
 console.log(`Written to ${outPath} (${(html.length / 1024).toFixed(1)} KB)`)

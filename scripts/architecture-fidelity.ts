@@ -2,8 +2,8 @@ import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
-import { samples } from './samples-data.ts'
-import { renderMermaidASCII, renderMermaidSVG } from './src/index.ts'
+import { samples } from './site/samples-data.ts'
+import { renderMermaidASCII, renderMermaidSVG } from '../src/index.ts'
 
 type DiagramKind = 'architecture' | 'sequence' | 'class' | 'er' | 'xychart'
 type CapabilityId =

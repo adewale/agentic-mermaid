@@ -6,7 +6,7 @@
 
 Ultra-fast, fully themeable, zero DOM dependencies. Built for the AI era.
 
-![beautiful-mermaid sequence diagram example](hero.png)
+![beautiful-mermaid sequence diagram example](assets/hero.png)
 
 [![npm version](https://img.shields.io/npm/v/beautiful-mermaid.svg)](https://www.npmjs.com/package/beautiful-mermaid)
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
@@ -347,7 +347,7 @@ stateDiagram-v2
 ### Architecture Diagrams
 
 Services, groups, and junctions using Mermaid's `architecture-beta` syntax.
-Current scope covers anchored edges, `{group}` boundary routing, SVG/ASCII output, and Mermaid source wrappers before the header (`%%` comments, YAML frontmatter, and `%%{init: ...}%%` directives). Architecture rendering now honors wrapper-driven theming and sizing for `theme`, `themeVariables`, `fontFamily`, `fontSize`, and `architecture.padding` / `architecture.iconSize` / `architecture.fontSize`; see [architecture-design.md](./architecture-design.md).
+Current scope covers anchored edges, `{group}` boundary routing, SVG/ASCII output, and Mermaid source wrappers before the header (`%%` comments, YAML frontmatter, and `%%{init: ...}%%` directives). Architecture rendering now honors wrapper-driven theming and sizing for `theme`, `themeVariables`, `fontFamily`, `fontSize`, and `architecture.padding` / `architecture.iconSize` / `architecture.fontSize`; see [docs/design/architecture.md](./docs/design/architecture.md).
 
 ```
 architecture-beta
@@ -423,7 +423,7 @@ timeline
 Scored user tasks grouped into sections — using Mermaid's `journey` syntax.
 Supports Mermaid accessibility directives `accTitle:` and `accDescr:` as SVG
 metadata, including multiline `accDescr { ... }` blocks. Design note:
-[`journey-design.md`](./journey-design.md).
+[`docs/design/journey.md`](./docs/design/journey.md).
 
 ```
 journey

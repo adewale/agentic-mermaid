@@ -30,8 +30,8 @@ jobs:
 
       - name: Build samples site
         run: |
-          bun run index.ts
-          bun run editor.ts
+          bun run scripts/site/generate.ts
+          bun run scripts/site/editor.ts
           mkdir -p _site/editor
           mv index.html _site/index.html
           cp editor.html _site/editor.html

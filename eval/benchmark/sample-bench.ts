@@ -4,12 +4,12 @@
  * Runs all sample definitions through both renderers (SVG + ASCII) in Bun
  * and prints a table with per-sample timing and aggregate stats.
  *
- * Usage: bun run packages/mermaid/bench.ts
+ * Usage: bun run eval/benchmark/sample-bench.ts
  */
 
-import { samples } from './samples-data.ts'
-import { renderMermaid } from './src/index.ts'
-import { renderMermaidAscii } from './src/ascii/index.ts'
+import { samples } from '../../scripts/site/samples-data.ts'
+import { renderMermaid } from '../../src/index.ts'
+import { renderMermaidAscii } from '../../src/ascii/index.ts'
 
 // ============================================================================
 // Types

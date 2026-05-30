@@ -1,7 +1,7 @@
 /**
  * Generates index.html showcasing all beautiful-mermaid rendering capabilities.
  *
- * Usage: bun run index.ts
+ * Usage: bun run scripts/site/generate.ts
  *
  * This file doubles as a **visual test suite** — every supported feature,
  * shape, edge type, block construct, and theme variant is exercised by at
@@ -12,11 +12,11 @@
  * mermaid renderer and renders all diagrams client-side in real time,
  * showing progressive loading and per-diagram render timing.
  *
- * Sample definitions live in samples-data.ts (shared with bench.ts).
+ * Sample definitions live in samples-data.ts (shared with eval/benchmark/sample-bench.ts).
  */
 
 import { samples } from './samples-data.ts'
-import { THEMES } from './src/theme.ts'
+import { THEMES } from '../../src/theme.ts'
 import { createHighlighter } from 'shiki'
 
 // ============================================================================
@@ -97,7 +97,7 @@ export async function generateHtml(options: GenerateHtmlOptions = {}): Promise<s
 
   // Step 1: Bundle the mermaid renderer for the browser
   const buildResult = await Bun.build({
-    entrypoints: [new URL('./src/browser.ts', import.meta.url).pathname],
+    entrypoints: [new URL('../../src/browser.ts', import.meta.url).pathname],
     target: 'browser',
     format: 'esm',
     minify: true,
@@ -1942,7 +1942,7 @@ ${bundleJs}
 
 if (import.meta.main) {
   const html = await generateHtml()
-  const outPath = new URL('./index.html', import.meta.url).pathname
+  const outPath = new URL('../../index.html', import.meta.url).pathname
   await Bun.write(outPath, html)
   console.log(`Written to ${outPath} (${(html.length / 1024).toFixed(1)} KB)`)
 }
