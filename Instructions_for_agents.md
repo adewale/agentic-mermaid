@@ -23,7 +23,7 @@ if (!verify.ok) return { phase: 'verify', warnings: verify.warnings }
 return { source: mermaid.serializeMermaid(d1.value) }
 ```
 
-Use `asFlowchart` / `asSequence` / `asTimeline` / `asClass` / `asEr` before mutating. In Code Mode, SDK-returned diagrams are read-only; structured edits must go through `mermaid.mutate`. Journey, xychart, architecture, and opaque-fallback bodies round-trip losslessly, but do not expose structured mutation; return an unsupported-family result unless the task explicitly asks for source-level editing, then re-parse and verify before returning.
+Use `asFlowchart` / `asSequence` / `asTimeline` / `asClass` / `asEr` before mutating. In Code Mode, SDK-returned diagrams are read-only; structured edits must go through `mermaid.mutate`. Journey, xychart, architecture, and opaque-fallback bodies round-trip losslessly as source-level bodies, but do not expose structured mutation; return an unsupported-family result unless the task explicitly asks for source-level editing, then re-parse and verify before returning.
 
 ## The verify-after-mutate rule
 
@@ -56,4 +56,4 @@ Library extras: `renderMermaidASCIIWithMeta(src)` → `{ascii,regions}` for TUI 
 - Verifying only after a long chain. Loses precision about which op broke it.
 - Serializing before reading `verify.ok` / `verify.warnings` / `verify.layout`.
 - Concatenating Mermaid source strings when a typed `mutate` op exists.
-- Calling `mutate` on journey / xychart / architecture / opaque bodies; narrowers return `null` to make unsupported structured edits explicit.
+- Calling `mutate` on journey / xychart / architecture / opaque bodies; no narrower exposes structured edits for those source-level bodies.

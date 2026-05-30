@@ -11,7 +11,7 @@ This branch owns the GitHub Pages deployment. The Craft/Cloudflare site is upstr
 
 ## Agent-native surface (largest fork-vs-upstream gap)
 
-This fork adds a typed editing surface for AI agents under the `beautiful-mermaid/agent` subpath export, plus an `am` CLI and an `agentic-mermaid-mcp` Code Mode MCP server. Agents parse Mermaid into a sealed `ValidDiagram`, apply typed structural mutations (flowchart/state, sequence, timeline, class, and ER), verify rendering correctness via structured `LayoutWarning` codes (no PNG/vision), and serialize back to canonical source. Journey, XY chart, architecture, and opaque-fallback diagrams round-trip losslessly via preserved source. Layout is deterministic and verified byte-identical across processes. See [`AGENT_NATIVE.md`](./AGENT_NATIVE.md) and [`Instructions_for_agents.md`](./Instructions_for_agents.md). Upstream has no equivalent.
+This fork adds a typed editing surface for AI agents under the `beautiful-mermaid/agent` subpath export, plus an `am` CLI and an `agentic-mermaid-mcp` Code Mode MCP server. Agents parse Mermaid into a sealed `ValidDiagram`, apply typed structural mutations (flowchart/state, sequence, timeline, class, ER), verify rendering correctness via structured `LayoutWarning` codes (no PNG/vision), and serialize back to canonical source. Journey, XY chart, architecture, and opaque-fallback diagrams round-trip losslessly via preserved source but do not expose structured mutation. Layout is deterministic and verified byte-identical across processes. See [`AGENT_NATIVE.md`](./AGENT_NATIVE.md) and [`Instructions_for_agents.md`](./Instructions_for_agents.md). Upstream has no equivalent.
 
 ## New and expanded diagram support
 

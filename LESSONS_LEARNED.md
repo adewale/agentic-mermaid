@@ -29,10 +29,11 @@ realized. A short empirical probe in Loop 1 would have saved a Loop 3.
 After the survey, the position we hold that no other package holds is
 the *combination* of:
 
-- **Structured-or-opaque rule.** Every diagram family either has a full
-  structured body (six families: flowchart, state, sequence, timeline,
-  class, ER) or stays opaque with byte-fidelity round-trip (journey,
-  xychart, architecture). We never silently drop a construct.
+- **Structured-or-opaque rule.** Every diagram family either has a
+  structured body for its modeled syntax (flowchart, state, sequence,
+  timeline, class, ER, journey, xychart) or stays opaque with
+  byte-fidelity round-trip when a construct is unmodeled (including
+  architecture). We never silently drop a construct.
 - **Tiered verification.** Tier 1 (structural — reliable, universal),
   Tier 2 (geometric — flowchart-shaped), and as of Loop 7 a Tier 3 plugin
   hook via `FamilyPlugin.verify`. Tier 1 is gated; Tier 2 is advisory.

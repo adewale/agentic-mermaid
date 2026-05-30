@@ -131,8 +131,8 @@ rebuilds the diagram via synthesizeFromGraph without re-parsing source.`,
   mutate: `am mutate <file|-> --op '<JSON>' [--json]
 Applies one MutationOp, verifies the mutated diagram, then emits new source.
 Flowchart/state, sequence, timeline, class, and ER have typed mutation ops;
-journey, xychart, architecture, and opaque-fallback diagrams return a
-structured UNSUPPORTED_FAMILY error (exit 2). Verify failures exit 3.`,
+journey, xychart, architecture, and opaque-fallback diagrams return a structured
+UNSUPPORTED_FAMILY error (exit 2). Verify failures exit 3.`,
   format: `am format <file|->
 Parse then re-serialize to canonical form. Idempotent.`,
   describe: `am describe <file|-> [--format text|json] [--json]
@@ -404,7 +404,7 @@ function cmdMutate(args: ParsedArgs, json: boolean): number {
 
   process.stdout.write(JSON.stringify({
     ok: false,
-    error: { code: 'UNSUPPORTED_FAMILY', message: `mutate supports flowchart, state, sequence, timeline, class, and ER diagrams; got ${r0.value.kind}${r0.value.body.kind === 'opaque' ? ' (opaque — likely contains constructs not modeled for structured editing)' : ''}` },
+    error: { code: 'UNSUPPORTED_FAMILY', message: `mutate supports flowchart, state, sequence, timeline, class, and ER diagrams; got ${r0.value.kind}${r0.value.body.kind === 'opaque' ? ' (source-level/opaque body — structured mutation is not exposed for this family or syntax)' : ''}` },
   }) + '\n')
   return EXIT_ARG_ERROR
 }
@@ -554,7 +554,7 @@ Version: ${cap.sdkVersion}
 A typed editing surface over Mermaid for AI agents. Parse a diagram to a
 ValidDiagram, mutate it with typed ops, verify structurally (no pixels),
 serialize back to canonical source. Layout is deterministic (verified
-cross-process and cross-runtime on x86_64).
+cross-process and same-machine cross-runtime on x86_64/ARM64).
 
 ## The agent loop
 

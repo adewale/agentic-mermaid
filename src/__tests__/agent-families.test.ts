@@ -36,13 +36,26 @@ describe('family registry', () => {
 describe('Phase B: universal LABEL_OVERFLOW on opaque bodies', () => {
   const long = 'X'.repeat(80)
 
-  // NOTE: class and ER moved to structured bodies (Phase C). Their
-  // LABEL_OVERFLOW is now covered by verifyClass/verifyErBody, not the
-  // opaque-body extractLabels path. The cases below are the remaining
-  // families that still use opaque bodies for these constructs.
+  // NOTE: journey, xychart, architecture, and unmodeled syntax are source-level
+  // in the agent surface; plugin extractLabels still has teeth on opaque bodies.
   const cases: Array<[string, string]> = [
-    ['journey', `journey\n  title ${long}`],
-    ['xychart', `xychart-beta\n  title "${long}"`],
+    ['journey opaque', `journey\n  title ${long}\n  click task href`],
+    ['journey opaque task without actors', `journey\n  ${long}: 3\n  click task href`],
+    ['journey opaque actor', `journey\n  Alpha: 3: ${long}\n  click task href`],
+    ['journey opaque accDescr block', `journey\n  accDescr {\n    ${long}\n  }\n  click task href`],
+    ['journey opaque accDescr opener text', `journey\n  accDescr { ${long}\n  }\n  click task href`],
+    ['xychart opaque', `xychart-beta\n  title "${long}"\n  curve basis`],
+    ['xychart opaque unquoted title', `xychart-beta\n  title ${long}\n  curve basis`],
+    ['xychart opaque unquoted series label', `xychart-beta\n  bar ${long} [1,2]\n  curve basis`],
+    ['xychart opaque titled axis category', `xychart-beta\n  x-axis Month [${long}]\n  curve basis`],
+    ['xychart opaque unquoted axis title with quoted category', `xychart-beta\n  x-axis ${long} ["Jan"]\n  curve basis`],
+    ['xychart opaque numeric-prefix axis title', `xychart-beta\n  x-axis 2024-${long} [Jan]\n  curve basis`],
+    ['xychart opaque numeric-prefix ranged axis title', `xychart-beta\n  x-axis 2024-${long} 0 --> 10\n  curve basis`],
+    ['xychart opaque accDescr block', `xychart-beta\n  accDescr {\n    ${long}\n  }\n  curve basis`],
+    ['xychart opaque escaped quote title', `xychart-beta\n  title "A \\" ${long}"\n  curve basis`],
+    ['xychart opaque single-quoted title', `xychart-beta\n  title '${long}'\n  curve basis`],
+    ['xychart opaque one-line semicolon title', `xychart-beta; title "${long}"; curve basis`],
+    ['xychart opaque one-line unquoted semicolon title', `xychart-beta; title ${long}; bar [1]; curve basis`],
     ['architecture', `architecture-beta\n  group api(cloud)[${long}]`],
     ['sequence opaque', `sequenceDiagram\n  participant A\n  participant B\n  alt very long ${long}\n    A->>B: msg\n  end`],
   ]
@@ -72,9 +85,8 @@ describe('Phase B: universal LABEL_OVERFLOW on opaque bodies', () => {
 
 describe('FamilyPlugin.verify dispatcher', () => {
   test('plugin verify hook is called and warnings surface in verifyMermaid result', () => {
-    // Pick a family whose body stays opaque without any custom parser so we
-    // can rely on the registered plugin's verify hook firing on the opaque
-    // body. Use 'journey' (opaque-by-default in this fork).
+    // Pick a source-level family to prove FamilyPlugin.verify fires independent
+    // of whether the body is structured or opaque/source-preserved.
     const original = getFamily('journey')
     expect(original).toBeDefined()
 

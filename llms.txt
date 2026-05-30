@@ -11,7 +11,7 @@ Version: 1.1.3
 A typed editing surface over Mermaid for AI agents. Parse a diagram to a
 ValidDiagram, mutate it with typed ops, verify structurally (no pixels),
 serialize back to canonical source. Layout is deterministic (verified
-cross-process and cross-runtime on x86_64).
+cross-process and same-machine cross-runtime on x86_64/ARM64).
 
 ## The agent loop
 

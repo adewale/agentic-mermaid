@@ -157,8 +157,8 @@ declare const mermaid: {
 //    before serializeMermaid. On failure, revert or try a different operation.
 // 2. Never concatenate Mermaid source — use mutate() + serializeMermaid().
 // 3. mutate works on flowchart/state, simple sequence, timeline, class, and ER.
-//    Narrow via asFlowchart/asSequence/asTimeline/asClass/asEr. Opaque-fallback
-//    diagrams return null from narrowers — use source-level edits only when the
-//    task explicitly asks for them, then re-parse and verify.
+//    Narrow via asFlowchart/asSequence/asTimeline/asClass/asEr. Journey,
+//    xychart, architecture, and opaque-fallback bodies are source-level only;
+//    if explicitly edited as text, re-parse and verify before returning.
 // 4. Layout is deterministic; there is no seed.
 `

@@ -71,7 +71,7 @@ export async function handleRequest(req: JsonRpcRequest): Promise<JsonRpcRespons
         protocolVersion: PROTOCOL_VERSION,
         serverInfo: { name: SERVER_NAME, version: SERVER_VERSION },
         capabilities: { tools: {} },
-        instructions: 'agentic-mermaid Code Mode server. Primary tool execute runs synchronous JavaScript against the typed mermaid.* SDK in a sandbox; async/await and Promise jobs are not supported. render_png and describe are narrow helpers. mutate is overloaded by family; narrow via asFlowchart/asSequence/asTimeline/asClass/asEr. Layout is deterministic; there is no seed.',
+        instructions: 'agentic-mermaid Code Mode server. Primary tool execute runs synchronous JavaScript against the typed mermaid.* SDK in a sandbox; async/await and Promise jobs are not supported. render_png and describe are narrow helpers. mutate is overloaded by family; narrow via asFlowchart/asSequence/asTimeline/asClass/asEr. Journey, xychart, architecture, and opaque fallback are source-level only. Layout is deterministic; there is no seed.',
       })
     case 'notifications/initialized': return null
     case 'ping': return reply(id, {})

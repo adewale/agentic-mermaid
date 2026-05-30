@@ -34,7 +34,7 @@ import { renderXYChartAscii } from './xychart.ts'
 import { renderArchitectureAscii } from './architecture.ts'
 import { detectColorMode, DEFAULT_ASCII_THEME, diagramColorsToAsciiTheme } from './ansi.ts'
 import type { AsciiConfig, AsciiTheme, ColorMode } from './types.ts'
-import { normalizeMermaidSource } from '../mermaid-source.ts'
+import { normalizeMermaidSource, detectDiagramTypeFromFirstLine } from '../mermaid-source.ts'
 import type { MermaidRuntimeConfig } from '../mermaid-source.ts'
 
 // Re-export types for external use
@@ -73,32 +73,6 @@ export interface AsciiRenderOptions {
    * parallel columns; this is best-effort wrapping, not hard truncation.
    */
   maxWidth?: number
-}
-
-/**
- * Detect the diagram type from the mermaid source text.
- * Mirrors the detection logic in src/index.ts for the SVG renderer.
- */
-function detectDiagramType(firstLine: string): 'flowchart' | 'architecture' | 'sequence' | 'class' | 'er' | 'timeline' | 'journey' | 'xychart' {
-  if (/^architecture-beta\s*$/.test(firstLine)) return 'architecture'
-  if (/^xychart(-beta)?\b/.test(firstLine)) return 'xychart'
-  if (/^timeline\s*$/.test(firstLine)) return 'timeline'
-  if (/^journey\s*$/.test(firstLine)) return 'journey'
-  if (/^sequencediagram\s*$/.test(firstLine)) return 'sequence'
-  if (/^classdiagram\s*$/.test(firstLine)) return 'class'
-  if (/^erdiagram\s*$/.test(firstLine)) return 'er'
-
-  // Default: flowchart/state (handled by parseMermaid internally)
-  return 'flowchart'
-}
-
-function firstSignificantLine(text: string): string {
-  for (const rawLine of text.split('\n')) {
-    const line = rawLine.trim()
-    if (line.length === 0 || line.startsWith('%%')) continue
-    return line.split(';')[0]!.trim().toLowerCase()
-  }
-  return ''
 }
 
 /**
@@ -153,7 +127,7 @@ export function renderMermaidASCII(
   const sourceText = options.maxWidth ? wrapLabelsInSource(text, options.maxWidth) : text
   const normalizedSource = normalizeMermaidSource(sourceText, options.mermaidConfig ?? {})
 
-  const diagramType = detectDiagramType(normalizedSource.firstLine)
+  const diagramType = detectDiagramTypeFromFirstLine(normalizedSource.firstLine) ?? 'flowchart'
 
   switch (diagramType) {
     case 'architecture': {

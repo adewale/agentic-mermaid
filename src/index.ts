@@ -39,7 +39,7 @@ import { renderSvg, compactSvg, namespaceSvgIds } from './renderer.ts'
 import type { RenderOptions } from './types.ts'
 import type { DiagramColors } from './theme.ts'
 import { DEFAULTS, THEMES, inlineResolvedColors } from './theme.ts'
-import { normalizeMermaidSource } from './mermaid-source.ts'
+import { normalizeMermaidSource, detectDiagramTypeFromFirstLine } from './mermaid-source.ts'
 import type { MermaidRuntimeConfig, MermaidThemeVariables } from './mermaid-source.ts'
 
 import { parseSequenceDiagram } from './sequence/parser.ts'
@@ -64,32 +64,6 @@ import { parseArchitectureDiagram } from './architecture/parser.ts'
 import { layoutArchitectureDiagram } from './architecture/layout.ts'
 import { renderArchitectureSvg } from './architecture/renderer.ts'
 import { resolveArchitectureVisualConfig } from './architecture/config.ts'
-
-/**
- * Detect the diagram type from the mermaid source text.
- * Returns the type keyword used for routing to the correct pipeline.
- */
-function detectDiagramType(firstLine: string): 'flowchart' | 'architecture' | 'sequence' | 'class' | 'er' | 'timeline' | 'journey' | 'xychart' {
-  if (/^architecture-beta\s*$/.test(firstLine)) return 'architecture'
-  if (/^xychart(-beta)?\b/.test(firstLine)) return 'xychart'
-  if (/^timeline\s*$/.test(firstLine)) return 'timeline'
-  if (/^journey\s*$/.test(firstLine)) return 'journey'
-  if (/^sequencediagram\s*$/.test(firstLine)) return 'sequence'
-  if (/^classdiagram\s*$/.test(firstLine)) return 'class'
-  if (/^erdiagram\s*$/.test(firstLine)) return 'er'
-
-  // Default: flowchart/state (handled by parseMermaid internally)
-  return 'flowchart'
-}
-
-function firstSignificantLine(text: string): string {
-  for (const rawLine of text.split('\n')) {
-    const line = rawLine.trim()
-    if (line.length === 0 || line.startsWith('%%')) continue
-    return line.split(';')[0]!.trim().toLowerCase()
-  }
-  return ''
-}
 
 /**
  * Build a DiagramColors object from render options.
@@ -327,7 +301,7 @@ export function renderMermaidSVG(
     : options
   const colors = buildColors(effectiveOptions, normalizedSource.config, font)
   const transparent = options.transparent ?? false
-  const diagramType = detectDiagramType(normalizedSource.firstLine)
+  const diagramType = detectDiagramTypeFromFirstLine(normalizedSource.firstLine) ?? 'flowchart'
   const lines = normalizedSource.lines
   // resolve() inlines CSS variables for non-browser renderers (resvg).
   // When `compact` is on we additionally round coords and collapse whitespace.

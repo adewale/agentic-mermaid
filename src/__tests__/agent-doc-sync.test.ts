@@ -98,6 +98,8 @@ describe('vocabulary doc-sync', () => {
     for (const narrower of ['asFlowchart', 'asSequence', 'asTimeline', 'asClass', 'asEr']) {
       expect(SDK_DECLARATION).toContain(narrower)
     }
+    expect(SDK_DECLARATION).not.toContain('asJourney')
+    expect(SDK_DECLARATION).not.toContain('asXyChart')
   })
 })
 
@@ -175,12 +177,11 @@ describe('no-tautology guard for our own test suite', () => {
   })
 })
 
-describe('detector drift guard (agent vs legacy)', () => {
-  // The agent's parse.ts has its own header detector (it returns 'state' and
-  // 'architecture' which the legacy detectors omit). Three detectors exist —
-  // consolidating them would change renderer routing. Instead, lock them
-  // against drift on the families they share.
-  test('agent.parseMermaid and legacy detectDiagramType agree on common families', async () => {
+describe('detector drift guard (agent vs shared router)', () => {
+  // Agent parse, SVG rendering, and ASCII rendering all share the routed
+  // detector in mermaid-source.ts. The agent layer only splits state out from
+  // the renderer's flowchart route.
+  test('agent.parseMermaid and detectDiagramType agree on routed families', async () => {
     const { parseMermaid: agentParse } = await import('../agent/parse.ts')
     const { detectDiagramType } = await import('../mermaid-source.ts')
     const cases: Array<[string, string]> = [
@@ -191,6 +192,7 @@ describe('detector drift guard (agent vs legacy)', () => {
       ['timeline\n  2020 : A', 'timeline'],
       ['journey\n  title T\n  section S\n    Wake: 3: Me', 'journey'],
       ['xychart-beta\n  bar [1,2,3]', 'xychart'],
+      ['architecture-beta\n  group api(cloud)[API]', 'architecture'],
     ]
     for (const [src, expected] of cases) {
       const agentR = agentParse(src)

@@ -20,7 +20,7 @@ Decisions made during the v4 build that differ from, or go beyond, AGENT_NATIVE.
 
 ## Current limitations (not backlog)
 
-- Journey, xychart, architecture, and opaque-fallback bodies are source-level only; no structured mutation is exposed for them.
+- Journey, xychart, architecture, and opaque-fallback bodies are source-level only; none expose structured mutation.
 - Cross-machine / cross-architecture float determinism is not claimed; cross-process same-machine is tested.
 - Live-model agent-usage evaluation is periodic/pre-release, not PR CI.
 - Stryker is available but not part of the default verification contract; the in-repo fault-injection tests provide the lightweight mutation-style guard.
@@ -46,16 +46,15 @@ Both finder angles (correctness + cleanup) confirmed the parser's
 `declare`-keyword transpiler bug was already fixed, the sequence arrow
 round-trip is correct, and the sandbox timeout path works.
 
-## Cleanup findings (acknowledged, not all applied)
+## Cleanup findings (applied)
 
-The cleanup finder flagged real duplication: `layoutMermaid` duplicates
-`verify.ts`'s layout→RenderedLayout mapping; `detectKind` duplicates
-`mermaid-source.ts`'s `detectDiagramType`; double `normalizeMermaidSource`
-in parse.ts; the `SubgraphLike` shim appears three times. These are
-maintainability costs, not bugs. Deferred deliberately: consolidating them
-risks churning the existing renderer's behavior, and the agent surface is
-intentionally a thin, self-contained layer. Tracked here rather than fixed
-to avoid a large refactor in the same change that ships the feature.
+The cleanup finder flagged real duplication and those items are now closed:
+`layoutMermaid` and `verify.ts` share `layout-to-rendered.ts`, agent parse
+normalizes source once, flowchart subgraph helpers use the existing
+`MermaidSubgraph` type, mutation rebuilds reuse `serialize.ts`'s `renderMeta`,
+and SVG/ASCII/agent routing share the detector in `mermaid-source.ts` (agent
+parse only adds a loose known-family path so malformed known headers round-trip
+as opaque instead of becoming `UNKNOWN_HEADER`).
 
 ## Loop 3 — Remaining-issues sweep
 
@@ -71,10 +70,9 @@ to avoid a large refactor in the same change that ships the feature.
   and index.ts (layoutMermaid) now share one implementation.
 - **Cleanup #3 applied:** removed the triplicate `SubgraphLike` shim;
   verify.ts and mutate.ts both use the existing `MermaidSubgraph` type.
-- **Cleanup #2 mitigated** (not consolidated — the three detectors have
-  genuinely different return shapes, consolidation risks renderer routing
-  changes). Added a drift-guard test that asserts the agent's `parseMermaid`
-  and the legacy `detectDiagramType` agree on the families they share.
+- **Cleanup #2 applied:** SVG, ASCII, and agent parse use the shared detector
+  in `mermaid-source.ts`; the drift-guard now asserts they stay aligned on
+  routed families, including architecture.
 
 ### Mutation testing (Stryker)
 - Installed `@stryker-mutator/core` and added `stryker.agent.config.json`
@@ -97,11 +95,8 @@ to avoid a large refactor in the same change that ships the feature.
   ~55–100% range; remaining survivors are known to be lower-payoff.
 
 ### Not done (and why)
-- **Timeline structured mutation** considered but skipped: the spec already
-  documents the six families as opaque-by-design ("sequence proved the
-  pattern extends"); adding timeline would be scope expansion, not closing
-  a documented gap. The opaque fallback for timeline already provides
-  lossless round-trip + verify.
+- **Timeline structured mutation** was considered but skipped in this loop;
+  Loop 4 later implemented it, and current code exposes the 10 timeline ops.
 - **MermaidSeqBench** still needs external dataset.
 - **Cross-machine determinism** still requires multiple-CPU hardware.
 
@@ -197,7 +192,7 @@ should be supported or explained to me." — six phases in order.
 The old `canonicalSource` was `normalized.text` (line-trimmed). All
 opaque-body diagrams (class, ER, journey, xychart, architecture,
 sequence-with-alt/loop/activate/Note — and 132/132 of MermaidSeqBench)
-were therefore round-tripping with **flattened indentation** — agents
+were therefore round-tripping with **flattened indentation** in that loop — agents
 calling parse → serialize lost formatting silently. Fix exposes the
 original body on NormalizedMermaidSource and routes it to `body.source`
 for opaque constructions. New `agent-opaque-fidelity.test.ts` asserts
@@ -252,10 +247,9 @@ New `er-body.ts` ships full ER support: 7 typed ops, all 4 cardinality
 glyphs both sides, solid + dashed lines, quoted labels. From corpus:
 5/16 structured + 11 opaque (all 16 round-trip).
 
-mutate() now overloads to 5 families (was 3). `asClass`, `asEr`
-narrowers exported. journey / xychart / architecture remain opaque-only
-in this loop — the Phase B family-plugin registry is ready for them as
-future incremental commits.
+mutate() then overloaded to 5 families (was 3). `asClass`, `asEr`
+narrowers were exported. Journey, xychart, architecture, and opaque-fallback
+bodies are currently source-level only; none expose structured mutation.
 
 ### Phase D — Real RenderedLayout for sequence + timeline
 `layoutMermaid()` now produces real geometric layouts for sequence and
@@ -274,8 +268,8 @@ flowchart-specific by design, and the geometric question for
 non-flowchart families is answered by the Phase F perceptual metrics.
 
 ### Result
-- 6 structured families (flowchart, state, sequence, timeline, class, ER)
-- 3 opaque-only families with plugin slot ready (journey, xychart, architecture)
+- Then: 6 structured families (flowchart, state, sequence, timeline, class, ER)
+- Current source-level families: journey, xychart, architecture, plus any opaque fallback; none expose structured mutation
 - Plugin registry for new families
 - Universal Tier 1 LABEL_OVERFLOW
 - Perceptual quality metrics on every family with a layout
@@ -301,8 +295,8 @@ What we kept for Loop 8: the dependency, the architectural reasoning
 sketched in the Loop 6 plan.
 
 What we cut: the structured-uplift for journey + xychart via `mermaid-ast`
-(can ship as cross-family-via-plugin in Loop 8); the parallel parser
-comparison test gate (defer until we have evidence it catches anything
+(now superseded by the source-level-only product decision); the parallel
+parser comparison test gate (defer until we have evidence it catches anything
 the 247-corpus doesn't).
 
 The Loop 6 implementer is also the cautionary tale that drove the
@@ -361,7 +355,7 @@ critics and shipped as seven milestones.
   per 2017fighting fork
 - Per-family CLI smoke matrix per vinceyyy #51
 - TTY-stdin guard per vinceyyy #51 — needs `node-pty` for honest test
-- mermaid-ast structured-uplift for journey + xychart
+- mermaid-ast structured-uplift for journey + xychart (superseded; current surface keeps both source-level)
 - `renderAsciiWithMeta()` for TUI integration per raiscui fork +
   zhenhuaa/mdv consumer signal
 - Cross-runtime ASCII parity (bun ≡ node), Loop 5 has this for SVG
@@ -403,8 +397,9 @@ agent completed M1-M4 then terminated mid-M5 with a content-filter
 error; I picked up and finished M5 + M6 directly.
 
 ### Milestones landed
-- **M1 (A2)** Wired `FamilyPlugin.detect` in `parse.ts:detectKind` —
-  registry-driven detection replaces the hard-coded if-cascade.
+- **M1 (A2)** Initially wired `FamilyPlugin.detect` in `parse.ts`; later
+  cleanup replaced that detector path with the shared `mermaid-source.ts`
+  router while keeping plugin hooks for verification/label extraction.
 - **M2 (S2)** CSS-variable fonts via `--font` on SVG root + gate
   Google Fonts `@import` behind new `RenderOptions.embedFontImport`.
   **Default kept `true`** per critic 3 (existing
@@ -512,14 +507,10 @@ Loop 10 candidate.
 blocker discovered: `mermaid-ast`'s transitive dep tree is broken in
 this environment. `mermaid-ast` → `langium` → `vscode-jsonrpc` →
 `@chevrotain/regexp-to-ast` → ... all are missing. Adding
-`vscode-jsonrpc` revealed more missing chevrotain deps. The cascade
-suggests the published mermaid-ast bundle on npm may be missing
-`bundledDependencies` declarations, OR the test environment has an
-incomplete install. Loop 10 candidates: (a) investigate the dep
-cascade, (b) shim/vendor the specific journey + xychart parsers, or
-(c) write our own structured parsers for these two families since
-they're small. Either way, mermaid-ast as currently published is not
-usable here.
+`vscode-jsonrpc` revealed more missing chevrotain deps. Current product
+position keeps journey and xychart source-level only, so this is no
+longer an active implementation path; if that decision changes, treat it
+as a new scoped milestone rather than reviving the old blocker verbatim.
 
 **C16 family-plugin parse/serialize/mutate consolidation.** Largest
 architectural item. Pure refactor — replace if-cascades in

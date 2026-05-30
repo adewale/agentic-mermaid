@@ -311,12 +311,14 @@ describe('real Code Mode trace instrumentation', () => {
     expect(lintAgentTrace(r.trace as SdkCall[])).toEqual([])
   })
 
-  test('opaque mutate attempt is linted even when mutate throws', async () => {
+  test('opaque mutate attempt is linted even when mutate returns a structured error', async () => {
     const r = await executeInSandbox(`
       const r0 = mermaid.parseMermaid('sequenceDiagram\\n  A->>B: hi\\n  alt ok\\n    B-->>A: yes\\n  end')
       return mermaid.mutate(r0.value, { kind: 'add_message', from: 'A', to: 'B', text: 'bad' })
     `, { trace: true })
-    expect(r.ok).toBe(false)
+    expect(r.ok).toBe(true)
+    expect((r as { value?: { ok?: boolean; error?: { code?: string } } }).value?.ok).toBe(false)
+    expect((r as { value?: { error?: { code?: string } } }).value?.error?.code).toBe('INVALID_OP')
     expect(lintAgentTrace(r.trace as SdkCall[]).map(f => f.code)).toContain('MUTATE_ON_OPAQUE')
   })
 

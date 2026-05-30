@@ -508,7 +508,7 @@ function unescapeQuotedString(valueText: string): string {
   }
 }
 
-export type RoutedDiagramType = 'flowchart' | 'sequence' | 'class' | 'er' | 'timeline' | 'journey' | 'xychart'
+export type RoutedDiagramType = 'flowchart' | 'architecture' | 'sequence' | 'class' | 'er' | 'timeline' | 'journey' | 'xychart'
 
 /**
  * Return the logical Mermaid lines after frontmatter/init/comment normalization.
@@ -520,17 +520,43 @@ export function preprocessMermaidLines(text: string): string[] {
 }
 
 /**
- * Detect the routed Mermaid diagram family from the first logical line.
+ * Detect the routed Mermaid diagram family from a normalized first logical line.
+ * Returns null for headers that are known not to be routed by this renderer.
+ */
+export function detectDiagramTypeFromFirstLine(firstLine: string): RoutedDiagramType | null {
+  const line = firstLine.split(';')[0]?.trim().toLowerCase() ?? ''
+  if (/^architecture-beta\s*$/.test(line)) return 'architecture'
+  if (/^xychart(-beta)?\b/.test(line)) return 'xychart'
+  if (/^timeline\s*$/.test(line)) return 'timeline'
+  if (/^journey\s*$/.test(line)) return 'journey'
+  if (/^sequencediagram\s*$/.test(line)) return 'sequence'
+  if (/^classdiagram\s*$/.test(line)) return 'class'
+  if (/^erdiagram\s*$/.test(line)) return 'er'
+  if (/^(?:flowchart|graph)\b/.test(line) || /^statediagram(?:-v2)?\s*$/.test(line)) return 'flowchart'
+  return null
+}
+
+/**
+ * Looser family recognition for agent parsing: malformed known-family headers
+ * should become opaque round-trip bodies instead of UNKNOWN_HEADER errors.
+ */
+export function detectLooseDiagramTypeFromFirstLine(firstLine: string): RoutedDiagramType | null {
+  const line = firstLine.split(';')[0]?.trim().toLowerCase() ?? ''
+  if (/^architecture-beta\b/.test(line)) return 'architecture'
+  if (/^xychart(-beta)?\b/.test(line)) return 'xychart'
+  if (/^timeline\b/.test(line)) return 'timeline'
+  if (/^journey\b/.test(line)) return 'journey'
+  if (/^sequencediagram\b/.test(line)) return 'sequence'
+  if (/^classdiagram\b/.test(line)) return 'class'
+  if (/^erdiagram\b/.test(line)) return 'er'
+  if (/^(?:flowchart|graph)\b/.test(line) || /^statediagram(?:-v2)?\b/.test(line)) return 'flowchart'
+  return null
+}
+
+/**
+ * Detect the routed Mermaid diagram family from source text. Unknown headers
+ * intentionally route to the legacy flowchart path for backwards compatibility.
  */
 export function detectDiagramType(text: string): RoutedDiagramType {
-  const firstLine = preprocessMermaidLines(text)[0]?.split(';')[0]?.trim().toLowerCase() ?? ''
-
-  if (/^xychart(-beta)?\b/.test(firstLine)) return 'xychart'
-  if (/^timeline\s*$/.test(firstLine)) return 'timeline'
-  if (/^journey\s*$/.test(firstLine)) return 'journey'
-  if (/^sequencediagram\s*$/.test(firstLine)) return 'sequence'
-  if (/^classdiagram\s*$/.test(firstLine)) return 'class'
-  if (/^erdiagram\s*$/.test(firstLine)) return 'er'
-
-  return 'flowchart'
+  return detectDiagramTypeFromFirstLine(preprocessMermaidLines(text)[0] ?? '') ?? 'flowchart'
 }

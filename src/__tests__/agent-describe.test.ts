@@ -33,10 +33,16 @@ describe('describeMermaid', () => {
     for (const id of ['CUSTOMER', 'ORDER', 'ITEM']) expect(out).toContain(id)
   })
 
-  test('opaque family (journey): surfaces family name', () => {
-    const out = describeMermaidSource('journey\n  title Test\n  section Buy\n    Browse: 5: Me')
+  test('journey: every task appears', () => {
+    const out = describeMermaidSource('journey\n  title Test\n  section Buy\n    Browse: 5: Me\n    Checkout: 4: Me')
+    for (const text of ['Browse', 'Checkout']) expect(out).toContain(text)
     expect(out.toLowerCase()).toContain('journey')
-    expect(out.length).toBeGreaterThan(10)
+  })
+
+  test('xychart: every series label appears', () => {
+    const out = describeMermaidSource('xychart\n  title Sales\n  x-axis [Jan, Feb]\n  bar Revenue [1, 2]\n  line Forecast [2, 3]')
+    for (const text of ['Sales', 'Revenue', 'Forecast']) expect(out).toContain(text)
+    expect(out.toLowerCase()).toContain('xy chart')
   })
 
   test('unparseable source returns a non-empty error description (not a throw)', () => {

@@ -159,12 +159,37 @@ function extractJourneyLabels(source: string): ExtractedLabel[] {
     const raw = lines[i]!.trim()
     if (!raw || raw.startsWith('%%')) continue
     let m
-    if ((m = raw.match(/^title\s+(.+)$/i))) {
+    if ((m = raw.match(/^accDescr\s*:?\s*\{\s*(.*)$/i))) {
+      const first = m[1]!
+      const end = first.indexOf('}')
+      if (end >= 0) {
+        const text = first.slice(0, end).trim()
+        if (text) out.push({ text, target: `line${i + 1}` })
+      } else {
+        const text = first.trim()
+        if (text) out.push({ text, target: `line${i + 1}` })
+        for (i += 1; i < lines.length; i++) {
+          const line = lines[i]!.trim()
+          const close = line.indexOf('}')
+          const text = (close >= 0 ? line.slice(0, close) : line).trim()
+          if (text) out.push({ text, target: `line${i + 1}` })
+          if (close >= 0) break
+        }
+      }
+    } else if ((m = raw.match(/^accTitle\s*:?\s*(.+)$/i))) {
+      out.push({ text: m[1]!.trim(), target: `line${i + 1}` })
+    } else if ((m = raw.match(/^accDescr\s*:?\s*(.+)$/i))) {
+      out.push({ text: m[1]!.replace(/^\{/, '').replace(/\}$/, '').trim(), target: `line${i + 1}` })
+    } else if ((m = raw.match(/^title\s+(.+)$/i))) {
       out.push({ text: m[1]!.trim(), target: `line${i + 1}` })
     } else if ((m = raw.match(/^section\s+(.+)$/i))) {
       out.push({ text: m[1]!.trim(), target: `line${i + 1}` })
-    } else if ((m = raw.match(/^([^:]+):\s*\d+\s*:/))) {
+    } else if ((m = raw.match(/^(.+?):\s*\d+(?:\s*:\s*(.*))?$/))) {
       out.push({ text: m[1]!.trim(), target: `line${i + 1}` })
+      for (const actor of (m[2] ?? '').split(',')) {
+        const text = actor.trim()
+        if (text) out.push({ text, target: `line${i + 1}` })
+      }
     }
   }
   return out
@@ -178,22 +203,89 @@ function extractXyChartLabels(source: string): ExtractedLabel[] {
   const out: ExtractedLabel[] = []
   const lines = source.split(/\r?\n/)
   for (let i = 0; i < lines.length; i++) {
-    const raw = lines[i]!.trim()
-    if (!raw || raw.startsWith('%%')) continue
-    // All quoted strings
-    for (const m of raw.matchAll(/"([^"]+)"/g)) {
-      out.push({ text: m[1]!, target: `line${i + 1}` })
-    }
-    // x-axis [a, b, c] — extract individual entries
-    const ax = raw.match(/^[xy]-axis\s+\[([^\]]+)\]/i)
-    if (ax) {
-      for (const entry of ax[1]!.split(',')) {
-        const t = entry.trim().replace(/^["']|["']$/g, '')
-        if (t) out.push({ text: t, target: `line${i + 1}` })
+    const rawLine = lines[i]!.trim()
+    if (!rawLine || rawLine.startsWith('%%')) continue
+    const statements = splitXyLabelStatements(rawLine)
+    for (const raw of statements) {
+      const target = `line${i + 1}`
+      let m
+      if ((m = raw.match(/^accDescr\s*:?\s*\{\s*(.*)$/i))) {
+        const first = m[1]!
+        const end = first.indexOf('}')
+        if (end >= 0) {
+          const text = first.slice(0, end).trim()
+          if (text) out.push({ text, target })
+        } else {
+          const text = first.trim()
+          if (text) out.push({ text, target })
+          for (i += 1; i < lines.length; i++) {
+            const line = lines[i]!.trim()
+            const close = line.indexOf('}')
+            const text = (close >= 0 ? line.slice(0, close) : line).trim()
+            if (text) out.push({ text, target: `line${i + 1}` })
+            if (close >= 0) break
+          }
+        }
+        continue
+      }
+      if ((m = raw.match(/^accTitle\s*:?\s*(.+)$/i))) out.push({ text: m[1]!.trim(), target })
+      else if ((m = raw.match(/^accDescr\s*:?\s*(.+)$/i))) out.push({ text: m[1]!.trim(), target })
+      // All quoted strings, including escaped quote/backslash pairs.
+      for (const q of quotedLabelMatches(raw)) out.push({ text: q, target })
+      const title = raw.match(/^title\s+(.+)$/i)
+      if (title && !/^['"]/.test(title[1]!.trim())) out.push({ text: title[1]!.trim(), target })
+      const axisTitleWithCategories = raw.match(/^[xy]-axis\s+(.+?)\s*\[[^\]]+\]\s*$/i)
+      const axisTitleWithRange = raw.match(/^[xy]-axis\s+(\S+)\s+[+-]?(?:(?:\d+(?:\.\d+)?|\.\d+)(?:[eE][+-]?\d+)?)\s*-->/i)
+      const axisTitle = axisTitleWithCategories ?? axisTitleWithRange ?? raw.match(/^[xy]-axis\s+([^\[\d.+-][^\[]*?)\s*(?:\[|[+-]?\d|$)/i)
+      if (axisTitle && !/^['"]/.test(axisTitle[1]!.trim())) out.push({ text: axisTitle[1]!.trim(), target })
+      const seriesLabel = raw.match(/^(?:bar|line)\s+(.+?)\s+\[[^\]]+\]\s*$/i)
+      if (seriesLabel && !/^['"]/.test(seriesLabel[1]!.trim())) out.push({ text: seriesLabel[1]!.trim(), target })
+      // x-axis [a, b, c] — extract individual entries
+      const ax = raw.match(/^[xy]-axis\b.*\[([^\]]+)\]/i)
+      if (ax) {
+        for (const entry of ax[1]!.split(',')) {
+          const t = entry.trim().replace(/^["']|["']$/g, '')
+          if (t) out.push({ text: t, target })
+        }
       }
     }
   }
   return out
+}
+
+function quotedLabelMatches(raw: string): string[] {
+  const labels: string[] = []
+  for (const quote of ['"', "'"] as const) {
+    const pattern = quote === '"' ? /"((?:\\.|[^"\\])+)"/g : /'((?:\\.|[^'\\])*)'/g
+    for (const m of raw.matchAll(pattern)) labels.push(m[1]!.replace(/\\"/g, '"').replace(/\\'/g, "'").replace(/\\\\/g, '\\'))
+  }
+  return labels
+}
+
+function splitXyLabelStatements(line: string): string[] {
+  const statements: string[] = []
+  let current = ''
+  let quote: '"' | "'" | null = null
+  for (let i = 0; i < line.length; i++) {
+    const char = line[i]!
+    if (quote) {
+      current += char
+      if (char === '\\') { current += line[++i] ?? ''; continue }
+      if (char === quote) quote = null
+      continue
+    }
+    if (char === '"' || char === "'") { quote = char; current += char; continue }
+    if (char === ';') {
+      const trimmed = current.trim()
+      if (trimmed) statements.push(trimmed)
+      current = ''
+      continue
+    }
+    current += char
+  }
+  const trimmed = current.trim()
+  if (trimmed) statements.push(trimmed)
+  return statements
 }
 
 registerFamily({ id: 'xychart', detect: l => l.startsWith('xychart'), extractLabels: extractXyChartLabels })

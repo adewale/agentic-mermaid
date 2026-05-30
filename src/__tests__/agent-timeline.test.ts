@@ -63,6 +63,19 @@ describe('timeline fidelity fallback', () => {
     const d = parse('timeline\n  : orphan continuation')
     expect(d.body.kind).toBe('opaque')
   })
+
+  test('header suffix falls back to opaque instead of being dropped', () => {
+    const d = parse('timeline EXTRA\n  2020 : A')
+    expect(d.body.kind).toBe('opaque')
+    expect(serializeMermaid(d)).toContain('timeline EXTRA')
+  })
+
+  test('lossy empty event segments fall back to opaque, but explicit empty periods are structured', () => {
+    expect(parse('timeline\n  2020 : A :').body.kind).toBe('opaque')
+    const emptyPeriod = parse('timeline\n  2020 :')
+    expect(emptyPeriod.body.kind).toBe('timeline')
+    expect(parse(serializeMermaid(emptyPeriod)).body.kind).toBe('timeline')
+  })
 })
 
 describe('timeline mutate — all 10 ops', () => {
@@ -98,6 +111,7 @@ describe('timeline mutate — all 10 ops', () => {
     const r = mutate(timeline(SRC), { kind: 'add_period', sectionIndex: 0, label: '2019', events: ['Zero', 'Half'] })
     expect(r.ok && r.value.body.sections[0]!.periods.length).toBe(3)
     expect(r.ok && r.value.body.sections[0]!.periods[2]!.events.length).toBe(2)
+    expect(r.ok && new Set(r.value.body.sections[0]!.periods[2]!.events.map(e => e.id)).size).toBe(2)
   })
   test('remove_period', () => {
     const r = mutate(timeline(SRC), { kind: 'remove_period', sectionIndex: 0, periodIndex: 0 })
@@ -123,6 +137,35 @@ describe('timeline mutate — all 10 ops', () => {
   test('set_event_text', () => {
     const r = mutate(timeline(SRC), { kind: 'set_event_text', sectionIndex: 0, periodIndex: 0, eventIndex: 0, text: 'A-revised' })
     expect(r.ok && r.value.body.sections[0]!.periods[0]!.events[0]!.text).toBe('A-revised')
+  })
+
+  test('normalizes padded mutation text and updates canonicalSource', () => {
+    const r = mutate(timeline(SRC), { kind: 'set_event_text', sectionIndex: 0, periodIndex: 0, eventIndex: 0, text: '  A revised  ' })
+    expect(r.ok).toBe(true)
+    if (!r.ok) return
+    expect(r.value.body.sections[0]!.periods[0]!.events[0]!.text).toBe('A revised')
+    expect(r.value.canonicalSource).toContain('2020 : A revised')
+    const reparsed = parse(serializeMermaid(r.value))
+    expect(reparsed.body.kind).toBe('timeline')
+    if (reparsed.body.kind !== 'timeline') return
+    expect(reparsed.body.sections[0]!.periods[0]!.events[0]!.text).toBe('A revised')
+  })
+
+  test('rejects mutation text that would change timeline structure on reparse', () => {
+    const event = mutate(timeline(SRC), { kind: 'set_event_text', sectionIndex: 0, periodIndex: 0, eventIndex: 0, text: 'A: B' })
+    const period = mutate(timeline(SRC), { kind: 'set_period_label', sectionIndex: 0, periodIndex: 0, label: '2020:Q1' })
+    const title = mutate(timeline(SRC), { kind: 'set_title', title: '   ' })
+    expect(!event.ok && event.error.code).toBe('INVALID_OP')
+    expect(!period.ok && period.error.code).toBe('INVALID_OP')
+    expect(!title.ok && title.error.code).toBe('INVALID_OP')
+  })
+
+  test('removing last period from an implicit section drops the unrenderable empty section', () => {
+    const r = mutate(timeline('timeline\n  2020 : A'), { kind: 'remove_period', sectionIndex: 0, periodIndex: 0 })
+    expect(r.ok).toBe(true)
+    if (!r.ok) return
+    expect(r.value.body.sections).toEqual([])
+    expect(parse(serializeMermaid(r.value)).body.kind).toBe('timeline')
   })
 })
 

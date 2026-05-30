@@ -87,5 +87,4 @@ return sources.map(src => {
 
 Conventions: return the final value; do not use imports or type annotations in
 Code Mode; do not use `async`/`await` or Promise jobs; narrow before mutate; verify before every
-serialize; for opaque bodies, return an explicit unsupported-family result unless
-the task requested source-level editing and you can re-parse + verify afterward.
+serialize; for journey, xychart, architecture, and opaque bodies, return an explicit unsupported-family result unless the task requested source-level editing and you can re-parse + verify afterward.

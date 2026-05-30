@@ -17,7 +17,7 @@ export function serializeMermaid(d: ValidDiagram): string {
   return renderMeta(d.meta) + renderBody(d.body, d.kind)
 }
 
-function renderMeta(meta: ValidDiagramMeta): string {
+export function renderMeta(meta: ValidDiagramMeta): string {
   const parts: string[] = []
   if (meta.frontmatter && Object.keys(meta.frontmatter).length > 0) {
     parts.push(`---\n${YAML.stringify(meta.frontmatter).trimEnd()}\n---\n`)
@@ -37,7 +37,7 @@ function renderBody(body: DiagramBody, kind: ValidDiagram['kind']): string {
 
 // ---- Timeline -------------------------------------------------------------
 
-function renderTimeline(body: TimelineBody): string {
+export function renderTimeline(body: TimelineBody): string {
   const lines: string[] = ['timeline']
   if (body.title) lines.push(`  title ${body.title}`)
   for (const section of body.sections) {

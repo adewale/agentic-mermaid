@@ -18,8 +18,8 @@ am <cmd> --help               per-command help
 ```
 
 `am verify` always emits JSON. `am mutate` dispatches by family across
-flowchart/state, sequence, timeline, class, and ER; unsupported or opaque bodies
-return a structured `UNSUPPORTED_FAMILY` error. `am mutate` verifies before
+flowchart/state, sequence, timeline, class, and ER; journey, xychart,
+architecture, and opaque bodies return a structured `UNSUPPORTED_FAMILY` error. `am mutate` verifies before
 emitting source; verify failure exits 3 and omits `source`. `am parse | am
 serialize` round-trips through JSON.
 

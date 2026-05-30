@@ -427,11 +427,21 @@ describe('CLI — sad paths via runCli', () => {
   })
 
   test('mutate on non-mutable family returns UNSUPPORTED_FAMILY (exit 2)', () => {
-    const tmp = `/tmp/cli-journey-${Date.now()}.mmd`
-    require('node:fs').writeFileSync(tmp, 'journey\n  title Day\n  section Work\n    Code: 5: Me\n')
+    const tmp = `/tmp/cli-architecture-${Date.now()}.mmd`
+    require('node:fs').writeFileSync(tmp, 'architecture-beta\n  group g(server)[Group]\n')
     const { code, out } = capture(() => runCli(['mutate', tmp, '--op', '{"kind":"add_node","id":"X","label":"X"}']))
     expect(code).toBe(2)
     expect(out).toContain('UNSUPPORTED_FAMILY')
+  })
+
+  test('mutate on source-level journey returns UNSUPPORTED_FAMILY', () => {
+    const tmp = `/tmp/cli-journey-${Date.now()}.mmd`
+    require('node:fs').writeFileSync(tmp, 'journey\n  section Work\n  Code: 4: Me\n')
+    const { code, out } = capture(() => runCli(['mutate', tmp, '--op', '{"kind":"add_task","sectionIndex":0,"text":"Review","score":5,"actors":["Me"]}', '--json']))
+    expect(code).toBe(2)
+    const payload = JSON.parse(out)
+    expect(payload.ok).toBe(false)
+    expect(payload.error.code).toBe('UNSUPPORTED_FAMILY')
   })
 
   test('mutate on sequence-with-notes (opaque) returns UNSUPPORTED_FAMILY', () => {

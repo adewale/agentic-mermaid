@@ -1,29 +1,28 @@
 // Phase A regression: opaque-body parse → serialize must preserve original
 // indentation, blank lines, and comments. Without this, an agent that calls
-// `parseMermaid → serializeMermaid` on a class / ER / journey / xychart /
-// architecture / opaque-sequence diagram silently loses formatting.
+// `parseMermaid → serializeMermaid` on architecture or any opaque fallback
+// (including unmodeled journey / xychart / sequence constructs) silently loses formatting.
 
 import { describe, test, expect } from 'bun:test'
 import { parseMermaid } from '../agent/parse.ts'
 import { serializeMermaid } from '../agent/serialize.ts'
 
 describe('opaque-body fidelity (indentation + blank lines)', () => {
-  // NOTE: class and ER are now structured (Phase C). Their round-trip uses
-  // the structured renderer, not the verbatim opaque-source path, so
-  // arbitrary-source byte-equality is no longer guaranteed (the canonical
-  // form is rebuilt). They get their own structured-round-trip coverage in
-  // agent-class.test.ts and agent-er.test.ts.
+  // NOTE: journey, xychart, architecture, and unmodeled syntax are source-level
+  // in the agent surface; class/ER structured subsets are covered elsewhere.
   const cases: Array<[string, string]> = [
-    ['journey', `journey
+    ['journey-opaque', `journey
   title My day
   section Morning
     Wake up: 3: Me
-    Coffee: 5: Me`],
-    ['xychart', `xychart-beta
+    Coffee: 5: Me
+  click task href`],
+    ['xychart-opaque', `xychart-beta
   title "Revenue"
   x-axis [jan, feb, mar]
   y-axis "USD" 0 --> 100
-  bar [10, 50, 90]`],
+  bar [10, 50, 90]
+  curve basis`],
     ['architecture', `architecture-beta
   group api(cloud)[API]
   service db(database)[DB] in api
@@ -72,7 +71,8 @@ title: Coffee day
 journey
   title My day
   section Morning
-    Wake up: 3: Me`
+    Wake up: 3: Me
+  click task href`
     const p = parseMermaid(src)
     expect(p.ok).toBe(true)
     if (!p.ok) return

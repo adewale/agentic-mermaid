@@ -8,13 +8,9 @@
 // ============================================================================
 
 import { parseMermaid as parseFlowchartLegacy } from '../parser.ts'
-import { normalizeMermaidSource } from '../mermaid-source.ts'
+import { normalizeMermaidSource, detectLooseDiagramTypeFromFirstLine } from '../mermaid-source.ts'
 import { parseClassBody } from './class-body.ts'
 import { parseErBody } from './er-body.ts'
-import { getFamily, knownFamilies } from './families.ts'
-// Importing the built-in family registrations ensures the registry is populated
-// before detectKind runs (registry-driven detection per Loop 8 audit item A2).
-import './families-builtin.ts'
 import type {
   ValidDiagram, ParseError, Result, DiagramKind, ValidDiagramMeta,
   SourceMap, InitDirective, SequenceBody, SequenceParticipant,
@@ -76,7 +72,7 @@ export function parseMermaid(source: string): Result<ValidDiagram, ParseError[]>
   }
 
   if (kind === 'timeline') {
-    const body = parseTimelineBody(normalized.lines.slice(1))
+    const body = /^timeline\s*$/i.test(normalized.lines[0]?.trim() ?? '') ? parseTimelineBody(normalized.lines.slice(1)) : null
     if (body) return ok<ValidDiagram>({ kind, meta, body, source: sourceMap, canonicalSource })
     return ok<ValidDiagram>({
       kind, meta, body: { kind: 'opaque', family: kind, source: opaqueSource }, source: sourceMap, canonicalSource,
@@ -108,7 +104,7 @@ export function parseMermaid(source: string): Result<ValidDiagram, ParseError[]>
 
 const TL_TITLE_RE = /^title\s+(.+)$/i
 const TL_SECTION_RE = /^section\s+(.+)$/i
-const TL_PERIOD_RE = /^([^:]+?)\s*:\s*(.+)$/
+const TL_PERIOD_RE = /^([^:]+?)\s*:\s*(.*)$/
 const TL_CONT_RE = /^:\s*(.+)$/  // continuation of previous period
 
 import type { TimelineBody, TimelineSection, TimelinePeriod, TimelineEvent } from './types.ts'
@@ -122,6 +118,21 @@ import type { TimelineBody, TimelineSection, TimelinePeriod, TimelineEvent } fro
  *
  * Mirrors the legacy parser's accepted syntax (src/timeline/parser.ts).
  */
+function normalizeTimelineText(value: string): string {
+  return value.split(/\r?\n/).map(part => part.trim()).filter(Boolean).join(' ')
+}
+
+function validTimelineText(value: string, opts: { allowColon: boolean }): boolean {
+  return value.length > 0 && (opts.allowColon || !value.includes(':'))
+}
+
+function parseTimelineEventSegments(raw: string): string[] | null {
+  if (raw.trim().length === 0) return []
+  const segments = raw.split(':').map(normalizeTimelineText)
+  if (segments.some(segment => !validTimelineText(segment, { allowColon: false }))) return null
+  return segments
+}
+
 export function parseTimelineBody(lines: string[]): TimelineBody | null {
   const body: TimelineBody = { kind: 'timeline', sections: [] }
   let currentSection: TimelineSection | undefined
@@ -142,11 +153,18 @@ export function parseTimelineBody(lines: string[]): TimelineBody | null {
     if (line.startsWith('%%')) continue
 
     const tm = line.match(TL_TITLE_RE)
-    if (tm) { body.title = tm[1]!.trim(); continue }
+    if (tm) {
+      const title = normalizeTimelineText(tm[1]!)
+      if (!validTimelineText(title, { allowColon: true })) return null
+      body.title = title
+      continue
+    }
 
     const sm = line.match(TL_SECTION_RE)
     if (sm) {
-      currentSection = { id: `section-${sIdx++}`, label: sm[1]!.trim(), periods: [] }
+      const label = normalizeTimelineText(sm[1]!)
+      if (!validTimelineText(label, { allowColon: true })) return null
+      currentSection = { id: `section-${sIdx++}`, label, periods: [] }
       body.sections.push(currentSection)
       currentPeriod = undefined
       continue
@@ -156,17 +174,22 @@ export function parseTimelineBody(lines: string[]): TimelineBody | null {
     const cont = line.match(TL_CONT_RE)
     if (cont && !line.match(TL_PERIOD_RE)) {
       if (!currentPeriod) return null
-      currentPeriod.events.push({ id: `event-${eIdx++}`, text: cont[1]!.trim() })
+      const text = normalizeTimelineText(cont[1]!)
+      if (!validTimelineText(text, { allowColon: false })) return null
+      currentPeriod.events.push({ id: `event-${eIdx++}`, text })
       continue
     }
 
     // `<label> : <event> [ : <event2> : <event3> …]`
     const pm = line.match(TL_PERIOD_RE)
     if (pm) {
-      const label = pm[1]!.trim()
+      const label = normalizeTimelineText(pm[1]!)
+      if (!validTimelineText(label, { allowColon: false })) return null
       const restRaw = pm[2]!
       // Multi-event lines allow `: extra` segments to add more events to the same period.
-      const events: TimelineEvent[] = restRaw.split(/\s*:\s*/).filter(Boolean).map(text => ({
+      const eventTexts = parseTimelineEventSegments(restRaw)
+      if (!eventTexts) return null
+      const events: TimelineEvent[] = eventTexts.map(text => ({
         id: `event-${eIdx++}`, text,
       }))
       const period: TimelinePeriod = { id: `period-${pIdx++}`, label, events }
@@ -258,17 +281,15 @@ function styleForArrow(a: string): SequenceMessageStyle {
 }
 
 // ---- Family detection ----------------------------------------------------
-// Registry-driven. Each FamilyPlugin.detect is a `startsWith` predicate on the
-// already-lowercased first line. Order matters only insofar as conflicting
-// prefixes; built-in plugins are written so no two `detect`s overlap on a
-// valid header (e.g. "statediagram" doesn't start with "flowchart"/"graph").
+// Use the shared renderer detector for routed families; the agent layer only
+// splits state diagrams out from the renderer's flowchart route because state
+// and flowchart share the same legacy graph body but remain distinct families.
 
 function detectKind(header: string): DiagramKind | null {
-  for (const id of knownFamilies()) {
-    const plugin = getFamily(id)
-    if (plugin?.detect?.(header)) return id
-  }
-  return null
+  if (/^statediagram(?:-v2)?\s*$/i.test(header)) return 'state'
+  const routed = detectLooseDiagramTypeFromFirstLine(header)
+  if (!routed) return null
+  return routed
 }
 
 // ---- Meta extraction -----------------------------------------------------

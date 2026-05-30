@@ -14,6 +14,7 @@ import { ok, err } from './types.ts'
 import type { MermaidGraph, MermaidNode, MermaidEdge } from '../types.ts'
 import { mutateClass as _mutateClass } from './class-body.ts'
 import { mutateEr as _mutateEr } from './er-body.ts'
+import { renderMeta, renderTimeline } from './serialize.ts'
 import { renderClass } from './class-body.ts'
 import { renderEr } from './er-body.ts'
 
@@ -30,14 +31,15 @@ export function mutate(
   if (d.body.kind === 'sequence') return mutateSequence(d as SequenceValidDiagram, op as SequenceMutationOp)
   if (d.body.kind === 'timeline') return mutateTimeline(d as TimelineValidDiagram, op as TimelineMutationOp)
   if (d.body.kind === 'class') return mutateClass(d as ClassValidDiagram, op as ClassMutationOp)
-  return mutateEr(d as ErValidDiagram, op as ErMutationOp)
+  if (d.body.kind === 'er') return mutateEr(d as ErValidDiagram, op as ErMutationOp)
+  return err({ code: 'INVALID_OP', message: `Unsupported mutable body kind: ${(d as { body: { kind: string } }).body.kind}` })
 }
 
 function mutateClass(d: ClassValidDiagram, op: ClassMutationOp): Result<ClassValidDiagram, MutationError> {
   const r = _mutateClass(d.body, op)
   if (!r.ok) return r
   const next: ClassValidDiagram = { ...d, body: r.value }
-  const meta = renderMetaForRebuild(d.meta)
+  const meta = renderMeta(d.meta)
   const canonicalSource = meta + renderClass(r.value)
   return ok({ ...next, canonicalSource })
 }
@@ -46,19 +48,9 @@ function mutateEr(d: ErValidDiagram, op: ErMutationOp): Result<ErValidDiagram, M
   const r = _mutateEr(d.body, op)
   if (!r.ok) return r
   const next: ErValidDiagram = { ...d, body: r.value }
-  const meta = renderMetaForRebuild(d.meta)
+  const meta = renderMeta(d.meta)
   const canonicalSource = meta + renderEr(r.value)
   return ok({ ...next, canonicalSource })
-}
-
-function renderMetaForRebuild(meta: import('./types.ts').ValidDiagramMeta): string {
-  const parts: string[] = []
-  if (meta.frontmatter && Object.keys(meta.frontmatter).length > 0) {
-    const YAML = require('yaml')
-    parts.push(`---\n${YAML.stringify(meta.frontmatter).trimEnd()}\n---\n`)
-  }
-  for (const d of meta.initDirectives) parts.push(d.raw.trimEnd() + '\n')
-  return parts.join('')
 }
 
 // ---- Flowchart ------------------------------------------------------------
@@ -196,19 +188,41 @@ function cloneTimeline(b: TimelineBody): TimelineBody {
   }
 }
 
-function nextId(prefix: string, body: TimelineBody): string {
-  let n = 0
+function makeTimelineIdAllocator(body: TimelineBody): (prefix: 'section' | 'period' | 'event') => string {
   const seen = new Set<string>()
   for (const s of body.sections) {
     seen.add(s.id)
     for (const p of s.periods) { seen.add(p.id); for (const e of p.events) seen.add(e.id) }
   }
-  while (seen.has(`${prefix}-${n}`)) n++
-  return `${prefix}-${n}`
+  return prefix => {
+    let n = 0
+    while (seen.has(`${prefix}-${n}`)) n++
+    const id = `${prefix}-${n}`
+    seen.add(id)
+    return id
+  }
+}
+
+function normalizeTimelineMutationText(value: string): string {
+  return value.split(/\r?\n/).map(part => part.trim()).filter(Boolean).join(' ')
+}
+
+function validTimelineMutationText(value: string, opts: { allowColon: boolean }): boolean {
+  return value.length > 0 && (opts.allowColon || !value.includes(':'))
+}
+
+function normalizeTimelineOpText(value: string, opts: { field: string; allowColon?: boolean }): Result<string, MutationError> {
+  if (typeof value !== 'string') return err({ code: 'INVALID_OP', message: `Timeline ${opts.field} must be a string` })
+  const normalized = normalizeTimelineMutationText(value)
+  if (!validTimelineMutationText(normalized, { allowColon: opts.allowColon ?? true })) {
+    return err({ code: 'INVALID_OP', message: `Timeline ${opts.field} must be non-empty${opts.allowColon === false ? ' and must not contain :' : ''}` })
+  }
+  return ok(normalized)
 }
 
 function mutateTimeline(d: TimelineValidDiagram, op: TimelineMutationOp): Result<TimelineValidDiagram, MutationError> {
   const body = cloneTimeline(d.body)
+  const nextTimelineId = makeTimelineIdAllocator(body)
 
   const getSection = (i: number): TimelineSection | undefined => body.sections[i]
   const getPeriod = (si: number, pi: number): TimelinePeriod | undefined => getSection(si)?.periods[pi]
@@ -216,11 +230,17 @@ function mutateTimeline(d: TimelineValidDiagram, op: TimelineMutationOp): Result
   switch (op.kind) {
     case 'set_title': {
       if (op.title === null) delete body.title
-      else body.title = op.title
+      else {
+        const title = normalizeTimelineOpText(op.title, { field: 'title' })
+        if (!title.ok) return title
+        body.title = title.value
+      }
       break
     }
     case 'add_section': {
-      body.sections.push({ id: nextId('section', body), label: op.label, periods: [] })
+      const label = normalizeTimelineOpText(op.label, { field: 'section label' })
+      if (!label.ok) return label
+      body.sections.push({ id: nextTimelineId('section'), label: label.value, periods: [] })
       break
     }
     case 'remove_section': {
@@ -231,16 +251,26 @@ function mutateTimeline(d: TimelineValidDiagram, op: TimelineMutationOp): Result
     case 'set_section_label': {
       const s = getSection(op.index)
       if (!s) return err({ code: 'SECTION_NOT_FOUND', message: `No section at index ${op.index}` })
-      s.label = op.label
+      const label = normalizeTimelineOpText(op.label, { field: 'section label' })
+      if (!label.ok) return label
+      s.label = label.value
       break
     }
     case 'add_period': {
       const s = getSection(op.sectionIndex)
       if (!s) return err({ code: 'SECTION_NOT_FOUND', message: `No section at index ${op.sectionIndex}` })
+      const label = normalizeTimelineOpText(op.label, { field: 'period label', allowColon: false })
+      if (!label.ok) return label
+      const events: TimelinePeriod['events'] = []
+      for (const raw of op.events ?? []) {
+        const text = normalizeTimelineOpText(raw, { field: 'event text', allowColon: false })
+        if (!text.ok) return text
+        events.push({ id: nextTimelineId('event'), text: text.value })
+      }
       const period: TimelinePeriod = {
-        id: nextId('period', body),
-        label: op.label,
-        events: (op.events ?? []).map(text => ({ id: nextId('event', body), text })),
+        id: nextTimelineId('period'),
+        label: label.value,
+        events,
       }
       s.periods.push(period)
       break
@@ -250,18 +280,23 @@ function mutateTimeline(d: TimelineValidDiagram, op: TimelineMutationOp): Result
       if (!s) return err({ code: 'SECTION_NOT_FOUND', message: `No section at index ${op.sectionIndex}` })
       if (!s.periods[op.periodIndex]) return err({ code: 'PERIOD_NOT_FOUND', message: `No period at index ${op.periodIndex}` })
       s.periods.splice(op.periodIndex, 1)
+      if (s.label === undefined && s.periods.length === 0) body.sections.splice(op.sectionIndex, 1)
       break
     }
     case 'set_period_label': {
       const p = getPeriod(op.sectionIndex, op.periodIndex)
       if (!p) return err({ code: 'PERIOD_NOT_FOUND', message: `No period at (${op.sectionIndex},${op.periodIndex})` })
-      p.label = op.label
+      const label = normalizeTimelineOpText(op.label, { field: 'period label', allowColon: false })
+      if (!label.ok) return label
+      p.label = label.value
       break
     }
     case 'add_event': {
       const p = getPeriod(op.sectionIndex, op.periodIndex)
       if (!p) return err({ code: 'PERIOD_NOT_FOUND', message: `No period at (${op.sectionIndex},${op.periodIndex})` })
-      p.events.push({ id: nextId('event', body), text: op.text })
+      const text = normalizeTimelineOpText(op.text, { field: 'event text', allowColon: false })
+      if (!text.ok) return text
+      p.events.push({ id: nextTimelineId('event'), text: text.value })
       break
     }
     case 'remove_event': {
@@ -269,6 +304,8 @@ function mutateTimeline(d: TimelineValidDiagram, op: TimelineMutationOp): Result
       if (!p) return err({ code: 'PERIOD_NOT_FOUND', message: `No period at (${op.sectionIndex},${op.periodIndex})` })
       if (!p.events[op.eventIndex]) return err({ code: 'EVENT_NOT_FOUND', message: `No event at index ${op.eventIndex}` })
       p.events.splice(op.eventIndex, 1)
+      const section = getSection(op.sectionIndex)
+      if (section && section.label === undefined && section.periods.length === 0) body.sections.splice(op.sectionIndex, 1)
       break
     }
     case 'set_event_text': {
@@ -276,7 +313,9 @@ function mutateTimeline(d: TimelineValidDiagram, op: TimelineMutationOp): Result
       if (!p) return err({ code: 'PERIOD_NOT_FOUND', message: `No period at (${op.sectionIndex},${op.periodIndex})` })
       const e = p.events[op.eventIndex]
       if (!e) return err({ code: 'EVENT_NOT_FOUND', message: `No event at index ${op.eventIndex}` })
-      e.text = op.text
+      const text = normalizeTimelineOpText(op.text, { field: 'event text', allowColon: false })
+      if (!text.ok) return text
+      e.text = text.value
       break
     }
     default: {
@@ -284,7 +323,8 @@ function mutateTimeline(d: TimelineValidDiagram, op: TimelineMutationOp): Result
       return err({ code: 'INVALID_OP', message: `Unknown op: ${JSON.stringify(_x)}` })
     }
   }
-  return ok({ ...d, body } as TimelineValidDiagram)
+  const canonicalSource = renderMeta(d.meta) + renderTimeline(body)
+  return ok({ ...d, body, canonicalSource } as TimelineValidDiagram)
 }
 
 // ---- Flowchart helpers ----------------------------------------------------

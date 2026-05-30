@@ -13,11 +13,11 @@ implementation log is `DIVERGENCES.md`; active backlog is only `TODO.md`.
   flowchart/state (6), sequence (5), timeline (10), class (10), ER (7).
 - **`verifyMermaid(d, opts)`** — structural verification (no pixels).
 - **`serializeMermaid(d)`** — back to canonical source.
-- **Round-trip** — `parse → serialize` is byte-stable; opaque bodies
-  preserve original indentation/comments verbatim.
+- **Round-trip** — structured bodies serialize to canonical, idempotent
+  source; opaque bodies preserve original indentation/comments verbatim.
 - **Narrowers** — `asFlowchart`/`asSequence`/`asTimeline`/`asClass`/`asEr`
-  return `null` on a non-matching or opaque body (steers agents off the
-  unsafe path).
+  return `null` on a non-matching or source-level/opaque body (steers agents
+  off the unsafe path).
 
 ## Diagram families (9)
 
@@ -28,7 +28,9 @@ implementation log is `DIVERGENCES.md`; active backlog is only `TODO.md`.
 | Timeline | ✅ | ✅ (10 ops) |
 | Class | ✅ | ✅ (10 ops) |
 | ER | ✅ | ✅ (7 ops) |
-| Journey, XY chart, Architecture | ✅ | opaque (lossless round-trip) |
+| Journey | ✅ | source-level only (lossless round-trip) |
+| XY chart | ✅ | source-level only (lossless round-trip) |
+| Architecture | ✅ | source-level only (lossless round-trip) |
 
 **Structured-or-opaque rule:** every family either has a structured body
 or preserves source verbatim. Constructs are never silently dropped.

@@ -8,7 +8,7 @@ This changelog tracks user-facing changes in the `adewale/beautiful-mermaid` for
 - **Agent-native surface** (`beautiful-mermaid/agent` subpath export): a typed editing API for agents and tools.
   - `parseMermaid` → sealed `ValidDiagram` IR carrying frontmatter, init directives, comments, accessibility, and the canonical source.
   - `verifyMermaid` → structured `LayoutWarning` codes in two tiers (Tier 1 structural/reliable, Tier 2 geometric/advisory). No vision/PNG needed.
-  - `mutate` → typed, family-narrowed structural edits for flowchart/state, simple sequence, timeline, class, and ER diagrams. Journey, xychart, architecture, and diagrams with unmodeled constructs fall back to a lossless opaque/source-level body.
+  - `mutate` → typed, family-narrowed structural edits for flowchart/state, simple sequence, timeline, class, and ER diagrams. Journey, xychart, architecture, and diagrams with unmodeled constructs use a lossless source-level/opaque body with no structured mutation exposed.
   - `serializeMermaid` / `synthesizeFromGraph` → round-trip back to canonical Mermaid source.
   - Deterministic layout JSON, verified byte-identical across processes (ELK is configured for model-order layout; there is no seed).
 - **`am` CLI**: `render`, `verify`, `parse`, `serialize`, `mutate` (verify-before-emit), `format`, `describe`, `capabilities`, `batch`, `render-markdown`, `llms-txt`, `--json`, per-command `--help`, and `--agent-instructions`.
@@ -38,6 +38,7 @@ This changelog tracks user-facing changes in the `adewale/beautiful-mermaid` for
 - Editor empty state now includes quick starter chips for Flowchart, Sequence, and Role styled examples.
 - Example rows now include compact diagram-family glyphs for faster scanning.
 - Agent-facing Code Mode examples are executable JavaScript snippets and the stored eval now checks ordered verify inspection before serialization.
+- Journey and xychart are kept source-level-only in the agent surface; no `mermaid-ast` dependency or structured mutation path is exposed.
 
 ### Fixed
 - TypeScript CI failures in journey style padding and optional node corner-radius resolution.

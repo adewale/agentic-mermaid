@@ -15,6 +15,8 @@ import type {
   ValidDiagram, FlowchartValidDiagram, SequenceValidDiagram, TimelineValidDiagram,
   ClassValidDiagram, ErValidDiagram,
 } from './types.ts'
+import { getFamily, extractLabelsGeneric } from './families.ts'
+import './families-builtin.ts'
 
 export interface DescribeOptions {
   /** 'text' (default): prose summary. 'json': structured AX tree (#7349). */
@@ -49,14 +51,15 @@ export function describeMermaid(d: ValidDiagram, opts: DescribeOptions = {}): st
   if (d.body.kind === 'timeline') return describeTimeline(d as TimelineValidDiagram)
   if (d.body.kind === 'class') return describeClass(d as ClassValidDiagram)
   if (d.body.kind === 'er') return describeEr(d as ErValidDiagram)
+  if (d.body.kind === 'opaque') return describeOpaque(d.kind, d.body.source)
   return `A ${d.kind} diagram (structured editing not yet supported).`
 }
 
 /**
  * #7349: machine-readable accessibility tree — the graph as a flat node/edge
  * list with entry points and sinks. More useful to agents and screen-reader
- * tooling than prose. Covers the structured families; opaque families return
- * their kind with empty node/edge lists.
+ * tooling than prose. Covers the structured families; source-level/opaque
+ * families expose extracted labels as nodes and no edges.
  */
 export function describeMermaidTree(d: ValidDiagram): DescribeTree {
   const tree: DescribeTree = { kind: d.kind, nodes: [], edges: [], entryPoints: [], sinks: [] }
@@ -77,6 +80,10 @@ export function describeMermaidTree(d: ValidDiagram): DescribeTree {
     for (const s of d.body.sections) for (const p of s.periods) {
       tree.nodes.push({ id: p.id, label: p.label })
     }
+  } else if (d.body.kind === 'opaque') {
+    const plugin = getFamily(d.kind)
+    const labels = (plugin?.extractLabels ?? extractLabelsGeneric)(d.body.source)
+    labels.forEach((label, index) => tree.nodes.push({ id: label.target || `label-${index}`, label: label.text }))
   }
   // Entry points (no incoming) and sinks (no outgoing) from the edge list.
   const incoming = new Set(tree.edges.map(e => e.to))
@@ -157,5 +164,15 @@ function describeEr(d: ErValidDiagram): string {
   let s = `An ER diagram with ${entities.length} entities.`
   if (names.length > 0) s += ` Entities: ${names.join(', ')}.`
   if (relStr.length > 0) s += ` Relations: ${relStr.join('; ')}.`
+  return s
+}
+
+function describeOpaque(kind: ValidDiagram['kind'], source: string): string {
+  const plugin = getFamily(kind)
+  const labels = (plugin?.extractLabels ?? extractLabelsGeneric)(source).map(label => label.text)
+  const unique = Array.from(new Set(labels)).filter(Boolean)
+  const family = kind === 'xychart' ? 'XY chart' : kind
+  let s = `A ${family} diagram with a source-level body (structured editing not exposed).`
+  if (unique.length > 0) s += ` Labels: ${unique.join(', ')}.`
   return s
 }

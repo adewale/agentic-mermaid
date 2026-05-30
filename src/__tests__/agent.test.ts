@@ -21,7 +21,6 @@ function flowchart(src: string): FlowchartValidDiagram {
 function sequence(src: string): SequenceValidDiagram {
   const s = asSequence(parse(src)); if (!s) throw new Error('not sequence'); return s
 }
-
 describe('parseMermaid', () => {
   test('flowchart', () => { expect(parse('flowchart TD\n  A --> B').body.kind).toBe('flowchart') })
   test('frontmatter into meta', () => {
@@ -39,16 +38,21 @@ describe('parseMermaid', () => {
     const r = parseMermaid('notADiagram\n X'); expect(r.ok).toBe(false)
     if (!r.ok) expect(r.error[0]!.code).toBe('UNKNOWN_HEADER')
   })
-  test('journey/xychart/architecture stay opaque; flowchart/sequence/timeline/class/er are structured', () => {
-    // Structured families
-    expect(parse('classDiagram\n  A <|-- B').body.kind).toBe('class')
-    expect(parse('erDiagram\n  A ||--o{ B : x').body.kind).toBe('er')
-    expect(parse('timeline\n  2020 : A').body.kind).toBe('timeline')
-    // Opaque-only families
-    for (const [s, k] of [['journey\n  title T\n  section S\n    Wake: 3: Me','journey'],
-                          ['xychart-beta\n  bar [1,2,3]','xychart'],
-                          ['architecture-beta\n  group g(server)[g]','architecture']] as const) {
+  test('mutable families are structured; journey/xychart/architecture are source-level', () => {
+    for (const [s, k] of [
+      ['classDiagram\n  A <|-- B', 'class'],
+      ['erDiagram\n  A ||--o{ B : x', 'er'],
+      ['timeline\n  2020 : A', 'timeline'],
+    ] as const) {
+      const d = parse(s); expect(d.kind).toBe(k); expect(d.body.kind).toBe(k)
+    }
+    for (const [s, k] of [
+      ['journey\n  title T\n  section S\n    Wake: 3: Me', 'journey'],
+      ['xychart-beta\n  bar [1,2,3]', 'xychart'],
+      ['architecture-beta\n  group g(server)[g]', 'architecture'],
+    ] as const) {
       const d = parse(s); expect(d.kind).toBe(k); expect(d.body.kind).toBe('opaque')
+      expect(serializeMermaid(d).trimEnd()).toBe(s)
     }
   })
 })
@@ -166,6 +170,46 @@ describe('sequence mutate — five ops', () => {
   test('index out of bounds', () => {
     const r = mutate(sequence('sequenceDiagram\n  A->>B: Hi'), { kind: 'remove_message', index: 9 })
     expect(!r.ok && r.error.code).toBe('MESSAGE_NOT_FOUND')
+  })
+})
+
+describe('source-level families — journey, xychart, architecture', () => {
+  const cases = [
+    ['journey', 'journey\n  title T\n  section S\n    Wake: 3: Me'],
+    ['xychart', 'xychart-beta\n  title Sales\n  x-axis [Jan, Feb]\n  bar [1, 2]'],
+    ['architecture', 'architecture-beta\n  group g(server)[Group]'],
+  ] as const
+
+  for (const [family, src] of cases) {
+    test(`${family}: parses as opaque/source-level and round-trips`, () => {
+      const d = parse(src)
+      expect(d.kind).toBe(family)
+      expect(d.body.kind).toBe('opaque')
+      expect(serializeMermaid(d).trimEnd()).toBe(src)
+      expect(verifyMermaid(d).ok).toBe(true)
+    })
+  }
+
+  test('journey header suffix is preserved rather than normalized away', () => {
+    const src = 'journey EXTRA\n  Alpha: 3: Me'
+    const d = parse(src)
+    expect(d.kind).toBe('journey')
+    expect(d.body.kind).toBe('opaque')
+    expect(serializeMermaid(d).trimEnd()).toBe(src)
+  })
+
+  test('xychart one-line semicolon source is not treated as empty', () => {
+    const d = parse('xychart-beta; title Short; curve basis')
+    expect(d.body.kind).toBe('opaque')
+    expect(verifyMermaid(d).warnings.map(w => w.code)).not.toContain('EMPTY_DIAGRAM')
+  })
+
+  test('xychart unknown trailing tokens are preserved', () => {
+    const src = 'xychart-beta horizontal EXTRA\n  bar [1, 2]'
+    const d = parse(src)
+    expect(d.kind).toBe('xychart')
+    expect(d.body.kind).toBe('opaque')
+    expect(serializeMermaid(d)).toContain('EXTRA')
   })
 })
 

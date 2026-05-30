@@ -22,6 +22,28 @@ const KNOWN_SHAPES = new Set([
   'trapezoid', 'trapezoid-alt', 'state-start', 'state-end',
 ])
 
+function opaqueSourceHasOnlyHeader(kind: ValidDiagram['kind'], source: string): boolean {
+  const statements = source
+    .split(/[;\n]/)
+    .map(part => part.trim())
+    .filter(part => part && !part.startsWith('%%'))
+  if (statements.length === 0) return true
+  if (statements.length > 1) return false
+  const header = statements[0]!.toLowerCase()
+  const aliases: Record<string, string[]> = {
+    flowchart: ['flowchart', 'graph'],
+    state: ['statediagram', 'statediagram-v2'],
+    sequence: ['sequencediagram'],
+    timeline: ['timeline'],
+    class: ['classdiagram'],
+    er: ['erdiagram'],
+    journey: ['journey'],
+    xychart: ['xychart', 'xychart-beta'],
+    architecture: ['architecture-beta'],
+  }
+  return (aliases[kind] ?? [kind]).some(alias => header === alias || header.startsWith(`${alias} `))
+}
+
 export function verifyMermaid(input: ValidDiagram | string, opts: VerifyOptions = {}): VerifyResult {
   const d = typeof input === 'string' ? unwrap(input) : input
   if (!d) return finalize([{ code: 'EMPTY_DIAGRAM' }], emptyRenderedLayout('flowchart'), opts)
@@ -46,15 +68,14 @@ export function verifyMermaid(input: ValidDiagram | string, opts: VerifyOptions 
   }
 
   if (d.body.kind === 'opaque') {
-    const isEmpty = d.body.source.trim().split('\n').length <= 1
-    if (isEmpty) return finalize([{ code: 'EMPTY_DIAGRAM' }, ...pluginWarnings], emptyRenderedLayout(d.kind), opts)
+    const isEmpty = opaqueSourceHasOnlyHeader(d.kind, d.body.source)
     // Universal Tier 1 LABEL_OVERFLOW via family-specific (or generic) label
     // extraction. Closes the gap where opaque-body diagrams (class / ER /
     // journey / xychart / architecture / sequence-with-alt/etc.) never got
     // label-cap checking.
     const plugin = getFamily(d.kind)
     const labels = (plugin?.extractLabels ?? extractLabelsGeneric)(d.body.source)
-    const warnings: LayoutWarning[] = []
+    const warnings: LayoutWarning[] = isEmpty ? [{ code: 'EMPTY_DIAGRAM' }] : []
     const seen = new Set<string>()
     for (const lbl of labels) {
       if (lbl.text.length <= cap) continue

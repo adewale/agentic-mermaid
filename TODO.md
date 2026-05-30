@@ -46,9 +46,7 @@ Status legend: `todo` | `blocked` | `owner-decision` | `parked`.
 
 ## 3. Blocked / external resource needed
 
-- [ ] **BLOCKED-1 — mermaid-ast journey/xychart structured uplift**
-  (`blocked`). `mermaid-ast`'s transitive dependency chain is broken in this
-  sandbox; needs a working install before implementation.
+_No active blocked items._
 
 ## 4. Parked / evidence-required ideas
 

@@ -1,6 +1,6 @@
 ---
 name: agentic-mermaid
-description: Author and edit Mermaid diagrams with structured verification, typed mutation, and round-trip serialization. Structured mutation for flowchart, state, sequence, timeline, class, and ER; parse-and-render for all 9 families.
+description: Author and edit Mermaid diagrams with structured verification, typed mutation, and round-trip serialization. Structured mutation for flowchart, state, sequence, timeline, class, and ER; source-level parse-and-render for journey, xychart, architecture, and opaque fallbacks.
 ---
 
 # agentic-mermaid
@@ -26,7 +26,9 @@ A typed editing surface for Mermaid. Parse to a `ValidDiagram`, mutate with type
 | Class (unmodeled syntax) | ✓ | structural | ✓ | — (opaque) | verbatim |
 | **ER (simple)** | ✓ | structural | ✓ | **7 ops** | structured |
 | ER (unmodeled syntax) | ✓ | structural | ✓ | — (opaque) | verbatim |
-| Journey, XY, Architecture | ✓ | structural | ✓ | — | verbatim |
+| Journey | ✓ | structural | ✓ | — | verbatim/source-level |
+| XY chart | ✓ | structural | ✓ | — | verbatim/source-level |
+| Architecture | ✓ | structural | ✓ | — | verbatim/source-level |
 
 Any diagram with constructs we don't model falls back to an **opaque** body: it still parses, renders, verifies, and round-trips losslessly — it just isn't offered for structured mutation (the narrower returns null). The parser never silently drops anything.
 
