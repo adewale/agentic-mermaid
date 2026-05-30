@@ -432,5 +432,8 @@ export interface ValidDiagramPayload {
   body:
     | { kind: 'flowchart'; graph: SerializedFlowchartGraph }
     | SequenceBody
+    | TimelineBody
+    | ClassBody
+    | ErBody
     | { kind: 'opaque'; family: DiagramKind; source: string }
 }

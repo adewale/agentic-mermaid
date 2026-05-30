@@ -10,7 +10,7 @@ A typed editing surface for Mermaid. Parse to a `ValidDiagram`, mutate with type
 ## Pick a channel
 
 - `agentic-mermaid-mcp` connected → **Code Mode** (`references/code-mode.md`). Multi-step edits in one round-trip.
-- Can `import` TS → **library** (`beautiful-mermaid/agent`). Same SDK.
+- Can run JS/TS with imports → **library** (`beautiful-mermaid/agent`). Same SDK.
 - Shell only → **CLI** (`references/cli.md`).
 
 ## Capability matrix
@@ -35,8 +35,8 @@ Any diagram with constructs we don't model falls back to an **opaque** body: it 
 1. `parseMermaid(source)` → `ValidDiagram`.
 2. `asFlowchart(d)` / `asSequence(d)` / `asTimeline(d)` / `asClass(d)` / `asEr(d)` to narrow before mutating.
 3. `mutate(d, op)` (typed per family).
-4. `verifyMermaid(d)` — structured warnings.
+4. `verifyMermaid(d)` — structured warnings; inspect `ok` / `warnings` / `layout`.
 5. On `!ok`, revert to the previous `ValidDiagram`, try another op.
-6. `serializeMermaid(d)` after verify passes.
+6. `serializeMermaid(d)` only after inspected verify passes.
 
 Never concatenate Mermaid source. See `references/flowchart.md`, `references/sequence.md`.

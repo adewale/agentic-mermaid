@@ -37,6 +37,71 @@ describe('am capabilities', () => {
   })
 })
 
+describe('am describe', () => {
+  test('emits prose by default and AX-tree JSON on request', () => {
+    const source = 'flowchart LR\n  A --> B\n'
+    const text = runAm(['describe', '-'], source)
+    expect(text.status).toBe(0)
+    expect(text.stdout).toContain('flowchart')
+    expect(text.stdout).toContain('A')
+    expect(text.stdout).toContain('B')
+
+    const json = runAm(['describe', '-', '--format', 'json'], source)
+    expect(json.status).toBe(0)
+    const tree = JSON.parse(json.stdout)
+    expect(tree.kind).toBe('flowchart')
+    expect(tree.nodes.map((n: any) => n.id).sort()).toEqual(['A', 'B'])
+    expect(tree.edges).toEqual([{ from: 'A', to: 'B' }])
+  })
+})
+
+describe('am render multi-input', () => {
+  test('unsupported --format exits 2 instead of falling back to SVG', () => {
+    const r = runAm(['render', '--format', 'nope', '-'], 'flowchart LR\n  A --> B\n')
+    expect(r.status).toBe(2)
+    expect(r.stderr).toContain('unsupported --format')
+    expect(r.stdout).toBe('')
+  })
+
+  test('--format png rejects multiple inputs instead of ignoring extras', () => {
+    const { writeFileSync, existsSync, unlinkSync } = require('node:fs') as typeof import('node:fs')
+    const a = `/tmp/am-png-a-${Date.now()}.mmd`
+    const b = `/tmp/am-png-b-${Date.now()}.mmd`
+    const out = `/tmp/am-png-out-${Date.now()}.png`
+    writeFileSync(a, 'flowchart LR\n  A --> B\n')
+    writeFileSync(b, 'flowchart LR\n  C --> D\n')
+    try {
+      const r = runAm(['render', '--format', 'png', a, b, '--output', out])
+      expect(r.status).toBe(2)
+      expect(r.stderr).toContain('exactly one input')
+      expect(existsSync(out)).toBe(false)
+    } finally {
+      if (existsSync(a)) unlinkSync(a)
+      if (existsSync(b)) unlinkSync(b)
+      if (existsSync(out)) unlinkSync(out)
+    }
+  })
+
+  test('--format json returns layout JSON per file, not ASCII strings', () => {
+    const { writeFileSync, existsSync, unlinkSync } = require('node:fs') as typeof import('node:fs')
+    const a = `/tmp/am-json-a-${Date.now()}.mmd`
+    const b = `/tmp/am-json-b-${Date.now()}.mmd`
+    writeFileSync(a, 'flowchart LR\n  A --> B\n')
+    writeFileSync(b, 'flowchart LR\n  C --> D\n')
+    try {
+      const r = runAm(['render', '--format', 'json', a, b])
+      expect(r.status).toBe(0)
+      const payload = JSON.parse(r.stdout)
+      expect(payload.files.length).toBe(2)
+      expect(payload.files[0].output.kind).toBe('flowchart')
+      expect(Array.isArray(payload.files[0].output.nodes)).toBe(true)
+    } finally {
+      if (existsSync(a)) unlinkSync(a)
+      if (existsSync(b)) unlinkSync(b)
+    }
+  })
+})
+
 describe('am batch', () => {
   test('processes 5 lines with mixed validity and exits 0', () => {
     const validRender = JSON.stringify({ op: 'render', source: 'flowchart LR\n  A --> B', options: { ascii: true } })
@@ -121,7 +186,7 @@ describe('am exit codes', () => {
     expect(payload.source).toBeUndefined()
   })
 
-  test('Loop 8 P: render --format png writes a valid PNG to -o file', () => {
+  test('Loop 8 P: render --format png writes a valid PNG to --output file', () => {
     const { writeFileSync, readFileSync, existsSync, unlinkSync } = require('node:fs') as typeof import('node:fs')
     const tmpSrc = `/tmp/loop8-png-input-${Date.now()}.mmd`
     const tmpOut = `/tmp/loop8-png-output-${Date.now()}.png`
@@ -140,7 +205,7 @@ describe('am exit codes', () => {
     }
   })
 
-  test('Loop 8 P: render --format png without -o exits 2 (would corrupt stdout)', () => {
+  test('Loop 8 P: render --format png without --output exits 2 (would corrupt stdout)', () => {
     const { writeFileSync, existsSync, unlinkSync } = require('node:fs') as typeof import('node:fs')
     const tmpSrc = `/tmp/loop8-png-noout-${Date.now()}.mmd`
     writeFileSync(tmpSrc, 'flowchart LR\n  A --> B\n')

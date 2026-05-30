@@ -134,8 +134,10 @@ What's tested:
   Plus length-stable defence against partial-buffer truncation
   masquerading as a hash collision.
 - `agent-determinism.test.ts` "cross-runtime PNG" — renders in bun,
-  spawns Node on `dist/agent.js`, compares SHA-256. **As of Loop 8: this
-  test passes.** bun ≡ node on the same x86_64 machine.
+  spawns Node on `dist/agent.js`, compares SHA-256 when Node and built `dist/`
+  artifacts are present. In bare `bun test` environments it skips rather than
+  pretending cross-runtime evidence exists. In the full local verification loop
+  after `bun run build`, bun ≡ node on the same x86_64 machine.
 
 What's NOT tested (honest gaps):
 - **Cross-architecture (x86_64 vs ARM64).** Resvg's tiny-skia

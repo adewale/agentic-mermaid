@@ -23,7 +23,7 @@ after a remove — re-parse if you batch deletes.
 
 Fidelity fallback: a timeline with unmodeled syntax (anything beyond
 title/section/period/event/continuation) falls back to opaque body
-(`asTimeline` returns null). Round-trips losslessly via canonicalSource.
+(`asTimeline` returns null). Round-trips losslessly via preserved `body.source`.
 
 Verify Tier 1: EMPTY_DIAGRAM (no title + no periods), LABEL_OVERFLOW on
 title / section / period / event over the char cap.

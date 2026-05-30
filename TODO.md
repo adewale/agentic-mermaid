@@ -45,10 +45,10 @@ Status legend: `todo` | `blocked` | `owner-decision` | `parked`.
   (`todo`). The deterministic stored Code Mode eval is wired; a live model
   run should record prompts, scripts, traces, task scores, anti-patterns, and
   model/version metadata.
-- [ ] **EVAL-2 — Add more real-agent failure fixtures** (`todo`). Include
-  tempting bad outputs: string concatenation, whole-source regeneration,
-  verify-not-inspected, verify-wrong-diagram, CLI mutate-without-follow-up,
-  and copied stale examples.
+- [ ] **EVAL-2 — Expand captured real-agent failure corpus** (`todo`). The
+  deterministic linter/eval now covers stored decoys and executable docs;
+  still capture live failures such as string concatenation, whole-source
+  regeneration, CLI misuse, and stale copied examples from real model runs.
 
 ## 3. Blocked / external resource needed
 

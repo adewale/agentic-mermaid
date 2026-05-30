@@ -1,30 +1,37 @@
 # CLI (shell-only / one-shot)
 
-```
-am render <file|->            SVG (or --ascii)
-am verify <file|->            structured JSON warnings (exit 2 if not ok)
+```text
+am render <file|-> --format svg|ascii|unicode|json
+am render <file> --format png --output file.png  # one-shot only; no watch/multi-input
+am verify <file|->            structured JSON warnings (exit 3 if not ok)
 am parse <file|->             ValidDiagram JSON
 am serialize                  ValidDiagram JSON (stdin) → canonical source
-am mutate <file|-> --op JSON  one MutationOp → new source
+am mutate <file|-> --op JSON  one MutationOp → verify → new source
 am format <file|->            idempotent reformat
+am describe <file|->          prose summary or --format json AX tree
+am capabilities --json        families, mutationOps, warning codes, formats
+am batch --jsonl              JSONL stdin → JSONL envelopes
+am render-markdown <file.md> [--ascii]  render fenced Mermaid blocks
+am llms-txt                   agent discovery digest
 am --agent-instructions       canonical agent guide
 am <cmd> --help               per-command help
 ```
 
-`am verify` always emits JSON. `am mutate` dispatches by family; non-flowchart,
-non-sequence (or opaque sequence) returns a structured `UNSUPPORTED_FAMILY`
-error. `am parse | am serialize` round-trips through JSON.
+`am verify` always emits JSON. `am mutate` dispatches by family across
+flowchart/state, sequence, timeline, class, and ER; unsupported or opaque bodies
+return a structured `UNSUPPORTED_FAMILY` error. `am mutate` verifies before
+emitting source; verify failure exits 3 and omits `source`. `am parse | am
+serialize` round-trips through JSON.
 
 ```bash
 # Validate a tree
 find docs -name '*.mmd' -print0 | while IFS= read -r -d '' f; do
   am verify "$f" | jq -e '.ok' >/dev/null || { echo "FAIL: $f"; exit 1; }
 done
-# Flowchart op
+# Flowchart op: verifies before output
 am mutate flow.mmd --op '{"kind":"rename_node","from":"X","to":"Y"}'
-# Sequence op
+# Sequence op: verifies before output
 am mutate seq.mmd --op '{"kind":"add_message","from":"A","to":"B","text":"Hi"}'
 ```
 
-Exit codes: 0 success, 1 usage/IO error, 2 not-ok (verify failed, parse failed,
-mutate rejected).
+Exit codes: 0 ok, 2 arg/parse/mutation error, 3 verify failed, 4 internal.

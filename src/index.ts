@@ -204,24 +204,77 @@ function injectAccessibility(svg: string, acc: { title?: string; descr?: string 
 
 /**
  * #7645/#7695: scan an SVG for external-fetch references — `@import` URLs,
- * `<image href>`/`xlink:href` to http(s), `<use href>` to external, `url(http…)`
+ * `<image href>`/`xlink:href` to http(s) or protocol-relative URLs,
+ * `<use href>` to external, `url(http…)` / `url(//…)`
  * in styles, `<script>`, `<foreignObject>`. The `xmlns="http://www.w3.org/…"`
  * namespace declaration is NOT a fetch and is excluded. Returns the offending
  * references so it can serve as a CI gate and an agent self-check.
  */
+const XML_SLASH_REF = String.raw`(?:/|&(?:amp;)?#x0*2f;|&(?:amp;)?#0*47;|&(?:amp;)?sol;)`
+const XML_EXTERNAL_PREFIX = String.raw`(?:https?:)?${XML_SLASH_REF}${XML_SLASH_REF}`
+const XML_EXTERNAL_ATTR_QUOTED = new RegExp(String.raw`\s(?:[^\s=<>]+:)?(?:href|src|data)\s*=\s*["']\s*${XML_EXTERNAL_PREFIX}[^"']*["']`, 'gi')
+const XML_EXTERNAL_ATTR_UNQUOTED = new RegExp(String.raw`\s(?:[^\s=<>]+:)?(?:href|src|data)\s*=\s*${XML_EXTERNAL_PREFIX}[^\s>"']+`, 'gi')
+
 export function verifyNoExternalRefs(svg: string): { ok: boolean; refs: string[] } {
+  const scan = normalizeCssObfuscation(svg)
   const refs: string[] = []
   // @import url(...) or @import "..."
-  for (const m of svg.matchAll(/@import\s+(?:url\()?["']?([^"')]+)/g)) refs.push(`@import ${m[1]}`)
-  // href / xlink:href / src to http(s) (xmlns excluded — it's a declaration, not a ref)
-  for (const m of svg.matchAll(/(?:xlink:href|href|src)\s*=\s*["'](https?:\/\/[^"']+)["']/g)) refs.push(m[1]!)
-  // url(http…) inside style/attr values
-  for (const m of svg.matchAll(/url\(\s*["']?(https?:\/\/[^"')]+)/g)) refs.push(m[1]!)
+  for (const m of scan.matchAll(/@import\s*(?:url\()?\s*["']?\s*((?:https?:)?\/\/[^"')]+)/gi)) refs.push(`@import ${m[1]}`)
+  for (const m of scan.matchAll(/@import\s*(?:url\()?\s*["']?\s*(javascript\s*:[^"')\s;]+)/gi)) refs.push(`@import ${m[1]}`)
+  // href / *:href / src / data to http(s) or protocol-relative URLs (xmlns excluded — it's a declaration, not a ref)
+  for (const m of scan.matchAll(/(?<!xmlns:)\b(?:[^\s=<>]+:)?(?:href|src|data)\s*=\s*["']\s*((?:https?:)?\/\/[^"']+)["']/gi)) refs.push(m[1]!)
+  for (const m of scan.matchAll(/(?<!xmlns:)\b(?:[^\s=<>]+:)?(?:href|src|data)\s*=\s*((?:https?:)?\/\/[^\s>"']+)/gi)) refs.push(m[1]!)
+  for (const m of scan.matchAll(XML_EXTERNAL_ATTR_QUOTED)) refs.push(m[0]!)
+  for (const m of scan.matchAll(XML_EXTERNAL_ATTR_UNQUOTED)) refs.push(m[0]!)
+  // url(http…) / url(//…) / url(javascript:…) inside style/attr values
+  for (const m of scan.matchAll(/url\(\s*["']?\s*((?:https?:)?\/\/[^"')]+)/gi)) refs.push(m[1]!)
+  for (const m of scan.matchAll(/url\(\s*["']?\s*(javascript\s*:[^"')]+)/gi)) refs.push(m[1]!)
   // active content that can fetch/exfiltrate
-  if (/<script\b/i.test(svg)) refs.push('<script>')
-  if (/<foreignObject\b/i.test(svg)) refs.push('<foreignObject>')
-  if (/<image\b/i.test(svg)) refs.push('<image>')
+  if (/<(?:[^\s<>/:]+:)?script\b/i.test(scan)) refs.push('<script>')
+  if (/<(?:[^\s<>/:]+:)?foreignObject\b/i.test(scan)) refs.push('<foreignObject>')
+  if (/<(?:[^\s<>/:]+:)?image\b/i.test(scan)) refs.push('<image>')
+  if (/<(?:[^\s<>/:]+:)?object\b/i.test(scan)) refs.push('<object>')
+  if (/<(?:[^\s<>/:]+:)?embed\b/i.test(scan)) refs.push('<embed>')
+  if (/<(?:[^\s<>/:]+:)?iframe\b/i.test(scan)) refs.push('<iframe>')
+  if (/\son[a-z][\w:.-]*\s*=/i.test(scan)) refs.push('inline-event-handler')
+  if (/\s(?:[^\s=<>]+:)?(?:href|src|data)\s*=\s*["']?\s*javascript\s*:/i.test(scan)) refs.push('javascript-url')
   return { ok: refs.length === 0, refs }
+}
+
+function normalizeCssObfuscation(svg: string): string {
+  return svg
+    .replace(/\/\*[\s\S]*?\*\//g, '')
+    .replace(/\\([0-9a-fA-F]{1,6})\s?/g, (_, hex: string) => {
+      const cp = Number.parseInt(hex, 16)
+      return Number.isFinite(cp) ? String.fromCodePoint(cp) : ''
+    })
+    .replace(/\\([^\n\r\f])/g, '$1')
+}
+
+function stripExternalRefs(svg: string): string {
+  return normalizeCssObfuscation(svg)
+    .replace(/@import\s*(?:url\()?\s*["']?\s*(?:https?:)?\/\/[^\n;}]+[;)]?/gi, '')
+    .replace(/@import\s*(?:url\()?\s*["']?\s*javascript\s*:[^\n;}]+[;)]?/gi, '')
+    .replace(/url\(\s*["']?\s*(?:https?:)?\/\/[^"')]+["']?\s*\)/gi, 'none')
+    .replace(/url\(\s*["']?\s*javascript\s*:[^"')]+["']?\s*\)/gi, 'none')
+    .replace(XML_EXTERNAL_ATTR_QUOTED, '')
+    .replace(XML_EXTERNAL_ATTR_UNQUOTED, '')
+    .replace(/\s(?:[^\s=<>]+:)?(?:href|src|data)\s*=\s*["']\s*(?:https?:)?\/\/[^"']+["']/gi, '')
+    .replace(/\s(?:[^\s=<>]+:)?(?:href|src|data)\s*=\s*(?:https?:)?\/\/[^\s>"']+/gi, '')
+    .replace(/\s(?:[^\s=<>]+:)?(?:href|src|data)\s*=\s*["']\s*javascript\s*:[^"']*["']/gi, '')
+    .replace(/\s(?:[^\s=<>]+:)?(?:href|src|data)\s*=\s*javascript\s*:[^\s>]+/gi, '')
+    .replace(/\son[a-z][\w:.-]*\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)/gi, '')
+    .replace(/<(?:[^\s<>/:]+:)?script\b[^>]*>[\s\S]*?<\/(?:[^\s<>/:]+:)?script>/gi, '')
+    .replace(/<(?:[^\s<>/:]+:)?script\b[^>]*\/?>/gi, '')
+    .replace(/<(?:[^\s<>/:]+:)?foreignObject\b[^>]*>[\s\S]*?<\/(?:[^\s<>/:]+:)?foreignObject>/gi, '')
+    .replace(/<(?:[^\s<>/:]+:)?foreignObject\b[^>]*\/?>/gi, '')
+    .replace(/<(?:[^\s<>/:]+:)?image\b[^>]*\/?>/gi, '')
+    .replace(/<(?:[^\s<>/:]+:)?object\b[^>]*>[\s\S]*?<\/(?:[^\s<>/:]+:)?object>/gi, '')
+    .replace(/<(?:[^\s<>/:]+:)?object\b[^>]*\/?>/gi, '')
+    .replace(/<(?:[^\s<>/:]+:)?embed\b[^>]*>[\s\S]*?<\/(?:[^\s<>/:]+:)?embed>/gi, '')
+    .replace(/<(?:[^\s<>/:]+:)?embed\b[^>]*\/?>/gi, '')
+    .replace(/<(?:[^\s<>/:]+:)?iframe\b[^>]*>[\s\S]*?<\/(?:[^\s<>/:]+:)?iframe>/gi, '')
+    .replace(/<(?:[^\s<>/:]+:)?iframe\b[^>]*\/?>/gi, '')
 }
 
 /**
@@ -265,11 +318,10 @@ export function renderMermaidSVG(
     ?? normalizedSource.config.fontFamily
     ?? readThemeValue(normalizedSource.config.themeVariables, 'fontFamily')
     ?? 'Inter'
-  // #7645/#7695: strict security mode forces the Google Fonts @import off so
-  // the SVG has zero external-fetch references. The --font CSS variable still
-  // declares the family. (embedFontImport:false is the only lever needed —
-  // the external-fetch surface audit found @import is the sole vector;
-  // remaining http:// in output is the xmlns namespace decl, not a fetch.)
+  // #7645/#7695: strict security mode disables the Google Fonts @import and
+  // strips any external-fetch refs introduced by user theme/config values. The
+  // --font CSS variable still declares the family; xmlns http:// is a namespace
+  // declaration, not a fetch.
   const effectiveOptions: RenderOptions = options.security === 'strict'
     ? { ...options, embedFontImport: false }
     : options
@@ -281,6 +333,7 @@ export function renderMermaidSVG(
   // When `compact` is on we additionally round coords and collapse whitespace.
   const compact = options.compact ?? false
   const idPrefix = options.idPrefix ?? ''
+  const finalizeSvg = (svg: string) => options.security === 'strict' ? stripExternalRefs(svg) : svg
   // #7254/#7255: extract accTitle/accDescr from source for SVG <title>/<desc>
   // + ARIA. The legacy SVG path doesn't carry these through the parser, so we
   // extract here and inject as a post-pass (localized, no renderer threading).
@@ -291,6 +344,7 @@ export function renderMermaidSVG(
     if (idPrefix) out = namespaceSvgIds(out, idPrefix)
     // #7254/#7255: inject <title>/<desc>/role="img"/aria-labelledby.
     if (acc.title || acc.descr) out = injectAccessibility(out, acc, idPrefix)
+    out = finalizeSvg(out)
     return compact ? compactSvg(out) : out
   }
 
@@ -303,7 +357,8 @@ export function renderMermaidSVG(
       // Architecture renderer already inlines its own variables; apply compact
       // post-processing on the way out so the --compact flag is honored.
       const rawArch = renderArchitectureSvg(positioned, colors, font, transparent, archVisual.visual)
-      return compact ? compactSvg(rawArch) : rawArch
+      const out = finalizeSvg(rawArch)
+      return compact ? compactSvg(out) : out
     }
     case 'sequence': {
       const diagram = parseSequenceDiagram(lines)

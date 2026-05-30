@@ -63,8 +63,8 @@ we didn't anticipate. When a sequence diagram has `alt`/`loop`/`opt`
 blocks that the structured sequence body doesn't model, we fall back to
 opaque. The agent can still verify, render, and round-trip — it just
 can't call structured mutation ops on that diagram. The type system
-rejects the call statically. The user experience is "you can edit
-canonicalSource as a string," not "your diagram broke."
+rejects the call statically. The user experience is "you can intentionally
+edit the preserved opaque body.source and re-parse/verify," not "your diagram broke."
 
 The opposite rule (parse what you can, throw away the rest) would have
 been simpler to implement and would have been catastrophic in practice.
@@ -89,12 +89,12 @@ our hand-written fixtures didn't cover the exact `note left of` /
 the corpus catches every layout / serialize change that affects more
 than a single fixture.
 
-The LLM-judge harness (also Loop 5) ships but is intentionally
+The live-model eval stance (from Loop 5 onward) is intentionally
 periodic-not-per-PR. Running it on every PR would dominate the wallclock
-budget and produce a grade that is statistically noisy across runs. Once
-a week is enough to detect drift; an explicit `bun run eval:llm-judge`
-target lets a maintainer trigger it on demand. Net: cheap, high-signal,
-not always-on.
+budget and produce a grade that is statistically noisy across runs. The
+current deterministic harness is `bun run eval/agent-usage/run.ts`; live
+model transcripts remain a pre-release/on-demand task tracked in `TODO.md`.
+Net: cheap, high-signal, not always-on.
 
 ## (e) Process changes for Loop 8 and later
 

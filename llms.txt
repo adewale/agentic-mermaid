@@ -21,7 +21,8 @@ haven't inspected.
 
 ## CLI verbs (`am <verb>`)
 
-- render --format svg, ascii, unicode, png, json [--security strict] [--output file] — render a diagram
+- render --format svg, ascii, unicode, json [--security strict] — render a diagram
+- render --format png --output file.png — render one input to PNG (no PNG bytes on stdout, no multi-input/watch)
 - parse — diagram → ValidDiagram JSON
 - verify — structural validation (exit 3 if invalid)
 - mutate --op '<json>' — apply a typed mutation, verify, then emit source
@@ -29,15 +30,16 @@ haven't inspected.
 - describe [--format text|json] — natural-language or AX-tree summary
 - capabilities --json — machine-readable capability envelope incl. mutationOps
 - batch --jsonl — bulk ops, one JSON envelope per line
-- render-markdown <file.md> — render fenced mermaid blocks, skip invalid ones
+- render-markdown <file.md> [--ascii] — render fenced mermaid blocks, skip invalid ones
 - llms-txt — this document
 
 Exit codes: 0 ok, 2 arg error, 3 verify-failed, 4 internal.
 
 ## MCP tools
 
-Code Mode `execute(code)` (typed mermaid.* SDK in a node:vm sandbox) plus
-narrow helper tools: render_png and describe. render_png is offline.
+Code Mode `execute(code)` (JavaScript in a node:vm sandbox with a typed
+mermaid.* SDK declaration) plus narrow helper tools: render_png and describe.
+render_png is offline.
 
 ## Output formats
 

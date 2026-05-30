@@ -10,7 +10,7 @@ const REPO = join(import.meta.dir, '..', '..')
 describe('#6430 llms.txt', () => {
   test('contains every CLI verb', () => {
     const txt = buildLlmsTxt()
-    for (const verb of ['render', 'parse', 'verify', 'mutate', 'format', 'describe', 'capabilities', 'batch', 'llms-txt']) {
+    for (const verb of ['render', 'parse', 'verify', 'mutate', 'format', 'describe', 'capabilities', 'batch', 'render-markdown', 'llms-txt']) {
       expect(txt).toContain(verb)
     }
   })

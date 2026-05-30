@@ -2,7 +2,8 @@
 // SKIPS invalid diagrams instead of failing the whole file.
 
 import { describe, test, expect } from 'bun:test'
-import { renderMarkdownBlocks } from '../cli/index.ts'
+import { writeFileSync } from 'node:fs'
+import { renderMarkdownBlocks, runCli } from '../cli/index.ts'
 
 const MD = `# Doc
 
@@ -38,6 +39,25 @@ describe('#543 render-markdown skip-bad-diagrams', () => {
     expect(blocks[0]!.format).toBe('ascii')
     expect(typeof blocks[0]!.output).toBe('string')
     expect(blocks[0]!.output!.length).toBeGreaterThan(0)
+  })
+
+  test('--ascii markdown rendering emits 7-bit ASCII, not Unicode box drawing', () => {
+    const blocks = renderMarkdownBlocks(MD, 'ascii')
+    expect(blocks[0]!.output).not.toMatch(/[─│┌┐└┘├┤┬┴┼]/)
+  })
+
+  test('CLI accepts render-markdown --ascii before or after the file argument', () => {
+    const tmp = `/tmp/am-render-md-${Date.now()}.md`
+    writeFileSync(tmp, MD)
+    const capture = (argv: string[]) => {
+      const chunks: string[] = []
+      const orig = process.stdout.write.bind(process.stdout)
+      ;(process.stdout as any).write = (s: string) => { chunks.push(String(s)); return true }
+      try { expect(runCli(argv)).toBe(0) } finally { (process.stdout as any).write = orig }
+      return JSON.parse(chunks.join(''))
+    }
+    expect(capture(['render-markdown', tmp, '--ascii']).blocks.length).toBe(3)
+    expect(capture(['render-markdown', '--ascii', tmp]).blocks.length).toBe(3)
   })
 
   test('block indices are stable and sequential', () => {

@@ -43,14 +43,15 @@ import { renderMermaidSVG as _svg } from '../index.ts'
 export { verifyNoExternalRefs } from '../index.ts'
 import { renderMermaidASCII as _ascii } from '../ascii/index.ts'
 import { layoutGraphSync } from '../layout-engine.ts'
+import { serializeMermaid as _serialize } from './serialize.ts'
 import type { ValidDiagram, RenderedLayout } from './types.ts'
 import { positionedToRenderedLayout, emptyRenderedLayout } from './layout-to-rendered.ts'
 
 export function renderMermaidSVG(input: ValidDiagram | string, opts: Parameters<typeof _svg>[1] = {}): string {
-  return _svg(typeof input === 'string' ? input : input.canonicalSource, opts)
+  return _svg(typeof input === 'string' ? input : _serialize(input), opts)
 }
 export function renderMermaidASCII(input: ValidDiagram | string, opts: Parameters<typeof _ascii>[1] = {}): string {
-  return _ascii(typeof input === 'string' ? input : input.canonicalSource, opts)
+  return _ascii(typeof input === 'string' ? input : _serialize(input), opts)
 }
 
 export function layoutMermaid(d: ValidDiagram): RenderedLayout {

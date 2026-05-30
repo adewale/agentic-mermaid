@@ -1,7 +1,22 @@
 export const SDK_DECLARATION = `// Mermaid agent SDK available as the global \`mermaid\`. All calls are
 // synchronous and pure. Compose multi-step edits in one execute() call.
+// Code Mode is synchronous: async/await, Promise jobs, and dynamic import are not supported.
 
 type Result<T, E> = { ok: true; value: T } | { ok: false; error: E }
+
+type MermaidConfigScalar = string | number | boolean | null
+type MermaidConfigValue = MermaidConfigScalar | MermaidConfigValue[] | { [key: string]: MermaidConfigValue | undefined }
+type MermaidRuntimeConfig = {
+  [key: string]: MermaidConfigValue | undefined
+  theme?: string
+  fontFamily?: string
+  themeVariables?: { [key: string]: MermaidConfigValue | undefined; fontFamily?: string }
+  timeline?: { [key: string]: MermaidConfigValue | undefined; disableMulticolor?: boolean; sectionFills?: string[]; sectionColours?: string[] }
+  xyChart?: { [key: string]: MermaidConfigValue | undefined }
+  useMaxWidth?: boolean
+  useWidth?: number
+  themeCSS?: string
+}
 
 type DiagramKind = 'flowchart' | 'state' | 'sequence' | 'class' | 'er'
                  | 'timeline' | 'journey' | 'xychart' | 'architecture'
@@ -21,7 +36,7 @@ interface ValidDiagram {
     | ClassBody
     | ErBody
     | { kind: 'opaque'; family: DiagramKind; source: string }
-  readonly canonicalSource: string   // LOAD-BEARING round-trip pillar
+  readonly canonicalSource: string   // normalized renderer input; opaque fidelity uses body.source
 }
 
 type FlowchartValidDiagram = ValidDiagram & { body: { kind: 'flowchart'; graph: FlowchartGraph } }
@@ -133,16 +148,17 @@ declare const mermaid: {
   mutate(d: ErValidDiagram,        op: ErMutationOp):        Result<ErValidDiagram, { code: string; message: string }>
   verifyMermaid(input: ValidDiagram | string, opts?: { suppress?: WarningCode[]; labelCharCap?: number }): VerifyResult
   serializeMermaid(d: ValidDiagram): string
-  renderMermaidSVG(input: ValidDiagram | string): string
-  renderMermaidASCII(input: ValidDiagram | string): string
+  renderMermaidSVG(input: ValidDiagram | string, opts?: { security?: 'default' | 'strict'; idPrefix?: string; mermaidConfig?: MermaidRuntimeConfig }): string
+  renderMermaidASCII(input: ValidDiagram | string, opts?: { useAscii?: boolean; mermaidConfig?: MermaidRuntimeConfig }): string
 }
 
 // Conventions:
-// 1. verifyMermaid after every batch of mutations; inspect ok/warnings before
-//    serializeMermaid. On failure, revert or try a different operation.
+// 1. verifyMermaid after every batch of mutations; inspect ok/warnings/layout
+//    before serializeMermaid. On failure, revert or try a different operation.
 // 2. Never concatenate Mermaid source — use mutate() + serializeMermaid().
 // 3. mutate works on flowchart/state, simple sequence, timeline, class, and ER.
 //    Narrow via asFlowchart/asSequence/asTimeline/asClass/asEr. Opaque-fallback
-//    diagrams return null from narrowers — edit canonicalSource.
+//    diagrams return null from narrowers — use source-level edits only when the
+//    task explicitly asks for them, then re-parse and verify.
 // 4. Layout is deterministic; there is no seed.
 `

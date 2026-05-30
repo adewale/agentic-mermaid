@@ -26,9 +26,10 @@ export type DiagramRef = number | string
 export type SdkCall =
   | { verb: 'parse'; diagram?: DiagramRef; source?: string }
   | { verb: 'narrow'; family: 'flowchart' | 'sequence' | 'timeline' | 'class' | 'er'; input?: DiagramRef; ok: boolean }
-  | { verb: 'mutate'; body: 'flowchart' | 'sequence' | 'timeline' | 'class' | 'er' | 'opaque'; input?: DiagramRef; output?: DiagramRef; opKind?: string }
-  | { verb: 'verify'; diagram?: DiagramRef; ok?: boolean; inspected?: boolean }
-  | { verb: 'serialize'; diagram?: DiagramRef; source?: string }
+  | { verb: 'mutate'; body: 'flowchart' | 'sequence' | 'timeline' | 'class' | 'er' | 'opaque'; input?: DiagramRef; output?: DiagramRef; opKind?: string; fingerprint?: string }
+  | { verb: 'verify'; diagram?: DiagramRef; ok?: boolean; inspected?: boolean; fingerprint?: string }
+  | { verb: 'verify_inspect'; diagram?: DiagramRef; property: 'ok' | 'warnings' | 'layout' }
+  | { verb: 'serialize'; diagram?: DiagramRef; source?: string; fingerprint?: string }
   | { verb: 'string_concat' }   // the agent built source by hand
   | { verb: 'regenerate' }      // the agent re-emitted whole source from scratch
 
@@ -38,49 +39,86 @@ export interface AntiPattern { code: string; message: string; at: number }
  * Inspect a trace of SDK calls for the anti-patterns Instructions_for_agents.md
  * names. Diagram ids are optional for hand-authored traces, but real sandbox
  * traces include them so we can catch verify(d0) → serialize(d1) drift.
+ *
+ * A successful verify clears a mutated diagram only after the agent has
+ * inspected that verify result (`ok`, `warnings`, or `layout`) before the
+ * subsequent serialize call. This catches subtle `return { source:
+ * serialize(d), verify }` patterns where JSON serialization observes the
+ * verify object after the commit point.
  */
 export function lintAgentTrace(trace: SdkCall[]): AntiPattern[] {
   const out: AntiPattern[] = []
   let genericMutatedSinceVerify = false
   const dirty = new Set<DiagramRef>()
   const failedVerify = new Set<DiagramRef>()
+  const cleanFingerprint = new Map<DiagramRef, string | undefined>()
+  const verifies: Array<{ index: number; diagram?: DiagramRef; ok?: boolean; inspected: boolean; fingerprint?: string }> = []
 
+  const sameDiagram = (a: DiagramRef | undefined, b: DiagramRef | undefined): boolean => {
+    if (a === undefined || b === undefined) return true
+    return a === b
+  }
   const markDirty = (id: DiagramRef | undefined) => {
     genericMutatedSinceVerify = true
-    if (id !== undefined) dirty.add(id)
+    if (id !== undefined) {
+      dirty.add(id)
+      cleanFingerprint.delete(id)
+    }
   }
-  const markVerified = (id: DiagramRef | undefined) => {
+  const markVerified = (id: DiagramRef | undefined, fingerprint?: string) => {
     genericMutatedSinceVerify = false
-    if (id !== undefined) dirty.delete(id)
+    if (id !== undefined) {
+      dirty.delete(id)
+      failedVerify.delete(id)
+      cleanFingerprint.set(id, fingerprint)
+    }
+  }
+  const inspectVerify = (i: number, diagram: DiagramRef | undefined) => {
+    for (let j = verifies.length - 1; j >= 0; j--) {
+      const v = verifies[j]!
+      if (v.index >= i) continue
+      if (!sameDiagram(v.diagram, diagram)) continue
+      v.inspected = true
+      if (v.ok !== false) markVerified(v.diagram, v.fingerprint)
+      return
+    }
   }
 
   for (let i = 0; i < trace.length; i++) {
     const c = trace[i]!
     if (c.verb === 'mutate') {
       markDirty(c.output)
-      if (c.body === 'opaque') out.push({ code: 'MUTATE_ON_OPAQUE', message: 'mutate called on an opaque body; edit canonicalSource instead', at: i })
+      if (c.body === 'opaque') out.push({ code: 'MUTATE_ON_OPAQUE', message: 'mutate called on an opaque body; edit preserved body.source instead, then re-parse and verify', at: i })
     } else if (c.verb === 'verify') {
-      if (c.inspected === false) {
-        out.push({ code: 'VERIFY_NOT_INSPECTED', message: 'verify result was produced but ok/warnings/layout were not inspected', at: i })
-      }
+      const inspected = c.inspected === true || c.inspected === undefined
+      verifies.push({ index: i, diagram: c.diagram, ok: c.ok, inspected, fingerprint: c.fingerprint })
       if (c.ok === false) {
         if (c.diagram !== undefined) failedVerify.add(c.diagram)
         // A failed verify is not a commit clearance.
-      } else {
-        markVerified(c.diagram)
+      } else if (inspected) {
+        markVerified(c.diagram, c.fingerprint)
       }
+    } else if (c.verb === 'verify_inspect') {
+      inspectVerify(i, c.diagram)
     } else if (c.verb === 'serialize') {
       if (c.diagram !== undefined && failedVerify.has(c.diagram)) {
         out.push({ code: 'SERIALIZE_AFTER_FAILED_VERIFY', message: 'serialize after verify(ok:false); revert or repair before emitting source', at: i })
       }
-      if (genericMutatedSinceVerify || (c.diagram !== undefined && dirty.has(c.diagram))) {
-        out.push({ code: 'SERIALIZE_WITHOUT_VERIFY', message: 'serialize after mutate with no inspected successful verify for the same diagram', at: i })
+      const fingerprintDrifted = c.diagram !== undefined
+        && c.fingerprint !== undefined
+        && cleanFingerprint.has(c.diagram)
+        && cleanFingerprint.get(c.diagram) !== c.fingerprint
+      if (genericMutatedSinceVerify || (c.diagram !== undefined && dirty.has(c.diagram)) || fingerprintDrifted) {
+        out.push({ code: 'SERIALIZE_WITHOUT_VERIFY', message: 'serialize after mutate with no inspected successful verify for the same diagram state', at: i })
       }
     } else if (c.verb === 'string_concat') {
       out.push({ code: 'STRING_CONCAT', message: 'building Mermaid source by string concatenation instead of mutate', at: i })
     } else if (c.verb === 'regenerate') {
       out.push({ code: 'REGENERATE', message: 'regenerating whole source instead of mutating (defeats round-trip)', at: i })
     }
+  }
+  for (const v of verifies) {
+    if (!v.inspected) out.push({ code: 'VERIFY_NOT_INSPECTED', message: 'verify result was produced but ok/warnings/layout was never inspected', at: v.index })
   }
   return out
 }
@@ -125,7 +163,7 @@ export function scenarioAddNode(): ScenarioResult {
 
 /**
  * Scenario: a sequence with alt/loop falls back to opaque. The CORRECT agent
- * behavior is to see asSequence() return null and edit source directly.
+ * behavior is to see asSequence() return null and avoid structured mutation.
  */
 export function scenarioOpaqueRefusal(): ScenarioResult {
   const trace: SdkCall[] = []
@@ -135,7 +173,7 @@ export function scenarioOpaqueRefusal(): ScenarioResult {
   return {
     name: 'opaque_refusal',
     ok: refused,
-    detail: refused ? 'opaque body correctly returns null from asSequence; agent edits canonicalSource' : 'expected opaque fallback + null narrower',
+    detail: refused ? 'opaque body correctly returns null from asSequence; agent avoids structured mutation' : 'expected opaque fallback + null narrower',
     trace,
   }
 }
@@ -167,7 +205,9 @@ export function scenarioTimelineMutation(): ScenarioResult {
   const v = verifyMermaid(d1.value); trace.push({ verb: 'verify', diagram: 'd1', ok: v.ok, inspected: true })
   if (!v.ok) return { name: 'timeline_mutation', ok: false, detail: 'verify reported errors', trace }
   const out = serializeMermaid(d1.value); trace.push({ verb: 'serialize', diagram: 'd1' })
-  const ok = out.includes('Beta')
+  const round = parseMermaid(out)
+  const body = round.ok ? asTimeline(round.value)?.body : undefined
+  const ok = Boolean(body?.sections.some(s => s.periods.some(p => p.events.some(e => e.text === 'Beta'))))
   return { name: 'timeline_mutation', ok, detail: ok ? 'timeline mutation serialized' : 'serialized timeline missing event', trace }
 }
 
@@ -182,7 +222,10 @@ export function scenarioClassMutation(): ScenarioResult {
   const v = verifyMermaid(d1.value); trace.push({ verb: 'verify', diagram: 'd1', ok: v.ok, inspected: true })
   if (!v.ok) return { name: 'class_mutation', ok: false, detail: 'verify reported errors', trace }
   const out = serializeMermaid(d1.value); trace.push({ verb: 'serialize', diagram: 'd1' })
-  const ok = out.includes('Duck') && out.includes('+quack()')
+  const round = parseMermaid(out)
+  const body = round.ok ? asClass(round.value)?.body : undefined
+  const duck = body?.classes.find(c => c.id === 'Duck')
+  const ok = Boolean(duck?.members.includes('+quack()'))
   return { name: 'class_mutation', ok, detail: ok ? 'class mutation serialized' : 'serialized class diagram missing class/member', trace }
 }
 
@@ -197,7 +240,10 @@ export function scenarioErMutation(): ScenarioResult {
   const v = verifyMermaid(d1.value); trace.push({ verb: 'verify', diagram: 'd1', ok: v.ok, inspected: true })
   if (!v.ok) return { name: 'er_mutation', ok: false, detail: 'verify reported errors', trace }
   const out = serializeMermaid(d1.value); trace.push({ verb: 'serialize', diagram: 'd1' })
-  const ok = out.includes('ORDER') && out.includes('string id')
+  const round = parseMermaid(out)
+  const body = round.ok ? asEr(round.value)?.body : undefined
+  const order = body?.entities.find(e => e.id === 'ORDER')
+  const ok = Boolean(order?.attributes.some(a => a.text === 'string id'))
   return { name: 'er_mutation', ok, detail: ok ? 'ER mutation serialized' : 'serialized ER diagram missing entity/attribute', trace }
 }
 

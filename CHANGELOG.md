@@ -12,7 +12,7 @@ This changelog tracks user-facing changes in the `adewale/beautiful-mermaid` for
   - `serializeMermaid` / `synthesizeFromGraph` → round-trip back to canonical Mermaid source.
   - Deterministic layout JSON, verified byte-identical across processes (ELK is configured for model-order layout; there is no seed).
 - **`am` CLI**: `render`, `verify`, `parse`, `serialize`, `mutate` (verify-before-emit), `format`, `describe`, `capabilities`, `batch`, `render-markdown`, `llms-txt`, `--json`, per-command `--help`, and `--agent-instructions`.
-- **`agentic-mermaid-mcp`**: a Code Mode MCP server (one `execute` tool, `node:vm` sandbox) so agents compose the whole verify-after-mutate loop in one round-trip.
+- **`agentic-mermaid-mcp`**: a Code Mode MCP server (one JavaScript `execute` tool, `node:vm` sandbox, typed SDK declaration) so agents compose the whole verify-after-mutate loop in one round-trip.
 - **`Instructions_for_agents.md`** and a Claude Code skill bundle at `.claude/skills/agentic-mermaid/`.
 - See [`AGENT_NATIVE.md`](./AGENT_NATIVE.md) for the design and [`examples/agent-loop.ts`](./examples/agent-loop.ts) for a runnable walkthrough.
 - Live editor deployment on GitHub Pages at <https://adewale.github.io/beautiful-mermaid/editor>.
@@ -37,12 +37,14 @@ This changelog tracks user-facing changes in the `adewale/beautiful-mermaid` for
 - Homepage rendering yields between sample batches to keep the page responsive while the full gallery renders.
 - Editor empty state now includes quick starter chips for Flowchart, Sequence, and Role styled examples.
 - Example rows now include compact diagram-family glyphs for faster scanning.
+- Agent-facing Code Mode examples are executable JavaScript snippets and the stored eval now checks ordered verify inspection before serialization.
 
 ### Fixed
 - TypeScript CI failures in journey style padding and optional node corner-radius resolution.
 - Editor export actions are disabled until a diagram exists and parser errors now include recovery-oriented copy.
 - Editor menus, sidebar, and theme controls now close with Escape and expose stronger ARIA/focus states.
 - Removed layout-property sidebar animation in favor of opacity/transform-based motion.
+- CLI/docs drift for `am describe`: the command now emits prose or AX-tree JSON and is covered by e2e tests.
 
 ## Fork baseline before this changelog
 

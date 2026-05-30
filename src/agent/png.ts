@@ -24,6 +24,7 @@ import { join, dirname } from 'node:path'
 import { existsSync } from 'node:fs'
 import { Resvg } from '@resvg/resvg-js'
 import type { ValidDiagram } from './types.ts'
+import { serializeMermaid } from './serialize.ts'
 import { renderMermaidSVG } from '../index.ts'
 
 export interface PngOptions {
@@ -71,7 +72,7 @@ export function renderMermaidPNG(input: ValidDiagram | string, opts: PngOptions 
   // SVG input: embedFontImport=false so resvg doesn't try to fetch from
   // Google Fonts during rasterization. CSS-variable fonts (Loop 8 M2) means
   // the SVG still declares its font-family preference via --font.
-  const source = typeof input === 'string' ? input : input.canonicalSource
+  const source = typeof input === 'string' ? input : serializeMermaid(input)
   const svg = renderMermaidSVG(source, { embedFontImport: false })
 
   const scale = opts.scale ?? 2

@@ -1,4 +1,4 @@
-// agentic-mermaid Code Mode MCP server (stdio, JSON-RPC 2.0). One tool: execute.
+// agentic-mermaid Code Mode MCP server (stdio, JSON-RPC 2.0). Primary tool: execute.
 
 import { executeInSandbox } from './sandbox.ts'
 import { SDK_DECLARATION } from './sdk-decl.ts'
@@ -14,16 +14,18 @@ const PROTOCOL_VERSION = '2024-11-05'
 const TOOLS = [
   {
     name: 'execute',
-    description: `Run TypeScript against the mermaid SDK in a sandboxed node:vm context.
-Code runs as an async arrow body — return the final value. Multi-step diagram
-edits should be one execute() call.
+    description: `Run synchronous JavaScript against the mermaid SDK in a sandboxed node:vm context.
+Code runs as an expression or statement body — return the final value. Promise jobs,
+async/await, and dynamic import are not supported.
+Multi-step diagram edits should be one execute() call. The SDK declaration is
+TypeScript-shaped for guidance; the sandbox does not transpile type annotations.
 
 SDK declaration:
 ${SDK_DECLARATION}`,
     inputSchema: {
       type: 'object',
       properties: {
-        code: { type: 'string', description: 'TypeScript to execute; mermaid.* SDK is global.' },
+        code: { type: 'string', description: 'JavaScript to execute; mermaid.* SDK is global.' },
         timeoutMs: { type: 'number', description: 'Optional hard timeout (default 5000ms).' },
       },
       required: ['code'],
@@ -69,7 +71,7 @@ export async function handleRequest(req: JsonRpcRequest): Promise<JsonRpcRespons
         protocolVersion: PROTOCOL_VERSION,
         serverInfo: { name: SERVER_NAME, version: SERVER_VERSION },
         capabilities: { tools: {} },
-        instructions: 'agentic-mermaid Code Mode server. One tool, execute, runs TS against the typed mermaid.* SDK in a sandbox. mutate is overloaded by family; narrow via asFlowchart/asSequence/asTimeline/asClass/asEr. Layout is deterministic; there is no seed.',
+        instructions: 'agentic-mermaid Code Mode server. Primary tool execute runs synchronous JavaScript against the typed mermaid.* SDK in a sandbox; async/await and Promise jobs are not supported. render_png and describe are narrow helpers. mutate is overloaded by family; narrow via asFlowchart/asSequence/asTimeline/asClass/asEr. Layout is deterministic; there is no seed.',
       })
     case 'notifications/initialized': return null
     case 'ping': return reply(id, {})

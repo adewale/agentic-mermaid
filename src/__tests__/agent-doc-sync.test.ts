@@ -1,12 +1,16 @@
 // Doc-sync + no-tautology guards.
 
 import { describe, test, expect } from 'bun:test'
-import { readFileSync, existsSync } from 'node:fs'
+import { readFileSync, existsSync, readdirSync } from 'node:fs'
+import { spawnSync } from 'node:child_process'
 import { join } from 'node:path'
 import { AGENT_INSTRUCTIONS } from '../cli/agent-instructions.ts'
 import { MUTATION_OPS_BY_FAMILY, buildCapabilities } from '../cli/index.ts'
 import { SDK_DECLARATION } from '../mcp/sdk-decl.ts'
 import { WARNING_SEVERITY, WARNING_TIER } from '../agent/types.ts'
+import { THEMES } from '../theme.ts'
+import { executeInSandbox } from '../mcp/sandbox.ts'
+import { lintAgentTrace, type SdkCall } from '../../eval/agent-usage/harness.ts'
 
 const REPO = join(import.meta.dir, '..', '..')
 
@@ -31,6 +35,33 @@ describe('Instructions_for_agents.md', () => {
         const prior = lines.slice(Math.max(0, i - 5), i).join('\n')
         expect({ line: lines[i], prior }).toMatchObject({ prior: expect.stringContaining('verifyMermaid(') })
       }
+    }
+  })
+
+  test('quick-start Code Mode snippets execute and lint clean', async () => {
+    const guide = readFileSync(join(REPO, 'Instructions_for_agents.md'), 'utf8')
+    const snippets = Array.from(guide.matchAll(/```ts\n([\s\S]*?)\n```/g)).map(m => m[1]!)
+    for (const snippet of snippets) {
+      const r = await executeInSandbox(snippet, { trace: true })
+      expect({ ok: r.ok, error: r.error }).toEqual({ ok: true, error: undefined })
+      expect(lintAgentTrace(r.trace as SdkCall[])).toEqual([])
+    }
+  })
+})
+
+function tsCodeBlocks(path: string): string[] {
+  const text = readFileSync(path, 'utf8')
+  return Array.from(text.matchAll(/```ts\n([\s\S]*?)\n```/g)).map(m => m[1]!)
+}
+
+describe('agent-facing runnable docs', () => {
+  test('Claude Code Mode skill snippets execute and lint clean', async () => {
+    const snippets = tsCodeBlocks(join(REPO, '.claude/skills/agentic-mermaid/references/code-mode.md'))
+    expect(snippets.length).toBeGreaterThan(0)
+    for (const snippet of snippets) {
+      const r = await executeInSandbox(snippet, { trace: true })
+      expect({ ok: r.ok, error: r.error }).toEqual({ ok: true, error: undefined })
+      expect(lintAgentTrace(r.trace as SdkCall[])).toEqual([])
     }
   })
 })
@@ -70,12 +101,60 @@ describe('vocabulary doc-sync', () => {
   })
 })
 
+describe('root docs consistency', () => {
+  test('TODO.md is the only root markdown file with unchecked backlog boxes', () => {
+    for (const name of readdirSync(REPO).filter(f => f.endsWith('.md'))) {
+      const text = readFileSync(join(REPO, name), 'utf8')
+      if (name === 'TODO.md') {
+        expect(text).toMatch(/^- \[ \]/m)
+      } else {
+        expect({ file: name, hasUnchecked: /^- \[ \]/m.test(text) }).toEqual({ file: name, hasUnchecked: false })
+      }
+    }
+  })
+
+  test('removed backlog/agent guide names do not reappear in markdown', () => {
+    expect(existsSync(join(REPO, 'ROADMAP.md'))).toBe(false)
+    expect(existsSync(join(REPO, 'AGENT_TODO.md'))).toBe(false)
+    expect(existsSync(join(REPO, 'AGENTS.md'))).toBe(false)
+    for (const name of readdirSync(REPO).filter(f => f.endsWith('.md'))) {
+      const text = readFileSync(join(REPO, name), 'utf8')
+      expect({ file: name, stale: /\b(?:ROADMAP|AGENT_TODO|AGENTS\.md)\b/.test(text) }).toEqual({ file: name, stale: false })
+    }
+  })
+
+  test('advertised CLI verbs have help entries', () => {
+    const commands = ['render', 'verify', 'parse', 'serialize', 'mutate', 'format', 'describe', 'capabilities', 'batch', 'render-markdown', 'llms-txt']
+    for (const command of commands) {
+      const r = spawnSync('bun', ['run', join(REPO, 'bin/am.ts'), command, '--help'], { encoding: 'utf8' })
+      expect({ command, status: r.status, stderr: r.stderr }).toEqual({ command, status: 0, stderr: '' })
+      expect(r.stdout).toContain(`am ${command}`)
+    }
+  })
+
+  test('README theme and RenderOptions inventory matches public surface', () => {
+    const readme = readFileSync(join(REPO, 'README.md'), 'utf8')
+    const themeNames = Object.keys(THEMES)
+    expect(readme).toContain(`${themeNames.length} built-in themes`)
+    for (const name of themeNames) expect(readme).toContain(`\`${name}\``)
+    for (const option of ['shadow', 'embedFontImport', 'compact', 'idPrefix', 'security']) {
+      expect(readme).toContain(`\`${option}\``)
+    }
+    expect(readme).not.toContain('`thoroughness`')
+  })
+})
+
 describe('spec honesty', () => {
   test('spec no longer claims a seed drives layout', () => {
     const spec = readFileSync(join(REPO, 'AGENT_NATIVE.md'), 'utf8')
     // The withSeededRandom apparatus is gone; spec should say determinism is structural.
     expect(spec).not.toContain('withSeededRandom(ctx.rng, fn)')
     expect(spec.toLowerCase()).toContain('there is no seed')
+  })
+
+  test('spec does not expose removed VerifyOptions layoutContext API', () => {
+    const spec = readFileSync(join(REPO, 'AGENT_NATIVE.md'), 'utf8')
+    expect(spec).not.toContain('layoutContext?: LayoutContext')
   })
 })
 
@@ -128,5 +207,13 @@ describe('shipped distribution artifacts present', () => {
     expect(existsSync(join(REPO, '.claude/skills/agentic-mermaid/SKILL.md'))).toBe(true)
     expect(existsSync(join(REPO, '.github/workflows/sync-mermaid-docs.yml'))).toBe(true)
     expect(existsSync(join(REPO, 'examples/agent-loop.ts'))).toBe(true)
+  })
+
+  test('npm package includes bundled PNG fonts documented for deterministic output', () => {
+    const pkg = JSON.parse(readFileSync(join(REPO, 'package.json'), 'utf8'))
+    expect(pkg.files).toContain('assets/fonts/')
+    for (const doc of ['FEATURES.md', 'TODO.md', 'QUALITY.md', 'SECURITY.md']) expect(pkg.files).toContain(doc)
+    expect(existsSync(join(REPO, 'assets/fonts/DejaVuSans.ttf'))).toBe(true)
+    expect(existsSync(join(REPO, 'assets/fonts/DejaVuSans-Bold.ttf'))).toBe(true)
   })
 })

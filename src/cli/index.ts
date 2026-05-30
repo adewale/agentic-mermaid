@@ -8,7 +8,7 @@ import { serializeMermaid, synthesizeFromGraph } from '../agent/serialize.ts'
 import { mutate } from '../agent/mutate.ts'
 import { verifyMermaid } from '../agent/verify.ts'
 import { renderMermaidSVG, renderMermaidASCII, layoutMermaid } from '../agent/index.ts'
-import { describeMermaidSource } from '../agent/describe.ts'
+import { describeMermaid } from '../agent/describe.ts'
 import { collectBatched } from '../shared/batched.ts'
 import { asFlowchart, asSequence, asTimeline, asClass, asEr } from '../agent/types.ts'
 import type {
@@ -37,6 +37,8 @@ function parseErrorEnvelope(errors: ParseError[]): { ok: false; error: { code: s
 
 interface ParsedArgs { command?: string; positional: string[]; flags: Record<string, string | boolean> }
 
+const BOOLEAN_FLAGS = new Set(['agent-instructions', 'ascii', 'help', 'json', 'watch'])
+
 function parseArgs(argv: string[]): ParsedArgs {
   const out: ParsedArgs = { positional: [], flags: {} }
   let i = 0
@@ -46,9 +48,10 @@ function parseArgs(argv: string[]): ParsedArgs {
       const eq = arg.indexOf('=')
       if (eq !== -1) out.flags[arg.slice(2, eq)] = arg.slice(eq + 1)
       else {
+        const name = arg.slice(2)
         const next = argv[i + 1]
-        if (next === undefined || next.startsWith('--')) out.flags[arg.slice(2)] = true
-        else { out.flags[arg.slice(2)] = next; i++ }
+        if (BOOLEAN_FLAGS.has(name) || next === undefined || next.startsWith('--')) out.flags[name] = true
+        else { out.flags[name] = next; i++ }
       }
     } else if (!out.command) out.command = arg
     else out.positional.push(arg)
@@ -80,12 +83,15 @@ Commands:
   serialize              Read ValidDiagram JSON from stdin; emit canonical source
   mutate <file|-> --op '<JSON>'  Apply one MutationOp; verify + emit source
   format <file|->        Idempotent reformat
+  describe <file|->      Prose summary or AX-tree JSON
   capabilities           Emit JSON describing families + warning codes + mutation ops
   batch                  Read JSONL ops from stdin; emit one JSON envelope per line
+  render-markdown <file> Render fenced mermaid blocks in Markdown (SVG or --ascii)
+  llms-txt               Emit the agent discovery digest
 
 Flags:
   --json                 Structured JSON output
-  --ascii                For render: ASCII instead of SVG
+  --ascii                For render/render-markdown: ASCII instead of SVG
   --op <JSON>            For mutate: the MutationOp
   --suppress <CODES>     For verify: comma-separated WarningCodes to suppress
   --label-cap <N>        For verify: LABEL_OVERFLOW char cap (default 40)
@@ -106,7 +112,10 @@ Render a diagram. Default is SVG.
   --format ascii    7-bit ASCII art (also via --ascii)
   --format unicode  Unicode box-drawing ASCII art
   --format json     Layout JSON (nodes, edges, groups, bounds)
-  --format png      PNG bytes; requires -o <file.png>
+  --format png      PNG bytes; requires --output <file.png>; no watch/multi-input
+  --security strict Remove external-fetch refs from SVG output
+  --watch           Re-render one input file on change (non-PNG only)
+Multiple inputs emit a JSON results array for non-PNG formats.
 With --json, the svg/ascii/unicode forms wrap output as {"<format>": "..."}.`,
   verify: `am verify <file|-> [--suppress A,B] [--label-cap N]
 Always emits JSON: {ok, warnings[], layout}. Tier-1 error codes flip ok=false:
@@ -126,6 +135,10 @@ journey, xychart, architecture, and opaque-fallback diagrams return a
 structured UNSUPPORTED_FAMILY error (exit 2). Verify failures exit 3.`,
   format: `am format <file|->
 Parse then re-serialize to canonical form. Idempotent.`,
+  describe: `am describe <file|-> [--format text|json] [--json]
+Summarize a Mermaid diagram. Text format emits prose by default; --json wraps
+it as {ok,text}. --format json emits the structured AX tree
+{kind,nodes,edges,entryPoints,sinks}; with --json it wraps as {ok,tree}.`,
   capabilities: `am capabilities [--json]
 Emits a single JSON object describing the SDK's capability surface:
   { sdkVersion, families: [{ id, hasParse, hasSerialize, hasMutate,
@@ -138,11 +151,17 @@ Each line: { op: "render"|"verify"|"parse"|"serialize", source: string,
 options?: {} }. Emits one JSON envelope per line: { ok, op, data?, error? }.
 Malformed JSON or unknown ops surface as ok:false with an error code; the
 batch continues. Process exit code is 0 even if individual lines errored.`,
+  'render-markdown': `am render-markdown <file.md> [--ascii]
+Render fenced \`\`\`mermaid blocks. Bad diagrams yield ok:false entries and do
+not abort the rest of the Markdown file.`,
+  'llms-txt': `am llms-txt
+Emit the committed agent-discovery digest generated from current capabilities.`,
 }
 
 export function runCli(argv: string[]): number {
   const args = parseArgs(argv)
   if (args.flags['agent-instructions']) { process.stdout.write(AGENT_INSTRUCTIONS); return EXIT_OK }
+  if (args.flags.help && !args.command) { process.stdout.write(GLOBAL_USAGE); return EXIT_OK }
   if (!args.command) { process.stdout.write(GLOBAL_USAGE); return EXIT_ARG_ERROR }
   if (args.flags.help) {
     process.stdout.write((COMMAND_HELP[args.command] ?? GLOBAL_USAGE) + '\n')
@@ -157,6 +176,7 @@ export function runCli(argv: string[]): number {
       case 'serialize': return cmdSerialize()
       case 'mutate': return cmdMutate(args, json)
       case 'format': return cmdFormat(args)
+      case 'describe': return cmdDescribe(args, json)
       case 'capabilities': return cmdCapabilities()
       case 'llms-txt': return cmdLlmsTxt()
       case 'batch': return cmdBatch()
@@ -179,19 +199,41 @@ export function runCli(argv: string[]): number {
 
 function cmdRender(args: ParsedArgs, json: boolean): number {
   const format = typeof args.flags.format === 'string' ? args.flags.format : (args.flags.ascii ? 'ascii' : 'svg')
+  const security = args.flags.security === 'strict' ? 'strict' as const : 'default' as const
+  if (!['svg', 'ascii', 'unicode', 'json', 'png'].includes(format)) {
+    process.stderr.write(`am render: unsupported --format ${format}; expected svg, ascii, unicode, json, or png\n`)
+    return EXIT_ARG_ERROR
+  }
+  if (args.flags.security !== undefined && args.flags.security !== 'strict') {
+    process.stderr.write('am render --security accepts only strict\n')
+    return EXIT_ARG_ERROR
+  }
+  if (args.flags.watch && args.positional.length > 1) {
+    process.stderr.write('am render --watch accepts exactly one input file\n')
+    return EXIT_ARG_ERROR
+  }
+
+  if (args.positional.length > 1 && format === 'png') {
+    process.stderr.write('am render --format png accepts exactly one input; run once per file with a distinct --output path\n')
+    return EXIT_ARG_ERROR
+  }
 
   // #959: multi-input — when more than one positional file is given, render
   // each and emit a JSON array of results, skipping bad files (like #543).
-  // Single-input keeps the existing single-output behavior.
-  if (args.positional.length > 1 && format !== 'png') {
+  // Single-input keeps the existing single-output behavior. PNG is excluded
+  // because it writes bytes to a single --output path.
+  if (args.positional.length > 1) {
     const results = args.positional.map((file, index) => {
       try {
         const src = readSourceArg(file)
-        const output = format === 'svg' ? renderMermaidSVG(src)
-          : renderMermaidASCII(src, { useAscii: format === 'ascii' })
+        const output = renderMultiInputOnce(src, format, { security })
         return { index, file, ok: true, output }
       } catch (e) {
-        return { index, file, ok: false, error: { code: 'RENDER_FAILED', message: (e as Error).message } }
+        const parseEnvelope = e as { ok?: false; error?: { code?: string; message?: string; details?: unknown } }
+        if (parseEnvelope?.ok === false && parseEnvelope.error?.code === 'PARSE_FAILED') {
+          return { index, file, ok: false, error: parseEnvelope.error }
+        }
+        return { index, file, ok: false, error: { code: 'RENDER_FAILED', message: e instanceof Error ? e.message : String(e) } }
       }
     })
     process.stdout.write(JSON.stringify({ ok: true, files: results }) + '\n')
@@ -199,16 +241,25 @@ function cmdRender(args: ParsedArgs, json: boolean): number {
   }
 
   // #930: watch mode — re-render on file change.
+  if (args.flags.watch && format === 'png') {
+    process.stderr.write('am render --format png does not support --watch; run non-watch PNG renders with --output <file.png>\n')
+    return EXIT_ARG_ERROR
+  }
   if (args.flags.watch && typeof args.positional[0] === 'string' && args.positional[0] !== '-') {
-    return cmdRenderWatch(args.positional[0], format, args, json)
+    return cmdRenderWatch(args.positional[0], format, args, json, { security })
   }
 
   const source = readSourceArg(args.positional[0])
+  const parsed = parseMermaid(source)
+  if (!parsed.ok) {
+    process.stdout.write(JSON.stringify(parseErrorEnvelope(parsed.error)) + '\n')
+    return EXIT_ARG_ERROR
+  }
 
   if (format === 'png') {
     const outFile = typeof args.flags.o === 'string' ? args.flags.o : (typeof args.flags.output === 'string' ? args.flags.output : '')
     if (!outFile) {
-      process.stderr.write('am render --format png requires -o <file.png> (PNG bytes corrupt terminals if piped to stdout)\n')
+      process.stderr.write('am render --format png requires --output <file.png> (PNG bytes corrupt terminals if piped to stdout)\n')
       return EXIT_ARG_ERROR
     }
     const scale = typeof args.flags.scale === 'string' ? Number(args.flags.scale) : 2
@@ -221,11 +272,6 @@ function cmdRender(args: ParsedArgs, json: boolean): number {
   if (format === 'json') {
     // Loop 9 M3 — structured layout JSON. parseMermaid → layoutMermaid →
     // emit nodes/edges/groups/bounds with stable key ordering.
-    const parsed = parseMermaid(source)
-    if (!parsed.ok) {
-      process.stdout.write(JSON.stringify(parseErrorEnvelope(parsed.error)) + '\n')
-      return EXIT_ARG_ERROR
-    }
     const layout = layoutMermaid(parsed.value)
     process.stdout.write(JSON.stringify(layout) + '\n')
     return EXIT_OK
@@ -238,10 +284,19 @@ function cmdRender(args: ParsedArgs, json: boolean): number {
     return EXIT_OK
   }
   // #7645/#7695: `--security strict` → no external-fetch refs in the SVG.
-  const security = args.flags.security === 'strict' ? 'strict' as const : 'default' as const
   const svg = renderMermaidSVG(source, { security })
   process.stdout.write(json ? JSON.stringify({ svg }) + '\n' : (svg.endsWith('\n') ? svg : svg + '\n'))
   return EXIT_OK
+}
+
+function renderMultiInputOnce(source: string, format: string, opts: { security?: 'default' | 'strict' } = {}): unknown {
+  if (format === 'svg') return renderMermaidSVG(source, { security: opts.security })
+  if (format === 'json') {
+    const parsed = parseMermaid(source)
+    if (!parsed.ok) throw parseErrorEnvelope(parsed.error)
+    return layoutMermaid(parsed.value)
+  }
+  return renderMermaidASCII(source, { useAscii: format === 'ascii' })
 }
 
 /**
@@ -249,22 +304,22 @@ function cmdRender(args: ParsedArgs, json: boolean): number {
  * requested format, returns the output string. Extracted so it's unit-testable
  * without fs.watch timing.
  */
-export function renderFileOnce(file: string, format: string): string {
+export function renderFileOnce(file: string, format: string, opts: { security?: 'default' | 'strict' } = {}): string {
   const src = readFileSync(file, 'utf8')
   if (format === 'ascii' || format === 'unicode') return renderMermaidASCII(src, { useAscii: format === 'ascii' })
   if (format === 'json') {
     const p = parseMermaid(src)
     return p.ok ? JSON.stringify(layoutMermaid(p.value)) : JSON.stringify(parseErrorEnvelope(p.error))
   }
-  return renderMermaidSVG(src)
+  return renderMermaidSVG(src, { security: opts.security })
 }
 
-function cmdRenderWatch(file: string, format: string, args: ParsedArgs, _json: boolean): number {
+function cmdRenderWatch(file: string, format: string, args: ParsedArgs, _json: boolean, opts: { security?: 'default' | 'strict' } = {}): number {
   const { watch } = require('node:fs') as typeof import('node:fs')
   const outFile = typeof args.flags.output === 'string' ? args.flags.output : ''
   const emit = () => {
     try {
-      const out = renderFileOnce(file, format)
+      const out = renderFileOnce(file, format, opts)
       if (outFile) { (require('node:fs') as typeof import('node:fs')).writeFileSync(outFile, out) ; process.stderr.write(`rendered → ${outFile}\n`) }
       else process.stdout.write(out + (out.endsWith('\n') ? '' : '\n'))
     } catch (e) { process.stderr.write(`render error: ${(e as Error).message}\n`) }
@@ -374,6 +429,26 @@ function cmdFormat(args: ParsedArgs): number {
   const r = parseMermaid(readSourceArg(args.positional[0]))
   if (!r.ok) { process.stderr.write(`format: parse failed: ${JSON.stringify(r.error)}\n`); return EXIT_ARG_ERROR }
   process.stdout.write(serializeMermaid(r.value))
+  return EXIT_OK
+}
+
+function cmdDescribe(args: ParsedArgs, json: boolean): number {
+  const source = readSourceArg(args.positional[0])
+  const format = args.flags.format === 'json' ? 'json' as const : 'text' as const
+  const parsed = parseMermaid(source)
+  if (!parsed.ok) {
+    const env = parseErrorEnvelope(parsed.error)
+    if (json || format === 'json') process.stdout.write(JSON.stringify(env) + '\n')
+    else process.stderr.write(`describe: parse failed: ${env.error.message}\n`)
+    return EXIT_ARG_ERROR
+  }
+  const described = describeMermaid(parsed.value, { format })
+  if (format === 'json') {
+    const tree = JSON.parse(described)
+    process.stdout.write(JSON.stringify(json ? { ok: true, tree } : tree) + '\n')
+    return EXIT_OK
+  }
+  process.stdout.write(json ? JSON.stringify({ ok: true, text: described }) + '\n' : described + '\n')
   return EXIT_OK
 }
 
@@ -489,7 +564,8 @@ haven't inspected.
 
 ## CLI verbs (\`am <verb>\`)
 
-- render --format ${formats} [--security strict] [--output file] — render a diagram
+- render --format svg, ascii, unicode, json [--security strict] — render a diagram
+- render --format png --output file.png — render one input to PNG (no PNG bytes on stdout, no multi-input/watch)
 - parse — diagram → ValidDiagram JSON
 - verify — structural validation (exit 3 if invalid)
 - mutate --op '<json>' — apply a typed mutation, verify, then emit source
@@ -497,15 +573,16 @@ haven't inspected.
 - describe [--format text|json] — natural-language or AX-tree summary
 - capabilities --json — machine-readable capability envelope incl. mutationOps
 - batch --jsonl — bulk ops, one JSON envelope per line
-- render-markdown <file.md> — render fenced mermaid blocks, skip invalid ones
+- render-markdown <file.md> [--ascii] — render fenced mermaid blocks, skip invalid ones
 - llms-txt — this document
 
 Exit codes: 0 ok, 2 arg error, 3 verify-failed, 4 internal.
 
 ## MCP tools
 
-Code Mode \`execute(code)\` (typed mermaid.* SDK in a node:vm sandbox) plus
-narrow helper tools: render_png and describe. render_png is offline.
+Code Mode \`execute(code)\` (JavaScript in a node:vm sandbox with a typed
+mermaid.* SDK declaration) plus narrow helper tools: render_png and describe.
+render_png is offline.
 
 ## Output formats
 
@@ -566,7 +643,7 @@ export function renderMarkdownBlocks(md: string, format: 'svg' | 'ascii' = 'svg'
   for (const m of md.matchAll(FENCE)) blocks.push(m[1]!)
   return collectBatched(blocks, (src, i): MarkdownBlockResult => {
     try {
-      const output = format === 'ascii' ? renderMermaidASCII(src) : renderMermaidSVG(src)
+      const output = format === 'ascii' ? renderMermaidASCII(src, { useAscii: true }) : renderMermaidSVG(src)
       return { index: i, ok: true, format, output }
     } catch (e) {
       return { index: i, ok: false, error: { code: 'RENDER_FAILED', message: (e as Error).message } }

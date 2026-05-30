@@ -35,8 +35,8 @@ or preserves source verbatim. Constructs are never silently dropped.
 
 ## Output formats
 
-- **SVG** — `renderMermaidSVG` (+ `--compact`, `--security strict`, CSS
-  variable fonts, `idPrefix` namespacing).
+- **SVG** — `renderMermaidSVG` (`compact`, `security:'strict'`, CSS
+  variable fonts, `idPrefix` namespacing). CLI exposes `--security strict`.
 - **ASCII / Unicode** — `renderMermaidASCII` (CJK/emoji width, FE0F/ZWJ,
   `maxWidth` wrapping, trunk-shared fanouts).
 - **PNG** — `renderMermaidPNG` (offline `@resvg/resvg-js`, bundled DejaVu,
@@ -74,17 +74,18 @@ or preserves source verbatim. Constructs are never silently dropped.
 
 ## CLI (`am`)
 
-`render` (svg/ascii/unicode/png/json, `--compact`, `--security strict`,
-`--output`, `--watch`, multi-input), `render-markdown` (skip bad blocks),
+`render` (svg/ascii/unicode/json with multi-input results; png uses one
+input plus `--output`; `--security strict`, `--watch`), `render-markdown` (skip bad blocks),
 `parse`, `verify`, `mutate`, `format`, `describe` (text/json),
 `capabilities --json` (including `families[].mutationOps`), `batch --jsonl`,
 `llms-txt`, `--agent-instructions`. `mutate` verifies before emitting source.
-Exit codes 0/2/3/4; structured `error.details`.
+Exit codes 0/2/3/4; parse and verify-failure errors include structured `error.details` arrays.
 
 ## MCP server
 
-Code Mode `execute(code)` (typed `mermaid.*` SDK in a `node:vm` sandbox),
-plus narrow helper tools: `render_png` and `describe`.
+Code Mode `execute(code)` (JavaScript in a `node:vm` sandbox with a typed
+`mermaid.*` SDK declaration), plus narrow helper tools: `render_png` and
+`describe`.
 
 ## Distribution
 
@@ -95,14 +96,16 @@ plus narrow helper tools: `render_png` and `describe`.
 
 ## Guarantees & evidence
 
-- **Determinism** — byte-identical across runs, processes, and runtimes
-  (bun ≡ node, x86_64) for SVG layout, PNG, and ASCII.
+- **Determinism** — byte-identical across repeated runs and processes for
+  SVG layout/ASCII; cross-runtime guards exist for bun ≡ node on x86_64 when
+  Node + built `dist/` artifacts are present. ARM parity remains in TODO.
 - **Corpus gates** — 247-sample mermaid-js docs corpus + 132-case
   MermaidSeqBench, gated in CI.
 - **Benchmarks** — `eval/benchmark/RESULTS.md` (measured vs mmdc, termaid).
 - **Agent-usage validation** — `eval/agent-usage/` scenarios,
   anti-pattern linter, sandbox trace instrumentation, and stored Code Mode eval runner.
-- **~1695 unit tests + 56 e2e tests**, tsc + build + lint clean.
+- **Unit, browser/e2e, typecheck, build, binary-build, eval, and lint gates**
+  are part of the verification contract.
 
 ## Not browser-dependent
 

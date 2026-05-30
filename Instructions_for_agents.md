@@ -4,39 +4,26 @@ This is the canonical agent-use guide. The same content is emitted by `am --agen
 
 ## Quick start
 
-The code below runs unchanged whether you import the library, call it inside Code Mode `execute()` (as an async arrow returning the final value), or compose its CLI equivalents. Prefer Code Mode or library import for multi-step edits; reach for the CLI for one-shot operations.
+Prefer Code Mode or library import for multi-step edits; use the CLI for one-shot operations. Code Mode exposes the SDK as global `mermaid.*`; library users import the same function names from `beautiful-mermaid/agent` and drop the prefix.
 
 ```ts
-import { parseMermaid, asFlowchart, asSequence, asTimeline, asClass, asEr, mutate, verifyMermaid, serializeMermaid } from 'beautiful-mermaid/agent'
-
-const d0 = parseMermaid(source)
+const source = 'flowchart TD\n  API --> DB'
+const d0 = mermaid.parseMermaid(source)
 if (!d0.ok) throw new Error('parse')
 
-const flow = asFlowchart(d0.value)
-if (flow) {
-  const d1 = mutate(flow, { kind: 'add_node', id: 'Cache', label: 'Cache' })
-  if (!d1.ok) throw new Error('mutate')
-  const flowVerify = verifyMermaid(d1.value)
-  if (!flowVerify.ok) throw new Error('verify')
-  return serializeMermaid(d1.value)
-}
+const flow = mermaid.asFlowchart(d0.value)
+if (!flow) return { phase: 'narrow', family: d0.value.kind }
 
-const seq = asSequence(d0.value)
-if (seq) {
-  const d1 = mutate(seq, { kind: 'add_message', from: 'Alice', to: 'Bob', text: 'Hi' })
-  if (!d1.ok) throw new Error('mutate')
-  const seqVerify = verifyMermaid(d1.value)
-  if (!seqVerify.ok) throw new Error('verify')
-  return serializeMermaid(d1.value)
-}
+const d1 = mermaid.mutate(flow, { kind: 'add_node', id: 'Cache', label: 'Cache' })
+if (!d1.ok) throw new Error('mutate')
 
-// asTimeline / asClass / asEr narrow to typed mutable bodies similarly.
+const verify = mermaid.verifyMermaid(d1.value)
+if (!verify.ok) return { phase: 'verify', warnings: verify.warnings }
 
-// journey / xychart / architecture, plus any opaque-fallback body
-// (e.g., a sequence diagram with notes/alt/loop/activate): edit
-// d0.value.canonicalSource as a string. The library never silently
-// drops constructs it does not model.
+return { source: mermaid.serializeMermaid(d1.value) }
 ```
+
+Use `asFlowchart` / `asSequence` / `asTimeline` / `asClass` / `asEr` before mutating. In Code Mode, SDK-returned diagrams are read-only; structured edits must go through `mermaid.mutate`. Journey, xychart, architecture, and opaque-fallback bodies round-trip losslessly, but do not expose structured mutation; return an unsupported-family result unless the task explicitly asks for source-level editing, then re-parse and verify before returning.
 
 ## The verify-after-mutate rule
 
@@ -54,18 +41,19 @@ Tier 3 (lint, advisory): reserved for future family-specific lint codes. `Family
 
 `am capabilities --json` — JSON envelope listing families, `families[].mutationOps`, warning codes, output formats (`svg`, `ascii`, `unicode`, `png`, `json`). Schema-stable; use it to self-discover.
 `am batch --jsonl` — JSONL stdin → JSONL stdout. Malformed lines surface error but don't abort the stream.
-`am render <file…> --format svg|ascii|unicode|png|json [--output f] [--security strict] [--watch]` — PNG via resvg+DejaVu (deterministic x86_64); JSON = layout shape; --security strict = no external-fetch refs; --output required for PNG; multiple files → results array; --watch re-renders on change.
+`am render <file…> --format svg|ascii|unicode|json [--security strict]` — JSON = layout shape; --security strict = no external-fetch refs; multiple files → results array for non-PNG formats. `--watch` is single-file/non-PNG only. PNG uses `--format png --output file.png` for one input and does not support watch/multi-input.
 `am mutate <file> --op '<JSON>' [--json]` — apply one mutation, run verify, emit source only if verify succeeds. JSON success includes `{ok,source,verify}`; verify failure exits 3 and omits source.
 `am describe <file> [--format text|json]` — prose summary or structured AX tree (`{nodes,edges,entryPoints,sinks}`, #7349). Library: `describeMermaid(d, {format})`.
 `am llms-txt` — agent-discovery digest (llms.txt convention).
 `am render-markdown <file.md> [--ascii]` — render each Mermaid fenced block; skips invalid diagrams, never aborts the file. JSON: `{blocks:[{index,ok,output|error}]}`.
-Exit codes: `0` ok, `2` arg error, `3` verify-failed, `4` internal. Errors carry `error.details` (structured ParseError[]), not a stringified blob.
+Exit codes: `0` ok, `2` arg/parse/mutation error, `3` verify-failed, `4` internal. Parse and verify-failure errors carry `error.details` arrays, not stringified blobs.
 
 Library extras: `renderMermaidASCIIWithMeta(src)` → `{ascii,regions}` for TUI click-mapping; `asciiToMermaid(ascii)` reverses flowchart ASCII (best-effort, lossy); `verifyNoExternalRefs(svg)` asserts no external fetch; `renderMermaidSVG(src,{idPrefix})` namespaces def ids for multi-diagram pages. See SECURITY.md.
 
 ## Anti-patterns
 
 - Regenerating source instead of mutating. Defeats round-trip; produces noise.
-- Verifying once at the end of a long chain. Loses precision about which op broke it.
-- Concatenating Mermaid source strings. Use `mutate` and `serializeMermaid`.
-- Calling `mutate` on a journey / xychart / architecture diagram (or any opaque-fallback body) — the type system rejects it; edit `canonicalSource` directly.
+- Verifying only after a long chain. Loses precision about which op broke it.
+- Serializing before reading `verify.ok` / `verify.warnings` / `verify.layout`.
+- Concatenating Mermaid source strings when a typed `mutate` op exists.
+- Calling `mutate` on journey / xychart / architecture / opaque bodies; narrowers return `null` to make unsupported structured edits explicit.

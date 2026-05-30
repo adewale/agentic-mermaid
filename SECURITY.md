@@ -33,7 +33,7 @@ In strict mode the SVG output contains **zero external-fetch references**:
   CSS variable, so a host that *does* have the font shows it; otherwise the
   browser falls back to `system-ui, sans-serif`.
 - We emit no `<image>`, no `<script>`, no `<foreignObject>`, no external
-  `href`/`src`/`url(http…)`.
+  `href`/`src`/`url(http…)`/`url(//…)`.
 
 Assert the guarantee with `verifyNoExternalRefs(svg)`, which returns
 `{ ok, refs[] }`. It excludes the `xmlns="http://www.w3.org/2000/svg"`
@@ -46,17 +46,26 @@ gate or an agent self-check after rendering.
   directives do not emit clickable external links into our SVG.
 - **No arbitrary `<image>`.** We do not render image-shaped nodes that load
   external bitmaps.
-- **Deterministic, sandbox-safe.** Rendering is pure-functional TypeScript
-  with no DOM, no `eval`, no network, no filesystem access. The Code Mode
-  MCP runs agent snippets in a `node:vm` sandbox.
+- **Deterministic renderer, no ambient network or code execution.** SVG/ASCII
+  rendering is pure-functional TypeScript with no DOM, no `eval`, no network,
+  and no user-controlled filesystem access. PNG rendering may read bundled
+  font assets from the package before offline rasterization. Code Mode snippets
+  run in a `node:vm` context where `process`, `require`,
+  `fetch`, `eval`, `Function`, and host-constructor escape paths are tested
+  absent and dynamic code generation is disabled.
 
 ## What we do NOT guarantee
 
+- **`node:vm` is not an OS/container security boundary.** Code Mode containment
+  is for local MCP use and accidental/agentic misuse reduction. Do not expose
+  `execute(code)` to arbitrary hostile users without process/container
+  isolation and normal resource controls.
 - **Default mode emits the Google Fonts `@import`.** This is back-compat
   behavior for existing consumers who render SVGs into pages that expect the
-  Inter webfont. **For agent/untrusted contexts, use strict mode.** MCP
-  `render_png` is already offline (the PNG rasterizer has no network);
-  SVG/ASCII via Code Mode `execute()` let the agent pass `security: 'strict'`.
+  Inter webfont. **For agent/untrusted SVG contexts, use strict mode.** MCP
+  `render_png` is already offline (the PNG rasterizer has no network). SVG via
+  Code Mode `execute()` lets the agent pass `security: 'strict'`; ASCII output
+  has no external-reference surface.
 - **We do not sanitize arbitrary third-party SVG.** `verifyNoExternalRefs`
   is a scanner for *our* output shape, not a general SVG sanitizer. Don't
   feed it untrusted SVG and treat a pass as safe.

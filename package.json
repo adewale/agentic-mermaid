@@ -53,8 +53,13 @@
     "src/",
     "dist/",
     "bin/",
+    "assets/fonts/",
     "Instructions_for_agents.md",
     "AGENT_NATIVE.md",
+    "FEATURES.md",
+    "TODO.md",
+    "QUALITY.md",
+    "SECURITY.md",
     "LICENSE",
     "README.md"
   ],

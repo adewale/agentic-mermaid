@@ -43,7 +43,7 @@ function line(s: string) { process.stdout.write(s + '\n') }
 }
 
 // 3. Opaque fallback: a sequence diagram with a Note isn't structurally
-//    mutable, but it round-trips losslessly. Edit canonicalSource directly.
+//    mutable, but it round-trips losslessly via preserved body.source.
 {
   const d0 = parseMermaid('sequenceDiagram\n  Alice->>Bob: Hi\n  Note over Bob: thinking')
   if (!d0.ok) throw new Error('parse failed')

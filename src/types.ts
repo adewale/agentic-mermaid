@@ -275,7 +275,8 @@ export interface RenderOptions {
    * references in the SVG — forces `embedFontImport` off (no Google Fonts
    * `@import`), so the SVG renders with no network calls. The `--font` CSS
    * variable still declares the family. Use `verifyNoExternalRefs(svg)` to
-   * assert the guarantee. MCP render tools default to strict. See SECURITY.md.
+   * assert the guarantee. Agent/untrusted SVG callers should opt into strict
+   * mode explicitly. See SECURITY.md.
    */
   security?: 'default' | 'strict'
 }

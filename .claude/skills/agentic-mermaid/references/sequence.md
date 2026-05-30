@@ -21,8 +21,8 @@ set_message_text (by index).
 IMPORTANT — fidelity fallback: a sequence diagram that uses Note/alt/opt/par/
 loop/activate/autonumber/multiline messages parses to an OPAQUE body. It still
 parses, renders, verifies, and round-trips losslessly, but `asSequence` returns
-null and structured mutation isn't offered. Edit `canonicalSource` as a string
-for those. The parser never silently drops constructs.
+null and structured mutation isn't offered. Use the preserved opaque `body.source`
+for intentional source-level edits, then re-parse and verify. The parser never silently drops constructs.
 
 Verify Tier 1 only (no layout engine): EMPTY_DIAGRAM, EDGE_MISANCHORED
 (message references missing participant), LABEL_OVERFLOW (participant label or
