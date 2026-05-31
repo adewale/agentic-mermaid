@@ -1,4 +1,4 @@
-// Runnable example: the agent verify-after-mutate loop.
+// Runnable example: the agent verify-before-commit loop.
 //   bun run examples/agent-loop.ts
 //
 // Demonstrates parse → narrow → mutate (flowchart + sequence) → verify →

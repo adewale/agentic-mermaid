@@ -67,7 +67,7 @@ if (d1.ok && verifyMermaid(d1.value).ok) console.log(serializeMermaid(d1.value))
 - **Deterministic layout**, verified byte-identical across processes.
 - Ships an **`am` CLI** (`render`, strict `preview`, `mutate --op/--ops`, `batch`, …) and an **`agentic-mermaid-mcp`** Code Mode MCP server.
 
-See [`AGENT_NATIVE.md`](./AGENT_NATIVE.md), [`Instructions_for_agents.md`](./Instructions_for_agents.md), and [`examples/agent-loop.ts`](./examples/agent-loop.ts).
+See [`AGENT_NATIVE.md`](./AGENT_NATIVE.md), [`Instructions_for_agents.md`](./Instructions_for_agents.md), [`docs/mcp-code-mode-rationale.md`](./docs/mcp-code-mode-rationale.md), [`examples/agent-loop.ts`](./examples/agent-loop.ts), and [`examples/mcp-vs-cli-auth-flow.ts`](./examples/mcp-vs-cli-auth-flow.ts).
 
 ## Discovering Fork Features
 

@@ -244,6 +244,18 @@ describe('shipped distribution artifacts present', () => {
     expect(existsSync(join(REPO, '.claude/skills/agentic-mermaid/SKILL.md'))).toBe(true)
     expect(existsSync(join(REPO, '.github/workflows/sync-mermaid-docs.yml'))).toBe(true)
     expect(existsSync(join(REPO, 'examples/agent-loop.ts'))).toBe(true)
+    expect(existsSync(join(REPO, 'examples/mcp-vs-cli-auth-flow.ts'))).toBe(true)
+    expect(existsSync(join(REPO, 'docs/mcp-code-mode-rationale.md'))).toBe(true)
+  })
+
+  test('MCP/CLI parity example runs', () => {
+    const r = spawnSync('bun', ['run', join(REPO, 'examples/mcp-vs-cli-auth-flow.ts')], { encoding: 'utf8', cwd: REPO })
+    expect({ status: r.status, stderr: r.stderr }).toEqual({ status: 0, stderr: '' })
+    const payload = JSON.parse(r.stdout)
+    expect(payload.ok).toBe(true)
+    expect(payload.channelA).toBe('mcp.execute')
+    expect(payload.channelB).toBe('am mutate --ops')
+    expect(payload.source).toContain('G --> H[Dashboard]')
   })
 
   test('npm package includes bundled PNG fonts documented for deterministic output', () => {
