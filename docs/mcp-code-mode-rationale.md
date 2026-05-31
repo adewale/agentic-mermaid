@@ -35,12 +35,12 @@ Both helpers consume source. They are not intended to independently author or mu
 
 ## Equivalence example
 
-`examples/mcp-vs-cli-auth-flow.ts` builds the same Auth Flow diagram two ways:
+`examples/mcp-vs-cli-complex-diagrams.ts` builds the same complicated diagrams two ways: an Auth Flow flowchart with feedback loops and an Order Domain ER diagram.
 
 - MCP Code Mode: `tools/call execute` runs parse → narrow → mutate[] → verify → serialize.
-- CLI: `am mutate auth-flow.mmd --ops ops.json --json` runs the same typed mutation batch and verify-before-emit contract.
+- CLI: `am mutate <diagram>.mmd --ops ops.json --json` runs the same typed mutation batch and verify-before-emit contract.
 
-The example asserts that both channels produce byte-identical Mermaid source. This is the supported equivalence story: **MCP Code Mode and CLI/library can produce the same diagram**, while MCP helper tools remain intentionally narrow.
+The example asserts that both channels produce byte-identical Mermaid source for every case. This is the supported equivalence story: **MCP Code Mode and CLI/library can produce the same diagrams**, while MCP helper tools remain intentionally narrow.
 
 ## When to add more MCP tools
 

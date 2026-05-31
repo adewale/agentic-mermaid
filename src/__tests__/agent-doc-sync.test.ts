@@ -1,8 +1,9 @@
 // Doc-sync + no-tautology guards.
 
 import { describe, test, expect } from 'bun:test'
-import { readFileSync, existsSync, readdirSync } from 'node:fs'
+import { readFileSync, existsSync, readdirSync, mkdtempSync, rmSync } from 'node:fs'
 import { spawnSync } from 'node:child_process'
+import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { AGENT_INSTRUCTIONS } from '../cli/agent-instructions.ts'
 import { MUTATION_OPS_BY_FAMILY, buildCapabilities } from '../cli/index.ts'
@@ -244,24 +245,51 @@ describe('shipped distribution artifacts present', () => {
     expect(existsSync(join(REPO, '.claude/skills/agentic-mermaid/SKILL.md'))).toBe(true)
     expect(existsSync(join(REPO, '.github/workflows/sync-mermaid-docs.yml'))).toBe(true)
     expect(existsSync(join(REPO, 'examples/agent-loop.ts'))).toBe(true)
-    expect(existsSync(join(REPO, 'examples/mcp-vs-cli-auth-flow.ts'))).toBe(true)
+    expect(existsSync(join(REPO, 'examples/mcp-vs-cli-complex-diagrams.ts'))).toBe(true)
+    expect(existsSync(join(REPO, 'examples/agent-improve-auth-flow.ts'))).toBe(true)
     expect(existsSync(join(REPO, 'docs/mcp-code-mode-rationale.md'))).toBe(true)
+    expect(existsSync(join(REPO, 'docs/agent-workflow-examples.md'))).toBe(true)
   })
 
   test('MCP/CLI parity example runs', () => {
-    const r = spawnSync('bun', ['run', join(REPO, 'examples/mcp-vs-cli-auth-flow.ts')], { encoding: 'utf8', cwd: REPO })
+    const r = spawnSync('bun', ['run', join(REPO, 'examples/mcp-vs-cli-complex-diagrams.ts')], { encoding: 'utf8', cwd: REPO })
     expect({ status: r.status, stderr: r.stderr }).toEqual({ status: 0, stderr: '' })
     const payload = JSON.parse(r.stdout)
     expect(payload.ok).toBe(true)
     expect(payload.channelA).toBe('mcp.execute')
     expect(payload.channelB).toBe('am mutate --ops')
-    expect(payload.source).toContain('G --> H[Dashboard]')
+    expect(payload.cases).toEqual(['auth-flow', 'order-domain-er'])
+    expect(payload.sources['auth-flow']).toContain('G --> H[Dashboard]')
+    expect(payload.sources['order-domain-er']).toContain('CUSTOMER ||--o{ ORDER : places')
+  })
+
+  test('agent improvement example assesses, mutates, reassesses, and writes render files', () => {
+    const outDir = mkdtempSync(join(tmpdir(), 'am-example-test-'))
+    try {
+      const r = spawnSync('bun', ['run', join(REPO, 'examples/agent-improve-auth-flow.ts'), '--out-dir', outDir], { encoding: 'utf8', cwd: REPO })
+      expect({ status: r.status, stderr: r.stderr }).toEqual({ status: 0, stderr: '' })
+      const payload = JSON.parse(r.stdout)
+      expect(payload.ok).toBe(true)
+      expect(payload.problems.length).toBeGreaterThan(0)
+      expect(payload.impact.warningsBefore).toBeGreaterThan(payload.impact.warningsAfter)
+      expect(payload.impact.longestLabelBefore).toBeGreaterThan(payload.impact.longestLabelAfter)
+      const svg = readFileSync(join(outDir, 'auth-flow-improved.svg'), 'utf8')
+      const ascii = readFileSync(join(outDir, 'auth-flow-improved.txt'), 'utf8')
+      const assessment = JSON.parse(readFileSync(join(outDir, 'assessment.json'), 'utf8'))
+      expect(svg).toContain('<svg')
+      expect(svg).toContain('Login Page')
+      expect(ascii).toContain('Dashboard')
+      expect(assessment.improveOps).toBe(3)
+    } finally {
+      rmSync(outDir, { recursive: true, force: true })
+    }
   })
 
   test('npm package includes bundled PNG fonts documented for deterministic output', () => {
     const pkg = JSON.parse(readFileSync(join(REPO, 'package.json'), 'utf8'))
     expect(pkg.files).toContain('assets/fonts/')
-    for (const doc of ['FEATURES.md', 'TODO.md', 'QUALITY.md', 'SECURITY.md']) expect(pkg.files).toContain(doc)
+    for (const doc of ['FEATURES.md', 'TODO.md', 'QUALITY.md', 'SECURITY.md', 'docs/']) expect(pkg.files).toContain(doc)
+    for (const example of ['examples/agent-loop.ts', 'examples/mcp-vs-cli-complex-diagrams.ts', 'examples/agent-improve-auth-flow.ts']) expect(pkg.files).toContain(example)
     expect(existsSync(join(REPO, 'assets/fonts/DejaVuSans.ttf'))).toBe(true)
     expect(existsSync(join(REPO, 'assets/fonts/DejaVuSans-Bold.ttf'))).toBe(true)
   })
