@@ -216,7 +216,13 @@ function mermaidToElk(
       'elk.layered.highDegreeNodes.treatment': 'true',
       'elk.layered.highDegreeNodes.threshold': '8',
       'elk.layered.compaction.postCompaction.strategy': 'LEFT_RIGHT_CONSTRAINT_LOCKING',
+      // Mermaid source order is author intent for small flowcharts with feedback
+      // loops. ELK's default greedy cycle breaker can rank a decision before the
+      // login step in A->B->C plus C->B graphs; model-order cycle breaking keeps
+      // the primary LR path readable and sends the feedback edge backwards.
       'elk.layered.considerModelOrder.strategy': 'NODES_AND_EDGES',
+      'elk.layered.cycleBreaking.strategy': 'MODEL_ORDER',
+      'elk.layered.crossingMinimization.forceNodeModelOrder': 'true',
       'elk.layered.wrapping.strategy': 'OFF',
       // Use SEPARATE when subgraphs have direction overrides (enables proper direction handling)
       // Use INCLUDE_CHILDREN otherwise (simpler cross-hierarchy edge routing)
