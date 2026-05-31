@@ -1,6 +1,6 @@
 import { mkdirSync, writeFileSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { DEFAULT_CASES, runAgentUsageEval, type AgentUsageEvalCase, type AgentUsageEvalResult } from './run.ts'
+import { DEFAULT_CASES, requiresStructuredMutation, runAgentUsageEval, type AgentUsageEvalCase, type AgentUsageEvalResult } from './run.ts'
 import { SDK_DECLARATION } from '../../src/mcp/sdk-decl.ts'
 
 export type LiveProvider = 'anthropic' | 'openai-compatible'
@@ -35,6 +35,7 @@ export interface LiveRunSummary {
   model: string
   total: number
   passed: number
+  safePathRate: number
   structuredPathRate: number
   transcripts: string[]
 }
@@ -72,7 +73,7 @@ export function buildLiveEvalSystemPrompt(instructions = readFileSync(join(impor
   return `You are generating JavaScript for agentic-mermaid Code Mode.
 Return ONLY the JavaScript body that will be passed to execute(code). Do not include markdown.
 The code runs synchronously in a node:vm sandbox with global mermaid.*; do not use async/await, Promise jobs, dynamic import, filesystem, network, or template-literal interpolation.
-Use parseMermaid, family narrowers, mutate, verifyMermaid, and serializeMermaid. Inspect verify.ok/warnings before serializing. SDK-returned diagrams are read-only; structured edits must use mermaid.mutate.
+For new diagrams, author Mermaid source directly, then parseMermaid and verifyMermaid. For existing modeled diagrams, use family narrowers, mutate, verifyMermaid, and serializeMermaid. Inspect verify.ok/warnings before returning or serializing. SDK-returned diagrams are read-only; structured edits must use mermaid.mutate.
 
 ${instructions}
 
@@ -160,7 +161,9 @@ export async function runLiveAgentUsageEval(config: LiveModelConfig, opts: { out
   const system = buildLiveEvalSystemPrompt()
   const transcripts: string[] = []
   let passed = 0
+  let safePathPassed = 0
   let structuredPathPassed = 0
+  let structuredCases = 0
 
   for (const c of cases) {
     const user = buildLiveEvalUserPrompt(c)
@@ -169,7 +172,11 @@ export async function runLiveAgentUsageEval(config: LiveModelConfig, opts: { out
     const summary = await runAgentUsageEval([{ ...c, script }])
     const result = summary.results[0]!
     if (result.ok) passed++
-    if (result.traceOk) structuredPathPassed++
+    if (result.traceOk) safePathPassed++
+    if (requiresStructuredMutation(c.id)) {
+      structuredCases++
+      if (result.traceOk) structuredPathPassed++
+    }
     const transcript: LiveTranscript = {
       schemaVersion: 1,
       capturedAt,
@@ -187,7 +194,7 @@ export async function runLiveAgentUsageEval(config: LiveModelConfig, opts: { out
     transcripts.push(file)
   }
 
-  const summary: LiveRunSummary = { ok: passed === cases.length, capturedAt, provider: config.provider, model: config.model, total: cases.length, passed, structuredPathRate: structuredPathPassed / cases.length, transcripts }
+  const summary: LiveRunSummary = { ok: passed === cases.length, capturedAt, provider: config.provider, model: config.model, total: cases.length, passed, safePathRate: safePathPassed / cases.length, structuredPathRate: structuredPathPassed / Math.max(1, structuredCases), transcripts }
   writeFileSync(join(outDir, 'summary.json'), JSON.stringify(summary, null, 2) + '\n')
   return summary
 }

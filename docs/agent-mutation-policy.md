@@ -15,6 +15,8 @@ So the rule is:
 
 > Structured mutation is allowed only for modeled syntax. Unknown or lossy syntax must stay source-level/opaque and round-trip through preserved source.
 
+This policy applies to **editing existing diagrams**. For a brand-new diagram, direct Mermaid source authoring is the native path: write source, parse it, verify it, then render or return it. Mutation is a preservation tool, not a required creation ritual.
+
 ## What "mutation exposure" means
 
 A family has mutation exposure when public agent surfaces advertise typed structural edits for it, such as:

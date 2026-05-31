@@ -2,8 +2,8 @@
 
 How do we test/verify how agents actually *use* this tool — not just that
 the functions work, but that the affordances steer an agent onto the safe,
-structured path (parse → narrow → mutate → inspect verify → serialize) and away
-from anti-patterns (string-concat, regenerate-whole-source,
+safe path (new source → parse → inspect verify, or existing diagram → parse → narrow → mutate → inspect verify → serialize) and away
+from anti-patterns (existing-diagram string-concat, regenerate-whole-source,
 serialize-without-verify, mutate-on-opaque)?
 
 Three layers, cheapest-first.
@@ -17,8 +17,9 @@ SDK and asserts the supported path works end-to-end:
 - **opaque_refusal** — a sequence with `alt`/`loop` falls back to opaque; the narrower returns `null`, so the agent is steered away from unsafe structured mutation. The refusal is the feature.
 - **verify_catches_bad_edit** — an overflowing label is flagged by `verifyMermaid`, so the agent can revert before serializing.
 - **timeline/class/ER mutation** — representative typed mutations with parse-back structural oracles, not substring checks.
+- **source authoring** — a brand-new diagram is authored as Mermaid source, parsed, verified, and returned without fake mutation ceremony.
 
-These run in CI (`agent-usage.test.ts`). They prove the structured path is
+These run in CI (`agent-usage.test.ts`). They prove the safe paths are
 reachable and rewarding.
 
 ## Layer 2 — Anti-pattern linter (tooling)
@@ -31,8 +32,8 @@ anti-patterns Instructions_for_agents.md warns about:
 | `SERIALIZE_WITHOUT_VERIFY` | `serialize` after `mutate` with no inspected successful `verify` for the same diagram before that serialize |
 | `SERIALIZE_AFTER_FAILED_VERIFY` | `verify(ok:false)` followed by `serialize` |
 | `VERIFY_NOT_INSPECTED` | a `verify` result was produced but `ok`/`warnings`/`layout` was never inspected |
-| `STRING_CONCAT` | building source by hand instead of `mutate` in a stored/annotated transcript |
-| `REGENERATE` | re-emitting whole source instead of mutating in a stored/annotated transcript |
+| `STRING_CONCAT` | editing existing structured source by hand instead of `mutate` in a stored/annotated transcript |
+| `REGENERATE` | re-emitting an existing parsed diagram instead of mutating in a stored/annotated transcript |
 | `MUTATE_ON_OPAQUE` | `mutate` on an opaque body |
 
 The MCP sandbox emits ordered `parse` / `narrow` / `mutate` / `verify` /
@@ -47,7 +48,7 @@ serialize(d), verify}` is still flagged.
 
 `run.ts` executes stored Code Mode scripts through `executeInSandbox({ trace:
 true })`, the linter, and exact task oracles. The stored CI baseline covers
-flowchart, opaque sequence refusal, timeline, class, and ER tasks. Tests also
+flowchart, opaque sequence refusal, timeline, class, ER, and new-source-authoring tasks. Tests also
 call the real MCP JSON-RPC `tools/call execute` path and compare its result to a
 traced replay of the same code.
 
@@ -61,7 +62,7 @@ credentials are available:
 4. Replay the captured script through the same sandbox, linter, and structural oracle whenever the transcript test runs.
 5. Write one JSON transcript per task plus `summary.json` under `transcripts/<timestamp>/`.
 
-`baseline.json` records the deterministic stored-script baseline. A committed
+`safePathRate` counts all acceptable task routes; `structuredPathRate` counts only cases where typed mutation is required. `baseline.json` records the deterministic stored-script baseline. A committed
 `pi-subagent-2026-05-26` transcript set captures one live subagent pass and
 replays through the deterministic oracle in `agent-usage-live.test.ts`.
 API-backed release-model transcripts remain on-demand/pre-release because they

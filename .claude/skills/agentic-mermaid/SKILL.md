@@ -5,7 +5,7 @@ description: Author and edit Mermaid diagrams with structured verification, type
 
 # agentic-mermaid
 
-A typed editing surface for Mermaid. Parse to a `ValidDiagram`, mutate with typed ops, verify structurally (no pixels), serialize back to canonical source. Layout is deterministic — verified cross-process, no seed.
+A typed editing surface for Mermaid. New diagrams can be authored as Mermaid source and verified/rendered directly. Existing modeled diagrams can be parsed to a `ValidDiagram`, mutated with typed ops, verified structurally (no pixels), and serialized back to canonical source. Layout is deterministic — verified cross-process, no seed.
 
 ## Pick a channel
 
@@ -34,6 +34,8 @@ Any diagram with constructs we don't model falls back to an **opaque** body: it 
 
 ## Workflow
 
+For new diagrams, author Mermaid source directly, then `parseMermaid` / `verifyMermaid` / render. For existing modeled diagrams:
+
 1. `parseMermaid(source)` → `ValidDiagram`.
 2. `asFlowchart(d)` / `asSequence(d)` / `asTimeline(d)` / `asClass(d)` / `asEr(d)` to narrow before mutating.
 3. `mutate(d, op)` (typed per family).
@@ -41,4 +43,4 @@ Any diagram with constructs we don't model falls back to an **opaque** body: it 
 5. On `!ok`, revert to the previous `ValidDiagram`, try another op.
 6. `serializeMermaid(d)` only after inspected verify passes.
 
-Never concatenate Mermaid source. See `references/flowchart.md`, `references/sequence.md`.
+Do not regenerate or concatenate source to edit an existing structured diagram when a typed op exists. Direct source authoring is fine for new diagrams. See `references/flowchart.md`, `references/sequence.md`.

@@ -15,9 +15,10 @@ cross-process and same-machine cross-runtime on x86_64/ARM64).
 
 ## The agent loop
 
-parse → (narrow per family) → mutate → verify → serialize. Run verify at
-every commit point. Never serialize a diagram whose verify result you
-haven't inspected.
+New diagrams: author Mermaid source → parse → verify → render/return.
+Existing structured diagrams: parse → narrow → mutate → verify → serialize.
+Run verify at every commit point. Never serialize a diagram whose verify result
+you haven't inspected.
 
 ## CLI verbs (`am <verb>`)
 
@@ -25,11 +26,12 @@ haven't inspected.
 - render --format png --output file.png — render one input to PNG (no PNG bytes on stdout, no multi-input/watch)
 - parse — diagram → ValidDiagram JSON
 - verify — structural validation (exit 3 if invalid)
-- mutate --op '<json>' — apply a typed mutation, verify, then emit source
+- mutate --op '<json>' / --ops '<json array|file>' — apply typed mutation(s), verify, then emit source
+- preview [--output file.html] [--open] — standalone strict-mode HTML preview for user inspection
 - format — normalize / canonicalize source
 - describe [--format text|json] — natural-language or AX-tree summary
 - capabilities --json — machine-readable capability envelope incl. mutationOps
-- batch --jsonl — bulk ops, one JSON envelope per line
+- batch --jsonl — bulk render/verify/parse/serialize/mutate ops, one JSON envelope per line
 - render-markdown <file.md> [--ascii] — render fenced mermaid blocks, skip invalid ones
 - llms-txt — this document
 

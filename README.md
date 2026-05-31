@@ -46,11 +46,11 @@ The ASCII rendering engine is based on [mermaid-ascii](https://github.com/Alexan
 - **Mono mode** — Beautiful diagrams from just 2 colors
 - **Zero DOM dependencies** — Pure TypeScript, works everywhere
 - **Ultra-fast** — Renders 100+ diagrams in under 500ms
-- **Agent-native surface** — Typed parse → mutate → verify → serialize loop for AI agents (see below)
+- **Agent-native surface** — Source authoring for new diagrams; typed parse → mutate → verify → serialize for safe edits (see below)
 
 ## Agent-native surface
 
-The `beautiful-mermaid/agent` subpath export gives AI agents a typed editing loop that never needs to render to an image to know whether an edit worked:
+The `beautiful-mermaid/agent` subpath export gives AI agents two honest paths: author new Mermaid source directly and verify/render it, or use a typed editing loop for existing structured diagrams without rendering to an image to know whether an edit worked:
 
 ```ts
 import { parseMermaid, asFlowchart, mutate, verifyMermaid, serializeMermaid } from 'beautiful-mermaid/agent'
@@ -65,7 +65,7 @@ if (d1.ok && verifyMermaid(d1.value).ok) console.log(serializeMermaid(d1.value))
 - **`verifyMermaid`** returns structured `LayoutWarning` codes (label overflow, off-canvas, mis-anchored edges, …) — no PNG, no vision.
 - **`mutate`** applies typed structural edits to flowchart/state, sequence, timeline, class, and ER diagrams; journey, XY chart, architecture, and opaque fallbacks round-trip losslessly via preserved `body.source` without structured mutation.
 - **Deterministic layout**, verified byte-identical across processes.
-- Ships an **`am` CLI** and an **`agentic-mermaid-mcp`** Code Mode MCP server.
+- Ships an **`am` CLI** (`render`, strict `preview`, `mutate --op/--ops`, `batch`, …) and an **`agentic-mermaid-mcp`** Code Mode MCP server.
 
 See [`AGENT_NATIVE.md`](./AGENT_NATIVE.md), [`Instructions_for_agents.md`](./Instructions_for_agents.md), and [`examples/agent-loop.ts`](./examples/agent-loop.ts).
 

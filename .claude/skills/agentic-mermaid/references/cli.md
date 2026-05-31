@@ -3,10 +3,12 @@
 ```text
 am render <file|-> --format svg|ascii|unicode|json
 am render <file> --format png --output file.png  # one-shot only; no watch/multi-input
+am preview <file|-> [--output preview.html] [--open]  # strict standalone HTML
 am verify <file|->            structured JSON warnings (exit 3 if not ok)
 am parse <file|->             ValidDiagram JSON
 am serialize                  ValidDiagram JSON (stdin) → canonical source
 am mutate <file|-> --op JSON  one MutationOp → verify → new source
+am mutate <file|-> --ops JSON  many MutationOps → verify → new source
 am format <file|->            idempotent reformat
 am describe <file|->          prose summary or --format json AX tree
 am capabilities --json        families, mutationOps, warning codes, formats
@@ -20,8 +22,9 @@ am <cmd> --help               per-command help
 `am verify` always emits JSON. `am mutate` dispatches by family across
 flowchart/state, sequence, timeline, class, and ER; journey, xychart,
 architecture, and opaque bodies return a structured `UNSUPPORTED_FAMILY` error. `am mutate` verifies before
-emitting source; verify failure exits 3 and omits `source`. `am parse | am
-serialize` round-trips through JSON.
+emitting source; verify failure exits 3 and omits `source`. Use direct Mermaid
+source authoring plus `am verify`/`am render` for brand-new diagrams; reserve
+`am mutate` for existing structured diagrams. `am parse | am serialize` round-trips through JSON.
 
 ```bash
 # Validate a tree

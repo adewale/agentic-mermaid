@@ -121,7 +121,24 @@ describe('stored agent-usage eval', () => {
     const summary = await runAgentUsageEval()
     expect(summary.ok).toBe(true)
     expect(summary.passed).toBe(summary.total)
+    expect(summary.safePathRate).toBe(1)
     expect(summary.structuredPathRate).toBe(1)
+  })
+
+  test('new-diagram source authoring passes without structured mutation', async () => {
+    const summary = await runAgentUsageEval([{ id: 'author_auth_flow_source', prompt: 'author new source', script: `
+      const source = '---\\ntitle: Auth Flow\\n---\\nflowchart LR\\n  A[User] --> B[Login Page]\\n  B --> C{Valid Credentials?}\\n  C -->|No| B\\n  C -->|Yes| D{MFA Enabled?}\\n  D -->|Yes| E[Enter MFA Code]\\n  E --> F{Code Valid?}\\n  F -->|No| E\\n  D -->|No| G[Create Session]\\n  F -->|Yes| G\\n  G --> H[Dashboard]'
+      const parsed = mermaid.parseMermaid(source)
+      if (!parsed.ok) return { error: parsed.error }
+      const verify = mermaid.verifyMermaid(parsed.value)
+      if (!verify.ok) return { error: verify.warnings }
+      return { source }
+    ` }])
+    expect(summary.ok).toBe(true)
+    expect(summary.safePathRate).toBe(1)
+    expect(summary.structuredPathRate).toBe(0)
+    expect(summary.results[0]!.taskOk).toBe(true)
+    expect(summary.results[0]!.traceOk).toBe(true)
   })
 
   test('task-shaped output without structured trace does not pass', async () => {

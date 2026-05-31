@@ -1,0 +1,47 @@
+# Issue-derived test-case candidates
+
+These are public Mermaid / Beautiful Mermaid issues worth turning into small, educational fixtures. The goal is not to clone every upstream bug; it is to keep representative examples that teach the renderer/agent surface what users actually expect.
+
+## Already covered or newly covered
+
+- [mermaid-js/mermaid#5227 — Backwards arrows](https://github.com/mermaid-js/mermaid/issues/5227)
+  - Why it matters: feedback edges are common in auth/retry flows and should not scramble the primary left-to-right path.
+  - Current coverage: `src/__tests__/agent-auth-flow.test.ts` builds an auth flow through Agentic Mermaid mutations and asserts `C→B` / `F→E` route backwards while the primary LR path stays source-ordered.
+- [mermaid-js/mermaid#7645 — block loading of external images](https://github.com/mermaid-js/mermaid/issues/7645)
+  - Why it matters: agent-generated diagrams are untrusted input.
+  - Current coverage: strict SVG/security tests assert external-fetch references are removed.
+- [mermaid-js/mermaid#7695 — Trusted Types / CSP](https://github.com/mermaid-js/mermaid/issues/7695)
+  - Why it matters: generated SVG/HTML must be embeddable in locked-down apps.
+  - Current coverage: browser CSP/Trusted Types e2e exercises enforcement and strict render paths.
+- [mermaid-js/mermaid#5632 — screen-reader/accessibility support](https://github.com/mermaid-js/mermaid/issues/5632)
+  - Why it matters: diagrams need non-visual summaries for users and agents.
+  - Current coverage: `am describe` / `describeMermaid(...,{format:'json'})` expose an AX-style tree and docs sync tests guard the surface.
+- [lukilabs/beautiful-mermaid#119 — CJK label alignment](https://github.com/lukilabs/beautiful-mermaid/issues/119)
+  - Why it matters: ASCII renderers often break on fullwidth text.
+  - Current coverage: CJK width tests and ASCII rendering tests.
+- [lukilabs/beautiful-mermaid#115 — text contrast on custom fills](https://github.com/lukilabs/beautiful-mermaid/issues/115)
+  - Why it matters: themeable diagrams must remain readable.
+  - Current coverage: auto-contrast and theme/renderer contrast tests.
+
+## High-value future fixtures
+
+- [mermaid-js/mermaid#6271 — unexpected graph direction](https://github.com/mermaid-js/mermaid/issues/6271)
+  - Suggested fixture: a graph whose author order implies a clear primary direction but whose cross/back edges tempt the layout engine to flip ranks. Assert source-order progression and bounded aspect ratio.
+- [mermaid-js/mermaid#7785 — collapsible subgraphs via `@{ view: collapsed }`](https://github.com/mermaid-js/mermaid/pull/7785)
+  - Suggested fixture: parse/render normal nested subgraphs today; when collapse metadata appears, either model it explicitly or preserve source as opaque. Never silently drop the `@{ ... }` meaning.
+- [lukilabs/beautiful-mermaid#69 — fan-in grouping](https://github.com/lukilabs/beautiful-mermaid/pull/69)
+  - Suggested fixture: many roots flowing into one hub, plus a cycle variant. Assert no overlaps/off-canvas, deterministic layout JSON, and readable ASCII trunking.
+- [lukilabs/beautiful-mermaid#121 — ER/class ASCII label truncation and stray connectors](https://github.com/lukilabs/beautiful-mermaid/issues/121)
+  - Suggested fixture: ER relationship labels and class compartments with edge labels. Assert labels are present, connectors touch borders, and no orphan `├` appears.
+- [lukilabs/beautiful-mermaid#112 — ASCII connector displaced by sibling edge labels](https://github.com/lukilabs/beautiful-mermaid/issues/112)
+  - Suggested fixture: one source box with multiple outgoing edges, one labeled. Assert connector starts at the source border for every sibling edge.
+- [lukilabs/beautiful-mermaid#98 — nested-subgraph layout with direction](https://github.com/lukilabs/beautiful-mermaid/pull/98)
+  - Suggested fixture: nested subgraphs with explicit direction overrides and cross-boundary edges. Assert children remain inside groups and edges stay finite.
+
+## Test-design rules for issue fixtures
+
+- Prefer smallest meaningful source examples over screenshots alone.
+- Assert semantics first: labels, edges, groups, source-preserved metadata.
+- Add screenshot/SVG regression only when geometry/visual polish is the bug.
+- For unsupported Mermaid syntax, assert opaque/source-preserved fallback rather than lossy normalization.
+- For security issues, assert both removal of dangerous refs and preservation of safe SVG output.

@@ -11,7 +11,7 @@ This changelog tracks user-facing changes in the `adewale/beautiful-mermaid` for
   - `mutate` → typed, family-narrowed structural edits for flowchart/state, simple sequence, timeline, class, and ER diagrams. Journey, xychart, architecture, and diagrams with unmodeled constructs use a lossless source-level/opaque body with no structured mutation exposed.
   - `serializeMermaid` / `synthesizeFromGraph` → round-trip back to canonical Mermaid source.
   - Deterministic layout JSON, verified byte-identical across processes (ELK is configured for model-order layout; there is no seed).
-- **`am` CLI**: `render`, `verify`, `parse`, `serialize`, `mutate` (verify-before-emit), `format`, `describe`, `capabilities`, `batch`, `render-markdown`, `llms-txt`, `--json`, per-command `--help`, and `--agent-instructions`.
+- **`am` CLI**: `render`, `preview` (strict standalone HTML + optional `--open`), `verify`, `parse`, `serialize`, `mutate` (single `--op` or batched `--ops`, verify-before-emit), `format`, `describe`, `capabilities`, `batch` (including mutate), `render-markdown`, `llms-txt`, `--json`, per-command `--help`, and `--agent-instructions`.
 - **`agentic-mermaid-mcp`**: a Code Mode MCP server (one JavaScript `execute` tool, `node:vm` sandbox, typed SDK declaration) so agents compose the whole verify-after-mutate loop in one round-trip.
 - **`Instructions_for_agents.md`** and a Claude Code skill bundle at `.claude/skills/agentic-mermaid/`.
 - See [`AGENT_NATIVE.md`](./AGENT_NATIVE.md) for the design and [`examples/agent-loop.ts`](./examples/agent-loop.ts) for a runnable walkthrough.
@@ -39,6 +39,7 @@ This changelog tracks user-facing changes in the `adewale/beautiful-mermaid` for
 - Example rows now include compact diagram-family glyphs for faster scanning.
 - Agent-facing Code Mode examples are executable JavaScript snippets and the stored eval now checks ordered verify inspection before serialization.
 - Journey and xychart are kept source-level-only in the agent surface; no `mermaid-ast` dependency or structured mutation path is exposed.
+- Agent guidance now distinguishes new-diagram source authoring from existing-diagram structured mutation; Code Mode is positioned as a structured-edit channel rather than mandatory diagram creation.
 
 ### Fixed
 - TypeScript CI failures in journey style padding and optional node corner-radius resolution.
@@ -46,6 +47,7 @@ This changelog tracks user-facing changes in the `adewale/beautiful-mermaid` for
 - Editor menus, sidebar, and theme controls now close with Escape and expose stronger ARIA/focus states.
 - Removed layout-property sidebar animation in favor of opacity/transform-based motion.
 - CLI/docs drift for `am describe`: the command now emits prose or AX-tree JSON and is covered by e2e tests.
+- Feedback-loop flowcharts now preserve the primary source order more reliably instead of ranking decision nodes before their predecessors.
 
 ## Fork baseline before this changelog
 

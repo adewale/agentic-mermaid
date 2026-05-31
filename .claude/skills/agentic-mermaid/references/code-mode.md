@@ -1,11 +1,13 @@
-# Code Mode (preferred channel)
+# Code Mode (structured edit channel)
 
 `agentic-mermaid-mcp` exposes a primary Code Mode tool, `execute(code)`, plus
 narrow `render_png` and `describe` helpers. The server runs JavaScript in a
 `node:vm` sandbox with `mermaid.*` as a global; the TypeScript declaration in
 the MCP prompt is for guidance, not transpilation. SDK-returned diagrams are
 read-only in Code Mode; use `mermaid.mutate(...)` for structured edits instead
-of assigning into the IR. The whole verify-after-mutate loop is one round-trip.
+of assigning into the IR. For brand-new diagrams, direct Mermaid source authoring
+followed by parse/verify/render is usually simpler than mutation. The whole
+verify-after-mutate loop is one round-trip.
 
 ## SDK shape
 
@@ -31,7 +33,18 @@ mermaid.renderMermaidASCII(input, { useAscii?: boolean, mermaidConfig?: MermaidR
 
 All SDK methods are synchronous and pure. Code Mode does not support `async`/`await`, Promise jobs, or dynamic import. Layout is deterministic; there is no seed.
 
-## Flowchart pattern
+## New diagram pattern
+
+```ts
+const source = 'flowchart LR\n  User --> Login\n  Login --> Dashboard'
+const parsed = mermaid.parseMermaid(source)
+if (!parsed.ok) return { phase: 'parse', errors: parsed.error }
+const v = mermaid.verifyMermaid(parsed.value)
+if (!v.ok) return { phase: 'verify', warnings: v.warnings }
+return { source }
+```
+
+## Existing flowchart edit pattern
 
 ```ts
 const source = 'flowchart TD\n  API --> DB'
@@ -86,5 +99,6 @@ return sources.map(src => {
 ```
 
 Conventions: return the final value; do not use imports or type annotations in
-Code Mode; do not use `async`/`await` or Promise jobs; narrow before mutate; verify before every
-serialize; for journey, xychart, architecture, and opaque bodies, return an explicit unsupported-family result unless the task requested source-level editing and you can re-parse + verify afterward.
+Code Mode; do not use `async`/`await` or Promise jobs; for new diagrams, author
+source then parse/verify; for existing modeled diagrams, narrow before mutate and
+verify before every serialize; for journey, xychart, architecture, and opaque bodies, return an explicit unsupported-family result unless the task requested source-level editing and you can re-parse + verify afterward.

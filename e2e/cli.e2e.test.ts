@@ -13,10 +13,11 @@ import { join } from 'node:path'
 
 const AM = join(import.meta.dir, '..', 'bin', 'am.ts')
 
-function runAm(args: string[], stdin = ''): { status: number; stdout: string; stderr: string } {
+function runAm(args: string[], stdin = '', env: NodeJS.ProcessEnv = {}): { status: number; stdout: string; stderr: string } {
   const r = spawnSync('bun', ['run', AM, ...args], {
     encoding: 'utf8',
     input: stdin,
+    env: { ...process.env, ...env },
   })
   return { status: r.status ?? -1, stdout: r.stdout, stderr: r.stderr }
 }
@@ -34,6 +35,44 @@ describe('am capabilities', () => {
     expect(payload.outputFormats).toEqual(['svg', 'ascii', 'unicode', 'png', 'json'])
     const flowchart = payload.families.find((f: any) => f.id === 'flowchart')
     expect(flowchart.mutationOps).toContain('add_node')
+  })
+})
+
+describe('am preview', () => {
+  test('writes standalone HTML and can use a stubbed opener', () => {
+    const { writeFileSync, readFileSync, existsSync, unlinkSync } = require('node:fs') as typeof import('node:fs')
+    const tmpSrc = `/tmp/am-preview-input-${Date.now()}.mmd`
+    const tmpOut = `/tmp/am-preview-output-${Date.now()}.html`
+    writeFileSync(tmpSrc, 'flowchart LR\n  A --> B\n')
+    try {
+      const r = runAm(['preview', tmpSrc, '--output', tmpOut, '--open', '--json'], '', { AM_OPEN_COMMAND: 'true' })
+      expect(r.status).toBe(0)
+      const payload = JSON.parse(r.stdout)
+      expect(payload.ok).toBe(true)
+      expect(payload.path).toBe(tmpOut)
+      expect(payload.opened).toBe(true)
+      const html = readFileSync(tmpOut, 'utf8')
+      expect(html).toContain('<!doctype html>')
+      expect(html).toContain('<svg')
+      expect(html).toContain('flowchart LR')
+    } finally {
+      if (existsSync(tmpSrc)) unlinkSync(tmpSrc)
+      if (existsSync(tmpOut)) unlinkSync(tmpOut)
+    }
+  })
+
+  test('invalid source returns a structured parse error', () => {
+    const r = runAm(['preview', '-', '--json'], 'not a diagram')
+    expect(r.status).toBe(2)
+    const payload = JSON.parse(r.stdout)
+    expect(payload.ok).toBe(false)
+    expect(payload.error.code).toBe('PARSE_FAILED')
+  })
+
+  test('opener failures are not reported as success', () => {
+    const r = runAm(['preview', '-', '--open'], 'flowchart LR\n  A --> B\n', { AM_OPEN_COMMAND: '/tmp/am-missing-opener-command' })
+    expect(r.status).toBe(4)
+    expect(r.stderr).toContain('open command failed')
   })
 })
 
@@ -103,6 +142,31 @@ describe('am render multi-input', () => {
 })
 
 describe('am batch', () => {
+  test('processes mutate lines without aborting the JSONL stream', () => {
+    const valid = JSON.stringify({
+      op: 'mutate',
+      source: 'flowchart LR\n  A --> B\n',
+      mutations: [
+        { kind: 'add_node', id: 'C', label: 'Cache' },
+        { kind: 'add_edge', from: 'B', to: 'C' },
+      ],
+    })
+    const unsupported = JSON.stringify({ op: 'mutate', source: 'journey\n  section S\n    T: 5: A', mutation: { kind: 'add_node', id: 'X', label: 'X' } })
+    const stdin = [valid, unsupported].join('\n') + '\n'
+
+    const { status, stdout } = runAm(['batch'], stdin)
+    expect(status).toBe(0)
+    const lines = stdout.trim().split('\n').map(l => JSON.parse(l))
+    expect(lines.length).toBe(2)
+    expect(lines[0].ok).toBe(true)
+    expect(lines[0].op).toBe('mutate')
+    expect(lines[0].data.source).toContain('B --> C')
+    expect(lines[0].data.verify.ok).toBe(true)
+    expect(lines[1].ok).toBe(false)
+    expect(lines[1].error.code).toBe('UNSUPPORTED_FAMILY')
+    expect(lines[1].data?.source).toBeUndefined()
+  })
+
   test('processes 5 lines with mixed validity and exits 0', () => {
     const validRender = JSON.stringify({ op: 'render', source: 'flowchart LR\n  A --> B', options: { ascii: true } })
     const validVerify = JSON.stringify({ op: 'verify', source: 'flowchart LR\n  A --> B' })
@@ -175,6 +239,32 @@ describe('am exit codes', () => {
   test('mutate with malformed --op JSON exits 2', () => {
     const r = spawnSync('bun', ['run', AM, 'mutate', '-', '--op', '{bad'], { encoding: 'utf8', input: 'flowchart LR\n  A --> B\n' })
     expect(r.status).toBe(2)
+  })
+
+  test('mutate accepts a batch of ops and verifies once before emitting source', () => {
+    const ops = JSON.stringify([
+      { kind: 'add_node', id: 'C', label: 'Cache' },
+      { kind: 'add_edge', from: 'B', to: 'C' },
+    ])
+    const r = spawnSync('bun', ['run', AM, 'mutate', '-', '--ops', ops, '--json'], { encoding: 'utf8', input: 'flowchart LR\n  A --> B\n' })
+    expect(r.status).toBe(0)
+    const payload = JSON.parse(r.stdout)
+    expect(payload.ok).toBe(true)
+    expect(payload.source).toContain('B --> C')
+    expect(payload.verify.ok).toBe(true)
+  })
+
+  test('mutate accepts --ops from a file', () => {
+    const { writeFileSync, existsSync, unlinkSync } = require('node:fs') as typeof import('node:fs')
+    const tmpOps = `/tmp/am-mutate-ops-${Date.now()}.json`
+    writeFileSync(tmpOps, JSON.stringify([{ kind: 'set_label', target: 'A', label: 'API' }]))
+    try {
+      const r = spawnSync('bun', ['run', AM, 'mutate', '-', '--ops', tmpOps], { encoding: 'utf8', input: 'flowchart LR\n  A --> B\n' })
+      expect(r.status).toBe(0)
+      expect(r.stdout).toContain('A[API]')
+    } finally {
+      if (existsSync(tmpOps)) unlinkSync(tmpOps)
+    }
   })
 
   test('mutate verifies before emitting invalid output', () => {

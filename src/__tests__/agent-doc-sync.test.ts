@@ -126,7 +126,7 @@ describe('root docs consistency', () => {
   })
 
   test('advertised CLI verbs have help entries', () => {
-    const commands = ['render', 'verify', 'parse', 'serialize', 'mutate', 'format', 'describe', 'capabilities', 'batch', 'render-markdown', 'llms-txt']
+    const commands = ['render', 'verify', 'parse', 'serialize', 'mutate', 'preview', 'format', 'describe', 'capabilities', 'batch', 'render-markdown', 'llms-txt']
     for (const command of commands) {
       const r = spawnSync('bun', ['run', join(REPO, 'bin/am.ts'), command, '--help'], { encoding: 'utf8' })
       expect({ command, status: r.status, stderr: r.stderr }).toEqual({ command, status: 0, stderr: '' })

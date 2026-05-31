@@ -53,6 +53,7 @@ describe('live agent-usage eval harness', () => {
     const replay = await runAgentUsageEval(replayCases)
     expect(replay.ok).toBe(true)
     expect(replay.passed).toBe(replay.total)
+    expect(replay.safePathRate).toBe(1)
     expect(replay.structuredPathRate).toBe(1)
   })
 })

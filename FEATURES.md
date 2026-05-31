@@ -78,8 +78,8 @@ or preserves source verbatim. Constructs are never silently dropped.
 
 `render` (svg/ascii/unicode/json with multi-input results; png uses one
 input plus `--output`; `--security strict`, `--watch`), `render-markdown` (skip bad blocks),
-`parse`, `verify`, `mutate`, `format`, `describe` (text/json),
-`capabilities --json` (including `families[].mutationOps`), `batch --jsonl`,
+`parse`, `verify`, `mutate` (`--op` or `--ops`), `preview` (strict standalone HTML + optional `--open`), `format`, `describe` (text/json),
+`capabilities --json` (including `families[].mutationOps`), `batch --jsonl` (including mutate),
 `llms-txt`, `--agent-instructions`. `mutate` verifies before emitting source.
 Exit codes 0/2/3/4; parse and verify-failure errors include structured `error.details` arrays.
 

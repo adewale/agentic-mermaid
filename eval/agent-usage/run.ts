@@ -24,6 +24,9 @@ export interface AgentUsageEvalSummary {
   ok: boolean
   total: number
   passed: number
+  /** Any safe route: direct source authoring for new diagrams, refusal for opaque, or structured mutation for editable inputs. */
+  safePathRate: number
+  /** Structured-mutation success rate for cases where typed mutation is required. */
   structuredPathRate: number
   results: AgentUsageEvalResult[]
 }
@@ -109,6 +112,18 @@ export const DEFAULT_CASES: AgentUsageEvalCase[] = [
       return { source: mermaid.serializeMermaid(r1.value) }
     `,
   },
+  {
+    id: 'author_auth_flow_source',
+    prompt: 'Author a new Auth Flow flowchart as Mermaid source directly, parse it, verify it, then return the source. Do not use mutate because there is no existing diagram to preserve.',
+    script: `
+      const source = '---\\ntitle: Auth Flow\\n---\\nflowchart LR\\n  A[User] --> B[Login Page]\\n  B --> C{Valid Credentials?}\\n  C -->|No| B\\n  C -->|Yes| D{MFA Enabled?}\\n  D -->|Yes| E[Enter MFA Code]\\n  E --> F{Code Valid?}\\n  F -->|No| E\\n  D -->|No| G[Create Session]\\n  F -->|Yes| G\\n  G --> H[Dashboard]'
+      const parsed = mermaid.parseMermaid(source)
+      if (!parsed.ok) return { error: parsed.error }
+      const verify = mermaid.verifyMermaid(parsed.value)
+      if (!verify.ok) return { error: 'verify', warnings: verify.warnings }
+      return { source }
+    `,
+  },
 ]
 
 export async function runAgentUsageEval(cases: AgentUsageEvalCase[] = DEFAULT_CASES): Promise<AgentUsageEvalSummary> {
@@ -118,12 +133,19 @@ export async function runAgentUsageEval(cases: AgentUsageEvalCase[] = DEFAULT_CA
     const exec = await executeInSandbox(c.script, { trace: true })
     const trace = (exec.trace ?? []) as SdkCall[]
     const findings = lintAgentTrace(trace)
-    const taskOk = exec.ok && input ? checkTask(c.id, input, exec.value, trace) : false
-    const traceOk = input ? findings.length === 0 && checkTrace(c.id, input, trace) : false
+    const taskOk = exec.ok ? checkTask(c.id, input, exec.value, trace) : false
+    const traceOk = findings.length === 0 && checkTrace(c.id, input, trace)
     results.push({ id: c.id, ok: Boolean(exec.ok && taskOk && traceOk), taskOk, traceOk, findings, error: exec.ok ? undefined : exec.error })
   }
   const passed = results.filter(r => r.ok).length
-  return { ok: passed === results.length, total: results.length, passed, structuredPathRate: results.filter(r => r.traceOk).length / Math.max(1, results.length), results }
+  const safePathRate = results.filter(r => r.traceOk).length / Math.max(1, results.length)
+  const structuredCases = results.filter(r => requiresStructuredMutation(r.id))
+  const structuredPathRate = structuredCases.filter(r => r.traceOk).length / Math.max(1, structuredCases.length)
+  return { ok: passed === results.length, total: results.length, passed, safePathRate, structuredPathRate, results }
+}
+
+export function requiresStructuredMutation(id: string): boolean {
+  return id === 'cache_between_api_and_db' || id === 'timeline_add_event' || id === 'class_add_duck' || id === 'er_add_order'
 }
 
 type MutableFamily = 'flowchart' | 'timeline' | 'class' | 'er'
@@ -194,7 +216,18 @@ function hasMutationOps(trace: SdkCall[], input: string, required: string[]): bo
   return true
 }
 
-function checkTrace(id: string, input: string, trace: SdkCall[]): boolean {
+function checkSourceAuthoringTrace(trace: SdkCall[]): boolean {
+  const parses = trace.filter((c): c is Extract<SdkCall, { verb: 'parse' }> => c.verb === 'parse')
+  if (parses.length !== 1 || parses[0]!.diagram === undefined) return false
+  const diagram = parses[0]!.diagram
+  return !trace.some(c => c.verb === 'mutate' || c.verb === 'serialize')
+    && trace.some(c => c.verb === 'verify' && c.diagram === diagram && c.ok === true)
+    && trace.some(c => c.verb === 'verify_inspect' && c.diagram === diagram)
+}
+
+function checkTrace(id: string, input: string | undefined, trace: SdkCall[]): boolean {
+  if (id === 'author_auth_flow_source') return checkSourceAuthoringTrace(trace)
+  if (!input) return false
   if (id === 'cache_between_api_and_db') return checkMutationTrace(id, input, 'flowchart', trace) && hasMutationOps(trace, input, ['add_node', 'remove_edge', 'add_edge', 'add_edge'])
   if (id === 'timeline_add_event') return checkMutationTrace(id, input, 'timeline', trace) && hasMutationOps(trace, input, ['add_event'])
   if (id === 'class_add_duck') return checkMutationTrace(id, input, 'class', trace) && hasMutationOps(trace, input, ['add_class'])
@@ -220,7 +253,33 @@ function returnedSerializedSource(value: unknown, trace: SdkCall[]): string | un
   return typeof source === 'string' && source === serialized ? source : undefined
 }
 
-function checkTask(id: string, input: string, value: unknown, trace: SdkCall[]): boolean {
+function checkSourceAuthoringTask(value: unknown): boolean {
+  const source = (value as { source?: unknown } | undefined)?.source
+  if (typeof source !== 'string') return false
+  const parsed = parseMermaid(source)
+  if (!parsed.ok) return false
+  const graph = asFlowchart(parsed.value)?.body.graph
+  if (!graph) return false
+  const edges = new Set(graph.edges.map(e => `${e.source}->${e.target}`))
+  const labels = new Map(Array.from(graph.nodes.values()).map(n => [n.id, n.label]))
+  return labels.get('A') === 'User'
+    && labels.get('B') === 'Login Page'
+    && labels.get('H') === 'Dashboard'
+    && edges.has('A->B')
+    && edges.has('B->C')
+    && edges.has('C->B')
+    && edges.has('C->D')
+    && edges.has('D->E')
+    && edges.has('E->F')
+    && edges.has('F->E')
+    && edges.has('D->G')
+    && edges.has('F->G')
+    && edges.has('G->H')
+}
+
+function checkTask(id: string, input: string | undefined, value: unknown, trace: SdkCall[]): boolean {
+  if (id === 'author_auth_flow_source') return checkSourceAuthoringTask(value)
+  if (!input) return false
   if (id === 'cache_between_api_and_db') {
     const source = returnedSerializedSource(value, trace)
     if (!source) return false

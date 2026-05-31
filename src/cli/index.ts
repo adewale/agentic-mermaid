@@ -2,7 +2,10 @@
 // am — agentic-mermaid CLI (v4).
 // ============================================================================
 
-import { readFileSync, existsSync } from 'node:fs'
+import { readFileSync, existsSync, writeFileSync, mkdtempSync } from 'node:fs'
+import { spawnSync } from 'node:child_process'
+import { join, resolve } from 'node:path'
+import { tmpdir } from 'node:os'
 import { parseMermaid } from '../agent/parse.ts'
 import { serializeMermaid, synthesizeFromGraph } from '../agent/serialize.ts'
 import { mutate } from '../agent/mutate.ts'
@@ -37,7 +40,7 @@ function parseErrorEnvelope(errors: ParseError[]): { ok: false; error: { code: s
 
 interface ParsedArgs { command?: string; positional: string[]; flags: Record<string, string | boolean> }
 
-const BOOLEAN_FLAGS = new Set(['agent-instructions', 'ascii', 'help', 'json', 'watch'])
+const BOOLEAN_FLAGS = new Set(['agent-instructions', 'ascii', 'help', 'json', 'watch', 'open'])
 
 function parseArgs(argv: string[]): ParsedArgs {
   const out: ParsedArgs = { positional: [], flags: {} }
@@ -81,7 +84,8 @@ Commands:
   verify <file|->        Verify; emits structured JSON warnings
   parse <file|->         Parse; emits ValidDiagram JSON
   serialize              Read ValidDiagram JSON from stdin; emit canonical source
-  mutate <file|-> --op '<JSON>'  Apply one MutationOp; verify + emit source
+  mutate <file|-> --op '<JSON>'  Apply MutationOp(s); verify + emit source
+  preview <file|->       Write standalone HTML preview; optionally --open
   format <file|->        Idempotent reformat
   describe <file|->      Prose summary or AX-tree JSON
   capabilities           Emit JSON describing families + warning codes + mutation ops
@@ -92,7 +96,10 @@ Commands:
 Flags:
   --json                 Structured JSON output
   --ascii                For render/render-markdown: ASCII instead of SVG
-  --op <JSON>            For mutate: the MutationOp
+  --op <JSON>            For mutate: one MutationOp
+  --ops <JSON|file>      For mutate: JSON array of MutationOps
+  --output <FILE>        For render png / preview output path
+  --open                 For preview: open generated HTML in browser
   --suppress <CODES>     For verify: comma-separated WarningCodes to suppress
   --label-cap <N>        For verify: LABEL_OVERFLOW char cap (default 40)
   --agent-instructions   Print the canonical agent-use guide
@@ -128,11 +135,15 @@ Pipe to 'am serialize' to round-trip.`,
   serialize: `am serialize  (reads ValidDiagram JSON on stdin)
 Emits canonical Mermaid source. Accepts the JSON shape that 'am parse' emits;
 rebuilds the diagram via synthesizeFromGraph without re-parsing source.`,
-  mutate: `am mutate <file|-> --op '<JSON>' [--json]
-Applies one MutationOp, verifies the mutated diagram, then emits new source.
+  mutate: `am mutate <file|-> (--op '<JSON>' | --ops '<JSON array|file.json>') [--json]
+Applies one or more MutationOps, verifies the final diagram, then emits source.
 Flowchart/state, sequence, timeline, class, and ER have typed mutation ops;
 journey, xychart, architecture, and opaque-fallback diagrams return a structured
-UNSUPPORTED_FAMILY error (exit 2). Verify failures exit 3.`,
+UNSUPPORTED_FAMILY error (exit 2). Verify failures exit 3 and omit source.`,
+  preview: `am preview <file|-> [--output preview.html] [--open] [--json] [--security strict]
+Writes a standalone HTML preview containing strict-mode rendered SVG. Without
+--output, emits HTML to stdout unless --open is set, in which case a temp HTML
+file is written and opened. With --json, emits {ok,path,opened,bytes} for file output.`,
   format: `am format <file|->
 Parse then re-serialize to canonical form. Idempotent.`,
   describe: `am describe <file|-> [--format text|json] [--json]
@@ -147,10 +158,10 @@ Emits a single JSON object describing the SDK's capability surface:
     outputFormats: ["svg", "ascii", "unicode", "png", "json"] }
 Use this to introspect what the CLI can do without running every command.`,
   batch: `am batch  (reads JSONL from stdin)
-Each line: { op: "render"|"verify"|"parse"|"serialize", source: string,
-options?: {} }. Emits one JSON envelope per line: { ok, op, data?, error? }.
-Malformed JSON or unknown ops surface as ok:false with an error code; the
-batch continues. Process exit code is 0 even if individual lines errored.`,
+Each line: { op: "render"|"verify"|"parse"|"serialize"|"mutate", source: string,
+options?: {}, mutation?: MutationOp, mutations?: MutationOp[] }. Emits one JSON
+envelope per line: { ok, op, data?, error? }. Malformed JSON or unknown ops
+surface as ok:false; the batch continues and exits 0 even if lines errored.`,
   'render-markdown': `am render-markdown <file.md> [--ascii]
 Render fenced \`\`\`mermaid blocks. Bad diagrams yield ok:false entries and do
 not abort the rest of the Markdown file.`,
@@ -175,6 +186,7 @@ export function runCli(argv: string[]): number {
       case 'parse': return cmdParse(args)
       case 'serialize': return cmdSerialize()
       case 'mutate': return cmdMutate(args, json)
+      case 'preview': return cmdPreview(args, json)
       case 'format': return cmdFormat(args)
       case 'describe': return cmdDescribe(args, json)
       case 'capabilities': return cmdCapabilities()
@@ -379,49 +391,163 @@ function cmdSerialize(): number {
   return EXIT_OK
 }
 
-function cmdMutate(args: ParsedArgs, json: boolean): number {
-  const source = readSourceArg(args.positional[0])
+type CliMutationError = MutationError | { code: 'UNSUPPORTED_FAMILY' | 'VERIFY_FAILED' | 'PARSE_FAILED' | 'INVALID_OP'; message: string; details?: unknown }
+
+type MutationRunResult =
+  | { ok: true; source: string; verify: ReturnType<typeof verifyMermaid> }
+  | { ok: false; error: CliMutationError; verify?: ReturnType<typeof verifyMermaid> }
+
+function parseMutationOpsFlag(args: ParsedArgs): Result<AnyMutationOp[], CliMutationError> {
   const opStr = typeof args.flags.op === 'string' ? args.flags.op : ''
-  if (!opStr) { process.stderr.write('mutate: --op <JSON> is required\n'); return EXIT_ARG_ERROR }
-  let op: AnyMutationOp
-  try { op = JSON.parse(opStr) as AnyMutationOp } catch (e) { process.stderr.write(`mutate: invalid --op JSON: ${(e as Error).message}\n`); return EXIT_ARG_ERROR }
-  const r0 = parseMermaid(source)
-  if (!r0.ok) {
-    process.stdout.write(JSON.stringify(parseErrorEnvelope(r0.error)) + '\n')
-    return EXIT_ARG_ERROR
+  const opsStr = typeof args.flags.ops === 'string' ? args.flags.ops : ''
+  if (opStr && opsStr) return { ok: false, error: { code: 'INVALID_OP', message: 'mutate accepts either --op or --ops, not both' } }
+  if (!opStr && !opsStr) return { ok: false, error: { code: 'INVALID_OP', message: 'mutate requires --op <JSON> or --ops <JSON array|file.json>' } }
+  try {
+    if (opStr) return { ok: true, value: [JSON.parse(opStr) as AnyMutationOp] }
+    const raw = existsSync(opsStr) ? readFileSync(opsStr, 'utf8') : opsStr
+    const parsed = JSON.parse(raw) as unknown
+    if (!Array.isArray(parsed)) return { ok: false, error: { code: 'INVALID_OP', message: '--ops must be a JSON array of MutationOps' } }
+    if (parsed.length === 0) return { ok: false, error: { code: 'INVALID_OP', message: '--ops must contain at least one MutationOp' } }
+    return { ok: true, value: parsed as AnyMutationOp[] }
+  } catch (e) {
+    return { ok: false, error: { code: 'INVALID_OP', message: `invalid mutation JSON: ${(e as Error).message}` } }
   }
-
-  const flow = asFlowchart(r0.value)
-  if (flow) return emitMutation(mutate(flow, op as FlowchartMutationOp), json)
-  const seq = asSequence(r0.value)
-  if (seq) return emitMutation(mutate(seq, op as SequenceMutationOp), json)
-  const timeline = asTimeline(r0.value)
-  if (timeline) return emitMutation(mutate(timeline, op as TimelineMutationOp), json)
-  const klass = asClass(r0.value)
-  if (klass) return emitMutation(mutate(klass, op as ClassMutationOp), json)
-  const er = asEr(r0.value)
-  if (er) return emitMutation(mutate(er, op as ErMutationOp), json)
-
-  process.stdout.write(JSON.stringify({
-    ok: false,
-    error: { code: 'UNSUPPORTED_FAMILY', message: `mutate supports flowchart, state, sequence, timeline, class, and ER diagrams; got ${r0.value.kind}${r0.value.body.kind === 'opaque' ? ' (source-level/opaque body — structured mutation is not exposed for this family or syntax)' : ''}` },
-  }) + '\n')
-  return EXIT_ARG_ERROR
 }
 
-function emitMutation(r: Result<MutableValidDiagram, MutationError>, json: boolean): number {
-  if (!r.ok) { process.stdout.write(JSON.stringify({ ok: false, error: r.error }) + '\n'); return EXIT_ARG_ERROR }
-  const verify = verifyMermaid(r.value)
+function mutateAny(d: ValidDiagram, op: AnyMutationOp): Result<MutableValidDiagram, CliMutationError> {
+  const flow = asFlowchart(d)
+  if (flow) return mutate(flow, op as FlowchartMutationOp)
+  const seq = asSequence(d)
+  if (seq) return mutate(seq, op as SequenceMutationOp)
+  const timeline = asTimeline(d)
+  if (timeline) return mutate(timeline, op as TimelineMutationOp)
+  const klass = asClass(d)
+  if (klass) return mutate(klass, op as ClassMutationOp)
+  const er = asEr(d)
+  if (er) return mutate(er, op as ErMutationOp)
+  return {
+    ok: false,
+    error: { code: 'UNSUPPORTED_FAMILY', message: `mutate supports flowchart, state, sequence, timeline, class, and ER diagrams; got ${d.kind}${d.body.kind === 'opaque' ? ' (source-level/opaque body — structured mutation is not exposed for this family or syntax)' : ''}` },
+  }
+}
+
+export function mutateSource(source: string, ops: AnyMutationOp[]): MutationRunResult {
+  const r0 = parseMermaid(source)
+  if (!r0.ok) {
+    const env = parseErrorEnvelope(r0.error)
+    return { ok: false, error: { code: 'PARSE_FAILED', message: env.error.message, details: env.error.details } }
+  }
+  let current: ValidDiagram = r0.value
+  for (let index = 0; index < ops.length; index++) {
+    const op = ops[index]!
+    const next = mutateAny(current, op)
+    if (!next.ok) {
+      const details = (next.error as { details?: unknown }).details
+      return { ok: false, error: { ...next.error, details: { index, op, ...(typeof details === 'object' && details ? details as Record<string, unknown> : {}) } } }
+    }
+    current = next.value
+  }
+  const verify = verifyMermaid(current)
   if (!verify.ok) {
-    process.stdout.write(JSON.stringify({
+    return {
       ok: false,
       error: { code: 'VERIFY_FAILED', message: 'mutated diagram failed verify; source was not emitted', details: verify.warnings },
       verify,
-    }, replacer) + '\n')
-    return EXIT_VERIFY_FAILED
+    }
   }
-  const out = serializeMermaid(r.value)
-  process.stdout.write(json ? JSON.stringify({ ok: true, source: out, verify }, replacer) + '\n' : out)
+  return { ok: true, source: serializeMermaid(current), verify }
+}
+
+function cmdMutate(args: ParsedArgs, json: boolean): number {
+  const source = readSourceArg(args.positional[0])
+  const ops = parseMutationOpsFlag(args)
+  if (!ops.ok) { process.stderr.write(`mutate: ${ops.error.message}\n`); return EXIT_ARG_ERROR }
+  return emitMutationRun(mutateSource(source, ops.value), json)
+}
+
+function emitMutationRun(r: MutationRunResult, json: boolean): number {
+  if (!r.ok) {
+    process.stdout.write(JSON.stringify({ ok: false, error: r.error, verify: r.verify }, replacer) + '\n')
+    return r.error.code === 'VERIFY_FAILED' ? EXIT_VERIFY_FAILED : EXIT_ARG_ERROR
+  }
+  process.stdout.write(json ? JSON.stringify({ ok: true, source: r.source, verify: r.verify }, replacer) + '\n' : r.source)
+  return EXIT_OK
+}
+
+export function buildPreviewHtml(source: string, opts: { security?: 'default' | 'strict' } = {}): Result<string, { code: string; message: string; details?: unknown }> {
+  const parsed = parseMermaid(source)
+  if (!parsed.ok) {
+    const env = parseErrorEnvelope(parsed.error)
+    return { ok: false, error: env.error }
+  }
+  const svg = renderMermaidSVG(source, { security: opts.security ?? 'strict' })
+  const title = parsed.value.meta.frontmatter?.title ?? 'Mermaid preview'
+  const escapedTitle = escapeHtml(String(title))
+  const escapedSource = escapeHtml(source)
+  return { ok: true, value: `<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>${escapedTitle}</title>
+  <style>
+    body { margin: 0; min-height: 100vh; display: grid; grid-template-rows: auto 1fr; background: #f8fafc; color: #0f172a; font-family: system-ui, sans-serif; }
+    header { padding: 12px 16px; border-bottom: 1px solid #e2e8f0; background: white; }
+    main { padding: 24px; overflow: auto; }
+    .canvas { width: max-content; max-width: 100%; margin: 0 auto; background: white; box-shadow: 0 18px 70px rgba(15,23,42,.12); }
+    svg { display: block; max-width: 100%; height: auto; }
+    details { margin-top: 16px; }
+    pre { white-space: pre-wrap; background: #0f172a; color: #e2e8f0; padding: 12px; border-radius: 8px; }
+  </style>
+</head>
+<body>
+  <header><strong>${escapedTitle}</strong></header>
+  <main>
+    <div class="canvas">${svg}</div>
+    <details><summary>Mermaid source</summary><pre>${escapedSource}</pre></details>
+  </main>
+</body>
+</html>` }
+}
+
+function escapeHtml(s: string): string {
+  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
+}
+
+export function openPreviewFile(path: string): { ok: true } | { ok: false; error: string } {
+  const override = process.env.AM_OPEN_COMMAND
+  const command = override || (process.platform === 'darwin' ? 'open' : process.platform === 'win32' ? 'cmd' : 'xdg-open')
+  const args = override ? [path] : process.platform === 'win32' ? ['/c', 'start', '', path] : [path]
+  const r = spawnSync(command, args, { stdio: 'ignore' })
+  if (r.error || r.status !== 0) return { ok: false, error: `open command failed: ${command}` }
+  return { ok: true }
+}
+
+function cmdPreview(args: ParsedArgs, json: boolean): number {
+  const source = readSourceArg(args.positional[0])
+  const security = 'strict' as const
+  if (args.flags.security !== undefined && args.flags.security !== 'strict') {
+    process.stderr.write('am preview --security accepts only strict\n')
+    return EXIT_ARG_ERROR
+  }
+  const html = buildPreviewHtml(source, { security })
+  if (!html.ok) { process.stdout.write(JSON.stringify({ ok: false, error: html.error }) + '\n'); return EXIT_ARG_ERROR }
+  let outFile = typeof args.flags.output === 'string' ? args.flags.output : ''
+  if (!outFile && args.flags.open) outFile = join(mkdtempSync(join(tmpdir(), 'am-preview-')), 'preview.html')
+  if (outFile) {
+    const path = resolve(outFile)
+    writeFileSync(path, html.value)
+    let opened = false
+    if (args.flags.open) {
+      const openedResult = openPreviewFile(path)
+      if (!openedResult.ok) { process.stderr.write(`am preview --open: ${openedResult.error}\n`); return EXIT_INTERNAL }
+      opened = true
+    }
+    if (json) process.stdout.write(JSON.stringify({ ok: true, path, opened, bytes: html.value.length }) + '\n')
+    else process.stdout.write(`${path}\n`)
+    return EXIT_OK
+  }
+  process.stdout.write(json ? JSON.stringify({ ok: true, html: html.value }) + '\n' : html.value)
   return EXIT_OK
 }
 
@@ -558,9 +684,10 @@ cross-process and same-machine cross-runtime on x86_64/ARM64).
 
 ## The agent loop
 
-parse → (narrow per family) → mutate → verify → serialize. Run verify at
-every commit point. Never serialize a diagram whose verify result you
-haven't inspected.
+New diagrams: author Mermaid source → parse → verify → render/return.
+Existing structured diagrams: parse → narrow → mutate → verify → serialize.
+Run verify at every commit point. Never serialize a diagram whose verify result
+you haven't inspected.
 
 ## CLI verbs (\`am <verb>\`)
 
@@ -568,11 +695,12 @@ haven't inspected.
 - render --format png --output file.png — render one input to PNG (no PNG bytes on stdout, no multi-input/watch)
 - parse — diagram → ValidDiagram JSON
 - verify — structural validation (exit 3 if invalid)
-- mutate --op '<json>' — apply a typed mutation, verify, then emit source
+- mutate --op '<json>' / --ops '<json array|file>' — apply typed mutation(s), verify, then emit source
+- preview [--output file.html] [--open] — standalone strict-mode HTML preview for user inspection
 - format — normalize / canonicalize source
 - describe [--format text|json] — natural-language or AX-tree summary
 - capabilities --json — machine-readable capability envelope incl. mutationOps
-- batch --jsonl — bulk ops, one JSON envelope per line
+- batch --jsonl — bulk render/verify/parse/serialize/mutate ops, one JSON envelope per line
 - render-markdown <file.md> [--ascii] — render fenced mermaid blocks, skip invalid ones
 - llms-txt — this document
 
@@ -663,9 +791,11 @@ function cmdRenderMarkdown(args: ParsedArgs): number {
 // ---- Loop 7 / A3.2: batch -------------------------------------------------
 
 interface BatchLine {
-  op: 'render' | 'verify' | 'parse' | 'serialize'
+  op: 'render' | 'verify' | 'parse' | 'serialize' | 'mutate'
   source: string
   options?: Record<string, unknown>
+  mutation?: AnyMutationOp
+  mutations?: AnyMutationOp[]
 }
 
 interface BatchOutput {
@@ -724,6 +854,17 @@ export function runBatchLine(rawLine: string, lineIndex = 0): BatchOutput {
         const r = synthesizeFromGraph(payload as Parameters<typeof synthesizeFromGraph>[0])
         if (!r.ok) return { ok: false, op, error: { code: 'SYNTHESIZE_FAILED', message: JSON.stringify(r.error) } }
         return { ok: true, op, data: { source: serializeMermaid(r.value) } }
+      }
+      case 'mutate': {
+        const ops = Array.isArray(parsed.mutations)
+          ? parsed.mutations
+          : parsed.mutation
+            ? [parsed.mutation]
+            : []
+        if (ops.length === 0) return { ok: false, op, error: { code: 'INVALID_OP', message: 'mutate batch line requires mutation or mutations[]' } }
+        const r = mutateSource(parsed.source, ops)
+        if (!r.ok) return { ok: false, op, error: { code: r.error.code, message: r.error.message } }
+        return { ok: true, op, data: { source: r.source, verify: JSON.parse(JSON.stringify(r.verify, replacer)) } }
       }
       default:
         return { ok: false, op, error: { code: 'UNKNOWN_OP', message: `unknown op: ${op}` } }

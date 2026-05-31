@@ -327,7 +327,9 @@ No HTTP endpoint or editor WebSocket watch in v1. The skill teaches Code Mode fo
 Agent-contract CLI verbs for explicit self-discovery, summaries, and batch operation:
 
 - `am capabilities [--json]` — emit `{ sdkVersion, families: [{ id, hasParse, hasSerialize, hasMutate, hasVerify, hasExtractLabels, mutationOps }], warningCodes: [{ code, tier, severity }], outputFormats: ["svg","ascii","unicode","png","json"] }`. Sourced from the public dispatch surface, family-plugin registry, and `WARNING_SEVERITY` / `WARNING_TIER` tables — so the contract is self-describing, not hand-maintained. A JSON Schema is committed at `src/__tests__/__fixtures__/capabilities.schema.json`; any shape drift fails the test loudly.
-- `am batch --jsonl` — read JSONL from stdin, dispatch per-line to render/verify/parse/serialize handlers, emit one JSON envelope per result. Malformed lines surface `{ ok: false, error: { code: 'INVALID_JSON' } }` and do **not** abort the stream.
+- `am batch --jsonl` — read JSONL from stdin, dispatch per-line to render/verify/parse/serialize/mutate handlers, emit one JSON envelope per result. Malformed lines surface `{ ok: false, error: { code: 'INVALID_JSON' } }` and do **not** abort the stream.
+- `am preview [--output file.html] [--open]` — write a standalone strict-mode HTML preview for human inspection without hand-building wrapper files.
+- `am mutate --ops '<json array|file>'` — apply a batch of typed mutations, verify once at the commit point, and omit source on verify failure.
 - `am describe [--format text|json]` — emit a prose summary or structured AX tree (`{kind,nodes,edges,entryPoints,sinks}`) for screen readers, doc generation, and agent context compaction.
 - **Exit codes** are widened to 4: `EXIT_OK=0`, `EXIT_ARG_ERROR=2`, `EXIT_VERIFY_FAILED=3`, `EXIT_INTERNAL=4` (in `src/cli/exit-codes.ts`). The CLI was previously `0` or `2` only. `EXIT_VERIFY_FAILED=3` is the new code for "valid args, but the diagram failed verify" — important for agents wrapping `am verify` in batch.
 
@@ -339,13 +341,14 @@ Agent-contract CLI verbs for explicit self-discovery, summaries, and batch opera
 
 The canonical runtime guide lives in `Instructions_for_agents.md` and is emitted byte-for-byte by `am --agent-instructions`; this spec intentionally does not duplicate the full snippet. The stable contract is:
 
-1. `parseMermaid(source)` → `ValidDiagram`.
-2. Narrow with `asFlowchart` / `asSequence` / `asTimeline` / `asClass` / `asEr`; `null` means no structured mutation for that body.
-3. Apply typed `mutate` ops only to narrowed mutable bodies; Code Mode SDK-returned diagrams are read-only to block direct IR edits.
-4. Run `verifyMermaid(d)` at every commit point and inspect `ok` / `warnings` / `layout`.
-5. Only then `serializeMermaid(d)`.
+1. For new diagrams, author Mermaid source directly, then `parseMermaid` / `verifyMermaid` / render or return it.
+2. For existing diagrams, `parseMermaid(source)` → `ValidDiagram`.
+3. Narrow with `asFlowchart` / `asSequence` / `asTimeline` / `asClass` / `asEr`; `null` means no structured mutation for that body.
+4. Apply typed `mutate` ops only to narrowed mutable bodies; Code Mode SDK-returned diagrams are read-only to block direct IR edits.
+5. Run `verifyMermaid(d)` at every commit point and inspect `ok` / `warnings` / `layout`.
+6. Only then `serializeMermaid(d)`.
 
-Anti-patterns: whole-source regeneration, string concatenation where a typed op exists, serializing before inspecting verify, and calling `mutate` on opaque/source-only bodies.
+Anti-patterns: whole-source regeneration of an existing parsed diagram, string concatenation to edit an existing structured diagram where a typed op exists, serializing before inspecting verify, and calling `mutate` on opaque/source-only bodies.
 
 ---
 

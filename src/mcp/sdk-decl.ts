@@ -153,9 +153,9 @@ declare const mermaid: {
 }
 
 // Conventions:
-// 1. verifyMermaid after every batch of mutations; inspect ok/warnings/layout
-//    before serializeMermaid. On failure, revert or try a different operation.
-// 2. Never concatenate Mermaid source — use mutate() + serializeMermaid().
+// 1. For new diagrams, author Mermaid source directly, then parse/verify/render.
+// 2. For existing structured diagrams, use mutate() + verify + serializeMermaid();
+//    do not regenerate/concatenate source when a typed op exists.
 // 3. mutate works on flowchart/state, simple sequence, timeline, class, and ER.
 //    Narrow via asFlowchart/asSequence/asTimeline/asClass/asEr. Journey,
 //    xychart, architecture, and opaque-fallback bodies are source-level only;

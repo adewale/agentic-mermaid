@@ -112,9 +112,9 @@ export function lintAgentTrace(trace: SdkCall[]): AntiPattern[] {
         out.push({ code: 'SERIALIZE_WITHOUT_VERIFY', message: 'serialize after mutate with no inspected successful verify for the same diagram state', at: i })
       }
     } else if (c.verb === 'string_concat') {
-      out.push({ code: 'STRING_CONCAT', message: 'building Mermaid source by string concatenation instead of mutate', at: i })
+      out.push({ code: 'STRING_CONCAT', message: 'editing existing structured Mermaid source by concatenation instead of mutate', at: i })
     } else if (c.verb === 'regenerate') {
-      out.push({ code: 'REGENERATE', message: 'regenerating whole source instead of mutating (defeats round-trip)', at: i })
+      out.push({ code: 'REGENERATE', message: 'regenerating an existing parsed diagram instead of mutating (defeats round-trip)', at: i })
     }
   }
   for (const v of verifies) {
