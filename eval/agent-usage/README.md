@@ -1,8 +1,8 @@
 # Agent-usage validation
 
 How do we test/verify how agents actually *use* this tool — not just that
-the functions work, but that the affordances steer an agent onto the safe,
-safe path (new source → parse → inspect verify, or existing diagram → parse → narrow → mutate → inspect verify → serialize) and away
+the functions work, but that the affordances steer an agent onto the safe path
+(new source → parse → inspect verify, or existing diagram → parse → narrow → mutate → inspect verify → serialize) and away
 from anti-patterns (existing-diagram string-concat, regenerate-whole-source,
 serialize-without-verify, mutate-on-opaque)?
 
@@ -53,7 +53,7 @@ call the real MCP JSON-RPC `tools/call execute` path and compare its result to a
 traced replay of the same code.
 
 The real question — "does a frontier model, given only Instructions_for_agents.md
-+ a task, stay on the structured path?" — is handled by `live.ts` when model
++ a task, choose the right safe path?" — is handled by `live.ts` when model
 credentials are available:
 
 1. Build the exact system prompt from Instructions_for_agents.md + the Code Mode SDK declaration.

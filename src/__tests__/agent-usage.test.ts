@@ -1,19 +1,23 @@
 // Loop 13 M6: agent-usage validation harness — scenarios + anti-pattern linter.
 
 import { describe, test, expect } from 'bun:test'
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
 import { runAllScenarios, lintAgentTrace, type SdkCall } from '../../eval/agent-usage/harness.ts'
 import { runAgentUsageEval } from '../../eval/agent-usage/run.ts'
 import { executeInSandbox } from '../mcp/sandbox.ts'
 import { handleRequest } from '../mcp/server.ts'
 
-describe('agent-usage scenarios (the structured loop works)', () => {
+const REPO = join(import.meta.dir, '..', '..')
+
+describe('agent-usage scenarios (the mutation loop works)', () => {
   test('all scripted scenarios pass', () => {
     for (const r of runAllScenarios()) {
       expect({ name: r.name, ok: r.ok, detail: r.detail }).toEqual({ name: r.name, ok: true, detail: r.detail })
     }
   })
 
-  test('serialized scenarios take clean structured paths', () => {
+  test('serialized scenarios take clean mutation paths', () => {
     for (const r of runAllScenarios().filter(r => r.trace.some(c => c.verb === 'serialize'))) {
       const verbs = r.trace.map(c => c.verb)
       expect(verbs[0]).toBe('parse')
@@ -123,6 +127,20 @@ describe('stored agent-usage eval', () => {
     expect(summary.passed).toBe(summary.total)
     expect(summary.safePathRate).toBe(1)
     expect(summary.structuredPathRate).toBe(1)
+  })
+
+  test('baseline.json gates deterministic stored evals', async () => {
+    const baseline = JSON.parse(readFileSync(join(REPO, 'eval/agent-usage/baseline.json'), 'utf8')) as {
+      total: number
+      minPassed: number
+      minSafePathRate: number
+      minStructuredPathRate: number
+    }
+    const summary = await runAgentUsageEval()
+    expect(summary.total).toBe(baseline.total)
+    expect(summary.passed).toBeGreaterThanOrEqual(baseline.minPassed)
+    expect(summary.safePathRate).toBeGreaterThanOrEqual(baseline.minSafePathRate)
+    expect(summary.structuredPathRate).toBeGreaterThanOrEqual(baseline.minStructuredPathRate)
   })
 
   test('new-diagram source authoring passes without structured mutation', async () => {

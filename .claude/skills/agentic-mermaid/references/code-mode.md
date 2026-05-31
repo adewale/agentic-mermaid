@@ -7,7 +7,7 @@ the MCP prompt is for guidance, not transpilation. SDK-returned diagrams are
 read-only in Code Mode; use `mermaid.mutate(...)` for structured edits instead
 of assigning into the IR. For brand-new diagrams, direct Mermaid source authoring
 followed by parse/verify/render is usually simpler than mutation. The whole
-verify-after-mutate loop is one round-trip.
+verify-before-commit loop is one round-trip.
 
 ## SDK shape
 

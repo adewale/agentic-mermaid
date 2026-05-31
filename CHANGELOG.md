@@ -12,7 +12,7 @@ This changelog tracks user-facing changes in the `adewale/beautiful-mermaid` for
   - `serializeMermaid` / `synthesizeFromGraph` → round-trip back to canonical Mermaid source.
   - Deterministic layout JSON, verified byte-identical across processes (ELK is configured for model-order layout; there is no seed).
 - **`am` CLI**: `render`, `preview` (strict standalone HTML + optional `--open`), `verify`, `parse`, `serialize`, `mutate` (single `--op` or batched `--ops`, verify-before-emit), `format`, `describe`, `capabilities`, `batch` (including mutate), `render-markdown`, `llms-txt`, `--json`, per-command `--help`, and `--agent-instructions`.
-- **`agentic-mermaid-mcp`**: a Code Mode MCP server (one JavaScript `execute` tool, `node:vm` sandbox, typed SDK declaration) so agents compose the whole verify-after-mutate loop in one round-trip.
+- **`agentic-mermaid-mcp`**: a Code Mode MCP server (one JavaScript `execute` tool, `node:vm` sandbox, typed SDK declaration) so agents compose the whole verify-before-commit loop in one round-trip.
 - **`Instructions_for_agents.md`** and a Claude Code skill bundle at `.claude/skills/agentic-mermaid/`.
 - See [`AGENT_NATIVE.md`](./AGENT_NATIVE.md) for the design and [`examples/agent-loop.ts`](./examples/agent-loop.ts) for a runnable walkthrough.
 - Live editor deployment on GitHub Pages at <https://adewale.github.io/beautiful-mermaid/editor>.

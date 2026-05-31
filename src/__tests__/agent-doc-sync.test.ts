@@ -134,6 +134,27 @@ describe('root docs consistency', () => {
     }
   })
 
+  test('preview and batch-mutation affordances stay synced across agent surfaces', () => {
+    const mutateHelp = spawnSync('bun', ['run', join(REPO, 'bin/am.ts'), 'mutate', '--help'], { encoding: 'utf8' }).stdout
+    const previewHelp = spawnSync('bun', ['run', join(REPO, 'bin/am.ts'), 'preview', '--help'], { encoding: 'utf8' }).stdout
+    const batchHelp = spawnSync('bun', ['run', join(REPO, 'bin/am.ts'), 'batch', '--help'], { encoding: 'utf8' }).stdout
+    expect(mutateHelp).toContain('--ops')
+    expect(previewHelp).toContain('--open')
+    expect(batchHelp).toContain('"mutate"')
+
+    const guide = readFileSync(join(REPO, 'Instructions_for_agents.md'), 'utf8')
+    const llms = readFileSync(join(REPO, 'llms.txt'), 'utf8')
+    const skillCli = readFileSync(join(REPO, '.claude/skills/agentic-mermaid/references/cli.md'), 'utf8')
+    for (const [file, text] of [['Instructions_for_agents.md', guide], ['llms.txt', llms], ['.claude/skills/agentic-mermaid/references/cli.md', skillCli]] as const) {
+      expect({ file, preview: text.includes('preview') }).toEqual({ file, preview: true })
+      expect({ file, ops: text.includes('--ops') }).toEqual({ file, ops: true })
+      expect({ file, batchMutate: text.includes('render/verify/parse/serialize/mutate') || text.includes('including mutate') }).toEqual({ file, batchMutate: true })
+    }
+    const readme = readFileSync(join(REPO, 'README.md'), 'utf8')
+    expect(readme).toContain('strict `preview`')
+    expect(readme).toContain('mutate --op/--ops')
+  })
+
   test('README theme and RenderOptions inventory matches public surface', () => {
     const readme = readFileSync(join(REPO, 'README.md'), 'utf8')
     const themeNames = Object.keys(THEMES)
@@ -157,6 +178,20 @@ describe('spec honesty', () => {
   test('spec does not expose removed VerifyOptions layoutContext API', () => {
     const spec = readFileSync(join(REPO, 'AGENT_NATIVE.md'), 'utf8')
     expect(spec).not.toContain('layoutContext?: LayoutContext')
+  })
+
+  test('agent docs use verify-before-commit terminology', () => {
+    for (const file of ['AGENT_NATIVE.md', 'CHANGELOG.md', 'Instructions_for_agents.md', '.claude/skills/agentic-mermaid/references/code-mode.md', 'eval/agent-usage/README.md']) {
+      const text = readFileSync(join(REPO, file), 'utf8')
+      expect({ file, stale: text.includes('verify-after-mutate') }).toEqual({ file, stale: false })
+    }
+  })
+
+  test('Cloudflare Code Mode remains future inspiration, not a shipped runtime claim', () => {
+    const spec = readFileSync(join(REPO, 'AGENT_NATIVE.md'), 'utf8')
+    expect(spec).toContain('not Cloudflare Codemode')
+    expect(spec).toContain('not backed by `@cloudflare/codemode`')
+    expect(spec).toContain('future options, not shipped artifacts')
   })
 })
 
