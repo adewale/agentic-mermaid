@@ -1,4 +1,4 @@
-# Lessons Learned — Loops 1 through 14
+# Lessons Learned — Loops 1 through 15
 
 This document replaces the Loop 1 retrospective. It is the cumulative
 narrative across the agentic-mermaid fork. Each section reflects what a
@@ -328,3 +328,59 @@ Two practical rules came out of the rebase:
 The deeper lesson: once a branch is large, consistency work is no longer
 "polish." It is how you make the branch reviewable and trustworthy enough
 to merge. Stop feature work, align the contract, then ship.
+
+## Loop 15 lesson — if we replayed PR #11, start with the agent contract
+
+If we could do this branch again from scratch, the biggest change would be
+sequence. We built a lot of correct pieces, but too many of the governing
+rules emerged after the implementation already existed. The better order
+would have been:
+
+1. **Write the agent contract first.** Define the public surface before
+   adding features: docs, schemas, CLI help, MCP declarations,
+   `llms.txt`, package exports, and examples. For an agent-native library,
+   those are not downstream documentation; they are the API that agents
+   actually consume.
+2. **Decide structured-vs-source-level policy up front.** We eventually
+   landed on structured mutation for flowchart/state, simple sequence,
+   timeline, class, and ER; source-level-only for journey, xychart,
+   architecture, and opaque fallback. That policy should have existed
+   before mutation ops were exposed. Render support is not mutation
+   support, and an unsafe typed edit is worse than no typed edit.
+3. **Separate greenfield creation from existing-diagram edits earlier.**
+   We over-corrected toward "always mutate" before recognizing the useful
+   distinction: new diagrams can often be authored directly as Mermaid
+   source, then parsed/verified/rendered; existing structured diagrams
+   should go parse → narrow → mutate → verify → serialize. This also led
+   to the right eval metric split: `safePathRate` is not the same thing as
+   `structuredPathRate`.
+4. **Build the canonical examples at the beginning.** The MCP-vs-CLI
+   parity example and the agent-improvement loop should have been seed
+   fixtures, not late validation. A runnable example that creates a
+   complicated diagram through MCP and CLI, plus another that creates →
+   assesses → mutates → reassesses → renders, would have clarified the
+   intended product shape and prevented doc drift.
+5. **Treat `verify.ok` as structural, not visual.** The Auth Flow episode
+   made this concrete: the diagram verified while the layout was visually
+   poor. Geometry assertions, source-order assertions, and screenshot/PNG
+   regressions should have been part of the layout work from the start.
+6. **Pin the Code Mode security model before marketing the feature.** We
+   eventually enforced read-only SDK results, trusted diagram lineage,
+   synchronous execution, no host constructors/functions, and explicit
+   `node:vm` caveats. Those rules should have been written before the MCP
+   story shipped. We also should have avoided any wording that implied a
+   current Cloudflare Codemode or Worker integration.
+7. **Keep the branch smaller and merge earlier.** PR #11 accumulated
+   agent APIs, CLI affordances, MCP design, docs, security hardening,
+   visual/layout fixes, evals, examples, and repository cleanup. Most of
+   those are valuable, but their combination made review harder and made
+   the closed-loop risk worse. A better path would have been: ship the
+   minimal honest agent contract, get one external consumer, then add the
+   next layer.
+
+The high-order lesson is that agent-native work is contract-first work.
+The implementation can be correct and still be hard to trust if the public
+surface, examples, evals, and docs are not aligned from day one. If we
+replayed this branch, we would start with a small runnable contract,
+exercise it through MCP and CLI immediately, and let that contract decide
+which implementation work belongs in the branch.
