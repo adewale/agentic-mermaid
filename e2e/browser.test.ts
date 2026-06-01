@@ -88,12 +88,21 @@ async function takeScreenshot(name: string): Promise<string> {
  *
  * The page also embeds many SVGs whose Google Font imports can keep Chromium's
  * previous document in a loading state even after the app reports that rendering
- * is done. Stop pending subresource loads before starting the next navigation;
- * otherwise GitHub's slower runners can time out before the new response even
- * commits.
+ * is done. Use a fresh Page for each explicit navigation while keeping the same
+ * BrowserContext, so localStorage persists but a stuck prior document cannot
+ * block the next response from committing on slower GitHub runners.
  */
 async function gotoApp(url: string): Promise<void> {
+  const previous = page
+  const viewport = previous?.viewportSize() ?? null
   try { await cdpSession?.send('Page.stopLoading') } catch {}
+  page = await context.newPage()
+  if (viewport) await page.setViewportSize(viewport)
+  cdpSession = await context.newCDPSession(page)
+  if (previous && !previous.isClosed()) {
+    void previous.close({ runBeforeUnload: false }).catch(() => {})
+  }
+
   const response = await page.goto(url, { waitUntil: 'commit', timeout: 60_000 })
   if (!response || !response.ok()) {
     throw new Error(`Failed to navigate to ${url}: ${response?.status() ?? 'no response'}`)
