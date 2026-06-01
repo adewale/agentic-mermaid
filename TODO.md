@@ -35,6 +35,11 @@ Status legend: `todo` | `blocked` | `owner-decision` | `parked`.
 - [ ] **BUILD-3 — Family-plugin consolidation** (`todo`). Evaluate whether
   parse/serialize/mutate dispatch should move fully into `FamilyPlugin` now
   that timeline/class/ER mutation exists.
+- [ ] **BUILD-4 — Cloudflare Worker Code Mode web app** (`todo`). Offer a
+  hosted Agentic Mermaid experience using Cloudflare Workers and
+  `@cloudflare/codemode`/CodeMode-style isolation only after scoping the
+  security boundary, auth/rate limits, persistence model, and parity with the
+  current local CLI/MCP/library contract.
 
 ## 2. Agent-usage verification backlog
 

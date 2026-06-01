@@ -1,4 +1,4 @@
-# Lessons Learned — Loops 1 through 15
+# Lessons Learned — Loops 1 through 16
 
 This document replaces the Loop 1 retrospective. It is the cumulative
 narrative across the agentic-mermaid fork. Each section reflects what a
@@ -384,3 +384,39 @@ surface, examples, evals, and docs are not aligned from day one. If we
 replayed this branch, we would start with a small runnable contract,
 exercise it through MCP and CLI immediately, and let that contract decide
 which implementation work belongs in the branch.
+
+## Loop 16 lesson — layout quality needs executable heuristics, not vibes
+
+The bad-layout work only became tractable once the complaint was converted
+into geometric oracles. "Looks wrong" turned into concrete assertions:
+acyclic edges should progress in the declared direction, unrelated edge
+segments should not cross node boxes, feedback-heavy processes should keep
+clean routes, self-loops need visible clearance, and `verify.ok` still does
+not mean the diagram is visually good. Those checks are cheaper and more
+reviewable than screenshot-only debugging, and they explain failures in
+terms a layout algorithm can act on.
+
+The red phase mattered. The new fan-in/fan-out heuristic caught real
+backward `TD` edges (`A2 -> A`, `B2 -> B`) before the fix. The green phase
+was not a broad renderer rewrite; it was a source-aware, cycle-tolerant
+model order that adds source-before-target constraints unless they would
+turn a feedback edge into a forward edge. That preserved the Auth Flow
+lesson from Loop 15: feedback loops should route backward, but acyclic
+edges should not accidentally point backward because parser insertion order
+was target-biased.
+
+The refactor lesson: layout defaults are shared infrastructure, so every
+fix needs a blast-radius check. The first implementation improved
+flowcharts but perturbed architecture snapshots and group-boundary routing.
+The durable version made the exception explicit: architecture, as a
+projected family, preserves direct child order inside groups while still
+letting root-level group/service siblings use source-aware ordering. The
+iconless-service regression exists because shape-based inference was too
+implicit; when preserving semantics matters, pass the intent explicitly.
+
+Finally, Cloudflare CodeMode belongs in the backlog only as an honest
+future deployment path, not as accidental marketing copy. A Worker-hosted
+Agentic Mermaid app may make sense, but it needs a scoped security model,
+auth/rate limits, persistence, and parity with the current CLI/MCP/library
+contract. Naming it in `TODO.md` is useful; implying the local `node:vm`
+MCP is already Cloudflare CodeMode would be a contract bug.

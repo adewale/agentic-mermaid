@@ -1,10 +1,15 @@
 import { describe, expect, it } from 'bun:test'
 import { layoutArchitectureDiagram } from '../architecture/layout.ts'
-import { parseArchitectureDiagram } from '../architecture/parser.ts'
+import { architectureToMermaidGraph, parseArchitectureDiagram } from '../architecture/parser.ts'
+import { convertToElkFormat } from '../layout-engine.ts'
 import { preprocessMermaidSource } from '../mermaid-source.ts'
 
+function parse(source: string) {
+  return parseArchitectureDiagram(preprocessMermaidSource(source).lines)
+}
+
 function layout(source: string) {
-  return layoutArchitectureDiagram(parseArchitectureDiagram(preprocessMermaidSource(source).lines))
+  return layoutArchitectureDiagram(parse(source))
 }
 
 function pointToSegmentDistance(
@@ -78,6 +83,37 @@ describe('layoutArchitectureDiagram', () => {
     expect(exit.x).toBeGreaterThan(start.x)
     expect(start.y).toBeGreaterThanOrEqual(group.y + 18)
     expect(start.y).toBeLessThanOrEqual(group.y + group.height - 18)
+  })
+
+  it('routes group-boundary edges for iconless architecture services', () => {
+    const result = layout(`architecture-beta
+      group storage[Storage]
+      service db[Database] in storage
+      service cache[Cache]
+      db{group}:R -[replicates]-> L:cache`)
+
+    const group = result.groups[0]!
+    const edge = result.edges[0]!
+    const start = edge.points[0]!
+    const exit = edge.points[1]!
+
+    expect(start.x).toBeCloseTo(group.x + group.width, 6)
+    expect(exit.x).toBeGreaterThan(start.x)
+    expect(start.y).toBeGreaterThanOrEqual(group.y + 18)
+    expect(start.y).toBeLessThanOrEqual(group.y + group.height - 18)
+  })
+
+  it('preserves iconless grouped service order before ELK sees architecture children', () => {
+    const diagram = parse(`architecture-beta
+      group app[Application]
+      service worker[Worker] in app
+      service api[API] in app
+      api:R --> L:worker`)
+    const graph = architectureToMermaidGraph(diagram)
+    const elk = convertToElkFormat(graph, { preserveSubgraphChildOrder: true })
+    const app = elk.children?.find((child) => child.id === 'app')
+
+    expect(app?.children?.map((child) => child.id)).toEqual(['worker', 'api'])
   })
 
   it('places edge labels on the routed polyline', () => {
