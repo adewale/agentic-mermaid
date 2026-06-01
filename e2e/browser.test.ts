@@ -12,7 +12,7 @@
 
 import { describe, it, expect, beforeAll, afterAll } from 'bun:test'
 import { join } from 'path'
-import { chromium, type Browser, type BrowserContext, type Page } from 'playwright'
+import { chromium, type Browser, type BrowserContext, type CDPSession, type Page } from 'playwright'
 
 const ROOT = join(import.meta.dir, '..')
 const PORT = 4567 // Avoid collision with dev server on 3456
@@ -39,6 +39,7 @@ const ROUNDED_FILL_CONFIG = {
 let browser: Browser
 let context: BrowserContext
 let page: Page
+let cdpSession: CDPSession | null = null
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -84,8 +85,15 @@ async function takeScreenshot(name: string): Promise<string> {
  * shared page in a pending-navigation state after one timeout. These tests wait
  * for app-specific readiness (`waitForRender`, `waitForEditorRender`, or a
  * selector) after navigation, so committing the response is the useful boundary.
+ *
+ * The page also embeds many SVGs whose Google Font imports can keep Chromium's
+ * previous document in a loading state even after the app reports that rendering
+ * is done. Stop pending subresource loads before starting the next navigation;
+ * otherwise GitHub's slower runners can time out before the new response even
+ * commits.
  */
 async function gotoApp(url: string): Promise<void> {
+  try { await cdpSession?.send('Page.stopLoading') } catch {}
   const response = await page.goto(url, { waitUntil: 'commit', timeout: 60_000 })
   if (!response || !response.ok()) {
     throw new Error(`Failed to navigate to ${url}: ${response?.status() ?? 'no response'}`)
@@ -222,6 +230,7 @@ beforeAll(async () => {
   browser = await chromium.launch()
   context = await browser.newContext()
   page = await context.newPage()
+  cdpSession = await context.newCDPSession(page)
 
   // Open the page and wait for rendering
   await gotoApp(BASE)
