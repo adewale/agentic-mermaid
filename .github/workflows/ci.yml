@@ -24,7 +24,9 @@ jobs:
         run: bun install
 
       - name: Run tests with coverage
-        run: bun test --coverage src/__tests__/
+        # Text coverage is enough for CI signal; avoid lcov generation in PR
+        # runners because Bun can leave the coverage writer hanging there.
+        run: bun test --coverage --coverage-reporter=text src/__tests__/
 
       - name: Type check
         run: bun x tsc --noEmit
