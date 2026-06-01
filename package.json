@@ -72,8 +72,8 @@
     "README.md"
   ],
   "scripts": {
-    "test": "bun test src/__tests__/",
-    "test:browser": "bun test e2e/ --timeout 600000",
+    "test": "bun test --coverage src/__tests__/",
+    "test:browser": "bun test e2e/ --no-coverage --timeout 600000",
     "samples": "bun run scripts/site/generate.ts",
     "editor": "bun run scripts/site/editor.ts",
     "dev": "bun run scripts/dev.ts",

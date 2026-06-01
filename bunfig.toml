@@ -1,6 +1,7 @@
 [test]
-coverage = true
 coverageReporter = ["text", "lcov"]
 
-# Only measure coverage on production source, not test files or scripts
+# Only measure coverage on production source, not test files or scripts.
+# Coverage is enabled explicitly by the unit-test script/CI step so browser E2E
+# runs do not inherit instrumentation or lcov generation.
 coverageSkipTestFiles = true
