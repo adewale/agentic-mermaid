@@ -1,0 +1,763 @@
+// Bun Snapshot v1, https://bun.sh/docs/test/snapshots
+
+exports[`drift sentinel sentinel: flowchart TD /   A --> B 1`] = `
+{
+  "bounds": {
+    "h": 202,
+    "w": 140,
+  },
+  "edges": [
+    {
+      "from": "A",
+      "id": "A->B",
+      "label": undefined,
+      "path": [
+        [
+          70,
+          77,
+        ],
+        [
+          70,
+          125,
+        ],
+      ],
+      "to": "B",
+    },
+  ],
+  "groups": [],
+  "kind": "flowchart",
+  "nodes": [
+    {
+      "h": 37,
+      "id": "A",
+      "label": "A",
+      "shape": "rectangle",
+      "w": 60,
+      "x": 40,
+      "y": 40,
+    },
+    {
+      "h": 37,
+      "id": "B",
+      "label": "B",
+      "shape": "rectangle",
+      "w": 60,
+      "x": 40,
+      "y": 125,
+    },
+  ],
+  "version": 1,
+}
+`;
+
+exports[`drift sentinel sentinel: flowchart LR /   A --> B /   B --> C 1`] = `
+{
+  "bounds": {
+    "h": 117,
+    "w": 356,
+  },
+  "edges": [
+    {
+      "from": "A",
+      "id": "A->B",
+      "label": undefined,
+      "path": [
+        [
+          100,
+          58,
+        ],
+        [
+          148,
+          58,
+        ],
+      ],
+      "to": "B",
+    },
+    {
+      "from": "B",
+      "id": "B->C",
+      "label": undefined,
+      "path": [
+        [
+          208,
+          58,
+        ],
+        [
+          256,
+          58,
+        ],
+      ],
+      "to": "C",
+    },
+  ],
+  "groups": [],
+  "kind": "flowchart",
+  "nodes": [
+    {
+      "h": 37,
+      "id": "A",
+      "label": "A",
+      "shape": "rectangle",
+      "w": 60,
+      "x": 40,
+      "y": 40,
+    },
+    {
+      "h": 37,
+      "id": "B",
+      "label": "B",
+      "shape": "rectangle",
+      "w": 60,
+      "x": 148,
+      "y": 40,
+    },
+    {
+      "h": 37,
+      "id": "C",
+      "label": "C",
+      "shape": "rectangle",
+      "w": 60,
+      "x": 256,
+      "y": 40,
+    },
+  ],
+  "version": 1,
+}
+`;
+
+exports[`drift sentinel sentinel: flowchart TD /   A[Alpha] --> B[Beta] /   B --> C[Gamma] 1`] = `
+{
+  "bounds": {
+    "h": 287,
+    "w": 163,
+  },
+  "edges": [
+    {
+      "from": "A",
+      "id": "A->B",
+      "label": undefined,
+      "path": [
+        [
+          82,
+          77,
+        ],
+        [
+          82,
+          125,
+        ],
+      ],
+      "to": "B",
+    },
+    {
+      "from": "B",
+      "id": "B->C",
+      "label": undefined,
+      "path": [
+        [
+          82,
+          162,
+        ],
+        [
+          82,
+          210,
+        ],
+      ],
+      "to": "C",
+    },
+  ],
+  "groups": [],
+  "kind": "flowchart",
+  "nodes": [
+    {
+      "h": 37,
+      "id": "A",
+      "label": "Alpha",
+      "shape": "rectangle",
+      "w": 76,
+      "x": 44,
+      "y": 40,
+    },
+    {
+      "h": 37,
+      "id": "B",
+      "label": "Beta",
+      "shape": "rectangle",
+      "w": 69,
+      "x": 47,
+      "y": 125,
+    },
+    {
+      "h": 37,
+      "id": "C",
+      "label": "Gamma",
+      "shape": "rectangle",
+      "w": 83,
+      "x": 40,
+      "y": 210,
+    },
+  ],
+  "version": 1,
+}
+`;
+
+exports[`drift sentinel sentinel: flowchart TD /   A{Decision} --> B[Yes] /   A --> C[No] 1`] = `
+{
+  "bounds": {
+    "h": 283,
+    "w": 234,
+  },
+  "edges": [
+    {
+      "from": "A",
+      "id": "A->B",
+      "label": undefined,
+      "path": [
+        [
+          118,
+          158,
+        ],
+        [
+          118,
+          182,
+        ],
+        [
+          73,
+          182,
+        ],
+        [
+          73,
+          206,
+        ],
+      ],
+      "to": "B",
+    },
+    {
+      "from": "A",
+      "id": "A->C",
+      "label": undefined,
+      "path": [
+        [
+          118,
+          158,
+        ],
+        [
+          118,
+          182,
+        ],
+        [
+          164,
+          182,
+        ],
+        [
+          164,
+          206,
+        ],
+      ],
+      "to": "C",
+    },
+  ],
+  "groups": [],
+  "kind": "flowchart",
+  "nodes": [
+    {
+      "h": 118,
+      "id": "A",
+      "label": "Decision",
+      "shape": "diamond",
+      "w": 118,
+      "x": 59,
+      "y": 40,
+    },
+    {
+      "h": 37,
+      "id": "B",
+      "label": "Yes",
+      "shape": "rectangle",
+      "w": 66,
+      "x": 40,
+      "y": 206,
+    },
+    {
+      "h": 37,
+      "id": "C",
+      "label": "No",
+      "shape": "rectangle",
+      "w": 60,
+      "x": 134,
+      "y": 206,
+    },
+  ],
+  "version": 1,
+}
+`;
+
+exports[`drift sentinel sentinel: flowchart LR /   A --> B /   A --> C /   B --> D /   C --> D 1`] = `
+{
+  "bounds": {
+    "h": 182,
+    "w": 356,
+  },
+  "edges": [
+    {
+      "from": "A",
+      "id": "A->B",
+      "label": undefined,
+      "path": [
+        [
+          100,
+          91,
+        ],
+        [
+          124,
+          91,
+        ],
+        [
+          124,
+          58,
+        ],
+        [
+          148,
+          58,
+        ],
+      ],
+      "to": "B",
+    },
+    {
+      "from": "A",
+      "id": "A->C",
+      "label": undefined,
+      "path": [
+        [
+          100,
+          91,
+        ],
+        [
+          124,
+          91,
+        ],
+        [
+          124,
+          123,
+        ],
+        [
+          148,
+          123,
+        ],
+      ],
+      "to": "C",
+    },
+    {
+      "from": "B",
+      "id": "B->D",
+      "label": undefined,
+      "path": [
+        [
+          208,
+          58,
+        ],
+        [
+          232,
+          58,
+        ],
+        [
+          232,
+          91,
+        ],
+        [
+          256,
+          91,
+        ],
+      ],
+      "to": "D",
+    },
+    {
+      "from": "C",
+      "id": "C->D",
+      "label": undefined,
+      "path": [
+        [
+          208,
+          123,
+        ],
+        [
+          232,
+          123,
+        ],
+        [
+          232,
+          91,
+        ],
+        [
+          256,
+          91,
+        ],
+      ],
+      "to": "D",
+    },
+  ],
+  "groups": [],
+  "kind": "flowchart",
+  "nodes": [
+    {
+      "h": 37,
+      "id": "A",
+      "label": "A",
+      "shape": "rectangle",
+      "w": 60,
+      "x": 40,
+      "y": 72,
+    },
+    {
+      "h": 37,
+      "id": "B",
+      "label": "B",
+      "shape": "rectangle",
+      "w": 60,
+      "x": 148,
+      "y": 40,
+    },
+    {
+      "h": 37,
+      "id": "C",
+      "label": "C",
+      "shape": "rectangle",
+      "w": 60,
+      "x": 148,
+      "y": 105,
+    },
+    {
+      "h": 37,
+      "id": "D",
+      "label": "D",
+      "shape": "rectangle",
+      "w": 60,
+      "x": 256,
+      "y": 72,
+    },
+  ],
+  "version": 1,
+}
+`;
+
+exports[`drift sentinel sentinel: flowchart TD /   A((Start)) --> B[Step] /   B --> C((End)) 1`] = `
+{
+  "bounds": {
+    "h": 385,
+    "w": 168,
+  },
+  "edges": [
+    {
+      "from": "A",
+      "id": "A->B",
+      "label": undefined,
+      "path": [
+        [
+          84,
+          128,
+        ],
+        [
+          84,
+          176,
+        ],
+      ],
+      "to": "B",
+    },
+    {
+      "from": "B",
+      "id": "B->C",
+      "label": undefined,
+      "path": [
+        [
+          84,
+          213,
+        ],
+        [
+          84,
+          261,
+        ],
+      ],
+      "to": "C",
+    },
+  ],
+  "groups": [],
+  "kind": "flowchart",
+  "nodes": [
+    {
+      "h": 88,
+      "id": "A",
+      "label": "Start",
+      "shape": "circle",
+      "w": 88,
+      "x": 40,
+      "y": 40,
+    },
+    {
+      "h": 37,
+      "id": "B",
+      "label": "Step",
+      "shape": "rectangle",
+      "w": 69,
+      "x": 50,
+      "y": 176,
+    },
+    {
+      "h": 84,
+      "id": "C",
+      "label": "End",
+      "shape": "circle",
+      "w": 84,
+      "x": 42,
+      "y": 261,
+    },
+  ],
+  "version": 1,
+}
+`;
+
+exports[`drift sentinel sentinel: flowchart TD /   A --> B /   B --> C /   C --> A 1`] = `
+{
+  "bounds": {
+    "h": 287,
+    "w": 160,
+  },
+  "edges": [
+    {
+      "from": "A",
+      "id": "A->B",
+      "label": undefined,
+      "path": [
+        [
+          80,
+          77,
+        ],
+        [
+          80,
+          113,
+        ],
+        [
+          70,
+          113,
+        ],
+        [
+          70,
+          125,
+        ],
+      ],
+      "to": "B",
+    },
+    {
+      "from": "B",
+      "id": "B->C",
+      "label": undefined,
+      "path": [
+        [
+          70,
+          162,
+        ],
+        [
+          70,
+          198,
+        ],
+        [
+          80,
+          198,
+        ],
+        [
+          80,
+          210,
+        ],
+      ],
+      "to": "C",
+    },
+    {
+      "from": "C",
+      "id": "C->A",
+      "label": undefined,
+      "path": [
+        [
+          100,
+          210,
+        ],
+        [
+          100,
+          198,
+        ],
+        [
+          110,
+          198,
+        ],
+        [
+          110,
+          113,
+        ],
+        [
+          100,
+          113,
+        ],
+        [
+          100,
+          77,
+        ],
+      ],
+      "to": "A",
+    },
+  ],
+  "groups": [],
+  "kind": "flowchart",
+  "nodes": [
+    {
+      "h": 37,
+      "id": "A",
+      "label": "A",
+      "shape": "rectangle",
+      "w": 60,
+      "x": 60,
+      "y": 40,
+    },
+    {
+      "h": 37,
+      "id": "B",
+      "label": "B",
+      "shape": "rectangle",
+      "w": 60,
+      "x": 40,
+      "y": 125,
+    },
+    {
+      "h": 37,
+      "id": "C",
+      "label": "C",
+      "shape": "rectangle",
+      "w": 60,
+      "x": 60,
+      "y": 210,
+    },
+  ],
+  "version": 1,
+}
+`;
+
+exports[`drift sentinel sentinel: flowchart LR /   A1 --> A2 /   A2 --> A3 /   A3 --> A4 /   A 1`] = `
+{
+  "bounds": {
+    "h": 117,
+    "w": 572,
+  },
+  "edges": [
+    {
+      "from": "A1",
+      "id": "A1->A2",
+      "label": undefined,
+      "path": [
+        [
+          100,
+          58,
+        ],
+        [
+          148,
+          58,
+        ],
+      ],
+      "to": "A2",
+    },
+    {
+      "from": "A2",
+      "id": "A2->A3",
+      "label": undefined,
+      "path": [
+        [
+          208,
+          58,
+        ],
+        [
+          256,
+          58,
+        ],
+      ],
+      "to": "A3",
+    },
+    {
+      "from": "A3",
+      "id": "A3->A4",
+      "label": undefined,
+      "path": [
+        [
+          316,
+          58,
+        ],
+        [
+          364,
+          58,
+        ],
+      ],
+      "to": "A4",
+    },
+    {
+      "from": "A4",
+      "id": "A4->A5",
+      "label": undefined,
+      "path": [
+        [
+          424,
+          58,
+        ],
+        [
+          472,
+          58,
+        ],
+      ],
+      "to": "A5",
+    },
+  ],
+  "groups": [],
+  "kind": "flowchart",
+  "nodes": [
+    {
+      "h": 37,
+      "id": "A1",
+      "label": "A1",
+      "shape": "rectangle",
+      "w": 60,
+      "x": 40,
+      "y": 40,
+    },
+    {
+      "h": 37,
+      "id": "A2",
+      "label": "A2",
+      "shape": "rectangle",
+      "w": 60,
+      "x": 148,
+      "y": 40,
+    },
+    {
+      "h": 37,
+      "id": "A3",
+      "label": "A3",
+      "shape": "rectangle",
+      "w": 60,
+      "x": 256,
+      "y": 40,
+    },
+    {
+      "h": 37,
+      "id": "A4",
+      "label": "A4",
+      "shape": "rectangle",
+      "w": 60,
+      "x": 364,
+      "y": 40,
+    },
+    {
+      "h": 37,
+      "id": "A5",
+      "label": "A5",
+      "shape": "rectangle",
+      "w": 60,
+      "x": 472,
+      "y": 40,
+    },
+  ],
+  "version": 1,
+}
+`;

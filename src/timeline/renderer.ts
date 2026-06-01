@@ -83,7 +83,7 @@ export function renderTimelineSvg(
   const rootAttrs = buildAccessibilityAttrs(accessibleTitle, accessibleDescription, titleId, descId)
 
   parts.push(svgOpenTag(diagram.width, diagram.height, colors, transparent, rootAttrs))
-  parts.push(buildStyleBlock(font, false, colors.shadow))
+  parts.push(buildStyleBlock(font, false, colors.shadow, colors.embedFontImport))
   const shadowDefs = buildShadowDefs(colors)
   if (shadowDefs) parts.push(`<defs>${shadowDefs}</defs>`)
   parts.push(timelineStyles(style))

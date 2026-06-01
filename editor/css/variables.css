@@ -7,7 +7,7 @@
 }
 
 :root {
-  /* 6-color foundation — identical to showcase site (index.ts) */
+  /* 6-color foundation — identical to showcase site generator (scripts/site/generate.ts) */
   --t-bg: #ffffff;
   --t-fg: #27272a;
   --t-accent: #3b82f6;
@@ -32,7 +32,7 @@
     rgba(0, 0, 0, calc(var(--shadow-blur-opacity) * 0.33)) 0px 12px 12px 0px,
     rgba(0, 0, 0, calc(var(--shadow-blur-opacity) * 0.33)) 0px 24px 24px 0px;
 
-  /* Semantic colors — derived exactly like the showcase site (index.ts).
+  /* Semantic colors — derived exactly like the showcase site generator (scripts/site/generate.ts).
    * Showcase uses color-mix(in srgb, var(--t-bg) N%, var(--t-fg)) for surfaces
    * and color-mix(in srgb, var(--t-fg) N%, var(--t-bg)) for text/borders.
    * All use SOLID mixes (bg-based), never transparent-based.

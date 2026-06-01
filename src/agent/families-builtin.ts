@@ -1,0 +1,312 @@
+// ============================================================================
+// Built-in family registrations.
+//
+// Registers all 9 families with the plugin registry. Today this populates
+// `extractLabels` only — parse/serialize/mutate/verify continue to dispatch
+// through their existing in-tree branches in parse.ts / serialize.ts /
+// mutate.ts / verify.ts. As each family migrates to a fully plugin-owned
+// implementation, fill in `parse`/`serialize`/`mutate`/`verify` here.
+// ============================================================================
+
+import { registerFamily, extractLabelsGeneric, type ExtractedLabel } from './families.ts'
+import { verifyClass } from './class-body.ts'
+import { verifyErBody } from './er-body.ts'
+
+// ---- Flowchart / State ----------------------------------------------------
+// Flowchart-specific label extraction:
+//   - `A["text"]`, `A(text)`, `A([text])`, `A{text}`, `A{{text}}`, etc.
+//   - `A -- text --> B`, `A -->|text| B`
+const FLOWCHART_LABEL_RE = /(?:\["((?:[^"\\]|\\.)*)"\]|\[(["'`]?)([^\]\n]+?)\2\]|\(\(([^)\n]+?)\)\)|\(([^)\n]+?)\)|\{([^}\n]+?)\}|\|([^|\n]+?)\||\>([^\]\n]+?)\])/g
+
+function extractFlowchartLabels(source: string): ExtractedLabel[] {
+  const out: ExtractedLabel[] = []
+  const lines = source.split(/\r?\n/)
+  for (let i = 0; i < lines.length; i++) {
+    const raw = lines[i]!.trim()
+    if (!raw || raw.startsWith('%%')) continue
+    const idMatch = raw.match(/^([A-Za-z_][\w-]*)/)
+    const target = idMatch ? idMatch[1]! : `line${i + 1}`
+    for (const m of raw.matchAll(FLOWCHART_LABEL_RE)) {
+      const text = (m[1] ?? m[3] ?? m[4] ?? m[5] ?? m[6] ?? m[7] ?? m[8] ?? '').trim()
+      if (text) out.push({ text, target })
+    }
+  }
+  return out
+}
+
+registerFamily({ id: 'flowchart', detect: l => l.startsWith('flowchart') || l.startsWith('graph'), extractLabels: extractFlowchartLabels })
+registerFamily({ id: 'state', detect: l => l.startsWith('statediagram') || l.startsWith('statediagram-v2'), extractLabels: extractFlowchartLabels })
+
+// ---- Sequence -------------------------------------------------------------
+// Sequence labels: messages (`A->>B: text`), participants (`participant X as Label`,
+// `actor X as Label`), notes (`Note over A: text`, `Note left of A: text`),
+// block headers (`loop label`, `alt label`, `else label`, `opt label`, `par label`).
+function extractSequenceLabels(source: string): ExtractedLabel[] {
+  const out: ExtractedLabel[] = []
+  const lines = source.split(/\r?\n/)
+  for (let i = 0; i < lines.length; i++) {
+    const raw = lines[i]!.trim()
+    if (!raw || raw.startsWith('%%')) continue
+    let m
+    if ((m = raw.match(/^(?:participant|actor)\s+\S+\s+as\s+(.+)$/i))) {
+      out.push({ text: m[1]!.trim(), target: `line${i + 1}` })
+    } else if ((m = raw.match(/^Note\s+(?:over|left of|right of)\s+[\w,\s]+?:\s*(.+)$/i))) {
+      out.push({ text: m[1]!.trim(), target: `line${i + 1}` })
+    } else if ((m = raw.match(/->>?|-->>?|->|-->|-x|--x/)) && raw.includes(':')) {
+      const colon = raw.indexOf(':')
+      out.push({ text: raw.slice(colon + 1).trim(), target: `line${i + 1}` })
+    } else if ((m = raw.match(/^(?:loop|alt|else|opt|par|and|critical|break|rect)\s+(.+)$/i))) {
+      out.push({ text: m[1]!.trim(), target: `line${i + 1}` })
+    } else if ((m = raw.match(/^title\s+(.+)$/i))) {
+      out.push({ text: m[1]!.trim(), target: `line${i + 1}` })
+    }
+  }
+  return out
+}
+
+registerFamily({ id: 'sequence', detect: l => l.startsWith('sequencediagram'), extractLabels: extractSequenceLabels })
+
+// ---- Timeline -------------------------------------------------------------
+function extractTimelineLabels(source: string): ExtractedLabel[] {
+  const out: ExtractedLabel[] = []
+  const lines = source.split(/\r?\n/)
+  for (let i = 0; i < lines.length; i++) {
+    const raw = lines[i]!.trim()
+    if (!raw || raw.startsWith('%%')) continue
+    let m
+    if ((m = raw.match(/^title\s+(.+)$/i))) {
+      out.push({ text: m[1]!.trim(), target: `line${i + 1}` })
+    } else if ((m = raw.match(/^section\s+(.+)$/i))) {
+      out.push({ text: m[1]!.trim(), target: `line${i + 1}` })
+    } else if (raw.includes(':')) {
+      // `<period> : <event> [: <event>...]` or continuation `: <event>`
+      const parts = raw.split(':').map(p => p.trim()).filter(Boolean)
+      for (const p of parts) out.push({ text: p, target: `line${i + 1}` })
+    }
+  }
+  return out
+}
+
+registerFamily({ id: 'timeline', detect: l => l.startsWith('timeline'), extractLabels: extractTimelineLabels })
+
+// ---- Class ---------------------------------------------------------------
+// class Name { +member ... }, Class : +member, class A as "Display Label"
+function extractClassLabels(source: string): ExtractedLabel[] {
+  const out: ExtractedLabel[] = []
+  const lines = source.split(/\r?\n/)
+  for (let i = 0; i < lines.length; i++) {
+    const raw = lines[i]!.trim()
+    if (!raw || raw.startsWith('%%')) continue
+    let m
+    if ((m = raw.match(/^class\s+\S+\s+as\s+"([^"]+)"/i))) {
+      out.push({ text: m[1]!, target: `line${i + 1}` })
+    } else if ((m = raw.match(/^\S+\s*:\s*(.+)$/))) {
+      out.push({ text: m[1]!.trim(), target: `line${i + 1}` })
+    } else if ((m = raw.match(/^[+\-#~]\s*(.+)$/))) {
+      out.push({ text: m[1]!.trim(), target: `line${i + 1}` })
+    } else if ((m = raw.match(/^note\s+(?:for\s+\S+\s+)?"([^"]+)"/i))) {
+      out.push({ text: m[1]!, target: `line${i + 1}` })
+    }
+  }
+  return out
+}
+
+registerFamily({
+  id: 'class',
+  detect: l => l.startsWith('classdiagram'),
+  extractLabels: extractClassLabels,
+  // Loop 8 A1: the structured class verifier IS the verify path — verifyMermaid
+  // routes class diagrams through this plugin hook (Loop 9 M2 removed the
+  // duplicate per-body branch). Single source of truth.
+  verify: (body, opts) => body.kind === 'class' ? verifyClass(body, opts) : [],
+})
+
+// ---- ER -------------------------------------------------------------------
+// CUSTOMER ||--o{ ORDER : places, attributes inside braces.
+function extractErLabels(source: string): ExtractedLabel[] {
+  const out: ExtractedLabel[] = []
+  const lines = source.split(/\r?\n/)
+  for (let i = 0; i < lines.length; i++) {
+    const raw = lines[i]!.trim()
+    if (!raw || raw.startsWith('%%')) continue
+    let m
+    if ((m = raw.match(/:\s*"?([^"]+?)"?$/))) {
+      out.push({ text: m[1]!.trim(), target: `line${i + 1}` })
+    }
+    // Attribute lines inside `{ ... }` blocks
+    if (raw.match(/^\s*\w+\s+\w+/) && !raw.match(/[<>|}]/)) {
+      out.push({ text: raw, target: `line${i + 1}` })
+    }
+  }
+  return out
+}
+
+registerFamily({
+  id: 'er',
+  detect: l => l.startsWith('erdiagram'),
+  extractLabels: extractErLabels,
+  // Loop 8 A1: same as class — this hook is the verify path for ER (Loop 9 M2
+  // removed the duplicate per-body branch in verify.ts).
+  verify: (body, opts) => body.kind === 'er' ? verifyErBody(body, opts) : [],
+})
+
+// ---- Journey --------------------------------------------------------------
+// title T, section S, task: 3: Me
+function extractJourneyLabels(source: string): ExtractedLabel[] {
+  const out: ExtractedLabel[] = []
+  const lines = source.split(/\r?\n/)
+  for (let i = 0; i < lines.length; i++) {
+    const raw = lines[i]!.trim()
+    if (!raw || raw.startsWith('%%')) continue
+    let m
+    if ((m = raw.match(/^accDescr\s*:?\s*\{\s*(.*)$/i))) {
+      const first = m[1]!
+      const end = first.indexOf('}')
+      if (end >= 0) {
+        const text = first.slice(0, end).trim()
+        if (text) out.push({ text, target: `line${i + 1}` })
+      } else {
+        const text = first.trim()
+        if (text) out.push({ text, target: `line${i + 1}` })
+        for (i += 1; i < lines.length; i++) {
+          const line = lines[i]!.trim()
+          const close = line.indexOf('}')
+          const text = (close >= 0 ? line.slice(0, close) : line).trim()
+          if (text) out.push({ text, target: `line${i + 1}` })
+          if (close >= 0) break
+        }
+      }
+    } else if ((m = raw.match(/^accTitle\s*:?\s*(.+)$/i))) {
+      out.push({ text: m[1]!.trim(), target: `line${i + 1}` })
+    } else if ((m = raw.match(/^accDescr\s*:?\s*(.+)$/i))) {
+      out.push({ text: m[1]!.replace(/^\{/, '').replace(/\}$/, '').trim(), target: `line${i + 1}` })
+    } else if ((m = raw.match(/^title\s+(.+)$/i))) {
+      out.push({ text: m[1]!.trim(), target: `line${i + 1}` })
+    } else if ((m = raw.match(/^section\s+(.+)$/i))) {
+      out.push({ text: m[1]!.trim(), target: `line${i + 1}` })
+    } else if ((m = raw.match(/^(.+?):\s*\d+(?:\s*:\s*(.*))?$/))) {
+      out.push({ text: m[1]!.trim(), target: `line${i + 1}` })
+      for (const actor of (m[2] ?? '').split(',')) {
+        const text = actor.trim()
+        if (text) out.push({ text, target: `line${i + 1}` })
+      }
+    }
+  }
+  return out
+}
+
+registerFamily({ id: 'journey', detect: l => l.startsWith('journey'), extractLabels: extractJourneyLabels })
+
+// ---- XY chart -------------------------------------------------------------
+// title "T", x-axis [a,b,c], y-axis "label"
+function extractXyChartLabels(source: string): ExtractedLabel[] {
+  const out: ExtractedLabel[] = []
+  const lines = source.split(/\r?\n/)
+  for (let i = 0; i < lines.length; i++) {
+    const rawLine = lines[i]!.trim()
+    if (!rawLine || rawLine.startsWith('%%')) continue
+    const statements = splitXyLabelStatements(rawLine)
+    for (const raw of statements) {
+      const target = `line${i + 1}`
+      let m
+      if ((m = raw.match(/^accDescr\s*:?\s*\{\s*(.*)$/i))) {
+        const first = m[1]!
+        const end = first.indexOf('}')
+        if (end >= 0) {
+          const text = first.slice(0, end).trim()
+          if (text) out.push({ text, target })
+        } else {
+          const text = first.trim()
+          if (text) out.push({ text, target })
+          for (i += 1; i < lines.length; i++) {
+            const line = lines[i]!.trim()
+            const close = line.indexOf('}')
+            const text = (close >= 0 ? line.slice(0, close) : line).trim()
+            if (text) out.push({ text, target: `line${i + 1}` })
+            if (close >= 0) break
+          }
+        }
+        continue
+      }
+      if ((m = raw.match(/^accTitle\s*:?\s*(.+)$/i))) out.push({ text: m[1]!.trim(), target })
+      else if ((m = raw.match(/^accDescr\s*:?\s*(.+)$/i))) out.push({ text: m[1]!.trim(), target })
+      // All quoted strings, including escaped quote/backslash pairs.
+      for (const q of quotedLabelMatches(raw)) out.push({ text: q, target })
+      const title = raw.match(/^title\s+(.+)$/i)
+      if (title && !/^['"]/.test(title[1]!.trim())) out.push({ text: title[1]!.trim(), target })
+      const axisTitleWithCategories = raw.match(/^[xy]-axis\s+(.+?)\s*\[[^\]]+\]\s*$/i)
+      const axisTitleWithRange = raw.match(/^[xy]-axis\s+(\S+)\s+[+-]?(?:(?:\d+(?:\.\d+)?|\.\d+)(?:[eE][+-]?\d+)?)\s*-->/i)
+      const axisTitle = axisTitleWithCategories ?? axisTitleWithRange ?? raw.match(/^[xy]-axis\s+([^\[\d.+-][^\[]*?)\s*(?:\[|[+-]?\d|$)/i)
+      if (axisTitle && !/^['"]/.test(axisTitle[1]!.trim())) out.push({ text: axisTitle[1]!.trim(), target })
+      const seriesLabel = raw.match(/^(?:bar|line)\s+(.+?)\s+\[[^\]]+\]\s*$/i)
+      if (seriesLabel && !/^['"]/.test(seriesLabel[1]!.trim())) out.push({ text: seriesLabel[1]!.trim(), target })
+      // x-axis [a, b, c] — extract individual entries
+      const ax = raw.match(/^[xy]-axis\b.*\[([^\]]+)\]/i)
+      if (ax) {
+        for (const entry of ax[1]!.split(',')) {
+          const t = entry.trim().replace(/^["']|["']$/g, '')
+          if (t) out.push({ text: t, target })
+        }
+      }
+    }
+  }
+  return out
+}
+
+function quotedLabelMatches(raw: string): string[] {
+  const labels: string[] = []
+  for (const quote of ['"', "'"] as const) {
+    const pattern = quote === '"' ? /"((?:\\.|[^"\\])+)"/g : /'((?:\\.|[^'\\])*)'/g
+    for (const m of raw.matchAll(pattern)) labels.push(m[1]!.replace(/\\"/g, '"').replace(/\\'/g, "'").replace(/\\\\/g, '\\'))
+  }
+  return labels
+}
+
+function splitXyLabelStatements(line: string): string[] {
+  const statements: string[] = []
+  let current = ''
+  let quote: '"' | "'" | null = null
+  for (let i = 0; i < line.length; i++) {
+    const char = line[i]!
+    if (quote) {
+      current += char
+      if (char === '\\') { current += line[++i] ?? ''; continue }
+      if (char === quote) quote = null
+      continue
+    }
+    if (char === '"' || char === "'") { quote = char; current += char; continue }
+    if (char === ';') {
+      const trimmed = current.trim()
+      if (trimmed) statements.push(trimmed)
+      current = ''
+      continue
+    }
+    current += char
+  }
+  const trimmed = current.trim()
+  if (trimmed) statements.push(trimmed)
+  return statements
+}
+
+registerFamily({ id: 'xychart', detect: l => l.startsWith('xychart'), extractLabels: extractXyChartLabels })
+
+// ---- Architecture ---------------------------------------------------------
+// group api(cloud)[API], service db(database)[DB] in api
+function extractArchitectureLabels(source: string): ExtractedLabel[] {
+  const out: ExtractedLabel[] = []
+  const lines = source.split(/\r?\n/)
+  for (let i = 0; i < lines.length; i++) {
+    const raw = lines[i]!.trim()
+    if (!raw || raw.startsWith('%%')) continue
+    for (const m of raw.matchAll(/\[([^\]]+)\]/g)) {
+      out.push({ text: m[1]!, target: `line${i + 1}` })
+    }
+  }
+  return out
+}
+
+registerFamily({ id: 'architecture', detect: l => l.startsWith('architecture'), extractLabels: extractArchitectureLabels })
+
+// Re-export so importing this module is the only thing needed to populate
+// the registry.
+export { registerFamily, getFamily, knownFamilies, extractLabelsGeneric } from './families.ts'

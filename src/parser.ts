@@ -361,11 +361,30 @@ function ensureStateNode(
 // ============================================================================
 
 /** Parse "fill:#f00,stroke:#333" style property strings into a Record */
+/**
+ * Split on top-level commas only — commas inside parentheses (e.g.
+ * `rgb(10,10,10)`, `rgba(0,0,0,.5)`, `hsl(120,50%,50%)`) are NOT separators.
+ * Fixes the bug where `fill:rgb(10,10,10)` was split into `fill:rgb(10`.
+ */
+function splitTopLevelCommas(s: string): string[] {
+  const out: string[] = []
+  let depth = 0
+  let start = 0
+  for (let i = 0; i < s.length; i++) {
+    const c = s[i]
+    if (c === '(') depth++
+    else if (c === ')') depth = Math.max(0, depth - 1)
+    else if (c === ',' && depth === 0) { out.push(s.slice(start, i)); start = i + 1 }
+  }
+  out.push(s.slice(start))
+  return out
+}
+
 function parseStyleProps(propsStr: string): Record<string, string> {
   // Strip trailing semicolons — Mermaid tolerates them (e.g. `stroke:#f00;`)
   const cleaned = propsStr.replace(/;\s*$/, '')
   const props: Record<string, string> = {}
-  for (const pair of cleaned.split(',')) {
+  for (const pair of splitTopLevelCommas(cleaned)) {
     const colonIdx = pair.indexOf(':')
     if (colonIdx > 0) {
       const key = pair.slice(0, colonIdx).trim()

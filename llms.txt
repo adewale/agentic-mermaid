@@ -1,0 +1,80 @@
+# agentic-mermaid
+
+> Agent-native Mermaid runtime: parse, verify, mutate, and round-trip
+> Mermaid diagrams with a typed IR. Deterministic SVG / ASCII / PNG. No
+> browser required. CLI + MCP + library.
+
+Version: 1.1.3
+
+## What it does
+
+A typed editing surface over Mermaid for AI agents. Parse a diagram to a
+ValidDiagram, mutate it with typed ops, verify structurally (no pixels),
+serialize back to canonical source. Layout is deterministic (verified
+cross-process and same-machine cross-runtime on x86_64/ARM64).
+
+## The agent loop
+
+New diagrams: author Mermaid source → parse → verify → render/return.
+Existing structured diagrams: parse → narrow → mutate → verify → serialize.
+Run verify at every commit point. Never serialize a diagram whose verify result
+you haven't inspected.
+
+## CLI verbs (`am <verb>`)
+
+- render --format svg, ascii, unicode, json [--security strict] — render a diagram
+- render --format png --output file.png — render one input to PNG (no PNG bytes on stdout, no multi-input/watch)
+- parse — diagram → ValidDiagram JSON
+- verify — structural validation (exit 3 if invalid)
+- mutate --op '<json>' / --ops '<json array|file>' — apply typed mutation(s), verify, then emit source
+- preview [--output file.html] [--open] — standalone strict-mode HTML preview for user inspection
+- format — normalize / canonicalize source
+- describe [--format text|json] — natural-language or AX-tree summary
+- capabilities --json — machine-readable capability envelope incl. editPolicy + mutationOps
+- batch --jsonl — bulk render/verify/parse/serialize/mutate ops, one JSON envelope per line
+- render-markdown <file.md> [--ascii] — render fenced mermaid blocks, skip invalid ones
+- llms-txt — this document
+
+Exit codes: 0 ok, 2 arg error, 3 verify-failed, 4 internal.
+
+## MCP tools
+
+Code Mode `execute(code)` (JavaScript in a node:vm sandbox with a typed
+mermaid.* SDK declaration) plus narrow helper tools: render_png and describe.
+render_png is offline.
+
+## Output formats
+
+svg, ascii, unicode, png, json. SVG strict mode (security: 'strict') emits zero external-fetch
+references — safe for untrusted/agent-generated diagrams. See SECURITY.md.
+
+## Diagram families
+
+All families parse, verify, render, round-trip: flowchart, state, sequence, timeline, class, er, journey, xychart, architecture.
+Structured mutation (structured-when-narrowed): flowchart, state, sequence, timeline, class, er.
+Source-level-only: journey, xychart, architecture.
+Source-level bodies round-trip losslessly via preserved source (never silently dropped).
+
+## Warning codes
+
+EMPTY_DIAGRAM (structural/error), EDGE_MISANCHORED (structural/error), OFF_CANVAS (structural/error), GROUP_BREACH (structural/error), UNKNOWN_SHAPE (structural/warning), LABEL_OVERFLOW (structural/warning), NODE_OVERLAP (geometric/warning), ROUTE_SELF_CROSS (geometric/warning)
+
+## Library
+
+`import { parseMermaid, mutate, verifyMermaid, serializeMermaid,
+renderMermaidSVG, renderMermaidPNG, renderMermaidASCII,
+renderMermaidASCIIWithMeta, describeMermaid, asciiToMermaid,
+verifyNoExternalRefs } from 'beautiful-mermaid/agent'`
+
+## Docs
+
+- Instructions_for_agents.md — canonical agent-use guide
+- AGENT_NATIVE.md — architecture/spec rationale
+- FEATURES.md — current capability inventory
+- TODO.md — only active backlog
+- QUALITY.md — determinism + "good looking" rubric
+- SECURITY.md — threat model + strict-mode guarantee
+- docs/agent-mutation-policy.md — structured-vs-source-level policy
+- docs/mcp-code-mode-rationale.md — MCP surface rationale
+- docs/agent-workflow-examples.md — runnable MCP/CLI + agent-improvement examples
+- docs/pr11-reviewer-guide.md — review map for this branch

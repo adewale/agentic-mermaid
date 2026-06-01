@@ -1,33 +1,81 @@
 // ============================================================================
 // Terminal display width helpers for ASCII/Unicode rendering.
+//
+// Range tables live in src/shared/unicode-ranges.ts so the SVG metrics
+// module can share them without the ascii/ → core import that the
+// substrate lint forbids.
+//
+// Variation selectors (U+FE0E / U+FE0F) modify the WIDTH of the preceding
+// base codepoint, so `visualWidth` does a two-pass tally rather than a
+// per-codepoint sum: it remembers the last-emitted width and rewrites it
+// when a selector arrives. ZWJ (U+200D) and FE0E both have width 0; FE0F
+// forces the previous base to width 2.
 // ============================================================================
+
+import { isWideRange, isZeroWidth, VS_TEXT, VS_EMOJI, ZWJ } from '../shared/unicode-ranges.ts'
 
 /** Sentinel stored in the canvas cell following a fullwidth character. */
 export const WIDE_CHAR_CONTINUATION = '\x00'
 
+/**
+ * Width of a single codepoint, with no knowledge of neighbours.
+ * Variation selectors are reported as zero-width here; the per-string
+ * `visualWidth` applies the selector's retroactive width override.
+ */
 export function charVisualWidth(ch: string): number {
   const code = ch.codePointAt(0) ?? 0
-  // Combining marks occupy no extra terminal cell.
-  if (code >= 0x0300 && code <= 0x036f) return 0
-  // East Asian wide/fullwidth ranges plus common emoji presentation ranges.
-  if (
-    (code >= 0x1100 && code <= 0x115f) ||
-    (code >= 0x2329 && code <= 0x232a) ||
-    (code >= 0x2e80 && code <= 0xa4cf) ||
-    (code >= 0xac00 && code <= 0xd7a3) ||
-    (code >= 0xf900 && code <= 0xfaff) ||
-    (code >= 0xfe10 && code <= 0xfe19) ||
-    (code >= 0xfe30 && code <= 0xfe6f) ||
-    (code >= 0xff00 && code <= 0xff60) ||
-    (code >= 0xffe0 && code <= 0xffe6) ||
-    (code >= 0x1f300 && code <= 0x1faff) ||
-    code >= 0x20000
-  ) return 2
+  if (code === VS_TEXT || code === VS_EMOJI || code === ZWJ) return 0
+  if (isZeroWidth(code)) return 0
+  if (isWideRange(code)) return 2
   return 1
 }
 
+/**
+ * Terminal display width of a string, in cells.
+ *
+ * Iterates codepoints and applies these post-process rules:
+ *   - FE0F  (emoji-presentation selector): force the preceding base to width 2
+ *   - FE0E  (text-presentation selector):  force the preceding base to width 1
+ *   - 200D  (ZWJ):                          zero width; binds the next base
+ *           into an emoji ZWJ sequence — the next base is also forced to 0
+ *           so a man-with-laptop (👨‍💻) totals 2 cells, not 4.
+ */
 export function visualWidth(text: string): number {
-  let width = 0
-  for (const ch of text) width += charVisualWidth(ch)
-  return width
+  let total = 0
+  let lastBaseWidth = 0
+  let zwjPending = false
+  for (const ch of text) {
+    const code = ch.codePointAt(0) ?? 0
+    if (code === VS_EMOJI) {
+      if (lastBaseWidth === 1) {
+        total += 1
+        lastBaseWidth = 2
+      }
+      continue
+    }
+    if (code === VS_TEXT) {
+      if (lastBaseWidth === 2) {
+        total -= 1
+        lastBaseWidth = 1
+      }
+      continue
+    }
+    if (code === ZWJ) {
+      zwjPending = true
+      lastBaseWidth = 0
+      continue
+    }
+    if (isZeroWidth(code)) {
+      lastBaseWidth = 0
+      continue
+    }
+    let w = isWideRange(code) ? 2 : 1
+    if (zwjPending) {
+      w = 0
+      zwjPending = false
+    }
+    total += w
+    lastBaseWidth = w
+  }
+  return total
 }

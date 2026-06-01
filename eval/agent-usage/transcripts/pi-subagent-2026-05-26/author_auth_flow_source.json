@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "capturedAt": "2026-05-26T00:00:00.000Z",
+  "provider": "pi-subagent",
+  "model": "delegate-fresh-default",
+  "caseId": "author_auth_flow_source",
+  "task": {
+    "prompt": "Author a new Auth Flow flowchart as Mermaid source directly, parse it, verify it, then return the source. Do not use mutate because there is no existing diagram to preserve."
+  },
+  "prompts": {
+    "system": "pi subagent live-model pass: delegate agent, fresh context; instructed to return only synchronous Agentic Mermaid Code Mode JavaScript body.",
+    "user": "Live-model eval task. You are given the agentic-mermaid Code Mode contract: synchronous JavaScript body only; global mermaid.* SDK; no async/await; for new diagrams author source directly, parse, verify, inspect verify.ok/warnings, then return source. Return ONLY executable JavaScript body, no markdown. Task ID author_auth_flow_source. Task: author a new Auth Flow flowchart as Mermaid source directly, parse it, verify it, then return the source."
+  },
+  "rawResponse": "const source = '---\\ntitle: Auth Flow\\n---\\nflowchart LR\\n  A[User] --> B[Login Page]\\n  B --> C{Valid Credentials?}\\n  C -->|No| B\\n  C -->|Yes| D{MFA Enabled?}\\n  D -->|Yes| E[Enter MFA Code]\\n  E --> F{Code Valid?}\\n  F -->|No| E\\n  D -->|No| G[Create Session]\\n  F -->|Yes| G\\n  G --> H[Dashboard]'\nconst parsed = mermaid.parseMermaid(source)\nif (!parsed.ok) return { error: parsed.error }\n\nconst verify = mermaid.verifyMermaid(parsed.value)\nconst warnings = verify.warnings\nif (!verify.ok) return { error: 'verify', warnings }\n\nreturn { source }",
+  "script": "const source = '---\\ntitle: Auth Flow\\n---\\nflowchart LR\\n  A[User] --> B[Login Page]\\n  B --> C{Valid Credentials?}\\n  C -->|No| B\\n  C -->|Yes| D{MFA Enabled?}\\n  D -->|Yes| E[Enter MFA Code]\\n  E --> F{Code Valid?}\\n  F -->|No| E\\n  D -->|No| G[Create Session]\\n  F -->|Yes| G\\n  G --> H[Dashboard]'\nconst parsed = mermaid.parseMermaid(source)\nif (!parsed.ok) return { error: parsed.error }\n\nconst verify = mermaid.verifyMermaid(parsed.value)\nconst warnings = verify.warnings\nif (!verify.ok) return { error: 'verify', warnings }\n\nreturn { source }",
+  "result": {
+    "id": "author_auth_flow_source",
+    "ok": true,
+    "taskOk": true,
+    "traceOk": true,
+    "findings": []
+  }
+}

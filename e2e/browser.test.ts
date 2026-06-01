@@ -12,7 +12,7 @@
 
 import { describe, it, expect, beforeAll, afterAll } from 'bun:test'
 import { join } from 'path'
-import { chromium, type Browser, type BrowserContext, type Page } from 'playwright'
+import { chromium, type Browser, type BrowserContext, type CDPSession, type Page } from 'playwright'
 
 const ROOT = join(import.meta.dir, '..')
 const PORT = 4567 // Avoid collision with dev server on 3456
@@ -39,6 +39,7 @@ const ROUNDED_FILL_CONFIG = {
 let browser: Browser
 let context: BrowserContext
 let page: Page
+let cdpSession: CDPSession | null = null
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -51,6 +52,7 @@ async function waitForRender(timeoutMs = 30_000): Promise<void> {
       const el = document.getElementById('total-timing')
       return el?.textContent?.includes('rendered in') ?? false
     },
+    undefined,
     { timeout: timeoutMs },
   )
 }
@@ -62,6 +64,7 @@ async function waitForEditorRender(timeoutMs = 30_000): Promise<void> {
       const status = document.getElementById('status-text')?.textContent
       return status === 'OK' && document.querySelector('#preview-inner svg') !== null
     },
+    undefined,
     { timeout: timeoutMs },
   )
 }
@@ -71,6 +74,39 @@ async function takeScreenshot(name: string): Promise<string> {
   const path = join(SCREENSHOT_DIR, `${name}.png`)
   await page.screenshot({ path })
   return path
+}
+
+/**
+ * Navigate to the local app without waiting for the page's load event.
+ *
+ * The generated showcase/editor pages run large module scripts and render many
+ * SVGs before `load` can fire. On GitHub's slower Chromium runners that makes
+ * Playwright's default `page.goto(..., waitUntil: "load")` flaky and leaves the
+ * shared page in a pending-navigation state after one timeout. These tests wait
+ * for app-specific readiness (`waitForRender`, `waitForEditorRender`, or a
+ * selector) after navigation, so committing the response is the useful boundary.
+ *
+ * The page also embeds many SVGs whose Google Font imports can keep Chromium's
+ * previous document in a loading state even after the app reports that rendering
+ * is done. Use a fresh Page for each explicit navigation while keeping the same
+ * BrowserContext, so localStorage persists but a stuck prior document cannot
+ * block the next response from committing on slower GitHub runners.
+ */
+async function gotoApp(url: string): Promise<void> {
+  const previous = page
+  const viewport = previous?.viewportSize() ?? null
+  try { await cdpSession?.send('Page.stopLoading') } catch {}
+  page = await context.newPage()
+  if (viewport) await page.setViewportSize(viewport)
+  cdpSession = await context.newCDPSession(page)
+  if (previous && !previous.isClosed()) {
+    void previous.close({ runBeforeUnload: false }).catch(() => {})
+  }
+
+  const response = await page.goto(url, { waitUntil: 'commit', timeout: 60_000 })
+  if (!response || !response.ok()) {
+    throw new Error(`Failed to navigate to ${url}: ${response?.status() ?? 'no response'}`)
+  }
 }
 
 function editorHash(source: string, config = ROUNDED_FILL_CONFIG, theme = 'salmon'): string {
@@ -163,14 +199,14 @@ beforeAll(async () => {
   // Ensure generated pages exist
   const indexPath = join(ROOT, 'index.html')
   if (!(await Bun.file(indexPath).exists())) {
-    const proc = Bun.spawn(['bun', 'run', join(ROOT, 'index.ts')], {
+    const proc = Bun.spawn(['bun', 'run', join(ROOT, 'scripts/site/generate.ts')], {
       cwd: ROOT, stdout: 'inherit', stderr: 'inherit',
     })
     await proc.exited
   }
   const editorPath = join(ROOT, 'editor.html')
   if (!(await Bun.file(editorPath).exists())) {
-    const proc = Bun.spawn(['bun', 'run', join(ROOT, 'editor.ts')], {
+    const proc = Bun.spawn(['bun', 'run', join(ROOT, 'scripts/site/editor.ts')], {
       cwd: ROOT, stdout: 'inherit', stderr: 'inherit',
     })
     await proc.exited
@@ -203,9 +239,10 @@ beforeAll(async () => {
   browser = await chromium.launch()
   context = await browser.newContext()
   page = await context.newPage()
+  cdpSession = await context.newCDPSession(page)
 
   // Open the page and wait for rendering
-  await page.goto(BASE)
+  await gotoApp(BASE)
   await waitForRender(60_000)
 }, 120_000)
 
@@ -264,7 +301,7 @@ describe('browser: page loads and renders', () => {
 
   it('homepage defaults to salmon, uses fork-owned copy, and reports the rendered example count accurately', async () => {
     await page.evaluate(() => localStorage.removeItem('mermaid-theme'))
-    await page.goto(BASE)
+    await gotoApp(BASE)
     await waitForRender(60_000)
 
     expect(await page.evaluate(() => getComputedStyle(document.body).getPropertyValue('--t-bg').trim())).toBe('#FFFBF5')
@@ -283,7 +320,7 @@ describe('browser: page loads and renders', () => {
   }, 120_000)
 
   it('homepage sample search and category filters narrow the showcase', async () => {
-    await page.goto(BASE)
+    await gotoApp(BASE)
     await waitForRender(60_000)
 
     await page.fill('#sample-search', 'timeline')
@@ -307,6 +344,7 @@ describe('browser: theme switching', () => {
     )
     await page.waitForFunction(
       () => getComputedStyle(document.body).getPropertyValue('--t-bg').trim() === '#FFFFFF',
+      undefined,
       { timeout: 10_000 },
     )
     const bg = await page.evaluate(
@@ -321,6 +359,7 @@ describe('browser: theme switching', () => {
     )
     await page.waitForFunction(
       () => getComputedStyle(document.body).getPropertyValue('--t-bg').trim() === '#282a36',
+      undefined,
       { timeout: 30_000 },
     )
     const bg = await page.evaluate(
@@ -335,7 +374,7 @@ describe('browser: theme switching', () => {
   }, 60_000)
 
   it('theme persists across page reload', async () => {
-    await page.goto(BASE)
+    await gotoApp(BASE)
     await waitForRender(60_000)
 
     const bg = await page.evaluate(
@@ -353,6 +392,7 @@ describe('browser: theme switching', () => {
     )
     await page.waitForFunction(
       () => getComputedStyle(document.body).getPropertyValue('--t-bg').trim() === '#FFFFFF',
+      undefined,
       { timeout: 30_000 },
     )
     const bg = await page.evaluate(
@@ -372,6 +412,7 @@ describe('browser: dropdowns', () => {
     await page.evaluate(() => document.getElementById('theme-more-btn')?.click())
     await page.waitForFunction(
       () => document.getElementById('theme-more-dropdown')?.classList.contains('open') === true,
+      undefined,
       { timeout: 10_000 },
     )
     expect(await page.evaluate(
@@ -381,6 +422,7 @@ describe('browser: dropdowns', () => {
     await page.keyboard.press('Escape')
     await page.waitForFunction(
       () => document.getElementById('theme-more-dropdown')?.classList.contains('open') === false,
+      undefined,
       { timeout: 10_000 },
     )
     expect(await page.evaluate(
@@ -392,6 +434,7 @@ describe('browser: dropdowns', () => {
     await page.evaluate(() => document.getElementById('contents-btn')?.click())
     await page.waitForFunction(
       () => document.getElementById('mega-menu')?.classList.contains('open') === true,
+      undefined,
       { timeout: 10_000 },
     )
     expect(await page.evaluate(
@@ -406,6 +449,7 @@ describe('browser: dropdowns', () => {
     await page.keyboard.press('Escape')
     await page.waitForFunction(
       () => document.getElementById('mega-menu')?.classList.contains('open') === false,
+      undefined,
       { timeout: 10_000 },
     )
     expect(await page.evaluate(
@@ -425,7 +469,7 @@ describe('browser: edit dialog', () => {
 
   it('edit dialog opens, edits, saves, and re-renders', async () => {
     // Ensure clean page state
-    await page.goto(BASE)
+    await gotoApp(BASE)
     await waitForRender(60_000)
 
     // Click the first edit button
@@ -442,6 +486,7 @@ describe('browser: edit dialog', () => {
     // The click triggers openEditDialog which is synchronous
     await page.waitForFunction(
       () => document.getElementById('edit-overlay')?.classList.contains('open') === true,
+      undefined,
       { timeout: 10_000 },
     )
     expect(await page.evaluate(
@@ -467,6 +512,7 @@ describe('browser: edit dialog', () => {
     // Wait for dialog close
     await page.waitForFunction(
       () => document.getElementById('edit-overlay')?.classList.contains('open') === false,
+      undefined,
       { timeout: 30_000 },
     )
     const closed = await page.evaluate(
@@ -489,6 +535,7 @@ describe('browser: edit dialog', () => {
     })
     await page.waitForFunction(
       () => document.getElementById('edit-overlay')?.classList.contains('open') === true,
+      undefined,
       { timeout: 10_000 },
     )
 
@@ -498,6 +545,7 @@ describe('browser: edit dialog', () => {
     })
     await page.waitForFunction(
       () => document.getElementById('edit-overlay')?.classList.contains('open') === false,
+      undefined,
       { timeout: 10_000 },
     )
     expect(await page.evaluate(
@@ -511,7 +559,7 @@ describe('browser: random theme button', () => {
 
   it('random theme button changes the theme', async () => {
     // Fresh page load on default theme
-    await page.goto(BASE)
+    await gotoApp(BASE)
     await waitForRender(60_000)
 
     const savedBefore = await page.evaluate(() => localStorage.getItem('mermaid-theme'))
@@ -523,6 +571,7 @@ describe('browser: random theme button', () => {
     await page.evaluate(() => document.getElementById('random-theme-btn')?.click())
     await page.waitForFunction(
       () => localStorage.getItem('mermaid-theme') !== null,
+      undefined,
       { timeout: 30_000 },
     )
     const savedAfter = await page.evaluate(() => localStorage.getItem('mermaid-theme'))
@@ -534,7 +583,7 @@ describe('browser: random theme button', () => {
 describe('browser: live editor integration', () => {
 
   it('opens /editor to a blank salmon-themed canvas by default', async () => {
-    await page.goto(`${BASE}/editor`)
+    await gotoApp(`${BASE}/editor`)
     await page.waitForSelector('#code-editor', { timeout: 30_000 })
 
     expect(await page.inputValue('#code-editor')).toBe('')
@@ -548,7 +597,7 @@ describe('browser: live editor integration', () => {
 
   it('mobile editor uses pane tabs instead of clipping the workspace', async () => {
     await page.setViewportSize({ width: 390, height: 844 })
-    await page.goto(`${BASE}/editor`)
+    await gotoApp(`${BASE}/editor`)
     await page.waitForSelector('#code-editor', { timeout: 30_000 })
 
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true)
@@ -563,18 +612,20 @@ describe('browser: live editor integration', () => {
   }, 60_000)
 
   it('empty-state CTA opens a persistent examples sidebar', async () => {
-    await page.goto(`${BASE}/editor`)
+    await gotoApp(`${BASE}/editor`)
     await page.waitForSelector('#code-editor', { timeout: 30_000 })
 
     expect(await page.evaluate(() => document.getElementById('examples-sidebar')?.classList.contains('open'))).toBe(false)
     await page.click('[data-action="load-example"]')
     await page.waitForFunction(
       () => document.getElementById('examples-sidebar')?.classList.contains('open') === true,
+      undefined,
       { timeout: 10_000 },
     )
 
     await page.waitForFunction(
       () => (document.getElementById('examples-sidebar')?.getBoundingClientRect().width ?? 0) >= 280,
+      undefined,
       { timeout: 10_000 },
     )
     const sidebarBox = await page.locator('#examples-sidebar').boundingBox()
@@ -588,7 +639,7 @@ describe('browser: live editor integration', () => {
   }, 120_000)
 
   it('opens /editor and renders fork-added diagram families through the bundled renderer', async () => {
-    await page.goto(`${BASE}/editor`)
+    await gotoApp(`${BASE}/editor`)
     await page.waitForSelector('#code-editor', { timeout: 30_000 })
 
     const cases = [
@@ -647,7 +698,7 @@ describe('browser: live editor integration', () => {
   }, 120_000)
 
   it('uses local theme registry entries in the editor theme dropdown', async () => {
-    await page.goto(`${BASE}/editor`)
+    await gotoApp(`${BASE}/editor`)
     await page.waitForSelector('#code-editor', { timeout: 30_000 })
     await page.fill('#code-editor', 'graph TD\n  A[Theme] --> B[Render]')
     await waitForEditorRender(60_000)
@@ -673,13 +724,14 @@ describe('browser: live editor integration', () => {
   }, 120_000)
 
   it('examples sidebar keeps the selected theme and exposes blank reset without a floating source toolbar', async () => {
-    await page.goto(`${BASE}/editor`)
+    await gotoApp(`${BASE}/editor`)
     await page.waitForSelector('#code-editor', { timeout: 30_000 })
 
     await page.click('#theme-dropdown-btn')
     await page.click('.theme-dropdown-item[data-theme="salmon"]')
     await page.waitForFunction(
       () => getComputedStyle(document.documentElement).getPropertyValue('--t-bg').trim() === '#FFFBF5',
+      undefined,
       { timeout: 30_000 },
     )
 
@@ -690,6 +742,7 @@ describe('browser: live editor integration', () => {
     await page.click('#export-chevron-btn')
     await page.waitForFunction(
       () => document.getElementById('export-dropdown')?.classList.contains('open') === true,
+      undefined,
       { timeout: 10_000 },
     )
     expect(await page.locator('#copy-source-btn').isVisible()).toBe(true)
@@ -698,6 +751,7 @@ describe('browser: live editor integration', () => {
     await page.click('#examples-sidebar-btn')
     await page.waitForFunction(
       () => document.getElementById('examples-sidebar')?.classList.contains('open') === true,
+      undefined,
       { timeout: 10_000 },
     )
 
@@ -726,6 +780,7 @@ describe('browser: live editor integration', () => {
     await page.click('#examples-sidebar .example-dropdown-item[data-example="state-basic"]')
     await page.waitForFunction(
       () => (document.querySelector('#preview-inner svg')?.outerHTML ?? '').includes('Processing'),
+      undefined,
       { timeout: 60_000 },
     )
     expect(await page.inputValue('#code-editor')).toContain('stateDiagram-v2')
@@ -739,7 +794,7 @@ describe('browser: live editor integration', () => {
   }, 120_000)
 
   it('topbar button dimensions do not shift when toggling day/dark mode', async () => {
-    await page.goto(`${BASE}/editor`)
+    await gotoApp(`${BASE}/editor`)
     await page.waitForSelector('#code-editor', { timeout: 30_000 })
 
     const before = await page.locator('#dark-light-btn').boundingBox()
@@ -759,13 +814,14 @@ describe('browser: live editor integration', () => {
   }, 60_000)
 
   it('loads semantic role style examples without overriding the selected theme', async () => {
-    await page.goto(`${BASE}/editor`)
+    await gotoApp(`${BASE}/editor`)
     await page.waitForSelector('#code-editor', { timeout: 30_000 })
 
     await page.click('#theme-dropdown-btn')
     await page.click('.theme-dropdown-item[data-theme="dracula"]')
     await page.waitForFunction(
       () => getComputedStyle(document.documentElement).getPropertyValue('--t-bg').trim() === '#282a36',
+      undefined,
       { timeout: 30_000 },
     )
 
@@ -779,6 +835,7 @@ describe('browser: live editor integration', () => {
           && html.includes('xychart-bar')
           && html.includes('stroke-width: 2.25')
       },
+      undefined,
       { timeout: 60_000 },
     )
 
@@ -807,7 +864,7 @@ describe('browser: visual regression', () => {
 
   it('architecture rounded fills match screenshot baseline without decorative rails', async () => {
     await page.setViewportSize({ width: 1280, height: 720 })
-    await page.goto(`${BASE}/editor?visual=architecture-rounded-fill#${ARCHITECTURE_ROUNDED_FILL_HASH}`)
+    await gotoApp(`${BASE}/editor?visual=architecture-rounded-fill#${ARCHITECTURE_ROUNDED_FILL_HASH}`)
     await waitForEditorRender(60_000)
     await page.waitForFunction(
       () => {
@@ -817,6 +874,7 @@ describe('browser: visual regression', () => {
           && svg.querySelectorAll('.architecture-group-outline').length === 2
           && svg.querySelectorAll('.architecture-service-outline').length === 3
       },
+      undefined,
       { timeout: 60_000 },
     )
     await page.evaluate(() => document.fonts?.ready)
@@ -924,7 +982,7 @@ describe('browser: visual regression', () => {
     ]
 
     for (const testCase of cases) {
-      await page.goto(`${BASE}/editor?visual=${encodeURIComponent(testCase.name)}#${editorHash(testCase.source)}`)
+      await gotoApp(`${BASE}/editor?visual=${encodeURIComponent(testCase.name)}#${editorHash(testCase.source)}`)
       await waitForEditorRender(60_000)
       await page.evaluate(() => document.fonts?.ready)
       const svgHtml = await page.locator('#preview-inner svg').evaluate(el => el.outerHTML)
@@ -955,7 +1013,7 @@ describe('browser: visual regression', () => {
 
   it('default theme screenshot matches baseline', async () => {
     // Fresh page load -- no pending re-renders
-    await page.goto(BASE)
+    await gotoApp(BASE)
     await waitForRender(60_000)
 
     const currentPath = await takeScreenshot('current-default')
@@ -983,7 +1041,7 @@ describe('browser: visual regression', () => {
 
   it('dracula theme screenshot matches baseline', async () => {
     // Fresh page load, then switch to Dracula and wait for re-render
-    await page.goto(BASE)
+    await gotoApp(BASE)
     await waitForRender(60_000)
     await page.evaluate(() =>
       (document.querySelector('[data-theme="dracula"]') as HTMLElement)?.click(),
@@ -991,6 +1049,7 @@ describe('browser: visual regression', () => {
     // Wait for Dracula theme CSS var to be applied
     await page.waitForFunction(
       () => getComputedStyle(document.body).getPropertyValue('--t-bg').trim() === '#282a36',
+      undefined,
       { timeout: 30_000 },
     )
 

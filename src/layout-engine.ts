@@ -35,6 +35,14 @@ import { measureMultilineText } from './text-metrics.ts'
 import { elkLayoutSync } from './elk-instance.ts'
 import { clipEdgeToShape } from './shape-clipping.ts'
 
+interface LayoutEngineOptions extends RenderOptions {
+  /** @internal Preserve direct child order in compound nodes for projected families. */
+  preserveSubgraphChildOrder?: boolean
+}
+
+type ElkConversionOptions = Required<Pick<RenderOptions, 'font' | 'padding' | 'nodeSpacing' | 'layerSpacing'>> &
+  Pick<LayoutEngineOptions, 'preserveSubgraphChildOrder'>
+
 // ============================================================================
 // Layout options
 // ============================================================================
@@ -59,6 +67,67 @@ function directionToElk(dir: MermaidGraph['direction']): string {
     case 'TB':
     default: return 'DOWN'
   }
+}
+
+/**
+ * ELK's model-order options are useful for keeping feedback-loop diagrams
+ * readable, but raw Mermaid node insertion order is target-biased: `A --> C`
+ * creates `C` before a later `B --> C`, which can make the `B --> C` edge run
+ * backwards. Build a source-aware, cycle-tolerant model order from edges:
+ * add each source-before-target constraint unless it would create a cycle, then
+ * topologically sort with original order as the tie-breaker.
+ */
+function sourceAwareNodeOrder(nodeIds: string[], edges: Array<Pick<MermaidEdge, 'source' | 'target'>>): string[] {
+  const ids = new Set(nodeIds)
+  const original = new Map(nodeIds.map((id, i) => [id, i]))
+  const outgoing = new Map(nodeIds.map(id => [id, new Set<string>()]))
+  const indegree = new Map(nodeIds.map(id => [id, 0]))
+
+  const reaches = (from: string, to: string): boolean => {
+    const seen = new Set<string>()
+    const stack = [from]
+    while (stack.length > 0) {
+      const id = stack.pop()!
+      if (id === to) return true
+      if (seen.has(id)) continue
+      seen.add(id)
+      for (const next of outgoing.get(id) ?? []) stack.push(next)
+    }
+    return false
+  }
+
+  for (const edge of edges) {
+    if (edge.source === edge.target || !ids.has(edge.source) || !ids.has(edge.target)) continue
+    const from = edge.source
+    const to = edge.target
+    const set = outgoing.get(from)!
+    if (set.has(to)) continue
+    if (reaches(to, from)) continue // feedback edge; preserve it as a back edge
+    set.add(to)
+    indegree.set(to, (indegree.get(to) ?? 0) + 1)
+  }
+
+  const orderByOriginal = (a: string, b: string): number => (original.get(a) ?? 0) - (original.get(b) ?? 0)
+  const ready = nodeIds.filter(id => (indegree.get(id) ?? 0) === 0).sort(orderByOriginal)
+  const out: string[] = []
+  while (ready.length > 0) {
+    const id = ready.shift()!
+    out.push(id)
+    for (const next of Array.from(outgoing.get(id) ?? []).sort(orderByOriginal)) {
+      const nextDegree = (indegree.get(next) ?? 0) - 1
+      indegree.set(next, nextDegree)
+      if (nextDegree === 0) {
+        ready.push(next)
+        ready.sort(orderByOriginal)
+      }
+    }
+  }
+
+  if (out.length < nodeIds.length) {
+    const emitted = new Set(out)
+    out.push(...nodeIds.filter(id => !emitted.has(id)).sort(orderByOriginal))
+  }
+  return out
 }
 
 // ============================================================================
@@ -144,7 +213,7 @@ interface HierarchicalEdgeInfo {
  */
 function mermaidToElk(
   graph: MermaidGraph,
-  opts: Required<Pick<RenderOptions, 'font' | 'padding' | 'nodeSpacing' | 'layerSpacing'>>,
+  opts: ElkConversionOptions,
   style: ResolvedRenderStyle,
 ): ElkGraphNode {
   // Collect all node IDs that belong to subgraphs
@@ -157,6 +226,7 @@ function mermaidToElk(
 
   // Build node-to-subgraph mapping for edge distribution
   const nodeToSubgraph = buildNodeToSubgraphMap(graph.subgraphs)
+  const nodeToRootSubgraph = buildNodeToRootSubgraphMap(graph.subgraphs)
 
   // Classify edges into three categories:
   // 1. Internal edges (both endpoints in same subgraph)
@@ -216,7 +286,13 @@ function mermaidToElk(
       'elk.layered.highDegreeNodes.treatment': 'true',
       'elk.layered.highDegreeNodes.threshold': '8',
       'elk.layered.compaction.postCompaction.strategy': 'LEFT_RIGHT_CONSTRAINT_LOCKING',
+      // Mermaid source order is author intent for small flowcharts with feedback
+      // loops. ELK's default greedy cycle breaker can rank a decision before the
+      // login step in A->B->C plus C->B graphs; model-order cycle breaking keeps
+      // the primary LR path readable and sends the feedback edge backwards.
       'elk.layered.considerModelOrder.strategy': 'NODES_AND_EDGES',
+      'elk.layered.cycleBreaking.strategy': 'MODEL_ORDER',
+      'elk.layered.crossingMinimization.forceNodeModelOrder': 'true',
       'elk.layered.wrapping.strategy': 'OFF',
       // Use SEPARATE when subgraphs have direction overrides (enables proper direction handling)
       // Use INCLUDE_CHILDREN otherwise (simpler cross-hierarchy edge routing)
@@ -267,9 +343,21 @@ function mermaidToElk(
     }
   }
 
-  // Add top-level nodes (those not in any subgraph)
-  for (const [id, node] of graph.nodes) {
-    if (!subgraphNodeIds.has(id) && !subgraphIds.has(id)) {
+  // Projected families such as architecture may rely on parser child order
+  // inside compounds for stable boundary routing; root-level group-vs-node
+  // siblings still use source-before-target constraints.
+  const useSourceAwareChildOrder = !opts.preserveSubgraphChildOrder
+
+  const topLevelSubgraphs = new Map(graph.subgraphs.map(sg => [sg.id, sg]))
+  const rootOrder = rootChildOrder(graph, subgraphNodeIds, subgraphIds, nodeToRootSubgraph, Boolean(opts.preserveSubgraphChildOrder))
+  for (const id of rootOrder) {
+    const sg = topLevelSubgraphs.get(id)
+    if (sg) {
+      elkGraph.children!.push(subgraphToElk(sg, graph, opts, style, edgesBySubgraph, subgraphPorts, useSourceAwareChildOrder))
+      continue
+    }
+    const node = graph.nodes.get(id)
+    if (node && !subgraphNodeIds.has(id) && !subgraphIds.has(id)) {
       const size = estimateNodeSize(id, node.label, node.shape, style)
       elkGraph.children!.push({
         id,
@@ -278,11 +366,6 @@ function mermaidToElk(
         labels: [{ text: node.label }],
       })
     }
-  }
-
-  // Add subgraphs as compound nodes with children and their internal edges
-  for (const sg of graph.subgraphs) {
-    elkGraph.children!.push(subgraphToElk(sg, graph, opts, style, edgesBySubgraph, subgraphPorts))
   }
 
   // Add root-level edges
@@ -351,7 +434,8 @@ function subgraphToElk(
     edgeIndex: number
     direction: 'incoming' | 'outgoing'
     internalNodeId: string
-  }>>
+  }>>,
+  useSourceAwareOrder: boolean,
 ): ElkGraphNode {
   const groupHeaderHeight = style.groupHeaderFontSize + 16
   const layoutOptions: LayoutOptions = {
@@ -390,8 +474,11 @@ function subgraphToElk(
     }))
   }
 
-  // Add direct child nodes
-  for (const nodeId of sg.nodeIds) {
+  // Add direct child nodes using the same source-aware ordering within the group
+  // for flowchart-like graphs; architecture keeps parser order for stable
+  // group-boundary routing.
+  const childNodeOrder = useSourceAwareOrder ? sourceAwareNodeOrder(sg.nodeIds, graph.edges) : sg.nodeIds
+  for (const nodeId of childNodeOrder) {
     const node = graph.nodes.get(nodeId)
     if (node) {
       const size = estimateNodeSize(nodeId, node.label, node.shape, style)
@@ -406,7 +493,7 @@ function subgraphToElk(
 
   // Add nested subgraphs recursively
   for (const child of sg.children) {
-    elkNode.children!.push(subgraphToElk(child, graph, opts, style, edgesBySubgraph, subgraphPorts))
+    elkNode.children!.push(subgraphToElk(child, graph, opts, style, edgesBySubgraph, subgraphPorts, useSourceAwareOrder))
   }
 
   // Add internal edges (edges where both endpoints are in this subgraph)
@@ -480,6 +567,61 @@ function buildNodeToSubgraphMap(subgraphs: MermaidSubgraph[]): Map<string, strin
   }
 
   return map
+}
+
+function buildNodeToRootSubgraphMap(subgraphs: MermaidSubgraph[]): Map<string, string> {
+  const map = new Map<string, string>()
+  function traverse(sg: MermaidSubgraph, rootId: string): void {
+    for (const nodeId of sg.nodeIds) map.set(nodeId, rootId)
+    for (const child of sg.children) traverse(child, rootId)
+  }
+  for (const sg of subgraphs) traverse(sg, sg.id)
+  return map
+}
+
+function rootChildOrder(
+  graph: MermaidGraph,
+  subgraphNodeIds: Set<string>,
+  subgraphIds: Set<string>,
+  nodeToRootSubgraph: Map<string, string>,
+  seedSubgraphsFirst: boolean,
+): string[] {
+  const rootIds: string[] = []
+  const seen = new Set<string>()
+  const add = (id: string) => {
+    if (seen.has(id)) return
+    seen.add(id)
+    rootIds.push(id)
+  }
+
+  const addNodeDerivedRootIds = () => {
+    for (const id of graph.nodes.keys()) {
+      const root = nodeToRootSubgraph.get(id)
+      if (root) add(root)
+      else if (!subgraphNodeIds.has(id) && !subgraphIds.has(id)) add(id)
+    }
+  }
+  const addDeclaredSubgraphIds = () => {
+    for (const sg of graph.subgraphs) add(sg.id)
+  }
+
+  // Flowchart-like graphs should keep root nodes and top-level subgraphs in
+  // source-derived order. Projected families such as architecture can request
+  // top-level group declaration order because their parser has group entries
+  // that are not represented in graph.nodes until a service/junction appears.
+  if (seedSubgraphsFirst) {
+    addDeclaredSubgraphIds()
+    addNodeDerivedRootIds()
+  } else {
+    addNodeDerivedRootIds()
+    addDeclaredSubgraphIds()
+  }
+
+  const rootEdges = graph.edges.map(edge => ({
+    source: nodeToRootSubgraph.get(edge.source) ?? edge.source,
+    target: nodeToRootSubgraph.get(edge.target) ?? edge.target,
+  }))
+  return sourceAwareNodeOrder(rootIds, rootEdges)
 }
 
 // ============================================================================
@@ -636,6 +778,9 @@ function extractNodesAndGroups(
       if (mNode) {
         // Resolve inline styles from nodeStyles map and classDefs
         const inlineStyle = resolveNodeStyle(child.id, graph)
+        // User-assigned Mermaid class name(s) for external CSS targeting (#81).
+        const assigned = graph.classAssignments.get(child.id)
+        const classNames = assigned ? assigned.split(/\s+/).filter(Boolean) : undefined
 
         nodes.push({
           id: child.id,
@@ -646,6 +791,7 @@ function extractNodesAndGroups(
           width,
           height,
           inlineStyle,
+          classNames,
         })
       }
 
@@ -1414,7 +1560,7 @@ function bundleEdgePaths(
  */
 export function layoutGraphSync(
   graph: MermaidGraph,
-  options: RenderOptions = {}
+  options: LayoutEngineOptions = {}
 ): PositionedGraph {
   const opts = { ...DEFAULTS, ...options }
   const style = resolveRenderStyle(options)
@@ -1428,7 +1574,7 @@ export function layoutGraphSync(
  */
 export function convertToElkFormat(
   graph: MermaidGraph,
-  options: RenderOptions = {}
+  options: LayoutEngineOptions = {}
 ): ElkNode {
   const opts = { ...DEFAULTS, ...options }
   const style = resolveRenderStyle(options)

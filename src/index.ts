@@ -35,11 +35,11 @@ export { parseArchitectureDiagram, architectureToMermaidGraph } from './architec
 import { decodeXML } from 'entities'
 import { parseMermaid } from './parser.ts'
 import { layoutGraphSync } from './layout.ts'
-import { renderSvg } from './renderer.ts'
+import { renderSvg, compactSvg, namespaceSvgIds } from './renderer.ts'
 import type { RenderOptions } from './types.ts'
 import type { DiagramColors } from './theme.ts'
 import { DEFAULTS, THEMES, inlineResolvedColors } from './theme.ts'
-import { normalizeMermaidSource } from './mermaid-source.ts'
+import { normalizeMermaidSource, detectDiagramTypeFromFirstLine } from './mermaid-source.ts'
 import type { MermaidRuntimeConfig, MermaidThemeVariables } from './mermaid-source.ts'
 
 import { parseSequenceDiagram } from './sequence/parser.ts'
@@ -66,32 +66,6 @@ import { renderArchitectureSvg } from './architecture/renderer.ts'
 import { resolveArchitectureVisualConfig } from './architecture/config.ts'
 
 /**
- * Detect the diagram type from the mermaid source text.
- * Returns the type keyword used for routing to the correct pipeline.
- */
-function detectDiagramType(firstLine: string): 'flowchart' | 'architecture' | 'sequence' | 'class' | 'er' | 'timeline' | 'journey' | 'xychart' {
-  if (/^architecture-beta\s*$/.test(firstLine)) return 'architecture'
-  if (/^xychart(-beta)?\b/.test(firstLine)) return 'xychart'
-  if (/^timeline\s*$/.test(firstLine)) return 'timeline'
-  if (/^journey\s*$/.test(firstLine)) return 'journey'
-  if (/^sequencediagram\s*$/.test(firstLine)) return 'sequence'
-  if (/^classdiagram\s*$/.test(firstLine)) return 'class'
-  if (/^erdiagram\s*$/.test(firstLine)) return 'er'
-
-  // Default: flowchart/state (handled by parseMermaid internally)
-  return 'flowchart'
-}
-
-function firstSignificantLine(text: string): string {
-  for (const rawLine of text.split('\n')) {
-    const line = rawLine.trim()
-    if (line.length === 0 || line.startsWith('%%')) continue
-    return line.split(';')[0]!.trim().toLowerCase()
-  }
-  return ''
-}
-
-/**
  * Build a DiagramColors object from render options.
  * Uses DEFAULTS for bg/fg when not provided, and passes through
  * optional enrichment colors (line, accent, muted, surface, border).
@@ -114,7 +88,7 @@ const MERMAID_THEME_COLORS: Record<string, DiagramColors> = {
   forest: { bg: '#f0fdf4', fg: '#14532d', line: '#4d7c0f', accent: '#15803d', muted: '#65a30d', border: '#86efac' },
 }
 
-function buildColors(options: RenderOptions, config: MermaidRuntimeConfig): DiagramColors {
+function buildColors(options: RenderOptions, config: MermaidRuntimeConfig, font?: string): DiagramColors {
   const theme = resolveThemeColors(config.theme)
   const vars = config.themeVariables
 
@@ -127,6 +101,11 @@ function buildColors(options: RenderOptions, config: MermaidRuntimeConfig): Diag
     surface: options.surface ?? readThemeValue(vars, 'primaryColor', 'nodeBkg', 'mainBkg') ?? theme?.surface,
     border: options.border ?? readThemeValue(vars, 'primaryBorderColor', 'secondaryBorderColor') ?? theme?.border,
     shadow: options.shadow ?? theme?.shadow,
+    // Threaded so `--font:<family>` lands on the SVG root via svgOpenTag.
+    font,
+    // Renderers read this to gate the Google Fonts @import. Default true preserves
+    // wire compat; CLI / PNG paths set it false.
+    embedFontImport: options.embedFontImport,
   }
 }
 
@@ -145,6 +124,131 @@ function readThemeValue(vars: MermaidThemeVariables | undefined, ...keys: string
   }
 
   return undefined
+}
+
+/**
+ * #7254/#7255: extract `accTitle:` and `accDescr:` (inline or `accDescr { … }`
+ * block) from normalized source lines. These are Mermaid's accessibility
+ * directives; we surface them as SVG <title>/<desc>.
+ */
+function extractAccessibility(lines: string[]): { title?: string; descr?: string } {
+  const out: { title?: string; descr?: string } = {}
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i]!.trim()
+    let m: RegExpMatchArray | null
+    if ((m = line.match(/^accTitle\s*:\s*(.+)$/i))) out.title = m[1]!.trim()
+    else if ((m = line.match(/^accDescr\s*:\s*(.+)$/i))) out.descr = m[1]!.trim()
+    else if (/^accDescr\s*\{\s*$/i.test(line)) {
+      const block: string[] = []
+      for (let j = i + 1; j < lines.length; j++) {
+        if (lines[j]!.trim() === '}') break
+        block.push(lines[j]!.trim())
+      }
+      out.descr = block.join(' ').trim()
+    }
+  }
+  return out
+}
+
+function escapeXmlText(s: string): string {
+  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+}
+
+/**
+ * #7254/#7255: inject `<title>`/`<desc>` + `role="img"` + `aria-labelledby`
+ * into the root <svg>. Localized post-pass (mirrors namespaceSvgIds) so we
+ * don't thread accessibility through every family renderer. The title/desc ids
+ * carry the same idPrefix as the rest of the doc to stay collision-free.
+ */
+function injectAccessibility(svg: string, acc: { title?: string; descr?: string }, idPrefix: string): string {
+  const titleId = `${idPrefix}svg-title`
+  const descId = `${idPrefix}svg-desc`
+  const labelledby: string[] = []
+  const children: string[] = []
+  if (acc.title) { labelledby.push(titleId); children.push(`<title id="${titleId}">${escapeXmlText(acc.title)}</title>`) }
+  if (acc.descr) { labelledby.push(descId); children.push(`<desc id="${descId}">${escapeXmlText(acc.descr)}</desc>`) }
+  if (children.length === 0) return svg
+  // Add role + aria-labelledby to the opening <svg …> tag (once).
+  svg = svg.replace(/<svg\b([^>]*)>/, (full, attrs: string) => {
+    const add = `${/\brole=/.test(attrs) ? '' : ' role="img"'} aria-labelledby="${labelledby.join(' ')}"`
+    return `<svg${attrs}${add}>${children.join('')}`
+  })
+  return svg
+}
+
+/**
+ * #7645/#7695: scan an SVG for external-fetch references — `@import` URLs,
+ * `<image href>`/`xlink:href` to http(s) or protocol-relative URLs,
+ * `<use href>` to external, `url(http…)` / `url(//…)`
+ * in styles, `<script>`, `<foreignObject>`. The `xmlns="http://www.w3.org/…"`
+ * namespace declaration is NOT a fetch and is excluded. Returns the offending
+ * references so it can serve as a CI gate and an agent self-check.
+ */
+const XML_SLASH_REF = String.raw`(?:/|&(?:amp;)?#x0*2f;|&(?:amp;)?#0*47;|&(?:amp;)?sol;)`
+const XML_EXTERNAL_PREFIX = String.raw`(?:https?:)?${XML_SLASH_REF}${XML_SLASH_REF}`
+const XML_EXTERNAL_ATTR_QUOTED = new RegExp(String.raw`\s(?:[^\s=<>]+:)?(?:href|src|data)\s*=\s*["']\s*${XML_EXTERNAL_PREFIX}[^"']*["']`, 'gi')
+const XML_EXTERNAL_ATTR_UNQUOTED = new RegExp(String.raw`\s(?:[^\s=<>]+:)?(?:href|src|data)\s*=\s*${XML_EXTERNAL_PREFIX}[^\s>"']+`, 'gi')
+
+export function verifyNoExternalRefs(svg: string): { ok: boolean; refs: string[] } {
+  const scan = normalizeCssObfuscation(svg)
+  const refs: string[] = []
+  // @import url(...) or @import "..."
+  for (const m of scan.matchAll(/@import\s*(?:url\()?\s*["']?\s*((?:https?:)?\/\/[^"')]+)/gi)) refs.push(`@import ${m[1]}`)
+  for (const m of scan.matchAll(/@import\s*(?:url\()?\s*["']?\s*(javascript\s*:[^"')\s;]+)/gi)) refs.push(`@import ${m[1]}`)
+  // href / *:href / src / data to http(s) or protocol-relative URLs (xmlns excluded — it's a declaration, not a ref)
+  for (const m of scan.matchAll(/(?<!xmlns:)\b(?:[^\s=<>]+:)?(?:href|src|data)\s*=\s*["']\s*((?:https?:)?\/\/[^"']+)["']/gi)) refs.push(m[1]!)
+  for (const m of scan.matchAll(/(?<!xmlns:)\b(?:[^\s=<>]+:)?(?:href|src|data)\s*=\s*((?:https?:)?\/\/[^\s>"']+)/gi)) refs.push(m[1]!)
+  for (const m of scan.matchAll(XML_EXTERNAL_ATTR_QUOTED)) refs.push(m[0]!)
+  for (const m of scan.matchAll(XML_EXTERNAL_ATTR_UNQUOTED)) refs.push(m[0]!)
+  // url(http…) / url(//…) / url(javascript:…) inside style/attr values
+  for (const m of scan.matchAll(/url\(\s*["']?\s*((?:https?:)?\/\/[^"')]+)/gi)) refs.push(m[1]!)
+  for (const m of scan.matchAll(/url\(\s*["']?\s*(javascript\s*:[^"')]+)/gi)) refs.push(m[1]!)
+  // active content that can fetch/exfiltrate
+  if (/<(?:[^\s<>/:]+:)?script\b/i.test(scan)) refs.push('<script>')
+  if (/<(?:[^\s<>/:]+:)?foreignObject\b/i.test(scan)) refs.push('<foreignObject>')
+  if (/<(?:[^\s<>/:]+:)?image\b/i.test(scan)) refs.push('<image>')
+  if (/<(?:[^\s<>/:]+:)?object\b/i.test(scan)) refs.push('<object>')
+  if (/<(?:[^\s<>/:]+:)?embed\b/i.test(scan)) refs.push('<embed>')
+  if (/<(?:[^\s<>/:]+:)?iframe\b/i.test(scan)) refs.push('<iframe>')
+  if (/\son[a-z][\w:.-]*\s*=/i.test(scan)) refs.push('inline-event-handler')
+  if (/\s(?:[^\s=<>]+:)?(?:href|src|data)\s*=\s*["']?\s*javascript\s*:/i.test(scan)) refs.push('javascript-url')
+  return { ok: refs.length === 0, refs }
+}
+
+function normalizeCssObfuscation(svg: string): string {
+  return svg
+    .replace(/\/\*[\s\S]*?\*\//g, '')
+    .replace(/\\([0-9a-fA-F]{1,6})\s?/g, (_, hex: string) => {
+      const cp = Number.parseInt(hex, 16)
+      return Number.isFinite(cp) ? String.fromCodePoint(cp) : ''
+    })
+    .replace(/\\([^\n\r\f])/g, '$1')
+}
+
+function stripExternalRefs(svg: string): string {
+  return normalizeCssObfuscation(svg)
+    .replace(/@import\s*(?:url\()?\s*["']?\s*(?:https?:)?\/\/[^\n;}]+[;)]?/gi, '')
+    .replace(/@import\s*(?:url\()?\s*["']?\s*javascript\s*:[^\n;}]+[;)]?/gi, '')
+    .replace(/url\(\s*["']?\s*(?:https?:)?\/\/[^"')]+["']?\s*\)/gi, 'none')
+    .replace(/url\(\s*["']?\s*javascript\s*:[^"')]+["']?\s*\)/gi, 'none')
+    .replace(XML_EXTERNAL_ATTR_QUOTED, '')
+    .replace(XML_EXTERNAL_ATTR_UNQUOTED, '')
+    .replace(/\s(?:[^\s=<>]+:)?(?:href|src|data)\s*=\s*["']\s*(?:https?:)?\/\/[^"']+["']/gi, '')
+    .replace(/\s(?:[^\s=<>]+:)?(?:href|src|data)\s*=\s*(?:https?:)?\/\/[^\s>"']+/gi, '')
+    .replace(/\s(?:[^\s=<>]+:)?(?:href|src|data)\s*=\s*["']\s*javascript\s*:[^"']*["']/gi, '')
+    .replace(/\s(?:[^\s=<>]+:)?(?:href|src|data)\s*=\s*javascript\s*:[^\s>]+/gi, '')
+    .replace(/\son[a-z][\w:.-]*\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)/gi, '')
+    .replace(/<(?:[^\s<>/:]+:)?script\b[^>]*>[\s\S]*?<\/(?:[^\s<>/:]+:)?script>/gi, '')
+    .replace(/<(?:[^\s<>/:]+:)?script\b[^>]*\/?>/gi, '')
+    .replace(/<(?:[^\s<>/:]+:)?foreignObject\b[^>]*>[\s\S]*?<\/(?:[^\s<>/:]+:)?foreignObject>/gi, '')
+    .replace(/<(?:[^\s<>/:]+:)?foreignObject\b[^>]*\/?>/gi, '')
+    .replace(/<(?:[^\s<>/:]+:)?image\b[^>]*\/?>/gi, '')
+    .replace(/<(?:[^\s<>/:]+:)?object\b[^>]*>[\s\S]*?<\/(?:[^\s<>/:]+:)?object>/gi, '')
+    .replace(/<(?:[^\s<>/:]+:)?object\b[^>]*\/?>/gi, '')
+    .replace(/<(?:[^\s<>/:]+:)?embed\b[^>]*>[\s\S]*?<\/(?:[^\s<>/:]+:)?embed>/gi, '')
+    .replace(/<(?:[^\s<>/:]+:)?embed\b[^>]*\/?>/gi, '')
+    .replace(/<(?:[^\s<>/:]+:)?iframe\b[^>]*>[\s\S]*?<\/(?:[^\s<>/:]+:)?iframe>/gi, '')
+    .replace(/<(?:[^\s<>/:]+:)?iframe\b[^>]*\/?>/gi, '')
 }
 
 /**
@@ -184,15 +288,39 @@ export function renderMermaidSVG(
   text = decodeXML(text)
   const normalizedSource = normalizeMermaidSource(text, options.mermaidConfig ?? {})
 
-  const colors = buildColors(options, normalizedSource.config)
   const font = options.font
     ?? normalizedSource.config.fontFamily
     ?? readThemeValue(normalizedSource.config.themeVariables, 'fontFamily')
     ?? 'Inter'
+  // #7645/#7695: strict security mode disables the Google Fonts @import and
+  // strips any external-fetch refs introduced by user theme/config values. The
+  // --font CSS variable still declares the family; xmlns http:// is a namespace
+  // declaration, not a fetch.
+  const effectiveOptions: RenderOptions = options.security === 'strict'
+    ? { ...options, embedFontImport: false }
+    : options
+  const colors = buildColors(effectiveOptions, normalizedSource.config, font)
   const transparent = options.transparent ?? false
-  const diagramType = detectDiagramType(normalizedSource.firstLine)
+  const diagramType = detectDiagramTypeFromFirstLine(normalizedSource.firstLine) ?? 'flowchart'
   const lines = normalizedSource.lines
-  const resolve = (svg: string, c: DiagramColors = colors) => inlineResolvedColors(svg, c)
+  // resolve() inlines CSS variables for non-browser renderers (resvg).
+  // When `compact` is on we additionally round coords and collapse whitespace.
+  const compact = options.compact ?? false
+  const idPrefix = options.idPrefix ?? ''
+  const finalizeSvg = (svg: string) => options.security === 'strict' ? stripExternalRefs(svg) : svg
+  // #7254/#7255: extract accTitle/accDescr from source for SVG <title>/<desc>
+  // + ARIA. The legacy SVG path doesn't carry these through the parser, so we
+  // extract here and inject as a post-pass (localized, no renderer threading).
+  const acc = extractAccessibility(lines)
+  const resolve = (svg: string, c: DiagramColors = colors) => {
+    let out = inlineResolvedColors(svg, c)
+    // #7540: namespace def ids so multiple diagrams on one page don't collide.
+    if (idPrefix) out = namespaceSvgIds(out, idPrefix)
+    // #7254/#7255: inject <title>/<desc>/role="img"/aria-labelledby.
+    if (acc.title || acc.descr) out = injectAccessibility(out, acc, idPrefix)
+    out = finalizeSvg(out)
+    return compact ? compactSvg(out) : out
+  }
 
   switch (diagramType) {
     case 'architecture': {
@@ -200,7 +328,11 @@ export function renderMermaidSVG(
       const archOptions = archVisual.padding != null ? { ...options, padding: options.padding ?? archVisual.padding } : options
       const diagram = parseArchitectureDiagram(lines)
       const positioned = layoutArchitectureDiagram(diagram, archOptions, archVisual.visual)
-      return renderArchitectureSvg(positioned, colors, font, transparent, archVisual.visual)
+      // Architecture renderer already inlines its own variables; apply compact
+      // post-processing on the way out so the --compact flag is honored.
+      const rawArch = renderArchitectureSvg(positioned, colors, font, transparent, archVisual.visual)
+      const out = finalizeSvg(rawArch)
+      return compact ? compactSvg(out) : out
     }
     case 'sequence': {
       const diagram = parseSequenceDiagram(lines)

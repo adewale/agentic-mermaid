@@ -16,13 +16,17 @@ jobs:
       - name: Setup Bun
         uses: oven-sh/setup-bun@v1
         with:
-          bun-version: latest
+          # Keep CI on the known-good runtime used for local/release validation.
+          # `latest` moved underneath this PR and made coverage runs flaky.
+          bun-version: 1.3.13
 
       - name: Install dependencies
         run: bun install
 
       - name: Run tests with coverage
-        run: bun test --coverage src/__tests__/
+        # Text coverage is enough for CI signal; avoid lcov generation in PR
+        # runners because Bun can leave the coverage writer hanging there.
+        run: bun test --coverage --coverage-reporter=text src/__tests__/
 
       - name: Type check
         run: bun x tsc --noEmit
@@ -37,6 +41,7 @@ jobs:
   e2e:
     runs-on: ubuntu-latest
     needs: test
+    timeout-minutes: 30
 
     steps:
       - uses: actions/checkout@v4
@@ -44,7 +49,9 @@ jobs:
       - name: Setup Bun
         uses: oven-sh/setup-bun@v1
         with:
-          bun-version: latest
+          # Keep CI on the known-good runtime used for local/release validation.
+          # `latest` moved underneath this PR and made coverage runs flaky.
+          bun-version: 1.3.13
 
       - name: Install dependencies
         run: bun install
@@ -52,5 +59,13 @@ jobs:
       - name: Install Playwright browsers
         run: bunx playwright install chromium --with-deps
 
-      - name: Run E2E tests
-        run: bun test e2e/ --timeout 600000
+      - name: Run CLI/security E2E tests
+        # Unit tests are the coverage gate; e2e/bunfig.toml disables coverage
+        # instrumentation for browser/binary E2E.
+        run: cd e2e && bun test cli-smoke.e2e.test.ts cli.e2e.test.ts security-csp.e2e.test.ts --timeout 120000
+
+      - name: Run single-binary E2E tests
+        run: cd e2e && bun test single-binary.e2e.test.ts --timeout 180000
+
+      - name: Run browser E2E tests
+        run: cd e2e && bun test browser.test.ts --timeout 600000

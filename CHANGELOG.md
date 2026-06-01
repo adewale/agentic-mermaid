@@ -5,6 +5,16 @@ This changelog tracks user-facing changes in the `adewale/beautiful-mermaid` for
 ## Unreleased
 
 ### Added
+- **Agent-native surface** (`beautiful-mermaid/agent` subpath export): a typed editing API for agents and tools.
+  - `parseMermaid` → sealed `ValidDiagram` IR carrying frontmatter, init directives, comments, accessibility, and the canonical source.
+  - `verifyMermaid` → structured `LayoutWarning` codes in two tiers (Tier 1 structural/reliable, Tier 2 geometric/advisory). No vision/PNG needed.
+  - `mutate` → typed, family-narrowed structural edits for flowchart/state, simple sequence, timeline, class, and ER diagrams. Journey, xychart, architecture, and diagrams with unmodeled constructs use a lossless source-level/opaque body with no structured mutation exposed.
+  - `serializeMermaid` / `synthesizeFromGraph` → round-trip back to canonical Mermaid source.
+  - Deterministic layout JSON, verified byte-identical across processes (ELK is configured for model-order layout; there is no seed).
+- **`am` CLI**: `render`, `preview` (strict standalone HTML + optional `--open`), `verify`, `parse`, `serialize`, `mutate` (single `--op` or batched `--ops`, verify-before-emit), `format`, `describe`, `capabilities`, `batch` (including mutate), `render-markdown`, `llms-txt`, `--json`, per-command `--help`, and `--agent-instructions`.
+- **`agentic-mermaid-mcp`**: a Code Mode MCP server (one JavaScript `execute` tool, `node:vm` sandbox, typed SDK declaration) so agents compose the whole verify-before-commit loop in one round-trip.
+- **`Instructions_for_agents.md`** and a Claude Code skill bundle at `.claude/skills/agentic-mermaid/`.
+- See [`AGENT_NATIVE.md`](./AGENT_NATIVE.md) for the design, [`examples/agent-loop.ts`](./examples/agent-loop.ts) for a runnable walkthrough, [`examples/mcp-vs-cli-complex-diagrams.ts`](./examples/mcp-vs-cli-complex-diagrams.ts) for MCP-vs-CLI parity, and [`examples/agent-improve-auth-flow.ts`](./examples/agent-improve-auth-flow.ts) for create → assess → mutate → reassess → render.
 - Live editor deployment on GitHub Pages at <https://adewale.github.io/beautiful-mermaid/editor>.
 - Editor examples palette with presets for every supported diagram family: flowchart, state, architecture, sequence, class, ER, timeline, journey, and xychart.
 - Semantic role-based SVG styling via `options.style.text`, `options.style.node`, `options.style.edge`, and `options.style.group`.
@@ -27,12 +37,20 @@ This changelog tracks user-facing changes in the `adewale/beautiful-mermaid` for
 - Homepage rendering yields between sample batches to keep the page responsive while the full gallery renders.
 - Editor empty state now includes quick starter chips for Flowchart, Sequence, and Role styled examples.
 - Example rows now include compact diagram-family glyphs for faster scanning.
+- Agent-facing Code Mode examples are executable JavaScript snippets and the stored eval now checks ordered verify inspection before serialization.
+- Journey and xychart are kept source-level-only in the agent surface; no structured mutation path is exposed even though parser/render dependencies may exist internally.
+- Agent guidance now distinguishes new-diagram source authoring from existing-diagram structured mutation; Code Mode is positioned as a structured-edit channel rather than mandatory diagram creation.
+- `am capabilities --json` now reports `families[].editPolicy` (`structured-when-narrowed` or `source-level-only`) in addition to `mutationOps`, so agents can route edits without trial-and-error.
+- Quality docs now explicitly state that Beautiful Mermaid is not Mermaid visual parity: `verify.ok` is structural, while layout quality needs metrics, geometry assertions, screenshots, or rendered artifacts.
 
 ### Fixed
 - TypeScript CI failures in journey style padding and optional node corner-radius resolution.
 - Editor export actions are disabled until a diagram exists and parser errors now include recovery-oriented copy.
 - Editor menus, sidebar, and theme controls now close with Escape and expose stronger ARIA/focus states.
 - Removed layout-property sidebar animation in favor of opacity/transform-based motion.
+- CLI/docs drift for `am describe`: the command now emits prose or AX-tree JSON and is covered by e2e tests.
+- Feedback-loop flowcharts now preserve the primary source order more reliably instead of ranking decision nodes before their predecessors.
+- Acyclic fan-in/fan-out flowcharts now use source-aware model ordering so declared-direction edges do not accidentally route backward; layout-quality heuristics cover direction progress, edge-vs-node collisions, self-loop clearance, and feedback-process cleanliness.
 
 ## Fork baseline before this changelog
 

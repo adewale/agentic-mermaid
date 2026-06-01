@@ -53,6 +53,7 @@ export function layoutArchitectureDiagram(
     nodeSpacing: options.nodeSpacing ?? 36,
     layerSpacing: options.layerSpacing ?? 56,
     componentSpacing: options.componentSpacing,
+    preserveSubgraphChildOrder: true,
     style: visual ? {
       node: {
         fontSize: visual.serviceFontSize,
@@ -106,6 +107,15 @@ export function layoutArchitectureDiagram(
       junctionBounds.set(node.id, bounds)
     }
   }
+
+  // Keep architecture SVG layering stable even when the graph engine changes
+  // compound-node layout order: root services render before grouped services,
+  // then source order decides ties.
+  const serviceOrder = new Map(diagram.services.map((service, index) => [service.id, index]))
+  services.sort((a, b) => {
+    const topLevelDelta = Number(Boolean(a.parentId)) - Number(Boolean(b.parentId))
+    return topLevelDelta || (serviceOrder.get(a.id) ?? 0) - (serviceOrder.get(b.id) ?? 0)
+  })
 
   const flatGroups = new Map<string, PositionedArchitectureGroup>()
   const groups = positioned.groups.map((group) => mapGroup(group, groupsById, flatGroups))

@@ -1,0 +1,8 @@
+{
+  "version": 1,
+  "description": "Deterministic baseline for stored Code Mode scripts. Live-model transcripts should be scored against the same fields but are not required in PR CI.",
+  "total": 6,
+  "minPassed": 6,
+  "minSafePathRate": 1,
+  "minStructuredPathRate": 1
+}

@@ -12,15 +12,25 @@
       "import": "./dist/index.js",
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
+    },
+    "./agent": {
+      "bun": "./src/agent/index.ts",
+      "import": "./dist/agent.js",
+      "types": "./dist/agent.d.ts",
+      "default": "./dist/agent.js"
     }
+  },
+  "bin": {
+    "am": "./bin/am.ts",
+    "agentic-mermaid-mcp": "./bin/agentic-mermaid-mcp.ts"
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/lukilabs/beautiful-mermaid"
+    "url": "https://github.com/adewale/beautiful-mermaid"
   },
-  "homepage": "https://github.com/lukilabs/beautiful-mermaid",
+  "homepage": "https://adewale.github.io/beautiful-mermaid/",
   "bugs": {
-    "url": "https://github.com/lukilabs/beautiful-mermaid/issues"
+    "url": "https://github.com/adewale/beautiful-mermaid/issues"
   },
   "keywords": [
     "mermaid",
@@ -39,28 +49,54 @@
     "theming"
   ],
   "author": "Craft Docs",
-  "files": ["src/", "dist/", "LICENSE", "README.md"],
+  "files": [
+    "src/",
+    "dist/",
+    "bin/",
+    "assets/fonts/",
+    "assets/hero.png",
+    "docs/",
+    "examples/agent-loop.ts",
+    "examples/mcp-vs-cli-complex-diagrams.ts",
+    "examples/agent-improve-auth-flow.ts",
+    "Instructions_for_agents.md",
+    "AGENT_NATIVE.md",
+    "CHANGELOG.md",
+    "FEATURES.md",
+    "FORK_DIFFERENCES.md",
+    "TODO.md",
+    "QUALITY.md",
+    "SECURITY.md",
+    "llms.txt",
+    "LICENSE",
+    "README.md"
+  ],
   "scripts": {
-    "test": "bun test src/__tests__/",
-    "test:browser": "bun test e2e/ --timeout 600000",
-    "samples": "bun run index.ts",
-    "editor": "bun run editor.ts",
-    "dev": "bun run dev.ts",
-    "bench": "bun run bench.ts",
+    "test": "bun test --coverage src/__tests__/",
+    "test:browser": "cd e2e && bun test . --timeout 600000",
+    "samples": "bun run scripts/site/generate.ts",
+    "editor": "bun run scripts/site/editor.ts",
+    "dev": "bun run scripts/dev.ts",
+    "bench": "bun run eval/benchmark/sample-bench.ts",
     "build": "tsup",
-    "build:site": "bun run index.ts && bun run editor.ts && mkdir -p site && mv index.html editor.html site/ && cp -r public/* site/",
+    "build:binary": "bun build ./bin/am.ts --compile --outfile dist/am",
+    "build:site": "bun run scripts/site/generate.ts && bun run scripts/site/editor.ts && mkdir -p site && mv index.html editor.html site/ && cp -r public/* site/",
     "deploy": "echo 'GitHub Pages deploys from main via .github/workflows/pages.yml; Cloudflare deployment is upstream-owned.'",
-    "xychart-test": "bun run xychart-test.ts",
+    "xychart-test": "bun run scripts/site/xychart-test.ts",
     "prepublishOnly": "npm run build",
-    "mutation-test": "npx stryker run"
+    "mutation-test": "npx stryker run",
+    "lint": "bun test src/__tests__/agent-substrate-lint.test.ts",
+    "eval:agent-live": "bun run eval/agent-usage/live.ts"
   },
   "dependencies": {
+    "@resvg/resvg-js": "2.6.2",
     "elkjs": "^0.11.0",
     "entities": "^7.0.1",
+    "mermaid-ast": "0.8.2",
     "yaml": "^2.8.2"
   },
   "devDependencies": {
-    "@resvg/resvg-js": "^2.6.2",
+    "@stryker-mutator/core": "^9.6.1",
     "@types/bun": "^1.3.9",
     "fast-check": "^4.6.0",
     "playwright": "^1.58.2",

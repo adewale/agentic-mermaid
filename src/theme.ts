@@ -46,6 +46,24 @@ export interface DiagramColors {
 
   /** Optional explicit drop shadows on node shapes. Default: false */
   shadow?: boolean
+
+  // -- Font (threaded for the --font CSS variable on the SVG root) --
+
+  /**
+   * Font family for all text. Emitted on the SVG root as `--font`, so the family
+   * stays overridable post-render via inline style. Default: 'Inter'.
+   */
+  font?: string
+
+  /**
+   * Whether to embed the Google Fonts `@import` line in the SVG `<style>` block.
+   * Default: `true` (preserves wire compatibility with all existing consumers).
+   *
+   * CLI / PNG paths set `false` explicitly to render offline / CSP-friendly.
+   * The CSS variable `--font` is always emitted on the SVG root regardless,
+   * so the family stays overridable post-render even when the @import is gone.
+   */
+  embedFontImport?: boolean
 }
 
 // ============================================================================
@@ -298,13 +316,18 @@ function isColorDark(color: string): boolean {
  * a parent element, it's used directly. When unset, the fallback computes
  * a blended value from --fg and --bg using color-mix().
  */
-export function buildStyleBlock(font: string, hasMonoFont: boolean, shadow?: boolean): string {
-  const fontImports = [
-    `@import url('https://fonts.googleapis.com/css2?family=${encodeURIComponent(font)}:wght@400;500;600;700&amp;display=swap');`,
-    ...(hasMonoFont
-      ? [`@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&amp;display=swap');`]
-      : []),
-  ]
+export function buildStyleBlock(font: string, hasMonoFont: boolean, shadow?: boolean, embedFontImport: boolean = true): string {
+  // CLI / PNG path sets embedFontImport=false explicitly to render offline /
+  // CSP-friendly; library default preserves wire compatibility (existing SVG
+  // fixtures and consumer snapshots assert the @import is present).
+  const fontImports = embedFontImport
+    ? [
+        `@import url('https://fonts.googleapis.com/css2?family=${encodeURIComponent(font)}:wght@400;500;600;700&amp;display=swap');`,
+        ...(hasMonoFont
+          ? [`@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&amp;display=swap');`]
+          : []),
+      ]
+    : []
 
   // Derived CSS variables: use override if set, else mix from bg+fg.
   // The --_ prefix signals "private/derived" — not meant for external override.
@@ -328,10 +351,21 @@ export function buildStyleBlock(font: string, hasMonoFont: boolean, shadow?: boo
     ? '\n  .node, .class-node, .entity, .actor[data-type="participant"], .note, .block, .timeline-event, .journey-task { filter: url(#bm-shadow); }'
     : ''
 
+  // CSS variable --font lets consumers swap the family post-render by mutating
+  // `style="--font:Roboto"` on the SVG root. The literal default family is the
+  // last-ditch fallback so SVGs viewed without the variable still render OK.
+  const fontFamilyDecl = `  text { font-family: var(--font, '${font}'), system-ui, sans-serif; }`
+
+  // Only emit the @import line when embedFontImport is true. We still emit the
+  // style block (for derived vars, etc.) and the font-family declaration; only
+  // the network-fetched @import disappears.
+  const styleHead = embedFontImport
+    ? [`  ${fontImports.join('\n  ')}`, fontFamilyDecl]
+    : [fontFamilyDecl]
+
   return [
     '<style>',
-    `  ${fontImports.join('\n  ')}`,
-    `  text { font-family: '${font}', system-ui, sans-serif; }`,
+    ...styleHead,
     ...(hasMonoFont ? [`  .mono { font-family: 'JetBrains Mono', 'SF Mono', 'Fira Code', ui-monospace, monospace; }`] : []),
     `  svg {${derivedVars}`,
     `  }${shadowRules}`,
@@ -358,7 +392,9 @@ export function svgOpenTag(
     attrs?: Record<string, string | undefined>
   },
 ): string {
-  // Build the style string with only the provided color variables
+  // Build the style string with only the provided color variables.
+  // `--font` is emitted alongside the colors so consumers can swap the family
+  // post-render via `style="--font:Roboto"` on the SVG root.
   const vars = [
     `--bg:${colors.bg}`,
     `--fg:${colors.fg}`,
@@ -367,6 +403,7 @@ export function svgOpenTag(
     colors.muted   ? `--muted:${colors.muted}` : '',
     colors.surface ? `--surface:${colors.surface}` : '',
     colors.border  ? `--border:${colors.border}` : '',
+    colors.font    ? `--font:${colors.font}` : '',
   ].filter(Boolean).join(';')
 
   const bgStyle = transparent ? '' : ';background:var(--bg)'
@@ -519,17 +556,25 @@ export function inlineResolvedColors(svg: string, colors: DiagramColors): string
 
   let text = svg
 
+  // `--font` is intentionally left as a live CSS variable so consumers can
+  // swap the family post-render. Skip it from the color-resolution phase
+  // (which exists to make non-browser SVG renderers like resvg work; resvg
+  // resolves CSS-variable font-families natively against the SVG root style).
+  const SKIP_VARS = new Set(['font'])
+
   // Phase 1: Iteratively resolve var() and color-mix() from innermost outward
   for (let pass = 0; pass < 10; pass++) {
     const prev = text
 
     // Replace var(--name) without fallback
     text = text.replace(/var\(--([\w-]+)\)/g, (match, name) => {
+      if (SKIP_VARS.has(name)) return match
       return vars.get(name) ?? match
     })
 
     // Replace var(--name, fallback) where fallback has no nested parens
-    text = text.replace(/var\(--([\w-]+),\s*([^()]+)\)/g, (_match, name, fallback) => {
+    text = text.replace(/var\(--([\w-]+),\s*([^()]+)\)/g, (match, name, fallback) => {
+      if (SKIP_VARS.has(name)) return match
       return vars.get(name) ?? fallback.trim()
     })
 
@@ -558,9 +603,11 @@ export function inlineResolvedColors(svg: string, colors: DiagramColors): string
     for (let pass = 0; pass < 5; pass++) {
       const prev = text
       text = text.replace(/var\(--([\w-]+)\)/g, (match, name) => {
+        if (SKIP_VARS.has(name)) return match
         return cssDefs.get(name) ?? match
       })
-      text = text.replace(/var\(--([\w-]+),\s*([^()]+)\)/g, (_match, name, fallback) => {
+      text = text.replace(/var\(--([\w-]+),\s*([^()]+)\)/g, (match, name, fallback) => {
+        if (SKIP_VARS.has(name)) return match
         return cssDefs.get(name) ?? fallback.trim()
       })
       if (text === prev) break

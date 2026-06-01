@@ -95,6 +95,8 @@ export interface PositionedNode {
   height: number
   /** Inline styles resolved from classDef + explicit `style` statements — override theme defaults */
   inlineStyle?: Record<string, string>
+  /** User-assigned Mermaid class names (from `class X myClass` / `:::myClass`). Emitted as SVG CSS classes so external stylesheets can target them. */
+  classNames?: string[]
 }
 
 export interface PositionedEdge {
@@ -234,4 +236,47 @@ export interface RenderOptions {
   shadow?: boolean
   /** Optional Mermaid-style runtime config (analogous to initialize/frontmatter config). */
   mermaidConfig?: MermaidRuntimeConfig
+  /**
+   * Whether to embed the Google Fonts `@import` line in the SVG `<style>` block.
+   * Default: `true` (preserves wire compatibility with all existing consumers).
+   *
+   * CLI / PNG paths set `false` explicitly to render offline / CSP-friendly.
+   * The CSS variable `--font` is always emitted on the SVG root regardless,
+   * so the family stays overridable post-render even when the @import is gone.
+   */
+  embedFontImport?: boolean
+
+  /**
+   * Compact SVG output. Default `false`. When true:
+   *  - Numeric coords with 3+ fractional digits are rounded (via `roundCoord`).
+   *  - Newlines between SVG elements are collapsed (whitespace inside `<style>`
+   *    is preserved so CSS declarations don't break).
+   *  - `data-*` and `class=` attributes are preserved (agent inspection hooks).
+   *
+   * Typical reduction: 30-40% of bytes on flowchart graphs. Useful for the
+   * PNG render path (no need for human-readable SVG) and for bandwidth-
+   * sensitive consumers.
+   */
+  compact?: boolean
+  /**
+   * Namespace prefix for all generated SVG def ids (markers, filters) and
+   * their `url(#…)` references. Default '' = current behavior (back-compat,
+   * zero snapshot churn). Set a distinct prefix per diagram when rendering
+   * multiple diagrams onto one HTML page so their `<defs>` don't collide
+   * (e.g. two `arrowhead` markers — the browser dedupes by id and the second
+   * diagram's arrows break). `am batch` auto-assigns per-line prefixes.
+   * Must be deterministic per call site to preserve render determinism.
+   */
+  idPrefix?: string
+
+  /**
+   * Security posture for the rendered output. Default `'default'`.
+   * `'strict'` (agent / untrusted-diagram mode): guarantees no external-fetch
+   * references in the SVG — forces `embedFontImport` off (no Google Fonts
+   * `@import`), so the SVG renders with no network calls. The `--font` CSS
+   * variable still declares the family. Use `verifyNoExternalRefs(svg)` to
+   * assert the guarantee. Agent/untrusted SVG callers should opt into strict
+   * mode explicitly. See SECURITY.md.
+   */
+  security?: 'default' | 'strict'
 }

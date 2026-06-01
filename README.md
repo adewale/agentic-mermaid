@@ -6,14 +6,12 @@
 
 Ultra-fast, fully themeable, zero DOM dependencies. Built for the AI era.
 
-![beautiful-mermaid sequence diagram example](hero.png)
+![beautiful-mermaid sequence diagram example](assets/hero.png)
 
 [![npm version](https://img.shields.io/npm/v/beautiful-mermaid.svg)](https://www.npmjs.com/package/beautiful-mermaid)
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
 [**Live Demo & Samples**](https://adewale.github.io/beautiful-mermaid/) · [Live Editor](https://adewale.github.io/beautiful-mermaid/editor)
-
-**[→ Use it live in Craft Agents](https://agents.craft.do)**
 
 Fork docs: [What changed in this fork](./FORK_DIFFERENCES.md) · [Changelog](./CHANGELOG.md)
 
@@ -32,7 +30,7 @@ Diagrams are essential for AI-assisted programming. When you're working with an 
 - **No terminal output** — Can't render to ASCII for CLI tools
 - **Heavy dependencies** — Pulls in a lot of code for simple diagrams
 
-We built `beautiful-mermaid` at [Craft](https://craft.do) to power diagrams in [Craft Agents](https://agents.craft.do). It's fast, beautiful, and works everywhere—from rich UIs to plain terminals.
+The original `beautiful-mermaid` project was built at [Craft](https://craft.do) to power diagrams in Craft Agents. This fork keeps that fast renderer foundation and adds fork-owned diagram coverage, editor/export polish, and an agent-native editing surface.
 
 
 The ASCII rendering engine is based on [mermaid-ascii](https://github.com/AlexanderGrooff/mermaid-ascii) by Alexander Grooff. We ported it from Go to TypeScript and extended it. Thank you Alexander for the excellent foundation! (And inspiration that this was possible.)
@@ -42,12 +40,34 @@ The ASCII rendering engine is based on [mermaid-ascii](https://github.com/Alexan
 - **9 diagram types** — Flowcharts, State, Architecture, Sequence, Class, ER, Timeline, User Journey, and XY Charts (bar, line, combined)
 - **Dual output** — SVG for rich UIs, ASCII/Unicode for terminals
 - **Synchronous rendering** — No async, no flash. Works with React `useMemo()`
-- **15 built-in themes** — And dead simple to add your own
+- **19 built-in themes** — And dead simple to add your own
 - **Full Shiki compatibility** — Use any VS Code theme directly
 - **Live theme switching** — CSS custom properties, no re-render needed
 - **Mono mode** — Beautiful diagrams from just 2 colors
 - **Zero DOM dependencies** — Pure TypeScript, works everywhere
 - **Ultra-fast** — Renders 100+ diagrams in under 500ms
+- **Agent-native surface** — Source authoring for new diagrams; typed parse → mutate → verify → serialize for safe edits (see below)
+
+## Agent-native surface
+
+The `beautiful-mermaid/agent` subpath export gives AI agents two honest paths: author new Mermaid source directly and verify/render it, or use a typed editing loop for existing structured diagrams without rendering to an image to know whether an edit worked:
+
+```ts
+import { parseMermaid, asFlowchart, mutate, verifyMermaid, serializeMermaid } from 'beautiful-mermaid/agent'
+
+const d0 = parseMermaid('flowchart TD\n  API --> DB')
+if (!d0.ok) throw new Error('parse')
+const flow = asFlowchart(d0.value)!
+const d1 = mutate(flow, { kind: 'add_node', id: 'Cache', label: 'Cache' })
+if (d1.ok && verifyMermaid(d1.value).ok) console.log(serializeMermaid(d1.value))
+```
+
+- **`verifyMermaid`** returns structured `LayoutWarning` codes (label overflow, off-canvas, mis-anchored edges, …) — no PNG, no vision.
+- **`mutate`** applies typed structural edits to flowchart/state, sequence, timeline, class, and ER diagrams; journey, XY chart, architecture, and opaque fallbacks round-trip losslessly via preserved `body.source` without structured mutation.
+- **Deterministic layout**, verified byte-identical across processes.
+- Ships an **`am` CLI** (`render`, strict `preview`, `mutate --op/--ops`, `batch`, …) and an **`agentic-mermaid-mcp`** Code Mode MCP server.
+
+See [`AGENT_NATIVE.md`](./AGENT_NATIVE.md), [`Instructions_for_agents.md`](./Instructions_for_agents.md), [`docs/mcp-code-mode-rationale.md`](./docs/mcp-code-mode-rationale.md), [`docs/agent-workflow-examples.md`](./docs/agent-workflow-examples.md), [`examples/agent-loop.ts`](./examples/agent-loop.ts), [`examples/mcp-vs-cli-complex-diagrams.ts`](./examples/mcp-vs-cli-complex-diagrams.ts), [`examples/agent-improve-auth-flow.ts`](./examples/agent-improve-auth-flow.ts), and [`docs/pr11-reviewer-guide.md`](./docs/pr11-reviewer-guide.md).
 
 ## Discovering Fork Features
 
@@ -213,7 +233,7 @@ const svg = renderMermaidSVG(diagram, {
 
 ### Built-in Themes
 
-15 carefully curated themes ship out of the box:
+19 carefully curated themes ship out of the box:
 
 | Theme | Type | Background | Accent |
 |-------|------|------------|--------|
@@ -232,6 +252,10 @@ const svg = renderMermaidSVG(diagram, {
 | `solarized-light` | Light | `#fdf6e3` | `#268bd2` |
 | `solarized-dark` | Dark | `#002b36` | `#268bd2` |
 | `one-dark` | Dark | `#282c34` | `#c678dd` |
+| `salmon` | Light | `#FFFBF5` | `#FF4801` |
+| `salmon-dark` | Dark | `#1F1008` | `#FF6B35` |
+| `tufte` | Light | `#FFFFF8` | `#7A0000` |
+| `tufte-dark` | Dark | `#1C1C1A` | `#C87070` |
 
 ```typescript
 import { renderMermaidSVG, THEMES } from 'beautiful-mermaid'
@@ -323,7 +347,7 @@ stateDiagram-v2
 ### Architecture Diagrams
 
 Services, groups, and junctions using Mermaid's `architecture-beta` syntax.
-Current scope covers anchored edges, `{group}` boundary routing, SVG/ASCII output, and Mermaid source wrappers before the header (`%%` comments, YAML frontmatter, and `%%{init: ...}%%` directives). Architecture rendering now honors wrapper-driven theming and sizing for `theme`, `themeVariables`, `fontFamily`, `fontSize`, and `architecture.padding` / `architecture.iconSize` / `architecture.fontSize`; see [architecture-design.md](./architecture-design.md).
+Current scope covers anchored edges, `{group}` boundary routing, SVG/ASCII output, and Mermaid source wrappers before the header (`%%` comments, YAML frontmatter, and `%%{init: ...}%%` directives). Architecture rendering now honors wrapper-driven theming and sizing for `theme`, `themeVariables`, `fontFamily`, `fontSize`, and `architecture.padding` / `architecture.iconSize` / `architecture.fontSize`; see [docs/design/architecture.md](./docs/design/architecture.md).
 
 ```
 architecture-beta
@@ -399,7 +423,7 @@ timeline
 Scored user tasks grouped into sections — using Mermaid's `journey` syntax.
 Supports Mermaid accessibility directives `accTitle:` and `accDescr:` as SVG
 metadata, including multiline `accDescr { ... }` blocks. Design note:
-[`journey-design.md`](./journey-design.md).
+[`docs/design/journey.md`](./docs/design/journey.md).
 
 ```
 journey
@@ -649,9 +673,13 @@ Render a Mermaid diagram to SVG. Synchronous. Auto-detects diagram type.
 | `nodeSpacing` | `number` | `24` | Horizontal spacing between sibling nodes |
 | `layerSpacing` | `number` | `40` | Vertical spacing between layers |
 | `componentSpacing` | `number` | `24` | Spacing between disconnected components |
-| `thoroughness` | `number` | `3` | Crossing minimization trials (1-7, higher = better but slower) |
 | `interactive` | `boolean` | `false` | Enable hover tooltips on XY chart bars and data points |
+| `shadow` | `boolean` | `false` | Enable explicit drop shadows on node shapes |
 | `mermaidConfig` | `MermaidRuntimeConfig` | — | Optional Mermaid-style config merged with frontmatter and `%%{init}` / `%%{initialize}` directives |
+| `embedFontImport` | `boolean` | `true` | Include the Google Fonts `@import` line in SVG styles |
+| `compact` | `boolean` | `false` | Compact SVG output while preserving agent inspection hooks |
+| `idPrefix` | `string` | `''` | Namespace generated SVG def ids for multi-diagram pages |
+| `security` | `'default' \| 'strict'` | `'default'` | `strict` disables external-fetch references; see SECURITY.md |
 
 **DiagramStyleOptions:**
 
@@ -720,7 +748,7 @@ Extract diagram colors from a Shiki theme object.
 
 ### `THEMES: Record<string, DiagramColors>`
 
-Object containing all 15 built-in themes.
+Object containing all 19 built-in themes.
 
 ### `DEFAULTS: { bg: string, fg: string }`
 
@@ -758,6 +786,6 @@ MIT — see [LICENSE](LICENSE) for details.
 
 <div align="center">
 
-Built with care by the team at [Craft](https://craft.do)
+Original project built with care by the team at [Craft](https://craft.do); this fork is maintained at `adewale/beautiful-mermaid`.
 
 </div>

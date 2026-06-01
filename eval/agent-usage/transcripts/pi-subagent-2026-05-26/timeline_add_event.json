@@ -1,0 +1,24 @@
+{
+  "schemaVersion": 1,
+  "capturedAt": "2026-05-26T00:00:00.000Z",
+  "provider": "pi-subagent",
+  "model": "delegate-fresh-default",
+  "caseId": "timeline_add_event",
+  "task": {
+    "prompt": "Add event Beta to a timeline using structured mutation, verify, then serialize.",
+    "input": "timeline\n  title Plan\n  2024 : Alpha"
+  },
+  "prompts": {
+    "system": "pi subagent live-model pass: delegate agent, fresh context; instructed to return only synchronous Agentic Mermaid Code Mode JavaScript body.",
+    "user": "Live-model eval task. You are given the agentic-mermaid Code Mode contract: synchronous JavaScript body only; global mermaid.* SDK; no async/await; parse, narrow, mutate, verify, inspect verify.ok/warnings before serialize; SDK results are read-only. Return ONLY executable JavaScript body, no markdown. Task ID timeline_add_event. Input Mermaid: timeline\\n  title Plan\\n  2024 : Alpha. Task: add event Beta to the timeline using structured mutation, verify, then serialize."
+  },
+  "rawResponse": "const r0 = mermaid.parseMermaid('timeline\\n  title Plan\\n  2024 : Alpha')\nif (!r0.ok) return { error: 'parse', details: r0.error }\n\nconst timeline = mermaid.asTimeline(r0.value)\nif (!timeline) return { error: 'not-timeline' }\n\nconst r1 = mermaid.mutate(timeline, { kind: 'add_event', sectionIndex: 0, periodIndex: 0, text: 'Beta' })\nif (!r1.ok) return { error: 'mutate', details: r1.error }\n\nconst verify = mermaid.verifyMermaid(r1.value)\nconst warnings = verify.warnings\nif (!verify.ok) return { error: 'verify', warnings: warnings }\n\nreturn { source: mermaid.serializeMermaid(r1.value) }",
+  "script": "const r0 = mermaid.parseMermaid('timeline\\n  title Plan\\n  2024 : Alpha')\nif (!r0.ok) return { error: 'parse', details: r0.error }\n\nconst timeline = mermaid.asTimeline(r0.value)\nif (!timeline) return { error: 'not-timeline' }\n\nconst r1 = mermaid.mutate(timeline, { kind: 'add_event', sectionIndex: 0, periodIndex: 0, text: 'Beta' })\nif (!r1.ok) return { error: 'mutate', details: r1.error }\n\nconst verify = mermaid.verifyMermaid(r1.value)\nconst warnings = verify.warnings\nif (!verify.ok) return { error: 'verify', warnings: warnings }\n\nreturn { source: mermaid.serializeMermaid(r1.value) }",
+  "result": {
+    "id": "timeline_add_event",
+    "ok": true,
+    "taskOk": true,
+    "traceOk": true,
+    "findings": []
+  }
+}

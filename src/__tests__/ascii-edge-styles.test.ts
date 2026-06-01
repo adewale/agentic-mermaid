@@ -124,6 +124,47 @@ describe('ASCII edge styles', () => {
     })
   })
 
+  describe('all circle/cross operator forms (Loop 7 A2 — mk668a#110)', () => {
+    // Regression coverage for every mermaid circle/cross arrow operator form.
+    // The upstream change (mk668a#110) added recognition; these tests pin
+    // the rendered output for each operator so silent regressions surface.
+    // Note: `o--` and `x--` (one-sided, no head) are not standalone edge
+    // operators in Mermaid — they need a head/marker on the other side.
+    // The supported forms below are the ones we render markers for.
+    const forms: Array<[string, string[]]> = [
+      ['--o', ['◯']],
+      ['o--o', ['◯']],
+      ['--x', ['✕']],
+      ['x--x', ['✕']],
+      ['o--x', ['◯', '✕']],
+      ['x--o', ['✕', '◯']],
+    ]
+
+    for (const [op, expectedMarkers] of forms) {
+      it(`renders A ${op} B with correct markers`, () => {
+        const result = renderMermaidAscii(`graph LR\n  A ${op} B`)
+        for (const m of expectedMarkers) {
+          expect(result).toContain(m)
+        }
+        // Source / target labels must still appear.
+        expect(result).toContain('A')
+        expect(result).toContain('B')
+      })
+    }
+
+    it('renders both endpoints for o--x in unicode mode', () => {
+      const result = renderMermaidAscii('graph LR\n  A o--x B')
+      const lines = result.split('\n')
+      // Find the edge line — the row with one of the markers.
+      const edgeRow = lines.find(l => l.includes('◯') || l.includes('✕'))!
+      expect(edgeRow).toBeDefined()
+      expect(edgeRow).toContain('◯')
+      expect(edgeRow).toContain('✕')
+      // The circle should be to the LEFT of the cross (A→B direction).
+      expect(edgeRow.indexOf('◯')).toBeLessThan(edgeRow.indexOf('✕'))
+    })
+  })
+
   describe('mixed edge styles', () => {
     it('renders different styles in the same diagram', () => {
       const result = renderMermaidAscii(`
