@@ -51,6 +51,7 @@ async function waitForRender(timeoutMs = 30_000): Promise<void> {
       const el = document.getElementById('total-timing')
       return el?.textContent?.includes('rendered in') ?? false
     },
+    undefined,
     { timeout: timeoutMs },
   )
 }
@@ -62,6 +63,7 @@ async function waitForEditorRender(timeoutMs = 30_000): Promise<void> {
       const status = document.getElementById('status-text')?.textContent
       return status === 'OK' && document.querySelector('#preview-inner svg') !== null
     },
+    undefined,
     { timeout: timeoutMs },
   )
 }
@@ -324,6 +326,7 @@ describe('browser: theme switching', () => {
     )
     await page.waitForFunction(
       () => getComputedStyle(document.body).getPropertyValue('--t-bg').trim() === '#FFFFFF',
+      undefined,
       { timeout: 10_000 },
     )
     const bg = await page.evaluate(
@@ -338,6 +341,7 @@ describe('browser: theme switching', () => {
     )
     await page.waitForFunction(
       () => getComputedStyle(document.body).getPropertyValue('--t-bg').trim() === '#282a36',
+      undefined,
       { timeout: 30_000 },
     )
     const bg = await page.evaluate(
@@ -370,6 +374,7 @@ describe('browser: theme switching', () => {
     )
     await page.waitForFunction(
       () => getComputedStyle(document.body).getPropertyValue('--t-bg').trim() === '#FFFFFF',
+      undefined,
       { timeout: 30_000 },
     )
     const bg = await page.evaluate(
@@ -389,6 +394,7 @@ describe('browser: dropdowns', () => {
     await page.evaluate(() => document.getElementById('theme-more-btn')?.click())
     await page.waitForFunction(
       () => document.getElementById('theme-more-dropdown')?.classList.contains('open') === true,
+      undefined,
       { timeout: 10_000 },
     )
     expect(await page.evaluate(
@@ -398,6 +404,7 @@ describe('browser: dropdowns', () => {
     await page.keyboard.press('Escape')
     await page.waitForFunction(
       () => document.getElementById('theme-more-dropdown')?.classList.contains('open') === false,
+      undefined,
       { timeout: 10_000 },
     )
     expect(await page.evaluate(
@@ -409,6 +416,7 @@ describe('browser: dropdowns', () => {
     await page.evaluate(() => document.getElementById('contents-btn')?.click())
     await page.waitForFunction(
       () => document.getElementById('mega-menu')?.classList.contains('open') === true,
+      undefined,
       { timeout: 10_000 },
     )
     expect(await page.evaluate(
@@ -423,6 +431,7 @@ describe('browser: dropdowns', () => {
     await page.keyboard.press('Escape')
     await page.waitForFunction(
       () => document.getElementById('mega-menu')?.classList.contains('open') === false,
+      undefined,
       { timeout: 10_000 },
     )
     expect(await page.evaluate(
@@ -459,6 +468,7 @@ describe('browser: edit dialog', () => {
     // The click triggers openEditDialog which is synchronous
     await page.waitForFunction(
       () => document.getElementById('edit-overlay')?.classList.contains('open') === true,
+      undefined,
       { timeout: 10_000 },
     )
     expect(await page.evaluate(
@@ -484,6 +494,7 @@ describe('browser: edit dialog', () => {
     // Wait for dialog close
     await page.waitForFunction(
       () => document.getElementById('edit-overlay')?.classList.contains('open') === false,
+      undefined,
       { timeout: 30_000 },
     )
     const closed = await page.evaluate(
@@ -506,6 +517,7 @@ describe('browser: edit dialog', () => {
     })
     await page.waitForFunction(
       () => document.getElementById('edit-overlay')?.classList.contains('open') === true,
+      undefined,
       { timeout: 10_000 },
     )
 
@@ -515,6 +527,7 @@ describe('browser: edit dialog', () => {
     })
     await page.waitForFunction(
       () => document.getElementById('edit-overlay')?.classList.contains('open') === false,
+      undefined,
       { timeout: 10_000 },
     )
     expect(await page.evaluate(
@@ -540,6 +553,7 @@ describe('browser: random theme button', () => {
     await page.evaluate(() => document.getElementById('random-theme-btn')?.click())
     await page.waitForFunction(
       () => localStorage.getItem('mermaid-theme') !== null,
+      undefined,
       { timeout: 30_000 },
     )
     const savedAfter = await page.evaluate(() => localStorage.getItem('mermaid-theme'))
@@ -587,11 +601,13 @@ describe('browser: live editor integration', () => {
     await page.click('[data-action="load-example"]')
     await page.waitForFunction(
       () => document.getElementById('examples-sidebar')?.classList.contains('open') === true,
+      undefined,
       { timeout: 10_000 },
     )
 
     await page.waitForFunction(
       () => (document.getElementById('examples-sidebar')?.getBoundingClientRect().width ?? 0) >= 280,
+      undefined,
       { timeout: 10_000 },
     )
     const sidebarBox = await page.locator('#examples-sidebar').boundingBox()
@@ -697,6 +713,7 @@ describe('browser: live editor integration', () => {
     await page.click('.theme-dropdown-item[data-theme="salmon"]')
     await page.waitForFunction(
       () => getComputedStyle(document.documentElement).getPropertyValue('--t-bg').trim() === '#FFFBF5',
+      undefined,
       { timeout: 30_000 },
     )
 
@@ -707,6 +724,7 @@ describe('browser: live editor integration', () => {
     await page.click('#export-chevron-btn')
     await page.waitForFunction(
       () => document.getElementById('export-dropdown')?.classList.contains('open') === true,
+      undefined,
       { timeout: 10_000 },
     )
     expect(await page.locator('#copy-source-btn').isVisible()).toBe(true)
@@ -715,6 +733,7 @@ describe('browser: live editor integration', () => {
     await page.click('#examples-sidebar-btn')
     await page.waitForFunction(
       () => document.getElementById('examples-sidebar')?.classList.contains('open') === true,
+      undefined,
       { timeout: 10_000 },
     )
 
@@ -743,6 +762,7 @@ describe('browser: live editor integration', () => {
     await page.click('#examples-sidebar .example-dropdown-item[data-example="state-basic"]')
     await page.waitForFunction(
       () => (document.querySelector('#preview-inner svg')?.outerHTML ?? '').includes('Processing'),
+      undefined,
       { timeout: 60_000 },
     )
     expect(await page.inputValue('#code-editor')).toContain('stateDiagram-v2')
@@ -783,6 +803,7 @@ describe('browser: live editor integration', () => {
     await page.click('.theme-dropdown-item[data-theme="dracula"]')
     await page.waitForFunction(
       () => getComputedStyle(document.documentElement).getPropertyValue('--t-bg').trim() === '#282a36',
+      undefined,
       { timeout: 30_000 },
     )
 
@@ -796,6 +817,7 @@ describe('browser: live editor integration', () => {
           && html.includes('xychart-bar')
           && html.includes('stroke-width: 2.25')
       },
+      undefined,
       { timeout: 60_000 },
     )
 
@@ -834,6 +856,7 @@ describe('browser: visual regression', () => {
           && svg.querySelectorAll('.architecture-group-outline').length === 2
           && svg.querySelectorAll('.architecture-service-outline').length === 3
       },
+      undefined,
       { timeout: 60_000 },
     )
     await page.evaluate(() => document.fonts?.ready)
@@ -1008,6 +1031,7 @@ describe('browser: visual regression', () => {
     // Wait for Dracula theme CSS var to be applied
     await page.waitForFunction(
       () => getComputedStyle(document.body).getPropertyValue('--t-bg').trim() === '#282a36',
+      undefined,
       { timeout: 30_000 },
     )
 
