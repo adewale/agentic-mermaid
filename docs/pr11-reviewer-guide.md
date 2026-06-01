@@ -31,7 +31,7 @@ Code Mode is local synchronous JavaScript in `node:vm`. It is not Cloudflare Cod
 
 ```bash
 bunx tsc --noEmit
-bun test src/__tests__/agent-doc-sync.test.ts src/__tests__/cli-capabilities.test.ts src/__tests__/agent-auth-flow.test.ts --timeout 600000
+bun test src/__tests__/agent-doc-sync.test.ts src/__tests__/cli-capabilities.test.ts src/__tests__/agent-auth-flow.test.ts src/__tests__/layout-quality-heuristics.test.ts src/__tests__/architecture-layout.test.ts --timeout 600000
 bun run examples/mcp-vs-cli-complex-diagrams.ts
 bun run examples/agent-improve-auth-flow.ts
 bun run build

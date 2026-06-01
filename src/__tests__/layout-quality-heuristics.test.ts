@@ -111,6 +111,20 @@ describe('programmatic bad-layout heuristics', () => {
     expect(edgeNodeCollisions(rightToLeft)).toEqual([])
   })
 
+  test('root nodes declared before top-level subgraphs stay before them', () => {
+    const layout = layoutOf(`flowchart TD
+      A[Root]
+      subgraph G[Group]
+        B[Inside]
+      end`)
+    const root = centers(layout).get('A')
+    const group = layout.groups.find(g => g.id === 'G')
+
+    expect(root).toBeDefined()
+    expect(group).toBeDefined()
+    expect(root!.x).toBeLessThan(group!.x + group!.w / 2)
+  })
+
   test('feedback-heavy vertical processes stay vertical and route cleanly', () => {
     const layout = layoutOf(`flowchart TD
       A[User input] --> B[Research]

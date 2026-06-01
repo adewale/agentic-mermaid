@@ -80,7 +80,7 @@ function replacer(_k: string, v: unknown): unknown { return v instanceof Map ? O
 const GLOBAL_USAGE = `Usage: am <command> [options] [file|-]
 
 Commands:
-  render <file|->        Render to SVG (or ASCII with --ascii)
+  render <file|->        Render to SVG/ASCII/Unicode/layout JSON/PNG
   verify <file|->        Verify; emits structured JSON warnings
   parse <file|->         Parse; emits ValidDiagram JSON
   serialize              Read ValidDiagram JSON from stdin; emit canonical source

@@ -3,12 +3,12 @@
 ```text
 am render <file|-> --format svg|ascii|unicode|json
 am render <file> --format png --output file.png  # one-shot only; no watch/multi-input
-am preview <file|-> [--output preview.html] [--open]  # strict standalone HTML
+am preview <file|-> [--output preview.html] [--open] [--json] [--security strict]  # strict standalone HTML
 am verify <file|->            structured JSON warnings (exit 3 if not ok)
 am parse <file|->             ValidDiagram JSON
 am serialize                  ValidDiagram JSON (stdin) → canonical source
 am mutate <file|-> --op JSON  one MutationOp → verify → new source
-am mutate <file|-> --ops JSON  many MutationOps → verify → new source
+am mutate <file|-> --ops JSON|file  many MutationOps → verify → new source
 am format <file|->            idempotent reformat
 am describe <file|->          prose summary or --format json AX tree
 am capabilities --json        families, editPolicy, mutationOps, warning codes, formats

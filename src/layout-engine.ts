@@ -349,7 +349,7 @@ function mermaidToElk(
   const useSourceAwareChildOrder = !opts.preserveSubgraphChildOrder
 
   const topLevelSubgraphs = new Map(graph.subgraphs.map(sg => [sg.id, sg]))
-  const rootOrder = rootChildOrder(graph, subgraphNodeIds, subgraphIds, nodeToRootSubgraph)
+  const rootOrder = rootChildOrder(graph, subgraphNodeIds, subgraphIds, nodeToRootSubgraph, Boolean(opts.preserveSubgraphChildOrder))
   for (const id of rootOrder) {
     const sg = topLevelSubgraphs.get(id)
     if (sg) {
@@ -584,6 +584,7 @@ function rootChildOrder(
   subgraphNodeIds: Set<string>,
   subgraphIds: Set<string>,
   nodeToRootSubgraph: Map<string, string>,
+  seedSubgraphsFirst: boolean,
 ): string[] {
   const rootIds: string[] = []
   const seen = new Set<string>()
@@ -593,15 +594,27 @@ function rootChildOrder(
     rootIds.push(id)
   }
 
-  // Seed top-level groups first: the parser preserves group declaration order,
-  // while graph.nodes only sees services/nodes and cannot represent where a
-  // group declaration appeared relative to later services. Edge constraints
-  // below still move connected groups/nodes into source-before-target order.
-  for (const sg of graph.subgraphs) add(sg.id)
-  for (const id of graph.nodes.keys()) {
-    const root = nodeToRootSubgraph.get(id)
-    if (root) add(root)
-    else if (!subgraphNodeIds.has(id) && !subgraphIds.has(id)) add(id)
+  const addNodeDerivedRootIds = () => {
+    for (const id of graph.nodes.keys()) {
+      const root = nodeToRootSubgraph.get(id)
+      if (root) add(root)
+      else if (!subgraphNodeIds.has(id) && !subgraphIds.has(id)) add(id)
+    }
+  }
+  const addDeclaredSubgraphIds = () => {
+    for (const sg of graph.subgraphs) add(sg.id)
+  }
+
+  // Flowchart-like graphs should keep root nodes and top-level subgraphs in
+  // source-derived order. Projected families such as architecture can request
+  // top-level group declaration order because their parser has group entries
+  // that are not represented in graph.nodes until a service/junction appears.
+  if (seedSubgraphsFirst) {
+    addDeclaredSubgraphIds()
+    addNodeDerivedRootIds()
+  } else {
+    addNodeDerivedRootIds()
+    addDeclaredSubgraphIds()
   }
 
   const rootEdges = graph.edges.map(edge => ({

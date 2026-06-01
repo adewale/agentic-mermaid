@@ -48,8 +48,11 @@ type ErValidDiagram        = ValidDiagram & { body: ErBody }
 interface FlowchartGraph {
   direction: 'TD' | 'TB' | 'LR' | 'BT' | 'RL'
   nodes: Map<string, { id: string; label: string; shape: string }>
-  edges: { source: string; target: string; label?: string; style: string }[]
-  subgraphs: { id: string; label: string; nodeIds: string[] }[]
+  edges: {
+    source: string; target: string; label?: string; style: string
+    hasArrowStart?: boolean; hasArrowEnd?: boolean; startMarker?: string; endMarker?: string
+  }[]
+  subgraphs: { id: string; label: string; nodeIds: string[]; children: FlowchartGraph['subgraphs']; direction?: FlowchartGraph['direction'] }[]
 }
 
 interface SeqParticipant { id: string; label: string; kind: 'participant' | 'actor' }

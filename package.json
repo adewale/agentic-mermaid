@@ -26,11 +26,11 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/lukilabs/beautiful-mermaid"
+    "url": "https://github.com/adewale/beautiful-mermaid"
   },
-  "homepage": "https://github.com/lukilabs/beautiful-mermaid",
+  "homepage": "https://adewale.github.io/beautiful-mermaid/",
   "bugs": {
-    "url": "https://github.com/lukilabs/beautiful-mermaid/issues"
+    "url": "https://github.com/adewale/beautiful-mermaid/issues"
   },
   "keywords": [
     "mermaid",
@@ -61,10 +61,13 @@
     "examples/agent-improve-auth-flow.ts",
     "Instructions_for_agents.md",
     "AGENT_NATIVE.md",
+    "CHANGELOG.md",
     "FEATURES.md",
+    "FORK_DIFFERENCES.md",
     "TODO.md",
     "QUALITY.md",
     "SECURITY.md",
+    "llms.txt",
     "LICENSE",
     "README.md"
   ],

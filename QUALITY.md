@@ -34,7 +34,7 @@ A diagram is considered **good looking** when it satisfies, in order:
    - **Aesthetics** — balanced layout, professional feel
 
    This is **periodic**, not per-PR (model spend + nondeterminism). It
-   gates nightly eval runs and pre-release sign-off. See
+   supports pre-release sign-off when explicitly run. See
    `eval/llm-judge/judge.ts`.
 
 ## The rubric (used by both the LLM judge and the perceptual checker)
@@ -64,7 +64,8 @@ combination above gives:
   change between runs (ELK + the verified cross-runtime/cross-process
   determinism we already prove).
 - **Tractability** — the Tier 1 + perceptual checks run in seconds on
-  any PR. The LLM judge runs once a night.
+  any PR. The LLM judge is reserved for explicit pre-release or periodic
+  evaluation runs.
 - **Honest gaps** — `whitespaceBalance` band is rough; aspect-ratio is
   a sanity check, not an aesthetic. We do not claim our metrics match
   a human designer's eye — they catch the worst regressions.

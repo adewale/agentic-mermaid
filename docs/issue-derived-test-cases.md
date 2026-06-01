@@ -70,15 +70,13 @@ Current useful heuristics:
 - structural `verifyMermaid` warnings: `OFF_CANVAS`, `GROUP_BREACH`, `NODE_OVERLAP`, `ROUTE_SELF_CROSS`, `LABEL_OVERFLOW`;
 - `measureQuality(layoutMermaid(d))` / `checkQuality(...)`: edge crossings, label legibility, whitespace balance, label-edge proximity, and aspect ratio;
 - family-specific geometry assertions, such as Auth Flow's source-order progression and backward feedback-edge routing;
+- layout-quality heuristic tests for declared-direction progress (`TD`/`BT`/`LR`/`RL`), edge-vs-node collisions excluding attached endpoints, feedback-process cleanliness, root node vs top-level subgraph source order, and self-loop clearance;
 - PNG/SVG screenshot comparison for artifacts that layout JSON cannot see, such as rounded-fill raster artifacts.
 
 High-value next heuristics for layout-improvement corpora:
 
-- edge-vs-node collision count excluding the attached endpoints;
 - edge-label bounding-box overlap with unrelated nodes/edges;
 - route corridor reuse by unrelated edge families;
-- direction adherence (`TD/TB` should not become wide without explicit reason; `LR/RL` should not become tall without explicit reason);
-- self-loop clearance around node bounds;
 - target-aware fan-in/fan-out clustering score;
 - group-header text fit, especially with CJK/fullwidth labels.
 
