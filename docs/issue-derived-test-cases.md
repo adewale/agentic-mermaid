@@ -38,6 +38,52 @@ These are public Mermaid / Beautiful Mermaid issues worth turning into small, ed
 - [lukilabs/beautiful-mermaid#98 — nested-subgraph layout with direction](https://github.com/lukilabs/beautiful-mermaid/pull/98)
   - Suggested fixture: nested subgraphs with explicit direction overrides and cross-boundary edges. Assert children remain inside groups and edges stay finite.
 
+## Fork-network layout search notes
+
+A May 2026 GitHub issue/PR search found recurring layout-quality themes in both Mermaid and Beautiful Mermaid:
+
+- [mermaid-js/mermaid#6049 — Flowchart ugly self linking nodes](https://github.com/mermaid-js/mermaid/issues/6049)
+  - Fixture idea: self-loop on a styled node. Assert the loop stays outside the node, has bounded route length, and does not obscure the label.
+- [mermaid-js/mermaid#5060 — Avoidable overlapping curves in flow-chart](https://github.com/mermaid-js/mermaid/issues/5060)
+  - Fixture idea: repeated parallel edges with long labels. Assert edge-label proximity and crossing/overlap counts stay below a threshold.
+- [mermaid-js/mermaid#6046 — subgraph links should affect positioning more than inter-graph links](https://github.com/mermaid-js/mermaid/issues/6046)
+  - Fixture idea: nested subgraphs with invisible/loose links. Assert group order follows source intent and cross-group edges do not dominate internal layout.
+- [mermaid-js/mermaid#7492 — C4 overlapping labels/text overflow/crossing arrows](https://github.com/mermaid-js/mermaid/issues/7492)
+  - Fixture idea: labels near containers. Assert text stays inside boxes and edge labels keep minimum clearance from unrelated nodes.
+- [mermaid-js/mermaid#2792 — graph lines sometimes overlap boxes](https://github.com/mermaid-js/mermaid/issues/2792)
+  - Fixture idea: route-vs-node collision. Assert no edge segment passes through unrelated node bounding boxes.
+- [lukilabs/beautiful-mermaid#83 — TD/TB flowchart layout flipping horizontal](https://github.com/lukilabs/beautiful-mermaid/issues/83)
+  - Fixture idea: vertical process with repeated feedback edges. Assert TD/TB diagrams remain height-dominant or within a bounded aspect ratio.
+- [lukilabs/beautiful-mermaid#68 — fan-in groups not target-aware](https://github.com/lukilabs/beautiful-mermaid/issues/68)
+  - Fixture idea: multiple roots feeding separate targets. Assert roots cluster by target and unrelated routes do not share misleading trunks.
+- [lukilabs/beautiful-mermaid#63 — misleading edge overlap in routing](https://github.com/lukilabs/beautiful-mermaid/pull/63)
+  - Fixture idea: two fan-in edges followed by two fan-out edges. Assert an outgoing branch does not visually reuse an unrelated incoming corridor.
+- [lukilabs/beautiful-mermaid#89 — CJK subgraph title layout drift](https://github.com/lukilabs/beautiful-mermaid/issues/89)
+  - Fixture idea: fullwidth group labels. Assert group header bounds account for CJK width.
+- [lukilabs/beautiful-mermaid#121 — ER/class ASCII labels truncated/overlapping](https://github.com/lukilabs/beautiful-mermaid/issues/121)
+  - Fixture idea: long ER/class labels and attributes. Assert labels survive and connectors remain attached.
+
+## Programmatic bad-layout heuristics
+
+Current useful heuristics:
+
+- structural `verifyMermaid` warnings: `OFF_CANVAS`, `GROUP_BREACH`, `NODE_OVERLAP`, `ROUTE_SELF_CROSS`, `LABEL_OVERFLOW`;
+- `measureQuality(layoutMermaid(d))` / `checkQuality(...)`: edge crossings, label legibility, whitespace balance, label-edge proximity, and aspect ratio;
+- family-specific geometry assertions, such as Auth Flow's source-order progression and backward feedback-edge routing;
+- PNG/SVG screenshot comparison for artifacts that layout JSON cannot see, such as rounded-fill raster artifacts.
+
+High-value next heuristics for layout-improvement corpora:
+
+- edge-vs-node collision count excluding the attached endpoints;
+- edge-label bounding-box overlap with unrelated nodes/edges;
+- route corridor reuse by unrelated edge families;
+- direction adherence (`TD/TB` should not become wide without explicit reason; `LR/RL` should not become tall without explicit reason);
+- self-loop clearance around node bounds;
+- target-aware fan-in/fan-out clustering score;
+- group-header text fit, especially with CJK/fullwidth labels.
+
+These can drive a generated fixture matrix: vary direction, feedback-edge density, self-loops, parallel edges, label length, CJK labels, nested subgraphs, fan-in/fan-out shape, and styling. Each generated case should assert semantic preservation first, then one or more layout heuristics. Screenshot tests should be reserved for cases where the visual artifact is genuinely pixel/raster-level.
+
 ## Test-design rules for issue fixtures
 
 - Prefer smallest meaningful source examples over screenshots alone.
