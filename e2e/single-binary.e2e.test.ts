@@ -10,11 +10,13 @@ import { tmpdir } from 'node:os'
 
 const REPO = join(import.meta.dir, '..')
 const ENTRY = join(REPO, 'bin', 'am.ts')
+const BUILD_TIMEOUT_MS = 120_000
+const RUN_TIMEOUT_MS = 30_000
 
 // Build once into a temp dir so we don't fight the gitignored dist/am.
 const work = mkdtempSync(join(tmpdir(), 'am-bin-'))
 const BIN = join(work, 'am')
-const build = spawnSync('bun', ['build', ENTRY, '--compile', '--outfile', BIN], { encoding: 'utf8' })
+const build = spawnSync('bun', ['build', ENTRY, '--compile', '--outfile', BIN], { encoding: 'utf8', timeout: BUILD_TIMEOUT_MS })
 const haveBinary = build.status === 0 && existsSync(BIN)
 
 const fn = haveBinary ? test : test.skip
@@ -24,19 +26,19 @@ writeFileSync(fixture, 'flowchart TD\n  A[Start] --> B[End]\n')
 
 describe('#1018 single-binary distribution', () => {
   fn('binary renders SVG', () => {
-    const r = spawnSync(BIN, ['render', fixture], { encoding: 'utf8' })
+    const r = spawnSync(BIN, ['render', fixture], { encoding: 'utf8', timeout: RUN_TIMEOUT_MS })
     expect(r.status).toBe(0)
     expect(r.stdout).toContain('<svg')
   })
 
   fn('binary renders ASCII', () => {
-    const r = spawnSync(BIN, ['render', '--format', 'ascii', fixture], { encoding: 'utf8' })
+    const r = spawnSync(BIN, ['render', '--format', 'ascii', fixture], { encoding: 'utf8', timeout: RUN_TIMEOUT_MS })
     expect(r.status).toBe(0)
     expect(r.stdout.length).toBeGreaterThan(0)
   })
 
   fn('binary emits capabilities JSON', () => {
-    const r = spawnSync(BIN, ['capabilities', '--json'], { encoding: 'utf8' })
+    const r = spawnSync(BIN, ['capabilities', '--json'], { encoding: 'utf8', timeout: RUN_TIMEOUT_MS })
     expect(r.status).toBe(0)
     const cap = JSON.parse(r.stdout)
     expect(Array.isArray(cap.families)).toBe(true)
@@ -44,14 +46,14 @@ describe('#1018 single-binary distribution', () => {
 
   fn('binary renders PNG (resvg native addon embeds)', () => {
     const out = join(work, 'd.png')
-    const r = spawnSync(BIN, ['render', '--format', 'png', fixture, '--output', out], { encoding: 'utf8' })
+    const r = spawnSync(BIN, ['render', '--format', 'png', fixture, '--output', out], { encoding: 'utf8', timeout: RUN_TIMEOUT_MS })
     expect(r.status).toBe(0)
     expect(existsSync(out)).toBe(true)
   })
 
   fn('binary cold-start is under 1s (improvement over bun-run TS source)', () => {
     const t = Date.now()
-    spawnSync(BIN, ['render', fixture], { encoding: 'utf8' })
+    spawnSync(BIN, ['render', fixture], { encoding: 'utf8', timeout: RUN_TIMEOUT_MS })
     expect(Date.now() - t).toBeLessThan(1500) // generous CI ceiling; ~440ms observed
   })
 })

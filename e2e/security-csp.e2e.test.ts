@@ -83,8 +83,8 @@ describe('Trusted Types + strict CSP browser verification', () => {
 
     const response = await page.goto(BASE, { waitUntil: 'load' })
     expect(response?.headers()['content-security-policy']).toContain("require-trusted-types-for 'script'")
-    await page.waitForFunction(() => (window as any).__done === true, { timeout: 30_000 })
-    await page.waitForFunction(() => ((window as any).__violations ?? []).length >= 1, { timeout: 30_000 })
+    await page.waitForFunction(() => (window as any).__done === true, undefined, { timeout: 30_000 })
+    await page.waitForFunction(() => ((window as any).__violations ?? []).length >= 1, undefined, { timeout: 30_000 })
 
     const result = await page.evaluate(() => ({
       trustedTypesPresent: (window as any).__trustedTypesPresent,

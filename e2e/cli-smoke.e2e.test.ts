@@ -12,6 +12,7 @@ import { tmpdir } from 'node:os'
 
 const AM = join(import.meta.dir, '..', 'bin', 'am.ts')
 const CORPUS = join(import.meta.dir, '..', 'eval', 'mermaid-docs-corpus', 'corpus.json')
+const SPAWN_TIMEOUT_MS = 60_000
 
 interface Fixture { family: string; source: string; origin: string; index: number }
 
@@ -25,7 +26,7 @@ function pickOnePerFamily(): Map<string, Fixture> {
 const PICKS = pickOnePerFamily()
 
 function spawnAm(args: string[]): { status: number; stdout: string; stderr: string } {
-  const r = spawnSync('bun', ['run', AM, ...args], { encoding: 'utf8' })
+  const r = spawnSync('bun', ['run', AM, ...args], { encoding: 'utf8', timeout: SPAWN_TIMEOUT_MS })
   return { status: r.status ?? -1, stdout: r.stdout, stderr: r.stderr }
 }
 

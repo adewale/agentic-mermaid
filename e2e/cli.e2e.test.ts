@@ -12,12 +12,14 @@ import { spawnSync } from 'node:child_process'
 import { join } from 'node:path'
 
 const AM = join(import.meta.dir, '..', 'bin', 'am.ts')
+const SPAWN_TIMEOUT_MS = 60_000
 
 function runAm(args: string[], stdin = '', env: NodeJS.ProcessEnv = {}): { status: number; stdout: string; stderr: string } {
   const r = spawnSync('bun', ['run', AM, ...args], {
     encoding: 'utf8',
     input: stdin,
     env: { ...process.env, ...env },
+    timeout: SPAWN_TIMEOUT_MS,
   })
   return { status: r.status ?? -1, stdout: r.stdout, stderr: r.stderr }
 }
@@ -218,26 +220,26 @@ describe('am exit codes', () => {
 
   test('verify on a diagram with errors exits 3', () => {
     // Empty diagram body → EMPTY_DIAGRAM (severity error) → ok=false → exit 3
-    const r = spawnSync('bun', ['run', AM, 'verify', '-'], { encoding: 'utf8', input: 'flowchart LR\n' })
+    const r = runAm(['verify', '-'], 'flowchart LR\n')
     expect(r.status).toBe(3)
     const payload = JSON.parse(r.stdout)
     expect(payload.ok).toBe(false)
   })
 
   test('verify on a clean diagram exits 0', () => {
-    const r = spawnSync('bun', ['run', AM, 'verify', '-'], { encoding: 'utf8', input: 'flowchart LR\n  A --> B\n' })
+    const r = runAm(['verify', '-'], 'flowchart LR\n  A --> B\n')
     expect(r.status).toBe(0)
     const payload = JSON.parse(r.stdout)
     expect(payload.ok).toBe(true)
   })
 
   test('mutate with a missing --op flag exits 2', () => {
-    const r = spawnSync('bun', ['run', AM, 'mutate', '-'], { encoding: 'utf8', input: 'flowchart LR\n  A --> B\n' })
+    const r = runAm(['mutate', '-'], 'flowchart LR\n  A --> B\n')
     expect(r.status).toBe(2)
   })
 
   test('mutate with malformed --op JSON exits 2', () => {
-    const r = spawnSync('bun', ['run', AM, 'mutate', '-', '--op', '{bad'], { encoding: 'utf8', input: 'flowchart LR\n  A --> B\n' })
+    const r = runAm(['mutate', '-', '--op', '{bad'], 'flowchart LR\n  A --> B\n')
     expect(r.status).toBe(2)
   })
 
@@ -246,7 +248,7 @@ describe('am exit codes', () => {
       { kind: 'add_node', id: 'C', label: 'Cache' },
       { kind: 'add_edge', from: 'B', to: 'C' },
     ])
-    const r = spawnSync('bun', ['run', AM, 'mutate', '-', '--ops', ops, '--json'], { encoding: 'utf8', input: 'flowchart LR\n  A --> B\n' })
+    const r = runAm(['mutate', '-', '--ops', ops, '--json'], 'flowchart LR\n  A --> B\n')
     expect(r.status).toBe(0)
     const payload = JSON.parse(r.stdout)
     expect(payload.ok).toBe(true)
@@ -259,7 +261,7 @@ describe('am exit codes', () => {
     const tmpOps = `/tmp/am-mutate-ops-${Date.now()}.json`
     writeFileSync(tmpOps, JSON.stringify([{ kind: 'set_label', target: 'A', label: 'API' }]))
     try {
-      const r = spawnSync('bun', ['run', AM, 'mutate', '-', '--ops', tmpOps], { encoding: 'utf8', input: 'flowchart LR\n  A --> B\n' })
+      const r = runAm(['mutate', '-', '--ops', tmpOps], 'flowchart LR\n  A --> B\n')
       expect(r.status).toBe(0)
       expect(r.stdout).toContain('A[API]')
     } finally {
@@ -268,7 +270,7 @@ describe('am exit codes', () => {
   })
 
   test('mutate verifies before emitting invalid output', () => {
-    const r = spawnSync('bun', ['run', AM, 'mutate', '-', '--op', '{"kind":"remove_node","id":"A"}', '--json'], { encoding: 'utf8', input: 'flowchart LR\n  A[Only]\n' })
+    const r = runAm(['mutate', '-', '--op', '{"kind":"remove_node","id":"A"}', '--json'], 'flowchart LR\n  A[Only]\n')
     expect(r.status).toBe(3)
     const payload = JSON.parse(r.stdout)
     expect(payload.ok).toBe(false)
@@ -282,7 +284,7 @@ describe('am exit codes', () => {
     const tmpOut = `/tmp/loop8-png-output-${Date.now()}.png`
     writeFileSync(tmpSrc, 'flowchart LR\n  A --> B --> C\n')
     try {
-      const r = spawnSync('bun', ['run', AM, 'render', '--format', 'png', tmpSrc, '--output', tmpOut], { encoding: 'utf8' })
+      const r = runAm(['render', '--format', 'png', tmpSrc, '--output', tmpOut])
       expect(r.status).toBe(0)
       expect(existsSync(tmpOut)).toBe(true)
       const png = readFileSync(tmpOut)
@@ -300,7 +302,7 @@ describe('am exit codes', () => {
     const tmpSrc = `/tmp/loop8-png-noout-${Date.now()}.mmd`
     writeFileSync(tmpSrc, 'flowchart LR\n  A --> B\n')
     try {
-      const r = spawnSync('bun', ['run', AM, 'render', '--format', 'png', tmpSrc], { encoding: 'utf8' })
+      const r = runAm(['render', '--format', 'png', tmpSrc])
       expect(r.status).toBe(2)
     } finally {
       if (existsSync(tmpSrc)) unlinkSync(tmpSrc)
