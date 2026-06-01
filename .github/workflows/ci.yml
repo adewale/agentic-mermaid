@@ -57,6 +57,6 @@ jobs:
         run: bunx playwright install chromium --with-deps
 
       - name: Run E2E tests
-        # Unit tests are the coverage gate; E2E launches browsers/binaries and
-        # should not inherit bunfig coverage instrumentation.
-        run: bun test e2e/ --no-coverage --timeout 600000
+        # Unit tests are the coverage gate; e2e/bunfig.toml disables coverage
+        # instrumentation for browser/binary E2E.
+        run: cd e2e && bun test . --timeout 600000

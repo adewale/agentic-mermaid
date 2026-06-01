@@ -73,7 +73,7 @@
   ],
   "scripts": {
     "test": "bun test --coverage src/__tests__/",
-    "test:browser": "bun test e2e/ --no-coverage --timeout 600000",
+    "test:browser": "cd e2e && bun test . --timeout 600000",
     "samples": "bun run scripts/site/generate.ts",
     "editor": "bun run scripts/site/editor.ts",
     "dev": "bun run scripts/dev.ts",
