@@ -27,7 +27,7 @@ Use `asFlowchart` / `asSequence` / `asTimeline` / `asClass` / `asEr` before muta
 
 ## The verify-before-commit rule
 
-Run `verifyMermaid` at every commit point — anywhere the result would be saved, sent, or shown. For new diagrams, verify the authored source. For existing diagrams, verify after mutation and before serializing. You may batch several `mutate` calls between verifications, but never serialize a `ValidDiagram` whose `verify` result you have not inspected.
+Run `verifyMermaid` at every commit point — anywhere the result would be saved, sent, or shown. For new diagrams, verify the authored source. For existing diagrams, verify after mutation and before serializing. You may batch several `mutate` calls between verifications, but never serialize a `ValidDiagram` whose `verify` result you have not inspected. `verify.ok` is structural, not a visual-quality score; inspect `verify.layout`, render artifacts, or PNG/SVG screenshots for visual tasks.
 
 ## Tier 1 vs Tier 2 vs Tier 3 warnings
 
@@ -39,7 +39,7 @@ Tier 3 (lint, advisory): reserved for future family-specific lint codes. `Family
 
 ## CLI verbs
 
-`am capabilities --json` — JSON envelope listing families, `families[].mutationOps`, warning codes, output formats (`svg`, `ascii`, `unicode`, `png`, `json`). Schema-stable; use it to self-discover.
+`am capabilities --json` — JSON envelope listing families, `families[].editPolicy`, `families[].mutationOps`, warning codes, output formats (`svg`, `ascii`, `unicode`, `png`, `json`). Schema-stable; use it to self-discover.
 `am batch --jsonl` — JSONL stdin → JSONL stdout for render/verify/parse/serialize/mutate. Malformed lines surface error but don't abort the stream.
 `am render <file…> --format svg|ascii|unicode|json [--security strict]` — JSON = layout shape; --security strict = no external-fetch refs; multiple files → results array for non-PNG formats. `--watch` is single-file/non-PNG only. PNG uses `--format png --output file.png` for one input and does not support watch/multi-input.
 `am preview <file> [--output out.html] [--open]` — standalone strict-mode HTML preview for human inspection.

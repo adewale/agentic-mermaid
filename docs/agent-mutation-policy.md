@@ -24,7 +24,7 @@ A family has mutation exposure when public agent surfaces advertise typed struct
 - library narrowers like `asFlowchart(d)` and `mutate(flow, op)`;
 - CLI support through `am mutate --op ...`;
 - MCP / Code Mode methods in the SDK declaration;
-- `am capabilities` entries with `hasMutate: true` and `mutationOps`;
+- `am capabilities` entries with `editPolicy: "structured-when-narrowed"`, `hasMutate: true`, and `mutationOps`;
 - docs/examples telling agents which ops to call.
 
 Removing mutation exposure means agents are no longer told that a family can be safely edited through typed ops. The diagram may still parse, render, verify, describe, and serialize; it just does not get structured mutation.

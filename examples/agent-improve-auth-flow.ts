@@ -3,7 +3,7 @@
 //   2. assess it and spot label-overflow warnings;
 //   3. improve it through another mutation batch;
 //   4. reassess the impact;
-//   5. write final Mermaid, SVG, ASCII, and assessment files.
+//   5. write final Mermaid, SVG, ASCII, PNG, and assessment files.
 //
 // Run:
 //   bun run examples/agent-improve-auth-flow.ts
@@ -13,6 +13,7 @@ import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { handleRequest } from '../src/mcp/server.ts'
+import { renderMermaidPNG } from '../src/agent/index.ts'
 
 function argValue(name: string): string | undefined {
   const idx = process.argv.indexOf(name)
@@ -142,6 +143,7 @@ const files = {
   source: join(outDir, 'auth-flow-improved.mmd'),
   svg: join(outDir, 'auth-flow-improved.svg'),
   ascii: join(outDir, 'auth-flow-improved.txt'),
+  png: join(outDir, 'auth-flow-improved.png'),
   assessment: join(outDir, 'assessment.json'),
 }
 
@@ -149,6 +151,8 @@ writeFileSync(files.before, result.beforeSource)
 writeFileSync(files.source, result.source)
 writeFileSync(files.svg, result.svg)
 writeFileSync(files.ascii, result.ascii)
+// PNG is binary, so the host renders it from the verified final source.
+writeFileSync(files.png, renderMermaidPNG(result.source, { fitTo: { width: 1600 }, background: '#f8f7f4' }))
 writeFileSync(files.assessment, JSON.stringify({
   createOps: result.createOps,
   improveOps: result.improveOps,

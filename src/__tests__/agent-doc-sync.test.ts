@@ -88,6 +88,7 @@ describe('vocabulary doc-sync', () => {
     for (const [family, ops] of Object.entries(MUTATION_OPS_BY_FAMILY)) {
       const familyCap = cap.families.find(f => f.id === family)
       expect(familyCap?.mutationOps).toEqual([...ops])
+      expect(familyCap?.editPolicy).toBe('structured-when-narrowed')
       for (const op of ops) {
         expect(spec).toContain(op)
         expect(SDK_DECLARATION).toContain(op)
@@ -139,9 +140,11 @@ describe('root docs consistency', () => {
     const mutateHelp = spawnSync('bun', ['run', join(REPO, 'bin/am.ts'), 'mutate', '--help'], { encoding: 'utf8' }).stdout
     const previewHelp = spawnSync('bun', ['run', join(REPO, 'bin/am.ts'), 'preview', '--help'], { encoding: 'utf8' }).stdout
     const batchHelp = spawnSync('bun', ['run', join(REPO, 'bin/am.ts'), 'batch', '--help'], { encoding: 'utf8' }).stdout
+    const capabilitiesHelp = spawnSync('bun', ['run', join(REPO, 'bin/am.ts'), 'capabilities', '--help'], { encoding: 'utf8' }).stdout
     expect(mutateHelp).toContain('--ops')
     expect(previewHelp).toContain('--open')
     expect(batchHelp).toContain('"mutate"')
+    expect(capabilitiesHelp).toContain('editPolicy')
 
     const guide = readFileSync(join(REPO, 'Instructions_for_agents.md'), 'utf8')
     const llms = readFileSync(join(REPO, 'llms.txt'), 'utf8')
@@ -149,6 +152,7 @@ describe('root docs consistency', () => {
     for (const [file, text] of [['Instructions_for_agents.md', guide], ['llms.txt', llms], ['.claude/skills/agentic-mermaid/references/cli.md', skillCli]] as const) {
       expect({ file, preview: text.includes('preview') }).toEqual({ file, preview: true })
       expect({ file, ops: text.includes('--ops') }).toEqual({ file, ops: true })
+      expect({ file, editPolicy: text.includes('editPolicy') }).toEqual({ file, editPolicy: true })
       expect({ file, batchMutate: text.includes('render/verify/parse/serialize/mutate') || text.includes('including mutate') }).toEqual({ file, batchMutate: true })
     }
     const readme = readFileSync(join(REPO, 'README.md'), 'utf8')
@@ -190,8 +194,11 @@ describe('spec honesty', () => {
 
   test('Cloudflare Code Mode remains future inspiration, not a shipped runtime claim', () => {
     const spec = readFileSync(join(REPO, 'AGENT_NATIVE.md'), 'utf8')
-    expect(spec).toContain('not Cloudflare Codemode')
-    expect(spec).toContain('not backed by `@cloudflare/codemode`')
+    const rationale = readFileSync(join(REPO, 'docs/mcp-code-mode-rationale.md'), 'utf8')
+    for (const [file, text] of [['AGENT_NATIVE.md', spec], ['docs/mcp-code-mode-rationale.md', rationale]] as const) {
+      expect({ file, cloudflareCodemode: text.includes('not Cloudflare Codemode') }).toEqual({ file, cloudflareCodemode: true })
+      expect({ file, codemodePackage: text.includes('not backed by `@cloudflare/codemode`') }).toEqual({ file, codemodePackage: true })
+    }
     expect(spec).toContain('future options, not shipped artifacts')
   })
 })
@@ -275,10 +282,12 @@ describe('shipped distribution artifacts present', () => {
       expect(payload.impact.longestLabelBefore).toBeGreaterThan(payload.impact.longestLabelAfter)
       const svg = readFileSync(join(outDir, 'auth-flow-improved.svg'), 'utf8')
       const ascii = readFileSync(join(outDir, 'auth-flow-improved.txt'), 'utf8')
+      const png = readFileSync(join(outDir, 'auth-flow-improved.png'))
       const assessment = JSON.parse(readFileSync(join(outDir, 'assessment.json'), 'utf8'))
       expect(svg).toContain('<svg')
       expect(svg).toContain('Login Page')
       expect(ascii).toContain('Dashboard')
+      expect(Array.from(png.subarray(0, 8))).toEqual([137, 80, 78, 71, 13, 10, 26, 10])
       expect(assessment.improveOps).toBe(3)
     } finally {
       rmSync(outDir, { recursive: true, force: true })

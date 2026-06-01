@@ -293,7 +293,7 @@ interface VerifyOptions { suppress?: WarningCode[]; labelCharCap?: number }  // 
 
 There is no `LayoutContext`, no `SeededRNG`, no `Clock`, no font-metric table in the public surface. Those existed to support a seed apparatus that did nothing (see § (1)). The only verification knob is `labelCharCap`.
 
-**CLI** (`am <verb>`) with JSON where useful: `render`, `verify`, `parse`, `serialize`, `mutate`, `format`, `describe`, `capabilities`, `batch`, `render-markdown`, `llms-txt`. Plus `am --agent-instructions` printing the canonical agent-use guide embedded in the binary at build time — agents read the doc that ships with the tool, not whatever their training set indexed. The CLI's role is one-shot operations, shell-only contexts (CI, Bash-tool agents), and human inspection; multi-step editing belongs in the library or Code Mode, not in shell pipelines.
+**CLI** (`am <verb>`) with JSON where useful: `render`, `verify`, `parse`, `serialize`, `mutate`, `format`, `describe`, `capabilities`, `batch`, `render-markdown`, `llms-txt`. `am capabilities --json` reports each family's `editPolicy` (`structured-when-narrowed` vs `source-level-only`) plus `mutationOps`, so agents can route without trial-and-error. Plus `am --agent-instructions` printing the canonical agent-use guide embedded in the binary at build time — agents read the doc that ships with the tool, not whatever their training set indexed. The CLI's role is one-shot operations, shell-only contexts (CI, Bash-tool agents), and human inspection; multi-step editing belongs in the library or Code Mode, not in shell pipelines.
 
 ---
 

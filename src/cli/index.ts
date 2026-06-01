@@ -153,10 +153,11 @@ it as {ok,text}. --format json emits the structured AX tree
   capabilities: `am capabilities [--json]
 Emits a single JSON object describing the SDK's capability surface:
   { sdkVersion, families: [{ id, hasParse, hasSerialize, hasMutate,
-    hasVerify, hasExtractLabels, mutationOps }],
+    hasVerify, hasExtractLabels, mutationOps, editPolicy }],
     warningCodes: [{ code, tier, severity }],
     outputFormats: ["svg", "ascii", "unicode", "png", "json"] }
-Use this to introspect what the CLI can do without running every command.`,
+editPolicy is "structured-when-narrowed" or "source-level-only". Use this to
+introspect what the CLI can do without running every command.`,
   batch: `am batch  (reads JSONL from stdin)
 Each line: { op: "render"|"verify"|"parse"|"serialize"|"mutate", source: string,
 options?: {}, mutation?: MutationOp, mutations?: MutationOp[] }. Emits one JSON
@@ -580,6 +581,8 @@ function cmdDescribe(args: ParsedArgs, json: boolean): number {
 
 // ---- Loop 7 / A3.1: capabilities ------------------------------------------
 
+type FamilyEditPolicy = 'structured-when-narrowed' | 'source-level-only'
+
 interface FamilyCapability {
   id: string
   hasParse: boolean
@@ -588,6 +591,7 @@ interface FamilyCapability {
   hasVerify: boolean
   hasExtractLabels: boolean
   mutationOps: string[]
+  editPolicy: FamilyEditPolicy
 }
 
 interface WarningCodeCapability {
@@ -627,6 +631,7 @@ export function buildCapabilities(): CapabilitiesEnvelope {
   const families: FamilyCapability[] = knownFamilies().map((id) => {
     const p = getFamily(id)!
     const mutationOps = id in MUTATION_OPS_BY_FAMILY ? [...MUTATION_OPS_BY_FAMILY[id as MutableFamilyId]] : []
+    const editPolicy: FamilyEditPolicy = mutationOps.length > 0 ? 'structured-when-narrowed' : 'source-level-only'
     return {
       id,
       // Capabilities describe the public agent surface, not whether the
@@ -639,6 +644,7 @@ export function buildCapabilities(): CapabilitiesEnvelope {
       hasVerify: true,
       hasExtractLabels: Boolean(p.extractLabels),
       mutationOps,
+      editPolicy,
     }
   })
   const warningCodes: WarningCodeCapability[] = (Object.keys(WARNING_SEVERITY) as WarningCode[]).map(code => ({
@@ -699,7 +705,7 @@ you haven't inspected.
 - preview [--output file.html] [--open] — standalone strict-mode HTML preview for user inspection
 - format — normalize / canonicalize source
 - describe [--format text|json] — natural-language or AX-tree summary
-- capabilities --json — machine-readable capability envelope incl. mutationOps
+- capabilities --json — machine-readable capability envelope incl. editPolicy + mutationOps
 - batch --jsonl — bulk render/verify/parse/serialize/mutate ops, one JSON envelope per line
 - render-markdown <file.md> [--ascii] — render fenced mermaid blocks, skip invalid ones
 - llms-txt — this document
@@ -720,8 +726,9 @@ references — safe for untrusted/agent-generated diagrams. See SECURITY.md.
 ## Diagram families
 
 All families parse, verify, render, round-trip: ${families}.
-Structured mutation: ${structured.join(', ')}. Others round-trip losslessly
-via an opaque body (never silently dropped).
+Structured mutation (${cap.families.find(f => f.hasMutate)?.editPolicy}): ${structured.join(', ')}.
+Source-level-only: ${cap.families.filter(f => !f.hasMutate).map(f => f.id).join(', ')}.
+Source-level bodies round-trip losslessly via preserved source (never silently dropped).
 
 ## Warning codes
 
@@ -742,6 +749,10 @@ verifyNoExternalRefs } from 'beautiful-mermaid/agent'\`
 - TODO.md — only active backlog
 - QUALITY.md — determinism + "good looking" rubric
 - SECURITY.md — threat model + strict-mode guarantee
+- docs/agent-mutation-policy.md — structured-vs-source-level policy
+- docs/mcp-code-mode-rationale.md — MCP surface rationale
+- docs/agent-workflow-examples.md — runnable MCP/CLI + agent-improvement examples
+- docs/pr11-reviewer-guide.md — review map for this branch
 `
 }
 

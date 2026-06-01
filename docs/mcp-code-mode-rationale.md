@@ -1,6 +1,6 @@
 # MCP Code Mode rationale
 
-`agentic-mermaid-mcp` is intentionally Code Mode first. Its primary tool is `execute(code)`, which runs synchronous JavaScript against the typed `mermaid.*` SDK in a local `node:vm` sandbox. The helper tools (`render_png` and `describe`) are narrow conveniences, not a second full authoring API.
+`agentic-mermaid-mcp` is intentionally Code Mode first. Its primary tool is `execute(code)`, which runs synchronous JavaScript against the typed `mermaid.*` SDK in a local `node:vm` sandbox. This is a local implementation inspired by Code Mode as a product shape; it is not Cloudflare Codemode, not backed by `@cloudflare/codemode`, and not an OS/container security boundary. The helper tools (`render_png` and `describe`) are narrow conveniences, not a second full authoring API.
 
 ## Why the MCP server exists
 

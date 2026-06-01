@@ -2,7 +2,9 @@ import { describe, expect, test } from 'bun:test'
 
 import {
   asFlowchart,
+  checkQuality,
   layoutMermaid,
+  measureQuality,
   mutate,
   parseMermaid,
   renderMermaidPNG,
@@ -105,5 +107,22 @@ describe('tweet auth-flow agent workflow', () => {
       const end = edge!.path[edge!.path.length - 1]!
       expect(start[0]).toBeGreaterThan(end[0])
     }
+  })
+
+  test('pins visual-quality signals beyond verify.ok', () => {
+    const diagram = buildAuthFlowWithAgenticMermaid()
+    const verify = verifyMermaid(diagram)
+    expect(verify.ok).toBe(true)
+
+    const layout = layoutMermaid(diagram)
+    const metrics = measureQuality(layout)
+    expect(metrics.edgeCrossings).toBe(0)
+    expect(metrics.labelLegibility).toBe(1)
+    expect(metrics.whitespaceBalance).toBeGreaterThan(0.05)
+    expect(metrics.whitespaceBalance).toBeLessThan(0.55)
+    expect(metrics.aspectRatio).toBeLessThanOrEqual(7)
+
+    const verdict = checkQuality(layout, { aspectBand: [0.2, 7] })
+    expect(verdict).toMatchObject({ ok: true, violations: [] })
   })
 })

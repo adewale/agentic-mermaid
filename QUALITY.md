@@ -69,13 +69,35 @@ combination above gives:
   a sanity check, not an aesthetic. We do not claim our metrics match
   a human designer's eye — they catch the worst regressions.
 
+## Why the same Mermaid can look worse here than in Mermaid
+
+Beautiful Mermaid is not Mermaid's renderer. It parses Mermaid source and
+renders through this project's own layout/style stack: ELK layered layout,
+source-order preservation, conservative node/diamond sizing, and the
+Beautiful Mermaid theme system. Mermaid's default flowchart renderer uses
+its own Dagre/ELK configuration, text wrapping, spacing, and CSS. The same
+source can therefore have different rank choices, edge routes, node sizes,
+and aspect ratio.
+
+The Auth Flow regression is the concrete example. Mermaid can choose a more
+compact-looking rendering for the feedback loops; Beautiful Mermaid now
+prioritizes semantic LR source order (`A → B → C → ... → H`) and routes
+`No` loops backward. That preserves author intent and avoids the earlier
+misordered layout, but it also makes the diagram wider. `verify.ok` still
+only means structurally valid; visual quality needs layout metrics,
+geometry assertions, screenshot/PNG review, or human inspection.
+
 ## What we do NOT claim
 
-- **No pixel comparison.** We render SVGs but don't compare them to a
-  golden image. Mermaid-js itself uses an external service (Applitools)
-  for visual regression; we don't ship reference images. If a glyph
-  changes width by one pixel, our perceptual metrics may move slightly,
-  but the bands have headroom.
+- **No universal Mermaid visual parity.** We aim for faithful, deterministic,
+  agent-verifiable output, not pixel/layout equivalence with Mermaid's own
+  renderer. When parity matters, compare rendered artifacts and add a
+  geometry/screenshot regression for that source.
+- **No pixel comparison for the whole corpus.** We render SVGs but don't compare
+  every corpus sample to a golden image. Mermaid-js itself uses an external
+  service (Applitools) for visual regression; we don't ship reference images.
+  If a glyph changes width by one pixel, our perceptual metrics may move
+  slightly, but the bands have headroom.
 - **No font-substitution check.** Different OSes render different
   default fonts. Our `labelLegibility` heuristic uses a 7 px-per-char
   approximation; under condensed fonts it under-estimates fit.

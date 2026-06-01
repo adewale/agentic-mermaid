@@ -35,11 +35,12 @@ What it demonstrates:
 3. It spots problems: long decision labels and wide LR layout.
 4. It applies a second mutation batch (`set_label`) to improve readability while preserving structure.
 5. It reassesses impact: warnings and longest-label length decrease, and bounds shrink.
-6. It writes final files:
+6. It writes final render artifacts. SVG/ASCII come from Code Mode; PNG is rendered by the host from the verified final source, matching the MCP helper rationale that binary output should stay a narrow helper/host responsibility.
    - `auth-flow-before.mmd`
    - `auth-flow-improved.mmd`
    - `auth-flow-improved.svg`
    - `auth-flow-improved.txt` (ASCII)
+   - `auth-flow-improved.png`
    - `assessment.json`
 
 The point is not that `verify.ok` alone proves visual quality. The example records concrete assessment signals before and after mutation, then emits human-reviewable render artifacts.

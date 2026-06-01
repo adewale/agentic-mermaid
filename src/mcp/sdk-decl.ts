@@ -160,5 +160,6 @@ declare const mermaid: {
 //    Narrow via asFlowchart/asSequence/asTimeline/asClass/asEr. Journey,
 //    xychart, architecture, and opaque-fallback bodies are source-level only;
 //    if explicitly edited as text, re-parse and verify before returning.
-// 4. Layout is deterministic; there is no seed.
+// 4. verify.ok is structural, not a visual-quality score; inspect warnings/layout or render artifacts for layout quality.
+// 5. Layout is deterministic; there is no seed.
 `
