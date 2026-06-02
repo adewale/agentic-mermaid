@@ -2,7 +2,7 @@
 
 ## Overview
 
-The xychart implementation follows the same parse -> layout -> render pipeline used elsewhere in Beautiful Mermaid, with Mermaid's stable `xychart` syntax treated as primary and `xychart-beta` preserved for backward compatibility.
+The xychart implementation follows the same parse -> layout -> render pipeline used elsewhere in Agentic Mermaid, with Mermaid's stable `xychart` syntax treated as primary and `xychart-beta` preserved for backward compatibility.
 
 Supported chart forms:
 

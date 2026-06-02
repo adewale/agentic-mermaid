@@ -1,5 +1,5 @@
 /**
- * XY Chart sample definitions for the beautiful-mermaid visual test suite.
+ * XY Chart sample definitions for the agentic-mermaid visual test suite.
  *
  * Contains ~100 xychart-beta examples covering bar charts, line charts,
  * combined charts, axis configurations, horizontal orientation, titles,

@@ -4,7 +4,7 @@ This branch is large. Review it as an agent contract, not as one renderer patch.
 
 ## Public contract to inspect
 
-- Library: `beautiful-mermaid/agent` exports parse, narrow, mutate, verify, serialize, SVG/ASCII/PNG render, describe, and quality helpers.
+- Library: `agentic-mermaid/agent` exports parse, narrow, mutate, verify, serialize, SVG/ASCII/PNG render, describe, and quality helpers.
 - CLI: `am render|preview|verify|parse|serialize|mutate|format|describe|capabilities|batch|render-markdown|llms-txt`.
 - MCP: primary Code Mode `execute(code)` plus narrow helpers `render_png` and `describe`.
 - Agent docs: `Instructions_for_agents.md`, `llms.txt`, `.claude/skills/agentic-mermaid/`, `docs/agent-mutation-policy.md`, `docs/mcp-code-mode-rationale.md`.
@@ -21,7 +21,7 @@ For new diagrams, direct Mermaid source authoring is allowed: write source → p
 
 ## Visual-quality expectation
 
-`verify.ok` means structurally valid, not visually beautiful. Layout quality is reviewed through `verify.layout`, `measureQuality`/`checkQuality`, geometry assertions, screenshots/PNG, and human inspection. Beautiful Mermaid is a deterministic independent renderer; it does not promise pixel or layout parity with Mermaid's own renderer.
+`verify.ok` means structurally valid, not visually beautiful. Layout quality is reviewed through `verify.layout`, `measureQuality`/`checkQuality`, geometry assertions, screenshots/PNG, and human inspection. Agentic Mermaid is a deterministic independent renderer; it does not promise pixel or layout parity with Mermaid's own renderer.
 
 ## Security/honesty expectation
 

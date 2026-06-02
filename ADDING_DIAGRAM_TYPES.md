@@ -1,6 +1,6 @@
 # Adding Mermaid Diagram Types
 
-Use this guide when adding a diagram type that Mermaid supports but `beautiful-mermaid` does not yet render.
+Use this guide when adding a diagram type that Mermaid supports but `agentic-mermaid` does not yet render.
 
 ## Upstream Guidance
 
@@ -11,7 +11,7 @@ Mermaid already documents the broad shape of a new diagram contribution:
 
 Their guidance is useful for structure: new diagrams usually need parsing, rendering, styling, registration, examples, docs, and tests. They also call out cross-cutting concerns such as directives, accessibility, theming, and comments.
 
-That is necessary, but not sufficient for this repo. `beautiful-mermaid` also needs Mermaid syntax compatibility and output quality that matches the rest of the library.
+That is necessary, but not sufficient for this repo. `agentic-mermaid` also needs Mermaid syntax compatibility and output quality that matches the rest of the library.
 
 ## 1. Confirm The Target
 
@@ -27,7 +27,7 @@ Every new diagram PR should include at least one official Mermaid example.
 1. Open the Mermaid syntax page for that diagram type.
 2. Copy a representative example from the Mermaid site, ideally the main example a user is most likely to try first.
 3. Add that exact Mermaid source to this repo's tests.
-4. Render it with `beautiful-mermaid` and confirm the structure is recognizably similar to Mermaid's published example.
+4. Render it with `agentic-mermaid` and confirm the structure is recognizably similar to Mermaid's published example.
 5. Commit both the example source and the rendered artifact used to verify it.
 
 For this repo, that usually means:
@@ -38,7 +38,7 @@ For this repo, that usually means:
 
 If the Mermaid example uses syntax we do not support yet, pick the closest official example we can support now and call out the remaining gap explicitly.
 
-## 3. Fit Beautiful Mermaid's Architecture
+## 3. Fit Agentic Mermaid's Architecture
 
 Prefer the same shape used by the existing diagram families:
 
@@ -111,5 +111,5 @@ A new Mermaid-backed diagram type is ready when:
 - the PR includes the example source and the rendered evidence used to review it
 - parser, integration, and regression coverage exist for the important syntax paths
 - specialized layout, renderer, theme, and ASCII behavior are covered when applicable
-- output quality matches the rest of Beautiful Mermaid
+- output quality matches the rest of Agentic Mermaid
 - intentional gaps versus Mermaid are documented

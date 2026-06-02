@@ -1,7 +1,7 @@
 # PRODUCT
 
 ## Product Purpose
-Beautiful Mermaid is an open-source diagram rendering library and live editor for turning Mermaid source into polished SVG and terminal-friendly ASCII. The fork focuses on expanded diagram coverage, semantic role-based styling, export tools, and a GitHub Pages-hosted showcase/editor.
+Agentic Mermaid is an open-source diagram rendering library and live editor for turning Mermaid source into polished SVG and terminal-friendly ASCII. The fork focuses on expanded diagram coverage, semantic role-based styling, export tools, and a GitHub Pages-hosted showcase/editor.
 
 ## Register
 product

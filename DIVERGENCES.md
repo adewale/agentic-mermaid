@@ -13,7 +13,7 @@ Current implementation decisions that differ from, or materially narrow, the bro
 
 ### Package and compatibility choices
 
-- Package name remains `beautiful-mermaid`; the agent surface ships as the `./agent` subpath. Rename/publish is owner-gated, not an implementation detail.
+- Package name remains `agentic-mermaid`; the agent surface ships as the `./agent` subpath. Rename/publish is owner-gated, not an implementation detail.
 - `MermaidGraph` and `renderMermaidSVGAsync` remain for compatibility with existing renderer/tests/consumers.
 - `state` diagrams currently share the flowchart body (`body.kind: 'flowchart'`) because the legacy parser produces a `MermaidGraph` for both. `kind` still distinguishes `state` from `flowchart`.
 

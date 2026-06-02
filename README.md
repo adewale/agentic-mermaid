@@ -1,14 +1,14 @@
 <div align="center">
 
-# beautiful-mermaid
+# agentic-mermaid
 
 **Render Mermaid diagrams as beautiful SVGs or ASCII art**
 
 Ultra-fast, fully themeable, zero DOM dependencies. Built for the AI era.
 
-![beautiful-mermaid sequence diagram example](assets/hero.png)
+![agentic-mermaid sequence diagram example](assets/hero.png)
 
-[![npm version](https://img.shields.io/npm/v/beautiful-mermaid.svg)](https://www.npmjs.com/package/beautiful-mermaid)
+[![npm version](https://img.shields.io/npm/v/agentic-mermaid.svg)](https://www.npmjs.com/package/agentic-mermaid)
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
 [**Live Demo & Samples**](https://adewale.github.io/beautiful-mermaid/) · [Live Editor](https://adewale.github.io/beautiful-mermaid/editor)
@@ -50,10 +50,10 @@ The ASCII rendering engine is based on [mermaid-ascii](https://github.com/Alexan
 
 ## Agent-native surface
 
-The `beautiful-mermaid/agent` subpath export gives AI agents two honest paths: author new Mermaid source directly and verify/render it, or use a typed editing loop for existing structured diagrams without rendering to an image to know whether an edit worked:
+The `agentic-mermaid/agent` subpath export gives AI agents two honest paths: author new Mermaid source directly and verify/render it, or use a typed editing loop for existing structured diagrams without rendering to an image to know whether an edit worked:
 
 ```ts
-import { parseMermaid, asFlowchart, mutate, verifyMermaid, serializeMermaid } from 'beautiful-mermaid/agent'
+import { parseMermaid, asFlowchart, mutate, verifyMermaid, serializeMermaid } from 'agentic-mermaid/agent'
 
 const d0 = parseMermaid('flowchart TD\n  API --> DB')
 if (!d0.ok) throw new Error('parse')
@@ -80,11 +80,11 @@ This fork adds several capabilities beyond the current upstream baseline. The fa
 ## Installation
 
 ```bash
-npm install beautiful-mermaid
+npm install agentic-mermaid
 # or
-bun add beautiful-mermaid
+bun add agentic-mermaid
 # or
-pnpm add beautiful-mermaid
+pnpm add agentic-mermaid
 ```
 
 ## Quick Start
@@ -92,7 +92,7 @@ pnpm add beautiful-mermaid
 ### SVG Output
 
 ```typescript
-import { renderMermaidSVG } from 'beautiful-mermaid'
+import { renderMermaidSVG } from 'agentic-mermaid'
 
 const svg = renderMermaidSVG(`
   graph TD
@@ -109,7 +109,7 @@ Need async? Use `renderMermaidSVGAsync()` — same output, returns a `Promise<st
 ### ASCII Output
 
 ```typescript
-import { renderMermaidASCII } from 'beautiful-mermaid'
+import { renderMermaidASCII } from 'agentic-mermaid'
 
 const ascii = renderMermaidASCII(`graph LR; A --> B --> C`)
 ```
@@ -129,7 +129,7 @@ const ascii = renderMermaidASCII(`graph LR; A --> B --> C`)
 Because rendering is synchronous, you can use `useMemo()` for zero-flash diagram rendering:
 
 ```tsx
-import { renderMermaidSVG } from 'beautiful-mermaid'
+import { renderMermaidSVG } from 'agentic-mermaid'
 
 function MermaidDiagram({ code }: { code: string }) {
   const { svg, error } = React.useMemo(() => {
@@ -161,7 +161,7 @@ function MermaidDiagram({ code }: { code: string }) {
 
 ## Theming
 
-The theming system is the heart of `beautiful-mermaid`. It's designed to be both powerful and dead simple.
+The theming system is the heart of `agentic-mermaid`. It's designed to be both powerful and dead simple.
 
 ### The Two-Color Foundation
 
@@ -258,7 +258,7 @@ const svg = renderMermaidSVG(diagram, {
 | `tufte-dark` | Dark | `#1C1C1A` | `#C87070` |
 
 ```typescript
-import { renderMermaidSVG, THEMES } from 'beautiful-mermaid'
+import { renderMermaidSVG, THEMES } from 'agentic-mermaid'
 
 const svg = renderMermaidSVG(diagram, THEMES['tokyo-night'])
 ```
@@ -293,7 +293,7 @@ Use **any VS Code theme** directly via Shiki integration. This gives you access 
 
 ```typescript
 import { getSingletonHighlighter } from 'shiki'
-import { renderMermaidSVG, fromShikiTheme } from 'beautiful-mermaid'
+import { renderMermaidSVG, fromShikiTheme } from 'agentic-mermaid'
 
 // Load any theme from Shiki's registry
 const highlighter = await getSingletonHighlighter({
@@ -397,7 +397,7 @@ Chronological milestones with optional section grouping — using Mermaid's `tim
 
 ```
 timeline
-  title Beautiful Mermaid
+  title Agentic Mermaid
   section Foundation
   2020 : First prototypes
   2021 : Internal rollout
@@ -519,7 +519,7 @@ xychart horizontal
 - Axis titles: `x-axis "Category" [A, B, C]`
 - Y-axis range: `y-axis "Score" 0 --> 100`
 
-**Beautiful Mermaid currently supports the full documented Mermaid xychart config/theme surface below, via YAML frontmatter or Mermaid `%%{init: ...}%%` / `%%{initialize: ...}%%` directives:**
+**Agentic Mermaid currently supports the full documented Mermaid xychart config/theme surface below, via YAML frontmatter or Mermaid `%%{init: ...}%%` / `%%{initialize: ...}%%` directives:**
 
 - `config.useMaxWidth` / `config.useWidth`
 - `config.xyChart.width` / `config.xyChart.height` as total chart size
@@ -574,7 +574,7 @@ config:
 
 ### XY Chart Styling
 
-The current xychart renderer stays intentionally close to Mermaid while still following Beautiful Mermaid's theme system and spacing standards:
+The current xychart renderer stays intentionally close to Mermaid while still following Agentic Mermaid's theme system and spacing standards:
 
 - **Explicit axes and ticks** - Axis lines and tick marks are rendered by default, with Mermaid frontmatter available to hide or restyle them
 - **Shared Mermaid config entry points** - The same supported xychart config/theme subset works through YAML frontmatter and Mermaid `init` / `initialize` directives
@@ -593,7 +593,7 @@ The current xychart renderer stays intentionally close to Mermaid while still fo
 For terminal environments, CLI tools, or anywhere you need plain text, render to ASCII or Unicode box-drawing characters:
 
 ```typescript
-import { renderMermaidASCII } from 'beautiful-mermaid'
+import { renderMermaidASCII } from 'agentic-mermaid'
 
 // Unicode mode (default) — prettier box drawing
 const unicode = renderMermaidASCII(`graph LR; A --> B`)
@@ -760,7 +760,7 @@ Default colors (`#FFFFFF` / `#27272A`).
 
 Adding a Mermaid-supported diagram type to this repo? Start with [ADDING_DIAGRAM_TYPES.md](./ADDING_DIAGRAM_TYPES.md).
 
-The short version: copy an official Mermaid example into a test, make sure `beautiful-mermaid` renders a recognizably similar diagram, commit the example source and rendered evidence, and cover parser, integration, theme, ASCII, and regression checks as applicable.
+The short version: copy an official Mermaid example into a test, make sure `agentic-mermaid` renders a recognizably similar diagram, commit the example source and rendered evidence, and cover parser, integration, theme, ASCII, and regression checks as applicable.
 
 ---
 

@@ -12,7 +12,7 @@ import { topRoundedRectPath } from '../svg-paths.ts'
 // Timeline diagram SVG renderer
 //
 // Visual language:
-//   - crisp section frames aligned with the rest of beautiful-mermaid
+//   - crisp section frames aligned with the rest of agentic-mermaid
 //   - a single horizontal rail
 //   - period pills above the rail
 //   - stacked event cards below the rail

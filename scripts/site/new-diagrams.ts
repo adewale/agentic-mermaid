@@ -160,8 +160,8 @@ const extraSamples: Sample[] = [
 
 const html = await generateHtml({
   categories: new Set(['Architecture', 'Timeline', 'Journey']),
-  title: 'Beautiful Mermaid — New Diagram Types',
-  description: 'Architecture, Timeline, and Journey diagram showcase for beautiful-mermaid.',
+  title: 'Agentic Mermaid — New Diagram Types',
+  description: 'Architecture, Timeline, and Journey diagram showcase for agentic-mermaid.',
   extraSamples,
   visibleThemes: new Set(['tufte', 'tufte-dark', 'salmon', 'salmon-dark']),
 })

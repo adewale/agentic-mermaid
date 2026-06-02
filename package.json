@@ -1,5 +1,5 @@
 {
-  "name": "beautiful-mermaid",
+  "name": "agentic-mermaid",
   "version": "1.1.3",
   "license": "MIT",
   "description": "Render Mermaid diagrams as beautiful SVGs or ASCII art. Ultra-fast, fully themeable, zero DOM dependencies.",

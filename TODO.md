@@ -15,14 +15,14 @@ Status legend: `todo` | `blocked` | `owner-decision` | `parked`.
 ## 0. Release / owner decisions
 
 - [ ] **DEC-1 — Rename + publish decision** (`owner-decision`). The package
-  is still `beautiful-mermaid@1.1.3`; the agent surface ships as the
+  is still `agentic-mermaid@1.1.3`; the agent surface ships as the
   `./agent` subpath. Decide the published name (for example
   `agentic-mermaid`) and whether/when to publish to npm.
 - [ ] **DEC-2 — Merge or explicitly park PR #11** (`owner-decision`). The
   agent-native milestone is large and should stop accumulating feature work
   until this decision is made.
 - [ ] **DEC-3 — Get one real external consumer** (`todo`). Validate
-  `beautiful-mermaid/agent`, `am`, or `agentic-mermaid-mcp` in a real agent,
+  `agentic-mermaid/agent`, `am`, or `agentic-mermaid-mcp` in a real agent,
   TUI, CI gate, or editor integration outside this repo.
 
 ## 1. Ready build backlog
