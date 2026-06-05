@@ -118,12 +118,18 @@ describe('root docs consistency', () => {
   })
 
   test('removed backlog/agent guide names do not reappear in markdown', () => {
+    // These removed internal files must not exist at the repo root. AGENTS.md is
+    // included because it is never one of OUR files — it is only ever a drop-in
+    // that `am init-agent` writes into a CONSUMER repo.
     expect(existsSync(join(REPO, 'ROADMAP.md'))).toBe(false)
     expect(existsSync(join(REPO, 'AGENT_TODO.md'))).toBe(false)
     expect(existsSync(join(REPO, 'AGENTS.md'))).toBe(false)
+    // ROADMAP/AGENT_TODO are dead names that must never be referenced again.
+    // "AGENTS.md" is intentionally NOT guarded as a string: README/CHANGELOG now
+    // legitimately describe the `am init-agent` drop-in, which writes an AGENTS.md.
     for (const name of readdirSync(REPO).filter(f => f.endsWith('.md'))) {
       const text = readFileSync(join(REPO, name), 'utf8')
-      expect({ file: name, stale: /\b(?:ROADMAP|AGENT_TODO|AGENTS\.md)\b/.test(text) }).toEqual({ file: name, stale: false })
+      expect({ file: name, stale: /\b(?:ROADMAP|AGENT_TODO)\b/.test(text) }).toEqual({ file: name, stale: false })
     }
   })
 

@@ -39,6 +39,11 @@ jobs:
           cp -r public/* _site/
           cp -r public/* _site/editor/
 
+      - name: Generate hosted agent manifest
+        run: |
+          bun run bin/am.ts llms-txt > _site/llms.txt
+          bun run bin/am.ts --agent-instructions > _site/agent-instructions.md
+
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
 

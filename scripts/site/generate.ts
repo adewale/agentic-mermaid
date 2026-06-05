@@ -1199,6 +1199,62 @@ export async function generateHtml(options: GenerateHtmlOptions = {}): Promise<s
       border-radius: 4px;
     }
 
+    /* -- Agent bootstrap CTA -- */
+    .agent-cta {
+      max-width: 1440px;
+      margin: 0 auto 1.5rem;
+      padding: 0 2rem;
+    }
+    @media (min-width: 1000px) {
+      .agent-cta { padding: 0 3rem; }
+    }
+    .agent-cta-box {
+      border-radius: 16px;
+      padding: 1.5rem;
+      background: color-mix(in srgb, var(--t-accent) 6%, var(--t-bg));
+      max-width: 760px;
+    }
+    .agent-cta-box h2 {
+      font-size: 1.1rem;
+      font-weight: 700;
+      margin: 0 0 0.35rem;
+      color: var(--t-fg);
+    }
+    .agent-cta-box p {
+      font-size: 0.9rem;
+      line-height: 1.6;
+      color: color-mix(in srgb, var(--t-fg) 70%, var(--t-bg));
+      margin: 0 0 0.75rem;
+      max-width: 680px;
+    }
+    .agent-cta-box pre {
+      font-family: 'JetBrains Mono', 'Fira Code', monospace;
+      font-size: 0.82rem;
+      line-height: 1.5;
+      background: color-mix(in srgb, var(--t-fg) 8%, var(--t-bg));
+      color: var(--t-fg);
+      padding: 0.85rem 1rem;
+      border-radius: 10px;
+      overflow-x: auto;
+      margin: 0 0 0.75rem;
+      white-space: pre;
+    }
+    .agent-cta-box code {
+      font-family: 'JetBrains Mono', 'Fira Code', monospace;
+      font-size: 0.85em;
+    }
+    .agent-cta-box a {
+      color: var(--t-fg);
+      text-decoration: underline;
+      text-underline-offset: 2px;
+    }
+    .agent-cta-box a:hover { color: var(--t-accent); }
+    .agent-cta-foot {
+      font-size: 0.82rem;
+      color: color-mix(in srgb, var(--t-fg) 55%, var(--t-bg)) !important;
+      margin: 0 !important;
+    }
+
     /* -- Hero meta (below buttons) -- */
     .hero-meta {
       margin-top: 1.25rem;
@@ -1407,6 +1463,26 @@ export async function generateHtml(options: GenerateHtmlOptions = {}): Promise<s
       <div class="meta">Early preview — actively evolving</div>
     </div>
   </header>
+
+  <!-- Agent bootstrap CTA -->
+  <section class="agent-cta" aria-label="Use with your coding agent">
+    <div class="agent-cta-box shadow-minimal">
+      <h2>Tell your agent to use this</h2>
+      <p>
+        Agentic Mermaid is agent-native. The fastest way to start is to point your
+        coding agent (Claude, Codex, Cursor…) at the contract — no clone, no manual install.
+      </p>
+      <pre>When editing Mermaid diagrams, use Agentic Mermaid.
+Read https://adewale.github.io/beautiful-mermaid/llms.txt and follow its
+parse → narrow → mutate → verify → serialize workflow. For new diagrams,
+author source directly, then verify and render.</pre>
+      <p class="agent-cta-foot">
+        Prefer a command? <code>npx -y --package agentic-mermaid am --agent-instructions</code>
+        prints the full guide. Drop it into a repo with <code>npx agentic-mermaid init-agent</code>,
+        or connect the <a href="https://github.com/adewale/beautiful-mermaid#use-it-with-your-agent">MCP server</a>.
+      </p>
+    </div>
+  </section>
 
   <div class="content-wrapper">
 

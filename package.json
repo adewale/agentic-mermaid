@@ -22,6 +22,7 @@
   },
   "bin": {
     "am": "./bin/am.ts",
+    "agentic-mermaid": "./bin/am.ts",
     "agentic-mermaid-mcp": "./bin/agentic-mermaid-mcp.ts"
   },
   "repository": {

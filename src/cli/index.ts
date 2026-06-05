@@ -23,6 +23,7 @@ import { WARNING_SEVERITY, WARNING_TIER } from '../agent/types.ts'
 import { knownFamilies, getFamily } from '../agent/families.ts'
 import '../agent/families-builtin.ts'
 import { AGENT_INSTRUCTIONS } from './agent-instructions.ts'
+import { initAgentFiles } from './init-agent.ts'
 import { EXIT_OK, EXIT_ARG_ERROR, EXIT_VERIFY_FAILED, EXIT_INTERNAL } from './exit-codes.ts'
 import type { ParseError } from '../agent/types.ts'
 
@@ -40,7 +41,7 @@ function parseErrorEnvelope(errors: ParseError[]): { ok: false; error: { code: s
 
 interface ParsedArgs { command?: string; positional: string[]; flags: Record<string, string | boolean> }
 
-const BOOLEAN_FLAGS = new Set(['agent-instructions', 'ascii', 'help', 'json', 'watch', 'open'])
+const BOOLEAN_FLAGS = new Set(['agent-instructions', 'ascii', 'help', 'json', 'watch', 'open', 'force'])
 
 function parseArgs(argv: string[]): ParsedArgs {
   const out: ParsedArgs = { positional: [], flags: {} }
@@ -92,6 +93,7 @@ Commands:
   batch                  Read JSONL ops from stdin; emit one JSON envelope per line
   render-markdown <file> Render fenced mermaid blocks in Markdown (SVG or --ascii)
   llms-txt               Emit the agent discovery digest
+  init-agent             Write a repo-local agent drop-in (AGENTS section, skill, MCP config)
 
 Flags:
   --json                 Structured JSON output
@@ -168,6 +170,14 @@ Render fenced \`\`\`mermaid blocks. Bad diagrams yield ok:false entries and do
 not abort the rest of the Markdown file.`,
   'llms-txt': `am llms-txt
 Emit the committed agent-discovery digest generated from current capabilities.`,
+  'init-agent': `am init-agent [--dir <path>] [--force]
+Write a repo-local agent drop-in so coding agents discover the parse → mutate →
+verify → serialize contract automatically. Creates (without clobbering):
+  - an AGENTS section pointing agents at the workflow + self-describing CLI
+  - .claude/skills/agentic-mermaid/SKILL.md (Claude Code skill bundle)
+  - .mcp.json (sample agentic-mermaid MCP server config)
+--dir defaults to the current directory. --force overwrites the skill/MCP files
+(the AGENTS section is always appended only once, guarded by a marker).`,
 }
 
 export function runCli(argv: string[]): number {
@@ -192,6 +202,7 @@ export function runCli(argv: string[]): number {
       case 'describe': return cmdDescribe(args, json)
       case 'capabilities': return cmdCapabilities()
       case 'llms-txt': return cmdLlmsTxt()
+      case 'init-agent': return cmdInitAgent(args, json)
       case 'batch': return cmdBatch()
       case 'render-markdown': return cmdRenderMarkdown(args)
       default:
@@ -758,6 +769,22 @@ verifyNoExternalRefs } from 'agentic-mermaid/agent'\`
 
 function cmdLlmsTxt(): number {
   process.stdout.write(buildLlmsTxt())
+  return EXIT_OK
+}
+
+function cmdInitAgent(args: ParsedArgs, json: boolean): number {
+  const dir = typeof args.flags.dir === 'string' ? resolve(args.flags.dir) : process.cwd()
+  const force = Boolean(args.flags.force)
+  const result = initAgentFiles({ dir, force })
+  if (json) {
+    process.stdout.write(JSON.stringify({ ok: true, ...result }) + '\n')
+    return EXIT_OK
+  }
+  const rel = (p: string) => p.startsWith(dir) ? '.' + p.slice(dir.length) : p
+  for (const p of result.written) process.stdout.write(`  created  ${rel(p)}\n`)
+  for (const p of result.appended) process.stdout.write(`  updated  ${rel(p)}\n`)
+  for (const p of result.skipped) process.stdout.write(`  skipped  ${rel(p)} (exists; use --force)\n`)
+  process.stdout.write('\nNext: connect the MCP server in .mcp.json, or run `am --agent-instructions`.\n')
   return EXIT_OK
 }
 

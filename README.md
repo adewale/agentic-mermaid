@@ -69,6 +69,52 @@ if (d1.ok && verifyMermaid(d1.value).ok) console.log(serializeMermaid(d1.value))
 
 See [`AGENT_NATIVE.md`](./AGENT_NATIVE.md), [`Instructions_for_agents.md`](./Instructions_for_agents.md), [`docs/mcp-code-mode-rationale.md`](./docs/mcp-code-mode-rationale.md), [`docs/agent-workflow-examples.md`](./docs/agent-workflow-examples.md), [`examples/agent-loop.ts`](./examples/agent-loop.ts), [`examples/mcp-vs-cli-complex-diagrams.ts`](./examples/mcp-vs-cli-complex-diagrams.ts), [`examples/agent-improve-auth-flow.ts`](./examples/agent-improve-auth-flow.ts), and [`docs/pr11-reviewer-guide.md`](./docs/pr11-reviewer-guide.md).
 
+## Use it with your agent
+
+The first-class entrypoint is telling your coding agent (Claude, Codex, Cursor, …) to use the contract — not installing a library. Pick whichever path fits.
+
+**1. Zero-install — point the agent at the hosted guide.** Works today, nothing to install:
+
+```text
+When editing Mermaid diagrams, use Agentic Mermaid.
+Read https://adewale.github.io/beautiful-mermaid/llms.txt and follow its
+parse → narrow → mutate → verify → serialize workflow. For new diagrams,
+author source directly, then verify and render.
+```
+
+The site also serves [`/agent-instructions.md`](https://adewale.github.io/beautiful-mermaid/agent-instructions.md) (the full agent-use guide) and [`/llms.txt`](https://adewale.github.io/beautiful-mermaid/llms.txt) (the discovery digest).
+
+**2. One command — print the contract the tool ships with.** The agent discovers the surface itself, no clone:
+
+```bash
+npx -y --package agentic-mermaid am --agent-instructions
+# the package-named bin works too:
+npx agentic-mermaid --agent-instructions
+```
+
+**3. MCP server — one config block for Code Mode.** Add to your MCP client (Claude Desktop, Claude Code, Cursor):
+
+```json
+{
+  "mcpServers": {
+    "agentic-mermaid": {
+      "command": "npx",
+      "args": ["-y", "--package", "agentic-mermaid", "agentic-mermaid-mcp"]
+    }
+  }
+}
+```
+
+**4. Wire it into a repo — one command.** `init-agent` drops the contract into your project so every agent session picks it up:
+
+```bash
+npx agentic-mermaid init-agent
+```
+
+It writes (without clobbering): an `AGENTS.md` section pointing agents at the workflow and the self-describing CLI, a `.claude/skills/agentic-mermaid/SKILL.md` Claude Code skill bundle, and a sample `.mcp.json` server config. Re-running is idempotent; pass `--force` to refresh the skill/MCP files.
+
+> The `npx … agentic-mermaid …` and MCP commands resolve once the package is published to npm under the `agentic-mermaid` name. Until then, the hosted-URL path (option 1) works with no install, and the commands run locally via `bun run bin/am.ts …`.
+
 ## Discovering Fork Features
 
 This fork adds several capabilities beyond the current upstream baseline. The fastest discovery paths are:

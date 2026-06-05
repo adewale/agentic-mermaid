@@ -5,13 +5,18 @@ This changelog tracks user-facing changes in the `adewale/beautiful-mermaid` for
 ## Unreleased
 
 ### Added
+- **Agent-first onboarding.** The primary entrypoint is now "tell your agent to use the contract," not "install a library":
+  - `am init-agent` writes a repo-local drop-in (an `AGENTS.md` section, a `.claude/skills/agentic-mermaid/SKILL.md` skill bundle, and a sample `.mcp.json`), idempotently and without clobbering.
+  - A package-named bin alias so `npx agentic-mermaid --agent-instructions` works (in addition to `am`).
+  - The GitHub Pages site now serves the hosted agent manifest at `/llms.txt` and `/agent-instructions.md`, plus a "Tell your agent to use this" box on the homepage.
+  - A new README **Use it with your agent** section covering the zero-install URL route, the `npx` bootstrap, the MCP config block, and `init-agent`.
 - **Agent-native surface** (`agentic-mermaid/agent` subpath export): a typed editing API for agents and tools.
   - `parseMermaid` → sealed `ValidDiagram` IR carrying frontmatter, init directives, comments, accessibility, and the canonical source.
   - `verifyMermaid` → structured `LayoutWarning` codes in two tiers (Tier 1 structural/reliable, Tier 2 geometric/advisory). No vision/PNG needed.
   - `mutate` → typed, family-narrowed structural edits for flowchart/state, simple sequence, timeline, class, and ER diagrams. Journey, xychart, architecture, and diagrams with unmodeled constructs use a lossless source-level/opaque body with no structured mutation exposed.
   - `serializeMermaid` / `synthesizeFromGraph` → round-trip back to canonical Mermaid source.
   - Deterministic layout JSON, verified byte-identical across processes (ELK is configured for model-order layout; there is no seed).
-- **`am` CLI**: `render`, `preview` (strict standalone HTML + optional `--open`), `verify`, `parse`, `serialize`, `mutate` (single `--op` or batched `--ops`, verify-before-emit), `format`, `describe`, `capabilities`, `batch` (including mutate), `render-markdown`, `llms-txt`, `--json`, per-command `--help`, and `--agent-instructions`.
+- **`am` CLI**: `render`, `preview` (strict standalone HTML + optional `--open`), `verify`, `parse`, `serialize`, `mutate` (single `--op` or batched `--ops`, verify-before-emit), `format`, `describe`, `capabilities`, `batch` (including mutate), `render-markdown`, `llms-txt`, `init-agent`, `--json`, per-command `--help`, and `--agent-instructions`.
 - **`agentic-mermaid-mcp`**: a Code Mode MCP server (one JavaScript `execute` tool, `node:vm` sandbox, typed SDK declaration) so agents compose the whole verify-before-commit loop in one round-trip.
 - **`Instructions_for_agents.md`** and a Claude Code skill bundle at `.claude/skills/agentic-mermaid/`.
 - See [`AGENT_NATIVE.md`](./AGENT_NATIVE.md) for the design, [`examples/agent-loop.ts`](./examples/agent-loop.ts) for a runnable walkthrough, [`examples/mcp-vs-cli-complex-diagrams.ts`](./examples/mcp-vs-cli-complex-diagrams.ts) for MCP-vs-CLI parity, and [`examples/agent-improve-auth-flow.ts`](./examples/agent-improve-auth-flow.ts) for create → assess → mutate → reassess → render.
