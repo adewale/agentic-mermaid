@@ -14,10 +14,12 @@ Status legend: `todo` | `blocked` | `owner-decision` | `parked`.
 
 ## 0. Release / owner decisions
 
-- [ ] **DEC-1 — Rename + publish decision** (`owner-decision`). The package
-  is still `agentic-mermaid@1.1.3`; the agent surface ships as the
-  `./agent` subpath. Decide the published name (for example
-  `agentic-mermaid`) and whether/when to publish to npm.
+- [ ] **DEC-1 — Publish `agentic-mermaid@0.1.0` to npm** (`owner-decision`).
+  The package is renamed to `agentic-mermaid` and versioned `0.1.0` with
+  node-runnable bins, `publishConfig` provenance, and a release workflow — all
+  prepped. Remaining owner-only steps: claim the npm name (or fall back to a
+  scope), add the `NPM_TOKEN`/OIDC secret, and cut the `v0.1.0` GitHub Release
+  that triggers `.github/workflows/publish.yml`.
 - [ ] **DEC-2 — Merge or explicitly park PR #11** (`owner-decision`). The
   agent-native milestone is large and should stop accumulating feature work
   until this decision is made.

@@ -4,7 +4,7 @@
 > Mermaid diagrams with a typed IR. Deterministic SVG / ASCII / PNG. No
 > browser required. CLI + MCP + library.
 
-Version: 1.1.3
+Version: 0.1.0
 
 ## What it does
 

@@ -2,7 +2,9 @@
 
 This changelog tracks user-facing changes in the `adewale/beautiful-mermaid` fork. Upstream-focused PR branches keep their own minimal histories.
 
-## Unreleased
+## 0.1.0
+
+First release under the `agentic-mermaid` name (forked and renamed from `beautiful-mermaid`). Versioning resets to `0.1.0` as a new package.
 
 ### Added
 - **Agent-first onboarding.** The primary entrypoint is now "tell your agent to use the contract," not "install a library":

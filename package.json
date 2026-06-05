@@ -1,6 +1,6 @@
 {
   "name": "agentic-mermaid",
-  "version": "1.1.3",
+  "version": "0.1.0",
   "license": "MIT",
   "description": "Render Mermaid diagrams as beautiful SVGs or ASCII art. Ultra-fast, fully themeable, zero DOM dependencies.",
   "type": "module",
@@ -21,9 +21,16 @@
     }
   },
   "bin": {
-    "am": "./bin/am.ts",
-    "agentic-mermaid": "./bin/am.ts",
-    "agentic-mermaid-mcp": "./bin/agentic-mermaid-mcp.ts"
+    "am": "./dist/am.js",
+    "agentic-mermaid": "./dist/am.js",
+    "agentic-mermaid-mcp": "./dist/agentic-mermaid-mcp.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
   },
   "repository": {
     "type": "git",
