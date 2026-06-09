@@ -1,11 +1,11 @@
 ---
-name: agentic-mermaid
-description: Author and edit Mermaid diagrams with structured verification, typed mutation, and round-trip serialization. Structured mutation for flowchart, state, sequence, timeline, class, and ER; source-level parse-and-render for journey, xychart, architecture, and opaque fallbacks.
+name: agentic-mermaid-diagram-workflow
+description: Agent-agnostic skill for authoring and editing Mermaid diagrams with structured verification, typed mutation, round-trip serialization, and ASCII, PNG, and SVG outputs. Structured mutation for flowchart, state, sequence, timeline, class, and ER; source-level parse-and-render for journey, xychart, architecture, and opaque fallbacks.
 ---
 
-# Agentic Mermaid
+# Agentic Mermaid — diagram workflow
 
-A typed editing surface for Mermaid. New diagrams can be authored as Mermaid source and verified/rendered directly. Existing modeled diagrams can be parsed to a `ValidDiagram`, mutated with typed ops, verified structurally (no pixels), and serialized back to canonical source. Layout is deterministic — verified cross-process, no seed.
+An agent-agnostic typed editing surface for Mermaid. New diagrams can be authored as Mermaid source and verified/rendered directly. Existing modeled diagrams can be parsed to a `ValidDiagram`, mutated with typed ops, verified structurally (no pixels), and serialized back to canonical source. Agentic Mermaid outputs ASCII, PNG, and SVG; layout is deterministic — verified cross-process, no seed.
 
 ## Pick a channel
 
@@ -43,4 +43,28 @@ For new diagrams, author Mermaid source directly, then `parseMermaid` / `verifyM
 5. On `!ok`, revert to the previous `ValidDiagram`, try another op.
 6. `serializeMermaid(d)` only after inspected verify passes.
 
-Do not regenerate or concatenate source to edit an existing structured diagram when a typed op exists. Direct source authoring is fine for new diagrams. See `references/flowchart.md`, `references/sequence.md`.
+Do not regenerate or concatenate source to edit an existing structured diagram when a typed op exists. Direct source authoring is fine for new diagrams. Mutation ops use the discriminator field `kind` (not `type`). Edge removal uses ids such as `{ kind: 'remove_edge', id: 'API->DB' }`; verify before serializing.
+
+Minimal existing-flowchart pattern:
+
+```ts
+const parsed = parseMermaid(source)
+if (!parsed.ok) return { phase: 'parse', errors: parsed.error }
+let cur = asFlowchart(parsed.value)
+if (!cur) return { phase: 'narrow', family: parsed.value.kind }
+for (const op of [
+  { kind: 'remove_edge', id: 'API->DB' },
+  { kind: 'add_node', id: 'Cache', label: 'Cache' },
+  { kind: 'add_edge', from: 'API', to: 'Cache' },
+  { kind: 'add_edge', from: 'Cache', to: 'DB' },
+] as const) {
+  const next = mutate(cur, op)
+  if (!next.ok) return { phase: 'mutate', op, error: next.error }
+  cur = next.value
+}
+const verify = verifyMermaid(cur)
+if (!verify.ok) return { phase: 'verify', warnings: verify.warnings }
+return { source: serializeMermaid(cur) }
+```
+
+See `references/flowchart.md`, `references/sequence.md`, `references/timeline.md`, and the repository cookbook at `docs/agent-api-cookbook.md`.

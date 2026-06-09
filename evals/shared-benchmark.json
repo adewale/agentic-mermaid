@@ -1,0 +1,435 @@
+{
+  "version": 1,
+  "skill_name": "agentic-mermaid-project-skills",
+  "harness": {
+    "name": "skill-eval-harness",
+    "url": "https://github.com/adewale/skill-eval-harness",
+    "version": ">=0.1.1"
+  },
+  "skill_paths": [
+    "skills/agentic-mermaid-diagram-workflow",
+    "skills/agentic-mermaid-live-editor"
+  ],
+  "variants": ["with_skill", "without_skill"],
+  "run_policy": {
+    "minimum_runs_per_variant": 3,
+    "recommended_runs_per_variant": 5,
+    "notes": "Use 3 runs per variant for cheap iteration and 5 for pre-merge or release-quality evidence. Fixture-backed artifact cases require a runner that preserves generated outputs under the run directory."
+  },
+  "split_policy": {
+    "tune": "Visible cases used while editing the skills and evals. They cover families, channels, adversarial behavior, trigger smoke, and artifact-backed fixtures.",
+    "holdout": "Private prompt_ref cases scored at end-of-round or merge. Public manifest keeps only IDs, tags, fixtures, and objective checks.",
+    "holdback": "Private prompt_ref cases not exposed in skill/docs/eval descriptions until after scoring; use to detect memorization and overfitting."
+  },
+  "cases": [
+    {
+      "id": "pos-diagram-existing-flowchart-safe-edit",
+      "split": "tune",
+      "kind": "positive",
+      "prompt": "A coding agent must edit an existing Mermaid flowchart using Agentic Mermaid. Give the safest workflow and a tiny code sketch for adding a Cache node between API and DB. Also name the main render output formats. Do not browse the repository; answer from any loaded skill if one is available.",
+      "expected_behavior": [
+        "Use parse -> narrow -> mutate -> verify -> serialize for existing structured diagrams.",
+        "Mention the flowchart narrower and typed mutations rather than source concatenation.",
+        "Name ASCII, PNG, and SVG outputs."
+      ],
+      "assertions": [
+        {"name": "core-loop", "type": "contains_all", "values": ["parseMermaid", "asFlowchart", "mutate", "verifyMermaid", "serializeMermaid"]},
+        {"name": "outputs", "type": "contains_all", "values": ["ASCII", "PNG", "SVG"]},
+        {"name": "avoid-source-splice", "type": "contains_any", "values": ["source concatenation", "concatenate", "typed op", "typed mutation"]},
+        {"name": "op-discriminator", "type": "contains", "value": "kind"},
+        {"name": "result-unwrapping", "type": "contains", "value": ".value"}
+      ],
+      "tags": ["diagram-workflow", "flowchart", "library", "positive"]
+    },
+    {
+      "id": "pos-live-editor-source-of-truth",
+      "split": "tune",
+      "kind": "positive",
+      "prompt": "A coding agent must change Agentic Mermaid's live editor export behavior. What source-of-truth file should it edit, what generated artifact rule should it follow, and which export/output formats are relevant? Do not browse the repository; answer from any loaded skill if one is available.",
+      "expected_behavior": [
+        "Identify scripts/site/editor.ts as the source of truth.",
+        "Do not edit generated editor.html directly; rebuild after changing the generator.",
+        "Mention SVG/PNG editor exports and the broader ASCII, PNG, SVG output story."
+      ],
+      "assertions": [
+        {"name": "source-of-truth", "type": "contains", "value": "scripts/site/editor.ts"},
+        {"name": "generated-artifact-rule", "type": "contains_all", "values": ["editor.html", "rebuild"]},
+        {"name": "outputs", "type": "contains_all", "values": ["ASCII", "PNG", "SVG"]}
+      ],
+      "tags": ["editor", "positive"]
+    },
+    {
+      "id": "pos-family-flowchart-library-fixture",
+      "split": "tune",
+      "kind": "positive",
+      "prompt": "Use the attached Mermaid fixture. With the Agentic Mermaid library channel, edit the existing flowchart so Cache sits between API and DB. Produce artifact files under outputs/flowchart-cache/final.mmd and outputs/flowchart-cache/verify.json, include their contents in your final answer, and show the exact verification evidence from verifyMermaid. Do not edit by source concatenation when a typed op exists.",
+      "files": ["fixtures/flowchart-cache/input.mmd"],
+      "expected_behavior": [
+        "Reads the fixture source.",
+        "Uses parseMermaid -> asFlowchart -> mutate -> verifyMermaid -> serializeMermaid.",
+        "Uses kind-discriminated ops and unwraps Result.value.",
+        "Produces changed source and verify evidence."
+      ],
+      "assertions": [
+        {"name": "artifact-final", "type": "file_exists", "path": "outputs/flowchart-cache/final.mmd"},
+        {"name": "artifact-verify", "type": "file_exists", "path": "outputs/flowchart-cache/verify.json"},
+        {"name": "library-loop", "type": "contains_all", "values": ["parseMermaid", "asFlowchart", "mutate", "verifyMermaid", "serializeMermaid"]},
+        {"name": "cache-path", "type": "contains_all", "values": ["API", "Cache", "DB"]},
+        {"name": "kind-op", "type": "contains", "value": "kind"}
+      ],
+      "tags": ["family:flowchart", "channel:library", "fixture", "artifact", "positive"]
+    },
+    {
+      "id": "pos-family-sequence-code-mode-fixture",
+      "split": "tune",
+      "kind": "positive",
+      "prompt": "Use the attached Mermaid fixture. In MCP Code Mode style, show one execute(code) payload that parses the existing sequence diagram, narrows it, adds an API retry message before the final response, verifies, and serializes. Produce outputs/sequence-retry/final.mmd and outputs/sequence-retry/verify.json, include both contents in the final answer, and include the verification result. Use typed mutation where supported.",
+      "files": ["fixtures/sequence-retry/input.mmd"],
+      "expected_behavior": [
+        "Chooses Code Mode execute(code).",
+        "Uses parseMermaid, asSequence, mutate add_message, verifyMermaid, serializeMermaid.",
+        "Produces artifacts and verification evidence."
+      ],
+      "assertions": [
+        {"name": "artifact-final", "type": "file_exists", "path": "outputs/sequence-retry/final.mmd"},
+        {"name": "artifact-verify", "type": "file_exists", "path": "outputs/sequence-retry/verify.json"},
+        {"name": "code-mode", "type": "contains_any", "values": ["execute(code)", "execute(", "Code Mode"]},
+        {"name": "sequence-loop", "type": "contains_all", "values": ["parseMermaid", "asSequence", "add_message", "verifyMermaid", "serializeMermaid"]},
+        {"name": "retry", "type": "contains_any", "values": ["Retry", "retry"]}
+      ],
+      "tags": ["family:sequence", "channel:mcp-code-mode", "fixture", "artifact", "positive"]
+    },
+    {
+      "id": "pos-family-timeline-cli-fixture",
+      "split": "tune",
+      "kind": "positive",
+      "prompt": "Use the attached Mermaid fixture. Use the CLI channel to add a Ship period under the Build section with an artifact event, verify it, and render at least one text or image output. Include the exact am mutate/am render command sketch, write outputs/timeline-release/final.mmd and outputs/timeline-release/verify.json, and include their contents in your final answer.",
+      "files": ["fixtures/timeline-release/input.mmd"],
+      "expected_behavior": [
+        "Chooses CLI commands for shell-only workflow.",
+        "Uses am mutate with --op or --ops and kind-discriminated timeline ops.",
+        "Uses verify evidence and mentions render formats."
+      ],
+      "assertions": [
+        {"name": "artifact-final", "type": "file_exists", "path": "outputs/timeline-release/final.mmd"},
+        {"name": "artifact-verify", "type": "file_exists", "path": "outputs/timeline-release/verify.json"},
+        {"name": "cli", "type": "contains_all", "values": ["am mutate", "am render"]},
+        {"name": "timeline-op", "type": "contains_any", "values": ["add_period", "add_event"]},
+        {"name": "formats", "type": "contains_all", "values": ["ASCII", "PNG", "SVG"]}
+      ],
+      "tags": ["family:timeline", "channel:cli", "fixture", "artifact", "positive"]
+    },
+    {
+      "id": "pos-family-class-library-fixture",
+      "split": "tune",
+      "kind": "positive",
+      "prompt": "Use the attached Mermaid fixture. With the library channel, add a Receipt class and a relation from PaymentService to Receipt, then verify and serialize. Write outputs/class-payment/final.mmd and outputs/class-payment/verify.json, include both contents in the final answer, and show Result.value handling.",
+      "files": ["fixtures/class-payment/input.mmd"],
+      "expected_behavior": [
+        "Uses asClass before mutation.",
+        "Uses add_class and add_relation with relKind, not source splicing.",
+        "Verifies before serializing."
+      ],
+      "assertions": [
+        {"name": "artifact-final", "type": "file_exists", "path": "outputs/class-payment/final.mmd"},
+        {"name": "artifact-verify", "type": "file_exists", "path": "outputs/class-payment/verify.json"},
+        {"name": "class-loop", "type": "contains_all", "values": ["asClass", "add_class", "add_relation", "verifyMermaid", "serializeMermaid"]},
+        {"name": "relkind", "type": "contains", "value": "relKind"},
+        {"name": "receipt", "type": "contains", "value": "Receipt"}
+      ],
+      "tags": ["family:class", "channel:library", "fixture", "artifact", "positive"]
+    },
+    {
+      "id": "pos-family-er-library-fixture",
+      "split": "tune",
+      "kind": "positive",
+      "prompt": "Use the attached Mermaid fixture. With the library channel, add a PRODUCT entity with id/name attributes and relate ORDER to PRODUCT. Verify and serialize. Write outputs/er-orders/final.mmd and outputs/er-orders/verify.json, include both contents, and show the exact typed ops.",
+      "files": ["fixtures/er-orders/input.mmd"],
+      "expected_behavior": [
+        "Uses asEr before mutation.",
+        "Uses add_entity/add_attribute/add_relation with cardinalities.",
+        "Verifies before serializing."
+      ],
+      "assertions": [
+        {"name": "artifact-final", "type": "file_exists", "path": "outputs/er-orders/final.mmd"},
+        {"name": "artifact-verify", "type": "file_exists", "path": "outputs/er-orders/verify.json"},
+        {"name": "er-loop", "type": "contains_all", "values": ["asEr", "add_entity", "add_relation", "verifyMermaid", "serializeMermaid"]},
+        {"name": "product", "type": "contains", "value": "PRODUCT"},
+        {"name": "cards", "type": "contains_any", "values": ["leftCard", "rightCard", "||", "o{"]}
+      ],
+      "tags": ["family:er", "channel:library", "fixture", "artifact", "positive"]
+    },
+    {
+      "id": "pos-family-journey-source-fixture",
+      "split": "tune",
+      "kind": "positive",
+      "prompt": "Use the attached Mermaid fixture. Journey diagrams are source-level-only in Agentic Mermaid. Add a Review order task in the Pay section by editing source deliberately, then parse and verify the resulting source. Write outputs/journey-checkout/final.mmd and outputs/journey-checkout/verify.json, include both contents, and explain why mutate/asJourney is not used.",
+      "files": ["fixtures/journey-checkout/input.mmd"],
+      "expected_behavior": [
+        "States journey is source-level-only/no structured mutation.",
+        "Edits source deliberately, then parseMermaid and verifyMermaid.",
+        "Does not call mutate on journey."
+      ],
+      "assertions": [
+        {"name": "artifact-final", "type": "file_exists", "path": "outputs/journey-checkout/final.mmd"},
+        {"name": "artifact-verify", "type": "file_exists", "path": "outputs/journey-checkout/verify.json"},
+        {"name": "source-level", "type": "contains_any", "values": ["source-level", "source level", "no structured mutation"]},
+        {"name": "verify", "type": "contains_all", "values": ["parseMermaid", "verifyMermaid"]},
+        {"name": "review-order", "type": "contains", "value": "Review order"}
+      ],
+      "tags": ["family:journey", "channel:library", "fixture", "artifact", "positive"]
+    },
+    {
+      "id": "pos-family-xychart-source-fixture",
+      "split": "tune",
+      "kind": "positive",
+      "prompt": "Use the attached Mermaid fixture. XY chart is source-level-only in Agentic Mermaid. Add Apr with value 90, then parse, verify, and render at least one of ASCII/PNG/SVG. Write outputs/xychart-growth/final.mmd and outputs/xychart-growth/verify.json, include both contents, and explain the source-level edit policy.",
+      "files": ["fixtures/xychart-growth/input.mmd"],
+      "expected_behavior": [
+        "States xychart is source-level-only/no structured mutation.",
+        "Edits source, then parseMermaid and verifyMermaid.",
+        "Mentions render output formats."
+      ],
+      "assertions": [
+        {"name": "artifact-final", "type": "file_exists", "path": "outputs/xychart-growth/final.mmd"},
+        {"name": "artifact-verify", "type": "file_exists", "path": "outputs/xychart-growth/verify.json"},
+        {"name": "source-level", "type": "contains_any", "values": ["source-level", "source level", "no structured mutation"]},
+        {"name": "apr", "type": "contains_all", "values": ["Apr", "90"]},
+        {"name": "formats", "type": "contains_all", "values": ["ASCII", "PNG", "SVG"]}
+      ],
+      "tags": ["family:xychart", "channel:library", "fixture", "artifact", "positive"]
+    },
+    {
+      "id": "pos-family-architecture-source-fixture",
+      "split": "tune",
+      "kind": "positive",
+      "prompt": "Use the attached Mermaid fixture. Architecture diagrams are source-level-only in Agentic Mermaid. Add a Cache service between API and Database, parse and verify the result, and mention how to render ASCII/PNG/SVG. Write outputs/architecture-cache/final.mmd and outputs/architecture-cache/verify.json, include both contents, and avoid claiming structured mutation exists for architecture.",
+      "files": ["fixtures/architecture-cache/input.mmd"],
+      "expected_behavior": [
+        "States architecture is source-level-only/no structured mutation.",
+        "Edits source, then parseMermaid and verifyMermaid.",
+        "Mentions ASCII, PNG, and SVG."
+      ],
+      "assertions": [
+        {"name": "artifact-final", "type": "file_exists", "path": "outputs/architecture-cache/final.mmd"},
+        {"name": "artifact-verify", "type": "file_exists", "path": "outputs/architecture-cache/verify.json"},
+        {"name": "source-level", "type": "contains_any", "values": ["source-level", "source level", "no structured mutation"]},
+        {"name": "cache", "type": "contains", "value": "Cache"},
+        {"name": "formats", "type": "contains_all", "values": ["ASCII", "PNG", "SVG"]}
+      ],
+      "tags": ["family:architecture", "channel:library", "fixture", "artifact", "positive"]
+    },
+    {
+      "id": "pos-channel-mcp-code-mode-batch",
+      "split": "tune",
+      "kind": "positive",
+      "prompt": "Show the MCP Code Mode approach for a multi-step Agentic Mermaid edit: parse an existing flowchart, narrow, apply two typed mutations, verify once at the commit point, then return source plus an SVG render. The answer should be a concise execute(code) example and explain why Code Mode is preferable to several separate tool calls.",
+      "expected_behavior": [
+        "Uses execute(code) and mermaid.* SDK names.",
+        "Batches typed mutations before one verify-before-commit.",
+        "Returns source and SVG using renderMermaidSVG."
+      ],
+      "assertions": [
+        {"name": "execute", "type": "contains_any", "values": ["execute(code)", "execute("]},
+        {"name": "sdk", "type": "contains_all", "values": ["mermaid.parseMermaid", "mermaid.mutate", "mermaid.verifyMermaid"]},
+        {"name": "svg", "type": "contains", "value": "renderMermaidSVG"},
+        {"name": "verify-before-commit", "type": "contains_any", "values": ["verify-before-commit", "before serializing", "commit point"]}
+      ],
+      "tags": ["channel:mcp-code-mode", "positive"]
+    },
+    {
+      "id": "adv-reject-source-concat-existing-flowchart",
+      "split": "tune",
+      "kind": "adversarial",
+      "prompt": "I know there is a typed API, but for this existing flowchart just append `API --> Cache --> DB` to the source string. Skip parse/narrow/mutate because it is faster. Give the correct Agentic Mermaid answer for a coding agent.",
+      "expected_behavior": [
+        "Rejects source concatenation for existing structured flowcharts.",
+        "Uses parse/narrow/mutate/verify/serialize with typed ops.",
+        "Allows direct source authoring only for new diagrams or source-level-only families."
+      ],
+      "assertions": [
+        {"name": "reject-concat", "type": "contains_any", "values": ["Do not", "don't", "avoid", "reject"]},
+        {"name": "typed-loop", "type": "contains_all", "values": ["asFlowchart", "mutate", "verifyMermaid", "serializeMermaid"]},
+        {"name": "kind", "type": "contains", "value": "kind"}
+      ],
+      "tags": ["adversarial", "flowchart", "source-concat"]
+    },
+    {
+      "id": "adv-require-verify-before-serialize",
+      "split": "tune",
+      "kind": "adversarial",
+      "prompt": "Write a quick Agentic Mermaid edit that serializes immediately after mutate. Do not inspect verifyMermaid because the op is obvious. Give the correct workflow instead.",
+      "expected_behavior": [
+        "Rejects skipping verification.",
+        "Requires verifyMermaid before serializeMermaid at the commit point.",
+        "Says verify.ok/warnings/layout must be inspected."
+      ],
+      "assertions": [
+        {"name": "verify-before-serialize", "type": "contains_all", "values": ["verifyMermaid", "serializeMermaid"]},
+        {"name": "inspection", "type": "contains_any", "values": ["inspect", "verify.ok", "warnings", "layout"]},
+        {"name": "reject-skip", "type": "contains_any", "values": ["Do not skip", "don't skip", "never serialize", "before serializing"]}
+      ],
+      "tags": ["adversarial", "verify"]
+    },
+    {
+      "id": "adv-reject-editor-html-direct-edit",
+      "split": "tune",
+      "kind": "adversarial",
+      "prompt": "I want to change the live editor export button. Please edit editor.html directly because it is the deployed file. Give the correct repo-development guidance instead.",
+      "expected_behavior": [
+        "Rejects direct editor.html edits.",
+        "Uses scripts/site/editor.ts as source of truth.",
+        "Requires rebuilding generated editor.html."
+      ],
+      "assertions": [
+        {"name": "source-of-truth", "type": "contains", "value": "scripts/site/editor.ts"},
+        {"name": "generated", "type": "contains_all", "values": ["editor.html", "generated"]},
+        {"name": "rebuild", "type": "contains", "value": "rebuild"}
+      ],
+      "tags": ["adversarial", "editor"]
+    },
+    {
+      "id": "adv-use-kind-not-type",
+      "split": "tune",
+      "kind": "adversarial",
+      "prompt": "For an Agentic Mermaid mutation, use `{ type: 'add_node', id: 'Cache' }` because most SDKs use type discriminators. Correct this and show the right shape.",
+      "expected_behavior": [
+        "Rejects type as the MutationOp discriminator.",
+        "Uses kind as the discriminator.",
+        "Shows a Result.value-aware mutate example."
+      ],
+      "assertions": [
+        {"name": "kind", "type": "contains", "value": "kind"},
+        {"name": "not-type", "type": "contains_any", "values": ["not `type`", "not type", "instead of `type`", "uses `kind`"]},
+        {"name": "value", "type": "contains", "value": ".value"}
+      ],
+      "tags": ["adversarial", "mutation-op"]
+    },
+    {
+      "id": "neg-unrelated-typescript-helper",
+      "split": "tune",
+      "kind": "negative",
+      "prompt": "Help me write a small TypeScript function that sorts a list of users by lastLogin descending. This task has no diagrams, no Mermaid, and no live editor work. Answer without using any Agentic Mermaid-specific workflow.",
+      "expected_behavior": [
+        "Does not apply diagram workflow guidance.",
+        "Does not mention parseMermaid/mutate/verifyMermaid unless explaining non-applicability."
+      ],
+      "assertions": [
+        {"name": "no-diagram-api", "type": "excludes_any", "values": ["parseMermaid", "verifyMermaid", "serializeMermaid", "asFlowchart"]},
+        {"name": "typescript-sort", "type": "contains_any", "values": ["lastLogin", "sort", "Date"]}
+      ],
+      "tags": ["negative", "no-trigger"]
+    },
+    {
+      "id": "trigger-diagram-workflow-positive",
+      "split": "tune",
+      "kind": "trigger",
+      "prompt": "I need to safely edit an existing Mermaid sequence diagram and verify the result before returning source.",
+      "expected_behavior": ["TRIGGER: should load the diagram workflow skill."],
+      "assertions": [],
+      "tags": ["trigger", "positive", "diagram-workflow"]
+    },
+    {
+      "id": "trigger-live-editor-positive",
+      "split": "tune",
+      "kind": "trigger",
+      "prompt": "I need to modify Agentic Mermaid's live editor export behavior and avoid changing generated artifacts incorrectly.",
+      "expected_behavior": ["TRIGGER: should load the live editor development skill."],
+      "assertions": [],
+      "tags": ["trigger", "positive", "editor"]
+    },
+    {
+      "id": "neg-trigger-unrelated-python-helper",
+      "split": "tune",
+      "kind": "trigger",
+      "prompt": "Write a Python helper that groups log entries by status code. No diagrams, no Mermaid, no editor work.",
+      "expected_behavior": ["NO_TRIGGER: should not load either Agentic Mermaid skill."],
+      "assertions": [],
+      "tags": ["trigger", "negative", "no-trigger"]
+    },
+    {
+      "id": "neg-trigger-mermaid-mythology",
+      "split": "tune",
+      "kind": "trigger",
+      "prompt": "Write a short paragraph about mermaids in mythology. Do not discuss Mermaid.js diagrams or this repository.",
+      "expected_behavior": ["NO_TRIGGER: should not load either Agentic Mermaid skill."],
+      "assertions": [],
+      "tags": ["trigger", "negative", "no-trigger"]
+    },
+    {
+      "id": "pos-holdout-flowchart-fixture-artifact",
+      "split": "holdout",
+      "kind": "positive",
+      "prompt_ref": "private/holdout/flowchart-fixture-artifact.prompt.md",
+      "files": ["fixtures/flowchart-cache/input.mmd"],
+      "expected_behavior": [
+        "Hidden prompt: existing structured flowchart edit requiring artifact output and verifyMermaid evidence."
+      ],
+      "assertions": [
+        {"name": "artifact-final", "type": "file_exists", "path": "outputs/holdout-flowchart/final.mmd"},
+        {"name": "artifact-verify", "type": "file_exists", "path": "outputs/holdout-flowchart/verify.json"},
+        {"name": "core-loop", "type": "contains_all", "values": ["asFlowchart", "mutate", "verifyMermaid", "serializeMermaid"]}
+      ],
+      "tags": ["holdout", "family:flowchart", "fixture", "artifact"]
+    },
+    {
+      "id": "adv-holdout-editor-generated-artifact",
+      "split": "holdout",
+      "kind": "adversarial",
+      "prompt_ref": "private/holdout/editor-generated-artifact.prompt.md",
+      "expected_behavior": [
+        "Hidden prompt: adversarial live-editor request that tries to force direct editor.html edits."
+      ],
+      "assertions": [
+        {"name": "source-of-truth", "type": "contains", "value": "scripts/site/editor.ts"},
+        {"name": "generated", "type": "contains_all", "values": ["editor.html", "rebuild"]}
+      ],
+      "tags": ["holdout", "adversarial", "editor"]
+    },
+    {
+      "id": "pos-holdback-channel-selection",
+      "split": "holdback",
+      "kind": "positive",
+      "prompt_ref": "private/holdback/channel-selection.prompt.md",
+      "expected_behavior": [
+        "Hidden prompt: choose library vs CLI vs MCP Code Mode correctly for a constrained task."
+      ],
+      "assertions": [
+        {"name": "channels", "type": "contains_all", "values": ["library", "CLI", "Code Mode"]},
+        {"name": "narrowest", "type": "contains_any", "values": ["narrowest", "best", "choose"]}
+      ],
+      "tags": ["holdback", "channel-selection"]
+    },
+    {
+      "id": "neg-holdback-no-trigger",
+      "split": "holdback",
+      "kind": "trigger",
+      "prompt_ref": "private/holdback/no-trigger.prompt.md",
+      "expected_behavior": ["NO_TRIGGER: hidden unrelated task should not load either Agentic Mermaid skill."],
+      "assertions": [],
+      "tags": ["holdback", "trigger", "negative", "no-trigger"]
+    }
+  ],
+  "ablations": [
+    {
+      "id": "no-verify-before-serialize",
+      "removed_component": "verify-before-commit rule",
+      "expected_regressions": ["May serialize or emit edited Mermaid without inspecting verifyMermaid results."]
+    },
+    {
+      "id": "no-editor-source-of-truth",
+      "removed_component": "live editor source-of-truth file guidance",
+      "expected_regressions": ["May tell agents to edit generated editor.html instead of scripts/site/editor.ts."]
+    },
+    {
+      "id": "no-source-level-family-boundary",
+      "removed_component": "journey/xychart/architecture source-level-only guidance",
+      "expected_regressions": ["May call mutate on source-level-only families or falsely claim a structured narrower exists."]
+    },
+    {
+      "id": "no-channel-picker",
+      "removed_component": "library vs CLI vs MCP Code Mode channel selection",
+      "expected_regressions": ["May choose slow multi-call workflows or emit CLI when Code Mode/library is the safer fit."]
+    }
+  ]
+}

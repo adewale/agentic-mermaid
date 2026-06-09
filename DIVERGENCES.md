@@ -56,9 +56,10 @@ Keep these in sync when changing agent behavior:
 - `am capabilities` and CLI help;
 - MCP SDK declaration and server instructions;
 - `Instructions_for_agents.md` / `am --agent-instructions`;
-- `.claude/skills/agentic-mermaid/*`;
+- `skills/agentic-mermaid-diagram-workflow/*`;
+- `skills/agentic-mermaid-live-editor/SKILL.md`;
 - `llms.txt`;
-- `docs/agent-mutation-policy.md`.
+- `docs/agent-api-cookbook.md`.
 
 Doc-sync tests exist because agents consume docs and capability JSON as runtime surface, not just prose.
 

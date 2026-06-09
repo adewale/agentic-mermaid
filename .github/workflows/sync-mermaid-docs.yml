@@ -22,7 +22,7 @@ jobs:
           sparse-checkout-cone-mode: true
       - name: Refresh upstream references
         run: |
-          DEST=".claude/skills/agentic-mermaid/references/upstream"
+          DEST="skills/agentic-mermaid-diagram-workflow/references/upstream"
           rm -rf "$DEST"; mkdir -p "$DEST"
           if [ -d mermaid-upstream/docs/syntax ]; then
             find mermaid-upstream/docs/syntax -maxdepth 1 -name '*.md' -exec cp {} "$DEST/" \;
@@ -34,4 +34,4 @@ jobs:
         uses: stefanzweifel/git-auto-commit-action@v5
         with:
           commit_message: "chore(skill): sync upstream Mermaid syntax references"
-          file_pattern: ".claude/skills/agentic-mermaid/references/upstream/**"
+          file_pattern: "skills/agentic-mermaid-diagram-workflow/references/upstream/**"

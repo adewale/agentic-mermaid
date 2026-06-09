@@ -1,0 +1,8 @@
+sequenceDiagram
+  participant Client
+  participant API
+  participant DB
+  Client->>API: Request
+  API->>DB: Query
+  DB-->>API: Result
+  API-->>Client: Response

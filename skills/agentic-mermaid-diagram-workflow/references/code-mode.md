@@ -25,11 +25,11 @@ mermaid.mutate(klass,    ClassMutationOp):     Result<ClassValidDiagram, Mutatio
 mermaid.mutate(er,       ErMutationOp):        Result<ErValidDiagram, MutationError>
 mermaid.verifyMermaid(input, { suppress?, labelCharCap? }): VerifyResult
 mermaid.serializeMermaid(d): string
-mermaid.renderMermaidSVG(input, { security?: 'default'|'strict', idPrefix?, mermaidConfig?: MermaidRuntimeConfig }): string
 mermaid.renderMermaidASCII(input, { useAscii?: boolean, mermaidConfig?: MermaidRuntimeConfig }): string
+mermaid.renderMermaidSVG(input, { security?: 'default'|'strict', idPrefix?, mermaidConfig?: MermaidRuntimeConfig }): string
 ```
 
-`MermaidRuntimeConfig` matches the runtime config surface: arbitrary Mermaid config keys plus `theme`, `fontFamily`, `themeVariables`, `timeline`, `xyChart`, `useMaxWidth`, `useWidth`, and `themeCSS`.
+Agentic Mermaid outputs ASCII, PNG, and SVG. In Code Mode, render ASCII/SVG through `mermaid.*`; use the narrow MCP `render_png` helper or host/library code for PNG binary output. `MermaidRuntimeConfig` matches the runtime config surface: arbitrary Mermaid config keys plus `theme`, `fontFamily`, `themeVariables`, `timeline`, `xyChart`, `useMaxWidth`, `useWidth`, and `themeCSS`.
 
 All SDK methods are synchronous and pure. Code Mode does not support `async`/`await`, Promise jobs, or dynamic import. Layout is deterministic; there is no seed.
 

@@ -35,6 +35,8 @@ or preserves source verbatim. Constructs are never silently dropped.
 
 ## Output formats
 
+Agentic Mermaid outputs **ASCII, PNG, and SVG** from the same renderer foundation, with Unicode text and JSON layout available for specialized workflows.
+
 - **SVG** — `renderMermaidSVG` (`compact`, `security:'strict'`, CSS
   variable fonts, `idPrefix` namespacing). CLI exposes `--security strict`.
 - **ASCII / Unicode** — `renderMermaidASCII` (CJK/emoji width, FE0F/ZWJ,
@@ -110,6 +112,6 @@ Code Mode `execute(code)` (JavaScript in a `node:vm` sandbox with a typed
 
 ## Not browser-dependent
 
-The entire core (parse/verify/mutate/serialize/SVG/ASCII/PNG) runs with no
+The entire core (parse/verify/mutate/serialize/ASCII/PNG/SVG) runs with no
 DOM, no headless browser, synchronously. This is the structural
 differentiator vs Puppeteer-based Mermaid CLIs.

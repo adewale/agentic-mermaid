@@ -1,46 +1,49 @@
 ---
-name: agentic-mermaid-editor
+name: agentic-mermaid-live-editor-development
 description: >-
-  Architecture, patterns, and change guide for the Agentic Mermaid live editor.
-  Use when modifying editor.ts, adding Config options, changing the UI, adding
-  export formats, wiring new diagram options, or debugging the editor page.
+  Agent-agnostic development skill for the Agentic Mermaid live editor.
+  Use when modifying scripts/site/editor.ts, adding Config options, changing the UI, adding
+  ASCII, PNG, or SVG export behavior, wiring new diagram options, or debugging
+  the editor page.
 ---
 
-# Agentic Mermaid — Live Editor
+# Agentic Mermaid — live editor development
+
+This skill is for coding agents modifying the repository. It is not tied to Claude, Cursor, Pi, or any other single coding agent. The editor renders diagrams through Agentic Mermaid and exposes SVG and PNG export actions; the renderer also supports ASCII output in the library/CLI surface.
 
 ## Key files
 
 | File | Role |
 |------|------|
-| `editor.ts` | **Source of truth** — generates `editor.html` at build time |
+| `scripts/site/editor.ts` | **Source of truth** — generates `editor.html` at build time |
 | `editor.html` | Generated output — never edit directly |
-| `dev.ts` | Dev server; builds both `editor.html` and `index.html` in parallel, serves `/` → editor, `/samples` → showcase |
+| `scripts/dev.ts` | Dev server; builds both `editor.html` and `index.html` in parallel, serves `/` → samples showcase and `/editor` → live editor |
 | `src/browser.ts` | Bundles the renderer for the browser as `window.__mermaid` |
 | `src/types.ts` | `RenderOptions` — all supported render options |
 | `src/theme.ts` | `THEMES`, `buildStyleBlock`, `svgOpenTag` — CSS variable system |
 | `src/styles.ts` | `STROKE_WIDTHS`, `FONT_SIZES` — hardcoded constants |
-| `samples-data.ts` | Sample presets used by the showcase; editor uses its own inline `SAMPLES` array |
+| `scripts/site/samples-data.ts` | Sample presets used by the showcase; editor uses its own inline `SAMPLES` array |
 
 ## Build cycle
 
 ```
-editor.ts  ──Bun.build──►  src/browser.ts bundle (inline JS)
-           ──template──►   editor.html  (self-contained, ~1.7 MB)
+scripts/site/editor.ts  ──Bun.build──►  src/browser.ts bundle (inline JS)
+                         ──template──►   editor.html  (self-contained, ~1.7 MB)
 ```
 
 Run manually:
 ```bash
 bun run editor   # generates editor.html once
-bun run dev      # watches src/ + editor.ts, live-reloads browser
+bun run dev      # watches src/ + scripts/site/editor.ts, live-reloads browser
 ```
 
-**Always rebuild after editing `editor.ts`.** The HTML file is the deployed artifact.
+**Always rebuild after editing `scripts/site/editor.ts`.** The HTML file is the deployed artifact.
 
 ---
 
 ## Architecture overview
 
-`editor.ts` is a TypeScript generator that:
+`scripts/site/editor.ts` is a TypeScript generator that:
 1. Calls `Bun.build()` to bundle `src/browser.ts` → inline JS string
 2. Constructs the full HTML page as a template literal
 3. Writes `editor.html`
@@ -84,7 +87,7 @@ editor input
 
 ### Case A: RenderOptions already supports it (colors, font, padding)
 
-1. Add UI in the relevant `config-section` in the HTML template inside `editor.ts`
+1. Add UI in the relevant `config-section` in the HTML template inside `scripts/site/editor.ts`
 2. Add a JS state variable (e.g. `var cfgFoo = defaultVal`)
 3. Update `readConfig()` to include it in `state.config`
 4. Wire input events
@@ -165,7 +168,7 @@ mySlider.addEventListener('input', function() { setMyVal(mySlider.value); });
 
 ## Adding a sample preset
 
-Edit the `SAMPLES` array near the top of `editor.ts`:
+Edit the `SAMPLES` array near the top of `scripts/site/editor.ts`:
 
 ```ts
 {
