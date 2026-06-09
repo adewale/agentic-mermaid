@@ -1,10 +1,11 @@
 # Changelog
 
-This changelog tracks user-facing changes in the `adewale/beautiful-mermaid` fork. Upstream-focused PR branches keep their own minimal histories.
+This changelog tracks user-facing changes for **Agentic Mermaid**, a fork of `lukilabs/beautiful-mermaid` maintained in the `adewale/beautiful-mermaid` repo and still published as the `beautiful-mermaid` npm package. Upstream-focused PR branches keep their own minimal histories.
 
 ## Unreleased
 
 ### Added
+- **Agentic Mermaid naming in docs**: the product/workflow name is now Agentic Mermaid while the current npm package remains `beautiful-mermaid`.
 - **Agent-native surface** (`beautiful-mermaid/agent` subpath export): a typed editing API for agents and tools.
   - `parseMermaid` → sealed `ValidDiagram` IR carrying frontmatter, init directives, comments, accessibility, and the canonical source.
   - `verifyMermaid` → structured `LayoutWarning` codes in two tiers (Tier 1 structural/reliable, Tier 2 geometric/advisory). No vision/PNG needed.
@@ -41,7 +42,7 @@ This changelog tracks user-facing changes in the `adewale/beautiful-mermaid` for
 - Journey and xychart are kept source-level-only in the agent surface; no structured mutation path is exposed even though parser/render dependencies may exist internally.
 - Agent guidance now distinguishes new-diagram source authoring from existing-diagram structured mutation; Code Mode is positioned as a structured-edit channel rather than mandatory diagram creation.
 - `am capabilities --json` now reports `families[].editPolicy` (`structured-when-narrowed` or `source-level-only`) in addition to `mutationOps`, so agents can route edits without trial-and-error.
-- Quality docs now explicitly state that Beautiful Mermaid is not Mermaid visual parity: `verify.ok` is structural, while layout quality needs metrics, geometry assertions, screenshots, or rendered artifacts.
+- Quality docs now explicitly state that Agentic Mermaid is not Mermaid visual parity: `verify.ok` is structural, while layout quality needs metrics, geometry assertions, screenshots, or rendered artifacts.
 
 ### Fixed
 - TypeScript CI failures in journey style padding and optional node corner-radius resolution.

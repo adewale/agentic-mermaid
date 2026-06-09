@@ -1,17 +1,17 @@
 # What is different about this fork?
 
-This document describes the user-facing differences in `adewale/beautiful-mermaid` relative to upstream `lukilabs/beautiful-mermaid` at the time of this fork work. It is intentionally product/documentation focused; upstreamable changes should still be split into small PRs.
+This document describes **Agentic Mermaid**, the `adewale/beautiful-mermaid` fork, relative to upstream `lukilabs/beautiful-mermaid`. It is intentionally product/documentation focused; upstreamable changes should still be split into small PRs.
 
 ## Fork-owned live sites
 
 - GitHub Pages gallery: <https://adewale.github.io/beautiful-mermaid/>
 - GitHub Pages live editor: <https://adewale.github.io/beautiful-mermaid/editor>
 
-This branch owns the GitHub Pages deployment. The Craft/Cloudflare site is upstream-owned and is not a deployment target for this fork.
+This repo owns the GitHub Pages deployment. The Craft/Cloudflare site is upstream-owned and is not a deployment target for this fork.
 
-## Agent-native surface (largest fork-vs-upstream gap)
+## Agent-native workflow (largest fork-vs-upstream gap)
 
-This fork adds a typed editing surface for AI agents under the `beautiful-mermaid/agent` subpath export, plus an `am` CLI and an `agentic-mermaid-mcp` Code Mode MCP server. Agents parse Mermaid into a sealed `ValidDiagram`, apply typed structural mutations (flowchart/state, sequence, timeline, class, ER), verify rendering correctness via structured `LayoutWarning` codes (no PNG/vision), and serialize back to canonical source. Journey, XY chart, architecture, and opaque-fallback diagrams round-trip losslessly via preserved source but do not expose structured mutation. Layout is deterministic and verified byte-identical across processes. See [`AGENT_NATIVE.md`](./AGENT_NATIVE.md) and [`Instructions_for_agents.md`](./Instructions_for_agents.md). Upstream has no equivalent.
+Agentic Mermaid adds a typed editing surface for AI agents under the `beautiful-mermaid/agent` subpath export, plus an `am` CLI and an `agentic-mermaid-mcp` Code Mode MCP server. The workflow is differentiated from render-only tools: new diagrams may be authored as source then parsed/verified/rendered, while existing structured diagrams should go parse → narrow → mutate → verify → serialize. Journey, XY chart, architecture, and opaque-fallback diagrams round-trip losslessly via preserved source but do not expose structured mutation. Layout is deterministic and verified byte-identical across processes. See [`AGENT_NATIVE.md`](./AGENT_NATIVE.md) and [`Instructions_for_agents.md`](./Instructions_for_agents.md). Upstream has no equivalent.
 
 ## New and expanded diagram support
 

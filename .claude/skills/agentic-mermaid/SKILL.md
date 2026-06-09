@@ -3,7 +3,7 @@ name: agentic-mermaid
 description: Author and edit Mermaid diagrams with structured verification, typed mutation, and round-trip serialization. Structured mutation for flowchart, state, sequence, timeline, class, and ER; source-level parse-and-render for journey, xychart, architecture, and opaque fallbacks.
 ---
 
-# agentic-mermaid
+# Agentic Mermaid
 
 A typed editing surface for Mermaid. New diagrams can be authored as Mermaid source and verified/rendered directly. Existing modeled diagrams can be parsed to a `ValidDiagram`, mutated with typed ops, verified structurally (no pixels), and serialized back to canonical source. Layout is deterministic — verified cross-process, no seed.
 

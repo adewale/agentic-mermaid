@@ -267,7 +267,7 @@ describe('browser: page loads and renders', () => {
 
   it('page title is correct', async () => {
     const title = await page.title()
-    expect(title).toContain('Beautiful Mermaid')
+    expect(title).toContain('Agentic Mermaid')
   }, 60_000)
 
   it('all SVG diagrams rendered (no empty containers)', async () => {
@@ -460,7 +460,7 @@ describe('browser: dropdowns', () => {
   it('Brand badge has no Craft icon or dropdown', async () => {
     expect(await page.evaluate(() => document.querySelector('#brand-badge svg') === null)).toBe(true)
     expect(await page.evaluate(() => document.getElementById('brand-dropdown') === null)).toBe(true)
-    expect(await page.evaluate(() => document.getElementById('brand-badge')?.textContent?.trim())).toBe('Beautiful Mermaid')
+    expect(await page.evaluate(() => document.getElementById('brand-badge')?.textContent?.trim())).toBe('Agentic Mermaid')
   }, 60_000)
 
 })

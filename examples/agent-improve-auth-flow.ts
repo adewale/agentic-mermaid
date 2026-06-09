@@ -160,10 +160,15 @@ writeFileSync(files.assessment, JSON.stringify({
   impact: result.impact,
 }, null, 2) + '\n')
 
-console.log(JSON.stringify({
+writeFileSync(1, JSON.stringify({
   ok: true,
   outDir,
   files,
   problems: result.problems,
   impact: result.impact,
-}, null, 2))
+}, null, 2) + '\n')
+
+// This example is often run from test subprocesses. Exit explicitly after the
+// output is synchronously flushed so platform-specific native/font handles
+// cannot keep the process open after the example has completed.
+process.exit(0)

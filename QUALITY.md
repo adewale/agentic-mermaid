@@ -1,4 +1,4 @@
-# What "good looking" means in agentic-mermaid
+# What "good looking" means in Agentic Mermaid
 
 A diagram is considered **good looking** when it satisfies, in order:
 
@@ -72,16 +72,16 @@ combination above gives:
 
 ## Why the same Mermaid can look worse here than in Mermaid
 
-Beautiful Mermaid is not Mermaid's renderer. It parses Mermaid source and
+Agentic Mermaid is not Mermaid's renderer. It parses Mermaid source and
 renders through this project's own layout/style stack: ELK layered layout,
 source-order preservation, conservative node/diamond sizing, and the
-Beautiful Mermaid theme system. Mermaid's default flowchart renderer uses
+Agentic Mermaid theme system. Mermaid's default flowchart renderer uses
 its own Dagre/ELK configuration, text wrapping, spacing, and CSS. The same
 source can therefore have different rank choices, edge routes, node sizes,
 and aspect ratio.
 
 The Auth Flow regression is the concrete example. Mermaid can choose a more
-compact-looking rendering for the feedback loops; Beautiful Mermaid now
+compact-looking rendering for the feedback loops; Agentic Mermaid now
 prioritizes semantic LR source order (`A → B → C → ... → H`) and routes
 `No` loops backward. That preserves author intent and avoids the earlier
 misordered layout, but it also makes the diagram wider. `verify.ok` still

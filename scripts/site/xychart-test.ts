@@ -6,7 +6,7 @@
  * For each example, renders a 3-column grid:
  *   1. Shiki-highlighted mermaid source
  *   2. Chart.js reference rendering
- *   3. beautiful-mermaid SVG rendering (client-side via bundled renderer)
+ *   3. Agentic Mermaid SVG rendering (client-side via bundled renderer)
  */
 
 import { xychartSamples } from './xychart-samples-data.ts'
@@ -181,7 +181,7 @@ async function generateHtml(): Promise<string> {
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="theme-color" id="theme-color-meta" content="#f9f9fa" />
-  <title>XY Chart Test — Beautiful Mermaid</title>
+  <title>XY Chart Test — Agentic Mermaid</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
@@ -553,14 +553,14 @@ async function generateHtml(): Promise<string> {
 
   <header class="hero-header">
     <h1 class="hero-title">XY Chart Test</h1>
-    <p class="hero-tagline">xychart-beta rendering comparison: Chart.js vs beautiful-mermaid</p>
+    <p class="hero-tagline">xychart-beta rendering comparison: Chart.js vs Agentic Mermaid</p>
     <p class="hero-description">
       Column 1 shows the Mermaid source, Column 2 renders a Chart.js reference,
-      and Column 3 shows the beautiful-mermaid SVG rendering with theme support.
+      and Column 3 shows the Agentic Mermaid SVG rendering with theme support.
     </p>
     <div class="hero-meta">
       <p class="meta">${xychartSamples.length} xychart-beta examples across ${categories.size} categories</p>
-      <p class="meta">Chart.js reference + beautiful-mermaid SVG comparison</p>
+      <p class="meta">Chart.js reference + Agentic Mermaid SVG comparison</p>
     </div>
   </header>
 
@@ -1019,7 +1019,7 @@ ${sampleCards}
   }
 
   // ============================================================================
-  // Render beautiful-mermaid SVGs
+  // Render Agentic Mermaid SVGs
   // ============================================================================
   function renderAllSvgs(themeKey) {
     var theme = themeKey ? THEMES[themeKey] : null;

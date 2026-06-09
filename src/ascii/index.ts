@@ -1,5 +1,5 @@
 // ============================================================================
-// beautiful-mermaid — ASCII renderer public API
+// Agentic Mermaid — ASCII renderer public API (published as beautiful-mermaid)
 //
 // Renders Mermaid diagrams to ASCII or Unicode box-drawing art.
 // No external dependencies — pure TypeScript.

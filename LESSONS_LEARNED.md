@@ -270,13 +270,13 @@ What Loop 13 itself added that points the right way:
   real tasks from a real consumer.
 - **The benchmark + single-binary (M3)** were both honesty wins: the
   binary halves cold-start but doesn't beat termaid/Go, and we said so.
-- **The TODO.md backlog (M1)** finally names the three non-code blockers
-  (rename, merge, consumer) as first-class items instead of leaving them
-  implicit.
+- **The TODO.md backlog (M1)** finally names the non-code blockers
+  (publish-name decision and real external consumer) as first-class items
+  instead of leaving them implicit.
 
 The recommendation that's now written into TODO.md: stop adding features;
-merge, name, publish, and get one real consumer. The next loop that adds
-a feature instead of pursuing those is probably the wrong loop.
+finish the naming/publish decision and get one real consumer. The next loop
+that adds a feature instead of pursuing those is probably the wrong loop.
 
 Smaller Loop 13 notes:
 - bun-compiled binaries embed the runtime (112MB) and the resvg native

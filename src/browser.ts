@@ -1,5 +1,5 @@
 // ============================================================================
-// Browser entry point for beautiful-mermaid
+// Browser entry point for Agentic Mermaid
 //
 // Exposes renderMermaid and renderMermaidAscii on window.__mermaid so they
 // can be called from inline <script> tags in samples.html.

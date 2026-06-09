@@ -1,6 +1,6 @@
 # Security posture
 
-agentic-mermaid renders diagrams that may be **agent-generated from
+Agentic Mermaid renders diagrams that may be **agent-generated from
 untrusted input** (e.g. an LLM following a prompt that itself contains
 injected instructions). This document states what the renderer guarantees,
 what it does not, and how to render safely in an untrusted context.

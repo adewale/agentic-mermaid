@@ -1,4 +1,4 @@
-# agentic-mermaid — agent-use guide
+# Agentic Mermaid — agent-use guide
 
 This is the canonical agent-use guide. The same content is emitted by `am --agent-instructions`. A doc-sync test asserts the two are byte-identical.
 

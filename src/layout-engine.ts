@@ -1,5 +1,5 @@
 /**
- * Layout engine for beautiful-mermaid (ELK.js based).
+ * Layout engine for Agentic Mermaid (ELK.js based).
  *
  * Converts MermaidGraph to ELK's JSON format, runs layout, and converts
  * the result back to PositionedGraph. This is the core layout engine used

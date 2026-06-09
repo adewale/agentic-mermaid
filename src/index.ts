@@ -1,5 +1,5 @@
 // ============================================================================
-// beautiful-mermaid — public API
+// Agentic Mermaid — public API (published as beautiful-mermaid)
 //
 // Renders Mermaid diagrams to styled SVG strings.
 // Framework-agnostic, no DOM required. Pure TypeScript.
