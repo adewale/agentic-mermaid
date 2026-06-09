@@ -45,6 +45,25 @@ function applyThemeToPage(themeKey) {
     root.style.setProperty("--shadow-border-opacity", dark ? "0.15" : "0.08");
     root.style.setProperty("--shadow-blur-opacity", dark ? "0.12" : "0.06");
   }
+
+  // Patch the live preview SVG's CSS variables immediately. The SVG carries
+  // the previous theme's --bg baked into its inline style, and the scheduled
+  // re-render is async — without this, the diagram flashes the old theme
+  // background (white, when leaving a light theme) on the new page colors.
+  var svgEl =
+    typeof previewInner !== "undefined" && previewInner
+      ? previewInner.querySelector("svg")
+      : null;
+  if (svgEl && themeKey && THEMES[themeKey]) {
+    var themeColors = THEMES[themeKey];
+    var overrides = (typeof state !== "undefined" && state.config) || {};
+    var roles = ["bg", "fg", "line", "accent", "muted", "surface", "border"];
+    for (var i = 0; i < roles.length; i++) {
+      var value = overrides[roles[i]] || themeColors[roles[i]];
+      if (value) svgEl.style.setProperty("--" + roles[i], value);
+      else svgEl.style.removeProperty("--" + roles[i]);
+    }
+  }
 }
 
 function buildOptions() {

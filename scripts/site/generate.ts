@@ -1552,6 +1552,7 @@ ${bundleJs}
   }
 
   // Full theme switch: update page vars + re-render all diagrams.
+  var themeRenderGeneration = 0;
   function applyTheme(themeKey) {
     var theme = themeKey ? THEMES[themeKey] : null;
     applyPageTheme(themeKey);
@@ -1567,9 +1568,25 @@ ${bundleJs}
       }
     }
 
-    // Re-render all SVGs with theme colors
+    // Patch the CSS variables of every existing SVG immediately. Each SVG
+    // carries the previous theme's --bg baked into its inline style, and the
+    // serial re-render below takes seconds — without this patch, diagrams
+    // from a light theme sit as white rectangles on the new panel background
+    // until their turn comes around.
+    if (theme) {
+      for (var j = 0; j < samples.length; j++) {
+        var liveSvg = document.querySelector('#svg-' + j + ' svg');
+        if (liveSvg) applySvgThemeVars(liveSvg, theme);
+      }
+    }
+
+    // Re-render all SVGs with theme colors. The generation token cancels
+    // stale loops: two quick theme switches otherwise interleave their
+    // awaits and leave some samples rendered with the losing theme.
+    var generation = ++themeRenderGeneration;
     (async function() {
       for (var j = 0; j < samples.length; j++) {
+        if (generation !== themeRenderGeneration) return;
         var svgContainer = document.getElementById('svg-' + j);
         if (!svgContainer) continue;
         var opts = theme
@@ -1577,6 +1594,7 @@ ${bundleJs}
           : samples[j].options;
         try {
           var svg = await renderMermaid(samples[j].source, opts || {});
+          if (generation !== themeRenderGeneration) return;
           svgContainer.innerHTML = svg;
         } catch (e) { /* keep existing */ }
       }

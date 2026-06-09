@@ -33,6 +33,25 @@ Status legend: `todo` | `blocked` | `owner-decision` | `parked`.
   `@cloudflare/codemode`/CodeMode-style isolation only after scoping the
   security boundary, auth/rate limits, persistence model, and parity with the
   current local CLI/MCP/library contract.
+- [ ] **BUILD-5 — Common-README family coverage: pie, gantt, mindmap,
+  gitgraph, quadrant** (`todo`). These families are common in real-world
+  READMEs/docs and already have authoring syntax references in
+  `skills/agentic-mermaid-diagram-workflow/references/upstream/`, but the
+  renderer does not accept them. No public usage statistics exist, so first
+  gather evidence (count fenced ` ```mermaid ` header families across a
+  GitHub README corpus), then implement in evidence order. Pie is the likely
+  cheapest first target. Each addition follows `ADDING_DIAGRAM_TYPES.md` and
+  ships parse/verify/render/round-trip (source-level body is acceptable;
+  structured mutation only where the IR can preserve semantics).
+- [ ] **BUILD-6 — New upstream Mermaid families (11.4–11.15)** (`todo`).
+  Mermaid added kanban (11.4), radar (11.6), treemap (~11.9), Venn (beta,
+  11.13), Ishikawa/fishbone (beta, 11.13), Wardley Maps (beta, 11.14),
+  TreeView (11.14), and Event Modeling (11.15). Upstream syntax references
+  for these already ship in the skill bundle. Prioritize TreeView first: it
+  is hierarchical, ASCII-friendly, and requested against the upstream fork
+  network (lukilabs/beautiful-mermaid#114). Treat beta-grammar families
+  (Venn, Ishikawa, Wardley) as watch-and-wait until upstream syntax
+  stabilizes.
 
 ## 2. Agent-usage verification backlog
 
