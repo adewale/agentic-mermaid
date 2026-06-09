@@ -13,7 +13,7 @@ Current implementation decisions that differ from, or materially narrow, the bro
 
 ### Package and compatibility choices
 
-- Product/docs name is **Agentic Mermaid**. Package name remains `beautiful-mermaid`; the agent surface ships as the `./agent` subpath. Publishing a renamed `agentic-mermaid` package is owner-gated, not an implementation detail.
+- Product/docs and npm package name are **Agentic Mermaid** / `agentic-mermaid`; the repository path currently remains `adewale/beautiful-mermaid`. The agent surface ships as the `./agent` subpath.
 - `MermaidGraph` and `renderMermaidSVGAsync` remain for compatibility with existing renderer/tests/consumers.
 - `state` diagrams currently share the flowchart body (`body.kind: 'flowchart'`) because the legacy parser produces a `MermaidGraph` for both. `kind` still distinguishes `state` from `flowchart`.
 

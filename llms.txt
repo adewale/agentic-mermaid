@@ -4,7 +4,7 @@
 > Mermaid diagrams with a typed IR. Deterministic SVG / ASCII / PNG. No
 > browser required. CLI + MCP + library.
 
-Version: 1.1.3
+Version: 1.0.0
 
 ## What it does
 
@@ -64,7 +64,7 @@ EMPTY_DIAGRAM (structural/error), EDGE_MISANCHORED (structural/error), OFF_CANVA
 `import { parseMermaid, mutate, verifyMermaid, serializeMermaid,
 renderMermaidSVG, renderMermaidPNG, renderMermaidASCII,
 renderMermaidASCIIWithMeta, describeMermaid, asciiToMermaid,
-verifyNoExternalRefs } from 'beautiful-mermaid/agent'`
+verifyNoExternalRefs } from 'agentic-mermaid/agent'`
 
 ## Docs
 

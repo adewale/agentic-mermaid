@@ -3,8 +3,12 @@ import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
 const packageJson = require('../../package.json')
+const tsconfig = require('../../tsconfig.json')
 
 describe('package exports', () => {
+  it('uses the Agentic Mermaid npm package name', () => {
+    expect(packageJson.name).toBe('agentic-mermaid')
+  })
   it('defines a default export fallback for runtimes resolving conditional exports', () => {
     expect(packageJson.exports['.']).toMatchObject({
       bun: './src/index.ts',
@@ -31,5 +35,12 @@ describe('package exports', () => {
     expect(pkg.exports['./agent'].default).toBe('./dist/agent.js')
     expect(pkg.exports['./agent'].bun).toBe('./src/agent/index.ts')
     expect(pkg.exports['./agent'].types).toBe('./dist/agent.d.ts')
+  })
+
+  it('TypeScript path aliases match the published import paths', () => {
+    expect(tsconfig.compilerOptions.paths).toEqual({
+      'agentic-mermaid': ['./src/index.ts'],
+      'agentic-mermaid/*': ['./src/*'],
+    })
   })
 })

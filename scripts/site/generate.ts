@@ -1379,7 +1379,7 @@ export async function generateHtml(options: GenerateHtmlOptions = {}): Promise<s
     <h1 class="hero-title">Agentic Mermaid</h1>
     <p class="hero-tagline">Mermaid rendering, verified and made editable for agents.</p>
     <p class="hero-description">
-      A fork of Beautiful Mermaid for rendering Mermaid diagrams as polished SVG and terminal-friendly ASCII, currently published as <a href="https://www.npmjs.com/package/beautiful-mermaid" target="_blank" rel="noopener"><code>beautiful-mermaid</code></a>.
+      A fork of Beautiful Mermaid for rendering Mermaid diagrams as polished SVG and terminal-friendly ASCII, published as <a href="https://www.npmjs.com/package/agentic-mermaid" target="_blank" rel="noopener"><code>agentic-mermaid</code></a>.
       Fast, fully themeable, dependency-light, and agent-aware. This fork adds a live editor, expanded diagram coverage, semantic role styling, export tools, and a typed verify-before-commit workflow.
     </p>
     <div class="hero-buttons">
