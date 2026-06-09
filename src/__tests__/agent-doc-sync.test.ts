@@ -273,8 +273,8 @@ describe('shipped distribution artifacts present', () => {
   test('agent improvement example assesses, mutates, reassesses, and writes render files', () => {
     const outDir = mkdtempSync(join(tmpdir(), 'am-example-test-'))
     try {
-      const r = spawnSync('bun', ['run', join(REPO, 'examples/agent-improve-auth-flow.ts'), '--out-dir', outDir], { encoding: 'utf8', cwd: REPO })
-      expect({ status: r.status, stderr: r.stderr }).toEqual({ status: 0, stderr: '' })
+      const r = spawnSync('bun', ['run', join(REPO, 'examples/agent-improve-auth-flow.ts'), '--out-dir', outDir], { encoding: 'utf8', cwd: REPO, timeout: 60_000 })
+      expect({ status: r.status, signal: r.signal, error: r.error?.message, stderr: r.stderr }).toEqual({ status: 0, signal: null, error: undefined, stderr: '' })
       const payload = JSON.parse(r.stdout)
       expect(payload.ok).toBe(true)
       expect(payload.problems.length).toBeGreaterThan(0)

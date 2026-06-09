@@ -1,5 +1,5 @@
 // ============================================================================
-// Agent-Native Beautiful Mermaid — IR and verb types (v4)
+// Agentic Mermaid — IR and verb types (v4)
 //
 // v4 removes the seed/RNG/clock/font-metric apparatus that the empirical
 // probe proved was theater (ELK is already deterministic; seeding changed

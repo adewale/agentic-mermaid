@@ -1,5 +1,5 @@
 /**
- * Sample definitions for the beautiful-mermaid visual test suite.
+ * Sample definitions for the Agentic Mermaid visual test suite.
  *
  * Shared by:
  *   - scripts/site/generate.ts — generates the HTML visual test page
@@ -69,7 +69,7 @@ export const samples: Sample[] = [
   // ══════════════════════════════════════════════════════════════════════════
 
   {
-    title: 'Beautiful Mermaid',
+    title: 'Agentic Mermaid',
     category: 'Hero',
     description: 'Mermaid rendering, made beautiful.',
     source: `stateDiagram-v2

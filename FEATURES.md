@@ -1,8 +1,6 @@
 # Features — capability inventory
 
-What the `beautiful-mermaid/agent` surface in this fork can do, organized
-by capability area. This is the user-facing inventory; the per-loop
-implementation log is `DIVERGENCES.md`; active backlog is only `TODO.md`.
+What Agentic Mermaid can do, organized by capability area. The current npm import path is still `beautiful-mermaid` / `beautiful-mermaid/agent`; the per-loop implementation log is `DIVERGENCES.md`; active backlog is only `TODO.md`.
 
 ## Core IR & editing loop
 
@@ -91,7 +89,7 @@ Code Mode `execute(code)` (JavaScript in a `node:vm` sandbox with a typed
 
 ## Distribution
 
-- npm library (`beautiful-mermaid/agent` subpath).
+- npm library (`beautiful-mermaid` plus the `beautiful-mermaid/agent` subpath; product name Agentic Mermaid).
 - **Single binary** — `bun run build:binary` → `dist/am`, standalone
   executable, no runtime dependency (#1018).
 - **llms.txt** agent-discovery digest, derived from capabilities.

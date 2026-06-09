@@ -1,5 +1,5 @@
 /**
- * Generates index.html showcasing all beautiful-mermaid rendering capabilities.
+ * Generates index.html showcasing Agentic Mermaid rendering capabilities.
  *
  * Usage: bun run scripts/site/generate.ts
  *
@@ -311,18 +311,18 @@ export async function generateHtml(options: GenerateHtmlOptions = {}): Promise<s
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="theme-color" id="theme-color-meta" content="#f8f2eb" />
-  <title>${escapeHtml(options.title ?? 'Beautiful Mermaid — Mermaid Rendering, Made Beautiful')}</title>
+  <title>${escapeHtml(options.title ?? 'Agentic Mermaid — Mermaid Rendering, Made Beautiful')}</title>
   <meta name="description" content="${escapeHtml(options.description ?? 'Open source diagram rendering library built for the AI era. Ultra-fast, fully themeable, outputs to SVG and ASCII. Supports Flowchart, State, Architecture, Sequence, Class, ER, Timeline, Journey, and XY diagrams.')}" />
   <link rel="icon" type="image/svg+xml" href="/mermaid/favicon.svg" />
   <link rel="icon" type="image/x-icon" href="/mermaid/favicon.ico" />
   <link rel="apple-touch-icon" href="/mermaid/apple-touch-icon.png" />
-  <meta property="og:title" content="Beautiful Mermaid" />
+  <meta property="og:title" content="Agentic Mermaid" />
   <meta property="og:description" content="Open source diagram rendering library built for the AI era. Ultra-fast, fully themeable, outputs to SVG and ASCII." />
   <meta property="og:image" content="https://adewale.github.io/beautiful-mermaid/og-image.png" />
   <meta property="og:type" content="website" />
   <meta property="og:url" content="https://adewale.github.io/beautiful-mermaid/" />
   <meta name="twitter:card" content="summary_large_image" />
-  <meta name="twitter:title" content="Beautiful Mermaid" />
+  <meta name="twitter:title" content="Agentic Mermaid" />
   <meta name="twitter:description" content="Mermaid rendering, made beautiful. Ultra-fast, fully themeable, outputs to SVG and ASCII." />
   <meta name="twitter:image" content="https://adewale.github.io/beautiful-mermaid/og-image.png" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -1361,7 +1361,7 @@ export async function generateHtml(options: GenerateHtmlOptions = {}): Promise<s
   <!-- Navigation + theme bar -->
   <div class="theme-bar" id="theme-bar">
     <div class="brand-badge-wrapper">
-      <div class="brand-badge shadow-minimal" id="brand-badge"><span><strong>Beautiful Mermaid</strong></span></div>
+      <div class="brand-badge shadow-minimal" id="brand-badge"><span><strong>Agentic Mermaid</strong></span></div>
     </div>
     <button class="contents-btn shadow-minimal" id="contents-btn"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><line x1="3" y1="4" x2="13" y2="4"/><line x1="3" y1="8" x2="13" y2="8"/><line x1="3" y1="12" x2="10" y2="12"/></svg>Contents</button>
     <div class="theme-pills" id="theme-pills">
@@ -1376,11 +1376,11 @@ export async function generateHtml(options: GenerateHtmlOptions = {}): Promise<s
 
   <!-- Hero header section -->
   <header class="hero-header">
-    <h1 class="hero-title">Beautiful Mermaid</h1>
-    <p class="hero-tagline">Mermaid Rendering, made beautiful.</p>
+    <h1 class="hero-title">Agentic Mermaid</h1>
+    <p class="hero-tagline">Mermaid rendering, verified and made editable for agents.</p>
     <p class="hero-description">
-      An open source library for rendering Mermaid diagrams as polished SVG and terminal-friendly ASCII: <a href="https://www.npmjs.com/package/beautiful-mermaid" target="_blank" rel="noopener"><code>beautiful-mermaid</code></a>.
-      Fast, fully themeable, and dependency-light. This fork adds a live editor, expanded diagram coverage, semantic role styling, and export tools.
+      A fork of Beautiful Mermaid for rendering Mermaid diagrams as polished SVG and terminal-friendly ASCII, currently published as <a href="https://www.npmjs.com/package/beautiful-mermaid" target="_blank" rel="noopener"><code>beautiful-mermaid</code></a>.
+      Fast, fully themeable, dependency-light, and agent-aware. This fork adds a live editor, expanded diagram coverage, semantic role styling, export tools, and a typed verify-before-commit workflow.
     </p>
     <div class="hero-buttons">
       <a href="editor" id="editor-link" class="hero-btn hero-btn-primary">

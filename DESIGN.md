@@ -1,7 +1,7 @@
 # DESIGN
 
 ## Design System
-Beautiful Mermaid uses a restrained product UI system with salmon as the fork's default theme. Surfaces should feel warm, quiet, and tactile while preserving developer-tool density.
+Agentic Mermaid uses a restrained product UI system with salmon as the fork's default theme. Surfaces should feel warm, quiet, and tactile while preserving developer-tool density.
 
 ## Typography
 - UI family: Atkinson Hyperlegible, then system fallbacks.

@@ -2,12 +2,12 @@
 
 ## Overview
 
-This document captures the design choices behind Beautiful Mermaid's `journey`
+This document captures the design choices behind Agentic Mermaid's `journey`
 implementation. The goal is Mermaid syntax compatibility with output that still
 feels native to the rest of the library rather than like a separate embedded
 renderer.
 
-The implementation follows the standard Beautiful Mermaid pipeline:
+The implementation follows the standard Agentic Mermaid pipeline:
 
 - `src/journey/parser.ts`
 - `src/journey/layout.ts`
@@ -27,7 +27,7 @@ Supported Mermaid constructs:
 - multiline `accDescr { ... }`
 - Mermaid comments, frontmatter, and init directives before the header
 
-Quoted labels are normalized the same way other Beautiful Mermaid diagram
+Quoted labels are normalized the same way other Agentic Mermaid diagram
 parsers normalize Mermaid labels. `<br>` is converted to multi-line text for
 titles, section labels, tasks, actor labels, and accessibility metadata.
 
@@ -50,7 +50,7 @@ expand from content rather than from hardcoded label assumptions.
 
 ## Visual Language
 
-The renderer intentionally borrows existing Beautiful Mermaid cues:
+The renderer intentionally borrows existing Agentic Mermaid cues:
 
 - crisp rectangular section frames, similar to timeline/class/ER grouping
 - subtle accent rails instead of full-card fills for task emphasis

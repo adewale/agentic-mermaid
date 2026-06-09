@@ -1,6 +1,6 @@
-# PR #11 reviewer guide
+# Merged PR #11 review map
 
-This branch is large. Review it as an agent contract, not as one renderer patch.
+PR #11 has merged into `main`, but this map remains useful for auditing the agent-native contract as a whole rather than as one renderer patch.
 
 ## Public contract to inspect
 
@@ -21,7 +21,7 @@ For new diagrams, direct Mermaid source authoring is allowed: write source → p
 
 ## Visual-quality expectation
 
-`verify.ok` means structurally valid, not visually beautiful. Layout quality is reviewed through `verify.layout`, `measureQuality`/`checkQuality`, geometry assertions, screenshots/PNG, and human inspection. Beautiful Mermaid is a deterministic independent renderer; it does not promise pixel or layout parity with Mermaid's own renderer.
+`verify.ok` means structurally valid, not visually beautiful. Layout quality is reviewed through `verify.layout`, `measureQuality`/`checkQuality`, geometry assertions, screenshots/PNG, and human inspection. Agentic Mermaid is a deterministic independent renderer; it does not promise pixel or layout parity with Mermaid's own renderer.
 
 ## Security/honesty expectation
 
@@ -37,7 +37,7 @@ bun run examples/agent-improve-auth-flow.ts
 bun run build
 ```
 
-For a fuller local pass before merge, add:
+For a fuller local pass before release or external-consumer validation, add:
 
 ```bash
 bun test src/__tests__/ --timeout 600000

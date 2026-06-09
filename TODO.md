@@ -8,20 +8,18 @@ lessons; `AGENT_NATIVE.md` = architecture/spec rationale;
 release notes; `docs/issue-derived-test-cases.md` = evidence inventory, not backlog;
 `docs/mcp-code-mode-rationale.md` = MCP surface rationale, not backlog;
 `docs/agent-workflow-examples.md` = runnable example index, not backlog;
-`docs/pr11-reviewer-guide.md` = PR review map, not backlog.
+`docs/pr11-reviewer-guide.md` = merged PR #11 review/audit map, not backlog.
 
 Status legend: `todo` | `blocked` | `owner-decision` | `parked`.
 
 ## 0. Release / owner decisions
 
-- [ ] **DEC-1 — Rename + publish decision** (`owner-decision`). The package
-  is still `beautiful-mermaid@1.1.3`; the agent surface ships as the
-  `./agent` subpath. Decide the published name (for example
-  `agentic-mermaid`) and whether/when to publish to npm.
-- [ ] **DEC-2 — Merge or explicitly park PR #11** (`owner-decision`). The
-  agent-native milestone is large and should stop accumulating feature work
-  until this decision is made.
-- [ ] **DEC-3 — Get one real external consumer** (`todo`). Validate
+- [ ] **DEC-1 — Publish-name decision** (`owner-decision`). The product/docs
+  name is now **Agentic Mermaid**, but the npm package remains
+  `beautiful-mermaid` with the `./agent` subpath. Decide whether to
+  publish a renamed `agentic-mermaid` package, keep `beautiful-mermaid` as the
+  compatibility package, or ship both with one canonical install path.
+- [ ] **DEC-2 — Get one real external consumer** (`todo`). Validate
   `beautiful-mermaid/agent`, `am`, or `agentic-mermaid-mcp` in a real agent,
   TUI, CI gate, or editor integration outside this repo.
 
@@ -68,7 +66,7 @@ _No active blocked items._
 
 ## 5. Non-goals
 
-- Do not port Vercel package rename, committed `dist/`, `.vercel`, or branding.
+- Do not port Vercel-specific package rename, committed `dist/`, `.vercel`, or Vercel branding.
 - Do not fold `zhenhuaa/mdv` wholesale into this package; terminal Markdown
   viewing belongs in a separate tool or companion package.
 - Do not port old dagre-specific layout code directly; translate only ideas

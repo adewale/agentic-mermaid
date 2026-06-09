@@ -673,7 +673,7 @@ export function buildLlmsTxt(): string {
   const structured = cap.families.filter(f => f.hasMutate).map(f => f.id)
   const formats = cap.outputFormats.join(', ')
   const codes = cap.warningCodes.map(w => `${w.code} (${w.tier}/${w.severity})`).join(', ')
-  return `# agentic-mermaid
+  return `# Agentic Mermaid
 
 > Agent-native Mermaid runtime: parse, verify, mutate, and round-trip
 > Mermaid diagrams with a typed IR. Deterministic SVG / ASCII / PNG. No
@@ -752,7 +752,7 @@ verifyNoExternalRefs } from 'beautiful-mermaid/agent'\`
 - docs/agent-mutation-policy.md — structured-vs-source-level policy
 - docs/mcp-code-mode-rationale.md — MCP surface rationale
 - docs/agent-workflow-examples.md — runnable MCP/CLI + agent-improvement examples
-- docs/pr11-reviewer-guide.md — review map for this branch
+- docs/pr11-reviewer-guide.md — merged PR #11 review/audit map
 `
 }
 

@@ -1,52 +1,52 @@
 <div align="center">
 
-# beautiful-mermaid
+# Agentic Mermaid
 
-**Render Mermaid diagrams as beautiful SVGs or ASCII art**
+**Render, verify, and safely edit Mermaid diagrams from code or AI agents.**
 
-Ultra-fast, fully themeable, zero DOM dependencies. Built for the AI era.
+Currently published as `beautiful-mermaid`; the product and agent workflow are now **Agentic Mermaid**. This project is a fork of [`lukilabs/beautiful-mermaid`](https://github.com/lukilabs/beautiful-mermaid), maintained at `adewale/beautiful-mermaid`.
 
-![beautiful-mermaid sequence diagram example](assets/hero.png)
+![Agentic Mermaid sequence diagram example](assets/hero.png)
 
 [![npm version](https://img.shields.io/npm/v/beautiful-mermaid.svg)](https://www.npmjs.com/package/beautiful-mermaid)
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
 [**Live Demo & Samples**](https://adewale.github.io/beautiful-mermaid/) · [Live Editor](https://adewale.github.io/beautiful-mermaid/editor)
 
-Fork docs: [What changed in this fork](./FORK_DIFFERENCES.md) · [Changelog](./CHANGELOG.md)
+Docs: [Agent workflow](./Instructions_for_agents.md) · [What changed in this fork](./FORK_DIFFERENCES.md) · [Changelog](./CHANGELOG.md)
 
 </div>
 
 ---
 
-## Why We Built This
+## Why Agentic Mermaid
 
-Diagrams are essential for AI-assisted programming. When you're working with an AI coding assistant, being able to visualize data flows, state machines, and system architecture—directly in your terminal or chat interface—makes complex concepts instantly graspable.
+Mermaid is the de facto standard for text diagrams, but agent-generated diagrams need more than “render this string.” They need a fast renderer, terminal output, deterministic layout, and a way to edit existing diagrams without rewriting the whole source file.
 
-[Mermaid](https://mermaid.js.org/) is the de facto standard for text-based diagrams. It's brilliant. But the default renderer has problems:
+Agentic Mermaid is a fork of Beautiful Mermaid. It keeps the original renderer foundation and adds the workflow surface agents need: parse Mermaid, choose the safe edit path, verify structure without screenshots, and serialize only after the diagram is known-good.
 
-- **Aesthetics** — Might be personal preference, but wished they looked more professional
-- **Complex theming** — Customizing colors requires wrestling with CSS classes
-- **No terminal output** — Can't render to ASCII for CLI tools
-- **Heavy dependencies** — Pulls in a lot of code for simple diagrams
+## Highlights
 
-The original `beautiful-mermaid` project was built at [Craft](https://craft.do) to power diagrams in Craft Agents. This fork keeps that fast renderer foundation and adds fork-owned diagram coverage, editor/export polish, and an agent-native editing surface.
+- **9 diagram families** — flowchart, state, architecture, sequence, class, ER, timeline, journey, and XY chart.
+- **SVG, PNG, ASCII, Unicode, and JSON layout** — rich UI output plus terminal-friendly diagrams.
+- **Synchronous, zero-DOM renderer** — no Puppeteer, no browser flash, works with React `useMemo()`.
+- **19 built-in themes + Shiki compatibility** — theme from two colors or a VS Code theme.
+- **Agent-native editing loop** — source authoring for new diagrams; typed parse → narrow → mutate → verify → serialize for existing structured diagrams.
+- **CLI and MCP surfaces** — `am` for shell workflows; `agentic-mermaid-mcp` Code Mode for multi-step agent edits.
 
+## The differentiated workflow
 
-The ASCII rendering engine is based on [mermaid-ascii](https://github.com/AlexanderGrooff/mermaid-ascii) by Alexander Grooff. We ported it from Go to TypeScript and extended it. Thank you Alexander for the excellent foundation! (And inspiration that this was possible.)
+Most Mermaid tools expose render calls. Agentic Mermaid exposes a decision tree:
 
-## Features
+| Task | Safe path |
+| --- | --- |
+| Create a new diagram | Write Mermaid source → `parseMermaid` → `verifyMermaid` → render/preview |
+| Edit an existing supported diagram | `parseMermaid` → family narrower → `mutate` → `verifyMermaid` → `serializeMermaid` |
+| Edit source-level-only or opaque diagrams | Preserve original source; verify/render/describe, but do not pretend typed mutation is safe |
+| Agent multi-step edits | Prefer MCP Code Mode or library imports so the full loop happens in one structured execution |
+| Shell-only checks | Use `am verify`, `am mutate --op/--ops`, `am preview`, or `am batch --jsonl` |
 
-- **9 diagram types** — Flowcharts, State, Architecture, Sequence, Class, ER, Timeline, User Journey, and XY Charts (bar, line, combined)
-- **Dual output** — SVG for rich UIs, ASCII/Unicode for terminals
-- **Synchronous rendering** — No async, no flash. Works with React `useMemo()`
-- **19 built-in themes** — And dead simple to add your own
-- **Full Shiki compatibility** — Use any VS Code theme directly
-- **Live theme switching** — CSS custom properties, no re-render needed
-- **Mono mode** — Beautiful diagrams from just 2 colors
-- **Zero DOM dependencies** — Pure TypeScript, works everywhere
-- **Ultra-fast** — Renders 100+ diagrams in under 500ms
-- **Agent-native surface** — Source authoring for new diagrams; typed parse → mutate → verify → serialize for safe edits (see below)
+That is the core product claim: agents should not guess from pixels, concatenate strings, or regenerate whole diagrams when a structured edit is available.
 
 ## Agent-native surface
 
@@ -67,11 +67,11 @@ if (d1.ok && verifyMermaid(d1.value).ok) console.log(serializeMermaid(d1.value))
 - **Deterministic layout**, verified byte-identical across processes.
 - Ships an **`am` CLI** (`render`, strict `preview`, `mutate --op/--ops`, `batch`, …) and an **`agentic-mermaid-mcp`** Code Mode MCP server.
 
-See [`AGENT_NATIVE.md`](./AGENT_NATIVE.md), [`Instructions_for_agents.md`](./Instructions_for_agents.md), [`docs/mcp-code-mode-rationale.md`](./docs/mcp-code-mode-rationale.md), [`docs/agent-workflow-examples.md`](./docs/agent-workflow-examples.md), [`examples/agent-loop.ts`](./examples/agent-loop.ts), [`examples/mcp-vs-cli-complex-diagrams.ts`](./examples/mcp-vs-cli-complex-diagrams.ts), [`examples/agent-improve-auth-flow.ts`](./examples/agent-improve-auth-flow.ts), and [`docs/pr11-reviewer-guide.md`](./docs/pr11-reviewer-guide.md).
+See [`AGENT_NATIVE.md`](./AGENT_NATIVE.md), [`Instructions_for_agents.md`](./Instructions_for_agents.md), [`docs/mcp-code-mode-rationale.md`](./docs/mcp-code-mode-rationale.md), [`docs/agent-workflow-examples.md`](./docs/agent-workflow-examples.md), [`examples/agent-loop.ts`](./examples/agent-loop.ts), [`examples/mcp-vs-cli-complex-diagrams.ts`](./examples/mcp-vs-cli-complex-diagrams.ts), and [`examples/agent-improve-auth-flow.ts`](./examples/agent-improve-auth-flow.ts).
 
-## Discovering Fork Features
+## Discovering Agentic Mermaid features
 
-This fork adds several capabilities beyond the current upstream baseline. The fastest discovery paths are:
+Agentic Mermaid adds several capabilities beyond the current upstream baseline. The fastest discovery paths are:
 
 - Browse the [live sample gallery](https://adewale.github.io/beautiful-mermaid/) and open **Contents → Role Styles** for semantic `style.text/node/edge/group` examples.
 - Try the [live editor](https://adewale.github.io/beautiful-mermaid/editor), which starts blank; choose **Examples** for every supported diagram type plus role-style presets.
@@ -79,12 +79,21 @@ This fork adds several capabilities beyond the current upstream baseline. The fa
 
 ## Installation
 
+The npm package is still `beautiful-mermaid` while the public name transitions to Agentic Mermaid.
+
 ```bash
 npm install beautiful-mermaid
 # or
 bun add beautiful-mermaid
 # or
 pnpm add beautiful-mermaid
+```
+
+CLI binaries installed from the package:
+
+```bash
+am --help
+agentic-mermaid-mcp --help
 ```
 
 ## Quick Start
@@ -161,7 +170,7 @@ function MermaidDiagram({ code }: { code: string }) {
 
 ## Theming
 
-The theming system is the heart of `beautiful-mermaid`. It's designed to be both powerful and dead simple.
+The theming system is the visual heart of Agentic Mermaid. It's designed to be both powerful and dead simple.
 
 ### The Two-Color Foundation
 
@@ -397,7 +406,7 @@ Chronological milestones with optional section grouping — using Mermaid's `tim
 
 ```
 timeline
-  title Beautiful Mermaid
+  title Agentic Mermaid
   section Foundation
   2020 : First prototypes
   2021 : Internal rollout
@@ -519,7 +528,7 @@ xychart horizontal
 - Axis titles: `x-axis "Category" [A, B, C]`
 - Y-axis range: `y-axis "Score" 0 --> 100`
 
-**Beautiful Mermaid currently supports the full documented Mermaid xychart config/theme surface below, via YAML frontmatter or Mermaid `%%{init: ...}%%` / `%%{initialize: ...}%%` directives:**
+**Agentic Mermaid currently supports the full documented Mermaid xychart config/theme surface below, via YAML frontmatter or Mermaid `%%{init: ...}%%` / `%%{initialize: ...}%%` directives:**
 
 - `config.useMaxWidth` / `config.useWidth`
 - `config.xyChart.width` / `config.xyChart.height` as total chart size
@@ -574,7 +583,7 @@ config:
 
 ### XY Chart Styling
 
-The current xychart renderer stays intentionally close to Mermaid while still following Beautiful Mermaid's theme system and spacing standards:
+The current xychart renderer stays intentionally close to Mermaid while still following Agentic Mermaid's theme system and spacing standards:
 
 - **Explicit axes and ticks** - Axis lines and tick marks are rendered by default, with Mermaid frontmatter available to hide or restyle them
 - **Shared Mermaid config entry points** - The same supported xychart config/theme subset works through YAML frontmatter and Mermaid `init` / `initialize` directives
@@ -760,7 +769,7 @@ Default colors (`#FFFFFF` / `#27272A`).
 
 Adding a Mermaid-supported diagram type to this repo? Start with [ADDING_DIAGRAM_TYPES.md](./ADDING_DIAGRAM_TYPES.md).
 
-The short version: copy an official Mermaid example into a test, make sure `beautiful-mermaid` renders a recognizably similar diagram, commit the example source and rendered evidence, and cover parser, integration, theme, ASCII, and regression checks as applicable.
+The short version: copy an official Mermaid example into a test, make sure Agentic Mermaid renders a recognizably similar diagram, commit the example source and rendered evidence, and cover parser, integration, theme, ASCII, and regression checks as applicable.
 
 ---
 
@@ -786,6 +795,6 @@ MIT — see [LICENSE](LICENSE) for details.
 
 <div align="center">
 
-Original project built with care by the team at [Craft](https://craft.do); this fork is maintained at `adewale/beautiful-mermaid`.
+Agentic Mermaid is maintained at `adewale/beautiful-mermaid` and currently published as `beautiful-mermaid`. The original renderer was built with care by the team at [Craft](https://craft.do).
 
 </div>

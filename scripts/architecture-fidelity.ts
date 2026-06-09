@@ -149,7 +149,7 @@ const baselineCaps = capabilities.filter((cap) => weights[cap.id] === 1)
 const matchedBaseline = baselineCaps.filter((cap) => architectureMatrix[cap.id])
 
 const architectureSamples = getSamplesForCategory(specs.architecture.category)
-const artifactsDir = join(tmpdir(), 'beautiful-mermaid-architecture-fidelity')
+const artifactsDir = join(tmpdir(), 'agentic-mermaid-architecture-fidelity')
 rmSync(artifactsDir, { recursive: true, force: true })
 mkdirSync(artifactsDir, { recursive: true })
 

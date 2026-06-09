@@ -1,12 +1,12 @@
 ---
-name: beautiful-mermaid-editor
+name: agentic-mermaid-editor
 description: >-
-  Architecture, patterns, and change guide for the Beautiful Mermaid live editor.
+  Architecture, patterns, and change guide for the Agentic Mermaid live editor.
   Use when modifying editor.ts, adding Config options, changing the UI, adding
   export formats, wiring new diagram options, or debugging the editor page.
 ---
 
-# Beautiful Mermaid — Live Editor
+# Agentic Mermaid — Live Editor
 
 ## Key files
 

@@ -1,8 +1,8 @@
-# Agent-Native Beautiful Mermaid — Plan
+# Agentic Mermaid — agent-native architecture
 
-**Status.** Architecture/spec rationale for branch `claude/agentic-mermaid-on-ast`. Current capabilities live in `FEATURES.md`; active work lives only in `TODO.md`. Not intended for upstream.
+**Status.** Architecture/spec rationale for the merged agent-native surface on `main`. Current capabilities live in `FEATURES.md`; active work lives only in `TODO.md`. Not intended for upstream.
 
-**Thesis.** Agents authoring Mermaid diagrams today regenerate the whole source on every edit, or render to PNG and read it back with vision. Beautiful Mermaid already fixed the worst of the rendering side (sync + DOM-free + ASCII). This fork adds the editing surface — structured verification, typed mutation, round-trippable IR — so an agent can edit one node and trust the result without ever opening an image.
+**Thesis.** Agents authoring Mermaid diagrams today regenerate the whole source on every edit, or render to PNG and read it back with vision. The Beautiful Mermaid renderer foundation already fixed the worst of the rendering side (sync + DOM-free + ASCII). Agentic Mermaid adds the editing surface — structured verification, typed mutation, round-trippable IR — so an agent can edit one node and trust the result without ever opening an image.
 
 ---
 
@@ -13,10 +13,10 @@ The stack is three layers, each contributing something the others can't:
 | Layer | Contribution |
 |---|---|
 | **Mermaid (grammar)** | 20+ diagram families. Rendered inline by GitHub, GitLab, Obsidian, Notion. Frontmatter + init + runtime config plane. `accTitle`/`accDescr` directives. **The corpus moat.** |
-| **Beautiful Mermaid (renderer)** | Synchronous, zero DOM, pure TypeScript. ASCII output. Two-color theming. Semantic role styling. 9 diagram families with full layout/render coverage. Property + mutation + e2e test scaffold already in place. **The AI-era renderer Craft built for Craft Agents.** |
-| **Agentic Mermaid (this spec)** | `ValidDiagram` IR. Deterministic layout. `verify()`. `mutate()` + round-trip `serializeMermaid`. Claude Code skill, CLI, `--agent-instructions`. **The editing surface.** |
+| **Beautiful Mermaid (renderer foundation)** | Synchronous, zero DOM, pure TypeScript. ASCII output. Two-color theming. Semantic role styling. 9 diagram families with full layout/render coverage. Property + mutation + e2e test scaffold already in place. **The AI-era renderer Craft built for Craft Agents.** |
+| **Agentic Mermaid (this product/workflow)** | `ValidDiagram` IR. Deterministic layout. `verify()`. `mutate()` + round-trip `serializeMermaid`. Claude Code skill, CLI, `--agent-instructions`. **The editing surface.** |
 
-D2 has a better language than Mermaid. Beautiful Mermaid has a better renderer than D2 for agent contexts. Mermaid has a corpus neither of them has. The bet: stacking the three wins.
+D2 has a better language than Mermaid. The Beautiful Mermaid renderer foundation has a better fit than D2 for agent contexts. Mermaid has a corpus neither of them has. The bet: stacking the three wins.
 
 ---
 
@@ -32,7 +32,7 @@ D2 has a better language than Mermaid. Beautiful Mermaid has a better renderer t
 
 ## Honest scope
 
-What this branch actually delivers and what it doesn't:
+What the current Agentic Mermaid surface delivers and what it doesn't:
 
 | Family | Parse / verify / render / round-trip | Structured mutation |
 |---|---|---|
@@ -297,9 +297,9 @@ There is no `LayoutContext`, no `SeededRNG`, no `Clock`, no font-metric table in
 
 ---
 
-## Breaking changes from Beautiful Mermaid
+## Compatibility choices from the Beautiful Mermaid foundation
 
-- **Agent surface exposed via the `./agent` subpath export** on the existing `beautiful-mermaid` package. The package-rename to `agentic-mermaid` is a v1-ship operation, not a v1-implementation one — it requires coordinating with the package owner and invalidates every existing consumer. The subpath export keeps both surfaces side by side.
+- **Agent surface exposed via the `./agent` subpath export** on the existing `beautiful-mermaid` package. Agentic Mermaid is the product/docs name; publishing a renamed `agentic-mermaid` package is a release/owner operation, not an implementation detail. The subpath export keeps renderer and agent surfaces side by side.
 - **Deterministic layout, verified.** Layout JSON is byte-identical across processes because ELK is configured for model-order layout with no random seed (see § (1)). No seed parameter is exposed because none affects output. Cross-machine byte equality across different CPU float behavior is not claimed; structural determinism within an ELK version is guaranteed and tested cross-process.
 - **IDs are content-hashed and stable** across runs (within an ELK version).
 - **`MermaidGraph` is kept** as an exported type — `ValidDiagram` wraps it in `body.graph` for flowchart, rather than replacing it. The original spec called for removal; the implementation showed it would break 61 test files and the Craft Agents consumer. The wrapping shape costs nothing.
@@ -315,7 +315,7 @@ Five artifacts, all derived from this doc:
 - **npm package** `beautiful-mermaid` with the `beautiful-mermaid/agent` subpath. The full TypeScript API. Agents with shell access import the library directly and compose verbs in their own JS/TS runtime; no MCP wrapper required. A future rename to `agentic-mermaid` remains an owner/release decision.
 - **`.claude/skills/agentic-mermaid/`** Claude Code skill bundle. Master `SKILL.md` routes by *both* diagram family and composition channel: it picks Code Mode when the MCP is connected, library import when the agent can run JS/TS with imports, the CLI for shell-only contexts. Per-family references (`flowchart.md`, `sequence.md`, etc.) describe syntax. Two channel references — `code-mode.md` (the canonical multi-step pattern) and `cli.md` (shell-only) — describe composition. Progressive disclosure means the LLM loads only what it needs. Family references sync from upstream Mermaid docs weekly via the shipped GitHub Action at `.github/workflows/sync-mermaid-docs.yml`, alongside our additions (LayoutWarning codes, MutationOp taxonomy).
 - **Substrate grep-lint** runs under `bun test` (not an uninstalled ESLint): `src/__tests__/agent-substrate-lint.test.ts` fails the build if `Math.random`, `Date.now`, or `performance.now` appear in `src/agent/**` or `src/layout-engine.ts`. This is real enforcement, executed in CI, not an aspirational config file.
-- **`agentic-mermaid-mcp`** Code Mode-style MCP server. The primary tool is `execute(code: string)`: the model writes JavaScript against the typed `mermaid.*` SDK declaration embedded in the system prompt; the server runs the code in a local `node:vm` sandbox with the library exposed as `mermaid` and the code's return value captured as the structured result. The server also exposes narrow `render_png` and `describe` helpers for binary output and summaries. The verify-before-commit loop becomes one round-trip rather than N. Hosting: local stdio launched by the MCP client (Claude Desktop, Claude Code, Cursor) — same deployment shape as filesystem-MCP, git-MCP, sqlite-MCP. No infrastructure on our side or the user's. This branch is not Cloudflare Codemode, not a Worker, not backed by `@cloudflare/codemode`, and not a drop-in Cloudflare integration; HTTP/SSE transport, Worker deployment, or a Cloudflare executor remain future options, not shipped artifacts.
+- **`agentic-mermaid-mcp`** Code Mode-style MCP server. The primary tool is `execute(code: string)`: the model writes JavaScript against the typed `mermaid.*` SDK declaration embedded in the system prompt; the server runs the code in a local `node:vm` sandbox with the library exposed as `mermaid` and the code's return value captured as the structured result. The server also exposes narrow `render_png` and `describe` helpers for binary output and summaries. The verify-before-commit loop becomes one round-trip rather than N. Hosting: local stdio launched by the MCP client (Claude Desktop, Claude Code, Cursor) — same deployment shape as filesystem-MCP, git-MCP, sqlite-MCP. No infrastructure on our side or the user's. The current MCP is not Cloudflare Codemode, not a Worker, not backed by `@cloudflare/codemode`, and not a drop-in Cloudflare integration; HTTP/SSE transport, Worker deployment, or a Cloudflare executor remain future options, not shipped artifacts.
 - **`Instructions_for_agents.md`** at repo root, hard-capped under 100 lines. `am --agent-instructions` prints the same content at runtime; a doc-sync test asserts the two are byte-identical.
 
 No HTTP endpoint or editor WebSocket watch in v1. The skill teaches Code Mode for both paths: agents-with-shell write JS/TS against the imported library; agents-without-shell write JavaScript against the MCP's `mermaid.*` SDK. Same surface in both cases.
@@ -421,13 +421,13 @@ Concrete consequences, in roughly descending impact:
 1. **Composition without shipping composition.** `@include`, `@template`, vars/`${}` are deferred indefinitely. An agent can implement its own splice or template flavor in JavaScript over source strings and SDK-returned parsed diagrams — parse trusted inputs, use supported `mutate` operations, verify, serialize — in one round-trip. Code Mode does not bless hand-fabricated `ValidDiagram` clones; structured edits stay on SDK lineage.
 2. **Multi-diagram repo operations.** "Rename `AuthService` across every architecture diagram in this repo, verify each, and report which now have warnings." With verb-per-tool MCP that's `N × 3` round-trips. With Code Mode: host/agent code supplies the file list and source strings, and one `execute()` can process them together. The sandbox itself does not expose filesystem access.
 3. **Auto-fix loops in one round-trip.** `verify` → identify mechanically fixable warnings → apply fixes → `verify` again, as a `while (!result.ok)` block. The agent only sees the final state plus a structured audit trail.
-4. **Diagram-as-tests / CI gate.** A repo installs `agentic-mermaid-mcp` and writes a Code Mode snippet that verifies every `.mmd` on push. Diagrams become test artifacts that fail CI when they break.
+4. **Diagram-as-tests / CI gate.** A repo installs `beautiful-mermaid`, runs the `agentic-mermaid-mcp` binary, and writes a Code Mode snippet that verifies every `.mmd` on push. Diagrams become test artifacts that fail CI when they break.
 5. **No need to ship `diffDiagrams` or `explainDiagram`.** Already cut. Code Mode confirms the cut: an agent that wants structural diff writes it from `parse` + `ValidDiagram` inspection in JavaScript. Every "would be nice to have a verb for" becomes "write the code for it in `execute()`."
 6. **Library as the cross-tool agent interface for diagrams.** A Mermaid linter, a `mermaid → d2` converter, a `graphviz → mermaid` importer can each expose the same Code Mode shape. Any agent then writes one JavaScript snippet that composes across libraries. We've effectively defined the agent interface for diagrams in this language.
 7. **Benchmark eval at speed.** MermaidSeqBench (and any future eval) runs as one `execute()` per case rather than N round-trips. Internal velocity multiplier.
-8. **Potential future Worker path.** Cloudflare-hosted Agentic Mermaid is tracked as `TODO.md` BUILD-4. A separate wrapper could use `@cloudflare/codemode` + `DynamicWorkerExecutor` after the security boundary, auth/rate limits, persistence, and CLI/MCP/library parity are scoped. This branch does not ship that dependency or runtime; JavaScript snippets plus a TypeScript-shaped SDK declaration are the reusable design idea, not a current Cloudflare deployment.
+8. **Potential future Worker path.** Cloudflare-hosted Agentic Mermaid is tracked as `TODO.md` BUILD-4. A separate wrapper could use `@cloudflare/codemode` + `DynamicWorkerExecutor` after the security boundary, auth/rate limits, persistence, and CLI/MCP/library parity are scoped. The current repo does not ship that dependency or runtime; JavaScript snippets plus a TypeScript-shaped SDK declaration are the reusable design idea, not a current Cloudflare deployment.
 9. **The skill becomes runnable, not just descriptive.** `references/code-mode.md` ships canonical executable JavaScript snippets the agent copy-pastes into `execute()`. Skill stops being prose; starts being a library of executable patterns.
-10. **A future diagram REPL would be a thin transport.** An `am repl` could become an interactive Code Mode shell — paste JavaScript, get structured results, iterate. Same sandbox, different transport. It is not shipped in this branch and would need promotion to `TODO.md` before implementation.
+10. **A future diagram REPL would be a thin transport.** An `am repl` could become an interactive Code Mode shell — paste JavaScript, get structured results, iterate. Same sandbox, different transport. It is not shipped and would need promotion to `TODO.md` before implementation.
 
 The biggest single consequence is #1: it gives us permission to never grow the spec for composition, queries, diffing, explaining, or any "we should probably have a verb for that" feature. **The verb set is intentionally small; Code Mode makes it sufficient.**
 
