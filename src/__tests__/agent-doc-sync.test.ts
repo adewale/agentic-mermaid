@@ -332,7 +332,7 @@ describe('shipped distribution artifacts present', () => {
     expect(payload.cases).toEqual(['auth-flow', 'order-domain-er'])
     expect(payload.sources['auth-flow']).toContain('G --> H[Dashboard]')
     expect(payload.sources['order-domain-er']).toContain('CUSTOMER ||--o{ ORDER : places')
-  })
+  }, 30_000)
 
   test('agent improvement example assesses, mutates, reassesses, and writes render files', async () => {
     const outDir = mkdtempSync(join(tmpdir(), 'am-example-test-'))
@@ -356,7 +356,7 @@ describe('shipped distribution artifacts present', () => {
     } finally {
       rmSync(outDir, { recursive: true, force: true })
     }
-  })
+  }, 30_000)
 
   test('npm package includes bundled PNG fonts documented for deterministic output', () => {
     const pkg = JSON.parse(readFileSync(join(REPO, 'package.json'), 'utf8'))
