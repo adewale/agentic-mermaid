@@ -10,7 +10,7 @@ A typed editing surface for Mermaid. New diagrams can be authored as Mermaid sou
 ## Pick a channel
 
 - `agentic-mermaid-mcp` connected → **Code Mode** (`references/code-mode.md`). Multi-step edits in one round-trip.
-- Can run JS/TS with imports → **library** (`beautiful-mermaid/agent`). Same SDK.
+- Can run JS/TS with imports → **library** (`agentic-mermaid/agent`). Same SDK.
 - Shell only → **CLI** (`references/cli.md`).
 
 ## Capability matrix

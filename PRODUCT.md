@@ -1,7 +1,7 @@
 # PRODUCT
 
 ## Product Purpose
-Agentic Mermaid is an open-source Mermaid rendering and editing toolkit, forked from `lukilabs/beautiful-mermaid`, for turning diagram source into polished SVG, PNG, ASCII/Unicode, and agent-verifiable structured edits. It is maintained in `adewale/beautiful-mermaid` and currently published as `beautiful-mermaid`; the product focus is expanded diagram coverage, semantic role-based styling, export tools, an agent-native safe-edit workflow, and a GitHub Pages-hosted showcase/editor.
+Agentic Mermaid is an open-source Mermaid rendering and editing toolkit, forked from `lukilabs/beautiful-mermaid`, for turning diagram source into polished SVG, PNG, ASCII/Unicode, and agent-verifiable structured edits. It is published as `agentic-mermaid`, maintained in `adewale/beautiful-mermaid`, and focused on expanded diagram coverage, semantic role-based styling, export tools, an agent-native safe-edit workflow, and a GitHub Pages-hosted showcase/editor.
 
 ## Register
 product

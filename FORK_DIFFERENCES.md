@@ -11,7 +11,7 @@ This repo owns the GitHub Pages deployment. The Craft/Cloudflare site is upstrea
 
 ## Agent-native workflow (largest fork-vs-upstream gap)
 
-Agentic Mermaid adds a typed editing surface for AI agents under the `beautiful-mermaid/agent` subpath export, plus an `am` CLI and an `agentic-mermaid-mcp` Code Mode MCP server. The workflow is differentiated from render-only tools: new diagrams may be authored as source then parsed/verified/rendered, while existing structured diagrams should go parse → narrow → mutate → verify → serialize. Journey, XY chart, architecture, and opaque-fallback diagrams round-trip losslessly via preserved source but do not expose structured mutation. Layout is deterministic and verified byte-identical across processes. See [`AGENT_NATIVE.md`](./AGENT_NATIVE.md) and [`Instructions_for_agents.md`](./Instructions_for_agents.md). Upstream has no equivalent.
+Agentic Mermaid is published as `agentic-mermaid` and adds a typed editing surface for AI agents under the `agentic-mermaid/agent` subpath export, plus an `am` CLI and an `agentic-mermaid-mcp` Code Mode MCP server. The workflow is differentiated from render-only tools: new diagrams may be authored as source then parsed/verified/rendered, while existing structured diagrams should go parse → narrow → mutate → verify → serialize. Journey, XY chart, architecture, and opaque-fallback diagrams round-trip losslessly via preserved source but do not expose structured mutation. Layout is deterministic and verified byte-identical across processes. See [`AGENT_NATIVE.md`](./AGENT_NATIVE.md) and [`Instructions_for_agents.md`](./Instructions_for_agents.md). Upstream has no equivalent.
 
 ## New and expanded diagram support
 

@@ -77,7 +77,7 @@ gate or an agent self-check after rendering.
 ## Recommended posture for agent runtimes
 
 ```ts
-import { renderMermaidSVG, verifyNoExternalRefs } from 'beautiful-mermaid/agent'
+import { renderMermaidSVG, verifyNoExternalRefs } from 'agentic-mermaid/agent'
 
 const svg = renderMermaidSVG(untrustedSource, { security: 'strict' })
 const check = verifyNoExternalRefs(svg)

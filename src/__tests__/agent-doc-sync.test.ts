@@ -55,6 +55,40 @@ function tsCodeBlocks(path: string): string[] {
   return Array.from(text.matchAll(/```ts\n([\s\S]*?)\n```/g)).map(m => m[1]!)
 }
 
+async function readWithTimeout(promise: Promise<string>, timeoutMs: number): Promise<string> {
+  let timer: ReturnType<typeof setTimeout> | undefined
+  try {
+    return await Promise.race([
+      promise,
+      new Promise<string>(resolve => { timer = setTimeout(() => resolve(''), timeoutMs) }),
+    ])
+  } finally {
+    if (timer) clearTimeout(timer)
+  }
+}
+
+async function runBunExample(script: string, args: string[] = [], timeoutMs = 60_000): Promise<{ status: number | null; timedOut: boolean; stdout: string; stderr: string }> {
+  const proc = Bun.spawn(['bun', 'run', script, ...args], { cwd: REPO, stdout: 'pipe', stderr: 'pipe' })
+  const stdoutPromise = new Response(proc.stdout).text()
+  const stderrPromise = new Response(proc.stderr).text()
+  let timer: ReturnType<typeof setTimeout> | undefined
+  let timedOut = false
+  const timeoutPromise = new Promise<null>(resolve => {
+    timer = setTimeout(() => {
+      timedOut = true
+      proc.kill('SIGTERM')
+      setTimeout(() => proc.kill('SIGKILL'), 1_000)
+      resolve(null)
+    }, timeoutMs)
+  })
+  const exited = await Promise.race([proc.exited, timeoutPromise])
+  if (timer) clearTimeout(timer)
+  const [stdout, stderr] = await Promise.all(timedOut
+    ? [readWithTimeout(stdoutPromise, 2_000), readWithTimeout(stderrPromise, 2_000)]
+    : [stdoutPromise, stderrPromise])
+  return { status: typeof exited === 'number' ? exited : null, timedOut, stdout, stderr }
+}
+
 describe('agent-facing runnable docs', () => {
   test('Claude Code Mode skill snippets execute and lint clean', async () => {
     const snippets = tsCodeBlocks(join(REPO, '.claude/skills/agentic-mermaid/references/code-mode.md'))
@@ -258,9 +292,9 @@ describe('shipped distribution artifacts present', () => {
     expect(existsSync(join(REPO, 'docs/agent-workflow-examples.md'))).toBe(true)
   })
 
-  test('MCP/CLI parity example runs', () => {
-    const r = spawnSync('bun', ['run', join(REPO, 'examples/mcp-vs-cli-complex-diagrams.ts')], { encoding: 'utf8', cwd: REPO })
-    expect({ status: r.status, stderr: r.stderr }).toEqual({ status: 0, stderr: '' })
+  test('MCP/CLI parity example runs', async () => {
+    const r = await runBunExample(join(REPO, 'examples/mcp-vs-cli-complex-diagrams.ts'))
+    expect({ status: r.status, timedOut: r.timedOut, stderr: r.stderr }).toEqual({ status: 0, timedOut: false, stderr: '' })
     const payload = JSON.parse(r.stdout)
     expect(payload.ok).toBe(true)
     expect(payload.channelA).toBe('mcp.execute')
@@ -270,11 +304,11 @@ describe('shipped distribution artifacts present', () => {
     expect(payload.sources['order-domain-er']).toContain('CUSTOMER ||--o{ ORDER : places')
   })
 
-  test('agent improvement example assesses, mutates, reassesses, and writes render files', () => {
+  test('agent improvement example assesses, mutates, reassesses, and writes render files', async () => {
     const outDir = mkdtempSync(join(tmpdir(), 'am-example-test-'))
     try {
-      const r = spawnSync('bun', ['run', join(REPO, 'examples/agent-improve-auth-flow.ts'), '--out-dir', outDir], { encoding: 'utf8', cwd: REPO, timeout: 60_000 })
-      expect({ status: r.status, signal: r.signal, error: r.error?.message, stderr: r.stderr }).toEqual({ status: 0, signal: null, error: undefined, stderr: '' })
+      const r = await runBunExample(join(REPO, 'examples/agent-improve-auth-flow.ts'), ['--out-dir', outDir])
+      expect({ status: r.status, timedOut: r.timedOut, stderr: r.stderr }).toEqual({ status: 0, timedOut: false, stderr: '' })
       const payload = JSON.parse(r.stdout)
       expect(payload.ok).toBe(true)
       expect(payload.problems.length).toBeGreaterThan(0)

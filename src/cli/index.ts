@@ -739,7 +739,7 @@ ${codes}
 \`import { parseMermaid, mutate, verifyMermaid, serializeMermaid,
 renderMermaidSVG, renderMermaidPNG, renderMermaidASCII,
 renderMermaidASCIIWithMeta, describeMermaid, asciiToMermaid,
-verifyNoExternalRefs } from 'beautiful-mermaid/agent'\`
+verifyNoExternalRefs } from 'agentic-mermaid/agent'\`
 
 ## Docs
 

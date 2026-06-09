@@ -1,5 +1,5 @@
 // ============================================================================
-// Agentic Mermaid — ASCII renderer public API (published as beautiful-mermaid)
+// Agentic Mermaid — ASCII renderer public API (published as agentic-mermaid)
 //
 // Renders Mermaid diagrams to ASCII or Unicode box-drawing art.
 // No external dependencies — pure TypeScript.
@@ -16,7 +16,7 @@
 //   - XY charts (xychart / xychart-beta)
 //
 // Usage:
-//   import { renderMermaidASCII } from 'beautiful-mermaid'
+//   import { renderMermaidASCII } from 'agentic-mermaid'
 //   const ascii = renderMermaidASCII('graph LR\n  A --> B')
 // ============================================================================
 

@@ -4,7 +4,7 @@ PR #11 has merged into `main`, but this map remains useful for auditing the agen
 
 ## Public contract to inspect
 
-- Library: `beautiful-mermaid/agent` exports parse, narrow, mutate, verify, serialize, SVG/ASCII/PNG render, describe, and quality helpers.
+- Library: `agentic-mermaid/agent` exports parse, narrow, mutate, verify, serialize, SVG/ASCII/PNG render, describe, and quality helpers.
 - CLI: `am render|preview|verify|parse|serialize|mutate|format|describe|capabilities|batch|render-markdown|llms-txt`.
 - MCP: primary Code Mode `execute(code)` plus narrow helpers `render_png` and `describe`.
 - Agent docs: `Instructions_for_agents.md`, `llms.txt`, `.claude/skills/agentic-mermaid/`, `docs/agent-mutation-policy.md`, `docs/mcp-code-mode-rationale.md`.

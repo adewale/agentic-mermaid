@@ -14,13 +14,8 @@ Status legend: `todo` | `blocked` | `owner-decision` | `parked`.
 
 ## 0. Release / owner decisions
 
-- [ ] **DEC-1 — Publish-name decision** (`owner-decision`). The product/docs
-  name is now **Agentic Mermaid**, but the npm package remains
-  `beautiful-mermaid` with the `./agent` subpath. Decide whether to
-  publish a renamed `agentic-mermaid` package, keep `beautiful-mermaid` as the
-  compatibility package, or ship both with one canonical install path.
-- [ ] **DEC-2 — Get one real external consumer** (`todo`). Validate
-  `beautiful-mermaid/agent`, `am`, or `agentic-mermaid-mcp` in a real agent,
+- [ ] **DEC-1 — Get one real external consumer** (`todo`). Validate
+  `agentic-mermaid/agent`, `am`, or `agentic-mermaid-mcp` in a real agent,
   TUI, CI gate, or editor integration outside this repo.
 
 ## 1. Ready build backlog

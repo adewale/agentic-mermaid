@@ -4,11 +4,11 @@
 
 **Render, verify, and safely edit Mermaid diagrams from code or AI agents.**
 
-Currently published as `beautiful-mermaid`; the product and agent workflow are now **Agentic Mermaid**. This project is a fork of [`lukilabs/beautiful-mermaid`](https://github.com/lukilabs/beautiful-mermaid), maintained at `adewale/beautiful-mermaid`.
+Published as `agentic-mermaid`; the GitHub repository currently remains `adewale/beautiful-mermaid`. This project is a fork of [`lukilabs/beautiful-mermaid`](https://github.com/lukilabs/beautiful-mermaid).
 
 ![Agentic Mermaid sequence diagram example](assets/hero.png)
 
-[![npm version](https://img.shields.io/npm/v/beautiful-mermaid.svg)](https://www.npmjs.com/package/beautiful-mermaid)
+[![npm version](https://img.shields.io/npm/v/agentic-mermaid.svg)](https://www.npmjs.com/package/agentic-mermaid)
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
 [**Live Demo & Samples**](https://adewale.github.io/beautiful-mermaid/) · [Live Editor](https://adewale.github.io/beautiful-mermaid/editor)
@@ -50,10 +50,10 @@ That is the core product claim: agents should not guess from pixels, concatenate
 
 ## Agent-native surface
 
-The `beautiful-mermaid/agent` subpath export gives AI agents two honest paths: author new Mermaid source directly and verify/render it, or use a typed editing loop for existing structured diagrams without rendering to an image to know whether an edit worked:
+The `agentic-mermaid/agent` subpath export gives AI agents two honest paths: author new Mermaid source directly and verify/render it, or use a typed editing loop for existing structured diagrams without rendering to an image to know whether an edit worked:
 
 ```ts
-import { parseMermaid, asFlowchart, mutate, verifyMermaid, serializeMermaid } from 'beautiful-mermaid/agent'
+import { parseMermaid, asFlowchart, mutate, verifyMermaid, serializeMermaid } from 'agentic-mermaid/agent'
 
 const d0 = parseMermaid('flowchart TD\n  API --> DB')
 if (!d0.ok) throw new Error('parse')
@@ -79,14 +79,14 @@ Agentic Mermaid adds several capabilities beyond the current upstream baseline. 
 
 ## Installation
 
-The npm package is still `beautiful-mermaid` while the public name transitions to Agentic Mermaid.
+The npm package is `agentic-mermaid`. The GitHub repo and Pages path currently remain under `adewale/beautiful-mermaid`.
 
 ```bash
-npm install beautiful-mermaid
+npm install agentic-mermaid
 # or
-bun add beautiful-mermaid
+bun add agentic-mermaid
 # or
-pnpm add beautiful-mermaid
+pnpm add agentic-mermaid
 ```
 
 CLI binaries installed from the package:
@@ -101,7 +101,7 @@ agentic-mermaid-mcp --help
 ### SVG Output
 
 ```typescript
-import { renderMermaidSVG } from 'beautiful-mermaid'
+import { renderMermaidSVG } from 'agentic-mermaid'
 
 const svg = renderMermaidSVG(`
   graph TD
@@ -118,7 +118,7 @@ Need async? Use `renderMermaidSVGAsync()` — same output, returns a `Promise<st
 ### ASCII Output
 
 ```typescript
-import { renderMermaidASCII } from 'beautiful-mermaid'
+import { renderMermaidASCII } from 'agentic-mermaid'
 
 const ascii = renderMermaidASCII(`graph LR; A --> B --> C`)
 ```
@@ -138,7 +138,7 @@ const ascii = renderMermaidASCII(`graph LR; A --> B --> C`)
 Because rendering is synchronous, you can use `useMemo()` for zero-flash diagram rendering:
 
 ```tsx
-import { renderMermaidSVG } from 'beautiful-mermaid'
+import { renderMermaidSVG } from 'agentic-mermaid'
 
 function MermaidDiagram({ code }: { code: string }) {
   const { svg, error } = React.useMemo(() => {
@@ -267,7 +267,7 @@ const svg = renderMermaidSVG(diagram, {
 | `tufte-dark` | Dark | `#1C1C1A` | `#C87070` |
 
 ```typescript
-import { renderMermaidSVG, THEMES } from 'beautiful-mermaid'
+import { renderMermaidSVG, THEMES } from 'agentic-mermaid'
 
 const svg = renderMermaidSVG(diagram, THEMES['tokyo-night'])
 ```
@@ -302,7 +302,7 @@ Use **any VS Code theme** directly via Shiki integration. This gives you access 
 
 ```typescript
 import { getSingletonHighlighter } from 'shiki'
-import { renderMermaidSVG, fromShikiTheme } from 'beautiful-mermaid'
+import { renderMermaidSVG, fromShikiTheme } from 'agentic-mermaid'
 
 // Load any theme from Shiki's registry
 const highlighter = await getSingletonHighlighter({
@@ -602,7 +602,7 @@ The current xychart renderer stays intentionally close to Mermaid while still fo
 For terminal environments, CLI tools, or anywhere you need plain text, render to ASCII or Unicode box-drawing characters:
 
 ```typescript
-import { renderMermaidASCII } from 'beautiful-mermaid'
+import { renderMermaidASCII } from 'agentic-mermaid'
 
 // Unicode mode (default) — prettier box drawing
 const unicode = renderMermaidASCII(`graph LR; A --> B`)
@@ -795,6 +795,6 @@ MIT — see [LICENSE](LICENSE) for details.
 
 <div align="center">
 
-Agentic Mermaid is maintained at `adewale/beautiful-mermaid` and currently published as `beautiful-mermaid`. The original renderer was built with care by the team at [Craft](https://craft.do).
+Agentic Mermaid is published as `agentic-mermaid` and maintained at `adewale/beautiful-mermaid`. The original renderer was built with care by the team at [Craft](https://craft.do).
 
 </div>
