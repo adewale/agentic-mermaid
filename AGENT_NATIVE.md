@@ -14,7 +14,7 @@ The stack is three layers, each contributing something the others can't:
 |---|---|
 | **Mermaid (grammar)** | 20+ diagram families. Rendered inline by GitHub, GitLab, Obsidian, Notion. Frontmatter + init + runtime config plane. `accTitle`/`accDescr` directives. **The corpus moat.** |
 | **Beautiful Mermaid (renderer foundation)** | Synchronous, zero DOM, pure TypeScript. ASCII output. Two-color theming. Semantic role styling. 9 diagram families with full layout/render coverage. Property + mutation + e2e test scaffold already in place. **The AI-era renderer Craft built for Craft Agents.** |
-| **Agentic Mermaid (this product/workflow)** | `ValidDiagram` IR. Deterministic layout. `verify()`. `mutate()` + round-trip `serializeMermaid`. Claude Code skill, CLI, `--agent-instructions`. **The editing surface.** |
+| **Agentic Mermaid (this product/workflow)** | `ValidDiagram` IR. Deterministic layout. `verify()`. `mutate()` + round-trip `serializeMermaid`. Agent-agnostic skills, CLI, `--agent-instructions`. **The editing surface.** |
 
 D2 has a better language than Mermaid. The Beautiful Mermaid renderer foundation has a better fit than D2 for agent contexts. Mermaid has a corpus neither of them has. The bet: stacking the three wins.
 
@@ -264,8 +264,9 @@ Convention bans constructing `ValidDiagram` outside `parseMermaid`, `mutate`, an
 ```ts
 parseMermaid(source: string):                              Result<ValidDiagram, ParseError[]>
 layoutMermaid(d: ValidDiagram):                            RenderedLayout
-renderMermaidSVG(input: ValidDiagram | string, opts?):     string
 renderMermaidASCII(input: ValidDiagram | string, opts?):   string
+renderMermaidPNG(input: ValidDiagram | string, opts?):     Uint8Array
+renderMermaidSVG(input: ValidDiagram | string, opts?):     string
 verifyMermaid(input: ValidDiagram | string, opts?: VerifyOptions): VerifyResult
 serializeMermaid(d: ValidDiagram):                         string
 
@@ -312,8 +313,8 @@ There is no `LayoutContext`, no `SeededRNG`, no `Clock`, no font-metric table in
 
 Five artifacts, all derived from this doc:
 
-- **npm package** `agentic-mermaid` with the `agentic-mermaid/agent` subpath. The full TypeScript API. Agents with shell access import the library directly and compose verbs in their own JS/TS runtime; no MCP wrapper required.
-- **`.claude/skills/agentic-mermaid/`** Claude Code skill bundle. Master `SKILL.md` routes by *both* diagram family and composition channel: it picks Code Mode when the MCP is connected, library import when the agent can run JS/TS with imports, the CLI for shell-only contexts. Per-family references (`flowchart.md`, `sequence.md`, etc.) describe syntax. Two channel references — `code-mode.md` (the canonical multi-step pattern) and `cli.md` (shell-only) — describe composition. Progressive disclosure means the LLM loads only what it needs. Family references sync from upstream Mermaid docs weekly via the shipped GitHub Action at `.github/workflows/sync-mermaid-docs.yml`, alongside our additions (LayoutWarning codes, MutationOp taxonomy).
+- **npm package** `agentic-mermaid` with the `agentic-mermaid/agent` subpath. The full TypeScript API, including ASCII, PNG, and SVG output helpers. Agents with shell access import the library directly and compose verbs in their own JS/TS runtime; no MCP wrapper required.
+- **`skills/agentic-mermaid-diagram-workflow/`** agent-agnostic skill bundle. Master `SKILL.md` routes by *both* diagram family and composition channel: it picks Code Mode when the MCP is connected, library import when the agent can run JS/TS with imports, the CLI for shell-only contexts. Per-family references (`flowchart.md`, `sequence.md`, etc.) describe syntax. Two channel references — `code-mode.md` (the canonical multi-step pattern) and `cli.md` (shell-only) — describe composition. Progressive disclosure means the LLM loads only what it needs. Family references sync from upstream Mermaid docs weekly via the shipped GitHub Action at `.github/workflows/sync-mermaid-docs.yml`, alongside our additions (LayoutWarning codes, MutationOp taxonomy).
 - **Substrate grep-lint** runs under `bun test` (not an uninstalled ESLint): `src/__tests__/agent-substrate-lint.test.ts` fails the build if `Math.random`, `Date.now`, or `performance.now` appear in `src/agent/**` or `src/layout-engine.ts`. This is real enforcement, executed in CI, not an aspirational config file.
 - **`agentic-mermaid-mcp`** Code Mode-style MCP server. The primary tool is `execute(code: string)`: the model writes JavaScript against the typed `mermaid.*` SDK declaration embedded in the system prompt; the server runs the code in a local `node:vm` sandbox with the library exposed as `mermaid` and the code's return value captured as the structured result. The server also exposes narrow `render_png` and `describe` helpers for binary output and summaries. The verify-before-commit loop becomes one round-trip rather than N. Hosting: local stdio launched by the MCP client (Claude Desktop, Claude Code, Cursor) — same deployment shape as filesystem-MCP, git-MCP, sqlite-MCP. No infrastructure on our side or the user's. The current MCP is not Cloudflare Codemode, not a Worker, not backed by `@cloudflare/codemode`, and not a drop-in Cloudflare integration; HTTP/SSE transport, Worker deployment, or a Cloudflare executor remain future options, not shipped artifacts.
 - **`Instructions_for_agents.md`** at repo root, hard-capped under 100 lines. `am --agent-instructions` prints the same content at runtime; a doc-sync test asserts the two are byte-identical.

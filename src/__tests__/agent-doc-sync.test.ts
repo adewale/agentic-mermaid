@@ -90,8 +90,8 @@ async function runBunExample(script: string, args: string[] = [], timeoutMs = 60
 }
 
 describe('agent-facing runnable docs', () => {
-  test('Claude Code Mode skill snippets execute and lint clean', async () => {
-    const snippets = tsCodeBlocks(join(REPO, '.claude/skills/agentic-mermaid/references/code-mode.md'))
+  test('Code Mode skill snippets execute and lint clean', async () => {
+    const snippets = tsCodeBlocks(join(REPO, 'skills/agentic-mermaid-diagram-workflow/references/code-mode.md'))
     expect(snippets.length).toBeGreaterThan(0)
     for (const snippet of snippets) {
       const r = await executeInSandbox(snippet, { trace: true })
@@ -182,8 +182,8 @@ describe('root docs consistency', () => {
 
     const guide = readFileSync(join(REPO, 'Instructions_for_agents.md'), 'utf8')
     const llms = readFileSync(join(REPO, 'llms.txt'), 'utf8')
-    const skillCli = readFileSync(join(REPO, '.claude/skills/agentic-mermaid/references/cli.md'), 'utf8')
-    for (const [file, text] of [['Instructions_for_agents.md', guide], ['llms.txt', llms], ['.claude/skills/agentic-mermaid/references/cli.md', skillCli]] as const) {
+    const skillCli = readFileSync(join(REPO, 'skills/agentic-mermaid-diagram-workflow/references/cli.md'), 'utf8')
+    for (const [file, text] of [['Instructions_for_agents.md', guide], ['llms.txt', llms], ['skills/agentic-mermaid-diagram-workflow/references/cli.md', skillCli]] as const) {
       expect({ file, preview: text.includes('preview') }).toEqual({ file, preview: true })
       expect({ file, ops: text.includes('--ops') }).toEqual({ file, ops: true })
       expect({ file, editPolicy: text.includes('editPolicy') }).toEqual({ file, editPolicy: true })
@@ -220,7 +220,7 @@ describe('spec honesty', () => {
   })
 
   test('agent docs use verify-before-commit terminology', () => {
-    for (const file of ['AGENT_NATIVE.md', 'CHANGELOG.md', 'Instructions_for_agents.md', '.claude/skills/agentic-mermaid/references/code-mode.md', 'eval/agent-usage/README.md']) {
+    for (const file of ['AGENT_NATIVE.md', 'CHANGELOG.md', 'Instructions_for_agents.md', 'skills/agentic-mermaid-diagram-workflow/references/code-mode.md', 'eval/agent-usage/README.md']) {
       const text = readFileSync(join(REPO, file), 'utf8')
       expect({ file, stale: text.includes('verify-after-mutate') }).toEqual({ file, stale: false })
     }
@@ -281,9 +281,39 @@ describe('detector drift guard (agent vs shared router)', () => {
   })
 })
 
+describe('skill eval manifest coverage', () => {
+  test('covers families, channels, adversarial/no-trigger cases, fixtures, and hidden splits', () => {
+    const manifest = JSON.parse(readFileSync(join(REPO, 'evals/shared-benchmark.json'), 'utf8'))
+    const cases = manifest.cases as Array<{ id: string; split: string; kind: string; tags?: string[]; files?: string[]; prompt?: string; prompt_ref?: string }>
+    const tags = new Set(cases.flatMap(c => c.tags ?? []))
+    for (const family of ['flowchart', 'sequence', 'timeline', 'class', 'er', 'journey', 'xychart', 'architecture']) {
+      expect({ family, covered: tags.has(`family:${family}`) }).toEqual({ family, covered: true })
+    }
+    for (const channel of ['library', 'cli', 'mcp-code-mode']) {
+      expect({ channel, covered: tags.has(`channel:${channel}`) }).toEqual({ channel, covered: true })
+    }
+    expect(cases.filter(c => c.kind === 'adversarial').length).toBeGreaterThanOrEqual(4)
+    expect(cases.some(c => c.kind === 'negative')).toBe(true)
+    expect(cases.filter(c => c.kind === 'trigger' && (c.tags ?? []).includes('no-trigger')).length).toBeGreaterThanOrEqual(2)
+    expect(cases.filter(c => c.files?.length).length).toBeGreaterThanOrEqual(8)
+    expect(cases.filter(c => c.split === 'holdout').length).toBeGreaterThan(0)
+    expect(cases.filter(c => c.split === 'holdback').length).toBeGreaterThan(0)
+    for (const c of cases.filter(c => c.split === 'holdout' || c.split === 'holdback')) {
+      expect({ id: c.id, publicPrompt: Boolean(c.prompt), privateRef: c.prompt_ref?.startsWith('private/') }).toEqual({ id: c.id, publicPrompt: false, privateRef: true })
+    }
+    for (const c of cases.flatMap(c => c.files ?? [])) expect(existsSync(join(REPO, 'evals', c))).toBe(true)
+    expect(manifest.run_policy.minimum_runs_per_variant).toBeGreaterThanOrEqual(3)
+    expect(manifest.run_policy.recommended_runs_per_variant).toBeGreaterThanOrEqual(5)
+  })
+})
+
 describe('shipped distribution artifacts present', () => {
   test('skill bundle + workflow + examples', () => {
-    expect(existsSync(join(REPO, '.claude/skills/agentic-mermaid/SKILL.md'))).toBe(true)
+    expect(existsSync(join(REPO, '.claude'))).toBe(false)
+    expect(existsSync(join(REPO, '.agents'))).toBe(false)
+    expect(existsSync(join(REPO, 'skills/README.md'))).toBe(true)
+    expect(existsSync(join(REPO, 'skills/agentic-mermaid-diagram-workflow/SKILL.md'))).toBe(true)
+    expect(existsSync(join(REPO, 'skills/agentic-mermaid-live-editor/SKILL.md'))).toBe(true)
     expect(existsSync(join(REPO, '.github/workflows/sync-mermaid-docs.yml'))).toBe(true)
     expect(existsSync(join(REPO, 'examples/agent-loop.ts'))).toBe(true)
     expect(existsSync(join(REPO, 'examples/mcp-vs-cli-complex-diagrams.ts'))).toBe(true)
@@ -331,7 +361,7 @@ describe('shipped distribution artifacts present', () => {
   test('npm package includes bundled PNG fonts documented for deterministic output', () => {
     const pkg = JSON.parse(readFileSync(join(REPO, 'package.json'), 'utf8'))
     expect(pkg.files).toContain('assets/fonts/')
-    for (const doc of ['FEATURES.md', 'TODO.md', 'QUALITY.md', 'SECURITY.md', 'docs/']) expect(pkg.files).toContain(doc)
+    for (const doc of ['FEATURES.md', 'TODO.md', 'QUALITY.md', 'SECURITY.md', 'docs/', 'skills/', 'evals/']) expect(pkg.files).toContain(doc)
     for (const example of ['examples/agent-loop.ts', 'examples/mcp-vs-cli-complex-diagrams.ts', 'examples/agent-improve-auth-flow.ts']) expect(pkg.files).toContain(example)
     expect(existsSync(join(REPO, 'assets/fonts/DejaVuSans.ttf'))).toBe(true)
     expect(existsSync(join(REPO, 'assets/fonts/DejaVuSans-Bold.ttf'))).toBe(true)

@@ -1,5 +1,7 @@
 # CLI (shell-only / one-shot)
 
+Agentic Mermaid outputs ASCII, PNG, and SVG through the CLI, with Unicode text and JSON layout available for specialized workflows.
+
 ```text
 am render <file|-> --format svg|ascii|unicode|json
 am render <file> --format png --output file.png  # one-shot only; no watch/multi-input

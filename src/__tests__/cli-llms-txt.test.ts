@@ -35,10 +35,13 @@ describe('#6430 llms.txt', () => {
     expect(txt).toMatch(/\n> /)
   })
 
-  test('mentions the agent loop and security posture', () => {
+  test('mentions the agent loop, security posture, and agent onboarding docs', () => {
     const txt = buildLlmsTxt()
     expect(txt).toContain('parse → ')
     expect(txt.toLowerCase()).toContain('security')
+    expect(txt).toContain('docs/agent-api-cookbook.md')
+    expect(txt).toContain('skills/')
+    expect(txt).toContain('evals/')
   })
 
   test('committed llms.txt snapshot is in sync with the generator', () => {

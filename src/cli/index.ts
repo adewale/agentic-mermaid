@@ -676,7 +676,7 @@ export function buildLlmsTxt(): string {
   return `# Agentic Mermaid
 
 > Agent-native Mermaid runtime: parse, verify, mutate, and round-trip
-> Mermaid diagrams with a typed IR. Deterministic SVG / ASCII / PNG. No
+> Mermaid diagrams with a typed IR. Deterministic ASCII / PNG / SVG. No
 > browser required. CLI + MCP + library.
 
 Version: ${cap.sdkVersion}
@@ -720,7 +720,7 @@ render_png is offline.
 
 ## Output formats
 
-${formats}. SVG strict mode (security: 'strict') emits zero external-fetch
+Agentic Mermaid outputs ASCII, PNG, and SVG. Full capability list: ${formats}. SVG strict mode (security: 'strict') emits zero external-fetch
 references — safe for untrusted/agent-generated diagrams. See SECURITY.md.
 
 ## Diagram families
@@ -737,7 +737,7 @@ ${codes}
 ## Library
 
 \`import { parseMermaid, mutate, verifyMermaid, serializeMermaid,
-renderMermaidSVG, renderMermaidPNG, renderMermaidASCII,
+renderMermaidASCII, renderMermaidPNG, renderMermaidSVG,
 renderMermaidASCIIWithMeta, describeMermaid, asciiToMermaid,
 verifyNoExternalRefs } from 'agentic-mermaid/agent'\`
 
@@ -750,9 +750,11 @@ verifyNoExternalRefs } from 'agentic-mermaid/agent'\`
 - QUALITY.md — determinism + "good looking" rubric
 - SECURITY.md — threat model + strict-mode guarantee
 - docs/agent-mutation-policy.md — structured-vs-source-level policy
+- docs/agent-api-cookbook.md — copy-pasteable library/CLI/MCP recipes
 - docs/mcp-code-mode-rationale.md — MCP surface rationale
 - docs/agent-workflow-examples.md — runnable MCP/CLI + agent-improvement examples
-- docs/pr11-reviewer-guide.md — merged PR #11 review/audit map
+- skills/ — agent-agnostic SKILL.md bundles for diagram workflow and live-editor development
+- evals/ — skill-eval-harness manifest, fixtures, and benchmark instructions
 `
 }
 

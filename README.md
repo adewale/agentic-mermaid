@@ -13,7 +13,7 @@ Published as `agentic-mermaid`; the GitHub repository currently remains `adewale
 
 [**Live Demo & Samples**](https://adewale.github.io/beautiful-mermaid/) · [Live Editor](https://adewale.github.io/beautiful-mermaid/editor)
 
-Docs: [Agent workflow](./Instructions_for_agents.md) · [What changed in this fork](./FORK_DIFFERENCES.md) · [Changelog](./CHANGELOG.md)
+Docs: [Agent workflow](./Instructions_for_agents.md) · [Agent API cookbook](./docs/agent-api-cookbook.md) · [Agent skills](./skills/) · [What changed in this fork](./FORK_DIFFERENCES.md) · [Changelog](./CHANGELOG.md)
 
 </div>
 
@@ -28,7 +28,7 @@ Agentic Mermaid is a fork of Beautiful Mermaid. It keeps the original renderer f
 ## Highlights
 
 - **9 diagram families** — flowchart, state, architecture, sequence, class, ER, timeline, journey, and XY chart.
-- **SVG, PNG, ASCII, Unicode, and JSON layout** — rich UI output plus terminal-friendly diagrams.
+- **ASCII, PNG, and SVG outputs** — plus Unicode text and JSON layout for terminal, binary, and rich UI workflows.
 - **Synchronous, zero-DOM renderer** — no Puppeteer, no browser flash, works with React `useMemo()`.
 - **19 built-in themes + Shiki compatibility** — theme from two colors or a VS Code theme.
 - **Agent-native editing loop** — source authoring for new diagrams; typed parse → narrow → mutate → verify → serialize for existing structured diagrams.
@@ -67,7 +67,11 @@ if (d1.ok && verifyMermaid(d1.value).ok) console.log(serializeMermaid(d1.value))
 - **Deterministic layout**, verified byte-identical across processes.
 - Ships an **`am` CLI** (`render`, strict `preview`, `mutate --op/--ops`, `batch`, …) and an **`agentic-mermaid-mcp`** Code Mode MCP server.
 
-See [`AGENT_NATIVE.md`](./AGENT_NATIVE.md), [`Instructions_for_agents.md`](./Instructions_for_agents.md), [`docs/mcp-code-mode-rationale.md`](./docs/mcp-code-mode-rationale.md), [`docs/agent-workflow-examples.md`](./docs/agent-workflow-examples.md), [`examples/agent-loop.ts`](./examples/agent-loop.ts), [`examples/mcp-vs-cli-complex-diagrams.ts`](./examples/mcp-vs-cli-complex-diagrams.ts), and [`examples/agent-improve-auth-flow.ts`](./examples/agent-improve-auth-flow.ts).
+See [`docs/agent-api-cookbook.md`](./docs/agent-api-cookbook.md) for copy-pasteable recipes, [`skills/`](./skills/) for agent-agnostic skill bundles, plus [`AGENT_NATIVE.md`](./AGENT_NATIVE.md), [`Instructions_for_agents.md`](./Instructions_for_agents.md), [`docs/mcp-code-mode-rationale.md`](./docs/mcp-code-mode-rationale.md), [`docs/agent-workflow-examples.md`](./docs/agent-workflow-examples.md), [`examples/agent-loop.ts`](./examples/agent-loop.ts), [`examples/mcp-vs-cli-complex-diagrams.ts`](./examples/mcp-vs-cli-complex-diagrams.ts), and [`examples/agent-improve-auth-flow.ts`](./examples/agent-improve-auth-flow.ts).
+
+### Agent quick start
+
+If your coding agent can read repo files, point it at [`skills/agentic-mermaid-diagram-workflow/SKILL.md`](./skills/agentic-mermaid-diagram-workflow/SKILL.md) for diagram work or [`skills/agentic-mermaid-live-editor/SKILL.md`](./skills/agentic-mermaid-live-editor/SKILL.md) for editor changes. If it only has shell access, run `am --agent-instructions` and `am capabilities --json`. For multi-step edits through MCP, connect `agentic-mermaid-mcp` and use Code Mode `execute(code)` with the same `mermaid.*` SDK names.
 
 ## Discovering Agentic Mermaid features
 
@@ -93,8 +97,10 @@ CLI binaries installed from the package:
 
 ```bash
 am --help
-agentic-mermaid-mcp --help
+agentic-mermaid-mcp
 ```
+
+The current CLI/MCP binaries are Bun entrypoints; install Bun before using those commands from an npm-installed package. Library imports use the published JavaScript build.
 
 ## Quick Start
 
