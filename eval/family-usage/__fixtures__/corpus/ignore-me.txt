@@ -1,0 +1,6 @@
+This .txt file should not be scanned by default.
+
+```mermaid
+pie title Should Not Count
+  "X" : 1
+```
