@@ -45,6 +45,8 @@ This changelog tracks user-facing changes for **Agentic Mermaid**, a fork of `lu
 - Quality docs now explicitly state that Agentic Mermaid is not Mermaid visual parity: `verify.ok` is structural, while layout quality needs metrics, geometry assertions, screenshots, or rendered artifacts.
 
 ### Fixed
+- ER cardinality tokens now match Mermaid's lexer on both sides (`||`, `|o`, `o|`, `}o`, `o{`, `}|`, `|{`): left-side `}o` (used by the mermaid-docs corpus as `}o..o{`) previously failed the sort-based normalization and the whole relationship — including its entities — was silently dropped, rendering an empty diagram. Non-Mermaid forms (`{o`, `o}`, `|}`, `{|`) now raise a clear parse error instead of rendering. The render-path parser and the agent ER body parser now agree.
+- Showcase and editor theme switching no longer flashes the previous theme's diagram background (white, when leaving a light theme): existing SVG CSS variables are patched instantly, switching back to Default restores each sample's captured original style, and rapid theme switches can no longer interleave stale re-renders.
 - TypeScript CI failures in journey style padding and optional node corner-radius resolution.
 - Editor export actions are disabled until a diagram exists and parser errors now include recovery-oriented copy.
 - Editor menus, sidebar, and theme controls now close with Escape and expose stronger ARIA/focus states.

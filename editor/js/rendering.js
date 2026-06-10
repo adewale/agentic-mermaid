@@ -50,12 +50,17 @@ function applyThemeToPage(themeKey) {
   // the previous theme's --bg baked into its inline style, and the scheduled
   // re-render is async — without this, the diagram flashes the old theme
   // background (white, when leaving a light theme) on the new page colors.
+  // For Default (no theme) the renderer falls back to DEFAULTS from
+  // src/theme.ts (#FFFFFF / #27272A), so patch to those values.
   var svgEl =
     typeof previewInner !== "undefined" && previewInner
       ? previewInner.querySelector("svg")
       : null;
-  if (svgEl && themeKey && THEMES[themeKey]) {
-    var themeColors = THEMES[themeKey];
+  if (svgEl) {
+    var themeColors =
+      themeKey && THEMES[themeKey]
+        ? THEMES[themeKey]
+        : { bg: "#FFFFFF", fg: "#27272A" };
     var overrides = (typeof state !== "undefined" && state.config) || {};
     var roles = ["bg", "fg", "line", "accent", "muted", "surface", "border"];
     for (var i = 0; i < roles.length; i++) {

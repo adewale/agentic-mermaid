@@ -1466,6 +1466,10 @@ ${bundleJs}
 
   var DEFAULT_PAGE_THEME = 'salmon';
   var activeThemeKey = '';
+  // Original inline style of each SVG as rendered with its own per-sample
+  // options ("Default" appearance), captured at default-render time so
+  // switching back to Default can restore colors instantly.
+  var defaultSvgStyles = {};
 
   function setShadowVars(theme) {
     var body = document.body;
@@ -1578,6 +1582,16 @@ ${bundleJs}
         var liveSvg = document.querySelector('#svg-' + j + ' svg');
         if (liveSvg) applySvgThemeVars(liveSvg, theme);
       }
+    } else {
+      // Default: restore each SVG's captured per-sample inline style so
+      // leaving a theme doesn't show the old theme's colors while the
+      // serial re-render catches up.
+      for (var j = 0; j < samples.length; j++) {
+        var liveSvg = document.querySelector('#svg-' + j + ' svg');
+        if (liveSvg && typeof defaultSvgStyles[j] === 'string') {
+          liveSvg.setAttribute('style', defaultSvgStyles[j]);
+        }
+      }
     }
 
     // Re-render all SVGs with theme colors. The generation token cancels
@@ -1596,6 +1610,10 @@ ${bundleJs}
           var svg = await renderMermaid(samples[j].source, opts || {});
           if (generation !== themeRenderGeneration) return;
           svgContainer.innerHTML = svg;
+          if (!theme) {
+            var freshSvg = svgContainer.querySelector('svg');
+            if (freshSvg) defaultSvgStyles[j] = freshSvg.getAttribute('style');
+          }
         } catch (e) { /* keep existing */ }
       }
     })();
@@ -1786,6 +1804,7 @@ ${bundleJs}
 
       // Store the SVG's original inline style for Default mode restoration
       var svgEl = svgContainer.querySelector('svg');
+      if (svgEl) defaultSvgStyles[i] = svgEl.getAttribute('style');
       // If a global theme is active, apply its colors to the SVG
       if (svgEl && activeThemeKey && THEMES[activeThemeKey]) {
         applySvgThemeVars(svgEl, THEMES[activeThemeKey]);
@@ -1879,6 +1898,7 @@ ${bundleJs}
       var svg = await renderMermaid(source, editSvgOpts || {});
       svgContainer.innerHTML = svg;
       var svgEl = svgContainer.querySelector('svg');
+      if (svgEl && !editTheme) defaultSvgStyles[index] = svgEl.getAttribute('style');
       if (svgEl && editTheme) {
         applySvgThemeVars(svgEl, editTheme);
       }
