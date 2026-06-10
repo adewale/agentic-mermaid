@@ -1,0 +1,78 @@
+{
+  "version": 1,
+  "description": "Captured/curated real-agent failure corpus for Agentic Mermaid usage evals.",
+  "cases": [
+    {
+      "id": "subagent_mermaid_fence_regenerates_flowchart",
+      "kind": "raw-response",
+      "source": "pi-subagent-2026-06-10",
+      "caseId": "cache_between_api_and_db",
+      "prompt": "Given flowchart TD API --> DB, insert Cache between API and DB. Use Agentic Mermaid and return the result.",
+      "rawResponse": "```mermaid\nflowchart TD\n  API --> Cache\n  Cache --> DB\n```",
+      "expectedRawFindings": ["MERMAID_FENCE_NOT_CODE_MODE", "NO_SDK_CALLS", "REGENERATED_SOURCE"]
+    },
+    {
+      "id": "subagent_prose_source_edits_opaque_sequence",
+      "kind": "raw-response",
+      "source": "pi-subagent-2026-06-10",
+      "caseId": "sequence_alt_refuses_mutation",
+      "prompt": "Given a sequence diagram with an alt block, add a message A->>B: retry using Agentic Mermaid.",
+      "rawResponse": "Used Agentic Mermaid source-level path because `alt` makes the sequence diagram an opaque fallback, so structured `asSequence` mutation is unavailable.\n\n```mermaid\nsequenceDiagram\n  A->>B: hi\n  alt ok\n    B-->>A: yes\n  end\n  A->>B: retry\n```\n\nVerification result from `verifyMermaid`: `ok: true`, `warnings: []`.",
+      "expectedRawFindings": ["PROSE_NOT_CODE_MODE", "MERMAID_FENCE_NOT_CODE_MODE", "SOURCE_LEVEL_OPAQUE_EDIT"]
+    },
+    {
+      "id": "subagent_mermaid_fence_regenerates_class",
+      "kind": "raw-response",
+      "source": "pi-subagent-2026-06-10",
+      "caseId": "class_add_duck",
+      "prompt": "Given classDiagram\\n  class Animal, add a Duck class with +quack(). Return the Mermaid.",
+      "rawResponse": "```mermaid\nclassDiagram\n  class Animal\n  class Duck {\n    +quack()\n  }\n```",
+      "expectedRawFindings": ["MERMAID_FENCE_NOT_CODE_MODE", "NO_SDK_CALLS", "REGENERATED_SOURCE"]
+    },
+    {
+      "id": "subagent_returns_serialized_string_not_object",
+      "kind": "code-mode",
+      "source": "pi-subagent-2026-06-10",
+      "caseId": "class_add_duck",
+      "prompt": "Add a Duck class with +quack() using structured mutation, verify, then serialize.",
+      "rawResponse": "var parsed = mermaid.parseMermaid(\"classDiagram\\n  class Animal\");\nif (!parsed.ok) throw new Error(\"parse failed: \" + JSON.stringify(parsed.error));\nvar classDiagram = mermaid.asClass(parsed.value);\nif (!classDiagram) throw new Error(\"not a structured class diagram\");\nvar mutated = mermaid.mutate(classDiagram, { kind: \"add_class\", id: \"Duck\", members: [\"+quack()\"] });\nif (!mutated.ok) throw new Error(\"mutation failed: \" + mutated.error.code + \": \" + mutated.error.message);\nvar verified = mermaid.verifyMermaid(mutated.value);\nif (!verified.ok) throw new Error(\"verify failed: \" + JSON.stringify(verified.warnings));\nif (!verified.layout || verified.layout.kind !== \"class\") throw new Error(\"verify layout missing\");\nreturn mermaid.serializeMermaid(mutated.value);",
+      "expectedResult": { "ok": false, "taskOk": false, "traceOk": true, "findings": [] }
+    },
+    {
+      "id": "code_mode_serializes_without_verify",
+      "kind": "code-mode",
+      "source": "curated-from-observed-pattern",
+      "caseId": "cache_between_api_and_db",
+      "prompt": "Given flowchart TD API --> DB, insert Cache between API and DB using structured mutation, verify, then serialize.",
+      "rawResponse": "const r0 = mermaid.parseMermaid('flowchart TD\\n  API --> DB')\nconst flow = mermaid.asFlowchart(r0.value)\nconst r1 = mermaid.mutate(flow, { kind: 'add_node', id: 'Cache', label: 'Cache' })\nconst r2 = mermaid.mutate(r1.value, { kind: 'remove_edge', id: 'API->DB' })\nconst r3 = mermaid.mutate(r2.value, { kind: 'add_edge', from: 'API', to: 'Cache' })\nconst r4 = mermaid.mutate(r3.value, { kind: 'add_edge', from: 'Cache', to: 'DB' })\nreturn { source: mermaid.serializeMermaid(r4.value) }",
+      "expectedResult": { "ok": false, "taskOk": true, "traceOk": false, "findings": ["SERIALIZE_WITHOUT_VERIFY"] }
+    },
+    {
+      "id": "code_mode_verifies_but_never_inspects_result",
+      "kind": "code-mode",
+      "source": "curated-from-observed-pattern",
+      "caseId": "cache_between_api_and_db",
+      "prompt": "Given flowchart TD API --> DB, insert Cache between API and DB using structured mutation, verify, then serialize.",
+      "rawResponse": "const r0 = mermaid.parseMermaid('flowchart TD\\n  API --> DB')\nconst flow = mermaid.asFlowchart(r0.value)\nconst r1 = mermaid.mutate(flow, { kind: 'add_node', id: 'Cache', label: 'Cache' })\nconst r2 = mermaid.mutate(r1.value, { kind: 'remove_edge', id: 'API->DB' })\nconst r3 = mermaid.mutate(r2.value, { kind: 'add_edge', from: 'API', to: 'Cache' })\nconst r4 = mermaid.mutate(r3.value, { kind: 'add_edge', from: 'Cache', to: 'DB' })\nmermaid.verifyMermaid(r4.value)\nreturn { source: mermaid.serializeMermaid(r4.value) }",
+      "expectedResult": { "ok": false, "taskOk": true, "traceOk": false, "findings": ["SERIALIZE_WITHOUT_VERIFY", "VERIFY_NOT_INSPECTED"] }
+    },
+    {
+      "id": "code_mode_mutates_opaque_sequence",
+      "kind": "code-mode",
+      "source": "curated-from-observed-pattern",
+      "caseId": "sequence_alt_refuses_mutation",
+      "prompt": "Given a sequence diagram with an alt block, detect that structured sequence mutation is unavailable and preserve source.",
+      "rawResponse": "const r0 = mermaid.parseMermaid('sequenceDiagram\\n  A->>B: hi\\n  alt ok\\n    B-->>A: yes\\n  end')\nreturn mermaid.mutate(r0.value, { kind: 'add_message', from: 'A', to: 'B', text: 'retry' })",
+      "expectedResult": { "ok": false, "taskOk": false, "traceOk": false, "findings": ["MUTATE_ON_OPAQUE"] }
+    },
+    {
+      "id": "raw_cli_advice_instead_of_code_mode",
+      "kind": "raw-response",
+      "source": "curated-from-observed-pattern",
+      "caseId": "cache_between_api_and_db",
+      "prompt": "Given flowchart TD API --> DB, insert Cache between API and DB using structured mutation, verify, then serialize.",
+      "rawResponse": "Save the diagram to input.mmd, then run `am mutate input.mmd --op '{\"kind\":\"add_node\",\"id\":\"Cache\",\"label\":\"Cache\"}' --json` and inspect the output.",
+      "expectedRawFindings": ["CLI_MISUSE", "NO_SDK_CALLS"]
+    }
+  ]
+}

@@ -590,18 +590,33 @@ describe('verify', () => {
   test('no seed field on layout', () => {
     expect('seed' in verifyMermaid('flowchart TD\n  A --> B').layout).toBe(false)
   })
+  test('Tier 3 lint: duplicate edges are advisory warnings', () => {
+    const r = verifyMermaid('flowchart TD\n  A --> B\n  A --> B')
+    const dup = r.warnings.find(w => w.code === 'DUPLICATE_EDGE')
+    expect(r.ok).toBe(true)
+    expect(dup).toMatchObject({ code: 'DUPLICATE_EDGE', from: 'A', to: 'B' })
+  })
+  test('Tier 3 lint: nodes unreachable from entry roots are advisory warnings', () => {
+    const r = verifyMermaid('flowchart TD\n  A --> B\n  C --> D\n  D --> C')
+    expect(r.ok).toBe(true)
+    expect(r.warnings.filter(w => w.code === 'UNREACHABLE_NODE').map(w => w.node).sort()).toEqual(['C', 'D'])
+  })
 })
 
 describe('warning vocabulary', () => {
-  test('8 codes, all tiered + severity', () => {
+  test('10 codes, all tiered + severity', () => {
     const codes = Object.keys(WARNING_SEVERITY)
-    expect(codes.length).toBe(8)
+    expect(codes.length).toBe(10)
     for (const c of codes) {
       expect(WARNING_SEVERITY[c as keyof typeof WARNING_SEVERITY]).toMatch(/^(error|warning)$/)
-      expect(WARNING_TIER[c as keyof typeof WARNING_TIER]).toMatch(/^(structural|geometric)$/)
+      expect(WARNING_TIER[c as keyof typeof WARNING_TIER]).toMatch(/^(structural|geometric|lint)$/)
     }
   })
   test('LABEL_OVERFLOW is Tier 1', () => { expect(WARNING_TIER.LABEL_OVERFLOW).toBe('structural') })
+  test('DUPLICATE_EDGE and UNREACHABLE_NODE are Tier 3 lint', () => {
+    expect(WARNING_TIER.DUPLICATE_EDGE).toBe('lint')
+    expect(WARNING_TIER.UNREACHABLE_NODE).toBe('lint')
+  })
 })
 
 describe('toFinite', () => {

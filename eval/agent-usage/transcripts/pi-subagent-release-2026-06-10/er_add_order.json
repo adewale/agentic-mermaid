@@ -1,0 +1,24 @@
+{
+  "schemaVersion": 1,
+  "capturedAt": "2026-06-10T00:00:00.000Z",
+  "provider": "pi-subagent",
+  "model": "delegate-fresh-default-release-model",
+  "caseId": "er_add_order",
+  "task": {
+    "prompt": "Add an ORDER entity with string id using structured mutation, verify, then serialize.",
+    "input": "erDiagram\n  CUSTOMER {\n    string id\n  }"
+  },
+  "prompts": {
+    "system": "pi subagent-backed release-model pass: delegate agent, fresh context. Pi hidden system prompt is not exposed; prompts.user records the exact parent-visible task sent to the subagent.",
+    "user": "You are participating in an Agentic Mermaid subagent-backed release-model transcript eval. Return ONLY executable synchronous JavaScript body for Agentic Mermaid Code Mode; no markdown, no code fences, no prose.\n\nRuntime contract:\n- The code is passed to execute(code), so top-level `return` is allowed.\n- Global `mermaid.*` SDK is available.\n- Do not use async/await, Promise jobs, dynamic import, filesystem, network, or template-literal interpolation.\n- For existing structured diagrams: parseMermaid -> family narrower -> mutate -> verifyMermaid -> inspect verify.ok or verify.warnings/layout -> serializeMermaid.\n- SDK-returned diagrams are read-only; structured edits must use mermaid.mutate.\n\nTask ID: er_add_order\nTask: Add an ORDER entity with string id using structured mutation, verify, then serialize.\nInput Mermaid source:\nerDiagram\n  CUSTOMER {\n    string id\n  }\n\nReturn only executable synchronous Code Mode JavaScript."
+  },
+  "rawResponse": "const parsed = mermaid.parseMermaid('erDiagram\\n  CUSTOMER {\\n    string id\\n  }')\nif (!parsed.ok) return { error: parsed.error }\nconst er = mermaid.asEr(parsed.value)\nif (!er) return { error: 'not-er' }\nconst mutated = mermaid.mutate(er, { kind: 'add_entity', id: 'ORDER', attributes: ['string id'] })\nif (!mutated.ok) return { error: mutated.error }\nconst verified = mermaid.verifyMermaid(mutated.value)\nif (!verified.ok) return { error: 'verify', warnings: verified.warnings }\nreturn { source: mermaid.serializeMermaid(mutated.value) }",
+  "script": "const parsed = mermaid.parseMermaid('erDiagram\\n  CUSTOMER {\\n    string id\\n  }')\nif (!parsed.ok) return { error: parsed.error }\nconst er = mermaid.asEr(parsed.value)\nif (!er) return { error: 'not-er' }\nconst mutated = mermaid.mutate(er, { kind: 'add_entity', id: 'ORDER', attributes: ['string id'] })\nif (!mutated.ok) return { error: mutated.error }\nconst verified = mermaid.verifyMermaid(mutated.value)\nif (!verified.ok) return { error: 'verify', warnings: verified.warnings }\nreturn { source: mermaid.serializeMermaid(mutated.value) }",
+  "result": {
+    "id": "er_add_order",
+    "ok": true,
+    "taskOk": true,
+    "traceOk": true,
+    "findings": []
+  }
+}

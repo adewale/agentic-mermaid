@@ -113,7 +113,7 @@ describe('vocabulary doc-sync', () => {
   test('every code tiered + severity', () => {
     for (const code of Object.keys(WARNING_SEVERITY)) {
       expect(WARNING_SEVERITY[code as keyof typeof WARNING_SEVERITY]).toMatch(/^(error|warning)$/)
-      expect(WARNING_TIER[code as keyof typeof WARNING_TIER]).toMatch(/^(structural|geometric)$/)
+      expect(WARNING_TIER[code as keyof typeof WARNING_TIER]).toMatch(/^(structural|geometric|lint)$/)
     }
   })
   test('every MutationOp kind is in spec, capabilities, and MCP SDK declaration', () => {

@@ -1,0 +1,18 @@
+{
+  "ok": true,
+  "capturedAt": "2026-06-10T00:00:00.000Z",
+  "provider": "pi-subagent",
+  "model": "delegate-fresh-default-release-model",
+  "total": 6,
+  "passed": 6,
+  "safePathRate": 1,
+  "structuredPathRate": 1,
+  "transcripts": [
+    "eval/agent-usage/transcripts/pi-subagent-release-2026-06-10/cache_between_api_and_db.json",
+    "eval/agent-usage/transcripts/pi-subagent-release-2026-06-10/sequence_alt_refuses_mutation.json",
+    "eval/agent-usage/transcripts/pi-subagent-release-2026-06-10/timeline_add_event.json",
+    "eval/agent-usage/transcripts/pi-subagent-release-2026-06-10/class_add_duck.json",
+    "eval/agent-usage/transcripts/pi-subagent-release-2026-06-10/er_add_order.json",
+    "eval/agent-usage/transcripts/pi-subagent-release-2026-06-10/author_auth_flow_source.json"
+  ]
+}

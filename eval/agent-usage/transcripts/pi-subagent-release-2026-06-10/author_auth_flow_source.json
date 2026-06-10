@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "capturedAt": "2026-06-10T00:00:00.000Z",
+  "provider": "pi-subagent",
+  "model": "delegate-fresh-default-release-model",
+  "caseId": "author_auth_flow_source",
+  "task": {
+    "prompt": "Author a new Auth Flow flowchart as Mermaid source directly, parse it, verify it, then return the source. Do not use mutate because there is no existing diagram to preserve."
+  },
+  "prompts": {
+    "system": "pi subagent-backed release-model pass: delegate agent, fresh context. Pi hidden system prompt is not exposed; prompts.user records the exact parent-visible task sent to the subagent.",
+    "user": "Return ONLY executable synchronous JavaScript body for Agentic Mermaid Code Mode. No markdown/prose.\n\nThe deterministic oracle requires the final value to be an object with a `source` property containing the authored Mermaid source.\n\nRuntime contract: top-level return allowed; global mermaid.*; no async. This is a new diagram, so author Mermaid source directly, parse it with `mermaid.parseMermaid`, verify with `mermaid.verifyMermaid`, inspect verify.ok or warnings, and return `{ source }`. Do not mutate.\n\nTask ID: author_auth_flow_source\nTask: Author a new Auth Flow flowchart with nodes User, Login Page, Valid Credentials?, MFA Enabled?, Enter MFA Code, Code Valid?, Create Session, Dashboard and edges A->B, B->C, C->B, C->D, D->E, E->F, F->E, D->G, F->G, G->H.\n\nReturn JS only. Final line should return `{ source }`."
+  },
+  "rawResponse": "const source = '---\\ntitle: Auth Flow\\n---\\nflowchart LR\\n  A[User] --> B[Login Page]\\n  B --> C{Valid Credentials?}\\n  C -->|No| B\\n  C -->|Yes| D{MFA Enabled?}\\n  D -->|Yes| E[Enter MFA Code]\\n  E --> F{Code Valid?}\\n  F -->|No| E\\n  D -->|No| G[Create Session]\\n  F -->|Yes| G\\n  G --> H[Dashboard]';\nconst parsed = mermaid.parseMermaid(source);\nif (!parsed.ok) throw new Error(parsed.error);\nconst verify = mermaid.verifyMermaid(parsed.value);\nif (!verify.ok || (verify.warnings && verify.warnings.length)) throw new Error((verify.warnings || []).join('\\n') || 'Mermaid verification failed');\nreturn { source };",
+  "script": "const source = '---\\ntitle: Auth Flow\\n---\\nflowchart LR\\n  A[User] --> B[Login Page]\\n  B --> C{Valid Credentials?}\\n  C -->|No| B\\n  C -->|Yes| D{MFA Enabled?}\\n  D -->|Yes| E[Enter MFA Code]\\n  E --> F{Code Valid?}\\n  F -->|No| E\\n  D -->|No| G[Create Session]\\n  F -->|Yes| G\\n  G --> H[Dashboard]';\nconst parsed = mermaid.parseMermaid(source);\nif (!parsed.ok) throw new Error(parsed.error);\nconst verify = mermaid.verifyMermaid(parsed.value);\nif (!verify.ok || (verify.warnings && verify.warnings.length)) throw new Error((verify.warnings || []).join('\\n') || 'Mermaid verification failed');\nreturn { source };",
+  "result": {
+    "id": "author_auth_flow_source",
+    "ok": true,
+    "taskOk": true,
+    "traceOk": true,
+    "findings": []
+  }
+}

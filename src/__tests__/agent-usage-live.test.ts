@@ -1,10 +1,18 @@
 import { describe, test, expect } from 'bun:test'
-import { existsSync, readFileSync } from 'node:fs'
-import { join } from 'node:path'
+import { existsSync, readFileSync, readdirSync } from 'node:fs'
+import { basename, join } from 'node:path'
 import { buildLiveEvalSystemPrompt, buildLiveEvalUserPrompt, extractCodeModeScript, resolveLiveModelConfig, runLiveAgentUsageEval, type LiveTranscript } from '../../eval/agent-usage/live.ts'
 import { DEFAULT_CASES, runAgentUsageEval } from '../../eval/agent-usage/run.ts'
 
-const TRANSCRIPT_DIR = join(import.meta.dir, '..', '..', 'eval', 'agent-usage', 'transcripts', 'pi-subagent-2026-05-26')
+const TRANSCRIPT_ROOT = join(import.meta.dir, '..', '..', 'eval', 'agent-usage', 'transcripts')
+const REQUIRED_RELEASE_TRANSCRIPT_DIR = 'pi-subagent-release-2026-06-10'
+
+function committedTranscriptDirs(): string[] {
+  return readdirSync(TRANSCRIPT_ROOT, { withFileTypes: true })
+    .filter(entry => entry.isDirectory() && entry.name.startsWith('pi-subagent'))
+    .map(entry => join(TRANSCRIPT_ROOT, entry.name))
+    .sort()
+}
 
 describe('live agent-usage eval harness', () => {
   test('extracts fenced Code Mode JavaScript without markdown', () => {
@@ -45,15 +53,19 @@ describe('live agent-usage eval harness', () => {
   })
 
   test('committed live-model transcripts replay through the deterministic oracle', async () => {
-    expect(existsSync(join(TRANSCRIPT_DIR, 'summary.json'))).toBe(true)
-    const transcripts = DEFAULT_CASES.map(c => JSON.parse(readFileSync(join(TRANSCRIPT_DIR, `${c.id}.json`), 'utf8')) as LiveTranscript)
-    expect(transcripts.map(t => t.caseId)).toEqual(DEFAULT_CASES.map(c => c.id))
-    expect(transcripts.every(t => t.provider === 'pi-subagent' && t.result.ok)).toBe(true)
-    const replayCases = DEFAULT_CASES.map(c => ({ ...c, script: transcripts.find(t => t.caseId === c.id)!.script }))
-    const replay = await runAgentUsageEval(replayCases)
-    expect(replay.ok).toBe(true)
-    expect(replay.passed).toBe(replay.total)
-    expect(replay.safePathRate).toBe(1)
-    expect(replay.structuredPathRate).toBe(1)
+    const dirs = committedTranscriptDirs()
+    expect(dirs.map(d => basename(d))).toContain(REQUIRED_RELEASE_TRANSCRIPT_DIR)
+    for (const dir of dirs) {
+      expect(existsSync(join(dir, 'summary.json'))).toBe(true)
+      const transcripts = DEFAULT_CASES.map(c => JSON.parse(readFileSync(join(dir, `${c.id}.json`), 'utf8')) as LiveTranscript)
+      expect(transcripts.map(t => t.caseId)).toEqual(DEFAULT_CASES.map(c => c.id))
+      expect(transcripts.every(t => t.provider === 'pi-subagent' && t.result.ok)).toBe(true)
+      const replayCases = DEFAULT_CASES.map(c => ({ ...c, script: transcripts.find(t => t.caseId === c.id)!.script }))
+      const replay = await runAgentUsageEval(replayCases)
+      expect(replay.ok).toBe(true)
+      expect(replay.passed).toBe(replay.total)
+      expect(replay.safePathRate).toBe(1)
+      expect(replay.structuredPathRate).toBe(1)
+    }
   })
 })

@@ -9,7 +9,7 @@ This changelog tracks user-facing changes for **Agentic Mermaid**, a fork of `lu
 - **Breaking package identity**: first Agentic Mermaid release is prepared as `agentic-mermaid@0.1.0`; package imports are now `agentic-mermaid` and `agentic-mermaid/agent` while the GitHub repo remains `adewale/beautiful-mermaid`.
 - **Agent-native surface** (`agentic-mermaid/agent` subpath export): a typed editing API for agents and tools.
   - `parseMermaid` → sealed `ValidDiagram` IR carrying frontmatter, init directives, comments, accessibility, and the canonical source.
-  - `verifyMermaid` → structured `LayoutWarning` codes in two tiers (Tier 1 structural/reliable, Tier 2 geometric/advisory). No vision/PNG needed.
+  - `verifyMermaid` → structured `LayoutWarning` codes in three tiers (Tier 1 structural/reliable, Tier 2 geometric/advisory, Tier 3 lint/advisory). No vision/PNG needed.
   - `mutate` → typed, family-narrowed structural edits for flowchart/state, simple sequence, timeline, class, and ER diagrams. Journey, xychart, architecture, and diagrams with unmodeled constructs use a lossless source-level/opaque body with no structured mutation exposed.
   - `serializeMermaid` / `synthesizeFromGraph` → round-trip back to canonical Mermaid source.
   - Deterministic layout JSON, verified byte-identical across processes (ELK is configured for model-order layout; there is no seed).
@@ -47,6 +47,8 @@ This changelog tracks user-facing changes for **Agentic Mermaid**, a fork of `lu
 - Agent guidance now distinguishes new-diagram source authoring from existing-diagram structured mutation; Code Mode is positioned as a structured-edit channel rather than mandatory diagram creation.
 - `am capabilities --json` now reports `families[].editPolicy` (`structured-when-narrowed` or `source-level-only`) in addition to `mutationOps`, so agents can route edits without trial-and-error.
 - Quality docs now explicitly state that Agentic Mermaid is not Mermaid visual parity: `verify.ok` is structural, while layout quality needs metrics, geometry assertions, screenshots, or rendered artifacts.
+- Agent-usage evals now include a committed failure corpus of captured bad-agent paths and curated executable regressions for markdown-only answers, regenerated Mermaid, CLI advice, serialize-without-verify, ignored verify results, and opaque mutation attempts.
+- `agentic-mermaid-mcp` now supports HTTP/SSE transport (`--transport http`) in addition to stdio, with managed PNG file/URL artifacts for clients that should not receive large base64 payloads.
 
 ### Fixed
 - ASCII box-start connectors (`├ ┤ ┬ ┴`) now sit flush on the source node's border instead of floating in whitespace when a sibling edge's label widens the grid column (upstream lukilabs#112 class); the gap is filled with style-matching line characters.
@@ -60,6 +62,7 @@ This changelog tracks user-facing changes for **Agentic Mermaid**, a fork of `lu
 - CLI/docs drift for `am describe`: the command now emits prose or AX-tree JSON and is covered by e2e tests.
 - Feedback-loop flowcharts now preserve the primary source order more reliably instead of ranking decision nodes before their predecessors.
 - Acyclic fan-in/fan-out flowcharts now use source-aware model ordering so declared-direction edges do not accidentally route backward; layout-quality heuristics cover direction progress, edge-vs-node collisions, self-loop clearance, and feedback-process cleanliness.
+- Tier 3 lint warnings now flag `DUPLICATE_EDGE` and `UNREACHABLE_NODE` in flowchart/state verification without changing `verify.ok`.
 
 ## Fork baseline before this changelog
 

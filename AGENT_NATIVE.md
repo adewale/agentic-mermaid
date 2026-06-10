@@ -94,7 +94,7 @@ interface VerifyResult {
 }
 ```
 
-Warnings split into two tiers by how reliable the underlying check is:
+Warnings split into three tiers by how reliable/actionable the underlying check is:
 
 ### Tier 1 — Source-and-structure (reliable)
 
@@ -120,17 +120,20 @@ Correctly detect what they claim to detect, but the occurrence may be intentiona
 
 Codes are the contract surface agents reason about. Emitting an undocumented code fails CI; documenting an unemitted one also fails CI. Agents omit known-irrelevant codes via `VerifyOptions.suppress`.
 
-### Tier 3 — Lint (advisory, reserved)
+### Tier 3 — Lint (advisory)
 
-Tier 3 is reserved for future family-specific lint warnings: "common LLM mistakes" that the parser accepts but the agent probably didn't intend. No Tier 3 warning codes ship today (`Tier3WarningCode = never`), and `VerifyOptions` has no tier toggle.
+Tier 3 warnings are family-specific quality hints for "common LLM mistakes" that parse and render but are probably not what the agent intended. They never flip `verify.ok`; callers decide whether to fail a style/quality gate.
 
-`FamilyPlugin.verify` hooks are wired and run today, but built-ins use them for Tier 1 structural warnings (for example class/ER `EMPTY_DIAGRAM`, `EDGE_MISANCHORED`, `LABEL_OVERFLOW`), not for lint. When lint codes are added, the contract should grow deliberately: add codes to `WARNING_TIER`, document them here, and test that emitted codes and documented codes stay in sync.
+| Code | Severity | Description |
+|---|---|---|
+| `DUPLICATE_EDGE` | warning | Flowchart/state contains an exact repeated edge with the same endpoints, label, style, and markers. Usually accidental regeneration or duplicate mutation. |
+| `UNREACHABLE_NODE` | warning | Flowchart/state contains a node not reachable from any entry root when the graph has roots. Usually a stranded branch after an edit. |
 
-Candidate future codes: `LINT_UNQUOTED_LABEL`, `LINT_MISSING_HEADER` (caught at parse for our IR; lint would catch near-misses like leading whitespace), `LINT_DUPLICATE_NODE_ID` (legacy parser dedupes, so the rule runs on raw source).
+`FamilyPlugin.verify` hooks are wired and run today; built-ins use them for Tier 1 structural warnings for class/ER and the central flowchart verifier emits the initial Tier 3 lint catalogue. Future lint codes should be added deliberately to `WARNING_TIER`, documented here, and covered by doc-sync tests.
 
 **Branded coordinate types** (`Finite`) prevent NaN / Infinity from reaching the renderer. `toFinite()` is the only constructor; it throws on invalid input.
 
-**Model-gap property test**: for every generated `D` that parses successfully, `verify(D).warnings` filtered to Tier-1 `error` codes must be empty. Counterexamples are renderer bugs. Tier-2 warnings are excluded from this property because a `NODE_OVERLAP` or `ROUTE_SELF_CROSS` can be a legitimate property of a valid diagram, not a bug. Tier-3 is excluded because no lint codes ship yet.
+**Model-gap property test**: for every generated `D` that parses successfully, `verify(D).warnings` filtered to Tier-1 `error` codes must be empty. Counterexamples are renderer bugs. Tier-2 warnings are excluded from this property because a `NODE_OVERLAP` or `ROUTE_SELF_CROSS` can be a legitimate property of a valid diagram, not a bug. Tier-3 lint warnings are excluded because they are maintainability hints, not render failures.
 
 ---
 

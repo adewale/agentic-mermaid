@@ -27,17 +27,23 @@ dependents after. IDs are stable names, not an ordering.
 
 ## 1. Ready build backlog
 
-- [ ] **BUILD-7 — MCP reachability: streamable-HTTP/SSE transport + file/URL
-  outputs** (`todo`). The MCP server is local stdio only; competitors with
-  adoption (`hustcc/mcp-mermaid`, the official hosted
-  <https://mcp.mermaid.ai/mcp>) offer streamable-HTTP/SSE transports and
-  remote-friendly outputs. Add an opt-in HTTP transport and file/URL output
-  options for `render_png`, keeping local Code Mode the flagship. Blocks
-  DEC-1 (consumer acquisition) and is a prerequisite for BUILD-4.
+- [x] **BUILD-7 — MCP reachability: streamable-HTTP/SSE transport + file/URL
+  outputs** (`done`). Added opt-in HTTP/SSE transport with loopback-default
+  binding, `--transport http`, direct `/rpc` test endpoint, SSE `/sse` +
+  `/message` session flow, `/health`, JSON content-type/Origin gates,
+  remote-bind bearer token requirement, capped request/sandbox sizes, and
+  managed `/artifacts/<name>` serving. `render_png` now supports
+  `output: "base64"|"file"|"url"`; file/URL artifacts are generated under a
+  managed store with safe tracked names, MIME type, byte count, SHA-256, size
+  limit, and TTL checks. Tests cover file output, URL fetch-back, auth/body
+  gates, tracked artifact serving, and SSE session lifecycle.
 - [ ] **BUILD-2 — `process --mode validate|canonicalize` triage** (`todo`).
-  Current verbs are `verify` and `format`; decide whether a single `process`
-  wrapper improves agent ergonomics enough to justify another command.
-  Independent of other items.
+  Current verbs are `verify` and `format`; do not add another command until it
+  proves agent value. Needed: inventory overlap with `verify`, `format`,
+  `parse`, `serialize`, `mutate`, and `batch`; write the exact JSON/exit-code
+  contract for `validate` and `canonicalize`; test whether it reduces agent
+  routing errors in docs/evals; then either implement as a thin, schema-tested
+  wrapper or explicitly park/decline it. Independent of other items.
 - [ ] **BUILD-3 — Family-plugin consolidation** (`todo`). Evaluate whether
   parse/serialize/mutate dispatch should move fully into `FamilyPlugin` now
   that timeline/class/ER mutation exists. Do before adding new families
@@ -151,15 +157,11 @@ dependents after. IDs are stable names, not an ordering.
   win for agent-generated architecture diagrams; pairs naturally with typed
   `collapse`/`expand` mutation ops. Measure with BUILD-13; fixing BUILD-14
   first avoids collapsing onto the phantom-node bug.
-- [ ] **BUILD-8 — Tier 3 lint catalogue** (`todo`). The lint tier is
-  reserved and `FamilyPlugin.verify` hooks are wired, but zero built-in lint
-  codes exist, so every doc carries a "no catalogue yet" caveat. Ship a
-  small starter set (e.g. `UNREACHABLE_NODE`, `DUPLICATE_EDGE`,
-  label-style consistency), extend `WARNING_TIER` (the doc-sync test
-  currently only admits `structural|geometric`), and sync
-  capabilities/CLI/MCP/docs. Draw candidate codes from EVAL-2's captured
-  real-agent failure corpus, so the catalogue targets observed mistakes
-  rather than invented ones.
+- [x] **BUILD-8 — Tier 3 lint catalogue** (`done`). Added advisory
+  flowchart/state lint warnings for `DUPLICATE_EDGE` and `UNREACHABLE_NODE`,
+  exposed them through `WarningCode`, `WARNING_TIER`, `am capabilities`,
+  `llms.txt`, MCP SDK declarations, tests, and agent-facing docs. Candidates
+  came from EVAL-2's captured/curated real-agent failure corpus.
 - [ ] **BUILD-4 — Cloudflare Worker Code Mode web app** (`todo`, after
   BUILD-7). Offer a hosted Agentic Mermaid experience using Cloudflare
   Workers and `@cloudflare/codemode`/CodeMode-style isolation only after
@@ -168,15 +170,19 @@ dependents after. IDs are stable names, not an ordering.
 
 ## 2. Agent-usage verification backlog
 
-- [ ] **EVAL-1 — Capture API-backed release-model transcripts** (`todo`). A
-  committed pi-subagent transcript set now replays cleanly, and
-  `bun run eval:agent-live` can capture Anthropic/OpenAI-compatible runs, but
-  the selected release model still needs an API-key-backed transcript set.
-- [ ] **EVAL-2 — Expand captured real-agent failure corpus** (`todo`). The
-  deterministic linter/eval now covers stored decoys and executable docs;
-  still capture live failures such as string concatenation, whole-source
-  regeneration, CLI misuse, and stale copied examples from real model runs.
-  Feeds BUILD-8 (lint codes from observed failures).
+- [x] **EVAL-1 — Capture subagent-backed release-model transcripts** (`done`).
+  `eval/agent-usage/transcripts/pi-subagent-release-2026-06-10/` captures a
+  fresh subagent-backed release-model pass across the six default cases. The
+  committed transcript replay test gates every pi-subagent transcript directory
+  through the deterministic sandbox, task oracle, and trace linter. Direct
+  API-backed Anthropic/OpenAI-compatible captures remain available on demand via
+  `bun run eval:agent-live` when credentials are present.
+- [x] **EVAL-2 — Expand captured real-agent failure corpus** (`done`). Added
+  `eval/agent-usage/failure-corpus/` with captured pi-subagent failures and
+  curated executable regressions for markdown-only answers, whole-source
+  regeneration, CLI misuse, serialize-without-verify, ignored verify results,
+  and opaque mutation attempts. `agent-usage.test.ts` now classifies/replays
+  the corpus so known-bad paths stay failing. Fed BUILD-8 lint-code selection.
 
 ## 3. Blocked / external resource needed
 

@@ -63,7 +63,7 @@ describe('am capabilities', () => {
       expect(codes.has(code as never)).toBe(true)
     }
     for (const w of cap.warningCodes) {
-      expect(w.tier).toMatch(/^(structural|geometric)$/)
+      expect(w.tier).toMatch(/^(structural|geometric|lint)$/)
       expect(w.severity).toMatch(/^(error|warning)$/)
     }
   })

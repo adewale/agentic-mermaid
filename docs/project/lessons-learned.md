@@ -1,4 +1,4 @@
-# Lessons Learned — Loops 1 through 16
+# Lessons Learned — Loops 1 through 18
 
 This document replaces the Loop 1 retrospective. It is the cumulative
 narrative across the agentic-mermaid fork. Each section reflects what a
@@ -35,8 +35,8 @@ the *combination* of:
   byte-fidelity round-trip when a construct is unmodeled (including
   architecture). We never silently drop a construct.
 - **Tiered verification.** Tier 1 (structural — reliable, universal),
-  Tier 2 (geometric — flowchart-shaped), and as of Loop 7 a Tier 3 plugin
-  hook via `FamilyPlugin.verify`. Tier 1 is gated; Tier 2 is advisory.
+  Tier 2 (geometric — flowchart-shaped), and Tier 3 (lint — family-specific
+  common agent mistakes). Tier 1 is gated; Tier 2 and Tier 3 are advisory.
 - **Determinism, cross-process and cross-runtime.** Three separate bun
   processes produce byte-identical layout JSON; bun and node produce
   byte-identical layout JSON on the same source. Both tests run on every
@@ -93,9 +93,10 @@ than a single fixture.
 The live-model eval stance (from Loop 5 onward) is intentionally
 periodic-not-per-PR. Running it on every PR would dominate the wallclock
 budget and produce a grade that is statistically noisy across runs. The
-current deterministic harness is `bun run eval/agent-usage/run.ts`; live
-model transcripts remain a pre-release/on-demand task tracked in `TODO.md`.
-Net: cheap, high-signal, not always-on.
+current deterministic harness is `bun run eval/agent-usage/run.ts`; committed
+subagent-backed transcript sets replay in CI, while direct API-backed captures
+remain a pre-release/on-demand task when credentials are available. Net: cheap,
+high-signal, not always-on.
 
 ## (e) Process changes for Loop 8 and later
 
@@ -302,9 +303,10 @@ metadata. The branch had accumulated several small inconsistencies:
   the public agent surface, so it implied most families could not parse,
   serialize, or verify even though `parseMermaid` / `serializeMermaid` /
   `verifyMermaid` support all registered families.
-- Tier 3 docs described an opt-in lint layer as if it shipped today. The
-  honest state is: plugin verify hooks are wired, built-ins use them for
-  Tier 1 structural checks, and Tier 3 lint codes are reserved.
+- Tier 3 docs once described an opt-in lint layer before one shipped. The
+  honest state then was "reserved"; the current shipped lint catalogue is
+  explicit and small (`DUPLICATE_EDGE`, `UNREACHABLE_NODE`) so capabilities,
+  docs, and emitted warning codes stay in lockstep.
 
 These are not cosmetic mismatches. Agent-facing software is consumed by
 machines that rely on the manifest. A stale `capabilities` response sends
@@ -461,3 +463,31 @@ inside a fully gated corpus for the same reason it shipped: the gate
 asserted parsing, while the renderer silently dropped the relationship and
 its entities. Faithfulness needs node/edge-count oracles — the harness now
 treats any count change as a regression by default.
+
+## Loop 18 lesson — evidence-backed agent work beats imagined ergonomics
+
+The release-model transcript work and the failure corpus changed the quality
+of the backlog. Before EVAL-1/EVAL-2, the agent loop mostly measured our own
+scripted ideal path. Capturing pi-subagent-backed transcripts and preserving
+known-bad raw responses made the next feature decisions less speculative:
+Tier 3 lint should start with observed agent mistakes (`DUPLICATE_EDGE`,
+`UNREACHABLE_NODE`), not a grand style-guide catalogue.
+
+The same rule applied to BUILD-7. **MCP reachability was not just "start an
+HTTP server."** The durable shape was transport-neutral behavior (stdio and
+HTTP/SSE call the same `handleRequest` core), session lifecycle correctness,
+safe artifact storage, and URL/file outputs that do not become an arbitrary
+file-write primitive. The useful contract is `{path,url,mimeType,bytes,sha256}`
+for large or binary outputs, with loopback defaults, authenticated remote
+binding, content-type/Origin gates, size limits, TTL/cleanup, and tests that
+fetch the artifact back and verify its bytes.
+
+**BUILD-2 is not "rename verify and format."** `process --mode
+validate|canonicalize` only deserves to exist if it reduces agent routing
+errors relative to today's explicit verbs (`verify`, `format`, `parse`,
+`serialize`, `mutate`, `batch`). The right next step is a triage artifact: write
+the exact JSON envelope and exit-code contract, run it against docs/evals, and
+then either implement a thin schema-tested wrapper or deliberately park it. A
+wrapper that only adds another synonym would make the contract larger without
+making agents safer.
+

@@ -1,0 +1,24 @@
+{
+  "schemaVersion": 1,
+  "capturedAt": "2026-06-10T00:00:00.000Z",
+  "provider": "pi-subagent",
+  "model": "delegate-fresh-default-release-model",
+  "caseId": "cache_between_api_and_db",
+  "task": {
+    "prompt": "Given flowchart TD API --> DB, insert Cache between API and DB using structured mutation, verify, then serialize.",
+    "input": "flowchart TD\n  API --> DB"
+  },
+  "prompts": {
+    "system": "pi subagent-backed release-model pass: delegate agent, fresh context. Pi hidden system prompt is not exposed; prompts.user records the exact parent-visible task sent to the subagent.",
+    "user": "You are participating in an Agentic Mermaid subagent-backed release-model transcript eval. Return ONLY executable synchronous JavaScript body for Agentic Mermaid Code Mode; no markdown, no code fences, no prose.\n\nRuntime contract:\n- The code is passed to execute(code), so top-level `return` is allowed.\n- Global `mermaid.*` SDK is available.\n- Do not use async/await, Promise jobs, dynamic import, filesystem, network, or template-literal interpolation.\n- For existing structured diagrams: parseMermaid -> family narrower -> mutate -> verifyMermaid -> inspect verify.ok or verify.warnings/layout -> serializeMermaid.\n- SDK-returned diagrams are read-only; structured edits must use mermaid.mutate.\n\nTask ID: cache_between_api_and_db\nTask: Given flowchart TD API --> DB, insert Cache between API and DB using structured mutation, verify, then serialize.\nInput Mermaid source:\nflowchart TD\n  API --> DB\n\nReturn only executable synchronous Code Mode JavaScript."
+  },
+  "rawResponse": "const r0 = mermaid.parseMermaid('flowchart TD\\n  API --> DB')\nif (!r0.ok) return { error: 'parse', details: r0.error }\n\nconst flow = mermaid.asFlowchart(r0.value)\nif (!flow) return { error: 'not-flowchart' }\n\nconst r1 = mermaid.mutate(flow, { kind: 'add_node', id: 'Cache', label: 'Cache' })\nif (!r1.ok) return { error: r1.error }\n\nconst r2 = mermaid.mutate(r1.value, { kind: 'remove_edge', id: 'API->DB' })\nif (!r2.ok) return { error: r2.error }\n\nconst r3 = mermaid.mutate(r2.value, { kind: 'add_edge', from: 'API', to: 'Cache' })\nif (!r3.ok) return { error: r3.error }\n\nconst r4 = mermaid.mutate(r3.value, { kind: 'add_edge', from: 'Cache', to: 'DB' })\nif (!r4.ok) return { error: r4.error }\n\nconst verify = mermaid.verifyMermaid(r4.value)\nconst warnings = verify.warnings\nif (!verify.ok) return { error: 'verify', warnings: warnings }\n\nreturn { source: mermaid.serializeMermaid(r4.value) }",
+  "script": "const r0 = mermaid.parseMermaid('flowchart TD\\n  API --> DB')\nif (!r0.ok) return { error: 'parse', details: r0.error }\n\nconst flow = mermaid.asFlowchart(r0.value)\nif (!flow) return { error: 'not-flowchart' }\n\nconst r1 = mermaid.mutate(flow, { kind: 'add_node', id: 'Cache', label: 'Cache' })\nif (!r1.ok) return { error: r1.error }\n\nconst r2 = mermaid.mutate(r1.value, { kind: 'remove_edge', id: 'API->DB' })\nif (!r2.ok) return { error: r2.error }\n\nconst r3 = mermaid.mutate(r2.value, { kind: 'add_edge', from: 'API', to: 'Cache' })\nif (!r3.ok) return { error: r3.error }\n\nconst r4 = mermaid.mutate(r3.value, { kind: 'add_edge', from: 'Cache', to: 'DB' })\nif (!r4.ok) return { error: r4.error }\n\nconst verify = mermaid.verifyMermaid(r4.value)\nconst warnings = verify.warnings\nif (!verify.ok) return { error: 'verify', warnings: warnings }\n\nreturn { source: mermaid.serializeMermaid(r4.value) }",
+  "result": {
+    "id": "cache_between_api_and_db",
+    "ok": true,
+    "taskOk": true,
+    "traceOk": true,
+    "findings": []
+  }
+}

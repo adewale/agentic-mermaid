@@ -28,10 +28,10 @@ The non-Code-Mode path is the **CLI or library import**, not a second MCP toolse
 
 ## What the helper MCP tools are for
 
-- `render_png(source)` exists because PNG is binary output and returning base64 from a dedicated MCP tool is simpler than putting binary handling into Code Mode snippets.
+- `render_png(source)` exists because PNG is binary output and returning base64 from a dedicated MCP tool is simpler than putting binary handling into Code Mode snippets. For clients that cannot comfortably carry large base64 payloads, `render_png({source, output:"file"})` writes a managed local artifact and `output:"url"` returns an HTTP-served artifact when the server runs with HTTP/SSE transport.
 - `describe(source)` exists because one-shot natural-language summaries are common for screen readers, docs, and context compaction.
 
-Both helpers consume source. They are not intended to independently author or mutate diagrams.
+Both helpers consume source. They are not intended to independently author or mutate diagrams. Managed artifacts are generated under the server artifact directory with safe names, size limits, TTL cleanup, MIME type, byte count, and SHA-256 metadata; they are not arbitrary user-chosen file writes.
 
 ## Equivalence example
 
@@ -41,6 +41,43 @@ Both helpers consume source. They are not intended to independently author or mu
 - CLI: `am mutate <diagram>.mmd --ops ops.json --json` runs the same typed mutation batch and verify-before-emit contract.
 
 The example asserts that both channels produce byte-identical Mermaid source for every case. This is the supported equivalence story: **MCP Code Mode and CLI/library can produce the same diagrams**, while MCP helper tools remain intentionally narrow.
+
+## Transports
+
+The default transport is stdio for local MCP clients:
+
+```sh
+agentic-mermaid-mcp
+```
+
+HTTP/SSE reachability is available when a client needs a network endpoint. See [`mcp-http-transport.md`](./mcp-http-transport.md) for the full quickstart, JSON-RPC examples, option table, and security defaults:
+
+```sh
+agentic-mermaid-mcp --transport http --host 127.0.0.1 --port 3000 \
+  --artifact-dir .agentic-mermaid-artifacts
+```
+
+The HTTP transport exposes `/sse` for MCP SSE sessions, `/message?sessionId=...` for session messages, `/rpc` for direct JSON-RPC tests/integrations, `/health`, and `/artifacts/<name>` for managed outputs. It binds to loopback by default; non-loopback binding requires `--auth-token`, and `/rpc`/`/message` require `content-type: application/json` so browser-simple CSRF posts are rejected. Use an explicit host only when you have reviewed the sandbox and artifact exposure boundary.
+
+Example stdio `.mcp.json` entry:
+
+```json
+{
+  "mcpServers": {
+    "agentic-mermaid": {
+      "command": "npx",
+      "args": ["-y", "agentic-mermaid-mcp"]
+    }
+  }
+}
+```
+
+Example HTTP launch command for clients that manage MCP SSE URLs separately:
+
+```sh
+npx -y agentic-mermaid-mcp --transport http --host 127.0.0.1 --port 3000
+# non-loopback requires --auth-token <token>
+```
 
 ## When to add more MCP tools
 

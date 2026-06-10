@@ -1,0 +1,24 @@
+{
+  "schemaVersion": 1,
+  "capturedAt": "2026-06-10T00:00:00.000Z",
+  "provider": "pi-subagent",
+  "model": "delegate-fresh-default-release-model",
+  "caseId": "class_add_duck",
+  "task": {
+    "prompt": "Add a Duck class with +quack() using structured mutation, verify, then serialize.",
+    "input": "classDiagram\n  class Animal"
+  },
+  "prompts": {
+    "system": "pi subagent-backed release-model pass: delegate agent, fresh context. Pi hidden system prompt is not exposed; prompts.user records the exact parent-visible task sent to the subagent.",
+    "user": "Return ONLY executable synchronous JavaScript body for Agentic Mermaid Code Mode. No markdown/prose.\n\nThe deterministic oracle requires the final value to be an object with a `source` property equal to the exact output of `mermaid.serializeMermaid(...)`.\n\nRuntime contract: top-level return allowed; global mermaid.*; no async; existing class diagram must be parsed, narrowed with `asClass`, edited with `mermaid.mutate`, verified with `mermaid.verifyMermaid`, inspect verify.ok or warnings, then serialized.\n\nTask ID: class_add_duck\nInput:\nclassDiagram\n  class Animal\nTask: Add a Duck class with +quack() using structured mutation, verify, then serialize.\n\nReturn JS only. Final line should return `{ source: mermaid.serializeMermaid(...) }`."
+  },
+  "rawResponse": "const r0 = mermaid.parseMermaid('classDiagram\\n  class Animal')\nif (!r0.ok) return { error: 'parse', details: r0.error }\n\nconst klass = mermaid.asClass(r0.value)\nif (!klass) return { error: 'not-class' }\n\nconst r1 = mermaid.mutate(klass, { kind: 'add_class', id: 'Duck', members: ['+quack()'] })\nif (!r1.ok) return { error: 'mutate', details: r1.error }\n\nconst verify = mermaid.verifyMermaid(r1.value)\nconst ok = verify.ok\nconst warnings = verify.warnings\nif (!ok) return { error: 'verify', warnings: warnings }\n\nreturn { source: mermaid.serializeMermaid(r1.value) }",
+  "script": "const r0 = mermaid.parseMermaid('classDiagram\\n  class Animal')\nif (!r0.ok) return { error: 'parse', details: r0.error }\n\nconst klass = mermaid.asClass(r0.value)\nif (!klass) return { error: 'not-class' }\n\nconst r1 = mermaid.mutate(klass, { kind: 'add_class', id: 'Duck', members: ['+quack()'] })\nif (!r1.ok) return { error: 'mutate', details: r1.error }\n\nconst verify = mermaid.verifyMermaid(r1.value)\nconst ok = verify.ok\nconst warnings = verify.warnings\nif (!ok) return { error: 'verify', warnings: warnings }\n\nreturn { source: mermaid.serializeMermaid(r1.value) }",
+  "result": {
+    "id": "class_add_duck",
+    "ok": true,
+    "taskOk": true,
+    "traceOk": true,
+    "findings": []
+  }
+}

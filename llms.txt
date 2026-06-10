@@ -59,7 +59,7 @@ Source-level bodies round-trip losslessly via preserved source (never silently d
 
 ## Warning codes
 
-EMPTY_DIAGRAM (structural/error), EDGE_MISANCHORED (structural/error), OFF_CANVAS (structural/error), GROUP_BREACH (structural/error), UNKNOWN_SHAPE (structural/warning), LABEL_OVERFLOW (structural/warning), NODE_OVERLAP (geometric/warning), ROUTE_SELF_CROSS (geometric/warning)
+EMPTY_DIAGRAM (structural/error), EDGE_MISANCHORED (structural/error), OFF_CANVAS (structural/error), GROUP_BREACH (structural/error), UNKNOWN_SHAPE (structural/warning), LABEL_OVERFLOW (structural/warning), NODE_OVERLAP (geometric/warning), ROUTE_SELF_CROSS (geometric/warning), DUPLICATE_EDGE (lint/warning), UNREACHABLE_NODE (lint/warning)
 
 ## Library
 

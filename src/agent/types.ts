@@ -338,12 +338,10 @@ export type Tier1WarningCode =
   | 'GROUP_BREACH' | 'UNKNOWN_SHAPE' | 'LABEL_OVERFLOW'
 export type Tier2WarningCode = 'NODE_OVERLAP' | 'ROUTE_SELF_CROSS'
 /**
- * Tier 3 (advisory lint). Reserved for future family-specific lint codes.
- * `FamilyPlugin.verify` is already wired, but built-ins currently emit only
- * Tier 1 structural warnings through that hook. The empty union keeps the
- * public contract honest: no lint warning code is documented until it exists.
+ * Tier 3 (advisory lint). Family-specific quality hints for common agent
+ * mistakes that still parse and render. Lint warnings never flip verify.ok.
  */
-export type Tier3WarningCode = never
+export type Tier3WarningCode = 'DUPLICATE_EDGE' | 'UNREACHABLE_NODE'
 export type WarningCode = Tier1WarningCode | Tier2WarningCode | Tier3WarningCode
 
 export type LayoutWarning =
@@ -355,6 +353,8 @@ export type LayoutWarning =
   | { code: 'LABEL_OVERFLOW'; target: NodeId | EdgeId; charCount: number; limit: number }
   | { code: 'NODE_OVERLAP'; a: NodeId; b: NodeId; areaPx: number }
   | { code: 'ROUTE_SELF_CROSS'; edge: EdgeId; count: number }
+  | { code: 'DUPLICATE_EDGE'; edge: EdgeId; duplicateOf: EdgeId; from: NodeId; to: NodeId; label?: string }
+  | { code: 'UNREACHABLE_NODE'; node: NodeId }
 
 export const WARNING_SEVERITY: Record<WarningCode, WarningSeverity> = {
   EMPTY_DIAGRAM: 'error',
@@ -365,6 +365,8 @@ export const WARNING_SEVERITY: Record<WarningCode, WarningSeverity> = {
   LABEL_OVERFLOW: 'warning',
   NODE_OVERLAP: 'warning',
   ROUTE_SELF_CROSS: 'warning',
+  DUPLICATE_EDGE: 'warning',
+  UNREACHABLE_NODE: 'warning',
 }
 
 export const WARNING_TIER: Record<WarningCode, WarningTier> = {
@@ -376,6 +378,8 @@ export const WARNING_TIER: Record<WarningCode, WarningTier> = {
   LABEL_OVERFLOW: 'structural',
   NODE_OVERLAP: 'geometric',
   ROUTE_SELF_CROSS: 'geometric',
+  DUPLICATE_EDGE: 'lint',
+  UNREACHABLE_NODE: 'lint',
 }
 
 export const DEFAULT_LABEL_CHAR_CAP = 40
