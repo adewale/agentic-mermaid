@@ -420,3 +420,44 @@ Agentic Mermaid app may make sense, but it needs a scoped security model,
 auth/rate limits, persistence, and parity with the current CLI/MCP/library
 contract. Naming it in `TODO.md` is useful; implying the local `node:vm`
 MCP is already Cloudflare CodeMode would be a contract bug.
+
+## Loop 17 lesson — measure blast radius before believing a layout heuristic
+
+The audit loop (PR #17) ported two upstream layout ideas and rejected a
+third, and the difference between the three outcomes was instrumentation.
+The before/after comparison harness (`eval/layout-compare/run.ts`) was
+built first, as a prerequisite, and immediately earned its keep: the first
+fan-in grouping implementation used blanket in-degree and silently wrecked
+three state-machine corpus samples — Off ⇄ On toggle pairs were treated as
+fan-in joins and dragged sideways into label collisions. No unit test
+caught it; the corpus-wide diff did. The refined heuristic (exclude
+self-loops and 2-cycle back-edges) shipped with evidence: one sample
+improved, zero regressed. The drift sentinel forces you to *acknowledge*
+layout changes; only a before/after instrument lets you *judge* them.
+
+Second lesson: upstream evidence beats upstream rules. Upstream PR #127
+proposed a strict per-side ER cardinality grammar, but the mermaid-docs
+corpus — scraped from Mermaid's own documentation — uses `o{` on the left
+(`o{--||`), which that rule would reject. The right token set was the
+side-agnostic Mermaid lexer set that `er-body.ts` already used. When an
+upstream fix and the upstream corpus disagree, the corpus wins.
+
+Third: layout fixes that ship upstream as coordinated sets must be ported
+as sets. A minimal cherry-pick of PR #113's preferred-direction A* change
+visibly broke our trunk post-processing (stray corners, a diagonal
+arrowhead) because the upstream fix only works together with its FIFO heap
+tie-breaking and branch-point re-routing. Probe, observe, revert fast,
+and scope the full port honestly (BUILD-10) instead of pushing through.
+
+Fourth: a documentation gap on an agent surface *is* an API gap. An audit
+subagent reading our own docs concluded state diagrams were not mutable,
+because every narrower list omitted the actual path (`asFlowchart` narrows
+state bodies). The code was right and the consumer still failed. The fix
+was a sentence on every agent surface plus a doc-sync guard that fails if
+any surface claims state mutation without documenting the narrowing path.
+
+Fifth: "100% parse success" is not faithfulness. The ER `}o` bug lived
+inside a fully gated corpus for the same reason it shipped: the gate
+asserted parsing, while the renderer silently dropped the relationship and
+its entities. Faithfulness needs node/edge-count oracles — the harness now
+treats any count change as a regression by default.
