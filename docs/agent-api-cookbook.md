@@ -275,7 +275,7 @@ Tier 3 warnings are advisory lint checks for common agent mistakes: `DUPLICATE_E
 - Concatenating source for an edit covered by a typed op.
 - Serializing before reading `verify.ok` and `verify.warnings`.
 - Treating `verify.ok` as a human aesthetics score.
-- Calling `mutate` on journey, xychart, architecture, or opaque bodies.
+- Calling `mutate` on xychart, architecture, or opaque bodies.
 - Hiding unsupported-family results. Return them explicitly so the caller can choose a source-level path.
 
 ## Minimal decision tree

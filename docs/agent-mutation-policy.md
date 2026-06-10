@@ -37,11 +37,11 @@ Structured mutation is exposed for families where the in-tree model is strong en
 - simple sequence;
 - timeline;
 - class;
-- ER.
+- ER;
+- journey (simple title/section/task bodies; BUILD-15).
 
 Source-level only:
 
-- journey;
 - xychart;
 - architecture;
 - any known-family diagram that falls back to an opaque body because it contains unmodeled syntax.
@@ -81,7 +81,7 @@ External AST libraries do not automatically solve this. A render-oriented AST ma
 We have achieved the safety goal for the current surface:
 
 - unsupported families round-trip through preserved source instead of lossy structured IR;
-- public capabilities no longer overclaim journey/xychart structured mutation;
+- public capabilities no longer overclaim xychart structured mutation (journey gained real structured mutation in BUILD-15);
 - Code Mode, CLI, docs, MCP SDK declarations, and tests agree on the same public surface;
 - timeline structured mutation remains exposed, but now updates `canonicalSource`, validates mutation text more strictly, allocates unique IDs, and falls back to opaque for header suffix/lossy syntax.
 

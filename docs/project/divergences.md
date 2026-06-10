@@ -25,11 +25,11 @@ Structured mutation is exposed only for families whose parser/IR/serializer/veri
 - simple sequence;
 - timeline;
 - class;
-- ER.
+- ER;
+- journey (BUILD-15 pilot).
 
 Source-level only:
 
-- journey;
 - xychart;
 - architecture;
 - any known-family diagram that falls back to opaque because it contains unmodeled syntax.

@@ -13,10 +13,10 @@ import { verifyMermaid } from '../agent/verify.ts'
 import { renderMermaidSVG, renderMermaidASCII, renderMermaidPNG, layoutMermaid } from '../agent/index.ts'
 import { describeMermaid } from '../agent/describe.ts'
 import { collectBatched } from '../shared/batched.ts'
-import { asFlowchart, asSequence, asTimeline, asClass, asEr } from '../agent/types.ts'
+import { asFlowchart, asSequence, asTimeline, asClass, asEr, asJourney } from '../agent/types.ts'
 import type {
   ValidDiagram, WarningCode,
-  FlowchartMutationOp, SequenceMutationOp, TimelineMutationOp, ClassMutationOp, ErMutationOp, AnyMutationOp,
+  FlowchartMutationOp, SequenceMutationOp, TimelineMutationOp, ClassMutationOp, ErMutationOp, JourneyMutationOp, AnyMutationOp,
   MutationError, Result, MutableValidDiagram,
 } from '../agent/types.ts'
 import { WARNING_SEVERITY, WARNING_TIER } from '../agent/types.ts'
@@ -141,8 +141,8 @@ Emits canonical Mermaid source. Accepts the JSON shape that 'am parse' emits;
 rebuilds the diagram via synthesizeFromGraph without re-parsing source.`,
   mutate: `am mutate <file|-> (--op '<JSON>' | --ops '<JSON array|file.json>') [--json]
 Applies one or more MutationOps, verifies the final diagram, then emits source.
-Flowchart/state, sequence, timeline, class, and ER have typed mutation ops;
-journey, xychart, architecture, and opaque-fallback diagrams return a structured
+Flowchart/state, sequence, timeline, class, ER, and journey have typed mutation
+ops; xychart, architecture, and opaque-fallback diagrams return a structured
 UNSUPPORTED_FAMILY error (exit 2). Verify failures exit 3 and omit source.`,
   preview: `am preview <file|-> [--output preview.html] [--open] [--json] [--security strict]
 Writes a standalone HTML preview containing strict-mode rendered SVG. Without
@@ -436,9 +436,11 @@ function mutateAny(d: ValidDiagram, op: AnyMutationOp): Result<MutableValidDiagr
   if (klass) return mutate(klass, op as ClassMutationOp)
   const er = asEr(d)
   if (er) return mutate(er, op as ErMutationOp)
+  const journey = asJourney(d)
+  if (journey) return mutate(journey, op as JourneyMutationOp)
   return {
     ok: false,
-    error: { code: 'UNSUPPORTED_FAMILY', message: `mutate supports flowchart, state, sequence, timeline, class, and ER diagrams; got ${d.kind}${d.body.kind === 'opaque' ? ' (source-level/opaque body — structured mutation is not exposed for this family or syntax)' : ''}` },
+    error: { code: 'UNSUPPORTED_FAMILY', message: `mutate supports flowchart, state, sequence, timeline, class, ER, and journey diagrams; got ${d.kind}${d.body.kind === 'opaque' ? ' (source-level/opaque body — structured mutation is not exposed for this family or syntax)' : ''}` },
   }
 }
 
@@ -624,6 +626,7 @@ export const MUTATION_OPS_BY_FAMILY = {
   timeline: ['set_title', 'add_section', 'remove_section', 'set_section_label', 'add_period', 'remove_period', 'set_period_label', 'add_event', 'remove_event', 'set_event_text'],
   class: ['set_title', 'add_class', 'remove_class', 'rename_class', 'add_member', 'remove_member', 'add_relation', 'remove_relation', 'add_note', 'remove_note'],
   er: ['add_entity', 'remove_entity', 'rename_entity', 'add_attribute', 'remove_attribute', 'add_relation', 'remove_relation'],
+  journey: ['set_title', 'add_section', 'remove_section', 'set_section_label', 'add_task', 'remove_task', 'set_task_text', 'set_task_score', 'set_task_actors', 'rename_actor'],
 } as const
 
 type MutableFamilyId = keyof typeof MUTATION_OPS_BY_FAMILY

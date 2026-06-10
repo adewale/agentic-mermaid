@@ -131,10 +131,9 @@ describe('vocabulary doc-sync', () => {
   })
 
   test('MCP SDK declaration exposes all mutable-family narrowers', () => {
-    for (const narrower of ['asFlowchart', 'asSequence', 'asTimeline', 'asClass', 'asEr']) {
+    for (const narrower of ['asFlowchart', 'asSequence', 'asTimeline', 'asClass', 'asEr', 'asJourney']) {
       expect(SDK_DECLARATION).toContain(narrower)
     }
-    expect(SDK_DECLARATION).not.toContain('asJourney')
     expect(SDK_DECLARATION).not.toContain('asXyChart')
   })
 

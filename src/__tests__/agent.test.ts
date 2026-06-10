@@ -38,16 +38,16 @@ describe('parseMermaid', () => {
     const r = parseMermaid('notADiagram\n X'); expect(r.ok).toBe(false)
     if (!r.ok) expect(r.error[0]!.code).toBe('UNKNOWN_HEADER')
   })
-  test('mutable families are structured; journey/xychart/architecture are source-level', () => {
+  test('mutable families are structured; xychart/architecture are source-level', () => {
     for (const [s, k] of [
       ['classDiagram\n  A <|-- B', 'class'],
       ['erDiagram\n  A ||--o{ B : x', 'er'],
       ['timeline\n  2020 : A', 'timeline'],
+      ['journey\n  title T\n  section S\n    Wake: 3: Me', 'journey'],
     ] as const) {
       const d = parse(s); expect(d.kind).toBe(k); expect(d.body.kind).toBe(k)
     }
     for (const [s, k] of [
-      ['journey\n  title T\n  section S\n    Wake: 3: Me', 'journey'],
       ['xychart-beta\n  bar [1,2,3]', 'xychart'],
       ['architecture-beta\n  group g(server)[g]', 'architecture'],
     ] as const) {
@@ -173,9 +173,8 @@ describe('sequence mutate — five ops', () => {
   })
 })
 
-describe('source-level families — journey, xychart, architecture', () => {
+describe('source-level families — xychart, architecture (journey promoted by BUILD-15)', () => {
   const cases = [
-    ['journey', 'journey\n  title T\n  section S\n    Wake: 3: Me'],
     ['xychart', 'xychart-beta\n  title Sales\n  x-axis [Jan, Feb]\n  bar [1, 2]'],
     ['architecture', 'architecture-beta\n  group g(server)[Group]'],
   ] as const

@@ -4,53 +4,40 @@
 
 import type {
   FlowchartValidDiagram, SequenceValidDiagram, TimelineValidDiagram,
-  ClassValidDiagram, ErValidDiagram, MutableValidDiagram,
+  ClassValidDiagram, ErValidDiagram, JourneyValidDiagram, MutableValidDiagram,
   FlowchartMutationOp, SequenceMutationOp, TimelineMutationOp,
-  ClassMutationOp, ErMutationOp, AnyMutationOp,
-  MutationError, Result, SequenceParticipant, SequenceMessage,
-  TimelineBody, TimelineSection, TimelinePeriod,
+  ClassMutationOp, ErMutationOp, JourneyMutationOp, AnyMutationOp,
+  MutationError, Result, DiagramKind,
 } from './types.ts'
 import { ok, err } from './types.ts'
 import type { MermaidGraph, MermaidNode, MermaidEdge } from '../types.ts'
-import { mutateClass as _mutateClass } from './class-body.ts'
-import { mutateEr as _mutateEr } from './er-body.ts'
-import { renderMeta, renderTimeline } from './serialize.ts'
-import { renderClass } from './class-body.ts'
-import { renderEr } from './er-body.ts'
+import { renderMeta } from './serialize.ts'
+import { getFamily } from './families.ts'
+import './families-builtin.ts'  // registers built-in family mutate hooks
 
 export function mutate(d: FlowchartValidDiagram, op: FlowchartMutationOp): Result<FlowchartValidDiagram, MutationError>
 export function mutate(d: SequenceValidDiagram, op: SequenceMutationOp): Result<SequenceValidDiagram, MutationError>
 export function mutate(d: TimelineValidDiagram, op: TimelineMutationOp): Result<TimelineValidDiagram, MutationError>
 export function mutate(d: ClassValidDiagram, op: ClassMutationOp): Result<ClassValidDiagram, MutationError>
 export function mutate(d: ErValidDiagram, op: ErMutationOp): Result<ErValidDiagram, MutationError>
+export function mutate(d: JourneyValidDiagram, op: JourneyMutationOp): Result<JourneyValidDiagram, MutationError>
 export function mutate(
   d: MutableValidDiagram,
   op: AnyMutationOp,
 ): Result<MutableValidDiagram, MutationError> {
+  // Flowchart/state share the legacy graph body and stay in-tree (BUILD-3
+  // exception). Every other structured family mutates through its
+  // FamilyPlugin hook, then rebuilds canonicalSource from the new body so a
+  // mutated diagram never carries stale source.
   if (d.body.kind === 'flowchart') return mutateFlowchart(d as FlowchartValidDiagram, op as FlowchartMutationOp)
-  if (d.body.kind === 'sequence') return mutateSequence(d as SequenceValidDiagram, op as SequenceMutationOp)
-  if (d.body.kind === 'timeline') return mutateTimeline(d as TimelineValidDiagram, op as TimelineMutationOp)
-  if (d.body.kind === 'class') return mutateClass(d as ClassValidDiagram, op as ClassMutationOp)
-  if (d.body.kind === 'er') return mutateEr(d as ErValidDiagram, op as ErMutationOp)
+  const plugin = getFamily(d.body.kind as DiagramKind)
+  if (plugin?.mutate && plugin.serialize) {
+    const r = plugin.mutate(d.body, op)
+    if (!r.ok) return r
+    const canonicalSource = renderMeta(d.meta) + plugin.serialize(r.value)
+    return ok({ ...d, body: r.value, canonicalSource } as MutableValidDiagram)
+  }
   return err({ code: 'INVALID_OP', message: `Unsupported mutable body kind: ${(d as { body: { kind: string } }).body.kind}` })
-}
-
-function mutateClass(d: ClassValidDiagram, op: ClassMutationOp): Result<ClassValidDiagram, MutationError> {
-  const r = _mutateClass(d.body, op)
-  if (!r.ok) return r
-  const next: ClassValidDiagram = { ...d, body: r.value }
-  const meta = renderMeta(d.meta)
-  const canonicalSource = meta + renderClass(r.value)
-  return ok({ ...next, canonicalSource })
-}
-
-function mutateEr(d: ErValidDiagram, op: ErMutationOp): Result<ErValidDiagram, MutationError> {
-  const r = _mutateEr(d.body, op)
-  if (!r.ok) return r
-  const next: ErValidDiagram = { ...d, body: r.value }
-  const meta = renderMeta(d.meta)
-  const canonicalSource = meta + renderEr(r.value)
-  return ok({ ...next, canonicalSource })
 }
 
 // ---- Flowchart ------------------------------------------------------------
@@ -122,209 +109,6 @@ function mutateFlowchart(d: FlowchartValidDiagram, op: FlowchartMutationOp): Res
       return err({ code: 'INVALID_OP', message: `Unknown op: ${JSON.stringify(_x)}` })
     }
   }
-}
-
-// ---- Sequence -------------------------------------------------------------
-
-function mutateSequence(d: SequenceValidDiagram, op: SequenceMutationOp): Result<SequenceValidDiagram, MutationError> {
-  const participants = d.body.participants.map(p => ({ ...p }))
-  const messages = d.body.messages.map(m => ({ ...m }))
-
-  switch (op.kind) {
-    case 'add_participant': {
-      if (participants.some(p => p.id === op.id)) return err({ code: 'DUPLICATE_PARTICIPANT', message: `Participant "${op.id}" already exists` })
-      participants.push({ id: op.id, label: op.label ?? op.id, kind: op.participantKind ?? 'participant' })
-      break
-    }
-    case 'remove_participant': {
-      const idx = participants.findIndex(p => p.id === op.id)
-      if (idx < 0) return err({ code: 'PARTICIPANT_NOT_FOUND', message: `Participant "${op.id}" not found` })
-      participants.splice(idx, 1)
-      return ok(rebuildSeq(d, participants, messages.filter(m => m.from !== op.id && m.to !== op.id)))
-    }
-    case 'add_message': {
-      ensureParticipant(participants, op.from); ensureParticipant(participants, op.to)
-      messages.push({ from: op.from, to: op.to, text: op.text, style: op.style ?? 'sync' })
-      break
-    }
-    case 'remove_message': {
-      if (op.index < 0 || op.index >= messages.length) return err({ code: 'MESSAGE_NOT_FOUND', message: `No message at index ${op.index}` })
-      messages.splice(op.index, 1)
-      break
-    }
-    case 'set_message_text': {
-      if (op.index < 0 || op.index >= messages.length) return err({ code: 'MESSAGE_NOT_FOUND', message: `No message at index ${op.index}` })
-      messages[op.index]!.text = op.text
-      break
-    }
-    default: {
-      const _x: never = op
-      return err({ code: 'INVALID_OP', message: `Unknown op: ${JSON.stringify(_x)}` })
-    }
-  }
-  return ok(rebuildSeq(d, participants, messages))
-}
-
-function ensureParticipant(ps: SequenceParticipant[], id: string): void {
-  if (!ps.some(p => p.id === id)) ps.push({ id, label: id, kind: 'participant' })
-}
-
-function rebuildSeq(d: SequenceValidDiagram, participants: SequenceParticipant[], messages: SequenceMessage[]): SequenceValidDiagram {
-  return { ...d, body: { kind: 'sequence', participants, messages } } as SequenceValidDiagram
-}
-
-// ============================================================================
-// Timeline mutation
-// ============================================================================
-
-function cloneTimeline(b: TimelineBody): TimelineBody {
-  return {
-    kind: 'timeline',
-    title: b.title,
-    sections: b.sections.map(s => ({
-      id: s.id, label: s.label,
-      periods: s.periods.map(p => ({ id: p.id, label: p.label, events: p.events.map(e => ({ id: e.id, text: e.text })) })),
-    })),
-  }
-}
-
-function makeTimelineIdAllocator(body: TimelineBody): (prefix: 'section' | 'period' | 'event') => string {
-  const seen = new Set<string>()
-  for (const s of body.sections) {
-    seen.add(s.id)
-    for (const p of s.periods) { seen.add(p.id); for (const e of p.events) seen.add(e.id) }
-  }
-  return prefix => {
-    let n = 0
-    while (seen.has(`${prefix}-${n}`)) n++
-    const id = `${prefix}-${n}`
-    seen.add(id)
-    return id
-  }
-}
-
-function normalizeTimelineMutationText(value: string): string {
-  return value.split(/\r?\n/).map(part => part.trim()).filter(Boolean).join(' ')
-}
-
-function validTimelineMutationText(value: string, opts: { allowColon: boolean }): boolean {
-  return value.length > 0 && (opts.allowColon || !value.includes(':'))
-}
-
-function normalizeTimelineOpText(value: string, opts: { field: string; allowColon?: boolean }): Result<string, MutationError> {
-  if (typeof value !== 'string') return err({ code: 'INVALID_OP', message: `Timeline ${opts.field} must be a string` })
-  const normalized = normalizeTimelineMutationText(value)
-  if (!validTimelineMutationText(normalized, { allowColon: opts.allowColon ?? true })) {
-    return err({ code: 'INVALID_OP', message: `Timeline ${opts.field} must be non-empty${opts.allowColon === false ? ' and must not contain :' : ''}` })
-  }
-  return ok(normalized)
-}
-
-function mutateTimeline(d: TimelineValidDiagram, op: TimelineMutationOp): Result<TimelineValidDiagram, MutationError> {
-  const body = cloneTimeline(d.body)
-  const nextTimelineId = makeTimelineIdAllocator(body)
-
-  const getSection = (i: number): TimelineSection | undefined => body.sections[i]
-  const getPeriod = (si: number, pi: number): TimelinePeriod | undefined => getSection(si)?.periods[pi]
-
-  switch (op.kind) {
-    case 'set_title': {
-      if (op.title === null) delete body.title
-      else {
-        const title = normalizeTimelineOpText(op.title, { field: 'title' })
-        if (!title.ok) return title
-        body.title = title.value
-      }
-      break
-    }
-    case 'add_section': {
-      const label = normalizeTimelineOpText(op.label, { field: 'section label' })
-      if (!label.ok) return label
-      body.sections.push({ id: nextTimelineId('section'), label: label.value, periods: [] })
-      break
-    }
-    case 'remove_section': {
-      if (!getSection(op.index)) return err({ code: 'SECTION_NOT_FOUND', message: `No section at index ${op.index}` })
-      body.sections.splice(op.index, 1)
-      break
-    }
-    case 'set_section_label': {
-      const s = getSection(op.index)
-      if (!s) return err({ code: 'SECTION_NOT_FOUND', message: `No section at index ${op.index}` })
-      const label = normalizeTimelineOpText(op.label, { field: 'section label' })
-      if (!label.ok) return label
-      s.label = label.value
-      break
-    }
-    case 'add_period': {
-      const s = getSection(op.sectionIndex)
-      if (!s) return err({ code: 'SECTION_NOT_FOUND', message: `No section at index ${op.sectionIndex}` })
-      const label = normalizeTimelineOpText(op.label, { field: 'period label', allowColon: false })
-      if (!label.ok) return label
-      const events: TimelinePeriod['events'] = []
-      for (const raw of op.events ?? []) {
-        const text = normalizeTimelineOpText(raw, { field: 'event text', allowColon: false })
-        if (!text.ok) return text
-        events.push({ id: nextTimelineId('event'), text: text.value })
-      }
-      const period: TimelinePeriod = {
-        id: nextTimelineId('period'),
-        label: label.value,
-        events,
-      }
-      s.periods.push(period)
-      break
-    }
-    case 'remove_period': {
-      const s = getSection(op.sectionIndex)
-      if (!s) return err({ code: 'SECTION_NOT_FOUND', message: `No section at index ${op.sectionIndex}` })
-      if (!s.periods[op.periodIndex]) return err({ code: 'PERIOD_NOT_FOUND', message: `No period at index ${op.periodIndex}` })
-      s.periods.splice(op.periodIndex, 1)
-      if (s.label === undefined && s.periods.length === 0) body.sections.splice(op.sectionIndex, 1)
-      break
-    }
-    case 'set_period_label': {
-      const p = getPeriod(op.sectionIndex, op.periodIndex)
-      if (!p) return err({ code: 'PERIOD_NOT_FOUND', message: `No period at (${op.sectionIndex},${op.periodIndex})` })
-      const label = normalizeTimelineOpText(op.label, { field: 'period label', allowColon: false })
-      if (!label.ok) return label
-      p.label = label.value
-      break
-    }
-    case 'add_event': {
-      const p = getPeriod(op.sectionIndex, op.periodIndex)
-      if (!p) return err({ code: 'PERIOD_NOT_FOUND', message: `No period at (${op.sectionIndex},${op.periodIndex})` })
-      const text = normalizeTimelineOpText(op.text, { field: 'event text', allowColon: false })
-      if (!text.ok) return text
-      p.events.push({ id: nextTimelineId('event'), text: text.value })
-      break
-    }
-    case 'remove_event': {
-      const p = getPeriod(op.sectionIndex, op.periodIndex)
-      if (!p) return err({ code: 'PERIOD_NOT_FOUND', message: `No period at (${op.sectionIndex},${op.periodIndex})` })
-      if (!p.events[op.eventIndex]) return err({ code: 'EVENT_NOT_FOUND', message: `No event at index ${op.eventIndex}` })
-      p.events.splice(op.eventIndex, 1)
-      const section = getSection(op.sectionIndex)
-      if (section && section.label === undefined && section.periods.length === 0) body.sections.splice(op.sectionIndex, 1)
-      break
-    }
-    case 'set_event_text': {
-      const p = getPeriod(op.sectionIndex, op.periodIndex)
-      if (!p) return err({ code: 'PERIOD_NOT_FOUND', message: `No period at (${op.sectionIndex},${op.periodIndex})` })
-      const e = p.events[op.eventIndex]
-      if (!e) return err({ code: 'EVENT_NOT_FOUND', message: `No event at index ${op.eventIndex}` })
-      const text = normalizeTimelineOpText(op.text, { field: 'event text', allowColon: false })
-      if (!text.ok) return text
-      e.text = text.value
-      break
-    }
-    default: {
-      const _x: never = op
-      return err({ code: 'INVALID_OP', message: `Unknown op: ${JSON.stringify(_x)}` })
-    }
-  }
-  const canonicalSource = renderMeta(d.meta) + renderTimeline(body)
-  return ok({ ...d, body, canonicalSource } as TimelineValidDiagram)
 }
 
 // ---- Flowchart helpers ----------------------------------------------------

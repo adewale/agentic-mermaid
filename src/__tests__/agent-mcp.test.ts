@@ -434,14 +434,20 @@ describe('CLI — sad paths via runCli', () => {
     expect(out).toContain('UNSUPPORTED_FAMILY')
   })
 
-  test('mutate on source-level journey returns UNSUPPORTED_FAMILY', () => {
+  test('mutate on structured journey succeeds (BUILD-15); opaque journey stays unsupported', () => {
     const tmp = `/tmp/cli-journey-${Date.now()}.mmd`
     require('node:fs').writeFileSync(tmp, 'journey\n  section Work\n  Code: 4: Me\n')
     const { code, out } = capture(() => runCli(['mutate', tmp, '--op', '{"kind":"add_task","sectionIndex":0,"text":"Review","score":5,"actors":["Me"]}', '--json']))
-    expect(code).toBe(2)
+    expect(code).toBe(0)
     const payload = JSON.parse(out)
-    expect(payload.ok).toBe(false)
-    expect(payload.error.code).toBe('UNSUPPORTED_FAMILY')
+    expect(payload.ok).toBe(true)
+    expect(payload.source).toContain('Review: 5: Me')
+
+    const opaqueTmp = `/tmp/cli-journey-opaque-${Date.now()}.mmd`
+    require('node:fs').writeFileSync(opaqueTmp, 'journey\n  accTitle: A11y\n  Code: 4: Me\n')
+    const opaque = capture(() => runCli(['mutate', opaqueTmp, '--op', '{"kind":"add_task","sectionIndex":0,"text":"Review","score":5}', '--json']))
+    expect(opaque.code).toBe(2)
+    expect(JSON.parse(opaque.out).error.code).toBe('UNSUPPORTED_FAMILY')
   })
 
   test('mutate on sequence-with-notes (opaque) returns UNSUPPORTED_FAMILY', () => {

@@ -1,16 +1,54 @@
 // ============================================================================
 // Built-in family registrations.
 //
-// Registers all 9 families with the plugin registry. Today this populates
-// `extractLabels` only — parse/serialize/mutate/verify continue to dispatch
-// through their existing in-tree branches in parse.ts / serialize.ts /
-// mutate.ts / verify.ts. As each family migrates to a fully plugin-owned
-// implementation, fill in `parse`/`serialize`/`mutate`/`verify` here.
+// Registers all 9 families with the plugin registry. Structured families own
+// their parse/serialize/mutate here (BUILD-3 consolidation): parseMermaid,
+// serializeMermaid, and mutate dispatch through these hooks, so adding a
+// family means one registration plus a body module — no core edits.
+//
+// Flowchart/state remain the documented exception: they share the legacy
+// MermaidGraph body, error (rather than fall back to opaque) on bad syntax,
+// and carry a SourceMap, so parse.ts keeps their branch in-tree.
 // ============================================================================
 
-import { registerFamily, extractLabelsGeneric, type ExtractedLabel } from './families.ts'
-import { verifyClass } from './class-body.ts'
-import { verifyErBody } from './er-body.ts'
+import { registerFamily, extractLabelsGeneric, type ExtractedLabel, type FamilyPlugin } from './families.ts'
+import type { DiagramBody, DiagramKind, AnyMutationOp, MutationError, Result } from './types.ts'
+import { ok, err } from './types.ts'
+import { verifyClass, parseClassBody, renderClass, mutateClass } from './class-body.ts'
+import { verifyErBody, parseErBody, renderEr, mutateEr } from './er-body.ts'
+import { parseSequenceBody, renderSequence, mutateSequence } from './sequence-body.ts'
+import { parseTimelineBody, renderTimeline, mutateTimeline } from './timeline-body.ts'
+import { parseJourneyBody, renderJourney, mutateJourney, verifyJourney } from './journey-body.ts'
+
+// Build the structured-or-opaque hook set shared by every structured family
+// that is not flowchart/state. `headerOk` gates structured parsing: families
+// with meaningful header suffixes (timeline, journey) stay opaque when the
+// header carries one, so the suffix round-trips verbatim.
+function structuredFamilyHooks<K extends DiagramBody['kind'] & DiagramKind>(
+  kind: K,
+  opts: {
+    headerOk?: (header: string) => boolean
+    parseBody: (lines: string[]) => Extract<DiagramBody, { kind: K }> | null
+    serialize: (body: Extract<DiagramBody, { kind: K }>) => string
+    mutate: (body: Extract<DiagramBody, { kind: K }>, op: never) => Result<Extract<DiagramBody, { kind: K }>, MutationError>
+  },
+): Pick<FamilyPlugin, 'parse' | 'serialize' | 'mutate'> {
+  return {
+    parse: (lines, opaqueSource) => {
+      const headerOk = opts.headerOk?.(lines[0]?.trim() ?? '') ?? true
+      const body = headerOk ? opts.parseBody(lines.slice(1)) : null
+      return ok(body ?? { kind: 'opaque', family: kind, source: opaqueSource })
+    },
+    serialize: body => {
+      if (body.kind !== kind) throw new Error(`${kind} serializer received body kind ${body.kind}`)
+      return opts.serialize(body as Extract<DiagramBody, { kind: K }>)
+    },
+    mutate: (body: DiagramBody, op: AnyMutationOp) => {
+      if (body.kind !== kind) return err<MutationError>({ code: 'INVALID_OP', message: `${kind} mutator received body kind ${body.kind}` })
+      return opts.mutate(body as Extract<DiagramBody, { kind: K }>, op as never)
+    },
+  }
+}
 
 // ---- Flowchart / State ----------------------------------------------------
 // Flowchart-specific label extraction:
@@ -64,7 +102,12 @@ function extractSequenceLabels(source: string): ExtractedLabel[] {
   return out
 }
 
-registerFamily({ id: 'sequence', detect: l => l.startsWith('sequencediagram'), extractLabels: extractSequenceLabels })
+registerFamily({
+  id: 'sequence',
+  detect: l => l.startsWith('sequencediagram'),
+  extractLabels: extractSequenceLabels,
+  ...structuredFamilyHooks('sequence', { parseBody: parseSequenceBody, serialize: renderSequence, mutate: mutateSequence }),
+})
 
 // ---- Timeline -------------------------------------------------------------
 function extractTimelineLabels(source: string): ExtractedLabel[] {
@@ -87,7 +130,15 @@ function extractTimelineLabels(source: string): ExtractedLabel[] {
   return out
 }
 
-registerFamily({ id: 'timeline', detect: l => l.startsWith('timeline'), extractLabels: extractTimelineLabels })
+registerFamily({
+  id: 'timeline',
+  detect: l => l.startsWith('timeline'),
+  extractLabels: extractTimelineLabels,
+  ...structuredFamilyHooks('timeline', {
+    headerOk: h => /^timeline\s*$/i.test(h),
+    parseBody: parseTimelineBody, serialize: renderTimeline, mutate: mutateTimeline,
+  }),
+})
 
 // ---- Class ---------------------------------------------------------------
 // class Name { +member ... }, Class : +member, class A as "Display Label"
@@ -119,6 +170,7 @@ registerFamily({
   // routes class diagrams through this plugin hook (Loop 9 M2 removed the
   // duplicate per-body branch). Single source of truth.
   verify: (body, opts) => body.kind === 'class' ? verifyClass(body, opts) : [],
+  ...structuredFamilyHooks('class', { parseBody: parseClassBody, serialize: renderClass, mutate: mutateClass }),
 })
 
 // ---- ER -------------------------------------------------------------------
@@ -148,6 +200,7 @@ registerFamily({
   // Loop 8 A1: same as class — this hook is the verify path for ER (Loop 9 M2
   // removed the duplicate per-body branch in verify.ts).
   verify: (body, opts) => body.kind === 'er' ? verifyErBody(body, opts) : [],
+  ...structuredFamilyHooks('er', { parseBody: parseErBody, serialize: renderEr, mutate: mutateEr }),
 })
 
 // ---- Journey --------------------------------------------------------------
@@ -195,7 +248,18 @@ function extractJourneyLabels(source: string): ExtractedLabel[] {
   return out
 }
 
-registerFamily({ id: 'journey', detect: l => l.startsWith('journey'), extractLabels: extractJourneyLabels })
+registerFamily({
+  id: 'journey',
+  detect: l => l.startsWith('journey'),
+  extractLabels: extractJourneyLabels,
+  // BUILD-15: journey is structured-when-narrowed. The verify hook covers the
+  // structured body; opaque fallbacks keep the universal label-extraction path.
+  verify: (body, opts) => body.kind === 'journey' ? verifyJourney(body, opts) : [],
+  ...structuredFamilyHooks('journey', {
+    headerOk: h => /^journey\s*$/i.test(h),
+    parseBody: parseJourneyBody, serialize: renderJourney, mutate: mutateJourney,
+  }),
+})
 
 // ---- XY chart -------------------------------------------------------------
 // title "T", x-axis [a,b,c], y-axis "label"

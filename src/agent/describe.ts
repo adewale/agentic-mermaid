@@ -51,6 +51,7 @@ export function describeMermaid(d: ValidDiagram, opts: DescribeOptions = {}): st
   if (d.body.kind === 'timeline') return describeTimeline(d as TimelineValidDiagram)
   if (d.body.kind === 'class') return describeClass(d as ClassValidDiagram)
   if (d.body.kind === 'er') return describeEr(d as ErValidDiagram)
+  if (d.body.kind === 'journey') return describeJourney(d.body)
   if (d.body.kind === 'opaque') return describeOpaque(d.kind, d.body.source)
   return `A ${d.kind} diagram (structured editing not yet supported).`
 }
@@ -79,6 +80,10 @@ export function describeMermaidTree(d: ValidDiagram): DescribeTree {
   } else if (d.body.kind === 'timeline') {
     for (const s of d.body.sections) for (const p of s.periods) {
       tree.nodes.push({ id: p.id, label: p.label })
+    }
+  } else if (d.body.kind === 'journey') {
+    for (const s of d.body.sections) for (const t of s.tasks) {
+      tree.nodes.push({ id: t.id, label: t.text })
     }
   } else if (d.body.kind === 'opaque') {
     const plugin = getFamily(d.kind)
@@ -139,6 +144,19 @@ function describeTimeline(d: TimelineValidDiagram): string {
   let s = `A timeline with ${sections.length} sections.`
   if (sectionLabels.length > 0) s += ` Sections: ${sectionLabels.join(', ')}.`
   if (periodLabels.length > 0) s += ` Periods: ${periodLabels.join(', ')}.`
+  return s
+}
+
+function describeJourney(body: import('./types.ts').JourneyBody): string {
+  const sections = body.sections
+  const taskCount = sections.reduce((n, s) => n + s.tasks.length, 0)
+  const actors = [...new Set(sections.flatMap(s => s.tasks.flatMap(t => t.actors)))]
+  let s = `A user journey${body.title ? ` titled "${body.title}"` : ''} with ${sections.length} sections and ${taskCount} tasks.`
+  const sectionLabels = sections.map(sec => sec.label).filter((l): l is string => l !== undefined)
+  if (sectionLabels.length > 0) s += ` Sections: ${sectionLabels.join(', ')}.`
+  const taskStr = sections.flatMap(sec => sec.tasks.map(t => `${t.text} (${t.score})`))
+  if (taskStr.length > 0) s += ` Tasks: ${taskStr.join(', ')}.`
+  if (actors.length > 0) s += ` Actors: ${actors.join(', ')}.`
   return s
 }
 

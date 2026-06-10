@@ -4,14 +4,17 @@
 // ============================================================================
 
 import type {
-  ValidDiagram, ValidDiagramMeta, DiagramBody, SequenceBody, TimelineBody,
-  SequenceMessageStyle, ValidDiagramPayload, ParseError, Result,
+  ValidDiagram, ValidDiagramMeta, DiagramBody,
+  ValidDiagramPayload, ParseError, Result,
 } from './types.ts'
 import { ok, err } from './types.ts'
 import type { MermaidGraph, MermaidNode, MermaidEdge } from '../types.ts'
 import YAML from 'yaml'
-import { renderClass } from './class-body.ts'
-import { renderEr } from './er-body.ts'
+import { getFamily } from './families.ts'
+import './families-builtin.ts'  // registers built-in family serialize hooks
+
+// Re-export for callers that used the previous in-tree serializer home.
+export { renderTimeline } from './timeline-body.ts'
 
 export function serializeMermaid(d: ValidDiagram): string {
   return renderMeta(d.meta) + renderBody(d.body, d.kind)
@@ -27,60 +30,14 @@ export function renderMeta(meta: ValidDiagramMeta): string {
 }
 
 function renderBody(body: DiagramBody, kind: ValidDiagram['kind']): string {
+  // Flowchart/state share the legacy graph body and stay in-tree (BUILD-3
+  // exception); opaque bodies re-emit preserved source verbatim. Every other
+  // structured body serializes through its FamilyPlugin hook.
   if (body.kind === 'flowchart') return renderFlowchart(body.graph, kind)
-  if (body.kind === 'sequence') return renderSequence(body)
-  if (body.kind === 'timeline') return renderTimeline(body)
-  if (body.kind === 'class') return renderClass(body)
-  if (body.kind === 'er') return renderEr(body)
-  return body.source.endsWith('\n') ? body.source : body.source + '\n'
-}
-
-// ---- Timeline -------------------------------------------------------------
-
-export function renderTimeline(body: TimelineBody): string {
-  const lines: string[] = ['timeline']
-  if (body.title) lines.push(`  title ${body.title}`)
-  for (const section of body.sections) {
-    if (section.label !== undefined) lines.push(`  section ${section.label}`)
-    for (const period of section.periods) {
-      // First event on the same line as the period label; extra events on
-      // continuation lines (`: text`). Matches Mermaid timeline syntax.
-      if (period.events.length === 0) {
-        lines.push(`  ${period.label} :`)
-        continue
-      }
-      lines.push(`  ${period.label} : ${period.events[0]!.text}`)
-      for (const e of period.events.slice(1)) lines.push(`       : ${e.text}`)
-    }
-  }
-  return lines.join('\n') + '\n'
-}
-
-// ---- Sequence -------------------------------------------------------------
-
-function renderSequence(body: SequenceBody): string {
-  const lines: string[] = ['sequenceDiagram']
-  for (const p of body.participants) {
-    if (p.label !== p.id || p.kind === 'actor') {
-      const tag = p.kind === 'actor' ? 'actor' : 'participant'
-      lines.push(`  ${tag} ${p.id}${p.label !== p.id ? ` as ${p.label}` : ''}`)
-    }
-  }
-  for (const m of body.messages) {
-    lines.push(`  ${m.from}${arrowForStyle(m.style)}${m.to}: ${m.text}`)
-  }
-  return lines.join('\n') + '\n'
-}
-
-function arrowForStyle(s: SequenceMessageStyle): string {
-  switch (s) {
-    case 'sync': return '->>'
-    case 'reply': return '-->>'
-    case 'async': return '->'
-    case 'async-dashed': return '-->'
-    case 'lost': return '-x'
-    case 'lost-dashed': return '--x'
-  }
+  if (body.kind === 'opaque') return body.source.endsWith('\n') ? body.source : body.source + '\n'
+  const plugin = getFamily(body.kind)
+  if (plugin?.serialize) return plugin.serialize(body)
+  throw new Error(`No serializer registered for body kind "${body.kind}"`)
 }
 
 // ---- Flowchart ------------------------------------------------------------
@@ -227,7 +184,7 @@ export function synthesizeFromGraph(payload: ValidDiagramPayload): Result<ValidD
         linkStyles: toLinkStyleMap(sg.linkStyles),
       },
     }
-  } else if (payload.body.kind === 'sequence' || payload.body.kind === 'timeline' || payload.body.kind === 'class' || payload.body.kind === 'er' || payload.body.kind === 'opaque') {
+  } else if (payload.body.kind === 'sequence' || payload.body.kind === 'timeline' || payload.body.kind === 'class' || payload.body.kind === 'er' || payload.body.kind === 'journey' || payload.body.kind === 'opaque') {
     body = payload.body
   } else {
     return err([{ code: 'INVALID_PAYLOAD', message: 'unknown body kind' }])

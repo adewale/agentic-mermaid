@@ -78,6 +78,30 @@ export interface TimelineBody {
   sections: TimelineSection[]
 }
 
+// ---- Journey body ----------------------------------------------------------
+
+export interface JourneyTask {
+  /** Stable within one parse; recomputed each parse. Not a durable identifier. */
+  id: string
+  text: string
+  /** Satisfaction score, integer 1..5 (Mermaid journey convention). */
+  score: number
+  actors: string[]
+}
+
+export interface JourneySection {
+  id: string
+  /** Undefined = implicit/ungrouped section. */
+  label?: string
+  tasks: JourneyTask[]
+}
+
+export interface JourneyBody {
+  kind: 'journey'
+  title?: string
+  sections: JourneySection[]
+}
+
 // ---- Class diagram body ---------------------------------------------------
 
 export type ClassRelationKind =
@@ -184,6 +208,7 @@ export type DiagramBody =
   | TimelineBody
   | ClassBody
   | ErBody
+  | JourneyBody
   /**
    * Opaque body — the parser understood the family header but encountered
    * unmodeled syntax. `source` is the ORIGINAL body with indentation, blank
@@ -223,7 +248,8 @@ export type SequenceValidDiagram = ValidDiagram & { body: SequenceBody }
 export type TimelineValidDiagram = ValidDiagram & { body: TimelineBody }
 export type ClassValidDiagram = ValidDiagram & { body: ClassBody }
 export type ErValidDiagram = ValidDiagram & { body: ErBody }
-export type MutableValidDiagram = FlowchartValidDiagram | SequenceValidDiagram | TimelineValidDiagram | ClassValidDiagram | ErValidDiagram
+export type JourneyValidDiagram = ValidDiagram & { body: JourneyBody }
+export type MutableValidDiagram = FlowchartValidDiagram | SequenceValidDiagram | TimelineValidDiagram | ClassValidDiagram | ErValidDiagram | JourneyValidDiagram
 
 export function asFlowchart(d: ValidDiagram): FlowchartValidDiagram | null {
   return d.body.kind === 'flowchart' ? (d as FlowchartValidDiagram) : null
@@ -244,6 +270,10 @@ export function asEr(d: ValidDiagram): ErValidDiagram | null {
   return d.body.kind === 'er' ? (d as ErValidDiagram) : null
 }
 
+export function asJourney(d: ValidDiagram): JourneyValidDiagram | null {
+  return d.body.kind === 'journey' ? (d as JourneyValidDiagram) : null
+}
+
 // ---- Errors ---------------------------------------------------------------
 
 export interface ParseError { code: string; message: string; line?: number; col?: number }
@@ -253,6 +283,7 @@ export interface MutationError {
     | 'NODE_NOT_FOUND' | 'EDGE_NOT_FOUND'
     | 'PARTICIPANT_NOT_FOUND' | 'MESSAGE_NOT_FOUND'
     | 'SECTION_NOT_FOUND' | 'PERIOD_NOT_FOUND' | 'EVENT_NOT_FOUND'
+    | 'TASK_NOT_FOUND' | 'ACTOR_NOT_FOUND'
     | 'CLASS_NOT_FOUND' | 'MEMBER_NOT_FOUND' | 'RELATION_NOT_FOUND' | 'NOTE_NOT_FOUND'
     | 'ENTITY_NOT_FOUND' | 'ATTRIBUTE_NOT_FOUND'
     | 'DUPLICATE_NODE' | 'DUPLICATE_PARTICIPANT' | 'DUPLICATE_CLASS' | 'DUPLICATE_ENTITY'
@@ -315,7 +346,19 @@ export type ErMutationOp =
   | { kind: 'add_relation'; from: string; to: string; leftCard: ErCardinality; rightCard: ErCardinality; dashed?: boolean; label?: string }
   | { kind: 'remove_relation'; index: number }
 
-export type AnyMutationOp = FlowchartMutationOp | SequenceMutationOp | TimelineMutationOp | ClassMutationOp | ErMutationOp
+export type JourneyMutationOp =
+  | { kind: 'set_title'; title: string | null }
+  | { kind: 'add_section'; label: string }
+  | { kind: 'remove_section'; index: number }
+  | { kind: 'set_section_label'; index: number; label: string }
+  | { kind: 'add_task'; sectionIndex: number; text: string; score: number; actors?: string[] }
+  | { kind: 'remove_task'; sectionIndex: number; taskIndex: number }
+  | { kind: 'set_task_text'; sectionIndex: number; taskIndex: number; text: string }
+  | { kind: 'set_task_score'; sectionIndex: number; taskIndex: number; score: number }
+  | { kind: 'set_task_actors'; sectionIndex: number; taskIndex: number; actors: string[] }
+  | { kind: 'rename_actor'; from: string; to: string }
+
+export type AnyMutationOp = FlowchartMutationOp | SequenceMutationOp | TimelineMutationOp | ClassMutationOp | ErMutationOp | JourneyMutationOp
 export type MutationOp = FlowchartMutationOp // legacy alias
 
 // ---- Branded Finite -------------------------------------------------------
@@ -439,5 +482,6 @@ export interface ValidDiagramPayload {
     | TimelineBody
     | ClassBody
     | ErBody
+    | JourneyBody
     | { kind: 'opaque'; family: DiagramKind; source: string }
 }

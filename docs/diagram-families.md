@@ -12,7 +12,7 @@ Agentic Mermaid supports Mermaid's common diagram families through a split pipel
 | Timeline | `timeline` | SVG/PNG/ASCII | ✓ | Supports sections, periods, events, title changes. |
 | Class | `classDiagram` | SVG/PNG/ASCII | ✓ | Classes, members, relations, notes. |
 | ER | `erDiagram` | SVG/PNG/ASCII | ✓ | Entities, attributes, relations. |
-| Journey | `journey` | SVG/PNG/ASCII | source-level only | Parsed/rendered/verified, but no typed mutation. |
+| Journey | `journey` | SVG/PNG/ASCII | structured (10 ops) | `asJourney` narrows simple title/section/task journeys; unmodeled syntax (accTitle/accDescr) stays opaque. |
 | XY chart | `xychart`, `xychart-beta` | SVG/PNG/ASCII | source-level only | Vertical/horizontal bar/line/mixed charts. |
 | Architecture | `architecture-beta` | SVG/PNG/ASCII | source-level only | Groups, services, junctions, anchored edges. |
 

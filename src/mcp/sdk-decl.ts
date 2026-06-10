@@ -35,6 +35,7 @@ interface ValidDiagram {
     | TimelineBody
     | ClassBody
     | ErBody
+    | JourneyBody
     | { kind: 'opaque'; family: DiagramKind; source: string }
   readonly canonicalSource: string   // normalized renderer input; opaque fidelity uses body.source
 }
@@ -44,6 +45,7 @@ type SequenceValidDiagram  = ValidDiagram & { body: SequenceBody }
 type TimelineValidDiagram  = ValidDiagram & { body: TimelineBody }
 type ClassValidDiagram     = ValidDiagram & { body: ClassBody }
 type ErValidDiagram        = ValidDiagram & { body: ErBody }
+type JourneyValidDiagram   = ValidDiagram & { body: JourneyBody }
 
 interface FlowchartGraph {
   direction: 'TD' | 'TB' | 'LR' | 'BT' | 'RL'
@@ -75,6 +77,10 @@ interface ErAttribute { text: string }
 interface ErEntity { id: string; attributes: ErAttribute[] }
 interface ErRelation { from: string; to: string; leftCard: ErCardinality; rightCard: ErCardinality; dashed: boolean; label?: string }
 interface ErBody { kind: 'er'; entities: ErEntity[]; relations: ErRelation[] }
+
+interface JourneyTask { id: string; text: string; score: number; actors: string[] }
+interface JourneySection { id: string; label?: string; tasks: JourneyTask[] }
+interface JourneyBody { kind: 'journey'; title?: string; sections: JourneySection[] }
 
 type FlowchartMutationOp =
   | { kind: 'add_node'; id: string; label: string; shape?: string; parent?: string }
@@ -124,6 +130,18 @@ type ErMutationOp =
   | { kind: 'add_relation'; from: string; to: string; leftCard: ErCardinality; rightCard: ErCardinality; dashed?: boolean; label?: string }
   | { kind: 'remove_relation'; index: number }
 
+type JourneyMutationOp =
+  | { kind: 'set_title'; title: string | null }
+  | { kind: 'add_section'; label: string }
+  | { kind: 'remove_section'; index: number }
+  | { kind: 'set_section_label'; index: number; label: string }
+  | { kind: 'add_task'; sectionIndex: number; text: string; score: number; actors?: string[] }
+  | { kind: 'remove_task'; sectionIndex: number; taskIndex: number }
+  | { kind: 'set_task_text'; sectionIndex: number; taskIndex: number; text: string }
+  | { kind: 'set_task_score'; sectionIndex: number; taskIndex: number; score: number }
+  | { kind: 'set_task_actors'; sectionIndex: number; taskIndex: number; actors: string[] }
+  | { kind: 'rename_actor'; from: string; to: string }
+
 // Tier 1 (structural, reliable): EMPTY_DIAGRAM, EDGE_MISANCHORED, OFF_CANVAS,
 //   GROUP_BREACH, UNKNOWN_SHAPE, LABEL_OVERFLOW (source-based char-cap).
 // Tier 2 (geometric, advisory): NODE_OVERLAP, ROUTE_SELF_CROSS.
@@ -146,11 +164,13 @@ declare const mermaid: {
   asTimeline(d: ValidDiagram):  TimelineValidDiagram | null
   asClass(d: ValidDiagram):     ClassValidDiagram | null
   asEr(d: ValidDiagram):        ErValidDiagram | null
+  asJourney(d: ValidDiagram):   JourneyValidDiagram | null
   mutate(d: FlowchartValidDiagram, op: FlowchartMutationOp): Result<FlowchartValidDiagram, { code: string; message: string }>
   mutate(d: SequenceValidDiagram,  op: SequenceMutationOp):  Result<SequenceValidDiagram, { code: string; message: string }>
   mutate(d: TimelineValidDiagram,  op: TimelineMutationOp):  Result<TimelineValidDiagram, { code: string; message: string }>
   mutate(d: ClassValidDiagram,     op: ClassMutationOp):     Result<ClassValidDiagram, { code: string; message: string }>
   mutate(d: ErValidDiagram,        op: ErMutationOp):        Result<ErValidDiagram, { code: string; message: string }>
+  mutate(d: JourneyValidDiagram,   op: JourneyMutationOp):   Result<JourneyValidDiagram, { code: string; message: string }>
   verifyMermaid(input: ValidDiagram | string, opts?: { suppress?: WarningCode[]; labelCharCap?: number }): VerifyResult
   serializeMermaid(d: ValidDiagram): string
   renderMermaidSVG(input: ValidDiagram | string, opts?: { security?: 'default' | 'strict'; idPrefix?: string; mermaidConfig?: MermaidRuntimeConfig }): string
@@ -161,10 +181,11 @@ declare const mermaid: {
 // 1. For new diagrams, author Mermaid source directly, then parse/verify/render.
 // 2. For existing structured diagrams, use mutate() + verify + serializeMermaid();
 //    do not regenerate/concatenate source when a typed op exists.
-// 3. mutate works on flowchart/state, simple sequence, timeline, class, and ER.
-//    Narrow via asFlowchart/asSequence/asTimeline/asClass/asEr. Journey,
-//    xychart, architecture, and opaque-fallback bodies are source-level only;
-//    if explicitly edited as text, re-parse and verify before returning.
+// 3. mutate works on flowchart/state, simple sequence, timeline, class, ER,
+//    and journey. Narrow via asFlowchart/asSequence/asTimeline/asClass/asEr/
+//    asJourney. Xychart, architecture, and opaque-fallback bodies are
+//    source-level only; if explicitly edited as text, re-parse and verify
+//    before returning.
 // 4. verify.ok is structural, not a visual-quality score; inspect warnings/layout or render artifacts for layout quality.
 // 5. Layout is deterministic; there is no seed.
 `

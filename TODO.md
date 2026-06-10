@@ -44,13 +44,15 @@ dependents after. IDs are stable names, not an ordering.
   contract for `validate` and `canonicalize`; test whether it reduces agent
   routing errors in docs/evals; then either implement as a thin, schema-tested
   wrapper or explicitly park/decline it. Independent of other items.
-- [ ] **BUILD-3 — Family-plugin consolidation** (`todo`). Evaluate whether
-  parse/serialize/mutate dispatch should move fully into `FamilyPlugin` now
-  that timeline/class/ER mutation exists. Do before adding new families
-  (BUILD-5, BUILD-6, BUILD-11) so each addition lands on the consolidated
-  dispatch instead of widening the old one.
+- [x] **BUILD-3 — Family-plugin consolidation** (`done`). parse/serialize/
+  mutate for sequence, timeline, class, ER, and journey now dispatch through
+  `FamilyPlugin` hooks registered in `src/agent/families-builtin.ts`; each
+  family lives in one body module (`sequence-body.ts`, `timeline-body.ts`,
+  `class-body.ts`, `er-body.ts`, `journey-body.ts`). Flowchart/state remain
+  the documented in-tree exception. Mutation rebuilds `canonicalSource`
+  uniformly. Unblocks BUILD-5/BUILD-6/BUILD-11 and the mutation roadmap.
 - [ ] **BUILD-5 — Common-README family coverage: pie, gantt, mindmap,
-  gitgraph** (`todo`, after BUILD-3). These families are common in
+  gitgraph** (`todo`). These families are common in
   real-world READMEs/docs and already have authoring syntax references in
   `skills/agentic-mermaid-diagram-workflow/references/upstream/`, but the
   renderer does not accept them. No public usage statistics exist, so first
@@ -60,13 +62,12 @@ dependents after. IDs are stable names, not an ordering.
   ships parse/verify/render/round-trip (source-level body is acceptable;
   structured mutation only where the IR can preserve semantics). The corpus
   count also feeds BUILD-11.
-- [ ] **BUILD-11 — QuadrantChart family** (`todo`, after BUILD-3). Promoted
+- [ ] **BUILD-11 — QuadrantChart family** (`todo`). Promoted
   from the PARK-3 fork-audit list. Quadrant charts are missing across the
   entire beautiful-mermaid fork network (no port exists upstream or in any
   fork), so this is cheap differentiation. Axis/quadrant layout is closer to
   xychart than to graph families; expect a source-level body first.
-- [ ] **BUILD-6 — New upstream Mermaid families (11.4–11.15)** (`todo`,
-  after BUILD-3). Mermaid added kanban (11.4), radar (11.6), treemap
+- [ ] **BUILD-6 — New upstream Mermaid families (11.4–11.15)** (`todo`). Mermaid added kanban (11.4), radar (11.6), treemap
   (~11.9), Venn (beta, 11.13), Ishikawa/fishbone (beta, 11.13), Wardley Maps
   (beta, 11.14), TreeView (11.14), and Event Modeling (11.15). Upstream
   syntax references for these already ship in the skill bundle. Prioritize
@@ -74,26 +75,21 @@ dependents after. IDs are stable names, not an ordering.
   the upstream fork network (lukilabs/beautiful-mermaid#114). Treat
   beta-grammar families (Venn, Ishikawa, Wardley) as watch-and-wait until
   upstream syntax stabilizes.
-- [ ] **BUILD-15 — Journey structured mutation (pilot)** (`todo`, after
-  BUILD-3). Journey is the cheapest source-level family to promote to
-  structured mutation: sections/tasks/scores are structurally a timeline
-  sibling. Ship the full per-family checklist and treat it as the template
-  for BUILD-16/17: typed `JourneyBody`, serializer reproducing the modeled
-  grammar, ~10 ops (`add_section`, `add_task`, `set_score`,
-  `rename_actor`, …), `asJourney` narrower, verify integration, property
-  tests (round-trip identity on canonical input; lossless opaque fallback
-  for unmodeled syntax), and sync across all runtime surfaces (capabilities
-  JSON, MCP SDK declaration, `Instructions_for_agents.md`, llms.txt, skill
-  — doc-sync tests enforce).
-- [ ] **BUILD-16 — XY chart structured mutation** (`todo`, after BUILD-15).
+- [x] **BUILD-15 — Journey structured mutation (pilot)** (`done`). Typed
+  `JourneyBody` (title/sections/tasks with 1..5 scores and actors), 10 ops,
+  `asJourney` narrower, verify hook, lossless opaque fallback for unmodeled
+  syntax, round-trip property tests (`agent-journey.test.ts`), and sync
+  across CLI capabilities, MCP SDK declaration, `Instructions_for_agents.md`,
+  llms.txt, the skill, and the spec. The per-family checklist it validated
+  is the template for BUILD-16/BUILD-17.
+- [ ] **BUILD-16 — XY chart structured mutation** (`todo`; BUILD-15 checklist applies).
   Title/axes/series data are fully modelable: `set_title`, `set_axis`,
   `add_series`, `remove_series`, `update_data`. Same checklist as BUILD-15.
-- [ ] **BUILD-17 — Architecture structured mutation** (`todo`, after
-  BUILD-15). The most agent-valuable promotion (groups/services/edges are
+- [ ] **BUILD-17 — Architecture structured mutation** (`todo`; BUILD-15
+  checklist applies). The most agent-valuable promotion (groups/services/edges are
   the diagrams agents edit most): `add_service`, `add_group`,
   `move_service`, `add_edge`, `rename`, … Same checklist as BUILD-15.
-- [ ] **BUILD-18 — Segment-preserving structured body** (`todo`, after
-  BUILD-15 validates the per-family checklist). The general fix for the
+- [ ] **BUILD-18 — Segment-preserving structured body** (`todo`). The general fix for the
   structured-or-opaque cliff: today one unmodeled construct (e.g. a
   sequence `alt` block) forces the whole diagram opaque and disables every
   op. Design a body that interleaves structured statements with verbatim
@@ -112,7 +108,7 @@ dependents after. IDs are stable names, not an ordering.
   `eval/layout-compare/run.ts` (snapshot/report subcommands, regression
   exit code), fixtures in `eval/layout-compare/fixtures/`, tests in
   `src/__tests__/layout-compare.test.ts`.
-- [ ] **BUILD-10 — Fan-out trunk sharing / connector alignment** (`todo`,
+- [ ] **BUILD-10 — Fan-out trunk sharing / connector alignment** (`todo`)
   after BUILD-13; partially done). Upstream issue:
   <https://github.com/lukilabs/beautiful-mermaid/issues/111>
   (sibling edges from one source don't share a trunk; related connector
