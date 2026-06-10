@@ -67,6 +67,37 @@ dependents after. IDs are stable names, not an ordering.
   the upstream fork network (lukilabs/beautiful-mermaid#114). Treat
   beta-grammar families (Venn, Ishikawa, Wardley) as watch-and-wait until
   upstream syntax stabilizes.
+- [ ] **BUILD-15 — Journey structured mutation (pilot)** (`todo`, after
+  BUILD-3). Journey is the cheapest source-level family to promote to
+  structured mutation: sections/tasks/scores are structurally a timeline
+  sibling. Ship the full per-family checklist and treat it as the template
+  for BUILD-16/17: typed `JourneyBody`, serializer reproducing the modeled
+  grammar, ~10 ops (`add_section`, `add_task`, `set_score`,
+  `rename_actor`, …), `asJourney` narrower, verify integration, property
+  tests (round-trip identity on canonical input; lossless opaque fallback
+  for unmodeled syntax), and sync across all runtime surfaces (capabilities
+  JSON, MCP SDK declaration, `Instructions_for_agents.md`, llms.txt, skill
+  — doc-sync tests enforce).
+- [ ] **BUILD-16 — XY chart structured mutation** (`todo`, after BUILD-15).
+  Title/axes/series data are fully modelable: `set_title`, `set_axis`,
+  `add_series`, `remove_series`, `update_data`. Same checklist as BUILD-15.
+- [ ] **BUILD-17 — Architecture structured mutation** (`todo`, after
+  BUILD-15). The most agent-valuable promotion (groups/services/edges are
+  the diagrams agents edit most): `add_service`, `add_group`,
+  `move_service`, `add_edge`, `rename`, … Same checklist as BUILD-15.
+- [ ] **BUILD-18 — Segment-preserving structured body** (`todo`, after
+  BUILD-15 validates the per-family checklist). The general fix for the
+  structured-or-opaque cliff: today one unmodeled construct (e.g. a
+  sequence `alt` block) forces the whole diagram opaque and disables every
+  op. Design a body that interleaves structured statements with verbatim
+  opaque segments preserved positionally, so participant/message ops stay
+  available while the `alt` block rides along untouched. Needs a
+  segment-aware parser, order-preserving serializer, ops that respect
+  segment boundaries, and property tests that fallback fidelity still
+  holds. Apply to sequence first (largest opaque-fallback population:
+  notes/alt/loop/par), then class/ER/timeline unmodeled-syntax fallbacks.
+  This is the path to "typed mutation for all diagrams" without ever
+  violating the no-loss guarantee.
 - [x] **BUILD-13 — Layout before/after comparison harness** (`done`).
   Prerequisite for all visual/layout work (BUILD-10, BUILD-9, BUILD-12,
   BUILD-1): render the corpus + targeted fixtures on two git states and emit
