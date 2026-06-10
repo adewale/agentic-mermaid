@@ -117,10 +117,22 @@ export interface AsciiEdge {
    * or bundle.sharedPath + pathToJunction (for fan-out).
    */
   pathToJunction?: GridCoord[]
+  /**
+   * BUILD-14: when an edge endpoint is a subgraph id (rather than a real node),
+   * the edge attaches to the subgraph container, not a phantom node. For
+   * layout/routing we anchor the edge on a representative member of the
+   * container, but the visible terminus is clipped to the container's border.
+   * - attachFromSubgraph: the SOURCE of the edge is a subgraph container.
+   * - attachToSubgraph: the TARGET of the edge is a subgraph container.
+   */
+  attachFromSubgraph?: AsciiSubgraph
+  attachToSubgraph?: AsciiSubgraph
 }
 
 /** A subgraph container with bounding box for rendering. */
 export interface AsciiSubgraph {
+  /** Subgraph identifier from the parser (distinct from the display label). */
+  id: string
   name: string
   nodes: AsciiNode[]
   parent: AsciiSubgraph | null
