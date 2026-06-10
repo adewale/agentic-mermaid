@@ -1528,6 +1528,31 @@ export const samples: Sample[] = [
   },
 
   // ══════════════════════════════════════════════════════════════════════════
+  //  PIE
+  // ══════════════════════════════════════════════════════════════════════════
+
+  {
+    title: 'Pie: Pets Adopted',
+    category: 'Pie',
+    description: 'A basic pie chart with a title and three labelled slices.',
+    source: `pie title Pets adopted by volunteers
+    "Dogs" : 386
+    "Cats" : 85
+    "Rats" : 15`,
+  },
+  {
+    title: 'Pie: Product Elements (showData)',
+    category: 'Pie',
+    description: 'A pie chart using `showData` to surface the raw value beside each legend label, with decimal slice values.',
+    source: `pie showData
+    title Key elements in Product X
+    "Calcium" : 42.96
+    "Potassium" : 50.05
+    "Magnesium" : 10.01
+    "Iron" : 5`,
+  },
+
+  // ══════════════════════════════════════════════════════════════════════════
   //  SEMANTIC ROLE STYLE SHOWCASE
   // ══════════════════════════════════════════════════════════════════════════
 

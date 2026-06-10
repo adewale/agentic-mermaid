@@ -5,6 +5,7 @@ This changelog tracks user-facing changes for **Agentic Mermaid**, a fork of `lu
 ## Unreleased
 
 ### Added
+- **Pie chart family** (`pie`): renders Mermaid pie charts to SVG/PNG/ASCII. Supports the `pie` header with optional `showData` and `title`, plus `"label" : value` entries (positive numbers). SVG draws clockwise slices with a theme-derived palette and a percentage legend; ASCII draws a proportional bar list. Pie is source-level (parse/render/verify/round-trip; no typed mutation). Malformed entries error loudly rather than being silently dropped. Adds the first slice of BUILD-5; see `eval/family-usage/` for the family-usage evidence step.
 - Layout before/after comparison harness (`eval/layout-compare/run.ts`): snapshots the docs corpus + targeted fixtures (SVG, ASCII, perceptual metrics) per git state and emits a side-by-side HTML report with metric deltas and a regression exit code. Geometry tests now also pin subgraph `direction` support — honored even when an inner node links outward, which Mermaid itself does not solve (mermaid-js#2509).
 - **Breaking package identity**: first Agentic Mermaid release is prepared as `agentic-mermaid@0.1.0`; package imports are now `agentic-mermaid` and `agentic-mermaid/agent` while the GitHub repo remains `adewale/beautiful-mermaid`.
 - **Agent-native surface** (`agentic-mermaid/agent` subpath export): a typed editing API for agents and tools.

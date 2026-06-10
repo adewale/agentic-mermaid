@@ -290,6 +290,40 @@ function splitXyLabelStatements(line: string): string[] {
 
 registerFamily({ id: 'xychart', detect: l => l.startsWith('xychart'), extractLabels: extractXyChartLabels })
 
+// ---- Pie ------------------------------------------------------------------
+// pie [showData] [title T], optional `title T`, `"label" : number` entries.
+// Pie is source-level/opaque (like xychart): detect + extractLabels only,
+// no parse/serialize/mutate hooks. Labels are the quoted slice labels plus
+// the optional title text.
+function extractPieLabels(source: string): ExtractedLabel[] {
+  const out: ExtractedLabel[] = []
+  const lines = source.split(/\r?\n/)
+  for (let i = 0; i < lines.length; i++) {
+    const raw = lines[i]!.trim()
+    if (!raw || raw.startsWith('%%')) continue
+    const target = `line${i + 1}`
+    // Header may carry an inline title: `pie title Pets` / `pie showData title Pets`.
+    let m
+    if ((m = raw.match(/^pie\b\s*(?:showData\b\s*)?title\s+(.+)$/i))) {
+      out.push({ text: m[1]!.trim(), target })
+      continue
+    }
+    if (/^pie\b/i.test(raw)) continue
+    if ((m = raw.match(/^title\s+(.+)$/i))) {
+      out.push({ text: m[1]!.trim(), target })
+      continue
+    }
+    // Entry line: `"label" : value` — extract the quoted label.
+    if ((m = raw.match(/^"((?:[^"\\]|\\.)*)"\s*:/))) {
+      const text = m[1]!.replace(/\\"/g, '"').replace(/\\\\/g, '\\').trim()
+      if (text) out.push({ text, target })
+    }
+  }
+  return out
+}
+
+registerFamily({ id: 'pie', detect: l => l.startsWith('pie'), extractLabels: extractPieLabels })
+
 // ---- Architecture ---------------------------------------------------------
 // group api(cloud)[API], service db(database)[DB] in api
 function extractArchitectureLabels(source: string): ExtractedLabel[] {

@@ -50,16 +50,27 @@ dependents after. IDs are stable names, not an ordering.
   (BUILD-5, BUILD-6, BUILD-11) so each addition lands on the consolidated
   dispatch instead of widening the old one.
 - [ ] **BUILD-5 — Common-README family coverage: pie, gantt, mindmap,
-  gitgraph** (`todo`, after BUILD-3). These families are common in
+  gitgraph** (`in-progress`, after BUILD-3). These families are common in
   real-world READMEs/docs and already have authoring syntax references in
   `skills/agentic-mermaid-diagram-workflow/references/upstream/`, but the
   renderer does not accept them. No public usage statistics exist, so first
   gather evidence (count fenced ` ```mermaid ` header families across a
-  GitHub README corpus), then implement in evidence order. Pie is the likely
-  cheapest first target. Each addition follows `ADDING_DIAGRAM_TYPES.md` and
-  ships parse/verify/render/round-trip (source-level body is acceptable;
-  structured mutation only where the IR can preserve semantics). The corpus
-  count also feeds BUILD-11.
+  GitHub README corpus), then implement in evidence order. Each addition
+  follows `docs/contributing/adding-diagram-types.md` and ships
+  parse/verify/render/round-trip (source-level body is acceptable; structured
+  mutation only where the IR can preserve semantics). The corpus count also
+  feeds BUILD-11.
+  - [x] Evidence step: `eval/family-usage/` counts fenced ` ```mermaid `
+    header families over a directory of markdown. Golden-fixture tested; smoke
+    run over the in-repo corpus recorded in `eval/family-usage/RESULTS.md`
+    with an explicit caveat that the decision-grade README corpus run needs
+    network (see `eval/family-usage/README.md`).
+  - [x] Pie family (cheapest target): `src/pie/` (types/parser/layout/SVG +
+    `src/ascii/pie.ts`), routing, agent surface (detect + extractLabels,
+    source-level), showcase samples, docs, and goldens.
+  - [ ] gantt, mindmap, gitgraph: still to implement. Order the remaining
+    three by the real README corpus run (network required) per the evidence
+    step above — `eval/family-usage/RESULTS.md` does not assert that ordering.
 - [ ] **BUILD-11 — QuadrantChart family** (`todo`, after BUILD-3). Promoted
   from the PARK-3 fork-audit list. Quadrant charts are missing across the
   entire beautiful-mermaid fork network (no port exists upstream or in any
