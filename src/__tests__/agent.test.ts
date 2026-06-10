@@ -631,3 +631,30 @@ describe('asFlowchart / asSequence return null on the wrong family (close mutati
     expect(asSequence(parse('sequenceDiagram\n  A->>B: Hi\n  Note over A: thinking'))).toBeNull()
   })
 })
+
+describe('state diagrams narrow via asFlowchart (documented contract)', () => {
+  // State shares the flowchart body (DIVERGENCES.md): kind stays 'state' so
+  // serialization keeps the stateDiagram-v2 header, but body.kind is
+  // 'flowchart' and asFlowchart is the documented narrowing path. Pin both
+  // halves so an asState refactor cannot silently strand state mutation.
+  const STATE_SRC = 'stateDiagram-v2\n  [*] --> Idle\n  Idle --> Running'
+
+  test('parse keeps kind state with a flowchart body', () => {
+    const d = parse(STATE_SRC)
+    expect(d.kind).toBe('state')
+    expect(d.body.kind).toBe('flowchart')
+  })
+
+  test('asFlowchart narrows state and flowchart ops mutate it', () => {
+    const f = asFlowchart(parse(STATE_SRC))
+    expect(f).not.toBeNull()
+    const mutated = mutate(f!, { kind: 'add_node', id: 'Done', label: 'Done' })
+    expect(mutated.ok).toBe(true)
+    if (!mutated.ok) return
+    const verify = verifyMermaid(mutated.value)
+    expect(verify.ok).toBe(true)
+    const out = serializeMermaid(mutated.value)
+    expect(out.startsWith('stateDiagram-v2')).toBe(true)
+    expect(out).toContain('Done')
+  })
+})

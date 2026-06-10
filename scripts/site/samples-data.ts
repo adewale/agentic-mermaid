@@ -98,6 +98,37 @@ export const samples: Sample[] = [
   A[Start] --> B[Process] --> C[End]`,
   },
   {
+    title: 'Fan-in Grouping',
+    category: 'Flowchart',
+    description: 'Roots feeding the same target sit contiguously and each target aligns under its own group, so the two fan-in trunks stay separate (most visible in the ASCII panel).',
+    source: `graph TD
+  A1[Ingest A] --> A[Queue A]
+  A2[Ingest B] --> A
+  B1[Stream A] --> B[Queue B]
+  B2[Stream B] --> B
+  A --> C[Merge]
+  B --> C`,
+  },
+  {
+    title: 'Labeled Fan-out',
+    category: 'Flowchart',
+    description: 'Sibling edges with labels share a trunk and the box-start connector sits flush on the source border even when a label widens a column (most visible in the ASCII panel).',
+    source: `flowchart LR
+  Dispatcher -->|email| E[Email Worker]
+  Dispatcher -->|sms| S[SMS Worker]
+  Dispatcher -->|push| P[Push Worker]`,
+  },
+  {
+    title: 'Subgraph Direction Override',
+    category: 'Flowchart',
+    description: 'direction LR inside a TD flowchart lays the inner pipeline out horizontally — honored even though Mermaid itself ignores it in many cases (mermaid#2509).',
+    source: `flowchart TD
+  subgraph Pipeline
+    direction LR
+    Fetch --> Parse --> Transform --> Store
+  end`,
+  },
+  {
     title: 'Original Node Shapes',
     category: 'Flowchart',
     description: 'Rectangle, rounded, diamond, stadium, and circle.',

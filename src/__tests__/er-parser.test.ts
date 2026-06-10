@@ -142,6 +142,55 @@ describe('parseErDiagram – relationships', () => {
 })
 
 // ============================================================================
+// Cardinality token strictness (upstream lukilabs#124 / PR #126+#127 class)
+// ============================================================================
+
+describe('parseErDiagram – cardinality token set', () => {
+  // }o on the left was silently dropped by the old sort-based normalization,
+  // rendering the diagram empty. The mermaid-docs corpus uses `}o..o{`.
+  it('parses zero-or-many on the left: }o--||', () => {
+    const d = parse(`erDiagram
+      ORDER }o--|| CUSTOMER : belongs_to`)
+    expect(d.relationships).toHaveLength(1)
+    expect(d.relationships[0]!.cardinality1).toBe('zero-many')
+    expect(d.relationships[0]!.cardinality2).toBe('one')
+    expect(d.entities.map(e => e.id).sort()).toEqual(['CUSTOMER', 'ORDER'])
+  })
+
+  it('parses the corpus form }o..o{', () => {
+    const d = parse(`erDiagram
+      A }o..o{ B : links`)
+    expect(d.relationships[0]!.cardinality1).toBe('zero-many')
+    expect(d.relationships[0]!.cardinality2).toBe('zero-many')
+    expect(d.relationships[0]!.identifying).toBe(false)
+  })
+
+  it('accepts every Mermaid lexer token on either side', () => {
+    const expected: Record<string, string> = {
+      '||': 'one',
+      '|o': 'zero-one', 'o|': 'zero-one',
+      '}|': 'many', '|{': 'many',
+      '}o': 'zero-many', 'o{': 'zero-many',
+    }
+    for (const [token, cardinality] of Object.entries(expected)) {
+      const left = parse(`erDiagram\n  A ${token}--|| B : x`)
+      expect({ token, side: 'left', card: left.relationships[0]!.cardinality1 })
+        .toEqual({ token, side: 'left', card: cardinality as never })
+      const right = parse(`erDiagram\n  A ||--${token} B : x`)
+      expect({ token, side: 'right', card: right.relationships[0]!.cardinality2 })
+        .toEqual({ token, side: 'right', card: cardinality as never })
+    }
+  })
+
+  it('throws (never silently drops) on non-Mermaid tokens: {o, o}, |}, {|', () => {
+    for (const token of ['{o', 'o}', '|}', '{|']) {
+      expect(() => parse(`erDiagram\n  A ${token}--|| B : x`)).toThrow(/Invalid ER cardinality/)
+      expect(() => parse(`erDiagram\n  A ||--${token} B : x`)).toThrow(/Invalid ER cardinality/)
+    }
+  })
+})
+
+// ============================================================================
 // Full diagram
 // ============================================================================
 

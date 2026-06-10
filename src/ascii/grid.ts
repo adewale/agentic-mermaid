@@ -451,6 +451,40 @@ export function createMapping(graph: AsciiGraph): void {
     externalRootNodes = rootNodes
   }
 
+  // Group roots that feed the same first target so they sit contiguously
+  // (upstream lukilabs#69): interleaved declarations otherwise scatter each
+  // fan-in group across the level and their edge trunks cross. The sort is
+  // stable, so declaration order survives within each group and graphs
+  // without shared targets are unaffected.
+  const rootGroupKey = (n: AsciiNode): string => {
+    const kids = getChildren(graph, n)
+    return kids.length > 0 ? kids[0]!.name : `__ungrouped__${n.name}`
+  }
+  const rootGroupOrder = new Map<string, number>()
+  for (const n of externalRootNodes) {
+    const k = rootGroupKey(n)
+    if (!rootGroupOrder.has(k)) rootGroupOrder.set(k, rootGroupOrder.size)
+  }
+  externalRootNodes = [...externalRootNodes]
+    .sort((a, b) => rootGroupOrder.get(rootGroupKey(a))! - rootGroupOrder.get(rootGroupKey(b))!)
+
+  // Forward in-degree per node, for fan-in target alignment below.
+  // Self-loops and 2-cycle back-edges (A ⇄ B toggles, common in state
+  // machines) are excluded: they are round-trips, not fan-in joins, and
+  // aligning on them drags placements sideways.
+  const outNeighbors = new Map<string, Set<string>>()
+  for (const edge of graph.edges) {
+    let s = outNeighbors.get(edge.from.name)
+    if (!s) { s = new Set(); outNeighbors.set(edge.from.name, s) }
+    s.add(edge.to.name)
+  }
+  const inDegree = new Map<string, number>()
+  for (const edge of graph.edges) {
+    if (edge.from.name === edge.to.name) continue
+    if (outNeighbors.get(edge.to.name)?.has(edge.from.name)) continue
+    inDegree.set(edge.to.name, (inDegree.get(edge.to.name) ?? 0) + 1)
+  }
+
   // Place external root nodes
   for (const node of externalRootNodes) {
     const requested: GridCoord = dir === 'LR'
@@ -503,6 +537,15 @@ export function createMapping(graph: AsciiGraph): void {
           // Cross-direction: use parent's perpendicular coordinate
           // This keeps children aligned with parent when direction changes
           highestPosition = edgeDir === 'LR' ? gc.y : gc.x
+        } else if ((inDegree.get(child.name) ?? 0) > 1) {
+          // Fan-in target: align with the parent group's perpendicular
+          // position (upstream lukilabs#69) instead of the next sequential
+          // slot, so each target sits under its own root group and trunk
+          // rows of different fan-in groups don't collide.
+          highestPosition = Math.max(
+            highestPositionPerLevel[childLevel]!,
+            edgeDir === 'LR' ? gc.y : gc.x,
+          )
         } else {
           // Same direction: use level tracker
           highestPosition = highestPositionPerLevel[childLevel]!

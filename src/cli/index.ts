@@ -737,6 +737,7 @@ references — safe for untrusted/agent-generated diagrams. See SECURITY.md.
 
 All families parse, verify, render, round-trip: ${families}.
 Structured mutation (${cap.families.find(f => f.hasMutate)?.editPolicy}): ${structured.join(', ')}.
+State shares the flowchart body: narrow with asFlowchart; flowchart ops apply.
 Source-level-only: ${cap.families.filter(f => !f.hasMutate).map(f => f.id).join(', ')}.
 Source-level bodies round-trip losslessly via preserved source (never silently dropped).
 

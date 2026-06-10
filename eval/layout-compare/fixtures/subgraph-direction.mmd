@@ -1,0 +1,7 @@
+flowchart TD
+  Start --> Pipeline
+  subgraph Pipeline
+    direction LR
+    Fetch --> Parse --> Transform --> Store
+  end
+  Pipeline --> Done

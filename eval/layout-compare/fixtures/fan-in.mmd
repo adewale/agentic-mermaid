@@ -1,0 +1,7 @@
+flowchart TD
+  Web[Web App] --> Gateway
+  Mobile[Mobile App] --> Gateway
+  CLI[CLI Tool] --> Gateway
+  Partner[Partner API] --> Gateway
+  Cron[Cron Jobs] --> Gateway
+  Gateway --> Auth[Auth Service]

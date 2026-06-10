@@ -32,6 +32,10 @@ An agent-agnostic typed editing surface for Mermaid. New diagrams can be authore
 
 Any diagram with constructs we don't model falls back to an **opaque** body: it still parses, renders, verifies, and round-trips losslessly — it just isn't offered for structured mutation (the narrower returns null). The parser never silently drops anything.
 
+State diagrams share the flowchart body: narrow them with `asFlowchart` and every flowchart op applies. There is no separate `asState` narrower.
+
+`references/upstream/` documents Mermaid syntax for many more families than this renderer accepts; it is authoring reference only. `am capabilities --json` is the authoritative list of renderable families.
+
 ## Workflow
 
 For new diagrams, author Mermaid source directly, then `parseMermaid` / `verifyMermaid` / render. For existing modeled diagrams:

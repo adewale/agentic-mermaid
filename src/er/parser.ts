@@ -14,11 +14,12 @@ import { normalizeBrTags } from '../multiline-utils.ts'
 //     string email UK "user email"
 //   }
 //
-// Cardinality notation:
+// Cardinality notation (same token set both sides, matching Mermaid's lexer):
 //   ||  exactly one
 //   o|  zero or one (also |o)
 //   }|  one or more (also |{)
-//   o{  zero or more (also {o)
+//   o{  zero or more (also }o)
+//   {o, o}, |}, {| are not Mermaid tokens and are rejected with an error.
 //
 // Line style:
 //   --  identifying (solid line)
@@ -169,10 +170,13 @@ function parseAttribute(line: string): ErAttribute | null {
 /**
  * Parse a relationship line.
  *
- * Cardinality symbols on each side of the line style:
- *   Left side (entity1):  ||  |o  o|  }|  |{  o{  {o
- *   Line:                 --  (identifying) or  ..  (non-identifying)
- *   Right side (entity2): ||  o|  |o  |{  }|  {o  o{
+ * Cardinality tokens (same set on both sides, matching Mermaid's lexer and
+ * the agent ER body parser in src/agent/er-body.ts):
+ *   ||  |o  o|  }o  o{  }|  |{
+ * Line: -- (identifying) or .. (non-identifying)
+ *
+ * Forms like {o, o}, |}, {| are not Mermaid tokens; a relationship-shaped
+ * line carrying one throws instead of being silently dropped.
  *
  * Full pattern example: CUSTOMER ||--o{ ORDER : places
  */
@@ -200,24 +204,23 @@ function parseRelationshipLine(line: string): ErRelationship | null {
   const cardinality2 = parseCardinality(rightStr)
   const identifying = lineStyle === '--'
 
-  if (!cardinality1 || !cardinality2) return null
+  if (!cardinality1 || !cardinality2) {
+    throw new Error(
+      `Invalid ER cardinality "${cardinalityStr}" in "${line}" ` +
+      `(valid tokens on either side: ||, |o, o|, }o, o{, }|, |{)`,
+    )
+  }
 
   return { entity1, entity2, cardinality1, cardinality2, label, identifying }
 }
 
 /** Parse a cardinality notation string into a Cardinality type */
 function parseCardinality(str: string): Cardinality | null {
-  // Normalize: sort the characters to handle both orders (e.g., |o and o|)
-  const sorted = str.split('').sort().join('')
-
-  // Exact one: || → sorted "||"
-  if (sorted === '||') return 'one'
-  // Zero or one: o| or |o → sorted "o|" (o=111 < |=124 in char codes)
-  if (sorted === 'o|') return 'zero-one'
-  // One or more: }| or |{ → sorted "|}" or "{|"
-  if (sorted === '|}' || sorted === '{|') return 'many'
-  // Zero or more: o{ or {o → sorted "{o" or "o{"
-  if (sorted === '{o' || sorted === 'o{') return 'zero-many'
-
-  return null
+  switch (str) {
+    case '||': return 'one'
+    case '|o': case 'o|': return 'zero-one'
+    case '}|': case '|{': return 'many'
+    case '}o': case 'o{': return 'zero-many'
+    default: return null
+  }
 }

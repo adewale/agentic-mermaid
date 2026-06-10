@@ -15,6 +15,16 @@ describe('renderMermaidSVG – ER diagrams', () => {
     expect(svg).toContain('places')
   })
 
+  it('renders left-side }o instead of silently dropping the relationship (lukilabs#124 class)', () => {
+    // The old sort-based cardinality parser rejected }o, dropping the line —
+    // and with it both entities — producing an empty diagram.
+    const svg = renderMermaidSVG(`erDiagram
+      ORDER }o--|| CUSTOMER : belongs_to`)
+    expect(svg).toContain('ORDER')
+    expect(svg).toContain('CUSTOMER')
+    expect(svg).toContain('belongs_to')
+  })
+
   it('renders entity with attributes', () => {
     const svg = renderMermaidSVG(`erDiagram
       CUSTOMER {
