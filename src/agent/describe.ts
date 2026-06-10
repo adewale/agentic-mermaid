@@ -52,6 +52,7 @@ export function describeMermaid(d: ValidDiagram, opts: DescribeOptions = {}): st
   if (d.body.kind === 'class') return describeClass(d as ClassValidDiagram)
   if (d.body.kind === 'er') return describeEr(d as ErValidDiagram)
   if (d.body.kind === 'journey') return describeJourney(d.body)
+  if (d.body.kind === 'architecture') return describeArchitecture(d.body)
   if (d.body.kind === 'opaque') return describeOpaque(d.kind, d.body.source)
   return `A ${d.kind} diagram (structured editing not yet supported).`
 }
@@ -85,6 +86,11 @@ export function describeMermaidTree(d: ValidDiagram): DescribeTree {
     for (const s of d.body.sections) for (const t of s.tasks) {
       tree.nodes.push({ id: t.id, label: t.text })
     }
+  } else if (d.body.kind === 'architecture') {
+    for (const g of d.body.groups) tree.nodes.push({ id: g.id, label: g.label || g.id })
+    for (const s of d.body.services) tree.nodes.push({ id: s.id, label: s.label || s.id })
+    for (const j of d.body.junctions) tree.nodes.push({ id: j.id, label: j.id })
+    for (const e of d.body.edges) tree.edges.push({ from: e.source.id, to: e.target.id, label: e.label || undefined })
   } else if (d.body.kind === 'opaque') {
     const plugin = getFamily(d.kind)
     const labels = (plugin?.extractLabels ?? extractLabelsGeneric)(d.body.source)
@@ -157,6 +163,20 @@ function describeJourney(body: import('./types.ts').JourneyBody): string {
   const taskStr = sections.flatMap(sec => sec.tasks.map(t => `${t.text} (${t.score})`))
   if (taskStr.length > 0) s += ` Tasks: ${taskStr.join(', ')}.`
   if (actors.length > 0) s += ` Actors: ${actors.join(', ')}.`
+  return s
+}
+
+function describeArchitecture(body: import('./types.ts').ArchitectureBody): string {
+  const groups = body.groups
+  const services = body.services
+  const junctions = body.junctions
+  const edges = body.edges
+  let s = `An architecture diagram with ${groups.length} groups, ${services.length} services, and ${edges.length} connections.`
+  if (groups.length > 0) s += ` Groups: ${groups.map(g => g.label || g.id).join(', ')}.`
+  if (services.length > 0) s += ` Services: ${services.map(sv => sv.label || sv.id).join(', ')}.`
+  if (junctions.length > 0) s += ` Junctions: ${junctions.map(j => j.id).join(', ')}.`
+  const edgeStr = edges.map(e => `${e.source.id} -> ${e.target.id}${e.label ? ` (${e.label})` : ''}`)
+  if (edgeStr.length > 0) s += ` Connections: ${edgeStr.join('; ')}.`
   return s
 }
 

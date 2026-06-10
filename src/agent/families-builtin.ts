@@ -20,6 +20,7 @@ import { verifyErBody, parseErBody, renderEr, mutateEr } from './er-body.ts'
 import { parseSequenceBody, renderSequence, mutateSequence } from './sequence-body.ts'
 import { parseTimelineBody, renderTimeline, mutateTimeline } from './timeline-body.ts'
 import { parseJourneyBody, renderJourney, mutateJourney, verifyJourney } from './journey-body.ts'
+import { parseArchitectureBody, renderArchitecture, mutateArchitecture, verifyArchitecture } from './architecture-body.ts'
 import { parseFlowchartBody, renderFlowchart, mutateFlowchart, buildFlowchartSourceMap, type FlowchartBody } from './flowchart-body.ts'
 
 // Build the structured-or-opaque hook set shared by every structured family
@@ -433,7 +434,19 @@ function extractArchitectureLabels(source: string): ExtractedLabel[] {
   return out
 }
 
-registerFamily({ id: 'architecture', detect: l => l.startsWith('architecture'), extractLabels: extractArchitectureLabels })
+registerFamily({
+  id: 'architecture',
+  detect: l => l.startsWith('architecture'),
+  extractLabels: extractArchitectureLabels,
+  // BUILD-17: architecture is structured-when-narrowed. The verify hook covers
+  // the structured body; opaque fallbacks (accTitle/accDescr, {group} boundary
+  // edges, unmodeled syntax) keep the universal label-extraction path.
+  verify: (body, opts) => body.kind === 'architecture' ? verifyArchitecture(body, opts) : [],
+  ...structuredFamilyHooks('architecture', {
+    headerOk: h => /^architecture-beta\s*$/i.test(h),
+    parseBody: parseArchitectureBody, serialize: renderArchitecture, mutate: mutateArchitecture,
+  }),
+})
 
 // Re-export so importing this module is the only thing needed to populate
 // the registry.

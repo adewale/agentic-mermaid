@@ -99,10 +99,17 @@ dependents after. IDs are stable names, not an ordering.
 - [ ] **BUILD-16 — XY chart structured mutation** (`todo`; BUILD-15 checklist applies).
   Title/axes/series data are fully modelable: `set_title`, `set_axis`,
   `add_series`, `remove_series`, `update_data`. Same checklist as BUILD-15.
-- [ ] **BUILD-17 — Architecture structured mutation** (`todo`; BUILD-15
-  checklist applies). The most agent-valuable promotion (groups/services/edges are
-  the diagrams agents edit most): `add_service`, `add_group`,
-  `move_service`, `add_edge`, `rename`, … Same checklist as BUILD-15.
+- [x] **BUILD-17 — Architecture structured mutation** (`done`). Typed
+  `ArchitectureBody` (groups/services/junctions + anchored `id:SIDE arrow SIDE:id`
+  edges), 10 ops (`add_service`, `remove_service` [cascades edges],
+  `rename_service` [updates edges], `set_service_label`, `set_service_icon`,
+  `move_service`, `add_group`, `remove_group` [refuses non-empty], `add_edge`,
+  `remove_edge` [by index or `from->to` id]), `asArchitecture` narrower, verify
+  hook (EMPTY_DIAGRAM + LABEL_OVERFLOW), lossless opaque fallback for the
+  `{group}` boundary modifier and accTitle/accDescr, round-trip + fast-check
+  property tests (`agent-architecture.test.ts`), and sync across CLI
+  capabilities, MCP SDK declaration, `Instructions_for_agents.md`, llms.txt, the
+  skill, and the spec. Followed the BUILD-15 journey checklist verbatim.
 - [ ] **BUILD-18 — Segment-preserving structured body** (`todo`). The general fix for the
   structured-or-opaque cliff: today one unmodeled construct (e.g. a
   sequence `alt` block) forces the whole diagram opaque and disables every

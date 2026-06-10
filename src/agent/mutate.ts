@@ -4,9 +4,9 @@
 
 import type {
   FlowchartValidDiagram, SequenceValidDiagram, TimelineValidDiagram,
-  ClassValidDiagram, ErValidDiagram, JourneyValidDiagram, MutableValidDiagram,
+  ClassValidDiagram, ErValidDiagram, JourneyValidDiagram, ArchitectureValidDiagram, MutableValidDiagram,
   FlowchartMutationOp, SequenceMutationOp, TimelineMutationOp,
-  ClassMutationOp, ErMutationOp, JourneyMutationOp, AnyMutationOp,
+  ClassMutationOp, ErMutationOp, JourneyMutationOp, ArchitectureMutationOp, AnyMutationOp,
   MutationError, Result,
 } from './types.ts'
 import { ok, err } from './types.ts'
@@ -20,6 +20,7 @@ export function mutate(d: TimelineValidDiagram, op: TimelineMutationOp): Result<
 export function mutate(d: ClassValidDiagram, op: ClassMutationOp): Result<ClassValidDiagram, MutationError>
 export function mutate(d: ErValidDiagram, op: ErMutationOp): Result<ErValidDiagram, MutationError>
 export function mutate(d: JourneyValidDiagram, op: JourneyMutationOp): Result<JourneyValidDiagram, MutationError>
+export function mutate(d: ArchitectureValidDiagram, op: ArchitectureMutationOp): Result<ArchitectureValidDiagram, MutationError>
 export function mutate(
   d: MutableValidDiagram,
   op: AnyMutationOp,

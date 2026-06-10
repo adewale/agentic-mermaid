@@ -15,7 +15,7 @@ Agentic Mermaid supports Mermaid's common diagram families through a split pipel
 | Journey | `journey` | SVG/PNG/ASCII | structured (10 ops) | `asJourney` narrows simple title/section/task journeys; unmodeled syntax (accTitle/accDescr) stays opaque. |
 | XY chart | `xychart`, `xychart-beta` | SVG/PNG/ASCII | source-level only | Vertical/horizontal bar/line/mixed charts. |
 | Pie | `pie` | SVG/PNG/ASCII | source-level only | Labelled slices with optional `showData` and title. |
-| Architecture | `architecture-beta` | SVG/PNG/ASCII | source-level only | Groups, services, junctions, anchored edges. |
+| Architecture | `architecture-beta` | SVG/PNG/ASCII | structured (10 ops) | `asArchitecture` narrows the modeled subset (groups/services/junctions/edges); the `{group}` boundary modifier and accTitle/accDescr stay opaque. |
 
 Source-level-only does not mean unsupported: those families parse, render, verify, and round-trip, but agents should edit source deliberately instead of calling `mutate`.
 
