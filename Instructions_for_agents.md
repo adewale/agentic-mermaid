@@ -23,7 +23,7 @@ if (!verify.ok) return { phase: 'verify', warnings: verify.warnings }
 return { source: mermaid.serializeMermaid(d1.value) }
 ```
 
-Use `asFlowchart` / `asSequence` / `asTimeline` / `asClass` / `asEr` / `asJourney` before mutating existing diagrams. State diagrams share the flowchart body: `asFlowchart` narrows them, and every flowchart op applies. In Code Mode, SDK-returned diagrams are read-only; structured edits must go through `mermaid.mutate`. Xychart, architecture, and opaque-fallback bodies round-trip losslessly as source-level bodies, but do not expose structured mutation; return an unsupported-family result unless the task explicitly asks for source-level editing, then re-parse and verify before returning.
+Use `asFlowchart` / `asSequence` / `asTimeline` / `asClass` / `asEr` / `asJourney` / `asArchitecture` before mutating existing diagrams. State diagrams share the flowchart body: `asFlowchart` narrows them, and every flowchart op applies. In Code Mode, SDK-returned diagrams are read-only; structured edits must go through `mermaid.mutate`. Xychart and opaque-fallback bodies round-trip losslessly as source-level bodies, but do not expose structured mutation; return an unsupported-family result unless the task explicitly asks for source-level editing, then re-parse and verify before returning.
 
 ## The verify-before-commit rule
 
@@ -58,4 +58,4 @@ Library extras: `renderMermaidPNG(src,{fitTo,background})` returns PNG bytes; `r
 - Verifying only after a long risky edit chain. Loses precision about which op broke it.
 - Serializing before reading `verify.ok` / `verify.warnings` / `verify.layout`.
 - Concatenating source to edit an existing structured diagram when a typed `mutate` op exists. Direct source authoring is fine for new diagrams.
-- Calling `mutate` on xychart / architecture / opaque bodies; no narrower exposes structured edits for those source-level bodies.
+- Calling `mutate` on xychart / opaque bodies; no narrower exposes structured edits for those source-level bodies.

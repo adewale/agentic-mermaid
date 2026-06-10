@@ -63,9 +63,9 @@ export function verifyMermaid(input: ValidDiagram | string, opts: VerifyOptions 
   // explicit branches; the dispatcher path + emptyRenderedLayout fall-through
   // does the work. Dedup is unnecessary now (single source of truth) so we
   // emit pluginWarnings directly.
-  // class + ER + journey: the FamilyPlugin.verify hooks produce the per-body
-  // warnings (journey added by BUILD-15).
-  if (d.body.kind === 'class' || d.body.kind === 'er' || d.body.kind === 'journey') {
+  // class + ER + journey + architecture: the FamilyPlugin.verify hooks produce
+  // the per-body warnings (journey added by BUILD-15, architecture by BUILD-17).
+  if (d.body.kind === 'class' || d.body.kind === 'er' || d.body.kind === 'journey' || d.body.kind === 'architecture') {
     return finalize(pluginWarnings, emptyRenderedLayout(d.kind), opts)
   }
 

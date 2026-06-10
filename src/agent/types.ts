@@ -183,6 +183,52 @@ export interface ErBody {
   relations: ErRelation[]
 }
 
+// ---- Architecture body -----------------------------------------------------
+
+export type ArchitectureSide = 'L' | 'R' | 'T' | 'B'
+
+export interface ArchitectureGroup {
+  id: string
+  label: string
+  icon?: string
+  /** Undefined = root (not nested in another group). */
+  parentId?: string
+}
+
+export interface ArchitectureService {
+  id: string
+  label: string
+  icon?: string
+  /** Undefined = ungrouped (not inside a group). */
+  parentId?: string
+}
+
+export interface ArchitectureJunction {
+  id: string
+  parentId?: string
+}
+
+export interface ArchitectureEndpoint {
+  id: string
+  side: ArchitectureSide
+}
+
+export interface ArchitectureEdge {
+  source: ArchitectureEndpoint
+  target: ArchitectureEndpoint
+  label?: string
+  hasArrowStart: boolean
+  hasArrowEnd: boolean
+}
+
+export interface ArchitectureBody {
+  kind: 'architecture'
+  groups: ArchitectureGroup[]
+  services: ArchitectureService[]
+  junctions: ArchitectureJunction[]
+  edges: ArchitectureEdge[]
+}
+
 // ---- Meta + IR ------------------------------------------------------------
 
 export interface SourceComment { text: string; line: number }
@@ -209,6 +255,7 @@ export type DiagramBody =
   | ClassBody
   | ErBody
   | JourneyBody
+  | ArchitectureBody
   /**
    * Opaque body — the parser understood the family header but encountered
    * unmodeled syntax. `source` is the ORIGINAL body with indentation, blank
@@ -249,7 +296,8 @@ export type TimelineValidDiagram = ValidDiagram & { body: TimelineBody }
 export type ClassValidDiagram = ValidDiagram & { body: ClassBody }
 export type ErValidDiagram = ValidDiagram & { body: ErBody }
 export type JourneyValidDiagram = ValidDiagram & { body: JourneyBody }
-export type MutableValidDiagram = FlowchartValidDiagram | SequenceValidDiagram | TimelineValidDiagram | ClassValidDiagram | ErValidDiagram | JourneyValidDiagram
+export type ArchitectureValidDiagram = ValidDiagram & { body: ArchitectureBody }
+export type MutableValidDiagram = FlowchartValidDiagram | SequenceValidDiagram | TimelineValidDiagram | ClassValidDiagram | ErValidDiagram | JourneyValidDiagram | ArchitectureValidDiagram
 
 export function asFlowchart(d: ValidDiagram): FlowchartValidDiagram | null {
   return d.body.kind === 'flowchart' ? (d as FlowchartValidDiagram) : null
@@ -274,6 +322,10 @@ export function asJourney(d: ValidDiagram): JourneyValidDiagram | null {
   return d.body.kind === 'journey' ? (d as JourneyValidDiagram) : null
 }
 
+export function asArchitecture(d: ValidDiagram): ArchitectureValidDiagram | null {
+  return d.body.kind === 'architecture' ? (d as ArchitectureValidDiagram) : null
+}
+
 // ---- Errors ---------------------------------------------------------------
 
 export interface ParseError { code: string; message: string; line?: number; col?: number }
@@ -286,6 +338,7 @@ export interface MutationError {
     | 'TASK_NOT_FOUND' | 'ACTOR_NOT_FOUND'
     | 'CLASS_NOT_FOUND' | 'MEMBER_NOT_FOUND' | 'RELATION_NOT_FOUND' | 'NOTE_NOT_FOUND'
     | 'ENTITY_NOT_FOUND' | 'ATTRIBUTE_NOT_FOUND'
+    | 'SERVICE_NOT_FOUND' | 'GROUP_NOT_FOUND'
     | 'DUPLICATE_NODE' | 'DUPLICATE_PARTICIPANT' | 'DUPLICATE_CLASS' | 'DUPLICATE_ENTITY'
     | 'INVALID_OP'
   message: string
@@ -358,7 +411,19 @@ export type JourneyMutationOp =
   | { kind: 'set_task_actors'; sectionIndex: number; taskIndex: number; actors: string[] }
   | { kind: 'rename_actor'; from: string; to: string }
 
-export type AnyMutationOp = FlowchartMutationOp | SequenceMutationOp | TimelineMutationOp | ClassMutationOp | ErMutationOp | JourneyMutationOp
+export type ArchitectureMutationOp =
+  | { kind: 'add_service'; id: string; label?: string; icon?: string | null; group?: string | null }
+  | { kind: 'remove_service'; id: string }
+  | { kind: 'rename_service'; from: string; to: string }
+  | { kind: 'set_service_label'; id: string; label: string }
+  | { kind: 'set_service_icon'; id: string; icon: string | null }
+  | { kind: 'move_service'; id: string; group: string | null }
+  | { kind: 'add_group'; id: string; label?: string; icon?: string | null; parent?: string | null }
+  | { kind: 'remove_group'; id: string }
+  | { kind: 'add_edge'; from: string; to: string; fromSide: ArchitectureSide; toSide: ArchitectureSide; label?: string | null; hasArrowStart?: boolean; hasArrowEnd?: boolean }
+  | { kind: 'remove_edge'; index?: number; id?: string }
+
+export type AnyMutationOp = FlowchartMutationOp | SequenceMutationOp | TimelineMutationOp | ClassMutationOp | ErMutationOp | JourneyMutationOp | ArchitectureMutationOp
 export type MutationOp = FlowchartMutationOp // legacy alias
 
 // ---- Branded Finite -------------------------------------------------------
@@ -483,5 +548,6 @@ export interface ValidDiagramPayload {
     | ClassBody
     | ErBody
     | JourneyBody
+    | ArchitectureBody
     | { kind: 'opaque'; family: DiagramKind; source: string }
 }

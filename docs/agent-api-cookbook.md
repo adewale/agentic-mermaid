@@ -123,7 +123,7 @@ export function applyFlowchartOps(source: string, ops: FlowchartMutationOp[]) {
 
 ## Recipe: handle source-level-only families
 
-Journey, xychart, architecture, and opaque fallback bodies parse, verify, render, and serialize, but they do not expose typed mutation. Narrowers return `null` for those bodies.
+Xychart and opaque fallback bodies parse, verify, render, and serialize, but they do not expose typed mutation. Narrowers return `null` for those bodies. (Journey and architecture were promoted to structured mutation by BUILD-15/17; only their unmodeled-syntax fallbacks remain opaque.)
 
 ```ts
 import { parseMermaid, asFlowchart, verifyMermaid, serializeMermaid } from 'agentic-mermaid/agent'
@@ -275,7 +275,7 @@ Tier 3 warnings are advisory lint checks for common agent mistakes: `DUPLICATE_E
 - Concatenating source for an edit covered by a typed op.
 - Serializing before reading `verify.ok` and `verify.warnings`.
 - Treating `verify.ok` as a human aesthetics score.
-- Calling `mutate` on xychart, architecture, or opaque bodies.
+- Calling `mutate` on xychart or opaque bodies.
 - Hiding unsupported-family results. Return them explicitly so the caller can choose a source-level path.
 
 ## Minimal decision tree

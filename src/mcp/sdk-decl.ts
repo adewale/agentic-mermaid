@@ -36,6 +36,7 @@ interface ValidDiagram {
     | ClassBody
     | ErBody
     | JourneyBody
+    | ArchitectureBody
     | { kind: 'opaque'; family: DiagramKind; source: string }
   readonly canonicalSource: string   // normalized renderer input; opaque fidelity uses body.source
 }
@@ -46,6 +47,7 @@ type TimelineValidDiagram  = ValidDiagram & { body: TimelineBody }
 type ClassValidDiagram     = ValidDiagram & { body: ClassBody }
 type ErValidDiagram        = ValidDiagram & { body: ErBody }
 type JourneyValidDiagram   = ValidDiagram & { body: JourneyBody }
+type ArchitectureValidDiagram = ValidDiagram & { body: ArchitectureBody }
 
 interface FlowchartGraph {
   direction: 'TD' | 'TB' | 'LR' | 'BT' | 'RL'
@@ -81,6 +83,14 @@ interface ErBody { kind: 'er'; entities: ErEntity[]; relations: ErRelation[] }
 interface JourneyTask { id: string; text: string; score: number; actors: string[] }
 interface JourneySection { id: string; label?: string; tasks: JourneyTask[] }
 interface JourneyBody { kind: 'journey'; title?: string; sections: JourneySection[] }
+
+type ArchitectureSide = 'L' | 'R' | 'T' | 'B'
+interface ArchitectureGroup { id: string; label: string; icon?: string; parentId?: string }
+interface ArchitectureService { id: string; label: string; icon?: string; parentId?: string }
+interface ArchitectureJunction { id: string; parentId?: string }
+interface ArchitectureEndpoint { id: string; side: ArchitectureSide }
+interface ArchitectureEdge { source: ArchitectureEndpoint; target: ArchitectureEndpoint; label?: string; hasArrowStart: boolean; hasArrowEnd: boolean }
+interface ArchitectureBody { kind: 'architecture'; groups: ArchitectureGroup[]; services: ArchitectureService[]; junctions: ArchitectureJunction[]; edges: ArchitectureEdge[] }
 
 type FlowchartMutationOp =
   | { kind: 'add_node'; id: string; label: string; shape?: string; parent?: string }
@@ -142,6 +152,18 @@ type JourneyMutationOp =
   | { kind: 'set_task_actors'; sectionIndex: number; taskIndex: number; actors: string[] }
   | { kind: 'rename_actor'; from: string; to: string }
 
+type ArchitectureMutationOp =
+  | { kind: 'add_service'; id: string; label?: string; icon?: string | null; group?: string | null }
+  | { kind: 'remove_service'; id: string }
+  | { kind: 'rename_service'; from: string; to: string }
+  | { kind: 'set_service_label'; id: string; label: string }
+  | { kind: 'set_service_icon'; id: string; icon: string | null }
+  | { kind: 'move_service'; id: string; group: string | null }
+  | { kind: 'add_group'; id: string; label?: string; icon?: string | null; parent?: string | null }
+  | { kind: 'remove_group'; id: string }
+  | { kind: 'add_edge'; from: string; to: string; fromSide: ArchitectureSide; toSide: ArchitectureSide; label?: string | null; hasArrowStart?: boolean; hasArrowEnd?: boolean }
+  | { kind: 'remove_edge'; index?: number; id?: string }
+
 // Tier 1 (structural, reliable): EMPTY_DIAGRAM, EDGE_MISANCHORED, OFF_CANVAS,
 //   GROUP_BREACH, UNKNOWN_SHAPE, LABEL_OVERFLOW (source-based char-cap).
 // Tier 2 (geometric, advisory): NODE_OVERLAP, ROUTE_SELF_CROSS.
@@ -165,12 +187,14 @@ declare const mermaid: {
   asClass(d: ValidDiagram):     ClassValidDiagram | null
   asEr(d: ValidDiagram):        ErValidDiagram | null
   asJourney(d: ValidDiagram):   JourneyValidDiagram | null
+  asArchitecture(d: ValidDiagram): ArchitectureValidDiagram | null
   mutate(d: FlowchartValidDiagram, op: FlowchartMutationOp): Result<FlowchartValidDiagram, { code: string; message: string }>
   mutate(d: SequenceValidDiagram,  op: SequenceMutationOp):  Result<SequenceValidDiagram, { code: string; message: string }>
   mutate(d: TimelineValidDiagram,  op: TimelineMutationOp):  Result<TimelineValidDiagram, { code: string; message: string }>
   mutate(d: ClassValidDiagram,     op: ClassMutationOp):     Result<ClassValidDiagram, { code: string; message: string }>
   mutate(d: ErValidDiagram,        op: ErMutationOp):        Result<ErValidDiagram, { code: string; message: string }>
   mutate(d: JourneyValidDiagram,   op: JourneyMutationOp):   Result<JourneyValidDiagram, { code: string; message: string }>
+  mutate(d: ArchitectureValidDiagram, op: ArchitectureMutationOp): Result<ArchitectureValidDiagram, { code: string; message: string }>
   verifyMermaid(input: ValidDiagram | string, opts?: { suppress?: WarningCode[]; labelCharCap?: number }): VerifyResult
   serializeMermaid(d: ValidDiagram): string
   renderMermaidSVG(input: ValidDiagram | string, opts?: { security?: 'default' | 'strict'; idPrefix?: string; mermaidConfig?: MermaidRuntimeConfig }): string
@@ -182,9 +206,9 @@ declare const mermaid: {
 // 2. For existing structured diagrams, use mutate() + verify + serializeMermaid();
 //    do not regenerate/concatenate source when a typed op exists.
 // 3. mutate works on flowchart/state, simple sequence, timeline, class, ER,
-//    and journey. Narrow via asFlowchart/asSequence/asTimeline/asClass/asEr/
-//    asJourney. Xychart, architecture, and opaque-fallback bodies are
-//    source-level only; if explicitly edited as text, re-parse and verify
+//    journey, and architecture. Narrow via asFlowchart/asSequence/asTimeline/
+//    asClass/asEr/asJourney/asArchitecture. Xychart and opaque-fallback bodies
+//    are source-level only; if explicitly edited as text, re-parse and verify
 //    before returning.
 // 4. verify.ok is structural, not a visual-quality score; inspect warnings/layout or render artifacts for layout quality.
 // 5. Layout is deterministic; there is no seed.

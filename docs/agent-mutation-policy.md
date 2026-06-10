@@ -38,13 +38,13 @@ Structured mutation is exposed for families where the in-tree model is strong en
 - timeline;
 - class;
 - ER;
-- journey (simple title/section/task bodies; BUILD-15).
+- journey (simple title/section/task bodies; BUILD-15);
+- architecture (modeled groups/services/junctions/edges; BUILD-17).
 
 Source-level only:
 
 - xychart;
-- architecture;
-- any known-family diagram that falls back to an opaque body because it contains unmodeled syntax.
+- any known-family diagram that falls back to an opaque body because it contains unmodeled syntax (e.g. the architecture `{group}` boundary modifier or accTitle/accDescr).
 
 For source-level bodies, the safe loop is:
 

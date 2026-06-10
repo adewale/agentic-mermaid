@@ -36,8 +36,10 @@ describe('family registry', () => {
 describe('Phase B: universal LABEL_OVERFLOW on opaque bodies', () => {
   const long = 'X'.repeat(80)
 
-  // NOTE: journey, xychart, architecture, and unmodeled syntax are source-level
-  // in the agent surface; plugin extractLabels still has teeth on opaque bodies.
+  // NOTE: xychart and any unmodeled syntax (here: journey `click` lines and
+  // architecture accTitle) are source-level/opaque in the agent surface; plugin
+  // extractLabels still has teeth on opaque bodies. (Journey and architecture
+  // structured subsets are LABEL_OVERFLOW-checked via their verify hooks.)
   const cases: Array<[string, string]> = [
     ['journey opaque', `journey\n  title ${long}\n  click task href`],
     ['journey opaque task without actors', `journey\n  ${long}: 3\n  click task href`],
@@ -56,7 +58,7 @@ describe('Phase B: universal LABEL_OVERFLOW on opaque bodies', () => {
     ['xychart opaque single-quoted title', `xychart-beta\n  title '${long}'\n  curve basis`],
     ['xychart opaque one-line semicolon title', `xychart-beta; title "${long}"; curve basis`],
     ['xychart opaque one-line unquoted semicolon title', `xychart-beta; title ${long}; bar [1]; curve basis`],
-    ['architecture', `architecture-beta\n  group api(cloud)[${long}]`],
+    ['architecture opaque (accTitle forces opaque)', `architecture-beta\n  accTitle: a11y\n  group api(cloud)[${long}]`],
     ['sequence opaque', `sequenceDiagram\n  participant A\n  participant B\n  alt very long ${long}\n    A->>B: msg\n  end`],
   ]
 

@@ -8,8 +8,9 @@ import { parseMermaid } from '../agent/parse.ts'
 import { serializeMermaid } from '../agent/serialize.ts'
 
 describe('opaque-body fidelity (indentation + blank lines)', () => {
-  // NOTE: journey, xychart, architecture, and unmodeled syntax are source-level
-  // in the agent surface; class/ER structured subsets are covered elsewhere.
+  // NOTE: xychart and any unmodeled syntax (here: architecture accTitle +
+  // {group} boundary edges) are source-level in the agent surface; the
+  // journey / architecture / class / ER structured subsets are covered elsewhere.
   const cases: Array<[string, string]> = [
     ['journey-opaque', `journey
   title My day
@@ -23,11 +24,15 @@ describe('opaque-body fidelity (indentation + blank lines)', () => {
   y-axis "USD" 0 --> 100
   bar [10, 50, 90]
   curve basis`],
-    ['architecture', `architecture-beta
+    // Unmodeled syntax (accTitle + the {group} boundary modifier) keeps this
+    // architecture sample on the opaque path even after BUILD-17 promoted the
+    // structured subset.
+    ['architecture-opaque (accTitle + {group} boundary)', `architecture-beta
+  accTitle: System overview
   group api(cloud)[API]
   service db(database)[DB] in api
   service web(server)[Web] in api
-  web:R --> L:db`],
+  web{group}:R --> L:db`],
     ['sequence-opaque (alt/activate/Note)', `sequenceDiagram
   participant A
   participant B

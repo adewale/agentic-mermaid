@@ -6,23 +6,24 @@
 
 export type {
   Result, ValidDiagram, FlowchartValidDiagram, SequenceValidDiagram, TimelineValidDiagram,
-  ClassValidDiagram, ErValidDiagram, JourneyValidDiagram, MutableValidDiagram,
+  ClassValidDiagram, ErValidDiagram, JourneyValidDiagram, ArchitectureValidDiagram, MutableValidDiagram,
   ValidDiagramMeta, ValidDiagramPayload, SerializedFlowchartGraph, DiagramBody, DiagramKind,
   SequenceBody, SequenceParticipant, SequenceMessage, SequenceMessageStyle,
   TimelineBody, TimelineSection, TimelinePeriod, TimelineEvent,
   ClassBody, ClassNode, ClassRelation, ClassRelationKind, ClassNote,
   ErBody, ErEntity, ErRelation, ErAttribute, ErCardinality,
   JourneyBody, JourneySection, JourneyTask,
+  ArchitectureBody, ArchitectureGroup, ArchitectureService, ArchitectureJunction, ArchitectureEdge, ArchitectureEndpoint, ArchitectureSide,
   SourceMap, SourceComment, InitDirective, Accessibility,
   ParseError, MutationError, MutationOp, FlowchartMutationOp, SequenceMutationOp, TimelineMutationOp,
-  ClassMutationOp, ErMutationOp, JourneyMutationOp, AnyMutationOp,
+  ClassMutationOp, ErMutationOp, JourneyMutationOp, ArchitectureMutationOp, AnyMutationOp,
   NodeId, EdgeId, GroupId, ParticipantId,
   LayoutWarning, WarningCode, Tier1WarningCode, Tier2WarningCode, WarningSeverity, WarningTier,
   VerifyOptions, VerifyResult, RenderedLayout, RenderedLayoutNode, RenderedLayoutEdge, RenderedLayoutGroup,
   Finite,
 } from './types.ts'
 
-export { WARNING_SEVERITY, WARNING_TIER, DEFAULT_LABEL_CHAR_CAP, ok, err, toFinite, asFlowchart, asSequence, asTimeline, asClass, asEr, asJourney } from './types.ts'
+export { WARNING_SEVERITY, WARNING_TIER, DEFAULT_LABEL_CHAR_CAP, ok, err, toFinite, asFlowchart, asSequence, asTimeline, asClass, asEr, asJourney, asArchitecture } from './types.ts'
 export { parseMermaid } from './parse.ts'
 export { serializeMermaid, synthesizeFromGraph } from './serialize.ts'
 export { mutate, edgeIdOf } from './mutate.ts'
