@@ -28,12 +28,16 @@ if (have) {
     test('every sample round-trips losslessly', () => {
       expect(c.roundTripStable).toBe(c.total)
     })
-    test('opaque fallback engaged for the real-world syntax (Note/alt/activate)', () => {
-      // The dataset's expected outputs all use constructs our structured
-      // parser intentionally doesn't model — opaque fallback is what
-      // prevents silent information loss. This documents the result.
+    test('segment-preserving structured parse engaged for the real-world syntax (Note/alt/activate)', () => {
+      // BUILD-18: the dataset's expected outputs use Note/alt/loop/activate/
+      // autonumber, which used to force the WHOLE body opaque. They now parse
+      // structured-with-segments (asSequence non-null) while the opaque-block
+      // segments keep the unmodeled lines verbatim — round-trip fidelity is
+      // identical, but the structured ops are no longer lost.
       expect(c.opaque + c.structured).toBe(c.parseOk)
-      expect(c.opaque).toBeGreaterThan(0)
+      expect(c.structured).toBeGreaterThan(0)
+      // Whatever doesn't cleanly segment still falls back to lossless opaque.
+      expect(c.structured + c.opaque).toBe(c.total)
     })
   })
 } else {

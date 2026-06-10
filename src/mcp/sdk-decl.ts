@@ -69,7 +69,15 @@ interface StateBody { kind: 'state'; states: StateNode[]; transitions: StateTran
 
 interface SeqParticipant { id: string; label: string; kind: 'participant' | 'actor' }
 interface SeqMessage { from: string; to: string; text: string; style: string }
-interface SequenceBody { kind: 'sequence'; participants: SeqParticipant[]; messages: SeqMessage[] }
+// BUILD-18: ordered statement list. participant/message refs index into the
+// participants/messages arrays; opaque-block carries unmodeled lines verbatim.
+// Mutation ops only see top-level messages — messages inside an opaque block are
+// never touched.
+type SequenceStatement =
+  | { kind: 'participant'; ref: number }
+  | { kind: 'message'; ref: number }
+  | { kind: 'opaque-block'; lines: string[] }
+interface SequenceBody { kind: 'sequence'; participants: SeqParticipant[]; messages: SeqMessage[]; statements?: SequenceStatement[] }
 
 interface TimelineEvent { id: string; text: string }
 interface TimelinePeriod { id: string; label: string; events: TimelineEvent[] }

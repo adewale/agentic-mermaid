@@ -34,7 +34,7 @@ Removing mutation exposure means agents are no longer told that a family can be 
 Structured mutation is exposed for families where the in-tree model is strong enough:
 
 - flowchart/state;
-- simple sequence;
+- sequence (BUILD-18 — segment-preserving: participant/message ops stay live even when the diagram has Note/alt/loop/par/activate/autonumber/title, which ride along verbatim as opaque-block segments. `remove_message`/`set_message_text` indexes address only top-level messages — messages inside an opaque block are never touched. Only un-segmentable input, e.g. an unbalanced `end`, falls back to whole-body opaque);
 - timeline;
 - class;
 - ER;

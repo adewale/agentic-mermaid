@@ -162,12 +162,17 @@ export function scenarioAddNode(): ScenarioResult {
 }
 
 /**
- * Scenario: a sequence with alt/loop falls back to opaque. The CORRECT agent
+ * Scenario: a sequence that can't be cleanly segmented (here: a stray `end`
+ * with no open block) falls back to whole-body opaque. The CORRECT agent
  * behavior is to see asSequence() return null and avoid structured mutation.
+ *
+ * BUILD-18: ordinary alt/loop/Note sequences are now STRUCTURED-with-segments
+ * (mutable). Only un-segmentable inputs hit the opaque fallback, so this
+ * scenario uses one of those.
  */
 export function scenarioOpaqueRefusal(): ScenarioResult {
   const trace: SdkCall[] = []
-  const d = parseMermaid('sequenceDiagram\n  A->>B: hi\n  alt ok\n    B-->>A: yes\n  end'); trace.push({ verb: 'parse', diagram: 'd0' })
+  const d = parseMermaid('sequenceDiagram\n  A->>B: hi\n  end'); trace.push({ verb: 'parse', diagram: 'd0' })
   if (!d.ok) return { name: 'opaque_refusal', ok: false, detail: 'parse failed', trace }
   const refused = d.value.body.kind === 'opaque' && asSequence(d.value) === null
   return {

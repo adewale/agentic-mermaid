@@ -1,6 +1,6 @@
 import { executeInSandbox } from '../../src/mcp/sandbox.ts'
 import { parseMermaid } from '../../src/agent/parse.ts'
-import { asFlowchart, asTimeline, asClass, asEr } from '../../src/agent/types.ts'
+import { asFlowchart, asSequence, asTimeline, asClass, asEr } from '../../src/agent/types.ts'
 import { lintAgentTrace, type SdkCall, type AntiPattern } from './harness.ts'
 
 export interface AgentUsageEvalCase {
@@ -55,13 +55,22 @@ export const DEFAULT_CASES: AgentUsageEvalCase[] = [
     `,
   },
   {
-    id: 'sequence_alt_refuses_mutation',
-    prompt: 'Given a sequence diagram with an alt block, detect that structured sequence mutation is unavailable and preserve source.',
+    // BUILD-18: a sequence with an alt block is now STRUCTURED-with-segments.
+    // The correct path is structured mutation (add_message) — the alt block
+    // rides along verbatim while the new top-level message is appended.
+    id: 'sequence_alt_add_message',
+    prompt: 'Given a sequence diagram with an alt block, add a top-level message A->>B: bye using structured mutation, verify, then serialize. The alt block must be preserved verbatim.',
     input: 'sequenceDiagram\n  A->>B: hi\n  alt ok\n    B-->>A: yes\n  end',
     script: `
       const r0 = mermaid.parseMermaid('sequenceDiagram\\n  A->>B: hi\\n  alt ok\\n    B-->>A: yes\\n  end')
       if (!r0.ok) return { error: 'parse' }
-      return { refused: mermaid.asSequence(r0.value) === null, source: r0.value.body.source }
+      const seq = mermaid.asSequence(r0.value)
+      if (!seq) return { error: 'not-sequence' }
+      const r1 = mermaid.mutate(seq, { kind: 'add_message', from: 'A', to: 'B', text: 'bye' })
+      if (!r1.ok) return { error: r1.error }
+      const verify = mermaid.verifyMermaid(r1.value)
+      if (!verify.ok) return { error: 'verify', warnings: verify.warnings }
+      return { source: mermaid.serializeMermaid(r1.value) }
     `,
   },
   {
@@ -145,10 +154,10 @@ export async function runAgentUsageEval(cases: AgentUsageEvalCase[] = DEFAULT_CA
 }
 
 export function requiresStructuredMutation(id: string): boolean {
-  return id === 'cache_between_api_and_db' || id === 'timeline_add_event' || id === 'class_add_duck' || id === 'er_add_order'
+  return id === 'cache_between_api_and_db' || id === 'timeline_add_event' || id === 'class_add_duck' || id === 'er_add_order' || id === 'sequence_alt_add_message'
 }
 
-type MutableFamily = 'flowchart' | 'timeline' | 'class' | 'er'
+type MutableFamily = 'flowchart' | 'sequence' | 'timeline' | 'class' | 'er'
 
 function defaultInput(id: string): string | undefined {
   return DEFAULT_CASES.find(c => c.id === id)?.input
@@ -157,11 +166,6 @@ function defaultInput(id: string): string | undefined {
 function canonicalInput(input: string): string {
   const parsed = parseMermaid(input)
   return parsed.ok ? parsed.value.canonicalSource : input
-}
-
-function preservedInputSource(input: string): string {
-  const parsed = parseMermaid(input)
-  return parsed.ok && parsed.value.body.kind === 'opaque' ? parsed.value.body.source : canonicalInput(input)
 }
 
 function parsedInputDiagram(trace: SdkCall[], input: string): number | string | undefined {
@@ -232,10 +236,7 @@ function checkTrace(id: string, input: string | undefined, trace: SdkCall[]): bo
   if (id === 'timeline_add_event') return checkMutationTrace(id, input, 'timeline', trace) && hasMutationOps(trace, input, ['add_event'])
   if (id === 'class_add_duck') return checkMutationTrace(id, input, 'class', trace) && hasMutationOps(trace, input, ['add_class'])
   if (id === 'er_add_order') return checkMutationTrace(id, input, 'er', trace) && hasMutationOps(trace, input, ['add_entity'])
-  if (id === 'sequence_alt_refuses_mutation') {
-    const inputDiagram = parsedInputDiagram(trace, input)
-    return inputDiagram !== undefined && trace.some(c => c.verb === 'narrow' && c.family === 'sequence' && c.ok === false && c.input === inputDiagram) && !trace.some(c => c.verb === 'mutate')
-  }
+  if (id === 'sequence_alt_add_message') return checkMutationTrace(id, input, 'sequence', trace) && hasMutationOps(trace, input, ['add_message'])
   return false
 }
 
@@ -313,9 +314,18 @@ function checkTask(id: string, input: string | undefined, value: unknown, trace:
     const order = body?.entities.find(e => e.id === 'ORDER')
     return Boolean(order?.attributes.some(a => a.text === 'string id'))
   }
-  if (id === 'sequence_alt_refuses_mutation') {
-    const source = (value as { source?: unknown } | undefined)?.source
-    return (value as { refused?: unknown } | undefined)?.refused === true && typeof source === 'string' && source === preservedInputSource(input)
+  if (id === 'sequence_alt_add_message') {
+    const source = returnedSerializedSource(value, trace)
+    if (!source) return false
+    const parsed = parseMermaid(source)
+    if (!parsed.ok) return false
+    const body = asSequence(parsed.value)?.body
+    if (!body) return false
+    // The new top-level message landed, and the alt block survives verbatim.
+    return body.messages.some(m => m.from === 'A' && m.to === 'B' && m.text === 'bye')
+      && source.includes('alt ok')
+      && source.includes('B-->>A: yes')
+      && source.includes('  end')
   }
   return false
 }

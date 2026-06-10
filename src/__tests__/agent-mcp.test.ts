@@ -475,12 +475,14 @@ describe('CLI — sad paths via runCli', () => {
     expect(JSON.parse(opaque.out).error.code).toBe('UNSUPPORTED_FAMILY')
   })
 
-  test('mutate on sequence-with-notes (opaque) returns UNSUPPORTED_FAMILY', () => {
+  test('mutate on sequence-with-notes (BUILD-18: structured-with-segments) succeeds and keeps the note', () => {
     const tmp = `/tmp/cli-seqnote-${Date.now()}.mmd`
     require('node:fs').writeFileSync(tmp, 'sequenceDiagram\n  A->>B: Hi\n  Note over A: thinking\n')
     const { code, out } = capture(() => runCli(['mutate', tmp, '--op', '{"kind":"add_message","from":"A","to":"B","text":"x"}']))
-    expect(code).toBe(2)
-    expect(out).toContain('UNSUPPORTED_FAMILY')
+    expect(code).toBe(0)
+    // The Note rides along verbatim; the new message lands after it.
+    expect(out).toContain('Note over A: thinking')
+    expect(out).toContain('A->>B: x')
   })
 
   test('mutate verifies before emitting and exits 3 when the result is invalid', () => {

@@ -38,7 +38,7 @@ What the current Agentic Mermaid surface delivers and what it doesn't:
 |---|---|---|
 | Flowchart | Full | ✅ 6 ops |
 | State | Structured round-trip for the modeled subset (simple states/transitions/`[*]`/composites/direction); `<<fork>>`/`<<choice>>`/notes/`--`/`classDef` fall back to opaque losslessly | 8 ops via `asState` (BUILD-19) |
-| Sequence | Full for simple messages; unmodeled blocks fall back to opaque losslessly | ✅ 5 ops when structured |
+| Sequence | Structured-with-segments (BUILD-18): participant/message ops stay live while Note/alt/loop/par/activate/autonumber/title ride along verbatim as opaque-block segments; only un-segmentable input (unbalanced `end`) falls back to whole-body opaque | ✅ 5 ops when structured |
 | Timeline | Full | ✅ 10 ops |
 | Class | Full | ✅ 10 ops |
 | ER | Full | ✅ 7 ops |
@@ -313,7 +313,9 @@ Two contracts:
 
 **Source-level families:** pie and opaque fallback bodies preserve source and do not expose structured mutation ops.
 
-**Structured-or-opaque rule (v4): never lossy.** The parser only produces a structured body when it fully understands every non-blank, non-comment line for the structured families. If the source contains *any* construct the parser doesn't model — `Note over` / `alt` / `loop` / `activate` in sequence, `direction TB` in class, `accTitle` or out-of-range scores in journey, the `{group}` boundary modifier in architecture, quoted text or `curve basis` in xychart, etc. — parsing **falls back to an opaque body**. Pie is intentionally source-level today. The diagram still parses, renders, verifies (structurally), and round-trips losslessly via preserved `body.source`; it simply isn't offered for structured mutation (no narrower for source-level families; structured-family narrowers return `null` on opaque fallbacks). This guarantees the parser never silently drops information. Earlier drafts dropped unrecognized lines on the floor; v4 does not.
+**Structured-or-opaque rule (v4): never lossy.** The parser only produces a structured body when it fully understands every non-blank, non-comment line for most structured families. If the source contains *any* construct the parser doesn't model — `direction TB` in class, `accTitle` or out-of-range scores in journey, the `{group}` boundary modifier in architecture, quoted text or `curve basis` in xychart, etc. — parsing **falls back to an opaque body**. Pie is intentionally source-level today. The diagram still parses, renders, verifies (structurally), and round-trips losslessly via preserved `body.source`; it simply isn't offered for structured mutation (no narrower for source-level families; structured-family narrowers return `null` on opaque fallbacks). This guarantees the parser never silently drops information. Earlier drafts dropped unrecognized lines on the floor; v4 does not.
+
+**Segment-preserving bodies (BUILD-18) — sequence ends the all-or-nothing cliff.** Sequence is the first family that does *not* go whole-body opaque on the first unmodeled line. Its body carries an ordered `statements: SequenceStatement[]` list (`participant` / `message` refs into the existing `participants`/`messages` arrays, plus `opaque-block` segments holding unmodeled lines VERBATIM). Block constructs (`alt|opt|loop|par|critical|break|rect … end`, nesting-tracked) become one opaque-block segment; `Note`/`activate`/`deactivate`/`autonumber`/`title` lines each join an adjacent segment. The participant/message ops stay live and address the top-level `messages` array exactly as before — **messages inside an opaque block are invisible to ops and are never touched.** Only an un-segmentable body (a stray `end`, an unclosed block) still falls back to whole-body opaque. Either way the round-trip is verbatim-lossless. Class/ER/timeline segment-preservation is follow-up work.
 
 For source-level families and any opaque fallback, cross-cutting edits are source-level only: operate against preserved source intentionally, then re-parse and verify before returning. Adding structured mutation for any such family follows the same pattern: narrowed type + body parser + serializer + per-family ops (most recently xychart, BUILD-16).
 
@@ -440,7 +442,7 @@ This section records the design discipline for the branch, not an active roadmap
 | Tier-1 verifier recall on broken-fixture cases | Inline tests per Tier-1 code | high |
 | Round-trip identity | Golden corpus + property test | 100% on canonical input |
 | Round-trip property | Property test (fast-check) | 100% on parseable input |
-| Sequence fidelity | Property test: any sequence source with unmodeled constructs falls back to opaque and round-trips verbatim | 100% lossless |
+| Sequence fidelity | Property test (BUILD-18): any sequence source is segments-or-opaque and always lossless — interleaved structured + opaque lines round-trip in order; `remove_message` never touches opaque-block bytes | 100% lossless |
 | Sad-path coverage | CLI mutate on opaque family; malformed JSON-RPC; broken Code Mode script; N-round format idempotence | explicit tests |
 | Fault-injection (poor-man's mutation testing) | Inject a known bug into each core function, confirm a test catches it, revert | every core fn covered |
 | Code Mode sandbox isolation | Tests assert `execute()` cannot reach `process`, `require`, `fetch`, `eval`, `Function`, or host-constructor escape paths; dynamic code generation is disabled | explicit tests |
@@ -458,7 +460,7 @@ MermaidSeqBench is wired as an external corpus signal; live model transcript eva
 
 - **Determinism is empirical, not proven.** It's established by cross-process test over a corpus + the drift sentinel, plus reading ELK's config (`considerModelOrder: NODES_AND_EDGES`, no `randomSeed`). An ELK upgrade could in principle change this; the cross-process test and sentinel would catch it. There is no seed to fall back on because seeding never affected output.
 - **Determinism claim, precisely.** Layout JSON is byte-identical (after structural parse) across processes AND across JS runtimes (bun, node) on the same machine and same ELK version; this is verified on same-machine x86_64 and ARM64 when Node + built `dist/` are present. Direct cross-architecture byte equality (x86_64 output compared to ARM64 output) is still not a separate claim.
-- **Sequence structured coverage is deliberately narrow.** Only participant declarations + simple messages get a mutable structured body; everything else falls back to opaque (lossless, but not mutable). This is the honest tradeoff that replaced silent information loss.
+- **Sequence structured coverage is segment-preserving (BUILD-18).** Participant declarations + simple messages are the mutable structured surface; Note/alt/loop/par/activate/autonumber/title now ride along as verbatim opaque-block *segments* in the same body, so the structured ops survive instead of going whole-body opaque. Messages inside opaque blocks are deliberately not modeled (invisible to ops). Only un-segmentable input (unbalanced `end`, unclosed block) falls back to whole-body opaque. The honest tradeoff is unchanged — never lossy — it just no longer sacrifices the structured ops at the first unmodeled line. (Class/ER/timeline segment work is a follow-up.)
 - **Pie and opaque fallbacks are source-level only.** They remain deliberate, lossless source-level paths; no structured mutation is exposed for them. (Journey was promoted to structured mutation by BUILD-15; architecture by BUILD-17; xychart by BUILD-16.)
 - **Live-model agent-usage eval is periodic, not PR CI.** Stored Code Mode scripts, sandbox traces, task oracles, and the committed pi-subagent transcript replay run in CI; API-backed release-model transcripts remain in `TODO.md` because they need model access and selected release tasks.
 - **Bloat in agent-facing docs.** `Instructions_for_agents.md` is hard-capped under 100 lines; doc-sync test enforces.
@@ -467,7 +469,7 @@ MermaidSeqBench is wired as an external corpus signal; live model transcript eva
 
 - **Determinism is structural and verified cross-process** — not a seed apparatus. The seed/RNG/clock machinery and the font-metric table are *removed* (they did nothing).
 - **Mutation for flowchart/state, sequence, timeline, class, ER, journey, architecture, and xychart**, family-narrowed overloads, compile-time rejection of pie and opaque/source-only families.
-- **Sequence parsing is lossless** — structured-or-opaque fallback; never silently drops constructs.
+- **Sequence parsing is lossless** — segment-preserving structured body (BUILD-18): Note/alt/loop/etc. ride along verbatim as opaque-block segments while the structured ops stay live; only un-segmentable input falls back to whole-body opaque; never silently drops constructs.
 - **Substrate enforcement is a real grep test** that runs under `bun test`, not an ESLint config that was never installed.
 - **`synthesizeFromGraph`** lets `am parse | am serialize` round-trip without `canonicalSource` on the wire.
 - **`LABEL_OVERFLOW` is a source-based char-count check** (Tier 1, reliable), not a font-metric heuristic.

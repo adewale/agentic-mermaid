@@ -15,7 +15,7 @@
       "id": "subagent_prose_source_edits_opaque_sequence",
       "kind": "raw-response",
       "source": "pi-subagent-2026-06-10",
-      "caseId": "sequence_alt_refuses_mutation",
+      "caseId": "sequence_alt_add_message",
       "prompt": "Given a sequence diagram with an alt block, add a message A->>B: retry using Agentic Mermaid.",
       "rawResponse": "Used Agentic Mermaid source-level path because `alt` makes the sequence diagram an opaque fallback, so structured `asSequence` mutation is unavailable.\n\n```mermaid\nsequenceDiagram\n  A->>B: hi\n  alt ok\n    B-->>A: yes\n  end\n  A->>B: retry\n```\n\nVerification result from `verifyMermaid`: `ok: true`, `warnings: []`.",
       "expectedRawFindings": ["PROSE_NOT_CODE_MODE", "MERMAID_FENCE_NOT_CODE_MODE", "SOURCE_LEVEL_OPAQUE_EDIT"]
@@ -60,9 +60,9 @@
       "id": "code_mode_mutates_opaque_sequence",
       "kind": "code-mode",
       "source": "curated-from-observed-pattern",
-      "caseId": "sequence_alt_refuses_mutation",
-      "prompt": "Given a sequence diagram with an alt block, detect that structured sequence mutation is unavailable and preserve source.",
-      "rawResponse": "const r0 = mermaid.parseMermaid('sequenceDiagram\\n  A->>B: hi\\n  alt ok\\n    B-->>A: yes\\n  end')\nreturn mermaid.mutate(r0.value, { kind: 'add_message', from: 'A', to: 'B', text: 'retry' })",
+      "caseId": "sequence_alt_add_message",
+      "prompt": "Given an un-segmentable sequence diagram (stray end), detect that structured mutation is unavailable and preserve source.",
+      "rawResponse": "const r0 = mermaid.parseMermaid('sequenceDiagram\\n  A->>B: hi\\n  end')\nreturn mermaid.mutate(r0.value, { kind: 'add_message', from: 'A', to: 'B', text: 'retry' })",
       "expectedResult": { "ok": false, "taskOk": false, "traceOk": false, "findings": ["MUTATE_ON_OPAQUE"] }
     },
     {
