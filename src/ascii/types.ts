@@ -94,6 +94,10 @@ export type AsciiEdgeStyle = 'solid' | 'dotted' | 'thick'
 export interface AsciiEdge {
   from: AsciiNode
   to: AsciiNode
+  /** Source container when the Mermaid edge targets a subgraph id. */
+  fromSubgraph?: AsciiSubgraph
+  /** Target container when the Mermaid edge targets a subgraph id. */
+  toSubgraph?: AsciiSubgraph
   text: string
   path: GridCoord[]
   labelLine: GridCoord[]
@@ -121,6 +125,8 @@ export interface AsciiEdge {
 
 /** A subgraph container with bounding box for rendering. */
 export interface AsciiSubgraph {
+  /** Mermaid subgraph id, used for container-edge references. */
+  id: string
   name: string
   nodes: AsciiNode[]
   parent: AsciiSubgraph | null
@@ -165,6 +171,8 @@ export interface AsciiGraph {
   offsetY: number
   /** Edge bundles for parallel link visualization. Set during bundling analysis. */
   bundles: EdgeBundle[]
+  /** Grid coordinates where sibling-edge trunk branches need explicit T-junctions. */
+  trunkJunctions: GridCoord[]
 }
 
 // ============================================================================

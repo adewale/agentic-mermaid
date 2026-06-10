@@ -39,6 +39,49 @@ describe('#113 fanout trunk-sharing', () => {
     for (const id of ['A', 'B', 'C', 'D']) expect(out).toContain(id)
   })
 
+  test('labeled LR fanout keeps labels on branch runs and shares a vertical trunk', () => {
+    const out = renderMermaidASCII(`flowchart LR
+  Src["Source"]
+  Top["Top Target"]
+  Mid["Middle Target"]
+  Bot["Bottom Target"]
+  Src -->|top*| Top
+  Src -->|mid*| Mid
+  Src -->|bot*| Bot`)
+    expect(out).toContain('Source ├────top*──►')
+    expect(out).toContain('├─────mid*─────►')
+    expect(out).toContain('└─────bot*─────►')
+  })
+
+  test('labeled TD fanout shares one trunk and places labels on branches (upstream #111 repro)', () => {
+    const out = renderMermaidASCII(`flowchart TB
+    Src["Source"]
+    Left["Left Target"]
+    Center["Center Target"]
+    Right["Right Target"]
+    Src -->|left*| Left
+    Src -->|center*| Center
+    Src -->|right*| Right`)
+    expect(out).toContain('Source   ├─────────────┬─────────────────────┐')
+    expect(out).toContain('center*')
+    expect(out).toContain('right*')
+    // Regression guard: center* used to be written onto the horizontal trunk.
+    expect(out).not.toContain('└────center*')
+    expect(out).not.toContain('┼──────/right*')
+  })
+
+  test('bidirectional vertical labels remain separated after one-way fanout label centering changed', () => {
+    const out = renderMermaidASCII(`flowchart TD
+  A -->|down| B
+  B -->|up| A`)
+    const lines = out.split('\n')
+    const downRow = lines.findIndex(l => l.includes('down'))
+    const upRow = lines.findIndex(l => /\bup\b/.test(l))
+    expect(downRow).toBeGreaterThanOrEqual(0)
+    expect(upRow).toBeGreaterThanOrEqual(0)
+    expect(Math.abs(downRow - upRow)).toBeGreaterThanOrEqual(2)
+  })
+
   test('fanout rendering is deterministic across 10 runs', () => {
     const src = 'flowchart TD\n  A --> B\n  A --> C\n  A --> D\n  B --> E\n  C --> E\n  D --> E'
     const hashes = new Set<string>()
