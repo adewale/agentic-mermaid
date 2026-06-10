@@ -1,6 +1,6 @@
 ---
 name: agentic-mermaid-diagram-workflow
-description: Agent-agnostic skill for authoring and editing Mermaid diagrams with structured verification, typed mutation, round-trip serialization, and ASCII, PNG, and SVG outputs. Structured mutation for flowchart, state, sequence, timeline, class, ER, journey, and architecture; source-level parse-and-render for xychart and opaque fallbacks.
+description: Agent-agnostic skill for authoring and editing Mermaid diagrams with structured verification, typed mutation, round-trip serialization, and ASCII, PNG, and SVG outputs. Structured mutation for flowchart, state, sequence, timeline, class, ER, journey, architecture, and xychart; source-level parse-and-render for pie and opaque fallbacks.
 ---
 
 # Agentic Mermaid — diagram workflow
@@ -30,7 +30,8 @@ An agent-agnostic typed editing surface for Mermaid. New diagrams can be authore
 | Journey (accTitle/accDescr, unmodeled) | ✓ | structural | ✓ | — (opaque) | verbatim |
 | **Architecture (modeled subset)** | ✓ | structural | ✓ | **10 ops** | structured |
 | Architecture (`{group}` boundary, accTitle/accDescr) | ✓ | structural | ✓ | — (opaque) | verbatim |
-| XY chart | ✓ | structural | ✓ | — | verbatim/source-level |
+| **XY chart (modeled subset)** | ✓ | structural | ✓ | **8 ops** | structured |
+| XY chart (quoted text, `;` lines, accTitle/accDescr) | ✓ | structural | ✓ | — (opaque) | verbatim |
 | Pie | ✓ | structural | ✓ | — | verbatim/source-level |
 
 Any diagram with constructs we don't model falls back to an **opaque** body: it still parses, renders, verifies, and round-trips losslessly — it just isn't offered for structured mutation (the narrower returns null). The parser never silently drops anything.
@@ -44,7 +45,7 @@ State diagrams share the flowchart body: narrow them with `asFlowchart` and ever
 For new diagrams, author Mermaid source directly, then `parseMermaid` / `verifyMermaid` / render. For existing modeled diagrams:
 
 1. `parseMermaid(source)` → `ValidDiagram`.
-2. `asFlowchart(d)` / `asSequence(d)` / `asTimeline(d)` / `asClass(d)` / `asEr(d)` / `asJourney(d)` / `asArchitecture(d)` to narrow before mutating.
+2. `asFlowchart(d)` / `asSequence(d)` / `asTimeline(d)` / `asClass(d)` / `asEr(d)` / `asJourney(d)` / `asArchitecture(d)` / `asXyChart(d)` to narrow before mutating.
 3. `mutate(d, op)` (typed per family).
 4. `verifyMermaid(d)` — structured warnings; inspect `ok` / `warnings` / `layout`.
 5. On `!ok`, revert to the previous `ValidDiagram`, try another op.

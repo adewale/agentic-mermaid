@@ -21,6 +21,7 @@ import { parseSequenceBody, renderSequence, mutateSequence } from './sequence-bo
 import { parseTimelineBody, renderTimeline, mutateTimeline } from './timeline-body.ts'
 import { parseJourneyBody, renderJourney, mutateJourney, verifyJourney } from './journey-body.ts'
 import { parseArchitectureBody, renderArchitecture, mutateArchitecture, verifyArchitecture } from './architecture-body.ts'
+import { parseXyChartBody, renderXyChart, mutateXyChart, verifyXyChart } from './xychart-body.ts'
 import { parseFlowchartBody, renderFlowchart, mutateFlowchart, buildFlowchartSourceMap, type FlowchartBody } from './flowchart-body.ts'
 
 // Build the structured-or-opaque hook set shared by every structured family
@@ -383,7 +384,36 @@ function splitXyLabelStatements(line: string): string[] {
   return statements
 }
 
-registerFamily({ id: 'xychart', detect: l => l.startsWith('xychart'), extractLabels: extractXyChartLabels })
+registerFamily({
+  id: 'xychart',
+  detect: l => l.startsWith('xychart'),
+  extractLabels: extractXyChartLabels,
+  // BUILD-16: xychart is structured-when-narrowed. The verify hook covers the
+  // structured body; opaque fallbacks (accTitle/accDescr, quoted text,
+  // multi-statement `;` lines, unmodeled tokens like `curve basis`) keep the
+  // universal label-extraction path. headerOk requires `xychart`/`xychart-beta`
+  // with at most a `horizontal`/`vertical` orientation suffix — any other
+  // trailing token (e.g. `EXTRA`) stays opaque so it round-trips verbatim.
+  verify: (body, opts) => body.kind === 'xychart' ? verifyXyChart(body, opts) : [],
+  // xychart needs the header to model the `horizontal` orientation suffix, so it
+  // uses a tailored parse hook (not the shared structuredFamilyHooks) — but
+  // serialize/mutate stay identical to every other structured family.
+  parse: (lines, opaqueSource) => {
+    const header = lines[0]?.trim() ?? ''
+    const hm = header.match(/^xychart(?:-beta)?(?:\s+(horizontal|vertical))?\s*$/i)
+    const body = hm ? parseXyChartBody(lines.slice(1)) : null
+    if (body && hm?.[1]?.toLowerCase() === 'horizontal') body.horizontal = true
+    return ok(body ?? { kind: 'opaque', family: 'xychart', source: opaqueSource })
+  },
+  serialize: body => {
+    if (body.kind !== 'xychart') throw new Error(`xychart serializer received body kind ${body.kind}`)
+    return renderXyChart(body)
+  },
+  mutate: (body, op) => {
+    if (body.kind !== 'xychart') return err<MutationError>({ code: 'INVALID_OP', message: `xychart mutator received body kind ${body.kind}` })
+    return mutateXyChart(body, op as never)
+  },
+})
 
 // ---- Pie ------------------------------------------------------------------
 // pie [showData] [title T], optional `title T`, `"label" : number` entries.

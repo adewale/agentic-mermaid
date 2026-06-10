@@ -108,9 +108,23 @@ dependents after. IDs are stable names, not an ordering.
   across CLI capabilities, MCP SDK declaration, `Instructions_for_agents.md`,
   llms.txt, the skill, and the spec. The per-family checklist it validated
   is the template for BUILD-16/BUILD-17.
-- [ ] **BUILD-16 — XY chart structured mutation** (`todo`; BUILD-15 checklist applies).
-  Title/axes/series data are fully modelable: `set_title`, `set_axis`,
-  `add_series`, `remove_series`, `update_data`. Same checklist as BUILD-15.
+- [x] **BUILD-16 — XY chart structured mutation** (`done`). Typed `XyChartBody`
+  (bare title, named/categorical/range x-axis, named/range y-axis, `bar`/`line`
+  series with optional names + finite values; `horizontal` orientation modeled
+  from the header), 8 ops (`set_title`, `set_x_axis`, `set_y_axis`, `add_series`,
+  `remove_series`, `set_series_values`, `set_series_name`, `reorder_series`),
+  `asXyChart` narrower, verify hook (EMPTY_DIAGRAM + LABEL_OVERFLOW on
+  title/axis-name/series-name), lossless opaque fallback for quoted text /
+  multi-statement `;` lines / accTitle/accDescr / `curve basis` / non-orientation
+  header suffixes, and the `SERIES_NOT_FOUND` error code. Number format is
+  `String(n)` (finite-only), proven byte-identical round-trip plus a
+  **differential test** that the canonical output re-parses identically under the
+  legacy `parseXYChart`. Category/series length mismatch is allowed (legacy
+  renderer accepts it) and tested. Evidence: `src/agent/xychart-body.ts`,
+  `src/__tests__/agent-xychart.test.ts` (29 tests, 216 assertions; sabotage check
+  flipped 19 of 29 red), plus sync across CLI capabilities, MCP SDK declaration,
+  `Instructions_for_agents.md` + mirror, llms.txt, SKILL.md, and the spec.
+  Followed the BUILD-15/BUILD-17 checklist verbatim.
 - [x] **BUILD-17 — Architecture structured mutation** (`done`). Typed
   `ArchitectureBody` (groups/services/junctions + anchored `id:SIDE arrow SIDE:id`
   edges), 10 ops (`add_service`, `remove_service` [cascades edges],

@@ -27,12 +27,13 @@ Structured mutation is exposed only for families whose parser/IR/serializer/veri
 - class;
 - ER;
 - journey (BUILD-15 pilot);
-- architecture (BUILD-17 — the modeled subset of groups/services/junctions/edges).
+- architecture (BUILD-17 — the modeled subset of groups/services/junctions/edges);
+- xychart (BUILD-16 — the modeled subset of title/axes/series).
 
 Source-level only:
 
-- xychart;
-- any known-family diagram that falls back to opaque because it contains unmodeled syntax (e.g. the architecture `{group}` boundary modifier or accTitle/accDescr).
+- pie;
+- any known-family diagram that falls back to opaque because it contains unmodeled syntax (e.g. the architecture `{group}` boundary modifier, accTitle/accDescr, or quoted text / `;` lines in xychart).
 
 For source-level bodies, agents may render, verify, describe, and round-trip preserved source. They do **not** get typed mutation ops. `am mutate` returns `UNSUPPORTED_FAMILY` for those bodies.
 

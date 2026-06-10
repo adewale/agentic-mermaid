@@ -66,7 +66,7 @@ export function verifyMermaid(input: ValidDiagram | string, opts: VerifyOptions 
   // emit pluginWarnings directly.
   // class + ER + journey + architecture: the FamilyPlugin.verify hooks produce
   // the per-body warnings (journey added by BUILD-15, architecture by BUILD-17).
-  if (d.body.kind === 'class' || d.body.kind === 'er' || d.body.kind === 'journey' || d.body.kind === 'architecture') {
+  if (d.body.kind === 'class' || d.body.kind === 'er' || d.body.kind === 'journey' || d.body.kind === 'architecture' || d.body.kind === 'xychart') {
     return finalize(pluginWarnings, emptyRenderedLayout(d.kind), opts)
   }
 
