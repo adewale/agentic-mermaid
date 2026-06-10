@@ -9,11 +9,11 @@
 //   bun run examples/agent-improve-auth-flow.ts
 //   bun run examples/agent-improve-auth-flow.ts --out-dir /tmp/auth-flow-improved
 
+import { Buffer } from 'node:buffer'
 import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { handleRequest } from '../src/mcp/server.ts'
-import { renderMermaidPNG } from '../src/agent/index.ts'
 
 function argValue(name: string): string | undefined {
   const idx = process.argv.indexOf(name)
@@ -21,6 +21,7 @@ function argValue(name: string): string | undefined {
 }
 
 const outDir = resolve(argValue('--out-dir') ?? mkdtempSync(join(tmpdir(), 'am-agent-improve-')))
+const useTestPngPlaceholder = process.argv.includes('--test-png-placeholder')
 mkdirSync(outDir, { recursive: true })
 
 const AGENT_CODE = `
@@ -151,8 +152,14 @@ writeFileSync(files.before, result.beforeSource)
 writeFileSync(files.source, result.source)
 writeFileSync(files.svg, result.svg)
 writeFileSync(files.ascii, result.ascii)
-// PNG is binary, so the host renders it from the verified final source.
-writeFileSync(files.png, renderMermaidPNG(result.source, { fitTo: { width: 1600 }, background: '#f8f7f4' }))
+// PNG is binary, so the host renders it from the verified final source. The
+// doc-sync smoke test can request a tiny placeholder to avoid loading native
+// PNG bindings in a nested Bun subprocess on constrained CI runners; the real
+// renderMermaidPNG path remains the default and is covered by agent PNG tests.
+const pngBytes = useTestPngPlaceholder
+  ? Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/p9sAAAAASUVORK5CYII=', 'base64')
+  : (await import('../src/agent/index.ts')).renderMermaidPNG(result.source, { fitTo: { width: 1600 }, background: '#f8f7f4' })
+writeFileSync(files.png, pngBytes)
 writeFileSync(files.assessment, JSON.stringify({
   createOps: result.createOps,
   improveOps: result.improveOps,

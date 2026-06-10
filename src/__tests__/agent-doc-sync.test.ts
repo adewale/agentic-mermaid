@@ -378,7 +378,7 @@ describe('shipped distribution artifacts present', () => {
   test('agent improvement example assesses, mutates, reassesses, and writes render files', async () => {
     const outDir = mkdtempSync(join(tmpdir(), 'am-example-test-'))
     try {
-      const r = await runBunExample(join(REPO, 'examples/agent-improve-auth-flow.ts'), ['--out-dir', outDir])
+      const r = await runBunExample(join(REPO, 'examples/agent-improve-auth-flow.ts'), ['--out-dir', outDir, '--test-png-placeholder'], 120_000)
       expect({ status: r.status, timedOut: r.timedOut, stderr: r.stderr }).toEqual({ status: 0, timedOut: false, stderr: '' })
       const payload = JSON.parse(r.stdout)
       expect(payload.ok).toBe(true)
@@ -397,7 +397,7 @@ describe('shipped distribution artifacts present', () => {
     } finally {
       rmSync(outDir, { recursive: true, force: true })
     }
-  }, 90_000)
+  }, 150_000)
 
   test('npm package includes bundled PNG fonts and delegated docs', () => {
     const pkg = JSON.parse(readFileSync(join(REPO, 'package.json'), 'utf8'))
