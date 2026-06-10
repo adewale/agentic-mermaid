@@ -272,6 +272,23 @@ dependents after. IDs are stable names, not an ordering.
   scoping the security boundary, auth/rate limits, persistence model, and
   parity with the current local CLI/MCP/library contract.
 
+- [ ] **QUAL-1 — Perceptual-quality coverage for non-graph families**
+  (`todo`). `measureQuality`/`checkQuality` operate on `RenderedLayout`, but
+  `layoutMermaid` only has adapters for flowchart/state/sequence/timeline —
+  class, ER, journey, architecture, xychart, pie, and quadrant return an
+  empty layout, so the perceptual metrics (edge crossings, label
+  legibility, whitespace balance) are blind to them and the BUILD-13
+  harness records bytes-only for those samples (verified: pie/quadrant
+  fixture metrics show nodeCount 0). Add `RenderedLayout` adapters per
+  family (pie: slices as nodes; quadrant: points as nodes + plot bounds;
+  xychart: series points; architecture: services/groups), then extend the
+  harness verdicts to use them. Also: the mermaid-docs corpus build
+  (`eval/mermaid-docs-corpus/build-corpus.ts` FILE_TO_FAMILY) predates the
+  pie/quadrant families and needs a networked regen against a mermaid
+  clone to include their docs examples; `docs/quality.md`'s LLM-judge grid
+  still says "9 families"; and the new families have no browser screenshot
+  baselines (needs a local browser run).
+
 ## 2. Agent-usage verification backlog
 
 - [x] **EVAL-1 — Capture subagent-backed release-model transcripts** (`done`).

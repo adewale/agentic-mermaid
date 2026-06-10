@@ -99,6 +99,10 @@ geometry assertions, screenshot/PNG review, or human inspection.
   service (Applitools) for visual regression; we don't ship reference images.
   If a glyph changes width by one pixel, our perceptual metrics may move
   slightly, but the bands have headroom.
+- **Perceptual metrics do not yet cover non-graph families.** `layoutMermaid`
+  has adapters only for flowchart/state/sequence/timeline; pie, quadrant,
+  xychart, class, ER, journey, and architecture samples get bytes-only
+  tracking in the comparison harness (TODO QUAL-1).
 - **No font-substitution check.** Different OSes render different
   default fonts. Our `labelLegibility` heuristic uses a 7 px-per-char
   approximation; under condensed fonts it under-estimates fit.
