@@ -17,7 +17,9 @@ An agent-agnostic typed editing surface for Mermaid. New diagrams can be authore
 
 | Family | parse | verify | render | mutate | serialize |
 |---|---|---|---|---|---|
-| Flowchart, State | ✓ | full (Tier 1+2) | ✓ | 6 ops | structured |
+| Flowchart | ✓ | full (Tier 1+2) | ✓ | 6 ops | structured |
+| **State (modeled subset)** | ✓ | full (Tier 1+2) | ✓ | **8 ops** | structured |
+| State (`<<fork>>`/`<<choice>>`/notes/`--`/`classDef`, unmodeled) | ✓ | structural | ✓ | — (opaque) | verbatim |
 | Sequence (simple) | ✓ | structural | ✓ | 5 ops | structured |
 | Sequence (notes/alt/loop/…) | ✓ | structural | ✓ | — (opaque) | verbatim |
 | Timeline (simple) | ✓ | structural | ✓ | 10 ops | structured |
@@ -36,7 +38,7 @@ An agent-agnostic typed editing surface for Mermaid. New diagrams can be authore
 
 Any diagram with constructs we don't model falls back to an **opaque** body: it still parses, renders, verifies, and round-trips losslessly — it just isn't offered for structured mutation (the narrower returns null). The parser never silently drops anything.
 
-State diagrams share the flowchart body: narrow them with `asFlowchart` and every flowchart op applies. There is no separate `asState` narrower.
+State diagrams own a dedicated body (BUILD-19): narrow them with `asState` and apply state-shaped ops (`add_state`, `remove_state`, `rename_state`, `set_state_label`, `add_transition`, `remove_transition`, `set_transition_label`, `make_composite`). `asFlowchart` returns null on a state diagram. The modeled subset is simple states, transitions, `[*]` start/end pseudostates, composite blocks, and `direction`; anything else (`<<fork>>`/`<<choice>>`/`<<join>>`, history states, concurrency `--`, notes, `classDef`/`class`/`:::` styling) keeps the whole body opaque and round-trips verbatim.
 
 `references/upstream/` documents Mermaid syntax for many more families than this renderer accepts; it is authoring reference only. `am capabilities --json` is the authoritative list of renderable families.
 
@@ -45,7 +47,7 @@ State diagrams share the flowchart body: narrow them with `asFlowchart` and ever
 For new diagrams, author Mermaid source directly, then `parseMermaid` / `verifyMermaid` / render. For existing modeled diagrams:
 
 1. `parseMermaid(source)` → `ValidDiagram`.
-2. `asFlowchart(d)` / `asSequence(d)` / `asTimeline(d)` / `asClass(d)` / `asEr(d)` / `asJourney(d)` / `asArchitecture(d)` / `asXyChart(d)` to narrow before mutating.
+2. `asFlowchart(d)` / `asState(d)` / `asSequence(d)` / `asTimeline(d)` / `asClass(d)` / `asEr(d)` / `asJourney(d)` / `asArchitecture(d)` / `asXyChart(d)` to narrow before mutating.
 3. `mutate(d, op)` (typed per family).
 4. `verifyMermaid(d)` — structured warnings; inspect `ok` / `warnings` / `layout`.
 5. On `!ok`, revert to the previous `ValidDiagram`, try another op.

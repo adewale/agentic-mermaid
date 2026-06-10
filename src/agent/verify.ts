@@ -14,6 +14,7 @@ import type {
 import { WARNING_SEVERITY, DEFAULT_LABEL_CHAR_CAP } from './types.ts'
 import { positionedToRenderedLayout, emptyRenderedLayout } from './layout-to-rendered.ts'
 import { getFamily, extractLabelsGeneric } from './families.ts'
+import { stateBodyToGraph } from './state-body.ts'
 import './families-builtin.ts'  // registers built-in families at import time
 
 const KNOWN_SHAPES = new Set([
@@ -70,6 +71,17 @@ export function verifyMermaid(input: ValidDiagram | string, opts: VerifyOptions 
     return finalize(pluginWarnings, emptyRenderedLayout(d.kind), opts)
   }
 
+  // State diagrams (BUILD-19): the StateBody projects to a MermaidGraph via the
+  // legacy state parser — the exact graph the renderer lays out — so the full
+  // flowchart Tier 1 + Tier 2 geometric path runs unchanged. pluginWarnings
+  // (verifyState) add the body-level structural checks on the StateBody itself.
+  if (d.body.kind === 'state') {
+    const graph = stateBodyToGraph(d.body)
+    if (graph.nodes.size === 0) return finalize(dedupedConcat([{ code: 'EMPTY_DIAGRAM' }], pluginWarnings), emptyRenderedLayout(d.kind), opts)
+    const { warnings, layout } = verifyGraph(graph, d.kind, cap)
+    return finalize(dedupedConcat(warnings, pluginWarnings), layout, opts)
+  }
+
   if (d.body.kind === 'opaque') {
     const isEmpty = opaqueSourceHasOnlyHeader(d.kind, d.body.source)
     // Universal Tier 1 LABEL_OVERFLOW via family-specific (or generic) label
@@ -92,9 +104,19 @@ export function verifyMermaid(input: ValidDiagram | string, opts: VerifyOptions 
 
   const graph = d.body.graph
   if (graph.nodes.size === 0) return finalize([{ code: 'EMPTY_DIAGRAM' }], emptyRenderedLayout(d.kind), opts)
+  const { warnings: graphWarnings, layout: graphLayout } = verifyGraph(graph, d.kind, cap)
+  return finalize(dedupedConcat(graphWarnings, pluginWarnings), graphLayout, opts)
+}
 
+/**
+ * Full Tier 1 (structural) + Tier 2 (geometric) + Tier 3 (lint) verify over a
+ * MermaidGraph. Shared by flowchart bodies and state-diagram bodies (which
+ * project to a graph via stateBodyToGraph). Returns warnings + the rendered
+ * layout; the caller finalizes (suppress + ok flag).
+ */
+function verifyGraph(graph: import('../types.ts').MermaidGraph, kind: ValidDiagram['kind'], cap: number): { warnings: LayoutWarning[]; layout: RenderedLayout } {
   const positioned = layoutGraphSync(graph, {})
-  const layout = positionedToRenderedLayout(positioned, d.kind)
+  const layout = positionedToRenderedLayout(positioned, kind)
   const warnings: LayoutWarning[] = []
 
   // Tier 1 — structural
@@ -152,7 +174,7 @@ export function verifyMermaid(input: ValidDiagram | string, opts: VerifyOptions 
   // Tier 3 — advisory lint for common agent mistakes that still parse/render.
   warnings.push(...lintFlowchartGraph(graph))
 
-  return finalize(dedupedConcat(warnings, pluginWarnings), layout, opts)
+  return { warnings, layout }
 }
 
 function dedupedConcat(a: LayoutWarning[], b: LayoutWarning[]): LayoutWarning[] {

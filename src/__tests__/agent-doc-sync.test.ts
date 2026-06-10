@@ -131,17 +131,18 @@ describe('vocabulary doc-sync', () => {
   })
 
   test('MCP SDK declaration exposes all mutable-family narrowers', () => {
-    for (const narrower of ['asFlowchart', 'asSequence', 'asTimeline', 'asClass', 'asEr', 'asJourney', 'asArchitecture', 'asXyChart']) {
+    for (const narrower of ['asFlowchart', 'asState', 'asSequence', 'asTimeline', 'asClass', 'asEr', 'asJourney', 'asArchitecture', 'asXyChart']) {
       expect(SDK_DECLARATION).toContain(narrower)
     }
   })
 
-  test('state-narrows-via-asFlowchart is documented on every agent surface that claims state mutation', () => {
-    // State has no asState narrower; docs that advertise state mutation must
-    // say the path is asFlowchart, or agents conclude state is not mutable.
+  test('state-narrows-via-asState is documented on every agent surface that claims state mutation', () => {
+    // BUILD-19: state owns a dedicated body. Docs that advertise state mutation
+    // must say the path is asState (not asFlowchart), or agents either conclude
+    // state is not mutable or reach for the wrong narrower.
     for (const file of ['Instructions_for_agents.md', 'llms.txt', 'skills/agentic-mermaid-diagram-workflow/SKILL.md']) {
       const text = readFileSync(join(REPO, file), 'utf8')
-      expect({ file, documentsStateNarrowing: /[Ss]tate.*flowchart body.*asFlowchart|asFlowchart.*narrows? (them|state)/s.test(text) }).toEqual({ file, documentsStateNarrowing: true })
+      expect({ file, documentsStateNarrowing: /[Ss]tate.*asState|asState.*(narrows?|state)/s.test(text) }).toEqual({ file, documentsStateNarrowing: true })
     }
   })
 })

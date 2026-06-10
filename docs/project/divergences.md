@@ -15,7 +15,7 @@ Current implementation decisions that differ from, or materially narrow, the bro
 
 - Product/docs and npm package name are **Agentic Mermaid** / `agentic-mermaid`; the repository path currently remains `adewale/beautiful-mermaid`. The agent surface ships as the `./agent` subpath.
 - `MermaidGraph` and `renderMermaidSVGAsync` remain for compatibility with existing renderer/tests/consumers.
-- `state` diagrams currently share the flowchart body (`body.kind: 'flowchart'`) because the legacy parser produces a `MermaidGraph` for both. `kind` still distinguishes `state` from `flowchart`.
+- ~~`state` diagrams currently share the flowchart body (`body.kind: 'flowchart'`)…~~ **Superseded by BUILD-19.** State diagrams now own a dedicated `StateBody` IR (`body.kind: 'state'`) with state-shaped ops and a real `asState` narrower. `asFlowchart` returns `null` on a state diagram (a breaking change within the unreleased agent surface). Verify still gets full Tier 1 + Tier 2 geometric coverage: the `StateBody` projects to a `MermaidGraph` via the legacy parser (`stateBodyToGraph`) and runs the identical flowchart `verifyGraph`. The modeled subset is simple states/transitions/`[*]` pseudostates/composites/`direction`; unmodeled syntax (`<<fork>>`/`<<choice>>`/`<<join>>`, history, concurrency `--`, notes, `classDef`/`class`/`:::`) falls back to a lossless opaque body. Corpus round-trip for state jumped 5% → 100%.
 
 ### Mutation surface is intentionally narrower than render support
 

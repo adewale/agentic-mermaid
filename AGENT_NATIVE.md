@@ -36,7 +36,8 @@ What the current Agentic Mermaid surface delivers and what it doesn't:
 
 | Family | Parse / verify / render / round-trip | Structured mutation |
 |---|---|---|
-| Flowchart, State | Full | ✅ 6 ops |
+| Flowchart | Full | ✅ 6 ops |
+| State | Structured round-trip for the modeled subset (simple states/transitions/`[*]`/composites/direction); `<<fork>>`/`<<choice>>`/notes/`--`/`classDef` fall back to opaque losslessly | 8 ops via `asState` (BUILD-19) |
 | Sequence | Full for simple messages; unmodeled blocks fall back to opaque losslessly | ✅ 5 ops when structured |
 | Timeline | Full | ✅ 10 ops |
 | Class | Full | ✅ 10 ops |
@@ -176,11 +177,12 @@ parseMermaid(source: string):                                Result<ValidDiagram
 serializeMermaid(d: ValidDiagram):                           string
 synthesizeFromGraph(payload):                                Result<ValidDiagram, ParseError[]>
 mutate(d: FlowchartValidDiagram, op: FlowchartMutationOp):   Result<FlowchartValidDiagram, MutationError>
+mutate(d: StateValidDiagram,     op: StateMutationOp):       Result<StateValidDiagram, MutationError>
 mutate(d: SequenceValidDiagram,  op: SequenceMutationOp):    Result<SequenceValidDiagram, MutationError>
 mutate(d: TimelineValidDiagram,  op: TimelineMutationOp):    Result<TimelineValidDiagram, MutationError>
 mutate(d: ClassValidDiagram,     op: ClassMutationOp):       Result<ClassValidDiagram, MutationError>
 mutate(d: ErValidDiagram,        op: ErMutationOp):          Result<ErValidDiagram, MutationError>
-asFlowchart/asSequence/asTimeline/asClass/asEr(d): narrowed diagram | null
+asFlowchart/asState/asSequence/asTimeline/asClass/asEr(d): narrowed diagram | null
 ```
 
 **`mutate` is overloaded by family.** Flowchart/state, simple sequence, timeline, class, ER, journey, and architecture diagrams have first-class structured editing. Xychart and opaque-fallback diagrams are not typed for mutation, so agents get a compile-time/null-narrower stop rather than a lossy edit path.
@@ -200,6 +202,19 @@ Two contracts:
 | `set_label`   | `target`, `label` | —                 | `set_label(target, prev_label)` |
 | `add_edge`    | `from`, `to`      | `label`, `style`  | `remove_edge(id)` |
 | `remove_edge` | `id`              | —                 | `add_edge(from, to, label, style)` |
+
+**State MutationOp kinds** (8, BUILD-19 — promoting state from a "parses AS flowchart" projection to a dedicated `StateBody` IR with state-shaped ops and a real `asState` narrower). Modeled grammar: simple states (`state "Label" as id`, `id : Label`), transitions `from --> to [: label]` where `from`/`to` may be the reserved pseudostate `[*]` (source = start, target = end, scoped per composite level), composite blocks `state X { … }` (nestable), and `direction`. Anything else (`<<fork>>`/`<<choice>>`/`<<join>>`, history states, concurrency `--`, notes, `classDef`/`class`/`:::` styling, bare `stateId` lines, hyphenated composite ids) keeps the whole body opaque and round-trips verbatim. `[*]` is contextual, not a state node:
+
+| Kind | Required | Optional | Inverse |
+|---|---|---|---|
+| `add_state`            | `id`              | `label`, `parent` (composite) | `remove_state(id)` |
+| `remove_state`         | `id` (refused on a non-empty composite — remove children first) | — | `add_state(...)` |
+| `rename_state`         | `from`, `to`      | — (rewrites transitions) | `rename_state(to, from)` |
+| `set_state_label`      | `id`, `label \| null` | —             | `set_state_label(id, prev_label)` |
+| `add_transition`       | `from`, `to` (`[*]` allowed) | `label`, `parent` | `remove_transition(from->to)` |
+| `remove_transition`    | `index` or `from`/`to` pair | `parent` | `add_transition(...)` |
+| `set_transition_label` | `label \| null` + (`index` or `from`/`to`) | `parent` | `set_transition_label(..., prev_label)` |
+| `make_composite`       | `id`, `members: string[]` | `label`  | (move members out, remove composite) |
 
 **Sequence MutationOp kinds** (5):
 
@@ -319,6 +334,7 @@ serializeMermaid(d: ValidDiagram):                         string
 
 // Mutation is overloaded by family. Opaque/source-only families don't typecheck.
 mutate(d: FlowchartValidDiagram, op: FlowchartMutationOp): Result<FlowchartValidDiagram, MutationError>
+mutate(d: StateValidDiagram,     op: StateMutationOp):     Result<StateValidDiagram, MutationError>
 mutate(d: SequenceValidDiagram,  op: SequenceMutationOp):  Result<SequenceValidDiagram, MutationError>
 mutate(d: TimelineValidDiagram,  op: TimelineMutationOp):  Result<TimelineValidDiagram, MutationError>
 mutate(d: ClassValidDiagram,     op: ClassMutationOp):     Result<ClassValidDiagram, MutationError>
@@ -326,6 +342,7 @@ mutate(d: ErValidDiagram,        op: ErMutationOp):        Result<ErValidDiagram
 
 // Narrowing helpers; null when the diagram isn't of that family or is opaque/source-level.
 asFlowchart(d: ValidDiagram): FlowchartValidDiagram | null
+asState(d: ValidDiagram):     StateValidDiagram | null
 asSequence(d: ValidDiagram):  SequenceValidDiagram | null
 asTimeline(d: ValidDiagram):  TimelineValidDiagram | null
 asClass(d: ValidDiagram):     ClassValidDiagram | null
@@ -391,7 +408,7 @@ The canonical runtime guide lives in `Instructions_for_agents.md` and is emitted
 
 1. For new diagrams, author Mermaid source directly, then `parseMermaid` / `verifyMermaid` / render or return it.
 2. For existing diagrams, `parseMermaid(source)` → `ValidDiagram`.
-3. Narrow with `asFlowchart` / `asSequence` / `asTimeline` / `asClass` / `asEr`; `null` means no structured mutation for that body.
+3. Narrow with `asFlowchart` / `asState` / `asSequence` / `asTimeline` / `asClass` / `asEr`; `null` means no structured mutation for that body.
 4. Apply typed `mutate` ops only to narrowed mutable bodies; Code Mode SDK-returned diagrams are read-only to block direct IR edits.
 5. Run `verifyMermaid(d)` at every commit point and inspect `ok` / `warnings` / `layout`.
 6. Only then `serializeMermaid(d)`.

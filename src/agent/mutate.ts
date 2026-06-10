@@ -3,9 +3,9 @@
 // ============================================================================
 
 import type {
-  FlowchartValidDiagram, SequenceValidDiagram, TimelineValidDiagram,
+  FlowchartValidDiagram, StateValidDiagram, SequenceValidDiagram, TimelineValidDiagram,
   ClassValidDiagram, ErValidDiagram, JourneyValidDiagram, ArchitectureValidDiagram, XyChartValidDiagram, MutableValidDiagram,
-  FlowchartMutationOp, SequenceMutationOp, TimelineMutationOp,
+  FlowchartMutationOp, StateMutationOp, SequenceMutationOp, TimelineMutationOp,
   ClassMutationOp, ErMutationOp, JourneyMutationOp, ArchitectureMutationOp, XyChartMutationOp, AnyMutationOp,
   MutationError, Result,
 } from './types.ts'
@@ -15,6 +15,7 @@ import { getFamily } from './families.ts'
 import './families-builtin.ts'  // registers built-in family mutate hooks
 
 export function mutate(d: FlowchartValidDiagram, op: FlowchartMutationOp): Result<FlowchartValidDiagram, MutationError>
+export function mutate(d: StateValidDiagram, op: StateMutationOp): Result<StateValidDiagram, MutationError>
 export function mutate(d: SequenceValidDiagram, op: SequenceMutationOp): Result<SequenceValidDiagram, MutationError>
 export function mutate(d: TimelineValidDiagram, op: TimelineMutationOp): Result<TimelineValidDiagram, MutationError>
 export function mutate(d: ClassValidDiagram, op: ClassMutationOp): Result<ClassValidDiagram, MutationError>
@@ -28,9 +29,9 @@ export function mutate(
 ): Result<MutableValidDiagram, MutationError> {
   // Every structured family mutates through its FamilyPlugin hook, then
   // rebuilds canonicalSource from the new body so a mutated diagram never
-  // carries stale source. Lookup is by DIAGRAM kind, not body kind: state
-  // diagrams share the flowchart body but bind the stateDiagram-v2 header
-  // through their own plugin registration.
+  // carries stale source. Lookup is by DIAGRAM kind, not body kind. State
+  // diagrams (BUILD-19) own a dedicated StateBody and bind the stateDiagram-v2
+  // header through their own plugin registration.
   const plugin = getFamily(d.kind)
   if (plugin?.mutate && plugin.serialize) {
     const r = plugin.mutate(d.body, op)

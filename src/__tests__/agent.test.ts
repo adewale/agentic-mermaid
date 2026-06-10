@@ -7,7 +7,7 @@ import { parseMermaid } from '../agent/parse.ts'
 import { serializeMermaid, synthesizeFromGraph } from '../agent/serialize.ts'
 import { mutate } from '../agent/mutate.ts'
 import { verifyMermaid } from '../agent/verify.ts'
-import { asFlowchart, asSequence, toFinite, WARNING_TIER, WARNING_SEVERITY } from '../agent/types.ts'
+import { asFlowchart, asState, asSequence, toFinite, WARNING_TIER, WARNING_SEVERITY } from '../agent/types.ts'
 import type { FlowchartMutationOp, FlowchartValidDiagram, SequenceValidDiagram } from '../agent/types.ts'
 
 function parse(src: string) {
@@ -648,33 +648,40 @@ describe('asFlowchart / asSequence return null on the wrong family (close mutati
   })
 })
 
-describe('state diagrams narrow via asFlowchart (documented contract)', () => {
-  // State shares the flowchart body (DIVERGENCES.md): kind stays 'state' so
-  // serialization keeps the stateDiagram-v2 header, but body.kind is
-  // 'flowchart' and asFlowchart is the documented narrowing path. Pin both
-  // halves so an asState refactor cannot silently strand state mutation.
+describe('state diagrams narrow via asState (BUILD-19 contract)', () => {
+  // BUILD-19: state owns a dedicated StateBody (no longer the flowchart body).
+  // kind stays 'state'; body.kind is now 'state' and asState is the narrowing
+  // path. asFlowchart MUST return null on a state diagram (the breaking flip).
+  // Pin both halves so a regression to the flowchart projection is caught.
   const STATE_SRC = 'stateDiagram-v2\n  [*] --> Idle\n  Idle --> Running'
 
-  test('parse keeps kind state with a flowchart body', () => {
+  test('parse keeps kind state with a dedicated state body; asFlowchart returns null', () => {
     const d = parse(STATE_SRC)
     expect(d.kind).toBe('state')
-    expect(d.body.kind).toBe('flowchart')
+    expect(d.body.kind).toBe('state')
+    expect(asFlowchart(d)).toBeNull()
   })
 
-  test('asFlowchart narrows state and flowchart ops mutate it', () => {
-    const f = asFlowchart(parse(STATE_SRC))
-    expect(f).not.toBeNull()
-    const mutated = mutate(f!, { kind: 'add_node', id: 'Done', label: 'Done' })
+  test('asState narrows state and state-shaped ops mutate it', () => {
+    const s = asState(parse(STATE_SRC))
+    expect(s).not.toBeNull()
+    const mutated = mutate(s!, { kind: 'add_transition', from: 'Running', to: '[*]' })
     expect(mutated.ok).toBe(true)
     if (!mutated.ok) return
     const verify = verifyMermaid(mutated.value)
     expect(verify.ok).toBe(true)
     const out = serializeMermaid(mutated.value)
     expect(out.startsWith('stateDiagram-v2')).toBe(true)
-    expect(out).toContain('Done')
+    expect(out).toContain('Running --> [*]')
     // Registry dispatch is by diagram kind: the rebuilt canonicalSource must
-    // carry the state header, not the flowchart one, and never go stale.
+    // carry the state header and never go stale.
     expect(mutated.value.canonicalSource.startsWith('stateDiagram-v2')).toBe(true)
-    expect(mutated.value.canonicalSource).toContain('Done')
+    expect(mutated.value.canonicalSource).toContain('Running --> [*]')
+  })
+
+  test('flowchart ops do NOT apply to a state diagram (asFlowchart is null)', () => {
+    // The breaking change: flowchart's add_node is unreachable for state now.
+    expect(asFlowchart(parse(STATE_SRC))).toBeNull()
+    expect(asState(parse(STATE_SRC))).not.toBeNull()
   })
 })

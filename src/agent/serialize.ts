@@ -31,8 +31,8 @@ export function renderMeta(meta: ValidDiagramMeta): string {
 function renderBody(body: DiagramBody, kind: ValidDiagram['kind']): string {
   // Opaque bodies re-emit preserved source verbatim. Every structured body
   // serializes through its FamilyPlugin hook — looked up by DIAGRAM kind,
-  // not body kind, so state diagrams (which share the flowchart body) hit
-  // the state plugin and get the stateDiagram-v2 header.
+  // not body kind. State diagrams (BUILD-19) own a dedicated StateBody and the
+  // state plugin emits the stateDiagram-v2 header.
   if (body.kind === 'opaque') return body.source.endsWith('\n') ? body.source : body.source + '\n'
   const plugin = getFamily(kind)
   if (plugin?.serialize) return plugin.serialize(body)
@@ -70,7 +70,7 @@ export function synthesizeFromGraph(payload: ValidDiagramPayload): Result<ValidD
         linkStyles: toLinkStyleMap(sg.linkStyles),
       },
     }
-  } else if (payload.body.kind === 'sequence' || payload.body.kind === 'timeline' || payload.body.kind === 'class' || payload.body.kind === 'er' || payload.body.kind === 'journey' || payload.body.kind === 'architecture' || payload.body.kind === 'xychart' || payload.body.kind === 'opaque') {
+  } else if (payload.body.kind === 'state' || payload.body.kind === 'sequence' || payload.body.kind === 'timeline' || payload.body.kind === 'class' || payload.body.kind === 'er' || payload.body.kind === 'journey' || payload.body.kind === 'architecture' || payload.body.kind === 'xychart' || payload.body.kind === 'opaque') {
     body = payload.body
   } else {
     return err([{ code: 'INVALID_PAYLOAD', message: 'unknown body kind' }])

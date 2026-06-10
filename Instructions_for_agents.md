@@ -23,7 +23,7 @@ if (!verify.ok) return { phase: 'verify', warnings: verify.warnings }
 return { source: mermaid.serializeMermaid(d1.value) }
 ```
 
-Use `asFlowchart` / `asSequence` / `asTimeline` / `asClass` / `asEr` / `asJourney` / `asArchitecture` / `asXyChart` before mutating existing diagrams. State diagrams share the flowchart body: `asFlowchart` narrows them, and every flowchart op applies. In Code Mode, SDK-returned diagrams are read-only; structured edits must go through `mermaid.mutate`. Pie, quadrant, and opaque-fallback bodies round-trip losslessly as source-level bodies, but do not expose structured mutation; return an unsupported-family result unless the task explicitly asks for source-level editing, then re-parse and verify before returning.
+Use `asFlowchart` / `asState` / `asSequence` / `asTimeline` / `asClass` / `asEr` / `asJourney` / `asArchitecture` / `asXyChart` before mutating existing diagrams. State diagrams own a dedicated body: `asState` narrows them and state-shaped ops (`add_state`, `add_transition`, `make_composite`, …) apply; `asFlowchart` returns null on a state diagram. In Code Mode, SDK-returned diagrams are read-only; structured edits must go through `mermaid.mutate`. Pie, quadrant, and opaque-fallback bodies round-trip losslessly as source-level bodies, but do not expose structured mutation; return an unsupported-family result unless the task explicitly asks for source-level editing, then re-parse and verify before returning.
 
 ## The verify-before-commit rule
 
