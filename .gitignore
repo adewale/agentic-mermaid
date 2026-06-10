@@ -41,3 +41,6 @@ e2e/screenshots/current-*.png
 .stryker-tmp-*/
 reports/
 dist/am
+
+# Claude Code agent worktrees (session-transient, never ship)
+.claude/
