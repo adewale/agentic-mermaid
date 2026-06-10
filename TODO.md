@@ -49,8 +49,11 @@ dependents after. IDs are stable names, not an ordering.
   `FamilyPlugin` hooks registered in `src/agent/families-builtin.ts`; each
   family lives in one body module (`sequence-body.ts`, `timeline-body.ts`,
   `class-body.ts`, `er-body.ts`, `journey-body.ts`). Flowchart/state remain
-  the documented in-tree exception. Mutation rebuilds `canonicalSource`
-  uniformly. Unblocks BUILD-5/BUILD-6/BUILD-11 and the mutation roadmap.
+  registered via `flowchartFamilyHooks` (two plugins, one implementation,
+  header bound per kind) after the contract gained canonicalSource/
+  multi-error parse and a buildSourceMap hook — no in-tree exception
+  remains. Mutation rebuilds `canonicalSource` uniformly. Unblocks
+  BUILD-5/BUILD-6/BUILD-11 and the mutation roadmap.
 - [ ] **BUILD-5 — Common-README family coverage: pie, gantt, mindmap,
   gitgraph** (`todo`). These families are common in
   real-world READMEs/docs and already have authoring syntax references in
@@ -101,6 +104,17 @@ dependents after. IDs are stable names, not an ordering.
   notes/alt/loop/par), then class/ER/timeline unmodeled-syntax fallbacks.
   This is the path to "typed mutation for all diagrams" without ever
   violating the no-loss guarantee.
+- [ ] **BUILD-19 — Dedicated `StateBody` IR for state diagrams** (`todo`,
+  evidence-gated). State diagrams currently parse AS flowcharts (shared
+  `MermaidGraph` body; `[*]` pseudo-states encoded as node shapes), so
+  agents edit them with flowchart vocabulary. A dedicated structured-or-
+  opaque `StateBody` (states, transitions, composites, forks/choices,
+  notes, concurrency) would give state-shaped ops (`add_state`,
+  `add_transition`, `make_composite`, …), a real `asState` narrower, and
+  lossless opaque fallback for composite syntax the flowchart projection
+  flattens. Full BUILD-15-style checklist plus a renderer-projection
+  decision. Promote when a consumer actually hits the limits of flowchart
+  vocabulary on state diagrams.
 - [x] **BUILD-13 — Layout before/after comparison harness** (`done`).
   Prerequisite for all visual/layout work (BUILD-10, BUILD-9, BUILD-12,
   BUILD-1): render the corpus + targeted fixtures on two git states and emit

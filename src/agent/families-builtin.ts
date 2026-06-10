@@ -6,9 +6,10 @@
 // serializeMermaid, and mutate dispatch through these hooks, so adding a
 // family means one registration plus a body module — no core edits.
 //
-// Flowchart/state remain the documented exception: they share the legacy
-// MermaidGraph body, error (rather than fall back to opaque) on bad syntax,
-// and carry a SourceMap, so parse.ts keeps their branch in-tree.
+// Flowchart and state register through `flowchartFamilyHooks(headerKind)`:
+// two plugins sharing one implementation over the legacy MermaidGraph body,
+// with the serialized header bound per kind. Their parse keeps error
+// semantics (no opaque fallback) and contributes a SourceMap.
 // ============================================================================
 
 import { registerFamily, extractLabelsGeneric, type ExtractedLabel, type FamilyPlugin } from './families.ts'
@@ -19,6 +20,7 @@ import { verifyErBody, parseErBody, renderEr, mutateEr } from './er-body.ts'
 import { parseSequenceBody, renderSequence, mutateSequence } from './sequence-body.ts'
 import { parseTimelineBody, renderTimeline, mutateTimeline } from './timeline-body.ts'
 import { parseJourneyBody, renderJourney, mutateJourney, verifyJourney } from './journey-body.ts'
+import { parseFlowchartBody, renderFlowchart, mutateFlowchart, buildFlowchartSourceMap, type FlowchartBody } from './flowchart-body.ts'
 
 // Build the structured-or-opaque hook set shared by every structured family
 // that is not flowchart/state. `headerOk` gates structured parsing: families
@@ -72,8 +74,36 @@ function extractFlowchartLabels(source: string): ExtractedLabel[] {
   return out
 }
 
-registerFamily({ id: 'flowchart', detect: l => l.startsWith('flowchart') || l.startsWith('graph'), extractLabels: extractFlowchartLabels })
-registerFamily({ id: 'state', detect: l => l.startsWith('statediagram') || l.startsWith('statediagram-v2'), extractLabels: extractFlowchartLabels })
+// One implementation, two registrations: the diagram kind (not the body
+// kind) selects the plugin, so each binds its serialized header here.
+function flowchartFamilyHooks(headerKind: 'flowchart' | 'state'): Pick<FamilyPlugin, 'parse' | 'buildSourceMap' | 'serialize' | 'mutate'> {
+  return {
+    parse: (_lines, _opaqueSource, _meta, canonicalSource) => parseFlowchartBody(canonicalSource),
+    buildSourceMap: (body, canonicalSource) =>
+      buildFlowchartSourceMap(body as FlowchartBody, canonicalSource),
+    serialize: body => {
+      if (body.kind !== 'flowchart') throw new Error(`${headerKind} serializer received body kind ${body.kind}`)
+      return renderFlowchart(body.graph, headerKind)
+    },
+    mutate: (body, op) => {
+      if (body.kind !== 'flowchart') return err<MutationError>({ code: 'INVALID_OP', message: `${headerKind} mutator received body kind ${body.kind}` })
+      return mutateFlowchart(body, op as never)
+    },
+  }
+}
+
+registerFamily({
+  id: 'flowchart',
+  detect: l => l.startsWith('flowchart') || l.startsWith('graph'),
+  extractLabels: extractFlowchartLabels,
+  ...flowchartFamilyHooks('flowchart'),
+})
+registerFamily({
+  id: 'state',
+  detect: l => l.startsWith('statediagram') || l.startsWith('statediagram-v2'),
+  extractLabels: extractFlowchartLabels,
+  ...flowchartFamilyHooks('state'),
+})
 
 // ---- Sequence -------------------------------------------------------------
 // Sequence labels: messages (`A->>B: text`), participants (`participant X as Label`,

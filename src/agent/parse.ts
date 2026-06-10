@@ -7,7 +7,6 @@
 // than silently dropping the unrecognized construct.
 // ============================================================================
 
-import { parseMermaid as parseFlowchartLegacy } from '../parser.ts'
 import { normalizeMermaidSource, detectLooseDiagramTypeFromFirstLine } from '../mermaid-source.ts'
 import { getFamily } from './families.ts'
 import './families-builtin.ts'  // registers built-in family parse/serialize/mutate hooks
@@ -53,33 +52,22 @@ export function parseMermaid(source: string): Result<ValidDiagram, ParseError[]>
     return err(errors)
   }
 
-  const sourceMap = emptySourceMap()
-
-  if (kind === 'flowchart' || kind === 'state') {
-    try {
-      const graph = parseFlowchartLegacy(canonicalSource)
-      indexFlowchartSource(canonicalSource, graph.nodes.keys(), sourceMap)
-      return ok<ValidDiagram>({ kind, meta, body: { kind: 'flowchart', graph }, source: sourceMap, canonicalSource })
-    } catch (e) {
-      errors.push({ code: 'PARSE_FAILED', message: e instanceof Error ? e.message : String(e) })
-      return err(errors)
-    }
-  }
-
-  // BUILD-3: every other family dispatches through its FamilyPlugin.parse
-  // hook (structured-or-opaque). Families without a hook stay source-level.
+  // BUILD-3: every family dispatches through its FamilyPlugin.parse hook —
+  // structured-or-opaque for the narrow families, error semantics for
+  // flowchart/state. Families without a hook stay source-level.
   const plugin = getFamily(kind)
   if (plugin?.parse) {
-    const parsed = plugin.parse(normalized.lines, opaqueSource, meta)
+    const parsed = plugin.parse(normalized.lines, opaqueSource, meta, canonicalSource)
     if (!parsed.ok) {
-      errors.push(parsed.error)
+      errors.push(...parsed.error)
       return err(errors)
     }
+    const sourceMap = plugin.buildSourceMap?.(parsed.value, canonicalSource) ?? emptySourceMap()
     return ok<ValidDiagram>({ kind, meta, body: parsed.value, source: sourceMap, canonicalSource })
   }
 
   return ok<ValidDiagram>({
-    kind, meta, body: { kind: 'opaque', family: kind, source: opaqueSource }, source: sourceMap, canonicalSource,
+    kind, meta, body: { kind: 'opaque', family: kind, source: opaqueSource }, source: emptySourceMap(), canonicalSource,
   })
 }
 
@@ -149,15 +137,3 @@ function emptySourceMap(): SourceMap {
   return { nodes: new Map(), edges: new Map(), groups: new Map() }
 }
 
-function indexFlowchartSource(source: string, nodeIds: IterableIterator<string>, map: SourceMap): void {
-  const lines = source.split(/\r?\n/)
-  for (const id of Array.from(nodeIds)) {
-    const re = new RegExp(`\\b${escapeRegex(id)}\\b`)
-    for (let i = 0; i < lines.length; i++) {
-      const idx = lines[i]!.search(re)
-      if (idx >= 0) { map.nodes.set(id, { line: i + 1, col: idx + 1 }); break }
-    }
-  }
-}
-
-function escapeRegex(s: string): string { return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') }

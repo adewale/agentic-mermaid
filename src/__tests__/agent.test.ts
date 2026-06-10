@@ -670,5 +670,9 @@ describe('state diagrams narrow via asFlowchart (documented contract)', () => {
     const out = serializeMermaid(mutated.value)
     expect(out.startsWith('stateDiagram-v2')).toBe(true)
     expect(out).toContain('Done')
+    // Registry dispatch is by diagram kind: the rebuilt canonicalSource must
+    // carry the state header, not the flowchart one, and never go stale.
+    expect(mutated.value.canonicalSource.startsWith('stateDiagram-v2')).toBe(true)
+    expect(mutated.value.canonicalSource).toContain('Done')
   })
 })
