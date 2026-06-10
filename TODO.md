@@ -76,11 +76,23 @@ dependents after. IDs are stable names, not an ordering.
   - [ ] gantt, mindmap, gitgraph: still to implement. Order the remaining
     three by the real README corpus run (network required) per the evidence
     step above — `eval/family-usage/RESULTS.md` does not assert that ordering.
-- [ ] **BUILD-11 — QuadrantChart family** (`todo`). Promoted
+- [x] **BUILD-11 — QuadrantChart family** (`done`). Promoted
   from the PARK-3 fork-audit list. Quadrant charts are missing across the
   entire beautiful-mermaid fork network (no port exists upstream or in any
   fork), so this is cheap differentiation. Axis/quadrant layout is closer to
-  xychart than to graph families; expect a source-level body first.
+  xychart than to graph families; shipped as a source-level body.
+  Evidence: `src/quadrant/` (types/parser/layout/SVG renderer) +
+  `src/ascii/quadrant.ts`; routing in `src/mermaid-source.ts`, `src/index.ts`,
+  `src/ascii/index.ts`; agent surface in `src/agent/families-builtin.ts`
+  (`quadrant` detect + `extractQuadrantLabels`) and `DiagramKind` in
+  `src/agent/types.ts`. Quadrant numbering matches Mermaid core (upstream
+  `quadrantChart.md`: 1=top-right, 2=top-left, 3=bottom-left, 4=bottom-right).
+  Tests: `src/__tests__/quadrant.test.ts` (parser happy/sad, per-quadrant
+  geometry, deterministic SVG, fast-check property, agent surface) + 2 unicode
+  / 2 ascii goldens (`testdata/{unicode,ascii}/quadrant_*.txt`). Malformed
+  lines (out-of-range/non-numeric coords, missing brackets, duplicate labels,
+  `classDef`/`:::` styling) error loudly. Docs/showcase/CHANGELOG/llms.txt
+  updated; 11-family count assertions and detector-drift case bumped.
 - [ ] **BUILD-6 — New upstream Mermaid families (11.4–11.15)** (`todo`). Mermaid added kanban (11.4), radar (11.6), treemap
   (~11.9), Venn (beta, 11.13), Ishikawa/fishbone (beta, 11.13), Wardley Maps
   (beta, 11.14), TreeView (11.14), and Event Modeling (11.15). Upstream

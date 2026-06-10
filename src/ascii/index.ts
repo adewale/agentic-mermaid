@@ -32,6 +32,7 @@ import { renderTimelineAscii } from './timeline.ts'
 import { renderJourneyAscii } from './journey.ts'
 import { renderXYChartAscii } from './xychart.ts'
 import { renderPieAscii } from './pie.ts'
+import { renderQuadrantAscii } from './quadrant.ts'
 import { renderArchitectureAscii } from './architecture.ts'
 import { detectColorMode, DEFAULT_ASCII_THEME, diagramColorsToAsciiTheme } from './ansi.ts'
 import type { AsciiConfig, AsciiTheme, ColorMode } from './types.ts'
@@ -148,6 +149,9 @@ export function renderMermaidASCII(
 
     case 'pie':
       return renderPieAscii(normalizedSource.lines, config, colorMode, theme)
+
+    case 'quadrant':
+      return renderQuadrantAscii(normalizedSource.lines, config, colorMode, theme)
 
     case 'sequence':
       return renderSequenceAscii(normalizedSource.text, config, colorMode, theme)

@@ -1553,6 +1553,47 @@ export const samples: Sample[] = [
   },
 
   // ══════════════════════════════════════════════════════════════════════════
+  //  QUADRANT
+  // ══════════════════════════════════════════════════════════════════════════
+
+  {
+    title: 'Quadrant: Reach & Engagement',
+    category: 'Quadrant',
+    description: 'The classic quadrant chart: campaigns plotted by reach (x) and engagement (y), with a label in each of the four quadrants.',
+    source: `quadrantChart
+    title Reach and engagement of campaigns
+    x-axis Low Reach --> High Reach
+    y-axis Low Engagement --> High Engagement
+    quadrant-1 We should expand
+    quadrant-2 Need to promote
+    quadrant-3 Re-evaluate
+    quadrant-4 May be improved
+    Campaign A: [0.3, 0.6]
+    Campaign B: [0.45, 0.23]
+    Campaign C: [0.57, 0.69]
+    Campaign D: [0.78, 0.34]
+    Campaign E: [0.40, 0.34]
+    Campaign F: [0.35, 0.78]`,
+  },
+  {
+    title: 'Quadrant: Effort vs Value',
+    category: 'Quadrant',
+    description: 'A prioritization matrix — tasks plotted by effort and value to decide what to do, plan, delegate, or drop.',
+    source: `quadrantChart
+    title Prioritization matrix
+    x-axis Low Effort --> High Effort
+    y-axis Low Value --> High Value
+    quadrant-1 Do now
+    quadrant-2 Plan
+    quadrant-3 Drop
+    quadrant-4 Delegate
+    Onboarding revamp: [0.2, 0.9]
+    Platform migration: [0.8, 0.8]
+    Legacy cleanup: [0.25, 0.2]
+    Vendor swap: [0.7, 0.3]`,
+  },
+
+  // ══════════════════════════════════════════════════════════════════════════
   //  SEMANTIC ROLE STYLE SHOWCASE
   // ══════════════════════════════════════════════════════════════════════════
 

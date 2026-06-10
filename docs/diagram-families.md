@@ -15,6 +15,7 @@ Agentic Mermaid supports Mermaid's common diagram families through a split pipel
 | Journey | `journey` | SVG/PNG/ASCII | structured (10 ops) | `asJourney` narrows simple title/section/task journeys; unmodeled syntax (accTitle/accDescr) stays opaque. |
 | XY chart | `xychart`, `xychart-beta` | SVG/PNG/ASCII | source-level only | Vertical/horizontal bar/line/mixed charts. |
 | Pie | `pie` | SVG/PNG/ASCII | source-level only | Labelled slices with optional `showData` and title. |
+| Quadrant | `quadrantChart` | SVG/PNG/ASCII | source-level only | Points plotted in a 2x2 matrix with axis + quadrant labels. |
 | Architecture | `architecture-beta` | SVG/PNG/ASCII | structured (10 ops) | `asArchitecture` narrows the modeled subset (groups/services/junctions/edges); the `{group}` boundary modifier and accTitle/accDescr stay opaque. |
 
 Source-level-only does not mean unsupported: those families parse, render, verify, and round-trip, but agents should edit source deliberately instead of calling `mutate`.
@@ -121,6 +122,23 @@ pie showData
 ```
 
 Pie charts accept the `pie` header with optional `showData`, an optional `title`, and `"label" : value` entries with positive numeric values. Slices render clockwise in source order. `showData` adds the raw value beside each legend label; the legend always shows the computed percentage. Malformed entries (negative/zero values, missing colon, unquoted labels) are hard errors — never silently dropped. The ASCII renderer draws a proportional bar list. Pie is source-level: parse, render, and verify it, then edit source deliberately rather than calling `mutate`.
+
+## Quadrant
+
+```mermaid
+quadrantChart
+  title Reach and engagement of campaigns
+  x-axis Low Reach --> High Reach
+  y-axis Low Engagement --> High Engagement
+  quadrant-1 We should expand
+  quadrant-2 Need to promote
+  quadrant-3 Re-evaluate
+  quadrant-4 May be improved
+  Campaign A: [0.3, 0.6]
+  Campaign B: [0.45, 0.23]
+```
+
+Quadrant charts accept the `quadrantChart` header, an optional `title`, `x-axis <left> --> <right>` and `y-axis <bottom> --> <top>` axis labels (the far side is optional), four `quadrant-1..quadrant-4 <label>` region labels, and `<Label>: [x, y]` points with coordinates in `[0, 1]`. Quadrant numbering follows Mermaid core: **1 = top-right, 2 = top-left, 3 = bottom-left, 4 = bottom-right**. The SVG renderer draws a square plot split into four theme-tinted quadrants with the points as circles; the ASCII renderer draws a bordered grid with a coordinate legend. Malformed lines — out-of-range/non-numeric coordinates, missing brackets, duplicate point labels, and unsupported styling (`classDef`, `:::`) — are hard errors, never silently dropped. Quadrant is source-level: parse, render, and verify it, then edit source deliberately rather than calling `mutate`.
 
 ## Architecture
 

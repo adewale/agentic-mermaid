@@ -319,6 +319,7 @@ describe('detector drift guard (agent vs shared router)', () => {
       ['journey\n  title T\n  section S\n    Wake: 3: Me', 'journey'],
       ['xychart-beta\n  bar [1,2,3]', 'xychart'],
       ['pie title Pets\n  "Dogs" : 386\n  "Cats" : 85', 'pie'],
+      ['quadrantChart\n  title T\n  Campaign A: [0.3, 0.6]', 'quadrant'],
       ['architecture-beta\n  group api(cloud)[API]', 'architecture'],
     ]
     for (const [src, expected] of cases) {

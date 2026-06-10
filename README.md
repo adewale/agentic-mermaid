@@ -30,11 +30,11 @@ Agents should not guess from pixels, concatenate strings, or regenerate whole di
 
 ## Highlights
 
-- **10 diagram families** — flowchart, state, architecture, sequence, class, ER, timeline, journey, XY chart, and pie.
+- **11 diagram families** — flowchart, state, architecture, sequence, class, ER, timeline, journey, XY chart, pie, and quadrant.
 - **ASCII, PNG, SVG** — plus Unicode text and JSON layout.
 - **Synchronous, zero-DOM SVG renderer** — no Puppeteer, no browser flash.
 - **19 built-in themes + Shiki compatibility** — theme from two colors or a VS Code theme.
-- **Agent-native editing** — typed mutation for flowchart/state, sequence, timeline, class, ER, journey, and architecture; source-level round-trip for XY chart, pie, and opaque fallbacks.
+- **Agent-native editing** — typed mutation for flowchart/state, sequence, timeline, class, ER, journey, and architecture; source-level round-trip for XY chart, pie, quadrant, and opaque fallbacks.
 - **CLI + MCP + library** — `am`, `agentic-mermaid-mcp`, `agentic-mermaid`, and `agentic-mermaid/agent`.
 
 ## Installation
@@ -149,7 +149,7 @@ Rules:
 - Use `asFlowchart` / `asSequence` / `asTimeline` / `asClass` / `asEr` before mutating existing diagrams.
 - Mutation ops use `kind`, not `type`.
 - Run `verifyMermaid` before every commit point.
-- Do not call `mutate` on XY chart, pie, or opaque fallback bodies.
+- Do not call `mutate` on XY chart, pie, quadrant, or opaque fallback bodies.
 
 ## Supported diagram families
 
@@ -163,6 +163,7 @@ Rules:
 | Journey | ✓ | ✓ | SVG/PNG/ASCII | source-level only |
 | XY chart | ✓ | ✓ | SVG/PNG/ASCII | source-level only |
 | Pie | ✓ | ✓ | SVG/PNG/ASCII | source-level only |
+| Quadrant | ✓ | ✓ | SVG/PNG/ASCII | source-level only |
 | Architecture | ✓ | ✓ | SVG/PNG/ASCII | source-level only |
 
 See [diagram families](./docs/diagram-families.md) for examples and compatibility notes.
