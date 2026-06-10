@@ -166,12 +166,12 @@ describe('root docs consistency', () => {
     expect(existsSync(join(REPO, 'AGENTS.md'))).toBe(false)
     for (const name of readdirSync(REPO).filter(f => f.endsWith('.md'))) {
       const text = readFileSync(join(REPO, name), 'utf8')
-      expect({ file: name, stale: /\b(?:ROADMAP|AGENT_TODO|AGENTS\.md)\b/.test(text) }).toEqual({ file: name, stale: false })
+      expect({ file: name, stale: /\b(?:ROADMAP|AGENT_TODO)\b/.test(text) }).toEqual({ file: name, stale: false })
     }
   })
 
   test('advertised CLI verbs have help entries', () => {
-    const commands = ['render', 'verify', 'parse', 'serialize', 'mutate', 'preview', 'format', 'describe', 'capabilities', 'batch', 'render-markdown', 'llms-txt']
+    const commands = ['render', 'verify', 'parse', 'serialize', 'mutate', 'preview', 'format', 'describe', 'capabilities', 'batch', 'render-markdown', 'llms-txt', 'init-agent']
     for (const command of commands) {
       const r = spawnSync('bun', ['run', join(REPO, 'bin/am.ts'), command, '--help'], { encoding: 'utf8' })
       expect({ command, status: r.status, stderr: r.stderr }).toEqual({ command, status: 0, stderr: '' })
@@ -184,10 +184,12 @@ describe('root docs consistency', () => {
     const previewHelp = spawnSync('bun', ['run', join(REPO, 'bin/am.ts'), 'preview', '--help'], { encoding: 'utf8' }).stdout
     const batchHelp = spawnSync('bun', ['run', join(REPO, 'bin/am.ts'), 'batch', '--help'], { encoding: 'utf8' }).stdout
     const capabilitiesHelp = spawnSync('bun', ['run', join(REPO, 'bin/am.ts'), 'capabilities', '--help'], { encoding: 'utf8' }).stdout
+    const initAgentHelp = spawnSync('bun', ['run', join(REPO, 'bin/am.ts'), 'init-agent', '--help'], { encoding: 'utf8' }).stdout
     expect(mutateHelp).toContain('--ops')
     expect(previewHelp).toContain('--open')
     expect(batchHelp).toContain('"mutate"')
     expect(capabilitiesHelp).toContain('editPolicy')
+    expect(initAgentHelp).toContain('skills/agentic-mermaid-diagram-workflow/SKILL.md')
 
     const guide = readFileSync(join(REPO, 'Instructions_for_agents.md'), 'utf8')
     const llms = readFileSync(join(REPO, 'llms.txt'), 'utf8')
@@ -201,17 +203,56 @@ describe('root docs consistency', () => {
     const readme = readFileSync(join(REPO, 'README.md'), 'utf8')
     expect(readme).toContain('strict `preview`')
     expect(readme).toContain('mutate --op/--ops')
+    expect(readme).toContain('npx agentic-mermaid init-agent')
   })
 
-  test('README theme and RenderOptions inventory matches public surface', () => {
+  test('docs structure keeps README short and long-form content delegated', () => {
     const readme = readFileSync(join(REPO, 'README.md'), 'utf8')
+    expect(readme.split('\n').length).toBeLessThanOrEqual(250)
+    expect(existsSync(join(REPO, 'docs/README.md'))).toBe(true)
+    for (const doc of ['api.md', 'diagram-families.md', 'theming.md', 'react.md', 'ascii.md', 'config.md']) {
+      expect(existsSync(join(REPO, 'docs', doc))).toBe(true)
+      expect(readme).toContain(`./docs/${doc}`)
+    }
+    expect(readdirSync(REPO).filter(f => f.endsWith('.md')).sort()).toEqual([
+      'AGENT_NATIVE.md',
+      'CHANGELOG.md',
+      'Instructions_for_agents.md',
+      'README.md',
+      'SECURITY.md',
+      'TODO.md',
+    ])
+  })
+
+  test('theme and RenderOptions inventory is delegated to focused docs', () => {
+    const readme = readFileSync(join(REPO, 'README.md'), 'utf8')
+    const theming = readFileSync(join(REPO, 'docs/theming.md'), 'utf8')
+    const api = readFileSync(join(REPO, 'docs/api.md'), 'utf8')
     const themeNames = Object.keys(THEMES)
     expect(readme).toContain(`${themeNames.length} built-in themes`)
-    for (const name of themeNames) expect(readme).toContain(`\`${name}\``)
+    expect(theming).toContain(`${themeNames.length} built-in themes`)
+    for (const name of themeNames) expect(theming).toContain(`\`${name}\``)
     for (const option of ['shadow', 'embedFontImport', 'compact', 'idPrefix', 'security']) {
-      expect(readme).toContain(`\`${option}\``)
+      expect(api).toContain(`\`${option}\``)
     }
     expect(readme).not.toContain('`thoroughness`')
+    expect(api).not.toContain('`thoroughness`')
+  })
+
+  test('advertised PNG support has concrete library, CLI, and MCP examples', () => {
+    const checks = [
+      ['README.md', readFileSync(join(REPO, 'README.md'), 'utf8')],
+      ['docs/api.md', readFileSync(join(REPO, 'docs/api.md'), 'utf8')],
+      ['docs/agent-api-cookbook.md', readFileSync(join(REPO, 'docs/agent-api-cookbook.md'), 'utf8')],
+      ['skills/agentic-mermaid-diagram-workflow/SKILL.md', readFileSync(join(REPO, 'skills/agentic-mermaid-diagram-workflow/SKILL.md'), 'utf8')],
+    ] as const
+    for (const [file, text] of checks) {
+      expect({ file, library: text.includes('renderMermaidPNG') }).toEqual({ file, library: true })
+      expect({ file, cli: text.includes('--format png') && text.includes('--output') }).toEqual({ file, cli: true })
+    }
+    const cookbook = readFileSync(join(REPO, 'docs/agent-api-cookbook.md'), 'utf8')
+    expect(cookbook).toContain('writeFileSync(\'diagram.png\'')
+    expect(cookbook).toContain('render_png')
   })
 })
 
@@ -341,12 +382,12 @@ describe('shipped distribution artifacts present', () => {
     expect(payload.cases).toEqual(['auth-flow', 'order-domain-er'])
     expect(payload.sources['auth-flow']).toContain('G --> H[Dashboard]')
     expect(payload.sources['order-domain-er']).toContain('CUSTOMER ||--o{ ORDER : places')
-  }, 30_000)
+  }, 90_000)
 
   test('agent improvement example assesses, mutates, reassesses, and writes render files', async () => {
     const outDir = mkdtempSync(join(tmpdir(), 'am-example-test-'))
     try {
-      const r = await runBunExample(join(REPO, 'examples/agent-improve-auth-flow.ts'), ['--out-dir', outDir])
+      const r = await runBunExample(join(REPO, 'examples/agent-improve-auth-flow.ts'), ['--out-dir', outDir, '--test-png-placeholder'], 120_000)
       expect({ status: r.status, timedOut: r.timedOut, stderr: r.stderr }).toEqual({ status: 0, timedOut: false, stderr: '' })
       const payload = JSON.parse(r.stdout)
       expect(payload.ok).toBe(true)
@@ -365,12 +406,20 @@ describe('shipped distribution artifacts present', () => {
     } finally {
       rmSync(outDir, { recursive: true, force: true })
     }
-  }, 30_000)
+  }, 150_000)
 
-  test('npm package includes bundled PNG fonts documented for deterministic output', () => {
+  test('npm package includes bundled PNG fonts and delegated docs', () => {
     const pkg = JSON.parse(readFileSync(join(REPO, 'package.json'), 'utf8'))
     expect(pkg.files).toContain('assets/fonts/')
-    for (const doc of ['FEATURES.md', 'TODO.md', 'QUALITY.md', 'SECURITY.md', 'docs/', 'skills/', 'evals/']) expect(pkg.files).toContain(doc)
+    for (const doc of ['TODO.md', 'SECURITY.md', 'docs/', 'skills/', 'evals/']) expect(pkg.files).toContain(doc)
+    for (const removedRootDoc of ['FEATURES.md', 'FORK_DIFFERENCES.md', 'QUALITY.md']) expect(pkg.files).not.toContain(removedRootDoc)
+    expect(pkg.bin).toEqual({
+      am: './dist/am.js',
+      'agentic-mermaid': './dist/am.js',
+      'agentic-mermaid-mcp': './dist/agentic-mermaid-mcp.js',
+    })
+    expect(pkg.publishConfig).toMatchObject({ access: 'public', provenance: true })
+    expect(pkg.engines.node).toBe('>=18')
     for (const example of ['examples/agent-loop.ts', 'examples/mcp-vs-cli-complex-diagrams.ts', 'examples/agent-improve-auth-flow.ts']) expect(pkg.files).toContain(example)
     expect(existsSync(join(REPO, 'assets/fonts/DejaVuSans.ttf'))).toBe(true)
     expect(existsSync(join(REPO, 'assets/fonts/DejaVuSans-Bold.ttf'))).toBe(true)

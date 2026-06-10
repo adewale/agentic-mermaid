@@ -12,7 +12,7 @@ Supported chart forms:
 - semicolon-separated Mermaid statements
 - Mermaid accessibility directives (`accTitle` / `accDescr`)
 - Mermaid YAML frontmatter and `init` / `initialize` directives, including Mermaid-style loose object literals, for the current documented `xyChart` config surface
-- SVG and ASCII output routed through the public entry points
+- SVG, PNG, and ASCII output routed through the public entry points
 
 ## Pipeline
 
@@ -52,7 +52,7 @@ Key layout choices:
 
 ### Renderer
 
-`src/xychart/renderer.ts` and `src/ascii/xychart.ts` share the same parsed chart semantics, then render them in each output mode.
+`src/xychart/renderer.ts` and `src/ascii/xychart.ts` share the same parsed chart semantics. PNG output is produced by rasterizing the SVG renderer output.
 
 Current SVG rendering decisions:
 

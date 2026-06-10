@@ -140,7 +140,7 @@ describe('determinism — cross-runtime ASCII (Loop 9 M7)', () => {
   // Mirrors the cross-runtime PNG test pattern. Renders the same source as
   // ASCII in bun + in node (via dist/agent.js), compares SHA-256 byte-hashes.
   // If diverges, the test is marked test.todo with a clear comment and the
-  // gap goes into DIVERGENCES.md. Don't fake-pass.
+  // gap goes into docs/project/divergences.md. Don't fake-pass.
   const NODE = findNodeBinary()
   const DIST = join(import.meta.dir, '..', '..', 'dist', 'agent.js')
   const haveNode = (() => {

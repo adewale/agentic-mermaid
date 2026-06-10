@@ -17,7 +17,7 @@
 // cross-runtime determinism (bun ≡ node on same-machine x86_64/ARM64 when
 // Node + built dist are present), basic PNG validity.
 // What's NOT tested: direct x86_64-vs-ARM64 byte equality, resvg version drift
-// across npm install runs. See QUALITY.md "PNG determinism".
+// across npm install runs. See docs/quality.md "PNG determinism".
 // ============================================================================
 
 import { fileURLToPath } from 'node:url'

@@ -71,4 +71,14 @@ if (!verify.ok) return { phase: 'verify', warnings: verify.warnings }
 return { source: serializeMermaid(cur) }
 ```
 
+Output artifact pattern:
+
+```ts
+const svg = renderMermaidSVG(cur, { security: 'strict' })
+const png = renderMermaidPNG(cur, { fitTo: { width: 1200 }, background: '#fff' })
+const ascii = renderMermaidASCII(cur, { useAscii: true })
+```
+
+CLI PNG: `am render diagram.mmd --format png --output diagram.png`.
+
 See `references/flowchart.md`, `references/sequence.md`, `references/timeline.md`, and the repository cookbook at `docs/agent-api-cookbook.md`.

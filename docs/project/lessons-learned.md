@@ -139,7 +139,7 @@ Net: cheap, high-signal, not always-on.
 - **Honest scope cuts beat over-promising.** Loop 9 shipped 13 of
   16 milestones. The 3 cuts (B14 pathfinder, C15 mermaid-ast
   journey/xychart, C16 plugin consolidation) are documented in
-  DIVERGENCES.md with concrete reasons (context budget; mermaid-ast
+  `docs/project/divergences.md` with concrete reasons (context budget; mermaid-ast
   transitive deps broken; refactor too large for remaining budget).
   Loop 10 picks them up with no mystery.
 - **Probe dep availability before committing to a dep-based plan.**
@@ -293,7 +293,7 @@ metadata. The branch had accumulated several small inconsistencies:
 
 - PR title still described Loop 7 even though the branch had become Loops
   7-13.
-- `FEATURES.md` and generated `llms.txt` claimed MCP `query`/`xref` tools
+- `docs/features.md` and generated `llms.txt` claimed MCP `query`/`xref` tools
   that do not exist. The real surface is primary `execute` plus narrow
   `render_png` and `describe` helpers.
 - `am capabilities` under-reported output formats (`svg`, `ascii`, `png`)

@@ -1199,6 +1199,62 @@ export async function generateHtml(options: GenerateHtmlOptions = {}): Promise<s
       border-radius: 4px;
     }
 
+    /* -- Agent bootstrap CTA -- */
+    .agent-cta {
+      max-width: 1440px;
+      margin: 0 auto 1.5rem;
+      padding: 0 2rem;
+    }
+    @media (min-width: 1000px) {
+      .agent-cta { padding: 0 3rem; }
+    }
+    .agent-cta-box {
+      border-radius: 16px;
+      padding: 1.5rem;
+      background: color-mix(in srgb, var(--t-accent) 6%, var(--t-bg));
+      max-width: 780px;
+    }
+    .agent-cta-box h2 {
+      font-size: 1.1rem;
+      font-weight: 700;
+      margin: 0 0 0.35rem;
+      color: var(--t-fg);
+    }
+    .agent-cta-box p {
+      font-size: 0.9rem;
+      line-height: 1.6;
+      color: color-mix(in srgb, var(--t-fg) 70%, var(--t-bg));
+      margin: 0 0 0.75rem;
+      max-width: 700px;
+    }
+    .agent-cta-box pre {
+      font-family: 'JetBrains Mono', 'Fira Code', monospace;
+      font-size: 0.82rem;
+      line-height: 1.5;
+      background: color-mix(in srgb, var(--t-fg) 8%, var(--t-bg));
+      color: var(--t-fg);
+      padding: 0.85rem 1rem;
+      border-radius: 10px;
+      overflow-x: auto;
+      margin: 0 0 0.75rem;
+      white-space: pre;
+    }
+    .agent-cta-box code {
+      font-family: 'JetBrains Mono', 'Fira Code', monospace;
+      font-size: 0.85em;
+    }
+    .agent-cta-box a {
+      color: var(--t-fg);
+      text-decoration: underline;
+      text-underline-offset: 2px;
+    }
+    .agent-cta-box a:hover { color: var(--t-accent); }
+    .agent-cta-foot {
+      font-size: 0.82rem;
+      color: color-mix(in srgb, var(--t-fg) 55%, var(--t-bg)) !important;
+      margin: 0 !important;
+    }
+
     /* -- Hero meta (below buttons) -- */
     .hero-meta {
       margin-top: 1.25rem;
@@ -1387,7 +1443,7 @@ export async function generateHtml(options: GenerateHtmlOptions = {}): Promise<s
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
         Editor
       </a>
-      <a href="https://github.com/adewale/beautiful-mermaid/blob/main/FORK_DIFFERENCES.md" target="_blank" rel="noopener" class="hero-btn hero-btn-secondary">
+      <a href="https://github.com/adewale/beautiful-mermaid/blob/main/docs/fork-differences.md" target="_blank" rel="noopener" class="hero-btn hero-btn-secondary">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
         Fork Notes
       </a>
@@ -1407,6 +1463,26 @@ export async function generateHtml(options: GenerateHtmlOptions = {}): Promise<s
       <div class="meta">Early preview — actively evolving</div>
     </div>
   </header>
+
+  <!-- Agent bootstrap CTA -->
+  <section class="agent-cta" aria-label="Use with your coding agent">
+    <div class="agent-cta-box shadow-minimal">
+      <h2>Tell your agent to use this</h2>
+      <p>
+        Agentic Mermaid is agent-native. The fastest start is to point a coding
+        agent at the hosted contract — no clone, no manual install.
+      </p>
+      <pre>When editing Mermaid diagrams, use Agentic Mermaid.
+Read https://adewale.github.io/beautiful-mermaid/llms.txt and follow its
+parse → narrow → mutate → verify → serialize workflow. For new diagrams,
+author source directly, then verify and render.</pre>
+      <p class="agent-cta-foot">
+        Prefer a repo-local drop-in? <code>npx agentic-mermaid init-agent</code>
+        writes an <code>AGENTS.md</code> section, root <code>skills/</code> bundle,
+        and <code>.mcp.json</code> sample. The MCP server is <code>agentic-mermaid-mcp</code>.
+      </p>
+    </div>
+  </section>
 
   <div class="content-wrapper">
 
@@ -1960,7 +2036,7 @@ ${bundleJs}
   <footer class="site-footer">
     <span>Open source under the MIT License.</span>
     <div class="footer-links">
-      <a href="https://github.com/adewale/beautiful-mermaid/blob/main/FORK_DIFFERENCES.md" target="_blank" rel="noopener noreferrer">Fork notes</a>
+      <a href="https://github.com/adewale/beautiful-mermaid/blob/main/docs/fork-differences.md" target="_blank" rel="noopener noreferrer">Fork notes</a>
       <a href="https://github.com/adewale/beautiful-mermaid/blob/main/CHANGELOG.md" target="_blank" rel="noopener noreferrer">Changelog</a>
       <a href="https://github.com/adewale/beautiful-mermaid" target="_blank" rel="noopener noreferrer">
         <svg viewBox="0 0 24 24" fill="currentColor">

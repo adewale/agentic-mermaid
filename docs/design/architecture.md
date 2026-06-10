@@ -10,7 +10,7 @@ Current scope covers:
 - side-anchored edges (`L`, `R`, `T`, `B`)
 - `{group}` boundary routing for services inside groups
 - multi-line labels via `<br>` / `\n`
-- SVG and ASCII output
+- SVG, PNG, and ASCII output (PNG via the shared SVG rasterization pipeline)
 
 ## Pipeline
 
@@ -42,7 +42,7 @@ Architecture-specific work happens after shared placement:
 ## Compatibility Notes
 
 - Mermaid's current public header for this diagram family is `architecture-beta`, so that is the supported header.
-- Leading Mermaid comments (`%% ...`), YAML frontmatter, and Mermaid init directives before the header are stripped by the public SVG/ASCII/agent entrypoints before they call `parseArchitectureDiagram()`.
+- Leading Mermaid comments (`%% ...`), YAML frontmatter, and Mermaid init directives before the header are stripped by the public SVG/PNG/ASCII/agent entrypoints before they call `parseArchitectureDiagram()`.
 - The public architecture renderers interpret the merged wrapper config for a focused subset of Mermaid semantics:
   `theme`, `themeVariables`, `fontFamily`, `fontSize`, and `architecture.padding` / `architecture.iconSize` / `architecture.fontSize`.
 - `parseArchitectureDiagram()` expects preprocessed `architecture-beta` body lines; wrapper config is intentionally handled outside the parser because the parser returns only the diagram model.
