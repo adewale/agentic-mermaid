@@ -37,6 +37,7 @@ interface ValidDiagram {
     | ErBody
     | JourneyBody
     | ArchitectureBody
+    | XyChartBody
     | { kind: 'opaque'; family: DiagramKind; source: string }
   readonly canonicalSource: string   // normalized renderer input; opaque fidelity uses body.source
 }
@@ -48,6 +49,7 @@ type ClassValidDiagram     = ValidDiagram & { body: ClassBody }
 type ErValidDiagram        = ValidDiagram & { body: ErBody }
 type JourneyValidDiagram   = ValidDiagram & { body: JourneyBody }
 type ArchitectureValidDiagram = ValidDiagram & { body: ArchitectureBody }
+type XyChartValidDiagram   = ValidDiagram & { body: XyChartBody }
 
 interface FlowchartGraph {
   direction: 'TD' | 'TB' | 'LR' | 'BT' | 'RL'
@@ -91,6 +93,10 @@ interface ArchitectureJunction { id: string; parentId?: string }
 interface ArchitectureEndpoint { id: string; side: ArchitectureSide }
 interface ArchitectureEdge { source: ArchitectureEndpoint; target: ArchitectureEndpoint; label?: string; hasArrowStart: boolean; hasArrowEnd: boolean }
 interface ArchitectureBody { kind: 'architecture'; groups: ArchitectureGroup[]; services: ArchitectureService[]; junctions: ArchitectureJunction[]; edges: ArchitectureEdge[] }
+
+interface XyChartAxis { name?: string; categories?: string[]; range?: { min: number; max: number } }
+interface XyChartSeries { id: string; kind: 'bar' | 'line'; name?: string; values: number[] }
+interface XyChartBody { kind: 'xychart'; title?: string; horizontal?: boolean; xAxis?: XyChartAxis; yAxis?: XyChartAxis; series: XyChartSeries[] }
 
 type FlowchartMutationOp =
   | { kind: 'add_node'; id: string; label: string; shape?: string; parent?: string }
@@ -164,6 +170,17 @@ type ArchitectureMutationOp =
   | { kind: 'add_edge'; from: string; to: string; fromSide: ArchitectureSide; toSide: ArchitectureSide; label?: string | null; hasArrowStart?: boolean; hasArrowEnd?: boolean }
   | { kind: 'remove_edge'; index?: number; id?: string }
 
+type XyChartAxisSpec = { name?: string | null; categories?: string[]; range?: { min: number; max: number } }
+type XyChartMutationOp =
+  | { kind: 'set_title'; title: string | null }
+  | { kind: 'set_x_axis'; axis: XyChartAxisSpec | null }
+  | { kind: 'set_y_axis'; axis: XyChartAxisSpec | null }
+  | { kind: 'add_series'; kind2: 'bar' | 'line'; name?: string | null; values: number[] }
+  | { kind: 'remove_series'; index: number }
+  | { kind: 'set_series_values'; index: number; values: number[] }
+  | { kind: 'set_series_name'; index: number; name: string | null }
+  | { kind: 'reorder_series'; from: number; to: number }
+
 // Tier 1 (structural, reliable): EMPTY_DIAGRAM, EDGE_MISANCHORED, OFF_CANVAS,
 //   GROUP_BREACH, UNKNOWN_SHAPE, LABEL_OVERFLOW (source-based char-cap).
 // Tier 2 (geometric, advisory): NODE_OVERLAP, ROUTE_SELF_CROSS.
@@ -188,6 +205,7 @@ declare const mermaid: {
   asEr(d: ValidDiagram):        ErValidDiagram | null
   asJourney(d: ValidDiagram):   JourneyValidDiagram | null
   asArchitecture(d: ValidDiagram): ArchitectureValidDiagram | null
+  asXyChart(d: ValidDiagram):   XyChartValidDiagram | null
   mutate(d: FlowchartValidDiagram, op: FlowchartMutationOp): Result<FlowchartValidDiagram, { code: string; message: string }>
   mutate(d: SequenceValidDiagram,  op: SequenceMutationOp):  Result<SequenceValidDiagram, { code: string; message: string }>
   mutate(d: TimelineValidDiagram,  op: TimelineMutationOp):  Result<TimelineValidDiagram, { code: string; message: string }>
@@ -195,6 +213,7 @@ declare const mermaid: {
   mutate(d: ErValidDiagram,        op: ErMutationOp):        Result<ErValidDiagram, { code: string; message: string }>
   mutate(d: JourneyValidDiagram,   op: JourneyMutationOp):   Result<JourneyValidDiagram, { code: string; message: string }>
   mutate(d: ArchitectureValidDiagram, op: ArchitectureMutationOp): Result<ArchitectureValidDiagram, { code: string; message: string }>
+  mutate(d: XyChartValidDiagram,   op: XyChartMutationOp):   Result<XyChartValidDiagram, { code: string; message: string }>
   verifyMermaid(input: ValidDiagram | string, opts?: { suppress?: WarningCode[]; labelCharCap?: number }): VerifyResult
   serializeMermaid(d: ValidDiagram): string
   renderMermaidSVG(input: ValidDiagram | string, opts?: { security?: 'default' | 'strict'; idPrefix?: string; mermaidConfig?: MermaidRuntimeConfig }): string
@@ -206,10 +225,10 @@ declare const mermaid: {
 // 2. For existing structured diagrams, use mutate() + verify + serializeMermaid();
 //    do not regenerate/concatenate source when a typed op exists.
 // 3. mutate works on flowchart/state, simple sequence, timeline, class, ER,
-//    journey, and architecture. Narrow via asFlowchart/asSequence/asTimeline/
-//    asClass/asEr/asJourney/asArchitecture. Xychart and opaque-fallback bodies
-//    are source-level only; if explicitly edited as text, re-parse and verify
-//    before returning.
+//    journey, architecture, and xychart. Narrow via asFlowchart/asSequence/
+//    asTimeline/asClass/asEr/asJourney/asArchitecture/asXyChart. Opaque-fallback
+//    bodies (unmodeled syntax) are source-level only; if explicitly edited as
+//    text, re-parse and verify before returning.
 // 4. verify.ok is structural, not a visual-quality score; inspect warnings/layout or render artifacts for layout quality.
 // 5. Layout is deterministic; there is no seed.
 `

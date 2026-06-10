@@ -34,7 +34,7 @@ Agents should not guess from pixels, concatenate strings, or regenerate whole di
 - **ASCII, PNG, SVG** — plus Unicode text and JSON layout.
 - **Synchronous, zero-DOM SVG renderer** — no Puppeteer, no browser flash.
 - **19 built-in themes + Shiki compatibility** — theme from two colors or a VS Code theme.
-- **Agent-native editing** — typed mutation for flowchart/state, sequence, timeline, class, ER, journey, and architecture; source-level round-trip for XY chart, pie, and opaque fallbacks.
+- **Agent-native editing** — typed mutation for flowchart/state, sequence, timeline, class, ER, journey, architecture, and XY chart; source-level round-trip for pie and opaque fallbacks.
 - **CLI + MCP + library** — `am`, `agentic-mermaid-mcp`, `agentic-mermaid`, and `agentic-mermaid/agent`.
 
 ## Installation
@@ -146,10 +146,10 @@ const source = serializeMermaid(next.value)
 
 Rules:
 
-- Use `asFlowchart` / `asSequence` / `asTimeline` / `asClass` / `asEr` before mutating existing diagrams.
+- Use `asFlowchart` / `asSequence` / `asTimeline` / `asClass` / `asEr` / `asJourney` / `asArchitecture` / `asXyChart` before mutating existing diagrams.
 - Mutation ops use `kind`, not `type`.
 - Run `verifyMermaid` before every commit point.
-- Do not call `mutate` on XY chart, pie, or opaque fallback bodies.
+- Do not call `mutate` on pie or opaque fallback bodies.
 
 ## Supported diagram families
 
@@ -160,10 +160,10 @@ Rules:
 | Timeline | ✓ | ✓ | SVG/PNG/ASCII | ✓ |
 | Class | ✓ | ✓ | SVG/PNG/ASCII | ✓ |
 | ER | ✓ | ✓ | SVG/PNG/ASCII | ✓ |
-| Journey | ✓ | ✓ | SVG/PNG/ASCII | source-level only |
-| XY chart | ✓ | ✓ | SVG/PNG/ASCII | source-level only |
+| Journey | ✓ | ✓ | SVG/PNG/ASCII | modeled subset (BUILD-15) |
+| XY chart | ✓ | ✓ | SVG/PNG/ASCII | modeled subset (BUILD-16) |
 | Pie | ✓ | ✓ | SVG/PNG/ASCII | source-level only |
-| Architecture | ✓ | ✓ | SVG/PNG/ASCII | source-level only |
+| Architecture | ✓ | ✓ | SVG/PNG/ASCII | modeled subset (BUILD-17) |
 
 See [diagram families](./docs/diagram-families.md) for examples and compatibility notes.
 

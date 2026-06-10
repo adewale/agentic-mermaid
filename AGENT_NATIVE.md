@@ -24,7 +24,7 @@ D2 has a better language than Mermaid. The Beautiful Mermaid renderer foundation
 
 1. **Deterministic layout** — same input → structurally identical layout JSON across runs with the same ELK version. (Not "byte-identical SVG across versions" — that's a stronger claim that needs a forked ELK to actually deliver.)
 2. **Verifiable rendering** — structured "did this render cleanly?" check. Structural warnings (anchors, bounds, emptiness, group containment) are reliable; metric warnings (label fit, overlap) are best-effort because they depend on font-measurement parity with ELK.
-3. **Round-trippable** — `parseMermaid` produces a `ValidDiagram` that carries source needed to re-emit the diagram. For flowchart/state, sequence, timeline, class, ER, journey, and architecture, `mutate` operates on structured bodies; for xychart and opaque-fallback bodies, preserved source is the round-trip mechanism.
+3. **Round-trippable** — `parseMermaid` produces a `ValidDiagram` that carries source needed to re-emit the diagram. For flowchart/state, sequence, timeline, class, ER, journey, architecture, and xychart, `mutate` operates on structured bodies; for pie and opaque-fallback bodies, preserved source is the round-trip mechanism.
 
 (Composition — `@include`, templates, layered scenarios — was the fourth in earlier drafts and is deferred. Agents do not currently reach for composition; they paste and edit. Add when evidence demands.)
 
@@ -43,9 +43,10 @@ What the current Agentic Mermaid surface delivers and what it doesn't:
 | ER | Full | ✅ 7 ops |
 | Journey | Full structured round-trip (title/sections/tasks) | 10 ops via `asJourney` (BUILD-15 pilot) |
 | Architecture | Structured round-trip for the modeled subset (groups/services/junctions/edges); `{group}` boundary edges + accTitle/accDescr fall back to opaque losslessly | 10 ops via `asArchitecture` (BUILD-17) |
-| XY chart | Full lossless source round-trip | Source-level edits only |
+| XY chart | Structured round-trip for the modeled subset (title/axes/series); quoted text, `;` lines, accTitle/accDescr fall back to opaque losslessly | 8 ops via `asXyChart` (BUILD-16) |
+| Pie | Full lossless source round-trip | Source-level edits only |
 
-The implication: for xychart and any opaque fallback, the agent's tool surface is *parse → verify → render → serialize*, not *parse → mutate → verify → serialize*. Cross-cutting edits on those bodies happen at the preserved source level (`body.source` for opaque bodies), not at the typed mutation layer. Code Mode opportunity #1 covers this for the cases where it matters.
+The implication: for pie and any opaque fallback, the agent's tool surface is *parse → verify → render → serialize*, not *parse → mutate → verify → serialize*. Cross-cutting edits on those bodies happen at the preserved source level (`body.source` for opaque bodies), not at the typed mutation layer. Code Mode opportunity #1 covers this for the cases where it matters.
 
 ---
 
@@ -282,11 +283,24 @@ Two contracts:
 | `add_edge`           | `from`, `to`, `fromSide`, `toSide` (+ optional `label`, `hasArrowStart`, `hasArrowEnd`) | `remove_edge(id)` |
 | `remove_edge`        | `index` or `id` (`from->to`)                             | `add_edge(...)` |
 
-**Source-level families:** xychart and opaque fallback bodies preserve source and do not expose structured mutation ops.
+**XY chart MutationOp kinds** (8, BUILD-16 — promoting the xychart family to structured mutation via the FamilyPlugin registry, following the BUILD-15 journey and BUILD-17 architecture pilots). Canonical number format is `String(n)` (shortest round-tripping decimal); all values must be finite. Modeled grammar covers bare (unquoted) titles/axis-names/series-names/categories; quoted text, multi-statement `;` lines, accTitle/accDescr, and any other unmodeled syntax fall back to opaque:
 
-**Structured-or-opaque rule (v4): never lossy.** The parser only produces a structured body when it fully understands every non-blank, non-comment line for the structured families. If the source contains *any* construct the parser doesn't model — `Note over` / `alt` / `loop` / `activate` in sequence, `direction TB` in class, `accTitle` or out-of-range scores in journey, the `{group}` boundary modifier in architecture, etc. — parsing **falls back to an opaque body**. Xychart is intentionally source-level today. The diagram still parses, renders, verifies (structurally), and round-trips losslessly via preserved `body.source`; it simply isn't offered for structured mutation (no narrower for source-level families; structured-family narrowers return `null` on opaque fallbacks). This guarantees the parser never silently drops information. Earlier drafts dropped unrecognized lines on the floor; v4 does not.
+| Kind | Required | Inverse |
+|---|---|---|
+| `set_title`          | `title \| null`                                          | `set_title(prev_title)` |
+| `set_x_axis`         | `axis: { name?, categories?, range? } \| null` (categories XOR range) | `set_x_axis(prev_axis)` |
+| `set_y_axis`         | `axis: { name?, range? } \| null` (y-axis is never categorical) | `set_y_axis(prev_axis)` |
+| `add_series`         | `kind2: 'bar' \| 'line'`, `values: number[]` (+ optional `name`) | `remove_series(index)` |
+| `remove_series`      | `index`                                                   | `add_series(...)` |
+| `set_series_values`  | `index`, `values: number[]`                              | `set_series_values(index, prev_values)` |
+| `set_series_name`    | `index`, `name: string \| null`                          | `set_series_name(index, prev_name)` |
+| `reorder_series`     | `from`, `to`                                             | `reorder_series(to, from)` |
 
-For source-level families and any opaque fallback, cross-cutting edits are source-level only: operate against preserved source intentionally, then re-parse and verify before returning. Adding structured mutation for any such family follows the same pattern: narrowed type + body parser + serializer + per-family ops (most recently architecture, BUILD-17).
+**Source-level families:** pie and opaque fallback bodies preserve source and do not expose structured mutation ops.
+
+**Structured-or-opaque rule (v4): never lossy.** The parser only produces a structured body when it fully understands every non-blank, non-comment line for the structured families. If the source contains *any* construct the parser doesn't model — `Note over` / `alt` / `loop` / `activate` in sequence, `direction TB` in class, `accTitle` or out-of-range scores in journey, the `{group}` boundary modifier in architecture, quoted text or `curve basis` in xychart, etc. — parsing **falls back to an opaque body**. Pie is intentionally source-level today. The diagram still parses, renders, verifies (structurally), and round-trips losslessly via preserved `body.source`; it simply isn't offered for structured mutation (no narrower for source-level families; structured-family narrowers return `null` on opaque fallbacks). This guarantees the parser never silently drops information. Earlier drafts dropped unrecognized lines on the floor; v4 does not.
+
+For source-level families and any opaque fallback, cross-cutting edits are source-level only: operate against preserved source intentionally, then re-parse and verify before returning. Adding structured mutation for any such family follows the same pattern: narrowed type + body parser + serializer + per-family ops (most recently xychart, BUILD-16).
 
 Convention bans constructing `ValidDiagram` outside `parseMermaid`, `mutate`, and `synthesizeFromGraph`.
 
@@ -428,14 +442,14 @@ MermaidSeqBench is wired as an external corpus signal; live model transcript eva
 - **Determinism is empirical, not proven.** It's established by cross-process test over a corpus + the drift sentinel, plus reading ELK's config (`considerModelOrder: NODES_AND_EDGES`, no `randomSeed`). An ELK upgrade could in principle change this; the cross-process test and sentinel would catch it. There is no seed to fall back on because seeding never affected output.
 - **Determinism claim, precisely.** Layout JSON is byte-identical (after structural parse) across processes AND across JS runtimes (bun, node) on the same machine and same ELK version; this is verified on same-machine x86_64 and ARM64 when Node + built `dist/` are present. Direct cross-architecture byte equality (x86_64 output compared to ARM64 output) is still not a separate claim.
 - **Sequence structured coverage is deliberately narrow.** Only participant declarations + simple messages get a mutable structured body; everything else falls back to opaque (lossless, but not mutable). This is the honest tradeoff that replaced silent information loss.
-- **Xychart and opaque fallbacks are source-level only.** They remain deliberate, lossless source-level paths; no structured mutation is exposed for them. (Journey was promoted to structured mutation by BUILD-15; architecture by BUILD-17.)
+- **Pie and opaque fallbacks are source-level only.** They remain deliberate, lossless source-level paths; no structured mutation is exposed for them. (Journey was promoted to structured mutation by BUILD-15; architecture by BUILD-17; xychart by BUILD-16.)
 - **Live-model agent-usage eval is periodic, not PR CI.** Stored Code Mode scripts, sandbox traces, task oracles, and the committed pi-subagent transcript replay run in CI; API-backed release-model transcripts remain in `TODO.md` because they need model access and selected release tasks.
 - **Bloat in agent-facing docs.** `Instructions_for_agents.md` is hard-capped under 100 lines; doc-sync test enforces.
 
 ## What v4 delivers (vs. earlier drafts)
 
 - **Determinism is structural and verified cross-process** — not a seed apparatus. The seed/RNG/clock machinery and the font-metric table are *removed* (they did nothing).
-- **Mutation for flowchart/state, sequence, timeline, class, ER, journey, and architecture**, family-narrowed overloads, compile-time rejection of xychart and opaque/source-only families.
+- **Mutation for flowchart/state, sequence, timeline, class, ER, journey, architecture, and xychart**, family-narrowed overloads, compile-time rejection of pie and opaque/source-only families.
 - **Sequence parsing is lossless** — structured-or-opaque fallback; never silently drops constructs.
 - **Substrate enforcement is a real grep test** that runs under `bun test`, not an ESLint config that was never installed.
 - **`synthesizeFromGraph`** lets `am parse | am serialize` round-trip without `canonicalSource` on the wire.

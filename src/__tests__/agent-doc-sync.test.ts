@@ -131,10 +131,9 @@ describe('vocabulary doc-sync', () => {
   })
 
   test('MCP SDK declaration exposes all mutable-family narrowers', () => {
-    for (const narrower of ['asFlowchart', 'asSequence', 'asTimeline', 'asClass', 'asEr', 'asJourney']) {
+    for (const narrower of ['asFlowchart', 'asSequence', 'asTimeline', 'asClass', 'asEr', 'asJourney', 'asArchitecture', 'asXyChart']) {
       expect(SDK_DECLARATION).toContain(narrower)
     }
-    expect(SDK_DECLARATION).not.toContain('asXyChart')
   })
 
   test('state-narrows-via-asFlowchart is documented on every agent surface that claims state mutation', () => {

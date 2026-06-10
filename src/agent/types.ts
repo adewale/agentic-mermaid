@@ -229,6 +229,40 @@ export interface ArchitectureBody {
   edges: ArchitectureEdge[]
 }
 
+// ---- XY chart body ---------------------------------------------------------
+
+/** A single chart axis: an optional bare-text name plus EITHER categorical
+ *  labels (x-axis only) OR a numeric range. All three fields are optional;
+ *  a structured axis carries at least one of them. */
+export interface XyChartAxis {
+  /** Optional bare-text axis name/title. */
+  name?: string
+  /** Categorical labels (x-axis only) — mutually exclusive with range. */
+  categories?: string[]
+  /** Numeric range — mutually exclusive with categories. */
+  range?: { min: number; max: number }
+}
+
+export interface XyChartSeries {
+  /** Stable within one parse; recomputed each parse. Not a durable identifier. */
+  id: string
+  kind: 'bar' | 'line'
+  /** Optional bare-text series name. */
+  name?: string
+  /** Data values; all finite. */
+  values: number[]
+}
+
+export interface XyChartBody {
+  kind: 'xychart'
+  title?: string
+  /** Header orientation suffix: `xychart-beta horizontal`. Default vertical. */
+  horizontal?: boolean
+  xAxis?: XyChartAxis
+  yAxis?: XyChartAxis
+  series: XyChartSeries[]
+}
+
 // ---- Meta + IR ------------------------------------------------------------
 
 export interface SourceComment { text: string; line: number }
@@ -256,6 +290,7 @@ export type DiagramBody =
   | ErBody
   | JourneyBody
   | ArchitectureBody
+  | XyChartBody
   /**
    * Opaque body — the parser understood the family header but encountered
    * unmodeled syntax. `source` is the ORIGINAL body with indentation, blank
@@ -297,7 +332,8 @@ export type ClassValidDiagram = ValidDiagram & { body: ClassBody }
 export type ErValidDiagram = ValidDiagram & { body: ErBody }
 export type JourneyValidDiagram = ValidDiagram & { body: JourneyBody }
 export type ArchitectureValidDiagram = ValidDiagram & { body: ArchitectureBody }
-export type MutableValidDiagram = FlowchartValidDiagram | SequenceValidDiagram | TimelineValidDiagram | ClassValidDiagram | ErValidDiagram | JourneyValidDiagram | ArchitectureValidDiagram
+export type XyChartValidDiagram = ValidDiagram & { body: XyChartBody }
+export type MutableValidDiagram = FlowchartValidDiagram | SequenceValidDiagram | TimelineValidDiagram | ClassValidDiagram | ErValidDiagram | JourneyValidDiagram | ArchitectureValidDiagram | XyChartValidDiagram
 
 export function asFlowchart(d: ValidDiagram): FlowchartValidDiagram | null {
   return d.body.kind === 'flowchart' ? (d as FlowchartValidDiagram) : null
@@ -326,6 +362,10 @@ export function asArchitecture(d: ValidDiagram): ArchitectureValidDiagram | null
   return d.body.kind === 'architecture' ? (d as ArchitectureValidDiagram) : null
 }
 
+export function asXyChart(d: ValidDiagram): XyChartValidDiagram | null {
+  return d.body.kind === 'xychart' ? (d as XyChartValidDiagram) : null
+}
+
 // ---- Errors ---------------------------------------------------------------
 
 export interface ParseError { code: string; message: string; line?: number; col?: number }
@@ -339,6 +379,7 @@ export interface MutationError {
     | 'CLASS_NOT_FOUND' | 'MEMBER_NOT_FOUND' | 'RELATION_NOT_FOUND' | 'NOTE_NOT_FOUND'
     | 'ENTITY_NOT_FOUND' | 'ATTRIBUTE_NOT_FOUND'
     | 'SERVICE_NOT_FOUND' | 'GROUP_NOT_FOUND'
+    | 'SERIES_NOT_FOUND'
     | 'DUPLICATE_NODE' | 'DUPLICATE_PARTICIPANT' | 'DUPLICATE_CLASS' | 'DUPLICATE_ENTITY'
     | 'INVALID_OP'
   message: string
@@ -423,7 +464,19 @@ export type ArchitectureMutationOp =
   | { kind: 'add_edge'; from: string; to: string; fromSide: ArchitectureSide; toSide: ArchitectureSide; label?: string | null; hasArrowStart?: boolean; hasArrowEnd?: boolean }
   | { kind: 'remove_edge'; index?: number; id?: string }
 
-export type AnyMutationOp = FlowchartMutationOp | SequenceMutationOp | TimelineMutationOp | ClassMutationOp | ErMutationOp | JourneyMutationOp | ArchitectureMutationOp
+export type XyChartAxisSpec = { name?: string | null; categories?: string[]; range?: { min: number; max: number } }
+
+export type XyChartMutationOp =
+  | { kind: 'set_title'; title: string | null }
+  | { kind: 'set_x_axis'; axis: XyChartAxisSpec | null }
+  | { kind: 'set_y_axis'; axis: XyChartAxisSpec | null }
+  | { kind: 'add_series'; kind2: 'bar' | 'line'; name?: string | null; values: number[] }
+  | { kind: 'remove_series'; index: number }
+  | { kind: 'set_series_values'; index: number; values: number[] }
+  | { kind: 'set_series_name'; index: number; name: string | null }
+  | { kind: 'reorder_series'; from: number; to: number }
+
+export type AnyMutationOp = FlowchartMutationOp | SequenceMutationOp | TimelineMutationOp | ClassMutationOp | ErMutationOp | JourneyMutationOp | ArchitectureMutationOp | XyChartMutationOp
 export type MutationOp = FlowchartMutationOp // legacy alias
 
 // ---- Branded Finite -------------------------------------------------------
@@ -549,5 +602,6 @@ export interface ValidDiagramPayload {
     | ErBody
     | JourneyBody
     | ArchitectureBody
+    | XyChartBody
     | { kind: 'opaque'; family: DiagramKind; source: string }
 }

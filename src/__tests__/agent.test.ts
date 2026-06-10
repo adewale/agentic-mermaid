@@ -38,21 +38,16 @@ describe('parseMermaid', () => {
     const r = parseMermaid('notADiagram\n X'); expect(r.ok).toBe(false)
     if (!r.ok) expect(r.error[0]!.code).toBe('UNKNOWN_HEADER')
   })
-  test('mutable families are structured; xychart is source-level', () => {
+  test('mutable families are structured (xychart promoted by BUILD-16)', () => {
     for (const [s, k] of [
       ['classDiagram\n  A <|-- B', 'class'],
       ['erDiagram\n  A ||--o{ B : x', 'er'],
       ['timeline\n  2020 : A', 'timeline'],
       ['journey\n  title T\n  section S\n    Wake: 3: Me', 'journey'],
       ['architecture-beta\n  service g(server)[g]', 'architecture'],
-    ] as const) {
-      const d = parse(s); expect(d.kind).toBe(k); expect(d.body.kind).toBe(k)
-    }
-    for (const [s, k] of [
       ['xychart-beta\n  bar [1,2,3]', 'xychart'],
     ] as const) {
-      const d = parse(s); expect(d.kind).toBe(k); expect(d.body.kind).toBe('opaque')
-      expect(serializeMermaid(d).trimEnd()).toBe(s)
+      const d = parse(s); expect(d.kind).toBe(k); expect(d.body.kind).toBe(k)
     }
   })
 })
@@ -173,13 +168,15 @@ describe('sequence mutate — five ops', () => {
   })
 })
 
-describe('source-level families — xychart (journey + architecture promoted by BUILD-15/17)', () => {
+describe('opaque-fallback round-trip (journey/xychart/architecture promoted by BUILD-15/16/17)', () => {
+  // A clean xychart is now structured (BUILD-16); only unmodeled xychart syntax
+  // (here: a quoted title) stays on the source-level/opaque path.
   const cases = [
-    ['xychart', 'xychart-beta\n  title Sales\n  x-axis [Jan, Feb]\n  bar [1, 2]'],
+    ['xychart', 'xychart-beta\n  title "Sales"\n  x-axis [Jan, Feb]\n  bar [1, 2]'],
   ] as const
 
   for (const [family, src] of cases) {
-    test(`${family}: parses as opaque/source-level and round-trips`, () => {
+    test(`${family}: unmodeled syntax parses as opaque/source-level and round-trips`, () => {
       const d = parse(src)
       expect(d.kind).toBe(family)
       expect(d.body.kind).toBe('opaque')
@@ -187,6 +184,12 @@ describe('source-level families — xychart (journey + architecture promoted by 
       expect(verifyMermaid(d).ok).toBe(true)
     })
   }
+
+  test('clean xychart is structured after BUILD-16', () => {
+    const d = parse('xychart-beta\n  title Sales\n  x-axis [Jan, Feb]\n  bar [1, 2]')
+    expect(d.kind).toBe('xychart')
+    expect(d.body.kind).toBe('xychart')
+  })
 
   test('journey header suffix is preserved rather than normalized away', () => {
     const src = 'journey EXTRA\n  Alpha: 3: Me'
