@@ -35,7 +35,7 @@ describe('mermaid-js docs corpus (247 examples, 9 families)', () => {
   // KNOWN GAP — state diagrams: rt=5%. State currently shares the flowchart
   // body in our IR, so the legacy flowchart parser rewrites state-specific
   // syntax (`[*]` → `_start`, state names → flowchart-node-with-shape-label).
-  // Documented in DIVERGENCES.md; structured state body is Phase C work.
+  // Documented in docs/project/divergences.md; structured state body is Phase C work.
   const expected: Record<string, { minParse: number; minVerify: number; minRoundTrip: number }> = {
     flowchart:    { minParse: 1.00, minVerify: 1.00, minRoundTrip: 0.95 },
     state:        { minParse: 1.00, minVerify: 0.70, minRoundTrip: 0.05 },

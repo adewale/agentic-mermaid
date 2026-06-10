@@ -11,7 +11,7 @@ This repo owns the GitHub Pages deployment. The Craft/Cloudflare site is upstrea
 
 ## Agent-native workflow (largest fork-vs-upstream gap)
 
-Agentic Mermaid is published as `agentic-mermaid` and adds a typed editing surface for AI agents under the `agentic-mermaid/agent` subpath export, plus an `am` CLI and an `agentic-mermaid-mcp` Code Mode MCP server. The workflow is differentiated from render-only tools: new diagrams may be authored as source then parsed/verified/rendered, while existing structured diagrams should go parse → narrow → mutate → verify → serialize. Journey, XY chart, architecture, and opaque-fallback diagrams round-trip losslessly via preserved source but do not expose structured mutation. Layout is deterministic and verified byte-identical across processes. See [`AGENT_NATIVE.md`](./AGENT_NATIVE.md) and [`Instructions_for_agents.md`](./Instructions_for_agents.md). Upstream has no equivalent.
+Agentic Mermaid is published as `agentic-mermaid` and adds a typed editing surface for AI agents under the `agentic-mermaid/agent` subpath export, plus an `am` CLI and an `agentic-mermaid-mcp` Code Mode MCP server. The workflow is differentiated from render-only tools: new diagrams may be authored as source then parsed/verified/rendered, while existing structured diagrams should go parse → narrow → mutate → verify → serialize. Journey, XY chart, architecture, and opaque-fallback diagrams round-trip losslessly via preserved source but do not expose structured mutation. Layout is deterministic and verified byte-identical across processes. See [`AGENT_NATIVE.md`](../AGENT_NATIVE.md) and [`Instructions_for_agents.md`](../Instructions_for_agents.md). Upstream has no equivalent.
 
 ## New and expanded diagram support
 
@@ -71,8 +71,8 @@ Users can discover fork features through:
 
 1. The [live gallery](https://adewale.github.io/beautiful-mermaid/), especially **Contents → Role Styles**.
 2. The [live editor](https://adewale.github.io/beautiful-mermaid/editor), which starts blank and has **Examples** for every supported diagram family plus role-style presets.
-3. [`README.md`](./README.md) API docs.
-4. [`CHANGELOG.md`](./CHANGELOG.md) for user-facing change history.
+3. [`README.md`](../README.md) quick starts and docs routing.
+4. [`CHANGELOG.md`](../CHANGELOG.md) for user-facing change history.
 
 ## What is intentionally not in this fork
 

@@ -12,7 +12,7 @@
 // becomes a rectangle), subgraphs, styling. Round-trip is STRUCTURAL
 // (same node-label set + same edge count), never byte-identical source.
 //
-// Honest contract (see QUALITY.md): reliable for simple linear chains and
+// Honest contract (see docs/quality.md): reliable for simple linear chains and
 // simple fan-outs. Dense/overlapping routes may miss or mis-attribute edges.
 // ============================================================================
 

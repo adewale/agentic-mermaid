@@ -1,6 +1,6 @@
 {
   "name": "agentic-mermaid",
-  "version": "1.0.0",
+  "version": "0.1.0",
   "license": "MIT",
   "description": "Agentic Mermaid: render, verify, and safely edit Mermaid diagrams as ASCII, PNG, SVG, or structured agent workflows.",
   "type": "module",
@@ -21,8 +21,16 @@
     }
   },
   "bin": {
-    "am": "./bin/am.ts",
-    "agentic-mermaid-mcp": "./bin/agentic-mermaid-mcp.ts"
+    "am": "./dist/am.js",
+    "agentic-mermaid": "./dist/am.js",
+    "agentic-mermaid-mcp": "./dist/agentic-mermaid-mcp.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
   },
   "repository": {
     "type": "git",
@@ -30,7 +38,7 @@
   },
   "homepage": "https://adewale.github.io/beautiful-mermaid/",
   "bugs": {
-    "url": "https://github.com/adewale/beautiful-mermaid/issues"
+    "url": "https://github.com/adewale/beautiful-mermaid"
   },
   "keywords": [
     "mermaid",
@@ -70,10 +78,7 @@
     "Instructions_for_agents.md",
     "AGENT_NATIVE.md",
     "CHANGELOG.md",
-    "FEATURES.md",
-    "FORK_DIFFERENCES.md",
     "TODO.md",
-    "QUALITY.md",
     "SECURITY.md",
     "llms.txt",
     "LICENSE",
@@ -88,7 +93,7 @@
     "bench": "bun run eval/benchmark/sample-bench.ts",
     "build": "tsup",
     "build:binary": "bun build ./bin/am.ts --compile --outfile dist/am",
-    "build:site": "bun run scripts/site/generate.ts && bun run scripts/site/editor.ts && mkdir -p site && mv index.html editor.html site/ && cp -r public/* site/",
+    "build:site": "bun run scripts/site/generate.ts && bun run scripts/site/editor.ts && mkdir -p site/editor && mv index.html site/index.html && cp editor.html site/editor.html && cp editor.html site/editor/index.html && rm editor.html && cp -r public/* site/ && cp -r public/* site/editor/ && bun run bin/am.ts llms-txt > site/llms.txt && bun run bin/am.ts --agent-instructions > site/agent-instructions.md",
     "deploy": "echo 'GitHub Pages deploys from main via .github/workflows/pages.yml; Cloudflare deployment is upstream-owned.'",
     "xychart-test": "bun run scripts/site/xychart-test.ts",
     "prepublishOnly": "npm run build",

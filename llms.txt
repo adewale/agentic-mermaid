@@ -4,7 +4,7 @@
 > Mermaid diagrams with a typed IR. Deterministic ASCII / PNG / SVG. No
 > browser required. CLI + MCP + library.
 
-Version: 1.0.0
+Version: 0.1.0
 
 ## What it does
 
@@ -34,6 +34,7 @@ you haven't inspected.
 - batch --jsonl — bulk render/verify/parse/serialize/mutate ops, one JSON envelope per line
 - render-markdown <file.md> [--ascii] — render fenced mermaid blocks, skip invalid ones
 - llms-txt — this document
+- init-agent [--dir .] [--force] — write AGENTS.md section, root skills/ bundle, and .mcp.json sample
 
 Exit codes: 0 ok, 2 arg error, 3 verify-failed, 4 internal.
 
@@ -68,11 +69,15 @@ verifyNoExternalRefs } from 'agentic-mermaid/agent'`
 
 ## Docs
 
+- docs/README.md — documentation index and structure
 - Instructions_for_agents.md — canonical agent-use guide
 - AGENT_NATIVE.md — architecture/spec rationale
-- FEATURES.md — current capability inventory
+- docs/features.md — current capability inventory
+- docs/api.md — library/CLI/MCP API reference, including SVG/PNG/ASCII output
+- docs/diagram-families.md — family examples and edit policy
+- docs/theming.md — themes, CSS variables, and Shiki compatibility
+- docs/quality.md — determinism + "good looking" rubric
 - TODO.md — only active backlog
-- QUALITY.md — determinism + "good looking" rubric
 - SECURITY.md — threat model + strict-mode guarantee
 - docs/agent-mutation-policy.md — structured-vs-source-level policy
 - docs/agent-api-cookbook.md — copy-pasteable library/CLI/MCP recipes

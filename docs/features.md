@@ -1,6 +1,6 @@
 # Features — capability inventory
 
-What Agentic Mermaid can do, organized by capability area. The npm import paths are `agentic-mermaid` and `agentic-mermaid/agent`; the per-loop implementation log is `DIVERGENCES.md`; active backlog is only `TODO.md`.
+What Agentic Mermaid can do, organized by capability area. The npm import paths are `agentic-mermaid` and `agentic-mermaid/agent`; implementation history lives in [`project/divergences.md`](./project/divergences.md); active backlog is only [`../TODO.md`](../TODO.md).
 
 ## Core IR & editing loop
 
@@ -41,7 +41,7 @@ Agentic Mermaid outputs **ASCII, PNG, and SVG** from the same renderer foundatio
   variable fonts, `idPrefix` namespacing). CLI exposes `--security strict`.
 - **ASCII / Unicode** — `renderMermaidASCII` (CJK/emoji width, FE0F/ZWJ,
   `maxWidth` wrapping, trunk-shared fanouts).
-- **PNG** — `renderMermaidPNG` (offline `@resvg/resvg-js`, bundled DejaVu,
+- **PNG** — `renderMermaidPNG(source, { fitTo, background })` or `am render diagram.mmd --format png --output diagram.png` (offline `@resvg/resvg-js`, bundled DejaVu,
   cross-runtime deterministic on same-machine x86_64/ARM64 where Node + built `dist/` are present).
 - **JSON layout** — `layoutMermaid` / `am render --format json`.
 - **ASCII with metadata** — `renderMermaidASCIIWithMeta` → `{ascii, regions}`
@@ -56,7 +56,7 @@ Agentic Mermaid outputs **ASCII, PNG, and SVG** from the same renderer foundatio
 - **Tier 2 (geometric, flowchart):** NODE_OVERLAP, ROUTE_SELF_CROSS.
 - **Tier 3 (lint):** reserved; plugin hooks are wired, no built-in lint codes yet.
 - **Perceptual quality** — `measureQuality` / `checkQuality` (edge
-  crossings, label legibility, whitespace balance, …). See QUALITY.md.
+  crossings, label legibility, whitespace balance, …). See [`quality.md`](./quality.md).
 
 ## Accessibility
 
@@ -72,7 +72,7 @@ Agentic Mermaid outputs **ASCII, PNG, and SVG** from the same renderer foundatio
   the SVG (no Google Fonts `@import`).
 - **`verifyNoExternalRefs(svg)`** — scanner / CI gate / agent self-check.
 - No `<image>`/`<script>`/external-href injection; click directives
-  sanitized. See SECURITY.md.
+  sanitized. See [`../SECURITY.md`](../SECURITY.md).
 
 ## CLI (`am`)
 
@@ -80,7 +80,7 @@ Agentic Mermaid outputs **ASCII, PNG, and SVG** from the same renderer foundatio
 input plus `--output`; `--security strict`, `--watch`), `render-markdown` (skip bad blocks),
 `parse`, `verify`, `mutate` (`--op` or `--ops`), `preview` (strict standalone HTML + optional `--open`), `format`, `describe` (text/json),
 `capabilities --json` (including `families[].editPolicy` + `families[].mutationOps`), `batch --jsonl` (including mutate),
-`llms-txt`, `--agent-instructions`. `mutate` verifies before emitting source.
+`llms-txt`, `init-agent`, `--agent-instructions`. `mutate` verifies before emitting source; `init-agent` writes a non-clobbering `AGENTS.md` section, root `skills/` bundle, and `.mcp.json` sample into a consumer repo.
 Exit codes 0/2/3/4; parse and verify-failure errors include structured `error.details` arrays.
 
 ## MCP server
@@ -91,7 +91,7 @@ Code Mode `execute(code)` (JavaScript in a `node:vm` sandbox with a typed
 
 ## Distribution
 
-- npm library (`agentic-mermaid` plus the `agentic-mermaid/agent` subpath).
+- npm library (`agentic-mermaid` plus the `agentic-mermaid/agent` subpath) with Node-runnable bins (`am`, `agentic-mermaid`, `agentic-mermaid-mcp`).
 - **Single binary** — `bun run build:binary` → `dist/am`, standalone
   executable, no runtime dependency (#1018).
 - **llms.txt** agent-discovery digest, derived from capabilities.

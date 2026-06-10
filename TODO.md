@@ -1,11 +1,12 @@
 # Project Backlog
 
 `TODO.md` is the only active backlog. No other root doc may carry unchecked
-project TODOs. Docs map: `FEATURES.md` = current capabilities;
-`DIVERGENCES.md` = implementation history; `LESSONS_LEARNED.md` = process
-lessons; `AGENT_NATIVE.md` = architecture/spec rationale;
-`Instructions_for_agents.md` = runtime guide; `CHANGELOG.md` = user-facing
-release notes; `docs/issue-derived-test-cases.md` = evidence inventory, not backlog;
+project TODOs. Docs map: `docs/features.md` = current capabilities;
+`docs/project/divergences.md` = implementation history;
+`docs/project/lessons-learned.md` = process lessons; `AGENT_NATIVE.md` =
+architecture/spec rationale; `Instructions_for_agents.md` = runtime guide;
+`CHANGELOG.md` = user-facing release notes; `docs/README.md` = documentation
+index; `docs/issue-derived-test-cases.md` = evidence inventory, not backlog;
 `docs/mcp-code-mode-rationale.md` = MCP surface rationale, not backlog;
 `docs/agent-workflow-examples.md` = runnable example index, not backlog;
 `docs/pr11-reviewer-guide.md` = merged PR #11 review/audit map, not backlog.
@@ -66,5 +67,5 @@ _No active blocked items._
   viewing belongs in a separate tool or companion package.
 - Do not port old dagre-specific layout code directly; translate only ideas
   that still apply to the current ELK/layout-engine architecture.
-- Do not treat historical `DIVERGENCES.md` or process notes as backlog unless
-  an item is promoted here with an ID.
+- Do not treat historical `docs/project/divergences.md` or process notes as
+  backlog unless an item is promoted here with an ID.
