@@ -163,21 +163,32 @@ dependents after. IDs are stable names, not an ordering.
   hierarchy handling and the ASCII grid layout both honor it, including the
   #2509 external-link case. Geometry tests pin the differentiator:
   `src/__tests__/subgraph-direction.test.ts`.
-- [ ] **BUILD-14 — ASCII: edges to a subgraph id create a phantom node**
-  (`todo`). `Start --> Pipeline` where `Pipeline` is a subgraph renders a
-  duplicate floating node box labeled `Pipeline` instead of attaching the
-  edge to the container (the SVG/ELK path handles this correctly via
-  hierarchical ports; verify is layout-path based so it reports `ok` while
-  the ASCII output is wrong). Needs container-border edge attachment in the
-  ASCII grid/pathfinder. Discovered while testing BUILD-12; repro:
-  `eval/layout-compare/fixtures/subgraph-direction.mmd` with an edge to
-  `Pipeline`.
+- [x] **BUILD-14 — ASCII: edges to a subgraph id create a phantom node**
+  (`done`). `Start --> Pipeline` where `Pipeline` is a subgraph used to render
+  a duplicate floating node box labeled `Pipeline` instead of attaching the
+  edge to the container. Fixed in the ASCII converter + draw layer: the
+  converter (`src/ascii/converter.ts` `resolveSubgraphEdges`) detects phantom
+  subgraph-id nodes, drops them, and retargets each touching edge onto a
+  representative container member for routing; the draw layer
+  (`src/ascii/draw.ts` `drawContainerEdge`) clips the visible polyline to the
+  container's border rectangle and draws the arrowhead on the border, so the
+  edge attaches to the container — matching the SVG/ELK hierarchical-port
+  behavior. Edge semantics are preserved (visible terminal is the container
+  border, never an arbitrary member node). Evidence: red→green repro suite
+  `src/__tests__/ascii-subgraph-edge.test.ts` (5 tests, incl. the mermaid#2509
+  case and an id-collision sad path), golden
+  `src/__tests__/testdata/unicode/subgraph_edge_to_container.txt`, and the
+  BUILD-13 layout-compare harness shows 4 ASCII-only changed corpus/fixture
+  samples (flowchart/96, flowchart/97, flowchart/98, subgraph-direction.mmd)
+  with 0 regressions / 0 faithfulness deltas. Repro:
+  `eval/layout-compare/fixtures/subgraph-direction.mmd`.
 - [ ] **BUILD-1 — Collapsible subgraphs (#7785)** (`todo`). Track Mermaid PR
   <https://github.com/mermaid-js/mermaid/pull/7785> (`@{ view: collapsed }`
   metadata syntax) and stay syntax-compatible. Large, but a real readability
   win for agent-generated architecture diagrams; pairs naturally with typed
-  `collapse`/`expand` mutation ops. Measure with BUILD-13; fixing BUILD-14
-  first avoids collapsing onto the phantom-node bug.
+  `collapse`/`expand` mutation ops. Measure with BUILD-13. (BUILD-14, the
+  ASCII phantom-node bug that would have interfered with collapsed-subgraph
+  edge attachment, is now fixed.)
 - [x] **BUILD-8 — Tier 3 lint catalogue** (`done`). Added advisory
   flowchart/state lint warnings for `DUPLICATE_EDGE` and `UNREACHABLE_NODE`,
   exposed them through `WarningCode`, `WARNING_TIER`, `am capabilities`,

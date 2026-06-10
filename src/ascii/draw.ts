@@ -381,6 +381,12 @@ export function drawArrow(
     return [empty, empty, empty, empty, empty, empty]
   }
 
+  // BUILD-14: edges whose endpoint is a subgraph container attach to the
+  // container border, not the inner anchor node we routed through.
+  if (edge.attachToSubgraph || edge.attachFromSubgraph) {
+    return drawContainerEdge(graph, edge)
+  }
+
   const labelCanvas = drawArrowLabel(graph, edge)
   const [pathCanvas, linesDrawn, lineDirs] = drawPath(graph, edge.path, edge.style)
   const boxStartCanvas = drawBoxStart(graph, edge.path, linesDrawn[0]!, edge.from, edge.style)
@@ -424,6 +430,250 @@ export function drawArrow(
   const cornersCanvas = drawCorners(graph, edge.path)
 
   return [pathCanvas, boxStartCanvas, arrowHeadEndCanvas, arrowHeadStartCanvas, cornersCanvas, labelCanvas]
+}
+
+/**
+ * BUILD-14: Draw an edge that terminates at (or originates from) a subgraph
+ * container. The edge was routed to a representative inner anchor node; here we
+ * clip the visible polyline to the container's border rectangle and place the
+ * arrowhead on the border, so the edge attaches to the container instead of the
+ * phantom box or the inner node.
+ *
+ * Returns the same 6-canvas tuple as drawArrow.
+ */
+function drawContainerEdge(
+  graph: AsciiGraph,
+  edge: AsciiEdge,
+): [Canvas, Canvas, Canvas, Canvas, Canvas, Canvas] {
+  const empty = copyCanvas(graph.canvas)
+
+  // Build the full drawing-coordinate polyline from the grid path.
+  let poly = edge.path.map(c => gridToDrawingCoord(graph, c))
+  poly = dedupeCollinear(poly)
+  if (poly.length < 2) return [empty, empty, empty, empty, empty, empty]
+
+  // Clip the start at the source container border (if any).
+  if (edge.attachFromSubgraph) {
+    const sg = edge.attachFromSubgraph
+    poly = clipPolylineAtBorder(poly, sg, 'start')
+  }
+  // Clip the end at the target container border (if any).
+  if (edge.attachToSubgraph) {
+    poly = clipPolylineAtBorder(poly, edge.attachToSubgraph, 'end')
+  }
+  if (poly.length < 2) return [empty, empty, empty, empty, empty, empty]
+
+  // Draw the polyline segments.
+  const pathCanvas = copyCanvas(graph.canvas)
+  const useAscii = graph.config.useAscii
+  // Mirror standard drawPath: every segment skips its first and last cell so
+  // bend cells are owned solely by the corner canvas (avoids junction glyph
+  // corruption when two segments meet). Exceptions: the very first cell is the
+  // container-border exit (draw it, offset 0) and the very last cell is either
+  // the container-border entry (draw it, offset 0) or one cell before a real
+  // target node (offset -1, arrowhead drawn separately).
+  const lastSegmentEndsAtRealNode = !edge.attachToSubgraph
+  for (let i = 1; i < poly.length; i++) {
+    const from = poly[i - 1]!
+    const to = poly[i]!
+    if (drawingCoordEquals(from, to)) continue
+    const isFirst = i === 1
+    const isLast = i === poly.length - 1
+    const offsetFrom = isFirst && edge.attachFromSubgraph ? 0 : 1
+    let offsetTo: number
+    if (isLast) {
+      offsetTo = lastSegmentEndsAtRealNode ? -1 : 0
+    } else {
+      offsetTo = -1
+    }
+    drawLine(pathCanvas, from, to, offsetFrom, offsetTo, useAscii, edge.style)
+  }
+
+  // Corner characters at bends.
+  const cornersCanvas = copyCanvas(graph.canvas)
+  for (let i = 1; i < poly.length - 1; i++) {
+    const prev = poly[i - 1]!
+    const coord = poly[i]!
+    const next = poly[i + 1]!
+    const prevDir = determineDirection(prev, coord)
+    const nextDir = determineDirection(coord, next)
+    cornersCanvas[coord.x]![coord.y] = cornerChar(prevDir, nextDir, useAscii)
+  }
+
+  // Arrowhead at the END of the edge.
+  const arrowHeadEndCanvas = copyCanvas(graph.canvas)
+  if (edge.hasArrowEnd && poly.length >= 2) {
+    const last = poly[poly.length - 1]!
+    const beforeLast = poly[poly.length - 2]!
+    const arrowDir = determineDirection(beforeLast, last)
+    if (edge.attachToSubgraph) {
+      // Terminal is the container border — draw the arrowhead on it.
+      arrowHeadEndCanvas[last.x]![last.y] = arrowHeadChar(arrowDir, useAscii)
+    } else {
+      // Terminal is a real node — draw the arrowhead one cell before its border
+      // (matching standard edges, which use offsetTo=-1).
+      const tip = stepBack(last, arrowDir)
+      arrowHeadEndCanvas[tip.x]![tip.y] = arrowHeadChar(arrowDir, useAscii)
+    }
+  }
+
+  // Marker at the START of the edge (container exit, or reversed real source).
+  const arrowHeadStartCanvas = copyCanvas(graph.canvas)
+  if (edge.hasArrowStart && poly.length >= 2) {
+    const first = poly[0]!
+    const second = poly[1]!
+    const startDir = determineDirection(second, first)
+    arrowHeadStartCanvas[first.x]![first.y] = arrowHeadChar(startDir, useAscii)
+  }
+
+  const labelCanvas = drawArrowLabel(graph, edge)
+
+  return [pathCanvas, empty, arrowHeadEndCanvas, arrowHeadStartCanvas, cornersCanvas, labelCanvas]
+}
+
+/** Move one cell backward against a direction (toward the segment origin). */
+function stepBack(p: DrawingCoord, dir: Direction): DrawingCoord {
+  if (dirEquals(dir, Up)) return { x: p.x, y: p.y + 1 }
+  if (dirEquals(dir, Down)) return { x: p.x, y: p.y - 1 }
+  if (dirEquals(dir, Left)) return { x: p.x + 1, y: p.y }
+  if (dirEquals(dir, Right)) return { x: p.x - 1, y: p.y }
+  return { x: p.x, y: p.y }
+}
+
+/** Remove redundant collinear midpoints from a drawing polyline. */
+function dedupeCollinear(poly: DrawingCoord[]): DrawingCoord[] {
+  const out: DrawingCoord[] = []
+  for (const p of poly) {
+    const last = out[out.length - 1]
+    if (last && drawingCoordEquals(last, p)) continue
+    out.push({ x: p.x, y: p.y })
+  }
+  // Collapse three collinear points into two.
+  const result: DrawingCoord[] = []
+  for (let i = 0; i < out.length; i++) {
+    if (i > 0 && i < out.length - 1) {
+      const a = out[i - 1]!
+      const b = out[i]!
+      const c = out[i + 1]!
+      const collinearH = a.y === b.y && b.y === c.y
+      const collinearV = a.x === b.x && b.x === c.x
+      if (collinearH || collinearV) continue
+    }
+    result.push(out[i]!)
+  }
+  return result
+}
+
+/**
+ * Clip a drawing polyline so the chosen end sits exactly on a subgraph's border.
+ *
+ * - which = 'end': the polyline ends inside the container; truncate it at the
+ *   first point where it crosses the border (walking from the start) and snap
+ *   the terminal point onto the border line.
+ * - which = 'start': the polyline starts inside the container; drop the inside
+ *   portion and start at the border crossing (walking from the end backwards).
+ */
+function clipPolylineAtBorder(
+  poly: DrawingCoord[],
+  sg: AsciiSubgraph,
+  which: 'start' | 'end',
+): DrawingCoord[] {
+  const inside = (p: DrawingCoord): boolean =>
+    p.x > sg.minX && p.x < sg.maxX && p.y > sg.minY && p.y < sg.maxY
+
+  if (which === 'end') {
+    // Walk from start; find first segment entering the container.
+    for (let i = 1; i < poly.length; i++) {
+      const prev = poly[i - 1]!
+      const curr = poly[i]!
+      if (!inside(prev) && inside(curr)) {
+        const border = borderCrossing(prev, curr, sg)
+        return [...poly.slice(0, i), border]
+      }
+      if (inside(prev)) {
+        // Already inside at the previous point — clip there.
+        const border = borderCrossing(poly[Math.max(0, i - 2)] ?? prev, prev, sg)
+        return [...poly.slice(0, i - 1), border]
+      }
+    }
+    // Never detected a crossing (e.g. anchor outside bbox); snap last point to
+    // the nearest border edge from the penultimate point.
+    const last = poly[poly.length - 1]!
+    const prev = poly[poly.length - 2]!
+    return [...poly.slice(0, poly.length - 1), borderCrossing(prev, last, sg)]
+  }
+
+  // which === 'start': walk from the end backwards.
+  for (let i = poly.length - 2; i >= 0; i--) {
+    const next = poly[i + 1]!
+    const curr = poly[i]!
+    if (!inside(next) && inside(curr)) {
+      const border = borderCrossing(next, curr, sg)
+      return [border, ...poly.slice(i + 1)]
+    }
+    if (inside(next)) continue
+  }
+  const first = poly[0]!
+  const next = poly[1]!
+  return [borderCrossing(next, first, sg), ...poly.slice(1)]
+}
+
+/**
+ * Given a segment from an outside point to an inside point, return the point on
+ * the container border where the orthogonal segment crosses it. Edge paths are
+ * orthogonal, so the segment is either horizontal or vertical.
+ */
+function borderCrossing(
+  outside: DrawingCoord,
+  insidePt: DrawingCoord,
+  sg: AsciiSubgraph,
+): DrawingCoord {
+  if (outside.y === insidePt.y) {
+    // Horizontal segment crosses a vertical border (left or right).
+    const x = outside.x < insidePt.x ? sg.minX : sg.maxX
+    return { x, y: insidePt.y }
+  }
+  if (outside.x === insidePt.x) {
+    // Vertical segment crosses a horizontal border (top or bottom).
+    const y = outside.y < insidePt.y ? sg.minY : sg.maxY
+    return { x: insidePt.x, y }
+  }
+  // Diagonal fallback (shouldn't happen with orthogonal routing): clamp inside
+  // point to the nearest border.
+  return {
+    x: Math.max(sg.minX, Math.min(sg.maxX, insidePt.x)),
+    y: Math.max(sg.minY, Math.min(sg.maxY, insidePt.y)),
+  }
+}
+
+/** Pick the corner glyph for a bend given incoming/outgoing directions. */
+function cornerChar(prevDir: Direction, nextDir: Direction, useAscii: boolean): string {
+  if (useAscii) return '+'
+  if ((dirEquals(prevDir, Right) && dirEquals(nextDir, Down)) ||
+      (dirEquals(prevDir, Up) && dirEquals(nextDir, Left))) return '┐'
+  if ((dirEquals(prevDir, Right) && dirEquals(nextDir, Up)) ||
+      (dirEquals(prevDir, Down) && dirEquals(nextDir, Left))) return '┘'
+  if ((dirEquals(prevDir, Left) && dirEquals(nextDir, Down)) ||
+      (dirEquals(prevDir, Up) && dirEquals(nextDir, Right))) return '┌'
+  if ((dirEquals(prevDir, Left) && dirEquals(nextDir, Up)) ||
+      (dirEquals(prevDir, Down) && dirEquals(nextDir, Right))) return '└'
+  return '+'
+}
+
+/** Pick the arrowhead glyph for a direction. */
+function arrowHeadChar(dir: Direction, useAscii: boolean): string {
+  if (!useAscii) {
+    if (dirEquals(dir, Up)) return '▲'
+    if (dirEquals(dir, Down)) return '▼'
+    if (dirEquals(dir, Left)) return '◄'
+    if (dirEquals(dir, Right)) return '►'
+    return '●'
+  }
+  if (dirEquals(dir, Up)) return '^'
+  if (dirEquals(dir, Down)) return 'v'
+  if (dirEquals(dir, Left)) return '<'
+  if (dirEquals(dir, Right)) return '>'
+  return '*'
 }
 
 /**
