@@ -419,6 +419,54 @@ function extractPieLabels(source: string): ExtractedLabel[] {
 
 registerFamily({ id: 'pie', detect: l => l.startsWith('pie'), extractLabels: extractPieLabels })
 
+// ---- Quadrant -------------------------------------------------------------
+// quadrantChart header; `title T`; `x-axis a --> b`; `y-axis a --> b`;
+// `quadrant-1..4 label`; `Label: [x, y]`. Quadrant is source-level/opaque
+// (like xychart/pie): detect + extractLabels only, no parse/serialize/mutate.
+// Labels are the title, both axis label sides, the four quadrant region
+// labels, and the point labels.
+function extractQuadrantLabels(source: string): ExtractedLabel[] {
+  const out: ExtractedLabel[] = []
+  const lines = source.split(/\r?\n/)
+  for (let i = 0; i < lines.length; i++) {
+    const raw = lines[i]!.trim()
+    if (!raw || raw.startsWith('%%')) continue
+    const target = `line${i + 1}`
+    if (/^quadrantchart\b/i.test(raw)) continue
+    let m
+    if ((m = raw.match(/^title\s+(.+)$/i))) {
+      out.push({ text: m[1]!.trim(), target })
+      continue
+    }
+    // x-axis / y-axis: `<near> [--> <far>]` — extract both sides.
+    if ((m = raw.match(/^[xy]-axis\s+(.+)$/i))) {
+      const tail = m[1]!.trim()
+      const arrow = tail.indexOf('-->')
+      if (arrow >= 0) {
+        const near = tail.slice(0, arrow).trim()
+        const far = tail.slice(arrow + 3).trim()
+        if (near) out.push({ text: near, target })
+        if (far) out.push({ text: far, target })
+      } else if (tail) {
+        out.push({ text: tail, target })
+      }
+      continue
+    }
+    if ((m = raw.match(/^quadrant-[1-4]\s+(.+)$/i))) {
+      out.push({ text: m[1]!.trim(), target })
+      continue
+    }
+    // Point line: `Label: [x, y]` — extract the label.
+    if ((m = raw.match(/^(.+?)\s*:\s*\[[^\]]*\]\s*$/))) {
+      const text = m[1]!.trim()
+      if (text) out.push({ text, target })
+    }
+  }
+  return out
+}
+
+registerFamily({ id: 'quadrant', detect: l => l.startsWith('quadrantchart'), extractLabels: extractQuadrantLabels })
+
 // ---- Architecture ---------------------------------------------------------
 // group api(cloud)[API], service db(database)[DB] in api
 function extractArchitectureLabels(source: string): ExtractedLabel[] {

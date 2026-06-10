@@ -63,6 +63,9 @@ import { renderXYChartSvg } from './xychart/renderer.ts'
 import { parsePieChart } from './pie/parser.ts'
 import { layoutPieChart } from './pie/layout.ts'
 import { renderPieSvg } from './pie/renderer.ts'
+import { parseQuadrantChart } from './quadrant/parser.ts'
+import { layoutQuadrantChart } from './quadrant/layout.ts'
+import { renderQuadrantSvg } from './quadrant/renderer.ts'
 import { parseArchitectureDiagram } from './architecture/parser.ts'
 import { layoutArchitectureDiagram } from './architecture/layout.ts'
 import { renderArchitectureSvg } from './architecture/renderer.ts'
@@ -382,6 +385,11 @@ export function renderMermaidSVG(
       const chart = parsePieChart(lines)
       const positioned = layoutPieChart(chart, options, colors)
       return resolve(renderPieSvg(positioned, colors, font, transparent, options))
+    }
+    case 'quadrant': {
+      const chart = parseQuadrantChart(lines)
+      const positioned = layoutQuadrantChart(chart, options)
+      return resolve(renderQuadrantSvg(positioned, colors, font, transparent, options))
     }
     case 'flowchart':
     default: {

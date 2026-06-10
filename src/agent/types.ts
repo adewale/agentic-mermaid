@@ -19,7 +19,7 @@ export function err<E, T = never>(error: E): Result<T, E> { return { ok: false, 
 
 export type DiagramKind =
   | 'flowchart' | 'state' | 'sequence' | 'class' | 'er'
-  | 'timeline' | 'journey' | 'xychart' | 'architecture' | 'pie'
+  | 'timeline' | 'journey' | 'xychart' | 'architecture' | 'pie' | 'quadrant'
 
 // ---- Sequence body --------------------------------------------------------
 

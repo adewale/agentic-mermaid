@@ -508,7 +508,7 @@ function unescapeQuotedString(valueText: string): string {
   }
 }
 
-export type RoutedDiagramType = 'flowchart' | 'architecture' | 'sequence' | 'class' | 'er' | 'timeline' | 'journey' | 'xychart' | 'pie'
+export type RoutedDiagramType = 'flowchart' | 'architecture' | 'sequence' | 'class' | 'er' | 'timeline' | 'journey' | 'xychart' | 'pie' | 'quadrant'
 
 /**
  * Return the logical Mermaid lines after frontmatter/init/comment normalization.
@@ -528,6 +528,7 @@ export function detectDiagramTypeFromFirstLine(firstLine: string): RoutedDiagram
   if (/^architecture-beta\s*$/.test(line)) return 'architecture'
   if (/^xychart(-beta)?\b/.test(line)) return 'xychart'
   if (/^pie\b/.test(line)) return 'pie'
+  if (/^quadrantchart\s*$/.test(line)) return 'quadrant'
   if (/^timeline\s*$/.test(line)) return 'timeline'
   if (/^journey\s*$/.test(line)) return 'journey'
   if (/^sequencediagram\s*$/.test(line)) return 'sequence'
@@ -546,6 +547,7 @@ export function detectLooseDiagramTypeFromFirstLine(firstLine: string): RoutedDi
   if (/^architecture-beta\b/.test(line)) return 'architecture'
   if (/^xychart(-beta)?\b/.test(line)) return 'xychart'
   if (/^pie\b/.test(line)) return 'pie'
+  if (/^quadrantchart\b/.test(line)) return 'quadrant'
   if (/^timeline\b/.test(line)) return 'timeline'
   if (/^journey\b/.test(line)) return 'journey'
   if (/^sequencediagram\b/.test(line)) return 'sequence'
