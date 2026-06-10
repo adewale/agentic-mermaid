@@ -10,7 +10,9 @@ release notes; `docs/issue-derived-test-cases.md` = evidence inventory, not back
 `docs/agent-workflow-examples.md` = runnable example index, not backlog;
 `docs/pr11-reviewer-guide.md` = merged PR #11 review/audit map, not backlog.
 
-Status legend: `todo` | `blocked` | `owner-decision` | `parked`.
+Status legend: `todo` | `blocked` | `owner-decision` | `parked` | `done`
+(checked items record recently completed backlog with their evidence; prune
+them once the next release ships).
 
 Items within each section are sorted by dependencies: prerequisites first,
 dependents after. IDs are stable names, not an ordering.
@@ -65,36 +67,58 @@ dependents after. IDs are stable names, not an ordering.
   the upstream fork network (lukilabs/beautiful-mermaid#114). Treat
   beta-grammar families (Venn, Ishikawa, Wardley) as watch-and-wait until
   upstream syntax stabilizes.
-- [ ] **BUILD-10 — Fan-out trunk sharing / connector alignment** (`todo`).
-  Upstream issue: <https://github.com/lukilabs/beautiful-mermaid/issues/111>
+- [x] **BUILD-13 — Layout before/after comparison harness** (`done`).
+  Prerequisite for all visual/layout work (BUILD-10, BUILD-9, BUILD-12,
+  BUILD-1): render the corpus + targeted fixtures on two git states and emit
+  a side-by-side HTML report with perceptual-metric deltas. Shipped as
+  `eval/layout-compare/run.ts` (snapshot/report subcommands, regression
+  exit code), fixtures in `eval/layout-compare/fixtures/`, tests in
+  `src/__tests__/layout-compare.test.ts`.
+- [ ] **BUILD-10 — Fan-out trunk sharing / connector alignment** (`todo`,
+  after BUILD-13; partially done). Upstream issue:
+  <https://github.com/lukilabs/beautiful-mermaid/issues/111>
   (sibling edges from one source don't share a trunk; related connector
-  displacement is issue #112, upstream fix PR is #113). Our ASCII pathfinder
-  already has trunk-shared fanouts (`ascii-pathfinder-trunk.test.ts`);
-  audit our behavior against the upstream report's cases, port what's
-  missing, and re-baseline determinism snapshots deliberately. Do before
-  BUILD-9 — both reshape ASCII layout baselines and fan-in grouping should
-  land on settled trunk behavior.
-- [ ] **BUILD-9 — Fan-in grouping** (`todo`, after BUILD-10). Promoted from
-  PARK-1. Upstream PR:
-  <https://github.com/lukilabs/beautiful-mermaid/pull/69> (open since
-  2026-03-18, 711 tests passing there): groups root nodes by shared
-  downstream target and aligns fan-in children. Real aesthetics win for
-  many-to-one graphs; requires a deliberate determinism-snapshot re-baseline
-  with concrete before/after diagrams as evidence.
-- [ ] **BUILD-12 — Subgraph `direction` support** (`todo`). Mermaid issues:
-  <https://github.com/mermaid-js/mermaid/issues/2509> and
-  <https://github.com/mermaid-js/mermaid/issues/6438> — `direction` inside a
-  subgraph is ignored (notably when any inner node links outward). Mermaid
-  has not solved this; our ELK layered engine can express per-subgraph
-  direction via hierarchical layout options. Differentiation target: parse
-  the `direction` statement, honor it in layout, verify with geometry
-  assertions. Independent of the ASCII items above.
+  displacement is issue #112, upstream fix PR is #113).
+  Done: the #112 box-start displacement is fixed (connector anchored on the
+  node border via `getNodeAttachmentPoint`, gap filled;
+  `src/__tests__/ascii-box-start.test.ts`). Remaining: the #111-class TB
+  fan-out detour (a sibling edge takes an L-shaped wander with its label on
+  the horizontal run; see the upstream repro with `left*`/`center*`/`right*`
+  labels). A naive preferred-direction A* tweak destabilizes the existing
+  trunk post-processing — this needs upstream PR #113's coordinated set
+  (FIFO heap tie-breaking + branch-point re-routing + label placement),
+  ported against our diverged pathfinder, measured with BUILD-13.
+- [x] **BUILD-9 — Fan-in grouping** (`done`). Promoted from PARK-1; upstream
+  PR <https://github.com/lukilabs/beautiful-mermaid/pull/69>. Implemented in
+  `src/ascii/grid.ts` `createMapping`: roots grouped contiguously by first
+  downstream target, fan-in targets aligned under their root group, with
+  self-loops and 2-cycle toggles excluded from the in-degree (a blanket
+  in-degree check regressed state-machine corpora — caught by BUILD-13).
+  Corpus impact: 1 sample improved, 0 regressed. Tests:
+  `src/__tests__/ascii-fan-in-grouping.test.ts`.
+- [x] **BUILD-12 — Subgraph `direction` support** (`done` — it was already
+  implemented; now pinned). Mermaid ignores `direction` inside a subgraph
+  when an inner node links outward
+  (<https://github.com/mermaid-js/mermaid/issues/2509>,
+  <https://github.com/mermaid-js/mermaid/issues/6438>); our ELK SEPARATE
+  hierarchy handling and the ASCII grid layout both honor it, including the
+  #2509 external-link case. Geometry tests pin the differentiator:
+  `src/__tests__/subgraph-direction.test.ts`.
+- [ ] **BUILD-14 — ASCII: edges to a subgraph id create a phantom node**
+  (`todo`). `Start --> Pipeline` where `Pipeline` is a subgraph renders a
+  duplicate floating node box labeled `Pipeline` instead of attaching the
+  edge to the container (the SVG/ELK path handles this correctly via
+  hierarchical ports; verify is layout-path based so it reports `ok` while
+  the ASCII output is wrong). Needs container-border edge attachment in the
+  ASCII grid/pathfinder. Discovered while testing BUILD-12; repro:
+  `eval/layout-compare/fixtures/subgraph-direction.mmd` with an edge to
+  `Pipeline`.
 - [ ] **BUILD-1 — Collapsible subgraphs (#7785)** (`todo`). Track Mermaid PR
   <https://github.com/mermaid-js/mermaid/pull/7785> (`@{ view: collapsed }`
   metadata syntax) and stay syntax-compatible. Large, but a real readability
   win for agent-generated architecture diagrams; pairs naturally with typed
-  `collapse`/`expand` mutation ops. Benefits from BUILD-12's subgraph layout
-  work landing first.
+  `collapse`/`expand` mutation ops. Measure with BUILD-13; fixing BUILD-14
+  first avoids collapsing onto the phantom-node bug.
 - [ ] **BUILD-8 — Tier 3 lint catalogue** (`todo`). The lint tier is
   reserved and `FamilyPlugin.verify` hooks are wired, but zero built-in lint
   codes exist, so every doc carries a "no catalogue yet" caveat. Ship a

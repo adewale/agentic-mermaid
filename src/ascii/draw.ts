@@ -383,7 +383,7 @@ export function drawArrow(
 
   const labelCanvas = drawArrowLabel(graph, edge)
   const [pathCanvas, linesDrawn, lineDirs] = drawPath(graph, edge.path, edge.style)
-  const boxStartCanvas = drawBoxStart(graph, edge.path, linesDrawn[0]!, edge.from.shape)
+  const boxStartCanvas = drawBoxStart(graph, edge.path, linesDrawn[0]!, edge.from, edge.style)
 
   // Draw end marker only if hasArrowEnd is true (default behavior)
   let arrowHeadEndCanvas: Canvas
@@ -485,24 +485,44 @@ function drawBoxStart(
   graph: AsciiGraph,
   path: GridCoord[],
   firstLine: DrawingCoord[],
-  sourceShape: string,
+  sourceNode: AsciiNode,
+  style: AsciiEdgeStyle = 'solid',
 ): Canvas {
   const canvas = copyCanvas(graph.canvas)
   if (graph.config.useAscii) return canvas
 
   // Skip box start connectors for state pseudo-states (they have their own bordered design)
-  if (sourceShape === 'state-start' || sourceShape === 'state-end') {
+  if (sourceNode.shape === 'state-start' || sourceNode.shape === 'state-end') {
     return canvas
   }
 
   const from = firstLine[0]!
   const dir = determineDirection(path[0]!, path[1]!)
 
-  if (dirEquals(dir, Up)) canvas[from.x]![from.y + 1] = '┴'
-  else if (dirEquals(dir, Down)) canvas[from.x]![from.y - 1] = '┬'
-  else if (dirEquals(dir, Left)) canvas[from.x + 1]![from.y] = '┤'
-  else if (dirEquals(dir, Right)) canvas[from.x - 1]![from.y] = '├'
+  // Junction position derived from the first path point (a grid-cell center).
+  let junction: DrawingCoord
+  let ch: string
+  if (dirEquals(dir, Up)) { junction = { x: from.x, y: from.y + 1 }; ch = '┴' }
+  else if (dirEquals(dir, Down)) { junction = { x: from.x, y: from.y - 1 }; ch = '┬' }
+  else if (dirEquals(dir, Left)) { junction = { x: from.x + 1, y: from.y }; ch = '┤' }
+  else if (dirEquals(dir, Right)) { junction = { x: from.x - 1, y: from.y }; ch = '├' }
+  else return canvas
 
+  // The junction must sit on the source box border. A grid-cell center drifts
+  // away from the border when a sibling edge's label widens the column
+  // (upstream lukilabs#112), leaving the connector floating in whitespace.
+  // Anchor it on the node's real attachment point and fill the gap with line
+  // characters so the edge stays continuous.
+  if (sourceNode.gridCoord && sourceNode.drawingCoord) {
+    const border = getNodeAttachmentPoint(graph, sourceNode, dir)
+    if (!drawingCoordEquals(border, junction) &&
+        (border.x === junction.x || border.y === junction.y)) {
+      drawLine(canvas, border, junction, 1, 0, false, style)
+      junction = border
+    }
+  }
+
+  canvas[junction.x]![junction.y] = ch
   return canvas
 }
 

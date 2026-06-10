@@ -5,6 +5,7 @@ This changelog tracks user-facing changes for **Agentic Mermaid**, a fork of `lu
 ## Unreleased
 
 ### Added
+- Layout before/after comparison harness (`eval/layout-compare/run.ts`): snapshots the docs corpus + targeted fixtures (SVG, ASCII, perceptual metrics) per git state and emits a side-by-side HTML report with metric deltas and a regression exit code. Geometry tests now also pin subgraph `direction` support — honored even when an inner node links outward, which Mermaid itself does not solve (mermaid-js#2509).
 - **Breaking package identity**: first Agentic Mermaid release is published as `agentic-mermaid`; package imports are now `agentic-mermaid` and `agentic-mermaid/agent` while the GitHub repo remains `adewale/beautiful-mermaid`.
 - **Agent-native surface** (`agentic-mermaid/agent` subpath export): a typed editing API for agents and tools.
   - `parseMermaid` → sealed `ValidDiagram` IR carrying frontmatter, init directives, comments, accessibility, and the canonical source.
@@ -45,6 +46,8 @@ This changelog tracks user-facing changes for **Agentic Mermaid**, a fork of `lu
 - Quality docs now explicitly state that Agentic Mermaid is not Mermaid visual parity: `verify.ok` is structural, while layout quality needs metrics, geometry assertions, screenshots, or rendered artifacts.
 
 ### Fixed
+- ASCII box-start connectors (`├ ┤ ┬ ┴`) now sit flush on the source node's border instead of floating in whitespace when a sibling edge's label widens the grid column (upstream lukilabs#112 class); the gap is filled with style-matching line characters.
+- ASCII fan-in layouts: roots feeding the same target are grouped contiguously and each fan-in target aligns under its own root group (upstream lukilabs#69), so trunk rows of different groups no longer collide into ambiguous `┼` crossings. Self-loops and 2-cycle toggles are excluded so state-machine layouts are unaffected.
 - ER cardinality tokens now match Mermaid's lexer on both sides (`||`, `|o`, `o|`, `}o`, `o{`, `}|`, `|{`): left-side `}o` (used by the mermaid-docs corpus as `}o..o{`) previously failed the sort-based normalization and the whole relationship — including its entities — was silently dropped, rendering an empty diagram. Non-Mermaid forms (`{o`, `o}`, `|}`, `{|`) now raise a clear parse error instead of rendering. The render-path parser and the agent ER body parser now agree.
 - Showcase and editor theme switching no longer flashes the previous theme's diagram background (white, when leaving a light theme): existing SVG CSS variables are patched instantly, switching back to Default restores each sample's captured original style, and rapid theme switches can no longer interleave stale re-renders.
 - TypeScript CI failures in journey style padding and optional node corner-radius resolution.

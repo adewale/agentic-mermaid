@@ -1,0 +1,7 @@
+flowchart LR
+  A[Ingest A] --> Q[Queue]
+  B[Ingest B] --> Q
+  C[Ingest C] --> Q
+  Q --> W1[Worker 1]
+  Q --> W2[Worker 2]
+  Q --> W3[Worker 3]
