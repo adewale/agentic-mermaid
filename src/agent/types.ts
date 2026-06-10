@@ -263,6 +263,43 @@ export interface XyChartBody {
   series: XyChartSeries[]
 }
 
+// ---- State diagram body -----------------------------------------------------
+
+/**
+ * A state node. Simple states carry an optional display label; composite states
+ * additionally carry their own nested `states` + `transitions` (and an optional
+ * per-composite `direction`). The reserved pseudostate `[*]` is NOT a StateNode
+ * — it is modeled contextually as the endpoint id '[*]' on transitions (source
+ * = start pseudostate, target = end pseudostate), scoped per composite level.
+ */
+export interface StateNode {
+  id: string
+  /** Optional display label (`state "Label" as id` / `id : Label`). */
+  label?: string
+  /** Composite children — present iff this is a composite state. */
+  states?: StateNode[]
+  /** Composite-internal transitions — present iff this is a composite state. */
+  transitions?: StateTransition[]
+  /** Optional per-composite layout direction. */
+  direction?: import('../types.ts').Direction
+}
+
+export interface StateTransition {
+  /** Source state id, or '[*]' for a start pseudostate. */
+  from: string
+  /** Target state id, or '[*]' for an end pseudostate. */
+  to: string
+  label?: string
+}
+
+export interface StateBody {
+  kind: 'state'
+  states: StateNode[]
+  transitions: StateTransition[]
+  /** Optional top-level layout direction. */
+  direction?: import('../types.ts').Direction
+}
+
 // ---- Meta + IR ------------------------------------------------------------
 
 export interface SourceComment { text: string; line: number }
@@ -284,6 +321,7 @@ export interface SourceMap {
 
 export type DiagramBody =
   | { kind: 'flowchart'; graph: MermaidGraph }
+  | StateBody
   | SequenceBody
   | TimelineBody
   | ClassBody
@@ -326,6 +364,7 @@ export interface ValidDiagram {
 }
 
 export type FlowchartValidDiagram = ValidDiagram & { body: { kind: 'flowchart'; graph: MermaidGraph } }
+export type StateValidDiagram = ValidDiagram & { body: StateBody }
 export type SequenceValidDiagram = ValidDiagram & { body: SequenceBody }
 export type TimelineValidDiagram = ValidDiagram & { body: TimelineBody }
 export type ClassValidDiagram = ValidDiagram & { body: ClassBody }
@@ -333,10 +372,13 @@ export type ErValidDiagram = ValidDiagram & { body: ErBody }
 export type JourneyValidDiagram = ValidDiagram & { body: JourneyBody }
 export type ArchitectureValidDiagram = ValidDiagram & { body: ArchitectureBody }
 export type XyChartValidDiagram = ValidDiagram & { body: XyChartBody }
-export type MutableValidDiagram = FlowchartValidDiagram | SequenceValidDiagram | TimelineValidDiagram | ClassValidDiagram | ErValidDiagram | JourneyValidDiagram | ArchitectureValidDiagram | XyChartValidDiagram
+export type MutableValidDiagram = FlowchartValidDiagram | StateValidDiagram | SequenceValidDiagram | TimelineValidDiagram | ClassValidDiagram | ErValidDiagram | JourneyValidDiagram | ArchitectureValidDiagram | XyChartValidDiagram
 
 export function asFlowchart(d: ValidDiagram): FlowchartValidDiagram | null {
   return d.body.kind === 'flowchart' ? (d as FlowchartValidDiagram) : null
+}
+export function asState(d: ValidDiagram): StateValidDiagram | null {
+  return d.body.kind === 'state' ? (d as StateValidDiagram) : null
 }
 export function asSequence(d: ValidDiagram): SequenceValidDiagram | null {
   return d.body.kind === 'sequence' ? (d as SequenceValidDiagram) : null
@@ -380,7 +422,8 @@ export interface MutationError {
     | 'ENTITY_NOT_FOUND' | 'ATTRIBUTE_NOT_FOUND'
     | 'SERVICE_NOT_FOUND' | 'GROUP_NOT_FOUND'
     | 'SERIES_NOT_FOUND'
-    | 'DUPLICATE_NODE' | 'DUPLICATE_PARTICIPANT' | 'DUPLICATE_CLASS' | 'DUPLICATE_ENTITY'
+    | 'STATE_NOT_FOUND' | 'TRANSITION_NOT_FOUND'
+    | 'DUPLICATE_NODE' | 'DUPLICATE_PARTICIPANT' | 'DUPLICATE_CLASS' | 'DUPLICATE_ENTITY' | 'DUPLICATE_STATE'
     | 'INVALID_OP'
   message: string
 }
@@ -464,6 +507,16 @@ export type ArchitectureMutationOp =
   | { kind: 'add_edge'; from: string; to: string; fromSide: ArchitectureSide; toSide: ArchitectureSide; label?: string | null; hasArrowStart?: boolean; hasArrowEnd?: boolean }
   | { kind: 'remove_edge'; index?: number; id?: string }
 
+export type StateMutationOp =
+  | { kind: 'add_state'; id: string; label?: string | null; parent?: string | null }
+  | { kind: 'remove_state'; id: string }
+  | { kind: 'rename_state'; from: string; to: string }
+  | { kind: 'set_state_label'; id: string; label: string | null }
+  | { kind: 'add_transition'; from: string; to: string; label?: string | null; parent?: string | null }
+  | { kind: 'remove_transition'; index?: number; from?: string; to?: string; parent?: string | null }
+  | { kind: 'set_transition_label'; index?: number; from?: string; to?: string; label: string | null; parent?: string | null }
+  | { kind: 'make_composite'; id: string; members: string[]; label?: string | null }
+
 export type XyChartAxisSpec = { name?: string | null; categories?: string[]; range?: { min: number; max: number } }
 
 export type XyChartMutationOp =
@@ -476,7 +529,7 @@ export type XyChartMutationOp =
   | { kind: 'set_series_name'; index: number; name: string | null }
   | { kind: 'reorder_series'; from: number; to: number }
 
-export type AnyMutationOp = FlowchartMutationOp | SequenceMutationOp | TimelineMutationOp | ClassMutationOp | ErMutationOp | JourneyMutationOp | ArchitectureMutationOp | XyChartMutationOp
+export type AnyMutationOp = FlowchartMutationOp | StateMutationOp | SequenceMutationOp | TimelineMutationOp | ClassMutationOp | ErMutationOp | JourneyMutationOp | ArchitectureMutationOp | XyChartMutationOp
 export type MutationOp = FlowchartMutationOp // legacy alias
 
 // ---- Branded Finite -------------------------------------------------------
@@ -596,6 +649,7 @@ export interface ValidDiagramPayload {
   meta?: Partial<ValidDiagramMeta>
   body:
     | { kind: 'flowchart'; graph: SerializedFlowchartGraph }
+    | StateBody
     | SequenceBody
     | TimelineBody
     | ClassBody

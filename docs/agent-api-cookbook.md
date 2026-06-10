@@ -244,7 +244,8 @@ Use `am capabilities --json` for machine-readable discovery. Current typed mutat
 
 | Family | Narrower | Op kinds |
 |---|---|---|
-| Flowchart, State | `asFlowchart` | `add_node`, `remove_node`, `rename_node`, `set_label`, `add_edge`, `remove_edge` |
+| Flowchart | `asFlowchart` | `add_node`, `remove_node`, `rename_node`, `set_label`, `add_edge`, `remove_edge` |
+| State | `asState` | `add_state`, `remove_state`, `rename_state`, `set_state_label`, `add_transition`, `remove_transition`, `set_transition_label`, `make_composite` |
 | Sequence | `asSequence` | `add_participant`, `remove_participant`, `add_message`, `remove_message`, `set_message_text` |
 | Timeline | `asTimeline` | `set_title`, `add_section`, `remove_section`, `set_section_label`, `add_period`, `remove_period`, `set_period_label`, `add_event`, `remove_event`, `set_event_text` |
 | Class | `asClass` | `set_title`, `add_class`, `remove_class`, `rename_class`, `add_member`, `remove_member`, `add_relation`, `remove_relation`, `add_note`, `remove_note` |

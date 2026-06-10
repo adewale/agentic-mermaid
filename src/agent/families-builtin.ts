@@ -6,10 +6,13 @@
 // serializeMermaid, and mutate dispatch through these hooks, so adding a
 // family means one registration plus a body module — no core edits.
 //
-// Flowchart and state register through `flowchartFamilyHooks(headerKind)`:
-// two plugins sharing one implementation over the legacy MermaidGraph body,
-// with the serialized header bound per kind. Their parse keeps error
-// semantics (no opaque fallback) and contributes a SourceMap.
+// Flowchart registers through `flowchartFamilyHooks('flowchart')` over the
+// legacy MermaidGraph body (error semantics, contributes a SourceMap).
+//
+// State registers through `structuredFamilyHooks('state', …)` over the
+// dedicated StateBody IR (BUILD-19): structured-or-opaque parse, state-shaped
+// ops, an `asState` narrower, and a verify hook that runs body-level Tier 1
+// checks (verify.ts adds the geometric Tier 2 pass via the graph projection).
 // ============================================================================
 
 import { registerFamily, extractLabelsGeneric, type ExtractedLabel, type FamilyPlugin } from './families.ts'
@@ -22,6 +25,7 @@ import { parseTimelineBody, renderTimeline, mutateTimeline } from './timeline-bo
 import { parseJourneyBody, renderJourney, mutateJourney, verifyJourney } from './journey-body.ts'
 import { parseArchitectureBody, renderArchitecture, mutateArchitecture, verifyArchitecture } from './architecture-body.ts'
 import { parseXyChartBody, renderXyChart, mutateXyChart, verifyXyChart } from './xychart-body.ts'
+import { parseStateBody, renderState, mutateState, verifyState } from './state-body.ts'
 import { parseFlowchartBody, renderFlowchart, mutateFlowchart, buildFlowchartSourceMap, type FlowchartBody } from './flowchart-body.ts'
 
 // Build the structured-or-opaque hook set shared by every structured family
@@ -54,7 +58,7 @@ function structuredFamilyHooks<K extends DiagramBody['kind'] & DiagramKind>(
   }
 }
 
-// ---- Flowchart / State ----------------------------------------------------
+// ---- Flowchart ------------------------------------------------------------
 // Flowchart-specific label extraction:
 //   - `A["text"]`, `A(text)`, `A([text])`, `A{text}`, `A{{text}}`, etc.
 //   - `A -- text --> B`, `A -->|text| B`
@@ -76,19 +80,19 @@ function extractFlowchartLabels(source: string): ExtractedLabel[] {
   return out
 }
 
-// One implementation, two registrations: the diagram kind (not the body
-// kind) selects the plugin, so each binds its serialized header here.
-function flowchartFamilyHooks(headerKind: 'flowchart' | 'state'): Pick<FamilyPlugin, 'parse' | 'buildSourceMap' | 'serialize' | 'mutate'> {
+// Flowchart owns the legacy MermaidGraph body: the diagram kind selects the
+// plugin, which binds the flowchart header.
+function flowchartFamilyHooks(): Pick<FamilyPlugin, 'parse' | 'buildSourceMap' | 'serialize' | 'mutate'> {
   return {
     parse: (_lines, _opaqueSource, _meta, canonicalSource) => parseFlowchartBody(canonicalSource),
     buildSourceMap: (body, canonicalSource) =>
       buildFlowchartSourceMap(body as FlowchartBody, canonicalSource),
     serialize: body => {
-      if (body.kind !== 'flowchart') throw new Error(`${headerKind} serializer received body kind ${body.kind}`)
-      return renderFlowchart(body.graph, headerKind)
+      if (body.kind !== 'flowchart') throw new Error(`flowchart serializer received body kind ${body.kind}`)
+      return renderFlowchart(body.graph, 'flowchart')
     },
     mutate: (body, op) => {
-      if (body.kind !== 'flowchart') return err<MutationError>({ code: 'INVALID_OP', message: `${headerKind} mutator received body kind ${body.kind}` })
+      if (body.kind !== 'flowchart') return err<MutationError>({ code: 'INVALID_OP', message: `flowchart mutator received body kind ${body.kind}` })
       return mutateFlowchart(body, op as never)
     },
   }
@@ -98,13 +102,46 @@ registerFamily({
   id: 'flowchart',
   detect: l => l.startsWith('flowchart') || l.startsWith('graph'),
   extractLabels: extractFlowchartLabels,
-  ...flowchartFamilyHooks('flowchart'),
+  ...flowchartFamilyHooks(),
 })
+
+// ---- State ----------------------------------------------------------------
+// BUILD-19: state owns a dedicated StateBody IR (no longer the flowchart body).
+// State label extraction for opaque fallbacks: `state "Label" as id`,
+// `id : Description`, and transition labels `from --> to : label`.
+function extractStateLabels(source: string): ExtractedLabel[] {
+  const out: ExtractedLabel[] = []
+  const lines = source.split(/\r?\n/)
+  for (let i = 0; i < lines.length; i++) {
+    const raw = lines[i]!.trim()
+    if (!raw || raw.startsWith('%%')) continue
+    const target = `line${i + 1}`
+    let m
+    if ((m = raw.match(/^state\s+"([^"]+)"\s+as\s+/i))) {
+      out.push({ text: m[1]!.trim(), target })
+    } else if (raw.includes('-->') && raw.includes(':')) {
+      const colon = raw.indexOf(':')
+      out.push({ text: raw.slice(colon + 1).trim(), target })
+    } else if ((m = raw.match(/^[\w\p{L}-]+\s*:\s*(.+)$/u))) {
+      out.push({ text: m[1]!.trim(), target })
+    } else if ((m = raw.match(/^note\s+(?:left of|right of)\s+\S+\s*:\s*(.+)$/i))) {
+      out.push({ text: m[1]!.trim(), target })
+    }
+  }
+  return out
+}
+
 registerFamily({
   id: 'state',
   detect: l => l.startsWith('statediagram') || l.startsWith('statediagram-v2'),
-  extractLabels: extractFlowchartLabels,
-  ...flowchartFamilyHooks('state'),
+  extractLabels: extractStateLabels,
+  // The verify hook covers body-level structural Tier 1 (EMPTY/MISANCHORED/
+  // LABEL_OVERFLOW); verify.ts adds geometric Tier 2 via the graph projection.
+  verify: (body, opts) => body.kind === 'state' ? verifyState(body, opts) : [],
+  ...structuredFamilyHooks('state', {
+    headerOk: h => /^statediagram(?:-v2)?\s*$/i.test(h),
+    parseBody: parseStateBody, serialize: renderState, mutate: mutateState,
+  }),
 })
 
 // ---- Sequence -------------------------------------------------------------

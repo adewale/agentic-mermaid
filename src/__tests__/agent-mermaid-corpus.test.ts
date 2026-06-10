@@ -32,13 +32,16 @@ describe('mermaid-js docs corpus (247 examples, 9 families)', () => {
   // future change drops a rate below floor, the test fails with the full
   // rate report so it's obvious what changed.
   //
-  // KNOWN GAP — state diagrams: rt=5%. State currently shares the flowchart
-  // body in our IR, so the legacy flowchart parser rewrites state-specific
-  // syntax (`[*]` → `_start`, state names → flowchart-node-with-shape-label).
-  // Documented in docs/project/divergences.md; structured state body is Phase C work.
+  // BUILD-19 — state diagrams now own a dedicated StateBody IR. The modeled
+  // subset (simple states/transitions/`[*]`/composites/direction) round-trips
+  // structurally; everything else (`<<fork>>`/`<<choice>>`/notes/`--`/
+  // `classDef`) falls back to a lossless opaque body. Round-trip jumped 5% →
+  // 100% (all 20 samples stable). Verify 80% (4 dense/composite samples emit
+  // advisory geometric/structural warnings from the graph projection — non-
+  // fatal). Floors raised to lock in the improvement.
   const expected: Record<string, { minParse: number; minVerify: number; minRoundTrip: number }> = {
     flowchart:    { minParse: 1.00, minVerify: 1.00, minRoundTrip: 0.95 },
-    state:        { minParse: 1.00, minVerify: 0.70, minRoundTrip: 0.05 },
+    state:        { minParse: 1.00, minVerify: 0.80, minRoundTrip: 1.00 },
     sequence:     { minParse: 1.00, minVerify: 1.00, minRoundTrip: 1.00 },
     class:        { minParse: 1.00, minVerify: 1.00, minRoundTrip: 1.00 },
     er:           { minParse: 1.00, minVerify: 1.00, minRoundTrip: 1.00 },

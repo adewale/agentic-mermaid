@@ -146,7 +146,7 @@ const source = serializeMermaid(next.value)
 
 Rules:
 
-- Use `asFlowchart` / `asSequence` / `asTimeline` / `asClass` / `asEr` / `asJourney` / `asArchitecture` / `asXyChart` before mutating existing diagrams.
+- Use `asFlowchart` / `asState` / `asSequence` / `asTimeline` / `asClass` / `asEr` / `asJourney` / `asArchitecture` / `asXyChart` before mutating existing diagrams.
 - Mutation ops use `kind`, not `type`.
 - Run `verifyMermaid` before every commit point.
 - Do not call `mutate` on pie, quadrant, or opaque fallback bodies.

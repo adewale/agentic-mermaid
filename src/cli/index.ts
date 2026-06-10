@@ -13,10 +13,10 @@ import { verifyMermaid } from '../agent/verify.ts'
 import { renderMermaidSVG, renderMermaidASCII, renderMermaidPNG, layoutMermaid } from '../agent/index.ts'
 import { describeMermaid } from '../agent/describe.ts'
 import { collectBatched } from '../shared/batched.ts'
-import { asFlowchart, asSequence, asTimeline, asClass, asEr, asJourney, asArchitecture, asXyChart } from '../agent/types.ts'
+import { asFlowchart, asState, asSequence, asTimeline, asClass, asEr, asJourney, asArchitecture, asXyChart } from '../agent/types.ts'
 import type {
   ValidDiagram, WarningCode,
-  FlowchartMutationOp, SequenceMutationOp, TimelineMutationOp, ClassMutationOp, ErMutationOp, JourneyMutationOp, ArchitectureMutationOp, XyChartMutationOp, AnyMutationOp,
+  FlowchartMutationOp, StateMutationOp, SequenceMutationOp, TimelineMutationOp, ClassMutationOp, ErMutationOp, JourneyMutationOp, ArchitectureMutationOp, XyChartMutationOp, AnyMutationOp,
   MutationError, Result, MutableValidDiagram,
 } from '../agent/types.ts'
 import { WARNING_SEVERITY, WARNING_TIER } from '../agent/types.ts'
@@ -429,6 +429,10 @@ function parseMutationOpsFlag(args: ParsedArgs): Result<AnyMutationOp[], CliMuta
 function mutateAny(d: ValidDiagram, op: AnyMutationOp): Result<MutableValidDiagram, CliMutationError> {
   const flow = asFlowchart(d)
   if (flow) return mutate(flow, op as FlowchartMutationOp)
+  // asState BEFORE the others: state diagrams own a dedicated StateBody and take
+  // state-shaped ops (asFlowchart now returns null on them — BUILD-19).
+  const state = asState(d)
+  if (state) return mutate(state, op as StateMutationOp)
   const seq = asSequence(d)
   if (seq) return mutate(seq, op as SequenceMutationOp)
   const timeline = asTimeline(d)
@@ -626,7 +630,7 @@ interface CapabilitiesEnvelope {
 
 export const MUTATION_OPS_BY_FAMILY = {
   flowchart: ['add_node', 'remove_node', 'rename_node', 'set_label', 'add_edge', 'remove_edge'],
-  state: ['add_node', 'remove_node', 'rename_node', 'set_label', 'add_edge', 'remove_edge'],
+  state: ['add_state', 'remove_state', 'rename_state', 'set_state_label', 'add_transition', 'remove_transition', 'set_transition_label', 'make_composite'],
   sequence: ['add_participant', 'remove_participant', 'add_message', 'remove_message', 'set_message_text'],
   timeline: ['set_title', 'add_section', 'remove_section', 'set_section_label', 'add_period', 'remove_period', 'set_period_label', 'add_event', 'remove_event', 'set_event_text'],
   class: ['set_title', 'add_class', 'remove_class', 'rename_class', 'add_member', 'remove_member', 'add_relation', 'remove_relation', 'add_note', 'remove_note'],
@@ -748,7 +752,7 @@ references — safe for untrusted/agent-generated diagrams. See SECURITY.md.
 
 All families parse, verify, render, round-trip: ${families}.
 Structured mutation (${cap.families.find(f => f.hasMutate)?.editPolicy}): ${structured.join(', ')}.
-State shares the flowchart body: narrow with asFlowchart; flowchart ops apply.
+State diagrams own a dedicated body (BUILD-19): narrow with asState; state-shaped ops apply (asFlowchart returns null on them).
 Source-level-only: ${cap.families.filter(f => !f.hasMutate).map(f => f.id).join(', ')}.
 Source-level bodies round-trip losslessly via preserved source (never silently dropped).
 

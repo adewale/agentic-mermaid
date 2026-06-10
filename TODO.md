@@ -148,17 +148,34 @@ dependents after. IDs are stable names, not an ordering.
   notes/alt/loop/par), then class/ER/timeline unmodeled-syntax fallbacks.
   This is the path to "typed mutation for all diagrams" without ever
   violating the no-loss guarantee.
-- [ ] **BUILD-19 — Dedicated `StateBody` IR for state diagrams** (`todo`,
-  evidence-gated). State diagrams currently parse AS flowcharts (shared
-  `MermaidGraph` body; `[*]` pseudo-states encoded as node shapes), so
-  agents edit them with flowchart vocabulary. A dedicated structured-or-
-  opaque `StateBody` (states, transitions, composites, forks/choices,
-  notes, concurrency) would give state-shaped ops (`add_state`,
-  `add_transition`, `make_composite`, …), a real `asState` narrower, and
-  lossless opaque fallback for composite syntax the flowchart projection
-  flattens. Full BUILD-15-style checklist plus a renderer-projection
-  decision. Promote when a consumer actually hits the limits of flowchart
-  vocabulary on state diagrams.
+- [x] **BUILD-19 — Dedicated `StateBody` IR for state diagrams** (`done`).
+  State diagrams now own a dedicated structured-or-opaque `StateBody`
+  (`body.kind: 'state'`) — states, transitions with `[*]` start/end
+  pseudostates (scoped per composite level), nestable composites, and
+  `direction` — replacing the flowchart projection. `src/agent/state-body.ts`
+  ships parse/serialize/mutate/verify; `families-builtin` registers state via
+  `structuredFamilyHooks('state', …)`. Evidence:
+  - **Modeled-vs-opaque, legacy-probed**: probed `parseStateDiagram` empirically
+    (definition-before-use label ordering, `[*]` → `_start`/`_end`, composite
+    `[\w\p{L}]+` ids reject hyphens, bare `stateId`/notes/`<<fork>>`/`--`/
+    `classDef`/`:::` are DROPPED by the legacy parser → modeled subset is exactly
+    what re-parses identically; everything else stays lossless-opaque).
+  - **8 ops** (`add_state`, `remove_state` [cascade + refuse non-empty composite],
+    `rename_state` [rewrites transitions], `set_state_label`, `add_transition`,
+    `remove_transition` [index or from/to], `set_transition_label`,
+    `make_composite`). New error codes `STATE_NOT_FOUND`, `TRANSITION_NOT_FOUND`,
+    `DUPLICATE_STATE`.
+  - **Verify-projection proof**: `verify.ts` projects `StateBody` → `MermaidGraph`
+    via `stateBodyToGraph` and runs the shared `verifyGraph` (Tier 1 + Tier 2);
+    differential test proves canonical source re-parses 1:1 under the legacy
+    parser (states ↔ nodes, transitions ↔ edges, composites ↔ subgraphs).
+  - **Corpus delta**: state round-trip 5% → 100% (all 20 mermaid-docs samples),
+    verify floor 0.70 → 0.80; floors raised in `agent-mermaid-corpus.test.ts`.
+  - `asState` narrower; `asFlowchart` now returns `null` on state (breaking flip,
+    documented across every agent surface + CHANGELOG breaking note). Tests:
+    `src/__tests__/agent-state.test.ts` (42 tests: parse, narrow, round-trip,
+    opaque-fallback table, error-path table, differential, fast-check, verify
+    projection); state pins in `agent.test.ts` and doc-sync guard flipped.
 - [x] **BUILD-13 — Layout before/after comparison harness** (`done`).
   Prerequisite for all visual/layout work (BUILD-10, BUILD-9, BUILD-12,
   BUILD-1): render the corpus + targeted fixtures on two git states and emit

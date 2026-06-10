@@ -31,6 +31,7 @@ interface ValidDiagram {
   }
   readonly body:
     | { kind: 'flowchart'; graph: FlowchartGraph }
+    | StateBody
     | SequenceBody
     | TimelineBody
     | ClassBody
@@ -43,6 +44,7 @@ interface ValidDiagram {
 }
 
 type FlowchartValidDiagram = ValidDiagram & { body: { kind: 'flowchart'; graph: FlowchartGraph } }
+type StateValidDiagram     = ValidDiagram & { body: StateBody }
 type SequenceValidDiagram  = ValidDiagram & { body: SequenceBody }
 type TimelineValidDiagram  = ValidDiagram & { body: TimelineBody }
 type ClassValidDiagram     = ValidDiagram & { body: ClassBody }
@@ -60,6 +62,10 @@ interface FlowchartGraph {
   }[]
   subgraphs: { id: string; label: string; nodeIds: string[]; children: FlowchartGraph['subgraphs']; direction?: FlowchartGraph['direction'] }[]
 }
+
+interface StateNode { id: string; label?: string; states?: StateNode[]; transitions?: StateTransition[]; direction?: 'TD' | 'TB' | 'LR' | 'BT' | 'RL' }
+interface StateTransition { from: string; to: string; label?: string }   // from/to may be '[*]'
+interface StateBody { kind: 'state'; states: StateNode[]; transitions: StateTransition[]; direction?: 'TD' | 'TB' | 'LR' | 'BT' | 'RL' }
 
 interface SeqParticipant { id: string; label: string; kind: 'participant' | 'actor' }
 interface SeqMessage { from: string; to: string; text: string; style: string }
@@ -105,6 +111,16 @@ type FlowchartMutationOp =
   | { kind: 'set_label'; target: string; label: string }
   | { kind: 'add_edge'; from: string; to: string; label?: string; style?: 'solid' | 'dotted' | 'thick' }
   | { kind: 'remove_edge'; id: string }
+
+type StateMutationOp =
+  | { kind: 'add_state'; id: string; label?: string | null; parent?: string | null }
+  | { kind: 'remove_state'; id: string }
+  | { kind: 'rename_state'; from: string; to: string }
+  | { kind: 'set_state_label'; id: string; label: string | null }
+  | { kind: 'add_transition'; from: string; to: string; label?: string | null; parent?: string | null }   // from/to may be '[*]'
+  | { kind: 'remove_transition'; index?: number; from?: string; to?: string; parent?: string | null }
+  | { kind: 'set_transition_label'; index?: number; from?: string; to?: string; label: string | null; parent?: string | null }
+  | { kind: 'make_composite'; id: string; members: string[]; label?: string | null }
 
 type SequenceMutationOp =
   | { kind: 'add_participant'; id: string; label?: string; participantKind?: 'participant' | 'actor' }
@@ -199,6 +215,7 @@ interface VerifyResult {
 declare const mermaid: {
   parseMermaid(source: string): Result<ValidDiagram, { code: string; message: string }[]>
   asFlowchart(d: ValidDiagram): FlowchartValidDiagram | null
+  asState(d: ValidDiagram):     StateValidDiagram | null
   asSequence(d: ValidDiagram):  SequenceValidDiagram | null
   asTimeline(d: ValidDiagram):  TimelineValidDiagram | null
   asClass(d: ValidDiagram):     ClassValidDiagram | null
@@ -207,6 +224,7 @@ declare const mermaid: {
   asArchitecture(d: ValidDiagram): ArchitectureValidDiagram | null
   asXyChart(d: ValidDiagram):   XyChartValidDiagram | null
   mutate(d: FlowchartValidDiagram, op: FlowchartMutationOp): Result<FlowchartValidDiagram, { code: string; message: string }>
+  mutate(d: StateValidDiagram,     op: StateMutationOp):     Result<StateValidDiagram, { code: string; message: string }>
   mutate(d: SequenceValidDiagram,  op: SequenceMutationOp):  Result<SequenceValidDiagram, { code: string; message: string }>
   mutate(d: TimelineValidDiagram,  op: TimelineMutationOp):  Result<TimelineValidDiagram, { code: string; message: string }>
   mutate(d: ClassValidDiagram,     op: ClassMutationOp):     Result<ClassValidDiagram, { code: string; message: string }>
@@ -224,9 +242,11 @@ declare const mermaid: {
 // 1. For new diagrams, author Mermaid source directly, then parse/verify/render.
 // 2. For existing structured diagrams, use mutate() + verify + serializeMermaid();
 //    do not regenerate/concatenate source when a typed op exists.
-// 3. mutate works on flowchart/state, simple sequence, timeline, class, ER,
-//    journey, architecture, and xychart. Narrow via asFlowchart/asSequence/
-//    asTimeline/asClass/asEr/asJourney/asArchitecture/asXyChart. Opaque-fallback
+// 3. mutate works on flowchart, state, simple sequence, timeline, class, ER,
+//    journey, architecture, and xychart. Narrow via asFlowchart/asState/
+//    asSequence/asTimeline/asClass/asEr/asJourney/asArchitecture/asXyChart.
+//    State owns a dedicated body (BUILD-19); asFlowchart returns null on it.
+//    Opaque-fallback
 //    bodies (unmodeled syntax) are source-level only; if explicitly edited as
 //    text, re-parse and verify before returning.
 // 4. verify.ok is structural, not a visual-quality score; inspect warnings/layout or render artifacts for layout quality.

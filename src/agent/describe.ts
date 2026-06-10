@@ -47,6 +47,7 @@ export function describeMermaidSource(source: string, opts: DescribeOptions = {}
 export function describeMermaid(d: ValidDiagram, opts: DescribeOptions = {}): string {
   if (opts.format === 'json') return JSON.stringify(describeMermaidTree(d))
   if (d.body.kind === 'flowchart') return describeFlowchart(d as FlowchartValidDiagram)
+  if (d.body.kind === 'state') return describeState(d.body)
   if (d.body.kind === 'sequence') return describeSequence(d as SequenceValidDiagram)
   if (d.body.kind === 'timeline') return describeTimeline(d as TimelineValidDiagram)
   if (d.body.kind === 'class') return describeClass(d as ClassValidDiagram)
@@ -70,6 +71,15 @@ export function describeMermaidTree(d: ValidDiagram): DescribeTree {
     const g = d.body.graph
     for (const n of g.nodes.values()) tree.nodes.push({ id: n.id, label: n.label || n.id })
     for (const e of g.edges) tree.edges.push({ from: e.source, to: e.target, label: e.label || undefined })
+  } else if (d.body.kind === 'state') {
+    const visit = (states: import('./types.ts').StateNode[], transitions: import('./types.ts').StateTransition[]) => {
+      for (const s of states) {
+        tree.nodes.push({ id: s.id, label: s.label || s.id })
+        if (s.states !== undefined) visit(s.states, s.transitions ?? [])
+      }
+      for (const t of transitions) tree.edges.push({ from: t.from, to: t.to, label: t.label || undefined })
+    }
+    visit(d.body.states, d.body.transitions)
   } else if (d.body.kind === 'sequence') {
     for (const p of d.body.participants) tree.nodes.push({ id: p.id, label: p.label || p.id })
     d.body.messages.forEach(m => tree.edges.push({ from: m.from, to: m.to, label: m.text || undefined }))
@@ -133,6 +143,32 @@ function describeFlowchart(d: FlowchartValidDiagram): string {
   if (edgeStr.length > 0) s += ` Edges: ${edgeStr.join('; ')}.`
   if (entries.length > 0) s += ` Entry points: ${entries.join(', ')}.`
   if (sinks.length > 0) s += ` Sinks: ${sinks.join(', ')}.`
+  return s
+}
+
+function describeState(body: import('./types.ts').StateBody): string {
+  const flat: import('./types.ts').StateNode[] = []
+  const allTransitions: import('./types.ts').StateTransition[] = []
+  const collect = (states: import('./types.ts').StateNode[], transitions: import('./types.ts').StateTransition[]) => {
+    for (const s of states) {
+      flat.push(s)
+      if (s.states !== undefined) collect(s.states, s.transitions ?? [])
+    }
+    allTransitions.push(...transitions)
+  }
+  collect(body.states, body.transitions)
+  const composites = flat.filter(s => s.states !== undefined)
+  const stateLabels = flat.map(s => s.label || s.id)
+  const transStr = allTransitions.map(t => {
+    const lbl = t.label ? ` (${t.label})` : ''
+    return `${t.from} -> ${t.to}${lbl}`
+  })
+  const starts = body.transitions.filter(t => t.from === '[*]').map(t => t.to)
+  let s = `A state diagram with ${flat.length} states and ${allTransitions.length} transitions.`
+  if (composites.length > 0) s += ` Composite states: ${composites.map(c => c.label || c.id).join(', ')}.`
+  if (stateLabels.length > 0) s += ` States: ${stateLabels.join(', ')}.`
+  if (transStr.length > 0) s += ` Transitions: ${transStr.join('; ')}.`
+  if (starts.length > 0) s += ` Initial: ${starts.join(', ')}.`
   return s
 }
 

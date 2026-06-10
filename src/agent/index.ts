@@ -5,9 +5,10 @@
 // ============================================================================
 
 export type {
-  Result, ValidDiagram, FlowchartValidDiagram, SequenceValidDiagram, TimelineValidDiagram,
+  Result, ValidDiagram, FlowchartValidDiagram, StateValidDiagram, SequenceValidDiagram, TimelineValidDiagram,
   ClassValidDiagram, ErValidDiagram, JourneyValidDiagram, ArchitectureValidDiagram, XyChartValidDiagram, MutableValidDiagram,
   ValidDiagramMeta, ValidDiagramPayload, SerializedFlowchartGraph, DiagramBody, DiagramKind,
+  StateBody, StateNode, StateTransition,
   SequenceBody, SequenceParticipant, SequenceMessage, SequenceMessageStyle,
   TimelineBody, TimelineSection, TimelinePeriod, TimelineEvent,
   ClassBody, ClassNode, ClassRelation, ClassRelationKind, ClassNote,
@@ -16,7 +17,7 @@ export type {
   ArchitectureBody, ArchitectureGroup, ArchitectureService, ArchitectureJunction, ArchitectureEdge, ArchitectureEndpoint, ArchitectureSide,
   XyChartBody, XyChartAxis, XyChartSeries, XyChartAxisSpec,
   SourceMap, SourceComment, InitDirective, Accessibility,
-  ParseError, MutationError, MutationOp, FlowchartMutationOp, SequenceMutationOp, TimelineMutationOp,
+  ParseError, MutationError, MutationOp, FlowchartMutationOp, StateMutationOp, SequenceMutationOp, TimelineMutationOp,
   ClassMutationOp, ErMutationOp, JourneyMutationOp, ArchitectureMutationOp, XyChartMutationOp, AnyMutationOp,
   NodeId, EdgeId, GroupId, ParticipantId,
   LayoutWarning, WarningCode, Tier1WarningCode, Tier2WarningCode, WarningSeverity, WarningTier,
@@ -24,7 +25,7 @@ export type {
   Finite,
 } from './types.ts'
 
-export { WARNING_SEVERITY, WARNING_TIER, DEFAULT_LABEL_CHAR_CAP, ok, err, toFinite, asFlowchart, asSequence, asTimeline, asClass, asEr, asJourney, asArchitecture, asXyChart } from './types.ts'
+export { WARNING_SEVERITY, WARNING_TIER, DEFAULT_LABEL_CHAR_CAP, ok, err, toFinite, asFlowchart, asState, asSequence, asTimeline, asClass, asEr, asJourney, asArchitecture, asXyChart } from './types.ts'
 export { parseMermaid } from './parse.ts'
 export { serializeMermaid, synthesizeFromGraph } from './serialize.ts'
 export { mutate, edgeIdOf } from './mutate.ts'
@@ -46,6 +47,7 @@ import { renderMermaidSVG as _svg } from '../index.ts'
 export { verifyNoExternalRefs } from '../index.ts'
 import { renderMermaidASCII as _ascii } from '../ascii/index.ts'
 import { layoutGraphSync } from '../layout-engine.ts'
+import { stateBodyToGraph } from './state-body.ts'
 import { serializeMermaid as _serialize } from './serialize.ts'
 import type { ValidDiagram, RenderedLayout } from './types.ts'
 import { positionedToRenderedLayout, emptyRenderedLayout } from './layout-to-rendered.ts'
@@ -60,6 +62,11 @@ export function renderMermaidASCII(input: ValidDiagram | string, opts: Parameter
 export function layoutMermaid(d: ValidDiagram): RenderedLayout {
   if (d.body.kind === 'flowchart') {
     return positionedToRenderedLayout(layoutGraphSync(d.body.graph, {}), d.kind)
+  }
+  // State diagrams (BUILD-19) project to a MermaidGraph via the legacy parser,
+  // so layout reuses the flowchart geometric path.
+  if (d.body.kind === 'state') {
+    return positionedToRenderedLayout(layoutGraphSync(stateBodyToGraph(d.body), {}), d.kind)
   }
   if (d.body.kind === 'sequence') return layoutSequenceToRendered(d as ValidDiagram & { body: SequenceBody })
   if (d.body.kind === 'timeline') return layoutTimelineToRendered(d as ValidDiagram & { body: TimelineBody })

@@ -6,8 +6,8 @@ Agentic Mermaid supports Mermaid's common diagram families through a split pipel
 
 | Family | Header(s) | Render | Structured mutation | Notes |
 |---|---|---|---|---|
-| Flowchart | `flowchart`, `graph` | SVG/PNG/ASCII | ✓ | Includes state diagrams through shared graph editing. |
-| State | `stateDiagram-v2` | SVG/PNG/ASCII | ✓ | Parsed through graph-like flowchart mutation today. |
+| Flowchart | `flowchart`, `graph` | SVG/PNG/ASCII | ✓ | 6 graph ops; narrow with `asFlowchart`. |
+| State | `stateDiagram-v2` | SVG/PNG/ASCII | ✓ | Dedicated `StateBody` (BUILD-19): narrow with `asState`, 8 state-shaped ops. `asFlowchart` returns null. |
 | Sequence | `sequenceDiagram` | SVG/PNG/ASCII | simple syntax | Notes/alt/loop bodies round-trip as opaque source. |
 | Timeline | `timeline` | SVG/PNG/ASCII | ✓ | Supports sections, periods, events, title changes. |
 | Class | `classDiagram` | SVG/PNG/ASCII | ✓ | Classes, members, relations, notes. |
@@ -38,7 +38,7 @@ stateDiagram-v2
   Idle --> Running
 ```
 
-State diagrams share the graph-oriented mutation surface where possible. State-specific syntax outside the modeled subset should be treated as source-level.
+State diagrams own a dedicated `StateBody` (BUILD-19): narrow with `asState` and apply the 8 typed ops (`add_state`, `remove_state`, `rename_state`, `set_state_label`, `add_transition`, `remove_transition`, `set_transition_label`, `make_composite`). The modeled subset is simple states, transitions, `[*]` start/end pseudostates, nestable composite blocks, and `direction`. Anything outside it — `<<fork>>`/`<<choice>>`/`<<join>>`, history states, concurrency `--`, notes, `classDef`/`class`/`:::` styling — falls back to a lossless opaque body and stays source-level. Verify still runs the full Tier 1 + Tier 2 geometric path by projecting the body to a graph.
 
 ## Sequence
 
