@@ -1,6 +1,6 @@
 # Agentic Mermaid — agent-native architecture
 
-**Status.** Architecture/spec rationale for the merged agent-native surface on `main`. Current capabilities live in `FEATURES.md`; active work lives only in `TODO.md`. Not intended for upstream.
+**Status.** Architecture/spec rationale for the merged agent-native surface on `main`. Current capabilities live in [`docs/features.md`](./docs/features.md); active work lives only in [`TODO.md`](./TODO.md). Not intended for upstream.
 
 **Thesis.** Agents authoring Mermaid diagrams today regenerate the whole source on every edit, or render to PNG and read it back with vision. The Beautiful Mermaid renderer foundation already fixed the worst of the rendering side (sync + DOM-free + ASCII). Agentic Mermaid adds the editing surface — structured verification, typed mutation, round-trippable IR — so an agent can edit one node and trust the result without ever opening an image.
 
@@ -408,7 +408,7 @@ MermaidSeqBench is wired as an external corpus signal; live model transcript eva
 - **`synthesizeFromGraph`** lets `am parse | am serialize` round-trip without `canonicalSource` on the wire.
 - **`LABEL_OVERFLOW` is a source-based char-count check** (Tier 1, reliable), not a font-metric heuristic.
 - **`Finite` branded type** enforced at every coordinate emission.
-- **Deliverable completeness:** CHANGELOG entry, README section, an `examples/` script, per-verb CLI `--help`, and a `FORK_DIFFERENCES.md` mention all ship with the code.
+- **Deliverable completeness:** CHANGELOG entry, README section, an `examples/` script, per-verb CLI `--help`, and a [`docs/fork-differences.md`](./docs/fork-differences.md) mention all ship with the code.
 - **Test honesty:** the tautological seed-variance test is gone; a fault-injection pass proves the suite has teeth.
 
 ---

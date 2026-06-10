@@ -17,6 +17,7 @@ am capabilities --json        families, editPolicy, mutationOps, warning codes, 
 am batch --jsonl              JSONL stdin → JSONL envelopes (render/verify/parse/serialize/mutate)
 am render-markdown <file.md> [--ascii]  render fenced Mermaid blocks
 am llms-txt                   agent discovery digest
+am init-agent [--dir .] [--force]  write AGENTS.md, root skills/ bundle, and .mcp.json sample
 am --agent-instructions       canonical agent guide
 am <cmd> --help               per-command help
 ```

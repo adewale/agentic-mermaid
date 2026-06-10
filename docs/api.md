@@ -1,0 +1,173 @@
+# API reference
+
+Agentic Mermaid exposes two library surfaces:
+
+- `agentic-mermaid` — renderer-focused public API for SVG and ASCII/Unicode output.
+- `agentic-mermaid/agent` — agent-native API with parse/narrow/mutate/verify/serialize plus SVG, PNG, and ASCII output helpers.
+
+Use `agentic-mermaid/agent` when you want one import path for agents.
+
+## Output helpers
+
+### SVG
+
+```ts
+import { renderMermaidSVG } from 'agentic-mermaid/agent'
+
+const svg = renderMermaidSVG(`flowchart TD
+  A --> B`, { security: 'strict' })
+```
+
+`renderMermaidSVG(input, options?)` accepts a Mermaid source string or `ValidDiagram` and returns an SVG string.
+
+### PNG
+
+```ts
+import { writeFileSync } from 'node:fs'
+import { renderMermaidPNG } from 'agentic-mermaid/agent'
+
+const png = renderMermaidPNG(`flowchart TD
+  A --> B`, {
+  fitTo: { width: 1200 },
+  background: '#fff',
+})
+
+writeFileSync('diagram.png', png)
+```
+
+`renderMermaidPNG(input, options?)` accepts a Mermaid source string or `ValidDiagram` and returns `Uint8Array` PNG bytes.
+
+`PngOptions`:
+
+| Option | Type | Default | Meaning |
+|---|---|---:|---|
+| `scale` | `number` | `2` | Zoom multiplier when `fitTo` is not set. |
+| `background` | `string` | `'white'` | PNG background color. |
+| `fitTo` | `{ width?: number; height?: number }` | — | Constrain output to a width or height. |
+
+PNG rasterization uses offline `@resvg/resvg-js` with bundled DejaVu fonts for deterministic same-machine output.
+
+### ASCII / Unicode
+
+```ts
+import { renderMermaidASCII } from 'agentic-mermaid/agent'
+
+const unicode = renderMermaidASCII(`flowchart LR
+  A --> B`)
+const ascii = renderMermaidASCII(`flowchart LR
+  A --> B`, { useAscii: true })
+```
+
+`renderMermaidASCII(input, options?)` accepts a Mermaid source string or `ValidDiagram` and returns terminal text.
+
+`AsciiRenderOptions`:
+
+| Option | Type | Default | Meaning |
+|---|---|---:|---|
+| `useAscii` | `boolean` | `false` | Use 7-bit ASCII instead of Unicode box drawing. |
+| `paddingX` | `number` | `5` | Horizontal spacing. |
+| `paddingY` | `number` | `5` | Vertical spacing. |
+| `boxBorderPadding` | `number` | `1` | Inner box padding. |
+| `colorMode` | `string` | `'auto'` | `'none'`, `'auto'`, `'ansi16'`, `'ansi256'`, `'truecolor'`, or `'html'`. |
+| `theme` | `Partial<AsciiTheme>` | — | Override ASCII colors. |
+| `mermaidConfig` | `MermaidRuntimeConfig` | — | Mermaid-style runtime config. |
+
+## SVG render options
+
+`renderMermaidSVG` accepts `RenderOptions`:
+
+| Option | Type | Default | Meaning |
+|---|---|---:|---|
+| `bg` | `string` | `#FFFFFF` | Background color or CSS variable. |
+| `fg` | `string` | `#27272A` | Foreground color or CSS variable. |
+| `line` | `string?` | — | Edge/connector color. |
+| `accent` | `string?` | — | Arrow heads and highlights. |
+| `muted` | `string?` | — | Secondary text/labels. |
+| `surface` | `string?` | — | Node fill tint. |
+| `border` | `string?` | — | Node stroke color. |
+| `font` | `string` | `Inter` | Font family. |
+| `style` | `DiagramStyleOptions` | — | Role-based style overrides. |
+| `transparent` | `boolean` | `false` | Transparent SVG background. |
+| `padding` | `number` | `40` | Canvas padding. |
+| `nodeSpacing` | `number` | `24` | Horizontal sibling spacing. |
+| `layerSpacing` | `number` | `40` | Vertical layer spacing. |
+| `componentSpacing` | `number` | `24` | Disconnected component spacing. |
+| `interactive` | `boolean` | `false` | XY chart hover tooltips. |
+| `shadow` | `boolean` | `false` | Explicit drop shadows. |
+| `mermaidConfig` | `MermaidRuntimeConfig` | — | Runtime Mermaid config. |
+| `embedFontImport` | `boolean` | `true` | Include Google Fonts `@import`; set false for offline SVG/PNG. |
+| `compact` | `boolean` | `false` | Compact SVG output while preserving agent hooks. |
+| `idPrefix` | `string` | `''` | Namespace generated SVG def ids. |
+| `security` | `'default' | 'strict'` | `'default'` | `strict` disables external-fetch references. |
+
+`DiagramStyleOptions` is role-based:
+
+| Role | Fields |
+|---|---|
+| `style.text` | `fontSize`, `fontWeight`, `letterSpacing` |
+| `style.node` | `fontSize`, `fontWeight`, `letterSpacing`, `paddingX`, `paddingY`, `cornerRadius`, `lineWidth` |
+| `style.edge` | `fontSize`, `fontWeight`, `letterSpacing`, `lineWidth`, `bendRadius` |
+| `style.group` | `fontSize`, `fontWeight`, `letterSpacing`, `fontFamily`, `textTransform`, `paddingX`, `paddingY`, `cornerRadius`, `borderColor`, `lineWidth` |
+
+## Agent edit API
+
+```ts
+import {
+  parseMermaid,
+  asFlowchart,
+  mutate,
+  verifyMermaid,
+  serializeMermaid,
+} from 'agentic-mermaid/agent'
+```
+
+Core functions:
+
+| Function | Purpose |
+|---|---|
+| `parseMermaid(source)` | Parse Mermaid source to `Result<ValidDiagram, ParseError[]>`. |
+| `asFlowchart(d)` / `asSequence(d)` / `asTimeline(d)` / `asClass(d)` / `asEr(d)` | Narrow to a mutable family or return `null`. |
+| `mutate(d, op)` | Apply a kind-discriminated typed mutation. |
+| `verifyMermaid(d)` | Return structural warnings and layout evidence. |
+| `serializeMermaid(d)` | Emit source only after verifying. |
+| `layoutMermaid(d)` | Return layout JSON for quality/inspection. |
+| `measureQuality(layout)` / `checkQuality(layout)` | Perceptual quality metrics. |
+| `describeMermaid(d, { format })` | Prose or AX-tree summary. |
+
+Typed mutation families:
+
+| Family | Narrower | Common ops |
+|---|---|---|
+| Flowchart/state | `asFlowchart` | `add_node`, `remove_node`, `rename_node`, `set_label`, `add_edge`, `remove_edge` |
+| Sequence | `asSequence` | `add_participant`, `remove_participant`, `add_message`, `remove_message`, `set_message_text` |
+| Timeline | `asTimeline` | `set_title`, `add_section`, `add_period`, `add_event`, remove/set variants |
+| Class | `asClass` | `add_class`, `remove_class`, `rename_class`, `add_member`, `add_relation`, notes |
+| ER | `asEr` | `add_entity`, `remove_entity`, `rename_entity`, `add_attribute`, `add_relation` |
+
+Journey, XY chart, architecture, and opaque fallback bodies are source-level-only: edit source deliberately, then parse and verify again.
+
+## CLI
+
+```bash
+am render diagram.mmd --format svg > diagram.svg
+am render diagram.mmd --format png --output diagram.png
+am render diagram.mmd --format ascii > diagram.txt
+am verify diagram.mmd
+am mutate diagram.mmd --op '{"kind":"add_node","id":"Cache","label":"Cache"}' --json
+am capabilities --json
+am init-agent --dir . --json
+```
+
+PNG is single-input and requires `--output` so binary bytes are never accidentally printed to a terminal. `am init-agent` writes a non-clobbering agent-agnostic onboarding bundle (`AGENTS.md`, root `skills/`, and `.mcp.json`) into a consumer repo.
+
+## MCP
+
+The published package exposes Node-runnable bins: `am`, `agentic-mermaid`, and `agentic-mermaid-mcp`.
+
+`agentic-mermaid-mcp` exposes:
+
+- `execute(code)` — primary Code Mode tool with global `mermaid.*` SDK.
+- `render_png` — narrow helper returning base64 PNG bytes.
+- `describe` — narrow summary helper.
+
+Use Code Mode for multi-step parse/narrow/mutate/verify/serialize loops. Use `render_png` or host/library code for binary PNG output.

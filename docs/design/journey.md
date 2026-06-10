@@ -79,5 +79,6 @@ technology output without changing the rendered diagram layout.
 
 - Journey support currently models Mermaid's scored-task syntax, not richer
   swimlane semantics beyond section grouping.
-- Accessibility metadata is surfaced in SVG output; ASCII output ignores it,
-  because it is not part of the visible terminal rendering model.
+- Accessibility metadata is surfaced in SVG output; PNG output inherits the
+  rendered SVG pixels; ASCII output ignores it because it is not part of the
+  visible terminal rendering model.

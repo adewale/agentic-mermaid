@@ -177,6 +177,40 @@ const ascii = renderMermaidASCII(diagram, { useAscii: true })
 const png = renderMermaidPNG(diagram, { fitTo: { width: 1600 }, background: '#fff' })
 ```
 
+## Recipe: write SVG, PNG, and ASCII artifacts
+
+Library channel:
+
+```ts
+import { writeFileSync } from 'node:fs'
+import { parseMermaid, verifyMermaid, renderMermaidSVG, renderMermaidPNG, renderMermaidASCII } from 'agentic-mermaid/agent'
+
+const parsed = parseMermaid(source)
+if (!parsed.ok) throw new Error(parsed.error.map(e => e.message).join('\n'))
+
+const verify = verifyMermaid(parsed.value)
+if (!verify.ok) throw new Error(JSON.stringify(verify.warnings, null, 2))
+
+writeFileSync('diagram.svg', renderMermaidSVG(parsed.value, { security: 'strict' }))
+writeFileSync('diagram.png', renderMermaidPNG(parsed.value, { fitTo: { width: 1200 }, background: '#fff' }))
+writeFileSync('diagram.txt', renderMermaidASCII(parsed.value, { useAscii: true }))
+```
+
+CLI channel:
+
+```bash
+am verify diagram.mmd
+am render diagram.mmd --format svg > diagram.svg
+am render diagram.mmd --format png --output diagram.png
+am render diagram.mmd --format ascii > diagram.txt
+```
+
+MCP channel:
+
+- Use Code Mode for parse/narrow/mutate/verify/serialize.
+- Use the `render_png` helper for base64 PNG bytes when the host needs a raster artifact.
+- Use Code Mode or library/CLI for SVG and ASCII artifacts.
+
 ## Recipe: MCP Code Mode
 
 In MCP Code Mode, do not import. The server injects `mermaid.*` as a global. Return JSON-serializable values.

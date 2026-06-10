@@ -2,7 +2,7 @@
 // am — agentic-mermaid CLI (v4).
 // ============================================================================
 
-import { readFileSync, existsSync, writeFileSync, mkdtempSync } from 'node:fs'
+import { readFileSync, existsSync, writeFileSync, mkdtempSync, watch } from 'node:fs'
 import { spawnSync } from 'node:child_process'
 import { join, resolve } from 'node:path'
 import { tmpdir } from 'node:os'
@@ -10,7 +10,7 @@ import { parseMermaid } from '../agent/parse.ts'
 import { serializeMermaid, synthesizeFromGraph } from '../agent/serialize.ts'
 import { mutate } from '../agent/mutate.ts'
 import { verifyMermaid } from '../agent/verify.ts'
-import { renderMermaidSVG, renderMermaidASCII, layoutMermaid } from '../agent/index.ts'
+import { renderMermaidSVG, renderMermaidASCII, renderMermaidPNG, layoutMermaid } from '../agent/index.ts'
 import { describeMermaid } from '../agent/describe.ts'
 import { collectBatched } from '../shared/batched.ts'
 import { asFlowchart, asSequence, asTimeline, asClass, asEr } from '../agent/types.ts'
@@ -23,6 +23,7 @@ import { WARNING_SEVERITY, WARNING_TIER } from '../agent/types.ts'
 import { knownFamilies, getFamily } from '../agent/families.ts'
 import '../agent/families-builtin.ts'
 import { AGENT_INSTRUCTIONS } from './agent-instructions.ts'
+import { initAgentFiles } from './init-agent.ts'
 import { EXIT_OK, EXIT_ARG_ERROR, EXIT_VERIFY_FAILED, EXIT_INTERNAL } from './exit-codes.ts'
 import type { ParseError } from '../agent/types.ts'
 
@@ -40,7 +41,7 @@ function parseErrorEnvelope(errors: ParseError[]): { ok: false; error: { code: s
 
 interface ParsedArgs { command?: string; positional: string[]; flags: Record<string, string | boolean> }
 
-const BOOLEAN_FLAGS = new Set(['agent-instructions', 'ascii', 'help', 'json', 'watch', 'open'])
+const BOOLEAN_FLAGS = new Set(['agent-instructions', 'ascii', 'help', 'json', 'watch', 'open', 'force'])
 
 function parseArgs(argv: string[]): ParsedArgs {
   const out: ParsedArgs = { positional: [], flags: {} }
@@ -92,6 +93,7 @@ Commands:
   batch                  Read JSONL ops from stdin; emit one JSON envelope per line
   render-markdown <file> Render fenced mermaid blocks in Markdown (SVG or --ascii)
   llms-txt               Emit the agent discovery digest
+  init-agent             Write a repo-local agent drop-in (AGENTS section, skill, MCP config)
 
 Flags:
   --json                 Structured JSON output
@@ -100,6 +102,7 @@ Flags:
   --ops <JSON|file>      For mutate: JSON array of MutationOps
   --output <FILE>        For render png / preview output path
   --open                 For preview: open generated HTML in browser
+  --force                For init-agent: refresh generated skill/MCP files
   --suppress <CODES>     For verify: comma-separated WarningCodes to suppress
   --label-cap <N>        For verify: LABEL_OVERFLOW char cap (default 40)
   --agent-instructions   Print the canonical agent-use guide
@@ -168,6 +171,15 @@ Render fenced \`\`\`mermaid blocks. Bad diagrams yield ok:false entries and do
 not abort the rest of the Markdown file.`,
   'llms-txt': `am llms-txt
 Emit the committed agent-discovery digest generated from current capabilities.`,
+  'init-agent': `am init-agent [--dir <path>] [--force] [--json]
+Write a repo-local, agent-agnostic drop-in so coding agents discover the
+parse → narrow → mutate → verify → serialize contract automatically. Creates
+without clobbering by default:
+  - AGENTS.md marked section pointing agents at the workflow + hosted docs
+  - skills/agentic-mermaid-diagram-workflow/SKILL.md generic skill bundle
+  - .mcp.json sample agentic-mermaid MCP server config
+--dir defaults to the current directory. --force overwrites skill/MCP files;
+the AGENTS.md section is always appended only once, guarded by a marker.`,
 }
 
 export function runCli(argv: string[]): number {
@@ -192,6 +204,7 @@ export function runCli(argv: string[]): number {
       case 'describe': return cmdDescribe(args, json)
       case 'capabilities': return cmdCapabilities()
       case 'llms-txt': return cmdLlmsTxt()
+      case 'init-agent': return cmdInitAgent(args, json)
       case 'batch': return cmdBatch()
       case 'render-markdown': return cmdRenderMarkdown(args)
       default:
@@ -277,9 +290,8 @@ function cmdRender(args: ParsedArgs, json: boolean): number {
     }
     const scale = typeof args.flags.scale === 'string' ? Number(args.flags.scale) : 2
     const background = typeof args.flags.bg === 'string' ? args.flags.bg : 'white'
-    // PNG render is async — emit synchronously via a top-level await shim.
-    // The renderMermaidPNG export is dynamic-import inside, but the caller
-    // returns void; we use a synchronous wrapper that buffers.
+    // PNG render is native-sync via resvg; keep bytes off stdout and write the
+    // raster artifact explicitly to the requested output path.
     return renderPngSync(source, { scale, background }, outFile, json)
   }
   if (format === 'json') {
@@ -328,12 +340,11 @@ export function renderFileOnce(file: string, format: string, opts: { security?: 
 }
 
 function cmdRenderWatch(file: string, format: string, args: ParsedArgs, _json: boolean, opts: { security?: 'default' | 'strict' } = {}): number {
-  const { watch } = require('node:fs') as typeof import('node:fs')
   const outFile = typeof args.flags.output === 'string' ? args.flags.output : ''
   const emit = () => {
     try {
       const out = renderFileOnce(file, format, opts)
-      if (outFile) { (require('node:fs') as typeof import('node:fs')).writeFileSync(outFile, out) ; process.stderr.write(`rendered → ${outFile}\n`) }
+      if (outFile) { writeFileSync(outFile, out) ; process.stderr.write(`rendered → ${outFile}\n`) }
       else process.stdout.write(out + (out.endsWith('\n') ? '' : '\n'))
     } catch (e) { process.stderr.write(`render error: ${(e as Error).message}\n`) }
   }
@@ -345,8 +356,6 @@ function cmdRenderWatch(file: string, format: string, args: ParsedArgs, _json: b
 }
 
 function renderPngSync(source: string, opts: { scale: number; background: string }, outFile: string, json: boolean): number {
-  const { renderMermaidPNG } = require('../agent/png.ts') as typeof import('../agent/png.ts')
-  const { writeFileSync } = require('node:fs') as typeof import('node:fs')
   try {
     const png = renderMermaidPNG(source, opts)
     writeFileSync(outFile, png)
@@ -709,6 +718,7 @@ you haven't inspected.
 - batch --jsonl — bulk render/verify/parse/serialize/mutate ops, one JSON envelope per line
 - render-markdown <file.md> [--ascii] — render fenced mermaid blocks, skip invalid ones
 - llms-txt — this document
+- init-agent [--dir .] [--force] — write AGENTS.md section, root skills/ bundle, and .mcp.json sample
 
 Exit codes: 0 ok, 2 arg error, 3 verify-failed, 4 internal.
 
@@ -743,11 +753,15 @@ verifyNoExternalRefs } from 'agentic-mermaid/agent'\`
 
 ## Docs
 
+- docs/README.md — documentation index and structure
 - Instructions_for_agents.md — canonical agent-use guide
 - AGENT_NATIVE.md — architecture/spec rationale
-- FEATURES.md — current capability inventory
+- docs/features.md — current capability inventory
+- docs/api.md — library/CLI/MCP API reference, including SVG/PNG/ASCII output
+- docs/diagram-families.md — family examples and edit policy
+- docs/theming.md — themes, CSS variables, and Shiki compatibility
+- docs/quality.md — determinism + "good looking" rubric
 - TODO.md — only active backlog
-- QUALITY.md — determinism + "good looking" rubric
 - SECURITY.md — threat model + strict-mode guarantee
 - docs/agent-mutation-policy.md — structured-vs-source-level policy
 - docs/agent-api-cookbook.md — copy-pasteable library/CLI/MCP recipes
@@ -760,6 +774,22 @@ verifyNoExternalRefs } from 'agentic-mermaid/agent'\`
 
 function cmdLlmsTxt(): number {
   process.stdout.write(buildLlmsTxt())
+  return EXIT_OK
+}
+
+function cmdInitAgent(args: ParsedArgs, json: boolean): number {
+  const dir = typeof args.flags.dir === 'string' ? resolve(args.flags.dir) : process.cwd()
+  const force = Boolean(args.flags.force)
+  const result = initAgentFiles({ dir, force })
+  if (json) {
+    process.stdout.write(JSON.stringify({ ok: true, ...result }) + '\n')
+    return EXIT_OK
+  }
+  const rel = (p: string) => p.startsWith(dir) ? '.' + p.slice(dir.length) : p
+  for (const p of result.written) process.stdout.write(`  created  ${rel(p)}\n`)
+  for (const p of result.appended) process.stdout.write(`  updated  ${rel(p)}\n`)
+  for (const p of result.skipped) process.stdout.write(`  skipped  ${rel(p)} (exists; use --force if applicable)\n`)
+  process.stdout.write('\nNext: read AGENTS.md, connect the MCP server in .mcp.json, or run `am --agent-instructions`.\n')
   return EXIT_OK
 }
 

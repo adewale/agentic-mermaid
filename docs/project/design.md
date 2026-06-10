@@ -1,4 +1,4 @@
-# DESIGN
+# Design
 
 ## Design System
 Agentic Mermaid uses a restrained product UI system with salmon as the fork's default theme. Surfaces should feel warm, quiet, and tactile while preserving developer-tool density.

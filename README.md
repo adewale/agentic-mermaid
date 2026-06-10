@@ -2,88 +2,42 @@
 
 # Agentic Mermaid
 
-**Render, verify, and safely edit Mermaid diagrams from code or AI agents.**
+Agentic Mermaid is an open-source Mermaid rendering and editing toolkit, forked from [`lukilabs/beautiful-mermaid`](https://github.com/lukilabs/beautiful-mermaid), for producing deterministic **ASCII, PNG, and SVG** diagrams plus agent-verifiable structured edits.
 
-Published as `agentic-mermaid`; the GitHub repository currently remains `adewale/beautiful-mermaid`. This project is a fork of [`lukilabs/beautiful-mermaid`](https://github.com/lukilabs/beautiful-mermaid).
+Published as `agentic-mermaid`; the GitHub repository and Pages path currently remain `adewale/beautiful-mermaid` / `https://adewale.github.io/beautiful-mermaid/`.
 
 ![Agentic Mermaid sequence diagram example](assets/hero.png)
 
-[![npm version](https://img.shields.io/npm/v/agentic-mermaid.svg)](https://www.npmjs.com/package/agentic-mermaid)
-[![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[Live Demo & Samples](https://adewale.github.io/beautiful-mermaid/) · [Live Editor](https://adewale.github.io/beautiful-mermaid/editor)
 
-[**Live Demo & Samples**](https://adewale.github.io/beautiful-mermaid/) · [Live Editor](https://adewale.github.io/beautiful-mermaid/editor)
-
-Docs: [Agent workflow](./Instructions_for_agents.md) · [Agent API cookbook](./docs/agent-api-cookbook.md) · [Agent skills](./skills/) · [What changed in this fork](./FORK_DIFFERENCES.md) · [Changelog](./CHANGELOG.md)
+Docs: [docs index](./docs/) · [agent guide](./Instructions_for_agents.md) · [agent API cookbook](./docs/agent-api-cookbook.md) · [skills](./skills/) · [fork differences](./docs/fork-differences.md) · [changelog](./CHANGELOG.md)
 
 </div>
 
----
-
 ## Why Agentic Mermaid
 
-Mermaid is the de facto standard for text diagrams, but agent-generated diagrams need more than “render this string.” They need a fast renderer, terminal output, deterministic layout, and a way to edit existing diagrams without rewriting the whole source file.
+Most Mermaid tools render strings. Agentic Mermaid gives coding agents a safer workflow:
 
-Agentic Mermaid is a fork of Beautiful Mermaid. It keeps the original renderer foundation and adds the workflow surface agents need: parse Mermaid, choose the safe edit path, verify structure without screenshots, and serialize only after the diagram is known-good.
+| Task | Safe path |
+|---|---|
+| Create a new diagram | Write Mermaid source → `parseMermaid` → `verifyMermaid` → render/preview |
+| Edit an existing supported diagram | `parseMermaid` → family narrower → `mutate` → `verifyMermaid` → `serializeMermaid` |
+| Edit source-level-only diagrams | Preserve source, edit deliberately, then parse/verify/render |
+| Multi-step agent edits | Prefer MCP Code Mode or library imports so the loop happens in one structured execution |
+| Shell-only checks | Use `am verify`, `am mutate --op/--ops`, `am preview`, or `am batch --jsonl` |
+
+Agents should not guess from pixels, concatenate strings, or regenerate whole diagrams when a structured edit is available.
 
 ## Highlights
 
 - **9 diagram families** — flowchart, state, architecture, sequence, class, ER, timeline, journey, and XY chart.
-- **ASCII, PNG, and SVG outputs** — plus Unicode text and JSON layout for terminal, binary, and rich UI workflows.
-- **Synchronous, zero-DOM renderer** — no Puppeteer, no browser flash, works with React `useMemo()`.
+- **ASCII, PNG, SVG** — plus Unicode text and JSON layout.
+- **Synchronous, zero-DOM SVG renderer** — no Puppeteer, no browser flash.
 - **19 built-in themes + Shiki compatibility** — theme from two colors or a VS Code theme.
-- **Agent-native editing loop** — source authoring for new diagrams; typed parse → narrow → mutate → verify → serialize for existing structured diagrams.
-- **CLI and MCP surfaces** — `am` for shell workflows; `agentic-mermaid-mcp` Code Mode for multi-step agent edits.
-
-## The differentiated workflow
-
-Most Mermaid tools expose render calls. Agentic Mermaid exposes a decision tree:
-
-| Task | Safe path |
-| --- | --- |
-| Create a new diagram | Write Mermaid source → `parseMermaid` → `verifyMermaid` → render/preview |
-| Edit an existing supported diagram | `parseMermaid` → family narrower → `mutate` → `verifyMermaid` → `serializeMermaid` |
-| Edit source-level-only or opaque diagrams | Preserve original source; verify/render/describe, but do not pretend typed mutation is safe |
-| Agent multi-step edits | Prefer MCP Code Mode or library imports so the full loop happens in one structured execution |
-| Shell-only checks | Use `am verify`, `am mutate --op/--ops`, `am preview`, or `am batch --jsonl` |
-
-That is the core product claim: agents should not guess from pixels, concatenate strings, or regenerate whole diagrams when a structured edit is available.
-
-## Agent-native surface
-
-The `agentic-mermaid/agent` subpath export gives AI agents two honest paths: author new Mermaid source directly and verify/render it, or use a typed editing loop for existing structured diagrams without rendering to an image to know whether an edit worked:
-
-```ts
-import { parseMermaid, asFlowchart, mutate, verifyMermaid, serializeMermaid } from 'agentic-mermaid/agent'
-
-const d0 = parseMermaid('flowchart TD\n  API --> DB')
-if (!d0.ok) throw new Error('parse')
-const flow = asFlowchart(d0.value)!
-const d1 = mutate(flow, { kind: 'add_node', id: 'Cache', label: 'Cache' })
-if (d1.ok && verifyMermaid(d1.value).ok) console.log(serializeMermaid(d1.value))
-```
-
-- **`verifyMermaid`** returns structured `LayoutWarning` codes (label overflow, off-canvas, mis-anchored edges, …) — no PNG, no vision.
-- **`mutate`** applies typed structural edits to flowchart/state, sequence, timeline, class, and ER diagrams; journey, XY chart, architecture, and opaque fallbacks round-trip losslessly via preserved `body.source` without structured mutation.
-- **Deterministic layout**, verified byte-identical across processes.
-- Ships an **`am` CLI** (`render`, strict `preview`, `mutate --op/--ops`, `batch`, …) and an **`agentic-mermaid-mcp`** Code Mode MCP server.
-
-See [`docs/agent-api-cookbook.md`](./docs/agent-api-cookbook.md) for copy-pasteable recipes, [`skills/`](./skills/) for agent-agnostic skill bundles, plus [`AGENT_NATIVE.md`](./AGENT_NATIVE.md), [`Instructions_for_agents.md`](./Instructions_for_agents.md), [`docs/mcp-code-mode-rationale.md`](./docs/mcp-code-mode-rationale.md), [`docs/agent-workflow-examples.md`](./docs/agent-workflow-examples.md), [`examples/agent-loop.ts`](./examples/agent-loop.ts), [`examples/mcp-vs-cli-complex-diagrams.ts`](./examples/mcp-vs-cli-complex-diagrams.ts), and [`examples/agent-improve-auth-flow.ts`](./examples/agent-improve-auth-flow.ts).
-
-### Agent quick start
-
-If your coding agent can read repo files, point it at [`skills/agentic-mermaid-diagram-workflow/SKILL.md`](./skills/agentic-mermaid-diagram-workflow/SKILL.md) for diagram work or [`skills/agentic-mermaid-live-editor/SKILL.md`](./skills/agentic-mermaid-live-editor/SKILL.md) for editor changes. If it only has shell access, run `am --agent-instructions` and `am capabilities --json`. For multi-step edits through MCP, connect `agentic-mermaid-mcp` and use Code Mode `execute(code)` with the same `mermaid.*` SDK names.
-
-## Discovering Agentic Mermaid features
-
-Agentic Mermaid adds several capabilities beyond the current upstream baseline. The fastest discovery paths are:
-
-- Browse the [live sample gallery](https://adewale.github.io/beautiful-mermaid/) and open **Contents → Role Styles** for semantic `style.text/node/edge/group` examples.
-- Try the [live editor](https://adewale.github.io/beautiful-mermaid/editor), which starts blank; choose **Examples** for every supported diagram type plus role-style presets.
-- Read [What changed in this fork](./FORK_DIFFERENCES.md) for fork-vs-upstream context and [CHANGELOG.md](./CHANGELOG.md) for user-facing release notes.
+- **Agent-native editing** — typed mutation for flowchart/state, sequence, timeline, class, and ER; source-level round-trip for journey, XY chart, architecture, and opaque fallbacks.
+- **CLI + MCP + library** — `am`, `agentic-mermaid-mcp`, `agentic-mermaid`, and `agentic-mermaid/agent`.
 
 ## Installation
-
-The npm package is `agentic-mermaid`. The GitHub repo and Pages path currently remain under `adewale/beautiful-mermaid`.
 
 ```bash
 npm install agentic-mermaid
@@ -93,714 +47,148 @@ bun add agentic-mermaid
 pnpm add agentic-mermaid
 ```
 
-CLI binaries installed from the package:
+CLI/MCP binaries installed from the package:
 
 ```bash
 am --help
+agentic-mermaid --help
 agentic-mermaid-mcp
 ```
 
-The current CLI/MCP binaries are Bun entrypoints; install Bun before using those commands from an npm-installed package. Library imports use the published JavaScript build.
+Published package bins are Node-runnable; `bin/*.ts` remains available for local Bun development.
 
-## Quick Start
+## Output quick starts
 
-### SVG Output
+Use `agentic-mermaid/agent` when you want all output formats and the structured edit API in one import path.
 
-```typescript
-import { renderMermaidSVG } from 'agentic-mermaid'
-
-const svg = renderMermaidSVG(`
-  graph TD
-    A[Start] --> B{Decision}
-    B -->|Yes| C[Action]
-    B -->|No| D[End]
-`)
-```
-
-Rendering is **fully synchronous** — no `await`, no promises. The ELK.js layout engine runs synchronously via a FakeWorker bypass, so you get your SVG string instantly.
-
-Need async? Use `renderMermaidSVGAsync()` — same output, returns a `Promise<string>`.
-
-### ASCII Output
-
-```typescript
-import { renderMermaidASCII } from 'agentic-mermaid'
-
-const ascii = renderMermaidASCII(`graph LR; A --> B --> C`)
-```
-
-```
-┌───┐     ┌───┐     ┌───┐
-│   │     │   │     │   │
-│ A │────►│ B │────►│ C │
-│   │     │   │     │   │
-└───┘     └───┘     └───┘
-```
-
----
-
-## React Integration
-
-Because rendering is synchronous, you can use `useMemo()` for zero-flash diagram rendering:
-
-```tsx
-import { renderMermaidSVG } from 'agentic-mermaid'
-
-function MermaidDiagram({ code }: { code: string }) {
-  const { svg, error } = React.useMemo(() => {
-    try {
-      return {
-        svg: renderMermaidSVG(code, {
-          bg: 'var(--background)',
-          fg: 'var(--foreground)',
-          transparent: true,
-        }),
-        error: null,
-      }
-    } catch (err) {
-      return { svg: null, error: err instanceof Error ? err : new Error(String(err)) }
-    }
-  }, [code])
-
-  if (error) return <pre>{error.message}</pre>
-  return <div dangerouslySetInnerHTML={{ __html: svg! }} />
-}
-```
-
-**Why this works well:**
-- **No flash** — SVG is computed synchronously during render, not in a useEffect
-- **CSS variables** — Pass `var(--background)` etc. instead of hex colors. The SVG inherits from your app's CSS, so theme switches apply instantly without re-rendering
-- **Memoized** — Only re-renders when `code` changes
-
----
-
-## Theming
-
-The theming system is the visual heart of Agentic Mermaid. It's designed to be both powerful and dead simple.
-
-### The Two-Color Foundation
-
-Every diagram needs just two colors: **background** (`bg`) and **foreground** (`fg`). That's it. From these two colors, the entire diagram is derived using `color-mix()`:
-
-```typescript
-const svg = renderMermaidSVG(diagram, {
-  bg: '#1a1b26',  // Background
-  fg: '#a9b1d6',  // Foreground
-})
-```
-
-This is **Mono Mode**—a coherent, beautiful diagram from just two colors. The system automatically derives:
-
-| Element | Derivation |
-|---------|------------|
-| Text | `--fg` at 100% |
-| Secondary text | `--fg` at 60% into `--bg` |
-| Edge labels | `--fg` at 40% into `--bg` |
-| Faint text | `--fg` at 25% into `--bg` |
-| Connectors | `--fg` at 50% into `--bg` |
-| Arrow heads | `--fg` at 85% into `--bg` |
-| Node fill | `--fg` at 3% into `--bg` |
-| Group header | `--fg` at 5% into `--bg` |
-| Inner strokes | `--fg` at 12% into `--bg` |
-| Node stroke | `--fg` at 20% into `--bg` |
-
-### Enriched Mode
-
-For richer themes, you can provide optional "enrichment" colors that override specific derivations:
-
-```typescript
-const svg = renderMermaidSVG(diagram, {
-  bg: '#1a1b26',
-  fg: '#a9b1d6',
-  // Optional enrichment:
-  line: '#3d59a1',    // Edge/connector color
-  accent: '#7aa2f7',  // Arrow heads, highlights
-  muted: '#565f89',   // Secondary text, labels
-  surface: '#292e42', // Node fill tint
-  border: '#3d59a1',  // Node stroke
-})
-```
-
-If an enrichment color isn't provided, it falls back to the `color-mix()` derivation. This means you can provide just the colors you care about.
-
-### CSS Custom Properties = Live Switching
-
-All colors are CSS custom properties on the `<svg>` element. This means you can switch themes instantly without re-rendering:
-
-```javascript
-// Switch theme by updating CSS variables
-svg.style.setProperty('--bg', '#282a36')
-svg.style.setProperty('--fg', '#f8f8f2')
-// The entire diagram updates immediately
-```
-
-For React apps, pass CSS variable references instead of hex values:
-
-```typescript
-const svg = renderMermaidSVG(diagram, {
-  bg: 'var(--background)',
-  fg: 'var(--foreground)',
-  accent: 'var(--accent)',
-  transparent: true,
-})
-// Theme switches apply automatically via CSS cascade — no re-render needed
-```
-
-### Built-in Themes
-
-19 carefully curated themes ship out of the box:
-
-| Theme | Type | Background | Accent |
-|-------|------|------------|--------|
-| `zinc-light` | Light | `#FFFFFF` | Derived |
-| `zinc-dark` | Dark | `#18181B` | Derived |
-| `tokyo-night` | Dark | `#1a1b26` | `#7aa2f7` |
-| `tokyo-night-storm` | Dark | `#24283b` | `#7aa2f7` |
-| `tokyo-night-light` | Light | `#d5d6db` | `#34548a` |
-| `catppuccin-mocha` | Dark | `#1e1e2e` | `#cba6f7` |
-| `catppuccin-latte` | Light | `#eff1f5` | `#8839ef` |
-| `nord` | Dark | `#2e3440` | `#88c0d0` |
-| `nord-light` | Light | `#eceff4` | `#5e81ac` |
-| `dracula` | Dark | `#282a36` | `#bd93f9` |
-| `github-light` | Light | `#ffffff` | `#0969da` |
-| `github-dark` | Dark | `#0d1117` | `#4493f8` |
-| `solarized-light` | Light | `#fdf6e3` | `#268bd2` |
-| `solarized-dark` | Dark | `#002b36` | `#268bd2` |
-| `one-dark` | Dark | `#282c34` | `#c678dd` |
-| `salmon` | Light | `#FFFBF5` | `#FF4801` |
-| `salmon-dark` | Dark | `#1F1008` | `#FF6B35` |
-| `tufte` | Light | `#FFFFF8` | `#7A0000` |
-| `tufte-dark` | Dark | `#1C1C1A` | `#C87070` |
-
-```typescript
-import { renderMermaidSVG, THEMES } from 'agentic-mermaid'
-
-const svg = renderMermaidSVG(diagram, THEMES['tokyo-night'])
-```
-
-### Adding Your Own Theme
-
-Creating a theme is trivial. At minimum, just provide `bg` and `fg`:
-
-```typescript
-const myTheme = {
-  bg: '#0f0f0f',
-  fg: '#e0e0e0',
-}
-
-const svg = renderMermaidSVG(diagram, myTheme)
-```
-
-Want richer colors? Add any of the optional enrichments:
-
-```typescript
-const myRichTheme = {
-  bg: '#0f0f0f',
-  fg: '#e0e0e0',
-  accent: '#ff6b6b',  // Pop of color for arrows
-  muted: '#666666',   // Subdued labels
-}
-```
-
-### Full Shiki Compatibility
-
-Use **any VS Code theme** directly via Shiki integration. This gives you access to hundreds of community themes:
-
-```typescript
-import { getSingletonHighlighter } from 'shiki'
-import { renderMermaidSVG, fromShikiTheme } from 'agentic-mermaid'
-
-// Load any theme from Shiki's registry
-const highlighter = await getSingletonHighlighter({
-  themes: ['vitesse-dark', 'rose-pine', 'material-theme-darker']
-})
-
-// Extract diagram colors from the theme
-const colors = fromShikiTheme(highlighter.getTheme('vitesse-dark'))
-
-const svg = renderMermaidSVG(diagram, colors)
-```
-
-The `fromShikiTheme()` function intelligently maps VS Code editor colors to diagram roles:
-
-| Editor Color | Diagram Role |
-|--------------|--------------|
-| `editor.background` | `bg` |
-| `editor.foreground` | `fg` |
-| `editorLineNumber.foreground` | `line` |
-| `focusBorder` / keyword token | `accent` |
-| comment token | `muted` |
-| `editor.selectionBackground` | `surface` |
-| `editorWidget.border` | `border` |
-
----
-
-## Supported Diagrams
-
-### Flowcharts
-
-```
-graph TD
-  A[Start] --> B{Decision}
-  B -->|Yes| C[Process]
-  B -->|No| D[End]
-  C --> D
-```
-
-All directions supported: `TD` (top-down), `LR` (left-right), `BT` (bottom-top), `RL` (right-left).
-
-### State Diagrams
-
-```
-stateDiagram-v2
-  [*] --> Idle
-  Idle --> Processing: start
-  Processing --> Complete: done
-  Complete --> [*]
-```
-
-### Architecture Diagrams
-
-Services, groups, and junctions using Mermaid's `architecture-beta` syntax.
-Current scope covers anchored edges, `{group}` boundary routing, SVG/ASCII output, and Mermaid source wrappers before the header (`%%` comments, YAML frontmatter, and `%%{init: ...}%%` directives). Architecture rendering now honors wrapper-driven theming and sizing for `theme`, `themeVariables`, `fontFamily`, `fontSize`, and `architecture.padding` / `architecture.iconSize` / `architecture.fontSize`; see [docs/design/architecture.md](./docs/design/architecture.md).
-
-```
-architecture-beta
-  group edge(cloud)[Edge]
-  group data(cloud)[Data]
-  service api(server)[API] in edge
-  service db(database)[Primary DB] in data
-  api:R --> L:db
-```
-
-### Sequence Diagrams
-
-```
-sequenceDiagram
-  Alice->>Bob: Hello Bob!
-  Bob-->>Alice: Hi Alice!
-  Alice->>Bob: How are you?
-  Bob-->>Alice: Great, thanks!
-```
-
-### Class Diagrams
-
-```
-classDiagram
-  Animal <|-- Duck
-  Animal <|-- Fish
-  Animal: +int age
-  Animal: +String gender
-  Animal: +isMammal() bool
-  Duck: +String beakColor
-  Duck: +swim()
-  Duck: +quack()
-```
-
-### ER Diagrams
-
-```
-erDiagram
-  CUSTOMER ||--o{ ORDER : places
-  ORDER ||--|{ LINE_ITEM : contains
-  PRODUCT ||--o{ LINE_ITEM : "is in"
-```
-
-### Timeline Diagrams
-
-Chronological milestones with optional section grouping — using Mermaid's `timeline` syntax.
-
-```
-timeline
-  title Agentic Mermaid
-  section Foundation
-  2020 : First prototypes
-  2021 : Internal rollout
-  section Growth
-  2023 : Public launch
-       : Theme system
-  2024 : Timeline support
-```
-
-Also works with Mermaid's official introductory timeline example:
-
-```
-timeline
-  title History of Social Media Platform
-  2002 : LinkedIn
-  2004 : Facebook : Google
-  2005 : YouTube
-  2006 : Twitter
-```
-
-### User Journey Diagrams
-
-Scored user tasks grouped into sections — using Mermaid's `journey` syntax.
-Supports Mermaid accessibility directives `accTitle:` and `accDescr:` as SVG
-metadata, including multiline `accDescr { ... }` blocks. Design note:
-[`docs/design/journey.md`](./docs/design/journey.md).
-
-```
-journey
-  title My working day
-  section Go to work
-    Make tea: 5: Me
-    Go upstairs: 3: Me
-  section Workday
-    Do work: 1: Me, Cat
-```
-
-Official Mermaid docs example:
-
-```
-journey
-  title My working day
-  section Go to work
-    Make tea: 5: Me
-    Go upstairs: 3: Me
-    Do work: 1: Me, Cat
-  section Go home
-    Go downstairs: 5: Me
-    Sit down: 3: Me
-```
-
-### Inline Edge Styling
-
-Use `linkStyle` to override edge colors and stroke widths — just like [Mermaid's linkStyle](https://mermaid.js.org/syntax/flowchart.html#styling-links):
-
-```
-graph TD
-  A --> B --> C
-  linkStyle 0 stroke:#ff0000,stroke-width:2px
-  linkStyle default stroke:#888888
-```
-
-|             Syntax              |                 Effect                 |
-| ------------------------------- | -------------------------------------- |
-| `linkStyle 0 stroke:#f00`       | Style a single edge by index (0-based) |
-| `linkStyle 0,2 stroke:#f00`     | Style multiple edges at once           |
-| `linkStyle default stroke:#888` | Default style applied to all edges     |
-
-Index-specific styles override the default. Supported properties: `stroke`, `stroke-width`.
-
-Works in both flowcharts and state diagrams.
-
-### XY Charts
-
-Bar charts, line charts, and combinations — using Mermaid's current `xychart` syntax. `xychart-beta` remains accepted for backward compatibility.
-
-**Bar chart:**
-
-```
-xychart
-    title "Monthly Revenue"
-    x-axis [Jan, Feb, Mar, Apr, May, Jun]
-    y-axis "Revenue ($K)" 0 --> 500
-    bar [180, 250, 310, 280, 350, 420]
-```
-
-**Line chart:**
-
-```
-xychart
-    title "User Growth"
-    x-axis [Jan, Feb, Mar, Apr, May, Jun]
-    line [1200, 1800, 2500, 3100, 3800, 4500]
-```
-
-**Combined bar + line:**
-
-```
-xychart
-    title "Sales with Trend"
-    x-axis [Jan, Feb, Mar, Apr, May, Jun]
-    bar [300, 380, 280, 450, 350, 520]
-    line [300, 330, 320, 353, 352, 395]
-```
-
-**Horizontal orientation:**
-
-```
-xychart horizontal
-    title "Language Popularity"
-    x-axis [Python, JavaScript, Java, Go, Rust]
-    bar [30, 25, 20, 12, 8]
-```
-
-**Axis configuration:**
-
-- Categorical x-axis: `x-axis [A, B, C]`
-- Numeric x-axis range: `x-axis 0 --> 100`
-- Axis titles: `x-axis "Category" [A, B, C]`
-- Y-axis range: `y-axis "Score" 0 --> 100`
-
-**Agentic Mermaid currently supports the full documented Mermaid xychart config/theme surface below, via YAML frontmatter or Mermaid `%%{init: ...}%%` / `%%{initialize: ...}%%` directives:**
-
-- `config.useMaxWidth` / `config.useWidth`
-- `config.xyChart.width` / `config.xyChart.height` as total chart size
-- `config.xyChart.titleFontSize` / `config.xyChart.titlePadding`
-- `config.xyChart.showDataLabel`
-- `config.xyChart.showTitle`
-- `config.xyChart.chartOrientation`
-- `config.xyChart.plotReservedSpacePercent`
-- `config.xyChart.xAxis.showLabel` / `showTitle`
-- `config.xyChart.xAxis.labelFontSize` / `labelPadding`
-- `config.xyChart.xAxis.titleFontSize` / `titlePadding`
-- `config.xyChart.xAxis.showTick` / `tickLength` / `tickWidth`
-- `config.xyChart.xAxis.showAxisLine` / `axisLineWidth`
-- `config.xyChart.yAxis.showLabel` / `showTitle`
-- `config.xyChart.yAxis.labelFontSize` / `labelPadding`
-- `config.xyChart.yAxis.titleFontSize` / `titlePadding`
-- `config.xyChart.yAxis.showTick` / `tickLength` / `tickWidth`
-- `config.xyChart.yAxis.showAxisLine` / `axisLineWidth`
-- `config.themeVariables.xyChart.backgroundColor`
-- `config.themeVariables.xyChart.titleColor`
-- `config.themeVariables.xyChart.xAxisLabelColor`
-- `config.themeVariables.xyChart.xAxisTickColor`
-- `config.themeVariables.xyChart.xAxisLineColor`
-- `config.themeVariables.xyChart.xAxisTitleColor`
-- `config.themeVariables.xyChart.yAxisLabelColor`
-- `config.themeVariables.xyChart.yAxisTickColor`
-- `config.themeVariables.xyChart.yAxisLineColor`
-- `config.themeVariables.xyChart.yAxisTitleColor`
-- `config.themeVariables.xyChart.plotColorPalette`
-- `config.themeCSS`
-- top-level Mermaid `theme` / `fontFamily` values when supplied through YAML frontmatter or `init` / `initialize` directives
-
-It also matches Mermaid's runtime affordances for:
-
-- semicolon-separated xychart statements on a single line
-- Mermaid accessibility directives: `accTitle` and `accDescr`
-- Mermaid YAML frontmatter lists, nested maps, anchors, aliases, and block scalars
-- Mermaid-style loose object literals inside `init` / `initialize` directives
-
-```yaml
----
-config:
-  xyChart:
-    showDataLabel: true
-  themeVariables:
-    xyChart:
-      plotColorPalette: "#ff6b6b, #0ea5e9"
----
-```
-
-**Multi-series:** Add multiple `bar` and/or `line` declarations. Each series gets a distinct color from a monochromatic palette derived from the theme's accent color.
-
-### XY Chart Styling
-
-The current xychart renderer stays intentionally close to Mermaid while still following Agentic Mermaid's theme system and spacing standards:
-
-- **Explicit axes and ticks** - Axis lines and tick marks are rendered by default, with Mermaid frontmatter available to hide or restyle them
-- **Shared Mermaid config entry points** - The same supported xychart config/theme subset works through YAML frontmatter and Mermaid `init` / `initialize` directives
-- **Accessible SVG metadata** - `accTitle` / `accDescr` are emitted as root SVG `<title>` / `<desc>` metadata with Mermaid-style labeling attributes
-- **Clean grid lines** - The plot uses subtle guide lines instead of a decorative dot field so numeric reading stays easy
-- **Straight line segments** - Line series connect points directly, matching Mermaid's own xychart geometry
-- **Bar-only data labels** - `showDataLabel` labels bars, matching Mermaid behavior and avoiding clutter on line charts
-- **Opt-in interactivity** - `interactive: true` adds hover targets, dots, and tooltips for bars and line points without changing the static SVG structure
-- **Theme-driven palette** - Series colors come from the accent color by default, or from Mermaid `plotColorPalette` when frontmatter provides one
-- **Live theme switching** - Chart series colors are CSS custom properties (`--xychart-color-N`), so theme changes apply instantly without re-rendering
-
----
-
-## ASCII Output
-
-For terminal environments, CLI tools, or anywhere you need plain text, render to ASCII or Unicode box-drawing characters:
-
-```typescript
-import { renderMermaidASCII } from 'agentic-mermaid'
-
-// Unicode mode (default) — prettier box drawing
-const unicode = renderMermaidASCII(`graph LR; A --> B`)
-
-// Pure ASCII mode — maximum compatibility
-const ascii = renderMermaidASCII(`graph LR; A --> B`, { useAscii: true })
-```
-
-**Unicode output:**
-```
-┌───┐     ┌───┐
-│   │     │   │
-│ A │────►│ B │
-│   │     │   │
-└───┘     └───┘
-```
-
-**ASCII output:**
-```
-+---+     +---+
-|   |     |   |
-| A |---->| B |
-|   |     |   |
-+---+     +---+
-```
-
-### ASCII Options
-
-```typescript
-renderMermaidASCII(diagram, {
-  useAscii: false,      // true = ASCII, false = Unicode (default)
-  paddingX: 5,          // Horizontal spacing between nodes
-  paddingY: 5,          // Vertical spacing between nodes
-  boxBorderPadding: 1,  // Padding inside node boxes
-  colorMode: 'auto',    // 'none' | 'auto' | 'ansi16' | 'ansi256' | 'truecolor' | 'html'
-  theme: { ... },       // Partial<AsciiTheme> — override default colors
-})
-```
-
-### ASCII XY Charts
-
-XY charts render to ASCII with dedicated chart-drawing characters:
-
-- **Bar charts** — `█` blocks (Unicode) or `#` (ASCII mode)
-- **Line charts** — Staircase routing with rounded corners: `╭╮╰╯│─` (Unicode) or `+|-` (ASCII)
-- **Multi-series** — Each series gets a distinct ANSI color from the theme's accent palette
-- **Legends** — Automatically shown when multiple series are present
-- **Horizontal charts** — Fully supported with categories on the y-axis
-
----
-
-## API Reference
-
-### `renderMermaidSVG(text, options?): string`
-
-Render a Mermaid diagram to SVG. Synchronous. Auto-detects diagram type.
-
-**Parameters:**
-- `text` — Mermaid source code
-- `options` — Optional `RenderOptions` object
-
-**RenderOptions:**
-
-| Option | Type | Default | Description |
-|--------|------|---------|-------------|
-| `bg` | `string` | `#FFFFFF` | Background color (or CSS variable) |
-| `fg` | `string` | `#27272A` | Foreground color (or CSS variable) |
-| `line` | `string?` | — | Edge/connector color |
-| `accent` | `string?` | — | Arrow heads, highlights |
-| `muted` | `string?` | — | Secondary text, labels |
-| `surface` | `string?` | — | Node fill tint |
-| `border` | `string?` | — | Node stroke color |
-| `font` | `string` | `Inter` | Font family |
-| `style` | `DiagramStyleOptions` | — | Role-based SVG style overrides for `text`, `node`, `edge`, and `group` roles |
-| `transparent` | `boolean` | `false` | Render with transparent background |
-| `padding` | `number` | `40` | Canvas padding in px |
-| `nodeSpacing` | `number` | `24` | Horizontal spacing between sibling nodes |
-| `layerSpacing` | `number` | `40` | Vertical spacing between layers |
-| `componentSpacing` | `number` | `24` | Spacing between disconnected components |
-| `interactive` | `boolean` | `false` | Enable hover tooltips on XY chart bars and data points |
-| `shadow` | `boolean` | `false` | Enable explicit drop shadows on node shapes |
-| `mermaidConfig` | `MermaidRuntimeConfig` | — | Optional Mermaid-style config merged with frontmatter and `%%{init}` / `%%{initialize}` directives |
-| `embedFontImport` | `boolean` | `true` | Include the Google Fonts `@import` line in SVG styles |
-| `compact` | `boolean` | `false` | Compact SVG output while preserving agent inspection hooks |
-| `idPrefix` | `string` | `''` | Namespace generated SVG def ids for multi-diagram pages |
-| `security` | `'default' \| 'strict'` | `'default'` | `strict` disables external-fetch references; see SECURITY.md |
-
-**DiagramStyleOptions:**
-
-Style overrides are expressed as semantic roles so every diagram family can adopt the same API without pretending all diagrams have the same primitives.
-
-| Role | Fields | Meaning |
-|------|--------|---------|
-| `style.text` | `fontSize`, `fontWeight`, `letterSpacing` | Shared fallback typography for roles that do not override it |
-| `style.node` | `fontSize`, `fontWeight`, `letterSpacing`, `paddingX`, `paddingY`, `cornerRadius`, `lineWidth` | Primary cards/boxes/entities/participants/tasks/services |
-| `style.edge` | `fontSize`, `fontWeight`, `letterSpacing`, `lineWidth`, `bendRadius` | Connectors/messages/relationships and their labels |
-| `style.group` | `fontSize`, `fontWeight`, `letterSpacing`, `fontFamily`, `textTransform`, `paddingX`, `paddingY`, `cornerRadius`, `borderColor`, `lineWidth` | Subgraphs/sections/blocks/group containers |
-
-All SVG diagram families consume the roles they support, and each mapping updates both layout sizing and rendered SVG attributes. Diagram-specific Mermaid config remains available for specialized controls such as xychart axes or architecture icons. See the [live Role Styles samples](https://adewale.github.io/beautiful-mermaid/) or load the styled presets from the [editor examples menu](https://adewale.github.io/beautiful-mermaid/editor).
-
-**Auto-detection:** Supported diagram families are routed from the header line automatically, including `architecture-beta`, `timeline`, `journey`, `sequenceDiagram`, `classDiagram`, `erDiagram`, and `xychart-beta`. For xychart, the `accent` color option drives the series palette unless Mermaid config provides `plotColorPalette`, and Mermaid `xyChart.width` / `height` are treated as total chart dimensions, matching Mermaid's own renderer.
-
-### `renderMermaidSVGAsync(text, options?): Promise<string>`
-
-Async version of `renderMermaidSVG()`. Same output, returns a `Promise<string>`. Useful in async server handlers or data loaders.
-
-### `renderMermaidASCII(text, options?): string`
-
-Render a Mermaid diagram to ASCII/Unicode text. Synchronous.
-
-**AsciiRenderOptions:**
-
-| Option | Type | Default | Description |
-|--------|------|---------|-------------|
-| `useAscii` | `boolean` | `false` | Use ASCII instead of Unicode |
-| `paddingX` | `number` | `5` | Horizontal node spacing |
-| `paddingY` | `number` | `5` | Vertical node spacing |
-| `boxBorderPadding` | `number` | `1` | Inner box padding |
-| `colorMode` | `string` | `'auto'` | `'none'`, `'auto'`, `'ansi16'`, `'ansi256'`, `'truecolor'`, or `'html'` |
-| `theme` | `Partial<AsciiTheme>` | — | Override default colors for ASCII output |
-| `mermaidConfig` | `MermaidRuntimeConfig` | — | Optional Mermaid-style config merged with frontmatter and `%%{init}` / `%%{initialize}` directives |
-
-### Mermaid Config Support
-
-Both SVG and ASCII rendering accept Mermaid-style runtime config via `options.mermaidConfig`, and also honor leading frontmatter plus Mermaid init directives in the source text.
+### SVG
 
 ```ts
-const svg = renderMermaidSVG(source, {
-  mermaidConfig: {
-    fontFamily: 'IBM Plex Sans',
-    timeline: {
-      disableMulticolor: true,
-      sectionFills: ['#224466'],
-      sectionColours: ['#ffffff'],
-    },
-    themeVariables: {
-      cScale0: '#224466',
-      cScaleLabel0: '#ffffff',
-      cScaleInv0: '#99bbdd',
-    },
-  },
-})
+import { renderMermaidSVG } from 'agentic-mermaid/agent'
+
+const svg = renderMermaidSVG(`flowchart TD
+  Start --> Done`, { security: 'strict' })
 ```
 
-### `parseMermaid(text): MermaidGraph`
+### PNG
 
-Parse Mermaid source into a structured graph object (for custom processing).
+```ts
+import { writeFileSync } from 'node:fs'
+import { renderMermaidPNG } from 'agentic-mermaid/agent'
 
-### `fromShikiTheme(theme): DiagramColors`
+const png = renderMermaidPNG(`flowchart TD
+  Start --> Done`, {
+  fitTo: { width: 1200 },
+  background: '#fff',
+})
 
-Extract diagram colors from a Shiki theme object.
+writeFileSync('diagram.png', png)
+```
 
-### `THEMES: Record<string, DiagramColors>`
+CLI equivalent:
 
-Object containing all 19 built-in themes.
+```bash
+am render diagram.mmd --format png --output diagram.png
+```
 
-### `DEFAULTS: { bg: string, fg: string }`
+### ASCII / Unicode
 
-Default colors (`#FFFFFF` / `#27272A`).
+```ts
+import { renderMermaidASCII } from 'agentic-mermaid/agent'
 
----
+const unicode = renderMermaidASCII(`flowchart LR
+  A --> B`)
+const ascii = renderMermaidASCII(`flowchart LR
+  A --> B`, { useAscii: true })
+```
 
-## Contributing
+## Agent quick start
 
-Adding a Mermaid-supported diagram type to this repo? Start with [ADDING_DIAGRAM_TYPES.md](./ADDING_DIAGRAM_TYPES.md).
+If your coding agent can read repo files, point it at:
 
-The short version: copy an official Mermaid example into a test, make sure Agentic Mermaid renders a recognizably similar diagram, commit the example source and rendered evidence, and cover parser, integration, theme, ASCII, and regression checks as applicable.
+- [`skills/agentic-mermaid-diagram-workflow/SKILL.md`](./skills/agentic-mermaid-diagram-workflow/SKILL.md) for diagram authoring/editing.
+- [`skills/agentic-mermaid-live-editor/SKILL.md`](./skills/agentic-mermaid-live-editor/SKILL.md) for editor changes.
 
----
+If it only has shell access:
+
+```bash
+am --agent-instructions
+am capabilities --json
+am preview diagram.mmd --security strict --open
+am mutate diagram.mmd --op '{"kind":"add_node","id":"Cache","label":"Cache"}' --json
+```
+
+Zero-install prompt for a coding agent: read `https://adewale.github.io/beautiful-mermaid/llms.txt` and follow the parse → narrow → mutate → verify → serialize workflow. To wire Agentic Mermaid into another repo, run `npx agentic-mermaid init-agent`; it writes a non-clobbering `AGENTS.md` section, root `skills/` bundle, and `.mcp.json` sample.
+
+Use strict `preview` for human inspection and `mutate --op/--ops` for verified one-shot or batched edits.
+
+For multi-step MCP edits, connect `agentic-mermaid-mcp` and use Code Mode `execute(code)` with the same `mermaid.*` SDK names. See the [agent API cookbook](./docs/agent-api-cookbook.md) for copy-pasteable library, CLI, and MCP recipes.
+
+## Structured edit example
+
+```ts
+import { parseMermaid, asFlowchart, mutate, verifyMermaid, serializeMermaid } from 'agentic-mermaid/agent'
+
+const parsed = parseMermaid('flowchart TD\n  API --> DB')
+if (!parsed.ok) throw new Error('parse failed')
+
+const flow = asFlowchart(parsed.value)
+if (!flow) throw new Error(`not a structured flowchart: ${parsed.value.kind}`)
+
+const next = mutate(flow, { kind: 'add_node', id: 'Cache', label: 'Cache' })
+if (!next.ok) throw new Error(next.error.message)
+
+const verify = verifyMermaid(next.value)
+if (!verify.ok) throw new Error(JSON.stringify(verify.warnings, null, 2))
+
+const source = serializeMermaid(next.value)
+```
+
+Rules:
+
+- Use `asFlowchart` / `asSequence` / `asTimeline` / `asClass` / `asEr` before mutating existing diagrams.
+- Mutation ops use `kind`, not `type`.
+- Run `verifyMermaid` before every commit point.
+- Do not call `mutate` on journey, XY chart, architecture, or opaque fallback bodies.
+
+## Supported diagram families
+
+| Family | Parse | Verify | Render | Structured mutate |
+|---|---:|---:|---:|---:|
+| Flowchart / state | ✓ | ✓ | SVG/PNG/ASCII | ✓ |
+| Sequence | ✓ | ✓ | SVG/PNG/ASCII | simple messages/participants |
+| Timeline | ✓ | ✓ | SVG/PNG/ASCII | ✓ |
+| Class | ✓ | ✓ | SVG/PNG/ASCII | ✓ |
+| ER | ✓ | ✓ | SVG/PNG/ASCII | ✓ |
+| Journey | ✓ | ✓ | SVG/PNG/ASCII | source-level only |
+| XY chart | ✓ | ✓ | SVG/PNG/ASCII | source-level only |
+| Architecture | ✓ | ✓ | SVG/PNG/ASCII | source-level only |
+
+See [diagram families](./docs/diagram-families.md) for examples and compatibility notes.
+
+## More documentation
+
+- [API reference](./docs/api.md) — renderers, agent API, options, CLI/MCP pointers.
+- [Agent API cookbook](./docs/agent-api-cookbook.md) — practical recipes for agents.
+- [Theming](./docs/theming.md) — two-color themes, built-ins, Shiki compatibility.
+- [React integration](./docs/react.md) — zero-flash `useMemo` rendering.
+- [ASCII output](./docs/ascii.md) — terminal output, color modes, XY charts.
+- [Mermaid config](./docs/config.md) — frontmatter, init directives, runtime config.
+- [Features](./docs/features.md), [quality](./docs/quality.md), [security](./SECURITY.md), [fork differences](./docs/fork-differences.md).
+- [Adding diagram types](./docs/contributing/adding-diagram-types.md) for contributors.
+
+## Live editor and examples
+
+- [Sample gallery](https://adewale.github.io/beautiful-mermaid/) — supported families and role-style presets.
+- [Live editor](https://adewale.github.io/beautiful-mermaid/editor) — SVG/PNG exports and URL sharing.
+- [`examples/agent-loop.ts`](./examples/agent-loop.ts)
+- [`examples/mcp-vs-cli-complex-diagrams.ts`](./examples/mcp-vs-cli-complex-diagrams.ts)
+- [`examples/agent-improve-auth-flow.ts`](./examples/agent-improve-auth-flow.ts)
 
 ## Attribution
 
-The ASCII rendering engine is based on [mermaid-ascii](https://github.com/AlexanderGrooff/mermaid-ascii) by Alexander Grooff. We ported it from Go to TypeScript and extended it with:
-
-- Sequence diagram support
-- Class diagram support
-- ER diagram support
-- Unicode box-drawing characters
-- Configurable spacing and padding
-
-Thank you Alexander for the excellent foundation!
-
----
+Agentic Mermaid is a fork of Beautiful Mermaid by [Luki Labs](https://github.com/lukilabs/beautiful-mermaid). The ASCII rendering engine is based on [`mermaid-ascii`](https://github.com/AlexanderGrooff/mermaid-ascii) by Alexander Grooff and extended for Agentic Mermaid.
 
 ## License
 
-MIT — see [LICENSE](LICENSE) for details.
-
----
-
-<div align="center">
-
-Agentic Mermaid is published as `agentic-mermaid` and maintained at `adewale/beautiful-mermaid`. The original renderer was built with care by the team at [Craft](https://craft.do).
-
-</div>
+MIT
