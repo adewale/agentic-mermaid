@@ -51,6 +51,7 @@ import { stateBodyToGraph } from './state-body.ts'
 import { serializeMermaid as _serialize } from './serialize.ts'
 import type { ValidDiagram, RenderedLayout } from './types.ts'
 import { positionedToRenderedLayout, emptyRenderedLayout } from './layout-to-rendered.ts'
+import { layoutFamilyToRendered } from './family-layouts.ts'
 
 export function renderMermaidSVG(input: ValidDiagram | string, opts: Parameters<typeof _svg>[1] = {}): string {
   return _svg(typeof input === 'string' ? input : _serialize(input), opts)
@@ -70,6 +71,11 @@ export function layoutMermaid(d: ValidDiagram): RenderedLayout {
   }
   if (d.body.kind === 'sequence') return layoutSequenceToRendered(d as ValidDiagram & { body: SequenceBody })
   if (d.body.kind === 'timeline') return layoutTimelineToRendered(d as ValidDiagram & { body: TimelineBody })
+  // QUAL-1: class/er/journey/architecture/xychart/pie/quadrant project their
+  // real positioned layout (parsed from d.canonicalSource — works for both
+  // structured and opaque bodies) so the perceptual-quality metrics see them.
+  const familyLayout = layoutFamilyToRendered(d)
+  if (familyLayout) return familyLayout
   return emptyRenderedLayout(d.kind)
 }
 

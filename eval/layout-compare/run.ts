@@ -117,17 +117,34 @@ export function compareSample(before: SampleResult | undefined, after: SampleRes
   const ma = after.metrics!
   let regressed = false
   let improved = false
+  // QUAL-1: a family that previously had an EMPTY layout (nodeCount 0 — the
+  // perceptual metrics were blind to it) gaining real geometry is an
+  // IMPROVEMENT, never a faithfulness regression. While transitioning out of an
+  // empty layout, the derived metrics (edgeCrossings, labelLegibility) move from
+  // their trivial baselines (0, 1.0) to real values; those moves are an artifact
+  // of the empty→measured transition, not a genuine layout regression, so they
+  // must NOT flip the verdict to 'regression'. Only count drifts on a family
+  // that was ALREADY measured (before had geometry) are real regressions.
+  const fromEmpty = mb.nodeCount === 0 && mb.edgeCount === 0
+  const transitionedToMeasured = fromEmpty && ma.nodeCount > 0
   const track = (name: string, b: number, a: number, higherIsBetter: boolean, eps = 0) => {
     if (Math.abs(a - b) <= eps) return
     const better = higherIsBetter ? a > b : a < b
+    notes.push(`${name}: ${fmt(b)} → ${fmt(a)}${better ? ' ✓' : ' ✗'}`)
+    if (transitionedToMeasured) return  // derived-metric move is part of the empty→measured improvement
     if (better) improved = true
     else regressed = true
-    notes.push(`${name}: ${fmt(b)} → ${fmt(a)}${better ? ' ✓' : ' ✗'}`)
   }
   track('edgeCrossings', mb.edgeCrossings, ma.edgeCrossings, false)
   track('labelLegibility', mb.labelLegibility, ma.labelLegibility, true, LEGIBILITY_EPS)
-  if (mb.nodeCount !== ma.nodeCount) { notes.push(`nodeCount: ${mb.nodeCount} → ${ma.nodeCount} ✗`); regressed = true }
-  if (mb.edgeCount !== ma.edgeCount) { notes.push(`edgeCount: ${mb.edgeCount} → ${ma.edgeCount} ✗`); regressed = true }
+  if (mb.nodeCount !== ma.nodeCount) {
+    if (transitionedToMeasured) { notes.push(`nodeCount: ${mb.nodeCount} → ${ma.nodeCount} ✓ (empty→measured)`); improved = true }
+    else { notes.push(`nodeCount: ${mb.nodeCount} → ${ma.nodeCount} ✗`); regressed = true }
+  }
+  if (mb.edgeCount !== ma.edgeCount) {
+    if (transitionedToMeasured) { notes.push(`edgeCount: ${mb.edgeCount} → ${ma.edgeCount} ✓ (empty→measured)`); improved = true }
+    else { notes.push(`edgeCount: ${mb.edgeCount} → ${ma.edgeCount} ✗`); regressed = true }
+  }
 
   const svgChanged = before.svg !== after.svg
   const asciiChanged = before.ascii !== after.ascii

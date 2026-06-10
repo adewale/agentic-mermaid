@@ -13,6 +13,7 @@ import type {
 } from './types.ts'
 import { WARNING_SEVERITY, DEFAULT_LABEL_CHAR_CAP } from './types.ts'
 import { positionedToRenderedLayout, emptyRenderedLayout } from './layout-to-rendered.ts'
+import { layoutFamilyToRendered } from './family-layouts.ts'
 import { getFamily, extractLabelsGeneric } from './families.ts'
 import { stateBodyToGraph } from './state-body.ts'
 import './families-builtin.ts'  // registers built-in families at import time
@@ -68,7 +69,11 @@ export function verifyMermaid(input: ValidDiagram | string, opts: VerifyOptions 
   // class + ER + journey + architecture: the FamilyPlugin.verify hooks produce
   // the per-body warnings (journey added by BUILD-15, architecture by BUILD-17).
   if (d.body.kind === 'class' || d.body.kind === 'er' || d.body.kind === 'journey' || d.body.kind === 'architecture' || d.body.kind === 'xychart') {
-    return finalize(pluginWarnings, emptyRenderedLayout(d.kind), opts)
+    // QUAL-1: verify.layout is now truthful — the real positioned layout from
+    // the family adapters (was emptyRenderedLayout). The structural warnings
+    // still come from the FamilyPlugin.verify hooks; only the geometry the
+    // layout field reports changes.
+    return finalize(pluginWarnings, layoutFamilyToRendered(d) ?? emptyRenderedLayout(d.kind), opts)
   }
 
   // State diagrams (BUILD-19): the StateBody projects to a MermaidGraph via the
@@ -99,7 +104,12 @@ export function verifyMermaid(input: ValidDiagram | string, opts: VerifyOptions 
       seen.add(key)
       warnings.push({ code: 'LABEL_OVERFLOW', target: lbl.target, charCount: lbl.text.length, limit: cap })
     }
-    return finalize(dedupedConcat(warnings, pluginWarnings), emptyRenderedLayout(d.kind), opts)
+    // QUAL-1: opaque bodies of renderable families (pie/quadrant always, and
+    // class/er/journey/architecture/xychart when unmodeled) still produce a
+    // real positioned layout from canonicalSource. layoutFamilyToRendered
+    // degrades to an empty layout on render-error, so this never throws.
+    const opaqueLayout = layoutFamilyToRendered(d) ?? emptyRenderedLayout(d.kind)
+    return finalize(dedupedConcat(warnings, pluginWarnings), opaqueLayout, opts)
   }
 
   const graph = d.body.graph
