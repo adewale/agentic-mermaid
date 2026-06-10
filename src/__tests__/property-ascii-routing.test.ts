@@ -7,6 +7,10 @@ import { determineLabelLine } from '../ascii/edge-routing.ts'
 import { getPath, mergePath } from '../ascii/pathfinder.ts'
 import {
   EMPTY_STYLE,
+  Up,
+  Down,
+  Left,
+  Right,
   type AsciiConfig,
   type AsciiEdge,
   type AsciiGraph,
@@ -76,6 +80,7 @@ function makeGraph(direction: 'TD' | 'LR' = 'TD'): AsciiGraph {
     offsetX: 0,
     offsetY: 0,
     bundles: [],
+    trunkJunctions: [],
   }
 }
 
@@ -172,6 +177,13 @@ describe('property-based ASCII pathfinding', () => {
       }),
       { numRuns: PROPERTY_RUNS },
     )
+  })
+
+  it('preferred direction controls first step for tied empty-grid routes', () => {
+    expect(getPath(new Map(), { x: 1, y: 1 }, { x: 0, y: 0 }, Left)?.[1]).toEqual({ x: 0, y: 1 })
+    expect(getPath(new Map(), { x: 1, y: 1 }, { x: 0, y: 0 }, Up)?.[1]).toEqual({ x: 1, y: 0 })
+    expect(getPath(new Map(), { x: 1, y: 1 }, { x: 2, y: 2 }, Right)?.[1]).toEqual({ x: 2, y: 1 })
+    expect(getPath(new Map(), { x: 1, y: 1 }, { x: 2, y: 2 }, Down)?.[1]).toEqual({ x: 1, y: 2 })
   })
 
   it('mergePath preserves endpoints and is idempotent', () => {

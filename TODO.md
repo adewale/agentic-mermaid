@@ -37,13 +37,6 @@ dependents after. IDs are stable names, not an ordering.
   managed store with safe tracked names, MIME type, byte count, SHA-256, size
   limit, and TTL checks. Tests cover file output, URL fetch-back, auth/body
   gates, tracked artifact serving, and SSE session lifecycle.
-- [ ] **BUILD-2 — `process --mode validate|canonicalize` triage** (`todo`).
-  Current verbs are `verify` and `format`; do not add another command until it
-  proves agent value. Needed: inventory overlap with `verify`, `format`,
-  `parse`, `serialize`, `mutate`, and `batch`; write the exact JSON/exit-code
-  contract for `validate` and `canonicalize`; test whether it reduces agent
-  routing errors in docs/evals; then either implement as a thin, schema-tested
-  wrapper or explicitly park/decline it. Independent of other items.
 - [ ] **BUILD-3 — Family-plugin consolidation** (`todo`). Evaluate whether
   parse/serialize/mutate dispatch should move fully into `FamilyPlugin` now
   that timeline/class/ER mutation exists. Do before adding new families
@@ -112,20 +105,18 @@ dependents after. IDs are stable names, not an ordering.
   `eval/layout-compare/run.ts` (snapshot/report subcommands, regression
   exit code), fixtures in `eval/layout-compare/fixtures/`, tests in
   `src/__tests__/layout-compare.test.ts`.
-- [ ] **BUILD-10 — Fan-out trunk sharing / connector alignment** (`todo`,
-  after BUILD-13; partially done). Upstream issue:
-  <https://github.com/lukilabs/beautiful-mermaid/issues/111>
-  (sibling edges from one source don't share a trunk; related connector
-  displacement is issue #112, upstream fix PR is #113).
-  Done: the #112 box-start displacement is fixed (connector anchored on the
-  node border via `getNodeAttachmentPoint`, gap filled;
-  `src/__tests__/ascii-box-start.test.ts`). Remaining: the #111-class TB
-  fan-out detour (a sibling edge takes an L-shaped wander with its label on
-  the horizontal run; see the upstream repro with `left*`/`center*`/`right*`
-  labels). A naive preferred-direction A* tweak destabilizes the existing
-  trunk post-processing — this needs upstream PR #113's coordinated set
-  (FIFO heap tie-breaking + branch-point re-routing + label placement),
-  ported against our diverged pathfinder, measured with BUILD-13.
+- [x] **BUILD-10 — Fan-out trunk sharing / connector alignment** (`done`).
+  Upstream issue: <https://github.com/lukilabs/beautiful-mermaid/issues/111>
+  (plus connector displacement #112 / upstream PR #113). The ASCII pathfinder
+  now uses deterministic preferred-direction exploration, labeled sibling
+  fan-outs share the first branch trunk via post-routing branch-point
+  re-routing, collinear waypoints no longer overwrite corners, explicit trunk
+  junctions are drawn, and one-way branch labels stay on their vertical branch
+  instead of being shifted into the horizontal trunk. Tests:
+  `src/__tests__/ascii-pathfinder-trunk.test.ts`,
+  `src/__tests__/ascii-box-start.test.ts`,
+  `src/__tests__/ascii-determinism.test.ts`, plus exact ASCII/Unicode
+  golden files in `src/__tests__/testdata/{ascii,unicode}/`.
 - [x] **BUILD-9 — Fan-in grouping** (`done`). Promoted from PARK-1; upstream
   PR <https://github.com/lukilabs/beautiful-mermaid/pull/69>. Implemented in
   `src/ascii/grid.ts` `createMapping`: roots grouped contiguously by first
@@ -142,21 +133,21 @@ dependents after. IDs are stable names, not an ordering.
   hierarchy handling and the ASCII grid layout both honor it, including the
   #2509 external-link case. Geometry tests pin the differentiator:
   `src/__tests__/subgraph-direction.test.ts`.
-- [ ] **BUILD-14 — ASCII: edges to a subgraph id create a phantom node**
-  (`todo`). `Start --> Pipeline` where `Pipeline` is a subgraph renders a
-  duplicate floating node box labeled `Pipeline` instead of attaching the
-  edge to the container (the SVG/ELK path handles this correctly via
-  hierarchical ports; verify is layout-path based so it reports `ok` while
-  the ASCII output is wrong). Needs container-border edge attachment in the
-  ASCII grid/pathfinder. Discovered while testing BUILD-12; repro:
-  `eval/layout-compare/fixtures/subgraph-direction.mmd` with an edge to
-  `Pipeline`.
+- [x] **BUILD-14 — ASCII: edges to a subgraph id create a phantom node**
+  (`done`). `Start --> Pipeline` where `Pipeline` is a subgraph now routes
+  through stable inner anchors for placement/pathfinding but draws to the
+  subgraph container border, so ASCII no longer emits a duplicate floating
+  `Pipeline` node box. The outgoing container edge also aligns from the
+  subgraph anchor instead of jumping sideways. Regression coverage lives in
+  `src/__tests__/subgraph-direction.test.ts` and exact ASCII/Unicode golden
+  files under `src/__tests__/testdata/{ascii,unicode}/`, including nested,
+  styled/labeled, and multi-edge container cases.
 - [ ] **BUILD-1 — Collapsible subgraphs (#7785)** (`todo`). Track Mermaid PR
   <https://github.com/mermaid-js/mermaid/pull/7785> (`@{ view: collapsed }`
   metadata syntax) and stay syntax-compatible. Large, but a real readability
   win for agent-generated architecture diagrams; pairs naturally with typed
-  `collapse`/`expand` mutation ops. Measure with BUILD-13; fixing BUILD-14
-  first avoids collapsing onto the phantom-node bug.
+  `collapse`/`expand` mutation ops. Measure with BUILD-13; BUILD-14 is now
+  fixed, so collapsed-subgraph work no longer inherits the phantom-node bug.
 - [x] **BUILD-8 — Tier 3 lint catalogue** (`done`). Added advisory
   flowchart/state lint warnings for `DUPLICATE_EDGE` and `UNREACHABLE_NODE`,
   exposed them through `WarningCode`, `WARNING_TIER`, `am capabilities`,

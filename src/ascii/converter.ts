@@ -23,11 +23,17 @@ import { mkCanvas, mkRoleCanvas } from './canvas.ts'
  * - Node labels are used as display names (not raw IDs)
  */
 export function convertToAsciiGraph(parsed: MermaidGraph, config: AsciiConfig): AsciiGraph {
-  // Build node list preserving Map insertion order
+  const subgraphIds = collectSubgraphIds(parsed.subgraphs)
+
+  // Build node list preserving Map insertion order. A parsed node whose id is
+  // also a subgraph id is a container reference, not a real node box; omit it
+  // and route matching edges through a subgraph anchor instead.
   const nodeMap = new Map<string, AsciiNode>()
   let index = 0
 
   for (const [id, mNode] of parsed.nodes) {
+    if (subgraphIds.has(id)) continue
+
     const asciiNode: AsciiNode = {
       // Use the parser ID as the unique identity key to avoid collisions
       // when multiple nodes share the same label (e.g. A[Web Server], C[Web Server]).
@@ -48,18 +54,36 @@ export function convertToAsciiGraph(parsed: MermaidGraph, config: AsciiConfig): 
     index++
   }
 
-  const nodes = [...nodeMap.values()]
+  // Convert subgraphs recursively
+  const subgraphs: AsciiSubgraph[] = []
+  for (const mSg of parsed.subgraphs) {
+    convertSubgraph(mSg, null, nodeMap, subgraphs)
+  }
 
-  // Build edges with resolved node references
+  // Deduplicate subgraph node membership to match Go parser behavior.
+  // In Go, a node belongs only to the subgraph where it was FIRST DEFINED.
+  // The TS parser adds referenced nodes to all subgraphs they appear in,
+  // which causes incorrect bounding boxes when nodes span subgraph boundaries.
+  deduplicateSubgraphNodes(parsed.subgraphs, subgraphs, nodeMap, parsed)
+
+  const subgraphById = new Map(subgraphs.map(sg => [sg.id, sg] as const))
+
+  // Build edges with resolved node references. Edges that target a subgraph id
+  // route through a stable inner anchor for placement/pathfinding, then draw to
+  // the container border instead of rendering a duplicate phantom node.
   const edges: AsciiEdge[] = []
   for (const mEdge of parsed.edges) {
-    const from = nodeMap.get(mEdge.source)
-    const to = nodeMap.get(mEdge.target)
+    const fromSubgraph = nodeMap.has(mEdge.source) ? undefined : subgraphById.get(mEdge.source)
+    const toSubgraph = nodeMap.has(mEdge.target) ? undefined : subgraphById.get(mEdge.target)
+    const from = nodeMap.get(mEdge.source) ?? (fromSubgraph ? chooseSubgraphAnchor(parsed, fromSubgraph, 'out') : undefined)
+    const to = nodeMap.get(mEdge.target) ?? (toSubgraph ? chooseSubgraphAnchor(parsed, toSubgraph, 'in') : undefined)
     if (!from || !to) continue
 
     edges.push({
       from,
       to,
+      fromSubgraph,
+      toSubgraph,
       text: mEdge.label ?? '',
       path: [],
       labelLine: [],
@@ -73,17 +97,7 @@ export function convertToAsciiGraph(parsed: MermaidGraph, config: AsciiConfig): 
     })
   }
 
-  // Convert subgraphs recursively
-  const subgraphs: AsciiSubgraph[] = []
-  for (const mSg of parsed.subgraphs) {
-    convertSubgraph(mSg, null, nodeMap, subgraphs)
-  }
-
-  // Deduplicate subgraph node membership to match Go parser behavior.
-  // In Go, a node belongs only to the subgraph where it was FIRST DEFINED.
-  // The TS parser adds referenced nodes to all subgraphs they appear in,
-  // which causes incorrect bounding boxes when nodes span subgraph boundaries.
-  deduplicateSubgraphNodes(parsed.subgraphs, subgraphs, nodeMap, parsed)
+  const nodes = [...nodeMap.values()]
 
   // Apply class definitions
   for (const [nodeId, className] of parsed.classAssignments) {
@@ -108,7 +122,43 @@ export function convertToAsciiGraph(parsed: MermaidGraph, config: AsciiConfig): 
     offsetX: 0,
     offsetY: 0,
     bundles: [], // Populated by analyzeEdgeBundles() during layout
+    trunkJunctions: [], // Populated by sibling trunk-sharing post-processing
   }
+}
+
+function collectSubgraphIds(subgraphs: MermaidSubgraph[]): Set<string> {
+  const ids = new Set<string>()
+  const visit = (sgs: MermaidSubgraph[]) => {
+    for (const sg of sgs) {
+      ids.add(sg.id)
+      visit(sg.children)
+    }
+  }
+  visit(subgraphs)
+  return ids
+}
+
+function chooseSubgraphAnchor(
+  parsed: MermaidGraph,
+  sg: AsciiSubgraph,
+  side: 'in' | 'out',
+): AsciiNode | undefined {
+  const ids = new Set(sg.nodes.map(n => n.name))
+  if (ids.size === 0) return undefined
+
+  const internalIn = new Set<string>()
+  const internalOut = new Set<string>()
+  for (const edge of parsed.edges) {
+    if (ids.has(edge.source) && ids.has(edge.target)) {
+      internalOut.add(edge.source)
+      internalIn.add(edge.target)
+    }
+  }
+
+  const preferred = side === 'in'
+    ? sg.nodes.filter(n => !internalIn.has(n.name))
+    : sg.nodes.filter(n => !internalOut.has(n.name))
+  return preferred[0] ?? sg.nodes[0]
 }
 
 /**
@@ -130,6 +180,7 @@ function convertSubgraph(
   }
 
   const sg: AsciiSubgraph = {
+    id: mSg.id,
     name: mSg.label,
     nodes: [],
     parent,

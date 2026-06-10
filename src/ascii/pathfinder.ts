@@ -6,7 +6,7 @@
 // paths between nodes on the grid. Prefers straight lines over zigzags.
 // ============================================================================
 
-import type { GridCoord, AsciiNode } from './types.ts'
+import type { GridCoord, AsciiNode, Direction } from './types.ts'
 import { gridKey, gridCoordEquals } from './types.ts'
 
 // ============================================================================
@@ -63,10 +63,10 @@ class MinHeap {
       let smallest = i
       const left = 2 * i + 1
       const right = 2 * i + 2
-      if (left < n && this.items[left]!.priority < this.items[smallest]!.priority) {
+      if (left < n && this.items[left]!.priority <= this.items[smallest]!.priority) {
         smallest = left
       }
-      if (right < n && this.items[right]!.priority < this.items[smallest]!.priority) {
+      if (right < n && this.items[right]!.priority <= this.items[smallest]!.priority) {
         smallest = right
       }
       if (smallest !== i) {
@@ -108,6 +108,37 @@ const MOVE_DIRS: GridCoord[] = [
   { x: 0, y: -1 },
 ]
 
+/** Build a move-direction order that tries the edge's initial cardinal direction first. */
+function buildMoveDirs(preferredDir?: Direction): GridCoord[] {
+  if (!preferredDir) return [...MOVE_DIRS]
+
+  // Direction values are 3x3 node attachment offsets, not signed deltas:
+  // Up={1,0}, Down={1,2}, Left={0,1}, Right={2,1}.
+  if (preferredDir.x === 2 && preferredDir.y === 1) {
+    return [{ x: 1, y: 0 }, { x: -1, y: 0 }, { x: 0, y: 1 }, { x: 0, y: -1 }]
+  }
+  if (preferredDir.x === 0 && preferredDir.y === 1) {
+    return [{ x: -1, y: 0 }, { x: 1, y: 0 }, { x: 0, y: 1 }, { x: 0, y: -1 }]
+  }
+  if (preferredDir.x === 1 && preferredDir.y === 2) {
+    return [{ x: 0, y: 1 }, { x: 0, y: -1 }, { x: 1, y: 0 }, { x: -1, y: 0 }]
+  }
+  if (preferredDir.x === 1 && preferredDir.y === 0) {
+    return [{ x: 0, y: -1 }, { x: 0, y: 1 }, { x: 1, y: 0 }, { x: -1, y: 0 }]
+  }
+
+  const dx = preferredDir.x - 1
+  const dy = preferredDir.y - 1
+  if (Math.abs(dx) >= Math.abs(dy)) {
+    return dx >= 0
+      ? [{ x: 1, y: 0 }, { x: -1, y: 0 }, { x: 0, y: 1 }, { x: 0, y: -1 }]
+      : [{ x: -1, y: 0 }, { x: 1, y: 0 }, { x: 0, y: 1 }, { x: 0, y: -1 }]
+  }
+  return dy >= 0
+    ? [{ x: 0, y: 1 }, { x: 0, y: -1 }, { x: 1, y: 0 }, { x: -1, y: 0 }]
+    : [{ x: 0, y: -1 }, { x: 0, y: 1 }, { x: 1, y: 0 }, { x: -1, y: 0 }]
+}
+
 /** Check if a grid cell is unoccupied and has non-negative coordinates. */
 function isFreeInGrid(grid: Map<string, AsciiNode>, c: GridCoord): boolean {
   if (c.x < 0 || c.y < 0) return false
@@ -122,6 +153,7 @@ export function getPath(
   grid: Map<string, AsciiNode>,
   from: GridCoord,
   to: GridCoord,
+  preferredDir?: Direction,
 ): GridCoord[] | null {
   // #66 (ktrysmt): bound the search. `isFreeInGrid` only guards x/y < 0, so an
   // unreachable target (walled off) would let A* explore +x/+y unboundedly →
@@ -144,6 +176,7 @@ export function getPath(
   const maxIterations = Math.max(10_000, (boundX + 1) * (boundY + 1) * 4)
 
   const pq = new MinHeap()
+  const moveDirs = buildMoveDirs(preferredDir)
   pq.push({ coord: from, priority: 0 })
 
   const costSoFar = new Map<string, number>()
@@ -170,7 +203,7 @@ export function getPath(
 
     const currentCost = costSoFar.get(gridKey(current))!
 
-    for (const dir of MOVE_DIRS) {
+    for (const dir of moveDirs) {
       const next: GridCoord = { x: current.x + dir.x, y: current.y + dir.y }
 
       // #66 guard: never expand past the bounded extent. Without this, an
