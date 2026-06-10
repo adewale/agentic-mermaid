@@ -19,7 +19,8 @@ An agent-agnostic typed editing surface for Mermaid. New diagrams can be authore
 |---|---|---|---|---|---|
 | Flowchart, State | ✓ | full (Tier 1+2) | ✓ | 6 ops | structured |
 | Sequence (simple) | ✓ | structural | ✓ | 5 ops | structured |
-| Sequence (notes/alt/loop/…) | ✓ | structural | ✓ | — (opaque) | verbatim |
+| Sequence (notes/alt/loop/…) | ✓ | structural | ✓ | **5 ops** | structured-with-segments |
+| Sequence (un-segmentable, e.g. unbalanced `end`) | ✓ | structural | ✓ | — (opaque) | verbatim |
 | Timeline (simple) | ✓ | structural | ✓ | 10 ops | structured |
 | Timeline (unmodeled syntax) | ✓ | structural | ✓ | — (opaque) | verbatim |
 | **Class (simple)** | ✓ | structural | ✓ | **10 ops** | structured |

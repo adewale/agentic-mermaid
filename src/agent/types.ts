@@ -44,10 +44,26 @@ export interface SequenceMessage {
   style: SequenceMessageStyle
 }
 
+// BUILD-18: ordered statement list. Refs index into the participants/messages
+// arrays (which remain the canonical views the SDK declaration, synthesize
+// payloads, describe, verify, and tests consume). Opaque-block segments carry
+// unmodeled lines (Note/alt/loop/par/activate/autonumber/title…) VERBATIM so
+// they ride along in their original position. Messages/participants INSIDE an
+// opaque-block are invisible to mutation ops and the messages/participants
+// arrays — only top-level structured statements are addressable.
+export type SequenceStatement =
+  | { kind: 'participant'; ref: number }   // index into participants
+  | { kind: 'message'; ref: number }       // index into messages
+  | { kind: 'opaque-block'; lines: string[] }
+
 export interface SequenceBody {
   kind: 'sequence'
   participants: SequenceParticipant[]
   messages: SequenceMessage[]
+  // Optional for back-compat: synthesizeFromGraph payloads and hand-built
+  // bodies may omit it; the serializer falls back to participants-then-messages
+  // ordering when absent. Parsed bodies always populate it.
+  statements?: SequenceStatement[]
 }
 
 // ---- Timeline body --------------------------------------------------------

@@ -59,7 +59,6 @@ describe('Phase B: universal LABEL_OVERFLOW on opaque bodies', () => {
     ['xychart opaque one-line semicolon title', `xychart-beta; title "${long}"; curve basis`],
     ['xychart opaque one-line unquoted semicolon title', `xychart-beta; title ${long}; bar [1]; curve basis`],
     ['architecture opaque (accTitle forces opaque)', `architecture-beta\n  accTitle: a11y\n  group api(cloud)[${long}]`],
-    ['sequence opaque', `sequenceDiagram\n  participant A\n  participant B\n  alt very long ${long}\n    A->>B: msg\n  end`],
   ]
 
   for (const [name, src] of cases) {
@@ -83,6 +82,24 @@ describe('Phase B: universal LABEL_OVERFLOW on opaque bodies', () => {
       expect(labelW).toEqual([])
     })
   }
+
+  // BUILD-18: a sequence whose only long label lives inside an opaque-block
+  // segment is now STRUCTURED (not whole-body opaque), yet universal
+  // LABEL_OVERFLOW still has teeth via the opaque-block label extraction.
+  test('sequence structured-with-segments: opaque-block label still triggers LABEL_OVERFLOW', () => {
+    const src = `sequenceDiagram\n  participant A\n  participant B\n  alt very long ${long}\n    A->>B: msg\n  end`
+    const p = parseMermaid(src)
+    expect(p.ok).toBe(true)
+    if (!p.ok) return
+    expect(p.value.body.kind).toBe('sequence')        // structured, not opaque
+    const v = verifyMermaid(p.value)
+    expect(v.warnings.filter(w => w.code === 'LABEL_OVERFLOW').length).toBeGreaterThan(0)
+    // And a short block label stays clean.
+    const small = parseMermaid(src.replace(long, 'short'))
+    expect(small.ok).toBe(true)
+    if (!small.ok) return
+    expect(verifyMermaid(small.value).warnings.filter(w => w.code === 'LABEL_OVERFLOW')).toEqual([])
+  })
 })
 
 describe('FamilyPlugin.verify dispatcher', () => {

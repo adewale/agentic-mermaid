@@ -22,7 +22,7 @@ Current implementation decisions that differ from, or materially narrow, the bro
 Structured mutation is exposed only for families whose parser/IR/serializer/verifier can preserve the modeled semantics:
 
 - flowchart/state;
-- simple sequence;
+- sequence (BUILD-18 — segment-preserving: participant/message ops stay live while Note/alt/loop/par/activate/autonumber/title ride along verbatim as opaque-block segments; only un-segmentable input such as an unbalanced `end` falls back to whole-body opaque);
 - timeline;
 - class;
 - ER;
@@ -40,6 +40,8 @@ For source-level bodies, agents may render, verify, describe, and round-trip pre
 ### Structured-or-opaque is load-bearing
 
 Known-family input must never be partially parsed and then re-emitted with unknown constructs dropped. If the structured parser cannot preserve a construct, the body stays opaque/source-preserved and serializes from `body.source`.
+
+BUILD-18 refines "opaque/source-preserved" for sequence into a finer grain: a sequence body now interleaves structured statements with **opaque-block segments** holding unmodeled lines verbatim, so the structured ops survive instead of being forfeited at the first unmodeled line. The never-lossy invariant is unchanged — the segment lines are byte-for-byte preserved — and whole-body opaque is still the fallback for un-segmentable input. Class/ER/timeline can adopt the same segment-preserving body as follow-up work.
 
 This applies even when the diagram renders successfully. Render support is not the same as structured editing support.
 

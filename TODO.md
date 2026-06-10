@@ -136,18 +136,26 @@ dependents after. IDs are stable names, not an ordering.
   property tests (`agent-architecture.test.ts`), and sync across CLI
   capabilities, MCP SDK declaration, `Instructions_for_agents.md`, llms.txt, the
   skill, and the spec. Followed the BUILD-15 journey checklist verbatim.
-- [ ] **BUILD-18 — Segment-preserving structured body** (`todo`). The general fix for the
-  structured-or-opaque cliff: today one unmodeled construct (e.g. a
-  sequence `alt` block) forces the whole diagram opaque and disables every
-  op. Design a body that interleaves structured statements with verbatim
-  opaque segments preserved positionally, so participant/message ops stay
-  available while the `alt` block rides along untouched. Needs a
-  segment-aware parser, order-preserving serializer, ops that respect
-  segment boundaries, and property tests that fallback fidelity still
-  holds. Apply to sequence first (largest opaque-fallback population:
-  notes/alt/loop/par), then class/ER/timeline unmodeled-syntax fallbacks.
-  This is the path to "typed mutation for all diagrams" without ever
-  violating the no-loss guarantee.
+- [x] **BUILD-18 — Segment-preserving structured body** (`done`, sequence). Ended the
+  structured-or-opaque cliff for sequence: one unmodeled construct (e.g. a
+  sequence `alt` block) no longer forces the whole diagram opaque. `SequenceBody`
+  now carries an ordered `statements: SequenceStatement[]` list that interleaves
+  structured `participant`/`message` statements (refs into the existing
+  `participants`/`messages` arrays) with verbatim `opaque-block` segments
+  preserved positionally, so participant/message ops stay available while
+  `Note`/`alt`/`loop`/`par`/`activate`/`autonumber`/`title` ride along untouched.
+  Block constructs are captured start→matching-`end` with nesting tracking;
+  `remove_message`/`set_message_text` indexes address only top-level messages
+  (messages inside an opaque block are never touched); un-segmentable input
+  (stray `end`, unclosed block) still falls back to whole-body opaque. Shipped a
+  segment-aware parser, order-preserving idempotent serializer, segment-respecting
+  ops, fast-check properties (interleave round-trip in order; `remove_message`
+  leaves opaque-block bytes unchanged; segments-or-opaque always lossless), and a
+  sabotage check on the nesting-depth tracker. MermaidSeqBench (132) and the
+  mermaid-docs sequence corpus stay 100% lossless.
+  - [ ] Follow-up: apply the same segment-preserving body to class/ER/timeline
+    unmodeled-syntax fallbacks. This is the path to "typed mutation for all
+    diagrams" without ever violating the no-loss guarantee.
 - [ ] **BUILD-19 — Dedicated `StateBody` IR for state diagrams** (`todo`,
   evidence-gated). State diagrams currently parse AS flowcharts (shared
   `MermaidGraph` body; `[*]` pseudo-states encoded as node shapes), so

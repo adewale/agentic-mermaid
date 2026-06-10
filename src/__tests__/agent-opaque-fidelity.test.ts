@@ -33,18 +33,12 @@ describe('opaque-body fidelity (indentation + blank lines)', () => {
   service db(database)[DB] in api
   service web(server)[Web] in api
   web{group}:R --> L:db`],
-    ['sequence-opaque (alt/activate/Note)', `sequenceDiagram
+    // A stray `end` keeps this sample on the whole-body opaque path — it can't
+    // be cleanly segmented, so the lossless v4 fallback still applies.
+    ['sequence-opaque (unbalanced end)', `sequenceDiagram
   participant A
-  participant B
-  Note over A: setup
   A->>B: ping
-  activate B
-  alt success
-    B-->>A: ok
-  else failure
-    B-->>A: nope
-  end
-  deactivate B`],
+  end`],
   ]
 
   for (const [name, src] of cases) {
@@ -68,6 +62,32 @@ describe('opaque-body fidelity (indentation + blank lines)', () => {
       expect(serializeMermaid(p2.value)).toBe(s1)
     })
   }
+
+  // BUILD-18: the alt/activate/Note sample that used to go whole-body opaque
+  // now parses structured-with-segments — but the verbatim fidelity assertion
+  // is unchanged: every original line round-trips byte-for-byte.
+  test('sequence-with-segments (alt/activate/Note): structured yet verbatim-lossless', () => {
+    const src = `sequenceDiagram
+  participant A
+  participant B
+  Note over A: setup
+  A->>B: ping
+  activate B
+  alt success
+    B-->>A: ok
+  else failure
+    B-->>A: nope
+  end
+  deactivate B`
+    const p = parseMermaid(src)
+    expect(p.ok).toBe(true)
+    if (!p.ok) return
+    expect(p.value.body.kind).toBe('sequence')        // structured, not opaque
+    const out = serializeMermaid(p.value).trimEnd()
+    expect(out).toBe(src.trimEnd())                   // verbatim-lossless
+    // The opaque alt/Note lines stay byte-for-byte; structured ops still apply.
+    expect(out).toContain('  alt success\n    B-->>A: ok\n  else failure')
+  })
 
   test('frontmatter + indented opaque body (journey): both preserved', () => {
     const src = `---

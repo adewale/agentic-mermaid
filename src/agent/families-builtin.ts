@@ -134,11 +134,27 @@ function extractSequenceLabels(source: string): ExtractedLabel[] {
   return out
 }
 
+// Sequence parse needs the RAW (indentation-preserving) body lines so
+// opaque-block segments round-trip verbatim. `opaqueSource` is the normalized
+// body INCLUDING the header line, with original indentation/blank lines/
+// comments intact — drop its header and pass alongside the trimmed lines.
 registerFamily({
   id: 'sequence',
   detect: l => l.startsWith('sequencediagram'),
   extractLabels: extractSequenceLabels,
-  ...structuredFamilyHooks('sequence', { parseBody: parseSequenceBody, serialize: renderSequence, mutate: mutateSequence }),
+  parse: (lines, opaqueSource) => {
+    const rawBodyLines = opaqueSource.split(/\r?\n/).slice(1)
+    const body = parseSequenceBody(lines.slice(1), rawBodyLines)
+    return ok(body ?? { kind: 'opaque', family: 'sequence', source: opaqueSource })
+  },
+  serialize: body => {
+    if (body.kind !== 'sequence') throw new Error(`sequence serializer received body kind ${body.kind}`)
+    return renderSequence(body)
+  },
+  mutate: (body, op) => {
+    if (body.kind !== 'sequence') return err<MutationError>({ code: 'INVALID_OP', message: `sequence mutator received body kind ${body.kind}` })
+    return mutateSequence(body, op as never)
+  },
 })
 
 // ---- Timeline -------------------------------------------------------------

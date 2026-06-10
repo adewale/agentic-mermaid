@@ -271,7 +271,13 @@ function verifyTimeline(body: import('./types.ts').TimelineBody, kind: ValidDiag
 
 function verifySequence(body: SequenceBody, kind: ValidDiagram['kind'], cap: number, opts: VerifyOptions): VerifyResult {
   const warnings: LayoutWarning[] = []
-  if (body.participants.length === 0 && body.messages.length === 0) {
+  // BUILD-18: a segment-preserving body may carry content only in opaque-block
+  // segments (e.g. activation-shorthand messages `A->>+B`, blocks). That is
+  // not an empty diagram — it just isn't structurally modeled.
+  const hasOpaqueContent = (body.statements ?? []).some(
+    s => s.kind === 'opaque-block' && s.lines.some(l => l.trim().length > 0),
+  )
+  if (body.participants.length === 0 && body.messages.length === 0 && !hasOpaqueContent) {
     return finalize([{ code: 'EMPTY_DIAGRAM' }], emptyRenderedLayout(kind), opts)
   }
   const ids = new Set(body.participants.map(p => p.id))
@@ -286,6 +292,24 @@ function verifySequence(body: SequenceBody, kind: ValidDiagram['kind'], cap: num
   })
   for (const p of body.participants) {
     if (p.label.length > cap) warnings.push({ code: 'LABEL_OVERFLOW', target: p.id, charCount: p.label.length, limit: cap })
+  }
+  // BUILD-18: opaque-block segments (Note/alt/loop/par/title lines) still get
+  // universal LABEL_OVERFLOW via the family's label extractor, so the safety
+  // check survives the move from whole-body-opaque to structured-with-segments.
+  const opaqueLines = (body.statements ?? [])
+    .filter((s): s is Extract<typeof s, { kind: 'opaque-block' }> => s.kind === 'opaque-block')
+    .flatMap(s => s.lines)
+  if (opaqueLines.length > 0) {
+    const plugin = getFamily(kind)
+    const labels = (plugin?.extractLabels ?? extractLabelsGeneric)(opaqueLines.join('\n'))
+    const seen = new Set<string>()
+    for (const lbl of labels) {
+      if (lbl.text.length <= cap) continue
+      const key = `${lbl.target}:${lbl.text}`
+      if (seen.has(key)) continue
+      seen.add(key)
+      warnings.push({ code: 'LABEL_OVERFLOW', target: lbl.target, charCount: lbl.text.length, limit: cap })
+    }
   }
   return finalize(warnings, emptyRenderedLayout(kind), opts)
 }

@@ -68,7 +68,201 @@ describe('sequence parsing — structured', () => {
   })
 })
 
-describe('sequence fidelity fallback (THE v4 fix — never lossy)', () => {
+// BUILD-18 headline: a sequence with a block construct (alt) is now structured
+// (segment-preserving), add_message works, and the alt block survives verbatim
+// in its original position after serialize.
+describe('BUILD-18 segment-preserving sequence body (headline)', () => {
+  const SRC = [
+    'sequenceDiagram',
+    '  A->>B: ping',
+    '  alt success',
+    '    B-->>A: ok',
+    '  else failure',
+    '    B-->>A: nope',
+    '  end',
+    '  A->>B: bye',
+  ].join('\n')
+
+  test('alt block → structured (asSequence non-null), top-level messages visible, opaque alt invisible', () => {
+    const d = parse(SRC)
+    const s = asSequence(d)
+    expect(s).not.toBeNull()
+    if (!s) return
+    // Only the two top-level messages are addressable; the two inside the alt
+    // block are invisible to the message array.
+    expect(s.body.messages.map(m => m.text)).toEqual(['ping', 'bye'])
+    expect(s.body.statements?.some(st => st.kind === 'opaque-block')).toBe(true)
+  })
+
+  test('add_message appends after the alt block and serialize keeps the block verbatim in position', () => {
+    const s = sequence(SRC)
+    const r = mutate(s, { kind: 'add_message', from: 'A', to: 'B', text: 'again' })
+    expect(r.ok).toBe(true)
+    if (!r.ok) return
+    const out = serializeMermaid(r.value)
+    // The alt block lines survive verbatim, in order, with their indentation.
+    expect(out).toContain('  alt success\n    B-->>A: ok\n  else failure\n    B-->>A: nope\n  end')
+    // The new message lands after the last statement (after `A->>B: bye`).
+    const lines = out.trimEnd().split('\n')
+    expect(lines[lines.length - 1]).toBe('  A->>B: again')
+  })
+
+  test('round-trip is verbatim-lossless: every original non-blank line survives in order', () => {
+    const d = parse(SRC)
+    const out = serializeMermaid(d).trimEnd()
+    const origLines = SRC.split('\n').map(l => l.replace(/\s+$/, ''))
+    const outLines = out.split('\n')
+    // Structured lines canonicalize whitespace; opaque lines stay verbatim.
+    // The block (alt…end) is opaque, so those lines match byte-for-byte.
+    expect(outLines).toEqual(origLines)
+  })
+})
+
+describe('BUILD-18 segment-preserving sequence — fast-check properties', () => {
+  // Generators: structured message lines and opaque block segments, interleaved.
+  const idArb = fc.constantFrom('A', 'B', 'C', 'D')
+  const textArb = fc.stringMatching(/^[a-z][a-z ]{0,12}[a-z]$/)
+  const structuredMsg = fc.tuple(idArb, idArb, textArb).map(([f, t, x]) => `  ${f}->>${t}: ${x}`)
+  const noteLine = fc.tuple(idArb, textArb).map(([a, x]) => `  Note over ${a}: ${x}`)
+  const altBlock = fc.tuple(textArb, structuredMsg, textArb, structuredMsg).map(
+    ([a, m1, b, m2]) => `  alt ${a}\n  ${m1}\n  else ${b}\n  ${m2}\n  end`,
+  )
+  const loopBlock = fc.tuple(textArb, structuredMsg).map(([a, m]) => `  loop ${a}\n  ${m}\n  end`)
+  const opaqueSeg = fc.oneof(noteLine, altBlock, loopBlock)
+  const segmentArb = fc.oneof(structuredMsg, opaqueSeg)
+  const bodyArb = fc.array(segmentArb, { minLength: 1, maxLength: 8 })
+    .map(segs => 'sequenceDiagram\n' + segs.join('\n'))
+
+  // Property 1: parse → serialize reproduces ALL original non-blank lines in
+  // order. Whitespace is canonicalized only on structured lines; opaque lines
+  // stay verbatim. We compare on trimmed line content (structured lines keep a
+  // two-space indent, opaque lines keep their original text) to assert order
+  // and content survive.
+  test('property: interleaved structured + opaque lines round-trip in order', () => {
+    fc.assert(fc.property(bodyArb, src => {
+      const d = parse(src)
+      if (d.body.kind !== 'sequence') return // un-segmentable falls back; covered elsewhere
+      const out = serializeMermaid(d).trimEnd()
+      const origNonBlank = src.split('\n').map(l => l.trim()).filter(Boolean)
+      const outNonBlank = out.split('\n').map(l => l.trim()).filter(Boolean)
+      expect(outNonBlank).toEqual(origNonBlank)
+      // And the body is genuinely structured, not the opaque fallback.
+      expect(asSequence(d)).not.toBeNull()
+      // Idempotent: re-parse → same serialize.
+      expect(serializeMermaid(parse(out))).toBe(serializeMermaid(d))
+    }), { numRuns: 200 })
+  })
+
+  // Property 2: remove_message(i) never touches opaque-block bytes. We capture
+  // each opaque-block's serialized text before, then after removal, and assert
+  // every opaque block survives byte-for-byte.
+  test('property: remove_message leaves every opaque-block byte-range unchanged', () => {
+    fc.assert(fc.property(bodyArb, src => {
+      const d = parse(src)
+      const s = asSequence(d)
+      if (!s) return
+      if (s.body.messages.length === 0) return
+      const opaqueBefore = (s.body.statements ?? [])
+        .filter(st => st.kind === 'opaque-block')
+        .map(st => (st as { lines: string[] }).lines.join('\n'))
+      const idx = s.body.messages.length - 1
+      const r = mutate(s, { kind: 'remove_message', index: idx })
+      expect(r.ok).toBe(true)
+      if (!r.ok) return
+      const opaqueAfter = (r.value.body.statements ?? [])
+        .filter(st => st.kind === 'opaque-block')
+        .map(st => (st as { lines: string[] }).lines.join('\n'))
+      // Opaque blocks are untouched: same count, same bytes, same order.
+      expect(opaqueAfter).toEqual(opaqueBefore)
+      // And exactly one message was removed.
+      expect(r.value.body.messages.length).toBe(s.body.messages.length - 1)
+    }), { numRuns: 200 })
+  })
+
+  // Property 3 (the old AGENT_NATIVE whole-opaque property, restated):
+  // "segments-or-opaque, always lossless" — for ANY sequence source, parse
+  // either segments (structured) or falls back to opaque, and in BOTH cases the
+  // round-trip is stable and every original non-blank line survives.
+  test('property: segments-or-opaque, always lossless', () => {
+    const anyLine = fc.oneof(structuredMsg, opaqueSeg, fc.constant('  end'), fc.constant('  activate A'))
+    const anyBody = fc.array(anyLine, { minLength: 1, maxLength: 8 })
+      .map(segs => 'sequenceDiagram\n' + segs.join('\n'))
+    fc.assert(fc.property(anyBody, src => {
+      const d = parse(src)
+      // Either structured-with-segments OR opaque fallback — never an error.
+      expect(d.body.kind === 'sequence' || d.body.kind === 'opaque').toBe(true)
+      const out = serializeMermaid(d).trimEnd()
+      const origNonBlank = src.split('\n').map(l => l.trim()).filter(Boolean)
+      const outNonBlank = out.split('\n').map(l => l.trim()).filter(Boolean)
+      expect(outNonBlank).toEqual(origNonBlank)
+      // Round-trip stable.
+      expect(serializeMermaid(parse(out))).toBe(serializeMermaid(d))
+    }), { numRuns: 300 })
+  })
+})
+
+describe('BUILD-18 sequence segmentation — sad paths', () => {
+  test('stray end without an open block → whole-body opaque fallback (lossless)', () => {
+    const src = 'sequenceDiagram\n  A->>B: hi\n  end'
+    const d = parse(src)
+    expect(d.body.kind).toBe('opaque')
+    expect(asSequence(d)).toBeNull()
+    expect(serializeMermaid(d).trimEnd()).toBe(src)
+  })
+
+  test('block without a closing end → whole-body opaque fallback (lossless)', () => {
+    const src = 'sequenceDiagram\n  alt ok\n    A->>B: yes'
+    const d = parse(src)
+    expect(d.body.kind).toBe('opaque')
+    expect(asSequence(d)).toBeNull()
+    expect(serializeMermaid(d).trimEnd()).toBe(src)
+  })
+
+  test('nested alt-in-loop is one opaque block; top-level messages stay structured', () => {
+    const src = [
+      'sequenceDiagram',
+      '  A->>B: start',
+      '  loop retry',
+      '    alt ok',
+      '      B-->>A: yes',
+      '    else no',
+      '      B-->>A: no',
+      '    end',
+      '  end',
+      '  A->>B: done',
+    ].join('\n')
+    const s = sequence(src)
+    expect(s.body.messages.map(m => m.text)).toEqual(['start', 'done'])
+    const opaque = (s.body.statements ?? []).filter(st => st.kind === 'opaque-block')
+    expect(opaque.length).toBe(1)
+    expect(serializeMermaid(s).trimEnd()).toBe(src)
+  })
+
+  test('message inside an opaque block does NOT auto-create a participant', () => {
+    // Z appears only inside the alt block — it must not leak into participants.
+    const src = 'sequenceDiagram\n  A->>B: hi\n  alt ok\n    Z->>Q: secret\n  end'
+    const s = sequence(src)
+    const ids = s.body.participants.map(p => p.id)
+    expect(ids).toContain('A'); expect(ids).toContain('B')
+    expect(ids).not.toContain('Z'); expect(ids).not.toContain('Q')
+  })
+
+  test('autonumber interleaving stays verbatim and messages remain addressable', () => {
+    const src = 'sequenceDiagram\n  autonumber\n  A->>B: one\n  Note over A: mid\n  A->>B: two'
+    const s = sequence(src)
+    expect(s.body.messages.map(m => m.text)).toEqual(['one', 'two'])
+    const out = serializeMermaid(s).trimEnd()
+    expect(out).toContain('  autonumber')
+    expect(out).toContain('  Note over A: mid')
+    expect(out.split('\n').map(l => l.trim())).toEqual(src.split('\n').map(l => l.trim()))
+  })
+})
+
+describe('sequence segment-preserving fidelity (BUILD-18 — was the v4 opaque cliff)', () => {
+  // These constructs used to force the WHOLE body opaque (asSequence null).
+  // BUILD-18 flips that: they parse structured-with-segments (asSequence
+  // non-null, mutation offered) AND stay verbatim-lossless — the heart of v4
+  // survives, now without losing the structured ops.
   const COMPLEX = [
     'sequenceDiagram\n  Alice->>Bob: Hi\n  Note over Alice: thinking',
     'sequenceDiagram\n  alt success\n    A->>B: ok\n  else failure\n    A->>B: no\n  end',
@@ -77,18 +271,17 @@ describe('sequence fidelity fallback (THE v4 fix — never lossy)', () => {
     'sequenceDiagram\n  autonumber\n  A->>B: x',
   ]
   for (const src of COMPLEX) {
-    test(`falls back to opaque: ${src.split('\n')[1]!.trim()}`, () => {
+    test(`now structured-with-segments, still lossless: ${src.split('\n')[1]!.trim()}`, () => {
       const d = parse(src)
       expect(d.kind).toBe('sequence')
-      expect(d.body.kind).toBe('opaque')             // not structured
-      expect(asSequence(d)).toBeNull()               // mutation not offered
-      // Lossless: serialize re-emits the canonical source verbatim, and a
-      // re-parse yields the same canonicalSource. Nothing dropped.
-      const out = serializeMermaid(d)
+      expect(d.body.kind).toBe('sequence')           // structured, not opaque
+      expect(asSequence(d)).not.toBeNull()           // mutation now offered
+      // Verbatim-lossless: every original non-blank line survives, in order.
+      const out = serializeMermaid(d).trimEnd()
+      expect(out.split('\n')).toEqual(src.split('\n').map(l => l.replace(/\s+$/, '')))
+      // And the round-trip is stable (idempotent re-parse → same serialize).
       const d2 = parse(out)
-      expect(d2.canonicalSource).toBe(d.canonicalSource)
-      // And the Note / alt / loop content survives.
-      expect(out).toContain(src.split('\n').slice(1).map(l => l.trim()).find(l => l && !l.includes('->'))!)
+      expect(serializeMermaid(d2)).toBe(serializeMermaid(d))
     })
   }
 })
@@ -643,8 +836,13 @@ describe('asFlowchart / asSequence return null on the wrong family (close mutati
   test('asSequence returns null for flowchart body', () => {
     expect(asSequence(parse('flowchart TD\n  A --> B'))).toBeNull()
   })
-  test('asSequence returns null for opaque sequence (notes)', () => {
-    expect(asSequence(parse('sequenceDiagram\n  A->>B: Hi\n  Note over A: thinking'))).toBeNull()
+  test('asSequence non-null for sequence with notes (BUILD-18: now structured-with-segments)', () => {
+    expect(asSequence(parse('sequenceDiagram\n  A->>B: Hi\n  Note over A: thinking'))).not.toBeNull()
+  })
+  test('asSequence returns null for UN-segmentable sequence (unbalanced end → opaque fallback)', () => {
+    // A stray `end` with no open block can't be cleanly segmented, so the
+    // whole body stays opaque (the lossless v4 fallback) and asSequence is null.
+    expect(asSequence(parse('sequenceDiagram\n  A->>B: Hi\n  end'))).toBeNull()
   })
 })
 
