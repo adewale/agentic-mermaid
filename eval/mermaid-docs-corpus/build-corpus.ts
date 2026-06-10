@@ -1,4 +1,4 @@
-// Mine mermaid-js source docs for example diagrams across all 9 supported
+// Mine mermaid-js source docs for example diagrams across all 11 supported
 // families. Output: eval/mermaid-docs-corpus/corpus.json — a curated set
 // of (family, source) pairs we can run through parse → verify → round-trip.
 //
@@ -19,6 +19,12 @@ const FILE_TO_FAMILY: Record<string, string> = {
   'userJourney.md': 'journey',
   'xyChart.md': 'xychart',
   'architecture.md': 'architecture',
+  // QUAL-1: pie + quadrant now have RenderedLayout adapters, so the next
+  // networked corpus regen should include them. The committed corpus.json
+  // predates these families (it was built before the adapters landed); regen
+  // requires a local mermaid clone — see eval/mermaid-docs-corpus/README.
+  'pie.md': 'pie',
+  'quadrantChart.md': 'quadrant',
 }
 
 const FENCE_RE = /```mermaid(?:-example)?\n([\s\S]*?)\n```/g

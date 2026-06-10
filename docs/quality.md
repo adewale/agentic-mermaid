@@ -27,8 +27,11 @@ A diagram is considered **good looking** when it satisfies, in order:
    run on every PR.
 
 4. **LLM-as-judge median ≥ 4.0** on a stratified sample of the
-   mermaid-docs corpus (5 diagrams × 9 families = 45 samples) across
-   three axes:
+   mermaid-docs corpus (5 diagrams × 11 families = 55 samples) across
+   three axes. Since QUAL-1 the perceptual metrics cover every renderable
+   family (flowchart, state, sequence, timeline, class, ER, journey,
+   architecture, xychart, pie, quadrant), so judge sampling should now
+   include all eleven — not just the graph families — across:
    - **Readability** — labels legible, arrows clear, no overlap chaos
    - **Faithfulness** — every node and edge from the source is present
    - **Aesthetics** — balanced layout, professional feel
@@ -99,10 +102,31 @@ geometry assertions, screenshot/PNG review, or human inspection.
   service (Applitools) for visual regression; we don't ship reference images.
   If a glyph changes width by one pixel, our perceptual metrics may move
   slightly, but the bands have headroom.
-- **Perceptual metrics do not yet cover non-graph families.** `layoutMermaid`
-  has adapters only for flowchart/state/sequence/timeline; pie, quadrant,
-  xychart, class, ER, journey, and architecture samples get bytes-only
-  tracking in the comparison harness (TODO QUAL-1).
+- **Perceptual metrics cover every renderable family (QUAL-1).** `layoutMermaid`
+  now has `RenderedLayout` adapters for ALL renderable families, so
+  `measureQuality` / `checkQuality` and the comparison harness see real geometry
+  (not bytes-only) for each. The adapters parse `d.canonicalSource` via the
+  legacy per-family parser + layouter — the same geometry the SVG renderer draws
+  — so an opaque-but-renderable body is still measured; an invalid opaque body
+  degrades to an empty layout instead of throwing. What `nodes` / `edges` /
+  `groups` mean per family:
+
+  | Family        | nodes                              | edges        | groups               |
+  |---------------|------------------------------------|--------------|----------------------|
+  | flowchart     | graph nodes (ELK)                  | graph edges  | subgraphs            |
+  | state         | states (projected to a graph)      | transitions  | composites           |
+  | sequence      | actor boxes                        | messages     | —                    |
+  | timeline      | period + event boxes               | —            | —                    |
+  | class         | class boxes                        | relations    | —                    |
+  | er            | entity boxes                       | relations    | —                    |
+  | journey       | task boxes                         | —            | section frames       |
+  | architecture  | services + junctions               | edges        | groups (flattened)   |
+  | xychart       | bars + line-point markers          | —            | plot area            |
+  | pie           | slice label boxes (legend anchor + approx bbox) | — | —                    |
+  | quadrant      | plotted points                     | —            | quadrant regions     |
+
+  Families with no structural relations (pie/quadrant/xychart/journey) carry an
+  honestly-empty `edges` array. Bounds is the family layout's canvas size.
 - **No font-substitution check.** Different OSes render different
   default fonts. Our `labelLegibility` heuristic uses a 7 px-per-char
   approximation; under condensed fonts it under-estimates fit.

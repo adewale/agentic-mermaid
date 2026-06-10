@@ -272,22 +272,34 @@ dependents after. IDs are stable names, not an ordering.
   scoping the security boundary, auth/rate limits, persistence model, and
   parity with the current local CLI/MCP/library contract.
 
-- [ ] **QUAL-1 — Perceptual-quality coverage for non-graph families**
-  (`todo`). `measureQuality`/`checkQuality` operate on `RenderedLayout`, but
-  `layoutMermaid` only has adapters for flowchart/state/sequence/timeline —
-  class, ER, journey, architecture, xychart, pie, and quadrant return an
-  empty layout, so the perceptual metrics (edge crossings, label
-  legibility, whitespace balance) are blind to them and the BUILD-13
-  harness records bytes-only for those samples (verified: pie/quadrant
-  fixture metrics show nodeCount 0). Add `RenderedLayout` adapters per
-  family (pie: slices as nodes; quadrant: points as nodes + plot bounds;
-  xychart: series points; architecture: services/groups), then extend the
-  harness verdicts to use them. Also: the mermaid-docs corpus build
-  (`eval/mermaid-docs-corpus/build-corpus.ts` FILE_TO_FAMILY) predates the
-  pie/quadrant families and needs a networked regen against a mermaid
-  clone to include their docs examples; `docs/quality.md`'s LLM-judge grid
-  still says "9 families"; and the new families have no browser screenshot
-  baselines (needs a local browser run).
+- [x] **QUAL-1 — Perceptual-quality coverage for non-graph families**
+  (`done`). `layoutMermaid` now has `RenderedLayout` adapters for EVERY
+  renderable family — class, ER, journey, architecture, xychart, pie, and
+  quadrant join flowchart/state/sequence/timeline — so `measureQuality` /
+  `checkQuality` and the BUILD-13 harness see real geometry (not bytes-only)
+  for each. Adapters live in `src/agent/family-layouts.ts`; they parse
+  `d.canonicalSource` via the legacy per-family parser+layouter (the same
+  geometry the SVG renderer draws), so opaque-but-renderable bodies are still
+  measured and invalid opaque bodies degrade to an empty layout instead of
+  throwing. Wired into `layoutMermaid` (`src/agent/index.ts`) and `verify.ts`
+  (verify.layout is now truthful for these families). Evidence: red-green +
+  property + determinism + opaque-no-throw tests in
+  `src/__tests__/agent-family-layouts.test.ts`; the harness gained a fixture per
+  family (`eval/layout-compare/fixtures/`) — every fixture's metrics.nodeCount
+  > 0 — and `compareSample` now treats an empty→measured transition as an
+  improvement, not a regression (`src/__tests__/layout-compare.test.ts`). A
+  before/after run against the base commit shows 0 regressions, 57 improvements,
+  and zero SVG/ASCII byte changes on the 243 shared corpus samples (measurement
+  only, no rendering change). `docs/quality.md` honest-gap + LLM-judge grid
+  updated (now 11 families).
+  - Remaining sub-gaps (kept unchecked — both need a non-sandbox environment):
+    - [ ] mermaid-docs corpus regen to include pie/quadrant docs examples needs
+      network (a local mermaid clone). `FILE_TO_FAMILY` now maps `pie.md` and
+      `quadrantChart.md`; the committed `corpus.json` predates these families
+      (see `eval/mermaid-docs-corpus/README.md`). Corpus entries are never
+      fabricated.
+    - [ ] the new families have no browser screenshot baselines (needs a local
+      browser run).
 
 ## 2. Agent-usage verification backlog
 
