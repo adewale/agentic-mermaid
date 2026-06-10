@@ -6,7 +6,7 @@ the functions work, but that the affordances steer an agent onto the safe path
 from anti-patterns (existing-diagram string-concat, regenerate-whole-source,
 serialize-without-verify, mutate-on-opaque)?
 
-Three layers, cheapest-first.
+Four layers, cheapest-first.
 
 ## Layer 1 — Scripted scenarios (deterministic, CI)
 
@@ -44,7 +44,18 @@ if `ok`, `warnings`, or `layout` was read before the serialize call and the
 serialized diagram state still matches what was verified; returning `{source:
 serialize(d), verify}` is still flagged.
 
-## Layer 3 — Stored and live Code Mode evals
+## Layer 3 — Failure corpus (captured bad-agent paths)
+
+`failure-corpus/cases.json` stores captured pi-subagent mistakes and curated
+executable regressions for the unsafe paths we want the affordances to prevent:
+markdown-only Mermaid fences, whole-source regeneration, prose/CLI advice
+instead of Code Mode, serialize-without-verify, ignored verify results, and
+opaque mutation attempts. The corpus is intentionally expected to fail:
+`agent-usage.test.ts` either classifies raw non-Code-Mode responses or replays
+executable snippets through `runAgentUsageEval` and asserts the deterministic
+oracle rejects them.
+
+## Layer 4 — Stored and live Code Mode evals
 
 `run.ts` executes stored Code Mode scripts through `executeInSandbox({ trace:
 true })`, the linter, and exact task oracles. The stored CI baseline covers
@@ -62,12 +73,12 @@ credentials are available:
 4. Replay the captured script through the same sandbox, linter, and structural oracle whenever the transcript test runs.
 5. Write one JSON transcript per task plus `summary.json` under `transcripts/<timestamp>/`.
 
-`safePathRate` counts all acceptable task routes; `structuredPathRate` counts only cases where typed mutation is required. `baseline.json` records the deterministic stored-script baseline. A committed
-`pi-subagent-2026-05-26` transcript set captures one live subagent pass and
-replays through the deterministic oracle in `agent-usage-live.test.ts`.
-API-backed release-model transcripts remain on-demand/pre-release because they
-require credentials and are nondeterministic; PR CI keeps deterministic replay
-checks.
+`safePathRate` counts all acceptable task routes; `structuredPathRate` counts only cases where typed mutation is required. `baseline.json` records the deterministic stored-script baseline. Committed
+`pi-subagent-2026-05-26` and `pi-subagent-release-2026-06-10` transcript sets
+capture live subagent-backed passes and replay through the deterministic oracle
+in `agent-usage-live.test.ts`. Direct API-backed Anthropic/OpenAI-compatible
+transcripts remain on-demand because they require credentials and are
+nondeterministic; PR CI keeps deterministic replay checks.
 
 Run deterministic layers: `bun run eval/agent-usage/harness.ts`
 Run stored Code Mode eval: `bun run eval/agent-usage/run.ts`

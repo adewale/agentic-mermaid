@@ -53,13 +53,19 @@ gate or an agent self-check after rendering.
   run in a `node:vm` context where `process`, `require`,
   `fetch`, `eval`, `Function`, and host-constructor escape paths are tested
   absent and dynamic code generation is disabled.
+- **HTTP/SSE MCP defaults are local-first.** `agentic-mermaid-mcp --transport
+  http` binds to `127.0.0.1` by default. Non-loopback binding requires
+  `--auth-token`; `/rpc` and `/message` require `content-type:
+  application/json`; cross-origin browser posts are rejected; request bodies,
+  artifact bytes, and sandbox timeouts are capped.
 
 ## What we do NOT guarantee
 
 - **`node:vm` is not an OS/container security boundary.** Code Mode containment
   is for local MCP use and accidental/agentic misuse reduction. Do not expose
   `execute(code)` to arbitrary hostile users without process/container
-  isolation and normal resource controls.
+  isolation and normal resource controls. HTTP/SSE transport improves
+  reachability for trusted clients; it is not a hosted multi-tenant sandbox.
 - **Default mode emits the Google Fonts `@import`.** This is back-compat
   behavior for existing consumers who render SVGs into pages that expect the
   Inter webfont. **For agent/untrusted SVG contexts, use strict mode.** MCP
@@ -87,3 +93,9 @@ if (!check.ok) throw new Error(`external refs leaked: ${check.refs.join(', ')}`)
 
 For raster output, `renderMermaidPNG` is offline by construction (no network
 during rasterization, bundled fonts).
+
+For MCP HTTP/SSE, prefer loopback. If you must bind a non-loopback host, set a
+high-entropy `--auth-token`, keep `--artifact-dir` private, choose conservative
+`--max-artifact-bytes`, `--max-rpc-body-bytes`, `--artifact-ttl-ms`, and
+`--max-sandbox-timeout-ms`, and put the process behind your normal network and
+process isolation controls.

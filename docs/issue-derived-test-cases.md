@@ -67,7 +67,7 @@ A May 2026 GitHub issue/PR search found recurring layout-quality themes in both 
 
 Current useful heuristics:
 
-- structural `verifyMermaid` warnings: `OFF_CANVAS`, `GROUP_BREACH`, `NODE_OVERLAP`, `ROUTE_SELF_CROSS`, `LABEL_OVERFLOW`;
+- `verifyMermaid` warnings: `OFF_CANVAS`, `GROUP_BREACH`, `NODE_OVERLAP`, `ROUTE_SELF_CROSS`, `LABEL_OVERFLOW`, `DUPLICATE_EDGE`, `UNREACHABLE_NODE`;
 - `measureQuality(layoutMermaid(d))` / `checkQuality(...)`: edge crossings, label legibility, whitespace balance, label-edge proximity, and aspect ratio;
 - family-specific geometry assertions, such as Auth Flow's source-order progression and backward feedback-edge routing;
 - layout-quality heuristic tests for declared-direction progress (`TD`/`BT`/`LR`/`RL`), edge-vs-node collisions excluding attached endpoints, feedback-process cleanliness, root node vs top-level subgraph source order, and self-loop clearance;

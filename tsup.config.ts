@@ -16,5 +16,5 @@ export default defineConfig({
   clean: true,
   target: 'es2022',
   outDir: 'dist',
-  external: ['@resvg/resvg-js', 'elkjs', 'entities', 'node:vm', 'node:fs', 'node:path', 'node:url'],
+  external: ['@resvg/resvg-js', 'elkjs', 'entities', 'node:vm', 'node:fs', 'node:path', 'node:url', 'node:http', 'node:crypto', 'node:os'],
 })

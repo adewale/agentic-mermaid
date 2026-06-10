@@ -25,6 +25,7 @@ This directory holds the long-form documentation. The root README is intentional
 | [`agent-api-cookbook.md`](./agent-api-cookbook.md) | Copy-pasteable library/CLI/MCP recipes. |
 | [`agent-mutation-policy.md`](./agent-mutation-policy.md) | Structured-vs-source-level edit policy. |
 | [`mcp-code-mode-rationale.md`](./mcp-code-mode-rationale.md) | Why MCP is Code Mode first. |
+| [`mcp-http-transport.md`](./mcp-http-transport.md) | HTTP/SSE MCP quickstart, artifact outputs, options, and security defaults. |
 | [`agent-workflow-examples.md`](./agent-workflow-examples.md) | Runnable MCP/CLI and improvement-loop examples. |
 | [`../skills/`](../skills/) | Agent-agnostic skill bundles. |
 | [`../evals/`](../evals/) | Skill eval manifest, fixtures, and benchmark instructions. |

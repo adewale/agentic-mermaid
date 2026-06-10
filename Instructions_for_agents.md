@@ -35,7 +35,7 @@ Tier 1 (structural, reliable, universal): `EMPTY_DIAGRAM`, `EDGE_MISANCHORED`, `
 
 Tier 2 (geometric, advisory, flowchart-specific): `NODE_OVERLAP`, `ROUTE_SELF_CROSS`. Only fire for flowchart/state. For other families, geometric concerns surface via perceptual metrics (`measureQuality(layoutMermaid(d))`). See `docs/quality.md`. Don't gate CI on Tier 2 alone.
 
-Tier 3 (lint, advisory): reserved for future family-specific lint codes. `FamilyPlugin.verify` hooks are wired today, but built-ins currently emit only Tier 1 structural warnings through that hook. No built-in lint catalogue exists yet.
+Tier 3 (lint, advisory): `DUPLICATE_EDGE`, `UNREACHABLE_NODE`. These catch common agent mistakes that still parse/render. They never flip `verify.ok`; inspect and fix when the task asks for clean maintainable diagrams.
 
 ## CLI verbs
 

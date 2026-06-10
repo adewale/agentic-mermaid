@@ -10,6 +10,36 @@ import { handleRequest } from '../mcp/server.ts'
 
 const REPO = join(import.meta.dir, '..', '..')
 
+type FailureCorpus = {
+  cases: FailureCase[]
+}
+
+type FailureCase = {
+  id: string
+  kind: 'raw-response' | 'code-mode'
+  source: string
+  caseId: string
+  prompt: string
+  rawResponse: string
+  expectedRawFindings?: string[]
+  expectedResult?: { ok: boolean; taskOk: boolean; traceOk: boolean; findings: string[] }
+}
+
+function loadFailureCorpus(): FailureCorpus {
+  return JSON.parse(readFileSync(join(REPO, 'eval/agent-usage/failure-corpus/cases.json'), 'utf8')) as FailureCorpus
+}
+
+function classifyRawAgentFailure(text: string): string[] {
+  const findings = new Set<string>()
+  if (/```mermaid/i.test(text)) findings.add('MERMAID_FENCE_NOT_CODE_MODE')
+  if (/`?am\s+(mutate|render|verify|batch|preview)\b/i.test(text)) findings.add('CLI_MISUSE')
+  if (!/\bmermaid\.(parseMermaid|asFlowchart|asSequence|asTimeline|asClass|asEr|mutate|verifyMermaid|serializeMermaid)\b/.test(text)) findings.add('NO_SDK_CALLS')
+  if (/^\s*```mermaid/i.test(text) && !/\bverifyMermaid\b/.test(text)) findings.add('REGENERATED_SOURCE')
+  if (/\n\s*```mermaid/i.test(text) && /Used Agentic Mermaid|Verification result|source-level path/i.test(text)) findings.add('PROSE_NOT_CODE_MODE')
+  if (/source-level path/i.test(text) && /alt/i.test(text) && /```mermaid\s*sequenceDiagram/i.test(text)) findings.add('SOURCE_LEVEL_OPAQUE_EDIT')
+  return [...findings].sort()
+}
+
 describe('agent-usage scenarios (the mutation loop works)', () => {
   test('all scripted scenarios pass', () => {
     for (const r of runAllScenarios()) {
@@ -329,6 +359,43 @@ describe('stored agent-usage eval', () => {
     expect(summary.ok).toBe(false)
     expect(summary.results[0]!.traceOk).toBe(false)
     expect(summary.results[0]!.error).toContain('not allowed while returning results')
+  })
+})
+
+describe('EVAL-2 failure corpus (captured bad-agent paths stay failing)', () => {
+  const corpus = loadFailureCorpus()
+
+  test('fixtures have stable unique ids and expectations', () => {
+    expect(corpus.cases.length).toBeGreaterThanOrEqual(8)
+    expect(new Set(corpus.cases.map(c => c.id)).size).toBe(corpus.cases.length)
+    for (const c of corpus.cases) {
+      expect(c.source).toMatch(/^(pi-subagent-|curated-from-observed-pattern)/)
+      expect(c.rawResponse.length).toBeGreaterThan(20)
+      if (c.kind === 'raw-response') expect(c.expectedRawFindings?.length ?? 0).toBeGreaterThan(0)
+      if (c.kind === 'code-mode') expect(c.expectedResult).toBeDefined()
+    }
+  })
+
+  test('raw non-Code-Mode responses are classified as unsafe paths', () => {
+    for (const c of corpus.cases.filter(c => c.kind === 'raw-response')) {
+      const findings = classifyRawAgentFailure(c.rawResponse)
+      for (const expected of c.expectedRawFindings ?? []) expect(findings).toContain(expected)
+    }
+  })
+
+  test('executable failure cases replay through the eval oracle', async () => {
+    for (const c of corpus.cases.filter(c => c.kind === 'code-mode')) {
+      const summary = await runAgentUsageEval([{ id: c.caseId, prompt: c.prompt, script: c.rawResponse }])
+      const result = summary.results[0]!
+      expect({ id: c.id, ok: result.ok, taskOk: result.taskOk, traceOk: result.traceOk }).toEqual({
+        id: c.id,
+        ok: c.expectedResult!.ok,
+        taskOk: c.expectedResult!.taskOk,
+        traceOk: c.expectedResult!.traceOk,
+      })
+      const findings = result.findings.map(f => f.code)
+      for (const expected of c.expectedResult!.findings) expect(findings).toContain(expected)
+    }
   })
 })
 

@@ -167,7 +167,7 @@ The published package exposes Node-runnable bins: `am`, `agentic-mermaid`, and `
 `agentic-mermaid-mcp` exposes:
 
 - `execute(code)` — primary Code Mode tool with global `mermaid.*` SDK.
-- `render_png` — narrow helper returning base64 PNG bytes.
+- `render_png` — narrow helper returning base64 PNG bytes, or managed file/URL artifacts via `output: "file"|"url"`.
 - `describe` — narrow summary helper.
 
-Use Code Mode for multi-step parse/narrow/mutate/verify/serialize loops. Use `render_png` or host/library code for binary PNG output.
+Use Code Mode for multi-step parse/narrow/mutate/verify/serialize loops. Use `render_png` or host/library code for binary PNG output. The default transport is stdio; `agentic-mermaid-mcp --transport http --host 127.0.0.1 --port 3000` starts the HTTP/SSE transport. HTTP mode serves managed artifacts from `/artifacts/<name>` with MIME type, byte count, and SHA-256 metadata in tool responses. Non-loopback HTTP binding requires `--auth-token`. See [`mcp-http-transport.md`](./mcp-http-transport.md) for JSON-RPC examples and option details.

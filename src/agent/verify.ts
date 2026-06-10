@@ -1,5 +1,5 @@
 // ============================================================================
-// verifyMermaid — Tier 1 (source/structure, reliable) + Tier 2 (geometric).
+// verifyMermaid — Tier 1 (source/structure) + Tier 2 (geometric) + Tier 3 (lint).
 //
 // v4: no LayoutContext, no seed wrapper (ELK is deterministic on its own).
 // LABEL_OVERFLOW is a source-based char-count check (Tier 1).
@@ -146,6 +146,9 @@ export function verifyMermaid(input: ValidDiagram | string, opts: VerifyOptions 
     if (c > 0) warnings.push({ code: 'ROUTE_SELF_CROSS', edge: `${e.source}->${e.target}`, count: c })
   }
 
+  // Tier 3 — advisory lint for common agent mistakes that still parse/render.
+  warnings.push(...lintFlowchartGraph(graph))
+
   return finalize(dedupedConcat(warnings, pluginWarnings), layout, opts)
 }
 
@@ -191,6 +194,55 @@ function warningKey(w: LayoutWarning): string {
   if ('group' in w) return `${w.code}:${w.group}`
   if ('a' in w && 'b' in w) return `${w.code}:${w.a}|${w.b}`
   return w.code
+}
+
+function lintFlowchartGraph(graph: import('../types.ts').MermaidGraph): LayoutWarning[] {
+  const warnings: LayoutWarning[] = []
+  const firstBySignature = new Map<string, { edge: string; from: string; to: string; label?: string }>()
+  graph.edges.forEach((edge, index) => {
+    const signature = JSON.stringify({
+      source: edge.source,
+      target: edge.target,
+      label: edge.label ?? '',
+      style: edge.style,
+      hasArrowStart: edge.hasArrowStart,
+      hasArrowEnd: edge.hasArrowEnd,
+      startMarker: edge.startMarker ?? 'arrow',
+      endMarker: edge.endMarker ?? 'arrow',
+    })
+    const id = `${edge.source}->${edge.target}#${index}`
+    const first = firstBySignature.get(signature)
+    if (first) {
+      warnings.push({ code: 'DUPLICATE_EDGE', edge: id, duplicateOf: first.edge, from: edge.source, to: edge.target, label: edge.label })
+    } else {
+      firstBySignature.set(signature, { edge: id, from: edge.source, to: edge.target, label: edge.label })
+    }
+  })
+
+  const ids = Array.from(graph.nodes.keys())
+  if (ids.length === 0 || graph.edges.length === 0) return warnings
+  const incoming = new Map(ids.map(id => [id, 0]))
+  const outgoing = new Map(ids.map(id => [id, [] as string[]]))
+  for (const edge of graph.edges) {
+    if (!graph.nodes.has(edge.source) || !graph.nodes.has(edge.target)) continue
+    incoming.set(edge.target, (incoming.get(edge.target) ?? 0) + 1)
+    outgoing.get(edge.source)!.push(edge.target)
+  }
+  const roots = ids.filter(id => (incoming.get(id) ?? 0) === 0)
+  if (roots.length === 0) return warnings
+  const seen = new Set<string>(roots)
+  const queue = [...roots]
+  for (let i = 0; i < queue.length; i++) {
+    for (const next of outgoing.get(queue[i]!) ?? []) {
+      if (seen.has(next)) continue
+      seen.add(next)
+      queue.push(next)
+    }
+  }
+  for (const id of ids) {
+    if (!seen.has(id)) warnings.push({ code: 'UNREACHABLE_NODE', node: id })
+  }
+  return warnings
 }
 
 function verifyTimeline(body: import('./types.ts').TimelineBody, kind: ValidDiagram['kind'], cap: number, opts: VerifyOptions): VerifyResult {

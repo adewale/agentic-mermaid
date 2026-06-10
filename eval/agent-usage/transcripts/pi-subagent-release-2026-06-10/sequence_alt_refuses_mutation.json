@@ -1,0 +1,24 @@
+{
+  "schemaVersion": 1,
+  "capturedAt": "2026-06-10T00:00:00.000Z",
+  "provider": "pi-subagent",
+  "model": "delegate-fresh-default-release-model",
+  "caseId": "sequence_alt_refuses_mutation",
+  "task": {
+    "prompt": "Given a sequence diagram with an alt block, detect that structured sequence mutation is unavailable and preserve source.",
+    "input": "sequenceDiagram\n  A->>B: hi\n  alt ok\n    B-->>A: yes\n  end"
+  },
+  "prompts": {
+    "system": "pi subagent-backed release-model pass: delegate agent, fresh context. Pi hidden system prompt is not exposed; prompts.user records the exact parent-visible task sent to the subagent.",
+    "user": "You are participating in an Agentic Mermaid subagent-backed release-model transcript eval. Return ONLY executable synchronous JavaScript body for Agentic Mermaid Code Mode; no markdown, no code fences, no prose.\n\nRuntime contract:\n- The code is passed to execute(code), so top-level `return` is allowed.\n- Global `mermaid.*` SDK is available.\n- Do not use async/await, Promise jobs, dynamic import, filesystem, network, or template-literal interpolation.\n- For existing structured diagrams: parseMermaid -> family narrower -> mutate -> verifyMermaid -> inspect verify.ok or verify.warnings/layout -> serializeMermaid.\n- For source-level/opaque fallback diagrams, do not mutate; preserve parsed body.source.\n\nTask ID: sequence_alt_refuses_mutation\nTask: Given a sequence diagram with an alt block, detect that structured sequence mutation is unavailable and preserve source.\nInput Mermaid source:\nsequenceDiagram\n  A->>B: hi\n  alt ok\n    B-->>A: yes\n  end\n\nReturn only executable synchronous Code Mode JavaScript."
+  },
+  "rawResponse": "const source = 'sequenceDiagram\\n  A->>B: hi\\n  alt ok\\n    B-->>A: yes\\n  end';\nconst r0 = mermaid.parseMermaid(source);\nif (!r0.ok) return { error: 'parse', details: r0.error };\nconst seq = mermaid.asSequence(r0.value);\nreturn { refused: seq === null, source: r0.value.body.source };",
+  "script": "const source = 'sequenceDiagram\\n  A->>B: hi\\n  alt ok\\n    B-->>A: yes\\n  end';\nconst r0 = mermaid.parseMermaid(source);\nif (!r0.ok) return { error: 'parse', details: r0.error };\nconst seq = mermaid.asSequence(r0.value);\nreturn { refused: seq === null, source: r0.value.body.source };",
+  "result": {
+    "id": "sequence_alt_refuses_mutation",
+    "ok": true,
+    "taskOk": true,
+    "traceOk": true,
+    "findings": []
+  }
+}

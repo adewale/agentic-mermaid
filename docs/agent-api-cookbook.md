@@ -209,6 +209,7 @@ MCP channel:
 
 - Use Code Mode for parse/narrow/mutate/verify/serialize.
 - Use the `render_png` helper for base64 PNG bytes when the host needs a raster artifact.
+- In HTTP/SSE mode, use `render_png` with `output: "file"` or `output: "url"` when the host wants a managed artifact instead of inline base64.
 - Use Code Mode or library/CLI for SVG and ASCII artifacts.
 
 ## Recipe: MCP Code Mode
@@ -235,7 +236,7 @@ Code Mode constraints:
 
 - No imports, dynamic imports, `async`/`await`, or Promise jobs.
 - SDK-returned diagrams are read-only; edit through `mermaid.mutate`.
-- Binary output such as PNG should usually be produced by a narrow helper or host code, not by large Code Mode payloads.
+- Binary output such as PNG should usually be produced by a narrow helper or host code, not by large Code Mode payloads. `agentic-mermaid-mcp --transport http` serves managed URL artifacts from `/artifacts/<name>`.
 
 ## Mutation op crib sheet
 
@@ -265,6 +266,8 @@ Tier 1 warnings are reliable structural/source checks. Do not suppress Tier 1 er
 | `LABEL_OVERFLOW` | Label exceeds `labelCharCap` |
 
 Tier 2 warnings are advisory geometric checks for flowchart/state: `NODE_OVERLAP`, `ROUTE_SELF_CROSS`.
+
+Tier 3 warnings are advisory lint checks for common agent mistakes: `DUPLICATE_EDGE`, `UNREACHABLE_NODE`. They do not flip `verify.ok`, but they are worth fixing when the caller asks for clean maintainable diagrams.
 
 ## Common anti-patterns
 

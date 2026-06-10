@@ -130,7 +130,8 @@ With --json, the svg/ascii/unicode forms wrap output as {"<format>": "..."}.`,
   verify: `am verify <file|-> [--suppress A,B] [--label-cap N]
 Always emits JSON: {ok, warnings[], layout}. Tier-1 error codes flip ok=false:
 EMPTY_DIAGRAM, EDGE_MISANCHORED, OFF_CANVAS, GROUP_BREACH. Warnings:
-UNKNOWN_SHAPE, LABEL_OVERFLOW (char-cap), NODE_OVERLAP, ROUTE_SELF_CROSS.
+UNKNOWN_SHAPE, LABEL_OVERFLOW (char-cap), NODE_OVERLAP, ROUTE_SELF_CROSS,
+DUPLICATE_EDGE, UNREACHABLE_NODE. Tier-3 lint is advisory.
 Exit 0 if ok, 3 if verify reports severity='error'.`,
   parse: `am parse <file|->
 Emits ValidDiagram JSON (Maps serialized to objects). Exit 2 on parse error.
