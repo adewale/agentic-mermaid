@@ -451,6 +451,27 @@ arrowhead) because the upstream fix only works together with its FIFO heap
 tie-breaking and branch-point re-routing. Probe, observe, revert fast,
 and scope the full port honestly (BUILD-10) instead of pushing through.
 
+Third, resolved (BUILD-10) — and the resolution sharpens the lesson:
+"port the whole set" does NOT mean "every upstream hunk lands." It means
+port the *coordinated intent*, then let this fork's own architecture decide
+which hunks are load-bearing. Of PR #113's four parts, only two were needed
+here: (1a) deterministic FIFO tie-breaking in the pathfinder MinHeap and
+(3b) label placement preferring the per-sibling vertical drop in TD. Those
+two alone reproduced the upstream golden byte-for-byte AND kept the LR
+box-start repro byte-identical. The other two — (1b) `preferredDir` A*
+neighbour reordering and (2) explicit branch-point re-routing — REGRESSED
+trunk rendering exactly as the minimal probe had (stray `+`, `◢`, broken LR),
+because this fork already carries trunk machinery upstream lacked
+(edge-bundling for unlabelled siblings) plus the new FIFO determinism; the
+reorder/re-route then fought routing that was already correct. The general
+rule: when a fork has diverged, an upstream fix is a hypothesis about *intent*,
+not a patch to apply verbatim. Bisect the set against the fork (here: an
+env-var gate per part + the corpus diff isolated the two that mattered in
+minutes), ship the minimal load-bearing subset, and sabotage-test it
+(reversing the FIFO tie-break alone re-introduces the `─center*─` detour,
+proving it is the actual lever). Dead upstream scaffolding (the `preferredDir`
+param) is kept only when it is a real, separately-tested capability.
+
 Fourth: a documentation gap on an agent surface *is* an API gap. An audit
 subagent reading our own docs concluded state diagrams were not mutable,
 because every narrower list omitted the actual path (`asFlowchart` narrows
