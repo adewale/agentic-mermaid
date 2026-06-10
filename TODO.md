@@ -140,20 +140,34 @@ dependents after. IDs are stable names, not an ordering.
   `eval/layout-compare/run.ts` (snapshot/report subcommands, regression
   exit code), fixtures in `eval/layout-compare/fixtures/`, tests in
   `src/__tests__/layout-compare.test.ts`.
-- [ ] **BUILD-10 — Fan-out trunk sharing / connector alignment** (`todo`)
-  after BUILD-13; partially done). Upstream issue:
-  <https://github.com/lukilabs/beautiful-mermaid/issues/111>
+- [x] **BUILD-10 — Fan-out trunk sharing / connector alignment** (`done`).
+  Upstream issue <https://github.com/lukilabs/beautiful-mermaid/issues/111>
   (sibling edges from one source don't share a trunk; related connector
   displacement is issue #112, upstream fix PR is #113).
-  Done: the #112 box-start displacement is fixed (connector anchored on the
-  node border via `getNodeAttachmentPoint`, gap filled;
-  `src/__tests__/ascii-box-start.test.ts`). Remaining: the #111-class TB
-  fan-out detour (a sibling edge takes an L-shaped wander with its label on
-  the horizontal run; see the upstream repro with `left*`/`center*`/`right*`
-  labels). A naive preferred-direction A* tweak destabilizes the existing
-  trunk post-processing — this needs upstream PR #113's coordinated set
-  (FIFO heap tie-breaking + branch-point re-routing + label placement),
-  ported against our diverged pathfinder, measured with BUILD-13.
+  The #112 box-start displacement was already fixed (connector anchored on the
+  node border via `getNodeAttachmentPoint`; `ascii-box-start.test.ts`). The
+  #111-class TB fan-out detour (a labelled sibling edge took an L-shaped wander
+  with its label on the horizontal run) is now fixed. Evidence: golden
+  `src/__tests__/testdata/unicode/td_fanout_labeled.txt` matches the upstream
+  shape exactly; charset-independent invariants in
+  `src/__tests__/ascii-fanout-trunk-labeled.test.ts` (single trunk with ┬ tees,
+  each label on its own vertical drop, no `─label─`, no stray `+`/`◢`).
+  Port outcome (the Loop 17 lesson, confirmed again): of upstream PR #113's four
+  parts, only TWO were load-bearing in this fork and only those shipped —
+  (1a) deterministic FIFO tie-breaking in the pathfinder MinHeap
+  (`src/ascii/pathfinder.ts`), and (3b) label placement preferring the
+  per-sibling vertical drop in TD (`determineLabelLine` in
+  `src/ascii/edge-routing.ts`). The other two — (1b) `preferredDir` A* neighbour
+  reordering and (2) explicit branch-point re-routing — DESTABILISED trunk
+  rendering here (stray `+`, `◢` arrowheads, regressed the LR box-start repro),
+  because this fork already has the trunk machinery upstream lacked
+  (edge-bundling for unlabelled siblings) plus FIFO determinism, so the reorder
+  fought the existing routing. `preferredDir` is kept as an unused pathfinder
+  capability (covered by `ascii-pathfinder-determinism.test.ts`); the re-routing
+  was dropped. Part (4) collinear-corner-skip in `drawCorners` shipped as a
+  defensive guard. Corpus delta (BUILD-13): 0 SVG / 0 ASCII / 0 metric changes
+  across 251 samples (the labelled-fan-out pattern isn't in the corpus). Sabotage
+  check: reversing the FIFO tie-break re-introduces the `─center*─` detour.
 - [x] **BUILD-9 — Fan-in grouping** (`done`). Promoted from PARK-1; upstream
   PR <https://github.com/lukilabs/beautiful-mermaid/pull/69>. Implemented in
   `src/ascii/grid.ts` `createMapping`: roots grouped contiguously by first

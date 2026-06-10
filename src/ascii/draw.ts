@@ -869,6 +869,12 @@ function drawCorners(graph: AsciiGraph, path: GridCoord[]): Canvas {
     const prevDir = determineDirection(path[idx - 1]!, coord)
     const nextDir = determineDirection(coord, path[idx + 1]!)
 
+    // Skip collinear intermediate points: a non-bend (prevDir === nextDir) is a
+    // straight run, and painting a corner glyph there would punch a hole in the
+    // trunk line (upstream lukilabs#113). mergePath normally removes these, so
+    // this is a defensive guard against any path that still carries one.
+    if (dirEquals(prevDir, nextDir)) continue
+
     let corner: string
     if (!graph.config.useAscii) {
       if ((dirEquals(prevDir, Right) && dirEquals(nextDir, Down)) ||

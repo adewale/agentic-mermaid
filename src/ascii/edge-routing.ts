@@ -165,7 +165,18 @@ export function determinePath(graph: AsciiGraph, edge: AsciiEdge): void {
   const [preferredDir, preferredOppositeDir, alternativeDir, alternativeOppositeDir] =
     determineStartAndEndDir(edge, effectiveDir)
 
-  // Try preferred path
+  // Try preferred path.
+  //
+  // NOTE (#113 port, this fork): upstream also threads the exit direction into
+  // getPath so A* expands it first. We deliberately do NOT do that here. This
+  // fork already has trunk machinery upstream lacked (edge-bundling for
+  // unlabelled siblings) and, crucially, deterministic FIFO tie-breaking in the
+  // pathfinder MinHeap already makes equal-cost sibling routes pick consistent
+  // corners. Adding the preferredDir reorder ON TOP of that visibly destabilised
+  // trunk rendering here (stray '+' corners, '◢' arrowheads, and it regressed
+  // the LR box-start repro) — the same failure mode recorded in lessons-learned
+  // Loop 17. So we keep getPath direction-agnostic; the `preferredDir` param
+  // exists for API parity but is intentionally left unused by this caller.
   const prefFrom = gridCoordDirection(edge.from.gridCoord!, preferredDir)
   const prefTo = gridCoordDirection(edge.to.gridCoord!, preferredOppositeDir)
   let preferredPath = getPath(graph.grid, prefFrom, prefTo)
@@ -249,9 +260,25 @@ export function determineLabelLine(graph: AsciiGraph, edge: AsciiEdge): void {
     segments.push({ line, width, index: i, isVertical })
   }
 
+  // In TD, a fan-out sibling's path is: shared horizontal trunk → corner →
+  // vertical drop → target. The label must land on the per-sibling VERTICAL
+  // drop (the branch), never on the shared horizontal trunk or an L-shaped
+  // horizontal detour (upstream lukilabs#113 / issue #111). Restricting to
+  // vertical segments here is what produces `│ / label / │` instead of
+  // `─label─`. LR is the mirror image: prefer horizontal segments.
+  const orientationMatches = (s: { isVertical: boolean }): boolean =>
+    isVerticalFlow ? s.isVertical : !s.isVertical
+
   // Find segments wide enough for the label, excluding the first segment
   // The first segment is often shared between edges from the same source node
-  const suitableSegments = segments.filter(s => s.width >= lenLabel && s.index > 1)
+  let suitableSegments = segments.filter(
+    s => s.width >= lenLabel && s.index > 1 && orientationMatches(s),
+  )
+  // Fall back to ignoring orientation if no oriented segment fits (e.g. a pure
+  // straight edge with a single segment), so labels still get placed.
+  if (suitableSegments.length === 0) {
+    suitableSegments = segments.filter(s => s.width >= lenLabel && s.index > 1)
+  }
 
   let largestLine: [GridCoord, GridCoord]
 

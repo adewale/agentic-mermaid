@@ -16,10 +16,18 @@ import { gridKey, gridCoordEquals } from './types.ts'
 interface PQItem {
   coord: GridCoord
   priority: number
+  /**
+   * Monotonic insertion sequence. Used as a deterministic FIFO tie-breaker so
+   * equal-priority nodes pop in insertion order regardless of heap topology
+   * (upstream lukilabs#113). Without this, the order two equal-priority cells
+   * are visited depends on incidental heap shape, which let sibling fan-out
+   * edges pick inconsistent corners and produce L-shaped detours.
+   */
+  seq: number
 }
 
 /**
- * Simple min-heap priority queue.
+ * Simple min-heap priority queue with deterministic FIFO tie-breaking.
  * For the grid sizes we handle (~100s of cells), this is more than fast enough.
  */
 class MinHeap {
@@ -45,10 +53,19 @@ class MinHeap {
     return top
   }
 
+  /**
+   * Order two heap items: by priority, then by insertion sequence (FIFO).
+   * Returns true if `a` should sit above `b` in the min-heap.
+   */
+  private before(a: PQItem, b: PQItem): boolean {
+    if (a.priority !== b.priority) return a.priority < b.priority
+    return a.seq < b.seq
+  }
+
   private bubbleUp(i: number): void {
     while (i > 0) {
       const parent = (i - 1) >> 1
-      if (this.items[i]!.priority < this.items[parent]!.priority) {
+      if (this.before(this.items[i]!, this.items[parent]!)) {
         ;[this.items[i], this.items[parent]] = [this.items[parent]!, this.items[i]!]
         i = parent
       } else {
@@ -63,10 +80,13 @@ class MinHeap {
       let smallest = i
       const left = 2 * i + 1
       const right = 2 * i + 2
-      if (left < n && this.items[left]!.priority < this.items[smallest]!.priority) {
+      // Upstream lukilabs#113 used `<=` here to break ties; we encode the same
+      // determinism explicitly via the seq tie-breaker in `before`, which is
+      // unambiguous regardless of traversal order.
+      if (left < n && this.before(this.items[left]!, this.items[smallest]!)) {
         smallest = left
       }
-      if (right < n && this.items[right]!.priority < this.items[smallest]!.priority) {
+      if (right < n && this.before(this.items[right]!, this.items[smallest]!)) {
         smallest = right
       }
       if (smallest !== i) {
@@ -115,13 +135,32 @@ function isFreeInGrid(grid: Map<string, AsciiNode>, c: GridCoord): boolean {
 }
 
 /**
+ * Order the four neighbour directions, trying `preferredDir` first.
+ * Expanding a known exit direction first biases A* toward a route that commits
+ * to that axis early (upstream lukilabs#113's preferred-direction idea). NOTE:
+ * the edge router in this fork does NOT pass a preferredDir — see the comment in
+ * edge-routing.ts `determinePath` for why. This stays a self-contained, tested
+ * pathfinder capability rather than dead code.
+ */
+function orderedDirs(preferredDir?: GridCoord): GridCoord[] {
+  if (!preferredDir) return MOVE_DIRS
+  const rest = MOVE_DIRS.filter(d => !(d.x === preferredDir.x && d.y === preferredDir.y))
+  return [{ x: preferredDir.x, y: preferredDir.y }, ...rest]
+}
+
+/**
  * Find a path from `from` to `to` on the grid using A*.
  * Returns the path as an array of GridCoords, or null if no path exists.
+ *
+ * @param preferredDir - Optional exit direction tried first during neighbour
+ *   expansion (see `orderedDirs`). Currently unused by the edge router; kept as
+ *   a tested capability and exercised by ascii-pathfinder-determinism.test.ts.
  */
 export function getPath(
   grid: Map<string, AsciiNode>,
   from: GridCoord,
   to: GridCoord,
+  preferredDir?: GridCoord,
 ): GridCoord[] | null {
   // #66 (ktrysmt): bound the search. `isFreeInGrid` only guards x/y < 0, so an
   // unreachable target (walled off) would let A* explore +x/+y unboundedly →
@@ -143,8 +182,11 @@ export function getPath(
   // Iteration cap proportional to the bounded grid area (with a floor).
   const maxIterations = Math.max(10_000, (boundX + 1) * (boundY + 1) * 4)
 
+  const dirs = orderedDirs(preferredDir)
+
+  let seq = 0
   const pq = new MinHeap()
-  pq.push({ coord: from, priority: 0 })
+  pq.push({ coord: from, priority: 0, seq: seq++ })
 
   const costSoFar = new Map<string, number>()
   costSoFar.set(gridKey(from), 0)
@@ -170,7 +212,7 @@ export function getPath(
 
     const currentCost = costSoFar.get(gridKey(current))!
 
-    for (const dir of MOVE_DIRS) {
+    for (const dir of dirs) {
       const next: GridCoord = { x: current.x + dir.x, y: current.y + dir.y }
 
       // #66 guard: never expand past the bounded extent. Without this, an
@@ -189,7 +231,7 @@ export function getPath(
       if (existingCost === undefined || newCost < existingCost) {
         costSoFar.set(nextKey, newCost)
         const priority = newCost + heuristic(next, to)
-        pq.push({ coord: next, priority })
+        pq.push({ coord: next, priority, seq: seq++ })
         cameFrom.set(nextKey, current)
       }
     }
