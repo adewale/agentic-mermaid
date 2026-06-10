@@ -39,6 +39,7 @@ function opaqueSourceHasOnlyHeader(kind: ValidDiagram['kind'], source: string): 
     er: ['erdiagram'],
     journey: ['journey'],
     xychart: ['xychart', 'xychart-beta'],
+    pie: ['pie'],
     architecture: ['architecture-beta'],
   }
   return (aliases[kind] ?? [kind]).some(alias => header === alias || header.startsWith(`${alias} `))

@@ -1,0 +1,9 @@
+pie title Pets adopted by volunteers
+    "Dogs" : 386
+    "Cats" : 85
+    "Rats" : 15
+---
+Pets adopted by volunteers
+Dogs  ##############################   79.4%
+Cats  #######                          17.5%
+Rats  #                                 3.1%

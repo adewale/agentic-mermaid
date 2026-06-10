@@ -60,6 +60,9 @@ import { renderJourneySvg } from './journey/renderer.ts'
 import { parseXYChart } from './xychart/parser.ts'
 import { layoutXYChart } from './xychart/layout.ts'
 import { renderXYChartSvg } from './xychart/renderer.ts'
+import { parsePieChart } from './pie/parser.ts'
+import { layoutPieChart } from './pie/layout.ts'
+import { renderPieSvg } from './pie/renderer.ts'
 import { parseArchitectureDiagram } from './architecture/parser.ts'
 import { layoutArchitectureDiagram } from './architecture/layout.ts'
 import { renderArchitectureSvg } from './architecture/renderer.ts'
@@ -374,6 +377,11 @@ export function renderMermaidSVG(
         ? { ...colors, bg: chart.theme.backgroundColor }
         : colors
       return resolve(renderXYChartSvg(positioned, chartColors, font, transparent, options.interactive ?? false, options), chartColors)
+    }
+    case 'pie': {
+      const chart = parsePieChart(lines)
+      const positioned = layoutPieChart(chart, options, colors)
+      return resolve(renderPieSvg(positioned, colors, font, transparent, options))
     }
     case 'flowchart':
     default: {
