@@ -136,6 +136,33 @@ describe('vocabulary doc-sync', () => {
     }
   })
 
+  test('every narrower advertised by the SDK declaration is callable in the Code Mode sandbox', async () => {
+    // Consistency-audit guard: the declaration once advertised narrowers the
+    // sandbox did not expose, so Code Mode scripts copying the declaration
+    // crashed. Drive each advertised narrower end-to-end through execute().
+    const advertised = [...new Set(Array.from(SDK_DECLARATION.matchAll(/\bas[A-Z]\w+/g), m => m[0]))]
+    expect(advertised.length).toBeGreaterThanOrEqual(9)
+    const SOURCES: Record<string, string> = {
+      asFlowchart: 'flowchart TD\\n  A --> B',
+      asState: 'stateDiagram-v2\\n  [*] --> A',
+      asSequence: 'sequenceDiagram\\n  A->>B: hi',
+      asTimeline: 'timeline\\n  2020 : event',
+      asClass: 'classDiagram\\n  class A',
+      asEr: 'erDiagram\\n  A ||--o{ B : has',
+      asJourney: 'journey\\n  Wake: 3: Me',
+      asArchitecture: 'architecture-beta\\n  service a(server)[A]',
+      asXyChart: 'xychart-beta\\n  bar [1, 2]',
+    }
+    for (const narrower of advertised) {
+      const source = SOURCES[narrower]
+      expect({ narrower, known: Boolean(source) }).toEqual({ narrower, known: true })
+      const code = `const r = mermaid.parseMermaid('${source}')\nif (!r.ok) return { narrower: '${narrower}', phase: 'parse' }\nconst n = mermaid.${narrower}(r.value)\nreturn { narrower: '${narrower}', narrowed: n !== null }`
+      const result = await executeInSandbox(code, {})
+      expect({ narrower, ok: result.ok, value: result.ok ? result.value : result.error })
+        .toEqual({ narrower, ok: true, value: { narrower, narrowed: true } })
+    }
+  })
+
   test('state-narrows-via-asState is documented on every agent surface that claims state mutation', () => {
     // BUILD-19: state owns a dedicated body. Docs that advertise state mutation
     // must say the path is asState (not asFlowchart), or agents either conclude

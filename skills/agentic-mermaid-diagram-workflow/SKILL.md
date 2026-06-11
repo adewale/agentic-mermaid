@@ -1,6 +1,6 @@
 ---
 name: agentic-mermaid-diagram-workflow
-description: Agent-agnostic skill for authoring and editing Mermaid diagrams with structured verification, typed mutation, round-trip serialization, and ASCII, PNG, and SVG outputs. Structured mutation for flowchart, state, sequence, timeline, class, ER, journey, architecture, and xychart; source-level parse-and-render for pie and opaque fallbacks.
+description: Agent-agnostic skill for authoring and editing Mermaid diagrams with structured verification, typed mutation, round-trip serialization, and ASCII, PNG, and SVG outputs. Structured mutation for flowchart, state, sequence, timeline, class, ER, journey, architecture, and xychart; source-level parse-and-render for pie, quadrant, and opaque fallbacks.
 ---
 
 # Agentic Mermaid — diagram workflow
@@ -36,6 +36,7 @@ An agent-agnostic typed editing surface for Mermaid. New diagrams can be authore
 | **XY chart (modeled subset)** | ✓ | structural | ✓ | **8 ops** | structured |
 | XY chart (quoted text, `;` lines, accTitle/accDescr) | ✓ | structural | ✓ | — (opaque) | verbatim |
 | Pie | ✓ | structural | ✓ | — | verbatim/source-level |
+| Quadrant | ✓ | structural | ✓ | — | verbatim/source-level |
 
 Any diagram with constructs we don't model falls back to an **opaque** body: it still parses, renders, verifies, and round-trips losslessly — it just isn't offered for structured mutation (the narrower returns null). The parser never silently drops anything.
 

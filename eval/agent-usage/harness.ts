@@ -25,8 +25,8 @@ export type DiagramRef = number | string
 
 export type SdkCall =
   | { verb: 'parse'; diagram?: DiagramRef; source?: string }
-  | { verb: 'narrow'; family: 'flowchart' | 'sequence' | 'timeline' | 'class' | 'er'; input?: DiagramRef; ok: boolean }
-  | { verb: 'mutate'; body: 'flowchart' | 'sequence' | 'timeline' | 'class' | 'er' | 'opaque'; input?: DiagramRef; output?: DiagramRef; opKind?: string; fingerprint?: string }
+  | { verb: 'narrow'; family: 'flowchart' | 'state' | 'sequence' | 'timeline' | 'class' | 'er' | 'journey' | 'architecture' | 'xychart'; input?: DiagramRef; ok: boolean }
+  | { verb: 'mutate'; body: 'flowchart' | 'state' | 'sequence' | 'timeline' | 'class' | 'er' | 'journey' | 'architecture' | 'xychart' | 'opaque'; input?: DiagramRef; output?: DiagramRef; opKind?: string; fingerprint?: string }
   | { verb: 'verify'; diagram?: DiagramRef; ok?: boolean; inspected?: boolean; fingerprint?: string }
   | { verb: 'verify_inspect'; diagram?: DiagramRef; property: 'ok' | 'warnings' | 'layout' }
   | { verb: 'serialize'; diagram?: DiagramRef; source?: string; fingerprint?: string }

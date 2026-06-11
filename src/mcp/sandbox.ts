@@ -5,8 +5,8 @@ import * as mermaid from '../agent/index.ts'
 
 export type ExecutionTraceCall =
   | { verb: 'parse'; diagram?: number; source?: string }
-  | { verb: 'narrow'; family: 'flowchart' | 'sequence' | 'timeline' | 'class' | 'er'; input?: number; ok: boolean }
-  | { verb: 'mutate'; body: 'flowchart' | 'sequence' | 'timeline' | 'class' | 'er' | 'opaque'; input?: number; output?: number; opKind?: string; fingerprint?: string }
+  | { verb: 'narrow'; family: 'flowchart' | 'state' | 'sequence' | 'timeline' | 'class' | 'er' | 'journey' | 'architecture' | 'xychart'; input?: number; ok: boolean }
+  | { verb: 'mutate'; body: 'flowchart' | 'state' | 'sequence' | 'timeline' | 'class' | 'er' | 'journey' | 'architecture' | 'xychart' | 'opaque'; input?: number; output?: number; opKind?: string; fingerprint?: string }
   | { verb: 'verify'; diagram?: number; ok?: boolean; inspected?: boolean; fingerprint?: string }
   | { verb: 'verify_inspect'; diagram?: number; property: 'ok' | 'warnings' | 'layout' }
   | { verb: 'serialize'; diagram?: number; source?: string; fingerprint?: string }
@@ -411,16 +411,20 @@ function createTracingMermaid(trace?: ExecutionTraceCall[], makeSandboxError?: (
   const fingerprint = (value: unknown): string | undefined => fingerprintDiagram(rawOf(value))
   const bodyKind = (value: unknown): TraceMutationBody => {
     const kind = (value as { body?: { kind?: string } } | undefined)?.body?.kind
-    return (kind === 'flowchart' || kind === 'sequence' || kind === 'timeline' || kind === 'class' || kind === 'er') ? kind : 'opaque'
+    return (kind === 'flowchart' || kind === 'state' || kind === 'sequence' || kind === 'timeline' || kind === 'class' || kind === 'er' || kind === 'journey' || kind === 'architecture' || kind === 'xychart') ? kind : 'opaque'
   }
   const push = (call: ExecutionTraceCall) => { trace?.push(call) }
   const sdkTarget = {
     parseMermaid: mermaid.parseMermaid,
     asFlowchart: mermaid.asFlowchart,
+    asState: mermaid.asState,
     asSequence: mermaid.asSequence,
     asTimeline: mermaid.asTimeline,
     asClass: mermaid.asClass,
     asEr: mermaid.asEr,
+    asJourney: mermaid.asJourney,
+    asArchitecture: mermaid.asArchitecture,
+    asXyChart: mermaid.asXyChart,
     mutate: mermaid.mutate,
     verifyMermaid: mermaid.verifyMermaid,
     serializeMermaid: mermaid.serializeMermaid,
@@ -443,7 +447,7 @@ function createTracingMermaid(trace?: ExecutionTraceCall[], makeSandboxError?: (
       push({ verb: 'parse', diagram, source: r.ok ? (r.value.body.kind === 'opaque' ? r.value.body.source : r.value.canonicalSource) : undefined })
       return harden(r)
     })
-    else if (prop === 'asFlowchart' || prop === 'asSequence' || prop === 'asTimeline' || prop === 'asClass' || prop === 'asEr') {
+    else if (typeof prop === 'string' && prop.startsWith('as') && prop in target) {
       value = harden((d: any) => {
         assertOpen()
         requireTrustedDiagram(d, String(prop))
@@ -534,11 +538,17 @@ function fingerprintDiagram(value: unknown): string | undefined {
 }
 
 function narrowerFamily(prop: string | symbol): TraceNarrowFamily {
-  if (prop === 'asFlowchart') return 'flowchart'
-  if (prop === 'asSequence') return 'sequence'
-  if (prop === 'asTimeline') return 'timeline'
-  if (prop === 'asClass') return 'class'
-  return 'er'
+  switch (prop) {
+    case 'asFlowchart': return 'flowchart'
+    case 'asState': return 'state'
+    case 'asSequence': return 'sequence'
+    case 'asTimeline': return 'timeline'
+    case 'asClass': return 'class'
+    case 'asJourney': return 'journey'
+    case 'asArchitecture': return 'architecture'
+    case 'asXyChart': return 'xychart'
+    default: return 'er'
+  }
 }
 
 /**
