@@ -1,0 +1,18 @@
+{
+  "$schema": "https://raw.githubusercontent.com/stryker-mutator/stryker/master/packages/core/schema/stryker-core.schema.json",
+  "_comment": "Scoped mutation testing for the ASCII layout core. Run per-file via CLI --mutate (see docs/mutation-testing.md), or all four via this config. The command runner executes the ASCII test suite that exercises pathfinder/edge-routing/converter/grid.",
+  "mutate": [
+    "src/ascii/pathfinder.ts",
+    "src/ascii/edge-routing.ts",
+    "src/ascii/converter.ts",
+    "src/ascii/grid.ts"
+  ],
+  "testRunner": "command",
+  "commandRunner": {
+    "command": "bun test src/__tests__/ascii.test.ts src/__tests__/ascii-subgraph-edge.test.ts src/__tests__/ascii-layout-gaps.test.ts src/__tests__/ascii-fan-in-grouping.test.ts src/__tests__/ascii-fanout-trunk-labeled.test.ts src/__tests__/ascii-pathfinder-determinism.test.ts src/__tests__/ascii-pathfinder-trunk.test.ts src/__tests__/ascii-determinism.test.ts src/__tests__/ascii-box-start.test.ts src/__tests__/ascii-edge-styles.test.ts src/__tests__/ascii-multiline.test.ts src/__tests__/ascii-robustness.test.ts src/__tests__/ascii-sequence-blocks.test.ts src/__tests__/property-ascii-routing.test.ts"
+  },
+  "reporters": ["clear-text", "progress", "json"],
+  "jsonReporter": { "fileName": "reports/mutation/ascii-mutation.json" },
+  "timeoutMS": 60000,
+  "concurrency": 4
+}
