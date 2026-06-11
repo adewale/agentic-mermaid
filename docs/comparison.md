@@ -1,23 +1,27 @@
 # Mermaid, Beautiful Mermaid, and Agentic Mermaid
 
-Three related projects solve different problems, and each is the right choice
-for its job. This page maps the functional differences so you can pick the
-right tool — it is a routing guide, not a scorecard.
+Use this page to decide which of the three projects fits your task. The
+table maps what each one can do; the sections after it name what only each
+one does, and the final section tells you which to install for common jobs.
 
 - **[Mermaid](https://github.com/mermaid-js/mermaid)** (`mermaid`) is the
-  original and the standard. It defines the diagram language itself, supports
-  by far the most diagram types, and renders anywhere a browser DOM exists.
-  Everything else in this table exists because Mermaid made text-to-diagram
-  mainstream.
+  original. It defines the grammar that both other projects implement,
+  supports roughly 25 diagram types, and is rendered natively by GitHub,
+  GitLab, Notion, and Obsidian — which is why most diagrams-as-text you will
+  encounter are written in its language.
 - **[Beautiful Mermaid](https://github.com/lukilabs/beautiful-mermaid)**
-  (`beautiful-mermaid`, by Craft) re-implements Mermaid rendering as a fast,
-  zero-DOM TypeScript library with first-class theming and ASCII output. It
-  proved that a synchronous, browserless renderer with careful visual design
-  is possible, and it is the foundation this fork is built on.
+  (`beautiful-mermaid`, by Craft) re-implements Mermaid rendering as a
+  synchronous TypeScript library: it computes layout itself and emits SVG
+  strings, so it runs in Node, Bun, or an edge function with no browser and
+  no Puppeteer. Its theming derives a full palette from two colors and
+  accepts Shiki/VS Code themes directly, and it renders to ASCII/Unicode for
+  terminals. It is the foundation this fork is built on.
 - **Agentic Mermaid** (`agentic-mermaid`, this repo) extends Beautiful
-  Mermaid for AI-agent workflows: a typed parse → mutate → verify →
-  serialize editing loop, deterministic output, structured verification, and
-  CLI/MCP surfaces. It trades Mermaid's breadth for editability guarantees.
+  Mermaid for programs that edit diagrams — AI agents foremost. It adds a
+  typed parse → mutate → verify → serialize loop, byte-identical output
+  across runs, structured verification, and CLI/MCP surfaces. The trade is
+  explicit: 11 diagram families against Mermaid's ~25, in exchange for the
+  guarantee that parsing and re-serializing a diagram never drops syntax.
 
 Facts below reflect Mermaid ~11.15 and the upstream `beautiful-mermaid`
 repository as of mid-2026; both projects move quickly, so check their
@@ -65,8 +69,8 @@ an agent to eyeball pixels; `serializeMermaid` round-trips losslessly
 verbatim, never silently dropped). Plus offline PNG, JSON layout, an `am`
 CLI built for agents (exit codes, JSONL batch, `capabilities --json`
 self-discovery), a Code Mode MCP server, and tested byte-identical
-determinism. None of this exists upstream or in Mermaid, because neither
-needed it — it exists for coding agents that edit diagrams programmatically.
+determinism. Neither upstream project needed any of this: both serve humans who write
+diagrams once, while this surface serves programs that edit them repeatedly.
 
 ## Choosing
 
