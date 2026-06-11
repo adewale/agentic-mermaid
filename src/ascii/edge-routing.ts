@@ -284,18 +284,28 @@ export function determineLabelLine(graph: AsciiGraph, edge: AsciiEdge): void {
 
   if (suitableSegments.length > 0) {
     // Prefer segments near the end of the path (closer to target)
-    // This avoids the shared initial segments from source
-    suitableSegments.sort((a, b) => b.index - a.index)
+    // This avoids the shared initial segments from source.
+    // Secondary keys (start x, then y) keep ties deterministic across engines
+    // whose Array.prototype.sort stability we cannot rely on.
+    suitableSegments.sort(
+      (a, b) => b.index - a.index || a.line[0].x - b.line[0].x || a.line[0].y - b.line[0].y,
+    )
     largestLine = suitableSegments[0]!.line
   } else {
     // Fall back to any suitable segment including the first
     const fallbackSegments = segments.filter(s => s.width >= lenLabel)
     if (fallbackSegments.length > 0) {
-      fallbackSegments.sort((a, b) => b.index - a.index)
+      // Secondary keys (start x, then y) keep ties deterministic (see above).
+      fallbackSegments.sort(
+        (a, b) => b.index - a.index || a.line[0].x - b.line[0].x || a.line[0].y - b.line[0].y,
+      )
       largestLine = fallbackSegments[0]!.line
     } else {
-      // No segment wide enough — use the widest one
-      segments.sort((a, b) => b.width - a.width)
+      // No segment wide enough — use the widest one.
+      // Secondary keys (start x, then y) keep ties deterministic (see above).
+      segments.sort(
+        (a, b) => b.width - a.width || a.line[0].x - b.line[0].x || a.line[0].y - b.line[0].y,
+      )
       largestLine = segments[0]?.line ?? [edge.path[0]!, edge.path[1]!]
     }
   }

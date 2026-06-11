@@ -94,9 +94,19 @@ export type AsciiEdgeStyle = 'solid' | 'dotted' | 'thick'
 export interface AsciiEdge {
   from: AsciiNode
   to: AsciiNode
-  /** Source container when the Mermaid edge targets a subgraph id. */
+  /**
+   * Source container when the Mermaid edge targets a subgraph id.
+   * Consumed by the converter/grid (grid.ts attachment-point selection) and by
+   * draw.ts's getSubgraphAttachmentPoint to choose WHERE on the container the
+   * edge anchors. NOT the same as attachFromSubgraph (see below), which only
+   * drives border clipping.
+   */
   fromSubgraph?: AsciiSubgraph
-  /** Target container when the Mermaid edge targets a subgraph id. */
+  /**
+   * Target container when the Mermaid edge targets a subgraph id.
+   * Mirror of fromSubgraph for the edge target. Consumed by grid.ts and
+   * draw.ts's getSubgraphAttachmentPoint for attachment-point selection.
+   */
   toSubgraph?: AsciiSubgraph
   text: string
   path: GridCoord[]
@@ -128,6 +138,11 @@ export interface AsciiEdge {
    * container, but the visible terminus is clipped to the container's border.
    * - attachFromSubgraph: the SOURCE of the edge is a subgraph container.
    * - attachToSubgraph: the TARGET of the edge is a subgraph container.
+   *
+   * Consumed ONLY by draw.ts's drawContainerEdge, which clips the routed
+   * polyline at the container border (clipPolylineAtBorder). Distinct from
+   * fromSubgraph/toSubgraph above: those pick the attachment point; these pick
+   * where to clip. Both pairs can be set, and they are not interchangeable.
    */
   attachFromSubgraph?: AsciiSubgraph
   attachToSubgraph?: AsciiSubgraph

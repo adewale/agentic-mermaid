@@ -469,10 +469,12 @@ export function createMapping(graph: AsciiGraph): void {
   externalRootNodes = [...externalRootNodes]
     .sort((a, b) => rootGroupOrder.get(rootGroupKey(a))! - rootGroupOrder.get(rootGroupKey(b))!)
 
-  // Forward in-degree per node, for fan-in target alignment below.
+  // Forward in-degree per node, for fan-in target alignment below
+  // (fan-in trunk grouping, issues #68/#69).
   // Self-loops and 2-cycle back-edges (A ⇄ B toggles, common in state
   // machines) are excluded: they are round-trips, not fan-in joins, and
-  // aligning on them drags placements sideways.
+  // aligning on them drags placements sideways. A degree that counts a
+  // back-edge would mis-classify an ordinary node as a fan-in target.
   const outNeighbors = new Map<string, Set<string>>()
   for (const edge of graph.edges) {
     let s = outNeighbors.get(edge.from.name)
@@ -481,7 +483,10 @@ export function createMapping(graph: AsciiGraph): void {
   }
   const inDegree = new Map<string, number>()
   for (const edge of graph.edges) {
+    // Skip self-loops: a node is not its own fan-in source (issues #68/#69).
     if (edge.from.name === edge.to.name) continue
+    // Skip 2-cycle back-edges: A→B paired with B→A is a round-trip, not a
+    // join, so it must not inflate the target's fan-in degree (issues #68/#69).
     if (outNeighbors.get(edge.to.name)?.has(edge.from.name)) continue
     inDegree.set(edge.to.name, (inDegree.get(edge.to.name) ?? 0) + 1)
   }
@@ -591,7 +596,10 @@ export function createMapping(graph: AsciiGraph): void {
 
   // Route non-bundled edges via A* and determine label positions
   for (const edge of graph.edges) {
-    // Skip edges that were already routed as part of a bundle
+    // Skip edges already routed as part of a bundle. processBundles draws the
+    // shared trunk once and writes each member's path; re-running A* here would
+    // overwrite that path and break the merged junction. The path.length guard
+    // ensures we only skip edges that actually received a routed path.
     if (edge.bundle && edge.path.length > 0) {
       increaseGridSizeForPath(graph, edge.path)
       determineLabelLine(graph, edge)
@@ -626,11 +634,13 @@ export function createMapping(graph: AsciiGraph): void {
  * Re-route sibling edges from the same source/start side through the first
  * edge's initial trunk. This fixes labeled fan-outs that cannot use bundle
  * routing: A* otherwise solves each sibling independently and can send later
- * branches on avoidable L-shaped detours.
+ * branches on avoidable L-shaped detours (trunk sharing, issues #111/#113).
  */
 function shareSiblingEdgeTrunks(graph: AsciiGraph): void {
   const groups = new Map<string, AsciiEdge[]>()
   for (const edge of graph.edges) {
+    // Bundled edges already share a routed trunk via processBundles; sharing
+    // again here would fight that routing (issues #111/#113).
     if (edge.bundle) continue
     const key = `${edge.from.name}:${edge.startDir.x},${edge.startDir.y}`
     const list = groups.get(key) ?? []
@@ -642,6 +652,8 @@ function shareSiblingEdgeTrunks(graph: AsciiGraph): void {
 
   for (const edges of groups.values()) {
     if (edges.length < 2) continue
+    // Self-loops have no meaningful trunk to share and would inject a spurious
+    // junction; exclude any group containing one (issues #111/#113).
     if (edges.some(e => e.from === e.to)) continue
 
     const first = edges[0]!
