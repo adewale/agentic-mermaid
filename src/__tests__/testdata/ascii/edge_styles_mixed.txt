@@ -1,0 +1,10 @@
+flowchart LR
+  A -->|solid| B
+  B -.->|dotted| C
+  C ==>|thick| D
+---
++---+       +---+        +---+       +---+
+|   |       |   |        |   |       |   |
+| A |-solid>| B |dotted.>| C |=thick>| D |
+|   |       |   |        |   |       |   |
++---+       +---+        +---+       +---+

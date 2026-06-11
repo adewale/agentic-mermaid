@@ -77,7 +77,7 @@ New diagram support should normally include most of these layers:
 - Integration tests for parse -> layout -> render using a basic example, a realistic example, and an edge case
 - SVG snapshot or golden tests when visual structure matters, including at least one Mermaid docs example
 - Theme and compatibility tests for dark/light themes, CSS variable inputs, and frontmatter/config handling where relevant
-- ASCII tests when ASCII rendering is supported, including Unicode mode and ASCII-safe mode
+- ASCII tests when ASCII rendering is supported, including Unicode mode and ASCII-safe mode; add exact fixtures under `src/__tests__/testdata/{ascii,unicode}/` and regenerate them with `bun run goldens:ascii`
 - Regression tests for easy-to-break behavior such as ordering, escaping, markers, label normalization, or routing
 - Sample coverage in `scripts/site/samples-data.ts` when the feature should appear on the visual samples page
 - README updates for the new supported diagram type and any intentional compatibility gaps
@@ -99,6 +99,7 @@ Regression guard:
 Run the checks that fit the change:
 
 - `bun test src/__tests__/`
+- `bun run goldens:ascii:check` if you added or changed ASCII/Unicode fixtures
 - `npm run build`
 - `bun run samples` if you added or changed visual samples
 - `bun run bench` if the diagram type adds meaningful layout or rendering cost

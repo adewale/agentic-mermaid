@@ -1,0 +1,103 @@
+<svg data-xychart-colors="1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 700 500" width="100%" height="100%" style="--bg:#f8fafc;--fg:#27272A;--font:Inter;background:#f8fafc;max-width:700px" id="mermaid-kaeiwt" class="xychart" role="img" aria-roledescription="xychart" aria-labelledby="chart-title-mermaid-kaeiwt" aria-describedby="chart-desc-mermaid-kaeiwt">
+<style>
+  text { font-family: var(--font, 'Inter'), system-ui, sans-serif; }
+  svg {
+    /* Derived from --bg and --fg (overridable via --line, --accent, etc.) */
+    --_text:          #27272A;
+    --_text-sec:      #7b7b7e;
+    --_text-muted:    #a4a6a8;
+    --_text-faint:    #c4c5c8;
+    --_line:          #909193;
+    --_arrow:         #46474a;
+    --_node-fill:     #f2f4f6;
+    --_node-stroke:   #ced0d2;
+    --_group-fill:    #f8fafc;
+    --_group-hdr:     #eeeff1;
+    --_inner-stroke:  #dfe1e3;
+    --_key-badge:     #e3e5e7;
+  }
+</style>
+<style>
+  .xychart-grid { stroke: #dbdcdf; stroke-width: 1; }
+  .xychart-axis-line { fill: none; }
+  .xychart-tick { fill: none; }
+  .xychart-x-axis-line { stroke: #7b7b7e; }
+  .xychart-y-axis-line { stroke: #7b7b7e; }
+  .xychart-x-tick { stroke: #7b7b7e; }
+  .xychart-y-tick { stroke: #7b7b7e; }
+  .xychart-bar { stroke: none; }
+  .xychart-line { fill: none; stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; }
+  .xychart-dot { stroke: #f8fafc; stroke-width: 2; }
+  .xychart-label { fill: #27272A; }
+  .xychart-x-label { fill: #27272A; }
+  .xychart-y-label { fill: #27272A; }
+  .xychart-axis-title { fill: #27272A; }
+  .xychart-x-axis-title { fill: #27272A; }
+  .xychart-y-axis-title { fill: #27272A; }
+  .xychart-title { fill: #123456; }
+  .xychart-data-label { fill: #27272A; pointer-events: none; }
+  svg {
+    --xychart-color-0: #ff6b6b;
+    --xychart-color-1: #0ea5e9;
+  }
+  .xychart-bar.xychart-color-0 { fill: #ff6b6b; }
+  path.xychart-color-0, line.xychart-color-0 { stroke: #ff6b6b; }
+  circle.xychart-color-0 { fill: #ff6b6b; }
+  .xychart-bar.xychart-color-1 { fill: #0ea5e9; }
+  path.xychart-color-1, line.xychart-color-1 { stroke: #0ea5e9; }
+  circle.xychart-color-1 { fill: #0ea5e9; }
+</style>
+<title id="chart-title-mermaid-kaeiwt">Revenue by quarter</title>
+<desc id="chart-desc-mermaid-kaeiwt">Quarterly revenue and forecast
+across two regions.</desc>
+<line x1="63.24" y1="469" x2="700" y2="469" class="xychart-grid"/>
+<line x1="63.24" y1="426.1" x2="700" y2="426.1" class="xychart-grid"/>
+<line x1="63.24" y1="383.2" x2="700" y2="383.2" class="xychart-grid"/>
+<line x1="63.24" y1="340.3" x2="700" y2="340.3" class="xychart-grid"/>
+<line x1="63.24" y1="297.4" x2="700" y2="297.4" class="xychart-grid"/>
+<line x1="63.24" y1="254.5" x2="700" y2="254.5" class="xychart-grid"/>
+<line x1="63.24" y1="211.6" x2="700" y2="211.6" class="xychart-grid"/>
+<line x1="63.24" y1="168.7" x2="700" y2="168.7" class="xychart-grid"/>
+<line x1="63.24" y1="125.8" x2="700" y2="125.8" class="xychart-grid"/>
+<line x1="63.24" y1="82.9" x2="700" y2="82.9" class="xychart-grid"/>
+<line x1="63.24" y1="40" x2="700" y2="40" class="xychart-grid"/>
+<line x1="63.24" y1="470" x2="700" y2="470" class="xychart-axis-line xychart-x-axis-line" stroke-width="2"/>
+<line x1="169.37" y1="471" x2="169.37" y2="476" class="xychart-tick xychart-x-tick" stroke-width="2"/>
+<line x1="381.62" y1="471" x2="381.62" y2="476" class="xychart-tick xychart-x-tick" stroke-width="2"/>
+<line x1="593.87" y1="471" x2="593.87" y2="476" class="xychart-tick xychart-x-tick" stroke-width="2"/>
+<line x1="62.24" y1="40" x2="62.24" y2="469" class="xychart-axis-line xychart-y-axis-line" stroke-width="2"/>
+<line x1="61.24" y1="469" x2="56.24" y2="469" class="xychart-tick xychart-y-tick" stroke-width="2"/>
+<line x1="61.24" y1="426.1" x2="56.24" y2="426.1" class="xychart-tick xychart-y-tick" stroke-width="2"/>
+<line x1="61.24" y1="383.2" x2="56.24" y2="383.2" class="xychart-tick xychart-y-tick" stroke-width="2"/>
+<line x1="61.24" y1="340.3" x2="56.24" y2="340.3" class="xychart-tick xychart-y-tick" stroke-width="2"/>
+<line x1="61.24" y1="297.4" x2="56.24" y2="297.4" class="xychart-tick xychart-y-tick" stroke-width="2"/>
+<line x1="61.24" y1="254.5" x2="56.24" y2="254.5" class="xychart-tick xychart-y-tick" stroke-width="2"/>
+<line x1="61.24" y1="211.6" x2="56.24" y2="211.6" class="xychart-tick xychart-y-tick" stroke-width="2"/>
+<line x1="61.24" y1="168.7" x2="56.24" y2="168.7" class="xychart-tick xychart-y-tick" stroke-width="2"/>
+<line x1="61.24" y1="125.8" x2="56.24" y2="125.8" class="xychart-tick xychart-y-tick" stroke-width="2"/>
+<line x1="61.24" y1="82.9" x2="56.24" y2="82.9" class="xychart-tick xychart-y-tick" stroke-width="2"/>
+<line x1="61.24" y1="40" x2="56.24" y2="40" class="xychart-tick xychart-y-tick" stroke-width="2"/>
+<rect x="68.55" y="340.3" width="201.64" height="128.7" class="xychart-bar xychart-color-0" data-value="30" data-label="Q1"/>
+<rect x="280.8" y="211.6" width="201.64" height="257.4" class="xychart-bar xychart-color-0" data-value="60" data-label="Q2 Growth"/>
+<rect x="493.05" y="275.95" width="201.64" height="193.05" class="xychart-bar xychart-color-0" data-value="45" data-label="Q3"/>
+<path d="M169.37,361.75 L381.62,233.05 L593.87,254.5" class="xychart-line xychart-color-1"/>
+<text x="169.37" y="348.3" text-anchor="middle" dominant-baseline="hanging" font-size="16" font-weight="400" class="xychart-data-label">30</text>
+<text x="381.62" y="219.6" text-anchor="middle" dominant-baseline="hanging" font-size="16" font-weight="400" class="xychart-data-label">60</text>
+<text x="593.87" y="283.95" text-anchor="middle" dominant-baseline="hanging" font-size="16" font-weight="400" class="xychart-data-label">45</text>
+<text x="169.37" y="495" text-anchor="middle" font-size="14" font-weight="400" dy="0.35em" class="xychart-label xychart-x-label">Q1</text>
+<text x="381.622" y="495" text-anchor="middle" font-size="14" font-weight="400" dy="0.35em" class="xychart-label xychart-x-label">Q2 Growth</text>
+<text x="593.874" y="495" text-anchor="middle" font-size="14" font-weight="400" dy="0.35em" class="xychart-label xychart-x-label">Q3</text>
+<text x="51.24400000000003" y="469" text-anchor="end" dominant-baseline="middle" font-size="14" font-weight="400" class="xychart-label xychart-y-label">0</text>
+<text x="51.24400000000003" y="426.1" text-anchor="end" dominant-baseline="middle" font-size="14" font-weight="400" class="xychart-label xychart-y-label">10</text>
+<text x="51.24400000000003" y="383.2" text-anchor="end" dominant-baseline="middle" font-size="14" font-weight="400" class="xychart-label xychart-y-label">20</text>
+<text x="51.24400000000003" y="340.3" text-anchor="end" dominant-baseline="middle" font-size="14" font-weight="400" class="xychart-label xychart-y-label">30</text>
+<text x="51.24400000000003" y="297.4" text-anchor="end" dominant-baseline="middle" font-size="14" font-weight="400" class="xychart-label xychart-y-label">40</text>
+<text x="51.24400000000003" y="254.5" text-anchor="end" dominant-baseline="middle" font-size="14" font-weight="400" class="xychart-label xychart-y-label">50</text>
+<text x="51.24400000000003" y="211.60000000000002" text-anchor="end" dominant-baseline="middle" font-size="14" font-weight="400" class="xychart-label xychart-y-label">60</text>
+<text x="51.24400000000003" y="168.70000000000005" text-anchor="end" dominant-baseline="middle" font-size="14" font-weight="400" class="xychart-label xychart-y-label">70</text>
+<text x="51.24400000000003" y="125.79999999999995" text-anchor="end" dominant-baseline="middle" font-size="14" font-weight="400" class="xychart-label xychart-y-label">80</text>
+<text x="51.24400000000003" y="82.89999999999998" text-anchor="end" dominant-baseline="middle" font-size="14" font-weight="400" class="xychart-label xychart-y-label">90</text>
+<text x="51.24400000000003" y="40" text-anchor="end" dominant-baseline="middle" font-size="14" font-weight="400" class="xychart-label xychart-y-label">100</text>
+<text x="17.8" y="254.5" text-anchor="middle" transform="rotate(-90,17.8,254.5)" font-size="16" font-weight="400" dy="0.35em" class="xychart-axis-title xychart-y-axis-title">Users</text>
+<text x="350" y="30" text-anchor="middle" font-size="20" font-weight="500" dy="0.35em" class="xychart-title">Revenue</text>
+</svg>

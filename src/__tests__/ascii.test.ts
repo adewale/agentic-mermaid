@@ -30,48 +30,48 @@ interface TestCase {
  *   [paddingX=N]     (optional)
  *   [paddingY=N]     (optional)
  *   <mermaid code>
- *   ---
+ *   ---                 (the final --- line; source may contain frontmatter)
  *   <expected output>
  */
 function parseTestCase(content: string): TestCase {
   const tc: TestCase = { mermaid: '', expected: '', paddingX: 5, paddingY: 5 }
   const lines = content.split('\n')
   const paddingRegex = /^(?:padding([xy]))\s*=\s*(\d+)\s*$/i
+  let separatorIndex = -1
+  for (let i = lines.length - 1; i >= 0; i--) {
+    if (lines[i] === '---') {
+      separatorIndex = i
+      break
+    }
+  }
+  if (separatorIndex < 0) throw new Error('golden fixture is missing --- separator')
 
-  let inMermaid = true
   let mermaidStarted = false
   const mermaidLines: string[] = []
-  const expectedLines: string[] = []
+  const expectedLines = lines.slice(separatorIndex + 1)
 
-  for (const line of lines) {
-    if (line === '---') {
-      inMermaid = false
-      continue
-    }
+  for (const line of lines.slice(0, separatorIndex)) {
+    const trimmed = line.trim()
 
-    if (inMermaid) {
-      const trimmed = line.trim()
-
-      // Before mermaid code starts, parse padding directives and skip blanks
-      if (!mermaidStarted) {
-        if (trimmed === '') continue
-        const match = trimmed.match(paddingRegex)
-        if (match) {
-          const value = parseInt(match[2]!, 10)
-          if (match[1]!.toLowerCase() === 'x') {
-            tc.paddingX = value
-          } else {
-            tc.paddingY = value
-          }
-          continue
+    // Before mermaid code starts, parse padding directives and skip blanks.
+    // The final `---` line is the fixture separator, so frontmatter `---`
+    // delimiters can appear in the Mermaid source above it.
+    if (!mermaidStarted) {
+      if (trimmed === '') continue
+      const match = trimmed.match(paddingRegex)
+      if (match) {
+        const value = parseInt(match[2]!, 10)
+        if (match[1]!.toLowerCase() === 'x') {
+          tc.paddingX = value
+        } else {
+          tc.paddingY = value
         }
+        continue
       }
-
-      mermaidStarted = true
-      mermaidLines.push(line)
-    } else {
-      expectedLines.push(line)
     }
+
+    mermaidStarted = true
+    mermaidLines.push(line)
   }
 
   tc.mermaid = mermaidLines.join('\n') + '\n'

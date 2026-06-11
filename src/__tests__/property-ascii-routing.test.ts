@@ -29,6 +29,14 @@ const labelArb = fc
   .array(fc.constantFrom(...LABEL_CHARS), { minLength: 1, maxLength: 10 })
   .map(chars => chars.join(''))
 
+const wordArb = fc
+  .array(fc.constantFrom(...LABEL_CHARS), { minLength: 1, maxLength: 8 })
+  .map(chars => chars.join(''))
+
+const spacedLabelArb = fc
+  .array(wordArb, { minLength: 1, maxLength: 4 })
+  .map(words => words.join(' '))
+
 const idArb = fc
   .tuple(
     fc.constantFrom(...ID_HEAD),
@@ -93,6 +101,20 @@ function occupyNode(graph: AsciiGraph, node: AsciiNode): void {
   }
 }
 
+function occupiedGrid(points: Array<{ x: number; y: number }>): Map<string, AsciiNode> {
+  const grid = new Map<string, AsciiNode>()
+  points.forEach((point, index) => grid.set(gridKey(point), makeNode(`O${index}`, index, point)))
+  return grid
+}
+
+function boundedExtent(from: { x: number; y: number }, to: { x: number; y: number }, obstacles: Array<{ x: number; y: number }>): { x: number; y: number } {
+  const max = obstacles.reduce(
+    (acc, point) => ({ x: Math.max(acc.x, point.x), y: Math.max(acc.y, point.y) }),
+    { x: Math.max(from.x, to.x), y: Math.max(from.y, to.y) },
+  )
+  return { x: max.x + 4, y: max.y + 4 }
+}
+
 function isOrthogonalStep(path: Array<{ x: number; y: number }>, index: number): boolean {
   const prev = path[index - 1]!
   const current = path[index]!
@@ -135,6 +157,58 @@ describe('property-based ASCII pathfinding', () => {
 
         for (let index = 1; index < path!.length; index++) {
           expect(isOrthogonalStep(path!, index)).toBe(true)
+        }
+      }),
+      { numRuns: PROPERTY_RUNS },
+    )
+  })
+
+  it('returns null when the target is enclosed by occupied cells', () => {
+    const to = { x: 4, y: 4 }
+    const grid = occupiedGrid([
+      { x: 3, y: 4 },
+      { x: 5, y: 4 },
+      { x: 4, y: 3 },
+      { x: 4, y: 5 },
+    ])
+
+    expect(getPath(grid, { x: 0, y: 0 }, to)).toBeNull()
+  })
+
+  it('treats the top/left zero boundary as closed instead of using negative detours', () => {
+    const grid = occupiedGrid([
+      { x: 0, y: 1 },
+      { x: 1, y: 0 },
+      { x: 1, y: 1 },
+      { x: 1, y: 2 },
+    ])
+
+    expect(getPath(grid, { x: 0, y: 0 }, { x: 0, y: 2 })).toBeNull()
+  })
+
+  it('keeps successful paths within the computed bounded search extent', () => {
+    const caseArb = fc
+      .record({
+        from: coordArb,
+        to: coordArb,
+        obstacles: fc.uniqueArray(coordArb, { maxLength: 8, selector: value => `${value.x},${value.y}` }),
+      })
+      .filter(({ from, to, obstacles }) => {
+        const blocked = new Set(obstacles.map(point => `${point.x},${point.y}`))
+        return !blocked.has(`${from.x},${from.y}`) && !blocked.has(`${to.x},${to.y}`)
+      })
+
+    fc.assert(
+      fc.property(caseArb, ({ from, to, obstacles }) => {
+        const path = getPath(occupiedGrid(obstacles), from, to)
+        if (path === null) return
+        const bound = boundedExtent(from, to, obstacles)
+
+        for (const point of path) {
+          expect(point.x).toBeGreaterThanOrEqual(0)
+          expect(point.y).toBeGreaterThanOrEqual(0)
+          expect(point.x).toBeLessThanOrEqual(bound.x)
+          expect(point.y).toBeLessThanOrEqual(bound.y)
         }
       }),
       { numRuns: PROPERTY_RUNS },
@@ -321,6 +395,17 @@ describe('property-based ASCII routing helpers', () => {
 })
 
 describe('property-based renderMermaidASCII', () => {
+  it('preserves ER relationship labels instead of clipping to the connector gap', () => {
+    fc.assert(
+      fc.property(spacedLabelArb, fc.boolean(), (label, useAscii) => {
+        const ascii = renderMermaidASCII(`erDiagram
+  CUSTOMER ||--o{ ORDER : ${label}`, { colorMode: 'none', useAscii })
+        expect(ascii).toContain(label)
+      }),
+      { numRuns: PROPERTY_RUNS },
+    )
+  })
+
   it('keeps small generated flowcharts free of diagonal edges', () => {
     const flowchartArb = fc
       .uniqueArray(
