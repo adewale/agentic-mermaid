@@ -6,11 +6,11 @@ Agentic Mermaid is an open-source Mermaid rendering and editing toolkit, forked 
 
 Published as `agentic-mermaid`; the GitHub repository and Pages path currently remain `adewale/beautiful-mermaid` / `https://adewale.github.io/beautiful-mermaid/`.
 
-![Agentic Mermaid sequence diagram example](assets/hero.png)
+![Agentic Mermaid: Mermaid source plus typed edit ops on the left, the verified SVG render in the middle, and the same diagram as ASCII on the right](assets/hero.png)
 
 [Live Demo & Samples](https://adewale.github.io/beautiful-mermaid/) · [Live Editor](https://adewale.github.io/beautiful-mermaid/editor)
 
-Docs: [docs index](./docs/) · [agent guide](./Instructions_for_agents.md) · [agent API cookbook](./docs/agent-api-cookbook.md) · [skills](./skills/) · [fork differences](./docs/fork-differences.md) · [changelog](./CHANGELOG.md)
+Docs: [docs index](./docs/) · [agent guide](./Instructions_for_agents.md) · [agent API cookbook](./docs/agent-api-cookbook.md) · [skills](./skills/) · [fork differences](./docs/fork-differences.md) · [vs Mermaid & Beautiful Mermaid](./docs/comparison.md) · [changelog](./CHANGELOG.md)
 
 </div>
 

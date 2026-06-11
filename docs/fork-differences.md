@@ -11,7 +11,9 @@ This repo owns the GitHub Pages deployment. The Craft/Cloudflare site is upstrea
 
 ## Agent-native workflow (largest fork-vs-upstream gap)
 
-Agentic Mermaid is published as `agentic-mermaid` and adds a typed editing surface for AI agents under the `agentic-mermaid/agent` subpath export, plus an `am` CLI and an `agentic-mermaid-mcp` Code Mode MCP server. The workflow is differentiated from render-only tools: new diagrams may be authored as source then parsed/verified/rendered, while existing structured diagrams should go parse → narrow → mutate → verify → serialize. Journey, XY chart, architecture, and opaque-fallback diagrams round-trip losslessly via preserved source but do not expose structured mutation. Layout is deterministic and verified byte-identical across processes. See [`AGENT_NATIVE.md`](../AGENT_NATIVE.md) and [`Instructions_for_agents.md`](../Instructions_for_agents.md). Upstream has no equivalent.
+Agentic Mermaid is published as `agentic-mermaid` and adds a typed editing surface for AI agents under the `agentic-mermaid/agent` subpath export, plus an `am` CLI and an `agentic-mermaid-mcp` Code Mode MCP server (stdio plus opt-in HTTP/SSE transport with managed render artifacts). The workflow is differentiated from render-only tools: new diagrams may be authored as source then parsed/verified/rendered, while existing structured diagrams go parse → narrow → mutate → verify → serialize.
+
+Nine of the eleven families are structured-when-narrowed: flowchart (6 ops), state (8 ops via a dedicated `StateBody` and `asState`), sequence (5 ops, **segment-preserving** — notes/`alt`/`loop` blocks ride along verbatim while the ops stay live), timeline (10), class (10), ER (7), journey (10), XY chart (8), and architecture (10). Pie, quadrant, and any unmodeled syntax round-trip losslessly via preserved source. Layout is deterministic and verified byte-identical across processes, and `verifyMermaid` returns structured warnings in three tiers (structural, geometric, lint) plus perceptual quality metrics (`measureQuality`) covering every family. See [`AGENT_NATIVE.md`](../AGENT_NATIVE.md) and [`Instructions_for_agents.md`](../Instructions_for_agents.md). Upstream has no equivalent; for a three-way functionality view including Mermaid itself, see [`comparison.md`](./comparison.md).
 
 ## New and expanded diagram support
 
@@ -25,6 +27,8 @@ This fork renders a wider set of Mermaid families in both the gallery and editor
 - Timeline diagrams (`timeline`)
 - User Journey diagrams (`journey`)
 - XY charts (`xychart` and `xychart-beta`)
+- Pie charts (`pie`, with `showData`)
+- Quadrant charts (`quadrantChart`) — not yet rendered anywhere else in the beautiful-mermaid network
 
 The live editor has E2E coverage for fork-added families: architecture, timeline, journey, and xychart.
 
@@ -73,6 +77,12 @@ Users can discover fork features through:
 2. The [live editor](https://adewale.github.io/beautiful-mermaid/editor), which starts blank and has **Examples** for every supported diagram family plus role-style presets.
 3. [`README.md`](../README.md) quick starts and docs routing.
 4. [`CHANGELOG.md`](../CHANGELOG.md) for user-facing change history.
+
+## Layout and quality work beyond upstream
+
+- ASCII layout fixes for upstream-reported issues: fan-in grouping (upstream #68/#69), labeled fan-out trunk sharing and box-start connector placement (#111/#112/#113 class), edges to subgraph ids attaching to the container instead of a phantom node, and `direction` overrides inside subgraphs honored even with external links (a case `mermaid-js/mermaid#2509` leaves unsolved).
+- A layout before/after comparison harness (`eval/layout-compare/`) and per-family `RenderedLayout` adapters so perceptual metrics gate layout changes with evidence.
+- ER cardinality parsing matches Mermaid's lexer exactly; malformed relationship lines error loudly instead of being silently dropped.
 
 ## What is intentionally not in this fork
 

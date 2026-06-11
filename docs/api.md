@@ -144,7 +144,11 @@ Typed mutation families:
 | Class | `asClass` | `add_class`, `remove_class`, `rename_class`, `add_member`, `add_relation`, notes |
 | ER | `asEr` | `add_entity`, `remove_entity`, `rename_entity`, `add_attribute`, `add_relation` |
 
-Journey, XY chart, architecture, and opaque fallback bodies are source-level-only: edit source deliberately, then parse and verify again.
+| Journey | `asJourney` | `set_title`, `add_section`, `add_task`, `set_task_score`, `set_task_actors`, `rename_actor`, … |
+| XY chart | `asXyChart` | `set_title`, `set_x_axis`, `set_y_axis`, `add_series`, `set_series_values`, `reorder_series`, … |
+| Architecture | `asArchitecture` | `add_service`, `move_service`, `add_group`, `add_edge`, `rename_service`, … |
+
+Pie, quadrant, and opaque fallback bodies are source-level-only: edit source deliberately, then parse and verify again.
 
 ## CLI
 

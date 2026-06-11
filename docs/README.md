@@ -15,6 +15,7 @@ This directory holds the long-form documentation. The root README is intentional
 | [`features.md`](./features.md) | Capability inventory. |
 | [`quality.md`](./quality.md) | Determinism, quality metrics, and visual-review guidance. |
 | [`fork-differences.md`](./fork-differences.md) | How Agentic Mermaid differs from upstream Beautiful Mermaid. |
+| [`comparison.md`](./comparison.md) | Functionality differences between Mermaid, Beautiful Mermaid, and Agentic Mermaid — and when to use each. |
 
 ## Agent docs
 

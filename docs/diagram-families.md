@@ -97,7 +97,7 @@ journey
     Pay: 3: Customer, Gateway
 ```
 
-Journey diagrams are parsed, verified, and rendered. Edit source and re-verify.
+Journey diagrams narrow via `asJourney` and expose 10 structured ops (sections, tasks, scores, actors). Unmodeled syntax (accTitle/accDescr) falls back to a lossless opaque body.
 
 ## XY chart
 
