@@ -77,6 +77,7 @@ co-locates them.
 | [`contributing/diagram-family-citizenship.md`](./contributing/diagram-family-citizenship.md) | Enforced good-citizen checklist and matrix for family/surface drift (issue #41). |
 | [`contributing/harvesting-upstream-tests.md`](./contributing/harvesting-upstream-tests.md) | How to vendor upstream/fork test suites into an executable compatibility bench. |
 | [`layout-characterization/README.md`](./layout-characterization/README.md) | Layout and visual testing approach: properties, contact sheets, raster contracts, and approval artifacts. |
+| [`design/agentic-mermaid-website.md`](./design/agentic-mermaid-website.md) | Canonical website specification and agent-experience plan. |
 | [`project/design.md`](./project/design.md) | Historical/design notes (editor UI design system). |
 | [`project/divergences.md`](./project/divergences.md) | Deliberate divergences and guardrails. |
 | [`project/product.md`](./project/product.md) | Product brief. |

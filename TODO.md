@@ -362,11 +362,13 @@ dependents after. IDs are stable names, not an ordering.
   exposed them through `WarningCode`, `WARNING_TIER`, `am capabilities`,
   `llms.txt`, MCP SDK declarations, tests, and agent-facing docs. Candidates
   came from EVAL-2's captured/curated real-agent failure corpus.
-- [ ] **BUILD-4 — Cloudflare Worker Code Mode web app** (`todo`, after
-  BUILD-7). Offer a hosted Agentic Mermaid experience using Cloudflare
-  Workers and `@cloudflare/codemode`/CodeMode-style isolation only after
-  scoping the security boundary, auth/rate limits, persistence model, and
-  parity with the current local CLI/MCP/library contract.
+- [ ] **BUILD-4 — Agentic Mermaid website** (`todo`, after BUILD-7).
+  Build a canonical domain-hosted Agentic Mermaid website that subsumes the
+  current GitHub Pages gallery/editor and adds first-class agent onboarding
+  artifacts. This is explicitly **not** a hosted Code Mode, MCP, or remote
+  render endpoint; agents get static manifests, capabilities, schemas,
+  recipes, skill/docs URLs, and local install/setup guidance. Spec:
+  `docs/design/agentic-mermaid-website.md`.
 
 - [x] **QUAL-1 — Perceptual-quality coverage for non-graph families**
   (`done`). `layoutMermaid` now has `RenderedLayout` adapters for EVERY
