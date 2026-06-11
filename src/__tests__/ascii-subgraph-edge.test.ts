@@ -68,9 +68,15 @@ describe('BUILD-14: edge endpoint is a subgraph id (ASCII)', () => {
     expect(titleRow).toBeGreaterThan(0)
     const borderRow = lines[titleRow - 1]!
 
-    // The incoming arrowhead sits on the container's top border row, i.e. the
-    // border row contains a downward arrowhead embedded in the box-drawing line.
-    expect(borderRow).toContain('▼')
+    // The incoming arrowhead terminates AT the container: either embedded in
+    // the top border row (clip-style) or on the row immediately above it
+    // (drop-style — both honest attachments; the phantom box is what's banned).
+    const arrowRow = borderRow.includes('▼') ? borderRow : lines[titleRow - 2] ?? ''
+    expect(arrowRow).toContain('▼')
+    // The arrow column falls within the container's horizontal span.
+    const arrowCol = arrowRow.indexOf('▼')
+    expect(arrowCol).toBeGreaterThanOrEqual(borderRow.indexOf('┌'))
+    expect(arrowCol).toBeLessThanOrEqual(borderRow.lastIndexOf('┐'))
     // And that border row is a genuine container border (corner + horizontal).
     expect(borderRow).toContain('┌')
     expect(borderRow).toContain('┐')
