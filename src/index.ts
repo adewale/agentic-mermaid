@@ -312,12 +312,14 @@ export function renderMermaidSVG(
   // + ARIA. The legacy SVG path doesn't carry these through the parser, so we
   // extract here and inject as a post-pass (localized, no renderer threading).
   const acc = extractAccessibility(lines)
-  const resolve = (svg: string, c: DiagramColors = colors) => {
+  const resolve = (svg: string, c: DiagramColors = colors, injectAcc = true) => {
     let out = inlineResolvedColors(svg, c)
     // #7540: namespace def ids so multiple diagrams on one page don't collide.
     if (idPrefix) out = namespaceSvgIds(out, idPrefix)
-    // #7254/#7255: inject <title>/<desc>/role="img"/aria-labelledby.
-    if (acc.title || acc.descr) out = injectAccessibility(out, acc, idPrefix)
+    // #7254/#7255: inject <title>/<desc>/role="img"/aria-labelledby for
+    // renderers that do not carry accessibility through their family-specific
+    // parser. Xychart does, so it opts out below to avoid duplicate ARIA attrs.
+    if (injectAcc && (acc.title || acc.descr)) out = injectAccessibility(out, acc, idPrefix)
     out = finalizeSvg(out)
     return compact ? compactSvg(out) : out
   }
@@ -373,7 +375,7 @@ export function renderMermaidSVG(
       const chartColors = !options.bg && chart.theme.backgroundColor
         ? { ...colors, bg: chart.theme.backgroundColor }
         : colors
-      return resolve(renderXYChartSvg(positioned, chartColors, font, transparent, options.interactive ?? false, options), chartColors)
+      return resolve(renderXYChartSvg(positioned, chartColors, font, transparent, options.interactive ?? false, options), chartColors, false)
     }
     case 'flowchart':
     default: {

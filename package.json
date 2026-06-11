@@ -97,7 +97,11 @@
     "deploy": "echo 'GitHub Pages deploys from main via .github/workflows/pages.yml; Cloudflare deployment is upstream-owned.'",
     "xychart-test": "bun run scripts/site/xychart-test.ts",
     "prepublishOnly": "npm run build",
+    "goldens:ascii": "bun run scripts/update-ascii-goldens.ts",
+    "goldens:ascii:check": "bun run scripts/update-ascii-goldens.ts --check",
     "mutation-test": "npx stryker run",
+    "mutation-test:ascii": "npx stryker run stryker.ascii.config.json",
+    "mutation-test:families": "npx stryker run stryker.families.config.json",
     "lint": "bun test src/__tests__/agent-substrate-lint.test.ts",
     "eval:agent-live": "bun run eval/agent-usage/live.ts"
   },

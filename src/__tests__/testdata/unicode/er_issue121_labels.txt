@@ -1,0 +1,17 @@
+erDiagram
+  CUSTOMER {
+    string email_address PK
+    string display_name
+  }
+  ORDER {
+    string external_reference
+    int total_cents
+  }
+  CUSTOMER ||--o{ ORDER : places labeled orders
+---
+┌─────────────────────────┐                       ┌──────────────────────────────┐
+│ CUSTOMER                │                       │ ORDER                        │
+├─────────────────────────┤                       ├──────────────────────────────┤
+│ PK string email_address ││────────────────────○╟│    string external_reference │
+│    string display_name  │ places labeled orders │    int total_cents           │
+└─────────────────────────┘                       └──────────────────────────────┘

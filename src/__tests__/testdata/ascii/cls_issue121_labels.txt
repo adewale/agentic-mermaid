@@ -1,0 +1,28 @@
+classDiagram
+  class Customer {
+    +String emailAddress
+    +placeOrder(orderId) Receipt
+  }
+  class Order {
+    +String externalReference
+    +totalCents() int
+  }
+  Customer "1" --> "*" Order : places labeled orders
+---
++-----------------------+
+| Customer              |
++-----------------------+
+| +emailAddress: String |
++-----------------------+
+| +placeOrder: Receipt  |
++-----------------------+
+            |
+   places labeled orders
+               v
++----------------------------+
+| Order                      |
++----------------------------+
+| +externalReference: String |
++----------------------------+
+| +totalCents: int           |
++----------------------------+
