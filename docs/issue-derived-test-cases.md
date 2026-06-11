@@ -22,6 +22,15 @@ These are public Mermaid / Beautiful Mermaid issues worth turning into small, ed
 - [lukilabs/beautiful-mermaid#115 — text contrast on custom fills](https://github.com/lukilabs/beautiful-mermaid/issues/115)
   - Why it matters: themeable diagrams must remain readable.
   - Current coverage: auto-contrast and theme/renderer contrast tests.
+- [lukilabs/beautiful-mermaid#111/#112 — ASCII fan-out trunks and box-start connectors](https://github.com/lukilabs/beautiful-mermaid/issues/111)
+  - Why it matters: sibling fan-outs should share a readable trunk and edge labels should stay on branches rather than forcing detours or floating connectors.
+  - Current coverage: `src/__tests__/ascii-pathfinder-trunk.test.ts` covers TD/LR labeled fan-out repros and bidirectional-label separation; `src/__tests__/ascii-box-start.test.ts` covers source-border connectors; ASCII determinism tests guard repeated routing stability; golden files pin exact ASCII/Unicode output.
+- [lukilabs/beautiful-mermaid#69 — fan-in grouping](https://github.com/lukilabs/beautiful-mermaid/pull/69)
+  - Why it matters: unrelated fan-in groups should not cross into ambiguous shared trunks.
+  - Current coverage: `src/__tests__/ascii-fan-in-grouping.test.ts` covers target-aware grouping and cycle guards.
+- [lukilabs/beautiful-mermaid#98 — nested-subgraph layout with direction](https://github.com/lukilabs/beautiful-mermaid/pull/98)
+  - Why it matters: subgraph direction overrides and container edges should not create phantom nodes or move children outside groups.
+  - Current coverage: `src/__tests__/subgraph-direction.test.ts` covers SVG geometry, ASCII one-row inner LR layout, subgraph-id edge attachment, 7-bit ASCII mode, nested child subgraph targets, styled/labeled container edges, and multi-edge containers; golden files pin exact ASCII/Unicode output.
 
 ## High-value future fixtures
 
@@ -29,14 +38,8 @@ These are public Mermaid / Beautiful Mermaid issues worth turning into small, ed
   - Suggested fixture: a graph whose author order implies a clear primary direction but whose cross/back edges tempt the layout engine to flip ranks. Assert source-order progression and bounded aspect ratio.
 - [mermaid-js/mermaid#7785 — collapsible subgraphs via `@{ view: collapsed }`](https://github.com/mermaid-js/mermaid/pull/7785)
   - Suggested fixture: parse/render normal nested subgraphs today; when collapse metadata appears, either model it explicitly or preserve source as opaque. Never silently drop the `@{ ... }` meaning.
-- [lukilabs/beautiful-mermaid#69 — fan-in grouping](https://github.com/lukilabs/beautiful-mermaid/pull/69)
-  - Suggested fixture: many roots flowing into one hub, plus a cycle variant. Assert no overlaps/off-canvas, deterministic layout JSON, and readable ASCII trunking.
 - [lukilabs/beautiful-mermaid#121 — ER/class ASCII label truncation and stray connectors](https://github.com/lukilabs/beautiful-mermaid/issues/121)
   - Suggested fixture: ER relationship labels and class compartments with edge labels. Assert labels are present, connectors touch borders, and no orphan `├` appears.
-- [lukilabs/beautiful-mermaid#112 — ASCII connector displaced by sibling edge labels](https://github.com/lukilabs/beautiful-mermaid/issues/112)
-  - Suggested fixture: one source box with multiple outgoing edges, one labeled. Assert connector starts at the source border for every sibling edge.
-- [lukilabs/beautiful-mermaid#98 — nested-subgraph layout with direction](https://github.com/lukilabs/beautiful-mermaid/pull/98)
-  - Suggested fixture: nested subgraphs with explicit direction overrides and cross-boundary edges. Assert children remain inside groups and edges stay finite.
 
 ## Fork-network layout search notes
 

@@ -6,7 +6,7 @@
 // paths between nodes on the grid. Prefers straight lines over zigzags.
 // ============================================================================
 
-import type { GridCoord, AsciiNode } from './types.ts'
+import type { GridCoord, AsciiNode, Direction } from './types.ts'
 import { gridKey, gridCoordEquals } from './types.ts'
 
 // ============================================================================
@@ -128,25 +128,43 @@ const MOVE_DIRS: GridCoord[] = [
   { x: 0, y: -1 },
 ]
 
+/** Build a move-direction order that tries the edge's initial cardinal direction first. */
+function buildMoveDirs(preferredDir?: Direction): GridCoord[] {
+  if (!preferredDir) return [...MOVE_DIRS]
+
+  // Direction values are 3x3 node attachment offsets, not signed deltas:
+  // Up={1,0}, Down={1,2}, Left={0,1}, Right={2,1}.
+  if (preferredDir.x === 2 && preferredDir.y === 1) {
+    return [{ x: 1, y: 0 }, { x: -1, y: 0 }, { x: 0, y: 1 }, { x: 0, y: -1 }]
+  }
+  if (preferredDir.x === 0 && preferredDir.y === 1) {
+    return [{ x: -1, y: 0 }, { x: 1, y: 0 }, { x: 0, y: 1 }, { x: 0, y: -1 }]
+  }
+  if (preferredDir.x === 1 && preferredDir.y === 2) {
+    return [{ x: 0, y: 1 }, { x: 0, y: -1 }, { x: 1, y: 0 }, { x: -1, y: 0 }]
+  }
+  if (preferredDir.x === 1 && preferredDir.y === 0) {
+    return [{ x: 0, y: -1 }, { x: 0, y: 1 }, { x: 1, y: 0 }, { x: -1, y: 0 }]
+  }
+
+  const dx = preferredDir.x - 1
+  const dy = preferredDir.y - 1
+  if (Math.abs(dx) >= Math.abs(dy)) {
+    return dx >= 0
+      ? [{ x: 1, y: 0 }, { x: -1, y: 0 }, { x: 0, y: 1 }, { x: 0, y: -1 }]
+      : [{ x: -1, y: 0 }, { x: 1, y: 0 }, { x: 0, y: 1 }, { x: 0, y: -1 }]
+  }
+  return dy >= 0
+    ? [{ x: 0, y: 1 }, { x: 0, y: -1 }, { x: 1, y: 0 }, { x: -1, y: 0 }]
+    : [{ x: 0, y: -1 }, { x: 0, y: 1 }, { x: 1, y: 0 }, { x: -1, y: 0 }]
+}
+
 /** Check if a grid cell is unoccupied and has non-negative coordinates. */
 function isFreeInGrid(grid: Map<string, AsciiNode>, c: GridCoord): boolean {
   if (c.x < 0 || c.y < 0) return false
   return !grid.has(gridKey(c))
 }
 
-/**
- * Order the four neighbour directions, trying `preferredDir` first.
- * Expanding a known exit direction first biases A* toward a route that commits
- * to that axis early (upstream lukilabs#113's preferred-direction idea). NOTE:
- * the edge router in this fork does NOT pass a preferredDir — see the comment in
- * edge-routing.ts `determinePath` for why. This stays a self-contained, tested
- * pathfinder capability rather than dead code.
- */
-function orderedDirs(preferredDir?: GridCoord): GridCoord[] {
-  if (!preferredDir) return MOVE_DIRS
-  const rest = MOVE_DIRS.filter(d => !(d.x === preferredDir.x && d.y === preferredDir.y))
-  return [{ x: preferredDir.x, y: preferredDir.y }, ...rest]
-}
 
 /**
  * Find a path from `from` to `to` on the grid using A*.
@@ -160,7 +178,7 @@ export function getPath(
   grid: Map<string, AsciiNode>,
   from: GridCoord,
   to: GridCoord,
-  preferredDir?: GridCoord,
+  preferredDir?: Direction,
 ): GridCoord[] | null {
   // #66 (ktrysmt): bound the search. `isFreeInGrid` only guards x/y < 0, so an
   // unreachable target (walled off) would let A* explore +x/+y unboundedly →
@@ -182,7 +200,7 @@ export function getPath(
   // Iteration cap proportional to the bounded grid area (with a floor).
   const maxIterations = Math.max(10_000, (boundX + 1) * (boundY + 1) * 4)
 
-  const dirs = orderedDirs(preferredDir)
+  const moveDirs = buildMoveDirs(preferredDir)
 
   let seq = 0
   const pq = new MinHeap()
@@ -212,7 +230,7 @@ export function getPath(
 
     const currentCost = costSoFar.get(gridKey(current))!
 
-    for (const dir of dirs) {
+    for (const dir of moveDirs) {
       const next: GridCoord = { x: current.x + dir.x, y: current.y + dir.y }
 
       // #66 guard: never expand past the bounded extent. Without this, an

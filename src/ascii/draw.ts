@@ -388,8 +388,17 @@ export function drawArrow(
   }
 
   const labelCanvas = drawArrowLabel(graph, edge)
-  const [pathCanvas, linesDrawn, lineDirs] = drawPath(graph, edge.path, edge.style)
-  const boxStartCanvas = drawBoxStart(graph, edge.path, linesDrawn[0]!, edge.from, edge.style)
+  const startPoint = edge.fromSubgraph
+    ? getSubgraphAttachmentPoint(graph, edge.fromSubgraph, edge.from, edge.startDir)
+    : getNodeAttachmentPoint(graph, edge.from, edge.startDir)
+  const endPoint = edge.toSubgraph
+    ? getSubgraphAttachmentPoint(graph, edge.toSubgraph, edge.to, edge.endDir)
+    : undefined
+  const [pathCanvas, linesDrawn, lineDirs] = drawPath(graph, edge.path, edge.style, startPoint, endPoint)
+  const isStatePseudo = !edge.fromSubgraph && (edge.from.shape === 'state-start' || edge.from.shape === 'state-end')
+  const boxStartCanvas = isStatePseudo
+    ? copyCanvas(graph.canvas)
+    : drawBoxStart(graph, edge.startDir, startPoint)
 
   // Draw end marker only if hasArrowEnd is true (default behavior)
   let arrowHeadEndCanvas: Canvas
@@ -699,6 +708,8 @@ function drawPath(
   graph: AsciiGraph,
   path: GridCoord[],
   style: AsciiEdgeStyle = 'solid',
+  startPointOverride?: DrawingCoord,
+  endPointOverride?: DrawingCoord,
 ): [Canvas, DrawingCoord[][], Direction[]] {
   const canvas = copyCanvas(graph.canvas)
   let previousCoord = path[0]!
@@ -707,8 +718,12 @@ function drawPath(
 
   for (let i = 1; i < path.length; i++) {
     const nextCoord = path[i]!
-    const prevDC = gridToDrawingCoord(graph, previousCoord)
-    const nextDC = gridToDrawingCoord(graph, nextCoord)
+    const prevDC = (i === 1 && startPointOverride)
+      ? startPointOverride
+      : gridToDrawingCoord(graph, previousCoord)
+    const nextDC = (i === path.length - 1 && endPointOverride)
+      ? endPointOverride
+      : gridToDrawingCoord(graph, nextCoord)
 
     if (drawingCoordEquals(prevDC, nextDC)) {
       previousCoord = nextCoord
@@ -733,46 +748,17 @@ function drawPath(
  */
 function drawBoxStart(
   graph: AsciiGraph,
-  path: GridCoord[],
-  firstLine: DrawingCoord[],
-  sourceNode: AsciiNode,
-  style: AsciiEdgeStyle = 'solid',
+  startDir: Direction,
+  startPoint: DrawingCoord,
 ): Canvas {
   const canvas = copyCanvas(graph.canvas)
   if (graph.config.useAscii) return canvas
 
-  // Skip box start connectors for state pseudo-states (they have their own bordered design)
-  if (sourceNode.shape === 'state-start' || sourceNode.shape === 'state-end') {
-    return canvas
-  }
+  if (dirEquals(startDir, Up)) canvas[startPoint.x]![startPoint.y] = '┴'
+  else if (dirEquals(startDir, Down)) canvas[startPoint.x]![startPoint.y] = '┬'
+  else if (dirEquals(startDir, Left)) canvas[startPoint.x]![startPoint.y] = '┤'
+  else if (dirEquals(startDir, Right)) canvas[startPoint.x]![startPoint.y] = '├'
 
-  const from = firstLine[0]!
-  const dir = determineDirection(path[0]!, path[1]!)
-
-  // Junction position derived from the first path point (a grid-cell center).
-  let junction: DrawingCoord
-  let ch: string
-  if (dirEquals(dir, Up)) { junction = { x: from.x, y: from.y + 1 }; ch = '┴' }
-  else if (dirEquals(dir, Down)) { junction = { x: from.x, y: from.y - 1 }; ch = '┬' }
-  else if (dirEquals(dir, Left)) { junction = { x: from.x + 1, y: from.y }; ch = '┤' }
-  else if (dirEquals(dir, Right)) { junction = { x: from.x - 1, y: from.y }; ch = '├' }
-  else return canvas
-
-  // The junction must sit on the source box border. A grid-cell center drifts
-  // away from the border when a sibling edge's label widens the column
-  // (upstream lukilabs#112), leaving the connector floating in whitespace.
-  // Anchor it on the node's real attachment point and fill the gap with line
-  // characters so the edge stays continuous.
-  if (sourceNode.gridCoord && sourceNode.drawingCoord) {
-    const border = getNodeAttachmentPoint(graph, sourceNode, dir)
-    if (!drawingCoordEquals(border, junction) &&
-        (border.x === junction.x || border.y === junction.y)) {
-      drawLine(canvas, border, junction, 1, 0, false, style)
-      junction = border
-    }
-  }
-
-  canvas[junction.x]![junction.y] = ch
   return canvas
 }
 
@@ -868,6 +854,7 @@ function drawCorners(graph: AsciiGraph, path: GridCoord[]): Canvas {
     const dc = gridToDrawingCoord(graph, coord)
     const prevDir = determineDirection(path[idx - 1]!, coord)
     const nextDir = determineDirection(coord, path[idx + 1]!)
+    if (dirEquals(prevDir, nextDir)) continue
 
     // Skip collinear intermediate points: a non-bend (prevDir === nextDir) is a
     // straight run, and painting a corner glyph there would punch a hole in the
@@ -909,19 +896,18 @@ function drawArrowLabel(graph: AsciiGraph, edge: AsciiEdge): Canvas {
 
   const drawingLine = lineToDrawing(graph, edge.labelLine)
 
-  // Determine if this is an upward edge (target is above source in the path)
-  // This is used to offset labels on bidirectional edges to prevent overlap
+  // Offset labels only for true bidirectional pairs. Ordinary downward
+  // fan-out branches should keep labels centered on the branch, not shifted
+  // upward into the shared trunk.
+  const hasOppositeEdge = graph.edges.some(other =>
+    other !== edge && other.from === edge.to && other.to === edge.from,
+  )
   let isUpwardEdge: boolean | undefined
-  if (edge.path.length >= 2) {
+  if (hasOppositeEdge && edge.path.length >= 2) {
     const startY = edge.path[0]!.y
     const endY = edge.path[edge.path.length - 1]!.y
-    // Edge goes up if end Y is less than start Y (smaller Y = higher on screen)
-    if (endY < startY) {
-      isUpwardEdge = true
-    } else if (endY > startY) {
-      isUpwardEdge = false
-    }
-    // If endY === startY, it's horizontal, leave isUpwardEdge undefined
+    if (endY < startY) isUpwardEdge = true
+    else if (endY > startY) isUpwardEdge = false
   }
 
   drawTextOnLine(canvas, drawingLine, edge.text, isUpwardEdge)
@@ -1012,6 +998,33 @@ function getNodeAttachmentPoint(
   return getShapeAttachmentPoint(node.shape, dir, gridDimensions, baseCoord)
 }
 
+function clamp(n: number, min: number, max: number): number {
+  return Math.max(min, Math.min(max, n))
+}
+
+/** Attach a container edge to the subgraph border nearest its inner anchor. */
+function getSubgraphAttachmentPoint(
+  graph: AsciiGraph,
+  sg: AsciiSubgraph,
+  anchor: AsciiNode,
+  dir: Direction,
+): DrawingCoord {
+  const anchorPoint = getNodeAttachmentPoint(graph, anchor, dir)
+  if (dirEquals(dir, Up)) {
+    return { x: clamp(anchorPoint.x, sg.minX + 1, sg.maxX - 1), y: sg.minY }
+  }
+  if (dirEquals(dir, Down)) {
+    return { x: clamp(anchorPoint.x, sg.minX + 1, sg.maxX - 1), y: sg.maxY }
+  }
+  if (dirEquals(dir, Left)) {
+    return { x: sg.minX, y: clamp(anchorPoint.y, sg.minY + 1, sg.maxY - 1) }
+  }
+  if (dirEquals(dir, Right)) {
+    return { x: sg.maxX, y: clamp(anchorPoint.y, sg.minY + 1, sg.maxY - 1) }
+  }
+  return anchorPoint
+}
+
 // ============================================================================
 // Bundled edge drawing — for parallel links (A & B --> C)
 // ============================================================================
@@ -1072,6 +1085,7 @@ function drawBundledEdgeSegment(
     const dc = gridToDrawingCoord(graph, coord)
     const prevDir = determineDirection(edge.pathToJunction[idx - 1]!, coord)
     const nextDir = determineDirection(coord, edge.pathToJunction[idx + 1]!)
+    if (dirEquals(prevDir, nextDir)) continue
 
     let corner: string
     if (!useAscii) {
@@ -1168,6 +1182,7 @@ function drawBundleSharedPath(graph: AsciiGraph, bundle: EdgeBundle): [Canvas, C
     const dc = gridToDrawingCoord(graph, coord)
     const prevDir = determineDirection(bundle.sharedPath[idx - 1]!, coord)
     const nextDir = determineDirection(coord, bundle.sharedPath[idx + 1]!)
+    if (dirEquals(prevDir, nextDir)) continue
 
     let corner: string
     if (!useAscii) {
@@ -1651,6 +1666,14 @@ export function drawGraph(graph: AsciiGraph): Canvas {
 
   graph.canvas = mergeCanvases(graph.canvas, zero, useAscii, ...arrowHeadStartCanvases)
   fillRolesFromCanvases(graph.roleCanvas, arrowHeadStartCanvases, zero, 'arrow')
+
+  const trunkJunctionCanvas = copyCanvas(graph.canvas)
+  for (const jc of graph.trunkJunctions) {
+    const dc = gridToDrawingCoord(graph, jc)
+    trunkJunctionCanvas[dc.x]![dc.y] = useAscii ? '+' : (graph.config.graphDirection === 'LR' ? '├' : '┬')
+  }
+  graph.canvas = mergeCanvases(graph.canvas, zero, useAscii, trunkJunctionCanvas)
+  fillRolesFromCanvas(graph.roleCanvas, trunkJunctionCanvas, zero, 'junction')
 
   graph.canvas = mergeCanvases(graph.canvas, zero, useAscii, ...labelCanvases)
   fillRolesFromCanvases(graph.roleCanvas, labelCanvases, zero, 'text')

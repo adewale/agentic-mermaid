@@ -5,7 +5,7 @@
  * Each .txt file contains mermaid input above a `---` separator
  * and the expected ASCII/Unicode output below it.
  *
- * Test data: 44 ASCII files + 22 Unicode files = 66 total.
+ * Test data: auto-discovered ASCII and Unicode golden files.
  */
 import { describe, it, expect } from 'bun:test'
 import { renderMermaidAscii } from '../ascii/index.ts'

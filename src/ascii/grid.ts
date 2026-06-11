@@ -8,11 +8,12 @@
 // ============================================================================
 
 import type {
-  GridCoord, DrawingCoord, Direction, AsciiGraph, AsciiNode, AsciiSubgraph,
+  GridCoord, DrawingCoord, Direction, AsciiGraph, AsciiNode, AsciiSubgraph, AsciiEdge,
 } from './types.ts'
-import { gridKey } from './types.ts'
+import { gridKey, gridCoordDirection } from './types.ts'
 import { mkCanvas, setCanvasSizeToGrid, setRoleCanvasSizeToGrid } from './canvas.ts'
 import { determinePath, determineLabelLine } from './edge-routing.ts'
+import { getPath, mergePath } from './pathfinder.ts'
 import { analyzeEdgeBundles, processBundles } from './edge-bundling.ts'
 import { drawBox } from './draw.ts'
 import { maxLineWidth, lineCount } from './multiline-utils.ts'
@@ -518,7 +519,8 @@ export function createMapping(graph: AsciiGraph): void {
       if (node.gridCoord === null) continue  // skip unplaced nodes
       const gc = node.gridCoord
 
-      for (const child of getChildren(graph, node)) {
+      for (const edge of getEdgesFromNode(graph, node)) {
+        const child = edge.to
         if (child.gridCoord !== null) continue // already placed
 
         // Determine direction for this edge (parent -> child)
@@ -537,6 +539,14 @@ export function createMapping(graph: AsciiGraph): void {
           // Cross-direction: use parent's perpendicular coordinate
           // This keeps children aligned with parent when direction changes
           highestPosition = edgeDir === 'LR' ? gc.y : gc.x
+        } else if (edge.fromSubgraph) {
+          // Container-to-node edges should emerge from the subgraph's anchor
+          // side, not from the next free root slot, otherwise a TD edge from a
+          // subgraph to a following node can jump sideways and render backward.
+          highestPosition = Math.max(
+            highestPositionPerLevel[childLevel]!,
+            edgeDir === 'LR' ? gc.y : gc.x,
+          )
         } else if ((inDegree.get(child.name) ?? 0) > 1) {
           // Fan-in target: align with the parent group's perpendicular
           // position (upstream lukilabs#69) instead of the next sequential
@@ -593,6 +603,8 @@ export function createMapping(graph: AsciiGraph): void {
     determineLabelLine(graph, edge)
   }
 
+  shareSiblingEdgeTrunks(graph)
+
   // Convert grid coords → drawing coords and generate box drawings
   for (const node of graph.nodes) {
     node.drawingCoord = gridToDrawingCoord(graph, node.gridCoord!)
@@ -604,6 +616,70 @@ export function createMapping(graph: AsciiGraph): void {
   setRoleCanvasSizeToGrid(graph.roleCanvas, graph.columnWidth, graph.rowHeight)
   calculateSubgraphBoundingBoxes(graph)
   offsetDrawingForSubgraphs(graph)
+}
+
+// ============================================================================
+// Sibling trunk sharing
+// ============================================================================
+
+/**
+ * Re-route sibling edges from the same source/start side through the first
+ * edge's initial trunk. This fixes labeled fan-outs that cannot use bundle
+ * routing: A* otherwise solves each sibling independently and can send later
+ * branches on avoidable L-shaped detours.
+ */
+function shareSiblingEdgeTrunks(graph: AsciiGraph): void {
+  const groups = new Map<string, AsciiEdge[]>()
+  for (const edge of graph.edges) {
+    if (edge.bundle) continue
+    const key = `${edge.from.name}:${edge.startDir.x},${edge.startDir.y}`
+    const list = groups.get(key) ?? []
+    list.push(edge)
+    groups.set(key, list)
+  }
+
+  const junctionKeys = new Set(graph.trunkJunctions.map(gridKey))
+
+  for (const edges of groups.values()) {
+    if (edges.length < 2) continue
+    if (edges.some(e => e.from === e.to)) continue
+
+    const first = edges[0]!
+    const firstPath = first.path
+    let branchIdx = -1
+    if (firstPath.length >= 3) {
+      const dx = firstPath[1]!.x - firstPath[0]!.x
+      const dy = firstPath[1]!.y - firstPath[0]!.y
+      for (let i = 2; i < firstPath.length; i++) {
+        const ndx = firstPath[i]!.x - firstPath[i - 1]!.x
+        const ndy = firstPath[i]!.y - firstPath[i - 1]!.y
+        if (ndx !== dx || ndy !== dy) {
+          branchIdx = i - 1
+          break
+        }
+      }
+    }
+    if (branchIdx === -1) continue
+
+    const trunk = firstPath.slice(0, branchIdx + 1)
+    const branchPoint = firstPath[branchIdx]!
+
+    for (let i = 1; i < edges.length; i++) {
+      const edge = edges[i]!
+      const target = gridCoordDirection(edge.to.gridCoord!, edge.endDir)
+      const route = getPath(graph.grid, branchPoint, target, edge.startDir)
+      if (!route) continue
+
+      edge.path = [...trunk, ...mergePath(route).slice(1)]
+      const key = gridKey(branchPoint)
+      if (!junctionKeys.has(key)) {
+        graph.trunkJunctions.push(branchPoint)
+        junctionKeys.add(key)
+      }
+      increaseGridSizeForPath(graph, edge.path)
+      determineLabelLine(graph, edge)
+    }
+  }
 }
 
 // ============================================================================

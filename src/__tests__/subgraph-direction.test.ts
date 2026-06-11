@@ -75,4 +75,68 @@ describe('subgraph direction override (ASCII grid layout)', () => {
     expect(row.indexOf('Parse')).toBeLessThan(row.indexOf('Transform'))
     expect(row.indexOf('Transform')).toBeLessThan(row.indexOf('Store'))
   })
+
+  test('edges to a subgraph id attach to the container instead of creating a phantom node box', () => {
+    const out = renderMermaidASCII(LR_INSIDE_TD)
+    const lines = out.split('\n')
+    expect(lines.filter(l => l.includes('Pipeline')).length).toBe(1)
+    expect(out).toContain('Done')
+  })
+
+  test('subgraph-id container edges work in 7-bit ASCII mode too', () => {
+    const out = renderMermaidASCII(LR_INSIDE_TD, { useAscii: true })
+    expect(out.split('\n').filter(l => l.includes('Pipeline')).length).toBe(1)
+    expect(out).toContain('Fetch')
+    expect(out).toContain('Done')
+    expect(out).toContain('+')
+  })
+
+  test('nested edges to a child subgraph id still do not create a phantom node box', () => {
+    const out = renderMermaidASCII(`flowchart TD
+  subgraph Outer
+    Start --> Pipeline
+    subgraph Pipeline
+      Fetch --> Done
+    end
+  end`)
+    expect(out.split('\n').filter(l => l.includes('Pipeline')).length).toBe(1)
+    expect(out).toContain('Outer')
+    expect(out).toContain('Start')
+    expect(out).toContain('Done')
+  })
+
+  test('labeled and styled subgraph-id edges preserve labels and line styles', () => {
+    const src = `flowchart LR
+  A -.->|load| Cluster
+  subgraph Cluster
+    direction TB
+    In --> Work --> Out
+  end
+  Cluster ==> Done`
+    const unicode = renderMermaidASCII(src, { paddingX: 12 })
+    expect(unicode).toContain('┄┄┄load┄┄►')
+    expect(unicode).toContain('━━━━━━━━━►')
+    expect(unicode.split('\n').filter(l => l.includes('Cluster')).length).toBe(1)
+
+    const ascii = renderMermaidASCII(src, { useAscii: true, paddingX: 12 })
+    expect(ascii).toContain('...load..>')
+    expect(ascii).toContain('=========>')
+    expect(ascii.split('\n').filter(l => l.includes('Cluster')).length).toBe(1)
+  })
+
+  test('multiple inbound and outbound subgraph-id edges share the container without duplicate boxes', () => {
+    const out = renderMermaidASCII(`flowchart TD
+  A --> Cluster
+  B --> Cluster
+  subgraph Cluster
+    direction LR
+    In --> Work --> Out
+  end
+  Cluster --> Done
+  Cluster --> Audit`)
+    expect(out.split('\n').filter(l => l.includes('Cluster')).length).toBe(1)
+    for (const label of ['A', 'B', 'In', 'Work', 'Out', 'Done', 'Audit']) {
+      expect(out).toContain(label)
+    }
+  })
 })
