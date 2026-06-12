@@ -19,7 +19,8 @@ import type { GanttValidDiagram, GanttMutationOp } from '../agent/types.ts'
 import { MUTATION_OPS_BY_FAMILY, buildCapabilities } from '../cli/index.ts'
 import { parseGanttModel } from '../gantt/parser.ts'
 import { normalizeMermaidSource } from '../mermaid-source.ts'
-import { layoutMermaid } from '../agent/index.ts'
+import { layoutMermaid, renderMermaidASCIIWithMeta } from '../agent/index.ts'
+import { ganttGeometryWarnings } from '../agent/family-layouts.ts'
 
 const SRC = `gantt
   title Release plan
@@ -330,6 +331,55 @@ describe('gantt round-trip property (generated diagrams)', () => {
       expect(serializeMermaid(r2.value)).toBe(s1)
       expect(r2.value.body).toEqual(r.value.body)
     }), { numRuns: 60 })
+  })
+})
+
+describe('gantt geometric tripwires (issue #26 WS11)', () => {
+  // The layout contains bars by construction (property-tested), so on real
+  // diagrams these stay silent; the validator itself is proven reachable with
+  // hand-built layouts (a validator nothing can trigger is dead code).
+  test('healthy diagram: no OFF_CANVAS / GROUP_BREACH from the geometry pass', () => {
+    const v = verifyMermaid(gantt())
+    expect(v.warnings.filter(w => w.code === 'OFF_CANVAS' || w.code === 'GROUP_BREACH')).toEqual([])
+  })
+
+  test('a bar outside the canvas raises OFF_CANVAS per axis', () => {
+    const layout = layoutMermaid(gantt())
+    const doctored = {
+      ...layout,
+      nodes: layout.nodes.map((n, i) => i === 0 ? { ...n, x: (layout.bounds.w + 10) as typeof n.x, y: -50 as typeof n.y } : n),
+    }
+    const codes = ganttGeometryWarnings(doctored)
+    expect(codes).toContainEqual({ code: 'OFF_CANVAS', target: 'core', axis: 'x' })
+    expect(codes).toContainEqual({ code: 'OFF_CANVAS', target: 'core', axis: 'y' })
+  })
+
+  test('a bar escaping its section band raises GROUP_BREACH', () => {
+    const layout = layoutMermaid(gantt())
+    const band = layout.groups[0]!
+    const doctored = {
+      ...layout,
+      nodes: layout.nodes.map(n => n.id === 'core' ? { ...n, y: (band.y + band.h + 100) as typeof n.y } : n),
+    }
+    const warnings = ganttGeometryWarnings(doctored)
+    expect(warnings).toContainEqual({ code: 'GROUP_BREACH', group: 'section#0', member: 'core' })
+  })
+})
+
+describe('gantt ASCII regions (issue #26 WS10)', () => {
+  test('renderMermaidASCIIWithMeta exposes section and task regions keyed by Mermaid task id', () => {
+    const { ascii, regions } = renderMermaidASCIIWithMeta(SRC)
+    expect(ascii).toContain('Core engine')
+    const byId = new Map(regions.map(r => [r.id, r]))
+    for (const id of ['core', 'pol', 'rel']) {
+      const region = byId.get(id)
+      expect({ id, found: Boolean(region) }).toEqual({ id, found: true })
+      // The region points at the label text in the rendered grid.
+      const line = ascii.split('\n')[region!.canvasRow]!
+      expect(line.slice(region!.canvasColStart, region!.canvasColEnd)).toBe(
+        id === 'core' ? 'Core engine' : id === 'pol' ? 'Polish' : 'Release')
+    }
+    expect(regions.some(r => byId.get('core') === r && r.kind === 'node')).toBe(true)
   })
 })
 

@@ -14,10 +14,10 @@
 //   - Flowchart / state: regions for each node by label match. Edges and
 //     subgraphs are skipped (deferred to a future loop that instruments the
 //     renderer directly).
-//   - Sequence / class / ER / timeline / journey / xychart / architecture:
-//     regions for each participant / class / entity / section, derived by
-//     label scan. Best-effort; some renderers wrap labels and the scan
-//     misses them.
+//   - Sequence / class / ER / timeline / gantt / journey / xychart /
+//     architecture: regions for each participant / class / entity / section /
+//     task, derived by label scan. Best-effort; some renderers wrap labels
+//     and the scan misses them.
 //
 // Determinism: identical input → identical regions (no randomness, no
 // timestamps). Region order follows the scan order (top-down, left-to-right).
@@ -121,6 +121,17 @@ function candidatesForDiagram(source: string): Candidate[] {
     for (const s of d.body.sections) {
       if (s.label) out.push({ id: s.id, label: s.label })
       for (const p of s.periods) out.push({ id: p.id, label: p.label })
+    }
+    return out
+  }
+  if (d.body.kind === 'gantt') {
+    // Issue #26 WS10: gantt tasks/sections as stable click-mappable regions.
+    // Region ids prefer the Mermaid task id (the durable handle agents use in
+    // after/until/click) over the parse-order internal id.
+    const out: Candidate[] = []
+    for (const s of d.body.sections) {
+      if (s.label) out.push({ id: s.id, label: s.label })
+      for (const t of s.tasks) out.push({ id: t.taskId ?? t.id, label: t.label })
     }
     return out
   }

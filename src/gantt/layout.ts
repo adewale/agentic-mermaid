@@ -233,10 +233,21 @@ export function layoutGantt(model: GanttModel, schedule: GanttSchedule, options:
       const x = xOf(t.start)
       const w = Math.max(t.end > t.start ? 2 : 0, xOf(t.end) - x)
       const isMilestone = t.tags.includes('milestone')
+      // Milestone diamonds extend ±barHeight/2 around their center; clamp the
+      // center so a milestone at the range edge stays inside the plot band
+      // (the ASCII renderer clamps its grid column the same way — issue #26:
+      // shared geometry, not per-renderer patch-ups).
+      let milestoneX: number | undefined
+      if (isMilestone) {
+        const r = barHeight / 2
+        const lo = plotX + r
+        const hi = Math.max(lo, plotX + plotW - r)
+        milestoneX = Math.min(hi, Math.max(lo, x + w / 2))
+      }
       bars.push({
         taskIndex: t.index, id: t.id, label: t.label, tags: t.tags, sectionIndex: bandIndex,
         x, y: row.y, w, h: barHeight,
-        milestoneX: isMilestone ? (x + w / 2) : undefined,
+        milestoneX,
         rowIndex: rowStart + (section.label !== undefined ? 1 : 0) + lane,
         start: t.start, end: t.end,
       })

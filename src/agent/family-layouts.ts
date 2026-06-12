@@ -33,7 +33,7 @@
 // layoutMermaid(d) called twice is deep-equal.
 // ============================================================================
 
-import type { ValidDiagram, RenderedLayout, RenderedLayoutNode, RenderedLayoutEdge, RenderedLayoutGroup, Finite } from './types.ts'
+import type { ValidDiagram, RenderedLayout, RenderedLayoutNode, RenderedLayoutEdge, RenderedLayoutGroup, LayoutWarning, Finite } from './types.ts'
 import { toFinite } from './types.ts'
 import { emptyRenderedLayout } from './layout-to-rendered.ts'
 
@@ -225,11 +225,20 @@ function ganttToRendered(d: ValidDiagram): RenderedLayout {
     const schedule = resolveGanttSchedule(model)
     const positioned = layoutGantt(model, schedule)
     // Bars and milestones are the nodes; section bands are the groups. Verts
-    // and ticks are markers, not boxes — they carry no node area.
-    const nodes: RenderedLayoutNode[] = positioned.bars.map(b => ({
-      id: b.id ?? `task#${b.taskIndex}`, x: f(b.x), y: f(b.y), w: f(Math.max(2, b.w)), h: f(b.h),
-      shape: 'rectangle', label: b.label,
-    }))
+    // and ticks are markers, not boxes — they carry no node area. Milestones
+    // report the diamond's true bounding box; the zero-width floor on bars is
+    // pulled back inside the plot so a range-edge task never fakes a breach.
+    const plotRight = positioned.plot.x + positioned.plot.w
+    const nodes: RenderedLayoutNode[] = positioned.bars.map(b => {
+      const id = b.id ?? `task#${b.taskIndex}`
+      if (b.milestoneX !== undefined) {
+        const r = b.h / 2
+        return { id, x: f(b.milestoneX - r), y: f(b.y), w: f(b.h), h: f(b.h), shape: 'diamond', label: b.label }
+      }
+      const w = Math.max(2, b.w)
+      const x = Math.min(b.x, plotRight - w)
+      return { id, x: f(x), y: f(b.y), w: f(w), h: f(b.h), shape: 'rectangle', label: b.label }
+    })
     const groups: RenderedLayoutGroup[] = positioned.sections.map((s, i) => ({
       id: `section#${i}`, x: f(positioned.plot.x), y: f(s.y), w: f(positioned.plot.w), h: f(s.h),
       members: positioned.bars.filter(b => b.sectionIndex === i).map(b => b.id ?? `task#${b.taskIndex}`),
@@ -237,6 +246,34 @@ function ganttToRendered(d: ValidDiagram): RenderedLayout {
     }))
     return { version: 1, kind: d.kind, nodes, edges: [], groups, bounds: { w: f(positioned.width), h: f(positioned.height) } }
   } catch { return emptyRenderedLayout(d.kind) }
+}
+
+/**
+ * Geometric tripwires for the gantt layout (docs/design/gantt.md
+ * §Verification; issue #26 WS11): OFF_CANVAS when a resolved bar/milestone
+ * leaves the canvas, GROUP_BREACH when a section-owned bar leaves its section
+ * band. The layout produces contained geometry by construction (property-
+ * tested), so these fire only if a later pass mutates geometry — the same
+ * zero-noise contract as the route-contract tripwires.
+ */
+export function ganttGeometryWarnings(layout: RenderedLayout): LayoutWarning[] {
+  const warnings: LayoutWarning[] = []
+  const TOL = 0.5 // coordinates round through f(); allow rounding slack
+  for (const n of layout.nodes) {
+    if (n.x < -TOL || n.x + n.w > layout.bounds.w + TOL) warnings.push({ code: 'OFF_CANVAS', target: n.id, axis: 'x' })
+    if (n.y < -TOL || n.y + n.h > layout.bounds.h + TOL) warnings.push({ code: 'OFF_CANVAS', target: n.id, axis: 'y' })
+  }
+  const nodeById = new Map(layout.nodes.map(n => [n.id, n]))
+  for (const g of layout.groups) {
+    for (const memberId of g.members) {
+      const n = nodeById.get(memberId)
+      if (!n) continue
+      const inside = n.x >= g.x - TOL && n.y >= g.y - TOL &&
+        n.x + n.w <= g.x + g.w + TOL && n.y + n.h <= g.y + g.h + TOL
+      if (!inside) warnings.push({ code: 'GROUP_BREACH', group: g.id, member: memberId })
+    }
+  }
+  return warnings
 }
 
 // ---- quadrant -------------------------------------------------------------
