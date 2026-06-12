@@ -50,6 +50,6 @@
 <rect class="gantt-bar gantt-bar-active" x="239" y="110" width="200" height="22" rx="3" ry="3" data-task="des2" />
 <rect class="gantt-bar" x="439" y="140" width="280" height="22" rx="3" ry="3" data-task="des3" />
 <rect class="gantt-bar gantt-bar-crit" x="119" y="206" width="160" height="22" rx="3" ry="3" data-task="c1" />
-<path class="gantt-milestone" d="M 719 236 L 730 247 L 719 258 L 708 247 Z" data-task="m1" />
+<path class="gantt-milestone" d="M 708 236 L 719 247 L 708 258 L 697 247 Z" data-task="m1" />
 <text class="gantt-title" x="367.5" y="18" text-anchor="middle" dominant-baseline="middle" font-size="17" font-weight="600">Adding GANTT diagram functionality to mermaid</text>
 </svg>
