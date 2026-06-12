@@ -35,7 +35,7 @@ Tier 1 (structural, reliable, universal): `EMPTY_DIAGRAM`, `EDGE_MISANCHORED`, `
 
 Tier 2 (geometric, advisory, flowchart-specific): `NODE_OVERLAP`, `ROUTE_SELF_CROSS`, plus the route-contract tripwires `ROUTE_HITCH`, `ROUTE_UNEXPLAINED_BEND`, `ROUTE_LABEL_ON_SHARED_TRUNK`, `ROUTE_CONTAINER_MISANCHOR`, `ROUTE_SHAPE_MISANCHOR`, `ROUTE_STALE_AFTER_NODE_MOVE` (docs/design/route-contracts.md — the layout pipeline upholds these itself, so they fire only on pipeline regressions). Only fire for flowchart/state. For other families, geometric concerns surface via perceptual metrics (`measureQuality(layoutMermaid(d))`). See `docs/quality.md`. Don't gate CI on Tier 2 alone.
 
-Tier 3 (lint, advisory): `DUPLICATE_EDGE`, `UNREACHABLE_NODE`. These catch common agent mistakes that still parse/render. They never flip `verify.ok`; inspect and fix when the task asks for clean maintainable diagrams.
+Tier 3 (lint, advisory): `DUPLICATE_EDGE`, `UNREACHABLE_NODE`, `DECISION_BRANCH_UNLABELED`. These catch common agent mistakes that still parse/render. They never flip `verify.ok`; inspect and fix when the task asks for clean maintainable diagrams.
 
 ## CLI verbs
 

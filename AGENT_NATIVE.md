@@ -136,6 +136,7 @@ Tier 3 warnings are family-specific quality hints for "common LLM mistakes" that
 |---|---|---|
 | `DUPLICATE_EDGE` | warning | Flowchart/state contains an exact repeated edge with the same endpoints, label, style, and markers. Usually accidental regeneration or duplicate mutation. |
 | `UNREACHABLE_NODE` | warning | Flowchart/state contains a node not reachable from any entry root when the graph has roots. Usually a stranded branch after an edit. |
+| `DECISION_BRANCH_UNLABELED` | warning | A decision diamond has two or more exits and this branch carries no condition label. ISO 5807 (10.3.1.2) and ANSI X3.5 (4.10.2) require every exit of a multi-exit decision to be labeled with its condition value. |
 
 `FamilyPlugin.verify` hooks are wired and run today; built-ins use them for Tier 1 structural warnings for class/ER and the central flowchart verifier emits the initial Tier 3 lint catalogue. Future lint codes should be added deliberately to `WARNING_TIER`, documented here, and covered by doc-sync tests.
 

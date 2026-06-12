@@ -1311,3 +1311,21 @@ describe('route contracts — properties', () => {
     )
   })
 })
+
+describe('DECISION_BRANCH_UNLABELED lint (ISO 5807 10.3.1.2 / ANSI X3.5 4.10.2)', () => {
+  it('fires once per unlabeled branch of a multi-exit decision', () => {
+    const { warnings } = verifyMermaid('flowchart LR\n  Q{Decide} -- yes --> A[Go]\n  Q --> B[Stop]')
+    const hits = warnings.filter(w => w.code === 'DECISION_BRANCH_UNLABELED')
+    expect(hits).toEqual([{ code: 'DECISION_BRANCH_UNLABELED', node: 'Q', edge: 'Q->B#1' }])
+  })
+
+  it('stays silent for fully labeled decisions, single exits, and non-diamonds', () => {
+    for (const src of [
+      'flowchart LR\n  Q{Decide} -- yes --> A[Go]\n  Q -- no --> B[Stop]',
+      'flowchart LR\n  Q{Decide} --> A[Only]',
+      'flowchart LR\n  Q[Box] --> A[One]\n  Q --> B[Two]',
+    ]) {
+      expect(verifyMermaid(src).warnings.filter(w => w.code === 'DECISION_BRANCH_UNLABELED')).toEqual([])
+    }
+  })
+})

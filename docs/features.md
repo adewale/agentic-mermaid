@@ -57,7 +57,7 @@ Agentic Mermaid outputs **ASCII, PNG, and SVG** from the same renderer foundatio
 - **Tier 1 (structural, universal):** EMPTY_DIAGRAM, EDGE_MISANCHORED,
   OFF_CANVAS, GROUP_BREACH, UNKNOWN_SHAPE, LABEL_OVERFLOW.
 - **Tier 2 (geometric, flowchart):** NODE_OVERLAP, ROUTE_SELF_CROSS, and the route-contract tripwires ROUTE_HITCH, ROUTE_UNEXPLAINED_BEND, ROUTE_LABEL_ON_SHARED_TRUNK, ROUTE_CONTAINER_MISANCHOR, ROUTE_SHAPE_MISANCHOR, ROUTE_STALE_AFTER_NODE_MOVE.
-- **Tier 3 (lint, advisory):** DUPLICATE_EDGE, UNREACHABLE_NODE.
+- **Tier 3 (lint, advisory):** DUPLICATE_EDGE, UNREACHABLE_NODE, DECISION_BRANCH_UNLABELED.
 - **Perceptual quality** — `measureQuality` / `checkQuality` (edge
   crossings, label legibility, whitespace balance, …). See [`quality.md`](./quality.md).
 
