@@ -17,7 +17,9 @@ npx stryker run stryker.ascii.config.json
 ```
 
 (`stryker.families.config.json` / `bun run mutation-test:families` covers the
-agent family parsers with the same policy.)
+agent family parsers, and `stryker.routes.config.json` / `bun run
+mutation-test:routes` covers the route-contracts module
+(`docs/design/route-contracts.md`), all with the same policy.)
 
 The JSON report lands in `reports/mutation/` (gitignored). This is not part
 of CI: run it when you touch ASCII core logic, or when adding tests there and
@@ -38,6 +40,7 @@ documented, not killed with synthetic inputs.
 | edge-routing.ts | 55.1% | 163 | 133 |
 | converter.ts | 38.4% | 94 | 151 |
 | grid.ts | 70.1% | 421 | 180 |
+| route-contracts.ts | 58.1% → 71.5% → 72.3% across two survivor harvests | 352 → 438 | 254 → 168 |
 
 (Numbers from the June 2026 runs; regenerate rather than trusting this
 table — the report lands in `reports/mutation/`.)
@@ -70,7 +73,33 @@ construction — so they were reverted. Only the width-sort tie-break (where
 ties are real) remains. Mutation testing earning its keep: it falsified an
 audit assumption the test suite couldn't.
 
+**Killed by `route-contracts.test.ts` survivor harvests** (86 mutants across
+two passes): RL/BT axis orientation (reciprocal-pair regressions in both
+reversed directions), every `directLaneBlockers` blocker kind at its exact
+±4px clearance boundary on both axes (non-square obstacles so a swapped
+width/height changes the verdict), own-label lane capacity, the
+same-edgeIndex self-exclusion, sub-epsilon polyline simplification, and the
+hitch deviation rounding.
+
+**Accepted — equivalent on the real input domain** (route-contracts): the
+collinearity cross-product variants in `simplifyPolyline` behave identically
+for the orthogonal polylines ELK produces (several algebraic rearrangements
+preserve the zero/non-zero verdict for axis-aligned triples), and the
+`isMonotoneStaircase` diagonal/backward guards are defensive against passes
+that do not currently exist — real extracted routes are orthogonal and the
+backward case is already excluded by feedback classification upstream.
+
+**Accepted — performance guards** (route-contracts): the `seen`-set and
+stack mechanics inside `classifyRoutes`' DFS change traversal cost, not
+reachability verdicts, on the small graphs flowcharts produce.
+
 **Open test gaps** (highest-value first):
+- `route-contracts.ts` `RECT_LIKE` membership ('service'/'subroutine'
+  removals survive): no fixture straightens an edge between those shapes.
+  One regression per shape would pin the whitelist.
+- `route-contracts.ts` `findRouteHitches` staircase guard: no test feeds
+  validation a post-certification mutation that is *not* a monotone
+  staircase, so `if (false) continue` survives there.
 - `grid.ts` `ensureSubgraphSpacing` (~48 survivors): the overlap/min-spacing
   resolution between root subgraphs is never triggered by the corpus —
   placement upstream appears to avoid overlaps already. Needs either a
