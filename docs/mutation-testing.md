@@ -40,7 +40,7 @@ documented, not killed with synthetic inputs.
 | edge-routing.ts | 55.1% | 163 | 133 |
 | converter.ts | 38.4% | 94 | 151 |
 | grid.ts | 70.1% | 421 | 180 |
-| route-contracts.ts | 58.1% → 71.5% → 72.3% across two survivor harvests | 352 → 438 | 254 → 168 |
+| route-contracts.ts | 58.1% → 72.3% (first batch, two harvests) → 75.6% after the feedback/bundle/label batch + two more harvests | 352 → 616 | 254 → 199 (module grew 606 → 815 mutants) |
 
 (Numbers from the June 2026 runs; regenerate rather than trusting this
 table — the report lands in `reports/mutation/`.)
@@ -73,13 +73,15 @@ construction — so they were reverted. Only the width-sort tie-break (where
 ties are real) remains. Mutation testing earning its keep: it falsified an
 audit assumption the test suite couldn't.
 
-**Killed by `route-contracts.test.ts` survivor harvests** (86 mutants across
-two passes): RL/BT axis orientation (reciprocal-pair regressions in both
-reversed directions), every `directLaneBlockers` blocker kind at its exact
-±4px clearance boundary on both axes (non-square obstacles so a swapped
-width/height changes the verdict), own-label lane capacity, the
-same-edgeIndex self-exclusion, sub-epsilon polyline simplification, and the
-hitch deviation rounding.
+**Killed by `route-contracts.test.ts` survivor harvests** (125 mutants
+across four passes): RL/BT axis orientation (reciprocal-pair regressions in
+both reversed directions), every `directLaneBlockers` blocker kind at its
+exact ±4px clearance boundary on both axes (non-square obstacles so a
+swapped width/height changes the verdict), own-label lane capacity in
+rendered-pill units, the same-edgeIndex self-exclusion, sub-epsilon
+polyline simplification, the hitch deviation rounding, `findLabelSlot`
+stagger and pill-boundary arithmetic, the primary-over-feedback exemption
+asymmetry, and the feedback path of `findRouteHitches`.
 
 **Accepted — equivalent on the real input domain** (route-contracts): the
 collinearity cross-product variants in `simplifyPolyline` behave identically
@@ -93,13 +95,18 @@ backward case is already excluded by feedback classification upstream.
 stack mechanics inside `classifyRoutes`' DFS change traversal cost, not
 reachability verdicts, on the small graphs flowcharts produce.
 
+**Accepted — bounded-iteration guard** (route-contracts): the fixed-point
+loop's `round < 4` weakenings only change how many re-prove rounds run;
+the duplicate-edge regression pins one unblocking round, and constructing
+a graph that needs three chained rounds would be a synthetic-input test.
+
 **Open test gaps** (highest-value first):
-- `route-contracts.ts` `RECT_LIKE` membership ('service'/'subroutine'
-  removals survive): no fixture straightens an edge between those shapes.
-  One regression per shape would pin the whitelist.
-- `route-contracts.ts` `findRouteHitches` staircase guard: no test feeds
-  validation a post-certification mutation that is *not* a monotone
-  staircase, so `if (false) continue` survives there.
+- `directLaneBlockers` label-rect axis ternaries retain a few survivors on
+  rect width/height swaps for near-square pills; a multi-line (taller than
+  wide) label obstacle fixture would discriminate them.
+- `findLabelSlot`'s rect-overlap conjunction retains sign-variant survivors
+  for rects that only graze on one axis; corner-touching fixtures would
+  pin them.
 - `grid.ts` `ensureSubgraphSpacing` (~48 survivors): the overlap/min-spacing
   resolution between root subgraphs is never triggered by the corpus —
   placement upstream appears to avoid overlaps already. Needs either a
