@@ -45,6 +45,7 @@ This directory holds the long-form documentation. The root README is intentional
 | [`project/product.md`](./project/product.md) | Product brief. |
 | [`project/lessons-learned.md`](./project/lessons-learned.md) | Implementation lessons. |
 | [`issue-derived-test-cases.md`](./issue-derived-test-cases.md) | Issue-derived regression coverage map. |
+| [`mermaid-layout-complaints.md`](./mermaid-layout-complaints.md) | Mermaid layout complaint catalog, root causes, and coverage scorecard. |
 | [`pr11-reviewer-guide.md`](./pr11-reviewer-guide.md) | Historical PR #11 reviewer map. |
 
 ## Root docs kept intentionally
