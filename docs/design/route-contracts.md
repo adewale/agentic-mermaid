@@ -253,9 +253,40 @@ height. The literature pass that fixed this:
 - Flowchart convention (ISO 5807 lineage) attaches decision branches at
   the vertices, leaving in different directions.
 
-Adopted: feedback exits via the channel-facing facet near the bottom/top
-vertex (loop tightening), all four facets are live, and the
-proportional "central 50%" span restriction became a 10px vertex margin.
+Adopted (issue #26 Workstream 3, realized): every shape carries four
+canonical **ports** at its bbox side midpoints — `shapePorts()` — which lie
+exactly on the rendered outline for the whole catalog, because each shape
+is symmetric and inscribed in its bbox: the diamond's N/E/S/W *vertices*,
+the rectangle's side *midpoints*, and the boundary extremes of circles,
+stadiums, hexagons and cylinders are the same four points. The industry
+model behind this is yFiles port candidates (fixed anchors with costs and
+capacities) and Visio connection points with static vs dynamic glue:
+
+- **Static glue first**: straightening tries the lane through the target's
+  port, then the source's, before any floating candidate — aligned chains
+  run port to port, and a fan-in target receives its edge at the exact
+  side midpoint. Same-target edges may converge exactly collinearly at the
+  shared port (the classic fan-in merge into one arrowhead).
+- **Dynamic glue second**: when centers don't align, a straight lane still
+  beats a port-pure Z-bend; the off-port end floats on the side/facet
+  (Mermaid's own attachment model). A port lane may attach its floating
+  end closer to a diamond vertex than the 10px aesthetic margin — exact
+  connection points outrank the margin.
+- **Loops are port-exact**: feedback exits the source's channel-facing
+  port (the diamond's exact S/N vertex) and enters the target's
+  channel-facing side midpoint, with short proven hops to the channel.
+- **Port-only shapes**: circle, doublecircle, stadium, hexagon, cylinder
+  and the state pseudostates joined the straightenable set — their bbox
+  side midpoints are their only on-outline bbox points, so they accept
+  port lanes exactly and nothing else.
+- Certificates record `sourcePort`/`targetPort` whenever an endpoint sits
+  on a canonical port, computed after all geometry settles.
+
+Class, ER and state diagrams inherit all of this through their projected
+graphs; architecture's side-anchored syntax (`L`/`R`/`T`/`B`) maps 1:1
+onto `W`/`E`/`N`/`S` ports. Sequence/timeline have no graph ports —
+their anchors are lifelines and intervals (issue #26 WS1 family
+certificates).
 
 ## 7. Validation: the ROUTE_* tripwires (issue #25 Phase 1, complete)
 

@@ -134,6 +134,14 @@ export type RouteClass =
   | 'container'       // endpoint is a subgraph id
   | 'cross-hierarchy' // endpoints live in different subgraph scopes
 
+/** The four canonical connection points of a shape (Visio connection-point /
+ *  yFiles port-candidate model). For every Mermaid shape these lie at the
+ *  bbox side midpoints: the diamond's vertices, the rectangle's side
+ *  midpoints, and the boundary extremes of circles, stadiums, hexagons and
+ *  cylinders are the same four points, because each shape is symmetric and
+ *  inscribed in its bbox. */
+export type PortSide = 'N' | 'E' | 'S' | 'W'
+
 export interface RouteBlocker {
   kind: 'node' | 'label' | 'channel' | 'span' | 'crossing'
   id: string
@@ -157,6 +165,10 @@ export interface RouteCertificate {
   directLaneBlockedBy?: RouteBlocker[]
   /** True when the certifying straightener collapsed this route */
   straightened?: boolean
+  /** Set when the endpoint sits exactly on one of the shape's four ports. */
+  sourcePort?: PortSide
+  /** Set when the endpoint sits exactly on one of the shape's four ports. */
+  targetPort?: PortSide
 }
 
 export interface Point {

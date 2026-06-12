@@ -2,7 +2,7 @@ import { describe, expect, it } from 'bun:test'
 import fc from 'fast-check'
 import { layoutGraphSync } from '../layout-engine.ts'
 import { parseMermaid } from '../parser.ts'
-import { auditRouteContracts, classifyRoutes, directLaneBlockers, findLabelSlot, findRouteHitches, simplifyPolyline } from '../route-contracts.ts'
+import { auditRouteContracts, classifyRoutes, directLaneBlockers, findLabelSlot, findRouteHitches, shapePorts, simplifyPolyline } from '../route-contracts.ts'
 import { measureMultilineText } from '../text-metrics.ts'
 import { layoutMermaid, parseMermaid as agentParse, verifyMermaid } from '../agent/index.ts'
 import type { PositionedEdge, PositionedGraph } from '../types.ts'
@@ -956,6 +956,79 @@ describe('repairs never increase edge crossings', () => {
       }
     }
     expect(crossings).toBe(0)
+  })
+})
+
+describe('semantic ports — N/E/S/W at bbox side midpoints (issue #26 WS3)', () => {
+  it('shapePorts puts the four ports at the bbox side midpoints for every shape', () => {
+    const node = { id: 'X', label: 'X', shape: 'diamond' as const, x: 100, y: 50, width: 80, height: 40 }
+    for (const shape of ['diamond', 'rectangle', 'circle', 'stadium', 'hexagon', 'cylinder'] as const) {
+      const ports = shapePorts({ ...node, shape })
+      expect(ports.N).toEqual({ x: 140, y: 50 })
+      expect(ports.E).toEqual({ x: 180, y: 70 })
+      expect(ports.S).toEqual({ x: 140, y: 90 })
+      expect(ports.W).toEqual({ x: 100, y: 70 })
+    }
+  })
+
+  const positioned = layoutGraphSync(parseMermaid(MFA_SOURCE))
+  const nodeMap = new Map(positioned.nodes.map(n => [n.id, n]))
+  const center = (id: string) => {
+    const n = nodeMap.get(id)!
+    return { cx: n.x + n.width / 2, cy: n.y + n.height / 2, bottom: n.y + n.height, left: n.x }
+  }
+
+  it('the retry loop exits the decision diamond at its exact South vertex', () => {
+    for (const [from] of [['C'], ['F']] as const) {
+      const back = findEdge(positioned.edges, from, from === 'C' ? 'B' : 'E')
+      const { cx, bottom } = center(from)
+      expect(Math.abs(back.points[0]!.x - cx)).toBeLessThan(0.5)
+      expect(Math.abs(back.points[0]!.y - bottom)).toBeLessThan(0.5)
+      expect(back.routeCertificate?.sourcePort).toBe('S')
+    }
+  })
+
+  it('the retry loop enters its target at the exact South side midpoint', () => {
+    for (const [from, to] of [['C', 'B'], ['F', 'E']] as const) {
+      const back = findEdge(positioned.edges, from, to)
+      const { cx, bottom } = center(to)
+      const end = back.points[back.points.length - 1]!
+      expect(Math.abs(end.x - cx)).toBeLessThan(0.5)
+      expect(Math.abs(end.y - bottom)).toBeLessThan(0.5)
+      expect(back.routeCertificate?.targetPort).toBe('S')
+    }
+  })
+
+  it('straight lanes prefer the target port: F -> G enters Create Session at its exact West midpoint', () => {
+    const e = findEdge(positioned.edges, 'F', 'G')
+    const { left, cy } = center('G')
+    const end = e.points[e.points.length - 1]!
+    expect(isStraightHorizontal(e)).toBe(true)
+    expect(Math.abs(end.x - left)).toBeLessThan(0.5)
+    expect(Math.abs(end.y - cy)).toBeLessThan(0.5)
+    expect(e.routeCertificate?.targetPort).toBe('W')
+  })
+
+  it('aligned chains run port to port: B -> C from East midpoint to the West vertex', () => {
+    const e = findEdge(positioned.edges, 'B', 'C')
+    expect(e.routeCertificate?.sourcePort).toBe('E')
+    expect(e.routeCertificate?.targetPort).toBe('W')
+  })
+
+  it('circles join the straightenable set via their exact boundary ports', () => {
+    // Previously unverified-shape: circle endpoints sat wherever ELK left
+    // them on the bbox. The port model gives circles four exact boundary
+    // points (the inscribed circle touches the bbox side midpoints).
+    const pair = layoutGraphSync(parseMermaid('flowchart LR\n  A((One)) --> B((Two))\n  B --> A'))
+    const fwd = findEdge(pair.edges, 'A', 'B')
+    const a = pair.nodes.find(n => n.id === 'A')!
+    if (isStraightHorizontal(fwd)) {
+      expect(Math.abs(fwd.points[0]!.x - (a.x + a.width))).toBeLessThan(0.5)
+      expect(Math.abs(fwd.points[0]!.y - (a.y + a.height / 2))).toBeLessThan(0.5)
+      expect(fwd.routeCertificate?.sourcePort).toBe('E')
+    } else {
+      throw new Error('aligned circle pair should produce a straight port-to-port lane')
+    }
   })
 })
 

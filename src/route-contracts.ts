@@ -16,6 +16,7 @@ import type {
   Direction,
   MermaidGraph,
   Point,
+  PortSide,
   PositionedEdge,
   PositionedGroup,
   PositionedNode,
@@ -39,6 +40,49 @@ const LABEL_PILL_PADDING = 8
 
 /** Shapes whose forward-facing side is a straight axis-aligned segment. */
 const RECT_LIKE = new Set(['rectangle', 'service', 'rounded', 'subroutine'])
+
+/**
+ * Shapes whose four canonical ports (bbox side midpoints — see PortSide) lie
+ * exactly on the rendered outline: symmetric shapes inscribed in their bbox.
+ * Rect-likes additionally accept attachment anywhere on a side (dynamic
+ * glue); diamonds anywhere on a facet; the rest are port-only.
+ */
+const PORT_EXACT = new Set([
+  ...RECT_LIKE, 'diamond',
+  'circle', 'doublecircle', 'stadium', 'hexagon', 'cylinder', 'state-start', 'state-end',
+])
+
+/** Tolerance for recognizing an endpoint as sitting on a port. */
+const PORT_TOLERANCE = 0.5
+
+/** The four canonical connection points: bbox side midpoints (valid on the
+ *  outline for every PORT_EXACT shape — diamond vertices, circle extremes,
+ *  hexagon E/W vertices and cylinder cap centers coincide with them). */
+export function shapePorts(node: PositionedNode): Record<PortSide, Point> {
+  const cx = node.x + node.width / 2
+  const cy = node.y + node.height / 2
+  return {
+    N: { x: cx, y: node.y },
+    E: { x: node.x + node.width, y: cy },
+    S: { x: cx, y: node.y + node.height },
+    W: { x: node.x, y: cy },
+  }
+}
+
+/** The port (if any) an endpoint sits on, within PORT_TOLERANCE. */
+function portAt(node: PositionedNode, pt: Point): PortSide | undefined {
+  const ports = shapePorts(node)
+  for (const side of ['N', 'E', 'S', 'W'] as const) {
+    if (Math.abs(ports[side].x - pt.x) <= PORT_TOLERANCE && Math.abs(ports[side].y - pt.y) <= PORT_TOLERANCE) return side
+  }
+  return undefined
+}
+
+/** Straightenable: rect-likes and diamonds anywhere on a side/facet; other
+ *  PORT_EXACT shapes only through their exact ports. */
+function isStraightenable(shape: PositionedNode['shape']): boolean {
+  return PORT_EXACT.has(shape)
+}
 
 interface LabelMetricsStyle {
   edgeLabelFontSize: number
@@ -196,6 +240,12 @@ function attachSpan(node: PositionedNode, axis: Axis): CrossSpan | null {
     if (size <= SPAN_MARGIN * 2) return null
     return { lo: lo + SPAN_MARGIN, hi: lo + size - SPAN_MARGIN }
   }
+  if (PORT_EXACT.has(node.shape)) {
+    // Port-only shapes (circle, stadium, …): the lane must pass through the
+    // exact side-midpoint port — the only bbox-side point on the outline.
+    const center = lo + size / 2
+    return { lo: center - PORT_TOLERANCE, hi: center + PORT_TOLERANCE }
+  }
   return null // shape's outline may not contain a bbox-side anchor; skip
 }
 
@@ -303,7 +353,10 @@ export function directLaneBlockers(
       }
     }
     // Collinear overlap with another edge's flow-axis segment would merge the
-    // two lines visually ("channel" conflict). Perpendicular crossings are fine.
+    // two lines visually ("channel" conflict). Perpendicular crossings are
+    // fine. Exception: two edges into the SAME target may converge exactly
+    // collinearly at the shared target port — the classic flowchart fan-in
+    // merge, where the final approaches draw as one line into one arrowhead.
     for (let i = 1; i < other.points.length; i++) {
       const a = other.points[i - 1]!, b = other.points[i]!
       if (Math.abs(a[axis.cross] - b[axis.cross]) > EPS) continue
@@ -311,6 +364,10 @@ export function directLaneBlockers(
       const sLo = Math.min(a[axis.main], b[axis.main])
       const sHi = Math.max(a[axis.main], b[axis.main])
       if (overlaps(mainLo, mainHi, sLo, sHi)) {
+        if (other.target === edge.target && Math.abs(a[axis.cross] - c) < EPS &&
+          i === other.points.length - 1) {
+          continue
+        }
         blockers.push({ kind: 'channel', id: edgeId(other) })
         break
       }
@@ -448,7 +505,19 @@ function tryStraighten(
 
   const overlapLo = Math.max(srcSpan.lo, tgtSpan.lo)
   const overlapHi = Math.min(srcSpan.hi, tgtSpan.hi)
-  if (overlapLo > overlapHi) {
+  // Port lanes (through a side-midpoint port) may attach the OTHER endpoint
+  // closer to a diamond vertex than the aesthetic margin normally allows:
+  // exact connection points outrank the margin (yFiles port-candidate costs).
+  const relax = (node: PositionedNode, span: CrossSpan): CrossSpan => {
+    if (node.shape !== 'diamond') return span
+    return { lo: node[axis.cross] + 2, hi: node[axis.cross] + (axis.cross === 'y' ? node.height : node.width) - 2 }
+  }
+  const relaxedLo = Math.max(relax(source, srcSpan).lo, relax(target, tgtSpan).lo)
+  const relaxedHi = Math.min(relax(source, srcSpan).hi, relax(target, tgtSpan).hi)
+  const portCross = (node: PositionedNode) => node[axis.cross] + (axis.cross === 'y' ? node.height : node.width) / 2
+  const isPortLane = (c: number) =>
+    Math.abs(c - portCross(target)) <= PORT_TOLERANCE || Math.abs(c - portCross(source)) <= PORT_TOLERANCE
+  if (relaxedLo > relaxedHi) {
     return { applied: false, blockers: [{ kind: 'span', id: edgeId(edge) }] }
   }
 
@@ -456,6 +525,12 @@ function tryStraighten(
   const push = (c: number) => {
     if (candidates.every(prev => Math.abs(prev - c) > 0.5)) candidates.push(c)
   }
+  // Port lanes first (static glue): through the target's side-midpoint port,
+  // then the source's. Endpoints land exactly on canonical connection points
+  // whenever these lanes prove clear; the remaining candidates are dynamic
+  // glue — straight, but floating on the side/facet.
+  push(target[axis.cross] + (axis.cross === 'y' ? target.height : target.width) / 2)
+  push(source[axis.cross] + (axis.cross === 'y' ? source.height : source.width) / 2)
   push(edge.points[edge.points.length - 1]![axis.cross])
   push(edge.points[0]![axis.cross])
   const crossValues = edge.points.map(p => p[axis.cross])
@@ -471,7 +546,9 @@ function tryStraighten(
 
   const blockers: RouteBlocker[] = []
   for (const c of candidates) {
-    if (c < overlapLo - EPS || c > overlapHi + EPS) {
+    const lo = isPortLane(c) ? relaxedLo : overlapLo
+    const hi = isPortLane(c) ? relaxedHi : overlapHi
+    if (c < lo - EPS || c > hi + EPS) {
       blockers.push({ kind: 'span', id: edgeId(edge) })
       continue
     }
@@ -542,8 +619,8 @@ export function applyRouteContracts(
     // lane proof alone gates whether they may collapse onto a parallel
     // back-lane. Primary edges keep the monotone gate.
     const eligible = source && target &&
-      (RECT_LIKE.has(source.shape) || source.shape === 'diamond') &&
-      (RECT_LIKE.has(target.shape) || target.shape === 'diamond') &&
+      isStraightenable(source.shape) &&
+      isStraightenable(target.shape) &&
       (cert.routeClass === 'feedback' || isMonotoneStaircase(edge.points, edgeAxis))
     if (!eligible) {
       cert.invariant = feedbackDetourKind(edge, cert.routeClass, source, target, ctx.axis) ?? 'unverified-shape'
@@ -625,27 +702,71 @@ export function applyRouteContracts(
     }
 
     let tightened: Point[] | null = null
-    // Variant 1 — exit via the channel-facing facet on the run side: the
-    // flowchart "bottom port" of a decision. The exit sits at the channel
-    // height when the shape reaches it, otherwise as close to the
-    // channel-facing vertex as the margin allows, with one short proven hop.
-    // The run truncation reuses existing, already-proven channel geometry.
-    if (source && (RECT_LIKE.has(source.shape) || source.shape === 'diamond')) {
+    // Variant 1 — exit via the source's channel-facing PORT: the decision
+    // diamond's exact South/North vertex (a rectangle's side midpoint). One
+    // short hop from the port to the channel is proven; the run truncation
+    // reuses existing, already-proven channel geometry.
+    if (source && PORT_EXACT.has(source.shape)) {
       const srcCrossLo = source[graphAxis.cross]
       const srcCrossHi = srcCrossLo + (graphAxis.cross === 'y' ? source.height : source.width)
-      const margin = source.shape === 'diamond' ? VERTEX_MARGIN : SPAN_MARGIN
-      const exitCross = Math.max(srcCrossLo + margin, Math.min(extreme, srcCrossHi - margin))
-      const facingRun: 1 | -1 = runDir === graphAxis.sign ? 1 : -1
-      const anchorM = anchorMain(source, exitCross, graphAxis, facingRun)
-      if (inRunRange(anchorM) && hopClear(anchorM, exitCross)) {
-        const boundary: Point = graphAxis.main === 'x' ? { x: anchorM, y: exitCross } : { x: exitCross, y: anchorM }
-        tightened = buildRoute(anchorM, exitCross, boundary)
+      const portCross = extreme > srcCrossLo ? srcCrossHi : srcCrossLo // channel-facing side
+      const portMain = source[graphAxis.main] + (graphAxis.main === 'x' ? source.width : source.height) / 2
+      if (inRunRange(portMain) && hopClear(portMain, portCross)) {
+        const port: Point = graphAxis.main === 'x' ? { x: portMain, y: portCross } : { x: portCross, y: portMain }
+        tightened = buildRoute(portMain, portCross, port)
+      }
+    }
+    // Variant 1b — the shape spans the channel itself: exit straight off the
+    // channel-facing facet AT the channel height (no hop at all).
+    if (!tightened && source && (RECT_LIKE.has(source.shape) || source.shape === 'diamond')) {
+      const srcCrossLo = source[graphAxis.cross]
+      const srcCrossHi = srcCrossLo + (graphAxis.cross === 'y' ? source.height : source.width)
+      if (extreme > srcCrossLo + EPS && extreme < srcCrossHi - EPS) {
+        const facingRun: 1 | -1 = runDir === graphAxis.sign ? 1 : -1
+        const anchorM = anchorMain(source, extreme, graphAxis, facingRun)
+        if (inRunRange(anchorM) && hopClear(anchorM, extreme)) {
+          const boundary: Point = graphAxis.main === 'x' ? { x: anchorM, y: extreme } : { x: extreme, y: anchorM }
+          tightened = buildRoute(anchorM, extreme, boundary)
+        }
       }
     }
     // Variant 2 — hop perpendicular from ELK's exit point to the channel.
     if (!tightened && inRunRange(mainOf(p0)) && hopClear(mainOf(p0), crossOf(p0))) {
       tightened = buildRoute(mainOf(p0), crossOf(p0), p0)
     }
+    // Tail tightening — symmetric: enter the target via its channel-facing
+    // PORT (the South/North side midpoint), truncating the run at the
+    // target's center and hopping up from the channel.
+    const base = tightened ?? points
+    let tailApplied = false
+    {
+      let rs = -1
+      for (let i = 1; i < base.length; i++) {
+        if (Math.abs(crossOf(base[i - 1]!) - extreme) < EPS && Math.abs(crossOf(base[i]!) - extreme) < EPS) {
+          rs = i - 1
+          break
+        }
+      }
+      const target = ctx.nodes.find(n => n.id === edge.target)
+      if (rs >= 0 && rs + 1 < base.length - 1 && target && PORT_EXACT.has(target.shape)) {
+        const tCrossLo = target[graphAxis.cross]
+        const tCrossHi = tCrossLo + (graphAxis.cross === 'y' ? target.height : target.width)
+        const portCross = extreme > tCrossLo ? tCrossHi : tCrossLo
+        const portMain = target[graphAxis.main] + (graphAxis.main === 'x' ? target.width : target.height) / 2
+        const runA = base[rs]!, runB = base[rs + 1]!
+        const dir = Math.sign(mainOf(runB) - mainOf(runA))
+        const within = dir > 0
+          ? portMain > mainOf(runA) + EPS && portMain <= mainOf(runB) + EPS
+          : portMain < mainOf(runA) - EPS && portMain >= mainOf(runB) - EPS
+        if (within && hopClear(portMain, portCross)) {
+          const runEndAtPort: Point = graphAxis.main === 'x' ? { x: portMain, y: extreme } : { x: extreme, y: portMain }
+          const port: Point = graphAxis.main === 'x' ? { x: portMain, y: portCross } : { x: portCross, y: portMain }
+          tightened = [...base.slice(0, rs + 1), runEndAtPort, port]
+          tailApplied = true
+        }
+      }
+    }
+    if (!tightened && !tailApplied) return
     if (!tightened) return
     // Same rule as straightening: tightening may never increase crossings.
     if (countRouteCrossings(simplifyPolyline(tightened), edge, ctx) > countRouteCrossings(edge.points, edge, ctx)) return
@@ -750,6 +871,17 @@ export function applyRouteContracts(
     retry.push(...still)
   }
 
+  // Record which endpoints landed on canonical ports — after ALL geometry
+  // has settled (straightening, tightening, and the fixed-point retries).
+  for (const edge of positioned.edges) {
+    const cert = edge.routeCertificate
+    if (!cert || edge.points.length === 0) continue
+    const sourceNode = nodeMap.get(edge.source)
+    const targetNode = nodeMap.get(edge.target)
+    if (sourceNode) cert.sourcePort = portAt(sourceNode, edge.points[0]!)
+    if (targetNode) cert.targetPort = portAt(targetNode, edge.points[edge.points.length - 1]!)
+  }
+
   return certificates
 }
 
@@ -794,8 +926,8 @@ export function findRouteHitches(
     const source = nodeMap.get(edge.source)
     const target = nodeMap.get(edge.target)
     if (!source || !target) continue
-    if (!(RECT_LIKE.has(source.shape) || source.shape === 'diamond')) continue
-    if (!(RECT_LIKE.has(target.shape) || target.shape === 'diamond')) continue
+    if (!isStraightenable(source.shape)) continue
+    if (!isStraightenable(target.shape)) continue
     if (cert.routeClass !== 'feedback' && !isMonotoneStaircase(points, edgeAxis)) continue
     // Probe on a copy so validation never mutates the layout.
     const probe: PositionedEdge = { ...edge, points: points.map(p => ({ ...p })) }
