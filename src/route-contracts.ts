@@ -326,7 +326,7 @@ export function directLaneBlockers(
  * then 1/3 and 2/3 — reciprocal labeled pairs end up straight with staggered
  * labels. Returns null when no slot is clear.
  */
-function findLabelSlot(
+export function findLabelSlot(
   edge: PositionedEdge,
   start: Point,
   end: Point,

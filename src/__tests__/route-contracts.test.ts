@@ -2,7 +2,7 @@ import { describe, expect, it } from 'bun:test'
 import fc from 'fast-check'
 import { layoutGraphSync } from '../layout-engine.ts'
 import { parseMermaid } from '../parser.ts'
-import { classifyRoutes, directLaneBlockers, findRouteHitches, simplifyPolyline } from '../route-contracts.ts'
+import { classifyRoutes, directLaneBlockers, findLabelSlot, findRouteHitches, simplifyPolyline } from '../route-contracts.ts'
 import { measureMultilineText } from '../text-metrics.ts'
 import { verifyMermaid } from '../agent/index.ts'
 import type { PositionedEdge, PositionedGraph } from '../types.ts'
@@ -557,6 +557,109 @@ describe('duplicate parallel edges (fast-check counterexample, pinned)', () => {
     const graph = parseMermaid(DUP_SOURCE)
     const positioned = layoutGraphSync(graph)
     expect(findRouteHitches(positioned, graph)).toEqual([])
+  })
+})
+
+describe('findLabelSlot (unit)', () => {
+  const axis = { main: 'x', cross: 'y', sign: 1 } as const
+  const style = { edgeLabelFontSize: 12, edgeLabelFontWeight: 400 }
+  const m = measureMultilineText('No', 12, 400)
+  const pillW = m.width + 16
+  const mkEdge = (over: object = {}): PositionedEdge =>
+    ({ source: 'A', target: 'B', style: 'solid', hasArrowStart: false, hasArrowEnd: true, points: [], edgeIndex: 0, ...over }) as PositionedEdge
+  const ctx = (over: Partial<{ nodes: unknown[]; edges: unknown[] }> = {}) =>
+    ({ nodes: [], edges: [], axis, style, ...over }) as Parameters<typeof findLabelSlot>[3]
+  const start = { x: 0, y: 50 }
+  const end = { x: 400, y: 50 }
+
+  it('unlabeled edges get the midpoint without obstacle checks', () => {
+    expect(findLabelSlot(mkEdge(), start, end, ctx())).toEqual({ x: 200, y: 50 })
+  })
+
+  it('a clear lane hosts the label at the midpoint', () => {
+    expect(findLabelSlot(mkEdge({ label: 'No' }), start, end, ctx())).toEqual({ x: 200, y: 50 })
+  })
+
+  it("a pill at the midpoint staggers the label to the 1/3 slot", () => {
+    const blocker = mkEdge({
+      source: 'P', target: 'Q', edgeIndex: 1, label: 'No', labelPosition: { x: 200, y: 50 },
+      points: [{ x: 500, y: 500 }, { x: 520, y: 500 }],
+    })
+    const slot = findLabelSlot(mkEdge({ label: 'No' }), start, end, ctx({ edges: [blocker] }))
+    expect(slot!.x).toBeCloseTo(400 / 3, 6)
+    expect(slot!.y).toBe(50)
+  })
+
+  it("another edge's segment through the midpoint forces a stagger; pill-vs-pill respects the exact boundary", () => {
+    const crossing = mkEdge({
+      source: 'P', target: 'Q', edgeIndex: 1,
+      points: [{ x: 200, y: 0 }, { x: 200, y: 100 }],
+    })
+    const staggered = findLabelSlot(mkEdge({ label: 'No' }), start, end, ctx({ edges: [crossing] }))
+    expect(staggered!.x).toBeCloseTo(400 / 3, 6)
+    // Pills just inside / outside the 2px padding boundary around the midpoint slot.
+    const pillAt = (cx: number) => mkEdge({
+      source: 'P', target: 'Q', edgeIndex: 1, label: 'No', labelPosition: { x: cx, y: 50 },
+      points: [{ x: 500, y: 500 }, { x: 520, y: 500 }],
+    })
+    expect(findLabelSlot(mkEdge({ label: 'No' }), start, end, ctx({ edges: [pillAt(200 + pillW + 2 + 0.5)] })))
+      .toEqual({ x: 200, y: 50 })
+    const bumped = findLabelSlot(mkEdge({ label: 'No' }), start, end, ctx({ edges: [pillAt(200 + pillW + 2 - 0.5)] }))
+    expect(bumped!.x).toBeCloseTo(400 / 3, 6)
+  })
+
+  it('a node covering the whole lane leaves no slot', () => {
+    const wall = { id: 'W', label: 'W', shape: 'rectangle' as const, x: 50, y: 20, width: 300, height: 60 }
+    expect(findLabelSlot(mkEdge({ label: 'No' }), start, end, ctx({ nodes: [wall] }))).toBeNull()
+  })
+
+  it("the edge's own endpoints never block its label", () => {
+    const a = { id: 'A', label: 'A', shape: 'rectangle' as const, x: 150, y: 20, width: 100, height: 60 }
+    expect(findLabelSlot(mkEdge({ label: 'No' }), start, end, ctx({ nodes: [a] }))).toEqual({ x: 200, y: 50 })
+  })
+})
+
+describe('primary-over-feedback priority (unit)', () => {
+  const axis = { main: 'x', cross: 'y', sign: 1 } as const
+  const style = { edgeLabelFontSize: 12, edgeLabelFontWeight: 400 }
+  const mkEdge = (source: string, target: string, edgeIndex: number, over: object = {}): PositionedEdge =>
+    ({ source, target, style: 'solid', hasArrowStart: false, hasArrowEnd: true, points: [{ x: 500, y: 500 }, { x: 520, y: 500 }], edgeIndex, ...over }) as PositionedEdge
+  const labelOnLane = { label: 'No', labelPosition: { x: 50, y: 50 } }
+
+  it("a primary lane proof ignores its reciprocal feedback partner's label, and only that label", () => {
+    const primary = mkEdge('A', 'B', 0, { points: [{ x: 0, y: 50 }, { x: 100, y: 50 }] })
+    const partner = mkEdge('B', 'A', 1, labelOnLane)
+    const stranger = mkEdge('C', 'D', 2, labelOnLane)
+    const prove = (others: PositionedEdge[], classes: Array<'primary-forward' | 'feedback'>) =>
+      directLaneBlockers(primary, 50, 0, 100,
+        { nodes: [], edges: others, axis, style, classes } as Parameters<typeof directLaneBlockers>[4])
+    expect(prove([partner], ['primary-forward', 'feedback'])).toEqual([])
+    // A non-reciprocal feedback edge's label still blocks.
+    expect(prove([stranger], ['primary-forward', 'feedback', 'feedback'])).toEqual([{ kind: 'label', id: 'C->D' }])
+    // Without class information there is no exemption.
+    expect(prove([partner], undefined as never)).toEqual([{ kind: 'label', id: 'B->A' }])
+  })
+
+  it("a feedback lane proof never ignores the primary partner's label", () => {
+    const feedback = mkEdge('B', 'A', 1, { points: [{ x: 100, y: 50 }, { x: 0, y: 50 }] })
+    const primary = mkEdge('A', 'B', 0, labelOnLane)
+    const blockers = directLaneBlockers(feedback, 50, 0, 100,
+      { nodes: [], edges: [primary], axis, style, classes: ['primary-forward', 'feedback'] } as Parameters<typeof directLaneBlockers>[4])
+    expect(blockers).toEqual([{ kind: 'label', id: 'A->B' }])
+  })
+})
+
+describe('ROUTE_HITCH tripwire covers feedback lanes', () => {
+  it('a dogleg injected into a straightened back-edge is reported', () => {
+    const graph = parseMermaid('flowchart LR\n  A --> B\n  B --> A')
+    const positioned = layoutGraphSync(graph)
+    const back = findEdge(positioned.edges, 'B', 'A')
+    expect(back.points.length).toBe(2)
+    const [a, b] = back.points as [{ x: number; y: number }, { x: number; y: number }]
+    back.points = [a, { x: (a.x + b.x) / 2, y: a.y }, { x: (a.x + b.x) / 2, y: a.y + 10 }, { x: b.x, y: a.y + 10 }]
+    const hitches = findRouteHitches(positioned, graph)
+    expect(hitches.some(h => h.edge === 'B->A')).toBe(true)
+    expect(hitches.find(h => h.edge === 'B->A')!.deviationPx).toBe(10)
   })
 })
 
