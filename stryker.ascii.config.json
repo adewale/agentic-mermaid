@@ -9,10 +9,16 @@
   ],
   "testRunner": "command",
   "commandRunner": {
-    "command": "bun test src/__tests__/ascii.test.ts src/__tests__/ascii-subgraph-edge.test.ts src/__tests__/ascii-layout-gaps.test.ts src/__tests__/ascii-fan-in-grouping.test.ts src/__tests__/ascii-fanout-trunk-labeled.test.ts src/__tests__/ascii-pathfinder-determinism.test.ts src/__tests__/ascii-pathfinder-trunk.test.ts src/__tests__/ascii-determinism.test.ts src/__tests__/ascii-box-start.test.ts src/__tests__/ascii-edge-styles.test.ts src/__tests__/ascii-multiline.test.ts src/__tests__/ascii-robustness.test.ts src/__tests__/ascii-sequence-blocks.test.ts src/__tests__/property-ascii-routing.test.ts"
+    "command": "bun test src/__tests__/ascii.test.ts src/__tests__/ascii-subgraph-edge.test.ts src/__tests__/ascii-layout-gaps.test.ts src/__tests__/ascii-fan-in-grouping.test.ts src/__tests__/ascii-fanout-trunk-labeled.test.ts src/__tests__/ascii-pathfinder-determinism.test.ts src/__tests__/ascii-pathfinder-units.test.ts src/__tests__/ascii-pathfinder-trunk.test.ts src/__tests__/ascii-determinism.test.ts src/__tests__/ascii-box-start.test.ts src/__tests__/ascii-edge-styles.test.ts src/__tests__/ascii-multiline.test.ts src/__tests__/ascii-robustness.test.ts src/__tests__/ascii-sequence-blocks.test.ts src/__tests__/property-ascii-routing.test.ts"
   },
-  "reporters": ["clear-text", "progress", "json"],
-  "jsonReporter": { "fileName": "reports/mutation/ascii-mutation.json" },
+  "reporters": [
+    "clear-text",
+    "progress",
+    "json"
+  ],
+  "jsonReporter": {
+    "fileName": "reports/mutation/ascii-mutation.json"
+  },
   "timeoutMS": 60000,
   "concurrency": 4
 }

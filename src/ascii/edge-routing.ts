@@ -284,25 +284,21 @@ export function determineLabelLine(graph: AsciiGraph, edge: AsciiEdge): void {
 
   if (suitableSegments.length > 0) {
     // Prefer segments near the end of the path (closer to target)
-    // This avoids the shared initial segments from source.
-    // Secondary keys (start x, then y) keep ties deterministic across engines
-    // whose Array.prototype.sort stability we cannot rely on.
-    suitableSegments.sort(
-      (a, b) => b.index - a.index || a.line[0].x - b.line[0].x || a.line[0].y - b.line[0].y,
-    )
+    // This avoids the shared initial segments from source. `index` is unique
+    // per segment (path position), so this comparator never ties.
+    suitableSegments.sort((a, b) => b.index - a.index)
     largestLine = suitableSegments[0]!.line
   } else {
     // Fall back to any suitable segment including the first
     const fallbackSegments = segments.filter(s => s.width >= lenLabel)
     if (fallbackSegments.length > 0) {
-      // Secondary keys (start x, then y) keep ties deterministic (see above).
-      fallbackSegments.sort(
-        (a, b) => b.index - a.index || a.line[0].x - b.line[0].x || a.line[0].y - b.line[0].y,
-      )
+      // `index` is unique per segment, so this comparator never ties.
+      fallbackSegments.sort((a, b) => b.index - a.index)
       largestLine = fallbackSegments[0]!.line
     } else {
-      // No segment wide enough — use the widest one.
-      // Secondary keys (start x, then y) keep ties deterministic (see above).
+      // No segment wide enough — use the widest one. Widths CAN tie, so break
+      // ties on start x, then y: deterministic across engines instead of
+      // leaning on Array.prototype.sort stability.
       segments.sort(
         (a, b) => b.width - a.width || a.line[0].x - b.line[0].x || a.line[0].y - b.line[0].y,
       )
