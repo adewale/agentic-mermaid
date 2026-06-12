@@ -1,0 +1,132 @@
+// ============================================================================
+// Hero image generator → assets/hero.png
+//
+// Reproducible (no hand-made artifacts): composes the README hero from live
+// renderer output, showing the fork's differentiator — the typed edit loop
+// (parse → mutate → verify → serialize) — in the fork's salmon identity.
+//
+// Run: bun run scripts/site/hero.ts
+//
+// Fonts: rasterization uses the bundled DejaVu Sans plus the system DejaVu
+// Sans Mono when available (the code/ASCII panels need a monospace face;
+// box-drawing alignment breaks in a proportional font). Regenerate on a
+// machine with dejavu fonts installed.
+// ============================================================================
+
+import { writeFileSync, existsSync } from 'node:fs'
+import { join } from 'node:path'
+import { Resvg } from '@resvg/resvg-js'
+import {
+  parseMermaid, mutate, verifyMermaid, asFlowchart,
+  renderMermaidPNG, renderMermaidASCII,
+} from '../../src/agent/index.ts'
+import type { FlowchartMutationOp, FlowchartValidDiagram } from '../../src/agent/types.ts'
+
+const ROOT = join(import.meta.dir, '..', '..')
+
+// ---- The story: an agent extends a state machine safely --------------------
+
+// The story: an agent inserts an MFA step into a login flow — a real edit
+// (removes an edge, adds a node, rewires) that string surgery gets wrong.
+const SOURCE = `flowchart TD
+  User((User)) --> UI[Login Page]
+  UI --> Auth{Valid?}
+  Auth -->|no| UI
+  Auth -->|yes| Session[Create Session]
+  Session --> Dash[Dashboard]`
+
+const OPS: FlowchartMutationOp[] = [
+  { kind: 'remove_edge', id: 'Auth->Session' },
+  { kind: 'add_node', id: 'MFA', label: 'MFA', shape: 'diamond' },
+  { kind: 'add_edge', from: 'Auth', to: 'MFA', label: 'yes' },
+  { kind: 'add_edge', from: 'MFA', to: 'Session', label: 'ok' },
+  { kind: 'add_edge', from: 'MFA', to: 'UI', label: 'fail' },
+]
+
+// Same diagram, orientation fitted per medium: LR for the wide SVG panel,
+// TD for the tall ASCII panel.
+function build(direction: 'TD' | 'LR') {
+  const parsed = parseMermaid(SOURCE.replace('flowchart TD', `flowchart ${direction}`))
+  if (!parsed.ok) throw new Error('hero: parse failed')
+  const narrowed = asFlowchart(parsed.value)
+  if (!narrowed) throw new Error('hero: not a structured flowchart body')
+  let st: FlowchartValidDiagram = narrowed
+  for (const op of OPS) {
+    const r = mutate(st, op)
+    if (!r.ok) throw new Error(`hero: mutate failed: ${r.error.message}`)
+    st = r.value
+  }
+  return st
+}
+const st = build('LR')
+const stTall = build('TD')
+const verify = verifyMermaid(st)
+if (!verify.ok) throw new Error('hero: verify failed')
+
+const SALMON = { bg: '#FFFBF5', fg: '#521000', line: '#C9A88A', accent: '#FF4801', muted: '#85532E', surface: '#FFFDFB', border: '#D4B89E' }
+
+const diagramPng = renderMermaidPNG(st, { fitTo: { width: 1000 }, background: SALMON.surface, ...SALMON } as never)
+const asciiDiagram = renderMermaidASCII(stTall)
+
+// ---- Compose the hero SVG ---------------------------------------------------
+
+const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+
+function monoBlock(lines: string[], x: number, y: number, size: number, fill: string, lineHeight = 1.5): string {
+  return lines.map((l, i) =>
+    `<text x="${x}" y="${y + i * size * lineHeight}" font-family="DejaVu Sans Mono, monospace" font-size="${size}" fill="${fill}" xml:space="preserve">${esc(l)}</text>`,
+  ).join('\n')
+}
+
+const W = 1600, H = 720
+const PAD = 36
+const leftW = 470
+const midW = 600
+const rightW = W - PAD * 4 - leftW - midW
+const midX = PAD * 2 + leftW
+const rightX = PAD * 3 + leftW + midW
+
+const srcLines = SOURCE.split('\n')
+const opLines = [
+  '// typed edit ops — no string surgery',
+  '[',
+  ...OPS.map((op, i) => '  ' + JSON.stringify(op).replace(/"(\w+)":/g, '$1: ').replace(/,/g, ', ').replace(/\{/, '{ ').replace(/\}$/, ' }') + (i < OPS.length - 1 ? ',' : '')),
+  ']',
+]
+
+const panel = (x: number, w: number, title: string) =>
+  `<rect x="${x}" y="98" width="${w}" height="${H - 140}" rx="18" fill="${SALMON.surface}" stroke="${SALMON.border}" stroke-width="1.5"/>
+   <text x="${x + 22}" y="130" font-family="DejaVu Sans" font-size="14" font-weight="bold" fill="${SALMON.muted}" letter-spacing="2">${title}</text>`
+
+const hero = `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">
+  <rect width="${W}" height="${H}" fill="${SALMON.bg}"/>
+  <text x="${PAD}" y="52" font-family="DejaVu Sans" font-size="30" font-weight="bold" fill="${SALMON.fg}">Agentic Mermaid</text>
+  <text x="${PAD}" y="80" font-family="DejaVu Sans" font-size="16" fill="${SALMON.muted}">parse &#8594; mutate &#8594; verify &#8594; render &#8212; deterministic SVG &#183; PNG &#183; ASCII with typed edits for agents</text>
+
+  ${panel(PAD, leftW, '1 &#183; SOURCE + TYPED EDIT')}
+  ${monoBlock(srcLines, PAD + 22, 166, 13.5, SALMON.fg)}
+  ${monoBlock(opLines, PAD + 22, 166 + srcLines.length * 13.5 * 1.5 + 30, 10.5, SALMON.accent, 1.65)}
+
+  ${panel(midX, midW, '2 &#183; VERIFIED RENDER')}
+  <image x="${midX + 24}" y="150" width="${midW - 48}" height="${H - 290}" preserveAspectRatio="xMidYMid meet" xlink:href="data:image/png;base64,${Buffer.from(diagramPng).toString('base64')}"/>
+  <text x="${midX + 24}" y="${H - 72}" font-family="DejaVu Sans Mono, monospace" font-size="14" fill="${SALMON.accent}">verify.ok = true &#183; 0 warnings</text>
+
+  ${panel(rightX, rightW, '3 &#183; SAME DIAGRAM, ASCII')}
+  ${monoBlock(asciiDiagram.trimEnd().split('\n'), rightX + 22, 160, 9, SALMON.fg, 1.14)}
+</svg>`
+
+// ---- Rasterize ---------------------------------------------------------------
+
+const fontFiles = [
+  join(ROOT, 'assets', 'fonts', 'DejaVuSans.ttf'),
+  join(ROOT, 'assets', 'fonts', 'DejaVuSans-Bold.ttf'),
+  '/usr/share/fonts/truetype/dejavu/DejaVuSansMono.ttf',
+  '/usr/share/fonts/truetype/dejavu/DejaVuSansMono-Bold.ttf',
+].filter(existsSync)
+
+const resvg = new Resvg(hero, {
+  fitTo: { mode: 'width', value: 1600 },
+  font: { loadSystemFonts: false, fontFiles, defaultFontFamily: 'DejaVu Sans' },
+})
+writeFileSync(join(ROOT, 'assets', 'hero.png'), resvg.render().asPng())
+console.log('wrote assets/hero.png — verify ok:', verify.ok, '| nodes:', st.body.graph.nodes.size, '| edges:', st.body.graph.edges.length)

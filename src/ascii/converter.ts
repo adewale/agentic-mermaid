@@ -99,6 +99,16 @@ export function convertToAsciiGraph(parsed: MermaidGraph, config: AsciiConfig): 
 
   const nodes = [...nodeMap.values()]
 
+  // BUILD-14: resolve edges whose endpoint is a subgraph id (a "phantom" node).
+  // The parser auto-creates a node for every edge endpoint, so an edge like
+  // `Start --> Pipeline` (where Pipeline is a subgraph) yields a node named
+  // "Pipeline" in addition to the container. The ELK/SVG path filters this and
+  // attaches the edge to the container via hierarchical ports; the ASCII path
+  // historically drew a phantom box. Here we drop the phantom node, retarget the
+  // edge onto a representative member of the container for routing, and flag the
+  // edge so it is visually clipped to the container border.
+  const phantomNodeNames = resolveSubgraphEdges(parsed, edges, subgraphs)
+
   // Apply class definitions
   for (const [nodeId, className] of parsed.classAssignments) {
     const node = nodeMap.get(nodeId)
@@ -109,8 +119,17 @@ export function convertToAsciiGraph(parsed: MermaidGraph, config: AsciiConfig): 
     }
   }
 
+  // Drop phantom subgraph-id nodes so they are not placed as standalone boxes.
+  // Reindex afterwards: grid layout addresses nodes by their array index
+  // (graph.nodes[node.index]), so indices must stay contiguous after filtering.
+  let renderedNodes = nodes
+  if (phantomNodeNames.size > 0) {
+    renderedNodes = nodes.filter(n => !phantomNodeNames.has(n.name))
+    renderedNodes.forEach((n, i) => { n.index = i })
+  }
+
   return {
-    nodes,
+    nodes: renderedNodes,
     edges,
     canvas: mkCanvas(0, 0),
     roleCanvas: mkRoleCanvas(0, 0),
@@ -288,6 +307,134 @@ function deduplicateSubgraphNodes(
       return isAncestorOrSelf(asciiSg, owner)
     })
   }
+}
+
+/**
+ * BUILD-14: Resolve edges whose endpoint id is a subgraph id.
+ *
+ * The TS parser auto-creates a leaf node for every edge endpoint, so an edge
+ * to/from a subgraph id (e.g. `Start --> Pipeline` where `Pipeline` is a
+ * subgraph) produces a redundant "phantom" node sharing the subgraph's id.
+ * The SVG/ELK path filters these and attaches such edges to the container via
+ * hierarchical ports; the ASCII path used to render the phantom as a real box.
+ *
+ * This function detects phantom nodes (a node whose id matches a subgraph id and
+ * which is not itself a member of any subgraph) and, for each edge touching one:
+ *   1. retargets the edge onto a representative member of the container so the
+ *      grid layout routes it toward the container, and
+ *   2. records the container on the edge (attachFromSubgraph / attachToSubgraph)
+ *      so the renderer clips the visible edge to the container border.
+ *
+ * Returns the set of phantom node ids that should be removed from the node list.
+ * Edge semantics are preserved: the visible terminal is the container border,
+ * not an arbitrary inner node.
+ */
+function resolveSubgraphEdges(
+  parsed: MermaidGraph,
+  edges: AsciiEdge[],
+  asciiSubgraphs: AsciiSubgraph[],
+): Set<string> {
+  const phantoms = new Set<string>()
+  if (asciiSubgraphs.length === 0) return phantoms
+
+  // Map subgraph id → AsciiSubgraph.
+  const sgById = new Map<string, AsciiSubgraph>()
+  for (const sg of asciiSubgraphs) sgById.set(sg.id, sg)
+  if (sgById.size === 0) return phantoms
+
+  // A node id is a member of some subgraph if it appears in any subgraph's
+  // nodeIds in the parser graph (these are genuine inner nodes, never phantoms).
+  const memberIds = new Set<string>()
+  const collectMembers = (sg: MermaidSubgraph): void => {
+    for (const id of sg.nodeIds) memberIds.add(id)
+    for (const child of sg.children) collectMembers(child)
+  }
+  for (const sg of parsed.subgraphs) collectMembers(sg)
+
+  // A phantom is a node whose id matches a subgraph id, is NOT a genuine member
+  // node, and was auto-created (its label equals its id — no explicit label).
+  // The label guard pins the id-collision edge case: if the author explicitly
+  // gave the id a distinct label, treat it as a real node, not a container ref.
+  const isPhantom = (id: string): boolean => {
+    if (!sgById.has(id) || memberIds.has(id)) return false
+    const mNode = parsed.nodes.get(id)
+    return !mNode || mNode.label === id
+  }
+
+  for (const edge of edges) {
+    const fromSg = isPhantom(edge.from.name) ? sgById.get(edge.from.name) : undefined
+    const toSg = isPhantom(edge.to.name) ? sgById.get(edge.to.name) : undefined
+
+    if (toSg) {
+      const anchor = pickContainerAnchor(toSg, parsed, 'entry')
+      if (anchor && anchor !== edge.from) {
+        phantoms.add(edge.to.name)
+        edge.to = anchor
+        edge.attachToSubgraph = toSg
+      }
+    }
+    if (fromSg) {
+      const anchor = pickContainerAnchor(fromSg, parsed, 'exit')
+      if (anchor && anchor !== edge.to) {
+        phantoms.add(edge.from.name)
+        edge.from = anchor
+        edge.attachFromSubgraph = fromSg
+      }
+    }
+  }
+
+  // Only remove phantom nodes that are no longer referenced by any edge as a
+  // real endpoint (every touching edge was successfully retargeted).
+  for (const id of [...phantoms]) {
+    const stillUsed = edges.some(e => e.from.name === id || e.to.name === id)
+    if (stillUsed) phantoms.delete(id)
+  }
+
+  return phantoms
+}
+
+/**
+ * Choose a representative member node of a container to anchor a container edge.
+ * For an incoming edge we prefer an "entry" node (no incoming edge from another
+ * member); for an outgoing edge an "exit" node (no outgoing edge to another
+ * member). Falls back to the first member. Returns null if the container has no
+ * placeable members (e.g. an empty subgraph).
+ */
+function pickContainerAnchor(
+  sg: AsciiSubgraph,
+  parsed: MermaidGraph,
+  role: 'entry' | 'exit',
+): AsciiNode | null {
+  const members = collectContainerMembers(sg)
+  if (members.length === 0) return null
+  const memberSet = new Set(members.map(n => n.name))
+
+  for (const node of members) {
+    let isBoundary = true
+    for (const edge of parsed.edges) {
+      if (role === 'entry' && edge.target === node.name && memberSet.has(edge.source)) {
+        isBoundary = false
+        break
+      }
+      if (role === 'exit' && edge.source === node.name && memberSet.has(edge.target)) {
+        isBoundary = false
+        break
+      }
+    }
+    if (isBoundary) return node
+  }
+  return members[0]!
+}
+
+/** Collect all member nodes of a container, including nested children. */
+function collectContainerMembers(sg: AsciiSubgraph): AsciiNode[] {
+  const out: AsciiNode[] = [...sg.nodes]
+  for (const child of sg.children) {
+    for (const n of collectContainerMembers(child)) {
+      if (!out.includes(n)) out.push(n)
+    }
+  }
+  return out
 }
 
 /** Check if `candidate` is the same as or an ancestor of `target`. */

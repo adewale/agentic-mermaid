@@ -131,19 +131,45 @@ describe('vocabulary doc-sync', () => {
   })
 
   test('MCP SDK declaration exposes all mutable-family narrowers', () => {
-    for (const narrower of ['asFlowchart', 'asSequence', 'asTimeline', 'asClass', 'asEr']) {
+    for (const narrower of ['asFlowchart', 'asState', 'asSequence', 'asTimeline', 'asClass', 'asEr', 'asJourney', 'asArchitecture', 'asXyChart']) {
       expect(SDK_DECLARATION).toContain(narrower)
     }
-    expect(SDK_DECLARATION).not.toContain('asJourney')
-    expect(SDK_DECLARATION).not.toContain('asXyChart')
   })
 
-  test('state-narrows-via-asFlowchart is documented on every agent surface that claims state mutation', () => {
-    // State has no asState narrower; docs that advertise state mutation must
-    // say the path is asFlowchart, or agents conclude state is not mutable.
+  test('every narrower advertised by the SDK declaration is callable in the Code Mode sandbox', async () => {
+    // Consistency-audit guard: the declaration once advertised narrowers the
+    // sandbox did not expose, so Code Mode scripts copying the declaration
+    // crashed. Drive each advertised narrower end-to-end through execute().
+    const advertised = [...new Set(Array.from(SDK_DECLARATION.matchAll(/\bas[A-Z]\w+/g), m => m[0]))]
+    expect(advertised.length).toBeGreaterThanOrEqual(9)
+    const SOURCES: Record<string, string> = {
+      asFlowchart: 'flowchart TD\\n  A --> B',
+      asState: 'stateDiagram-v2\\n  [*] --> A',
+      asSequence: 'sequenceDiagram\\n  A->>B: hi',
+      asTimeline: 'timeline\\n  2020 : event',
+      asClass: 'classDiagram\\n  class A',
+      asEr: 'erDiagram\\n  A ||--o{ B : has',
+      asJourney: 'journey\\n  Wake: 3: Me',
+      asArchitecture: 'architecture-beta\\n  service a(server)[A]',
+      asXyChart: 'xychart-beta\\n  bar [1, 2]',
+    }
+    for (const narrower of advertised) {
+      const source = SOURCES[narrower]
+      expect({ narrower, known: Boolean(source) }).toEqual({ narrower, known: true })
+      const code = `const r = mermaid.parseMermaid('${source}')\nif (!r.ok) return { narrower: '${narrower}', phase: 'parse' }\nconst n = mermaid.${narrower}(r.value)\nreturn { narrower: '${narrower}', narrowed: n !== null }`
+      const result = await executeInSandbox(code, {})
+      expect({ narrower, ok: result.ok, value: result.ok ? result.value : result.error })
+        .toEqual({ narrower, ok: true, value: { narrower, narrowed: true } })
+    }
+  })
+
+  test('state-narrows-via-asState is documented on every agent surface that claims state mutation', () => {
+    // BUILD-19: state owns a dedicated body. Docs that advertise state mutation
+    // must say the path is asState (not asFlowchart), or agents either conclude
+    // state is not mutable or reach for the wrong narrower.
     for (const file of ['Instructions_for_agents.md', 'llms.txt', 'skills/agentic-mermaid-diagram-workflow/SKILL.md']) {
       const text = readFileSync(join(REPO, file), 'utf8')
-      expect({ file, documentsStateNarrowing: /[Ss]tate.*flowchart body.*asFlowchart|asFlowchart.*narrows? (them|state)/s.test(text) }).toEqual({ file, documentsStateNarrowing: true })
+      expect({ file, documentsStateNarrowing: /[Ss]tate.*asState|asState.*(narrows?|state)/s.test(text) }).toEqual({ file, documentsStateNarrowing: true })
     }
   })
 })
@@ -319,6 +345,8 @@ describe('detector drift guard (agent vs shared router)', () => {
       ['timeline\n  2020 : A', 'timeline'],
       ['journey\n  title T\n  section S\n    Wake: 3: Me', 'journey'],
       ['xychart-beta\n  bar [1,2,3]', 'xychart'],
+      ['pie title Pets\n  "Dogs" : 386\n  "Cats" : 85', 'pie'],
+      ['quadrantChart\n  title T\n  Campaign A: [0.3, 0.6]', 'quadrant'],
       ['architecture-beta\n  group api(cloud)[API]', 'architecture'],
     ]
     for (const [src, expected] of cases) {

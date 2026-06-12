@@ -47,10 +47,14 @@ export function describeMermaidSource(source: string, opts: DescribeOptions = {}
 export function describeMermaid(d: ValidDiagram, opts: DescribeOptions = {}): string {
   if (opts.format === 'json') return JSON.stringify(describeMermaidTree(d))
   if (d.body.kind === 'flowchart') return describeFlowchart(d as FlowchartValidDiagram)
+  if (d.body.kind === 'state') return describeState(d.body)
   if (d.body.kind === 'sequence') return describeSequence(d as SequenceValidDiagram)
   if (d.body.kind === 'timeline') return describeTimeline(d as TimelineValidDiagram)
   if (d.body.kind === 'class') return describeClass(d as ClassValidDiagram)
   if (d.body.kind === 'er') return describeEr(d as ErValidDiagram)
+  if (d.body.kind === 'journey') return describeJourney(d.body)
+  if (d.body.kind === 'architecture') return describeArchitecture(d.body)
+  if (d.body.kind === 'xychart') return describeXyChart(d.body)
   if (d.body.kind === 'opaque') return describeOpaque(d.kind, d.body.source)
   return `A ${d.kind} diagram (structured editing not yet supported).`
 }
@@ -67,6 +71,15 @@ export function describeMermaidTree(d: ValidDiagram): DescribeTree {
     const g = d.body.graph
     for (const n of g.nodes.values()) tree.nodes.push({ id: n.id, label: n.label || n.id })
     for (const e of g.edges) tree.edges.push({ from: e.source, to: e.target, label: e.label || undefined })
+  } else if (d.body.kind === 'state') {
+    const visit = (states: import('./types.ts').StateNode[], transitions: import('./types.ts').StateTransition[]) => {
+      for (const s of states) {
+        tree.nodes.push({ id: s.id, label: s.label || s.id })
+        if (s.states !== undefined) visit(s.states, s.transitions ?? [])
+      }
+      for (const t of transitions) tree.edges.push({ from: t.from, to: t.to, label: t.label || undefined })
+    }
+    visit(d.body.states, d.body.transitions)
   } else if (d.body.kind === 'sequence') {
     for (const p of d.body.participants) tree.nodes.push({ id: p.id, label: p.label || p.id })
     d.body.messages.forEach(m => tree.edges.push({ from: m.from, to: m.to, label: m.text || undefined }))
@@ -80,6 +93,18 @@ export function describeMermaidTree(d: ValidDiagram): DescribeTree {
     for (const s of d.body.sections) for (const p of s.periods) {
       tree.nodes.push({ id: p.id, label: p.label })
     }
+  } else if (d.body.kind === 'journey') {
+    for (const s of d.body.sections) for (const t of s.tasks) {
+      tree.nodes.push({ id: t.id, label: t.text })
+    }
+  } else if (d.body.kind === 'architecture') {
+    for (const g of d.body.groups) tree.nodes.push({ id: g.id, label: g.label || g.id })
+    for (const s of d.body.services) tree.nodes.push({ id: s.id, label: s.label || s.id })
+    for (const j of d.body.junctions) tree.nodes.push({ id: j.id, label: j.id })
+    for (const e of d.body.edges) tree.edges.push({ from: e.source.id, to: e.target.id, label: e.label || undefined })
+  } else if (d.body.kind === 'xychart') {
+    // Series are the nodes of an xychart AX tree; charts have no edges.
+    for (const s of d.body.series) tree.nodes.push({ id: s.id, label: s.name || `${s.kind} series` })
   } else if (d.body.kind === 'opaque') {
     const plugin = getFamily(d.kind)
     const labels = (plugin?.extractLabels ?? extractLabelsGeneric)(d.body.source)
@@ -121,6 +146,32 @@ function describeFlowchart(d: FlowchartValidDiagram): string {
   return s
 }
 
+function describeState(body: import('./types.ts').StateBody): string {
+  const flat: import('./types.ts').StateNode[] = []
+  const allTransitions: import('./types.ts').StateTransition[] = []
+  const collect = (states: import('./types.ts').StateNode[], transitions: import('./types.ts').StateTransition[]) => {
+    for (const s of states) {
+      flat.push(s)
+      if (s.states !== undefined) collect(s.states, s.transitions ?? [])
+    }
+    allTransitions.push(...transitions)
+  }
+  collect(body.states, body.transitions)
+  const composites = flat.filter(s => s.states !== undefined)
+  const stateLabels = flat.map(s => s.label || s.id)
+  const transStr = allTransitions.map(t => {
+    const lbl = t.label ? ` (${t.label})` : ''
+    return `${t.from} -> ${t.to}${lbl}`
+  })
+  const starts = body.transitions.filter(t => t.from === '[*]').map(t => t.to)
+  let s = `A state diagram with ${flat.length} states and ${allTransitions.length} transitions.`
+  if (composites.length > 0) s += ` Composite states: ${composites.map(c => c.label || c.id).join(', ')}.`
+  if (stateLabels.length > 0) s += ` States: ${stateLabels.join(', ')}.`
+  if (transStr.length > 0) s += ` Transitions: ${transStr.join('; ')}.`
+  if (starts.length > 0) s += ` Initial: ${starts.join(', ')}.`
+  return s
+}
+
 function describeSequence(d: SequenceValidDiagram): string {
   const parts = d.body.participants
   const msgs = d.body.messages
@@ -139,6 +190,52 @@ function describeTimeline(d: TimelineValidDiagram): string {
   let s = `A timeline with ${sections.length} sections.`
   if (sectionLabels.length > 0) s += ` Sections: ${sectionLabels.join(', ')}.`
   if (periodLabels.length > 0) s += ` Periods: ${periodLabels.join(', ')}.`
+  return s
+}
+
+function describeJourney(body: import('./types.ts').JourneyBody): string {
+  const sections = body.sections
+  const taskCount = sections.reduce((n, s) => n + s.tasks.length, 0)
+  const actors = [...new Set(sections.flatMap(s => s.tasks.flatMap(t => t.actors)))]
+  let s = `A user journey${body.title ? ` titled "${body.title}"` : ''} with ${sections.length} sections and ${taskCount} tasks.`
+  const sectionLabels = sections.map(sec => sec.label).filter((l): l is string => l !== undefined)
+  if (sectionLabels.length > 0) s += ` Sections: ${sectionLabels.join(', ')}.`
+  const taskStr = sections.flatMap(sec => sec.tasks.map(t => `${t.text} (${t.score})`))
+  if (taskStr.length > 0) s += ` Tasks: ${taskStr.join(', ')}.`
+  if (actors.length > 0) s += ` Actors: ${actors.join(', ')}.`
+  return s
+}
+
+function describeArchitecture(body: import('./types.ts').ArchitectureBody): string {
+  const groups = body.groups
+  const services = body.services
+  const junctions = body.junctions
+  const edges = body.edges
+  let s = `An architecture diagram with ${groups.length} groups, ${services.length} services, and ${edges.length} connections.`
+  if (groups.length > 0) s += ` Groups: ${groups.map(g => g.label || g.id).join(', ')}.`
+  if (services.length > 0) s += ` Services: ${services.map(sv => sv.label || sv.id).join(', ')}.`
+  if (junctions.length > 0) s += ` Junctions: ${junctions.map(j => j.id).join(', ')}.`
+  const edgeStr = edges.map(e => `${e.source.id} -> ${e.target.id}${e.label ? ` (${e.label})` : ''}`)
+  if (edgeStr.length > 0) s += ` Connections: ${edgeStr.join('; ')}.`
+  return s
+}
+
+function describeXyChart(body: import('./types.ts').XyChartBody): string {
+  const series = body.series
+  const orientation = body.horizontal ? 'horizontal ' : ''
+  let s = `An ${orientation}XY chart${body.title ? ` titled "${body.title}"` : ''} with ${series.length} series.`
+  const axisDesc = (label: string, axis: import('./types.ts').XyChartAxis | undefined): string | undefined => {
+    if (!axis) return undefined
+    const parts: string[] = []
+    if (axis.name !== undefined) parts.push(`"${axis.name}"`)
+    if (axis.categories) parts.push(`categories ${axis.categories.join(', ')}`)
+    if (axis.range) parts.push(`range ${axis.range.min}–${axis.range.max}`)
+    return parts.length > 0 ? `${label}: ${parts.join(', ')}` : undefined
+  }
+  const axes = [axisDesc('x-axis', body.xAxis), axisDesc('y-axis', body.yAxis)].filter((a): a is string => a !== undefined)
+  if (axes.length > 0) s += ` Axes — ${axes.join('; ')}.`
+  const seriesStr = series.map(se => `${se.kind}${se.name ? ` ${se.name}` : ''} [${se.values.join(', ')}]`)
+  if (seriesStr.length > 0) s += ` Series: ${seriesStr.join('; ')}.`
   return s
 }
 

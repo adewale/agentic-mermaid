@@ -426,30 +426,63 @@ describe('CLI — sad paths via runCli', () => {
     expect(out).toContain('PARSE_FAILED')
   })
 
-  test('mutate on non-mutable family returns UNSUPPORTED_FAMILY (exit 2)', () => {
+  test('mutate on structured architecture succeeds (BUILD-17); opaque architecture stays unsupported', () => {
     const tmp = `/tmp/cli-architecture-${Date.now()}.mmd`
-    require('node:fs').writeFileSync(tmp, 'architecture-beta\n  group g(server)[Group]\n')
-    const { code, out } = capture(() => runCli(['mutate', tmp, '--op', '{"kind":"add_node","id":"X","label":"X"}']))
-    expect(code).toBe(2)
-    expect(out).toContain('UNSUPPORTED_FAMILY')
+    require('node:fs').writeFileSync(tmp, 'architecture-beta\n  service api(server)[API]\n')
+    const { code, out } = capture(() => runCli(['mutate', tmp, '--op', '{"kind":"add_service","id":"db","label":"Database","icon":"database"}', '--json']))
+    expect(code).toBe(0)
+    const payload = JSON.parse(out)
+    expect(payload.ok).toBe(true)
+    expect(payload.source).toContain('service db(database)[Database]')
+
+    // The {group} boundary modifier is unmodeled → opaque → not mutable.
+    const opaqueTmp = `/tmp/cli-architecture-opaque-${Date.now()}.mmd`
+    require('node:fs').writeFileSync(opaqueTmp, 'architecture-beta\n  accTitle: A11y\n  service api(server)[API]\n')
+    const opaque = capture(() => runCli(['mutate', opaqueTmp, '--op', '{"kind":"add_service","id":"db","label":"DB"}', '--json']))
+    expect(opaque.code).toBe(2)
+    expect(JSON.parse(opaque.out).error.code).toBe('UNSUPPORTED_FAMILY')
   })
 
-  test('mutate on source-level journey returns UNSUPPORTED_FAMILY', () => {
+  test('mutate on structured journey succeeds (BUILD-15); opaque journey stays unsupported', () => {
     const tmp = `/tmp/cli-journey-${Date.now()}.mmd`
     require('node:fs').writeFileSync(tmp, 'journey\n  section Work\n  Code: 4: Me\n')
     const { code, out } = capture(() => runCli(['mutate', tmp, '--op', '{"kind":"add_task","sectionIndex":0,"text":"Review","score":5,"actors":["Me"]}', '--json']))
-    expect(code).toBe(2)
+    expect(code).toBe(0)
     const payload = JSON.parse(out)
-    expect(payload.ok).toBe(false)
-    expect(payload.error.code).toBe('UNSUPPORTED_FAMILY')
+    expect(payload.ok).toBe(true)
+    expect(payload.source).toContain('Review: 5: Me')
+
+    const opaqueTmp = `/tmp/cli-journey-opaque-${Date.now()}.mmd`
+    require('node:fs').writeFileSync(opaqueTmp, 'journey\n  accTitle: A11y\n  Code: 4: Me\n')
+    const opaque = capture(() => runCli(['mutate', opaqueTmp, '--op', '{"kind":"add_task","sectionIndex":0,"text":"Review","score":5}', '--json']))
+    expect(opaque.code).toBe(2)
+    expect(JSON.parse(opaque.out).error.code).toBe('UNSUPPORTED_FAMILY')
   })
 
-  test('mutate on sequence-with-notes (opaque) returns UNSUPPORTED_FAMILY', () => {
+  test('mutate on structured xychart succeeds (BUILD-16); opaque xychart stays unsupported', () => {
+    const tmp = `/tmp/cli-xychart-${Date.now()}.mmd`
+    require('node:fs').writeFileSync(tmp, 'xychart-beta\n  x-axis [Jan, Feb]\n  bar [1, 2]\n')
+    const { code, out } = capture(() => runCli(['mutate', tmp, '--op', '{"kind":"add_series","kind2":"line","name":"Mobile","values":[3,4]}', '--json']))
+    expect(code).toBe(0)
+    const payload = JSON.parse(out)
+    expect(payload.ok).toBe(true)
+    expect(payload.source).toContain('line Mobile [3, 4]')
+
+    const opaqueTmp = `/tmp/cli-xychart-opaque-${Date.now()}.mmd`
+    require('node:fs').writeFileSync(opaqueTmp, 'xychart-beta\n  title "Quoted"\n  bar [1, 2]\n')
+    const opaque = capture(() => runCli(['mutate', opaqueTmp, '--op', '{"kind":"set_title","title":"X"}', '--json']))
+    expect(opaque.code).toBe(2)
+    expect(JSON.parse(opaque.out).error.code).toBe('UNSUPPORTED_FAMILY')
+  })
+
+  test('mutate on sequence-with-notes (BUILD-18: structured-with-segments) succeeds and keeps the note', () => {
     const tmp = `/tmp/cli-seqnote-${Date.now()}.mmd`
     require('node:fs').writeFileSync(tmp, 'sequenceDiagram\n  A->>B: Hi\n  Note over A: thinking\n')
     const { code, out } = capture(() => runCli(['mutate', tmp, '--op', '{"kind":"add_message","from":"A","to":"B","text":"x"}']))
-    expect(code).toBe(2)
-    expect(out).toContain('UNSUPPORTED_FAMILY')
+    expect(code).toBe(0)
+    // The Note rides along verbatim; the new message lands after it.
+    expect(out).toContain('Note over A: thinking')
+    expect(out).toContain('A->>B: x')
   })
 
   test('mutate verifies before emitting and exits 3 when the result is invalid', () => {

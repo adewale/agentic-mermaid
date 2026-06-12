@@ -8,27 +8,30 @@ What Agentic Mermaid can do, organized by capability area. The npm import paths 
 - **`parseMermaid(source)`** → `Result<ValidDiagram, ParseError[]>`. Never
   throws on malformed input; structured errors.
 - **`mutate(d, op)`** — family-overloaded typed mutation. Ops per family:
-  flowchart/state (6), sequence (5), timeline (10), class (10), ER (7).
+  flowchart (6), state (8), sequence (5), timeline (10), class (10), ER (7).
 - **`verifyMermaid(d, opts)`** — structural verification (no pixels).
 - **`serializeMermaid(d)`** — back to canonical source.
 - **Round-trip** — structured bodies serialize to canonical, idempotent
   source; opaque bodies preserve original indentation/comments verbatim.
-- **Narrowers** — `asFlowchart`/`asSequence`/`asTimeline`/`asClass`/`asEr`
+- **Narrowers** — `asFlowchart`/`asState`/`asSequence`/`asTimeline`/`asClass`/`asEr`
   return `null` on a non-matching or source-level/opaque body (steers agents
   off the unsafe path).
 
-## Diagram families (9)
+## Diagram families (11)
 
 | Family | Parse/render/round-trip | Structured mutation |
 |---|---|---|
-| Flowchart, State | ✅ | ✅ (6 ops) |
-| Sequence | ✅ | ✅ (5 ops; alt/loop/note → opaque) |
+| Flowchart | ✅ | ✅ (6 ops) |
+| State | ✅ | ✅ (8 ops via `asState`; `<<fork>>`/notes/`--`/`classDef` → opaque) |
+| Sequence | ✅ | ✅ (5 ops; alt/loop/note ride along verbatim as segments) |
 | Timeline | ✅ | ✅ (10 ops) |
 | Class | ✅ | ✅ (10 ops) |
 | ER | ✅ | ✅ (7 ops) |
-| Journey | ✅ | source-level only (lossless round-trip) |
-| XY chart | ✅ | source-level only (lossless round-trip) |
-| Architecture | ✅ | source-level only (lossless round-trip) |
+| Journey | ✅ | ✅ (10 ops via `asJourney`) |
+| XY chart | ✅ | ✅ (8 ops via `asXyChart`) |
+| Architecture | ✅ | ✅ (10 ops via `asArchitecture`) |
+| Pie | ✅ | source-level only (lossless round-trip) |
+| Quadrant | ✅ | source-level only (lossless round-trip) |
 
 **Structured-or-opaque rule:** every family either has a structured body
 or preserves source verbatim. Constructs are never silently dropped.

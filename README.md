@@ -6,11 +6,11 @@ Agentic Mermaid is an open-source Mermaid rendering and editing toolkit, forked 
 
 Published as `agentic-mermaid`; the GitHub repository and Pages path currently remain `adewale/beautiful-mermaid` / `https://adewale.github.io/beautiful-mermaid/`.
 
-![Agentic Mermaid sequence diagram example](assets/hero.png)
+![Agentic Mermaid: Mermaid source plus typed edit ops on the left, the verified SVG render in the middle, and the same diagram as ASCII on the right](assets/hero.png)
 
 [Live Demo & Samples](https://adewale.github.io/beautiful-mermaid/) · [Live Editor](https://adewale.github.io/beautiful-mermaid/editor)
 
-Docs: [docs index](./docs/) · [agent guide](./Instructions_for_agents.md) · [agent API cookbook](./docs/agent-api-cookbook.md) · [skills](./skills/) · [fork differences](./docs/fork-differences.md) · [changelog](./CHANGELOG.md)
+Docs: [docs index](./docs/) · [agent guide](./Instructions_for_agents.md) · [agent API cookbook](./docs/agent-api-cookbook.md) · [skills](./skills/) · [fork differences](./docs/fork-differences.md) · [vs Mermaid & Beautiful Mermaid](./docs/comparison.md) · [changelog](./CHANGELOG.md)
 
 </div>
 
@@ -30,11 +30,11 @@ Agents should not guess from pixels, concatenate strings, or regenerate whole di
 
 ## Highlights
 
-- **9 diagram families** — flowchart, state, architecture, sequence, class, ER, timeline, journey, and XY chart.
+- **11 diagram families** — flowchart, state, architecture, sequence, class, ER, timeline, journey, XY chart, pie, and quadrant.
 - **ASCII, PNG, SVG** — plus Unicode text and JSON layout.
 - **Synchronous, zero-DOM SVG renderer** — no Puppeteer, no browser flash.
 - **19 built-in themes + Shiki compatibility** — theme from two colors or a VS Code theme.
-- **Agent-native editing** — typed mutation for flowchart/state, sequence, timeline, class, and ER; source-level round-trip for journey, XY chart, architecture, and opaque fallbacks.
+- **Agent-native editing** — typed mutation for flowchart/state, sequence, timeline, class, ER, journey, architecture, and XY chart; source-level round-trip for pie, quadrant, and opaque fallbacks.
 - **CLI + MCP + library** — `am`, `agentic-mermaid-mcp`, `agentic-mermaid`, and `agentic-mermaid/agent`.
 
 ## Installation
@@ -146,10 +146,10 @@ const source = serializeMermaid(next.value)
 
 Rules:
 
-- Use `asFlowchart` / `asSequence` / `asTimeline` / `asClass` / `asEr` before mutating existing diagrams.
+- Use `asFlowchart` / `asState` / `asSequence` / `asTimeline` / `asClass` / `asEr` / `asJourney` / `asArchitecture` / `asXyChart` before mutating existing diagrams.
 - Mutation ops use `kind`, not `type`.
 - Run `verifyMermaid` before every commit point.
-- Do not call `mutate` on journey, XY chart, architecture, or opaque fallback bodies.
+- Do not call `mutate` on pie, quadrant, or opaque fallback bodies.
 
 ## Supported diagram families
 
@@ -160,9 +160,11 @@ Rules:
 | Timeline | ✓ | ✓ | SVG/PNG/ASCII | ✓ |
 | Class | ✓ | ✓ | SVG/PNG/ASCII | ✓ |
 | ER | ✓ | ✓ | SVG/PNG/ASCII | ✓ |
-| Journey | ✓ | ✓ | SVG/PNG/ASCII | source-level only |
-| XY chart | ✓ | ✓ | SVG/PNG/ASCII | source-level only |
-| Architecture | ✓ | ✓ | SVG/PNG/ASCII | source-level only |
+| Journey | ✓ | ✓ | SVG/PNG/ASCII | modeled subset (BUILD-15) |
+| XY chart | ✓ | ✓ | SVG/PNG/ASCII | modeled subset (BUILD-16) |
+| Pie | ✓ | ✓ | SVG/PNG/ASCII | source-level only |
+| Quadrant | ✓ | ✓ | SVG/PNG/ASCII | source-level only |
+| Architecture | ✓ | ✓ | SVG/PNG/ASCII | modeled subset (BUILD-17) |
 
 See [diagram families](./docs/diagram-families.md) for examples and compatibility notes.
 

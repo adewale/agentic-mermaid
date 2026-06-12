@@ -1,0 +1,44 @@
+quadrantChart
+    title Priorities
+    x-axis Effort --> High Effort
+    y-axis Low Value --> High Value
+    quadrant-1 Do now
+    quadrant-2 Plan
+    quadrant-3 Drop
+    quadrant-4 Delegate
+    Task A: [0.2, 0.9]
+    Task B: [0.8, 0.8]
+    Task C: [0.25, 0.2]
+    Task D: [0.7, 0.3]
+---
+                Priorities
++-----------------------------------------+
+|                    |                    |
+|        Plan        |       Do now       |
+|        *           |                    |
+|                    |                    |
+|                    |           *        |
+|                    |                    |
+|                    |                    |
+|                    |                    |
+|                    |                    |
+|                    |                    |
++--------------------+--------------------+
+|                    |                    |
+|        Drop        |      Delegate      |
+|                    |                    |
+|                    |       *            |
+|                    |                    |
+|          *         |                    |
+|                    |                    |
+|                    |                    |
+|                    |                    |
+|                    |                    |
++-----------------------------------------+
+Effort                          High Effort
+y-axis  bottom: Low Value  |  top: High Value
+
+* Task A: [0.2, 0.9]
+* Task B: [0.8, 0.8]
+* Task C: [0.25, 0.2]
+* Task D: [0.7, 0.3]

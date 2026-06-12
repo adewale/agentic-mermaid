@@ -1,0 +1,24 @@
+{
+  "schemaVersion": 1,
+  "capturedAt": "2026-06-10T00:00:00.000Z",
+  "provider": "pi-subagent",
+  "model": "delegate-fresh-default-release-model",
+  "caseId": "sequence_alt_add_message",
+  "task": {
+    "prompt": "Given a sequence diagram with an alt block, add a top-level message A->>B: bye using structured mutation, verify, then serialize. The alt block must be preserved verbatim.",
+    "input": "sequenceDiagram\n  A->>B: hi\n  alt ok\n    B-->>A: yes\n  end"
+  },
+  "prompts": {
+    "system": "pi subagent-backed release-model pass: delegate agent, fresh context. Pi hidden system prompt is not exposed; prompts.user records the exact parent-visible task sent to the subagent.",
+    "user": "You are participating in an Agentic Mermaid subagent-backed release-model transcript eval. Return ONLY executable synchronous JavaScript body for Agentic Mermaid Code Mode; no markdown, no code fences, no prose.\n\nRuntime contract:\n- The code is passed to execute(code), so top-level `return` is allowed.\n- Global `mermaid.*` SDK is available.\n- Do not use async/await, Promise jobs, dynamic import, filesystem, network, or template-literal interpolation.\n- For existing structured diagrams: parseMermaid -> family narrower -> mutate -> verifyMermaid -> inspect verify.ok or verify.warnings/layout -> serializeMermaid.\n- For source-level/opaque fallback diagrams, do not mutate; preserve parsed body.source.\n\nTask ID: sequence_alt_add_message\nTask: Given a sequence diagram with an alt block, add a top-level message A->>B: bye using structured mutation, verify, then serialize. The alt block must be preserved verbatim.\nInput Mermaid source:\nsequenceDiagram\n  A->>B: hi\n  alt ok\n    B-->>A: yes\n  end\n\nReturn only executable synchronous Code Mode JavaScript."
+  },
+  "rawResponse": "const r0 = mermaid.parseMermaid('sequenceDiagram\\n  A->>B: hi\\n  alt ok\\n    B-->>A: yes\\n  end');\nif (!r0.ok) return { error: 'parse', details: r0.error };\nconst seq = mermaid.asSequence(r0.value);\nif (!seq) return { error: 'not-sequence' };\nconst r1 = mermaid.mutate(seq, { kind: 'add_message', from: 'A', to: 'B', text: 'bye' });\nif (!r1.ok) return { error: r1.error };\nconst verify = mermaid.verifyMermaid(r1.value);\nif (!verify.ok) return { error: 'verify', warnings: verify.warnings };\nreturn { source: mermaid.serializeMermaid(r1.value) };",
+  "script": "const r0 = mermaid.parseMermaid('sequenceDiagram\\n  A->>B: hi\\n  alt ok\\n    B-->>A: yes\\n  end');\nif (!r0.ok) return { error: 'parse', details: r0.error };\nconst seq = mermaid.asSequence(r0.value);\nif (!seq) return { error: 'not-sequence' };\nconst r1 = mermaid.mutate(seq, { kind: 'add_message', from: 'A', to: 'B', text: 'bye' });\nif (!r1.ok) return { error: r1.error };\nconst verify = mermaid.verifyMermaid(r1.value);\nif (!verify.ok) return { error: 'verify', warnings: verify.warnings };\nreturn { source: mermaid.serializeMermaid(r1.value) };",
+  "result": {
+    "id": "sequence_alt_add_message",
+    "ok": true,
+    "taskOk": true,
+    "traceOk": true,
+    "findings": []
+  }
+}

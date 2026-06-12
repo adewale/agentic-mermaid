@@ -31,19 +31,27 @@ interface ValidDiagram {
   }
   readonly body:
     | { kind: 'flowchart'; graph: FlowchartGraph }
+    | StateBody
     | SequenceBody
     | TimelineBody
     | ClassBody
     | ErBody
+    | JourneyBody
+    | ArchitectureBody
+    | XyChartBody
     | { kind: 'opaque'; family: DiagramKind; source: string }
   readonly canonicalSource: string   // normalized renderer input; opaque fidelity uses body.source
 }
 
 type FlowchartValidDiagram = ValidDiagram & { body: { kind: 'flowchart'; graph: FlowchartGraph } }
+type StateValidDiagram     = ValidDiagram & { body: StateBody }
 type SequenceValidDiagram  = ValidDiagram & { body: SequenceBody }
 type TimelineValidDiagram  = ValidDiagram & { body: TimelineBody }
 type ClassValidDiagram     = ValidDiagram & { body: ClassBody }
 type ErValidDiagram        = ValidDiagram & { body: ErBody }
+type JourneyValidDiagram   = ValidDiagram & { body: JourneyBody }
+type ArchitectureValidDiagram = ValidDiagram & { body: ArchitectureBody }
+type XyChartValidDiagram   = ValidDiagram & { body: XyChartBody }
 
 interface FlowchartGraph {
   direction: 'TD' | 'TB' | 'LR' | 'BT' | 'RL'
@@ -55,9 +63,21 @@ interface FlowchartGraph {
   subgraphs: { id: string; label: string; nodeIds: string[]; children: FlowchartGraph['subgraphs']; direction?: FlowchartGraph['direction'] }[]
 }
 
+interface StateNode { id: string; label?: string; states?: StateNode[]; transitions?: StateTransition[]; direction?: 'TD' | 'TB' | 'LR' | 'BT' | 'RL' }
+interface StateTransition { from: string; to: string; label?: string }   // from/to may be '[*]'
+interface StateBody { kind: 'state'; states: StateNode[]; transitions: StateTransition[]; direction?: 'TD' | 'TB' | 'LR' | 'BT' | 'RL' }
+
 interface SeqParticipant { id: string; label: string; kind: 'participant' | 'actor' }
 interface SeqMessage { from: string; to: string; text: string; style: string }
-interface SequenceBody { kind: 'sequence'; participants: SeqParticipant[]; messages: SeqMessage[] }
+// BUILD-18: ordered statement list. participant/message refs index into the
+// participants/messages arrays; opaque-block carries unmodeled lines verbatim.
+// Mutation ops only see top-level messages — messages inside an opaque block are
+// never touched.
+type SequenceStatement =
+  | { kind: 'participant'; ref: number }
+  | { kind: 'message'; ref: number }
+  | { kind: 'opaque-block'; lines: string[] }
+interface SequenceBody { kind: 'sequence'; participants: SeqParticipant[]; messages: SeqMessage[]; statements?: SequenceStatement[] }
 
 interface TimelineEvent { id: string; text: string }
 interface TimelinePeriod { id: string; label: string; events: TimelineEvent[] }
@@ -76,6 +96,22 @@ interface ErEntity { id: string; attributes: ErAttribute[] }
 interface ErRelation { from: string; to: string; leftCard: ErCardinality; rightCard: ErCardinality; dashed: boolean; label?: string }
 interface ErBody { kind: 'er'; entities: ErEntity[]; relations: ErRelation[] }
 
+interface JourneyTask { id: string; text: string; score: number; actors: string[] }
+interface JourneySection { id: string; label?: string; tasks: JourneyTask[] }
+interface JourneyBody { kind: 'journey'; title?: string; sections: JourneySection[] }
+
+type ArchitectureSide = 'L' | 'R' | 'T' | 'B'
+interface ArchitectureGroup { id: string; label: string; icon?: string; parentId?: string }
+interface ArchitectureService { id: string; label: string; icon?: string; parentId?: string }
+interface ArchitectureJunction { id: string; parentId?: string }
+interface ArchitectureEndpoint { id: string; side: ArchitectureSide }
+interface ArchitectureEdge { source: ArchitectureEndpoint; target: ArchitectureEndpoint; label?: string; hasArrowStart: boolean; hasArrowEnd: boolean }
+interface ArchitectureBody { kind: 'architecture'; groups: ArchitectureGroup[]; services: ArchitectureService[]; junctions: ArchitectureJunction[]; edges: ArchitectureEdge[] }
+
+interface XyChartAxis { name?: string; categories?: string[]; range?: { min: number; max: number } }
+interface XyChartSeries { id: string; kind: 'bar' | 'line'; name?: string; values: number[] }
+interface XyChartBody { kind: 'xychart'; title?: string; horizontal?: boolean; xAxis?: XyChartAxis; yAxis?: XyChartAxis; series: XyChartSeries[] }
+
 type FlowchartMutationOp =
   | { kind: 'add_node'; id: string; label: string; shape?: string; parent?: string }
   | { kind: 'remove_node'; id: string }
@@ -83,6 +119,16 @@ type FlowchartMutationOp =
   | { kind: 'set_label'; target: string; label: string }
   | { kind: 'add_edge'; from: string; to: string; label?: string; style?: 'solid' | 'dotted' | 'thick' }
   | { kind: 'remove_edge'; id: string }
+
+type StateMutationOp =
+  | { kind: 'add_state'; id: string; label?: string | null; parent?: string | null }
+  | { kind: 'remove_state'; id: string }
+  | { kind: 'rename_state'; from: string; to: string }
+  | { kind: 'set_state_label'; id: string; label: string | null }
+  | { kind: 'add_transition'; from: string; to: string; label?: string | null; parent?: string | null }   // from/to may be '[*]'
+  | { kind: 'remove_transition'; index?: number; from?: string; to?: string; parent?: string | null }
+  | { kind: 'set_transition_label'; index?: number; from?: string; to?: string; label: string | null; parent?: string | null }
+  | { kind: 'make_composite'; id: string; members: string[]; label?: string | null }
 
 type SequenceMutationOp =
   | { kind: 'add_participant'; id: string; label?: string; participantKind?: 'participant' | 'actor' }
@@ -124,6 +170,41 @@ type ErMutationOp =
   | { kind: 'add_relation'; from: string; to: string; leftCard: ErCardinality; rightCard: ErCardinality; dashed?: boolean; label?: string }
   | { kind: 'remove_relation'; index: number }
 
+type JourneyMutationOp =
+  | { kind: 'set_title'; title: string | null }
+  | { kind: 'add_section'; label: string }
+  | { kind: 'remove_section'; index: number }
+  | { kind: 'set_section_label'; index: number; label: string }
+  | { kind: 'add_task'; sectionIndex: number; text: string; score: number; actors?: string[] }
+  | { kind: 'remove_task'; sectionIndex: number; taskIndex: number }
+  | { kind: 'set_task_text'; sectionIndex: number; taskIndex: number; text: string }
+  | { kind: 'set_task_score'; sectionIndex: number; taskIndex: number; score: number }
+  | { kind: 'set_task_actors'; sectionIndex: number; taskIndex: number; actors: string[] }
+  | { kind: 'rename_actor'; from: string; to: string }
+
+type ArchitectureMutationOp =
+  | { kind: 'add_service'; id: string; label?: string; icon?: string | null; group?: string | null }
+  | { kind: 'remove_service'; id: string }
+  | { kind: 'rename_service'; from: string; to: string }
+  | { kind: 'set_service_label'; id: string; label: string }
+  | { kind: 'set_service_icon'; id: string; icon: string | null }
+  | { kind: 'move_service'; id: string; group: string | null }
+  | { kind: 'add_group'; id: string; label?: string; icon?: string | null; parent?: string | null }
+  | { kind: 'remove_group'; id: string }
+  | { kind: 'add_edge'; from: string; to: string; fromSide: ArchitectureSide; toSide: ArchitectureSide; label?: string | null; hasArrowStart?: boolean; hasArrowEnd?: boolean }
+  | { kind: 'remove_edge'; index?: number; id?: string }
+
+type XyChartAxisSpec = { name?: string | null; categories?: string[]; range?: { min: number; max: number } }
+type XyChartMutationOp =
+  | { kind: 'set_title'; title: string | null }
+  | { kind: 'set_x_axis'; axis: XyChartAxisSpec | null }
+  | { kind: 'set_y_axis'; axis: XyChartAxisSpec | null }
+  | { kind: 'add_series'; kind2: 'bar' | 'line'; name?: string | null; values: number[] }
+  | { kind: 'remove_series'; index: number }
+  | { kind: 'set_series_values'; index: number; values: number[] }
+  | { kind: 'set_series_name'; index: number; name: string | null }
+  | { kind: 'reorder_series'; from: number; to: number }
+
 // Tier 1 (structural, reliable): EMPTY_DIAGRAM, EDGE_MISANCHORED, OFF_CANVAS,
 //   GROUP_BREACH, UNKNOWN_SHAPE, LABEL_OVERFLOW (source-based char-cap).
 // Tier 2 (geometric, advisory): NODE_OVERLAP, ROUTE_SELF_CROSS.
@@ -142,15 +223,23 @@ interface VerifyResult {
 declare const mermaid: {
   parseMermaid(source: string): Result<ValidDiagram, { code: string; message: string }[]>
   asFlowchart(d: ValidDiagram): FlowchartValidDiagram | null
+  asState(d: ValidDiagram):     StateValidDiagram | null
   asSequence(d: ValidDiagram):  SequenceValidDiagram | null
   asTimeline(d: ValidDiagram):  TimelineValidDiagram | null
   asClass(d: ValidDiagram):     ClassValidDiagram | null
   asEr(d: ValidDiagram):        ErValidDiagram | null
+  asJourney(d: ValidDiagram):   JourneyValidDiagram | null
+  asArchitecture(d: ValidDiagram): ArchitectureValidDiagram | null
+  asXyChart(d: ValidDiagram):   XyChartValidDiagram | null
   mutate(d: FlowchartValidDiagram, op: FlowchartMutationOp): Result<FlowchartValidDiagram, { code: string; message: string }>
+  mutate(d: StateValidDiagram,     op: StateMutationOp):     Result<StateValidDiagram, { code: string; message: string }>
   mutate(d: SequenceValidDiagram,  op: SequenceMutationOp):  Result<SequenceValidDiagram, { code: string; message: string }>
   mutate(d: TimelineValidDiagram,  op: TimelineMutationOp):  Result<TimelineValidDiagram, { code: string; message: string }>
   mutate(d: ClassValidDiagram,     op: ClassMutationOp):     Result<ClassValidDiagram, { code: string; message: string }>
   mutate(d: ErValidDiagram,        op: ErMutationOp):        Result<ErValidDiagram, { code: string; message: string }>
+  mutate(d: JourneyValidDiagram,   op: JourneyMutationOp):   Result<JourneyValidDiagram, { code: string; message: string }>
+  mutate(d: ArchitectureValidDiagram, op: ArchitectureMutationOp): Result<ArchitectureValidDiagram, { code: string; message: string }>
+  mutate(d: XyChartValidDiagram,   op: XyChartMutationOp):   Result<XyChartValidDiagram, { code: string; message: string }>
   verifyMermaid(input: ValidDiagram | string, opts?: { suppress?: WarningCode[]; labelCharCap?: number }): VerifyResult
   serializeMermaid(d: ValidDiagram): string
   renderMermaidSVG(input: ValidDiagram | string, opts?: { security?: 'default' | 'strict'; idPrefix?: string; mermaidConfig?: MermaidRuntimeConfig }): string
@@ -161,10 +250,13 @@ declare const mermaid: {
 // 1. For new diagrams, author Mermaid source directly, then parse/verify/render.
 // 2. For existing structured diagrams, use mutate() + verify + serializeMermaid();
 //    do not regenerate/concatenate source when a typed op exists.
-// 3. mutate works on flowchart/state, simple sequence, timeline, class, and ER.
-//    Narrow via asFlowchart/asSequence/asTimeline/asClass/asEr. Journey,
-//    xychart, architecture, and opaque-fallback bodies are source-level only;
-//    if explicitly edited as text, re-parse and verify before returning.
+// 3. mutate works on flowchart, state, simple sequence, timeline, class, ER,
+//    journey, architecture, and xychart. Narrow via asFlowchart/asState/
+//    asSequence/asTimeline/asClass/asEr/asJourney/asArchitecture/asXyChart.
+//    State owns a dedicated body (BUILD-19); asFlowchart returns null on it.
+//    Opaque-fallback
+//    bodies (unmodeled syntax) are source-level only; if explicitly edited as
+//    text, re-parse and verify before returning.
 // 4. verify.ok is structural, not a visual-quality score; inspect warnings/layout or render artifacts for layout quality.
 // 5. Layout is deterministic; there is no seed.
 `

@@ -211,18 +211,28 @@ describe('stored agent-usage eval', () => {
     expect(summary.results[0]!.traceOk).toBe(false)
   })
 
-  test('opaque-refusal output must actually call the sequence narrower and preserve parsed source', async () => {
-    const summary = await runAgentUsageEval([{ id: 'sequence_alt_refuses_mutation', prompt: 'bad', script: `return { refused: true, source: 'sequenceDiagram\\n  A->>B: hi' }` }])
+  test('sequence-with-alt structured mutation: regenerated output (no real mutate) does not pass', async () => {
+    // BUILD-18: the alt block is now mutable, so a hand-written output that
+    // skips structured mutation must still fail the trace + task checks.
+    const summary = await runAgentUsageEval([{ id: 'sequence_alt_add_message', prompt: 'bad', script: `return { source: 'sequenceDiagram\\n  A->>B: hi\\n  A->>B: bye' }` }])
     expect(summary.ok).toBe(false)
     expect(summary.results[0]!.taskOk).toBe(false)
     expect(summary.results[0]!.traceOk).toBe(false)
   })
 
-  test('opaque-refusal decoy trace must return the preserved body.source', async () => {
-    const summary = await runAgentUsageEval([{ id: 'sequence_alt_refuses_mutation', prompt: 'bad', script: `
+  test('sequence-with-alt decoy: clean trace but returned hand-built source (alt dropped) fails the task', async () => {
+    // Real mutate lineage, verify+inspect, serialize — so the trace is clean
+    // (traceOk true). But the returned source is a hand-built string that does
+    // not match the serialized output, so the task check rejects it: returning
+    // a regenerated source instead of the serialized mutation is unsafe.
+    const summary = await runAgentUsageEval([{ id: 'sequence_alt_add_message', prompt: 'bad', script: `
       const r0 = mermaid.parseMermaid('sequenceDiagram\\n  A->>B: hi\\n  alt ok\\n    B-->>A: yes\\n  end')
-      mermaid.asSequence(r0.value)
-      return { refused: true, source: 'sequenceDiagram\\n  A->>B: hi' }
+      const seq = mermaid.asSequence(r0.value)
+      const r1 = mermaid.mutate(seq, { kind: 'add_message', from: 'A', to: 'B', text: 'bye' })
+      const verify = mermaid.verifyMermaid(r1.value)
+      if (!verify.ok) return { error: verify.warnings }
+      mermaid.serializeMermaid(r1.value)
+      return { source: 'sequenceDiagram\\n  A->>B: hi\\n  A->>B: bye' }
     ` }])
     expect(summary.ok).toBe(false)
     expect(summary.results[0]!.taskOk).toBe(false)
@@ -414,8 +424,11 @@ describe('real Code Mode trace instrumentation', () => {
   })
 
   test('opaque mutate attempt is linted even when mutate returns a structured error', async () => {
+    // BUILD-18: an alt-block sequence is now structured, so the genuinely
+    // opaque case is an un-segmentable one (stray `end`). Mutating it returns
+    // a structured error AND the trace flags MUTATE_ON_OPAQUE.
     const r = await executeInSandbox(`
-      const r0 = mermaid.parseMermaid('sequenceDiagram\\n  A->>B: hi\\n  alt ok\\n    B-->>A: yes\\n  end')
+      const r0 = mermaid.parseMermaid('sequenceDiagram\\n  A->>B: hi\\n  end')
       return mermaid.mutate(r0.value, { kind: 'add_message', from: 'A', to: 'B', text: 'bad' })
     `, { trace: true })
     expect(r.ok).toBe(true)

@@ -11,7 +11,7 @@
 // ============================================================================
 
 import type {
-  DiagramKind, DiagramBody, ValidDiagramMeta, ParseError,
+  DiagramKind, DiagramBody, ValidDiagramMeta, ParseError, SourceMap,
   AnyMutationOp, MutationError, LayoutWarning, VerifyOptions, Result,
 } from './types.ts'
 
@@ -36,13 +36,19 @@ export interface FamilyPlugin {
    */
   extractLabels?: (source: string) => ExtractedLabel[]
   /**
-   * Optional: family-specific structured parser. If provided, parseMermaid
-   * routes to this instead of the legacy in-tree branch. Returns a typed
-   * body or `null` to fall back to opaque (lossless via opaqueSource).
-   * (Hook is defined now for forward use; current built-in families still
-   * use the legacy in-tree parsers — see families-builtin.ts comments.)
+   * Family-specific structured parser. `lines` are the normalized source
+   * lines including the header; `opaqueSource` is the original body for
+   * lossless fallback; `canonicalSource` is the full normalized text (the
+   * legacy flowchart parser consumes it whole). Structured-or-opaque
+   * families return ok(structured ?? opaque); error-semantics families
+   * (flowchart/state) return err(ParseError[]).
    */
-  parse?: (lines: string[], opaqueSource: string, meta: ValidDiagramMeta) => Result<DiagramBody, ParseError>
+  parse?: (lines: string[], opaqueSource: string, meta: ValidDiagramMeta, canonicalSource: string) => Result<DiagramBody, ParseError[]>
+  /**
+   * Optional source-map builder, run after a successful parse. Today only
+   * flowchart/state index node positions; other families return no map.
+   */
+  buildSourceMap?: (body: DiagramBody, canonicalSource: string) => SourceMap
   /** Optional: family-specific serializer for a structured body. */
   serialize?: (body: DiagramBody) => string
   /** Optional: family-specific structured mutation. */

@@ -6,15 +6,17 @@ Agentic Mermaid supports Mermaid's common diagram families through a split pipel
 
 | Family | Header(s) | Render | Structured mutation | Notes |
 |---|---|---|---|---|
-| Flowchart | `flowchart`, `graph` | SVG/PNG/ASCII | ✓ | Includes state diagrams through shared graph editing. |
-| State | `stateDiagram-v2` | SVG/PNG/ASCII | ✓ | Parsed through graph-like flowchart mutation today. |
+| Flowchart | `flowchart`, `graph` | SVG/PNG/ASCII | ✓ | 6 graph ops; narrow with `asFlowchart`. |
+| State | `stateDiagram-v2` | SVG/PNG/ASCII | ✓ | Dedicated `StateBody` (BUILD-19): narrow with `asState`, 8 state-shaped ops. `asFlowchart` returns null. |
 | Sequence | `sequenceDiagram` | SVG/PNG/ASCII | simple syntax | Notes/alt/loop bodies round-trip as opaque source. |
 | Timeline | `timeline` | SVG/PNG/ASCII | ✓ | Supports sections, periods, events, title changes. |
 | Class | `classDiagram` | SVG/PNG/ASCII | ✓ | Classes, members, relations, notes. |
 | ER | `erDiagram` | SVG/PNG/ASCII | ✓ | Entities, attributes, relations. |
-| Journey | `journey` | SVG/PNG/ASCII | source-level only | Parsed/rendered/verified, but no typed mutation. |
-| XY chart | `xychart`, `xychart-beta` | SVG/PNG/ASCII | source-level only | Vertical/horizontal bar/line/mixed charts. |
-| Architecture | `architecture-beta` | SVG/PNG/ASCII | source-level only | Groups, services, junctions, anchored edges. |
+| Journey | `journey` | SVG/PNG/ASCII | structured (10 ops) | `asJourney` narrows simple title/section/task journeys; unmodeled syntax (accTitle/accDescr) stays opaque. |
+| XY chart | `xychart`, `xychart-beta` | SVG/PNG/ASCII | structured (8 ops) | Vertical/horizontal bar/line/mixed charts; modeled subset is structurally mutable via `asXyChart`. |
+| Pie | `pie` | SVG/PNG/ASCII | source-level only | Labelled slices with optional `showData` and title. |
+| Quadrant | `quadrantChart` | SVG/PNG/ASCII | source-level only | Points plotted in a 2x2 matrix with axis + quadrant labels. |
+| Architecture | `architecture-beta` | SVG/PNG/ASCII | structured (10 ops) | `asArchitecture` narrows the modeled subset (groups/services/junctions/edges); the `{group}` boundary modifier and accTitle/accDescr stay opaque. |
 
 Source-level-only does not mean unsupported: those families parse, render, verify, and round-trip, but agents should edit source deliberately instead of calling `mutate`.
 
@@ -36,7 +38,7 @@ stateDiagram-v2
   Idle --> Running
 ```
 
-State diagrams share the graph-oriented mutation surface where possible. State-specific syntax outside the modeled subset should be treated as source-level.
+State diagrams own a dedicated `StateBody` (BUILD-19): narrow with `asState` and apply the 8 typed ops (`add_state`, `remove_state`, `rename_state`, `set_state_label`, `add_transition`, `remove_transition`, `set_transition_label`, `make_composite`). The modeled subset is simple states, transitions, `[*]` start/end pseudostates, nestable composite blocks, and `direction`. Anything outside it — `<<fork>>`/`<<choice>>`/`<<join>>`, history states, concurrency `--`, notes, `classDef`/`class`/`:::` styling — falls back to a lossless opaque body and stays source-level. Verify still runs the full Tier 1 + Tier 2 geometric path by projecting the body to a graph.
 
 ## Sequence
 
@@ -95,7 +97,7 @@ journey
     Pay: 3: Customer, Gateway
 ```
 
-Journey diagrams are parsed, verified, and rendered. Edit source and re-verify.
+Journey diagrams narrow via `asJourney` and expose 10 structured ops (sections, tasks, scores, actors). Unmodeled syntax (accTitle/accDescr) falls back to a lossless opaque body.
 
 ## XY chart
 
@@ -107,7 +109,36 @@ xychart-beta
   line [50, 180, 420]
 ```
 
-See [`design/xychart.md`](./design/xychart.md) for compatibility details and layout notes.
+The modeled subset (bare title, named/categorical/range axes, bar/line series with finite values) is structurally mutable: narrow with `asXyChart` and apply the 8 typed ops (`set_title`, `set_x_axis`, `set_y_axis`, `add_series`, `remove_series`, `set_series_values`, `set_series_name`, `reorder_series`). Quoted text, multi-statement `;` lines, and accTitle/accDescr fall back to opaque and stay source-level. See [`design/xychart.md`](./design/xychart.md) for compatibility details and layout notes.
+
+## Pie
+
+```mermaid
+pie showData
+  title Pets adopted by volunteers
+  "Dogs" : 386
+  "Cats" : 85
+  "Rats" : 15
+```
+
+Pie charts accept the `pie` header with optional `showData`, an optional `title`, and `"label" : value` entries with positive numeric values. Slices render clockwise in source order. `showData` adds the raw value beside each legend label; the legend always shows the computed percentage. Malformed entries (negative/zero values, missing colon, unquoted labels) are hard errors — never silently dropped. The ASCII renderer draws a proportional bar list. Pie is source-level: parse, render, and verify it, then edit source deliberately rather than calling `mutate`.
+
+## Quadrant
+
+```mermaid
+quadrantChart
+  title Reach and engagement of campaigns
+  x-axis Low Reach --> High Reach
+  y-axis Low Engagement --> High Engagement
+  quadrant-1 We should expand
+  quadrant-2 Need to promote
+  quadrant-3 Re-evaluate
+  quadrant-4 May be improved
+  Campaign A: [0.3, 0.6]
+  Campaign B: [0.45, 0.23]
+```
+
+Quadrant charts accept the `quadrantChart` header, an optional `title`, `x-axis <left> --> <right>` and `y-axis <bottom> --> <top>` axis labels (the far side is optional), four `quadrant-1..quadrant-4 <label>` region labels, and `<Label>: [x, y]` points with coordinates in `[0, 1]`. Quadrant numbering follows Mermaid core: **1 = top-right, 2 = top-left, 3 = bottom-left, 4 = bottom-right**. The SVG renderer draws a square plot split into four theme-tinted quadrants with the points as circles; the ASCII renderer draws a bordered grid with a coordinate legend. Malformed lines — out-of-range/non-numeric coordinates, missing brackets, duplicate point labels, and unsupported styling (`classDef`, `:::`) — are hard errors, never silently dropped. Quadrant is source-level: parse, render, and verify it, then edit source deliberately rather than calling `mutate`.
 
 ## Architecture
 

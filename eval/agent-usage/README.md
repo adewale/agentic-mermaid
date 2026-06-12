@@ -14,7 +14,8 @@ Four layers, cheapest-first.
 SDK and asserts the supported path works end-to-end:
 
 - **add_node** — the canonical "edit one node and trust the result" loop, with a structural graph oracle.
-- **opaque_refusal** — a sequence with `alt`/`loop` falls back to opaque; the narrower returns `null`, so the agent is steered away from unsafe structured mutation. The refusal is the feature.
+- **opaque_refusal** — a sequence that can't be cleanly segmented (a stray `end`) falls back to whole-body opaque; the narrower returns `null`, so the agent is steered away from unsafe structured mutation. The refusal is the feature. (BUILD-18: ordinary `alt`/`loop`/Note sequences are now structured-with-segments and mutable — see `sequence_alt_add_message`.)
+- **sequence_alt_add_message** — a sequence with an `alt` block is structured-with-segments: `add_message` appends a top-level message while the `alt` block rides along verbatim. Asserts the structured mutation loop AND verbatim preservation.
 - **verify_catches_bad_edit** — an overflowing label is flagged by `verifyMermaid`, so the agent can revert before serializing.
 - **timeline/class/ER mutation** — representative typed mutations with parse-back structural oracles, not substring checks.
 - **source authoring** — a brand-new diagram is authored as Mermaid source, parsed, verified, and returned without fake mutation ceremony.

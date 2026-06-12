@@ -15,30 +15,33 @@ Current implementation decisions that differ from, or materially narrow, the bro
 
 - Product/docs and npm package name are **Agentic Mermaid** / `agentic-mermaid`; the repository path currently remains `adewale/beautiful-mermaid`. The agent surface ships as the `./agent` subpath.
 - `MermaidGraph` and `renderMermaidSVGAsync` remain for compatibility with existing renderer/tests/consumers.
-- `state` diagrams currently share the flowchart body (`body.kind: 'flowchart'`) because the legacy parser produces a `MermaidGraph` for both. `kind` still distinguishes `state` from `flowchart`.
+- ~~`state` diagrams currently share the flowchart body (`body.kind: 'flowchart'`)…~~ **Superseded by BUILD-19.** State diagrams now own a dedicated `StateBody` IR (`body.kind: 'state'`) with state-shaped ops and a real `asState` narrower. `asFlowchart` returns `null` on a state diagram (a breaking change within the unreleased agent surface). Verify still gets full Tier 1 + Tier 2 geometric coverage: the `StateBody` projects to a `MermaidGraph` via the legacy parser (`stateBodyToGraph`) and runs the identical flowchart `verifyGraph`. The modeled subset is simple states/transitions/`[*]` pseudostates/composites/`direction`; unmodeled syntax (`<<fork>>`/`<<choice>>`/`<<join>>`, history, concurrency `--`, notes, `classDef`/`class`/`:::`) falls back to a lossless opaque body. Corpus round-trip for state jumped 5% → 100%.
 
 ### Mutation surface is intentionally narrower than render support
 
 Structured mutation is exposed only for families whose parser/IR/serializer/verifier can preserve the modeled semantics:
 
 - flowchart/state;
-- simple sequence;
+- sequence (BUILD-18 — segment-preserving: participant/message ops stay live while Note/alt/loop/par/activate/autonumber/title ride along verbatim as opaque-block segments; only un-segmentable input such as an unbalanced `end` falls back to whole-body opaque);
 - timeline;
 - class;
-- ER.
+- ER;
+- journey (BUILD-15 pilot);
+- architecture (BUILD-17 — the modeled subset of groups/services/junctions/edges);
+- xychart (BUILD-16 — the modeled subset of title/axes/series).
 
 Source-level only:
 
-- journey;
-- xychart;
-- architecture;
-- any known-family diagram that falls back to opaque because it contains unmodeled syntax.
+- pie;
+- any known-family diagram that falls back to opaque because it contains unmodeled syntax (e.g. the architecture `{group}` boundary modifier, accTitle/accDescr, or quoted text / `;` lines in xychart).
 
 For source-level bodies, agents may render, verify, describe, and round-trip preserved source. They do **not** get typed mutation ops. `am mutate` returns `UNSUPPORTED_FAMILY` for those bodies.
 
 ### Structured-or-opaque is load-bearing
 
 Known-family input must never be partially parsed and then re-emitted with unknown constructs dropped. If the structured parser cannot preserve a construct, the body stays opaque/source-preserved and serializes from `body.source`.
+
+BUILD-18 refines "opaque/source-preserved" for sequence into a finer grain: a sequence body now interleaves structured statements with **opaque-block segments** holding unmodeled lines verbatim, so the structured ops survive instead of being forfeited at the first unmodeled line. The never-lossy invariant is unchanged — the segment lines are byte-for-byte preserved — and whole-body opaque is still the fallback for un-segmentable input. Class/ER/timeline can adopt the same segment-preserving body as follow-up work.
 
 This applies even when the diagram renders successfully. Render support is not the same as structured editing support.
 

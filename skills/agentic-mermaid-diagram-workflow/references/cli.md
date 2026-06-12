@@ -23,8 +23,9 @@ am <cmd> --help               per-command help
 ```
 
 `am verify` always emits JSON. `am mutate` dispatches by family across
-flowchart/state, sequence, timeline, class, and ER; journey, xychart,
-architecture, and opaque bodies return a structured `UNSUPPORTED_FAMILY` error. `am mutate` verifies before
+flowchart, state, sequence, timeline, class, ER, journey, architecture, and
+xychart; pie, quadrant, and opaque bodies return a structured
+`UNSUPPORTED_FAMILY` error. `am mutate` verifies before
 emitting source; verify failure exits 3 and omits `source`. Use direct Mermaid
 source authoring plus `am verify`/`am render` for brand-new diagrams; reserve
 `am mutate` for existing structured diagrams. `am parse | am serialize` round-trips through JSON.

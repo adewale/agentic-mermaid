@@ -13,7 +13,9 @@ import type {
 } from './types.ts'
 import { WARNING_SEVERITY, DEFAULT_LABEL_CHAR_CAP } from './types.ts'
 import { positionedToRenderedLayout, emptyRenderedLayout } from './layout-to-rendered.ts'
+import { layoutFamilyToRendered } from './family-layouts.ts'
 import { getFamily, extractLabelsGeneric } from './families.ts'
+import { stateBodyToGraph } from './state-body.ts'
 import './families-builtin.ts'  // registers built-in families at import time
 
 const KNOWN_SHAPES = new Set([
@@ -39,6 +41,7 @@ function opaqueSourceHasOnlyHeader(kind: ValidDiagram['kind'], source: string): 
     er: ['erdiagram'],
     journey: ['journey'],
     xychart: ['xychart', 'xychart-beta'],
+    pie: ['pie'],
     architecture: ['architecture-beta'],
   }
   return (aliases[kind] ?? [kind]).some(alias => header === alias || header.startsWith(`${alias} `))
@@ -63,8 +66,25 @@ export function verifyMermaid(input: ValidDiagram | string, opts: VerifyOptions 
   // explicit branches; the dispatcher path + emptyRenderedLayout fall-through
   // does the work. Dedup is unnecessary now (single source of truth) so we
   // emit pluginWarnings directly.
-  if (d.body.kind === 'class' || d.body.kind === 'er') {
-    return finalize(pluginWarnings, emptyRenderedLayout(d.kind), opts)
+  // class + ER + journey + architecture: the FamilyPlugin.verify hooks produce
+  // the per-body warnings (journey added by BUILD-15, architecture by BUILD-17).
+  if (d.body.kind === 'class' || d.body.kind === 'er' || d.body.kind === 'journey' || d.body.kind === 'architecture' || d.body.kind === 'xychart') {
+    // QUAL-1: verify.layout is now truthful — the real positioned layout from
+    // the family adapters (was emptyRenderedLayout). The structural warnings
+    // still come from the FamilyPlugin.verify hooks; only the geometry the
+    // layout field reports changes.
+    return finalize(pluginWarnings, layoutFamilyToRendered(d) ?? emptyRenderedLayout(d.kind), opts)
+  }
+
+  // State diagrams (BUILD-19): the StateBody projects to a MermaidGraph via the
+  // legacy state parser — the exact graph the renderer lays out — so the full
+  // flowchart Tier 1 + Tier 2 geometric path runs unchanged. pluginWarnings
+  // (verifyState) add the body-level structural checks on the StateBody itself.
+  if (d.body.kind === 'state') {
+    const graph = stateBodyToGraph(d.body)
+    if (graph.nodes.size === 0) return finalize(dedupedConcat([{ code: 'EMPTY_DIAGRAM' }], pluginWarnings), emptyRenderedLayout(d.kind), opts)
+    const { warnings, layout } = verifyGraph(graph, d.kind, cap)
+    return finalize(dedupedConcat(warnings, pluginWarnings), layout, opts)
   }
 
   if (d.body.kind === 'opaque') {
@@ -84,14 +104,29 @@ export function verifyMermaid(input: ValidDiagram | string, opts: VerifyOptions 
       seen.add(key)
       warnings.push({ code: 'LABEL_OVERFLOW', target: lbl.target, charCount: lbl.text.length, limit: cap })
     }
-    return finalize(dedupedConcat(warnings, pluginWarnings), emptyRenderedLayout(d.kind), opts)
+    // QUAL-1: opaque bodies of renderable families (pie/quadrant always, and
+    // class/er/journey/architecture/xychart when unmodeled) still produce a
+    // real positioned layout from canonicalSource. layoutFamilyToRendered
+    // degrades to an empty layout on render-error, so this never throws.
+    const opaqueLayout = layoutFamilyToRendered(d) ?? emptyRenderedLayout(d.kind)
+    return finalize(dedupedConcat(warnings, pluginWarnings), opaqueLayout, opts)
   }
 
   const graph = d.body.graph
   if (graph.nodes.size === 0) return finalize([{ code: 'EMPTY_DIAGRAM' }], emptyRenderedLayout(d.kind), opts)
+  const { warnings: graphWarnings, layout: graphLayout } = verifyGraph(graph, d.kind, cap)
+  return finalize(dedupedConcat(graphWarnings, pluginWarnings), graphLayout, opts)
+}
 
+/**
+ * Full Tier 1 (structural) + Tier 2 (geometric) + Tier 3 (lint) verify over a
+ * MermaidGraph. Shared by flowchart bodies and state-diagram bodies (which
+ * project to a graph via stateBodyToGraph). Returns warnings + the rendered
+ * layout; the caller finalizes (suppress + ok flag).
+ */
+function verifyGraph(graph: import('../types.ts').MermaidGraph, kind: ValidDiagram['kind'], cap: number): { warnings: LayoutWarning[]; layout: RenderedLayout } {
   const positioned = layoutGraphSync(graph, {})
-  const layout = positionedToRenderedLayout(positioned, d.kind)
+  const layout = positionedToRenderedLayout(positioned, kind)
   const warnings: LayoutWarning[] = []
 
   // Tier 1 — structural
@@ -149,7 +184,7 @@ export function verifyMermaid(input: ValidDiagram | string, opts: VerifyOptions 
   // Tier 3 — advisory lint for common agent mistakes that still parse/render.
   warnings.push(...lintFlowchartGraph(graph))
 
-  return finalize(dedupedConcat(warnings, pluginWarnings), layout, opts)
+  return { warnings, layout }
 }
 
 function dedupedConcat(a: LayoutWarning[], b: LayoutWarning[]): LayoutWarning[] {
@@ -268,7 +303,13 @@ function verifyTimeline(body: import('./types.ts').TimelineBody, kind: ValidDiag
 
 function verifySequence(body: SequenceBody, kind: ValidDiagram['kind'], cap: number, opts: VerifyOptions): VerifyResult {
   const warnings: LayoutWarning[] = []
-  if (body.participants.length === 0 && body.messages.length === 0) {
+  // BUILD-18: a segment-preserving body may carry content only in opaque-block
+  // segments (e.g. activation-shorthand messages `A->>+B`, blocks). That is
+  // not an empty diagram — it just isn't structurally modeled.
+  const hasOpaqueContent = (body.statements ?? []).some(
+    s => s.kind === 'opaque-block' && s.lines.some(l => l.trim().length > 0),
+  )
+  if (body.participants.length === 0 && body.messages.length === 0 && !hasOpaqueContent) {
     return finalize([{ code: 'EMPTY_DIAGRAM' }], emptyRenderedLayout(kind), opts)
   }
   const ids = new Set(body.participants.map(p => p.id))
@@ -283,6 +324,24 @@ function verifySequence(body: SequenceBody, kind: ValidDiagram['kind'], cap: num
   })
   for (const p of body.participants) {
     if (p.label.length > cap) warnings.push({ code: 'LABEL_OVERFLOW', target: p.id, charCount: p.label.length, limit: cap })
+  }
+  // BUILD-18: opaque-block segments (Note/alt/loop/par/title lines) still get
+  // universal LABEL_OVERFLOW via the family's label extractor, so the safety
+  // check survives the move from whole-body-opaque to structured-with-segments.
+  const opaqueLines = (body.statements ?? [])
+    .filter((s): s is Extract<typeof s, { kind: 'opaque-block' }> => s.kind === 'opaque-block')
+    .flatMap(s => s.lines)
+  if (opaqueLines.length > 0) {
+    const plugin = getFamily(kind)
+    const labels = (plugin?.extractLabels ?? extractLabelsGeneric)(opaqueLines.join('\n'))
+    const seen = new Set<string>()
+    for (const lbl of labels) {
+      if (lbl.text.length <= cap) continue
+      const key = `${lbl.target}:${lbl.text}`
+      if (seen.has(key)) continue
+      seen.add(key)
+      warnings.push({ code: 'LABEL_OVERFLOW', target: lbl.target, charCount: lbl.text.length, limit: cap })
+    }
   }
   return finalize(warnings, emptyRenderedLayout(kind), opts)
 }

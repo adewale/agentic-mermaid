@@ -24,7 +24,7 @@ D2 has a better language than Mermaid. The Beautiful Mermaid renderer foundation
 
 1. **Deterministic layout** — same input → structurally identical layout JSON across runs with the same ELK version. (Not "byte-identical SVG across versions" — that's a stronger claim that needs a forked ELK to actually deliver.)
 2. **Verifiable rendering** — structured "did this render cleanly?" check. Structural warnings (anchors, bounds, emptiness, group containment) are reliable; metric warnings (label fit, overlap) are best-effort because they depend on font-measurement parity with ELK.
-3. **Round-trippable** — `parseMermaid` produces a `ValidDiagram` that carries source needed to re-emit the diagram. For flowchart/state, sequence, timeline, class, and ER, `mutate` operates on structured bodies; for journey, xychart, architecture, and opaque-fallback bodies, preserved source is the round-trip mechanism.
+3. **Round-trippable** — `parseMermaid` produces a `ValidDiagram` that carries source needed to re-emit the diagram. For flowchart/state, sequence, timeline, class, ER, journey, architecture, and xychart, `mutate` operates on structured bodies; for pie and opaque-fallback bodies, preserved source is the round-trip mechanism.
 
 (Composition — `@include`, templates, layered scenarios — was the fourth in earlier drafts and is deferred. Agents do not currently reach for composition; they paste and edit. Add when evidence demands.)
 
@@ -36,16 +36,18 @@ What the current Agentic Mermaid surface delivers and what it doesn't:
 
 | Family | Parse / verify / render / round-trip | Structured mutation |
 |---|---|---|
-| Flowchart, State | Full | ✅ 6 ops |
-| Sequence | Full for simple messages; unmodeled blocks fall back to opaque losslessly | ✅ 5 ops when structured |
+| Flowchart | Full | ✅ 6 ops |
+| State | Structured round-trip for the modeled subset (simple states/transitions/`[*]`/composites/direction); `<<fork>>`/`<<choice>>`/notes/`--`/`classDef` fall back to opaque losslessly | 8 ops via `asState` (BUILD-19) |
+| Sequence | Structured-with-segments (BUILD-18): participant/message ops stay live while Note/alt/loop/par/activate/autonumber/title ride along verbatim as opaque-block segments; only un-segmentable input (unbalanced `end`) falls back to whole-body opaque | ✅ 5 ops when structured |
 | Timeline | Full | ✅ 10 ops |
 | Class | Full | ✅ 10 ops |
 | ER | Full | ✅ 7 ops |
-| Journey | Full lossless source round-trip | Source-level edits only |
-| XY chart | Full lossless source round-trip | Source-level edits only |
-| Architecture | Full lossless source round-trip | Source-level edits only |
+| Journey | Full structured round-trip (title/sections/tasks) | 10 ops via `asJourney` (BUILD-15 pilot) |
+| Architecture | Structured round-trip for the modeled subset (groups/services/junctions/edges); `{group}` boundary edges + accTitle/accDescr fall back to opaque losslessly | 10 ops via `asArchitecture` (BUILD-17) |
+| XY chart | Structured round-trip for the modeled subset (title/axes/series); quoted text, `;` lines, accTitle/accDescr fall back to opaque losslessly | 8 ops via `asXyChart` (BUILD-16) |
+| Pie | Full lossless source round-trip | Source-level edits only |
 
-The implication: for journey, xychart, architecture, and any opaque fallback, the agent's tool surface is *parse → verify → render → serialize*, not *parse → mutate → verify → serialize*. Cross-cutting edits on those bodies happen at the preserved source level (`body.source` for opaque bodies), not at the typed mutation layer. Code Mode opportunity #1 covers this for the cases where it matters.
+The implication: for pie and any opaque fallback, the agent's tool surface is *parse → verify → render → serialize*, not *parse → mutate → verify → serialize*. Cross-cutting edits on those bodies happen at the preserved source level (`body.source` for opaque bodies), not at the typed mutation layer. Code Mode opportunity #1 covers this for the cases where it matters.
 
 ---
 
@@ -175,14 +177,15 @@ parseMermaid(source: string):                                Result<ValidDiagram
 serializeMermaid(d: ValidDiagram):                           string
 synthesizeFromGraph(payload):                                Result<ValidDiagram, ParseError[]>
 mutate(d: FlowchartValidDiagram, op: FlowchartMutationOp):   Result<FlowchartValidDiagram, MutationError>
+mutate(d: StateValidDiagram,     op: StateMutationOp):       Result<StateValidDiagram, MutationError>
 mutate(d: SequenceValidDiagram,  op: SequenceMutationOp):    Result<SequenceValidDiagram, MutationError>
 mutate(d: TimelineValidDiagram,  op: TimelineMutationOp):    Result<TimelineValidDiagram, MutationError>
 mutate(d: ClassValidDiagram,     op: ClassMutationOp):       Result<ClassValidDiagram, MutationError>
 mutate(d: ErValidDiagram,        op: ErMutationOp):          Result<ErValidDiagram, MutationError>
-asFlowchart/asSequence/asTimeline/asClass/asEr(d): narrowed diagram | null
+asFlowchart/asState/asSequence/asTimeline/asClass/asEr(d): narrowed diagram | null
 ```
 
-**`mutate` is overloaded by family.** Flowchart/state, simple sequence, timeline, class, and ER diagrams have first-class structured editing. Journey, xychart, architecture, and opaque-fallback diagrams are not typed for mutation, so agents get a compile-time/null-narrower stop rather than a lossy edit path.
+**`mutate` is overloaded by family.** Flowchart/state, simple sequence, timeline, class, ER, journey, and architecture diagrams have first-class structured editing. Xychart and opaque-fallback diagrams are not typed for mutation, so agents get a compile-time/null-narrower stop rather than a lossy edit path.
 
 Two contracts:
 
@@ -199,6 +202,19 @@ Two contracts:
 | `set_label`   | `target`, `label` | —                 | `set_label(target, prev_label)` |
 | `add_edge`    | `from`, `to`      | `label`, `style`  | `remove_edge(id)` |
 | `remove_edge` | `id`              | —                 | `add_edge(from, to, label, style)` |
+
+**State MutationOp kinds** (8, BUILD-19 — promoting state from a "parses AS flowchart" projection to a dedicated `StateBody` IR with state-shaped ops and a real `asState` narrower). Modeled grammar: simple states (`state "Label" as id`, `id : Label`), transitions `from --> to [: label]` where `from`/`to` may be the reserved pseudostate `[*]` (source = start, target = end, scoped per composite level), composite blocks `state X { … }` (nestable), and `direction`. Anything else (`<<fork>>`/`<<choice>>`/`<<join>>`, history states, concurrency `--`, notes, `classDef`/`class`/`:::` styling, bare `stateId` lines, hyphenated composite ids) keeps the whole body opaque and round-trips verbatim. `[*]` is contextual, not a state node:
+
+| Kind | Required | Optional | Inverse |
+|---|---|---|---|
+| `add_state`            | `id`              | `label`, `parent` (composite) | `remove_state(id)` |
+| `remove_state`         | `id` (refused on a non-empty composite — remove children first) | — | `add_state(...)` |
+| `rename_state`         | `from`, `to`      | — (rewrites transitions) | `rename_state(to, from)` |
+| `set_state_label`      | `id`, `label \| null` | —             | `set_state_label(id, prev_label)` |
+| `add_transition`       | `from`, `to` (`[*]` allowed) | `label`, `parent` | `remove_transition(from->to)` |
+| `remove_transition`    | `index` or `from`/`to` pair | `parent` | `add_transition(...)` |
+| `set_transition_label` | `label \| null` + (`index` or `from`/`to`) | `parent` | `set_transition_label(..., prev_label)` |
+| `make_composite`       | `id`, `members: string[]` | `label`  | (move members out, remove composite) |
 
 **Sequence MutationOp kinds** (5):
 
@@ -252,11 +268,56 @@ Two contracts:
 | `add_relation`      | `from`, `to`, `leftCard`, `rightCard` (+ `dashed`, `label`) | `remove_relation(index)` |
 | `remove_relation`   | `index`                                               | `add_relation(...)` |
 
-**Source-level families:** journey, xychart, architecture, and opaque fallback bodies preserve source and do not expose structured mutation ops.
+**Journey MutationOp kinds** (10, BUILD-15 — the pilot promotion of a source-level family to structured mutation via the FamilyPlugin registry):
 
-**Structured-or-opaque rule (v4): never lossy.** The parser only produces a structured body when it fully understands every non-blank, non-comment line for the structured families. If the source contains *any* construct the parser doesn't model — `Note over` / `alt` / `loop` / `activate` in sequence, `direction TB` in class, etc. — parsing **falls back to an opaque body**. Journey, xychart, and architecture are intentionally source-level today. The diagram still parses, renders, verifies (structurally), and round-trips losslessly via preserved `body.source`; it simply isn't offered for structured mutation (no narrower for source-level families; structured-family narrowers return `null` on opaque fallbacks). This guarantees the parser never silently drops information. Earlier drafts dropped unrecognized lines on the floor; v4 does not.
+| Kind | Required | Inverse |
+|---|---|---|
+| `set_title`          | `title \| null`                                          | `set_title(prev_title)` |
+| `add_section`        | `label`                                                   | `remove_section(index)` |
+| `remove_section`     | `index`                                                   | `add_section(label)` |
+| `set_section_label`  | `index`, `label`                                          | `set_section_label(index, prev_label)` |
+| `add_task`           | `sectionIndex`, `text`, `score` (+ optional `actors`)     | `remove_task(sectionIndex, taskIndex)` |
+| `remove_task`        | `sectionIndex`, `taskIndex`                               | `add_task(...)` |
+| `set_task_text`      | `sectionIndex`, `taskIndex`, `text`                       | `set_task_text(... prev_text)` |
+| `set_task_score`     | `sectionIndex`, `taskIndex`, `score` (integer 1..5)       | `set_task_score(... prev_score)` |
+| `set_task_actors`    | `sectionIndex`, `taskIndex`, `actors: string[]`           | `set_task_actors(... prev_actors)` |
+| `rename_actor`       | `from`, `to`                                              | `rename_actor(to, from)` |
 
-For source-level families and any opaque fallback, cross-cutting edits are source-level only: operate against preserved source intentionally, then re-parse and verify before returning. Adding structured mutation for any such family follows the same pattern: narrowed type + body parser + serializer + per-family ops.
+**Architecture MutationOp kinds** (10, BUILD-17 — promoting the architecture-beta family to structured mutation via the FamilyPlugin registry, following the BUILD-15 journey pilot):
+
+| Kind | Required | Inverse |
+|---|---|---|
+| `add_service`        | `id` (+ optional `label`, `icon`, `group`)               | `remove_service(id)` |
+| `remove_service`     | `id` (cascades its edges)                                | `add_service(...)` + re-add edges |
+| `rename_service`     | `from`, `to` (updates edges)                             | `rename_service(to, from)` |
+| `set_service_label`  | `id`, `label`                                            | `set_service_label(id, prev_label)` |
+| `set_service_icon`   | `id`, `icon: string \| null`                             | `set_service_icon(id, prev_icon)` |
+| `move_service`       | `id`, `group: string \| null`                            | `move_service(id, prev_group)` |
+| `add_group`          | `id` (+ optional `label`, `icon`, `parent`)              | `remove_group(id)` |
+| `remove_group`       | `id` (refused if non-empty — move members first)         | `add_group(...)` |
+| `add_edge`           | `from`, `to`, `fromSide`, `toSide` (+ optional `label`, `hasArrowStart`, `hasArrowEnd`) | `remove_edge(id)` |
+| `remove_edge`        | `index` or `id` (`from->to`)                             | `add_edge(...)` |
+
+**XY chart MutationOp kinds** (8, BUILD-16 — promoting the xychart family to structured mutation via the FamilyPlugin registry, following the BUILD-15 journey and BUILD-17 architecture pilots). Canonical number format is `String(n)` (shortest round-tripping decimal); all values must be finite. Modeled grammar covers bare (unquoted) titles/axis-names/series-names/categories; quoted text, multi-statement `;` lines, accTitle/accDescr, and any other unmodeled syntax fall back to opaque:
+
+| Kind | Required | Inverse |
+|---|---|---|
+| `set_title`          | `title \| null`                                          | `set_title(prev_title)` |
+| `set_x_axis`         | `axis: { name?, categories?, range? } \| null` (categories XOR range) | `set_x_axis(prev_axis)` |
+| `set_y_axis`         | `axis: { name?, range? } \| null` (y-axis is never categorical) | `set_y_axis(prev_axis)` |
+| `add_series`         | `kind2: 'bar' \| 'line'`, `values: number[]` (+ optional `name`) | `remove_series(index)` |
+| `remove_series`      | `index`                                                   | `add_series(...)` |
+| `set_series_values`  | `index`, `values: number[]`                              | `set_series_values(index, prev_values)` |
+| `set_series_name`    | `index`, `name: string \| null`                          | `set_series_name(index, prev_name)` |
+| `reorder_series`     | `from`, `to`                                             | `reorder_series(to, from)` |
+
+**Source-level families:** pie and opaque fallback bodies preserve source and do not expose structured mutation ops.
+
+**Structured-or-opaque rule (v4): never lossy.** The parser only produces a structured body when it fully understands every non-blank, non-comment line for most structured families. If the source contains *any* construct the parser doesn't model — `direction TB` in class, `accTitle` or out-of-range scores in journey, the `{group}` boundary modifier in architecture, quoted text or `curve basis` in xychart, etc. — parsing **falls back to an opaque body**. Pie is intentionally source-level today. The diagram still parses, renders, verifies (structurally), and round-trips losslessly via preserved `body.source`; it simply isn't offered for structured mutation (no narrower for source-level families; structured-family narrowers return `null` on opaque fallbacks). This guarantees the parser never silently drops information. Earlier drafts dropped unrecognized lines on the floor; v4 does not.
+
+**Segment-preserving bodies (BUILD-18) — sequence ends the all-or-nothing cliff.** Sequence is the first family that does *not* go whole-body opaque on the first unmodeled line. Its body carries an ordered `statements: SequenceStatement[]` list (`participant` / `message` refs into the existing `participants`/`messages` arrays, plus `opaque-block` segments holding unmodeled lines VERBATIM). Block constructs (`alt|opt|loop|par|critical|break|rect … end`, nesting-tracked) become one opaque-block segment; `Note`/`activate`/`deactivate`/`autonumber`/`title` lines each join an adjacent segment. The participant/message ops stay live and address the top-level `messages` array exactly as before — **messages inside an opaque block are invisible to ops and are never touched.** Only an un-segmentable body (a stray `end`, an unclosed block) still falls back to whole-body opaque. Either way the round-trip is verbatim-lossless. Class/ER/timeline segment-preservation is follow-up work.
+
+For source-level families and any opaque fallback, cross-cutting edits are source-level only: operate against preserved source intentionally, then re-parse and verify before returning. Adding structured mutation for any such family follows the same pattern: narrowed type + body parser + serializer + per-family ops (most recently xychart, BUILD-16).
 
 Convention bans constructing `ValidDiagram` outside `parseMermaid`, `mutate`, and `synthesizeFromGraph`.
 
@@ -275,6 +336,7 @@ serializeMermaid(d: ValidDiagram):                         string
 
 // Mutation is overloaded by family. Opaque/source-only families don't typecheck.
 mutate(d: FlowchartValidDiagram, op: FlowchartMutationOp): Result<FlowchartValidDiagram, MutationError>
+mutate(d: StateValidDiagram,     op: StateMutationOp):     Result<StateValidDiagram, MutationError>
 mutate(d: SequenceValidDiagram,  op: SequenceMutationOp):  Result<SequenceValidDiagram, MutationError>
 mutate(d: TimelineValidDiagram,  op: TimelineMutationOp):  Result<TimelineValidDiagram, MutationError>
 mutate(d: ClassValidDiagram,     op: ClassMutationOp):     Result<ClassValidDiagram, MutationError>
@@ -282,6 +344,7 @@ mutate(d: ErValidDiagram,        op: ErMutationOp):        Result<ErValidDiagram
 
 // Narrowing helpers; null when the diagram isn't of that family or is opaque/source-level.
 asFlowchart(d: ValidDiagram): FlowchartValidDiagram | null
+asState(d: ValidDiagram):     StateValidDiagram | null
 asSequence(d: ValidDiagram):  SequenceValidDiagram | null
 asTimeline(d: ValidDiagram):  TimelineValidDiagram | null
 asClass(d: ValidDiagram):     ClassValidDiagram | null
@@ -347,7 +410,7 @@ The canonical runtime guide lives in `Instructions_for_agents.md` and is emitted
 
 1. For new diagrams, author Mermaid source directly, then `parseMermaid` / `verifyMermaid` / render or return it.
 2. For existing diagrams, `parseMermaid(source)` → `ValidDiagram`.
-3. Narrow with `asFlowchart` / `asSequence` / `asTimeline` / `asClass` / `asEr`; `null` means no structured mutation for that body.
+3. Narrow with `asFlowchart` / `asState` / `asSequence` / `asTimeline` / `asClass` / `asEr`; `null` means no structured mutation for that body.
 4. Apply typed `mutate` ops only to narrowed mutable bodies; Code Mode SDK-returned diagrams are read-only to block direct IR edits.
 5. Run `verifyMermaid(d)` at every commit point and inspect `ok` / `warnings` / `layout`.
 6. Only then `serializeMermaid(d)`.
@@ -379,7 +442,7 @@ This section records the design discipline for the branch, not an active roadmap
 | Tier-1 verifier recall on broken-fixture cases | Inline tests per Tier-1 code | high |
 | Round-trip identity | Golden corpus + property test | 100% on canonical input |
 | Round-trip property | Property test (fast-check) | 100% on parseable input |
-| Sequence fidelity | Property test: any sequence source with unmodeled constructs falls back to opaque and round-trips verbatim | 100% lossless |
+| Sequence fidelity | Property test (BUILD-18): any sequence source is segments-or-opaque and always lossless — interleaved structured + opaque lines round-trip in order; `remove_message` never touches opaque-block bytes | 100% lossless |
 | Sad-path coverage | CLI mutate on opaque family; malformed JSON-RPC; broken Code Mode script; N-round format idempotence | explicit tests |
 | Fault-injection (poor-man's mutation testing) | Inject a known bug into each core function, confirm a test catches it, revert | every core fn covered |
 | Code Mode sandbox isolation | Tests assert `execute()` cannot reach `process`, `require`, `fetch`, `eval`, `Function`, or host-constructor escape paths; dynamic code generation is disabled | explicit tests |
@@ -397,16 +460,16 @@ MermaidSeqBench is wired as an external corpus signal; live model transcript eva
 
 - **Determinism is empirical, not proven.** It's established by cross-process test over a corpus + the drift sentinel, plus reading ELK's config (`considerModelOrder: NODES_AND_EDGES`, no `randomSeed`). An ELK upgrade could in principle change this; the cross-process test and sentinel would catch it. There is no seed to fall back on because seeding never affected output.
 - **Determinism claim, precisely.** Layout JSON is byte-identical (after structural parse) across processes AND across JS runtimes (bun, node) on the same machine and same ELK version; this is verified on same-machine x86_64 and ARM64 when Node + built `dist/` are present. Direct cross-architecture byte equality (x86_64 output compared to ARM64 output) is still not a separate claim.
-- **Sequence structured coverage is deliberately narrow.** Only participant declarations + simple messages get a mutable structured body; everything else falls back to opaque (lossless, but not mutable). This is the honest tradeoff that replaced silent information loss.
-- **Journey, xychart, architecture, and opaque fallbacks are source-level only.** They remain deliberate, lossless source-level paths; no structured mutation is exposed for them.
+- **Sequence structured coverage is segment-preserving (BUILD-18).** Participant declarations + simple messages are the mutable structured surface; Note/alt/loop/par/activate/autonumber/title now ride along as verbatim opaque-block *segments* in the same body, so the structured ops survive instead of going whole-body opaque. Messages inside opaque blocks are deliberately not modeled (invisible to ops). Only un-segmentable input (unbalanced `end`, unclosed block) falls back to whole-body opaque. The honest tradeoff is unchanged — never lossy — it just no longer sacrifices the structured ops at the first unmodeled line. (Class/ER/timeline segment work is a follow-up.)
+- **Pie and opaque fallbacks are source-level only.** They remain deliberate, lossless source-level paths; no structured mutation is exposed for them. (Journey was promoted to structured mutation by BUILD-15; architecture by BUILD-17; xychart by BUILD-16.)
 - **Live-model agent-usage eval is periodic, not PR CI.** Stored Code Mode scripts, sandbox traces, task oracles, and the committed pi-subagent transcript replay run in CI; API-backed release-model transcripts remain in `TODO.md` because they need model access and selected release tasks.
 - **Bloat in agent-facing docs.** `Instructions_for_agents.md` is hard-capped under 100 lines; doc-sync test enforces.
 
 ## What v4 delivers (vs. earlier drafts)
 
 - **Determinism is structural and verified cross-process** — not a seed apparatus. The seed/RNG/clock machinery and the font-metric table are *removed* (they did nothing).
-- **Mutation for flowchart/state, sequence, timeline, class, and ER**, family-narrowed overloads, compile-time rejection of journey, xychart, architecture, and opaque/source-only families.
-- **Sequence parsing is lossless** — structured-or-opaque fallback; never silently drops constructs.
+- **Mutation for flowchart/state, sequence, timeline, class, ER, journey, architecture, and xychart**, family-narrowed overloads, compile-time rejection of pie and opaque/source-only families.
+- **Sequence parsing is lossless** — segment-preserving structured body (BUILD-18): Note/alt/loop/etc. ride along verbatim as opaque-block segments while the structured ops stay live; only un-segmentable input falls back to whole-body opaque; never silently drops constructs.
 - **Substrate enforcement is a real grep test** that runs under `bun test`, not an ESLint config that was never installed.
 - **`synthesizeFromGraph`** lets `am parse | am serialize` round-trip without `canonicalSource` on the wire.
 - **`LABEL_OVERFLOW` is a source-based char-count check** (Tier 1, reliable), not a font-metric heuristic.

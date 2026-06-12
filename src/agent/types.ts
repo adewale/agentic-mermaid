@@ -19,7 +19,7 @@ export function err<E, T = never>(error: E): Result<T, E> { return { ok: false, 
 
 export type DiagramKind =
   | 'flowchart' | 'state' | 'sequence' | 'class' | 'er'
-  | 'timeline' | 'journey' | 'xychart' | 'architecture'
+  | 'timeline' | 'journey' | 'xychart' | 'architecture' | 'pie' | 'quadrant'
 
 // ---- Sequence body --------------------------------------------------------
 
@@ -44,10 +44,26 @@ export interface SequenceMessage {
   style: SequenceMessageStyle
 }
 
+// BUILD-18: ordered statement list. Refs index into the participants/messages
+// arrays (which remain the canonical views the SDK declaration, synthesize
+// payloads, describe, verify, and tests consume). Opaque-block segments carry
+// unmodeled lines (Note/alt/loop/par/activate/autonumber/title…) VERBATIM so
+// they ride along in their original position. Messages/participants INSIDE an
+// opaque-block are invisible to mutation ops and the messages/participants
+// arrays — only top-level structured statements are addressable.
+export type SequenceStatement =
+  | { kind: 'participant'; ref: number }   // index into participants
+  | { kind: 'message'; ref: number }       // index into messages
+  | { kind: 'opaque-block'; lines: string[] }
+
 export interface SequenceBody {
   kind: 'sequence'
   participants: SequenceParticipant[]
   messages: SequenceMessage[]
+  // Optional for back-compat: synthesizeFromGraph payloads and hand-built
+  // bodies may omit it; the serializer falls back to participants-then-messages
+  // ordering when absent. Parsed bodies always populate it.
+  statements?: SequenceStatement[]
 }
 
 // ---- Timeline body --------------------------------------------------------
@@ -76,6 +92,30 @@ export interface TimelineBody {
   kind: 'timeline'
   title?: string
   sections: TimelineSection[]
+}
+
+// ---- Journey body ----------------------------------------------------------
+
+export interface JourneyTask {
+  /** Stable within one parse; recomputed each parse. Not a durable identifier. */
+  id: string
+  text: string
+  /** Satisfaction score, integer 1..5 (Mermaid journey convention). */
+  score: number
+  actors: string[]
+}
+
+export interface JourneySection {
+  id: string
+  /** Undefined = implicit/ungrouped section. */
+  label?: string
+  tasks: JourneyTask[]
+}
+
+export interface JourneyBody {
+  kind: 'journey'
+  title?: string
+  sections: JourneySection[]
 }
 
 // ---- Class diagram body ---------------------------------------------------
@@ -159,6 +199,123 @@ export interface ErBody {
   relations: ErRelation[]
 }
 
+// ---- Architecture body -----------------------------------------------------
+
+export type ArchitectureSide = 'L' | 'R' | 'T' | 'B'
+
+export interface ArchitectureGroup {
+  id: string
+  label: string
+  icon?: string
+  /** Undefined = root (not nested in another group). */
+  parentId?: string
+}
+
+export interface ArchitectureService {
+  id: string
+  label: string
+  icon?: string
+  /** Undefined = ungrouped (not inside a group). */
+  parentId?: string
+}
+
+export interface ArchitectureJunction {
+  id: string
+  parentId?: string
+}
+
+export interface ArchitectureEndpoint {
+  id: string
+  side: ArchitectureSide
+}
+
+export interface ArchitectureEdge {
+  source: ArchitectureEndpoint
+  target: ArchitectureEndpoint
+  label?: string
+  hasArrowStart: boolean
+  hasArrowEnd: boolean
+}
+
+export interface ArchitectureBody {
+  kind: 'architecture'
+  groups: ArchitectureGroup[]
+  services: ArchitectureService[]
+  junctions: ArchitectureJunction[]
+  edges: ArchitectureEdge[]
+}
+
+// ---- XY chart body ---------------------------------------------------------
+
+/** A single chart axis: an optional bare-text name plus EITHER categorical
+ *  labels (x-axis only) OR a numeric range. All three fields are optional;
+ *  a structured axis carries at least one of them. */
+export interface XyChartAxis {
+  /** Optional bare-text axis name/title. */
+  name?: string
+  /** Categorical labels (x-axis only) — mutually exclusive with range. */
+  categories?: string[]
+  /** Numeric range — mutually exclusive with categories. */
+  range?: { min: number; max: number }
+}
+
+export interface XyChartSeries {
+  /** Stable within one parse; recomputed each parse. Not a durable identifier. */
+  id: string
+  kind: 'bar' | 'line'
+  /** Optional bare-text series name. */
+  name?: string
+  /** Data values; all finite. */
+  values: number[]
+}
+
+export interface XyChartBody {
+  kind: 'xychart'
+  title?: string
+  /** Header orientation suffix: `xychart-beta horizontal`. Default vertical. */
+  horizontal?: boolean
+  xAxis?: XyChartAxis
+  yAxis?: XyChartAxis
+  series: XyChartSeries[]
+}
+
+// ---- State diagram body -----------------------------------------------------
+
+/**
+ * A state node. Simple states carry an optional display label; composite states
+ * additionally carry their own nested `states` + `transitions` (and an optional
+ * per-composite `direction`). The reserved pseudostate `[*]` is NOT a StateNode
+ * — it is modeled contextually as the endpoint id '[*]' on transitions (source
+ * = start pseudostate, target = end pseudostate), scoped per composite level.
+ */
+export interface StateNode {
+  id: string
+  /** Optional display label (`state "Label" as id` / `id : Label`). */
+  label?: string
+  /** Composite children — present iff this is a composite state. */
+  states?: StateNode[]
+  /** Composite-internal transitions — present iff this is a composite state. */
+  transitions?: StateTransition[]
+  /** Optional per-composite layout direction. */
+  direction?: import('../types.ts').Direction
+}
+
+export interface StateTransition {
+  /** Source state id, or '[*]' for a start pseudostate. */
+  from: string
+  /** Target state id, or '[*]' for an end pseudostate. */
+  to: string
+  label?: string
+}
+
+export interface StateBody {
+  kind: 'state'
+  states: StateNode[]
+  transitions: StateTransition[]
+  /** Optional top-level layout direction. */
+  direction?: import('../types.ts').Direction
+}
+
 // ---- Meta + IR ------------------------------------------------------------
 
 export interface SourceComment { text: string; line: number }
@@ -180,10 +337,14 @@ export interface SourceMap {
 
 export type DiagramBody =
   | { kind: 'flowchart'; graph: MermaidGraph }
+  | StateBody
   | SequenceBody
   | TimelineBody
   | ClassBody
   | ErBody
+  | JourneyBody
+  | ArchitectureBody
+  | XyChartBody
   /**
    * Opaque body — the parser understood the family header but encountered
    * unmodeled syntax. `source` is the ORIGINAL body with indentation, blank
@@ -219,14 +380,21 @@ export interface ValidDiagram {
 }
 
 export type FlowchartValidDiagram = ValidDiagram & { body: { kind: 'flowchart'; graph: MermaidGraph } }
+export type StateValidDiagram = ValidDiagram & { body: StateBody }
 export type SequenceValidDiagram = ValidDiagram & { body: SequenceBody }
 export type TimelineValidDiagram = ValidDiagram & { body: TimelineBody }
 export type ClassValidDiagram = ValidDiagram & { body: ClassBody }
 export type ErValidDiagram = ValidDiagram & { body: ErBody }
-export type MutableValidDiagram = FlowchartValidDiagram | SequenceValidDiagram | TimelineValidDiagram | ClassValidDiagram | ErValidDiagram
+export type JourneyValidDiagram = ValidDiagram & { body: JourneyBody }
+export type ArchitectureValidDiagram = ValidDiagram & { body: ArchitectureBody }
+export type XyChartValidDiagram = ValidDiagram & { body: XyChartBody }
+export type MutableValidDiagram = FlowchartValidDiagram | StateValidDiagram | SequenceValidDiagram | TimelineValidDiagram | ClassValidDiagram | ErValidDiagram | JourneyValidDiagram | ArchitectureValidDiagram | XyChartValidDiagram
 
 export function asFlowchart(d: ValidDiagram): FlowchartValidDiagram | null {
   return d.body.kind === 'flowchart' ? (d as FlowchartValidDiagram) : null
+}
+export function asState(d: ValidDiagram): StateValidDiagram | null {
+  return d.body.kind === 'state' ? (d as StateValidDiagram) : null
 }
 export function asSequence(d: ValidDiagram): SequenceValidDiagram | null {
   return d.body.kind === 'sequence' ? (d as SequenceValidDiagram) : null
@@ -244,6 +412,18 @@ export function asEr(d: ValidDiagram): ErValidDiagram | null {
   return d.body.kind === 'er' ? (d as ErValidDiagram) : null
 }
 
+export function asJourney(d: ValidDiagram): JourneyValidDiagram | null {
+  return d.body.kind === 'journey' ? (d as JourneyValidDiagram) : null
+}
+
+export function asArchitecture(d: ValidDiagram): ArchitectureValidDiagram | null {
+  return d.body.kind === 'architecture' ? (d as ArchitectureValidDiagram) : null
+}
+
+export function asXyChart(d: ValidDiagram): XyChartValidDiagram | null {
+  return d.body.kind === 'xychart' ? (d as XyChartValidDiagram) : null
+}
+
 // ---- Errors ---------------------------------------------------------------
 
 export interface ParseError { code: string; message: string; line?: number; col?: number }
@@ -253,9 +433,13 @@ export interface MutationError {
     | 'NODE_NOT_FOUND' | 'EDGE_NOT_FOUND'
     | 'PARTICIPANT_NOT_FOUND' | 'MESSAGE_NOT_FOUND'
     | 'SECTION_NOT_FOUND' | 'PERIOD_NOT_FOUND' | 'EVENT_NOT_FOUND'
+    | 'TASK_NOT_FOUND' | 'ACTOR_NOT_FOUND'
     | 'CLASS_NOT_FOUND' | 'MEMBER_NOT_FOUND' | 'RELATION_NOT_FOUND' | 'NOTE_NOT_FOUND'
     | 'ENTITY_NOT_FOUND' | 'ATTRIBUTE_NOT_FOUND'
-    | 'DUPLICATE_NODE' | 'DUPLICATE_PARTICIPANT' | 'DUPLICATE_CLASS' | 'DUPLICATE_ENTITY'
+    | 'SERVICE_NOT_FOUND' | 'GROUP_NOT_FOUND'
+    | 'SERIES_NOT_FOUND'
+    | 'STATE_NOT_FOUND' | 'TRANSITION_NOT_FOUND'
+    | 'DUPLICATE_NODE' | 'DUPLICATE_PARTICIPANT' | 'DUPLICATE_CLASS' | 'DUPLICATE_ENTITY' | 'DUPLICATE_STATE'
     | 'INVALID_OP'
   message: string
 }
@@ -315,7 +499,53 @@ export type ErMutationOp =
   | { kind: 'add_relation'; from: string; to: string; leftCard: ErCardinality; rightCard: ErCardinality; dashed?: boolean; label?: string }
   | { kind: 'remove_relation'; index: number }
 
-export type AnyMutationOp = FlowchartMutationOp | SequenceMutationOp | TimelineMutationOp | ClassMutationOp | ErMutationOp
+export type JourneyMutationOp =
+  | { kind: 'set_title'; title: string | null }
+  | { kind: 'add_section'; label: string }
+  | { kind: 'remove_section'; index: number }
+  | { kind: 'set_section_label'; index: number; label: string }
+  | { kind: 'add_task'; sectionIndex: number; text: string; score: number; actors?: string[] }
+  | { kind: 'remove_task'; sectionIndex: number; taskIndex: number }
+  | { kind: 'set_task_text'; sectionIndex: number; taskIndex: number; text: string }
+  | { kind: 'set_task_score'; sectionIndex: number; taskIndex: number; score: number }
+  | { kind: 'set_task_actors'; sectionIndex: number; taskIndex: number; actors: string[] }
+  | { kind: 'rename_actor'; from: string; to: string }
+
+export type ArchitectureMutationOp =
+  | { kind: 'add_service'; id: string; label?: string; icon?: string | null; group?: string | null }
+  | { kind: 'remove_service'; id: string }
+  | { kind: 'rename_service'; from: string; to: string }
+  | { kind: 'set_service_label'; id: string; label: string }
+  | { kind: 'set_service_icon'; id: string; icon: string | null }
+  | { kind: 'move_service'; id: string; group: string | null }
+  | { kind: 'add_group'; id: string; label?: string; icon?: string | null; parent?: string | null }
+  | { kind: 'remove_group'; id: string }
+  | { kind: 'add_edge'; from: string; to: string; fromSide: ArchitectureSide; toSide: ArchitectureSide; label?: string | null; hasArrowStart?: boolean; hasArrowEnd?: boolean }
+  | { kind: 'remove_edge'; index?: number; id?: string }
+
+export type StateMutationOp =
+  | { kind: 'add_state'; id: string; label?: string | null; parent?: string | null }
+  | { kind: 'remove_state'; id: string }
+  | { kind: 'rename_state'; from: string; to: string }
+  | { kind: 'set_state_label'; id: string; label: string | null }
+  | { kind: 'add_transition'; from: string; to: string; label?: string | null; parent?: string | null }
+  | { kind: 'remove_transition'; index?: number; from?: string; to?: string; parent?: string | null }
+  | { kind: 'set_transition_label'; index?: number; from?: string; to?: string; label: string | null; parent?: string | null }
+  | { kind: 'make_composite'; id: string; members: string[]; label?: string | null }
+
+export type XyChartAxisSpec = { name?: string | null; categories?: string[]; range?: { min: number; max: number } }
+
+export type XyChartMutationOp =
+  | { kind: 'set_title'; title: string | null }
+  | { kind: 'set_x_axis'; axis: XyChartAxisSpec | null }
+  | { kind: 'set_y_axis'; axis: XyChartAxisSpec | null }
+  | { kind: 'add_series'; kind2: 'bar' | 'line'; name?: string | null; values: number[] }
+  | { kind: 'remove_series'; index: number }
+  | { kind: 'set_series_values'; index: number; values: number[] }
+  | { kind: 'set_series_name'; index: number; name: string | null }
+  | { kind: 'reorder_series'; from: number; to: number }
+
+export type AnyMutationOp = FlowchartMutationOp | StateMutationOp | SequenceMutationOp | TimelineMutationOp | ClassMutationOp | ErMutationOp | JourneyMutationOp | ArchitectureMutationOp | XyChartMutationOp
 export type MutationOp = FlowchartMutationOp // legacy alias
 
 // ---- Branded Finite -------------------------------------------------------
@@ -435,9 +665,13 @@ export interface ValidDiagramPayload {
   meta?: Partial<ValidDiagramMeta>
   body:
     | { kind: 'flowchart'; graph: SerializedFlowchartGraph }
+    | StateBody
     | SequenceBody
     | TimelineBody
     | ClassBody
     | ErBody
+    | JourneyBody
+    | ArchitectureBody
+    | XyChartBody
     | { kind: 'opaque'; family: DiagramKind; source: string }
 }

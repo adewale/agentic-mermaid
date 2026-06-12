@@ -123,7 +123,7 @@ export function applyFlowchartOps(source: string, ops: FlowchartMutationOp[]) {
 
 ## Recipe: handle source-level-only families
 
-Journey, xychart, architecture, and opaque fallback bodies parse, verify, render, and serialize, but they do not expose typed mutation. Narrowers return `null` for those bodies.
+Xychart and opaque fallback bodies parse, verify, render, and serialize, but they do not expose typed mutation. Narrowers return `null` for those bodies. (Journey and architecture were promoted to structured mutation by BUILD-15/17; only their unmodeled-syntax fallbacks remain opaque.)
 
 ```ts
 import { parseMermaid, asFlowchart, verifyMermaid, serializeMermaid } from 'agentic-mermaid/agent'
@@ -244,7 +244,8 @@ Use `am capabilities --json` for machine-readable discovery. Current typed mutat
 
 | Family | Narrower | Op kinds |
 |---|---|---|
-| Flowchart, State | `asFlowchart` | `add_node`, `remove_node`, `rename_node`, `set_label`, `add_edge`, `remove_edge` |
+| Flowchart | `asFlowchart` | `add_node`, `remove_node`, `rename_node`, `set_label`, `add_edge`, `remove_edge` |
+| State | `asState` | `add_state`, `remove_state`, `rename_state`, `set_state_label`, `add_transition`, `remove_transition`, `set_transition_label`, `make_composite` |
 | Sequence | `asSequence` | `add_participant`, `remove_participant`, `add_message`, `remove_message`, `set_message_text` |
 | Timeline | `asTimeline` | `set_title`, `add_section`, `remove_section`, `set_section_label`, `add_period`, `remove_period`, `set_period_label`, `add_event`, `remove_event`, `set_event_text` |
 | Class | `asClass` | `set_title`, `add_class`, `remove_class`, `rename_class`, `add_member`, `remove_member`, `add_relation`, `remove_relation`, `add_note`, `remove_note` |
@@ -275,7 +276,7 @@ Tier 3 warnings are advisory lint checks for common agent mistakes: `DUPLICATE_E
 - Concatenating source for an edit covered by a typed op.
 - Serializing before reading `verify.ok` and `verify.warnings`.
 - Treating `verify.ok` as a human aesthetics score.
-- Calling `mutate` on journey, xychart, architecture, or opaque bodies.
+- Calling `mutate` on pie or opaque bodies.
 - Hiding unsupported-family results. Return them explicitly so the caller can choose a source-level path.
 
 ## Minimal decision tree

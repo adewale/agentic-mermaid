@@ -13,10 +13,10 @@ import { verifyMermaid } from '../agent/verify.ts'
 import { renderMermaidSVG, renderMermaidASCII, renderMermaidPNG, layoutMermaid } from '../agent/index.ts'
 import { describeMermaid } from '../agent/describe.ts'
 import { collectBatched } from '../shared/batched.ts'
-import { asFlowchart, asSequence, asTimeline, asClass, asEr } from '../agent/types.ts'
+import { asFlowchart, asState, asSequence, asTimeline, asClass, asEr, asJourney, asArchitecture, asXyChart } from '../agent/types.ts'
 import type {
   ValidDiagram, WarningCode,
-  FlowchartMutationOp, SequenceMutationOp, TimelineMutationOp, ClassMutationOp, ErMutationOp, AnyMutationOp,
+  FlowchartMutationOp, StateMutationOp, SequenceMutationOp, TimelineMutationOp, ClassMutationOp, ErMutationOp, JourneyMutationOp, ArchitectureMutationOp, XyChartMutationOp, AnyMutationOp,
   MutationError, Result, MutableValidDiagram,
 } from '../agent/types.ts'
 import { WARNING_SEVERITY, WARNING_TIER } from '../agent/types.ts'
@@ -141,9 +141,10 @@ Emits canonical Mermaid source. Accepts the JSON shape that 'am parse' emits;
 rebuilds the diagram via synthesizeFromGraph without re-parsing source.`,
   mutate: `am mutate <file|-> (--op '<JSON>' | --ops '<JSON array|file.json>') [--json]
 Applies one or more MutationOps, verifies the final diagram, then emits source.
-Flowchart/state, sequence, timeline, class, and ER have typed mutation ops;
-journey, xychart, architecture, and opaque-fallback diagrams return a structured
-UNSUPPORTED_FAMILY error (exit 2). Verify failures exit 3 and omit source.`,
+Flowchart/state, sequence, timeline, class, ER, journey, architecture, and
+xychart have typed mutation ops; opaque-fallback diagrams (unmodeled syntax)
+return a structured UNSUPPORTED_FAMILY error (exit 2). Verify failures exit 3
+and omit source.`,
   preview: `am preview <file|-> [--output preview.html] [--open] [--json] [--security strict]
 Writes a standalone HTML preview containing strict-mode rendered SVG. Without
 --output, emits HTML to stdout unless --open is set, in which case a temp HTML
@@ -428,6 +429,10 @@ function parseMutationOpsFlag(args: ParsedArgs): Result<AnyMutationOp[], CliMuta
 function mutateAny(d: ValidDiagram, op: AnyMutationOp): Result<MutableValidDiagram, CliMutationError> {
   const flow = asFlowchart(d)
   if (flow) return mutate(flow, op as FlowchartMutationOp)
+  // asState BEFORE the others: state diagrams own a dedicated StateBody and take
+  // state-shaped ops (asFlowchart now returns null on them — BUILD-19).
+  const state = asState(d)
+  if (state) return mutate(state, op as StateMutationOp)
   const seq = asSequence(d)
   if (seq) return mutate(seq, op as SequenceMutationOp)
   const timeline = asTimeline(d)
@@ -436,9 +441,15 @@ function mutateAny(d: ValidDiagram, op: AnyMutationOp): Result<MutableValidDiagr
   if (klass) return mutate(klass, op as ClassMutationOp)
   const er = asEr(d)
   if (er) return mutate(er, op as ErMutationOp)
+  const journey = asJourney(d)
+  if (journey) return mutate(journey, op as JourneyMutationOp)
+  const architecture = asArchitecture(d)
+  if (architecture) return mutate(architecture, op as ArchitectureMutationOp)
+  const xychart = asXyChart(d)
+  if (xychart) return mutate(xychart, op as XyChartMutationOp)
   return {
     ok: false,
-    error: { code: 'UNSUPPORTED_FAMILY', message: `mutate supports flowchart, state, sequence, timeline, class, and ER diagrams; got ${d.kind}${d.body.kind === 'opaque' ? ' (source-level/opaque body — structured mutation is not exposed for this family or syntax)' : ''}` },
+    error: { code: 'UNSUPPORTED_FAMILY', message: `mutate supports flowchart, state, sequence, timeline, class, ER, journey, architecture, and xychart diagrams; got ${d.kind}${d.body.kind === 'opaque' ? ' (source-level/opaque body — structured mutation is not exposed for this family or syntax)' : ''}` },
   }
 }
 
@@ -619,11 +630,14 @@ interface CapabilitiesEnvelope {
 
 export const MUTATION_OPS_BY_FAMILY = {
   flowchart: ['add_node', 'remove_node', 'rename_node', 'set_label', 'add_edge', 'remove_edge'],
-  state: ['add_node', 'remove_node', 'rename_node', 'set_label', 'add_edge', 'remove_edge'],
+  state: ['add_state', 'remove_state', 'rename_state', 'set_state_label', 'add_transition', 'remove_transition', 'set_transition_label', 'make_composite'],
   sequence: ['add_participant', 'remove_participant', 'add_message', 'remove_message', 'set_message_text'],
   timeline: ['set_title', 'add_section', 'remove_section', 'set_section_label', 'add_period', 'remove_period', 'set_period_label', 'add_event', 'remove_event', 'set_event_text'],
   class: ['set_title', 'add_class', 'remove_class', 'rename_class', 'add_member', 'remove_member', 'add_relation', 'remove_relation', 'add_note', 'remove_note'],
   er: ['add_entity', 'remove_entity', 'rename_entity', 'add_attribute', 'remove_attribute', 'add_relation', 'remove_relation'],
+  journey: ['set_title', 'add_section', 'remove_section', 'set_section_label', 'add_task', 'remove_task', 'set_task_text', 'set_task_score', 'set_task_actors', 'rename_actor'],
+  architecture: ['add_service', 'remove_service', 'rename_service', 'set_service_label', 'set_service_icon', 'move_service', 'add_group', 'remove_group', 'add_edge', 'remove_edge'],
+  xychart: ['set_title', 'set_x_axis', 'set_y_axis', 'add_series', 'remove_series', 'set_series_values', 'set_series_name', 'reorder_series'],
 } as const
 
 type MutableFamilyId = keyof typeof MUTATION_OPS_BY_FAMILY
@@ -738,7 +752,7 @@ references — safe for untrusted/agent-generated diagrams. See SECURITY.md.
 
 All families parse, verify, render, round-trip: ${families}.
 Structured mutation (${cap.families.find(f => f.hasMutate)?.editPolicy}): ${structured.join(', ')}.
-State shares the flowchart body: narrow with asFlowchart; flowchart ops apply.
+State diagrams own a dedicated body (BUILD-19): narrow with asState; state-shaped ops apply (asFlowchart returns null on them).
 Source-level-only: ${cap.families.filter(f => !f.hasMutate).map(f => f.id).join(', ')}.
 Source-level bodies round-trip losslessly via preserved source (never silently dropped).
 

@@ -4,14 +4,16 @@
 // ============================================================================
 
 import type {
-  ValidDiagram, ValidDiagramMeta, DiagramBody, SequenceBody, TimelineBody,
-  SequenceMessageStyle, ValidDiagramPayload, ParseError, Result,
+  ValidDiagram, ValidDiagramMeta, DiagramBody,
+  ValidDiagramPayload, ParseError, Result,
 } from './types.ts'
 import { ok, err } from './types.ts'
-import type { MermaidGraph, MermaidNode, MermaidEdge } from '../types.ts'
 import YAML from 'yaml'
-import { renderClass } from './class-body.ts'
-import { renderEr } from './er-body.ts'
+import { getFamily } from './families.ts'
+import './families-builtin.ts'  // registers built-in family serialize hooks
+
+// Re-export for callers that used the previous in-tree serializer home.
+export { renderTimeline } from './timeline-body.ts'
 
 export function serializeMermaid(d: ValidDiagram): string {
   return renderMeta(d.meta) + renderBody(d.body, d.kind)
@@ -27,173 +29,14 @@ export function renderMeta(meta: ValidDiagramMeta): string {
 }
 
 function renderBody(body: DiagramBody, kind: ValidDiagram['kind']): string {
-  if (body.kind === 'flowchart') return renderFlowchart(body.graph, kind)
-  if (body.kind === 'sequence') return renderSequence(body)
-  if (body.kind === 'timeline') return renderTimeline(body)
-  if (body.kind === 'class') return renderClass(body)
-  if (body.kind === 'er') return renderEr(body)
-  return body.source.endsWith('\n') ? body.source : body.source + '\n'
-}
-
-// ---- Timeline -------------------------------------------------------------
-
-export function renderTimeline(body: TimelineBody): string {
-  const lines: string[] = ['timeline']
-  if (body.title) lines.push(`  title ${body.title}`)
-  for (const section of body.sections) {
-    if (section.label !== undefined) lines.push(`  section ${section.label}`)
-    for (const period of section.periods) {
-      // First event on the same line as the period label; extra events on
-      // continuation lines (`: text`). Matches Mermaid timeline syntax.
-      if (period.events.length === 0) {
-        lines.push(`  ${period.label} :`)
-        continue
-      }
-      lines.push(`  ${period.label} : ${period.events[0]!.text}`)
-      for (const e of period.events.slice(1)) lines.push(`       : ${e.text}`)
-    }
-  }
-  return lines.join('\n') + '\n'
-}
-
-// ---- Sequence -------------------------------------------------------------
-
-function renderSequence(body: SequenceBody): string {
-  const lines: string[] = ['sequenceDiagram']
-  for (const p of body.participants) {
-    if (p.label !== p.id || p.kind === 'actor') {
-      const tag = p.kind === 'actor' ? 'actor' : 'participant'
-      lines.push(`  ${tag} ${p.id}${p.label !== p.id ? ` as ${p.label}` : ''}`)
-    }
-  }
-  for (const m of body.messages) {
-    lines.push(`  ${m.from}${arrowForStyle(m.style)}${m.to}: ${m.text}`)
-  }
-  return lines.join('\n') + '\n'
-}
-
-function arrowForStyle(s: SequenceMessageStyle): string {
-  switch (s) {
-    case 'sync': return '->>'
-    case 'reply': return '-->>'
-    case 'async': return '->'
-    case 'async-dashed': return '-->'
-    case 'lost': return '-x'
-    case 'lost-dashed': return '--x'
-  }
-}
-
-// ---- Flowchart ------------------------------------------------------------
-
-function renderFlowchart(graph: MermaidGraph, kind: ValidDiagram['kind']): string {
-  const lines: string[] = [kind === 'state' ? 'stateDiagram-v2' : `flowchart ${graph.direction}`]
-  const declaredInline = new Set<string>()
-
-  // Subgraph blocks MUST come before edges: the legacy parser associates a
-  // node with the subgraph in whose block it FIRST appears. If an edge at the
-  // top declared the node first, a later bare reference inside the subgraph is
-  // ignored and membership is lost on re-parse. Emitting members (with their
-  // shape declaration) inside the block first makes round-trip stable.
-  const membersDeclared = new Set<string>()
-  const renderSubgraph = (sg: MermaidGraph['subgraphs'][number], indent: string) => {
-    lines.push(`${indent}subgraph ${sg.id}${sg.label !== sg.id ? `[${sg.label}]` : ''}`)
-    if (sg.direction) lines.push(`${indent}  direction ${sg.direction}`)
-    for (const child of sg.children) renderSubgraph(child, indent + '  ')
-    for (const nid of sg.nodeIds) {
-      const node = graph.nodes.get(nid)
-      if (node && needsExplicitDeclaration(node)) {
-        lines.push(`${indent}  ${node.id}${renderShape(node)}`)
-        declaredInline.add(nid)
-      } else {
-        lines.push(`${indent}  ${nid}`)
-      }
-      membersDeclared.add(nid)
-    }
-    lines.push(`${indent}end`)
-  }
-  for (const sg of graph.subgraphs) renderSubgraph(sg, '  ')
-
-  for (const edge of graph.edges) lines.push('  ' + renderEdge(edge, graph.nodes, declaredInline))
-
-  for (const [id, node] of graph.nodes) {
-    if (declaredInline.has(id) || membersDeclared.has(id)) continue
-    const orphan = graph.edges.every(e => e.source !== id && e.target !== id)
-    if (orphan || needsExplicitDeclaration(node)) lines.push('  ' + `${node.id}${renderShape(node)}`)
-  }
-
-  for (const [name, props] of graph.classDefs) lines.push(`  classDef ${name} ${styleProps(props)}`)
-  for (const [id, cls] of graph.classAssignments) lines.push(`  class ${id} ${cls}`)
-  for (const [id, style] of graph.nodeStyles) lines.push(`  style ${id} ${styleProps(style)}`)
-  for (const [idx, style] of graph.linkStyles) lines.push(`  linkStyle ${idx} ${styleProps(style)}`)
-
-  return lines.join('\n') + '\n'
-}
-
-function needsExplicitDeclaration(node: MermaidNode): boolean {
-  return node.label !== node.id || node.shape !== 'rectangle'
-}
-
-function renderShape(node: MermaidNode): string {
-  const lbl = escapeLabel(node.label)
-  switch (node.shape) {
-    case 'rectangle': return `[${lbl}]`
-    case 'rounded': return `(${lbl})`
-    case 'stadium': return `([${lbl}])`
-    case 'subroutine': return `[[${lbl}]]`
-    case 'cylinder': return `[(${lbl})]`
-    case 'circle': return `((${lbl}))`
-    case 'doublecircle': return `(((${lbl})))`
-    case 'asymmetric': return `>${lbl}]`
-    case 'diamond': return `{${lbl}}`
-    case 'hexagon': return `{{${lbl}}}`
-    case 'trapezoid': return `[/${lbl}\\]`
-    case 'trapezoid-alt': return `[\\${lbl}/]`
-    case 'service': return `[${lbl}]`
-    case 'state-start':
-    case 'state-end': return ''
-  }
-}
-
-function escapeLabel(label: string): string {
-  if (/[\[\]{}()<>|]/.test(label)) return `"${label.replace(/"/g, '\\"')}"`
-  return label
-}
-
-function renderEdge(edge: MermaidEdge, nodes: Map<string, MermaidNode>, declaredInline: Set<string>): string {
-  const src = inlineNodeRef(edge.source, nodes, declaredInline)
-  const dst = inlineNodeRef(edge.target, nodes, declaredInline)
-  const labelPart = edge.label ? `|${escapeLabel(edge.label)}|` : ''
-  return `${src} ${renderEdgeArrow(edge)}${labelPart} ${dst}`
-}
-
-function inlineNodeRef(id: string, nodes: Map<string, MermaidNode>, declaredInline: Set<string>): string {
-  const n = nodes.get(id)
-  if (!n) return id
-  if (needsExplicitDeclaration(n) && !declaredInline.has(id)) {
-    declaredInline.add(id)
-    return `${id}${renderShape(n)}`
-  }
-  return id
-}
-
-function renderEdgeArrow(edge: MermaidEdge): string {
-  const start = edge.hasArrowStart ? markerChar(edge.startMarker ?? 'arrow', true) : ''
-  const end = edge.hasArrowEnd ? markerChar(edge.endMarker ?? 'arrow', false) : ''
-  switch (edge.style) {
-    case 'solid': return `${start}${!edge.hasArrowStart && !edge.hasArrowEnd ? '---' : '--'}${end}`
-    case 'dotted': return `${start}-.-${end}`
-    case 'thick': return `${start}${!edge.hasArrowStart && !edge.hasArrowEnd ? '===' : '=='}${end}`
-  }
-}
-
-function markerChar(marker: 'arrow' | 'circle' | 'cross', isStart: boolean): string {
-  if (marker === 'arrow') return isStart ? '<' : '>'
-  if (marker === 'circle') return 'o'
-  return 'x'
-}
-
-function styleProps(props: Record<string, string>): string {
-  return Object.entries(props).map(([k, v]) => `${k}:${v}`).join(',')
+  // Opaque bodies re-emit preserved source verbatim. Every structured body
+  // serializes through its FamilyPlugin hook — looked up by DIAGRAM kind,
+  // not body kind. State diagrams (BUILD-19) own a dedicated StateBody and the
+  // state plugin emits the stateDiagram-v2 header.
+  if (body.kind === 'opaque') return body.source.endsWith('\n') ? body.source : body.source + '\n'
+  const plugin = getFamily(kind)
+  if (plugin?.serialize) return plugin.serialize(body)
+  throw new Error(`No serializer registered for diagram kind "${kind}"`)
 }
 
 // ---- synthesizeFromGraph --------------------------------------------------
@@ -227,7 +70,7 @@ export function synthesizeFromGraph(payload: ValidDiagramPayload): Result<ValidD
         linkStyles: toLinkStyleMap(sg.linkStyles),
       },
     }
-  } else if (payload.body.kind === 'sequence' || payload.body.kind === 'timeline' || payload.body.kind === 'class' || payload.body.kind === 'er' || payload.body.kind === 'opaque') {
+  } else if (payload.body.kind === 'state' || payload.body.kind === 'sequence' || payload.body.kind === 'timeline' || payload.body.kind === 'class' || payload.body.kind === 'er' || payload.body.kind === 'journey' || payload.body.kind === 'architecture' || payload.body.kind === 'xychart' || payload.body.kind === 'opaque') {
     body = payload.body
   } else {
     return err([{ code: 'INVALID_PAYLOAD', message: 'unknown body kind' }])
