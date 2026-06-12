@@ -712,7 +712,7 @@ export type WarningTier = 'structural' | 'geometric' | 'lint'
 
 export type Tier1WarningCode =
   | 'EMPTY_DIAGRAM' | 'EDGE_MISANCHORED' | 'OFF_CANVAS'
-  | 'GROUP_BREACH' | 'UNKNOWN_SHAPE' | 'LABEL_OVERFLOW'
+  | 'GROUP_BREACH' | 'UNKNOWN_SHAPE' | 'LABEL_OVERFLOW' | 'UNRESOLVABLE_SCHEDULE'
 export type Tier2WarningCode = 'NODE_OVERLAP' | 'ROUTE_SELF_CROSS'
 /**
  * Tier 3 (advisory lint). Family-specific quality hints for common agent
@@ -728,6 +728,14 @@ export type LayoutWarning =
   | { code: 'GROUP_BREACH'; group: GroupId; member: NodeId }
   | { code: 'UNKNOWN_SHAPE'; node: NodeId; shape: string }
   | { code: 'LABEL_OVERFLOW'; target: NodeId | EdgeId; charCount: number; limit: number }
+  /**
+   * The diagram parses (and round-trips) but its semantics cannot resolve, so
+   * rendering will fail loudly — e.g. a Gantt whose schedule hits a bad
+   * calendar date, a dependency cycle, or an everything-excluded calendar.
+   * `reason` carries the named renderer error (GANTT_*…). Closes the
+   * "verify ok but render throws" seam for structured gantt bodies.
+   */
+  | { code: 'UNRESOLVABLE_SCHEDULE'; reason: string }
   | { code: 'NODE_OVERLAP'; a: NodeId; b: NodeId; areaPx: number }
   | { code: 'ROUTE_SELF_CROSS'; edge: EdgeId; count: number }
   | { code: 'DUPLICATE_EDGE'; edge: EdgeId; duplicateOf: EdgeId; from: NodeId; to: NodeId; label?: string }
@@ -735,6 +743,7 @@ export type LayoutWarning =
 
 export const WARNING_SEVERITY: Record<WarningCode, WarningSeverity> = {
   EMPTY_DIAGRAM: 'error',
+  UNRESOLVABLE_SCHEDULE: 'error',
   EDGE_MISANCHORED: 'error',
   OFF_CANVAS: 'error',
   GROUP_BREACH: 'error',
@@ -748,6 +757,7 @@ export const WARNING_SEVERITY: Record<WarningCode, WarningSeverity> = {
 
 export const WARNING_TIER: Record<WarningCode, WarningTier> = {
   EMPTY_DIAGRAM: 'structural',
+  UNRESOLVABLE_SCHEDULE: 'structural',
   EDGE_MISANCHORED: 'structural',
   OFF_CANVAS: 'structural',
   GROUP_BREACH: 'structural',

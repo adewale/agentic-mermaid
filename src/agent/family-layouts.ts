@@ -249,6 +249,26 @@ function ganttToRendered(d: ValidDiagram): RenderedLayout {
 }
 
 /**
+ * Closes the "verify ok but render throws" seam for structured gantt bodies
+ * (found by harvesting upstream's `excludes weekdays …` parser case): when the
+ * schedule cannot resolve, verify surfaces UNRESOLVABLE_SCHEDULE (error
+ * severity) carrying the named GANTT_* reason, instead of silently degrading
+ * to an empty layout. GANTT_EMPTY maps to the existing EMPTY_DIAGRAM code.
+ */
+export function ganttScheduleWarning(d: ValidDiagram): LayoutWarning | null {
+  try {
+    const normalized = normalizeMermaidSource(d.canonicalSource)
+    const model = applyGanttFrontmatterConfig(parseGanttModel(normalized.lines), normalized.frontmatter)
+    resolveGanttSchedule(model)
+    return null
+  } catch (e) {
+    const message = e instanceof Error ? e.message : String(e)
+    if (message.startsWith('GANTT_EMPTY')) return { code: 'EMPTY_DIAGRAM' }
+    return { code: 'UNRESOLVABLE_SCHEDULE', reason: message }
+  }
+}
+
+/**
  * Geometric tripwires for the gantt layout (docs/design/gantt.md
  * §Verification; issue #26 WS11): OFF_CANVAS when a resolved bar/milestone
  * leaves the canvas, GROUP_BREACH when a section-owned bar leaves its section

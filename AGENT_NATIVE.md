@@ -112,6 +112,7 @@ Derived from parsed structure or character-level source properties. Deterministi
 | `GROUP_BREACH`     | error   | Member node lies outside its group's bounds |
 | `UNKNOWN_SHAPE`    | warning | Shape name unrecognized; default used |
 | `LABEL_OVERFLOW`   | warning | Label character count exceeds the configurable limit (default 40 chars). Payload includes `charCount` and `limit`. Source-based, no font-table dependency. |
+| `UNRESOLVABLE_SCHEDULE` | error | The diagram parses and round-trips but its semantics cannot resolve, so rendering will fail loudly. Emitted for structured gantt bodies whose scheduler raises a named `GANTT_*` error (bad calendar date, dependency cycle, everything-excluded calendar); the payload's `reason` carries that error. |
 
 ### Tier 2 — Geometric (advisory)
 

@@ -24,11 +24,17 @@ function loadCorpus(): CorpusEntry[] {
   return existsSync(CORPUS_PATH) ? JSON.parse(readFileSync(CORPUS_PATH, 'utf8')) : []
 }
 
-const EXPECTED_CORPUS_RENDERED = 243
+const EXPECTED_CORPUS_RENDERED = 252
 const EXPECTED_CORPUS_ASCII_ERRORS = [
   'architecture:syntax/architecture.md:1',
   'architecture:syntax/architecture.md:2',
   'architecture:syntax/architecture.md:3',
+  // Gantt docs entries that error BY DESIGN, deterministically: index 6 is a
+  // directive-only fragment (GANTT_EMPTY) and index 10 ends a task with an
+  // inline `%% not yet official` comment that even upstream only renders via
+  // wall-clock fallback (GANTT_BAD_DATE) — see eval/mermaid-gantt-bench e9.
+  'gantt:syntax/gantt.md:10',
+  'gantt:syntax/gantt.md:6',
   'timeline:syntax/timeline.md:5',
 ]
 
