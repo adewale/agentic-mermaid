@@ -120,6 +120,11 @@ Correctly detect what they claim to detect, but the occurrence may be intentiona
 | `NODE_OVERLAP`     | warning | Two laid-out node bounding boxes intersect |
 | `ROUTE_SELF_CROSS` | warning | An edge route crosses itself |
 | `ROUTE_HITCH` | warning | An edge bends although a direct lane for it is provably clear (route-contract tripwire) |
+| `ROUTE_UNEXPLAINED_BEND` | warning | An edge contains a diagonal segment under orthogonal routing (route-contract tripwire) |
+| `ROUTE_LABEL_ON_SHARED_TRUNK` | warning | A label pill sits on a line segment another edge shares (route-contract tripwire) |
+| `ROUTE_CONTAINER_MISANCHOR` | warning | A container edge does not terminate on the container border (route-contract tripwire) |
+| `ROUTE_SHAPE_MISANCHOR` | warning | An endpoint is off the rendered shape boundary (route-contract tripwire) |
+| `ROUTE_STALE_AFTER_NODE_MOVE` | warning | An endpoint detached from its node entirely (route-contract tripwire) |
 
 Codes are the contract surface agents reason about. Emitting an undocumented code fails CI; documenting an unemitted one also fails CI. Agents omit known-irrelevant codes via `VerifyOptions.suppress`.
 

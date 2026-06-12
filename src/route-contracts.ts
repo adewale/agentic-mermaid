@@ -262,9 +262,9 @@ export function directLaneBlockers(
   mainLo: number,
   mainHi: number,
   ctx: LaneContext,
+  axis: Axis = ctx.axis,
 ): RouteBlocker[] {
   const blockers: RouteBlocker[] = []
-  const { axis } = ctx
   const overlaps = (lo: number, hi: number, lo2: number, hi2: number) =>
     Math.min(hi, hi2) - Math.max(lo, lo2) > EPS
 
@@ -320,17 +320,22 @@ export function directLaneBlockers(
 }
 
 /**
- * Find a position on the straight lane where this edge's label can sit
- * without overlapping nodes, other edges' labels, or other edges' segments
- * (spec §11.4: labels are obstacles for each other). Tries the midpoint,
- * then 1/3 and 2/3 — reciprocal labeled pairs end up straight with staggered
- * labels. Returns null when no slot is clear.
+ * Find a position where this edge's label can sit without overlapping nodes,
+ * other edges' labels, or other edges' segments (spec §11.4: labels are
+ * obstacles for each other). Tries on-lane slots first — the midpoint, then
+ * 1/3 and 2/3, so reciprocal labeled pairs end up straight with staggered
+ * labels — then *offset* slots that displace the pill perpendicular to the
+ * lane into open canvas (`preferOffsetSign` side first: away from the span
+ * center, i.e. away from the parallel partner lane). A short corridor between
+ * two parallel lanes can never host an on-lane pill, but the canvas right
+ * beside it usually can. Returns null when no slot is clear.
  */
 export function findLabelSlot(
   edge: PositionedEdge,
   start: Point,
   end: Point,
   ctx: LaneContext,
+  preferOffsetSign: 1 | -1 = 1,
 ): Point | null {
   if (!edge.label) return { x: (start.x + end.x) / 2, y: (start.y + end.y) / 2 }
   const m = measureMultilineText(edge.label, ctx.style.edgeLabelFontSize, ctx.style.edgeLabelFontWeight)
@@ -338,29 +343,38 @@ export function findLabelSlot(
   const rectsOverlap = (ax: number, ay: number, aw: number, ah: number, bx: number, by: number, bw: number, bh: number) =>
     ax < bx + bw + PAD && ax + aw + PAD > bx && ay < by + bh + PAD && ay + ah + PAD > by
 
-  for (const t of [0.5, 1 / 3, 2 / 3]) {
-    const cx = start.x + (end.x - start.x) * t
-    const cy = start.y + (end.y - start.y) * t
+  const slotClear = (cx: number, cy: number): boolean => {
     const pill = pillRect(cx, cy, m)
-    let clear = true
-
     for (const node of ctx.nodes) {
       if (node.id === edge.source || node.id === edge.target) continue
-      if (rectsOverlap(pill.x, pill.y, pill.w, pill.h, node.x, node.y, node.width, node.height)) { clear = false; break }
+      if (rectsOverlap(pill.x, pill.y, pill.w, pill.h, node.x, node.y, node.width, node.height)) return false
     }
-    if (clear) for (const other of ctx.edges) {
+    for (const other of ctx.edges) {
       if (other === edge || (edge.edgeIndex !== undefined && other.edgeIndex === edge.edgeIndex)) continue
       const rect = isMovableReciprocalLabel(edge, other, ctx) ? null : labelRect(other, ctx.style)
-      if (rect && rectsOverlap(pill.x, pill.y, pill.w, pill.h, rect.x, rect.y, rect.w, rect.h)) { clear = false; break }
+      if (rect && rectsOverlap(pill.x, pill.y, pill.w, pill.h, rect.x, rect.y, rect.w, rect.h)) return false
       for (let i = 1; i < other.points.length; i++) {
         const a = other.points[i - 1]!, b = other.points[i]!
         const sxLo = Math.min(a.x, b.x), sxHi = Math.max(a.x, b.x)
         const syLo = Math.min(a.y, b.y), syHi = Math.max(a.y, b.y)
-        if (rectsOverlap(pill.x, pill.y, pill.w, pill.h, sxLo, syLo, sxHi - sxLo, syHi - syLo)) { clear = false; break }
+        if (rectsOverlap(pill.x, pill.y, pill.w, pill.h, sxLo, syLo, sxHi - sxLo, syHi - syLo)) return false
       }
-      if (!clear) break
     }
-    if (clear) return { x: cx, y: cy }
+    return true
+  }
+
+  // The lane is axis-aligned; offsets displace the pill across it.
+  const horizontal = Math.abs(start.y - end.y) < EPS
+  const pillCross = (horizontal ? m.height : m.width) + 2 * LABEL_PILL_PADDING
+  const offsetDistance = pillCross / 2 + PAD
+  const offsets = [0, preferOffsetSign * offsetDistance, -preferOffsetSign * offsetDistance]
+
+  for (const offset of offsets) {
+    for (const t of [0.5, 1 / 3, 2 / 3]) {
+      const cx = start.x + (end.x - start.x) * t + (horizontal ? 0 : offset)
+      const cy = start.y + (end.y - start.y) * t + (horizontal ? offset : 0)
+      if (slotClear(cx, cy)) return { x: cx, y: cy }
+    }
   }
   return null
 }
@@ -439,14 +453,17 @@ function tryStraighten(
     }
     const mainLo = Math.min(srcMain, tgtMain)
     const mainHi = Math.max(srcMain, tgtMain)
-    const found = directLaneBlockers(edge, c, mainLo, mainHi, ctx)
+    const found = directLaneBlockers(edge, c, mainLo, mainHi, ctx, axis)
     if (found.length > 0) {
       blockers.push(...found)
       continue
     }
     const start: Point = axis.main === 'x' ? { x: srcMain, y: c } : { x: c, y: srcMain }
     const end: Point = axis.main === 'x' ? { x: tgtMain, y: c } : { x: c, y: tgtMain }
-    const slot = findLabelSlot(edge, start, end, ctx)
+    // Offset label slots open away from the span center — away from the
+    // parallel partner lane when this is one half of a reciprocal pair.
+    const offsetSign: 1 | -1 = c >= (overlapLo + overlapHi) / 2 ? 1 : -1
+    const slot = findLabelSlot(edge, start, end, ctx, offsetSign)
     if (slot === null) {
       blockers.push({ kind: 'label', id: edgeId(edge) })
       continue
@@ -476,6 +493,7 @@ export function applyRouteContracts(
   const classes = classifyRoutes(graph)
   const axis = axisFor(graph.direction)
   const nodeMap = new Map(positioned.nodes.map(n => [n.id, n]))
+  const groupMap = flattenGroups(positioned.groups)
   const ctx: LaneContext = { nodes: positioned.nodes, edges: positioned.edges, axis, style, classes }
   const certificates: RouteCertificate[] = []
 
@@ -527,6 +545,11 @@ export function applyRouteContracts(
       cert.invariant = 'self-loop'
     } else if (routeClass === 'container') {
       cert.invariant = 'container-attach'
+      if (tryRepairContainerEdge(edge, groupMap, nodeMap, ctx)) {
+        cert.bendCount = 0
+        cert.directLaneClear = true
+        cert.straightened = true
+      }
     } else if ((routeClass === 'primary-forward' || routeClass === 'feedback') && cert.bendCount > 0) {
       if (!attemptStraighten(edge, cert)) retry.push({ edge, cert })
     }
@@ -606,4 +629,197 @@ export function findRouteHitches(
     }
   }
   return hitches
+}
+
+/**
+ * Container edges must run border to border (spec §11.5). Under SEPARATE
+ * hierarchy mode (subgraph direction overrides) ELK can leave a
+ * container-to-container edge floating in the diagram margin, attached to
+ * neither box. When the two end rects are cleanly separated along one axis,
+ * collapse the route onto a proven straight lane between the facing borders
+ * — the same machinery as node straightening, with the container rect
+ * standing in as a rectangle. Returns true when the route was repaired.
+ */
+function tryRepairContainerEdge(
+  edge: PositionedEdge,
+  groupMap: Map<string, PositionedGroup>,
+  nodeMap: Map<string, PositionedNode>,
+  ctx: LaneContext,
+): boolean {
+  const rectFor = (id: string): PositionedNode | null => {
+    const group = groupMap.get(id)
+    if (group) return { id, label: '', shape: 'rectangle', x: group.x, y: group.y, width: group.width, height: group.height }
+    const node = nodeMap.get(id)
+    if (node && (RECT_LIKE.has(node.shape) || node.shape === 'diamond')) return node
+    return null
+  }
+  const src = rectFor(edge.source)
+  const tgt = rectFor(edge.target)
+  if (!src || !tgt) return false
+
+  // Already a straight border-to-border lane: nothing to repair.
+  const simplified = simplifyPolyline(edge.points)
+  if (simplified.length === 2 &&
+    onRectPerimeter(simplified[0]!, src.x, src.y, src.width, src.height, 1) &&
+    onRectPerimeter(simplified[1]!, tgt.x, tgt.y, tgt.width, tgt.height, 1)) {
+    return false
+  }
+
+  // The lane axis comes from how the rects are separated, not the graph
+  // direction — a direction-override parent can stack siblings either way.
+  const gaps: Array<{ gap: number; axis: Axis }> = [
+    { gap: tgt.y - (src.y + src.height), axis: { main: 'y', cross: 'x', sign: 1 } },
+    { gap: src.y - (tgt.y + tgt.height), axis: { main: 'y', cross: 'x', sign: -1 } },
+    { gap: tgt.x - (src.x + src.width), axis: { main: 'x', cross: 'y', sign: 1 } },
+    { gap: src.x - (tgt.x + tgt.width), axis: { main: 'x', cross: 'y', sign: -1 } },
+  ]
+  const best = gaps.filter(g => g.gap > EPS).sort((a, b) => b.gap - a.gap)[0]
+  if (!best) return false
+
+  return tryStraighten(edge, src, tgt, ctx, best.axis).applied
+}
+
+// ============================================================================
+// Route audit — the remaining issue #25 Phase 1 warning codes. Each check is
+// a tripwire: the pipeline upholds these invariants itself, so any finding
+// means a later pass broke geometry after certification. All definitions are
+// chosen to be zero-noise on the corpus.
+// ============================================================================
+
+export type RouteAuditFinding =
+  | { code: 'ROUTE_UNEXPLAINED_BEND'; edge: string }
+  | { code: 'ROUTE_LABEL_ON_SHARED_TRUNK'; edge: string; sharedWith: string }
+  | { code: 'ROUTE_CONTAINER_MISANCHOR'; edge: string; container: string }
+  | { code: 'ROUTE_SHAPE_MISANCHOR'; edge: string; node: string }
+  | { code: 'ROUTE_STALE_AFTER_NODE_MOVE'; edge: string; node: string }
+
+/** Within `tol` of the rectangle's perimeter (on an edge line, inside its range). */
+function onRectPerimeter(p: Point, x: number, y: number, w: number, h: number, tol: number): boolean {
+  const onVertical = (Math.abs(p.x - x) <= tol || Math.abs(p.x - (x + w)) <= tol) &&
+    p.y >= y - tol && p.y <= y + h + tol
+  const onHorizontal = (Math.abs(p.y - y) <= tol || Math.abs(p.y - (y + h)) <= tol) &&
+    p.x >= x - tol && p.x <= x + w + tol
+  return onVertical || onHorizontal
+}
+
+function flattenGroups(groups: PositionedGroup[], out: Map<string, PositionedGroup> = new Map()): Map<string, PositionedGroup> {
+  for (const g of groups) {
+    out.set(g.id, g)
+    flattenGroups(g.children, out)
+  }
+  return out
+}
+
+export function auditRouteContracts(
+  positioned: { nodes: PositionedNode[]; edges: PositionedEdge[]; groups: PositionedGroup[] },
+  graph: MermaidGraph,
+  style: LabelMetricsStyle = resolveRenderStyle({}),
+): RouteAuditFinding[] {
+  const findings: RouteAuditFinding[] = []
+  const nodeMap = new Map(positioned.nodes.map(n => [n.id, n]))
+  const groupMap = flattenGroups(positioned.groups)
+  const TOL = 1
+
+  for (const edge of positioned.edges) {
+    const cert = edge.routeCertificate
+    const id = edgeId(edge)
+
+    // ROUTE_UNEXPLAINED_BEND: orthogonal routing produced a diagonal segment —
+    // a bend that neither the prover nor a blocker list can account for.
+    if (cert && (cert.routeClass === 'primary-forward' || cert.routeClass === 'feedback')) {
+      for (let i = 1; i < edge.points.length; i++) {
+        const a = edge.points[i - 1]!, b = edge.points[i]!
+        if (Math.abs(a.x - b.x) > EPS && Math.abs(a.y - b.y) > EPS) {
+          findings.push({ code: 'ROUTE_UNEXPLAINED_BEND', edge: id })
+          break
+        }
+      }
+    }
+
+    // ROUTE_CONTAINER_MISANCHOR: a container edge must terminate on the
+    // container's border, not on a phantom node or a child (spec §11.5).
+    if (cert?.routeClass === 'container' && cert.edgeIndex >= 0) {
+      const graphEdge = graph.edges[cert.edgeIndex]
+      if (graphEdge) {
+        for (const [endId, point] of [
+          [graphEdge.source, edge.points[0]!],
+          [graphEdge.target, edge.points[edge.points.length - 1]!],
+        ] as const) {
+          const group = groupMap.get(endId)
+          if (group && !onRectPerimeter(point, group.x, group.y, group.width, group.height, TOL)) {
+            findings.push({ code: 'ROUTE_CONTAINER_MISANCHOR', edge: id, container: endId })
+          }
+        }
+      }
+    }
+
+    // ROUTE_SHAPE_MISANCHOR / ROUTE_STALE_AFTER_NODE_MOVE: endpoints must sit
+    // on the rendered boundary of the shapes we have anchor contracts for
+    // (spec §11.6), and may never detach from their node entirely.
+    if (cert && cert.routeClass !== 'container') {
+      for (const [nodeId, point] of [
+        [edge.source, edge.points[0]!],
+        [edge.target, edge.points[edge.points.length - 1]!],
+      ] as const) {
+        const node = nodeMap.get(nodeId)
+        if (!node) continue
+        const inflated = point.x >= node.x - 2 && point.x <= node.x + node.width + 2 &&
+          point.y >= node.y - 2 && point.y <= node.y + node.height + 2
+        if (!inflated) {
+          findings.push({ code: 'ROUTE_STALE_AFTER_NODE_MOVE', edge: id, node: nodeId })
+          continue
+        }
+        if (node.shape === 'diamond') {
+          const dx = Math.abs(point.x - (node.x + node.width / 2)) / (node.width / 2)
+          const dy = Math.abs(point.y - (node.y + node.height / 2)) / (node.height / 2)
+          if (Math.abs(dx + dy - 1) > 0.03) {
+            findings.push({ code: 'ROUTE_SHAPE_MISANCHOR', edge: id, node: nodeId })
+          }
+        } else if (RECT_LIKE.has(node.shape)) {
+          if (!onRectPerimeter(point, node.x, node.y, node.width, node.height, TOL)) {
+            findings.push({ code: 'ROUTE_SHAPE_MISANCHOR', edge: id, node: nodeId })
+          }
+        }
+      }
+    }
+
+    // ROUTE_LABEL_ON_SHARED_TRUNK: a label pill sitting on a piece of line
+    // that another edge's collinear segment shares (spec §11.4) — the reader
+    // cannot tell which edge the label belongs to.
+    if (edge.label && edge.labelPosition) {
+      const m = measureMultilineText(edge.label, style.edgeLabelFontSize, style.edgeLabelFontWeight)
+      const pill = pillRect(edge.labelPosition.x, edge.labelPosition.y, m)
+      outer: for (const other of positioned.edges) {
+        if (other === edge || (edge.edgeIndex !== undefined && other.edgeIndex === edge.edgeIndex)) continue
+        for (let i = 1; i < other.points.length; i++) {
+          const a = other.points[i - 1]!, b = other.points[i]!
+          const vertical = Math.abs(a.x - b.x) < EPS
+          const horizontal = Math.abs(a.y - b.y) < EPS
+          if (!vertical && !horizontal) continue
+          const sxLo = Math.min(a.x, b.x), sxHi = Math.max(a.x, b.x)
+          const syLo = Math.min(a.y, b.y), syHi = Math.max(a.y, b.y)
+          const hitsPill = sxHi >= pill.x && sxLo <= pill.x + pill.w && syHi >= pill.y && syLo <= pill.y + pill.h
+          if (!hitsPill) continue
+          // Shared trunk only when one of THIS edge's segments is collinear
+          // with the other's segment; a plain perpendicular crossing is not.
+          for (let j = 1; j < edge.points.length; j++) {
+            const c = edge.points[j - 1]!, d = edge.points[j]!
+            const sameAxis = vertical
+              ? Math.abs(c.x - d.x) < EPS && Math.abs(c.x - a.x) < CLEARANCE
+              : Math.abs(c.y - d.y) < EPS && Math.abs(c.y - a.y) < CLEARANCE
+            if (!sameAxis) continue
+            const cLo = vertical ? Math.min(c.y, d.y) : Math.min(c.x, d.x)
+            const cHi = vertical ? Math.max(c.y, d.y) : Math.max(c.x, d.x)
+            const oLo = vertical ? syLo : sxLo
+            const oHi = vertical ? syHi : sxHi
+            if (Math.min(cHi, oHi) - Math.max(cLo, oLo) > EPS) {
+              findings.push({ code: 'ROUTE_LABEL_ON_SHARED_TRUNK', edge: id, sharedWith: edgeId(other) })
+              break outer
+            }
+          }
+        }
+      }
+    }
+  }
+  return findings
 }

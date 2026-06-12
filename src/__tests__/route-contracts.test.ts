@@ -2,9 +2,9 @@ import { describe, expect, it } from 'bun:test'
 import fc from 'fast-check'
 import { layoutGraphSync } from '../layout-engine.ts'
 import { parseMermaid } from '../parser.ts'
-import { classifyRoutes, directLaneBlockers, findLabelSlot, findRouteHitches, simplifyPolyline } from '../route-contracts.ts'
+import { auditRouteContracts, classifyRoutes, directLaneBlockers, findLabelSlot, findRouteHitches, simplifyPolyline } from '../route-contracts.ts'
 import { measureMultilineText } from '../text-metrics.ts'
-import { verifyMermaid } from '../agent/index.ts'
+import { layoutMermaid, parseMermaid as agentParse, verifyMermaid } from '../agent/index.ts'
 import type { PositionedEdge, PositionedGraph } from '../types.ts'
 
 /** The MFA/login regression from issue #25 — every dogleg here had a clear direct lane. */
@@ -48,15 +48,25 @@ describe('route contracts — MFA/login regression (issue #25 acceptance criteri
     expect(isStraightHorizontal(e)).toBe(true)
   })
 
-  it('labeled feedback keeps its detour: no clear lane can host the label pill between these lanes', () => {
-    // Default-height LR nodes leave ~29px of shared attachment span; a label
-    // pill is ~30px tall, so a straight labeled back-lane would overlap the
-    // forward lane. The contract keeps the detour and says exactly why.
+  it('labeled feedback straightens too: the label pill moves into open canvas beside the lane', () => {
+    // The corridor between the parallel lanes is too short for an on-lane
+    // pill, so the slot search continues to offset slots — the pill sits
+    // just off the back-lane, on the side away from the forward lane.
     for (const [from, to] of [['C', 'B'], ['F', 'E']] as const) {
       const back = findEdge(edges, from, to)
-      expect(back.points.length).toBeGreaterThan(2)
-      expect(back.routeCertificate?.invariant).toBe('feedback-detour')
-      expect(back.routeCertificate?.directLaneBlockedBy?.some(b => b.kind === 'label')).toBe(true)
+      const fwd = findEdge(edges, to, from)
+      expect(isStraightHorizontal(back)).toBe(true)
+      expect(back.routeCertificate?.invariant).toBe('straight')
+      expect(back.routeCertificate?.straightened).toBe(true)
+      expect(Math.abs(back.points[0]!.y - fwd.points[0]!.y)).toBeGreaterThanOrEqual(4)
+      // The pill hangs off the lane, clear of both lanes.
+      const m = measureMultilineText(back.label!, 12, 400)
+      const pillHalf = (m.height + 16) / 2
+      const pillTop = back.labelPosition!.y - pillHalf
+      const pillBottom = back.labelPosition!.y + pillHalf
+      expect(pillTop > fwd.points[0]!.y + 2 || pillBottom < fwd.points[0]!.y - 2).toBe(true)
+      // Offset away from the forward lane: feedback sits below it in this layout.
+      expect(back.labelPosition!.y).toBeGreaterThan(back.points[0]!.y)
     }
   })
 
@@ -217,11 +227,11 @@ describe('certificates', () => {
     for (const [from, to] of [['C', 'B'], ['F', 'E']] as const) {
       const e = findEdge(positioned.edges, from, to)
       expect(e.routeCertificate?.routeClass).toBe('feedback')
-      // These are labeled: the pill cannot fit on any clear parallel lane,
-      // and the certificate carries that proof rather than a bare verdict.
-      expect(e.routeCertificate?.invariant).toBe('feedback-detour')
-      expect(e.routeCertificate?.directLaneClear).toBe(false)
-      expect(e.routeCertificate?.directLaneBlockedBy?.length).toBeGreaterThan(0)
+      // Labeled, but the offset slot search parks the pill in open canvas
+      // beside the back-lane, so the lane itself straightens with proof.
+      expect(e.routeCertificate?.invariant).toBe('straight')
+      expect(e.routeCertificate?.straightened).toBe(true)
+      expect(e.routeCertificate?.directLaneClear).toBe(true)
     }
   })
 
@@ -287,7 +297,7 @@ describe('ROUTE_HITCH tripwire (issue #25 acceptance criterion 3)', () => {
 })
 
 describe('route contracts — RL and BT directions (mutation-survivor harvest)', () => {
-  it('RL: the forward lane straightens against the reversed axis; the labeled feedback explains its detour', () => {
+  it('RL: both lanes straighten against the reversed axis; the label pill offsets beside its lane', () => {
     const edges = layoutEdges(`flowchart RL
       A[User] --> B[Login Page]
       B --> C{Valid?}
@@ -296,8 +306,9 @@ describe('route contracts — RL and BT directions (mutation-survivor harvest)',
     expect(isStraightHorizontal(e)).toBe(true)
     expect(e.points[0]!.x).toBeGreaterThan(e.points[1]!.x) // forward flow runs right-to-left
     const back = findEdge(edges, 'C', 'B')
-    expect(back.routeCertificate?.invariant).toBe('feedback-detour')
-    expect(back.routeCertificate?.directLaneBlockedBy?.some(b => b.kind === 'label')).toBe(true)
+    expect(isStraightHorizontal(back)).toBe(true)
+    expect(back.points[0]!.x).toBeLessThan(back.points[1]!.x) // feedback runs left-to-right
+    expect(Math.abs(back.points[0]!.y - e.points[0]!.y)).toBeGreaterThanOrEqual(4)
   })
 
   it('BT: the reciprocal pair straightens both vertical lanes', () => {
@@ -660,6 +671,128 @@ describe('ROUTE_HITCH tripwire covers feedback lanes', () => {
     const hitches = findRouteHitches(positioned, graph)
     expect(hitches.some(h => h.edge === 'B->A')).toBe(true)
     expect(hitches.find(h => h.edge === 'B->A')!.deviationPx).toBe(10)
+  })
+})
+
+describe('container edges anchor on container borders (issue #25 §11.5)', () => {
+  const NESTED_DIRECTION_SOURCE = `flowchart LR
+  subgraph TOP
+    direction TB
+    subgraph B1
+        direction RL
+        i1 -->f1
+    end
+    subgraph B2
+        direction BT
+        i2 -->f2
+    end
+  end
+  A --> TOP --> B
+  B1 --> B2`
+
+  function flatGroups(groups: PositionedGraph['groups'], out: PositionedGraph['groups'] = []): PositionedGraph['groups'] {
+    for (const g of groups) { out.push(g); flatGroups(g.children, out) }
+    return out
+  }
+
+  it('a container-to-container edge under direction overrides runs border to border, not in the margin', () => {
+    // Before this repair the edge floated at the diagram margin, attached to
+    // neither container (caught by the ROUTE_CONTAINER_MISANCHOR tripwire).
+    const positioned = layoutGraphSync(parseMermaid(NESTED_DIRECTION_SOURCE))
+    const e = findEdge(positioned.edges, 'B1', 'B2')
+    const groups = flatGroups(positioned.groups)
+    const b1 = groups.find(g => g.id === 'B1')!
+    const b2 = groups.find(g => g.id === 'B2')!
+    const start = e.points[0]!
+    const end = e.points[e.points.length - 1]!
+    // Start on B1's bottom border, end on B2's top border, one straight lane.
+    expect(Math.abs(start.y - (b1.y + b1.height))).toBeLessThan(1)
+    expect(start.x).toBeGreaterThan(b1.x)
+    expect(start.x).toBeLessThan(b1.x + b1.width)
+    expect(Math.abs(end.y - b2.y)).toBeLessThan(1)
+    expect(end.x).toBeGreaterThan(b2.x)
+    expect(end.x).toBeLessThan(b2.x + b2.width)
+    expect(e.points.length).toBe(2)
+  })
+
+  it('the route audit is silent across the MFA and container fixtures', () => {
+    for (const src of [MFA_SOURCE, NESTED_DIRECTION_SOURCE]) {
+      const graph = parseMermaid(src)
+      const positioned = layoutGraphSync(graph)
+      expect(auditRouteContracts(positioned, graph)).toEqual([])
+    }
+  })
+})
+
+describe('layoutMermaid debug exposure (issue #25 acceptance criterion 8, open question 1)', () => {
+  it('layoutMermaid(d, { debug: true }) attaches a route certificate to every edge', () => {
+    const r = agentParse(MFA_SOURCE)
+    if (!r.ok) throw new Error('parse failed')
+    const layout = layoutMermaid(r.value, { debug: true })
+    expect(layout.edges.length).toBeGreaterThan(0)
+    for (const e of layout.edges) {
+      expect(e.route).toBeDefined()
+      expect(['primary-forward', 'feedback', 'self-loop', 'container', 'cross-hierarchy']).toContain(e.route!.routeClass)
+    }
+    // Default output stays certificate-free (schema-stable).
+    const plain = layoutMermaid(r.value)
+    expect(plain.edges.every(e => e.route === undefined)).toBe(true)
+  })
+})
+
+describe('route audit tripwires fire on post-certification corruption', () => {
+  it('ROUTE_UNEXPLAINED_BEND: a diagonal segment on a certified edge', () => {
+    const graph = parseMermaid(MFA_SOURCE)
+    const positioned = layoutGraphSync(graph)
+    const e = findEdge(positioned.edges, 'B', 'C')
+    const [a, b] = e.points as [{ x: number; y: number }, { x: number; y: number }]
+    e.points = [a, { x: (a.x + b.x) / 2, y: a.y + 30 }, b]
+    expect(auditRouteContracts(positioned, graph).map(f => f.code)).toContain('ROUTE_UNEXPLAINED_BEND')
+  })
+
+  it('ROUTE_STALE_AFTER_NODE_MOVE: a node moved without rerouting its edges', () => {
+    const graph = parseMermaid(MFA_SOURCE)
+    const positioned = layoutGraphSync(graph)
+    const a = positioned.nodes.find(n => n.id === 'A')!
+    a.y += 200 // node moves; its edge endpoints do not
+    const findings = auditRouteContracts(positioned, graph)
+    expect(findings.some(f => f.code === 'ROUTE_STALE_AFTER_NODE_MOVE' && 'node' in f && f.node === 'A')).toBe(true)
+  })
+
+  it('ROUTE_SHAPE_MISANCHOR: an endpoint pulled inside a diamond', () => {
+    const graph = parseMermaid(MFA_SOURCE)
+    const positioned = layoutGraphSync(graph)
+    const e = findEdge(positioned.edges, 'B', 'C')
+    const end = e.points[e.points.length - 1]!
+    const c = positioned.nodes.find(n => n.id === 'C')!
+    e.points = [e.points[0]!, { x: c.x + c.width / 2, y: end.y }] // deep inside the diamond
+    expect(auditRouteContracts(positioned, graph).map(f => f.code)).toContain('ROUTE_SHAPE_MISANCHOR')
+  })
+
+  it('ROUTE_CONTAINER_MISANCHOR: a container edge detached from its border', () => {
+    const graph = parseMermaid(`flowchart TD
+      Start --> Pipeline
+      subgraph Pipeline
+        Fetch --> Parse
+      end`)
+    const positioned = layoutGraphSync(graph)
+    const e = findEdge(positioned.edges, 'Start', 'Pipeline')
+    const end = e.points[e.points.length - 1]!
+    e.points = [...e.points.slice(0, -1), { x: end.x + 50, y: end.y + 50 }]
+    expect(auditRouteContracts(positioned, graph).map(f => f.code)).toContain('ROUTE_CONTAINER_MISANCHOR')
+  })
+
+  it("ROUTE_LABEL_ON_SHARED_TRUNK: a label pill parked on another edge's collinear segment", () => {
+    const graph = parseMermaid(MFA_SOURCE)
+    const positioned = layoutGraphSync(graph)
+    const yes = findEdge(positioned.edges, 'D', 'E', 'Yes')
+    const ef = findEdge(positioned.edges, 'E', 'F')
+    // Move D->E's pill onto E->F's lane and make D->E share that lane segment.
+    const seg = ef.points[0]!
+    yes.labelPosition = { x: (ef.points[0]!.x + ef.points[1]!.x) / 2, y: seg.y }
+    yes.points = [{ x: ef.points[0]!.x, y: seg.y }, { x: ef.points[1]!.x, y: seg.y }]
+    const findings = auditRouteContracts(positioned, graph)
+    expect(findings.some(f => f.code === 'ROUTE_LABEL_ON_SHARED_TRUNK')).toBe(true)
   })
 })
 

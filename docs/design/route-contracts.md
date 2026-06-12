@@ -1,6 +1,6 @@
 # Route Contracts: Principled Routing Without Hitches
 
-Status: implemented (Phases 0, 1, 3 and the first slice of Phase 4 of issue #25's rollout; see "Rollout status")
+Status: implemented (Phases 0, 1 (complete), 3, and the first slice of Phase 4 of issue #25's rollout; see "Rollout status")
 Supersedes: the draft spec in issue #25, whose claims this document re-verified against the code.
 
 ## 1. The problem
@@ -52,9 +52,13 @@ layer is what makes either approach testable.
 2. Every bend must be intentional or explained — certificates, not vibes.
 3. No post-layout node movement without rerouting or recertification.
 4. Labels are route requirements: a straightened segment must host its label.
-5. ASCII and SVG share route intent (ASCII already satisfies the invariants
-   this spec adds for SVG; its grid router attempts direct lanes first and
-   ties break FIFO-deterministically).
+5. ASCII and SVG share route intent. The ASCII grid router already attempted
+   direct lanes first with FIFO-deterministic ties; this work additionally
+   gave its placement longest-path layering (a fan-in target sits after its
+   DEEPEST parent, so a later parent's edge never runs backward — the ASCII
+   side of acceptance criterion 1) and made label-segment choice prefer the
+   widest fitting segment (a mid-route channel) over the shared final
+   approach into a fan-in target.
 
 ## 4. Data model
 
@@ -150,13 +154,17 @@ is **clear**:
 - it does not run collinearly (within a 4px corridor) along another edge's
   parallel segment ("channel" blocker),
 - if the edge has a label, the new segment has capacity for the pill
-  (pill extent along the lane + clearance), and a **label slot** exists on
-  the lane — the midpoint, then 1/3, then 2/3 — whose pill rect is clear of
-  nodes, other pills, and other edges' segments. Reciprocal labeled pairs
-  with room stagger their labels; with standard-height LR nodes there is
-  provably no room for a ~30px pill between two parallel horizontal lanes,
-  so the labeled feedback edge keeps its detour and certifies the label as
-  the blocker. The label moves to the chosen slot.
+  (pill extent along the lane + clearance), and a **label slot** exists
+  whose pill rect is clear of nodes, other pills, and other edges'
+  segments. Slots are tried on the lane first — midpoint, 1/3, 2/3, so
+  reciprocal labeled pairs with room stagger their labels — and then
+  **offset beside the lane**: the pill displaced perpendicular into open
+  canvas, preferring the side away from the span center (away from the
+  parallel partner lane). A corridor between two parallel lanes is often
+  too short for an on-lane pill, but the canvas right beside it is not —
+  this is what lets `B --> C; C -- No --> B` render as two straight
+  parallel arrows with the "No" pill tucked under the back lane instead of
+  forcing a detour. The label moves to the chosen slot.
 
 Endpoints are re-anchored on the actual shape boundary: rectangle-like
 shapes by side intersection, diamonds by ray-polygon intersection (the same
@@ -187,31 +195,48 @@ before they are assigned; a blocked member falls out of the bundle (keeping
 its ELK route, which the route-contract pass then straightens or explains),
 and the junction is re-derived from the members that remain.
 
-## 7. Validation: ROUTE_HITCH
+**Container repair (spec §11.5):** under SEPARATE hierarchy mode (subgraph
+direction overrides) ELK could leave a container-to-container edge floating
+in the diagram margin, attached to neither box — the
+`ROUTE_CONTAINER_MISANCHOR` tripwire caught exactly one such edge in the
+docs corpus. When the two end rects are cleanly separated along one axis,
+the route collapses onto a proven straight lane between the facing borders
+(the container rect stands in as a rectangle; the lane axis comes from how
+the rects are separated, not the graph direction). Composite-state edges
+onto containers straighten through the same path.
 
-`verifyMermaid` gains a Tier 2 (geometric, advisory) warning:
+## 7. Validation: the ROUTE_* tripwires (issue #25 Phase 1, complete)
+
+`verifyMermaid` gains six Tier 2 (geometric, advisory) warnings. The layout
+pipeline upholds every one of these invariants itself, so the warnings are
+tripwires: they fire only when a pass mutates geometry after route
+certification, or the pipeline regresses. All are recomputed over the FINAL
+positioned graph, not trusted from the layout pass, and all are zero across
+the docs corpus by construction (the one corpus hit during development was
+a real floating-edge bug, which was then fixed — see "Container repair").
 
 ```
-ROUTE_HITCH { edge, deviationPx }
+ROUTE_HITCH                { edge, deviationPx }  bends although a clear lane exists (flipped axis for feedback)
+ROUTE_UNEXPLAINED_BEND     { edge }               diagonal segment under orthogonal routing
+ROUTE_LABEL_ON_SHARED_TRUNK{ edge, sharedWith }   label pill on a line segment another edge shares collinearly
+ROUTE_CONTAINER_MISANCHOR  { edge, container }    container edge not terminating on the container border (§11.5)
+ROUTE_SHAPE_MISANCHOR      { edge, node }         endpoint off the rendered shape boundary (§11.6; rect-like + diamond)
+ROUTE_STALE_AFTER_NODE_MOVE{ edge, node }         endpoint detached from its node entirely
 ```
 
-fired when a primary-forward or feedback edge has bends **and** a clear
-candidate lane exists for it (feedback lanes are proved against the flipped
-axis). Because the straightener runs by default in the same pipeline, this
-warning is a tripwire: it fires only if the straightener is disabled,
-regressed, or proven wrong — making the invariant load-bearing (acceptance
-criterion 3 of issue #25). It is computed by re-running the prover over the
-final positioned graph, not by trusting the layout pass.
+Shapes without an anchor contract yet (circle, stadium, …) are exempt from
+`ROUTE_SHAPE_MISANCHOR` rather than flagged — their endpoints sit on the
+bbox today and warning on every one would be noise, not signal.
 
-Out of scope for this iteration (deliberately, with reasons):
+Still deliberately out of scope:
 
-- `ROUTE_UNEXPLAINED_BEND` and friends — until Phase 2 ports land, most
-  non-straight routes are ELK channel routing; warning on them is noise.
-- Mutating ELK port constraints (`FIXED_SIDE` etc.) — Phase 2; needs corpus
-  evidence to bound the blast radius.
-- ASCII changes — the ASCII router already satisfies the direct-lane-first
-  and FIFO-determinism contracts; it shares the classification module when
-  it needs route classes.
+- Mutating ELK port constraints (`FIXED_SIDE` etc.) — issue #25 Phase 2.
+  Re-evaluated with the prover in place: `FIXED_SIDE` alone cannot pin port
+  *positions* (only sides, which ELK already picks correctly here), so it
+  would not remove the endpoint spread that causes hitches; `FIXED_POS`
+  everywhere would fight ELK's crossing minimization. The certifying pass
+  is the load-bearing mechanism; ports are worth revisiting only if corpus
+  evidence shows side-choice errors.
 
 ## 8. Pipeline placement
 
@@ -259,19 +284,27 @@ shipped.
 | Issue #25 phase | Status here |
 |---|---|
 | Phase 0 — diagnostics (classification + certificates) | implemented |
-| Phase 1 — validation warnings | `ROUTE_HITCH` implemented; other codes deferred until they can fire without noise |
-| Phase 2 — semantic `FIXED_SIDE` ports | deferred; certificates now provide the measurement to land it safely |
+| Phase 1 — validation warnings | complete: all six ROUTE_* codes implemented as zero-noise tripwires |
+| Phase 2 — semantic `FIXED_SIDE` ports | re-evaluated and not needed for hitches (see §7): FIXED_SIDE cannot pin positions, and the prover already enforces the outcome ports were meant to produce; revisit only on corpus evidence of side-choice errors |
 | Phase 3 — certifying simplifier | implemented (proof-free + proof-carrying layers) |
 | Phase 4 — bundle contract | first slice implemented: bundled paths are proved clear of nodes, blocked members fall out of the bundle; per-trunk certificates deferred |
-| Phase 5 — family adoption | deferred; certificate shape designed to extend (see issue #25 §14) |
+| Phase 5 — family adoption | graph-projected families (state composites, class/ER/architecture via layoutGraphSync) already flow through classification, straightening, container repair, and certificates; non-graph families (sequence/timeline/charts) need family-specific layout certificates per issue #25 §14 — out of routing scope |
 
 ## 11. Acceptance criteria mapping
 
-1. MFA/login renders straight primary-forward edges when lanes are clear — regression test + regenerated visual evidence.
-2. Feedback retry edges emit feedback-route certificates — straight-with-proof when their reverse lane is clear, `feedback-detour` with blockers otherwise — unit + regression test.
+1. MFA/login renders straight forward edges when lanes are clear, in SVG **and** ASCII (longest-path ASCII layering put the fan-in join after its deepest parent; regression tests on both renderers + regenerated visual evidence).
+2. Feedback retry edges emit feedback-route certificates — straight-with-proof (labeled ones park their pill in the open canvas beside the lane), `feedback-detour` with blockers otherwise — unit + regression test.
 3. Disabling the direct-lane proof reintroduces a failing test — `ROUTE_HITCH` tripwire + straightener unit tests + mutation lane.
 4. A blocker node prevents straightening with an explained-detour certificate — blocked-lane regression.
-5. Diamond endpoints land on the diamond polygon, not bbox corners — ray-intersection re-anchoring + property test.
-6. No node movement after the route pass — enforced by pipeline placement.
-7. Corpus diff shows no regressions — `eval/layout-compare` run recorded in the PR.
-8. Diagnostics available to tests — `classifyRoutes` / `certifyRoutes` exported; `verifyMermaid` surfaces `ROUTE_HITCH`.
+5. Diamond endpoints land on the diamond polygon, not bbox corners — ray-intersection re-anchoring + property test + `ROUTE_SHAPE_MISANCHOR` tripwire.
+6. No node movement after the route pass — pipeline placement + `ROUTE_STALE_AFTER_NODE_MOVE` tripwire.
+7. Corpus diff shows no regressions — `eval/layout-compare` runs recorded in the PR (18 changed / 0 regressions for the full batch).
+8. Diagnostics available to tests and the debug UI — `classifyRoutes` / `auditRouteContracts` / `findRouteHitches` exported, and `layoutMermaid(d, { debug: true })` attaches each edge's `RouteCertificate` to the layout JSON (issue #25 open question 1, as recommended).
+
+## 12. Issue #25 open questions, resolved
+
+1. *Certificates public or test-only?* — exposed via `layoutMermaid(d, { debug: true })` (the issue's own recommendation); default output unchanged.
+2. *Mermaid source route hints?* — no, as recommended; intent stays inferred from semantics and author order.
+3. *Should feedback always detour?* — refined: feedback must never share the forward edge's lane, but a provably clear parallel reverse lane straightens (the classic reciprocal-pair rendering). Blocked feedback detours with named blockers.
+4. *Should labels force a bend?* — only when no slot exists on or beside the lane; offset slots use the open canvas next to the corridor before any bend is accepted, and the certificate names the label when it still blocks.
+5. *Should architecture use ELK?* — unchanged: architecture keeps shared placement plus its own side-anchored rerouting; its graphs flow through classification/certification like every layoutGraphSync caller.
