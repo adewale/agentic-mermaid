@@ -295,12 +295,26 @@ port-candidate cost model (fixed candidates with costs + overflow):
 
 1. **A side carrying exactly ONE line uses its canonical port** — the
    diamond's *vertex* (the sharp bit), the side *midpoint* elsewhere. For a
-   single-line diamond side this is absolute: if no straight lane through
-   the vertex exists, a single proof-gated Z from the vertex into the
-   target's port still outranks a straight lane floating on the facet —
-   lines emit from points (dot and yFiles draw decisions the same way).
-   The fixed-point loop upgrades the Z back to a straight vertex lane the
-   moment a blocking obstacle moves.
+   single-line diamond side this is absolute: lines emit from points (dot
+   and yFiles draw decisions the same way), and when the straight vertex
+   lane is blocked the repairs rank by bend count:
+   1. the straight vertex lane (0 bends);
+   2. the **1-bend hook**: vertex lane along the flow axis, then one
+      perpendicular stub into the target's *facing* cross-side port — the
+      box's top/bottom in horizontal flow (the entry the IBM flowcharting
+      manuals illustrate). Requires the vertex lane to clear the target's
+      cross extent and a stub of at least `HOOK_STUB_MIN = 8` px (a
+      shorter stub reads as a hitch, not an entry — the degenerate TD/BT
+      case keeps its Z). **A fan-in merge outranks the hook**: when a
+      same-target sibling already holds the flow-side entry port, the Z
+      that converges there into one shared arrowhead (yFiles edge
+      grouping; Kakoulis–Tollis unambiguity) beats splitting the fan-in
+      across two sides;
+   3. the 2-bend Z from the vertex into the target's flow-side port.
+   The fixed-point loop upgrades hook/Z back to a straight vertex lane
+   the moment a blocking obstacle moves, and downgrades an
+   order-dependent hook to the merging Z once the sibling settles on the
+   shared port.
 2. **A side carrying several lines spreads them** along its legal region
    (facet/flat) — no line hogs the point. Fan-ins INTO a side still prefer
    the target port, where same-target edges merge into one arrowhead.

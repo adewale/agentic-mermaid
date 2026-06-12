@@ -1064,6 +1064,27 @@ describe('port ranking — sharp bits win when a side carries one line (issue #2
     expect(e.routeCertificate?.targetPort).toBeDefined()
   })
 
+  it.each(['LR', 'RL'] as const)(
+    "%s: a blocked vertex emit hooks into the target's facing cross-side port (1 bend, not a 2-bend Z)",
+    dir => {
+      const positioned = layoutGraphSync(parseMermaid(single(dir)))
+      const e = findEdge(positioned.edges, 'Q', 'T')
+      const t = positioned.nodes.find(n => n.id === 'T')!
+      const q = positioned.nodes.find(n => n.id === 'Q')!
+      // The vertex lane passes above the target (fan-in pulled T down), so
+      // the natural entry is the cross side FACING the lane — the box's top
+      // port — not a hook doubling back into the flow side the fan-in
+      // partner uses. One bend (an L), both endpoints on exact ports.
+      const laneY = q.y + q.height / 2
+      const facing = laneY < t.y + t.height / 2 ? 'N' : 'S'
+      expect(e.points.length).toBe(3)
+      expect(e.routeCertificate?.targetPort).toBe(facing)
+      const last = e.points[e.points.length - 1]!
+      expect(Math.abs(last.x - (t.x + t.width / 2))).toBeLessThanOrEqual(0.5)
+      expect(Math.abs(last.y - (facing === 'N' ? t.y : t.y + t.height))).toBeLessThanOrEqual(0.5)
+    },
+  )
+
   it('two lines out of one diamond side spread on the facet (no line hogs the vertex)', () => {
     for (const dir of ['LR', 'TD'] as const) {
       const positioned = layoutGraphSync(parseMermaid(`flowchart ${dir}

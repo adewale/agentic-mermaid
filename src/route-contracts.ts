@@ -58,6 +58,10 @@ const PORT_TOLERANCE = 0.5
 /** Cross-axis distance between the two lines of a reciprocal pair. */
 const PAIR_SEPARATION = 12
 
+/** Minimum length of a vertex hook's entry stub (the perpendicular segment
+ *  into the target's facing port) — shorter reads as a hitch, not an entry. */
+const HOOK_STUB_MIN = 8
+
 /** The four canonical connection points: bbox side midpoints (valid on the
  *  outline for every PORT_EXACT shape — diamond vertices, circle extremes,
  *  hexagon E/W vertices and cylinder cap centers coincide with them). */
@@ -814,14 +818,18 @@ export function applyRouteContracts(
         cert.directLaneBlockedBy = undefined
         return { applied: true, mutated }
       }
-      if (tryZRoute(edge, source!, target!, ctx, edgeAxis, true)) {
+      // Next-best after the straight vertex lane: the 1-bend hook into the
+      // target's facing cross-side port; the 2-bend Z into the flow-side
+      // port only when no hook exists.
+      if (tryVertexHook(edge, source!, target!, ctx, edgeAxis) ||
+        tryZRoute(edge, source!, target!, ctx, edgeAxis, true)) {
         cert.invariant = 'explained-detour'
         cert.directLaneClear = false
         cert.directLaneBlockedBy = dedupeBlockers(direct.blockers)
         cert.bendCount = bendCount(edge.points)
         // applied=false keeps the edge in the fixed-point retry pool: if a
         // later repair clears the straight vertex lane (a blocking pill
-        // moves), the Z upgrades to the straight emit on the next round.
+        // moves), the hook/Z upgrades to the straight emit on the next round.
         return { applied: false, mutated: JSON.stringify(edge.points) !== beforeGeometry }
       }
     }
@@ -958,6 +966,74 @@ export function applyRouteContracts(
       }
     }
     return false
+  }
+
+  /**
+   * Port-ranking hook (the flowchart convention IBM's manuals illustrate and
+   * yFiles' FlowchartLayout encodes): when a vertex emit cannot go straight,
+   * the next-best route is a single-bend L — the vertex lane along the flow
+   * axis, then ONE perpendicular drop into the target's FACING cross-side
+   * port (the box's top/bottom in horizontal flow). One bend beats the
+   * 2-bend Z, both endpoints are exact canonical ports, and the target's
+   * flow-side port stays free for its fan-in siblings. Skipped when the
+   * entry stub would be shorter than HOOK_STUB_MIN (degenerate when the
+   * vertex lane grazes the target, as in TD where siblings sit beside each
+   * other) — the Z remains the fallback there.
+   */
+  function tryVertexHook(
+    edge: PositionedEdge,
+    source: PositionedNode,
+    target: PositionedNode,
+    ctx: LaneContext,
+    axis: Axis,
+  ): boolean {
+    if (edge.points.length < 2) return false
+    const lane = source[axis.cross] + (axis.cross === 'y' ? source.height : source.width) / 2
+    const tgtCrossLo = target[axis.cross]
+    const tgtCrossHi = tgtCrossLo + (axis.cross === 'y' ? target.height : target.width)
+    // The lane must pass clear of the target's cross extent; when it
+    // overlaps, the straight emit or the Z is the right tool, not a hook.
+    let entryCross: number
+    if (lane < tgtCrossLo - EPS) entryCross = tgtCrossLo
+    else if (lane > tgtCrossHi + EPS) entryCross = tgtCrossHi
+    else return false
+    if (Math.abs(entryCross - lane) < HOOK_STUB_MIN) return false
+    // Fan-in merge outranks the hook: when a same-target sibling already
+    // holds the flow-side entry port, the Z that converges there into one
+    // shared arrowhead (yFiles edge grouping; Kakoulis–Tollis label/edge
+    // unambiguity) beats splitting the fan-in across two sides. The fixed
+    // point makes this order-independent: a hook taken before the sibling
+    // settles is re-proved and downgraded on the next round.
+    const entryPort = shapePorts(target)[facingSide(axis, -1)]
+    const mergeAvailable = ctx.edges.some(other => other !== edge &&
+      other.target === edge.target && other.source !== edge.source &&
+      other.points.length > 0 &&
+      Math.abs(other.points[other.points.length - 1]!.x - entryPort.x) <= PORT_TOLERANCE &&
+      Math.abs(other.points[other.points.length - 1]!.y - entryPort.y) <= PORT_TOLERANCE)
+    if (mergeAvailable) return false
+    const portMain = target[axis.main] + (axis.main === 'x' ? target.width : target.height) / 2
+    const srcMain = anchorMain(source, lane, axis, 1)
+    if ((portMain - srcMain) * axis.sign <= EPS) return false
+    // The label rides the lane; the entry stub is proved label-stripped
+    // (own-label capacity applies exactly once, where the pill lives).
+    const unlabeled: PositionedEdge = { ...edge, points: [], label: undefined }
+    if (directLaneBlockers(edge, lane, Math.min(srcMain, portMain), Math.max(srcMain, portMain), ctx, axis).length > 0) return false
+    const stubAxis: Axis = axis.main === 'x'
+      ? { main: 'y', cross: 'x', sign: lane < entryCross ? 1 : -1 }
+      : { main: 'x', cross: 'y', sign: lane < entryCross ? 1 : -1 }
+    if (directLaneBlockers(unlabeled, portMain, Math.min(lane, entryCross), Math.max(lane, entryCross), ctx, stubAxis).length > 0) return false
+    const pt = (main: number, cross: number): Point =>
+      axis.main === 'x' ? { x: main, y: cross } : { x: cross, y: main }
+    const route = [pt(srcMain, lane), pt(portMain, lane), pt(portMain, entryCross)]
+    if (!routeThroughNodeBBox(edge, ctx) &&
+      countRouteCrossings(route, edge, ctx) > countRouteCrossings(edge.points, edge, ctx)) return false
+    if (edge.label) {
+      const slot = findLabelSlot(edge, route[0]!, route[1]!, ctx)
+      if (!slot) return false
+      edge.labelPosition = slot
+    }
+    edge.points = route
+    return true
   }
 
   /**
