@@ -1345,6 +1345,31 @@ function findGroupsContainingPoint(
 }
 
 /**
+ * Bundle contract (docs/design/route-contracts.md): a rebuilt trunk/branch
+ * path may not pass through any node other than the edge's own endpoints.
+ * The half-pixel tolerance lets a path graze a border without counting.
+ */
+function bundlePathClear(
+  points: Point[],
+  nodes: PositionedNode[],
+  sourceId: string,
+  targetId: string,
+): boolean {
+  for (const n of nodes) {
+    if (n.id === sourceId || n.id === targetId) continue
+    for (let i = 1; i < points.length; i++) {
+      const a = points[i - 1]!, b = points[i]!
+      const xLo = Math.min(a.x, b.x), xHi = Math.max(a.x, b.x)
+      const yLo = Math.min(a.y, b.y), yHi = Math.max(a.y, b.y)
+      if (xHi > n.x + 0.5 && xLo < n.x + n.width - 0.5 && yHi > n.y + 0.5 && yLo < n.y + n.height - 0.5) {
+        return false
+      }
+    }
+  }
+  return true
+}
+
+/**
  * If `junction` falls inside a group that doesn't contain the reference node,
  * move it just outside the outermost such group boundary.
  */
@@ -1438,52 +1463,67 @@ function bundleEdgePaths(
     })
     if (forward.length < 2) continue
 
-    const targets = forward.map(e => ({ edge: e, node: nodeMap.get(e.target)! }))
     const srcCX = source.x + source.width / 2
     const srcCY = source.y + source.height / 2
 
-    if (isHorizontal) {
-      const exitX = isLR ? source.x + source.width : source.x
-      const exitY = srcCY
+    // Bundle contract: rebuild candidate paths, drop any member whose path
+    // would pass through a node (it keeps its ELK route and the route-contract
+    // pass certifies it), and re-derive the junction from the members that
+    // remain — until the bundle is clear or too small to exist.
+    let members = forward.map(e => ({ edge: e, node: nodeMap.get(e.target)! }))
+    while (members.length >= 2) {
+      const candidates = new Map<PositionedEdge, Point[]>()
+      if (isHorizontal) {
+        const exitX = isLR ? source.x + source.width : source.x
+        const exitY = srcCY
 
-      const nearestX = isLR
-        ? Math.min(...targets.map(t => t.node.x))
-        : Math.max(...targets.map(t => t.node.x + t.node.width))
-      let junctionX = exitX + (nearestX - exitX) / 2
-      junctionX = adjustJunctionForGroups(junctionX, srcCX, srcCY, groups, direction)
+        const nearestX = isLR
+          ? Math.min(...members.map(t => t.node.x))
+          : Math.max(...members.map(t => t.node.x + t.node.width))
+        let junctionX = exitX + (nearestX - exitX) / 2
+        junctionX = adjustJunctionForGroups(junctionX, srcCX, srcCY, groups, direction)
 
-      for (const { edge, node: target } of targets) {
-        const entryX = isLR ? target.x : target.x + target.width
-        const entryY = target.y + target.height / 2
-        edge.points = [
-          { x: exitX, y: exitY },
-          { x: junctionX, y: exitY },
-          { x: junctionX, y: entryY },
-          { x: entryX, y: entryY },
-        ]
-        processed.add(edge)
+        for (const { edge, node: target } of members) {
+          const entryX = isLR ? target.x : target.x + target.width
+          const entryY = target.y + target.height / 2
+          candidates.set(edge, [
+            { x: exitX, y: exitY },
+            { x: junctionX, y: exitY },
+            { x: junctionX, y: entryY },
+            { x: entryX, y: entryY },
+          ])
+        }
+      } else {
+        const exitX = srcCX
+        const exitY = isBT ? source.y : source.y + source.height
+
+        const nearestY = isBT
+          ? Math.max(...members.map(t => t.node.y + t.node.height))
+          : Math.min(...members.map(t => t.node.y))
+        let junctionY = exitY + (nearestY - exitY) / 2
+        junctionY = adjustJunctionForGroups(junctionY, srcCX, srcCY, groups, direction)
+
+        for (const { edge, node: target } of members) {
+          const entryX = target.x + target.width / 2
+          const entryY = isBT ? target.y + target.height : target.y
+          candidates.set(edge, [
+            { x: exitX, y: exitY },
+            { x: exitX, y: junctionY },
+            { x: entryX, y: junctionY },
+            { x: entryX, y: entryY },
+          ])
+        }
       }
-    } else {
-      const exitX = srcCX
-      const exitY = isBT ? source.y : source.y + source.height
 
-      const nearestY = isBT
-        ? Math.max(...targets.map(t => t.node.y + t.node.height))
-        : Math.min(...targets.map(t => t.node.y))
-      let junctionY = exitY + (nearestY - exitY) / 2
-      junctionY = adjustJunctionForGroups(junctionY, srcCX, srcCY, groups, direction)
-
-      for (const { edge, node: target } of targets) {
-        const entryX = target.x + target.width / 2
-        const entryY = isBT ? target.y + target.height : target.y
-        edge.points = [
-          { x: exitX, y: exitY },
-          { x: exitX, y: junctionY },
-          { x: entryX, y: junctionY },
-          { x: entryX, y: entryY },
-        ]
-        processed.add(edge)
+      const clear = members.filter(m => bundlePathClear(candidates.get(m.edge)!, nodes, m.edge.source, m.edge.target))
+      if (clear.length === members.length) {
+        for (const { edge } of members) {
+          edge.points = candidates.get(edge)!
+          processed.add(edge)
+        }
+        break
       }
+      members = clear
     }
   }
 
@@ -1514,52 +1554,65 @@ function bundleEdgePaths(
     })
     if (forward.length < 2) continue
 
-    const sources = forward.map(e => ({ edge: e, node: nodeMap.get(e.source)! }))
     const tgtCX = target.x + target.width / 2
     const tgtCY = target.y + target.height / 2
 
-    if (isHorizontal) {
-      const entryX = isLR ? target.x : target.x + target.width
-      const entryY = tgtCY
+    // Same bundle contract as fan-out: shrink the bundle until every rebuilt
+    // path proves clear of other nodes.
+    let members = forward.map(e => ({ edge: e, node: nodeMap.get(e.source)! }))
+    while (members.length >= 2) {
+      const candidates = new Map<PositionedEdge, Point[]>()
+      if (isHorizontal) {
+        const entryX = isLR ? target.x : target.x + target.width
+        const entryY = tgtCY
 
-      const farthestX = isLR
-        ? Math.max(...sources.map(s => s.node.x + s.node.width))
-        : Math.min(...sources.map(s => s.node.x))
-      let junctionX = farthestX + (entryX - farthestX) / 2
-      junctionX = adjustJunctionForGroups(junctionX, tgtCX, tgtCY, groups, direction)
+        const farthestX = isLR
+          ? Math.max(...members.map(s => s.node.x + s.node.width))
+          : Math.min(...members.map(s => s.node.x))
+        let junctionX = farthestX + (entryX - farthestX) / 2
+        junctionX = adjustJunctionForGroups(junctionX, tgtCX, tgtCY, groups, direction)
 
-      for (const { edge, node: src } of sources) {
-        const exitX = isLR ? src.x + src.width : src.x
-        const exitY = src.y + src.height / 2
-        edge.points = [
-          { x: exitX, y: exitY },
-          { x: junctionX, y: exitY },
-          { x: junctionX, y: entryY },
-          { x: entryX, y: entryY },
-        ]
-        processed.add(edge)
+        for (const { edge, node: src } of members) {
+          const exitX = isLR ? src.x + src.width : src.x
+          const exitY = src.y + src.height / 2
+          candidates.set(edge, [
+            { x: exitX, y: exitY },
+            { x: junctionX, y: exitY },
+            { x: junctionX, y: entryY },
+            { x: entryX, y: entryY },
+          ])
+        }
+      } else {
+        const entryX = tgtCX
+        const entryY = isBT ? target.y + target.height : target.y
+
+        const farthestY = isBT
+          ? Math.min(...members.map(s => s.node.y))
+          : Math.max(...members.map(s => s.node.y + s.node.height))
+        let junctionY = farthestY + (entryY - farthestY) / 2
+        junctionY = adjustJunctionForGroups(junctionY, tgtCX, tgtCY, groups, direction)
+
+        for (const { edge, node: src } of members) {
+          const exitX = src.x + src.width / 2
+          const exitY = isBT ? src.y : src.y + src.height
+          candidates.set(edge, [
+            { x: exitX, y: exitY },
+            { x: exitX, y: junctionY },
+            { x: entryX, y: junctionY },
+            { x: entryX, y: entryY },
+          ])
+        }
       }
-    } else {
-      const entryX = tgtCX
-      const entryY = isBT ? target.y + target.height : target.y
 
-      const farthestY = isBT
-        ? Math.min(...sources.map(s => s.node.y))
-        : Math.max(...sources.map(s => s.node.y + s.node.height))
-      let junctionY = farthestY + (entryY - farthestY) / 2
-      junctionY = adjustJunctionForGroups(junctionY, tgtCX, tgtCY, groups, direction)
-
-      for (const { edge, node: src } of sources) {
-        const exitX = src.x + src.width / 2
-        const exitY = isBT ? src.y : src.y + src.height
-        edge.points = [
-          { x: exitX, y: exitY },
-          { x: exitX, y: junctionY },
-          { x: entryX, y: junctionY },
-          { x: entryX, y: entryY },
-        ]
-        processed.add(edge)
+      const clear = members.filter(m => bundlePathClear(candidates.get(m.edge)!, nodes, m.edge.source, m.edge.target))
+      if (clear.length === members.length) {
+        for (const { edge } of members) {
+          edge.points = candidates.get(edge)!
+          processed.add(edge)
+        }
+        break
       }
+      members = clear
     }
   }
 

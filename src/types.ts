@@ -129,7 +129,7 @@ export interface PositionedEdge {
 
 export type RouteClass =
   | 'primary-forward' // added in author order without creating a cycle; owns the straight lane
-  | 'feedback'        // would create a cycle; owns the detour, never the lane
+  | 'feedback'        // would create a cycle; may straighten onto its own reverse lane, never the forward edge's lane
   | 'self-loop'
   | 'container'       // endpoint is a subgraph id
   | 'cross-hierarchy' // endpoints live in different subgraph scopes

@@ -1,6 +1,6 @@
 # Route Contracts: Principled Routing Without Hitches
 
-Status: implemented (Phases 0, 1, 3 of issue #25's rollout; see "Rollout status")
+Status: implemented (Phases 0, 1, 3 and the first slice of Phase 4 of issue #25's rollout; see "Rollout status")
 Supersedes: the draft spec in issue #25, whose claims this document re-verified against the code.
 
 ## 1. The problem
@@ -61,7 +61,7 @@ layer is what makes either approach testable.
 ```ts
 type RouteClass =
   | 'primary-forward'   // added in author order without creating a cycle
-  | 'feedback'          // would create a cycle; owns the detour, never the lane
+  | 'feedback'          // would create a cycle; may straighten onto its OWN reverse lane, never the forward edge's lane
   | 'self-loop'
   | 'container'         // endpoint is a subgraph id
   | 'cross-hierarchy'   // endpoints in different subgraph scopes
@@ -74,10 +74,10 @@ interface RouteCertificate {
     | 'straight'             // exactly two points, axis-aligned with flow
     | 'explained-detour'     // bends, and directLaneBlockedBy is non-empty
     | 'bundle'               // path owned by the fan-out/fan-in bundler
-    | 'feedback-detour'      // feedback edges never claim the direct lane
+    | 'feedback-detour'      // feedback whose reverse lane is blocked; blockers say why
     | 'self-loop'
     | 'container-attach'
-  directLaneClear?: boolean  // primary-forward only
+  directLaneClear?: boolean  // primary-forward and feedback
   directLaneBlockedBy?: Array<{ kind: 'node' | 'label' | 'channel' | 'span'; id: string }>
   straightened?: boolean     // true when the certifying straightener collapsed the route
 }
@@ -100,7 +100,9 @@ and layout cannot disagree:
 5. Everything else → `primary-forward`.
 
 In `B --> C; C -- No --> B`, `B->C` is primary-forward and owns the straight
-lane; `C->B` is feedback and must detour. This matches what ELK's
+lane; `C->B` is feedback — it may render as a straight parallel back-edge on
+its own lane (the classic reciprocal-pair rendering) but never on the forward
+edge's lane. This matches what ELK's
 `cycleBreaking.strategy: MODEL_ORDER` already decided, so the certificate
 describes reality rather than re-deriving a parallel truth.
 
@@ -113,16 +115,23 @@ immediately before bounds are computed. Two layers:
 points and collinear midpoints. These preserve the drawn geometry exactly;
 no certificate change beyond `bendCount`.
 
-**Proof-carrying straightening (primary-forward, not bundled, both endpoint
-shapes straightenable):** a route that is monotone along the flow axis but
-not straight is collapsed to a single axis-aligned segment iff a *candidate
-lane* exists that is provably clear.
+**Proof-carrying straightening (primary-forward and feedback, not bundled,
+both endpoint shapes straightenable):** a route that is monotone along the
+edge's own flow axis but not straight is collapsed to a single axis-aligned
+segment iff a *candidate lane* exists that is provably clear. Feedback edges
+run the identical proof with the axis sign flipped: their forward-facing
+side is the graph's backward-facing one. The channel-separation check below
+is what keeps a straightened feedback lane off the forward edge's lane —
+a reciprocal pair renders as two parallel arrows, never one merged line.
 
 Candidate lanes, tried in order (cross-axis coordinate for LR = y):
 
 1. the current target endpoint's cross-coordinate (moves only the source end),
 2. the current source endpoint's cross-coordinate (moves only the target end),
-3. the center of the overlap of both nodes' attachment spans.
+3. the extremes of the existing route — the outer channel the router already
+   proved navigable (this is how a feedback edge wrapping a node collapses
+   onto a single straight back-lane beside it),
+4. the center of the overlap of both nodes' attachment spans.
 
 A candidate is valid when it lies inside both endpoint nodes' attachment
 spans (diamonds use the central 50% of their span so edges never attach next
@@ -152,9 +161,18 @@ geometry the next proof sees, so the pass is deterministic and never lets
 two straightened lanes collide (the channel check sees prior results).
 
 If no candidate lane is clear, the certificate records
-`invariant: 'explained-detour'` with the concrete blockers, e.g. the MFA
-fixture's `D --No--> G` is blocked by node `F` standing in every candidate
-lane — exactly the explained detour issue #25 demands.
+`invariant: 'explained-detour'` (`'feedback-detour'` for feedback edges)
+with the concrete blockers, e.g. the MFA fixture's `D --No--> G` is blocked
+by node `F` standing in every candidate lane — exactly the explained detour
+issue #25 demands.
+
+**Bundle contract (issue #25 Phase 4, first slice):** the fan-out/fan-in
+bundler used to rebuild trunk paths with no obstacle awareness, so a skip
+edge in `A --> X; A --> B; X --> B` could run its trunk straight through
+`X`'s box. Bundled paths are now proved clear of every non-endpoint node
+before they are assigned; a blocked member falls out of the bundle (keeping
+its ELK route, which the route-contract pass then straightens or explains),
+and the junction is re-derived from the members that remain.
 
 ## 7. Validation: ROUTE_HITCH
 
@@ -164,8 +182,9 @@ lane — exactly the explained detour issue #25 demands.
 ROUTE_HITCH { edge, deviationPx }
 ```
 
-fired when a primary-forward edge has bends **and** a clear candidate lane
-exists. Because the straightener runs by default in the same pipeline, this
+fired when a primary-forward or feedback edge has bends **and** a clear
+candidate lane exists for it (feedback lanes are proved against the flipped
+axis). Because the straightener runs by default in the same pipeline, this
 warning is a tripwire: it fires only if the straightener is disabled,
 regressed, or proven wrong — making the invariant load-bearing (acceptance
 criterion 3 of issue #25). It is computed by re-running the prover over the
@@ -230,13 +249,13 @@ shipped.
 | Phase 1 — validation warnings | `ROUTE_HITCH` implemented; other codes deferred until they can fire without noise |
 | Phase 2 — semantic `FIXED_SIDE` ports | deferred; certificates now provide the measurement to land it safely |
 | Phase 3 — certifying simplifier | implemented (proof-free + proof-carrying layers) |
-| Phase 4 — bundle contract | existing bundlers certified as `bundle`; trunk/branch certificates deferred |
+| Phase 4 — bundle contract | first slice implemented: bundled paths are proved clear of nodes, blocked members fall out of the bundle; per-trunk certificates deferred |
 | Phase 5 — family adoption | deferred; certificate shape designed to extend (see issue #25 §14) |
 
 ## 11. Acceptance criteria mapping
 
 1. MFA/login renders straight primary-forward edges when lanes are clear — regression test + regenerated visual evidence.
-2. Feedback retry edges emit `feedback-detour` certificates — unit + regression test.
+2. Feedback retry edges emit feedback-route certificates — straight-with-proof when their reverse lane is clear, `feedback-detour` with blockers otherwise — unit + regression test.
 3. Disabling the direct-lane proof reintroduces a failing test — `ROUTE_HITCH` tripwire + straightener unit tests + mutation lane.
 4. A blocker node prevents straightening with an explained-detour certificate — blocked-lane regression.
 5. Diamond endpoints land on the diamond polygon, not bbox corners — ray-intersection re-anchoring + property test.

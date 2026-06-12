@@ -559,27 +559,11 @@ exports[`drift sentinel sentinel: flowchart TD /   A --> B /   B --> C /   C -->
       "label": undefined,
       "path": [
         [
-          100,
+          110,
           210,
         ],
         [
-          100,
-          198,
-        ],
-        [
           110,
-          198,
-        ],
-        [
-          110,
-          113,
-        ],
-        [
-          100,
-          113,
-        ],
-        [
-          100,
           77,
         ],
       ],

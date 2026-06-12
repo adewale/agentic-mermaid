@@ -48,10 +48,14 @@ describe('route contracts — MFA/login regression (issue #25 acceptance criteri
     expect(isStraightHorizontal(e)).toBe(true)
   })
 
-  it('feedback edges keep their detours (never claim the primary lane)', () => {
+  it('feedback edges straighten onto their own parallel reverse lane, separated from the forward lane', () => {
     for (const [from, to] of [['C', 'B'], ['F', 'E']] as const) {
-      const e = findEdge(edges, from, to)
-      expect(e.points.length).toBeGreaterThan(2)
+      const back = findEdge(edges, from, to)
+      const fwd = findEdge(edges, to, from)
+      expect(isStraightHorizontal(back)).toBe(true)
+      expect(back.points[0]!.x).toBeGreaterThan(back.points[1]!.x) // runs against the flow
+      // Never merges with the forward lane: at least the 4px channel clearance apart.
+      expect(Math.abs(back.points[0]!.y - fwd.points[0]!.y)).toBeGreaterThanOrEqual(4)
     }
   })
 
@@ -197,12 +201,36 @@ describe('certificates', () => {
     }
   })
 
-  it('feedback retry edges certify as feedback detours (acceptance criterion 2)', () => {
+  it('feedback retry edges certify as feedback routes with a lane proof (acceptance criterion 2)', () => {
     const positioned = layoutGraphSync(parseMermaid(MFA_SOURCE))
     for (const [from, to] of [['C', 'B'], ['F', 'E']] as const) {
       const e = findEdge(positioned.edges, from, to)
       expect(e.routeCertificate?.routeClass).toBe('feedback')
+      expect(e.routeCertificate?.invariant).toBe('straight')
+      expect(e.routeCertificate?.straightened).toBe(true)
+      expect(e.routeCertificate?.directLaneClear).toBe(true)
+    }
+  })
+
+  it('a feedback edge whose reverse lane is blocked stays a feedback-detour with blockers', () => {
+    // C -> A in a TD chain must route around B; B blocks the span-center lanes
+    // but ELK's outer channel is clear, so this one straightens. Block that
+    // channel too by flanking B with siblings on both sides.
+    const positioned = layoutGraphSync(parseMermaid(`flowchart TD
+      A --> L[Left sibling]
+      A --> B
+      A --> R[Right sibling]
+      B --> C
+      C --> A`))
+    const e = findEdge(positioned.edges, 'C', 'A')
+    expect(e.routeCertificate?.routeClass).toBe('feedback')
+    if (e.points.length > 2) {
       expect(e.routeCertificate?.invariant).toBe('feedback-detour')
+      expect(e.routeCertificate?.directLaneClear).toBe(false)
+      expect(e.routeCertificate?.directLaneBlockedBy?.length).toBeGreaterThan(0)
+    } else {
+      // If layout left a clear outer lane after all, the certificate must prove it.
+      expect(e.routeCertificate?.directLaneClear).toBe(true)
     }
   })
 
@@ -246,7 +274,7 @@ describe('ROUTE_HITCH tripwire (issue #25 acceptance criterion 3)', () => {
 })
 
 describe('route contracts — RL and BT directions (mutation-survivor harvest)', () => {
-  it('RL: the reciprocal pair straightens the forward edge against the reversed axis', () => {
+  it('RL: the reciprocal pair straightens both lanes against the reversed axis', () => {
     const edges = layoutEdges(`flowchart RL
       A[User] --> B[Login Page]
       B --> C{Valid?}
@@ -254,10 +282,13 @@ describe('route contracts — RL and BT directions (mutation-survivor harvest)',
     const e = findEdge(edges, 'B', 'C')
     expect(isStraightHorizontal(e)).toBe(true)
     expect(e.points[0]!.x).toBeGreaterThan(e.points[1]!.x) // forward flow runs right-to-left
-    expect(findEdge(edges, 'C', 'B').points.length).toBeGreaterThan(2)
+    const back = findEdge(edges, 'C', 'B')
+    expect(isStraightHorizontal(back)).toBe(true)
+    expect(back.points[0]!.x).toBeLessThan(back.points[1]!.x) // feedback runs left-to-right
+    expect(Math.abs(back.points[0]!.y - e.points[0]!.y)).toBeGreaterThanOrEqual(4)
   })
 
-  it('BT: the reciprocal pair straightens the forward edge as a vertical lane running upward', () => {
+  it('BT: the reciprocal pair straightens both vertical lanes', () => {
     const edges = layoutEdges(`flowchart BT
       A[User] --> B[Login Page]
       B --> C{Valid?}
@@ -266,7 +297,67 @@ describe('route contracts — RL and BT directions (mutation-survivor harvest)',
     expect(e.points.length).toBe(2)
     expect(Math.abs(e.points[0]!.x - e.points[1]!.x)).toBeLessThan(0.01)
     expect(e.points[0]!.y).toBeGreaterThan(e.points[1]!.y) // forward flow runs bottom-to-top
-    expect(findEdge(edges, 'C', 'B').points.length).toBeGreaterThan(2)
+    const back = findEdge(edges, 'C', 'B')
+    expect(back.points.length).toBe(2)
+    expect(back.points[0]!.y).toBeLessThan(back.points[1]!.y)
+    expect(Math.abs(back.points[0]!.x - e.points[0]!.x)).toBeGreaterThanOrEqual(4)
+  })
+})
+
+describe('route contracts — feedback channel lanes', () => {
+  it("TD cycle: C -> A collapses onto ELK's outer channel as one straight vertical back-edge", () => {
+    const positioned = layoutGraphSync(parseMermaid('flowchart TD\n  A --> B\n  B --> C\n  C --> A'))
+    const e = findEdge(positioned.edges, 'C', 'A')
+    expect(e.points.length).toBe(2)
+    expect(Math.abs(e.points[0]!.x - e.points[1]!.x)).toBeLessThan(0.01)
+    expect(e.points[0]!.y).toBeGreaterThan(e.points[1]!.y) // runs upward, against TD flow
+    // The lane must clear B (the node it detours around) by the 4px clearance.
+    const b = positioned.nodes.find(n => n.id === 'B')!
+    const laneX = e.points[0]!.x
+    expect(laneX > b.x + b.width + 4 - 0.01 || laneX < b.x - 4 + 0.01).toBe(true)
+  })
+})
+
+describe('bundle contract — trunks never pass through nodes', () => {
+  function crossesRect(edges: PositionedEdge[], nodes: Array<{ id: string; x: number; y: number; width: number; height: number }>): string[] {
+    const hits: string[] = []
+    for (const e of edges) {
+      for (const n of nodes) {
+        if (n.id === e.source || n.id === e.target) continue
+        for (let i = 1; i < e.points.length; i++) {
+          const a = e.points[i - 1]!, b = e.points[i]!
+          const xLo = Math.min(a.x, b.x), xHi = Math.max(a.x, b.x)
+          const yLo = Math.min(a.y, b.y), yHi = Math.max(a.y, b.y)
+          if (xHi > n.x + 0.5 && xLo < n.x + n.width - 0.5 && yHi > n.y + 0.5 && yLo < n.y + n.height - 0.5) {
+            hits.push(`${e.source}->${e.target} through ${n.id}`)
+            break
+          }
+        }
+      }
+    }
+    return hits
+  }
+
+  it('an unlabeled fan-out skip-edge no longer routes through the intermediate node', () => {
+    const positioned = layoutGraphSync(parseMermaid(`flowchart LR
+      A[Start] --> X[Blocker<br>tall<br>taller<br>tallest]
+      A --> B[End]
+      X --> B`))
+    expect(crossesRect(positioned.edges, positioned.nodes)).toEqual([])
+    // The skip edge must certify why it cannot be straight.
+    const skip = findEdge(positioned.edges, 'A', 'B')
+    expect(skip.routeCertificate?.invariant).toBe('explained-detour')
+    expect((skip.routeCertificate?.directLaneBlockedBy ?? []).map(b => b.id)).toContain('X')
+  })
+
+  it('a clean unlabeled fan-out still shares a single trunk', () => {
+    const positioned = layoutGraphSync(parseMermaid('flowchart LR\n  A --> B\n  A --> C'))
+    const b = findEdge(positioned.edges, 'A', 'B')
+    const c = findEdge(positioned.edges, 'A', 'C')
+    expect(b.routeCertificate?.invariant).toBe('bundle')
+    expect(c.routeCertificate?.invariant).toBe('bundle')
+    expect(b.points[0]).toEqual(c.points[0]) // shared exit point
+    expect(crossesRect(positioned.edges, positioned.nodes)).toEqual([])
   })
 })
 
@@ -387,6 +478,50 @@ describe('directLaneBlockers (unit)', () => {
         .toEqual([{ kind: 'label', id: 'A->B' }])
       expect(directLaneBlockers(labeled, 50, 0, m.height + 8 + 1, vCtx())).toEqual([])
     })
+  })
+})
+
+describe('straightenable shape whitelist', () => {
+  it('subroutine nodes straighten like rectangles', () => {
+    const edges = layoutEdges(`flowchart LR
+      A[[User]] --> B[[Login Page]]
+      B --> A`)
+    expect(isStraightHorizontal(findEdge(edges, 'A', 'B'))).toBe(true)
+    expect(isStraightHorizontal(findEdge(edges, 'B', 'A'))).toBe(true)
+  })
+
+  it('service nodes (architecture-projected graphs) straighten like rectangles', () => {
+    // The flowchart parser never emits 'service'; architecture graphs do, and
+    // they route through the same layoutGraphSync. Build the graph directly.
+    const graph = parseMermaid('flowchart LR\n  A[Gateway] --> B[Auth]\n  B --> A')
+    for (const node of graph.nodes.values()) node.shape = 'service'
+    const positioned = layoutGraphSync(graph)
+    expect(isStraightHorizontal(findEdge(positioned.edges, 'A', 'B'))).toBe(true)
+    expect(isStraightHorizontal(findEdge(positioned.edges, 'B', 'A'))).toBe(true)
+  })
+
+  it('non-straightenable shapes (circle) keep their routes and certify unverified-shape', () => {
+    const edges = layoutEdges(`flowchart LR
+      A((User)) --> B((Login))
+      B --> A`)
+    const fwd = findEdge(edges, 'A', 'B')
+    if (fwd.points.length > 2) {
+      expect(fwd.routeCertificate?.invariant).toBe('unverified-shape')
+    }
+    expect(fwd.routeCertificate?.straightened).toBeUndefined()
+  })
+})
+
+describe('validation ignores non-staircase routes', () => {
+  it('a diagonal post-certification mutation is not reported as a hitch', () => {
+    const graph = parseMermaid(MFA_SOURCE)
+    const positioned = layoutGraphSync(graph)
+    const e = findEdge(positioned.edges, 'B', 'C')
+    const [a, b] = e.points as [{ x: number; y: number }, { x: number; y: number }]
+    // Diagonal middle segment: not orthogonal routing, so not a "hitch" —
+    // it is a different kind of corruption that EDGE rendering would surface.
+    e.points = [a, { x: (a.x + b.x) / 2, y: a.y + 15 }, b]
+    expect(findRouteHitches(positioned, graph).filter(h => h.edge === 'B->C')).toEqual([])
   })
 })
 

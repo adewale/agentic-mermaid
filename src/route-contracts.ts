@@ -315,19 +315,25 @@ interface StraightenAttempt {
 }
 
 /**
- * Try to collapse one primary-forward staircase to a straight lane. Candidate
- * lanes are tried in order: the target endpoint's cross-coordinate (moves only
- * the source end), the source endpoint's (moves only the target end), then the
- * center of the two attachment spans' overlap. The first candidate that lies
- * in both spans and proves clear wins.
+ * Try to collapse one monotone staircase to a straight lane. Candidate lanes
+ * are tried in order: the target endpoint's cross-coordinate (moves only the
+ * source end), the source endpoint's (moves only the target end), the
+ * extremes of the existing route (the channel the router already proved
+ * navigable — how a feedback edge wrapping a node collapses onto its outer
+ * channel), then the center of the two attachment spans' overlap. The first
+ * candidate that lies in both spans and proves clear wins.
+ *
+ * `axis` carries the edge's own flow direction: the graph axis for
+ * primary-forward edges, the sign-flipped axis for feedback edges (their
+ * forward-facing side is the graph's backward-facing one).
  */
 function tryStraighten(
   edge: PositionedEdge,
   source: PositionedNode,
   target: PositionedNode,
   ctx: LaneContext,
+  axis: Axis = ctx.axis,
 ): StraightenAttempt {
-  const { axis } = ctx
   const srcSpan = attachSpan(source, axis)
   const tgtSpan = attachSpan(target, axis)
   if (!srcSpan || !tgtSpan) return { applied: false, blockers: [] }
@@ -344,6 +350,9 @@ function tryStraighten(
   }
   push(edge.points[edge.points.length - 1]![axis.cross])
   push(edge.points[0]![axis.cross])
+  const crossValues = edge.points.map(p => p[axis.cross])
+  push(Math.min(...crossValues))
+  push(Math.max(...crossValues))
   push((overlapLo + overlapHi) / 2)
 
   const blockers: RouteBlocker[] = []
@@ -411,28 +420,29 @@ export function applyRouteContracts(
       cert.invariant = 'bundle'
     } else if (routeClass === 'self-loop') {
       cert.invariant = 'self-loop'
-    } else if (routeClass === 'feedback') {
-      cert.invariant = cert.bendCount === 0 ? 'straight' : 'feedback-detour'
     } else if (routeClass === 'container') {
       cert.invariant = 'container-attach'
-    } else if (cert.bendCount > 0) {
+    } else if ((routeClass === 'primary-forward' || routeClass === 'feedback') && cert.bendCount > 0) {
+      // Feedback edges flow against the graph axis: same lane proof, flipped sign.
+      const edgeAxis: Axis = routeClass === 'feedback' ? { ...axis, sign: axis.sign === 1 ? -1 : 1 } : axis
+      const detour = routeClass === 'feedback' ? 'feedback-detour' : 'explained-detour'
       const source = nodeMap.get(edge.source)
       const target = nodeMap.get(edge.target)
       const eligible = source && target &&
         (RECT_LIKE.has(source.shape) || source.shape === 'diamond') &&
         (RECT_LIKE.has(target.shape) || target.shape === 'diamond') &&
-        isMonotoneStaircase(edge.points, axis)
+        isMonotoneStaircase(edge.points, edgeAxis)
       if (!eligible) {
-        cert.invariant = 'unverified-shape'
+        cert.invariant = routeClass === 'feedback' ? 'feedback-detour' : 'unverified-shape'
       } else {
-        const attempt = tryStraighten(edge, source, target, ctx)
+        const attempt = tryStraighten(edge, source, target, ctx, edgeAxis)
         if (attempt.applied) {
           cert.invariant = 'straight'
           cert.bendCount = 0
           cert.directLaneClear = true
           cert.straightened = true
         } else {
-          cert.invariant = 'explained-detour'
+          cert.invariant = detour
           cert.directLaneClear = false
           cert.directLaneBlockedBy = attempt.blockers
         }
@@ -455,11 +465,11 @@ export interface RouteHitch {
 }
 
 /**
- * Re-prove the straight-primary invariant over FINAL geometry. A hitch is a
- * primary-forward edge that still bends although a clear candidate lane
- * exists. The layout pass straightens these itself, so any hit here means a
- * later pass mutated geometry after certification — the tripwire issue #25
- * acceptance criterion 3 asks for.
+ * Re-prove the straight-lane invariant over FINAL geometry. A hitch is a
+ * primary-forward or feedback edge that still bends although a clear
+ * candidate lane exists for it. The layout pass straightens these itself, so
+ * any hit here means a later pass mutated geometry after certification — the
+ * tripwire issue #25 acceptance criterion 3 asks for.
  */
 export function findRouteHitches(
   positioned: { nodes: PositionedNode[]; edges: PositionedEdge[]; groups: PositionedGroup[] },
@@ -473,7 +483,9 @@ export function findRouteHitches(
 
   for (const edge of positioned.edges) {
     const cert = edge.routeCertificate
-    if (!cert || cert.routeClass !== 'primary-forward' || cert.invariant === 'bundle') continue
+    if (!cert || cert.invariant === 'bundle') continue
+    if (cert.routeClass !== 'primary-forward' && cert.routeClass !== 'feedback') continue
+    const edgeAxis: Axis = cert.routeClass === 'feedback' ? { ...axis, sign: axis.sign === 1 ? -1 : 1 } : axis
     const points = simplifyPolyline(edge.points)
     if (points.length <= 2) continue
     const source = nodeMap.get(edge.source)
@@ -481,12 +493,12 @@ export function findRouteHitches(
     if (!source || !target) continue
     if (!(RECT_LIKE.has(source.shape) || source.shape === 'diamond')) continue
     if (!(RECT_LIKE.has(target.shape) || target.shape === 'diamond')) continue
-    if (!isMonotoneStaircase(points, axis)) continue
+    if (!isMonotoneStaircase(points, edgeAxis)) continue
     // Probe on a copy so validation never mutates the layout.
     const probe: PositionedEdge = { ...edge, points: points.map(p => ({ ...p })) }
-    const attempt = tryStraighten(probe, source, target, ctx)
+    const attempt = tryStraighten(probe, source, target, ctx, edgeAxis)
     if (attempt.applied) {
-      hitches.push({ edge: edgeId(edge), deviationPx: Math.round(crossDeviation(points, axis) * 10) / 10 })
+      hitches.push({ edge: edgeId(edge), deviationPx: Math.round(crossDeviation(points, edgeAxis) * 10) / 10 })
     }
   }
   return hitches
