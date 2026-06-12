@@ -288,7 +288,36 @@ onto `W`/`E`/`N`/`S` ports. Sequence/timeline have no graph ports —
 their anchors are lifelines and intervals (issue #26 WS1 family
 certificates).
 
-### 6.2 Hardening found by the property oracles (layout-rubric harness)
+### 6.2 Port ranking — the cost model over the four ports
+
+Ports are ranked, per shape and per side, following the yFiles
+port-candidate cost model (fixed candidates with costs + overflow):
+
+1. **A side carrying exactly ONE line uses its canonical port** — the
+   diamond's *vertex* (the sharp bit), the side *midpoint* elsewhere. For a
+   single-line diamond side this is absolute: if no straight lane through
+   the vertex exists, a single proof-gated Z from the vertex into the
+   target's port still outranks a straight lane floating on the facet —
+   lines emit from points (dot and yFiles draw decisions the same way).
+   The fixed-point loop upgrades the Z back to a straight vertex lane the
+   moment a blocking obstacle moves.
+2. **A side carrying several lines spreads them** along its legal region
+   (facet/flat) — no line hogs the point. Fan-ins INTO a side still prefer
+   the target port, where same-target edges merge into one arrowhead.
+3. **When two single-line port lanes conflict** (misaligned centers), the
+   sharper shape wins — vertex (sharpness 2) over flat midpoint (1) — and
+   the source wins ties (emit beats receive).
+4. Curved/pointed regions never take floating attachment (port-only);
+   flat regions (hexagon/stadium N–S, cylinder E–W walls) absorb overflow.
+
+Occupancy is computed from route classes: primary edges count on the flow
+sides, unlabeled feedback on the flipped sides (parallel back-lanes), and
+labeled feedback not at all (it leaves via the outer channel's N/S ports).
+A bi-directional pair therefore puts two lines on each facing side —
+spread, parallel arrows — while a retry diamond's forward side carries one
+line and gets the vertex.
+
+### 6.3 Hardening found by the property oracles (layout-rubric harness)
 
 Randomized property tests over all shapes × directions × patterns
 (`src/__tests__/layout-rubric.test.ts`) drove these fixes — each was a real

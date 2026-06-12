@@ -42,10 +42,19 @@ describe('route contracts — MFA/login regression (issue #25 acceptance criteri
     ['C', 'D'],
     ['D', 'E'],
     ['E', 'F'],
-    ['F', 'G'],
   ])('primary-forward %s -> %s is a straight horizontal lane', (from, to) => {
     const e = findEdge(edges, from, to)
     expect(isStraightHorizontal(e)).toBe(true)
+  })
+
+  it('F -- Yes --> G emits from the diamond vertex and merges into G at its exact W port', () => {
+    // F's east side carries one line, so the port ranking emits from the
+    // sharp bit; G sits off F's centerline, so a single deliberate Z links
+    // vertex to port, converging with D --No--> G at the shared arrowhead.
+    const e = findEdge(edges, 'F', 'G')
+    expect(e.routeCertificate?.sourcePort).toBe('E')
+    expect(e.routeCertificate?.targetPort).toBe('W')
+    expect(e.points.length).toBeLessThanOrEqual(4)
   })
 
   it('labeled feedback routes around through the outer channel with its label ON the loop', () => {
@@ -999,14 +1008,14 @@ describe('semantic ports — N/E/S/W at bbox side midpoints (issue #26 WS3)', ()
     }
   })
 
-  it('straight lanes prefer the target port: F -> G enters Create Session at its exact West midpoint', () => {
+  it('F -> G enters Create Session at its exact West midpoint (and emits from F\'s vertex)', () => {
     const e = findEdge(positioned.edges, 'F', 'G')
     const { left, cy } = center('G')
     const end = e.points[e.points.length - 1]!
-    expect(isStraightHorizontal(e)).toBe(true)
     expect(Math.abs(end.x - left)).toBeLessThan(0.5)
     expect(Math.abs(end.y - cy)).toBeLessThan(0.5)
     expect(e.routeCertificate?.targetPort).toBe('W')
+    expect(e.routeCertificate?.sourcePort).toBe('E')
   })
 
   it('aligned chains run port to port: B -> C from East midpoint to the West vertex', () => {
@@ -1029,6 +1038,78 @@ describe('semantic ports — N/E/S/W at bbox side midpoints (issue #26 WS3)', ()
     } else {
       throw new Error('aligned circle pair should produce a straight port-to-port lane')
     }
+  })
+})
+
+describe('port ranking — sharp bits win when a side carries one line (issue #26 WS3 costs)', () => {
+  // Misalign the diamond from its target by fan-in: T receives a second
+  // edge from X, pulling T's center off Q's centerline, so the lane through
+  // Q's vertex and the lane through T's midpoint genuinely differ.
+  const single = (dir: string) => `flowchart ${dir}
+  Q{Decide} -- go --> T[Target]
+  X[Side input] --> T`
+
+  it.each([
+    ['LR', 'E'],
+    ['RL', 'W'],
+    ['TD', 'S'],
+    ['BT', 'N'],
+  ] as const)('%s: one line out of the diamond emits from its exact %s vertex', (dir, side) => {
+    const positioned = layoutGraphSync(parseMermaid(single(dir)))
+    const e = findEdge(positioned.edges, 'Q', 'T')
+    // Straight when the vertex lane is clear; otherwise a single deliberate
+    // Z from the vertex into the target's port — never a floating facet exit.
+    expect(e.routeCertificate?.sourcePort).toBe(side)
+    expect(e.points.length).toBeLessThanOrEqual(4)
+    expect(e.routeCertificate?.targetPort).toBeDefined()
+  })
+
+  it('two lines out of one diamond side spread on the facet (no line hogs the vertex)', () => {
+    for (const dir of ['LR', 'TD'] as const) {
+      const positioned = layoutGraphSync(parseMermaid(`flowchart ${dir}
+  Q{Decide} -- a --> P[One]
+  Q -- b --> R[Two]`))
+      const a = findEdge(positioned.edges, 'Q', 'P')
+      const b = findEdge(positioned.edges, 'Q', 'R')
+      // Distinct exits, both straight; the shared side is spread, not stacked
+      // on the vertex.
+      expect(JSON.stringify(a.points[0])).not.toBe(JSON.stringify(b.points[0]))
+      expect(a.points.length).toBe(2)
+      expect(b.points.length).toBe(2)
+    }
+  })
+
+  it('bi-directional diamond pairs keep the parallel-pair rendering (sides carry two lines)', () => {
+    for (const dir of ['LR', 'TD'] as const) {
+      const positioned = layoutGraphSync(parseMermaid(`flowchart ${dir}\n  Q{One} --> R{Two}\n  R --> Q`))
+      const fwd = findEdge(positioned.edges, 'Q', 'R')
+      const back = findEdge(positioned.edges, 'R', 'Q')
+      expect(fwd.points.length).toBe(2)
+      expect(back.points.length).toBe(2)
+      const cross = dir === 'LR' ? 'y' as const : 'x' as const
+      expect(Math.abs(fwd.points[0]![cross] - back.points[0]![cross])).toBeGreaterThanOrEqual(4)
+    }
+  })
+
+  it.each(['LR', 'RL', 'TD', 'BT'] as const)('%s: a chain of diamonds runs vertex to vertex', dir => {
+    const positioned = layoutGraphSync(parseMermaid(`flowchart ${dir}\n  Q1{One} --> Q2{Two} --> Q3{Three}`))
+    for (const [from, to] of [['Q1', 'Q2'], ['Q2', 'Q3']] as const) {
+      const e = findEdge(positioned.edges, from, to)
+      expect(e.points.length).toBe(2)
+      expect(e.routeCertificate?.sourcePort).toBeDefined()
+      expect(e.routeCertificate?.targetPort).toBeDefined()
+    }
+  })
+
+  it('diamond-to-diamond with misaligned centers: the source vertex wins (lines emit from points)', () => {
+    // Fan-in pulls Q2 off Q1's centerline; both vertices cannot be on one
+    // straight lane, and the emit rule prefers the source's sharp bit.
+    const positioned = layoutGraphSync(parseMermaid(`flowchart LR
+  Q1{First} -- go --> Q2{Second}
+  X[Side input] --> Q2`))
+    const e = findEdge(positioned.edges, 'Q1', 'Q2')
+    expect(e.routeCertificate?.sourcePort).toBe('E')
+    expect(e.points.length).toBeLessThanOrEqual(4)
   })
 })
 

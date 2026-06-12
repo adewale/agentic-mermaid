@@ -338,6 +338,20 @@ interface LaneContext {
   style: LabelMetricsStyle
   /** Route classes by edgeIndex — lets proofs apply the primary-over-feedback priority. */
   classes?: RouteClass[]
+  /** Lines per (nodeId:side) — the port-ranking occupancy (see facingSide). */
+  sideUse?: Map<string, number>
+}
+
+/** The side of a node that faces along `axis` — facing=1 for the side an
+ *  edge leaves from, facing=-1 for the side it enters. */
+function facingSide(axis: Axis, facing: 1 | -1): PortSide {
+  const forward = facing * axis.sign > 0
+  return axis.main === 'x' ? (forward ? 'E' : 'W') : (forward ? 'S' : 'N')
+}
+
+/** Port-ranking sharpness: a diamond's vertex is the strongest anchor. */
+function portSharpness(shape: PositionedNode['shape']): number {
+  return shape === 'diamond' ? 2 : 1
 }
 
 /**
@@ -582,6 +596,7 @@ function tryStraighten(
   target: PositionedNode,
   ctx: LaneContext,
   axis: Axis = ctx.axis,
+  restrictToLane?: number,
 ): StraightenAttempt {
   const srcSpan = attachSpan(source, axis)
   const tgtSpan = attachSpan(target, axis)
@@ -609,24 +624,41 @@ function tryStraighten(
   const push = (c: number) => {
     if (candidates.every(prev => Math.abs(prev - c) > 0.5)) candidates.push(c)
   }
-  // Port lanes first (static glue): through the target's side-midpoint port,
-  // then the source's. Endpoints land exactly on canonical connection points
-  // whenever these lanes prove clear; the remaining candidates are dynamic
-  // glue — straight, but floating on the side/facet.
-  push(target[axis.cross] + (axis.cross === 'y' ? target.height : target.width) / 2)
-  push(source[axis.cross] + (axis.cross === 'y' ? source.height : source.width) / 2)
-  push(edge.points[edge.points.length - 1]![axis.cross])
-  push(edge.points[0]![axis.cross])
-  const crossValues = edge.points.map(p => p[axis.cross])
-  push(Math.min(...crossValues))
-  push(Math.max(...crossValues))
-  push((overlapLo + overlapHi) / 2)
-  // Span quartiles: an unlabeled feedback loop's own cross values all sit on
-  // the forward lane or outside the span, so the parallel back-lane that
-  // collapses it to the classic two-arrow rendering lies between the span
-  // center and a span end.
-  push((overlapLo + (overlapLo + overlapHi) / 2) / 2)
-  push(((overlapLo + overlapHi) / 2 + overlapHi) / 2)
+  // Port lanes first (static glue). Their ORDER is the port ranking: when
+  // the source is a diamond whose exit side carries exactly ONE line, its
+  // vertex is the cheapest anchor and lines should EMIT from the sharp bit
+  // (sharper shape wins; source wins ties). A side carrying several lines
+  // spreads instead — no line hogs the point — and fan-ins still prefer the
+  // target port, where same-target edges merge. Remaining candidates are
+  // dynamic glue: straight, but floating on the side/facet.
+  const tgtPortLane = target[axis.cross] + (axis.cross === 'y' ? target.height : target.width) / 2
+  const srcPortLane = source[axis.cross] + (axis.cross === 'y' ? source.height : source.width) / 2
+  const srcSideUse = ctx.sideUse?.get(`${source.id}:${facingSide(axis, 1)}`) ?? 1
+  const emitFromVertex = source.shape === 'diamond' && srcSideUse === 1 &&
+    portSharpness(source.shape) >= portSharpness(target.shape)
+  if (restrictToLane !== undefined) {
+    candidates.push(restrictToLane)
+  } else if (emitFromVertex) {
+    push(srcPortLane)
+    push(tgtPortLane)
+  } else {
+    push(tgtPortLane)
+    push(srcPortLane)
+  }
+  if (restrictToLane === undefined) {
+    push(edge.points[edge.points.length - 1]![axis.cross])
+    push(edge.points[0]![axis.cross])
+    const crossValues = edge.points.map(p => p[axis.cross])
+    push(Math.min(...crossValues))
+    push(Math.max(...crossValues))
+    push((overlapLo + overlapHi) / 2)
+    // Span quartiles: an unlabeled feedback loop's own cross values all sit
+    // on the forward lane or outside the span, so the parallel back-lane
+    // that collapses it to the classic two-arrow rendering lies between the
+    // span center and a span end.
+    push((overlapLo + (overlapLo + overlapHi) / 2) / 2)
+    push(((overlapLo + overlapHi) / 2 + overlapHi) / 2)
+  }
 
   const blockers: RouteBlocker[] = []
   for (const c of candidates) {
@@ -689,7 +721,28 @@ export function applyRouteContracts(
   const axis = axisFor(graph.direction)
   const nodeMap = new Map(positioned.nodes.map(n => [n.id, n]))
   const groupMap = flattenGroups(positioned.groups)
-  const ctx: LaneContext = { nodes: positioned.nodes, edges: positioned.edges, axis, style, classes }
+  // Port-ranking occupancy: how many lines each facing side will carry.
+  // Primary edges use the flow sides; UNLABELED feedback straightens onto
+  // parallel reverse lanes on the flipped sides; labeled feedback leaves via
+  // the outer channel (N/S ports) and does not compete for facing sides.
+  const sideUse = new Map<string, number>()
+  const bump = (nodeId: string, side: PortSide) => {
+    const key = `${nodeId}:${side}`
+    sideUse.set(key, (sideUse.get(key) ?? 0) + 1)
+  }
+  for (const edge of positioned.edges) {
+    if (bundled.has(edge) || edge.edgeIndex === undefined) continue
+    const cls = classes[edge.edgeIndex]
+    if (cls === 'primary-forward') {
+      bump(edge.source, facingSide(axis, 1))
+      bump(edge.target, facingSide(axis, -1))
+    } else if (cls === 'feedback' && !edge.label) {
+      const flipped: Axis = { ...axis, sign: axis.sign === 1 ? -1 : 1 }
+      bump(edge.source, facingSide(flipped, 1))
+      bump(edge.target, facingSide(flipped, -1))
+    }
+  }
+  const ctx: LaneContext = { nodes: positioned.nodes, edges: positioned.edges, axis, style, classes, sideUse }
   const certificates: RouteCertificate[] = []
 
   // Attempt one proof-carrying straightening; updates geometry + certificate.
@@ -709,6 +762,38 @@ export function applyRouteContracts(
     if (!eligible) {
       cert.invariant = feedbackDetourKind(edge, cert.routeClass, source, target, ctx.axis) ?? 'unverified-shape'
       return { applied: false, mutated: false }
+    }
+    // Port ranking, hard case: a diamond side carrying exactly ONE line
+    // always emits from its vertex (the user-facing convention dot and
+    // yFiles follow). If no straight lane through the vertex exists, a
+    // 2-bend Z from the vertex into the target's port still outranks a
+    // straight lane that floats off the vertex.
+    const srcSideUse = ctx.sideUse?.get(`${source!.id}:${facingSide(edgeAxis, 1)}`) ?? 1
+    const emitFromVertex = cert.routeClass === 'primary-forward' &&
+      source!.shape === 'diamond' && srcSideUse === 1 &&
+      portSharpness(source!.shape) >= portSharpness(target!.shape)
+    if (emitFromVertex) {
+      const vertexLane = source![edgeAxis.cross] + (edgeAxis.cross === 'y' ? source!.height : source!.width) / 2
+      const direct = tryStraighten(edge, source!, target!, ctx, edgeAxis, vertexLane)
+      if (direct.applied) {
+        cert.invariant = 'straight'
+        cert.bendCount = 0
+        cert.directLaneClear = true
+        cert.straightened = true
+        cert.directLaneBlockedBy = undefined
+        return { applied: true, mutated: true }
+      }
+      const before = JSON.stringify(edge.points)
+      if (tryZRoute(edge, source!, target!, ctx, edgeAxis, true)) {
+        cert.invariant = 'explained-detour'
+        cert.directLaneClear = false
+        cert.directLaneBlockedBy = dedupeBlockers(direct.blockers)
+        cert.bendCount = bendCount(edge.points)
+        // applied=false keeps the edge in the fixed-point retry pool: if a
+        // later repair clears the straight vertex lane (a blocking pill
+        // moves), the Z upgrades to the straight emit on the next round.
+        return { applied: false, mutated: JSON.stringify(edge.points) !== before }
+      }
     }
     const attempt = tryStraighten(edge, source!, target!, ctx, edgeAxis)
     if (attempt.applied) {
@@ -769,6 +854,7 @@ export function applyRouteContracts(
     target: PositionedNode,
     ctx: LaneContext,
     axis: Axis,
+    sourcePortOnly = false,
   ): boolean {
     if (edge.points.length < 2) return false
     const srcSpan = attachSpan(source, axis)
@@ -782,8 +868,10 @@ export function applyRouteContracts(
       if (arr.every(prev => Math.abs(prev - v) > 0.5)) arr.push(v)
     }
     pushTo(c1s, source[axis.cross] + (axis.cross === 'y' ? source.height : source.width) / 2)
-    pushTo(c1s, edge.points[0]![axis.cross])
-    for (const v of crossVals) pushTo(c1s, v)
+    if (!sourcePortOnly) {
+      pushTo(c1s, edge.points[0]![axis.cross])
+      for (const v of crossVals) pushTo(c1s, v)
+    }
     pushTo(c2s, target[axis.cross] + (axis.cross === 'y' ? target.height : target.width) / 2)
     pushTo(c2s, edge.points[edge.points.length - 1]![axis.cross])
 
@@ -1058,7 +1146,10 @@ export function applyRouteContracts(
         if (sourceNode && targetNode &&
           (!portAt(sourceNode, edge.points[0]!) || !portAt(targetNode, edge.points[edge.points.length - 1]!) ||
             routeThroughNodeBBox(edge, ctx))) {
-          attemptStraighten(edge, cert)
+          // Enroll in the fixed-point pool like every other repair: an
+          // upgrade blocked now (e.g. a label pill in the vertex lane) may
+          // clear once a later repair moves the obstacle.
+          if (!attemptStraighten(edge, cert).applied) retry.push({ edge, cert })
         }
       }
     }
@@ -1126,7 +1217,25 @@ export function findRouteHitches(
   for (const e of positioned.edges) {
     if (e.edgeIndex !== undefined && e.routeCertificate) classes[e.edgeIndex] = e.routeCertificate.routeClass
   }
-  const ctx: LaneContext = { nodes: positioned.nodes, edges: positioned.edges, axis, style, classes }
+  // And mirror the port-ranking occupancy so the prover applies the same
+  // vertex-emit policy (a deliberate vertex Z is not a hitch).
+  const sideUse = new Map<string, number>()
+  const bumpSide = (nodeId: string, side: PortSide) => {
+    const key = `${nodeId}:${side}`
+    sideUse.set(key, (sideUse.get(key) ?? 0) + 1)
+  }
+  for (const e of positioned.edges) {
+    const cls = e.routeCertificate?.routeClass
+    if (cls === 'primary-forward') {
+      bumpSide(e.source, facingSide(axis, 1))
+      bumpSide(e.target, facingSide(axis, -1))
+    } else if (cls === 'feedback' && !e.label) {
+      const flipped: Axis = { ...axis, sign: axis.sign === 1 ? -1 : 1 }
+      bumpSide(e.source, facingSide(flipped, 1))
+      bumpSide(e.target, facingSide(flipped, -1))
+    }
+  }
+  const ctx: LaneContext = { nodes: positioned.nodes, edges: positioned.edges, axis, style, classes, sideUse }
   const hitches: RouteHitch[] = []
 
   for (const edge of positioned.edges) {
@@ -1142,9 +1251,18 @@ export function findRouteHitches(
     if (!isStraightenable(source.shape)) continue
     if (!isStraightenable(target.shape)) continue
     if (cert.routeClass !== 'feedback' && !isMonotoneStaircase(points, edgeAxis)) continue
+    // Vertex-emit edges (single-line diamond side) bend deliberately when no
+    // straight vertex lane exists; their probe is restricted to that lane.
+    const srcSideUse = sideUse.get(`${edge.source}:${facingSide(edgeAxis, 1)}`) ?? 1
+    const emitFromVertex = cert.routeClass === 'primary-forward' &&
+      source.shape === 'diamond' && srcSideUse === 1 &&
+      portSharpness(source.shape) >= portSharpness(target.shape)
+    const vertexLane = emitFromVertex
+      ? source[edgeAxis.cross] + (edgeAxis.cross === 'y' ? source.height : source.width) / 2
+      : undefined
     // Probe on a copy so validation never mutates the layout.
     const probe: PositionedEdge = { ...edge, points: points.map(p => ({ ...p })) }
-    const attempt = tryStraighten(probe, source, target, ctx, edgeAxis)
+    const attempt = tryStraighten(probe, source, target, ctx, edgeAxis, vertexLane)
     if (attempt.applied) {
       hitches.push({ edge: edgeId(edge), deviationPx: Math.round(crossDeviation(points, edgeAxis) * 10) / 10 })
     }
