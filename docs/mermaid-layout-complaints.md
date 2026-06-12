@@ -303,7 +303,10 @@ unavailable in GitHub's native rendering, and not itself a cure-all.
 - Status here: **landed structurally.** ELK layered is this engine's only
   graph layout (synchronous bundled `elkjs`, `src/elk-instance.ts`), with
   pinned options (`src/layout-engine.ts`) and #25 §10 as the documented
-  option policy. Two honest caveats: (1) ELK is not a panacea — upstream
+  option policy — node placement is Brandes–Köpf, the same default
+  Mermaid's own ELK package exposes via `nodePlacementStrategy`, so
+  opting into `flowchart-elk` in Mermaid lands on the placement family this
+  engine uses by default. Two honest caveats: (1) ELK is not a panacea — upstream
   #83 (TD flowcharts flipping horizontal) was *ELK cycle-breaking* behavior,
   countered here by model-order options; (2) none of this changes what
   GitHub/GitLab render natively (see Part 4).
@@ -597,10 +600,14 @@ Mermaid's own remediations concede the diagnosis. The migration ask —
 2024) made layout pluggable with ELK as the opt-in
 [`@mermaid-js/layout-elk`](https://www.npmjs.com/package/@mermaid-js/layout-elk)
 package ("better for larger and/or more complex diagrams," per its own
-docs). The edge-overlap ask
+docs) — selected via frontmatter `config.layout`, and per the
+[syntax reference](https://mermaid.js.org/intro/syntax-reference.html)
+"currently … supported for flowcharts and state diagrams" only. The
+edge-overlap ask
 [mermaid#1006](https://github.com/mermaid-js/mermaid/issues/1006) was
 closed *Wont Fix*. GitHub's native rendering still runs the dagre default —
-so most readers see the unfixed engine (C2, C3, C4, C9). PlantUML made the
+so most readers see the unfixed engine (C2, C3, C4, C9), and even opted-in
+users get the better engine for two of ~25 families. PlantUML made the
 opposite bet decades earlier: it
 [delegates class/state/component/usecase layout to Graphviz dot](https://plantuml.com/graphviz-dot),
 inheriting dot's router and rank constraints along with its weaknesses.
