@@ -47,7 +47,7 @@ const RECT_LIKE = new Set(['rectangle', 'service', 'rounded', 'subroutine'])
  * Rect-likes additionally accept attachment anywhere on a side (dynamic
  * glue); diamonds anywhere on a facet; the rest are port-only.
  */
-const PORT_EXACT = new Set([
+export const PORT_EXACT = new Set([
   ...RECT_LIKE, 'diamond',
   'circle', 'doublecircle', 'stadium', 'hexagon', 'cylinder', 'state-start', 'state-end',
 ])
@@ -864,7 +864,8 @@ export function applyRouteContracts(
         mutated = true
       }
     } else if (cert.invariant === 'explained-detour' &&
-      (cert.bendCount > 2 || routeThroughNodeBBox(edge, ctx))) {
+      (cert.bendCount > 2 || routeThroughNodeBBox(edge, ctx) ||
+        !portAt(target!, edge.points[edge.points.length - 1]!))) {
       // Bend minimization (the Tamassia tradition): when the lane is
       // genuinely blocked, a 2-bend Z that terminates on the target's port
       // still beats ELK's multi-bend staircase. Also triggered whenever the

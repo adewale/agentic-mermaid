@@ -35,7 +35,7 @@ import type { ResolvedRenderStyle } from './styles.ts'
 import { measureMultilineText } from './text-metrics.ts'
 import { elkLayoutSync } from './elk-instance.ts'
 import { clipEdgeToShape } from './shape-clipping.ts'
-import { applyRouteContracts, labelRect, simplifyPolyline } from './route-contracts.ts'
+import { applyRouteContracts, labelRect, PORT_EXACT, shapePorts, simplifyPolyline } from './route-contracts.ts'
 import type { LabelMetricsStyle } from './route-contracts.ts'
 
 interface LayoutEngineOptions extends RenderOptions {
@@ -1246,7 +1246,7 @@ function alignPortLanes(
   const cross = isHorizontal ? ('y' as const) : ('x' as const)
   const main = isHorizontal ? ('x' as const) : ('y' as const)
   const sign = direction === 'LR' || direction === 'TD' ? 1 : -1
-  const RECT_PORTS = new Set<NodeShape>(['rectangle', 'service', 'rounded', 'subroutine'])
+
   // A node that took part in an applied alignment is FROZEN: sliding it for
   // a later candidate would re-break the proven port-aligned relation.
   const frozen = new Set<string>()
@@ -1280,6 +1280,28 @@ function alignPortLanes(
       crossVal > n[cross] - 4 && crossVal < n[cross] + crossSize(n) + 4 &&
       hi > n[main] - 4 && lo < n[main] + mainSize(n) + 4)
 
+  /** A lane along the CROSS axis at fixed main coordinate (a hop/stub). */
+  const hopBlocked = (mainVal: number, lo: number, hi: number, exclude: ReadonlySet<string>): boolean =>
+    nodes.some(n => !exclude.has(n.id) &&
+      mainVal > n[main] - 4 && mainVal < n[main] + mainSize(n) + 4 &&
+      hi > n[cross] - 4 && lo < n[cross] + crossSize(n) + 4)
+
+  /** The perpendicular segment adjoining the terminal run: when the run
+   *  translates by delta, this segment STRETCHES across the swept corridor
+   *  [ref+delta, its far cross] — which must be proved clear like any lane.
+   *  Returns null when the run consumes the whole polyline (no hop). */
+  const hopAfterRun = (pts: Point[], fromEnd: boolean): { mainPos: number; far: number; orthogonal: boolean } | null => {
+    const idx = fromEnd ? pts.length - 1 : 0
+    const step = fromEnd ? -1 : 1
+    const ref = pts[idx]![cross]
+    let i = idx
+    while (i >= 0 && i < pts.length && Math.abs(pts[i]![cross] - ref) <= 0.5) i += step
+    if (i < 0 || i >= pts.length) return null
+    const beyond = pts[i]!
+    const edgeOfRun = pts[i - step]!
+    return { mainPos: beyond[main], far: beyond[cross], orthogonal: Math.abs(beyond[main] - edgeOfRun[main]) <= 0.5 }
+  }
+
   /** The terminal run a slide would translate: its lane and main extent. */
   const runExtent = (pts: Point[], fromEnd: boolean): { ref: number; lo: number; hi: number } => {
     const idx = fromEnd ? pts.length - 1 : 0
@@ -1308,18 +1330,33 @@ function alignPortLanes(
     const laneHi = Math.max(srcN[main] + mainSize(srcN) / 2, tgtN[main] + mainSize(tgtN) / 2)
     if (laneBlocked(lane, laneLo, laneHi, new Set([aligned.source, aligned.target]))) return false
     for (const e of edges) {
-      if (e === aligned) continue
       const srcTouch = e.source === node.id
       const tgtTouch = e.target === node.id
       if (!srcTouch && !tgtTouch) continue
-      if (e.points.length < 3) return false // a straight sibling cannot absorb the slide
-      // The terminal run translates; a perpendicular segment must exist to
-      // stretch, or the shift would drag the far endpoint off its node.
-      const anchor = tgtTouch ? e.points[e.points.length - 1]! : e.points[0]!
-      if (!e.points.some(p => Math.abs(p[cross] - anchor[cross]) > 0.5)) return false
-      // The translated run must not land on a node.
+      const isAligned = e === aligned
+      if (isAligned && e.points.length === 2 &&
+        Math.abs(e.points[0]![cross] - e.points[1]![cross]) <= 0.5) continue // re-anchored exactly
+      if (!isAligned) {
+        if (e.points.length < 3) return false // a straight sibling cannot absorb the slide
+        // The terminal run translates; a perpendicular segment must exist to
+        // stretch, or the shift would drag the far endpoint off its node.
+        const anchor = tgtTouch ? e.points[e.points.length - 1]! : e.points[0]!
+        if (!e.points.some(p => Math.abs(p[cross] - anchor[cross]) > 0.5)) return false
+      }
+      const exclude = new Set([e.source, e.target])
+      // The translated run must not land on a node...
       const run = runExtent(e.points, tgtTouch)
-      if (laneBlocked(run.ref + delta, run.lo, run.hi, new Set([e.source, e.target]))) return false
+      if (laneBlocked(run.ref + delta, run.lo, run.hi, exclude)) return false
+      // ...and the adjoining perpendicular segment stretches across the
+      // swept corridor, which must also be node-free (the property oracle
+      // caught a 123px slide sweeping a sibling's hop through a circle).
+      const hop = hopAfterRun(e.points, tgtTouch)
+      if (hop) {
+        if (!hop.orthogonal) return false
+        const lo = Math.min(run.ref + delta, hop.far)
+        const hi = Math.max(run.ref + delta, hop.far)
+        if (hopBlocked(hop.mainPos, lo, hi, exclude)) return false
+      }
     }
     const nx = isHorizontal ? node.x : node.x + delta
     const ny = isHorizontal ? node.y + delta : node.y
@@ -1384,13 +1421,18 @@ function alignPortLanes(
     const first = aligned.points[0]!
     const last = aligned.points[aligned.points.length - 1]!
     if (aligned.points.length === 2 && Math.abs(first[cross] - last[cross]) <= 0.5) {
-      // Already a straight lane: re-anchor both ends onto the shared port
-      // lane (main anchors survive — rect flow-side boundaries are flat).
-      const lane = portCross(nodeMap.get(aligned.source)!)
-      aligned.points = isHorizontal
-        ? [{ x: first.x, y: lane }, { x: last.x, y: lane }]
-        : [{ x: lane, y: first.y }, { x: lane, y: last.y }]
-      if (aligned.labelPosition) aligned.labelPosition[cross] = lane
+      // Already a straight lane: re-anchor both ends onto the EXACT ports
+      // via shapePorts — correct for every PORT_EXACT shape (a diamond's
+      // sloped facet and a circle's curve change the main anchor with the
+      // cross slide; bbox side midpoints are exact for all of them, and the
+      // downstream shape clipper preserves port-exact endpoints).
+      const exitSide = isHorizontal ? (sign > 0 ? 'E' : 'W') : (sign > 0 ? 'S' : 'N')
+      const entrySide = isHorizontal ? (sign > 0 ? 'W' : 'E') : (sign > 0 ? 'N' : 'S')
+      aligned.points = [
+        shapePorts(nodeMap.get(aligned.source)!)[exitSide as 'N' | 'E' | 'S' | 'W'],
+        shapePorts(nodeMap.get(aligned.target)!)[entrySide as 'N' | 'E' | 'S' | 'W'],
+      ]
+      if (aligned.labelPosition) aligned.labelPosition[cross] = portCross(nodeMap.get(aligned.source)!)
     } else {
       // A staircase: translate the moved end's terminal run and let the
       // certifying straightener collapse it onto the (now shared) port lane
@@ -1404,7 +1446,12 @@ function alignPortLanes(
     const src = nodeMap.get(e.source)
     const tgt = nodeMap.get(e.target)
     if (!src || !tgt) continue
-    if (!RECT_PORTS.has(src.shape) || !RECT_PORTS.has(tgt.shape)) continue
+    if (!PORT_EXACT.has(src.shape) || !PORT_EXACT.has(tgt.shape)) continue
+    // A diamond's vertex has capacity 1 (the yFiles port-candidate cost
+    // model): a source diamond with a fan-out must SPREAD its lines on the
+    // facet, so aligning one target onto the vertex lane is wrong there.
+    if (src.shape === 'diamond' &&
+      edges.filter(o => o.source === e.source && o.target !== o.source).length > 1) continue
     const d = portCross(src) - portCross(tgt)
     if (Math.abs(d) <= 0.5) continue
     // Primary-forward shape: a monotone staircase along the flow axis (a
@@ -1417,6 +1464,7 @@ function alignPortLanes(
     if (!monotone) continue
     const moved = moveSafe(tgt, d, e) ? tgt : moveSafe(src, -d, e) ? src : null
     if (moved) {
+      if (process.env.APL_DEBUG) console.error('[apl] slide', moved.id, 'by', (moved === tgt ? d : -d).toFixed(1), 'for', e.source, '->', e.target)
       apply(moved, moved === tgt ? d : -d, e)
       frozen.add(e.source)
       frozen.add(e.target)

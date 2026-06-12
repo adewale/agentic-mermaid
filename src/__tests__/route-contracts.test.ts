@@ -1092,26 +1092,73 @@ describe('port ranking — sharp bits win when a side carries one line (issue #2
   })
 
   it.each(['LR', 'RL'] as const)(
-    '%s: port-lane alignment slides the free target so the side input runs midpoint to midpoint, and the decision branch merges at the same port',
+    '%s: port-lane alignment makes the labeled main branch vertex-to-port straight; the side input converges at the same port',
     dir => {
       const positioned = layoutGraphSync(parseMermaid(single(dir)))
       const t = positioned.nodes.find(n => n.id === 'T')!
-      const x = findEdge(positioned.edges, 'X', 'T')
       const entry = dir === 'LR' ? ('W' as const) : ('E' as const)
-      // The placement repair (Rüegg et al.: straightness through ports) slides
-      // Target onto Side input's port lane: straight AND port-exact, no trade.
-      expect(x.points.length).toBe(2)
-      expect(x.routeCertificate?.sourcePort).toBe(dir === 'LR' ? 'E' : 'W')
-      expect(x.routeCertificate?.targetPort).toBe(entry)
-      // With the entry port held by the side input, the decision branch
-      // converges there — fan-in merge outranks the hook.
+      // The placement repair (Rüegg et al.: straightness through ports)
+      // slides Target onto the diamond's vertex lane: the labeled primary
+      // branch runs straight, vertex to exact port — rule 1 with 0 bends.
       const q = findEdge(positioned.edges, 'Q', 'T')
+      expect(q.points.length).toBe(2)
+      expect(q.routeCertificate?.sourcePort).toBe(dir === 'LR' ? 'E' : 'W')
+      expect(q.routeCertificate?.targetPort).toBe(entry)
+      // The side input converges into the SAME exact entry port (fan-in
+      // merge; the port-seeking Z upgrade fires because its raw entry was
+      // off-port after the slide).
+      const x = findEdge(positioned.edges, 'X', 'T')
       const port = { x: dir === 'LR' ? t.x : t.x + t.width, y: t.y + t.height / 2 }
-      const last = q.points[q.points.length - 1]!
+      const last = x.points[x.points.length - 1]!
       expect(Math.abs(last.x - port.x)).toBeLessThanOrEqual(0.5)
       expect(Math.abs(last.y - port.y)).toBeLessThanOrEqual(0.5)
+      expect(x.routeCertificate?.targetPort).toBe(entry)
     },
   )
+
+  it.each([
+    ['circles', '((One))', '((Hub))', '((Two))'],
+    ['stadiums', '([One])', '([Hub])', '([Two])'],
+    ['hexagons', '{{One}}', '{{Hub}}', '{{Two}}'],
+    ['cylinders', '[(One)]', '[(Hub)]', '[(Two)]'],
+  ] as const)(
+    'port-lane alignment extends to PORT_EXACT shapes: %s fan-in gets a port-to-port straight',
+    (_name, a, t, b) => {
+      // Without alignment these all pay TWO 2-bend Zs: port-only spans make
+      // a floating straight impossible, so misaligned ports force bends.
+      // Sliding one node aligns the ports and the straightener collapses one
+      // edge to a 0-bend port-to-port lane; the sibling converges at the
+      // same entry port.
+      const positioned = layoutGraphSync(parseMermaid(
+        `flowchart LR\n  A${a} --> T${t}\n  B${b} --> T`))
+      const at = findEdge(positioned.edges, 'A', 'T')
+      const bt = findEdge(positioned.edges, 'B', 'T')
+      const straights = [at, bt].filter(e => e.points.length === 2)
+      expect(straights.length).toBeGreaterThanOrEqual(1)
+      const s = straights[0]!
+      expect(s.routeCertificate?.sourcePort).toBe('E')
+      expect(s.routeCertificate?.targetPort).toBe('W')
+      // Both edges enter through the same exact W port (fan-in merge).
+      const lastA = at.points[at.points.length - 1]!
+      const lastB = bt.points[bt.points.length - 1]!
+      expect(Math.abs(lastA.x - lastB.x)).toBeLessThanOrEqual(0.5)
+      expect(Math.abs(lastA.y - lastB.y)).toBeLessThanOrEqual(0.5)
+    },
+  )
+
+  it('port-lane alignment includes diamonds: K becomes vertex-to-vertex straight', () => {
+    const positioned = layoutGraphSync(parseMermaid(
+      'flowchart LR\n  Q1{First} -- go --> Q2{Second}\n  X[Side input] --> Q2'))
+    // Pre-extension Q1's emit landed on Q2's facet, off the vertex. Sliding
+    // Q2 onto Q1's vertex lane makes the labeled main branch EXACT
+    // vertex-to-vertex. X cannot also align (the 'go' label pill blocks its
+    // slide — proof-gated), so it keeps its legal floating facet straight.
+    const q = findEdge(positioned.edges, 'Q1', 'Q2')
+    expect(q.points.length).toBe(2)
+    expect(q.routeCertificate?.sourcePort).toBe('E')
+    expect(q.routeCertificate?.targetPort).toBe('W')
+    expect(findEdge(positioned.edges, 'X', 'Q2').points.length).toBe(2)
+  })
 
   it('two lines out of one diamond side spread on the facet (no line hogs the vertex)', () => {
     for (const dir of ['LR', 'TD'] as const) {

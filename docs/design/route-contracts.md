@@ -448,6 +448,36 @@ hook). Corpus effect: straight edges 97 → 99, multi-bend routes 7 → 6,
 port-exact endpoints 76.0% → 77.1% — better on every axis, where the
 ranking-flip experiment traded one metric for another.
 
+The pass covers the whole **PORT_EXACT catalog**, not just rects:
+circles, stadiums, hexagons, cylinders, pseudostates, and diamonds all
+slide (port-only shapes can never be "straight but off-port", so for
+them the slide converts a forced 2-bend Z into a port-to-port
+straight). Three additional proof obligations came with the extension,
+each driven by a property-oracle counterexample or a pinned example:
+
+- the straight-edge re-anchor uses `shapePorts` for BOTH coordinates
+  (a diamond's sloped facet and a circle's curve change the main anchor
+  with the cross slide; bbox side midpoints are exact for every shape);
+- a **source diamond with a fan-out never aligns** — its vertex has
+  capacity 1 (yFiles cost model) and multi-line sides must spread;
+- when a terminal run translates, the adjoining perpendicular segment
+  STRETCHES across a swept corridor, which is proved node-free like any
+  lane (a 123px slide once swept a sibling's hop through a circle).
+
+A companion routing rule completes the composition: an
+`explained-detour` whose **entry is off-port** now seeks a port-exact Z
+(equal bends, exact ports) — so the edge left behind by an alignment
+(its sibling claimed the lane) still converges at the shared entry
+port. Cumulative corpus effect: straight edges 97 → 101, multi-bend
+routes 7 → 5, port-exact endpoints 76.0% → 78.2%.
+
+All of these compositions are pinned by the **contact sheet**
+(`eval/visual-rubric/scenarios.ts`, lettered A–S; rendered for humans by
+`bun run contact:sheet`): `src/__tests__/contact-sheet.test.ts` asserts
+zero hard rubric metrics AND snapshot-pins each scenario's full layout
+geometry, so future changes cannot visually break these drawings
+without a deliberate re-pin and sheet review.
+
 ### 6.3 Hardening found by the property oracles (layout-rubric harness)
 
 Randomized property tests over all shapes × directions × patterns
