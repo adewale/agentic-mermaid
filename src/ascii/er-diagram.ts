@@ -163,7 +163,11 @@ export function renderErAscii(text: string, config: AsciiConfig, colorMode?: Col
   if (diagram.entities.length === 0) return ''
 
   const useAscii = config.useAscii
-  const hGap = 6  // horizontal gap between entity boxes
+  const maxRelationshipLabelWidth = Math.max(
+    0,
+    ...diagram.relationships.flatMap(rel => rel.label ? splitLines(rel.label).map(line => line.length) : [0]),
+  )
+  const hGap = Math.max(6, maxRelationshipLabelWidth + 2)  // horizontal gap between entity boxes, wide enough for labels
   const vGap = 4  // vertical gap between rows (for relationship lines)
   const componentGap = 6  // vertical gap between disconnected components
 

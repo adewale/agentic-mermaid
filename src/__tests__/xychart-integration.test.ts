@@ -265,7 +265,7 @@ describe('xychart – Mermaid parity', () => {
     expect(svg).not.toContain('>Q1</text>')
   })
 
-  it('renders accessibility metadata on the root SVG', async () => {
+  it('renders accessibility metadata on the root SVG without duplicate ARIA attributes', async () => {
     const svg = await renderMermaid(`xychart
   accTitle: Revenue chart
   accDescr {
@@ -273,11 +273,35 @@ describe('xychart – Mermaid parity', () => {
     across two regions.
   }
   bar [10, 20]`)
+    const openTag = svg.match(/<svg[^>]+>/)?.[0] ?? ''
 
-    expect(svg).toContain('aria-roledescription="xychart"')
-    expect(svg).toContain('<title id="chart-title-')
-    expect(svg).toContain('<desc id="chart-desc-')
+    expect(openTag).toContain('role="img"')
+    expect(openTag).toContain('aria-roledescription="xychart"')
+    expect(openTag.match(/aria-labelledby=/g)).toHaveLength(1)
+    expect(openTag.match(/aria-describedby=/g)).toHaveLength(1)
+    expect(openTag).toContain('aria-labelledby="chart-title-mermaid-')
+    expect(openTag).toContain('aria-describedby="chart-desc-mermaid-')
+    expect(svg.match(/<title id="chart-title-/g)).toHaveLength(1)
+    expect(svg.match(/<desc id="chart-desc-/g)).toHaveLength(1)
     expect(svg).toContain('Quarterly sales')
+  })
+
+  it('sets xychart role for title-only and description-only accessibility metadata', async () => {
+    const titleOnly = await renderMermaid(`xychart
+  accTitle: Revenue chart
+  bar [10, 20]`)
+    const titleOpen = titleOnly.match(/<svg[^>]+>/)?.[0] ?? ''
+    expect(titleOpen).toContain('role="img"')
+    expect(titleOpen).toContain('aria-labelledby="chart-title-mermaid-')
+    expect(titleOpen).not.toContain('aria-describedby=')
+
+    const descOnly = await renderMermaid(`xychart
+  accDescr: Quarterly sales by region
+  bar [10, 20]`)
+    const descOpen = descOnly.match(/<svg[^>]+>/)?.[0] ?? ''
+    expect(descOpen).toContain('role="img"')
+    expect(descOpen).toContain('aria-describedby="chart-desc-mermaid-')
+    expect(descOpen).not.toContain('aria-labelledby=')
   })
 
   it('supports semicolon-separated Mermaid xychart statements', async () => {

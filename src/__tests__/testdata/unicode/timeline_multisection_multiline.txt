@@ -1,0 +1,19 @@
+timeline
+  title Product history
+  section Discovery
+  2023 : Interview users
+       : Prototype<br>review
+  section Launch
+  2024 : Public beta
+---
+Product history
+
+[Discovery]
+○ 2023
+│  ├─ Interview users
+│  └─ Prototype
+    review
+
+[Launch]
+○ 2024
+│  └─ Public beta

@@ -1,0 +1,17 @@
+journey
+  title Product journey
+  section Discover
+  Interview<br>users: 4: PM, Research
+  section Deliver
+  Ship: 5: Eng, QA
+---
+Product journey
+
+[Discover]
+●●●●○ Interview
+       users
+  by PM, Research
+
+[Deliver]
+●●●●● Ship
+  by Eng, QA

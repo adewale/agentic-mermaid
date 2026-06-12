@@ -12,9 +12,12 @@ ASCII test files (goldens, invariants, properties, unit tests) per mutant.
 # One module (preferred — a full module takes 5–15 minutes):
 npx stryker run stryker.ascii.config.json --mutate 'src/ascii/pathfinder.ts'
 
-# All four:
+# All five (also available as `bun run mutation-test:ascii`):
 npx stryker run stryker.ascii.config.json
 ```
+
+(`stryker.families.config.json` / `bun run mutation-test:families` covers the
+agent family parsers with the same policy.)
 
 The JSON report lands in `reports/mutation/` (gitignored). This is not part
 of CI: run it when you touch ASCII core logic, or when adding tests there and

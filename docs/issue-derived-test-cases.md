@@ -31,6 +31,9 @@ These are public Mermaid / Beautiful Mermaid issues worth turning into small, ed
 - [lukilabs/beautiful-mermaid#98 — nested-subgraph layout with direction](https://github.com/lukilabs/beautiful-mermaid/pull/98)
   - Why it matters: subgraph direction overrides and container edges should not create phantom nodes or move children outside groups.
   - Current coverage: `src/__tests__/subgraph-direction.test.ts` covers SVG geometry, ASCII one-row inner LR layout, subgraph-id edge attachment, 7-bit ASCII mode, nested child subgraph targets, styled/labeled container edges, and multi-edge containers; golden files pin exact ASCII/Unicode output.
+- [lukilabs/beautiful-mermaid#121 — ER/class ASCII label truncation and stray connectors](https://github.com/lukilabs/beautiful-mermaid/issues/121)
+  - Why it matters: ER/class ASCII labels and compartment text are semantic content, not decoration; long labels must not silently disappear when connectors are tight.
+  - Current coverage: exact ASCII/Unicode golden files cover class compartments/relationship labels and ER relationship labels. ER same-row layout now widens the inter-entity gap to preserve full labels.
 
 ## High-value future fixtures
 
@@ -38,8 +41,6 @@ These are public Mermaid / Beautiful Mermaid issues worth turning into small, ed
   - Suggested fixture: a graph whose author order implies a clear primary direction but whose cross/back edges tempt the layout engine to flip ranks. Assert source-order progression and bounded aspect ratio.
 - [mermaid-js/mermaid#7785 — collapsible subgraphs via `@{ view: collapsed }`](https://github.com/mermaid-js/mermaid/pull/7785)
   - Suggested fixture: parse/render normal nested subgraphs today; when collapse metadata appears, either model it explicitly or preserve source as opaque. Never silently drop the `@{ ... }` meaning.
-- [lukilabs/beautiful-mermaid#121 — ER/class ASCII label truncation and stray connectors](https://github.com/lukilabs/beautiful-mermaid/issues/121)
-  - Suggested fixture: ER relationship labels and class compartments with edge labels. Assert labels are present, connectors touch borders, and no orphan `├` appears.
 
 ## Fork-network layout search notes
 
@@ -64,7 +65,7 @@ A May 2026 GitHub issue/PR search found recurring layout-quality themes in both 
 - [lukilabs/beautiful-mermaid#89 — CJK subgraph title layout drift](https://github.com/lukilabs/beautiful-mermaid/issues/89)
   - Fixture idea: fullwidth group labels. Assert group header bounds account for CJK width.
 - [lukilabs/beautiful-mermaid#121 — ER/class ASCII labels truncated/overlapping](https://github.com/lukilabs/beautiful-mermaid/issues/121)
-  - Fixture idea: long ER/class labels and attributes. Assert labels survive and connectors remain attached.
+  - Fixture status: representative class/ER golden files now assert labels survive and connectors remain attached; keep this theme in the generated matrix for longer label/attribute variants.
 
 ## Programmatic bad-layout heuristics
 
