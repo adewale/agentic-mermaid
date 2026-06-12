@@ -1,0 +1,17 @@
+%%{init: {"displayMode": "compact"}}%%
+gantt
+    title Compact packing
+    dateFormat YYYY-MM-DD
+    section Stream
+        One   :a, 2024-01-01, 5d
+        Two   :b, 2024-01-03, 6d
+        Three :c, 2024-01-08, 4d
+        Four  :d, 2024-01-10, 3d
+---
+                    Compact packing
+
+  Stream
+    One, Three  #################------##############---
+    Two, Four   -------####################---##########
+                ----------------------------------------
+                                    01-07

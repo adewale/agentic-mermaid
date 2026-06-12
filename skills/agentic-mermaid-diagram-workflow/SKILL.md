@@ -1,6 +1,6 @@
 ---
 name: agentic-mermaid-diagram-workflow
-description: Agent-agnostic skill for authoring and editing Mermaid diagrams with structured verification, typed mutation, round-trip serialization, and ASCII, PNG, and SVG outputs. Structured mutation for all eleven renderable families (flowchart, state, sequence, timeline, class, ER, journey, architecture, xychart, pie, quadrant); source-level parse-and-render only for opaque fallbacks (unmodeled syntax).
+description: Agent-agnostic skill for authoring and editing Mermaid diagrams with structured verification, typed mutation, round-trip serialization, and ASCII, PNG, and SVG outputs. Structured mutation for all twelve renderable families (flowchart, state, sequence, timeline, class, ER, journey, architecture, xychart, pie, quadrant, gantt); source-level parse-and-render only for opaque fallbacks (unmodeled syntax).
 ---
 
 # Agentic Mermaid — diagram workflow
@@ -51,7 +51,7 @@ State diagrams own a dedicated body (BUILD-19): narrow them with `asState` and a
 For new diagrams, author Mermaid source directly, then `parseMermaid` / `verifyMermaid` / render. For existing modeled diagrams:
 
 1. `parseMermaid(source)` → `ValidDiagram`.
-2. `asFlowchart(d)` / `asState(d)` / `asSequence(d)` / `asTimeline(d)` / `asClass(d)` / `asEr(d)` / `asJourney(d)` / `asArchitecture(d)` / `asXyChart(d)` / `asPie(d)` / `asQuadrant(d)` to narrow before mutating.
+2. `asFlowchart(d)` / `asState(d)` / `asSequence(d)` / `asTimeline(d)` / `asClass(d)` / `asEr(d)` / `asJourney(d)` / `asArchitecture(d)` / `asXyChart(d)` / `asPie(d)` / `asQuadrant(d)` / `asGantt(d)` to narrow before mutating.
 3. `mutate(d, op)` (typed per family).
 4. `verifyMermaid(d)` — structured warnings; inspect `ok` / `warnings` / `layout`.
 5. On `!ok`, revert to the previous `ValidDiagram`, try another op.

@@ -11,7 +11,7 @@ import { SDK_DECLARATION } from '../mcp/sdk-decl.ts'
 import { WARNING_SEVERITY, WARNING_TIER } from '../agent/types.ts'
 import {
   asFlowchart, asState, asSequence, asTimeline, asClass, asEr,
-  asJourney, asArchitecture, asXyChart, asPie, asQuadrant,
+  asJourney, asArchitecture, asXyChart, asPie, asQuadrant, asGantt,
 } from '../agent/types.ts'
 import { knownFamilies, getFamily } from '../agent/families.ts'
 import type { DiagramKind, ValidDiagram } from '../agent/types.ts'
@@ -157,7 +157,7 @@ describe('vocabulary doc-sync', () => {
   })
 
   test('MCP SDK declaration exposes all mutable-family narrowers', () => {
-    for (const narrower of ['asFlowchart', 'asState', 'asSequence', 'asTimeline', 'asClass', 'asEr', 'asJourney', 'asArchitecture', 'asXyChart', 'asPie', 'asQuadrant']) {
+    for (const narrower of ['asFlowchart', 'asState', 'asSequence', 'asTimeline', 'asClass', 'asEr', 'asJourney', 'asArchitecture', 'asXyChart', 'asPie', 'asQuadrant', 'asGantt']) {
       expect(SDK_DECLARATION).toContain(narrower)
     }
   })
@@ -180,6 +180,7 @@ describe('vocabulary doc-sync', () => {
       asXyChart: 'xychart-beta\\n  bar [1, 2]',
       asPie: 'pie\\n  "Dogs" : 3',
       asQuadrant: 'quadrantChart\\n  Campaign A: [0.3, 0.6]',
+      asGantt: 'gantt\\n  Task A :a1, 2024-01-01, 3d',
     }
     for (const narrower of advertised) {
       const source = SOURCES[narrower]
@@ -201,7 +202,7 @@ describe('vocabulary doc-sync', () => {
     const NARROWERS: Record<DiagramKind, (d: ValidDiagram) => unknown> = {
       flowchart: asFlowchart, state: asState, sequence: asSequence, timeline: asTimeline,
       class: asClass, er: asEr, journey: asJourney, architecture: asArchitecture,
-      xychart: asXyChart, pie: asPie, quadrant: asQuadrant,
+      xychart: asXyChart, pie: asPie, quadrant: asQuadrant, gantt: asGantt,
     }
     const FAIL = 'New families ship with typed mutation by default — see docs/contributing/adding-diagram-types.md.'
     for (const kind of knownFamilies()) {

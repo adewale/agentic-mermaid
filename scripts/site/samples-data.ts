@@ -1594,6 +1594,58 @@ export const samples: Sample[] = [
   },
 
   // ══════════════════════════════════════════════════════════════════════════
+  //  GANTT
+  // ══════════════════════════════════════════════════════════════════════════
+
+  {
+    title: 'Gantt: A Gantt Diagram',
+    category: 'Gantt',
+    description: 'The classic Mermaid docs Gantt: sections, explicit dates, `after` dependencies, and inherited starts.',
+    source: `gantt
+    title A Gantt Diagram
+    dateFormat YYYY-MM-DD
+    section Section
+        A task          :a1, 2014-01-01, 30d
+        Another task    :after a1, 20d
+    section Another
+        Task in Another :2014-01-12, 12d
+        another task    :24d`,
+  },
+  {
+    title: 'Gantt: Status & Milestones',
+    category: 'Gantt',
+    description: 'Status tags (`done`, `active`, `crit`), a milestone diamond, a `vert` marker that consumes no row, and weekends excluded from working durations.',
+    source: `gantt
+    title Release train
+    dateFormat YYYY-MM-DD
+    excludes weekends
+    section Build
+        Completed task :done, des1, 2024-01-08, 2024-01-10
+        Active task    :active, des2, 2024-01-11, 3d
+        Future task    :des3, after des2, 5d
+    section Ship
+        Crit review    :crit, rev1, after des3, 2d
+        Code freeze    :vert, v1, 2024-01-19, 0d
+        Release        :milestone, m1, after rev1, 0d`,
+  },
+  {
+    title: 'Gantt: Compact Display Mode',
+    category: 'Gantt',
+    description: 'Dense overlapping tasks packed into shared rows with `displayMode: compact` — deterministic first-fit lanes per section.',
+    source: `---
+displayMode: compact
+---
+gantt
+    title Compact packing
+    dateFormat YYYY-MM-DD
+    section Stream
+        One   :a, 2024-01-01, 5d
+        Two   :b, 2024-01-03, 6d
+        Three :c, 2024-01-08, 4d
+        Four  :d, 2024-01-10, 3d`,
+  },
+
+  // ══════════════════════════════════════════════════════════════════════════
   //  SEMANTIC ROLE STYLE SHOWCASE
   // ══════════════════════════════════════════════════════════════════════════
 

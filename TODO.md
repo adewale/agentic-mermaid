@@ -74,8 +74,16 @@ dependents after. IDs are stable names, not an ordering.
     `src/ascii/pie.ts`), routing, agent surface (detect + extractLabels),
     showcase samples, docs, and goldens. Now promoted to structured mutation —
     `src/agent/pie-body.ts`, `asPie`, 7 ops (see Unreleased changelog).
-  - [ ] gantt, mindmap, gitgraph: still to implement. Order the remaining
-    three by the real README corpus run (network required) per the evidence
+  - [x] Gantt family (per the [docs/design/gantt.md](./docs/design/gantt.md)
+    spec from PR #24): `src/gantt/` (types/parser/schedule/layout/SVG +
+    `src/ascii/gantt.ts`), routing, segment-preserving typed mutation from day
+    one (`src/agent/gantt-body.ts`, `asGantt`, 9 ops), pure wall-clock-free
+    scheduler with named `GANTT_*` errors, critical-path analysis in
+    `describe`, showcase samples, docs, ASCII/Unicode + SVG goldens,
+    fast-check properties, a `mermaid-ast` differential, and a targeted
+    Stryker config (`mutation-test:gantt`).
+  - [ ] mindmap, gitgraph: still to implement. Order the remaining
+    two by the real README corpus run (network required) per the evidence
     step above — `eval/family-usage/RESULTS.md` does not assert that ordering.
 - [x] **BUILD-11 — QuadrantChart family** (`done`). Promoted
   from the PARK-3 fork-audit list. Quadrant charts are missing across the

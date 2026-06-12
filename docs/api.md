@@ -99,6 +99,7 @@ const ascii = renderMermaidASCII(`flowchart LR
 | `compact` | `boolean` | `false` | Compact SVG output while preserving agent hooks. |
 | `idPrefix` | `string` | `''` | Namespace generated SVG def ids. |
 | `security` | `'default' | 'strict'` | `'default'` | `strict` disables external-fetch references. |
+| `ganttToday` | `string` | unset | Explicit "today" for the Gantt `todayMarker` (date in the diagram's `dateFormat` or ISO `YYYY-MM-DD`). Gantt never reads the wall clock; without this the marker is not drawn. |
 
 `DiagramStyleOptions` is role-based:
 
