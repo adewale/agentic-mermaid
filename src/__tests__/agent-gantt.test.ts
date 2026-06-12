@@ -334,6 +334,41 @@ describe('gantt round-trip property (generated diagrams)', () => {
   })
 })
 
+describe('gantt UNRESOLVABLE_SCHEDULE (closes the verify-ok/render-throws seam)', () => {
+  // Found via the upstream bench: mermaid's parser accepts `excludes weekdays`
+  // and silently ignores it; we render-error — but verify used to stay silent.
+  test('a parseable-but-unschedulable diagram flips verify.ok with the named reason', () => {
+    const v = verifyMermaid(gantt('gantt\n  dateFormat YYYY-MM-DD\n  excludes weekdays 2019-02-01\n  A :a, 2019-02-04, 3d'))
+    expect(v.ok).toBe(false)
+    const w = v.warnings.find(w => w.code === 'UNRESOLVABLE_SCHEDULE') as { code: string; reason: string } | undefined
+    expect(w).toBeDefined()
+    expect(w!.reason).toContain('GANTT_BAD_DATE')
+  })
+
+  test('a dependency cycle among known ids surfaces (EDGE_MISANCHORED cannot catch it)', () => {
+    const v = verifyMermaid(gantt('gantt\n  A :a, after c, 1d\n  B :b, after a, 1d\n  C :c, after b, 1d'))
+    expect(v.ok).toBe(false)
+    const w = v.warnings.find(w => w.code === 'UNRESOLVABLE_SCHEDULE') as { code: string; reason: string } | undefined
+    expect(w!.reason).toContain('GANTT_DEPENDENCY_CYCLE')
+  })
+
+  test('a task-less gantt maps to EMPTY_DIAGRAM, not UNRESOLVABLE_SCHEDULE', () => {
+    const v = verifyMermaid(gantt('gantt\n  title Just a title\n  dateFormat YYYY-MM-DD'))
+    expect(v.ok).toBe(false)
+    expect(v.warnings.map(w => w.code)).toContain('EMPTY_DIAGRAM')
+    expect(v.warnings.map(w => w.code)).not.toContain('UNRESOLVABLE_SCHEDULE')
+  })
+
+  test('healthy diagrams and the suppress knob behave', () => {
+    expect(verifyMermaid(gantt()).warnings.map(w => w.code)).not.toContain('UNRESOLVABLE_SCHEDULE')
+    const suppressed = verifyMermaid(
+      gantt('gantt\n  excludes weekdays\n  A :a, 2019-02-04, 3d'),
+      { suppress: ['UNRESOLVABLE_SCHEDULE'] },
+    )
+    expect(suppressed.ok).toBe(true)
+  })
+})
+
 describe('gantt geometric tripwires (issue #26 WS11)', () => {
   // The layout contains bars by construction (property-tested), so on real
   // diagrams these stay silent; the validator itself is proven reachable with

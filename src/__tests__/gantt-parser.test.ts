@@ -181,9 +181,14 @@ describe('gantt parser — structured errors', () => {
     expect(e.line).toBe(3)
   })
 
-  test('invalid tickInterval is a structured error (mermaid PR #7197 regression class)', () => {
-    expect(errorOf('gantt\n  tickInterval 0day\n  A :a, 2024-01-01, 1d').code).toBe('GANTT_BAD_DIRECTIVE')
-    expect(errorOf('gantt\n  tickInterval banana\n  A :a, 2024-01-01, 1d').code).toBe('GANTT_BAD_DIRECTIVE')
+  test('invalid tickInterval is ignored like Mermaid (auto ticks; bounded generation is the guard)', () => {
+    // Mermaid's own docs include `tickInterval 1decade`; upstream ignores
+    // values outside its regex rather than erroring (PR #7197's fix bounds
+    // tick GENERATION). Lenient parse keeps the docs corpus rendering.
+    for (const bad of ['0day', 'banana', '1decade']) {
+      const m = modelOf(`gantt\n  tickInterval ${bad}\n  A :a, 2024-01-01, 1d`)
+      expect(m.tickInterval).toBeUndefined()
+    }
   })
 
   test('invalid weekday / weekend values are structured errors', () => {

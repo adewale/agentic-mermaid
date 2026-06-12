@@ -14,7 +14,7 @@ import type {
 } from './types.ts'
 import { WARNING_SEVERITY, DEFAULT_LABEL_CHAR_CAP } from './types.ts'
 import { positionedToRenderedLayout, emptyRenderedLayout } from './layout-to-rendered.ts'
-import { layoutFamilyToRendered, ganttGeometryWarnings } from './family-layouts.ts'
+import { layoutFamilyToRendered, ganttGeometryWarnings, ganttScheduleWarning } from './family-layouts.ts'
 import { getFamily, extractLabelsGeneric } from './families.ts'
 import { stateBodyToGraph } from './state-body.ts'
 import './families-builtin.ts'  // registers built-in families at import time
@@ -76,11 +76,14 @@ export function verifyMermaid(input: ValidDiagram | string, opts: VerifyOptions 
   // class + ER + journey + architecture: the FamilyPlugin.verify hooks produce
   // the per-body warnings (journey added by BUILD-15, architecture by BUILD-17).
   // Gantt adds geometric tripwires (OFF_CANVAS / GROUP_BREACH) over its real
-  // layout, alongside the body-level plugin warnings — see
-  // docs/design/gantt.md §Verification.
+  // layout and surfaces unresolvable schedules (UNRESOLVABLE_SCHEDULE),
+  // alongside the body-level plugin warnings — see docs/design/gantt.md
+  // §Verification.
   if (d.body.kind === 'gantt') {
     const layout = layoutFamilyToRendered(d) ?? emptyRenderedLayout(d.kind)
-    return finalize(dedupedConcat(pluginWarnings, ganttGeometryWarnings(layout)), layout, opts)
+    const schedFail = ganttScheduleWarning(d)
+    const geometric = dedupedConcat(ganttGeometryWarnings(layout), schedFail ? [schedFail] : [])
+    return finalize(dedupedConcat(pluginWarnings, geometric), layout, opts)
   }
 
   if (d.body.kind === 'class' || d.body.kind === 'er' || d.body.kind === 'journey' || d.body.kind === 'architecture' || d.body.kind === 'xychart' || d.body.kind === 'pie' || d.body.kind === 'quadrant') {

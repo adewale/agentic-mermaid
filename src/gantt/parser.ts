@@ -163,9 +163,13 @@ export function parseGanttModel(lines: string[]): GanttModel {
     if ((m = line.match(DIRECTIVE_RES.dateFormat))) { model.dateFormat = m[1]!.trim(); continue }
     if ((m = line.match(DIRECTIVE_RES.axisFormat))) { model.axisFormat = m[1]!.trim(); continue }
     if ((m = line.match(DIRECTIVE_RES.tickInterval))) {
+      // Lenient like Mermaid: values outside the documented
+      // `count(millisecond|second|minute|hour|day|week|month)` shape are
+      // ignored and the axis falls back to auto ticks — mermaid's own docs
+      // contain `tickInterval 1decade`. The PR #7197 safety property lives in
+      // bounded tick GENERATION (layout.ts), not in rejecting the directive.
       const tm = m[1]!.trim().match(TICK_INTERVAL_RE)
-      if (!tm) throw new GanttError('GANTT_BAD_DIRECTIVE', `Invalid tickInterval "${m[1]!.trim()}"`, lineNo)
-      model.tickInterval = { count: Number(tm[1]), unit: tm[2] as GanttTickUnit }
+      if (tm) model.tickInterval = { count: Number(tm[1]), unit: tm[2] as GanttTickUnit }
       continue
     }
     if (/^inclusiveEndDates\s*$/i.test(line)) { model.inclusiveEndDates = true; continue }

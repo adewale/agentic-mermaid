@@ -266,7 +266,8 @@ type GanttMutationOp =
   | { kind: 'set_task_dates'; sectionIndex: number; taskIndex: number; start?: string | null; end?: string }
 
 // Tier 1 (structural, reliable): EMPTY_DIAGRAM, EDGE_MISANCHORED, OFF_CANVAS,
-//   GROUP_BREACH, UNKNOWN_SHAPE, LABEL_OVERFLOW (source-based char-cap).
+//   GROUP_BREACH, UNKNOWN_SHAPE, LABEL_OVERFLOW (source-based char-cap),
+//   UNRESOLVABLE_SCHEDULE (gantt: parses but schedule cannot resolve; render would fail).
 // Tier 2 (geometric, advisory): NODE_OVERLAP, ROUTE_SELF_CROSS, and the
 // route-contract tripwires ROUTE_HITCH, ROUTE_UNEXPLAINED_BEND,
 // ROUTE_LABEL_ON_SHARED_TRUNK, ROUTE_CONTAINER_MISANCHOR,
@@ -275,7 +276,8 @@ type GanttMutationOp =
 // DECISION_BRANCH_UNLABELED, COMMENT_DROPPED.
 type WarningCode =
   | 'EMPTY_DIAGRAM' | 'EDGE_MISANCHORED' | 'OFF_CANVAS' | 'GROUP_BREACH'
-  | 'UNKNOWN_SHAPE' | 'LABEL_OVERFLOW' | 'NODE_OVERLAP' | 'ROUTE_SELF_CROSS' | 'ROUTE_HITCH'
+  | 'UNKNOWN_SHAPE' | 'LABEL_OVERFLOW' | 'UNRESOLVABLE_SCHEDULE'
+  | 'NODE_OVERLAP' | 'ROUTE_SELF_CROSS' | 'ROUTE_HITCH'
   | 'ROUTE_UNEXPLAINED_BEND' | 'ROUTE_LABEL_ON_SHARED_TRUNK' | 'ROUTE_CONTAINER_MISANCHOR'
   | 'ROUTE_SHAPE_MISANCHOR' | 'ROUTE_STALE_AFTER_NODE_MOVE'
   | 'DUPLICATE_EDGE' | 'UNREACHABLE_NODE' | 'DECISION_BRANCH_UNLABELED' | 'COMMENT_DROPPED'

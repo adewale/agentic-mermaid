@@ -1,0 +1,89 @@
+[
+  {
+    "id": "e1-excludes-weekdays",
+    "origin": "mermaid/gantt.spec.js",
+    "upstream": "should handle an excludes definition",
+    "source": "gantt\ndateFormat yyyy-mm-dd\ntitle Adding gantt diagram functionality to mermaid\nexcludes weekdays 2019-02-01\nA task :a1, 2019-02-04, 3d",
+    "reason": "silent-ignore-vs-named-error",
+    "upstreamBehavior": "The grammar accepts 'weekdays' (a token the docs explicitly say is unsupported); isInvalidDate never matches it, so it is silently ignored and the chart renders.",
+    "oursErrorCode": "GANTT_BAD_DATE",
+    "notes": "Spec-mandated divergence (docs/design/gantt.md: fail clearly for unsupported syntax instead of silently mis-rendering). The agent layer still parses, round-trips, and reports verify UNRESOLVABLE_SCHEDULE. NB: the task line was added here to give the schedule something to resolve; upstream's original fixture is directive-only."
+  },
+  {
+    "id": "e2-after-unknown-id",
+    "origin": "mermaid/ganttDb.spec.ts",
+    "upstream": "two-task table: id2,after id3,1d (id3 unknown)",
+    "source": "gantt\ndateFormat YYYY-MM-DD\nsection testa1\ntest1 :id1,2013-01-01,2w\ntest2 :id2,after id3,1d",
+    "reason": "wall-clock-fallback",
+    "upstreamBehavior": "Unknown 'after' refs fall back to wall-clock today at local midnight \u2014 the expected value in their table is literally new Date(new Date().setHours(0,0,0,0)).",
+    "oursErrorCode": "GANTT_UNKNOWN_TASK_REF",
+    "notes": "Determinism contract: named error instead of a date that changes every day."
+  },
+  {
+    "id": "e3-weekends-mega",
+    "origin": "mermaid/ganttDb.spec.ts",
+    "upstream": "should ignore weekends",
+    "source": "gantt\ndateFormat YYYY-MM-DD\nexcludes weekends 2019-02-06,friday\nsection weekends skip test\ntest1 :id1,2019-02-01,1d\ntest2 :id2,after id1,2d\ntest3 :id3,after id2,7d\ntest4 :id4,2019-02-01,2019-02-20\ntest5 :id5,after id4,1d\nsection full ending task on last day\ntest6 :id6,2019-02-13,2d\ntest7 :id7,after id6,1d",
+    "reason": "exclude-boundary-model",
+    "upstreamBehavior": "Upstream's exclude-walk counts days in (start, end] (it starts the cursor at start+1), so a task STARTING on an excluded day effectively gets that day free: test1 starts excluded Friday 2019-02-01 and ends Monday 02-04. Our walk counts [start, end), pushing the same task to 02-05; every downstream after-chain instant then shifts.",
+    "notes": "Both models conserve the working-day count of a duration (property-tested on our side); they disagree only on which boundary day absorbs the exclusion. Our model also drives the visual bar directly, where upstream splits endTime (chain) from renderEndTime (drawn bar). Candidate for a deliberate compat follow-up if drift matters in practice."
+  },
+  {
+    "id": "e4-exclude-all-but-friday",
+    "origin": "mermaid/ganttDb.spec.ts",
+    "upstream": "should not infinite loop when excluding everything (fridays allowed)",
+    "source": "gantt\ndateFormat YYYY-MM-DD\nexcludes weekends,monday,tuesday,wednesday,thursday\nweekend saturday\nsection weekends skip test\ntest1 :id1,2019-02-01,7d",
+    "reason": "exclude-boundary-model",
+    "upstreamBehavior": "Resolves without error (only asserted as not-throwing). Start day 2019-02-01 is a Friday \u2014 the only working weekday \u2014 so the boundary-model difference (their (start,end] vs our [start,end)) shifts which Friday completes the 7th working day.",
+    "notes": "Ours also resolves without error; only the boundary instants differ, so the case is excluded from instant-level parity."
+  },
+  {
+    "id": "e5-dst-25-hour-day",
+    "origin": "mermaid/ganttDb.spec.ts",
+    "upstream": "should add 1 day even on days with 25 hours",
+    "source": "gantt\ndateFormat YYYY-MM-DD\nsection Task handles 25 hour day\ndaylight savings day :id1,2020-11-01,1d",
+    "reason": "local-tz",
+    "upstreamBehavior": "Runs only under TZ=America/Los_Angeles (their suite skips it otherwise) and asserts a 25-hour day across the DST fall-back.",
+    "notes": "Our scheduler is UTC-only: every day is 24h by construction, so the bug class this test guards against cannot exist. The source itself resolves fine for us (2020-11-01 \u2192 2020-11-02 UTC)."
+  },
+  {
+    "id": "e6-seconds-only-format",
+    "origin": "mermaid/ganttDb.spec.ts",
+    "upstream": "should handle seconds-only format with valid numeric values (issue #5496)",
+    "source": "gantt\ndateFormat ss\nsection Network Request\nRTT :rtt, 0, 20",
+    "reason": "wall-clock-fallback",
+    "upstreamBehavior": "Start '0' fails dayjs strict 'ss' parsing (needs two digits) and falls back to new Date(); the test only asserts the task exists.",
+    "oursErrorCode": "GANTT_BAD_DATE",
+    "notes": "Write '00' and the format resolves deterministically in our implementation."
+  },
+  {
+    "id": "e7-year-typo",
+    "origin": "mermaid/ganttDb.spec.ts",
+    "upstream": "should handle dates with year typo like 202 instead of 2024 (issue #5496)",
+    "source": "gantt\ndateFormat YYYY-MM-DD\nsection Vacation\nLondon Trip 1 :2024-12-01, 7d\nLondon Trip 2 :202-12-01, 7d",
+    "reason": "wall-clock-fallback",
+    "upstreamBehavior": "The '202-12-01' typo falls through dayjs strict parsing to new Date('202-12-01') and schedules a task in the year 202.",
+    "oursErrorCode": "GANTT_BAD_DATE",
+    "notes": "A loud error beats a silent 1,800-year scheduling mistake for agent workflows."
+  },
+  {
+    "id": "e8-invalid-duration-unit",
+    "origin": "mermaid/ganttDb.spec.ts",
+    "upstream": "parseDuration '1f' \u2192 [NaN, 'ms']",
+    "source": "gantt\ndateFormat YYYY-MM-DD\nsection testa1\ntest1 :id1,2013-01-01,1f",
+    "reason": "wall-clock-fallback",
+    "upstreamBehavior": "'1f' parses to a NaN duration; the end date falls back through invalid-date handling.",
+    "oursErrorCode": "GANTT_BAD_DATE",
+    "notes": "'1f' is not a duration token, so we read it as an end DATE and reject it by name (the spec's matrix cites mermaid #6586 for invalid duration tokens)."
+  },
+  {
+    "id": "e9-inline-trailing-comment-in-task-data",
+    "origin": "mermaid docs syntax/gantt.md (corpus index 10)",
+    "upstream": "frontmatter/compact docs example: 'data entry ... : 1s   %% not yet official'",
+    "source": "gantt\ndateFormat YYYY\ntitle Inline comment tolerance\nentry :a, 2024, 1s   %% not yet official",
+    "reason": "wall-clock-fallback",
+    "upstreamBehavior": "Mermaid's taskData lexer rule ([^#:\\n]+) consumes the inline '%% \u2026' text INTO the metadata; '1s   %% not yet official' then fails their duration regex and the end date falls back to wall-clock today. The official docs example only renders because of that fallback.",
+    "oursErrorCode": "GANTT_BAD_DATE",
+    "notes": "Mermaid comments are documented as own-line only; we neither invent inline-comment grammar nor substitute today. The agent layer still round-trips the line byte-faithfully, and verify names the problem via UNRESOLVABLE_SCHEDULE."
+  }
+]
