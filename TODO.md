@@ -256,7 +256,23 @@ dependents after. IDs are stable names, not an ordering.
   samples (flowchart/96, flowchart/97, flowchart/98, subgraph-direction.mmd)
   with 0 regressions / 0 faithfulness deltas. Repro:
   `eval/layout-compare/fixtures/subgraph-direction.mmd`.
-- [ ] **BUILD-1 — Collapsible subgraphs (#7785)** (`todo`). Track Mermaid PR
+- [ ] **BUILD-20 — `@{ ... }` node metadata: stop silent loss and phantom
+  nodes** (`todo`). Issue
+  <https://github.com/adewale/beautiful-mermaid/issues/29>. Mermaid v11.3+
+  typed-shape syntax (`A@{ shape: manual-input, label: "..." }`) is not
+  tokenized: inline use drops the edge and target node, standalone lines are
+  erased, and the multiline form fabricates phantom nodes from the metadata
+  keys (`shape[shape]`, `label[label]`) — all with `verify.ok: true` and a
+  lossy `serializeMermaid`. Violates the no-silent-loss and round-trip
+  guarantees. Fix per the preservation ladder: tokenize `@{ ... }` (single
+  and multiline) as one unit, then either error loudly or preserve
+  source-opaque and render the node with its `label` as a rectangle; never
+  fabricate nodes. Round-trip property tests + goldens for all three repro
+  shapes; corpus diff via BUILD-13 harness. Modeled support for the v11
+  shape vocabulary (ISO 5807/ANSI X3.5 symbols mapped onto `NodeShape`) is a
+  separate follow-up. Prerequisite for BUILD-1, which needs the same
+  tokenization for `@{ view: collapsed }`.
+- [ ] **BUILD-1 — Collapsible subgraphs (#7785)** (`todo`, after BUILD-20). Track Mermaid PR
   <https://github.com/mermaid-js/mermaid/pull/7785> (`@{ view: collapsed }`
   metadata syntax) and stay syntax-compatible. Large, but a real readability
   win for agent-generated architecture diagrams; pairs naturally with typed

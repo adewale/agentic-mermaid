@@ -92,7 +92,15 @@ unreadably small once the diagram is fit to screen.
   large-graph compaction, and the source-order priority can *worsen* width:
   `docs/quality.md` documents the Auth Flow trade, and
   `src/__tests__/agent-auth-flow.test.ts` pins quality with a widened aspect
-  band (`[0.2, 7]`) for exactly that reason.
+  band (`[0.2, 7]`) for exactly that reason. One candidate mitigation that
+  needs no syntax invention: the standards-era answer to oversized charts
+  was never better compaction but **decomposition** — ANSI X3.5/ISO 5807
+  prescribe named on-page/off-page connectors to split a chart when it
+  outgrows a page or lines would cross. The agent-loop analogue: when
+  `checkQuality` flags an oversized diagram, propose or perform splitting
+  into multiple linked diagrams through the existing mutation API. Mermaid
+  has no continuation concept (users fake it with duplicated nodes), so
+  this would be a differentiator rather than a compatibility surface.
 
 ### C3. Subgraphs: direction ignored, titles overlapped, clusters colliding
 
@@ -500,8 +508,11 @@ and its successor [ISO 5807:1985](https://www.iso.org/standard/11955.html)
 keeps the conditional-arrowhead rule (§9.3.1: "solid or open arrowheads
 shall be added to indicate direction of flow where necessary (see
 10.2.1.2)"; clause 10 "Conventions" carries the direction rules). Issue
-#25's primary-forward/feedback route classes are that 55-year-old
-convention, restated as a checkable invariant.
+#25's primary-forward/feedback route classes are that half-century-old
+convention, restated as a checkable invariant — and the same convention
+family yields further validator candidates (unlabeled decision branches;
+single-entry/labeled-exit analysis), tracked in
+[`issue-derived-test-cases.md`](./issue-derived-test-cases.md).
 
 Mature tools likewise expose constraint surfaces. Graphviz dot has had
 [`rank=same`/`min`/`max`](https://graphviz.org/docs/attrs/rank/),
@@ -695,10 +706,12 @@ Stated plainly so the scorecard cannot oversell:
    substitute (deterministic + measurable + explainable auto-layout for
    editing programs), not a solution. If Mermaid core standardizes layout
    hints, this fork follows; it will not invent them (#25 non-goals).
-2. **Large-diagram compaction (C2).** Detection exists; no improvement work
+2. **Large-diagram compaction (C2).** Detection exists; no compaction work
    is scheduled. Source-order priority can make wide diagrams wider — the
    Auth Flow aspect band in `agent-auth-flow.test.ts` is widened to 7
-   because of it.
+   because of it. The only candidate direction on record is the
+   decomposition idea noted in C2, which sidesteps compaction rather than
+   solving it.
 3. **Reach.** Most complainers experience Mermaid through GitHub/GitLab/
    Notion native rendering, which no fork renderer can change. Work here
    applies to diagrams rendered through this stack (agent pipelines, CI,

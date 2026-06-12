@@ -41,6 +41,10 @@ These are public Mermaid / Beautiful Mermaid issues worth turning into small, ed
   - Suggested fixture: a graph whose author order implies a clear primary direction but whose cross/back edges tempt the layout engine to flip ranks. Assert source-order progression and bounded aspect ratio.
 - [mermaid-js/mermaid#7785 — collapsible subgraphs via `@{ view: collapsed }`](https://github.com/mermaid-js/mermaid/pull/7785)
   - Suggested fixture: parse/render normal nested subgraphs today; when collapse metadata appears, either model it explicitly or preserve source as opaque. Never silently drop the `@{ ... }` meaning.
+- [Mermaid v11.3+ `@{ shape: ... }` typed node metadata](https://mermaid.js.org/syntax/flowchart.html) — **live silent-loss bug, tracked as BUILD-20 / [#29](https://github.com/adewale/beautiful-mermaid/issues/29)**
+  - Why it matters: this syntax carries the ISO 5807/ANSI X3.5 flowchart symbol vocabulary (manual input, document, delay, preparation, …); Mermaid's docs use it extensively, so agent-generated sources will contain it.
+  - Current behavior (June 2026): `A@{ shape: manual-input, label: "X" } --> B` drops the edge and `B`; a standalone `A@{ ... }` line is erased; the multiline form fabricates phantom nodes `shape[shape]`/`label[label]` — all with `verify.ok: true` and lossy serialization, violating the #7785 rule above.
+  - Suggested fixtures: all three repro shapes from issue #29, asserting either a loud parse error or byte-identical round-trip plus a labeled rectangle fallback render; a regression pin that no input fabricates nodes.
 
 ## Fork-network layout search notes
 
@@ -83,6 +87,20 @@ High-value next heuristics for layout-improvement corpora:
 - route corridor reuse by unrelated edge families;
 - target-aware fan-in/fan-out clustering score;
 - group-header text fit, especially with CJK/fullwidth labels.
+
+Convention-derived validator candidates (from the ANSI X3.5/ISO 5807
+drafting conventions catalogued in
+[`mermaid-layout-complaints.md`](./mermaid-layout-complaints.md) R3 —
+practitioner guides consistently name these as the top flowchart mistakes):
+
+- **unlabeled decision branches**: a diamond node with two or more outgoing
+  edges where any edge lacks a label — cheap Tier 3 lint candidate
+  (`DECISION_BRANCH_UNLABELED`); complements issue #25 §8.2 diamond port
+  semantics;
+- **entry/exit shape**: flowcharts conventionally have one start (a single
+  in-degree-0 node) and clearly marked endpoints (at least one sink) —
+  fits issue #26 workstream 14 as an analysis fact alongside the existing
+  graph entry/feedback-edge outputs, not as a hard error.
 
 These can drive a generated fixture matrix: vary direction, feedback-edge density, self-loops, parallel edges, label length, CJK labels, nested subgraphs, fan-in/fan-out shape, and styling. Each generated case should assert semantic preservation first, then one or more layout heuristics. Screenshot tests should be reserved for cases where the visual artifact is genuinely pixel/raster-level.
 
