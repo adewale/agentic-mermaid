@@ -11,7 +11,7 @@ Agentic Mermaid should render Mermaid-compatible `gantt` diagrams to SVG, PNG, A
 - renderers must be deterministic unless the caller explicitly supplies a clock value;
 - unsupported Mermaid proposals must be called out rather than approximated.
 
-The first implementation is **source-level-only in the agent API**. Agents may parse, verify, describe, render, serialize, and preserve Gantt source. They do not get `mutate` ops until the IR can preserve the full modeled syntax without dropping task metadata, calendar directives, comments, or click/link statements.
+The first implementation ships **typed mutation via `asGantt`**, using the segment-preserving structured body pattern established for sequence diagrams (`src/agent/sequence-body.ts`): typed ops cover the modeled statements (title, sections, tasks), while calendar directives, comments, click/link statements, and markers ride along verbatim as opaque segments — never dropped, never requiring a full-fidelity IR. Typed mutation is the enforced default for every registered family (`every registered renderable family ships typed mutation (default-by-default enforcement)` in `src/__tests__/agent-doc-sync.test.ts`; see `docs/contributing/adding-diagram-types.md` §7), so a source-level-only registration does not pass CI.
 
 ## Evidence base
 
@@ -104,7 +104,7 @@ Legend: “parse” means recognized and preserved by the family parser. “rend
 
 These are deliberate boundaries, not hidden gaps:
 
-- **No agent-side typed mutation for Gantt.** Gantt remains `source-level-only` in `capabilities`. A future `asGantt` must wait until the IR can preserve directives, comments, click events, markers, and raw task metadata.
+- **No typed ops for directives, click events, markers, or comments.** `asGantt` exposes ops on sections and tasks only (`set_title`, `add_section`/`rename_section`/`remove_section`, `add_task`/`remove_task`/`rename_task`, `set_task_status`, `set_task_dates`; exact list finalized against the other families' conventions). `dateFormat`, `excludes`/`includes`, `weekend`/`weekday`, `todayMarker`, `click`, and comment lines are preserved verbatim as opaque segments and are edited at the source level. Promoting any of them to typed ops is future work gated on the scheduler being able to re-resolve them.
 - **No JavaScript callback execution.** `click id call fn(args)` is parsed and preserved; it is not executed or emitted as executable script.
 - **No non-Mermaid proposed syntax.** This excludes date ranges in `excludes` ([#2424](https://github.com/mermaid-js/mermaid/issues/2424)), custom task states ([#3539](https://github.com/mermaid-js/mermaid/issues/3539)), relative symbolic dates such as `m1` ([#2850](https://github.com/mermaid-js/mermaid/issues/2850)), dynamic `now` / `getdate` task values ([#3532](https://github.com/mermaid-js/mermaid/issues/3532)), and vertical Gantt charts ([#6773](https://github.com/mermaid-js/mermaid/issues/6773)).
 - **No dependency arrows beyond Mermaid syntax.** Users have asked for arrows in [#7300](https://github.com/mermaid-js/mermaid/issues/7300) and vertical dependency lines in [#3290](https://github.com/mermaid-js/mermaid/issues/3290). First release may compute dependency data for scheduling and accessibility, but the visual arrows are future work.
@@ -129,7 +129,7 @@ Files to touch after PR #22:
 - `src/agent/family-layouts.ts`: add `ganttToRendered` so `measureQuality`, `checkQuality`, `verify.layout`, and layout-compare see Gantt geometry.
 - `src/mcp/sdk-decl.ts`, `src/mcp/server.ts`, `src/cli/index.ts`, `Instructions_for_agents.md`, `llms.txt`, and skills: sync capability docs through the existing doc-sync tests.
 
-The `FamilyPlugin` should be source-level-only first: detect + label extraction, no `mutate` hook. Serialization preserves source.
+The `FamilyPlugin` registers with `mutate` and `serialize` hooks from the start (the enforcement test fails CI otherwise): detect, label extraction, and a segment-preserving structured body whose serialization re-emits opaque segments verbatim. Unmodeled or unparseable bodies fall back whole-opaque, preserving source byte-for-byte.
 
 ### 2. Syntax parser
 
@@ -274,7 +274,7 @@ Use the `testing-best-practices` approach: public contracts first, real parser/l
 | Layout tests | `src/__tests__/gantt-layout.test.ts` | Bars stay in plot area; labels stay in label column; compact rows do not overlap; `vert` consumes no row; `topAxis` geometry. |
 | SVG integration/snapshots | `src/__tests__/gantt-svg-snapshot.test.ts` | Deterministic SVG; accessibility IDs; strict security; status classes; theme contrast; supplied-clock today marker. |
 | ASCII/Unicode golden tests | existing `ascii.test.ts` fixture flow | Basic project, sections, dependencies, excludes, milestone, vert marker, compact dense chart, CJK labels, 7-bit ASCII. |
-| Agent surface tests | `src/__tests__/agent-gantt.test.ts` | `parseMermaid` detects `kind:'gantt'`; serialize preserves source; `capabilities` reports source-level-only; `am mutate` returns `UNSUPPORTED_FAMILY`; label overflow works. |
+| Agent surface tests | `src/__tests__/agent-gantt.test.ts` | `parseMermaid` detects `kind:'gantt'`; serialize preserves opaque segments verbatim and is serialize-idempotent for structured bodies; `capabilities` reports structured mutation with the `asGantt` op list; each op round-trips through `am mutate`; fast-check round-trip property; label overflow works. |
 | Corpus/differential tests | Mermaid docs corpus + `mermaid-ast`/Mermaid-core oracle | Docs examples parse; supported examples render; parse/render decisions match the pinned compatibility target. |
 | E2E/editor tests | browser/editor suite | Gallery/editor can load a Gantt example, export SVG/PNG, and show ASCII. |
 
@@ -312,7 +312,7 @@ Add a targeted Stryker config once Gantt lands:
 
 ## Rollout plan
 
-1. **Gantt detection and source-level agent surface.** Add `gantt` kind, plugin registration, label extractor, docs, and tests. `am render` may still error until renderer lands, but parse/serialize should preserve source.
+1. **Gantt detection and agent surface.** Add `gantt` kind, plugin registration with mutate/serialize hooks, label extractor, docs, and tests. The body parser lands here with its segmentation (typed ops on sections/tasks, opaque segments for everything else), since the parser is where segmentation lives anyway. `am render` may still error until the renderer lands, but parse/mutate/serialize work from this step.
 2. **Parser + scheduler with docs fixtures.** Implement syntax parser and deterministic resolver for supported Mermaid syntax. Differential-check against `mermaid-ast` and Mermaid docs examples.
 3. **ASCII renderer + goldens.** Land terminal output first because it makes date/layout regressions easy to review in diffs.
 4. **SVG renderer + PNG path.** Add role styling, accessibility, strict-security handling, status classes, and snapshots.
