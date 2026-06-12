@@ -293,6 +293,15 @@ function mermaidToElk(
       // the primary LR path readable and sends the feedback edge backwards.
       'elk.layered.considerModelOrder.strategy': 'NODES_AND_EDGES',
       'elk.layered.cycleBreaking.strategy': 'MODEL_ORDER',
+      // Feedback edges route AROUND the nodes through outer channels (issue #25
+      // §10), instead of competing with the forward edge for the same facing
+      // side — which squeezed both lanes and the label into a corridor capped
+      // by the node height. With this on, the forward lane of a reciprocal
+      // pair is straight directly out of ELK, and the inline label dummy gets
+      // reserved space ON the loop (dot's virtual-node doctrine; Gansner et
+      // al. TSE 1993). The route-contract pass still collapses an unlabeled
+      // loop onto a parallel back-lane when one proves clear.
+      'elk.layered.feedbackEdges': 'true',
       'elk.layered.crossingMinimization.forceNodeModelOrder': 'true',
       'elk.layered.wrapping.strategy': 'OFF',
       // Use SEPARATE when subgraphs have direction overrides (enables proper direction handling)

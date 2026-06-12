@@ -78,11 +78,12 @@ interface RouteCertificate {
     | 'straight'             // exactly two points, axis-aligned with flow
     | 'explained-detour'     // bends, and directLaneBlockedBy is non-empty
     | 'bundle'               // path owned by the fan-out/fan-in bundler
+    | 'outer-feedback'       // feedback routed around the nodes through an outer channel (ELK feedbackEdges + tightening)
     | 'feedback-detour'      // feedback whose reverse lane is blocked; blockers say why
     | 'self-loop'
     | 'container-attach'
   directLaneClear?: boolean  // primary-forward and feedback
-  directLaneBlockedBy?: Array<{ kind: 'node' | 'label' | 'channel' | 'span'; id: string }>
+  directLaneBlockedBy?: Array<{ kind: 'node' | 'label' | 'channel' | 'span' | 'crossing'; id: string }>
   straightened?: boolean     // true when the certifying straightener collapsed the route
 }
 ```
@@ -135,12 +136,18 @@ Candidate lanes, tried in order (cross-axis coordinate for LR = y):
 3. the extremes of the existing route — the outer channel the router already
    proved navigable (this is how a feedback edge wrapping a node collapses
    onto a single straight back-lane beside it),
-4. the center of the overlap of both nodes' attachment spans.
+4. the center of the overlap of both nodes' attachment spans,
+5. the quartiles of that overlap — an unlabeled feedback loop's own cross
+   values all sit on the forward lane or outside the span, so the parallel
+   back-lane that collapses it to the classic two-arrow rendering lies
+   between the span center and a span end.
 
 A candidate is valid when it lies inside both endpoint nodes' attachment
-spans (diamonds use the central 50% of their span so edges never attach next
-to a vertex; rectangles use the full side minus a 4px margin), and the lane
-is **clear**:
+spans (diamonds allow the whole facet minus a 10px vertex margin — the
+flowchart convention attaches anywhere along the slanted edge, and a
+proportional restriction needlessly forbade straight lanes to partners
+sitting off the diamond's centerline; rectangles use the full side minus a
+4px margin), and the lane is **clear**:
 
 - it does not pass through any other node's bounding box (4px inflation;
   bbox is a conservative over-approximation of non-rectangular shapes — it
@@ -154,17 +161,21 @@ is **clear**:
 - it does not run collinearly (within a 4px corridor) along another edge's
   parallel segment ("channel" blocker),
 - if the edge has a label, the new segment has capacity for the pill
-  (pill extent along the lane + clearance), and a **label slot** exists
-  whose pill rect is clear of nodes, other pills, and other edges'
-  segments. Slots are tried on the lane first — midpoint, 1/3, 2/3, so
-  reciprocal labeled pairs with room stagger their labels — and then
-  **offset beside the lane**: the pill displaced perpendicular into open
-  canvas, preferring the side away from the span center (away from the
-  parallel partner lane). A corridor between two parallel lanes is often
-  too short for an on-lane pill, but the canvas right beside it is not —
-  this is what lets `B --> C; C -- No --> B` render as two straight
-  parallel arrows with the "No" pill tucked under the back lane instead of
-  forcing a detour. The label moves to the chosen slot.
+  (pill extent along the lane + clearance), and an **on-lane label slot**
+  exists — midpoint, then 1/3, then 2/3 — whose pill rect is clear of
+  nodes, other pills, and other edges' segments. On-lane only: a label
+  must sit on its own route so the label-to-edge association stays
+  unambiguous (Kakoulis & Tollis' edge-label-placement criterion; dot
+  realizes the same doctrine by making labels virtual nodes with reserved
+  layout space). A labeled edge whose lane cannot host its pill does not
+  straighten — it keeps its certified outer loop, where ELK's inline label
+  dummy has reserved space ON the loop,
+- it does not **increase edge crossings**: a perpendicular crossing is
+  legal when the router chose it, but a repair (straightening or loop
+  tightening) must never create one the original route avoided. The
+  fixed-point iteration makes this constructive: tightening a loop out of
+  a sibling's corridor unblocks the sibling's straightening on the next
+  round.
 
 Endpoints are re-anchored on the actual shape boundary: rectangle-like
 shapes by side intersection, diamonds by ray-polygon intersection (the same
@@ -195,6 +206,22 @@ before they are assigned; a blocked member falls out of the bundle (keeping
 its ELK route, which the route-contract pass then straightens or explains),
 and the junction is re-derived from the members that remain.
 
+**Feedback routing (issue #25 §8.1/§11.3, literature-grounded):** feedback
+edges no longer compete with their forward partner for the same
+flow-facing side. `elk.layered.feedbackEdges: true` (the option issue #25
+§10 listed, enabled now that classification is wired) routes reversed
+edges *around* the nodes through an outer channel — so the forward lane of
+a reciprocal pair is straight directly out of ELK, and the loop carries
+its inline label with reserved space. On top of ELK's loop the pass runs
+**loop tightening**: ELK can wrap a loop around the source's forward side
+before reaching its channel, parking the drop column in a sibling's
+corridor; when the source's channel-facing facet (the decision diamond's
+"bottom port") can reach the channel directly — on-boundary when the shape
+spans the channel, else via one short proven hop — the excursion is cut.
+Certified `outer-feedback`. Unlabeled feedback whose parallel reverse lane
+proves clear still collapses to the classic two-straight-arrows rendering;
+labeled feedback keeps the loop because its pill belongs ON its route.
+
 **Container repair (spec §11.5):** under SEPARATE hierarchy mode (subgraph
 direction overrides) ELK could leave a container-to-container edge floating
 in the diagram margin, attached to neither box — the
@@ -204,6 +231,31 @@ the route collapses onto a proven straight lane between the facing borders
 (the container rect stands in as a rectangle; the lane axis comes from how
 the rects are separated, not the graph direction). Composite-state edges
 onto containers straighten through the same path.
+
+### 6.1 Diamond ports: what the literature says (and what we adopted)
+
+Our diamonds support geometrically unbounded attachment (endpoints
+ray-clip onto the polygon), but the lane logic originally used only the
+two flow-facing facets — the N/S facets sat unused, which is what forced
+reciprocal pairs and their labels into a corridor capped by the node
+height. The literature pass that fixed this:
+
+- Ports on all four sides with constraints is the standard layered model —
+  Schulze, Spönemann & von Hanxleden, *Drawing Layered Graphs with Port
+  Constraints*, JVLC 2014 (ELK Layered's foundation).
+- Labels are layout citizens with reserved space on their own edge — dot
+  represents edge labels as virtual nodes (Gansner, Koutsofios, North &
+  Vo, TSE 1993); ELK's inline edge labels are the same mechanism; Kakoulis
+  & Tollis' edge-label-placement criteria demand unambiguous
+  label-to-edge association.
+- Feedback routes around the drawing through outer channels — the
+  Sugiyama tradition, shipped as `elk.layered.feedbackEdges`.
+- Flowchart convention (ISO 5807 lineage) attaches decision branches at
+  the vertices, leaving in different directions.
+
+Adopted: feedback exits via the channel-facing facet near the bottom/top
+vertex (loop tightening), all four facets are live, and the
+proportional "central 50%" span restriction became a 10px vertex margin.
 
 ## 7. Validation: the ROUTE_* tripwires (issue #25 Phase 1, complete)
 
@@ -305,6 +357,6 @@ shipped.
 
 1. *Certificates public or test-only?* — exposed via `layoutMermaid(d, { debug: true })` (the issue's own recommendation); default output unchanged.
 2. *Mermaid source route hints?* — no, as recommended; intent stays inferred from semantics and author order.
-3. *Should feedback always detour?* — refined: feedback must never share the forward edge's lane, but a provably clear parallel reverse lane straightens (the classic reciprocal-pair rendering). Blocked feedback detours with named blockers.
-4. *Should labels force a bend?* — only when no slot exists on or beside the lane; offset slots use the open canvas next to the corridor before any bend is accepted, and the certificate names the label when it still blocks.
+3. *Should feedback always detour?* — resolved by adopting ELK's feedbackEdges outer-channel routing plus loop tightening: labeled feedback loops around the nodes (label riding the loop with reserved space), unlabeled feedback collapses to a parallel straight back-arrow when provably clear. Feedback never shares the forward lane.
+4. *Should labels force a bend?* — a label may only sit ON its own route (Kakoulis–Tollis unambiguity; dot's virtual-node doctrine). If the straight lane cannot host the pill, the edge keeps its outer loop — the canvas grows to make room, the label never floats beside a lane it doesn't belong to.
 5. *Should architecture use ELK?* — unchanged: architecture keeps shared placement plus its own side-anchored rerouting; its graphs flow through classification/certification like every layoutGraphSync caller.

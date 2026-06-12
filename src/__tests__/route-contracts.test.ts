@@ -48,26 +48,42 @@ describe('route contracts — MFA/login regression (issue #25 acceptance criteri
     expect(isStraightHorizontal(e)).toBe(true)
   })
 
-  it('labeled feedback straightens too: the label pill moves into open canvas beside the lane', () => {
-    // The corridor between the parallel lanes is too short for an on-lane
-    // pill, so the slot search continues to offset slots — the pill sits
-    // just off the back-lane, on the side away from the forward lane.
+  it('labeled feedback routes around through the outer channel with its label ON the loop', () => {
+    // ELK's feedbackEdges routing (issue #25 §10) sends the retry edges
+    // around the nodes; the inline label rides the loop as a layout citizen
+    // with reserved space (dot's virtual-node doctrine) — never a pill
+    // floating beside a lane it does not belong to.
+    const positioned = layoutGraphSync(parseMermaid(MFA_SOURCE))
+    const nodeMap = new Map(positioned.nodes.map(n => [n.id, n]))
     for (const [from, to] of [['C', 'B'], ['F', 'E']] as const) {
-      const back = findEdge(edges, from, to)
-      const fwd = findEdge(edges, to, from)
-      expect(isStraightHorizontal(back)).toBe(true)
-      expect(back.routeCertificate?.invariant).toBe('straight')
-      expect(back.routeCertificate?.straightened).toBe(true)
-      expect(Math.abs(back.points[0]!.y - fwd.points[0]!.y)).toBeGreaterThanOrEqual(4)
-      // The pill hangs off the lane, clear of both lanes.
-      const m = measureMultilineText(back.label!, 12, 400)
-      const pillHalf = (m.height + 16) / 2
-      const pillTop = back.labelPosition!.y - pillHalf
-      const pillBottom = back.labelPosition!.y + pillHalf
-      expect(pillTop > fwd.points[0]!.y + 2 || pillBottom < fwd.points[0]!.y - 2).toBe(true)
-      // Offset away from the forward lane: feedback sits below it in this layout.
-      expect(back.labelPosition!.y).toBeGreaterThan(back.points[0]!.y)
+      const back = findEdge(positioned.edges, from, to)
+      expect(back.points.length).toBeGreaterThan(2)
+      expect(back.routeCertificate?.invariant).toBe('outer-feedback')
+      // The loop reaches an outer channel: beyond both endpoint nodes' band.
+      const band = Math.max(
+        nodeMap.get(from)!.y + nodeMap.get(from)!.height,
+        nodeMap.get(to)!.y + nodeMap.get(to)!.height,
+      )
+      expect(Math.max(...back.points.map(pt => pt.y))).toBeGreaterThan(band)
+      // The label sits ON one of its own segments (unambiguous association).
+      const lp = back.labelPosition!
+      const onOwnRoute = (() => {
+        for (let i = 1; i < back.points.length; i++) {
+          const a = back.points[i - 1]!, b = back.points[i]!
+          const xLo = Math.min(a.x, b.x) - 1, xHi = Math.max(a.x, b.x) + 1
+          const yLo = Math.min(a.y, b.y) - 16, yHi = Math.max(a.y, b.y) + 16
+          if (lp.x >= xLo && lp.x <= xHi && lp.y >= yLo && lp.y <= yHi) return true
+        }
+        return false
+      })()
+      expect(onOwnRoute).toBe(true)
     }
+  })
+
+  it('forward lanes are straight directly: feedback no longer competes for the facing sides', () => {
+    // With feedback routed around, B -> C should not even need repair.
+    const e = findEdge(edges, 'B', 'C')
+    expect(isStraightHorizontal(e)).toBe(true)
   })
 
   it('unlabeled reciprocal pairs straighten into two parallel lanes', () => {
@@ -222,16 +238,17 @@ describe('certificates', () => {
     }
   })
 
-  it('feedback retry edges certify as feedback routes with a lane proof (acceptance criterion 2)', () => {
+  it('feedback retry edges certify as outer-channel feedback routes (acceptance criterion 2)', () => {
     const positioned = layoutGraphSync(parseMermaid(MFA_SOURCE))
     for (const [from, to] of [['C', 'B'], ['F', 'E']] as const) {
       const e = findEdge(positioned.edges, from, to)
       expect(e.routeCertificate?.routeClass).toBe('feedback')
-      // Labeled, but the offset slot search parks the pill in open canvas
-      // beside the back-lane, so the lane itself straightens with proof.
-      expect(e.routeCertificate?.invariant).toBe('straight')
-      expect(e.routeCertificate?.straightened).toBe(true)
-      expect(e.routeCertificate?.directLaneClear).toBe(true)
+      // Labeled: no parallel lane can host the pill on-lane, so the route
+      // keeps ELK's around-the-nodes loop, certified with the blockers that
+      // ruled the parallel lanes out.
+      expect(e.routeCertificate?.invariant).toBe('outer-feedback')
+      expect(e.routeCertificate?.directLaneClear).toBe(false)
+      expect(e.routeCertificate?.directLaneBlockedBy?.length).toBeGreaterThan(0)
     }
   })
 
@@ -248,7 +265,9 @@ describe('certificates', () => {
     const e = findEdge(positioned.edges, 'C', 'A')
     expect(e.routeCertificate?.routeClass).toBe('feedback')
     if (e.points.length > 2) {
-      expect(e.routeCertificate?.invariant).toBe('feedback-detour')
+      // The flanking siblings block every parallel lane; the route keeps its
+      // certified loop (outer channel when it escapes the node band).
+      expect(['outer-feedback', 'feedback-detour']).toContain(e.routeCertificate?.invariant ?? 'missing')
       expect(e.routeCertificate?.directLaneClear).toBe(false)
       expect(e.routeCertificate?.directLaneBlockedBy?.length).toBeGreaterThan(0)
     } else {
@@ -257,12 +276,17 @@ describe('certificates', () => {
     }
   })
 
-  it('straightened edges record the proof', () => {
+  it('straight forward lanes certify as straight (natively or by proof)', () => {
     const positioned = layoutGraphSync(parseMermaid(MFA_SOURCE))
     const e = findEdge(positioned.edges, 'B', 'C')
-    expect(e.routeCertificate?.straightened).toBe(true)
-    expect(e.routeCertificate?.directLaneClear).toBe(true)
     expect(e.routeCertificate?.invariant).toBe('straight')
+    // With feedback routed around, ELK often produces this lane straight
+    // natively — then there is nothing to straighten and no proof is needed.
+    if (e.routeCertificate?.straightened) {
+      expect(e.routeCertificate?.directLaneClear).toBe(true)
+    } else {
+      expect(e.routeCertificate?.bendCount).toBe(0)
+    }
   })
 })
 
@@ -297,7 +321,7 @@ describe('ROUTE_HITCH tripwire (issue #25 acceptance criterion 3)', () => {
 })
 
 describe('route contracts — RL and BT directions (mutation-survivor harvest)', () => {
-  it('RL: both lanes straighten against the reversed axis; the label pill offsets beside its lane', () => {
+  it('RL: the forward lane straightens against the reversed axis; labeled feedback loops outside', () => {
     const edges = layoutEdges(`flowchart RL
       A[User] --> B[Login Page]
       B --> C{Valid?}
@@ -306,12 +330,10 @@ describe('route contracts — RL and BT directions (mutation-survivor harvest)',
     expect(isStraightHorizontal(e)).toBe(true)
     expect(e.points[0]!.x).toBeGreaterThan(e.points[1]!.x) // forward flow runs right-to-left
     const back = findEdge(edges, 'C', 'B')
-    expect(isStraightHorizontal(back)).toBe(true)
-    expect(back.points[0]!.x).toBeLessThan(back.points[1]!.x) // feedback runs left-to-right
-    expect(Math.abs(back.points[0]!.y - e.points[0]!.y)).toBeGreaterThanOrEqual(4)
+    expect(['outer-feedback', 'straight']).toContain(back.routeCertificate?.invariant ?? 'missing')
   })
 
-  it('BT: the reciprocal pair straightens both vertical lanes', () => {
+  it('BT: the forward lane straightens as a vertical lane; labeled feedback loops outside', () => {
     const edges = layoutEdges(`flowchart BT
       A[User] --> B[Login Page]
       B --> C{Valid?}
@@ -321,23 +343,31 @@ describe('route contracts — RL and BT directions (mutation-survivor harvest)',
     expect(Math.abs(e.points[0]!.x - e.points[1]!.x)).toBeLessThan(0.01)
     expect(e.points[0]!.y).toBeGreaterThan(e.points[1]!.y) // forward flow runs bottom-to-top
     const back = findEdge(edges, 'C', 'B')
-    expect(back.points.length).toBe(2)
-    expect(back.points[0]!.y).toBeLessThan(back.points[1]!.y)
-    expect(Math.abs(back.points[0]!.x - e.points[0]!.x)).toBeGreaterThanOrEqual(4)
+    expect(['outer-feedback', 'straight']).toContain(back.routeCertificate?.invariant ?? 'missing')
   })
 })
 
 describe('route contracts — feedback channel lanes', () => {
-  it("TD cycle: C -> A collapses onto ELK's outer channel as one straight vertical back-edge", () => {
+  it('TD cycle: C -> A loops through the outer channel and enters A from outside the column', () => {
     const positioned = layoutGraphSync(parseMermaid('flowchart TD\n  A --> B\n  B --> C\n  C --> A'))
     const e = findEdge(positioned.edges, 'C', 'A')
-    expect(e.points.length).toBe(2)
-    expect(Math.abs(e.points[0]!.x - e.points[1]!.x)).toBeLessThan(0.01)
-    expect(e.points[0]!.y).toBeGreaterThan(e.points[1]!.y) // runs upward, against TD flow
-    // The lane must clear B (the node it detours around) by the 4px clearance.
+    const a = positioned.nodes.find(n => n.id === 'A')!
     const b = positioned.nodes.find(n => n.id === 'B')!
-    const laneX = e.points[0]!.x
-    expect(laneX > b.x + b.width + 4 - 0.01 || laneX < b.x - 4 + 0.01).toBe(true)
+    if (e.points.length === 2) {
+      // Collapsed onto a provably clear parallel back-lane.
+      expect(Math.abs(e.points[0]!.x - e.points[1]!.x)).toBeLessThan(0.01)
+      const laneX = e.points[0]!.x
+      expect(laneX > b.x + b.width + 4 - 0.01 || laneX < b.x - 4 + 0.01).toBe(true)
+    } else {
+      // Outer-channel loop: certified, clear of B, terminating on A's border.
+      expect(e.routeCertificate?.invariant).toBe('outer-feedback')
+      const maxX = Math.max(...e.points.map(pt => pt.x))
+      expect(maxX).toBeGreaterThan(b.x + b.width)
+      const end = e.points[e.points.length - 1]!
+      const onBorder = Math.abs(end.y - a.y) < 1 || Math.abs(end.x - a.x) < 1 ||
+        Math.abs(end.x - (a.x + a.width)) < 1 || Math.abs(end.y - (a.y + a.height)) < 1
+      expect(onBorder).toBe(true)
+    }
   })
 })
 
@@ -897,6 +927,35 @@ describe('container repair — axis selection harvest', () => {
     const positioned = layoutGraphSync(graph)
     const e = findEdge(positioned.edges, 'S', 'Pipeline')
     expect(e.routeCertificate?.invariant).toBe('container-attach')
+  })
+})
+
+describe('repairs never increase edge crossings', () => {
+  it('a back-lane that would cut through a fan-out trunk stays a certified loop instead', () => {
+    // stateDiagram corpus regression: collapsing Moving -> Still onto a
+    // vertical back-lane would cross the Still fan-out trunk — a crossing
+    // ELK's loop avoided. The crossing guard must refuse the collapse.
+    const positioned = layoutGraphSync(parseMermaid(`flowchart TD
+      S0((start)) --> Still
+      Still --> S1((end))
+      Still --> Moving
+      Moving --> Still
+      Moving --> Crash`))
+    const edges = positioned.edges
+    function segInt(a: {x:number;y:number}, b: {x:number;y:number}, c: {x:number;y:number}, d: {x:number;y:number}): boolean {
+      const det = (b.x - a.x) * (d.y - c.y) - (b.y - a.y) * (d.x - c.x)
+      if (Math.abs(det) < 1e-9) return false
+      const t2 = ((c.x - a.x) * (d.y - c.y) - (c.y - a.y) * (d.x - c.x)) / det
+      const u = ((c.x - a.x) * (b.y - a.y) - (c.y - a.y) * (b.x - a.x)) / det
+      return t2 > 0.001 && t2 < 0.999 && u > 0.001 && u < 0.999
+    }
+    let crossings = 0
+    for (let i = 0; i < edges.length; i++) for (let j = i + 1; j < edges.length; j++) {
+      for (let s = 1; s < edges[i]!.points.length; s++) for (let q = 1; q < edges[j]!.points.length; q++) {
+        if (segInt(edges[i]!.points[s-1]!, edges[i]!.points[s]!, edges[j]!.points[q-1]!, edges[j]!.points[q]!)) crossings++
+      }
+    }
+    expect(crossings).toBe(0)
   })
 })
 

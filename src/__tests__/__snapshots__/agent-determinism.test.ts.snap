@@ -517,8 +517,8 @@ exports[`drift sentinel sentinel: flowchart TD /   A((Start)) --> B[Step] /   B 
 exports[`drift sentinel sentinel: flowchart TD /   A --> B /   B --> C /   C --> A 1`] = `
 {
   "bounds": {
-    "h": 287,
-    "w": 160,
+    "h": 311,
+    "w": 158,
   },
   "edges": [
     {
@@ -528,11 +528,11 @@ exports[`drift sentinel sentinel: flowchart TD /   A --> B /   B --> C /   C -->
       "path": [
         [
           70,
-          77,
+          89,
         ],
         [
           70,
-          125,
+          137,
         ],
       ],
       "to": "B",
@@ -543,12 +543,12 @@ exports[`drift sentinel sentinel: flowchart TD /   A --> B /   B --> C /   C -->
       "label": undefined,
       "path": [
         [
-          80,
-          162,
+          70,
+          174,
         ],
         [
-          80,
-          210,
+          70,
+          222,
         ],
       ],
       "to": "C",
@@ -559,12 +559,24 @@ exports[`drift sentinel sentinel: flowchart TD /   A --> B /   B --> C /   C -->
       "label": undefined,
       "path": [
         [
-          110,
-          210,
+          96,
+          222,
         ],
         [
           110,
-          77,
+          222,
+        ],
+        [
+          110,
+          40,
+        ],
+        [
+          70,
+          40,
+        ],
+        [
+          70,
+          52,
         ],
       ],
       "to": "A",
@@ -579,8 +591,8 @@ exports[`drift sentinel sentinel: flowchart TD /   A --> B /   B --> C /   C -->
       "label": "A",
       "shape": "rectangle",
       "w": 60,
-      "x": 60,
-      "y": 40,
+      "x": 40,
+      "y": 52,
     },
     {
       "h": 37,
@@ -589,7 +601,7 @@ exports[`drift sentinel sentinel: flowchart TD /   A --> B /   B --> C /   C -->
       "shape": "rectangle",
       "w": 60,
       "x": 40,
-      "y": 125,
+      "y": 137,
     },
     {
       "h": 37,
@@ -597,8 +609,8 @@ exports[`drift sentinel sentinel: flowchart TD /   A --> B /   B --> C /   C -->
       "label": "C",
       "shape": "rectangle",
       "w": 60,
-      "x": 60,
-      "y": 210,
+      "x": 40,
+      "y": 222,
     },
   ],
   "version": 1,

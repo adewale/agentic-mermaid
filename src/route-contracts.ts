@@ -174,14 +174,23 @@ function isMonotoneStaircase(points: Point[], axis: Axis): boolean {
 
 interface CrossSpan { lo: number; hi: number }
 
+/** A straightened lane keeps this cross-axis distance from a diamond vertex. */
+const VERTEX_MARGIN = 10
+
 /** Cross-axis range where a straightened lane may attach to this node. */
 function attachSpan(node: PositionedNode, axis: Axis): CrossSpan | null {
   const lo = node[axis.cross]
   const size = axis.cross === 'y' ? node.height : node.width
   if (node.shape === 'diamond') {
-    // Central 50% only — edges must never attach next to a vertex.
-    const center = lo + size / 2
-    return { lo: center - size / 4, hi: center + size / 4 }
+    // Anywhere on the facet except a small absolute margin around the
+    // vertices — flowchart convention attaches along the whole slanted edge
+    // (a proportional restriction needlessly forbade straight lanes whose
+    // partner node sits off the diamond's centerline).
+    if (size <= VERTEX_MARGIN * 4) {
+      const center = lo + size / 2
+      return { lo: center - size / 4, hi: center + size / 4 }
+    }
+    return { lo: lo + VERTEX_MARGIN, hi: lo + size - VERTEX_MARGIN }
   }
   if (RECT_LIKE.has(node.shape)) {
     if (size <= SPAN_MARGIN * 2) return null
@@ -320,22 +329,22 @@ export function directLaneBlockers(
 }
 
 /**
- * Find a position where this edge's label can sit without overlapping nodes,
- * other edges' labels, or other edges' segments (spec §11.4: labels are
- * obstacles for each other). Tries on-lane slots first — the midpoint, then
- * 1/3 and 2/3, so reciprocal labeled pairs end up straight with staggered
- * labels — then *offset* slots that displace the pill perpendicular to the
- * lane into open canvas (`preferOffsetSign` side first: away from the span
- * center, i.e. away from the parallel partner lane). A short corridor between
- * two parallel lanes can never host an on-lane pill, but the canvas right
- * beside it usually can. Returns null when no slot is clear.
+ * Find a position ON the straight lane where this edge's label can sit
+ * without overlapping nodes, other edges' labels, or other edges' segments
+ * (spec §11.4: labels are obstacles for each other). Tries the midpoint,
+ * then 1/3 and 2/3, so parallel labeled pairs with room stagger their
+ * labels. On-lane only: a label must sit on its own route so the
+ * label-to-edge association stays unambiguous (Kakoulis–Tollis); an edge
+ * whose lane cannot host its label does not straighten — with ELK's
+ * feedbackEdges routing it loops through an outer channel instead, where
+ * the inline label dummy has reserved space. Returns null when no slot is
+ * clear.
  */
 export function findLabelSlot(
   edge: PositionedEdge,
   start: Point,
   end: Point,
   ctx: LaneContext,
-  preferOffsetSign: 1 | -1 = 1,
 ): Point | null {
   if (!edge.label) return { x: (start.x + end.x) / 2, y: (start.y + end.y) / 2 }
   const m = measureMultilineText(edge.label, ctx.style.edgeLabelFontSize, ctx.style.edgeLabelFontWeight)
@@ -363,20 +372,35 @@ export function findLabelSlot(
     return true
   }
 
-  // The lane is axis-aligned; offsets displace the pill across it.
-  const horizontal = Math.abs(start.y - end.y) < EPS
-  const pillCross = (horizontal ? m.height : m.width) + 2 * LABEL_PILL_PADDING
-  const offsetDistance = pillCross / 2 + PAD
-  const offsets = [0, preferOffsetSign * offsetDistance, -preferOffsetSign * offsetDistance]
-
-  for (const offset of offsets) {
-    for (const t of [0.5, 1 / 3, 2 / 3]) {
-      const cx = start.x + (end.x - start.x) * t + (horizontal ? 0 : offset)
-      const cy = start.y + (end.y - start.y) * t + (horizontal ? offset : 0)
-      if (slotClear(cx, cy)) return { x: cx, y: cy }
-    }
+  for (const t of [0.5, 1 / 3, 2 / 3]) {
+    const cx = start.x + (end.x - start.x) * t
+    const cy = start.y + (end.y - start.y) * t
+    if (slotClear(cx, cy)) return { x: cx, y: cy }
   }
   return null
+}
+
+/** Strict-interior intersection of two segments (touching endpoints don't count). */
+function segmentsIntersect(a: Point, b: Point, c: Point, d: Point): boolean {
+  const det = (b.x - a.x) * (d.y - c.y) - (b.y - a.y) * (d.x - c.x)
+  if (Math.abs(det) < 1e-9) return false
+  const t = ((c.x - a.x) * (d.y - c.y) - (c.y - a.y) * (d.x - c.x)) / det
+  const u = ((c.x - a.x) * (b.y - a.y) - (c.y - a.y) * (b.x - a.x)) / det
+  return t > 0.001 && t < 0.999 && u > 0.001 && u < 0.999
+}
+
+/** Crossings between a candidate route and every other edge's segments. */
+function countRouteCrossings(points: Point[], edge: PositionedEdge, ctx: LaneContext): number {
+  let count = 0
+  for (const other of ctx.edges) {
+    if (other === edge || (edge.edgeIndex !== undefined && other.edgeIndex === edge.edgeIndex)) continue
+    for (let i = 1; i < points.length; i++) {
+      for (let j = 1; j < other.points.length; j++) {
+        if (segmentsIntersect(points[i - 1]!, points[i]!, other.points[j - 1]!, other.points[j]!)) count++
+      }
+    }
+  }
+  return count
 }
 
 function dedupeBlockers(blockers: RouteBlocker[]): RouteBlocker[] {
@@ -438,6 +462,12 @@ function tryStraighten(
   push(Math.min(...crossValues))
   push(Math.max(...crossValues))
   push((overlapLo + overlapHi) / 2)
+  // Span quartiles: an unlabeled feedback loop's own cross values all sit on
+  // the forward lane or outside the span, so the parallel back-lane that
+  // collapses it to the classic two-arrow rendering lies between the span
+  // center and a span end.
+  push((overlapLo + (overlapLo + overlapHi) / 2) / 2)
+  push(((overlapLo + overlapHi) / 2 + overlapHi) / 2)
 
   const blockers: RouteBlocker[] = []
   for (const c of candidates) {
@@ -460,10 +490,14 @@ function tryStraighten(
     }
     const start: Point = axis.main === 'x' ? { x: srcMain, y: c } : { x: c, y: srcMain }
     const end: Point = axis.main === 'x' ? { x: tgtMain, y: c } : { x: c, y: tgtMain }
-    // Offset label slots open away from the span center — away from the
-    // parallel partner lane when this is one half of a reciprocal pair.
-    const offsetSign: 1 | -1 = c >= (overlapLo + overlapHi) / 2 ? 1 : -1
-    const slot = findLabelSlot(edge, start, end, ctx, offsetSign)
+    // A repair may never increase edge crossings: a perpendicular crossing is
+    // legal when the router chose it, but the straightener must not create
+    // one that the original route avoided.
+    if (countRouteCrossings([start, end], edge, ctx) > countRouteCrossings(edge.points, edge, ctx)) {
+      blockers.push({ kind: 'crossing', id: edgeId(edge) })
+      continue
+    }
+    const slot = findLabelSlot(edge, start, end, ctx)
     if (slot === null) {
       blockers.push({ kind: 'label', id: edgeId(edge) })
       continue
@@ -503,12 +537,16 @@ export function applyRouteContracts(
     const edgeAxis: Axis = cert.routeClass === 'feedback' ? { ...axis, sign: axis.sign === 1 ? -1 : 1 } : axis
     const source = nodeMap.get(edge.source)
     const target = nodeMap.get(edge.target)
+    // Feedback loops from ELK's feedbackEdges routing start by moving AWAY
+    // from the target (around the nodes), so they are never monotone; the
+    // lane proof alone gates whether they may collapse onto a parallel
+    // back-lane. Primary edges keep the monotone gate.
     const eligible = source && target &&
       (RECT_LIKE.has(source.shape) || source.shape === 'diamond') &&
       (RECT_LIKE.has(target.shape) || target.shape === 'diamond') &&
-      isMonotoneStaircase(edge.points, edgeAxis)
+      (cert.routeClass === 'feedback' || isMonotoneStaircase(edge.points, edgeAxis))
     if (!eligible) {
-      cert.invariant = cert.routeClass === 'feedback' ? 'feedback-detour' : 'unverified-shape'
+      cert.invariant = feedbackDetourKind(edge, cert.routeClass, source, target, ctx.axis) ?? 'unverified-shape'
       return false
     }
     const attempt = tryStraighten(edge, source!, target!, ctx, edgeAxis)
@@ -520,10 +558,148 @@ export function applyRouteContracts(
       cert.directLaneBlockedBy = undefined
       return true
     }
-    cert.invariant = cert.routeClass === 'feedback' ? 'feedback-detour' : 'explained-detour'
+    cert.invariant = feedbackDetourKind(edge, cert.routeClass, source, target, ctx.axis) ?? 'explained-detour'
     cert.directLaneClear = false
     cert.directLaneBlockedBy = attempt.blockers
+    if (cert.invariant === 'outer-feedback') {
+      tightenOuterFeedback(edge, ctx)
+      cert.bendCount = bendCount(edge.points)
+    }
     return false
+  }
+
+  /**
+   * ELK's feedbackEdges routing can wrap a loop around the source's forward
+   * side before reaching its outer channel — an excursion that parks the
+   * loop's drop column in the corridor a forward sibling must cross. When
+   * the source's facet can reach the channel directly (a single proven
+   * perpendicular hop, or an on-boundary anchor when the source spans the
+   * channel), cut the excursion: the loop exits toward its channel
+   * immediately. Only existing channel geometry is reused, so every kept
+   * segment was already proven by ELK; the one NEW segment is lane-proved.
+   */
+  function tightenOuterFeedback(edge: PositionedEdge, ctx: LaneContext): void {
+    const points = simplifyPolyline(edge.points)
+    if (points.length < 4) return
+    const graphAxis = ctx.axis
+    const crossOf = (pt: Point) => pt[graphAxis.cross]
+    const mainOf = (pt: Point) => pt[graphAxis.main]
+    // The outer channel is the run at the route's extreme cross value.
+    const crossValues = points.map(crossOf)
+    const extremeHi = Math.max(...crossValues)
+    const extremeLo = Math.min(...crossValues)
+    const startCross = crossOf(points[0]!)
+    const extreme = Math.abs(extremeHi - startCross) >= Math.abs(extremeLo - startCross) ? extremeHi : extremeLo
+    let runStart = -1
+    for (let i = 1; i < points.length; i++) {
+      if (Math.abs(crossOf(points[i - 1]!) - extreme) < EPS && Math.abs(crossOf(points[i]!) - extreme) < EPS) {
+        runStart = i - 1
+        break
+      }
+    }
+    if (runStart < 1) return // no excursion before the channel run
+    const run = [points[runStart]!, points[runStart + 1]!]
+    const runDir = Math.sign(mainOf(run[1]!) - mainOf(run[0]!))
+    const p0 = points[0]!
+    const source = ctx.nodes.find(n => n.id === edge.source)
+    const inRunRange = (m: number) => runDir > 0
+      ? m >= mainOf(run[0]!) - EPS && m < mainOf(run[1]!) - EPS
+      : m <= mainOf(run[0]!) + EPS && m > mainOf(run[1]!) + EPS
+
+    const hopClear = (mainCoord: number, fromCross: number): boolean => {
+      if (Math.abs(fromCross - extreme) < EPS) return true
+      const hopAxis: Axis = graphAxis.main === 'x'
+        ? { main: 'y', cross: 'x', sign: fromCross < extreme ? 1 : -1 }
+        : { main: 'x', cross: 'y', sign: fromCross < extreme ? 1 : -1 }
+      // The label rides the channel run, not the hop — strip it so the
+      // own-label capacity check doesn't demand the pill fit on a short hop.
+      const probe: PositionedEdge = { ...edge, points: [], label: undefined }
+      return directLaneBlockers(probe, mainCoord,
+        Math.min(fromCross, extreme), Math.max(fromCross, extreme), ctx, hopAxis).length === 0
+    }
+    const buildRoute = (mainCoord: number, fromCross: number, startOnBoundary: Point): Point[] => {
+      const hopPoint: Point = graphAxis.main === 'x' ? { x: mainCoord, y: extreme } : { x: extreme, y: mainCoord }
+      return Math.abs(fromCross - extreme) < EPS
+        ? [hopPoint, ...points.slice(runStart + 1)]
+        : [startOnBoundary, hopPoint, ...points.slice(runStart + 1)]
+    }
+
+    let tightened: Point[] | null = null
+    // Variant 1 — exit via the channel-facing facet on the run side: the
+    // flowchart "bottom port" of a decision. The exit sits at the channel
+    // height when the shape reaches it, otherwise as close to the
+    // channel-facing vertex as the margin allows, with one short proven hop.
+    // The run truncation reuses existing, already-proven channel geometry.
+    if (source && (RECT_LIKE.has(source.shape) || source.shape === 'diamond')) {
+      const srcCrossLo = source[graphAxis.cross]
+      const srcCrossHi = srcCrossLo + (graphAxis.cross === 'y' ? source.height : source.width)
+      const margin = source.shape === 'diamond' ? VERTEX_MARGIN : SPAN_MARGIN
+      const exitCross = Math.max(srcCrossLo + margin, Math.min(extreme, srcCrossHi - margin))
+      const facingRun: 1 | -1 = runDir === graphAxis.sign ? 1 : -1
+      const anchorM = anchorMain(source, exitCross, graphAxis, facingRun)
+      if (inRunRange(anchorM) && hopClear(anchorM, exitCross)) {
+        const boundary: Point = graphAxis.main === 'x' ? { x: anchorM, y: exitCross } : { x: exitCross, y: anchorM }
+        tightened = buildRoute(anchorM, exitCross, boundary)
+      }
+    }
+    // Variant 2 — hop perpendicular from ELK's exit point to the channel.
+    if (!tightened && inRunRange(mainOf(p0)) && hopClear(mainOf(p0), crossOf(p0))) {
+      tightened = buildRoute(mainOf(p0), crossOf(p0), p0)
+    }
+    if (!tightened) return
+    // Same rule as straightening: tightening may never increase crossings.
+    if (countRouteCrossings(simplifyPolyline(tightened), edge, ctx) > countRouteCrossings(edge.points, edge, ctx)) return
+    const before = edge.points
+    edge.points = simplifyPolyline(tightened)
+    // Re-place the label if its pill sat on a removed segment.
+    if (edge.label && edge.labelPosition) {
+      const lp = edge.labelPosition
+      const onRoute = edge.points.some((pt, i) => {
+        if (i === 0) return false
+        const a = edge.points[i - 1]!, b = pt
+        const xLo = Math.min(a.x, b.x) - 1, xHi = Math.max(a.x, b.x) + 1
+        const yLo = Math.min(a.y, b.y) - 1, yHi = Math.max(a.y, b.y) + 1
+        return lp.x >= xLo && lp.x <= xHi && lp.y >= yLo && lp.y <= yHi
+      })
+      if (!onRoute) {
+        // The channel run survives tightening: find it on the new route.
+        let slot: Point | null = null
+        for (let i = 1; i < edge.points.length; i++) {
+          const a = edge.points[i - 1]!, b = edge.points[i]!
+          if (Math.abs(crossOf(a) - extreme) < EPS && Math.abs(crossOf(b) - extreme) < EPS) {
+            slot = findLabelSlot(edge, a, b, ctx)
+            break
+          }
+        }
+        if (slot) {
+          edge.labelPosition = slot
+        } else {
+          edge.points = before // no honest label slot on the tightened loop: keep ELK's
+        }
+      }
+    }
+  }
+
+  /**
+   * A feedback route that escapes the cross-axis band of its endpoint nodes
+   * is the certified ELK feedbackEdges loop — "feedback uses the feedback
+   * side and an outer channel" (issue #25 §11.3). Returns null for
+   * non-feedback edges so callers keep their own detour vocabulary.
+   */
+  function feedbackDetourKind(
+    edge: PositionedEdge,
+    routeClass: RouteClass,
+    source: PositionedNode | undefined,
+    target: PositionedNode | undefined,
+    graphAxis: Axis,
+  ): RouteCertificate['invariant'] | null {
+    if (routeClass !== 'feedback') return null
+    if (!source || !target) return 'feedback-detour'
+    const crossSize = (n: PositionedNode) => graphAxis.cross === 'y' ? n.height : n.width
+    const bandLo = Math.min(source[graphAxis.cross], target[graphAxis.cross]) - 2
+    const bandHi = Math.max(source[graphAxis.cross] + crossSize(source), target[graphAxis.cross] + crossSize(target)) + 2
+    const escapes = edge.points.some(pt => pt[graphAxis.cross] < bandLo || pt[graphAxis.cross] > bandHi)
+    return escapes ? 'outer-feedback' : 'feedback-detour'
   }
 
   const retry: Array<{ edge: PositionedEdge; cert: RouteCertificate }> = []
@@ -620,7 +796,7 @@ export function findRouteHitches(
     if (!source || !target) continue
     if (!(RECT_LIKE.has(source.shape) || source.shape === 'diamond')) continue
     if (!(RECT_LIKE.has(target.shape) || target.shape === 'diamond')) continue
-    if (!isMonotoneStaircase(points, edgeAxis)) continue
+    if (cert.routeClass !== 'feedback' && !isMonotoneStaircase(points, edgeAxis)) continue
     // Probe on a copy so validation never mutates the layout.
     const probe: PositionedEdge = { ...edge, points: points.map(p => ({ ...p })) }
     const attempt = tryStraighten(probe, source, target, ctx, edgeAxis)

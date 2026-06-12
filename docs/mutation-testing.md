@@ -40,7 +40,7 @@ documented, not killed with synthetic inputs.
 | edge-routing.ts | 55.1% | 163 | 133 |
 | converter.ts | 38.4% | 94 | 151 |
 | grid.ts | 70.1% | 421 | 180 |
-| route-contracts.ts | 58.1% → 72.3% → 75.6% across the first two batches, → 73.1% after the audit/container-repair/offset-slot batch + boundary harvest | 352 → 882 | 254 → 324 (module grew 606 → 815 → 1206 mutants as Phase 1 completed) |
+| route-contracts.ts | 58.1% → 72.3% → 75.6% → 73.1% across the first three batches; regenerate after the outer-feedback batch (offset slots removed, loop tightening + crossing guard added) | 352 → 882 | regenerate — module reshaped |
 
 (Numbers from the June 2026 runs; regenerate rather than trusting this
 table — the report lands in `reports/mutation/`.)
@@ -102,11 +102,6 @@ reachability verdicts, on the small graphs flowcharts produce.
 loop's `round < 4` weakenings only change how many re-prove rounds run;
 the duplicate-edge regression pins one unblocking round, and constructing
 a graph that needs three chained rounds would be a synthetic-input test.
-
-**Accepted — aesthetic preference, both branches proved safe**
-(route-contracts): the offset-slot `preferOffsetSign` choice (away from the
-span center) only orders which side of the lane the pill tries first; both
-sides are obstacle-proved, so a flipped sign changes taste, not safety.
 
 **Open test gaps** (highest-value first):
 - `directLaneBlockers` label-rect axis ternaries retain a few survivors on

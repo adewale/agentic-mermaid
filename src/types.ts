@@ -135,7 +135,7 @@ export type RouteClass =
   | 'cross-hierarchy' // endpoints live in different subgraph scopes
 
 export interface RouteBlocker {
-  kind: 'node' | 'label' | 'channel' | 'span'
+  kind: 'node' | 'label' | 'channel' | 'span' | 'crossing'
   id: string
 }
 
@@ -148,7 +148,8 @@ export interface RouteCertificate {
     | 'straight'          // exactly two points, axis-aligned with the flow
     | 'explained-detour'  // bends, and directLaneBlockedBy says why
     | 'bundle'            // path owned by the fan-out/fan-in bundler
-    | 'feedback-detour'
+    | 'outer-feedback'    // feedback routed around the nodes through an outer channel (ELK feedbackEdges)
+    | 'feedback-detour'   // feedback that neither straightened nor reached an outer channel
     | 'self-loop'
     | 'container-attach'
     | 'unverified-shape'  // endpoint shape has no straight attachment side
