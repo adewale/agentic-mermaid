@@ -55,6 +55,9 @@ const PORT_EXACT = new Set([
 /** Tolerance for recognizing an endpoint as sitting on a port. */
 const PORT_TOLERANCE = 0.5
 
+/** Cross-axis distance between the two lines of a reciprocal pair. */
+const PAIR_SEPARATION = 12
+
 /** The four canonical connection points: bbox side midpoints (valid on the
  *  outline for every PORT_EXACT shape — diamond vertices, circle extremes,
  *  hexagon E/W vertices and cylinder cap centers coincide with them). */
@@ -575,6 +578,8 @@ function dedupeBlockers(blockers: RouteBlocker[]): RouteBlocker[] {
 interface StraightenAttempt {
   applied: boolean
   blockers: RouteBlocker[]
+  /** Which candidate lane won (0 = the preferred one). */
+  usedCandidateIndex?: number
 }
 
 /**
@@ -636,8 +641,24 @@ function tryStraighten(
   const srcSideUse = ctx.sideUse?.get(`${source.id}:${facingSide(axis, 1)}`) ?? 1
   const emitFromVertex = source.shape === 'diamond' && srcSideUse === 1 &&
     portSharpness(source.shape) >= portSharpness(target.shape)
+  // A reciprocal pair (A->B with an unlabeled B->A partner) renders as TWO
+  // EQUAL parallel lines straddling the centerline at center ± SEP/2 —
+  // equal deviation gives equal lengths (a diamond's facet width depends on
+  // the lane's distance from the vertex), the way dot offsets reciprocal
+  // splines symmetrically about the spine. The primary takes the low side,
+  // the feedback the high side: deterministic and never colliding.
+  const reciprocal = ctx.classes && ctx.edges.some(other =>
+    other !== edge && other.source === edge.target && other.target === edge.source &&
+    !other.label && !edge.label &&
+    other.edgeIndex !== undefined && edge.edgeIndex !== undefined)
   if (restrictToLane !== undefined) {
     candidates.push(restrictToLane)
+  } else if (reciprocal) {
+    const pairCenter = (overlapLo + overlapHi) / 2
+    const own = ctx.classes![edge.edgeIndex!] === 'feedback' ? 1 : -1
+    push(pairCenter + own * PAIR_SEPARATION / 2)
+    push(tgtPortLane)
+    push(srcPortLane)
   } else if (emitFromVertex) {
     push(srcPortLane)
     push(tgtPortLane)
@@ -661,7 +682,8 @@ function tryStraighten(
   }
 
   const blockers: RouteBlocker[] = []
-  for (const c of candidates) {
+  for (let candidateIndex = 0; candidateIndex < candidates.length; candidateIndex++) {
+    const c = candidates[candidateIndex]!
     const lo = isPortLane(c) ? relaxedLo : overlapLo
     const hi = isPortLane(c) ? relaxedHi : overlapHi
     if (c < lo - EPS || c > hi + EPS) {
@@ -697,7 +719,7 @@ function tryStraighten(
     }
     edge.points = [start, end]
     if (edge.label) edge.labelPosition = slot
-    return { applied: true, blockers: [] }
+    return { applied: true, blockers: [], usedCandidateIndex: candidateIndex }
   }
   return { applied: false, blockers: dedupeBlockers(blockers) }
 }
@@ -746,8 +768,15 @@ export function applyRouteContracts(
   const certificates: RouteCertificate[] = []
 
   // Attempt one proof-carrying straightening; updates geometry + certificate.
-  // Returns true when the route was collapsed.
-  const attemptStraighten = (edge: PositionedEdge, cert: RouteCertificate): { applied: boolean; mutated: boolean } => {
+  // `applied` means the route is straight; `mutated` means geometry moved this
+  // call; `upgradeable` means a non-preferred lane won, so the edge stays in
+  // the fixed-point pool — a later repair may free the preferred lane (e.g.
+  // the symmetric lane of a reciprocal pair blocked by its partner's
+  // not-yet-repaired geometry).
+  const attemptStraighten = (
+    edge: PositionedEdge,
+    cert: RouteCertificate,
+  ): { applied: boolean; mutated: boolean; upgradeable?: boolean } => {
     const edgeAxis: Axis = cert.routeClass === 'feedback' ? { ...axis, sign: axis.sign === 1 ? -1 : 1 } : axis
     const source = nodeMap.get(edge.source)
     const target = nodeMap.get(edge.target)
@@ -772,18 +801,19 @@ export function applyRouteContracts(
     const emitFromVertex = cert.routeClass === 'primary-forward' &&
       source!.shape === 'diamond' && srcSideUse === 1 &&
       portSharpness(source!.shape) >= portSharpness(target!.shape)
+    const beforeGeometry = JSON.stringify(edge.points)
     if (emitFromVertex) {
       const vertexLane = source![edgeAxis.cross] + (edgeAxis.cross === 'y' ? source!.height : source!.width) / 2
       const direct = tryStraighten(edge, source!, target!, ctx, edgeAxis, vertexLane)
       if (direct.applied) {
+        const mutated = JSON.stringify(edge.points) !== beforeGeometry
         cert.invariant = 'straight'
         cert.bendCount = 0
         cert.directLaneClear = true
-        cert.straightened = true
+        if (mutated) cert.straightened = true
         cert.directLaneBlockedBy = undefined
-        return { applied: true, mutated: true }
+        return { applied: true, mutated }
       }
-      const before = JSON.stringify(edge.points)
       if (tryZRoute(edge, source!, target!, ctx, edgeAxis, true)) {
         cert.invariant = 'explained-detour'
         cert.directLaneClear = false
@@ -792,17 +822,18 @@ export function applyRouteContracts(
         // applied=false keeps the edge in the fixed-point retry pool: if a
         // later repair clears the straight vertex lane (a blocking pill
         // moves), the Z upgrades to the straight emit on the next round.
-        return { applied: false, mutated: JSON.stringify(edge.points) !== before }
+        return { applied: false, mutated: JSON.stringify(edge.points) !== beforeGeometry }
       }
     }
     const attempt = tryStraighten(edge, source!, target!, ctx, edgeAxis)
     if (attempt.applied) {
+      const mutated = JSON.stringify(edge.points) !== beforeGeometry
       cert.invariant = 'straight'
       cert.bendCount = 0
       cert.directLaneClear = true
-      cert.straightened = true
+      if (mutated) cert.straightened = true
       cert.directLaneBlockedBy = undefined
-      return { applied: true, mutated: true }
+      return { applied: true, mutated, upgradeable: (attempt.usedCandidateIndex ?? 0) > 0 }
     }
     cert.invariant = feedbackDetourKind(edge, cert.routeClass, source, target, ctx.axis) ?? 'explained-detour'
     cert.directLaneClear = false
@@ -1134,7 +1165,8 @@ export function applyRouteContracts(
       }
     } else if (routeClass === 'primary-forward' || routeClass === 'feedback') {
       if (cert.bendCount > 0) {
-        if (!attemptStraighten(edge, cert).applied) retry.push({ edge, cert })
+        const r = attemptStraighten(edge, cert)
+        if (!r.applied || r.upgradeable) retry.push({ edge, cert })
       } else {
         // Already straight, but possibly off-port: ELK's FREE placement can
         // leave a straight lane floating beside the side midpoints. Re-lane
@@ -1143,13 +1175,22 @@ export function applyRouteContracts(
         // so a blocked port lane leaves the edge untouched.
         const sourceNode = nodeMap.get(edge.source)
         const targetNode = nodeMap.get(edge.target)
+        // A reciprocal-pair member must enroll even when straight and
+        // on-port: its contract lane is the symmetric one (center ± SEP/2),
+        // not the port lane, and the symmetric lane often only clears after
+        // its partner is repaired.
+        const reciprocal = !edge.label && edge.edgeIndex !== undefined &&
+          positioned.edges.some(other => other !== edge &&
+            other.source === edge.target && other.target === edge.source &&
+            !other.label && other.edgeIndex !== undefined)
         if (sourceNode && targetNode &&
           (!portAt(sourceNode, edge.points[0]!) || !portAt(targetNode, edge.points[edge.points.length - 1]!) ||
-            routeThroughNodeBBox(edge, ctx))) {
+            routeThroughNodeBBox(edge, ctx) || reciprocal)) {
           // Enroll in the fixed-point pool like every other repair: an
           // upgrade blocked now (e.g. a label pill in the vertex lane) may
           // clear once a later repair moves the obstacle.
-          if (!attemptStraighten(edge, cert).applied) retry.push({ edge, cert })
+          const r = attemptStraighten(edge, cert)
+          if (!r.applied || r.upgradeable) retry.push({ edge, cert })
         }
       }
     }
@@ -1158,17 +1199,18 @@ export function applyRouteContracts(
     certificates.push(cert)
   }
 
-  // Fixed point: each round only re-proves edges that failed, and only keeps
-  // iterating while some edge straightened (which strictly shrinks the retry
-  // list), so this terminates in at most |edges| rounds; 4 covers practice.
+  // Fixed point: each round re-proves edges that failed OR landed on a
+  // non-preferred lane (upgradeable), and only keeps iterating while some
+  // geometry actually moved — re-proving an unchanged lane is idempotent, so
+  // the loop terminates as soon as a round is a no-op; 4 rounds cover practice.
   for (let round = 0; round < 4 && retry.length > 0; round++) {
     const still: typeof retry = []
     let changed = false
     for (const item of retry) {
       if (item.cert.invariant === 'unverified-shape') continue
       const r = attemptStraighten(item.edge, item.cert)
-      if (r.applied || r.mutated) changed = true
-      if (!r.applied) still.push(item)
+      if (r.mutated) changed = true
+      if (!r.applied || r.upgradeable) still.push(item)
     }
     if (!changed) break
     retry.length = 0

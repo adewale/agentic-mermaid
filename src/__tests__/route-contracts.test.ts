@@ -1079,15 +1079,27 @@ describe('port ranking — sharp bits win when a side carries one line (issue #2
     }
   })
 
-  it('bi-directional diamond pairs keep the parallel-pair rendering (sides carry two lines)', () => {
+  it('bi-directional pairs render as TWO EQUAL parallel lines, symmetric about the centerline', () => {
     for (const dir of ['LR', 'TD'] as const) {
-      const positioned = layoutGraphSync(parseMermaid(`flowchart ${dir}\n  Q{One} --> R{Two}\n  R --> Q`))
-      const fwd = findEdge(positioned.edges, 'Q', 'R')
-      const back = findEdge(positioned.edges, 'R', 'Q')
-      expect(fwd.points.length).toBe(2)
-      expect(back.points.length).toBe(2)
-      const cross = dir === 'LR' ? 'y' as const : 'x' as const
-      expect(Math.abs(fwd.points[0]![cross] - back.points[0]![cross])).toBeGreaterThanOrEqual(4)
+      for (const shapes of [['{One}', '{Two}'], ['[One]', '[Two]']]) {
+        const positioned = layoutGraphSync(parseMermaid(
+          `flowchart ${dir}\n  Q${shapes[0]} --> R${shapes[1]}\n  R --> Q`))
+        const fwd = findEdge(positioned.edges, 'Q', 'R')
+        const back = findEdge(positioned.edges, 'R', 'Q')
+        expect(fwd.points.length).toBe(2)
+        expect(back.points.length).toBe(2)
+        const cross = dir === 'LR' ? 'y' as const : 'x' as const
+        const main = dir === 'LR' ? 'x' as const : 'y' as const
+        const q = positioned.nodes.find(n => n.id === 'Q')!
+        const center = q[cross] + (cross === 'y' ? q.height : q.width) / 2
+        // Symmetric: equal distance from the shared centerline...
+        expect(Math.abs(Math.abs(fwd.points[0]![cross] - center) - Math.abs(back.points[0]![cross] - center))).toBeLessThan(0.5)
+        // ...on opposite sides, separated enough for the arrowheads...
+        expect(Math.abs(fwd.points[0]![cross] - back.points[0]![cross])).toBeGreaterThanOrEqual(8)
+        // ...and therefore equal in length.
+        const len = (e: typeof fwd) => Math.abs(e.points[1]![main] - e.points[0]![main])
+        expect(Math.abs(len(fwd) - len(back))).toBeLessThan(0.5)
+      }
     }
   })
 

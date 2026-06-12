@@ -309,13 +309,28 @@ port-candidate cost model (fixed candidates with costs + overflow):
    the source wins ties (emit beats receive).
 4. Curved/pointed regions never take floating attachment (port-only);
    flat regions (hexagon/stadium N–S, cylinder E–W walls) absorb overflow.
+5. **A reciprocal pair (unlabeled A→B with unlabeled B→A) renders as TWO
+   EQUAL parallel lines**, straddling the shared centerline at
+   `pairCenter ± PAIR_SEPARATION/2` (primary on the low side, feedback on
+   the high side — deterministic, never colliding). Equal deviation from
+   the center gives equal lengths: a diamond facet's width depends on the
+   lane's distance from the vertex, so an asymmetric split would draw one
+   long and one short arrow. This is how dot offsets reciprocal splines
+   symmetrically about the spine. Both pair members enroll in the
+   fixed-point pool even when already straight and on-port: the symmetric
+   lane usually only proves clear after the partner has been repaired, so
+   a member that had to settle for a fallback lane (an *upgradeable*
+   success — any straightening that won on a non-preferred candidate) is
+   re-proved each round until the symmetric lane wins or geometry stops
+   moving. Port-only shapes (circles) keep both lines on the exact port —
+   their spans admit no offset, by rule 4.
 
 Occupancy is computed from route classes: primary edges count on the flow
 sides, unlabeled feedback on the flipped sides (parallel back-lanes), and
 labeled feedback not at all (it leaves via the outer channel's N/S ports).
 A bi-directional pair therefore puts two lines on each facing side —
-spread, parallel arrows — while a retry diamond's forward side carries one
-line and gets the vertex.
+the symmetric pair of rule 5 — while a retry diamond's forward side
+carries one line and gets the vertex.
 
 ### 6.3 Hardening found by the property oracles (layout-rubric harness)
 
