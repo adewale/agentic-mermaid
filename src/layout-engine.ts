@@ -1441,6 +1441,17 @@ function alignPortLanes(
     }
   }
 
+  // Forward edges run monotone along the flow axis; feedback loops and
+  // container routes double back. Only forward edges occupy flow-side
+  // facets, so only they count against a vertex's capacity.
+  const isForwardMonotone = (e: PositionedEdge): boolean => {
+    if (e.points.length < 2 || e.source === e.target) return false
+    const pts = simplifyPolyline(e.points)
+    for (let i = 1; i < pts.length; i++) {
+      if ((pts[i]![main] - pts[i - 1]![main]) * sign < -0.5) return false
+    }
+    return true
+  }
   for (const e of edges) {
     if (e.points.length < 2 || e.source === e.target) continue
     const src = nodeMap.get(e.source)
@@ -1448,20 +1459,17 @@ function alignPortLanes(
     if (!src || !tgt) continue
     if (!PORT_EXACT.has(src.shape) || !PORT_EXACT.has(tgt.shape)) continue
     // A diamond's vertex has capacity 1 (the yFiles port-candidate cost
-    // model): a source diamond with a fan-out must SPREAD its lines on the
-    // facet, so aligning one target onto the vertex lane is wrong there.
+    // model): a source diamond with a FORWARD fan-out must SPREAD its lines
+    // on the facet, so aligning one target onto the vertex lane is wrong
+    // there. A feedback sibling does not count: it leaves via the outer
+    // channel and never occupies the flow-side facet.
     if (src.shape === 'diamond' &&
-      edges.filter(o => o.source === e.source && o.target !== o.source).length > 1) continue
+      edges.some(o => o !== e && o.source === e.source && isForwardMonotone(o))) continue
     const d = portCross(src) - portCross(tgt)
     if (Math.abs(d) <= 0.5) continue
     // Primary-forward shape: a monotone staircase along the flow axis (a
     // feedback loop or container route must not be retargeted at a port).
-    const pts = simplifyPolyline(e.points)
-    let monotone = pts.length <= 4
-    for (let i = 1; monotone && i < pts.length; i++) {
-      if ((pts[i]![main] - pts[i - 1]![main]) * sign < -0.5) monotone = false
-    }
-    if (!monotone) continue
+    if (!isForwardMonotone(e) || simplifyPolyline(e.points).length > 4) continue
     const moved = moveSafe(tgt, d, e) ? tgt : moveSafe(src, -d, e) ? src : null
     if (moved) {
       if (process.env.APL_DEBUG) console.error('[apl] slide', moved.id, 'by', (moved === tgt ? d : -d).toFixed(1), 'for', e.source, '->', e.target)

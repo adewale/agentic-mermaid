@@ -1160,6 +1160,22 @@ describe('port ranking — sharp bits win when a side carries one line (issue #2
     expect(findEdge(positioned.edges, 'X', 'Q2').points.length).toBe(2)
   })
 
+  it('a feedback out-edge does not veto vertex alignment (R: yes-branch runs straight)', () => {
+    // B has TWO out-edges, but "no, retry" is FEEDBACK — it leaves via the
+    // outer channel and never occupies the E facet. Only forward out-edges
+    // count against the vertex's capacity, so Process aligns onto the main
+    // lane and the yes-branch runs straight, vertex to exact port.
+    const positioned = layoutGraphSync(parseMermaid(
+      'flowchart LR\n  A[Request] --> B{Valid?}\n  B -- no, retry --> A\n  B -- yes --> C[Process]'))
+    const yes = findEdge(positioned.edges, 'B', 'C')
+    expect(yes.points.length).toBe(2)
+    expect(yes.routeCertificate?.sourcePort).toBe('E')
+    expect(yes.routeCertificate?.targetPort).toBe('W')
+    const b = positioned.nodes.find(n => n.id === 'B')!
+    const c = positioned.nodes.find(n => n.id === 'C')!
+    expect(Math.abs((b.y + b.height / 2) - (c.y + c.height / 2))).toBeLessThanOrEqual(0.5)
+  })
+
   it('two lines out of one diamond side spread on the facet (no line hogs the vertex)', () => {
     for (const dir of ['LR', 'TD'] as const) {
       const positioned = layoutGraphSync(parseMermaid(`flowchart ${dir}

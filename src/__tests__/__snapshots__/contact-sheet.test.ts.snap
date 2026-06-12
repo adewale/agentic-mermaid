@@ -1429,7 +1429,7 @@ exports[`contact sheet — pinned geometry (re-pin deliberately, review the shee
       "id": "B->C",
       "label": {
         "text": "yes",
-        "x": 350,
+        "x": 356,
         "y": 92,
       },
       "path": [
@@ -1438,16 +1438,8 @@ exports[`contact sheet — pinned geometry (re-pin deliberately, review the shee
           92,
         ],
         [
-          405,
-          92,
-        ],
-        [
-          405,
-          74,
-        ],
-        [
           417,
-          74,
+          92,
         ],
       ],
       "to": "C",
@@ -1481,7 +1473,7 @@ exports[`contact sheet — pinned geometry (re-pin deliberately, review the shee
       "shape": "rectangle",
       "w": 94,
       "x": 417,
-      "y": 56,
+      "y": 73,
     },
   ],
   "version": 1,
