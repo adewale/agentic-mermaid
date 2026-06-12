@@ -207,11 +207,11 @@ type XyChartMutationOp =
 
 // Tier 1 (structural, reliable): EMPTY_DIAGRAM, EDGE_MISANCHORED, OFF_CANVAS,
 //   GROUP_BREACH, UNKNOWN_SHAPE, LABEL_OVERFLOW (source-based char-cap).
-// Tier 2 (geometric, advisory): NODE_OVERLAP, ROUTE_SELF_CROSS.
+// Tier 2 (geometric, advisory): NODE_OVERLAP, ROUTE_SELF_CROSS, ROUTE_HITCH.
 // Tier 3 (lint, advisory): DUPLICATE_EDGE, UNREACHABLE_NODE.
 type WarningCode =
   | 'EMPTY_DIAGRAM' | 'EDGE_MISANCHORED' | 'OFF_CANVAS' | 'GROUP_BREACH'
-  | 'UNKNOWN_SHAPE' | 'LABEL_OVERFLOW' | 'NODE_OVERLAP' | 'ROUTE_SELF_CROSS'
+  | 'UNKNOWN_SHAPE' | 'LABEL_OVERFLOW' | 'NODE_OVERLAP' | 'ROUTE_SELF_CROSS' | 'ROUTE_HITCH'
   | 'DUPLICATE_EDGE' | 'UNREACHABLE_NODE'
 
 interface VerifyResult {

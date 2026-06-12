@@ -10,7 +10,9 @@ A diagram is considered **good looking** when it satisfies, in order:
 2. **Tier 2 geometric checks are within bounds.** `NODE_OVERLAP` count
    and `ROUTE_SELF_CROSS` count are advisory but not catastrophic. A
    diagram with a single intentional overlap (e.g., a self-loop) is
-   still considered good.
+   still considered good. `ROUTE_HITCH` should always be zero — it is a
+   route-contract tripwire (see `docs/design/route-contracts.md`), and
+   any hit means the layout pipeline regressed, not the diagram.
 
 3. **Perceptual metrics fall in the default `QualityBounds` band:**
 

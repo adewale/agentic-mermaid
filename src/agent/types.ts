@@ -566,7 +566,7 @@ export type WarningTier = 'structural' | 'geometric' | 'lint'
 export type Tier1WarningCode =
   | 'EMPTY_DIAGRAM' | 'EDGE_MISANCHORED' | 'OFF_CANVAS'
   | 'GROUP_BREACH' | 'UNKNOWN_SHAPE' | 'LABEL_OVERFLOW'
-export type Tier2WarningCode = 'NODE_OVERLAP' | 'ROUTE_SELF_CROSS'
+export type Tier2WarningCode = 'NODE_OVERLAP' | 'ROUTE_SELF_CROSS' | 'ROUTE_HITCH'
 /**
  * Tier 3 (advisory lint). Family-specific quality hints for common agent
  * mistakes that still parse and render. Lint warnings never flip verify.ok.
@@ -583,6 +583,7 @@ export type LayoutWarning =
   | { code: 'LABEL_OVERFLOW'; target: NodeId | EdgeId; charCount: number; limit: number }
   | { code: 'NODE_OVERLAP'; a: NodeId; b: NodeId; areaPx: number }
   | { code: 'ROUTE_SELF_CROSS'; edge: EdgeId; count: number }
+  | { code: 'ROUTE_HITCH'; edge: EdgeId; deviationPx: number }
   | { code: 'DUPLICATE_EDGE'; edge: EdgeId; duplicateOf: EdgeId; from: NodeId; to: NodeId; label?: string }
   | { code: 'UNREACHABLE_NODE'; node: NodeId }
 
@@ -595,6 +596,7 @@ export const WARNING_SEVERITY: Record<WarningCode, WarningSeverity> = {
   LABEL_OVERFLOW: 'warning',
   NODE_OVERLAP: 'warning',
   ROUTE_SELF_CROSS: 'warning',
+  ROUTE_HITCH: 'warning',
   DUPLICATE_EDGE: 'warning',
   UNREACHABLE_NODE: 'warning',
 }
@@ -608,6 +610,7 @@ export const WARNING_TIER: Record<WarningCode, WarningTier> = {
   LABEL_OVERFLOW: 'structural',
   NODE_OVERLAP: 'geometric',
   ROUTE_SELF_CROSS: 'geometric',
+  ROUTE_HITCH: 'geometric',
   DUPLICATE_EDGE: 'lint',
   UNREACHABLE_NODE: 'lint',
 }

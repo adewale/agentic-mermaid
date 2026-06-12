@@ -33,7 +33,7 @@ Run `verifyMermaid` at every commit point — anywhere the result would be saved
 
 Tier 1 (structural, reliable, universal): `EMPTY_DIAGRAM`, `EDGE_MISANCHORED`, `OFF_CANVAS`, `GROUP_BREACH`, `UNKNOWN_SHAPE`, `LABEL_OVERFLOW` (source-based char-count check, default 40). Applies to every family. Never suppress Tier 1 errors.
 
-Tier 2 (geometric, advisory, flowchart-specific): `NODE_OVERLAP`, `ROUTE_SELF_CROSS`. Only fire for flowchart/state. For other families, geometric concerns surface via perceptual metrics (`measureQuality(layoutMermaid(d))`). See `docs/quality.md`. Don't gate CI on Tier 2 alone.
+Tier 2 (geometric, advisory, flowchart-specific): `NODE_OVERLAP`, `ROUTE_SELF_CROSS`, `ROUTE_HITCH`. Only fire for flowchart/state. For other families, geometric concerns surface via perceptual metrics (`measureQuality(layoutMermaid(d))`). See `docs/quality.md`. Don't gate CI on Tier 2 alone.
 
 Tier 3 (lint, advisory): `DUPLICATE_EDGE`, `UNREACHABLE_NODE`. These catch common agent mistakes that still parse/render. They never flip `verify.ok`; inspect and fix when the task asks for clean maintainable diagrams.
 

@@ -119,6 +119,7 @@ Correctly detect what they claim to detect, but the occurrence may be intentiona
 |---|---|---|
 | `NODE_OVERLAP`     | warning | Two laid-out node bounding boxes intersect |
 | `ROUTE_SELF_CROSS` | warning | An edge route crosses itself |
+| `ROUTE_HITCH` | warning | A forward edge bends although its direct lane is provably clear (route-contract tripwire) |
 
 Codes are the contract surface agents reason about. Emitting an undocumented code fails CI; documenting an unemitted one also fails CI. Agents omit known-irrelevant codes via `VerifyOptions.suppress`.
 

@@ -34,6 +34,7 @@ import type { ResolvedRenderStyle } from './styles.ts'
 import { measureMultilineText } from './text-metrics.ts'
 import { elkLayoutSync } from './elk-instance.ts'
 import { clipEdgeToShape } from './shape-clipping.ts'
+import { applyRouteContracts } from './route-contracts.ts'
 
 interface LayoutEngineOptions extends RenderOptions {
   /** @internal Preserve direct child order in compound nodes for projected families. */
@@ -652,6 +653,7 @@ function elkToPositioned(
   graph: MermaidGraph,
   mergeEdges: boolean = false,
   layoutPadding: number = DEFAULTS.padding,
+  style: ResolvedRenderStyle = resolveRenderStyle({}),
 ): PositionedGraph {
   const nodes: PositionedNode[] = []
   const edges: PositionedEdge[] = []
@@ -688,9 +690,9 @@ function elkToPositioned(
   alignLayerNodes(nodes, edges, graph.direction)
 
   // Bundle fan-out/fan-in edge paths into shared trunks when mergeEdges is enabled
-  if (mergeEdges) {
-    bundleEdgePaths(edges, nodes, groups, graph.direction)
-  }
+  const bundled = mergeEdges
+    ? bundleEdgePaths(edges, nodes, groups, graph.direction)
+    : new Set<PositionedEdge>()
 
   // Apply shape-aware edge clipping for non-rectangular shapes.
   // ELK treats all nodes as rectangles, so we need to clip edge endpoints
@@ -707,6 +709,12 @@ function elkToPositioned(
       edge.points = clipEdgeToShape(edge.points, targetNode, false)
     }
   }
+
+  // Route contracts (docs/design/route-contracts.md): simplify every polyline,
+  // straighten primary-forward routes whose direct lane proves clear, and
+  // certify every edge. Nothing may move nodes or edit edge geometry after
+  // this pass without recertifying.
+  applyRouteContracts({ nodes, edges, groups }, graph, bundled, style)
 
   // Calculate final bounds including all edge points
   // ELK should include edges in its dimensions, but we verify and expand if needed
@@ -944,6 +952,7 @@ function extractEdgesRecursively(
       points: orthogonalPoints,
       labelPosition,
       inlineStyle: resolveEdgeStyle(edgeIndex, graph),
+      edgeIndex,
     })
   }
 }
@@ -1383,13 +1392,16 @@ function adjustJunctionForGroups(
  *
  * Constraints: edges in a bundle must share the same style and have no labels.
  * Self-loops and backward edges (against the graph direction) are excluded.
+ *
+ * Returns the set of edges whose paths the bundler owns, so the route-contract
+ * pass never straightens a trunk-shared path.
  */
 function bundleEdgePaths(
   edges: PositionedEdge[],
   nodes: PositionedNode[],
   groups: PositionedGroup[],
   direction: Direction
-): void {
+): Set<PositionedEdge> {
   const nodeMap = new Map(nodes.map(n => [n.id, n]))
   const processed = new Set<PositionedEdge>()
 
@@ -1525,6 +1537,7 @@ function bundleEdgePaths(
           { x: junctionX, y: entryY },
           { x: entryX, y: entryY },
         ]
+        processed.add(edge)
       }
     } else {
       const entryX = tgtCX
@@ -1545,9 +1558,12 @@ function bundleEdgePaths(
           { x: entryX, y: junctionY },
           { x: entryX, y: entryY },
         ]
+        processed.add(edge)
       }
     }
   }
+
+  return processed
 }
 
 // ============================================================================
@@ -1566,7 +1582,7 @@ export function layoutGraphSync(
   const style = resolveRenderStyle(options)
   const elkGraph = mermaidToElk(graph, opts, style)
   const result = elkLayoutSync(elkGraph)
-  return elkToPositioned(result, graph, DEFAULTS.mergeEdges, opts.padding)
+  return elkToPositioned(result, graph, DEFAULTS.mergeEdges, opts.padding, style)
 }
 
 /**

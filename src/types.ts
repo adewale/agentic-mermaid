@@ -116,6 +116,46 @@ export interface PositionedEdge {
   labelPosition?: Point
   /** Inline styles resolved from `linkStyle` directives — override theme defaults */
   inlineStyle?: Record<string, string>
+  /** Index into MermaidGraph.edges this positioned edge was extracted from */
+  edgeIndex?: number
+  /** Route contract certificate attached by the layout pipeline (docs/design/route-contracts.md) */
+  routeCertificate?: RouteCertificate
+}
+
+// ============================================================================
+// Route contracts — semantic routing intent and per-edge certificates
+// (docs/design/route-contracts.md)
+// ============================================================================
+
+export type RouteClass =
+  | 'primary-forward' // added in author order without creating a cycle; owns the straight lane
+  | 'feedback'        // would create a cycle; owns the detour, never the lane
+  | 'self-loop'
+  | 'container'       // endpoint is a subgraph id
+  | 'cross-hierarchy' // endpoints live in different subgraph scopes
+
+export interface RouteBlocker {
+  kind: 'node' | 'label' | 'channel' | 'span'
+  id: string
+}
+
+export interface RouteCertificate {
+  /** Index into MermaidGraph.edges */
+  edgeIndex: number
+  routeClass: RouteClass
+  bendCount: number
+  invariant:
+    | 'straight'          // exactly two points, axis-aligned with the flow
+    | 'explained-detour'  // bends, and directLaneBlockedBy says why
+    | 'bundle'            // path owned by the fan-out/fan-in bundler
+    | 'feedback-detour'
+    | 'self-loop'
+    | 'container-attach'
+    | 'unverified-shape'  // endpoint shape has no straight attachment side
+  directLaneClear?: boolean
+  directLaneBlockedBy?: RouteBlocker[]
+  /** True when the certifying straightener collapsed this route */
+  straightened?: boolean
 }
 
 export interface Point {

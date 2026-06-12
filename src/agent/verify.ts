@@ -7,6 +7,7 @@
 
 import { parseMermaid as parseValidDiagram } from './parse.ts'
 import { layoutGraphSync } from '../layout-engine.ts'
+import { findRouteHitches } from '../route-contracts.ts'
 import type {
   ValidDiagram, VerifyOptions, VerifyResult, LayoutWarning, RenderedLayout,
   WarningCode, SequenceBody,
@@ -179,6 +180,13 @@ function verifyGraph(graph: import('../types.ts').MermaidGraph, kind: ValidDiagr
   for (const e of positioned.edges) {
     const c = countSelfCrossings(e.points)
     if (c > 0) warnings.push({ code: 'ROUTE_SELF_CROSS', edge: `${e.source}->${e.target}`, count: c })
+  }
+  // ROUTE_HITCH is a tripwire over FINAL geometry: the layout pipeline already
+  // straightens primary-forward routes whose direct lane proves clear, so a
+  // hit here means some pass mutated geometry after route certification.
+  // See docs/design/route-contracts.md.
+  for (const hitch of findRouteHitches(positioned, graph)) {
+    warnings.push({ code: 'ROUTE_HITCH', edge: hitch.edge, deviationPx: hitch.deviationPx })
   }
 
   // Tier 3 — advisory lint for common agent mistakes that still parse/render.
