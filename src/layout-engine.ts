@@ -1259,6 +1259,29 @@ function alignLayerNodes(
   // Snap each layer's nodes to the layer's center position
   const deltas = new Map<string, number>() // nodeId → shift amount
 
+  // A snapped node must not land on an already-routed corridor: edges were
+  // routed against the PRE-snap positions, and a node moved onto a foreign
+  // edge's path would occlude it (issue #25 rule 9 — no node movement after
+  // routing without rerouting). Alignment is cosmetic; occlusion is a hard
+  // defect, so a layer whose snap would cause one keeps ELK's stagger.
+  const snapOccludes = (node: PositionedNode, newPos: number): boolean => {
+    const nx = isHorizontal ? newPos : node.x
+    const ny = isHorizontal ? node.y : newPos
+    for (const edge of edges) {
+      if (edge.source === node.id || edge.target === node.id) continue
+      for (let i = 1; i < edge.points.length; i++) {
+        const a = edge.points[i - 1]!, b = edge.points[i]!
+        const xLo = Math.min(a.x, b.x), xHi = Math.max(a.x, b.x)
+        const yLo = Math.min(a.y, b.y), yHi = Math.max(a.y, b.y)
+        if (xHi > nx + 0.5 && xLo < nx + node.width - 0.5 &&
+          yHi > ny + 0.5 && yLo < ny + node.height - 0.5) {
+          return true
+        }
+      }
+    }
+    return false
+  }
+
   for (const layer of layers) {
     if (layer.length <= 1) continue
 
@@ -1269,6 +1292,11 @@ function alignLayerNodes(
 
     // Use the center of the range as the snap target
     const target = (min + max) / 2
+
+    if (layer.some(node => {
+      const oldPos = isHorizontal ? node.x : node.y
+      return Math.abs(target - oldPos) > 0.5 && snapOccludes(node, target)
+    })) continue
 
     for (const node of layer) {
       const oldPos = isHorizontal ? node.x : node.y
@@ -1650,7 +1678,37 @@ export function layoutGraphSync(
   const opts = { ...DEFAULTS, ...options }
   const style = resolveRenderStyle(options)
   const elkGraph = mermaidToElk(graph, opts, style)
-  const result = elkLayoutSync(elkGraph)
+  // ELK's bundled (GWT-compiled) code can throw internal exceptions on rare
+  // dense multigraphs — observed with feedbackEdges routing, and pre-existing
+  // with post-compaction + forced model order. Crash-freedom is part of this
+  // renderer's contract, so degrade through progressively plainer option
+  // sets; the route-contract pass repairs whatever the survivor produces.
+  const degradations: Array<Record<string, string>> = [
+    {},
+    { 'elk.layered.feedbackEdges': 'false' },
+    { 'elk.layered.feedbackEdges': 'false', 'elk.layered.compaction.postCompaction.strategy': 'NONE' },
+    {
+      'elk.layered.feedbackEdges': 'false',
+      'elk.layered.compaction.postCompaction.strategy': 'NONE',
+      'elk.layered.crossingMinimization.forceNodeModelOrder': 'false',
+      'elk.layered.highDegreeNodes.treatment': 'false',
+    },
+  ]
+  let result: ElkNode | undefined
+  let lastError: unknown
+  for (const overrides of degradations) {
+    const attempt = Object.keys(overrides).length === 0 ? elkGraph : mermaidToElk(graph, opts, style)
+    if (Object.keys(overrides).length > 0) {
+      attempt.layoutOptions = { ...attempt.layoutOptions, ...overrides }
+    }
+    try {
+      result = elkLayoutSync(attempt)
+      break
+    } catch (err) {
+      lastError = err
+    }
+  }
+  if (!result) throw lastError
   return elkToPositioned(result, graph, DEFAULTS.mergeEdges, opts.padding, style)
 }
 

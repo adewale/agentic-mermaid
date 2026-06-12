@@ -160,26 +160,64 @@ function axisFor(direction: Direction): Axis {
   }
 }
 
-/** Remove consecutive duplicates and collinear midpoints. Preserves drawn geometry exactly. */
+/**
+ * Remove consecutive duplicates and collinear midpoints. Preserves drawn
+ * geometry exactly. Iterates to a fixed point: ELK can emit degenerate
+ * zero-net spikes (out-and-back excursions) whose midpoints only become
+ * collinear after their neighbors are removed — a single pass would leave a
+ * phantom collinear point behind.
+ */
 export function simplifyPolyline(points: Point[]): Point[] {
-  if (points.length < 3) return points
+  let current = points
+  for (let iterations = 0; iterations < 8; iterations++) {
+    if (current.length < 3) return current
+    const out: Point[] = [current[0]!]
+    for (let i = 1; i < current.length; i++) {
+      const p = current[i]!
+      const prev = out[out.length - 1]!
+      if (Math.abs(p.x - prev.x) < EPS && Math.abs(p.y - prev.y) < EPS) continue
+      out.push(p)
+    }
+    const result: Point[] = out.length < 3 ? out : [out[0]!]
+    if (out.length >= 3) {
+      for (let i = 1; i < out.length - 1; i++) {
+        const a = result[result.length - 1]!, b = out[i]!, c = out[i + 1]!
+        const cross = (b.x - a.x) * (c.y - a.y) - (b.y - a.y) * (c.x - a.x)
+        if (Math.abs(cross) < EPS) continue // collinear midpoint (or spike apex)
+        result.push(b)
+      }
+      result.push(out[out.length - 1]!)
+    }
+    if (result.length === current.length) return result
+    current = result
+  }
+  return current
+}
+
+/**
+ * Replace any diagonal segment with an axis-aligned elbow. ELK's orthogonal
+ * router emits diagonals in rare feedback-port joins; downstream contracts
+ * (and the renderer's orthogonality guarantee) assume axis-aligned segments.
+ * The elbow continues the PREVIOUS segment's axis for visual continuity.
+ */
+function orthogonalizeResidualDiagonals(points: Point[]): Point[] {
+  let needsWork = false
+  for (let i = 1; i < points.length; i++) {
+    const a = points[i - 1]!, b = points[i]!
+    if (Math.abs(a.x - b.x) > EPS && Math.abs(a.y - b.y) > EPS) { needsWork = true; break }
+  }
+  if (!needsWork) return points
   const out: Point[] = [points[0]!]
   for (let i = 1; i < points.length; i++) {
-    const p = points[i]!
-    const prev = out[out.length - 1]!
-    if (Math.abs(p.x - prev.x) < EPS && Math.abs(p.y - prev.y) < EPS) continue
-    out.push(p)
+    const a = out[out.length - 1]!, b = points[i]!
+    if (Math.abs(a.x - b.x) > EPS && Math.abs(a.y - b.y) > EPS) {
+      const prev = out.length >= 2 ? out[out.length - 2]! : undefined
+      const prevHorizontal = prev ? Math.abs(prev.y - a.y) < EPS : true
+      out.push(prevHorizontal ? { x: b.x, y: a.y } : { x: a.x, y: b.y })
+    }
+    out.push(b)
   }
-  if (out.length < 3) return out
-  const result: Point[] = [out[0]!]
-  for (let i = 1; i < out.length - 1; i++) {
-    const a = result[result.length - 1]!, b = out[i]!, c = out[i + 1]!
-    const cross = (b.x - a.x) * (c.y - a.y) - (b.y - a.y) * (c.x - a.x)
-    if (Math.abs(cross) < EPS) continue // collinear midpoint
-    result.push(b)
-  }
-  result.push(out[out.length - 1]!)
-  return result
+  return out
 }
 
 /** Interior vertex count of a polyline. */
@@ -240,9 +278,30 @@ function attachSpan(node: PositionedNode, axis: Axis): CrossSpan | null {
     if (size <= SPAN_MARGIN * 2) return null
     return { lo: lo + SPAN_MARGIN, hi: lo + size - SPAN_MARGIN }
   }
+  // Shapes with one FLAT pair of sides accept attachment anywhere on the
+  // flat region (it lies exactly on the bbox edge); their curved/pointed
+  // pair stays port-only. This is the geometric form of yFiles' overflow
+  // port candidates: the side midpoint is the preferred anchor, the rest of
+  // the flat side takes the overflow.
+  if (node.shape === 'hexagon' && axis.cross === 'x') {
+    const inset = node.height / 4
+    if (size - 2 * inset <= SPAN_MARGIN) return null
+    return { lo: lo + inset + 2, hi: lo + size - inset - 2 } // flat N/S region
+  }
+  if (node.shape === 'stadium' && axis.cross === 'x') {
+    const r = node.height / 2
+    if (size - 2 * r <= SPAN_MARGIN) return null
+    return { lo: lo + r + 2, hi: lo + size - r - 2 } // flat N/S region
+  }
+  if (node.shape === 'cylinder' && axis.cross === 'y') {
+    const RY = 7
+    if (size - 2 * RY <= SPAN_MARGIN) return null
+    return { lo: lo + RY + 2, hi: lo + size - RY - 2 } // straight E/W walls
+  }
   if (PORT_EXACT.has(node.shape)) {
-    // Port-only shapes (circle, stadium, …): the lane must pass through the
-    // exact side-midpoint port — the only bbox-side point on the outline.
+    // Fully curved or pointed on this axis (circle; stadium ends; hexagon
+    // tips; cylinder caps): only the exact side-midpoint port is on the
+    // outline at the bbox edge.
     const center = lo + size / 2
     return { lo: center - PORT_TOLERANCE, hi: center + PORT_TOLERANCE }
   }
@@ -364,8 +423,8 @@ export function directLaneBlockers(
       const sLo = Math.min(a[axis.main], b[axis.main])
       const sHi = Math.max(a[axis.main], b[axis.main])
       if (overlaps(mainLo, mainHi, sLo, sHi)) {
-        if (other.target === edge.target && Math.abs(a[axis.cross] - c) < EPS &&
-          i === other.points.length - 1) {
+        if (other.target === edge.target && other.source !== edge.source &&
+          Math.abs(a[axis.cross] - c) < EPS && i === other.points.length - 1) {
           continue
         }
         blockers.push({ kind: 'channel', id: edgeId(other) })
@@ -429,7 +488,10 @@ export function findLabelSlot(
     return true
   }
 
-  for (const t of [0.5, 1 / 3, 2 / 3]) {
+  // Discrete candidate positions along the lane (Kakoulis–Tollis candidate
+  // sets), center-out: the midpoint reads best, the outer slots rescue lanes
+  // whose middle band is occupied by a neighboring node or pill.
+  for (const t of [0.5, 1 / 3, 2 / 3, 0.25, 0.75, 1 / 6, 5 / 6]) {
     const cx = start.x + (end.x - start.x) * t
     const cy = start.y + (end.y - start.y) * t
     if (slotClear(cx, cy)) return { x: cx, y: cy }
@@ -458,6 +520,28 @@ function countRouteCrossings(points: Point[], edge: PositionedEdge, ctx: LaneCon
     }
   }
   return count
+}
+
+/**
+ * Conservative check that a route passes through some non-incident node's
+ * bbox interior — the signature of a stale path after a later pass moved a
+ * node into an already-routed corridor (issue #25 rule 9). Used only to
+ * TRIGGER a proof-gated repair; the repair's own checks are shape-exact.
+ */
+function routeThroughNodeBBox(edge: PositionedEdge, ctx: LaneContext): boolean {
+  for (const node of ctx.nodes) {
+    if (node.id === edge.source || node.id === edge.target) continue
+    for (let i = 1; i < edge.points.length; i++) {
+      const a = edge.points[i - 1]!, b = edge.points[i]!
+      const xLo = Math.min(a.x, b.x), xHi = Math.max(a.x, b.x)
+      const yLo = Math.min(a.y, b.y), yHi = Math.max(a.y, b.y)
+      if (xHi > node.x + 0.5 && xLo < node.x + node.width - 0.5 &&
+        yHi > node.y + 0.5 && yLo < node.y + node.height - 0.5) {
+        return true
+      }
+    }
+  }
+  return false
 }
 
 function dedupeBlockers(blockers: RouteBlocker[]): RouteBlocker[] {
@@ -610,7 +694,7 @@ export function applyRouteContracts(
 
   // Attempt one proof-carrying straightening; updates geometry + certificate.
   // Returns true when the route was collapsed.
-  const attemptStraighten = (edge: PositionedEdge, cert: RouteCertificate): boolean => {
+  const attemptStraighten = (edge: PositionedEdge, cert: RouteCertificate): { applied: boolean; mutated: boolean } => {
     const edgeAxis: Axis = cert.routeClass === 'feedback' ? { ...axis, sign: axis.sign === 1 ? -1 : 1 } : axis
     const source = nodeMap.get(edge.source)
     const target = nodeMap.get(edge.target)
@@ -624,7 +708,7 @@ export function applyRouteContracts(
       (cert.routeClass === 'feedback' || isMonotoneStaircase(edge.points, edgeAxis))
     if (!eligible) {
       cert.invariant = feedbackDetourKind(edge, cert.routeClass, source, target, ctx.axis) ?? 'unverified-shape'
-      return false
+      return { applied: false, mutated: false }
     }
     const attempt = tryStraighten(edge, source!, target!, ctx, edgeAxis)
     if (attempt.applied) {
@@ -633,14 +717,126 @@ export function applyRouteContracts(
       cert.directLaneClear = true
       cert.straightened = true
       cert.directLaneBlockedBy = undefined
-      return true
+      return { applied: true, mutated: true }
     }
     cert.invariant = feedbackDetourKind(edge, cert.routeClass, source, target, ctx.axis) ?? 'explained-detour'
     cert.directLaneClear = false
     cert.directLaneBlockedBy = attempt.blockers
-    if (cert.invariant === 'outer-feedback') {
-      tightenOuterFeedback(edge, ctx)
-      cert.bendCount = bendCount(edge.points)
+    // Geometry mutations below (loop tightening, Z-repair) must drive the
+    // fixed-point retry loop: a tightened loop can vacate the lane that
+    // blocked a sibling, exactly like a straightening can.
+    let mutated = false
+    if (cert.invariant === 'outer-feedback' || cert.invariant === 'feedback-detour') {
+      if (cert.invariant === 'outer-feedback') {
+        mutated = tightenOuterFeedback(edge, ctx)
+        cert.bendCount = bendCount(edge.points)
+      }
+      // A loop that passes THROUGH a node (a later pass moved the node into
+      // the routed corridor) is repaired like any stale route: a reverse-axis
+      // Z through proven-clear lanes, or the loop stays as the explained
+      // fallback.
+      if (routeThroughNodeBBox(edge, ctx) && tryZRoute(edge, source!, target!, ctx, edgeAxis)) {
+        cert.bendCount = bendCount(edge.points)
+        mutated = true
+      }
+    } else if (cert.invariant === 'explained-detour' &&
+      (cert.bendCount > 2 || routeThroughNodeBBox(edge, ctx))) {
+      // Bend minimization (the Tamassia tradition): when the lane is
+      // genuinely blocked, a 2-bend Z that terminates on the target's port
+      // still beats ELK's multi-bend staircase. Also triggered whenever the
+      // kept route passes through a node — the stale-corridor signature of
+      // a later pass moving a node into an already-routed channel.
+      // Proof-gated like everything else; failure keeps the explained route.
+      if (tryZRoute(edge, source!, target!, ctx, edgeAxis)) {
+        cert.bendCount = bendCount(edge.points)
+        mutated = true
+      }
+    }
+    return { applied: false, mutated }
+  }
+
+  /**
+   * Try to replace a blocked edge's multi-bend route with a single Z:
+   * lane at c1 from the source → perpendicular hop at `jog` → lane at c2
+   * into the target. Candidates prefer the ports (c2 = target port, c1 =
+   * source port) and fall back to the existing route's cross values — the
+   * channels ELK already proved navigable. All three segments are proved,
+   * the label must fit on the longest lane, and crossings may not increase.
+   */
+  function tryZRoute(
+    edge: PositionedEdge,
+    source: PositionedNode,
+    target: PositionedNode,
+    ctx: LaneContext,
+    axis: Axis,
+  ): boolean {
+    if (edge.points.length < 2) return false
+    const srcSpan = attachSpan(source, axis)
+    const tgtSpan = attachSpan(target, axis)
+    if (!srcSpan || !tgtSpan) return false
+    const crossVals = edge.points.map(pt => pt[axis.cross])
+
+    const c1s: number[] = []
+    const c2s: number[] = []
+    const pushTo = (arr: number[], v: number) => {
+      if (arr.every(prev => Math.abs(prev - v) > 0.5)) arr.push(v)
+    }
+    pushTo(c1s, source[axis.cross] + (axis.cross === 'y' ? source.height : source.width) / 2)
+    pushTo(c1s, edge.points[0]![axis.cross])
+    for (const v of crossVals) pushTo(c1s, v)
+    pushTo(c2s, target[axis.cross] + (axis.cross === 'y' ? target.height : target.width) / 2)
+    pushTo(c2s, edge.points[edge.points.length - 1]![axis.cross])
+
+    const relaxDiamond = (node: PositionedNode, span: CrossSpan): CrossSpan =>
+      node.shape === 'diamond'
+        ? { lo: node[axis.cross] + 2, hi: node[axis.cross] + (axis.cross === 'y' ? node.height : node.width) - 2 }
+        : span
+    const s1 = relaxDiamond(source, srcSpan)
+    const s2 = relaxDiamond(target, tgtSpan)
+
+    for (const c2 of c2s) {
+      if (c2 < s2.lo - EPS || c2 > s2.hi + EPS) continue
+      const tgtMain = anchorMain(target, c2, axis, -1)
+      for (const c1 of c1s) {
+        if (c1 < s1.lo - EPS || c1 > s1.hi + EPS) continue
+        if (Math.abs(c1 - c2) < CLEARANCE) continue // that would be a hitch, not a Z
+        const srcMain = anchorMain(source, c1, axis, 1)
+        if ((tgtMain - srcMain) * axis.sign <= EPS) continue
+        for (const jog of [tgtMain - axis.sign * 12, (srcMain + tgtMain) / 2, srcMain + axis.sign * 12]) {
+          if ((jog - srcMain) * axis.sign <= EPS || (tgtMain - jog) * axis.sign <= EPS) continue
+          // The label rides the longest lane only; the other lane and the
+          // hop are proved with a label-stripped probe so the own-label
+          // capacity check applies exactly once, where the pill will live.
+          const longFirst = Math.abs(jog - srcMain) >= Math.abs(tgtMain - jog)
+          const unlabeled: PositionedEdge = { ...edge, points: [], label: undefined }
+          const lane1 = directLaneBlockers(longFirst ? edge : unlabeled, c1, Math.min(srcMain, jog), Math.max(srcMain, jog), ctx, axis)
+          if (lane1.length > 0) continue
+          const hopAxis: Axis = axis.main === 'x'
+            ? { main: 'y', cross: 'x', sign: c1 < c2 ? 1 : -1 }
+            : { main: 'x', cross: 'y', sign: c1 < c2 ? 1 : -1 }
+          if (directLaneBlockers(unlabeled, jog, Math.min(c1, c2), Math.max(c1, c2), ctx, hopAxis).length > 0) continue
+          const lane2 = directLaneBlockers(longFirst ? unlabeled : edge, c2, Math.min(jog, tgtMain), Math.max(jog, tgtMain), ctx, axis)
+          if (lane2.length > 0) continue
+          const pt = (main: number, cross: number): Point =>
+            axis.main === 'x' ? { x: main, y: cross } : { x: cross, y: main }
+          const route = [pt(srcMain, c1), pt(jog, c1), pt(jog, c2), pt(tgtMain, c2)]
+          // Crossings may not increase — unless the current route passes
+          // THROUGH a node (a hard defect, e.g. a later pass moved a node
+          // into the routed corridor): a legal crossing always beats an
+          // occlusion. The Z itself is lane-proved through clear space.
+          if (!routeThroughNodeBBox(edge, ctx) &&
+            countRouteCrossings(route, edge, ctx) > countRouteCrossings(edge.points, edge, ctx)) continue
+          if (edge.label) {
+            const slot = longFirst
+              ? findLabelSlot(edge, route[0]!, route[1]!, ctx)
+              : findLabelSlot(edge, route[2]!, route[3]!, ctx)
+            if (!slot) continue
+            edge.labelPosition = slot
+          }
+          edge.points = route
+          return true
+        }
+      }
     }
     return false
   }
@@ -655,9 +851,9 @@ export function applyRouteContracts(
    * immediately. Only existing channel geometry is reused, so every kept
    * segment was already proven by ELK; the one NEW segment is lane-proved.
    */
-  function tightenOuterFeedback(edge: PositionedEdge, ctx: LaneContext): void {
+  function tightenOuterFeedback(edge: PositionedEdge, ctx: LaneContext): boolean {
     const points = simplifyPolyline(edge.points)
-    if (points.length < 4) return
+    if (points.length < 4) return false
     const graphAxis = ctx.axis
     const crossOf = (pt: Point) => pt[graphAxis.cross]
     const mainOf = (pt: Point) => pt[graphAxis.main]
@@ -674,7 +870,7 @@ export function applyRouteContracts(
         break
       }
     }
-    if (runStart < 1) return // no excursion before the channel run
+    if (runStart < 1) return false // no excursion before the channel run
     const run = [points[runStart]!, points[runStart + 1]!]
     const runDir = Math.sign(mainOf(run[1]!) - mainOf(run[0]!))
     const p0 = points[0]!
@@ -766,10 +962,9 @@ export function applyRouteContracts(
         }
       }
     }
-    if (!tightened && !tailApplied) return
-    if (!tightened) return
+    if (!tightened) return false
     // Same rule as straightening: tightening may never increase crossings.
-    if (countRouteCrossings(simplifyPolyline(tightened), edge, ctx) > countRouteCrossings(edge.points, edge, ctx)) return
+    if (countRouteCrossings(simplifyPolyline(tightened), edge, ctx) > countRouteCrossings(edge.points, edge, ctx)) return false
     const before = edge.points
     edge.points = simplifyPolyline(tightened)
     // Re-place the label if its pill sat on a removed segment.
@@ -796,9 +991,11 @@ export function applyRouteContracts(
           edge.labelPosition = slot
         } else {
           edge.points = before // no honest label slot on the tightened loop: keep ELK's
+          return false
         }
       }
     }
+    return JSON.stringify(edge.points) !== JSON.stringify(before)
   }
 
   /**
@@ -825,7 +1022,7 @@ export function applyRouteContracts(
 
   const retry: Array<{ edge: PositionedEdge; cert: RouteCertificate }> = []
   for (const edge of positioned.edges) {
-    edge.points = simplifyPolyline(edge.points)
+    edge.points = simplifyPolyline(orthogonalizeResidualDiagonals(edge.points))
 
     const edgeIndex = edge.edgeIndex ?? -1
     const routeClass: RouteClass = classes[edgeIndex] ?? 'primary-forward'
@@ -847,8 +1044,23 @@ export function applyRouteContracts(
         cert.directLaneClear = true
         cert.straightened = true
       }
-    } else if ((routeClass === 'primary-forward' || routeClass === 'feedback') && cert.bendCount > 0) {
-      if (!attemptStraighten(edge, cert)) retry.push({ edge, cert })
+    } else if (routeClass === 'primary-forward' || routeClass === 'feedback') {
+      if (cert.bendCount > 0) {
+        if (!attemptStraighten(edge, cert).applied) retry.push({ edge, cert })
+      } else {
+        // Already straight, but possibly off-port: ELK's FREE placement can
+        // leave a straight lane floating beside the side midpoints. Re-lane
+        // through the ports when that proves clear — the candidate order
+        // tries the target port first and falls back to the current lane,
+        // so a blocked port lane leaves the edge untouched.
+        const sourceNode = nodeMap.get(edge.source)
+        const targetNode = nodeMap.get(edge.target)
+        if (sourceNode && targetNode &&
+          (!portAt(sourceNode, edge.points[0]!) || !portAt(targetNode, edge.points[edge.points.length - 1]!) ||
+            routeThroughNodeBBox(edge, ctx))) {
+          attemptStraighten(edge, cert)
+        }
+      }
     }
 
     edge.routeCertificate = cert
@@ -863,8 +1075,9 @@ export function applyRouteContracts(
     let changed = false
     for (const item of retry) {
       if (item.cert.invariant === 'unverified-shape') continue
-      if (attemptStraighten(item.edge, item.cert)) changed = true
-      else still.push(item)
+      const r = attemptStraighten(item.edge, item.cert)
+      if (r.applied || r.mutated) changed = true
+      if (!r.applied) still.push(item)
     }
     if (!changed) break
     retry.length = 0

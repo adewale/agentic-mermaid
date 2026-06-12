@@ -288,6 +288,44 @@ onto `W`/`E`/`N`/`S` ports. Sequence/timeline have no graph ports —
 their anchors are lifelines and intervals (issue #26 WS1 family
 certificates).
 
+### 6.2 Hardening found by the property oracles (layout-rubric harness)
+
+Randomized property tests over all shapes × directions × patterns
+(`src/__tests__/layout-rubric.test.ts`) drove these fixes — each was a real
+defect class found by a counterexample, now pinned:
+
+- **Shape-aware clipping for the whole catalog** (`src/shape-clipping.ts`):
+  circle/ellipse, stadium, hexagon, and cylinder outlines (clipping
+  previously existed only for diamonds, so off-port endpoints floated off
+  curved outlines). Cylinder cap clipping keeps the ray's own coordinate so
+  segments stay orthogonal.
+- **Occlusion-safe layer alignment**: `alignLayerNodes` no longer snaps a
+  layer when the move would park a node on an already-routed foreign edge
+  corridor — the root cause of stale through-node routes (rule 9 enforced
+  at the source).
+- **Through-node repair triggers**: a route passing through a node's bbox
+  triggers the Z-repair regardless of bend count, for primary, feedback,
+  and straight-certified edges; removing an occlusion outranks the
+  never-increase-crossings rule (a legal crossing beats an occlusion).
+- **Flat-side spans**: hexagon N/S, stadium N/S and cylinder E/W sides are
+  flat regions on the bbox edge, so they accept attachment anywhere on the
+  flat (yFiles overflow-candidate pattern); only the curved/pointed pair is
+  port-only. Duplicate edges from such shapes get parallel anchors instead
+  of fighting over one port.
+- **Fixed-point completeness**: geometry mutations from loop tightening and
+  Z-repairs drive the retry loop like straightenings do, and
+  `simplifyPolyline` iterates to a fixed point (ELK emits degenerate
+  zero-net spikes whose midpoints only become collinear after their
+  neighbors are removed).
+- **Residual diagonal orthogonalization**: ELK's feedback router rarely
+  joins a port with a 45° segment; such segments are replaced with an
+  axis-aligned elbow continuing the previous segment's axis.
+- **ELK crash degradation ladder**: the bundled GWT build of ELK throws
+  internal exceptions on rare dense multigraphs (one trigger pre-existing,
+  one via feedbackEdges). `layoutGraphSync` retries through progressively
+  plainer option sets; the route pass repairs whatever the survivor
+  produces. Crash-freedom is part of the renderer's contract.
+
 ## 7. Validation: the ROUTE_* tripwires (issue #25 Phase 1, complete)
 
 `verifyMermaid` gains six Tier 2 (geometric, advisory) warnings. The layout

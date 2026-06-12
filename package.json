@@ -104,7 +104,8 @@
     "mutation-test:families": "npx stryker run stryker.families.config.json",
     "mutation-test:routes": "npx stryker run stryker.routes.config.json",
     "lint": "bun test src/__tests__/agent-substrate-lint.test.ts",
-    "eval:agent-live": "bun run eval/agent-usage/live.ts"
+    "eval:agent-live": "bun run eval/agent-usage/live.ts",
+    "rubric:visual": "bun run eval/visual-rubric/run.ts"
   },
   "dependencies": {
     "@resvg/resvg-js": "2.6.2",
