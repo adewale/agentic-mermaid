@@ -332,6 +332,66 @@ A bi-directional pair therefore puts two lines on each facing side —
 the symmetric pair of rule 5 — while a retry diamond's forward side
 carries one line and gets the vertex.
 
+#### 6.2.1 Where multi-line attachment lands: competitive + literature grounding
+
+When a side carries several lines (rule 2), each line takes a straight
+lane into its own target's port, so the attachment points on the source
+facet are **target-determined** — they land wherever those lanes cross the
+facet, and are therefore *not* rotation-consistent across flow directions
+(a 2-way fan-out attaches at ~20%/80% of the facet in LR but ~6%/94% in
+TD, because ELK spaces siblings by node heights in one axis and widths in
+the other). This is a deliberate choice; the verified landscape
+(primary-source research, June 2026):
+
+- **Graphviz dot does what we do**: portless edges are "aimed at the
+  node's center and … clipped at the node's boundary" (dotguide §3.1,
+  TSE93 §5) — attachment is a byproduct of the route. Merging endpoints
+  is opt-in (`samehead`/`sametail`).
+- **ELK does the opposite**: FREE ports get a side from edge direction,
+  a crossing-minimal order (barycenter heuristic), then coordinates by
+  even distribution (`portAlignment=DISTRIBUTED`). Schulze/Spönemann/von
+  Hanxleden (JVLC 2014) themselves show even distribution causing
+  avoidable bends and name "local adjustments to eliminate edge bends"
+  (their Fig. 4b) as the alternative — the certifying straightener is
+  that adjustment, applied proof-first.
+- **yFiles splits the difference**: `PortAssignmentMode.DEFAULT`
+  "distributes ports evenly along the border of the node" (corner gap =
+  ½ inter-port gap — rotation-consistent), then buys straightness back
+  with a bounded correction (3.x `maximumPortDeviation`, default 3px;
+  2.x `straightenEdges` was off by default and mutually exclusive with
+  symmetric placement). Its flowchart-specific layer
+  (`FlowchartLayout`, demo source) instead *avoids* shared facets:
+  Yes-branches get `WithTheFlow`, No-branches `Flatwise` (a side
+  vertex), deterministically de-conflicted — as soft port candidates
+  that crossing minimization may override.
+- **Standards do NOT mandate vertex exits**: ISO 5807:1985 (verified via
+  its identical GOST 19.701-90 adoption) says lines enter left/top,
+  leave right/bottom, "directed toward the **center** of the symbol" —
+  dot's model, not a vertex rule. ANSI X3.5-1970 has no attachment rule
+  at all, and neither standard assigns yes/no to sides; both require
+  every decision exit to be labeled. Vertex exits (top in; left/right/
+  bottom out) are an IBM-illustrated convention (C20-8008 1959,
+  GC20-8152 1969) whose own text permits exit "in any direction".
+- **Academia has no direct answer**: the validated priority order is
+  crossings ≫ bends/continuity > symmetry (Purchase GD'97/JVLC 2002;
+  Ware et al. 2002 on path continuity), and the node-placement
+  literature trends toward straightness through ports (Brandes–Köpf;
+  Rüegg et al. GD'15). Port assignment exists as a named phase since
+  Sander (GD'95) — order from crossing reduction, raster coordinates —
+  and Eichelberger's UML aesthetics *desire* equal port spacing, but
+  **no study has ever compared attachment-point policies empirically**;
+  the question is settled by tool convention.
+
+Conclusion: straight-into-the-target-port maximizes the empirically
+supported aesthetics (zero bends, continuity, exact target ports) at the
+cost of the weakest one (rotation-consistent source attachment). The
+known divergence from yFiles/ELK even-spread is accepted. The principled
+fix for the asymmetry — if ever wanted — is not clamping facet fractions
+(that inverts the validated priority order by buying symmetry with
+bends) but yFiles-style **branch-direction assignment**: give each
+decision branch its own side pre-layout, so no facet carries two lines
+and every exit is a vertex (extends rule 1 to all branches).
+
 ### 6.3 Hardening found by the property oracles (layout-rubric harness)
 
 Randomized property tests over all shapes × directions × patterns
