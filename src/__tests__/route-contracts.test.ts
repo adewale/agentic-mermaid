@@ -2,7 +2,8 @@ import { describe, expect, it } from 'bun:test'
 import fc from 'fast-check'
 import { layoutGraphSync } from '../layout-engine.ts'
 import { parseMermaid } from '../parser.ts'
-import { classifyRoutes, findRouteHitches, simplifyPolyline } from '../route-contracts.ts'
+import { classifyRoutes, directLaneBlockers, findRouteHitches, simplifyPolyline } from '../route-contracts.ts'
+import { measureMultilineText } from '../text-metrics.ts'
 import { verifyMermaid } from '../agent/index.ts'
 import type { PositionedEdge, PositionedGraph } from '../types.ts'
 
@@ -177,6 +178,14 @@ describe('simplifyPolyline', () => {
     const line = [{ x: 1, y: 2 }, { x: 3, y: 4 }]
     expect(simplifyPolyline(line)).toBe(line)
   })
+
+  it('keeps genuine small bends (only sub-epsilon noise is removed)', () => {
+    const smallBend = [{ x: 0, y: 0 }, { x: 5, y: 2 }, { x: 10, y: 0 }]
+    expect(simplifyPolyline(smallBend)).toEqual(smallBend)
+    // Points 0.005 apart count as duplicates.
+    expect(simplifyPolyline([{ x: 0, y: 0 }, { x: 0.005, y: 0.005 }, { x: 10, y: 0 }]))
+      .toEqual([{ x: 0, y: 0 }, { x: 10, y: 0 }])
+  })
 })
 
 describe('certificates', () => {
@@ -221,7 +230,7 @@ describe('ROUTE_HITCH tripwire (issue #25 acceptance criterion 3)', () => {
     e.points = [a, { x: (a.x + b.x) / 2, y: a.y }, { x: (a.x + b.x) / 2, y: a.y + 10 }, { x: b.x, y: a.y + 10 }]
     const hitches = findRouteHitches(positioned, graph)
     expect(hitches.some(h => h.edge === 'B->C')).toBe(true)
-    expect(hitches.find(h => h.edge === 'B->C')!.deviationPx).toBeGreaterThan(0)
+    expect(hitches.find(h => h.edge === 'B->C')!.deviationPx).toBe(10)
   })
 
   it('validation never mutates the layout it inspects', () => {
@@ -233,6 +242,98 @@ describe('ROUTE_HITCH tripwire (issue #25 acceptance criterion 3)', () => {
     const before = JSON.stringify(positioned.edges.map(e => e.points))
     findRouteHitches(positioned, graph)
     expect(JSON.stringify(positioned.edges.map(e => e.points))).toBe(before)
+  })
+})
+
+describe('route contracts — RL and BT directions (mutation-survivor harvest)', () => {
+  it('RL: the reciprocal pair straightens the forward edge against the reversed axis', () => {
+    const edges = layoutEdges(`flowchart RL
+      A[User] --> B[Login Page]
+      B --> C{Valid?}
+      C -- No --> B`)
+    const e = findEdge(edges, 'B', 'C')
+    expect(isStraightHorizontal(e)).toBe(true)
+    expect(e.points[0]!.x).toBeGreaterThan(e.points[1]!.x) // forward flow runs right-to-left
+    expect(findEdge(edges, 'C', 'B').points.length).toBeGreaterThan(2)
+  })
+
+  it('BT: the reciprocal pair straightens the forward edge as a vertical lane running upward', () => {
+    const edges = layoutEdges(`flowchart BT
+      A[User] --> B[Login Page]
+      B --> C{Valid?}
+      C -- No --> B`)
+    const e = findEdge(edges, 'B', 'C')
+    expect(e.points.length).toBe(2)
+    expect(Math.abs(e.points[0]!.x - e.points[1]!.x)).toBeLessThan(0.01)
+    expect(e.points[0]!.y).toBeGreaterThan(e.points[1]!.y) // forward flow runs bottom-to-top
+    expect(findEdge(edges, 'C', 'B').points.length).toBeGreaterThan(2)
+  })
+})
+
+describe('directLaneBlockers (unit)', () => {
+  const axis = { main: 'x', cross: 'y', sign: 1 } as const
+  const style = { edgeLabelFontSize: 12, edgeLabelFontWeight: 400 }
+  const node = (id: string, x: number, y: number, w: number, h: number) =>
+    ({ id, label: id, shape: 'rectangle' as const, x, y, width: w, height: h })
+  const edge = (source: string, target: string, points: Array<{ x: number; y: number }>, extra: object = {}): PositionedEdge =>
+    ({ source, target, style: 'solid', hasArrowStart: false, hasArrowEnd: true, points, ...extra }) as PositionedEdge
+  const probe = edge('A', 'B', [{ x: 0, y: 50 }, { x: 100, y: 50 }])
+  const ctx = (over: Partial<{ nodes: unknown[]; edges: unknown[] }> = {}) =>
+    ({ nodes: [], edges: [], axis, style, ...over }) as Parameters<typeof directLaneBlockers>[4]
+
+  it('a node straddling the lane blocks; the same node beyond the 4px clearance does not', () => {
+    const blockedBy = (ny: number) =>
+      directLaneBlockers(probe, 50, 0, 100, ctx({ nodes: [node('X', 40, ny, 20, 20)] }))
+    expect(blockedBy(40)).toEqual([{ kind: 'node', id: 'X' }]) // node spans y 40..60, lane y=50
+    expect(blockedBy(53)).toEqual([{ kind: 'node', id: 'X' }]) // top edge at 53: 53 - 4 < 50 still blocks
+    expect(blockedBy(55)).toEqual([])                          // top edge at 55: 55 - 4 >= 50 clears
+    expect(blockedBy(27)).toEqual([{ kind: 'node', id: 'X' }]) // bottom edge at 47: 47 + 4 > 50 still blocks
+    expect(blockedBy(25)).toEqual([])                          // bottom edge at 45: 45 + 4 < 50 clears
+  })
+
+  it('a node outside the main-axis range never blocks', () => {
+    const blockers = directLaneBlockers(probe, 50, 0, 100, ctx({ nodes: [node('X', 200, 40, 20, 20)] }))
+    expect(blockers).toEqual([])
+  })
+
+  it("another edge's label blocks the lane within its measured rect plus clearance", () => {
+    const m = measureMultilineText('No', 12, 400)
+    const other = (lx: number, ly: number) =>
+      edge('P', 'Q', [{ x: 300, y: 200 }, { x: 320, y: 200 }], { label: 'No', labelPosition: { x: lx, y: ly } })
+    const at = (lx: number, ly: number) =>
+      directLaneBlockers(probe, 50, 0, 100, ctx({ edges: [other(lx, ly)] }))
+    expect(at(50, 50)).toEqual([{ kind: 'label', id: 'P->Q' }])
+    // Cross-axis boundary: label center just inside / outside h/2 + 4px clearance.
+    expect(at(50, 50 + m.height / 2 + 4 - 0.5)).toEqual([{ kind: 'label', id: 'P->Q' }])
+    expect(at(50, 50 + m.height / 2 + 4 + 0.5)).toEqual([])
+    // Main-axis boundary: label fully past the lane end plus clearance.
+    expect(at(100 + m.width / 2 + 4 + 0.5, 50)).toEqual([])
+  })
+
+  it('a collinear parallel segment within 4px is a channel conflict; a perpendicular crossing is not', () => {
+    const parallel = edge('P', 'Q', [{ x: 20, y: 53 }, { x: 80, y: 53 }])
+    expect(directLaneBlockers(probe, 50, 0, 100, ctx({ edges: [parallel] })))
+      .toEqual([{ kind: 'channel', id: 'P->Q' }])
+    const farParallel = edge('P', 'Q', [{ x: 20, y: 55 }, { x: 80, y: 55 }])
+    expect(directLaneBlockers(probe, 50, 0, 100, ctx({ edges: [farParallel] }))).toEqual([])
+    const crossing = edge('P', 'Q', [{ x: 50, y: 0 }, { x: 50, y: 100 }])
+    expect(directLaneBlockers(probe, 50, 0, 100, ctx({ edges: [crossing] }))).toEqual([])
+    const parallelOutsideRange = edge('P', 'Q', [{ x: 150, y: 50 }, { x: 250, y: 50 }])
+    expect(directLaneBlockers(probe, 50, 0, 100, ctx({ edges: [parallelOutsideRange] }))).toEqual([])
+  })
+
+  it('an edge never blocks its own lane, even via a positional copy (same edgeIndex)', () => {
+    const original = edge('A', 'B', [{ x: 0, y: 50 }, { x: 100, y: 50 }], { edgeIndex: 7 })
+    const copy = { ...original, points: original.points.map(p => ({ ...p })) }
+    expect(directLaneBlockers(copy, 50, 0, 100, ctx({ edges: [original] }))).toEqual([])
+  })
+
+  it("the edge's own label needs lane capacity: width + 8px clearance", () => {
+    const m = measureMultilineText('quite a long edge label', 12, 400)
+    const labeled = edge('A', 'B', [{ x: 0, y: 50 }, { x: 100, y: 50 }], { label: 'quite a long edge label' })
+    expect(directLaneBlockers(labeled, 50, 0, m.width + 8 - 1, ctx()))
+      .toEqual([{ kind: 'label', id: 'A->B' }])
+    expect(directLaneBlockers(labeled, 50, 0, m.width + 8 + 1, ctx())).toEqual([])
   })
 })
 
