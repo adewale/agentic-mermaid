@@ -335,6 +335,59 @@ describe('directLaneBlockers (unit)', () => {
       .toEqual([{ kind: 'label', id: 'A->B' }])
     expect(directLaneBlockers(labeled, 50, 0, m.width + 8 + 1, ctx())).toEqual([])
   })
+
+  describe('vertical axis (TD): same proofs with main/cross swapped', () => {
+    const vAxis = { main: 'y', cross: 'x', sign: 1 } as const
+    const vProbe = edge('A', 'B', [{ x: 50, y: 0 }, { x: 50, y: 100 }])
+    const vCtx = (over: Partial<{ nodes: unknown[]; edges: unknown[] }> = {}) =>
+      ({ nodes: [], edges: [], axis: vAxis, style, ...over }) as Parameters<typeof directLaneBlockers>[4]
+
+    it('node clearance boundaries use width on the cross axis and height on the main axis', () => {
+      // Non-square node: w=20 (cross), h=40 (main). Lane x=50 over y 0..100.
+      const blockedBy = (nx: number) =>
+        directLaneBlockers(vProbe, 50, 0, 100, vCtx({ nodes: [node('X', nx, 30, 20, 40)] }))
+      expect(blockedBy(40)).toEqual([{ kind: 'node', id: 'X' }]) // spans x 40..60
+      expect(blockedBy(53)).toEqual([{ kind: 'node', id: 'X' }]) // left edge 53 - 4 < 50
+      expect(blockedBy(55)).toEqual([])                          // left edge 55 - 4 >= 50
+      expect(blockedBy(27)).toEqual([{ kind: 'node', id: 'X' }]) // right edge 47 + 4 > 50
+      expect(blockedBy(25)).toEqual([])
+      // Main-axis range honors height: node at y 110..150 is past the lane end (100 + 4).
+      expect(directLaneBlockers(vProbe, 50, 0, 100, vCtx({ nodes: [node('X', 45, 110, 20, 40)] }))).toEqual([])
+      expect(directLaneBlockers(vProbe, 50, 0, 100, vCtx({ nodes: [node('X', 45, 102, 20, 40)] })))
+        .toEqual([{ kind: 'node', id: 'X' }])
+    })
+
+    it('label rects swap width/height between axes', () => {
+      const m = measureMultilineText('No', 12, 400)
+      const other = (lx: number, ly: number) =>
+        edge('P', 'Q', [{ x: 300, y: 200 }, { x: 300, y: 220 }], { label: 'No', labelPosition: { x: lx, y: ly } })
+      const at = (lx: number, ly: number) =>
+        directLaneBlockers(vProbe, 50, 0, 100, vCtx({ edges: [other(lx, ly)] }))
+      expect(at(50, 50)).toEqual([{ kind: 'label', id: 'P->Q' }])
+      // Cross axis is x: boundary at w/2 + 4.
+      expect(at(50 + m.width / 2 + 4 - 0.5, 50)).toEqual([{ kind: 'label', id: 'P->Q' }])
+      expect(at(50 + m.width / 2 + 4 + 0.5, 50)).toEqual([])
+      // Main axis is y: boundary at h/2 + 4 past the lane end.
+      expect(at(50, 100 + m.height / 2 + 4 + 0.5)).toEqual([])
+      expect(at(50, 100 + m.height / 2 + 4 - 0.5)).toEqual([{ kind: 'label', id: 'P->Q' }])
+    })
+
+    it('channel conflicts are vertical segments here; horizontal crossings are fine', () => {
+      const parallel = edge('P', 'Q', [{ x: 53, y: 20 }, { x: 53, y: 80 }])
+      expect(directLaneBlockers(vProbe, 50, 0, 100, vCtx({ edges: [parallel] })))
+        .toEqual([{ kind: 'channel', id: 'P->Q' }])
+      const crossing = edge('P', 'Q', [{ x: 0, y: 50 }, { x: 100, y: 50 }])
+      expect(directLaneBlockers(vProbe, 50, 0, 100, vCtx({ edges: [crossing] }))).toEqual([])
+    })
+
+    it('own-label capacity uses label height on a vertical lane', () => {
+      const m = measureMultilineText('No', 12, 400)
+      const labeled = edge('A', 'B', [{ x: 50, y: 0 }, { x: 50, y: 100 }], { label: 'No' })
+      expect(directLaneBlockers(labeled, 50, 0, m.height + 8 - 1, vCtx()))
+        .toEqual([{ kind: 'label', id: 'A->B' }])
+      expect(directLaneBlockers(labeled, 50, 0, m.height + 8 + 1, vCtx())).toEqual([])
+    })
+  })
 })
 
 describe('route contracts — properties', () => {
