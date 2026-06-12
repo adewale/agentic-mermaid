@@ -796,6 +796,110 @@ describe('route audit tripwires fire on post-certification corruption', () => {
   })
 })
 
+describe('route audit — boundary harvest', () => {
+  it('shared-trunk detection works for vertical trunks and respects the collinearity clearance', () => {
+    const graph = parseMermaid('flowchart TD\n  A -- down --> B\n  C --> D')
+    const positioned = layoutGraphSync(graph)
+    const labeled = findEdge(positioned.edges, 'A', 'B')
+    const other = findEdge(positioned.edges, 'C', 'D')
+    // Both edges share a vertical line under the pill: flagged.
+    labeled.points = [{ x: 100, y: 0 }, { x: 100, y: 200 }]
+    labeled.labelPosition = { x: 100, y: 100 }
+    other.points = [{ x: 102, y: 50 }, { x: 102, y: 150 }]
+    expect(auditRouteContracts(positioned, graph).map(f => f.code)).toContain('ROUTE_LABEL_ON_SHARED_TRUNK')
+    // Beyond the 4px collinearity clearance: parallel but distinct lanes — not shared.
+    other.points = [{ x: 105, y: 50 }, { x: 105, y: 150 }]
+    expect(auditRouteContracts(positioned, graph).filter(f => f.code === 'ROUTE_LABEL_ON_SHARED_TRUNK')).toEqual([])
+    // Outside the pill on the main axis: collinear but elsewhere — not shared.
+    const m = measureMultilineText('down', 12, 400)
+    const pillBottom = 100 + (m.height + 16) / 2
+    other.points = [{ x: 100, y: pillBottom + 1 }, { x: 100, y: pillBottom + 60 }]
+    expect(auditRouteContracts(positioned, graph).filter(f => f.code === 'ROUTE_LABEL_ON_SHARED_TRUNK')).toEqual([])
+  })
+
+  it('stale vs shape-misanchor boundary: ±2px detachment separates the two codes', () => {
+    const graph = parseMermaid('flowchart LR\n  A --> B')
+    const positioned = layoutGraphSync(graph)
+    const e = findEdge(positioned.edges, 'A', 'B')
+    const b = positioned.nodes.find(n => n.id === 'B')!
+    const startOnA = e.points[0]!
+    // 1.5px short of B's border: still "attached" (within 2px) but off the
+    // perimeter beyond 1px tolerance -> shape misanchor, not stale.
+    e.points = [startOnA, { x: b.x - 1.5, y: b.y + b.height / 2 }]
+    let codes = auditRouteContracts(positioned, graph).map(f => f.code)
+    expect(codes).toContain('ROUTE_SHAPE_MISANCHOR')
+    expect(codes).not.toContain('ROUTE_STALE_AFTER_NODE_MOVE')
+    // 3px short: detached entirely -> stale.
+    e.points = [startOnA, { x: b.x - 3, y: b.y + b.height / 2 }]
+    codes = auditRouteContracts(positioned, graph).map(f => f.code)
+    expect(codes).toContain('ROUTE_STALE_AFTER_NODE_MOVE')
+    expect(codes).not.toContain('ROUTE_SHAPE_MISANCHOR')
+    // Exactly on the border: silent.
+    e.points = [startOnA, { x: b.x, y: b.y + b.height / 2 }]
+    expect(auditRouteContracts(positioned, graph)).toEqual([])
+  })
+
+  it('container perimeter tolerance: 0.5px off is fine, 1.5px off fires', () => {
+    const graph = parseMermaid('flowchart TD\n  Start --> Pipeline\n  subgraph Pipeline\n    F --> P\n  end')
+    const positioned = layoutGraphSync(graph)
+    const e = findEdge(positioned.edges, 'Start', 'Pipeline')
+    const end = e.points[e.points.length - 1]!
+    e.points = [...e.points.slice(0, -1), { x: end.x, y: end.y - 0.5 }]
+    expect(auditRouteContracts(positioned, graph).filter(f => f.code === 'ROUTE_CONTAINER_MISANCHOR')).toEqual([])
+    e.points = [...e.points.slice(0, -1), { x: end.x, y: end.y - 1.5 }]
+    expect(auditRouteContracts(positioned, graph).map(f => f.code)).toContain('ROUTE_CONTAINER_MISANCHOR')
+  })
+})
+
+describe('container repair — axis selection harvest', () => {
+  function flat(groups: PositionedGraph['groups'], out: PositionedGraph['groups'] = []): PositionedGraph['groups'] {
+    for (const g of groups) { out.push(g); flat(g.children, out) }
+    return out
+  }
+
+  it('side-by-side containers repair onto a horizontal lane', () => {
+    const positioned = layoutGraphSync(parseMermaid(`flowchart TD
+  subgraph TOP
+    direction LR
+    subgraph B1
+        direction TB
+        i1 --> f1
+    end
+    subgraph B2
+        direction TB
+        i2 --> f2
+    end
+  end
+  A --> TOP --> B
+  B1 --> B2`))
+    const e = findEdge(positioned.edges, 'B1', 'B2')
+    const groups = flat(positioned.groups)
+    const b1 = groups.find(g => g.id === 'B1')!
+    const b2 = groups.find(g => g.id === 'B2')!
+    expect(e.points.length).toBe(2)
+    const [s, end] = e.points as [{ x: number; y: number }, { x: number; y: number }]
+    // Horizontal border-to-border lane: B1's right border to B2's left border.
+    expect(Math.abs(s.y - end.y)).toBeLessThan(0.01)
+    expect(Math.abs(s.x - (b1.x + b1.width))).toBeLessThan(1)
+    expect(Math.abs(end.x - b2.x)).toBeLessThan(1)
+    expect(s.y).toBeGreaterThan(b1.y)
+    expect(s.y).toBeLessThan(b1.y + b1.height)
+    expect(e.routeCertificate?.straightened).toBe(true)
+  })
+
+  it('a non-straightenable node end (circle) declines repair gracefully', () => {
+    const graph = parseMermaid(`flowchart TD
+      S((Start)) --> Pipeline
+      subgraph Pipeline
+        F --> P
+      end`)
+    // Must not throw, and the edge still certifies as container-attach.
+    const positioned = layoutGraphSync(graph)
+    const e = findEdge(positioned.edges, 'S', 'Pipeline')
+    expect(e.routeCertificate?.invariant).toBe('container-attach')
+  })
+})
+
 describe('route contracts — properties', () => {
   const flowchartArb = fc
     .record({
