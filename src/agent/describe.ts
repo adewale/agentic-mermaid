@@ -17,6 +17,9 @@ import type {
 } from './types.ts'
 import { getFamily, extractLabelsGeneric } from './families.ts'
 import './families-builtin.ts'
+import { parseGanttModel } from '../gantt/parser.ts'
+import { resolveGanttSchedule, formatGanttInstant } from '../gantt/schedule.ts'
+import { toMermaidLines } from '../mermaid-source.ts'
 
 export interface DescribeOptions {
   /** 'text' (default): prose summary. 'json': structured AX tree (#7349). */
@@ -55,6 +58,7 @@ export function describeMermaid(d: ValidDiagram, opts: DescribeOptions = {}): st
   if (d.body.kind === 'journey') return describeJourney(d.body)
   if (d.body.kind === 'architecture') return describeArchitecture(d.body)
   if (d.body.kind === 'xychart') return describeXyChart(d.body)
+  if (d.body.kind === 'gantt') return describeGantt(d as ValidDiagram & { body: import('./types.ts').GanttBody })
   if (d.body.kind === 'opaque') return describeOpaque(d.kind, d.body.source)
   return `A ${d.kind} diagram (structured editing not yet supported).`
 }
@@ -105,6 +109,23 @@ export function describeMermaidTree(d: ValidDiagram): DescribeTree {
   } else if (d.body.kind === 'xychart') {
     // Series are the nodes of an xychart AX tree; charts have no edges.
     for (const s of d.body.series) tree.nodes.push({ id: s.id, label: s.name || `${s.kind} series` })
+  } else if (d.body.kind === 'gantt') {
+    // Tasks are the nodes; after/until references are the edges, so the
+    // generic entry/sink pass below reports dependency entry tasks and sinks.
+    for (const s of d.body.sections) for (const t of s.tasks) {
+      tree.nodes.push({ id: t.taskId ?? t.id, label: t.label })
+    }
+    const idOf = new Map<string, string>()
+    for (const s of d.body.sections) for (const t of s.tasks) if (t.taskId) idOf.set(t.taskId, t.taskId)
+    for (const s of d.body.sections) for (const t of s.tasks) {
+      for (const [expr, label] of [[t.start, 'after'], [t.end, 'until']] as const) {
+        const m = expr?.match(/^(?:after|until)\s+(.+)$/)
+        if (!m || !expr!.startsWith(label)) continue
+        for (const ref of m[1]!.split(/\s+/).filter(Boolean)) {
+          if (idOf.has(ref)) tree.edges.push({ from: ref, to: t.taskId ?? t.id, label })
+        }
+      }
+    }
   } else if (d.body.kind === 'opaque') {
     const plugin = getFamily(d.kind)
     const labels = (plugin?.extractLabels ?? extractLabelsGeneric)(d.body.source)
@@ -261,6 +282,38 @@ function describeEr(d: ErValidDiagram): string {
   let s = `An ER diagram with ${entities.length} entities.`
   if (names.length > 0) s += ` Entities: ${names.join(', ')}.`
   if (relStr.length > 0) s += ` Relations: ${relStr.join('; ')}.`
+  return s
+}
+
+function describeGantt(d: ValidDiagram & { body: import('./types.ts').GanttBody }): string {
+  const body = d.body
+  const tasks = body.sections.flatMap(s => s.tasks)
+  let s = `A Gantt chart${body.title ? ` titled "${body.title}"` : ''} with ${body.sections.filter(sec => sec.label !== undefined).length} sections and ${tasks.length} tasks.`
+
+  // Resolve the schedule for date range / critical path; raw expressions are
+  // the fallback when the source needs context this body cannot see.
+  try {
+    const schedule = resolveGanttSchedule(parseGanttModel(toMermaidLines(d.canonicalSource)))
+    const fmt = schedule.dateOnly ? '%Y-%m-%d' : '%Y-%m-%d %H:%M'
+    s += ` Schedule: ${formatGanttInstant(schedule.timeMin, fmt)} to ${formatGanttInstant(schedule.timeMax, fmt)}.`
+    if (schedule.analysis && schedule.analysis.criticalPathTaskIds.length > 0) {
+      s += ` Critical path: ${schedule.analysis.criticalPathTaskIds.join(' -> ')}.`
+    }
+  } catch { /* unresolvable schedule: keep the structural summary */ }
+
+  const sectionLabels = body.sections.map(sec => sec.label).filter((l): l is string => l !== undefined)
+  if (sectionLabels.length > 0) s += ` Sections: ${sectionLabels.join(', ')}.`
+  const taskStr = tasks.map(t => {
+    const bits: string[] = []
+    const status = t.tags.find(tag => tag === 'done' || tag === 'active' || tag === 'crit')
+    if (status) bits.push(status)
+    if (t.tags.includes('milestone')) bits.push('milestone')
+    if (t.tags.includes('vert')) bits.push('vert marker')
+    if (t.start) bits.push(t.start)
+    bits.push(t.end)
+    return `${t.label} (${bits.join(', ')})`
+  })
+  if (taskStr.length > 0) s += ` Tasks: ${taskStr.join('; ')}.`
   return s
 }
 

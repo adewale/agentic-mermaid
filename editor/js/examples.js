@@ -173,6 +173,24 @@ var EDITOR_EXAMPLES = [
     options: { interactive: true },
   },
   {
+    id: 'gantt-basic',
+    label: 'Gantt chart',
+    category: 'Supported diagrams',
+    diagramType: 'Gantt',
+    description: 'Sections, dependencies, status tags, and a milestone.',
+    source: `gantt
+  title Release train
+  dateFormat YYYY-MM-DD
+  excludes weekends
+  section Build
+    Completed task :done, des1, 2024-01-08, 2024-01-10
+    Active task    :active, des2, 2024-01-11, 3d
+    Future task    :des3, after des2, 5d
+  section Ship
+    Crit review    :crit, rev1, after des3, 2d
+    Release        :milestone, m1, after rev1, 0d`,
+  },
+  {
     id: 'styled-flowchart',
     label: 'Styled flowchart',
     category: 'Role style presets',

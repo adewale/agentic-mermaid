@@ -279,4 +279,12 @@ export interface RenderOptions {
    * mode explicitly. See SECURITY.md.
    */
   security?: 'default' | 'strict'
+
+  /**
+   * Explicit "today" for the Gantt `todayMarker` (a date in the diagram's
+   * `dateFormat`, or ISO `YYYY-MM-DD`). Gantt rendering never reads the wall
+   * clock; without this value the today marker is simply not drawn, and
+   * `todayMarker off` disables it even when a clock is supplied.
+   */
+  ganttToday?: string
 }

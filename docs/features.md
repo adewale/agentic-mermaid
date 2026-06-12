@@ -8,16 +8,18 @@ What Agentic Mermaid can do, organized by capability area. The npm import paths 
 - **`parseMermaid(source)`** → `Result<ValidDiagram, ParseError[]>`. Never
   throws on malformed input; structured errors.
 - **`mutate(d, op)`** — family-overloaded typed mutation. Ops per family:
-  flowchart (6), state (8), sequence (5), timeline (10), class (10), ER (7).
+  flowchart (6), state (8), sequence (5), timeline (10), class (10), ER (7),
+  journey (10), architecture (10), xychart (8), pie (7), quadrant (7), gantt (9).
 - **`verifyMermaid(d, opts)`** — structural verification (no pixels).
 - **`serializeMermaid(d)`** — back to canonical source.
 - **Round-trip** — structured bodies serialize to canonical, idempotent
   source; opaque bodies preserve original indentation/comments verbatim.
-- **Narrowers** — `asFlowchart`/`asState`/`asSequence`/`asTimeline`/`asClass`/`asEr`
+- **Narrowers** — `asFlowchart`/`asState`/`asSequence`/`asTimeline`/`asClass`/`asEr`/
+  `asJourney`/`asArchitecture`/`asXyChart`/`asPie`/`asQuadrant`/`asGantt`
   return `null` on a non-matching or source-level/opaque body (steers agents
   off the unsafe path).
 
-## Diagram families (11)
+## Diagram families (12)
 
 | Family | Parse/render/round-trip | Structured mutation |
 |---|---|---|
@@ -32,6 +34,7 @@ What Agentic Mermaid can do, organized by capability area. The npm import paths 
 | Architecture | ✅ | ✅ (10 ops via `asArchitecture`) |
 | Pie | ✅ | ✅ (7 ops via `asPie`) |
 | Quadrant | ✅ | ✅ (7 ops via `asQuadrant`) |
+| Gantt | ✅ | ✅ (9 ops via `asGantt`; calendar directives/click/comments ride along verbatim as segments) |
 
 **Structured-or-opaque rule:** every family either has a structured body
 or preserves source verbatim. Constructs are never silently dropped.

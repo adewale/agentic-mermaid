@@ -28,6 +28,7 @@ import { parseXyChartBody, renderXyChart, mutateXyChart, verifyXyChart } from '.
 import { parsePieBody, renderPie, mutatePie, verifyPie } from './pie-body.ts'
 import { parseQuadrantBody, renderQuadrant, mutateQuadrant, verifyQuadrant } from './quadrant-body.ts'
 import { parseStateBody, renderState, mutateState, verifyState } from './state-body.ts'
+import { parseGanttBody, renderGantt, mutateGantt, verifyGantt } from './gantt-body.ts'
 import { parseFlowchartBody, renderFlowchart, mutateFlowchart, buildFlowchartSourceMap, type FlowchartBody } from './flowchart-body.ts'
 
 // Build the structured-or-opaque hook set shared by every structured family
@@ -599,6 +600,71 @@ registerFamily({
     headerOk: h => /^quadrantchart\s*$/i.test(h),
     parseBody: parseQuadrantBody, serialize: renderQuadrant, mutate: mutateQuadrant,
   }),
+})
+
+// ---- Gantt ------------------------------------------------------------------
+// title T, section S, task lines `Label : meta`, plus directive labels that
+// matter for LABEL_OVERFLOW on opaque bodies (accTitle/accDescr, todayMarker
+// excluded — they are styling/config, not display labels).
+function extractGanttLabels(source: string): ExtractedLabel[] {
+  const out: ExtractedLabel[] = []
+  const lines = source.split(/\r?\n/)
+  for (let i = 0; i < lines.length; i++) {
+    const raw = lines[i]!.trim()
+    if (!raw || raw.startsWith('%%')) continue
+    const target = `line${i + 1}`
+    let m
+    if (/^gantt\s*$/i.test(raw)) continue
+    if ((m = raw.match(/^(?:title|section)\s+(.+)$/i))) {
+      out.push({ text: m[1]!.trim(), target })
+      continue
+    }
+    if ((m = raw.match(/^acc(?:Title|Descr)\s*:\s*(.+)$/i))) {
+      out.push({ text: m[1]!.trim(), target })
+      continue
+    }
+    // Directive lines carry config values, not labels.
+    if (/^(dateFormat|axisFormat|tickInterval|inclusiveEndDates|topAxis|excludes|includes|todayMarker|weekday|weekend|click|accDescr)\b/i.test(raw)) continue
+    // Task line: the label is everything before the first colon.
+    const colon = raw.indexOf(':')
+    if (colon > 0) {
+      const text = raw.slice(0, colon).trim()
+      if (text) out.push({ text, target })
+    }
+  }
+  return out
+}
+
+// Gantt parse needs the RAW (indentation-preserving) body lines so opaque
+// segments (directives, click lines, comments) round-trip verbatim — the
+// same wiring as sequence, except the header is located rather than assumed
+// to be raw line 0 (leading blank lines must not duplicate the header).
+function ganttRawBodyLines(opaqueSource: string): string[] {
+  const raw = opaqueSource.split(/\r?\n/)
+  const headerAt = raw.findIndex(l => /^gantt\b/i.test(l.trim()))
+  return headerAt >= 0 ? raw.slice(headerAt + 1) : raw.slice(1)
+}
+
+registerFamily({
+  id: 'gantt',
+  detect: l => l.startsWith('gantt'),
+  extractLabels: extractGanttLabels,
+  // Source-level structural checks (EMPTY/LABEL_OVERFLOW/EDGE_MISANCHORED on
+  // after/until refs); see docs/design/gantt.md §Verification.
+  verify: (body, opts) => body.kind === 'gantt' ? verifyGantt(body, opts) : [],
+  parse: (lines, opaqueSource) => {
+    const headerOk = /^gantt\s*$/i.test(lines[0]?.trim() ?? '')
+    const body = headerOk ? parseGanttBody(lines.slice(1), ganttRawBodyLines(opaqueSource)) : null
+    return ok(body ?? { kind: 'opaque', family: 'gantt', source: opaqueSource })
+  },
+  serialize: body => {
+    if (body.kind !== 'gantt') throw new Error(`gantt serializer received body kind ${body.kind}`)
+    return renderGantt(body)
+  },
+  mutate: (body, op) => {
+    if (body.kind !== 'gantt') return err<MutationError>({ code: 'INVALID_OP', message: `gantt mutator received body kind ${body.kind}` })
+    return mutateGantt(body, op as never)
+  },
 })
 
 // ---- Architecture ---------------------------------------------------------

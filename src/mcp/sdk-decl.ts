@@ -19,7 +19,7 @@ type MermaidRuntimeConfig = {
 }
 
 type DiagramKind = 'flowchart' | 'state' | 'sequence' | 'class' | 'er'
-                 | 'timeline' | 'journey' | 'xychart' | 'architecture' | 'pie' | 'quadrant'
+                 | 'timeline' | 'journey' | 'xychart' | 'architecture' | 'pie' | 'quadrant' | 'gantt'
 
 interface ValidDiagram {
   readonly kind: DiagramKind
@@ -41,6 +41,7 @@ interface ValidDiagram {
     | XyChartBody
     | PieBody
     | QuadrantBody
+    | GanttBody
     | { kind: 'opaque'; family: DiagramKind; source: string }
   readonly canonicalSource: string   // normalized renderer input; opaque fidelity uses body.source
 }
@@ -56,6 +57,7 @@ type ArchitectureValidDiagram = ValidDiagram & { body: ArchitectureBody }
 type XyChartValidDiagram   = ValidDiagram & { body: XyChartBody }
 type PieValidDiagram       = ValidDiagram & { body: PieBody }
 type QuadrantValidDiagram  = ValidDiagram & { body: QuadrantBody }
+type GanttValidDiagram     = ValidDiagram & { body: GanttBody }
 
 interface FlowchartGraph {
   direction: 'TD' | 'TB' | 'LR' | 'BT' | 'RL'
@@ -124,6 +126,22 @@ interface QuadrantPoint { label: string; x: number; y: number }   // x,y in [0,1
 // quadrants indexed 0-based; index n-1 holds Mermaid quadrant-n
 // (1=top-right, 2=top-left, 3=bottom-left, 4=bottom-right)
 interface QuadrantBody { kind: 'quadrant'; title?: string; xAxis?: QuadrantAxis; yAxis?: QuadrantAxis; quadrants: [string?, string?, string?, string?]; points: QuadrantPoint[] }
+
+type GanttTaskTag = 'active' | 'done' | 'crit' | 'milestone' | 'vert'
+// start: a date in the diagram's dateFormat or 'after id…'; undefined = previous task's end.
+// end: a date, a duration token ('3d', '2w'), or 'until id…'.
+interface GanttTask { id: string; taskId?: string; label: string; tags: GanttTaskTag[]; start?: string; end: string }
+interface GanttSection { id: string; label?: string; tasks: GanttTask[] }
+// Segment-preserving body: calendar directives (dateFormat, excludes, weekend…),
+// click lines, and comments ride along VERBATIM as opaque-block segments — they
+// are preserved, not typed-editable. Tasks inside opaque segments are invisible
+// to mutation ops.
+type GanttStatement =
+  | { kind: 'title' }
+  | { kind: 'section'; ref: number }
+  | { kind: 'task'; section: number; ref: number }
+  | { kind: 'opaque-block'; lines: string[] }
+interface GanttBody { kind: 'gantt'; title?: string; sections: GanttSection[]; statements?: GanttStatement[] }
 
 type FlowchartMutationOp =
   | { kind: 'add_node'; id: string; label: string; shape?: string; parent?: string }
@@ -236,6 +254,17 @@ type QuadrantMutationOp =
   | { kind: 'move_point'; label: string; x: number; y: number }
   | { kind: 'rename_point'; from: string; to: string }
 
+type GanttMutationOp =
+  | { kind: 'set_title'; title: string | null }
+  | { kind: 'add_section'; label: string }
+  | { kind: 'rename_section'; index: number; label: string }
+  | { kind: 'remove_section'; index: number }
+  | { kind: 'add_task'; sectionIndex: number; label: string; taskId?: string; tags?: GanttTaskTag[]; start?: string; end: string }
+  | { kind: 'remove_task'; sectionIndex: number; taskIndex: number }
+  | { kind: 'rename_task'; sectionIndex: number; taskIndex: number; label: string }
+  | { kind: 'set_task_status'; sectionIndex: number; taskIndex: number; status: 'active' | 'done' | 'crit' | null }
+  | { kind: 'set_task_dates'; sectionIndex: number; taskIndex: number; start?: string | null; end?: string }
+
 // Tier 1 (structural, reliable): EMPTY_DIAGRAM, EDGE_MISANCHORED, OFF_CANVAS,
 //   GROUP_BREACH, UNKNOWN_SHAPE, LABEL_OVERFLOW (source-based char-cap).
 // Tier 2 (geometric, advisory): NODE_OVERLAP, ROUTE_SELF_CROSS.
@@ -264,6 +293,7 @@ declare const mermaid: {
   asXyChart(d: ValidDiagram):   XyChartValidDiagram | null
   asPie(d: ValidDiagram):       PieValidDiagram | null
   asQuadrant(d: ValidDiagram):  QuadrantValidDiagram | null
+  asGantt(d: ValidDiagram):     GanttValidDiagram | null
   mutate(d: FlowchartValidDiagram, op: FlowchartMutationOp): Result<FlowchartValidDiagram, { code: string; message: string }>
   mutate(d: StateValidDiagram,     op: StateMutationOp):     Result<StateValidDiagram, { code: string; message: string }>
   mutate(d: SequenceValidDiagram,  op: SequenceMutationOp):  Result<SequenceValidDiagram, { code: string; message: string }>
@@ -275,6 +305,7 @@ declare const mermaid: {
   mutate(d: XyChartValidDiagram,   op: XyChartMutationOp):   Result<XyChartValidDiagram, { code: string; message: string }>
   mutate(d: PieValidDiagram,       op: PieMutationOp):       Result<PieValidDiagram, { code: string; message: string }>
   mutate(d: QuadrantValidDiagram,  op: QuadrantMutationOp):  Result<QuadrantValidDiagram, { code: string; message: string }>
+  mutate(d: GanttValidDiagram,     op: GanttMutationOp):     Result<GanttValidDiagram, { code: string; message: string }>
   verifyMermaid(input: ValidDiagram | string, opts?: { suppress?: WarningCode[]; labelCharCap?: number }): VerifyResult
   serializeMermaid(d: ValidDiagram): string
   renderMermaidSVG(input: ValidDiagram | string, opts?: { security?: 'default' | 'strict'; idPrefix?: string; mermaidConfig?: MermaidRuntimeConfig }): string
@@ -286,10 +317,12 @@ declare const mermaid: {
 // 2. For existing structured diagrams, use mutate() + verify + serializeMermaid();
 //    do not regenerate/concatenate source when a typed op exists.
 // 3. mutate works on flowchart, state, simple sequence, timeline, class, ER,
-//    journey, architecture, xychart, pie, and quadrant. Narrow via asFlowchart/
-//    asState/asSequence/asTimeline/asClass/asEr/asJourney/asArchitecture/
-//    asXyChart/asPie/asQuadrant.
+//    journey, architecture, xychart, pie, quadrant, and gantt. Narrow via
+//    asFlowchart/asState/asSequence/asTimeline/asClass/asEr/asJourney/
+//    asArchitecture/asXyChart/asPie/asQuadrant/asGantt.
 //    State owns a dedicated body (BUILD-19); asFlowchart returns null on it.
+//    Gantt bodies are segment-preserving: directives/click/comment lines ride
+//    along verbatim as opaque-block segments and are edited as source only.
 //    Opaque-fallback
 //    bodies (unmodeled syntax) are source-level only; if explicitly edited as
 //    text, re-parse and verify before returning.

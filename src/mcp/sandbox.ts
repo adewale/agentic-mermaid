@@ -5,8 +5,8 @@ import * as mermaid from '../agent/index.ts'
 
 export type ExecutionTraceCall =
   | { verb: 'parse'; diagram?: number; source?: string }
-  | { verb: 'narrow'; family: 'flowchart' | 'state' | 'sequence' | 'timeline' | 'class' | 'er' | 'journey' | 'architecture' | 'xychart' | 'pie' | 'quadrant'; input?: number; ok: boolean }
-  | { verb: 'mutate'; body: 'flowchart' | 'state' | 'sequence' | 'timeline' | 'class' | 'er' | 'journey' | 'architecture' | 'xychart' | 'pie' | 'quadrant' | 'opaque'; input?: number; output?: number; opKind?: string; fingerprint?: string }
+  | { verb: 'narrow'; family: 'flowchart' | 'state' | 'sequence' | 'timeline' | 'class' | 'er' | 'journey' | 'architecture' | 'xychart' | 'pie' | 'quadrant' | 'gantt'; input?: number; ok: boolean }
+  | { verb: 'mutate'; body: 'flowchart' | 'state' | 'sequence' | 'timeline' | 'class' | 'er' | 'journey' | 'architecture' | 'xychart' | 'pie' | 'quadrant' | 'gantt' | 'opaque'; input?: number; output?: number; opKind?: string; fingerprint?: string }
   | { verb: 'verify'; diagram?: number; ok?: boolean; inspected?: boolean; fingerprint?: string }
   | { verb: 'verify_inspect'; diagram?: number; property: 'ok' | 'warnings' | 'layout' }
   | { verb: 'serialize'; diagram?: number; source?: string; fingerprint?: string }
@@ -411,7 +411,7 @@ function createTracingMermaid(trace?: ExecutionTraceCall[], makeSandboxError?: (
   const fingerprint = (value: unknown): string | undefined => fingerprintDiagram(rawOf(value))
   const bodyKind = (value: unknown): TraceMutationBody => {
     const kind = (value as { body?: { kind?: string } } | undefined)?.body?.kind
-    return (kind === 'flowchart' || kind === 'state' || kind === 'sequence' || kind === 'timeline' || kind === 'class' || kind === 'er' || kind === 'journey' || kind === 'architecture' || kind === 'xychart' || kind === 'pie' || kind === 'quadrant') ? kind : 'opaque'
+    return (kind === 'flowchart' || kind === 'state' || kind === 'sequence' || kind === 'timeline' || kind === 'class' || kind === 'er' || kind === 'journey' || kind === 'architecture' || kind === 'xychart' || kind === 'pie' || kind === 'quadrant' || kind === 'gantt') ? kind : 'opaque'
   }
   const push = (call: ExecutionTraceCall) => { trace?.push(call) }
   const sdkTarget = {
@@ -427,6 +427,7 @@ function createTracingMermaid(trace?: ExecutionTraceCall[], makeSandboxError?: (
     asXyChart: mermaid.asXyChart,
     asPie: mermaid.asPie,
     asQuadrant: mermaid.asQuadrant,
+    asGantt: mermaid.asGantt,
     mutate: mermaid.mutate,
     verifyMermaid: mermaid.verifyMermaid,
     serializeMermaid: mermaid.serializeMermaid,
@@ -551,6 +552,7 @@ function narrowerFamily(prop: string | symbol): TraceNarrowFamily {
     case 'asXyChart': return 'xychart'
     case 'asPie': return 'pie'
     case 'asQuadrant': return 'quadrant'
+    case 'asGantt': return 'gantt'
     default: return 'er'
   }
 }

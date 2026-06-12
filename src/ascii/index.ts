@@ -29,6 +29,7 @@ import { renderSequenceAscii } from './sequence.ts'
 import { renderClassAscii } from './class-diagram.ts'
 import { renderErAscii } from './er-diagram.ts'
 import { renderTimelineAscii } from './timeline.ts'
+import { renderGanttAscii } from './gantt.ts'
 import { renderJourneyAscii } from './journey.ts'
 import { renderXYChartAscii } from './xychart.ts'
 import { renderPieAscii } from './pie.ts'
@@ -75,6 +76,12 @@ export interface AsciiRenderOptions {
    * parallel columns; this is best-effort wrapping, not hard truncation.
    */
   maxWidth?: number
+  /**
+   * Explicit "today" for the Gantt todayMarker (date in the diagram's
+   * dateFormat or ISO YYYY-MM-DD). Gantt never reads the wall clock; without
+   * this the marker is not drawn.
+   */
+  ganttToday?: string
 }
 
 /**
@@ -164,6 +171,12 @@ export function renderMermaidASCII(
 
     case 'timeline':
       return renderTimelineAscii(normalizedSource.lines, config, colorMode, theme)
+
+    case 'gantt':
+      return renderGanttAscii(normalizedSource.lines, config, colorMode, theme, normalizedSource.frontmatter, {
+        maxWidth: options.maxWidth,
+        today: options.ganttToday,
+      })
 
     case 'journey':
       return renderJourneyAscii(normalizedSource.text, config, colorMode, theme)

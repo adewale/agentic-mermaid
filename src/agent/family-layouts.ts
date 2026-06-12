@@ -53,6 +53,9 @@ import { parsePieChart } from '../pie/parser.ts'
 import { layoutPieChart } from '../pie/layout.ts'
 import { parseQuadrantChart } from '../quadrant/parser.ts'
 import { layoutQuadrantChart } from '../quadrant/layout.ts'
+import { parseGanttModel, applyGanttFrontmatterConfig } from '../gantt/parser.ts'
+import { resolveGanttSchedule } from '../gantt/schedule.ts'
+import { layoutGantt } from '../gantt/layout.ts'
 
 function f(n: number): Finite { return toFinite(Math.round(n)) }
 
@@ -75,6 +78,7 @@ export function layoutFamilyToRendered(d: ValidDiagram): RenderedLayout | null {
     case 'xychart':      return xychartToRendered(d)
     case 'pie':          return pieToRendered(d)
     case 'quadrant':     return quadrantToRendered(d)
+    case 'gantt':        return ganttToRendered(d)
     default:             return null
   }
 }
@@ -209,6 +213,29 @@ function pieToRendered(d: ValidDiagram): RenderedLayout {
       return { id: `slice#${i}:${l.label}`, x: f(l.x), y: f(l.y), w: f(w), h: f(l.swatchSize), shape: 'rectangle', label: labelText }
     })
     return { version: 1, kind: d.kind, nodes, edges: [], groups: [], bounds: { w: f(positioned.width), h: f(positioned.height) } }
+  } catch { return emptyRenderedLayout(d.kind) }
+}
+
+// ---- gantt ------------------------------------------------------------------
+
+function ganttToRendered(d: ValidDiagram): RenderedLayout {
+  try {
+    const normalized = normalizeMermaidSource(d.canonicalSource)
+    const model = applyGanttFrontmatterConfig(parseGanttModel(normalized.lines), normalized.frontmatter)
+    const schedule = resolveGanttSchedule(model)
+    const positioned = layoutGantt(model, schedule)
+    // Bars and milestones are the nodes; section bands are the groups. Verts
+    // and ticks are markers, not boxes — they carry no node area.
+    const nodes: RenderedLayoutNode[] = positioned.bars.map(b => ({
+      id: b.id ?? `task#${b.taskIndex}`, x: f(b.x), y: f(b.y), w: f(Math.max(2, b.w)), h: f(b.h),
+      shape: 'rectangle', label: b.label,
+    }))
+    const groups: RenderedLayoutGroup[] = positioned.sections.map((s, i) => ({
+      id: `section#${i}`, x: f(positioned.plot.x), y: f(s.y), w: f(positioned.plot.w), h: f(s.h),
+      members: positioned.bars.filter(b => b.sectionIndex === i).map(b => b.id ?? `task#${b.taskIndex}`),
+      label: s.label,
+    }))
+    return { version: 1, kind: d.kind, nodes, edges: [], groups, bounds: { w: f(positioned.width), h: f(positioned.height) } }
   } catch { return emptyRenderedLayout(d.kind) }
 }
 

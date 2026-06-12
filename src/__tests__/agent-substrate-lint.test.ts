@@ -19,10 +19,13 @@ function walk(dir: string): string[] {
   return out
 }
 
-// Files under the substrate's determinism contract.
+// Files under the substrate's determinism contract. src/gantt is included
+// because its spec (docs/design/gantt.md) forbids wall-clock reads: the
+// today marker draws only from a caller-supplied clock.
 function substrateFiles(): string[] {
   const agentFiles = walk(join(SRC, 'agent'))
-  return [...agentFiles, join(SRC, 'layout-engine.ts')]
+  const ganttFiles = walk(join(SRC, 'gantt'))
+  return [...agentFiles, ...ganttFiles, join(SRC, 'layout-engine.ts')]
 }
 
 const BANNED = [

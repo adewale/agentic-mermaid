@@ -102,6 +102,7 @@
     "mutation-test": "npx stryker run",
     "mutation-test:ascii": "npx stryker run stryker.ascii.config.json",
     "mutation-test:families": "npx stryker run stryker.families.config.json",
+    "mutation-test:gantt": "npx stryker run stryker.gantt.config.json",
     "lint": "bun test src/__tests__/agent-substrate-lint.test.ts",
     "eval:agent-live": "bun run eval/agent-usage/live.ts"
   },

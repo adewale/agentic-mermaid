@@ -70,7 +70,7 @@ export function synthesizeFromGraph(payload: ValidDiagramPayload): Result<ValidD
         linkStyles: toLinkStyleMap(sg.linkStyles),
       },
     }
-  } else if (payload.body.kind === 'state' || payload.body.kind === 'sequence' || payload.body.kind === 'timeline' || payload.body.kind === 'class' || payload.body.kind === 'er' || payload.body.kind === 'journey' || payload.body.kind === 'architecture' || payload.body.kind === 'xychart' || payload.body.kind === 'opaque') {
+  } else if (payload.body.kind === 'state' || payload.body.kind === 'sequence' || payload.body.kind === 'timeline' || payload.body.kind === 'class' || payload.body.kind === 'er' || payload.body.kind === 'journey' || payload.body.kind === 'architecture' || payload.body.kind === 'xychart' || payload.body.kind === 'gantt' || payload.body.kind === 'opaque') {
     body = payload.body
   } else {
     return err([{ code: 'INVALID_PAYLOAD', message: 'unknown body kind' }])
