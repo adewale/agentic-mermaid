@@ -8,6 +8,7 @@ This directory holds the long-form documentation. The root README is intentional
 |---|---|
 | [`api.md`](./api.md) | Library, agent API, output functions, options, CLI/MCP pointers. |
 | [`diagram-families.md`](./diagram-families.md) | Supported Mermaid families, examples, and edit policy. |
+| [`vocabulary.md`](./vocabulary.md) | Shared Mermaid/Agentic Mermaid terms for humans and agents. |
 | [`theming.md`](./theming.md) | Two-color themes, built-in themes, custom themes, Shiki import. |
 | [`react.md`](./react.md) | Zero-flash React rendering with CSS variables. |
 | [`ascii.md`](./ascii.md) | Terminal output, ASCII vs Unicode, color modes, XY charts. |

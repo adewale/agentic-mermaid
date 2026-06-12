@@ -173,6 +173,7 @@ See [diagram families](./docs/diagram-families.md) for examples and compatibilit
 
 - [API reference](./docs/api.md) — renderers, agent API, options, CLI/MCP pointers.
 - [Agent API cookbook](./docs/agent-api-cookbook.md) — practical recipes for agents.
+- [Vocabulary](./docs/vocabulary.md) — shared Mermaid/Agentic Mermaid terms for humans and agents.
 - [Theming](./docs/theming.md) — two-color themes, built-ins, Shiki compatibility.
 - [React integration](./docs/react.md) — zero-flash `useMemo` rendering.
 - [ASCII output](./docs/ascii.md) — terminal output, color modes, XY charts.
