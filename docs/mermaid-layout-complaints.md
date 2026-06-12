@@ -494,12 +494,14 @@ waypoints. UML 2.5 normatively defines notation but is silent on layout,
 delegating persistence to the DD-based UML DI annex. Even drafting
 conventions were standardized:
 [ANSI X3.5-1970 §4.4.1](https://www.bitsavers.org/pdf/ansi/X3/X3.005-1970_Flowchart_Symbols_and_Their_Usage_in_Information_Processing.pdf)
-— carried forward into
-[ISO 5807:1985](https://www.iso.org/standard/11955.html) — is normative
-that "normal direction of flow is from left to right and top to bottom,"
-with arrowheads *required* only on reverse-direction lines. Issue #25's
-primary-forward/feedback route classes are that 55-year-old convention,
-restated as a checkable invariant.
+is normative that "normal direction of flow is from left to right and top
+to bottom," with arrowheads *required* only on reverse-direction lines —
+and its successor [ISO 5807:1985](https://www.iso.org/standard/11955.html)
+keeps the conditional-arrowhead rule (§9.3.1: "solid or open arrowheads
+shall be added to indicate direction of flow where necessary (see
+10.2.1.2)"; clause 10 "Conventions" carries the direction rules). Issue
+#25's primary-forward/feedback route classes are that 55-year-old
+convention, restated as a checkable invariant.
 
 Mature tools likewise expose constraint surfaces. Graphviz dot has had
 [`rank=same`/`min`/`max`](https://graphviz.org/docs/attrs/rank/),
