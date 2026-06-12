@@ -28,13 +28,15 @@ import type {
   PositionedGroup,
   Point,
   RenderOptions,
+  NodeShape,
 } from './types.ts'
 import { ARROW_HEAD, resolveRenderStyle } from './styles.ts'
 import type { ResolvedRenderStyle } from './styles.ts'
 import { measureMultilineText } from './text-metrics.ts'
 import { elkLayoutSync } from './elk-instance.ts'
 import { clipEdgeToShape } from './shape-clipping.ts'
-import { applyRouteContracts } from './route-contracts.ts'
+import { applyRouteContracts, labelRect, simplifyPolyline } from './route-contracts.ts'
+import type { LabelMetricsStyle } from './route-contracts.ts'
 
 interface LayoutEngineOptions extends RenderOptions {
   /** @internal Preserve direct child order in compound nodes for projected families. */
@@ -698,6 +700,13 @@ function elkToPositioned(
   // edge bundling and clipping recalculate edge paths from corrected positions.
   alignLayerNodes(nodes, edges, graph.direction)
 
+  // Port-lane alignment (Rüegg et al. GD'15: straightness THROUGH ports, not
+  // through arbitrary attachment points): when a straight edge floats off
+  // both midpoint ports because ELK's balanced placement averaged competing
+  // pulls, slide one endpoint node along the cross axis so the two midpoint
+  // ports share a lane — straight AND port-exact, no routing trade.
+  alignPortLanes(nodes, edges, groups, graph.direction, style)
+
   // Bundle fan-out/fan-in edge paths into shared trunks when mergeEdges is enabled
   const bundled = mergeEdges
     ? bundleEdgePaths(edges, nodes, groups, graph.direction)
@@ -1205,6 +1214,216 @@ function resolveEdgeStyle(
  * Intermediate bend points are left unchanged — edge bundling or clipping
  * will recalculate them afterwards.
  */
+/**
+ * Port-lane alignment, the placement repair for "straight but off-port":
+ * a 2-point flow-axis edge whose endpoints' midpoint ports sit on different
+ * cross lanes is floating through the overlap sliver of two side spans —
+ * ELK's BALANCED node placement averages competing pulls and aligns such a
+ * node with neither neighbor. Sliding ONE endpoint node by the lane
+ * difference makes the edge midpoint-to-midpoint: port-exact AND straight,
+ * the combination no routing-side repair can reach (port-aware coordinate
+ * assignment in the Brandes–Köpf tradition, Rüegg et al. GD'15).
+ *
+ * Every move is proof-gated, mirroring alignLayerNodes' occlusion doctrine:
+ * - only rect-like endpoints (their flow-side boundary is flat, so the
+ *   edge's main-axis anchors survive a cross slide);
+ * - the slid node's OTHER edges must be bent with a perpendicular segment
+ *   to absorb the shift (their terminal run translates); a second straight
+ *   edge or a group membership vetoes the move;
+ * - the new bbox must keep clear of nodes, foreign edge corridors, and
+ *   label pills.
+ * The target node is tried first (often alone in its layer, the freest),
+ * then the source.
+ */
+function alignPortLanes(
+  nodes: PositionedNode[],
+  edges: PositionedEdge[],
+  groups: PositionedGroup[],
+  direction: Direction,
+  style: LabelMetricsStyle,
+): void {
+  const isHorizontal = direction === 'LR' || direction === 'RL'
+  const cross = isHorizontal ? ('y' as const) : ('x' as const)
+  const main = isHorizontal ? ('x' as const) : ('y' as const)
+  const sign = direction === 'LR' || direction === 'TD' ? 1 : -1
+  const RECT_PORTS = new Set<NodeShape>(['rectangle', 'service', 'rounded', 'subroutine'])
+  // A node that took part in an applied alignment is FROZEN: sliding it for
+  // a later candidate would re-break the proven port-aligned relation.
+  const frozen = new Set<string>()
+  const MARGIN = 8
+  const crossSize = (n: PositionedNode) => (isHorizontal ? n.height : n.width)
+  const portCross = (n: PositionedNode) => n[cross] + crossSize(n) / 2
+  const nodeMap = new Map(nodes.map(n => [n.id, n]))
+
+  const flatGroups: PositionedGroup[] = []
+  const collect = (gs: PositionedGroup[]) => {
+    for (const g of gs) {
+      flatGroups.push(g)
+      collect(g.children)
+    }
+  }
+  collect(groups)
+  const inGroup = (n: PositionedNode) => flatGroups.some(g =>
+    n.x >= g.x - 0.5 && n.y >= g.y - 0.5 &&
+    n.x + n.width <= g.x + g.width + 0.5 && n.y + n.height <= g.y + g.height + 0.5)
+
+  const overlaps = (ax: number, ay: number, aw: number, ah: number,
+    bx: number, by: number, bw: number, bh: number) =>
+    ax < bx + bw && ax + aw > bx && ay < by + bh && ay + ah > by
+
+  const mainSize = (n: PositionedNode) => (isHorizontal ? n.width : n.height)
+  /** A lane at `crossVal` over [lo, hi] on the main axis must keep CLEARANCE
+   *  from every node not in `exclude` — the same obstacle rule the
+   *  certifying straightener proves with, applied BEFORE the slide. */
+  const laneBlocked = (crossVal: number, lo: number, hi: number, exclude: ReadonlySet<string>): boolean =>
+    nodes.some(n => !exclude.has(n.id) &&
+      crossVal > n[cross] - 4 && crossVal < n[cross] + crossSize(n) + 4 &&
+      hi > n[main] - 4 && lo < n[main] + mainSize(n) + 4)
+
+  /** The terminal run a slide would translate: its lane and main extent. */
+  const runExtent = (pts: Point[], fromEnd: boolean): { ref: number; lo: number; hi: number } => {
+    const idx = fromEnd ? pts.length - 1 : 0
+    const step = fromEnd ? -1 : 1
+    const ref = pts[idx]![cross]
+    let lo = Infinity
+    let hi = -Infinity
+    for (let i = idx; i >= 0 && i < pts.length; i += step) {
+      if (Math.abs(pts[i]![cross] - ref) > 0.5) break
+      lo = Math.min(lo, pts[i]![main])
+      hi = Math.max(hi, pts[i]![main])
+    }
+    return { ref, lo, hi }
+  }
+
+  const moveSafe = (node: PositionedNode, delta: number, aligned: PositionedEdge): boolean => {
+    if (frozen.has(node.id) || inGroup(node)) return false
+    // The slide only helps if the resulting shared port lane is provably
+    // clear of intermediate nodes — otherwise the straightener cannot
+    // collapse onto it and the translated run may cut THROUGH a node (the
+    // hard defect this pipeline exists to prevent).
+    const srcN = nodeMap.get(aligned.source)!
+    const tgtN = nodeMap.get(aligned.target)!
+    const lane = portCross(node.id === aligned.source ? tgtN : srcN)
+    const laneLo = Math.min(srcN[main] + mainSize(srcN) / 2, tgtN[main] + mainSize(tgtN) / 2)
+    const laneHi = Math.max(srcN[main] + mainSize(srcN) / 2, tgtN[main] + mainSize(tgtN) / 2)
+    if (laneBlocked(lane, laneLo, laneHi, new Set([aligned.source, aligned.target]))) return false
+    for (const e of edges) {
+      if (e === aligned) continue
+      const srcTouch = e.source === node.id
+      const tgtTouch = e.target === node.id
+      if (!srcTouch && !tgtTouch) continue
+      if (e.points.length < 3) return false // a straight sibling cannot absorb the slide
+      // The terminal run translates; a perpendicular segment must exist to
+      // stretch, or the shift would drag the far endpoint off its node.
+      const anchor = tgtTouch ? e.points[e.points.length - 1]! : e.points[0]!
+      if (!e.points.some(p => Math.abs(p[cross] - anchor[cross]) > 0.5)) return false
+      // The translated run must not land on a node.
+      const run = runExtent(e.points, tgtTouch)
+      if (laneBlocked(run.ref + delta, run.lo, run.hi, new Set([e.source, e.target]))) return false
+    }
+    const nx = isHorizontal ? node.x : node.x + delta
+    const ny = isHorizontal ? node.y + delta : node.y
+    for (const other of nodes) {
+      if (other === node) continue
+      if (overlaps(nx - MARGIN, ny - MARGIN, node.width + 2 * MARGIN, node.height + 2 * MARGIN,
+        other.x, other.y, other.width, other.height)) return false
+    }
+    for (const e of edges) {
+      if (e.source === node.id || e.target === node.id) continue
+      for (let i = 1; i < e.points.length; i++) {
+        const a = e.points[i - 1]!, b = e.points[i]!
+        if (Math.max(a.x, b.x) > nx + 0.5 && Math.min(a.x, b.x) < nx + node.width - 0.5 &&
+          Math.max(a.y, b.y) > ny + 0.5 && Math.min(a.y, b.y) < ny + node.height - 0.5) return false
+      }
+    }
+    for (const e of edges) {
+      if (e === aligned) continue
+      const rect = labelRect(e, style)
+      if (rect && overlaps(nx - MARGIN, ny - MARGIN, node.width + 2 * MARGIN, node.height + 2 * MARGIN,
+        rect.x, rect.y, rect.w, rect.h)) return false
+    }
+    return true
+  }
+
+  const shiftRun = (e: PositionedEdge, fromEnd: boolean, delta: number): void => {
+    const pts = e.points
+    const idx = fromEnd ? pts.length - 1 : 0
+    const step = fromEnd ? -1 : 1
+    const ref = pts[idx]![cross]
+    let mainLo = Infinity
+    let mainHi = -Infinity
+    for (let i = idx; i >= 0 && i < pts.length; i += step) {
+      if (Math.abs(pts[i]![cross] - ref) > 0.5) break
+      mainLo = Math.min(mainLo, pts[i]![main])
+      mainHi = Math.max(mainHi, pts[i]![main])
+      pts[i]![cross] += delta
+    }
+    // A label pill riding the shifted run must follow its lane.
+    if (e.labelPosition &&
+      Math.abs(e.labelPosition[cross] - ref) <= 12 &&
+      e.labelPosition[main] >= mainLo - 0.5 && e.labelPosition[main] <= mainHi + 0.5) {
+      e.labelPosition[cross] += delta
+    }
+  }
+
+  const apply = (node: PositionedNode, delta: number, aligned: PositionedEdge): void => {
+    if (isHorizontal) node.y += delta
+    else node.x += delta
+    for (const e of edges) {
+      if (e === aligned || e.points.length === 0) continue
+      const srcTouch = e.source === node.id
+      const tgtTouch = e.target === node.id
+      if (srcTouch && tgtTouch) {
+        for (const p of e.points) p[cross] += delta
+        if (e.labelPosition) e.labelPosition[cross] += delta
+        continue
+      }
+      if (tgtTouch) shiftRun(e, true, delta)
+      if (srcTouch) shiftRun(e, false, delta)
+    }
+    const first = aligned.points[0]!
+    const last = aligned.points[aligned.points.length - 1]!
+    if (aligned.points.length === 2 && Math.abs(first[cross] - last[cross]) <= 0.5) {
+      // Already a straight lane: re-anchor both ends onto the shared port
+      // lane (main anchors survive — rect flow-side boundaries are flat).
+      const lane = portCross(nodeMap.get(aligned.source)!)
+      aligned.points = isHorizontal
+        ? [{ x: first.x, y: lane }, { x: last.x, y: lane }]
+        : [{ x: lane, y: first.y }, { x: lane, y: last.y }]
+      if (aligned.labelPosition) aligned.labelPosition[cross] = lane
+    } else {
+      // A staircase: translate the moved end's terminal run and let the
+      // certifying straightener collapse it onto the (now shared) port lane
+      // with a proof — or keep it if the lane turns out blocked.
+      shiftRun(aligned, aligned.target === node.id, delta)
+    }
+  }
+
+  for (const e of edges) {
+    if (e.points.length < 2 || e.source === e.target) continue
+    const src = nodeMap.get(e.source)
+    const tgt = nodeMap.get(e.target)
+    if (!src || !tgt) continue
+    if (!RECT_PORTS.has(src.shape) || !RECT_PORTS.has(tgt.shape)) continue
+    const d = portCross(src) - portCross(tgt)
+    if (Math.abs(d) <= 0.5) continue
+    // Primary-forward shape: a monotone staircase along the flow axis (a
+    // feedback loop or container route must not be retargeted at a port).
+    const pts = simplifyPolyline(e.points)
+    let monotone = pts.length <= 4
+    for (let i = 1; monotone && i < pts.length; i++) {
+      if ((pts[i]![main] - pts[i - 1]![main]) * sign < -0.5) monotone = false
+    }
+    if (!monotone) continue
+    const moved = moveSafe(tgt, d, e) ? tgt : moveSafe(src, -d, e) ? src : null
+    if (moved) {
+      apply(moved, moved === tgt ? d : -d, e)
+      frozen.add(e.source)
+      frozen.add(e.target)
+    }
+  }
+}
+
 function alignLayerNodes(
   nodes: PositionedNode[],
   edges: PositionedEdge[],

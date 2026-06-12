@@ -91,7 +91,7 @@ function isStraightenable(shape: PositionedNode['shape']): boolean {
   return PORT_EXACT.has(shape)
 }
 
-interface LabelMetricsStyle {
+export interface LabelMetricsStyle {
   edgeLabelFontSize: number
   edgeLabelFontWeight: number
 }
@@ -385,7 +385,7 @@ function pillRect(cx: number, cy: number, m: { width: number; height: number }):
   return { x: cx - w / 2, y: cy - h / 2, w, h }
 }
 
-function labelRect(e: PositionedEdge, style: LabelMetricsStyle): { x: number; y: number; w: number; h: number } | null {
+export function labelRect(e: PositionedEdge, style: LabelMetricsStyle): { x: number; y: number; w: number; h: number } | null {
   if (!e.label || !e.labelPosition) return null
   const m = measureMultilineText(e.label, style.edgeLabelFontSize, style.edgeLabelFontWeight)
   return pillRect(e.labelPosition.x, e.labelPosition.y, m)

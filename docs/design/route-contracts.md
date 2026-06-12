@@ -399,12 +399,54 @@ the other). This is a deliberate choice; the verified landscape
 Conclusion: straight-into-the-target-port maximizes the empirically
 supported aesthetics (zero bends, continuity, exact target ports) at the
 cost of the weakest one (rotation-consistent source attachment). The
-known divergence from yFiles/ELK even-spread is accepted. The principled
-fix for the asymmetry — if ever wanted — is not clamping facet fractions
-(that inverts the validated priority order by buying symmetry with
-bends) but yFiles-style **branch-direction assignment**: give each
-decision branch its own side pre-layout, so no facet carries two lines
-and every exit is a vertex (extends rule 1 to all branches).
+known divergence from yFiles/ELK even-spread is accepted. A strict
+"midpoint-only ports" ranking flip was prototyped and measured AGAINST:
+on the docs corpus it converted 3 straight edges into 2-bend Zs for a
++1.9pp port-rate gain, and our own hitch prover correctly flagged the
+new Zs (a clear straight lane existed). The asymmetry's real fixes are
+**placement-side**: the port-lane alignment pass below, and (future
+work) yFiles-style branch-direction assignment — give each decision
+branch its own side pre-layout, so no facet carries two lines.
+
+#### 6.2.2 Port-lane alignment — the placement repair
+
+"Straight but off both midpoints" (an edge floating through the sliver
+where two side-spans overlap) is a *placement* defect, not a routing
+choice: ELK's BALANCED node placement averages competing pulls and
+aligns the node with neither neighbor, and no routing-side repair can
+reach "straight AND port-exact" from there. `alignPortLanes`
+(`src/layout-engine.ts`, after `alignLayerNodes`, before bundling)
+slides ONE endpoint node along the cross axis so the two midpoint ports
+share a lane — the port-aware coordinate assignment of Rüegg et
+al. (GD'15), applied as a targeted post-pass. ELK option alternatives
+were measured and rejected: `favorStraightEdges` is a no-op under
+BALANCED; `NETWORK_SIMPLEX` straightens one edge while un-porting
+another; `bk.fixedAlignment: LEFTUP` gets a similar local result but
+sacrifices the globally symmetric placement BALANCED provides.
+
+Every slide is proof-gated, mirroring the occlusion doctrine:
+
+- candidates are monotone flow-axis staircases (≤ 4 simplified points)
+  between rect-like endpoints with misaligned midpoint lanes;
+- the resulting shared port lane must be clear of intermediate nodes
+  (otherwise the slide manufactures a through-node route the
+  straightener can never collapse);
+- the slid node's other edges must be bent, with a perpendicular
+  segment to absorb the shift; their terminal runs translate, and a
+  label pill riding a translated run follows it;
+- the new bbox keeps clear of nodes, foreign edge corridors, and label
+  pills; group members never move;
+- both endpoints of an applied alignment are FROZEN — a later slide may
+  not re-break a proven alignment (the cascade hazard found by the
+  property oracle).
+
+Downstream, the certifying straightener collapses the aligned staircase
+onto the shared port lane with its usual proof, and the fan-in rules
+compose: once the side input holds the target's entry port, a
+co-terminating decision branch converges there (merge outranks the
+hook). Corpus effect: straight edges 97 → 99, multi-bend routes 7 → 6,
+port-exact endpoints 76.0% → 77.1% — better on every axis, where the
+ranking-flip experiment traded one metric for another.
 
 ### 6.3 Hardening found by the property oracles (layout-rubric harness)
 

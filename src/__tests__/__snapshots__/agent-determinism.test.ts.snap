@@ -305,14 +305,6 @@ exports[`drift sentinel sentinel: flowchart LR /   A --> B /   A --> C /   B -->
       "path": [
         [
           100,
-          91,
-        ],
-        [
-          124,
-          91,
-        ],
-        [
-          124,
           58,
         ],
         [
@@ -329,11 +321,11 @@ exports[`drift sentinel sentinel: flowchart LR /   A --> B /   A --> C /   B -->
       "path": [
         [
           100,
-          91,
+          58,
         ],
         [
           124,
-          91,
+          58,
         ],
         [
           124,
@@ -356,16 +348,8 @@ exports[`drift sentinel sentinel: flowchart LR /   A --> B /   A --> C /   B -->
           58,
         ],
         [
-          232,
-          58,
-        ],
-        [
-          232,
-          91,
-        ],
-        [
           256,
-          91,
+          58,
         ],
       ],
       "to": "D",
@@ -385,11 +369,11 @@ exports[`drift sentinel sentinel: flowchart LR /   A --> B /   A --> C /   B -->
         ],
         [
           232,
-          91,
+          58,
         ],
         [
           256,
-          91,
+          58,
         ],
       ],
       "to": "D",
@@ -405,7 +389,7 @@ exports[`drift sentinel sentinel: flowchart LR /   A --> B /   A --> C /   B -->
       "shape": "rectangle",
       "w": 60,
       "x": 40,
-      "y": 72,
+      "y": 40,
     },
     {
       "h": 37,
@@ -432,7 +416,7 @@ exports[`drift sentinel sentinel: flowchart LR /   A --> B /   A --> C /   B -->
       "shape": "rectangle",
       "w": 60,
       "x": 256,
-      "y": 72,
+      "y": 40,
     },
   ],
   "version": 1,

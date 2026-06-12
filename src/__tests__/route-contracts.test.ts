@@ -2,10 +2,10 @@ import { describe, expect, it } from 'bun:test'
 import fc from 'fast-check'
 import { layoutGraphSync } from '../layout-engine.ts'
 import { parseMermaid } from '../parser.ts'
-import { auditRouteContracts, classifyRoutes, directLaneBlockers, findLabelSlot, findRouteHitches, shapePorts, simplifyPolyline } from '../route-contracts.ts'
+import { applyRouteContracts, auditRouteContracts, classifyRoutes, directLaneBlockers, findLabelSlot, findRouteHitches, shapePorts, simplifyPolyline } from '../route-contracts.ts'
 import { measureMultilineText } from '../text-metrics.ts'
 import { layoutMermaid, parseMermaid as agentParse, verifyMermaid } from '../agent/index.ts'
-import type { PositionedEdge, PositionedGraph } from '../types.ts'
+import type { PositionedEdge, PositionedGraph, PositionedGroup, PositionedNode } from '../types.ts'
 
 /** The MFA/login regression from issue #25 — every dogleg here had a clear direct lane. */
 const MFA_SOURCE = `flowchart LR
@@ -1064,24 +1064,52 @@ describe('port ranking — sharp bits win when a side carries one line (issue #2
     expect(e.routeCertificate?.targetPort).toBeDefined()
   })
 
+  it("a blocked vertex emit hooks into the target's facing cross-side port (1 bend, not a 2-bend Z)", () => {
+    // Direct geometry, bypassing the placement repair: the target sits fully
+    // below the vertex lane (its span cannot host a straight emit), no
+    // sibling holds the entry port, and nothing blocks the facing N port.
+    // This is the hook's residual domain once port-lane alignment exists:
+    // geometries where the slide was vetoed (occlusion, labels, a sibling
+    // straight edge) but the facing entry is clear.
+    const graph = parseMermaid('flowchart LR\n  Q{Decide} --> T[Target]')
+    const positioned = {
+      nodes: [
+        { id: 'Q', label: 'Decide', shape: 'diamond', x: 40, y: 40, width: 100, height: 100 },
+        { id: 'T', label: 'Target', shape: 'rectangle', x: 300, y: 120, width: 80, height: 36 },
+      ] as PositionedNode[],
+      edges: [{
+        source: 'Q', target: 'T',
+        points: [{ x: 140, y: 90 }, { x: 220, y: 90 }, { x: 220, y: 138 }, { x: 300, y: 138 }],
+      }] as PositionedEdge[],
+      groups: [] as PositionedGroup[],
+    }
+    applyRouteContracts(positioned, graph, new Set(), { edgeLabelFontSize: 11, edgeLabelFontWeight: 400 })
+    const e = positioned.edges[0]!
+    expect(e.points.length).toBe(3)
+    expect(e.routeCertificate?.sourcePort).toBe('E')
+    expect(e.routeCertificate?.targetPort).toBe('N')
+    expect(e.points[e.points.length - 1]).toEqual({ x: 340, y: 120 })
+  })
+
   it.each(['LR', 'RL'] as const)(
-    "%s: a blocked vertex emit hooks into the target's facing cross-side port (1 bend, not a 2-bend Z)",
+    '%s: port-lane alignment slides the free target so the side input runs midpoint to midpoint, and the decision branch merges at the same port',
     dir => {
       const positioned = layoutGraphSync(parseMermaid(single(dir)))
-      const e = findEdge(positioned.edges, 'Q', 'T')
       const t = positioned.nodes.find(n => n.id === 'T')!
-      const q = positioned.nodes.find(n => n.id === 'Q')!
-      // The vertex lane passes above the target (fan-in pulled T down), so
-      // the natural entry is the cross side FACING the lane — the box's top
-      // port — not a hook doubling back into the flow side the fan-in
-      // partner uses. One bend (an L), both endpoints on exact ports.
-      const laneY = q.y + q.height / 2
-      const facing = laneY < t.y + t.height / 2 ? 'N' : 'S'
-      expect(e.points.length).toBe(3)
-      expect(e.routeCertificate?.targetPort).toBe(facing)
-      const last = e.points[e.points.length - 1]!
-      expect(Math.abs(last.x - (t.x + t.width / 2))).toBeLessThanOrEqual(0.5)
-      expect(Math.abs(last.y - (facing === 'N' ? t.y : t.y + t.height))).toBeLessThanOrEqual(0.5)
+      const x = findEdge(positioned.edges, 'X', 'T')
+      const entry = dir === 'LR' ? ('W' as const) : ('E' as const)
+      // The placement repair (Rüegg et al.: straightness through ports) slides
+      // Target onto Side input's port lane: straight AND port-exact, no trade.
+      expect(x.points.length).toBe(2)
+      expect(x.routeCertificate?.sourcePort).toBe(dir === 'LR' ? 'E' : 'W')
+      expect(x.routeCertificate?.targetPort).toBe(entry)
+      // With the entry port held by the side input, the decision branch
+      // converges there — fan-in merge outranks the hook.
+      const q = findEdge(positioned.edges, 'Q', 'T')
+      const port = { x: dir === 'LR' ? t.x : t.x + t.width, y: t.y + t.height / 2 }
+      const last = q.points[q.points.length - 1]!
+      expect(Math.abs(last.x - port.x)).toBeLessThanOrEqual(0.5)
+      expect(Math.abs(last.y - port.y)).toBeLessThanOrEqual(0.5)
     },
   )
 
