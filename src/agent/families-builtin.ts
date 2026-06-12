@@ -25,6 +25,8 @@ import { parseTimelineBody, renderTimeline, mutateTimeline } from './timeline-bo
 import { parseJourneyBody, renderJourney, mutateJourney, verifyJourney } from './journey-body.ts'
 import { parseArchitectureBody, renderArchitecture, mutateArchitecture, verifyArchitecture } from './architecture-body.ts'
 import { parseXyChartBody, renderXyChart, mutateXyChart, verifyXyChart } from './xychart-body.ts'
+import { parsePieBody, renderPie, mutatePie, verifyPie } from './pie-body.ts'
+import { parseQuadrantBody, renderQuadrant, mutateQuadrant, verifyQuadrant } from './quadrant-body.ts'
 import { parseStateBody, renderState, mutateState, verifyState } from './state-body.ts'
 import { parseFlowchartBody, renderFlowchart, mutateFlowchart, buildFlowchartSourceMap, type FlowchartBody } from './flowchart-body.ts'
 
@@ -470,9 +472,9 @@ registerFamily({
 
 // ---- Pie ------------------------------------------------------------------
 // pie [showData] [title T], optional `title T`, `"label" : number` entries.
-// Pie is source-level/opaque (like xychart): detect + extractLabels only,
-// no parse/serialize/mutate hooks. Labels are the quoted slice labels plus
-// the optional title text.
+// Pie is structured-when-narrowed: the body parses to a PieBody (title,
+// showData, slices) or falls back to opaque when any line is unmodeled.
+// Labels are the quoted slice labels plus the optional title text.
 function extractPieLabels(source: string): ExtractedLabel[] {
   const out: ExtractedLabel[] = []
   const lines = source.split(/\r?\n/)
@@ -500,14 +502,52 @@ function extractPieLabels(source: string): ExtractedLabel[] {
   return out
 }
 
-registerFamily({ id: 'pie', detect: l => l.startsWith('pie'), extractLabels: extractPieLabels })
+// Parse the `pie [showData] [title <text>]` header tail. Returns null when the
+// tail carries unmodeled tokens, so the whole body falls back to opaque.
+function parsePieHeader(header: string): { showData: boolean; title?: string } | null {
+  const m = header.match(/^pie\b(.*)$/i)
+  if (!m) return null
+  let tail = m[1]!.trim()
+  let showData = false
+  const sd = tail.match(/^showData\b\s*(.*)$/i)
+  if (sd) { showData = true; tail = sd[1]!.trim() }
+  const inlineTitle = tail.match(/^title\s+(.+)$/i)
+  if (inlineTitle) return { showData, title: inlineTitle[1]!.trim() }
+  if (tail.length > 0) return null // unexpected text after the header → opaque
+  return { showData }
+}
+
+registerFamily({
+  id: 'pie',
+  detect: l => l.startsWith('pie'),
+  extractLabels: extractPieLabels,
+  // Pie is structured-when-narrowed. The verify hook covers the structured
+  // body; opaque fallbacks keep the universal label-extraction path. The header
+  // carries showData / inline title, so pie uses a tailored parse hook (like
+  // xychart) — serialize/mutate stay identical to every other structured family.
+  verify: (body, opts) => body.kind === 'pie' ? verifyPie(body, opts) : [],
+  parse: (lines, opaqueSource) => {
+    const header = parsePieHeader(lines[0]?.trim() ?? '')
+    const body = header ? parsePieBody(lines.slice(1), header) : null
+    return ok(body ?? { kind: 'opaque', family: 'pie', source: opaqueSource })
+  },
+  serialize: body => {
+    if (body.kind !== 'pie') throw new Error(`pie serializer received body kind ${body.kind}`)
+    return renderPie(body)
+  },
+  mutate: (body, op) => {
+    if (body.kind !== 'pie') return err<MutationError>({ code: 'INVALID_OP', message: `pie mutator received body kind ${body.kind}` })
+    return mutatePie(body, op as never)
+  },
+})
 
 // ---- Quadrant -------------------------------------------------------------
 // quadrantChart header; `title T`; `x-axis a --> b`; `y-axis a --> b`;
-// `quadrant-1..4 label`; `Label: [x, y]`. Quadrant is source-level/opaque
-// (like xychart/pie): detect + extractLabels only, no parse/serialize/mutate.
-// Labels are the title, both axis label sides, the four quadrant region
-// labels, and the point labels.
+// `quadrant-1..4 label`; `Label: [x, y]`. Quadrant is structured-when-narrowed:
+// the body parses to a QuadrantBody (title, axes, quadrant labels, points) or
+// falls back to opaque when any line is unmodeled (styling, malformed coords,
+// duplicate point labels). Labels are the title, both axis label sides, the
+// four quadrant region labels, and the point labels.
 function extractQuadrantLabels(source: string): ExtractedLabel[] {
   const out: ExtractedLabel[] = []
   const lines = source.split(/\r?\n/)
@@ -548,7 +588,18 @@ function extractQuadrantLabels(source: string): ExtractedLabel[] {
   return out
 }
 
-registerFamily({ id: 'quadrant', detect: l => l.startsWith('quadrantchart'), extractLabels: extractQuadrantLabels })
+registerFamily({
+  id: 'quadrant',
+  detect: l => l.startsWith('quadrantchart'),
+  extractLabels: extractQuadrantLabels,
+  // Quadrant is structured-when-narrowed. The verify hook covers the structured
+  // body; opaque fallbacks keep the universal label-extraction path.
+  verify: (body, opts) => body.kind === 'quadrant' ? verifyQuadrant(body, opts) : [],
+  ...structuredFamilyHooks('quadrant', {
+    headerOk: h => /^quadrantchart\s*$/i.test(h),
+    parseBody: parseQuadrantBody, serialize: renderQuadrant, mutate: mutateQuadrant,
+  }),
+})
 
 // ---- Architecture ---------------------------------------------------------
 // group api(cloud)[API], service db(database)[DB] in api

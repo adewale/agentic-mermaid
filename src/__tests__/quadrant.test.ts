@@ -282,12 +282,14 @@ describe('quadrant property tests', () => {
 // ---------------------------------------------------------------------------
 
 describe('quadrant agent surface', () => {
-  it('parses to an opaque body of kind quadrant', () => {
+  it('parses to a structured body of kind quadrant', () => {
     const p = parseMermaid(CLASSIC)
     expect(p.ok).toBe(true)
     if (!p.ok) return
     expect(p.value.kind).toBe('quadrant')
-    expect(p.value.body.kind).toBe('opaque')
+    // Promoted to structured-when-narrowed: the modeled subset parses to a
+    // typed QuadrantBody (not opaque). See src/agent/quadrant-body.ts.
+    expect(p.value.body.kind).toBe('quadrant')
   })
 
   it('asJourney and asArchitecture return null on a quadrant diagram', () => {
@@ -298,11 +300,19 @@ describe('quadrant agent surface', () => {
     expect(asArchitecture(p.value)).toBeNull()
   })
 
-  it('round-trips verbatim through serialize', () => {
+  it('round-trips to stable canonical source through serialize', () => {
+    // Structured bodies normalize to canonical (2-space) source, so the
+    // contract is canonical round-trip STABILITY, not verbatim of the
+    // 4-space-indented original.
     const p = parseMermaid(CLASSIC)
     expect(p.ok).toBe(true)
     if (!p.ok) return
-    expect(serializeMermaid(p.value).trim()).toBe(CLASSIC.trim())
+    const s1 = serializeMermaid(p.value)
+    const p2 = parseMermaid(s1)
+    expect(p2.ok).toBe(true)
+    if (!p2.ok) return
+    expect(serializeMermaid(p2.value)).toBe(s1)
+    expect(p2.value.body).toEqual(p.value.body)
   })
 
   it('verify extracts labels and fires LABEL_OVERFLOW on a long quadrant label', () => {

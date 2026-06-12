@@ -19,7 +19,7 @@ type MermaidRuntimeConfig = {
 }
 
 type DiagramKind = 'flowchart' | 'state' | 'sequence' | 'class' | 'er'
-                 | 'timeline' | 'journey' | 'xychart' | 'architecture'
+                 | 'timeline' | 'journey' | 'xychart' | 'architecture' | 'pie' | 'quadrant'
 
 interface ValidDiagram {
   readonly kind: DiagramKind
@@ -39,6 +39,8 @@ interface ValidDiagram {
     | JourneyBody
     | ArchitectureBody
     | XyChartBody
+    | PieBody
+    | QuadrantBody
     | { kind: 'opaque'; family: DiagramKind; source: string }
   readonly canonicalSource: string   // normalized renderer input; opaque fidelity uses body.source
 }
@@ -52,6 +54,8 @@ type ErValidDiagram        = ValidDiagram & { body: ErBody }
 type JourneyValidDiagram   = ValidDiagram & { body: JourneyBody }
 type ArchitectureValidDiagram = ValidDiagram & { body: ArchitectureBody }
 type XyChartValidDiagram   = ValidDiagram & { body: XyChartBody }
+type PieValidDiagram       = ValidDiagram & { body: PieBody }
+type QuadrantValidDiagram  = ValidDiagram & { body: QuadrantBody }
 
 interface FlowchartGraph {
   direction: 'TD' | 'TB' | 'LR' | 'BT' | 'RL'
@@ -111,6 +115,15 @@ interface ArchitectureBody { kind: 'architecture'; groups: ArchitectureGroup[]; 
 interface XyChartAxis { name?: string; categories?: string[]; range?: { min: number; max: number } }
 interface XyChartSeries { id: string; kind: 'bar' | 'line'; name?: string; values: number[] }
 interface XyChartBody { kind: 'xychart'; title?: string; horizontal?: boolean; xAxis?: XyChartAxis; yAxis?: XyChartAxis; series: XyChartSeries[] }
+
+interface PieSlice { id: string; label: string; value: number }   // value > 0
+interface PieBody { kind: 'pie'; title?: string; showData: boolean; slices: PieSlice[] }
+
+interface QuadrantAxis { near: string; far?: string }
+interface QuadrantPoint { label: string; x: number; y: number }   // x,y in [0,1]
+// quadrants indexed 0-based; index n-1 holds Mermaid quadrant-n
+// (1=top-right, 2=top-left, 3=bottom-left, 4=bottom-right)
+interface QuadrantBody { kind: 'quadrant'; title?: string; xAxis?: QuadrantAxis; yAxis?: QuadrantAxis; quadrants: [string?, string?, string?, string?]; points: QuadrantPoint[] }
 
 type FlowchartMutationOp =
   | { kind: 'add_node'; id: string; label: string; shape?: string; parent?: string }
@@ -205,6 +218,24 @@ type XyChartMutationOp =
   | { kind: 'set_series_name'; index: number; name: string | null }
   | { kind: 'reorder_series'; from: number; to: number }
 
+type PieMutationOp =
+  | { kind: 'set_title'; title: string | null }
+  | { kind: 'set_show_data'; showData: boolean }
+  | { kind: 'add_slice'; label: string; value: number }   // value > 0
+  | { kind: 'remove_slice'; label: string }
+  | { kind: 'rename_slice'; from: string; to: string }
+  | { kind: 'set_slice_value'; label: string; value: number }
+  | { kind: 'reorder_slice'; from: number; to: number }
+
+type QuadrantMutationOp =
+  | { kind: 'set_title'; title: string | null }
+  | { kind: 'set_axis_labels'; axis: 'x' | 'y'; near: string | null; far?: string | null }
+  | { kind: 'set_quadrant_label'; quadrant: number; label: string | null }   // quadrant 1..4
+  | { kind: 'add_point'; label: string; x: number; y: number }   // x,y in [0,1]
+  | { kind: 'remove_point'; label: string }
+  | { kind: 'move_point'; label: string; x: number; y: number }
+  | { kind: 'rename_point'; from: string; to: string }
+
 // Tier 1 (structural, reliable): EMPTY_DIAGRAM, EDGE_MISANCHORED, OFF_CANVAS,
 //   GROUP_BREACH, UNKNOWN_SHAPE, LABEL_OVERFLOW (source-based char-cap).
 // Tier 2 (geometric, advisory): NODE_OVERLAP, ROUTE_SELF_CROSS.
@@ -231,6 +262,8 @@ declare const mermaid: {
   asJourney(d: ValidDiagram):   JourneyValidDiagram | null
   asArchitecture(d: ValidDiagram): ArchitectureValidDiagram | null
   asXyChart(d: ValidDiagram):   XyChartValidDiagram | null
+  asPie(d: ValidDiagram):       PieValidDiagram | null
+  asQuadrant(d: ValidDiagram):  QuadrantValidDiagram | null
   mutate(d: FlowchartValidDiagram, op: FlowchartMutationOp): Result<FlowchartValidDiagram, { code: string; message: string }>
   mutate(d: StateValidDiagram,     op: StateMutationOp):     Result<StateValidDiagram, { code: string; message: string }>
   mutate(d: SequenceValidDiagram,  op: SequenceMutationOp):  Result<SequenceValidDiagram, { code: string; message: string }>
@@ -240,6 +273,8 @@ declare const mermaid: {
   mutate(d: JourneyValidDiagram,   op: JourneyMutationOp):   Result<JourneyValidDiagram, { code: string; message: string }>
   mutate(d: ArchitectureValidDiagram, op: ArchitectureMutationOp): Result<ArchitectureValidDiagram, { code: string; message: string }>
   mutate(d: XyChartValidDiagram,   op: XyChartMutationOp):   Result<XyChartValidDiagram, { code: string; message: string }>
+  mutate(d: PieValidDiagram,       op: PieMutationOp):       Result<PieValidDiagram, { code: string; message: string }>
+  mutate(d: QuadrantValidDiagram,  op: QuadrantMutationOp):  Result<QuadrantValidDiagram, { code: string; message: string }>
   verifyMermaid(input: ValidDiagram | string, opts?: { suppress?: WarningCode[]; labelCharCap?: number }): VerifyResult
   serializeMermaid(d: ValidDiagram): string
   renderMermaidSVG(input: ValidDiagram | string, opts?: { security?: 'default' | 'strict'; idPrefix?: string; mermaidConfig?: MermaidRuntimeConfig }): string
@@ -251,8 +286,9 @@ declare const mermaid: {
 // 2. For existing structured diagrams, use mutate() + verify + serializeMermaid();
 //    do not regenerate/concatenate source when a typed op exists.
 // 3. mutate works on flowchart, state, simple sequence, timeline, class, ER,
-//    journey, architecture, and xychart. Narrow via asFlowchart/asState/
-//    asSequence/asTimeline/asClass/asEr/asJourney/asArchitecture/asXyChart.
+//    journey, architecture, xychart, pie, and quadrant. Narrow via asFlowchart/
+//    asState/asSequence/asTimeline/asClass/asEr/asJourney/asArchitecture/
+//    asXyChart/asPie/asQuadrant.
 //    State owns a dedicated body (BUILD-19); asFlowchart returns null on it.
 //    Opaque-fallback
 //    bodies (unmodeled syntax) are source-level only; if explicitly edited as

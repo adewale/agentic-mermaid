@@ -71,8 +71,9 @@ dependents after. IDs are stable names, not an ordering.
     with an explicit caveat that the decision-grade README corpus run needs
     network (see `eval/family-usage/README.md`).
   - [x] Pie family (cheapest target): `src/pie/` (types/parser/layout/SVG +
-    `src/ascii/pie.ts`), routing, agent surface (detect + extractLabels,
-    source-level), showcase samples, docs, and goldens.
+    `src/ascii/pie.ts`), routing, agent surface (detect + extractLabels),
+    showcase samples, docs, and goldens. Now promoted to structured mutation —
+    `src/agent/pie-body.ts`, `asPie`, 7 ops (see Unreleased changelog).
   - [ ] gantt, mindmap, gitgraph: still to implement. Order the remaining
     three by the real README corpus run (network required) per the evidence
     step above — `eval/family-usage/RESULTS.md` does not assert that ordering.
@@ -80,7 +81,8 @@ dependents after. IDs are stable names, not an ordering.
   from the PARK-3 fork-audit list. Quadrant charts are missing across the
   entire beautiful-mermaid fork network (no port exists upstream or in any
   fork), so this is cheap differentiation. Axis/quadrant layout is closer to
-  xychart than to graph families; shipped as a source-level body.
+  xychart than to graph families; shipped as a render body, since promoted to
+  structured mutation (`src/agent/quadrant-body.ts`, `asQuadrant`, 7 ops).
   Evidence: `src/quadrant/` (types/parser/layout/SVG renderer) +
   `src/ascii/quadrant.ts`; routing in `src/mermaid-source.ts`, `src/index.ts`,
   `src/ascii/index.ts`; agent surface in `src/agent/families-builtin.ts`
