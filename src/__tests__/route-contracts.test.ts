@@ -48,15 +48,26 @@ describe('route contracts — MFA/login regression (issue #25 acceptance criteri
     expect(isStraightHorizontal(e)).toBe(true)
   })
 
-  it('feedback edges straighten onto their own parallel reverse lane, separated from the forward lane', () => {
+  it('labeled feedback keeps its detour: no clear lane can host the label pill between these lanes', () => {
+    // Default-height LR nodes leave ~29px of shared attachment span; a label
+    // pill is ~30px tall, so a straight labeled back-lane would overlap the
+    // forward lane. The contract keeps the detour and says exactly why.
     for (const [from, to] of [['C', 'B'], ['F', 'E']] as const) {
       const back = findEdge(edges, from, to)
-      const fwd = findEdge(edges, to, from)
-      expect(isStraightHorizontal(back)).toBe(true)
-      expect(back.points[0]!.x).toBeGreaterThan(back.points[1]!.x) // runs against the flow
-      // Never merges with the forward lane: at least the 4px channel clearance apart.
-      expect(Math.abs(back.points[0]!.y - fwd.points[0]!.y)).toBeGreaterThanOrEqual(4)
+      expect(back.points.length).toBeGreaterThan(2)
+      expect(back.routeCertificate?.invariant).toBe('feedback-detour')
+      expect(back.routeCertificate?.directLaneBlockedBy?.some(b => b.kind === 'label')).toBe(true)
     }
+  })
+
+  it('unlabeled reciprocal pairs straighten into two parallel lanes', () => {
+    const pair = layoutEdges('flowchart LR\n  A --> B\n  B --> A')
+    const fwd = findEdge(pair, 'A', 'B')
+    const back = findEdge(pair, 'B', 'A')
+    expect(isStraightHorizontal(fwd)).toBe(true)
+    expect(isStraightHorizontal(back)).toBe(true)
+    expect(back.points[0]!.x).toBeGreaterThan(back.points[1]!.x) // runs against the flow
+    expect(Math.abs(back.points[0]!.y - fwd.points[0]!.y)).toBeGreaterThanOrEqual(4)
   })
 
   it('D --No--> G stays an explained detour: node F blocks every candidate lane', () => {
@@ -206,9 +217,11 @@ describe('certificates', () => {
     for (const [from, to] of [['C', 'B'], ['F', 'E']] as const) {
       const e = findEdge(positioned.edges, from, to)
       expect(e.routeCertificate?.routeClass).toBe('feedback')
-      expect(e.routeCertificate?.invariant).toBe('straight')
-      expect(e.routeCertificate?.straightened).toBe(true)
-      expect(e.routeCertificate?.directLaneClear).toBe(true)
+      // These are labeled: the pill cannot fit on any clear parallel lane,
+      // and the certificate carries that proof rather than a bare verdict.
+      expect(e.routeCertificate?.invariant).toBe('feedback-detour')
+      expect(e.routeCertificate?.directLaneClear).toBe(false)
+      expect(e.routeCertificate?.directLaneBlockedBy?.length).toBeGreaterThan(0)
     }
   })
 
@@ -274,7 +287,7 @@ describe('ROUTE_HITCH tripwire (issue #25 acceptance criterion 3)', () => {
 })
 
 describe('route contracts — RL and BT directions (mutation-survivor harvest)', () => {
-  it('RL: the reciprocal pair straightens both lanes against the reversed axis', () => {
+  it('RL: the forward lane straightens against the reversed axis; the labeled feedback explains its detour', () => {
     const edges = layoutEdges(`flowchart RL
       A[User] --> B[Login Page]
       B --> C{Valid?}
@@ -283,9 +296,8 @@ describe('route contracts — RL and BT directions (mutation-survivor harvest)',
     expect(isStraightHorizontal(e)).toBe(true)
     expect(e.points[0]!.x).toBeGreaterThan(e.points[1]!.x) // forward flow runs right-to-left
     const back = findEdge(edges, 'C', 'B')
-    expect(isStraightHorizontal(back)).toBe(true)
-    expect(back.points[0]!.x).toBeLessThan(back.points[1]!.x) // feedback runs left-to-right
-    expect(Math.abs(back.points[0]!.y - e.points[0]!.y)).toBeGreaterThanOrEqual(4)
+    expect(back.routeCertificate?.invariant).toBe('feedback-detour')
+    expect(back.routeCertificate?.directLaneBlockedBy?.some(b => b.kind === 'label')).toBe(true)
   })
 
   it('BT: the reciprocal pair straightens both vertical lanes', () => {
@@ -387,18 +399,20 @@ describe('directLaneBlockers (unit)', () => {
     expect(blockers).toEqual([])
   })
 
-  it("another edge's label blocks the lane within its measured rect plus clearance", () => {
+  it("another edge's label blocks the lane within its rendered pill (text + 8px padding) plus clearance", () => {
     const m = measureMultilineText('No', 12, 400)
+    const pillHalfH = m.height / 2 + 8
+    const pillHalfW = m.width / 2 + 8
     const other = (lx: number, ly: number) =>
       edge('P', 'Q', [{ x: 300, y: 200 }, { x: 320, y: 200 }], { label: 'No', labelPosition: { x: lx, y: ly } })
     const at = (lx: number, ly: number) =>
       directLaneBlockers(probe, 50, 0, 100, ctx({ edges: [other(lx, ly)] }))
     expect(at(50, 50)).toEqual([{ kind: 'label', id: 'P->Q' }])
-    // Cross-axis boundary: label center just inside / outside h/2 + 4px clearance.
-    expect(at(50, 50 + m.height / 2 + 4 - 0.5)).toEqual([{ kind: 'label', id: 'P->Q' }])
-    expect(at(50, 50 + m.height / 2 + 4 + 0.5)).toEqual([])
-    // Main-axis boundary: label fully past the lane end plus clearance.
-    expect(at(100 + m.width / 2 + 4 + 0.5, 50)).toEqual([])
+    // Cross-axis boundary: pill edge just inside / outside the 4px clearance.
+    expect(at(50, 50 + pillHalfH + 4 - 0.5)).toEqual([{ kind: 'label', id: 'P->Q' }])
+    expect(at(50, 50 + pillHalfH + 4 + 0.5)).toEqual([])
+    // Main-axis boundary: pill fully past the lane end plus clearance.
+    expect(at(100 + pillHalfW + 4 + 0.5, 50)).toEqual([])
   })
 
   it('a collinear parallel segment within 4px is a channel conflict; a perpendicular crossing is not', () => {
@@ -419,12 +433,13 @@ describe('directLaneBlockers (unit)', () => {
     expect(directLaneBlockers(copy, 50, 0, 100, ctx({ edges: [original] }))).toEqual([])
   })
 
-  it("the edge's own label needs lane capacity: width + 8px clearance", () => {
+  it("the edge's own label needs lane capacity: pill width + 8px clearance", () => {
     const m = measureMultilineText('quite a long edge label', 12, 400)
+    const pillW = m.width + 16
     const labeled = edge('A', 'B', [{ x: 0, y: 50 }, { x: 100, y: 50 }], { label: 'quite a long edge label' })
-    expect(directLaneBlockers(labeled, 50, 0, m.width + 8 - 1, ctx()))
+    expect(directLaneBlockers(labeled, 50, 0, pillW + 8 - 1, ctx()))
       .toEqual([{ kind: 'label', id: 'A->B' }])
-    expect(directLaneBlockers(labeled, 50, 0, m.width + 8 + 1, ctx())).toEqual([])
+    expect(directLaneBlockers(labeled, 50, 0, pillW + 8 + 1, ctx())).toEqual([])
   })
 
   describe('vertical axis (TD): same proofs with main/cross swapped', () => {
@@ -448,19 +463,21 @@ describe('directLaneBlockers (unit)', () => {
         .toEqual([{ kind: 'node', id: 'X' }])
     })
 
-    it('label rects swap width/height between axes', () => {
+    it('label pills swap width/height between axes', () => {
       const m = measureMultilineText('No', 12, 400)
+      const pillHalfW = m.width / 2 + 8
+      const pillHalfH = m.height / 2 + 8
       const other = (lx: number, ly: number) =>
         edge('P', 'Q', [{ x: 300, y: 200 }, { x: 300, y: 220 }], { label: 'No', labelPosition: { x: lx, y: ly } })
       const at = (lx: number, ly: number) =>
         directLaneBlockers(vProbe, 50, 0, 100, vCtx({ edges: [other(lx, ly)] }))
       expect(at(50, 50)).toEqual([{ kind: 'label', id: 'P->Q' }])
-      // Cross axis is x: boundary at w/2 + 4.
-      expect(at(50 + m.width / 2 + 4 - 0.5, 50)).toEqual([{ kind: 'label', id: 'P->Q' }])
-      expect(at(50 + m.width / 2 + 4 + 0.5, 50)).toEqual([])
-      // Main axis is y: boundary at h/2 + 4 past the lane end.
-      expect(at(50, 100 + m.height / 2 + 4 + 0.5)).toEqual([])
-      expect(at(50, 100 + m.height / 2 + 4 - 0.5)).toEqual([{ kind: 'label', id: 'P->Q' }])
+      // Cross axis is x: boundary at pill w/2 + 4.
+      expect(at(50 + pillHalfW + 4 - 0.5, 50)).toEqual([{ kind: 'label', id: 'P->Q' }])
+      expect(at(50 + pillHalfW + 4 + 0.5, 50)).toEqual([])
+      // Main axis is y: boundary at pill h/2 + 4 past the lane end.
+      expect(at(50, 100 + pillHalfH + 4 + 0.5)).toEqual([])
+      expect(at(50, 100 + pillHalfH + 4 - 0.5)).toEqual([{ kind: 'label', id: 'P->Q' }])
     })
 
     it('channel conflicts are vertical segments here; horizontal crossings are fine', () => {
@@ -471,12 +488,13 @@ describe('directLaneBlockers (unit)', () => {
       expect(directLaneBlockers(vProbe, 50, 0, 100, vCtx({ edges: [crossing] }))).toEqual([])
     })
 
-    it('own-label capacity uses label height on a vertical lane', () => {
+    it('own-label capacity uses pill height on a vertical lane', () => {
       const m = measureMultilineText('No', 12, 400)
+      const pillH = m.height + 16
       const labeled = edge('A', 'B', [{ x: 50, y: 0 }, { x: 50, y: 100 }], { label: 'No' })
-      expect(directLaneBlockers(labeled, 50, 0, m.height + 8 - 1, vCtx()))
+      expect(directLaneBlockers(labeled, 50, 0, pillH + 8 - 1, vCtx()))
         .toEqual([{ kind: 'label', id: 'A->B' }])
-      expect(directLaneBlockers(labeled, 50, 0, m.height + 8 + 1, vCtx())).toEqual([])
+      expect(directLaneBlockers(labeled, 50, 0, pillH + 8 + 1, vCtx())).toEqual([])
     })
   })
 })
@@ -525,19 +543,39 @@ describe('validation ignores non-staircase routes', () => {
   })
 })
 
+describe('duplicate parallel edges (fast-check counterexample, pinned)', () => {
+  const DUP_SOURCE = 'flowchart TD\n  N2 --> N0\n  N1 --> N2\n  N0 --> N1\n  N2 --> N0\n  N0 --> N1'
+
+  it('duplicate edges between one pair never collapse onto a single overlapping path', () => {
+    const positioned = layoutGraphSync(parseMermaid(DUP_SOURCE))
+    const dups = positioned.edges.filter(e => e.source === 'N2' && e.target === 'N0')
+    expect(dups.length).toBe(2)
+    expect(JSON.stringify(dups[0]!.points)).not.toBe(JSON.stringify(dups[1]!.points))
+  })
+
+  it('no unexplained hitch survives when duplicates unblock each other mid-pass', () => {
+    const graph = parseMermaid(DUP_SOURCE)
+    const positioned = layoutGraphSync(graph)
+    expect(findRouteHitches(positioned, graph)).toEqual([])
+  })
+})
+
 describe('route contracts — properties', () => {
   const flowchartArb = fc
     .record({
       nodeCount: fc.integer({ min: 3, max: 7 }),
-      edgePicks: fc.array(fc.tuple(fc.nat(6), fc.nat(6)), { minLength: 2, maxLength: 10 }),
-      direction: fc.constantFrom('LR', 'TD'),
+      edgePicks: fc.array(
+        fc.tuple(fc.nat(6), fc.nat(6), fc.constantFrom('', '', '', 'yes', 'No', 'on error')),
+        { minLength: 2, maxLength: 10 },
+      ),
+      direction: fc.constantFrom('LR', 'TD', 'RL', 'BT'),
     })
     .map(({ nodeCount, edgePicks, direction }) => {
       const names = Array.from({ length: nodeCount }, (_, i) => `N${i}`)
       const lines = edgePicks
-        .map(([a, b]) => [names[a % nodeCount]!, names[b % nodeCount]!])
+        .map(([a, b, label]) => [names[a % nodeCount]!, names[b % nodeCount]!, label] as const)
         .filter(([a, b]) => a !== b)
-        .map(([a, b]) => `  ${a} --> ${b}`)
+        .map(([a, b, label]) => label ? `  ${a} -- ${label} --> ${b}` : `  ${a} --> ${b}`)
       if (lines.length === 0) lines.push(`  ${names[0]} --> ${names[1]}`)
       return `flowchart ${direction}\n${lines.join('\n')}`
     })

@@ -141,12 +141,22 @@ is **clear**:
 - it does not pass through any other node's bounding box (4px inflation;
   bbox is a conservative over-approximation of non-rectangular shapes — it
   can only suppress a legal straightening, never allow an illegal one),
-- it does not pass through any other edge's label rectangle (measured via
-  `text-metrics`, current positions at proof time),
+- it does not pass through any other edge's label **pill** (measured text
+  plus the renderer's 8px pill padding, at current positions at proof time;
+  one exception: a primary edge's proof ignores the label of its reciprocal
+  feedback partner — primary owns the lane, and the partner's label is
+  movable decoration that is re-placed when the partner straightens, or
+  stays on its detour),
 - it does not run collinearly (within a 4px corridor) along another edge's
   parallel segment ("channel" blocker),
-- if the edge has a label, the new segment has capacity for it
-  (label width + clearance); the label then moves to the segment midpoint.
+- if the edge has a label, the new segment has capacity for the pill
+  (pill extent along the lane + clearance), and a **label slot** exists on
+  the lane — the midpoint, then 1/3, then 2/3 — whose pill rect is clear of
+  nodes, other pills, and other edges' segments. Reciprocal labeled pairs
+  with room stagger their labels; with standard-height LR nodes there is
+  provably no room for a ~30px pill between two parallel horizontal lanes,
+  so the labeled feedback edge keeps its detour and certifies the label as
+  the blocker. The label moves to the chosen slot.
 
 Endpoints are re-anchored on the actual shape boundary: rectangle-like
 shapes by side intersection, diamonds by ray-polygon intersection (the same
@@ -156,9 +166,12 @@ sit on the bbox and a straightened lane could visibly detach from the
 rendered outline; they keep their ELK route and certify as explained or
 unverified-shape detours.
 
-Edges are processed in author order and each straightening updates the
-geometry the next proof sees, so the pass is deterministic and never lets
-two straightened lanes collide (the channel check sees prior results).
+Edges are processed in author order, each straightening updates the
+geometry the next proof sees, and the pass iterates to a fixed point:
+straightening one edge can vacate the channel that blocked a sibling
+(duplicate parallel edges do exactly this), so blocked edges are re-proved
+until nothing changes. The pass is deterministic and never lets two
+straightened lanes collide (the channel check sees prior results).
 
 If no candidate lane is clear, the certificate records
 `invariant: 'explained-detour'` (`'feedback-detour'` for feedback edges)

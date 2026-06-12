@@ -1462,6 +1462,9 @@ function bundleEdgePaths(
       return t.y > source.y + source.height // TD/TB
     })
     if (forward.length < 2) continue
+    // A fan needs >= 2 distinct targets: duplicate edges to one target would
+    // bundle onto byte-identical overlapping paths, hiding one of them.
+    if (new Set(forward.map(e => e.target)).size < 2) continue
 
     const srcCX = source.x + source.width / 2
     const srcCY = source.y + source.height / 2
@@ -1524,6 +1527,7 @@ function bundleEdgePaths(
         break
       }
       members = clear
+      if (new Set(members.map(m => m.edge.target)).size < 2) break
     }
   }
 
@@ -1553,6 +1557,8 @@ function bundleEdgePaths(
       return s.y + s.height < target.y // TD/TB
     })
     if (forward.length < 2) continue
+    // Same distinctness rule as fan-out, for duplicate edges from one source.
+    if (new Set(forward.map(e => e.source)).size < 2) continue
 
     const tgtCX = target.x + target.width / 2
     const tgtCY = target.y + target.height / 2
@@ -1613,6 +1619,7 @@ function bundleEdgePaths(
         break
       }
       members = clear
+      if (new Set(members.map(m => m.edge.source)).size < 2) break
     }
   }
 

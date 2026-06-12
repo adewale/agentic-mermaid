@@ -34,6 +34,8 @@ const SPAN_MARGIN = 4
 const CLEARANCE = 4
 /** Required free space around a label hosted on a straightened lane. */
 const LABEL_CLEARANCE = 8
+/** The renderer draws labels as pills with this padding around the measured text. */
+const LABEL_PILL_PADDING = 8
 
 /** Shapes whose forward-facing side is a straight axis-aligned segment. */
 const RECT_LIKE = new Set(['rectangle', 'service', 'rounded', 'subroutine'])
@@ -216,16 +218,38 @@ interface LaneContext {
   edges: PositionedEdge[]
   axis: Axis
   style: LabelMetricsStyle
+  /** Route classes by edgeIndex — lets proofs apply the primary-over-feedback priority. */
+  classes?: RouteClass[]
+}
+
+/**
+ * Primary edges own the straight lane (spec §5): when proving a primary
+ * lane, the reciprocal feedback partner's label is movable decoration —
+ * the partner re-places it when it straightens, or keeps it on its detour —
+ * so it must not veto the primary's lane.
+ */
+function isMovableReciprocalLabel(edge: PositionedEdge, other: PositionedEdge, ctx: LaneContext): boolean {
+  if (!ctx.classes || edge.edgeIndex === undefined || other.edgeIndex === undefined) return false
+  return ctx.classes[edge.edgeIndex] === 'primary-forward' &&
+    ctx.classes[other.edgeIndex] === 'feedback' &&
+    other.source === edge.target && other.target === edge.source
 }
 
 function edgeId(e: { source: string; target: string }): string {
   return `${e.source}->${e.target}`
 }
 
+/** The rendered pill rect for a label of this size centered at (cx, cy). */
+function pillRect(cx: number, cy: number, m: { width: number; height: number }): { x: number; y: number; w: number; h: number } {
+  const w = m.width + 2 * LABEL_PILL_PADDING
+  const h = m.height + 2 * LABEL_PILL_PADDING
+  return { x: cx - w / 2, y: cy - h / 2, w, h }
+}
+
 function labelRect(e: PositionedEdge, style: LabelMetricsStyle): { x: number; y: number; w: number; h: number } | null {
   if (!e.label || !e.labelPosition) return null
   const m = measureMultilineText(e.label, style.edgeLabelFontSize, style.edgeLabelFontWeight)
-  return { x: e.labelPosition.x - m.width / 2, y: e.labelPosition.y - m.height / 2, w: m.width, h: m.height }
+  return pillRect(e.labelPosition.x, e.labelPosition.y, m)
 }
 
 /**
@@ -259,7 +283,7 @@ export function directLaneBlockers(
     // Compare by edgeIndex as well as identity: validation proves lanes on a
     // copy of the edge, and the original must not block its own lane.
     if (other === edge || (edge.edgeIndex !== undefined && other.edgeIndex === edge.edgeIndex)) continue
-    const rect = labelRect(other, ctx.style)
+    const rect = isMovableReciprocalLabel(edge, other, ctx) ? null : labelRect(other, ctx.style)
     if (rect) {
       const rMainLo = (axis.main === 'x' ? rect.x : rect.y) - CLEARANCE
       const rMainHi = rMainLo + (axis.main === 'x' ? rect.w : rect.h) + 2 * CLEARANCE
@@ -286,13 +310,59 @@ export function directLaneBlockers(
 
   if (edge.label) {
     const m = measureMultilineText(edge.label, ctx.style.edgeLabelFontSize, ctx.style.edgeLabelFontWeight)
-    const span = axis.main === 'x' ? m.width : m.height
+    const span = (axis.main === 'x' ? m.width : m.height) + 2 * LABEL_PILL_PADDING
     if (mainHi - mainLo < span + LABEL_CLEARANCE) {
       blockers.push({ kind: 'label', id: edgeId(edge) })
     }
   }
 
   return dedupeBlockers(blockers)
+}
+
+/**
+ * Find a position on the straight lane where this edge's label can sit
+ * without overlapping nodes, other edges' labels, or other edges' segments
+ * (spec §11.4: labels are obstacles for each other). Tries the midpoint,
+ * then 1/3 and 2/3 — reciprocal labeled pairs end up straight with staggered
+ * labels. Returns null when no slot is clear.
+ */
+function findLabelSlot(
+  edge: PositionedEdge,
+  start: Point,
+  end: Point,
+  ctx: LaneContext,
+): Point | null {
+  if (!edge.label) return { x: (start.x + end.x) / 2, y: (start.y + end.y) / 2 }
+  const m = measureMultilineText(edge.label, ctx.style.edgeLabelFontSize, ctx.style.edgeLabelFontWeight)
+  const PAD = 2
+  const rectsOverlap = (ax: number, ay: number, aw: number, ah: number, bx: number, by: number, bw: number, bh: number) =>
+    ax < bx + bw + PAD && ax + aw + PAD > bx && ay < by + bh + PAD && ay + ah + PAD > by
+
+  for (const t of [0.5, 1 / 3, 2 / 3]) {
+    const cx = start.x + (end.x - start.x) * t
+    const cy = start.y + (end.y - start.y) * t
+    const pill = pillRect(cx, cy, m)
+    let clear = true
+
+    for (const node of ctx.nodes) {
+      if (node.id === edge.source || node.id === edge.target) continue
+      if (rectsOverlap(pill.x, pill.y, pill.w, pill.h, node.x, node.y, node.width, node.height)) { clear = false; break }
+    }
+    if (clear) for (const other of ctx.edges) {
+      if (other === edge || (edge.edgeIndex !== undefined && other.edgeIndex === edge.edgeIndex)) continue
+      const rect = isMovableReciprocalLabel(edge, other, ctx) ? null : labelRect(other, ctx.style)
+      if (rect && rectsOverlap(pill.x, pill.y, pill.w, pill.h, rect.x, rect.y, rect.w, rect.h)) { clear = false; break }
+      for (let i = 1; i < other.points.length; i++) {
+        const a = other.points[i - 1]!, b = other.points[i]!
+        const sxLo = Math.min(a.x, b.x), sxHi = Math.max(a.x, b.x)
+        const syLo = Math.min(a.y, b.y), syHi = Math.max(a.y, b.y)
+        if (rectsOverlap(pill.x, pill.y, pill.w, pill.h, sxLo, syLo, sxHi - sxLo, syHi - syLo)) { clear = false; break }
+      }
+      if (!clear) break
+    }
+    if (clear) return { x: cx, y: cy }
+  }
+  return null
 }
 
 function dedupeBlockers(blockers: RouteBlocker[]): RouteBlocker[] {
@@ -376,10 +446,13 @@ function tryStraighten(
     }
     const start: Point = axis.main === 'x' ? { x: srcMain, y: c } : { x: c, y: srcMain }
     const end: Point = axis.main === 'x' ? { x: tgtMain, y: c } : { x: c, y: tgtMain }
-    edge.points = [start, end]
-    if (edge.label) {
-      edge.labelPosition = { x: (start.x + end.x) / 2, y: (start.y + end.y) / 2 }
+    const slot = findLabelSlot(edge, start, end, ctx)
+    if (slot === null) {
+      blockers.push({ kind: 'label', id: edgeId(edge) })
+      continue
     }
+    edge.points = [start, end]
+    if (edge.label) edge.labelPosition = slot
     return { applied: true, blockers: [] }
   }
   return { applied: false, blockers: dedupeBlockers(blockers) }
@@ -387,10 +460,12 @@ function tryStraighten(
 
 /**
  * The route-contract pass: simplify every polyline (proof-free), straighten
- * primary-forward staircases whose direct lane proves clear (proof-carrying),
- * and certify every edge. Mutates edge geometry in author order so each proof
- * sees the results of earlier straightenings; attaches the certificate to the
- * edge and returns all certificates.
+ * primary-forward and feedback staircases whose direct lane proves clear
+ * (proof-carrying), and certify every edge. Edges are processed in author
+ * order, and the pass iterates to a fixed point: straightening one edge can
+ * vacate the channel that blocked a sibling (duplicate parallel edges do
+ * exactly this), so blocked edges are re-proved until nothing changes.
+ * Attaches the certificate to the edge and returns all certificates.
  */
 export function applyRouteContracts(
   positioned: { nodes: PositionedNode[]; edges: PositionedEdge[]; groups: PositionedGroup[] },
@@ -401,9 +476,39 @@ export function applyRouteContracts(
   const classes = classifyRoutes(graph)
   const axis = axisFor(graph.direction)
   const nodeMap = new Map(positioned.nodes.map(n => [n.id, n]))
-  const ctx: LaneContext = { nodes: positioned.nodes, edges: positioned.edges, axis, style }
+  const ctx: LaneContext = { nodes: positioned.nodes, edges: positioned.edges, axis, style, classes }
   const certificates: RouteCertificate[] = []
 
+  // Attempt one proof-carrying straightening; updates geometry + certificate.
+  // Returns true when the route was collapsed.
+  const attemptStraighten = (edge: PositionedEdge, cert: RouteCertificate): boolean => {
+    const edgeAxis: Axis = cert.routeClass === 'feedback' ? { ...axis, sign: axis.sign === 1 ? -1 : 1 } : axis
+    const source = nodeMap.get(edge.source)
+    const target = nodeMap.get(edge.target)
+    const eligible = source && target &&
+      (RECT_LIKE.has(source.shape) || source.shape === 'diamond') &&
+      (RECT_LIKE.has(target.shape) || target.shape === 'diamond') &&
+      isMonotoneStaircase(edge.points, edgeAxis)
+    if (!eligible) {
+      cert.invariant = cert.routeClass === 'feedback' ? 'feedback-detour' : 'unverified-shape'
+      return false
+    }
+    const attempt = tryStraighten(edge, source!, target!, ctx, edgeAxis)
+    if (attempt.applied) {
+      cert.invariant = 'straight'
+      cert.bendCount = 0
+      cert.directLaneClear = true
+      cert.straightened = true
+      cert.directLaneBlockedBy = undefined
+      return true
+    }
+    cert.invariant = cert.routeClass === 'feedback' ? 'feedback-detour' : 'explained-detour'
+    cert.directLaneClear = false
+    cert.directLaneBlockedBy = attempt.blockers
+    return false
+  }
+
+  const retry: Array<{ edge: PositionedEdge; cert: RouteCertificate }> = []
   for (const edge of positioned.edges) {
     edge.points = simplifyPolyline(edge.points)
 
@@ -423,35 +528,29 @@ export function applyRouteContracts(
     } else if (routeClass === 'container') {
       cert.invariant = 'container-attach'
     } else if ((routeClass === 'primary-forward' || routeClass === 'feedback') && cert.bendCount > 0) {
-      // Feedback edges flow against the graph axis: same lane proof, flipped sign.
-      const edgeAxis: Axis = routeClass === 'feedback' ? { ...axis, sign: axis.sign === 1 ? -1 : 1 } : axis
-      const detour = routeClass === 'feedback' ? 'feedback-detour' : 'explained-detour'
-      const source = nodeMap.get(edge.source)
-      const target = nodeMap.get(edge.target)
-      const eligible = source && target &&
-        (RECT_LIKE.has(source.shape) || source.shape === 'diamond') &&
-        (RECT_LIKE.has(target.shape) || target.shape === 'diamond') &&
-        isMonotoneStaircase(edge.points, edgeAxis)
-      if (!eligible) {
-        cert.invariant = routeClass === 'feedback' ? 'feedback-detour' : 'unverified-shape'
-      } else {
-        const attempt = tryStraighten(edge, source, target, ctx, edgeAxis)
-        if (attempt.applied) {
-          cert.invariant = 'straight'
-          cert.bendCount = 0
-          cert.directLaneClear = true
-          cert.straightened = true
-        } else {
-          cert.invariant = detour
-          cert.directLaneClear = false
-          cert.directLaneBlockedBy = attempt.blockers
-        }
-      }
+      if (!attemptStraighten(edge, cert)) retry.push({ edge, cert })
     }
 
     edge.routeCertificate = cert
     certificates.push(cert)
   }
+
+  // Fixed point: each round only re-proves edges that failed, and only keeps
+  // iterating while some edge straightened (which strictly shrinks the retry
+  // list), so this terminates in at most |edges| rounds; 4 covers practice.
+  for (let round = 0; round < 4 && retry.length > 0; round++) {
+    const still: typeof retry = []
+    let changed = false
+    for (const item of retry) {
+      if (item.cert.invariant === 'unverified-shape') continue
+      if (attemptStraighten(item.edge, item.cert)) changed = true
+      else still.push(item)
+    }
+    if (!changed) break
+    retry.length = 0
+    retry.push(...still)
+  }
+
   return certificates
 }
 
@@ -478,7 +577,12 @@ export function findRouteHitches(
 ): RouteHitch[] {
   const axis = axisFor(graph.direction)
   const nodeMap = new Map(positioned.nodes.map(n => [n.id, n]))
-  const ctx: LaneContext = { nodes: positioned.nodes, edges: positioned.edges, axis, style }
+  // Mirror the layout pass's priority rules using the certified classes.
+  const classes: RouteClass[] = []
+  for (const e of positioned.edges) {
+    if (e.edgeIndex !== undefined && e.routeCertificate) classes[e.edgeIndex] = e.routeCertificate.routeClass
+  }
+  const ctx: LaneContext = { nodes: positioned.nodes, edges: positioned.edges, axis, style, classes }
   const hitches: RouteHitch[] = []
 
   for (const edge of positioned.edges) {
