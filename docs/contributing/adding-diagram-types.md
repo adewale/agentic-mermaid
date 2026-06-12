@@ -114,7 +114,7 @@ Typed mutation is part of the definition of done for a new family, not a follow-
 - The 8-surface doc sync the doc-sync tests enforce: `MUTATION_OPS_BY_FAMILY` (`src/cli/index.ts`), `SDK_DECLARATION` (`src/mcp/sdk-decl.ts`) + sandbox narrower wiring, `AGENT_NATIVE.md` op list, the `Instructions_for_agents.md` mirror + `llms.txt` regeneration, and the per-family docs/skill tables.
 - Tests: parse/narrow/mutate/verify/serialize, structured-or-opaque fallback cases (table-driven sad paths), a fast-check round-trip property test, and a differential test against the legacy renderer parser proving the canonical source you emit re-parses identically.
 
-**Structured-or-opaque law:** any line your parser does not model must be preserved verbatim (opaque fallback) — never silently dropped. Round-trip of an unmodified parse must be byte-verbatim of the original source.
+**Structured-or-opaque law:** any line your parser does not model must be preserved verbatim (opaque fallback) — never silently dropped. Opaque bodies round-trip byte-verbatim; structured bodies serialize to canonical source and must be serialize-idempotent (parse → serialize → parse → serialize is byte-stable).
 
 **Enforcement:** the test `every registered renderable family ships typed mutation (default-by-default enforcement)` in `src/__tests__/agent-doc-sync.test.ts` fails CI if a registered family lacks mutate/serialize hooks, an ops declaration, or a narrower. A new family that registers source-level-only will not pass CI.
 
