@@ -991,7 +991,7 @@ function extractEdgesRecursively(
  * Returns the original array reference (identity) if no changes were needed,
  * so callers can detect whether routing was applied.
  */
-function orthogonalizeEdgePoints(
+export function orthogonalizeEdgePoints(
   points: Point[],
   margins?: MarginInfo,
   edgeIndex: number = 0
@@ -1480,7 +1480,7 @@ function alignPortLanes(
   }
 }
 
-function alignLayerNodes(
+export function alignLayerNodes(
   nodes: PositionedNode[],
   edges: PositionedEdge[],
   direction: Direction
