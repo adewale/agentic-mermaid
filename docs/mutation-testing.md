@@ -40,7 +40,7 @@ documented, not killed with synthetic inputs.
 | edge-routing.ts | 55.1% | 163 | 133 |
 | converter.ts | 38.4% | 94 | 151 |
 | grid.ts | 70.1% | 421 | 180 |
-| route-contracts.ts | 58.1% → 72.3% → 75.6% → 73.1% across the first three batches; 54.31% at commit 0b43c90 after the module grew ~3× (semantic ports, hooks, reciprocal pairs, port-lane alignment support: 882 → 2659 mutants — absolute kills rose 645 → 1444). Re-run pending after the slanted-family batch (shapePorts generalization). | 882 → 2659 | 54.31% (1444 killed) — survivor harvest is the next quality batch |
+| route-contracts.ts | 58.1% → 72.3% → 75.6% → 73.1% across the first three batches; 54.31% at 0b43c90, then 50.69% at 526d9cf after the slanted-family batch (shapePorts generalization, convex-polygon geometry: 2659 → 2740 mutants — absolute kills 1444 → 1381). The percentage fell purely on denominator growth (~3× since batch 3); a survivor-harvest batch is the documented next quality step. | 882 → 2740 | 50.69% (1381 killed) — survivor harvest pending |
 
 (Numbers from the June 2026 runs; regenerate rather than trusting this
 table — the report lands in `reports/mutation/`.)
