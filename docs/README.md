@@ -36,6 +36,7 @@ This directory holds the long-form documentation. The root README is intentional
 | Doc | Purpose |
 |---|---|
 | [`contributing/adding-diagram-types.md`](./contributing/adding-diagram-types.md) | How to add a Mermaid-supported diagram family. |
+| [`contributing/harvesting-upstream-tests.md`](./contributing/harvesting-upstream-tests.md) | How to vendor upstream/fork test suites into an executable compatibility bench. |
 | [`design/architecture.md`](./design/architecture.md) | Architecture diagram implementation notes. |
 | [`design/journey.md`](./design/journey.md) | Journey diagram implementation notes. |
 | [`design/xychart.md`](./design/xychart.md) | XY chart implementation notes. |
