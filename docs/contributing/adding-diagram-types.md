@@ -72,6 +72,7 @@ Before merge, verify that the new diagram:
 
 New diagram support should normally include most of these layers:
 
+- An upstream test-suite harvest per [`harvesting-upstream-tests.md`](./harvesting-upstream-tests.md): vendor the family's mermaid grammar/semantics specs (and ASCII-fork inputs) into `eval/mermaid-<type>-bench/` with an executable exclusions ledger, and add the family's docs examples to the mermaid-docs corpus. For not-yet-built families, do the harvest BEFORE implementation — it surfaces the real semantics the docs omit.
 - Parser tests for valid syntax, invalid syntax, comments, quoted labels, multiline labels, and diagram-specific edge cases
 - Layout tests when layout rules are specialized, especially spacing, bounds, and overlap avoidance
 - Integration tests for parse -> layout -> render using a basic example, a realistic example, and an edge case
