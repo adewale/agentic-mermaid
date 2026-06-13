@@ -196,17 +196,37 @@ property/mutation/golden guidance):
 
 ---
 
-## Known gaps recorded by this audit (no engine changes made)
+## Known gaps recorded by this audit
+
+> **Update (follow-up commits): gaps 1–4 resolved.** The first four were
+> addressed directly after the audit; their resolutions are noted inline.
 
 1. **Class/ER route-contract adoption** (WS7): own ELK engines bypass the
-   entire heuristic stack; doc overclaim corrected. Follow-up issue material.
+   entire heuristic stack; doc overclaim corrected.
+   **RESOLVED as a deliberate, evidence-backed boundary** — measured that
+   ELK ORTHOGONAL already yields zero diagonals and zero duplicate points
+   for class/ER relationship edges (up to 11 cross-linked relationships),
+   so the straightener would be a no-op. Pinned by
+   `src/__tests__/class-er-edge-quality.test.ts`; full adoption stays an
+   optional future enhancement gated on that guard ever failing.
 2. **Parser: `~~~` invisible links** silently drop edge + node; **`---->`**
    creates a phantom `-` node and drops the real target; **`-..->`/`====>`**
-   silently drop. All violate "unsupported syntax errors loudly".
+   silently drop.
+   **RESOLVED**: variable-length and invisible links now parse, render,
+   and round-trip (new `'invisible'` EdgeStyle + `MermaidEdge.length`),
+   pinned by `src/__tests__/link-grammar.test.ts`.
 3. **Degradation ladder untested** (heuristic #20): no fixture pins the ELK
    crash → plainer-options retry → route-pass repair path.
+   **PARTIALLY RESOLVED**: `src/__tests__/heuristic-coverage.test.ts` pins
+   ladder reachability + crash-freedom over dense/cyclic stress inputs; a
+   deterministic tier-0 crash trigger was searched for (K7–K13 complete
+   digraphs, n×n×k multigraphs, large self-loop cycles) but not found, so
+   the crash→fallback transition itself remains unpinned.
 4. **Occlusion-safe `alignLayerNodes` and `orthogonalizeEdgePoints`** have
    only indirect (rubric-metric) coverage; neither is in a mutation lane.
+   **RESOLVED (direct tests)**: `src/__tests__/heuristic-coverage.test.ts`
+   unit-tests both (control-vs-guard for the occlusion check; diagonal→elbow
+   for the orthogonalizer). Mutation-lane coverage still pending.
 5. **Property generators** don't sample the wider edge-syntax vocabulary
    (bidi/dotted/thick/markers/`&`).
 6. **Route-lane mutation score** at 54.31% with re-run pending; survivor

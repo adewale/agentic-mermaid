@@ -288,8 +288,18 @@ syntax (`L`/`R`/`T`/`B`) maps 1:1 onto `W`/`E`/`N`/`S` ports and its
 layout calls `layoutGraphSync` too. Class and ER do **not**: they render
 through their own ELK engines (`src/class/layout.ts`, `src/er/layout.ts`
 call `elkLayoutSync` directly), so the route-contract pass never sees
-their edges — a known adoption gap tracked as issue #26 WS7 (see
-`docs/design/issue-26-audit.md`). Sequence/timeline have no graph ports —
+their edges. This is a **deliberate, evidence-backed boundary**, not a
+silent gap: the straightener exists to remove diagonals and
+duplicate/collinear points, and ELK ORTHOGONAL already drives both to
+zero for the relationship-edge model — measured at zero across class
+diagrams up to 11 cross-linked relationships (with cardinalities and
+composition/aggregation markers) and cross-linked ER schemas, pinned by
+`src/__tests__/class-er-edge-quality.test.ts`. The straightener would
+therefore be a no-op here. Full route-contract adoption (port ranking,
+alignment) remains an optional future enhancement, worth its risk only
+if that guardrail ever fails on a realistic diagram — tracked as issue
+#26 WS7 (see `docs/design/issue-26-audit.md`).
+Sequence/timeline have no graph ports —
 their anchors are lifelines and intervals (issue #26 WS1 family
 certificates).
 
