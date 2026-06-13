@@ -69,7 +69,7 @@ export function verifyMermaid(input: ValidDiagram | string, opts: VerifyOptions 
   // emit pluginWarnings directly.
   // class + ER + journey + architecture: the FamilyPlugin.verify hooks produce
   // the per-body warnings (journey added by BUILD-15, architecture by BUILD-17).
-  if (d.body.kind === 'class' || d.body.kind === 'er' || d.body.kind === 'journey' || d.body.kind === 'architecture' || d.body.kind === 'xychart') {
+  if (d.body.kind === 'class' || d.body.kind === 'er' || d.body.kind === 'journey' || d.body.kind === 'architecture' || d.body.kind === 'xychart' || d.body.kind === 'pie' || d.body.kind === 'quadrant') {
     // QUAL-1: verify.layout is now truthful — the real positioned layout from
     // the family adapters (was emptyRenderedLayout). The structural warnings
     // still come from the FamilyPlugin.verify hooks; only the geometry the

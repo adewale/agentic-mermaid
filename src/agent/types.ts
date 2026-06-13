@@ -279,6 +279,59 @@ export interface XyChartBody {
   series: XyChartSeries[]
 }
 
+// ---- Pie body ---------------------------------------------------------------
+
+export interface PieSlice {
+  /** Stable within one parse; recomputed each parse. Not a durable identifier. */
+  id: string
+  /** The slice label (contents of the `"..."` quotes). */
+  label: string
+  /** The slice value — a positive finite number. */
+  value: number
+}
+
+export interface PieBody {
+  kind: 'pie'
+  title?: string
+  /** When true (`pie showData`), the legend shows each slice's numeric value. */
+  showData: boolean
+  /** Slices in source order (drawn clockwise). */
+  slices: PieSlice[]
+}
+
+// ---- Quadrant body ----------------------------------------------------------
+
+/** Axis label pair. The "far" side is optional in the grammar. */
+export interface QuadrantAxis {
+  /** x-axis: left label / y-axis: bottom label. */
+  near: string
+  /** x-axis: right label / y-axis: top label. Optional. */
+  far?: string
+}
+
+export interface QuadrantPoint {
+  label: string
+  /** Normalized x in [0, 1] (0 = left, 1 = right). */
+  x: number
+  /** Normalized y in [0, 1] (0 = bottom, 1 = top). */
+  y: number
+}
+
+export interface QuadrantBody {
+  kind: 'quadrant'
+  title?: string
+  xAxis?: QuadrantAxis
+  yAxis?: QuadrantAxis
+  /**
+   * Quadrant region labels indexed 1..4 by Mermaid's numbering:
+   *   1 = top-right, 2 = top-left, 3 = bottom-left, 4 = bottom-right.
+   * Stored 0-based where index `n-1` holds quadrant-`n`.
+   */
+  quadrants: [string?, string?, string?, string?]
+  /** Plotted points in source order. */
+  points: QuadrantPoint[]
+}
+
 // ---- State diagram body -----------------------------------------------------
 
 /**
@@ -345,6 +398,8 @@ export type DiagramBody =
   | JourneyBody
   | ArchitectureBody
   | XyChartBody
+  | PieBody
+  | QuadrantBody
   /**
    * Opaque body — the parser understood the family header but encountered
    * unmodeled syntax. `source` is the ORIGINAL body with indentation, blank
@@ -388,7 +443,9 @@ export type ErValidDiagram = ValidDiagram & { body: ErBody }
 export type JourneyValidDiagram = ValidDiagram & { body: JourneyBody }
 export type ArchitectureValidDiagram = ValidDiagram & { body: ArchitectureBody }
 export type XyChartValidDiagram = ValidDiagram & { body: XyChartBody }
-export type MutableValidDiagram = FlowchartValidDiagram | StateValidDiagram | SequenceValidDiagram | TimelineValidDiagram | ClassValidDiagram | ErValidDiagram | JourneyValidDiagram | ArchitectureValidDiagram | XyChartValidDiagram
+export type PieValidDiagram = ValidDiagram & { body: PieBody }
+export type QuadrantValidDiagram = ValidDiagram & { body: QuadrantBody }
+export type MutableValidDiagram = FlowchartValidDiagram | StateValidDiagram | SequenceValidDiagram | TimelineValidDiagram | ClassValidDiagram | ErValidDiagram | JourneyValidDiagram | ArchitectureValidDiagram | XyChartValidDiagram | PieValidDiagram | QuadrantValidDiagram
 
 export function asFlowchart(d: ValidDiagram): FlowchartValidDiagram | null {
   return d.body.kind === 'flowchart' ? (d as FlowchartValidDiagram) : null
@@ -424,6 +481,14 @@ export function asXyChart(d: ValidDiagram): XyChartValidDiagram | null {
   return d.body.kind === 'xychart' ? (d as XyChartValidDiagram) : null
 }
 
+export function asPie(d: ValidDiagram): PieValidDiagram | null {
+  return d.body.kind === 'pie' ? (d as PieValidDiagram) : null
+}
+
+export function asQuadrant(d: ValidDiagram): QuadrantValidDiagram | null {
+  return d.body.kind === 'quadrant' ? (d as QuadrantValidDiagram) : null
+}
+
 // ---- Errors ---------------------------------------------------------------
 
 export interface ParseError { code: string; message: string; line?: number; col?: number }
@@ -438,6 +503,7 @@ export interface MutationError {
     | 'ENTITY_NOT_FOUND' | 'ATTRIBUTE_NOT_FOUND'
     | 'SERVICE_NOT_FOUND' | 'GROUP_NOT_FOUND'
     | 'SERIES_NOT_FOUND'
+    | 'SLICE_NOT_FOUND' | 'POINT_NOT_FOUND'
     | 'STATE_NOT_FOUND' | 'TRANSITION_NOT_FOUND'
     | 'DUPLICATE_NODE' | 'DUPLICATE_PARTICIPANT' | 'DUPLICATE_CLASS' | 'DUPLICATE_ENTITY' | 'DUPLICATE_STATE'
     | 'INVALID_OP'
@@ -545,7 +611,25 @@ export type XyChartMutationOp =
   | { kind: 'set_series_name'; index: number; name: string | null }
   | { kind: 'reorder_series'; from: number; to: number }
 
-export type AnyMutationOp = FlowchartMutationOp | StateMutationOp | SequenceMutationOp | TimelineMutationOp | ClassMutationOp | ErMutationOp | JourneyMutationOp | ArchitectureMutationOp | XyChartMutationOp
+export type PieMutationOp =
+  | { kind: 'set_title'; title: string | null }
+  | { kind: 'set_show_data'; showData: boolean }
+  | { kind: 'add_slice'; label: string; value: number }
+  | { kind: 'remove_slice'; label: string }
+  | { kind: 'rename_slice'; from: string; to: string }
+  | { kind: 'set_slice_value'; label: string; value: number }
+  | { kind: 'reorder_slice'; from: number; to: number }
+
+export type QuadrantMutationOp =
+  | { kind: 'set_title'; title: string | null }
+  | { kind: 'set_axis_labels'; axis: 'x' | 'y'; near: string | null; far?: string | null }
+  | { kind: 'set_quadrant_label'; quadrant: number; label: string | null }
+  | { kind: 'add_point'; label: string; x: number; y: number }
+  | { kind: 'remove_point'; label: string }
+  | { kind: 'move_point'; label: string; x: number; y: number }
+  | { kind: 'rename_point'; from: string; to: string }
+
+export type AnyMutationOp = FlowchartMutationOp | StateMutationOp | SequenceMutationOp | TimelineMutationOp | ClassMutationOp | ErMutationOp | JourneyMutationOp | ArchitectureMutationOp | XyChartMutationOp | PieMutationOp | QuadrantMutationOp
 export type MutationOp = FlowchartMutationOp // legacy alias
 
 // ---- Branded Finite -------------------------------------------------------
@@ -699,5 +783,7 @@ export interface ValidDiagramPayload {
     | JourneyBody
     | ArchitectureBody
     | XyChartBody
+    | PieBody
+    | QuadrantBody
     | { kind: 'opaque'; family: DiagramKind; source: string }
 }

@@ -30,8 +30,8 @@ What Agentic Mermaid can do, organized by capability area. The npm import paths 
 | Journey | ✅ | ✅ (10 ops via `asJourney`) |
 | XY chart | ✅ | ✅ (8 ops via `asXyChart`) |
 | Architecture | ✅ | ✅ (10 ops via `asArchitecture`) |
-| Pie | ✅ | source-level only (lossless round-trip) |
-| Quadrant | ✅ | source-level only (lossless round-trip) |
+| Pie | ✅ | ✅ (7 ops via `asPie`) |
+| Quadrant | ✅ | ✅ (7 ops via `asQuadrant`) |
 
 **Structured-or-opaque rule:** every family either has a structured body
 or preserves source verbatim. Constructs are never silently dropped.

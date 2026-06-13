@@ -34,7 +34,7 @@ Agents should not guess from pixels, concatenate strings, or regenerate whole di
 - **ASCII, PNG, SVG** — plus Unicode text and JSON layout.
 - **Synchronous, zero-DOM SVG renderer** — no Puppeteer, no browser flash.
 - **19 built-in themes + Shiki compatibility** — theme from two colors or a VS Code theme.
-- **Agent-native editing** — typed mutation for flowchart/state, sequence, timeline, class, ER, journey, architecture, and XY chart; source-level round-trip for pie, quadrant, and opaque fallbacks.
+- **Agent-native editing** — typed mutation for all eleven renderable families (flowchart/state, sequence, timeline, class, ER, journey, architecture, XY chart, pie, quadrant); source-level round-trip only for opaque fallbacks (unmodeled syntax).
 - **CLI + MCP + library** — `am`, `agentic-mermaid-mcp`, `agentic-mermaid`, and `agentic-mermaid/agent`.
 
 ## Installation

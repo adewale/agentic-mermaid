@@ -104,7 +104,21 @@ Run the checks that fit the change:
 - `bun run samples` if you added or changed visual samples
 - `bun run bench` if the diagram type adds meaningful layout or rendering cost
 
-## 7. Definition Of Done
+## 7. Agent-Native Typed Mutation (Required)
+
+Typed mutation is part of the definition of done for a new family, not a follow-up. Every renderable family ships a structured editing surface by default; source-level-only families are no longer accepted. Add, alongside the renderer pipeline above:
+
+- A body module `src/agent/<type>-body.ts` with a structured-or-opaque parser, a canonical serializer, a mutator (per-family ops), and a `verify` hook. Follow an existing module — `src/agent/journey-body.ts` (pilot), `src/agent/pie-body.ts`, or `src/agent/quadrant-body.ts` are clean templates.
+- Body + op types in `src/agent/types.ts` (e.g. `PieBody`, `PieMutationOp`), added to the `DiagramBody`, `AnyMutationOp`, and `MutableValidDiagram` unions, plus a narrower `as<Type>` and its `<Type>ValidDiagram` alias.
+- Structured hooks registered in `src/agent/families-builtin.ts` (replace any source-level-only registration), the narrower exported from `src/agent/index.ts`, and a `mutate` overload in `src/agent/mutate.ts`.
+- The 8-surface doc sync the doc-sync tests enforce: `MUTATION_OPS_BY_FAMILY` (`src/cli/index.ts`), `SDK_DECLARATION` (`src/mcp/sdk-decl.ts`) + sandbox narrower wiring, `AGENT_NATIVE.md` op list, the `Instructions_for_agents.md` mirror + `llms.txt` regeneration, and the per-family docs/skill tables.
+- Tests: parse/narrow/mutate/verify/serialize, structured-or-opaque fallback cases (table-driven sad paths), a fast-check round-trip property test, and a differential test against the legacy renderer parser proving the canonical source you emit re-parses identically.
+
+**Structured-or-opaque law:** any line your parser does not model must be preserved verbatim (opaque fallback) — never silently dropped. Opaque bodies round-trip byte-verbatim; structured bodies serialize to canonical source and must be serialize-idempotent (parse → serialize → parse → serialize is byte-stable).
+
+**Enforcement:** the test `every registered renderable family ships typed mutation (default-by-default enforcement)` in `src/__tests__/agent-doc-sync.test.ts` fails CI if a registered family lacks mutate/serialize hooks, an ops declaration, or a narrower. A new family that registers source-level-only will not pass CI.
+
+## 8. Definition Of Done
 
 A new Mermaid-backed diagram type is ready when:
 
@@ -113,4 +127,5 @@ A new Mermaid-backed diagram type is ready when:
 - parser, integration, and regression coverage exist for the important syntax paths
 - specialized layout, renderer, theme, and ASCII behavior are covered when applicable
 - output quality matches the rest of Agentic Mermaid
+- the agent-native typed mutation surface from section 7 is wired and tested (the default-by-default enforcement test passes)
 - intentional gaps versus Mermaid are documented

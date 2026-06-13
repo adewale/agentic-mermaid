@@ -101,4 +101,4 @@ return sources.map(src => {
 Conventions: return the final value; do not use imports or type annotations in
 Code Mode; do not use `async`/`await` or Promise jobs; for new diagrams, author
 source then parse/verify; for existing modeled diagrams, narrow before mutate and
-verify before every serialize; `verify.ok` is structural rather than visual, so inspect layout/render artifacts for visual tasks; for pie, quadrant, and opaque bodies, return an explicit unsupported-family result unless the task requested source-level editing and you can re-parse + verify afterward.
+verify before every serialize; `verify.ok` is structural rather than visual, so inspect layout/render artifacts for visual tasks; for an opaque-fallback body (any unmodeled syntax, where the narrower returns null), return an explicit unsupported-family result unless the task requested source-level editing and you can re-parse + verify afterward.

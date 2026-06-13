@@ -9,6 +9,12 @@ import { AGENT_INSTRUCTIONS } from '../cli/agent-instructions.ts'
 import { MUTATION_OPS_BY_FAMILY, buildCapabilities } from '../cli/index.ts'
 import { SDK_DECLARATION } from '../mcp/sdk-decl.ts'
 import { WARNING_SEVERITY, WARNING_TIER } from '../agent/types.ts'
+import {
+  asFlowchart, asState, asSequence, asTimeline, asClass, asEr,
+  asJourney, asArchitecture, asXyChart, asPie, asQuadrant,
+} from '../agent/types.ts'
+import { knownFamilies, getFamily } from '../agent/families.ts'
+import type { DiagramKind, ValidDiagram } from '../agent/types.ts'
 import { THEMES } from '../theme.ts'
 import { executeInSandbox } from '../mcp/sandbox.ts'
 import { lintAgentTrace, type SdkCall } from '../../eval/agent-usage/harness.ts'
@@ -151,7 +157,7 @@ describe('vocabulary doc-sync', () => {
   })
 
   test('MCP SDK declaration exposes all mutable-family narrowers', () => {
-    for (const narrower of ['asFlowchart', 'asState', 'asSequence', 'asTimeline', 'asClass', 'asEr', 'asJourney', 'asArchitecture', 'asXyChart']) {
+    for (const narrower of ['asFlowchart', 'asState', 'asSequence', 'asTimeline', 'asClass', 'asEr', 'asJourney', 'asArchitecture', 'asXyChart', 'asPie', 'asQuadrant']) {
       expect(SDK_DECLARATION).toContain(narrower)
     }
   })
@@ -172,6 +178,8 @@ describe('vocabulary doc-sync', () => {
       asJourney: 'journey\\n  Wake: 3: Me',
       asArchitecture: 'architecture-beta\\n  service a(server)[A]',
       asXyChart: 'xychart-beta\\n  bar [1, 2]',
+      asPie: 'pie\\n  "Dogs" : 3',
+      asQuadrant: 'quadrantChart\\n  Campaign A: [0.3, 0.6]',
     }
     for (const narrower of advertised) {
       const source = SOURCES[narrower]
@@ -181,6 +189,34 @@ describe('vocabulary doc-sync', () => {
       expect({ narrower, ok: result.ok, value: result.ok ? result.value : result.error })
         .toEqual({ narrower, ok: true, value: { narrower, narrowed: true } })
     }
+  })
+
+  test('every registered renderable family ships typed mutation (default-by-default enforcement)', () => {
+    // Typed mutation is the enforced default: a new family cannot register
+    // source-level-only. Every registered family must (a) expose mutate +
+    // serialize FamilyPlugin hooks, (b) declare its ops in MUTATION_OPS_BY_FAMILY,
+    // and (c) have a narrower returning non-null on its own structured body. This
+    // closes the loophole where a family could ship without a structured editing
+    // surface (as pie/quadrant once did).
+    const NARROWERS: Record<DiagramKind, (d: ValidDiagram) => unknown> = {
+      flowchart: asFlowchart, state: asState, sequence: asSequence, timeline: asTimeline,
+      class: asClass, er: asEr, journey: asJourney, architecture: asArchitecture,
+      xychart: asXyChart, pie: asPie, quadrant: asQuadrant,
+    }
+    const FAIL = 'New families ship with typed mutation by default — see docs/contributing/adding-diagram-types.md.'
+    for (const kind of knownFamilies()) {
+      const plugin = getFamily(kind)!
+      expect({ kind, hasMutate: typeof plugin.mutate === 'function', msg: FAIL })
+        .toEqual({ kind, hasMutate: true, msg: FAIL })
+      expect({ kind, hasSerialize: typeof plugin.serialize === 'function', msg: FAIL })
+        .toEqual({ kind, hasSerialize: true, msg: FAIL })
+      expect({ kind, declaresOps: kind in MUTATION_OPS_BY_FAMILY, msg: FAIL })
+        .toEqual({ kind, declaresOps: true, msg: FAIL })
+      expect({ kind, hasNarrower: typeof NARROWERS[kind] === 'function', msg: FAIL })
+        .toEqual({ kind, hasNarrower: true, msg: FAIL })
+    }
+    // Sanity: the narrower table covers every registered family kind exactly.
+    expect(new Set(Object.keys(NARROWERS))).toEqual(new Set(knownFamilies()))
   })
 
   test('state-narrows-via-asState is documented on every agent surface that claims state mutation', () => {
