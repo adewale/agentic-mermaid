@@ -405,26 +405,32 @@ function parseStyleProps(propsStr: string): Record<string, string> {
 // ============================================================================
 
 /**
- * Arrow regex — matches all arrow operators with optional labels.
+ * Arrow regex — matches all arrow operators with optional labels. Operators
+ * are VARIABLE LENGTH (Mermaid lets you lengthen a link to push rank): every
+ * shaft accepts extra units —
+ *   -->  --->  ---->   solid arrow      ---  ----  -----   solid line
+ *   -.-> -..->         dotted arrow     -.-  -..-          dotted line
+ *   ==>  ===>          thick arrow      ===  ====          thick line
+ *   ~~~  ~~~~          invisible link (participates in layout, draws nothing)
+ *   --o --x o--o …     circle / cross endpoint markers (also length-variable)
+ *   <--> <-.-> <==>    bidirectional variants (leading `<`)
  *
- * Supported operators:
- *   -->  ---       solid arrow / solid line
- *   -.-> -.-       dotted arrow / dotted line
- *   ==>  ===       thick arrow / thick line
- *   <--> <-.-> <==>  bidirectional variants
- *   --o --x o--o o--x x--o x--x  circle / cross endpoint markers
+ * Alternation order matters (leftmost wins): the dotted/thick/marker forms
+ * with explicit terminators MUST precede the bare solid-line `-{3,}`, or a
+ * greedy dash run would swallow a marker/arrow prefix and mangle the line.
  *
  * Optional label: -->|label text|
  */
-const ARROW_REGEX = /^(<)?(-->|-.->|==>|---|-\.-|===|--o|--x|o--o|o--x|x--o|x--x)(?:\|([^|]*)\|)?/
+const ARROW_REGEX = /^(<)?(~{3,}|-\.+->|-\.+-|={2,}>|={3,}|o-{2,}o|o-{2,}x|x-{2,}o|x-{2,}x|-{2,}[ox]|-{2,}>|-{3,})(?:\|([^|]*)\|)?/
 
 /**
- * Text-embedded label regex — matches "-- label -->", "-. label .->", "== label ==>" syntax.
+ * Text-embedded label regex — matches "-- label -->", "-. label .->", "== label ==>"
+ * syntax, with variable-length shafts on both the opener and the closer.
  * Tried as fallback when ARROW_REGEX doesn't match.
  *
  * Based on PR #36 by @liuxiaopai-ai (https://github.com/lukilabs/beautiful-mermaid/pull/36)
  */
-const TEXT_ARROW_REGEX = /^(<)?(--|-\.|==)\s+(.+?)\s+(-->|---|\.\->|-\.\-|==>|===)/
+const TEXT_ARROW_REGEX = /^(<)?(-{2,}|-\.+|={2,})\s+(.+?)\s+(-{2,}>|-{3,}|\.+->|-\.+-|={2,}>|={3,})/
 
 /**
  * Node shape patterns — ordered from most specific delimiters to least.
@@ -494,6 +500,7 @@ function parseEdgeLine(
     let startMarker: EdgeMarker | undefined
     let endMarker: EdgeMarker | undefined
     let edgeLabel: string | undefined
+    let length: number | undefined
 
     const arrowMatch = remaining.match(ARROW_REGEX)
     if (arrowMatch) {
@@ -502,6 +509,7 @@ function parseEdgeLine(
       edgeLabel = rawEdgeLabel ? normalizeBrTags(rawEdgeLabel) : undefined
       remaining = remaining.slice(arrowMatch[0].length).trim()
       style = arrowStyleFromOp(arrowOp)
+      length = arrowLengthFromOp(arrowOp)
       startMarker = startMarkerForOp(arrowOp, Boolean(arrowMatch[1]))
       endMarker = endMarkerForOp(arrowOp)
       hasArrowStart = startMarker !== undefined
@@ -540,6 +548,7 @@ function parseEdgeLine(
           hasArrowEnd,
           startMarker,
           endMarker,
+          ...(length !== undefined ? { length } : {}),
         })
       }
     }
@@ -660,20 +669,40 @@ function trackInSubgraph(subgraphStack: MermaidSubgraph[], nodeId: string): void
   }
 }
 
-/** Map arrow operator string to edge style (ignoring direction) */
+/** Map arrow operator string to edge style (ignoring direction/length) */
 function arrowStyleFromOp(op: string): EdgeStyle {
-  if (op === '-.->') return 'dotted'
-  if (op === '-.-') return 'dotted'
-  if (op === '==>') return 'thick'
-  if (op === '===') return 'thick'
-  // '-->'' and '---' are both solid
+  if (op[0] === '~') return 'invisible'
+  if (op.includes('.')) return 'dotted'
+  if (op.includes('=')) return 'thick'
   return 'solid'
+}
+
+/**
+ * Mermaid link length (rank distance): 1 for a base operator, +1 per extra
+ * shaft unit. Returns undefined for the base length so base-form edges carry
+ * no `length` field and serialize byte-identically.
+ */
+function arrowLengthFromOp(op: string): number | undefined {
+  let extra: number
+  if (op[0] === '~') {
+    extra = op.length - 3 // ~~~ base
+  } else if (op.includes('.')) {
+    extra = (op.match(/\./g)?.length ?? 1) - 1 // -.-> / -.- base = 1 dot
+  } else if (op.includes('=')) {
+    const eq = op.match(/=/g)?.length ?? 2
+    extra = op.endsWith('>') ? eq - 2 : eq - 3 // ==> base 2, === base 3
+  } else {
+    const dashes = op.match(/-/g)?.length ?? 2
+    const terminated = /[>ox]$/.test(op) || /^[ox]/.test(op)
+    extra = terminated ? dashes - 2 : dashes - 3 // --> base 2, --- base 3
+  }
+  return extra > 0 ? extra + 1 : undefined
 }
 
 /** Map text-embedded arrow open/close operators to edge style */
 function textArrowStyleFromOps(openOp: string, closeOp: string): EdgeStyle {
-  if (openOp === '-.' || closeOp === '.->' || closeOp === '-.-') return 'dotted'
-  if (openOp === '==' || closeOp === '==>' || closeOp === '===') return 'thick'
+  if (openOp.includes('.') || closeOp.includes('.')) return 'dotted'
+  if (openOp.includes('=') || closeOp.includes('=')) return 'thick'
   return 'solid'
 }
 

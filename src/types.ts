@@ -62,9 +62,16 @@ export interface MermaidEdge {
   startMarker?: EdgeMarker
   /** Marker shape at end when hasArrowEnd=true. Defaults to 'arrow' if undefined. */
   endMarker?: EdgeMarker
+  /** Mermaid link length (rank distance): 1 = base operator, 2 = one extra
+   *  shaft unit (`--->`, `-..->`, `====>`, `~~~~`), etc. Undefined ≡ 1, so
+   *  base-form edges serialize byte-identically. Preserved through
+   *  round-trip; layout does not yet honor the extra rank distance. */
+  length?: number
 }
 
-export type EdgeStyle = 'solid' | 'dotted' | 'thick'
+/** 'invisible' is Mermaid's `~~~` link: it participates in layout ordering
+ *  but draws no stroke. */
+export type EdgeStyle = 'solid' | 'dotted' | 'thick' | 'invisible'
 export type EdgeMarker = 'arrow' | 'circle' | 'cross'
 
 export interface MermaidSubgraph {

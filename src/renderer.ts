@@ -250,6 +250,8 @@ function renderGroup(group: PositionedGroup, font: string, style: ResolvedRender
 
 function renderEdge(edge: PositionedEdge, style: ResolvedRenderStyle): string {
   if (edge.points.length < 2) return ''
+  // Invisible links (~~~) shape the layout but draw no stroke or markers.
+  if (edge.style === 'invisible') return ''
 
   const pathData = style.edgeBendRadius > 0 ? pointsToPathD(edge.points, style.edgeBendRadius) : pointsToPolylinePath(edge.points)
   const dashArray = edge.style === 'dotted' ? ' stroke-dasharray="4 4"' : ''
