@@ -1553,3 +1553,252 @@ exports[`contact sheet — pinned geometry (re-pin deliberately, review the shee
   "version": 1,
 }
 `;
+
+exports[`contact sheet — pinned geometry (re-pin deliberately, review the sheet) T — parallelogram I/O fan-in — port-to-port straight + merge 1`] = `
+{
+  "bounds": {
+    "h": 182,
+    "w": 301,
+  },
+  "edges": [
+    {
+      "from": "A",
+      "id": "A->T",
+      "label": undefined,
+      "path": [
+        [
+          120,
+          58,
+        ],
+        [
+          182,
+          58,
+        ],
+      ],
+      "to": "T",
+    },
+    {
+      "from": "B",
+      "id": "B->T",
+      "label": undefined,
+      "path": [
+        [
+          121,
+          123,
+        ],
+        [
+          152,
+          123,
+        ],
+        [
+          152,
+          58,
+        ],
+        [
+          182,
+          58,
+        ],
+      ],
+      "to": "T",
+    },
+  ],
+  "groups": [],
+  "kind": "flowchart",
+  "nodes": [
+    {
+      "h": 37,
+      "id": "A",
+      "label": "One",
+      "shape": "lean-r",
+      "w": 86,
+      "x": 41,
+      "y": 40,
+    },
+    {
+      "h": 37,
+      "id": "B",
+      "label": "Two",
+      "shape": "lean-r",
+      "w": 87,
+      "x": 41,
+      "y": 105,
+    },
+    {
+      "h": 37,
+      "id": "T",
+      "label": "Hub",
+      "shape": "lean-r",
+      "w": 86,
+      "x": 175,
+      "y": 40,
+    },
+  ],
+  "version": 1,
+}
+`;
+
+exports[`contact sheet — pinned geometry (re-pin deliberately, review the sheet) U — trapezoid fan-in — port-to-port straight + merge 1`] = `
+{
+  "bounds": {
+    "h": 182,
+    "w": 301,
+  },
+  "edges": [
+    {
+      "from": "A",
+      "id": "A->T",
+      "label": undefined,
+      "path": [
+        [
+          120,
+          58,
+        ],
+        [
+          182,
+          58,
+        ],
+      ],
+      "to": "T",
+    },
+    {
+      "from": "B",
+      "id": "B->T",
+      "label": undefined,
+      "path": [
+        [
+          121,
+          123,
+        ],
+        [
+          152,
+          123,
+        ],
+        [
+          152,
+          58,
+        ],
+        [
+          182,
+          58,
+        ],
+      ],
+      "to": "T",
+    },
+  ],
+  "groups": [],
+  "kind": "flowchart",
+  "nodes": [
+    {
+      "h": 37,
+      "id": "A",
+      "label": "One",
+      "shape": "trapezoid",
+      "w": 86,
+      "x": 41,
+      "y": 40,
+    },
+    {
+      "h": 37,
+      "id": "B",
+      "label": "Two",
+      "shape": "trapezoid",
+      "w": 87,
+      "x": 41,
+      "y": 105,
+    },
+    {
+      "h": 37,
+      "id": "T",
+      "label": "Hub",
+      "shape": "trapezoid",
+      "w": 86,
+      "x": 175,
+      "y": 40,
+    },
+  ],
+  "version": 1,
+}
+`;
+
+exports[`contact sheet — pinned geometry (re-pin deliberately, review the sheet) V — asymmetric fan-in — flag point + merge 1`] = `
+{
+  "bounds": {
+    "h": 182,
+    "w": 285,
+  },
+  "edges": [
+    {
+      "from": "A",
+      "id": "A->T",
+      "label": undefined,
+      "path": [
+        [
+          118,
+          58,
+        ],
+        [
+          167,
+          58,
+        ],
+      ],
+      "to": "T",
+    },
+    {
+      "from": "B",
+      "id": "B->T",
+      "label": undefined,
+      "path": [
+        [
+          120,
+          123,
+        ],
+        [
+          144,
+          123,
+        ],
+        [
+          144,
+          58,
+        ],
+        [
+          167,
+          58,
+        ],
+      ],
+      "to": "T",
+    },
+  ],
+  "groups": [],
+  "kind": "flowchart",
+  "nodes": [
+    {
+      "h": 37,
+      "id": "A",
+      "label": "One",
+      "shape": "asymmetric",
+      "w": 78,
+      "x": 41,
+      "y": 40,
+    },
+    {
+      "h": 37,
+      "id": "B",
+      "label": "Two",
+      "shape": "asymmetric",
+      "w": 79,
+      "x": 41,
+      "y": 105,
+    },
+    {
+      "h": 37,
+      "id": "T",
+      "label": "Hub",
+      "shape": "asymmetric",
+      "w": 78,
+      "x": 167,
+      "y": 40,
+    },
+  ],
+  "version": 1,
+}
+`;

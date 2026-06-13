@@ -42,6 +42,11 @@ export function clipEdgeToShape(
       case 'stadium': return clipToStadium(endpoint, adjacent, node)
       case 'hexagon': return clipToHexagon(endpoint, adjacent, node)
       case 'cylinder': return clipToCylinder(endpoint, adjacent, node)
+      case 'trapezoid':
+      case 'trapezoid-alt':
+      case 'lean-r':
+      case 'lean-l':
+      case 'asymmetric': return clipToConvexPolygon(endpoint, adjacent, slantedShapePolygon(node))
       default: return endpoint
     }
   }
@@ -159,6 +164,58 @@ function clipToCylinder(endpoint: Point, adjacent: Point, node: PositionedNode):
   return dir > 0
     ? { x: endpoint.x, y: top - span }      // entering downward: top cap
     : { x: endpoint.x, y: bottom + span }   // entering upward: bottom cap
+}
+
+/**
+ * Rendered polygon outlines of the slanted shapes (renderer geometry: the
+ * trapezoids and parallelograms shear by w * 0.15, the asymmetric flag
+ * indents its left point by 12px).
+ */
+function slantedShapePolygon(node: PositionedNode): Point[] {
+  const { x, y, width: w, height: h } = node
+  const inset = w * 0.15
+  switch (node.shape) {
+    case 'trapezoid': // wider bottom
+      return [{ x: x + inset, y }, { x: x + w - inset, y }, { x: x + w, y: y + h }, { x, y: y + h }]
+    case 'trapezoid-alt': // wider top
+      return [{ x, y }, { x: x + w, y }, { x: x + w - inset, y: y + h }, { x: x + inset, y: y + h }]
+    case 'lean-r': // parallelogram leaning right
+      return [{ x: x + inset, y }, { x: x + w, y }, { x: x + w - inset, y: y + h }, { x, y: y + h }]
+    case 'lean-l': // parallelogram leaning left
+      return [{ x, y }, { x: x + w - inset, y }, { x: x + w, y: y + h }, { x: x + inset, y: y + h }]
+    case 'asymmetric': // flag with a pointed left edge
+      return [{ x: x + 12, y }, { x: x + w, y }, { x: x + w, y: y + h }, { x: x + 12, y: y + h }, { x, y: y + h / 2 }]
+    default:
+      return [{ x, y }, { x: x + w, y }, { x: x + w, y: y + h }, { x, y: y + h }]
+  }
+}
+
+/**
+ * Generic convex-polygon clipper: extend the edge's final orthogonal segment
+ * as a ray and keep the polygon-boundary intersection nearest the OUTSIDE
+ * endpoint (`adjacent`) — the entry point into the shape. Like clipToDiamond
+ * this preserves orthogonality: the ray's own fixed coordinate is kept and
+ * only the coordinate along the ray moves onto the outline. Returns the
+ * endpoint unchanged when the ray misses the polygon.
+ */
+function clipToConvexPolygon(endpoint: Point, adjacent: Point, verts: Point[]): Point {
+  const { vertical } = rayInfo(endpoint, adjacent)
+  let best: Point | null = null
+  let bestDist = Infinity
+  for (let i = 0; i < verts.length; i++) {
+    const p1 = verts[i]!
+    const p2 = verts[(i + 1) % verts.length]!
+    const hit = vertical
+      ? intersectVerticalRayWithEdge(endpoint.x, p1, p2)
+      : intersectHorizontalRayWithEdge(endpoint.y, p1, p2)
+    if (!hit) continue
+    const d = Math.hypot(hit.x - adjacent.x, hit.y - adjacent.y)
+    if (d < bestDist) {
+      bestDist = d
+      best = hit
+    }
+  }
+  return best ?? endpoint
 }
 
 /**

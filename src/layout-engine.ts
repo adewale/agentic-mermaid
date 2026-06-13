@@ -165,7 +165,7 @@ function estimateNodeSize(id: string, label: string, shape: string, style: Resol
     width += style.nodePaddingX
   }
 
-  if (shape === 'trapezoid' || shape === 'trapezoid-alt') {
+  if (shape === 'trapezoid' || shape === 'trapezoid-alt' || shape === 'lean-r' || shape === 'lean-l') {
     width += style.nodePaddingX
   }
 

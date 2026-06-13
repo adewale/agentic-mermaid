@@ -22,7 +22,7 @@ import './families-builtin.ts'  // registers built-in families at import time
 const KNOWN_SHAPES = new Set([
   'rectangle', 'service', 'rounded', 'diamond', 'stadium', 'circle',
   'subroutine', 'doublecircle', 'hexagon', 'cylinder', 'asymmetric',
-  'trapezoid', 'trapezoid-alt', 'state-start', 'state-end',
+  'trapezoid', 'trapezoid-alt', 'lean-r', 'lean-l', 'state-start', 'state-end',
 ])
 
 function opaqueSourceHasOnlyHeader(kind: ValidDiagram['kind'], source: string): boolean {

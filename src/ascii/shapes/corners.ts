@@ -111,6 +111,18 @@ export const SHAPE_CORNERS: Record<AsciiNodeShape, ShapeCorners> = {
     ascii: { tl: '+', tr: '+', bl: '\\', br: '/' },
   },
 
+  // Parallelogram leaning right - all four corners sit on '/' slants
+  'lean-r': {
+    unicode: { tl: '/', tr: '/', bl: '/', br: '/' },
+    ascii: { tl: '/', tr: '/', bl: '/', br: '/' },
+  },
+
+  // Parallelogram leaning left - all four corners sit on '\' slants
+  'lean-l': {
+    unicode: { tl: '\\', tr: '\\', bl: '\\', br: '\\' },
+    ascii: { tl: '\\', tr: '\\', bl: '\\', br: '\\' },
+  },
+
   // State diagram pseudostates (special handling, not corner-based)
   'state-start': {
     unicode: { tl: '●', tr: '●', bl: '●', br: '●' },

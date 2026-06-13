@@ -50,7 +50,16 @@ const RECT_LIKE = new Set(['rectangle', 'service', 'rounded', 'subroutine'])
 export const PORT_EXACT = new Set([
   ...RECT_LIKE, 'diamond',
   'circle', 'doublecircle', 'stadium', 'hexagon', 'cylinder', 'state-start', 'state-end',
+  // The slanted family: their N/S ports sit on flat bbox-edge regions and
+  // their E/W ports move inward onto the slant midpoints (see shapePorts).
+  'trapezoid', 'trapezoid-alt', 'asymmetric', 'lean-r', 'lean-l',
 ])
+
+/** Shapes whose E/W sides are slants sheared in by width * SLANT_INSET_RATIO
+ *  (renderer geometry): the E/W port main coordinate moves onto the slant
+ *  midpoint, all other port coordinates stay at the bbox side midpoints. */
+const SLANTED = new Set(['trapezoid', 'trapezoid-alt', 'lean-r', 'lean-l'])
+const SLANT_INSET_RATIO = 0.15
 
 /** Tolerance for recognizing an endpoint as sitting on a port. */
 const PORT_TOLERANCE = 0.5
@@ -62,17 +71,35 @@ const PAIR_SEPARATION = 12
  *  into the target's facing port) — shorter reads as a hitch, not an entry. */
 const HOOK_STUB_MIN = 8
 
-/** The four canonical connection points: bbox side midpoints (valid on the
- *  outline for every PORT_EXACT shape — diamond vertices, circle extremes,
- *  hexagon E/W vertices and cylinder cap centers coincide with them). */
+/** The four canonical connection points. Every port keeps its CROSS
+ *  coordinate at the bbox center (cy for E/W, cx for N/S) — the whole engine
+ *  assumes port lanes run through node centers. Only the MAIN coordinate
+ *  moves onto the rendered outline:
+ *   - symmetric shapes (rect-likes, diamond, circle, stadium, hexagon,
+ *     cylinder, pseudostates): bbox side midpoints — diamond vertices,
+ *     circle extremes, hexagon E/W vertices and cylinder cap centers
+ *     coincide with them.
+ *   - the slanted family (trapezoid, trapezoid-alt, lean-r, lean-l): E/W
+ *     move inward to the slant midpoints at mid-height (x + i/2 and
+ *     x + w - i/2 with i = w * 0.15 — identical for all four by symmetry);
+ *     N/S stay at (cx, y)/(cx, y+h), which lie on the flats since i < w/2.
+ *   - asymmetric: W is the flag point (x, cy); E/N/S are bbox midpoints
+ *     (cx lies on both flats whenever w > 24 — nodes are always wider). */
 export function shapePorts(node: PositionedNode): Record<PortSide, Point> {
   const cx = node.x + node.width / 2
   const cy = node.y + node.height / 2
+  let east = node.x + node.width
+  let west = node.x
+  if (SLANTED.has(node.shape)) {
+    const inset = node.width * SLANT_INSET_RATIO
+    east = node.x + node.width - inset / 2
+    west = node.x + inset / 2
+  }
   return {
     N: { x: cx, y: node.y },
-    E: { x: node.x + node.width, y: cy },
+    E: { x: east, y: cy },
     S: { x: cx, y: node.y + node.height },
-    W: { x: node.x, y: cy },
+    W: { x: west, y: cy },
   }
 }
 
@@ -305,6 +332,23 @@ function attachSpan(node: PositionedNode, axis: Axis): CrossSpan | null {
     if (size - 2 * RY <= SPAN_MARGIN) return null
     return { lo: lo + RY + 2, hi: lo + size - RY - 2 } // straight E/W walls
   }
+  // The slanted family in vertical flow: attachment anywhere on the
+  // INTERSECTION of the two flat sides, so one span works for both N and S
+  // (trapezoid: top flat [x+i, x+w-i] ∩ bottom flat [x, x+w]; lean-r/lean-l:
+  // [x+i, x+w] ∩ [x, x+w-i] — the same [x+i, x+w-i] for all four). Their
+  // slanted E/W sides stay port-only via the PORT_EXACT fallback below.
+  if (SLANTED.has(node.shape) && axis.cross === 'x') {
+    const inset = node.width * SLANT_INSET_RATIO
+    if (size - 2 * inset <= SPAN_MARGIN * 2) return null
+    return { lo: lo + inset + SPAN_MARGIN, hi: lo + size - inset - SPAN_MARGIN }
+  }
+  // Asymmetric in vertical flow: both flats span [x+12, x+w] (the flag point
+  // only indents the W side). Its pointed/straight E-W pair is port-only.
+  if (node.shape === 'asymmetric' && axis.cross === 'x') {
+    const POINT_INDENT = 12
+    if (size - POINT_INDENT <= SPAN_MARGIN * 2) return null
+    return { lo: lo + POINT_INDENT + SPAN_MARGIN, hi: lo + size - SPAN_MARGIN }
+  }
   if (PORT_EXACT.has(node.shape)) {
     // Fully curved or pointed on this axis (circle; stadium ends; hexagon
     // tips; cylinder caps): only the exact side-midpoint port is on the
@@ -330,6 +374,16 @@ function anchorMain(node: PositionedNode, c: number, axis: Axis, facing: 1 | -1)
     const centerCross = crossLo + crossSize / 2
     const slope = 1 - Math.abs(c - centerCross) / (crossSize / 2)
     return centerMain + facing * axis.sign * (mainSize / 2) * slope
+  }
+  // The slanted family in horizontal flow is port-only (c ≈ cy), so the
+  // boundary main coordinate is the slant midpoint — the shapePorts E/W main
+  // (x + w - i/2 forward, x + i/2 backward; identical for all four shapes by
+  // symmetry). In vertical flow their flats sit at the bbox edge (y / y+h),
+  // so the rect default below applies. Asymmetric needs no case at all: its
+  // W point (x, cy) and E side (x+w) ARE the bbox extremes.
+  if (SLANTED.has(node.shape) && axis.main === 'x') {
+    const inset = node.width * SLANT_INSET_RATIO
+    return facing * axis.sign > 0 ? mainLo + mainSize - inset / 2 : mainLo + inset / 2
   }
   return facing * axis.sign > 0 ? mainLo + mainSize : mainLo
 }
@@ -994,10 +1048,14 @@ export function applyRouteContracts(
     const tgtCrossHi = tgtCrossLo + (axis.cross === 'y' ? target.height : target.width)
     // The lane must pass clear of the target's cross extent; when it
     // overlaps, the straight emit or the Z is the right tool, not a hook.
-    let entryCross: number
-    if (lane < tgtCrossLo - EPS) entryCross = tgtCrossLo
-    else if (lane > tgtCrossHi + EPS) entryCross = tgtCrossHi
+    // The entry point is the exact facing cross-side port from shapePorts
+    // (bbox side midpoint for symmetric shapes, on-outline for the slanted
+    // family), not a bare bbox coordinate.
+    let entrySide: PortSide
+    if (lane < tgtCrossLo - EPS) entrySide = axis.cross === 'y' ? 'N' : 'W'
+    else if (lane > tgtCrossHi + EPS) entrySide = axis.cross === 'y' ? 'S' : 'E'
     else return false
+    const entryCross = shapePorts(target)[entrySide][axis.cross]
     if (Math.abs(entryCross - lane) < HOOK_STUB_MIN) return false
     // Fan-in merge outranks the hook: when a same-target sibling already
     // holds the flow-side entry port, the Z that converges there into one
@@ -1100,11 +1158,16 @@ export function applyRouteContracts(
     // reuses existing, already-proven channel geometry.
     if (source && PORT_EXACT.has(source.shape)) {
       const srcCrossLo = source[graphAxis.cross]
-      const srcCrossHi = srcCrossLo + (graphAxis.cross === 'y' ? source.height : source.width)
-      const portCross = extreme > srcCrossLo ? srcCrossHi : srcCrossLo // channel-facing side
-      const portMain = source[graphAxis.main] + (graphAxis.main === 'x' ? source.width : source.height) / 2
+      // The exact channel-facing port from shapePorts: the bbox side midpoint
+      // for the symmetric shapes, the slant midpoint / flag point for the
+      // slanted family — never a bare bbox coordinate off the outline.
+      const side: PortSide = graphAxis.cross === 'y'
+        ? (extreme > srcCrossLo ? 'S' : 'N')
+        : (extreme > srcCrossLo ? 'E' : 'W')
+      const port = shapePorts(source)[side]
+      const portCross = port[graphAxis.cross]
+      const portMain = port[graphAxis.main]
       if (inRunRange(portMain) && hopClear(portMain, portCross)) {
-        const port: Point = graphAxis.main === 'x' ? { x: portMain, y: portCross } : { x: portCross, y: portMain }
         tightened = buildRoute(portMain, portCross, port)
       }
     }
@@ -1142,9 +1205,13 @@ export function applyRouteContracts(
       const target = ctx.nodes.find(n => n.id === edge.target)
       if (rs >= 0 && rs + 1 < base.length - 1 && target && PORT_EXACT.has(target.shape)) {
         const tCrossLo = target[graphAxis.cross]
-        const tCrossHi = tCrossLo + (graphAxis.cross === 'y' ? target.height : target.width)
-        const portCross = extreme > tCrossLo ? tCrossHi : tCrossLo
-        const portMain = target[graphAxis.main] + (graphAxis.main === 'x' ? target.width : target.height) / 2
+        // Exact channel-facing port via shapePorts (see the head variant).
+        const side: PortSide = graphAxis.cross === 'y'
+          ? (extreme > tCrossLo ? 'S' : 'N')
+          : (extreme > tCrossLo ? 'E' : 'W')
+        const port = shapePorts(target)[side]
+        const portCross = port[graphAxis.cross]
+        const portMain = port[graphAxis.main]
         const runA = base[rs]!, runB = base[rs + 1]!
         const dir = Math.sign(mainOf(runB) - mainOf(runA))
         const within = dir > 0
@@ -1152,7 +1219,6 @@ export function applyRouteContracts(
           : portMain < mainOf(runA) - EPS && portMain >= mainOf(runB) - EPS
         if (within && hopClear(portMain, portCross)) {
           const runEndAtPort: Point = graphAxis.main === 'x' ? { x: portMain, y: extreme } : { x: extreme, y: portMain }
-          const port: Point = graphAxis.main === 'x' ? { x: portMain, y: portCross } : { x: portCross, y: portMain }
           tightened = [...base.slice(0, rs + 1), runEndAtPort, port]
           tailApplied = true
         }

@@ -42,6 +42,9 @@ export type NodeShape =
   | 'asymmetric'     // >text]    — flag/banner shape
   | 'trapezoid'      // [/text\]  — wider bottom
   | 'trapezoid-alt'  // [\text/]  — wider top
+  // Parallelograms (Mermaid lean_right / lean_left — the flowchart I/O symbol)
+  | 'lean-r'         // [/text/]  — leans right
+  | 'lean-l'         // [\text\]  — leans left
   // Batch 3 state diagram pseudostates
   | 'state-start'    // filled circle (start pseudostate)
   | 'state-end'      // bullseye circle (end pseudostate)

@@ -286,3 +286,47 @@ export const trapezoidAltRenderer: ShapeRenderer = {
 
   getAttachmentPoint: getBoxAttachmentPoint,
 }
+
+// ============================================================================
+// Parallelograms — use corner decorators instead of diagonal sides
+// ============================================================================
+
+/**
+ * Lean-right parallelogram shape renderer — the flowchart I/O symbol.
+ * Uses '/' markers on the slanted corners.
+ *
+ * Renders as:
+ *   /─────────/
+ *   │  Label  │
+ *   /─────────/
+ */
+export const leanRRenderer: ShapeRenderer = {
+  getDimensions: getBoxDimensions,
+
+  render(label, dimensions, options) {
+    const corners = getCorners('lean-r', options.useAscii)
+    return renderBox(label, dimensions, corners, options.useAscii)
+  },
+
+  getAttachmentPoint: getBoxAttachmentPoint,
+}
+
+/**
+ * Lean-left parallelogram shape renderer.
+ * Uses '\' markers on the slanted corners.
+ *
+ * Renders as:
+ *   \─────────\
+ *   │  Label  │
+ *   \─────────\
+ */
+export const leanLRenderer: ShapeRenderer = {
+  getDimensions: getBoxDimensions,
+
+  render(label, dimensions, options) {
+    const corners = getCorners('lean-l', options.useAscii)
+    return renderBox(label, dimensions, corners, options.useAscii)
+  },
+
+  getAttachmentPoint: getBoxAttachmentPoint,
+}

@@ -63,5 +63,11 @@ export function contactSheetScenarios(): ContactSheetScenario[] {
     // S: reciprocal circles — port-only shapes cannot offset a pair, so the
     // forward edge takes the exact port and the back edge loops around.
     { letter: 'S', title: 'bi-directional circles — port + outer loop', source: 'flowchart LR\n  A((One)) --> B((Two))\n  B --> A' },
+    // T–V: the slanted-family PORT_EXACT extension — parallelograms,
+    // trapezoids and asymmetric flags get the same port-to-port straight +
+    // merge composition (E/W ports on the slant midpoints / the flag point).
+    { letter: 'T', title: 'parallelogram I/O fan-in — port-to-port straight + merge', source: fanIn('[/One/]', '[/Hub/]', '[/Two/]') },
+    { letter: 'U', title: 'trapezoid fan-in — port-to-port straight + merge', source: fanIn('[/One\\]', '[/Hub\\]', '[/Two\\]') },
+    { letter: 'V', title: 'asymmetric fan-in — flag point + merge', source: fanIn('>One]', '>Hub]', '>Two]') },
   ]
 }

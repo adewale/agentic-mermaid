@@ -440,9 +440,14 @@ const NODE_PATTERNS: Array<{ regex: RegExp; shape: NodeShape }> = [
   { regex: /^([\w-]+)\[\[(.+?)\]\]/,     shape: 'subroutine' },    // A[[text]]
   { regex: /^([\w-]+)\[\((.+?)\)\]/,     shape: 'cylinder' },      // A[(text)]
 
-  // Trapezoid variants — must come before plain [text]
-  { regex: /^([\w-]+)\[\/(.+?)\\\]/,     shape: 'trapezoid' },     // A[/text\]
-  { regex: /^([\w-]+)\[\\(.+?)\/\]/,     shape: 'trapezoid-alt' }, // A[\text/]
+  // Trapezoid + parallelogram variants — must come before plain [text].
+  // All four share the [/ or [\ opener and differ only in the closer (\] vs
+  // /] vs \]), so labels exclude ']' — a non-greedy (.+?) could otherwise
+  // skip past the true closer to a later node's on the same line.
+  { regex: /^([\w-]+)\[\/([^\]]+?)\\\]/, shape: 'trapezoid' },     // A[/text\]
+  { regex: /^([\w-]+)\[\\([^\]]+?)\/\]/, shape: 'trapezoid-alt' }, // A[\text/]
+  { regex: /^([\w-]+)\[\/([^\]]+?)\/\]/, shape: 'lean-r' },        // A[/text/]
+  { regex: /^([\w-]+)\[\\([^\]]+?)\\\]/, shape: 'lean-l' },        // A[\text\]
 
   // Asymmetric flag shape
   { regex: /^([\w-]+)>(.+?)\]/,          shape: 'asymmetric' },    // A>text]

@@ -471,8 +471,19 @@ A companion routing rule completes the composition: an
 port. Cumulative corpus effect: straight edges 97 → 101, multi-bend
 routes 7 → 5, port-exact endpoints 76.0% → 78.2%.
 
+**The slanted family** (trapezoids, parallelograms `[/x/]`/`[\x\]` —
+the ISO I/O symbol, previously misparsed — and the asymmetric flag) is
+PORT_EXACT too: their N/S flats take spans, their E/W ports sit at the
+TRUE side midpoints — the slant midpoint or the flag point, with the
+cross coordinate still on the node centerline so every port-lane
+mechanism composes unchanged. shapePorts is the single source of port
+truth (tightenOuterFeedback and tryVertexHook now consume it instead of
+raw bbox math — byte-identical for all previously supported shapes);
+clipping uses a generic convex-polygon clipper, and the rubric carries
+exact polygon outline oracles and footprints for all five.
+
 All of these compositions are pinned by the **contact sheet**
-(`eval/visual-rubric/scenarios.ts`, lettered A–S; rendered for humans by
+(`eval/visual-rubric/scenarios.ts`, lettered A–V; rendered for humans by
 `bun run contact:sheet`): `src/__tests__/contact-sheet.test.ts` asserts
 zero hard rubric metrics AND snapshot-pins each scenario's full layout
 geometry, so future changes cannot visually break these drawings

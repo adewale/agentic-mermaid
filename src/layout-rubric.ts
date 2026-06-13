@@ -110,8 +110,45 @@ export function onShapeOutline(node: PositionedNode, p: Point, tol = 1.5): boole
       const ex = dx / hw
       return Math.abs(Math.hypot(ex, ey) - 1) * Math.min(hw, ry) < tol * 2
     }
+    case 'trapezoid':
+    case 'trapezoid-alt':
+    case 'lean-r':
+    case 'lean-l':
+    case 'asymmetric': {
+      // Exact polygon oracle: min point-to-segment distance over the
+      // rendered polygon's edges (renderer geometry, reimplemented here so a
+      // clipping regression cannot certify itself healthy).
+      const verts = slantedPolygonVertices(node)
+      let best = Infinity
+      for (let i = 0; i < verts.length; i++) {
+        best = Math.min(best, pointToSegmentDistance(p, verts[i]!, verts[(i + 1) % verts.length]!))
+      }
+      return best <= tol
+    }
     default:
       return onBboxPerimeter()
+  }
+}
+
+/**
+ * Rendered polygon outlines of the slanted shapes, restated from the
+ * renderer's geometry (shear = w * 0.15 for the trapezoid/parallelogram
+ * family; the asymmetric flag indents its left point by 12px).
+ */
+function slantedPolygonVertices(node: PositionedNode): Point[] {
+  const { x, y, width: w, height: h } = node
+  const inset = w * 0.15
+  switch (node.shape) {
+    case 'trapezoid': // wider bottom
+      return [{ x: x + inset, y }, { x: x + w - inset, y }, { x: x + w, y: y + h }, { x, y: y + h }]
+    case 'trapezoid-alt': // wider top
+      return [{ x, y }, { x: x + w, y }, { x: x + w - inset, y: y + h }, { x: x + inset, y: y + h }]
+    case 'lean-r': // parallelogram leaning right
+      return [{ x: x + inset, y }, { x: x + w, y }, { x: x + w - inset, y: y + h }, { x, y: y + h }]
+    case 'lean-l': // parallelogram leaning left
+      return [{ x, y }, { x: x + w - inset, y }, { x: x + w, y: y + h }, { x: x + inset, y: y + h }]
+    default: // asymmetric: flag with a pointed left edge
+      return [{ x: x + 12, y }, { x: x + w, y }, { x: x + w, y: y + h }, { x: x + 12, y: y + h }, { x, y: y + h / 2 }]
   }
 }
 
@@ -154,20 +191,27 @@ function segmentThroughShape(a: Point, b: Point, node: PositionedNode): boolean 
       return segmentToSegmentDistance(a, b, coreA, coreB) < r - GRAZE
     }
     case 'diamond':
-    case 'hexagon': {
+    case 'hexagon':
+    case 'trapezoid':
+    case 'trapezoid-alt':
+    case 'lean-r':
+    case 'lean-l':
+    case 'asymmetric': {
       const raw = node.shape === 'diamond'
         ? [
           { x: cx, y: node.y }, { x: node.x + node.width, y: cy },
           { x: cx, y: node.y + node.height }, { x: node.x, y: cy },
         ]
-        : (() => {
-          const inset = node.height / 4
-          return [
-            { x: node.x + inset, y: node.y }, { x: node.x + node.width - inset, y: node.y },
-            { x: node.x + node.width, y: cy }, { x: node.x + node.width - inset, y: node.y + node.height },
-            { x: node.x + inset, y: node.y + node.height }, { x: node.x, y: cy },
-          ]
-        })()
+        : node.shape === 'hexagon'
+          ? (() => {
+            const inset = node.height / 4
+            return [
+              { x: node.x + inset, y: node.y }, { x: node.x + node.width - inset, y: node.y },
+              { x: node.x + node.width, y: cy }, { x: node.x + node.width - inset, y: node.y + node.height },
+              { x: node.x + inset, y: node.y + node.height }, { x: node.x, y: cy },
+            ]
+          })()
+          : slantedPolygonVertices(node)
       const shrink = Math.max(0, 1 - GRAZE / Math.min(hw, hh))
       const verts = raw.map(v => ({ x: cx + (v.x - cx) * shrink, y: cy + (v.y - cy) * shrink }))
       return segmentThroughConvexPolygon(a, b, verts)

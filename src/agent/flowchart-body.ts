@@ -118,6 +118,8 @@ function renderShape(node: MermaidNode): string {
     case 'hexagon': return `{{${lbl}}}`
     case 'trapezoid': return `[/${lbl}\\]`
     case 'trapezoid-alt': return `[\\${lbl}/]`
+    case 'lean-r': return `[/${lbl}/]`
+    case 'lean-l': return `[\\${lbl}\\]`
     case 'service': return `[${lbl}]`
     case 'state-start':
     case 'state-end': return ''

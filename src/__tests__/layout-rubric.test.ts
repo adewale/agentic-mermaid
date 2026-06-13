@@ -61,6 +61,11 @@ const SHAPE_WRAPPERS = [
   (l: string) => `{{${l}}}`,
   (l: string) => `[(${l})]`,
   (l: string) => `[[${l}]]`,
+  (l: string) => `[/${l}\\]`,
+  (l: string) => `[\\${l}/]`,
+  (l: string) => `>${l}]`,
+  (l: string) => `[/${l}/]`,
+  (l: string) => `[\\${l}\\]`,
 ] as const
 
 const randomFlowchart = fc
