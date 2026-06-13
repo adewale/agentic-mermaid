@@ -157,7 +157,10 @@ dependents after. IDs are stable names, not an ordering.
   mermaid-docs sequence corpus stay 100% lossless.
   - [ ] Follow-up: apply the same segment-preserving body to class/ER/timeline
     unmodeled-syntax fallbacks. This is the path to "typed mutation for all
-    diagrams" without ever violating the no-loss guarantee.
+    diagrams" without ever violating the no-loss guarantee. Also the 2A
+    destination for in-body `%%` comments in flowchart/state (BUILD-21 ships
+    the announced-drop interim via the `COMMENT_DROPPED` lint): comments
+    become positionally-anchored opaque segments that ride through mutations.
 - [x] **BUILD-19 — Dedicated `StateBody` IR for state diagrams** (`done`).
   State diagrams now own a dedicated structured-or-opaque `StateBody`
   (`body.kind: 'state'`) — states, transitions with `[*]` start/end
@@ -256,6 +259,28 @@ dependents after. IDs are stable names, not an ordering.
   samples (flowchart/96, flowchart/97, flowchart/98, subgraph-direction.mmd)
   with 0 regressions / 0 faithfulness deltas. Repro:
   `eval/layout-compare/fixtures/subgraph-direction.mmd`.
+- [x] **BUILD-21 — Source-wrapper fidelity (1C) + announced in-body comment
+  policy (2C)** (`done`). Probing the official Mermaid syntax-reference
+  examples through parse → serialize found three wrapper-fidelity gaps:
+  `config:`-nested frontmatter flattened to top-level keys Mermaid cannot
+  read back, `%%{init}%%` directives duplicated into a synthesized
+  frontmatter block, and leading `%%` comments dropped. Owner decisions:
+  **1C** (wrapper round-trips byte-verbatim by default — `meta.wrapperSource`
+  — with canonical config-nested synthesis opt-in via
+  `serializeMermaid(d, { wrapper: 'canonical' })` / `am format
+  --canonical-wrapper`) and **2C** (in-body comments remain canonicalized
+  away by structured bodies but the loss is announced via the new Tier 3
+  `COMMENT_DROPPED` lint computed by diffing parse comments against the
+  serialized output; wrapper comments and opaque bodies/segments preserve
+  comments and never warn). Evidence:
+  `src/__tests__/agent-wrapper-fidelity.test.ts` (14 tests: verbatim
+  round-trip per wrapper form incl. multiline directives, mutation keeps the
+  wrapper, canonical nesting/folding incl. the unparseable-directive raw
+  fallback, CLI flag e2e, lint fires/doesn't-fire matrix); wrapper law + 2C
+  policy stated in `docs/contributing/adding-diagram-types.md`; warning code
+  synced across types/capabilities/llms.txt/SDK declaration/agent guides.
+  The 2A destination (segment-preserving comment retention) is tracked under
+  the BUILD-18 follow-up below.
 - [ ] **BUILD-20 — `@{ ... }` node metadata: stop silent loss and phantom
   nodes** (`todo`). Issue
   <https://github.com/adewale/beautiful-mermaid/issues/29>. Mermaid v11.3+

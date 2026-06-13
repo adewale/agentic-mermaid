@@ -2,6 +2,15 @@
 
 Agentic Mermaid accepts Mermaid-style runtime config through explicit render options, YAML frontmatter, and `%%{init: ...}%%` / `%%{initialize: ...}%%` directives.
 
+Round-trip behavior: the agent surface preserves these source wrappers
+byte-verbatim — `parseMermaid → serializeMermaid` and every `mutate` re-emit
+the original frontmatter/directives/leading comments untouched, so a
+`config.layout`/`config.look` request written for Mermaid survives an
+Agentic Mermaid edit loop. Canonical wrapper synthesis (config-nested
+frontmatter, directives folded) is opt-in via
+`serializeMermaid(d, { wrapper: 'canonical' })` or `am format
+--canonical-wrapper`.
+
 ## Explicit config
 
 ```ts

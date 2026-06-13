@@ -116,6 +116,10 @@ Typed mutation is part of the definition of done for a new family, not a follow-
 
 **Structured-or-opaque law:** any line your parser does not model must be preserved verbatim (opaque fallback) — never silently dropped. Opaque bodies round-trip byte-verbatim; structured bodies serialize to canonical source and must be serialize-idempotent (parse → serialize → parse → serialize is byte-stable).
 
+**Wrapper law (1C):** the leading source wrapper — frontmatter block, `%%{init}%%`/`%%{initialize}%%` directives, `%%` comments before the header, blank lines — round-trips byte-verbatim through `serializeMermaid` and through mutation (`meta.wrapperSource`). Canonical wrapper synthesis (Mermaid's documented shape: `title`/`displayMode` top-level, everything else nested under `config:`, directives folded) is opt-in via `serializeMermaid(d, { wrapper: 'canonical' })` / `am format --canonical-wrapper`, and must never emit frontmatter Mermaid cannot read back (no flattened config keys).
+
+**In-body comment policy (2C):** structured bodies do not model in-body `%%` comments; their canonical serialization drops them, and that loss must be *announced* — parse records the casualties (`meta.droppedComments`, computed by diffing against the serialized output) and verify surfaces the Tier 3 `COMMENT_DROPPED` lint. Opaque bodies and preserved opaque segments keep comments verbatim. The destination state is segment-preserving comment retention (the BUILD-18 pattern); until a family ships that, dropping silently is a bug, dropping announced is the documented trade.
+
 **Enforcement:** the test `every registered renderable family ships typed mutation (default-by-default enforcement)` in `src/__tests__/agent-doc-sync.test.ts` fails CI if a registered family lacks mutate/serialize hooks, an ops declaration, or a narrower. A new family that registers source-level-only will not pass CI.
 
 ## 8. Definition Of Done

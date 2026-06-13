@@ -15,17 +15,72 @@ import './families-builtin.ts'  // registers built-in family serialize hooks
 // Re-export for callers that used the previous in-tree serializer home.
 export { renderTimeline } from './timeline-body.ts'
 
-export function serializeMermaid(d: ValidDiagram): string {
-  return renderMeta(d.meta) + renderBody(d.body, d.kind)
+export interface SerializeOptions {
+  /**
+   * Wrapper emission policy. 'verbatim' (default) re-emits the leading source
+   * wrapper (frontmatter, init directives, comments) byte-identically from
+   * `meta.wrapperSource`. 'canonical' synthesizes Mermaid's documented shape
+   * instead: one frontmatter block with `title`/`displayMode` at the top
+   * level and everything else nested under `config:`, init directives folded
+   * in (re-emitted raw only when their payload could not be folded), and
+   * wrapper comments dropped. Diagrams without a captured wrapper (e.g.
+   * synthesized from JSON payloads) always use canonical synthesis.
+   */
+  wrapper?: 'verbatim' | 'canonical'
 }
 
+export function serializeMermaid(d: ValidDiagram, opts: SerializeOptions = {}): string {
+  return wrapperPrefix(d.meta, opts.wrapper ?? 'verbatim') + renderBody(d.body, d.kind)
+}
+
+/** The wrapper text to emit before the diagram body for the given policy. */
+export function wrapperPrefix(meta: ValidDiagramMeta, mode: 'verbatim' | 'canonical' = 'verbatim'): string {
+  if (mode === 'verbatim' && meta.wrapperSource !== undefined) return meta.wrapperSource
+  return renderMeta(meta)
+}
+
+/**
+ * Canonical wrapper synthesis (Mermaid's documented frontmatter shape):
+ * `title`/`displayMode` stay top-level, all other keys nest under `config:`.
+ * Init directives whose parsed payload is already represented in the
+ * frontmatter map are folded (not re-emitted); unparseable directives are
+ * preserved raw so canonicalization never silently loses them.
+ */
 export function renderMeta(meta: ValidDiagramMeta): string {
   const parts: string[] = []
   if (meta.frontmatter && Object.keys(meta.frontmatter).length > 0) {
-    parts.push(`---\n${YAML.stringify(meta.frontmatter).trimEnd()}\n---\n`)
+    const top: Record<string, unknown> = {}
+    const config: Record<string, unknown> = {}
+    for (const [key, value] of Object.entries(meta.frontmatter)) {
+      if (key === 'title' || key === 'displayMode') top[key] = value
+      else config[key] = value
+    }
+    const doc: Record<string, unknown> = { ...top }
+    if (Object.keys(config).length > 0) doc.config = config
+    parts.push(`---\n${YAML.stringify(doc).trimEnd()}\n---\n`)
   }
-  for (const d of meta.initDirectives) parts.push(d.raw.trimEnd() + '\n')
+  for (const d of meta.initDirectives) {
+    if (frontmatterRepresents(meta.frontmatter, d.parsed)) continue
+    parts.push(d.raw.trimEnd() + '\n')
+  }
   return parts.join('')
+}
+
+/** True when every leaf of `sub` is present with an equal value in `map`. */
+function frontmatterRepresents(map: Record<string, unknown> | undefined, sub: Record<string, unknown>): boolean {
+  const keys = Object.keys(sub)
+  if (keys.length === 0) return false  // unparseable payload — never foldable
+  if (!map) return false
+  for (const key of keys) {
+    const a = map[key], b = sub[key]
+    if (b && typeof b === 'object' && !Array.isArray(b)) {
+      if (!a || typeof a !== 'object' || Array.isArray(a)) return false
+      if (!frontmatterRepresents(a as Record<string, unknown>, b as Record<string, unknown>)) return false
+      continue
+    }
+    if (JSON.stringify(a) !== JSON.stringify(b)) return false
+  }
+  return true
 }
 
 function renderBody(body: DiagramBody, kind: ValidDiagram['kind']): string {
@@ -47,6 +102,7 @@ export function synthesizeFromGraph(payload: ValidDiagramPayload): Result<ValidD
     comments: payload.meta?.comments ?? [],
     accessibility: payload.meta?.accessibility ?? {},
     frontmatter: payload.meta?.frontmatter,
+    wrapperSource: payload.meta?.wrapperSource,
   }
 
   let body: DiagramBody

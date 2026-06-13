@@ -45,6 +45,9 @@ These are public Mermaid / Beautiful Mermaid issues worth turning into small, ed
   - Why it matters: this syntax carries the ISO 5807/ANSI X3.5 flowchart symbol vocabulary (manual input, document, delay, preparation, …); Mermaid's docs use it extensively, so agent-generated sources will contain it.
   - Current behavior (June 2026): `A@{ shape: manual-input, label: "X" } --> B` drops the edge and `B`; a standalone `A@{ ... }` line is erased; the multiline form fabricates phantom nodes `shape[shape]`/`label[label]` — all with `verify.ok: true` and lossy serialization, violating the #7785 rule above.
   - Suggested fixtures: all three repro shapes from issue #29, asserting either a loud parse error or byte-identical round-trip plus a labeled rectangle fallback render; a regression pin that no input fabricates nodes.
+- [Mermaid frontmatter `config.layout`/`config.look`](https://mermaid.js.org/intro/syntax-reference.html) — **wrapper-fidelity gaps found by probing the official examples, fixed as BUILD-21**
+  - Why it mattered: round-tripping a diagram through the editor flattened `config:`-nested frontmatter to top-level keys Mermaid ignores (silently killing the author's layout/look request on interop), duplicated `%%{init}%%` directives into synthesized frontmatter, and dropped leading comments.
+  - Current coverage: `src/__tests__/agent-wrapper-fidelity.test.ts` pins byte-verbatim wrapper round-trip (frontmatter, directives incl. multiline, leading comments, combined), mutation wrapper preservation, canonical-mode config nesting + directive folding, and the `COMMENT_DROPPED` lint matrix.
 
 ## Fork-network layout search notes
 
