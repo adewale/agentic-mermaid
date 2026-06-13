@@ -282,9 +282,14 @@ capacities) and Visio connection points with static vs dynamic glue:
 - Certificates record `sourcePort`/`targetPort` whenever an endpoint sits
   on a canonical port, computed after all geometry settles.
 
-Class, ER and state diagrams inherit all of this through their projected
-graphs; architecture's side-anchored syntax (`L`/`R`/`T`/`B`) maps 1:1
-onto `W`/`E`/`N`/`S` ports. Sequence/timeline have no graph ports —
+State diagrams inherit all of this through their projected graphs
+(`stateBodyToGraph` → `layoutGraphSync`); architecture's side-anchored
+syntax (`L`/`R`/`T`/`B`) maps 1:1 onto `W`/`E`/`N`/`S` ports and its
+layout calls `layoutGraphSync` too. Class and ER do **not**: they render
+through their own ELK engines (`src/class/layout.ts`, `src/er/layout.ts`
+call `elkLayoutSync` directly), so the route-contract pass never sees
+their edges — a known adoption gap tracked as issue #26 WS7 (see
+`docs/design/issue-26-audit.md`). Sequence/timeline have no graph ports —
 their anchors are lifelines and intervals (issue #26 WS1 family
 certificates).
 
@@ -610,7 +615,7 @@ shipped.
 | Phase 2 — semantic `FIXED_SIDE` ports | re-evaluated and not needed for hitches (see §7): FIXED_SIDE cannot pin positions, and the prover already enforces the outcome ports were meant to produce; revisit only on corpus evidence of side-choice errors |
 | Phase 3 — certifying simplifier | implemented (proof-free + proof-carrying layers) |
 | Phase 4 — bundle contract | first slice implemented: bundled paths are proved clear of nodes, blocked members fall out of the bundle; per-trunk certificates deferred |
-| Phase 5 — family adoption | graph-projected families (state composites, class/ER/architecture via layoutGraphSync) already flow through classification, straightening, container repair, and certificates; non-graph families (sequence/timeline/charts) need family-specific layout certificates per issue #25 §14 — out of routing scope |
+| Phase 5 — family adoption | graph-projected families (state composites via `stateBodyToGraph`, architecture via its `layoutGraphSync` call) already flow through classification, straightening, container repair, and certificates; class/ER keep their own ELK engines (`elkLayoutSync` direct) and do NOT yet flow through the route-contract pass (adoption gap, issue #26 WS7); non-graph families (sequence/timeline/charts) need family-specific layout certificates per issue #25 §14 — out of routing scope |
 
 ## 11. Acceptance criteria mapping
 
