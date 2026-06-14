@@ -1151,6 +1151,78 @@ describe('port ranking — sharp bits win when a side carries one line (issue #2
     },
   )
 
+  // Single-column peer fan-in stays mirror-symmetric for N > 2, up to the
+  // grid ceiling. ELK lays N stacked equal-rank unlabeled sources in ONE
+  // column only while N is small; at N >= 9 it MAY wrap them into a multi-
+  // column grid (verified: rectangle wraps to 4 cols at N=9, 6 at N=11 — the
+  // wrap is intermittent, but N<=8 is always a single column for every shape
+  // here). Once gridded the sources are no longer one equal-rank column, so
+  // active fan-in centering correctly does NOT fire (out of scope, falls back
+  // to baseline — not a regression). We therefore pin N=3..8, strictly below
+  // the grid ceiling, where the claim is "exact symmetry".
+  it.each([
+    ['rectangles', '[One]', '[Hub]', '[Src]'],
+    ['stadiums', '([One])', '([Hub])', '([Src])'],
+    ['hexagons', '{{One}}', '{{Hub}}', '{{Src}}'],
+    ['cylinders', '[(One)]', '[(Hub)]', '[(Src)]'],
+    // Curved/pointed shapes clip endpoints to the outline, not the bbox, so
+    // they carry a small mirror floor that grows with N; tolerances below
+    // absorb it (circle <=2.1px, diamond <=3.2px at N=8).
+    ['circles', '((One))', '((Hub))', '((Src))'],
+    ['diamonds', '{One}', '{Hub}', '{Src}'],
+  ] as const)(
+    'single-column peer fan-in (N=3..8) is mirror-symmetric for %s',
+    (name, _a, t, srcTpl) => {
+      const curved = name === 'circles' || name === 'diamonds'
+      // Floor for curved/pointed shapes when perfectly centered (outline
+      // clipping): hub stays on barycenter, edge endpoints carry a residual.
+      const hubTol = curved ? 1.0 : 0.5
+      const mirrorTol = curved ? 3.2 : 0.5
+      for (let n = 3; n <= 8; n++) {
+        const open = srcTpl.slice(0, srcTpl.indexOf('Src'))
+        const close = srcTpl.slice(srcTpl.indexOf('Src') + 3)
+        const tOpen = t.slice(0, t.indexOf('Hub'))
+        const tClose = t.slice(t.indexOf('Hub') + 3)
+        const lines = ['flowchart LR']
+        for (let i = 0; i < n; i++) lines.push(`  A${i}${open}S${i}${close} --> T${tOpen}Hub${tClose}`)
+        const positioned = layoutGraphSync(parseMermaid(lines.join('\n')))
+        const nodeMap = new Map(positioned.nodes.map(nd => [nd.id, nd]))
+        const hub = nodeMap.get('T')!
+        const sources = Array.from({ length: n }, (_, i) => nodeMap.get(`A${i}`)!)
+        // Sanity: still a single equal-rank column (gate is in scope here).
+        const cols = new Set(sources.map(s => Math.round(s.x)))
+        expect(cols.size).toBe(1)
+
+        const incoming = positioned.edges.filter(e => e.target === 'T')
+        expect(incoming.length).toBe(n)
+
+        // (1) Hub centered on the cross-axis barycenter of its sources.
+        const bary = sources.reduce((a, s) => a + s.y + s.height / 2, 0) / n
+        expect(Math.abs((hub.y + hub.height / 2) - bary)).toBeLessThanOrEqual(hubTol)
+
+        // (2) Both endpoints of every incoming edge land on the SAME exact
+        //     W port — all incoming arrowheads coincide (fan-in merge).
+        const entries = incoming.map(e => e.points[e.points.length - 1]!)
+        for (const p of entries) {
+          expect(Math.abs(p.x - entries[0]!.x)).toBeLessThanOrEqual(0.5)
+          expect(Math.abs(p.y - entries[0]!.y)).toBeLessThanOrEqual(0.5)
+        }
+        // The shared port sits on the hub centerline (the barycenter).
+        expect(Math.abs(entries[0]!.y - bary)).toBeLessThanOrEqual(hubTol + 1.5)
+
+        // (3) Incoming edges are mirror-paired about the hub centerline:
+        //     the k-th source from the top and the k-th from the bottom leave
+        //     equidistant from the barycenter.
+        const startYs = incoming.map(e => e.points[0]!.y).sort((p, q) => p - q)
+        for (let k = 0; k < Math.floor(n / 2); k++) {
+          const dTop = Math.abs(startYs[k]! - bary)
+          const dBot = Math.abs(startYs[n - 1 - k]! - bary)
+          expect(Math.abs(dTop - dBot)).toBeLessThanOrEqual(mirrorTol)
+        }
+      }
+    },
+  )
+
   it('port-lane alignment includes diamonds: K becomes vertex-to-vertex straight', () => {
     const positioned = layoutGraphSync(parseMermaid(
       'flowchart LR\n  Q1{First} -- go --> Q2{Second}\n  X[Side input] --> Q2'))
