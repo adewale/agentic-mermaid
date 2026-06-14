@@ -348,8 +348,16 @@ exports[`drift sentinel sentinel: flowchart LR /   A --> B /   A --> C /   B -->
           58,
         ],
         [
-          256,
+          232,
           58,
+        ],
+        [
+          232,
+          91,
+        ],
+        [
+          256,
+          91,
         ],
       ],
       "to": "D",
@@ -369,11 +377,11 @@ exports[`drift sentinel sentinel: flowchart LR /   A --> B /   A --> C /   B -->
         ],
         [
           232,
-          58,
+          91,
         ],
         [
           256,
-          58,
+          91,
         ],
       ],
       "to": "D",
@@ -416,7 +424,7 @@ exports[`drift sentinel sentinel: flowchart LR /   A --> B /   A --> C /   B -->
       "shape": "rectangle",
       "w": 60,
       "x": 256,
-      "y": 40,
+      "y": 72,
     },
   ],
   "version": 1,

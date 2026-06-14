@@ -497,12 +497,41 @@ raw bbox math — byte-identical for all previously supported shapes);
 clipping uses a generic convex-polygon clipper, and the rubric carries
 exact polygon outline oracles and footprints for all five.
 
+#### 6.2.3 Active fan-in centering — symmetry for peer merges
+
+`alignPortLanes`'s default slide moves a hub onto *one* source's lane,
+which makes a peer fan-in (A→T, C→T) asymmetric: one edge straight, the
+other a merge-Z, with the hub stuck at the top. For an **unlabeled,
+equal-rank peer fan-in** — a target T whose incoming edges are ≥2 distinct
+unlabeled forward sources all stacked in one layer — the pass instead
+snaps T to the **exact cross-axis barycenter** of its sources (correcting
+ELK's ~20px Brandes–Köpf placement drift), so both edges leave their
+source's port and converge **mirror-symmetric** at T's single exact port.
+The move is gated by the same occlusion doctrine (`hubMoveSafe`: no node,
+foreign-corridor, or label-pill collision; T not in a group, T not also
+emitting a forward edge), and the centered hub is frozen against later
+slides.
+
+The boundary is deliberate (verified on the docs corpus): it applies
+*only* to single-column unlabeled peer fan-ins; it does **not** fire when
+any incoming edge is labeled, sources span multiple ranks (e.g. ELK wraps
+a large fan-in into a grid — correctly out of scope, since a grid has no
+single symmetry axis), the hub also emits a forward edge, the move would
+occlude, or the hub is in a subgraph — each keeps the prior behavior.
+Achieves exact symmetry (0.00px barycenter error) with a ≤1.5px clipping
+floor on curved/pointed outlines; cost is +2 bends per fan-in (two equal
+bent lines replace one-straight/one-Z) with **zero hard-metric
+regressions**. This is the literature-validated trade for *balanced
+peer merges* (Purchase's symmetry aesthetic), distinct from the
+*main-path* cases (A–K) where straightness still wins.
+
 All of these compositions are pinned by the **contact sheet**
 (`eval/visual-rubric/scenarios.ts`, lettered A–V; rendered for humans by
 `bun run contact:sheet`): `src/__tests__/contact-sheet.test.ts` asserts
 zero hard rubric metrics AND snapshot-pins each scenario's full layout
 geometry, so future changes cannot visually break these drawings
-without a deliberate re-pin and sheet review.
+without a deliberate re-pin and sheet review. The L–V fan-in scenarios
+demonstrate the symmetric merge across every PORT_EXACT shape.
 
 ### 6.3 Hardening found by the property oracles (layout-rubric harness)
 

@@ -1452,12 +1452,110 @@ function alignPortLanes(
     }
     return true
   }
+  // ---- Active fan-in centering (vertical mirror symmetry) --------------
+  // A hub T fed by N unlabeled, equal-rank, forward sources should sit on
+  // the EXACT cross-axis barycenter of those sources so the merge renders
+  // mirror-symmetric. ELK's BALANCED placement leaves T ~20px off-barycenter
+  // and the per-edge slide below amplifies it; centering T once, up front,
+  // removes both errors and lets applyRouteContracts merge the now-symmetric
+  // incoming edges. Proof-gated by moveSafe against ONE representative
+  // incoming edge (every incoming edge shares T's port lane, so clearing the
+  // barycenter for one clears it for all). Hubs handled here are skipped by
+  // the slide loop (their incoming edges are frozen).
+  // The hub's translated bbox must keep clear of every other node, of every
+  // FOREIGN edge corridor (an edge not incident to the hub), and of every
+  // label pill — the same occlusion doctrine moveSafe enforces, restated for
+  // a node whose ALL incident edges move with it (so incident edges impose no
+  // run/hop constraints; only the new footprint does). Incoming-edge sources
+  // stay put and their lanes are re-merged by applyRouteContracts.
+  const hubMoveSafe = (node: PositionedNode, delta: number, incidentIds: ReadonlySet<string>): boolean => {
+    const nx = isHorizontal ? node.x : node.x + delta
+    const ny = isHorizontal ? node.y + delta : node.y
+    for (const other of nodes) {
+      if (other === node) continue
+      if (overlaps(nx - MARGIN, ny - MARGIN, node.width + 2 * MARGIN, node.height + 2 * MARGIN,
+        other.x, other.y, other.width, other.height)) return false
+    }
+    for (const e of edges) {
+      if (incidentIds.has(`${e.source}->${e.target}`)) continue
+      for (let i = 1; i < e.points.length; i++) {
+        const a = e.points[i - 1]!, b = e.points[i]!
+        if (Math.max(a.x, b.x) > nx + 0.5 && Math.min(a.x, b.x) < nx + node.width - 0.5 &&
+          Math.max(a.y, b.y) > ny + 0.5 && Math.min(a.y, b.y) < ny + node.height - 0.5) return false
+      }
+    }
+    for (const e of edges) {
+      if (incidentIds.has(`${e.source}->${e.target}`)) continue
+      const rect = labelRect(e, style)
+      if (rect && overlaps(nx - MARGIN, ny - MARGIN, node.width + 2 * MARGIN, node.height + 2 * MARGIN,
+        rect.x, rect.y, rect.w, rect.h)) return false
+    }
+    return true
+  }
+
+  const centeredHubs = new Set<string>()
+  for (const t of (process.env.APL_NO_CENTER ? [] : nodes)) {
+    if (frozen.has(t.id) || inGroup(t) || !PORT_EXACT.has(t.shape)) continue
+    const incoming = edges.filter(e =>
+      e.target === t.id && e.source !== t.id && e.points.length >= 2)
+    // ≥2 DISTINCT sources, all unlabeled, all forward-monotone.
+    const sources = new Map<string, PositionedNode>()
+    let ok = incoming.length >= 2
+    for (const e of incoming) {
+      if (e.label || !isForwardMonotone(e)) { ok = false; break }
+      const s = nodeMap.get(e.source)
+      if (!s || !PORT_EXACT.has(s.shape)) { ok = false; break }
+      sources.set(s.id, s)
+    }
+    if (!ok || sources.size < 2) continue
+    // The hub must not also emit a forward edge whose straightness centering
+    // would break (it occupies the opposite facet on the same lane as T).
+    if (edges.some(o => o.source === t.id && o.target !== t.id && isForwardMonotone(o))) continue
+    // Equal rank: all sources stacked in ONE column — same main-axis band.
+    const srcList = [...sources.values()]
+    const mainCenters = srcList.map(s => s[main] + mainSize(s) / 2)
+    const mainSpan = Math.max(...mainCenters) - Math.min(...mainCenters)
+    const maxMainSize = Math.max(...srcList.map(mainSize))
+    if (mainSpan > maxMainSize + DEFAULTS.layerSpacing * 0.6) continue
+    // Barycenter of source port-cross-coords; the delta to move T onto it.
+    const bary = srcList.reduce((a, s) => a + portCross(s), 0) / srcList.length
+    const delta = bary - portCross(t)
+    if (Math.abs(delta) <= 0.5) { centeredHubs.add(t.id); continue }
+    const incidentIds = new Set(edges
+      .filter(e => e.source === t.id || e.target === t.id)
+      .map(e => `${e.source}->${e.target}`))
+    if (!hubMoveSafe(t, delta, incidentIds)) continue
+    if (process.env.APL_DEBUG) console.error('[apl] center hub', t.id, 'by', delta.toFixed(1), 'over', srcList.length, 'sources')
+    // Move the hub; translate every incident edge's hub-side endpoint run so
+    // the polyline stays connected. applyRouteContracts then re-merges the
+    // now-symmetric incoming lanes onto the hub's exact port.
+    if (isHorizontal) t.y += delta; else t.x += delta
+    for (const e of edges) {
+      const srcTouch = e.source === t.id
+      const tgtTouch = e.target === t.id
+      if (srcTouch && tgtTouch) {
+        for (const p of e.points) p[cross] += delta
+        if (e.labelPosition) e.labelPosition[cross] += delta
+      } else if (tgtTouch) {
+        shiftRun(e, true, delta)
+      } else if (srcTouch) {
+        shiftRun(e, false, delta)
+      }
+    }
+    centeredHubs.add(t.id)
+    frozen.add(t.id)
+    for (const e of incoming) frozen.add(e.source)
+  }
+
   for (const e of edges) {
     if (e.points.length < 2 || e.source === e.target) continue
     const src = nodeMap.get(e.source)
     const tgt = nodeMap.get(e.target)
     if (!src || !tgt) continue
     if (!PORT_EXACT.has(src.shape) || !PORT_EXACT.has(tgt.shape)) continue
+    // A centered fan-in hub is symmetric by construction; the slide would
+    // re-break it by pulling the hub onto a single source's lane.
+    if (centeredHubs.has(tgt.id)) continue
     // A diamond's vertex has capacity 1 (the yFiles port-candidate cost
     // model): a source diamond with a FORWARD fan-out must SPREAD its lines
     // on the facet, so aligning one target onto the vertex lane is wrong

@@ -875,7 +875,7 @@ exports[`contact sheet — pinned geometry (re-pin deliberately, review the shee
 }
 `;
 
-exports[`contact sheet — pinned geometry (re-pin deliberately, review the sheet) L — circle fan-in — port-to-port straight + merge 1`] = `
+exports[`contact sheet — pinned geometry (re-pin deliberately, review the sheet) L — circle fan-in — symmetric merge at the exact port 1`] = `
 {
   "bounds": {
     "h": 277,
@@ -892,8 +892,16 @@ exports[`contact sheet — pinned geometry (re-pin deliberately, review the shee
           82,
         ],
         [
-          173,
+          149,
           82,
+        ],
+        [
+          149,
+          138,
+        ],
+        [
+          173,
+          138,
         ],
       ],
       "to": "T",
@@ -913,11 +921,11 @@ exports[`contact sheet — pinned geometry (re-pin deliberately, review the shee
         ],
         [
           149,
-          82,
+          138,
         ],
         [
           173,
-          82,
+          138,
         ],
       ],
       "to": "T",
@@ -951,14 +959,14 @@ exports[`contact sheet — pinned geometry (re-pin deliberately, review the shee
       "shape": "circle",
       "w": 84,
       "x": 173,
-      "y": 40,
+      "y": 96,
     },
   ],
   "version": 1,
 }
 `;
 
-exports[`contact sheet — pinned geometry (re-pin deliberately, review the sheet) M — stadium fan-in — port-to-port straight + merge 1`] = `
+exports[`contact sheet — pinned geometry (re-pin deliberately, review the sheet) M — stadium fan-in — symmetric merge at the exact port 1`] = `
 {
   "bounds": {
     "h": 182,
@@ -975,8 +983,16 @@ exports[`contact sheet — pinned geometry (re-pin deliberately, review the shee
           58,
         ],
         [
-          155,
+          132,
           58,
+        ],
+        [
+          132,
+          91,
+        ],
+        [
+          155,
+          91,
         ],
       ],
       "to": "T",
@@ -996,11 +1012,11 @@ exports[`contact sheet — pinned geometry (re-pin deliberately, review the shee
         ],
         [
           132,
-          58,
+          91,
         ],
         [
           155,
-          58,
+          91,
         ],
       ],
       "to": "T",
@@ -1034,14 +1050,14 @@ exports[`contact sheet — pinned geometry (re-pin deliberately, review the shee
       "shape": "stadium",
       "w": 66,
       "x": 155,
-      "y": 40,
+      "y": 72,
     },
   ],
   "version": 1,
 }
 `;
 
-exports[`contact sheet — pinned geometry (re-pin deliberately, review the sheet) N — hexagon fan-in — port-to-port straight + merge 1`] = `
+exports[`contact sheet — pinned geometry (re-pin deliberately, review the sheet) N — hexagon fan-in — symmetric merge at the exact port 1`] = `
 {
   "bounds": {
     "h": 182,
@@ -1058,8 +1074,16 @@ exports[`contact sheet — pinned geometry (re-pin deliberately, review the shee
           58,
         ],
         [
-          175,
+          152,
           58,
+        ],
+        [
+          152,
+          91,
+        ],
+        [
+          175,
+          91,
         ],
       ],
       "to": "T",
@@ -1079,11 +1103,11 @@ exports[`contact sheet — pinned geometry (re-pin deliberately, review the shee
         ],
         [
           152,
-          58,
+          91,
         ],
         [
           175,
-          58,
+          91,
         ],
       ],
       "to": "T",
@@ -1117,14 +1141,14 @@ exports[`contact sheet — pinned geometry (re-pin deliberately, review the shee
       "shape": "hexagon",
       "w": 86,
       "x": 175,
-      "y": 40,
+      "y": 72,
     },
   ],
   "version": 1,
 }
 `;
 
-exports[`contact sheet — pinned geometry (re-pin deliberately, review the sheet) O — cylinder fan-in — port-to-port straight + merge 1`] = `
+exports[`contact sheet — pinned geometry (re-pin deliberately, review the sheet) O — cylinder fan-in — symmetric merge at the exact port 1`] = `
 {
   "bounds": {
     "h": 210,
@@ -1141,8 +1165,16 @@ exports[`contact sheet — pinned geometry (re-pin deliberately, review the shee
           65,
         ],
         [
-          155,
+          132,
           65,
+        ],
+        [
+          132,
+          105,
+        ],
+        [
+          155,
+          105,
         ],
       ],
       "to": "T",
@@ -1162,11 +1194,11 @@ exports[`contact sheet — pinned geometry (re-pin deliberately, review the shee
         ],
         [
           132,
-          65,
+          105,
         ],
         [
           155,
-          65,
+          105,
         ],
       ],
       "to": "T",
@@ -1200,14 +1232,14 @@ exports[`contact sheet — pinned geometry (re-pin deliberately, review the shee
       "shape": "cylinder",
       "w": 66,
       "x": 155,
-      "y": 40,
+      "y": 79,
     },
   ],
   "version": 1,
 }
 `;
 
-exports[`contact sheet — pinned geometry (re-pin deliberately, review the sheet) P — mixed rect→circle fan-in 1`] = `
+exports[`contact sheet — pinned geometry (re-pin deliberately, review the sheet) P — mixed rect→circle fan-in — symmetric merge 1`] = `
 {
   "bounds": {
     "h": 182,
@@ -1224,8 +1256,16 @@ exports[`contact sheet — pinned geometry (re-pin deliberately, review the shee
           58,
         ],
         [
-          155,
+          132,
           58,
+        ],
+        [
+          132,
+          91,
+        ],
+        [
+          155,
+          91,
         ],
       ],
       "to": "T",
@@ -1245,11 +1285,11 @@ exports[`contact sheet — pinned geometry (re-pin deliberately, review the shee
         ],
         [
           132,
-          58,
+          91,
         ],
         [
           155,
-          58,
+          91,
         ],
       ],
       "to": "T",
@@ -1283,14 +1323,14 @@ exports[`contact sheet — pinned geometry (re-pin deliberately, review the shee
       "shape": "circle",
       "w": 84,
       "x": 155,
-      "y": 16,
+      "y": 49,
     },
   ],
   "version": 1,
 }
 `;
 
-exports[`contact sheet — pinned geometry (re-pin deliberately, review the sheet) Q — state diagram fan-in — alignment + merge 1`] = `
+exports[`contact sheet — pinned geometry (re-pin deliberately, review the sheet) Q — state diagram fan-in — symmetric merge 1`] = `
 {
   "bounds": {
     "h": 182,
@@ -1307,8 +1347,16 @@ exports[`contact sheet — pinned geometry (re-pin deliberately, review the shee
           58,
         ],
         [
-          191,
+          168,
           58,
+        ],
+        [
+          168,
+          91,
+        ],
+        [
+          191,
+          91,
         ],
       ],
       "to": "Done",
@@ -1328,11 +1376,11 @@ exports[`contact sheet — pinned geometry (re-pin deliberately, review the shee
         ],
         [
           168,
-          58,
+          91,
         ],
         [
           191,
-          58,
+          91,
         ],
       ],
       "to": "Done",
@@ -1366,7 +1414,7 @@ exports[`contact sheet — pinned geometry (re-pin deliberately, review the shee
       "shape": "rounded",
       "w": 73,
       "x": 191,
-      "y": 40,
+      "y": 72,
     },
   ],
   "version": 1,
@@ -1554,7 +1602,7 @@ exports[`contact sheet — pinned geometry (re-pin deliberately, review the shee
 }
 `;
 
-exports[`contact sheet — pinned geometry (re-pin deliberately, review the sheet) T — parallelogram I/O fan-in — port-to-port straight + merge 1`] = `
+exports[`contact sheet — pinned geometry (re-pin deliberately, review the sheet) T — parallelogram I/O fan-in — symmetric merge 1`] = `
 {
   "bounds": {
     "h": 182,
@@ -1571,8 +1619,16 @@ exports[`contact sheet — pinned geometry (re-pin deliberately, review the shee
           58,
         ],
         [
-          182,
+          152,
           58,
+        ],
+        [
+          152,
+          91,
+        ],
+        [
+          182,
+          91,
         ],
       ],
       "to": "T",
@@ -1592,11 +1648,11 @@ exports[`contact sheet — pinned geometry (re-pin deliberately, review the shee
         ],
         [
           152,
-          58,
+          91,
         ],
         [
           182,
-          58,
+          91,
         ],
       ],
       "to": "T",
@@ -1630,14 +1686,14 @@ exports[`contact sheet — pinned geometry (re-pin deliberately, review the shee
       "shape": "lean-r",
       "w": 86,
       "x": 175,
-      "y": 40,
+      "y": 72,
     },
   ],
   "version": 1,
 }
 `;
 
-exports[`contact sheet — pinned geometry (re-pin deliberately, review the sheet) U — trapezoid fan-in — port-to-port straight + merge 1`] = `
+exports[`contact sheet — pinned geometry (re-pin deliberately, review the sheet) U — trapezoid fan-in — symmetric merge 1`] = `
 {
   "bounds": {
     "h": 182,
@@ -1654,8 +1710,16 @@ exports[`contact sheet — pinned geometry (re-pin deliberately, review the shee
           58,
         ],
         [
-          182,
+          152,
           58,
+        ],
+        [
+          152,
+          91,
+        ],
+        [
+          182,
+          91,
         ],
       ],
       "to": "T",
@@ -1675,11 +1739,11 @@ exports[`contact sheet — pinned geometry (re-pin deliberately, review the shee
         ],
         [
           152,
-          58,
+          91,
         ],
         [
           182,
-          58,
+          91,
         ],
       ],
       "to": "T",
@@ -1713,14 +1777,14 @@ exports[`contact sheet — pinned geometry (re-pin deliberately, review the shee
       "shape": "trapezoid",
       "w": 86,
       "x": 175,
-      "y": 40,
+      "y": 72,
     },
   ],
   "version": 1,
 }
 `;
 
-exports[`contact sheet — pinned geometry (re-pin deliberately, review the sheet) V — asymmetric fan-in — flag point + merge 1`] = `
+exports[`contact sheet — pinned geometry (re-pin deliberately, review the sheet) V — asymmetric fan-in — symmetric merge at the flag point 1`] = `
 {
   "bounds": {
     "h": 182,
@@ -1737,8 +1801,16 @@ exports[`contact sheet — pinned geometry (re-pin deliberately, review the shee
           58,
         ],
         [
-          167,
+          144,
           58,
+        ],
+        [
+          144,
+          91,
+        ],
+        [
+          167,
+          91,
         ],
       ],
       "to": "T",
@@ -1758,11 +1830,11 @@ exports[`contact sheet — pinned geometry (re-pin deliberately, review the shee
         ],
         [
           144,
-          58,
+          91,
         ],
         [
           167,
-          58,
+          91,
         ],
       ],
       "to": "T",
@@ -1796,7 +1868,7 @@ exports[`contact sheet — pinned geometry (re-pin deliberately, review the shee
       "shape": "asymmetric",
       "w": 78,
       "x": 167,
-      "y": 40,
+      "y": 72,
     },
   ],
   "version": 1,

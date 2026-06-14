@@ -1122,27 +1122,32 @@ describe('port ranking — sharp bits win when a side carries one line (issue #2
     ['hexagons', '{{One}}', '{{Hub}}', '{{Two}}'],
     ['cylinders', '[(One)]', '[(Hub)]', '[(Two)]'],
   ] as const)(
-    'port-lane alignment extends to PORT_EXACT shapes: %s fan-in gets a port-to-port straight',
+    'PORT_EXACT shapes: an unlabeled equal-rank peer fan-in merges SYMMETRICALLY at the exact port',
     (_name, a, t, b) => {
-      // Without alignment these all pay TWO 2-bend Zs: port-only spans make
-      // a floating straight impossible, so misaligned ports force bends.
-      // Sliding one node aligns the ports and the straightener collapses one
-      // edge to a 0-bend port-to-port lane; the sibling converges at the
-      // same entry port.
+      // Active fan-in centering snaps the hub T to the exact cross-axis
+      // barycenter of its two unlabeled peer sources, so both edges leave
+      // their source E port and converge — mirror-symmetric — at T's single
+      // exact W port (port-exact preserved; the two equal bent lines replace
+      // the old one-straight/one-Z asymmetry).
       const positioned = layoutGraphSync(parseMermaid(
         `flowchart LR\n  A${a} --> T${t}\n  B${b} --> T`))
       const at = findEdge(positioned.edges, 'A', 'T')
       const bt = findEdge(positioned.edges, 'B', 'T')
-      const straights = [at, bt].filter(e => e.points.length === 2)
-      expect(straights.length).toBeGreaterThanOrEqual(1)
-      const s = straights[0]!
-      expect(s.routeCertificate?.sourcePort).toBe('E')
-      expect(s.routeCertificate?.targetPort).toBe('W')
+      for (const e of [at, bt]) {
+        expect(e.routeCertificate?.sourcePort).toBe('E')
+        expect(e.routeCertificate?.targetPort).toBe('W')
+      }
       // Both edges enter through the same exact W port (fan-in merge).
       const lastA = at.points[at.points.length - 1]!
       const lastB = bt.points[bt.points.length - 1]!
       expect(Math.abs(lastA.x - lastB.x)).toBeLessThanOrEqual(0.5)
       expect(Math.abs(lastA.y - lastB.y)).toBeLessThanOrEqual(0.5)
+      // The hub is centered: the shared W port sits at the barycenter of the
+      // two source centers → the two edges are vertical mirror images.
+      const A = positioned.nodes.find(n => n.id === 'A')!
+      const B = positioned.nodes.find(n => n.id === 'B')!
+      const bary = ((A.y + A.height / 2) + (B.y + B.height / 2)) / 2
+      expect(Math.abs(lastA.y - bary)).toBeLessThanOrEqual(1.5)
     },
   )
 

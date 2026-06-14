@@ -48,15 +48,17 @@ export function contactSheetScenarios(): ContactSheetScenario[] {
     // diamond onto the first's vertex lane: vertex-to-vertex straight.
     { letter: 'K', title: 'misaligned diamonds — vertex to vertex', source: 'flowchart LR\n  Q1{First} -- go --> Q2{Second}\n  X[Side input] --> Q2' },
     // L–P: the PORT_EXACT extension — port-only and curved shapes get the
-    // same port-to-port straight + merge composition as rects.
-    { letter: 'L', title: 'circle fan-in — port-to-port straight + merge', source: fanIn('((One))', '((Hub))', '((Two))') },
-    { letter: 'M', title: 'stadium fan-in — port-to-port straight + merge', source: fanIn('([One])', '([Hub])', '([Two])') },
-    { letter: 'N', title: 'hexagon fan-in — port-to-port straight + merge', source: fanIn('{{One}}', '{{Hub}}', '{{Two}}') },
-    { letter: 'O', title: 'cylinder fan-in — port-to-port straight + merge', source: fanIn('[(One)]', '[(Hub)]', '[(Two)]') },
-    { letter: 'P', title: 'mixed rect→circle fan-in', source: fanIn('[One]', '((Hub))', '[Two]') },
+    // same SYMMETRIC merge as rects: active fan-in centering snaps the hub
+    // onto the source barycenter, so both edges bend equally into one exact
+    // port (mirror-symmetric), for every shape.
+    { letter: 'L', title: 'circle fan-in — symmetric merge at the exact port', source: fanIn('((One))', '((Hub))', '((Two))') },
+    { letter: 'M', title: 'stadium fan-in — symmetric merge at the exact port', source: fanIn('([One])', '([Hub])', '([Two])') },
+    { letter: 'N', title: 'hexagon fan-in — symmetric merge at the exact port', source: fanIn('{{One}}', '{{Hub}}', '{{Two}}') },
+    { letter: 'O', title: 'cylinder fan-in — symmetric merge at the exact port', source: fanIn('[(One)]', '[(Hub)]', '[(Two)]') },
+    { letter: 'P', title: 'mixed rect→circle fan-in — symmetric merge', source: fanIn('[One]', '((Hub))', '[Two]') },
     // Q: state diagrams inherit the whole composition (states are
     // rect-like; pseudostates are port-only circles).
-    { letter: 'Q', title: 'state diagram fan-in — alignment + merge', source: 'stateDiagram-v2\n  direction LR\n  Choosing --> Done\n  Reviewing --> Done' },
+    { letter: 'Q', title: 'state diagram fan-in — symmetric merge', source: 'stateDiagram-v2\n  direction LR\n  Choosing --> Done\n  Reviewing --> Done' },
     // R: labeled feedback routes around through the outer channel with its
     // label ON the loop; the forward edge stays straight.
     { letter: 'R', title: 'labeled feedback — outer loop, label on route', source: 'flowchart LR\n  A[Request] --> B{Valid?}\n  B -- no, retry --> A\n  B -- yes --> C[Process]' },
@@ -64,10 +66,10 @@ export function contactSheetScenarios(): ContactSheetScenario[] {
     // forward edge takes the exact port and the back edge loops around.
     { letter: 'S', title: 'bi-directional circles — port + outer loop', source: 'flowchart LR\n  A((One)) --> B((Two))\n  B --> A' },
     // T–V: the slanted-family PORT_EXACT extension — parallelograms,
-    // trapezoids and asymmetric flags get the same port-to-port straight +
-    // merge composition (E/W ports on the slant midpoints / the flag point).
-    { letter: 'T', title: 'parallelogram I/O fan-in — port-to-port straight + merge', source: fanIn('[/One/]', '[/Hub/]', '[/Two/]') },
-    { letter: 'U', title: 'trapezoid fan-in — port-to-port straight + merge', source: fanIn('[/One\\]', '[/Hub\\]', '[/Two\\]') },
-    { letter: 'V', title: 'asymmetric fan-in — flag point + merge', source: fanIn('>One]', '>Hub]', '>Two]') },
+    // trapezoids and asymmetric flags get the same symmetric merge (E/W
+    // ports on the slant midpoints / the flag point).
+    { letter: 'T', title: 'parallelogram I/O fan-in — symmetric merge', source: fanIn('[/One/]', '[/Hub/]', '[/Two/]') },
+    { letter: 'U', title: 'trapezoid fan-in — symmetric merge', source: fanIn('[/One\\]', '[/Hub\\]', '[/Two\\]') },
+    { letter: 'V', title: 'asymmetric fan-in — symmetric merge at the flag point', source: fanIn('>One]', '>Hub]', '>Two]') },
   ]
 }

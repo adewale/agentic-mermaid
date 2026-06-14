@@ -120,22 +120,28 @@ describe('PORT_EXACT promotion — slanted fan-ins get the port-to-port composit
     ['parallelograms (lean-l)', '[\\One\\]', '[\\Hub\\]', '[\\Two\\]'],
     ['trapezoids', '[/One\\]', '[/Hub\\]', '[/Two\\]'],
   ] as const)(
-    'port-lane alignment extends to the slanted family: %s fan-in gets a port-to-port straight',
+    'the slanted family: %s fan-in merges symmetrically at the exact port',
     (_name, a, t, b) => {
+      // Active fan-in centering: both peer edges leave their E port and
+      // converge mirror-symmetric at T's single exact W port.
       const positioned = layoutGraphSync(parseMermaid(
         `flowchart LR\n  A${a} --> T${t}\n  B${b} --> T`))
       const at = findEdge(positioned.edges, 'A', 'T')
       const bt = findEdge(positioned.edges, 'B', 'T')
-      const straights = [at, bt].filter(e => e.points.length === 2)
-      expect(straights.length).toBeGreaterThanOrEqual(1)
-      const s = straights[0]!
-      expect(s.routeCertificate?.sourcePort).toBe('E')
-      expect(s.routeCertificate?.targetPort).toBe('W')
+      for (const e of [at, bt]) {
+        expect(e.routeCertificate?.sourcePort).toBe('E')
+        expect(e.routeCertificate?.targetPort).toBe('W')
+      }
       // Both edges enter through the same exact W port (fan-in merge).
       const lastA = at.points[at.points.length - 1]!
       const lastB = bt.points[bt.points.length - 1]!
       expect(Math.abs(lastA.x - lastB.x)).toBeLessThanOrEqual(0.5)
       expect(Math.abs(lastA.y - lastB.y)).toBeLessThanOrEqual(0.5)
+      // Hub centered → merge point at the source barycenter (symmetric).
+      const A = positioned.nodes.find(n => n.id === 'A')!
+      const B = positioned.nodes.find(n => n.id === 'B')!
+      const bary = ((A.y + A.height / 2) + (B.y + B.height / 2)) / 2
+      expect(Math.abs(lastA.y - bary)).toBeLessThanOrEqual(1.5)
     },
   )
 })
