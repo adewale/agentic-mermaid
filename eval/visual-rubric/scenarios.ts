@@ -36,11 +36,12 @@ export function contactSheetScenarios(): ContactSheetScenario[] {
     // E–F: a diamond side carrying TWO forward edges. E (LR): the edges
     // attach at the diamond's NE/SE facet-mid ports and the targets snap onto
     // those lanes — port-to-port STRAIGHT (the 8-port diamond model). F (TD):
-    // the rect targets are wider than the facet span and would overlap if
-    // snapped together, so the facet alignment correctly bails and F keeps
-    // the target-determined facet spread.
+    // the rect targets are wider than the S-facet span (only w/2 apart) and
+    // would overlap if snapped to the facet-mids, so F falls back to the wider
+    // E/W cardinal VERTICES (full w apart) — still port-to-port straight, the
+    // targets clear, sourcePort W/E and targetPort N.
     { letter: 'E', title: 'diamond fan-out — facet-mid ports, port-to-port straight', source: 'flowchart LR\n  Q{Decide} -- a --> P[One]\n  Q -- b --> R[Two]' },
-    { letter: 'F', title: 'diamond fan-out, TD — facet spread (targets too wide to align)', source: 'flowchart TD\n  Q{Decide} -- a --> P[One]\n  Q -- b --> R[Two]' },
+    { letter: 'F', title: 'diamond fan-out, TD — E/W vertices, port-to-port straight', source: 'flowchart TD\n  Q{Decide} -- a --> P[One]\n  Q -- b --> R[Two]' },
     // G–H: reciprocal pairs. H (rects): two equal parallel lines at
     // center ± PAIR_SEPARATION/2. G (diamond↔diamond): the pair attaches at
     // the NEAREST facing facet-mid ports — Q.NE→R.NW (upper), R.SW→Q.SE

@@ -1583,37 +1583,69 @@ function alignPortLanes(
       const assignment: Array<[PositionedEdge, DiamondFacet]> = [
         [ordered[0]!, upperFacet], [ordered[1]!, lowerFacet],
       ]
-      // Each target must be slidable onto its facet-mid cross lane (moveSafe),
-      // and the resulting straight lane must clear; commit only if BOTH do.
-      let allOk = true
-      for (const [e, facet] of assignment) {
-        const tgt = nodeMap.get(e.target)!
-        const delta = facets[facet][cross] - portCross(tgt)
-        if (Math.abs(delta) > 0.5 && !moveSafe(tgt, delta, e)) { allOk = false; break }
-      }
-      if (!allOk) continue
-      // moveSafe proves each slide independently, but the TWO targets move
-      // toward each other in vertical flow (NE/SE collapse to SW/SE columns):
-      // their FINAL boxes must not collide. Check the pair at their committed
-      // facet-mid positions (the swept perpendicular siblings are already
-      // covered by moveSafe). Without this the pair could overlap — a hard
-      // nodeOverlaps defect — when the targets are wider than the facet span.
-      {
-        const boxes = assignment.map(([e, facet]) => {
-          const t = nodeMap.get(e.target)!
-          const delta = facets[facet][cross] - portCross(t)
+      // A `lane` is the per-edge SOURCE attachment point (the facet-mid by
+      // default) and the cross coordinate the target column snaps onto. A lane
+      // set is committed only if BOTH gates pass: every target slides onto its
+      // lane safely (moveSafe — proves each slide independently), AND the two
+      // FINAL target boxes clear each other (the targets move toward each other
+      // in vertical flow as the facet-mids collapse their columns, so moveSafe
+      // alone can't see the pairwise collision). The cardinal-vertex fallback
+      // below only swaps the source points; everything downstream is
+      // lane-driven, so both gates run uniformly over whichever set we pick.
+      const srcPorts = shapePorts(src)
+      type Lane = { edge: PositionedEdge; src: Point; cross: number }
+      const facetLanes: Lane[] = assignment.map(([e, facet]) => (
+        { edge: e, src: { x: facets[facet].x, y: facets[facet].y }, cross: facets[facet][cross] }))
+      // For a VERTICAL-flow (TD/BT) diamond the South/North facet-mids are only
+      // w/2 apart, so HORIZONTALLY-stacked targets wider than that overlap when
+      // snapped together (E bails for this reason). The diamond's E and W
+      // cardinal VERTICES are the full width w apart — much wider — so the same
+      // targets fit. Route the upper-cross edge out W, the lower out E (the
+      // upper target snaps to x=W.x, the lower to x=E.x), keeping both edges
+      // port-to-port straight (sourcePort W/E, targetPort N for TD). Mirrored
+      // for BT by the entrySide = N/S choice. Horizontal flow keeps the facets.
+      const cardinalLanes: Lane[] | null = (!isHorizontal && assignment[0] && assignment[1])
+        ? [
+          { edge: assignment[0]![0], src: { x: srcPorts.W.x, y: srcPorts.W.y }, cross: srcPorts.W[cross] },
+          { edge: assignment[1]![0], src: { x: srcPorts.E.x, y: srcPorts.E.y }, cross: srcPorts.E[cross] },
+        ]
+        : null
+
+      // Targets snapped onto a lane set must not collide with each other.
+      const pairOverlaps = (lanes: Lane[]): boolean => {
+        const boxes = lanes.map(l => {
+          const t = nodeMap.get(l.edge.target)!
+          const delta = l.cross - portCross(t)
           return {
             x: isHorizontal ? t.x : t.x + delta, y: isHorizontal ? t.y + delta : t.y,
             w: t.width, h: t.height,
           }
         })
         const [a, b] = boxes
-        if (a && b && overlaps(a.x - MARGIN, a.y - MARGIN, a.w + 2 * MARGIN, a.h + 2 * MARGIN, b.x, b.y, b.w, b.h)) continue
+        return !!(a && b && overlaps(a.x - MARGIN, a.y - MARGIN, a.w + 2 * MARGIN, a.h + 2 * MARGIN, b.x, b.y, b.w, b.h))
       }
+      // Each target must slide onto its lane's cross coordinate (moveSafe) and
+      // the resulting lane must clear — recheck for whichever lane set we use.
+      const slidesSafe = (lanes: Lane[]): boolean => lanes.every(l => {
+        const t = nodeMap.get(l.edge.target)!
+        const delta = l.cross - portCross(t)
+        return Math.abs(delta) <= 0.5 || moveSafe(t, delta, l.edge)
+      })
+
+      // Prefer the facet-mids; for vertical flow fall back to the wider E/W
+      // cardinal vertices when the facets would collapse the targets into a
+      // collision (or fail to slide). If neither set is usable, leave src alone.
+      const usable = (lanes: Lane[] | null): boolean =>
+        !!lanes && slidesSafe(lanes) && !pairOverlaps(lanes)
+      let lanes: Lane[]
+      if (usable(facetLanes)) lanes = facetLanes
+      else if (usable(cardinalLanes)) lanes = cardinalLanes!
+      else continue
       const entrySide = isHorizontal ? (sign > 0 ? 'W' : 'E') : (sign > 0 ? 'N' : 'S')
-      for (const [e, facet] of assignment) {
+      for (const l of lanes) {
+        const e = l.edge
         const tgt = nodeMap.get(e.target)!
-        const delta = facets[facet][cross] - portCross(tgt)
+        const delta = l.cross - portCross(tgt)
         if (Math.abs(delta) > 0.5) {
           if (isHorizontal) tgt.y += delta; else tgt.x += delta
           for (const o of edges) {
@@ -1624,13 +1656,13 @@ function alignPortLanes(
             else if (sT) shiftRun(o, false, delta)
           }
         }
-        // Re-anchor: source on its facet-mid (now collinear with the target's
-        // facing cardinal port), target on that cardinal port.
+        // Re-anchor: source on its facet-mid OR cardinal vertex (now collinear
+        // with the target's facing cardinal port), target on that cardinal port.
         e.points = [
-          { x: facets[facet].x, y: facets[facet].y },
+          { x: l.src.x, y: l.src.y },
           shapePorts(tgt)[entrySide as 'N' | 'E' | 'S' | 'W'],
         ]
-        if (e.labelPosition) e.labelPosition[cross] = facets[facet][cross]
+        if (e.labelPosition) e.labelPosition[cross] = l.cross
         facetAligned.add(e)
         frozen.add(e.target)
       }

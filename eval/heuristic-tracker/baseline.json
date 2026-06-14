@@ -41,7 +41,7 @@
   },
   "contact-sheet/F": {
     "hard": 0,
-    "offCardinal": 2,
+    "offCardinal": 0,
     "bends": 0,
     "straight": 2,
     "crossings": 0,
@@ -377,7 +377,7 @@
   },
   "diamond-offport/F-facet-spread-td": {
     "hard": 0,
-    "offCardinal": 2,
+    "offCardinal": 0,
     "bends": 0,
     "straight": 2,
     "crossings": 0,
