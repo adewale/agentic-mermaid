@@ -106,7 +106,8 @@
     "lint": "bun test src/__tests__/agent-substrate-lint.test.ts",
     "eval:agent-live": "bun run eval/agent-usage/live.ts",
     "rubric:visual": "bun run eval/visual-rubric/run.ts",
-    "contact:sheet": "bun run eval/visual-rubric/contact-sheet.ts"
+    "contact:sheet": "bun run eval/visual-rubric/contact-sheet.ts",
+    "track": "bun run eval/heuristic-tracker/run.ts"
   },
   "dependencies": {
     "@resvg/resvg-js": "2.6.2",
