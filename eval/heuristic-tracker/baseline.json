@@ -33,7 +33,7 @@
   },
   "contact-sheet/E": {
     "hard": 0,
-    "offCardinal": 2,
+    "offCardinal": 0,
     "bends": 0,
     "straight": 2,
     "crossings": 0,
@@ -49,7 +49,7 @@
   },
   "contact-sheet/G": {
     "hard": 0,
-    "offCardinal": 4,
+    "offCardinal": 0,
     "bends": 0,
     "straight": 2,
     "crossings": 0,
@@ -81,11 +81,11 @@
   },
   "contact-sheet/K": {
     "hard": 0,
-    "offCardinal": 2,
+    "offCardinal": 0,
     "bends": 0,
     "straight": 2,
     "crossings": 0,
-    "symErr": 28.4
+    "symErr": 28
   },
   "contact-sheet/L": {
     "hard": 0,
@@ -193,7 +193,7 @@
   },
   "reciprocal-unlabelled/diamond": {
     "hard": 0,
-    "offCardinal": 4,
+    "offCardinal": 0,
     "bends": 0,
     "straight": 2,
     "crossings": 0,
@@ -369,7 +369,7 @@
   },
   "diamond-offport/E-facet-spread": {
     "hard": 0,
-    "offCardinal": 2,
+    "offCardinal": 0,
     "bends": 0,
     "straight": 2,
     "crossings": 0,
@@ -385,11 +385,11 @@
   },
   "diamond-offport/K-side-input": {
     "hard": 0,
-    "offCardinal": 2,
+    "offCardinal": 0,
     "bends": 0,
     "straight": 2,
     "crossings": 0,
-    "symErr": 28.4
+    "symErr": 28
   },
   "diamond-offport/three-way-out": {
     "hard": 0,

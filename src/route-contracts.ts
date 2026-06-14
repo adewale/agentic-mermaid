@@ -13,6 +13,8 @@
  */
 
 import type {
+  AnyPort,
+  DiamondFacet,
   Direction,
   MermaidGraph,
   Point,
@@ -103,11 +105,44 @@ export function shapePorts(node: PositionedNode): Record<PortSide, Point> {
   }
 }
 
-/** The port (if any) an endpoint sits on, within PORT_TOLERANCE. */
-function portAt(node: PositionedNode, pt: Point): PortSide | undefined {
+/**
+ * The four facet-midpoints of a diamond — the points halfway along each
+ * slanted edge. For a diamond at (x,y,w,h) with cx=x+w/2, cy=y+h/2 these are
+ * the averages of the adjacent vertices: NE/SE/SW/NW at (x±w/4 offset from cx,
+ * y±h/4 offset from cy). All four lie exactly on the rendered outline
+ * (|dx|/hw + |dy|/hh = 1). Diamond-only: every other shape keeps its four
+ * cardinal ports via shapePorts(); this is a strictly additive attachment set.
+ */
+export function diamondFacetPorts(node: PositionedNode): Record<DiamondFacet, Point> {
+  const cx = node.x + node.width / 2
+  const cy = node.y + node.height / 2
+  const qw = node.width / 4
+  const qh = node.height / 4
+  return {
+    NE: { x: cx + qw, y: cy - qh },
+    SE: { x: cx + qw, y: cy + qh },
+    SW: { x: cx - qw, y: cy + qh },
+    NW: { x: cx - qw, y: cy - qh },
+  }
+}
+
+/**
+ * The port (if any) an endpoint sits on, within PORT_TOLERANCE. The four
+ * cardinal side-midpoints are checked first for EVERY shape (byte-identical to
+ * the legacy four-cardinal probe), so non-diamonds and diamond cardinal
+ * attachments are unchanged. A diamond endpoint that misses all four cardinals
+ * is additionally tested against the facet-midpoints, returning NE/SE/SW/NW.
+ */
+function portAt(node: PositionedNode, pt: Point): AnyPort | undefined {
   const ports = shapePorts(node)
   for (const side of ['N', 'E', 'S', 'W'] as const) {
     if (Math.abs(ports[side].x - pt.x) <= PORT_TOLERANCE && Math.abs(ports[side].y - pt.y) <= PORT_TOLERANCE) return side
+  }
+  if (node.shape === 'diamond') {
+    const facets = diamondFacetPorts(node)
+    for (const f of ['NE', 'SE', 'SW', 'NW'] as const) {
+      if (Math.abs(facets[f].x - pt.x) <= PORT_TOLERANCE && Math.abs(facets[f].y - pt.y) <= PORT_TOLERANCE) return f
+    }
   }
   return undefined
 }
@@ -709,8 +744,24 @@ function tryStraighten(
     other !== edge && other.source === edge.target && other.target === edge.source &&
     !other.label && !edge.label &&
     other.edgeIndex !== undefined && edge.edgeIndex !== undefined)
+  // A reciprocal pair BETWEEN TWO DIAMONDS (G) parts at the NEAREST facet-mids
+  // rather than the generic center ± SEP/2: the two parallel lines run between
+  // the diamonds' facets (never through a vertex). The primary takes the
+  // upper facet (NE source-mid for an LR exit), the feedback the lower (SW);
+  // the cross offset is the source diamond's own facet-mid offset (size/4), so
+  // its endpoint lands exactly on a facet-mid. The target end anchors on its
+  // facing facet at the same lane (on-outline, the partner's nearest mid).
+  const recipDiamond = reciprocal && source.shape === 'diamond' && target.shape === 'diamond'
   if (restrictToLane !== undefined) {
     candidates.push(restrictToLane)
+  } else if (recipDiamond) {
+    const own = ctx.classes![edge.edgeIndex!] === 'feedback' ? 1 : -1
+    const srcCenter = source[axis.cross] + (axis.cross === 'y' ? source.height : source.width) / 2
+    const srcFacetOffset = (axis.cross === 'y' ? source.height : source.width) / 4
+    push(srcCenter + own * srcFacetOffset)
+    push((overlapLo + overlapHi) / 2 + own * PAIR_SEPARATION / 2)
+    push(tgtPortLane)
+    push(srcPortLane)
   } else if (reciprocal) {
     const pairCenter = (overlapLo + overlapHi) / 2
     const own = ctx.classes![edge.edgeIndex!] === 'feedback' ? 1 : -1

@@ -152,6 +152,16 @@ export type RouteClass =
  *  inscribed in its bbox. */
 export type PortSide = 'N' | 'E' | 'S' | 'W'
 
+/** Diamond facet-midpoints: the four points halfway along each slanted edge
+ *  (NE/SE/SW/NW). They lie exactly on the diamond outline and serve as
+ *  designated attachment points alongside the four cardinal vertices, but are
+ *  diamond-only — shapePorts() stays four-cardinal for every shape. */
+export type DiamondFacet = 'NE' | 'SE' | 'SW' | 'NW'
+
+/** A port an endpoint may sit on: a cardinal vertex/side-midpoint, or — on a
+ *  diamond — a facet-midpoint. */
+export type AnyPort = PortSide | DiamondFacet
+
 export interface RouteBlocker {
   kind: 'node' | 'label' | 'channel' | 'span' | 'crossing'
   id: string
@@ -175,10 +185,12 @@ export interface RouteCertificate {
   directLaneBlockedBy?: RouteBlocker[]
   /** True when the certifying straightener collapsed this route */
   straightened?: boolean
-  /** Set when the endpoint sits exactly on one of the shape's four ports. */
-  sourcePort?: PortSide
-  /** Set when the endpoint sits exactly on one of the shape's four ports. */
-  targetPort?: PortSide
+  /** Set when the endpoint sits exactly on a port: a cardinal side-midpoint
+   *  for every shape, or a diamond facet-midpoint (NE/SE/SW/NW). */
+  sourcePort?: AnyPort
+  /** Set when the endpoint sits exactly on a port: a cardinal side-midpoint
+   *  for every shape, or a diamond facet-midpoint (NE/SE/SW/NW). */
+  targetPort?: AnyPort
 }
 
 export interface Point {

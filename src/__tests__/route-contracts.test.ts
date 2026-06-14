@@ -1271,6 +1271,7 @@ describe('port ranking — sharp bits win when a side carries one line (issue #2
   it('bi-directional pairs render as TWO EQUAL parallel lines, symmetric about the centerline', () => {
     for (const dir of ['LR', 'TD'] as const) {
       for (const shapes of [['{One}', '{Two}'], ['[One]', '[Two]']]) {
+        const isDiamond = shapes[0] === '{One}'
         const positioned = layoutGraphSync(parseMermaid(
           `flowchart ${dir}\n  Q${shapes[0]} --> R${shapes[1]}\n  R --> Q`))
         const fwd = findEdge(positioned.edges, 'Q', 'R')
@@ -1281,13 +1282,27 @@ describe('port ranking — sharp bits win when a side carries one line (issue #2
         const main = dir === 'LR' ? 'x' as const : 'y' as const
         const q = positioned.nodes.find(n => n.id === 'Q')!
         const center = q[cross] + (cross === 'y' ? q.height : q.width) / 2
-        // Symmetric: equal distance from the shared centerline...
-        expect(Math.abs(Math.abs(fwd.points[0]![cross] - center) - Math.abs(back.points[0]![cross] - center))).toBeLessThan(0.5)
+        // Symmetric about the centerline: equal distance, opposite sides.
+        // Diamond-diamond pairs (G) part at the NEAREST facet-mids: each line
+        // emits from its OWN source diamond's facet-mid (offset = size/4), so
+        // the two-sided symmetry holds up to the diamonds' size difference
+        // (heights vary slightly with the inscribed label). Rect-like pairs
+        // keep the exact center ± SEP/2 symmetry.
+        const symTol = isDiamond ? 1.5 : 0.5
+        expect(Math.abs(Math.abs(fwd.points[0]![cross] - center) - Math.abs(back.points[0]![cross] - center))).toBeLessThan(symTol)
         // ...on opposite sides, separated enough for the arrowheads...
         expect(Math.abs(fwd.points[0]![cross] - back.points[0]![cross])).toBeGreaterThanOrEqual(8)
-        // ...and therefore equal in length.
+        // ...and equal in length (diamond facets shorten the line by their
+        // size/4 distance from the vertex, equal for the symmetric pair).
         const len = (e: typeof fwd) => Math.abs(e.points[1]![main] - e.points[0]![main])
-        expect(Math.abs(len(fwd) - len(back))).toBeLessThan(0.5)
+        expect(Math.abs(len(fwd) - len(back))).toBeLessThan(isDiamond ? 1.5 : 0.5)
+        if (isDiamond) {
+          // Diamond-diamond: source ends land on facet-mids (NE/SW for LR,
+          // rotated per direction); never on a vertex (the lines run BETWEEN
+          // the diamonds, not through a point).
+          expect(['NE', 'SE', 'SW', 'NW']).toContain(fwd.routeCertificate?.sourcePort ?? '')
+          expect(['NE', 'SE', 'SW', 'NW']).toContain(back.routeCertificate?.sourcePort ?? '')
+        }
       }
     }
   })

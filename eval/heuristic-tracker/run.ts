@@ -15,15 +15,23 @@ import { join, dirname } from 'node:path'
 import { parseMermaid } from '../../src/parser.ts'
 import { layoutGraphSync } from '../../src/layout-engine.ts'
 import { assessLayout } from '../../src/layout-rubric.ts'
-import { shapePorts } from '../../src/route-contracts.ts'
+import { shapePorts, diamondFacetPorts } from '../../src/route-contracts.ts'
 import { trackedExamples } from './catalog.ts'
 
 interface Row {
   hard: number; offCardinal: number; bends: number; straight: number; crossings: number; symErr: number | null
 }
 
+// A "designated" attachment point: the four cardinal side-midpoints for every
+// shape, PLUS the four facet-midpoints on a diamond (NE/SE/SW/NW). Facet-mids
+// are exact on-outline ports the 8-port model attaches to deliberately, so an
+// endpoint there is NOT an off-port floater — it should not count against the
+// offCardinal metric (which tracks endpoints floating at arbitrary positions).
 function onCardinal(node: any, p: { x: number; y: number }): boolean {
-  return Object.values(shapePorts(node)).some((q: any) => Math.abs(q.x - p.x) <= 0.5 && Math.abs(q.y - p.y) <= 0.5)
+  const near = (q: any) => Math.abs(q.x - p.x) <= 0.5 && Math.abs(q.y - p.y) <= 0.5
+  if (Object.values(shapePorts(node)).some(near)) return true
+  if (node.shape === 'diamond' && Object.values(diamondFacetPorts(node)).some(near)) return true
+  return false
 }
 
 function fanInSymmetryError(pos: any): number | null {

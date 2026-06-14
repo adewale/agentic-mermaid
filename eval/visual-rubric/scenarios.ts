@@ -33,20 +33,27 @@ export function contactSheetScenarios(): ContactSheetScenario[] {
     { letter: 'B', title: '1 line, RL — vertex emit + port merge', source: 'flowchart RL\n  Q{Decide} -- go --> T[Target]\n  X[Side input] --> T' },
     { letter: 'C', title: '1 line, TD — vertex emit + port merge', source: 'flowchart TD\n  Q{Decide} -- go --> T[Target]\n  X[Side input] --> T' },
     { letter: 'D', title: '1 line, BT — vertex emit + port merge', source: 'flowchart BT\n  Q{Decide} -- go --> T[Target]\n  X[Side input] --> T' },
-    // E–F: a diamond side carrying TWO lines spreads on the facet — the
-    // vertex has capacity 1 (yFiles cost model), no line hogs the point.
-    { letter: 'E', title: '2 lines — facet spread', source: 'flowchart LR\n  Q{Decide} -- a --> P[One]\n  Q -- b --> R[Two]' },
-    { letter: 'F', title: '2 lines, TD — facet spread', source: 'flowchart TD\n  Q{Decide} -- a --> P[One]\n  Q -- b --> R[Two]' },
-    // G–H: reciprocal pairs render as TWO EQUAL parallel lines at
-    // center ± PAIR_SEPARATION/2 (primary low, feedback high).
-    { letter: 'G', title: 'bi-directional diamonds — two EQUAL parallel lines', source: 'flowchart LR\n  Q{One} --> R{Two}\n  R --> Q' },
+    // E–F: a diamond side carrying TWO forward edges. E (LR): the edges
+    // attach at the diamond's NE/SE facet-mid ports and the targets snap onto
+    // those lanes — port-to-port STRAIGHT (the 8-port diamond model). F (TD):
+    // the rect targets are wider than the facet span and would overlap if
+    // snapped together, so the facet alignment correctly bails and F keeps
+    // the target-determined facet spread.
+    { letter: 'E', title: 'diamond fan-out — facet-mid ports, port-to-port straight', source: 'flowchart LR\n  Q{Decide} -- a --> P[One]\n  Q -- b --> R[Two]' },
+    { letter: 'F', title: 'diamond fan-out, TD — facet spread (targets too wide to align)', source: 'flowchart TD\n  Q{Decide} -- a --> P[One]\n  Q -- b --> R[Two]' },
+    // G–H: reciprocal pairs. H (rects): two equal parallel lines at
+    // center ± PAIR_SEPARATION/2. G (diamond↔diamond): the pair attaches at
+    // the NEAREST facing facet-mid ports — Q.NE→R.NW (upper), R.SW→Q.SE
+    // (lower) — two parallel lines BETWEEN the diamonds, never through them.
+    { letter: 'G', title: 'bi-directional diamonds — parallel lines on facet-mid ports', source: 'flowchart LR\n  Q{One} --> R{Two}\n  R --> Q' },
     { letter: 'H', title: 'bi-directional rects — two EQUAL parallel lines', source: 'flowchart LR\n  A[One] --> B[Two]\n  B --> A' },
     // I–J: diamond chains run vertex to vertex.
     { letter: 'I', title: 'diamond chain — vertex to vertex', source: 'flowchart LR\n  Q1{One} --> Q2{Two} --> Q3{Three}' },
     { letter: 'J', title: 'diamond chain, TD — vertex to vertex', source: 'flowchart TD\n  Q1{One} --> Q2{Two} --> Q3{Three}' },
-    // K: misaligned diamonds — port-lane alignment slides the second
-    // diamond onto the first's vertex lane: vertex-to-vertex straight.
-    { letter: 'K', title: 'misaligned diamonds — vertex to vertex', source: 'flowchart LR\n  Q1{First} -- go --> Q2{Second}\n  X[Side input] --> Q2' },
+    // K: the labelled main branch runs vertex-to-vertex (E→W); the side input
+    // sits below Q2, whose W vertex is taken, so it routes into Q2's S vertex
+    // (a canonical port) instead of floating on the W facet.
+    { letter: 'K', title: 'side input into a claimed diamond — enters the S vertex', source: 'flowchart LR\n  Q1{First} -- go --> Q2{Second}\n  X[Side input] --> Q2' },
     // L–P: the PORT_EXACT extension — port-only and curved shapes get the
     // same SYMMETRIC merge as rects: active fan-in centering snaps the hub
     // onto the source barycenter, so both edges bend equally into one exact

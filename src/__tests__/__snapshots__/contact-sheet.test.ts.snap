@@ -348,7 +348,7 @@ exports[`contact sheet — pinned geometry (re-pin deliberately, review the shee
 }
 `;
 
-exports[`contact sheet — pinned geometry (re-pin deliberately, review the sheet) E — 2 lines — facet spread 1`] = `
+exports[`contact sheet — pinned geometry (re-pin deliberately, review the sheet) E — diamond fan-out — facet-mid ports, port-to-port straight 1`] = `
 {
   "bounds": {
     "h": 187,
@@ -360,17 +360,17 @@ exports[`contact sheet — pinned geometry (re-pin deliberately, review the shee
       "id": "Q->P",
       "label": {
         "text": "a",
-        "x": 187,
-        "y": 61,
+        "x": 203,
+        "y": 67,
       },
       "path": [
         [
-          115,
-          61,
+          121,
+          67,
         ],
         [
           259,
-          61,
+          67,
         ],
       ],
       "to": "P",
@@ -380,17 +380,17 @@ exports[`contact sheet — pinned geometry (re-pin deliberately, review the shee
       "id": "Q->R",
       "label": {
         "text": "b",
-        "x": 187,
-        "y": 126,
+        "x": 203,
+        "y": 121,
       },
       "path": [
         [
-          115,
-          126,
+          121,
+          121,
         ],
         [
           259,
-          126,
+          121,
         ],
       ],
       "to": "R",
@@ -415,7 +415,7 @@ exports[`contact sheet — pinned geometry (re-pin deliberately, review the shee
       "shape": "rectangle",
       "w": 66,
       "x": 259,
-      "y": 43,
+      "y": 48,
     },
     {
       "h": 37,
@@ -424,14 +424,14 @@ exports[`contact sheet — pinned geometry (re-pin deliberately, review the shee
       "shape": "rectangle",
       "w": 67,
       "x": 259,
-      "y": 108,
+      "y": 102,
     },
   ],
   "version": 1,
 }
 `;
 
-exports[`contact sheet — pinned geometry (re-pin deliberately, review the sheet) F — 2 lines, TD — facet spread 1`] = `
+exports[`contact sheet — pinned geometry (re-pin deliberately, review the sheet) F — diamond fan-out, TD — facet spread (targets too wide to align) 1`] = `
 {
   "bounds": {
     "h": 341,
@@ -514,7 +514,7 @@ exports[`contact sheet — pinned geometry (re-pin deliberately, review the shee
 }
 `;
 
-exports[`contact sheet — pinned geometry (re-pin deliberately, review the sheet) G — bi-directional diamonds — two EQUAL parallel lines 1`] = `
+exports[`contact sheet — pinned geometry (re-pin deliberately, review the sheet) G — bi-directional diamonds — parallel lines on facet-mid ports 1`] = `
 {
   "bounds": {
     "h": 181,
@@ -527,12 +527,12 @@ exports[`contact sheet — pinned geometry (re-pin deliberately, review the shee
       "label": undefined,
       "path": [
         [
-          136,
-          80,
+          119,
+          63,
         ],
         [
-          196,
-          80,
+          212,
+          63,
         ],
       ],
       "to": "R",
@@ -543,12 +543,12 @@ exports[`contact sheet — pinned geometry (re-pin deliberately, review the shee
       "label": undefined,
       "path": [
         [
-          196,
-          92,
+          212,
+          108,
         ],
         [
-          136,
-          92,
+          119,
+          108,
         ],
       ],
       "to": "Q",
@@ -796,10 +796,10 @@ exports[`contact sheet — pinned geometry (re-pin deliberately, review the shee
 }
 `;
 
-exports[`contact sheet — pinned geometry (re-pin deliberately, review the sheet) K — misaligned diamonds — vertex to vertex 1`] = `
+exports[`contact sheet — pinned geometry (re-pin deliberately, review the sheet) K — side input into a claimed diamond — enters the S vertex 1`] = `
 {
   "bounds": {
-    "h": 211,
+    "h": 219,
     "w": 481,
   },
   "edges": [
@@ -809,16 +809,16 @@ exports[`contact sheet — pinned geometry (re-pin deliberately, review the shee
       "label": {
         "text": "go",
         "x": 232,
-        "y": 87,
+        "y": 115,
       },
       "path": [
         [
           134,
-          87,
+          115,
         ],
         [
           329,
-          87,
+          115,
         ],
       ],
       "to": "Q2",
@@ -830,11 +830,11 @@ exports[`contact sheet — pinned geometry (re-pin deliberately, review the shee
       "path": [
         [
           281,
-          131,
+          171,
         ],
         [
-          373,
-          131,
+          385,
+          171,
         ],
       ],
       "to": "Q2",
@@ -850,7 +850,7 @@ exports[`contact sheet — pinned geometry (re-pin deliberately, review the shee
       "shape": "diamond",
       "w": 94,
       "x": 40,
-      "y": 40,
+      "y": 68,
     },
     {
       "h": 37,
@@ -859,7 +859,7 @@ exports[`contact sheet — pinned geometry (re-pin deliberately, review the shee
       "shape": "rectangle",
       "w": 99,
       "x": 182,
-      "y": 125,
+      "y": 153,
     },
     {
       "h": 112,
@@ -868,7 +868,7 @@ exports[`contact sheet — pinned geometry (re-pin deliberately, review the shee
       "shape": "diamond",
       "w": 112,
       "x": 329,
-      "y": 31,
+      "y": 59,
     },
   ],
   "version": 1,

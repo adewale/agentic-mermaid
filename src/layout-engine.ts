@@ -29,13 +29,14 @@ import type {
   Point,
   RenderOptions,
   NodeShape,
+  DiamondFacet,
 } from './types.ts'
 import { ARROW_HEAD, resolveRenderStyle } from './styles.ts'
 import type { ResolvedRenderStyle } from './styles.ts'
 import { measureMultilineText } from './text-metrics.ts'
 import { elkLayoutSync } from './elk-instance.ts'
 import { clipEdgeToShape } from './shape-clipping.ts'
-import { applyRouteContracts, labelRect, PORT_EXACT, shapePorts, simplifyPolyline } from './route-contracts.ts'
+import { applyRouteContracts, diamondFacetPorts, labelRect, PORT_EXACT, shapePorts, simplifyPolyline } from './route-contracts.ts'
 import type { LabelMetricsStyle } from './route-contracts.ts'
 
 interface LayoutEngineOptions extends RenderOptions {
@@ -1547,7 +1548,174 @@ function alignPortLanes(
     for (const e of incoming) frozen.add(e.source)
   }
 
+  // ---- Diamond facet-mid alignment (E / F) -----------------------------
+  // A diamond that emits exactly TWO forward edges on its single flow-side
+  // facet attaches them at the facet MIDPOINTS (NE/SE for an E exit; rotated
+  // per direction) and snaps each target onto that facet-mid's cross lane, so
+  // both edges become port-to-port STRAIGHT instead of floating at arbitrary
+  // facet positions. This is the natural extension of the cardinal port-lane
+  // slide to facet-mid lanes: the source's two designated facet points pair
+  // with the targets' facing cardinal ports. Proof-gated by moveSafe.
+  const facetAligned = new Set<PositionedEdge>()
+  if (!process.env.APL_NO_FACET) {
+    // The facet pair adjoining the flow-exit side, ordered (upper, lower) by
+    // cross coordinate. cross='y' for LR/RL (E/W exit → NE/SE or NW/SW);
+    // cross='x' for TD/BT (S/N exit → SW/SE or NW/NE).
+    const facetPair = (): [DiamondFacet, DiamondFacet] => {
+      if (isHorizontal) return sign > 0 ? ['NE', 'SE'] : ['NW', 'SW']
+      return sign > 0 ? ['SW', 'SE'] : ['NW', 'NE'] // upper=smaller x first
+    }
+    for (const src of nodes) {
+      if (src.shape !== 'diamond' || frozen.has(src.id) || inGroup(src)) continue
+      // Exactly two forward edges, both leaving src for distinct PORT_EXACT
+      // targets, none labeled-feedback, and src emits nothing else forward.
+      const out = edges.filter(e => e.source === src.id && e.target !== src.id &&
+        e.points.length >= 2 && isForwardMonotone(e))
+      if (out.length !== 2) continue
+      if (out.some(e => { const t = nodeMap.get(e.target); return !t || !PORT_EXACT.has(t.shape) })) continue
+      if (out.some(e => frozen.has(e.target) || centeredHubs.has(e.target) || inGroup(nodeMap.get(e.target)!))) continue
+      // Order the two edges by their target's current cross position: the
+      // upper edge takes the upper facet, the lower takes the lower facet.
+      const ordered = [...out].sort((a, b) =>
+        portCross(nodeMap.get(a.target)!) - portCross(nodeMap.get(b.target)!))
+      const [upperFacet, lowerFacet] = facetPair()
+      const facets = diamondFacetPorts(src)
+      const assignment: Array<[PositionedEdge, DiamondFacet]> = [
+        [ordered[0]!, upperFacet], [ordered[1]!, lowerFacet],
+      ]
+      // Each target must be slidable onto its facet-mid cross lane (moveSafe),
+      // and the resulting straight lane must clear; commit only if BOTH do.
+      let allOk = true
+      for (const [e, facet] of assignment) {
+        const tgt = nodeMap.get(e.target)!
+        const delta = facets[facet][cross] - portCross(tgt)
+        if (Math.abs(delta) > 0.5 && !moveSafe(tgt, delta, e)) { allOk = false; break }
+      }
+      if (!allOk) continue
+      // moveSafe proves each slide independently, but the TWO targets move
+      // toward each other in vertical flow (NE/SE collapse to SW/SE columns):
+      // their FINAL boxes must not collide. Check the pair at their committed
+      // facet-mid positions (the swept perpendicular siblings are already
+      // covered by moveSafe). Without this the pair could overlap — a hard
+      // nodeOverlaps defect — when the targets are wider than the facet span.
+      {
+        const boxes = assignment.map(([e, facet]) => {
+          const t = nodeMap.get(e.target)!
+          const delta = facets[facet][cross] - portCross(t)
+          return {
+            x: isHorizontal ? t.x : t.x + delta, y: isHorizontal ? t.y + delta : t.y,
+            w: t.width, h: t.height,
+          }
+        })
+        const [a, b] = boxes
+        if (a && b && overlaps(a.x - MARGIN, a.y - MARGIN, a.w + 2 * MARGIN, a.h + 2 * MARGIN, b.x, b.y, b.w, b.h)) continue
+      }
+      const entrySide = isHorizontal ? (sign > 0 ? 'W' : 'E') : (sign > 0 ? 'N' : 'S')
+      for (const [e, facet] of assignment) {
+        const tgt = nodeMap.get(e.target)!
+        const delta = facets[facet][cross] - portCross(tgt)
+        if (Math.abs(delta) > 0.5) {
+          if (isHorizontal) tgt.y += delta; else tgt.x += delta
+          for (const o of edges) {
+            if (o === e) continue
+            const sT = o.source === tgt.id, tT = o.target === tgt.id
+            if (sT && tT) { for (const p of o.points) p[cross] += delta; if (o.labelPosition) o.labelPosition[cross] += delta }
+            else if (tT) shiftRun(o, true, delta)
+            else if (sT) shiftRun(o, false, delta)
+          }
+        }
+        // Re-anchor: source on its facet-mid (now collinear with the target's
+        // facing cardinal port), target on that cardinal port.
+        e.points = [
+          { x: facets[facet].x, y: facets[facet].y },
+          shapePorts(tgt)[entrySide as 'N' | 'E' | 'S' | 'W'],
+        ]
+        if (e.labelPosition) e.labelPosition[cross] = facets[facet][cross]
+        facetAligned.add(e)
+        frozen.add(e.target)
+      }
+      frozen.add(src.id)
+    }
+  }
+
+  // ---- Diamond side-input → perpendicular vertex (K) -------------------
+  // A single forward edge whose source sits fully to one CROSS side of a
+  // diamond target — below it for LR — when the target's facing cardinal port
+  // (W for LR) is already taken by the labelled main branch, routes into the
+  // diamond's perpendicular vertex (the S vertex when the source is below)
+  // instead of floating on the facet. Proof-gated: the source slides onto the
+  // vertex's cross lane (moveSafe) and the resulting straight lane must clear.
+  if (!process.env.APL_NO_SVERTEX) {
+    for (const e of edges) {
+      if (facetAligned.has(e) || e.points.length < 2 || e.source === e.target) continue
+      const src = nodeMap.get(e.source)
+      const tgt = nodeMap.get(e.target)
+      if (!src || !tgt || tgt.shape !== 'diamond') continue
+      if (frozen.has(src.id) || frozen.has(tgt.id) || inGroup(src) || inGroup(tgt)) continue
+      if (!isForwardMonotone(e) || e.label) continue
+      // The facing cardinal entry port must be CLAIMED by another forward edge
+      // (the labelled main branch lands there), forcing this side input onto
+      // a different designated point.
+      // Another forward edge into this diamond owns the facing cardinal port:
+      // its source sits roughly ON the diamond's flow-axis centerline (so it
+      // claims the W/E/N/S midpoint), unlike this off-cross side input. The
+      // re-anchor onto that exact port happens later in the pipeline; here we
+      // detect the contention by the source's cross alignment.
+      const tgtCross0 = tgt[cross] + crossSize(tgt) / 2
+      const entryTaken = edges.some(o => {
+        if (o === e || o.target !== tgt.id || !isForwardMonotone(o) || o.points.length < 2) return false
+        const os = nodeMap.get(o.source)
+        if (!os) return false
+        return Math.abs(os[cross] + crossSize(os) / 2 - tgtCross0) <= crossSize(tgt) / 2
+      })
+      if (!entryTaken) continue
+      // Source must sit on ONE cross side of the diamond and below/above its
+      // body: its center is beyond the diamond's center on the cross axis, and
+      // it clears the diamond's cross extent enough to face the vertex.
+      const tgtCenterCross = tgt[cross] + crossSize(tgt) / 2
+      const srcCenterCross = src[cross] + crossSize(src) / 2
+      const below = srcCenterCross > tgtCenterCross
+      // The perpendicular vertex toward the source (S for LR-below, N above).
+      const vertexSide = isHorizontal ? (below ? 'S' : 'N') : (below ? 'E' : 'W')
+      const vertex = shapePorts(tgt)[vertexSide as 'N' | 'E' | 'S' | 'W']
+      // The source must be far enough onto that side that a straight lane at
+      // the vertex's cross level approaches it from the flow direction — i.e.
+      // the source center is past the diamond's facing-entry cross extent.
+      const facingHalf = crossSize(tgt) / 2
+      if (Math.abs(srcCenterCross - tgtCenterCross) < facingHalf * 0.5) continue
+      const delta = vertex[cross] - portCross(src)
+      if (Math.abs(delta) > 0.5 && !moveSafe(src, delta, e)) continue
+      // The straight lane from the source's facing port to the vertex must be
+      // clear and run forward.
+      const srcExit = isHorizontal ? (sign > 0 ? 'E' : 'W') : (sign > 0 ? 'S' : 'N')
+      const exitPort = shapePorts(src)[srcExit as 'N' | 'E' | 'S' | 'W']
+      const laneLo = Math.min(exitPort[main], vertex[main])
+      const laneHi = Math.max(exitPort[main], vertex[main])
+      if ((vertex[main] - exitPort[main]) * sign <= 0.5) continue
+      if (laneBlocked(vertex[cross], laneLo, laneHi, new Set([src.id, tgt.id]))) continue
+      if (process.env.APL_DEBUG) console.error('[apl] svertex', e.source, '->', e.target, 'into', vertexSide, 'vertex')
+      if (Math.abs(delta) > 0.5) {
+        if (isHorizontal) src.y += delta; else src.x += delta
+        for (const o of edges) {
+          if (o === e) continue
+          const sT = o.source === src.id, tT = o.target === src.id
+          if (sT && tT) { for (const p of o.points) p[cross] += delta; if (o.labelPosition) o.labelPosition[cross] += delta }
+          else if (tT) shiftRun(o, true, delta)
+          else if (sT) shiftRun(o, false, delta)
+        }
+      }
+      e.points = [
+        { x: shapePorts(src)[srcExit as 'N' | 'E' | 'S' | 'W'].x, y: shapePorts(src)[srcExit as 'N' | 'E' | 'S' | 'W'].y },
+        { x: vertex.x, y: vertex.y },
+      ]
+      facetAligned.add(e)
+      frozen.add(src.id)
+      frozen.add(tgt.id)
+    }
+  }
+
   for (const e of edges) {
+    if (facetAligned.has(e)) continue
     if (e.points.length < 2 || e.source === e.target) continue
     const src = nodeMap.get(e.source)
     const tgt = nodeMap.get(e.target)

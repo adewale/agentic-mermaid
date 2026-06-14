@@ -14,7 +14,7 @@ import fc from 'fast-check'
 import { layoutGraphSync } from '../layout-engine.ts'
 import { parseMermaid } from '../parser.ts'
 import { assessLayout, hardViolations, onShapeOutline } from '../layout-rubric.ts'
-import { shapePorts } from '../route-contracts.ts'
+import { shapePorts, diamondFacetPorts } from '../route-contracts.ts'
 import { complicatedFixtures, simpleFixtures } from '../../eval/visual-rubric/fixtures.ts'
 import { scoreFixture } from '../../eval/visual-rubric/run.ts'
 
@@ -126,8 +126,17 @@ describe('property: ports and outlines (mathematical oracles over random diagram
             const node = nodeMap.get(id)
             if (!node) return declared === undefined
             const ports = shapePorts(node)
-            const actual = (['N', 'E', 'S', 'W'] as const).find(s =>
+            // Mirror production portAt(): cardinal side-midpoints for every
+            // shape, plus diamond facet-midpoints (NE/SE/SW/NW). Cardinals are
+            // checked first, so the declared port matches the geometric oracle
+            // including the 8-port diamond model.
+            let actual: string | undefined = (['N', 'E', 'S', 'W'] as const).find(s =>
               Math.abs(ports[s].x - pt.x) <= 0.5 && Math.abs(ports[s].y - pt.y) <= 0.5)
+            if (actual === undefined && node.shape === 'diamond') {
+              const facets = diamondFacetPorts(node)
+              actual = (['NE', 'SE', 'SW', 'NW'] as const).find(f =>
+                Math.abs(facets[f].x - pt.x) <= 0.5 && Math.abs(facets[f].y - pt.y) <= 0.5)
+            }
             return actual === declared
           }
           if (!check(e.source, e.points[0]!, cert.sourcePort)) return false

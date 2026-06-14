@@ -525,13 +525,54 @@ regressions**. This is the literature-validated trade for *balanced
 peer merges* (Purchase's symmetry aesthetic), distinct from the
 *main-path* cases (A–K) where straightness still wins.
 
+#### 6.2.4 Diamond facet-mid ports (the 8-port model)
+
+A diamond's four cardinal ports are its vertices — but each *side* of a
+diamond is two slanted facets, so a cardinal vertex is a poor anchor when
+a side must carry more than one designated line. Diamonds therefore
+expose **four extra ports at the facet midpoints** (`diamondFacetPorts`:
+NE/SE/SW/NW, the midpoint of each slant, all exactly on the outline). This
+is strictly additive and diamond-only: `shapePorts` stays four-cardinal
+for every shape, and `portAt` checks the four cardinals first (byte-for-
+byte the legacy probe) and only tests the facet-mids when a diamond
+endpoint misses all four — so non-diamonds and diamond *vertex*
+attachments are unchanged. Certificates' `sourcePort`/`targetPort` widen
+to `AnyPort = PortSide | DiamondFacet`, and the port-rate metric counts a
+facet-mid as a designated port (not a floating attachment).
+
+Three behaviors use them:
+- **Facet-mid alignment** (E): a diamond emitting two forward edges on one
+  flow side attaches the upper at the NE facet-mid and the lower at SE,
+  and `alignPortLanes` snaps each target onto that facet-mid's cross-lane
+  (cy ∓ h/4) — so both edges are **port-to-port straight** instead of
+  spreading at target-determined facet points. Proof-gated by the existing
+  occlusion checks plus a combined-pair overlap guard (in vertical flow
+  (F) the two targets would converge and collide — wider than the facet
+  span — so the pass correctly bails and F keeps the spread).
+- **Reciprocal facet-mids** (G): a diamond↔diamond unlabeled reciprocal
+  pair attaches at the *nearest facing* facet-mids — Q.NE→R.NW (upper),
+  R.SW→Q.SE (lower) — two parallel lines **between** the diamonds, never
+  through them. Non-diamond reciprocals keep the ±`PAIR_SEPARATION`/2
+  vertex offset.
+- **South-vertex entry** (K): a single unlabeled forward edge whose source
+  sits below a diamond whose facing cardinal port is already claimed
+  routes into the perpendicular **S vertex** (a canonical port) rather
+  than floating on the facet.
+
+All endpoints stay exactly on the outline (the `ROUTE_SHAPE_MISANCHOR`
+tripwire and rubric `offOutlineEndpoints` remain 0). Measured on the
+heuristic tracker (`bun run track`): 6 improvements (E/G/K + the
+diamond-reciprocal example move their endpoints onto designated ports),
+0 regressions, 0 hard violations across all 51 examples.
+
 All of these compositions are pinned by the **contact sheet**
 (`eval/visual-rubric/scenarios.ts`, lettered A–V; rendered for humans by
 `bun run contact:sheet`): `src/__tests__/contact-sheet.test.ts` asserts
 zero hard rubric metrics AND snapshot-pins each scenario's full layout
 geometry, so future changes cannot visually break these drawings
 without a deliberate re-pin and sheet review. The L–V fan-in scenarios
-demonstrate the symmetric merge across every PORT_EXACT shape.
+demonstrate the symmetric merge across every PORT_EXACT shape; E/G/K
+demonstrate the diamond facet-mid ports.
 
 ### 6.3 Hardening found by the property oracles (layout-rubric harness)
 
