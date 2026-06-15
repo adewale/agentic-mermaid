@@ -6,6 +6,7 @@ import { spawnSync } from 'node:child_process'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { AGENT_INSTRUCTIONS } from '../cli/agent-instructions.ts'
+import { AGENTS_SNIPPET, INIT_SKILL_MD } from '../cli/init-agent.ts'
 import { MUTATION_OPS_BY_FAMILY, buildCapabilities } from '../cli/index.ts'
 import { SDK_DECLARATION } from '../mcp/sdk-decl.ts'
 import { WARNING_SEVERITY, WARNING_TIER } from '../agent/types.ts'
@@ -195,6 +196,9 @@ describe('vocabulary doc-sync', () => {
   })
 
   test('agent-facing crib sheets list every mutable family', () => {
+    const agentNative = readFileSync(join(REPO, 'AGENT_NATIVE.md'), 'utf8')
+    const guide = readFileSync(join(REPO, 'Instructions_for_agents.md'), 'utf8')
+    const llms = readFileSync(join(REPO, 'llms.txt'), 'utf8')
     const skill = readFileSync(join(REPO, 'skills/agentic-mermaid-diagram-workflow/SKILL.md'), 'utf8')
     const codeMode = readFileSync(join(REPO, 'skills/agentic-mermaid-diagram-workflow/references/code-mode.md'), 'utf8')
     const cli = readFileSync(join(REPO, 'skills/agentic-mermaid-diagram-workflow/references/cli.md'), 'utf8')
@@ -213,6 +217,17 @@ describe('vocabulary doc-sync', () => {
         .toEqual({ family, apiNarrower: true })
       expect({ family, cliRef: cli.includes(cliLabel) })
         .toEqual({ family, cliRef: true })
+
+      for (const [file, text] of [
+        ['AGENT_NATIVE.md', agentNative],
+        ['Instructions_for_agents.md', guide],
+        ['llms.txt', llms],
+        ['init-agent AGENTS.md snippet', AGENTS_SNIPPET],
+        ['init-agent skill bundle', INIT_SKILL_MD],
+      ] as const) {
+        expect({ family, file, narrowerListed: text.includes(narrower) })
+          .toEqual({ family, file, narrowerListed: true })
+      }
 
       for (const op of ops) {
         expect({ family, op, cookbookOp: cookbook.includes(`\`${op}\``) })
@@ -489,19 +504,25 @@ describe('detector drift guard (agent vs shared router)', () => {
 
 describe('skill eval manifest coverage', () => {
   test('covers families, channels, adversarial/no-trigger cases, fixtures, and hidden splits', () => {
-    const manifest = JSON.parse(readFileSync(join(REPO, 'evals/shared-benchmark.json'), 'utf8'))
+    const manifestText = readFileSync(join(REPO, 'evals/shared-benchmark.json'), 'utf8')
+    const manifest = JSON.parse(manifestText)
     const cases = manifest.cases as Array<{ id: string; split: string; kind: string; tags?: string[]; files?: string[]; prompt?: string; prompt_ref?: string }>
     const tags = new Set(cases.flatMap(c => c.tags ?? []))
-    for (const family of ['flowchart', 'sequence', 'timeline', 'class', 'er', 'journey', 'xychart', 'architecture']) {
+    for (const family of BUILTIN_FAMILY_METADATA.map(f => f.id)) {
       expect({ family, covered: tags.has(`family:${family}`) }).toEqual({ family, covered: true })
+      expect({
+        family,
+        fixtureCase: cases.some(c => (c.tags ?? []).includes(`family:${family}`) && Boolean(c.files?.length)),
+      }).toEqual({ family, fixtureCase: true })
     }
+    expect(manifestText).not.toContain('source-level-only in Agentic Mermaid')
     for (const channel of ['library', 'cli', 'mcp-code-mode']) {
       expect({ channel, covered: tags.has(`channel:${channel}`) }).toEqual({ channel, covered: true })
     }
     expect(cases.filter(c => c.kind === 'adversarial').length).toBeGreaterThanOrEqual(4)
     expect(cases.some(c => c.kind === 'negative')).toBe(true)
     expect(cases.filter(c => c.kind === 'trigger' && (c.tags ?? []).includes('no-trigger')).length).toBeGreaterThanOrEqual(2)
-    expect(cases.filter(c => c.files?.length).length).toBeGreaterThanOrEqual(8)
+    expect(cases.filter(c => c.files?.length).length).toBeGreaterThanOrEqual(BUILTIN_FAMILY_METADATA.length)
     expect(cases.filter(c => c.split === 'holdout').length).toBeGreaterThan(0)
     expect(cases.filter(c => c.split === 'holdback').length).toBeGreaterThan(0)
     for (const c of cases.filter(c => c.split === 'holdout' || c.split === 'holdback')) {

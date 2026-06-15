@@ -17,9 +17,9 @@ Current implementation decisions that differ from, or materially narrow, the bro
 - `MermaidGraph` and `renderMermaidSVGAsync` remain for compatibility with existing renderer/tests/consumers.
 - ~~`state` diagrams currently share the flowchart body (`body.kind: 'flowchart'`)…~~ **Superseded by BUILD-19.** State diagrams now own a dedicated `StateBody` IR (`body.kind: 'state'`) with state-shaped ops and a real `asState` narrower. `asFlowchart` returns `null` on a state diagram (a breaking change within the unreleased agent surface). Verify still gets full Tier 1 + Tier 2 geometric coverage: the `StateBody` projects to a `MermaidGraph` via the legacy parser (`stateBodyToGraph`) and runs the identical flowchart `verifyGraph`. The modeled subset is simple states/transitions/`[*]` pseudostates/composites/`direction`; unmodeled syntax (`<<fork>>`/`<<choice>>`/`<<join>>`, history, concurrency `--`, notes, `classDef`/`class`/`:::`) falls back to a lossless opaque body. Corpus round-trip for state jumped 5% → 100%.
 
-### Mutation surface is intentionally narrower than render support
+### Mutation surface is intentionally narrower than Mermaid syntax
 
-Structured mutation is exposed only for families whose parser/IR/serializer/verifier can preserve the modeled semantics:
+Structured mutation is exposed for every built-in renderable family, but only when that body's parser/IR/serializer/verifier can preserve the modeled semantics:
 
 - flowchart/state;
 - sequence (BUILD-18 — segment-preserving: participant/message ops stay live while Note/alt/loop/par/activate/autonumber/title ride along verbatim as opaque-block segments; only un-segmentable input such as an unbalanced `end` falls back to whole-body opaque);
@@ -28,12 +28,14 @@ Structured mutation is exposed only for families whose parser/IR/serializer/veri
 - ER;
 - journey (BUILD-15 pilot);
 - architecture (BUILD-17 — the modeled subset of groups/services/junctions/edges);
-- xychart (BUILD-16 — the modeled subset of title/axes/series).
-
-Source-level only:
-
+- xychart (BUILD-16 — the modeled subset of title/axes/series);
 - pie;
-- any known-family diagram that falls back to opaque because it contains unmodeled syntax (e.g. the architecture `{group}` boundary modifier, accTitle/accDescr, or quoted text / `;` lines in xychart).
+- quadrant;
+- gantt.
+
+Opaque/source-level bodies:
+
+- any known-family diagram that falls back to opaque because it contains unmodeled syntax (e.g. architecture `{group}` boundary modifiers, accTitle/accDescr, malformed pie entries, out-of-range quadrant coordinates, or un-segmentable sequence/gantt syntax).
 
 For source-level bodies, agents may render, verify, describe, and round-trip preserved source. They do **not** get typed mutation ops. `am mutate` returns `UNSUPPORTED_FAMILY` for those bodies.
 

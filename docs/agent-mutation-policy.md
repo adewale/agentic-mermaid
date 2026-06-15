@@ -1,6 +1,6 @@
 # Agent mutation policy: structured vs source-level
 
-This note records why the agent surface does **not** expose structured mutation for every Mermaid diagram family, even though all supported families should parse/render/verify/round-trip safely.
+This note records why the agent surface exposes structured mutation only for modeled syntax, while preserving unmodeled syntax as opaque/source-level bodies even inside otherwise supported families.
 
 ## Goal
 
@@ -27,11 +27,11 @@ A family has mutation exposure when public agent surfaces advertise typed struct
 - `am capabilities` entries with `editPolicy: "structured-when-narrowed"`, `hasMutate: true`, and `mutationOps`;
 - docs/examples telling agents which ops to call.
 
-Removing mutation exposure means agents are no longer told that a family can be safely edited through typed ops. The diagram may still parse, render, verify, describe, and serialize; it just does not get structured mutation.
+When a particular body does not narrow, agents are not told it can be safely edited through typed ops. The diagram may still parse, render, verify, describe, and serialize; that body just does not get structured mutation.
 
 ## Current split
 
-Structured mutation is exposed for families where the in-tree model is strong enough:
+Structured mutation is exposed for every built-in renderable family when its modeled subset narrows:
 
 - flowchart/state;
 - sequence (BUILD-18 — segment-preserving: participant/message ops stay live even when the diagram has Note/alt/loop/par/activate/autonumber/title, which ride along verbatim as opaque-block segments. `remove_message`/`set_message_text` indexes address only top-level messages — messages inside an opaque block are never touched. Only un-segmentable input, e.g. an unbalanced `end`, falls back to whole-body opaque);
@@ -40,12 +40,14 @@ Structured mutation is exposed for families where the in-tree model is strong en
 - ER;
 - journey (simple title/section/task bodies; BUILD-15);
 - architecture (modeled groups/services/junctions/edges; BUILD-17);
-- xychart (modeled title/axes/series; BUILD-16).
+- xychart (modeled title/axes/series; BUILD-16);
+- pie (title/showData/slices);
+- quadrant (title/axes/quadrant labels/points);
+- gantt (title/sections/tasks, with calendar directives and click/comment/accessibility lines preserved as opaque segments).
 
-Source-level only:
+Opaque/source-level bodies:
 
-- pie;
-- any known-family diagram that falls back to an opaque body because it contains unmodeled syntax (e.g. the architecture `{group}` boundary modifier, accTitle/accDescr, or quoted text / `;` lines in xychart).
+- any known-family diagram that falls back to an opaque body because it contains unmodeled syntax (e.g. architecture `{group}` boundary modifiers, accTitle/accDescr, malformed pie entries, out-of-range quadrant coordinates, or un-segmentable sequence/gantt syntax).
 
 For source-level bodies, the safe loop is:
 
@@ -57,7 +59,7 @@ For source-level bodies, the safe loop is:
 
 `am mutate` should return `UNSUPPORTED_FAMILY` for those bodies.
 
-## Why not all diagram types?
+## Why not every syntax construct?
 
 Because "structured mutation" is a much stronger promise than parsing enough to render.
 
@@ -81,12 +83,12 @@ External AST libraries do not automatically solve this. A render-oriented AST ma
 
 We have achieved the safety goal for the current surface:
 
-- unsupported families round-trip through preserved source instead of lossy structured IR;
-- public capabilities match the implementation (journey gained real structured mutation in BUILD-15, architecture in BUILD-17, xychart in BUILD-16);
+- opaque fallback bodies round-trip through preserved source instead of lossy structured IR;
+- public capabilities match the implementation: every built-in renderable family reports `structured-when-narrowed`, with source-level editing reserved for opaque fallback bodies;
 - Code Mode, CLI, docs, MCP SDK declarations, and tests agree on the same public surface;
-- timeline structured mutation remains exposed, but now updates `canonicalSource`, validates mutation text more strictly, allocates unique IDs, and falls back to opaque for header suffix/lossy syntax.
+- the registry, live editor examples, eval manifest, generated `llms.txt`, and generated `am init-agent` snippets are now checked together so new family support cannot silently skip an agent-facing surface.
 
-That is a success for semantic preservation, even though it is less convenient than exposing edits everywhere.
+That is a success for semantic preservation, even though it is less convenient than pretending every Mermaid construct has a typed edit op.
 
 ## How a source-level family graduates
 

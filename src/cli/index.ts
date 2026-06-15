@@ -20,7 +20,7 @@ import type {
   MutationError, Result, MutableValidDiagram,
 } from '../agent/types.ts'
 import { WARNING_SEVERITY, WARNING_TIER } from '../agent/types.ts'
-import { knownFamilies, getFamily } from '../agent/families.ts'
+import { BUILTIN_FAMILY_METADATA, knownFamilies, getFamily } from '../agent/families.ts'
 import type { BuiltinFamilyId } from '../agent/families.ts'
 import '../agent/families-builtin.ts'
 import { AGENT_INSTRUCTIONS } from './agent-instructions.ts'
@@ -709,6 +709,7 @@ export function buildLlmsTxt(): string {
   const cap = buildCapabilities()
   const families = cap.families.map(f => f.id).join(', ')
   const structured = cap.families.filter(f => f.hasMutate).map(f => f.id)
+  const narrowers = BUILTIN_FAMILY_METADATA.map(f => f.narrower).join(', ')
   const formats = cap.outputFormats.join(', ')
   const codes = cap.warningCodes.map(w => `${w.code} (${w.tier}/${w.severity})`).join(', ')
   return `# Agentic Mermaid
@@ -766,6 +767,7 @@ references — safe for untrusted/agent-generated diagrams. See SECURITY.md.
 
 All families parse, verify, render, round-trip: ${families}.
 Structured mutation (${cap.families.find(f => f.hasMutate)?.editPolicy}): ${structured.join(', ')}.
+Narrowers: ${narrowers}.
 State diagrams own a dedicated body (BUILD-19): narrow with asState; state-shaped ops apply (asFlowchart returns null on them).
 Source-level-only: ${cap.families.filter(f => !f.hasMutate).map(f => f.id).join(', ') || 'none — every renderable family ships structured mutation'}.
 Opaque-fallback bodies (unmodeled syntax) round-trip losslessly via preserved source (never silently dropped) and stay source-level only.

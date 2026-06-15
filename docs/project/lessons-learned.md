@@ -344,11 +344,11 @@ would have been:
    those are not downstream documentation; they are the API that agents
    actually consume.
 2. **Decide structured-vs-source-level policy up front.** We eventually
-   landed on structured mutation for flowchart/state, simple sequence,
-   timeline, class, and ER; source-level-only for journey, xychart,
-   architecture, and opaque fallback. That policy should have existed
-   before mutation ops were exposed. Render support is not mutation
-   support, and an unsafe typed edit is worse than no typed edit.
+   landed on structured mutation for every built-in renderable family, with
+   source-level-only editing reserved for opaque fallback bodies where
+   unmodeled syntax was preserved losslessly. That policy should have existed
+   before mutation ops were exposed. Render support is not mutation support,
+   and an unsafe typed edit is worse than no typed edit.
 3. **Separate greenfield creation from existing-diagram edits earlier.**
    We over-corrected toward "always mutate" before recognizing the useful
    distinction: new diagrams can often be authored directly as Mermaid

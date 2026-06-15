@@ -22,7 +22,7 @@ Most Mermaid tools render strings. Agentic Mermaid gives coding agents a safer w
 |---|---|
 | Create a new diagram | Write Mermaid source → `parseMermaid` → `verifyMermaid` → render/preview |
 | Edit an existing supported diagram | `parseMermaid` → family narrower → `mutate` → `verifyMermaid` → `serializeMermaid` |
-| Edit source-level-only diagrams | Preserve source, edit deliberately, then parse/verify/render |
+| Handle opaque fallback bodies | Preserve source, edit deliberately, then parse/verify/render |
 | Multi-step agent edits | Prefer MCP Code Mode or library imports so the loop happens in one structured execution |
 | Shell-only checks | Use `am verify`, `am mutate --op/--ops`, `am preview`, or `am batch --jsonl` |
 

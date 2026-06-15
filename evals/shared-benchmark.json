@@ -160,64 +160,139 @@
       "tags": ["family:er", "channel:library", "fixture", "artifact", "positive"]
     },
     {
-      "id": "pos-family-journey-source-fixture",
+      "id": "pos-family-journey-library-fixture",
       "split": "tune",
       "kind": "positive",
-      "prompt": "Use the attached Mermaid fixture. Journey diagrams are source-level-only in Agentic Mermaid. Add a Review order task in the Pay section by editing source deliberately, then parse and verify the resulting source. Write outputs/journey-checkout/final.mmd and outputs/journey-checkout/verify.json, include both contents, and explain why mutate/asJourney is not used.",
+      "prompt": "Use the attached Mermaid fixture. With the library channel, add a Review order task in the Pay section of the existing journey diagram, then verify and serialize. Write outputs/journey-checkout/final.mmd and outputs/journey-checkout/verify.json, include both contents, and show the typed Journey mutation path.",
       "files": ["fixtures/journey-checkout/input.mmd"],
       "expected_behavior": [
-        "States journey is source-level-only/no structured mutation.",
-        "Edits source deliberately, then parseMermaid and verifyMermaid.",
-        "Does not call mutate on journey."
+        "Uses asJourney before mutation.",
+        "Uses add_task rather than source splicing.",
+        "Verifies before serializing."
       ],
       "assertions": [
         {"name": "artifact-final", "type": "file_exists", "path": "outputs/journey-checkout/final.mmd"},
         {"name": "artifact-verify", "type": "file_exists", "path": "outputs/journey-checkout/verify.json"},
-        {"name": "source-level", "type": "contains_any", "values": ["source-level", "source level", "no structured mutation"]},
-        {"name": "verify", "type": "contains_all", "values": ["parseMermaid", "verifyMermaid"]},
+        {"name": "journey-loop", "type": "contains_all", "values": ["asJourney", "add_task", "verifyMermaid", "serializeMermaid"]},
         {"name": "review-order", "type": "contains", "value": "Review order"}
       ],
       "tags": ["family:journey", "channel:library", "fixture", "artifact", "positive"]
     },
     {
-      "id": "pos-family-xychart-source-fixture",
+      "id": "pos-family-xychart-library-fixture",
       "split": "tune",
       "kind": "positive",
-      "prompt": "Use the attached Mermaid fixture. XY chart is source-level-only in Agentic Mermaid. Add Apr with value 90, then parse, verify, and render at least one of ASCII/PNG/SVG. Write outputs/xychart-growth/final.mmd and outputs/xychart-growth/verify.json, include both contents, and explain the source-level edit policy.",
+      "prompt": "Use the attached Mermaid fixture. With the library channel, add Apr with value 90 to the existing XY chart, then verify and serialize. Write outputs/xychart-growth/final.mmd and outputs/xychart-growth/verify.json, include both contents, and show the typed XY chart mutation path.",
       "files": ["fixtures/xychart-growth/input.mmd"],
       "expected_behavior": [
-        "States xychart is source-level-only/no structured mutation.",
-        "Edits source, then parseMermaid and verifyMermaid.",
-        "Mentions render output formats."
+        "Uses asXyChart before mutation.",
+        "Updates axis categories and series values with typed ops.",
+        "Verifies before serializing."
       ],
       "assertions": [
         {"name": "artifact-final", "type": "file_exists", "path": "outputs/xychart-growth/final.mmd"},
         {"name": "artifact-verify", "type": "file_exists", "path": "outputs/xychart-growth/verify.json"},
-        {"name": "source-level", "type": "contains_any", "values": ["source-level", "source level", "no structured mutation"]},
+        {"name": "xychart-loop", "type": "contains_all", "values": ["asXyChart", "set_x_axis", "set_series_values", "verifyMermaid", "serializeMermaid"]},
         {"name": "apr", "type": "contains_all", "values": ["Apr", "90"]},
         {"name": "formats", "type": "contains_all", "values": ["ASCII", "PNG", "SVG"]}
       ],
       "tags": ["family:xychart", "channel:library", "fixture", "artifact", "positive"]
     },
     {
-      "id": "pos-family-architecture-source-fixture",
+      "id": "pos-family-architecture-library-fixture",
       "split": "tune",
       "kind": "positive",
-      "prompt": "Use the attached Mermaid fixture. Architecture diagrams are source-level-only in Agentic Mermaid. Add a Cache service between API and Database, parse and verify the result, and mention how to render ASCII/PNG/SVG. Write outputs/architecture-cache/final.mmd and outputs/architecture-cache/verify.json, include both contents, and avoid claiming structured mutation exists for architecture.",
+      "prompt": "Use the attached Mermaid fixture. With the library channel, add a Cache service between API and Database in the existing architecture diagram, then verify and serialize. Write outputs/architecture-cache/final.mmd and outputs/architecture-cache/verify.json, include both contents, and show the typed Architecture mutation path.",
       "files": ["fixtures/architecture-cache/input.mmd"],
       "expected_behavior": [
-        "States architecture is source-level-only/no structured mutation.",
-        "Edits source, then parseMermaid and verifyMermaid.",
-        "Mentions ASCII, PNG, and SVG."
+        "Uses asArchitecture before mutation.",
+        "Uses add_service and add_edge rather than source splicing.",
+        "Verifies before serializing."
       ],
       "assertions": [
         {"name": "artifact-final", "type": "file_exists", "path": "outputs/architecture-cache/final.mmd"},
         {"name": "artifact-verify", "type": "file_exists", "path": "outputs/architecture-cache/verify.json"},
-        {"name": "source-level", "type": "contains_any", "values": ["source-level", "source level", "no structured mutation"]},
+        {"name": "architecture-loop", "type": "contains_all", "values": ["asArchitecture", "add_service", "add_edge", "verifyMermaid", "serializeMermaid"]},
         {"name": "cache", "type": "contains", "value": "Cache"},
         {"name": "formats", "type": "contains_all", "values": ["ASCII", "PNG", "SVG"]}
       ],
       "tags": ["family:architecture", "channel:library", "fixture", "artifact", "positive"]
+    },
+    {
+      "id": "pos-family-state-library-fixture",
+      "split": "tune",
+      "kind": "positive",
+      "prompt": "Use the attached Mermaid fixture. With the library channel, add a Failed state and a Processing -> Failed transition labeled error, then verify and serialize. Write outputs/state-lifecycle/final.mmd and outputs/state-lifecycle/verify.json, include both contents, and show the typed State mutation path.",
+      "files": ["fixtures/state-lifecycle/input.mmd"],
+      "expected_behavior": [
+        "Uses asState before mutation.",
+        "Uses add_state and add_transition with kind-discriminated ops.",
+        "Verifies before serializing."
+      ],
+      "assertions": [
+        {"name": "artifact-final", "type": "file_exists", "path": "outputs/state-lifecycle/final.mmd"},
+        {"name": "artifact-verify", "type": "file_exists", "path": "outputs/state-lifecycle/verify.json"},
+        {"name": "state-loop", "type": "contains_all", "values": ["asState", "add_state", "add_transition", "verifyMermaid", "serializeMermaid"]},
+        {"name": "failed", "type": "contains_all", "values": ["Failed", "error"]}
+      ],
+      "tags": ["family:state", "channel:library", "fixture", "artifact", "positive"]
+    },
+    {
+      "id": "pos-family-pie-library-fixture",
+      "split": "tune",
+      "kind": "positive",
+      "prompt": "Use the attached Mermaid fixture. With the library channel, add a PDF slice with value 10 to the existing pie chart, then verify and serialize. Write outputs/pie-exports/final.mmd and outputs/pie-exports/verify.json, include both contents, and show the typed Pie mutation path.",
+      "files": ["fixtures/pie-exports/input.mmd"],
+      "expected_behavior": [
+        "Uses asPie before mutation.",
+        "Uses add_slice with a positive finite value.",
+        "Verifies before serializing."
+      ],
+      "assertions": [
+        {"name": "artifact-final", "type": "file_exists", "path": "outputs/pie-exports/final.mmd"},
+        {"name": "artifact-verify", "type": "file_exists", "path": "outputs/pie-exports/verify.json"},
+        {"name": "pie-loop", "type": "contains_all", "values": ["asPie", "add_slice", "verifyMermaid", "serializeMermaid"]},
+        {"name": "pdf", "type": "contains_all", "values": ["PDF", "10"]}
+      ],
+      "tags": ["family:pie", "channel:library", "fixture", "artifact", "positive"]
+    },
+    {
+      "id": "pos-family-quadrant-library-fixture",
+      "split": "tune",
+      "kind": "positive",
+      "prompt": "Use the attached Mermaid fixture. With the library channel, move the MCP setup point to [0.70, 0.40], then verify and serialize. Write outputs/quadrant-priorities/final.mmd and outputs/quadrant-priorities/verify.json, include both contents, and show the typed Quadrant mutation path.",
+      "files": ["fixtures/quadrant-priorities/input.mmd"],
+      "expected_behavior": [
+        "Uses asQuadrant before mutation.",
+        "Uses move_point with coordinates inside [0, 1].",
+        "Verifies before serializing."
+      ],
+      "assertions": [
+        {"name": "artifact-final", "type": "file_exists", "path": "outputs/quadrant-priorities/final.mmd"},
+        {"name": "artifact-verify", "type": "file_exists", "path": "outputs/quadrant-priorities/verify.json"},
+        {"name": "quadrant-loop", "type": "contains_all", "values": ["asQuadrant", "move_point", "verifyMermaid", "serializeMermaid"]},
+        {"name": "mcp", "type": "contains_all", "values": ["MCP setup", "0.7", "0.4"]}
+      ],
+      "tags": ["family:quadrant", "channel:library", "fixture", "artifact", "positive"]
+    },
+    {
+      "id": "pos-family-gantt-library-fixture",
+      "split": "tune",
+      "kind": "positive",
+      "prompt": "Use the attached Mermaid fixture. With the library channel, add a Docs task after the build task and before release, then verify and serialize. Write outputs/gantt-release/final.mmd and outputs/gantt-release/verify.json, include both contents, and show the typed Gantt mutation path.",
+      "files": ["fixtures/gantt-release/input.mmd"],
+      "expected_behavior": [
+        "Uses asGantt before mutation.",
+        "Uses add_task or set_task_dates with deterministic date/dependency semantics.",
+        "Verifies before serializing."
+      ],
+      "assertions": [
+        {"name": "artifact-final", "type": "file_exists", "path": "outputs/gantt-release/final.mmd"},
+        {"name": "artifact-verify", "type": "file_exists", "path": "outputs/gantt-release/verify.json"},
+        {"name": "gantt-loop", "type": "contains_all", "values": ["asGantt", "add_task", "verifyMermaid", "serializeMermaid"]},
+        {"name": "docs", "type": "contains", "value": "Docs"}
+      ],
+      "tags": ["family:gantt", "channel:library", "fixture", "artifact", "positive"]
     },
     {
       "id": "pos-channel-mcp-code-mode-batch",
@@ -245,7 +320,7 @@
       "expected_behavior": [
         "Rejects source concatenation for existing structured flowcharts.",
         "Uses parse/narrow/mutate/verify/serialize with typed ops.",
-        "Allows direct source authoring only for new diagrams or source-level-only families."
+        "Allows direct source authoring only for new diagrams or opaque fallback bodies."
       ],
       "assertions": [
         {"name": "reject-concat", "type": "contains_any", "values": ["Do not", "don't", "avoid", "reject"]},
@@ -423,8 +498,8 @@
     },
     {
       "id": "no-source-level-family-boundary",
-      "removed_component": "journey/xychart/architecture source-level-only guidance",
-      "expected_regressions": ["May call mutate on source-level-only families or falsely claim a structured narrower exists."]
+      "removed_component": "opaque-fallback boundary guidance",
+      "expected_regressions": ["May concatenate existing structured diagrams or falsely claim an opaque fallback body has a structured narrower."]
     },
     {
       "id": "no-channel-picker",

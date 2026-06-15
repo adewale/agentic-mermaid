@@ -175,12 +175,15 @@ interface ValidDiagram {
 
 type DiagramBody =
   | { kind: 'flowchart'; graph: MermaidGraph }
-  | SequenceBody | TimelineBody | ClassBody | ErBody
+  | StateBody | SequenceBody | TimelineBody | ClassBody | ErBody
+  | JourneyBody | ArchitectureBody | XyChartBody | PieBody | QuadrantBody | GanttBody
   | { kind: 'opaque'; family: DiagramKind; source: string }
 
 type MutableValidDiagram =
-  | FlowchartValidDiagram | SequenceValidDiagram | TimelineValidDiagram
-  | ClassValidDiagram | ErValidDiagram
+  | FlowchartValidDiagram | StateValidDiagram | SequenceValidDiagram
+  | TimelineValidDiagram | ClassValidDiagram | ErValidDiagram
+  | JourneyValidDiagram | ArchitectureValidDiagram | XyChartValidDiagram
+  | PieValidDiagram | QuadrantValidDiagram | GanttValidDiagram
 ```
 
 ```ts
@@ -193,7 +196,13 @@ mutate(d: SequenceValidDiagram,  op: SequenceMutationOp):    Result<SequenceVali
 mutate(d: TimelineValidDiagram,  op: TimelineMutationOp):    Result<TimelineValidDiagram, MutationError>
 mutate(d: ClassValidDiagram,     op: ClassMutationOp):       Result<ClassValidDiagram, MutationError>
 mutate(d: ErValidDiagram,        op: ErMutationOp):          Result<ErValidDiagram, MutationError>
-asFlowchart/asState/asSequence/asTimeline/asClass/asEr(d): narrowed diagram | null
+mutate(d: JourneyValidDiagram,   op: JourneyMutationOp):     Result<JourneyValidDiagram, MutationError>
+mutate(d: ArchitectureValidDiagram, op: ArchitectureMutationOp): Result<ArchitectureValidDiagram, MutationError>
+mutate(d: XyChartValidDiagram,   op: XyChartMutationOp):     Result<XyChartValidDiagram, MutationError>
+mutate(d: PieValidDiagram,       op: PieMutationOp):         Result<PieValidDiagram, MutationError>
+mutate(d: QuadrantValidDiagram,  op: QuadrantMutationOp):    Result<QuadrantValidDiagram, MutationError>
+mutate(d: GanttValidDiagram,     op: GanttMutationOp):       Result<GanttValidDiagram, MutationError>
+asFlowchart/asState/asSequence/asTimeline/asClass/asEr/asJourney/asArchitecture/asXyChart/asPie/asQuadrant/asGantt(d): narrowed diagram | null
 ```
 
 **`mutate` is overloaded by family.** Flowchart/state, simple sequence, timeline, class, ER, journey, architecture, xychart, pie, quadrant, and gantt diagrams have first-class structured editing. Opaque-fallback diagrams are not typed for mutation, so agents get a compile-time/null-narrower stop rather than a lossy edit path.
@@ -388,6 +397,12 @@ mutate(d: SequenceValidDiagram,  op: SequenceMutationOp):  Result<SequenceValidD
 mutate(d: TimelineValidDiagram,  op: TimelineMutationOp):  Result<TimelineValidDiagram, MutationError>
 mutate(d: ClassValidDiagram,     op: ClassMutationOp):     Result<ClassValidDiagram, MutationError>
 mutate(d: ErValidDiagram,        op: ErMutationOp):        Result<ErValidDiagram, MutationError>
+mutate(d: JourneyValidDiagram,   op: JourneyMutationOp):   Result<JourneyValidDiagram, MutationError>
+mutate(d: ArchitectureValidDiagram, op: ArchitectureMutationOp): Result<ArchitectureValidDiagram, MutationError>
+mutate(d: XyChartValidDiagram,   op: XyChartMutationOp):   Result<XyChartValidDiagram, MutationError>
+mutate(d: PieValidDiagram,       op: PieMutationOp):       Result<PieValidDiagram, MutationError>
+mutate(d: QuadrantValidDiagram,  op: QuadrantMutationOp):  Result<QuadrantValidDiagram, MutationError>
+mutate(d: GanttValidDiagram,     op: GanttMutationOp):     Result<GanttValidDiagram, MutationError>
 
 // Narrowing helpers; null when the diagram isn't of that family or is opaque/source-level.
 asFlowchart(d: ValidDiagram): FlowchartValidDiagram | null
@@ -396,6 +411,12 @@ asSequence(d: ValidDiagram):  SequenceValidDiagram | null
 asTimeline(d: ValidDiagram):  TimelineValidDiagram | null
 asClass(d: ValidDiagram):     ClassValidDiagram | null
 asEr(d: ValidDiagram):        ErValidDiagram | null
+asJourney(d: ValidDiagram):   JourneyValidDiagram | null
+asArchitecture(d: ValidDiagram): ArchitectureValidDiagram | null
+asXyChart(d: ValidDiagram):   XyChartValidDiagram | null
+asPie(d: ValidDiagram):       PieValidDiagram | null
+asQuadrant(d: ValidDiagram):  QuadrantValidDiagram | null
+asGantt(d: ValidDiagram):     GanttValidDiagram | null
 
 // Build a ValidDiagram from a JSON-safe graph payload without re-parsing
 // source. Used by `am parse | am serialize` shell pipelines.
@@ -457,7 +478,7 @@ The canonical runtime guide lives in `Instructions_for_agents.md` and is emitted
 
 1. For new diagrams, author Mermaid source directly, then `parseMermaid` / `verifyMermaid` / render or return it.
 2. For existing diagrams, `parseMermaid(source)` → `ValidDiagram`.
-3. Narrow with `asFlowchart` / `asState` / `asSequence` / `asTimeline` / `asClass` / `asEr`; `null` means no structured mutation for that body.
+3. Narrow with `asFlowchart` / `asState` / `asSequence` / `asTimeline` / `asClass` / `asEr` / `asJourney` / `asArchitecture` / `asXyChart` / `asPie` / `asQuadrant` / `asGantt`; `null` means no structured mutation for that body.
 4. Apply typed `mutate` ops only to narrowed mutable bodies; Code Mode SDK-returned diagrams are read-only to block direct IR edits.
 5. Run `verifyMermaid(d)` at every commit point and inspect `ok` / `warnings` / `layout`.
 6. Only then `serializeMermaid(d)`.

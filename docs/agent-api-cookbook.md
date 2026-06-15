@@ -121,9 +121,9 @@ export function applyFlowchartOps(source: string, ops: FlowchartMutationOp[]) {
 }
 ```
 
-## Recipe: handle source-level-only families
+## Recipe: handle opaque fallback bodies
 
-Xychart and opaque fallback bodies parse, verify, render, and serialize, but they do not expose typed mutation. Narrowers return `null` for those bodies. (Journey and architecture were promoted to structured mutation by BUILD-15/17; only their unmodeled-syntax fallbacks remain opaque.)
+Every built-in renderable family has a typed mutation path when its modeled subset narrows successfully. Unmodeled syntax is preserved as an opaque fallback body: it still parses, verifies, renders, and serializes losslessly, but family narrowers return `null` for that particular body.
 
 ```ts
 import { parseMermaid, asFlowchart, verifyMermaid, serializeMermaid } from 'agentic-mermaid/agent'
@@ -137,7 +137,7 @@ if (!flow) {
     phase: 'unsupported-family',
     family: parsed.value.kind,
     source: serializeMermaid(parsed.value),
-    note: 'Use source-level editing only if explicitly requested; then re-parse and verify.'
+    note: 'This body is opaque. Use source-level editing only if explicitly requested; then re-parse and verify.'
   }
 }
 

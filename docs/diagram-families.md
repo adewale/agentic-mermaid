@@ -8,7 +8,7 @@ Agentic Mermaid supports Mermaid's common diagram families through a split pipel
 |---|---|---|---|---|
 | Flowchart | `flowchart`, `graph` | SVG/PNG/ASCII | ✓ | 6 graph ops; narrow with `asFlowchart`. |
 | State | `stateDiagram-v2` | SVG/PNG/ASCII | ✓ | Dedicated `StateBody` (BUILD-19): narrow with `asState`, 8 state-shaped ops. `asFlowchart` returns null. |
-| Sequence | `sequenceDiagram` | SVG/PNG/ASCII | simple syntax | Notes/alt/loop bodies round-trip as opaque source. |
+| Sequence | `sequenceDiagram` | SVG/PNG/ASCII | structured (5 ops) | Notes/alt/loop bodies are segment-preserving; un-segmentable syntax falls back to opaque. |
 | Timeline | `timeline` | SVG/PNG/ASCII | ✓ | Supports sections, periods, events, title changes. |
 | Class | `classDiagram` | SVG/PNG/ASCII | ✓ | Classes, members, relations, notes. |
 | ER | `erDiagram` | SVG/PNG/ASCII | ✓ | Entities, attributes, relations. |
@@ -19,7 +19,7 @@ Agentic Mermaid supports Mermaid's common diagram families through a split pipel
 | Architecture | `architecture-beta` | SVG/PNG/ASCII | structured (10 ops) | `asArchitecture` narrows the modeled subset (groups/services/junctions/edges); the `{group}` boundary modifier and accTitle/accDescr stay opaque. |
 | Gantt | `gantt` | SVG/PNG/ASCII | structured (9 ops) | `asGantt` narrows title/sections/tasks; calendar directives, `click` lines, and comments ride along verbatim as opaque segments. Deterministic: the today marker draws only from a caller-supplied `ganttToday`. See [design/gantt.md](./design/gantt.md). |
 
-Source-level-only does not mean unsupported: those families parse, render, verify, and round-trip, but agents should edit source deliberately instead of calling `mutate`.
+Opaque fallback does not mean unsupported: those bodies parse, render, verify, and round-trip losslessly, but agents should edit preserved source deliberately instead of calling `mutate`.
 
 ## Flowchart
 
