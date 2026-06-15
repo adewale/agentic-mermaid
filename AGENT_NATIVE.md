@@ -288,7 +288,7 @@ Two contracts:
 | `add_relation`      | `from`, `to`, `leftCard`, `rightCard` (+ `dashed`, `label`) | `remove_relation(index)` |
 | `remove_relation`   | `index`                                               | `add_relation(...)` |
 
-**Journey MutationOp kinds** (10, BUILD-15 — the pilot promotion of a source-level family to structured mutation via the FamilyPlugin registry):
+**Journey MutationOp kinds** (10, BUILD-15 — the pilot promotion from opaque-only fallback semantics to structured mutation via the FamilyPlugin registry):
 
 | Kind | Required | Inverse |
 |---|---|---|

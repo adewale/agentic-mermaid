@@ -1,4 +1,4 @@
-# Lessons Learned — Loops 1 through 19
+# Lessons Learned — Loops 1 through 20
 
 This document replaces the Loop 1 retrospective. It is the cumulative
 narrative across the agentic-mermaid fork. Each section reflects what a
@@ -605,3 +605,41 @@ kept. Families that preserve comments in opaque segments (sequence) are
 correct by construction, and a future family that starts preserving them
 stops warning without anyone updating a list. Detect by observing the
 output, not by trusting per-family bookkeeping.
+
+## Loop 20 lesson — hidden family registries are product surface
+
+The Gantt good-citizen audit exposed a different failure mode than a parser
+bug: a diagram family can be correctly implemented and still be only partly
+present in the product. The first pass wired parser, renderer, mutation,
+capabilities, docs, and PR evidence, but it still missed places that consume
+"the list of families" indirectly: the live editor example picker, eval
+fixture tags, generated `llms.txt`, `am init-agent`, MCP initialize guidance,
+SDK declarations, stale policy language, and even the issue checklist that was
+supposed to guide the work.
+
+The root cause was twofold. First, there was no typed built-in-family registry
+that all outward-facing projections were forced to agree with. Second, some
+surfaces were treated as collateral documentation even though agents and users
+consume them as runtime affordances. The durable fix is not a longer memory
+checklist; it is a checked source of truth (`BUILTIN_FAMILY_METADATA`) plus
+projection tests that prove every registered family appears in editor examples,
+glyphs, eval fixtures, generated agent docs, CLI capabilities, MCP guidance,
+and sandbox-callable narrowers.
+
+The audit prompt that found the misses is worth preserving: ask "who consumes
+this family list?" and then grep for the old nouns, not just the new feature.
+Search for family names, narrowers, `source-level`, `examples`, `capabilities`,
+`llms.txt`, `init-agent`, `initialize`, `tools/list`, SDK declarations, eval
+manifests, sample galleries, generated site assets, package exports, and
+private/holdback prompt manifests. Anything that teaches a human or model what
+families exist is a product surface.
+
+This also changes the good-citizen checklist. It must distinguish family
+correctness from system citizenship. Correctness asks whether the parser,
+serializer, verifier, renderer, and properties preserve the family semantics.
+Citizenship asks whether every registry projection, generated artifact,
+distribution bundle, editor sample, skill/eval prompt, CLI/MCP declaration,
+and release artifact either derives from the registry or has a test proving it
+is synchronized. A new family is not done when it renders; it is done when an
+agent discovering the system through any supported entry point reaches the same
+typed path.

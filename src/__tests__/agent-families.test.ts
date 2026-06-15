@@ -104,8 +104,8 @@ describe('Phase B: universal LABEL_OVERFLOW on opaque bodies', () => {
 
 describe('FamilyPlugin.verify dispatcher', () => {
   test('plugin verify hook is called and warnings surface in verifyMermaid result', () => {
-    // Pick a source-level family to prove FamilyPlugin.verify fires independent
-    // of whether the body is structured or opaque/source-preserved.
+    // Pick a structured family to prove FamilyPlugin.verify fires independent
+    // of whether a particular body is structured or opaque/source-preserved.
     const original = getFamily('journey')
     expect(original).toBeDefined()
 

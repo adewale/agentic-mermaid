@@ -90,9 +90,9 @@ We have achieved the safety goal for the current surface:
 
 That is a success for semantic preservation, even though it is less convenient than pretending every Mermaid construct has a typed edit op.
 
-## How a source-level family graduates
+## How an opaque path graduates
 
-A source-level family can become structurally mutable only when a scoped implementation satisfies the same bar:
+An opaque fallback path can become structurally mutable only when a scoped implementation satisfies the same bar:
 
 1. define the syntax subset to model;
 2. reject/fall back to opaque for everything outside that subset;
@@ -101,4 +101,4 @@ A source-level family can become structurally mutable only when a scoped impleme
 5. prove round-trip stability with tests and corpus examples;
 6. update CLI/MCP/capabilities/docs together.
 
-Until then, source-level is the honest behavior.
+Until then, opaque/source-level editing is the honest behavior for that body.

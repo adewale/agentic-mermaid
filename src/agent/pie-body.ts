@@ -1,5 +1,5 @@
 // ============================================================================
-// Pie structured body (promotes the pie family from source-level-only to
+// Pie structured body (promotes pie from opaque-only fallback semantics to
 // structured mutation, following the journey/xychart/architecture pilots).
 //
 // Modeled grammar (mirrors the legacy renderer parser, src/pie/parser.ts):

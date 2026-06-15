@@ -1,6 +1,7 @@
 // ============================================================================
-// Quadrant structured body (promotes the quadrant family from source-level-only
-// to structured mutation, following the journey/xychart/architecture pilots).
+// Quadrant structured body (promotes quadrant from opaque-only fallback
+// semantics to structured mutation, following the journey/xychart/architecture
+// pilots).
 //
 // Modeled grammar (mirrors the legacy renderer parser, src/quadrant/parser.ts):
 //   quadrantChart
