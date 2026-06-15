@@ -13,7 +13,7 @@ import {
   asFlowchart, asState, asSequence, asTimeline, asClass, asEr,
   asJourney, asArchitecture, asXyChart, asPie, asQuadrant, asGantt,
 } from '../agent/types.ts'
-import { knownFamilies, getFamily } from '../agent/families.ts'
+import { BUILTIN_FAMILY_METADATA, BUILTIN_FAMILY_METADATA_COVERS_DIAGRAM_KIND, knownFamilies, getFamily } from '../agent/families.ts'
 import type { DiagramKind, ValidDiagram } from '../agent/types.ts'
 import { THEMES } from '../theme.ts'
 import { executeInSandbox } from '../mcp/sandbox.ts'
@@ -147,6 +147,19 @@ describe('agent-facing runnable docs', () => {
 })
 
 describe('vocabulary doc-sync', () => {
+  test('built-in family metadata is the checked source for shipped family surfaces', () => {
+    const metadataIds = new Set(BUILTIN_FAMILY_METADATA.map(f => f.id))
+    expect(BUILTIN_FAMILY_METADATA_COVERS_DIAGRAM_KIND).toBe(true)
+    expect(metadataIds).toEqual(new Set(knownFamilies()))
+    expect(metadataIds).toEqual(new Set(Object.keys(MUTATION_OPS_BY_FAMILY)))
+
+    for (const family of BUILTIN_FAMILY_METADATA) {
+      const docs = MUTABLE_FAMILY_DOCS[family.id]
+      expect({ family: family.id, narrower: docs.narrower }).toEqual({ family: family.id, narrower: family.narrower })
+      expect({ family: family.id, label: docs.label }).toEqual({ family: family.id, label: family.label })
+    }
+  })
+
   test('every warning code in Instructions_for_agents.md and spec', () => {
     const guide = readFileSync(join(REPO, 'Instructions_for_agents.md'), 'utf8')
     const spec = readFileSync(join(REPO, 'AGENT_NATIVE.md'), 'utf8')
@@ -458,7 +471,12 @@ describe('detector drift guard (agent vs shared router)', () => {
       ['pie title Pets\n  "Dogs" : 386\n  "Cats" : 85', 'pie'],
       ['quadrantChart\n  title T\n  Campaign A: [0.3, 0.6]', 'quadrant'],
       ['architecture-beta\n  group api(cloud)[API]', 'architecture'],
+      ['gantt\n  Task A :a1, 2024-01-01, 3d', 'gantt'],
     ]
+    // `detectDiagramType` is the shared renderer router: state diagrams still
+    // route through the flowchart renderer path, then agent parsing splits
+    // them into the dedicated `state` family.
+    expect(new Set(cases.map(([, expected]) => expected))).toEqual(new Set(BUILTIN_FAMILY_METADATA.filter(f => f.id !== 'state').map(f => f.id)))
     for (const [src, expected] of cases) {
       const agentR = agentParse(src)
       expect(agentR.ok).toBe(true)

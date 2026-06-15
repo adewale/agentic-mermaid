@@ -173,6 +173,37 @@ var EDITOR_EXAMPLES = [
     options: { interactive: true },
   },
   {
+    id: 'pie-basic',
+    label: 'Pie chart',
+    category: 'Supported diagrams',
+    diagramType: 'Pie',
+    description: 'Proportional slices with values shown in the legend.',
+    source: `pie showData
+  title Export requests by format
+  "SVG" : 42
+  "PNG" : 28
+  "ASCII" : 18
+  "Unicode" : 12`,
+  },
+  {
+    id: 'quadrant-basic',
+    label: 'Quadrant chart',
+    category: 'Supported diagrams',
+    diagramType: 'Quadrant',
+    description: 'Two-axis priority map with labeled regions and points.',
+    source: `quadrantChart
+  title Feature priorities
+  x-axis Low impact --> High impact
+  y-axis Low effort --> High effort
+  quadrant-1 Plan carefully
+  quadrant-2 Big bets
+  quadrant-3 Defer
+  quadrant-4 Quick wins
+  SVG export: [0.78, 0.28]
+  MCP setup: [0.62, 0.72]
+  Theme polish: [0.35, 0.24]`,
+  },
+  {
     id: 'gantt-basic',
     label: 'Gantt chart',
     category: 'Supported diagrams',
@@ -376,6 +407,9 @@ function exampleGlyph(example) {
     Timeline: 'T',
     Journey: 'J',
     'XY Chart': 'XY',
+    Pie: 'P',
+    Quadrant: '4Q',
+    Gantt: 'G',
   };
   return glyphs[type] || type.slice(0, 2).toUpperCase();
 }

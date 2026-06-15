@@ -57,6 +57,51 @@ export interface FamilyPlugin {
   verify?: (body: DiagramBody, opts: VerifyOptions) => LayoutWarning[]
 }
 
+export interface BuiltinFamilyMetadata {
+  /** Built-in DiagramKind exposed by Agentic Mermaid. */
+  id: DiagramKind
+  /** Human-facing family name used in docs and editor examples. */
+  label: string
+  /** Mermaid headers routed to this family. */
+  headers: readonly string[]
+  /** SDK narrower advertised for structured mutation. */
+  narrower: `as${string}`
+  /** Editor example category label. */
+  editorDiagramType: string
+  /** Basic editor example that must exist for this family. */
+  editorExampleId: string
+  /** Short glyph used by the editor example picker. */
+  editorGlyph: string
+}
+
+export const BUILTIN_FAMILY_METADATA = [
+  { id: 'flowchart', label: 'Flowchart', headers: ['flowchart', 'graph'], narrower: 'asFlowchart', editorDiagramType: 'Flowchart', editorExampleId: 'flowchart-basic', editorGlyph: 'F' },
+  { id: 'state', label: 'State', headers: ['stateDiagram', 'stateDiagram-v2'], narrower: 'asState', editorDiagramType: 'State', editorExampleId: 'state-basic', editorGlyph: 'S' },
+  { id: 'sequence', label: 'Sequence', headers: ['sequenceDiagram'], narrower: 'asSequence', editorDiagramType: 'Sequence', editorExampleId: 'sequence-basic', editorGlyph: 'Q' },
+  { id: 'timeline', label: 'Timeline', headers: ['timeline'], narrower: 'asTimeline', editorDiagramType: 'Timeline', editorExampleId: 'timeline-basic', editorGlyph: 'T' },
+  { id: 'class', label: 'Class', headers: ['classDiagram'], narrower: 'asClass', editorDiagramType: 'Class', editorExampleId: 'class-basic', editorGlyph: 'C' },
+  { id: 'er', label: 'ER', headers: ['erDiagram'], narrower: 'asEr', editorDiagramType: 'ER', editorExampleId: 'er-basic', editorGlyph: 'ER' },
+  { id: 'journey', label: 'Journey', headers: ['journey'], narrower: 'asJourney', editorDiagramType: 'Journey', editorExampleId: 'journey-basic', editorGlyph: 'J' },
+  { id: 'architecture', label: 'Architecture', headers: ['architecture-beta'], narrower: 'asArchitecture', editorDiagramType: 'Architecture', editorExampleId: 'architecture-basic', editorGlyph: 'A' },
+  { id: 'xychart', label: 'XY chart', headers: ['xychart', 'xychart-beta'], narrower: 'asXyChart', editorDiagramType: 'XY Chart', editorExampleId: 'xychart-basic', editorGlyph: 'XY' },
+  { id: 'pie', label: 'Pie', headers: ['pie'], narrower: 'asPie', editorDiagramType: 'Pie', editorExampleId: 'pie-basic', editorGlyph: 'P' },
+  { id: 'quadrant', label: 'Quadrant', headers: ['quadrantChart'], narrower: 'asQuadrant', editorDiagramType: 'Quadrant', editorExampleId: 'quadrant-basic', editorGlyph: '4Q' },
+  { id: 'gantt', label: 'Gantt', headers: ['gantt'], narrower: 'asGantt', editorDiagramType: 'Gantt', editorExampleId: 'gantt-basic', editorGlyph: 'G' },
+] as const satisfies readonly BuiltinFamilyMetadata[]
+
+export type BuiltinFamilyId = typeof BUILTIN_FAMILY_METADATA[number]['id']
+
+type BuiltinFamilyMetadataCoversDiagramKind =
+  [Exclude<DiagramKind, BuiltinFamilyId>, Exclude<BuiltinFamilyId, DiagramKind>] extends [never, never]
+    ? true
+    : never
+
+export const BUILTIN_FAMILY_METADATA_COVERS_DIAGRAM_KIND: BuiltinFamilyMetadataCoversDiagramKind = true
+
+export function builtinFamilyMetadata(kind: DiagramKind): BuiltinFamilyMetadata | undefined {
+  return BUILTIN_FAMILY_METADATA.find(f => f.id === kind)
+}
+
 const REGISTRY = new Map<DiagramKind, FamilyPlugin>()
 
 export function registerFamily(plugin: FamilyPlugin): void {

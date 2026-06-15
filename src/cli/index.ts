@@ -21,6 +21,7 @@ import type {
 } from '../agent/types.ts'
 import { WARNING_SEVERITY, WARNING_TIER } from '../agent/types.ts'
 import { knownFamilies, getFamily } from '../agent/families.ts'
+import type { BuiltinFamilyId } from '../agent/families.ts'
 import '../agent/families-builtin.ts'
 import { AGENT_INSTRUCTIONS } from './agent-instructions.ts'
 import { initAgentFiles } from './init-agent.ts'
@@ -651,7 +652,7 @@ export const MUTATION_OPS_BY_FAMILY = {
   pie: ['set_title', 'set_show_data', 'add_slice', 'remove_slice', 'rename_slice', 'set_slice_value', 'reorder_slice'],
   quadrant: ['set_title', 'set_axis_labels', 'set_quadrant_label', 'add_point', 'remove_point', 'move_point', 'rename_point'],
   gantt: ['set_title', 'add_section', 'rename_section', 'remove_section', 'add_task', 'remove_task', 'rename_task', 'set_task_status', 'set_task_dates'],
-} as const
+} as const satisfies Record<BuiltinFamilyId, readonly string[]>
 
 type MutableFamilyId = keyof typeof MUTATION_OPS_BY_FAMILY
 
