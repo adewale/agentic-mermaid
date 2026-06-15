@@ -1,0 +1,56 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 279.6835 434.582" width="279.6835" height="434.582" style="--bg:#FFFFFF;--fg:#27272A;--font:Inter;background:#FFFFFF">
+<style>
+  text { font-family: var(--font, 'Inter'), system-ui, sans-serif; }
+  svg {
+    /* Derived from --bg and --fg (overridable via --line, --accent, etc.) */
+    --_text:          #27272A;
+    --_text-sec:      #7d7d7f;
+    --_text-muted:    #a9a9aa;
+    --_text-faint:    #c9c9ca;
+    --_line:          #939395;
+    --_arrow:         #47474a;
+    --_node-fill:     #f9f9f9;
+    --_node-stroke:   #d4d4d4;
+    --_group-fill:    #FFFFFF;
+    --_group-hdr:     #f4f4f4;
+    --_inner-stroke:  #e5e5e5;
+    --_key-badge:     #e9e9ea;
+  }
+</style>
+<defs>
+  <marker id="char-flowchart-arrowhead" markerWidth="8" markerHeight="5" refX="7" refY="2.5" orient="auto">
+    <polygon points="0 0, 8 2.5, 0 5" fill="#47474a" stroke="#47474a" stroke-width="0.75" stroke-linejoin="round" />
+  </marker>
+  <marker id="char-flowchart-arrowhead-start" markerWidth="8" markerHeight="5" refX="7" refY="2.5" orient="auto-start-reverse">
+    <polygon points="0 0, 8 2.5, 0 5" fill="#47474a" stroke="#47474a" stroke-width="0.75" stroke-linejoin="round" />
+  </marker>
+</defs>
+<polyline class="edge" data-from="Start" data-to="Check" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" points="127.44250000000001,76.9 127.44250000000001,124.9" fill="none" stroke="#939395" stroke-width="1" marker-end="url(#char-flowchart-arrowhead)" />
+<polyline class="edge" data-from="Check" data-to="Done" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" data-label="yes" points="75.20150000000001,177.14100000000002 75.20150000000001,345.682" fill="none" stroke="#939395" stroke-width="1" marker-end="url(#char-flowchart-arrowhead)" />
+<polyline class="edge" data-from="Check" data-to="Retry" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" data-label="no" points="179.6835,177.14100000000002 179.68350000000004,345.682" fill="none" stroke="#939395" stroke-width="1" marker-end="url(#char-flowchart-arrowhead)" />
+<polyline class="edge" data-from="Retry" data-to="Check" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" points="158.04500000000002,345.682 158.04500000000002,198.7795" fill="none" stroke="#939395" stroke-width="1" marker-end="url(#char-flowchart-arrowhead)" />
+<g class="edge-label" data-from="Check" data-to="Done" data-label="yes">
+  <rect x="57.46650000000001" y="272.382" width="35.47" height="30.3" rx="2" ry="2" fill="#FFFFFF" stroke="#e5e5e5" stroke-width="1" />
+  <text x="75.20150000000001" y="287.532" text-anchor="middle" font-size="11" font-weight="400" fill="#7d7d7f" dy="3.8499999999999996">yes</text>
+</g>
+<g class="edge-label" data-from="Check" data-to="Retry" data-label="no">
+  <rect x="164.9185" y="272.382" width="29.53" height="30.3" rx="2" ry="2" fill="#FFFFFF" stroke="#e5e5e5" stroke-width="1" />
+  <text x="179.6835" y="287.532" text-anchor="middle" font-size="11" font-weight="400" fill="#7d7d7f" dy="3.8499999999999996">no</text>
+</g>
+<g class="node" data-id="Start" data-label="Start" data-shape="rectangle">
+  <rect x="92.38850000000001" y="40" width="70.108" height="36.900000000000006" rx="0" ry="0" fill="#f9f9f9" stroke="#d4d4d4" stroke-width="0.75" />
+  <text x="127.44250000000001" y="58.45" text-anchor="middle" font-size="13" font-weight="500" fill="#27272A" dy="4.55">Start</text>
+</g>
+<g class="node" data-id="Check" data-label="Check" data-shape="diamond">
+  <polygon points="127.44250000000001,124.90000000000002 179.6835,177.14100000000002 127.44250000000001,229.382 75.20150000000001,177.14100000000002" fill="#f9f9f9" stroke="#d4d4d4" stroke-width="0.75" />
+  <text x="127.44250000000001" y="177.14100000000002" text-anchor="middle" font-size="13" font-weight="500" fill="#27272A" dy="4.55">Check</text>
+</g>
+<g class="node" data-id="Done" data-label="Done" data-shape="rectangle">
+  <rect x="38.66550000000001" y="345.682" width="73.072" height="36.900000000000006" rx="0" ry="0" fill="#f9f9f9" stroke="#d4d4d4" stroke-width="0.75" />
+  <text x="75.20150000000001" y="364.132" text-anchor="middle" font-size="13" font-weight="500" fill="#27272A" dy="4.55">Done</text>
+</g>
+<g class="node" data-id="Retry" data-label="Retry" data-shape="rectangle">
+  <rect x="142.40650000000002" y="345.682" width="74.554" height="36.900000000000006" rx="0" ry="0" fill="#f9f9f9" stroke="#d4d4d4" stroke-width="0.75" />
+  <text x="179.68350000000004" y="364.132" text-anchor="middle" font-size="13" font-weight="500" fill="#27272A" dy="4.55">Retry</text>
+</g>
+</svg>

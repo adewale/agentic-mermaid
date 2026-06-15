@@ -1,0 +1,47 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 456 492" width="456" height="492" style="--bg:#FFFFFF;--fg:#27272A;--font:Inter;background:#FFFFFF" role="img" aria-roledescription="quadrant chart">
+<style>
+  text { font-family: var(--font, 'Inter'), system-ui, sans-serif; }
+  svg {
+    /* Derived from --bg and --fg (overridable via --line, --accent, etc.) */
+    --_text:          #27272A;
+    --_text-sec:      #7d7d7f;
+    --_text-muted:    #a9a9aa;
+    --_text-faint:    #c9c9ca;
+    --_line:          #939395;
+    --_arrow:         #47474a;
+    --_node-fill:     #f9f9f9;
+    --_node-stroke:   #d4d4d4;
+    --_group-fill:    #FFFFFF;
+    --_group-hdr:     #f4f4f4;
+    --_inner-stroke:  #e5e5e5;
+    --_key-badge:     #e9e9ea;
+  }
+</style>
+<style>
+  .quadrant-region { stroke: none; }
+  .quadrant-divider { stroke: #939395; stroke-width: 1; }
+  .quadrant-border { stroke: #d4d4d4; stroke-width: 2; }
+  .quadrant-label { fill: #7d7d7f; }
+  .quadrant-point { fill: #47474a; stroke: #FFFFFF; stroke-width: 1; }
+  .quadrant-point-label { fill: #27272A; }
+  .quadrant-axis-label { fill: #a9a9aa; }
+  .quadrant-title { fill: #27272A; }
+</style>
+<rect class="quadrant-region" x="52" y="60" width="190" height="190" fill="#f6f6f6" data-quadrant="2" />
+<rect class="quadrant-region" x="242" y="60" width="190" height="190" fill="#ededed" data-quadrant="1" />
+<rect class="quadrant-region" x="52" y="250" width="190" height="190" fill="#ededed" data-quadrant="3" />
+<rect class="quadrant-region" x="242" y="250" width="190" height="190" fill="#f6f6f6" data-quadrant="4" />
+<line class="quadrant-divider" x1="242" y1="60" x2="242" y2="440" />
+<line class="quadrant-divider" x1="52" y1="250" x2="432" y2="250" />
+<rect class="quadrant-border" x="52" y="60" width="380" height="380" fill="none" />
+<text x="337" y="155" class="quadrant-label" text-anchor="middle" dominant-baseline="middle" font-size="15" font-weight="600" dy="5.25">Invest</text>
+<circle class="quadrant-point" cx="318" cy="136" r="6" data-label="A" data-x="0.7" data-y="0.8" />
+<text x="328" y="136" class="quadrant-point-label" text-anchor="start" dominant-baseline="middle" font-size="12" font-weight="500" dy="4.199999999999999">A</text>
+<circle class="quadrant-point" cx="166" cy="288" r="6" data-label="B" data-x="0.3" data-y="0.4" />
+<text x="176" y="288" class="quadrant-point-label" text-anchor="start" dominant-baseline="middle" font-size="12" font-weight="500" dy="4.199999999999999">B</text>
+<text class="quadrant-axis-label" x="56" y="457" text-anchor="start" font-size="13" font-weight="500">Low</text>
+<text class="quadrant-axis-label" x="428" y="457" text-anchor="end" font-size="13" font-weight="500">High</text>
+<text class="quadrant-axis-label" x="37" y="436" text-anchor="start" font-size="13" font-weight="500" transform="rotate(-90 37 436)">Risk</text>
+<text class="quadrant-axis-label" x="37" y="64" text-anchor="end" font-size="13" font-weight="500" transform="rotate(-90 37 64)">Reward</text>
+<text x="242" y="33" class="quadrant-title" text-anchor="middle" dominant-baseline="middle" font-size="18" font-weight="600" dy="6.3">Priorities</text>
+</svg>

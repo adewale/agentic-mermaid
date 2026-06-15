@@ -1,0 +1,97 @@
+<svg data-xychart-colors="1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 700 500" width="100%" height="100%" style="--bg:#FFFFFF;--fg:#27272A;--font:Inter;background:#FFFFFF;max-width:700px" id="char-xychart-mermaid-4bojql" class="xychart" aria-roledescription="xychart">
+<style>
+  text { font-family: var(--font, 'Inter'), system-ui, sans-serif; }
+  svg {
+    /* Derived from --bg and --fg (overridable via --line, --accent, etc.) */
+    --_text:          #27272A;
+    --_text-sec:      #7d7d7f;
+    --_text-muted:    #a9a9aa;
+    --_text-faint:    #c9c9ca;
+    --_line:          #939395;
+    --_arrow:         #47474a;
+    --_node-fill:     #f9f9f9;
+    --_node-stroke:   #d4d4d4;
+    --_group-fill:    #FFFFFF;
+    --_group-hdr:     #f4f4f4;
+    --_inner-stroke:  #e5e5e5;
+    --_key-badge:     #e9e9ea;
+  }
+</style>
+<style>
+  .xychart-grid { stroke: #e1e1e1; stroke-width: 1; }
+  .xychart-axis-line { fill: none; }
+  .xychart-tick { fill: none; }
+  .xychart-x-axis-line { stroke: #7d7d7f; }
+  .xychart-y-axis-line { stroke: #7d7d7f; }
+  .xychart-x-tick { stroke: #7d7d7f; }
+  .xychart-y-tick { stroke: #7d7d7f; }
+  .xychart-bar { stroke: none; }
+  .xychart-line { fill: none; stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; }
+  .xychart-dot { stroke: #FFFFFF; stroke-width: 2; }
+  .xychart-label { fill: #27272A; }
+  .xychart-x-label { fill: #27272A; }
+  .xychart-y-label { fill: #27272A; }
+  .xychart-axis-title { fill: #27272A; }
+  .xychart-x-axis-title { fill: #27272A; }
+  .xychart-y-axis-title { fill: #27272A; }
+  .xychart-title { fill: #27272A; }
+  .xychart-data-label { fill: #27272A; pointer-events: none; }
+  svg {
+    --xychart-color-0: #3b82f6;
+    --xychart-color-1: #0d5ba5;
+  }
+  .xychart-bar.xychart-color-0 { fill: #3b82f6; }
+  path.xychart-color-0, line.xychart-color-0 { stroke: #3b82f6; }
+  circle.xychart-color-0 { fill: #3b82f6; }
+  .xychart-bar.xychart-color-1 { fill: #0d5ba5; }
+  path.xychart-color-1, line.xychart-color-1 { stroke: #0d5ba5; }
+  circle.xychart-color-1 { fill: #0d5ba5; }
+</style>
+<line x1="55.68" y1="469" x2="700" y2="469" class="xychart-grid"/>
+<line x1="55.68" y1="426.1" x2="700" y2="426.1" class="xychart-grid"/>
+<line x1="55.68" y1="383.2" x2="700" y2="383.2" class="xychart-grid"/>
+<line x1="55.68" y1="340.3" x2="700" y2="340.3" class="xychart-grid"/>
+<line x1="55.68" y1="297.4" x2="700" y2="297.4" class="xychart-grid"/>
+<line x1="55.68" y1="254.5" x2="700" y2="254.5" class="xychart-grid"/>
+<line x1="55.68" y1="211.6" x2="700" y2="211.6" class="xychart-grid"/>
+<line x1="55.68" y1="168.7" x2="700" y2="168.7" class="xychart-grid"/>
+<line x1="55.68" y1="125.8" x2="700" y2="125.8" class="xychart-grid"/>
+<line x1="55.68" y1="82.9" x2="700" y2="82.9" class="xychart-grid"/>
+<line x1="55.68" y1="40" x2="700" y2="40" class="xychart-grid"/>
+<line x1="55.68" y1="470" x2="700" y2="470" class="xychart-axis-line xychart-x-axis-line" stroke-width="2"/>
+<line x1="163.07" y1="471" x2="163.07" y2="476" class="xychart-tick xychart-x-tick" stroke-width="2"/>
+<line x1="377.84" y1="471" x2="377.84" y2="476" class="xychart-tick xychart-x-tick" stroke-width="2"/>
+<line x1="592.61" y1="471" x2="592.61" y2="476" class="xychart-tick xychart-x-tick" stroke-width="2"/>
+<line x1="54.68" y1="40" x2="54.68" y2="469" class="xychart-axis-line xychart-y-axis-line" stroke-width="2"/>
+<line x1="53.68" y1="469" x2="48.68" y2="469" class="xychart-tick xychart-y-tick" stroke-width="2"/>
+<line x1="53.68" y1="426.1" x2="48.68" y2="426.1" class="xychart-tick xychart-y-tick" stroke-width="2"/>
+<line x1="53.68" y1="383.2" x2="48.68" y2="383.2" class="xychart-tick xychart-y-tick" stroke-width="2"/>
+<line x1="53.68" y1="340.3" x2="48.68" y2="340.3" class="xychart-tick xychart-y-tick" stroke-width="2"/>
+<line x1="53.68" y1="297.4" x2="48.68" y2="297.4" class="xychart-tick xychart-y-tick" stroke-width="2"/>
+<line x1="53.68" y1="254.5" x2="48.68" y2="254.5" class="xychart-tick xychart-y-tick" stroke-width="2"/>
+<line x1="53.68" y1="211.6" x2="48.68" y2="211.6" class="xychart-tick xychart-y-tick" stroke-width="2"/>
+<line x1="53.68" y1="168.7" x2="48.68" y2="168.7" class="xychart-tick xychart-y-tick" stroke-width="2"/>
+<line x1="53.68" y1="125.8" x2="48.68" y2="125.8" class="xychart-tick xychart-y-tick" stroke-width="2"/>
+<line x1="53.68" y1="82.9" x2="48.68" y2="82.9" class="xychart-tick xychart-y-tick" stroke-width="2"/>
+<line x1="53.68" y1="40" x2="48.68" y2="40" class="xychart-tick xychart-y-tick" stroke-width="2"/>
+<rect x="61.05" y="340.3" width="204.03" height="128.7" class="xychart-bar xychart-color-0" data-value="3" data-label="Jan"/>
+<rect x="275.83" y="168.7" width="204.03" height="300.3" class="xychart-bar xychart-color-0" data-value="7" data-label="Feb"/>
+<rect x="490.6" y="254.5" width="204.03" height="214.5" class="xychart-bar xychart-color-0" data-value="5" data-label="Mar"/>
+<path d="M163.07,383.2 L377.84,211.6 L592.61,125.8" class="xychart-line xychart-color-1"/>
+<text x="163.07" y="495" text-anchor="middle" font-size="14" font-weight="400" dy="0.35em" class="xychart-label xychart-x-label">Jan</text>
+<text x="377.842" y="495" text-anchor="middle" font-size="14" font-weight="400" dy="0.35em" class="xychart-label xychart-x-label">Feb</text>
+<text x="592.614" y="495" text-anchor="middle" font-size="14" font-weight="400" dy="0.35em" class="xychart-label xychart-x-label">Mar</text>
+<text x="43.68399999999997" y="469" text-anchor="end" dominant-baseline="middle" font-size="14" font-weight="400" class="xychart-label xychart-y-label">0</text>
+<text x="43.68399999999997" y="426.1" text-anchor="end" dominant-baseline="middle" font-size="14" font-weight="400" class="xychart-label xychart-y-label">1</text>
+<text x="43.68399999999997" y="383.2" text-anchor="end" dominant-baseline="middle" font-size="14" font-weight="400" class="xychart-label xychart-y-label">2</text>
+<text x="43.68399999999997" y="340.3" text-anchor="end" dominant-baseline="middle" font-size="14" font-weight="400" class="xychart-label xychart-y-label">3</text>
+<text x="43.68399999999997" y="297.4" text-anchor="end" dominant-baseline="middle" font-size="14" font-weight="400" class="xychart-label xychart-y-label">4</text>
+<text x="43.68399999999997" y="254.5" text-anchor="end" dominant-baseline="middle" font-size="14" font-weight="400" class="xychart-label xychart-y-label">5</text>
+<text x="43.68399999999997" y="211.60000000000002" text-anchor="end" dominant-baseline="middle" font-size="14" font-weight="400" class="xychart-label xychart-y-label">6</text>
+<text x="43.68399999999997" y="168.70000000000005" text-anchor="end" dominant-baseline="middle" font-size="14" font-weight="400" class="xychart-label xychart-y-label">7</text>
+<text x="43.68399999999997" y="125.79999999999995" text-anchor="end" dominant-baseline="middle" font-size="14" font-weight="400" class="xychart-label xychart-y-label">8</text>
+<text x="43.68399999999997" y="82.89999999999998" text-anchor="end" dominant-baseline="middle" font-size="14" font-weight="400" class="xychart-label xychart-y-label">9</text>
+<text x="43.68399999999997" y="40" text-anchor="end" dominant-baseline="middle" font-size="14" font-weight="400" class="xychart-label xychart-y-label">10</text>
+<text x="17.8" y="254.5" text-anchor="middle" transform="rotate(-90,17.8,254.5)" font-size="16" font-weight="400" dy="0.35em" class="xychart-axis-title xychart-y-axis-title">Revenue</text>
+<text x="350" y="30" text-anchor="middle" font-size="20" font-weight="500" dy="0.35em" class="xychart-title">Sales</text>
+</svg>

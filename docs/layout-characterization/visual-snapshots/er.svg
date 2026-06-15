@@ -1,0 +1,61 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 951.768 136" width="951.768" height="136" style="--bg:#FFFFFF;--fg:#27272A;--font:Inter;background:#FFFFFF">
+<style>
+  text { font-family: var(--font, 'Inter'), system-ui, sans-serif; }
+  .mono { font-family: 'JetBrains Mono', 'SF Mono', 'Fira Code', ui-monospace, monospace; }
+  svg {
+    /* Derived from --bg and --fg (overridable via --line, --accent, etc.) */
+    --_text:          #27272A;
+    --_text-sec:      #7d7d7f;
+    --_text-muted:    #a9a9aa;
+    --_text-faint:    #c9c9ca;
+    --_line:          #939395;
+    --_arrow:         #47474a;
+    --_node-fill:     #f9f9f9;
+    --_node-stroke:   #d4d4d4;
+    --_group-fill:    #FFFFFF;
+    --_group-hdr:     #f4f4f4;
+    --_inner-stroke:  #e5e5e5;
+    --_key-badge:     #e9e9ea;
+  }
+</style>
+<defs>
+</defs>
+<polyline class="er-relationship" data-entity1="CUSTOMER" data-entity2="ORDER" data-cardinality1="one" data-cardinality2="zero-many" data-identifying="true" data-label="places" points="180,68 401.726,68" fill="none" stroke="#939395" stroke-width="1" />
+<polyline class="er-relationship" data-entity1="ORDER" data-entity2="LINE_ITEM" data-cardinality1="one" data-cardinality2="many" data-identifying="true" data-label="contains" points="541.726,68 771.768,68" fill="none" stroke="#939395" stroke-width="1" />
+<g class="entity" data-id="CUSTOMER" data-label="CUSTOMER">
+  <rect x="40" y="40" width="140" height="56" rx="0" ry="0" fill="#f9f9f9" stroke="#d4d4d4" stroke-width="1" />
+  <path d="M40,40 H180 V74 H40 Z" fill="#f4f4f4" stroke="#d4d4d4" stroke-width="1" />
+  <text x="110" y="57" text-anchor="middle" font-size="13" font-weight="700" fill="#27272A" dy="4.55">CUSTOMER</text>
+  <line x1="40" y1="74" x2="180" y2="74" stroke="#d4d4d4" stroke-width="0.75" />
+  <text x="110" y="85" text-anchor="middle" dy="0.35em" font-size="11" fill="#c9c9ca" font-style="italic">(no attributes)</text>
+</g>
+<g class="entity" data-id="ORDER" data-label="ORDER">
+  <rect x="401.726" y="40" width="140" height="56" rx="0" ry="0" fill="#f9f9f9" stroke="#d4d4d4" stroke-width="1" />
+  <path d="M401.726,40 H541.726 V74 H401.726 Z" fill="#f4f4f4" stroke="#d4d4d4" stroke-width="1" />
+  <text x="471.726" y="57" text-anchor="middle" font-size="13" font-weight="700" fill="#27272A" dy="4.55">ORDER</text>
+  <line x1="401.726" y1="74" x2="541.726" y2="74" stroke="#d4d4d4" stroke-width="0.75" />
+  <text x="471.726" y="85" text-anchor="middle" dy="0.35em" font-size="11" fill="#c9c9ca" font-style="italic">(no attributes)</text>
+</g>
+<g class="entity" data-id="LINE_ITEM" data-label="LINE_ITEM">
+  <rect x="771.768" y="40" width="140" height="56" rx="0" ry="0" fill="#f9f9f9" stroke="#d4d4d4" stroke-width="1" />
+  <path d="M771.768,40 H911.768 V74 H771.768 Z" fill="#f4f4f4" stroke="#d4d4d4" stroke-width="1" />
+  <text x="841.768" y="57" text-anchor="middle" font-size="13" font-weight="700" fill="#27272A" dy="4.55">LINE_ITEM</text>
+  <line x1="771.768" y1="74" x2="911.768" y2="74" stroke="#d4d4d4" stroke-width="0.75" />
+  <text x="841.768" y="85" text-anchor="middle" dy="0.35em" font-size="11" fill="#c9c9ca" font-style="italic">(no attributes)</text>
+</g>
+<line x1="184" y1="62" x2="184" y2="74" stroke="#939395" stroke-width="1.25" />
+<line x1="188" y1="62" x2="188" y2="74" stroke="#939395" stroke-width="1.25" />
+<line x1="397.726" y1="75" x2="385.726" y2="68" stroke="#939395" stroke-width="1.25" />
+<line x1="397.726" y1="68" x2="385.726" y2="68" stroke="#939395" stroke-width="1.25" />
+<line x1="397.726" y1="61" x2="385.726" y2="68" stroke="#939395" stroke-width="1.25" />
+<circle cx="381.726" cy="68" r="4" fill="#FFFFFF" stroke="#939395" stroke-width="1.25" />
+<line x1="545.726" y1="62" x2="545.726" y2="74" stroke="#939395" stroke-width="1.25" />
+<line x1="549.726" y1="62" x2="549.726" y2="74" stroke="#939395" stroke-width="1.25" />
+<line x1="767.768" y1="75" x2="755.768" y2="68" stroke="#939395" stroke-width="1.25" />
+<line x1="767.768" y1="68" x2="755.768" y2="68" stroke="#939395" stroke-width="1.25" />
+<line x1="767.768" y1="61" x2="755.768" y2="68" stroke="#939395" stroke-width="1.25" />
+<rect x="270" y="57.85" width="41.726000000000006" height="20.3" rx="2" ry="2" fill="#FFFFFF" stroke="#e5e5e5" stroke-width="0.5" />
+<text x="290.863" y="68" text-anchor="middle" font-size="11" font-weight="400" fill="#a9a9aa" dy="3.8499999999999996">places</text>
+<rect x="631.7260000000001" y="57.85" width="50.04200000000001" height="20.3" rx="2" ry="2" fill="#FFFFFF" stroke="#e5e5e5" stroke-width="0.5" />
+<text x="656.7470000000001" y="68" text-anchor="middle" font-size="11" font-weight="400" fill="#a9a9aa" dy="3.8499999999999996">contains</text>
+</svg>

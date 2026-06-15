@@ -1,0 +1,79 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 414 188" width="414" height="188" style="--bg:#FFFFFF;--fg:#27272A;--font:Inter;background:var(--bg)">
+<style>
+  text { font-family: var(--font, 'Inter'), system-ui, sans-serif; }
+  svg {
+    /* Derived from --bg and --fg (overridable via --line, --accent, etc.) */
+    --_text:          var(--fg);
+    --_text-sec:      var(--muted, color-mix(in srgb, var(--fg) 60%, var(--bg)));
+    --_text-muted:    var(--muted, color-mix(in srgb, var(--fg) 40%, var(--bg)));
+    --_text-faint:    color-mix(in srgb, var(--fg) 25%, var(--bg));
+    --_line:          var(--line, color-mix(in srgb, var(--fg) 50%, var(--bg)));
+    --_arrow:         var(--accent, color-mix(in srgb, var(--fg) 85%, var(--bg)));
+    --_node-fill:     var(--surface, color-mix(in srgb, var(--fg) 3%, var(--bg)));
+    --_node-stroke:   var(--border, color-mix(in srgb, var(--fg) 20%, var(--bg)));
+    --_group-fill:    var(--bg);
+    --_group-hdr:     color-mix(in srgb, var(--fg) 5%, var(--bg));
+    --_inner-stroke:  color-mix(in srgb, var(--fg) 12%, var(--bg));
+    --_key-badge:     color-mix(in srgb, var(--fg) 10%, var(--bg));
+  }
+</style>
+<style>
+  .architecture-group-frame { fill: var(--arch-group-fill, color-mix(in srgb, var(--_node-fill) 82%, var(--bg))); stroke: none; }
+  .architecture-group-band { fill: color-mix(in srgb, var(--_arrow) 5%, var(--arch-group-fill, var(--bg))); stroke: none; }
+  .architecture-group-outline { fill: none; stroke: var(--arch-group-stroke, var(--_node-stroke)); stroke-width: 1; }
+  .architecture-group-label { fill: var(--_text-sec); }
+  .architecture-service-card { fill: var(--arch-service-fill, color-mix(in srgb, var(--_node-fill) 92%, var(--bg))); stroke: none; }
+  .architecture-service-outline { fill: none; stroke: var(--arch-service-stroke, var(--_node-stroke)); stroke-width: 1; }
+  .architecture-service-label { fill: var(--_text); }
+  .architecture-edge { fill: none; stroke: var(--_line); stroke-width: 1; stroke-linejoin: round; }
+  .architecture-edge-label-bg { fill: color-mix(in srgb, var(--bg) 90%, var(--_group-hdr)); stroke: color-mix(in srgb, var(--_line) 18%, var(--bg)); stroke-width: 0.75; }
+  .architecture-edge-label-text { fill: var(--_text-muted); }
+  .architecture-junction-ring { fill: var(--bg); stroke: var(--_arrow); stroke-width: 1.25; }
+  .architecture-junction-core { fill: color-mix(in srgb, var(--_arrow) 24%, var(--bg)); stroke: var(--_arrow); stroke-width: 0.75; }
+  .architecture-icon-mark { fill: none; stroke: var(--_arrow); stroke-width: 1.25; stroke-linecap: round; stroke-linejoin: round; }
+  .architecture-icon-glyph { fill: var(--_arrow); }
+</style>
+<defs>
+  <marker id="architecture-arrow-end" markerWidth="8" markerHeight="5" refX="7" refY="2.5" orient="auto">
+    <polygon points="0 0, 8 2.5, 0 5" fill="var(--_arrow)" stroke="var(--_arrow)" stroke-width="0.75" stroke-linejoin="round" />
+  </marker>
+  <marker id="architecture-arrow-start" markerWidth="8" markerHeight="5" refX="1" refY="2.5" orient="auto-start-reverse">
+    <polygon points="8 0, 0 2.5, 8 5" fill="var(--_arrow)" stroke="var(--_arrow)" stroke-width="0.75" stroke-linejoin="round" />
+  </marker>
+</defs>
+<g class="architecture-group" data-id="api" data-label="API">
+  <rect class="architecture-group-frame" x="40" y="40" width="152" height="108" rx="0" ry="0" />
+  <path class="architecture-group-band" d="M40,40 H192 V68 H40 Z" />
+  <rect class="architecture-group-outline" x="40" y="40" width="152" height="108" rx="0" ry="0" />
+  <g class="architecture-icon" data-icon="cloud">
+  <circle class="architecture-icon-mark" cx="55.3504" cy="54.2944" r="2.3552" />
+<circle class="architecture-icon-mark" cx="58.2944" cy="52.8224" r="2.9440000000000004" />
+<circle class="architecture-icon-mark" cx="60.944" cy="54.2944" r="2.208" />
+<path class="architecture-icon-mark" d="M 52.9952 56.355199999999996 H 62.8576" />
+</g>
+  <text x="76" y="54" class="architecture-group-label" text-anchor="start" font-size="12" font-weight="600" dy="4.199999999999999">API</text>
+</g>
+<polyline class="architecture-edge" data-from="app" data-to="db" data-from-side="R" data-to-side="L" data-from-boundary="item" data-to-boundary="item" points="176,108 254,108" marker-end="url(#architecture-arrow-end)" />
+<g class="architecture-service" data-id="db" data-label="DB">
+  <rect class="architecture-service-card" x="254" y="84" width="120" height="48" rx="0" ry="0" />
+  <rect class="architecture-service-outline" x="254" y="84" width="120" height="48" rx="0" ry="0" />
+  <g class="architecture-icon" data-icon="database">
+  <ellipse class="architecture-icon-mark" cx="283" cy="105.12" rx="4.32" ry="1.8" />
+<path class="architecture-icon-mark" d="M 278.68 105.12 V 111.6" />
+<path class="architecture-icon-mark" d="M 287.32 105.12 V 111.6" />
+<ellipse class="architecture-icon-mark" cx="283" cy="108.36" rx="4.32" ry="1.8" />
+<ellipse class="architecture-icon-mark" cx="283" cy="111.6" rx="4.32" ry="1.8" />
+</g>
+  <text x="306" y="108" class="architecture-service-label" text-anchor="start" font-size="13" font-weight="500" dy="4.55">DB</text>
+</g>
+<g class="architecture-service" data-id="app" data-label="App">
+  <rect class="architecture-service-card" x="56" y="84" width="120" height="48" rx="0" ry="0" />
+  <rect class="architecture-service-outline" x="56" y="84" width="120" height="48" rx="0" ry="0" />
+  <g class="architecture-icon" data-icon="server">
+  <rect class="architecture-icon-mark" x="81.04" y="103.68" width="7.92" height="8.64" rx="0" ry="0" />
+<path class="architecture-icon-mark" d="M 82.12 106.56 H 87.88" />
+<path class="architecture-icon-mark" d="M 82.12 109.08 H 87.88" />
+</g>
+  <text x="108" y="108" class="architecture-service-label" text-anchor="start" font-size="13" font-weight="500" dy="4.55">App</text>
+</g>
+</svg>
