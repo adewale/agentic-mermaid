@@ -167,24 +167,23 @@ export interface RouteBlocker {
   id: string
 }
 
-export interface RouteCertificate {
+export type RouteInvariant =
+  | 'straight'          // exactly two points, axis-aligned with the flow
+  | 'explained-detour'  // bends, and directLaneBlockedBy says why
+  | 'bundle'            // path owned by the fan-out/fan-in bundler
+  | 'outer-feedback'    // feedback routed around the nodes through an outer channel (ELK feedbackEdges)
+  | 'feedback-detour'   // feedback that neither straightened nor reached an outer channel
+  | 'self-loop'
+  | 'container-attach'
+  | 'unverified-shape'  // endpoint shape has no straight attachment side
+
+interface RouteCertificateBase {
   /** Index into MermaidGraph.edges */
   edgeIndex: number
   routeClass: RouteClass
   bendCount: number
-  invariant:
-    | 'straight'          // exactly two points, axis-aligned with the flow
-    | 'explained-detour'  // bends, and directLaneBlockedBy says why
-    | 'bundle'            // path owned by the fan-out/fan-in bundler
-    | 'outer-feedback'    // feedback routed around the nodes through an outer channel (ELK feedbackEdges)
-    | 'feedback-detour'   // feedback that neither straightened nor reached an outer channel
-    | 'self-loop'
-    | 'container-attach'
-    | 'unverified-shape'  // endpoint shape has no straight attachment side
   directLaneClear?: boolean
   directLaneBlockedBy?: RouteBlocker[]
-  /** True when the certifying straightener collapsed this route */
-  straightened?: boolean
   /** Set when the endpoint sits exactly on a port: a cardinal side-midpoint
    *  for every shape, or a diamond facet-midpoint (NE/SE/SW/NW). */
   sourcePort?: AnyPort
@@ -192,6 +191,20 @@ export interface RouteCertificate {
    *  for every shape, or a diamond facet-midpoint (NE/SE/SW/NW). */
   targetPort?: AnyPort
 }
+
+export type StraightRouteCertificate = RouteCertificateBase & {
+  invariant: 'straight'
+  /** True when the certifying straightener collapsed this route */
+  straightened?: true
+}
+
+export type NonStraightRouteCertificate = RouteCertificateBase & {
+  invariant: Exclude<RouteInvariant, 'straight'>
+  /** Non-straight certificates cannot claim a straightening happened. */
+  straightened?: never
+}
+
+export type RouteCertificate = StraightRouteCertificate | NonStraightRouteCertificate
 
 export interface Point {
   x: number

@@ -90,6 +90,7 @@ describe('link length is preserved through round-trip', () => {
   it.each([
     ['flowchart LR\n  A -- No ----> B', '---->|No|', 3],
     ['flowchart LR\n  A -. Maybe ..-> B', '-..->|Maybe|', 2],
+    ['flowchart LR\n  A -.. Maybe .-> B', '-..->|Maybe|', 2],
     ['flowchart LR\n  A == Sure ====> B', '====>|Sure|', 3],
     ['flowchart LR\n  A -- note ---- B', '----|note|', 2],
   ] as const)('text-embedded label length survives canonical serialization: %s', (src, op, length) => {

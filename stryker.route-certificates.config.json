@@ -1,0 +1,21 @@
+{
+  "$schema": "https://raw.githubusercontent.com/stryker-mutator/stryker/master/packages/core/schema/stryker-core.schema.json",
+  "_comment": "Narrow mutation lane for route-certificate finality and stale-route audit tripwires. Complements, but does not replace, the broader mutation-test:routes lane.",
+  "mutate": [
+    "src/route-contracts.ts:1420-1452",
+    "src/route-contracts.ts:1688-1704"
+  ],
+  "ignorePatterns": ["/site/**", "/dist/**", "/coverage/**", "/index.html", "/editor.html", "/.stryker-tmp-*/**"],
+  "testRunner": "command",
+  "commandRunner": {
+    "command": "bun test src/__tests__/route-contracts.test.ts --timeout 120000"
+  },
+  "reporters": ["clear-text", "progress", "json"],
+  "jsonReporter": {
+    "fileName": "reports/mutation/route-certificates-mutation.json"
+  },
+  "timeoutMS": 30000,
+  "concurrency": 4,
+  "tempDirName": ".stryker-tmp-route-certificates",
+  "disableTypeChecks": true
+}

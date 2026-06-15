@@ -21,6 +21,15 @@ agent family parsers, and `stryker.routes.config.json` / `bun run
 mutation-test:routes` covers the route-contracts module
 (`docs/design/route-contracts.md`), all with the same policy.)
 
+Narrow lanes for PR-scale survivor harvests:
+
+```bash
+bun run mutation-test:links            # text-embedded link-length parsing
+bun run mutation-test:routes:certs     # route-certificate finality + stale-route audit
+bun run mutation-test:routes:subgraph  # subgraph endpoint/LCA routing
+bun run sabotage:routes                # one-line revert checks against committed HEAD; expects focused tests to fail
+```
+
 The JSON report lands in `reports/mutation/` (gitignored). This is not part
 of CI: run it when you touch ASCII core logic, or when adding tests there and
 you want proof they bite.

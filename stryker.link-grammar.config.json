@@ -1,0 +1,20 @@
+{
+  "$schema": "https://raw.githubusercontent.com/stryker-mutator/stryker/master/packages/core/schema/stryker-core.schema.json",
+  "_comment": "Narrow mutation lane for Mermaid link-length parsing, especially text-embedded labels whose operator is split around the label.",
+  "mutate": [
+    "src/parser.ts:716-733"
+  ],
+  "ignorePatterns": ["/site/**", "/dist/**", "/coverage/**", "/index.html", "/editor.html", "/.stryker-tmp-*/**"],
+  "testRunner": "command",
+  "commandRunner": {
+    "command": "bun test src/__tests__/link-grammar.test.ts src/__tests__/mermaid-conformance.test.ts"
+  },
+  "reporters": ["clear-text", "progress", "json"],
+  "jsonReporter": {
+    "fileName": "reports/mutation/link-grammar-mutation.json"
+  },
+  "timeoutMS": 30000,
+  "concurrency": 4,
+  "tempDirName": ".stryker-tmp-link-grammar",
+  "disableTypeChecks": true
+}

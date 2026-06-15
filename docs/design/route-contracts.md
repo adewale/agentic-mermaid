@@ -70,21 +70,33 @@ type RouteClass =
   | 'container'         // endpoint is a subgraph id
   | 'cross-hierarchy'   // endpoints in different subgraph scopes
 
-interface RouteCertificate {
+type RouteInvariant =
+  | 'straight'             // exactly two points, axis-aligned with flow
+  | 'explained-detour'     // bends, and directLaneBlockedBy is non-empty
+  | 'bundle'               // path owned by the fan-out/fan-in bundler
+  | 'outer-feedback'       // feedback routed around the nodes through an outer channel (ELK feedbackEdges + tightening)
+  | 'feedback-detour'      // feedback whose reverse lane is blocked; blockers say why
+  | 'self-loop'
+  | 'container-attach'
+  | 'unverified-shape'     // endpoint shape has no straight attachment side
+
+type RouteCertificateBase = {
   edgeIndex: number          // index into MermaidGraph.edges
   routeClass: RouteClass
   bendCount: number
-  invariant:
-    | 'straight'             // exactly two points, axis-aligned with flow
-    | 'explained-detour'     // bends, and directLaneBlockedBy is non-empty
-    | 'bundle'               // path owned by the fan-out/fan-in bundler
-    | 'outer-feedback'       // feedback routed around the nodes through an outer channel (ELK feedbackEdges + tightening)
-    | 'feedback-detour'      // feedback whose reverse lane is blocked; blockers say why
-    | 'self-loop'
-    | 'container-attach'
   directLaneClear?: boolean  // primary-forward and feedback
   directLaneBlockedBy?: Array<{ kind: 'node' | 'label' | 'channel' | 'span' | 'crossing'; id: string }>
-  straightened?: boolean     // true when the certifying straightener collapsed the route
+}
+
+type RouteCertificate =
+  | (RouteCertificateBase & {
+      invariant: 'straight'
+      straightened?: true    // true only when the final route is two-point straight
+    })
+  | (RouteCertificateBase & {
+      invariant: Exclude<RouteInvariant, 'straight'>
+      straightened?: never   // detours cannot carry stale straightening metadata
+    })
 }
 ```
 

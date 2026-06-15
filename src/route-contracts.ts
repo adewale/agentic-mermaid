@@ -25,9 +25,16 @@ import type {
   RouteBlocker,
   RouteCertificate,
   RouteClass,
+  RouteInvariant,
 } from './types.ts'
 import { measureMultilineText } from './text-metrics.ts'
 import { resolveRenderStyle } from './styles.ts'
+
+type DraftRouteCertificate = Omit<RouteCertificate, 'invariant' | 'straightened'> & {
+  invariant: RouteInvariant
+  /** Internal draft bit; finalized public certificates only keep this for straight routes. */
+  straightened?: true
+}
 
 /** Two coordinates within this distance are the same point. */
 const EPS = 0.01
@@ -874,7 +881,7 @@ export function applyRouteContracts(
     }
   }
   const ctx: LaneContext = { nodes: positioned.nodes, edges: positioned.edges, axis, style, classes, sideUse }
-  const certificates: RouteCertificate[] = []
+  const drafts: Array<{ edge: PositionedEdge; cert: DraftRouteCertificate }> = []
 
   // Attempt one proof-carrying straightening; updates geometry + certificate.
   // `applied` means the route is straight; `mutated` means geometry moved this
@@ -884,7 +891,7 @@ export function applyRouteContracts(
   // not-yet-repaired geometry).
   const attemptStraighten = (
     edge: PositionedEdge,
-    cert: RouteCertificate,
+    cert: DraftRouteCertificate,
   ): { applied: boolean; mutated: boolean; upgradeable?: boolean } => {
     const edgeAxis: Axis = cert.routeClass === 'feedback' ? { ...axis, sign: axis.sign === 1 ? -1 : 1 } : axis
     const source = nodeMap.get(edge.source)
@@ -1323,7 +1330,7 @@ export function applyRouteContracts(
     source: PositionedNode | undefined,
     target: PositionedNode | undefined,
     graphAxis: Axis,
-  ): RouteCertificate['invariant'] | null {
+  ): RouteInvariant | null {
     if (routeClass !== 'feedback') return null
     if (!source || !target) return 'feedback-detour'
     const crossSize = (n: PositionedNode) => graphAxis.cross === 'y' ? n.height : n.width
@@ -1333,13 +1340,13 @@ export function applyRouteContracts(
     return escapes ? 'outer-feedback' : 'feedback-detour'
   }
 
-  const retry: Array<{ edge: PositionedEdge; cert: RouteCertificate }> = []
+  const retry: Array<{ edge: PositionedEdge; cert: DraftRouteCertificate }> = []
   for (const edge of positioned.edges) {
     edge.points = simplifyPolyline(orthogonalizeResidualDiagonals(edge.points))
 
     const edgeIndex = edge.edgeIndex ?? -1
     const routeClass: RouteClass = classes[edgeIndex] ?? 'primary-forward'
-    const cert: RouteCertificate = {
+    const cert: DraftRouteCertificate = {
       edgeIndex,
       routeClass,
       bendCount: bendCount(edge.points),
@@ -1389,8 +1396,7 @@ export function applyRouteContracts(
       }
     }
 
-    edge.routeCertificate = cert
-    certificates.push(cert)
+    drafts.push({ edge, cert })
   }
 
   // Fixed point: each round re-proves edges that failed OR landed on a
@@ -1411,21 +1417,36 @@ export function applyRouteContracts(
     retry.push(...still)
   }
 
-  // Record final route facts after ALL geometry has settled (straightening,
-  // tightening, and fixed-point retries). A retry can downgrade an earlier
-  // straightening to a proved detour; do not leave a stale `straightened`
-  // bit on the final certificate.
-  for (const edge of positioned.edges) {
-    const cert = edge.routeCertificate
-    if (!cert || edge.points.length === 0) continue
-    cert.bendCount = bendCount(edge.points)
-    if (cert.straightened && (cert.invariant !== 'straight' || cert.bendCount !== 0 || edge.points.length !== 2)) {
-      delete cert.straightened
-    }
+  const certificates: RouteCertificate[] = []
+  const finalizeCertificate = (edge: PositionedEdge, draft: DraftRouteCertificate): RouteCertificate => {
+    const bendCountFinal = bendCount(edge.points)
     const sourceNode = nodeMap.get(edge.source)
     const targetNode = nodeMap.get(edge.target)
-    if (sourceNode) cert.sourcePort = portAt(sourceNode, edge.points[0]!)
-    if (targetNode) cert.targetPort = portAt(targetNode, edge.points[edge.points.length - 1]!)
+    const base = {
+      edgeIndex: draft.edgeIndex,
+      routeClass: draft.routeClass,
+      bendCount: bendCountFinal,
+      directLaneClear: draft.directLaneClear,
+      directLaneBlockedBy: draft.directLaneBlockedBy,
+      sourcePort: sourceNode && edge.points.length > 0 ? portAt(sourceNode, edge.points[0]!) : undefined,
+      targetPort: targetNode && edge.points.length > 0 ? portAt(targetNode, edge.points[edge.points.length - 1]!) : undefined,
+    }
+    // Public route certificates are a discriminated union: only final
+    // straight routes may carry `straightened`. A retry can downgrade an
+    // earlier straightening to a detour; the type forbids exporting that
+    // stale impossible state.
+    if (draft.invariant === 'straight' && bendCountFinal === 0 && edge.points.length === 2) {
+      return { ...base, invariant: 'straight', ...(draft.straightened ? { straightened: true as const } : {}) }
+    }
+    return { ...base, invariant: draft.invariant === 'straight' ? 'explained-detour' : draft.invariant }
+  }
+
+  // Record final route facts after ALL geometry has settled (straightening,
+  // tightening, and fixed-point retries).
+  for (const { edge, cert: draft } of drafts) {
+    const cert = finalizeCertificate(edge, draft)
+    edge.routeCertificate = cert
+    certificates.push(cert)
   }
 
   return certificates
