@@ -39,6 +39,23 @@ import { clipEdgeToShape } from './shape-clipping.ts'
 import { applyRouteContracts, diamondFacetPorts, labelRect, PORT_EXACT, shapePorts, simplifyPolyline } from './route-contracts.ts'
 import type { LabelMetricsStyle } from './route-contracts.ts'
 
+type LayoutDebugEnv = {
+  APL_DEBUG?: string
+  APL_NO_CENTER?: string
+  APL_NO_FACET?: string
+  APL_NO_SVERTEX?: string
+}
+
+function layoutEnvFlag(name: keyof LayoutDebugEnv): boolean {
+  const env = (globalThis as typeof globalThis & { process?: { env?: LayoutDebugEnv } }).process?.env
+  const value = env?.[name]
+  return value === '1' || value === 'true'
+}
+
+function layoutDebug(...args: unknown[]): void {
+  if (layoutEnvFlag('APL_DEBUG')) console.error(...args)
+}
+
 interface LayoutEngineOptions extends RenderOptions {
   /** @internal Preserve direct child order in compound nodes for projected families. */
   preserveSubgraphChildOrder?: boolean
@@ -1495,7 +1512,7 @@ function alignPortLanes(
   }
 
   const centeredHubs = new Set<string>()
-  for (const t of (process.env.APL_NO_CENTER ? [] : nodes)) {
+  for (const t of (layoutEnvFlag('APL_NO_CENTER') ? [] : nodes)) {
     if (frozen.has(t.id) || inGroup(t) || !PORT_EXACT.has(t.shape)) continue
     const incoming = edges.filter(e =>
       e.target === t.id && e.source !== t.id && e.points.length >= 2)
@@ -1526,7 +1543,7 @@ function alignPortLanes(
       .filter(e => e.source === t.id || e.target === t.id)
       .map(e => `${e.source}->${e.target}`))
     if (!hubMoveSafe(t, delta, incidentIds)) continue
-    if (process.env.APL_DEBUG) console.error('[apl] center hub', t.id, 'by', delta.toFixed(1), 'over', srcList.length, 'sources')
+    layoutDebug('[apl] center hub', t.id, 'by', delta.toFixed(1), 'over', srcList.length, 'sources')
     // Move the hub; translate every incident edge's hub-side endpoint run so
     // the polyline stays connected. applyRouteContracts then re-merges the
     // now-symmetric incoming lanes onto the hub's exact port.
@@ -1557,7 +1574,7 @@ function alignPortLanes(
   // slide to facet-mid lanes: the source's two designated facet points pair
   // with the targets' facing cardinal ports. Proof-gated by moveSafe.
   const facetAligned = new Set<PositionedEdge>()
-  if (!process.env.APL_NO_FACET) {
+  if (!layoutEnvFlag('APL_NO_FACET')) {
     // The facet pair adjoining the flow-exit side, ordered (upper, lower) by
     // cross coordinate. cross='y' for LR/RL (E/W exit → NE/SE or NW/SW);
     // cross='x' for TD/BT (S/N exit → SW/SE or NW/NE).
@@ -1677,7 +1694,7 @@ function alignPortLanes(
   // diamond's perpendicular vertex (the S vertex when the source is below)
   // instead of floating on the facet. Proof-gated: the source slides onto the
   // vertex's cross lane (moveSafe) and the resulting straight lane must clear.
-  if (!process.env.APL_NO_SVERTEX) {
+  if (!layoutEnvFlag('APL_NO_SVERTEX')) {
     for (const e of edges) {
       if (facetAligned.has(e) || e.points.length < 2 || e.source === e.target) continue
       const src = nodeMap.get(e.source)
@@ -1725,7 +1742,7 @@ function alignPortLanes(
       const laneHi = Math.max(exitPort[main], vertex[main])
       if ((vertex[main] - exitPort[main]) * sign <= 0.5) continue
       if (laneBlocked(vertex[cross], laneLo, laneHi, new Set([src.id, tgt.id]))) continue
-      if (process.env.APL_DEBUG) console.error('[apl] svertex', e.source, '->', e.target, 'into', vertexSide, 'vertex')
+      layoutDebug('[apl] svertex', e.source, '->', e.target, 'into', vertexSide, 'vertex')
       if (Math.abs(delta) > 0.5) {
         if (isHorizontal) src.y += delta; else src.x += delta
         for (const o of edges) {
@@ -1770,7 +1787,7 @@ function alignPortLanes(
     if (!isForwardMonotone(e) || simplifyPolyline(e.points).length > 4) continue
     const moved = moveSafe(tgt, d, e) ? tgt : moveSafe(src, -d, e) ? src : null
     if (moved) {
-      if (process.env.APL_DEBUG) console.error('[apl] slide', moved.id, 'by', (moved === tgt ? d : -d).toFixed(1), 'for', e.source, '->', e.target)
+      layoutDebug('[apl] slide', moved.id, 'by', (moved === tgt ? d : -d).toFixed(1), 'for', e.source, '->', e.target)
       apply(moved, moved === tgt ? d : -d, e)
       frozen.add(e.source)
       frozen.add(e.target)

@@ -29,6 +29,7 @@ const BANNED = [
   { name: 'Math.random', re: /\bMath\s*\.\s*random\b/ },
   { name: 'Date.now', re: /\bDate\s*\.\s*now\b/ },
   { name: 'performance.now', re: /\bperformance\s*\.\s*now\b/ },
+  { name: 'process.env', re: /\bprocess\s*\.\s*env\b/ },
 ]
 
 describe('substrate grep-lint (real enforcement)', () => {
