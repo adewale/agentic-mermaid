@@ -95,19 +95,23 @@ non-zero if any **hard** finding is present, so it doubles as a CI gate.
 
 ### What the audit found (2026-06)
 
-Across **338 diagrams / ~1000 format-audits**, exactly one real hard defect:
+Current result on PR #30 after the nested-subgraph route fixes:
 
-- **A cross-hierarchy edge into a nested subgraph drops the subgraph offset.**
-  In `INCLUDE_CHILDREN` mode (no direction override), an edge from a node in an
-  outer subgraph to a node in an *inner* (nested) subgraph — e.g. `A --> B`
-  where `A` is in `outer` and `B` is in `inner` inside `outer` — renders at
-  coordinates that are correct *relative to the inner subgraph* but missing the
-  containing subgraph's translation, so the edge floats away from both nodes.
-  Reproduces minimally; flat subgraphs and inner-only edges are clean. Tracked
-  separately from the diamond/fan-in routing work.
+```text
+338 diagrams / 1009 format-audits
+0 hard layout defects
+0 soft layout findings
+6 render/corpus errors
+```
 
-The remaining non-clean results are **render errors** (a diagram type or config
-header a given renderer rejects), not layout defects, and are bucketed as such.
+The non-clean entries are **render errors** (a diagram type or config header a
+given renderer rejects), not layout defects, and are bucketed as such.
+
+Historical note: an earlier audit found one real hard defect — a
+cross-hierarchy edge into a nested subgraph missing the containing subgraph's
+offset. That is now fixed by hosting cross-hierarchy edges at their lowest
+common compound and by treating subgraph IDs as container endpoints; the
+regressions live in `src/__tests__/subgraph-direction.test.ts`.
 
 Two findings the audit initially raised were **detector** false positives, now
 fixed and regression-tested: a cylinder's footprint must union its cap ellipses
