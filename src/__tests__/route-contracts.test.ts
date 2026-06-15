@@ -610,6 +610,25 @@ describe('duplicate parallel edges (fast-check counterexample, pinned)', () => {
   })
 })
 
+describe('straightened certificate finality (fast-check counterexample, pinned)', () => {
+  it('clears the straightened bit when a fixed-point retry downgrades to a detour', () => {
+    const positioned = layoutGraphSync(parseMermaid(`flowchart BT
+  N1 -- No --> N4
+  N4 -- yes --> N1
+  N4 --> N3
+  N0 -- on error --> N2
+  N0 --> N2
+  N4 --> N2
+  N2 -- yes --> N0
+  N1 -- No --> N2
+  N3 -- on error --> N0`))
+    const e = positioned.edges.find(e => e.source === 'N0' && e.target === 'N2' && e.label === undefined)!
+    expect(e.points.length).toBeGreaterThan(2)
+    expect(e.routeCertificate?.invariant).toBe('explained-detour')
+    expect(e.routeCertificate?.straightened).toBeUndefined()
+  })
+})
+
 describe('findLabelSlot (unit)', () => {
   const axis = { main: 'x', cross: 'y', sign: 1 } as const
   const style = { edgeLabelFontSize: 12, edgeLabelFontWeight: 400 }
@@ -798,6 +817,17 @@ describe('route audit tripwires fire on post-certification corruption', () => {
     expect(findings.some(f => f.code === 'ROUTE_STALE_AFTER_NODE_MOVE' && 'node' in f && f.node === 'A')).toBe(true)
   })
 
+  it('ROUTE_STALE_AFTER_NODE_MOVE: a non-incident node moved onto a certified route', () => {
+    const graph = parseMermaid('flowchart LR\n  A --> B\n  C')
+    const positioned = layoutGraphSync(graph)
+    const e = findEdge(positioned.edges, 'A', 'B')
+    const c = positioned.nodes.find(n => n.id === 'C')!
+    c.x = (e.points[0]!.x + e.points[1]!.x) / 2 - c.width / 2
+    c.y = e.points[0]!.y - c.height / 2
+    const findings = auditRouteContracts(positioned, graph)
+    expect(findings.some(f => f.code === 'ROUTE_STALE_AFTER_NODE_MOVE' && 'node' in f && f.node === 'C')).toBe(true)
+  })
+
   it('ROUTE_SHAPE_MISANCHOR: an endpoint pulled inside a diamond', () => {
     const graph = parseMermaid(MFA_SOURCE)
     const positioned = layoutGraphSync(graph)
@@ -896,7 +926,7 @@ describe('container repair — axis selection harvest', () => {
     return out
   }
 
-  it('side-by-side containers repair onto a horizontal lane', () => {
+  it('side-by-side containers route onto a horizontal lane', () => {
     const positioned = layoutGraphSync(parseMermaid(`flowchart TD
   subgraph TOP
     direction LR
@@ -923,7 +953,21 @@ describe('container repair — axis selection harvest', () => {
     expect(Math.abs(end.x - b2.x)).toBeLessThan(1)
     expect(s.y).toBeGreaterThan(b1.y)
     expect(s.y).toBeLessThan(b1.y + b1.height)
-    expect(e.routeCertificate?.straightened).toBe(true)
+    expect(e.routeCertificate?.invariant).toBe('container-attach')
+    expect(auditRouteContracts(positioned, parseMermaid(`flowchart TD
+  subgraph TOP
+    direction LR
+    subgraph B1
+        direction TB
+        i1 --> f1
+    end
+    subgraph B2
+        direction TB
+        i2 --> f2
+    end
+  end
+  A --> TOP --> B
+  B1 --> B2`))).toEqual([])
   })
 
   it('a non-straightenable node end (circle) declines repair gracefully', () => {

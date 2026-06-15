@@ -1411,11 +1411,17 @@ export function applyRouteContracts(
     retry.push(...still)
   }
 
-  // Record which endpoints landed on canonical ports — after ALL geometry
-  // has settled (straightening, tightening, and the fixed-point retries).
+  // Record final route facts after ALL geometry has settled (straightening,
+  // tightening, and fixed-point retries). A retry can downgrade an earlier
+  // straightening to a proved detour; do not leave a stale `straightened`
+  // bit on the final certificate.
   for (const edge of positioned.edges) {
     const cert = edge.routeCertificate
     if (!cert || edge.points.length === 0) continue
+    cert.bendCount = bendCount(edge.points)
+    if (cert.straightened && (cert.invariant !== 'straight' || cert.bendCount !== 0 || edge.points.length !== 2)) {
+      delete cert.straightened
+    }
     const sourceNode = nodeMap.get(edge.source)
     const targetNode = nodeMap.get(edge.target)
     if (sourceNode) cert.sourcePort = portAt(sourceNode, edge.points[0]!)
@@ -1654,6 +1660,24 @@ export function auditRouteContracts(
           if (!onRectPerimeter(point, node.x, node.y, node.width, node.height, TOL)) {
             findings.push({ code: 'ROUTE_SHAPE_MISANCHOR', edge: id, node: nodeId })
           }
+        }
+      }
+    }
+
+    // ROUTE_STALE_AFTER_NODE_MOVE also catches the other stale-corridor
+    // signature: a non-incident node moved onto an already-certified route.
+    // Endpoint detachment above catches moved endpoints; this catches moved
+    // obstacles in the middle of a route.
+    for (const node of positioned.nodes) {
+      if (node.id === edge.source || node.id === edge.target) continue
+      for (let i = 1; i < edge.points.length; i++) {
+        const a = edge.points[i - 1]!, b = edge.points[i]!
+        const xLo = Math.min(a.x, b.x), xHi = Math.max(a.x, b.x)
+        const yLo = Math.min(a.y, b.y), yHi = Math.max(a.y, b.y)
+        if (xHi > node.x + 0.5 && xLo < node.x + node.width - 0.5 &&
+          yHi > node.y + 0.5 && yLo < node.y + node.height - 0.5) {
+          findings.push({ code: 'ROUTE_STALE_AFTER_NODE_MOVE', edge: id, node: node.id })
+          break
         }
       }
     }

@@ -525,6 +525,7 @@ function parseEdgeLine(
       const closeOp = textMatch[4]!
       remaining = remaining.slice(textMatch[0].length).trim()
       style = textArrowStyleFromOps(openOp, closeOp)
+      length = textArrowLengthFromOps(openOp, closeOp)
       hasArrowEnd = closeOp.endsWith('>')
       startMarker = hasArrowStart ? 'arrow' : undefined
       endMarker = hasArrowEnd ? 'arrow' : undefined
@@ -704,6 +705,31 @@ function textArrowStyleFromOps(openOp: string, closeOp: string): EdgeStyle {
   if (openOp.includes('.') || closeOp.includes('.')) return 'dotted'
   if (openOp.includes('=') || closeOp.includes('=')) return 'thick'
   return 'solid'
+}
+
+/**
+ * Mermaid's text-embedded label syntax splits the operator around the label
+ * (`-- label -->`, `-. label .->`, `== label ==>`). Extra shaft units may be
+ * written on either side; serialize them through the single MermaidEdge length
+ * field so round-tripping does not collapse rank distance.
+ */
+function textArrowLengthFromOps(openOp: string, closeOp: string): number | undefined {
+  const style = textArrowStyleFromOps(openOp, closeOp)
+  const count = (s: string, ch: string) => (s.match(new RegExp(`\\${ch}`, 'g')) ?? []).length
+  let extraOpen = 0
+  let extraClose = 0
+  if (style === 'dotted') {
+    extraOpen = Math.max(0, count(openOp, '.') - 1)
+    extraClose = Math.max(0, count(closeOp, '.') - 1)
+  } else if (style === 'thick') {
+    extraOpen = Math.max(0, count(openOp, '=') - 2)
+    extraClose = Math.max(0, count(closeOp, '=') - (closeOp.endsWith('>') ? 2 : 3))
+  } else {
+    extraOpen = Math.max(0, count(openOp, '-') - 2)
+    extraClose = Math.max(0, count(closeOp, '-') - (closeOp.endsWith('>') ? 2 : 3))
+  }
+  const extra = Math.max(extraOpen, extraClose)
+  return extra > 0 ? extra + 1 : undefined
 }
 
 function startMarkerForOp(op: string, hasLeftAngle: boolean): EdgeMarker | undefined {

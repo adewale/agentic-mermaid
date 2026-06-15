@@ -15,7 +15,7 @@
  */
 
 import type { MermaidGraph, Point, PositionedGraph, PositionedNode } from './types.ts'
-import { findRouteHitches, shapePorts } from './route-contracts.ts'
+import { diamondFacetPorts, findRouteHitches, shapePorts } from './route-contracts.ts'
 import { measureMultilineText } from './text-metrics.ts'
 import { resolveRenderStyle } from './styles.ts'
 
@@ -61,6 +61,13 @@ export interface RubricResult {
  * Shapes without an exact oracle yet fall back to the bbox perimeter, which
  * is exact at the four ports and approximate elsewhere.
  */
+function onDesignatedPort(node: PositionedNode, p: Point): boolean {
+  const near = (q: Point) => Math.abs(q.x - p.x) <= 0.5 && Math.abs(q.y - p.y) <= 0.5
+  if ((Object.values(shapePorts(node)) as Point[]).some(near)) return true
+  if (node.shape === 'diamond' && (Object.values(diamondFacetPorts(node)) as Point[]).some(near)) return true
+  return false
+}
+
 export function onShapeOutline(node: PositionedNode, p: Point, tol = 1.5): boolean {
   const cx = node.x + node.width / 2
   const cy = node.y + node.height / 2
@@ -311,20 +318,11 @@ export function assessLayout(graph: MermaidGraph, positioned: PositionedGraph): 
         offOutline++
         violations.push({ metric: 'offOutlineEndpoints', detail: `${id} ${label} on ${nodeId}(${node.shape}) at (${pt.x.toFixed(1)},${pt.y.toFixed(1)})` })
       }
-      const ports = shapePorts(node)
-      if ((['N', 'E', 'S', 'W'] as const).some(s =>
-        Math.abs(ports[s].x - pt.x) <= 0.5 && Math.abs(ports[s].y - pt.y) <= 0.5))
-
-        portEnds++
+      if (onDesignatedPort(node, pt)) portEnds++
     }
     const srcNode = nodeMap.get(e.source)
     const tgtNode = nodeMap.get(e.target)
-    const onPort = (node: PositionedNode | undefined, pt: Point) => {
-      if (!node) return false
-      const ports = shapePorts(node)
-      return (['N', 'E', 'S', 'W'] as const).some(s =>
-        Math.abs(ports[s].x - pt.x) <= 0.5 && Math.abs(ports[s].y - pt.y) <= 0.5)
-    }
+    const onPort = (node: PositionedNode | undefined, pt: Point) => node ? onDesignatedPort(node, pt) : false
     if (onPort(srcNode, e.points[0]!) || onPort(tgtNode, e.points[e.points.length - 1]!)) portAnchoredEdges++
 
     if (e.label && e.labelPosition && e.points.length >= 2) {

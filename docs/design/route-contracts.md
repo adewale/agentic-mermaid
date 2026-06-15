@@ -628,7 +628,7 @@ ROUTE_UNEXPLAINED_BEND     { edge }               diagonal segment under orthogo
 ROUTE_LABEL_ON_SHARED_TRUNK{ edge, sharedWith }   label pill on a line segment another edge shares collinearly
 ROUTE_CONTAINER_MISANCHOR  { edge, container }    container edge not terminating on the container border (§11.5)
 ROUTE_SHAPE_MISANCHOR      { edge, node }         endpoint off the rendered shape boundary (§11.6; rect-like + diamond)
-ROUTE_STALE_AFTER_NODE_MOVE{ edge, node }         endpoint detached from its node entirely
+ROUTE_STALE_AFTER_NODE_MOVE{ edge, node }         endpoint detached, or a non-incident node moved onto a route
 ```
 
 Shapes without an anchor contract yet (circle, stadium, …) are exempt from

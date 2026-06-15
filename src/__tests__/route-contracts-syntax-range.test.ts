@@ -10,10 +10,9 @@
 // layoutGraphSync as an ordinary MermaidEdge. These tests pin that the
 // heuristics treat the whole supported range uniformly.
 //
-// Deliberately NOT tested here (unsupported syntax, recorded in
-// docs/design/issue-26-audit.md): `~~~` invisible links, length variants
-// (`---->`), extended dotted (`-..->`) and thick (`====>`) forms — the
-// parser drops or misparses those before layout ever sees them.
+// Deliberately covered in link-grammar.test.ts instead: `~~~` invisible
+// links and length variants (`---->`, `-..->`, `====>`). This file focuses
+// on route-contract geometry once parser support has produced edges.
 // ============================================================================
 
 import { describe, expect, it } from 'bun:test'

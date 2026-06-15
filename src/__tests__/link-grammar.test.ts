@@ -87,6 +87,19 @@ describe('link length is preserved through round-trip', () => {
     expect(serialized(src)).toContain(op)
   })
 
+  it.each([
+    ['flowchart LR\n  A -- No ----> B', '---->|No|', 3],
+    ['flowchart LR\n  A -. Maybe ..-> B', '-..->|Maybe|', 2],
+    ['flowchart LR\n  A == Sure ====> B', '====>|Sure|', 3],
+    ['flowchart LR\n  A -- note ---- B', '----|note|', 2],
+  ] as const)('text-embedded label length survives canonical serialization: %s', (src, op, length) => {
+    const graph = parseMermaid(src)
+    expect(graph.edges[0]!.length).toBe(length)
+    const out = serialized(src)
+    expect(out).toContain(op)
+    expect(parseMermaid(out).edges[0]!.length).toBe(length)
+  })
+
   it('base-form operators serialize byte-identically (no churn for length 1)', () => {
     for (const [src, op] of [
       ['flowchart LR\n  A --> B', '-->'],

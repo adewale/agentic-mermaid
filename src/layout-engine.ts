@@ -226,6 +226,15 @@ interface HierarchicalEdgeInfo {
   direction: 'incoming' | 'outgoing'
 }
 
+interface CrossHierarchyEdgeInfo {
+  index: number
+  edge: MermaidEdge
+  sourceSubgraph: string | undefined
+  targetSubgraph: string | undefined
+  /** Lowest common compound that should host the external segment; undefined means root. */
+  hostSubgraph?: string
+}
+
 /**
  * Convert a MermaidGraph to ELK's nested JSON input format.
  *
@@ -248,6 +257,19 @@ function mermaidToElk(
   // Build node-to-subgraph mapping for edge distribution
   const nodeToSubgraph = buildNodeToSubgraphMap(graph.subgraphs)
   const nodeToRootSubgraph = buildNodeToRootSubgraphMap(graph.subgraphs)
+  const nodeToSubgraphAncestors = buildNodeSubgraphAncestorsMap(graph.subgraphs)
+  const subgraphToParent = buildSubgraphParentMap(graph.subgraphs)
+  const subgraphAncestors = buildSubgraphAncestorsMap(graph.subgraphs)
+  const endpointSubgraph = (id: string) => nodeToSubgraph.get(id) ?? subgraphToParent.get(id)
+  // For a subgraph-id endpoint, use the containing ancestry (excluding the
+  // subgraph itself): an edge to `Pipeline` targets the container box, not a
+  // node inside Pipeline.
+  const endpointAncestors = (id: string) =>
+    nodeToSubgraphAncestors.get(id) ?? subgraphAncestors.get(id)?.slice(0, -1) ?? []
+
+  // Determine if we need SEPARATE hierarchy handling
+  // We use SEPARATE when any subgraph has a direction override
+  const hasDirectionOverride = graph.subgraphs.some(sg => sg.direction !== undefined)
 
   // Classify edges into three categories:
   // 1. Internal edges (both endpoints in same subgraph)
@@ -257,17 +279,12 @@ function mermaidToElk(
   edgesBySubgraph.set(null, []) // Root-level edges
 
   // Track cross-hierarchy edges for hierarchical port creation
-  const crossHierarchyEdges: Array<{
-    index: number
-    edge: typeof graph.edges[0]
-    sourceSubgraph: string | undefined
-    targetSubgraph: string | undefined
-  }> = []
+  const crossHierarchyEdges: CrossHierarchyEdgeInfo[] = []
 
   for (let i = 0; i < graph.edges.length; i++) {
     const edge = graph.edges[i]!
-    const sourceSubgraph = nodeToSubgraph.get(edge.source)
-    const targetSubgraph = nodeToSubgraph.get(edge.target)
+    const sourceSubgraph = endpointSubgraph(edge.source)
+    const targetSubgraph = endpointSubgraph(edge.target)
 
     if (sourceSubgraph && sourceSubgraph === targetSubgraph) {
       // Internal edge: both endpoints in same subgraph
@@ -278,15 +295,32 @@ function mermaidToElk(
     } else if (!sourceSubgraph && !targetSubgraph) {
       // Root-level edge: neither endpoint in a subgraph
       edgesBySubgraph.get(null)!.push({ index: i, edge })
+    } else if (!hasDirectionOverride) {
+      // INCLUDE_CHILDREN can route direct descendant edges without ports, but
+      // ELK reports an edge's section in the coordinate space of its lowest
+      // common compound. Store such edges on that compound so recursive
+      // extraction adds the correct absolute offset (outer A -> inner B).
+      const lca = deepestCommonAncestor(
+        endpointAncestors(edge.source),
+        endpointAncestors(edge.target),
+      )
+      if (lca) {
+        if (!edgesBySubgraph.has(lca)) edgesBySubgraph.set(lca, [])
+        edgesBySubgraph.get(lca)!.push({ index: i, edge })
+      } else {
+        edgesBySubgraph.get(null)!.push({ index: i, edge })
+      }
     } else {
-      // Cross-hierarchy edge: need hierarchical ports
-      crossHierarchyEdges.push({ index: i, edge, sourceSubgraph, targetSubgraph })
+      // Cross-hierarchy edge: need hierarchical ports. When both endpoints
+      // live under one compound, host the external port-to-port segment on
+      // that lowest common compound so extraction receives the right offset.
+      const hostSubgraph = deepestCommonAncestor(
+        endpointAncestors(edge.source),
+        endpointAncestors(edge.target),
+      )
+      crossHierarchyEdges.push({ index: i, edge, sourceSubgraph, targetSubgraph, hostSubgraph })
     }
   }
-
-  // Determine if we need SEPARATE hierarchy handling
-  // We use SEPARATE when any subgraph has a direction override
-  const hasDirectionOverride = graph.subgraphs.some(sg => sg.direction !== undefined)
 
   // Build the root ELK graph
   const elkGraph: ElkGraphNode = {
@@ -339,12 +373,21 @@ function mermaidToElk(
     direction: 'incoming' | 'outgoing'
     internalNodeId: string
   }>>()
+  const crossEdgesByHost = new Map<string | null, CrossHierarchyEdgeInfo[]>()
+  crossEdgesByHost.set(null, [])
 
-  // Process cross-hierarchy edges to create port entries
+  // Process cross-hierarchy edges to create port entries and host maps.
   if (hasDirectionOverride) {
-    for (const { index, edge, sourceSubgraph, targetSubgraph } of crossHierarchyEdges) {
-      // Handle outgoing edges from subgraph
-      if (sourceSubgraph) {
+    for (const info of crossHierarchyEdges) {
+      const { index, edge, sourceSubgraph, targetSubgraph, hostSubgraph } = info
+      const hostKey = hostSubgraph ?? null
+      if (!crossEdgesByHost.has(hostKey)) crossEdgesByHost.set(hostKey, [])
+      crossEdgesByHost.get(hostKey)!.push(info)
+
+      // Handle outgoing edges from nested source subgraphs. If the source's
+      // own subgraph hosts the external segment, the node can be referenced
+      // directly and no boundary port is needed.
+      if (sourceSubgraph && sourceSubgraph !== hostSubgraph) {
         const portId = `${sourceSubgraph}_out_${index}`
         if (!subgraphPorts.has(sourceSubgraph)) {
           subgraphPorts.set(sourceSubgraph, [])
@@ -357,8 +400,9 @@ function mermaidToElk(
         })
       }
 
-      // Handle incoming edges to subgraph
-      if (targetSubgraph) {
+      // Handle incoming edges to nested target subgraphs. If the target's own
+      // subgraph hosts the external segment, target the node directly.
+      if (targetSubgraph && targetSubgraph !== hostSubgraph) {
         const portId = `${targetSubgraph}_in_${index}`
         if (!subgraphPorts.has(targetSubgraph)) {
           subgraphPorts.set(targetSubgraph, [])
@@ -383,7 +427,7 @@ function mermaidToElk(
   for (const id of rootOrder) {
     const sg = topLevelSubgraphs.get(id)
     if (sg) {
-      elkGraph.children!.push(subgraphToElk(sg, graph, opts, style, edgesBySubgraph, subgraphPorts, useSourceAwareChildOrder))
+      elkGraph.children!.push(subgraphToElk(sg, graph, opts, style, edgesBySubgraph, subgraphPorts, crossEdgesByHost, useSourceAwareChildOrder))
       continue
     }
     const node = graph.nodes.get(id)
@@ -420,29 +464,34 @@ function mermaidToElk(
     elkGraph.edges!.push(elkEdge)
   }
 
-  // Add cross-hierarchy edges (using ports when SEPARATE, direct when INCLUDE_CHILDREN)
-  for (const { index, edge, sourceSubgraph, targetSubgraph } of crossHierarchyEdges) {
-    const elkEdge: ElkExtendedEdge = {
-      id: `e${index}`,
-      sources: hasDirectionOverride && sourceSubgraph ? [`${sourceSubgraph}_out_${index}`] : [edge.source],
-      targets: hasDirectionOverride && targetSubgraph ? [`${targetSubgraph}_in_${index}`] : [edge.target],
-    }
-    if (edge.label) {
-      const metrics = measureMultilineText(edge.label, style.edgeLabelFontSize, style.edgeLabelFontWeight)
-      elkEdge.labels = [{
-        text: edge.label,
-        width: metrics.width + 8,
-        height: metrics.height + 6,
-        layoutOptions: {
-          'elk.edgeLabels.inline': 'true',
-          'elk.edgeLabels.placement': 'CENTER',
-        },
-      }]
-    }
-    elkGraph.edges!.push(elkEdge)
+  // Add root-hosted cross-hierarchy edges (using ports when SEPARATE, direct when INCLUDE_CHILDREN)
+  for (const info of crossEdgesByHost.get(null) ?? []) {
+    elkGraph.edges!.push(crossHierarchyElkEdge(info, style))
   }
 
   return elkGraph
+}
+
+function crossHierarchyElkEdge(info: CrossHierarchyEdgeInfo, style: ResolvedRenderStyle): ElkExtendedEdge {
+  const { index, edge, sourceSubgraph, targetSubgraph, hostSubgraph } = info
+  const elkEdge: ElkExtendedEdge = {
+    id: `e${index}`,
+    sources: sourceSubgraph && sourceSubgraph !== hostSubgraph ? [`${sourceSubgraph}_out_${index}`] : [edge.source],
+    targets: targetSubgraph && targetSubgraph !== hostSubgraph ? [`${targetSubgraph}_in_${index}`] : [edge.target],
+  }
+  if (edge.label) {
+    const metrics = measureMultilineText(edge.label, style.edgeLabelFontSize, style.edgeLabelFontWeight)
+    elkEdge.labels = [{
+      text: edge.label,
+      width: metrics.width + 8,
+      height: metrics.height + 6,
+      layoutOptions: {
+        'elk.edgeLabels.inline': 'true',
+        'elk.edgeLabels.placement': 'CENTER',
+      },
+    }]
+  }
+  return elkEdge
 }
 
 /**
@@ -465,6 +514,7 @@ function subgraphToElk(
     direction: 'incoming' | 'outgoing'
     internalNodeId: string
   }>>,
+  crossEdgesByHost: Map<string | null, CrossHierarchyEdgeInfo[]>,
   useSourceAwareOrder: boolean,
 ): ElkGraphNode {
   const groupHeaderHeight = style.groupHeaderFontSize + 16
@@ -523,7 +573,7 @@ function subgraphToElk(
 
   // Add nested subgraphs recursively
   for (const child of sg.children) {
-    elkNode.children!.push(subgraphToElk(child, graph, opts, style, edgesBySubgraph, subgraphPorts, useSourceAwareOrder))
+    elkNode.children!.push(subgraphToElk(child, graph, opts, style, edgesBySubgraph, subgraphPorts, crossEdgesByHost, useSourceAwareOrder))
   }
 
   // Add internal edges (edges where both endpoints are in this subgraph)
@@ -547,6 +597,13 @@ function subgraphToElk(
       }]
     }
     elkNode.edges!.push(elkEdge)
+  }
+
+  // Add cross-hierarchy external segments hosted by this compound. Ports are
+  // only used for endpoints that live in a nested child compound; direct
+  // children of this host are referenced by node id.
+  for (const info of crossEdgesByHost.get(sg.id) ?? []) {
+    elkNode.edges!.push(crossHierarchyElkEdge(info, style))
   }
 
   // Add internal edge segments for hierarchical ports (port → node or node → port)
@@ -607,6 +664,47 @@ function buildNodeToRootSubgraphMap(subgraphs: MermaidSubgraph[]): Map<string, s
   }
   for (const sg of subgraphs) traverse(sg, sg.id)
   return map
+}
+
+function buildNodeSubgraphAncestorsMap(subgraphs: MermaidSubgraph[]): Map<string, string[]> {
+  const map = new Map<string, string[]>()
+  function traverse(sg: MermaidSubgraph, ancestors: string[]): void {
+    const next = [...ancestors, sg.id]
+    for (const nodeId of sg.nodeIds) map.set(nodeId, next)
+    for (const child of sg.children) traverse(child, next)
+  }
+  for (const sg of subgraphs) traverse(sg, [])
+  return map
+}
+
+function buildSubgraphParentMap(subgraphs: MermaidSubgraph[]): Map<string, string | undefined> {
+  const map = new Map<string, string | undefined>()
+  function traverse(sg: MermaidSubgraph, parent: string | undefined): void {
+    map.set(sg.id, parent)
+    for (const child of sg.children) traverse(child, sg.id)
+  }
+  for (const sg of subgraphs) traverse(sg, undefined)
+  return map
+}
+
+function buildSubgraphAncestorsMap(subgraphs: MermaidSubgraph[]): Map<string, string[]> {
+  const map = new Map<string, string[]>()
+  function traverse(sg: MermaidSubgraph, ancestors: string[]): void {
+    const next = [...ancestors, sg.id]
+    map.set(sg.id, next)
+    for (const child of sg.children) traverse(child, next)
+  }
+  for (const sg of subgraphs) traverse(sg, [])
+  return map
+}
+
+function deepestCommonAncestor(a: string[], b: string[]): string | undefined {
+  let common: string | undefined
+  for (let i = 0; i < Math.min(a.length, b.length); i++) {
+    if (a[i] !== b[i]) break
+    common = a[i]
+  }
+  return common
 }
 
 function rootChildOrder(
