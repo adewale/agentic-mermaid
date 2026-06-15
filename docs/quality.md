@@ -32,11 +32,11 @@ A diagram is considered **good looking** when it satisfies, in order:
    run on every PR.
 
 4. **LLM-as-judge median ≥ 4.0** on a stratified sample of the
-   mermaid-docs corpus (5 diagrams × 11 families = 55 samples) across
+   mermaid-docs corpus (5 diagrams × 12 families = 60 samples) across
    three axes. Since QUAL-1 the perceptual metrics cover every renderable
    family (flowchart, state, sequence, timeline, class, ER, journey,
-   architecture, xychart, pie, quadrant), so judge sampling should now
-   include all eleven — not just the graph families — across:
+   architecture, xychart, pie, quadrant, gantt), so judge sampling should now
+   include all twelve — not just the graph families — across:
    - **Readability** — labels legible, arrows clear, no overlap chaos
    - **Faithfulness** — every node and edge from the source is present
    - **Aesthetics** — balanced layout, professional feel

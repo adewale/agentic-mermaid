@@ -1,7 +1,7 @@
 // ============================================================================
 // Built-in family registrations.
 //
-// Registers all 9 families with the plugin registry. Structured families own
+// Registers all built-in families with the plugin registry. Structured families own
 // their parse/serialize/mutate here (BUILD-3 consolidation): parseMermaid,
 // serializeMermaid, and mutate dispatch through these hooks, so adding a
 // family means one registration plus a body module — no core edits.

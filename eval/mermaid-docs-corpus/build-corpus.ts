@@ -1,4 +1,4 @@
-// Mine mermaid-js source docs for example diagrams across all 11 supported
+// Mine mermaid-js source docs for example diagrams across supported docs
 // families. Output: eval/mermaid-docs-corpus/corpus.json — a curated set
 // of (family, source) pairs we can run through parse → verify → round-trip.
 // Gantt entries were appended surgically from syntax/gantt.md on 2026-06-12

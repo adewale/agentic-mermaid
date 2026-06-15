@@ -29,7 +29,7 @@ describe('characterisation generated artifacts', () => {
 
   it('visual quality metrics stay finite and reviewable for every canonical family', () => {
     const rows = collectVisualQualityRows()
-    expect(rows.length).toBe(11)
+    expect(rows.length).toBe(12)
 
     for (const row of rows) {
       expect(row.svg).toContain('<svg')

@@ -80,6 +80,11 @@ const CASES: VisualCase[] = [
     source: 'timeline\n  title Release Plan\n  section Build\n    2025 : Prototype\n    2026 : Launch',
   },
   {
+    family: 'gantt',
+    title: 'Gantt chart',
+    source: 'gantt\n  title Launch plan\n  dateFormat YYYY-MM-DD\n  axisFormat %b %d\n  excludes weekends\n  section Build\n    Spec :done, spec, 2024-01-01, 2d\n    Implement :active, impl, after spec, 3d\n  section Ship\n    QA :crit, qa, after impl, 2d\n    Launch :milestone, launch, after qa, 0d\n    Release line :vert, release, 2024-01-10, 0d',
+  },
+  {
     family: 'journey',
     title: 'User journey',
     source: 'journey\n  title Checkout\n  section Cart\n    Review basket: 4: Shopper\n    Pay: 5: Shopper',

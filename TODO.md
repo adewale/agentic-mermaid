@@ -357,7 +357,7 @@ dependents after. IDs are stable names, not an ordering.
   before/after run against the base commit shows 0 regressions, 57 improvements,
   and zero SVG/ASCII byte changes on the 243 shared corpus samples (measurement
   only, no rendering change). `docs/quality.md` honest-gap + LLM-judge grid
-  updated (now 11 families).
+  updated (now 12 families, including gantt).
   - Remaining sub-gaps (kept unchecked — both need a non-sandbox environment):
     - [ ] mermaid-docs corpus regen to include pie/quadrant docs examples needs
       network (a local mermaid clone). `FILE_TO_FAMILY` now maps `pie.md` and

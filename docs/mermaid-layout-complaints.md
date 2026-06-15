@@ -724,7 +724,7 @@ Stated plainly so the scorecard cannot oversell:
    applies to diagrams rendered through this stack (agent pipelines, CI,
    terminals, the editor) plus whatever is upstreamed per the
    [upstreaming strategy](./fork-differences.md#upstreaming-strategy).
-4. **Family coverage.** 11 families vs Mermaid's ~25. The loudest chart
+4. **Family coverage.** 12 families vs Mermaid's ~25. The loudest chart
    complaints (gantt, C4) target families this engine does not render yet;
    gantt is specced (PR #24), C4/radar/mindmap are not planned.
 5. **Metric honesty.** Today's perceptual metrics pass diagrams whose

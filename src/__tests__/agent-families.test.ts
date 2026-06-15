@@ -8,9 +8,9 @@ import '../agent/families-builtin.ts'
 import type { DiagramKind } from '../agent/types.ts'
 
 describe('family registry', () => {
-  test('all 11 built-in families register', () => {
+  test('all 12 built-in families register', () => {
     const ids = new Set(knownFamilies())
-    for (const id of ['flowchart', 'state', 'sequence', 'timeline', 'class', 'er', 'journey', 'xychart', 'architecture', 'pie', 'quadrant'] satisfies DiagramKind[]) {
+    for (const id of ['flowchart', 'state', 'sequence', 'timeline', 'class', 'er', 'journey', 'xychart', 'architecture', 'pie', 'quadrant', 'gantt'] satisfies DiagramKind[]) {
       expect(ids.has(id)).toBe(true)
     }
   })
