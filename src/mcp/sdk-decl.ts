@@ -13,6 +13,7 @@ type MermaidRuntimeConfig = {
   themeVariables?: { [key: string]: MermaidConfigValue | undefined; fontFamily?: string }
   timeline?: { [key: string]: MermaidConfigValue | undefined; disableMulticolor?: boolean; sectionFills?: string[]; sectionColours?: string[] }
   xyChart?: { [key: string]: MermaidConfigValue | undefined }
+  gantt?: { [key: string]: MermaidConfigValue | undefined; displayMode?: string }
   useMaxWidth?: boolean
   useWidth?: number
   themeCSS?: string
@@ -316,8 +317,8 @@ declare const mermaid: {
   mutate(d: GanttValidDiagram,     op: GanttMutationOp):     Result<GanttValidDiagram, { code: string; message: string }>
   verifyMermaid(input: ValidDiagram | string, opts?: { suppress?: WarningCode[]; labelCharCap?: number }): VerifyResult
   serializeMermaid(d: ValidDiagram): string
-  renderMermaidSVG(input: ValidDiagram | string, opts?: { security?: 'default' | 'strict'; idPrefix?: string; mermaidConfig?: MermaidRuntimeConfig }): string
-  renderMermaidASCII(input: ValidDiagram | string, opts?: { useAscii?: boolean; mermaidConfig?: MermaidRuntimeConfig }): string
+  renderMermaidSVG(input: ValidDiagram | string, opts?: { security?: 'default' | 'strict'; idPrefix?: string; ganttToday?: string; mermaidConfig?: MermaidRuntimeConfig }): string
+  renderMermaidASCII(input: ValidDiagram | string, opts?: { useAscii?: boolean; ganttToday?: string; mermaidConfig?: MermaidRuntimeConfig }): string
 }
 
 // Conventions:
@@ -335,5 +336,6 @@ declare const mermaid: {
 //    bodies (unmodeled syntax) are source-level only; if explicitly edited as
 //    text, re-parse and verify before returning.
 // 4. verify.ok is structural, not a visual-quality score; inspect warnings/layout or render artifacts for layout quality.
-// 5. Layout is deterministic; there is no seed.
+// 5. Layout is deterministic; there is no seed. Gantt never reads the wall
+//    clock; pass render option ganttToday to draw a deterministic today marker.
 `

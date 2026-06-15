@@ -14,22 +14,36 @@ verify-before-commit loop is one round-trip.
 ```text
 mermaid.parseMermaid(source): Result<ValidDiagram, ParseError[]>
 mermaid.asFlowchart(d): FlowchartValidDiagram | null
+mermaid.asState(d):     StateValidDiagram | null
 mermaid.asSequence(d):  SequenceValidDiagram | null
 mermaid.asTimeline(d):  TimelineValidDiagram | null
 mermaid.asClass(d):     ClassValidDiagram | null
 mermaid.asEr(d):        ErValidDiagram | null
+mermaid.asJourney(d):   JourneyValidDiagram | null
+mermaid.asArchitecture(d): ArchitectureValidDiagram | null
+mermaid.asXyChart(d):   XyChartValidDiagram | null
+mermaid.asPie(d):       PieValidDiagram | null
+mermaid.asQuadrant(d):  QuadrantValidDiagram | null
+mermaid.asGantt(d):     GanttValidDiagram | null
 mermaid.mutate(flow,     FlowchartMutationOp): Result<FlowchartValidDiagram, MutationError>
+mermaid.mutate(state,    StateMutationOp):     Result<StateValidDiagram, MutationError>
 mermaid.mutate(seq,      SequenceMutationOp):  Result<SequenceValidDiagram, MutationError>
 mermaid.mutate(timeline, TimelineMutationOp):  Result<TimelineValidDiagram, MutationError>
 mermaid.mutate(klass,    ClassMutationOp):     Result<ClassValidDiagram, MutationError>
 mermaid.mutate(er,       ErMutationOp):        Result<ErValidDiagram, MutationError>
+mermaid.mutate(journey,  JourneyMutationOp):   Result<JourneyValidDiagram, MutationError>
+mermaid.mutate(arch,     ArchitectureMutationOp): Result<ArchitectureValidDiagram, MutationError>
+mermaid.mutate(xy,       XyChartMutationOp):   Result<XyChartValidDiagram, MutationError>
+mermaid.mutate(pie,      PieMutationOp):       Result<PieValidDiagram, MutationError>
+mermaid.mutate(quad,     QuadrantMutationOp):  Result<QuadrantValidDiagram, MutationError>
+mermaid.mutate(gantt,    GanttMutationOp):     Result<GanttValidDiagram, MutationError>
 mermaid.verifyMermaid(input, { suppress?, labelCharCap? }): VerifyResult
 mermaid.serializeMermaid(d): string
-mermaid.renderMermaidASCII(input, { useAscii?: boolean, mermaidConfig?: MermaidRuntimeConfig }): string
-mermaid.renderMermaidSVG(input, { security?: 'default'|'strict', idPrefix?, mermaidConfig?: MermaidRuntimeConfig }): string
+mermaid.renderMermaidASCII(input, { useAscii?: boolean, ganttToday?: string, mermaidConfig?: MermaidRuntimeConfig }): string
+mermaid.renderMermaidSVG(input, { security?: 'default'|'strict', idPrefix?, ganttToday?: string, mermaidConfig?: MermaidRuntimeConfig }): string
 ```
 
-Agentic Mermaid outputs ASCII, PNG, and SVG. In Code Mode, render ASCII/SVG through `mermaid.*`; use the narrow MCP `render_png` helper or host/library code for PNG binary output. `MermaidRuntimeConfig` matches the runtime config surface: arbitrary Mermaid config keys plus `theme`, `fontFamily`, `themeVariables`, `timeline`, `xyChart`, `useMaxWidth`, `useWidth`, and `themeCSS`.
+Agentic Mermaid outputs ASCII, PNG, and SVG. In Code Mode, render ASCII/SVG through `mermaid.*`; use the narrow MCP `render_png` helper or host/library code for PNG binary output. `MermaidRuntimeConfig` matches the runtime config surface: arbitrary Mermaid config keys plus `theme`, `fontFamily`, `themeVariables`, `timeline`, `xyChart`, `gantt`, `useMaxWidth`, `useWidth`, and `themeCSS`. `ganttToday` is a render option, not a clock read; pass it when a Gantt `todayMarker` should render.
 
 All SDK methods are synchronous and pure. Code Mode does not support `async`/`await`, Promise jobs, or dynamic import. Layout is deterministic; there is no seed.
 

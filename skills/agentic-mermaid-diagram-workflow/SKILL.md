@@ -39,10 +39,14 @@ An agent-agnostic typed editing surface for Mermaid. New diagrams can be authore
 | Pie (accTitle/accDescr, malformed entries) | ✓ | structural | ✓ | — (opaque) | verbatim |
 | **Quadrant (modeled subset)** | ✓ | structural | ✓ | **7 ops** | structured |
 | Quadrant (styling `classDef`/`:::`, out-of-range coords) | ✓ | structural | ✓ | — (opaque) | verbatim |
+| **Gantt (modeled subset)** | ✓ | structural + schedule | ✓ | **9 ops** | structured-with-segments |
+| Gantt (duplicate ids / unclosed `accDescr`) | ✓ | structural | ✓ | — (opaque) | verbatim |
 
 Any diagram with constructs we don't model falls back to an **opaque** body: it still parses, renders, verifies, and round-trips losslessly — it just isn't offered for structured mutation (the narrower returns null). The parser never silently drops anything.
 
 State diagrams own a dedicated body (BUILD-19): narrow them with `asState` and apply state-shaped ops (`add_state`, `remove_state`, `rename_state`, `set_state_label`, `add_transition`, `remove_transition`, `set_transition_label`, `make_composite`). `asFlowchart` returns null on a state diagram. The modeled subset is simple states, transitions, `[*]` start/end pseudostates, composite blocks, and `direction`; anything else (`<<fork>>`/`<<choice>>`/`<<join>>`, history states, concurrency `--`, notes, `classDef`/`class`/`:::` styling) keeps the whole body opaque and round-trips verbatim.
+
+Gantt diagrams are segment-preserving: `asGantt` keeps title/section/task ops live while calendar directives (`dateFormat`, `axisFormat`, `excludes`, `includes`, `weekend`, `weekday`, `todayMarker`, `tickInterval`, `inclusiveEndDates`, `topAxis`), `click` lines, comments, and accessibility lines ride along verbatim. Gantt rendering is deterministic and never reads the wall clock; pass `ganttToday` when rendering if a `todayMarker` should be visible.
 
 `references/upstream/` documents Mermaid syntax for many more families than this renderer accepts; it is authoring reference only. `am capabilities --json` is the authoritative list of renderable families.
 
@@ -91,4 +95,4 @@ const ascii = renderMermaidASCII(cur, { useAscii: true })
 
 CLI PNG: `am render diagram.mmd --format png --output diagram.png`.
 
-See `references/flowchart.md`, `references/sequence.md`, `references/timeline.md`, and the repository cookbook at `docs/agent-api-cookbook.md`.
+See `references/flowchart.md`, `references/sequence.md`, `references/timeline.md`, `references/upstream/gantt.md`, and the repository cookbook at `docs/agent-api-cookbook.md`.

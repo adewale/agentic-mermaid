@@ -34,12 +34,17 @@ export interface TimelineRuntimeConfig extends MermaidConfigMap {
   sectionColours?: string[]
 }
 
+export interface GanttRuntimeConfig extends MermaidConfigMap {
+  displayMode?: string
+}
+
 export interface MermaidRuntimeConfig extends MermaidConfigMap {
   theme?: string
   fontFamily?: string
   themeVariables?: MermaidThemeVariables
   timeline?: TimelineRuntimeConfig
   xyChart?: MermaidConfigMap
+  gantt?: GanttRuntimeConfig
   useMaxWidth?: boolean
   useWidth?: number
   themeCSS?: string
