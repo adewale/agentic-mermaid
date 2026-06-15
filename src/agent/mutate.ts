@@ -10,7 +10,7 @@ import type {
   MutationError, Result,
 } from './types.ts'
 import { ok, err } from './types.ts'
-import { renderMeta } from './serialize.ts'
+import { wrapperPrefix } from './serialize.ts'
 import { getFamily } from './families.ts'
 import './families-builtin.ts'  // registers built-in family mutate hooks
 
@@ -38,7 +38,9 @@ export function mutate(
   if (plugin?.mutate && plugin.serialize) {
     const r = plugin.mutate(d.body, op)
     if (!r.ok) return r
-    const canonicalSource = renderMeta(d.meta) + plugin.serialize(r.value)
+    // 1C wrapper policy: a mutated diagram keeps its leading wrapper
+    // (frontmatter/directives/comments) byte-verbatim; only the body changes.
+    const canonicalSource = wrapperPrefix(d.meta) + plugin.serialize(r.value)
     return ok({ ...d, body: r.value, canonicalSource } as MutableValidDiagram)
   }
   return err({ code: 'INVALID_OP', message: `Unsupported mutable diagram kind: ${d.kind}` })

@@ -380,6 +380,22 @@ export interface ValidDiagramMeta {
   initDirectives: InitDirective[]
   comments: SourceComment[]
   accessibility: Accessibility
+  /**
+   * The leading source wrapper (frontmatter block, `%%{init}%%` directives,
+   * `%%` comments, and blank lines before the diagram header), preserved
+   * byte-verbatim. serializeMermaid re-emits it untouched by default;
+   * canonical wrapper synthesis is opt-in via `{ wrapper: 'canonical' }`.
+   * Absent on diagrams synthesized from JSON payloads, which fall back to
+   * canonical synthesis.
+   */
+  wrapperSource?: string
+  /**
+   * In-body `%%` comments that structured serialization does not preserve,
+   * computed at parse time by diffing against the canonical serialization.
+   * Surfaced by verify as the Tier 3 `COMMENT_DROPPED` lint. Opaque bodies
+   * preserve comments verbatim and never set this.
+   */
+  droppedComments?: SourceComment[]
 }
 
 export interface SourceMap {
@@ -658,7 +674,7 @@ export type Tier2WarningCode =
  * Tier 3 (advisory lint). Family-specific quality hints for common agent
  * mistakes that still parse and render. Lint warnings never flip verify.ok.
  */
-export type Tier3WarningCode = 'DUPLICATE_EDGE' | 'UNREACHABLE_NODE' | 'DECISION_BRANCH_UNLABELED'
+export type Tier3WarningCode = 'DUPLICATE_EDGE' | 'UNREACHABLE_NODE' | 'DECISION_BRANCH_UNLABELED' | 'COMMENT_DROPPED'
 export type WarningCode = Tier1WarningCode | Tier2WarningCode | Tier3WarningCode
 
 export type LayoutWarning =
@@ -679,6 +695,7 @@ export type LayoutWarning =
   | { code: 'DUPLICATE_EDGE'; edge: EdgeId; duplicateOf: EdgeId; from: NodeId; to: NodeId; label?: string }
   | { code: 'UNREACHABLE_NODE'; node: NodeId }
   | { code: 'DECISION_BRANCH_UNLABELED'; node: NodeId; edge: EdgeId }
+  | { code: 'COMMENT_DROPPED'; count: number; lines: number[] }
 
 export const WARNING_SEVERITY: Record<WarningCode, WarningSeverity> = {
   EMPTY_DIAGRAM: 'error',
@@ -698,6 +715,7 @@ export const WARNING_SEVERITY: Record<WarningCode, WarningSeverity> = {
   DUPLICATE_EDGE: 'warning',
   UNREACHABLE_NODE: 'warning',
   DECISION_BRANCH_UNLABELED: 'warning',
+  COMMENT_DROPPED: 'warning',
 }
 
 export const WARNING_TIER: Record<WarningCode, WarningTier> = {
@@ -718,6 +736,7 @@ export const WARNING_TIER: Record<WarningCode, WarningTier> = {
   DUPLICATE_EDGE: 'lint',
   UNREACHABLE_NODE: 'lint',
   DECISION_BRANCH_UNLABELED: 'lint',
+  COMMENT_DROPPED: 'lint',
 }
 
 export const DEFAULT_LABEL_CHAR_CAP = 40

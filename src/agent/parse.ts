@@ -10,9 +10,10 @@
 import { normalizeMermaidSource, detectLooseDiagramTypeFromFirstLine } from '../mermaid-source.ts'
 import { getFamily } from './families.ts'
 import './families-builtin.ts'  // registers built-in family parse/serialize/mutate hooks
+import { serializeMermaid } from './serialize.ts'
 import type {
   ValidDiagram, ParseError, Result, DiagramKind, ValidDiagramMeta,
-  SourceMap, InitDirective,
+  SourceMap, InitDirective, SourceComment,
 } from './types.ts'
 import { ok, err } from './types.ts'
 
@@ -63,12 +64,65 @@ export function parseMermaid(source: string): Result<ValidDiagram, ParseError[]>
       return err(errors)
     }
     const sourceMap = plugin.buildSourceMap?.(parsed.value, canonicalSource) ?? emptySourceMap()
-    return ok<ValidDiagram>({ kind, meta, body: parsed.value, source: sourceMap, canonicalSource })
+    const diagram: ValidDiagram = { kind, meta, body: parsed.value, source: sourceMap, canonicalSource }
+    markDroppedComments(diagram, normalized.body)
+    return ok(diagram)
   }
 
   return ok<ValidDiagram>({
     kind, meta, body: { kind: 'opaque', family: kind, source: opaqueSource }, source: emptySourceMap(), canonicalSource,
   })
+}
+
+/**
+ * 2C comment policy: structured bodies serialize to canonical source, which
+ * does not model `%%` comment lines. Rather than dropping them *silently*,
+ * diff the parsed comments against what actually survives serialization
+ * (wrapper comments ride along verbatim via meta.wrapperSource; sequence
+ * opaque segments may preserve in-body comments) and record the casualties so
+ * verify can surface the Tier 3 COMMENT_DROPPED lint. Opaque bodies preserve
+ * everything and never reach here.
+ */
+function markDroppedComments(diagram: ValidDiagram, sourceBody: string): void {
+  const comments = diagram.meta.comments
+  if (diagram.body.kind === 'opaque' || comments.length === 0) return
+
+  const sourceLines = sourceBody.split(/\r?\n/).map(line => line.trim())
+  const serializedLines = serializeMermaid(diagram).split(/\r?\n/).map(line => line.trim())
+  const keptSourceLines = longestCommonSubsequenceIndices(sourceLines, serializedLines)
+  const keptCommentLines = new Set<number>()
+  for (const sourceIndex of keptSourceLines) {
+    if (COMMENT_LINE_REGEX.test(sourceLines[sourceIndex]!)) keptCommentLines.add(sourceIndex + 1)
+  }
+
+  const dropped: SourceComment[] = comments.filter(comment => !keptCommentLines.has(comment.line))
+  if (dropped.length > 0) diagram.meta.droppedComments = dropped
+}
+
+function longestCommonSubsequenceIndices(a: string[], b: string[]): number[] {
+  const dp: number[][] = Array.from({ length: a.length + 1 }, () => Array(b.length + 1).fill(0))
+  for (let i = a.length - 1; i >= 0; i--) {
+    for (let j = b.length - 1; j >= 0; j--) {
+      dp[i]![j] = a[i] === b[j]
+        ? dp[i + 1]![j + 1]! + 1
+        : Math.max(dp[i + 1]![j]!, dp[i]![j + 1]!)
+    }
+  }
+  const indices: number[] = []
+  let i = 0
+  let j = 0
+  while (i < a.length && j < b.length) {
+    if (a[i] === b[j]) {
+      indices.push(i)
+      i++
+      j++
+    } else if (dp[i + 1]![j]! >= dp[i]![j + 1]!) {
+      i++
+    } else {
+      j++
+    }
+  }
+  return indices
 }
 
 // ---- Family detection ----------------------------------------------------
@@ -87,6 +141,9 @@ function detectKind(header: string): DiagramKind | null {
 
 function extractMeta(rawSource: string, frontmatter?: Record<string, unknown>): ValidDiagramMeta {
   const meta: ValidDiagramMeta = { initDirectives: [], comments: [], accessibility: {} }
+
+  const wrapperSource = extractWrapperSource(rawSource)
+  if (wrapperSource !== undefined) meta.wrapperSource = wrapperSource
 
   if (frontmatter && Object.keys(frontmatter).length > 0) {
     meta.frontmatter = frontmatter as ValidDiagramMeta['frontmatter']
@@ -121,6 +178,33 @@ function extractMeta(rawSource: string, frontmatter?: Record<string, unknown>): 
   }
 
   return meta
+}
+
+/**
+ * The leading source wrapper, byte-verbatim: an optional frontmatter block
+ * followed by any run of blank lines, `%%` comments, and `%%{init}%%`
+ * directives, up to (excluding) the diagram header line. This is what
+ * serializeMermaid re-emits untouched by default (1C wrapper policy).
+ */
+function extractWrapperSource(rawSource: string): string | undefined {
+  let pos = 0
+  const fm = rawSource.match(FRONTMATTER_REGEX)
+  if (fm) pos = fm[0].length
+  const directiveAtStart = new RegExp(INIT_DIRECTIVE_REGEX.source)
+  for (;;) {
+    const rest = rawSource.slice(pos)
+    if (rest.length === 0) break
+    const dm = rest.match(directiveAtStart)
+    if (dm && dm.index === 0 && dm[0].length > 0) { pos += dm[0].length; continue }
+    const lineEnd = rest.indexOf('\n')
+    const line = lineEnd === -1 ? rest : rest.slice(0, lineEnd)
+    if (/^\s*$/.test(line) || COMMENT_LINE_REGEX.test(line)) {
+      pos += lineEnd === -1 ? rest.length : lineEnd + 1
+      continue
+    }
+    break
+  }
+  return pos > 0 ? rawSource.slice(0, pos) : undefined
 }
 
 function tryParseInitObject(inner: string): Record<string, unknown> {

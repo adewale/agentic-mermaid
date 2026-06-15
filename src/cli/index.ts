@@ -149,8 +149,11 @@ exit 3 and omit source.`,
 Writes a standalone HTML preview containing strict-mode rendered SVG. Without
 --output, emits HTML to stdout unless --open is set, in which case a temp HTML
 file is written and opened. With --json, emits {ok,path,opened,bytes} for file output.`,
-  format: `am format <file|->
-Parse then re-serialize to canonical form. Idempotent.`,
+  format: `am format <file|-> [--canonical-wrapper]
+Parse then re-serialize. Idempotent. The leading source wrapper (frontmatter,
+%%{init}%% directives, comments before the header) is preserved byte-verbatim
+by default; --canonical-wrapper instead synthesizes Mermaid's documented shape
+(title/displayMode top-level, everything else under config:, directives folded).`,
   describe: `am describe <file|-> [--format text|json] [--json]
 Summarize a Mermaid diagram. Text format emits prose by default; --json wraps
 it as {ok,text}. --format json emits the structured AX tree
@@ -580,7 +583,8 @@ function cmdPreview(args: ParsedArgs, json: boolean): number {
 function cmdFormat(args: ParsedArgs): number {
   const r = parseMermaid(readSourceArg(args.positional[0]))
   if (!r.ok) { process.stderr.write(`format: parse failed: ${JSON.stringify(r.error)}\n`); return EXIT_ARG_ERROR }
-  process.stdout.write(serializeMermaid(r.value))
+  const wrapper = args.flags['canonical-wrapper'] ? 'canonical' as const : 'verbatim' as const
+  process.stdout.write(serializeMermaid(r.value, { wrapper }))
   return EXIT_OK
 }
 

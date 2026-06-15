@@ -58,7 +58,13 @@ export function verifyMermaid(input: ValidDiagram | string, opts: VerifyOptions 
   // hook gets a chance to contribute warnings. Runs ahead of per-body branches
   // so plugins can hook into any body kind (structured or opaque). Closes the
   // dead-code gap where `FamilyPlugin.verify` was declared but never invoked.
-  const pluginWarnings = dispatchFamilyVerify(d, opts)
+  // 2C comment policy: in-body comments that structured serialization drops
+  // (recorded at parse time) surface here as the Tier 3 COMMENT_DROPPED lint,
+  // so the loss is announced rather than silent.
+  const metaWarnings: LayoutWarning[] = d.meta.droppedComments?.length
+    ? [{ code: 'COMMENT_DROPPED', count: d.meta.droppedComments.length, lines: d.meta.droppedComments.map(c => c.line) }]
+    : []
+  const pluginWarnings = dedupedConcat(metaWarnings, dispatchFamilyVerify(d, opts))
 
   if (d.body.kind === 'sequence') return mergeFinalize(verifySequence(d.body, d.kind, cap, opts), pluginWarnings, opts)
   if (d.body.kind === 'timeline') return mergeFinalize(verifyTimeline(d.body, d.kind, cap, opts), pluginWarnings, opts)

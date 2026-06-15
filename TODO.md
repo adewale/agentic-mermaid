@@ -157,7 +157,10 @@ dependents after. IDs are stable names, not an ordering.
   mermaid-docs sequence corpus stay 100% lossless.
   - [ ] Follow-up: apply the same segment-preserving body to class/ER/timeline
     unmodeled-syntax fallbacks. This is the path to "typed mutation for all
-    diagrams" without ever violating the no-loss guarantee.
+    diagrams" without ever violating the no-loss guarantee. Also the 2A
+    destination for in-body `%%` comments in flowchart/state (BUILD-21 ships
+    the announced-drop interim via the `COMMENT_DROPPED` lint): comments
+    become positionally-anchored opaque segments that ride through mutations.
 - [x] **BUILD-19 — Dedicated `StateBody` IR for state diagrams** (`done`).
   State diagrams now own a dedicated structured-or-opaque `StateBody`
   (`body.kind: 'state'`) — states, transitions with `[*]` start/end
@@ -256,7 +259,45 @@ dependents after. IDs are stable names, not an ordering.
   samples (flowchart/96, flowchart/97, flowchart/98, subgraph-direction.mmd)
   with 0 regressions / 0 faithfulness deltas. Repro:
   `eval/layout-compare/fixtures/subgraph-direction.mmd`.
-- [ ] **BUILD-1 — Collapsible subgraphs (#7785)** (`todo`). Track Mermaid PR
+- [x] **BUILD-21 — Source-wrapper fidelity (1C) + announced in-body comment
+  policy (2C)** (`done`). Probing the official Mermaid syntax-reference
+  examples through parse → serialize found three wrapper-fidelity gaps:
+  `config:`-nested frontmatter flattened to top-level keys Mermaid cannot
+  read back, `%%{init}%%` directives duplicated into a synthesized
+  frontmatter block, and leading `%%` comments dropped. Owner decisions:
+  **1C** (wrapper round-trips byte-verbatim by default — `meta.wrapperSource`
+  — with canonical config-nested synthesis opt-in via
+  `serializeMermaid(d, { wrapper: 'canonical' })` / `am format
+  --canonical-wrapper`) and **2C** (in-body comments remain canonicalized
+  away by structured bodies but the loss is announced via the new Tier 3
+  `COMMENT_DROPPED` lint computed by diffing parse comments against the
+  serialized output; wrapper comments and opaque bodies/segments preserve
+  comments and never warn). Evidence:
+  `src/__tests__/agent-wrapper-fidelity.test.ts` (14 tests: verbatim
+  round-trip per wrapper form incl. multiline directives, mutation keeps the
+  wrapper, canonical nesting/folding incl. the unparseable-directive raw
+  fallback, CLI flag e2e, lint fires/doesn't-fire matrix); wrapper law + 2C
+  policy stated in `docs/contributing/adding-diagram-types.md`; warning code
+  synced across types/capabilities/llms.txt/SDK declaration/agent guides.
+  The 2A destination (segment-preserving comment retention) is tracked under
+  the BUILD-18 follow-up below.
+- [ ] **BUILD-20 — `@{ ... }` node metadata: stop silent loss and phantom
+  nodes** (`todo`). Issue
+  <https://github.com/adewale/beautiful-mermaid/issues/29>. Mermaid v11.3+
+  typed-shape syntax (`A@{ shape: manual-input, label: "..." }`) is not
+  tokenized: inline use drops the edge and target node, standalone lines are
+  erased, and the multiline form fabricates phantom nodes from the metadata
+  keys (`shape[shape]`, `label[label]`) — all with `verify.ok: true` and a
+  lossy `serializeMermaid`. Violates the no-silent-loss and round-trip
+  guarantees. Fix per the preservation ladder: tokenize `@{ ... }` (single
+  and multiline) as one unit, then either error loudly or preserve
+  source-opaque and render the node with its `label` as a rectangle; never
+  fabricate nodes. Round-trip property tests + goldens for all three repro
+  shapes; corpus diff via BUILD-13 harness. Modeled support for the v11
+  shape vocabulary (ISO 5807/ANSI X3.5 symbols mapped onto `NodeShape`) is a
+  separate follow-up. Prerequisite for BUILD-1, which needs the same
+  tokenization for `@{ view: collapsed }`.
+- [ ] **BUILD-1 — Collapsible subgraphs (#7785)** (`todo`, after BUILD-20). Track Mermaid PR
   <https://github.com/mermaid-js/mermaid/pull/7785> (`@{ view: collapsed }`
   metadata syntax) and stay syntax-compatible. Large, but a real readability
   win for agent-generated architecture diagrams; pairs naturally with typed

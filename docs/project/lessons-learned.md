@@ -556,4 +556,52 @@ local focused tests then reproduced it, a pinned regression locked it, and a
 second reviewer pass returned no blockers. Mutation testing remains a gap map,
 not a PR gate: the route run was attempted and timed out after partial progress,
 so it is evidence to schedule, not evidence to block the merge.
+## Wrapper-fidelity lesson — official examples are a free conformance corpus, and laws need named constructs
 
+Three sessions of research work (the layout-complaint catalog, the `@{ shape }`
+silent-loss bug, and the wrapper-fidelity batch) converged on one method and
+one contract lesson.
+
+**The method: probe official documentation examples through the round-trip,
+not just our own fixtures.** The `@{ shape: ... }` silent-loss bug (BUILD-20,
+issue #29) was found by taking the Mermaid docs' own typed-shape syntax and
+running it through `parseMermaid → serializeMermaid`; the wrapper-fidelity
+gaps (BUILD-21) were found the same way with the syntax-reference's
+frontmatter examples. Both were violations of guarantees we believed we had:
+the `@{}` case fabricated phantom nodes from metadata keys with
+`verify.ok: true`; the frontmatter case flattened `config:`-nested keys into
+top-level YAML Mermaid silently ignores — so an edit loop *kept the bytes*
+that expressed the author's `config.layout` request while *killing their
+meaning* on interop. Neither was caught by 2,200+ tests, the 247-sample
+corpus, or the round-trip floors, because every fixture we owned was written
+by people who already knew what the parser modeled. Upstream documentation
+examples are adversarial in exactly the right way: they encode what real
+sources will contain, not what our parser expects. The standing rule:
+whenever Mermaid documents a syntax surface, its examples belong in our
+round-trip/verify corpus before we claim compatibility — secondary-source
+blog posts are leads, but the probe against the live code is the evidence.
+
+**The contract lesson: a preservation law that doesn't name construct classes
+hides loss in the gaps between its clauses.** The structured-or-opaque law
+said "any line your parser does not model must be preserved verbatim" and
+"structured bodies serialize to canonical source." Wrappers and comments fell
+between those clauses: frontmatter was *re-synthesized* (neither preserved
+nor canonical-to-Mermaid), directives were duplicated, and comments were
+dropped — each defensible under one clause, all violations of the law's
+intent. The fix wasn't more cleverness; it was naming the constructs and
+their policies explicitly (owner decisions 1C/2C): wrappers round-trip
+byte-verbatim with canonical synthesis opt-in; in-body comments are
+canonicalized away but *announced* (`COMMENT_DROPPED`), never silent, with
+segment preservation as the stated destination. The general form: for every
+construct class a parser can encounter — body statements, wrappers,
+directives, comments, future `@{}` metadata — the contract must state one of
+*modeled*, *preserved-verbatim*, or *dropped-with-warning*. "Canonical" is
+not a policy; it's where unstated policies hide.
+
+A smaller process note, same spirit as Loop 17's evidence rule: the
+`COMMENT_DROPPED` detector diffs the parsed comments against the actual
+serialized output rather than asking each family parser to report what it
+kept. Families that preserve comments in opaque segments (sequence) are
+correct by construction, and a future family that starts preserving them
+stops warning without anyone updating a list. Detect by observing the
+output, not by trusting per-family bookkeeping.
