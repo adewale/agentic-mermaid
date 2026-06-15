@@ -3,12 +3,13 @@
 //
 // characterization-layout.test.ts pins the grid + A* flowchart/state engine in
 // depth. THIS file extends the *universal* invariants (Tier A) across every
-// other renderer family, asserting only what actually holds for each:
+// renderer family and public output surface, asserting only what actually
+// holds for each:
 //
-//   - Totality + determinism: every family (the bedrock contract). These are
-//     also pinned across the 243-entry docs corpus by ascii-determinism.test.ts;
-//     here they are checked generatively per family with varied inputs.
-//   - No diagonals: every family (even xychart plots with block glyphs).
+//   - Dispatch totality: all 11 families render as text, SVG, and PNG.
+//   - Label conservation + determinism: all 11 families on text renderers,
+//     with PNG byte stability checked on the canonical matrix.
+//   - No diagonals: every text family (even xychart plots with block glyphs).
 //   - Rectangularity (all rows one width): only the box families
 //     (sequence / class / er). Chart and list families emit ragged rows by
 //     design — asserting rectangularity there would be false, so we don't.
@@ -20,6 +21,8 @@
 import { describe, expect, it } from 'bun:test'
 import fc from 'fast-check'
 
+import { renderMermaidSVG } from '../index.ts'
+import { renderMermaidPNG } from '../agent/png.ts'
 import { renderMermaidASCII } from '../ascii/index.ts'
 import { hasDiagonalLines } from '../ascii/validate.ts'
 
@@ -103,6 +106,69 @@ const journeyArb = fc
   .array(fc.record({ task: word, score: fc.integer({ min: 1, max: 5 }) }), { minLength: 1, maxLength: 6 })
   .map((tasks) => ['journey', '  title J', '  section S', ...tasks.map((t, i) => `    ${t.task}${i}: ${t.score}: Me`)].join('\n'))
 
+const architectureArb = fc.constant(
+  'architecture-beta\n  group api(cloud)[API]\n  service db(database)[Database] in api\n  service server(server)[Server] in api\n  db:L -- R:server',
+)
+
+const RENDERER_CASES = [
+  {
+    family: 'flowchart',
+    source: 'graph TD\n  Start[Start] --> Done[Done]',
+    labels: ['Start', 'Done'],
+  },
+  {
+    family: 'state',
+    source: 'stateDiagram-v2\n  [*] --> Idle\n  Idle --> Running\n  Running --> [*]',
+    labels: ['Idle', 'Running'],
+  },
+  {
+    family: 'sequence',
+    source: 'sequenceDiagram\n  participant Alice\n  participant Bob\n  Alice->>Bob: Hello Bob',
+    labels: ['Alice', 'Bob', 'Hello Bob'],
+  },
+  {
+    family: 'class',
+    source: 'classDiagram\n  class Animal\n  class Dog\n  Animal <|-- Dog',
+    labels: ['Animal', 'Dog'],
+  },
+  {
+    family: 'er',
+    source: 'erDiagram\n  CUSTOMER ||--o{ ORDER : places',
+    labels: ['CUSTOMER', 'ORDER', 'places'],
+  },
+  {
+    family: 'timeline',
+    source: 'timeline\n  title Release Plan\n  2026 : Launch',
+    labels: ['Release Plan', '2026', 'Launch'],
+  },
+  {
+    family: 'journey',
+    source: 'journey\n  title Checkout\n  section Cart\n  Pay: 5: Shopper',
+    labels: ['Checkout', 'Cart', 'Pay', 'Shopper'],
+  },
+  {
+    family: 'xychart',
+    source: 'xychart\n  title Sales\n  x-axis [Jan, Feb]\n  y-axis Revenue 0 --> 10\n  bar [3, 7]',
+    labels: ['Sales', 'Jan', 'Feb'],
+  },
+  {
+    family: 'pie',
+    source: 'pie title Pets\n  "Cats" : 4\n  "Dogs" : 6',
+    labels: ['Pets', 'Cats', 'Dogs'],
+  },
+  {
+    family: 'quadrant',
+    source:
+      'quadrantChart\n  title Priorities\n  x-axis Low --> High\n  y-axis Risk --> Reward\n  quadrant-1 Invest\n  A: [0.7, 0.8]',
+    labels: ['Priorities', 'Low', 'High', 'Risk', 'Reward', 'Invest', 'A'],
+  },
+  {
+    family: 'architecture',
+    source: 'architecture-beta\n  service api(server)[API]\n  service db(database)[DB]\n  api:R --> L:db',
+    labels: ['API', 'DB'],
+  },
+] as const
+
 // ---------------------------------------------------------------------------
 // Invariant assertions
 // ---------------------------------------------------------------------------
@@ -115,6 +181,19 @@ function assertTotalDeterministicNoDiagonals(src: string): string {
   return out
 }
 
+function renderAll(src: string) {
+  return {
+    ascii: renderMermaidASCII(src, U),
+    svg: renderMermaidSVG(src, { security: 'strict' }),
+    png: renderMermaidPNG(src, { scale: 1 }),
+  }
+}
+
+function assertPngSignature(bytes: Uint8Array) {
+  expect(bytes.length).toBeGreaterThan(8)
+  expect(Array.from(bytes.slice(0, 8))).toEqual([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])
+}
+
 const ALL_FAMILIES: Array<[string, fc.Arbitrary<string>]> = [
   ['sequence', sequenceArb],
   ['class', classArb],
@@ -124,6 +203,7 @@ const ALL_FAMILIES: Array<[string, fc.Arbitrary<string>]> = [
   ['quadrant', quadrantArb],
   ['timeline', timelineArb],
   ['journey', journeyArb],
+  ['architecture', architectureArb],
 ]
 
 const BOX_FAMILIES: Array<[string, fc.Arbitrary<string>]> = [
@@ -137,6 +217,45 @@ const BOX_FAMILIES: Array<[string, fc.Arbitrary<string>]> = [
 // ===========================================================================
 
 describe('characterisation · families · universal invariants', () => {
+  it('all 11 families render through ASCII, SVG, and PNG surfaces', () => {
+    for (const { source } of RENDERER_CASES) {
+      const { ascii, svg, png } = renderAll(source)
+      expect(ascii.length).toBeGreaterThan(0)
+      expect(svg).toContain('<svg')
+      expect(svg).toContain('</svg>')
+      assertPngSignature(png)
+    }
+  })
+
+  it('all 11 families preserve sentinel labels on text renderers', () => {
+    for (const { source, labels } of RENDERER_CASES) {
+      const { ascii, svg } = renderAll(source)
+      for (const label of labels) {
+        expect(ascii).toContain(label)
+        expect(svg).toContain(label)
+      }
+    }
+  })
+
+  it('all 11 families are byte-stable across repeated renders', () => {
+    for (const { source } of RENDERER_CASES) {
+      const first = renderAll(source)
+      const second = renderAll(source)
+      expect(second.ascii).toBe(first.ascii)
+      expect(second.svg).toBe(first.svg)
+      expect(second.png).toEqual(first.png)
+    }
+  })
+
+  it('all 11 families emit clean SVG and plain ASCII', () => {
+    for (const { source } of RENDERER_CASES) {
+      const { ascii, svg } = renderAll(source)
+      expect(ascii).not.toMatch(/\x1b\[[0-9;]*m/)
+      expect(ascii).not.toMatch(/\b(?:NaN|Infinity|undefined)\b/)
+      expect(svg).not.toMatch(/="[^"]*\b(?:NaN|Infinity|undefined)\b[^"]*"/)
+    }
+  })
+
   for (const [name, arb] of ALL_FAMILIES) {
     it(`${name}: total, deterministic, no diagonals`, () => {
       fc.assert(

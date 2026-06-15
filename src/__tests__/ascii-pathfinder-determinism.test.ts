@@ -24,6 +24,19 @@ describe('getPath determinism and preferredDir', () => {
     expect(first).not.toBe('null')
   })
 
+  test('equal-cost routes follow the FIFO neighbour order exactly', () => {
+    // Determinism alone is too weak: a reversed or priority-only heap can still
+    // be stable while silently changing every golden route. With the default
+    // neighbour order, the canonical empty-grid path goes right before down.
+    expect(getPath(emptyGrid(), { x: 0, y: 0 }, { x: 2, y: 2 })).toEqual([
+      { x: 0, y: 0 },
+      { x: 1, y: 0 },
+      { x: 2, y: 0 },
+      { x: 2, y: 1 },
+      { x: 2, y: 2 },
+    ])
+  })
+
   test('preferredDir biases the first leg without changing endpoints or length', () => {
     const grid = emptyGrid()
     const base = getPath(grid, { x: 0, y: 0 }, { x: 4, y: 4 })!

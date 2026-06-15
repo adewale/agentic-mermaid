@@ -1,0 +1,29 @@
+{
+  "$schema": "https://raw.githubusercontent.com/stryker-mutator/stryker/master/packages/core/schema/stryker-core.schema.json",
+  "_comment": "Fast mutation-smoke for the load-bearing layout characterisation. The full ASCII config mutates five large renderer files (~3k mutants); this one mutates the tight ranges where the characterization/property tests are expected to have teeth, so PRs can produce practical mutation evidence.",
+  "mutate": [
+    "src/ascii/pathfinder.ts:60-63",
+    "src/ascii/pathfinder.ts:110-129",
+    "src/ascii/grid.ts:539-539",
+    "src/ascii/grid.ts:569-576",
+    "src/ascii/edge-routing.ts:285-296"
+  ],
+  "ignorePatterns": ["/site/**", "/dist/**", "/coverage/**"],
+  "testRunner": "command",
+  "commandRunner": {
+    "command": "bun test src/__tests__/characterization-layout.test.ts src/__tests__/property-ascii-routing.test.ts src/__tests__/ascii-pathfinder-determinism.test.ts src/__tests__/ascii-pathfinder-units.test.ts src/__tests__/ascii-fanout-trunk-labeled.test.ts src/__tests__/ascii-subgraph-edge.test.ts src/__tests__/ascii-layout-gaps.test.ts"
+  },
+  "reporters": ["clear-text", "progress", "json"],
+  "jsonReporter": {
+    "fileName": "reports/mutation/characterization-smoke.json"
+  },
+  "thresholds": {
+    "high": 85,
+    "low": 70,
+    "break": 60
+  },
+  "timeoutMS": 60000,
+  "concurrency": 4,
+  "tempDirName": ".stryker-tmp-characterization",
+  "disableTypeChecks": true
+}

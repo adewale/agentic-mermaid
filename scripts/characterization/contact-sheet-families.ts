@@ -13,7 +13,7 @@
 // ============================================================================
 
 import { renderMermaidASCII } from '../../src/ascii/index.ts'
-import { writeFileSync } from 'node:fs'
+import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 
 interface Family {
@@ -123,7 +123,7 @@ const U = { colorMode: 'none' } as const // default unicode (canonical output)
 
 function tick(b: boolean): string { return b ? '✓' : '·' }
 
-function build(): string {
+export function build(): string {
   const out: string[] = []
   out.push('# Contact sheet — all renderers (families)')
   out.push('')
@@ -174,7 +174,26 @@ function build(): string {
   return out.join('\n')
 }
 
-const target = join(import.meta.dir, '..', '..', 'docs', 'layout-characterization', 'contact-sheet-families.md')
-writeFileSync(target, build())
-// eslint-disable-next-line no-console
-console.log(`wrote ${target} (${FAMILIES.length} families)`)
+export const OUTPUT_PATH = join(import.meta.dir, '..', '..', 'docs', 'layout-characterization', 'contact-sheet-families.md')
+
+function writeOrCheck(): void {
+  const content = build()
+  if (process.argv.includes('--check')) {
+    const current = existsSync(OUTPUT_PATH) ? readFileSync(OUTPUT_PATH, 'utf8') : ''
+    if (current !== content) {
+      // eslint-disable-next-line no-console
+      console.error(`${OUTPUT_PATH} is out of date; run scripts/characterization/contact-sheet-families.ts`)
+      process.exitCode = 1
+      return
+    }
+    // eslint-disable-next-line no-console
+    console.log(`checked ${OUTPUT_PATH} (${FAMILIES.length} families)`)
+    return
+  }
+
+  writeFileSync(OUTPUT_PATH, content)
+  // eslint-disable-next-line no-console
+  console.log(`wrote ${OUTPUT_PATH} (${FAMILIES.length} families)`)
+}
+
+if (import.meta.main) writeOrCheck()

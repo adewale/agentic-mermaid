@@ -294,6 +294,55 @@ describe('property-based ASCII pathfinding', () => {
 })
 
 describe('property-based ASCII routing helpers', () => {
+  function labeledEdge(path: Array<{ x: number; y: number }>, text = 'wide'): AsciiEdge {
+    return {
+      from: makeNode('A', 0, path[0]!),
+      to: makeNode('B', 1, path[path.length - 1]!),
+      text,
+      path,
+      labelLine: [],
+      startDir: { x: 0, y: 0 },
+      endDir: { x: 0, y: 0 },
+      style: 'solid',
+      hasArrowStart: false,
+      hasArrowEnd: true,
+    }
+  }
+
+  it('prefers the widest fitting branch segment for a TD label', () => {
+    const graph = makeGraph('TD')
+    graph.columnWidth.set(2, 9)
+    graph.columnWidth.set(8, 5)
+    const edge = labeledEdge([
+      { x: 0, y: 0 },
+      { x: 2, y: 0 },
+      { x: 2, y: 3 },
+      { x: 8, y: 3 },
+      { x: 8, y: 6 },
+    ])
+
+    determineLabelLine(graph, edge)
+
+    expect(edge.labelLine).toEqual([{ x: 2, y: 0 }, { x: 2, y: 3 }])
+  })
+
+  it('lets a later wider TD branch segment beat an earlier narrower one', () => {
+    const graph = makeGraph('TD')
+    graph.columnWidth.set(2, 5)
+    graph.columnWidth.set(8, 9)
+    const edge = labeledEdge([
+      { x: 0, y: 0 },
+      { x: 2, y: 0 },
+      { x: 2, y: 3 },
+      { x: 8, y: 3 },
+      { x: 8, y: 6 },
+    ])
+
+    determineLabelLine(graph, edge)
+
+    expect(edge.labelLine).toEqual([{ x: 8, y: 3 }, { x: 8, y: 6 }])
+  })
+
   it('selects a label segment from the path and widens the midpoint column', () => {
     const pathArb = fc.record({
       direction: fc.constantFrom<'TD' | 'LR'>('TD', 'LR'),

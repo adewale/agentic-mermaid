@@ -1,0 +1,60 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 360 237.8" width="360" height="237.8" style="--bg:#FFFFFF;--fg:#27272A;--font:Inter;background:#FFFFFF">
+<style>
+  text { font-family: var(--font, 'Inter'), system-ui, sans-serif; }
+  .mono { font-family: 'JetBrains Mono', 'SF Mono', 'Fira Code', ui-monospace, monospace; }
+  svg {
+    /* Derived from --bg and --fg (overridable via --line, --accent, etc.) */
+    --_text:          #27272A;
+    --_text-sec:      #7d7d7f;
+    --_text-muted:    #a9a9aa;
+    --_text-faint:    #c9c9ca;
+    --_line:          #939395;
+    --_arrow:         #47474a;
+    --_node-fill:     #f9f9f9;
+    --_node-stroke:   #d4d4d4;
+    --_group-fill:    #FFFFFF;
+    --_group-hdr:     #f4f4f4;
+    --_inner-stroke:  #e5e5e5;
+    --_key-badge:     #e9e9ea;
+  }
+</style>
+<defs>
+  <marker id="char-class-cls-inherit" markerWidth="12" markerHeight="10" refX="12" refY="5" orient="auto-start-reverse">
+    <polygon points="0 0, 12 5, 0 10" fill="#FFFFFF" stroke="#47474a" stroke-width="1.5" />
+  </marker>
+  <marker id="char-class-cls-composition" markerWidth="12" markerHeight="10" refX="0" refY="5" orient="auto-start-reverse">
+    <polygon points="6 0, 12 5, 6 10, 0 5" fill="#47474a" stroke="#47474a" stroke-width="1" />
+  </marker>
+  <marker id="char-class-cls-aggregation" markerWidth="12" markerHeight="10" refX="0" refY="5" orient="auto-start-reverse">
+    <polygon points="6 0, 12 5, 6 10, 0 5" fill="#FFFFFF" stroke="#47474a" stroke-width="1.5" />
+  </marker>
+  <marker id="char-class-cls-arrow" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto-start-reverse">
+    <polyline points="0 0, 8 3, 0 6" fill="none" stroke="#47474a" stroke-width="1.5" />
+  </marker>
+</defs>
+<polyline class="class-relationship" data-from="Animal" data-to="Dog" data-type="inheritance" data-marker-at="from" points="100,88.9 100,148.9" fill="none" stroke="#939395" stroke-width="1" marker-start="url(#char-class-cls-inherit)" />
+<polyline class="class-relationship" data-from="Animal" data-to="Cat" data-type="inheritance" data-marker-at="from" points="140,88.9 140,98.9 260,98.9 260,148.9" fill="none" stroke="#939395" stroke-width="1" marker-start="url(#char-class-cls-inherit)" />
+<g class="class-node" data-id="Animal" data-label="Animal">
+  <rect x="60" y="40" width="120" height="48.900000000000006" rx="0" ry="0" fill="#f9f9f9" stroke="#d4d4d4" stroke-width="1" />
+  <path d="M60,40 H180 V72.9 H60 Z" fill="#f4f4f4" stroke="#d4d4d4" stroke-width="1" />
+  <text x="120" y="56.45" text-anchor="middle" font-size="13" font-weight="700" fill="#27272A" dy="4.55">Animal</text>
+  <line x1="60" y1="72.9" x2="180" y2="72.9" stroke="#d4d4d4" stroke-width="0.75" />
+  <line x1="60" y1="80.9" x2="180" y2="80.9" stroke="#d4d4d4" stroke-width="0.75" />
+</g>
+<g class="class-node" data-id="Dog" data-label="Dog">
+  <rect x="40" y="148.9" width="120" height="48.900000000000006" rx="0" ry="0" fill="#f9f9f9" stroke="#d4d4d4" stroke-width="1" />
+  <path d="M40,148.9 H160 V181.8 H40 Z" fill="#f4f4f4" stroke="#d4d4d4" stroke-width="1" />
+  <text x="100" y="165.35000000000002" text-anchor="middle" font-size="13" font-weight="700" fill="#27272A" dy="4.55">Dog</text>
+  <line x1="40" y1="181.8" x2="160" y2="181.8" stroke="#d4d4d4" stroke-width="0.75" />
+  <line x1="40" y1="189.8" x2="160" y2="189.8" stroke="#d4d4d4" stroke-width="0.75" />
+</g>
+<g class="class-node" data-id="Cat" data-label="Cat">
+  <rect x="200" y="148.9" width="120" height="48.900000000000006" rx="0" ry="0" fill="#f9f9f9" stroke="#d4d4d4" stroke-width="1" />
+  <path d="M200,148.9 H320 V181.8 H200 Z" fill="#f4f4f4" stroke="#d4d4d4" stroke-width="1" />
+  <text x="260" y="165.35000000000002" text-anchor="middle" font-size="13" font-weight="700" fill="#27272A" dy="4.55">Cat</text>
+  <line x1="200" y1="181.8" x2="320" y2="181.8" stroke="#d4d4d4" stroke-width="0.75" />
+  <line x1="200" y1="189.8" x2="320" y2="189.8" stroke="#d4d4d4" stroke-width="0.75" />
+</g>
+
+
+</svg>

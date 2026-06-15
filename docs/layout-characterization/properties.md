@@ -1,4 +1,4 @@
-# Load-bearing properties of the ASCII grid layout
+# Load-bearing properties of the layout characterisation
 
 This is the **smallest set of properties that characterise and determine** the
 hand-written ASCII grid + A\* layout algorithm
@@ -6,6 +6,20 @@ hand-written ASCII grid + A\* layout algorithm
 Each property is encoded as a property-based test in
 [`src/__tests__/characterization-layout.test.ts`](../../src/__tests__/characterization-layout.test.ts)
 and motivated by a worked example in [`contact-sheet.md`](./contact-sheet.md).
+
+The renderer breadth layer is intentionally smaller and more conservative:
+[`src/__tests__/characterization-families.test.ts`](../../src/__tests__/characterization-families.test.ts)
+extends only the universal assumptions that hold across every diagram family
+and public output surface. It is motivated by
+[`contact-sheet-families.md`](./contact-sheet-families.md).
+
+The visual-quality layer
+([`visual-quality.md`](./visual-quality.md)) is an approval artifact rather than
+part of the minimal property kernel: it records SVG snapshots, SVG/PNG hashes,
+and review metrics for crossings, bends, route length, canvas area, label fit,
+and edge-label overlap risk. After PR 30, the hard route-quality oracle lives in
+`src/layout-rubric.ts` and `src/__tests__/layout-rubric.test.ts`; this document
+does not duplicate those assertions.
 
 "Load-bearing" has a precise operational meaning here (see
 [§ Minimality](#minimality)): a property is load-bearing if removing it lets a
@@ -42,6 +56,16 @@ assertions) and **quality heuristics** (graded, only safe to assert as
 metamorphic/monotonic relations). Crossing count, edge length, and compactness
 are quality heuristics and are deliberately **not** asserted here — they are
 brittle golden values, not load-bearing invariants.
+
+PR 30 adds one important refinement to that split: some visual qualities have
+become hard, computable route-contract assertions for graph-projected families
+(flowchart, state, architecture). Hitches, diagonal routed segments,
+off-outline endpoints, edge-through-node routes, label-off-route ambiguity, and
+stale straight-route certificates are no longer mere approval signals there;
+they are correctness failures in `layout-rubric.test.ts` and
+`contact-sheet.test.ts`. The characterisation suite therefore treats those
+tests as the correctness layer and uses this directory to record approved
+observable baselines around it.
 
 ---
 
@@ -90,6 +114,64 @@ tests flip — which is exactly when a human should look and re-approve.
 
 ---
 
+## Renderer-family breadth properties
+
+These properties answer the "all renderers" part of the prompt. They do **not**
+claim that every renderer shares the grid algorithm's structural invariants;
+sequence, class, ER, timeline, journey, xychart, pie, quadrant, and
+architecture each have their own layout strategy. Instead, they pin the
+cross-family contracts that make the render surface usable and refactorable.
+
+| ID | Property | Statement | Scope |
+|----|----------|-----------|-------|
+| **F1** | Dispatch totality | Each of the 11 built-in families renders non-empty text/SVG and a valid PNG signature. | flowchart, state, sequence, class, ER, timeline, journey, xychart, pie, quadrant, architecture |
+| **F2** | Sentinel label conservation | Representative labels survive on the text and SVG surfaces, proving family dispatch did not fall through to an empty/adjacent renderer. | all 11 families |
+| **F3** | Renderer determinism | Representative text, SVG, and PNG renders are byte-stable across repeated calls. | all 11 families |
+| **F4** | Output hygiene | Plain text has no ANSI escapes when color is disabled, and text/SVG do not leak `NaN`, `Infinity`, or `undefined`. | all 11 families |
+| **F5** | Text orthogonality / block-only output | Generated text renders contain no diagonal connector glyphs. | all non-grid families, with flowchart/state covered by P3 |
+| **F6** | Rectangularity boundary | Rectangular text output holds for box/graph families only; chart/list/architecture families are intentionally ragged. | sequence, class, ER are rectangular; pie pins the ragged boundary |
+
+F1-F4 are finite matrix properties because the renderer surface is a dispatch
+contract: one canonical specimen per family catches missing switch branches,
+misdetected families, broken PNG rasterization, and accidental text/SVG leakage.
+F5-F6 are generated where a family has a compact valid-input generator and the
+invariant is meaningful.
+
+---
+
+## Visual-quality approval signals
+
+The graph-drawing literature treats crossings, bends, route length, canvas area,
+and label overlap as aesthetic objectives or optimization costs. They are
+important, but they are not invariant in the same way as totality,
+determinism, or orthogonality. PR 30's route-contract work promoted a subset of
+these signals to hard checks when a clear geometric contract exists; the
+remaining cross-family metrics stay in a generated approval artifact instead of
+being folded into the minimal PBT kernel:
+
+| ID | Signal | What changes mean |
+|----|--------|-------------------|
+| **V1** | SVG snapshots | Human-visible visual drift in any renderer family. |
+| **V2** | SVG/PNG fingerprints | Byte-level drift on both vector and raster public surfaces. |
+| **V3** | Quality metrics | Changes in crossings, bends, route length, area fill, label fit, or edge-label overlap risk. |
+| **V4** | Generator drift check | A stale contact sheet or visual report fails `characterization-generated-artifacts.test.ts` / `bun run characterization:check`. |
+
+These signals should trigger review, not panic. A quality metric can improve,
+degrade, or simply change because a layout strategy changed. The review question
+is whether the new visual behaviour is intended and whether the generated
+artifact was updated deliberately.
+
+The PR 30 rebase is the model case. The generated-artifact check identified
+only the flowchart and state snapshots as stale after the route-contract merge,
+which matches the observed layout surface of that PR in this canonical family
+set. Drift in class, ER, sequence, chart, pie, quadrant, timeline, journey, or
+architecture snapshots would have required a separate explanation unless the PR
+explicitly claimed and reviewed that family. Architecture is graph-projected
+through route contracts, so the important fact here is not that PR 30 could
+never affect it; it is that this rebase did not.
+
+---
+
 ## <a id="minimality"></a>Minimality: why this set, and no smaller
 
 The target is *the smallest set of properties whose removal lets a previously
@@ -118,6 +200,13 @@ property:
   still yields a valid diagram for the original labels.
 - **P1 (totality)** is the cheap floor that every other property silently assumes
   (they can't assert on a throw).
+- Drop **F1/F2** → a renderer-family dispatch branch can disappear, fall through,
+  or return a placeholder while the deep grid tests remain green.
+- Drop **F3/F4** → renderer-specific nondeterminism or leaked layout sentinels can
+  escape outside the grid engine, invalidating contact sheets, snapshots, and PNG
+  raster output.
+- Drop **F5/F6** → the breadth layer stops recording which text renderers share
+  the grid-like contracts and which intentionally do not.
 
 Conversely, the set does **not** include redundant properties:
 
@@ -126,7 +215,7 @@ Conversely, the set does **not** include redundant properties:
   not independently load-bearing for trees.
 - Crossing count / edge length / compactness are **quality heuristics**, not
   invariants — asserting exact values is brittle and they are intentionally
-  left to the golden corpus, not this kernel.
+  left to the visual approval layer, not this kernel.
 
 The unit-level A\* invariants (shortest Manhattan path on an empty grid,
 obstacle avoidance, `mergePath` idempotence, bounded search) are *also*
@@ -156,17 +245,37 @@ avoid duplicating them.
   whole framing: pin actual behaviour, review diffs, approve changes.
 - **Bartocci et al. (2023), property-based mutation testing.** The "load-bearing
   = kills a unique mutant" criterion used in [§ Minimality](#minimality);
-  Stryker (`stryker.ascii.config.json`) is the tool that can verify it.
+  Stryker (`stryker.characterization.config.json` for fast PR evidence,
+  `stryker.ascii.config.json` for the exhaustive run) is the tool that can
+  verify it.
+
+The fast characterization Stryker config is a smoke gate over selected mutation
+ranges, not a substitute for the exhaustive ASCII run. Surviving mutants in the
+smoke report are useful backlog signals for future deeper characterisation; the
+full ASCII config remains the expensive overnight-style audit.
 
 ## How to use this
 
 ```bash
-# Run the characterisation kernel
+# Run the characterisation kernels
 bun test src/__tests__/characterization-layout.test.ts
+bun test src/__tests__/characterization-families.test.ts
 
-# Regenerate the worked-examples contact sheet (approval workflow)
+# Verify PR 30 route-contract correctness before approving visual drift
+bun test src/__tests__/contact-sheet.test.ts src/__tests__/layout-rubric.test.ts
+bun run track
+
+# Regenerate the worked-examples contact sheets (approval workflow)
 bun run scripts/characterization/contact-sheet.ts
+bun run scripts/characterization/contact-sheet-families.ts
+bun run scripts/characterization/visual-quality.ts
 
-# Verify which properties are actually load-bearing (kills unique mutants)
-npx stryker run stryker.ascii.config.json
+# CI-friendly generated-artifact drift check
+bun run characterization:check
+
+# Quick mutation evidence for the load-bearing ranges
+bun run mutation-test:characterization
+
+# Exhaustive but slow: mutates the whole ASCII layout core
+bun run mutation-test:ascii
 ```

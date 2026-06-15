@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 368.79 276" width="368.79" height="276" style="--bg:#FFFFFF;--fg:#27272A;--font:Inter;background:#FFFFFF" role="img" aria-roledescription="pie chart">
+<style>
+  text { font-family: var(--font, 'Inter'), system-ui, sans-serif; }
+  svg {
+    /* Derived from --bg and --fg (overridable via --line, --accent, etc.) */
+    --_text:          #27272A;
+    --_text-sec:      #7d7d7f;
+    --_text-muted:    #a9a9aa;
+    --_text-faint:    #c9c9ca;
+    --_line:          #939395;
+    --_arrow:         #47474a;
+    --_node-fill:     #f9f9f9;
+    --_node-stroke:   #d4d4d4;
+    --_group-fill:    #FFFFFF;
+    --_group-hdr:     #f4f4f4;
+    --_inner-stroke:  #e5e5e5;
+    --_key-badge:     #e9e9ea;
+  }
+</style>
+<style>
+  .pie-slice { stroke: #FFFFFF; stroke-width: 1.5; }
+  .pie-legend-swatch { stroke: #d4d4d4; stroke-width: 1; }
+  .pie-legend-text { fill: #27272A; }
+  .pie-title { fill: #27272A; }
+</style>
+<path class="pie-slice" d="M 119 157 L 119 62 A 95 95 0 0 1 201.27 204.5 Z" fill="#3b82f6" data-label="Cats" data-value="4" data-percent="33.3%" />
+<path class="pie-slice" d="M 119 157 L 201.27 204.5 A 95 95 0 0 1 36.73 109.5 Z" fill="#0d5ba5" data-label="Dogs" data-value="6" data-percent="50.0%" />
+<path class="pie-slice" d="M 119 157 L 36.73 109.5 A 95 95 0 0 1 119 62 Z" fill="#5f79f2" data-label="Birds" data-value="2" data-percent="16.7%" />
+<rect class="pie-legend-swatch" x="246" y="128" width="14" height="14" rx="2" ry="2" fill="#3b82f6" />
+<text x="268" y="135" class="pie-legend-text" text-anchor="start" dominant-baseline="middle" font-size="13" font-weight="500" dy="4.55">Cats (33.3%)</text>
+<rect class="pie-legend-swatch" x="246" y="150" width="14" height="14" rx="2" ry="2" fill="#0d5ba5" />
+<text x="268" y="157" class="pie-legend-text" text-anchor="start" dominant-baseline="middle" font-size="13" font-weight="500" dy="4.55">Dogs (50.0%)</text>
+<rect class="pie-legend-swatch" x="246" y="172" width="14" height="14" rx="2" ry="2" fill="#5f79f2" />
+<text x="268" y="179" class="pie-legend-text" text-anchor="start" dominant-baseline="middle" font-size="13" font-weight="500" dy="4.55">Birds (16.7%)</text>
+<text x="184.4" y="33" class="pie-title" text-anchor="middle" dominant-baseline="middle" font-size="18" font-weight="600" dy="6.3">Pets</text>
+</svg>

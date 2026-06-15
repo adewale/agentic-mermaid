@@ -15,7 +15,7 @@
 // ============================================================================
 
 import { renderMermaidASCII } from '../../src/ascii/index.ts'
-import { writeFileSync } from 'node:fs'
+import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 
 interface Example {
@@ -169,7 +169,7 @@ function render(source: string): string {
   return renderMermaidASCII(source, { colorMode: 'none', useAscii: true })
 }
 
-function build(): string {
+export function build(): string {
   const lines: string[] = []
   lines.push('# Contact sheet — ASCII grid layout algorithm')
   lines.push('')
@@ -221,7 +221,26 @@ function build(): string {
   return lines.join('\n')
 }
 
-const out = join(import.meta.dir, '..', '..', 'docs', 'layout-characterization', 'contact-sheet.md')
-writeFileSync(out, build())
-// eslint-disable-next-line no-console
-console.log(`wrote ${out} (${EXAMPLES.length} examples)`)
+export const OUTPUT_PATH = join(import.meta.dir, '..', '..', 'docs', 'layout-characterization', 'contact-sheet.md')
+
+function writeOrCheck(): void {
+  const content = build()
+  if (process.argv.includes('--check')) {
+    const current = existsSync(OUTPUT_PATH) ? readFileSync(OUTPUT_PATH, 'utf8') : ''
+    if (current !== content) {
+      // eslint-disable-next-line no-console
+      console.error(`${OUTPUT_PATH} is out of date; run scripts/characterization/contact-sheet.ts`)
+      process.exitCode = 1
+      return
+    }
+    // eslint-disable-next-line no-console
+    console.log(`checked ${OUTPUT_PATH} (${EXAMPLES.length} examples)`)
+    return
+  }
+
+  writeFileSync(OUTPUT_PATH, content)
+  // eslint-disable-next-line no-console
+  console.log(`wrote ${OUTPUT_PATH} (${EXAMPLES.length} examples)`)
+}
+
+if (import.meta.main) writeOrCheck()
