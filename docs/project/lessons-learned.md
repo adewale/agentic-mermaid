@@ -29,11 +29,9 @@ realized. A short empirical probe in Loop 1 would have saved a Loop 3.
 After the survey, the position we hold that no other package holds is
 the *combination* of:
 
-- **Structured-or-opaque rule.** Every diagram family either has a
-  structured body for its modeled syntax (flowchart, state, sequence,
-  timeline, class, ER, journey, xychart) or stays opaque with
-  byte-fidelity round-trip when a construct is unmodeled (including
-  architecture). We never silently drop a construct.
+- **Structured-or-opaque rule.** Every built-in renderable family has a
+  structured body for its modeled syntax, and opaque/source-preserved
+  fallback when a construct is unmodeled. We never silently drop a construct.
 - **Tiered verification.** Tier 1 (structural — reliable, universal),
   Tier 2 (geometric — flowchart-shaped), and Tier 3 (lint — family-specific
   common agent mistakes). Tier 1 is gated; Tier 2 and Tier 3 are advisory.
@@ -41,7 +39,7 @@ the *combination* of:
   processes produce byte-identical layout JSON; bun and node produce
   byte-identical layout JSON on the same source. Both tests run on every
   PR.
-- **Corpus gates.** The 247-sample mermaid-js docs corpus and the
+- **Corpus gates.** The 258-entry mermaid-js docs corpus and the
   132-case MermaidSeqBench both run as PR gates; regressions break the
   build with a named diff.
 - **Agent-contract verbs.** `am capabilities --json` (Loop 7) lets an
@@ -83,7 +81,7 @@ nobody can reason about end-to-end.
 
 ## (d) Cost / value of the corpus + LLM-judge
 
-The 247-sample mermaid-js corpus has paid for itself twice. In Loop 5 a
+The mermaid-js docs corpus (now 258 entries) has paid for itself twice. In Loop 5 a
 state-diagram round-trip regression slipped past the unit tests because
 our hand-written fixtures didn't cover the exact `note left of` /
 `note right of` pattern; the corpus caught it within seconds. In Loop 7
@@ -250,7 +248,7 @@ filed.
 
 The single most important realization of this whole arc: **13 loops of
 work sit in one unmerged PR (#11), and every quality signal is
-self-generated.** Our tests, our 247-corpus, our MermaidSeqBench wiring,
+self-generated.** Our tests, our docs corpus, our MermaidSeqBench wiring,
 our benchmark, our LLM-judge, our agent-usage harness — all authored by
 the same effort that authored the code. That's not worthless (it caught
 real bugs: the state round-trip regression, the marker-id collision, the
@@ -572,7 +570,7 @@ the `@{}` case fabricated phantom nodes from metadata keys with
 `verify.ok: true`; the frontmatter case flattened `config:`-nested keys into
 top-level YAML Mermaid silently ignores — so an edit loop *kept the bytes*
 that expressed the author's `config.layout` request while *killing their
-meaning* on interop. Neither was caught by 2,200+ tests, the 247-sample
+meaning* on interop. Neither was caught by 2,200+ tests, the 258-entry
 corpus, or the round-trip floors, because every fixture we owned was written
 by people who already knew what the parser modeled. Upstream documentation
 examples are adversarial in exactly the right way: they encode what real

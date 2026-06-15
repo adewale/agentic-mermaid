@@ -14,6 +14,8 @@
 //   - Timeline diagrams (timeline)
 //   - User Journey diagrams (journey)
 //   - XY charts (xychart / xychart-beta)
+//   - Pie charts (pie)
+//   - Quadrant charts (quadrantChart)
 //   - Gantt charts (gantt)
 //
 // Theming uses CSS custom properties (--bg, --fg, + optional enrichment).

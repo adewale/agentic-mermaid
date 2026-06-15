@@ -110,7 +110,7 @@ managed file/URL artifacts with MIME type, byte count, and SHA-256 metadata.
   SVG layout/ASCII; full-corpus ASCII repeated-run guard; cross-runtime guards
   exist for bun ≡ node on same-machine x86_64/ARM64 when Node + built `dist/`
   artifacts are present.
-- **Corpus gates** — 247-sample mermaid-js docs corpus + 132-case
+- **Corpus gates** — 258-entry mermaid-js docs corpus + 132-case
   MermaidSeqBench, gated in CI.
 - **Benchmarks** — `eval/benchmark/RESULTS.md` (measured vs mmdc, termaid).
 - **Agent-usage validation** — `eval/agent-usage/` scenarios,

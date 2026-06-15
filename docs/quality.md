@@ -129,8 +129,9 @@ geometry assertions, screenshot/PNG review, or human inspection.
   | xychart       | bars + line-point markers          | —            | plot area            |
   | pie           | slice label boxes (legend anchor + approx bbox) | — | —                    |
   | quadrant      | plotted points                     | —            | quadrant regions     |
+  | gantt         | task bars + milestone diamonds     | —            | section bands        |
 
-  Families with no structural relations (pie/quadrant/xychart/journey) carry an
+  Families with no structural relations (pie/quadrant/xychart/journey/gantt) carry an
   honestly-empty `edges` array. Bounds is the family layout's canvas size.
 - **No font-substitution check.** Different OSes render different
   default fonts. Our `labelLegibility` heuristic uses a 7 px-per-char
@@ -158,7 +159,7 @@ What the guard catches:
 
 What the guard covers now:
 - **Representative pathfinder fixtures** over 10 invocations.
-- **Full 247-sample mermaid-js docs corpus**: every entry must have a stable
+- **Full 258-entry mermaid-js docs corpus**: every entry must have a stable
   ASCII outcome (byte hash or deterministic error) across repeated runs.
 
 What the guard does NOT yet cover:

@@ -31,7 +31,9 @@ This fork renders a wider set of Mermaid families in both the gallery and editor
 - Quadrant charts (`quadrantChart`) — not yet rendered anywhere else in the beautiful-mermaid network
 - Gantt charts (`gantt`) with date axes, sections, dependencies, milestones, exclusions, and vertical markers
 
-The live editor has E2E coverage for several fork-added families: architecture, timeline, journey, and xychart.
+The live editor has registry-backed example coverage for every built-in family
+(`src/__tests__/editor-examples.test.ts`). Browser E2E still spot-checks several
+fork-added rendering paths: architecture, timeline, journey, and xychart.
 
 ## Semantic role-based SVG styling
 

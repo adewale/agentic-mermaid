@@ -117,7 +117,8 @@ dependents after. IDs are stable names, not an ordering.
   / 2 ascii goldens (`testdata/{unicode,ascii}/quadrant_*.txt`). Malformed
   lines (out-of-range/non-numeric coords, missing brackets, duplicate labels,
   `classDef`/`:::` styling) error loudly. Docs/showcase/CHANGELOG/llms.txt
-  updated; 11-family count assertions and detector-drift case bumped.
+  updated; the then-current family count assertions and detector-drift case
+  were bumped.
 - [ ] **BUILD-6 — New upstream Mermaid families (11.4–11.15)** (`todo`). Mermaid added kanban (11.4), radar (11.6), treemap
   (~11.9), Venn (beta, 11.13), Ishikawa/fishbone (beta, 11.13), Wardley Maps
   (beta, 11.14), TreeView (11.14), and Event Modeling (11.15). Upstream
@@ -340,8 +341,8 @@ dependents after. IDs are stable names, not an ordering.
 
 - [x] **QUAL-1 — Perceptual-quality coverage for non-graph families**
   (`done`). `layoutMermaid` now has `RenderedLayout` adapters for EVERY
-  renderable family — class, ER, journey, architecture, xychart, pie, and
-  quadrant join flowchart/state/sequence/timeline — so `measureQuality` /
+  renderable family — class, ER, journey, architecture, xychart, pie,
+  quadrant, and gantt join flowchart/state/sequence/timeline — so `measureQuality` /
   `checkQuality` and the BUILD-13 harness see real geometry (not bytes-only)
   for each. Adapters live in `src/agent/family-layouts.ts`; they parse
   `d.canonicalSource` via the legacy per-family parser+layouter (the same

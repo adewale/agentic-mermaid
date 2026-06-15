@@ -21,6 +21,7 @@
 //   pie           slice label boxes (legend    —                      —
 //                 anchor + approx bbox)
 //   quadrant      points                       —                      quadrant regions
+//   gantt         tasks + milestones           —                      section bands
 //
 // Opaque-safe: every adapter parses d.canonicalSource via the legacy parser +
 // layouter (the exact path renderMermaidSVG uses) wrapped in try/catch. An

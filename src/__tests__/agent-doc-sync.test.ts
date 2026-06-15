@@ -150,14 +150,44 @@ describe('agent-facing runnable docs', () => {
 describe('vocabulary doc-sync', () => {
   test('built-in family metadata is the checked source for shipped family surfaces', () => {
     const metadataIds = new Set(BUILTIN_FAMILY_METADATA.map(f => f.id))
+    const mutationFamilyIds = new Set(Object.keys(MUTATION_OPS_BY_FAMILY) as Array<keyof typeof MUTATION_OPS_BY_FAMILY>)
     expect(BUILTIN_FAMILY_METADATA_COVERS_DIAGRAM_KIND).toBe(true)
     expect(metadataIds).toEqual(new Set(knownFamilies()))
-    expect(metadataIds).toEqual(new Set(Object.keys(MUTATION_OPS_BY_FAMILY)))
+    expect(metadataIds).toEqual(mutationFamilyIds)
 
     for (const family of BUILTIN_FAMILY_METADATA) {
       const docs = MUTABLE_FAMILY_DOCS[family.id]
       expect({ family: family.id, narrower: docs.narrower }).toEqual({ family: family.id, narrower: family.narrower })
       expect({ family: family.id, label: docs.label }).toEqual({ family: family.id, label: family.label })
+    }
+  })
+
+  test('human-facing capability docs mention every built-in family', () => {
+    const docs = [
+      'README.md',
+      'docs/diagram-families.md',
+      'docs/features.md',
+      'docs/ascii.md',
+      'docs/fork-differences.md',
+    ]
+    for (const file of docs) {
+      const text = readFileSync(join(REPO, file), 'utf8').toLowerCase()
+      for (const family of BUILTIN_FAMILY_METADATA) {
+        const label = family.label.toLowerCase()
+        const header = family.headers[0]!.toLowerCase()
+        expect({ file, family: family.id, present: text.includes(label) || text.includes(header) })
+          .toEqual({ file, family: family.id, present: true })
+      }
+    }
+  })
+
+  test('quality geometry table lists every built-in family', () => {
+    const quality = readFileSync(join(REPO, 'docs/quality.md'), 'utf8')
+    for (const family of BUILTIN_FAMILY_METADATA) {
+      expect({
+        family: family.id,
+        row: new RegExp(`\\|\\s*${escapeRegExp(family.id)}\\s*\\|`).test(quality),
+      }).toEqual({ family: family.id, row: true })
     }
   })
 

@@ -3,15 +3,13 @@ import fc from 'fast-check'
 
 import { generateHtml, type GenerateHtmlOptions } from '../../scripts/site/generate.ts'
 import { samples, type Sample } from '../../scripts/site/samples-data.ts'
+import { BUILTIN_FAMILY_METADATA } from '../agent/families.ts'
 
 // generateHtml is async and does Bun.build internally (~1-2s per call).
 // Keep numRuns low to avoid excessive build time.
 const PROPERTY_RUNS = 5
 
-const ALL_CATEGORIES = [
-  'Architecture', 'Timeline', 'Journey', 'Flowchart',
-  'State', 'Sequence', 'Class', 'ER', 'XY Chart',
-] as const
+const ALL_CATEGORIES = BUILTIN_FAMILY_METADATA.map(f => f.editorDiagramType)
 
 /** Count how many samples match a given category set (including Hero). */
 function countSamplesForCategories(cats: Set<string>): number {
@@ -32,6 +30,14 @@ function escapeHtml(text: string): string {
 // ============================================================================
 
 describe('HTML generator: default options', () => {
+  it('has sample coverage for every built-in family category', () => {
+    const categories = new Set(samples.map(s => s.category ?? 'Other'))
+    for (const family of BUILTIN_FAMILY_METADATA) {
+      expect({ family: family.id, category: family.editorDiagramType, covered: categories.has(family.editorDiagramType) })
+        .toEqual({ family: family.id, category: family.editorDiagramType, covered: true })
+    }
+  })
+
   it('produces valid HTML with all expected structural markers', async () => {
     const html = await generateHtml()
 

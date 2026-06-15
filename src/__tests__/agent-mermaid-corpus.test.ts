@@ -28,7 +28,7 @@ describe('mermaid-js docs corpus (258 examples, 10 families)', () => {
   // model (e.g., direction inside subgraphs, advanced class syntax). The gate
   // is set per-family from the observed-correct baseline; regressions cause
   // CI failure.
-  // Floors observed from the 247-sample baseline. Regression-only — if a
+  // Floors observed from the docs-corpus baseline. Regression-only — if a
   // future change drops a rate below floor, the test fails with the full
   // rate report so it's obvious what changed.
   //

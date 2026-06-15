@@ -3,7 +3,7 @@
  *
  * These tests ensure that:
  *   1. All named themes in THEMES have required color properties
- *   2. Every diagram type listed in src/index.ts is actually handled
+ *   2. Every built-in family in the checked family registry renders
  *   3. All public exports from src/index.ts are real (not undefined)
  *   4. Package.json keywords include all supported diagram types
  */
@@ -22,6 +22,8 @@ import {
 } from '../index.ts'
 import { renderMermaidSVG, renderMermaidSVGAsync, renderMermaidSync, renderMermaid } from '../index.ts'
 import type { DiagramColors } from '../theme.ts'
+import { BUILTIN_FAMILY_METADATA } from '../agent/families.ts'
+import type { BuiltinFamilyId } from '../agent/families.ts'
 
 // ============================================================================
 // 1. All named themes have required color properties
@@ -75,82 +77,38 @@ describe('THEMES registry — required color properties', () => {
 })
 
 // ============================================================================
-// 2. All diagram types listed in src/index.ts are actually handled
+// 2. All built-in families in the registry are actually handled
 // ============================================================================
 
 describe('diagram type coverage — all documented types render to SVG', () => {
-  // These are the diagram types listed in the comment at the top of src/index.ts
-  // and handled by the detectDiagramType switch statement.
+  const renderCases = {
+    flowchart: { source: 'graph TD\n  A --> B', marker: '>A</text>' },
+    state: { source: 'stateDiagram-v2\n  [*] --> Active', marker: 'Active' },
+    sequence: { source: 'sequenceDiagram\n  Alice->>Bob: Hello', marker: 'Alice' },
+    timeline: { source: 'timeline\n  title History\n  2020 : Event A', marker: '2020' },
+    class: { source: 'classDiagram\n  class Animal\n  Animal : +name string', marker: 'Animal' },
+    er: { source: 'erDiagram\n  CUSTOMER ||--o{ ORDER : places', marker: 'CUSTOMER' },
+    journey: { source: 'journey\n  title User Journey\n  section Login\n    Open app: 5: User', marker: 'Login' },
+    architecture: { source: 'architecture-beta\n  service api(server)[API]', marker: 'API' },
+    xychart: { source: 'xychart-beta\n  x-axis [A, B, C]\n  y-axis "Count" 0 --> 10\n  bar [3, 7, 5]', marker: 'Count' },
+    pie: { source: 'pie title Pets\n  "Dogs" : 3\n  "Cats" : 2', marker: 'Dogs' },
+    quadrant: { source: 'quadrantChart\n  title Priorities\n  x-axis Low --> High\n  y-axis Risk --> Reward\n  A: [0.7, 0.8]', marker: 'Priorities' },
+    gantt: { source: 'gantt\n  dateFormat YYYY-MM-DD\n  section Build\n    Spec :spec, 2024-01-01, 2d', marker: 'Spec' },
+  } satisfies Record<BuiltinFamilyId, { source: string; marker: string }>
 
-  it('renders flowchart (graph TD)', () => {
-    const svg = renderMermaidSVG('graph TD\n  A --> B')
-    expect(svg).toContain('<svg')
-    expect(svg).toContain('</svg>')
-    expect(svg).toContain('>A</text>')
+  it('has a render case for every built-in family', () => {
+    expect(new Set(Object.keys(renderCases))).toEqual(new Set(BUILTIN_FAMILY_METADATA.map(f => f.id)))
   })
 
-  it('renders flowchart (flowchart LR)', () => {
-    const svg = renderMermaidSVG('flowchart LR\n  A --> B')
-    expect(svg).toContain('<svg')
-    expect(svg).toContain('</svg>')
-    expect(svg).toContain('>A</text>')
-  })
-
-  it('renders state diagrams (stateDiagram-v2)', () => {
-    const svg = renderMermaidSVG('stateDiagram-v2\n  [*] --> Active')
-    expect(svg).toContain('<svg')
-    expect(svg).toContain('</svg>')
-    expect(svg).toContain('Active')
-  })
-
-  it('renders architecture diagrams (architecture-beta)', () => {
-    const svg = renderMermaidSVG('architecture-beta\n  service api(server)[API]')
-    expect(svg).toContain('<svg')
-    expect(svg).toContain('</svg>')
-    expect(svg).toContain('API')
-  })
-
-  it('renders sequence diagrams (sequenceDiagram)', () => {
-    const svg = renderMermaidSVG('sequenceDiagram\n  Alice->>Bob: Hello')
-    expect(svg).toContain('<svg')
-    expect(svg).toContain('</svg>')
-    expect(svg).toContain('Alice')
-  })
-
-  it('renders class diagrams (classDiagram)', () => {
-    const svg = renderMermaidSVG('classDiagram\n  class Animal\n  Animal : +name string')
-    expect(svg).toContain('<svg')
-    expect(svg).toContain('</svg>')
-    expect(svg).toContain('Animal')
-  })
-
-  it('renders ER diagrams (erDiagram)', () => {
-    const svg = renderMermaidSVG('erDiagram\n  CUSTOMER ||--o{ ORDER : places')
-    expect(svg).toContain('<svg')
-    expect(svg).toContain('</svg>')
-    expect(svg).toContain('CUSTOMER')
-  })
-
-  it('renders timeline diagrams (timeline)', () => {
-    const svg = renderMermaidSVG('timeline\n  title History\n  2020 : Event A')
-    expect(svg).toContain('<svg')
-    expect(svg).toContain('</svg>')
-    expect(svg).toContain('2020')
-  })
-
-  it('renders journey diagrams (journey)', () => {
-    const svg = renderMermaidSVG('journey\n  title User Journey\n  section Login\n    Open app: 5: User')
-    expect(svg).toContain('<svg')
-    expect(svg).toContain('</svg>')
-    expect(svg).toContain('Login')
-  })
-
-  it('renders XY charts (xychart-beta)', () => {
-    const svg = renderMermaidSVG('xychart-beta\n  x-axis [A, B, C]\n  y-axis "Count" 0 --> 10\n  bar [3, 7, 5]')
-    expect(svg).toContain('<svg')
-    expect(svg).toContain('</svg>')
-    expect(svg).toContain('Count')
-  })
+  for (const family of BUILTIN_FAMILY_METADATA) {
+    const c = renderCases[family.id]
+    it(`renders ${family.id}`, () => {
+      const svg = renderMermaidSVG(c.source)
+      expect(svg).toContain('<svg')
+      expect(svg).toContain('</svg>')
+      expect(svg).toContain(c.marker)
+    })
+  }
 })
 
 // ============================================================================
@@ -234,17 +192,20 @@ describe('package.json keywords — cover all supported diagram types', () => {
   const pkg = require('../../package.json')
   const keywords: string[] = pkg.keywords
 
-  // The diagram types documented in src/index.ts comment header
-  const expectedDiagramKeywords = [
-    'flowchart',
-    'sequence-diagram',
-    'class-diagram',
-    'er-diagram',
-    'timeline-diagram',
-    'journey-diagram',
-    'xychart',
-    'state-diagram',
-  ]
+  const expectedDiagramKeywords = {
+    flowchart: 'flowchart',
+    state: 'state-diagram',
+    sequence: 'sequence-diagram',
+    timeline: 'timeline-diagram',
+    class: 'class-diagram',
+    er: 'er-diagram',
+    journey: 'journey-diagram',
+    architecture: 'architecture-diagram',
+    xychart: 'xychart',
+    pie: 'pie-chart',
+    quadrant: 'quadrant-chart',
+    gantt: 'gantt-chart',
+  } satisfies Record<BuiltinFamilyId, string>
 
   it('keywords array exists and is non-empty', () => {
     expect(Array.isArray(keywords)).toBe(true)
@@ -253,11 +214,11 @@ describe('package.json keywords — cover all supported diagram types', () => {
   })
 
   it('includes all supported diagram type keywords', () => {
-    for (const expected of expectedDiagramKeywords) {
+    expect(new Set(Object.keys(expectedDiagramKeywords))).toEqual(new Set(BUILTIN_FAMILY_METADATA.map(f => f.id)))
+    for (const expected of Object.values(expectedDiagramKeywords)) {
       expect(keywords).toContain(expected)
     }
-    // Verify at least 8 diagram types are covered
-    expect(expectedDiagramKeywords.length).toBeGreaterThanOrEqual(8)
+    expect(Object.keys(expectedDiagramKeywords).length).toBe(BUILTIN_FAMILY_METADATA.length)
   })
 
   it('includes core library keywords (mermaid, svg, diagram)', () => {

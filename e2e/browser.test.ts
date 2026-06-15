@@ -13,6 +13,7 @@
 import { describe, it, expect, beforeAll, afterAll } from 'bun:test'
 import { join } from 'path'
 import { chromium, type Browser, type BrowserContext, type CDPSession, type Page } from 'playwright'
+import { BUILTIN_FAMILY_METADATA } from '../src/agent/families.ts'
 
 const ROOT = join(import.meta.dir, '..')
 const PORT = 4567 // Avoid collision with dev server on 3456
@@ -761,17 +762,7 @@ describe('browser: live editor integration', () => {
         .filter(Boolean)),
     ).sort())
 
-    expect(diagramTypes).toEqual([
-      'Architecture',
-      'Class',
-      'ER',
-      'Flowchart',
-      'Journey',
-      'Sequence',
-      'State',
-      'Timeline',
-      'XY Chart',
-    ].sort())
+    expect(diagramTypes).toEqual(BUILTIN_FAMILY_METADATA.map(f => f.editorDiagramType).sort())
 
     const sidebarBox = await page.locator('#examples-sidebar').boundingBox()
     expect(sidebarBox).not.toBeNull()

@@ -57,7 +57,11 @@
     "er-diagram",
     "timeline-diagram",
     "journey-diagram",
+    "architecture-diagram",
     "xychart",
+    "pie-chart",
+    "quadrant-chart",
+    "gantt-chart",
     "state-diagram",
     "visualization",
     "theming"

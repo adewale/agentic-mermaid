@@ -6,7 +6,8 @@ This directory contains the `skill-eval-harness` manifest for the repository’s
 
 The public tune split now includes:
 
-- Diagram families: flowchart, sequence, timeline, class, ER, journey, xychart, architecture.
+- Diagram families: flowchart, state, sequence, timeline, class, ER, journey,
+  architecture, xychart, pie, quadrant, gantt.
 - Channels: library, CLI, and MCP Code Mode.
 - Negative/no-trigger rows for unrelated work.
 - Adversarial rows for source concatenation, skipping verify, editing generated `editor.html`, and using `type` instead of `kind`.

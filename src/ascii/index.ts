@@ -14,6 +14,9 @@
 //   - Timeline diagrams (timeline) — chronological outline with grouped milestones
 //   - User Journey diagrams (journey) — scored task lists with actor annotations
 //   - XY charts (xychart / xychart-beta)
+//   - Pie charts (pie) — proportional slice list
+//   - Quadrant charts (quadrantChart) — coordinate plot with legend
+//   - Gantt charts (gantt) — sectioned schedule bars and milestones
 //
 // Usage:
 //   import { renderMermaidASCII } from 'agentic-mermaid'

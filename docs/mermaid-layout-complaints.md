@@ -345,7 +345,7 @@ Obsidian, and upgrades silently regress committed diagrams.
 - Fixture/test: this is the fork's categorical answer rather than a
   mitigation. Byte-identical output across runs, processes, and runtimes is
   CI-gated (`agent-determinism.test.ts`); ASCII output is hash-stable across
-  the full 247-sample docs corpus (`ascii-determinism.test.ts`); PNG bytes
+  the full 258-entry docs corpus (`ascii-determinism.test.ts`); PNG bytes
   are pinned via exact-version resvg + bundled fonts
   (`agent-png-determinism.test.ts`). Intentional layout changes must pass
   the before/after comparison harness (`eval/layout-compare/`,
@@ -724,9 +724,9 @@ Stated plainly so the scorecard cannot oversell:
    applies to diagrams rendered through this stack (agent pipelines, CI,
    terminals, the editor) plus whatever is upstreamed per the
    [upstreaming strategy](./fork-differences.md#upstreaming-strategy).
-4. **Family coverage.** 12 families vs Mermaid's ~25. The loudest chart
-   complaints (gantt, C4) target families this engine does not render yet;
-   gantt is specced (PR #24), C4/radar/mindmap are not planned.
+4. **Family coverage.** 12 families vs Mermaid's ~25. Gantt is now rendered
+   and characterized in this fork; C4/radar/mindmap and many other Mermaid
+   families remain outside the current engine.
 5. **Metric honesty.** Today's perceptual metrics pass diagrams whose
    routing is visibly wrong (C4 worked example). Until #25 certificates and
    #26 family validators land, `verify.ok` + `checkQuality` must not be
