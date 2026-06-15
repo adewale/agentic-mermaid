@@ -20,6 +20,8 @@ import {
   asymmetricRenderer,
   trapezoidRenderer,
   trapezoidAltRenderer,
+  leanRRenderer,
+  leanLRenderer,
 } from './special.ts'
 
 // Re-export types
@@ -48,6 +50,8 @@ export const shapeRegistry: ShapeRegistry = new Map<AsciiNodeShape, ShapeRendere
   ['asymmetric', asymmetricRenderer],
   ['trapezoid', trapezoidRenderer],
   ['trapezoid-alt', trapezoidAltRenderer],
+  ['lean-r', leanRRenderer],
+  ['lean-l', leanLRenderer],
 
   // State diagram pseudo-states
   ['state-start', stateStartRenderer],

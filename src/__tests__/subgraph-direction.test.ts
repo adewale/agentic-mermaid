@@ -9,6 +9,9 @@
 import { describe, test, expect } from 'bun:test'
 import { parseMermaid, layoutMermaid } from '../agent/index.ts'
 import { renderMermaidASCII } from '../index.ts'
+import { layoutGraphSync } from '../layout-engine.ts'
+import { assessLayout, hardViolations } from '../layout-rubric.ts'
+import { parseMermaid as parseGraph } from '../parser.ts'
 
 function layoutOf(source: string) {
   const r = parseMermaid(source)
@@ -59,6 +62,47 @@ describe('subgraph direction override (SVG/ELK layout geometry)', () => {
     expect(Math.abs(bottom.x - top.x)).toBeLessThan(top.w)
     // Outer LR: outside sits to the left of the subgraph contents.
     expect(node(layout, 'outside').x).toBeLessThan(top.x)
+  })
+
+  test.each([false, true])('nested same-root cross-hierarchy edges extract in absolute coordinates (direction override: %p)', withOverride => {
+    const graph = parseGraph(`graph LR
+X
+subgraph outer
+    A
+    subgraph inner
+        ${withOverride ? 'direction TB' : ''}
+        B --> C
+    end
+    A --> B
+end
+X --> A
+C --> Y
+Y`)
+    const positioned = layoutGraphSync(graph)
+    expect(hardViolations(assessLayout(graph, positioned))).toEqual([])
+    if (!withOverride) {
+      const a = positioned.nodes.find(n => n.id === 'A')!
+      const b = positioned.nodes.find(n => n.id === 'B')!
+      const ab = positioned.edges.find(e => e.source === 'A' && e.target === 'B')!
+      expect(ab.points[0]!.x).toBeCloseTo(a.x + a.width, 1)
+      expect(ab.points.at(-1)!.x).toBeCloseTo(b.x, 1)
+    }
+  })
+
+  test('nested subgraph-id edges under direction overrides attach to the container', () => {
+    const graph = parseGraph(`flowchart LR
+  X --> Pipeline
+  subgraph Outer
+    direction TB
+    subgraph Pipeline
+      Fetch --> Done
+    end
+  end`)
+    const positioned = layoutGraphSync(graph)
+    expect(hardViolations(assessLayout(graph, positioned))).toEqual([])
+    const edge = positioned.edges.find(e => e.source === 'X' && e.target === 'Pipeline')!
+    expect(edge.points.length).toBeGreaterThanOrEqual(2)
+    expect(edge.routeCertificate?.routeClass).toBe('container')
   })
 })
 

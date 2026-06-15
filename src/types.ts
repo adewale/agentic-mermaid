@@ -42,6 +42,9 @@ export type NodeShape =
   | 'asymmetric'     // >text]    — flag/banner shape
   | 'trapezoid'      // [/text\]  — wider bottom
   | 'trapezoid-alt'  // [\text/]  — wider top
+  // Parallelograms (Mermaid lean_right / lean_left — the flowchart I/O symbol)
+  | 'lean-r'         // [/text/]  — leans right
+  | 'lean-l'         // [\text\]  — leans left
   // Batch 3 state diagram pseudostates
   | 'state-start'    // filled circle (start pseudostate)
   | 'state-end'      // bullseye circle (end pseudostate)
@@ -59,9 +62,16 @@ export interface MermaidEdge {
   startMarker?: EdgeMarker
   /** Marker shape at end when hasArrowEnd=true. Defaults to 'arrow' if undefined. */
   endMarker?: EdgeMarker
+  /** Mermaid link length (rank distance): 1 = base operator, 2 = one extra
+   *  shaft unit (`--->`, `-..->`, `====>`, `~~~~`), etc. Undefined ≡ 1, so
+   *  base-form edges serialize byte-identically. Preserved through
+   *  round-trip; layout does not yet honor the extra rank distance. */
+  length?: number
 }
 
-export type EdgeStyle = 'solid' | 'dotted' | 'thick'
+/** 'invisible' is Mermaid's `~~~` link: it participates in layout ordering
+ *  but draws no stroke. */
+export type EdgeStyle = 'solid' | 'dotted' | 'thick' | 'invisible'
 export type EdgeMarker = 'arrow' | 'circle' | 'cross'
 
 export interface MermaidSubgraph {
@@ -116,7 +126,85 @@ export interface PositionedEdge {
   labelPosition?: Point
   /** Inline styles resolved from `linkStyle` directives — override theme defaults */
   inlineStyle?: Record<string, string>
+  /** Index into MermaidGraph.edges this positioned edge was extracted from */
+  edgeIndex?: number
+  /** Route contract certificate attached by the layout pipeline (docs/design/route-contracts.md) */
+  routeCertificate?: RouteCertificate
 }
+
+// ============================================================================
+// Route contracts — semantic routing intent and per-edge certificates
+// (docs/design/route-contracts.md)
+// ============================================================================
+
+export type RouteClass =
+  | 'primary-forward' // added in author order without creating a cycle; owns the straight lane
+  | 'feedback'        // would create a cycle; may straighten onto its own reverse lane, never the forward edge's lane
+  | 'self-loop'
+  | 'container'       // endpoint is a subgraph id
+  | 'cross-hierarchy' // endpoints live in different subgraph scopes
+
+/** The four canonical connection points of a shape (Visio connection-point /
+ *  yFiles port-candidate model). For every Mermaid shape these lie at the
+ *  bbox side midpoints: the diamond's vertices, the rectangle's side
+ *  midpoints, and the boundary extremes of circles, stadiums, hexagons and
+ *  cylinders are the same four points, because each shape is symmetric and
+ *  inscribed in its bbox. */
+export type PortSide = 'N' | 'E' | 'S' | 'W'
+
+/** Diamond facet-midpoints: the four points halfway along each slanted edge
+ *  (NE/SE/SW/NW). They lie exactly on the diamond outline and serve as
+ *  designated attachment points alongside the four cardinal vertices, but are
+ *  diamond-only — shapePorts() stays four-cardinal for every shape. */
+export type DiamondFacet = 'NE' | 'SE' | 'SW' | 'NW'
+
+/** A port an endpoint may sit on: a cardinal vertex/side-midpoint, or — on a
+ *  diamond — a facet-midpoint. */
+export type AnyPort = PortSide | DiamondFacet
+
+export interface RouteBlocker {
+  kind: 'node' | 'label' | 'channel' | 'span' | 'crossing'
+  id: string
+}
+
+export type RouteInvariant =
+  | 'straight'          // exactly two points, axis-aligned with the flow
+  | 'explained-detour'  // bends, and directLaneBlockedBy says why
+  | 'bundle'            // path owned by the fan-out/fan-in bundler
+  | 'outer-feedback'    // feedback routed around the nodes through an outer channel (ELK feedbackEdges)
+  | 'feedback-detour'   // feedback that neither straightened nor reached an outer channel
+  | 'self-loop'
+  | 'container-attach'
+  | 'unverified-shape'  // endpoint shape has no straight attachment side
+
+interface RouteCertificateBase {
+  /** Index into MermaidGraph.edges */
+  edgeIndex: number
+  routeClass: RouteClass
+  bendCount: number
+  directLaneClear?: boolean
+  directLaneBlockedBy?: RouteBlocker[]
+  /** Set when the endpoint sits exactly on a port: a cardinal side-midpoint
+   *  for every shape, or a diamond facet-midpoint (NE/SE/SW/NW). */
+  sourcePort?: AnyPort
+  /** Set when the endpoint sits exactly on a port: a cardinal side-midpoint
+   *  for every shape, or a diamond facet-midpoint (NE/SE/SW/NW). */
+  targetPort?: AnyPort
+}
+
+export type StraightRouteCertificate = RouteCertificateBase & {
+  invariant: 'straight'
+  /** True when the certifying straightener collapsed this route */
+  straightened?: true
+}
+
+export type NonStraightRouteCertificate = RouteCertificateBase & {
+  invariant: Exclude<RouteInvariant, 'straight'>
+  /** Non-straight certificates cannot claim a straightening happened. */
+  straightened?: never
+}
+
+export type RouteCertificate = StraightRouteCertificate | NonStraightRouteCertificate
 
 export interface Point {
   x: number

@@ -38,6 +38,7 @@ This directory holds the long-form documentation. The root README is intentional
 | [`contributing/adding-diagram-types.md`](./contributing/adding-diagram-types.md) | How to add a Mermaid-supported diagram family. |
 | [`design/architecture.md`](./design/architecture.md) | Architecture diagram implementation notes. |
 | [`design/journey.md`](./design/journey.md) | Journey diagram implementation notes. |
+| [`design/route-contracts.md`](./design/route-contracts.md) | Route contracts: edge classification, direct-lane proofs, certifying straightener (issue #25). |
 | [`design/xychart.md`](./design/xychart.md) | XY chart implementation notes. |
 | [`project/design.md`](./project/design.md) | Historical/design notes. |
 | [`project/divergences.md`](./project/divergences.md) | Deliberate divergences and guardrails. |

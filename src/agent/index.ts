@@ -61,14 +61,14 @@ export function renderMermaidASCII(input: ValidDiagram | string, opts: Parameter
   return _ascii(typeof input === 'string' ? input : _serialize(input), opts)
 }
 
-export function layoutMermaid(d: ValidDiagram): RenderedLayout {
+export function layoutMermaid(d: ValidDiagram, opts: { debug?: boolean } = {}): RenderedLayout {
   if (d.body.kind === 'flowchart') {
-    return positionedToRenderedLayout(layoutGraphSync(d.body.graph, {}), d.kind)
+    return positionedToRenderedLayout(layoutGraphSync(d.body.graph, {}), d.kind, opts)
   }
   // State diagrams (BUILD-19) project to a MermaidGraph via the legacy parser,
   // so layout reuses the flowchart geometric path.
   if (d.body.kind === 'state') {
-    return positionedToRenderedLayout(layoutGraphSync(stateBodyToGraph(d.body), {}), d.kind)
+    return positionedToRenderedLayout(layoutGraphSync(stateBodyToGraph(d.body), {}), d.kind, opts)
   }
   if (d.body.kind === 'sequence') return layoutSequenceToRendered(d as ValidDiagram & { body: SequenceBody })
   if (d.body.kind === 'timeline') return layoutTimelineToRendered(d as ValidDiagram & { body: TimelineBody })

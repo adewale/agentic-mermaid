@@ -250,6 +250,8 @@ function renderGroup(group: PositionedGroup, font: string, style: ResolvedRender
 
 function renderEdge(edge: PositionedEdge, style: ResolvedRenderStyle): string {
   if (edge.points.length < 2) return ''
+  // Invisible links (~~~) shape the layout but draw no stroke or markers.
+  if (edge.style === 'invisible') return ''
 
   const pathData = style.edgeBendRadius > 0 ? pointsToPathD(edge.points, style.edgeBendRadius) : pointsToPolylinePath(edge.points)
   const dashArray = edge.style === 'dotted' ? ' stroke-dasharray="4 4"' : ''
@@ -573,6 +575,10 @@ function renderNodeShape(node: PositionedNode, style: ResolvedRenderStyle): stri
       return renderTrapezoid(x, y, width, height, fill, stroke, sw)
     case 'trapezoid-alt':
       return renderTrapezoidAlt(x, y, width, height, fill, stroke, sw)
+    case 'lean-r':
+      return renderLeanR(x, y, width, height, fill, stroke, sw)
+    case 'lean-l':
+      return renderLeanL(x, y, width, height, fill, stroke, sw)
     case 'state-start':
       return renderStateStart(x, y, width, height)
     case 'state-end':
@@ -738,6 +744,32 @@ function renderTrapezoidAlt(x: number, y: number, w: number, h: number, fill: st
     `${x + w},${y}`,                 // top-right (full width)
     `${x + w - inset},${y + h}`,     // bottom-right (indented)
     `${x + inset},${y + h}`,         // bottom-left (indented)
+  ].join(' ')
+
+  return `<polygon points="${points}" fill="${fill}" stroke="${stroke}" stroke-width="${sw}" />`
+}
+
+/** Parallelogram [/text/]: leans right (top edge shifted right) */
+function renderLeanR(x: number, y: number, w: number, h: number, fill: string, stroke: string, sw: string): string {
+  const inset = w * 0.15 // horizontal shear of the slanted sides
+  const points = [
+    `${x + inset},${y}`,             // top-left (shifted right)
+    `${x + w},${y}`,                 // top-right (full width)
+    `${x + w - inset},${y + h}`,     // bottom-right (shifted left)
+    `${x},${y + h}`,                 // bottom-left (full width)
+  ].join(' ')
+
+  return `<polygon points="${points}" fill="${fill}" stroke="${stroke}" stroke-width="${sw}" />`
+}
+
+/** Parallelogram [\text\]: leans left (top edge shifted left) */
+function renderLeanL(x: number, y: number, w: number, h: number, fill: string, stroke: string, sw: string): string {
+  const inset = w * 0.15 // horizontal shear of the slanted sides
+  const points = [
+    `${x},${y}`,                     // top-left (full width)
+    `${x + w - inset},${y}`,         // top-right (shifted left)
+    `${x + w},${y + h}`,             // bottom-right (full width)
+    `${x + inset},${y + h}`,         // bottom-left (shifted right)
   ].join(' ')
 
   return `<polygon points="${points}" fill="${fill}" stroke="${stroke}" stroke-width="${sw}" />`

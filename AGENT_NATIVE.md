@@ -120,6 +120,12 @@ Correctly detect what they claim to detect, but the occurrence may be intentiona
 |---|---|---|
 | `NODE_OVERLAP`     | warning | Two laid-out node bounding boxes intersect |
 | `ROUTE_SELF_CROSS` | warning | An edge route crosses itself |
+| `ROUTE_HITCH` | warning | An edge bends although a direct lane for it is provably clear (route-contract tripwire) |
+| `ROUTE_UNEXPLAINED_BEND` | warning | An edge contains a diagonal segment under orthogonal routing (route-contract tripwire) |
+| `ROUTE_LABEL_ON_SHARED_TRUNK` | warning | A label pill sits on a line segment another edge shares (route-contract tripwire) |
+| `ROUTE_CONTAINER_MISANCHOR` | warning | A container edge does not terminate on the container border (route-contract tripwire) |
+| `ROUTE_SHAPE_MISANCHOR` | warning | An endpoint is off the rendered shape boundary (route-contract tripwire) |
+| `ROUTE_STALE_AFTER_NODE_MOVE` | warning | An endpoint detached from its node entirely (route-contract tripwire) |
 
 Codes are the contract surface agents reason about. Emitting an undocumented code fails CI; documenting an unemitted one also fails CI. Agents omit known-irrelevant codes via `VerifyOptions.suppress`.
 
@@ -131,6 +137,7 @@ Tier 3 warnings are family-specific quality hints for "common LLM mistakes" that
 |---|---|---|
 | `DUPLICATE_EDGE` | warning | Flowchart/state contains an exact repeated edge with the same endpoints, label, style, and markers. Usually accidental regeneration or duplicate mutation. |
 | `UNREACHABLE_NODE` | warning | Flowchart/state contains a node not reachable from any entry root when the graph has roots. Usually a stranded branch after an edit. |
+| `DECISION_BRANCH_UNLABELED` | warning | A decision diamond has two or more exits and this branch carries no condition label. ISO 5807 (10.3.1.2) and ANSI X3.5 (4.10.2) require every exit of a multi-exit decision to be labeled with its condition value. |
 
 `FamilyPlugin.verify` hooks are wired and run today; built-ins use them for Tier 1 structural warnings for class/ER and the central flowchart verifier emits the initial Tier 3 lint catalogue. Future lint codes should be added deliberately to `WARNING_TIER`, documented here, and covered by doc-sync tests.
 

@@ -118,6 +118,8 @@ function renderShape(node: MermaidNode): string {
     case 'hexagon': return `{{${lbl}}}`
     case 'trapezoid': return `[/${lbl}\\]`
     case 'trapezoid-alt': return `[\\${lbl}/]`
+    case 'lean-r': return `[/${lbl}/]`
+    case 'lean-l': return `[\\${lbl}\\]`
     case 'service': return `[${lbl}]`
     case 'state-start':
     case 'state-end': return ''
@@ -149,10 +151,14 @@ function inlineNodeRef(id: string, nodes: Map<string, MermaidNode>, declaredInli
 function renderEdgeArrow(edge: MermaidEdge): string {
   const start = edge.hasArrowStart ? markerChar(edge.startMarker ?? 'arrow', true) : ''
   const end = edge.hasArrowEnd ? markerChar(edge.endMarker ?? 'arrow', false) : ''
+  // Extra shaft units for a lengthened link (Mermaid rank distance). `length`
+  // is undefined ≡ 1 for base operators, so they serialize byte-identically.
+  const extra = Math.max(0, (edge.length ?? 1) - 1)
   switch (edge.style) {
-    case 'solid': return `${start}${!edge.hasArrowStart && !edge.hasArrowEnd ? '---' : '--'}${end}`
-    case 'dotted': return `${start}-.-${end}`
-    case 'thick': return `${start}${!edge.hasArrowStart && !edge.hasArrowEnd ? '===' : '=='}${end}`
+    case 'invisible': return '~'.repeat(3 + extra)
+    case 'solid': return `${start}${'-'.repeat((!edge.hasArrowStart && !edge.hasArrowEnd ? 3 : 2) + extra)}${end}`
+    case 'dotted': return `${start}-${'.'.repeat(1 + extra)}-${end}`
+    case 'thick': return `${start}${'='.repeat((!edge.hasArrowStart && !edge.hasArrowEnd ? 3 : 2) + extra)}${end}`
   }
 }
 

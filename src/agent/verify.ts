@@ -7,6 +7,7 @@
 
 import { parseMermaid as parseValidDiagram } from './parse.ts'
 import { layoutGraphSync } from '../layout-engine.ts'
+import { auditRouteContracts, findRouteHitches } from '../route-contracts.ts'
 import type {
   ValidDiagram, VerifyOptions, VerifyResult, LayoutWarning, RenderedLayout,
   WarningCode, SequenceBody,
@@ -21,7 +22,7 @@ import './families-builtin.ts'  // registers built-in families at import time
 const KNOWN_SHAPES = new Set([
   'rectangle', 'service', 'rounded', 'diamond', 'stadium', 'circle',
   'subroutine', 'doublecircle', 'hexagon', 'cylinder', 'asymmetric',
-  'trapezoid', 'trapezoid-alt', 'state-start', 'state-end',
+  'trapezoid', 'trapezoid-alt', 'lean-r', 'lean-l', 'state-start', 'state-end',
 ])
 
 function opaqueSourceHasOnlyHeader(kind: ValidDiagram['kind'], source: string): boolean {
@@ -180,6 +181,15 @@ function verifyGraph(graph: import('../types.ts').MermaidGraph, kind: ValidDiagr
     const c = countSelfCrossings(e.points)
     if (c > 0) warnings.push({ code: 'ROUTE_SELF_CROSS', edge: `${e.source}->${e.target}`, count: c })
   }
+  // Route-contract tripwires over FINAL geometry: the layout pipeline already
+  // upholds these invariants itself (straight clear lanes, border-anchored
+  // containers, on-shape endpoints, labels on their own lines), so any hit
+  // here means some pass mutated geometry after route certification.
+  // See docs/design/route-contracts.md.
+  for (const hitch of findRouteHitches(positioned, graph)) {
+    warnings.push({ code: 'ROUTE_HITCH', edge: hitch.edge, deviationPx: hitch.deviationPx })
+  }
+  warnings.push(...auditRouteContracts(positioned, graph))
 
   // Tier 3 — advisory lint for common agent mistakes that still parse/render.
   warnings.push(...lintFlowchartGraph(graph))
@@ -253,6 +263,25 @@ function lintFlowchartGraph(graph: import('../types.ts').MermaidGraph): LayoutWa
       firstBySignature.set(signature, { edge: id, from: edge.source, to: edge.target, label: edge.label })
     }
   })
+
+  // ISO 5807 (10.3.1.2) / ANSI X3.5 (4.10.2): when a decision has several
+  // exits, EACH exit shall be labeled with its condition value. A diamond
+  // with two or more out-edges where any branch is unlabeled is ambiguous.
+  const outEdges = new Map<string, { labeled: number; unlabeled: Array<string> }>()
+  graph.edges.forEach((edge, index) => {
+    const node = graph.nodes.get(edge.source)
+    if (!node || node.shape !== 'diamond' || edge.source === edge.target) return
+    const entry = outEdges.get(edge.source) ?? { labeled: 0, unlabeled: [] }
+    if (edge.label && edge.label.trim().length > 0) entry.labeled++
+    else entry.unlabeled.push(`${edge.source}->${edge.target}#${index}`)
+    outEdges.set(edge.source, entry)
+  })
+  for (const [nodeId, entry] of outEdges) {
+    if (entry.labeled + entry.unlabeled.length < 2) continue
+    for (const edge of entry.unlabeled) {
+      warnings.push({ code: 'DECISION_BRANCH_UNLABELED', node: nodeId, edge })
+    }
+  }
 
   const ids = Array.from(graph.nodes.keys())
   if (ids.length === 0 || graph.edges.length === 0) return warnings

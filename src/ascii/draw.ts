@@ -264,8 +264,10 @@ export function drawLine(
   const dir = determineDirection(from, to)
   const drawnCoords: DrawingCoord[] = []
 
-  // Select character set based on style (horizontal and vertical only)
-  const chars = LINE_CHARS[style]
+  // Select character set based on style (horizontal and vertical only).
+  // Invisible links never reach here (callers short-circuit), but fall back
+  // to solid glyphs defensively so the index is total.
+  const chars = LINE_CHARS[style === 'invisible' ? 'solid' : style]
   const hChar = useAscii ? chars.h.ascii : chars.h.unicode
   const vChar = useAscii ? chars.v.ascii : chars.v.unicode
 
@@ -376,7 +378,8 @@ export function drawArrow(
   graph: AsciiGraph,
   edge: AsciiEdge,
 ): [Canvas, Canvas, Canvas, Canvas, Canvas, Canvas] {
-  if (edge.path.length === 0) {
+  // Invisible links (~~~) shape the layout but draw no glyphs.
+  if (edge.path.length === 0 || edge.style === 'invisible') {
     const empty = copyCanvas(graph.canvas)
     return [empty, empty, empty, empty, empty, empty]
   }

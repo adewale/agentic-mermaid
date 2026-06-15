@@ -28,12 +28,33 @@ import type {
   PositionedGroup,
   Point,
   RenderOptions,
+  NodeShape,
+  DiamondFacet,
 } from './types.ts'
 import { ARROW_HEAD, resolveRenderStyle } from './styles.ts'
 import type { ResolvedRenderStyle } from './styles.ts'
 import { measureMultilineText } from './text-metrics.ts'
 import { elkLayoutSync } from './elk-instance.ts'
 import { clipEdgeToShape } from './shape-clipping.ts'
+import { applyRouteContracts, diamondFacetPorts, labelRect, PORT_EXACT, shapePorts, simplifyPolyline } from './route-contracts.ts'
+import type { LabelMetricsStyle } from './route-contracts.ts'
+
+type LayoutDebugEnv = {
+  APL_DEBUG?: string
+  APL_NO_CENTER?: string
+  APL_NO_FACET?: string
+  APL_NO_SVERTEX?: string
+}
+
+function layoutEnvFlag(name: keyof LayoutDebugEnv): boolean {
+  const env = (globalThis as typeof globalThis & { process?: { env?: LayoutDebugEnv } }).process?.env
+  const value = env?.[name]
+  return value === '1' || value === 'true'
+}
+
+function layoutDebug(...args: unknown[]): void {
+  if (layoutEnvFlag('APL_DEBUG')) console.error(...args)
+}
 
 interface LayoutEngineOptions extends RenderOptions {
   /** @internal Preserve direct child order in compound nodes for projected families. */
@@ -162,7 +183,7 @@ function estimateNodeSize(id: string, label: string, shape: string, style: Resol
     width += style.nodePaddingX
   }
 
-  if (shape === 'trapezoid' || shape === 'trapezoid-alt') {
+  if (shape === 'trapezoid' || shape === 'trapezoid-alt' || shape === 'lean-r' || shape === 'lean-l') {
     width += style.nodePaddingX
   }
 
@@ -205,6 +226,15 @@ interface HierarchicalEdgeInfo {
   direction: 'incoming' | 'outgoing'
 }
 
+interface CrossHierarchyEdgeInfo {
+  index: number
+  edge: MermaidEdge
+  sourceSubgraph: string | undefined
+  targetSubgraph: string | undefined
+  /** Lowest common compound that should host the external segment; undefined means root. */
+  hostSubgraph?: string
+}
+
 /**
  * Convert a MermaidGraph to ELK's nested JSON input format.
  *
@@ -227,6 +257,19 @@ function mermaidToElk(
   // Build node-to-subgraph mapping for edge distribution
   const nodeToSubgraph = buildNodeToSubgraphMap(graph.subgraphs)
   const nodeToRootSubgraph = buildNodeToRootSubgraphMap(graph.subgraphs)
+  const nodeToSubgraphAncestors = buildNodeSubgraphAncestorsMap(graph.subgraphs)
+  const subgraphToParent = buildSubgraphParentMap(graph.subgraphs)
+  const subgraphAncestors = buildSubgraphAncestorsMap(graph.subgraphs)
+  const endpointSubgraph = (id: string) => nodeToSubgraph.get(id) ?? subgraphToParent.get(id)
+  // For a subgraph-id endpoint, use the containing ancestry (excluding the
+  // subgraph itself): an edge to `Pipeline` targets the container box, not a
+  // node inside Pipeline.
+  const endpointAncestors = (id: string) =>
+    nodeToSubgraphAncestors.get(id) ?? subgraphAncestors.get(id)?.slice(0, -1) ?? []
+
+  // Determine if we need SEPARATE hierarchy handling
+  // We use SEPARATE when any subgraph has a direction override
+  const hasDirectionOverride = graph.subgraphs.some(sg => sg.direction !== undefined)
 
   // Classify edges into three categories:
   // 1. Internal edges (both endpoints in same subgraph)
@@ -236,17 +279,12 @@ function mermaidToElk(
   edgesBySubgraph.set(null, []) // Root-level edges
 
   // Track cross-hierarchy edges for hierarchical port creation
-  const crossHierarchyEdges: Array<{
-    index: number
-    edge: typeof graph.edges[0]
-    sourceSubgraph: string | undefined
-    targetSubgraph: string | undefined
-  }> = []
+  const crossHierarchyEdges: CrossHierarchyEdgeInfo[] = []
 
   for (let i = 0; i < graph.edges.length; i++) {
     const edge = graph.edges[i]!
-    const sourceSubgraph = nodeToSubgraph.get(edge.source)
-    const targetSubgraph = nodeToSubgraph.get(edge.target)
+    const sourceSubgraph = endpointSubgraph(edge.source)
+    const targetSubgraph = endpointSubgraph(edge.target)
 
     if (sourceSubgraph && sourceSubgraph === targetSubgraph) {
       // Internal edge: both endpoints in same subgraph
@@ -257,15 +295,32 @@ function mermaidToElk(
     } else if (!sourceSubgraph && !targetSubgraph) {
       // Root-level edge: neither endpoint in a subgraph
       edgesBySubgraph.get(null)!.push({ index: i, edge })
+    } else if (!hasDirectionOverride) {
+      // INCLUDE_CHILDREN can route direct descendant edges without ports, but
+      // ELK reports an edge's section in the coordinate space of its lowest
+      // common compound. Store such edges on that compound so recursive
+      // extraction adds the correct absolute offset (outer A -> inner B).
+      const lca = deepestCommonAncestor(
+        endpointAncestors(edge.source),
+        endpointAncestors(edge.target),
+      )
+      if (lca) {
+        if (!edgesBySubgraph.has(lca)) edgesBySubgraph.set(lca, [])
+        edgesBySubgraph.get(lca)!.push({ index: i, edge })
+      } else {
+        edgesBySubgraph.get(null)!.push({ index: i, edge })
+      }
     } else {
-      // Cross-hierarchy edge: need hierarchical ports
-      crossHierarchyEdges.push({ index: i, edge, sourceSubgraph, targetSubgraph })
+      // Cross-hierarchy edge: need hierarchical ports. When both endpoints
+      // live under one compound, host the external port-to-port segment on
+      // that lowest common compound so extraction receives the right offset.
+      const hostSubgraph = deepestCommonAncestor(
+        endpointAncestors(edge.source),
+        endpointAncestors(edge.target),
+      )
+      crossHierarchyEdges.push({ index: i, edge, sourceSubgraph, targetSubgraph, hostSubgraph })
     }
   }
-
-  // Determine if we need SEPARATE hierarchy handling
-  // We use SEPARATE when any subgraph has a direction override
-  const hasDirectionOverride = graph.subgraphs.some(sg => sg.direction !== undefined)
 
   // Build the root ELK graph
   const elkGraph: ElkGraphNode = {
@@ -292,6 +347,15 @@ function mermaidToElk(
       // the primary LR path readable and sends the feedback edge backwards.
       'elk.layered.considerModelOrder.strategy': 'NODES_AND_EDGES',
       'elk.layered.cycleBreaking.strategy': 'MODEL_ORDER',
+      // Feedback edges route AROUND the nodes through outer channels (issue #25
+      // §10), instead of competing with the forward edge for the same facing
+      // side — which squeezed both lanes and the label into a corridor capped
+      // by the node height. With this on, the forward lane of a reciprocal
+      // pair is straight directly out of ELK, and the inline label dummy gets
+      // reserved space ON the loop (dot's virtual-node doctrine; Gansner et
+      // al. TSE 1993). The route-contract pass still collapses an unlabeled
+      // loop onto a parallel back-lane when one proves clear.
+      'elk.layered.feedbackEdges': 'true',
       'elk.layered.crossingMinimization.forceNodeModelOrder': 'true',
       'elk.layered.wrapping.strategy': 'OFF',
       // Use SEPARATE when subgraphs have direction overrides (enables proper direction handling)
@@ -309,12 +373,21 @@ function mermaidToElk(
     direction: 'incoming' | 'outgoing'
     internalNodeId: string
   }>>()
+  const crossEdgesByHost = new Map<string | null, CrossHierarchyEdgeInfo[]>()
+  crossEdgesByHost.set(null, [])
 
-  // Process cross-hierarchy edges to create port entries
+  // Process cross-hierarchy edges to create port entries and host maps.
   if (hasDirectionOverride) {
-    for (const { index, edge, sourceSubgraph, targetSubgraph } of crossHierarchyEdges) {
-      // Handle outgoing edges from subgraph
-      if (sourceSubgraph) {
+    for (const info of crossHierarchyEdges) {
+      const { index, edge, sourceSubgraph, targetSubgraph, hostSubgraph } = info
+      const hostKey = hostSubgraph ?? null
+      if (!crossEdgesByHost.has(hostKey)) crossEdgesByHost.set(hostKey, [])
+      crossEdgesByHost.get(hostKey)!.push(info)
+
+      // Handle outgoing edges from nested source subgraphs. If the source's
+      // own subgraph hosts the external segment, the node can be referenced
+      // directly and no boundary port is needed.
+      if (sourceSubgraph && sourceSubgraph !== hostSubgraph) {
         const portId = `${sourceSubgraph}_out_${index}`
         if (!subgraphPorts.has(sourceSubgraph)) {
           subgraphPorts.set(sourceSubgraph, [])
@@ -327,8 +400,9 @@ function mermaidToElk(
         })
       }
 
-      // Handle incoming edges to subgraph
-      if (targetSubgraph) {
+      // Handle incoming edges to nested target subgraphs. If the target's own
+      // subgraph hosts the external segment, target the node directly.
+      if (targetSubgraph && targetSubgraph !== hostSubgraph) {
         const portId = `${targetSubgraph}_in_${index}`
         if (!subgraphPorts.has(targetSubgraph)) {
           subgraphPorts.set(targetSubgraph, [])
@@ -353,7 +427,7 @@ function mermaidToElk(
   for (const id of rootOrder) {
     const sg = topLevelSubgraphs.get(id)
     if (sg) {
-      elkGraph.children!.push(subgraphToElk(sg, graph, opts, style, edgesBySubgraph, subgraphPorts, useSourceAwareChildOrder))
+      elkGraph.children!.push(subgraphToElk(sg, graph, opts, style, edgesBySubgraph, subgraphPorts, crossEdgesByHost, useSourceAwareChildOrder))
       continue
     }
     const node = graph.nodes.get(id)
@@ -390,29 +464,34 @@ function mermaidToElk(
     elkGraph.edges!.push(elkEdge)
   }
 
-  // Add cross-hierarchy edges (using ports when SEPARATE, direct when INCLUDE_CHILDREN)
-  for (const { index, edge, sourceSubgraph, targetSubgraph } of crossHierarchyEdges) {
-    const elkEdge: ElkExtendedEdge = {
-      id: `e${index}`,
-      sources: hasDirectionOverride && sourceSubgraph ? [`${sourceSubgraph}_out_${index}`] : [edge.source],
-      targets: hasDirectionOverride && targetSubgraph ? [`${targetSubgraph}_in_${index}`] : [edge.target],
-    }
-    if (edge.label) {
-      const metrics = measureMultilineText(edge.label, style.edgeLabelFontSize, style.edgeLabelFontWeight)
-      elkEdge.labels = [{
-        text: edge.label,
-        width: metrics.width + 8,
-        height: metrics.height + 6,
-        layoutOptions: {
-          'elk.edgeLabels.inline': 'true',
-          'elk.edgeLabels.placement': 'CENTER',
-        },
-      }]
-    }
-    elkGraph.edges!.push(elkEdge)
+  // Add root-hosted cross-hierarchy edges (using ports when SEPARATE, direct when INCLUDE_CHILDREN)
+  for (const info of crossEdgesByHost.get(null) ?? []) {
+    elkGraph.edges!.push(crossHierarchyElkEdge(info, style))
   }
 
   return elkGraph
+}
+
+function crossHierarchyElkEdge(info: CrossHierarchyEdgeInfo, style: ResolvedRenderStyle): ElkExtendedEdge {
+  const { index, edge, sourceSubgraph, targetSubgraph, hostSubgraph } = info
+  const elkEdge: ElkExtendedEdge = {
+    id: `e${index}`,
+    sources: sourceSubgraph && sourceSubgraph !== hostSubgraph ? [`${sourceSubgraph}_out_${index}`] : [edge.source],
+    targets: targetSubgraph && targetSubgraph !== hostSubgraph ? [`${targetSubgraph}_in_${index}`] : [edge.target],
+  }
+  if (edge.label) {
+    const metrics = measureMultilineText(edge.label, style.edgeLabelFontSize, style.edgeLabelFontWeight)
+    elkEdge.labels = [{
+      text: edge.label,
+      width: metrics.width + 8,
+      height: metrics.height + 6,
+      layoutOptions: {
+        'elk.edgeLabels.inline': 'true',
+        'elk.edgeLabels.placement': 'CENTER',
+      },
+    }]
+  }
+  return elkEdge
 }
 
 /**
@@ -435,6 +514,7 @@ function subgraphToElk(
     direction: 'incoming' | 'outgoing'
     internalNodeId: string
   }>>,
+  crossEdgesByHost: Map<string | null, CrossHierarchyEdgeInfo[]>,
   useSourceAwareOrder: boolean,
 ): ElkGraphNode {
   const groupHeaderHeight = style.groupHeaderFontSize + 16
@@ -493,7 +573,7 @@ function subgraphToElk(
 
   // Add nested subgraphs recursively
   for (const child of sg.children) {
-    elkNode.children!.push(subgraphToElk(child, graph, opts, style, edgesBySubgraph, subgraphPorts, useSourceAwareOrder))
+    elkNode.children!.push(subgraphToElk(child, graph, opts, style, edgesBySubgraph, subgraphPorts, crossEdgesByHost, useSourceAwareOrder))
   }
 
   // Add internal edges (edges where both endpoints are in this subgraph)
@@ -517,6 +597,13 @@ function subgraphToElk(
       }]
     }
     elkNode.edges!.push(elkEdge)
+  }
+
+  // Add cross-hierarchy external segments hosted by this compound. Ports are
+  // only used for endpoints that live in a nested child compound; direct
+  // children of this host are referenced by node id.
+  for (const info of crossEdgesByHost.get(sg.id) ?? []) {
+    elkNode.edges!.push(crossHierarchyElkEdge(info, style))
   }
 
   // Add internal edge segments for hierarchical ports (port → node or node → port)
@@ -577,6 +664,47 @@ function buildNodeToRootSubgraphMap(subgraphs: MermaidSubgraph[]): Map<string, s
   }
   for (const sg of subgraphs) traverse(sg, sg.id)
   return map
+}
+
+function buildNodeSubgraphAncestorsMap(subgraphs: MermaidSubgraph[]): Map<string, string[]> {
+  const map = new Map<string, string[]>()
+  function traverse(sg: MermaidSubgraph, ancestors: string[]): void {
+    const next = [...ancestors, sg.id]
+    for (const nodeId of sg.nodeIds) map.set(nodeId, next)
+    for (const child of sg.children) traverse(child, next)
+  }
+  for (const sg of subgraphs) traverse(sg, [])
+  return map
+}
+
+function buildSubgraphParentMap(subgraphs: MermaidSubgraph[]): Map<string, string | undefined> {
+  const map = new Map<string, string | undefined>()
+  function traverse(sg: MermaidSubgraph, parent: string | undefined): void {
+    map.set(sg.id, parent)
+    for (const child of sg.children) traverse(child, sg.id)
+  }
+  for (const sg of subgraphs) traverse(sg, undefined)
+  return map
+}
+
+function buildSubgraphAncestorsMap(subgraphs: MermaidSubgraph[]): Map<string, string[]> {
+  const map = new Map<string, string[]>()
+  function traverse(sg: MermaidSubgraph, ancestors: string[]): void {
+    const next = [...ancestors, sg.id]
+    map.set(sg.id, next)
+    for (const child of sg.children) traverse(child, next)
+  }
+  for (const sg of subgraphs) traverse(sg, [])
+  return map
+}
+
+function deepestCommonAncestor(a: string[], b: string[]): string | undefined {
+  let common: string | undefined
+  for (let i = 0; i < Math.min(a.length, b.length); i++) {
+    if (a[i] !== b[i]) break
+    common = a[i]
+  }
+  return common
 }
 
 function rootChildOrder(
@@ -652,6 +780,7 @@ function elkToPositioned(
   graph: MermaidGraph,
   mergeEdges: boolean = false,
   layoutPadding: number = DEFAULTS.padding,
+  style: ResolvedRenderStyle = resolveRenderStyle({}),
 ): PositionedGraph {
   const nodes: PositionedNode[] = []
   const edges: PositionedEdge[] = []
@@ -687,10 +816,17 @@ function elkToPositioned(
   // edge bundling and clipping recalculate edge paths from corrected positions.
   alignLayerNodes(nodes, edges, graph.direction)
 
+  // Port-lane alignment (Rüegg et al. GD'15: straightness THROUGH ports, not
+  // through arbitrary attachment points): when a straight edge floats off
+  // both midpoint ports because ELK's balanced placement averaged competing
+  // pulls, slide one endpoint node along the cross axis so the two midpoint
+  // ports share a lane — straight AND port-exact, no routing trade.
+  alignPortLanes(nodes, edges, groups, graph.direction, style)
+
   // Bundle fan-out/fan-in edge paths into shared trunks when mergeEdges is enabled
-  if (mergeEdges) {
-    bundleEdgePaths(edges, nodes, groups, graph.direction)
-  }
+  const bundled = mergeEdges
+    ? bundleEdgePaths(edges, nodes, groups, graph.direction)
+    : new Set<PositionedEdge>()
 
   // Apply shape-aware edge clipping for non-rectangular shapes.
   // ELK treats all nodes as rectangles, so we need to clip edge endpoints
@@ -707,6 +843,12 @@ function elkToPositioned(
       edge.points = clipEdgeToShape(edge.points, targetNode, false)
     }
   }
+
+  // Route contracts (docs/design/route-contracts.md): simplify every polyline,
+  // straighten primary-forward routes whose direct lane proves clear, and
+  // certify every edge. Nothing may move nodes or edit edge geometry after
+  // this pass without recertifying.
+  applyRouteContracts({ nodes, edges, groups }, graph, bundled, style)
 
   // Calculate final bounds including all edge points
   // ELK should include edges in its dimensions, but we verify and expand if needed
@@ -944,6 +1086,7 @@ function extractEdgesRecursively(
       points: orthogonalPoints,
       labelPosition,
       inlineStyle: resolveEdgeStyle(edgeIndex, graph),
+      edgeIndex,
     })
   }
 }
@@ -964,7 +1107,7 @@ function extractEdgesRecursively(
  * Returns the original array reference (identity) if no changes were needed,
  * so callers can detect whether routing was applied.
  */
-function orthogonalizeEdgePoints(
+export function orthogonalizeEdgePoints(
   points: Point[],
   margins?: MarginInfo,
   edgeIndex: number = 0
@@ -1187,7 +1330,570 @@ function resolveEdgeStyle(
  * Intermediate bend points are left unchanged — edge bundling or clipping
  * will recalculate them afterwards.
  */
-function alignLayerNodes(
+/**
+ * Port-lane alignment, the placement repair for "straight but off-port":
+ * a 2-point flow-axis edge whose endpoints' midpoint ports sit on different
+ * cross lanes is floating through the overlap sliver of two side spans —
+ * ELK's BALANCED node placement averages competing pulls and aligns such a
+ * node with neither neighbor. Sliding ONE endpoint node by the lane
+ * difference makes the edge midpoint-to-midpoint: port-exact AND straight,
+ * the combination no routing-side repair can reach (port-aware coordinate
+ * assignment in the Brandes–Köpf tradition, Rüegg et al. GD'15).
+ *
+ * Every move is proof-gated, mirroring alignLayerNodes' occlusion doctrine:
+ * - only rect-like endpoints (their flow-side boundary is flat, so the
+ *   edge's main-axis anchors survive a cross slide);
+ * - the slid node's OTHER edges must be bent with a perpendicular segment
+ *   to absorb the shift (their terminal run translates); a second straight
+ *   edge or a group membership vetoes the move;
+ * - the new bbox must keep clear of nodes, foreign edge corridors, and
+ *   label pills.
+ * The target node is tried first (often alone in its layer, the freest),
+ * then the source.
+ */
+function alignPortLanes(
+  nodes: PositionedNode[],
+  edges: PositionedEdge[],
+  groups: PositionedGroup[],
+  direction: Direction,
+  style: LabelMetricsStyle,
+): void {
+  const isHorizontal = direction === 'LR' || direction === 'RL'
+  const cross = isHorizontal ? ('y' as const) : ('x' as const)
+  const main = isHorizontal ? ('x' as const) : ('y' as const)
+  const sign = direction === 'LR' || direction === 'TD' ? 1 : -1
+
+  // A node that took part in an applied alignment is FROZEN: sliding it for
+  // a later candidate would re-break the proven port-aligned relation.
+  const frozen = new Set<string>()
+  const MARGIN = 8
+  const crossSize = (n: PositionedNode) => (isHorizontal ? n.height : n.width)
+  const portCross = (n: PositionedNode) => n[cross] + crossSize(n) / 2
+  const nodeMap = new Map(nodes.map(n => [n.id, n]))
+
+  const flatGroups: PositionedGroup[] = []
+  const collect = (gs: PositionedGroup[]) => {
+    for (const g of gs) {
+      flatGroups.push(g)
+      collect(g.children)
+    }
+  }
+  collect(groups)
+  const inGroup = (n: PositionedNode) => flatGroups.some(g =>
+    n.x >= g.x - 0.5 && n.y >= g.y - 0.5 &&
+    n.x + n.width <= g.x + g.width + 0.5 && n.y + n.height <= g.y + g.height + 0.5)
+
+  const overlaps = (ax: number, ay: number, aw: number, ah: number,
+    bx: number, by: number, bw: number, bh: number) =>
+    ax < bx + bw && ax + aw > bx && ay < by + bh && ay + ah > by
+
+  const mainSize = (n: PositionedNode) => (isHorizontal ? n.width : n.height)
+  /** A lane at `crossVal` over [lo, hi] on the main axis must keep CLEARANCE
+   *  from every node not in `exclude` — the same obstacle rule the
+   *  certifying straightener proves with, applied BEFORE the slide. */
+  const laneBlocked = (crossVal: number, lo: number, hi: number, exclude: ReadonlySet<string>): boolean =>
+    nodes.some(n => !exclude.has(n.id) &&
+      crossVal > n[cross] - 4 && crossVal < n[cross] + crossSize(n) + 4 &&
+      hi > n[main] - 4 && lo < n[main] + mainSize(n) + 4)
+
+  /** A lane along the CROSS axis at fixed main coordinate (a hop/stub). */
+  const hopBlocked = (mainVal: number, lo: number, hi: number, exclude: ReadonlySet<string>): boolean =>
+    nodes.some(n => !exclude.has(n.id) &&
+      mainVal > n[main] - 4 && mainVal < n[main] + mainSize(n) + 4 &&
+      hi > n[cross] - 4 && lo < n[cross] + crossSize(n) + 4)
+
+  /** The perpendicular segment adjoining the terminal run: when the run
+   *  translates by delta, this segment STRETCHES across the swept corridor
+   *  [ref+delta, its far cross] — which must be proved clear like any lane.
+   *  Returns null when the run consumes the whole polyline (no hop). */
+  const hopAfterRun = (pts: Point[], fromEnd: boolean): { mainPos: number; far: number; orthogonal: boolean } | null => {
+    const idx = fromEnd ? pts.length - 1 : 0
+    const step = fromEnd ? -1 : 1
+    const ref = pts[idx]![cross]
+    let i = idx
+    while (i >= 0 && i < pts.length && Math.abs(pts[i]![cross] - ref) <= 0.5) i += step
+    if (i < 0 || i >= pts.length) return null
+    const beyond = pts[i]!
+    const edgeOfRun = pts[i - step]!
+    return { mainPos: beyond[main], far: beyond[cross], orthogonal: Math.abs(beyond[main] - edgeOfRun[main]) <= 0.5 }
+  }
+
+  /** The terminal run a slide would translate: its lane and main extent. */
+  const runExtent = (pts: Point[], fromEnd: boolean): { ref: number; lo: number; hi: number } => {
+    const idx = fromEnd ? pts.length - 1 : 0
+    const step = fromEnd ? -1 : 1
+    const ref = pts[idx]![cross]
+    let lo = Infinity
+    let hi = -Infinity
+    for (let i = idx; i >= 0 && i < pts.length; i += step) {
+      if (Math.abs(pts[i]![cross] - ref) > 0.5) break
+      lo = Math.min(lo, pts[i]![main])
+      hi = Math.max(hi, pts[i]![main])
+    }
+    return { ref, lo, hi }
+  }
+
+  const moveSafe = (node: PositionedNode, delta: number, aligned: PositionedEdge): boolean => {
+    if (frozen.has(node.id) || inGroup(node)) return false
+    // The slide only helps if the resulting shared port lane is provably
+    // clear of intermediate nodes — otherwise the straightener cannot
+    // collapse onto it and the translated run may cut THROUGH a node (the
+    // hard defect this pipeline exists to prevent).
+    const srcN = nodeMap.get(aligned.source)!
+    const tgtN = nodeMap.get(aligned.target)!
+    const lane = portCross(node.id === aligned.source ? tgtN : srcN)
+    const laneLo = Math.min(srcN[main] + mainSize(srcN) / 2, tgtN[main] + mainSize(tgtN) / 2)
+    const laneHi = Math.max(srcN[main] + mainSize(srcN) / 2, tgtN[main] + mainSize(tgtN) / 2)
+    if (laneBlocked(lane, laneLo, laneHi, new Set([aligned.source, aligned.target]))) return false
+    for (const e of edges) {
+      const srcTouch = e.source === node.id
+      const tgtTouch = e.target === node.id
+      if (!srcTouch && !tgtTouch) continue
+      const isAligned = e === aligned
+      if (isAligned && e.points.length === 2 &&
+        Math.abs(e.points[0]![cross] - e.points[1]![cross]) <= 0.5) continue // re-anchored exactly
+      if (!isAligned) {
+        if (e.points.length < 3) return false // a straight sibling cannot absorb the slide
+        // The terminal run translates; a perpendicular segment must exist to
+        // stretch, or the shift would drag the far endpoint off its node.
+        const anchor = tgtTouch ? e.points[e.points.length - 1]! : e.points[0]!
+        if (!e.points.some(p => Math.abs(p[cross] - anchor[cross]) > 0.5)) return false
+      }
+      const exclude = new Set([e.source, e.target])
+      // The translated run must not land on a node...
+      const run = runExtent(e.points, tgtTouch)
+      if (laneBlocked(run.ref + delta, run.lo, run.hi, exclude)) return false
+      // ...and the adjoining perpendicular segment stretches across the
+      // swept corridor, which must also be node-free (the property oracle
+      // caught a 123px slide sweeping a sibling's hop through a circle).
+      const hop = hopAfterRun(e.points, tgtTouch)
+      if (hop) {
+        if (!hop.orthogonal) return false
+        const lo = Math.min(run.ref + delta, hop.far)
+        const hi = Math.max(run.ref + delta, hop.far)
+        if (hopBlocked(hop.mainPos, lo, hi, exclude)) return false
+      }
+    }
+    const nx = isHorizontal ? node.x : node.x + delta
+    const ny = isHorizontal ? node.y + delta : node.y
+    for (const other of nodes) {
+      if (other === node) continue
+      if (overlaps(nx - MARGIN, ny - MARGIN, node.width + 2 * MARGIN, node.height + 2 * MARGIN,
+        other.x, other.y, other.width, other.height)) return false
+    }
+    for (const e of edges) {
+      if (e.source === node.id || e.target === node.id) continue
+      for (let i = 1; i < e.points.length; i++) {
+        const a = e.points[i - 1]!, b = e.points[i]!
+        if (Math.max(a.x, b.x) > nx + 0.5 && Math.min(a.x, b.x) < nx + node.width - 0.5 &&
+          Math.max(a.y, b.y) > ny + 0.5 && Math.min(a.y, b.y) < ny + node.height - 0.5) return false
+      }
+    }
+    for (const e of edges) {
+      if (e === aligned) continue
+      const rect = labelRect(e, style)
+      if (rect && overlaps(nx - MARGIN, ny - MARGIN, node.width + 2 * MARGIN, node.height + 2 * MARGIN,
+        rect.x, rect.y, rect.w, rect.h)) return false
+    }
+    return true
+  }
+
+  const shiftRun = (e: PositionedEdge, fromEnd: boolean, delta: number): void => {
+    const pts = e.points
+    const idx = fromEnd ? pts.length - 1 : 0
+    const step = fromEnd ? -1 : 1
+    const ref = pts[idx]![cross]
+    let mainLo = Infinity
+    let mainHi = -Infinity
+    for (let i = idx; i >= 0 && i < pts.length; i += step) {
+      if (Math.abs(pts[i]![cross] - ref) > 0.5) break
+      mainLo = Math.min(mainLo, pts[i]![main])
+      mainHi = Math.max(mainHi, pts[i]![main])
+      pts[i]![cross] += delta
+    }
+    // A label pill riding the shifted run must follow its lane.
+    if (e.labelPosition &&
+      Math.abs(e.labelPosition[cross] - ref) <= 12 &&
+      e.labelPosition[main] >= mainLo - 0.5 && e.labelPosition[main] <= mainHi + 0.5) {
+      e.labelPosition[cross] += delta
+    }
+  }
+
+  const apply = (node: PositionedNode, delta: number, aligned: PositionedEdge): void => {
+    if (isHorizontal) node.y += delta
+    else node.x += delta
+    for (const e of edges) {
+      if (e === aligned || e.points.length === 0) continue
+      const srcTouch = e.source === node.id
+      const tgtTouch = e.target === node.id
+      if (srcTouch && tgtTouch) {
+        for (const p of e.points) p[cross] += delta
+        if (e.labelPosition) e.labelPosition[cross] += delta
+        continue
+      }
+      if (tgtTouch) shiftRun(e, true, delta)
+      if (srcTouch) shiftRun(e, false, delta)
+    }
+    const first = aligned.points[0]!
+    const last = aligned.points[aligned.points.length - 1]!
+    if (aligned.points.length === 2 && Math.abs(first[cross] - last[cross]) <= 0.5) {
+      // Already a straight lane: re-anchor both ends onto the EXACT ports
+      // via shapePorts — correct for every PORT_EXACT shape (a diamond's
+      // sloped facet and a circle's curve change the main anchor with the
+      // cross slide; bbox side midpoints are exact for all of them, and the
+      // downstream shape clipper preserves port-exact endpoints).
+      const exitSide = isHorizontal ? (sign > 0 ? 'E' : 'W') : (sign > 0 ? 'S' : 'N')
+      const entrySide = isHorizontal ? (sign > 0 ? 'W' : 'E') : (sign > 0 ? 'N' : 'S')
+      aligned.points = [
+        shapePorts(nodeMap.get(aligned.source)!)[exitSide as 'N' | 'E' | 'S' | 'W'],
+        shapePorts(nodeMap.get(aligned.target)!)[entrySide as 'N' | 'E' | 'S' | 'W'],
+      ]
+      if (aligned.labelPosition) aligned.labelPosition[cross] = portCross(nodeMap.get(aligned.source)!)
+    } else {
+      // A staircase: translate the moved end's terminal run and let the
+      // certifying straightener collapse it onto the (now shared) port lane
+      // with a proof — or keep it if the lane turns out blocked.
+      shiftRun(aligned, aligned.target === node.id, delta)
+    }
+  }
+
+  // Forward edges run monotone along the flow axis; feedback loops and
+  // container routes double back. Only forward edges occupy flow-side
+  // facets, so only they count against a vertex's capacity.
+  const isForwardMonotone = (e: PositionedEdge): boolean => {
+    if (e.points.length < 2 || e.source === e.target) return false
+    const pts = simplifyPolyline(e.points)
+    for (let i = 1; i < pts.length; i++) {
+      if ((pts[i]![main] - pts[i - 1]![main]) * sign < -0.5) return false
+    }
+    return true
+  }
+  // ---- Active fan-in centering (vertical mirror symmetry) --------------
+  // A hub T fed by N unlabeled, equal-rank, forward sources should sit on
+  // the EXACT cross-axis barycenter of those sources so the merge renders
+  // mirror-symmetric. ELK's BALANCED placement leaves T ~20px off-barycenter
+  // and the per-edge slide below amplifies it; centering T once, up front,
+  // removes both errors and lets applyRouteContracts merge the now-symmetric
+  // incoming edges. Proof-gated by moveSafe against ONE representative
+  // incoming edge (every incoming edge shares T's port lane, so clearing the
+  // barycenter for one clears it for all). Hubs handled here are skipped by
+  // the slide loop (their incoming edges are frozen).
+  // The hub's translated bbox must keep clear of every other node, of every
+  // FOREIGN edge corridor (an edge not incident to the hub), and of every
+  // label pill — the same occlusion doctrine moveSafe enforces, restated for
+  // a node whose ALL incident edges move with it (so incident edges impose no
+  // run/hop constraints; only the new footprint does). Incoming-edge sources
+  // stay put and their lanes are re-merged by applyRouteContracts.
+  const hubMoveSafe = (node: PositionedNode, delta: number, incidentIds: ReadonlySet<string>): boolean => {
+    const nx = isHorizontal ? node.x : node.x + delta
+    const ny = isHorizontal ? node.y + delta : node.y
+    for (const other of nodes) {
+      if (other === node) continue
+      if (overlaps(nx - MARGIN, ny - MARGIN, node.width + 2 * MARGIN, node.height + 2 * MARGIN,
+        other.x, other.y, other.width, other.height)) return false
+    }
+    for (const e of edges) {
+      if (incidentIds.has(`${e.source}->${e.target}`)) continue
+      for (let i = 1; i < e.points.length; i++) {
+        const a = e.points[i - 1]!, b = e.points[i]!
+        if (Math.max(a.x, b.x) > nx + 0.5 && Math.min(a.x, b.x) < nx + node.width - 0.5 &&
+          Math.max(a.y, b.y) > ny + 0.5 && Math.min(a.y, b.y) < ny + node.height - 0.5) return false
+      }
+    }
+    for (const e of edges) {
+      if (incidentIds.has(`${e.source}->${e.target}`)) continue
+      const rect = labelRect(e, style)
+      if (rect && overlaps(nx - MARGIN, ny - MARGIN, node.width + 2 * MARGIN, node.height + 2 * MARGIN,
+        rect.x, rect.y, rect.w, rect.h)) return false
+    }
+    return true
+  }
+
+  const centeredHubs = new Set<string>()
+  for (const t of (layoutEnvFlag('APL_NO_CENTER') ? [] : nodes)) {
+    if (frozen.has(t.id) || inGroup(t) || !PORT_EXACT.has(t.shape)) continue
+    const incoming = edges.filter(e =>
+      e.target === t.id && e.source !== t.id && e.points.length >= 2)
+    // ≥2 DISTINCT sources, all unlabeled, all forward-monotone.
+    const sources = new Map<string, PositionedNode>()
+    let ok = incoming.length >= 2
+    for (const e of incoming) {
+      if (e.label || !isForwardMonotone(e)) { ok = false; break }
+      const s = nodeMap.get(e.source)
+      if (!s || !PORT_EXACT.has(s.shape)) { ok = false; break }
+      sources.set(s.id, s)
+    }
+    if (!ok || sources.size < 2) continue
+    // The hub must not also emit a forward edge whose straightness centering
+    // would break (it occupies the opposite facet on the same lane as T).
+    if (edges.some(o => o.source === t.id && o.target !== t.id && isForwardMonotone(o))) continue
+    // Equal rank: all sources stacked in ONE column — same main-axis band.
+    const srcList = [...sources.values()]
+    const mainCenters = srcList.map(s => s[main] + mainSize(s) / 2)
+    const mainSpan = Math.max(...mainCenters) - Math.min(...mainCenters)
+    const maxMainSize = Math.max(...srcList.map(mainSize))
+    if (mainSpan > maxMainSize + DEFAULTS.layerSpacing * 0.6) continue
+    // Barycenter of source port-cross-coords; the delta to move T onto it.
+    const bary = srcList.reduce((a, s) => a + portCross(s), 0) / srcList.length
+    const delta = bary - portCross(t)
+    if (Math.abs(delta) <= 0.5) { centeredHubs.add(t.id); continue }
+    const incidentIds = new Set(edges
+      .filter(e => e.source === t.id || e.target === t.id)
+      .map(e => `${e.source}->${e.target}`))
+    if (!hubMoveSafe(t, delta, incidentIds)) continue
+    layoutDebug('[apl] center hub', t.id, 'by', delta.toFixed(1), 'over', srcList.length, 'sources')
+    // Move the hub; translate every incident edge's hub-side endpoint run so
+    // the polyline stays connected. applyRouteContracts then re-merges the
+    // now-symmetric incoming lanes onto the hub's exact port.
+    if (isHorizontal) t.y += delta; else t.x += delta
+    for (const e of edges) {
+      const srcTouch = e.source === t.id
+      const tgtTouch = e.target === t.id
+      if (srcTouch && tgtTouch) {
+        for (const p of e.points) p[cross] += delta
+        if (e.labelPosition) e.labelPosition[cross] += delta
+      } else if (tgtTouch) {
+        shiftRun(e, true, delta)
+      } else if (srcTouch) {
+        shiftRun(e, false, delta)
+      }
+    }
+    centeredHubs.add(t.id)
+    frozen.add(t.id)
+    for (const e of incoming) frozen.add(e.source)
+  }
+
+  // ---- Diamond facet-mid alignment (E / F) -----------------------------
+  // A diamond that emits exactly TWO forward edges on its single flow-side
+  // facet attaches them at the facet MIDPOINTS (NE/SE for an E exit; rotated
+  // per direction) and snaps each target onto that facet-mid's cross lane, so
+  // both edges become port-to-port STRAIGHT instead of floating at arbitrary
+  // facet positions. This is the natural extension of the cardinal port-lane
+  // slide to facet-mid lanes: the source's two designated facet points pair
+  // with the targets' facing cardinal ports. Proof-gated by moveSafe.
+  const facetAligned = new Set<PositionedEdge>()
+  if (!layoutEnvFlag('APL_NO_FACET')) {
+    // The facet pair adjoining the flow-exit side, ordered (upper, lower) by
+    // cross coordinate. cross='y' for LR/RL (E/W exit → NE/SE or NW/SW);
+    // cross='x' for TD/BT (S/N exit → SW/SE or NW/NE).
+    const facetPair = (): [DiamondFacet, DiamondFacet] => {
+      if (isHorizontal) return sign > 0 ? ['NE', 'SE'] : ['NW', 'SW']
+      return sign > 0 ? ['SW', 'SE'] : ['NW', 'NE'] // upper=smaller x first
+    }
+    for (const src of nodes) {
+      if (src.shape !== 'diamond' || frozen.has(src.id) || inGroup(src)) continue
+      // Exactly two forward edges, both leaving src for distinct PORT_EXACT
+      // targets, none labeled-feedback, and src emits nothing else forward.
+      const out = edges.filter(e => e.source === src.id && e.target !== src.id &&
+        e.points.length >= 2 && isForwardMonotone(e))
+      if (out.length !== 2) continue
+      if (out.some(e => { const t = nodeMap.get(e.target); return !t || !PORT_EXACT.has(t.shape) })) continue
+      if (out.some(e => frozen.has(e.target) || centeredHubs.has(e.target) || inGroup(nodeMap.get(e.target)!))) continue
+      // Order the two edges by their target's current cross position: the
+      // upper edge takes the upper facet, the lower takes the lower facet.
+      const ordered = [...out].sort((a, b) =>
+        portCross(nodeMap.get(a.target)!) - portCross(nodeMap.get(b.target)!))
+      const [upperFacet, lowerFacet] = facetPair()
+      const facets = diamondFacetPorts(src)
+      const assignment: Array<[PositionedEdge, DiamondFacet]> = [
+        [ordered[0]!, upperFacet], [ordered[1]!, lowerFacet],
+      ]
+      // A `lane` is the per-edge SOURCE attachment point (the facet-mid by
+      // default) and the cross coordinate the target column snaps onto. A lane
+      // set is committed only if BOTH gates pass: every target slides onto its
+      // lane safely (moveSafe — proves each slide independently), AND the two
+      // FINAL target boxes clear each other (the targets move toward each other
+      // in vertical flow as the facet-mids collapse their columns, so moveSafe
+      // alone can't see the pairwise collision). The cardinal-vertex fallback
+      // below only swaps the source points; everything downstream is
+      // lane-driven, so both gates run uniformly over whichever set we pick.
+      const srcPorts = shapePorts(src)
+      type Lane = { edge: PositionedEdge; src: Point; cross: number }
+      const facetLanes: Lane[] = assignment.map(([e, facet]) => (
+        { edge: e, src: { x: facets[facet].x, y: facets[facet].y }, cross: facets[facet][cross] }))
+      // For a VERTICAL-flow (TD/BT) diamond the South/North facet-mids are only
+      // w/2 apart, so HORIZONTALLY-stacked targets wider than that overlap when
+      // snapped together (E bails for this reason). The diamond's E and W
+      // cardinal VERTICES are the full width w apart — much wider — so the same
+      // targets fit. Route the upper-cross edge out W, the lower out E (the
+      // upper target snaps to x=W.x, the lower to x=E.x), keeping both edges
+      // port-to-port straight (sourcePort W/E, targetPort N for TD). Mirrored
+      // for BT by the entrySide = N/S choice. Horizontal flow keeps the facets.
+      const cardinalLanes: Lane[] | null = (!isHorizontal && assignment[0] && assignment[1])
+        ? [
+          { edge: assignment[0]![0], src: { x: srcPorts.W.x, y: srcPorts.W.y }, cross: srcPorts.W[cross] },
+          { edge: assignment[1]![0], src: { x: srcPorts.E.x, y: srcPorts.E.y }, cross: srcPorts.E[cross] },
+        ]
+        : null
+
+      // Targets snapped onto a lane set must not collide with each other.
+      const pairOverlaps = (lanes: Lane[]): boolean => {
+        const boxes = lanes.map(l => {
+          const t = nodeMap.get(l.edge.target)!
+          const delta = l.cross - portCross(t)
+          return {
+            x: isHorizontal ? t.x : t.x + delta, y: isHorizontal ? t.y + delta : t.y,
+            w: t.width, h: t.height,
+          }
+        })
+        const [a, b] = boxes
+        return !!(a && b && overlaps(a.x - MARGIN, a.y - MARGIN, a.w + 2 * MARGIN, a.h + 2 * MARGIN, b.x, b.y, b.w, b.h))
+      }
+      // Each target must slide onto its lane's cross coordinate (moveSafe) and
+      // the resulting lane must clear — recheck for whichever lane set we use.
+      const slidesSafe = (lanes: Lane[]): boolean => lanes.every(l => {
+        const t = nodeMap.get(l.edge.target)!
+        const delta = l.cross - portCross(t)
+        return Math.abs(delta) <= 0.5 || moveSafe(t, delta, l.edge)
+      })
+
+      // Prefer the facet-mids; for vertical flow fall back to the wider E/W
+      // cardinal vertices when the facets would collapse the targets into a
+      // collision (or fail to slide). If neither set is usable, leave src alone.
+      const usable = (lanes: Lane[] | null): boolean =>
+        !!lanes && slidesSafe(lanes) && !pairOverlaps(lanes)
+      let lanes: Lane[]
+      if (usable(facetLanes)) lanes = facetLanes
+      else if (usable(cardinalLanes)) lanes = cardinalLanes!
+      else continue
+      const entrySide = isHorizontal ? (sign > 0 ? 'W' : 'E') : (sign > 0 ? 'N' : 'S')
+      for (const l of lanes) {
+        const e = l.edge
+        const tgt = nodeMap.get(e.target)!
+        const delta = l.cross - portCross(tgt)
+        if (Math.abs(delta) > 0.5) {
+          if (isHorizontal) tgt.y += delta; else tgt.x += delta
+          for (const o of edges) {
+            if (o === e) continue
+            const sT = o.source === tgt.id, tT = o.target === tgt.id
+            if (sT && tT) { for (const p of o.points) p[cross] += delta; if (o.labelPosition) o.labelPosition[cross] += delta }
+            else if (tT) shiftRun(o, true, delta)
+            else if (sT) shiftRun(o, false, delta)
+          }
+        }
+        // Re-anchor: source on its facet-mid OR cardinal vertex (now collinear
+        // with the target's facing cardinal port), target on that cardinal port.
+        e.points = [
+          { x: l.src.x, y: l.src.y },
+          shapePorts(tgt)[entrySide as 'N' | 'E' | 'S' | 'W'],
+        ]
+        if (e.labelPosition) e.labelPosition[cross] = l.cross
+        facetAligned.add(e)
+        frozen.add(e.target)
+      }
+      frozen.add(src.id)
+    }
+  }
+
+  // ---- Diamond side-input → perpendicular vertex (K) -------------------
+  // A single forward edge whose source sits fully to one CROSS side of a
+  // diamond target — below it for LR — when the target's facing cardinal port
+  // (W for LR) is already taken by the labelled main branch, routes into the
+  // diamond's perpendicular vertex (the S vertex when the source is below)
+  // instead of floating on the facet. Proof-gated: the source slides onto the
+  // vertex's cross lane (moveSafe) and the resulting straight lane must clear.
+  if (!layoutEnvFlag('APL_NO_SVERTEX')) {
+    for (const e of edges) {
+      if (facetAligned.has(e) || e.points.length < 2 || e.source === e.target) continue
+      const src = nodeMap.get(e.source)
+      const tgt = nodeMap.get(e.target)
+      if (!src || !tgt || tgt.shape !== 'diamond') continue
+      if (frozen.has(src.id) || frozen.has(tgt.id) || inGroup(src) || inGroup(tgt)) continue
+      if (!isForwardMonotone(e) || e.label) continue
+      // The facing cardinal entry port must be CLAIMED by another forward edge
+      // (the labelled main branch lands there), forcing this side input onto
+      // a different designated point.
+      // Another forward edge into this diamond owns the facing cardinal port:
+      // its source sits roughly ON the diamond's flow-axis centerline (so it
+      // claims the W/E/N/S midpoint), unlike this off-cross side input. The
+      // re-anchor onto that exact port happens later in the pipeline; here we
+      // detect the contention by the source's cross alignment.
+      const tgtCross0 = tgt[cross] + crossSize(tgt) / 2
+      const entryTaken = edges.some(o => {
+        if (o === e || o.target !== tgt.id || !isForwardMonotone(o) || o.points.length < 2) return false
+        const os = nodeMap.get(o.source)
+        if (!os) return false
+        return Math.abs(os[cross] + crossSize(os) / 2 - tgtCross0) <= crossSize(tgt) / 2
+      })
+      if (!entryTaken) continue
+      // Source must sit on ONE cross side of the diamond and below/above its
+      // body: its center is beyond the diamond's center on the cross axis, and
+      // it clears the diamond's cross extent enough to face the vertex.
+      const tgtCenterCross = tgt[cross] + crossSize(tgt) / 2
+      const srcCenterCross = src[cross] + crossSize(src) / 2
+      const below = srcCenterCross > tgtCenterCross
+      // The perpendicular vertex toward the source (S for LR-below, N above).
+      const vertexSide = isHorizontal ? (below ? 'S' : 'N') : (below ? 'E' : 'W')
+      const vertex = shapePorts(tgt)[vertexSide as 'N' | 'E' | 'S' | 'W']
+      // The source must be far enough onto that side that a straight lane at
+      // the vertex's cross level approaches it from the flow direction — i.e.
+      // the source center is past the diamond's facing-entry cross extent.
+      const facingHalf = crossSize(tgt) / 2
+      if (Math.abs(srcCenterCross - tgtCenterCross) < facingHalf * 0.5) continue
+      const delta = vertex[cross] - portCross(src)
+      if (Math.abs(delta) > 0.5 && !moveSafe(src, delta, e)) continue
+      // The straight lane from the source's facing port to the vertex must be
+      // clear and run forward.
+      const srcExit = isHorizontal ? (sign > 0 ? 'E' : 'W') : (sign > 0 ? 'S' : 'N')
+      const exitPort = shapePorts(src)[srcExit as 'N' | 'E' | 'S' | 'W']
+      const laneLo = Math.min(exitPort[main], vertex[main])
+      const laneHi = Math.max(exitPort[main], vertex[main])
+      if ((vertex[main] - exitPort[main]) * sign <= 0.5) continue
+      if (laneBlocked(vertex[cross], laneLo, laneHi, new Set([src.id, tgt.id]))) continue
+      layoutDebug('[apl] svertex', e.source, '->', e.target, 'into', vertexSide, 'vertex')
+      if (Math.abs(delta) > 0.5) {
+        if (isHorizontal) src.y += delta; else src.x += delta
+        for (const o of edges) {
+          if (o === e) continue
+          const sT = o.source === src.id, tT = o.target === src.id
+          if (sT && tT) { for (const p of o.points) p[cross] += delta; if (o.labelPosition) o.labelPosition[cross] += delta }
+          else if (tT) shiftRun(o, true, delta)
+          else if (sT) shiftRun(o, false, delta)
+        }
+      }
+      e.points = [
+        { x: shapePorts(src)[srcExit as 'N' | 'E' | 'S' | 'W'].x, y: shapePorts(src)[srcExit as 'N' | 'E' | 'S' | 'W'].y },
+        { x: vertex.x, y: vertex.y },
+      ]
+      facetAligned.add(e)
+      frozen.add(src.id)
+      frozen.add(tgt.id)
+    }
+  }
+
+  for (const e of edges) {
+    if (facetAligned.has(e)) continue
+    if (e.points.length < 2 || e.source === e.target) continue
+    const src = nodeMap.get(e.source)
+    const tgt = nodeMap.get(e.target)
+    if (!src || !tgt) continue
+    if (!PORT_EXACT.has(src.shape) || !PORT_EXACT.has(tgt.shape)) continue
+    // A centered fan-in hub is symmetric by construction; the slide would
+    // re-break it by pulling the hub onto a single source's lane.
+    if (centeredHubs.has(tgt.id)) continue
+    // A diamond's vertex has capacity 1 (the yFiles port-candidate cost
+    // model): a source diamond with a FORWARD fan-out must SPREAD its lines
+    // on the facet, so aligning one target onto the vertex lane is wrong
+    // there. A feedback sibling does not count: it leaves via the outer
+    // channel and never occupies the flow-side facet.
+    if (src.shape === 'diamond' &&
+      edges.some(o => o !== e && o.source === e.source && isForwardMonotone(o))) continue
+    const d = portCross(src) - portCross(tgt)
+    if (Math.abs(d) <= 0.5) continue
+    // Primary-forward shape: a monotone staircase along the flow axis (a
+    // feedback loop or container route must not be retargeted at a port).
+    if (!isForwardMonotone(e) || simplifyPolyline(e.points).length > 4) continue
+    const moved = moveSafe(tgt, d, e) ? tgt : moveSafe(src, -d, e) ? src : null
+    if (moved) {
+      layoutDebug('[apl] slide', moved.id, 'by', (moved === tgt ? d : -d).toFixed(1), 'for', e.source, '->', e.target)
+      apply(moved, moved === tgt ? d : -d, e)
+      frozen.add(e.source)
+      frozen.add(e.target)
+    }
+  }
+}
+
+export function alignLayerNodes(
   nodes: PositionedNode[],
   edges: PositionedEdge[],
   direction: Direction
@@ -1241,6 +1947,29 @@ function alignLayerNodes(
   // Snap each layer's nodes to the layer's center position
   const deltas = new Map<string, number>() // nodeId → shift amount
 
+  // A snapped node must not land on an already-routed corridor: edges were
+  // routed against the PRE-snap positions, and a node moved onto a foreign
+  // edge's path would occlude it (issue #25 rule 9 — no node movement after
+  // routing without rerouting). Alignment is cosmetic; occlusion is a hard
+  // defect, so a layer whose snap would cause one keeps ELK's stagger.
+  const snapOccludes = (node: PositionedNode, newPos: number): boolean => {
+    const nx = isHorizontal ? newPos : node.x
+    const ny = isHorizontal ? node.y : newPos
+    for (const edge of edges) {
+      if (edge.source === node.id || edge.target === node.id) continue
+      for (let i = 1; i < edge.points.length; i++) {
+        const a = edge.points[i - 1]!, b = edge.points[i]!
+        const xLo = Math.min(a.x, b.x), xHi = Math.max(a.x, b.x)
+        const yLo = Math.min(a.y, b.y), yHi = Math.max(a.y, b.y)
+        if (xHi > nx + 0.5 && xLo < nx + node.width - 0.5 &&
+          yHi > ny + 0.5 && yLo < ny + node.height - 0.5) {
+          return true
+        }
+      }
+    }
+    return false
+  }
+
   for (const layer of layers) {
     if (layer.length <= 1) continue
 
@@ -1251,6 +1980,11 @@ function alignLayerNodes(
 
     // Use the center of the range as the snap target
     const target = (min + max) / 2
+
+    if (layer.some(node => {
+      const oldPos = isHorizontal ? node.x : node.y
+      return Math.abs(target - oldPos) > 0.5 && snapOccludes(node, target)
+    })) continue
 
     for (const node of layer) {
       const oldPos = isHorizontal ? node.x : node.y
@@ -1336,6 +2070,31 @@ function findGroupsContainingPoint(
 }
 
 /**
+ * Bundle contract (docs/design/route-contracts.md): a rebuilt trunk/branch
+ * path may not pass through any node other than the edge's own endpoints.
+ * The half-pixel tolerance lets a path graze a border without counting.
+ */
+function bundlePathClear(
+  points: Point[],
+  nodes: PositionedNode[],
+  sourceId: string,
+  targetId: string,
+): boolean {
+  for (const n of nodes) {
+    if (n.id === sourceId || n.id === targetId) continue
+    for (let i = 1; i < points.length; i++) {
+      const a = points[i - 1]!, b = points[i]!
+      const xLo = Math.min(a.x, b.x), xHi = Math.max(a.x, b.x)
+      const yLo = Math.min(a.y, b.y), yHi = Math.max(a.y, b.y)
+      if (xHi > n.x + 0.5 && xLo < n.x + n.width - 0.5 && yHi > n.y + 0.5 && yLo < n.y + n.height - 0.5) {
+        return false
+      }
+    }
+  }
+  return true
+}
+
+/**
  * If `junction` falls inside a group that doesn't contain the reference node,
  * move it just outside the outermost such group boundary.
  */
@@ -1383,13 +2142,16 @@ function adjustJunctionForGroups(
  *
  * Constraints: edges in a bundle must share the same style and have no labels.
  * Self-loops and backward edges (against the graph direction) are excluded.
+ *
+ * Returns the set of edges whose paths the bundler owns, so the route-contract
+ * pass never straightens a trunk-shared path.
  */
 function bundleEdgePaths(
   edges: PositionedEdge[],
   nodes: PositionedNode[],
   groups: PositionedGroup[],
   direction: Direction
-): void {
+): Set<PositionedEdge> {
   const nodeMap = new Map(nodes.map(n => [n.id, n]))
   const processed = new Set<PositionedEdge>()
 
@@ -1425,53 +2187,72 @@ function bundleEdgePaths(
       return t.y > source.y + source.height // TD/TB
     })
     if (forward.length < 2) continue
+    // A fan needs >= 2 distinct targets: duplicate edges to one target would
+    // bundle onto byte-identical overlapping paths, hiding one of them.
+    if (new Set(forward.map(e => e.target)).size < 2) continue
 
-    const targets = forward.map(e => ({ edge: e, node: nodeMap.get(e.target)! }))
     const srcCX = source.x + source.width / 2
     const srcCY = source.y + source.height / 2
 
-    if (isHorizontal) {
-      const exitX = isLR ? source.x + source.width : source.x
-      const exitY = srcCY
+    // Bundle contract: rebuild candidate paths, drop any member whose path
+    // would pass through a node (it keeps its ELK route and the route-contract
+    // pass certifies it), and re-derive the junction from the members that
+    // remain — until the bundle is clear or too small to exist.
+    let members = forward.map(e => ({ edge: e, node: nodeMap.get(e.target)! }))
+    while (members.length >= 2) {
+      const candidates = new Map<PositionedEdge, Point[]>()
+      if (isHorizontal) {
+        const exitX = isLR ? source.x + source.width : source.x
+        const exitY = srcCY
 
-      const nearestX = isLR
-        ? Math.min(...targets.map(t => t.node.x))
-        : Math.max(...targets.map(t => t.node.x + t.node.width))
-      let junctionX = exitX + (nearestX - exitX) / 2
-      junctionX = adjustJunctionForGroups(junctionX, srcCX, srcCY, groups, direction)
+        const nearestX = isLR
+          ? Math.min(...members.map(t => t.node.x))
+          : Math.max(...members.map(t => t.node.x + t.node.width))
+        let junctionX = exitX + (nearestX - exitX) / 2
+        junctionX = adjustJunctionForGroups(junctionX, srcCX, srcCY, groups, direction)
 
-      for (const { edge, node: target } of targets) {
-        const entryX = isLR ? target.x : target.x + target.width
-        const entryY = target.y + target.height / 2
-        edge.points = [
-          { x: exitX, y: exitY },
-          { x: junctionX, y: exitY },
-          { x: junctionX, y: entryY },
-          { x: entryX, y: entryY },
-        ]
-        processed.add(edge)
+        for (const { edge, node: target } of members) {
+          const entryX = isLR ? target.x : target.x + target.width
+          const entryY = target.y + target.height / 2
+          candidates.set(edge, [
+            { x: exitX, y: exitY },
+            { x: junctionX, y: exitY },
+            { x: junctionX, y: entryY },
+            { x: entryX, y: entryY },
+          ])
+        }
+      } else {
+        const exitX = srcCX
+        const exitY = isBT ? source.y : source.y + source.height
+
+        const nearestY = isBT
+          ? Math.max(...members.map(t => t.node.y + t.node.height))
+          : Math.min(...members.map(t => t.node.y))
+        let junctionY = exitY + (nearestY - exitY) / 2
+        junctionY = adjustJunctionForGroups(junctionY, srcCX, srcCY, groups, direction)
+
+        for (const { edge, node: target } of members) {
+          const entryX = target.x + target.width / 2
+          const entryY = isBT ? target.y + target.height : target.y
+          candidates.set(edge, [
+            { x: exitX, y: exitY },
+            { x: exitX, y: junctionY },
+            { x: entryX, y: junctionY },
+            { x: entryX, y: entryY },
+          ])
+        }
       }
-    } else {
-      const exitX = srcCX
-      const exitY = isBT ? source.y : source.y + source.height
 
-      const nearestY = isBT
-        ? Math.max(...targets.map(t => t.node.y + t.node.height))
-        : Math.min(...targets.map(t => t.node.y))
-      let junctionY = exitY + (nearestY - exitY) / 2
-      junctionY = adjustJunctionForGroups(junctionY, srcCX, srcCY, groups, direction)
-
-      for (const { edge, node: target } of targets) {
-        const entryX = target.x + target.width / 2
-        const entryY = isBT ? target.y + target.height : target.y
-        edge.points = [
-          { x: exitX, y: exitY },
-          { x: exitX, y: junctionY },
-          { x: entryX, y: junctionY },
-          { x: entryX, y: entryY },
-        ]
-        processed.add(edge)
+      const clear = members.filter(m => bundlePathClear(candidates.get(m.edge)!, nodes, m.edge.source, m.edge.target))
+      if (clear.length === members.length) {
+        for (const { edge } of members) {
+          edge.points = candidates.get(edge)!
+          processed.add(edge)
+        }
+        break
       }
+      members = clear
+      if (new Set(members.map(m => m.edge.target)).size < 2) break
     }
   }
 
@@ -1501,53 +2282,73 @@ function bundleEdgePaths(
       return s.y + s.height < target.y // TD/TB
     })
     if (forward.length < 2) continue
+    // Same distinctness rule as fan-out, for duplicate edges from one source.
+    if (new Set(forward.map(e => e.source)).size < 2) continue
 
-    const sources = forward.map(e => ({ edge: e, node: nodeMap.get(e.source)! }))
     const tgtCX = target.x + target.width / 2
     const tgtCY = target.y + target.height / 2
 
-    if (isHorizontal) {
-      const entryX = isLR ? target.x : target.x + target.width
-      const entryY = tgtCY
+    // Same bundle contract as fan-out: shrink the bundle until every rebuilt
+    // path proves clear of other nodes.
+    let members = forward.map(e => ({ edge: e, node: nodeMap.get(e.source)! }))
+    while (members.length >= 2) {
+      const candidates = new Map<PositionedEdge, Point[]>()
+      if (isHorizontal) {
+        const entryX = isLR ? target.x : target.x + target.width
+        const entryY = tgtCY
 
-      const farthestX = isLR
-        ? Math.max(...sources.map(s => s.node.x + s.node.width))
-        : Math.min(...sources.map(s => s.node.x))
-      let junctionX = farthestX + (entryX - farthestX) / 2
-      junctionX = adjustJunctionForGroups(junctionX, tgtCX, tgtCY, groups, direction)
+        const farthestX = isLR
+          ? Math.max(...members.map(s => s.node.x + s.node.width))
+          : Math.min(...members.map(s => s.node.x))
+        let junctionX = farthestX + (entryX - farthestX) / 2
+        junctionX = adjustJunctionForGroups(junctionX, tgtCX, tgtCY, groups, direction)
 
-      for (const { edge, node: src } of sources) {
-        const exitX = isLR ? src.x + src.width : src.x
-        const exitY = src.y + src.height / 2
-        edge.points = [
-          { x: exitX, y: exitY },
-          { x: junctionX, y: exitY },
-          { x: junctionX, y: entryY },
-          { x: entryX, y: entryY },
-        ]
+        for (const { edge, node: src } of members) {
+          const exitX = isLR ? src.x + src.width : src.x
+          const exitY = src.y + src.height / 2
+          candidates.set(edge, [
+            { x: exitX, y: exitY },
+            { x: junctionX, y: exitY },
+            { x: junctionX, y: entryY },
+            { x: entryX, y: entryY },
+          ])
+        }
+      } else {
+        const entryX = tgtCX
+        const entryY = isBT ? target.y + target.height : target.y
+
+        const farthestY = isBT
+          ? Math.min(...members.map(s => s.node.y))
+          : Math.max(...members.map(s => s.node.y + s.node.height))
+        let junctionY = farthestY + (entryY - farthestY) / 2
+        junctionY = adjustJunctionForGroups(junctionY, tgtCX, tgtCY, groups, direction)
+
+        for (const { edge, node: src } of members) {
+          const exitX = src.x + src.width / 2
+          const exitY = isBT ? src.y : src.y + src.height
+          candidates.set(edge, [
+            { x: exitX, y: exitY },
+            { x: exitX, y: junctionY },
+            { x: entryX, y: junctionY },
+            { x: entryX, y: entryY },
+          ])
+        }
       }
-    } else {
-      const entryX = tgtCX
-      const entryY = isBT ? target.y + target.height : target.y
 
-      const farthestY = isBT
-        ? Math.min(...sources.map(s => s.node.y))
-        : Math.max(...sources.map(s => s.node.y + s.node.height))
-      let junctionY = farthestY + (entryY - farthestY) / 2
-      junctionY = adjustJunctionForGroups(junctionY, tgtCX, tgtCY, groups, direction)
-
-      for (const { edge, node: src } of sources) {
-        const exitX = src.x + src.width / 2
-        const exitY = isBT ? src.y : src.y + src.height
-        edge.points = [
-          { x: exitX, y: exitY },
-          { x: exitX, y: junctionY },
-          { x: entryX, y: junctionY },
-          { x: entryX, y: entryY },
-        ]
+      const clear = members.filter(m => bundlePathClear(candidates.get(m.edge)!, nodes, m.edge.source, m.edge.target))
+      if (clear.length === members.length) {
+        for (const { edge } of members) {
+          edge.points = candidates.get(edge)!
+          processed.add(edge)
+        }
+        break
       }
+      members = clear
+      if (new Set(members.map(m => m.edge.source)).size < 2) break
     }
   }
+
+  return processed
 }
 
 // ============================================================================
@@ -1565,8 +2366,38 @@ export function layoutGraphSync(
   const opts = { ...DEFAULTS, ...options }
   const style = resolveRenderStyle(options)
   const elkGraph = mermaidToElk(graph, opts, style)
-  const result = elkLayoutSync(elkGraph)
-  return elkToPositioned(result, graph, DEFAULTS.mergeEdges, opts.padding)
+  // ELK's bundled (GWT-compiled) code can throw internal exceptions on rare
+  // dense multigraphs — observed with feedbackEdges routing, and pre-existing
+  // with post-compaction + forced model order. Crash-freedom is part of this
+  // renderer's contract, so degrade through progressively plainer option
+  // sets; the route-contract pass repairs whatever the survivor produces.
+  const degradations: Array<Record<string, string>> = [
+    {},
+    { 'elk.layered.feedbackEdges': 'false' },
+    { 'elk.layered.feedbackEdges': 'false', 'elk.layered.compaction.postCompaction.strategy': 'NONE' },
+    {
+      'elk.layered.feedbackEdges': 'false',
+      'elk.layered.compaction.postCompaction.strategy': 'NONE',
+      'elk.layered.crossingMinimization.forceNodeModelOrder': 'false',
+      'elk.layered.highDegreeNodes.treatment': 'false',
+    },
+  ]
+  let result: ElkNode | undefined
+  let lastError: unknown
+  for (const overrides of degradations) {
+    const attempt = Object.keys(overrides).length === 0 ? elkGraph : mermaidToElk(graph, opts, style)
+    if (Object.keys(overrides).length > 0) {
+      attempt.layoutOptions = { ...attempt.layoutOptions, ...overrides }
+    }
+    try {
+      result = elkLayoutSync(attempt)
+      break
+    } catch (err) {
+      lastError = err
+    }
+  }
+  if (!result) throw lastError
+  return elkToPositioned(result, graph, DEFAULTS.mergeEdges, opts.padding, style)
 }
 
 /**

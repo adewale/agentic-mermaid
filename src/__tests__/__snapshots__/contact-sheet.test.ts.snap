@@ -1,0 +1,1876 @@
+// Bun Snapshot v1, https://bun.sh/docs/test/snapshots
+
+exports[`contact sheet — pinned geometry (re-pin deliberately, review the sheet) A — 1 line, LR — vertex emit + port merge 1`] = `
+{
+  "bounds": {
+    "h": 209,
+    "w": 464,
+  },
+  "edges": [
+    {
+      "from": "Q",
+      "id": "Q->T",
+      "label": {
+        "text": "go",
+        "x": 245,
+        "y": 94,
+      },
+      "path": [
+        [
+          147,
+          94,
+        ],
+        [
+          342,
+          94,
+        ],
+      ],
+      "to": "T",
+    },
+    {
+      "from": "X",
+      "id": "X->T",
+      "label": undefined,
+      "path": [
+        [
+          294,
+          150,
+        ],
+        [
+          330,
+          150,
+        ],
+        [
+          330,
+          94,
+        ],
+        [
+          342,
+          94,
+        ],
+      ],
+      "to": "T",
+    },
+  ],
+  "groups": [],
+  "kind": "flowchart",
+  "nodes": [
+    {
+      "h": 107,
+      "id": "Q",
+      "label": "Decide",
+      "shape": "diamond",
+      "w": 107,
+      "x": 40,
+      "y": 40,
+    },
+    {
+      "h": 37,
+      "id": "X",
+      "label": "Side input",
+      "shape": "rectangle",
+      "w": 99,
+      "x": 195,
+      "y": 132,
+    },
+    {
+      "h": 37,
+      "id": "T",
+      "label": "Target",
+      "shape": "rectangle",
+      "w": 82,
+      "x": 342,
+      "y": 75,
+    },
+  ],
+  "version": 1,
+}
+`;
+
+exports[`contact sheet — pinned geometry (re-pin deliberately, review the sheet) B — 1 line, RL — vertex emit + port merge 1`] = `
+{
+  "bounds": {
+    "h": 209,
+    "w": 464,
+  },
+  "edges": [
+    {
+      "from": "Q",
+      "id": "Q->T",
+      "label": {
+        "text": "go",
+        "x": 219,
+        "y": 94,
+      },
+      "path": [
+        [
+          317,
+          94,
+        ],
+        [
+          122,
+          94,
+        ],
+      ],
+      "to": "T",
+    },
+    {
+      "from": "X",
+      "id": "X->T",
+      "label": undefined,
+      "path": [
+        [
+          170,
+          150,
+        ],
+        [
+          134,
+          150,
+        ],
+        [
+          134,
+          94,
+        ],
+        [
+          122,
+          94,
+        ],
+      ],
+      "to": "T",
+    },
+  ],
+  "groups": [],
+  "kind": "flowchart",
+  "nodes": [
+    {
+      "h": 107,
+      "id": "Q",
+      "label": "Decide",
+      "shape": "diamond",
+      "w": 107,
+      "x": 317,
+      "y": 40,
+    },
+    {
+      "h": 37,
+      "id": "X",
+      "label": "Side input",
+      "shape": "rectangle",
+      "w": 99,
+      "x": 170,
+      "y": 132,
+    },
+    {
+      "h": 37,
+      "id": "T",
+      "label": "Target",
+      "shape": "rectangle",
+      "w": 82,
+      "x": 40,
+      "y": 75,
+    },
+  ],
+  "version": 1,
+}
+`;
+
+exports[`contact sheet — pinned geometry (re-pin deliberately, review the sheet) C — 1 line, TD — vertex emit + port merge 1`] = `
+{
+  "bounds": {
+    "h": 357,
+    "w": 271,
+  },
+  "edges": [
+    {
+      "from": "Q",
+      "id": "Q->T",
+      "label": {
+        "text": "go",
+        "x": 94,
+        "y": 214,
+      },
+      "path": [
+        [
+          94,
+          147,
+        ],
+        [
+          94,
+          280,
+        ],
+      ],
+      "to": "T",
+    },
+    {
+      "from": "X",
+      "id": "X->T",
+      "label": undefined,
+      "path": [
+        [
+          182,
+          232,
+        ],
+        [
+          182,
+          268,
+        ],
+        [
+          94,
+          268,
+        ],
+        [
+          94,
+          280,
+        ],
+      ],
+      "to": "T",
+    },
+  ],
+  "groups": [],
+  "kind": "flowchart",
+  "nodes": [
+    {
+      "h": 107,
+      "id": "Q",
+      "label": "Decide",
+      "shape": "diamond",
+      "w": 107,
+      "x": 40,
+      "y": 40,
+    },
+    {
+      "h": 37,
+      "id": "X",
+      "label": "Side input",
+      "shape": "rectangle",
+      "w": 99,
+      "x": 132,
+      "y": 195,
+    },
+    {
+      "h": 37,
+      "id": "T",
+      "label": "Target",
+      "shape": "rectangle",
+      "w": 82,
+      "x": 53,
+      "y": 280,
+    },
+  ],
+  "version": 1,
+}
+`;
+
+exports[`contact sheet — pinned geometry (re-pin deliberately, review the sheet) D — 1 line, BT — vertex emit + port merge 1`] = `
+{
+  "bounds": {
+    "h": 357,
+    "w": 271,
+  },
+  "edges": [
+    {
+      "from": "Q",
+      "id": "Q->T",
+      "label": {
+        "text": "go",
+        "x": 94,
+        "y": 143,
+      },
+      "path": [
+        [
+          94,
+          210,
+        ],
+        [
+          94,
+          77,
+        ],
+      ],
+      "to": "T",
+    },
+    {
+      "from": "X",
+      "id": "X->T",
+      "label": undefined,
+      "path": [
+        [
+          182,
+          125,
+        ],
+        [
+          182,
+          89,
+        ],
+        [
+          94,
+          89,
+        ],
+        [
+          94,
+          77,
+        ],
+      ],
+      "to": "T",
+    },
+  ],
+  "groups": [],
+  "kind": "flowchart",
+  "nodes": [
+    {
+      "h": 107,
+      "id": "Q",
+      "label": "Decide",
+      "shape": "diamond",
+      "w": 107,
+      "x": 40,
+      "y": 210,
+    },
+    {
+      "h": 37,
+      "id": "X",
+      "label": "Side input",
+      "shape": "rectangle",
+      "w": 99,
+      "x": 132,
+      "y": 125,
+    },
+    {
+      "h": 37,
+      "id": "T",
+      "label": "Target",
+      "shape": "rectangle",
+      "w": 82,
+      "x": 53,
+      "y": 40,
+    },
+  ],
+  "version": 1,
+}
+`;
+
+exports[`contact sheet — pinned geometry (re-pin deliberately, review the sheet) E — diamond fan-out — facet-mid ports, port-to-port straight 1`] = `
+{
+  "bounds": {
+    "h": 187,
+    "w": 366,
+  },
+  "edges": [
+    {
+      "from": "Q",
+      "id": "Q->P",
+      "label": {
+        "text": "a",
+        "x": 203,
+        "y": 67,
+      },
+      "path": [
+        [
+          121,
+          67,
+        ],
+        [
+          259,
+          67,
+        ],
+      ],
+      "to": "P",
+    },
+    {
+      "from": "Q",
+      "id": "Q->R",
+      "label": {
+        "text": "b",
+        "x": 203,
+        "y": 121,
+      },
+      "path": [
+        [
+          121,
+          121,
+        ],
+        [
+          259,
+          121,
+        ],
+      ],
+      "to": "R",
+    },
+  ],
+  "groups": [],
+  "kind": "flowchart",
+  "nodes": [
+    {
+      "h": 107,
+      "id": "Q",
+      "label": "Decide",
+      "shape": "diamond",
+      "w": 107,
+      "x": 40,
+      "y": 40,
+    },
+    {
+      "h": 37,
+      "id": "P",
+      "label": "One",
+      "shape": "rectangle",
+      "w": 66,
+      "x": 259,
+      "y": 48,
+    },
+    {
+      "h": 37,
+      "id": "R",
+      "label": "Two",
+      "shape": "rectangle",
+      "w": 67,
+      "x": 259,
+      "y": 102,
+    },
+  ],
+  "version": 1,
+}
+`;
+
+exports[`contact sheet — pinned geometry (re-pin deliberately, review the sheet) F — diamond fan-out, TD — E/W vertices, port-to-port straight 1`] = `
+{
+  "bounds": {
+    "h": 341,
+    "w": 274,
+  },
+  "edges": [
+    {
+      "from": "Q",
+      "id": "Q->P",
+      "label": {
+        "text": "a",
+        "x": 66,
+        "y": 206,
+      },
+      "path": [
+        [
+          66,
+          94,
+        ],
+        [
+          66,
+          264,
+        ],
+      ],
+      "to": "P",
+    },
+    {
+      "from": "Q",
+      "id": "Q->R",
+      "label": {
+        "text": "b",
+        "x": 174,
+        "y": 206,
+      },
+      "path": [
+        [
+          174,
+          94,
+        ],
+        [
+          174,
+          264,
+        ],
+      ],
+      "to": "R",
+    },
+  ],
+  "groups": [],
+  "kind": "flowchart",
+  "nodes": [
+    {
+      "h": 107,
+      "id": "Q",
+      "label": "Decide",
+      "shape": "diamond",
+      "w": 107,
+      "x": 66,
+      "y": 40,
+    },
+    {
+      "h": 37,
+      "id": "P",
+      "label": "One",
+      "shape": "rectangle",
+      "w": 66,
+      "x": 33,
+      "y": 264,
+    },
+    {
+      "h": 37,
+      "id": "R",
+      "label": "Two",
+      "shape": "rectangle",
+      "w": 67,
+      "x": 140,
+      "y": 264,
+    },
+  ],
+  "version": 1,
+}
+`;
+
+exports[`contact sheet — pinned geometry (re-pin deliberately, review the sheet) G — bi-directional diamonds — parallel lines on facet-mid ports 1`] = `
+{
+  "bounds": {
+    "h": 181,
+    "w": 333,
+  },
+  "edges": [
+    {
+      "from": "Q",
+      "id": "Q->R",
+      "label": undefined,
+      "path": [
+        [
+          119,
+          63,
+        ],
+        [
+          212,
+          63,
+        ],
+      ],
+      "to": "R",
+    },
+    {
+      "from": "R",
+      "id": "R->Q",
+      "label": undefined,
+      "path": [
+        [
+          212,
+          108,
+        ],
+        [
+          119,
+          108,
+        ],
+      ],
+      "to": "Q",
+    },
+  ],
+  "groups": [],
+  "kind": "flowchart",
+  "nodes": [
+    {
+      "h": 90,
+      "id": "Q",
+      "label": "One",
+      "shape": "diamond",
+      "w": 90,
+      "x": 52,
+      "y": 41,
+    },
+    {
+      "h": 91,
+      "id": "R",
+      "label": "Two",
+      "shape": "diamond",
+      "w": 91,
+      "x": 190,
+      "y": 40,
+    },
+  ],
+  "version": 1,
+}
+`;
+
+exports[`contact sheet — pinned geometry (re-pin deliberately, review the sheet) H — bi-directional rects — two EQUAL parallel lines 1`] = `
+{
+  "bounds": {
+    "h": 127,
+    "w": 285,
+  },
+  "edges": [
+    {
+      "from": "A",
+      "id": "A->B",
+      "label": undefined,
+      "path": [
+        [
+          118,
+          52,
+        ],
+        [
+          166,
+          52,
+        ],
+      ],
+      "to": "B",
+    },
+    {
+      "from": "B",
+      "id": "B->A",
+      "label": undefined,
+      "path": [
+        [
+          166,
+          64,
+        ],
+        [
+          118,
+          64,
+        ],
+      ],
+      "to": "A",
+    },
+  ],
+  "groups": [],
+  "kind": "flowchart",
+  "nodes": [
+    {
+      "h": 37,
+      "id": "A",
+      "label": "One",
+      "shape": "rectangle",
+      "w": 66,
+      "x": 52,
+      "y": 40,
+    },
+    {
+      "h": 37,
+      "id": "B",
+      "label": "Two",
+      "shape": "rectangle",
+      "w": 67,
+      "x": 166,
+      "y": 40,
+    },
+  ],
+  "version": 1,
+}
+`;
+
+exports[`contact sheet — pinned geometry (re-pin deliberately, review the sheet) I — diamond chain — vertex to vertex 1`] = `
+{
+  "bounds": {
+    "h": 183,
+    "w": 460,
+  },
+  "edges": [
+    {
+      "from": "Q1",
+      "id": "Q1->Q2",
+      "label": undefined,
+      "path": [
+        [
+          130,
+          92,
+        ],
+        [
+          178,
+          92,
+        ],
+      ],
+      "to": "Q2",
+    },
+    {
+      "from": "Q2",
+      "id": "Q2->Q3",
+      "label": undefined,
+      "path": [
+        [
+          269,
+          92,
+        ],
+        [
+          317,
+          92,
+        ],
+      ],
+      "to": "Q3",
+    },
+  ],
+  "groups": [],
+  "kind": "flowchart",
+  "nodes": [
+    {
+      "h": 90,
+      "id": "Q1",
+      "label": "One",
+      "shape": "diamond",
+      "w": 90,
+      "x": 40,
+      "y": 47,
+    },
+    {
+      "h": 91,
+      "id": "Q2",
+      "label": "Two",
+      "shape": "diamond",
+      "w": 91,
+      "x": 178,
+      "y": 46,
+    },
+    {
+      "h": 103,
+      "id": "Q3",
+      "label": "Three",
+      "shape": "diamond",
+      "w": 103,
+      "x": 317,
+      "y": 40,
+    },
+  ],
+  "version": 1,
+}
+`;
+
+exports[`contact sheet — pinned geometry (re-pin deliberately, review the sheet) J — diamond chain, TD — vertex to vertex 1`] = `
+{
+  "bounds": {
+    "h": 460,
+    "w": 183,
+  },
+  "edges": [
+    {
+      "from": "Q1",
+      "id": "Q1->Q2",
+      "label": undefined,
+      "path": [
+        [
+          92,
+          130,
+        ],
+        [
+          92,
+          178,
+        ],
+      ],
+      "to": "Q2",
+    },
+    {
+      "from": "Q2",
+      "id": "Q2->Q3",
+      "label": undefined,
+      "path": [
+        [
+          92,
+          269,
+        ],
+        [
+          92,
+          317,
+        ],
+      ],
+      "to": "Q3",
+    },
+  ],
+  "groups": [],
+  "kind": "flowchart",
+  "nodes": [
+    {
+      "h": 90,
+      "id": "Q1",
+      "label": "One",
+      "shape": "diamond",
+      "w": 90,
+      "x": 47,
+      "y": 40,
+    },
+    {
+      "h": 91,
+      "id": "Q2",
+      "label": "Two",
+      "shape": "diamond",
+      "w": 91,
+      "x": 46,
+      "y": 178,
+    },
+    {
+      "h": 103,
+      "id": "Q3",
+      "label": "Three",
+      "shape": "diamond",
+      "w": 103,
+      "x": 40,
+      "y": 317,
+    },
+  ],
+  "version": 1,
+}
+`;
+
+exports[`contact sheet — pinned geometry (re-pin deliberately, review the sheet) K — side input into a claimed diamond — enters the S vertex 1`] = `
+{
+  "bounds": {
+    "h": 219,
+    "w": 481,
+  },
+  "edges": [
+    {
+      "from": "Q1",
+      "id": "Q1->Q2",
+      "label": {
+        "text": "go",
+        "x": 232,
+        "y": 115,
+      },
+      "path": [
+        [
+          134,
+          115,
+        ],
+        [
+          329,
+          115,
+        ],
+      ],
+      "to": "Q2",
+    },
+    {
+      "from": "X",
+      "id": "X->Q2",
+      "label": undefined,
+      "path": [
+        [
+          281,
+          171,
+        ],
+        [
+          385,
+          171,
+        ],
+      ],
+      "to": "Q2",
+    },
+  ],
+  "groups": [],
+  "kind": "flowchart",
+  "nodes": [
+    {
+      "h": 94,
+      "id": "Q1",
+      "label": "First",
+      "shape": "diamond",
+      "w": 94,
+      "x": 40,
+      "y": 68,
+    },
+    {
+      "h": 37,
+      "id": "X",
+      "label": "Side input",
+      "shape": "rectangle",
+      "w": 99,
+      "x": 182,
+      "y": 153,
+    },
+    {
+      "h": 112,
+      "id": "Q2",
+      "label": "Second",
+      "shape": "diamond",
+      "w": 112,
+      "x": 329,
+      "y": 59,
+    },
+  ],
+  "version": 1,
+}
+`;
+
+exports[`contact sheet — pinned geometry (re-pin deliberately, review the sheet) L — circle fan-in — symmetric merge at the exact port 1`] = `
+{
+  "bounds": {
+    "h": 277,
+    "w": 297,
+  },
+  "edges": [
+    {
+      "from": "A",
+      "id": "A->T",
+      "label": undefined,
+      "path": [
+        [
+          125,
+          82,
+        ],
+        [
+          149,
+          82,
+        ],
+        [
+          149,
+          138,
+        ],
+        [
+          173,
+          138,
+        ],
+      ],
+      "to": "T",
+    },
+    {
+      "from": "B",
+      "id": "B->T",
+      "label": undefined,
+      "path": [
+        [
+          125,
+          195,
+        ],
+        [
+          149,
+          195,
+        ],
+        [
+          149,
+          138,
+        ],
+        [
+          173,
+          138,
+        ],
+      ],
+      "to": "T",
+    },
+  ],
+  "groups": [],
+  "kind": "flowchart",
+  "nodes": [
+    {
+      "h": 84,
+      "id": "A",
+      "label": "One",
+      "shape": "circle",
+      "w": 84,
+      "x": 41,
+      "y": 40,
+    },
+    {
+      "h": 85,
+      "id": "B",
+      "label": "Two",
+      "shape": "circle",
+      "w": 85,
+      "x": 40,
+      "y": 152,
+    },
+    {
+      "h": 84,
+      "id": "T",
+      "label": "Hub",
+      "shape": "circle",
+      "w": 84,
+      "x": 173,
+      "y": 96,
+    },
+  ],
+  "version": 1,
+}
+`;
+
+exports[`contact sheet — pinned geometry (re-pin deliberately, review the sheet) M — stadium fan-in — symmetric merge at the exact port 1`] = `
+{
+  "bounds": {
+    "h": 182,
+    "w": 261,
+  },
+  "edges": [
+    {
+      "from": "A",
+      "id": "A->T",
+      "label": undefined,
+      "path": [
+        [
+          106,
+          58,
+        ],
+        [
+          132,
+          58,
+        ],
+        [
+          132,
+          91,
+        ],
+        [
+          155,
+          91,
+        ],
+      ],
+      "to": "T",
+    },
+    {
+      "from": "B",
+      "id": "B->T",
+      "label": undefined,
+      "path": [
+        [
+          108,
+          123,
+        ],
+        [
+          132,
+          123,
+        ],
+        [
+          132,
+          91,
+        ],
+        [
+          155,
+          91,
+        ],
+      ],
+      "to": "T",
+    },
+  ],
+  "groups": [],
+  "kind": "flowchart",
+  "nodes": [
+    {
+      "h": 37,
+      "id": "A",
+      "label": "One",
+      "shape": "stadium",
+      "w": 66,
+      "x": 41,
+      "y": 40,
+    },
+    {
+      "h": 37,
+      "id": "B",
+      "label": "Two",
+      "shape": "stadium",
+      "w": 67,
+      "x": 41,
+      "y": 105,
+    },
+    {
+      "h": 37,
+      "id": "T",
+      "label": "Hub",
+      "shape": "stadium",
+      "w": 66,
+      "x": 155,
+      "y": 72,
+    },
+  ],
+  "version": 1,
+}
+`;
+
+exports[`contact sheet — pinned geometry (re-pin deliberately, review the sheet) N — hexagon fan-in — symmetric merge at the exact port 1`] = `
+{
+  "bounds": {
+    "h": 182,
+    "w": 301,
+  },
+  "edges": [
+    {
+      "from": "A",
+      "id": "A->T",
+      "label": undefined,
+      "path": [
+        [
+          126,
+          58,
+        ],
+        [
+          152,
+          58,
+        ],
+        [
+          152,
+          91,
+        ],
+        [
+          175,
+          91,
+        ],
+      ],
+      "to": "T",
+    },
+    {
+      "from": "B",
+      "id": "B->T",
+      "label": undefined,
+      "path": [
+        [
+          128,
+          123,
+        ],
+        [
+          152,
+          123,
+        ],
+        [
+          152,
+          91,
+        ],
+        [
+          175,
+          91,
+        ],
+      ],
+      "to": "T",
+    },
+  ],
+  "groups": [],
+  "kind": "flowchart",
+  "nodes": [
+    {
+      "h": 37,
+      "id": "A",
+      "label": "One",
+      "shape": "hexagon",
+      "w": 86,
+      "x": 41,
+      "y": 40,
+    },
+    {
+      "h": 37,
+      "id": "B",
+      "label": "Two",
+      "shape": "hexagon",
+      "w": 87,
+      "x": 41,
+      "y": 105,
+    },
+    {
+      "h": 37,
+      "id": "T",
+      "label": "Hub",
+      "shape": "hexagon",
+      "w": 86,
+      "x": 175,
+      "y": 72,
+    },
+  ],
+  "version": 1,
+}
+`;
+
+exports[`contact sheet — pinned geometry (re-pin deliberately, review the sheet) O — cylinder fan-in — symmetric merge at the exact port 1`] = `
+{
+  "bounds": {
+    "h": 210,
+    "w": 261,
+  },
+  "edges": [
+    {
+      "from": "A",
+      "id": "A->T",
+      "label": undefined,
+      "path": [
+        [
+          106,
+          65,
+        ],
+        [
+          132,
+          65,
+        ],
+        [
+          132,
+          105,
+        ],
+        [
+          155,
+          105,
+        ],
+      ],
+      "to": "T",
+    },
+    {
+      "from": "B",
+      "id": "B->T",
+      "label": undefined,
+      "path": [
+        [
+          108,
+          144,
+        ],
+        [
+          132,
+          144,
+        ],
+        [
+          132,
+          105,
+        ],
+        [
+          155,
+          105,
+        ],
+      ],
+      "to": "T",
+    },
+  ],
+  "groups": [],
+  "kind": "flowchart",
+  "nodes": [
+    {
+      "h": 51,
+      "id": "A",
+      "label": "One",
+      "shape": "cylinder",
+      "w": 66,
+      "x": 41,
+      "y": 40,
+    },
+    {
+      "h": 51,
+      "id": "B",
+      "label": "Two",
+      "shape": "cylinder",
+      "w": 67,
+      "x": 41,
+      "y": 119,
+    },
+    {
+      "h": 51,
+      "id": "T",
+      "label": "Hub",
+      "shape": "cylinder",
+      "w": 66,
+      "x": 155,
+      "y": 79,
+    },
+  ],
+  "version": 1,
+}
+`;
+
+exports[`contact sheet — pinned geometry (re-pin deliberately, review the sheet) P — mixed rect→circle fan-in — symmetric merge 1`] = `
+{
+  "bounds": {
+    "h": 182,
+    "w": 279,
+  },
+  "edges": [
+    {
+      "from": "A",
+      "id": "A->T",
+      "label": undefined,
+      "path": [
+        [
+          106,
+          58,
+        ],
+        [
+          132,
+          58,
+        ],
+        [
+          132,
+          91,
+        ],
+        [
+          155,
+          91,
+        ],
+      ],
+      "to": "T",
+    },
+    {
+      "from": "B",
+      "id": "B->T",
+      "label": undefined,
+      "path": [
+        [
+          108,
+          123,
+        ],
+        [
+          132,
+          123,
+        ],
+        [
+          132,
+          91,
+        ],
+        [
+          155,
+          91,
+        ],
+      ],
+      "to": "T",
+    },
+  ],
+  "groups": [],
+  "kind": "flowchart",
+  "nodes": [
+    {
+      "h": 37,
+      "id": "A",
+      "label": "One",
+      "shape": "rectangle",
+      "w": 66,
+      "x": 41,
+      "y": 40,
+    },
+    {
+      "h": 37,
+      "id": "B",
+      "label": "Two",
+      "shape": "rectangle",
+      "w": 67,
+      "x": 41,
+      "y": 105,
+    },
+    {
+      "h": 84,
+      "id": "T",
+      "label": "Hub",
+      "shape": "circle",
+      "w": 84,
+      "x": 155,
+      "y": 49,
+    },
+  ],
+  "version": 1,
+}
+`;
+
+exports[`contact sheet — pinned geometry (re-pin deliberately, review the sheet) Q — state diagram fan-in — symmetric merge 1`] = `
+{
+  "bounds": {
+    "h": 182,
+    "w": 304,
+  },
+  "edges": [
+    {
+      "from": "Choosing",
+      "id": "Choosing->Done",
+      "label": undefined,
+      "path": [
+        [
+          140,
+          58,
+        ],
+        [
+          168,
+          58,
+        ],
+        [
+          168,
+          91,
+        ],
+        [
+          191,
+          91,
+        ],
+      ],
+      "to": "Done",
+    },
+    {
+      "from": "Reviewing",
+      "id": "Reviewing->Done",
+      "label": undefined,
+      "path": [
+        [
+          145,
+          123,
+        ],
+        [
+          168,
+          123,
+        ],
+        [
+          168,
+          91,
+        ],
+        [
+          191,
+          91,
+        ],
+      ],
+      "to": "Done",
+    },
+  ],
+  "groups": [],
+  "kind": "state",
+  "nodes": [
+    {
+      "h": 37,
+      "id": "Choosing",
+      "label": "Choosing",
+      "shape": "rounded",
+      "w": 98,
+      "x": 42,
+      "y": 40,
+    },
+    {
+      "h": 37,
+      "id": "Reviewing",
+      "label": "Reviewing",
+      "shape": "rounded",
+      "w": 103,
+      "x": 42,
+      "y": 105,
+    },
+    {
+      "h": 37,
+      "id": "Done",
+      "label": "Done",
+      "shape": "rounded",
+      "w": 73,
+      "x": 191,
+      "y": 72,
+    },
+  ],
+  "version": 1,
+}
+`;
+
+exports[`contact sheet — pinned geometry (re-pin deliberately, review the sheet) R — labeled feedback — outer loop, label on route 1`] = `
+{
+  "bounds": {
+    "h": 212,
+    "w": 551,
+  },
+  "edges": [
+    {
+      "from": "A",
+      "id": "A->B",
+      "label": undefined,
+      "path": [
+        [
+          143,
+          92,
+        ],
+        [
+          191,
+          92,
+        ],
+      ],
+      "to": "B",
+    },
+    {
+      "from": "B",
+      "id": "B->A",
+      "label": {
+        "text": "no, retry",
+        "x": 118,
+        "y": 152,
+      },
+      "path": [
+        [
+          242,
+          143,
+        ],
+        [
+          242,
+          153,
+        ],
+        [
+          97,
+          153,
+        ],
+        [
+          97,
+          110,
+        ],
+      ],
+      "to": "A",
+    },
+    {
+      "from": "B",
+      "id": "B->C",
+      "label": {
+        "text": "yes",
+        "x": 356,
+        "y": 92,
+      },
+      "path": [
+        [
+          294,
+          92,
+        ],
+        [
+          417,
+          92,
+        ],
+      ],
+      "to": "C",
+    },
+  ],
+  "groups": [],
+  "kind": "flowchart",
+  "nodes": [
+    {
+      "h": 37,
+      "id": "A",
+      "label": "Request",
+      "shape": "rectangle",
+      "w": 91,
+      "x": 52,
+      "y": 73,
+    },
+    {
+      "h": 103,
+      "id": "B",
+      "label": "Valid?",
+      "shape": "diamond",
+      "w": 103,
+      "x": 191,
+      "y": 40,
+    },
+    {
+      "h": 37,
+      "id": "C",
+      "label": "Process",
+      "shape": "rectangle",
+      "w": 94,
+      "x": 417,
+      "y": 73,
+    },
+  ],
+  "version": 1,
+}
+`;
+
+exports[`contact sheet — pinned geometry (re-pin deliberately, review the sheet) S — bi-directional circles — port + outer loop 1`] = `
+{
+  "bounds": {
+    "h": 183,
+    "w": 321,
+  },
+  "edges": [
+    {
+      "from": "A",
+      "id": "A->B",
+      "label": undefined,
+      "path": [
+        [
+          136,
+          83,
+        ],
+        [
+          184,
+          83,
+        ],
+      ],
+      "to": "B",
+    },
+    {
+      "from": "B",
+      "id": "B->A",
+      "label": undefined,
+      "path": [
+        [
+          227,
+          125,
+        ],
+        [
+          227,
+          135,
+        ],
+        [
+          94,
+          135,
+        ],
+        [
+          94,
+          125,
+        ],
+      ],
+      "to": "A",
+    },
+  ],
+  "groups": [],
+  "kind": "flowchart",
+  "nodes": [
+    {
+      "h": 84,
+      "id": "A",
+      "label": "One",
+      "shape": "circle",
+      "w": 84,
+      "x": 52,
+      "y": 41,
+    },
+    {
+      "h": 85,
+      "id": "B",
+      "label": "Two",
+      "shape": "circle",
+      "w": 85,
+      "x": 184,
+      "y": 40,
+    },
+  ],
+  "version": 1,
+}
+`;
+
+exports[`contact sheet — pinned geometry (re-pin deliberately, review the sheet) T — parallelogram I/O fan-in — symmetric merge 1`] = `
+{
+  "bounds": {
+    "h": 182,
+    "w": 301,
+  },
+  "edges": [
+    {
+      "from": "A",
+      "id": "A->T",
+      "label": undefined,
+      "path": [
+        [
+          120,
+          58,
+        ],
+        [
+          152,
+          58,
+        ],
+        [
+          152,
+          91,
+        ],
+        [
+          182,
+          91,
+        ],
+      ],
+      "to": "T",
+    },
+    {
+      "from": "B",
+      "id": "B->T",
+      "label": undefined,
+      "path": [
+        [
+          121,
+          123,
+        ],
+        [
+          152,
+          123,
+        ],
+        [
+          152,
+          91,
+        ],
+        [
+          182,
+          91,
+        ],
+      ],
+      "to": "T",
+    },
+  ],
+  "groups": [],
+  "kind": "flowchart",
+  "nodes": [
+    {
+      "h": 37,
+      "id": "A",
+      "label": "One",
+      "shape": "lean-r",
+      "w": 86,
+      "x": 41,
+      "y": 40,
+    },
+    {
+      "h": 37,
+      "id": "B",
+      "label": "Two",
+      "shape": "lean-r",
+      "w": 87,
+      "x": 41,
+      "y": 105,
+    },
+    {
+      "h": 37,
+      "id": "T",
+      "label": "Hub",
+      "shape": "lean-r",
+      "w": 86,
+      "x": 175,
+      "y": 72,
+    },
+  ],
+  "version": 1,
+}
+`;
+
+exports[`contact sheet — pinned geometry (re-pin deliberately, review the sheet) U — trapezoid fan-in — symmetric merge 1`] = `
+{
+  "bounds": {
+    "h": 182,
+    "w": 301,
+  },
+  "edges": [
+    {
+      "from": "A",
+      "id": "A->T",
+      "label": undefined,
+      "path": [
+        [
+          120,
+          58,
+        ],
+        [
+          152,
+          58,
+        ],
+        [
+          152,
+          91,
+        ],
+        [
+          182,
+          91,
+        ],
+      ],
+      "to": "T",
+    },
+    {
+      "from": "B",
+      "id": "B->T",
+      "label": undefined,
+      "path": [
+        [
+          121,
+          123,
+        ],
+        [
+          152,
+          123,
+        ],
+        [
+          152,
+          91,
+        ],
+        [
+          182,
+          91,
+        ],
+      ],
+      "to": "T",
+    },
+  ],
+  "groups": [],
+  "kind": "flowchart",
+  "nodes": [
+    {
+      "h": 37,
+      "id": "A",
+      "label": "One",
+      "shape": "trapezoid",
+      "w": 86,
+      "x": 41,
+      "y": 40,
+    },
+    {
+      "h": 37,
+      "id": "B",
+      "label": "Two",
+      "shape": "trapezoid",
+      "w": 87,
+      "x": 41,
+      "y": 105,
+    },
+    {
+      "h": 37,
+      "id": "T",
+      "label": "Hub",
+      "shape": "trapezoid",
+      "w": 86,
+      "x": 175,
+      "y": 72,
+    },
+  ],
+  "version": 1,
+}
+`;
+
+exports[`contact sheet — pinned geometry (re-pin deliberately, review the sheet) V — asymmetric fan-in — symmetric merge at the flag point 1`] = `
+{
+  "bounds": {
+    "h": 182,
+    "w": 285,
+  },
+  "edges": [
+    {
+      "from": "A",
+      "id": "A->T",
+      "label": undefined,
+      "path": [
+        [
+          118,
+          58,
+        ],
+        [
+          144,
+          58,
+        ],
+        [
+          144,
+          91,
+        ],
+        [
+          167,
+          91,
+        ],
+      ],
+      "to": "T",
+    },
+    {
+      "from": "B",
+      "id": "B->T",
+      "label": undefined,
+      "path": [
+        [
+          120,
+          123,
+        ],
+        [
+          144,
+          123,
+        ],
+        [
+          144,
+          91,
+        ],
+        [
+          167,
+          91,
+        ],
+      ],
+      "to": "T",
+    },
+  ],
+  "groups": [],
+  "kind": "flowchart",
+  "nodes": [
+    {
+      "h": 37,
+      "id": "A",
+      "label": "One",
+      "shape": "asymmetric",
+      "w": 78,
+      "x": 41,
+      "y": 40,
+    },
+    {
+      "h": 37,
+      "id": "B",
+      "label": "Two",
+      "shape": "asymmetric",
+      "w": 79,
+      "x": 41,
+      "y": 105,
+    },
+    {
+      "h": 37,
+      "id": "T",
+      "label": "Hub",
+      "shape": "asymmetric",
+      "w": 78,
+      "x": 167,
+      "y": 72,
+    },
+  ],
+  "version": 1,
+}
+`;

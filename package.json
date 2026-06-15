@@ -102,8 +102,17 @@
     "mutation-test": "npx stryker run",
     "mutation-test:ascii": "npx stryker run stryker.ascii.config.json",
     "mutation-test:families": "npx stryker run stryker.families.config.json",
+    "mutation-test:routes": "npx stryker run stryker.routes.config.json",
+    "mutation-test:routes:certs": "npx stryker run stryker.route-certificates.config.json",
+    "mutation-test:routes:subgraph": "npx stryker run stryker.subgraph-routing.config.json",
+    "mutation-test:links": "npx stryker run stryker.link-grammar.config.json",
+    "sabotage:routes": "bun run eval/sabotage/route-regressions.ts",
     "lint": "bun test src/__tests__/agent-substrate-lint.test.ts",
-    "eval:agent-live": "bun run eval/agent-usage/live.ts"
+    "eval:agent-live": "bun run eval/agent-usage/live.ts",
+    "rubric:visual": "bun run eval/visual-rubric/run.ts",
+    "contact:sheet": "bun run eval/visual-rubric/contact-sheet.ts",
+    "track": "bun run eval/heuristic-tracker/run.ts",
+    "audit:ugly": "bun run eval/ugly-detector/audit.ts"
   },
   "dependencies": {
     "@resvg/resvg-js": "2.6.2",

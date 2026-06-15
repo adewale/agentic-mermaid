@@ -482,6 +482,11 @@ export function createMapping(graph: AsciiGraph): void {
     s.add(edge.to.name)
   }
   const inDegree = new Map<string, number>()
+  // Forward parents per child (same exclusions as inDegree): used for
+  // longest-path layering, so a fan-in target waits for its DEEPEST parent
+  // instead of being parked at the level of whichever parent places first
+  // (which made later parents' edges run backward — issue #25 criterion 1).
+  const forwardParents = new Map<string, Array<typeof graph.nodes[number]>>()
   for (const edge of graph.edges) {
     // Skip self-loops: a node is not its own fan-in source (issues #68/#69).
     if (edge.from.name === edge.to.name) continue
@@ -489,6 +494,8 @@ export function createMapping(graph: AsciiGraph): void {
     // join, so it must not inflate the target's fan-in degree (issues #68/#69).
     if (outNeighbors.get(edge.to.name)?.has(edge.from.name)) continue
     inDegree.set(edge.to.name, (inDegree.get(edge.to.name) ?? 0) + 1)
+    if (!forwardParents.has(edge.to.name)) forwardParents.set(edge.to.name, [])
+    forwardParents.get(edge.to.name)!.push(edge.from)
   }
 
   // Place external root nodes
@@ -518,6 +525,10 @@ export function createMapping(graph: AsciiGraph): void {
   // Note: when shouldSeparate, externalRootNodes + subgraphRootNodes = rootNodes
   //       otherwise, externalRootNodes = rootNodes and subgraphRootNodes is empty
   let placedCount = externalRootNodes.length + subgraphRootNodes.length
+  // Longest-path layering needs cycle tolerance: when a whole pass places
+  // nothing because children are waiting on parents stuck in a cycle, one
+  // forced pass falls back to greedy placement, then waiting resumes.
+  let force = false
   while (placedCount < graph.nodes.length) {
     const prevCount = placedCount
     for (const node of graph.nodes) {
@@ -527,6 +538,9 @@ export function createMapping(graph: AsciiGraph): void {
       for (const edge of getEdgesFromNode(graph, node)) {
         const child = edge.to
         if (child.gridCoord !== null) continue // already placed
+        // Longest-path layering: wait until every forward parent is placed,
+        // so the child lands after its deepest parent.
+        if (!force && (forwardParents.get(child.name) ?? []).some(p => p.gridCoord === null)) continue
 
         // Determine direction for this edge (parent -> child)
         // Use subgraph direction only if both are in the same subgraph with override
@@ -536,7 +550,16 @@ export function createMapping(graph: AsciiGraph): void {
           ? parentSg.direction
           : graph.config.graphDirection
 
-        const childLevel = edgeDir === 'LR' ? gc.x + 4 : gc.y + 4
+        // Longest path: the child's level comes from its deepest placed
+        // forward parent, not from whichever parent iterates first.
+        let parentLevel = edgeDir === 'LR' ? gc.x : gc.y
+        if (edgeDir === graph.config.graphDirection) {
+          for (const parent of forwardParents.get(child.name) ?? []) {
+            if (parent.gridCoord === null) continue
+            parentLevel = Math.max(parentLevel, edgeDir === 'LR' ? parent.gridCoord.x : parent.gridCoord.y)
+          }
+        }
+        const childLevel = parentLevel + 4
 
         // Determine position based on direction context
         let highestPosition: number
@@ -578,8 +601,15 @@ export function createMapping(graph: AsciiGraph): void {
         placedCount++
       }
     }
-    // Safety: break if no progress made (handles disconnected nodes)
-    if (placedCount === prevCount) break
+    if (placedCount === prevCount) {
+      // Safety: break if even a forced pass made no progress (disconnected
+      // nodes). A first stall means children are waiting on a cycle — run
+      // one greedy pass to break the deadlock, then resume waiting.
+      if (force) break
+      force = true
+    } else {
+      force = false
+    }
   }
 
   // Compute column widths and row heights

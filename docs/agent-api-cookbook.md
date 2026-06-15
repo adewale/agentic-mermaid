@@ -266,7 +266,7 @@ Tier 1 warnings are reliable structural/source checks. Do not suppress Tier 1 er
 | `UNKNOWN_SHAPE` | Shape fell back because the name is unrecognized |
 | `LABEL_OVERFLOW` | Label exceeds `labelCharCap` |
 
-Tier 2 warnings are advisory geometric checks for flowchart/state: `NODE_OVERLAP`, `ROUTE_SELF_CROSS`.
+Tier 2 warnings are advisory geometric checks for flowchart/state: `NODE_OVERLAP`, `ROUTE_SELF_CROSS`, and the route-contract tripwires `ROUTE_HITCH`, `ROUTE_UNEXPLAINED_BEND`, `ROUTE_LABEL_ON_SHARED_TRUNK`, `ROUTE_CONTAINER_MISANCHOR`, `ROUTE_SHAPE_MISANCHOR`, `ROUTE_STALE_AFTER_NODE_MOVE`.
 
 Tier 3 warnings are advisory lint checks for common agent mistakes: `DUPLICATE_EDGE`, `UNREACHABLE_NODE`. They do not flip `verify.ok`, but they are worth fixing when the caller asks for clean maintainable diagrams.
 

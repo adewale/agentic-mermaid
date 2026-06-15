@@ -6,7 +6,7 @@
 // nothing). The only verify knob is labelCharCap. See AGENT_NATIVE.md § (1).
 // ============================================================================
 
-import type { MermaidGraph, NodeShape, EdgeStyle } from '../types.ts'
+import type { MermaidGraph, NodeShape, EdgeStyle, RouteCertificate } from '../types.ts'
 import type { MermaidFrontmatterMap, MermaidConfigMap } from '../mermaid-source.ts'
 
 // ---- Result ---------------------------------------------------------------
@@ -650,12 +650,15 @@ export type WarningTier = 'structural' | 'geometric' | 'lint'
 export type Tier1WarningCode =
   | 'EMPTY_DIAGRAM' | 'EDGE_MISANCHORED' | 'OFF_CANVAS'
   | 'GROUP_BREACH' | 'UNKNOWN_SHAPE' | 'LABEL_OVERFLOW'
-export type Tier2WarningCode = 'NODE_OVERLAP' | 'ROUTE_SELF_CROSS'
+export type Tier2WarningCode =
+  | 'NODE_OVERLAP' | 'ROUTE_SELF_CROSS' | 'ROUTE_HITCH'
+  | 'ROUTE_UNEXPLAINED_BEND' | 'ROUTE_LABEL_ON_SHARED_TRUNK'
+  | 'ROUTE_CONTAINER_MISANCHOR' | 'ROUTE_SHAPE_MISANCHOR' | 'ROUTE_STALE_AFTER_NODE_MOVE'
 /**
  * Tier 3 (advisory lint). Family-specific quality hints for common agent
  * mistakes that still parse and render. Lint warnings never flip verify.ok.
  */
-export type Tier3WarningCode = 'DUPLICATE_EDGE' | 'UNREACHABLE_NODE'
+export type Tier3WarningCode = 'DUPLICATE_EDGE' | 'UNREACHABLE_NODE' | 'DECISION_BRANCH_UNLABELED'
 export type WarningCode = Tier1WarningCode | Tier2WarningCode | Tier3WarningCode
 
 export type LayoutWarning =
@@ -667,8 +670,15 @@ export type LayoutWarning =
   | { code: 'LABEL_OVERFLOW'; target: NodeId | EdgeId; charCount: number; limit: number }
   | { code: 'NODE_OVERLAP'; a: NodeId; b: NodeId; areaPx: number }
   | { code: 'ROUTE_SELF_CROSS'; edge: EdgeId; count: number }
+  | { code: 'ROUTE_HITCH'; edge: EdgeId; deviationPx: number }
+  | { code: 'ROUTE_UNEXPLAINED_BEND'; edge: EdgeId }
+  | { code: 'ROUTE_LABEL_ON_SHARED_TRUNK'; edge: EdgeId; sharedWith: EdgeId }
+  | { code: 'ROUTE_CONTAINER_MISANCHOR'; edge: EdgeId; container: GroupId }
+  | { code: 'ROUTE_SHAPE_MISANCHOR'; edge: EdgeId; node: NodeId }
+  | { code: 'ROUTE_STALE_AFTER_NODE_MOVE'; edge: EdgeId; node: NodeId }
   | { code: 'DUPLICATE_EDGE'; edge: EdgeId; duplicateOf: EdgeId; from: NodeId; to: NodeId; label?: string }
   | { code: 'UNREACHABLE_NODE'; node: NodeId }
+  | { code: 'DECISION_BRANCH_UNLABELED'; node: NodeId; edge: EdgeId }
 
 export const WARNING_SEVERITY: Record<WarningCode, WarningSeverity> = {
   EMPTY_DIAGRAM: 'error',
@@ -679,8 +689,15 @@ export const WARNING_SEVERITY: Record<WarningCode, WarningSeverity> = {
   LABEL_OVERFLOW: 'warning',
   NODE_OVERLAP: 'warning',
   ROUTE_SELF_CROSS: 'warning',
+  ROUTE_HITCH: 'warning',
+  ROUTE_UNEXPLAINED_BEND: 'warning',
+  ROUTE_LABEL_ON_SHARED_TRUNK: 'warning',
+  ROUTE_CONTAINER_MISANCHOR: 'warning',
+  ROUTE_SHAPE_MISANCHOR: 'warning',
+  ROUTE_STALE_AFTER_NODE_MOVE: 'warning',
   DUPLICATE_EDGE: 'warning',
   UNREACHABLE_NODE: 'warning',
+  DECISION_BRANCH_UNLABELED: 'warning',
 }
 
 export const WARNING_TIER: Record<WarningCode, WarningTier> = {
@@ -692,8 +709,15 @@ export const WARNING_TIER: Record<WarningCode, WarningTier> = {
   LABEL_OVERFLOW: 'structural',
   NODE_OVERLAP: 'geometric',
   ROUTE_SELF_CROSS: 'geometric',
+  ROUTE_HITCH: 'geometric',
+  ROUTE_UNEXPLAINED_BEND: 'geometric',
+  ROUTE_LABEL_ON_SHARED_TRUNK: 'geometric',
+  ROUTE_CONTAINER_MISANCHOR: 'geometric',
+  ROUTE_SHAPE_MISANCHOR: 'geometric',
+  ROUTE_STALE_AFTER_NODE_MOVE: 'geometric',
   DUPLICATE_EDGE: 'lint',
   UNREACHABLE_NODE: 'lint',
+  DECISION_BRANCH_UNLABELED: 'lint',
 }
 
 export const DEFAULT_LABEL_CHAR_CAP = 40
@@ -709,6 +733,8 @@ export interface RenderedLayoutNode {
 export interface RenderedLayoutEdge {
   id: EdgeId; from: NodeId; to: NodeId; path: [Finite, Finite][]
   label?: { x: Finite; y: Finite; text: string }
+  /** Route-contract certificate; present only under layoutMermaid(d, { debug: true }). */
+  route?: RouteCertificate
 }
 export interface RenderedLayoutGroup {
   id: GroupId; x: Finite; y: Finite; w: Finite; h: Finite; members: NodeId[]; label?: string

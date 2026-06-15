@@ -16,7 +16,7 @@ function node(n: PositionedNode): RenderedLayoutNode {
   return { id: n.id, x: f(n.x), y: f(n.y), w: f(n.width), h: f(n.height), shape: n.shape, label: n.label }
 }
 
-function edge(e: PositionedEdge): RenderedLayoutEdge {
+function edge(e: PositionedEdge, debug: boolean): RenderedLayoutEdge {
   return {
     id: `${e.source}->${e.target}`,
     from: e.source, to: e.target,
@@ -24,14 +24,15 @@ function edge(e: PositionedEdge): RenderedLayoutEdge {
     label: e.label && e.labelPosition
       ? { x: f(e.labelPosition.x), y: f(e.labelPosition.y), text: e.label }
       : undefined,
+    ...(debug && e.routeCertificate ? { route: e.routeCertificate } : {}),
   }
 }
 
-export function positionedToRenderedLayout(p: PositionedGraph, kind: DiagramKind): RenderedLayout {
+export function positionedToRenderedLayout(p: PositionedGraph, kind: DiagramKind, opts: { debug?: boolean } = {}): RenderedLayout {
   return {
     version: 1, kind,
     nodes: p.nodes.map(node),
-    edges: p.edges.map(edge),
+    edges: p.edges.map(e => edge(e, opts.debug === true)),
     groups: p.groups.map(g => ({
       id: g.id,
       x: f(g.x), y: f(g.y), w: f(g.width), h: f(g.height),

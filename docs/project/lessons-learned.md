@@ -1,4 +1,4 @@
-# Lessons Learned — Loops 1 through 18
+# Lessons Learned — Loops 1 through 19
 
 This document replaces the Loop 1 retrospective. It is the cumulative
 narrative across the agentic-mermaid fork. Each section reflects what a
@@ -511,4 +511,49 @@ the exact JSON envelope and exit-code contract, run it against docs/evals, and
 then either implement a thin schema-tested wrapper or deliberately park it. A
 wrapper that only adds another synonym would make the contract larger without
 making agents safer.
+
+## Loop 19 lesson — CI-green is not the same as audit-clean
+
+PR #30 was GitHub-green before it was ready. The browser e2e failure was fixed
+first, but the remaining non-CI audit found real route defects: text-embedded
+long links lost their rank length, non-incident nodes could be moved onto a
+certified route without a `ROUTE_STALE_AFTER_NODE_MOVE`, and nested subgraph
+edges were extracted in the wrong coordinate frame. The lesson is not "make CI
+run everything"; it is "know which proof each gate provides." CI proved the
+standard package and browser path. `audit:ugly`, route-contract properties, and
+focused nested-subgraph tests proved layout-contract claims the normal CI did
+not yet cover.
+
+The route-contract work also exposed a metadata bug: a fixed-point retry can
+first straighten an edge and later downgrade it to an explained detour. The
+geometry was acceptable, but the certificate still carried a stale
+`straightened` bit until the finalization pass recomputed bend counts and
+cleared impossible flags. For proof-carrying layout, certificates are part of
+the artifact, not logging. If later passes can mutate geometry, final facts must
+be recomputed after all retries, and property tests should assert the certificate
+matches the final route.
+
+Nested subgraphs taught a coordinate-frame rule: `INCLUDE_CHILDREN` and
+`SEPARATE` hierarchy modes have different edge-hosting semantics, and both need
+regressions. Edges such as `outer/A -> inner/B` must be hosted at their lowest
+common compound so extraction adds the right absolute offset. Edges to a
+subgraph id such as `X --> Pipeline` target the container box, not a phantom
+root node and not an internal child. Direction overrides are exactly where this
+becomes dangerous, because an empty or mis-hosted external segment can pass unit
+shape checks and then crash a later straightener.
+
+Finally, grammar support and route support have to move together. Mermaid's
+text-embedded label syntax splits the operator around the label (`-- No ---->`,
+`-. Maybe ..->`, `== Sure ====>`). Treating that as just label parsing silently
+collapsed authored link length during canonical serialization. The pinned tests
+now parse, serialize, and re-parse the length. The general rule: when a syntax
+feature affects layout rank, preserve it in the parser even if the renderer's
+visual output looks acceptable.
+
+Process note: reviewer subagents are useful, but only as another signal. The
+reviewer caught the stale `straightened` counterexample after the main fixes;
+local focused tests then reproduced it, a pinned regression locked it, and a
+second reviewer pass returned no blockers. Mutation testing remains a gap map,
+not a PR gate: the route run was attempted and timed out after partial progress,
+so it is evidence to schedule, not evidence to block the merge.
 

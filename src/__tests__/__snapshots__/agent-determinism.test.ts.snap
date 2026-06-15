@@ -221,11 +221,11 @@ exports[`drift sentinel sentinel: flowchart TD /   A{Decision} --> B[Yes] /   A 
           182,
         ],
         [
-          73,
+          59,
           182,
         ],
         [
-          73,
+          59,
           206,
         ],
       ],
@@ -245,11 +245,11 @@ exports[`drift sentinel sentinel: flowchart TD /   A{Decision} --> B[Yes] /   A 
           182,
         ],
         [
-          164,
+          177,
           182,
         ],
         [
-          164,
+          177,
           206,
         ],
       ],
@@ -274,7 +274,7 @@ exports[`drift sentinel sentinel: flowchart TD /   A{Decision} --> B[Yes] /   A 
       "label": "Yes",
       "shape": "rectangle",
       "w": 66,
-      "x": 40,
+      "x": 27,
       "y": 206,
     },
     {
@@ -283,7 +283,7 @@ exports[`drift sentinel sentinel: flowchart TD /   A{Decision} --> B[Yes] /   A 
       "label": "No",
       "shape": "rectangle",
       "w": 60,
-      "x": 134,
+      "x": 147,
       "y": 206,
     },
   ],
@@ -305,14 +305,6 @@ exports[`drift sentinel sentinel: flowchart LR /   A --> B /   A --> C /   B -->
       "path": [
         [
           100,
-          91,
-        ],
-        [
-          124,
-          91,
-        ],
-        [
-          124,
           58,
         ],
         [
@@ -329,11 +321,11 @@ exports[`drift sentinel sentinel: flowchart LR /   A --> B /   A --> C /   B -->
       "path": [
         [
           100,
-          91,
+          58,
         ],
         [
           124,
-          91,
+          58,
         ],
         [
           124,
@@ -405,7 +397,7 @@ exports[`drift sentinel sentinel: flowchart LR /   A --> B /   A --> C /   B -->
       "shape": "rectangle",
       "w": 60,
       "x": 40,
-      "y": 72,
+      "y": 40,
     },
     {
       "h": 37,
@@ -517,8 +509,8 @@ exports[`drift sentinel sentinel: flowchart TD /   A((Start)) --> B[Step] /   B 
 exports[`drift sentinel sentinel: flowchart TD /   A --> B /   B --> C /   C --> A 1`] = `
 {
   "bounds": {
-    "h": 287,
-    "w": 160,
+    "h": 311,
+    "w": 158,
   },
   "edges": [
     {
@@ -527,20 +519,12 @@ exports[`drift sentinel sentinel: flowchart TD /   A --> B /   B --> C /   C -->
       "label": undefined,
       "path": [
         [
-          80,
-          77,
-        ],
-        [
-          80,
-          113,
+          70,
+          89,
         ],
         [
           70,
-          113,
-        ],
-        [
-          70,
-          125,
+          137,
         ],
       ],
       "to": "B",
@@ -552,19 +536,11 @@ exports[`drift sentinel sentinel: flowchart TD /   A --> B /   B --> C /   C -->
       "path": [
         [
           70,
-          162,
+          174,
         ],
         [
           70,
-          198,
-        ],
-        [
-          80,
-          198,
-        ],
-        [
-          80,
-          210,
+          222,
         ],
       ],
       "to": "C",
@@ -576,27 +552,19 @@ exports[`drift sentinel sentinel: flowchart TD /   A --> B /   B --> C /   C -->
       "path": [
         [
           100,
-          210,
-        ],
-        [
-          100,
-          198,
+          240,
         ],
         [
           110,
-          198,
+          240,
         ],
         [
           110,
-          113,
+          70,
         ],
         [
           100,
-          113,
-        ],
-        [
-          100,
-          77,
+          70,
         ],
       ],
       "to": "A",
@@ -611,8 +579,8 @@ exports[`drift sentinel sentinel: flowchart TD /   A --> B /   B --> C /   C -->
       "label": "A",
       "shape": "rectangle",
       "w": 60,
-      "x": 60,
-      "y": 40,
+      "x": 40,
+      "y": 52,
     },
     {
       "h": 37,
@@ -621,7 +589,7 @@ exports[`drift sentinel sentinel: flowchart TD /   A --> B /   B --> C /   C -->
       "shape": "rectangle",
       "w": 60,
       "x": 40,
-      "y": 125,
+      "y": 137,
     },
     {
       "h": 37,
@@ -629,8 +597,8 @@ exports[`drift sentinel sentinel: flowchart TD /   A --> B /   B --> C /   C -->
       "label": "C",
       "shape": "rectangle",
       "w": 60,
-      "x": 60,
-      "y": 210,
+      "x": 40,
+      "y": 222,
     },
   ],
   "version": 1,

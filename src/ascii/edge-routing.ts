@@ -283,17 +283,18 @@ export function determineLabelLine(graph: AsciiGraph, edge: AsciiEdge): void {
   let largestLine: [GridCoord, GridCoord]
 
   if (suitableSegments.length > 0) {
-    // Prefer segments near the end of the path (closer to target)
-    // This avoids the shared initial segments from source. `index` is unique
-    // per segment (path position), so this comparator never ties.
-    suitableSegments.sort((a, b) => b.index - a.index)
+    // Prefer the widest fitting segment: a long mid-route channel beats both
+    // the shared initial trunk AND the final approach into a fan-in target,
+    // which sibling arrivals crowd just like siblings share the exit. Ties
+    // (equal-width drops in a fan-out) break toward the target, preserving
+    // the per-branch label placement; `index` is unique, so no further tie.
+    suitableSegments.sort((a, b) => b.width - a.width || b.index - a.index)
     largestLine = suitableSegments[0]!.line
   } else {
     // Fall back to any suitable segment including the first
     const fallbackSegments = segments.filter(s => s.width >= lenLabel)
     if (fallbackSegments.length > 0) {
-      // `index` is unique per segment, so this comparator never ties.
-      fallbackSegments.sort((a, b) => b.index - a.index)
+      fallbackSegments.sort((a, b) => b.width - a.width || b.index - a.index)
       largestLine = fallbackSegments[0]!.line
     } else {
       // No segment wide enough — use the widest one. Widths CAN tie, so break

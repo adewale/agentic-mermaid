@@ -27,23 +27,195 @@ export function clipEdgeToShape(
   if (points.length < 2) return points
 
   // Only clip non-rectangular shapes
-  if (node.shape === 'rectangle' || node.shape === 'service' || node.shape === 'rounded' || node.shape === 'stadium') {
+  if (node.shape === 'rectangle' || node.shape === 'service' || node.shape === 'rounded' || node.shape === 'subroutine') {
     return points
   }
 
   const result = [...points]
-
-  if (node.shape === 'diamond') {
-    if (isStart) {
-      result[0] = clipToDiamond(points[0]!, points[1]!, node)
-    } else {
-      const lastIdx = points.length - 1
-      result[lastIdx] = clipToDiamond(points[lastIdx]!, points[lastIdx - 1]!, node)
+  const clip = (endpoint: Point, adjacent: Point): Point => {
+    switch (node.shape) {
+      case 'diamond': return clipToDiamond(endpoint, adjacent, node)
+      case 'circle':
+      case 'doublecircle':
+      case 'state-start':
+      case 'state-end': return clipToEllipse(endpoint, adjacent, node)
+      case 'stadium': return clipToStadium(endpoint, adjacent, node)
+      case 'hexagon': return clipToHexagon(endpoint, adjacent, node)
+      case 'cylinder': return clipToCylinder(endpoint, adjacent, node)
+      case 'trapezoid':
+      case 'trapezoid-alt':
+      case 'lean-r':
+      case 'lean-l':
+      case 'asymmetric': return clipToConvexPolygon(endpoint, adjacent, slantedShapePolygon(node))
+      default: return endpoint
     }
   }
-  // Future: add clipping for hexagon, circle, etc.
+
+  if (isStart) {
+    result[0] = clip(points[0]!, points[1]!)
+  } else {
+    const lastIdx = points.length - 1
+    result[lastIdx] = clip(points[lastIdx]!, points[lastIdx - 1]!)
+  }
 
   return result
+}
+
+// ---------------------------------------------------------------------------
+// Outline clippers for the symmetric shapes. Each extends the edge's final
+// orthogonal segment as a ray and finds where it meets the rendered outline,
+// preserving orthogonality — ELK only knows the bounding box, so an endpoint
+// that is not at a side midpoint would otherwise float off the curve.
+// ---------------------------------------------------------------------------
+
+function rayInfo(endpoint: Point, adjacent: Point): { vertical: boolean; dir: 1 | -1 } {
+  const dx = endpoint.x - adjacent.x
+  const dy = endpoint.y - adjacent.y
+  const vertical = Math.abs(dx) < Math.abs(dy)
+  return { vertical, dir: (vertical ? dy : dx) >= 0 ? 1 : -1 }
+}
+
+/** Ellipse inscribed in the bbox (circle when square). */
+function clipToEllipse(endpoint: Point, adjacent: Point, node: PositionedNode): Point {
+  const cx = node.x + node.width / 2
+  const cy = node.y + node.height / 2
+  const rx = node.width / 2
+  const ry = node.height / 2
+  const { vertical, dir } = rayInfo(endpoint, adjacent)
+  if (vertical) {
+    const dx = (endpoint.x - cx) / rx
+    if (Math.abs(dx) > 1) return endpoint
+    const span = ry * Math.sqrt(1 - dx * dx)
+    // Entering downward hits the top half; upward hits the bottom half.
+    return { x: endpoint.x, y: cy - dir * span }
+  }
+  const dy = (endpoint.y - cy) / ry
+  if (Math.abs(dy) > 1) return endpoint
+  const span = rx * Math.sqrt(1 - dy * dy)
+  return { x: cx - dir * span, y: endpoint.y }
+}
+
+/** Flat top/bottom, semicircular ends of radius h/2. */
+function clipToStadium(endpoint: Point, adjacent: Point, node: PositionedNode): Point {
+  const cx = node.x + node.width / 2
+  const cy = node.y + node.height / 2
+  const hw = node.width / 2
+  const r = node.height / 2
+  const { vertical, dir } = rayInfo(endpoint, adjacent)
+  if (vertical) {
+    const dx = Math.abs(endpoint.x - cx)
+    if (dx <= hw - r) return { x: endpoint.x, y: cy - dir * r }
+    const ax = dx - (hw - r)
+    if (ax > r) return endpoint
+    return { x: endpoint.x, y: cy - dir * Math.sqrt(r * r - ax * ax) }
+  }
+  const dy = Math.abs(endpoint.y - cy)
+  if (dy > r) return endpoint
+  const span = (hw - r) + Math.sqrt(r * r - dy * dy)
+  return { x: cx - dir * span, y: endpoint.y }
+}
+
+/** Six-gon: flat top/bottom inset by h/4, pointy E/W tips at mid-height. */
+function clipToHexagon(endpoint: Point, adjacent: Point, node: PositionedNode): Point {
+  const cx = node.x + node.width / 2
+  const cy = node.y + node.height / 2
+  const hw = node.width / 2
+  const hh = node.height / 2
+  const inset = node.height / 4
+  const { vertical, dir } = rayInfo(endpoint, adjacent)
+  if (vertical) {
+    const dx = Math.abs(endpoint.x - cx)
+    if (dx <= hw - inset) return { x: endpoint.x, y: cy - dir * hh }
+    // Slanted corner: |dy| = hh * (1 - (dx - (hw - inset)) / inset)
+    const t = (dx - (hw - inset)) / inset
+    if (t > 1) return endpoint
+    return { x: endpoint.x, y: cy - dir * hh * (1 - t) }
+  }
+  const dy = Math.abs(endpoint.y - cy)
+  if (dy > hh) return endpoint
+  // |dx| at this height: flat region ends at hw - inset, tip at hw.
+  const span = dy >= 0 ? hw - inset * (dy / hh) : hw
+  return { x: cx - dir * span, y: endpoint.y }
+}
+
+/** Vertical walls; elliptical caps of vertical radius 7 (renderer geometry). */
+function clipToCylinder(endpoint: Point, adjacent: Point, node: PositionedNode): Point {
+  const RY = 7
+  const cx = node.x + node.width / 2
+  const hw = node.width / 2
+  const top = node.y + RY
+  const bottom = node.y + node.height - RY
+  const { vertical, dir } = rayInfo(endpoint, adjacent)
+  if (!vertical) {
+    if (endpoint.y >= top && endpoint.y <= bottom) {
+      return { x: cx - dir * hw, y: endpoint.y } // straight wall
+    }
+    // Above/below the walls the horizontal ray meets a cap ellipse; keep the
+    // ray's own y so the segment stays orthogonal.
+    const capCy = endpoint.y < top ? top : bottom
+    const dyCap = (endpoint.y - capCy) / RY
+    if (Math.abs(dyCap) > 1) return endpoint
+    const span = hw * Math.sqrt(1 - dyCap * dyCap)
+    return { x: cx - dir * span, y: endpoint.y }
+  }
+  const dx = (endpoint.x - cx) / hw
+  if (Math.abs(dx) > 1) return endpoint
+  const span = RY * Math.sqrt(1 - dx * dx)
+  return dir > 0
+    ? { x: endpoint.x, y: top - span }      // entering downward: top cap
+    : { x: endpoint.x, y: bottom + span }   // entering upward: bottom cap
+}
+
+/**
+ * Rendered polygon outlines of the slanted shapes (renderer geometry: the
+ * trapezoids and parallelograms shear by w * 0.15, the asymmetric flag
+ * indents its left point by 12px).
+ */
+function slantedShapePolygon(node: PositionedNode): Point[] {
+  const { x, y, width: w, height: h } = node
+  const inset = w * 0.15
+  switch (node.shape) {
+    case 'trapezoid': // wider bottom
+      return [{ x: x + inset, y }, { x: x + w - inset, y }, { x: x + w, y: y + h }, { x, y: y + h }]
+    case 'trapezoid-alt': // wider top
+      return [{ x, y }, { x: x + w, y }, { x: x + w - inset, y: y + h }, { x: x + inset, y: y + h }]
+    case 'lean-r': // parallelogram leaning right
+      return [{ x: x + inset, y }, { x: x + w, y }, { x: x + w - inset, y: y + h }, { x, y: y + h }]
+    case 'lean-l': // parallelogram leaning left
+      return [{ x, y }, { x: x + w - inset, y }, { x: x + w, y: y + h }, { x: x + inset, y: y + h }]
+    case 'asymmetric': // flag with a pointed left edge
+      return [{ x: x + 12, y }, { x: x + w, y }, { x: x + w, y: y + h }, { x: x + 12, y: y + h }, { x, y: y + h / 2 }]
+    default:
+      return [{ x, y }, { x: x + w, y }, { x: x + w, y: y + h }, { x, y: y + h }]
+  }
+}
+
+/**
+ * Generic convex-polygon clipper: extend the edge's final orthogonal segment
+ * as a ray and keep the polygon-boundary intersection nearest the OUTSIDE
+ * endpoint (`adjacent`) — the entry point into the shape. Like clipToDiamond
+ * this preserves orthogonality: the ray's own fixed coordinate is kept and
+ * only the coordinate along the ray moves onto the outline. Returns the
+ * endpoint unchanged when the ray misses the polygon.
+ */
+function clipToConvexPolygon(endpoint: Point, adjacent: Point, verts: Point[]): Point {
+  const { vertical } = rayInfo(endpoint, adjacent)
+  let best: Point | null = null
+  let bestDist = Infinity
+  for (let i = 0; i < verts.length; i++) {
+    const p1 = verts[i]!
+    const p2 = verts[(i + 1) % verts.length]!
+    const hit = vertical
+      ? intersectVerticalRayWithEdge(endpoint.x, p1, p2)
+      : intersectHorizontalRayWithEdge(endpoint.y, p1, p2)
+    if (!hit) continue
+    const d = Math.hypot(hit.x - adjacent.x, hit.y - adjacent.y)
+    if (d < bestDist) {
+      bestDist = d
+      best = hit
+    }
+  }
+  return best ?? endpoint
 }
 
 /**

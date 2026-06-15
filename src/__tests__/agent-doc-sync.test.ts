@@ -74,6 +74,26 @@ async function readWithTimeout(promise: Promise<string>, timeoutMs: number): Pro
 }
 
 async function runBunExample(script: string, args: string[] = [], timeoutMs = 60_000): Promise<{ status: number | null; timedOut: boolean; stdout: string; stderr: string }> {
+  // Bun 1.3.11 intermittently dies with SIGILL ("panic(main thread):
+  // unreachable — This indicates a bug in Bun, not your code") when spawning
+  // these examples in sandboxed containers. Retry ONLY on that runtime-crash
+  // signature; genuine example failures (nonzero exit without the panic
+  // banner, bad payloads) are never retried.
+  for (let attempt = 0; attempt < 3; attempt++) {
+    const r = await runBunExampleOnce(script, args, timeoutMs)
+    // Signal deaths surface as 128+signal (observed: 132 SIGILL, 134
+    // SIGABRT), sometimes with empty stderr because the crash preempts the
+    // panic banner, or as a null status without our timeout firing. Genuine
+    // example failures exit 1-4 and are never retried.
+    const bunCrashed = r.stderr.includes('Bun has crashed') ||
+      (typeof r.status === 'number' && r.status >= 128) ||
+      (r.status === null && !r.timedOut)
+    if (!bunCrashed) return r
+  }
+  return runBunExampleOnce(script, args, timeoutMs)
+}
+
+async function runBunExampleOnce(script: string, args: string[] = [], timeoutMs = 60_000): Promise<{ status: number | null; timedOut: boolean; stdout: string; stderr: string }> {
   const proc = Bun.spawn(['bun', 'run', script, ...args], { cwd: REPO, stdout: 'pipe', stderr: 'pipe' })
   const stdoutPromise = new Response(proc.stdout).text()
   const stderrPromise = new Response(proc.stderr).text()
