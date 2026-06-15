@@ -187,6 +187,59 @@ describe('gantt scheduler properties (generated DAGs)', () => {
       expect(layoutGantt(model2, s2)).toEqual(layoutGantt(model1, s1))
     }), { numRuns: 40 })
   })
+
+  test('critical-path/slack analysis matches a small backward-pass shadow model', () => {
+    fc.assert(fc.property(genTaskList, tasks => {
+      const hasAfterEdge = tasks.some(t => (t.afterRefs?.length ?? 0) > 0)
+      if (!hasAfterEdge) return
+
+      const s = scheduleOf(toSource(tasks))
+      expect(s.analysis).toBeDefined()
+      const analysis = s.analysis!
+      const projectStart = Math.min(...s.tasks.map(t => t.start))
+      const projectEnd = Math.max(...s.tasks.map(t => t.end))
+      expect(analysis.projectStart).toBe(projectStart)
+      expect(analysis.projectEnd).toBe(projectEnd)
+
+      const successors = tasks.map((): number[] => [])
+      const hasAfterDep = new Set<number>()
+      const referenced = new Set<number>()
+      tasks.forEach((task, i) => {
+        for (const dep of task.afterRefs ?? []) {
+          successors[dep]!.push(i)
+          hasAfterDep.add(i)
+          referenced.add(dep)
+        }
+      })
+
+      const latestFinish = new Array<number>(tasks.length).fill(Number.NaN)
+      const finishOf = (i: number): number => {
+        if (!Number.isNaN(latestFinish[i]!)) return latestFinish[i]!
+        const succ = successors[i]!
+        const finish = succ.length === 0
+          ? projectEnd
+          : Math.min(...succ.map(succIndex => finishOf(succIndex) - (s.tasks[succIndex]!.end - s.tasks[succIndex]!.start)))
+        latestFinish[i] = finish
+        return finish
+      }
+      const expectedSlack: Record<string, number> = {}
+      const expectedCritical: string[] = []
+      for (let i = 0; i < tasks.length; i++) {
+        const id = `t${i}`
+        const slack = finishOf(i) - s.tasks[i]!.end
+        expectedSlack[id] = slack
+        expect(slack).toBeGreaterThanOrEqual(0)
+        if ((successors[i]!.length > 0 || hasAfterDep.has(i)) && slack === 0) {
+          expectedCritical.push(id)
+        }
+      }
+
+      expect(analysis.slackByTaskId).toEqual(expectedSlack)
+      expect(analysis.criticalPathTaskIds).toEqual(expectedCritical)
+      expect(analysis.entryTaskIds).toEqual(tasks.map((_, i) => i).filter(i => !hasAfterDep.has(i)).map(i => `t${i}`))
+      expect(analysis.sinkTaskIds).toEqual(tasks.map((_, i) => i).filter(i => !referenced.has(i)).map(i => `t${i}`))
+    }), { numRuns: 80 })
+  })
 })
 
 describe('compact lane packing properties', () => {
