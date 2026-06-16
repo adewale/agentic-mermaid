@@ -444,7 +444,7 @@ exports[`contact sheet — pinned geometry (re-pin deliberately, review the shee
       "label": {
         "text": "a",
         "x": 93,
-        "y": 203,
+        "y": 167,
       },
       "path": [
         [
@@ -472,7 +472,7 @@ exports[`contact sheet — pinned geometry (re-pin deliberately, review the shee
       "label": {
         "text": "b",
         "x": 147,
-        "y": 203,
+        "y": 167,
       },
       "path": [
         [
@@ -1895,7 +1895,7 @@ exports[`contact sheet — pinned geometry (re-pin deliberately, review the shee
 {
   "bounds": {
     "h": 490,
-    "w": 288,
+    "w": 295,
   },
   "edges": [
     {
@@ -1920,7 +1920,7 @@ exports[`contact sheet — pinned geometry (re-pin deliberately, review the shee
       "label": {
         "text": "yes",
         "x": 113,
-        "y": 338,
+        "y": 300,
       },
       "path": [
         [
@@ -1947,8 +1947,8 @@ exports[`contact sheet — pinned geometry (re-pin deliberately, review the shee
       "id": "B->D",
       "label": {
         "text": "needs work",
-        "x": 176,
-        "y": 339,
+        "x": 195,
+        "y": 359,
       },
       "path": [
         [
@@ -2037,8 +2037,8 @@ exports[`contact sheet — pinned geometry (re-pin deliberately, review the shee
       "id": "Q->L",
       "label": {
         "text": "left",
-        "x": 118,
-        "y": 210,
+        "x": 143,
+        "y": 177,
       },
       "path": [
         [
@@ -2066,7 +2066,7 @@ exports[`contact sheet — pinned geometry (re-pin deliberately, review the shee
       "label": {
         "text": "middle",
         "x": 173,
-        "y": 210,
+        "y": 220,
       },
       "path": [
         [
@@ -2085,8 +2085,8 @@ exports[`contact sheet — pinned geometry (re-pin deliberately, review the shee
       "id": "Q->R",
       "label": {
         "text": "right",
-        "x": 227,
-        "y": 210,
+        "x": 202,
+        "y": 177,
       },
       "path": [
         [
@@ -2728,7 +2728,7 @@ exports[`contact sheet — pinned geometry (re-pin deliberately, review the shee
 {
   "bounds": {
     "h": 270,
-    "w": 480,
+    "w": 489,
   },
   "edges": [
     {
@@ -2736,8 +2736,8 @@ exports[`contact sheet — pinned geometry (re-pin deliberately, review the shee
       "id": "Src->Left",
       "label": {
         "text": "left*",
-        "x": 150,
-        "y": 129,
+        "x": 215,
+        "y": 100,
       },
       "path": [
         [
@@ -2765,7 +2765,7 @@ exports[`contact sheet — pinned geometry (re-pin deliberately, review the shee
       "label": {
         "text": "center*",
         "x": 237,
-        "y": 129,
+        "y": 139,
       },
       "path": [
         [
@@ -2784,8 +2784,8 @@ exports[`contact sheet — pinned geometry (re-pin deliberately, review the shee
       "id": "Src->Right",
       "label": {
         "text": "right*",
-        "x": 323,
-        "y": 129,
+        "x": 389,
+        "y": 145,
       },
       "path": [
         [
@@ -2981,7 +2981,7 @@ exports[`contact sheet — pinned geometry (re-pin deliberately, review the shee
       "label": {
         "text": "a",
         "x": 93,
-        "y": 203,
+        "y": 167,
       },
       "path": [
         [
@@ -3009,7 +3009,7 @@ exports[`contact sheet — pinned geometry (re-pin deliberately, review the shee
       "label": {
         "text": "b",
         "x": 147,
-        "y": 203,
+        "y": 167,
       },
       "path": [
         [
@@ -3071,7 +3071,7 @@ exports[`contact sheet — pinned geometry (re-pin deliberately, review the shee
 {
   "bounds": {
     "h": 270,
-    "w": 480,
+    "w": 489,
   },
   "edges": [
     {
@@ -3079,8 +3079,8 @@ exports[`contact sheet — pinned geometry (re-pin deliberately, review the shee
       "id": "Src->Left",
       "label": {
         "text": "left*",
-        "x": 150,
-        "y": 129,
+        "x": 215,
+        "y": 100,
       },
       "path": [
         [
@@ -3108,7 +3108,7 @@ exports[`contact sheet — pinned geometry (re-pin deliberately, review the shee
       "label": {
         "text": "center*",
         "x": 237,
-        "y": 129,
+        "y": 139,
       },
       "path": [
         [
@@ -3127,8 +3127,8 @@ exports[`contact sheet — pinned geometry (re-pin deliberately, review the shee
       "id": "Src->Right",
       "label": {
         "text": "right*",
-        "x": 323,
-        "y": 129,
+        "x": 389,
+        "y": 145,
       },
       "path": [
         [
@@ -3198,7 +3198,7 @@ exports[`contact sheet — pinned geometry (re-pin deliberately, review the shee
 exports[`contact sheet — pinned geometry (re-pin deliberately, review the sheet) AF — labeled LR fan-out connector — no detached labels 1`] = `
 {
   "bounds": {
-    "h": 247,
+    "h": 248,
     "w": 417,
   },
   "edges": [
@@ -3207,8 +3207,8 @@ exports[`contact sheet — pinned geometry (re-pin deliberately, review the shee
       "id": "Src->Top",
       "label": {
         "text": "top*",
-        "x": 184,
-        "y": 78,
+        "x": 201,
+        "y": 58,
       },
       "path": [
         [
@@ -3255,8 +3255,8 @@ exports[`contact sheet — pinned geometry (re-pin deliberately, review the shee
       "id": "Src->Bot",
       "label": {
         "text": "bot*",
-        "x": 184,
-        "y": 169,
+        "x": 201,
+        "y": 188,
       },
       "path": [
         [
@@ -3979,8 +3979,8 @@ exports[`contact sheet — pinned geometry (re-pin deliberately, review the shee
       "id": "F->G",
       "label": {
         "text": "Yes",
-        "x": 486,
-        "y": 530,
+        "x": 497,
+        "y": 490,
       },
       "path": [
         [
@@ -4007,8 +4007,8 @@ exports[`contact sheet — pinned geometry (re-pin deliberately, review the shee
       "id": "F->H",
       "label": {
         "text": "No",
-        "x": 549,
-        "y": 530,
+        "x": 581,
+        "y": 550,
       },
       "path": [
         [

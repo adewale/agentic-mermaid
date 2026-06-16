@@ -125,37 +125,66 @@ function distanceToPolyline(point: { x: number; y: number }, points: Array<{ x: 
   return minDistance
 }
 
-function polylineLength(points: Array<{ x: number; y: number }>): number {
-  let total = 0
-  for (let i = 1; i < points.length; i++) {
-    total += Math.hypot(points[i]!.x - points[i - 1]!.x, points[i]!.y - points[i - 1]!.y)
+function bestLabelSegment(edge: PositionedEdge): { index: number; a: { x: number; y: number }; b: { x: number; y: number } } {
+  let best = { index: 1, distance: Infinity }
+  for (let i = 1; i < edge.points.length; i++) {
+    const distance = pointToSegmentDistance(edge.labelPosition!, edge.points[i - 1]!, edge.points[i]!)
+    if (distance < best.distance) best = { index: i, distance }
   }
-  return total
+  expect(best.distance).toBeLessThanOrEqual(0.001)
+  return { index: best.index, a: edge.points[best.index - 1]!, b: edge.points[best.index]! }
 }
 
-function pathDistanceAtPoint(point: { x: number; y: number }, points: Array<{ x: number; y: number }>): number {
-  let walked = 0
-  let best = { offRoute: Infinity, distance: 0 }
-  for (let i = 1; i < points.length; i++) {
-    const a = points[i - 1]!, b = points[i]!
-    const dx = b.x - a.x, dy = b.y - a.y
-    const lenSq = dx * dx + dy * dy
-    const len = Math.sqrt(lenSq)
-    if (len === 0) continue
-    const t = Math.max(0, Math.min(1, ((point.x - a.x) * dx + (point.y - a.y) * dy) / lenSq))
-    const projected = { x: a.x + t * dx, y: a.y + t * dy }
-    const offRoute = Math.hypot(point.x - projected.x, point.y - projected.y)
-    if (offRoute < best.offRoute) best = { offRoute, distance: walked + len * t }
-    walked += len
+function expectLabelUsesStraightRunPorts(
+  edge: PositionedEdge,
+  box: { x: number; y: number; w: number; h: number },
+  direction: 'TD' | 'BT' | 'LR' | 'RL',
+): void {
+  const { a, b } = bestLabelSegment(edge)
+  const verticalFlow = direction === 'TD' || direction === 'BT'
+  const epsilon = 0.001
+  if (verticalFlow) {
+    expect(Math.abs(a.x - b.x)).toBeLessThanOrEqual(epsilon)
+    expect(edge.labelPosition!.x).toBeGreaterThanOrEqual(box.x - epsilon)
+    expect(edge.labelPosition!.x).toBeLessThanOrEqual(box.x + box.w + epsilon)
+    expect(box.y).toBeGreaterThanOrEqual(Math.min(a.y, b.y) - epsilon)
+    expect(box.y + box.h).toBeLessThanOrEqual(Math.max(a.y, b.y) + epsilon)
+  } else {
+    expect(Math.abs(a.y - b.y)).toBeLessThanOrEqual(epsilon)
+    expect(edge.labelPosition!.y).toBeGreaterThanOrEqual(box.y - epsilon)
+    expect(edge.labelPosition!.y).toBeLessThanOrEqual(box.y + box.h + epsilon)
+    expect(box.x).toBeGreaterThanOrEqual(Math.min(a.x, b.x) - epsilon)
+    expect(box.x + box.w).toBeLessThanOrEqual(Math.max(a.x, b.x) + epsilon)
   }
-  return best.distance
 }
 
-function expectLabelNearRouteMidpoint(edge: PositionedEdge, maxFractionError = 0.08): void {
-  const total = polylineLength(edge.points)
-  expect(total).toBeGreaterThan(0)
-  const fraction = pathDistanceAtPoint(edge.labelPosition!, edge.points) / total
-  expect(Math.abs(fraction - 0.5)).toBeLessThanOrEqual(maxFractionError)
+function stableProductLoopGeometry(positioned: ReturnType<typeof layoutGraphSync>) {
+  const round = (n: number) => Math.round(n * 1000) / 1000
+  return {
+    nodes: positioned.nodes.map(n => ({
+      id: n.id,
+      x: round(n.x),
+      y: round(n.y),
+      width: round(n.width),
+      height: round(n.height),
+      shape: n.shape,
+    })),
+    edges: positioned.edges.map(e => ({
+      source: e.source,
+      target: e.target,
+      label: e.label,
+      points: e.points.map(p => ({ x: round(p.x), y: round(p.y) })),
+      routeCertificate: e.routeCertificate
+        ? {
+            routeClass: e.routeCertificate.routeClass,
+            bendCount: e.routeCertificate.bendCount,
+            sourcePort: e.routeCertificate.sourcePort,
+            targetPort: e.routeCertificate.targetPort,
+            invariant: e.routeCertificate.invariant,
+          }
+        : undefined,
+    })),
+  }
 }
 
 const EDGE_VOCABULARY: ReadonlyArray<{
@@ -355,13 +384,44 @@ describe('syntax range — & multi-edge chains hit the same fan heuristics', () 
     expect(needsWork.routeCertificate?.sourcePort).toBe('SE')
     expect(distanceToPolyline(yes.labelPosition!, yes.points)).toBeLessThanOrEqual(0.001)
     expect(distanceToPolyline(needsWork.labelPosition!, needsWork.points)).toBeLessThanOrEqual(0.001)
-    expectLabelNearRouteMidpoint(yes)
-    expectLabelNearRouteMidpoint(needsWork)
+    expectLabelUsesStraightRunPorts(yes, yesLabel, 'TD')
+    expectLabelUsesStraightRunPorts(needsWork, needsWorkLabel, 'TD')
     expect(rectsOverlap(yesLabel, needsWorkLabel, readableLabelGap(style))).toBe(false)
     expectLabelClearsTerminalMarkers(yes, yesLabel, style)
     expectLabelClearsTerminalMarkers(needsWork, needsWorkLabel, style)
     expect(yesLabel.y).toBeGreaterThanOrEqual(decisionSouth + 2)
     expect(needsWorkLabel.y).toBeGreaterThanOrEqual(decisionSouth + 2)
+    expect(stableProductLoopGeometry(positioned)).toEqual({
+      nodes: [
+        { id: 'A', x: 70.625, y: 86, width: 162.35, height: 47.5, shape: 'rectangle' },
+        { id: 'B', x: 88.775, y: 181.5, width: 126.05, height: 126.05, shape: 'diamond' },
+        { id: 'C', x: 46.55, y: 425.15, width: 91.25, height: 47.5, shape: 'rectangle' },
+        { id: 'D', x: 165.8, y: 425.15, width: 91.25, height: 47.5, shape: 'rectangle' },
+      ],
+      edges: [
+        {
+          source: 'A',
+          target: 'B',
+          label: undefined,
+          points: [{ x: 151.8, y: 133.5 }, { x: 151.8, y: 181.5 }],
+          routeCertificate: { routeClass: 'primary-forward', bendCount: 0, sourcePort: 'S', targetPort: 'N', invariant: 'straight' },
+        },
+        {
+          source: 'B',
+          target: 'C',
+          label: 'yes',
+          points: [{ x: 120.288, y: 276.038 }, { x: 120.288, y: 366.35 }, { x: 92.175, y: 366.35 }, { x: 92.175, y: 425.15 }],
+          routeCertificate: { routeClass: 'primary-forward', bendCount: 2, sourcePort: 'SW', targetPort: 'N', invariant: 'bundle' },
+        },
+        {
+          source: 'B',
+          target: 'D',
+          label: 'needs work',
+          points: [{ x: 183.313, y: 276.038 }, { x: 183.313, y: 366.35 }, { x: 211.425, y: 366.35 }, { x: 211.425, y: 425.15 }],
+          routeCertificate: { routeClass: 'primary-forward', bendCount: 2, sourcePort: 'SE', targetPort: 'N', invariant: 'bundle' },
+        },
+      ],
+    })
     zeroHardViolations(source)
   })
 
@@ -377,8 +437,8 @@ describe('syntax range — & multi-edge chains hit the same fan heuristics', () 
     const labelRects = branchEdges.map(edge => {
       expect(edge.routeCertificate?.invariant).toBe('bundle')
       expect(distanceToPolyline(edge.labelPosition!, edge.points)).toBeLessThanOrEqual(0.001)
-      expectLabelNearRouteMidpoint(edge)
       const rect = labelRect(edge, style)!
+      expectLabelUsesStraightRunPorts(edge, rect, 'TD')
       expectLabelClearsTerminalMarkers(edge, rect, style)
       return rect
     })
@@ -388,8 +448,6 @@ describe('syntax range — & multi-edge chains hit the same fan heuristics', () 
         expect(rectsOverlap(labelRects[i]!, labelRects[j]!, readableLabelGap(style))).toBe(false)
       }
     }
-    const labelYs = branchEdges.map(edge => edge.labelPosition!.y)
-    expect(Math.max(...labelYs) - Math.min(...labelYs)).toBeLessThanOrEqual(0.001)
     zeroHardViolations(source)
   })
 
@@ -419,7 +477,7 @@ describe('syntax range — & multi-edge chains hit the same fan heuristics', () 
             expect(rectsOverlap(rect!, { x: sourceNode.x, y: sourceNode.y, w: sourceNode.width, h: sourceNode.height }, 2)).toBe(false)
             expect(rectsOverlap(rect!, { x: targetNode.x, y: targetNode.y, w: targetNode.width, h: targetNode.height }, 2)).toBe(false)
             expect(distanceToPolyline(edge.labelPosition!, edge.points)).toBeLessThanOrEqual(0.001)
-            expectLabelNearRouteMidpoint(edge, 0.2)
+            expectLabelUsesStraightRunPorts(edge, rect!, dir)
             expectLabelClearsTerminalMarkers(edge, rect!, style)
             expect(edge.labelPosition).toBeDefined()
             expect(edge.routeCertificate).toBeDefined()

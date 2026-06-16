@@ -1320,7 +1320,10 @@ interface BundledLabelCandidate {
   box: { x: number; y: number; width: number; height: number }
   rank: number
   pathDistance: number
-  midpointDistance: number
+  routeMidpointDistance: number
+  segmentMidpointDistance: number
+  straightRunPenalty: number
+  terminalSegmentPenalty: number
 }
 
 function readableLabelGap(style: LabelMetricsStyle): number {
@@ -1363,7 +1366,19 @@ function clearsTerminalMarkers(
   return true
 }
 
-function bundledLabelCandidates(edge: PositionedEdge, points: Point[], nodes: PositionedNode[], style: LabelMetricsStyle): BundledLabelCandidate[] {
+function segmentAlignedWithFlow(a: Point, b: Point, direction: Direction): boolean {
+  return layoutFlow(direction).isHorizontal
+    ? Math.abs(a.y - b.y) < 0.01
+    : Math.abs(a.x - b.x) < 0.01
+}
+
+function labelFitsInsideSegment(box: { width: number; height: number }, point: Point, a: Point, b: Point): boolean {
+  const halfExtent = labelHalfExtentAlongSegment(box, a, b)
+  const straightRunGap = 2
+  return Math.min(Math.hypot(point.x - a.x, point.y - a.y), Math.hypot(point.x - b.x, point.y - b.y)) >= halfExtent + straightRunGap
+}
+
+function bundledLabelCandidates(edge: PositionedEdge, points: Point[], nodes: PositionedNode[], direction: Direction, style: LabelMetricsStyle): BundledLabelCandidate[] {
   if (!edge.label) return []
   const totalLength = polylineLength(points)
   if (totalLength === 0) return []
@@ -1371,37 +1386,67 @@ function bundledLabelCandidates(edge: PositionedEdge, points: Point[], nodes: Po
   const raw: Array<BundledLabelCandidate & { order: number }> = []
   const slots = [0.5, 0.45, 0.55, 0.4, 0.6, 0.35, 0.65, 0.3, 0.7, 0.25, 0.75, 0.2, 0.8, 1 / 6, 5 / 6]
 
-  for (let order = 0; order < slots.length; order++) {
-    const sample = pointAtPathDistance(points, totalLength * slots[order]!)
-    const box = labelBoxAt(edge.label, sample.point, style)
-    if (nodes.some(node => rectsOverlap(box, node, 2))) continue
-    if (!clearsTerminalMarkers(edge, points, sample.segmentIndex, sample.point, box, style)) continue
-    raw.push({
-      point: sample.point,
-      box,
-      order,
-      rank: 0,
-      pathDistance: sample.pathDistance,
-      midpointDistance: Math.abs(sample.pathDistance - midpointDistance),
-    })
+  let segmentStartDistance = 0
+  for (let i = 1; i < points.length; i++) {
+    const a = points[i - 1]!, b = points[i]!
+    const length = Math.hypot(b.x - a.x, b.y - a.y)
+    if (length === 0) continue
+    const flowAligned = segmentAlignedWithFlow(a, b, direction)
+    const terminalSegment = (edge.hasArrowStart && i === 1) || (edge.hasArrowEnd && i === points.length - 1)
+    for (let order = 0; order < slots.length; order++) {
+      const t = slots[order]!
+      const point = { x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t }
+      const box = labelBoxAt(edge.label, point, style)
+      if (nodes.some(node => rectsOverlap(box, node, 2))) continue
+      if (!clearsTerminalMarkers(edge, points, i, point, box, style)) continue
+      const fitsInsideSegment = labelFitsInsideSegment(box, point, a, b)
+      raw.push({
+        point,
+        box,
+        order,
+        rank: 0,
+        pathDistance: segmentStartDistance + length * t,
+        routeMidpointDistance: Math.abs(segmentStartDistance + length * t - midpointDistance),
+        segmentMidpointDistance: Math.abs(length * (t - 0.5)),
+        straightRunPenalty: flowAligned && fitsInsideSegment ? 0 : flowAligned ? 2 : 10,
+        terminalSegmentPenalty: terminalSegment ? 1 : 0,
+      })
+    }
+    segmentStartDistance += length
   }
 
-  raw.sort((a, b) => a.midpointDistance - b.midpointDistance || a.order - b.order || a.pathDistance - b.pathDistance)
+  raw.sort((a, b) =>
+    a.straightRunPenalty - b.straightRunPenalty ||
+    a.terminalSegmentPenalty - b.terminalSegmentPenalty ||
+    a.segmentMidpointDistance - b.segmentMidpointDistance ||
+    a.routeMidpointDistance - b.routeMidpointDistance ||
+    a.order - b.order ||
+    a.pathDistance - b.pathDistance)
   return raw.map((candidate, rank) => ({ ...candidate, rank }))
 }
 
-function bestBundledLabelPosition(edge: PositionedEdge, points: Point[], nodes: PositionedNode[], style: LabelMetricsStyle): Point {
-  return bundledLabelCandidates(edge, points, nodes, style)[0]?.point ?? calculatePathMidpoint(points)
+function bestBundledLabelPosition(edge: PositionedEdge, points: Point[], nodes: PositionedNode[], direction: Direction, style: LabelMetricsStyle): Point {
+  return bundledLabelCandidates(edge, points, nodes, direction, style)[0]?.point ?? calculatePathMidpoint(points)
 }
 
 function bundledLabelAssignmentCost(chosen: BundledLabelCandidate[], direction: Direction): number {
   const f = layoutFlow(direction)
   const mainValues = chosen.map(candidate => candidate.point[f.main])
   const mainSpread = Math.max(...mainValues) - Math.min(...mainValues)
-  const totalMidpointDistance = chosen.reduce((sum, candidate) => sum + candidate.midpointDistance, 0)
+  const totalStraightRunPenalty = chosen.reduce((sum, candidate) => sum + candidate.straightRunPenalty, 0)
+  const totalTerminalSegmentPenalty = chosen.reduce((sum, candidate) => sum + candidate.terminalSegmentPenalty, 0)
+  const totalSegmentMidpointDistance = chosen.reduce((sum, candidate) => sum + candidate.segmentMidpointDistance, 0)
+  const totalRouteMidpointDistance = chosen.reduce((sum, candidate) => sum + candidate.routeMidpointDistance, 0)
   const totalRank = chosen.reduce((sum, candidate) => sum + candidate.rank, 0)
-  // Keep labels near the route midpoint first, with sibling alignment as an aesthetic tie-breaker.
-  return totalMidpointDistance * 4 + mainSpread + totalRank * 0.25
+  // Prefer labels on a flow-axis straight run so the route enters and exits through
+  // opposite label ports. Sibling alignment and route-midpoint closeness are
+  // secondary once that readability contract is satisfied.
+  return totalStraightRunPenalty * 10000 +
+    totalTerminalSegmentPenalty * 1000 +
+    totalSegmentMidpointDistance * 4 +
+    mainSpread +
+    totalRank * 0.25 +
+    totalRouteMidpointDistance * 0.1
 }
 
 function assignBundledFanoutLabels(
@@ -1414,13 +1459,13 @@ function assignBundledFanoutLabels(
   if (labeled.length === 0) return
   if (labeled.length === 1) {
     const only = labeled[0]!
-    only.edge.labelPosition = bestBundledLabelPosition(only.edge, only.points, nodes, style)
+    only.edge.labelPosition = bestBundledLabelPosition(only.edge, only.points, nodes, direction, style)
     return
   }
 
-  const candidateSets = labeled.map(({ edge, points }) => bundledLabelCandidates(edge, points, nodes, style))
+  const candidateSets = labeled.map(({ edge, points }) => bundledLabelCandidates(edge, points, nodes, direction, style))
   if (candidateSets.some(candidates => candidates.length === 0)) {
-    for (const { edge, points } of labeled) edge.labelPosition = bestBundledLabelPosition(edge, points, nodes, style)
+    for (const { edge, points } of labeled) edge.labelPosition = bestBundledLabelPosition(edge, points, nodes, direction, style)
     return
   }
 
@@ -1447,7 +1492,7 @@ function assignBundledFanoutLabels(
   search(0)
 
   if (!best) {
-    for (const { edge, points } of labeled) edge.labelPosition = bestBundledLabelPosition(edge, points, nodes, style)
+    for (const { edge, points } of labeled) edge.labelPosition = bestBundledLabelPosition(edge, points, nodes, direction, style)
     return
   }
   for (let i = 0; i < labeled.length; i++) labeled[i]!.edge.labelPosition = best[i]!.point
