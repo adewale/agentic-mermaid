@@ -13,7 +13,7 @@
 // modules agree on which codepoints are wide).
 // ============================================================================
 
-import { isWideRange, isZeroWidth } from './shared/unicode-ranges.ts'
+import { isWideRange, isZeroWidth, VS_EMOJI, VS_TEXT } from './shared/unicode-ranges.ts'
 
 /**
  * Narrow characters - visually thin glyphs.
@@ -42,7 +42,7 @@ const SEMI_NARROW_PUNCT = new Set(['(', ')', '[', ']', '{', '}', '/', '\\', '-',
 // shared range tables so the ASCII renderer and the SVG metrics module
 // can never drift on what counts as wide / zero-width.
 function isCombiningMark(code: number): boolean {
-  return isZeroWidth(code)
+  return isZeroWidth(code) || code === VS_TEXT || code === VS_EMOJI
 }
 
 function isFullwidth(code: number): boolean {

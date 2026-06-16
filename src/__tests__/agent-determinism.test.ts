@@ -27,11 +27,102 @@ function makeDiagram(direction: string, n: number, density: 'sparse' | 'dense' |
   return lines.join('\n')
 }
 
+function centersById(src: string): Map<string, { x: number; y: number }> {
+  const layout = verifyMermaid(src).layout
+  expect(Number.isFinite(layout.bounds.w)).toBe(true)
+  expect(Number.isFinite(layout.bounds.h)).toBe(true)
+  return new Map(layout.nodes.map(n => [n.id, { x: n.x + n.w / 2, y: n.y + n.h / 2 }]))
+}
+
+function expectRelativeAxisOrder(before: Map<string, { x: number; y: number }>, after: Map<string, { x: number; y: number }>, ids: string[], axis: 'x' | 'y'): void {
+  for (let i = 0; i < ids.length; i++) {
+    for (let j = i + 1; j < ids.length; j++) {
+      const a = ids[i]!
+      const b = ids[j]!
+      expect(before.get(a)).toBeDefined()
+      expect(before.get(b)).toBeDefined()
+      expect(after.get(a)).toBeDefined()
+      expect(after.get(b)).toBeDefined()
+      expect(before.get(a)![axis]).toBeLessThan(before.get(b)![axis])
+      expect(after.get(a)![axis]).toBeLessThan(after.get(b)![axis])
+    }
+  }
+}
+
 describe('determinism grid (in-process)', () => {
   for (const dir of DIRECTIONS) for (const n of NODE_COUNTS) for (const density of DENSITY) {
     test(`${dir} ${n} ${density}`, () => {
       const src = makeDiagram(dir, n, density)
       expect(JSON.stringify(verifyMermaid(src).layout)).toEqual(JSON.stringify(verifyMermaid(src).layout))
+    })
+  }
+})
+
+describe('edit stability — small source mutations preserve the unchanged primary chain', () => {
+  const base = `flowchart LR
+  A[Start]
+  B[Login]
+  C{Valid?}
+  D[Session]
+  A --> B
+  B --> C
+  C --> D`
+
+  const stableIds = ['A', 'B', 'C', 'D']
+  const mutations = [
+    ['label edit', `flowchart LR
+  A[Start]
+  B[Login screen]
+  C{Valid?}
+  D[Session]
+  A --> B
+  B --> C
+  C --> D`],
+    ['inserted node between existing nodes', `flowchart LR
+  A[Start]
+  B[Login]
+  X[Audit checkpoint]
+  C{Valid?}
+  D[Session]
+  A --> B
+  B --> X
+  X --> C
+  C --> D`],
+    ['appended leaf', `flowchart LR
+  A[Start]
+  B[Login]
+  C{Valid?}
+  D[Session]
+  E[Audit]
+  A --> B
+  B --> C
+  C --> D
+  C --> E`],
+    ['feedback edge', `flowchart LR
+  A[Start]
+  B[Login]
+  C{Valid?}
+  D[Session]
+  A --> B
+  B --> C
+  C --> D
+  D -. retry .-> B`],
+    ['style-only edit', `flowchart LR
+  A[Start]
+  B[Login]
+  C{Valid?}
+  D[Session]
+  A --> B
+  B --> C
+  C --> D
+  classDef hot fill:#fee,stroke:#900
+  class C hot`],
+  ] as const
+
+  for (const [name, src] of mutations) {
+    test(name, () => {
+      const before = centersById(base)
+      expectRelativeAxisOrder(before, centersById(src), stableIds, 'x')
     })
   }
 })

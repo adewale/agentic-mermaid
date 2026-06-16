@@ -11,6 +11,11 @@ describe('ASCII CJK/fullwidth display width', () => {
     expect(maxLineWidth('A\n开始')).toBe(4)
   })
 
+  it('keeps East Asian ambiguous-width symbols stable as single-cell glyphs', () => {
+    expect(visualWidth('Ω·±×')).toBe(4)
+    expect(visualWidth('AΩ🙂Ｂ')).toBe(6)
+  })
+
   it('sizes unicode node boxes by visual width, not JavaScript string length', () => {
     const output = renderMermaidASCII('graph TD\n  A[开始]')
     const lines = output.split('\n').filter(Boolean)
@@ -83,6 +88,14 @@ describe('ASCII CJK/fullwidth display width', () => {
     // (width 2), not two side-by-side emoji (width 4).
     const { visualWidth } = require('../ascii/width.ts') as typeof import('../ascii/width.ts')
     expect(visualWidth('\u{1F468}\u{200D}\u{1F4BB}')).toBe(2)
+  })
+
+  it('renders emoji and ambiguous-width labels without corrupting node boxes', () => {
+    const output = renderMermaidASCII('graph LR\n  A[Ω·±×] --> B[Deploy 🚀]\n  B --> C[Fullwidth ＡＢ]')
+    expect(output).toContain('Ω·±×')
+    expect(output).toContain('Deploy 🚀')
+    expect(output).toContain('Fullwidth ＡＢ')
+    expect(output).not.toContain('\x00')
   })
 
   it('self-arrow CJK label uses codepoint+stride (Loop 7 review fix)', () => {
