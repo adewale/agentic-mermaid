@@ -39,8 +39,8 @@ The matrix has one cell per family for each surface below. A cell is either `sat
 | `editorExample` | Live editor has a working `Supported diagrams` example and explicit glyph for the family. |
 | `docsAgentSurfaces` | README/docs/spec/skills/agent instructions/SDK declaration/llms surfaces stay in sync. |
 | `evalFixture` | Shared skill benchmark has at least one fixture-backed case tagged `family:<id>`. |
-| `upstreamHarvest` | Upstream Mermaid/fork tests are harvested into executable cases/exclusions, or tracked for harvest. |
-| `divergenceLedger` | Known compatibility divergences are executable and cannot rot, or tracked for ledger work. |
+| `upstreamHarvest` | Official upstream Mermaid examples/tests are harvested into an executable docs corpus or family bench; deeper full-suite harvests remain separate BUILD-20 work. |
+| `divergenceLedger` | Known compatibility divergences in harvested upstream examples/tests are executable and cannot rot, or tracked for ledger work. |
 | `domainProperties` | Family-specific invariants/properties exist beyond “renders without throwing.” |
 | `goldensEvidence` | Text/SVG/visual evidence exists where reviewer judgment needs artifacts. |
 | `generatedSite` | Site samples/gallery/generated docs include the family or have explicit exceptions. |
@@ -66,9 +66,10 @@ XY chart proves the checklist works for an older family that was promoted after 
 - citizenship surfaces are satisfied for registry, detection, typed mutation (`asXyChart`), CLI/MCP docs, editor examples, eval fixtures, generated site samples, package exposure, SVG/ASCII output, and layout projection;
 - semantic correctness is pinned by parser/integration/layout/renderer tests and `src/__tests__/property-xychart.test.ts`;
 - mutation-testing citizenship is satisfied through `mutation-test:families`, which mutates `src/xychart/*` together with Architecture;
-- remaining exceptions are the standardized upstream-harvest/divergence-ledger work tracked by `TODO.md` BUILD-20 and broader region assertions tracked by BUILD-22.
+- stable region citizenship is satisfied through `src/__tests__/agent-ascii-meta.test.ts`;
+- upstream-docs harvest/divergence citizenship is satisfied through the regenerated `eval/mermaid-docs-corpus/corpus.json` and executable `divergences.json` ledger; full upstream parser/DB suite harvests remain the deeper BUILD-20 track.
 
-This is the intended ratchet shape: do not block a PR on every historical gap, but make every gap visible, tracked, and impossible to forget when a new family is added.
+This is the intended ratchet shape: historical gaps are either closed or represented by a live checked cell. After the BUILD-22 backfill, the matrix has zero exceptions; if a future family introduces one, it must be tracked before merge.
 
 ## Review workflow
 

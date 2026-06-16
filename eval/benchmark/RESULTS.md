@@ -9,7 +9,8 @@ Reproduce ours: `bun run eval/benchmark/run-bench.ts`
 
 ## Ours — measured
 
-Corpus: the 258-entry mermaid-js docs corpus (`eval/mermaid-docs-corpus`).
+Corpus: this recorded baseline used the then-258-entry mermaid-js docs corpus
+(`eval/mermaid-docs-corpus`; current corpus has 271 entries after BUILD-22).
 
 | Metric | p50 | p90 | max |
 |---|---|---|---|
@@ -17,7 +18,7 @@ Corpus: the 258-entry mermaid-js docs corpus (`eval/mermaid-docs-corpus`).
 | ASCII render (warm, in-process) | 0.11 ms | 0.72 ms | 7.04 ms |
 | SVG output size | 2.9 KB | 7.3 KB | 14.6 KB |
 
-- Parse success rate: **258/258 (100%)**.
+- Parse success rate for that baseline: **258/258 (100%)**.
 - Cold start (CLI process, one diagram):
   - `bun run bin/am.ts` (TS source, transpile + resolve): ~570–870 ms
   - **`bun build --compile` single binary (#1018, Loop 13): ~440 ms** —

@@ -1,0 +1,16 @@
+{
+  "$schema": "https://raw.githubusercontent.com/stryker-mutator/stryker/master/packages/core/schema/stryker-core.schema.json",
+  "_comment": "Narrow mutation lane for the state structured body and its graph projection semantics.",
+  "mutate": ["src/agent/state-body.ts"],
+  "ignorePatterns": ["/site/**", "/dist/**", "/coverage/**", "/.stryker-tmp-*/**"],
+  "testRunner": "command",
+  "commandRunner": {
+    "command": "bun test src/__tests__/agent-state.test.ts src/__tests__/agent-mermaid-corpus.test.ts src/__tests__/agent-ascii-meta.test.ts"
+  },
+  "reporters": ["clear-text", "progress", "json"],
+  "jsonReporter": { "fileName": "reports/mutation/state-mutation.json" },
+  "timeoutMS": 30000,
+  "concurrency": 2,
+  "tempDirName": ".stryker-tmp-state",
+  "disableTypeChecks": true
+}

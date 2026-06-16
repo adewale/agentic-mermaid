@@ -1,4 +1,4 @@
-# Lessons Learned — Loops 1 through 20
+# Lessons Learned — Loops 1 through 21
 
 This document replaces the Loop 1 retrospective. It is the cumulative
 narrative across the agentic-mermaid fork. Each section reflects what a
@@ -39,7 +39,7 @@ the *combination* of:
   processes produce byte-identical layout JSON; bun and node produce
   byte-identical layout JSON on the same source. Both tests run on every
   PR.
-- **Corpus gates.** The 258-entry mermaid-js docs corpus and the
+- **Corpus gates.** The 271-entry mermaid-js docs corpus and the
   132-case MermaidSeqBench both run as PR gates; regressions break the
   build with a named diff.
 - **Agent-contract verbs.** `am capabilities --json` (Loop 7) lets an
@@ -81,7 +81,7 @@ nobody can reason about end-to-end.
 
 ## (d) Cost / value of the corpus + LLM-judge
 
-The mermaid-js docs corpus (now 258 entries) has paid for itself twice. In Loop 5 a
+The mermaid-js docs corpus (now 271 entries) has paid for itself twice. In Loop 5 a
 state-diagram round-trip regression slipped past the unit tests because
 our hand-written fixtures didn't cover the exact `note left of` /
 `note right of` pattern; the corpus caught it within seconds. In Loop 7
@@ -641,3 +641,48 @@ and release artifact either derives from the registry or has a test proving it
 is synchronized. A new family is not done when it renders; it is done when an
 agent discovering the system through any supported entry point reaches the same
 typed path.
+
+## Loop 21 lesson — tracked exceptions are gap maps, not permission slips
+
+Issue #41 made the good-citizen standard executable, and it also made one
+thing impossible to hide: **there were historical family gaps.** That was not a
+failure of the ratchet; it was the reason the ratchet existed. The BUILD-22
+backfill closed the visible citizenship exceptions, but the process lesson
+remains: older families do not need to instantly match a new evidence bar in
+one PR, but any difference from that bar must be named, checked, and tied to a
+live backlog item instead of living in a comment or reviewer memory.
+
+The important distinction is between a **supported-family blocker** and a
+**citizenship backfill gap**. A blocker means a public surface lies, data is
+lost silently, or an agent is sent down an unsafe path. A backfill gap means
+the family is usable through the current public contract, but lacks one of the
+higher-confidence evidence lanes Gantt now has. The matrix in
+`docs/contributing/diagram-family-citizenship.matrix.json` records those cells
+as `exception` only when they point at `TODO.md`/issues; CI fails if an
+exception is untracked or appears on a core surface.
+
+The gaps #41 surfaced were concrete, and BUILD-22 closed the current matrix
+exceptions:
+
+- **Stable region assertions** now cover every registered family through
+  `src/ascii/meta.ts` and `src/__tests__/agent-ascii-meta.test.ts`.
+- **Targeted mutation or sabotage lanes** now exist for state, sequence,
+  timeline, class, ER, journey, pie, and quadrant, alongside the pre-existing
+  flowchart/link-routing, architecture+xychart, and Gantt lanes.
+- **Executable upstream-docs harvest and divergence evidence** now covers all
+  registered families via the regenerated 271-example Mermaid docs corpus plus
+  `eval/mermaid-docs-corpus/divergences.json`. Full upstream parser/DB suite
+  harvests remain the deeper BUILD-20 workstream, but they are no longer a
+  citizenship-matrix exception.
+- **Generated-site drift was real.** Pie, Quadrant, and Gantt were supported
+  families but the sample gallery still lacked explicit color/prefix handling;
+  #41 fixed that instance and added tests so future family categories cannot
+  fall back silently.
+
+The lesson: an exception ledger should make maintainers slightly
+uncomfortable. If it reads as "we're allowed to ignore this," it has failed.
+It should read as "this is the exact remaining work, this is why it is not a
+merge blocker today, and this is the test/backlog hook that will fail if we
+forget it." Good citizenship is therefore both a contract and a gap map: Gantt
+sets the destination, the matrix records current state, and BUILD-20 remains
+the named deeper-compatibility path beyond the now-closed BUILD-22 matrix gaps.

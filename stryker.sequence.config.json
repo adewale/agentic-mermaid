@@ -1,0 +1,16 @@
+{
+  "$schema": "https://raw.githubusercontent.com/stryker-mutator/stryker/master/packages/core/schema/stryker-core.schema.json",
+  "_comment": "Narrow mutation lane for sequence parsing plus segment-preserving structured mutation.",
+  "mutate": ["src/agent/sequence-body.ts", "src/sequence/parser.ts"],
+  "ignorePatterns": ["/site/**", "/dist/**", "/coverage/**", "/.stryker-tmp-*/**"],
+  "testRunner": "command",
+  "commandRunner": {
+    "command": "bun test src/__tests__/agent.test.ts src/__tests__/sequence-parser.test.ts src/__tests__/sequence-integration.test.ts src/__tests__/ascii-sequence-blocks.test.ts src/__tests__/agent-mermaidseqbench.test.ts"
+  },
+  "reporters": ["clear-text", "progress", "json"],
+  "jsonReporter": { "fileName": "reports/mutation/sequence-mutation.json" },
+  "timeoutMS": 30000,
+  "concurrency": 2,
+  "tempDirName": ".stryker-tmp-sequence",
+  "disableTypeChecks": true
+}

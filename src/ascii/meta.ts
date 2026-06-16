@@ -64,6 +64,17 @@ export function renderMermaidASCIIWithMeta(input: string, opts: AsciiRenderOptio
 
 interface Candidate { id: string; label: string; sourceLine?: number }
 
+function addCandidate(out: Candidate[], id: string, label: string | undefined, sourceLine?: number): void {
+  const normalized = label?.trim()
+  if (!normalized) return
+  out.push({ id, label: normalized, sourceLine })
+}
+
+function addCandidateWithFallback(out: Candidate[], id: string, label: string | undefined): void {
+  addCandidate(out, id, label)
+  if (label !== id) addCandidate(out, id, id)
+}
+
 function deriveRegions(ascii: string, source: string): AsciiRegion[] {
   const candidates = candidatesForDiagram(source)
   if (candidates.length === 0) return []
@@ -101,17 +112,33 @@ function candidatesForDiagram(source: string): Candidate[] {
   const d = r.value
   if (d.body.kind === 'flowchart') {
     const out: Candidate[] = []
-    for (const n of d.body.graph.nodes.values()) {
-      const label = n.label && n.label.length > 0 ? n.label : n.id
-      out.push({ id: n.id, label })
+    for (const n of d.body.graph.nodes.values()) addCandidateWithFallback(out, n.id, n.label && n.label.length > 0 ? n.label : n.id)
+    return out
+  }
+  if (d.body.kind === 'state') {
+    const out: Candidate[] = []
+    const visit = (states: typeof d.body.states): void => {
+      for (const s of states) {
+        addCandidateWithFallback(out, s.id, s.label ?? s.id)
+        if (s.states) visit(s.states)
+      }
     }
+    visit(d.body.states)
     return out
   }
   if (d.body.kind === 'sequence') {
-    return d.body.participants.map(p => ({ id: p.id, label: p.label || p.id }))
+    return d.body.participants.flatMap(p => {
+      const out: Candidate[] = []
+      addCandidateWithFallback(out, p.id, p.label || p.id)
+      return out
+    })
   }
   if (d.body.kind === 'class') {
-    return d.body.classes.map(c => ({ id: c.id, label: c.label || c.id }))
+    return d.body.classes.flatMap(c => {
+      const out: Candidate[] = []
+      addCandidateWithFallback(out, c.id, c.label || c.id)
+      return out
+    })
   }
   if (d.body.kind === 'er') {
     return d.body.entities.map(e => ({ id: e.id, label: e.id }))
@@ -119,9 +146,50 @@ function candidatesForDiagram(source: string): Candidate[] {
   if (d.body.kind === 'timeline') {
     const out: Candidate[] = []
     for (const s of d.body.sections) {
-      if (s.label) out.push({ id: s.id, label: s.label })
-      for (const p of s.periods) out.push({ id: p.id, label: p.label })
+      addCandidate(out, s.id, s.label)
+      for (const p of s.periods) addCandidate(out, p.id, p.label)
     }
+    return out
+  }
+  if (d.body.kind === 'journey') {
+    const out: Candidate[] = []
+    addCandidate(out, 'title', d.body.title)
+    for (const s of d.body.sections) {
+      addCandidate(out, s.id, s.label)
+      for (const t of s.tasks) addCandidate(out, t.id, t.text)
+    }
+    return out
+  }
+  if (d.body.kind === 'architecture') {
+    const out: Candidate[] = []
+    for (const g of d.body.groups) addCandidateWithFallback(out, g.id, g.label || g.id)
+    for (const s of d.body.services) addCandidateWithFallback(out, s.id, s.label || s.id)
+    return out
+  }
+  if (d.body.kind === 'xychart') {
+    const out: Candidate[] = []
+    addCandidate(out, 'title', d.body.title)
+    addCandidate(out, 'x-axis', d.body.xAxis?.name)
+    addCandidate(out, 'y-axis', d.body.yAxis?.name)
+    d.body.xAxis?.categories?.forEach((label, index) => addCandidate(out, `x-category-${index}`, label))
+    for (const s of d.body.series) addCandidate(out, s.id, s.name)
+    return out
+  }
+  if (d.body.kind === 'pie') {
+    const out: Candidate[] = []
+    addCandidate(out, 'title', d.body.title)
+    for (const s of d.body.slices) addCandidate(out, s.id, s.label)
+    return out
+  }
+  if (d.body.kind === 'quadrant') {
+    const out: Candidate[] = []
+    addCandidate(out, 'title', d.body.title)
+    addCandidate(out, 'x-axis-near', d.body.xAxis?.near)
+    addCandidate(out, 'x-axis-far', d.body.xAxis?.far)
+    addCandidate(out, 'y-axis-near', d.body.yAxis?.near)
+    addCandidate(out, 'y-axis-far', d.body.yAxis?.far)
+    d.body.quadrants.forEach((label, index) => addCandidate(out, `quadrant-${index + 1}`, label))
+    d.body.points.forEach((p, index) => addCandidate(out, `point-${index}`, p.label))
     return out
   }
   if (d.body.kind === 'gantt') {
@@ -130,8 +198,8 @@ function candidatesForDiagram(source: string): Candidate[] {
     // after/until/click) over the parse-order internal id.
     const out: Candidate[] = []
     for (const s of d.body.sections) {
-      if (s.label) out.push({ id: s.id, label: s.label })
-      for (const t of s.tasks) out.push({ id: t.taskId ?? t.id, label: t.label })
+      addCandidate(out, s.id, s.label)
+      for (const t of s.tasks) addCandidate(out, t.taskId ?? t.id, t.label)
     }
     return out
   }

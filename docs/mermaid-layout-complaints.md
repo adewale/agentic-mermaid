@@ -345,7 +345,7 @@ Obsidian, and upgrades silently regress committed diagrams.
 - Fixture/test: this is the fork's categorical answer rather than a
   mitigation. Byte-identical output across runs, processes, and runtimes is
   CI-gated (`agent-determinism.test.ts`); ASCII output is hash-stable across
-  the full 258-entry docs corpus (`ascii-determinism.test.ts`); PNG bytes
+  the full 271-entry docs corpus (`ascii-determinism.test.ts`); PNG bytes
   are pinned via exact-version resvg + bundled fonts
   (`agent-png-determinism.test.ts`). Intentional layout changes must pass
   the before/after comparison harness (`eval/layout-compare/`,

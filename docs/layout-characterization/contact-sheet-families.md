@@ -27,7 +27,7 @@ invariants hold (verified empirically).
 | [Architecture diagram](#architecture) | ✓ | ✓ | ✓ | · |
 
 **Total** and **Deterministic** hold for every renderer (the bedrock contract;
-also pinned across the 258-entry docs corpus by `ascii-determinism.test.ts`).
+also pinned across the 271-entry docs corpus by `ascii-determinism.test.ts`).
 **No diagonals** holds for every renderer. **Rectangular** (all rows one width)
 holds only for the box/graph families; the chart and list families emit ragged
 rows by design.

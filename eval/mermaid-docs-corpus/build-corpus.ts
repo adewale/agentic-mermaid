@@ -1,8 +1,8 @@
 // Mine mermaid-js source docs for example diagrams across supported docs
 // families. Output: eval/mermaid-docs-corpus/corpus.json — a curated set
 // of (family, source) pairs we can run through parse → verify → round-trip.
-// Gantt entries were appended surgically from syntax/gantt.md on 2026-06-12
-// (other families untouched); the next full regen picks gantt up via the map.
+// The committed corpus was fully regenerated from upstream docs on
+// 2026-06-16 and includes every registered renderable built-in family.
 //
 // Run with: bun run eval/mermaid-docs-corpus/build-corpus.ts <path-to-mermaid-clone>
 //
@@ -21,10 +21,8 @@ const FILE_TO_FAMILY: Record<string, string> = {
   'userJourney.md': 'journey',
   'xyChart.md': 'xychart',
   'architecture.md': 'architecture',
-  // QUAL-1: pie + quadrant now have RenderedLayout adapters, so the next
-  // networked corpus regen should include them. The committed corpus.json
-  // predates these families (it was built before the adapters landed); regen
-  // requires a local mermaid clone — see eval/mermaid-docs-corpus/README.
+  // QUAL-1/BUILD-22: pie + quadrant are included in the committed corpus
+  // after a real mermaid-js/mermaid docs regen on 2026-06-16.
   'pie.md': 'pie',
   'quadrantChart.md': 'quadrant',
   'gantt.md': 'gantt',

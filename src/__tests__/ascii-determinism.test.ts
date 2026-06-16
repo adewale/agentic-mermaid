@@ -24,7 +24,7 @@ function loadCorpus(): CorpusEntry[] {
   return existsSync(CORPUS_PATH) ? JSON.parse(readFileSync(CORPUS_PATH, 'utf8')) : []
 }
 
-const EXPECTED_CORPUS_RENDERED = 252
+const EXPECTED_CORPUS_RENDERED = 265
 const EXPECTED_CORPUS_ASCII_ERRORS = [
   'architecture:syntax/architecture.md:1',
   'architecture:syntax/architecture.md:2',

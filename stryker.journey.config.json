@@ -1,0 +1,16 @@
+{
+  "$schema": "https://raw.githubusercontent.com/stryker-mutator/stryker/master/packages/core/schema/stryker-core.schema.json",
+  "_comment": "Narrow mutation lane for journey parsing, layout, rendering, and structured mutation.",
+  "mutate": ["src/agent/journey-body.ts", "src/journey/parser.ts", "src/journey/layout.ts"],
+  "ignorePatterns": ["/site/**", "/dist/**", "/coverage/**", "/.stryker-tmp-*/**"],
+  "testRunner": "command",
+  "commandRunner": {
+    "command": "bun test src/__tests__/agent-journey.test.ts src/__tests__/journey-parser.test.ts src/__tests__/journey-layout.test.ts src/__tests__/journey-ascii.test.ts src/__tests__/journey-svg-snapshot.test.ts"
+  },
+  "reporters": ["clear-text", "progress", "json"],
+  "jsonReporter": { "fileName": "reports/mutation/journey-mutation.json" },
+  "timeoutMS": 30000,
+  "concurrency": 2,
+  "tempDirName": ".stryker-tmp-journey",
+  "disableTypeChecks": true
+}

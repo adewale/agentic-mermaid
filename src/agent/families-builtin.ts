@@ -16,7 +16,7 @@
 // ============================================================================
 
 import { registerFamily, extractLabelsGeneric, type ExtractedLabel, type FamilyPlugin } from './families.ts'
-import type { DiagramBody, DiagramKind, AnyMutationOp, MutationError, Result } from './types.ts'
+import type { DiagramBody, DiagramKind, AnyMutationOp, MutationError, Result, LayoutWarning } from './types.ts'
 import { ok, err } from './types.ts'
 import { verifyClass, parseClassBody, renderClass, mutateClass } from './class-body.ts'
 import { verifyErBody, parseErBody, renderEr, mutateEr } from './er-body.ts'
@@ -27,6 +27,7 @@ import { parseArchitectureBody, renderArchitecture, mutateArchitecture, verifyAr
 import { parseXyChartBody, renderXyChart, mutateXyChart, verifyXyChart } from './xychart-body.ts'
 import { parsePieBody, renderPie, mutatePie, verifyPie } from './pie-body.ts'
 import { parseQuadrantBody, renderQuadrant, mutateQuadrant, verifyQuadrant } from './quadrant-body.ts'
+import { parseQuadrantChart } from '../quadrant/parser.ts'
 import { parseStateBody, renderState, mutateState, verifyState } from './state-body.ts'
 import { parseGanttBody, renderGantt, mutateGantt, verifyGantt } from './gantt-body.ts'
 import { parseFlowchartBody, renderFlowchart, mutateFlowchart, buildFlowchartSourceMap, type FlowchartBody } from './flowchart-body.ts'
@@ -584,13 +585,54 @@ function extractQuadrantLabels(source: string): ExtractedLabel[] {
       out.push({ text: m[1]!.trim(), target })
       continue
     }
-    // Point line: `Label: [x, y]` — extract the label.
-    if ((m = raw.match(/^(.+?)\s*:\s*\[[^\]]*\]\s*$/))) {
-      const text = m[1]!.trim()
+    // Point line: `Label[:::class]: [x, y] [style metadata]` — extract the
+    // display label, not the optional class/style adornments.
+    if ((m = raw.match(/^(.+?)\s*:\s*\[[^\]]*\]\s*(?:.*)?$/))) {
+      const text = m[1]!.replace(/\s*:::\s*[A-Za-z_][\w-]*\s*$/, '').trim()
       if (text) out.push({ text, target })
     }
   }
   return out
+}
+
+function verifyOpaqueQuadrant(body: DiagramBody): LayoutWarning[] {
+  if (body.kind !== 'opaque' || body.family !== 'quadrant') return []
+  const warnings: LayoutWarning[] = []
+  try {
+    parseQuadrantChart(body.source.split(/\r?\n/))
+  } catch (e) {
+    warnings.push({
+      code: 'UNSUPPORTED_SYNTAX',
+      syntax: 'quadrant_unrenderable_opaque',
+      message: `Quadrant source is preserved as opaque, but local rendering may reject it: ${e instanceof Error ? e.message : String(e)}`,
+    })
+    return warnings
+  }
+
+  let sawPointStyle = false
+  let sawClassDef = false
+  for (const rawLine of body.source.split(/\r?\n/)) {
+    const raw = rawLine.trim()
+    if (!raw || raw.startsWith('%%')) continue
+    if (/^classDef\b/i.test(raw)) sawClassDef = true
+    const point = raw.match(/^(.+?)\s*:\s*\[[^\]]*\]\s*(.*)$/)
+    if (point && (point[1]!.includes(':::') || point[2]!.trim().length > 0)) sawPointStyle = true
+  }
+  if (sawPointStyle) {
+    warnings.push({
+      code: 'UNSUPPORTED_SYNTAX',
+      syntax: 'quadrant_point_style_metadata',
+      message: 'Quadrant point style/class metadata is preserved in source and accepted by the local renderer, but typed mutation/layout metadata does not model radius/color/class styling.',
+    })
+  }
+  if (sawClassDef) {
+    warnings.push({
+      code: 'UNSUPPORTED_SYNTAX',
+      syntax: 'quadrant_classDef_metadata',
+      message: 'Quadrant classDef metadata is preserved in source and accepted by the local renderer, but typed mutation/layout metadata does not model class styling.',
+    })
+  }
+  return warnings
 }
 
 registerFamily({
@@ -598,8 +640,9 @@ registerFamily({
   detect: l => l.startsWith('quadrantchart'),
   extractLabels: extractQuadrantLabels,
   // Quadrant is structured-when-narrowed. The verify hook covers the structured
-  // body; opaque fallbacks keep the universal label-extraction path.
-  verify: (body, opts) => body.kind === 'quadrant' ? verifyQuadrant(body, opts) : [],
+  // body; opaque fallbacks keep the universal label-extraction path and warn
+  // when official style metadata is preserved but not semantically modeled.
+  verify: (body, opts) => body.kind === 'quadrant' ? verifyQuadrant(body, opts) : verifyOpaqueQuadrant(body),
   ...structuredFamilyHooks('quadrant', {
     headerOk: h => /^quadrantchart\s*$/i.test(h),
     parseBody: parseQuadrantBody, serialize: renderQuadrant, mutate: mutateQuadrant,

@@ -82,6 +82,18 @@ describe('quadrant parser — happy paths', () => {
     expect(chart.points[0]!.label).toBe('My Cool Point #1')
   })
 
+  it('accepts Mermaid-docs point style metadata and classDef lines without blocking render', () => {
+    const chart = parse(`quadrantChart
+  Campaign A: [0.9, 0.0] radius: 12
+  Campaign B:::class1: [0.8, 0.1] color: #ff3300, radius: 10
+  Campaign C: [0.7, 0.2] radius: 25, color: #00ff33, stroke-color: #10f0f0
+  Campaign D: [0.6, 0.3] radius: 15, stroke-color: #00ff0f, stroke-width: 5px ,color: #ff33f0
+  classDef class1 color: #109060
+`)
+    expect(chart.points.map(p => p.label)).toEqual(['Campaign A', 'Campaign B', 'Campaign C', 'Campaign D'])
+    expect(chart.points[1]).toMatchObject({ x: 0.8, y: 0.1 })
+  })
+
   it('preserves point source order', () => {
     const chart = parse('quadrantChart\n  C: [0.1,0.1]\n  A: [0.2,0.2]\n  B: [0.3,0.3]')
     expect(chart.points.map(p => p.label)).toEqual(['C', 'A', 'B'])
@@ -101,8 +113,7 @@ describe('quadrant parser — sad paths error loudly', () => {
     { name: 'unclosed bracket', src: 'quadrantChart\n  A: [0.5, 0.5', match: /Invalid quadrant point/i },
     { name: 'wrong header', src: 'notquadrant\n  A: [0.5, 0.5]', match: /must start with "quadrantChart"/i },
     { name: 'unknown statement', src: 'quadrantChart\n  banana split', match: /Unrecognized quadrant chart line/i },
-    { name: 'classDef styling not modeled', src: 'quadrantChart\n  classDef foo color:#f00', match: /classDef.*not supported/i },
-    { name: 'class assignment not modeled', src: 'quadrantChart\n  A:::cls: [0.5, 0.5]', match: /not supported/i },
+    { name: 'unknown point style metadata', src: 'quadrantChart\n  A: [0.5, 0.5] banana: split', match: /Unsupported quadrant point style metadata/i },
     { name: 'x-axis arrow but no far label', src: 'quadrantChart\n  x-axis Left -->', match: /no far label/i },
   ]
 
@@ -201,6 +212,22 @@ describe('quadrant SVG integration', () => {
     for (const label of ['Campaign A', 'We should expand', 'Low Reach', 'High Engagement']) {
       expect(svg).toContain(label)
     }
+  })
+
+  it('renders official point style/class metadata examples without throwing', () => {
+    const styled = `quadrantChart
+  title Reach and engagement of campaigns
+  x-axis Low Reach --> High Reach
+  y-axis Low Engagement --> High Engagement
+  Campaign A: [0.9, 0.0] radius: 12
+  Campaign B:::class1: [0.8, 0.1] color: #ff3300, radius: 10
+  Campaign C: [0.7, 0.2] radius: 25, color: #00ff33, stroke-color: #10f0f0
+  classDef class1 color: #109060
+`
+    const svg = renderMermaidSVG(styled)
+    expect(svg).toContain('Campaign A')
+    expect(svg).toContain('Campaign B')
+    expect(renderMermaidASCII(styled)).toContain('Campaign C')
   })
 
   it('is deterministic — two renders are byte-identical', () => {

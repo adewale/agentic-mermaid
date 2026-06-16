@@ -1,0 +1,16 @@
+{
+  "$schema": "https://raw.githubusercontent.com/stryker-mutator/stryker/master/packages/core/schema/stryker-core.schema.json",
+  "_comment": "Narrow mutation lane for ER parsing, layout, rendering, and structured mutation.",
+  "mutate": ["src/agent/er-body.ts", "src/er/parser.ts", "src/er/layout.ts"],
+  "ignorePatterns": ["/site/**", "/dist/**", "/coverage/**", "/.stryker-tmp-*/**"],
+  "testRunner": "command",
+  "commandRunner": {
+    "command": "bun test src/__tests__/agent-er.test.ts src/__tests__/er-parser.test.ts src/__tests__/er-integration.test.ts src/__tests__/class-er-edge-quality.test.ts"
+  },
+  "reporters": ["clear-text", "progress", "json"],
+  "jsonReporter": { "fileName": "reports/mutation/er-mutation.json" },
+  "timeoutMS": 30000,
+  "concurrency": 2,
+  "tempDirName": ".stryker-tmp-er",
+  "disableTypeChecks": true
+}

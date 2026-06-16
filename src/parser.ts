@@ -606,6 +606,13 @@ function startsFlowchartArrow(text: string): boolean {
   return ARROW_REGEX.test(text) || TEXT_ARROW_REGEX.test(text)
 }
 
+function nodePatternSwallowedArrow(text: string, idLength: number): boolean {
+  for (let i = 1; i < idLength; i++) {
+    if (startsFlowchartArrow(text.slice(i))) return true
+  }
+  return false
+}
+
 const EDGE_ID_PREFIX_REGEX = /^([\w-]+)@\s*(?=(?:<)?(?:~{3,}|-\.+->|-\.+-|={2,}>|={3,}|o-{2,}[ox]|x-{2,}[ox]|-{2,}[ox]|-{2,}>|-{3,}|(?:-{2,}|-\.+|={2,})\s+))/
 
 function consumeClassShorthand(text: string): { className: string; length: number } | null {
@@ -835,6 +842,7 @@ function consumeNode(
   for (const { regex, shape } of NODE_PATTERNS) {
     const match = text.match(regex)
     if (match) {
+      if (nodePatternSwallowedArrow(text, match[1]!.length)) continue
       id = match[1]!
       const label = normalizeBrTags(match[2]!)
       registerNode(graph, subgraphStack, { id, label, shape })

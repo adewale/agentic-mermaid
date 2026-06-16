@@ -1,0 +1,16 @@
+{
+  "$schema": "https://raw.githubusercontent.com/stryker-mutator/stryker/master/packages/core/schema/stryker-core.schema.json",
+  "_comment": "Narrow mutation lane for class parsing, layout, rendering, and structured mutation.",
+  "mutate": ["src/agent/class-body.ts", "src/class/parser.ts", "src/class/layout.ts"],
+  "ignorePatterns": ["/site/**", "/dist/**", "/coverage/**", "/.stryker-tmp-*/**"],
+  "testRunner": "command",
+  "commandRunner": {
+    "command": "bun test src/__tests__/agent-class.test.ts src/__tests__/class-parser.test.ts src/__tests__/class-integration.test.ts src/__tests__/class-er-edge-quality.test.ts"
+  },
+  "reporters": ["clear-text", "progress", "json"],
+  "jsonReporter": { "fileName": "reports/mutation/class-mutation.json" },
+  "timeoutMS": 30000,
+  "concurrency": 2,
+  "tempDirName": ".stryker-tmp-class",
+  "disableTypeChecks": true
+}
