@@ -18,6 +18,7 @@ That is necessary, but not sufficient for this repo. Agentic Mermaid also needs 
 - Verify the diagram is already supported by Mermaid.
 - Verify it is not already routed in `src/index.ts` or `src/ascii/index.ts`.
 - Add the family to the type-checked built-in family metadata manifest in `src/agent/families.ts` first. `BUILTIN_FAMILY_METADATA` is the reviewer-facing list for shipped families and has a compile-time coverage assertion against `DiagramKind`.
+- Update the [diagram-family citizenship matrix](./diagram-family-citizenship.md) in the same PR: every citizenship surface must be marked `satisfied` with evidence or `exception` with a tracked follow-up.
 - Prefer Mermaid's stable header if Mermaid supports both stable and beta forms.
 - Write down any known Mermaid features you are intentionally not implementing yet. Those gaps must be documented in the PR before merge.
 
@@ -85,6 +86,7 @@ New diagram support should normally include most of these layers:
 - Regression tests for easy-to-break behavior such as ordering, escaping, markers, label normalization, or routing
 - Sample coverage in `scripts/site/samples-data.ts` when the feature should appear on the visual samples page
 - Live editor coverage in `editor/js/examples.js`: add one basic example under the `Supported diagrams` category, add an explicit picker glyph, and let `src/__tests__/editor-examples.test.ts` prove it parses and renders. This is required for every registered built-in family, not just marketing-worthy ones.
+- Citizenship matrix coverage in `docs/contributing/diagram-family-citizenship.matrix.json`, with evidence paths for completed surfaces and tracked exceptions for deferred quality/compatibility work.
 - README updates for the new supported diagram type and any intentional compatibility gaps
 
 Use the existing naming pattern where possible:

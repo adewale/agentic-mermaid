@@ -143,6 +143,9 @@ export async function generateHtml(options: GenerateHtmlOptions = {}): Promise<s
     Timeline: '#db2777',
     Journey: '#14b8a6',
     'XY Chart': '#f97316',
+    Pie: '#a855f7',
+    Quadrant: '#22c55e',
+    Gantt: '#64748b',
     'Role Styles': '#f97316',
     'Theme Showcase': '#06b6d4',
   }
@@ -156,6 +159,9 @@ export async function generateHtml(options: GenerateHtmlOptions = {}): Promise<s
     'ER': 'ER: ',
     'Journey': 'Journey: ',
     'XY Chart': 'XY: ',
+    'Pie': 'Pie: ',
+    'Quadrant': 'Quadrant: ',
+    'Gantt': 'Gantt: ',
     'Role Styles': 'Style: ',
     'Theme Showcase': 'Theme: ',
   }

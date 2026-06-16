@@ -11,6 +11,19 @@ const PROPERTY_RUNS = 5
 
 const ALL_CATEGORIES = BUILTIN_FAMILY_METADATA.map(f => f.editorDiagramType)
 
+const SITE_TOC_PREFIX_BY_FAMILY_ID = {
+  architecture: 'Architecture: ',
+  state: 'State: ',
+  sequence: 'Sequence: ',
+  class: 'Class: ',
+  er: 'ER: ',
+  journey: 'Journey: ',
+  xychart: 'XY: ',
+  pie: 'Pie: ',
+  quadrant: 'Quadrant: ',
+  gantt: 'Gantt: ',
+} as const
+
 /** Count how many samples match a given category set (including Hero). */
 function countSamplesForCategories(cats: Set<string>): number {
   return samples.filter(s => cats.has(s.category ?? 'Other')).length
@@ -47,6 +60,37 @@ describe('HTML generator: default options', () => {
     // The page embeds inline SVG icons (e.g. GitHub logo, Contents button)
     expect(html).toContain('<svg')
     expect(html).toContain('</svg>')
+  }, 30_000)
+
+  it('gives every built-in family category an explicit gallery affordance', async () => {
+    const html = await generateHtml()
+
+    for (const family of BUILTIN_FAMILY_METADATA) {
+      const category = escapeHtml(family.editorDiagramType)
+      const filterStart = html.indexOf(`data-filter="${category}"`)
+      expect({ family: family.id, category, filterStart }).toEqual({ family: family.id, category, filterStart: expect.any(Number) })
+      expect(filterStart).toBeGreaterThanOrEqual(0)
+      const filterHtml = html.slice(filterStart, html.indexOf('</button>', filterStart))
+      expect({ family: family.id, category, usesFallback: filterHtml.includes('background:#71717a') })
+        .toEqual({ family: family.id, category, usesFallback: false })
+    }
+  }, 30_000)
+
+  it('strips duplicate family prefixes from generated table-of-contents titles', async () => {
+    const html = await generateHtml()
+
+    for (const family of BUILTIN_FAMILY_METADATA) {
+      const prefix = SITE_TOC_PREFIX_BY_FAMILY_ID[family.id as keyof typeof SITE_TOC_PREFIX_BY_FAMILY_ID]
+      if (!prefix) continue
+      const heading = `<h3>${escapeHtml(family.editorDiagramType)} (`
+      const sectionStart = html.indexOf(heading)
+      expect({ family: family.id, sectionStart }).toEqual({ family: family.id, sectionStart: expect.any(Number) })
+      expect(sectionStart).toBeGreaterThanOrEqual(0)
+      const sectionEnd = html.indexOf('</div>', sectionStart)
+      const tocSection = html.slice(sectionStart, sectionEnd)
+      expect({ family: family.id, duplicatePrefix: tocSection.includes(escapeHtml(prefix)) })
+        .toEqual({ family: family.id, duplicatePrefix: false })
+    }
   }, 30_000)
 })
 
