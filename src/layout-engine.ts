@@ -852,7 +852,7 @@ function elkToPositioned(
   // Symmetry pass: small equivalent fan-outs and duplicate labeled edges carry
   // visual meaning. Re-route them before certification and mark the accepted
   // routes as bundle-owned so the certifying straightener preserves the shape.
-  applySymmetricFanoutEmissions(nodes, edges, groups, graph, bundled)
+  applySymmetricFanoutEmissions(nodes, edges, groups, graph, bundled, style)
   applySymmetricParallelEdgeLanes(nodes, edges, groups, graph, bundled, style)
   collapseTinyBundledHitches(nodes, edges, bundled)
 
@@ -1292,12 +1292,52 @@ function longestSegmentMidpoint(points: Point[]): Point {
   return { x: (best[0].x + best[1].x) / 2, y: (best[0].y + best[1].y) / 2 }
 }
 
+function labelBoxAt(label: string, center: Point, style: LabelMetricsStyle): { x: number; y: number; width: number; height: number } {
+  const metrics = measureMultilineText(label, style.edgeLabelFontSize, style.edgeLabelFontWeight)
+  return {
+    x: center.x - (metrics.width + 16) / 2,
+    y: center.y - (metrics.height + 16) / 2,
+    width: metrics.width + 16,
+    height: metrics.height + 16,
+  }
+}
+
+function bundledLabelPosition(edge: PositionedEdge, points: Point[], nodeMap: Map<string, PositionedNode>, style: LabelMetricsStyle): Point {
+  if (!edge.label) return longestSegmentMidpoint(points)
+  const source = nodeMap.get(edge.source)
+  const target = nodeMap.get(edge.target)
+  if (!source || !target) return longestSegmentMidpoint(points)
+
+  const candidates: Array<{ point: Point; length: number; order: number }> = []
+  const slots = [0.5, 2 / 3, 1 / 3, 0.75, 0.25, 5 / 6, 1 / 6]
+  for (let i = 1; i < points.length; i++) {
+    const a = points[i - 1]!, b = points[i]!
+    const length = Math.hypot(b.x - a.x, b.y - a.y)
+    for (let order = 0; order < slots.length; order++) {
+      const t = slots[order]!
+      candidates.push({
+        point: { x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t },
+        length,
+        order,
+      })
+    }
+  }
+  candidates.sort((a, b) => b.length - a.length || a.order - b.order)
+
+  for (const candidate of candidates) {
+    const box = labelBoxAt(edge.label, candidate.point, style)
+    if (!rectsOverlap(box, source, 2) && !rectsOverlap(box, target, 2)) return candidate.point
+  }
+  return longestSegmentMidpoint(points)
+}
+
 function applySymmetricFanoutEmissions(
   nodes: PositionedNode[],
   edges: PositionedEdge[],
   groups: PositionedGroup[],
   graph: MermaidGraph,
   bundled: Set<PositionedEdge>,
+  style: LabelMetricsStyle,
 ): void {
   const nodeMap = new Map(nodes.map(n => [n.id, n]))
   const bySource = new Map<string, PositionedEdge[]>()
@@ -1398,7 +1438,7 @@ function applySymmetricFanoutEmissions(
     }
     for (const { edge, points } of proposed) {
       edge.points = points
-      if (edge.label) edge.labelPosition = longestSegmentMidpoint(points)
+      if (edge.label) edge.labelPosition = bundledLabelPosition(edge, points, nodeMap, style)
       edge.routeCertificate = undefined
       bundled.add(edge)
     }

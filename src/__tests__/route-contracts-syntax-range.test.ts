@@ -20,6 +20,8 @@ import fc from 'fast-check'
 import { layoutGraphSync } from '../layout-engine.ts'
 import { parseMermaid } from '../parser.ts'
 import { assessLayout, hardViolations } from '../layout-rubric.ts'
+import { labelRect, shapePorts } from '../route-contracts.ts'
+import { resolveRenderStyle } from '../styles.ts'
 import type { EdgeMarker, EdgeStyle, PositionedEdge } from '../types.ts'
 
 function layoutEdges(source: string): PositionedEdge[] {
@@ -49,6 +51,17 @@ function geometry(source: string): string {
 function zeroHardViolations(source: string): void {
   const graph = parseMermaid(source)
   expect(hardViolations(assessLayout(graph, layoutGraphSync(graph)))).toEqual([])
+}
+
+function rectsOverlap(
+  a: { x: number; y: number; w: number; h: number },
+  b: { x: number; y: number; w: number; h: number },
+  pad = 0,
+): boolean {
+  return a.x < b.x + b.w + pad &&
+    a.x + a.w + pad > b.x &&
+    a.y < b.y + b.h + pad &&
+    a.y + a.h + pad > b.y
 }
 
 const EDGE_VOCABULARY: ReadonlyArray<{
@@ -211,6 +224,79 @@ describe('syntax range — & multi-edge chains hit the same fan heuristics', () 
     expect(qp.points[0]!.x).toBeCloseTo(qr.points[0]!.x, 3)
     expect(qp.points[0]!.y).toBeLessThan(qr.points[0]!.y)
     zeroHardViolations('flowchart LR\n  Q{Decide} --> P[One] & R[Two]')
+  })
+
+  it('a styled TD decision fan-out keeps branch labels clear of the diamond tip', () => {
+    // Characterization from issue #42 plus the editor regression reported
+    // while tackling #38: the branch spread is good (SW/SE bundle anchors),
+    // but the label pill must not ride up into the decision diamond.
+    const source = `flowchart TD
+  subgraph product [Product Loop]
+    A[Capture request] --> B{Ready?}
+    B -->|yes| C[Ship]
+    B -.->|needs work| D[Refine]
+  end`
+    const options = {
+      style: {
+        text: { fontSize: 13, letterSpacing: 0.1 },
+        node: { fontSize: 15, fontWeight: 600, letterSpacing: -0.1, paddingX: 22, paddingY: 14, cornerRadius: 16, lineWidth: 1.5 },
+        edge: { fontSize: 12, fontWeight: 600, letterSpacing: 0.1, lineWidth: 2.25, bendRadius: 12 },
+        group: { fontSize: 12, fontWeight: 700, letterSpacing: 0.8, textTransform: 'uppercase' as const, padding: 24, paddingY: 18, cornerRadius: 18, borderColor: '#f97316', lineWidth: 1.5 },
+      },
+    }
+    const positioned = layoutGraphSync(parseMermaid(source), options)
+    const style = resolveRenderStyle(options)
+    const decision = positioned.nodes.find(n => n.id === 'B')!
+    const decisionSouth = shapePorts(decision).S.y
+    const yes = findEdge(positioned.edges, 'B', 'C')
+    const needsWork = findEdge(positioned.edges, 'B', 'D')
+    const yesLabel = labelRect(yes, style)!
+    const needsWorkLabel = labelRect(needsWork, style)!
+
+    expect(findEdge(positioned.edges, 'A', 'B').routeCertificate?.sourcePort).toBe('S')
+    expect(findEdge(positioned.edges, 'A', 'B').routeCertificate?.targetPort).toBe('N')
+    expect(yes.routeCertificate?.invariant).toBe('bundle')
+    expect(needsWork.routeCertificate?.invariant).toBe('bundle')
+    expect(yes.routeCertificate?.sourcePort).toBe('SW')
+    expect(needsWork.routeCertificate?.sourcePort).toBe('SE')
+    expect(yes.labelPosition?.x).toBe(yes.points[0]!.x)
+    expect(needsWork.labelPosition?.x).toBe(needsWork.points[0]!.x)
+    expect(rectsOverlap(yesLabel, needsWorkLabel, 0)).toBe(false)
+    expect(yesLabel.y).toBeGreaterThanOrEqual(decisionSouth + 2)
+    expect(needsWorkLabel.y).toBeGreaterThanOrEqual(decisionSouth + 2)
+    zeroHardViolations(source)
+  })
+
+  it('property: labeled decision fan-out labels stay off incident nodes across directions', () => {
+    fc.assert(
+      fc.property(
+        fc.constantFrom('TD', 'BT', 'LR', 'RL'),
+        fc.constantFrom('yes', 'no', 'ok', 'fix', 'ship', 'work'),
+        fc.constantFrom('retry', 'else', 'wait', 'redo', 'safe', 'fail'),
+        (dir, labelA, labelB) => {
+          const source = `flowchart ${dir}
+  Q{Ready?}
+  Q -->|${labelA}| A[Alpha]
+  Q -.->|${labelB}| B[Beta]`
+          const graph = parseMermaid(source)
+          const positioned = layoutGraphSync(graph)
+          const style = resolveRenderStyle({})
+          const nodes = new Map(positioned.nodes.map(n => [n.id, n]))
+
+          for (const edge of positioned.edges.filter(e => e.source === 'Q')) {
+            const rect = labelRect(edge, style)
+            expect(rect).not.toBeNull()
+            const sourceNode = nodes.get(edge.source)!
+            const targetNode = nodes.get(edge.target)!
+            expect(rectsOverlap(rect!, { x: sourceNode.x, y: sourceNode.y, w: sourceNode.width, h: sourceNode.height }, 2)).toBe(false)
+            expect(rectsOverlap(rect!, { x: targetNode.x, y: targetNode.y, w: targetNode.width, h: targetNode.height }, 2)).toBe(false)
+            expect(edge.labelPosition).toBeDefined()
+            expect(edge.routeCertificate).toBeDefined()
+          }
+        },
+      ),
+      { numRuns: 40 },
+    )
   })
 
   it('hard rubric metrics stay zero for a 3-target & fan-out in all directions', () => {

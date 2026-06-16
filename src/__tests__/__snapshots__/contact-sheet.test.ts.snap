@@ -444,7 +444,7 @@ exports[`contact sheet — pinned geometry (re-pin deliberately, review the shee
       "label": {
         "text": "a",
         "x": 93,
-        "y": 163,
+        "y": 177,
       },
       "path": [
         [
@@ -472,7 +472,7 @@ exports[`contact sheet — pinned geometry (re-pin deliberately, review the shee
       "label": {
         "text": "b",
         "x": 147,
-        "y": 163,
+        "y": 177,
       },
       "path": [
         [
@@ -1920,7 +1920,7 @@ exports[`contact sheet — pinned geometry (re-pin deliberately, review the shee
       "label": {
         "text": "yes",
         "x": 113,
-        "y": 296,
+        "y": 310,
       },
       "path": [
         [
@@ -1948,7 +1948,7 @@ exports[`contact sheet — pinned geometry (re-pin deliberately, review the shee
       "label": {
         "text": "needs work",
         "x": 169,
-        "y": 296,
+        "y": 310,
       },
       "path": [
         [
@@ -2038,7 +2038,7 @@ exports[`contact sheet — pinned geometry (re-pin deliberately, review the shee
       "label": {
         "text": "left",
         "x": 143,
-        "y": 169,
+        "y": 183,
       },
       "path": [
         [
@@ -2086,7 +2086,7 @@ exports[`contact sheet — pinned geometry (re-pin deliberately, review the shee
       "label": {
         "text": "right",
         "x": 202,
-        "y": 169,
+        "y": 183,
       },
       "path": [
         [
@@ -2981,7 +2981,7 @@ exports[`contact sheet — pinned geometry (re-pin deliberately, review the shee
       "label": {
         "text": "a",
         "x": 93,
-        "y": 163,
+        "y": 177,
       },
       "path": [
         [
@@ -3009,7 +3009,7 @@ exports[`contact sheet — pinned geometry (re-pin deliberately, review the shee
       "label": {
         "text": "b",
         "x": 147,
-        "y": 163,
+        "y": 177,
       },
       "path": [
         [
