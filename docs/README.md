@@ -42,6 +42,7 @@ This directory holds the long-form documentation. The root README is intentional
 | [`design/gantt-research.md`](./design/gantt-research.md) | Gantt literature review and commercial UX survey. |
 | [`design/journey.md`](./design/journey.md) | Journey diagram implementation notes. |
 | [`design/route-contracts.md`](./design/route-contracts.md) | Route contracts: edge classification, direct-lane proofs, certifying straightener (issue #25). |
+| [`design/flowchart-parser-conformance.md`](./design/flowchart-parser-conformance.md) | Flowchart syntax conformance catalogue and unsupported-syntax warning policy (issue #36). |
 | [`design/xychart.md`](./design/xychart.md) | XY chart implementation notes. |
 | [`project/design.md`](./project/design.md) | Historical/design notes. |
 | [`project/divergences.md`](./project/divergences.md) | Deliberate divergences and guardrails. |
