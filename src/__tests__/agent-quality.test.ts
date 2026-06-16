@@ -19,6 +19,30 @@ function loadCorpus(): CorpusEntry[] {
 
 const corpus = loadCorpus().filter(e => e.family === 'flowchart')
 
+const GENERATED_FLOWCHART_CORPUS = [
+  { nodeCount: 20, layers: 5, rows: 4 },
+  { nodeCount: 50, layers: 10, rows: 5 },
+  { nodeCount: 100, layers: 10, rows: 10 },
+] as const
+
+function generatedLayeredFlowchart({ nodeCount, layers, rows }: typeof GENERATED_FLOWCHART_CORPUS[number]): string {
+  if (layers * rows !== nodeCount) throw new Error(`invalid generated corpus dimensions for ${nodeCount}`)
+  const id = (layer: number, row: number) => `N${layer}_${row}`
+  const lines = ['flowchart LR']
+  for (let layer = 0; layer < layers; layer++) {
+    for (let row = 0; row < rows; row++) {
+      lines.push(`  ${id(layer, row)}[Node ${layer + 1}.${row + 1}]`)
+    }
+  }
+  for (let layer = 0; layer < layers - 1; layer++) {
+    for (let row = 0; row < rows; row++) {
+      lines.push(`  ${id(layer, row)} --> ${id(layer + 1, row)}`)
+      if ((layer + row) % 3 === 0) lines.push(`  ${id(layer, row)} -.-> ${id(layer + 1, (row + 1) % rows)}`)
+    }
+  }
+  return lines.join('\n')
+}
+
 describe('quality metrics — deterministic', () => {
   test('measureQuality returns finite numbers for any flowchart', () => {
     let measured = 0
@@ -71,6 +95,26 @@ describe('quality metrics — deterministic', () => {
     const m = measureQuality(layoutMermaid(p.value))
     expect(m.labelLegibility).toBe(1)
   })
+})
+
+describe('quality metrics — generated large flowchart corpora', () => {
+  for (const entry of GENERATED_FLOWCHART_CORPUS) {
+    test(`${entry.nodeCount} nodes keeps aspect and whitespace measurable`, () => {
+      const p = parseMermaid(generatedLayeredFlowchart(entry))
+      expect(p.ok).toBe(true)
+      if (!p.ok || p.value.kind !== 'flowchart') return
+
+      const layout = layoutMermaid(p.value)
+      const m = measureQuality(layout)
+      expect(m.nodeCount).toBe(entry.nodeCount)
+      expect(Number.isFinite(m.aspectRatio)).toBe(true)
+      expect(m.aspectRatio).toBeGreaterThan(0.1)
+      expect(m.aspectRatio).toBeLessThan(10)
+      expect(Number.isFinite(m.whitespaceBalance)).toBe(true)
+      expect(m.whitespaceBalance).toBeGreaterThan(0.005)
+      expect(m.whitespaceBalance).toBeLessThan(0.8)
+    })
+  }
 })
 
 describe('checkQuality — verdict', () => {

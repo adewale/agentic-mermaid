@@ -122,6 +122,20 @@ describe('getCharWidth', () => {
       expect(getCharWidth('🚀')).toBe(2.0)
       expect(getCharWidth('❤')).toBe(2.0)
     })
+
+    it('treats emoji/text presentation selectors as zero-width modifiers', () => {
+      expect(getCharWidth('\uFE0F')).toBe(0)
+      expect(getCharWidth('\uFE0E')).toBe(0)
+    })
+  })
+
+  describe('East Asian ambiguous-width symbols', () => {
+    it('keeps ambiguous-width symbols in the ordinary-width bucket', () => {
+      expect(getCharWidth('Ω')).toBe(1.0)
+      expect(getCharWidth('·')).toBe(1.0)
+      expect(getCharWidth('±')).toBe(1.0)
+      expect(getCharWidth('×')).toBe(1.0)
+    })
   })
 
   describe('edge cases', () => {
@@ -198,6 +212,20 @@ describe('measureTextWidth', () => {
     // "Hello中国" = H(1.2) + e(1.0) + l(0.4) + l(0.4) + o(1.0) + 中(2.0) + 国(2.0) = 8.0
     const width = measureTextWidth('Hello中国', fontSize, fontWeight)
     expect(width).toBeCloseTo(8.0 * fontSize * baseRatio + minPadding, 1)
+  })
+
+  it('does not double-count emoji presentation selectors', () => {
+    const textHeart = measureTextWidth('❤', fontSize, fontWeight)
+    const emojiHeart = measureTextWidth('❤️', fontSize, fontWeight)
+    expect(emojiHeart).toBeCloseTo(textHeart, 1)
+  })
+
+  it('distinguishes ambiguous-width symbols from fullwidth and emoji labels', () => {
+    const ambiguous = measureTextWidth('Ω·±×', fontSize, fontWeight)
+    const fullwidth = measureTextWidth('ＡＢ＋＝', fontSize, fontWeight)
+    const emoji = measureTextWidth('😀🚀💡🧪', fontSize, fontWeight)
+    expect(ambiguous).toBeLessThan(fullwidth)
+    expect(ambiguous).toBeLessThan(emoji)
   })
 
   it('heavier weights produce wider estimates', () => {

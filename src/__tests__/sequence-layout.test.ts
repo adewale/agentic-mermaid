@@ -6,8 +6,10 @@
  * to inspect Y coordinates, rather than checking SVG output.
  */
 import { describe, it, expect } from 'bun:test'
+import fc from 'fast-check'
 import { parseSequenceDiagram } from '../sequence/parser.ts'
 import { layoutSequenceDiagram } from '../sequence/layout.ts'
+import type { PositionedSequenceDiagram } from '../sequence/types.ts'
 
 /** Helper: parse and layout a sequence diagram from source lines */
 function layout(source: string) {
@@ -16,6 +18,66 @@ function layout(source: string) {
     .map(l => l.trim())
     .filter(l => l.length > 0 && !l.startsWith('%%'))
   return layoutSequenceDiagram(parseSequenceDiagram(lines))
+}
+
+interface Rect {
+  x: number
+  y: number
+  width: number
+  height: number
+}
+
+function overlaps(a: Rect, b: Rect): boolean {
+  return a.x < b.x + b.width && a.x + a.width > b.x && a.y < b.y + b.height && a.y + a.height > b.y
+}
+
+function actorRect(actor: PositionedSequenceDiagram['actors'][number]): Rect {
+  return { x: actor.x - actor.width / 2, y: actor.y, width: actor.width, height: actor.height }
+}
+
+function expectFiniteRect(rect: Rect): void {
+  expect(Number.isFinite(rect.x)).toBe(true)
+  expect(Number.isFinite(rect.y)).toBe(true)
+  expect(Number.isFinite(rect.width)).toBe(true)
+  expect(Number.isFinite(rect.height)).toBe(true)
+  expect(rect.width).toBeGreaterThan(0)
+  expect(rect.height).toBeGreaterThan(0)
+}
+
+const PROPERTY_ACTORS = ['A', 'B', 'C', 'D'] as const
+const NOTE_POSITIONS = ['left of', 'right of', 'over'] as const
+
+function generatedSequenceSource(input: {
+  actorCount: number
+  messageCount: number
+  noteMask: boolean[]
+  notePicks: number[]
+  selfMask: boolean[]
+}): string {
+  const actors = PROPERTY_ACTORS.slice(0, input.actorCount)
+  const activeActor = actors[1]!
+  const lines = [
+    'sequenceDiagram',
+    ...actors.map(a => `  participant ${a}`),
+    `  ${actors[0]}->>+${activeActor}: open`,
+    '  alt Primary',
+  ]
+  const dividerAfter = Math.max(1, Math.floor(input.messageCount / 2))
+  for (let i = 0; i < input.messageCount; i++) {
+    if (i === dividerAfter) lines.push('  else Fallback')
+    const from = actors[(i + 1) % actors.length]!
+    const to = input.selfMask[i] ? from : actors[(i + 2) % actors.length]!
+    const arrow = i % 2 === 0 ? '->>' : '-->>'
+    lines.push(`  ${from}${arrow}${to}: m${i}`)
+    if (input.noteMask[i]) {
+      const pos = NOTE_POSITIONS[input.notePicks[i]! % NOTE_POSITIONS.length]!
+      const noteActors = pos === 'over' && input.actorCount > 2 && i % 3 === 0 ? `${from},${to}` : from
+      lines.push(`  Note ${pos} ${noteActors}: note ${i}`)
+    }
+  }
+  lines.push('  end')
+  lines.push(`  ${activeActor}-->>-${actors[0]}: close`)
+  return lines.join('\n')
 }
 
 describe('sequence layout – block spacing', () => {
@@ -743,5 +805,70 @@ describe('sequence layout – note positioning', () => {
       expect(note.y).toBeGreaterThanOrEqual(0)
       expect(note.y + note.height).toBeLessThanOrEqual(result.height)
     }
+  })
+})
+
+describe('sequence layout – activation/note/block properties', () => {
+  it('generated activation, note, and block cases keep chrome clear of structural boxes', () => {
+    fc.assert(
+      fc.property(
+        fc.record({
+          actorCount: fc.integer({ min: 2, max: 4 }),
+          messageCount: fc.integer({ min: 3, max: 8 }),
+          noteMask: fc.array(fc.boolean(), { minLength: 8, maxLength: 8 }),
+          notePicks: fc.array(fc.nat(2), { minLength: 8, maxLength: 8 }),
+          selfMask: fc.array(fc.boolean(), { minLength: 8, maxLength: 8 }),
+        }),
+        input => {
+          const result = layout(generatedSequenceSource(input))
+          const actorBoxes = result.actors.map(actorRect)
+          const noteBoxes = result.notes.map(n => ({ x: n.x, y: n.y, width: n.width, height: n.height }))
+
+          for (let i = 1; i < result.messages.length; i++) {
+            expect(result.messages[i]!.y).toBeGreaterThan(result.messages[i - 1]!.y)
+          }
+
+          for (const note of noteBoxes) {
+            expectFiniteRect(note)
+            expect(note.x).toBeGreaterThanOrEqual(0)
+            expect(note.y).toBeGreaterThanOrEqual(0)
+            expect(note.x + note.width).toBeLessThanOrEqual(result.width)
+            expect(note.y + note.height).toBeLessThanOrEqual(result.height)
+            for (const actor of actorBoxes) expect(overlaps(note, actor)).toBe(false)
+          }
+          for (let i = 0; i < noteBoxes.length; i++) {
+            for (let j = i + 1; j < noteBoxes.length; j++) {
+              expect(overlaps(noteBoxes[i]!, noteBoxes[j]!)).toBe(false)
+            }
+          }
+
+          for (const activation of result.activations) {
+            const rect = { x: activation.x, y: activation.topY, width: activation.width, height: activation.bottomY - activation.topY }
+            expectFiniteRect(rect)
+            expect(activation.bottomY).toBeGreaterThanOrEqual(activation.topY)
+            expect(activation.topY).toBeGreaterThanOrEqual(Math.min(...result.lifelines.map(l => l.topY)))
+            expect(activation.bottomY).toBeLessThanOrEqual(result.height)
+            for (const actor of actorBoxes) expect(overlaps(rect, actor)).toBe(false)
+          }
+
+          for (const block of result.blocks) {
+            const rect = { x: block.x, y: block.y, width: block.width, height: block.height }
+            expectFiniteRect(rect)
+            for (const actor of actorBoxes) expect(overlaps(rect, actor)).toBe(false)
+            for (const divider of block.dividers) {
+              expect(divider.y).toBeGreaterThan(block.y)
+              expect(divider.y).toBeLessThan(block.y + block.height)
+              const previous = result.messages.filter(m => m.y < divider.y).at(-1)
+              const next = result.messages.find(m => m.y > divider.y)
+              expect(previous).toBeDefined()
+              expect(next).toBeDefined()
+              expect(previous!.y).toBeLessThan(divider.y)
+              expect(next!.y).toBeGreaterThan(divider.y)
+            }
+          }
+        },
+      ),
+      { numRuns: 60 },
+    )
   })
 })

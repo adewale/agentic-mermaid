@@ -16,10 +16,11 @@
 // ============================================================================
 
 import { describe, expect, it } from 'bun:test'
+import fc from 'fast-check'
 import { layoutGraphSync } from '../layout-engine.ts'
 import { parseMermaid } from '../parser.ts'
 import { assessLayout, hardViolations } from '../layout-rubric.ts'
-import type { PositionedEdge } from '../types.ts'
+import type { EdgeMarker, EdgeStyle, PositionedEdge } from '../types.ts'
 
 function layoutEdges(source: string): PositionedEdge[] {
   return layoutGraphSync(parseMermaid(source)).edges
@@ -49,6 +50,54 @@ function zeroHardViolations(source: string): void {
   const graph = parseMermaid(source)
   expect(hardViolations(assessLayout(graph, layoutGraphSync(graph)))).toEqual([])
 }
+
+const EDGE_VOCABULARY: ReadonlyArray<{
+  name: string
+  op: string
+  style: EdgeStyle
+  startMarker?: EdgeMarker
+  endMarker?: EdgeMarker
+  allowsPipeLabel?: boolean
+}> = [
+  { name: 'solid arrow', op: '-->', style: 'solid', endMarker: 'arrow', allowsPipeLabel: true },
+  { name: 'dotted arrow', op: '-.->', style: 'dotted', endMarker: 'arrow', allowsPipeLabel: true },
+  { name: 'thick arrow', op: '==>', style: 'thick', endMarker: 'arrow', allowsPipeLabel: true },
+  { name: 'solid bidirectional', op: '<-->', style: 'solid', startMarker: 'arrow', endMarker: 'arrow', allowsPipeLabel: true },
+  { name: 'dotted bidirectional', op: '<-.->', style: 'dotted', startMarker: 'arrow', endMarker: 'arrow', allowsPipeLabel: true },
+  { name: 'thick bidirectional', op: '<==>', style: 'thick', startMarker: 'arrow', endMarker: 'arrow', allowsPipeLabel: true },
+  { name: 'circle endpoint', op: '--o', style: 'solid', endMarker: 'circle' },
+  { name: 'cross endpoint', op: '--x', style: 'solid', endMarker: 'cross' },
+  { name: 'circle-to-circle marker', op: 'o--o', style: 'solid', startMarker: 'circle', endMarker: 'circle' },
+  { name: 'cross-to-cross marker', op: 'x--x', style: 'solid', startMarker: 'cross', endMarker: 'cross' },
+]
+
+describe('property: issue #37 edge vocabulary reaches route contracts uniformly', () => {
+  it('preserves style/markers and keeps hard route metrics clean across directions', () => {
+    fc.assert(
+      fc.property(
+        fc.constantFrom(...EDGE_VOCABULARY),
+        fc.constantFrom('LR', 'TD', 'RL', 'BT'),
+        fc.boolean(),
+        (form, dir, labeled) => {
+          const label = labeled && form.allowsPipeLabel ? '|go|' : ''
+          const source = `flowchart ${dir}\n  A[One]\n  B[Two]\n  A ${form.op}${label} B`
+          const graph = parseMermaid(source)
+          const positioned = layoutGraphSync(graph)
+          const edge = positioned.edges[0]!
+
+          expect(edge.style).toBe(form.style)
+          expect(edge.startMarker).toBe(form.startMarker)
+          expect(edge.endMarker).toBe(form.endMarker)
+          expect(edge.hasArrowStart).toBe(form.startMarker !== undefined)
+          expect(edge.hasArrowEnd).toBe(form.endMarker !== undefined)
+          expect(edge.routeCertificate).toBeDefined()
+          expect(hardViolations(assessLayout(graph, positioned))).toEqual([])
+        },
+      ),
+      { numRuns: 80 },
+    )
+  })
+})
 
 describe('syntax range — bidirectional <--> edges through the route contracts', () => {
   it('A <--> B is ONE primary-forward edge (not a reciprocal pair) and straightens port to port', () => {

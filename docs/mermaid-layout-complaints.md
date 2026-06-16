@@ -16,7 +16,10 @@ Companions:
   [issue #26](https://github.com/adewale/beautiful-mermaid/issues/26) — the
   principled routing/contract specs that several entries below point into.
 - [PR #24](https://github.com/adewale/beautiful-mermaid/pull/24) — the Gantt
-  spec, the model for chart-family layout contracts.
+  spec and implementation, the model for chart-family layout contracts.
+- [Issue #41](https://github.com/adewale/beautiful-mermaid/issues/41) — the
+  diagram-family citizenship matrix that now keeps supported families honest
+  about parser, serializer, renderer, verifier, and test obligations.
 
 Method: complaint evidence was gathered in June 2026 from the
 `mermaid-js/mermaid` tracker (reaction counts "R" are as of that date), Hacker
@@ -84,10 +87,9 @@ unreadably small once the diagram is fit to screen.
   (dagre, fixed spacing constants).
 - Fixture/test: `whitespaceBalance` (5–55% band) and `aspectRatio` (0.2–5.0
   band) in `src/agent/quality.ts` flag both failure directions;
-  `eval/layout-compare/` reports deltas corpus-wide. No fixture targets very
-  large graphs yet — a generated-N-node corpus with band assertions is a
-  candidate (see "high-value next heuristics" in
-  [`issue-derived-test-cases.md`](./issue-derived-test-cases.md)).
+  `eval/layout-compare/` reports deltas corpus-wide. Generated 20/50/100-node
+  flowchart corpora now assert finite aspect ratios and non-degenerate
+  whitespace in `src/__tests__/agent-quality.test.ts`.
 - Status here: **partial — detection only.** Nothing in the backlog improves
   large-graph compaction, and the source-order priority can *worsen* width:
   `docs/quality.md` documents the Auth Flow trade, and
@@ -165,13 +167,16 @@ trial-and-error reordering of source lines.
   `src/__tests__/layout-quality-heuristics.test.ts`, deterministic FIFO A*
   tie-breaking in the ASCII pathfinder
   (`src/__tests__/ascii-pathfinder-determinism.test.ts`).
-- Status here: **partial today, specced in full.** #25 defines route classes
+- Status here: **partial today, with the route-contract core landed and the
+  broader program still specced.** #25 defines route classes
   (`primary-forward`/`feedback`/fan trunks/…), the straight-primary and
   hitch invariants (§11.1–11.2), the certifying simplifier (§12), and the
   hard rule "no node-coordinate mutation after route extraction unless all
-  incident routes are rerouted or recertified" (§9). Acceptance criteria
-  (§19) require the MFA fixture to render straight primary-forward edges in
-  SVG *and* ASCII when lanes are clear.
+  incident routes are rerouted or recertified" (§9). The current tests now
+  include route-certificate geometry and property coverage across dotted,
+  thick, bidirectional, marker, and labeled edge forms. Remaining work lives
+  in the still-open route/port issues (#32, #35, #38 and the #26 umbrella),
+  plus cross-renderer adoption.
 
 ### C5. Edge labels overlap edges, nodes, and each other
 
@@ -226,7 +231,10 @@ also makes diagrams churn across edits.
   backwards — the mermaid#5227 "backwards arrows" class. Edit stability is
   the determinism guarantee plus typed mutation: a one-op change re-lays-out
   as a pure function of the new source
-  (`src/__tests__/agent-determinism.test.ts`).
+  (`src/__tests__/agent-determinism.test.ts`). The same file now pins
+  edit-stability for small source mutations: label edits, inserted nodes,
+  appended leaves, style-only changes, and feedback-edge additions must
+  preserve the left-to-right order of the unchanged primary chain.
 - Status here: **partial.** Landed: deterministic source-order layout (the
   practical answer to #815/#6527). Not offered: an explicit same-rank
   constraint (#3723's literal ask) — that is C1's policy decision again.
@@ -284,7 +292,10 @@ at layout time, and no width budget for CJK/long words.
 - Status here: **landed**, with an honest gap: the 7px/char SVG heuristic is
   approximate (`docs/quality.md`), and the shared text-measurement contract
   that would unify SVG/ASCII/quality measurement (CJK, emoji, ambiguous
-  width) is specced as #26 workstream 8.
+  width) is specced as #26 workstream 8. Regression coverage now includes
+  emoji-presentation selectors and East Asian ambiguous-width symbols, so
+  common Unicode labels cannot silently drift between SVG metrics and
+  terminal-width assumptions.
 
 ### C9. Stuck on dagre; ELK bolted on as an escape hatch
 
@@ -368,11 +379,14 @@ titles, notes colliding with lifelines.
   R3 (no spacing overrides).
 - Fixture/test: layout geometry tests exist
   (`src/__tests__/sequence-layout.test.ts`, `ascii-sequence-blocks.test.ts`)
-  and the sequence `RenderedLayout` adapter feeds the generic metrics. The
-  family-specific invariant set — lifeline x-order, message y-order,
-  activation span containment, note/block containment — is #25 §14.2 and
-  #26 workstream 11, not yet implemented as validators.
-- Status here: **partial today, specced.**
+  and the sequence `RenderedLayout` adapter feeds the generic metrics.
+  Sequence property coverage now checks activation spans, note stacking and
+  bounds, and block/divider containment/non-overlap geometry over generated
+  activation/note/block combinations. The broader productized verifier set
+  — lifeline x-order, message y-order, activation span containment, and
+  note/block containment as user-facing warnings — remains #25 §14.2 and
+  #26 workstream 11.
+- Status here: **partial, with first family-specific properties landed.**
 
 ### C13. Chart families: hard-coded geometry breaks on real data
 
@@ -389,14 +403,14 @@ handling.
   draw time — the exact anti-pattern #26's guiding principle names).
 - Fixture/test: pie and quadrant landed source-level with geometry tests
   (PR #22; quadrant point placement verified against the upstream Mermaid
-  reference). Gantt is unsupported today; PR #24 specifies it the principled
-  way — a pure, clock-free schedule resolver *before* layout, family
-  validators (deterministic task intervals, milestone zero-width markers,
-  non-overlapping compact rows) designed against precisely the
-  mermaid#1301 class. C4, radar, and mindmap are not supported at all.
-- Status here: **partial** (pie/quadrant landed; gantt specced; C4/radar/
-  mindmap absent — see [`comparison.md`](./comparison.md) for the 11-vs-~25
-  family trade).
+  reference). Gantt is now implemented from PR #24's principled model — a
+  pure, clock-free schedule resolver *before* layout, family validators
+  (deterministic task intervals, milestone zero-width markers,
+  non-overlapping compact rows) designed against precisely the mermaid#1301
+  class. C4, radar, and mindmap are not supported at all.
+- Status here: **partial** (pie/quadrant/gantt landed; C4/radar/mindmap
+  absent — see [`comparison.md`](./comparison.md) for the current
+  family-coverage trade).
 
 ---
 
@@ -679,7 +693,7 @@ intent is invented.
 | R2 greedy grid routing | WS6 ASCII/Unicode as first-class projections of route intent |
 | R3 no control surface | WS14 analysis outputs (explain, don't invent syntax); #25 certificates |
 | R4 rectangular/port-less model | WS3 semantic ports and shape-aware anchors |
-| R5 renderer-first semantics | WS5 Gantt resolver model; WS7 class/ER contracts; WS10 region tree; WS13 preservation ladder |
+| R5 renderer-first semantics | WS5 Gantt resolver model (landed); WS7 class/ER contracts; WS10 region tree; WS13 preservation ladder |
 | Unreviewable visual change (meta) | WS12 reproducible before/after evidence |
 | Generic metrics miss failures (meta, C4 worked example) | WS11 family-specific validators |
 
@@ -694,14 +708,14 @@ intent is invented.
 | C3 | Subgraphs | mermaid#2509 (189R) | **landed** | `subgraph-direction.test.ts`; PRs #17/#21/#22 |
 | C4 | Erratic routing | mermaid#6476, #5601 | **partial**; fix **specced** | #25 §11–12; MFA worked example above |
 | C5 | Edge-label overlap | mermaid#2131, #7492 | **partial** | inline ELK labels; `labelEdgeProximity`; #25 §11.4 |
-| C6 | Order control / edit stability | mermaid#3723 (86R), #815 (45R) | **partial** | model-order ELK opts; `agent-auth-flow.test.ts` |
+| C6 | Order control / edit stability | mermaid#3723 (86R), #815 (45R) | **partial** | model-order ELK opts; `agent-auth-flow.test.ts`; edit-stability tests |
 | C7 | Default aesthetics | HN 30339032 | **landed** (upstream + fork) | theming; role styles; contrast tests |
 | C8 | Text clipping | mermaid#2688 (24R) | **landed** | zero-DOM text; `LABEL_OVERFLOW`; CJK tests; WS8 specced |
 | C9 | dagre stagnation | Mermaid docs' own ELK advice | **landed** structurally | `layout-engine.ts`; `elk-instance.ts`; #25 §10 |
 | C10 | Self-loops | mermaid#6336 (31R) | **partial** | clearance heuristics; #25 §8.1 specced |
 | C11 | Version/renderer instability | mermaid#5813 (28R) | **landed** | determinism suite; `eval/layout-compare/`; goldens |
-| C12 | Sequence alignment | mermaid#1765 (28R) | **partial**; validators **specced** | #25 §14.2; #26 WS11 |
-| C13 | Chart-family geometry | mermaid#1301 (23R) | **partial** | PR #24 (gantt spec); pie/quadrant geometry tests |
+| C12 | Sequence alignment | mermaid#1765 (28R) | **partial**; first properties landed | #25 §14.2; #26 WS11; `sequence-layout.test.ts` |
+| C13 | Chart-family geometry | mermaid#1301 (23R) | **partial** | PR #24 (gantt); pie/quadrant/gantt geometry tests |
 
 ---
 
