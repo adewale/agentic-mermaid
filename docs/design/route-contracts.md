@@ -619,10 +619,12 @@ defect class found by a counterexample, now pinned:
   joins a port with a 45° segment; such segments are replaced with an
   axis-aligned elbow continuing the previous segment's axis.
 - **ELK crash degradation ladder**: the bundled GWT build of ELK throws
-  internal exceptions on rare dense multigraphs (one trigger pre-existing,
-  one via feedbackEdges). `layoutGraphSync` retries through progressively
-  plainer option sets; the route pass repairs whatever the survivor
-  produces. Crash-freedom is part of the renderer's contract.
+  internal exceptions on rare dense multigraphs (issue #34 pins a
+  3-node/9-edge cyclic trigger: tier 0 throws `Invalid hitboxes for
+  scanline constraint calculation`, tier 1 succeeds with feedback routing
+  disabled). `layoutGraphSync` retries through progressively plainer option
+  sets; the route pass repairs whatever the survivor produces.
+  Crash-freedom is part of the renderer's contract.
 
 ## 7. Validation: the ROUTE_* tripwires (issue #25 Phase 1, complete)
 

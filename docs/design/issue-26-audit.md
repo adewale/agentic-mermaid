@@ -65,22 +65,21 @@ documented; "Test" = where directly tested. Flags note anything lacking either.
 | 10 | **Port-lane alignment** (`alignPortLanes`) + gates (lane clear, bent sibling edges, swept-corridor proof, no group members) + freezes (aligned endpoints frozen) + proofs | §6.2.2 | alignment `it.each` over 4 directions; "includes diamonds"; "feedback out-edge does not veto"; contact sheet K/Q; `lean-shapes.test.ts` PORT_EXACT promotion; property oracles | — |
 | 11 | **Outer feedback** (`elk.layered.feedbackEdges`) + **loop tightening** (cut the forward-side excursion via the channel-facing port) | §6 "Feedback routing" | "labeled feedback routes around through the outer channel"; "feedback retry edges certify as outer-channel"; "TD cycle" channel-lane test; loop exits exact S vertex / enters S midpoint tests; contact sheet R | — |
 | 12 | **Bundling contract** (trunk proved clear of non-endpoint nodes; blocked member falls out; junction re-derived) | §6 "Bundle contract" | "bundle contract — trunks never pass through nodes" block; NEW: unlabeled `&` fan-out certifies `bundle` from the vertex port | — |
-| 13 | **Occlusion-safe layer alignment** (`alignLayerNodes` refuses snaps onto routed corridors) | §6.3 | **indirect only**: rubric hard metric `edgeThroughNode = 0` over the battery + property oracles | **FLAG: no direct unit test** isolating the refusal branch; killable mutants likely survive in `alignLayerNodes` (outside the route-contracts mutation lane) |
+| 13 | **Occlusion-safe layer alignment** (`alignLayerNodes` refuses snaps onto routed corridors) | §6.3 | `heuristic-coverage.test.ts` isolates the refusal branch with a foreign edge corridor that would be occluded by a snap, plus a control where the snap fires | — |
 | 14 | **Through-node Z-repair** (occlusion removal outranks never-increase-crossings) | §6.3 | rubric `edgeThroughNode` gates + "repairs never increase edge crossings" block (the converse rule) | — |
 | 15 | **Never-increase-crossings rule** | §6 | "a back-lane that would cut through a fan-out trunk stays a certified loop" | — |
 | 16 | **On-lane label slots** (midpoint → 1/3 → 2/3; labels only ON their own route) | §6 | `findLabelSlot` unit block; `labelOffRoute` hard metric | — |
 | 17 | **Container repair** (border-to-border under SEPARATE hierarchy) | §6 "Container repair", §11.5 | container blocks incl. axis-selection harvest + perimeter tolerance | reversed-order gaps noted as open in `docs/mutation-testing.md` |
-| 18 | **Cross-hierarchy orthogonalizer** (`orthogonalizeEdgePoints`, SEPARATE-mode only) | §2 claims table | **indirect only**: `diagonalSegments = 0` hard metric over battery/properties; subgraph-direction tests | **FLAG: no direct unit test** |
+| 18 | **Cross-hierarchy orthogonalizer** (`orthogonalizeEdgePoints`, SEPARATE-mode only) | §2 claims table | `heuristic-coverage.test.ts` directly rewrites a bare diagonal into axis-aligned elbows and asserts the identity short-circuit for already-orthogonal paths; subgraph-direction integration keeps `diagonalSegments = 0` | — |
 | 19 | **Residual diagonal orthogonalization** (45° feedback joins → axis-aligned elbow) | §6.3 | indirect via `diagonalSegments = 0` properties (this is the counterexample fix itself) | acceptable: property-pinned |
-| 20 | **ELK crash degradation ladder** (`layoutGraphSync` retries plainer option sets, `layout-engine.ts:1959–1998`) | §6.3 | **none direct** — no test pins the ladder order or that a degraded survivor is repaired; crash-freedom property tests cover parsers, not dense-multigraph ELK crashes | **FLAG: documented but untested.** Known gap — needs a pinned dense-multigraph fixture that triggers the GWT crash |
+| 20 | **ELK crash degradation ladder** (`layoutGraphSync` retries plainer option sets, `layout-engine.ts:1959–1998`) | §6.3 | `heuristic-coverage.test.ts` pins issue #34's 3-node/9-edge dense cyclic multigraph: tier-0 ELK throws `Invalid hitboxes for scanline constraint calculation`, tier 1 (`feedbackEdges=false`) succeeds, and `layoutGraphSync` returns finite geometry | — |
 | 21 | **ASCII longest-path layering** + **widest-segment label choice** + FIFO tie-breaking | §3 principle 5 | ASCII goldens + `ascii-fanout-trunk-labeled.test.ts`, `ascii-pathfinder-units.test.ts`, ASCII mutation lane | — |
 | 22 | **ROUTE_\* tripwires** (six zero-noise post-certification validators) | §7 | tripwire + boundary-harvest blocks; "validation never mutates the layout" | — |
 | 23 | **PORT_EXACT catalog / slanted family ports** (slant midpoints, flag point) | §6.2.2 | `lean-shapes.test.ts`; contact sheet T–V | — |
 
-Summary: 20/23 heuristics have both documentation and direct tests. The three
-flagged (occlusion-safe alignment #13, cross-hierarchy orthogonalizer #18,
-degradation ladder #20) are all documented and indirectly gated by the rubric
-hard metrics; #20 is the only one with no failing-mode coverage at all.
+Summary: 23/23 heuristics now have both documentation and direct tests. The
+last historical gap, degradation ladder #20, is pinned by issue #34's
+crash→fallback fixture rather than broad crash-freedom stress tests alone.
 
 ---
 

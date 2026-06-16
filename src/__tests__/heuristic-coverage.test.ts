@@ -21,7 +21,9 @@ import {
   alignLayerNodes,
   orthogonalizeEdgePoints,
   layoutGraphSync,
+  convertToElkFormat,
 } from '../layout-engine.ts'
+import { elkLayoutSync } from '../elk-instance.ts'
 import { parseMermaid } from '../parser.ts'
 import { assessLayout } from '../layout-rubric.ts'
 import type { PositionedNode, PositionedEdge, Point } from '../types.ts'
@@ -217,27 +219,26 @@ describe('cross-hierarchy orthogonalizer — orthogonalizeEdgePoints', () => {
 // rethrows if *every* tier fails. The route-contract pass then repairs
 // whatever the surviving tier produced.
 //
-// SEARCH NOTE (testing-best-practices: do not fake a trigger): the commit that
-// introduced the ladder (93df1ad) documents two real triggers — "one
-// pre-existing, one via feedbackEdges" — but did not check in a fixture. I
-// searched for a deterministic first-tier crash via the public pipeline:
-//   - dense complete digraphs K_n with both directions, n = 7..16
-//   - dense multigraphs n×n with 2..5 parallel duplicate edges per pair
-//   - large simple cycles (n = 20, 50) and self-loop-laden graphs
-// None reproduced a *first-tier* GWT throw on the bundled ELK in this
-// environment (they all succeed on tier 0). So rather than fabricate a crash,
-// the tests below assert the two properties the ladder must guarantee:
-//   (a) the ladder is structurally reachable and well-formed (every tier still
-//       lays a dense diagram out to a valid, non-empty, finite layout), and
-//   (b) `layoutGraphSync` never throws on these dense/cyclic stress inputs and
-//       returns finite positive geometry for every node.
-// If a first-tier trigger is later found, add it here and assert the same
-// post-conditions — the degraded survivor must still be a valid layout.
+// PINNED TRIGGER (issue #34): this 3-node/9-edge dense cyclic multigraph is a
+// deterministic bundled-ELK failure for tier 0 (`elk.layered.feedbackEdges:
+// true`): `java.lang.IllegalStateException: Invalid hitboxes for scanline
+// constraint calculation.` Turning feedbackEdges off (tier 1) succeeds, which
+// pins the actual crash → fallback → valid-layout transition instead of merely
+// asserting broad crash-freedom on stress inputs.
 // ============================================================================
+const ELK_TIER0_HITBOX_CRASH = `flowchart TD
+  N0 --> N2
+  N1 --> N0
+  N2 --> N1
+  N1 --> N2
+  N1 --> N2
+  N2 --> N0
+  N0 --> N1
+  N0 --> N1
+  N0 --> N1`
+
 describe('ELK degradation ladder — layoutGraphSync crash-freedom', () => {
-  const assertValidLayout = (src: string) => {
-    const graph = parseMermaid(src)
-    const positioned = layoutGraphSync(graph)
+  const assertFinitePositionedGraph = (positioned: ReturnType<typeof layoutGraphSync>) => {
     expect(positioned.nodes.length).toBeGreaterThan(0)
     for (const n of positioned.nodes) {
       expect(Number.isFinite(n.x)).toBe(true)
@@ -252,6 +253,33 @@ describe('ELK degradation ladder — layoutGraphSync crash-freedom', () => {
       }
     }
   }
+
+  const assertValidLayout = (src: string) => {
+    const graph = parseMermaid(src)
+    assertFinitePositionedGraph(layoutGraphSync(graph))
+  }
+
+  it('issue #34: tier-0 ELK hitbox crash succeeds via the feedbackEdges-off fallback', () => {
+    const graph = parseMermaid(ELK_TIER0_HITBOX_CRASH)
+
+    // The committed fixture proves the real bundled-ELK crash at the default
+    // option set. This is the edge the older broad stress tests could not pin.
+    expect(() => elkLayoutSync(convertToElkFormat(graph))).toThrow(/Invalid hitboxes|IllegalStateException/)
+
+    // The first degraded option set is sufficient: disabling ELK's feedback
+    // edge router makes the same graph lay out cleanly.
+    const fallbackAttempt = convertToElkFormat(graph)
+    fallbackAttempt.layoutOptions = {
+      ...fallbackAttempt.layoutOptions,
+      'elk.layered.feedbackEdges': 'false',
+    }
+    expect(() => elkLayoutSync(fallbackAttempt)).not.toThrow()
+
+    const positioned = layoutGraphSync(graph)
+    assertFinitePositionedGraph(positioned)
+    expect(positioned.nodes.map(n => n.id).sort()).toEqual(['N0', 'N1', 'N2'])
+    expect(positioned.edges.length).toBe(9)
+  })
 
   it('a dense bidirectional complete digraph (K8 both ways) lays out without throwing', () => {
     // 8 nodes, every ordered pair connected => 56 edges with many feedback
