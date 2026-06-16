@@ -49,6 +49,7 @@ import { renderMermaidSVG as _svg } from '../index.ts'
 export { verifyNoExternalRefs } from '../index.ts'
 import { renderMermaidASCII as _ascii } from '../ascii/index.ts'
 import { layoutGraphSync } from '../layout-engine.ts'
+import { parseMermaid as parseFlowchartLegacy } from '../parser.ts'
 import { stateBodyToGraph } from './state-body.ts'
 import { serializeMermaid as _serialize } from './serialize.ts'
 import type { ValidDiagram, RenderedLayout } from './types.ts'
@@ -70,6 +71,13 @@ export function layoutMermaid(d: ValidDiagram, opts: { debug?: boolean } = {}): 
   // so layout reuses the flowchart geometric path.
   if (d.body.kind === 'state') {
     return positionedToRenderedLayout(layoutGraphSync(stateBodyToGraph(d.body), {}), d.kind, opts)
+  }
+  if (d.body.kind === 'opaque' && d.kind === 'flowchart') {
+    try {
+      return positionedToRenderedLayout(layoutGraphSync(parseFlowchartLegacy(d.canonicalSource), {}), d.kind, opts)
+    } catch {
+      return emptyRenderedLayout(d.kind)
+    }
   }
   if (d.body.kind === 'sequence') return layoutSequenceToRendered(d as ValidDiagram & { body: SequenceBody })
   if (d.body.kind === 'timeline') return layoutTimelineToRendered(d as ValidDiagram & { body: TimelineBody })

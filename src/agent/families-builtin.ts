@@ -85,11 +85,18 @@ function extractFlowchartLabels(source: string): ExtractedLabel[] {
 
 // Flowchart owns the legacy MermaidGraph body: the diagram kind selects the
 // plugin, which binds the flowchart header.
+function containsFlowchartNodeMetadata(source: string): boolean {
+  return /(?:^|[\s;])[\w-]+@\s*\{/m.test(source)
+}
+
 function flowchartFamilyHooks(): Pick<FamilyPlugin, 'parse' | 'buildSourceMap' | 'serialize' | 'mutate'> {
   return {
-    parse: (_lines, _opaqueSource, _meta, canonicalSource) => parseFlowchartBody(canonicalSource),
+    parse: (_lines, opaqueSource, _meta, canonicalSource) => {
+      if (containsFlowchartNodeMetadata(canonicalSource)) return ok<DiagramBody>({ kind: 'opaque', family: 'flowchart', source: opaqueSource })
+      return parseFlowchartBody(canonicalSource)
+    },
     buildSourceMap: (body, canonicalSource) =>
-      buildFlowchartSourceMap(body as FlowchartBody, canonicalSource),
+      body.kind === 'flowchart' ? buildFlowchartSourceMap(body as FlowchartBody, canonicalSource) : { nodes: new Map(), edges: new Map(), groups: new Map() },
     serialize: body => {
       if (body.kind !== 'flowchart') throw new Error(`flowchart serializer received body kind ${body.kind}`)
       return renderFlowchart(body.graph, 'flowchart')
