@@ -64,6 +64,34 @@ function rectsOverlap(
     a.y + a.h + pad > b.y
 }
 
+function readableLabelGap(style: { edgeLabelFontSize: number }): number {
+  return Math.max(8, style.edgeLabelFontSize * 0.75)
+}
+
+function pointToSegmentDistance(
+  point: { x: number; y: number },
+  a: { x: number; y: number },
+  b: { x: number; y: number },
+): number {
+  const dx = b.x - a.x
+  const dy = b.y - a.y
+  const lenSq = dx * dx + dy * dy
+  if (lenSq === 0) return Math.hypot(point.x - a.x, point.y - a.y)
+
+  const t = Math.max(0, Math.min(1, ((point.x - a.x) * dx + (point.y - a.y) * dy) / lenSq))
+  const projX = a.x + t * dx
+  const projY = a.y + t * dy
+  return Math.hypot(point.x - projX, point.y - projY)
+}
+
+function distanceToPolyline(point: { x: number; y: number }, points: Array<{ x: number; y: number }>): number {
+  let minDistance = Infinity
+  for (let i = 1; i < points.length; i++) {
+    minDistance = Math.min(minDistance, pointToSegmentDistance(point, points[i - 1]!, points[i]!))
+  }
+  return minDistance
+}
+
 const EDGE_VOCABULARY: ReadonlyArray<{
   name: string
   op: string
@@ -259,11 +287,36 @@ describe('syntax range — & multi-edge chains hit the same fan heuristics', () 
     expect(needsWork.routeCertificate?.invariant).toBe('bundle')
     expect(yes.routeCertificate?.sourcePort).toBe('SW')
     expect(needsWork.routeCertificate?.sourcePort).toBe('SE')
-    expect(yes.labelPosition?.x).toBe(yes.points[0]!.x)
-    expect(needsWork.labelPosition?.x).toBe(needsWork.points[0]!.x)
-    expect(rectsOverlap(yesLabel, needsWorkLabel, 0)).toBe(false)
+    expect(distanceToPolyline(yes.labelPosition!, yes.points)).toBeLessThanOrEqual(0.001)
+    expect(distanceToPolyline(needsWork.labelPosition!, needsWork.points)).toBeLessThanOrEqual(0.001)
+    expect(rectsOverlap(yesLabel, needsWorkLabel, readableLabelGap(style))).toBe(false)
     expect(yesLabel.y).toBeGreaterThanOrEqual(decisionSouth + 2)
     expect(needsWorkLabel.y).toBeGreaterThanOrEqual(decisionSouth + 2)
+    zeroHardViolations(source)
+  })
+
+  it('a three-way decision fan-out allocates sibling labels with readable gaps', () => {
+    const source = `flowchart TD
+  Q{Choose}
+  Q -->|alpha| A[Alpha]
+  Q -->|beta path| B[Beta]
+  Q -.->|gamma| C[Gamma]`
+    const positioned = layoutGraphSync(parseMermaid(source))
+    const style = resolveRenderStyle({})
+    const branchEdges = positioned.edges.filter(e => e.source === 'Q')
+    const labelRects = branchEdges.map(edge => {
+      expect(edge.routeCertificate?.invariant).toBe('bundle')
+      expect(distanceToPolyline(edge.labelPosition!, edge.points)).toBeLessThanOrEqual(0.001)
+      return labelRect(edge, style)!
+    })
+
+    for (let i = 0; i < labelRects.length; i++) {
+      for (let j = i + 1; j < labelRects.length; j++) {
+        expect(rectsOverlap(labelRects[i]!, labelRects[j]!, readableLabelGap(style))).toBe(false)
+      }
+    }
+    const labelYs = branchEdges.map(edge => edge.labelPosition!.y)
+    expect(Math.max(...labelYs) - Math.min(...labelYs)).toBeLessThanOrEqual(0.001)
     zeroHardViolations(source)
   })
 
@@ -282,17 +335,21 @@ describe('syntax range — & multi-edge chains hit the same fan heuristics', () 
           const positioned = layoutGraphSync(graph)
           const style = resolveRenderStyle({})
           const nodes = new Map(positioned.nodes.map(n => [n.id, n]))
+          const labelRects: Array<{ x: number; y: number; w: number; h: number }> = []
 
           for (const edge of positioned.edges.filter(e => e.source === 'Q')) {
             const rect = labelRect(edge, style)
             expect(rect).not.toBeNull()
+            labelRects.push(rect!)
             const sourceNode = nodes.get(edge.source)!
             const targetNode = nodes.get(edge.target)!
             expect(rectsOverlap(rect!, { x: sourceNode.x, y: sourceNode.y, w: sourceNode.width, h: sourceNode.height }, 2)).toBe(false)
             expect(rectsOverlap(rect!, { x: targetNode.x, y: targetNode.y, w: targetNode.width, h: targetNode.height }, 2)).toBe(false)
+            expect(distanceToPolyline(edge.labelPosition!, edge.points)).toBeLessThanOrEqual(0.001)
             expect(edge.labelPosition).toBeDefined()
             expect(edge.routeCertificate).toBeDefined()
           }
+          expect(rectsOverlap(labelRects[0]!, labelRects[1]!, readableLabelGap(style))).toBe(false)
         },
       ),
       { numRuns: 40 },

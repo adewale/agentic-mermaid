@@ -1302,33 +1302,106 @@ function labelBoxAt(label: string, center: Point, style: LabelMetricsStyle): { x
   }
 }
 
-function bundledLabelPosition(edge: PositionedEdge, points: Point[], nodeMap: Map<string, PositionedNode>, style: LabelMetricsStyle): Point {
-  if (!edge.label) return longestSegmentMidpoint(points)
-  const source = nodeMap.get(edge.source)
-  const target = nodeMap.get(edge.target)
-  if (!source || !target) return longestSegmentMidpoint(points)
+interface BundledLabelCandidate {
+  point: Point
+  box: { x: number; y: number; width: number; height: number }
+  rank: number
+  pathDistance: number
+}
 
-  const candidates: Array<{ point: Point; length: number; order: number }> = []
+function readableLabelGap(style: LabelMetricsStyle): number {
+  return Math.max(8, style.edgeLabelFontSize * 0.75)
+}
+
+function bundledLabelCandidates(edge: PositionedEdge, points: Point[], nodes: PositionedNode[], style: LabelMetricsStyle): BundledLabelCandidate[] {
+  if (!edge.label) return []
+  const raw: Array<BundledLabelCandidate & { length: number; order: number }> = []
   const slots = [0.5, 2 / 3, 1 / 3, 0.75, 0.25, 5 / 6, 1 / 6]
+  let segmentStartDistance = 0
   for (let i = 1; i < points.length; i++) {
     const a = points[i - 1]!, b = points[i]!
     const length = Math.hypot(b.x - a.x, b.y - a.y)
     for (let order = 0; order < slots.length; order++) {
       const t = slots[order]!
-      candidates.push({
-        point: { x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t },
+      const point = { x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t }
+      const box = labelBoxAt(edge.label, point, style)
+      if (nodes.some(node => rectsOverlap(box, node, 2))) continue
+      raw.push({
+        point,
+        box,
         length,
         order,
+        rank: 0,
+        pathDistance: segmentStartDistance + length * t,
       })
     }
+    segmentStartDistance += length
   }
-  candidates.sort((a, b) => b.length - a.length || a.order - b.order)
+  raw.sort((a, b) => b.length - a.length || a.order - b.order || a.pathDistance - b.pathDistance)
+  return raw.map((candidate, rank) => ({ ...candidate, rank }))
+}
 
-  for (const candidate of candidates) {
-    const box = labelBoxAt(edge.label, candidate.point, style)
-    if (!rectsOverlap(box, source, 2) && !rectsOverlap(box, target, 2)) return candidate.point
+function bestBundledLabelPosition(edge: PositionedEdge, points: Point[], nodes: PositionedNode[], style: LabelMetricsStyle): Point {
+  return bundledLabelCandidates(edge, points, nodes, style)[0]?.point ?? longestSegmentMidpoint(points)
+}
+
+function bundledLabelAssignmentCost(chosen: BundledLabelCandidate[], direction: Direction): number {
+  const f = layoutFlow(direction)
+  const mainValues = chosen.map(candidate => candidate.point[f.main])
+  const mainSpread = Math.max(...mainValues) - Math.min(...mainValues)
+  const totalDistance = chosen.reduce((sum, candidate) => sum + candidate.pathDistance, 0)
+  const totalRank = chosen.reduce((sum, candidate) => sum + candidate.rank, 0)
+  // Prefer aligned sibling labels first, then the existing midpoint-biased slot order.
+  return mainSpread * 4 + totalRank + totalDistance * 0.02
+}
+
+function assignBundledFanoutLabels(
+  proposed: Array<{ edge: PositionedEdge; points: Point[] }>,
+  nodes: PositionedNode[],
+  direction: Direction,
+  style: LabelMetricsStyle,
+): void {
+  const labeled = proposed.filter(({ edge }) => edge.label)
+  if (labeled.length === 0) return
+  if (labeled.length === 1) {
+    const only = labeled[0]!
+    only.edge.labelPosition = bestBundledLabelPosition(only.edge, only.points, nodes, style)
+    return
   }
-  return longestSegmentMidpoint(points)
+
+  const candidateSets = labeled.map(({ edge, points }) => bundledLabelCandidates(edge, points, nodes, style))
+  if (candidateSets.some(candidates => candidates.length === 0)) {
+    for (const { edge, points } of labeled) edge.labelPosition = bestBundledLabelPosition(edge, points, nodes, style)
+    return
+  }
+
+  const gap = readableLabelGap(style)
+  let best: BundledLabelCandidate[] | undefined
+  let bestCost = Number.POSITIVE_INFINITY
+  const chosen: BundledLabelCandidate[] = []
+  const search = (index: number) => {
+    if (index === candidateSets.length) {
+      const cost = bundledLabelAssignmentCost(chosen, direction)
+      if (cost < bestCost) {
+        bestCost = cost
+        best = chosen.slice()
+      }
+      return
+    }
+    for (const candidate of candidateSets[index]!) {
+      if (chosen.some(other => rectsOverlap(candidate.box, other.box, gap))) continue
+      chosen.push(candidate)
+      search(index + 1)
+      chosen.pop()
+    }
+  }
+  search(0)
+
+  if (!best) {
+    for (const { edge, points } of labeled) edge.labelPosition = bestBundledLabelPosition(edge, points, nodes, style)
+    return
+  }
+  for (let i = 0; i < labeled.length; i++) labeled[i]!.edge.labelPosition = best[i]!.point
 }
 
 function applySymmetricFanoutEmissions(
@@ -1438,10 +1511,10 @@ function applySymmetricFanoutEmissions(
     }
     for (const { edge, points } of proposed) {
       edge.points = points
-      if (edge.label) edge.labelPosition = bundledLabelPosition(edge, points, nodeMap, style)
       edge.routeCertificate = undefined
       bundled.add(edge)
     }
+    assignBundledFanoutLabels(proposed, nodes, graph.direction, style)
   }
 }
 
