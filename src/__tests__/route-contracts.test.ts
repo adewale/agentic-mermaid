@@ -412,14 +412,44 @@ describe('bundle contract — trunks never pass through nodes', () => {
     expect((skip.routeCertificate?.directLaneBlockedBy ?? []).map(b => b.id)).toContain('X')
   })
 
-  it('a clean unlabeled fan-out still shares a single trunk', () => {
+  it('a clean small unlabeled fan-out uses symmetric emissions, not an accidental shared point', () => {
     const positioned = layoutGraphSync(parseMermaid('flowchart LR\n  A --> B\n  A --> C'))
     const b = findEdge(positioned.edges, 'A', 'B')
     const c = findEdge(positioned.edges, 'A', 'C')
     expect(b.routeCertificate?.invariant).toBe('bundle')
     expect(c.routeCertificate?.invariant).toBe('bundle')
-    expect(b.points[0]).toEqual(c.points[0]) // shared exit point
+    expect(JSON.stringify(b.points[0])).not.toEqual(JSON.stringify(c.points[0]))
+    const a = positioned.nodes.find(n => n.id === 'A')!
+    const center = a.y + a.height / 2
+    expect(Math.abs(Math.abs(b.points[0]!.y - center) - Math.abs(c.points[0]!.y - center))).toBeLessThanOrEqual(0.75)
     expect(crossesRect(positioned.edges, positioned.nodes)).toEqual([])
+  })
+
+  it('a high-degree rectangle fan-out keeps one clean trunk instead of forming a box', () => {
+    const positioned = layoutGraphSync(parseMermaid('flowchart TD\n  A --> B\n  A --> C\n  A --> D\n  A --> E'))
+    const starts = positioned.edges.map(e => JSON.stringify(e.points[0]))
+    const trunks = positioned.edges.map(e => JSON.stringify(e.points[1]))
+    expect(new Set(starts).size).toBe(1)
+    expect(new Set(trunks).size).toBe(1)
+    expect(crossesRect(positioned.edges, positioned.nodes)).toEqual([])
+  })
+
+  it('clear bundled fan-out branches do not keep tiny visual hitches', () => {
+    const positioned = layoutGraphSync(parseMermaid(`flowchart LR
+  A[main] --> B[develop]
+  B --> C[feature/auth]
+  B --> D[feature/ui]
+  C --> E{PR Review}
+  D --> E
+  E -->|approved| B
+  B --> F[release/1.0]
+  F --> G{Tests?}
+  G -->|pass| A
+  G -->|fail| F`))
+    const branch = findEdge(positioned.edges, 'B', 'D')
+    expect(branch.routeCertificate?.invariant).toBe('bundle')
+    expect(branch.points.length).toBe(2)
+    expect(Math.abs(branch.points[0]!.y - branch.points[1]!.y)).toBeLessThanOrEqual(0.75)
   })
 })
 
@@ -1297,19 +1327,43 @@ describe('port ranking — sharp bits win when a side carries one line (issue #2
     expect(Math.abs((b.y + b.height / 2) - (c.y + c.height / 2))).toBeLessThanOrEqual(0.5)
   })
 
-  it('two lines out of one diamond side spread on the facet (no line hogs the vertex)', () => {
+  it('two lines out of one diamond side spread symmetrically (no line hogs the vertex)', () => {
     for (const dir of ['LR', 'TD'] as const) {
       const positioned = layoutGraphSync(parseMermaid(`flowchart ${dir}
   Q{Decide} -- a --> P[One]
   Q -- b --> R[Two]`))
       const a = findEdge(positioned.edges, 'Q', 'P')
       const b = findEdge(positioned.edges, 'Q', 'R')
-      // Distinct exits, both straight; the shared side is spread, not stacked
-      // on the vertex.
+      // Distinct exits; the shared side is spread, not stacked on the vertex.
       expect(JSON.stringify(a.points[0])).not.toBe(JSON.stringify(b.points[0]))
-      expect(a.points.length).toBe(2)
-      expect(b.points.length).toBe(2)
+      expect(a.points.length).toBeLessThanOrEqual(4)
+      expect(b.points.length).toBeLessThanOrEqual(4)
+      const cross = dir === 'LR' ? 'y' as const : 'x' as const
+      const q = positioned.nodes.find(n => n.id === 'Q')!
+      const center = q[cross] + (cross === 'y' ? q.height : q.width) / 2
+      expect(Math.abs(Math.abs(a.points[0]![cross] - center) - Math.abs(b.points[0]![cross] - center))).toBeLessThanOrEqual(0.75)
     }
+  })
+
+  it('issue #42: grouped TD decision branches expose named lower diamond facet ports', () => {
+    const graph = parseMermaid(`flowchart TD
+  subgraph product [Product Loop]
+    A[Capture request] --> B{Ready?}
+    B -->|yes| C[Ship]
+    B -.->|needs work| D[Refine]
+  end`)
+    const positioned = layoutGraphSync(graph)
+    const yes = findEdge(positioned.edges, 'B', 'C', 'yes')
+    const retry = findEdge(positioned.edges, 'B', 'D', 'needs work')
+    expect(findEdge(positioned.edges, 'A', 'B').routeCertificate?.sourcePort).toBe('S')
+    expect(findEdge(positioned.edges, 'A', 'B').routeCertificate?.targetPort).toBe('N')
+    expect(yes.routeCertificate?.sourcePort).toBe('SW')
+    expect(retry.routeCertificate?.sourcePort).toBe('SE')
+    expect(yes.routeCertificate?.targetPort).toBe('N')
+    expect(retry.routeCertificate?.targetPort).toBe('N')
+    expect(yes.routeCertificate?.invariant).toBe('bundle')
+    expect(retry.routeCertificate?.invariant).toBe('bundle')
+    expect(auditRouteContracts(positioned, graph)).toEqual([])
   })
 
   it('bi-directional pairs render as TWO EQUAL parallel lines, symmetric about the centerline', () => {

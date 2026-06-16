@@ -14,6 +14,22 @@ import { assessLayout } from '../layout-rubric.ts'
 import { parseMermaid } from '../parser.ts'
 import { verifyMermaid } from '../agent/verify.ts'
 
+function snapshotSafeLabel(label: string | undefined): string | undefined {
+  return label?.replace(/\n/g, '\\n')
+}
+
+function snapshotSafeLayout(source: string) {
+  const layout = verifyMermaid(source).layout
+  return {
+    ...layout,
+    nodes: layout.nodes.map(node => ({ ...node, label: snapshotSafeLabel(node.label) })),
+    edges: layout.edges.map(edge => ({
+      ...edge,
+      label: edge.label ? { ...edge.label, text: snapshotSafeLabel(edge.label.text) } : edge.label,
+    })),
+  }
+}
+
 describe('contact sheet — hard rubric metrics stay zero', () => {
   for (const sc of contactSheetScenarios()) {
     it(`${sc.letter} — ${sc.title}`, () => {
@@ -27,7 +43,7 @@ describe('contact sheet — hard rubric metrics stay zero', () => {
 describe('contact sheet — pinned geometry (re-pin deliberately, review the sheet)', () => {
   for (const sc of contactSheetScenarios()) {
     it(`${sc.letter} — ${sc.title}`, () => {
-      expect(verifyMermaid(sc.source).layout).toMatchSnapshot()
+      expect(snapshotSafeLayout(sc.source)).toMatchSnapshot()
     })
   }
 })

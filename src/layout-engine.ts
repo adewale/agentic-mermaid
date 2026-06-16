@@ -816,6 +816,11 @@ function elkToPositioned(
   // edge bundling and clipping recalculate edge paths from corrected positions.
   alignLayerNodes(nodes, edges, graph.direction)
 
+  // Equivalent peers should look equivalent. Equalize peer box dimensions and
+  // pack layers before port-lane alignment so downstream centering/routing sees
+  // the symmetric geometry instead of incidental text-size differences.
+  equalizePeerNodeDimensions(nodes, edges, groups, graph)
+
   // Port-lane alignment (Rüegg et al. GD'15: straightness THROUGH ports, not
   // through arbitrary attachment points): when a straight edge floats off
   // both midpoint ports because ELK's balanced placement averaged competing
@@ -843,6 +848,13 @@ function elkToPositioned(
       edge.points = clipEdgeToShape(edge.points, targetNode, false)
     }
   }
+
+  // Symmetry pass: small equivalent fan-outs and duplicate labeled edges carry
+  // visual meaning. Re-route them before certification and mark the accepted
+  // routes as bundle-owned so the certifying straightener preserves the shape.
+  applySymmetricFanoutEmissions(nodes, edges, groups, graph, bundled)
+  applySymmetricParallelEdgeLanes(nodes, edges, groups, graph, bundled, style)
+  collapseTinyBundledHitches(nodes, edges, bundled)
 
   // Route contracts (docs/design/route-contracts.md): simplify every polyline,
   // straighten primary-forward routes whose direct lane proves clear, and
@@ -989,6 +1001,510 @@ function calculatePathMidpoint(points: Point[]): Point {
   }
 
   return points[points.length - 1]!
+}
+
+// ============================================================================
+// Symmetry floor post-processing
+// ============================================================================
+
+function layoutFlow(direction: Direction): {
+  isHorizontal: boolean
+  main: 'x' | 'y'
+  cross: 'x' | 'y'
+  sign: 1 | -1
+  sourceSide: 'N' | 'E' | 'S' | 'W'
+  targetSide: 'N' | 'E' | 'S' | 'W'
+} {
+  if (direction === 'LR') return { isHorizontal: true, main: 'x', cross: 'y', sign: 1, sourceSide: 'E', targetSide: 'W' }
+  if (direction === 'RL') return { isHorizontal: true, main: 'x', cross: 'y', sign: -1, sourceSide: 'W', targetSide: 'E' }
+  if (direction === 'BT') return { isHorizontal: false, main: 'y', cross: 'x', sign: -1, sourceSide: 'N', targetSide: 'S' }
+  return { isHorizontal: false, main: 'y', cross: 'x', sign: 1, sourceSide: 'S', targetSide: 'N' }
+}
+
+function positionedNodeCenter(node: PositionedNode): Point {
+  return { x: node.x + node.width / 2, y: node.y + node.height / 2 }
+}
+
+function nodeMainStart(node: PositionedNode, direction: Direction): number {
+  const f = layoutFlow(direction)
+  return node[f.main]
+}
+
+function nodeCrossStart(node: PositionedNode, direction: Direction): number {
+  const f = layoutFlow(direction)
+  return node[f.cross]
+}
+
+function nodeCrossSize(node: PositionedNode, direction: Direction): number {
+  return layoutFlow(direction).isHorizontal ? node.height : node.width
+}
+
+function nodeMainSize(node: PositionedNode, direction: Direction): number {
+  return layoutFlow(direction).isHorizontal ? node.width : node.height
+}
+
+function nodeCrossCenter(node: PositionedNode, direction: Direction): number {
+  return nodeCrossStart(node, direction) + nodeCrossSize(node, direction) / 2
+}
+
+function nodeMainCenter(node: PositionedNode, direction: Direction): number {
+  return nodeMainStart(node, direction) + nodeMainSize(node, direction) / 2
+}
+
+function rectsOverlap(a: { x: number; y: number; width: number; height: number }, b: { x: number; y: number; width: number; height: number }, pad = 0): boolean {
+  return a.x < b.x + b.width + pad && a.x + a.width + pad > b.x && a.y < b.y + b.height + pad && a.y + a.height + pad > b.y
+}
+
+function positionedEdgeForwardish(edge: PositionedEdge, nodeMap: Map<string, PositionedNode>, direction: Direction): boolean {
+  if (edge.source === edge.target) return false
+  const source = nodeMap.get(edge.source)
+  const target = nodeMap.get(edge.target)
+  if (!source || !target) return false
+  const f = layoutFlow(direction)
+  const s = positionedNodeCenter(source)
+  const t = positionedNodeCenter(target)
+  return ((f.isHorizontal ? t.x - s.x : t.y - s.y) * f.sign) > 8
+}
+
+function sameFlowLayer(group: PositionedNode[], direction: Direction, tolerance = 18): boolean {
+  if (group.length < 2) return false
+  const values = group.map(n => nodeMainStart(n, direction))
+  return Math.max(...values) - Math.min(...values) <= tolerance
+}
+
+function logicalGraphReaches(graph: MermaidGraph, from: string, to: string): boolean {
+  const outgoing = new Map<string, string[]>()
+  for (const edge of graph.edges) {
+    if (!outgoing.has(edge.source)) outgoing.set(edge.source, [])
+    outgoing.get(edge.source)!.push(edge.target)
+  }
+  const seen = new Set<string>()
+  const stack = [from]
+  while (stack.length > 0) {
+    const id = stack.pop()!
+    if (id === to) return true
+    if (seen.has(id)) continue
+    seen.add(id)
+    for (const next of outgoing.get(id) ?? []) stack.push(next)
+  }
+  return false
+}
+
+function packFlowLayerCrossAxis(nodes: PositionedNode[], direction: Direction): void {
+  const f = layoutFlow(direction)
+  const layers: PositionedNode[][] = []
+  const tolerance = 18
+  const ordered = [...nodes].sort((a, b) => nodeMainStart(a, direction) - nodeMainStart(b, direction) || nodeCrossStart(a, direction) - nodeCrossStart(b, direction))
+  for (const node of ordered) {
+    const main = nodeMainStart(node, direction)
+    let layer = layers.find(existing => Math.abs(nodeMainStart(existing[0]!, direction) - main) <= tolerance)
+    if (!layer) { layer = []; layers.push(layer) }
+    layer.push(node)
+  }
+
+  const gap = 24
+  for (const layer of layers) {
+    const byCross = [...layer].sort((a, b) => nodeCrossStart(a, direction) - nodeCrossStart(b, direction))
+    let cursor = nodeCrossStart(byCross[0]!, direction)
+    for (const node of byCross) {
+      const start = nodeCrossStart(node, direction)
+      if (start < cursor) {
+        const delta = cursor - start
+        if (f.isHorizontal) node.y += delta
+        else node.x += delta
+      }
+      cursor = nodeCrossStart(node, direction) + nodeCrossSize(node, direction) + gap
+    }
+  }
+}
+
+function nodeInsideGroups(node: PositionedNode, groups: PositionedGroup[]): boolean {
+  const visit = (items: PositionedGroup[]): boolean => items.some(group =>
+    (node.x >= group.x - 0.5 && node.y >= group.y - 0.5 &&
+      node.x + node.width <= group.x + group.width + 0.5 &&
+      node.y + node.height <= group.y + group.height + 0.5) || visit(group.children))
+  return visit(groups)
+}
+
+function equalizePeerNodeDimensions(nodes: PositionedNode[], edges: PositionedEdge[], groups: PositionedGroup[], graph: MermaidGraph): void {
+  const nodeMap = new Map(nodes.map(n => [n.id, n]))
+  const incoming = new Map<string, PositionedEdge[]>()
+  const outgoing = new Map<string, PositionedEdge[]>()
+  for (const edge of edges) {
+    if (!positionedEdgeForwardish(edge, nodeMap, graph.direction)) continue
+    if (!incoming.has(edge.target)) incoming.set(edge.target, [])
+    incoming.get(edge.target)!.push(edge)
+    if (!outgoing.has(edge.source)) outgoing.set(edge.source, [])
+    outgoing.get(edge.source)!.push(edge)
+  }
+
+  const peerGroups: PositionedNode[][] = []
+  const addGroup = (group: PositionedNode[]) => {
+    if (group.length < 2 || group.length > 5) return
+    if (!group.every(n => n.shape === 'rectangle')) return
+    if (group.some(n => nodeInsideGroups(n, groups))) return
+    if (!sameFlowLayer(group, graph.direction)) return
+    const key = group.map(n => n.id).sort().join('\0')
+    if (peerGroups.some(g => g.map(n => n.id).sort().join('\0') === key)) return
+    peerGroups.push(group)
+  }
+
+  for (const candidate of incoming.values()) {
+    const targetId = candidate[0]?.target
+    const sources = candidate.map(e => nodeMap.get(e.source)!).filter(Boolean)
+    if (!targetId || !sources.every(source => edges.every(e => e.source !== source.id || e.target === targetId))) continue
+    addGroup(sources)
+  }
+
+  for (const candidate of outgoing.values()) {
+    const sourceId = candidate[0]?.source
+    const targets = candidate.map(e => nodeMap.get(e.target)!).filter(Boolean)
+    if (!sourceId || !targets.every(target => edges.every(e => e.target !== target.id || e.source === sourceId) && edges.every(e => e.source !== target.id))) continue
+    let peer = true
+    for (let i = 0; i < targets.length; i++) for (let j = 0; j < targets.length; j++) {
+      if (i !== j && logicalGraphReaches(graph, targets[i]!.id, targets[j]!.id)) peer = false
+    }
+    if (peer) addGroup(targets)
+  }
+
+  let changed = false
+  const f = layoutFlow(graph.direction)
+  for (const group of peerGroups) {
+    const maxWidth = Math.max(...group.map(n => n.width))
+    const maxHeight = Math.max(...group.map(n => n.height))
+    if (group.every(n => Math.abs(n.width - maxWidth) < 0.5 && Math.abs(n.height - maxHeight) < 0.5)) continue
+    const ordered = [...group].sort((a, b) => nodeCrossStart(a, graph.direction) - nodeCrossStart(b, graph.direction))
+    let cursor = Math.min(...ordered.map(n => nodeCrossStart(n, graph.direction)))
+    const mainStart = Math.min(...ordered.map(n => nodeMainStart(n, graph.direction)))
+    for (const node of ordered) {
+      if (f.isHorizontal) {
+        node.x = mainStart
+        node.y = cursor
+      } else {
+        node.x = cursor
+        node.y = mainStart
+      }
+      node.width = maxWidth
+      node.height = maxHeight
+      cursor += (f.isHorizontal ? maxHeight : maxWidth) + 24
+      changed = true
+    }
+  }
+  if (changed) packFlowLayerCrossAxis(nodes, graph.direction)
+}
+
+function connectionPort(node: PositionedNode, side: 'N' | 'E' | 'S' | 'W' | DiamondFacet): Point {
+  if (node.shape === 'diamond' && (side === 'NE' || side === 'SE' || side === 'SW' || side === 'NW')) return diamondFacetPorts(node)[side]
+  return shapePorts(node)[side as 'N' | 'E' | 'S' | 'W']
+}
+
+function sourceEmissionPort(source: PositionedNode, direction: Direction, index: number, count: number): Point {
+  if (source.shape === 'diamond') {
+    const portSets: Partial<Record<Direction, Array<'N' | 'E' | 'S' | 'W' | DiamondFacet>>> = count === 2
+      ? { LR: ['NE', 'SE'], RL: ['NW', 'SW'], BT: ['NW', 'NE'], TD: ['SW', 'SE'], TB: ['SW', 'SE'] }
+      : count === 3
+        ? { LR: ['NE', 'E', 'SE'], RL: ['NW', 'W', 'SW'], BT: ['NW', 'N', 'NE'], TD: ['SW', 'S', 'SE'], TB: ['SW', 'S', 'SE'] }
+        : {}
+    const port = portSets[direction]?.[index]
+    if (port) return connectionPort(source, port)
+  }
+  const f = layoutFlow(direction)
+  const t = (index + 1) / (count + 1)
+  if (f.isHorizontal) return { x: f.sourceSide === 'E' ? source.x + source.width : source.x, y: source.y + source.height * t }
+  return { x: source.x + source.width * t, y: f.sourceSide === 'S' ? source.y + source.height : source.y }
+}
+
+function targetFlowPort(target: PositionedNode, direction: Direction): Point {
+  return shapePorts(target)[layoutFlow(direction).targetSide]
+}
+
+function symmetricOffsets(count: number, spacing: number): number[] {
+  return Array.from({ length: count }, (_, i) => (i - (count - 1) / 2) * spacing)
+}
+
+function doglegBetween(source: Point, target: Point, direction: Direction, elbow: number): Point[] {
+  const f = layoutFlow(direction)
+  return f.isHorizontal
+    ? simplifyPolyline([source, { x: elbow, y: source.y }, { x: elbow, y: target.y }, target])
+    : simplifyPolyline([source, { x: source.x, y: elbow }, { x: target.x, y: elbow }, target])
+}
+
+function segmentClearOfNodes(a: Point, b: Point, nodes: PositionedNode[], exclude: ReadonlySet<string>, clearance = 1): boolean {
+  const x1 = Math.min(a.x, b.x), x2 = Math.max(a.x, b.x)
+  const y1 = Math.min(a.y, b.y), y2 = Math.max(a.y, b.y)
+  for (const node of nodes) {
+    if (exclude.has(node.id)) continue
+    const nx1 = node.x - clearance, nx2 = node.x + node.width + clearance
+    const ny1 = node.y - clearance, ny2 = node.y + node.height + clearance
+    if (Math.abs(a.x - b.x) < 0.01) {
+      if (a.x >= nx1 && a.x <= nx2 && y1 < ny2 && y2 > ny1) return false
+    } else if (Math.abs(a.y - b.y) < 0.01) {
+      if (a.y >= ny1 && a.y <= ny2 && x1 < nx2 && x2 > nx1) return false
+    }
+  }
+  return true
+}
+
+function routeClearOfNodes(points: Point[], nodes: PositionedNode[], exclude: ReadonlySet<string>): boolean {
+  for (let i = 1; i < points.length; i++) {
+    if (!segmentClearOfNodes(points[i - 1]!, points[i]!, nodes, exclude)) return false
+  }
+  return true
+}
+
+function collapseTinyBundledHitches(nodes: PositionedNode[], edges: PositionedEdge[], bundled: Set<PositionedEdge>): void {
+  const nodeMap = new Map(nodes.map(n => [n.id, n]))
+  for (const edge of edges) {
+    if (!bundled.has(edge) || edge.label || edge.points.length !== 4) continue
+    const [a, b, c, d] = edge.points
+    if (!a || !b || !c || !d) continue
+    const target = nodeMap.get(edge.target)
+    if (!target || target.shape !== 'rectangle') continue
+    const exclude = new Set([edge.source, edge.target])
+    if (Math.abs(a.y - b.y) < 0.01 && Math.abs(b.x - c.x) < 0.01 && Math.abs(c.y - d.y) < 0.01 && Math.abs(b.y - c.y) <= 6) {
+      const end = { x: d.x, y: a.y }
+      const onTargetSide = Math.abs(d.x - target.x) < 0.01 || Math.abs(d.x - (target.x + target.width)) < 0.01
+      if (onTargetSide && end.y >= target.y - 0.5 && end.y <= target.y + target.height + 0.5 && routeClearOfNodes([a, end], nodes, exclude)) {
+        edge.points = [a, end]
+        edge.routeCertificate = undefined
+      }
+      continue
+    }
+    if (Math.abs(a.x - b.x) < 0.01 && Math.abs(b.y - c.y) < 0.01 && Math.abs(c.x - d.x) < 0.01 && Math.abs(b.x - c.x) <= 6) {
+      const end = { x: a.x, y: d.y }
+      const onTargetSide = Math.abs(d.y - target.y) < 0.01 || Math.abs(d.y - (target.y + target.height)) < 0.01
+      if (onTargetSide && end.x >= target.x - 0.5 && end.x <= target.x + target.width + 0.5 && routeClearOfNodes([a, end], nodes, exclude)) {
+        edge.points = [a, end]
+        edge.routeCertificate = undefined
+      }
+    }
+  }
+}
+
+function longestSegmentMidpoint(points: Point[]): Point {
+  let best: [Point, Point] = [points[0]!, points[points.length - 1]!]
+  let bestLength = -1
+  for (let i = 1; i < points.length; i++) {
+    const a = points[i - 1]!, b = points[i]!
+    const length = Math.hypot(b.x - a.x, b.y - a.y)
+    if (length > bestLength) { bestLength = length; best = [a, b] }
+  }
+  return { x: (best[0].x + best[1].x) / 2, y: (best[0].y + best[1].y) / 2 }
+}
+
+function applySymmetricFanoutEmissions(
+  nodes: PositionedNode[],
+  edges: PositionedEdge[],
+  groups: PositionedGroup[],
+  graph: MermaidGraph,
+  bundled: Set<PositionedEdge>,
+): void {
+  const nodeMap = new Map(nodes.map(n => [n.id, n]))
+  const bySource = new Map<string, PositionedEdge[]>()
+  for (const edge of edges) {
+    if (!positionedEdgeForwardish(edge, nodeMap, graph.direction)) continue
+    if (!bySource.has(edge.source)) bySource.set(edge.source, [])
+    bySource.get(edge.source)!.push(edge)
+  }
+  const f = layoutFlow(graph.direction)
+  for (const [sourceId, raw] of bySource) {
+    if (raw.length < 2 || raw.length > 3) continue
+    const source = nodeMap.get(sourceId)
+    if (!source || (source.shape !== 'rectangle' && source.shape !== 'diamond')) continue
+    const sourceInGroup = nodeInsideGroups(source, groups)
+    if (source.shape !== 'diamond' && sourceInGroup) continue
+    const sorted = [...raw].sort((a, b) => nodeCrossCenter(nodeMap.get(a.target)!, graph.direction) - nodeCrossCenter(nodeMap.get(b.target)!, graph.direction))
+    const targets = sorted.map(e => nodeMap.get(e.target)!).filter(Boolean)
+    if (targets.length !== sorted.length) continue
+    if (!targets.every(t => t.shape === 'rectangle' && (source.shape === 'diamond' || !nodeInsideGroups(t, groups)))) continue
+    if (!sameFlowLayer(targets, graph.direction, 28)) continue
+    if (!targets.every(t => edges.every(e => e.source !== t.id && (e.target !== t.id || e.source === source.id)))) continue
+    let peer = true
+    for (let i = 0; i < targets.length; i++) for (let j = 0; j < targets.length; j++) {
+      if (i !== j && logicalGraphReaches(graph, targets[i]!.id, targets[j]!.id)) peer = false
+    }
+    if (!peer) continue
+
+    const oldTargets = targets.map(t => ({ t, x: t.x, y: t.y, width: t.width, height: t.height }))
+    const maxWidth = Math.max(...targets.map(t => t.width))
+    const maxHeight = Math.max(...targets.map(t => t.height))
+    const axis = nodeCrossCenter(source, graph.direction)
+    const rank = Math.min(...targets.map(t => nodeMainStart(t, graph.direction)))
+    const spacing = (f.isHorizontal ? maxHeight : maxWidth) + 28
+    const offsets = symmetricOffsets(targets.length, spacing)
+    const sourceAlignedCross = source.shape === 'diamond'
+      ? sorted.map((_, i) => sourceEmissionPort(source, graph.direction, i, sorted.length)[f.cross])
+      : undefined
+    const placeTargets = (crossCenters: number[]) => {
+      for (let i = 0; i < targets.length; i++) {
+        const target = targets[i]!
+        target.width = maxWidth
+        target.height = maxHeight
+        if (f.isHorizontal) {
+          target.x = rank
+          target.y = crossCenters[i]! - maxHeight / 2
+        } else {
+          target.x = crossCenters[i]! - maxWidth / 2
+          target.y = rank
+        }
+      }
+    }
+    placeTargets(sourceAlignedCross ?? offsets.map(offset => axis + offset))
+    const targetIds = new Set(targets.map(t => t.id))
+    const placementClear = (): boolean => {
+      for (let i = 0; i < targets.length; i++) {
+        const target = targets[i]!
+        if (target.x < 0 || target.y < 0) return false
+        for (let j = i + 1; j < targets.length; j++) {
+          if (rectsOverlap(target, targets[j]!, 8)) return false
+        }
+      }
+      for (const target of targets) {
+        for (const other of nodes) {
+          if (targetIds.has(other.id)) continue
+          if (rectsOverlap(target, other, 8)) return false
+        }
+      }
+      return true
+    }
+    let clear = placementClear()
+    if (!clear && sourceAlignedCross) {
+      placeTargets(offsets.map(offset => axis + offset))
+      clear = placementClear()
+    }
+    if (!clear) {
+      for (const old of oldTargets) { old.t.x = old.x; old.t.y = old.y; old.t.width = old.width; old.t.height = old.height }
+      continue
+    }
+
+    const sourceEdge = f.isHorizontal
+      ? (f.sourceSide === 'E' ? source.x + source.width : source.x)
+      : (f.sourceSide === 'S' ? source.y + source.height : source.y)
+    const targetEdge = f.isHorizontal
+      ? (f.sign > 0 ? Math.min(...targets.map(t => t.x)) : Math.max(...targets.map(t => t.x + t.width)))
+      : (f.sign > 0 ? Math.min(...targets.map(t => t.y)) : Math.max(...targets.map(t => t.y + t.height)))
+    const elbow = sourceEdge + (targetEdge - sourceEdge) * 0.5
+    const proposed: Array<{ edge: PositionedEdge; points: Point[] }> = []
+    for (let i = 0; i < sorted.length; i++) {
+      const edge = sorted[i]!
+      const target = nodeMap.get(edge.target)!
+      const points = doglegBetween(sourceEmissionPort(source, graph.direction, i, sorted.length), targetFlowPort(target, graph.direction), graph.direction, elbow)
+      if (!routeClearOfNodes(points, nodes, new Set([edge.source, edge.target]))) { clear = false; break }
+      proposed.push({ edge, points })
+    }
+    if (!clear) {
+      for (const old of oldTargets) { old.t.x = old.x; old.t.y = old.y; old.t.width = old.width; old.t.height = old.height }
+      continue
+    }
+    for (const { edge, points } of proposed) {
+      edge.points = points
+      if (edge.label) edge.labelPosition = longestSegmentMidpoint(points)
+      edge.routeCertificate = undefined
+      bundled.add(edge)
+    }
+  }
+}
+
+function segmentIntersectsLabelBox(a: Point, b: Point, box: { x: number; y: number; w: number; h: number }, pad = 2): boolean {
+  const x1 = box.x - pad, x2 = box.x + box.w + pad, y1 = box.y - pad, y2 = box.y + box.h + pad
+  if (Math.abs(a.x - b.x) < 0.01) {
+    const lo = Math.min(a.y, b.y), hi = Math.max(a.y, b.y)
+    return a.x >= x1 && a.x <= x2 && hi >= y1 && lo <= y2
+  }
+  if (Math.abs(a.y - b.y) < 0.01) {
+    const lo = Math.min(a.x, b.x), hi = Math.max(a.x, b.x)
+    return a.y >= y1 && a.y <= y2 && hi >= x1 && lo <= x2
+  }
+  return false
+}
+
+function labelTouchesNeighborRoute(edge: PositionedEdge, labelBox: { x: number; y: number; w: number; h: number }, edges: PositionedEdge[]): boolean {
+  for (const other of edges) {
+    if (other === edge) continue
+    for (let i = 1; i < other.points.length; i++) {
+      if (segmentIntersectsLabelBox(other.points[i - 1]!, other.points[i]!, labelBox)) return true
+    }
+  }
+  return false
+}
+
+function symmetricParallelOuterLanePoints(source: PositionedNode, target: PositionedNode, direction: Direction, lane: number, index: number, count: number): Point[] {
+  const f = layoutFlow(direction)
+  const t = (index + 1) / (count + 1)
+  if (f.isHorizontal) {
+    const p: Point = { x: f.sourceSide === 'E' ? source.x + source.width : source.x, y: source.y + source.height * t }
+    const q: Point = { x: f.targetSide === 'W' ? target.x : target.x + target.width, y: target.y + target.height * t }
+    const gap = Math.min(28, Math.max(14, Math.abs(q.x - p.x) * 0.18))
+    const x1 = p.x + f.sign * gap
+    const x2 = q.x - f.sign * gap
+    return simplifyPolyline([p, { x: x1, y: p.y }, { x: x1, y: lane }, { x: x2, y: lane }, { x: x2, y: q.y }, q])
+  }
+  const p: Point = { x: source.x + source.width * t, y: f.sourceSide === 'S' ? source.y + source.height : source.y }
+  const q: Point = { x: target.x + target.width * t, y: f.targetSide === 'N' ? target.y : target.y + target.height }
+  const gap = Math.min(28, Math.max(14, Math.abs(q.y - p.y) * 0.18))
+  const y1 = p.y + f.sign * gap
+  const y2 = q.y - f.sign * gap
+  return simplifyPolyline([p, { x: p.x, y: y1 }, { x: lane, y: y1 }, { x: lane, y: y2 }, { x: q.x, y: y2 }, q])
+}
+
+function applySymmetricParallelEdgeLanes(
+  nodes: PositionedNode[],
+  edges: PositionedEdge[],
+  groups: PositionedGroup[],
+  graph: MermaidGraph,
+  bundled: Set<PositionedEdge>,
+  style: LabelMetricsStyle,
+): void {
+  const nodeMap = new Map(nodes.map(n => [n.id, n]))
+  const f = layoutFlow(graph.direction)
+  const byPair = new Map<string, PositionedEdge[]>()
+  for (const edge of edges) {
+    if (edge.source === edge.target || !edge.label) continue
+    const source = nodeMap.get(edge.source)
+    const target = nodeMap.get(edge.target)
+    if (!source || !target || source.shape !== 'rectangle' || target.shape !== 'rectangle') continue
+    if (nodeInsideGroups(source, groups) || nodeInsideGroups(target, groups)) continue
+    const key = `${edge.source}\0${edge.target}`
+    if (!byPair.has(key)) byPair.set(key, [])
+    byPair.get(key)!.push(edge)
+  }
+  for (const group of byPair.values()) {
+    group.sort((a, b) => (a.edgeIndex ?? 0) - (b.edgeIndex ?? 0))
+    if (group.length !== 2) continue
+    const source = nodeMap.get(group[0]!.source)!
+    const target = nodeMap.get(group[0]!.target)!
+    const labelWidths = group.map(e => measureMultilineText(e.label!, style.edgeLabelFontSize, style.edgeLabelFontWeight).width + 16)
+    const labelHeights = group.map(e => measureMultilineText(e.label!, style.edgeLabelFontSize, style.edgeLabelFontWeight).height + 16)
+    const lanePadding = (f.isHorizontal ? Math.max(...labelHeights) : Math.max(...labelWidths)) / 2 + 18
+    const attempts = [lanePadding, lanePadding + 16, lanePadding + 32, lanePadding + 52]
+    for (const gap of attempts) {
+      const lanes = f.isHorizontal
+        ? [Math.min(source.y, target.y) - gap, Math.max(source.y + source.height, target.y + target.height) + gap]
+        : [Math.min(source.x, target.x) - gap, Math.max(source.x + source.width, target.x + target.width) + gap]
+      const proposed: Array<{ edge: PositionedEdge; points: Point[]; label: Point }> = []
+      let ok = true
+      for (let i = 0; i < group.length; i++) {
+        const edge = group[i]!
+        const points = symmetricParallelOuterLanePoints(source, target, graph.direction, lanes[i]!, i, group.length)
+        if (!routeClearOfNodes(points, nodes, new Set([source.id, target.id]))) { ok = false; break }
+        proposed.push({ edge, points, label: longestSegmentMidpoint(points) })
+      }
+      if (!ok) continue
+      for (const p of proposed) {
+        const metrics = measureMultilineText(p.edge.label!, style.edgeLabelFontSize, style.edgeLabelFontWeight)
+        const box = { x: p.label.x - (metrics.width + 16) / 2, y: p.label.y - (metrics.height + 16) / 2, w: metrics.width + 16, h: metrics.height + 16 }
+        if (labelTouchesNeighborRoute(p.edge, box, edges)) ok = false
+      }
+      if (!ok) continue
+      for (const { edge, points, label } of proposed) {
+        edge.points = points
+        edge.labelPosition = label
+        edge.routeCertificate = undefined
+        bundled.add(edge)
+      }
+      break
+    }
+  }
 }
 
 /**
@@ -1610,6 +2126,57 @@ function alignPortLanes(
   }
 
   const centeredHubs = new Set<string>()
+  const forwardEdgesFrom = (id: string): PositionedEdge[] => edges.filter(e => e.source === id && isForwardMonotone(e))
+  const forwardIndegree = (id: string): number => edges.filter(e => e.target === id && isForwardMonotone(e)).length
+  const ownedForwardClosure = (root: PositionedNode): PositionedNode[] => {
+    const out: PositionedNode[] = []
+    const seen = new Set<string>()
+    const queue = [root]
+    while (queue.length > 0) {
+      const node = queue.shift()!
+      if (seen.has(node.id)) continue
+      seen.add(node.id)
+      out.push(node)
+      for (const edge of forwardEdgesFrom(node.id)) {
+        const next = nodeMap.get(edge.target)
+        if (!next || seen.has(next.id)) continue
+        if (forwardIndegree(next.id) === 1) queue.push(next)
+      }
+    }
+    return out
+  }
+  const chainMoveSafe = (chain: PositionedNode[], delta: number): boolean => {
+    const ids = new Set(chain.map(n => n.id))
+    for (const node of chain) {
+      const nx = isHorizontal ? node.x : node.x + delta
+      const ny = isHorizontal ? node.y + delta : node.y
+      for (const other of nodes) {
+        if (ids.has(other.id)) continue
+        if (overlaps(nx - MARGIN, ny - MARGIN, node.width + 2 * MARGIN, node.height + 2 * MARGIN,
+          other.x, other.y, other.width, other.height)) return false
+      }
+    }
+    return true
+  }
+  const moveChain = (chain: PositionedNode[], delta: number): void => {
+    const ids = new Set(chain.map(n => n.id))
+    for (const node of chain) {
+      if (isHorizontal) node.y += delta
+      else node.x += delta
+    }
+    for (const e of edges) {
+      const srcTouch = ids.has(e.source)
+      const tgtTouch = ids.has(e.target)
+      if (srcTouch && tgtTouch) {
+        for (const p of e.points) p[cross] += delta
+        if (e.labelPosition) e.labelPosition[cross] += delta
+      } else if (tgtTouch) {
+        shiftRun(e, true, delta)
+      } else if (srcTouch) {
+        shiftRun(e, false, delta)
+      }
+    }
+  }
   for (const t of (layoutEnvFlag('APL_NO_CENTER') ? [] : nodes)) {
     if (frozen.has(t.id) || inGroup(t) || !PORT_EXACT.has(t.shape)) continue
     const incoming = edges.filter(e =>
@@ -1624,9 +2191,10 @@ function alignPortLanes(
       sources.set(s.id, s)
     }
     if (!ok || sources.size < 2) continue
-    // The hub must not also emit a forward edge whose straightness centering
-    // would break (it occupies the opposite facet on the same lane as T).
-    if (edges.some(o => o.source === t.id && o.target !== t.id && isForwardMonotone(o))) continue
+    // Hubs may own a single forward continuation: moving the hub improves the
+    // merge symmetry, and the later port-lane pass can keep that continuation
+    // straight. Multiple forward branches would make the centering ambiguous.
+    if (edges.filter(o => o.source === t.id && o.target !== t.id && isForwardMonotone(o)).length > 1) continue
     // Equal rank: all sources stacked in ONE column — same main-axis band.
     const srcList = [...sources.values()]
     const mainCenters = srcList.map(s => s[main] + mainSize(s) / 2)
@@ -1637,29 +2205,20 @@ function alignPortLanes(
     const bary = srcList.reduce((a, s) => a + portCross(s), 0) / srcList.length
     const delta = bary - portCross(t)
     if (Math.abs(delta) <= 0.5) { centeredHubs.add(t.id); continue }
+    const chain = ownedForwardClosure(t)
     const incidentIds = new Set(edges
       .filter(e => e.source === t.id || e.target === t.id)
       .map(e => `${e.source}->${e.target}`))
-    if (!hubMoveSafe(t, delta, incidentIds)) continue
+    if (!hubMoveSafe(t, delta, incidentIds) || !chainMoveSafe(chain, delta)) continue
     layoutDebug('[apl] center hub', t.id, 'by', delta.toFixed(1), 'over', srcList.length, 'sources')
-    // Move the hub; translate every incident edge's hub-side endpoint run so
-    // the polyline stays connected. applyRouteContracts then re-merges the
-    // now-symmetric incoming lanes onto the hub's exact port.
-    if (isHorizontal) t.y += delta; else t.x += delta
-    for (const e of edges) {
-      const srcTouch = e.source === t.id
-      const tgtTouch = e.target === t.id
-      if (srcTouch && tgtTouch) {
-        for (const p of e.points) p[cross] += delta
-        if (e.labelPosition) e.labelPosition[cross] += delta
-      } else if (tgtTouch) {
-        shiftRun(e, true, delta)
-      } else if (srcTouch) {
-        shiftRun(e, false, delta)
-      }
+    // Move the hub and any exclusively-owned forward continuation together.
+    // That preserves straight owned chains such as CCC→DDDD while still
+    // refusing to drag shared downstream merges like A/B→C.
+    moveChain(chain, delta)
+    for (const node of chain) {
+      centeredHubs.add(node.id)
+      frozen.add(node.id)
     }
-    centeredHubs.add(t.id)
-    frozen.add(t.id)
     for (const e of incoming) frozen.add(e.source)
   }
 
