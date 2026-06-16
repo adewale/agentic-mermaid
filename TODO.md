@@ -100,6 +100,26 @@ dependents after. IDs are stable names, not an ordering.
     cases/exclusions/README shape so all benches read alike
   - [ ] mindmap, gitgraph: harvest BEFORE implementing (BUILD-5) — the specs
     should be written against upstream's real test semantics, not just docs
+- [ ] **BUILD-22 — Diagram-family citizenship gap backfill** (`todo`). Keep
+  the checked matrix in
+  [`docs/contributing/diagram-family-citizenship.matrix.json`](./docs/contributing/diagram-family-citizenship.matrix.json)
+  honest as older families graduate toward the Gantt bar. The ratchet is in
+  place once issue #41 lands; this item tracks the explicit exceptions the
+  matrix is allowed to name.
+  - [ ] Stable ASCII/TUI/editor region assertions for every non-graph family
+    (issue #26 WS10). Flowchart/sequence/Gantt are pinned; backfill family-
+    specific region tests for state, timeline, class, ER, journey,
+    architecture, xychart, pie, and quadrant.
+  - [ ] Targeted mutation lanes or sabotage scripts for state, sequence,
+    timeline, class, ER, journey, pie, and quadrant. Flowchart/link routing,
+    xychart/architecture, and Gantt already have focused Stryker lanes.
+  - [ ] Executable divergence ledgers for every family with known upstream
+    incompatibilities. This overlaps BUILD-20; update the citizenship matrix
+    from `exception` to `satisfied` as each `eval/mermaid-<family>-bench/`
+    cases/exclusions runner lands.
+  - [ ] Generated-site/sample evidence beyond category coverage: keep site
+    sample categories, gallery affordances, and generated documentation tied
+    to `BUILTIN_FAMILY_METADATA` whenever a new family is added.
 - [x] **BUILD-11 — QuadrantChart family** (`done`). Promoted
   from the PARK-3 fork-audit list. Quadrant charts are missing across the
   entire beautiful-mermaid fork network (no port exists upstream or in any

@@ -36,6 +36,7 @@ This directory holds the long-form documentation. The root README is intentional
 | Doc | Purpose |
 |---|---|
 | [`contributing/adding-diagram-types.md`](./contributing/adding-diagram-types.md) | How to add a Mermaid-supported diagram family. |
+| [`contributing/diagram-family-citizenship.md`](./contributing/diagram-family-citizenship.md) | Enforced good-citizen checklist and matrix for family/surface drift (issue #41). |
 | [`contributing/harvesting-upstream-tests.md`](./contributing/harvesting-upstream-tests.md) | How to vendor upstream/fork test suites into an executable compatibility bench. |
 | [`design/architecture.md`](./design/architecture.md) | Architecture diagram implementation notes. |
 | [`design/gantt.md`](./design/gantt.md) | Gantt support specification and compatibility boundaries. |

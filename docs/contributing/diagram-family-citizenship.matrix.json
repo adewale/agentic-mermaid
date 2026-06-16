@@ -1,0 +1,2282 @@
+{
+  "schemaVersion": 1,
+  "updated": "2026-06-16",
+  "statusValues": [
+    "satisfied",
+    "exception"
+  ],
+  "surfaces": [
+    {
+      "id": "registryDiscovery",
+      "description": "Registry, DiagramKind, plugin registration, CLI capability metadata, and mutation-op projection."
+    },
+    {
+      "id": "detectionParse",
+      "description": "Shared family detection and agent parse route the family consistently."
+    },
+    {
+      "id": "semanticModel",
+      "description": "Modeled subset and source-preservation policy are explicit in code/docs."
+    },
+    {
+      "id": "serializeRoundTrip",
+      "description": "Modeled and opaque/segment-preserved syntax round-trip without silent loss."
+    },
+    {
+      "id": "typedMutation",
+      "description": "A public narrower and mutation ops are exposed; opaque fallback bodies stay source-level only."
+    },
+    {
+      "id": "verifyRenderSeam",
+      "description": "Verification catches render-blocking conditions with named warning/error codes."
+    },
+    {
+      "id": "determinism",
+      "description": "No ambient nondeterminism; repeated renders/layouts are stable or controlled by explicit options."
+    },
+    {
+      "id": "svgRender",
+      "description": "SVG/PNG-capable rendering path is covered."
+    },
+    {
+      "id": "asciiUnicodeRender",
+      "description": "ASCII/Unicode rendering path is covered."
+    },
+    {
+      "id": "layoutProjection",
+      "description": "layoutMermaid/verify layout expose truthful geometry for the family."
+    },
+    {
+      "id": "stableRegions",
+      "description": "Region metadata for editor/TUI/accessibility is covered or tracked."
+    },
+    {
+      "id": "editorExample",
+      "description": "Live editor supported examples and glyphs cover the family."
+    },
+    {
+      "id": "docsAgentSurfaces",
+      "description": "Human docs, agent docs, SDK declarations, llms.txt, and skills are synchronized."
+    },
+    {
+      "id": "evalFixture",
+      "description": "Shared skill benchmark includes a fixture-backed case tagged for the family."
+    },
+    {
+      "id": "upstreamHarvest",
+      "description": "Upstream Mermaid/fork tests are harvested into executable cases/exclusions or tracked."
+    },
+    {
+      "id": "divergenceLedger",
+      "description": "Known compatibility divergences are executable or tracked."
+    },
+    {
+      "id": "domainProperties",
+      "description": "Family-specific semantic/layout invariants are tested beyond render smoke."
+    },
+    {
+      "id": "goldensEvidence",
+      "description": "Goldens, snapshots, or reviewer evidence cover representative output."
+    },
+    {
+      "id": "generatedSite",
+      "description": "Generated site samples/gallery surfaces cover the family."
+    },
+    {
+      "id": "distributionPackage",
+      "description": "Package files/exports/consumer init artifacts expose the family surface."
+    },
+    {
+      "id": "mutationLane",
+      "description": "Targeted mutation/sabotage lane exists or is tracked."
+    }
+  ],
+  "families": {
+    "flowchart": {
+      "label": "Flowchart",
+      "auditLevel": "audited",
+      "role": "route-contract exemplar",
+      "workedExample": false,
+      "cells": {
+        "registryDiscovery": {
+          "status": "satisfied",
+          "evidence": [
+            "src/agent/families.ts",
+            "src/__tests__/agent-doc-sync.test.ts",
+            "src/__tests__/cli-capabilities.test.ts"
+          ]
+        },
+        "detectionParse": {
+          "status": "satisfied",
+          "evidence": [
+            "src/mermaid-source.ts",
+            "src/__tests__/agent-doc-sync.test.ts",
+            "src/__tests__/doc-sync.test.ts"
+          ]
+        },
+        "semanticModel": {
+          "status": "satisfied",
+          "evidence": [
+            "src/agent/flowchart-body.ts",
+            "src/parser.ts",
+            "docs/design/flowchart-parser-conformance.md"
+          ]
+        },
+        "serializeRoundTrip": {
+          "status": "satisfied",
+          "evidence": [
+            "src/__tests__/agent.test.ts",
+            "src/__tests__/link-grammar.test.ts",
+            "src/__tests__/flowchart-metadata.test.ts",
+            "src/__tests__/flowchart-parser-conformance.test.ts"
+          ]
+        },
+        "typedMutation": {
+          "status": "satisfied",
+          "evidence": [
+            "src/cli/index.ts",
+            "src/mcp/sdk-decl.ts",
+            "src/__tests__/agent-doc-sync.test.ts"
+          ]
+        },
+        "verifyRenderSeam": {
+          "status": "satisfied",
+          "evidence": [
+            "src/agent/verify.ts",
+            "src/__tests__/agent-family-layouts.test.ts"
+          ]
+        },
+        "determinism": {
+          "status": "satisfied",
+          "evidence": [
+            "src/__tests__/agent-determinism.test.ts",
+            "src/__tests__/ascii-determinism.test.ts",
+            "src/__tests__/agent-png-determinism.test.ts"
+          ]
+        },
+        "svgRender": {
+          "status": "satisfied",
+          "evidence": [
+            "src/__tests__/doc-sync.test.ts",
+            "src/__tests__/integration.test.ts"
+          ]
+        },
+        "asciiUnicodeRender": {
+          "status": "satisfied",
+          "evidence": [
+            "src/__tests__/ascii.test.ts",
+            "src/__tests__/ascii-determinism.test.ts"
+          ]
+        },
+        "layoutProjection": {
+          "status": "satisfied",
+          "evidence": [
+            "src/agent/family-layouts.ts",
+            "src/__tests__/agent-family-layouts.test.ts",
+            "src/__tests__/layout-compare.test.ts"
+          ]
+        },
+        "stableRegions": {
+          "status": "satisfied",
+          "evidence": [
+            "src/__tests__/agent-ascii-meta.test.ts",
+            "src/ascii/meta.ts"
+          ]
+        },
+        "editorExample": {
+          "status": "satisfied",
+          "evidence": [
+            "editor/js/examples.js",
+            "src/__tests__/editor-examples.test.ts",
+            "e2e/browser.test.ts"
+          ]
+        },
+        "docsAgentSurfaces": {
+          "status": "satisfied",
+          "evidence": [
+            "src/__tests__/agent-doc-sync.test.ts",
+            "src/__tests__/cli-llms-txt.test.ts",
+            "docs/diagram-families.md",
+            "AGENT_NATIVE.md",
+            "Instructions_for_agents.md",
+            "llms.txt"
+          ]
+        },
+        "evalFixture": {
+          "status": "satisfied",
+          "evidence": [
+            "evals/shared-benchmark.json",
+            "src/__tests__/agent-doc-sync.test.ts"
+          ]
+        },
+        "upstreamHarvest": {
+          "status": "exception",
+          "tracked": [
+            "TODO:BUILD-20"
+          ],
+          "evidence": [
+            "TODO.md",
+            "docs/contributing/harvesting-upstream-tests.md"
+          ],
+          "note": "Standardized cases/exclusions harvest is tracked for all non-Gantt families."
+        },
+        "divergenceLedger": {
+          "status": "exception",
+          "tracked": [
+            "TODO:BUILD-20",
+            "TODO:BUILD-22"
+          ],
+          "evidence": [
+            "TODO.md",
+            "docs/contributing/harvesting-upstream-tests.md"
+          ],
+          "note": "Executable divergence ledgers graduate with each upstream harvest."
+        },
+        "domainProperties": {
+          "status": "satisfied",
+          "evidence": [
+            "src/__tests__/route-contracts.test.ts",
+            "src/__tests__/layout-rubric.test.ts",
+            "src/__tests__/property-ascii-routing.test.ts"
+          ]
+        },
+        "goldensEvidence": {
+          "status": "satisfied",
+          "evidence": [
+            "docs/pr-assets/contact-sheet.png",
+            "src/__tests__/contact-sheet.test.ts"
+          ]
+        },
+        "generatedSite": {
+          "status": "satisfied",
+          "evidence": [
+            "scripts/site/samples-data.ts",
+            "scripts/site/generate.ts",
+            "src/__tests__/property-html-generator.test.ts"
+          ]
+        },
+        "distributionPackage": {
+          "status": "satisfied",
+          "evidence": [
+            "package.json",
+            "src/__tests__/doc-sync.test.ts",
+            "src/__tests__/agent-doc-sync.test.ts"
+          ]
+        },
+        "mutationLane": {
+          "status": "satisfied",
+          "evidence": [
+            "stryker.routes.config.json",
+            "stryker.link-grammar.config.json",
+            "stryker.route-certificates.config.json",
+            "package.json"
+          ]
+        }
+      }
+    },
+    "state": {
+      "label": "State",
+      "auditLevel": "inventoried",
+      "role": "dedicated-body follow-up to flowchart",
+      "workedExample": false,
+      "cells": {
+        "registryDiscovery": {
+          "status": "satisfied",
+          "evidence": [
+            "src/agent/families.ts",
+            "src/__tests__/agent-doc-sync.test.ts",
+            "src/__tests__/cli-capabilities.test.ts"
+          ]
+        },
+        "detectionParse": {
+          "status": "satisfied",
+          "evidence": [
+            "src/mermaid-source.ts",
+            "src/__tests__/agent-doc-sync.test.ts",
+            "src/__tests__/doc-sync.test.ts"
+          ]
+        },
+        "semanticModel": {
+          "status": "satisfied",
+          "evidence": [
+            "src/agent/state-body.ts",
+            "src/__tests__/agent-state.test.ts"
+          ]
+        },
+        "serializeRoundTrip": {
+          "status": "satisfied",
+          "evidence": [
+            "src/__tests__/agent-state.test.ts",
+            "src/__tests__/parser.test.ts"
+          ]
+        },
+        "typedMutation": {
+          "status": "satisfied",
+          "evidence": [
+            "src/cli/index.ts",
+            "src/mcp/sdk-decl.ts",
+            "src/__tests__/agent-doc-sync.test.ts"
+          ]
+        },
+        "verifyRenderSeam": {
+          "status": "satisfied",
+          "evidence": [
+            "src/agent/verify.ts",
+            "src/__tests__/agent-family-layouts.test.ts"
+          ]
+        },
+        "determinism": {
+          "status": "satisfied",
+          "evidence": [
+            "src/__tests__/agent-determinism.test.ts",
+            "src/__tests__/ascii-determinism.test.ts",
+            "src/__tests__/agent-png-determinism.test.ts"
+          ]
+        },
+        "svgRender": {
+          "status": "satisfied",
+          "evidence": [
+            "src/__tests__/doc-sync.test.ts",
+            "src/__tests__/integration.test.ts"
+          ]
+        },
+        "asciiUnicodeRender": {
+          "status": "satisfied",
+          "evidence": [
+            "src/__tests__/ascii.test.ts",
+            "src/__tests__/ascii-determinism.test.ts"
+          ]
+        },
+        "layoutProjection": {
+          "status": "satisfied",
+          "evidence": [
+            "src/agent/family-layouts.ts",
+            "src/__tests__/agent-family-layouts.test.ts",
+            "src/__tests__/layout-compare.test.ts"
+          ]
+        },
+        "stableRegions": {
+          "status": "exception",
+          "tracked": [
+            "TODO:BUILD-22"
+          ],
+          "evidence": [
+            "TODO.md",
+            "src/ascii/meta.ts"
+          ],
+          "note": "Family-specific region assertions beyond the pinned graph/sequence/Gantt paths are tracked."
+        },
+        "editorExample": {
+          "status": "satisfied",
+          "evidence": [
+            "editor/js/examples.js",
+            "src/__tests__/editor-examples.test.ts",
+            "e2e/browser.test.ts"
+          ]
+        },
+        "docsAgentSurfaces": {
+          "status": "satisfied",
+          "evidence": [
+            "src/__tests__/agent-doc-sync.test.ts",
+            "src/__tests__/cli-llms-txt.test.ts",
+            "docs/diagram-families.md",
+            "AGENT_NATIVE.md",
+            "Instructions_for_agents.md",
+            "llms.txt"
+          ]
+        },
+        "evalFixture": {
+          "status": "satisfied",
+          "evidence": [
+            "evals/shared-benchmark.json",
+            "src/__tests__/agent-doc-sync.test.ts"
+          ]
+        },
+        "upstreamHarvest": {
+          "status": "exception",
+          "tracked": [
+            "TODO:BUILD-20"
+          ],
+          "evidence": [
+            "TODO.md",
+            "docs/contributing/harvesting-upstream-tests.md"
+          ],
+          "note": "Standardized cases/exclusions harvest is tracked for all non-Gantt families."
+        },
+        "divergenceLedger": {
+          "status": "exception",
+          "tracked": [
+            "TODO:BUILD-20",
+            "TODO:BUILD-22"
+          ],
+          "evidence": [
+            "TODO.md",
+            "docs/contributing/harvesting-upstream-tests.md"
+          ],
+          "note": "Executable divergence ledgers graduate with each upstream harvest."
+        },
+        "domainProperties": {
+          "status": "satisfied",
+          "evidence": [
+            "src/__tests__/agent-state.test.ts",
+            "src/__tests__/subgraph-direction.test.ts"
+          ]
+        },
+        "goldensEvidence": {
+          "status": "satisfied",
+          "evidence": [
+            "src/__tests__/parser.test.ts",
+            "src/__tests__/agent-state.test.ts"
+          ]
+        },
+        "generatedSite": {
+          "status": "satisfied",
+          "evidence": [
+            "scripts/site/samples-data.ts",
+            "scripts/site/generate.ts",
+            "src/__tests__/property-html-generator.test.ts"
+          ]
+        },
+        "distributionPackage": {
+          "status": "satisfied",
+          "evidence": [
+            "package.json",
+            "src/__tests__/doc-sync.test.ts",
+            "src/__tests__/agent-doc-sync.test.ts"
+          ]
+        },
+        "mutationLane": {
+          "status": "exception",
+          "tracked": [
+            "TODO:BUILD-22"
+          ],
+          "evidence": [
+            "TODO.md",
+            "docs/agent-mutation-policy.md"
+          ],
+          "note": "Focused mutation/sabotage lane is not yet family-specific."
+        }
+      }
+    },
+    "sequence": {
+      "label": "Sequence",
+      "auditLevel": "inventoried",
+      "role": "segment-preservation exemplar",
+      "workedExample": false,
+      "cells": {
+        "registryDiscovery": {
+          "status": "satisfied",
+          "evidence": [
+            "src/agent/families.ts",
+            "src/__tests__/agent-doc-sync.test.ts",
+            "src/__tests__/cli-capabilities.test.ts"
+          ]
+        },
+        "detectionParse": {
+          "status": "satisfied",
+          "evidence": [
+            "src/mermaid-source.ts",
+            "src/__tests__/agent-doc-sync.test.ts",
+            "src/__tests__/doc-sync.test.ts"
+          ]
+        },
+        "semanticModel": {
+          "status": "satisfied",
+          "evidence": [
+            "src/agent/sequence-body.ts",
+            "src/__tests__/agent.test.ts"
+          ]
+        },
+        "serializeRoundTrip": {
+          "status": "satisfied",
+          "evidence": [
+            "src/__tests__/agent.test.ts",
+            "src/__tests__/agent-mermaidseqbench.test.ts"
+          ]
+        },
+        "typedMutation": {
+          "status": "satisfied",
+          "evidence": [
+            "src/cli/index.ts",
+            "src/mcp/sdk-decl.ts",
+            "src/__tests__/agent-doc-sync.test.ts"
+          ]
+        },
+        "verifyRenderSeam": {
+          "status": "satisfied",
+          "evidence": [
+            "src/agent/verify.ts",
+            "src/__tests__/agent-family-layouts.test.ts"
+          ]
+        },
+        "determinism": {
+          "status": "satisfied",
+          "evidence": [
+            "src/__tests__/agent-determinism.test.ts",
+            "src/__tests__/ascii-determinism.test.ts",
+            "src/__tests__/agent-png-determinism.test.ts"
+          ]
+        },
+        "svgRender": {
+          "status": "satisfied",
+          "evidence": [
+            "src/__tests__/doc-sync.test.ts",
+            "src/__tests__/integration.test.ts"
+          ]
+        },
+        "asciiUnicodeRender": {
+          "status": "satisfied",
+          "evidence": [
+            "src/__tests__/ascii.test.ts",
+            "src/__tests__/ascii-determinism.test.ts"
+          ]
+        },
+        "layoutProjection": {
+          "status": "satisfied",
+          "evidence": [
+            "src/agent/family-layouts.ts",
+            "src/__tests__/agent-family-layouts.test.ts",
+            "src/__tests__/layout-compare.test.ts"
+          ]
+        },
+        "stableRegions": {
+          "status": "satisfied",
+          "evidence": [
+            "src/__tests__/agent-ascii-meta.test.ts",
+            "src/ascii/meta.ts"
+          ]
+        },
+        "editorExample": {
+          "status": "satisfied",
+          "evidence": [
+            "editor/js/examples.js",
+            "src/__tests__/editor-examples.test.ts",
+            "e2e/browser.test.ts"
+          ]
+        },
+        "docsAgentSurfaces": {
+          "status": "satisfied",
+          "evidence": [
+            "src/__tests__/agent-doc-sync.test.ts",
+            "src/__tests__/cli-llms-txt.test.ts",
+            "docs/diagram-families.md",
+            "AGENT_NATIVE.md",
+            "Instructions_for_agents.md",
+            "llms.txt"
+          ]
+        },
+        "evalFixture": {
+          "status": "satisfied",
+          "evidence": [
+            "evals/shared-benchmark.json",
+            "src/__tests__/agent-doc-sync.test.ts"
+          ]
+        },
+        "upstreamHarvest": {
+          "status": "exception",
+          "tracked": [
+            "TODO:BUILD-20"
+          ],
+          "evidence": [
+            "TODO.md",
+            "docs/contributing/harvesting-upstream-tests.md"
+          ],
+          "note": "Standardized cases/exclusions harvest is tracked for all non-Gantt families."
+        },
+        "divergenceLedger": {
+          "status": "exception",
+          "tracked": [
+            "TODO:BUILD-20",
+            "TODO:BUILD-22"
+          ],
+          "evidence": [
+            "TODO.md",
+            "docs/contributing/harvesting-upstream-tests.md"
+          ],
+          "note": "Executable divergence ledgers graduate with each upstream harvest."
+        },
+        "domainProperties": {
+          "status": "satisfied",
+          "evidence": [
+            "src/__tests__/agent.test.ts",
+            "src/__tests__/agent-mermaidseqbench.test.ts",
+            "src/__tests__/ascii-sequence-blocks.test.ts"
+          ]
+        },
+        "goldensEvidence": {
+          "status": "satisfied",
+          "evidence": [
+            "src/__tests__/journey-svg-snapshot.test.ts",
+            "src/__tests__/agent-mermaidseqbench.test.ts"
+          ]
+        },
+        "generatedSite": {
+          "status": "satisfied",
+          "evidence": [
+            "scripts/site/samples-data.ts",
+            "scripts/site/generate.ts",
+            "src/__tests__/property-html-generator.test.ts"
+          ]
+        },
+        "distributionPackage": {
+          "status": "satisfied",
+          "evidence": [
+            "package.json",
+            "src/__tests__/doc-sync.test.ts",
+            "src/__tests__/agent-doc-sync.test.ts"
+          ]
+        },
+        "mutationLane": {
+          "status": "exception",
+          "tracked": [
+            "TODO:BUILD-22"
+          ],
+          "evidence": [
+            "TODO.md",
+            "docs/agent-mutation-policy.md"
+          ],
+          "note": "Focused mutation/sabotage lane is not yet family-specific."
+        }
+      }
+    },
+    "timeline": {
+      "label": "Timeline",
+      "auditLevel": "inventoried",
+      "role": "ordering/bounds family",
+      "workedExample": false,
+      "cells": {
+        "registryDiscovery": {
+          "status": "satisfied",
+          "evidence": [
+            "src/agent/families.ts",
+            "src/__tests__/agent-doc-sync.test.ts",
+            "src/__tests__/cli-capabilities.test.ts"
+          ]
+        },
+        "detectionParse": {
+          "status": "satisfied",
+          "evidence": [
+            "src/mermaid-source.ts",
+            "src/__tests__/agent-doc-sync.test.ts",
+            "src/__tests__/doc-sync.test.ts"
+          ]
+        },
+        "semanticModel": {
+          "status": "satisfied",
+          "evidence": [
+            "src/agent/timeline-body.ts",
+            "src/timeline/parser.ts"
+          ]
+        },
+        "serializeRoundTrip": {
+          "status": "satisfied",
+          "evidence": [
+            "src/__tests__/agent-timeline.test.ts",
+            "src/__tests__/timeline-parser.test.ts"
+          ]
+        },
+        "typedMutation": {
+          "status": "satisfied",
+          "evidence": [
+            "src/cli/index.ts",
+            "src/mcp/sdk-decl.ts",
+            "src/__tests__/agent-doc-sync.test.ts"
+          ]
+        },
+        "verifyRenderSeam": {
+          "status": "satisfied",
+          "evidence": [
+            "src/agent/verify.ts",
+            "src/__tests__/agent-family-layouts.test.ts"
+          ]
+        },
+        "determinism": {
+          "status": "satisfied",
+          "evidence": [
+            "src/__tests__/agent-determinism.test.ts",
+            "src/__tests__/ascii-determinism.test.ts",
+            "src/__tests__/agent-png-determinism.test.ts"
+          ]
+        },
+        "svgRender": {
+          "status": "satisfied",
+          "evidence": [
+            "src/__tests__/doc-sync.test.ts",
+            "src/__tests__/integration.test.ts"
+          ]
+        },
+        "asciiUnicodeRender": {
+          "status": "satisfied",
+          "evidence": [
+            "src/__tests__/ascii.test.ts",
+            "src/__tests__/ascii-determinism.test.ts"
+          ]
+        },
+        "layoutProjection": {
+          "status": "satisfied",
+          "evidence": [
+            "src/agent/family-layouts.ts",
+            "src/__tests__/agent-family-layouts.test.ts",
+            "src/__tests__/layout-compare.test.ts"
+          ]
+        },
+        "stableRegions": {
+          "status": "exception",
+          "tracked": [
+            "TODO:BUILD-22"
+          ],
+          "evidence": [
+            "TODO.md",
+            "src/ascii/meta.ts"
+          ],
+          "note": "Family-specific region assertions beyond the pinned graph/sequence/Gantt paths are tracked."
+        },
+        "editorExample": {
+          "status": "satisfied",
+          "evidence": [
+            "editor/js/examples.js",
+            "src/__tests__/editor-examples.test.ts",
+            "e2e/browser.test.ts"
+          ]
+        },
+        "docsAgentSurfaces": {
+          "status": "satisfied",
+          "evidence": [
+            "src/__tests__/agent-doc-sync.test.ts",
+            "src/__tests__/cli-llms-txt.test.ts",
+            "docs/diagram-families.md",
+            "AGENT_NATIVE.md",
+            "Instructions_for_agents.md",
+            "llms.txt"
+          ]
+        },
+        "evalFixture": {
+          "status": "satisfied",
+          "evidence": [
+            "evals/shared-benchmark.json",
+            "src/__tests__/agent-doc-sync.test.ts"
+          ]
+        },
+        "upstreamHarvest": {
+          "status": "exception",
+          "tracked": [
+            "TODO:BUILD-20"
+          ],
+          "evidence": [
+            "TODO.md",
+            "docs/contributing/harvesting-upstream-tests.md"
+          ],
+          "note": "Standardized cases/exclusions harvest is tracked for all non-Gantt families."
+        },
+        "divergenceLedger": {
+          "status": "exception",
+          "tracked": [
+            "TODO:BUILD-20",
+            "TODO:BUILD-22"
+          ],
+          "evidence": [
+            "TODO.md",
+            "docs/contributing/harvesting-upstream-tests.md"
+          ],
+          "note": "Executable divergence ledgers graduate with each upstream harvest."
+        },
+        "domainProperties": {
+          "status": "satisfied",
+          "evidence": [
+            "src/__tests__/timeline-layout.test.ts",
+            "src/__tests__/property-layout-bounds.test.ts"
+          ]
+        },
+        "goldensEvidence": {
+          "status": "satisfied",
+          "evidence": [
+            "src/__tests__/timeline-ascii.test.ts",
+            "src/__tests__/testdata/ascii/timeline_multisection_multiline.txt"
+          ]
+        },
+        "generatedSite": {
+          "status": "satisfied",
+          "evidence": [
+            "scripts/site/samples-data.ts",
+            "scripts/site/generate.ts",
+            "src/__tests__/property-html-generator.test.ts"
+          ]
+        },
+        "distributionPackage": {
+          "status": "satisfied",
+          "evidence": [
+            "package.json",
+            "src/__tests__/doc-sync.test.ts",
+            "src/__tests__/agent-doc-sync.test.ts"
+          ]
+        },
+        "mutationLane": {
+          "status": "exception",
+          "tracked": [
+            "TODO:BUILD-22"
+          ],
+          "evidence": [
+            "TODO.md",
+            "docs/agent-mutation-policy.md"
+          ],
+          "note": "Focused mutation/sabotage lane is not yet family-specific."
+        }
+      }
+    },
+    "class": {
+      "label": "Class",
+      "auditLevel": "inventoried",
+      "role": "identity/relation family",
+      "workedExample": false,
+      "cells": {
+        "registryDiscovery": {
+          "status": "satisfied",
+          "evidence": [
+            "src/agent/families.ts",
+            "src/__tests__/agent-doc-sync.test.ts",
+            "src/__tests__/cli-capabilities.test.ts"
+          ]
+        },
+        "detectionParse": {
+          "status": "satisfied",
+          "evidence": [
+            "src/mermaid-source.ts",
+            "src/__tests__/agent-doc-sync.test.ts",
+            "src/__tests__/doc-sync.test.ts"
+          ]
+        },
+        "semanticModel": {
+          "status": "satisfied",
+          "evidence": [
+            "src/agent/class-body.ts",
+            "src/class/parser.ts"
+          ]
+        },
+        "serializeRoundTrip": {
+          "status": "satisfied",
+          "evidence": [
+            "src/__tests__/agent-class.test.ts",
+            "src/__tests__/class-parser.test.ts"
+          ]
+        },
+        "typedMutation": {
+          "status": "satisfied",
+          "evidence": [
+            "src/cli/index.ts",
+            "src/mcp/sdk-decl.ts",
+            "src/__tests__/agent-doc-sync.test.ts"
+          ]
+        },
+        "verifyRenderSeam": {
+          "status": "satisfied",
+          "evidence": [
+            "src/agent/verify.ts",
+            "src/__tests__/agent-family-layouts.test.ts"
+          ]
+        },
+        "determinism": {
+          "status": "satisfied",
+          "evidence": [
+            "src/__tests__/agent-determinism.test.ts",
+            "src/__tests__/ascii-determinism.test.ts",
+            "src/__tests__/agent-png-determinism.test.ts"
+          ]
+        },
+        "svgRender": {
+          "status": "satisfied",
+          "evidence": [
+            "src/__tests__/doc-sync.test.ts",
+            "src/__tests__/integration.test.ts"
+          ]
+        },
+        "asciiUnicodeRender": {
+          "status": "satisfied",
+          "evidence": [
+            "src/__tests__/ascii.test.ts",
+            "src/__tests__/ascii-determinism.test.ts"
+          ]
+        },
+        "layoutProjection": {
+          "status": "satisfied",
+          "evidence": [
+            "src/agent/family-layouts.ts",
+            "src/__tests__/agent-family-layouts.test.ts",
+            "src/__tests__/layout-compare.test.ts"
+          ]
+        },
+        "stableRegions": {
+          "status": "exception",
+          "tracked": [
+            "TODO:BUILD-22"
+          ],
+          "evidence": [
+            "TODO.md",
+            "src/ascii/meta.ts"
+          ],
+          "note": "Family-specific region assertions beyond the pinned graph/sequence/Gantt paths are tracked."
+        },
+        "editorExample": {
+          "status": "satisfied",
+          "evidence": [
+            "editor/js/examples.js",
+            "src/__tests__/editor-examples.test.ts",
+            "e2e/browser.test.ts"
+          ]
+        },
+        "docsAgentSurfaces": {
+          "status": "satisfied",
+          "evidence": [
+            "src/__tests__/agent-doc-sync.test.ts",
+            "src/__tests__/cli-llms-txt.test.ts",
+            "docs/diagram-families.md",
+            "AGENT_NATIVE.md",
+            "Instructions_for_agents.md",
+            "llms.txt"
+          ]
+        },
+        "evalFixture": {
+          "status": "satisfied",
+          "evidence": [
+            "evals/shared-benchmark.json",
+            "src/__tests__/agent-doc-sync.test.ts"
+          ]
+        },
+        "upstreamHarvest": {
+          "status": "exception",
+          "tracked": [
+            "TODO:BUILD-20"
+          ],
+          "evidence": [
+            "TODO.md",
+            "docs/contributing/harvesting-upstream-tests.md"
+          ],
+          "note": "Standardized cases/exclusions harvest is tracked for all non-Gantt families."
+        },
+        "divergenceLedger": {
+          "status": "exception",
+          "tracked": [
+            "TODO:BUILD-20",
+            "TODO:BUILD-22"
+          ],
+          "evidence": [
+            "TODO.md",
+            "docs/contributing/harvesting-upstream-tests.md"
+          ],
+          "note": "Executable divergence ledgers graduate with each upstream harvest."
+        },
+        "domainProperties": {
+          "status": "satisfied",
+          "evidence": [
+            "src/__tests__/class-parser.test.ts",
+            "src/__tests__/class-arrow-directions.test.ts",
+            "src/__tests__/class-er-edge-quality.test.ts"
+          ]
+        },
+        "goldensEvidence": {
+          "status": "satisfied",
+          "evidence": [
+            "src/__tests__/class-integration.test.ts",
+            "src/__tests__/class-er-edge-quality.test.ts"
+          ]
+        },
+        "generatedSite": {
+          "status": "satisfied",
+          "evidence": [
+            "scripts/site/samples-data.ts",
+            "scripts/site/generate.ts",
+            "src/__tests__/property-html-generator.test.ts"
+          ]
+        },
+        "distributionPackage": {
+          "status": "satisfied",
+          "evidence": [
+            "package.json",
+            "src/__tests__/doc-sync.test.ts",
+            "src/__tests__/agent-doc-sync.test.ts"
+          ]
+        },
+        "mutationLane": {
+          "status": "exception",
+          "tracked": [
+            "TODO:BUILD-22"
+          ],
+          "evidence": [
+            "TODO.md",
+            "docs/agent-mutation-policy.md"
+          ],
+          "note": "Focused mutation/sabotage lane is not yet family-specific."
+        }
+      }
+    },
+    "er": {
+      "label": "ER",
+      "auditLevel": "inventoried",
+      "role": "cardinality/relation family",
+      "workedExample": false,
+      "cells": {
+        "registryDiscovery": {
+          "status": "satisfied",
+          "evidence": [
+            "src/agent/families.ts",
+            "src/__tests__/agent-doc-sync.test.ts",
+            "src/__tests__/cli-capabilities.test.ts"
+          ]
+        },
+        "detectionParse": {
+          "status": "satisfied",
+          "evidence": [
+            "src/mermaid-source.ts",
+            "src/__tests__/agent-doc-sync.test.ts",
+            "src/__tests__/doc-sync.test.ts"
+          ]
+        },
+        "semanticModel": {
+          "status": "satisfied",
+          "evidence": [
+            "src/agent/er-body.ts",
+            "src/er/parser.ts"
+          ]
+        },
+        "serializeRoundTrip": {
+          "status": "satisfied",
+          "evidence": [
+            "src/__tests__/agent-er.test.ts",
+            "src/__tests__/er-parser.test.ts"
+          ]
+        },
+        "typedMutation": {
+          "status": "satisfied",
+          "evidence": [
+            "src/cli/index.ts",
+            "src/mcp/sdk-decl.ts",
+            "src/__tests__/agent-doc-sync.test.ts"
+          ]
+        },
+        "verifyRenderSeam": {
+          "status": "satisfied",
+          "evidence": [
+            "src/agent/verify.ts",
+            "src/__tests__/agent-family-layouts.test.ts"
+          ]
+        },
+        "determinism": {
+          "status": "satisfied",
+          "evidence": [
+            "src/__tests__/agent-determinism.test.ts",
+            "src/__tests__/ascii-determinism.test.ts",
+            "src/__tests__/agent-png-determinism.test.ts"
+          ]
+        },
+        "svgRender": {
+          "status": "satisfied",
+          "evidence": [
+            "src/__tests__/doc-sync.test.ts",
+            "src/__tests__/integration.test.ts"
+          ]
+        },
+        "asciiUnicodeRender": {
+          "status": "satisfied",
+          "evidence": [
+            "src/__tests__/ascii.test.ts",
+            "src/__tests__/ascii-determinism.test.ts"
+          ]
+        },
+        "layoutProjection": {
+          "status": "satisfied",
+          "evidence": [
+            "src/agent/family-layouts.ts",
+            "src/__tests__/agent-family-layouts.test.ts",
+            "src/__tests__/layout-compare.test.ts"
+          ]
+        },
+        "stableRegions": {
+          "status": "exception",
+          "tracked": [
+            "TODO:BUILD-22"
+          ],
+          "evidence": [
+            "TODO.md",
+            "src/ascii/meta.ts"
+          ],
+          "note": "Family-specific region assertions beyond the pinned graph/sequence/Gantt paths are tracked."
+        },
+        "editorExample": {
+          "status": "satisfied",
+          "evidence": [
+            "editor/js/examples.js",
+            "src/__tests__/editor-examples.test.ts",
+            "e2e/browser.test.ts"
+          ]
+        },
+        "docsAgentSurfaces": {
+          "status": "satisfied",
+          "evidence": [
+            "src/__tests__/agent-doc-sync.test.ts",
+            "src/__tests__/cli-llms-txt.test.ts",
+            "docs/diagram-families.md",
+            "AGENT_NATIVE.md",
+            "Instructions_for_agents.md",
+            "llms.txt"
+          ]
+        },
+        "evalFixture": {
+          "status": "satisfied",
+          "evidence": [
+            "evals/shared-benchmark.json",
+            "src/__tests__/agent-doc-sync.test.ts"
+          ]
+        },
+        "upstreamHarvest": {
+          "status": "exception",
+          "tracked": [
+            "TODO:BUILD-20"
+          ],
+          "evidence": [
+            "TODO.md",
+            "docs/contributing/harvesting-upstream-tests.md"
+          ],
+          "note": "Standardized cases/exclusions harvest is tracked for all non-Gantt families."
+        },
+        "divergenceLedger": {
+          "status": "exception",
+          "tracked": [
+            "TODO:BUILD-20",
+            "TODO:BUILD-22"
+          ],
+          "evidence": [
+            "TODO.md",
+            "docs/contributing/harvesting-upstream-tests.md"
+          ],
+          "note": "Executable divergence ledgers graduate with each upstream harvest."
+        },
+        "domainProperties": {
+          "status": "satisfied",
+          "evidence": [
+            "src/__tests__/agent-er.test.ts",
+            "src/__tests__/er-parser.test.ts",
+            "src/__tests__/class-er-edge-quality.test.ts"
+          ]
+        },
+        "goldensEvidence": {
+          "status": "satisfied",
+          "evidence": [
+            "src/__tests__/er-integration.test.ts",
+            "src/__tests__/testdata/ascii/er_issue121_labels.txt"
+          ]
+        },
+        "generatedSite": {
+          "status": "satisfied",
+          "evidence": [
+            "scripts/site/samples-data.ts",
+            "scripts/site/generate.ts",
+            "src/__tests__/property-html-generator.test.ts"
+          ]
+        },
+        "distributionPackage": {
+          "status": "satisfied",
+          "evidence": [
+            "package.json",
+            "src/__tests__/doc-sync.test.ts",
+            "src/__tests__/agent-doc-sync.test.ts"
+          ]
+        },
+        "mutationLane": {
+          "status": "exception",
+          "tracked": [
+            "TODO:BUILD-22"
+          ],
+          "evidence": [
+            "TODO.md",
+            "docs/agent-mutation-policy.md"
+          ],
+          "note": "Focused mutation/sabotage lane is not yet family-specific."
+        }
+      }
+    },
+    "journey": {
+      "label": "Journey",
+      "auditLevel": "inventoried",
+      "role": "task/score family",
+      "workedExample": false,
+      "cells": {
+        "registryDiscovery": {
+          "status": "satisfied",
+          "evidence": [
+            "src/agent/families.ts",
+            "src/__tests__/agent-doc-sync.test.ts",
+            "src/__tests__/cli-capabilities.test.ts"
+          ]
+        },
+        "detectionParse": {
+          "status": "satisfied",
+          "evidence": [
+            "src/mermaid-source.ts",
+            "src/__tests__/agent-doc-sync.test.ts",
+            "src/__tests__/doc-sync.test.ts"
+          ]
+        },
+        "semanticModel": {
+          "status": "satisfied",
+          "evidence": [
+            "src/agent/journey-body.ts",
+            "src/journey/parser.ts"
+          ]
+        },
+        "serializeRoundTrip": {
+          "status": "satisfied",
+          "evidence": [
+            "src/__tests__/agent-journey.test.ts",
+            "src/__tests__/journey-parser.test.ts"
+          ]
+        },
+        "typedMutation": {
+          "status": "satisfied",
+          "evidence": [
+            "src/cli/index.ts",
+            "src/mcp/sdk-decl.ts",
+            "src/__tests__/agent-doc-sync.test.ts"
+          ]
+        },
+        "verifyRenderSeam": {
+          "status": "satisfied",
+          "evidence": [
+            "src/agent/verify.ts",
+            "src/__tests__/agent-family-layouts.test.ts"
+          ]
+        },
+        "determinism": {
+          "status": "satisfied",
+          "evidence": [
+            "src/__tests__/agent-determinism.test.ts",
+            "src/__tests__/ascii-determinism.test.ts",
+            "src/__tests__/agent-png-determinism.test.ts"
+          ]
+        },
+        "svgRender": {
+          "status": "satisfied",
+          "evidence": [
+            "src/__tests__/doc-sync.test.ts",
+            "src/__tests__/integration.test.ts"
+          ]
+        },
+        "asciiUnicodeRender": {
+          "status": "satisfied",
+          "evidence": [
+            "src/__tests__/ascii.test.ts",
+            "src/__tests__/ascii-determinism.test.ts"
+          ]
+        },
+        "layoutProjection": {
+          "status": "satisfied",
+          "evidence": [
+            "src/agent/family-layouts.ts",
+            "src/__tests__/agent-family-layouts.test.ts",
+            "src/__tests__/layout-compare.test.ts"
+          ]
+        },
+        "stableRegions": {
+          "status": "exception",
+          "tracked": [
+            "TODO:BUILD-22"
+          ],
+          "evidence": [
+            "TODO.md",
+            "src/ascii/meta.ts"
+          ],
+          "note": "Family-specific region assertions beyond the pinned graph/sequence/Gantt paths are tracked."
+        },
+        "editorExample": {
+          "status": "satisfied",
+          "evidence": [
+            "editor/js/examples.js",
+            "src/__tests__/editor-examples.test.ts",
+            "e2e/browser.test.ts"
+          ]
+        },
+        "docsAgentSurfaces": {
+          "status": "satisfied",
+          "evidence": [
+            "src/__tests__/agent-doc-sync.test.ts",
+            "src/__tests__/cli-llms-txt.test.ts",
+            "docs/diagram-families.md",
+            "AGENT_NATIVE.md",
+            "Instructions_for_agents.md",
+            "llms.txt"
+          ]
+        },
+        "evalFixture": {
+          "status": "satisfied",
+          "evidence": [
+            "evals/shared-benchmark.json",
+            "src/__tests__/agent-doc-sync.test.ts"
+          ]
+        },
+        "upstreamHarvest": {
+          "status": "exception",
+          "tracked": [
+            "TODO:BUILD-20"
+          ],
+          "evidence": [
+            "TODO.md",
+            "docs/contributing/harvesting-upstream-tests.md"
+          ],
+          "note": "Standardized cases/exclusions harvest is tracked for all non-Gantt families."
+        },
+        "divergenceLedger": {
+          "status": "exception",
+          "tracked": [
+            "TODO:BUILD-20",
+            "TODO:BUILD-22"
+          ],
+          "evidence": [
+            "TODO.md",
+            "docs/contributing/harvesting-upstream-tests.md"
+          ],
+          "note": "Executable divergence ledgers graduate with each upstream harvest."
+        },
+        "domainProperties": {
+          "status": "satisfied",
+          "evidence": [
+            "src/__tests__/journey-layout.test.ts",
+            "src/__tests__/property-layout-bounds.test.ts"
+          ]
+        },
+        "goldensEvidence": {
+          "status": "satisfied",
+          "evidence": [
+            "src/__tests__/journey-ascii.test.ts",
+            "src/__tests__/journey-svg-snapshot.test.ts"
+          ]
+        },
+        "generatedSite": {
+          "status": "satisfied",
+          "evidence": [
+            "scripts/site/samples-data.ts",
+            "scripts/site/generate.ts",
+            "src/__tests__/property-html-generator.test.ts"
+          ]
+        },
+        "distributionPackage": {
+          "status": "satisfied",
+          "evidence": [
+            "package.json",
+            "src/__tests__/doc-sync.test.ts",
+            "src/__tests__/agent-doc-sync.test.ts"
+          ]
+        },
+        "mutationLane": {
+          "status": "exception",
+          "tracked": [
+            "TODO:BUILD-22"
+          ],
+          "evidence": [
+            "TODO.md",
+            "docs/agent-mutation-policy.md"
+          ],
+          "note": "Focused mutation/sabotage lane is not yet family-specific."
+        }
+      }
+    },
+    "architecture": {
+      "label": "Architecture",
+      "auditLevel": "audited",
+      "role": "group/service containment audit",
+      "workedExample": false,
+      "cells": {
+        "registryDiscovery": {
+          "status": "satisfied",
+          "evidence": [
+            "src/agent/families.ts",
+            "src/__tests__/agent-doc-sync.test.ts",
+            "src/__tests__/cli-capabilities.test.ts"
+          ]
+        },
+        "detectionParse": {
+          "status": "satisfied",
+          "evidence": [
+            "src/mermaid-source.ts",
+            "src/__tests__/agent-doc-sync.test.ts",
+            "src/__tests__/doc-sync.test.ts"
+          ]
+        },
+        "semanticModel": {
+          "status": "satisfied",
+          "evidence": [
+            "src/agent/architecture-body.ts",
+            "src/architecture/parser.ts"
+          ]
+        },
+        "serializeRoundTrip": {
+          "status": "satisfied",
+          "evidence": [
+            "src/__tests__/agent-architecture.test.ts",
+            "src/__tests__/architecture-parser.test.ts"
+          ]
+        },
+        "typedMutation": {
+          "status": "satisfied",
+          "evidence": [
+            "src/cli/index.ts",
+            "src/mcp/sdk-decl.ts",
+            "src/__tests__/agent-doc-sync.test.ts"
+          ]
+        },
+        "verifyRenderSeam": {
+          "status": "satisfied",
+          "evidence": [
+            "src/agent/verify.ts",
+            "src/__tests__/agent-family-layouts.test.ts"
+          ]
+        },
+        "determinism": {
+          "status": "satisfied",
+          "evidence": [
+            "src/__tests__/agent-determinism.test.ts",
+            "src/__tests__/ascii-determinism.test.ts",
+            "src/__tests__/agent-png-determinism.test.ts"
+          ]
+        },
+        "svgRender": {
+          "status": "satisfied",
+          "evidence": [
+            "src/__tests__/doc-sync.test.ts",
+            "src/__tests__/integration.test.ts"
+          ]
+        },
+        "asciiUnicodeRender": {
+          "status": "satisfied",
+          "evidence": [
+            "src/__tests__/ascii.test.ts",
+            "src/__tests__/ascii-determinism.test.ts"
+          ]
+        },
+        "layoutProjection": {
+          "status": "satisfied",
+          "evidence": [
+            "src/agent/family-layouts.ts",
+            "src/__tests__/agent-family-layouts.test.ts",
+            "src/__tests__/layout-compare.test.ts"
+          ]
+        },
+        "stableRegions": {
+          "status": "exception",
+          "tracked": [
+            "TODO:BUILD-22"
+          ],
+          "evidence": [
+            "TODO.md",
+            "src/ascii/meta.ts"
+          ],
+          "note": "Family-specific region assertions beyond the pinned graph/sequence/Gantt paths are tracked."
+        },
+        "editorExample": {
+          "status": "satisfied",
+          "evidence": [
+            "editor/js/examples.js",
+            "src/__tests__/editor-examples.test.ts",
+            "e2e/browser.test.ts"
+          ]
+        },
+        "docsAgentSurfaces": {
+          "status": "satisfied",
+          "evidence": [
+            "src/__tests__/agent-doc-sync.test.ts",
+            "src/__tests__/cli-llms-txt.test.ts",
+            "docs/diagram-families.md",
+            "AGENT_NATIVE.md",
+            "Instructions_for_agents.md",
+            "llms.txt"
+          ]
+        },
+        "evalFixture": {
+          "status": "satisfied",
+          "evidence": [
+            "evals/shared-benchmark.json",
+            "src/__tests__/agent-doc-sync.test.ts"
+          ]
+        },
+        "upstreamHarvest": {
+          "status": "exception",
+          "tracked": [
+            "TODO:BUILD-20"
+          ],
+          "evidence": [
+            "TODO.md",
+            "docs/contributing/harvesting-upstream-tests.md"
+          ],
+          "note": "Standardized cases/exclusions harvest is tracked for all non-Gantt families."
+        },
+        "divergenceLedger": {
+          "status": "exception",
+          "tracked": [
+            "TODO:BUILD-20",
+            "TODO:BUILD-22"
+          ],
+          "evidence": [
+            "TODO.md",
+            "docs/contributing/harvesting-upstream-tests.md"
+          ],
+          "note": "Executable divergence ledgers graduate with each upstream harvest."
+        },
+        "domainProperties": {
+          "status": "satisfied",
+          "evidence": [
+            "src/__tests__/architecture-layout.test.ts",
+            "src/__tests__/property-layout-bounds.test.ts"
+          ]
+        },
+        "goldensEvidence": {
+          "status": "satisfied",
+          "evidence": [
+            "src/__tests__/architecture-ascii.test.ts",
+            "src/__tests__/architecture-svg-snapshot.test.ts"
+          ]
+        },
+        "generatedSite": {
+          "status": "satisfied",
+          "evidence": [
+            "scripts/site/samples-data.ts",
+            "scripts/site/generate.ts",
+            "src/__tests__/property-html-generator.test.ts"
+          ]
+        },
+        "distributionPackage": {
+          "status": "satisfied",
+          "evidence": [
+            "package.json",
+            "src/__tests__/doc-sync.test.ts",
+            "src/__tests__/agent-doc-sync.test.ts"
+          ]
+        },
+        "mutationLane": {
+          "status": "satisfied",
+          "evidence": [
+            "stryker.families.config.json",
+            "package.json"
+          ]
+        }
+      }
+    },
+    "xychart": {
+      "label": "XY chart",
+      "auditLevel": "audited",
+      "role": "non-Gantt worked audit",
+      "workedExample": false,
+      "cells": {
+        "registryDiscovery": {
+          "status": "satisfied",
+          "evidence": [
+            "src/agent/families.ts",
+            "src/__tests__/agent-doc-sync.test.ts",
+            "src/__tests__/cli-capabilities.test.ts"
+          ]
+        },
+        "detectionParse": {
+          "status": "satisfied",
+          "evidence": [
+            "src/mermaid-source.ts",
+            "src/__tests__/agent-doc-sync.test.ts",
+            "src/__tests__/doc-sync.test.ts"
+          ]
+        },
+        "semanticModel": {
+          "status": "satisfied",
+          "evidence": [
+            "src/agent/xychart-body.ts",
+            "src/xychart/parser.ts"
+          ]
+        },
+        "serializeRoundTrip": {
+          "status": "satisfied",
+          "evidence": [
+            "src/__tests__/agent-xychart.test.ts",
+            "src/__tests__/xychart-parser.test.ts"
+          ]
+        },
+        "typedMutation": {
+          "status": "satisfied",
+          "evidence": [
+            "src/cli/index.ts",
+            "src/mcp/sdk-decl.ts",
+            "src/__tests__/agent-doc-sync.test.ts"
+          ]
+        },
+        "verifyRenderSeam": {
+          "status": "satisfied",
+          "evidence": [
+            "src/agent/verify.ts",
+            "src/__tests__/agent-family-layouts.test.ts"
+          ]
+        },
+        "determinism": {
+          "status": "satisfied",
+          "evidence": [
+            "src/__tests__/agent-determinism.test.ts",
+            "src/__tests__/ascii-determinism.test.ts",
+            "src/__tests__/agent-png-determinism.test.ts"
+          ]
+        },
+        "svgRender": {
+          "status": "satisfied",
+          "evidence": [
+            "src/__tests__/doc-sync.test.ts",
+            "src/__tests__/integration.test.ts"
+          ]
+        },
+        "asciiUnicodeRender": {
+          "status": "satisfied",
+          "evidence": [
+            "src/__tests__/ascii.test.ts",
+            "src/__tests__/ascii-determinism.test.ts"
+          ]
+        },
+        "layoutProjection": {
+          "status": "satisfied",
+          "evidence": [
+            "src/agent/family-layouts.ts",
+            "src/__tests__/agent-family-layouts.test.ts",
+            "src/__tests__/layout-compare.test.ts"
+          ]
+        },
+        "stableRegions": {
+          "status": "exception",
+          "tracked": [
+            "TODO:BUILD-22"
+          ],
+          "evidence": [
+            "TODO.md",
+            "src/ascii/meta.ts"
+          ],
+          "note": "Family-specific region assertions beyond the pinned graph/sequence/Gantt paths are tracked."
+        },
+        "editorExample": {
+          "status": "satisfied",
+          "evidence": [
+            "editor/js/examples.js",
+            "src/__tests__/editor-examples.test.ts",
+            "e2e/browser.test.ts"
+          ]
+        },
+        "docsAgentSurfaces": {
+          "status": "satisfied",
+          "evidence": [
+            "src/__tests__/agent-doc-sync.test.ts",
+            "src/__tests__/cli-llms-txt.test.ts",
+            "docs/diagram-families.md",
+            "AGENT_NATIVE.md",
+            "Instructions_for_agents.md",
+            "llms.txt"
+          ]
+        },
+        "evalFixture": {
+          "status": "satisfied",
+          "evidence": [
+            "evals/shared-benchmark.json",
+            "src/__tests__/agent-doc-sync.test.ts"
+          ]
+        },
+        "upstreamHarvest": {
+          "status": "exception",
+          "tracked": [
+            "TODO:BUILD-20"
+          ],
+          "evidence": [
+            "TODO.md",
+            "docs/contributing/harvesting-upstream-tests.md"
+          ],
+          "note": "Standardized cases/exclusions harvest is tracked for all non-Gantt families."
+        },
+        "divergenceLedger": {
+          "status": "exception",
+          "tracked": [
+            "TODO:BUILD-20",
+            "TODO:BUILD-22"
+          ],
+          "evidence": [
+            "TODO.md",
+            "docs/contributing/harvesting-upstream-tests.md"
+          ],
+          "note": "Executable divergence ledgers graduate with each upstream harvest."
+        },
+        "domainProperties": {
+          "status": "satisfied",
+          "evidence": [
+            "src/__tests__/property-xychart.test.ts",
+            "src/__tests__/xychart-layout.test.ts",
+            "src/__tests__/xychart-integration.test.ts"
+          ]
+        },
+        "goldensEvidence": {
+          "status": "satisfied",
+          "evidence": [
+            "src/__tests__/xychart-ascii.test.ts",
+            "src/__tests__/xychart-svg-snapshot.test.ts"
+          ]
+        },
+        "generatedSite": {
+          "status": "satisfied",
+          "evidence": [
+            "scripts/site/samples-data.ts",
+            "scripts/site/generate.ts",
+            "src/__tests__/property-html-generator.test.ts"
+          ]
+        },
+        "distributionPackage": {
+          "status": "satisfied",
+          "evidence": [
+            "package.json",
+            "src/__tests__/doc-sync.test.ts",
+            "src/__tests__/agent-doc-sync.test.ts"
+          ]
+        },
+        "mutationLane": {
+          "status": "satisfied",
+          "evidence": [
+            "stryker.families.config.json",
+            "package.json"
+          ]
+        }
+      }
+    },
+    "pie": {
+      "label": "Pie",
+      "auditLevel": "inventoried",
+      "role": "slice/percentage family",
+      "workedExample": false,
+      "cells": {
+        "registryDiscovery": {
+          "status": "satisfied",
+          "evidence": [
+            "src/agent/families.ts",
+            "src/__tests__/agent-doc-sync.test.ts",
+            "src/__tests__/cli-capabilities.test.ts"
+          ]
+        },
+        "detectionParse": {
+          "status": "satisfied",
+          "evidence": [
+            "src/mermaid-source.ts",
+            "src/__tests__/agent-doc-sync.test.ts",
+            "src/__tests__/doc-sync.test.ts"
+          ]
+        },
+        "semanticModel": {
+          "status": "satisfied",
+          "evidence": [
+            "src/agent/pie-body.ts",
+            "src/pie/parser.ts"
+          ]
+        },
+        "serializeRoundTrip": {
+          "status": "satisfied",
+          "evidence": [
+            "src/__tests__/agent-pie.test.ts",
+            "src/__tests__/pie.test.ts"
+          ]
+        },
+        "typedMutation": {
+          "status": "satisfied",
+          "evidence": [
+            "src/cli/index.ts",
+            "src/mcp/sdk-decl.ts",
+            "src/__tests__/agent-doc-sync.test.ts"
+          ]
+        },
+        "verifyRenderSeam": {
+          "status": "satisfied",
+          "evidence": [
+            "src/agent/verify.ts",
+            "src/__tests__/agent-family-layouts.test.ts"
+          ]
+        },
+        "determinism": {
+          "status": "satisfied",
+          "evidence": [
+            "src/__tests__/agent-determinism.test.ts",
+            "src/__tests__/ascii-determinism.test.ts",
+            "src/__tests__/agent-png-determinism.test.ts"
+          ]
+        },
+        "svgRender": {
+          "status": "satisfied",
+          "evidence": [
+            "src/__tests__/doc-sync.test.ts",
+            "src/__tests__/integration.test.ts"
+          ]
+        },
+        "asciiUnicodeRender": {
+          "status": "satisfied",
+          "evidence": [
+            "src/__tests__/ascii.test.ts",
+            "src/__tests__/ascii-determinism.test.ts"
+          ]
+        },
+        "layoutProjection": {
+          "status": "satisfied",
+          "evidence": [
+            "src/agent/family-layouts.ts",
+            "src/__tests__/agent-family-layouts.test.ts",
+            "src/__tests__/layout-compare.test.ts"
+          ]
+        },
+        "stableRegions": {
+          "status": "exception",
+          "tracked": [
+            "TODO:BUILD-22"
+          ],
+          "evidence": [
+            "TODO.md",
+            "src/ascii/meta.ts"
+          ],
+          "note": "Family-specific region assertions beyond the pinned graph/sequence/Gantt paths are tracked."
+        },
+        "editorExample": {
+          "status": "satisfied",
+          "evidence": [
+            "editor/js/examples.js",
+            "src/__tests__/editor-examples.test.ts",
+            "e2e/browser.test.ts"
+          ]
+        },
+        "docsAgentSurfaces": {
+          "status": "satisfied",
+          "evidence": [
+            "src/__tests__/agent-doc-sync.test.ts",
+            "src/__tests__/cli-llms-txt.test.ts",
+            "docs/diagram-families.md",
+            "AGENT_NATIVE.md",
+            "Instructions_for_agents.md",
+            "llms.txt"
+          ]
+        },
+        "evalFixture": {
+          "status": "satisfied",
+          "evidence": [
+            "evals/shared-benchmark.json",
+            "src/__tests__/agent-doc-sync.test.ts"
+          ]
+        },
+        "upstreamHarvest": {
+          "status": "exception",
+          "tracked": [
+            "TODO:BUILD-20"
+          ],
+          "evidence": [
+            "TODO.md",
+            "docs/contributing/harvesting-upstream-tests.md"
+          ],
+          "note": "Standardized cases/exclusions harvest is tracked for all non-Gantt families."
+        },
+        "divergenceLedger": {
+          "status": "exception",
+          "tracked": [
+            "TODO:BUILD-20",
+            "TODO:BUILD-22"
+          ],
+          "evidence": [
+            "TODO.md",
+            "docs/contributing/harvesting-upstream-tests.md"
+          ],
+          "note": "Executable divergence ledgers graduate with each upstream harvest."
+        },
+        "domainProperties": {
+          "status": "satisfied",
+          "evidence": [
+            "src/__tests__/pie.test.ts",
+            "src/__tests__/property-color-algebra.test.ts"
+          ]
+        },
+        "goldensEvidence": {
+          "status": "satisfied",
+          "evidence": [
+            "src/__tests__/pie.test.ts",
+            "src/ascii/pie.ts"
+          ]
+        },
+        "generatedSite": {
+          "status": "satisfied",
+          "evidence": [
+            "scripts/site/samples-data.ts",
+            "scripts/site/generate.ts",
+            "src/__tests__/property-html-generator.test.ts"
+          ]
+        },
+        "distributionPackage": {
+          "status": "satisfied",
+          "evidence": [
+            "package.json",
+            "src/__tests__/doc-sync.test.ts",
+            "src/__tests__/agent-doc-sync.test.ts"
+          ]
+        },
+        "mutationLane": {
+          "status": "exception",
+          "tracked": [
+            "TODO:BUILD-22"
+          ],
+          "evidence": [
+            "TODO.md",
+            "docs/agent-mutation-policy.md"
+          ],
+          "note": "Focused mutation/sabotage lane is not yet family-specific."
+        }
+      }
+    },
+    "quadrant": {
+      "label": "Quadrant",
+      "auditLevel": "inventoried",
+      "role": "axis/quadrant-bounds family",
+      "workedExample": false,
+      "cells": {
+        "registryDiscovery": {
+          "status": "satisfied",
+          "evidence": [
+            "src/agent/families.ts",
+            "src/__tests__/agent-doc-sync.test.ts",
+            "src/__tests__/cli-capabilities.test.ts"
+          ]
+        },
+        "detectionParse": {
+          "status": "satisfied",
+          "evidence": [
+            "src/mermaid-source.ts",
+            "src/__tests__/agent-doc-sync.test.ts",
+            "src/__tests__/doc-sync.test.ts"
+          ]
+        },
+        "semanticModel": {
+          "status": "satisfied",
+          "evidence": [
+            "src/agent/quadrant-body.ts",
+            "src/quadrant/parser.ts"
+          ]
+        },
+        "serializeRoundTrip": {
+          "status": "satisfied",
+          "evidence": [
+            "src/__tests__/agent-quadrant.test.ts",
+            "src/__tests__/quadrant.test.ts"
+          ]
+        },
+        "typedMutation": {
+          "status": "satisfied",
+          "evidence": [
+            "src/cli/index.ts",
+            "src/mcp/sdk-decl.ts",
+            "src/__tests__/agent-doc-sync.test.ts"
+          ]
+        },
+        "verifyRenderSeam": {
+          "status": "satisfied",
+          "evidence": [
+            "src/agent/verify.ts",
+            "src/__tests__/agent-family-layouts.test.ts"
+          ]
+        },
+        "determinism": {
+          "status": "satisfied",
+          "evidence": [
+            "src/__tests__/agent-determinism.test.ts",
+            "src/__tests__/ascii-determinism.test.ts",
+            "src/__tests__/agent-png-determinism.test.ts"
+          ]
+        },
+        "svgRender": {
+          "status": "satisfied",
+          "evidence": [
+            "src/__tests__/doc-sync.test.ts",
+            "src/__tests__/integration.test.ts"
+          ]
+        },
+        "asciiUnicodeRender": {
+          "status": "satisfied",
+          "evidence": [
+            "src/__tests__/ascii.test.ts",
+            "src/__tests__/ascii-determinism.test.ts"
+          ]
+        },
+        "layoutProjection": {
+          "status": "satisfied",
+          "evidence": [
+            "src/agent/family-layouts.ts",
+            "src/__tests__/agent-family-layouts.test.ts",
+            "src/__tests__/layout-compare.test.ts"
+          ]
+        },
+        "stableRegions": {
+          "status": "exception",
+          "tracked": [
+            "TODO:BUILD-22"
+          ],
+          "evidence": [
+            "TODO.md",
+            "src/ascii/meta.ts"
+          ],
+          "note": "Family-specific region assertions beyond the pinned graph/sequence/Gantt paths are tracked."
+        },
+        "editorExample": {
+          "status": "satisfied",
+          "evidence": [
+            "editor/js/examples.js",
+            "src/__tests__/editor-examples.test.ts",
+            "e2e/browser.test.ts"
+          ]
+        },
+        "docsAgentSurfaces": {
+          "status": "satisfied",
+          "evidence": [
+            "src/__tests__/agent-doc-sync.test.ts",
+            "src/__tests__/cli-llms-txt.test.ts",
+            "docs/diagram-families.md",
+            "AGENT_NATIVE.md",
+            "Instructions_for_agents.md",
+            "llms.txt"
+          ]
+        },
+        "evalFixture": {
+          "status": "satisfied",
+          "evidence": [
+            "evals/shared-benchmark.json",
+            "src/__tests__/agent-doc-sync.test.ts"
+          ]
+        },
+        "upstreamHarvest": {
+          "status": "exception",
+          "tracked": [
+            "TODO:BUILD-20"
+          ],
+          "evidence": [
+            "TODO.md",
+            "docs/contributing/harvesting-upstream-tests.md"
+          ],
+          "note": "Standardized cases/exclusions harvest is tracked for all non-Gantt families."
+        },
+        "divergenceLedger": {
+          "status": "exception",
+          "tracked": [
+            "TODO:BUILD-20",
+            "TODO:BUILD-22"
+          ],
+          "evidence": [
+            "TODO.md",
+            "docs/contributing/harvesting-upstream-tests.md"
+          ],
+          "note": "Executable divergence ledgers graduate with each upstream harvest."
+        },
+        "domainProperties": {
+          "status": "satisfied",
+          "evidence": [
+            "src/__tests__/quadrant.test.ts",
+            "src/quadrant/layout.ts"
+          ]
+        },
+        "goldensEvidence": {
+          "status": "satisfied",
+          "evidence": [
+            "src/__tests__/quadrant.test.ts",
+            "src/ascii/quadrant.ts"
+          ]
+        },
+        "generatedSite": {
+          "status": "satisfied",
+          "evidence": [
+            "scripts/site/samples-data.ts",
+            "scripts/site/generate.ts",
+            "src/__tests__/property-html-generator.test.ts"
+          ]
+        },
+        "distributionPackage": {
+          "status": "satisfied",
+          "evidence": [
+            "package.json",
+            "src/__tests__/doc-sync.test.ts",
+            "src/__tests__/agent-doc-sync.test.ts"
+          ]
+        },
+        "mutationLane": {
+          "status": "exception",
+          "tracked": [
+            "TODO:BUILD-22"
+          ],
+          "evidence": [
+            "TODO.md",
+            "docs/agent-mutation-policy.md"
+          ],
+          "note": "Focused mutation/sabotage lane is not yet family-specific."
+        }
+      }
+    },
+    "gantt": {
+      "label": "Gantt",
+      "auditLevel": "worked-example",
+      "role": "new-family citizenship exemplar",
+      "workedExample": true,
+      "cells": {
+        "registryDiscovery": {
+          "status": "satisfied",
+          "evidence": [
+            "src/agent/families.ts",
+            "src/__tests__/agent-doc-sync.test.ts",
+            "src/__tests__/cli-capabilities.test.ts"
+          ]
+        },
+        "detectionParse": {
+          "status": "satisfied",
+          "evidence": [
+            "src/mermaid-source.ts",
+            "src/__tests__/agent-doc-sync.test.ts",
+            "src/__tests__/doc-sync.test.ts"
+          ]
+        },
+        "semanticModel": {
+          "status": "satisfied",
+          "evidence": [
+            "src/agent/gantt-body.ts",
+            "src/gantt/parser.ts",
+            "src/gantt/schedule.ts",
+            "docs/design/gantt.md"
+          ]
+        },
+        "serializeRoundTrip": {
+          "status": "satisfied",
+          "evidence": [
+            "src/__tests__/agent-gantt.test.ts",
+            "src/__tests__/gantt-parser.test.ts"
+          ]
+        },
+        "typedMutation": {
+          "status": "satisfied",
+          "evidence": [
+            "src/cli/index.ts",
+            "src/mcp/sdk-decl.ts",
+            "src/__tests__/agent-doc-sync.test.ts"
+          ]
+        },
+        "verifyRenderSeam": {
+          "status": "satisfied",
+          "evidence": [
+            "src/agent/verify.ts",
+            "src/__tests__/agent-family-layouts.test.ts"
+          ]
+        },
+        "determinism": {
+          "status": "satisfied",
+          "evidence": [
+            "src/__tests__/agent-determinism.test.ts",
+            "src/__tests__/ascii-determinism.test.ts",
+            "src/__tests__/agent-png-determinism.test.ts"
+          ]
+        },
+        "svgRender": {
+          "status": "satisfied",
+          "evidence": [
+            "src/__tests__/doc-sync.test.ts",
+            "src/__tests__/integration.test.ts"
+          ]
+        },
+        "asciiUnicodeRender": {
+          "status": "satisfied",
+          "evidence": [
+            "src/__tests__/ascii.test.ts",
+            "src/__tests__/ascii-determinism.test.ts"
+          ]
+        },
+        "layoutProjection": {
+          "status": "satisfied",
+          "evidence": [
+            "src/agent/family-layouts.ts",
+            "src/__tests__/agent-family-layouts.test.ts",
+            "src/__tests__/layout-compare.test.ts"
+          ]
+        },
+        "stableRegions": {
+          "status": "satisfied",
+          "evidence": [
+            "src/__tests__/agent-gantt.test.ts",
+            "src/ascii/meta.ts"
+          ]
+        },
+        "editorExample": {
+          "status": "satisfied",
+          "evidence": [
+            "editor/js/examples.js",
+            "src/__tests__/editor-examples.test.ts",
+            "e2e/browser.test.ts"
+          ]
+        },
+        "docsAgentSurfaces": {
+          "status": "satisfied",
+          "evidence": [
+            "src/__tests__/agent-doc-sync.test.ts",
+            "src/__tests__/cli-llms-txt.test.ts",
+            "docs/diagram-families.md",
+            "AGENT_NATIVE.md",
+            "Instructions_for_agents.md",
+            "llms.txt"
+          ]
+        },
+        "evalFixture": {
+          "status": "satisfied",
+          "evidence": [
+            "evals/shared-benchmark.json",
+            "src/__tests__/agent-doc-sync.test.ts"
+          ]
+        },
+        "upstreamHarvest": {
+          "status": "satisfied",
+          "evidence": [
+            "eval/mermaid-gantt-bench/README.md",
+            "eval/mermaid-gantt-bench/cases.json",
+            "src/__tests__/gantt-upstream-bench.test.ts"
+          ]
+        },
+        "divergenceLedger": {
+          "status": "satisfied",
+          "evidence": [
+            "eval/mermaid-gantt-bench/exclusions.json",
+            "src/__tests__/gantt-upstream-bench.test.ts"
+          ]
+        },
+        "domainProperties": {
+          "status": "satisfied",
+          "evidence": [
+            "src/__tests__/property-gantt-schedule.test.ts",
+            "src/__tests__/gantt-schedule.test.ts",
+            "src/__tests__/gantt-layout.test.ts"
+          ]
+        },
+        "goldensEvidence": {
+          "status": "satisfied",
+          "evidence": [
+            "src/__tests__/gantt-svg-snapshot.test.ts",
+            "src/__tests__/agent-gantt.test.ts",
+            "docs/assets/improvements/gantt-family.png"
+          ]
+        },
+        "generatedSite": {
+          "status": "satisfied",
+          "evidence": [
+            "scripts/site/samples-data.ts",
+            "scripts/site/generate.ts",
+            "src/__tests__/property-html-generator.test.ts"
+          ]
+        },
+        "distributionPackage": {
+          "status": "satisfied",
+          "evidence": [
+            "package.json",
+            "src/__tests__/doc-sync.test.ts",
+            "src/__tests__/agent-doc-sync.test.ts"
+          ]
+        },
+        "mutationLane": {
+          "status": "satisfied",
+          "evidence": [
+            "stryker.gantt.config.json",
+            "package.json"
+          ]
+        }
+      }
+    }
+  }
+}
