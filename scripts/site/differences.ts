@@ -59,79 +59,69 @@ function buildThemePill(key: string, colors: { bg: string; fg: string }, active 
 
 // ── Page content ────────────────────────────────────────────────────────────
 
-type Row = { feature: string; upstream: string; fork: string }
-
-// User-visible comparison. "—" means the original doesn't offer it.
-const COMPARISON_ROWS: Row[] = [
-  { feature: 'Diagram families', upstream: '6', fork: '12' },
-  { feature: 'Output formats', upstream: 'SVG, ASCII / Unicode', fork: 'SVG, ASCII / Unicode, PNG, JSON layout' },
-  { feature: 'Hosted live editor', upstream: '—', fork: 'Yes — examples for every family, theme switching, shareable links' },
-  { feature: 'Semantic role styling', upstream: '—', fork: 'Yes — node / edge / group / text' },
-  { feature: 'Mermaid wrappers (frontmatter, %%{init}%%)', upstream: '—', fork: 'Yes' },
-  { feature: 'Edit diagrams (typed parse → mutate → serialize)', upstream: '—', fork: 'Yes — 12 families, never drops your syntax' },
-  { feature: 'Structured verification', upstream: '—', fork: 'Yes — 3 warning tiers + quality metrics' },
-  { feature: 'Reproducible output', upstream: 'Not guaranteed', fork: 'Yes — byte-identical across runs, CI-gated' },
-  { feature: 'Command-line tool', upstream: '—', fork: 'Yes — the am CLI' },
-  { feature: 'Agent / MCP surface', upstream: '—', fork: 'Yes — Code Mode MCP server, llms.txt' },
-  { feature: 'Two-color theming + named themes + Shiki', upstream: 'Yes', fork: 'Inherited' },
+// What both projects share. Stated so the page credits upstream before it
+// lists additions — and so no difference is implied where none exists.
+const SHARED: string[] = [
+  'The renderer itself: one synchronous, no-browser TypeScript library that computes layout and emits SVG strings.',
+  'ASCII / Unicode output for terminals.',
+  'Two-color theming, a set of named themes (Dracula, Solarized, Nord, Tokyo Night, and more), and Shiki / VS Code theme compatibility.',
+  'A hosted live editor with live rendering, theme switching, and PNG / SVG export. Beautiful Mermaid&rsquo;s is at <a href="https://agents.craft.do/mermaid/editor" target="_blank" rel="noopener">agents.craft.do/mermaid/editor</a>; this fork runs a separate one at <a href="editor">/editor</a>.',
 ]
 
+// Each card describes something this fork's own commits added on top of the
+// inherited renderer. Claims name a concrete mechanism rather than assert an
+// absence in upstream; "this fork adds X" is grounded in the fork's diff.
 type Card = {
-  badge: string
+  tag: string
   title: string
   body: string
 }
 
 const CARDS: Card[] = [
   {
-    badge: '6 → 12 families',
-    title: 'Twice as many diagram types',
-    body: 'Beautiful Mermaid renders flowchart, state, sequence, class, ER, and XY charts. This fork keeps all six and adds <strong>timeline</strong>, <strong>user journey</strong>, <strong>architecture</strong>, <strong>pie</strong>, <strong>quadrant</strong>, and <strong>Gantt</strong> charts — Gantt with date axes, sections, dependencies, milestones, and markers.',
+    tag: 'Diagrams',
+    title: 'Six more diagram families',
+    body: 'Beautiful Mermaid renders six families: flowchart, state, sequence, class, ER, and XY chart. This fork renders those six and adds <strong>timeline</strong>, <strong>user journey</strong>, <strong>architecture</strong>, <strong>pie</strong>, <strong>quadrant</strong>, and <strong>Gantt</strong>. The Gantt renderer reads date axes, sections, task dependencies, milestones, and vertical markers.',
   },
   {
-    badge: 'New',
-    title: 'A hosted live editor',
-    body: 'A mermaid.live-style editor lives at <code>/editor</code>: type on the left, see SVG and ASCII on the right. It ships <strong>Examples for every supported family</strong> plus role-style presets, instant theme switching, shareable URLs, and one-click SVG download.',
+    tag: 'Editing',
+    title: 'A typed parse-and-edit API',
+    body: 'On top of rendering, the fork exposes <code>parseMermaid</code>, per-family mutation ops, <code>verifyMermaid</code>, and <code>serializeMermaid</code>. A program can rename or move one node and re-serialize instead of regenerating the whole diagram. Syntax the parser does not model is carried through the round-trip verbatim rather than dropped.',
   },
   {
-    badge: '+ PNG, JSON',
-    title: 'More ways to export',
-    body: 'On top of SVG and terminal-friendly ASCII / Unicode, this fork renders <strong>PNG offline</strong> (via resvg, no browser) and emits a <strong>JSON layout</strong> so you can place nodes yourself or feed another tool.',
+    tag: 'Verification',
+    title: 'Verification that returns reasons',
+    body: '<code>verifyMermaid</code> reports problems in three tiers — structural, geometric, and lint — and <code>measureQuality</code> returns layout metrics. A caller can branch on a specific warning instead of inspecting the rendered picture.',
   },
   {
-    badge: 'New',
-    title: 'Style by meaning, not by tag',
-    body: 'A consistent styling API restyles diagrams by role — <code>style.node</code>, <code>style.edge</code>, <code>style.group</code>, and <code>style.text</code> — so the same options change cards, connectors, and containers across every family. Explore the <strong>Role Styles</strong> samples in the gallery.',
+    tag: 'Reproducibility',
+    title: 'Byte-identical output, checked in CI',
+    body: 'The fork&rsquo;s tests assert that rendering the same source twice, and across separate processes, produces identical bytes. That keeps SVG diffs and golden-file tests stable from one run to the next.',
   },
   {
-    badge: 'New',
-    title: 'Mermaid config &amp; source wrappers',
-    body: 'Paste diagrams straight from Mermaid: YAML frontmatter, <code>%%{init: …}%%</code> and <code>%%{initialize: …}%%</code> directives, and comments before the header are all honored and merged with your render options.',
+    tag: 'Output',
+    title: 'PNG and JSON layout from the library',
+    body: 'Alongside SVG and ASCII, the library and the <code>am</code> CLI render PNG without a browser (via resvg) and can emit the computed layout as JSON, for tools that place nodes themselves.',
   },
   {
-    badge: 'New',
-    title: 'Edit diagrams safely, not by regenerating',
-    body: 'A render-only library forces you to rebuild the whole diagram to move one node. Here you can <strong>parse → mutate → verify → serialize</strong>: typed edits for all 12 families, and anything the parser doesn’t model round-trips <strong>losslessly</strong> instead of being silently dropped. Built for AI agents, useful for any script.',
+    tag: 'Styling',
+    title: 'A style option keyed by role',
+    body: '<code>renderMermaidSVG</code> accepts a <code>style</code> option grouped by role — <code>node</code>, <code>edge</code>, <code>group</code>, <code>text</code> — so one set of values restyles cards, connectors, containers, and labels together, across the families that support each role.',
   },
   {
-    badge: 'New',
-    title: 'Verify before you ship',
-    body: '<code>verifyMermaid</code> returns <strong>structured warnings in three tiers</strong> (structural, geometric, lint) plus perceptual quality metrics for every family — so you catch a broken diagram from a report instead of by squinting at pixels.',
+    tag: 'Compatibility',
+    title: 'Reads Mermaid source wrappers',
+    body: 'Diagrams that open with YAML frontmatter, a <code>%%{init: …}%%</code> or <code>%%{initialize: …}%%</code> directive, or comments before the header parse and render here, with those settings merged into the render options.',
   },
   {
-    badge: 'New',
-    title: 'Reproducible, byte-identical output',
-    body: 'Layout is deterministic and verified <strong>byte-for-byte identical across runs and processes</strong>, gated in CI. The same source always produces the same SVG — friendly to diffs, caches, and golden-file tests.',
+    tag: 'Tooling',
+    title: 'A CLI and an MCP server',
+    body: 'The <code>am</code> binary renders, verifies, mutates, previews, and batch-processes diagrams from a shell, with exit codes and JSONL for scripting. An <code>agentic-mermaid-mcp</code> server and a hosted <code>llms.txt</code> let a coding agent drive the same parse → mutate → verify → serialize loop.',
   },
   {
-    badge: 'Improved',
-    title: 'Sharper layout &amp; ASCII',
-    body: 'Fixes beyond upstream: cleaner fan-in grouping and fan-out trunk sharing, edges that attach to a subgraph container instead of a phantom node, <code>direction</code> overrides honored inside subgraphs, and ER cardinality parsed exactly like Mermaid — malformed lines error loudly instead of vanishing.',
-  },
-  {
-    badge: 'New',
-    title: 'A command line and an agent surface',
-    body: 'The <code>am</code> CLI renders, verifies, mutates, previews, and batch-processes diagrams from a shell — and an <code>agentic-mermaid-mcp</code> Code Mode server plus a hosted <code>llms.txt</code> let coding agents drive the whole workflow.',
+    tag: 'Layout',
+    title: 'Specific layout and parsing fixes',
+    body: 'Reported layout cases handled here include fan-in grouping, shared fan-out trunks, edges that attach to a subgraph&rsquo;s container instead of a phantom node, and <code>direction</code> honored inside subgraphs. ER cardinality is parsed to match Mermaid&rsquo;s lexer, so a malformed relationship line raises an error instead of being silently dropped.',
   },
 ]
 
@@ -162,18 +152,10 @@ function buildHtml(): string {
       </div>
     </div>`
 
-  const comparisonRows = COMPARISON_ROWS.map(row => {
-    const forkIsDash = row.fork === '—'
-    const upstreamIsDash = row.upstream === '—'
-    return `        <tr>
-          <th scope="row">${row.feature}</th>
-          <td${upstreamIsDash ? ' class="cell-dash"' : ''}>${escapeHtml(row.upstream)}</td>
-          <td class="cell-fork${forkIsDash ? ' cell-dash' : ''}">${escapeHtml(row.fork)}</td>
-        </tr>`
-  }).join('\n')
+  const sharedItems = SHARED.map(item => `          <li>${item}</li>`).join('\n')
 
   const cardsHtml = CARDS.map(card => `      <article class="diff-card shadow-minimal">
-        <span class="diff-badge">${card.badge}</span>
+        <span class="diff-tag">${card.tag}</span>
         <h3 class="diff-card-title">${card.title}</h3>
         <p class="diff-card-body">${card.body}</p>
       </article>`).join('\n')
@@ -187,12 +169,12 @@ function buildHtml(): string {
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="theme-color" id="theme-color-meta" content="#f8f2eb" />
   <title>What's different in this fork — Agentic Mermaid</title>
-  <meta name="description" content="The user-visible differences between Agentic Mermaid (this fork) and the original Beautiful Mermaid: twice the diagram types, a live editor, PNG and JSON output, semantic role styling, structured verification, deterministic output, and typed editing for agents." />
+  <meta name="description" content="What Agentic Mermaid adds on top of Beautiful Mermaid, the renderer it forks: six more diagram families, a typed parse-and-edit API, structured verification, byte-identical output, PNG and JSON output, a role-keyed style option, Mermaid source wrappers, and a CLI plus MCP server." />
   <link rel="icon" type="image/svg+xml" href="favicon.svg" />
   <link rel="icon" type="image/x-icon" href="favicon.ico" />
   <link rel="apple-touch-icon" href="apple-touch-icon.png" />
   <meta property="og:title" content="What's different in this fork — Agentic Mermaid" />
-  <meta property="og:description" content="Agentic Mermaid vs Beautiful Mermaid: twice the diagram types, a live editor, PNG/JSON output, semantic role styling, verification, deterministic output, and typed editing." />
+  <meta property="og:description" content="What Agentic Mermaid adds on top of Beautiful Mermaid: six more diagram families, a typed parse-and-edit API, verification, byte-identical output, PNG/JSON output, a role-keyed style option, and a CLI plus MCP server." />
   <meta property="og:image" content="https://adewale.github.io/beautiful-mermaid/og-image.png" />
   <meta property="og:type" content="website" />
   <meta property="og:url" content="https://adewale.github.io/beautiful-mermaid/differences" />
@@ -356,15 +338,10 @@ function buildHtml(): string {
         rgba(var(--shadow-color), calc(var(--shadow-blur-opacity) * 0.67)) 0px 6px 6px -3px;
     }
 
-    /* -- Hero header -- */
-    .hero-header { max-width: 1180px; margin: 0 auto; padding: 5rem 2rem 1.5rem; text-align: left; }
-    @media (min-width: 1000px) { .hero-header { padding: 5rem 3rem 1.5rem; } }
-    .hero-eyebrow {
-      font-size: 0.8125rem; font-weight: 700; text-transform: uppercase;
-      letter-spacing: 0.08em; color: var(--t-accent); margin: 0 0 0.6rem;
-    }
-    .hero-title { font-size: 2.5rem; font-weight: 800; line-height: 1.15; margin: 0 0 0.5rem; color: var(--t-fg); }
-    @media (max-width: 600px) { .hero-title { font-size: 2rem; } }
+    /* -- Hero header (matches the gallery hero metrics) -- */
+    .hero-header { max-width: 1180px; margin: 0 auto; padding: 6rem 2rem 2rem; text-align: left; }
+    @media (min-width: 1000px) { .hero-header { padding: 6rem 3rem 2rem; } }
+    .hero-title { font-size: 2.25rem; font-weight: 800; line-height: 1.2; margin: 0 0 0.75rem; color: var(--t-fg); }
     .hero-description {
       font-size: 1rem; line-height: 1.6;
       color: color-mix(in srgb, var(--t-fg) 70%, var(--t-bg));
@@ -408,40 +385,24 @@ function buildHtml(): string {
     }
     .section { margin-top: 3.5rem; }
 
-    /* -- Comparison table -- */
-    .compare-wrap {
-      border-radius: 18px; overflow: hidden;
-      background: color-mix(in srgb, var(--t-fg) 2.5%, var(--t-bg));
+    /* -- Foundation list (what both projects share) -- */
+    .foundation {
+      border-radius: 16px; padding: 1.5rem 1.75rem;
+      background: color-mix(in srgb, var(--t-fg) 3%, var(--t-bg));
     }
-    .compare-table { width: 100%; border-collapse: collapse; font-size: 0.9375rem; }
-    .compare-table th, .compare-table td {
-      text-align: left; padding: 0.85rem 1.15rem; vertical-align: top;
-      border-bottom: 1px solid color-mix(in srgb, var(--t-fg) 8%, var(--t-bg));
+    .foundation-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.7rem; }
+    .foundation-list li {
+      position: relative; padding-left: 1.5rem;
+      font-size: 0.92rem; line-height: 1.6; max-width: 80ch;
+      color: color-mix(in srgb, var(--t-fg) 72%, var(--t-bg));
     }
-    .compare-table thead th {
-      font-size: 0.8125rem; text-transform: uppercase; letter-spacing: 0.05em;
-      color: color-mix(in srgb, var(--t-fg) 55%, var(--t-bg));
-      background: color-mix(in srgb, var(--t-fg) 5%, var(--t-bg));
-      position: sticky; top: 0;
+    .foundation-list li::before {
+      content: ''; position: absolute; left: 0; top: 0.62em;
+      width: 7px; height: 7px; border-radius: 999px;
+      background: color-mix(in srgb, var(--t-accent) 60%, var(--t-bg));
     }
-    .compare-table thead th.col-fork { color: var(--t-accent); }
-    .compare-table tbody th {
-      font-weight: 700; color: var(--t-fg);
-      width: 38%;
-    }
-    .compare-table td { color: color-mix(in srgb, var(--t-fg) 72%, var(--t-bg)); }
-    .compare-table td.cell-fork {
-      color: var(--t-fg);
-      background: color-mix(in srgb, var(--t-accent) 5%, var(--t-bg));
-      font-weight: 500;
-    }
-    .compare-table td.cell-dash { color: color-mix(in srgb, var(--t-fg) 32%, var(--t-bg)); }
-    .compare-table tbody tr:last-child th,
-    .compare-table tbody tr:last-child td { border-bottom: none; }
-    @media (max-width: 640px) {
-      .compare-table th, .compare-table td { padding: 0.7rem 0.8rem; }
-      .compare-table tbody th { width: 42%; }
-    }
+    .foundation-list a { color: var(--t-fg); text-decoration: underline; text-underline-offset: 2px; }
+    .foundation-list a:hover { color: var(--t-accent); }
 
     /* -- Difference cards -- */
     .diff-grid {
@@ -452,13 +413,12 @@ function buildHtml(): string {
       background: var(--t-bg); border-radius: 16px; padding: 1.5rem;
       display: flex; flex-direction: column; gap: 0.6rem;
     }
-    .diff-badge {
+    .diff-tag {
       align-self: flex-start;
-      font-size: 0.75rem; font-weight: 700; letter-spacing: 0.02em;
+      font-size: 0.7rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase;
       padding: 0.2rem 0.6rem; border-radius: 999px;
-      color: var(--t-accent);
-      background: color-mix(in srgb, var(--t-accent) 12%, var(--t-bg));
-      font-variant-numeric: tabular-nums;
+      color: color-mix(in srgb, var(--t-fg) 62%, var(--t-bg));
+      background: color-mix(in srgb, var(--t-fg) 7%, var(--t-bg));
     }
     .diff-card-title { font-size: 1.0625rem; font-weight: 700; margin: 0; color: var(--t-fg); }
     .diff-card-body {
@@ -512,15 +472,14 @@ function buildHtml(): string {
 
   <!-- Hero -->
   <header class="hero-header">
-    <p class="hero-eyebrow">Fork differences</p>
     <h1 class="hero-title">What's different in this fork</h1>
     <p class="hero-description">
       <strong>Agentic Mermaid</strong> is a fork of
       <a href="https://github.com/lukilabs/beautiful-mermaid" target="_blank" rel="noopener">Beautiful Mermaid</a>,
-      the synchronous, browserless Mermaid renderer by Craft. It keeps everything that makes the
-      original fast and good-looking, and adds twice the diagram types, a live editor, more
-      export formats, semantic styling, structured verification, deterministic output, and a typed
-      workflow for editing diagrams safely. Here is what you'll actually notice.
+      Craft's synchronous, browserless Mermaid renderer. It inherits that renderer along with the
+      theming, the named themes, and the ASCII output that ship with it, then adds support for
+      programs that read and edit diagrams. This page lists what the fork's own changes add;
+      everything else is upstream's work.
     </p>
     <div class="hero-buttons">
       <a href="./" class="hero-btn hero-btn-primary">
@@ -540,55 +499,47 @@ function buildHtml(): string {
 
   <div class="content-wrapper">
 
-    <!-- At a glance -->
-    <section class="section" id="at-a-glance" aria-labelledby="at-a-glance-title">
-      <h2 class="section-title" id="at-a-glance-title">At a glance</h2>
+    <!-- Shared foundation -->
+    <section class="section" id="shared" aria-labelledby="shared-title">
+      <h2 class="section-title" id="shared-title">Shared with Beautiful Mermaid</h2>
       <p class="section-intro">
-        The same core, two columns. The original is render-only for six families; this fork
-        broadens what you can draw and adds an editing, verification, and tooling layer on top.
+        Most of what this fork does, it does because upstream already did it. These come from
+        Beautiful Mermaid and are unchanged here:
       </p>
-      <div class="compare-wrap shadow-minimal">
-        <table class="compare-table">
-          <thead>
-            <tr>
-              <th scope="col">Feature</th>
-              <th scope="col">Beautiful Mermaid</th>
-              <th scope="col" class="col-fork">Agentic Mermaid (this fork)</th>
-            </tr>
-          </thead>
-          <tbody>
-${comparisonRows}
-          </tbody>
-        </table>
+      <div class="foundation shadow-minimal">
+        <ul class="foundation-list">
+${sharedItems}
+        </ul>
       </div>
     </section>
 
-    <!-- The differences -->
-    <section class="section" id="differences" aria-labelledby="differences-title">
-      <h2 class="section-title" id="differences-title">The differences, in detail</h2>
+    <!-- What the fork adds -->
+    <section class="section" id="additions" aria-labelledby="additions-title">
+      <h2 class="section-title" id="additions-title">What this fork adds</h2>
       <p class="section-intro">
-        Everything below is new or improved compared with upstream Beautiful Mermaid.
+        Each item below is introduced by the fork's own commits, on top of the inherited renderer.
+        The figures for Beautiful Mermaid are drawn from its
+        <a href="https://agents.craft.do/mermaid" target="_blank" rel="noopener">live site</a>.
       </p>
       <div class="diff-grid">
 ${cardsHtml}
       </div>
     </section>
 
-    <!-- Credit -->
-    <section class="credit-box" aria-label="Built on Beautiful Mermaid">
-      <h2>Built on Beautiful Mermaid</h2>
+    <!-- Which to use -->
+    <section class="credit-box" aria-label="Which to use">
+      <h2>Which should you use?</h2>
       <p>
-        The synchronous zero-DOM renderer, the two-color theming foundation with named themes and
-        Shiki compatibility, and the ASCII / Unicode output are all upstream's work — credit belongs
-        there. This fork inherits them and layers new capabilities on top.
+        For render-only output, or a Mermaid family outside the twelve here, Beautiful Mermaid or
+        <a href="https://github.com/mermaid-js/mermaid" target="_blank" rel="noopener">Mermaid</a> itself
+        is the better fit — Mermaid defines the language both projects implement and supports far more
+        diagram types. Reach for this fork when a program needs to edit a diagram and check the
+        result: that editing, verification, and tooling layer is what its changes add.
       </p>
       <p>
-        Want the full story, including how this compares to Mermaid itself? See the
-        <a href="https://github.com/adewale/beautiful-mermaid/blob/main/docs/comparison.md" target="_blank" rel="noopener">three-way comparison</a>
-        and the <a href="https://github.com/adewale/beautiful-mermaid/blob/main/docs/fork-differences.md" target="_blank" rel="noopener">fork notes</a>.
-        Need a different diagram family, or render-only output? The original
-        <a href="https://github.com/lukilabs/beautiful-mermaid" target="_blank" rel="noopener">Beautiful Mermaid</a>
-        and <a href="https://github.com/mermaid-js/mermaid" target="_blank" rel="noopener">Mermaid</a> may fit better.
+        For the longer write-up, see the
+        <a href="https://github.com/adewale/beautiful-mermaid/blob/main/docs/fork-differences.md" target="_blank" rel="noopener">fork notes</a>
+        and the <a href="https://github.com/adewale/beautiful-mermaid/blob/main/docs/comparison.md" target="_blank" rel="noopener">three-way comparison</a>.
       </p>
     </section>
 
