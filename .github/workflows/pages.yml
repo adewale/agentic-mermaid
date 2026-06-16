@@ -41,6 +41,7 @@ jobs:
           cp differences.html _site/differences/index.html
           cp -r public/* _site/
           cp -r public/* _site/editor/
+          cp -r public/* _site/differences/
 
       - name: Generate hosted agent manifests
         run: |

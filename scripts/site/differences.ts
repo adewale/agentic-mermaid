@@ -4,16 +4,29 @@
  *
  * Usage: bun run scripts/site/differences.ts
  *
- * The page is intentionally static (no diagram rendering) but reuses the main
- * site's visual language: the same fonts, CSS-variable theming (--t-bg / --t-fg
- * / --t-accent), theme-bar with switchable pills, hero header, and footer. The
- * theme engine here is the page-level subset of generate.ts — it recolors the
- * page instantly but has no samples to re-render.
+ * The page reuses the main site's visual language: the same fonts, CSS-variable
+ * theming (--t-bg / --t-fg / --t-accent), theme-bar with switchable pills, hero
+ * header, and footer. The theme engine here is the page-level subset of
+ * generate.ts — it recolors the page chrome instantly.
+ *
+ * Hero examples are rendered at build time and inlined as static SVG figures
+ * (pinned to the salmon palette), so they need no client bundle:
+ *   - "New diagram types": the six families this fork adds, rendered here.
+ *   - "Layout decisions": before/after pairs. The "after" is rendered fresh
+ *     from this repo; the "before" is a pinned snapshot of upstream Beautiful
+ *     Mermaid (see capture-upstream-layout.ts / upstream-layout-snapshots.json).
  *
  * Content source of truth: docs/fork-differences.md and docs/comparison.md.
  */
 
 import { THEMES } from '../../src/theme.ts'
+import { renderMermaidSVG } from '../../src/index.ts'
+import upstreamLayout from './upstream-layout-snapshots.json' with { type: 'json' }
+
+// The palette the inlined figures are rendered in. The page defaults to this
+// theme, so in the default view the figures blend into the page; under other
+// themes they read as fixed light insets (they are baked, not live-themed).
+export const FIGURE_THEME_KEY = 'salmon'
 
 // Mirror of the labels used by the gallery + editor so pills read the same.
 const THEME_LABELS: Record<string, string> = {
@@ -125,6 +138,102 @@ const CARDS: Card[] = [
   },
 ]
 
+// ── Hero examples ─────────────────────────────────────────────────────────────
+
+// The six families this fork adds. Rendered here at build time; each carries
+// its own in-diagram title, so the figures need no separate caption.
+const NEW_TYPES: { id: string; src: string }[] = [
+  { id: 'timeline', src: `timeline
+  title Product history
+  2021 : Founded
+  2022 : Seed round : First hire
+  2023 : Series A : Launch` },
+  { id: 'journey', src: `journey
+  title Checkout
+  section Browse
+    View item: 5: User
+    Add to cart: 4: User
+  section Pay
+    Enter card: 3: User
+    Confirm: 5: User, System` },
+  { id: 'architecture', src: `architecture-beta
+  group api(cloud)[API]
+  service gw(server)[Gateway] in api
+  service db(database)[Postgres] in api
+  service cache(disk)[Redis] in api
+  gw:R --> L:db
+  gw:B --> T:cache` },
+  { id: 'pie', src: `pie showData
+  title Traffic sources
+  "Search" : 52
+  "Direct" : 23
+  "Social" : 15
+  "Referral" : 10` },
+  { id: 'quadrant', src: `quadrantChart
+  title Reach vs effort
+  x-axis Low effort --> High effort
+  y-axis Low reach --> High reach
+  "Blog": [0.3, 0.7]
+  "Ads": [0.8, 0.6]
+  "SEO": [0.5, 0.8]
+  "Cold email": [0.6, 0.2]` },
+  { id: 'gantt', src: `gantt
+  title Launch plan
+  dateFormat YYYY-MM-DD
+  section Build
+    Spec      :a1, 2024-01-01, 7d
+    Implement :a2, after a1, 14d
+  section Ship
+    QA        :a3, after a2, 5d
+    Release   :milestone, after a3, 0d` },
+]
+
+// Layout decisions where this fork's output still differs visibly from the
+// pinned upstream release: decision/diamond branch routing (the symmetry-floor
+// work). The "after" is rendered fresh; the "before" comes from
+// upstream-layout-snapshots.json, keyed by these ids.
+export const LAYOUT_CASES: { id: string; title: string; src: string }[] = [
+  { id: 'diamond-td', title: 'Diamond fan-out, top-down', src: `flowchart TD
+  Q{Decide} -- a --> P[One]
+  Q -- b --> R[Two]` },
+  { id: 'three-way', title: 'Three-way decision', src: `flowchart TD
+  Q{Decision} -->|left| L[Left]
+  Q -->|middle| M[Middle]
+  Q -->|right| R[Right]` },
+  { id: 'diamond-lr', title: 'Diamond fan-out, left-to-right', src: `flowchart LR
+  Q{Decide} -- a --> P[One]
+  Q -- b --> R[Two]` },
+]
+
+// Namespace every id (and its url(#…) / href="#…" references) in an SVG so
+// many inlined diagrams — from two library versions that emit overlapping ids
+// like "arrowhead" and "Q" — can share one document without collisions.
+function namespaceSvg(svg: string, prefix: string): string {
+  const ids = [...new Set([...svg.matchAll(/\sid="([^"]+)"/g)].map(m => m[1]!))]
+    // Longest first so a short id never rewrites a substring of a longer one.
+    .sort((a, b) => b.length - a.length)
+  let out = svg
+  for (const id of ids) {
+    const e = id.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+    out = out
+      .replace(new RegExp(`id="${e}"`, 'g'), `id="${prefix}${id}"`)
+      .replace(new RegExp(`url\\(#${e}\\)`, 'g'), `url(#${prefix}${id})`)
+      .replace(new RegExp(`url\\("#${e}"\\)`, 'g'), `url("#${prefix}${id}")`)
+      .replace(new RegExp(`((?:xlink:)?href)="#${e}"`, 'g'), `$1="#${prefix}${id}"`)
+  }
+  return out
+}
+
+const figureTheme = THEMES[FIGURE_THEME_KEY]!
+const figureOpts = {
+  bg: figureTheme.bg, fg: figureTheme.fg, line: figureTheme.line, accent: figureTheme.accent,
+  muted: figureTheme.muted, surface: figureTheme.surface, border: figureTheme.border,
+}
+
+function renderForkFigure(src: string, id: string): string {
+  return namespaceSvg(renderMermaidSVG(src, { ...figureOpts, idPrefix: `fk-${id}-` }), `${id}-`)
+}
+
 // ── Assemble ─────────────────────────────────────────────────────────────────
 
 function buildHtml(): string {
@@ -159,6 +268,21 @@ function buildHtml(): string {
         <h3 class="diff-card-title">${card.title}</h3>
         <p class="diff-card-body">${card.body}</p>
       </article>`).join('\n')
+
+  const newTypesHtml = NEW_TYPES.map(t =>
+    `      <figure class="figure-card"><div class="figure-svg">${renderForkFigure(t.src, t.id)}</div></figure>`
+  ).join('\n')
+
+  const layoutHtml = LAYOUT_CASES.map(c => {
+    const before = namespaceSvg((upstreamLayout.cases as Record<string, string>)[c.id]!, `${c.id}-up-`)
+    const after = renderForkFigure(c.src, c.id)
+    return `      <figure class="figure-card">
+        <div class="ba-pair">
+          <div class="ba-col"><span class="ba-label ba-before">Beautiful Mermaid ${upstreamLayout.upstreamVersion}</span><div class="figure-svg">${before}</div></div>
+          <div class="ba-col"><span class="ba-label ba-after">This fork</span><div class="figure-svg">${after}</div></div>
+        </div>
+      </figure>`
+  }).join('\n')
 
   const themesJson = JSON.stringify(THEMES)
 
@@ -385,6 +509,33 @@ function buildHtml(): string {
     }
     .section { margin-top: 3.5rem; }
 
+    /* -- Hero example figures --------------------------------------------------
+     * The inlined SVGs are baked in the salmon palette, so the figure cards use
+     * a fixed light surface (not var(--t-bg)): in the default theme they blend
+     * into the page; under other themes they read as stable light insets. */
+    .examples-grid {
+      display: grid; grid-template-columns: repeat(auto-fill, minmax(290px, 1fr));
+      gap: 1rem;
+    }
+    .figure-card {
+      margin: 0; border-radius: 16px; padding: 1.25rem;
+      background: ${figureTheme.bg};
+      box-shadow: 0 0 0 1px rgba(82, 16, 0, 0.08), 0 2px 10px rgba(0, 0, 0, 0.05);
+    }
+    .figure-svg { display: flex; align-items: center; justify-content: center; }
+    .figure-svg svg { max-width: 100%; height: auto; display: block; }
+    .layout-grid { display: grid; gap: 1rem; }
+    .ba-pair { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+    @media (max-width: 720px) { .ba-pair { grid-template-columns: 1fr; } }
+    .ba-col { display: flex; flex-direction: column; gap: 0.6rem; min-width: 0; }
+    .ba-label {
+      align-self: flex-start;
+      font-size: 0.7rem; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase;
+      padding: 0.2rem 0.6rem; border-radius: 999px;
+    }
+    .ba-before { color: rgba(82, 16, 0, 0.62); background: rgba(82, 16, 0, 0.08); }
+    .ba-after { color: #c23a06; background: rgba(255, 72, 1, 0.13); }
+
     /* -- Foundation list (what both projects share) -- */
     .foundation {
       border-radius: 16px; padding: 1.5rem 1.75rem;
@@ -498,6 +649,28 @@ function buildHtml(): string {
   </header>
 
   <div class="content-wrapper">
+
+    <!-- New diagram types -->
+    <section class="section" id="new-types" aria-labelledby="new-types-title" style="margin-top: 2.5rem;">
+      <h2 class="section-title" id="new-types-title">New diagram types</h2>
+      <p class="section-intro">
+        The six families this fork adds on top of Beautiful Mermaid&rsquo;s, rendered here.
+      </p>
+      <div class="examples-grid">
+${newTypesHtml}
+      </div>
+    </section>
+
+    <!-- Layout decisions -->
+    <section class="section" id="layout" aria-labelledby="layout-title">
+      <h2 class="section-title" id="layout-title">Layout decisions</h2>
+      <p class="section-intro">
+        Same source, same palette, side by side with Beautiful Mermaid ${upstreamLayout.upstreamVersion}.
+      </p>
+      <div class="layout-grid">
+${layoutHtml}
+      </div>
+    </section>
 
     <!-- Shared foundation -->
     <section class="section" id="shared" aria-labelledby="shared-title">
@@ -671,7 +844,9 @@ ${cardsHtml}
 </html>`
 }
 
-const html = buildHtml()
-const outPath = new URL('../../differences.html', import.meta.url).pathname
-await Bun.write(outPath, html)
-console.log(`Written to ${outPath} (${(html.length / 1024).toFixed(1)} KB)`)
+if (import.meta.main) {
+  const html = buildHtml()
+  const outPath = new URL('../../differences.html', import.meta.url).pathname
+  await Bun.write(outPath, html)
+  console.log(`Written to ${outPath} (${(html.length / 1024).toFixed(1)} KB)`)
+}
