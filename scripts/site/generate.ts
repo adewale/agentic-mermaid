@@ -2036,6 +2036,7 @@ ${bundleJs}
   <footer class="site-footer">
     <span>Open source under the MIT License.</span>
     <div class="footer-links">
+      <a href="differences">What's different in this fork</a>
       <a href="https://github.com/adewale/beautiful-mermaid/blob/main/docs/fork-differences.md" target="_blank" rel="noopener noreferrer">Fork notes</a>
       <a href="https://github.com/adewale/beautiful-mermaid/blob/main/CHANGELOG.md" target="_blank" rel="noopener noreferrer">Changelog</a>
       <a href="https://github.com/adewale/beautiful-mermaid" target="_blank" rel="noopener noreferrer">
