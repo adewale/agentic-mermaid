@@ -21,7 +21,7 @@ import { layoutGraphSync } from '../layout-engine.ts'
 import { parseMermaid } from '../parser.ts'
 import { assessLayout, hardViolations } from '../layout-rubric.ts'
 import { labelRect, shapePorts } from '../route-contracts.ts'
-import { resolveRenderStyle } from '../styles.ts'
+import { ARROW_HEAD, resolveRenderStyle } from '../styles.ts'
 import type { EdgeMarker, EdgeStyle, PositionedEdge } from '../types.ts'
 
 function layoutEdges(source: string): PositionedEdge[] {
@@ -66,6 +66,39 @@ function rectsOverlap(
 
 function readableLabelGap(style: { edgeLabelFontSize: number }): number {
   return Math.max(8, style.edgeLabelFontSize * 0.75)
+}
+
+function terminalMarkerGap(style: { edgeLabelFontSize: number; lineWidth?: number }, edge: PositionedEdge): number {
+  const lineWidth = style.lineWidth ?? 1
+  const strokeWidth = edge.style === 'thick' ? lineWidth * 2 : lineWidth
+  return Math.max(18, style.edgeLabelFontSize + ARROW_HEAD.width + strokeWidth * 2)
+}
+
+function labelHalfExtentAlongSegment(
+  box: { w: number; h: number },
+  a: { x: number; y: number },
+  b: { x: number; y: number },
+): number {
+  return Math.abs(b.x - a.x) >= Math.abs(b.y - a.y) ? box.w / 2 : box.h / 2
+}
+
+function expectLabelClearsTerminalMarkers(
+  edge: PositionedEdge,
+  box: { x: number; y: number; w: number; h: number },
+  style: { edgeLabelFontSize: number; lineWidth?: number },
+): void {
+  const clearance = terminalMarkerGap(style, edge)
+  const label = edge.labelPosition!
+  if (edge.hasArrowStart && edge.points.length >= 2 && distanceToPolyline(label, edge.points.slice(0, 2)) <= 0.001) {
+    const start = edge.points[0]!
+    const halfExtent = labelHalfExtentAlongSegment(box, start, edge.points[1]!)
+    expect(Math.hypot(label.x - start.x, label.y - start.y)).toBeGreaterThanOrEqual(halfExtent + clearance - 0.001)
+  }
+  if (edge.hasArrowEnd && edge.points.length >= 2 && distanceToPolyline(label, edge.points.slice(-2)) <= 0.001) {
+    const end = edge.points[edge.points.length - 1]!
+    const halfExtent = labelHalfExtentAlongSegment(box, edge.points[edge.points.length - 2]!, end)
+    expect(Math.hypot(label.x - end.x, label.y - end.y)).toBeGreaterThanOrEqual(halfExtent + clearance - 0.001)
+  }
 }
 
 function pointToSegmentDistance(
@@ -290,6 +323,8 @@ describe('syntax range — & multi-edge chains hit the same fan heuristics', () 
     expect(distanceToPolyline(yes.labelPosition!, yes.points)).toBeLessThanOrEqual(0.001)
     expect(distanceToPolyline(needsWork.labelPosition!, needsWork.points)).toBeLessThanOrEqual(0.001)
     expect(rectsOverlap(yesLabel, needsWorkLabel, readableLabelGap(style))).toBe(false)
+    expectLabelClearsTerminalMarkers(yes, yesLabel, style)
+    expectLabelClearsTerminalMarkers(needsWork, needsWorkLabel, style)
     expect(yesLabel.y).toBeGreaterThanOrEqual(decisionSouth + 2)
     expect(needsWorkLabel.y).toBeGreaterThanOrEqual(decisionSouth + 2)
     zeroHardViolations(source)
@@ -307,7 +342,9 @@ describe('syntax range — & multi-edge chains hit the same fan heuristics', () 
     const labelRects = branchEdges.map(edge => {
       expect(edge.routeCertificate?.invariant).toBe('bundle')
       expect(distanceToPolyline(edge.labelPosition!, edge.points)).toBeLessThanOrEqual(0.001)
-      return labelRect(edge, style)!
+      const rect = labelRect(edge, style)!
+      expectLabelClearsTerminalMarkers(edge, rect, style)
+      return rect
     })
 
     for (let i = 0; i < labelRects.length; i++) {
@@ -346,6 +383,7 @@ describe('syntax range — & multi-edge chains hit the same fan heuristics', () 
             expect(rectsOverlap(rect!, { x: sourceNode.x, y: sourceNode.y, w: sourceNode.width, h: sourceNode.height }, 2)).toBe(false)
             expect(rectsOverlap(rect!, { x: targetNode.x, y: targetNode.y, w: targetNode.width, h: targetNode.height }, 2)).toBe(false)
             expect(distanceToPolyline(edge.labelPosition!, edge.points)).toBeLessThanOrEqual(0.001)
+            expectLabelClearsTerminalMarkers(edge, rect!, style)
             expect(edge.labelPosition).toBeDefined()
             expect(edge.routeCertificate).toBeDefined()
           }

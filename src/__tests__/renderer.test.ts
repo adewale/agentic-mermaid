@@ -368,6 +368,8 @@ describe('renderSvg – edge labels', () => {
     const svg = renderSvg(graph, lightColors)
     expect(svg).toContain('>Yes</text>')
     expect(svg).toContain('rx="2" ry="2"')
+    expect(svg).toContain('class="edge-label-halo"')
+    expect(svg.indexOf('class="edge-label-halo"')).toBeLessThan(svg.indexOf('>Yes</text>'))
   })
 
   it('does not render label elements for edges without labels', () => {

@@ -1313,6 +1313,42 @@ function readableLabelGap(style: LabelMetricsStyle): number {
   return Math.max(8, style.edgeLabelFontSize * 0.75)
 }
 
+function terminalMarkerGap(style: LabelMetricsStyle, edge: PositionedEdge): number {
+  const lineWidth = (style as LabelMetricsStyle & { lineWidth?: number }).lineWidth ?? 1
+  const strokeWidth = edge.style === 'thick' ? lineWidth * 2 : lineWidth
+  return Math.max(18, style.edgeLabelFontSize + ARROW_HEAD.width + strokeWidth * 2)
+}
+
+function labelHalfExtentAlongSegment(
+  box: { width: number; height: number },
+  a: Point,
+  b: Point,
+): number {
+  return Math.abs(b.x - a.x) >= Math.abs(b.y - a.y) ? box.width / 2 : box.height / 2
+}
+
+function clearsTerminalMarkers(
+  edge: PositionedEdge,
+  points: Point[],
+  segmentIndex: number,
+  point: Point,
+  box: { width: number; height: number },
+  style: LabelMetricsStyle,
+): boolean {
+  const clearance = terminalMarkerGap(style, edge)
+  if (edge.hasArrowStart && segmentIndex === 1) {
+    const start = points[0]!
+    const halfExtent = labelHalfExtentAlongSegment(box, start, points[1]!)
+    if (Math.hypot(point.x - start.x, point.y - start.y) < halfExtent + clearance) return false
+  }
+  if (edge.hasArrowEnd && segmentIndex === points.length - 1) {
+    const end = points[points.length - 1]!
+    const halfExtent = labelHalfExtentAlongSegment(box, points[points.length - 2]!, end)
+    if (Math.hypot(point.x - end.x, point.y - end.y) < halfExtent + clearance) return false
+  }
+  return true
+}
+
 function bundledLabelCandidates(edge: PositionedEdge, points: Point[], nodes: PositionedNode[], style: LabelMetricsStyle): BundledLabelCandidate[] {
   if (!edge.label) return []
   const raw: Array<BundledLabelCandidate & { length: number; order: number }> = []
@@ -1326,6 +1362,7 @@ function bundledLabelCandidates(edge: PositionedEdge, points: Point[], nodes: Po
       const point = { x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t }
       const box = labelBoxAt(edge.label, point, style)
       if (nodes.some(node => rectsOverlap(box, node, 2))) continue
+      if (!clearsTerminalMarkers(edge, points, i, point, box, style)) continue
       raw.push({
         point,
         box,
