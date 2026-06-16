@@ -103,6 +103,8 @@
     "prepublishOnly": "npm run build",
     "goldens:ascii": "bun run scripts/update-ascii-goldens.ts",
     "goldens:ascii:check": "bun run scripts/update-ascii-goldens.ts --check",
+    "hero": "bun run scripts/site/hero.ts",
+    "hero:check": "bun run scripts/site/hero.ts --check",
     "characterization:check": "bun run scripts/characterization/contact-sheet.ts --check && bun run scripts/characterization/contact-sheet-families.ts --check && bun run scripts/characterization/visual-quality.ts --check",
     "mutation-test": "npx stryker run",
     "mutation-test:characterization": "npx stryker run stryker.characterization.config.json",

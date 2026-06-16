@@ -31,6 +31,11 @@ jobs:
       - name: Type check
         run: bun x tsc --noEmit
 
+      - name: Check README hero image is current with the renderer
+        # Compares a deterministic fingerprint of the renderer output behind
+        # assets/hero.png (diagram SVG + ASCII) — no fonts/rasterization needed.
+        run: bun run hero:check
+
       - name: Check for unreviewed snapshot changes
         run: |
           if git diff --name-only | grep -q 'src/__tests__/testdata/'; then
