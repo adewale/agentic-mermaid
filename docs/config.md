@@ -69,6 +69,7 @@ Family-specific:
 - `xyChart.width`, `xyChart.height`, `xyChart.chartOrientation`, `xyChart.showDataLabel`, `xyChart.titlePadding`, `xyChart.xAxisLabelPadding`, `xyChart.yAxisLabelPadding`, `xyChart.plotReservedSpacePercent`, `xyChart.plotColorPalette`, `xyChart.useMaxWidth`, `xyChart.useWidth`
 - `architecture.padding`, `architecture.iconSize`, `architecture.fontSize`
 - `timeline.disableMulticolor`, `timeline.padding`, `timeline.sectionFontSize`, `timeline.periodFontSize`, `timeline.eventFontSize`
+- `gantt.displayMode` (`compact` packs non-overlapping tasks in a section into shared rows)
 
 Unsupported fields are preserved at the source level where possible, but only documented fields are interpreted by renderers.
 

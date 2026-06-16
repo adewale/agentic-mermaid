@@ -25,8 +25,8 @@ export type DiagramRef = number | string
 
 export type SdkCall =
   | { verb: 'parse'; diagram?: DiagramRef; source?: string }
-  | { verb: 'narrow'; family: 'flowchart' | 'state' | 'sequence' | 'timeline' | 'class' | 'er' | 'journey' | 'architecture' | 'xychart' | 'pie' | 'quadrant'; input?: DiagramRef; ok: boolean }
-  | { verb: 'mutate'; body: 'flowchart' | 'state' | 'sequence' | 'timeline' | 'class' | 'er' | 'journey' | 'architecture' | 'xychart' | 'pie' | 'quadrant' | 'opaque'; input?: DiagramRef; output?: DiagramRef; opKind?: string; fingerprint?: string }
+  | { verb: 'narrow'; family: 'flowchart' | 'state' | 'sequence' | 'timeline' | 'class' | 'er' | 'journey' | 'architecture' | 'xychart' | 'pie' | 'quadrant' | 'gantt'; input?: DiagramRef; ok: boolean }
+  | { verb: 'mutate'; body: 'flowchart' | 'state' | 'sequence' | 'timeline' | 'class' | 'er' | 'journey' | 'architecture' | 'xychart' | 'pie' | 'quadrant' | 'gantt' | 'opaque'; input?: DiagramRef; output?: DiagramRef; opKind?: string; fingerprint?: string }
   | { verb: 'verify'; diagram?: DiagramRef; ok?: boolean; inspected?: boolean; fingerprint?: string }
   | { verb: 'verify_inspect'; diagram?: DiagramRef; property: 'ok' | 'warnings' | 'layout' }
   | { verb: 'serialize'; diagram?: DiagramRef; source?: string; fingerprint?: string }

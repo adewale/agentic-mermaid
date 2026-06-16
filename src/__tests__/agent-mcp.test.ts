@@ -4,6 +4,7 @@ import { describe, test, expect } from 'bun:test'
 import { executeInSandbox } from '../mcp/sandbox.ts'
 import { handleRequest } from '../mcp/server.ts'
 import { runCli } from '../cli/index.ts'
+import { BUILTIN_FAMILY_METADATA } from '../agent/families.ts'
 
 describe('sandbox — happy', () => {
   test('flowchart workflow', async () => {
@@ -371,13 +372,21 @@ describe('MCP — JSON-RPC happy + sad', () => {
   test('initialize', async () => {
     const r = await handleRequest({ jsonrpc: '2.0', id: 1, method: 'initialize' })
     expect((r!.result as any).serverInfo.name).toBe('agentic-mermaid-mcp')
+    const instructions = (r!.result as any).instructions as string
+    for (const family of BUILTIN_FAMILY_METADATA) expect(instructions).toContain(family.narrower)
+    expect(instructions).not.toContain('Journey, xychart, architecture')
   })
   test('tools/list has execute with SDK', async () => {
     const r = await handleRequest({ jsonrpc: '2.0', id: 2, method: 'tools/list' })
     const tools = (r!.result as any).tools
     // Loop 9 M1 + M12: render_png and describe joined execute.
     expect(tools.map((t: any) => t.name)).toEqual(['execute', 'render_png', 'describe'])
-    for (const token of ['asFlowchart', 'asSequence', 'asTimeline', 'asClass', 'asEr', 'TimelineMutationOp', 'ClassMutationOp', 'ErMutationOp']) {
+    for (const token of [
+      ...BUILTIN_FAMILY_METADATA.map(f => f.narrower),
+      'TimelineMutationOp',
+      'ClassMutationOp',
+      'ErMutationOp',
+    ]) {
       expect(tools[0].description).toContain(token)
     }
   })

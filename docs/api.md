@@ -71,6 +71,7 @@ const ascii = renderMermaidASCII(`flowchart LR
 | `colorMode` | `string` | `'auto'` | `'none'`, `'auto'`, `'ansi16'`, `'ansi256'`, `'truecolor'`, or `'html'`. |
 | `theme` | `Partial<AsciiTheme>` | — | Override ASCII colors. |
 | `mermaidConfig` | `MermaidRuntimeConfig` | — | Mermaid-style runtime config. |
+| `ganttToday` | `string` | unset | Explicit "today" for the Gantt `todayMarker`; same deterministic clock behavior as SVG. |
 
 ## SVG render options
 
@@ -99,6 +100,7 @@ const ascii = renderMermaidASCII(`flowchart LR
 | `compact` | `boolean` | `false` | Compact SVG output while preserving agent hooks. |
 | `idPrefix` | `string` | `''` | Namespace generated SVG def ids. |
 | `security` | `'default' | 'strict'` | `'default'` | `strict` disables external-fetch references. |
+| `ganttToday` | `string` | unset | Explicit "today" for the Gantt `todayMarker` (date in the diagram's `dateFormat` or ISO `YYYY-MM-DD`). Gantt never reads the wall clock; without this the marker is not drawn. |
 
 `DiagramStyleOptions` is role-based:
 
@@ -126,7 +128,7 @@ Core functions:
 | Function | Purpose |
 |---|---|
 | `parseMermaid(source)` | Parse Mermaid source to `Result<ValidDiagram, ParseError[]>`. |
-| `asFlowchart(d)` / `asSequence(d)` / `asTimeline(d)` / `asClass(d)` / `asEr(d)` | Narrow to a mutable family or return `null`. |
+| `asFlowchart(d)` / `asState(d)` / `asSequence(d)` / `asTimeline(d)` / `asClass(d)` / `asEr(d)` / `asJourney(d)` / `asArchitecture(d)` / `asXyChart(d)` / `asPie(d)` / `asQuadrant(d)` / `asGantt(d)` | Narrow to a mutable family or return `null`. |
 | `mutate(d, op)` | Apply a kind-discriminated typed mutation. |
 | `verifyMermaid(d)` | Return structural warnings and layout evidence. |
 | `serializeMermaid(d)` | Emit source only after verifying. |
@@ -138,17 +140,18 @@ Typed mutation families:
 
 | Family | Narrower | Common ops |
 |---|---|---|
-| Flowchart/state | `asFlowchart` | `add_node`, `remove_node`, `rename_node`, `set_label`, `add_edge`, `remove_edge` |
+| Flowchart | `asFlowchart` | `add_node`, `remove_node`, `rename_node`, `set_label`, `add_edge`, `remove_edge` |
+| State | `asState` | `add_state`, `remove_state`, `rename_state`, `set_state_label`, `add_transition`, `remove_transition`, `set_transition_label`, `make_composite` |
 | Sequence | `asSequence` | `add_participant`, `remove_participant`, `add_message`, `remove_message`, `set_message_text` |
 | Timeline | `asTimeline` | `set_title`, `add_section`, `add_period`, `add_event`, remove/set variants |
 | Class | `asClass` | `add_class`, `remove_class`, `rename_class`, `add_member`, `add_relation`, notes |
 | ER | `asEr` | `add_entity`, `remove_entity`, `rename_entity`, `add_attribute`, `add_relation` |
-
 | Journey | `asJourney` | `set_title`, `add_section`, `add_task`, `set_task_score`, `set_task_actors`, `rename_actor`, … |
 | XY chart | `asXyChart` | `set_title`, `set_x_axis`, `set_y_axis`, `add_series`, `set_series_values`, `reorder_series`, … |
 | Architecture | `asArchitecture` | `add_service`, `move_service`, `add_group`, `add_edge`, `rename_service`, … |
 | Pie | `asPie` | `set_title`, `set_show_data`, `add_slice`, `remove_slice`, `rename_slice`, `set_slice_value`, `reorder_slice` |
 | Quadrant | `asQuadrant` | `set_title`, `set_axis_labels`, `set_quadrant_label`, `add_point`, `remove_point`, `move_point`, `rename_point` |
+| Gantt | `asGantt` | `set_title`, `add_section`, `rename_section`, `add_task`, `set_task_status`, `set_task_dates`, … |
 
 Opaque fallback bodies (any unmodeled syntax) are source-level-only: edit source deliberately, then parse and verify again.
 

@@ -121,9 +121,9 @@ export function applyFlowchartOps(source: string, ops: FlowchartMutationOp[]) {
 }
 ```
 
-## Recipe: handle source-level-only families
+## Recipe: handle opaque fallback bodies
 
-Xychart and opaque fallback bodies parse, verify, render, and serialize, but they do not expose typed mutation. Narrowers return `null` for those bodies. (Journey and architecture were promoted to structured mutation by BUILD-15/17; only their unmodeled-syntax fallbacks remain opaque.)
+Every built-in renderable family has a typed mutation path when its modeled subset narrows successfully. Unmodeled syntax is preserved as an opaque fallback body: it still parses, verifies, renders, and serializes losslessly, but family narrowers return `null` for that particular body.
 
 ```ts
 import { parseMermaid, asFlowchart, verifyMermaid, serializeMermaid } from 'agentic-mermaid/agent'
@@ -137,7 +137,7 @@ if (!flow) {
     phase: 'unsupported-family',
     family: parsed.value.kind,
     source: serializeMermaid(parsed.value),
-    note: 'Use source-level editing only if explicitly requested; then re-parse and verify.'
+    note: 'This body is opaque. Use source-level editing only if explicitly requested; then re-parse and verify.'
   }
 }
 
@@ -250,6 +250,12 @@ Use `am capabilities --json` for machine-readable discovery. Current typed mutat
 | Timeline | `asTimeline` | `set_title`, `add_section`, `remove_section`, `set_section_label`, `add_period`, `remove_period`, `set_period_label`, `add_event`, `remove_event`, `set_event_text` |
 | Class | `asClass` | `set_title`, `add_class`, `remove_class`, `rename_class`, `add_member`, `remove_member`, `add_relation`, `remove_relation`, `add_note`, `remove_note` |
 | ER | `asEr` | `add_entity`, `remove_entity`, `rename_entity`, `add_attribute`, `remove_attribute`, `add_relation`, `remove_relation` |
+| Journey | `asJourney` | `set_title`, `add_section`, `remove_section`, `set_section_label`, `add_task`, `remove_task`, `set_task_text`, `set_task_score`, `set_task_actors`, `rename_actor` |
+| Architecture | `asArchitecture` | `add_service`, `remove_service`, `rename_service`, `set_service_label`, `set_service_icon`, `move_service`, `add_group`, `remove_group`, `add_edge`, `remove_edge` |
+| XY chart | `asXyChart` | `set_title`, `set_x_axis`, `set_y_axis`, `add_series`, `remove_series`, `set_series_values`, `set_series_name`, `reorder_series` |
+| Pie | `asPie` | `set_title`, `set_show_data`, `add_slice`, `remove_slice`, `rename_slice`, `set_slice_value`, `reorder_slice` |
+| Quadrant | `asQuadrant` | `set_title`, `set_axis_labels`, `set_quadrant_label`, `add_point`, `remove_point`, `move_point`, `rename_point` |
+| Gantt | `asGantt` | `set_title`, `add_section`, `rename_section`, `remove_section`, `add_task`, `remove_task`, `rename_task`, `set_task_status`, `set_task_dates` |
 
 Unsupported typed mutation is a stop signal, not a prompt to fake structure. Either report the unsupported family or perform explicit source-level editing followed by parse/verify.
 
@@ -265,10 +271,11 @@ Tier 1 warnings are reliable structural/source checks. Do not suppress Tier 1 er
 | `GROUP_BREACH` | Member lies outside its group bounds |
 | `UNKNOWN_SHAPE` | Shape fell back because the name is unrecognized |
 | `LABEL_OVERFLOW` | Label exceeds `labelCharCap` |
+| `UNRESOLVABLE_SCHEDULE` | Gantt parses but its schedule cannot resolve; render would fail |
 
 Tier 2 warnings are advisory geometric checks for flowchart/state: `NODE_OVERLAP`, `ROUTE_SELF_CROSS`, and the route-contract tripwires `ROUTE_HITCH`, `ROUTE_UNEXPLAINED_BEND`, `ROUTE_LABEL_ON_SHARED_TRUNK`, `ROUTE_CONTAINER_MISANCHOR`, `ROUTE_SHAPE_MISANCHOR`, `ROUTE_STALE_AFTER_NODE_MOVE`.
 
-Tier 3 warnings are advisory lint checks for common agent mistakes: `DUPLICATE_EDGE`, `UNREACHABLE_NODE`, `COMMENT_DROPPED`. They do not flip `verify.ok`, but they are worth fixing when the caller asks for clean maintainable diagrams.
+Tier 3 warnings are advisory lint checks for common agent mistakes: `DUPLICATE_EDGE`, `UNREACHABLE_NODE`, `DECISION_BRANCH_UNLABELED`, `COMMENT_DROPPED`. They do not flip `verify.ok`, but they are worth fixing when the caller asks for clean maintainable diagrams.
 
 ## Common anti-patterns
 
@@ -276,7 +283,7 @@ Tier 3 warnings are advisory lint checks for common agent mistakes: `DUPLICATE_E
 - Concatenating source for an edit covered by a typed op.
 - Serializing before reading `verify.ok` and `verify.warnings`.
 - Treating `verify.ok` as a human aesthetics score.
-- Calling `mutate` on pie or opaque bodies.
+- Calling `mutate` on opaque fallback bodies.
 - Hiding unsupported-family results. Return them explicitly so the caller can choose a source-level path.
 
 ## Minimal decision tree

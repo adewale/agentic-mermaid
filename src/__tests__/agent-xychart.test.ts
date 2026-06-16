@@ -1,5 +1,5 @@
-// BUILD-16: xychart structured mutation (promoting the xychart family from
-// source-level-only, following the BUILD-15 journey and BUILD-17 architecture
+// BUILD-16: xychart structured mutation (promoting xychart from opaque-only
+// fallback semantics, following the BUILD-15 journey and BUILD-17 architecture
 // pilots). Parse / narrow / mutate / verify / serialize, the structured-or-
 // opaque fallback, round-trip identity, and a differential check that the
 // canonical source we emit re-parses identically under the legacy renderer's

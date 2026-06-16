@@ -1,4 +1,4 @@
-// Pie structured mutation (promoting the pie family from source-level-only,
+// Pie structured mutation (promoting pie from opaque-only fallback semantics,
 // following the journey/architecture/xychart pilots). Parse / narrow / mutate /
 // verify / serialize, the structured-or-opaque fallback, round-trip identity,
 // and a differential check that the canonical source we emit re-parses

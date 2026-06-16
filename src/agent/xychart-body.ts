@@ -1,6 +1,6 @@
 // ============================================================================
-// XY chart structured body (BUILD-16: promotes the xychart family from
-// source-level-only to structured mutation, following the BUILD-15 journey and
+// XY chart structured body (BUILD-16: promotes xychart from opaque-only
+// fallback semantics to structured mutation, following the BUILD-15 journey and
 // BUILD-17 architecture pilots).
 //
 // Modeled grammar (mirrors the legacy renderer parser, src/xychart/parser.ts):

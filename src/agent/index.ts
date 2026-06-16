@@ -6,7 +6,7 @@
 
 export type {
   Result, ValidDiagram, FlowchartValidDiagram, StateValidDiagram, SequenceValidDiagram, TimelineValidDiagram,
-  ClassValidDiagram, ErValidDiagram, JourneyValidDiagram, ArchitectureValidDiagram, XyChartValidDiagram, PieValidDiagram, QuadrantValidDiagram, MutableValidDiagram,
+  ClassValidDiagram, ErValidDiagram, JourneyValidDiagram, ArchitectureValidDiagram, XyChartValidDiagram, PieValidDiagram, QuadrantValidDiagram, GanttValidDiagram, MutableValidDiagram,
   ValidDiagramMeta, ValidDiagramPayload, SerializedFlowchartGraph, DiagramBody, DiagramKind,
   StateBody, StateNode, StateTransition,
   SequenceBody, SequenceParticipant, SequenceMessage, SequenceMessageStyle,
@@ -17,24 +17,25 @@ export type {
   ArchitectureBody, ArchitectureGroup, ArchitectureService, ArchitectureJunction, ArchitectureEdge, ArchitectureEndpoint, ArchitectureSide,
   XyChartBody, XyChartAxis, XyChartSeries, XyChartAxisSpec,
   PieBody, PieSlice, QuadrantBody, QuadrantAxis, QuadrantPoint,
+  GanttBody, GanttBodySection, GanttBodyTask, GanttBodyTaskTag, GanttStatement,
   SourceMap, SourceComment, InitDirective, Accessibility,
   ParseError, MutationError, MutationOp, FlowchartMutationOp, StateMutationOp, SequenceMutationOp, TimelineMutationOp,
-  ClassMutationOp, ErMutationOp, JourneyMutationOp, ArchitectureMutationOp, XyChartMutationOp, PieMutationOp, QuadrantMutationOp, AnyMutationOp,
+  ClassMutationOp, ErMutationOp, JourneyMutationOp, ArchitectureMutationOp, XyChartMutationOp, PieMutationOp, QuadrantMutationOp, GanttMutationOp, AnyMutationOp,
   NodeId, EdgeId, GroupId, ParticipantId,
   LayoutWarning, WarningCode, Tier1WarningCode, Tier2WarningCode, WarningSeverity, WarningTier,
   VerifyOptions, VerifyResult, RenderedLayout, RenderedLayoutNode, RenderedLayoutEdge, RenderedLayoutGroup,
   Finite,
 } from './types.ts'
 
-export { WARNING_SEVERITY, WARNING_TIER, DEFAULT_LABEL_CHAR_CAP, ok, err, toFinite, asFlowchart, asState, asSequence, asTimeline, asClass, asEr, asJourney, asArchitecture, asXyChart, asPie, asQuadrant } from './types.ts'
+export { WARNING_SEVERITY, WARNING_TIER, DEFAULT_LABEL_CHAR_CAP, ok, err, toFinite, asFlowchart, asState, asSequence, asTimeline, asClass, asEr, asJourney, asArchitecture, asXyChart, asPie, asQuadrant, asGantt } from './types.ts'
 export { parseMermaid } from './parse.ts'
 export { serializeMermaid, synthesizeFromGraph } from './serialize.ts'
 export { mutate, edgeIdOf } from './mutate.ts'
 export { verifyMermaid } from './verify.ts'
 export { measureQuality, checkQuality, DEFAULT_BOUNDS } from './quality.ts'
 export type { QualityMetrics, QualityBounds, QualityVerdict } from './quality.ts'
-export { registerFamily, getFamily, knownFamilies } from './families.ts'
-export type { FamilyPlugin, ExtractedLabel } from './families.ts'
+export { registerFamily, getFamily, knownFamilies, BUILTIN_FAMILY_METADATA, BUILTIN_FAMILY_METADATA_COVERS_DIAGRAM_KIND, builtinFamilyMetadata } from './families.ts'
+export type { FamilyPlugin, ExtractedLabel, BuiltinFamilyMetadata, BuiltinFamilyId } from './families.ts'
 export { renderMermaidPNG } from './png.ts'
 export type { PngOptions } from './png.ts'
 export { renderMermaidASCIIWithMeta } from '../ascii/meta.ts'

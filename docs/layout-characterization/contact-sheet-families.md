@@ -19,6 +19,7 @@ invariants hold (verified empirically).
 | [Class diagram](#class) | ✓ | ✓ | ✓ | ✓ |
 | [ER diagram](#er) | ✓ | ✓ | ✓ | ✓ |
 | [Timeline](#timeline) | ✓ | ✓ | ✓ | · |
+| [Gantt chart](#gantt) | ✓ | ✓ | ✓ | · |
 | [User journey](#journey) | ✓ | ✓ | ✓ | · |
 | [XY chart](#xychart) | ✓ | ✓ | ✓ | · |
 | [Pie chart](#pie) | ✓ | ✓ | ✓ | · |
@@ -26,7 +27,7 @@ invariants hold (verified empirically).
 | [Architecture diagram](#architecture) | ✓ | ✓ | ✓ | · |
 
 **Total** and **Deterministic** hold for every renderer (the bedrock contract;
-also pinned across the 243-entry docs corpus by `ascii-determinism.test.ts`).
+also pinned across the 258-entry docs corpus by `ascii-determinism.test.ts`).
 **No diagonals** holds for every renderer. **Rectangular** (all rows one width)
 holds only for the box/graph families; the chart and list families emit ragged
 rows by design.
@@ -267,6 +268,45 @@ Project
 [Phase 2]
 ○ 2023
 │  └─ GA
+```
+
+## <a id="gantt"></a>Gantt chart
+
+**Layout strategy:** Calendar/time-axis renderer with scheduled task bars, milestones, and vertical markers (src/ascii/gantt.ts).
+
+**Signature invariant:** Tasks resolve to deterministic intervals on a time axis; dependencies push starts, exclusions extend working durations, milestones render as points, and vert markers consume no task row. Ragged rows.
+
+Source:
+
+```mermaid
+gantt
+  title Launch plan
+  dateFormat YYYY-MM-DD
+  axisFormat %b %d
+  excludes weekends
+  section Build
+    Spec :done, spec, 2024-01-01, 2d
+    Implement :active, impl, after spec, 3d
+  section Ship
+    QA :crit, qa, after impl, 2d
+    Launch :milestone, launch, after qa, 0d
+    Release line :vert, release, 2024-01-10, 0d
+```
+
+Rendered:
+
+```
+                       Launch plan
+
+  Build
+    Spec          ░░░░░░░░░──────────────────────────────┊  01-01 → 01-03
+    Implement     ─────────▓▓▓▓▓▓▓▓▓▓▓▓▓─────────────────┊  01-03 → 01-06
+  Ship
+    QA            ──────────────────────▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒  01-06 → 01-10
+    Launch        ───────────────────────────────────────◆  01-10
+    Release line                                         ┊  01-10
+                  ────────────────────────────────────────
+                                             Jan 07
 ```
 
 ## <a id="journey"></a>User journey

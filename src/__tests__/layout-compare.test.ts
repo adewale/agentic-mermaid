@@ -5,6 +5,7 @@
 import { describe, test, expect } from 'bun:test'
 import { snapshotSample, compareSample, buildReportHtml, collectSamples, type Snapshot, type SampleResult } from '../../eval/layout-compare/run.ts'
 import type { QualityMetrics } from '../agent/index.ts'
+import { BUILTIN_FAMILY_METADATA } from '../agent/families.ts'
 
 const FLOW = { id: 'probe/flow', family: 'flowchart', source: 'flowchart TD\n  A --> B\n  A --> C' }
 
@@ -95,15 +96,14 @@ describe('layout-compare harness', () => {
 
   test('sample set includes the corpus and the layout fixtures', () => {
     const samples = collectSamples()
-    expect(samples.length).toBeGreaterThanOrEqual(247)
+    expect(samples.length).toBeGreaterThanOrEqual(258)
     const ids = samples.map(s => s.id)
     // QUAL-1: every renderable family now has at least one fixture so the
     // harness exercises its adapter.
+    const familyFixtures = BUILTIN_FAMILY_METADATA.map(f => `fixture/${f.id}-basic.mmd`)
     for (const f of [
       'fixture/fan-in.mmd', 'fixture/fan-out-trunk.mmd', 'fixture/fan-in-fan-out.mmd', 'fixture/subgraph-direction.mmd',
-      'fixture/class-basic.mmd', 'fixture/er-basic.mmd', 'fixture/journey-basic.mmd', 'fixture/architecture-basic.mmd',
-      'fixture/xychart-basic.mmd', 'fixture/pie-basic.mmd', 'fixture/quadrant-basic.mmd',
-      'fixture/sequence-basic.mmd', 'fixture/timeline-basic.mmd', 'fixture/state-basic.mmd',
+      ...familyFixtures,
     ]) {
       expect(ids).toContain(f)
     }

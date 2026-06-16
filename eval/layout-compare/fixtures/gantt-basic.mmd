@@ -1,0 +1,7 @@
+gantt
+  dateFormat YYYY-MM-DD
+  section Build
+    Spec   :spec, 2024-01-01, 2d
+    Render :render, after spec, 3d
+  section Release
+    Ship   :milestone, ship, after render, 0d

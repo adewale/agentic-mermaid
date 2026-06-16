@@ -1,5 +1,5 @@
-// Quadrant structured mutation (promoting the quadrantChart family from
-// source-level-only, following the journey/architecture/xychart pilots). Parse
+// Quadrant structured mutation (promoting quadrantChart from opaque-only
+// fallback semantics, following the journey/architecture/xychart pilots). Parse
 // / narrow / mutate / verify / serialize, the structured-or-opaque fallback,
 // round-trip identity, and a differential check that the canonical source we
 // emit re-parses identically under the legacy renderer's parseQuadrantChart.

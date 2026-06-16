@@ -76,6 +76,9 @@ ASCII/Unicode output is available from the public entrypoints for:
 - journey
 - XY chart
 - architecture
+- pie
+- quadrant
+- gantt
 
 PNG output is separate: use `renderMermaidPNG(source)` or `am render --format png --output file.png` when a raster artifact is required.
 

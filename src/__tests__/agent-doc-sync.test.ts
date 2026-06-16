@@ -6,20 +6,40 @@ import { spawnSync } from 'node:child_process'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { AGENT_INSTRUCTIONS } from '../cli/agent-instructions.ts'
+import { AGENTS_SNIPPET, INIT_SKILL_MD } from '../cli/init-agent.ts'
 import { MUTATION_OPS_BY_FAMILY, buildCapabilities } from '../cli/index.ts'
 import { SDK_DECLARATION } from '../mcp/sdk-decl.ts'
 import { WARNING_SEVERITY, WARNING_TIER } from '../agent/types.ts'
 import {
   asFlowchart, asState, asSequence, asTimeline, asClass, asEr,
-  asJourney, asArchitecture, asXyChart, asPie, asQuadrant,
+  asJourney, asArchitecture, asXyChart, asPie, asQuadrant, asGantt,
 } from '../agent/types.ts'
-import { knownFamilies, getFamily } from '../agent/families.ts'
+import { BUILTIN_FAMILY_METADATA, BUILTIN_FAMILY_METADATA_COVERS_DIAGRAM_KIND, knownFamilies, getFamily } from '../agent/families.ts'
 import type { DiagramKind, ValidDiagram } from '../agent/types.ts'
 import { THEMES } from '../theme.ts'
 import { executeInSandbox } from '../mcp/sandbox.ts'
 import { lintAgentTrace, type SdkCall } from '../../eval/agent-usage/harness.ts'
 
 const REPO = join(import.meta.dir, '..', '..')
+
+const MUTABLE_FAMILY_DOCS = {
+  flowchart: { label: 'Flowchart', narrower: 'asFlowchart', cliLabel: 'flowchart' },
+  state: { label: 'State', narrower: 'asState', cliLabel: 'state' },
+  sequence: { label: 'Sequence', narrower: 'asSequence', cliLabel: 'sequence' },
+  timeline: { label: 'Timeline', narrower: 'asTimeline', cliLabel: 'timeline' },
+  class: { label: 'Class', narrower: 'asClass', cliLabel: 'class' },
+  er: { label: 'ER', narrower: 'asEr', cliLabel: 'ER' },
+  journey: { label: 'Journey', narrower: 'asJourney', cliLabel: 'journey' },
+  architecture: { label: 'Architecture', narrower: 'asArchitecture', cliLabel: 'architecture' },
+  xychart: { label: 'XY chart', narrower: 'asXyChart', cliLabel: 'xychart' },
+  pie: { label: 'Pie', narrower: 'asPie', cliLabel: 'pie' },
+  quadrant: { label: 'Quadrant', narrower: 'asQuadrant', cliLabel: 'quadrant' },
+  gantt: { label: 'Gantt', narrower: 'asGantt', cliLabel: 'gantt' },
+} satisfies Record<keyof typeof MUTATION_OPS_BY_FAMILY, { label: string; narrower: string; cliLabel: string }>
+
+function escapeRegExp(text: string): string {
+  return text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+}
 
 describe('Instructions_for_agents.md', () => {
   test('exists, under 100 lines', () => {
@@ -128,6 +148,49 @@ describe('agent-facing runnable docs', () => {
 })
 
 describe('vocabulary doc-sync', () => {
+  test('built-in family metadata is the checked source for shipped family surfaces', () => {
+    const metadataIds = new Set(BUILTIN_FAMILY_METADATA.map(f => f.id))
+    const mutationFamilyIds = new Set(Object.keys(MUTATION_OPS_BY_FAMILY) as Array<keyof typeof MUTATION_OPS_BY_FAMILY>)
+    expect(BUILTIN_FAMILY_METADATA_COVERS_DIAGRAM_KIND).toBe(true)
+    expect(metadataIds).toEqual(new Set(knownFamilies()))
+    expect(metadataIds).toEqual(mutationFamilyIds)
+
+    for (const family of BUILTIN_FAMILY_METADATA) {
+      const docs = MUTABLE_FAMILY_DOCS[family.id]
+      expect({ family: family.id, narrower: docs.narrower }).toEqual({ family: family.id, narrower: family.narrower })
+      expect({ family: family.id, label: docs.label }).toEqual({ family: family.id, label: family.label })
+    }
+  })
+
+  test('human-facing capability docs mention every built-in family', () => {
+    const docs = [
+      'README.md',
+      'docs/diagram-families.md',
+      'docs/features.md',
+      'docs/ascii.md',
+      'docs/fork-differences.md',
+    ]
+    for (const file of docs) {
+      const text = readFileSync(join(REPO, file), 'utf8').toLowerCase()
+      for (const family of BUILTIN_FAMILY_METADATA) {
+        const label = family.label.toLowerCase()
+        const header = family.headers[0]!.toLowerCase()
+        expect({ file, family: family.id, present: text.includes(label) || text.includes(header) })
+          .toEqual({ file, family: family.id, present: true })
+      }
+    }
+  })
+
+  test('quality geometry table lists every built-in family', () => {
+    const quality = readFileSync(join(REPO, 'docs/quality.md'), 'utf8')
+    for (const family of BUILTIN_FAMILY_METADATA) {
+      expect({
+        family: family.id,
+        row: new RegExp(`\\|\\s*${escapeRegExp(family.id)}\\s*\\|`).test(quality),
+      }).toEqual({ family: family.id, row: true })
+    }
+  })
+
   test('every warning code in Instructions_for_agents.md and spec', () => {
     const guide = readFileSync(join(REPO, 'Instructions_for_agents.md'), 'utf8')
     const spec = readFileSync(join(REPO, 'AGENT_NATIVE.md'), 'utf8')
@@ -157,8 +220,53 @@ describe('vocabulary doc-sync', () => {
   })
 
   test('MCP SDK declaration exposes all mutable-family narrowers', () => {
-    for (const narrower of ['asFlowchart', 'asState', 'asSequence', 'asTimeline', 'asClass', 'asEr', 'asJourney', 'asArchitecture', 'asXyChart', 'asPie', 'asQuadrant']) {
+    for (const { narrower } of Object.values(MUTABLE_FAMILY_DOCS)) {
       expect(SDK_DECLARATION).toContain(narrower)
+    }
+  })
+
+  test('agent-facing crib sheets list every mutable family', () => {
+    const agentNative = readFileSync(join(REPO, 'AGENT_NATIVE.md'), 'utf8')
+    const guide = readFileSync(join(REPO, 'Instructions_for_agents.md'), 'utf8')
+    const llms = readFileSync(join(REPO, 'llms.txt'), 'utf8')
+    const skill = readFileSync(join(REPO, 'skills/agentic-mermaid-diagram-workflow/SKILL.md'), 'utf8')
+    const codeMode = readFileSync(join(REPO, 'skills/agentic-mermaid-diagram-workflow/references/code-mode.md'), 'utf8')
+    const cli = readFileSync(join(REPO, 'skills/agentic-mermaid-diagram-workflow/references/cli.md'), 'utf8')
+    const cookbook = readFileSync(join(REPO, 'docs/agent-api-cookbook.md'), 'utf8')
+    const api = readFileSync(join(REPO, 'docs/api.md'), 'utf8')
+
+    for (const [family, ops] of Object.entries(MUTATION_OPS_BY_FAMILY) as Array<[keyof typeof MUTATION_OPS_BY_FAMILY, readonly string[]]>) {
+      const { label, narrower, cliLabel } = MUTABLE_FAMILY_DOCS[family]
+      expect({ family, skillRow: new RegExp(`\\|[^\\n]*${escapeRegExp(label)}[^\\n]*\\|`).test(skill) })
+        .toEqual({ family, skillRow: true })
+      expect({ family, cookbookRow: cookbook.includes(`| ${label} | \`${narrower}\``) })
+        .toEqual({ family, cookbookRow: true })
+      expect({ family, codeModeNarrower: codeMode.includes(`mermaid.${narrower}`) })
+        .toEqual({ family, codeModeNarrower: true })
+      expect({ family, apiNarrower: api.includes(`\`${narrower}`) })
+        .toEqual({ family, apiNarrower: true })
+      expect({ family, cliRef: cli.includes(cliLabel) })
+        .toEqual({ family, cliRef: true })
+
+      for (const [file, text] of [
+        ['AGENT_NATIVE.md', agentNative],
+        ['Instructions_for_agents.md', guide],
+        ['llms.txt', llms],
+        ['init-agent AGENTS.md snippet', AGENTS_SNIPPET],
+        ['init-agent skill bundle', INIT_SKILL_MD],
+      ] as const) {
+        expect({ family, file, narrowerListed: text.includes(narrower) })
+          .toEqual({ family, file, narrowerListed: true })
+      }
+
+      for (const op of ops) {
+        expect({ family, op, cookbookOp: cookbook.includes(`\`${op}\``) })
+          .toEqual({ family, op, cookbookOp: true })
+      }
+    }
+
+    for (const text of [skill, codeMode, SDK_DECLARATION]) {
+      expect(text).toContain('ganttToday')
     }
   })
 
@@ -180,6 +288,7 @@ describe('vocabulary doc-sync', () => {
       asXyChart: 'xychart-beta\\n  bar [1, 2]',
       asPie: 'pie\\n  "Dogs" : 3',
       asQuadrant: 'quadrantChart\\n  Campaign A: [0.3, 0.6]',
+      asGantt: 'gantt\\n  Task A :a1, 2024-01-01, 3d',
     }
     for (const narrower of advertised) {
       const source = SOURCES[narrower]
@@ -201,7 +310,7 @@ describe('vocabulary doc-sync', () => {
     const NARROWERS: Record<DiagramKind, (d: ValidDiagram) => unknown> = {
       flowchart: asFlowchart, state: asState, sequence: asSequence, timeline: asTimeline,
       class: asClass, er: asEr, journey: asJourney, architecture: asArchitecture,
-      xychart: asXyChart, pie: asPie, quadrant: asQuadrant,
+      xychart: asXyChart, pie: asPie, quadrant: asQuadrant, gantt: asGantt,
     }
     const FAIL = 'New families ship with typed mutation by default — see docs/contributing/adding-diagram-types.md.'
     for (const kind of knownFamilies()) {
@@ -310,13 +419,16 @@ describe('root docs consistency', () => {
     const readme = readFileSync(join(REPO, 'README.md'), 'utf8')
     const theming = readFileSync(join(REPO, 'docs/theming.md'), 'utf8')
     const api = readFileSync(join(REPO, 'docs/api.md'), 'utf8')
+    const config = readFileSync(join(REPO, 'docs/config.md'), 'utf8')
     const themeNames = Object.keys(THEMES)
     expect(readme).toContain(`${themeNames.length} built-in themes`)
     expect(theming).toContain(`${themeNames.length} built-in themes`)
     for (const name of themeNames) expect(theming).toContain(`\`${name}\``)
-    for (const option of ['shadow', 'embedFontImport', 'compact', 'idPrefix', 'security']) {
+    for (const option of ['shadow', 'embedFontImport', 'compact', 'idPrefix', 'security', 'ganttToday']) {
       expect(api).toContain(`\`${option}\``)
     }
+    expect(config).toContain('gantt.displayMode')
+    expect(SDK_DECLARATION).toContain('gantt?:')
     expect(readme).not.toContain('`thoroughness`')
     expect(api).not.toContain('`thoroughness`')
   })
@@ -404,7 +516,12 @@ describe('detector drift guard (agent vs shared router)', () => {
       ['pie title Pets\n  "Dogs" : 386\n  "Cats" : 85', 'pie'],
       ['quadrantChart\n  title T\n  Campaign A: [0.3, 0.6]', 'quadrant'],
       ['architecture-beta\n  group api(cloud)[API]', 'architecture'],
+      ['gantt\n  Task A :a1, 2024-01-01, 3d', 'gantt'],
     ]
+    // `detectDiagramType` is the shared renderer router: state diagrams still
+    // route through the flowchart renderer path, then agent parsing splits
+    // them into the dedicated `state` family.
+    expect(new Set(cases.map(([, expected]) => expected))).toEqual(new Set(BUILTIN_FAMILY_METADATA.filter(f => f.id !== 'state').map(f => f.id)))
     for (const [src, expected] of cases) {
       const agentR = agentParse(src)
       expect(agentR.ok).toBe(true)
@@ -417,19 +534,25 @@ describe('detector drift guard (agent vs shared router)', () => {
 
 describe('skill eval manifest coverage', () => {
   test('covers families, channels, adversarial/no-trigger cases, fixtures, and hidden splits', () => {
-    const manifest = JSON.parse(readFileSync(join(REPO, 'evals/shared-benchmark.json'), 'utf8'))
+    const manifestText = readFileSync(join(REPO, 'evals/shared-benchmark.json'), 'utf8')
+    const manifest = JSON.parse(manifestText)
     const cases = manifest.cases as Array<{ id: string; split: string; kind: string; tags?: string[]; files?: string[]; prompt?: string; prompt_ref?: string }>
     const tags = new Set(cases.flatMap(c => c.tags ?? []))
-    for (const family of ['flowchart', 'sequence', 'timeline', 'class', 'er', 'journey', 'xychart', 'architecture']) {
+    for (const family of BUILTIN_FAMILY_METADATA.map(f => f.id)) {
       expect({ family, covered: tags.has(`family:${family}`) }).toEqual({ family, covered: true })
+      expect({
+        family,
+        fixtureCase: cases.some(c => (c.tags ?? []).includes(`family:${family}`) && Boolean(c.files?.length)),
+      }).toEqual({ family, fixtureCase: true })
     }
+    expect(manifestText).not.toContain('source-level-only in Agentic Mermaid')
     for (const channel of ['library', 'cli', 'mcp-code-mode']) {
       expect({ channel, covered: tags.has(`channel:${channel}`) }).toEqual({ channel, covered: true })
     }
     expect(cases.filter(c => c.kind === 'adversarial').length).toBeGreaterThanOrEqual(4)
     expect(cases.some(c => c.kind === 'negative')).toBe(true)
     expect(cases.filter(c => c.kind === 'trigger' && (c.tags ?? []).includes('no-trigger')).length).toBeGreaterThanOrEqual(2)
-    expect(cases.filter(c => c.files?.length).length).toBeGreaterThanOrEqual(8)
+    expect(cases.filter(c => c.files?.length).length).toBeGreaterThanOrEqual(BUILTIN_FAMILY_METADATA.length)
     expect(cases.filter(c => c.split === 'holdout').length).toBeGreaterThan(0)
     expect(cases.filter(c => c.split === 'holdback').length).toBeGreaterThan(0)
     for (const c of cases.filter(c => c.split === 'holdout' || c.split === 'holdback')) {

@@ -1,6 +1,6 @@
 // ============================================================================
-// Architecture structured body (BUILD-17: promotes the architecture-beta
-// family from source-level-only to structured mutation, following the BUILD-15
+// Architecture structured body (BUILD-17: promotes architecture-beta from
+// opaque-only fallback semantics to structured mutation, following the BUILD-15
 // journey pilot).
 //
 // Modeled grammar (mirrors the legacy renderer parser, src/architecture/parser.ts):

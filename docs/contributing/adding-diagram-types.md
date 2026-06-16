@@ -17,6 +17,7 @@ That is necessary, but not sufficient for this repo. Agentic Mermaid also needs 
 
 - Verify the diagram is already supported by Mermaid.
 - Verify it is not already routed in `src/index.ts` or `src/ascii/index.ts`.
+- Add the family to the type-checked built-in family metadata manifest in `src/agent/families.ts` first. `BUILTIN_FAMILY_METADATA` is the reviewer-facing list for shipped families and has a compile-time coverage assertion against `DiagramKind`.
 - Prefer Mermaid's stable header if Mermaid supports both stable and beta forms.
 - Write down any known Mermaid features you are intentionally not implementing yet. Those gaps must be documented in the PR before merge.
 
@@ -48,6 +49,8 @@ Prefer the same shape used by the existing diagram families:
 - `src/<type>/renderer.ts`
 - `src/ascii/<type>.ts` when ASCII output is practical
 - routing in `src/index.ts` and `src/ascii/index.ts`
+- built-in family metadata in `src/agent/families.ts`
+- structured hooks in `src/agent/families-builtin.ts`
 
 Follow these repo standards:
 
@@ -72,6 +75,7 @@ Before merge, verify that the new diagram:
 
 New diagram support should normally include most of these layers:
 
+- An upstream test-suite harvest per [`harvesting-upstream-tests.md`](./harvesting-upstream-tests.md): vendor the family's mermaid grammar/semantics specs (and ASCII-fork inputs) into `eval/mermaid-<type>-bench/` with an executable exclusions ledger, and add the family's docs examples to the mermaid-docs corpus. For not-yet-built families, do the harvest BEFORE implementation — it surfaces the real semantics the docs omit.
 - Parser tests for valid syntax, invalid syntax, comments, quoted labels, multiline labels, and diagram-specific edge cases
 - Layout tests when layout rules are specialized, especially spacing, bounds, and overlap avoidance
 - Integration tests for parse -> layout -> render using a basic example, a realistic example, and an edge case
@@ -80,6 +84,7 @@ New diagram support should normally include most of these layers:
 - ASCII tests when ASCII rendering is supported, including Unicode mode and ASCII-safe mode; add exact fixtures under `src/__tests__/testdata/{ascii,unicode}/` and regenerate them with `bun run goldens:ascii`
 - Regression tests for easy-to-break behavior such as ordering, escaping, markers, label normalization, or routing
 - Sample coverage in `scripts/site/samples-data.ts` when the feature should appear on the visual samples page
+- Live editor coverage in `editor/js/examples.js`: add one basic example under the `Supported diagrams` category, add an explicit picker glyph, and let `src/__tests__/editor-examples.test.ts` prove it parses and renders. This is required for every registered built-in family, not just marketing-worthy ones.
 - README updates for the new supported diagram type and any intentional compatibility gaps
 
 Use the existing naming pattern where possible:
@@ -111,7 +116,7 @@ Typed mutation is part of the definition of done for a new family, not a follow-
 - A body module `src/agent/<type>-body.ts` with a structured-or-opaque parser, a canonical serializer, a mutator (per-family ops), and a `verify` hook. Follow an existing module — `src/agent/journey-body.ts` (pilot), `src/agent/pie-body.ts`, or `src/agent/quadrant-body.ts` are clean templates.
 - Body + op types in `src/agent/types.ts` (e.g. `PieBody`, `PieMutationOp`), added to the `DiagramBody`, `AnyMutationOp`, and `MutableValidDiagram` unions, plus a narrower `as<Type>` and its `<Type>ValidDiagram` alias.
 - Structured hooks registered in `src/agent/families-builtin.ts` (replace any source-level-only registration), the narrower exported from `src/agent/index.ts`, and a `mutate` overload in `src/agent/mutate.ts`.
-- The 8-surface doc sync the doc-sync tests enforce: `MUTATION_OPS_BY_FAMILY` (`src/cli/index.ts`), `SDK_DECLARATION` (`src/mcp/sdk-decl.ts`) + sandbox narrower wiring, `AGENT_NATIVE.md` op list, the `Instructions_for_agents.md` mirror + `llms.txt` regeneration, and the per-family docs/skill tables.
+- The surface sync the doc-sync tests enforce: `BUILTIN_FAMILY_METADATA` (`src/agent/families.ts`), `MUTATION_OPS_BY_FAMILY` (`src/cli/index.ts`), `SDK_DECLARATION` (`src/mcp/sdk-decl.ts`) + sandbox narrower wiring, `AGENT_NATIVE.md` op list and workflow, the `Instructions_for_agents.md` mirror + `llms.txt` regeneration, `am init-agent` generated snippets, editor examples, fixture-backed `evals/shared-benchmark.json` cases, and the per-family docs/skill tables.
 - Tests: parse/narrow/mutate/verify/serialize, structured-or-opaque fallback cases (table-driven sad paths), a fast-check round-trip property test, and a differential test against the legacy renderer parser proving the canonical source you emit re-parses identically.
 
 **Structured-or-opaque law:** any line your parser does not model must be preserved verbatim (opaque fallback) — never silently dropped. Opaque bodies round-trip byte-verbatim; structured bodies serialize to canonical source and must be serialize-idempotent (parse → serialize → parse → serialize is byte-stable).
@@ -132,4 +137,6 @@ A new Mermaid-backed diagram type is ready when:
 - specialized layout, renderer, theme, and ASCII behavior are covered when applicable
 - output quality matches the rest of Agentic Mermaid
 - the agent-native typed mutation surface from section 7 is wired and tested (the default-by-default enforcement test passes)
+- the live editor has a basic working example and explicit glyph for the family
+- the shared skill-eval manifest has at least one fixture-backed case tagged for the family
 - intentional gaps versus Mermaid are documented

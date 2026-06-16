@@ -21,6 +21,7 @@
 //   pie           slice label boxes (legend    —                      —
 //                 anchor + approx bbox)
 //   quadrant      points                       —                      quadrant regions
+//   gantt         tasks + milestones           —                      section bands
 //
 // Opaque-safe: every adapter parses d.canonicalSource via the legacy parser +
 // layouter (the exact path renderMermaidSVG uses) wrapped in try/catch. An
@@ -33,7 +34,7 @@
 // layoutMermaid(d) called twice is deep-equal.
 // ============================================================================
 
-import type { ValidDiagram, RenderedLayout, RenderedLayoutNode, RenderedLayoutEdge, RenderedLayoutGroup, Finite } from './types.ts'
+import type { ValidDiagram, RenderedLayout, RenderedLayoutNode, RenderedLayoutEdge, RenderedLayoutGroup, LayoutWarning, Finite } from './types.ts'
 import { toFinite } from './types.ts'
 import { emptyRenderedLayout } from './layout-to-rendered.ts'
 
@@ -53,6 +54,9 @@ import { parsePieChart } from '../pie/parser.ts'
 import { layoutPieChart } from '../pie/layout.ts'
 import { parseQuadrantChart } from '../quadrant/parser.ts'
 import { layoutQuadrantChart } from '../quadrant/layout.ts'
+import { parseGanttModel, applyGanttFrontmatterConfig } from '../gantt/parser.ts'
+import { resolveGanttSchedule } from '../gantt/schedule.ts'
+import { layoutGantt } from '../gantt/layout.ts'
 
 function f(n: number): Finite { return toFinite(Math.round(n)) }
 
@@ -75,6 +79,7 @@ export function layoutFamilyToRendered(d: ValidDiagram): RenderedLayout | null {
     case 'xychart':      return xychartToRendered(d)
     case 'pie':          return pieToRendered(d)
     case 'quadrant':     return quadrantToRendered(d)
+    case 'gantt':        return ganttToRendered(d)
     default:             return null
   }
 }
@@ -210,6 +215,86 @@ function pieToRendered(d: ValidDiagram): RenderedLayout {
     })
     return { version: 1, kind: d.kind, nodes, edges: [], groups: [], bounds: { w: f(positioned.width), h: f(positioned.height) } }
   } catch { return emptyRenderedLayout(d.kind) }
+}
+
+// ---- gantt ------------------------------------------------------------------
+
+function ganttToRendered(d: ValidDiagram): RenderedLayout {
+  try {
+    const normalized = normalizeMermaidSource(d.canonicalSource)
+    const model = applyGanttFrontmatterConfig(parseGanttModel(normalized.lines), normalized.frontmatter)
+    const schedule = resolveGanttSchedule(model)
+    const positioned = layoutGantt(model, schedule)
+    // Bars and milestones are the nodes; section bands are the groups. Verts
+    // and ticks are markers, not boxes — they carry no node area. Milestones
+    // report the diamond's true bounding box; the zero-width floor on bars is
+    // pulled back inside the plot so a range-edge task never fakes a breach.
+    const plotRight = positioned.plot.x + positioned.plot.w
+    const nodes: RenderedLayoutNode[] = positioned.bars.map(b => {
+      const id = b.id ?? `task#${b.taskIndex}`
+      if (b.milestoneX !== undefined) {
+        const r = b.h / 2
+        return { id, x: f(b.milestoneX - r), y: f(b.y), w: f(b.h), h: f(b.h), shape: 'diamond', label: b.label }
+      }
+      const w = Math.max(2, b.w)
+      const x = Math.min(b.x, plotRight - w)
+      return { id, x: f(x), y: f(b.y), w: f(w), h: f(b.h), shape: 'rectangle', label: b.label }
+    })
+    const groups: RenderedLayoutGroup[] = positioned.sections.map((s, i) => ({
+      id: `section#${i}`, x: f(positioned.plot.x), y: f(s.y), w: f(positioned.plot.w), h: f(s.h),
+      members: positioned.bars.filter(b => b.sectionIndex === i).map(b => b.id ?? `task#${b.taskIndex}`),
+      label: s.label,
+    }))
+    return { version: 1, kind: d.kind, nodes, edges: [], groups, bounds: { w: f(positioned.width), h: f(positioned.height) } }
+  } catch { return emptyRenderedLayout(d.kind) }
+}
+
+/**
+ * Closes the "verify ok but render throws" seam for structured gantt bodies
+ * (found by harvesting upstream's `excludes weekdays …` parser case): when the
+ * schedule cannot resolve, verify surfaces UNRESOLVABLE_SCHEDULE (error
+ * severity) carrying the named GANTT_* reason, instead of silently degrading
+ * to an empty layout. GANTT_EMPTY maps to the existing EMPTY_DIAGRAM code.
+ */
+export function ganttScheduleWarning(d: ValidDiagram): LayoutWarning | null {
+  try {
+    const normalized = normalizeMermaidSource(d.canonicalSource)
+    const model = applyGanttFrontmatterConfig(parseGanttModel(normalized.lines), normalized.frontmatter)
+    resolveGanttSchedule(model)
+    return null
+  } catch (e) {
+    const message = e instanceof Error ? e.message : String(e)
+    if (message.startsWith('GANTT_EMPTY')) return { code: 'EMPTY_DIAGRAM' }
+    return { code: 'UNRESOLVABLE_SCHEDULE', reason: message }
+  }
+}
+
+/**
+ * Geometric tripwires for the gantt layout (docs/design/gantt.md
+ * §Verification; issue #26 WS11): OFF_CANVAS when a resolved bar/milestone
+ * leaves the canvas, GROUP_BREACH when a section-owned bar leaves its section
+ * band. The layout produces contained geometry by construction (property-
+ * tested), so these fire only if a later pass mutates geometry — the same
+ * zero-noise contract as the route-contract tripwires.
+ */
+export function ganttGeometryWarnings(layout: RenderedLayout): LayoutWarning[] {
+  const warnings: LayoutWarning[] = []
+  const TOL = 0.5 // coordinates round through f(); allow rounding slack
+  for (const n of layout.nodes) {
+    if (n.x < -TOL || n.x + n.w > layout.bounds.w + TOL) warnings.push({ code: 'OFF_CANVAS', target: n.id, axis: 'x' })
+    if (n.y < -TOL || n.y + n.h > layout.bounds.h + TOL) warnings.push({ code: 'OFF_CANVAS', target: n.id, axis: 'y' })
+  }
+  const nodeById = new Map(layout.nodes.map(n => [n.id, n]))
+  for (const g of layout.groups) {
+    for (const memberId of g.members) {
+      const n = nodeById.get(memberId)
+      if (!n) continue
+      const inside = n.x >= g.x - TOL && n.y >= g.y - TOL &&
+        n.x + n.w <= g.x + g.w + TOL && n.y + n.h <= g.y + g.h + TOL
+      if (!inside) warnings.push({ code: 'GROUP_BREACH', group: g.id, member: memberId })
+    }
+  }
+  return warnings
 }
 
 // ---- quadrant -------------------------------------------------------------

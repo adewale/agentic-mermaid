@@ -19,7 +19,7 @@ export function err<E, T = never>(error: E): Result<T, E> { return { ok: false, 
 
 export type DiagramKind =
   | 'flowchart' | 'state' | 'sequence' | 'class' | 'er'
-  | 'timeline' | 'journey' | 'xychart' | 'architecture' | 'pie' | 'quadrant'
+  | 'timeline' | 'journey' | 'xychart' | 'architecture' | 'pie' | 'quadrant' | 'gantt'
 
 // ---- Sequence body --------------------------------------------------------
 
@@ -332,6 +332,52 @@ export interface QuadrantBody {
   points: QuadrantPoint[]
 }
 
+// ---- Gantt body --------------------------------------------------------------
+
+export type GanttBodyTaskTag = 'active' | 'done' | 'crit' | 'milestone' | 'vert'
+
+export interface GanttBodyTask {
+  /** Stable within one parse; recomputed each parse. Not a durable identifier. */
+  id: string
+  /** Mermaid task id from `:id, start, end` — referenced by after/until/click. */
+  taskId?: string
+  label: string
+  /** Status/shape tags in canonical order (active/done/crit/milestone/vert). */
+  tags: GanttBodyTaskTag[]
+  /** Raw start expression: a date in the diagram's dateFormat or `after id…`.
+   *  Undefined = starts when the previous task ends (Mermaid default). */
+  start?: string
+  /** Raw end expression: a date, a duration token (`3d`), or `until id…`. */
+  end: string
+}
+
+export interface GanttBodySection {
+  id: string
+  /** Undefined = implicit/ungrouped section. */
+  label?: string
+  tasks: GanttBodyTask[]
+}
+
+/**
+ * Segment-preserving statement list (the sequence-body pattern): typed ops see
+ * sections/tasks/title; calendar directives (dateFormat, excludes, weekend…),
+ * click lines, comments, and markers ride along VERBATIM as opaque-block
+ * segments — never dropped, edited at the source level only.
+ */
+export type GanttStatement =
+  | { kind: 'title' }
+  | { kind: 'section'; ref: number }                    // index into sections
+  | { kind: 'task'; section: number; ref: number }      // section + task index
+  | { kind: 'opaque-block'; lines: string[] }
+
+export interface GanttBody {
+  kind: 'gantt'
+  title?: string
+  sections: GanttBodySection[]
+  /** Optional for synthesized payloads; parsed bodies always populate it. */
+  statements?: GanttStatement[]
+}
+
 // ---- State diagram body -----------------------------------------------------
 
 /**
@@ -416,6 +462,7 @@ export type DiagramBody =
   | XyChartBody
   | PieBody
   | QuadrantBody
+  | GanttBody
   /**
    * Opaque body — the parser understood the family header but encountered
    * unmodeled syntax. `source` is the ORIGINAL body with indentation, blank
@@ -461,7 +508,8 @@ export type ArchitectureValidDiagram = ValidDiagram & { body: ArchitectureBody }
 export type XyChartValidDiagram = ValidDiagram & { body: XyChartBody }
 export type PieValidDiagram = ValidDiagram & { body: PieBody }
 export type QuadrantValidDiagram = ValidDiagram & { body: QuadrantBody }
-export type MutableValidDiagram = FlowchartValidDiagram | StateValidDiagram | SequenceValidDiagram | TimelineValidDiagram | ClassValidDiagram | ErValidDiagram | JourneyValidDiagram | ArchitectureValidDiagram | XyChartValidDiagram | PieValidDiagram | QuadrantValidDiagram
+export type GanttValidDiagram = ValidDiagram & { body: GanttBody }
+export type MutableValidDiagram = FlowchartValidDiagram | StateValidDiagram | SequenceValidDiagram | TimelineValidDiagram | ClassValidDiagram | ErValidDiagram | JourneyValidDiagram | ArchitectureValidDiagram | XyChartValidDiagram | PieValidDiagram | QuadrantValidDiagram | GanttValidDiagram
 
 export function asFlowchart(d: ValidDiagram): FlowchartValidDiagram | null {
   return d.body.kind === 'flowchart' ? (d as FlowchartValidDiagram) : null
@@ -505,6 +553,10 @@ export function asQuadrant(d: ValidDiagram): QuadrantValidDiagram | null {
   return d.body.kind === 'quadrant' ? (d as QuadrantValidDiagram) : null
 }
 
+export function asGantt(d: ValidDiagram): GanttValidDiagram | null {
+  return d.body.kind === 'gantt' ? (d as GanttValidDiagram) : null
+}
+
 // ---- Errors ---------------------------------------------------------------
 
 export interface ParseError { code: string; message: string; line?: number; col?: number }
@@ -521,7 +573,7 @@ export interface MutationError {
     | 'SERIES_NOT_FOUND'
     | 'SLICE_NOT_FOUND' | 'POINT_NOT_FOUND'
     | 'STATE_NOT_FOUND' | 'TRANSITION_NOT_FOUND'
-    | 'DUPLICATE_NODE' | 'DUPLICATE_PARTICIPANT' | 'DUPLICATE_CLASS' | 'DUPLICATE_ENTITY' | 'DUPLICATE_STATE'
+    | 'DUPLICATE_NODE' | 'DUPLICATE_PARTICIPANT' | 'DUPLICATE_CLASS' | 'DUPLICATE_ENTITY' | 'DUPLICATE_STATE' | 'DUPLICATE_TASK'
     | 'INVALID_OP'
   message: string
 }
@@ -645,7 +697,18 @@ export type QuadrantMutationOp =
   | { kind: 'move_point'; label: string; x: number; y: number }
   | { kind: 'rename_point'; from: string; to: string }
 
-export type AnyMutationOp = FlowchartMutationOp | StateMutationOp | SequenceMutationOp | TimelineMutationOp | ClassMutationOp | ErMutationOp | JourneyMutationOp | ArchitectureMutationOp | XyChartMutationOp | PieMutationOp | QuadrantMutationOp
+export type GanttMutationOp =
+  | { kind: 'set_title'; title: string | null }
+  | { kind: 'add_section'; label: string }
+  | { kind: 'rename_section'; index: number; label: string }
+  | { kind: 'remove_section'; index: number }
+  | { kind: 'add_task'; sectionIndex: number; label: string; taskId?: string; tags?: GanttBodyTaskTag[]; start?: string; end: string }
+  | { kind: 'remove_task'; sectionIndex: number; taskIndex: number }
+  | { kind: 'rename_task'; sectionIndex: number; taskIndex: number; label: string }
+  | { kind: 'set_task_status'; sectionIndex: number; taskIndex: number; status: 'active' | 'done' | 'crit' | null }
+  | { kind: 'set_task_dates'; sectionIndex: number; taskIndex: number; start?: string | null; end?: string }
+
+export type AnyMutationOp = FlowchartMutationOp | StateMutationOp | SequenceMutationOp | TimelineMutationOp | ClassMutationOp | ErMutationOp | JourneyMutationOp | ArchitectureMutationOp | XyChartMutationOp | PieMutationOp | QuadrantMutationOp | GanttMutationOp
 export type MutationOp = FlowchartMutationOp // legacy alias
 
 // ---- Branded Finite -------------------------------------------------------
@@ -665,7 +728,7 @@ export type WarningTier = 'structural' | 'geometric' | 'lint'
 
 export type Tier1WarningCode =
   | 'EMPTY_DIAGRAM' | 'EDGE_MISANCHORED' | 'OFF_CANVAS'
-  | 'GROUP_BREACH' | 'UNKNOWN_SHAPE' | 'LABEL_OVERFLOW'
+  | 'GROUP_BREACH' | 'UNKNOWN_SHAPE' | 'LABEL_OVERFLOW' | 'UNRESOLVABLE_SCHEDULE'
 export type Tier2WarningCode =
   | 'NODE_OVERLAP' | 'ROUTE_SELF_CROSS' | 'ROUTE_HITCH'
   | 'ROUTE_UNEXPLAINED_BEND' | 'ROUTE_LABEL_ON_SHARED_TRUNK'
@@ -684,6 +747,14 @@ export type LayoutWarning =
   | { code: 'GROUP_BREACH'; group: GroupId; member: NodeId }
   | { code: 'UNKNOWN_SHAPE'; node: NodeId; shape: string }
   | { code: 'LABEL_OVERFLOW'; target: NodeId | EdgeId; charCount: number; limit: number }
+  /**
+   * The diagram parses (and round-trips) but its semantics cannot resolve, so
+   * rendering will fail loudly — e.g. a Gantt whose schedule hits a bad
+   * calendar date, a dependency cycle, or an everything-excluded calendar.
+   * `reason` carries the named renderer error (GANTT_*…). Closes the
+   * "verify ok but render throws" seam for structured gantt bodies.
+   */
+  | { code: 'UNRESOLVABLE_SCHEDULE'; reason: string }
   | { code: 'NODE_OVERLAP'; a: NodeId; b: NodeId; areaPx: number }
   | { code: 'ROUTE_SELF_CROSS'; edge: EdgeId; count: number }
   | { code: 'ROUTE_HITCH'; edge: EdgeId; deviationPx: number }
@@ -699,6 +770,7 @@ export type LayoutWarning =
 
 export const WARNING_SEVERITY: Record<WarningCode, WarningSeverity> = {
   EMPTY_DIAGRAM: 'error',
+  UNRESOLVABLE_SCHEDULE: 'error',
   EDGE_MISANCHORED: 'error',
   OFF_CANVAS: 'error',
   GROUP_BREACH: 'error',
@@ -720,6 +792,7 @@ export const WARNING_SEVERITY: Record<WarningCode, WarningSeverity> = {
 
 export const WARNING_TIER: Record<WarningCode, WarningTier> = {
   EMPTY_DIAGRAM: 'structural',
+  UNRESOLVABLE_SCHEDULE: 'structural',
   EDGE_MISANCHORED: 'structural',
   OFF_CANVAS: 'structural',
   GROUP_BREACH: 'structural',
@@ -804,5 +877,6 @@ export interface ValidDiagramPayload {
     | XyChartBody
     | PieBody
     | QuadrantBody
+    | GanttBody
     | { kind: 'opaque'; family: DiagramKind; source: string }
 }

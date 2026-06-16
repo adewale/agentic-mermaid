@@ -11,6 +11,7 @@
 
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
+import { BUILTIN_FAMILY_METADATA } from '../agent/families.ts'
 
 const HOSTED_BASE = 'https://adewale.github.io/beautiful-mermaid'
 const HOSTED_LLMS_TXT = `${HOSTED_BASE}/llms.txt`
@@ -18,6 +19,7 @@ const HOSTED_AGENT_GUIDE = `${HOSTED_BASE}/agent-instructions.md`
 
 export const AGENTS_MARKER = '<!-- agentic-mermaid:start -->'
 const AGENTS_MARKER_END = '<!-- agentic-mermaid:end -->'
+const STRUCTURED_NARROWERS = BUILTIN_FAMILY_METADATA.map(f => `\`${f.narrower}\``).join(' / ')
 
 export const AGENTS_SNIPPET = `${AGENTS_MARKER}
 ## Editing Mermaid diagrams
@@ -26,10 +28,9 @@ Use **Agentic Mermaid** whenever you create or edit Mermaid diagrams. Do not
 regenerate an existing diagram from scratch when a typed edit path exists.
 
 New diagrams: author Mermaid source directly, then parse, verify, and render.
-Existing structured diagrams: parse → narrow (\`asFlowchart\` / \`asSequence\` /
-\`asTimeline\` / \`asClass\` / \`asEr\`) → mutate → verify → serialize. Run
-verify at every commit point and never serialize a diagram whose verify result
-you have not inspected.
+Existing structured diagrams: parse → narrow (${STRUCTURED_NARROWERS}) → mutate
+→ verify → serialize. Run verify at every commit point and never serialize a
+diagram whose verify result you have not inspected.
 
 Useful entrypoints:
 
@@ -60,12 +61,12 @@ New diagrams: author Mermaid source directly, then parse, verify, and render.
 Existing structured diagrams:
 
 1. \`parseMermaid(source)\`.
-2. Narrow with \`asFlowchart\` / \`asSequence\` / \`asTimeline\` / \`asClass\` / \`asEr\`.
+2. Narrow with ${STRUCTURED_NARROWERS}.
 3. Edit with \`mutate(d, op)\`; mutation ops use \`kind\`, not \`type\`.
 4. Run \`verifyMermaid(d)\` and inspect \`ok\`, \`warnings\`, and layout evidence.
 5. Serialize only after inspected verification passes.
 
-Do not concatenate strings or regenerate a whole existing structured diagram when a typed op exists. Journey, xychart, architecture, and opaque fallback bodies are source-level-only: edit source deliberately, then re-parse and verify.
+Do not concatenate strings or regenerate a whole existing structured diagram when a typed op exists. Every built-in renderable family ships a typed path when the body narrows; only opaque fallback bodies are source-level-only. If you deliberately edit source for an opaque fallback, re-parse and verify before returning it.
 
 ## Output artifacts
 

@@ -22,7 +22,7 @@ Most Mermaid tools render strings. Agentic Mermaid gives coding agents a safer w
 |---|---|
 | Create a new diagram | Write Mermaid source → `parseMermaid` → `verifyMermaid` → render/preview |
 | Edit an existing supported diagram | `parseMermaid` → family narrower → `mutate` → `verifyMermaid` → `serializeMermaid` |
-| Edit source-level-only diagrams | Preserve source, edit deliberately, then parse/verify/render |
+| Handle opaque fallback bodies | Preserve source, edit deliberately, then parse/verify/render |
 | Multi-step agent edits | Prefer MCP Code Mode or library imports so the loop happens in one structured execution |
 | Shell-only checks | Use `am verify`, `am mutate --op/--ops`, `am preview`, or `am batch --jsonl` |
 
@@ -30,11 +30,11 @@ Agents should not guess from pixels, concatenate strings, or regenerate whole di
 
 ## Highlights
 
-- **11 diagram families** — flowchart, state, architecture, sequence, class, ER, timeline, journey, XY chart, pie, and quadrant.
+- **12 diagram families** — flowchart, state, architecture, sequence, class, ER, timeline, journey, XY chart, pie, quadrant, and Gantt.
 - **ASCII, PNG, SVG** — plus Unicode text and JSON layout.
 - **Synchronous, zero-DOM SVG renderer** — no Puppeteer, no browser flash.
 - **19 built-in themes + Shiki compatibility** — theme from two colors or a VS Code theme.
-- **Agent-native editing** — typed mutation for all eleven renderable families (flowchart/state, sequence, timeline, class, ER, journey, architecture, XY chart, pie, quadrant); source-level round-trip only for opaque fallbacks (unmodeled syntax).
+- **Agent-native editing** — typed mutation for all twelve renderable families (flowchart/state, sequence, timeline, class, ER, journey, architecture, XY chart, pie, quadrant, Gantt); source-level round-trip only for opaque fallbacks (unmodeled syntax).
 - **CLI + MCP + library** — `am`, `agentic-mermaid-mcp`, `agentic-mermaid`, and `agentic-mermaid/agent`.
 
 ## Installation
@@ -146,10 +146,10 @@ const source = serializeMermaid(next.value)
 
 Rules:
 
-- Use `asFlowchart` / `asState` / `asSequence` / `asTimeline` / `asClass` / `asEr` / `asJourney` / `asArchitecture` / `asXyChart` before mutating existing diagrams.
+- Use `asFlowchart` / `asState` / `asSequence` / `asTimeline` / `asClass` / `asEr` / `asJourney` / `asArchitecture` / `asXyChart` / `asPie` / `asQuadrant` / `asGantt` before mutating existing diagrams.
 - Mutation ops use `kind`, not `type`.
 - Run `verifyMermaid` before every commit point.
-- Do not call `mutate` on pie, quadrant, or opaque fallback bodies.
+- Do not call `mutate` on opaque fallback bodies; the narrower returns `null` for unmodeled syntax.
 
 ## Supported diagram families
 
@@ -162,9 +162,10 @@ Rules:
 | ER | ✓ | ✓ | SVG/PNG/ASCII | ✓ |
 | Journey | ✓ | ✓ | SVG/PNG/ASCII | modeled subset (BUILD-15) |
 | XY chart | ✓ | ✓ | SVG/PNG/ASCII | modeled subset (BUILD-16) |
-| Pie | ✓ | ✓ | SVG/PNG/ASCII | source-level only |
-| Quadrant | ✓ | ✓ | SVG/PNG/ASCII | source-level only |
+| Pie | ✓ | ✓ | SVG/PNG/ASCII | ✓ |
+| Quadrant | ✓ | ✓ | SVG/PNG/ASCII | ✓ |
 | Architecture | ✓ | ✓ | SVG/PNG/ASCII | modeled subset (BUILD-17) |
+| Gantt | ✓ | ✓ | SVG/PNG/ASCII | sections/tasks; calendar directives ride along verbatim |
 
 See [diagram families](./docs/diagram-families.md) for examples and compatibility notes.
 

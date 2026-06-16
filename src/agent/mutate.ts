@@ -4,9 +4,9 @@
 
 import type {
   FlowchartValidDiagram, StateValidDiagram, SequenceValidDiagram, TimelineValidDiagram,
-  ClassValidDiagram, ErValidDiagram, JourneyValidDiagram, ArchitectureValidDiagram, XyChartValidDiagram, PieValidDiagram, QuadrantValidDiagram, MutableValidDiagram,
+  ClassValidDiagram, ErValidDiagram, JourneyValidDiagram, ArchitectureValidDiagram, XyChartValidDiagram, PieValidDiagram, QuadrantValidDiagram, GanttValidDiagram, MutableValidDiagram,
   FlowchartMutationOp, StateMutationOp, SequenceMutationOp, TimelineMutationOp,
-  ClassMutationOp, ErMutationOp, JourneyMutationOp, ArchitectureMutationOp, XyChartMutationOp, PieMutationOp, QuadrantMutationOp, AnyMutationOp,
+  ClassMutationOp, ErMutationOp, JourneyMutationOp, ArchitectureMutationOp, XyChartMutationOp, PieMutationOp, QuadrantMutationOp, GanttMutationOp, AnyMutationOp,
   MutationError, Result,
 } from './types.ts'
 import { ok, err } from './types.ts'
@@ -25,6 +25,7 @@ export function mutate(d: ArchitectureValidDiagram, op: ArchitectureMutationOp):
 export function mutate(d: XyChartValidDiagram, op: XyChartMutationOp): Result<XyChartValidDiagram, MutationError>
 export function mutate(d: PieValidDiagram, op: PieMutationOp): Result<PieValidDiagram, MutationError>
 export function mutate(d: QuadrantValidDiagram, op: QuadrantMutationOp): Result<QuadrantValidDiagram, MutationError>
+export function mutate(d: GanttValidDiagram, op: GanttMutationOp): Result<GanttValidDiagram, MutationError>
 export function mutate(
   d: MutableValidDiagram,
   op: AnyMutationOp,

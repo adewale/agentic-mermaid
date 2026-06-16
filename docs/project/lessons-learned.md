@@ -1,4 +1,4 @@
-# Lessons Learned — Loops 1 through 19
+# Lessons Learned — Loops 1 through 20
 
 This document replaces the Loop 1 retrospective. It is the cumulative
 narrative across the agentic-mermaid fork. Each section reflects what a
@@ -29,11 +29,9 @@ realized. A short empirical probe in Loop 1 would have saved a Loop 3.
 After the survey, the position we hold that no other package holds is
 the *combination* of:
 
-- **Structured-or-opaque rule.** Every diagram family either has a
-  structured body for its modeled syntax (flowchart, state, sequence,
-  timeline, class, ER, journey, xychart) or stays opaque with
-  byte-fidelity round-trip when a construct is unmodeled (including
-  architecture). We never silently drop a construct.
+- **Structured-or-opaque rule.** Every built-in renderable family has a
+  structured body for its modeled syntax, and opaque/source-preserved
+  fallback when a construct is unmodeled. We never silently drop a construct.
 - **Tiered verification.** Tier 1 (structural — reliable, universal),
   Tier 2 (geometric — flowchart-shaped), and Tier 3 (lint — family-specific
   common agent mistakes). Tier 1 is gated; Tier 2 and Tier 3 are advisory.
@@ -41,7 +39,7 @@ the *combination* of:
   processes produce byte-identical layout JSON; bun and node produce
   byte-identical layout JSON on the same source. Both tests run on every
   PR.
-- **Corpus gates.** The 247-sample mermaid-js docs corpus and the
+- **Corpus gates.** The 258-entry mermaid-js docs corpus and the
   132-case MermaidSeqBench both run as PR gates; regressions break the
   build with a named diff.
 - **Agent-contract verbs.** `am capabilities --json` (Loop 7) lets an
@@ -83,7 +81,7 @@ nobody can reason about end-to-end.
 
 ## (d) Cost / value of the corpus + LLM-judge
 
-The 247-sample mermaid-js corpus has paid for itself twice. In Loop 5 a
+The mermaid-js docs corpus (now 258 entries) has paid for itself twice. In Loop 5 a
 state-diagram round-trip regression slipped past the unit tests because
 our hand-written fixtures didn't cover the exact `note left of` /
 `note right of` pattern; the corpus caught it within seconds. In Loop 7
@@ -250,7 +248,7 @@ filed.
 
 The single most important realization of this whole arc: **13 loops of
 work sit in one unmerged PR (#11), and every quality signal is
-self-generated.** Our tests, our 247-corpus, our MermaidSeqBench wiring,
+self-generated.** Our tests, our docs corpus, our MermaidSeqBench wiring,
 our benchmark, our LLM-judge, our agent-usage harness — all authored by
 the same effort that authored the code. That's not worthless (it caught
 real bugs: the state round-trip regression, the marker-id collision, the
@@ -344,11 +342,11 @@ would have been:
    those are not downstream documentation; they are the API that agents
    actually consume.
 2. **Decide structured-vs-source-level policy up front.** We eventually
-   landed on structured mutation for flowchart/state, simple sequence,
-   timeline, class, and ER; source-level-only for journey, xychart,
-   architecture, and opaque fallback. That policy should have existed
-   before mutation ops were exposed. Render support is not mutation
-   support, and an unsafe typed edit is worse than no typed edit.
+   landed on structured mutation for every built-in renderable family, with
+   source-level-only editing reserved for opaque fallback bodies where
+   unmodeled syntax was preserved losslessly. That policy should have existed
+   before mutation ops were exposed. Render support is not mutation support,
+   and an unsafe typed edit is worse than no typed edit.
 3. **Separate greenfield creation from existing-diagram edits earlier.**
    We over-corrected toward "always mutate" before recognizing the useful
    distinction: new diagrams can often be authored directly as Mermaid
@@ -572,7 +570,7 @@ the `@{}` case fabricated phantom nodes from metadata keys with
 `verify.ok: true`; the frontmatter case flattened `config:`-nested keys into
 top-level YAML Mermaid silently ignores — so an edit loop *kept the bytes*
 that expressed the author's `config.layout` request while *killing their
-meaning* on interop. Neither was caught by 2,200+ tests, the 247-sample
+meaning* on interop. Neither was caught by 2,200+ tests, the 258-entry
 corpus, or the round-trip floors, because every fixture we owned was written
 by people who already knew what the parser modeled. Upstream documentation
 examples are adversarial in exactly the right way: they encode what real
@@ -605,3 +603,41 @@ kept. Families that preserve comments in opaque segments (sequence) are
 correct by construction, and a future family that starts preserving them
 stops warning without anyone updating a list. Detect by observing the
 output, not by trusting per-family bookkeeping.
+
+## Loop 20 lesson — hidden family registries are product surface
+
+The Gantt good-citizen audit exposed a different failure mode than a parser
+bug: a diagram family can be correctly implemented and still be only partly
+present in the product. The first pass wired parser, renderer, mutation,
+capabilities, docs, and PR evidence, but it still missed places that consume
+"the list of families" indirectly: the live editor example picker, eval
+fixture tags, generated `llms.txt`, `am init-agent`, MCP initialize guidance,
+SDK declarations, stale policy language, and even the issue checklist that was
+supposed to guide the work.
+
+The root cause was twofold. First, there was no typed built-in-family registry
+that all outward-facing projections were forced to agree with. Second, some
+surfaces were treated as collateral documentation even though agents and users
+consume them as runtime affordances. The durable fix is not a longer memory
+checklist; it is a checked source of truth (`BUILTIN_FAMILY_METADATA`) plus
+projection tests that prove every registered family appears in editor examples,
+glyphs, eval fixtures, generated agent docs, CLI capabilities, MCP guidance,
+and sandbox-callable narrowers.
+
+The audit prompt that found the misses is worth preserving: ask "who consumes
+this family list?" and then grep for the old nouns, not just the new feature.
+Search for family names, narrowers, `source-level`, `examples`, `capabilities`,
+`llms.txt`, `init-agent`, `initialize`, `tools/list`, SDK declarations, eval
+manifests, sample galleries, generated site assets, package exports, and
+private/holdback prompt manifests. Anything that teaches a human or model what
+families exist is a product surface.
+
+This also changes the good-citizen checklist. It must distinguish family
+correctness from system citizenship. Correctness asks whether the parser,
+serializer, verifier, renderer, and properties preserve the family semantics.
+Citizenship asks whether every registry projection, generated artifact,
+distribution bundle, editor sample, skill/eval prompt, CLI/MCP declaration,
+and release artifact either derives from the registry or has a test proving it
+is synchronized. A new family is not done when it renders; it is done when an
+agent discovering the system through any supported entry point reaches the same
+typed path.

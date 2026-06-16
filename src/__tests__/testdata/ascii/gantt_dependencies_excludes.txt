@@ -1,0 +1,21 @@
+gantt
+    title Sprint with weekends excluded
+    dateFormat YYYY-MM-DD
+    excludes weekends
+    section Build
+        Completed task :done, des1, 2024-01-08, 2024-01-10
+        Active task    :active, des2, 2024-01-11, 3d
+        Future task    :des3, after des2, 5d
+    section Review
+        Crit review    :crit, rev1, after des3, 2d
+---
+               Sprint with weekends excluded
+
+  Build
+    Completed task  .....-----------------------------------  01-08 -> 01-10
+    Active task     -------============---------------------  01-11 -> 01-16
+    Future task     -------------------################-----  01-16 -> 01-23
+  Review
+    Crit review     -----------------------------------!!!!!  01-23 -> 01-25
+                    ----------------------------------------
+                                  01-14            01-21

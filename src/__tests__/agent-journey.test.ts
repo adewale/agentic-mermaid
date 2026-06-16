@@ -1,5 +1,5 @@
-// BUILD-15: journey structured mutation (the pilot promotion of a
-// source-level family). Parse / narrow / mutate / verify / serialize, the
+// BUILD-15: journey structured mutation (the pilot promotion from opaque-only
+// fallback semantics). Parse / narrow / mutate / verify / serialize, the
 // structured-or-opaque fallback, and round-trip identity.
 
 import { describe, test, expect } from 'bun:test'

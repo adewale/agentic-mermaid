@@ -18,6 +18,7 @@ gates: `src/__tests__/contact-sheet.test.ts`,
 | Class diagram | [class.svg](./visual-snapshots/class.svg) | `61e6b7f26fa9` | `1e617c4a61a0` | 4047 | 360x237.8 | 360x238 | 3/2 | 0 | 2 | 240 | 20.6% | 100.0% | 0 | n/a | 1.51 |
 | ER diagram | [er.svg](./visual-snapshots/er.svg) | `5598a5275602` | `a6962348dac3` | 9488 | 951.768x136 | 952x136 | 3/2 | 0 | 0 | 452 | 18.2% | 100.0% | 0 | 370 | 7.00 |
 | Timeline | [timeline.svg](./visual-snapshots/timeline.svg) | `aa2f3660f25e` | `83efdfa14f76` | 7837 | 380x286.6 | 288x128 | 4/0 | 0 | 0 | 0 | 52.1% | 100.0% | 0 | n/a | 2.25 |
+| Gantt chart | [gantt.svg](./visual-snapshots/gantt.svg) | `59c925d9736b` | `3195007323a1` | 9419 | 703x282 | 703x282 | 4/0 | 0 | 0 | 0 | 6.9% | 75.0% | 0 | n/a | 2.49 |
 | User journey | [journey.svg](./visual-snapshots/journey.svg) | `6e7c7ec336ef` | `4d01b73acd56` | 9495 | 320x353.4 | 320x353 | 2/0 | 0 | 0 | 0 | 30.8% | 100.0% | 0 | n/a | 0.91 |
 | XY chart | [xychart.svg](./visual-snapshots/xychart.svg) | `89848b33b2fb` | `b003ddcb84b9` | 15398 | 700x500 | 700x500 | 6/0 | 0 | 0 | 0 | 37.6% | 50.0% | 0 | n/a | 1.40 |
 | Pie chart | [pie.svg](./visual-snapshots/pie.svg) | `0f86fa0f0d48` | `6fb477a893ab` | 10770 | 368.79x276 | 369x276 | 3/0 | 0 | 0 | 0 | 4.1% | 100.0% | 0 | n/a | 1.34 |
@@ -87,6 +88,23 @@ timeline
   section Build
     2025 : Prototype
     2026 : Launch
+```
+
+### Gantt chart
+
+```mermaid
+gantt
+  title Launch plan
+  dateFormat YYYY-MM-DD
+  axisFormat %b %d
+  excludes weekends
+  section Build
+    Spec :done, spec, 2024-01-01, 2d
+    Implement :active, impl, after spec, 3d
+  section Ship
+    QA :crit, qa, after impl, 2d
+    Launch :milestone, launch, after qa, 0d
+    Release line :vert, release, 2024-01-10, 0d
 ```
 
 ### User journey

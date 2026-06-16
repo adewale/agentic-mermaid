@@ -14,6 +14,9 @@
 //   - Timeline diagrams (timeline)
 //   - User Journey diagrams (journey)
 //   - XY charts (xychart / xychart-beta)
+//   - Pie charts (pie)
+//   - Quadrant charts (quadrantChart)
+//   - Gantt charts (gantt)
 //
 // Theming uses CSS custom properties (--bg, --fg, + optional enrichment).
 // See src/theme.ts for the full variable system.
@@ -66,6 +69,10 @@ import { renderPieSvg } from './pie/renderer.ts'
 import { parseQuadrantChart } from './quadrant/parser.ts'
 import { layoutQuadrantChart } from './quadrant/layout.ts'
 import { renderQuadrantSvg } from './quadrant/renderer.ts'
+import { parseGanttModel, applyGanttFrontmatterConfig } from './gantt/parser.ts'
+import { resolveGanttSchedule } from './gantt/schedule.ts'
+import { layoutGantt } from './gantt/layout.ts'
+import { renderGanttSvg } from './gantt/renderer.ts'
 import { parseArchitectureDiagram } from './architecture/parser.ts'
 import { layoutArchitectureDiagram } from './architecture/layout.ts'
 import { renderArchitectureSvg } from './architecture/renderer.ts'
@@ -392,6 +399,12 @@ export function renderMermaidSVG(
       const chart = parseQuadrantChart(lines)
       const positioned = layoutQuadrantChart(chart, options)
       return resolve(renderQuadrantSvg(positioned, colors, font, transparent, options))
+    }
+    case 'gantt': {
+      const model = applyGanttFrontmatterConfig(parseGanttModel(lines), normalizedSource.frontmatter)
+      const schedule = resolveGanttSchedule(model, { today: options.ganttToday })
+      const positioned = layoutGantt(model, schedule, { today: schedule.today })
+      return resolve(renderGanttSvg(positioned, colors, font, transparent))
     }
     case 'flowchart':
     default: {

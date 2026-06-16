@@ -1,0 +1,15 @@
+gantt
+    dateFormat YYYY-MM-DD
+    section Timeline
+        Build      :b1, 2024-03-01, 10d
+        Launch     :milestone, m1, after b1, 0d
+        Freeze     :vert, v1, 2024-03-05, 0d
+        Post work  :p1, after m1, 4d
+---
+  Timeline
+    Build      █████████████████████████████───────────  03-01 → 03-11
+    Launch     ───────────┊─────────────────◆──────────  03-11
+    Post work  ───────────┊─────────────────███████████  03-11 → 03-15
+    Freeze                ┊  03-05
+               ────────────────────────────────────────
+                     03-03               03-10

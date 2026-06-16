@@ -1,0 +1,52 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 703 282" width="703" height="282" style="--bg:#FFFFFF;--fg:#27272A;--font:Inter;background:#FFFFFF">
+<style>
+  text { font-family: var(--font, 'Inter'), system-ui, sans-serif; }
+  svg {
+    /* Derived from --bg and --fg (overridable via --line, --accent, etc.) */
+    --_text:          #27272A;
+    --_text-sec:      #7d7d7f;
+    --_text-muted:    #a9a9aa;
+    --_text-faint:    #c9c9ca;
+    --_line:          #939395;
+    --_arrow:         #47474a;
+    --_node-fill:     #f9f9f9;
+    --_node-stroke:   #d4d4d4;
+    --_group-fill:    #FFFFFF;
+    --_group-hdr:     #f4f4f4;
+    --_inner-stroke:  #e5e5e5;
+    --_key-badge:     #e9e9ea;
+  }
+</style>
+<style>
+  .gantt-section-band { fill: #27272A; opacity: 0.07; }
+  .gantt-grid-line { stroke: #27272A; stroke-width: 1; opacity: 0.45; }
+  .gantt-bar { fill: #27272A; stroke: none; opacity: 0.92; }
+  .gantt-bar-active { fill: #27272A; stroke: #27272A; stroke-width: 1.5; opacity: 1; }
+  .gantt-bar-done { fill: #27272A; opacity: 0.55; }
+  .gantt-bar-crit { fill: #27272A; stroke: #27272A; stroke-width: 1.5; opacity: 0.95; }
+  .gantt-milestone { fill: #27272A; stroke: #27272A; stroke-width: 1; }
+  .gantt-milestone-crit { fill: #27272A; stroke: #27272A; stroke-width: 1.5; }
+  .gantt-vert-marker { stroke: #27272A; stroke-width: 2; stroke-dasharray: 6 3; }
+  .gantt-today-marker { stroke: #27272A; stroke-width: 2; stroke-dasharray: 4 3; }
+  .gantt-title { fill: #27272A; }
+  .gantt-section-label { fill: #27272A; }
+  .gantt-task-label { fill: #27272A; }
+  .gantt-axis-label { fill: #27272A; }
+</style>
+<rect class="gantt-section-band" x="87" y="50" width="600" height="90" />
+<line class="gantt-grid-line" x1="487" y1="50" x2="487" y2="242" />
+<text class="gantt-axis-label" x="487" y="254" text-anchor="middle" dominant-baseline="middle" font-size="11" font-weight="500">Jan 07</text>
+<text class="gantt-section-label" x="8" y="65" text-anchor="start" dominant-baseline="middle" font-size="13" font-weight="600">Build</text>
+<text class="gantt-section-label" x="8" y="161" text-anchor="start" dominant-baseline="middle" font-size="13" font-weight="600">Ship</text>
+<text class="gantt-task-label" x="16" y="91" text-anchor="start" dominant-baseline="middle" font-size="13" font-weight="500">Spec</text>
+<text class="gantt-task-label" x="16" y="121" text-anchor="start" dominant-baseline="middle" font-size="13" font-weight="500">Implement</text>
+<text class="gantt-task-label" x="16" y="187" text-anchor="start" dominant-baseline="middle" font-size="13" font-weight="500">QA</text>
+<text class="gantt-task-label" x="16" y="217" text-anchor="start" dominant-baseline="middle" font-size="13" font-weight="500">Launch</text>
+<rect class="gantt-bar gantt-bar-done" x="87" y="80" width="133.33" height="22" rx="3" ry="3" data-task="spec" />
+<rect class="gantt-bar gantt-bar-active" x="220.33" y="110" width="200" height="22" rx="3" ry="3" data-task="impl" />
+<rect class="gantt-bar gantt-bar-crit" x="420.33" y="176" width="266.67" height="22" rx="3" ry="3" data-task="qa" />
+<path class="gantt-milestone" d="M 676 206 L 687 217 L 676 228 L 665 217 Z" data-task="launch" />
+<line class="gantt-vert-marker" x1="687" y1="50" x2="687" y2="242" />
+<text class="gantt-axis-label" x="687" y="42" text-anchor="middle" dominant-baseline="middle" font-size="11" font-weight="600">Release line</text>
+<text class="gantt-title" x="351.5" y="18" text-anchor="middle" dominant-baseline="middle" font-size="17" font-weight="600">Launch plan</text>
+</svg>

@@ -6,8 +6,8 @@
 // renderer family and public output surface, asserting only what actually
 // holds for each:
 //
-//   - Dispatch totality: all 11 families render as text, SVG, and PNG.
-//   - Label conservation + determinism: all 11 families on text renderers,
+//   - Dispatch totality: all 12 families render as text, SVG, and PNG.
+//   - Label conservation + determinism: all 12 families on text renderers,
 //     with PNG byte stability checked on the canonical matrix.
 //   - No diagonals: every text family (even xychart plots with block glyphs).
 //   - Rectangularity (all rows one width): only the box families
@@ -102,6 +102,24 @@ const timelineArb = fc
   .array(fc.record({ period: word, event: word }), { minLength: 1, maxLength: 6 })
   .map((rows) => ['timeline', '  title T', ...rows.map((r) => `  ${r.period} : ${r.event}`)].join('\n'))
 
+const ganttArb = fc
+  .array(fc.integer({ min: 1, max: 6 }), { minLength: 1, maxLength: 6 })
+  .map((durations) => {
+    const lines = [
+      'gantt',
+      '  title G',
+      '  dateFormat YYYY-MM-DD',
+      '  axisFormat %m-%d',
+      '  excludes weekends',
+      '  section Build',
+      `    T0 :t0, 2024-01-01, ${durations[0]}d`,
+    ]
+    for (let i = 1; i < durations.length; i++) {
+      lines.push(`    T${i} :t${i}, after t${i - 1}, ${durations[i]}d`)
+    }
+    return lines.join('\n')
+  })
+
 const journeyArb = fc
   .array(fc.record({ task: word, score: fc.integer({ min: 1, max: 5 }) }), { minLength: 1, maxLength: 6 })
   .map((tasks) => ['journey', '  title J', '  section S', ...tasks.map((t, i) => `    ${t.task}${i}: ${t.score}: Me`)].join('\n'))
@@ -140,6 +158,11 @@ const RENDERER_CASES = [
     family: 'timeline',
     source: 'timeline\n  title Release Plan\n  2026 : Launch',
     labels: ['Release Plan', '2026', 'Launch'],
+  },
+  {
+    family: 'gantt',
+    source: 'gantt\n  title Launch plan\n  dateFormat YYYY-MM-DD\n  axisFormat %b %d\n  excludes weekends\n  section Build\n    Spec :done, spec, 2024-01-01, 2d\n    Implement :active, impl, after spec, 3d\n  section Ship\n    QA :crit, qa, after impl, 2d\n    Launch :milestone, launch, after qa, 0d\n    Release line :vert, release, 2024-01-10, 0d',
+    labels: ['Launch plan', 'Build', 'Spec', 'Implement', 'Ship', 'QA', 'Launch', 'Release line'],
   },
   {
     family: 'journey',
@@ -202,6 +225,7 @@ const ALL_FAMILIES: Array<[string, fc.Arbitrary<string>]> = [
   ['xychart', xychartArb],
   ['quadrant', quadrantArb],
   ['timeline', timelineArb],
+  ['gantt', ganttArb],
   ['journey', journeyArb],
   ['architecture', architectureArb],
 ]
@@ -217,7 +241,7 @@ const BOX_FAMILIES: Array<[string, fc.Arbitrary<string>]> = [
 // ===========================================================================
 
 describe('characterisation · families · universal invariants', () => {
-  it('all 11 families render through ASCII, SVG, and PNG surfaces', () => {
+  it('all 12 families render through ASCII, SVG, and PNG surfaces', () => {
     for (const { source } of RENDERER_CASES) {
       const { ascii, svg, png } = renderAll(source)
       expect(ascii.length).toBeGreaterThan(0)
@@ -227,7 +251,7 @@ describe('characterisation · families · universal invariants', () => {
     }
   })
 
-  it('all 11 families preserve sentinel labels on text renderers', () => {
+  it('all 12 families preserve sentinel labels on text renderers', () => {
     for (const { source, labels } of RENDERER_CASES) {
       const { ascii, svg } = renderAll(source)
       for (const label of labels) {
@@ -237,7 +261,7 @@ describe('characterisation · families · universal invariants', () => {
     }
   })
 
-  it('all 11 families are byte-stable across repeated renders', () => {
+  it('all 12 families are byte-stable across repeated renders', () => {
     for (const { source } of RENDERER_CASES) {
       const first = renderAll(source)
       const second = renderAll(source)
@@ -247,7 +271,7 @@ describe('characterisation · families · universal invariants', () => {
     }
   })
 
-  it('all 11 families emit clean SVG and plain ASCII', () => {
+  it('all 12 families emit clean SVG and plain ASCII', () => {
     for (const { source } of RENDERER_CASES) {
       const { ascii, svg } = renderAll(source)
       expect(ascii).not.toMatch(/\x1b\[[0-9;]*m/)

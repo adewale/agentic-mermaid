@@ -13,14 +13,15 @@ import { verifyMermaid } from '../agent/verify.ts'
 import { renderMermaidSVG, renderMermaidASCII, renderMermaidPNG, layoutMermaid } from '../agent/index.ts'
 import { describeMermaid } from '../agent/describe.ts'
 import { collectBatched } from '../shared/batched.ts'
-import { asFlowchart, asState, asSequence, asTimeline, asClass, asEr, asJourney, asArchitecture, asXyChart, asPie, asQuadrant } from '../agent/types.ts'
+import { asFlowchart, asState, asSequence, asTimeline, asClass, asEr, asJourney, asArchitecture, asXyChart, asPie, asQuadrant, asGantt } from '../agent/types.ts'
 import type {
   ValidDiagram, WarningCode,
-  FlowchartMutationOp, StateMutationOp, SequenceMutationOp, TimelineMutationOp, ClassMutationOp, ErMutationOp, JourneyMutationOp, ArchitectureMutationOp, XyChartMutationOp, PieMutationOp, QuadrantMutationOp, AnyMutationOp,
+  FlowchartMutationOp, StateMutationOp, SequenceMutationOp, TimelineMutationOp, ClassMutationOp, ErMutationOp, JourneyMutationOp, ArchitectureMutationOp, XyChartMutationOp, PieMutationOp, QuadrantMutationOp, GanttMutationOp, AnyMutationOp,
   MutationError, Result, MutableValidDiagram,
 } from '../agent/types.ts'
 import { WARNING_SEVERITY, WARNING_TIER } from '../agent/types.ts'
-import { knownFamilies, getFamily } from '../agent/families.ts'
+import { BUILTIN_FAMILY_METADATA, knownFamilies, getFamily } from '../agent/families.ts'
+import type { BuiltinFamilyId } from '../agent/families.ts'
 import '../agent/families-builtin.ts'
 import { AGENT_INSTRUCTIONS } from './agent-instructions.ts'
 import { initAgentFiles } from './init-agent.ts'
@@ -142,7 +143,7 @@ rebuilds the diagram via synthesizeFromGraph without re-parsing source.`,
   mutate: `am mutate <file|-> (--op '<JSON>' | --ops '<JSON array|file.json>') [--json]
 Applies one or more MutationOps, verifies the final diagram, then emits source.
 Flowchart/state, sequence, timeline, class, ER, journey, architecture, xychart,
-pie, and quadrant have typed mutation ops; opaque-fallback diagrams (unmodeled
+pie, quadrant, and gantt have typed mutation ops; opaque-fallback diagrams (unmodeled
 syntax) return a structured UNSUPPORTED_FAMILY error (exit 2). Verify failures
 exit 3 and omit source.`,
   preview: `am preview <file|-> [--output preview.html] [--open] [--json] [--security strict]
@@ -454,9 +455,11 @@ function mutateAny(d: ValidDiagram, op: AnyMutationOp): Result<MutableValidDiagr
   if (pie) return mutate(pie, op as PieMutationOp)
   const quadrant = asQuadrant(d)
   if (quadrant) return mutate(quadrant, op as QuadrantMutationOp)
+  const gantt = asGantt(d)
+  if (gantt) return mutate(gantt, op as GanttMutationOp)
   return {
     ok: false,
-    error: { code: 'UNSUPPORTED_FAMILY', message: `mutate supports flowchart, state, sequence, timeline, class, ER, journey, architecture, xychart, pie, and quadrant diagrams; got ${d.kind}${d.body.kind === 'opaque' ? ' (source-level/opaque body — structured mutation is not exposed for this family or syntax)' : ''}` },
+    error: { code: 'UNSUPPORTED_FAMILY', message: `mutate supports flowchart, state, sequence, timeline, class, ER, journey, architecture, xychart, pie, quadrant, and gantt diagrams; got ${d.kind}${d.body.kind === 'opaque' ? ' (source-level/opaque body — structured mutation is not exposed for this family or syntax)' : ''}` },
   }
 }
 
@@ -648,7 +651,8 @@ export const MUTATION_OPS_BY_FAMILY = {
   xychart: ['set_title', 'set_x_axis', 'set_y_axis', 'add_series', 'remove_series', 'set_series_values', 'set_series_name', 'reorder_series'],
   pie: ['set_title', 'set_show_data', 'add_slice', 'remove_slice', 'rename_slice', 'set_slice_value', 'reorder_slice'],
   quadrant: ['set_title', 'set_axis_labels', 'set_quadrant_label', 'add_point', 'remove_point', 'move_point', 'rename_point'],
-} as const
+  gantt: ['set_title', 'add_section', 'rename_section', 'remove_section', 'add_task', 'remove_task', 'rename_task', 'set_task_status', 'set_task_dates'],
+} as const satisfies Record<BuiltinFamilyId, readonly string[]>
 
 type MutableFamilyId = keyof typeof MUTATION_OPS_BY_FAMILY
 
@@ -705,6 +709,7 @@ export function buildLlmsTxt(): string {
   const cap = buildCapabilities()
   const families = cap.families.map(f => f.id).join(', ')
   const structured = cap.families.filter(f => f.hasMutate).map(f => f.id)
+  const narrowers = BUILTIN_FAMILY_METADATA.map(f => f.narrower).join(', ')
   const formats = cap.outputFormats.join(', ')
   const codes = cap.warningCodes.map(w => `${w.code} (${w.tier}/${w.severity})`).join(', ')
   return `# Agentic Mermaid
@@ -762,6 +767,7 @@ references — safe for untrusted/agent-generated diagrams. See SECURITY.md.
 
 All families parse, verify, render, round-trip: ${families}.
 Structured mutation (${cap.families.find(f => f.hasMutate)?.editPolicy}): ${structured.join(', ')}.
+Narrowers: ${narrowers}.
 State diagrams own a dedicated body (BUILD-19): narrow with asState; state-shaped ops apply (asFlowchart returns null on them).
 Source-level-only: ${cap.families.filter(f => !f.hasMutate).map(f => f.id).join(', ') || 'none — every renderable family ships structured mutation'}.
 Opaque-fallback bodies (unmodeled syntax) round-trip losslessly via preserved source (never silently dropped) and stay source-level only.

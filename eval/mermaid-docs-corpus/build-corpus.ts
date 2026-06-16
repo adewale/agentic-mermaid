@@ -1,6 +1,8 @@
-// Mine mermaid-js source docs for example diagrams across all 11 supported
+// Mine mermaid-js source docs for example diagrams across supported docs
 // families. Output: eval/mermaid-docs-corpus/corpus.json — a curated set
 // of (family, source) pairs we can run through parse → verify → round-trip.
+// Gantt entries were appended surgically from syntax/gantt.md on 2026-06-12
+// (other families untouched); the next full regen picks gantt up via the map.
 //
 // Run with: bun run eval/mermaid-docs-corpus/build-corpus.ts <path-to-mermaid-clone>
 //
@@ -25,6 +27,7 @@ const FILE_TO_FAMILY: Record<string, string> = {
   // requires a local mermaid clone — see eval/mermaid-docs-corpus/README.
   'pie.md': 'pie',
   'quadrantChart.md': 'quadrant',
+  'gantt.md': 'gantt',
 }
 
 const FENCE_RE = /```mermaid(?:-example)?\n([\s\S]*?)\n```/g

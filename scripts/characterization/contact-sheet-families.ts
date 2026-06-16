@@ -78,6 +78,14 @@ const FAMILIES: Family[] = [
     source: 'timeline\n  title Project\n  section Phase 1\n    2021 : Kickoff\n    2022 : Beta\n  section Phase 2\n    2023 : GA',
   },
   {
+    id: 'gantt',
+    title: 'Gantt chart',
+    strategy: 'Calendar/time-axis renderer with scheduled task bars, milestones, and vertical markers (src/ascii/gantt.ts).',
+    signature: 'Tasks resolve to deterministic intervals on a time axis; dependencies push starts, exclusions extend working durations, milestones render as points, and vert markers consume no task row. Ragged rows.',
+    invariants: { total: true, deterministic: true, noDiagonals: true, rectangular: false },
+    source: 'gantt\n  title Launch plan\n  dateFormat YYYY-MM-DD\n  axisFormat %b %d\n  excludes weekends\n  section Build\n    Spec :done, spec, 2024-01-01, 2d\n    Implement :active, impl, after spec, 3d\n  section Ship\n    QA :crit, qa, after impl, 2d\n    Launch :milestone, launch, after qa, 0d\n    Release line :vert, release, 2024-01-10, 0d',
+  },
+  {
     id: 'journey',
     title: 'User journey',
     strategy: 'Scored task lists with actor annotations (src/ascii/journey.ts).',
@@ -146,7 +154,7 @@ export function build(): string {
   }
   out.push('')
   out.push('**Total** and **Deterministic** hold for every renderer (the bedrock contract;')
-  out.push('also pinned across the 243-entry docs corpus by `ascii-determinism.test.ts`).')
+  out.push('also pinned across the 258-entry docs corpus by `ascii-determinism.test.ts`).')
   out.push('**No diagonals** holds for every renderer. **Rectangular** (all rows one width)')
   out.push('holds only for the box/graph families; the chart and list families emit ragged')
   out.push('rows by design.')

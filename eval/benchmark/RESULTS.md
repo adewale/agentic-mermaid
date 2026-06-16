@@ -1,23 +1,23 @@
 # Benchmark results
 
-Measured in this sandbox (x86_64 Linux, Bun 1.3.11). **Our numbers are
-measured directly. Competitor numbers are measured live where the tool
-ran, and labeled "from architecture" where it could not.** No head-to-head
-latency is fabricated.
+Our current numbers below are measured directly in this sandbox (macOS arm64,
+Bun 1.3.13). Competitor numbers are measured live where the tool ran, and
+labeled "from architecture" where it could not. No head-to-head latency is
+fabricated.
 
 Reproduce ours: `bun run eval/benchmark/run-bench.ts`
 
 ## Ours — measured
 
-Corpus: the 247-sample mermaid-js docs corpus (`eval/mermaid-docs-corpus`).
+Corpus: the 258-entry mermaid-js docs corpus (`eval/mermaid-docs-corpus`).
 
 | Metric | p50 | p90 | max |
 |---|---|---|---|
-| SVG render (warm, in-process) | 3.7 ms | 14.9 ms | 58 ms |
-| ASCII render (warm, in-process) | 0.37 ms | 1.9 ms | 16 ms |
+| SVG render (warm, in-process) | 0.85 ms | 4.09 ms | 10.79 ms |
+| ASCII render (warm, in-process) | 0.11 ms | 0.72 ms | 7.04 ms |
 | SVG output size | 2.9 KB | 7.3 KB | 14.6 KB |
 
-- Parse success rate: **247/247 (100%)**.
+- Parse success rate: **258/258 (100%)**.
 - Cold start (CLI process, one diagram):
   - `bun run bin/am.ts` (TS source, transpile + resolve): ~570–870 ms
   - **`bun build --compile` single binary (#1018, Loop 13): ~440 ms** —

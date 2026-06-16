@@ -1,4 +1,4 @@
-// Phase E: corpus of 247 example diagrams mined from mermaid-js's own
+// Phase E: corpus of 258 example diagrams mined from mermaid-js's own
 // syntax docs. CI gate per family: parse rate, verify rate, round-trip
 // stability rate. This is the cross-family analogue of the MermaidSeqBench
 // gate — but built from the source-of-truth project itself.
@@ -19,7 +19,7 @@ function loadCorpus(): CorpusEntry[] {
 
 const corpus = loadCorpus()
 
-describe('mermaid-js docs corpus (247 examples, 9 families)', () => {
+describe('mermaid-js docs corpus (258 examples, 10 families)', () => {
   test('corpus is present', () => {
     expect(corpus.length).toBeGreaterThan(200)
   })
@@ -28,7 +28,7 @@ describe('mermaid-js docs corpus (247 examples, 9 families)', () => {
   // model (e.g., direction inside subgraphs, advanced class syntax). The gate
   // is set per-family from the observed-correct baseline; regressions cause
   // CI failure.
-  // Floors observed from the 247-sample baseline. Regression-only — if a
+  // Floors observed from the docs-corpus baseline. Regression-only — if a
   // future change drops a rate below floor, the test fails with the full
   // rate report so it's obvious what changed.
   //
@@ -49,6 +49,16 @@ describe('mermaid-js docs corpus (247 examples, 9 families)', () => {
     journey:      { minParse: 1.00, minVerify: 1.00, minRoundTrip: 1.00 },
     xychart:      { minParse: 1.00, minVerify: 1.00, minRoundTrip: 1.00 },
     architecture: { minParse: 1.00, minVerify: 1.00, minRoundTrip: 1.00 },
+    // Gantt entries were appended from syntax/gantt.md (11 unique examples,
+    // deduped — the docs repeat each rendered example) alongside the upstream
+    // test-suite bench in eval/mermaid-gantt-bench/. Verify floor 0.80 (9/11):
+    // one docs entry is a directive-only fragment (no tasks → EMPTY_DIAGRAM,
+    // correct since rendering throws GANTT_EMPTY), and one ends a task with an
+    // inline `%% not yet official` comment that even upstream only "renders"
+    // via its wall-clock fallback (ledger entry e9 in the gantt bench) — ours
+    // reports UNRESOLVABLE_SCHEDULE by name. Same honest-fragment class as the
+    // state-family floor; round-trip stays lossless for both.
+    gantt:        { minParse: 1.00, minVerify: 0.80, minRoundTrip: 1.00 },
   }
 
   for (const family of Object.keys(expected)) {

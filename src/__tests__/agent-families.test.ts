@@ -8,9 +8,9 @@ import '../agent/families-builtin.ts'
 import type { DiagramKind } from '../agent/types.ts'
 
 describe('family registry', () => {
-  test('all 11 built-in families register', () => {
+  test('all 12 built-in families register', () => {
     const ids = new Set(knownFamilies())
-    for (const id of ['flowchart', 'state', 'sequence', 'timeline', 'class', 'er', 'journey', 'xychart', 'architecture', 'pie', 'quadrant'] satisfies DiagramKind[]) {
+    for (const id of ['flowchart', 'state', 'sequence', 'timeline', 'class', 'er', 'journey', 'xychart', 'architecture', 'pie', 'quadrant', 'gantt'] satisfies DiagramKind[]) {
       expect(ids.has(id)).toBe(true)
     }
   })
@@ -104,8 +104,8 @@ describe('Phase B: universal LABEL_OVERFLOW on opaque bodies', () => {
 
 describe('FamilyPlugin.verify dispatcher', () => {
   test('plugin verify hook is called and warnings surface in verifyMermaid result', () => {
-    // Pick a source-level family to prove FamilyPlugin.verify fires independent
-    // of whether the body is structured or opaque/source-preserved.
+    // Pick a structured family to prove FamilyPlugin.verify fires independent
+    // of whether a particular body is structured or opaque/source-preserved.
     const original = getFamily('journey')
     expect(original).toBeDefined()
 

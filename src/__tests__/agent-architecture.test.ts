@@ -1,5 +1,5 @@
-// BUILD-17: architecture structured mutation (promoting the architecture-beta
-// family from source-level-only, following the BUILD-15 journey pilot). Parse /
+// BUILD-17: architecture structured mutation (promoting architecture-beta from
+// opaque-only fallback semantics, following the BUILD-15 journey pilot). Parse /
 // narrow / mutate / verify / serialize, the structured-or-opaque fallback, and
 // round-trip identity.
 

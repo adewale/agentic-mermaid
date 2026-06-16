@@ -14,8 +14,8 @@ PR #11 has merged into `main`, but this map remains useful for auditing the agen
 
 Use `am capabilities --json` as the machine-readable source of truth. Each family reports:
 
-- `editPolicy: "structured-when-narrowed"` for flowchart/state, simple sequence, timeline, class, and ER.
-- `editPolicy: "source-level-only"` for journey, xychart, architecture, and opaque fallbacks.
+- `editPolicy: "structured-when-narrowed"` for every built-in renderable family: flowchart, state, sequence, timeline, class, ER, journey, xychart, architecture, pie, quadrant, and Gantt.
+- `editPolicy: "source-level-only"` only for opaque fallback bodies where the parser preserved unmodeled syntax losslessly and the family narrower returns `null`.
 
 For new diagrams, direct Mermaid source authoring is allowed: write source → parse → verify → render. For existing modeled diagrams, use parse → narrow → mutate → verify → serialize. Do not regenerate an existing parsed diagram when a typed mutation exists.
 

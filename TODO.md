@@ -74,9 +74,32 @@ dependents after. IDs are stable names, not an ordering.
     `src/ascii/pie.ts`), routing, agent surface (detect + extractLabels),
     showcase samples, docs, and goldens. Now promoted to structured mutation —
     `src/agent/pie-body.ts`, `asPie`, 7 ops (see Unreleased changelog).
-  - [ ] gantt, mindmap, gitgraph: still to implement. Order the remaining
-    three by the real README corpus run (network required) per the evidence
+  - [x] Gantt family (per the [docs/design/gantt.md](./docs/design/gantt.md)
+    spec from PR #24): `src/gantt/` (types/parser/schedule/layout/SVG +
+    `src/ascii/gantt.ts`), routing, segment-preserving typed mutation from day
+    one (`src/agent/gantt-body.ts`, `asGantt`, 9 ops), pure wall-clock-free
+    scheduler with named `GANTT_*` errors, critical-path analysis in
+    `describe`, showcase samples, docs, ASCII/Unicode + SVG goldens,
+    fast-check properties, a `mermaid-ast` differential, and a targeted
+    Stryker config (`mutation-test:gantt`).
+  - [ ] mindmap, gitgraph: still to implement. Order the remaining
+    two by the real README corpus run (network required) per the evidence
     step above — `eval/family-usage/RESULTS.md` does not assert that ordering.
+- [ ] **BUILD-20 — Upstream test-suite harvests for every family.** Apply
+  [docs/contributing/harvesting-upstream-tests.md](./docs/contributing/harvesting-upstream-tests.md)
+  (the method piloted by `eval/mermaid-gantt-bench/`, which found one real
+  compat bug, one semantic boundary divergence, and the verify/render seam
+  that became `UNRESOLVABLE_SCHEDULE`) to the remaining families. Vendor
+  mermaid's `parser/<family>.spec.js` + `<family>Db.spec.ts` (+ ASCII-fork
+  inputs, licenses permitting) into `eval/mermaid-<family>-bench/` with an
+  executable exclusions ledger and a CI runner test.
+  - [ ] flowchart, state (largest upstream suites; route-contracts work may
+    want their routing fixtures too)
+  - [ ] class, ER, pie, quadrant, timeline, journey, xychart, architecture
+  - [ ] sequence: fold the existing MermaidSeqBench gate into the same
+    cases/exclusions/README shape so all benches read alike
+  - [ ] mindmap, gitgraph: harvest BEFORE implementing (BUILD-5) — the specs
+    should be written against upstream's real test semantics, not just docs
 - [x] **BUILD-11 — QuadrantChart family** (`done`). Promoted
   from the PARK-3 fork-audit list. Quadrant charts are missing across the
   entire beautiful-mermaid fork network (no port exists upstream or in any
@@ -94,7 +117,8 @@ dependents after. IDs are stable names, not an ordering.
   / 2 ascii goldens (`testdata/{unicode,ascii}/quadrant_*.txt`). Malformed
   lines (out-of-range/non-numeric coords, missing brackets, duplicate labels,
   `classDef`/`:::` styling) error loudly. Docs/showcase/CHANGELOG/llms.txt
-  updated; 11-family count assertions and detector-drift case bumped.
+  updated; the then-current family count assertions and detector-drift case
+  were bumped.
 - [ ] **BUILD-6 — New upstream Mermaid families (11.4–11.15)** (`todo`). Mermaid added kanban (11.4), radar (11.6), treemap
   (~11.9), Venn (beta, 11.13), Ishikawa/fishbone (beta, 11.13), Wardley Maps
   (beta, 11.14), TreeView (11.14), and Event Modeling (11.15). Upstream
@@ -317,8 +341,8 @@ dependents after. IDs are stable names, not an ordering.
 
 - [x] **QUAL-1 — Perceptual-quality coverage for non-graph families**
   (`done`). `layoutMermaid` now has `RenderedLayout` adapters for EVERY
-  renderable family — class, ER, journey, architecture, xychart, pie, and
-  quadrant join flowchart/state/sequence/timeline — so `measureQuality` /
+  renderable family — class, ER, journey, architecture, xychart, pie,
+  quadrant, and gantt join flowchart/state/sequence/timeline — so `measureQuality` /
   `checkQuality` and the BUILD-13 harness see real geometry (not bytes-only)
   for each. Adapters live in `src/agent/family-layouts.ts`; they parse
   `d.canonicalSource` via the legacy per-family parser+layouter (the same
@@ -334,7 +358,7 @@ dependents after. IDs are stable names, not an ordering.
   before/after run against the base commit shows 0 regressions, 57 improvements,
   and zero SVG/ASCII byte changes on the 243 shared corpus samples (measurement
   only, no rendering change). `docs/quality.md` honest-gap + LLM-judge grid
-  updated (now 11 families).
+  updated (now 12 families, including gantt).
   - Remaining sub-gaps (kept unchecked — both need a non-sandbox environment):
     - [ ] mermaid-docs corpus regen to include pie/quadrant docs examples needs
       network (a local mermaid clone). `FILE_TO_FAMILY` now maps `pie.md` and
