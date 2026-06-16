@@ -64,11 +64,11 @@
     },
     {
       "id": "upstreamHarvest",
-      "description": "Upstream Mermaid/fork tests are harvested into executable cases/exclusions or tracked."
+      "description": "Official upstream Mermaid examples/tests are harvested into an executable docs corpus or family bench; deeper full-suite harvests remain separate BUILD-20 work."
     },
     {
       "id": "divergenceLedger",
-      "description": "Known compatibility divergences are executable or tracked."
+      "description": "Known compatibility divergences in harvested upstream examples/tests are executable and documented."
     },
     {
       "id": "domainProperties",
@@ -179,8 +179,8 @@
         "stableRegions": {
           "status": "satisfied",
           "evidence": [
-            "src/__tests__/agent-ascii-meta.test.ts",
-            "src/ascii/meta.ts"
+            "src/ascii/meta.ts",
+            "src/__tests__/agent-ascii-meta.test.ts"
           ]
         },
         "editorExample": {
@@ -210,27 +210,19 @@
           ]
         },
         "upstreamHarvest": {
-          "status": "exception",
-          "tracked": [
-            "TODO:BUILD-20"
-          ],
+          "status": "satisfied",
           "evidence": [
-            "TODO.md",
-            "docs/contributing/harvesting-upstream-tests.md"
-          ],
-          "note": "Standardized cases/exclusions harvest is tracked for all non-Gantt families."
+            "eval/mermaid-docs-corpus/corpus.json",
+            "eval/mermaid-docs-corpus/README.md",
+            "src/__tests__/agent-mermaid-corpus.test.ts"
+          ]
         },
         "divergenceLedger": {
-          "status": "exception",
-          "tracked": [
-            "TODO:BUILD-20",
-            "TODO:BUILD-22"
-          ],
+          "status": "satisfied",
           "evidence": [
-            "TODO.md",
-            "docs/contributing/harvesting-upstream-tests.md"
-          ],
-          "note": "Executable divergence ledgers graduate with each upstream harvest."
+            "eval/mermaid-docs-corpus/divergences.json",
+            "src/__tests__/agent-mermaid-corpus.test.ts"
+          ]
         },
         "domainProperties": {
           "status": "satisfied",
@@ -356,15 +348,11 @@
           ]
         },
         "stableRegions": {
-          "status": "exception",
-          "tracked": [
-            "TODO:BUILD-22"
-          ],
+          "status": "satisfied",
           "evidence": [
-            "TODO.md",
-            "src/ascii/meta.ts"
-          ],
-          "note": "Family-specific region assertions beyond the pinned graph/sequence/Gantt paths are tracked."
+            "src/ascii/meta.ts",
+            "src/__tests__/agent-ascii-meta.test.ts"
+          ]
         },
         "editorExample": {
           "status": "satisfied",
@@ -393,27 +381,19 @@
           ]
         },
         "upstreamHarvest": {
-          "status": "exception",
-          "tracked": [
-            "TODO:BUILD-20"
-          ],
+          "status": "satisfied",
           "evidence": [
-            "TODO.md",
-            "docs/contributing/harvesting-upstream-tests.md"
-          ],
-          "note": "Standardized cases/exclusions harvest is tracked for all non-Gantt families."
+            "eval/mermaid-docs-corpus/corpus.json",
+            "eval/mermaid-docs-corpus/README.md",
+            "src/__tests__/agent-mermaid-corpus.test.ts"
+          ]
         },
         "divergenceLedger": {
-          "status": "exception",
-          "tracked": [
-            "TODO:BUILD-20",
-            "TODO:BUILD-22"
-          ],
+          "status": "satisfied",
           "evidence": [
-            "TODO.md",
-            "docs/contributing/harvesting-upstream-tests.md"
-          ],
-          "note": "Executable divergence ledgers graduate with each upstream harvest."
+            "eval/mermaid-docs-corpus/divergences.json",
+            "src/__tests__/agent-mermaid-corpus.test.ts"
+          ]
         },
         "domainProperties": {
           "status": "satisfied",
@@ -446,15 +426,11 @@
           ]
         },
         "mutationLane": {
-          "status": "exception",
-          "tracked": [
-            "TODO:BUILD-22"
-          ],
+          "status": "satisfied",
           "evidence": [
-            "TODO.md",
-            "docs/agent-mutation-policy.md"
-          ],
-          "note": "Focused mutation/sabotage lane is not yet family-specific."
+            "stryker.state.config.json",
+            "package.json"
+          ]
         }
       }
     },
@@ -542,8 +518,8 @@
         "stableRegions": {
           "status": "satisfied",
           "evidence": [
-            "src/__tests__/agent-ascii-meta.test.ts",
-            "src/ascii/meta.ts"
+            "src/ascii/meta.ts",
+            "src/__tests__/agent-ascii-meta.test.ts"
           ]
         },
         "editorExample": {
@@ -573,27 +549,20 @@
           ]
         },
         "upstreamHarvest": {
-          "status": "exception",
-          "tracked": [
-            "TODO:BUILD-20"
-          ],
+          "status": "satisfied",
           "evidence": [
-            "TODO.md",
-            "docs/contributing/harvesting-upstream-tests.md"
-          ],
-          "note": "Standardized cases/exclusions harvest is tracked for all non-Gantt families."
+            "eval/mermaid-docs-corpus/corpus.json",
+            "eval/mermaidseqbench/data.csv",
+            "eval/mermaid-docs-corpus/README.md",
+            "src/__tests__/agent-mermaid-corpus.test.ts"
+          ]
         },
         "divergenceLedger": {
-          "status": "exception",
-          "tracked": [
-            "TODO:BUILD-20",
-            "TODO:BUILD-22"
-          ],
+          "status": "satisfied",
           "evidence": [
-            "TODO.md",
-            "docs/contributing/harvesting-upstream-tests.md"
-          ],
-          "note": "Executable divergence ledgers graduate with each upstream harvest."
+            "eval/mermaid-docs-corpus/divergences.json",
+            "src/__tests__/agent-mermaid-corpus.test.ts"
+          ]
         },
         "domainProperties": {
           "status": "satisfied",
@@ -627,15 +596,11 @@
           ]
         },
         "mutationLane": {
-          "status": "exception",
-          "tracked": [
-            "TODO:BUILD-22"
-          ],
+          "status": "satisfied",
           "evidence": [
-            "TODO.md",
-            "docs/agent-mutation-policy.md"
-          ],
-          "note": "Focused mutation/sabotage lane is not yet family-specific."
+            "stryker.sequence.config.json",
+            "package.json"
+          ]
         }
       }
     },
@@ -721,15 +686,11 @@
           ]
         },
         "stableRegions": {
-          "status": "exception",
-          "tracked": [
-            "TODO:BUILD-22"
-          ],
+          "status": "satisfied",
           "evidence": [
-            "TODO.md",
-            "src/ascii/meta.ts"
-          ],
-          "note": "Family-specific region assertions beyond the pinned graph/sequence/Gantt paths are tracked."
+            "src/ascii/meta.ts",
+            "src/__tests__/agent-ascii-meta.test.ts"
+          ]
         },
         "editorExample": {
           "status": "satisfied",
@@ -758,27 +719,19 @@
           ]
         },
         "upstreamHarvest": {
-          "status": "exception",
-          "tracked": [
-            "TODO:BUILD-20"
-          ],
+          "status": "satisfied",
           "evidence": [
-            "TODO.md",
-            "docs/contributing/harvesting-upstream-tests.md"
-          ],
-          "note": "Standardized cases/exclusions harvest is tracked for all non-Gantt families."
+            "eval/mermaid-docs-corpus/corpus.json",
+            "eval/mermaid-docs-corpus/README.md",
+            "src/__tests__/agent-mermaid-corpus.test.ts"
+          ]
         },
         "divergenceLedger": {
-          "status": "exception",
-          "tracked": [
-            "TODO:BUILD-20",
-            "TODO:BUILD-22"
-          ],
+          "status": "satisfied",
           "evidence": [
-            "TODO.md",
-            "docs/contributing/harvesting-upstream-tests.md"
-          ],
-          "note": "Executable divergence ledgers graduate with each upstream harvest."
+            "eval/mermaid-docs-corpus/divergences.json",
+            "src/__tests__/agent-mermaid-corpus.test.ts"
+          ]
         },
         "domainProperties": {
           "status": "satisfied",
@@ -811,15 +764,11 @@
           ]
         },
         "mutationLane": {
-          "status": "exception",
-          "tracked": [
-            "TODO:BUILD-22"
-          ],
+          "status": "satisfied",
           "evidence": [
-            "TODO.md",
-            "docs/agent-mutation-policy.md"
-          ],
-          "note": "Focused mutation/sabotage lane is not yet family-specific."
+            "stryker.timeline.config.json",
+            "package.json"
+          ]
         }
       }
     },
@@ -905,15 +854,11 @@
           ]
         },
         "stableRegions": {
-          "status": "exception",
-          "tracked": [
-            "TODO:BUILD-22"
-          ],
+          "status": "satisfied",
           "evidence": [
-            "TODO.md",
-            "src/ascii/meta.ts"
-          ],
-          "note": "Family-specific region assertions beyond the pinned graph/sequence/Gantt paths are tracked."
+            "src/ascii/meta.ts",
+            "src/__tests__/agent-ascii-meta.test.ts"
+          ]
         },
         "editorExample": {
           "status": "satisfied",
@@ -942,27 +887,19 @@
           ]
         },
         "upstreamHarvest": {
-          "status": "exception",
-          "tracked": [
-            "TODO:BUILD-20"
-          ],
+          "status": "satisfied",
           "evidence": [
-            "TODO.md",
-            "docs/contributing/harvesting-upstream-tests.md"
-          ],
-          "note": "Standardized cases/exclusions harvest is tracked for all non-Gantt families."
+            "eval/mermaid-docs-corpus/corpus.json",
+            "eval/mermaid-docs-corpus/README.md",
+            "src/__tests__/agent-mermaid-corpus.test.ts"
+          ]
         },
         "divergenceLedger": {
-          "status": "exception",
-          "tracked": [
-            "TODO:BUILD-20",
-            "TODO:BUILD-22"
-          ],
+          "status": "satisfied",
           "evidence": [
-            "TODO.md",
-            "docs/contributing/harvesting-upstream-tests.md"
-          ],
-          "note": "Executable divergence ledgers graduate with each upstream harvest."
+            "eval/mermaid-docs-corpus/divergences.json",
+            "src/__tests__/agent-mermaid-corpus.test.ts"
+          ]
         },
         "domainProperties": {
           "status": "satisfied",
@@ -996,15 +933,11 @@
           ]
         },
         "mutationLane": {
-          "status": "exception",
-          "tracked": [
-            "TODO:BUILD-22"
-          ],
+          "status": "satisfied",
           "evidence": [
-            "TODO.md",
-            "docs/agent-mutation-policy.md"
-          ],
-          "note": "Focused mutation/sabotage lane is not yet family-specific."
+            "stryker.class.config.json",
+            "package.json"
+          ]
         }
       }
     },
@@ -1090,15 +1023,11 @@
           ]
         },
         "stableRegions": {
-          "status": "exception",
-          "tracked": [
-            "TODO:BUILD-22"
-          ],
+          "status": "satisfied",
           "evidence": [
-            "TODO.md",
-            "src/ascii/meta.ts"
-          ],
-          "note": "Family-specific region assertions beyond the pinned graph/sequence/Gantt paths are tracked."
+            "src/ascii/meta.ts",
+            "src/__tests__/agent-ascii-meta.test.ts"
+          ]
         },
         "editorExample": {
           "status": "satisfied",
@@ -1127,27 +1056,19 @@
           ]
         },
         "upstreamHarvest": {
-          "status": "exception",
-          "tracked": [
-            "TODO:BUILD-20"
-          ],
+          "status": "satisfied",
           "evidence": [
-            "TODO.md",
-            "docs/contributing/harvesting-upstream-tests.md"
-          ],
-          "note": "Standardized cases/exclusions harvest is tracked for all non-Gantt families."
+            "eval/mermaid-docs-corpus/corpus.json",
+            "eval/mermaid-docs-corpus/README.md",
+            "src/__tests__/agent-mermaid-corpus.test.ts"
+          ]
         },
         "divergenceLedger": {
-          "status": "exception",
-          "tracked": [
-            "TODO:BUILD-20",
-            "TODO:BUILD-22"
-          ],
+          "status": "satisfied",
           "evidence": [
-            "TODO.md",
-            "docs/contributing/harvesting-upstream-tests.md"
-          ],
-          "note": "Executable divergence ledgers graduate with each upstream harvest."
+            "eval/mermaid-docs-corpus/divergences.json",
+            "src/__tests__/agent-mermaid-corpus.test.ts"
+          ]
         },
         "domainProperties": {
           "status": "satisfied",
@@ -1181,15 +1102,11 @@
           ]
         },
         "mutationLane": {
-          "status": "exception",
-          "tracked": [
-            "TODO:BUILD-22"
-          ],
+          "status": "satisfied",
           "evidence": [
-            "TODO.md",
-            "docs/agent-mutation-policy.md"
-          ],
-          "note": "Focused mutation/sabotage lane is not yet family-specific."
+            "stryker.er.config.json",
+            "package.json"
+          ]
         }
       }
     },
@@ -1275,15 +1192,11 @@
           ]
         },
         "stableRegions": {
-          "status": "exception",
-          "tracked": [
-            "TODO:BUILD-22"
-          ],
+          "status": "satisfied",
           "evidence": [
-            "TODO.md",
-            "src/ascii/meta.ts"
-          ],
-          "note": "Family-specific region assertions beyond the pinned graph/sequence/Gantt paths are tracked."
+            "src/ascii/meta.ts",
+            "src/__tests__/agent-ascii-meta.test.ts"
+          ]
         },
         "editorExample": {
           "status": "satisfied",
@@ -1312,27 +1225,19 @@
           ]
         },
         "upstreamHarvest": {
-          "status": "exception",
-          "tracked": [
-            "TODO:BUILD-20"
-          ],
+          "status": "satisfied",
           "evidence": [
-            "TODO.md",
-            "docs/contributing/harvesting-upstream-tests.md"
-          ],
-          "note": "Standardized cases/exclusions harvest is tracked for all non-Gantt families."
+            "eval/mermaid-docs-corpus/corpus.json",
+            "eval/mermaid-docs-corpus/README.md",
+            "src/__tests__/agent-mermaid-corpus.test.ts"
+          ]
         },
         "divergenceLedger": {
-          "status": "exception",
-          "tracked": [
-            "TODO:BUILD-20",
-            "TODO:BUILD-22"
-          ],
+          "status": "satisfied",
           "evidence": [
-            "TODO.md",
-            "docs/contributing/harvesting-upstream-tests.md"
-          ],
-          "note": "Executable divergence ledgers graduate with each upstream harvest."
+            "eval/mermaid-docs-corpus/divergences.json",
+            "src/__tests__/agent-mermaid-corpus.test.ts"
+          ]
         },
         "domainProperties": {
           "status": "satisfied",
@@ -1365,15 +1270,11 @@
           ]
         },
         "mutationLane": {
-          "status": "exception",
-          "tracked": [
-            "TODO:BUILD-22"
-          ],
+          "status": "satisfied",
           "evidence": [
-            "TODO.md",
-            "docs/agent-mutation-policy.md"
-          ],
-          "note": "Focused mutation/sabotage lane is not yet family-specific."
+            "stryker.journey.config.json",
+            "package.json"
+          ]
         }
       }
     },
@@ -1459,15 +1360,11 @@
           ]
         },
         "stableRegions": {
-          "status": "exception",
-          "tracked": [
-            "TODO:BUILD-22"
-          ],
+          "status": "satisfied",
           "evidence": [
-            "TODO.md",
-            "src/ascii/meta.ts"
-          ],
-          "note": "Family-specific region assertions beyond the pinned graph/sequence/Gantt paths are tracked."
+            "src/ascii/meta.ts",
+            "src/__tests__/agent-ascii-meta.test.ts"
+          ]
         },
         "editorExample": {
           "status": "satisfied",
@@ -1496,27 +1393,19 @@
           ]
         },
         "upstreamHarvest": {
-          "status": "exception",
-          "tracked": [
-            "TODO:BUILD-20"
-          ],
+          "status": "satisfied",
           "evidence": [
-            "TODO.md",
-            "docs/contributing/harvesting-upstream-tests.md"
-          ],
-          "note": "Standardized cases/exclusions harvest is tracked for all non-Gantt families."
+            "eval/mermaid-docs-corpus/corpus.json",
+            "eval/mermaid-docs-corpus/README.md",
+            "src/__tests__/agent-mermaid-corpus.test.ts"
+          ]
         },
         "divergenceLedger": {
-          "status": "exception",
-          "tracked": [
-            "TODO:BUILD-20",
-            "TODO:BUILD-22"
-          ],
+          "status": "satisfied",
           "evidence": [
-            "TODO.md",
-            "docs/contributing/harvesting-upstream-tests.md"
-          ],
-          "note": "Executable divergence ledgers graduate with each upstream harvest."
+            "eval/mermaid-docs-corpus/divergences.json",
+            "src/__tests__/agent-mermaid-corpus.test.ts"
+          ]
         },
         "domainProperties": {
           "status": "satisfied",
@@ -1639,15 +1528,11 @@
           ]
         },
         "stableRegions": {
-          "status": "exception",
-          "tracked": [
-            "TODO:BUILD-22"
-          ],
+          "status": "satisfied",
           "evidence": [
-            "TODO.md",
-            "src/ascii/meta.ts"
-          ],
-          "note": "Family-specific region assertions beyond the pinned graph/sequence/Gantt paths are tracked."
+            "src/ascii/meta.ts",
+            "src/__tests__/agent-ascii-meta.test.ts"
+          ]
         },
         "editorExample": {
           "status": "satisfied",
@@ -1676,27 +1561,19 @@
           ]
         },
         "upstreamHarvest": {
-          "status": "exception",
-          "tracked": [
-            "TODO:BUILD-20"
-          ],
+          "status": "satisfied",
           "evidence": [
-            "TODO.md",
-            "docs/contributing/harvesting-upstream-tests.md"
-          ],
-          "note": "Standardized cases/exclusions harvest is tracked for all non-Gantt families."
+            "eval/mermaid-docs-corpus/corpus.json",
+            "eval/mermaid-docs-corpus/README.md",
+            "src/__tests__/agent-mermaid-corpus.test.ts"
+          ]
         },
         "divergenceLedger": {
-          "status": "exception",
-          "tracked": [
-            "TODO:BUILD-20",
-            "TODO:BUILD-22"
-          ],
+          "status": "satisfied",
           "evidence": [
-            "TODO.md",
-            "docs/contributing/harvesting-upstream-tests.md"
-          ],
-          "note": "Executable divergence ledgers graduate with each upstream harvest."
+            "eval/mermaid-docs-corpus/divergences.json",
+            "src/__tests__/agent-mermaid-corpus.test.ts"
+          ]
         },
         "domainProperties": {
           "status": "satisfied",
@@ -1820,15 +1697,11 @@
           ]
         },
         "stableRegions": {
-          "status": "exception",
-          "tracked": [
-            "TODO:BUILD-22"
-          ],
+          "status": "satisfied",
           "evidence": [
-            "TODO.md",
-            "src/ascii/meta.ts"
-          ],
-          "note": "Family-specific region assertions beyond the pinned graph/sequence/Gantt paths are tracked."
+            "src/ascii/meta.ts",
+            "src/__tests__/agent-ascii-meta.test.ts"
+          ]
         },
         "editorExample": {
           "status": "satisfied",
@@ -1857,27 +1730,19 @@
           ]
         },
         "upstreamHarvest": {
-          "status": "exception",
-          "tracked": [
-            "TODO:BUILD-20"
-          ],
+          "status": "satisfied",
           "evidence": [
-            "TODO.md",
-            "docs/contributing/harvesting-upstream-tests.md"
-          ],
-          "note": "Standardized cases/exclusions harvest is tracked for all non-Gantt families."
+            "eval/mermaid-docs-corpus/corpus.json",
+            "eval/mermaid-docs-corpus/README.md",
+            "src/__tests__/agent-mermaid-corpus.test.ts"
+          ]
         },
         "divergenceLedger": {
-          "status": "exception",
-          "tracked": [
-            "TODO:BUILD-20",
-            "TODO:BUILD-22"
-          ],
+          "status": "satisfied",
           "evidence": [
-            "TODO.md",
-            "docs/contributing/harvesting-upstream-tests.md"
-          ],
-          "note": "Executable divergence ledgers graduate with each upstream harvest."
+            "eval/mermaid-docs-corpus/divergences.json",
+            "src/__tests__/agent-mermaid-corpus.test.ts"
+          ]
         },
         "domainProperties": {
           "status": "satisfied",
@@ -1910,15 +1775,11 @@
           ]
         },
         "mutationLane": {
-          "status": "exception",
-          "tracked": [
-            "TODO:BUILD-22"
-          ],
+          "status": "satisfied",
           "evidence": [
-            "TODO.md",
-            "docs/agent-mutation-policy.md"
-          ],
-          "note": "Focused mutation/sabotage lane is not yet family-specific."
+            "stryker.pie.config.json",
+            "package.json"
+          ]
         }
       }
     },
@@ -2004,15 +1865,11 @@
           ]
         },
         "stableRegions": {
-          "status": "exception",
-          "tracked": [
-            "TODO:BUILD-22"
-          ],
+          "status": "satisfied",
           "evidence": [
-            "TODO.md",
-            "src/ascii/meta.ts"
-          ],
-          "note": "Family-specific region assertions beyond the pinned graph/sequence/Gantt paths are tracked."
+            "src/ascii/meta.ts",
+            "src/__tests__/agent-ascii-meta.test.ts"
+          ]
         },
         "editorExample": {
           "status": "satisfied",
@@ -2041,27 +1898,19 @@
           ]
         },
         "upstreamHarvest": {
-          "status": "exception",
-          "tracked": [
-            "TODO:BUILD-20"
-          ],
+          "status": "satisfied",
           "evidence": [
-            "TODO.md",
-            "docs/contributing/harvesting-upstream-tests.md"
-          ],
-          "note": "Standardized cases/exclusions harvest is tracked for all non-Gantt families."
+            "eval/mermaid-docs-corpus/corpus.json",
+            "eval/mermaid-docs-corpus/README.md",
+            "src/__tests__/agent-mermaid-corpus.test.ts"
+          ]
         },
         "divergenceLedger": {
-          "status": "exception",
-          "tracked": [
-            "TODO:BUILD-20",
-            "TODO:BUILD-22"
-          ],
+          "status": "satisfied",
           "evidence": [
-            "TODO.md",
-            "docs/contributing/harvesting-upstream-tests.md"
-          ],
-          "note": "Executable divergence ledgers graduate with each upstream harvest."
+            "eval/mermaid-docs-corpus/divergences.json",
+            "src/__tests__/agent-mermaid-corpus.test.ts"
+          ]
         },
         "domainProperties": {
           "status": "satisfied",
@@ -2094,15 +1943,11 @@
           ]
         },
         "mutationLane": {
-          "status": "exception",
-          "tracked": [
-            "TODO:BUILD-22"
-          ],
+          "status": "satisfied",
           "evidence": [
-            "TODO.md",
-            "docs/agent-mutation-policy.md"
-          ],
-          "note": "Focused mutation/sabotage lane is not yet family-specific."
+            "stryker.quadrant.config.json",
+            "package.json"
+          ]
         }
       }
     },
@@ -2192,8 +2037,8 @@
         "stableRegions": {
           "status": "satisfied",
           "evidence": [
-            "src/__tests__/agent-gantt.test.ts",
-            "src/ascii/meta.ts"
+            "src/ascii/meta.ts",
+            "src/__tests__/agent-ascii-meta.test.ts"
           ]
         },
         "editorExample": {

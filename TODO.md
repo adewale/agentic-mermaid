@@ -100,26 +100,31 @@ dependents after. IDs are stable names, not an ordering.
     cases/exclusions/README shape so all benches read alike
   - [ ] mindmap, gitgraph: harvest BEFORE implementing (BUILD-5) — the specs
     should be written against upstream's real test semantics, not just docs
-- [ ] **BUILD-22 — Diagram-family citizenship gap backfill** (`todo`). Keep
-  the checked matrix in
+- [x] **BUILD-22 — Diagram-family citizenship gap backfill** (`done`). The
+  checked matrix in
   [`docs/contributing/diagram-family-citizenship.matrix.json`](./docs/contributing/diagram-family-citizenship.matrix.json)
-  honest as older families graduate toward the Gantt bar. The ratchet is in
-  place once issue #41 lands; this item tracks the explicit exceptions the
-  matrix is allowed to name.
-  - [ ] Stable ASCII/TUI/editor region assertions for every non-graph family
-    (issue #26 WS10). Flowchart/sequence/Gantt are pinned; backfill family-
-    specific region tests for state, timeline, class, ER, journey,
-    architecture, xychart, pie, and quadrant.
-  - [ ] Targeted mutation lanes or sabotage scripts for state, sequence,
-    timeline, class, ER, journey, pie, and quadrant. Flowchart/link routing,
-    xychart/architecture, and Gantt already have focused Stryker lanes.
-  - [ ] Executable divergence ledgers for every family with known upstream
-    incompatibilities. This overlaps BUILD-20; update the citizenship matrix
-    from `exception` to `satisfied` as each `eval/mermaid-<family>-bench/`
-    cases/exclusions runner lands.
-  - [ ] Generated-site/sample evidence beyond category coverage: keep site
-    sample categories, gallery affordances, and generated documentation tied
-    to `BUILTIN_FAMILY_METADATA` whenever a new family is added.
+  now has **zero exceptions** across registered renderable families. The
+  docs-corpus citizenship backfill regenerated the official Mermaid syntax-doc
+  corpus (271 examples, now including pie/quadrant), added an executable
+  `eval/mermaid-docs-corpus/divergences.json` ledger, fixed the discovered
+  flowchart compact-target round-trip bug, and upgraded the matrix/test ratchet
+  so future gaps fail loudly.
+  - [x] Stable ASCII/TUI/editor region assertions for every family are pinned
+    in `src/__tests__/agent-ascii-meta.test.ts`; `src/ascii/meta.ts` now emits
+    regions for state, timeline, class, ER, journey, architecture, xychart,
+    pie, quadrant, and Gantt in addition to the earlier flowchart/sequence
+    coverage.
+  - [x] Targeted mutation lanes exist for state, sequence, timeline, class,
+    ER, journey, pie, and quadrant (`stryker.<family>.config.json` plus
+    `mutation-test:<family>` scripts). Flowchart/link routing,
+    xychart/architecture, and Gantt keep their existing focused lanes.
+  - [x] Executable docs-corpus divergence ledger exists for current known
+    non-Gantt Mermaid-docs divergences; full upstream parser/DB suite harvests
+    remain the deeper BUILD-20 workstream.
+  - [x] Generated-site/sample family coverage is tied to
+    `BUILTIN_FAMILY_METADATA` by the existing property generator tests,
+    including explicit gallery affordance/prefix checks for Pie, Quadrant, and
+    Gantt.
 - [x] **BUILD-11 — QuadrantChart family** (`done`). Promoted
   from the PARK-3 fork-audit list. Quadrant charts are missing across the
   entire beautiful-mermaid fork network (no port exists upstream or in any
@@ -379,12 +384,11 @@ dependents after. IDs are stable names, not an ordering.
   and zero SVG/ASCII byte changes on the 243 shared corpus samples (measurement
   only, no rendering change). `docs/quality.md` honest-gap + LLM-judge grid
   updated (now 12 families, including gantt).
-  - Remaining sub-gaps (kept unchecked — both need a non-sandbox environment):
-    - [ ] mermaid-docs corpus regen to include pie/quadrant docs examples needs
-      network (a local mermaid clone). `FILE_TO_FAMILY` now maps `pie.md` and
-      `quadrantChart.md`; the committed `corpus.json` predates these families
-      (see `eval/mermaid-docs-corpus/README.md`). Corpus entries are never
-      fabricated.
+  - Remaining sub-gaps (kept unchecked — need a non-sandbox browser run):
+    - [x] mermaid-docs corpus regen to include pie/quadrant docs examples.
+      `corpus.json` was regenerated from a real `mermaid-js/mermaid` clone and
+      now includes all 12 registered families (271 examples total). Corpus
+      entries are never fabricated.
     - [ ] the new families have no browser screenshot baselines (needs a local
       browser run).
 

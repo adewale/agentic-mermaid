@@ -201,9 +201,13 @@ describe('property-based parseMermaid', () => {
   })
 
   it('materializes the Cartesian product for parallel link groups', () => {
+    // Avoid IDs ending in repeated hyphens on the left side: `A-- & B --> C`
+    // is grammar-ambiguous with Mermaid's text-label arrow form `A -- text --> C`,
+    // so this property targets unambiguous `&` fanout/fanin materialization.
+    const fanoutIdArb = idArb.filter(id => !/-{2,}$/.test(id))
     const parallelArb = fc.record({
-      left: fc.uniqueArray(idArb, { minLength: 1, maxLength: 3 }),
-      right: fc.uniqueArray(idArb, { minLength: 1, maxLength: 3 }),
+      left: fc.uniqueArray(fanoutIdArb, { minLength: 1, maxLength: 3 }),
+      right: fc.uniqueArray(fanoutIdArb, { minLength: 1, maxLength: 3 }),
     }).filter(({ left, right }) => left.every(id => !right.includes(id)))
 
     fc.assert(

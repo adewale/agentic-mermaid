@@ -159,7 +159,7 @@ What the guard catches:
 
 What the guard covers now:
 - **Representative pathfinder fixtures** over 10 invocations.
-- **Full 258-entry mermaid-js docs corpus**: every entry must have a stable
+- **Full 271-entry mermaid-js docs corpus**: every entry must have a stable
   ASCII outcome (byte hash or deterministic error) across repeated runs.
 
 What the guard does NOT yet cover:

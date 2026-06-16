@@ -37,6 +37,19 @@ describe('flowchart parser conformance safety floor (issue #36)', () => {
     expect(graph.edges[0]).toMatchObject({ source: 'A', target: 'B', endMarker: 'circle', hasArrowEnd: true })
   })
 
+  test('compact edge target may be an inline node definition without being swallowed as an asymmetric source', () => {
+    const source = 'flowchart TD\n  B["fa:fa-twitter for peace"]\n  B-->C["fab:fa-truck-bold a custom icon"]'
+    const graph = parseGraph(source)
+    expect([...graph.nodes.keys()]).toEqual(['B', 'C'])
+    expect(graph.nodes.get('B')?.label).toBe('fa:fa-twitter for peace')
+    expect(graph.nodes.get('C')?.label).toBe('fab:fa-truck-bold a custom icon')
+    expect(graph.edges.map(e => `${e.source}->${e.target}`)).toEqual(['B->C'])
+    const diagram = parseAgent(source)
+    const serialized = serializeMermaid(diagram)
+    const reparsed = parseAgent(serialized)
+    expect(serializeMermaid(reparsed)).toBe(serialized)
+  })
+
   test('compact ampersand fanout matches the documented expanded form', () => {
     const graph = parseGraph('flowchart TB\n  A & B--> C & D')
     expect([...graph.nodes.keys()]).toEqual(['A', 'B', 'C', 'D'])

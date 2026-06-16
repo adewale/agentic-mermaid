@@ -12,25 +12,28 @@ import { normalizeBrTags } from '../multiline-utils.ts'
 //   x-axis <left> [--> <right>]
 //   y-axis <bottom> [--> <top>]
 //   quadrant-1..quadrant-4 <label>
-//   <Label>: [x, y]                    x,y in [0,1]
+//   <Label>[:::class]: [x, y] [radius/color/stroke metadata]
+//   classDef <class> <style metadata>    accepted for Mermaid-docs fidelity;
+//                                      style metadata is intentionally ignored
+//                                      by the local renderer.
 //
 // Faithfulness contract (docs/project/lessons-learned.md, Loop 17 ER lesson):
 // malformed lines ERROR LOUDLY — never silently dropped:
 //   - coordinates out of [0,1]
 //   - non-numeric coordinates
 //   - missing / malformed brackets on a point line
-//   - styling syntax we don't model (point/quadrant `:::class`, `classDef`,
-//     trailing radius/color directives) — erroring is the honest fallback,
-//     since rendering a chart with styling silently stripped would be a lie.
+//   - malformed/unknown point style metadata
 //   - any unrecognized statement
 // ============================================================================
 
 const TITLE_RE = /^title\s+(.+)$/i
 const AXIS_RE = /^([xy])-axis\s+(.+)$/i
 const QUADRANT_RE = /^quadrant-([1-4])\s+(.+)$/i
-// A point line: `Label: [x, y]`. The label is everything before the LAST
-// colon that precedes a bracketed coordinate pair.
-const POINT_RE = /^(.+?)\s*:\s*\[\s*([^,\]]+)\s*,\s*([^,\]]+)\s*\]\s*$/
+// A point line: `Label[:::class]: [x, y] [style metadata]`. The label is
+// everything before the LAST colon that precedes a bracketed coordinate pair.
+const POINT_RE = /^(.+?)\s*:\s*\[\s*([^,\]]+)\s*,\s*([^,\]]+)\s*\]\s*(.*)$/
+const POINT_CLASS_SUFFIX_RE = /\s*:::\s*[A-Za-z_][\w-]*\s*$/
+const POINT_STYLE_KEYS = new Set(['radius', 'color', 'stroke-color', 'stroke-width'])
 
 /**
  * Parse a Mermaid quadrant chart from preprocessed lines (trimmed,
@@ -60,19 +63,11 @@ export function parseQuadrantChart(lines: string[]): QuadrantChart {
     const line = lines[i]!.trim()
     if (line.length === 0 || line.startsWith('%%')) continue
 
-    // We do not model point/class styling. Reject loudly rather than drop.
-    if (/^classDef\b/i.test(line)) {
-      throw new Error(
-        `Quadrant chart styling (classDef) is not supported: "${line}". ` +
-          'Remove styling to render this chart.',
-      )
-    }
-    if (line.includes(':::')) {
-      throw new Error(
-        `Quadrant chart class assignment (:::) is not supported: "${line}". ` +
-          'Remove styling to render this chart.',
-      )
-    }
+    // Mermaid's official quadrant docs use classDef and point style metadata.
+    // The local renderer does not model those visual styles yet, but accepting
+    // and ignoring known styling keeps render/verify seams open without losing
+    // source fidelity in the agent path (which falls back to opaque for style).
+    if (/^classDef\s+[A-Za-z_][\w-]*\s+.+$/i.test(line)) continue
 
     let m: RegExpMatchArray | null
 
@@ -95,7 +90,15 @@ export function parseQuadrantChart(lines: string[]): QuadrantChart {
     }
 
     if ((m = line.match(POINT_RE))) {
-      const label = normalizeBrTags(m[1]!.trim())
+      const rawLabel = stripPointClass(m[1]!.trim())
+      const label = normalizeBrTags(rawLabel)
+      const styleTail = m[4]!.trim()
+      if (!isSupportedPointStyleTail(styleTail)) {
+        throw new Error(
+          `Unsupported quadrant point style metadata: "${styleTail}". ` +
+            'Expected comma-separated radius/color/stroke-color/stroke-width entries.',
+        )
+      }
       const x = parseCoord(label, m[2]!.trim())
       const y = parseCoord(label, m[3]!.trim())
       if (seenPointLabels.has(label)) {
@@ -134,6 +137,20 @@ function parseAxis(tail: string, which: string): QuadrantAxis {
   const near = normalizeBrTags(tail.trim())
   if (!near) throw new Error(`Quadrant ${which}-axis is missing its ${side} label`)
   return { near }
+}
+
+function stripPointClass(label: string): string {
+  return label.replace(POINT_CLASS_SUFFIX_RE, '').trim()
+}
+
+function isSupportedPointStyleTail(tail: string): boolean {
+  if (tail.length === 0) return true
+  const parts = tail.split(',').map(part => part.trim()).filter(Boolean)
+  if (parts.length === 0) return true
+  return parts.every(part => {
+    const match = part.match(/^([a-z][\w-]*)\s*:\s*(.+)$/i)
+    return Boolean(match && POINT_STYLE_KEYS.has(match[1]!.toLowerCase()) && match[2]!.trim().length > 0)
+  })
 }
 
 /** Parse a coordinate, enforcing the [0,1] range (loud error otherwise). */

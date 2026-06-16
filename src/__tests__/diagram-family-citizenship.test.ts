@@ -36,59 +36,105 @@ const TRACKED_EXCEPTION_SURFACES = new Set(['stableRegions', 'upstreamHarvest', 
 
 type SurfaceId = typeof EXPECTED_SURFACES[number]
 
+const MUTATION_CONFIG_NEEDLES = {
+  flowchart: ['src/parser.ts'],
+  state: ['src/agent/state-body.ts'],
+  sequence: ['src/agent/sequence-body.ts', 'src/sequence/parser.ts'],
+  timeline: ['src/agent/timeline-body.ts', 'src/timeline/parser.ts'],
+  class: ['src/agent/class-body.ts', 'src/class/parser.ts'],
+  er: ['src/agent/er-body.ts', 'src/er/parser.ts'],
+  journey: ['src/agent/journey-body.ts', 'src/journey/parser.ts'],
+  architecture: ['src/architecture/parser.ts'],
+  xychart: ['src/xychart/parser.ts'],
+  pie: ['src/agent/pie-body.ts', 'src/pie/parser.ts'],
+  quadrant: ['src/agent/quadrant-body.ts', 'src/quadrant/parser.ts'],
+  gantt: ['src/gantt/parser.ts'],
+} satisfies Record<BuiltinFamilyId, readonly string[]>
+
 const REQUIRED_FAMILY_EVIDENCE = {
   flowchart: {
     semanticModel: ['src/agent/flowchart-body.ts'],
     serializeRoundTrip: ['src/__tests__/flowchart-parser-conformance.test.ts'],
     domainProperties: ['src/__tests__/route-contracts.test.ts'],
     stableRegions: ['src/__tests__/agent-ascii-meta.test.ts'],
+    upstreamHarvest: ['eval/mermaid-docs-corpus/corpus.json'],
+    divergenceLedger: ['eval/mermaid-docs-corpus/divergences.json'],
     mutationLane: ['stryker.link-grammar.config.json'],
   },
   state: {
     semanticModel: ['src/agent/state-body.ts'],
     serializeRoundTrip: ['src/__tests__/agent-state.test.ts'],
     domainProperties: ['src/__tests__/agent-state.test.ts'],
+    stableRegions: ['src/__tests__/agent-ascii-meta.test.ts'],
+    upstreamHarvest: ['eval/mermaid-docs-corpus/corpus.json'],
+    divergenceLedger: ['eval/mermaid-docs-corpus/divergences.json'],
+    mutationLane: ['stryker.state.config.json'],
   },
   sequence: {
     semanticModel: ['src/agent/sequence-body.ts'],
     serializeRoundTrip: ['src/__tests__/agent-mermaidseqbench.test.ts'],
     domainProperties: ['src/__tests__/ascii-sequence-blocks.test.ts'],
     stableRegions: ['src/__tests__/agent-ascii-meta.test.ts'],
+    upstreamHarvest: ['eval/mermaidseqbench/data.csv'],
+    divergenceLedger: ['eval/mermaid-docs-corpus/divergences.json'],
+    mutationLane: ['stryker.sequence.config.json'],
   },
   timeline: {
     semanticModel: ['src/agent/timeline-body.ts'],
     serializeRoundTrip: ['src/__tests__/timeline-parser.test.ts'],
     domainProperties: ['src/__tests__/timeline-layout.test.ts'],
     goldensEvidence: ['src/__tests__/timeline-ascii.test.ts'],
+    stableRegions: ['src/__tests__/agent-ascii-meta.test.ts'],
+    upstreamHarvest: ['eval/mermaid-docs-corpus/corpus.json'],
+    divergenceLedger: ['eval/mermaid-docs-corpus/divergences.json'],
+    mutationLane: ['stryker.timeline.config.json'],
   },
   class: {
     semanticModel: ['src/agent/class-body.ts'],
     serializeRoundTrip: ['src/__tests__/class-parser.test.ts'],
     domainProperties: ['src/__tests__/class-er-edge-quality.test.ts'],
     goldensEvidence: ['src/__tests__/class-integration.test.ts'],
+    stableRegions: ['src/__tests__/agent-ascii-meta.test.ts'],
+    upstreamHarvest: ['eval/mermaid-docs-corpus/corpus.json'],
+    divergenceLedger: ['eval/mermaid-docs-corpus/divergences.json'],
+    mutationLane: ['stryker.class.config.json'],
   },
   er: {
     semanticModel: ['src/agent/er-body.ts'],
     serializeRoundTrip: ['src/__tests__/er-parser.test.ts'],
     domainProperties: ['src/__tests__/class-er-edge-quality.test.ts'],
     goldensEvidence: ['src/__tests__/er-integration.test.ts'],
+    stableRegions: ['src/__tests__/agent-ascii-meta.test.ts'],
+    upstreamHarvest: ['eval/mermaid-docs-corpus/corpus.json'],
+    divergenceLedger: ['eval/mermaid-docs-corpus/divergences.json'],
+    mutationLane: ['stryker.er.config.json'],
   },
   journey: {
     semanticModel: ['src/agent/journey-body.ts'],
     serializeRoundTrip: ['src/__tests__/journey-parser.test.ts'],
     domainProperties: ['src/__tests__/journey-layout.test.ts'],
     goldensEvidence: ['src/__tests__/journey-svg-snapshot.test.ts'],
+    stableRegions: ['src/__tests__/agent-ascii-meta.test.ts'],
+    upstreamHarvest: ['eval/mermaid-docs-corpus/corpus.json'],
+    divergenceLedger: ['eval/mermaid-docs-corpus/divergences.json'],
+    mutationLane: ['stryker.journey.config.json'],
   },
   architecture: {
     semanticModel: ['src/agent/architecture-body.ts'],
     serializeRoundTrip: ['src/__tests__/architecture-parser.test.ts'],
     domainProperties: ['src/__tests__/architecture-layout.test.ts'],
+    stableRegions: ['src/__tests__/agent-ascii-meta.test.ts'],
+    upstreamHarvest: ['eval/mermaid-docs-corpus/corpus.json'],
+    divergenceLedger: ['eval/mermaid-docs-corpus/divergences.json'],
     mutationLane: ['stryker.families.config.json'],
   },
   xychart: {
     semanticModel: ['src/agent/xychart-body.ts'],
     serializeRoundTrip: ['src/__tests__/xychart-parser.test.ts'],
     domainProperties: ['src/__tests__/property-xychart.test.ts'],
+    stableRegions: ['src/__tests__/agent-ascii-meta.test.ts'],
+    upstreamHarvest: ['eval/mermaid-docs-corpus/corpus.json'],
+    divergenceLedger: ['eval/mermaid-docs-corpus/divergences.json'],
     mutationLane: ['stryker.families.config.json'],
   },
   pie: {
@@ -96,32 +142,32 @@ const REQUIRED_FAMILY_EVIDENCE = {
     serializeRoundTrip: ['src/__tests__/pie.test.ts'],
     domainProperties: ['src/__tests__/pie.test.ts'],
     goldensEvidence: ['src/__tests__/pie.test.ts'],
+    stableRegions: ['src/__tests__/agent-ascii-meta.test.ts'],
+    upstreamHarvest: ['eval/mermaid-docs-corpus/corpus.json'],
+    divergenceLedger: ['eval/mermaid-docs-corpus/divergences.json'],
+    mutationLane: ['stryker.pie.config.json'],
   },
   quadrant: {
     semanticModel: ['src/agent/quadrant-body.ts'],
     serializeRoundTrip: ['src/__tests__/quadrant.test.ts'],
     domainProperties: ['src/__tests__/quadrant.test.ts'],
     goldensEvidence: ['src/__tests__/quadrant.test.ts'],
+    stableRegions: ['src/__tests__/agent-ascii-meta.test.ts'],
+    upstreamHarvest: ['eval/mermaid-docs-corpus/corpus.json'],
+    divergenceLedger: ['eval/mermaid-docs-corpus/divergences.json'],
+    mutationLane: ['stryker.quadrant.config.json'],
   },
   gantt: {
     semanticModel: ['src/gantt/schedule.ts'],
     serializeRoundTrip: ['src/__tests__/agent-gantt.test.ts'],
     domainProperties: ['src/__tests__/property-gantt-schedule.test.ts'],
-    stableRegions: ['src/__tests__/agent-gantt.test.ts'],
+    stableRegions: ['src/__tests__/agent-ascii-meta.test.ts'],
     upstreamHarvest: ['eval/mermaid-gantt-bench/cases.json'],
     divergenceLedger: ['eval/mermaid-gantt-bench/exclusions.json'],
     goldensEvidence: ['docs/assets/improvements/gantt-family.png'],
     mutationLane: ['stryker.gantt.config.json'],
   },
 } satisfies Record<BuiltinFamilyId, Partial<Record<SurfaceId, readonly string[]>>>
-
-const AUDITED_NON_GANTT_EXCEPTIONS = {
-  xychart: {
-    stableRegions: ['TODO:BUILD-22'],
-    upstreamHarvest: ['TODO:BUILD-20'],
-    divergenceLedger: ['TODO:BUILD-20', 'TODO:BUILD-22'],
-  },
-} satisfies Partial<Record<BuiltinFamilyId, Partial<Record<SurfaceId, readonly string[]>>>>
 
 type Cell = { status: 'satisfied' | 'exception'; evidence: string[]; tracked?: string[]; note?: string }
 type FamilyRow = { label: string; auditLevel: string; role: string; workedExample: boolean; cells: Record<SurfaceId, Cell> }
@@ -193,6 +239,14 @@ describe('diagram-family citizenship ratchet (issue #41)', () => {
     }
   })
 
+  test('citizenship backfill has no remaining matrix exceptions', () => {
+    const matrix = loadMatrix()
+    const exceptions = Object.entries(matrix.families).flatMap(([family, row]) =>
+      Object.entries(row.cells).filter(([, cell]) => cell.status === 'exception').map(([surface]) => `${family}:${surface}`),
+    )
+    expect(exceptions).toEqual([])
+  })
+
   test('core citizenship surfaces cannot be deferred as exceptions', () => {
     const matrix = loadMatrix()
     const mustBeSatisfied = EXPECTED_SURFACES.filter(s => !TRACKED_EXCEPTION_SURFACES.has(s))
@@ -226,10 +280,10 @@ describe('diagram-family citizenship ratchet (issue #41)', () => {
       if (cell.status !== 'satisfied') continue
       const strykerEvidence = cell.evidence.filter(e => e.startsWith('stryker.') && e.endsWith('.config.json'))
       expect({ family: family.id, strykerEvidence }).toEqual({ family: family.id, strykerEvidence: expect.arrayContaining([expect.any(String)]) })
-      const configs = strykerEvidence.map(e => readFileSync(join(REPO, e), 'utf8').toLowerCase()).join('\n')
-      const familyNeedle = family.id === 'flowchart' ? 'src/parser.ts' : `src/${family.id}`
-      expect({ family: family.id, familyNeedle, covered: configs.includes(familyNeedle) })
-        .toEqual({ family: family.id, familyNeedle, covered: true })
+      const configs = strykerEvidence.map(e => readFileSync(join(REPO, e), 'utf8')).join('\n')
+      const needles = MUTATION_CONFIG_NEEDLES[family.id]
+      expect({ family: family.id, needles, covered: needles.some(needle => configs.includes(needle)) })
+        .toEqual({ family: family.id, needles, covered: true })
     }
   })
 
@@ -246,11 +300,10 @@ describe('diagram-family citizenship ratchet (issue #41)', () => {
     const xychart = matrix.families.xychart!
     expect(xychart.cells.semanticModel.evidence).toContain('src/agent/xychart-body.ts')
     expect(xychart.cells.domainProperties.evidence).toContain('src/__tests__/property-xychart.test.ts')
+    expect(xychart.cells.stableRegions.evidence).toContain('src/__tests__/agent-ascii-meta.test.ts')
+    expect(xychart.cells.upstreamHarvest.evidence).toContain('eval/mermaid-docs-corpus/corpus.json')
+    expect(xychart.cells.divergenceLedger.evidence).toContain('eval/mermaid-docs-corpus/divergences.json')
     expect(xychart.cells.mutationLane.evidence).toContain('stryker.families.config.json')
-    for (const [surface, tracked] of Object.entries(AUDITED_NON_GANTT_EXCEPTIONS.xychart) as Array<[SurfaceId, readonly string[]]>) {
-      expect({ family: 'xychart', surface, status: xychart.cells[surface].status }).toEqual({ family: 'xychart', surface, status: 'exception' })
-      expect(xychart.cells[surface].tracked).toEqual([...tracked])
-    }
   })
 
   test('reviewer-facing docs link the checklist, matrix, and follow-up ledger', () => {
@@ -265,5 +318,6 @@ describe('diagram-family citizenship ratchet (issue #41)', () => {
     expect(adding).toContain('diagram-family citizenship matrix')
     expect(docsIndex).toContain('diagram-family-citizenship.md')
     expect(todo).toContain('BUILD-22 — Diagram-family citizenship gap backfill')
+    expect(todo).toContain('docs-corpus citizenship backfill')
   })
 })

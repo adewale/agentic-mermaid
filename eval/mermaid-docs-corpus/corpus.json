@@ -1261,57 +1261,99 @@
   },
   {
     "family": "er",
-    "source": "erDiagram\n    p[Person] {\n        string firstName\n        string lastName\n    }\n    a[\"Customer Account\"] {\n        string email\n    }\n    p ||--o| a : has",
+    "source": "erDiagram\n    PERSON {\n        string firstName\n        string? middleName\n        string lastName\n    }",
     "origin": "syntax/entityRelationshipDiagram.md",
     "index": 7
   },
   {
     "family": "er",
-    "source": "erDiagram\n    CAR ||--o{ NAMED-DRIVER : allows\n    CAR {\n        string registrationNumber PK\n        string make\n        string model\n        string[] parts\n    }\n    PERSON ||--o{ NAMED-DRIVER : is\n    PERSON {\n        string driversLicense PK \"The license #\"\n        string(99) firstName \"Only 99 characters are allowed\"\n        string lastName\n        string phone UK\n        int age\n    }\n    NAMED-DRIVER {\n        string carRegistrationNumber PK, FK\n        string driverLicence PK, FK\n    }\n    MANUFACTURER only one to zero or more CAR : makes",
+    "source": "erDiagram\n    p[Person] {\n        string firstName\n        string lastName\n    }\n    a[\"Customer Account\"] {\n        string email\n    }\n    p ||--o| a : has",
     "origin": "syntax/entityRelationshipDiagram.md",
     "index": 8
   },
   {
     "family": "er",
-    "source": "erDiagram\n    direction TB\n    CUSTOMER ||--o{ ORDER : places\n    CUSTOMER {\n        string name\n        string custNumber\n        string sector\n    }\n    ORDER ||--|{ LINE-ITEM : contains\n    ORDER {\n        int orderNumber\n        string deliveryAddress\n    }\n    LINE-ITEM {\n        string productCode\n        int quantity\n        float pricePerUnit\n    }",
+    "source": "erDiagram\n    CAR ||--o{ NAMED-DRIVER : allows\n    CAR {\n        string registrationNumber PK\n        string make\n        string model\n        string[] parts\n    }\n    PERSON ||--o{ NAMED-DRIVER : is\n    PERSON {\n        string driversLicense PK \"The license #\"\n        string(99) firstName \"Only 99 characters are allowed\"\n        string lastName\n        string phone UK\n        int age\n    }\n    NAMED-DRIVER {\n        string carRegistrationNumber PK, FK\n        string driverLicence PK, FK\n    }\n    MANUFACTURER only one to zero or more CAR : makes",
     "origin": "syntax/entityRelationshipDiagram.md",
     "index": 9
   },
   {
     "family": "er",
-    "source": "erDiagram\n    direction LR\n    CUSTOMER ||--o{ ORDER : places\n    CUSTOMER {\n        string name\n        string custNumber\n        string sector\n    }\n    ORDER ||--|{ LINE-ITEM : contains\n    ORDER {\n        int orderNumber\n        string deliveryAddress\n    }\n    LINE-ITEM {\n        string productCode\n        int quantity\n        float pricePerUnit\n    }",
+    "source": "erDiagram\n    direction TB\n    CUSTOMER ||--o{ ORDER : places\n    CUSTOMER {\n        string name\n        string custNumber\n        string sector\n    }\n    ORDER ||--|{ LINE-ITEM : contains\n    ORDER {\n        int orderNumber\n        string deliveryAddress\n    }\n    LINE-ITEM {\n        string productCode\n        int quantity\n        float pricePerUnit\n    }",
     "origin": "syntax/entityRelationshipDiagram.md",
     "index": 10
   },
   {
     "family": "er",
-    "source": "erDiagram\n    id1||--||id2 : label\n    style id1 fill:#f9f,stroke:#333,stroke-width:4px\n    style id2 fill:#bbf,stroke:#f66,stroke-width:2px,color:#fff,stroke-dasharray: 5 5",
+    "source": "erDiagram\n    direction LR\n    CUSTOMER ||--o{ ORDER : places\n    CUSTOMER {\n        string name\n        string custNumber\n        string sector\n    }\n    ORDER ||--|{ LINE-ITEM : contains\n    ORDER {\n        int orderNumber\n        string deliveryAddress\n    }\n    LINE-ITEM {\n        string productCode\n        int quantity\n        float pricePerUnit\n    }",
     "origin": "syntax/entityRelationshipDiagram.md",
     "index": 11
   },
   {
     "family": "er",
-    "source": "erDiagram\n    direction TB\n    CAR:::someclass {\n        string registrationNumber\n        string make\n        string model\n    }\n    PERSON:::someclass {\n        string firstName\n        string lastName\n        int age\n    }\n    HOUSE:::someclass\n\n    classDef someclass fill:#f96",
+    "source": "erDiagram\n    subgraph title1\n        CUSTOMER\n        CUSTOMER {\n            string name\n            string custNumber\n            string sector\n        }\n    end\n    subgraph title2\n        CAR ||--o{ NAMED-DRIVER : allows\n        subgraph title3\n            PERSON\n            PERSON {\n                string firstName\n                string lastName\n                int age\n            }\n        end\n    end",
     "origin": "syntax/entityRelationshipDiagram.md",
     "index": 12
   },
   {
     "family": "er",
-    "source": "erDiagram\n    CAR {\n        string registrationNumber\n        string make\n        string model\n    }\n    PERSON {\n        string firstName\n        string lastName\n        int age\n    }\n    PERSON:::foo ||--|| CAR : owns\n    PERSON o{--|| HOUSE:::bar : has\n\n    classDef foo stroke:#f00\n    classDef bar stroke:#0f0\n    classDef foobar stroke:#00f",
+    "source": "erDiagram\n    subgraph title1\n        CUSTOMER\n    end",
     "origin": "syntax/entityRelationshipDiagram.md",
     "index": 13
   },
   {
     "family": "er",
-    "source": "erDiagram\n    CAR {\n        string registrationNumber\n        string make\n        string model\n    }\n    PERSON {\n        string firstName\n        string lastName\n        int age\n    }\n    PERSON:::foo ||--|| CAR : owns\n    PERSON o{--|| HOUSE:::bar : has\n\n    classDef default fill:#f9f,stroke-width:4px\n    classDef foo stroke:#f00\n    classDef bar stroke:#0f0\n    classDef foobar stroke:#00f",
+    "source": "erDiagram\n    subgraph \"Customer Domain\"\n        CUSTOMER\n    end",
     "origin": "syntax/entityRelationshipDiagram.md",
     "index": 14
   },
   {
     "family": "er",
-    "source": "---\ntitle: Order example\nconfig:\n    layout: elk\n---\nerDiagram\n    CUSTOMER ||--o{ ORDER : places\n    ORDER ||--|{ LINE-ITEM : contains\n    CUSTOMER }|..|{ DELIVERY-ADDRESS : uses",
+    "source": "erDiagram\n    subgraph id1 [title 1]\n        CUSTOMER\n    end",
     "origin": "syntax/entityRelationshipDiagram.md",
     "index": 15
+  },
+  {
+    "family": "er",
+    "source": "erDiagram\n    subgraph title1\n        A1 ||--|| A2 : links\n    end\n\n    subgraph title2\n        B1 ||--|| B2 : links\n    end\n\n    subgraph title3\n        C1 ||--|| C2 : links\n    end\n\n    title1 ||--|| title2 : links\n    title2 ||--|| title3 : links\n    title2 ||--|| C2 : links",
+    "origin": "syntax/entityRelationshipDiagram.md",
+    "index": 16
+  },
+  {
+    "family": "er",
+    "source": "erDiagram\n    direction LR\n    subgraph TOP\n        direction TB\n        subgraph B1\n            direction RL\n            I1 ||--|| F1 : links\n        end\n        subgraph B2\n            direction BT\n            I2 ||--|| F2 : links\n        end\n    end\n    A ||--|| TOP : links\n    TOP ||--|| B : links\n    B1 ||--|| B2 : links",
+    "origin": "syntax/entityRelationshipDiagram.md",
+    "index": 17
+  },
+  {
+    "family": "er",
+    "source": "erDiagram\n    id1||--||id2 : label\n    style id1 fill:#f9f,stroke:#333,stroke-width:4px\n    style id2 fill:#bbf,stroke:#f66,stroke-width:2px,color:#fff,stroke-dasharray: 5 5",
+    "origin": "syntax/entityRelationshipDiagram.md",
+    "index": 18
+  },
+  {
+    "family": "er",
+    "source": "erDiagram\n    direction TB\n    CAR:::someclass {\n        string registrationNumber\n        string make\n        string model\n    }\n    PERSON:::someclass {\n        string firstName\n        string lastName\n        int age\n    }\n    HOUSE:::someclass\n\n    classDef someclass fill:#f96",
+    "origin": "syntax/entityRelationshipDiagram.md",
+    "index": 19
+  },
+  {
+    "family": "er",
+    "source": "erDiagram\n    CAR {\n        string registrationNumber\n        string make\n        string model\n    }\n    PERSON {\n        string firstName\n        string lastName\n        int age\n    }\n    PERSON:::foo ||--|| CAR : owns\n    PERSON o{--|| HOUSE:::bar : has\n\n    classDef foo stroke:#f00\n    classDef bar stroke:#0f0\n    classDef foobar stroke:#00f",
+    "origin": "syntax/entityRelationshipDiagram.md",
+    "index": 20
+  },
+  {
+    "family": "er",
+    "source": "erDiagram\n    CAR {\n        string registrationNumber\n        string make\n        string model\n    }\n    PERSON {\n        string firstName\n        string lastName\n        int age\n    }\n    PERSON:::foo ||--|| CAR : owns\n    PERSON o{--|| HOUSE:::bar : has\n\n    classDef default fill:#f9f,stroke-width:4px\n    classDef foo stroke:#f00\n    classDef bar stroke:#0f0\n    classDef foobar stroke:#00f",
+    "origin": "syntax/entityRelationshipDiagram.md",
+    "index": 21
+  },
+  {
+    "family": "er",
+    "source": "---\ntitle: Order example\nconfig:\n    layout: elk\n---\nerDiagram\n    CUSTOMER ||--o{ ORDER : places\n    ORDER ||--|{ LINE-ITEM : contains\n    CUSTOMER }|..|{ DELIVERY-ADDRESS : uses",
+    "origin": "syntax/entityRelationshipDiagram.md",
+    "index": 22
   },
   {
     "family": "timeline",
@@ -1411,39 +1453,45 @@
   },
   {
     "family": "xychart",
-    "source": "---\nconfig:\n  themeVariables:\n    xyChart:\n      plotColorPalette: '#000000, #0000FF, #00FF00, #FF0000'\n---\nxychart\ntitle \"Different Colors in xyChart\"\nx-axis \"categoriesX\" [\"Category 1\", \"Category 2\", \"Category 3\", \"Category 4\"]\ny-axis \"valuesY\" 0 --> 50\n%% Black line\nline [10,20,30,40]\n%% Blue bar\nbar [20,30,25,35]\n%% Green bar\nbar [15,25,20,30]\n%% Red line\nline [5,15,25,35]",
+    "source": "xychart-beta\n  title \"An Example Chart\"\n  x-axis [\"90d\", \"60d\", \"30d\", \"7d\", \"1d\", \"Current\"]\n  y-axis \"Seconds\" 0 --> 198.2\n  line \"avg\" [48.1, 41.5, 45.7, 72.8, 67.7, 59.9]\n  line \"p50\" [38.2, 36.8, 39.7, 54.5, 49.0, 38.4]\n  line \"p95\" [112.2, 75.3, 103.0, 177.0, 180.2, 109.4]",
     "origin": "syntax/xyChart.md",
     "index": 1
   },
   {
     "family": "xychart",
-    "source": "---\nconfig:\n    xyChart:\n        showDataLabel: true\n---\nxychart\n    title \"Genres in top 100 book survey of 2025\"\n    x-axis [comedy, romance, mystery, crime, \"non fiction\", other]\n    y-axis \"Number of Books\" 0 --> 30\n    bar [12,2,20,25,17,24]",
+    "source": "---\nconfig:\n  themeVariables:\n    xyChart:\n      plotColorPalette: '#000000, #0000FF, #00FF00, #FF0000'\n---\nxychart\ntitle \"Different Colors in xyChart\"\nx-axis \"categoriesX\" [\"Category 1\", \"Category 2\", \"Category 3\", \"Category 4\"]\ny-axis \"valuesY\" 0 --> 50\n%% Black line\nline [10,20,30,40]\n%% Blue bar\nbar [20,30,25,35]\n%% Green bar\nbar [15,25,20,30]\n%% Red line\nline [5,15,25,35]",
     "origin": "syntax/xyChart.md",
     "index": 2
   },
   {
     "family": "xychart",
-    "source": "---\nconfig:\n    xyChart:\n        showDataLabel: true\n        showDataLabelOutsideBar: true\n---\nxychart\n    title \"Genres in top 100 book survey of 2025\"\n    x-axis [comedy, romance, mystery, crime, \"non fiction\", other]\n    y-axis \"Number of Books\" 0 --> 30\n    bar [12,2,20,25,17,24]",
+    "source": "---\nconfig:\n    xyChart:\n        showDataLabel: true\n---\nxychart\n    title \"Genres in top 100 book survey of 2025\"\n    x-axis [comedy, romance, mystery, crime, \"non fiction\", other]\n    y-axis \"Number of Books\" 0 --> 30\n    bar [12,2,20,25,17,24]",
     "origin": "syntax/xyChart.md",
     "index": 3
   },
   {
     "family": "xychart",
-    "source": "xychart\n    title \"Smallest AI models scoring above 60% on MMLU\"\n    x-axis \"Date\" [\"Apr 2022\", \"Feb 2023\", \"Jul 2023\", \"Sep 2023\", \"Apr 2024\"]\n    y-axis \"Parameters (B)\" 0 --> 600\n    line [540 \"PaLM\", 65 \"LLaMA-65B\", 34 \"Llama 2 34B\", 7 \"Mistral 7B\", 3.8 \"Phi-3-mini\"]",
+    "source": "---\nconfig:\n    xyChart:\n        showDataLabel: true\n        showDataLabelOutsideBar: true\n---\nxychart\n    title \"Genres in top 100 book survey of 2025\"\n    x-axis [comedy, romance, mystery, crime, \"non fiction\", other]\n    y-axis \"Number of Books\" 0 --> 30\n    bar [12,2,20,25,17,24]",
     "origin": "syntax/xyChart.md",
     "index": 4
   },
   {
     "family": "xychart",
-    "source": "xychart\n    title \"Quarterly Performance\"\n    x-axis [Q1, Q2, Q3, Q4]\n    y-axis \"Revenue ($M)\" 0 --> 100\n    line [25 \"Launch\", 45, 72, 90 \"Target Hit\"]",
+    "source": "xychart\n    title \"Smallest AI models scoring above 60% on MMLU\"\n    x-axis \"Date\" [\"Apr 2022\", \"Feb 2023\", \"Jul 2023\", \"Sep 2023\", \"Apr 2024\"]\n    y-axis \"Parameters (B)\" 0 --> 600\n    line [540 \"PaLM\", 65 \"LLaMA-65B\", 34 \"Llama 2 34B\", 7 \"Mistral 7B\", 3.8 \"Phi-3-mini\"]",
     "origin": "syntax/xyChart.md",
     "index": 5
   },
   {
     "family": "xychart",
-    "source": "---\nconfig:\n    xyChart:\n        width: 900\n        height: 600\n        showDataLabel: true\n    themeVariables:\n        xyChart:\n            titleColor: \"#ff0000\"\n---\nxychart\n    title \"Sales Revenue\"\n    x-axis [jan, feb, mar, apr, may, jun, jul, aug, sep, oct, nov, dec]\n    y-axis \"Revenue (in $)\" 4000 --> 11000\n    bar [5000, 6000, 7500, 8200, 9500, 10500, 11000, 10200, 9200, 8500, 7000, 6000]\n    line [5000, 6000, 7500, 8200, 9500, 10500, 11000, 10200, 9200, 8500, 7000, 6000]",
+    "source": "xychart\n    title \"Quarterly Performance\"\n    x-axis [Q1, Q2, Q3, Q4]\n    y-axis \"Revenue ($M)\" 0 --> 100\n    line [25 \"Launch\", 45, 72, 90 \"Target Hit\"]",
     "origin": "syntax/xyChart.md",
     "index": 6
+  },
+  {
+    "family": "xychart",
+    "source": "---\nconfig:\n    xyChart:\n        width: 900\n        height: 600\n        showDataLabel: true\n    themeVariables:\n        xyChart:\n            titleColor: \"#ff0000\"\n---\nxychart\n    title \"Sales Revenue\"\n    x-axis [jan, feb, mar, apr, may, jun, jul, aug, sep, oct, nov, dec]\n    y-axis \"Revenue (in $)\" 4000 --> 11000\n    bar [5000, 6000, 7500, 8200, 9500, 10500, 11000, 10200, 9200, 8500, 7000, 6000]\n    line [5000, 6000, 7500, 8200, 9500, 10500, 11000, 10200, 9200, 8500, 7000, 6000]",
+    "origin": "syntax/xyChart.md",
+    "index": 7
   },
   {
     "family": "architecture",
@@ -1480,6 +1528,36 @@
     "source": "architecture-beta\n    group api(logos:aws-lambda)[API]\n\n    service db(logos:aws-aurora)[Database] in api\n    service disk1(logos:aws-glacier)[Storage] in api\n    service disk2(logos:aws-s3)[Storage] in api\n    service server(logos:aws-ec2)[Server] in api\n\n    db:L -- R:server\n    disk1:T -- B:server\n    disk2:T -- B:db",
     "origin": "syntax/architecture.md",
     "index": 5
+  },
+  {
+    "family": "pie",
+    "source": "pie title Pets adopted by volunteers\n    \"Dogs\" : 386\n    \"Cats\" : 85\n    \"Rats\" : 15",
+    "origin": "syntax/pie.md",
+    "index": 0
+  },
+  {
+    "family": "pie",
+    "source": "---\nconfig:\n  pie:\n    textPosition: 0.5\n    donutHole: 0.2\n    highlightSlice: Potassium\n  themeVariables:\n    pieOuterStrokeWidth: \"5px\"\n---\npie showData\n    title Key elements in Product X\n    \"Calcium\" : 42.96\n    \"Potassium\" : 50.05\n    \"Magnesium\" : 10.01\n    \"Iron\" :  5",
+    "origin": "syntax/pie.md",
+    "index": 1
+  },
+  {
+    "family": "quadrant",
+    "source": "quadrantChart\n    title Reach and engagement of campaigns\n    x-axis Low Reach --> High Reach\n    y-axis Low Engagement --> High Engagement\n    quadrant-1 We should expand\n    quadrant-2 Need to promote\n    quadrant-3 Re-evaluate\n    quadrant-4 May be improved\n    Campaign A: [0.3, 0.6]\n    Campaign B: [0.45, 0.23]\n    Campaign C: [0.57, 0.69]\n    Campaign D: [0.78, 0.34]\n    Campaign E: [0.40, 0.34]\n    Campaign F: [0.35, 0.78]",
+    "origin": "syntax/quadrantChart.md",
+    "index": 0
+  },
+  {
+    "family": "quadrant",
+    "source": "---\nconfig:\n  quadrantChart:\n    chartWidth: 400\n    chartHeight: 400\n  themeVariables:\n    quadrant1TextFill: \"ff0000\"\n---\nquadrantChart\n  x-axis Urgent --> Not Urgent\n  y-axis Not Important --> \"Important ❤\"\n  quadrant-1 Plan\n  quadrant-2 Do\n  quadrant-3 Delegate\n  quadrant-4 Delete",
+    "origin": "syntax/quadrantChart.md",
+    "index": 1
+  },
+  {
+    "family": "quadrant",
+    "source": "quadrantChart\n  title Reach and engagement of campaigns\n  x-axis Low Reach --> High Reach\n  y-axis Low Engagement --> High Engagement\n  quadrant-1 We should expand\n  quadrant-2 Need to promote\n  quadrant-3 Re-evaluate\n  quadrant-4 May be improved\n  Campaign A: [0.9, 0.0] radius: 12\n  Campaign B:::class1: [0.8, 0.1] color: #ff3300, radius: 10\n  Campaign C: [0.7, 0.2] radius: 25, color: #00ff33, stroke-color: #10f0f0\n  Campaign D: [0.6, 0.3] radius: 15, stroke-color: #00ff0f, stroke-width: 5px ,color: #ff33f0\n  Campaign E:::class2: [0.5, 0.4]\n  Campaign F:::class3: [0.4, 0.5] color: #0000ff\n  classDef class1 color: #109060\n  classDef class2 color: #908342, radius : 10, stroke-color: #310085, stroke-width: 10px\n  classDef class3 color: #f00fff, radius : 10",
+    "origin": "syntax/quadrantChart.md",
+    "index": 2
   },
   {
     "family": "gantt",

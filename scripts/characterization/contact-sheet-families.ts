@@ -154,7 +154,7 @@ export function build(): string {
   }
   out.push('')
   out.push('**Total** and **Deterministic** hold for every renderer (the bedrock contract;')
-  out.push('also pinned across the 258-entry docs corpus by `ascii-determinism.test.ts`).')
+  out.push('also pinned across the 271-entry docs corpus by `ascii-determinism.test.ts`).')
   out.push('**No diagonals** holds for every renderer. **Rectangular** (all rows one width)')
   out.push('holds only for the box/graph families; the chart and list families emit ragged')
   out.push('rows by design.')

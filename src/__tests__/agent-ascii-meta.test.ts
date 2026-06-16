@@ -48,6 +48,74 @@ describe('renderMermaidASCIIWithMeta', () => {
     expect(ids.has('Carol')).toBe(true)
   })
 
+  const familyRegionCases: Array<{ family: string; source: string; ids: string[] }> = [
+    {
+      family: 'state',
+      source: 'stateDiagram-v2\n  [*] --> Idle\n  Idle --> Running: start\n  state "Running App" as Running\n',
+      ids: ['Idle', 'Running'],
+    },
+    {
+      family: 'timeline',
+      source: 'timeline\n  title Product\n  section Alpha\n    2024 Q1 : Plan : Build\n',
+      ids: ['section-0', 'period-0'],
+    },
+    {
+      family: 'class',
+      source: 'classDiagram\n  class Animal {\n    +String name\n  }\n  Animal <|-- Dog\n',
+      ids: ['Animal', 'Dog'],
+    },
+    {
+      family: 'er',
+      source: 'erDiagram\n  CUSTOMER ||--o{ ORDER : places\n  CUSTOMER {\n    string name\n  }\n',
+      ids: ['CUSTOMER', 'ORDER'],
+    },
+    {
+      family: 'journey',
+      source: 'journey\n  title Day\n  section Work\n    Make tea: 5: Me\n    Do work: 2: Me\n',
+      ids: ['title', 'section-0', 'task-0', 'task-1'],
+    },
+    {
+      family: 'architecture',
+      source: 'architecture-beta\n  group api(cloud)[API]\n  service web(server)[Web App] in api\n  service db(database)[DB] in api\n  web:R --> L:db\n',
+      ids: ['api', 'web', 'db'],
+    },
+    {
+      family: 'xychart',
+      source: 'xychart-beta\n  title Sales\n  x-axis Months [Jan, Feb]\n  y-axis Revenue 0 --> 10\n  bar Signups [3, 7]\n',
+      ids: ['title', 'x-axis', 'x-category-0', 'x-category-1'],
+    },
+    {
+      family: 'pie',
+      source: 'pie showData\n  title Pets\n  "Dogs" : 40\n  "Cats" : 60\n',
+      ids: ['title', 'slice-0', 'slice-1'],
+    },
+    {
+      family: 'quadrant',
+      source: 'quadrantChart\n  title Priorities\n  x-axis Low --> High\n  y-axis Bad --> Good\n  quadrant-1 Big wins\n  Feature A: [0.8, 0.8]\n',
+      ids: ['title', 'x-axis-near', 'x-axis-far', 'y-axis-near', 'y-axis-far', 'quadrant-1', 'point-0'],
+    },
+    {
+      family: 'gantt',
+      source: 'gantt\n  title Release\n  section Build\n    Core engine :core, 2024-01-01, 2d\n    Polish :polish, after core, 1d\n',
+      ids: ['section-0', 'core', 'polish'],
+    },
+  ]
+
+  for (const { family, source, ids: expectedIds } of familyRegionCases) {
+    test(`${family}: stable regions cover load-bearing labels`, () => {
+      const { ascii, regions } = renderMermaidASCIIWithMeta(source)
+      expect(ascii.length).toBeGreaterThan(0)
+      const ids = new Set(regions.map(r => r.id))
+      for (const id of expectedIds) expect({ family, id, present: ids.has(id) }).toEqual({ family, id, present: true })
+      const lines = ascii.split('\n')
+      for (const r of regions) {
+        const line = lines[r.canvasRow]
+        expect({ family, id: r.id, rowInBounds: Boolean(line) }).toEqual({ family, id: r.id, rowInBounds: true })
+        expect(line!.slice(r.canvasColStart, r.canvasColEnd).trim().length).toBeGreaterThan(0)
+      }
+    })
+  }
+
   test('stable: same input → same regions (deterministic)', () => {
     const src = 'flowchart TD\n  A --> B\n  B --> C\n'
     const a = renderMermaidASCIIWithMeta(src)

@@ -1,0 +1,22 @@
+[
+  {
+    "id": "state-composite-start-end-pseudostates",
+    "family": "state",
+    "origin": "syntax/stateDiagram.md",
+    "indices": [8, 9, 10, 15],
+    "reason": "state-composite-pseudostate-geometric-warning",
+    "expectedWarningCodes": ["EDGE_MISANCHORED"],
+    "upstreamBehavior": "Mermaid renders composite-state examples that reuse [*] start/end pseudostates inside nested states. Agentic Mermaid preserves and renders the sources, but verify currently reports EDGE_MISANCHORED against the projected graph for nested pseudostate endpoints.",
+    "notes": "Executable ledger: src/__tests__/agent-mermaid-corpus.test.ts proves these examples parse and round-trip, and that the warning code is the expected one."
+  },
+  {
+    "id": "quadrant-point-style-metadata",
+    "family": "quadrant",
+    "origin": "syntax/quadrantChart.md",
+    "indices": [2],
+    "reason": "quadrant-style-metadata-preserved-not-modeled",
+    "expectedWarningCodes": ["UNSUPPORTED_SYNTAX"],
+    "upstreamBehavior": "Mermaid renders point radius/color/stroke metadata and classDef styling for quadrant charts. Agentic Mermaid preserves the source and renders the chart, but typed mutation/layout metadata intentionally does not model those styling attributes yet.",
+    "notes": "Executable ledger: the corpus test proves the official styled example parses, verifies with UNSUPPORTED_SYNTAX, and round-trips without dropping style source."
+  }
+]

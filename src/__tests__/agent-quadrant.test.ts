@@ -207,6 +207,25 @@ describe('quadrant verify + render', () => {
       .warnings.find(w => w.code === 'LABEL_OVERFLOW')).toBeDefined()
   })
 
+  test('styled Mermaid-docs quadrant stays opaque/source-preserved but still verifies and renders', async () => {
+    const { renderMermaidSVG, renderMermaidASCII } = await import('../agent/index.ts')
+    const src = `quadrantChart
+  Campaign A: [0.9, 0.0] radius: 12
+  Campaign B:::class1: [0.8, 0.1] color: #ff3300, radius: 10
+  classDef class1 color: #109060
+`
+    const parsed = parseMermaid(src)
+    expect(parsed.ok).toBe(true)
+    if (!parsed.ok) return
+    expect(parsed.value.body.kind).toBe('opaque')
+    expect(serializeMermaid(parsed.value)).toBe(src)
+    const verify = verifyMermaid(parsed.value)
+    expect(verify.ok).toBe(true)
+    expect(verify.warnings.map(w => w.code)).toContain('UNSUPPORTED_SYNTAX')
+    expect(renderMermaidSVG(parsed.value)).toContain('Campaign B')
+    expect(renderMermaidASCII(parsed.value)).toContain('Campaign A')
+  })
+
   test('mutated chart renders through the legacy renderer', async () => {
     const { renderMermaidSVG } = await import('../agent/index.ts')
     const d = apply(quadrant(), { kind: 'set_title', title: 'Rendered' })
