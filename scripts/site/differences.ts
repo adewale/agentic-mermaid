@@ -134,7 +134,7 @@ const CARDS: Card[] = [
   {
     tag: 'Layout',
     title: 'Specific layout and parsing fixes',
-    body: 'Reported layout cases handled here include fan-in grouping, shared fan-out trunks, edges that attach to a subgraph&rsquo;s container instead of a phantom node, and <code>direction</code> honored inside subgraphs. ER cardinality is parsed to match Mermaid&rsquo;s lexer, so a malformed relationship line raises an error instead of being silently dropped.',
+    body: 'Some routing still differs from the current upstream release (see the layout examples above): decision branches leave a diamond from facet-mid ports as mirror-symmetric routes, and an edge to a subgraph attaches to its container with <code>direction</code> honored inside it. Earlier fan-in and fan-out-trunk fixes from this fork were contributed upstream and now render the same in Beautiful Mermaid 1.1.3. ER cardinality is parsed to match Mermaid&rsquo;s lexer, so a malformed relationship line raises an error instead of being silently dropped.',
   },
 ]
 
