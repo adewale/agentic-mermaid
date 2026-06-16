@@ -30,6 +30,7 @@ import { parseQuadrantBody, renderQuadrant, mutateQuadrant, verifyQuadrant } fro
 import { parseStateBody, renderState, mutateState, verifyState } from './state-body.ts'
 import { parseGanttBody, renderGantt, mutateGantt, verifyGantt } from './gantt-body.ts'
 import { parseFlowchartBody, renderFlowchart, mutateFlowchart, buildFlowchartSourceMap, type FlowchartBody } from './flowchart-body.ts'
+import { containsFlowchartOpaqueSyntax } from './flowchart-unsupported.ts'
 
 // Build the structured-or-opaque hook set shared by every structured family
 // that is not flowchart/state. `headerOk` gates structured parsing: families
@@ -85,14 +86,10 @@ function extractFlowchartLabels(source: string): ExtractedLabel[] {
 
 // Flowchart owns the legacy MermaidGraph body: the diagram kind selects the
 // plugin, which binds the flowchart header.
-function containsFlowchartNodeMetadata(source: string): boolean {
-  return /(?:^|[\s;])[\w-]+@\s*\{/m.test(source)
-}
-
 function flowchartFamilyHooks(): Pick<FamilyPlugin, 'parse' | 'buildSourceMap' | 'serialize' | 'mutate'> {
   return {
     parse: (_lines, opaqueSource, _meta, canonicalSource) => {
-      if (containsFlowchartNodeMetadata(canonicalSource)) return ok<DiagramBody>({ kind: 'opaque', family: 'flowchart', source: opaqueSource })
+      if (containsFlowchartOpaqueSyntax(canonicalSource)) return ok<DiagramBody>({ kind: 'opaque', family: 'flowchart', source: opaqueSource })
       return parseFlowchartBody(canonicalSource)
     },
     buildSourceMap: (body, canonicalSource) =>

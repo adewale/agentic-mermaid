@@ -18,6 +18,7 @@ import { positionedToRenderedLayout, emptyRenderedLayout } from './layout-to-ren
 import { layoutFamilyToRendered, ganttGeometryWarnings, ganttScheduleWarning } from './family-layouts.ts'
 import { getFamily, extractLabelsGeneric } from './families.ts'
 import { stateBodyToGraph } from './state-body.ts'
+import { flowchartUnsupportedSyntaxWarnings } from './flowchart-unsupported.ts'
 import './families-builtin.ts'  // registers built-in families at import time
 
 const KNOWN_SHAPES = new Set([
@@ -65,7 +66,8 @@ export function verifyMermaid(input: ValidDiagram | string, opts: VerifyOptions 
   const metaWarnings: LayoutWarning[] = d.meta.droppedComments?.length
     ? [{ code: 'COMMENT_DROPPED', count: d.meta.droppedComments.length, lines: d.meta.droppedComments.map(c => c.line) }]
     : []
-  const pluginWarnings = dedupedConcat(metaWarnings, dispatchFamilyVerify(d, opts))
+  const sourceWarnings = d.kind === 'flowchart' ? flowchartUnsupportedSyntaxWarnings(d.canonicalSource) : []
+  const pluginWarnings = dedupedConcat(dedupedConcat(metaWarnings, dispatchFamilyVerify(d, opts)), sourceWarnings)
 
   if (d.body.kind === 'sequence') return mergeFinalize(verifySequence(d.body, d.kind, cap, opts), pluginWarnings, opts)
   if (d.body.kind === 'timeline') return mergeFinalize(verifyTimeline(d.body, d.kind, cap, opts), pluginWarnings, opts)
@@ -253,6 +255,7 @@ function mergeFinalize(prev: VerifyResult, extra: LayoutWarning[], opts: VerifyO
 }
 
 function warningKey(w: LayoutWarning): string {
+  if (w.code === 'UNSUPPORTED_SYNTAX') return `${w.code}:${w.syntax}:${w.line ?? ''}`
   if ('target' in w) return `${w.code}:${w.target}`
   if ('edge' in w) return `${w.code}:${w.edge}`
   if ('node' in w) return `${w.code}:${w.node}`

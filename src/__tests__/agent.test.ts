@@ -798,20 +798,21 @@ describe('verify', () => {
 })
 
 describe('warning vocabulary', () => {
-  test('19 codes, all tiered + severity', () => {
+  test('20 codes, all tiered + severity', () => {
     const codes = Object.keys(WARNING_SEVERITY)
-    expect(codes.length).toBe(19)
+    expect(codes.length).toBe(20)
     for (const c of codes) {
       expect(WARNING_SEVERITY[c as keyof typeof WARNING_SEVERITY]).toMatch(/^(error|warning)$/)
       expect(WARNING_TIER[c as keyof typeof WARNING_TIER]).toMatch(/^(structural|geometric|lint)$/)
     }
   })
   test('LABEL_OVERFLOW is Tier 1', () => { expect(WARNING_TIER.LABEL_OVERFLOW).toBe('structural') })
-  test('DUPLICATE_EDGE, UNREACHABLE_NODE, DECISION_BRANCH_UNLABELED, and COMMENT_DROPPED are Tier 3 lint', () => {
+  test('DUPLICATE_EDGE, UNREACHABLE_NODE, DECISION_BRANCH_UNLABELED, COMMENT_DROPPED, and UNSUPPORTED_SYNTAX are Tier 3 lint', () => {
     expect(WARNING_TIER.DUPLICATE_EDGE).toBe('lint')
     expect(WARNING_TIER.UNREACHABLE_NODE).toBe('lint')
     expect(WARNING_TIER.DECISION_BRANCH_UNLABELED).toBe('lint')
     expect(WARNING_TIER.COMMENT_DROPPED).toBe('lint')
+    expect(WARNING_TIER.UNSUPPORTED_SYNTAX).toBe('lint')
   })
 })
 

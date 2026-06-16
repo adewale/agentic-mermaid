@@ -737,7 +737,7 @@ export type Tier2WarningCode =
  * Tier 3 (advisory lint). Family-specific quality hints for common agent
  * mistakes that still parse and render. Lint warnings never flip verify.ok.
  */
-export type Tier3WarningCode = 'DUPLICATE_EDGE' | 'UNREACHABLE_NODE' | 'DECISION_BRANCH_UNLABELED' | 'COMMENT_DROPPED'
+export type Tier3WarningCode = 'DUPLICATE_EDGE' | 'UNREACHABLE_NODE' | 'DECISION_BRANCH_UNLABELED' | 'COMMENT_DROPPED' | 'UNSUPPORTED_SYNTAX'
 export type WarningCode = Tier1WarningCode | Tier2WarningCode | Tier3WarningCode
 
 export type LayoutWarning =
@@ -767,6 +767,7 @@ export type LayoutWarning =
   | { code: 'UNREACHABLE_NODE'; node: NodeId }
   | { code: 'DECISION_BRANCH_UNLABELED'; node: NodeId; edge: EdgeId }
   | { code: 'COMMENT_DROPPED'; count: number; lines: number[] }
+  | { code: 'UNSUPPORTED_SYNTAX'; line?: number; syntax: string; message: string }
 
 export const WARNING_SEVERITY: Record<WarningCode, WarningSeverity> = {
   EMPTY_DIAGRAM: 'error',
@@ -788,6 +789,7 @@ export const WARNING_SEVERITY: Record<WarningCode, WarningSeverity> = {
   UNREACHABLE_NODE: 'warning',
   DECISION_BRANCH_UNLABELED: 'warning',
   COMMENT_DROPPED: 'warning',
+  UNSUPPORTED_SYNTAX: 'warning',
 }
 
 export const WARNING_TIER: Record<WarningCode, WarningTier> = {
@@ -810,6 +812,7 @@ export const WARNING_TIER: Record<WarningCode, WarningTier> = {
   UNREACHABLE_NODE: 'lint',
   DECISION_BRANCH_UNLABELED: 'lint',
   COMMENT_DROPPED: 'lint',
+  UNSUPPORTED_SYNTAX: 'lint',
 }
 
 export const DEFAULT_LABEL_CHAR_CAP = 40

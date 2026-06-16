@@ -92,6 +92,65 @@ function metadataBraceDelta(text: string): number {
   return delta
 }
 
+function splitFlowchartStatements(line: string): string[] {
+  const out: string[] = []
+  let start = 0
+  let depth = 0
+  let quote: '"' | "'" | '`' | null = null
+  let escaped = false
+  let inPipeLabel = false
+
+  for (let i = 0; i < line.length; i++) {
+    const ch = line[i]!
+    if (escaped) { escaped = false; continue }
+    if (ch === '\\') { escaped = true; continue }
+    if (quote) {
+      if (ch === quote) quote = null
+      continue
+    }
+    if (ch === '"' || ch === "'" || ch === '`') { quote = ch; continue }
+    if (ch === '|' && depth === 0) { inPipeLabel = !inPipeLabel; continue }
+    if (inPipeLabel) continue
+    if (ch === '[' || ch === '(' || ch === '{') depth++
+    else if (ch === ']' || ch === ')' || ch === '}') depth = Math.max(0, depth - 1)
+    else if (ch === ';' && depth === 0 && !semicolonInsideTextArrowLabel(line, i, start)) {
+      const part = line.slice(start, i).trim()
+      if (part) out.push(part)
+      start = i + 1
+    }
+  }
+
+  const tail = line.slice(start).trim()
+  if (tail) out.push(tail)
+  return out
+}
+
+function semicolonInsideTextArrowLabel(line: string, index: number, start: number): boolean {
+  const before = line.slice(start, index)
+  const after = line.slice(index + 1)
+  const openerRe = /(?:^|\s)(?:[\w-]+@\s*)?(?:<)?(?:-{2,}|-\.+|={2,})\s+/g
+  const closerRe = /(?:^|\s)(?:-{2,}>|-{3,}|\.+->|-\.+-|={2,}>|={3,})/
+  let activeTextLabel = false
+  for (const match of before.matchAll(openerRe)) {
+    const tail = before.slice((match.index ?? 0) + match[0].length)
+    if (!closerRe.test(tail)) activeTextLabel = true
+  }
+  return activeTextLabel && closerRe.test(after)
+}
+
+function isFlowchartInteractionDirective(line: string): boolean {
+  return /^(?:click|href)\s+/i.test(line.trim())
+}
+
+function isUnsupportedEdgeMetadataLine(line: string): boolean {
+  const match = line.trim().match(/^[\w-]+@\s*\{([\s\S]*)\}\s*$/)
+  if (!match) return false
+  const metadata = match[1]!
+  // Node metadata is modeled by the safety fallback; edge metadata currently
+  // has animate/curve semantics only Mermaid itself understands.
+  return !/(?:^|,)\s*(?:shape|label|icon|img)\s*:/i.test(metadata)
+}
+
 // ============================================================================
 // Flowchart parser
 // ============================================================================
@@ -119,102 +178,104 @@ function parseFlowchart(lines: string[]): MermaidGraph {
   const subgraphStack: MermaidSubgraph[] = []
 
   for (let i = 1; i < lines.length; i++) {
-    const line = lines[i]!
+    for (const line of splitFlowchartStatements(lines[i]!)) {
+      // --- source-level directives that do not affect local layout ---
+      if (isFlowchartInteractionDirective(line) || isUnsupportedEdgeMetadataLine(line)) continue
 
-    // --- classDef: `classDef name prop:val,prop:val` ---
-    const classDefMatch = line.match(/^classDef\s+(\w+)\s+(.+)$/)
-    if (classDefMatch) {
-      const name = classDefMatch[1]!
-      const propsStr = classDefMatch[2]!
-      const props = parseStyleProps(propsStr)
-      graph.classDefs.set(name, props)
-      continue
-    }
-
-    // --- class assignment: `class A,B className` ---
-    const classAssignMatch = line.match(/^class\s+([\w,-]+)\s+(\w+)$/)
-    if (classAssignMatch) {
-      const nodeIds = classAssignMatch[1]!.split(',').map(s => s.trim())
-      const className = classAssignMatch[2]!
-      for (const id of nodeIds) {
-        graph.classAssignments.set(id, className)
+      // --- classDef: `classDef name prop:val,prop:val` ---
+      const classDefMatch = line.match(/^classDef\s+([\w,-]+)\s+(.+)$/)
+      if (classDefMatch) {
+        const names = classDefMatch[1]!.split(',').map(s => s.trim()).filter(Boolean)
+        const props = parseStyleProps(classDefMatch[2]!)
+        for (const name of names) graph.classDefs.set(name, props)
+        continue
       }
-      continue
-    }
 
-    // --- style statement: `style A,B fill:#f00,stroke:#333` ---
-    const styleMatch = line.match(/^style\s+([\w,-]+)\s+(.+)$/)
-    if (styleMatch) {
-      const nodeIds = styleMatch[1]!.split(',').map(s => s.trim())
-      const props = parseStyleProps(styleMatch[2]!)
-      for (const id of nodeIds) {
-        graph.nodeStyles.set(id, { ...graph.nodeStyles.get(id), ...props })
+      // --- class assignment: `class A,B className` ---
+      const classAssignMatch = line.match(/^class\s+([\w,-]+)\s+([\w-]+)\s*;?$/)
+      if (classAssignMatch) {
+        const nodeIds = classAssignMatch[1]!.split(',').map(s => s.trim())
+        const className = classAssignMatch[2]!
+        for (const id of nodeIds) {
+          graph.classAssignments.set(id, className)
+        }
+        continue
       }
-      continue
-    }
 
-    // --- linkStyle: `linkStyle 0 stroke:#f00` or `linkStyle default stroke:#f00` ---
-    const linkStyleMatch = line.match(/^linkStyle\s+(default|[\d,\s]+)\s+(.+)$/)
-    if (linkStyleMatch) {
-      const target = linkStyleMatch[1]!.trim()
-      const props = parseStyleProps(linkStyleMatch[2]!)
-      if (target === 'default') {
-        graph.linkStyles.set('default', { ...graph.linkStyles.get('default'), ...props })
-      } else {
-        const indices = target.split(',').map(s => parseInt(s.trim(), 10))
-        for (const idx of indices) {
-          if (!isNaN(idx)) {
-            graph.linkStyles.set(idx, { ...graph.linkStyles.get(idx), ...props })
+      // --- style statement: `style A,B fill:#f00,stroke:#333` ---
+      const styleMatch = line.match(/^style\s+([\w,-]+)\s+(.+)$/)
+      if (styleMatch) {
+        const nodeIds = styleMatch[1]!.split(',').map(s => s.trim())
+        const props = parseStyleProps(styleMatch[2]!)
+        for (const id of nodeIds) {
+          graph.nodeStyles.set(id, { ...graph.nodeStyles.get(id), ...props })
+        }
+        continue
+      }
+
+      // --- linkStyle: `linkStyle 0 stroke:#f00` or `linkStyle default stroke:#f00` ---
+      const linkStyleMatch = line.match(/^linkStyle\s+(default|[\d,\s]+)\s+(.+)$/)
+      if (linkStyleMatch) {
+        const target = linkStyleMatch[1]!.trim()
+        const props = parseStyleProps(linkStyleMatch[2]!)
+        if (target === 'default') {
+          graph.linkStyles.set('default', { ...graph.linkStyles.get('default'), ...props })
+        } else {
+          const indices = target.split(',').map(s => parseInt(s.trim(), 10))
+          for (const idx of indices) {
+            if (!isNaN(idx)) {
+              graph.linkStyles.set(idx, { ...graph.linkStyles.get(idx), ...props })
+            }
           }
         }
+        continue
       }
-      continue
-    }
 
-    // --- direction override inside subgraph: `direction LR` ---
-    const dirMatch = line.match(/^direction\s+(TD|TB|LR|BT|RL)\s*$/i)
-    if (dirMatch && subgraphStack.length > 0) {
-      subgraphStack[subgraphStack.length - 1]!.direction = dirMatch[1]!.toUpperCase() as Direction
-      continue
-    }
-
-    // --- subgraph start: `subgraph Label` or `subgraph id [Label]` ---
-    const subgraphMatch = line.match(/^subgraph\s+(.+)$/)
-    if (subgraphMatch) {
-      const rest = subgraphMatch[1]!.trim()
-      // Check for "subgraph id [Label]" form
-      // ID can contain hyphens (e.g. "us-east"), so use [\w-]+ not \w+
-      const bracketMatch = rest.match(/^([\w-]+)\s*\[(.+)\]$/)
-      let id: string
-      let label: string
-      if (bracketMatch) {
-        id = bracketMatch[1]!
-        label = normalizeBrTags(bracketMatch[2]!)
-      } else {
-        // Use the label text as id (slugified)
-        label = normalizeBrTags(rest)
-        id = rest.replace(/\s+/g, '_').replace(/[^\w]/g, '')
+      // --- direction override inside subgraph: `direction LR` ---
+      const dirMatch = line.match(/^direction\s+(TD|TB|LR|BT|RL)\s*$/i)
+      if (dirMatch && subgraphStack.length > 0) {
+        subgraphStack[subgraphStack.length - 1]!.direction = dirMatch[1]!.toUpperCase() as Direction
+        continue
       }
-      const sg: MermaidSubgraph = { id, label, nodeIds: [], children: [] }
-      subgraphStack.push(sg)
-      continue
-    }
 
-    // --- subgraph end ---
-    if (line === 'end') {
-      const completed = subgraphStack.pop()
-      if (completed) {
-        if (subgraphStack.length > 0) {
-          subgraphStack[subgraphStack.length - 1]!.children.push(completed)
+      // --- subgraph start: `subgraph Label` or `subgraph id [Label]` ---
+      const subgraphMatch = line.match(/^subgraph\s+(.+)$/)
+      if (subgraphMatch) {
+        const rest = subgraphMatch[1]!.trim()
+        // Check for "subgraph id [Label]" form
+        // ID can contain hyphens (e.g. "us-east"), so use [\w-]+ not \w+
+        const bracketMatch = rest.match(/^([\w-]+)\s*\[(.+)\]$/)
+        let id: string
+        let label: string
+        if (bracketMatch) {
+          id = bracketMatch[1]!
+          label = normalizeBrTags(bracketMatch[2]!)
         } else {
-          graph.subgraphs.push(completed)
+          // Use the label text as id (slugified)
+          label = normalizeBrTags(rest)
+          id = rest.replace(/\s+/g, '_').replace(/[^\w]/g, '')
         }
+        const sg: MermaidSubgraph = { id, label, nodeIds: [], children: [] }
+        subgraphStack.push(sg)
+        continue
       }
-      continue
-    }
 
-    // --- Edge/node definitions ---
-    parseEdgeLine(line, graph, subgraphStack)
+      // --- subgraph end ---
+      if (line === 'end') {
+        const completed = subgraphStack.pop()
+        if (completed) {
+          if (subgraphStack.length > 0) {
+            subgraphStack[subgraphStack.length - 1]!.children.push(completed)
+          } else {
+            graph.subgraphs.push(completed)
+          }
+        }
+        continue
+      }
+
+      // --- Edge/node definitions ---
+      parseEdgeLine(line, graph, subgraphStack)
+    }
   }
 
   return graph
@@ -426,14 +487,17 @@ function splitTopLevelCommas(s: string): string[] {
   const out: string[] = []
   let depth = 0
   let start = 0
+  let escaped = false
   for (let i = 0; i < s.length; i++) {
     const c = s[i]
+    if (escaped) { escaped = false; continue }
+    if (c === '\\') { escaped = true; continue }
     if (c === '(') depth++
     else if (c === ')') depth = Math.max(0, depth - 1)
     else if (c === ',' && depth === 0) { out.push(s.slice(start, i)); start = i + 1 }
   }
   out.push(s.slice(start))
-  return out
+  return out.map(part => part.replace(/\\,/g, ','))
 }
 
 function parseStyleProps(propsStr: string): Record<string, string> {
@@ -526,8 +590,37 @@ const NODE_PATTERNS: Array<{ regex: RegExp; shape: NodeShape }> = [
 /** Regex for a bare node reference (just an ID, no shape brackets) */
 const BARE_NODE_REGEX = /^([\w-]+)/
 
-/** Regex for ::: class shorthand suffix — matches :::className immediately after a node */
-const CLASS_SHORTHAND_REGEX = /^:::([\w][\w-]*)/
+function consumeBareNodeId(text: string): { id: string; length: number } | null {
+  const whole = text.match(BARE_NODE_REGEX)
+  if (!whole) return null
+  const max = whole[1]!.length
+  let end = 0
+  for (let i = 0; i < max; i++) {
+    if (i > 0 && startsFlowchartArrow(text.slice(i))) break
+    end = i + 1
+  }
+  return end > 0 ? { id: text.slice(0, end), length: end } : null
+}
+
+function startsFlowchartArrow(text: string): boolean {
+  return ARROW_REGEX.test(text) || TEXT_ARROW_REGEX.test(text)
+}
+
+const EDGE_ID_PREFIX_REGEX = /^([\w-]+)@\s*(?=(?:<)?(?:~{3,}|-\.+->|-\.+-|={2,}>|={3,}|o-{2,}[ox]|x-{2,}[ox]|-{2,}[ox]|-{2,}>|-{3,}|(?:-{2,}|-\.+|={2,})\s+))/
+
+function consumeClassShorthand(text: string): { className: string; length: number } | null {
+  if (!text.startsWith(':::')) return null
+  const rest = text.slice(3)
+  if (!/^[\w]/.test(rest)) return null
+  const allowed = rest.match(/^[\w-]+/)
+  if (!allowed) return null
+  const max = allowed[0].length
+  let end = max
+  for (let i = 1; i < max; i++) {
+    if (startsFlowchartArrow(rest.slice(i))) { end = i; break }
+  }
+  return { className: rest.slice(0, end), length: 3 + end }
+}
 
 /**
  * Parse a line that contains node definitions and edges.
@@ -557,6 +650,9 @@ function parseEdgeLine(
     let endMarker: EdgeMarker | undefined
     let edgeLabel: string | undefined
     let length: number | undefined
+
+    const edgeIdMatch = remaining.match(EDGE_ID_PREFIX_REGEX)
+    if (edgeIdMatch) remaining = remaining.slice(edgeIdMatch[0].length).trim()
 
     const arrowMatch = remaining.match(ARROW_REGEX)
     if (arrowMatch) {
@@ -724,10 +820,10 @@ function consumeNode(
   const metadataNode = consumeMetadataNode(text, graph, subgraphStack)
   if (metadataNode) {
     let remaining = metadataNode.remaining
-    const classMatch = remaining.match(CLASS_SHORTHAND_REGEX)
+    const classMatch = consumeClassShorthand(remaining)
     if (classMatch) {
-      graph.classAssignments.set(metadataNode.id, classMatch[1]!)
-      remaining = remaining.slice(classMatch[0].length)
+      graph.classAssignments.set(metadataNode.id, classMatch.className)
+      remaining = remaining.slice(classMatch.length)
     }
     return { id: metadataNode.id, remaining }
   }
@@ -751,23 +847,23 @@ function consumeNode(
   // If it already exists, do NOT track it in the current subgraph;
   // nodes belong to the subgraph where they're first defined.
   if (id === null) {
-    const bareMatch = text.match(BARE_NODE_REGEX)
-    if (bareMatch) {
-      id = bareMatch[1]!
+    const bare = consumeBareNodeId(text)
+    if (bare) {
+      id = bare.id
       if (!graph.nodes.has(id)) {
         registerNode(graph, subgraphStack, { id, label: id, shape: 'rectangle' })
       }
-      remaining = text.slice(bareMatch[0].length)
+      remaining = text.slice(bare.length)
     }
   }
 
   if (id === null) return null
 
   // Check for ::: class shorthand suffix immediately after the node
-  const classMatch = remaining.match(CLASS_SHORTHAND_REGEX)
+  const classMatch = consumeClassShorthand(remaining)
   if (classMatch) {
-    graph.classAssignments.set(id, classMatch[1]!)
-    remaining = remaining.slice(classMatch[0].length)
+    graph.classAssignments.set(id, classMatch.className)
+    remaining = remaining.slice(classMatch.length)
   }
 
   return { id, remaining }
