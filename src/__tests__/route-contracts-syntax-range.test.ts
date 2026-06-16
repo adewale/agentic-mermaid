@@ -125,6 +125,39 @@ function distanceToPolyline(point: { x: number; y: number }, points: Array<{ x: 
   return minDistance
 }
 
+function polylineLength(points: Array<{ x: number; y: number }>): number {
+  let total = 0
+  for (let i = 1; i < points.length; i++) {
+    total += Math.hypot(points[i]!.x - points[i - 1]!.x, points[i]!.y - points[i - 1]!.y)
+  }
+  return total
+}
+
+function pathDistanceAtPoint(point: { x: number; y: number }, points: Array<{ x: number; y: number }>): number {
+  let walked = 0
+  let best = { offRoute: Infinity, distance: 0 }
+  for (let i = 1; i < points.length; i++) {
+    const a = points[i - 1]!, b = points[i]!
+    const dx = b.x - a.x, dy = b.y - a.y
+    const lenSq = dx * dx + dy * dy
+    const len = Math.sqrt(lenSq)
+    if (len === 0) continue
+    const t = Math.max(0, Math.min(1, ((point.x - a.x) * dx + (point.y - a.y) * dy) / lenSq))
+    const projected = { x: a.x + t * dx, y: a.y + t * dy }
+    const offRoute = Math.hypot(point.x - projected.x, point.y - projected.y)
+    if (offRoute < best.offRoute) best = { offRoute, distance: walked + len * t }
+    walked += len
+  }
+  return best.distance
+}
+
+function expectLabelNearRouteMidpoint(edge: PositionedEdge, maxFractionError = 0.08): void {
+  const total = polylineLength(edge.points)
+  expect(total).toBeGreaterThan(0)
+  const fraction = pathDistanceAtPoint(edge.labelPosition!, edge.points) / total
+  expect(Math.abs(fraction - 0.5)).toBeLessThanOrEqual(maxFractionError)
+}
+
 const EDGE_VOCABULARY: ReadonlyArray<{
   name: string
   op: string
@@ -322,6 +355,8 @@ describe('syntax range — & multi-edge chains hit the same fan heuristics', () 
     expect(needsWork.routeCertificate?.sourcePort).toBe('SE')
     expect(distanceToPolyline(yes.labelPosition!, yes.points)).toBeLessThanOrEqual(0.001)
     expect(distanceToPolyline(needsWork.labelPosition!, needsWork.points)).toBeLessThanOrEqual(0.001)
+    expectLabelNearRouteMidpoint(yes)
+    expectLabelNearRouteMidpoint(needsWork)
     expect(rectsOverlap(yesLabel, needsWorkLabel, readableLabelGap(style))).toBe(false)
     expectLabelClearsTerminalMarkers(yes, yesLabel, style)
     expectLabelClearsTerminalMarkers(needsWork, needsWorkLabel, style)
@@ -342,6 +377,7 @@ describe('syntax range — & multi-edge chains hit the same fan heuristics', () 
     const labelRects = branchEdges.map(edge => {
       expect(edge.routeCertificate?.invariant).toBe('bundle')
       expect(distanceToPolyline(edge.labelPosition!, edge.points)).toBeLessThanOrEqual(0.001)
+      expectLabelNearRouteMidpoint(edge)
       const rect = labelRect(edge, style)!
       expectLabelClearsTerminalMarkers(edge, rect, style)
       return rect
@@ -383,6 +419,7 @@ describe('syntax range — & multi-edge chains hit the same fan heuristics', () 
             expect(rectsOverlap(rect!, { x: sourceNode.x, y: sourceNode.y, w: sourceNode.width, h: sourceNode.height }, 2)).toBe(false)
             expect(rectsOverlap(rect!, { x: targetNode.x, y: targetNode.y, w: targetNode.width, h: targetNode.height }, 2)).toBe(false)
             expect(distanceToPolyline(edge.labelPosition!, edge.points)).toBeLessThanOrEqual(0.001)
+            expectLabelNearRouteMidpoint(edge, 0.2)
             expectLabelClearsTerminalMarkers(edge, rect!, style)
             expect(edge.labelPosition).toBeDefined()
             expect(edge.routeCertificate).toBeDefined()

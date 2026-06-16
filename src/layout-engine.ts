@@ -968,39 +968,52 @@ interface EdgeSegment {
   labelPosition?: Point
 }
 
-/**
- * Calculate the midpoint along a polyline path.
- * Walks the path to find the point at half the total length.
- */
-function calculatePathMidpoint(points: Point[]): Point {
-  if (points.length === 0) return { x: 0, y: 0 }
-  if (points.length === 1) return points[0]!
-
-  // Calculate total length
+function polylineLength(points: Point[]): number {
   let totalLength = 0
   for (let i = 1; i < points.length; i++) {
     const dx = points[i]!.x - points[i - 1]!.x
     const dy = points[i]!.y - points[i - 1]!.y
     totalLength += Math.sqrt(dx * dx + dy * dy)
   }
+  return totalLength
+}
 
-  // Walk to halfway point
-  let remaining = totalLength / 2
+function pointAtPathDistance(points: Point[], distance: number): { point: Point; segmentIndex: number; pathDistance: number } {
+  if (points.length === 0) return { point: { x: 0, y: 0 }, segmentIndex: 0, pathDistance: 0 }
+  if (points.length === 1) return { point: points[0]!, segmentIndex: 0, pathDistance: 0 }
+
+  const target = Math.max(0, Math.min(polylineLength(points), distance))
+  let remaining = target
+  let walked = 0
   for (let i = 1; i < points.length; i++) {
     const dx = points[i]!.x - points[i - 1]!.x
     const dy = points[i]!.y - points[i - 1]!.y
     const segLen = Math.sqrt(dx * dx + dy * dy)
+    if (segLen === 0) continue
     if (remaining <= segLen) {
       const t = remaining / segLen
       return {
-        x: points[i - 1]!.x + t * dx,
-        y: points[i - 1]!.y + t * dy,
+        point: {
+          x: points[i - 1]!.x + t * dx,
+          y: points[i - 1]!.y + t * dy,
+        },
+        segmentIndex: i,
+        pathDistance: walked + remaining,
       }
     }
     remaining -= segLen
+    walked += segLen
   }
 
-  return points[points.length - 1]!
+  return { point: points[points.length - 1]!, segmentIndex: points.length - 1, pathDistance: walked }
+}
+
+/**
+ * Calculate the midpoint along a polyline path.
+ * Walks the path to find the point at half the total length.
+ */
+function calculatePathMidpoint(points: Point[]): Point {
+  return pointAtPathDistance(points, polylineLength(points) / 2).point
 }
 
 // ============================================================================
@@ -1281,6 +1294,16 @@ function collapseTinyBundledHitches(nodes: PositionedNode[], edges: PositionedEd
   }
 }
 
+function labelBoxAt(label: string, center: Point, style: LabelMetricsStyle): { x: number; y: number; width: number; height: number } {
+  const metrics = measureMultilineText(label, style.edgeLabelFontSize, style.edgeLabelFontWeight)
+  return {
+    x: center.x - (metrics.width + 16) / 2,
+    y: center.y - (metrics.height + 16) / 2,
+    width: metrics.width + 16,
+    height: metrics.height + 16,
+  }
+}
+
 function longestSegmentMidpoint(points: Point[]): Point {
   let best: [Point, Point] = [points[0]!, points[points.length - 1]!]
   let bestLength = -1
@@ -1292,21 +1315,12 @@ function longestSegmentMidpoint(points: Point[]): Point {
   return { x: (best[0].x + best[1].x) / 2, y: (best[0].y + best[1].y) / 2 }
 }
 
-function labelBoxAt(label: string, center: Point, style: LabelMetricsStyle): { x: number; y: number; width: number; height: number } {
-  const metrics = measureMultilineText(label, style.edgeLabelFontSize, style.edgeLabelFontWeight)
-  return {
-    x: center.x - (metrics.width + 16) / 2,
-    y: center.y - (metrics.height + 16) / 2,
-    width: metrics.width + 16,
-    height: metrics.height + 16,
-  }
-}
-
 interface BundledLabelCandidate {
   point: Point
   box: { x: number; y: number; width: number; height: number }
   rank: number
   pathDistance: number
+  midpointDistance: number
 }
 
 function readableLabelGap(style: LabelMetricsStyle): number {
@@ -1351,45 +1365,43 @@ function clearsTerminalMarkers(
 
 function bundledLabelCandidates(edge: PositionedEdge, points: Point[], nodes: PositionedNode[], style: LabelMetricsStyle): BundledLabelCandidate[] {
   if (!edge.label) return []
-  const raw: Array<BundledLabelCandidate & { length: number; order: number }> = []
-  const slots = [0.5, 2 / 3, 1 / 3, 0.75, 0.25, 5 / 6, 1 / 6]
-  let segmentStartDistance = 0
-  for (let i = 1; i < points.length; i++) {
-    const a = points[i - 1]!, b = points[i]!
-    const length = Math.hypot(b.x - a.x, b.y - a.y)
-    for (let order = 0; order < slots.length; order++) {
-      const t = slots[order]!
-      const point = { x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t }
-      const box = labelBoxAt(edge.label, point, style)
-      if (nodes.some(node => rectsOverlap(box, node, 2))) continue
-      if (!clearsTerminalMarkers(edge, points, i, point, box, style)) continue
-      raw.push({
-        point,
-        box,
-        length,
-        order,
-        rank: 0,
-        pathDistance: segmentStartDistance + length * t,
-      })
-    }
-    segmentStartDistance += length
+  const totalLength = polylineLength(points)
+  if (totalLength === 0) return []
+  const midpointDistance = totalLength / 2
+  const raw: Array<BundledLabelCandidate & { order: number }> = []
+  const slots = [0.5, 0.45, 0.55, 0.4, 0.6, 0.35, 0.65, 0.3, 0.7, 0.25, 0.75, 0.2, 0.8, 1 / 6, 5 / 6]
+
+  for (let order = 0; order < slots.length; order++) {
+    const sample = pointAtPathDistance(points, totalLength * slots[order]!)
+    const box = labelBoxAt(edge.label, sample.point, style)
+    if (nodes.some(node => rectsOverlap(box, node, 2))) continue
+    if (!clearsTerminalMarkers(edge, points, sample.segmentIndex, sample.point, box, style)) continue
+    raw.push({
+      point: sample.point,
+      box,
+      order,
+      rank: 0,
+      pathDistance: sample.pathDistance,
+      midpointDistance: Math.abs(sample.pathDistance - midpointDistance),
+    })
   }
-  raw.sort((a, b) => b.length - a.length || a.order - b.order || a.pathDistance - b.pathDistance)
+
+  raw.sort((a, b) => a.midpointDistance - b.midpointDistance || a.order - b.order || a.pathDistance - b.pathDistance)
   return raw.map((candidate, rank) => ({ ...candidate, rank }))
 }
 
 function bestBundledLabelPosition(edge: PositionedEdge, points: Point[], nodes: PositionedNode[], style: LabelMetricsStyle): Point {
-  return bundledLabelCandidates(edge, points, nodes, style)[0]?.point ?? longestSegmentMidpoint(points)
+  return bundledLabelCandidates(edge, points, nodes, style)[0]?.point ?? calculatePathMidpoint(points)
 }
 
 function bundledLabelAssignmentCost(chosen: BundledLabelCandidate[], direction: Direction): number {
   const f = layoutFlow(direction)
   const mainValues = chosen.map(candidate => candidate.point[f.main])
   const mainSpread = Math.max(...mainValues) - Math.min(...mainValues)
-  const totalDistance = chosen.reduce((sum, candidate) => sum + candidate.pathDistance, 0)
+  const totalMidpointDistance = chosen.reduce((sum, candidate) => sum + candidate.midpointDistance, 0)
   const totalRank = chosen.reduce((sum, candidate) => sum + candidate.rank, 0)
-  // Prefer aligned sibling labels first, then the existing midpoint-biased slot order.
-  return mainSpread * 4 + totalRank + totalDistance * 0.02
+  // Keep labels near the route midpoint first, with sibling alignment as an aesthetic tie-breaker.
+  return totalMidpointDistance * 4 + mainSpread + totalRank * 0.25
 }
 
 function assignBundledFanoutLabels(
