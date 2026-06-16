@@ -142,13 +142,13 @@ const CARDS: Card[] = [
 
 // The six families this fork adds. Rendered here at build time; each carries
 // its own in-diagram title, so the figures need no separate caption.
-const NEW_TYPES: { id: string; src: string }[] = [
-  { id: 'timeline', src: `timeline
+const NEW_TYPES: { id: string; name: string; src: string }[] = [
+  { id: 'timeline', name: 'Timeline', src: `timeline
   title Product history
   2021 : Founded
   2022 : Seed round : First hire
   2023 : Series A : Launch` },
-  { id: 'journey', src: `journey
+  { id: 'journey', name: 'User Journey', src: `journey
   title Checkout
   section Browse
     View item: 5: User
@@ -156,20 +156,20 @@ const NEW_TYPES: { id: string; src: string }[] = [
   section Pay
     Enter card: 3: User
     Confirm: 5: User, System` },
-  { id: 'architecture', src: `architecture-beta
+  { id: 'architecture', name: 'Architecture', src: `architecture-beta
   group api(cloud)[API]
   service gw(server)[Gateway] in api
   service db(database)[Postgres] in api
   service cache(disk)[Redis] in api
   gw:R --> L:db
   gw:B --> T:cache` },
-  { id: 'pie', src: `pie showData
+  { id: 'pie', name: 'Pie chart', src: `pie showData
   title Traffic sources
   "Search" : 52
   "Direct" : 23
   "Social" : 15
   "Referral" : 10` },
-  { id: 'quadrant', src: `quadrantChart
+  { id: 'quadrant', name: 'Quadrant chart', src: `quadrantChart
   title Reach vs effort
   x-axis Low effort --> High effort
   y-axis Low reach --> High reach
@@ -177,7 +177,7 @@ const NEW_TYPES: { id: string; src: string }[] = [
   "Ads": [0.8, 0.6]
   "SEO": [0.5, 0.8]
   "Cold email": [0.6, 0.2]` },
-  { id: 'gantt', src: `gantt
+  { id: 'gantt', name: 'Gantt chart', src: `gantt
   title Launch plan
   dateFormat YYYY-MM-DD
   section Build
@@ -270,7 +270,7 @@ function buildHtml(): string {
       </article>`).join('\n')
 
   const newTypesHtml = NEW_TYPES.map(t =>
-    `      <figure class="figure-card"><div class="figure-svg">${renderForkFigure(t.src, t.id)}</div></figure>`
+    `      <figure class="figure-card"><figcaption class="figure-name">${t.name}</figcaption><div class="figure-svg">${renderForkFigure(t.src, t.id)}</div></figure>`
   ).join('\n')
 
   const layoutHtml = LAYOUT_CASES.map(c => {
@@ -521,6 +521,10 @@ function buildHtml(): string {
       margin: 0; border-radius: 16px; padding: 1.25rem;
       background: ${figureTheme.bg};
       box-shadow: 0 0 0 1px rgba(82, 16, 0, 0.08), 0 2px 10px rgba(0, 0, 0, 0.05);
+    }
+    .figure-name {
+      font-size: 0.8rem; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase;
+      color: #9a4a2a; margin-bottom: 0.9rem;
     }
     .figure-svg { display: flex; align-items: center; justify-content: center; }
     .figure-svg svg { max-width: 100%; height: auto; display: block; }
