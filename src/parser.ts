@@ -18,7 +18,7 @@ import { normalizeBrTags } from './multiline-utils.ts'
  * Throws on invalid/unsupported input.
  */
 export function parseMermaid(text: string): MermaidGraph {
-  const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 0 && !l.startsWith('%%'))
+  const lines = coalesceMetadataLines(text.split('\n')).map(l => l.trim()).filter(l => l.length > 0 && !l.startsWith('%%'))
 
   if (lines.length === 0) {
     throw new Error('Empty mermaid diagram')
@@ -34,6 +34,62 @@ export function parseMermaid(text: string): MermaidGraph {
 
   // Flowchart: "graph TD" or "flowchart LR"
   return parseFlowchart(lines)
+}
+
+/**
+ * Mermaid v11 uses `id@{ ... }` metadata blocks for flowchart nodes. The
+ * legacy parser is line-oriented; without this coalescing pass, multiline
+ * metadata keys such as `shape:` and `label:` are treated as standalone node
+ * statements. Keep the whole metadata object attached to its node token so the
+ * node consumer can handle it as one unit.
+ */
+function coalesceMetadataLines(lines: string[]): string[] {
+  const out: string[] = []
+  let current: string[] | null = null
+  let balance = 0
+
+  for (const line of lines) {
+    if (current) {
+      current.push(line.trim())
+      balance += metadataBraceDelta(line)
+      if (balance <= 0) {
+        out.push(current.join(' '))
+        current = null
+        balance = 0
+      }
+      continue
+    }
+
+    if (/(?:^|[\s;])[\w-]+@\s*\{/.test(line)) {
+      balance = metadataBraceDelta(line)
+      if (balance > 0) current = [line.trim()]
+      else out.push(line)
+      continue
+    }
+
+    out.push(line)
+  }
+
+  if (current) out.push(current.join(' '))
+  return out
+}
+
+function metadataBraceDelta(text: string): number {
+  let delta = 0
+  let quote: '"' | "'" | null = null
+  let escaped = false
+  for (const ch of text) {
+    if (escaped) { escaped = false; continue }
+    if (ch === '\\') { escaped = true; continue }
+    if (quote) {
+      if (ch === quote) quote = null
+      continue
+    }
+    if (ch === '"' || ch === "'") { quote = ch; continue }
+    if (ch === '{') delta++
+    else if (ch === '}') delta--
+  }
+  return delta
 }
 
 // ============================================================================
@@ -595,6 +651,65 @@ interface ConsumedNode {
   remaining: string
 }
 
+function consumeMetadataNode(
+  text: string,
+  graph: MermaidGraph,
+  subgraphStack: MermaidSubgraph[]
+): ConsumedNode | null {
+  const start = text.match(/^([\w-]+)@\s*\{/)
+  if (!start) return null
+  const id = start[1]!
+  const objectStart = text.indexOf('{', start[0].indexOf('@'))
+  const objectEnd = findMetadataObjectEnd(text, objectStart)
+  if (objectEnd < 0) return null
+
+  const metadata = text.slice(objectStart + 1, objectEnd)
+  const label = parseMetadataLabel(metadata)
+  // #29 safety floor: we preserve labels/edges for rendering and reserve the
+  // expanded Mermaid v11 shape vocabulary for the follow-up modeled support.
+  const existing = graph.nodes.get(id)
+  if (existing) {
+    if (label !== undefined) graph.nodes.set(id, { ...existing, label: normalizeBrTags(label) })
+    trackInSubgraph(subgraphStack, id)
+  } else {
+    registerNode(graph, subgraphStack, { id, label: normalizeBrTags(label ?? id), shape: 'rectangle' })
+  }
+  return { id, remaining: text.slice(objectEnd + 1) }
+}
+
+function findMetadataObjectEnd(text: string, start: number): number {
+  if (start < 0 || text[start] !== '{') return -1
+  let depth = 0
+  let quote: '"' | "'" | null = null
+  let escaped = false
+  for (let i = start; i < text.length; i++) {
+    const ch = text[i]!
+    if (escaped) { escaped = false; continue }
+    if (ch === '\\') { escaped = true; continue }
+    if (quote) {
+      if (ch === quote) quote = null
+      continue
+    }
+    if (ch === '"' || ch === "'") { quote = ch; continue }
+    if (ch === '{') depth++
+    else if (ch === '}') {
+      depth--
+      if (depth === 0) return i
+    }
+  }
+  return -1
+}
+
+function parseMetadataLabel(metadata: string): string | undefined {
+  const match = metadata.match(/(?:^|,)\s*label\s*:\s*("(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'|[^,}]+)/)
+  if (!match) return undefined
+  const raw = match[1]!.trim()
+  if ((raw.startsWith('"') && raw.endsWith('"')) || (raw.startsWith("'") && raw.endsWith("'"))) {
+    return raw.slice(1, -1).replace(/\\([\\"'])/g, '$1')
+  }
+  return raw.trim()
+}
+
 /**
  * Try to consume a node definition from the start of `text`.
  * If the node has a shape+label (e.g. A[Text]), it's registered in the graph.
@@ -606,6 +721,17 @@ function consumeNode(
   graph: MermaidGraph,
   subgraphStack: MermaidSubgraph[]
 ): ConsumedNode | null {
+  const metadataNode = consumeMetadataNode(text, graph, subgraphStack)
+  if (metadataNode) {
+    let remaining = metadataNode.remaining
+    const classMatch = remaining.match(CLASS_SHORTHAND_REGEX)
+    if (classMatch) {
+      graph.classAssignments.set(metadataNode.id, classMatch[1]!)
+      remaining = remaining.slice(classMatch[0].length)
+    }
+    return { id: metadataNode.id, remaining }
+  }
+
   let id: string | null = null
   let remaining: string = text
 

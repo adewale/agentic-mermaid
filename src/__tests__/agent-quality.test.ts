@@ -24,7 +24,7 @@ describe('quality metrics — deterministic', () => {
     let measured = 0
     for (const e of corpus.slice(0, 30)) {
       const p = parseMermaid(e.source)
-      if (!p.ok || p.value.body.kind !== 'flowchart') continue
+      if (!p.ok || p.value.kind !== 'flowchart') continue
       const layout = layoutMermaid(p.value)
       if (layout.nodes.length === 0) continue
       const m = measureQuality(layout)
@@ -41,7 +41,7 @@ describe('quality metrics — deterministic', () => {
     const flow = corpus.find(e => e.source.includes('-->'))
     if (!flow) return
     const p = parseMermaid(flow.source)
-    if (!p.ok || p.value.body.kind !== 'flowchart') return
+    if (!p.ok || p.value.kind !== 'flowchart') return
     const a = measureQuality(layoutMermaid(p.value))
     const b = measureQuality(layoutMermaid(p.value))
     expect(a).toEqual(b)
@@ -150,7 +150,7 @@ describe('quality regression baseline (flowchart corpus median + p90)', () => {
     const metrics: ReturnType<typeof measureQuality>[] = []
     for (const e of corpus) {
       const p = parseMermaid(e.source)
-      if (!p.ok || p.value.body.kind !== 'flowchart') continue
+      if (!p.ok || p.value.kind !== 'flowchart') continue
       const layout = layoutMermaid(p.value)
       if (layout.nodes.length === 0) continue
       metrics.push(measureQuality(layout))

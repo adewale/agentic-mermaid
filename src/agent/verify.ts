@@ -7,6 +7,7 @@
 
 import { parseMermaid as parseValidDiagram } from './parse.ts'
 import { layoutGraphSync } from '../layout-engine.ts'
+import { parseMermaid as parseFlowchartLegacy } from '../parser.ts'
 import { auditRouteContracts, findRouteHitches } from '../route-contracts.ts'
 import type {
   ValidDiagram, VerifyOptions, VerifyResult, LayoutWarning, RenderedLayout,
@@ -126,7 +127,9 @@ export function verifyMermaid(input: ValidDiagram | string, opts: VerifyOptions 
     // class/er/journey/architecture/xychart when unmodeled) still produce a
     // real positioned layout from canonicalSource. layoutFamilyToRendered
     // degrades to an empty layout on render-error, so this never throws.
-    const opaqueLayout = layoutFamilyToRendered(d) ?? emptyRenderedLayout(d.kind)
+    const opaqueLayout = d.kind === 'flowchart'
+      ? layoutOpaqueFlowchart(d)
+      : layoutFamilyToRendered(d) ?? emptyRenderedLayout(d.kind)
     return finalize(dedupedConcat(warnings, pluginWarnings), opaqueLayout, opts)
   }
 
@@ -393,6 +396,14 @@ function verifySequence(body: SequenceBody, kind: ValidDiagram['kind'], cap: num
 }
 
 // ---- helpers --------------------------------------------------------------
+
+function layoutOpaqueFlowchart(d: ValidDiagram): RenderedLayout {
+  try {
+    return positionedToRenderedLayout(layoutGraphSync(parseFlowchartLegacy(d.canonicalSource), {}), d.kind)
+  } catch {
+    return emptyRenderedLayout(d.kind)
+  }
+}
 
 function unwrap(source: string): ValidDiagram | null {
   const r = parseValidDiagram(source)
