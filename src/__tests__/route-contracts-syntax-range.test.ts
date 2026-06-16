@@ -148,19 +148,19 @@ describe('syntax range — & multi-edge chains hit the same fan heuristics', () 
     }
   })
 
-  it('an unlabeled &-declared diamond fan-out takes the BUNDLE contract: one trunk from the vertex port', () => {
-    // Facet spread (contact-sheet scenario E) applies to LABELED branches;
-    // & syntax cannot express per-branch labels (the Cartesian product
-    // shares one label), and an unlabeled fan-out is owned by the bundler:
-    // both edges certify `bundle` and share a trunk leaving the exact
-    // E vertex port.
+  it('an unlabeled &-declared diamond fan-out uses equivalent facet-symmetric branch routes', () => {
+    // Compact `&` fan-outs are semantically equivalent to expanded fan-outs,
+    // so the same diamond facet-spread floor applies: no branch hogs the E
+    // vertex and the two emitted lines are mirror peers.
     const edges = layoutEdges('flowchart LR\n  Q{Decide} --> P[One] & R[Two]')
     const qp = findEdge(edges, 'Q', 'P')
     const qr = findEdge(edges, 'Q', 'R')
     expect(qp.routeCertificate?.invariant).toBe('bundle')
     expect(qr.routeCertificate?.invariant).toBe('bundle')
-    expect(qp.routeCertificate?.sourcePort).toBe('E')
-    expect(qp.points[0]).toEqual(qr.points[0]!)
+    expect(qp.routeCertificate?.sourcePort).toBe('NE')
+    expect(qr.routeCertificate?.sourcePort).toBe('SE')
+    expect(qp.points[0]!.x).toBeCloseTo(qr.points[0]!.x, 3)
+    expect(qp.points[0]!.y).toBeLessThan(qr.points[0]!.y)
     zeroHardViolations('flowchart LR\n  Q{Decide} --> P[One] & R[Two]')
   })
 

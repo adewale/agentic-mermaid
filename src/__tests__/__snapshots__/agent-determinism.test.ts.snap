@@ -213,19 +213,19 @@ exports[`drift sentinel sentinel: flowchart TD /   A{Decision} --> B[Yes] /   A 
       "label": undefined,
       "path": [
         [
-          118,
-          158,
+          89,
+          128,
         ],
         [
-          118,
+          89,
           182,
         ],
         [
-          59,
+          71,
           182,
         ],
         [
-          59,
+          71,
           206,
         ],
       ],
@@ -237,19 +237,19 @@ exports[`drift sentinel sentinel: flowchart TD /   A{Decision} --> B[Yes] /   A 
       "label": undefined,
       "path": [
         [
-          118,
-          158,
+          148,
+          128,
         ],
         [
-          118,
+          148,
           182,
         ],
         [
-          177,
+          165,
           182,
         ],
         [
-          177,
+          165,
           206,
         ],
       ],
@@ -274,7 +274,7 @@ exports[`drift sentinel sentinel: flowchart TD /   A{Decision} --> B[Yes] /   A 
       "label": "Yes",
       "shape": "rectangle",
       "w": 66,
-      "x": 27,
+      "x": 39,
       "y": 206,
     },
     {
@@ -282,8 +282,8 @@ exports[`drift sentinel sentinel: flowchart TD /   A{Decision} --> B[Yes] /   A 
       "id": "C",
       "label": "No",
       "shape": "rectangle",
-      "w": 60,
-      "x": 147,
+      "w": 66,
+      "x": 132,
       "y": 206,
     },
   ],

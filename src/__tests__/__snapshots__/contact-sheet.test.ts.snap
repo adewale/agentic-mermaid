@@ -348,7 +348,7 @@ exports[`contact sheet — pinned geometry (re-pin deliberately, review the shee
 }
 `;
 
-exports[`contact sheet — pinned geometry (re-pin deliberately, review the sheet) E — diamond fan-out — facet-mid ports, port-to-port straight 1`] = `
+exports[`contact sheet — pinned geometry (re-pin deliberately, review the sheet) E — diamond fan-out — facet-mid ports, symmetric branch routes 1`] = `
 {
   "bounds": {
     "h": 187,
@@ -360,7 +360,7 @@ exports[`contact sheet — pinned geometry (re-pin deliberately, review the shee
       "id": "Q->P",
       "label": {
         "text": "a",
-        "x": 203,
+        "x": 190,
         "y": 67,
       },
       "path": [
@@ -380,7 +380,7 @@ exports[`contact sheet — pinned geometry (re-pin deliberately, review the shee
       "id": "Q->R",
       "label": {
         "text": "b",
-        "x": 203,
+        "x": 190,
         "y": 121,
       },
       "path": [
@@ -413,7 +413,7 @@ exports[`contact sheet — pinned geometry (re-pin deliberately, review the shee
       "id": "P",
       "label": "One",
       "shape": "rectangle",
-      "w": 66,
+      "w": 67,
       "x": 259,
       "y": 48,
     },
@@ -431,11 +431,11 @@ exports[`contact sheet — pinned geometry (re-pin deliberately, review the shee
 }
 `;
 
-exports[`contact sheet — pinned geometry (re-pin deliberately, review the sheet) F — diamond fan-out, TD — E/W vertices, port-to-port straight 1`] = `
+exports[`contact sheet — pinned geometry (re-pin deliberately, review the sheet) F — diamond fan-out, TD — facet-mid ports, symmetric branch routes 1`] = `
 {
   "bounds": {
     "h": 341,
-    "w": 274,
+    "w": 247,
   },
   "edges": [
     {
@@ -443,16 +443,24 @@ exports[`contact sheet — pinned geometry (re-pin deliberately, review the shee
       "id": "Q->P",
       "label": {
         "text": "a",
-        "x": 66,
-        "y": 206,
+        "x": 93,
+        "y": 163,
       },
       "path": [
         [
-          66,
-          94,
+          93,
+          121,
         ],
         [
-          66,
+          93,
+          206,
+        ],
+        [
+          72,
+          206,
+        ],
+        [
+          72,
           264,
         ],
       ],
@@ -463,16 +471,24 @@ exports[`contact sheet — pinned geometry (re-pin deliberately, review the shee
       "id": "Q->R",
       "label": {
         "text": "b",
-        "x": 174,
-        "y": 206,
+        "x": 147,
+        "y": 163,
       },
       "path": [
         [
-          174,
-          94,
+          147,
+          121,
         ],
         [
-          174,
+          147,
+          206,
+        ],
+        [
+          168,
+          206,
+        ],
+        [
+          168,
           264,
         ],
       ],
@@ -496,8 +512,8 @@ exports[`contact sheet — pinned geometry (re-pin deliberately, review the shee
       "id": "P",
       "label": "One",
       "shape": "rectangle",
-      "w": 66,
-      "x": 33,
+      "w": 67,
+      "x": 39,
       "y": 264,
     },
     {
@@ -506,7 +522,7 @@ exports[`contact sheet — pinned geometry (re-pin deliberately, review the shee
       "label": "Two",
       "shape": "rectangle",
       "w": 67,
-      "x": 140,
+      "x": 134,
       "y": 264,
     },
   ],
@@ -1252,7 +1268,7 @@ exports[`contact sheet — pinned geometry (re-pin deliberately, review the shee
       "label": undefined,
       "path": [
         [
-          106,
+          108,
           58,
         ],
         [
@@ -1261,11 +1277,11 @@ exports[`contact sheet — pinned geometry (re-pin deliberately, review the shee
         ],
         [
           132,
-          91,
+          89,
         ],
         [
           155,
-          91,
+          89,
         ],
       ],
       "to": "T",
@@ -1277,19 +1293,19 @@ exports[`contact sheet — pinned geometry (re-pin deliberately, review the shee
       "path": [
         [
           108,
-          123,
+          119,
         ],
         [
           132,
-          123,
+          119,
         ],
         [
           132,
-          91,
+          89,
         ],
         [
           155,
-          91,
+          89,
         ],
       ],
       "to": "T",
@@ -1303,7 +1319,7 @@ exports[`contact sheet — pinned geometry (re-pin deliberately, review the shee
       "id": "A",
       "label": "One",
       "shape": "rectangle",
-      "w": 66,
+      "w": 67,
       "x": 41,
       "y": 40,
     },
@@ -1314,7 +1330,7 @@ exports[`contact sheet — pinned geometry (re-pin deliberately, review the shee
       "shape": "rectangle",
       "w": 67,
       "x": 41,
-      "y": 105,
+      "y": 101,
     },
     {
       "h": 84,
@@ -1323,7 +1339,7 @@ exports[`contact sheet — pinned geometry (re-pin deliberately, review the shee
       "shape": "circle",
       "w": 84,
       "x": 155,
-      "y": 49,
+      "y": 47,
     },
   ],
   "version": 1,
@@ -1869,6 +1885,3779 @@ exports[`contact sheet — pinned geometry (re-pin deliberately, review the shee
       "w": 78,
       "x": 167,
       "y": 72,
+    },
+  ],
+  "version": 1,
+}
+`;
+
+exports[`contact sheet — pinned geometry (re-pin deliberately, review the sheet) W — product loop — TD decision branch symmetry 1`] = `
+{
+  "bounds": {
+    "h": 490,
+    "w": 288,
+  },
+  "edges": [
+    {
+      "from": "A",
+      "id": "A->B",
+      "label": undefined,
+      "path": [
+        [
+          141,
+          121,
+        ],
+        [
+          141,
+          169,
+        ],
+      ],
+      "to": "B",
+    },
+    {
+      "from": "B",
+      "id": "B->C",
+      "label": {
+        "text": "yes",
+        "x": 113,
+        "y": 296,
+      },
+      "path": [
+        [
+          113,
+          253,
+        ],
+        [
+          113,
+          339,
+        ],
+        [
+          88,
+          339,
+        ],
+        [
+          88,
+          397,
+        ],
+      ],
+      "to": "C",
+    },
+    {
+      "from": "B",
+      "id": "B->D",
+      "label": {
+        "text": "needs work",
+        "x": 169,
+        "y": 296,
+      },
+      "path": [
+        [
+          169,
+          253,
+        ],
+        [
+          169,
+          339,
+        ],
+        [
+          195,
+          339,
+        ],
+        [
+          195,
+          397,
+        ],
+      ],
+      "to": "D",
+    },
+  ],
+  "groups": [
+    {
+      "h": 410,
+      "id": "product",
+      "label": "Product Loop",
+      "members": [],
+      "w": 208,
+      "x": 40,
+      "y": 40,
+    },
+  ],
+  "kind": "flowchart",
+  "nodes": [
+    {
+      "h": 37,
+      "id": "A",
+      "label": "Capture request",
+      "shape": "rectangle",
+      "w": 138,
+      "x": 72,
+      "y": 84,
+    },
+    {
+      "h": 112,
+      "id": "B",
+      "label": "Ready?",
+      "shape": "diamond",
+      "w": 112,
+      "x": 85,
+      "y": 169,
+    },
+    {
+      "h": 37,
+      "id": "C",
+      "label": "Ship",
+      "shape": "rectangle",
+      "w": 79,
+      "x": 48,
+      "y": 397,
+    },
+    {
+      "h": 37,
+      "id": "D",
+      "label": "Refine",
+      "shape": "rectangle",
+      "w": 79,
+      "x": 155,
+      "y": 397,
+    },
+  ],
+  "version": 1,
+}
+`;
+
+exports[`contact sheet — pinned geometry (re-pin deliberately, review the sheet) X — three-way TD decision — equivalent branch spread 1`] = `
+{
+  "bounds": {
+    "h": 351,
+    "w": 353,
+  },
+  "edges": [
+    {
+      "from": "Q",
+      "id": "Q->L",
+      "label": {
+        "text": "left",
+        "x": 143,
+        "y": 169,
+      },
+      "path": [
+        [
+          143,
+          128,
+        ],
+        [
+          143,
+          210,
+        ],
+        [
+          64,
+          210,
+        ],
+        [
+          64,
+          262,
+        ],
+      ],
+      "to": "L",
+    },
+    {
+      "from": "Q",
+      "id": "Q->M",
+      "label": {
+        "text": "middle",
+        "x": 173,
+        "y": 210,
+      },
+      "path": [
+        [
+          173,
+          158,
+        ],
+        [
+          173,
+          262,
+        ],
+      ],
+      "to": "M",
+    },
+    {
+      "from": "Q",
+      "id": "Q->R",
+      "label": {
+        "text": "right",
+        "x": 202,
+        "y": 169,
+      },
+      "path": [
+        [
+          202,
+          128,
+        ],
+        [
+          202,
+          210,
+        ],
+        [
+          282,
+          210,
+        ],
+        [
+          282,
+          262,
+        ],
+      ],
+      "to": "R",
+    },
+  ],
+  "groups": [],
+  "kind": "flowchart",
+  "nodes": [
+    {
+      "h": 118,
+      "id": "Q",
+      "label": "Decision",
+      "shape": "diamond",
+      "w": 118,
+      "x": 114,
+      "y": 40,
+    },
+    {
+      "h": 37,
+      "id": "L",
+      "label": "Left",
+      "shape": "rectangle",
+      "w": 81,
+      "x": 23,
+      "y": 262,
+    },
+    {
+      "h": 37,
+      "id": "M",
+      "label": "Middle",
+      "shape": "rectangle",
+      "w": 81,
+      "x": 132,
+      "y": 262,
+    },
+    {
+      "h": 37,
+      "id": "R",
+      "label": "Right",
+      "shape": "rectangle",
+      "w": 81,
+      "x": 241,
+      "y": 262,
+    },
+  ],
+  "version": 1,
+}
+`;
+
+exports[`contact sheet — pinned geometry (re-pin deliberately, review the sheet) Y — five-way fan-in — centered high-degree hub 1`] = `
+{
+  "bounds": {
+    "h": 287,
+    "w": 700,
+  },
+  "edges": [
+    {
+      "from": "Web",
+      "id": "Web->Gateway",
+      "label": undefined,
+      "path": [
+        [
+          95,
+          89,
+        ],
+        [
+          95,
+          107,
+        ],
+        [
+          365,
+          107,
+        ],
+        [
+          365,
+          125,
+        ],
+      ],
+      "to": "Gateway",
+    },
+    {
+      "from": "Mobile",
+      "id": "Mobile->Gateway",
+      "label": undefined,
+      "path": [
+        [
+          230,
+          89,
+        ],
+        [
+          230,
+          107,
+        ],
+        [
+          365,
+          107,
+        ],
+        [
+          365,
+          125,
+        ],
+      ],
+      "to": "Gateway",
+    },
+    {
+      "from": "CLI",
+      "id": "CLI->Gateway",
+      "label": undefined,
+      "path": [
+        [
+          365,
+          89,
+        ],
+        [
+          365,
+          125,
+        ],
+      ],
+      "to": "Gateway",
+    },
+    {
+      "from": "Partner",
+      "id": "Partner->Gateway",
+      "label": undefined,
+      "path": [
+        [
+          500,
+          89,
+        ],
+        [
+          500,
+          107,
+        ],
+        [
+          365,
+          107,
+        ],
+        [
+          365,
+          125,
+        ],
+      ],
+      "to": "Gateway",
+    },
+    {
+      "from": "Cron",
+      "id": "Cron->Gateway",
+      "label": undefined,
+      "path": [
+        [
+          635,
+          89,
+        ],
+        [
+          635,
+          107,
+        ],
+        [
+          365,
+          107,
+        ],
+        [
+          365,
+          125,
+        ],
+      ],
+      "to": "Gateway",
+    },
+    {
+      "from": "Gateway",
+      "id": "Gateway->Auth",
+      "label": undefined,
+      "path": [
+        [
+          365,
+          162,
+        ],
+        [
+          365,
+          210,
+        ],
+      ],
+      "to": "Auth",
+    },
+  ],
+  "groups": [],
+  "kind": "flowchart",
+  "nodes": [
+    {
+      "h": 37,
+      "id": "Web",
+      "label": "Web App",
+      "shape": "rectangle",
+      "w": 111,
+      "x": 40,
+      "y": 52,
+    },
+    {
+      "h": 37,
+      "id": "Mobile",
+      "label": "Mobile App",
+      "shape": "rectangle",
+      "w": 111,
+      "x": 175,
+      "y": 52,
+    },
+    {
+      "h": 37,
+      "id": "CLI",
+      "label": "CLI Tool",
+      "shape": "rectangle",
+      "w": 111,
+      "x": 310,
+      "y": 52,
+    },
+    {
+      "h": 37,
+      "id": "Partner",
+      "label": "Partner API",
+      "shape": "rectangle",
+      "w": 111,
+      "x": 445,
+      "y": 52,
+    },
+    {
+      "h": 37,
+      "id": "Cron",
+      "label": "Cron Jobs",
+      "shape": "rectangle",
+      "w": 111,
+      "x": 579,
+      "y": 52,
+    },
+    {
+      "h": 37,
+      "id": "Gateway",
+      "label": "Gateway",
+      "shape": "rectangle",
+      "w": 92,
+      "x": 319,
+      "y": 125,
+    },
+    {
+      "h": 37,
+      "id": "Auth",
+      "label": "Auth Service",
+      "shape": "rectangle",
+      "w": 118,
+      "x": 306,
+      "y": 210,
+    },
+  ],
+  "version": 1,
+}
+`;
+
+exports[`contact sheet — pinned geometry (re-pin deliberately, review the sheet) Z — dispatcher 4-way fan-out — shared trunk, no box 1`] = `
+{
+  "bounds": {
+    "h": 202,
+    "w": 668,
+  },
+  "edges": [
+    {
+      "from": "Dispatcher",
+      "id": "Dispatcher->Email",
+      "label": undefined,
+      "path": [
+        [
+          321,
+          77,
+        ],
+        [
+          321,
+          95,
+        ],
+        [
+          112,
+          95,
+        ],
+        [
+          112,
+          113,
+        ],
+      ],
+      "to": "Email",
+    },
+    {
+      "from": "Dispatcher",
+      "id": "Dispatcher->SMS",
+      "label": undefined,
+      "path": [
+        [
+          321,
+          77,
+        ],
+        [
+          321,
+          95,
+        ],
+        [
+          281,
+          95,
+        ],
+        [
+          281,
+          113,
+        ],
+      ],
+      "to": "SMS",
+    },
+    {
+      "from": "Dispatcher",
+      "id": "Dispatcher->Push",
+      "label": undefined,
+      "path": [
+        [
+          321,
+          77,
+        ],
+        [
+          321,
+          95,
+        ],
+        [
+          450,
+          95,
+        ],
+        [
+          450,
+          113,
+        ],
+      ],
+      "to": "Push",
+    },
+    {
+      "from": "Dispatcher",
+      "id": "Dispatcher->Webhook",
+      "label": undefined,
+      "path": [
+        [
+          321,
+          77,
+        ],
+        [
+          321,
+          95,
+        ],
+        [
+          619,
+          95,
+        ],
+        [
+          619,
+          113,
+        ],
+      ],
+      "to": "Webhook",
+    },
+  ],
+  "groups": [],
+  "kind": "flowchart",
+  "nodes": [
+    {
+      "h": 37,
+      "id": "Dispatcher",
+      "label": "Dispatcher",
+      "shape": "rectangle",
+      "w": 107,
+      "x": 268,
+      "y": 40,
+    },
+    {
+      "h": 37,
+      "id": "Email",
+      "label": "Email Worker",
+      "shape": "rectangle",
+      "w": 145,
+      "x": 40,
+      "y": 113,
+    },
+    {
+      "h": 37,
+      "id": "SMS",
+      "label": "SMS Worker",
+      "shape": "rectangle",
+      "w": 145,
+      "x": 209,
+      "y": 113,
+    },
+    {
+      "h": 37,
+      "id": "Push",
+      "label": "Push Worker",
+      "shape": "rectangle",
+      "w": 145,
+      "x": 378,
+      "y": 113,
+    },
+    {
+      "h": 37,
+      "id": "Webhook",
+      "label": "Webhook Worker",
+      "shape": "rectangle",
+      "w": 145,
+      "x": 547,
+      "y": 113,
+    },
+  ],
+  "version": 1,
+}
+`;
+
+exports[`contact sheet — pinned geometry (re-pin deliberately, review the sheet) AA — LR fan-in + fan-out — symmetric hub treatment 1`] = `
+{
+  "bounds": {
+    "h": 247,
+    "w": 442,
+  },
+  "edges": [
+    {
+      "from": "A",
+      "id": "A->Q",
+      "label": undefined,
+      "path": [
+        [
+          141,
+          58,
+        ],
+        [
+          159,
+          58,
+        ],
+        [
+          159,
+          123,
+        ],
+        [
+          177,
+          123,
+        ],
+      ],
+      "to": "Q",
+    },
+    {
+      "from": "B",
+      "id": "B->Q",
+      "label": undefined,
+      "path": [
+        [
+          141,
+          123,
+        ],
+        [
+          177,
+          123,
+        ],
+      ],
+      "to": "Q",
+    },
+    {
+      "from": "C",
+      "id": "C->Q",
+      "label": undefined,
+      "path": [
+        [
+          141,
+          188,
+        ],
+        [
+          159,
+          188,
+        ],
+        [
+          159,
+          123,
+        ],
+        [
+          177,
+          123,
+        ],
+      ],
+      "to": "Q",
+    },
+    {
+      "from": "Q",
+      "id": "Q->W1",
+      "label": undefined,
+      "path": [
+        [
+          257,
+          114,
+        ],
+        [
+          275,
+          114,
+        ],
+        [
+          275,
+          58,
+        ],
+        [
+          293,
+          58,
+        ],
+      ],
+      "to": "W1",
+    },
+    {
+      "from": "Q",
+      "id": "Q->W2",
+      "label": undefined,
+      "path": [
+        [
+          257,
+          123,
+        ],
+        [
+          293,
+          123,
+        ],
+      ],
+      "to": "W2",
+    },
+    {
+      "from": "Q",
+      "id": "Q->W3",
+      "label": undefined,
+      "path": [
+        [
+          257,
+          133,
+        ],
+        [
+          275,
+          133,
+        ],
+        [
+          275,
+          188,
+        ],
+        [
+          293,
+          188,
+        ],
+      ],
+      "to": "W3",
+    },
+  ],
+  "groups": [],
+  "kind": "flowchart",
+  "nodes": [
+    {
+      "h": 37,
+      "id": "A",
+      "label": "Ingest A",
+      "shape": "rectangle",
+      "w": 89,
+      "x": 52,
+      "y": 40,
+    },
+    {
+      "h": 37,
+      "id": "B",
+      "label": "Ingest B",
+      "shape": "rectangle",
+      "w": 89,
+      "x": 52,
+      "y": 105,
+    },
+    {
+      "h": 37,
+      "id": "C",
+      "label": "Ingest C",
+      "shape": "rectangle",
+      "w": 89,
+      "x": 52,
+      "y": 170,
+    },
+    {
+      "h": 37,
+      "id": "Q",
+      "label": "Queue",
+      "shape": "rectangle",
+      "w": 80,
+      "x": 177,
+      "y": 105,
+    },
+    {
+      "h": 37,
+      "id": "W1",
+      "label": "Worker 1",
+      "shape": "rectangle",
+      "w": 97,
+      "x": 293,
+      "y": 40,
+    },
+    {
+      "h": 37,
+      "id": "W2",
+      "label": "Worker 2",
+      "shape": "rectangle",
+      "w": 97,
+      "x": 293,
+      "y": 105,
+    },
+    {
+      "h": 37,
+      "id": "W3",
+      "label": "Worker 3",
+      "shape": "rectangle",
+      "w": 97,
+      "x": 293,
+      "y": 170,
+    },
+  ],
+  "version": 1,
+}
+`;
+
+exports[`contact sheet — pinned geometry (re-pin deliberately, review the sheet) AB — labeled TD fan-out — labels remain route-owned 1`] = `
+{
+  "bounds": {
+    "h": 270,
+    "w": 480,
+  },
+  "edges": [
+    {
+      "from": "Src",
+      "id": "Src->Left",
+      "label": {
+        "text": "left*",
+        "x": 150,
+        "y": 129,
+      },
+      "path": [
+        [
+          215,
+          77,
+        ],
+        [
+          215,
+          129,
+        ],
+        [
+          84,
+          129,
+        ],
+        [
+          84,
+          181,
+        ],
+      ],
+      "to": "Left",
+    },
+    {
+      "from": "Src",
+      "id": "Src->Center",
+      "label": {
+        "text": "center*",
+        "x": 237,
+        "y": 129,
+      },
+      "path": [
+        [
+          237,
+          77,
+        ],
+        [
+          237,
+          181,
+        ],
+      ],
+      "to": "Center",
+    },
+    {
+      "from": "Src",
+      "id": "Src->Right",
+      "label": {
+        "text": "right*",
+        "x": 323,
+        "y": 129,
+      },
+      "path": [
+        [
+          258,
+          77,
+        ],
+        [
+          258,
+          129,
+        ],
+        [
+          389,
+          129,
+        ],
+        [
+          389,
+          181,
+        ],
+      ],
+      "to": "Right",
+    },
+  ],
+  "groups": [],
+  "kind": "flowchart",
+  "nodes": [
+    {
+      "h": 37,
+      "id": "Src",
+      "label": "Source",
+      "shape": "rectangle",
+      "w": 86,
+      "x": 193,
+      "y": 40,
+    },
+    {
+      "h": 37,
+      "id": "Left",
+      "label": "Left Target",
+      "shape": "rectangle",
+      "w": 124,
+      "x": 22,
+      "y": 181,
+    },
+    {
+      "h": 37,
+      "id": "Center",
+      "label": "Center Target",
+      "shape": "rectangle",
+      "w": 124,
+      "x": 174,
+      "y": 181,
+    },
+    {
+      "h": 37,
+      "id": "Right",
+      "label": "Right Target",
+      "shape": "rectangle",
+      "w": 124,
+      "x": 327,
+      "y": 181,
+    },
+  ],
+  "version": 1,
+}
+`;
+
+exports[`contact sheet — pinned geometry (re-pin deliberately, review the sheet) AC — &-declared fan-out — compact syntax symmetry 1`] = `
+{
+  "bounds": {
+    "h": 202,
+    "w": 316,
+  },
+  "edges": [
+    {
+      "from": "A",
+      "id": "A->B",
+      "label": undefined,
+      "path": [
+        [
+          143,
+          77,
+        ],
+        [
+          143,
+          95,
+        ],
+        [
+          70,
+          95,
+        ],
+        [
+          70,
+          113,
+        ],
+      ],
+      "to": "B",
+    },
+    {
+      "from": "A",
+      "id": "A->C",
+      "label": undefined,
+      "path": [
+        [
+          158,
+          77,
+        ],
+        [
+          158,
+          113,
+        ],
+      ],
+      "to": "C",
+    },
+    {
+      "from": "A",
+      "id": "A->D",
+      "label": undefined,
+      "path": [
+        [
+          173,
+          77,
+        ],
+        [
+          173,
+          95,
+        ],
+        [
+          246,
+          95,
+        ],
+        [
+          246,
+          113,
+        ],
+      ],
+      "to": "D",
+    },
+  ],
+  "groups": [],
+  "kind": "flowchart",
+  "nodes": [
+    {
+      "h": 37,
+      "id": "A",
+      "label": "A",
+      "shape": "rectangle",
+      "w": 60,
+      "x": 128,
+      "y": 40,
+    },
+    {
+      "h": 37,
+      "id": "B",
+      "label": "B",
+      "shape": "rectangle",
+      "w": 60,
+      "x": 40,
+      "y": 113,
+    },
+    {
+      "h": 37,
+      "id": "C",
+      "label": "C",
+      "shape": "rectangle",
+      "w": 60,
+      "x": 128,
+      "y": 113,
+    },
+    {
+      "h": 37,
+      "id": "D",
+      "label": "D",
+      "shape": "rectangle",
+      "w": 60,
+      "x": 216,
+      "y": 113,
+    },
+  ],
+  "version": 1,
+}
+`;
+
+exports[`contact sheet — pinned geometry (re-pin deliberately, review the sheet) AD — diamond fan-out TD — symmetric doglegs 1`] = `
+{
+  "bounds": {
+    "h": 341,
+    "w": 247,
+  },
+  "edges": [
+    {
+      "from": "Q",
+      "id": "Q->P",
+      "label": {
+        "text": "a",
+        "x": 93,
+        "y": 163,
+      },
+      "path": [
+        [
+          93,
+          121,
+        ],
+        [
+          93,
+          206,
+        ],
+        [
+          72,
+          206,
+        ],
+        [
+          72,
+          264,
+        ],
+      ],
+      "to": "P",
+    },
+    {
+      "from": "Q",
+      "id": "Q->R",
+      "label": {
+        "text": "b",
+        "x": 147,
+        "y": 163,
+      },
+      "path": [
+        [
+          147,
+          121,
+        ],
+        [
+          147,
+          206,
+        ],
+        [
+          168,
+          206,
+        ],
+        [
+          168,
+          264,
+        ],
+      ],
+      "to": "R",
+    },
+  ],
+  "groups": [],
+  "kind": "flowchart",
+  "nodes": [
+    {
+      "h": 107,
+      "id": "Q",
+      "label": "Decide",
+      "shape": "diamond",
+      "w": 107,
+      "x": 66,
+      "y": 40,
+    },
+    {
+      "h": 37,
+      "id": "P",
+      "label": "One",
+      "shape": "rectangle",
+      "w": 67,
+      "x": 39,
+      "y": 264,
+    },
+    {
+      "h": 37,
+      "id": "R",
+      "label": "Two",
+      "shape": "rectangle",
+      "w": 67,
+      "x": 134,
+      "y": 264,
+    },
+  ],
+  "version": 1,
+}
+`;
+
+exports[`contact sheet — pinned geometry (re-pin deliberately, review the sheet) AE — sibling source fan-out — source-side symmetry 1`] = `
+{
+  "bounds": {
+    "h": 270,
+    "w": 480,
+  },
+  "edges": [
+    {
+      "from": "Src",
+      "id": "Src->Left",
+      "label": {
+        "text": "left*",
+        "x": 150,
+        "y": 129,
+      },
+      "path": [
+        [
+          215,
+          77,
+        ],
+        [
+          215,
+          129,
+        ],
+        [
+          84,
+          129,
+        ],
+        [
+          84,
+          181,
+        ],
+      ],
+      "to": "Left",
+    },
+    {
+      "from": "Src",
+      "id": "Src->Center",
+      "label": {
+        "text": "center*",
+        "x": 237,
+        "y": 129,
+      },
+      "path": [
+        [
+          237,
+          77,
+        ],
+        [
+          237,
+          181,
+        ],
+      ],
+      "to": "Center",
+    },
+    {
+      "from": "Src",
+      "id": "Src->Right",
+      "label": {
+        "text": "right*",
+        "x": 323,
+        "y": 129,
+      },
+      "path": [
+        [
+          258,
+          77,
+        ],
+        [
+          258,
+          129,
+        ],
+        [
+          389,
+          129,
+        ],
+        [
+          389,
+          181,
+        ],
+      ],
+      "to": "Right",
+    },
+  ],
+  "groups": [],
+  "kind": "flowchart",
+  "nodes": [
+    {
+      "h": 37,
+      "id": "Src",
+      "label": "Source",
+      "shape": "rectangle",
+      "w": 86,
+      "x": 193,
+      "y": 40,
+    },
+    {
+      "h": 37,
+      "id": "Left",
+      "label": "Left Target",
+      "shape": "rectangle",
+      "w": 124,
+      "x": 22,
+      "y": 181,
+    },
+    {
+      "h": 37,
+      "id": "Center",
+      "label": "Center Target",
+      "shape": "rectangle",
+      "w": 124,
+      "x": 174,
+      "y": 181,
+    },
+    {
+      "h": 37,
+      "id": "Right",
+      "label": "Right Target",
+      "shape": "rectangle",
+      "w": 124,
+      "x": 327,
+      "y": 181,
+    },
+  ],
+  "version": 1,
+}
+`;
+
+exports[`contact sheet — pinned geometry (re-pin deliberately, review the sheet) AF — labeled LR fan-out connector — no detached labels 1`] = `
+{
+  "bounds": {
+    "h": 248,
+    "w": 417,
+  },
+  "edges": [
+    {
+      "from": "Src",
+      "id": "Src->Top",
+      "label": {
+        "text": "top*",
+        "x": 212,
+        "y": 58,
+      },
+      "path": [
+        [
+          126,
+          114,
+        ],
+        [
+          184,
+          114,
+        ],
+        [
+          184,
+          58,
+        ],
+        [
+          241,
+          58,
+        ],
+      ],
+      "to": "Top",
+    },
+    {
+      "from": "Src",
+      "id": "Src->Mid",
+      "label": {
+        "text": "mid*",
+        "x": 184,
+        "y": 123,
+      },
+      "path": [
+        [
+          126,
+          123,
+        ],
+        [
+          241,
+          123,
+        ],
+      ],
+      "to": "Mid",
+    },
+    {
+      "from": "Src",
+      "id": "Src->Bot",
+      "label": {
+        "text": "bot*",
+        "x": 212,
+        "y": 188,
+      },
+      "path": [
+        [
+          126,
+          133,
+        ],
+        [
+          184,
+          133,
+        ],
+        [
+          184,
+          188,
+        ],
+        [
+          241,
+          188,
+        ],
+      ],
+      "to": "Bot",
+    },
+  ],
+  "groups": [],
+  "kind": "flowchart",
+  "nodes": [
+    {
+      "h": 37,
+      "id": "Src",
+      "label": "Source",
+      "shape": "rectangle",
+      "w": 86,
+      "x": 40,
+      "y": 105,
+    },
+    {
+      "h": 37,
+      "id": "Top",
+      "label": "Top Target",
+      "shape": "rectangle",
+      "w": 123,
+      "x": 241,
+      "y": 40,
+    },
+    {
+      "h": 37,
+      "id": "Mid",
+      "label": "Middle Target",
+      "shape": "rectangle",
+      "w": 123,
+      "x": 241,
+      "y": 105,
+    },
+    {
+      "h": 37,
+      "id": "Bot",
+      "label": "Bottom Target",
+      "shape": "rectangle",
+      "w": 123,
+      "x": 241,
+      "y": 170,
+    },
+  ],
+  "version": 1,
+}
+`;
+
+exports[`contact sheet — pinned geometry (re-pin deliberately, review the sheet) AG — fan-in/fan-out corridor reuse — reciprocal hub symmetry 1`] = `
+{
+  "bounds": {
+    "h": 182,
+    "w": 356,
+  },
+  "edges": [
+    {
+      "from": "A",
+      "id": "A->C",
+      "label": undefined,
+      "path": [
+        [
+          100,
+          58,
+        ],
+        [
+          148,
+          58,
+        ],
+      ],
+      "to": "C",
+    },
+    {
+      "from": "B",
+      "id": "B->C",
+      "label": undefined,
+      "path": [
+        [
+          100,
+          123,
+        ],
+        [
+          124,
+          123,
+        ],
+        [
+          124,
+          58,
+        ],
+        [
+          148,
+          58,
+        ],
+      ],
+      "to": "C",
+    },
+    {
+      "from": "C",
+      "id": "C->D",
+      "label": undefined,
+      "path": [
+        [
+          208,
+          52,
+        ],
+        [
+          232,
+          52,
+        ],
+        [
+          232,
+          26,
+        ],
+        [
+          256,
+          26,
+        ],
+      ],
+      "to": "D",
+    },
+    {
+      "from": "C",
+      "id": "C->E",
+      "label": undefined,
+      "path": [
+        [
+          208,
+          65,
+        ],
+        [
+          232,
+          65,
+        ],
+        [
+          232,
+          91,
+        ],
+        [
+          256,
+          91,
+        ],
+      ],
+      "to": "E",
+    },
+  ],
+  "groups": [],
+  "kind": "flowchart",
+  "nodes": [
+    {
+      "h": 37,
+      "id": "A",
+      "label": "A",
+      "shape": "rectangle",
+      "w": 60,
+      "x": 40,
+      "y": 40,
+    },
+    {
+      "h": 37,
+      "id": "B",
+      "label": "B",
+      "shape": "rectangle",
+      "w": 60,
+      "x": 40,
+      "y": 105,
+    },
+    {
+      "h": 37,
+      "id": "C",
+      "label": "C",
+      "shape": "rectangle",
+      "w": 60,
+      "x": 148,
+      "y": 40,
+    },
+    {
+      "h": 37,
+      "id": "D",
+      "label": "D",
+      "shape": "rectangle",
+      "w": 60,
+      "x": 256,
+      "y": 8,
+    },
+    {
+      "h": 37,
+      "id": "E",
+      "label": "E",
+      "shape": "rectangle",
+      "w": 60,
+      "x": 256,
+      "y": 72,
+    },
+  ],
+  "version": 1,
+}
+`;
+
+exports[`contact sheet — pinned geometry (re-pin deliberately, review the sheet) AH — target-aware fan-in grouping — repeated peers 1`] = `
+{
+  "bounds": {
+    "h": 263,
+    "w": 404,
+  },
+  "edges": [
+    {
+      "from": "A1",
+      "id": "A1->A",
+      "label": undefined,
+      "path": [
+        [
+          70,
+          77,
+        ],
+        [
+          70,
+          101,
+        ],
+        [
+          114,
+          101,
+        ],
+        [
+          114,
+          125,
+        ],
+      ],
+      "to": "A",
+    },
+    {
+      "from": "A2",
+      "id": "A2->A",
+      "label": undefined,
+      "path": [
+        [
+          158,
+          77,
+        ],
+        [
+          158,
+          101,
+        ],
+        [
+          114,
+          101,
+        ],
+        [
+          114,
+          125,
+        ],
+      ],
+      "to": "A",
+    },
+    {
+      "from": "B1",
+      "id": "B1->B",
+      "label": undefined,
+      "path": [
+        [
+          246,
+          77,
+        ],
+        [
+          246,
+          101,
+        ],
+        [
+          290,
+          101,
+        ],
+        [
+          290,
+          125,
+        ],
+      ],
+      "to": "B",
+    },
+    {
+      "from": "B2",
+      "id": "B2->B",
+      "label": undefined,
+      "path": [
+        [
+          334,
+          77,
+        ],
+        [
+          334,
+          101,
+        ],
+        [
+          290,
+          101,
+        ],
+        [
+          290,
+          125,
+        ],
+      ],
+      "to": "B",
+    },
+    {
+      "from": "A",
+      "id": "A->C",
+      "label": undefined,
+      "path": [
+        [
+          114,
+          162,
+        ],
+        [
+          114,
+          174,
+        ],
+        [
+          202,
+          174,
+        ],
+        [
+          202,
+          186,
+        ],
+      ],
+      "to": "C",
+    },
+    {
+      "from": "B",
+      "id": "B->C",
+      "label": undefined,
+      "path": [
+        [
+          290,
+          162,
+        ],
+        [
+          290,
+          174,
+        ],
+        [
+          202,
+          174,
+        ],
+        [
+          202,
+          186,
+        ],
+      ],
+      "to": "C",
+    },
+  ],
+  "groups": [],
+  "kind": "flowchart",
+  "nodes": [
+    {
+      "h": 37,
+      "id": "A1",
+      "label": "A1",
+      "shape": "rectangle",
+      "w": 60,
+      "x": 40,
+      "y": 40,
+    },
+    {
+      "h": 37,
+      "id": "A2",
+      "label": "A2",
+      "shape": "rectangle",
+      "w": 60,
+      "x": 128,
+      "y": 40,
+    },
+    {
+      "h": 37,
+      "id": "A",
+      "label": "A",
+      "shape": "rectangle",
+      "w": 60,
+      "x": 84,
+      "y": 125,
+    },
+    {
+      "h": 37,
+      "id": "B1",
+      "label": "B1",
+      "shape": "rectangle",
+      "w": 60,
+      "x": 216,
+      "y": 40,
+    },
+    {
+      "h": 37,
+      "id": "B2",
+      "label": "B2",
+      "shape": "rectangle",
+      "w": 60,
+      "x": 304,
+      "y": 40,
+    },
+    {
+      "h": 37,
+      "id": "B",
+      "label": "B",
+      "shape": "rectangle",
+      "w": 60,
+      "x": 260,
+      "y": 125,
+    },
+    {
+      "h": 37,
+      "id": "C",
+      "label": "C",
+      "shape": "rectangle",
+      "w": 60,
+      "x": 172,
+      "y": 186,
+    },
+  ],
+  "version": 1,
+}
+`;
+
+exports[`contact sheet — pinned geometry (re-pin deliberately, review the sheet) AI — dense TD bundles — equal peers + owned chain 1`] = `
+{
+  "bounds": {
+    "h": 682,
+    "w": 877,
+  },
+  "edges": [
+    {
+      "from": "A",
+      "id": "A->C",
+      "label": undefined,
+      "path": [
+        [
+          213,
+          196,
+        ],
+        [
+          213,
+          208,
+        ],
+        [
+          464,
+          208,
+        ],
+        [
+          464,
+          220,
+        ],
+      ],
+      "to": "C",
+    },
+    {
+      "from": "B",
+      "id": "B->C",
+      "label": undefined,
+      "path": [
+        [
+          715,
+          196,
+        ],
+        [
+          715,
+          208,
+        ],
+        [
+          464,
+          208,
+        ],
+        [
+          464,
+          220,
+        ],
+      ],
+      "to": "C",
+    },
+    {
+      "from": "C",
+      "id": "C->D",
+      "label": undefined,
+      "path": [
+        [
+          464,
+          257,
+        ],
+        [
+          464,
+          305,
+        ],
+      ],
+      "to": "D",
+    },
+    {
+      "from": "D",
+      "id": "D->E",
+      "label": undefined,
+      "path": [
+        [
+          464,
+          341,
+        ],
+        [
+          464,
+          365,
+        ],
+        [
+          410,
+          365,
+        ],
+        [
+          410,
+          435,
+        ],
+      ],
+      "to": "E",
+    },
+    {
+      "from": "A1",
+      "id": "A1->A",
+      "label": undefined,
+      "path": [
+        [
+          92,
+          114,
+        ],
+        [
+          92,
+          128,
+        ],
+        [
+          213,
+          128,
+        ],
+        [
+          213,
+          142,
+        ],
+      ],
+      "to": "A",
+    },
+    {
+      "from": "A2",
+      "id": "A2->A",
+      "label": undefined,
+      "path": [
+        [
+          221,
+          114,
+        ],
+        [
+          221,
+          128,
+        ],
+        [
+          213,
+          128,
+        ],
+        [
+          213,
+          142,
+        ],
+      ],
+      "to": "A",
+    },
+    {
+      "from": "A3",
+      "id": "A3->A",
+      "label": undefined,
+      "path": [
+        [
+          350,
+          114,
+        ],
+        [
+          350,
+          128,
+        ],
+        [
+          213,
+          128,
+        ],
+        [
+          213,
+          142,
+        ],
+      ],
+      "to": "A",
+    },
+    {
+      "from": "A4",
+      "id": "A4->A",
+      "label": undefined,
+      "path": [
+        [
+          479,
+          114,
+        ],
+        [
+          479,
+          128,
+        ],
+        [
+          213,
+          128,
+        ],
+        [
+          213,
+          142,
+        ],
+      ],
+      "to": "A",
+    },
+    {
+      "from": "B1",
+      "id": "B1->B",
+      "label": undefined,
+      "path": [
+        [
+          601,
+          114,
+        ],
+        [
+          601,
+          128,
+        ],
+        [
+          715,
+          128,
+        ],
+        [
+          715,
+          142,
+        ],
+      ],
+      "to": "B",
+    },
+    {
+      "from": "B2",
+      "id": "B2->B",
+      "label": undefined,
+      "path": [
+        [
+          715,
+          114,
+        ],
+        [
+          715,
+          142,
+        ],
+      ],
+      "to": "B",
+    },
+    {
+      "from": "B3",
+      "id": "B3->B",
+      "label": undefined,
+      "path": [
+        [
+          829,
+          114,
+        ],
+        [
+          829,
+          128,
+        ],
+        [
+          715,
+          128,
+        ],
+        [
+          715,
+          142,
+        ],
+      ],
+      "to": "B",
+    },
+    {
+      "from": "D",
+      "id": "D->F",
+      "label": undefined,
+      "path": [
+        [
+          464,
+          341,
+        ],
+        [
+          464,
+          365,
+        ],
+        [
+          518,
+          365,
+        ],
+        [
+          518,
+          389,
+        ],
+      ],
+      "to": "F",
+    },
+    {
+      "from": "F",
+      "id": "F->G",
+      "label": {
+        "text": "Yes",
+        "x": 497,
+        "y": 490,
+      },
+      "path": [
+        [
+          497,
+          451,
+        ],
+        [
+          497,
+          530,
+        ],
+        [
+          454,
+          530,
+        ],
+        [
+          454,
+          588,
+        ],
+      ],
+      "to": "G",
+    },
+    {
+      "from": "F",
+      "id": "F->H",
+      "label": {
+        "text": "No",
+        "x": 538,
+        "y": 490,
+      },
+      "path": [
+        [
+          538,
+          451,
+        ],
+        [
+          538,
+          530,
+        ],
+        [
+          581,
+          530,
+        ],
+        [
+          581,
+          588,
+        ],
+      ],
+      "to": "H",
+    },
+  ],
+  "groups": [],
+  "kind": "flowchart",
+  "nodes": [
+    {
+      "h": 54,
+      "id": "A1",
+      "label": "1 / 2",
+      "shape": "rectangle",
+      "w": 105,
+      "x": 40,
+      "y": 60,
+    },
+    {
+      "h": 54,
+      "id": "A2",
+      "label": "3 / 4",
+      "shape": "rectangle",
+      "w": 105,
+      "x": 169,
+      "y": 60,
+    },
+    {
+      "h": 54,
+      "id": "A3",
+      "label": "5 / 6",
+      "shape": "rectangle",
+      "w": 105,
+      "x": 298,
+      "y": 60,
+    },
+    {
+      "h": 54,
+      "id": "A4",
+      "label": "XXX\\n(YYY ZZZ)",
+      "shape": "rectangle",
+      "w": 105,
+      "x": 427,
+      "y": 60,
+    },
+    {
+      "h": 54,
+      "id": "A",
+      "label": "AAA\\n(keita)",
+      "shape": "rectangle",
+      "w": 88,
+      "x": 169,
+      "y": 142,
+    },
+    {
+      "h": 54,
+      "id": "B1",
+      "label": "77 77\\n(7 / 7 / 7)",
+      "shape": "rectangle",
+      "w": 90,
+      "x": 556,
+      "y": 60,
+    },
+    {
+      "h": 54,
+      "id": "B2",
+      "label": "88-88\\n(99 99)",
+      "shape": "rectangle",
+      "w": 90,
+      "x": 670,
+      "y": 60,
+    },
+    {
+      "h": 54,
+      "id": "B3",
+      "label": "111s 222s",
+      "shape": "rectangle",
+      "w": 90,
+      "x": 784,
+      "y": 60,
+    },
+    {
+      "h": 54,
+      "id": "B",
+      "label": "BBB\\n(yuriko)",
+      "shape": "rectangle",
+      "w": 88,
+      "x": 671,
+      "y": 142,
+    },
+    {
+      "h": 37,
+      "id": "C",
+      "label": "CCC",
+      "shape": "rectangle",
+      "w": 69,
+      "x": 429,
+      "y": 220,
+    },
+    {
+      "h": 37,
+      "id": "D",
+      "label": "DDDD",
+      "shape": "rectangle",
+      "w": 78,
+      "x": 425,
+      "y": 305,
+    },
+    {
+      "h": 37,
+      "id": "E",
+      "label": "EEEE",
+      "shape": "rectangle",
+      "w": 78,
+      "x": 371,
+      "y": 435,
+    },
+    {
+      "h": 82,
+      "id": "F",
+      "label": "F?",
+      "shape": "diamond",
+      "w": 82,
+      "x": 477,
+      "y": 389,
+    },
+    {
+      "h": 54,
+      "id": "G",
+      "label": "High level\\nTr",
+      "shape": "rectangle",
+      "w": 99,
+      "x": 405,
+      "y": 588,
+    },
+    {
+      "h": 54,
+      "id": "H",
+      "label": "Dumb Tr\\nS",
+      "shape": "rectangle",
+      "w": 99,
+      "x": 532,
+      "y": 588,
+    },
+  ],
+  "version": 1,
+}
+`;
+
+exports[`contact sheet — pinned geometry (re-pin deliberately, review the sheet) AJ — dense overlapping-curve pattern — symmetric parallel labels 1`] = `
+{
+  "bounds": {
+    "h": 859,
+    "w": 405,
+  },
+  "edges": [
+    {
+      "from": "Z",
+      "id": "Z->A",
+      "label": {
+        "text": "long 1",
+        "x": 91,
+        "y": 135,
+      },
+      "path": [
+        [
+          165,
+          77,
+        ],
+        [
+          165,
+          98,
+        ],
+        [
+          91,
+          98,
+        ],
+        [
+          91,
+          172,
+        ],
+        [
+          158,
+          172,
+        ],
+        [
+          158,
+          193,
+        ],
+      ],
+      "to": "A",
+    },
+    {
+      "from": "Z",
+      "id": "Z->A",
+      "label": {
+        "text": "long 2",
+        "x": 252,
+        "y": 135,
+      },
+      "path": [
+        [
+          188,
+          77,
+        ],
+        [
+          188,
+          98,
+        ],
+        [
+          252,
+          98,
+        ],
+        [
+          252,
+          172,
+        ],
+        [
+          183,
+          172,
+        ],
+        [
+          183,
+          193,
+        ],
+      ],
+      "to": "A",
+    },
+    {
+      "from": "A",
+      "id": "A->B",
+      "label": {
+        "text": "3",
+        "x": 163,
+        "y": 249,
+      },
+      "path": [
+        [
+          163,
+          230,
+        ],
+        [
+          163,
+          346,
+        ],
+      ],
+      "to": "B",
+    },
+    {
+      "from": "A",
+      "id": "A->B",
+      "label": {
+        "text": "4",
+        "x": 183,
+        "y": 288,
+      },
+      "path": [
+        [
+          183,
+          230,
+        ],
+        [
+          183,
+          346,
+        ],
+      ],
+      "to": "B",
+    },
+    {
+      "from": "B",
+      "id": "B->C",
+      "label": {
+        "text": "5",
+        "x": 198,
+        "y": 429,
+      },
+      "path": [
+        [
+          198,
+          383,
+        ],
+        [
+          198,
+          476,
+        ],
+      ],
+      "to": "C",
+    },
+    {
+      "from": "B",
+      "id": "B->D",
+      "label": {
+        "text": "6",
+        "x": 125,
+        "y": 571,
+      },
+      "path": [
+        [
+          170,
+          383,
+        ],
+        [
+          170,
+          476,
+        ],
+        [
+          125,
+          476,
+        ],
+        [
+          125,
+          617,
+        ],
+        [
+          156,
+          617,
+        ],
+        [
+          156,
+          629,
+        ],
+      ],
+      "to": "D",
+    },
+    {
+      "from": "C",
+      "id": "C->D",
+      "label": {
+        "text": "7",
+        "x": 197,
+        "y": 571,
+      },
+      "path": [
+        [
+          197,
+          513,
+        ],
+        [
+          197,
+          629,
+        ],
+      ],
+      "to": "D",
+    },
+    {
+      "from": "D",
+      "id": "D->E",
+      "label": {
+        "text": "8",
+        "x": 168,
+        "y": 724,
+      },
+      "path": [
+        [
+          168,
+          666,
+        ],
+        [
+          168,
+          782,
+        ],
+      ],
+      "to": "E",
+    },
+    {
+      "from": "B",
+      "id": "B->A",
+      "label": {
+        "text": "9",
+        "x": 145,
+        "y": 288,
+      },
+      "path": [
+        [
+          145,
+          346,
+        ],
+        [
+          145,
+          230,
+        ],
+      ],
+      "to": "A",
+    },
+    {
+      "from": "C",
+      "id": "C->A",
+      "label": {
+        "text": "10",
+        "x": 285,
+        "y": 417,
+      },
+      "path": [
+        [
+          253,
+          513,
+        ],
+        [
+          253,
+          525,
+        ],
+        [
+          285,
+          525,
+        ],
+        [
+          285,
+          181,
+        ],
+        [
+          196,
+          181,
+        ],
+        [
+          196,
+          193,
+        ],
+      ],
+      "to": "A",
+    },
+    {
+      "from": "D",
+      "id": "D->A",
+      "label": {
+        "text": "11",
+        "x": 47,
+        "y": 704,
+      },
+      "path": [
+        [
+          168,
+          666,
+        ],
+        [
+          168,
+          770,
+        ],
+        [
+          48,
+          770,
+        ],
+        [
+          48,
+          212,
+        ],
+        [
+          132,
+          212,
+        ],
+      ],
+      "to": "A",
+    },
+    {
+      "from": "B",
+      "id": "B->B",
+      "label": {
+        "text": "12",
+        "x": 115,
+        "y": 365,
+      },
+      "path": [
+        [
+          136,
+          359,
+        ],
+        [
+          126,
+          359,
+        ],
+        [
+          126,
+          371,
+        ],
+        [
+          136,
+          371,
+        ],
+      ],
+      "to": "B",
+    },
+    {
+      "from": "C",
+      "id": "C->B",
+      "label": {
+        "text": "13",
+        "x": 305,
+        "y": 514,
+      },
+      "path": [
+        [
+          232,
+          513,
+        ],
+        [
+          232,
+          537,
+        ],
+        [
+          305,
+          537,
+        ],
+        [
+          305,
+          334,
+        ],
+        [
+          191,
+          334,
+        ],
+        [
+          191,
+          346,
+        ],
+      ],
+      "to": "B",
+    },
+    {
+      "from": "D",
+      "id": "D->B",
+      "label": {
+        "text": "14",
+        "x": 67,
+        "y": 736,
+      },
+      "path": [
+        [
+          150,
+          666,
+        ],
+        [
+          150,
+          758,
+        ],
+        [
+          68,
+          758,
+        ],
+        [
+          68,
+          347,
+        ],
+        [
+          150,
+          347,
+        ],
+        [
+          150,
+          346,
+        ],
+      ],
+      "to": "B",
+    },
+    {
+      "from": "C",
+      "id": "C->C",
+      "label": {
+        "text": "18",
+        "x": 170,
+        "y": 494,
+      },
+      "path": [
+        [
+          191,
+          488,
+        ],
+        [
+          181,
+          488,
+        ],
+        [
+          181,
+          500,
+        ],
+        [
+          191,
+          500,
+        ],
+      ],
+      "to": "C",
+    },
+    {
+      "from": "D",
+      "id": "D->D",
+      "label": {
+        "text": "21",
+        "x": 112,
+        "y": 647,
+      },
+      "path": [
+        [
+          133,
+          641,
+        ],
+        [
+          123,
+          641,
+        ],
+        [
+          123,
+          653,
+        ],
+        [
+          133,
+          653,
+        ],
+      ],
+      "to": "D",
+    },
+  ],
+  "groups": [],
+  "kind": "flowchart",
+  "nodes": [
+    {
+      "h": 37,
+      "id": "Z",
+      "label": "Start",
+      "shape": "rectangle",
+      "w": 70,
+      "x": 141,
+      "y": 40,
+    },
+    {
+      "h": 37,
+      "id": "A",
+      "label": "Alpha",
+      "shape": "rectangle",
+      "w": 76,
+      "x": 132,
+      "y": 193,
+    },
+    {
+      "h": 37,
+      "id": "B",
+      "label": "Beta",
+      "shape": "rectangle",
+      "w": 69,
+      "x": 136,
+      "y": 346,
+    },
+    {
+      "h": 37,
+      "id": "C",
+      "label": "Gamma",
+      "shape": "rectangle",
+      "w": 83,
+      "x": 191,
+      "y": 476,
+    },
+    {
+      "h": 37,
+      "id": "D",
+      "label": "Delta",
+      "shape": "rectangle",
+      "w": 72,
+      "x": 133,
+      "y": 629,
+    },
+    {
+      "h": 37,
+      "id": "E",
+      "label": "End",
+      "shape": "rectangle",
+      "w": 66,
+      "x": 136,
+      "y": 782,
+    },
+  ],
+  "version": 1,
+}
+`;
+
+exports[`contact sheet — pinned geometry (re-pin deliberately, review the sheet) AK — equivalent peer fan-in groups 1`] = `
+{
+  "bounds": {
+    "h": 202,
+    "w": 404,
+  },
+  "edges": [
+    {
+      "from": "A1",
+      "id": "A1->A",
+      "label": undefined,
+      "path": [
+        [
+          70,
+          77,
+        ],
+        [
+          70,
+          101,
+        ],
+        [
+          114,
+          101,
+        ],
+        [
+          114,
+          125,
+        ],
+      ],
+      "to": "A",
+    },
+    {
+      "from": "A2",
+      "id": "A2->A",
+      "label": undefined,
+      "path": [
+        [
+          158,
+          77,
+        ],
+        [
+          158,
+          101,
+        ],
+        [
+          114,
+          101,
+        ],
+        [
+          114,
+          125,
+        ],
+      ],
+      "to": "A",
+    },
+    {
+      "from": "B1",
+      "id": "B1->B",
+      "label": undefined,
+      "path": [
+        [
+          246,
+          77,
+        ],
+        [
+          246,
+          101,
+        ],
+        [
+          290,
+          101,
+        ],
+        [
+          290,
+          125,
+        ],
+      ],
+      "to": "B",
+    },
+    {
+      "from": "B2",
+      "id": "B2->B",
+      "label": undefined,
+      "path": [
+        [
+          334,
+          77,
+        ],
+        [
+          334,
+          101,
+        ],
+        [
+          290,
+          101,
+        ],
+        [
+          290,
+          125,
+        ],
+      ],
+      "to": "B",
+    },
+  ],
+  "groups": [],
+  "kind": "flowchart",
+  "nodes": [
+    {
+      "h": 37,
+      "id": "A1",
+      "label": "A1",
+      "shape": "rectangle",
+      "w": 60,
+      "x": 40,
+      "y": 40,
+    },
+    {
+      "h": 37,
+      "id": "A2",
+      "label": "A2",
+      "shape": "rectangle",
+      "w": 60,
+      "x": 128,
+      "y": 40,
+    },
+    {
+      "h": 37,
+      "id": "A",
+      "label": "A",
+      "shape": "rectangle",
+      "w": 60,
+      "x": 84,
+      "y": 125,
+    },
+    {
+      "h": 37,
+      "id": "B1",
+      "label": "B1",
+      "shape": "rectangle",
+      "w": 60,
+      "x": 216,
+      "y": 40,
+    },
+    {
+      "h": 37,
+      "id": "B2",
+      "label": "B2",
+      "shape": "rectangle",
+      "w": 60,
+      "x": 304,
+      "y": 40,
+    },
+    {
+      "h": 37,
+      "id": "B",
+      "label": "B",
+      "shape": "rectangle",
+      "w": 60,
+      "x": 260,
+      "y": 125,
+    },
+  ],
+  "version": 1,
+}
+`;
+
+exports[`contact sheet — pinned geometry (re-pin deliberately, review the sheet) AL — equivalent terminal peer fan-out 1`] = `
+{
+  "bounds": {
+    "h": 202,
+    "w": 353,
+  },
+  "edges": [
+    {
+      "from": "Source",
+      "id": "Source->Left",
+      "label": undefined,
+      "path": [
+        [
+          151,
+          77,
+        ],
+        [
+          151,
+          95,
+        ],
+        [
+          64,
+          95,
+        ],
+        [
+          64,
+          113,
+        ],
+      ],
+      "to": "Left",
+    },
+    {
+      "from": "Source",
+      "id": "Source->Mid",
+      "label": undefined,
+      "path": [
+        [
+          173,
+          77,
+        ],
+        [
+          173,
+          113,
+        ],
+      ],
+      "to": "Mid",
+    },
+    {
+      "from": "Source",
+      "id": "Source->Right",
+      "label": undefined,
+      "path": [
+        [
+          194,
+          77,
+        ],
+        [
+          194,
+          95,
+        ],
+        [
+          282,
+          95,
+        ],
+        [
+          282,
+          113,
+        ],
+      ],
+      "to": "Right",
+    },
+  ],
+  "groups": [],
+  "kind": "flowchart",
+  "nodes": [
+    {
+      "h": 37,
+      "id": "Source",
+      "label": "Source",
+      "shape": "rectangle",
+      "w": 86,
+      "x": 130,
+      "y": 40,
+    },
+    {
+      "h": 37,
+      "id": "Left",
+      "label": "Left",
+      "shape": "rectangle",
+      "w": 81,
+      "x": 23,
+      "y": 113,
+    },
+    {
+      "h": 37,
+      "id": "Mid",
+      "label": "Middle",
+      "shape": "rectangle",
+      "w": 81,
+      "x": 132,
+      "y": 113,
+    },
+    {
+      "h": 37,
+      "id": "Right",
+      "label": "Right",
+      "shape": "rectangle",
+      "w": 81,
+      "x": 241,
+      "y": 113,
+    },
+  ],
+  "version": 1,
+}
+`;
+
+exports[`contact sheet — pinned geometry (re-pin deliberately, review the sheet) AM — two-sided hub symmetry 1`] = `
+{
+  "bounds": {
+    "h": 182,
+    "w": 362,
+  },
+  "edges": [
+    {
+      "from": "A",
+      "id": "A->C",
+      "label": undefined,
+      "path": [
+        [
+          100,
+          58,
+        ],
+        [
+          148,
+          58,
+        ],
+      ],
+      "to": "C",
+    },
+    {
+      "from": "B",
+      "id": "B->C",
+      "label": undefined,
+      "path": [
+        [
+          100,
+          123,
+        ],
+        [
+          124,
+          123,
+        ],
+        [
+          124,
+          58,
+        ],
+        [
+          148,
+          58,
+        ],
+      ],
+      "to": "C",
+    },
+    {
+      "from": "C",
+      "id": "C->D",
+      "label": undefined,
+      "path": [
+        [
+          214,
+          52,
+        ],
+        [
+          238,
+          52,
+        ],
+        [
+          238,
+          26,
+        ],
+        [
+          262,
+          26,
+        ],
+      ],
+      "to": "D",
+    },
+    {
+      "from": "C",
+      "id": "C->E",
+      "label": undefined,
+      "path": [
+        [
+          214,
+          65,
+        ],
+        [
+          238,
+          65,
+        ],
+        [
+          238,
+          91,
+        ],
+        [
+          262,
+          91,
+        ],
+      ],
+      "to": "E",
+    },
+  ],
+  "groups": [],
+  "kind": "flowchart",
+  "nodes": [
+    {
+      "h": 37,
+      "id": "A",
+      "label": "A",
+      "shape": "rectangle",
+      "w": 60,
+      "x": 40,
+      "y": 40,
+    },
+    {
+      "h": 37,
+      "id": "B",
+      "label": "B",
+      "shape": "rectangle",
+      "w": 60,
+      "x": 40,
+      "y": 105,
+    },
+    {
+      "h": 37,
+      "id": "C",
+      "label": "Hub",
+      "shape": "rectangle",
+      "w": 66,
+      "x": 148,
+      "y": 40,
+    },
+    {
+      "h": 37,
+      "id": "D",
+      "label": "D",
+      "shape": "rectangle",
+      "w": 60,
+      "x": 262,
+      "y": 8,
+    },
+    {
+      "h": 37,
+      "id": "E",
+      "label": "E",
+      "shape": "rectangle",
+      "w": 60,
+      "x": 262,
+      "y": 72,
+    },
+  ],
+  "version": 1,
+}
+`;
+
+exports[`contact sheet — pinned geometry (re-pin deliberately, review the sheet) AN — repeated equivalent subtrees 1`] = `
+{
+  "bounds": {
+    "h": 372,
+    "w": 580,
+  },
+  "edges": [
+    {
+      "from": "A1",
+      "id": "A1->A",
+      "label": undefined,
+      "path": [
+        [
+          70,
+          89,
+        ],
+        [
+          70,
+          113,
+        ],
+        [
+          114,
+          113,
+        ],
+        [
+          114,
+          137,
+        ],
+      ],
+      "to": "A",
+    },
+    {
+      "from": "A2",
+      "id": "A2->A",
+      "label": undefined,
+      "path": [
+        [
+          158,
+          89,
+        ],
+        [
+          158,
+          113,
+        ],
+        [
+          114,
+          113,
+        ],
+        [
+          114,
+          137,
+        ],
+      ],
+      "to": "A",
+    },
+    {
+      "from": "B1",
+      "id": "B1->B",
+      "label": undefined,
+      "path": [
+        [
+          246,
+          89,
+        ],
+        [
+          246,
+          113,
+        ],
+        [
+          290,
+          113,
+        ],
+        [
+          290,
+          137,
+        ],
+      ],
+      "to": "B",
+    },
+    {
+      "from": "B2",
+      "id": "B2->B",
+      "label": undefined,
+      "path": [
+        [
+          334,
+          89,
+        ],
+        [
+          334,
+          113,
+        ],
+        [
+          290,
+          113,
+        ],
+        [
+          290,
+          137,
+        ],
+      ],
+      "to": "B",
+    },
+    {
+      "from": "C1",
+      "id": "C1->C",
+      "label": undefined,
+      "path": [
+        [
+          422,
+          89,
+        ],
+        [
+          422,
+          113,
+        ],
+        [
+          466,
+          113,
+        ],
+        [
+          466,
+          137,
+        ],
+      ],
+      "to": "C",
+    },
+    {
+      "from": "C2",
+      "id": "C2->C",
+      "label": undefined,
+      "path": [
+        [
+          510,
+          89,
+        ],
+        [
+          510,
+          113,
+        ],
+        [
+          466,
+          113,
+        ],
+        [
+          466,
+          137,
+        ],
+      ],
+      "to": "C",
+    },
+    {
+      "from": "A",
+      "id": "A->Merge",
+      "label": undefined,
+      "path": [
+        [
+          114,
+          174,
+        ],
+        [
+          114,
+          192,
+        ],
+        [
+          290,
+          192,
+        ],
+        [
+          290,
+          210,
+        ],
+      ],
+      "to": "Merge",
+    },
+    {
+      "from": "B",
+      "id": "B->Merge",
+      "label": undefined,
+      "path": [
+        [
+          290,
+          174,
+        ],
+        [
+          290,
+          210,
+        ],
+      ],
+      "to": "Merge",
+    },
+    {
+      "from": "C",
+      "id": "C->Merge",
+      "label": undefined,
+      "path": [
+        [
+          466,
+          174,
+        ],
+        [
+          466,
+          192,
+        ],
+        [
+          290,
+          192,
+        ],
+        [
+          290,
+          210,
+        ],
+      ],
+      "to": "Merge",
+    },
+    {
+      "from": "Merge",
+      "id": "Merge->Done",
+      "label": undefined,
+      "path": [
+        [
+          290,
+          247,
+        ],
+        [
+          290,
+          295,
+        ],
+      ],
+      "to": "Done",
+    },
+  ],
+  "groups": [],
+  "kind": "flowchart",
+  "nodes": [
+    {
+      "h": 37,
+      "id": "A1",
+      "label": "A1",
+      "shape": "rectangle",
+      "w": 60,
+      "x": 40,
+      "y": 52,
+    },
+    {
+      "h": 37,
+      "id": "A2",
+      "label": "A2",
+      "shape": "rectangle",
+      "w": 60,
+      "x": 128,
+      "y": 52,
+    },
+    {
+      "h": 37,
+      "id": "A",
+      "label": "A",
+      "shape": "rectangle",
+      "w": 60,
+      "x": 84,
+      "y": 137,
+    },
+    {
+      "h": 37,
+      "id": "B1",
+      "label": "B1",
+      "shape": "rectangle",
+      "w": 60,
+      "x": 216,
+      "y": 52,
+    },
+    {
+      "h": 37,
+      "id": "B2",
+      "label": "B2",
+      "shape": "rectangle",
+      "w": 60,
+      "x": 304,
+      "y": 52,
+    },
+    {
+      "h": 37,
+      "id": "B",
+      "label": "B",
+      "shape": "rectangle",
+      "w": 60,
+      "x": 260,
+      "y": 137,
+    },
+    {
+      "h": 37,
+      "id": "C1",
+      "label": "C1",
+      "shape": "rectangle",
+      "w": 60,
+      "x": 392,
+      "y": 52,
+    },
+    {
+      "h": 37,
+      "id": "C2",
+      "label": "C2",
+      "shape": "rectangle",
+      "w": 60,
+      "x": 480,
+      "y": 52,
+    },
+    {
+      "h": 37,
+      "id": "C",
+      "label": "C",
+      "shape": "rectangle",
+      "w": 60,
+      "x": 436,
+      "y": 137,
+    },
+    {
+      "h": 37,
+      "id": "Merge",
+      "label": "Merge",
+      "shape": "rectangle",
+      "w": 81,
+      "x": 249,
+      "y": 210,
+    },
+    {
+      "h": 37,
+      "id": "Done",
+      "label": "Done",
+      "shape": "rectangle",
+      "w": 73,
+      "x": 253,
+      "y": 295,
+    },
+  ],
+  "version": 1,
+}
+`;
+
+exports[`contact sheet — pinned geometry (re-pin deliberately, review the sheet) AO — reciprocal peer merge/fan-out 1`] = `
+{
+  "bounds": {
+    "h": 372,
+    "w": 228,
+  },
+  "edges": [
+    {
+      "from": "A",
+      "id": "A->C",
+      "label": undefined,
+      "path": [
+        [
+          70,
+          77,
+        ],
+        [
+          70,
+          125,
+        ],
+      ],
+      "to": "C",
+    },
+    {
+      "from": "B",
+      "id": "B->C",
+      "label": undefined,
+      "path": [
+        [
+          158,
+          77,
+        ],
+        [
+          158,
+          101,
+        ],
+        [
+          70,
+          101,
+        ],
+        [
+          70,
+          125,
+        ],
+      ],
+      "to": "C",
+    },
+    {
+      "from": "C",
+      "id": "C->D",
+      "label": undefined,
+      "path": [
+        [
+          70,
+          162,
+        ],
+        [
+          70,
+          210,
+        ],
+      ],
+      "to": "D",
+    },
+    {
+      "from": "C",
+      "id": "C->E",
+      "label": undefined,
+      "path": [
+        [
+          70,
+          162,
+        ],
+        [
+          70,
+          186,
+        ],
+        [
+          158,
+          186,
+        ],
+        [
+          158,
+          210,
+        ],
+      ],
+      "to": "E",
+    },
+    {
+      "from": "D",
+      "id": "D->F",
+      "label": undefined,
+      "path": [
+        [
+          70,
+          247,
+        ],
+        [
+          70,
+          271,
+        ],
+        [
+          114,
+          271,
+        ],
+        [
+          114,
+          295,
+        ],
+      ],
+      "to": "F",
+    },
+    {
+      "from": "E",
+      "id": "E->F",
+      "label": undefined,
+      "path": [
+        [
+          158,
+          247,
+        ],
+        [
+          158,
+          271,
+        ],
+        [
+          114,
+          271,
+        ],
+        [
+          114,
+          295,
+        ],
+      ],
+      "to": "F",
+    },
+  ],
+  "groups": [],
+  "kind": "flowchart",
+  "nodes": [
+    {
+      "h": 37,
+      "id": "A",
+      "label": "A",
+      "shape": "rectangle",
+      "w": 60,
+      "x": 40,
+      "y": 40,
+    },
+    {
+      "h": 37,
+      "id": "B",
+      "label": "B",
+      "shape": "rectangle",
+      "w": 60,
+      "x": 128,
+      "y": 40,
+    },
+    {
+      "h": 37,
+      "id": "C",
+      "label": "C",
+      "shape": "rectangle",
+      "w": 60,
+      "x": 40,
+      "y": 125,
+    },
+    {
+      "h": 37,
+      "id": "D",
+      "label": "D",
+      "shape": "rectangle",
+      "w": 60,
+      "x": 40,
+      "y": 210,
+    },
+    {
+      "h": 37,
+      "id": "E",
+      "label": "E",
+      "shape": "rectangle",
+      "w": 60,
+      "x": 128,
+      "y": 210,
+    },
+    {
+      "h": 37,
+      "id": "F",
+      "label": "F",
+      "shape": "rectangle",
+      "w": 60,
+      "x": 84,
+      "y": 295,
     },
   ],
   "version": 1,

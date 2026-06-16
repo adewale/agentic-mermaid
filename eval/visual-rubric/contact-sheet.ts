@@ -36,6 +36,10 @@ const COLS = 2
 const CELL_W = 700
 const CELL_H = 300
 
+function esc(s: string): string {
+  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+}
+
 export function renderContactSheetSvg(): string {
   const scenarios = contactSheetScenarios()
   const rows = Math.ceil(scenarios.length / COLS)
@@ -45,7 +49,7 @@ export function renderContactSheetSvg(): string {
     const svg = renderMermaidSVG(sc.source, { font: FONT_FAMILY, embedFontImport: false }).replace(/<\?xml[^>]*\?>/, '')
     const png = new Resvg(svg, resvgOptions({ mode: 'width', value: 620 })).render().asPng()
     const b64 = Buffer.from(png).toString('base64')
-    return `<text x="${x}" y="${y - 8}" font-size="15" font-weight="bold" fill="#5c1a0a">${sc.letter} — ${sc.title}</text>
+    return `<text x="${x}" y="${y - 8}" font-size="15" font-weight="bold" fill="#5c1a0a">${esc(sc.letter)} — ${esc(sc.title)}</text>
     <image x="${x}" y="${y}" width="${CELL_W - 60}" height="${CELL_H - 70}" preserveAspectRatio="xMinYMin meet" href="data:image/png;base64,${b64}"/>`
   }).join('\n')
 
