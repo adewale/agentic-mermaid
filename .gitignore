@@ -9,6 +9,7 @@ dist/
 # Generated files
 index.html
 editor.html
+differences.html
 
 # IDE
 .idea/

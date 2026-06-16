@@ -97,7 +97,7 @@
     "bench": "bun run eval/benchmark/sample-bench.ts",
     "build": "tsup",
     "build:binary": "bun build ./bin/am.ts --compile --outfile dist/am",
-    "build:site": "bun run scripts/site/generate.ts && bun run scripts/site/editor.ts && mkdir -p site/editor && mv index.html site/index.html && cp editor.html site/editor.html && cp editor.html site/editor/index.html && rm editor.html && cp -r public/* site/ && cp -r public/* site/editor/ && bun run bin/am.ts llms-txt > site/llms.txt && bun run bin/am.ts --agent-instructions > site/agent-instructions.md",
+    "build:site": "bun run scripts/site/generate.ts && bun run scripts/site/editor.ts && bun run scripts/site/differences.ts && mkdir -p site/editor site/differences && mv index.html site/index.html && cp editor.html site/editor.html && cp editor.html site/editor/index.html && rm editor.html && cp differences.html site/differences.html && cp differences.html site/differences/index.html && rm differences.html && cp -r public/* site/ && cp -r public/* site/editor/ && cp -r public/* site/differences/ && bun run bin/am.ts llms-txt > site/llms.txt && bun run bin/am.ts --agent-instructions > site/agent-instructions.md",
     "deploy": "echo 'GitHub Pages deploys from main via .github/workflows/pages.yml; Cloudflare deployment is upstream-owned.'",
     "xychart-test": "bun run scripts/site/xychart-test.ts",
     "prepublishOnly": "npm run build",
