@@ -855,6 +855,7 @@ function elkToPositioned(
   applySymmetricFanoutEmissions(nodes, edges, groups, graph, bundled, style)
   applySymmetricParallelEdgeLanes(nodes, edges, groups, graph, bundled, style)
   collapseTinyBundledHitches(nodes, edges, bundled)
+  reassignBundledSiblingLabels(nodes, edges, bundled, graph.direction, style)
 
   // Route contracts (docs/design/route-contracts.md): simplify every polyline,
   // straighten primary-forward routes whose direct lane proves clear, and
@@ -1374,7 +1375,7 @@ function segmentAlignedWithFlow(a: Point, b: Point, direction: Direction): boole
 
 function labelFitsInsideSegment(box: { width: number; height: number }, point: Point, a: Point, b: Point): boolean {
   const halfExtent = labelHalfExtentAlongSegment(box, a, b)
-  const straightRunGap = 2
+  const straightRunGap = 0.5
   return Math.min(Math.hypot(point.x - a.x, point.y - a.y), Math.hypot(point.x - b.x, point.y - b.y)) >= halfExtent + straightRunGap
 }
 
@@ -1439,12 +1440,13 @@ function bundledLabelAssignmentCost(chosen: BundledLabelCandidate[], direction: 
   const totalRouteMidpointDistance = chosen.reduce((sum, candidate) => sum + candidate.routeMidpointDistance, 0)
   const totalRank = chosen.reduce((sum, candidate) => sum + candidate.rank, 0)
   // Prefer labels on a flow-axis straight run so the route enters and exits through
-  // opposite label ports. Sibling alignment and route-midpoint closeness are
-  // secondary once that readability contract is satisfied.
+  // opposite label ports. Among readable straight-run slots, preserve sibling
+  // symmetry before endpoint aesthetics; a terminal segment is acceptable once
+  // marker clearance has already admitted the candidate.
   return totalStraightRunPenalty * 10000 +
+    mainSpread * 100 +
     totalTerminalSegmentPenalty * 1000 +
     totalSegmentMidpointDistance * 4 +
-    mainSpread +
     totalRank * 0.25 +
     totalRouteMidpointDistance * 0.1
 }
@@ -1496,6 +1498,33 @@ function assignBundledFanoutLabels(
     return
   }
   for (let i = 0; i < labeled.length; i++) labeled[i]!.edge.labelPosition = best[i]!.point
+}
+
+function reassignBundledSiblingLabels(
+  nodes: PositionedNode[],
+  edges: PositionedEdge[],
+  bundled: ReadonlySet<PositionedEdge>,
+  direction: Direction,
+  style: LabelMetricsStyle,
+): void {
+  const nodeMap = new Map(nodes.map(n => [n.id, n]))
+  const bySource = new Map<string, PositionedEdge[]>()
+  for (const edge of edges) {
+    if (!bundled.has(edge) || !edge.label || !positionedEdgeForwardish(edge, nodeMap, direction)) continue
+    if (!bySource.has(edge.source)) bySource.set(edge.source, [])
+    bySource.get(edge.source)!.push(edge)
+  }
+  for (const group of bySource.values()) {
+    if (group.length < 2 || group.length > 3) continue
+    if (new Set(group.map(edge => edge.target)).size < group.length) continue
+    const sorted = [...group].sort((a, b) => {
+      const aTarget = nodeMap.get(a.target)
+      const bTarget = nodeMap.get(b.target)
+      if (!aTarget || !bTarget) return (a.edgeIndex ?? 0) - (b.edgeIndex ?? 0)
+      return nodeCrossCenter(aTarget, direction) - nodeCrossCenter(bTarget, direction)
+    })
+    assignBundledFanoutLabels(sorted.map(edge => ({ edge, points: edge.points })), nodes, direction, style)
+  }
 }
 
 function applySymmetricFanoutEmissions(
