@@ -15,7 +15,7 @@ import type {
 } from './types.ts'
 import { WARNING_SEVERITY, DEFAULT_LABEL_CHAR_CAP } from './types.ts'
 import { positionedToRenderedLayout, emptyRenderedLayout } from './layout-to-rendered.ts'
-import { layoutFamilyToRendered, ganttGeometryWarnings, ganttScheduleWarning } from './family-layouts.ts'
+import { layoutFamilyToRendered, ganttGeometryWarnings, ganttScheduleWarning, layoutGeometryWarnings } from './family-layouts.ts'
 import { getFamily, extractLabelsGeneric } from './families.ts'
 import { stateBodyToGraph } from './state-body.ts'
 import { flowchartUnsupportedSyntaxWarnings } from './flowchart-unsupported.ts'
@@ -69,8 +69,8 @@ export function verifyMermaid(input: ValidDiagram | string, opts: VerifyOptions 
   const sourceWarnings = d.kind === 'flowchart' ? flowchartUnsupportedSyntaxWarnings(d.canonicalSource) : []
   const pluginWarnings = dedupedConcat(dedupedConcat(metaWarnings, dispatchFamilyVerify(d, opts)), sourceWarnings)
 
-  if (d.body.kind === 'sequence') return mergeFinalize(verifySequence(d.body, d.kind, cap, opts), pluginWarnings, opts)
-  if (d.body.kind === 'timeline') return mergeFinalize(verifyTimeline(d.body, d.kind, cap, opts), pluginWarnings, opts)
+  if (d.body.kind === 'sequence') return mergeFinalize(verifySequence(d as ValidDiagram & { body: SequenceBody }, cap, opts), pluginWarnings, opts)
+  if (d.body.kind === 'timeline') return mergeFinalize(verifyTimeline(d as ValidDiagram & { body: import('./types.ts').TimelineBody }, cap, opts), pluginWarnings, opts)
   // class + ER: the FamilyPlugin.verify hooks (registered in families-builtin.ts)
   // already produce the per-body warnings. Loop 9 M2 removes the duplicate
   // explicit branches; the dispatcher path + emptyRenderedLayout fall-through
@@ -91,10 +91,17 @@ export function verifyMermaid(input: ValidDiagram | string, opts: VerifyOptions 
 
   if (d.body.kind === 'class' || d.body.kind === 'er' || d.body.kind === 'journey' || d.body.kind === 'architecture' || d.body.kind === 'xychart' || d.body.kind === 'pie' || d.body.kind === 'quadrant') {
     // QUAL-1: verify.layout is now truthful — the real positioned layout from
-    // the family adapters (was emptyRenderedLayout). The structural warnings
-    // still come from the FamilyPlugin.verify hooks; only the geometry the
-    // layout field reports changes.
-    return finalize(pluginWarnings, layoutFamilyToRendered(d) ?? emptyRenderedLayout(d.kind), opts)
+    // the family adapters (was emptyRenderedLayout). #33 adds zero-noise
+    // class/ER semantic geometry tripwires: relationship endpoints must sit on
+    // class/entity box boundaries and boxes must remain on-canvas/non-overlap.
+    const layout = layoutFamilyToRendered(d) ?? emptyRenderedLayout(d.kind)
+    const familyGeometry = (d.body.kind === 'class' || d.body.kind === 'er')
+      ? layoutGeometryWarnings(layout, { edgeAnchors: true, nodeOverlaps: true })
+      : layoutGeometryWarnings(layout, {
+        nodeOverlaps: d.body.kind === 'journey',
+        groupContainment: d.body.kind === 'journey' || d.body.kind === 'xychart' || d.body.kind === 'quadrant',
+      })
+    return finalize(dedupedConcat(pluginWarnings, familyGeometry), layout, opts)
   }
 
   // State diagrams (BUILD-19): the StateBody projects to a MermaidGraph via the
@@ -332,10 +339,12 @@ function lintFlowchartGraph(graph: import('../types.ts').MermaidGraph): LayoutWa
   return warnings
 }
 
-function verifyTimeline(body: import('./types.ts').TimelineBody, kind: ValidDiagram['kind'], cap: number, opts: VerifyOptions): VerifyResult {
+function verifyTimeline(d: ValidDiagram & { body: import('./types.ts').TimelineBody }, cap: number, opts: VerifyOptions): VerifyResult {
+  const body = d.body
+  const layout = layoutFamilyToRendered(d) ?? emptyRenderedLayout(d.kind)
   const warnings: LayoutWarning[] = []
   const hasContent = body.sections.some(s => s.periods.length > 0) || body.title !== undefined
-  if (!hasContent) return finalize([{ code: 'EMPTY_DIAGRAM' }], emptyRenderedLayout(kind), opts)
+  if (!hasContent) return finalize([{ code: 'EMPTY_DIAGRAM' }], layout, opts)
   if (body.title !== undefined && body.title.length > cap) {
     warnings.push({ code: 'LABEL_OVERFLOW', target: 'title', charCount: body.title.length, limit: cap })
   }
@@ -350,10 +359,12 @@ function verifyTimeline(body: import('./types.ts').TimelineBody, kind: ValidDiag
       }
     }
   }
-  return finalize(warnings, emptyRenderedLayout(kind), opts)
+  return finalize(dedupedConcat(warnings, layoutGeometryWarnings(layout, { nodeOverlaps: true, groupContainment: true })), layout, opts)
 }
 
-function verifySequence(body: SequenceBody, kind: ValidDiagram['kind'], cap: number, opts: VerifyOptions): VerifyResult {
+function verifySequence(d: ValidDiagram & { body: SequenceBody }, cap: number, opts: VerifyOptions): VerifyResult {
+  const body = d.body
+  const layout = layoutFamilyToRendered(d) ?? emptyRenderedLayout(d.kind)
   const warnings: LayoutWarning[] = []
   // BUILD-18: a segment-preserving body may carry content only in opaque-block
   // segments (e.g. activation-shorthand messages `A->>+B`, blocks). That is
@@ -362,7 +373,7 @@ function verifySequence(body: SequenceBody, kind: ValidDiagram['kind'], cap: num
     s => s.kind === 'opaque-block' && s.lines.some(l => l.trim().length > 0),
   )
   if (body.participants.length === 0 && body.messages.length === 0 && !hasOpaqueContent) {
-    return finalize([{ code: 'EMPTY_DIAGRAM' }], emptyRenderedLayout(kind), opts)
+    return finalize([{ code: 'EMPTY_DIAGRAM' }], layout, opts)
   }
   const ids = new Set(body.participants.map(p => p.id))
   body.messages.forEach((m, i) => {
@@ -384,7 +395,7 @@ function verifySequence(body: SequenceBody, kind: ValidDiagram['kind'], cap: num
     .filter((s): s is Extract<typeof s, { kind: 'opaque-block' }> => s.kind === 'opaque-block')
     .flatMap(s => s.lines)
   if (opaqueLines.length > 0) {
-    const plugin = getFamily(kind)
+    const plugin = getFamily(d.kind)
     const labels = (plugin?.extractLabels ?? extractLabelsGeneric)(opaqueLines.join('\n'))
     const seen = new Set<string>()
     for (const lbl of labels) {
@@ -395,7 +406,7 @@ function verifySequence(body: SequenceBody, kind: ValidDiagram['kind'], cap: num
       warnings.push({ code: 'LABEL_OVERFLOW', target: lbl.target, charCount: lbl.text.length, limit: cap })
     }
   }
-  return finalize(warnings, emptyRenderedLayout(kind), opts)
+  return finalize(dedupedConcat(warnings, layoutGeometryWarnings(layout, { nodeOverlaps: true })), layout, opts)
 }
 
 // ---- helpers --------------------------------------------------------------

@@ -200,7 +200,7 @@ function markerSuffix(color: string): string {
 // Group rendering (subgraph backgrounds)
 // ============================================================================
 
-function renderGroup(group: PositionedGroup, font: string, style: ResolvedRenderStyle): string {
+function renderGroup(group: PositionedGroup, font: string, style: ResolvedRenderStyle, parentId?: string): string {
   const headerHeight = style.groupHeaderFontSize + 16
   const parts: string[] = []
 
@@ -208,7 +208,7 @@ function renderGroup(group: PositionedGroup, font: string, style: ResolvedRender
   // data-id: original Mermaid subgraph ID
   // data-label: display label (may differ from ID)
   parts.push(
-    `<g class="subgraph" data-id="${escapeAttr(group.id)}" data-label="${escapeAttr(group.label)}">`
+    `<g class="subgraph" data-id="${escapeAttr(group.id)}" data-region="subgraph" data-label="${escapeAttr(group.label)}"${parentId ? ` data-parent-id="${escapeAttr(parentId)}"` : ''}>`
   )
 
   // Outer rectangle
@@ -236,7 +236,7 @@ function renderGroup(group: PositionedGroup, font: string, style: ResolvedRender
 
   // Render nested groups recursively (inside this group)
   for (const child of group.children) {
-    parts.push(renderGroup(child, font, style))
+    parts.push(renderGroup(child, font, style, group.id))
   }
 
   parts.push('</g>')

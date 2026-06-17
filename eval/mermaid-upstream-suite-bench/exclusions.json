@@ -1,0 +1,8 @@
+[
+  {
+    "id": "full-upstream-api-internals",
+    "families": ["flowchart", "state", "sequence", "class", "er", "timeline", "gantt", "journey", "architecture", "xychart", "pie", "quadrant"],
+    "reason": "api-internal",
+    "summary": "Upstream DB reset, renderer DOM, theme, and security-sandbox unit tests are not portable source-level diagram cases. The source-level parser/DB semantics harvested here stay in cases.json; family-specific renderer behavior remains covered by Agentic Mermaid SVG/ASCII/verify tests."
+  }
+]

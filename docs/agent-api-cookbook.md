@@ -151,21 +151,28 @@ For source-level edits, preserve as much original source as possible, then run `
 `verifyMermaid` is structural. It catches reliable warning codes and returns layout JSON; it is not a subjective aesthetics score.
 
 ```ts
-import { parseMermaid, verifyMermaid, measureQuality, layoutMermaid } from 'agentic-mermaid/agent'
+import { parseMermaid, verifyMermaid, measureQuality, layoutMermaid, analyzeMermaid } from 'agentic-mermaid/agent'
 
 const parsed = parseMermaid(source)
 if (!parsed.ok) throw new Error('parse failed')
 
 const verify = verifyMermaid(parsed.value, { labelCharCap: 28 })
 const quality = measureQuality(layoutMermaid(parsed.value))
+const routes = layoutMermaid(parsed.value, { debug: true }) // opt-in route/family certificates
+const analysis = analyzeMermaid(parsed.value) // feedback edges, actions, Gantt critical path/slack
 
 return {
   ok: verify.ok,
   warnings: verify.warnings,
   bounds: verify.layout.bounds,
   quality,
+  routeCertificates: routes.edges.map(e => e.route).filter(Boolean),
+  familyCertificates: routes.certificates ?? [],
+  analysis,
 }
 ```
+
+Route/family certificates are opt-in; when graph-edge certificates are present, `sourcePort`/`targetPort` are exact endpoint anchors and `sourcePortAssignment`/`targetPortAssignment` describe side, ordered slot, slot count, and semantic role. Sequence/timeline/chart certificates use family-specific anchor/containment fields instead.
 
 Use render artifacts for human visual review:
 

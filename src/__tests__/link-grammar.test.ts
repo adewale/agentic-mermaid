@@ -7,7 +7,7 @@
 import { describe, expect, it } from 'bun:test'
 import { parseMermaid } from '../parser.ts'
 import { renderMermaidSVG } from '../index.ts'
-import { parseMermaid as agentParse, serializeMermaid } from '../agent/index.ts'
+import { parseMermaid as agentParse, serializeMermaid, verifyMermaid } from '../agent/index.ts'
 
 function edges(src: string) {
   return parseMermaid(src).edges
@@ -112,6 +112,46 @@ describe('link length is preserved through round-trip', () => {
       expect(out).toContain(op)
       // a base solid arrow must NOT pick up extra dashes
       if (op === '-->') expect(out).not.toContain('--->')
+    }
+  })
+})
+
+describe('link length affects layout rank distance', () => {
+  it('a longer LR arrow places the target farther away than a base arrow', () => {
+    const { layoutGraphSync } = require('../layout-engine.ts') as typeof import('../layout-engine.ts')
+    const base = layoutGraphSync(parseMermaid('flowchart LR\n  A[One] --> B[Two]'))
+    const long = layoutGraphSync(parseMermaid('flowchart LR\n  A[One] ----> B[Two]'))
+    const gap = (g: typeof base): number => {
+      const a = g.nodes.find(n => n.id === 'A')!
+      const b = g.nodes.find(n => n.id === 'B')!
+      return b.x - (a.x + a.width)
+    }
+    expect(gap(long)).toBeGreaterThan(gap(base) + 40)
+    expect(long.edges[0]!.routeCertificate?.routeClass).toBe('primary-forward')
+  })
+
+  it('long-link rank spacing keeps verification clean on a simple chain in every direction', () => {
+    for (const dir of ['LR', 'RL', 'TD', 'BT'] as const) {
+      const verify = verifyMermaid(`flowchart ${dir}\n  A ----> B\n  B --> C`)
+      expect(verify.ok).toBe(true)
+      expect(verify.warnings.filter(w => w.code.startsWith('ROUTE_'))).toEqual([])
+      expect(verify.warnings.filter(w => w.code === 'OFF_CANVAS')).toEqual([])
+      const a = verify.layout.nodes.find(n => n.id === 'A')!
+      const b = verify.layout.nodes.find(n => n.id === 'B')!
+      const c = verify.layout.nodes.find(n => n.id === 'C')!
+      if (dir === 'LR') {
+        expect(b.x).toBeGreaterThan(a.x + a.w + 80)
+        expect(c.x).toBeGreaterThan(b.x + b.w)
+      } else if (dir === 'RL') {
+        expect(b.x + b.w).toBeLessThan(a.x - 80)
+        expect(c.x + c.w).toBeLessThan(b.x)
+      } else if (dir === 'TD') {
+        expect(b.y).toBeGreaterThan(a.y + a.h + 80)
+        expect(c.y).toBeGreaterThan(b.y + b.h)
+      } else {
+        expect(b.y + b.h).toBeLessThan(a.y - 80)
+        expect(c.y + c.h).toBeLessThan(b.y)
+      }
     }
   })
 })

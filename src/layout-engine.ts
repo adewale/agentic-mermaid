@@ -21,6 +21,7 @@ import type {
   MermaidGraph,
   MermaidSubgraph,
   MermaidEdge,
+  MermaidNode,
   Direction,
   PositionedGraph,
   PositionedNode,
@@ -36,7 +37,7 @@ import type { ResolvedRenderStyle } from './styles.ts'
 import { measureMultilineText } from './text-metrics.ts'
 import { elkLayoutSync } from './elk-instance.ts'
 import { clipEdgeToShape } from './shape-clipping.ts'
-import { applyRouteContracts, diamondFacetPorts, labelRect, PORT_EXACT, shapePorts, simplifyPolyline } from './route-contracts.ts'
+import { applyRouteContracts, classifyRoutes, diamondFacetPorts, labelRect, PORT_EXACT, shapePorts, simplifyPolyline } from './route-contracts.ts'
 import type { LabelMetricsStyle } from './route-contracts.ts'
 
 type LayoutDebugEnv = {
@@ -235,6 +236,20 @@ interface CrossHierarchyEdgeInfo {
   hostSubgraph?: string
 }
 
+interface RoutePortHint {
+  nodeId: string
+  portId: string
+  side: 'N' | 'E' | 'S' | 'W'
+  edgeIndex: number
+  endpoint: 'source' | 'target'
+  slotIndex: number
+}
+
+interface RoutePortHints {
+  byEndpoint: Map<string, RoutePortHint>
+  byNode: Map<string, RoutePortHint[]>
+}
+
 /**
  * Convert a MermaidGraph to ELK's nested JSON input format.
  *
@@ -417,6 +432,12 @@ function mermaidToElk(
     }
   }
 
+  // Pre-layout route intent: expose the same semantic source/target sides used
+  // by the certifying route-port allocator to ELK as fixed-side node ports.
+  // This is deliberately a hint layer (ELK still chooses coordinates/order);
+  // final certificates are still derived after clipping and route repair.
+  const routePortHints = buildRoutePortHints(graph, subgraphIds)
+
   // Projected families such as architecture may rely on parser child order
   // inside compounds for stable boundary routing; root-level group-vs-node
   // siblings still use source-before-target constraints.
@@ -427,18 +448,12 @@ function mermaidToElk(
   for (const id of rootOrder) {
     const sg = topLevelSubgraphs.get(id)
     if (sg) {
-      elkGraph.children!.push(subgraphToElk(sg, graph, opts, style, edgesBySubgraph, subgraphPorts, crossEdgesByHost, useSourceAwareChildOrder))
+      elkGraph.children!.push(subgraphToElk(sg, graph, opts, style, edgesBySubgraph, subgraphPorts, crossEdgesByHost, routePortHints, useSourceAwareChildOrder))
       continue
     }
     const node = graph.nodes.get(id)
     if (node && !subgraphNodeIds.has(id) && !subgraphIds.has(id)) {
-      const size = estimateNodeSize(id, node.label, node.shape, style)
-      elkGraph.children!.push({
-        id,
-        width: size.width,
-        height: size.height,
-        labels: [{ text: node.label }],
-      })
+      elkGraph.children!.push(nodeToElkLeaf(id, node, style, routePortHints))
     }
   }
 
@@ -446,8 +461,8 @@ function mermaidToElk(
   for (const { index, edge } of edgesBySubgraph.get(null)!) {
     const elkEdge: ElkExtendedEdge = {
       id: `e${index}`,
-      sources: [edge.source],
-      targets: [edge.target],
+      sources: [routePortHints.byEndpoint.get(endpointKey(index, 'source'))?.portId ?? edge.source],
+      targets: [routePortHints.byEndpoint.get(endpointKey(index, 'target'))?.portId ?? edge.target],
     }
     if (edge.label) {
       const metrics = measureMultilineText(edge.label, style.edgeLabelFontSize, style.edgeLabelFontWeight)
@@ -470,6 +485,111 @@ function mermaidToElk(
   }
 
   return elkGraph
+}
+
+function endpointKey(edgeIndex: number, endpoint: 'source' | 'target'): string {
+  return `${edgeIndex}:${endpoint}`
+}
+
+function axisSides(direction: Direction): { source: 'N' | 'E' | 'S' | 'W'; target: 'N' | 'E' | 'S' | 'W' } {
+  switch (direction) {
+    case 'RL': return { source: 'W', target: 'E' }
+    case 'BT': return { source: 'N', target: 'S' }
+    case 'TD':
+    case 'TB': return { source: 'S', target: 'N' }
+    case 'LR':
+    default: return { source: 'E', target: 'W' }
+  }
+}
+
+function routeHintSides(direction: Direction, routeClass: ReturnType<typeof classifyRoutes>[number]): { source: 'N' | 'E' | 'S' | 'W'; target: 'N' | 'E' | 'S' | 'W' } {
+  const sides = axisSides(direction)
+  if (routeClass === 'feedback') return { source: sides.target, target: sides.source }
+  return sides
+}
+
+function buildRoutePortHints(graph: MermaidGraph, subgraphIds: Set<string>): RoutePortHints {
+  const empty = (): RoutePortHints => ({ byEndpoint: new Map(), byNode: new Map() })
+  const classes = classifyRoutes(graph)
+  // Fixed-side ports are useful pre-layout hints for straight primary DAGs.
+  // Cycles, containers and cross-hierarchy edges already need the richer
+  // certifying repair pass; forcing ELK ports there can steal the outer lanes
+  // that route certificates intentionally preserve.
+  if (classes.some(c => c !== 'primary-forward')) return empty()
+  const drafts: RoutePortHint[] = []
+  const safeId = (id: string) => id.replace(/[^A-Za-z0-9_\-]/g, '_')
+  for (let edgeIndex = 0; edgeIndex < graph.edges.length; edgeIndex++) {
+    const edge = graph.edges[edgeIndex]!
+    if (edge.source === edge.target) continue
+    if (!graph.nodes.has(edge.source) || !graph.nodes.has(edge.target)) continue
+    if (subgraphIds.has(edge.source) || subgraphIds.has(edge.target)) continue
+    const routeClass = classes[edgeIndex] ?? 'primary-forward'
+    if (routeClass === 'container' || routeClass === 'cross-hierarchy') continue
+    const sides = routeHintSides(graph.direction, routeClass)
+    drafts.push({ nodeId: edge.source, portId: `rp_${safeId(edge.source)}_${edgeIndex}_s`, side: sides.source, edgeIndex, endpoint: 'source', slotIndex: 0 })
+    drafts.push({ nodeId: edge.target, portId: `rp_${safeId(edge.target)}_${edgeIndex}_t`, side: sides.target, edgeIndex, endpoint: 'target', slotIndex: 0 })
+  }
+
+  const byNode = new Map<string, RoutePortHint[]>()
+  for (const draft of drafts) {
+    const entries = byNode.get(draft.nodeId) ?? []
+    entries.push(draft)
+    byNode.set(draft.nodeId, entries)
+  }
+  for (const entries of byNode.values()) {
+    entries.sort((a, b) => sideSort(a.side) - sideSort(b.side) || a.edgeIndex - b.edgeIndex || endpointSort(a.endpoint) - endpointSort(b.endpoint))
+    const perSide = new Map<string, number>()
+    for (const entry of entries) {
+      const next = perSide.get(entry.side) ?? 0
+      entry.slotIndex = next
+      perSide.set(entry.side, next + 1)
+    }
+  }
+
+  const byEndpoint = new Map<string, RoutePortHint>()
+  for (const draft of drafts) byEndpoint.set(endpointKey(draft.edgeIndex, draft.endpoint), draft)
+  return { byEndpoint, byNode }
+}
+
+function sideSort(side: 'N' | 'E' | 'S' | 'W'): number {
+  return { N: 0, E: 1, S: 2, W: 3 }[side]
+}
+
+function endpointSort(endpoint: 'source' | 'target'): number {
+  return endpoint === 'source' ? 0 : 1
+}
+
+function elkPortSide(side: 'N' | 'E' | 'S' | 'W'): 'NORTH' | 'EAST' | 'SOUTH' | 'WEST' {
+  switch (side) {
+    case 'N': return 'NORTH'
+    case 'E': return 'EAST'
+    case 'S': return 'SOUTH'
+    case 'W': return 'WEST'
+  }
+}
+
+function nodeToElkLeaf(id: string, node: MermaidNode, style: ResolvedRenderStyle, hints: RoutePortHints): ElkGraphNode {
+  const size = estimateNodeSize(id, node.label, node.shape, style)
+  const elkNode: ElkGraphNode = {
+    id,
+    width: size.width,
+    height: size.height,
+    labels: [{ text: node.label }],
+  }
+  const ports = hints.byNode.get(id)
+  if (ports && ports.length > 0) {
+    elkNode.layoutOptions = { ...(elkNode.layoutOptions ?? {}), 'elk.portConstraints': 'FIXED_SIDE' }
+    ;(elkNode as unknown as Record<string, unknown>).ports = ports.map(p => ({
+      id: p.portId,
+      width: 0,
+      height: 0,
+      layoutOptions: {
+        'elk.port.side': elkPortSide(p.side),
+        'elk.port.index': String(p.slotIndex),
+      },
+    }))
+  }
+  return elkNode
 }
 
 function crossHierarchyElkEdge(info: CrossHierarchyEdgeInfo, style: ResolvedRenderStyle): ElkExtendedEdge {
@@ -515,6 +635,7 @@ function subgraphToElk(
     internalNodeId: string
   }>>,
   crossEdgesByHost: Map<string | null, CrossHierarchyEdgeInfo[]>,
+  routePortHints: RoutePortHints,
   useSourceAwareOrder: boolean,
 ): ElkGraphNode {
   const groupHeaderHeight = style.groupHeaderFontSize + 16
@@ -561,19 +682,13 @@ function subgraphToElk(
   for (const nodeId of childNodeOrder) {
     const node = graph.nodes.get(nodeId)
     if (node) {
-      const size = estimateNodeSize(nodeId, node.label, node.shape, style)
-      elkNode.children!.push({
-        id: nodeId,
-        width: size.width,
-        height: size.height,
-        labels: [{ text: node.label }],
-      })
+      elkNode.children!.push(nodeToElkLeaf(nodeId, node, style, routePortHints))
     }
   }
 
   // Add nested subgraphs recursively
   for (const child of sg.children) {
-    elkNode.children!.push(subgraphToElk(child, graph, opts, style, edgesBySubgraph, subgraphPorts, crossEdgesByHost, useSourceAwareOrder))
+    elkNode.children!.push(subgraphToElk(child, graph, opts, style, edgesBySubgraph, subgraphPorts, crossEdgesByHost, routePortHints, useSourceAwareOrder))
   }
 
   // Add internal edges (edges where both endpoints are in this subgraph)
@@ -581,8 +696,8 @@ function subgraphToElk(
   for (const { index, edge } of internalEdges) {
     const elkEdge: ElkExtendedEdge = {
       id: `e${index}`,
-      sources: [edge.source],
-      targets: [edge.target],
+      sources: [routePortHints.byEndpoint.get(endpointKey(index, 'source'))?.portId ?? edge.source],
+      targets: [routePortHints.byEndpoint.get(endpointKey(index, 'target'))?.portId ?? edge.target],
     }
     if (edge.label) {
       const metrics = measureMultilineText(edge.label, style.edgeLabelFontSize, style.edgeLabelFontWeight)
@@ -828,6 +943,13 @@ function elkToPositioned(
   // ports share a lane — straight AND port-exact, no routing trade.
   alignPortLanes(nodes, edges, groups, graph.direction, style)
 
+  // Mermaid variable-length links (`---->`, `====>`, `~~~~`) mean rank
+  // distance, not just source spelling. Apply the conservative DAG/no-group
+  // slice before bundling/clipping so downstream route contracts certify the
+  // final geometry. More complex grouped/cyclic cases deliberately keep ELK's
+  // placement until the full port allocator lands.
+  honorLinkRankDistance(nodes, edges, graph)
+
   // Bundle fan-out/fan-in edge paths into shared trunks when mergeEdges is enabled
   const bundled = mergeEdges
     ? bundleEdgePaths(edges, nodes, groups, graph.direction)
@@ -859,9 +981,10 @@ function elkToPositioned(
 
   // Route contracts (docs/design/route-contracts.md): simplify every polyline,
   // straighten primary-forward routes whose direct lane proves clear, and
-  // certify every edge. Nothing may move nodes or edit edge geometry after
-  // this pass without recertifying.
+  // certify every edge. After this point only whole-graph translation is
+  // allowed: it preserves route classes, ports, bends, clear lanes, and certs.
   applyRouteContracts({ nodes, edges, groups }, graph, bundled, style)
+  translateGeometryToNonNegativeOrigin(nodes, edges, groups, layoutPadding)
 
   // Calculate final bounds including all edge points
   // ELK should include edges in its dimensions, but we verify and expand if needed
@@ -895,6 +1018,50 @@ function elkToPositioned(
     nodes,
     edges,
     groups,
+  }
+}
+
+function translateGeometryToNonNegativeOrigin(
+  nodes: PositionedNode[],
+  edges: PositionedEdge[],
+  groups: PositionedGroup[],
+  padding: number,
+): void {
+  let minX = 0
+  let minY = 0
+  const visitGroup = (group: PositionedGroup): void => {
+    minX = Math.min(minX, group.x)
+    minY = Math.min(minY, group.y)
+    for (const child of group.children) visitGroup(child)
+  }
+  for (const node of nodes) {
+    minX = Math.min(minX, node.x)
+    minY = Math.min(minY, node.y)
+  }
+  for (const group of groups) visitGroup(group)
+  for (const edge of edges) {
+    for (const point of edge.points) {
+      minX = Math.min(minX, point.x)
+      minY = Math.min(minY, point.y)
+    }
+    if (edge.labelPosition) {
+      minX = Math.min(minX, edge.labelPosition.x)
+      minY = Math.min(minY, edge.labelPosition.y)
+    }
+  }
+  if (minX >= 0 && minY >= 0) return
+  const dx = minX < 0 ? -minX + padding : 0
+  const dy = minY < 0 ? -minY + padding : 0
+  const moveGroup = (group: PositionedGroup): void => {
+    group.x += dx
+    group.y += dy
+    for (const child of group.children) moveGroup(child)
+  }
+  for (const node of nodes) { node.x += dx; node.y += dy }
+  for (const group of groups) moveGroup(group)
+  for (const edge of edges) {
+    for (const point of edge.points) { point.x += dx; point.y += dy }
+    if (edge.labelPosition) { edge.labelPosition.x += dx; edge.labelPosition.y += dy }
   }
 }
 
@@ -1313,6 +1480,63 @@ function routeClearOfNodes(points: Point[], nodes: PositionedNode[], exclude: Re
     if (!segmentClearOfNodes(points[i - 1]!, points[i]!, nodes, exclude)) return false
   }
   return true
+}
+
+function honorLinkRankDistance(nodes: PositionedNode[], edges: PositionedEdge[], graph: MermaidGraph): void {
+  if (graph.subgraphs.length > 0) return
+  if (!graph.edges.some(e => (e.length ?? 1) > 1)) return
+  const classes = classifyRoutes(graph)
+  if (classes.some(cls => cls !== 'primary-forward')) return
+
+  const nodeMap = new Map(nodes.map(n => [n.id, n]))
+  const f = layoutFlow(graph.direction)
+  const outgoing = new Map<string, string[]>()
+  for (const edge of graph.edges) {
+    if (!outgoing.has(edge.source)) outgoing.set(edge.source, [])
+    outgoing.get(edge.source)!.push(edge.target)
+  }
+
+  const moveNodeAndDescendants = (start: string, delta: number): void => {
+    if (Math.abs(delta) < 0.5) return
+    const seen = new Set<string>()
+    const stack = [start]
+    while (stack.length > 0) {
+      const id = stack.pop()!
+      if (seen.has(id)) continue
+      seen.add(id)
+      const n = nodeMap.get(id)
+      if (n) n[f.main] += delta
+      for (const next of outgoing.get(id) ?? []) stack.push(next)
+    }
+  }
+
+  const nodeEntry = (n: PositionedNode): number => f.sign === 1 ? n[f.main] : n[f.main] + nodeMainSize(n, graph.direction)
+  const nodeExit = (n: PositionedNode): number => f.sign === 1 ? n[f.main] + nodeMainSize(n, graph.direction) : n[f.main]
+
+  for (let i = 0; i < graph.edges.length; i++) {
+    const spec = graph.edges[i]!
+    const length = spec.length ?? 1
+    if (length <= 1) continue
+    const source = nodeMap.get(spec.source)
+    const target = nodeMap.get(spec.target)
+    if (!source || !target) continue
+    const currentGap = (nodeEntry(target) - nodeExit(source)) * f.sign
+    const minGap = DEFAULTS.layerSpacing + (length - 1) * (DEFAULTS.layerSpacing + 40)
+    if (currentGap < minGap) moveNodeAndDescendants(target.id, (minGap - currentGap) * f.sign)
+  }
+
+  // Reconnect every DAG edge after the rank-distance move. This keeps edge
+  // endpoints and labels coherent before shape clipping + route certification.
+  for (const edge of edges) {
+    const source = nodeMap.get(edge.source)
+    const target = nodeMap.get(edge.target)
+    if (!source || !target || source.id === target.id) continue
+    const start = shapePorts(source)[f.sourceSide]
+    const end = shapePorts(target)[f.targetSide]
+    const elbow = (start[f.main] + end[f.main]) / 2
+    edge.points = doglegBetween(start, end, graph.direction, elbow)
+    if (edge.label) edge.labelPosition = calculatePathMidpoint(edge.points)
+  }
 }
 
 function collapseTinyBundledHitches(nodes: PositionedNode[], edges: PositionedEdge[], bundled: Set<PositionedEdge>): void {

@@ -20,20 +20,20 @@ misparse/drop bugs recorded below as known gaps.
 
 | WS | Claim | Status | Evidence | Gap |
 |---|---|---|---|---|
-| 1 | Shared layout-intent + certificate model | **done** (graph families) | `RouteCertificate` in `src/route-contracts.ts` §4 of `route-contracts.md`; every positioned edge certified (`route-contracts.test.ts` "every positioned edge carries a certificate"); debug exposure via `layoutMermaid(d, { debug: true })` ("layoutMermaid debug exposure" test) | Non-graph families (sequence/timeline/charts) have no `LayoutIntentKind` certificates — deferred per §10 Phase 5 |
-| 2 | Route classes before layout | **done** (flowchart/state/architecture) | `classifyRoutes` (`src/route-contracts.ts:135`); tests `classifyRoutes` describe block (primary/feedback/self-loop/container/cross-hierarchy, author-order reciprocal pairs, long cycles) | Class/ER `relation`/`dependency` subclasses do not exist; ASCII router does not consume `RouteClass` (see WS6) |
-| 3 | Semantic ports + shape-aware anchors | **done** | `shapePorts` (`route-contracts.ts:88`), port ranking §6.2, port-lane alignment §6.2.2; tests: "semantic ports", "port ranking" describe blocks, `lean-shapes.test.ts`, `contact-sheet.test.ts` A–V, property oracle "certificate port fields always agree with the geometric port oracle" (`layout-rubric.test.ts`) | Issue #26 sketched ELK `FIXED_SIDE` ports; branch deliberately rejected that with measured evidence (§7, §10 Phase 2) — documented decision, not a gap |
+| 1 | Shared layout-intent + certificate model | **done** (graph + accepted family certificates) | `RouteCertificate` / `FamilyRouteCertificate` in `src/types.ts`; every graph positioned edge certified (`route-contracts.test.ts`); debug exposure via `layoutMermaid(d, { debug: true })`; class/ER `orthogonal-box`, architecture `side-anchored`, sequence `lifeline-message`, and timeline/chart element-containment family certificate tests in `agent-family-layouts.test.ts` | Graph-route adoption for sequence/timeline/charts remains intentionally out of scope; they use family certificates. |
+| 2 | Route classes before layout | **done** (flowchart/state graph route pass) | `classifyRoutes` (`src/route-contracts.ts`); tests `classifyRoutes` describe block (primary/feedback/self-loop/container/cross-hierarchy, author-order reciprocal pairs, long cycles) | Class/ER `relation`/`dependency` subclasses do not exist; ASCII router does not consume `RouteClass` (see WS6); architecture final side reroutes use family endpoint-side certs, not graph `RouteClass` certs |
+| 3 | Semantic ports + shape-aware anchors | **done** | `shapePorts` (`route-contracts.ts`), port ranking §6.2, dynamic `sourcePortAssignment`/`targetPortAssignment`, port-lane alignment §6.2.2, and conservative primary-DAG ELK `FIXED_SIDE` pre-layout hints; tests: "semantic ports", "port ranking", dynamic side/slot/role certificate tests, `lean-shapes.test.ts`, `contact-sheet.test.ts` A–V, property oracle "certificate port fields always agree with the geometric port oracle" (`layout-rubric.test.ts`) | Broad fixed-position/feedback/container port mutation is deliberately skipped; final certifying repair remains load-bearing |
 | 4 | Certifying route simplifier | **done** | §6 of `route-contracts.md`; MFA regression suite, blocked-lane regression ("a blocker node ... is named in the certificate"), `directLaneBlockers` unit battery on both axes, determinism test | — |
-| 5 | Gantt pure semantic resolver | **deferred** | not on this branch | follow-up issue |
+| 5 | Gantt pure semantic resolver | **done** | `src/gantt/schedule.ts` resolves schedules without renderer/DOM/wall-clock dependency; `UNRESOLVABLE_SCHEDULE` closes verify-ok/render-throws seams; `analyzeMermaid` exposes critical path/slack; Gantt parser/scheduler/layout/agent tests pin behavior | Deeper upstream parser/DB suite harvest remains BUILD-20; new PR #54 seed bench is only a ratchet. |
 | 6 | ASCII/Unicode first-class | **partial** | ASCII longest-path layering + widest-segment labels (§3 principle 5); exact goldens (`goldens:ascii:check`); ASCII mutation lane | The grid pathfinder does NOT consume `RouteClass`/emit certificates — `applyRouteContracts` is imported only by `layout-engine.ts`. "SVG and ASCII agree on route classes" holds by parallel construction, not by shared code |
-| 7 | Class/ER semantic layout contracts | **partial, and the doc overclaimed** | Compartment-aware sizing exists (`src/class/layout.ts` CLS compartments, `src/er/layout.ts` attribute rows); QUAL-1 adapters project real geometry (`src/agent/family-layouts.ts:86,103`) | `src/class/layout.ts` and `src/er/layout.ts` call `elkLayoutSync` directly — **no route classification, no straightening, no certificates, no ports**. `route-contracts.md` §6.1/§10 claimed class/ER inherit via projected graphs; corrected in this audit's commit |
-| 8 | Text measurement contract | **partial** | `src/text-metrics.ts` (`measureMultilineText`) shared by route-contract label pills, layout, and renderers; `text-metrics.test.ts` | No single `TextMeasureInput/Result` interface with fullwidth/emoji flags as the issue sketches; CJK/emoji property coverage not unified |
-| 9 | Security action records | **deferred (pre-existing only)** | `renderer-security.test.ts` exists from earlier work | No `DiagramAction` model on this branch |
-| 10 | Stable region tree | **partial** | `RenderedLayout` nodes/edges/groups via `positionedToRenderedLayout` + per-family adapters (QUAL-1) | Not the full `RegionKind` tree (no compartment/attribute/legend regions); IDs stable for graph families only |
-| 11 | Family-specific validators | **partial (flowchart/state done)** | Six `ROUTE_*` Tier-2 tripwires + `DECISION_BRANCH_UNLABELED` Tier-3 lint (ISO 5807 10.3.1.2); tests "route audit tripwires fire on post-certification corruption", "boundary harvest", DECISION_BRANCH_UNLABELED block | Sequence/class/ER/Gantt validators from the issue's list not on this branch |
+| 7 | Class/ER semantic layout contracts | **partial, now certified for accepted invariant** | Compartment-aware sizing exists (`src/class/layout.ts` CLS compartments, `src/er/layout.ts` attribute rows); QUAL-1 adapters project real geometry; debug layouts emit `family-layout` / `orthogonal-box` relationship certificates; verify covers on-canvas, non-overlap, endpoint-on-box tripwires | `src/class/layout.ts` and `src/er/layout.ts` still call `elkLayoutSync` directly — no graph route classification/straightening/port ranking yet |
+| 8 | Text measurement contract | **done (V1)** | `TEXT_MEASUREMENT_CONTRACT`, `measureText`, and `measureTextWidth` are exported; CJK/fullwidth/emoji/ambiguous-width cases are pinned in `text-metrics.test.ts`; route/layout/render paths use the shared contract | Browser-font exactness remains intentionally approximate/deterministic rather than platform-dependent. |
+| 9 | Security action records | **partial, implemented for analysis** | `DiagramActionRecord` / `DiagramAnalysis` plus `analyzeMermaid(Source)` expose source-only href/call/callback records; unsafe schemes (`javascript:`, `data:`, `vbscript:`) are classified unsafe; tests in `agent-analysis.test.ts` | Renderers still do not expose a unified interactive action region model across SVG/PNG/ASCII/layout JSON. |
+| 10 | Stable region tree | **partial, MVP shipped** | `RenderedLayoutGroup.parentId`, SVG `data-region`/`data-parent-id`, and ASCII best-effort region metadata are pinned in `agent-region-tree.test.ts`; source maps now cover more family elements | Not the full `RegionKind` tree yet (compartments/attributes/legend item regions remain richer follow-ups). |
+| 11 | Family-specific validators | **done, broadened** | Six `ROUTE_*` Tier-2 tripwires + `DECISION_BRANCH_UNLABELED`; class/ER rendered-layout geometry tripwires; Gantt schedule/geometric tripwires; sequence/timeline verify now carries real layout geometry; QUAL-1 family adapter tests include sequence/timeline; debug family certificates cover sequence/timeline/chart layouts | Richer semantic certificates beyond containment/anchor checks can be proposed as follow-ups, but the deferred no-schema gap is closed. |
 | 12 | Reproducible visual evidence | **done** | contact sheet (`bun run contact:sheet` + `contact-sheet.test.ts` snapshot pins), `eval/layout-compare` (corpus 0 regressions recorded in §11.7), `bun run rubric:visual` HTML galleries | — |
 | 13 | Source-preservation ladder | **partial (pre-existing)** | `editPolicy` in `am capabilities`, opaque fallbacks per family (CHANGELOG) | Formal Level 0–4 ladder doc not on this branch |
-| 14 | Analysis outputs | **partial** | Certificates + `auditRouteContracts` + verify warnings are deterministic analysis facts; feedback-edge classification exposed | No `DiagramAnalysis` facts API |
+| 14 | Analysis outputs | **done for requested facts** | `analyzeMermaid` / `analyzeMermaidSource` / `collectActionRecords` expose deterministic feedback edges, Gantt schedule summary, and action records without mutating source/render output; tests in `agent-analysis.test.ts` | Additional family-specific facts can be added incrementally. |
 
 **Definition-of-done check**: documented model ✓; primary/feedback
 classification ✓; MFA hitch fixed via certified invariant (not blind cleanup)
@@ -76,8 +76,9 @@ documented; "Test" = where directly tested. Flags note anything lacking either.
 | 21 | **ASCII longest-path layering** + **widest-segment label choice** + FIFO tie-breaking | §3 principle 5 | ASCII goldens + `ascii-fanout-trunk-labeled.test.ts`, `ascii-pathfinder-units.test.ts`, ASCII mutation lane | — |
 | 22 | **ROUTE_\* tripwires** (six zero-noise post-certification validators) | §7 | tripwire + boundary-harvest blocks; "validation never mutates the layout" | — |
 | 23 | **PORT_EXACT catalog / slanted family ports** (slant midpoints, flag point) | §6.2.2 | `lean-shapes.test.ts`; contact sheet T–V | — |
+| 24 | **Dynamic port allocator** (physical side + ordered side slot + semantic endpoint role; exact `AnyPort` remains additive) | §6.2.5 | route-contract certificate tests for fan-out slot order and feedback flipped roles; `layoutMermaid(d, { debug: true })` exposure | — |
 
-Summary: 23/23 heuristics now have both documentation and direct tests. The
+Summary: 24/24 heuristics now have both documentation and direct tests. The
 last historical gap, degradation ladder #20, is pinned by issue #34's
 crash→fallback fixture rather than broad crash-freedom stress tests alone.
 
@@ -91,20 +92,21 @@ crash→fallback fixture rather than broad crash-freedom stress tests alone.
 
 | Family | Layout path | Inherits route contracts / ports / rubric heuristics? | Evidence |
 |---|---|---|---|
-| flowchart | `parseMermaid` → `layoutGraphSync` | **yes — everything** (#1–20, 22, 23) | `src/index.ts:399`, `src/agent/index.ts:65`, `src/agent/verify.ts:129` |
-| state | `stateBodyToGraph` → `layoutGraphSync` | **yes — everything**; pseudostates are PORT_EXACT port-only shapes | `src/agent/index.ts:70`, `src/agent/verify.ts:85`; contact sheet Q |
-| architecture | own placement → `layoutGraphSync` + side-anchored rerouting | **yes** (classification/straightening/certificates), with `L/R/T/B` → `W/E/N/S` port mapping | `src/architecture/layout.ts:51`; route-contracts.test.ts "service nodes straighten like rectangles" |
-| class | own ELK engine | **NO** — `elkLayoutSync` direct; no classes, no certificates, no ports | `src/class/layout.ts` (imports `elkLayoutSync`, never `layoutGraphSync`) |
-| ER | own ELK engine | **NO** — same | `src/er/layout.ts` |
-| sequence | own engine (lifelines) | no graph heuristics by design; QUAL-1 adapter projects geometry for quality metrics | `src/sequence/*`, `src/agent/family-layouts.ts` |
-| timeline / journey / xychart / pie / quadrant | own engines | no graph heuristics; QUAL-1 adapters only | `src/agent/family-layouts.ts:86–145` |
+| flowchart | `parseMermaid` → `layoutGraphSync` | **yes — everything** (#1–20, 22–24) | `src/index.ts`, `src/agent/index.ts`, `src/agent/verify.ts` |
+| state | `stateBodyToGraph` → `layoutGraphSync` | **yes — everything**; pseudostates are PORT_EXACT port-only shapes | `src/agent/index.ts`, `src/agent/verify.ts`; contact sheet Q |
+| architecture | own placement → graph placement helper + final side-anchored rerouting | **family certificate** — debug layouts expose final-geometry `side-anchored` endpoint certificates, not stale graph certs | `src/architecture/layout.ts`; `src/__tests__/agent-family-layouts.test.ts` pins architecture family certs |
+| class | own ELK engine | **family certificate only** — `elkLayoutSync` direct; no graph route classes/straightening, but debug `orthogonal-box` certs exist | `src/class/layout.ts`; `src/__tests__/agent-family-layouts.test.ts` |
+| ER | own ELK engine | **family certificate only** — same class of `orthogonal-box` debug certs; no graph route classes/straightening | `src/er/layout.ts`; `src/__tests__/agent-family-layouts.test.ts` |
+| sequence | own engine (lifelines) | no graph heuristics by design; real layout geometry now feeds quality and verify | `src/sequence/*`, `src/agent/family-layouts.ts` |
+| timeline / journey / xychart / pie / quadrant | own engines | no graph heuristics; real family layout adapters feed quality/verify, with Gantt extra schedule/geometric tripwires | `src/agent/family-layouts.ts` |
 | ASCII (all graph families) | separate grid pathfinder | **separate stack**: longest-path layering, FIFO ties, label-segment policy, edge bundling, container clipping — parallel to, not consuming, route classes | `src/ascii/*`; `docs/mutation-testing.md` ASCII lane |
 
-The `route-contracts.md` §6.1/§10 claim that class/ER inherit via
-`layoutGraphSync` was **false** and has been corrected in this commit. The
-class/ER adoption (projecting their relation graphs through the contract
-pass, or porting `shapePorts` to entity boxes) is the highest-value follow-up
-this audit identifies (issue #26 WS7).
+The `route-contracts.md` §6.1/§10 claim that class/ER inherit graph route
+contracts via `layoutGraphSync` was **false** and has been corrected. The
+current accepted adoption is family-specific (`orthogonal-box` certs and
+geometry tripwires). A future graph-route adoption for class/ER would require
+projecting relation graphs through the contract pass or porting `shapePorts`
+to entity boxes (issue #26 WS7).
 
 ---
 
@@ -216,11 +218,11 @@ property/mutation/golden guidance):
    pinned by `src/__tests__/link-grammar.test.ts`.
 3. **Degradation ladder untested** (heuristic #20): no fixture pins the ELK
    crash → plainer-options retry → route-pass repair path.
-   **PARTIALLY RESOLVED**: `src/__tests__/heuristic-coverage.test.ts` pins
-   ladder reachability + crash-freedom over dense/cyclic stress inputs; a
-   deterministic tier-0 crash trigger was searched for (K7–K13 complete
-   digraphs, n×n×k multigraphs, large self-loop cycles) but not found, so
-   the crash→fallback transition itself remains unpinned.
+   **RESOLVED**: `src/__tests__/heuristic-coverage.test.ts` now pins issue
+   #34's deterministic 3-node/9-edge cyclic multigraph: tier 0 throws
+   `Invalid hitboxes for scanline constraint calculation`, tier 1
+   (`elk.layered.feedbackEdges=false`) succeeds, and public
+   `layoutGraphSync` returns finite geometry.
 4. **Occlusion-safe `alignLayerNodes` and `orthogonalizeEdgePoints`** have
    only indirect (rubric-metric) coverage; neither is in a mutation lane.
    **RESOLVED (direct tests)**: `src/__tests__/heuristic-coverage.test.ts`

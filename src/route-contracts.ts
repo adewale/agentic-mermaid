@@ -18,6 +18,7 @@ import type {
   Direction,
   MermaidGraph,
   Point,
+  PortSemanticRole,
   PortSide,
   PositionedEdge,
   PositionedGroup,
@@ -26,6 +27,7 @@ import type {
   RouteCertificate,
   RouteClass,
   RouteInvariant,
+  RoutePortAssignment,
 } from './types.ts'
 import { measureMultilineText } from './text-metrics.ts'
 import { resolveRenderStyle } from './styles.ts'
@@ -452,6 +454,154 @@ function facingSide(axis: Axis, facing: 1 | -1): PortSide {
   return axis.main === 'x' ? (forward ? 'E' : 'W') : (forward ? 'S' : 'N')
 }
 
+interface RoutePortEndpointDraft {
+  edge: PositionedEdge
+  endpoint: 'source' | 'target'
+  nodeId: string
+  side: PortSide
+  role: PortSemanticRole
+  coord: number
+  edgeIndex: number
+  port?: AnyPort
+}
+
+export interface RoutePortAllocation {
+  byEdge: Map<PositionedEdge, { source?: RoutePortAssignment; target?: RoutePortAssignment }>
+  /** Counts only endpoints that compete for the flow-side ranking rules. */
+  sideUse: Map<string, number>
+}
+
+function facetSides(port: DiamondFacet): [PortSide, PortSide] {
+  switch (port) {
+    case 'NE': return ['N', 'E']
+    case 'SE': return ['S', 'E']
+    case 'SW': return ['S', 'W']
+    case 'NW': return ['N', 'W']
+  }
+}
+
+function sideForPort(port: AnyPort | undefined, semanticSide: PortSide): PortSide {
+  if (!port) return semanticSide
+  if (port === 'N' || port === 'E' || port === 'S' || port === 'W') return port
+  const sides = facetSides(port)
+  return sides.includes(semanticSide) ? semanticSide : sides[0]
+}
+
+function roleAndSide(routeClass: RouteClass, endpoint: 'source' | 'target', axis: Axis): { role: PortSemanticRole; side: PortSide } {
+  const source = endpoint === 'source'
+  switch (routeClass) {
+    case 'feedback': {
+      const flipped: Axis = { ...axis, sign: axis.sign === 1 ? -1 : 1 }
+      return {
+        role: source ? 'feedback-source' : 'feedback-target',
+        side: facingSide(flipped, source ? 1 : -1),
+      }
+    }
+    case 'self-loop':
+      return {
+        role: source ? 'self-loop-source' : 'self-loop-target',
+        side: facingSide(axis, source ? 1 : -1),
+      }
+    case 'container':
+      return {
+        role: source ? 'container-source' : 'container-target',
+        side: facingSide(axis, source ? 1 : -1),
+      }
+    case 'cross-hierarchy':
+      return {
+        role: source ? 'cross-hierarchy-source' : 'cross-hierarchy-target',
+        side: facingSide(axis, source ? 1 : -1),
+      }
+    default:
+      return {
+        role: source ? 'flow-source' : 'flow-target',
+        side: facingSide(axis, source ? 1 : -1),
+      }
+  }
+}
+
+function sideOrderCoordinate(side: PortSide, node: PositionedNode, point: Point | undefined): number {
+  if (point) return side === 'N' || side === 'S' ? point.x : point.y
+  return side === 'N' || side === 'S' ? node.x + node.width / 2 : node.y + node.height / 2
+}
+
+/**
+ * Dynamic port allocator: for every node endpoint, record the physical side,
+ * deterministic slot order along that side, and semantic role (flow emit,
+ * feedback return, container attach, etc.). `sourcePort`/`targetPort` remain
+ * the exact V1 port vocabulary; this side/slot/role layer is additive and can
+ * be fed into pre-layout placement without reinterpreting those exact ports.
+ */
+export function allocateRoutePorts(
+  positioned: { nodes: PositionedNode[]; edges: PositionedEdge[] },
+  graph: MermaidGraph,
+  classes: RouteClass[] = classifyRoutes(graph),
+): RoutePortAllocation {
+  const axis = axisFor(graph.direction)
+  const nodeMap = new Map(positioned.nodes.map(n => [n.id, n]))
+  const drafts: RoutePortEndpointDraft[] = []
+  const sideUse = new Map<string, number>()
+  const bumpSideUse = (nodeId: string, side: PortSide) => {
+    const key = `${nodeId}:${side}`
+    sideUse.set(key, (sideUse.get(key) ?? 0) + 1)
+  }
+
+  for (const edge of positioned.edges) {
+    if (edge.edgeIndex === undefined) continue
+    const routeClass = classes[edge.edgeIndex] ?? 'primary-forward'
+    for (const endpoint of ['source', 'target'] as const) {
+      const nodeId = endpoint === 'source' ? edge.source : edge.target
+      const node = nodeMap.get(nodeId)
+      if (!node) continue
+      const { role, side: semanticSide } = roleAndSide(routeClass, endpoint, axis)
+      const point = endpoint === 'source' ? edge.points[0] : edge.points[edge.points.length - 1]
+      const port = point ? portAt(node, point) : undefined
+      const side = sideForPort(port, semanticSide)
+      const competes = routeClass === 'primary-forward' || (routeClass === 'feedback' && !edge.label)
+      if (competes) bumpSideUse(nodeId, semanticSide)
+      drafts.push({
+        edge,
+        endpoint,
+        nodeId,
+        side,
+        role,
+        coord: sideOrderCoordinate(side, node, point),
+        edgeIndex: edge.edgeIndex,
+        port,
+      })
+    }
+  }
+
+  const groups = new Map<string, RoutePortEndpointDraft[]>()
+  for (const draft of drafts) {
+    const key = `${draft.nodeId}:${draft.side}`
+    if (!groups.has(key)) groups.set(key, [])
+    groups.get(key)!.push(draft)
+  }
+
+  const byEdge = new Map<PositionedEdge, { source?: RoutePortAssignment; target?: RoutePortAssignment }>()
+  const endpointRank = (endpoint: 'source' | 'target') => endpoint === 'source' ? 0 : 1
+  for (const group of groups.values()) {
+    group.sort((a, b) =>
+      a.coord - b.coord || a.edgeIndex - b.edgeIndex || endpointRank(a.endpoint) - endpointRank(b.endpoint))
+    const slotCount = group.length
+    group.forEach((draft, slotIndex) => {
+      const assignment: RoutePortAssignment = {
+        side: draft.side,
+        slotIndex,
+        slotCount,
+        role: draft.role,
+        ...(draft.port ? { port: draft.port } : {}),
+      }
+      const entry = byEdge.get(draft.edge) ?? {}
+      entry[draft.endpoint] = assignment
+      byEdge.set(draft.edge, entry)
+    })
+  }
+
+  return { byEdge, sideUse }
+}
+
 /** Port-ranking sharpness: a diamond's vertex is the strongest anchor. */
 function portSharpness(shape: PositionedNode['shape']): number {
   return shape === 'diamond' ? 2 : 1
@@ -860,24 +1010,26 @@ export function applyRouteContracts(
   const nodeMap = new Map(positioned.nodes.map(n => [n.id, n]))
   const groupMap = flattenGroups(positioned.groups)
   // Port-ranking occupancy: how many lines each facing side will carry.
-  // Primary edges use the flow sides; UNLABELED feedback straightens onto
-  // parallel reverse lanes on the flipped sides; labeled feedback leaves via
-  // the outer channel (N/S ports) and does not compete for facing sides.
-  const sideUse = new Map<string, number>()
-  const bump = (nodeId: string, side: PortSide) => {
-    const key = `${nodeId}:${side}`
-    sideUse.set(key, (sideUse.get(key) ?? 0) + 1)
-  }
-  for (const edge of positioned.edges) {
-    if (bundled.has(edge) || edge.edgeIndex === undefined) continue
+  // Derived by the dynamic port allocator, but intentionally counted on the
+  // semantic facing side (primary flow sides; unlabeled feedback flipped
+  // sides) so routing behavior stays independent of the current, possibly
+  // not-yet-repaired endpoint coordinates.
+  const sideUse = allocateRoutePorts(positioned, graph, classes).sideUse
+  for (const edge of bundled) {
+    if (edge.edgeIndex === undefined) continue
     const cls = classes[edge.edgeIndex]
-    if (cls === 'primary-forward') {
-      bump(edge.source, facingSide(axis, 1))
-      bump(edge.target, facingSide(axis, -1))
-    } else if (cls === 'feedback' && !edge.label) {
-      const flipped: Axis = { ...axis, sign: axis.sign === 1 ? -1 : 1 }
-      bump(edge.source, facingSide(flipped, 1))
-      bump(edge.target, facingSide(flipped, -1))
+    if (cls !== 'primary-forward' && !(cls === 'feedback' && !edge.label)) continue
+    const sourceSide = cls === 'feedback'
+      ? facingSide({ ...axis, sign: axis.sign === 1 ? -1 : 1 }, 1)
+      : facingSide(axis, 1)
+    const targetSide = cls === 'feedback'
+      ? facingSide({ ...axis, sign: axis.sign === 1 ? -1 : 1 }, -1)
+      : facingSide(axis, -1)
+    for (const [nodeId, side] of [[edge.source, sourceSide], [edge.target, targetSide]] as const) {
+      const key = `${nodeId}:${side}`
+      const next = (sideUse.get(key) ?? 0) - 1
+      if (next > 0) sideUse.set(key, next)
+      else sideUse.delete(key)
     }
   }
   const ctx: LaneContext = { nodes: positioned.nodes, edges: positioned.edges, axis, style, classes, sideUse }
@@ -1418,10 +1570,12 @@ export function applyRouteContracts(
   }
 
   const certificates: RouteCertificate[] = []
+  const finalPortPlan = allocateRoutePorts(positioned, graph, classes)
   const finalizeCertificate = (edge: PositionedEdge, draft: DraftRouteCertificate): RouteCertificate => {
     const bendCountFinal = bendCount(edge.points)
     const sourceNode = nodeMap.get(edge.source)
     const targetNode = nodeMap.get(edge.target)
+    const portAssignment = finalPortPlan.byEdge.get(edge)
     const base = {
       edgeIndex: draft.edgeIndex,
       routeClass: draft.routeClass,
@@ -1430,6 +1584,8 @@ export function applyRouteContracts(
       directLaneBlockedBy: draft.directLaneBlockedBy,
       sourcePort: sourceNode && edge.points.length > 0 ? portAt(sourceNode, edge.points[0]!) : undefined,
       targetPort: targetNode && edge.points.length > 0 ? portAt(targetNode, edge.points[edge.points.length - 1]!) : undefined,
+      sourcePortAssignment: portAssignment?.source,
+      targetPortAssignment: portAssignment?.target,
     }
     // Public route certificates are a discriminated union: only final
     // straight routes may carry `straightened`. A retry can downgrade an

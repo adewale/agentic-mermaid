@@ -297,6 +297,33 @@ describe('certificates', () => {
       expect(e.routeCertificate?.bendCount).toBe(0)
     }
   })
+
+  it('debug certificates expose dynamic port side, ordered slot, and semantic role', () => {
+    const positioned = layoutGraphSync(parseMermaid('flowchart LR\n  A --> B\n  A --> C'))
+    const ab = findEdge(positioned.edges, 'A', 'B')
+    const ac = findEdge(positioned.edges, 'A', 'C')
+    expect(ab.routeCertificate?.sourcePortAssignment).toEqual({
+      side: 'E', slotIndex: 0, slotCount: 2, role: 'flow-source',
+    })
+    expect(ac.routeCertificate?.sourcePortAssignment).toEqual({
+      side: 'E', slotIndex: 1, slotCount: 2, role: 'flow-source',
+    })
+    expect(ab.routeCertificate?.targetPortAssignment).toMatchObject({
+      side: 'W', slotIndex: 0, slotCount: 1, role: 'flow-target', port: 'W',
+    })
+  })
+
+  it('feedback endpoints get flipped-side semantic roles without changing sourcePort/targetPort', () => {
+    const positioned = layoutGraphSync(parseMermaid('flowchart LR\n  A --> B\n  B --> A'))
+    const fwd = findEdge(positioned.edges, 'A', 'B')
+    const back = findEdge(positioned.edges, 'B', 'A')
+    expect(fwd.routeCertificate?.sourcePortAssignment).toMatchObject({ side: 'E', role: 'flow-source' })
+    expect(fwd.routeCertificate?.targetPortAssignment).toMatchObject({ side: 'W', role: 'flow-target' })
+    expect(back.routeCertificate?.sourcePortAssignment).toMatchObject({ side: 'W', role: 'feedback-source' })
+    expect(back.routeCertificate?.targetPortAssignment).toMatchObject({ side: 'E', role: 'feedback-target' })
+    expect(back.routeCertificate?.sourcePort).toBeUndefined()
+    expect(back.routeCertificate?.targetPort).toBeUndefined()
+  })
 })
 
 describe('ROUTE_HITCH tripwire (issue #25 acceptance criterion 3)', () => {

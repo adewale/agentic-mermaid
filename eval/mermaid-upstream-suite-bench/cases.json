@@ -1,0 +1,134 @@
+[
+  {
+    "id": "flowchart-parser-subgraph-label-edge",
+    "family": "flowchart",
+    "source": "flowchart TD\n  subgraph Auth[Auth Layer]\n    A[Login] -->|success| B{MFA?}\n  end\n  B -->|yes| C[Challenge]\n  B -->|no| D[Session]",
+    "upstream": {
+      "repo": "mermaid-js/mermaid",
+      "files": ["packages/mermaid/src/diagrams/flowchart/parser/flow.spec.js", "packages/mermaid/src/diagrams/flowchart/flowDb.spec.js"],
+      "blocks": ["subgraph title parsing", "edge text and diamond node parsing"]
+    },
+    "assertions": { "minNodes": 4, "minEdges": 3, "minGroups": 1, "labelsContain": ["Login", "MFA?", "success", "Auth Layer"] }
+  },
+  {
+    "id": "state-parser-composite-start-end",
+    "family": "state",
+    "source": "stateDiagram-v2\n  [*] --> Idle\n  Idle --> Running : start\n  Running --> [*]",
+    "upstream": {
+      "repo": "mermaid-js/mermaid",
+      "files": ["packages/mermaid/src/diagrams/state/parser/stateDiagram.spec.js", "packages/mermaid/src/diagrams/state/stateDb.spec.ts"],
+      "blocks": ["start/end transitions", "transition descriptions"]
+    },
+    "assertions": { "minNodes": 2, "minEdges": 2, "labelsContain": ["Idle", "Running", "start"] }
+  },
+  {
+    "id": "sequence-parser-participants-notes-activation",
+    "family": "sequence",
+    "source": "sequenceDiagram\n  participant Client\n  participant API\n  Client->>API: Request\n  activate API\n  Note right of API: validate\n  API-->>Client: Response\n  deactivate API",
+    "upstream": {
+      "repo": "mermaid-js/mermaid",
+      "files": ["packages/mermaid/src/diagrams/sequence/parser/sequenceDiagram.spec.js", "packages/mermaid/src/diagrams/sequence/sequenceDb.spec.ts"],
+      "blocks": ["participant statements", "notes", "activate/deactivate", "solid and dotted messages"]
+    },
+    "assertions": { "minNodes": 2, "minEdges": 2, "labelsContain": ["Client", "API", "Request", "Response"] }
+  },
+  {
+    "id": "class-parser-members-relations-annotations",
+    "family": "class",
+    "source": "classDiagram\n  class Animal {\n    +String name\n    +move()\n  }\n  class Duck {\n    +quack()\n  }\n  <<interface>> Duck\n  Animal <|-- Duck : inherits",
+    "upstream": {
+      "repo": "mermaid-js/mermaid",
+      "files": ["packages/mermaid/src/diagrams/class/parser/classDiagram.spec.js", "packages/mermaid/src/diagrams/class/classDb.spec.ts"],
+      "blocks": ["class members", "annotations", "inheritance relation labels"]
+    },
+    "assertions": { "minNodes": 2, "minEdges": 1, "labelsContain": ["Animal", "Duck", "inherits"] }
+  },
+  {
+    "id": "er-parser-cardinality-attributes",
+    "family": "er",
+    "source": "erDiagram\n  CUSTOMER ||--o{ ORDER : places\n  CUSTOMER {\n    string name\n    string email\n  }\n  ORDER {\n    int id\n    date created_at\n  }",
+    "upstream": {
+      "repo": "mermaid-js/mermaid",
+      "files": ["packages/mermaid/src/diagrams/er/parser/erDiagram.spec.js", "packages/mermaid/src/diagrams/er/erDb.spec.ts"],
+      "blocks": ["relationship cardinalities", "entity attributes", "relationship labels"]
+    },
+    "assertions": { "minNodes": 2, "minEdges": 1, "labelsContain": ["CUSTOMER", "ORDER", "places"] }
+  },
+  {
+    "id": "timeline-parser-sections-periods-events",
+    "family": "timeline",
+    "source": "timeline\n  title Release train\n  section Plan\n    2024 Q1 : Define scope\n            : Staff team\n  section Ship\n    2024 Q2 : Beta\n            : GA",
+    "upstream": {
+      "repo": "mermaid-js/mermaid",
+      "files": ["packages/mermaid/src/diagrams/timeline/parser/timeline.spec.js", "packages/mermaid/src/diagrams/timeline/timelineDb.spec.ts"],
+      "blocks": ["title", "sections", "multiple events per period"]
+    },
+    "assertions": { "minNodes": 6, "minGroups": 2, "labelsContain": ["Plan", "2024 Q1", "Define scope", "GA"] }
+  },
+  {
+    "id": "gantt-parser-after-dependency-and-section",
+    "family": "gantt",
+    "source": "gantt\n  title Launch\n  dateFormat YYYY-MM-DD\n  section Build\n    Core :core, 2024-01-01, 2d\n    Docs :docs, after core, 1d",
+    "upstream": {
+      "repo": "mermaid-js/mermaid",
+      "files": ["packages/mermaid/src/diagrams/gantt/parser/gantt.spec.js", "packages/mermaid/src/diagrams/gantt/ganttDb.spec.ts", "eval/mermaid-gantt-bench/cases.json"],
+      "blocks": ["section parsing", "ids", "after dependency resolution"]
+    },
+    "assertions": { "minNodes": 2, "minGroups": 1, "labelsContain": ["Core", "Docs", "Build"] }
+  },
+  {
+    "id": "journey-parser-sections-actors-scores",
+    "family": "journey",
+    "source": "journey\n  title Onboard\n  section Signup\n    Visit landing: 5: User\n    Create account: 3: User, System",
+    "upstream": {
+      "repo": "mermaid-js/mermaid",
+      "files": ["packages/mermaid/src/diagrams/user-journey/parser/journey.spec.js", "packages/mermaid/src/diagrams/user-journey/journeyDb.spec.ts"],
+      "blocks": ["title", "sections", "task score and actors"]
+    },
+    "assertions": { "minNodes": 2, "minGroups": 1, "labelsContain": ["Visit landing", "Create account", "Signup"] }
+  },
+  {
+    "id": "architecture-parser-groups-services-edges",
+    "family": "architecture",
+    "source": "architecture-beta\n  group cloud(cloud)[Cloud]\n  service api(server)[API] in cloud\n  service db(database)[DB] in cloud\n  api:R --> L:db",
+    "upstream": {
+      "repo": "mermaid-js/mermaid",
+      "files": ["packages/mermaid/src/diagrams/architecture/parser/architecture.spec.js", "packages/mermaid/src/diagrams/architecture/architectureDb.spec.ts"],
+      "blocks": ["groups", "services", "edge sides"]
+    },
+    "assertions": { "minNodes": 2, "minEdges": 1, "minGroups": 1, "labelsContain": ["Cloud", "API", "DB"] }
+  },
+  {
+    "id": "xychart-parser-title-axes-bars-lines",
+    "family": "xychart",
+    "source": "xychart-beta\n  title \"Revenue\"\n  x-axis [Jan, Feb, Mar]\n  y-axis \"USD\" 0 --> 100\n  bar [10, 40, 70]\n  line [20, 30, 90]",
+    "upstream": {
+      "repo": "mermaid-js/mermaid",
+      "files": ["packages/mermaid/src/diagrams/xychart/parser/xychart.spec.js", "packages/mermaid/src/diagrams/xychart/xychartDb.spec.ts"],
+      "blocks": ["title", "axis labels", "bar and line series"]
+    },
+    "assertions": { "minNodes": 6, "minGroups": 1, "labelsContain": ["Jan", "Feb", "Mar"] }
+  },
+  {
+    "id": "pie-parser-title-show-data-slices",
+    "family": "pie",
+    "source": "pie showData\n  title Browser share\n  \"Chrome\" : 61\n  \"Firefox\" : 9\n  \"Safari\" : 20",
+    "upstream": {
+      "repo": "mermaid-js/mermaid",
+      "files": ["packages/mermaid/src/diagrams/pie/parser/pie.spec.js", "packages/mermaid/src/diagrams/pie/pieDb.spec.ts"],
+      "blocks": ["showData", "title", "slice labels and values"]
+    },
+    "assertions": { "minNodes": 3, "labelsContain": ["Chrome", "Firefox", "Safari"] }
+  },
+  {
+    "id": "quadrant-parser-axes-quadrants-points",
+    "family": "quadrant",
+    "source": "quadrantChart\n  title Effort vs Impact\n  x-axis Low --> High\n  y-axis Low --> High\n  quadrant-1 Quick wins\n  quadrant-2 Big bets\n  quadrant-3 Fill-ins\n  quadrant-4 Avoid\n  Auth: [0.8, 0.7]\n  Cleanup: [0.2, 0.3]",
+    "upstream": {
+      "repo": "mermaid-js/mermaid",
+      "files": ["packages/mermaid/src/diagrams/quadrant-chart/parser/quadrant.spec.js", "packages/mermaid/src/diagrams/quadrant-chart/quadrantDb.spec.ts"],
+      "blocks": ["axis labels", "quadrant labels", "point coordinates"]
+    },
+    "assertions": { "minNodes": 2, "minGroups": 4, "labelsContain": ["Quick wins", "Auth", "Cleanup"] }
+  }
+]

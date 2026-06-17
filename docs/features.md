@@ -49,7 +49,7 @@ Agentic Mermaid outputs **ASCII, PNG, and SVG** from the same renderer foundatio
   `maxWidth` wrapping, trunk-shared fanouts).
 - **PNG** — `renderMermaidPNG(source, { fitTo, background })` or `am render diagram.mmd --format png --output diagram.png` (offline `@resvg/resvg-js`, bundled DejaVu,
   cross-runtime deterministic on same-machine x86_64/ARM64 where Node + built `dist/` are present).
-- **JSON layout** — `layoutMermaid` / `am render --format json`.
+- **JSON layout** — `layoutMermaid` / `am render --format json`; add `--certificates` (or `layoutMermaid(d, { debug: true })`) to include opt-in graph route certificates plus accepted family certificates (class/ER/architecture/sequence/timeline/charts), including exact ports and side/slot/role assignments where applicable.
 - **ASCII with metadata** — `renderMermaidASCIIWithMeta` → `{ascii, regions}`
   for TUI click-mapping.
 - **Reverse** — `asciiToMermaid` reconstructs flowchart source from ASCII

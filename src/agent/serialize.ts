@@ -134,7 +134,7 @@ export function synthesizeFromGraph(payload: ValidDiagramPayload): Result<ValidD
 
   const draft: ValidDiagram = {
     kind: payload.kind, meta, body,
-    source: { nodes: new Map(), edges: new Map(), groups: new Map() },
+    source: { nodes: new Map(), edges: new Map(), groups: new Map(), labels: new Map() },
     canonicalSource: '',
   }
   return ok({ ...draft, canonicalSource: serializeMermaid(draft) })

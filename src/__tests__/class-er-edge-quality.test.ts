@@ -18,6 +18,7 @@ import { parseClassDiagram } from '../class/parser.ts'
 import { layoutClassDiagramSync } from '../class/layout.ts'
 import { parseErDiagram } from '../er/parser.ts'
 import { layoutErDiagramSync } from '../er/layout.ts'
+import { verifyMermaid } from '../agent/index.ts'
 
 const prep = (t: string) => t.split('\n').map(l => l.trim()).filter(l => l.length > 0)
 
@@ -89,6 +90,18 @@ describe('class diagram relationship edges are orthogonal and clean (ELK direct,
     expect(defects.diagonals).toBe(0)
     expect(defects.duplicates).toBe(0)
     expect(defects.shortRoutes).toBe(0)
+  })
+})
+
+describe('class/ER semantic layout validators (#33)', () => {
+  it('verify surfaces real class/ER geometry with zero endpoint/on-canvas warnings for clean diagrams', () => {
+    for (const src of [CLASS_DIAGRAMS[0]![1], ER_DIAGRAMS[0]![1]]) {
+      const result = verifyMermaid(src)
+      expect(result.ok).toBe(true)
+      expect(result.layout.nodes.length).toBeGreaterThan(0)
+      expect(result.layout.edges.length).toBeGreaterThan(0)
+      expect(result.warnings.filter(w => w.code === 'OFF_CANVAS' || w.code === 'NODE_OVERLAP' || w.code === 'ROUTE_SHAPE_MISANCHOR')).toEqual([])
+    }
   })
 })
 

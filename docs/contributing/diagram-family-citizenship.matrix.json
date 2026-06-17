@@ -64,7 +64,7 @@
     },
     {
       "id": "upstreamHarvest",
-      "description": "Official upstream Mermaid examples/tests are harvested into an executable docs corpus or family bench; deeper full-suite harvests remain separate BUILD-20 work."
+      "description": "Official upstream Mermaid examples/tests are harvested into an executable docs corpus, family bench, or seed parser/DB ratchet; deeper full-suite harvests remain separate BUILD-20 work."
     },
     {
       "id": "divergenceLedger",

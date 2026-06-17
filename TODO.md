@@ -89,10 +89,10 @@ dependents after. IDs are stable names, not an ordering.
   [docs/contributing/harvesting-upstream-tests.md](./docs/contributing/harvesting-upstream-tests.md)
   (the method piloted by `eval/mermaid-gantt-bench/`, which found one real
   compat bug, one semantic boundary divergence, and the verify/render seam
-  that became `UNRESOLVABLE_SCHEDULE`) to the remaining families. Vendor
-  mermaid's `parser/<family>.spec.js` + `<family>Db.spec.ts` (+ ASCII-fork
-  inputs, licenses permitting) into `eval/mermaid-<family>-bench/` with an
-  executable exclusions ledger and a CI runner test.
+  that became `UNRESOLVABLE_SCHEDULE`) to the remaining families. The PR #54
+  seed bench in [`eval/mermaid-upstream-suite-bench/`](./eval/mermaid-upstream-suite-bench/)
+  adds one portable parser/DB-derived ratchet per current renderable family,
+  but it is not the full upstream parser/DB suite harvest.
   - [ ] flowchart, state (largest upstream suites; route-contracts work may
     want their routing fixtures too)
   - [ ] class, ER, pie, quadrant, timeline, journey, xychart, architecture
@@ -119,8 +119,9 @@ dependents after. IDs are stable names, not an ordering.
     `mutation-test:<family>` scripts). Flowchart/link routing,
     xychart/architecture, and Gantt keep their existing focused lanes.
   - [x] Executable docs-corpus divergence ledger exists for current known
-    non-Gantt Mermaid-docs divergences; full upstream parser/DB suite harvests
-    remain the deeper BUILD-20 workstream.
+    non-Gantt Mermaid-docs divergences; PR #54 adds a cross-family parser/DB
+    seed ratchet, while full upstream parser/DB suite harvests remain the
+    deeper BUILD-20 workstream.
   - [x] Generated-site/sample family coverage is tied to
     `BUILTIN_FAMILY_METADATA` by the existing property generator tests,
     including explicit gallery affordance/prefix checks for Pie, Quadrant, and

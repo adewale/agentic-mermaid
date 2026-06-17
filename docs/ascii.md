@@ -49,10 +49,10 @@ Agents and TUIs can use `renderMermaidASCIIWithMeta` to map terminal cells back 
 ```ts
 import { renderMermaidASCIIWithMeta } from 'agentic-mermaid/agent'
 
-const { ascii, regions } = renderMermaidASCIIWithMeta(source)
+const { ascii, regions, warnings, routeParity } = renderMermaidASCIIWithMeta(source)
 ```
 
-`regions` includes boxes, labels, and other interactive spans suitable for click mapping.
+`regions` includes boxes, labels, subgraph label spans, and other interactive spans suitable for click mapping. `routeParity` is an explicit V1 contract: ASCII/Unicode does not consume SVG route certificates directly; it maps the same route intent (graph direction, author-order edges, longest-path layering, direct-lane-first routing) into a terminal grid. `warnings` reports structured degradation such as `ASCII_EDGE_REGION_UNMAPPED` when edge cell spans are not instrumented even though route drawing still follows the parity mapping.
 
 ## Reversing simple flowcharts
 

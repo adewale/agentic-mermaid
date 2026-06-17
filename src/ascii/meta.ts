@@ -11,9 +11,10 @@
 // every family-specific renderer), this module derives regions by scanning
 // the rendered string for known node labels. This is honest about what it
 // can prove:
-//   - Flowchart / state: regions for each node by label match. Edges and
-//     subgraphs are skipped (deferred to a future loop that instruments the
-//     renderer directly).
+//   - Flowchart / state: regions for each node by label match. Flowchart
+//     subgraphs are exposed as best-effort label regions using the same stable
+//     ids as SVG/layout JSON; edge spans remain deferred until renderer
+//     instrumentation lands.
 //   - Sequence / class / ER / timeline / gantt / journey / xychart /
 //     architecture: regions for each participant / class / entity / section /
 //     task, derived by label scan. Best-effort; some renderers wrap labels
@@ -27,6 +28,17 @@ import { renderMermaidASCII, type AsciiRenderOptions } from './index.ts'
 import { parseMermaid } from '../agent/parse.ts'
 
 export type RegionKind = 'node' | 'edge' | 'label' | 'subgraph'
+
+export type AsciiWarningCode = 'ASCII_RENDER_FAILED' | 'ASCII_EDGE_REGION_UNMAPPED'
+export interface AsciiWarning { code: AsciiWarningCode; message: string; severity: 'degraded' }
+
+export const ASCII_ROUTE_PARITY_CONTRACT = {
+  version: 1,
+  routeIntent: 'explicit-mapping',
+  svgSource: 'route-contract certificates',
+  asciiSource: 'grid router using shared graph direction, author-order edges, longest-path layering, and direct-lane-first routing',
+  degradationWarnings: ['ASCII_RENDER_FAILED', 'ASCII_EDGE_REGION_UNMAPPED'],
+} as const
 
 export interface AsciiRegion {
   kind: RegionKind
@@ -47,6 +59,8 @@ export interface AsciiRegion {
 export interface AsciiWithMeta {
   ascii: string
   regions: AsciiRegion[]
+  warnings: AsciiWarning[]
+  routeParity: typeof ASCII_ROUTE_PARITY_CONTRACT
 }
 
 export function renderMermaidASCIIWithMeta(input: string, opts: AsciiRenderOptions = {}): AsciiWithMeta {
@@ -56,23 +70,39 @@ export function renderMermaidASCIIWithMeta(input: string, opts: AsciiRenderOptio
   try {
     const ascii = renderMermaidASCII(input, opts)
     const regions = deriveRegions(ascii, input)
-    return { ascii, regions }
+    return { ascii, regions, warnings: deriveWarnings(input, regions), routeParity: ASCII_ROUTE_PARITY_CONTRACT }
   } catch {
-    return { ascii: '', regions: [] }
+    return { ascii: '', regions: [], warnings: [{ code: 'ASCII_RENDER_FAILED', severity: 'degraded', message: 'ASCII/Unicode renderer failed; no route parity evidence is available.' }], routeParity: ASCII_ROUTE_PARITY_CONTRACT }
   }
 }
 
-interface Candidate { id: string; label: string; sourceLine?: number }
-
-function addCandidate(out: Candidate[], id: string, label: string | undefined, sourceLine?: number): void {
-  const normalized = label?.trim()
-  if (!normalized) return
-  out.push({ id, label: normalized, sourceLine })
+function deriveWarnings(source: string, regions: AsciiRegion[]): AsciiWarning[] {
+  const parsed = parseMermaid(source)
+  if (!parsed.ok) return []
+  if (parsed.value.body.kind !== 'flowchart' && parsed.value.body.kind !== 'state') return []
+  const edgeRegions = regions.filter(r => r.kind === 'edge').length
+  const edgeCount = parsed.value.body.kind === 'flowchart' ? parsed.value.body.graph.edges.length : parsed.value.body.transitions.length
+  if (edgeCount > 0 && edgeRegions === 0) {
+    return [{
+      code: 'ASCII_EDGE_REGION_UNMAPPED',
+      severity: 'degraded',
+      message: 'ASCII route drawing follows the explicit route-intent parity mapping, but per-edge cell spans are not instrumented yet.',
+    }]
+  }
+  return []
 }
 
-function addCandidateWithFallback(out: Candidate[], id: string, label: string | undefined): void {
-  addCandidate(out, id, label)
-  if (label !== id) addCandidate(out, id, id)
+interface Candidate { id: string; label: string; sourceLine?: number; kind?: RegionKind }
+
+function addCandidate(out: Candidate[], id: string, label: string | undefined, sourceLine?: number, kind: RegionKind = 'node'): void {
+  const normalized = label?.trim()
+  if (!normalized) return
+  out.push({ id, label: normalized, sourceLine, kind })
+}
+
+function addCandidateWithFallback(out: Candidate[], id: string, label: string | undefined, sourceLine?: number, kind: RegionKind = 'node'): void {
+  addCandidate(out, id, label, sourceLine, kind)
+  if (label !== id) addCandidate(out, id, id, sourceLine, kind)
 }
 
 function deriveRegions(ascii: string, source: string): AsciiRegion[] {
@@ -91,7 +121,7 @@ function deriveRegions(ascii: string, source: string): AsciiRegion[] {
       const idx = line.indexOf(c.label)
       if (idx < 0) continue
       out.push({
-        kind: 'node',
+        kind: c.kind ?? 'node',
         id: c.id,
         sourceLine: c.sourceLine,
         canvasRow: row,
@@ -112,7 +142,14 @@ function candidatesForDiagram(source: string): Candidate[] {
   const d = r.value
   if (d.body.kind === 'flowchart') {
     const out: Candidate[] = []
-    for (const n of d.body.graph.nodes.values()) addCandidateWithFallback(out, n.id, n.label && n.label.length > 0 ? n.label : n.id)
+    for (const n of d.body.graph.nodes.values()) addCandidateWithFallback(out, n.id, n.label && n.label.length > 0 ? n.label : n.id, d.source.nodes.get(n.id)?.line)
+    const visit = (groups: typeof d.body.graph.subgraphs): void => {
+      for (const g of groups) {
+        addCandidateWithFallback(out, g.id, g.label || g.id, d.source.groups.get(g.id)?.line, 'subgraph')
+        visit(g.children)
+      }
+    }
+    visit(d.body.graph.subgraphs)
     return out
   }
   if (d.body.kind === 'state') {

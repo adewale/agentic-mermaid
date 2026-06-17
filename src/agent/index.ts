@@ -24,6 +24,7 @@ export type {
   NodeId, EdgeId, GroupId, ParticipantId,
   LayoutWarning, WarningCode, Tier1WarningCode, Tier2WarningCode, WarningSeverity, WarningTier,
   VerifyOptions, VerifyResult, RenderedLayout, RenderedLayoutNode, RenderedLayoutEdge, RenderedLayoutGroup,
+  DiagramAnalysis, DiagramActionRecord, DiagramActionKind, DiagramActionSecurity, FeedbackEdgeAnalysis, GanttScheduleAnalysisSummary,
   Finite,
 } from './types.ts'
 
@@ -34,13 +35,17 @@ export { mutate, edgeIdOf } from './mutate.ts'
 export { verifyMermaid } from './verify.ts'
 export { measureQuality, checkQuality, DEFAULT_BOUNDS } from './quality.ts'
 export type { QualityMetrics, QualityBounds, QualityVerdict } from './quality.ts'
+export type { RouteCertificate, FamilyRouteCertificate, LayoutRouteCertificate, LayoutRouteClass, RouteClass, RouteBlocker, RoutePortAssignment, PortSemanticRole, AnyPort, PortSide, DiamondFacet } from '../types.ts'
 export { registerFamily, getFamily, knownFamilies, BUILTIN_FAMILY_METADATA, BUILTIN_FAMILY_METADATA_COVERS_DIAGRAM_KIND, builtinFamilyMetadata } from './families.ts'
 export type { FamilyPlugin, ExtractedLabel, BuiltinFamilyMetadata, BuiltinFamilyId } from './families.ts'
 export { renderMermaidPNG } from './png.ts'
 export type { PngOptions } from './png.ts'
-export { renderMermaidASCIIWithMeta } from '../ascii/meta.ts'
-export type { AsciiRegion, AsciiWithMeta, RegionKind } from '../ascii/meta.ts'
+export { renderMermaidASCIIWithMeta, ASCII_ROUTE_PARITY_CONTRACT } from '../ascii/meta.ts'
+export type { AsciiRegion, AsciiWithMeta, RegionKind, AsciiWarning, AsciiWarningCode } from '../ascii/meta.ts'
 export { describeMermaid, describeMermaidSource, describeMermaidTree } from './describe.ts'
+export { analyzeMermaid, analyzeMermaidSource, collectActionRecords } from './analyze.ts'
+export { TEXT_MEASUREMENT_CONTRACT, measureText, measureTextWidth } from '../text-metrics.ts'
+export type { TextMeasurementContract, TextMeasurementInput, TextMeasurementResult } from '../text-metrics.ts'
 export type { DescribeTree } from './describe.ts'
 export type { DescribeOptions } from './describe.ts'
 export { asciiToMermaid } from '../ascii/reverse.ts'
@@ -79,84 +84,11 @@ export function layoutMermaid(d: ValidDiagram, opts: { debug?: boolean } = {}): 
       return emptyRenderedLayout(d.kind)
     }
   }
-  if (d.body.kind === 'sequence') return layoutSequenceToRendered(d as ValidDiagram & { body: SequenceBody })
-  if (d.body.kind === 'timeline') return layoutTimelineToRendered(d as ValidDiagram & { body: TimelineBody })
-  // QUAL-1: class/er/journey/architecture/xychart/pie/quadrant project their
-  // real positioned layout (parsed from d.canonicalSource — works for both
-  // structured and opaque bodies) so the perceptual-quality metrics see them.
-  const familyLayout = layoutFamilyToRendered(d)
+  // QUAL-1: renderable non-graph families project their real positioned
+  // layout (parsed from d.canonicalSource — works for both structured and
+  // opaque bodies) so the perceptual-quality metrics see them. Debug mode
+  // includes family-specific route/layout certificates where available.
+  const familyLayout = layoutFamilyToRendered(d, opts)
   if (familyLayout) return familyLayout
   return emptyRenderedLayout(d.kind)
-}
-
-// ---- Sequence + Timeline → RenderedLayout adapters ------------------------
-//
-// Phase D — expose real geometric layouts for non-flowchart families so the
-// perceptual-quality checks from Phase F apply uniformly. NODE_OVERLAP and
-// ROUTE_SELF_CROSS (Tier 2) remain flowchart-specific by design — those
-// concepts don't generalize. For sequence/timeline, geometric concerns are
-// covered by the perceptual metrics (label legibility, whitespace balance,
-// edge crossings) acting on the layouts these adapters produce.
-
-import { layoutSequenceDiagram } from '../sequence/layout.ts'
-import { layoutTimelineDiagram } from '../timeline/layout.ts'
-import type { TimelineBody, SequenceBody, Finite } from './types.ts'
-import { toFinite } from './types.ts'
-
-function f(n: number): Finite { return toFinite(Math.round(n)) }
-
-function layoutSequenceToRendered(d: ValidDiagram & { body: SequenceBody }): RenderedLayout {
-  const positioned = layoutSequenceDiagram({
-    actors: d.body.participants.map(p => ({ id: p.id, label: p.label, type: p.kind })),
-    messages: d.body.messages.map(m => ({
-      from: m.from, to: m.to, label: m.text,
-      style: m.style === 'reply' ? 'reply' : m.style === 'sync' ? 'sync' : 'async',
-    })),
-    blocks: [], notes: [], activations: [],
-  } as unknown as Parameters<typeof layoutSequenceDiagram>[0])
-  return {
-    version: 1, kind: d.kind,
-    nodes: positioned.actors.map(a => ({
-      id: a.id, x: f(a.x - a.width / 2), y: f(a.y), w: f(a.width), h: f(a.height),
-      shape: 'rectangle', label: a.label,
-    })),
-    edges: positioned.messages.map((m, i) => ({
-      id: `msg#${i}:${m.from}->${m.to}`, from: m.from, to: m.to,
-      path: [[f(m.x1), f(m.y)], [f(m.x2), f(m.y)]] as [Finite, Finite][],
-      label: m.label ? { x: f((m.x1 + m.x2) / 2), y: f(m.y), text: m.label } : undefined,
-    })),
-    groups: [],
-    bounds: { w: f(positioned.width), h: f(positioned.height) },
-  }
-}
-
-function layoutTimelineToRendered(d: ValidDiagram & { body: TimelineBody }): RenderedLayout {
-  // The legacy timeline layout consumes a different parsed shape; rather than
-  // shimming, build a synthetic positioned layout: one node per event,
-  // arranged left-to-right by section then period, top-down by event index.
-  const NODE_W = 120, NODE_H = 40, PAD = 16, ROW_H = NODE_H + PAD
-  const nodes: RenderedLayout['nodes'] = []
-  let col = 0
-  for (const s of d.body.sections) {
-    for (const p of s.periods) {
-      let row = 0
-      // period label node
-      nodes.push({
-        id: `${p.id}:label`, x: f(col * (NODE_W + PAD) + PAD), y: f(PAD),
-        w: f(NODE_W), h: f(NODE_H), shape: 'rectangle', label: p.label,
-      })
-      row++
-      for (const e of p.events) {
-        nodes.push({
-          id: e.id, x: f(col * (NODE_W + PAD) + PAD), y: f(PAD + row * ROW_H),
-          w: f(NODE_W), h: f(NODE_H), shape: 'rectangle', label: e.text,
-        })
-        row++
-      }
-      col++
-    }
-  }
-  const w = Math.max(NODE_W + PAD * 2, col * (NODE_W + PAD) + PAD)
-  const h = nodes.reduce((m, n) => Math.max(m, n.y + n.h + PAD), PAD)
-  return { version: 1, kind: d.kind, nodes, edges: [], groups: [], bounds: { w: f(w), h: f(h) } }
 }

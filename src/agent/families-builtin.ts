@@ -16,7 +16,7 @@
 // ============================================================================
 
 import { registerFamily, extractLabelsGeneric, type ExtractedLabel, type FamilyPlugin } from './families.ts'
-import type { DiagramBody, DiagramKind, AnyMutationOp, MutationError, Result, LayoutWarning } from './types.ts'
+import type { DiagramBody, DiagramKind, AnyMutationOp, MutationError, Result, LayoutWarning, SourceMap, ClassBody, ErBody, XyChartBody, PieBody, QuadrantBody, GanttBody } from './types.ts'
 import { ok, err } from './types.ts'
 import { verifyClass, parseClassBody, renderClass, mutateClass } from './class-body.ts'
 import { verifyErBody, parseErBody, renderEr, mutateEr } from './er-body.ts'
@@ -94,7 +94,7 @@ function flowchartFamilyHooks(): Pick<FamilyPlugin, 'parse' | 'buildSourceMap' |
       return parseFlowchartBody(canonicalSource)
     },
     buildSourceMap: (body, canonicalSource) =>
-      body.kind === 'flowchart' ? buildFlowchartSourceMap(body as FlowchartBody, canonicalSource) : { nodes: new Map(), edges: new Map(), groups: new Map() },
+      body.kind === 'flowchart' ? buildFlowchartSourceMap(body as FlowchartBody, canonicalSource) : { nodes: new Map(), edges: new Map(), groups: new Map(), labels: new Map() },
     serialize: body => {
       if (body.kind !== 'flowchart') throw new Error(`flowchart serializer received body kind ${body.kind}`)
       return renderFlowchart(body.graph, 'flowchart')
@@ -235,6 +235,143 @@ registerFamily({
 
 // ---- Class ---------------------------------------------------------------
 // class Name { +member ... }, Class : +member, class A as "Display Label"
+function emptySourceMap(): SourceMap { return { nodes: new Map(), edges: new Map(), groups: new Map(), labels: new Map() } }
+function loc(line: number, col: number): { line: number; col: number } { return { line, col: Math.max(1, col) } }
+function firstIndex(line: string, text: string): number { const i = line.indexOf(text); return i >= 0 ? i + 1 : 1 }
+
+function buildClassSourceMap(body: DiagramBody, canonicalSource: string): SourceMap {
+  const map = emptySourceMap()
+  if (body.kind !== 'class') return map
+  const b = body as ClassBody
+  const lines = canonicalSource.split(/\r?\n/)
+  for (const c of b.classes) {
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i]!
+      if (new RegExp(`\\b${escapeSourceMapRegex(c.id)}\\b`).test(line)) { map.nodes.set(c.id, loc(i + 1, firstIndex(line, c.id))); break }
+    }
+    c.members.forEach((member, index) => {
+      for (let i = 0; i < lines.length; i++) {
+        const col = lines[i]!.indexOf(member)
+        if (col >= 0) { map.labels.set(`class:${c.id}:member#${index}`, loc(i + 1, col + 1)); break }
+      }
+    })
+  }
+  b.relations.forEach((r, index) => {
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i]!
+      if (!line.includes(r.from) || !line.includes(r.to)) continue
+      const key = `rel#${index}:${r.from}->${r.to}`
+      map.edges.set(key, loc(i + 1, firstIndex(line, r.from)))
+      if (r.label) {
+        const labelCol = line.lastIndexOf(r.label)
+        if (labelCol >= 0) map.labels.set(key, loc(i + 1, labelCol + 1))
+      }
+      if (r.fromCardinality) {
+        const col = line.indexOf(`"${r.fromCardinality}"`)
+        if (col >= 0) map.labels.set(`${key}:fromCardinality`, loc(i + 1, col + 2))
+      }
+      if (r.toCardinality) {
+        const col = line.indexOf(`"${r.toCardinality}"`)
+        if (col >= 0) map.labels.set(`${key}:toCardinality`, loc(i + 1, col + 2))
+      }
+      break
+    }
+  })
+  return map
+}
+
+function buildErSourceMap(body: DiagramBody, canonicalSource: string): SourceMap {
+  const map = emptySourceMap()
+  if (body.kind !== 'er') return map
+  const b = body as ErBody
+  const lines = canonicalSource.split(/\r?\n/)
+  for (const e of b.entities) {
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i]!
+      if (new RegExp(`\\b${escapeSourceMapRegex(e.id)}\\b`).test(line)) { map.nodes.set(e.id, loc(i + 1, firstIndex(line, e.id))); break }
+    }
+    e.attributes.forEach((attr, index) => {
+      for (let i = 0; i < lines.length; i++) {
+        const col = lines[i]!.indexOf(attr.text)
+        if (col >= 0) { map.labels.set(`er:${e.id}:attr#${index}`, loc(i + 1, col + 1)); break }
+      }
+    })
+  }
+  b.relations.forEach((r, index) => {
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i]!
+      if (!line.includes(r.from) || !line.includes(r.to)) continue
+      const key = `rel#${index}:${r.from}->${r.to}`
+      map.edges.set(key, loc(i + 1, firstIndex(line, r.from)))
+      if (r.label) {
+        const labelCol = line.lastIndexOf(r.label)
+        if (labelCol >= 0) map.labels.set(key, loc(i + 1, labelCol + 1))
+      }
+      const between = line.slice(line.indexOf(r.from) + r.from.length, line.indexOf(r.to))
+      const relStart = line.indexOf(between)
+      const cardMatches = [...between.matchAll(/[|o}{]{2}/g)]
+      if (cardMatches[0]) map.labels.set(`${key}:leftCardinality`, loc(i + 1, relStart + cardMatches[0].index! + 1))
+      if (cardMatches[1]) map.labels.set(`${key}:rightCardinality`, loc(i + 1, relStart + cardMatches[1].index! + 1))
+      break
+    }
+  })
+  return map
+}
+
+function buildChartSourceMap(body: DiagramBody, canonicalSource: string): SourceMap {
+  const map = emptySourceMap()
+  const lines = canonicalSource.split(/\r?\n/)
+  if (body.kind === 'xychart') {
+    const b = body as XyChartBody
+    b.series.forEach((series, si) => {
+      const lineIndex = lines.findIndex(line => line.trim().startsWith(series.kind))
+      if (lineIndex < 0) return
+      const line = lines[lineIndex]!
+      if (series.name) map.labels.set(`xychart:${series.id}:name`, loc(lineIndex + 1, firstIndex(line, series.name)))
+      series.values.forEach((value, vi) => {
+        const valueText = String(value)
+        const col = line.indexOf(valueText)
+        if (col >= 0) map.labels.set(`xychart:${series.id}:point#${vi}`, loc(lineIndex + 1, col + 1))
+      })
+    })
+  } else if (body.kind === 'pie') {
+    ;(body as PieBody).slices.forEach((slice, index) => {
+      const lineIndex = lines.findIndex(line => line.includes(slice.label))
+      if (lineIndex >= 0) map.labels.set(`pie:slice#${index}`, loc(lineIndex + 1, firstIndex(lines[lineIndex]!, slice.label)))
+    })
+  } else if (body.kind === 'quadrant') {
+    ;(body as QuadrantBody).points.forEach((point, index) => {
+      const lineIndex = lines.findIndex(line => line.includes(point.label))
+      if (lineIndex >= 0) map.labels.set(`quadrant:point#${index}`, loc(lineIndex + 1, firstIndex(lines[lineIndex]!, point.label)))
+    })
+  }
+  return map
+}
+
+function buildGanttSourceMap(body: DiagramBody, canonicalSource: string): SourceMap {
+  const map = emptySourceMap()
+  if (body.kind !== 'gantt') return map
+  const b = body as GanttBody
+  const lines = canonicalSource.split(/\r?\n/)
+  for (const section of b.sections) {
+    if (section.label) {
+      const lineIndex = lines.findIndex(line => /^\s*section\s+/i.test(line) && line.includes(section.label!))
+      if (lineIndex >= 0) { map.groups.set(section.id, loc(lineIndex + 1, firstIndex(lines[lineIndex]!, section.label))); map.labels.set(`gantt:${section.id}:label`, loc(lineIndex + 1, firstIndex(lines[lineIndex]!, section.label))) }
+    }
+    for (const task of section.tasks) {
+      const stableId = task.taskId ?? task.id
+      const lineIndex = lines.findIndex(line => line.includes(task.label) && line.includes(task.end))
+      if (lineIndex < 0) continue
+      const line = lines[lineIndex]!
+      map.nodes.set(stableId, loc(lineIndex + 1, firstIndex(line, task.label)))
+      map.labels.set(`gantt:task:${stableId}`, loc(lineIndex + 1, firstIndex(line, task.label)))
+    }
+  }
+  return map
+}
+
+function escapeSourceMapRegex(s: string): string { return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') }
+
 function extractClassLabels(source: string): ExtractedLabel[] {
   const out: ExtractedLabel[] = []
   const lines = source.split(/\r?\n/)
@@ -263,6 +400,7 @@ registerFamily({
   // routes class diagrams through this plugin hook (Loop 9 M2 removed the
   // duplicate per-body branch). Single source of truth.
   verify: (body, opts) => body.kind === 'class' ? verifyClass(body, opts) : [],
+  buildSourceMap: buildClassSourceMap,
   ...structuredFamilyHooks('class', { parseBody: parseClassBody, serialize: renderClass, mutate: mutateClass }),
 })
 
@@ -293,6 +431,7 @@ registerFamily({
   // Loop 8 A1: same as class — this hook is the verify path for ER (Loop 9 M2
   // removed the duplicate per-body branch in verify.ts).
   verify: (body, opts) => body.kind === 'er' ? verifyErBody(body, opts) : [],
+  buildSourceMap: buildErSourceMap,
   ...structuredFamilyHooks('er', { parseBody: parseErBody, serialize: renderEr, mutate: mutateEr }),
 })
 
@@ -456,6 +595,7 @@ registerFamily({
   // with at most a `horizontal`/`vertical` orientation suffix — any other
   // trailing token (e.g. `EXTRA`) stays opaque so it round-trips verbatim.
   verify: (body, opts) => body.kind === 'xychart' ? verifyXyChart(body, opts) : [],
+  buildSourceMap: buildChartSourceMap,
   // xychart needs the header to model the `horizontal` orientation suffix, so it
   // uses a tailored parse hook (not the shared structuredFamilyHooks) — but
   // serialize/mutate stay identical to every other structured family.
@@ -532,6 +672,7 @@ registerFamily({
   // carries showData / inline title, so pie uses a tailored parse hook (like
   // xychart) — serialize/mutate stay identical to every other structured family.
   verify: (body, opts) => body.kind === 'pie' ? verifyPie(body, opts) : [],
+  buildSourceMap: buildChartSourceMap,
   parse: (lines, opaqueSource) => {
     const header = parsePieHeader(lines[0]?.trim() ?? '')
     const body = header ? parsePieBody(lines.slice(1), header) : null
@@ -643,6 +784,7 @@ registerFamily({
   // body; opaque fallbacks keep the universal label-extraction path and warn
   // when official style metadata is preserved but not semantically modeled.
   verify: (body, opts) => body.kind === 'quadrant' ? verifyQuadrant(body, opts) : verifyOpaqueQuadrant(body),
+  buildSourceMap: buildChartSourceMap,
   ...structuredFamilyHooks('quadrant', {
     headerOk: h => /^quadrantchart\s*$/i.test(h),
     parseBody: parseQuadrantBody, serialize: renderQuadrant, mutate: mutateQuadrant,
@@ -699,6 +841,7 @@ registerFamily({
   // Source-level structural checks (EMPTY/LABEL_OVERFLOW/EDGE_MISANCHORED on
   // after/until refs); see docs/design/gantt.md §Verification.
   verify: (body, opts) => body.kind === 'gantt' ? verifyGantt(body, opts) : [],
+  buildSourceMap: buildGanttSourceMap,
   parse: (lines, opaqueSource) => {
     const headerOk = /^gantt\s*$/i.test(lines[0]?.trim() ?? '')
     const body = headerOk ? parseGanttBody(lines.slice(1), ganttRawBodyLines(opaqueSource)) : null

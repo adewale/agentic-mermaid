@@ -671,9 +671,10 @@ exceptions:
   flowchart/link-routing, architecture+xychart, and Gantt lanes.
 - **Executable upstream-docs harvest and divergence evidence** now covers all
   registered families via the regenerated 271-example Mermaid docs corpus plus
-  `eval/mermaid-docs-corpus/divergences.json`. Full upstream parser/DB suite
-  harvests remain the deeper BUILD-20 workstream, but they are no longer a
-  citizenship-matrix exception.
+  `eval/mermaid-docs-corpus/divergences.json`. PR #54 adds a cross-family
+  parser/DB seed ratchet in `eval/mermaid-upstream-suite-bench/`, while the
+  full upstream parser/DB suite harvests remain the deeper BUILD-20 workstream
+  and Gantt's deeper family-specific pilot remains in `eval/mermaid-gantt-bench/`.
 - **Generated-site drift was real.** Pie, Quadrant, and Gantt were supported
   families but the sample gallery still lacked explicit color/prefix handling;
   #41 fixed that instance and added tests so future family categories cannot
@@ -684,5 +685,6 @@ uncomfortable. If it reads as "we're allowed to ignore this," it has failed.
 It should read as "this is the exact remaining work, this is why it is not a
 merge blocker today, and this is the test/backlog hook that will fail if we
 forget it." Good citizenship is therefore both a contract and a gap map: Gantt
-sets the destination, the matrix records current state, and BUILD-20 remains
-the named deeper-compatibility path beyond the now-closed BUILD-22 matrix gaps.
+sets the destination, the matrix records current state, and the upstream
+ratchets keep the deeper-compatibility path executable beyond the now-closed
+BUILD-22 matrix gaps without pretending BUILD-20's full-suite harvest is done.
