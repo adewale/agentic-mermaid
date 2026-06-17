@@ -1406,12 +1406,27 @@ function feasibleLabelSlots(box: { width: number; height: number }, a: Point, b:
   return [(start + end) / 2]
 }
 
-function terminalLabelRunLength(edge: PositionedEdge, direction: Direction, style: LabelMetricsStyle): number {
+function terminalLabelRunLength(
+  edge: PositionedEdge,
+  direction: Direction,
+  style: LabelMetricsStyle,
+  sourceBoundary: number,
+  targetBoundary: number,
+): number {
   if (!edge.label) return 0
+  const f = layoutFlow(direction)
   const box = labelBoxAt(edge.label, { x: 0, y: 0 }, style)
-  const labelExtent = layoutFlow(direction).isHorizontal ? box.width : box.height
-  const targetGap = edge.hasArrowEnd ? terminalMarkerGap(style, edge) : labelPortStubGap(style)
-  return labelExtent + labelPortStubGap(style) + targetGap + 2
+  const labelExtent = f.isHorizontal ? box.width : box.height
+  const visibleGap = Math.max(
+    labelPortStubGap(style),
+    edge.hasArrowEnd ? terminalMarkerGap(style, edge) : labelPortStubGap(style),
+  )
+  // When there is room, balance the outside-source corridor into three equal
+  // visible runs: source boundary to bend, bend to label, and label to target.
+  const corridor = (targetBoundary - sourceBoundary) * f.sign
+  const balancedGap = (corridor - labelExtent) / 3
+  if (balancedGap >= visibleGap) return labelExtent + balancedGap * 2
+  return labelExtent + labelPortStubGap(style) + visibleGap + 2
 }
 
 function bundledLabelCandidates(edge: PositionedEdge, points: Point[], nodes: PositionedNode[], direction: Direction, style: LabelMetricsStyle): BundledLabelCandidate[] {
@@ -1658,7 +1673,7 @@ function applySymmetricFanoutEmissions(
     const targetEdge = f.isHorizontal
       ? (f.sign > 0 ? Math.min(...targets.map(t => t.x)) : Math.max(...targets.map(t => t.x + t.width)))
       : (f.sign > 0 ? Math.min(...targets.map(t => t.y)) : Math.max(...targets.map(t => t.y + t.height)))
-    const requiredTerminalRun = Math.max(0, ...sorted.map(edge => terminalLabelRunLength(edge, graph.direction, style)))
+    const requiredTerminalRun = Math.max(0, ...sorted.map(edge => terminalLabelRunLength(edge, graph.direction, style, sourceEdge, targetEdge)))
     const midpointElbow = sourceEdge + (targetEdge - sourceEdge) * 0.5
     const capacityElbow = targetEdge - f.sign * requiredTerminalRun
     const elbow = ((capacityElbow - midpointElbow) * f.sign < 0) ? capacityElbow : midpointElbow

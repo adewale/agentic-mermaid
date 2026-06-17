@@ -185,6 +185,30 @@ function expectLabelShowsVisiblePortStubs(
   }
 }
 
+function expectBalancedTerminalLabelCorridor(
+  edge: PositionedEdge,
+  box: { x: number; y: number; w: number; h: number },
+  direction: 'TD' | 'BT' | 'LR' | 'RL',
+  sourceBoundaryMain: number,
+): void {
+  const { a, b } = bestLabelSegment(edge)
+  const verticalFlow = direction === 'TD' || direction === 'BT'
+  const main = verticalFlow ? 'y' : 'x'
+  const boxStart = verticalFlow ? box.y : box.x
+  const boxExtent = verticalFlow ? box.h : box.w
+  const sign = direction === 'BT' || direction === 'RL' ? -1 : 1
+  const sourceBoundary = sourceBoundaryMain * sign
+  const bend = a[main] * sign
+  const target = b[main] * sign
+  const labelStart = (sign > 0 ? boxStart : boxStart + boxExtent) * sign
+  const labelEnd = (sign > 0 ? boxStart + boxExtent : boxStart) * sign
+  const sourceToBend = bend - sourceBoundary
+  const bendToLabel = labelStart - bend
+  const labelToTarget = target - labelEnd
+  expect(sourceToBend).toBeCloseTo(bendToLabel, 3)
+  expect(bendToLabel).toBeCloseTo(labelToTarget, 3)
+}
+
 function stableProductLoopGeometry(positioned: ReturnType<typeof layoutGraphSync>) {
   const round = (n: number) => Math.round(n * 1000) / 1000
   return {
@@ -415,6 +439,8 @@ describe('syntax range — & multi-edge chains hit the same fan heuristics', () 
     expectLabelUsesStraightRunPorts(needsWork, needsWorkLabel, 'TD')
     expectLabelShowsVisiblePortStubs(yes, yesLabel, 'TD', style)
     expectLabelShowsVisiblePortStubs(needsWork, needsWorkLabel, 'TD', style)
+    expectBalancedTerminalLabelCorridor(yes, yesLabel, 'TD', decisionSouth)
+    expectBalancedTerminalLabelCorridor(needsWork, needsWorkLabel, 'TD', decisionSouth)
     expect(yes.labelPosition!.y).toBeCloseTo(needsWork.labelPosition!.y, 3)
     expect(rectsOverlap(yesLabel, needsWorkLabel, readableLabelGap(style))).toBe(false)
     expectLabelClearsTerminalMarkers(yes, yesLabel, style)
@@ -440,14 +466,14 @@ describe('syntax range — & multi-edge chains hit the same fan heuristics', () 
           source: 'B',
           target: 'C',
           label: 'yes',
-          points: [{ x: 120.288, y: 276.038 }, { x: 120.288, y: 355.05 }, { x: 92.175, y: 355.05 }, { x: 92.175, y: 425.15 }],
+          points: [{ x: 120.288, y: 276.038 }, { x: 120.288, y: 336.217 }, { x: 92.175, y: 336.217 }, { x: 92.175, y: 425.15 }],
           routeCertificate: { routeClass: 'primary-forward', bendCount: 2, sourcePort: 'SW', targetPort: 'N', invariant: 'bundle' },
         },
         {
           source: 'B',
           target: 'D',
           label: 'needs work',
-          points: [{ x: 183.313, y: 276.038 }, { x: 183.313, y: 355.05 }, { x: 211.425, y: 355.05 }, { x: 211.425, y: 425.15 }],
+          points: [{ x: 183.313, y: 276.038 }, { x: 183.313, y: 336.217 }, { x: 211.425, y: 336.217 }, { x: 211.425, y: 425.15 }],
           routeCertificate: { routeClass: 'primary-forward', bendCount: 2, sourcePort: 'SE', targetPort: 'N', invariant: 'bundle' },
         },
       ],
