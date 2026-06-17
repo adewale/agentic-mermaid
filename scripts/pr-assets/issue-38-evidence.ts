@@ -127,7 +127,7 @@ function fullBeforeAfter(beforeSvg: string, afterSvg: string): string {
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">
     <rect width="${width}" height="${height}" fill="${COLORS.bg}"/>
     <text x="${gutter}" y="70" font-family="DejaVu Sans" font-size="44" font-weight="700" fill="${COLORS.fg}">Issue #38 decision branch labels</text>
-    <text x="${gutter}" y="116" font-family="DejaVu Sans" font-size="24" fill="${COLORS.muted}">Left: main before. Right: this branch with symmetric straight-run label-port preference.</text>
+    <text x="${gutter}" y="116" font-family="DejaVu Sans" font-size="24" fill="${COLORS.muted}">Left: main before. Right: symmetric label ports with visible bend and stroke stubs.</text>
     <text x="${gutter}" y="154" font-family="DejaVu Sans" font-size="20" fill="${COLORS.muted}">Rendered at high resolution from real SVG output; not hand-captured.</text>
     ${label('BEFORE', gutter, top, '#9A3412')}
     ${label('AFTER', gutter * 2 + panelWidth, top, '#15803D')}
@@ -206,7 +206,7 @@ function zoomBeforeAfter(beforeSvg: string, afterSvg: string): string {
     <rect width="${width}" height="${height}" fill="${COLORS.bg}"/>
     <text x="${gutter}" y="70" font-family="DejaVu Sans" font-size="44" font-weight="700" fill="${COLORS.fg}">Issue #38 label clearance zoom</text>
     <text x="${gutter}" y="116" font-family="DejaVu Sans" font-size="24" fill="${COLORS.muted}">Zoomed around the Ready? diamond and outgoing branch labels.</text>
-    <text x="${gutter}" y="154" font-family="DejaVu Sans" font-size="20" fill="${COLORS.muted}">The after panel shows sibling labels aligned on flow-axis straight runs with opposite label ports.</text>
+    <text x="${gutter}" y="154" font-family="DejaVu Sans" font-size="20" fill="${COLORS.muted}">The after panel shows aligned labels with visible bends and North/South stroke stubs.</text>
     ${label('BEFORE', gutter, 202, '#9A3412')}
     ${label('AFTER', gutter * 2 + panelWidth, 202, '#15803D')}
     ${panel(before, beforeCrop, beforeScale, gutter, 'before-crop')}

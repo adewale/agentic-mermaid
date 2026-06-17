@@ -68,6 +68,10 @@ function readableLabelGap(style: { edgeLabelFontSize: number }): number {
   return Math.max(8, style.edgeLabelFontSize * 0.75)
 }
 
+function labelPortStubGap(style: { edgeLabelFontSize: number }): number {
+  return Math.max(12, style.edgeLabelFontSize)
+}
+
 function terminalMarkerGap(style: { edgeLabelFontSize: number; lineWidth?: number }, edge: PositionedEdge): number {
   const lineWidth = style.lineWidth ?? 1
   const strokeWidth = edge.style === 'thick' ? lineWidth * 2 : lineWidth
@@ -155,6 +159,29 @@ function expectLabelUsesStraightRunPorts(
     expect(edge.labelPosition!.y).toBeLessThanOrEqual(box.y + box.h + epsilon)
     expect(box.x).toBeGreaterThanOrEqual(Math.min(a.x, b.x) - epsilon)
     expect(box.x + box.w).toBeLessThanOrEqual(Math.max(a.x, b.x) + epsilon)
+  }
+}
+
+function expectLabelShowsVisiblePortStubs(
+  edge: PositionedEdge,
+  box: { x: number; y: number; w: number; h: number },
+  direction: 'TD' | 'BT' | 'LR' | 'RL',
+  style: { edgeLabelFontSize: number; lineWidth?: number },
+): void {
+  const { index, a, b } = bestLabelSegment(edge)
+  const verticalFlow = direction === 'TD' || direction === 'BT'
+  const beforeGap = labelPortStubGap(style)
+  const afterGap = edge.hasArrowEnd && index === edge.points.length - 1
+    ? terminalMarkerGap(style, edge)
+    : labelPortStubGap(style)
+  if (verticalFlow) {
+    expect(edge.labelPosition!.x).toBeCloseTo(box.x + box.w / 2, 3)
+    expect(box.y - Math.min(a.y, b.y)).toBeGreaterThanOrEqual(beforeGap - 0.001)
+    expect(Math.max(a.y, b.y) - (box.y + box.h)).toBeGreaterThanOrEqual(afterGap - 0.001)
+  } else {
+    expect(edge.labelPosition!.y).toBeCloseTo(box.y + box.h / 2, 3)
+    expect(box.x - Math.min(a.x, b.x)).toBeGreaterThanOrEqual(beforeGap - 0.001)
+    expect(Math.max(a.x, b.x) - (box.x + box.w)).toBeGreaterThanOrEqual(afterGap - 0.001)
   }
 }
 
@@ -386,6 +413,8 @@ describe('syntax range — & multi-edge chains hit the same fan heuristics', () 
     expect(distanceToPolyline(needsWork.labelPosition!, needsWork.points)).toBeLessThanOrEqual(0.001)
     expectLabelUsesStraightRunPorts(yes, yesLabel, 'TD')
     expectLabelUsesStraightRunPorts(needsWork, needsWorkLabel, 'TD')
+    expectLabelShowsVisiblePortStubs(yes, yesLabel, 'TD', style)
+    expectLabelShowsVisiblePortStubs(needsWork, needsWorkLabel, 'TD', style)
     expect(yes.labelPosition!.y).toBeCloseTo(needsWork.labelPosition!.y, 3)
     expect(rectsOverlap(yesLabel, needsWorkLabel, readableLabelGap(style))).toBe(false)
     expectLabelClearsTerminalMarkers(yes, yesLabel, style)
@@ -411,14 +440,14 @@ describe('syntax range — & multi-edge chains hit the same fan heuristics', () 
           source: 'B',
           target: 'C',
           label: 'yes',
-          points: [{ x: 120.288, y: 276.038 }, { x: 120.288, y: 366.35 }, { x: 92.175, y: 366.35 }, { x: 92.175, y: 425.15 }],
+          points: [{ x: 120.288, y: 276.038 }, { x: 120.288, y: 355.05 }, { x: 92.175, y: 355.05 }, { x: 92.175, y: 425.15 }],
           routeCertificate: { routeClass: 'primary-forward', bendCount: 2, sourcePort: 'SW', targetPort: 'N', invariant: 'bundle' },
         },
         {
           source: 'B',
           target: 'D',
           label: 'needs work',
-          points: [{ x: 183.313, y: 276.038 }, { x: 183.313, y: 366.35 }, { x: 211.425, y: 366.35 }, { x: 211.425, y: 425.15 }],
+          points: [{ x: 183.313, y: 276.038 }, { x: 183.313, y: 355.05 }, { x: 211.425, y: 355.05 }, { x: 211.425, y: 425.15 }],
           routeCertificate: { routeClass: 'primary-forward', bendCount: 2, sourcePort: 'SE', targetPort: 'N', invariant: 'bundle' },
         },
       ],

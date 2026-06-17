@@ -1331,6 +1331,10 @@ function readableLabelGap(style: LabelMetricsStyle): number {
   return Math.max(8, style.edgeLabelFontSize * 0.75)
 }
 
+function labelPortStubGap(style: LabelMetricsStyle): number {
+  return Math.max(12, style.edgeLabelFontSize)
+}
+
 function terminalMarkerGap(style: LabelMetricsStyle, edge: PositionedEdge): number {
   const lineWidth = (style as LabelMetricsStyle & { lineWidth?: number }).lineWidth ?? 1
   const strokeWidth = edge.style === 'thick' ? lineWidth * 2 : lineWidth
@@ -1367,16 +1371,47 @@ function clearsTerminalMarkers(
   return true
 }
 
+function labelEndpointGaps(edge: PositionedEdge, points: Point[], segmentIndex: number, style: LabelMetricsStyle): { start: number; end: number } {
+  return {
+    start: edge.hasArrowStart && segmentIndex === 1 ? terminalMarkerGap(style, edge) : labelPortStubGap(style),
+    end: edge.hasArrowEnd && segmentIndex === points.length - 1 ? terminalMarkerGap(style, edge) : labelPortStubGap(style),
+  }
+}
+
 function segmentAlignedWithFlow(a: Point, b: Point, direction: Direction): boolean {
   return layoutFlow(direction).isHorizontal
     ? Math.abs(a.y - b.y) < 0.01
     : Math.abs(a.x - b.x) < 0.01
 }
 
-function labelFitsInsideSegment(box: { width: number; height: number }, point: Point, a: Point, b: Point): boolean {
+function labelFitsInsideSegment(
+  box: { width: number; height: number },
+  point: Point,
+  a: Point,
+  b: Point,
+  gaps: { start: number; end: number },
+): boolean {
   const halfExtent = labelHalfExtentAlongSegment(box, a, b)
-  const straightRunGap = 0.5
-  return Math.min(Math.hypot(point.x - a.x, point.y - a.y), Math.hypot(point.x - b.x, point.y - b.y)) >= halfExtent + straightRunGap
+  return Math.hypot(point.x - a.x, point.y - a.y) >= halfExtent + gaps.start &&
+    Math.hypot(point.x - b.x, point.y - b.y) >= halfExtent + gaps.end
+}
+
+function feasibleLabelSlots(box: { width: number; height: number }, a: Point, b: Point, gaps: { start: number; end: number }): number[] {
+  const length = Math.hypot(b.x - a.x, b.y - a.y)
+  if (length === 0) return []
+  const halfExtent = labelHalfExtentAlongSegment(box, a, b)
+  const start = (halfExtent + gaps.start) / length
+  const end = 1 - (halfExtent + gaps.end) / length
+  if (start > end) return []
+  return [(start + end) / 2]
+}
+
+function terminalLabelRunLength(edge: PositionedEdge, direction: Direction, style: LabelMetricsStyle): number {
+  if (!edge.label) return 0
+  const box = labelBoxAt(edge.label, { x: 0, y: 0 }, style)
+  const labelExtent = layoutFlow(direction).isHorizontal ? box.width : box.height
+  const targetGap = edge.hasArrowEnd ? terminalMarkerGap(style, edge) : labelPortStubGap(style)
+  return labelExtent + labelPortStubGap(style) + targetGap + 2
 }
 
 function bundledLabelCandidates(edge: PositionedEdge, points: Point[], nodes: PositionedNode[], direction: Direction, style: LabelMetricsStyle): BundledLabelCandidate[] {
@@ -1394,13 +1429,17 @@ function bundledLabelCandidates(edge: PositionedEdge, points: Point[], nodes: Po
     if (length === 0) continue
     const flowAligned = segmentAlignedWithFlow(a, b, direction)
     const terminalSegment = (edge.hasArrowStart && i === 1) || (edge.hasArrowEnd && i === points.length - 1)
-    for (let order = 0; order < slots.length; order++) {
-      const t = slots[order]!
+    const baseBox = labelBoxAt(edge.label, { x: 0, y: 0 }, style)
+    const gaps = labelEndpointGaps(edge, points, i, style)
+    const segmentSlots = [...slots, ...feasibleLabelSlots(baseBox, a, b, gaps)]
+      .filter((slot, index, all) => slot >= 0 && slot <= 1 && all.findIndex(other => Math.abs(other - slot) < 0.001) === index)
+    for (let order = 0; order < segmentSlots.length; order++) {
+      const t = segmentSlots[order]!
       const point = { x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t }
       const box = labelBoxAt(edge.label, point, style)
       if (nodes.some(node => rectsOverlap(box, node, 2))) continue
       if (!clearsTerminalMarkers(edge, points, i, point, box, style)) continue
-      const fitsInsideSegment = labelFitsInsideSegment(box, point, a, b)
+      const fitsInsideSegment = labelFitsInsideSegment(box, point, a, b, gaps)
       raw.push({
         point,
         box,
@@ -1619,7 +1658,10 @@ function applySymmetricFanoutEmissions(
     const targetEdge = f.isHorizontal
       ? (f.sign > 0 ? Math.min(...targets.map(t => t.x)) : Math.max(...targets.map(t => t.x + t.width)))
       : (f.sign > 0 ? Math.min(...targets.map(t => t.y)) : Math.max(...targets.map(t => t.y + t.height)))
-    const elbow = sourceEdge + (targetEdge - sourceEdge) * 0.5
+    const requiredTerminalRun = Math.max(0, ...sorted.map(edge => terminalLabelRunLength(edge, graph.direction, style)))
+    const midpointElbow = sourceEdge + (targetEdge - sourceEdge) * 0.5
+    const capacityElbow = targetEdge - f.sign * requiredTerminalRun
+    const elbow = ((capacityElbow - midpointElbow) * f.sign < 0) ? capacityElbow : midpointElbow
     const proposed: Array<{ edge: PositionedEdge; points: Point[] }> = []
     for (let i = 0; i < sorted.length; i++) {
       const edge = sorted[i]!
