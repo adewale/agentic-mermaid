@@ -140,6 +140,8 @@ describe('non-graph adapters: debug certificates stay family-specific (#26/#38)'
       expect(layout.nodes.length).toBeGreaterThan(0)
       expect(layout.certificates?.length).toBe(layout.nodes.length)
       expect(layout.certificates?.every(c => c.routeClass === 'family-layout' && 'family' in c && c.family === kind)).toBe(true)
+      expect(layout.certificates?.every(c => 'bounds' in c && 'center' in c && 'containment' in c)).toBe(true)
+      if (kind === 'xychart') expect(layout.certificates?.every(c => 'containment' in c && c.containment === 'center')).toBe(true)
       const plain = layoutMermaid(p.value)
       expect(plain.certificates).toBeUndefined()
     }

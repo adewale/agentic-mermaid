@@ -4,7 +4,7 @@ Seed BUILD-20 ratchet for portable source-level cases harvested from Mermaid's p
 
 ## Provenance
 
-- Upstream repo: [`mermaid-js/mermaid`](https://github.com/mermaid-js/mermaid), `develop` branch paths named in each `cases.json` entry.
+- Upstream repo: [`mermaid-js/mermaid`](https://github.com/mermaid-js/mermaid), `develop` branch paths named in each `cases.json` entry (last path audit: `a2d9686451df7c4644a3eeca20535bbd4c5776b0`).
 - Upstream license: MIT.
 - Harvest date: 2026-06-03.
 - Companion family bench: `eval/mermaid-gantt-bench/` remains the deeper Gantt-specific fixture set. This bench adds one cross-family parser/DB-derived case per current family; it does **not** replace the full upstream parser/DB suite harvest tracked by BUILD-20.

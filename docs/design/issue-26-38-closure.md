@@ -63,13 +63,13 @@ Completed slices from the remaining #26/#38 ordering:
 10. Mermaid link length is honored conservatively for simple no-subgraph primary-forward DAGs in all four directions.
 11. Class/ER received semantic layout validators and debug family certificates: real layout geometry, on-canvas/non-overlap checks, relationship endpoint-on-box tripwires, and `orthogonal-box` certificates.
 12. Architecture now emits final-geometry `side-anchored` family certificates in debug layouts; stale graph certificates remain forbidden.
-13. Stable region-tree MVP: flowchart layout JSON flattens subgraphs with `parentId` + direct `members`; SVG subgraph groups carry `data-region`/`data-parent-id`; ASCII metadata exposes best-effort subgraph label regions.
-14. ASCII/Unicode route parity is explicit: `ASCII_ROUTE_PARITY_CONTRACT` records the mapping from graph route intent to terminal-grid routing; `renderMermaidASCIIWithMeta` emits structured degradation warnings such as `ASCII_EDGE_REGION_UNMAPPED`.
+13. Stable region-tree V1: flowchart layout JSON flattens subgraphs with `parentId` + direct `members`; debug layout JSON exposes `regions` plus non-executing `actions`; SVG subgraph groups carry `data-region`/`data-parent-id`; ASCII metadata exposes best-effort subgraph label regions.
+14. ASCII/Unicode route parity is explicit: `ASCII_ROUTE_PARITY_CONTRACT` records the mapping from shared `classifyRoutes()` route intent to terminal-grid routing; `renderMermaidASCIIWithMeta` emits structured degradation warnings such as `ASCII_EDGE_REGION_UNMAPPED`.
 15. Dynamic route port allocation now exposes side + ordered slot + semantic role on opt-in route certificates while preserving V1 `sourcePort` / `targetPort`.
-16. Pre-layout placement consumes a conservative route-intent slice: primary-only DAGs feed inferred fixed-side source/target ports to ELK; cyclic/feedback/container/cross-hierarchy cases stay owned by final route repair.
+16. Pre-layout placement consumes a conservative route-intent slice: primary-forward edges feed inferred fixed-side source/target ports to ELK only when neither endpoint participates in non-primary routes; feedback/container/cross-hierarchy cases stay owned by final route repair.
 17. Sequence and timeline now share the real rendered-layout adapter/verify geometry path instead of empty synthetic verification layouts.
 
 Deferred by design rather than silently open in this PR-sized slice:
 
-- Broad ELK port constraints beyond primary DAG hints remain high-blast-radius and require corpus evidence before expanding.
+- Broad ELK port constraints beyond safe per-edge primary-forward hints remain high-blast-radius and require corpus/mutation evidence before expanding.
 - Sequence/timeline/chart certificate schemas are family-specific rather than graph-route schemas: sequence proves lifeline-message anchors; timeline/charts prove rendered element containment in their own layout frames.

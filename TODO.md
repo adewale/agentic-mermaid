@@ -331,23 +331,18 @@ dependents after. IDs are stable names, not an ordering.
   synced across types/capabilities/llms.txt/SDK declaration/agent guides.
   The 2A destination (segment-preserving comment retention) is tracked under
   the BUILD-18 follow-up below.
-- [ ] **BUILD-20 — `@{ ... }` node metadata: stop silent loss and phantom
-  nodes** (`todo`). Issue
+- [x] **BUILD-23 — `@{ ... }` node metadata safety floor** (`done`). Issue
   <https://github.com/adewale/beautiful-mermaid/issues/29>. Mermaid v11.3+
-  typed-shape syntax (`A@{ shape: manual-input, label: "..." }`) is not
-  tokenized: inline use drops the edge and target node, standalone lines are
-  erased, and the multiline form fabricates phantom nodes from the metadata
-  keys (`shape[shape]`, `label[label]`) — all with `verify.ok: true` and a
-  lossy `serializeMermaid`. Violates the no-silent-loss and round-trip
-  guarantees. Fix per the preservation ladder: tokenize `@{ ... }` (single
-  and multiline) as one unit, then either error loudly or preserve
-  source-opaque and render the node with its `label` as a rectangle; never
-  fabricate nodes. Round-trip property tests + goldens for all three repro
-  shapes; corpus diff via BUILD-13 harness. Modeled support for the v11
-  shape vocabulary (ISO 5807/ANSI X3.5 symbols mapped onto `NodeShape`) is a
-  separate follow-up. Prerequisite for BUILD-1, which needs the same
-  tokenization for `@{ view: collapsed }`.
-- [ ] **BUILD-1 — Collapsible subgraphs (#7785)** (`todo`, after BUILD-20). Track Mermaid PR
+  typed-shape syntax no longer silently drops edges/targets or fabricates
+  phantom metadata-key nodes in the covered repros: parser/tokenization keeps
+  metadata attached to the intended node or preserves unsupported forms
+  opaquely; `src/__tests__/flowchart-metadata.test.ts` pins inline,
+  standalone, and multiline safety cases plus round-trip behavior. Modeled
+  support for the full v11 typed-shape vocabulary (ISO 5807/ANSI X3.5 symbols
+  mapped onto `NodeShape`) remains separate (#44). BUILD-1 still needs
+  compatible `@{ view: collapsed }` semantics, but no longer starts from a
+  silent-loss parser floor.
+- [ ] **BUILD-1 — Collapsible subgraphs (#7785)** (`todo`, after BUILD-23 metadata safety floor; independent of BUILD-20 harvest). Track Mermaid PR
   <https://github.com/mermaid-js/mermaid/pull/7785> (`@{ view: collapsed }`
   metadata syntax) and stay syntax-compatible. Large, but a real readability
   win for agent-generated architecture diagrams; pairs naturally with typed

@@ -172,7 +172,7 @@ return {
 }
 ```
 
-Route/family certificates are opt-in; when graph-edge certificates are present, `sourcePort`/`targetPort` are exact endpoint anchors and `sourcePortAssignment`/`targetPortAssignment` describe side, ordered slot, slot count, and semantic role. Sequence/timeline/chart certificates use family-specific anchor/containment fields instead.
+Route/family certificates are opt-in; when graph-edge certificates are present, `sourcePort`/`targetPort` are exact endpoint anchors and `sourcePortAssignment`/`targetPortAssignment` describe side, ordered slot, slot count, and semantic role. Sequence/timeline/chart certificates use family-specific anchor/containment fields instead. Debug layouts also expose V1 `regions` and source-only `actions` sidecars so agents can attach UI affordances without executing Mermaid callbacks.
 
 Use render artifacts for human visual review:
 

@@ -491,6 +491,17 @@ function endpointKey(edgeIndex: number, endpoint: 'source' | 'target'): string {
   return `${edgeIndex}:${endpoint}`
 }
 
+function directedSubgraphNodeIds(subgraphs: MermaidSubgraph[]): Set<string> {
+  const out = new Set<string>()
+  const visit = (sg: MermaidSubgraph, inheritedDirected: boolean) => {
+    const directed = inheritedDirected || sg.direction !== undefined
+    if (directed) for (const id of sg.nodeIds) out.add(id)
+    for (const child of sg.children) visit(child, directed)
+  }
+  for (const sg of subgraphs) visit(sg, false)
+  return out
+}
+
 function axisSides(direction: Direction): { source: 'N' | 'E' | 'S' | 'W'; target: 'N' | 'E' | 'S' | 'W' } {
   switch (direction) {
     case 'RL': return { source: 'W', target: 'E' }
@@ -508,14 +519,22 @@ function routeHintSides(direction: Direction, routeClass: ReturnType<typeof clas
   return sides
 }
 
-function buildRoutePortHints(graph: MermaidGraph, subgraphIds: Set<string>): RoutePortHints {
-  const empty = (): RoutePortHints => ({ byEndpoint: new Map(), byNode: new Map() })
+export function buildRoutePortHints(graph: MermaidGraph, subgraphIds: Set<string>): RoutePortHints {
   const classes = classifyRoutes(graph)
   // Fixed-side ports are useful pre-layout hints for straight primary DAGs.
-  // Cycles, containers and cross-hierarchy edges already need the richer
-  // certifying repair pass; forcing ELK ports there can steal the outer lanes
-  // that route certificates intentionally preserve.
-  if (classes.some(c => c !== 'primary-forward')) return empty()
+  // Mixed graphs are handled per edge: a primary-forward edge may receive a
+  // hint only when neither endpoint participates in a non-primary route. This
+  // keeps feedback/container/cross-hierarchy lanes owned by the final
+  // certifying repair pass while still allowing independent DAG components in
+  // the same diagram to benefit from ELK side hints.
+  const nonPrimaryIncident = new Set<string>()
+  const directionOverrideNodes = directedSubgraphNodeIds(graph.subgraphs)
+  for (let edgeIndex = 0; edgeIndex < graph.edges.length; edgeIndex++) {
+    const edge = graph.edges[edgeIndex]!
+    if ((classes[edgeIndex] ?? 'primary-forward') === 'primary-forward') continue
+    nonPrimaryIncident.add(edge.source)
+    nonPrimaryIncident.add(edge.target)
+  }
   const drafts: RoutePortHint[] = []
   const safeId = (id: string) => id.replace(/[^A-Za-z0-9_\-]/g, '_')
   for (let edgeIndex = 0; edgeIndex < graph.edges.length; edgeIndex++) {
@@ -524,7 +543,9 @@ function buildRoutePortHints(graph: MermaidGraph, subgraphIds: Set<string>): Rou
     if (!graph.nodes.has(edge.source) || !graph.nodes.has(edge.target)) continue
     if (subgraphIds.has(edge.source) || subgraphIds.has(edge.target)) continue
     const routeClass = classes[edgeIndex] ?? 'primary-forward'
-    if (routeClass === 'container' || routeClass === 'cross-hierarchy') continue
+    if (routeClass !== 'primary-forward') continue
+    if (nonPrimaryIncident.has(edge.source) || nonPrimaryIncident.has(edge.target)) continue
+    if (directionOverrideNodes.has(edge.source) || directionOverrideNodes.has(edge.target)) continue
     const sides = routeHintSides(graph.direction, routeClass)
     drafts.push({ nodeId: edge.source, portId: `rp_${safeId(edge.source)}_${edgeIndex}_s`, side: sides.source, edgeIndex, endpoint: 'source', slotIndex: 0 })
     drafts.push({ nodeId: edge.target, portId: `rp_${safeId(edge.target)}_${edgeIndex}_t`, side: sides.target, edgeIndex, endpoint: 'target', slotIndex: 0 })

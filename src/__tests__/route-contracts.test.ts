@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'bun:test'
 import fc from 'fast-check'
-import { layoutGraphSync } from '../layout-engine.ts'
+import { buildRoutePortHints, layoutGraphSync } from '../layout-engine.ts'
 import { parseMermaid } from '../parser.ts'
 import { applyRouteContracts, auditRouteContracts, classifyRoutes, directLaneBlockers, findLabelSlot, findRouteHitches, shapePorts, simplifyPolyline } from '../route-contracts.ts'
 import { measureMultilineText } from '../text-metrics.ts'
@@ -311,6 +311,23 @@ describe('certificates', () => {
     expect(ab.routeCertificate?.targetPortAssignment).toMatchObject({
       side: 'W', slotIndex: 0, slotCount: 1, role: 'flow-target', port: 'W',
     })
+  })
+
+  it('pre-layout port hints apply per independent primary edge, not whole-graph all-or-nothing', () => {
+    const graph = parseMermaid('flowchart LR\n  A --> B\n  C --> D\n  D --> C')
+    const hints = buildRoutePortHints(graph, new Set())
+    expect(hints.byEndpoint.get('0:source')).toMatchObject({ nodeId: 'A', side: 'E' })
+    expect(hints.byEndpoint.get('0:target')).toMatchObject({ nodeId: 'B', side: 'W' })
+    expect(hints.byEndpoint.has('1:source')).toBe(false)
+    expect(hints.byEndpoint.has('2:source')).toBe(false)
+  })
+
+  it('pre-layout port hints skip nodes inside direction-override subgraphs', () => {
+    const graph = parseMermaid('flowchart TD\n  subgraph Inner\n    direction LR\n    A --> B\n  end\n  C --> D')
+    const hints = buildRoutePortHints(graph, new Set())
+    expect(hints.byEndpoint.has('0:source')).toBe(false)
+    expect(hints.byEndpoint.has('0:target')).toBe(false)
+    expect(hints.byEndpoint.get('1:source')).toMatchObject({ nodeId: 'C', side: 'S' })
   })
 
   it('feedback endpoints get flipped-side semantic roles without changing sourcePort/targetPort', () => {

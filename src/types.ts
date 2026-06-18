@@ -282,6 +282,12 @@ export type FamilyRouteCertificate =
     elementId: string
     routeClass: 'family-layout'
     invariant: 'timeline-interval' | 'plot-contained' | 'legend-contained' | 'section-contained' | 'unverified-family-layout'
+    /** Node/mark box in layout coordinates; included so cert consumers do not have to join back to nodes. */
+    bounds: { x: number; y: number; w: number; h: number }
+    /** Center point used by plot/region-mark containment certs. */
+    center: { x: number; y: number }
+    /** Whether the cert proves the full box or the semantic mark center is contained. */
+    containment: 'bounds' | 'center'
     withinBounds: boolean
     groupId?: string
     withinGroup?: boolean

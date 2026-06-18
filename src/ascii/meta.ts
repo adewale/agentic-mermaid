@@ -34,9 +34,9 @@ export interface AsciiWarning { code: AsciiWarningCode; message: string; severit
 
 export const ASCII_ROUTE_PARITY_CONTRACT = {
   version: 1,
-  routeIntent: 'explicit-mapping',
-  svgSource: 'route-contract certificates',
-  asciiSource: 'grid router using shared graph direction, author-order edges, longest-path layering, and direct-lane-first routing',
+  routeIntent: 'shared-route-classes',
+  svgSource: 'route-contract classifyRoutes() + certificates',
+  asciiSource: 'grid router seeded with classifyRoutes() routeClass metadata, longest-path layering, and direct-lane-first routing',
   degradationWarnings: ['ASCII_RENDER_FAILED', 'ASCII_EDGE_REGION_UNMAPPED'],
 } as const
 

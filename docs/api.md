@@ -132,7 +132,7 @@ Core functions:
 | `mutate(d, op)` | Apply a kind-discriminated typed mutation. |
 | `verifyMermaid(d)` | Return structural warnings and layout evidence. |
 | `serializeMermaid(d)` | Emit source only after verifying. |
-| `layoutMermaid(d)` | Return layout JSON for quality/inspection; `layoutMermaid(d, { debug: true })` includes graph route certificates and accepted family certificates (class/ER/architecture/sequence/timeline/charts), including exact ports plus side/slot/role port assignments where applicable. |
+| `layoutMermaid(d)` | Return layout JSON for quality/inspection; `layoutMermaid(d, { debug: true })` includes graph route certificates, accepted family certificates (class/ER/architecture/sequence/timeline/charts), and V1 region/action sidecars. Certificates include exact ports plus side/slot/role port assignments where applicable. |
 | `measureQuality(layout)` / `checkQuality(layout)` | Perceptual quality metrics. |
 | `describeMermaid(d, { format })` | Prose or AX-tree summary. |
 

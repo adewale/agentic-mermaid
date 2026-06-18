@@ -12,6 +12,7 @@ import type {
 } from './types.ts'
 import { EMPTY_STYLE } from './types.ts'
 import { mkCanvas, mkRoleCanvas } from './canvas.ts'
+import { classifyRoutes } from '../route-contracts.ts'
 
 /**
  * Convert a parsed MermaidGraph into an AsciiGraph ready for grid layout.
@@ -67,12 +68,14 @@ export function convertToAsciiGraph(parsed: MermaidGraph, config: AsciiConfig): 
   deduplicateSubgraphNodes(parsed.subgraphs, subgraphs, nodeMap, parsed)
 
   const subgraphById = new Map(subgraphs.map(sg => [sg.id, sg] as const))
+  const routeClasses = classifyRoutes(parsed)
 
   // Build edges with resolved node references. Edges that target a subgraph id
   // route through a stable inner anchor for placement/pathfinding, then draw to
   // the container border instead of rendering a duplicate phantom node.
   const edges: AsciiEdge[] = []
-  for (const mEdge of parsed.edges) {
+  for (let edgeIndex = 0; edgeIndex < parsed.edges.length; edgeIndex++) {
+    const mEdge = parsed.edges[edgeIndex]!
     const fromSubgraph = nodeMap.has(mEdge.source) ? undefined : subgraphById.get(mEdge.source)
     const toSubgraph = nodeMap.has(mEdge.target) ? undefined : subgraphById.get(mEdge.target)
     const from = nodeMap.get(mEdge.source) ?? (fromSubgraph ? chooseSubgraphAnchor(parsed, fromSubgraph, 'out') : undefined)
@@ -89,6 +92,7 @@ export function convertToAsciiGraph(parsed: MermaidGraph, config: AsciiConfig): 
       labelLine: [],
       startDir: { x: 0, y: 0 },
       endDir: { x: 0, y: 0 },
+      routeClass: routeClasses[edgeIndex],
       style: mEdge.style,
       hasArrowStart: mEdge.hasArrowStart,
       hasArrowEnd: mEdge.hasArrowEnd,

@@ -316,10 +316,11 @@ capacities) and Visio connection points with static vs dynamic glue:
   reinterpret the V1 `sourcePort`/`targetPort` vocabulary; it is the stable
   bridge for debugging and for feeding port intent into placement.
 - Pre-layout placement now consumes a conservative slice of the same intent:
-  primary-only DAGs get ELK `FIXED_SIDE` node-port hints (`E/W` for LR/RL,
-  `S/N` for TD/BT) before route repair. Cyclic, feedback, container, and
-  cross-hierarchy graphs deliberately skip those hints so outer-channel and
-  family-specific contracts cannot be stolen by stale pre-layout ports.
+  primary-forward edges get ELK `FIXED_SIDE` node-port hints (`E/W` for LR/RL,
+  `S/N` for TD/BT) only when neither endpoint participates in a non-primary
+  route. Cyclic, feedback, container, and cross-hierarchy lanes deliberately
+  skip those hints so outer-channel and family-specific contracts cannot be
+  stolen by stale pre-layout ports.
 
 State diagrams inherit all graph certificates through their projected graphs
 (`stateBodyToGraph` → `layoutGraphSync`). Non-graph families expose
@@ -332,10 +333,15 @@ remains certificate-free.
 
 Class and ER still render through their own ELK engines (`src/class/layout.ts`,
 `src/er/layout.ts` call `elkLayoutSync` directly), so they do not participate
-in the graph route straightener or port ranking. Their family certificates and
-verify tripwires cover the accepted invariant instead: orthogonal relationship
-paths, on-canvas non-overlapping boxes, and endpoints on class/entity
-boundaries. Sequence messages likewise expose opt-in family `lifeline-message`
+in the graph route straightener or port ranking. This is deliberate: class and
+ER boxes carry compartment/attribute-row geometry and cardinality endpoint
+semantics that the generic flowchart graph pass does not model. Projecting them
+through `MermaidGraph` would either discard those row/compartment constraints or
+require a second family-specific clipping pass after graph certification, which
+would recreate the stale-certificate problem this document forbids. Their
+family certificates and verify tripwires cover the accepted invariant instead:
+orthogonal relationship paths, on-canvas non-overlapping boxes, and endpoints on
+class/entity boundaries. Sequence messages likewise expose opt-in family `lifeline-message`
 certificates, while timeline/chart families expose element-containment layout
 certificates. These are family certificates rather than graph-route ports:
 sequence anchors are lifelines, and timeline/chart anchors are intervals,
@@ -702,9 +708,10 @@ bbox today and warning on every one would be noise, not signal.
 Still deliberately out of scope:
 
 - Broad ELK port mutation. A conservative `FIXED_SIDE` hint now runs only for
-  primary-only DAGs, where it agrees with route intent and cannot steal
-  feedback/container lanes. Cyclic, feedback, container, cross-hierarchy and
-  family-rerouted cases remain owned by the certifying repair pass; `FIXED_POS`
+  primary-forward edges whose endpoints are not incident to feedback/container/
+  cross-hierarchy routes, where it agrees with route intent and cannot steal
+  outer lanes. Cyclic, feedback, container, cross-hierarchy and family-rerouted
+  cases remain owned by the certifying repair pass; `FIXED_POS`
   everywhere would still fight ELK's crossing minimization.
 
 ## 8. Pipeline placement
@@ -754,7 +761,7 @@ shipped.
 |---|---|
 | Phase 0 — diagnostics (classification + certificates) | implemented |
 | Phase 1 — validation warnings | complete: all six ROUTE_* codes implemented as zero-noise tripwires |
-| Phase 2 — semantic `FIXED_SIDE` ports | conservative slice implemented: primary-only DAGs feed inferred source/target side intent to ELK fixed-side ports; cycles/feedback/container/cross-hierarchy skip hints and rely on final certificates |
+| Phase 2 — semantic `FIXED_SIDE` ports | conservative slice implemented: primary-forward edges feed inferred source/target side intent to ELK fixed-side ports only when neither endpoint participates in a non-primary route; cycles/feedback/container/cross-hierarchy rely on final certificates |
 | Phase 3 — certifying simplifier | implemented (proof-free + proof-carrying layers) |
 | Phase 4 — bundle contract | first slice implemented: bundled paths are proved clear of nodes, blocked members fall out of the bundle; per-trunk certificates deferred |
 | Phase 5 — family adoption | state composites (`stateBodyToGraph`) flow through graph route contracts and certificates; architecture now emits family-specific endpoint-side certificates in debug layouts; class/ER keep their own ELK engines and emit family-specific orthogonal-box certificates plus rendered-layout geometry tripwires; sequence emits lifeline-message certificates; timeline/charts emit family element-containment layout certificates |

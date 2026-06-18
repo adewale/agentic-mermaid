@@ -26,6 +26,18 @@ describe('stable region tree MVP', () => {
     expect(inner).toEqual(expect.objectContaining({ id: 'Inner', label: 'Inner Region', parentId: 'Outer', members: ['B'] }))
   })
 
+  test('debug layout JSON exposes region and action sidecars aligned by region id', () => {
+    const parsed = parseMermaid(`${SOURCE}  click A href "https://example.com"\n`)
+    expect(parsed.ok).toBe(true)
+    if (!parsed.ok) return
+
+    const layout = layoutMermaid(parsed.value, { debug: true })
+    expect(layout.regions).toContainEqual(expect.objectContaining({ id: 'canvas', kind: 'canvas' }))
+    expect(layout.regions).toContainEqual(expect.objectContaining({ id: 'group:Outer', kind: 'group', sourceLine: 2 }))
+    expect(layout.regions).toContainEqual(expect.objectContaining({ id: 'node:A', kind: 'node', parentId: 'group:Outer', sourceLine: 3 }))
+    expect(layout.actions).toContainEqual(expect.objectContaining({ id: 'action:flowchart:A:0', regionId: 'node:A', executable: false, security: 'safe' }))
+  })
+
   test('flowchart SVG marks subgraph regions with stable ids and parent ids', () => {
     const svg = renderMermaidSVG(SOURCE)
     expect(svg).toContain('class="subgraph" data-id="Outer" data-region="subgraph" data-label="Outer Region"')

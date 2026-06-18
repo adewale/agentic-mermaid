@@ -191,6 +191,7 @@ function elementCertificates(
   layout: RenderedLayout,
   invariant: ElementCertificateInvariant,
   referenceGroup?: RenderedLayoutGroup,
+  containment: 'bounds' | 'center' = 'bounds',
 ): FamilyRouteCertificate[] {
   const groupsByMember = new Map<string, RenderedLayoutGroup>()
   for (const group of layout.groups) {
@@ -199,12 +200,15 @@ function elementCertificates(
   return layout.nodes.map(n => {
     const withinBounds = nodeWithinBounds(n, layout.bounds)
     const group = groupsByMember.get(n.id) ?? referenceGroup
-    const withinGroup = group ? nodeWithinGroup(n, group) : undefined
+    const withinGroup = group ? (containment === 'center' ? nodeCenterWithinGroup(n, group) : nodeWithinGroup(n, group)) : undefined
     return {
       family,
       elementId: n.id,
       routeClass: 'family-layout',
       invariant: withinBounds && (withinGroup ?? true) ? invariant : 'unverified-family-layout',
+      bounds: { x: n.x, y: n.y, w: n.w, h: n.h },
+      center: { x: f(n.x + n.w / 2), y: f(n.y + n.h / 2) },
+      containment,
       withinBounds,
       ...(group ? { groupId: group.id, withinGroup } : {}),
     }
@@ -217,6 +221,12 @@ function nodeWithinBounds(n: RenderedLayoutNode, bounds: RenderedLayout['bounds'
 
 function nodeWithinGroup(n: RenderedLayoutNode, g: RenderedLayoutGroup, tol = 0.5): boolean {
   return n.x >= g.x - tol && n.y >= g.y - tol && n.x + n.w <= g.x + g.w + tol && n.y + n.h <= g.y + g.h + tol
+}
+
+function nodeCenterWithinGroup(n: RenderedLayoutNode, g: RenderedLayoutGroup, tol = 0.5): boolean {
+  const cx = n.x + n.w / 2
+  const cy = n.y + n.h / 2
+  return cx >= g.x - tol && cy >= g.y - tol && cx <= g.x + g.w + tol && cy <= g.y + g.h + tol
 }
 
 // ---- sequence -------------------------------------------------------------
@@ -438,7 +448,7 @@ function xychartToRendered(d: ValidDiagram, opts: { debug?: boolean } = {}): Ren
       w: f(positioned.plotArea.width), h: f(positioned.plotArea.height), members: [],
     }]
     const layout: RenderedLayout = { version: 1, kind: d.kind, nodes, edges: [], groups, bounds: { w: f(positioned.width), h: f(positioned.height) } }
-    if (opts.debug) layout.certificates = elementCertificates('xychart', layout, 'plot-contained', groups[0])
+    if (opts.debug) layout.certificates = elementCertificates('xychart', layout, 'plot-contained', groups[0], 'center')
     return layout
   } catch { return emptyRenderedLayout(d.kind) }
 }

@@ -119,6 +119,7 @@ describe('renderMermaidASCIIWithMeta', () => {
   test('route parity contract is explicit and edge-region gaps are structured warnings', () => {
     const result = renderMermaidASCIIWithMeta('flowchart LR\n  A --> B\n')
     expect(result.routeParity).toBe(ASCII_ROUTE_PARITY_CONTRACT)
+    expect(result.routeParity.routeIntent).toBe('shared-route-classes')
     expect(result.warnings).toContainEqual(expect.objectContaining({ code: 'ASCII_EDGE_REGION_UNMAPPED', severity: 'degraded' }))
   })
 

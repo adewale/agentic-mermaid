@@ -458,6 +458,10 @@ export type DiagramActionKind = 'href' | 'call' | 'callback'
 export type DiagramActionSecurity = 'safe' | 'unsafe' | 'source-only' | 'unsupported'
 
 export interface DiagramActionRecord {
+  /** Stable source-side action id (`action:<family>:<target>:<n>`). */
+  id?: string
+  /** Region id this action attaches to when a rendered layout exposes regions. */
+  regionId?: string
   family: DiagramKind
   target: string
   action: DiagramActionKind
@@ -866,6 +870,17 @@ export interface VerifyOptions {
   labelCharCap?: number
 }
 
+export type RenderedRegionKind = 'node' | 'edge' | 'label' | 'group' | 'canvas'
+
+export interface RenderedRegion {
+  id: string
+  kind: RenderedRegionKind
+  elementId?: string
+  parentId?: string
+  bounds: { x: Finite; y: Finite; w: Finite; h: Finite }
+  sourceLine?: number
+}
+
 export interface RenderedLayoutNode {
   id: NodeId; x: Finite; y: Finite; w: Finite; h: Finite; shape: string; label?: string
 }
@@ -888,6 +903,10 @@ export interface RenderedLayout {
   groups: RenderedLayoutGroup[]
   /** Layout/family certificates for non-edge invariants; present only under layoutMermaid(d, { debug: true }). */
   certificates?: LayoutRouteCertificate[]
+  /** Optional region sidecar for renderer/action alignment; debug-only in layoutMermaid V1. */
+  regions?: RenderedRegion[]
+  /** Optional source-only actions aligned to region ids; debug-only in layoutMermaid V1. */
+  actions?: DiagramActionRecord[]
   bounds: { w: Finite; h: Finite }
 }
 

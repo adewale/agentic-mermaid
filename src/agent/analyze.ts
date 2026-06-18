@@ -71,7 +71,13 @@ export function collectActionRecords(d: ValidDiagram): DiagramActionRecord[] {
   const records: DiagramActionRecord[] = []
   if (d.kind === 'flowchart') records.push(...collectFlowchartActions(source))
   if (d.body.kind === 'gantt') records.push(...collectGanttActions(d))
-  return records
+  const seen = new Map<string, number>()
+  return records.map(record => {
+    const key = `${record.family}:${record.target}`
+    const n = seen.get(key) ?? 0
+    seen.set(key, n + 1)
+    return { id: `action:${record.family}:${record.target}:${n}`, regionId: `node:${record.target}`, ...record }
+  })
 }
 
 function collectFlowchartActions(source: string): DiagramActionRecord[] {
