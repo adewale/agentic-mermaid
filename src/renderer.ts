@@ -116,12 +116,12 @@ function arrowMarkerDefs(): string {
   const refX = w - 1
   return (
     // Forward arrow (marker-end) — orient="auto" ensures arrow points along line direction
-    `  <marker id="arrowhead" markerWidth="${w}" markerHeight="${h}" refX="${refX}" refY="${h / 2}" orient="auto" markerUnits="userSpaceOnUse">` +
+    `  <marker id="arrowhead" markerWidth="${w}" markerHeight="${h}" refX="${refX}" refY="${h / 2}" orient="auto">` +
     `\n    <polygon points="0 0, ${w} ${h / 2}, 0 ${h}" ${arrowStyle} />` +
     `\n  </marker>` +
     // Reverse arrow (marker-start) uses the same geometry as marker-end;
     // auto-start-reverse handles orientation without a hand-flipped polygon.
-    `\n  <marker id="arrowhead-start" markerWidth="${w}" markerHeight="${h}" refX="${refX}" refY="${h / 2}" orient="auto-start-reverse" markerUnits="userSpaceOnUse">` +
+    `\n  <marker id="arrowhead-start" markerWidth="${w}" markerHeight="${h}" refX="${refX}" refY="${h / 2}" orient="auto-start-reverse">` +
     `\n    <polygon points="0 0, ${w} ${h / 2}, 0 ${h}" ${arrowStyle} />` +
     `\n  </marker>`
   )
@@ -139,10 +139,10 @@ function arrowMarkerDefsForColor(color: string): string {
   const refX = w - 1
   const suffix = markerSuffix(color)
   return (
-    `  <marker id="arrowhead-${suffix}" markerWidth="${w}" markerHeight="${h}" refX="${refX}" refY="${h / 2}" orient="auto" markerUnits="userSpaceOnUse">` +
+    `  <marker id="arrowhead-${suffix}" markerWidth="${w}" markerHeight="${h}" refX="${refX}" refY="${h / 2}" orient="auto">` +
     `\n    <polygon points="0 0, ${w} ${h / 2}, 0 ${h}" ${arrowStyle} />` +
     `\n  </marker>` +
-    `\n  <marker id="arrowhead-start-${suffix}" markerWidth="${w}" markerHeight="${h}" refX="${refX}" refY="${h / 2}" orient="auto-start-reverse" markerUnits="userSpaceOnUse">` +
+    `\n  <marker id="arrowhead-start-${suffix}" markerWidth="${w}" markerHeight="${h}" refX="${refX}" refY="${h / 2}" orient="auto-start-reverse">` +
     `\n    <polygon points="0 0, ${w} ${h / 2}, 0 ${h}" ${arrowStyle} />` +
     `\n  </marker>`
   )
@@ -154,10 +154,10 @@ function circleMarkerDefs(color?: string): string {
   const stroke = color ? escapeAttr(color) : 'var(--_arrow)'
   const r = size / 2 - 0.75
   return (
-    `  <marker id="circlehead${suffix}" markerWidth="${size}" markerHeight="${size}" refX="${size - 0.5}" refY="${size / 2}" orient="auto" markerUnits="userSpaceOnUse">` +
+    `  <marker id="circlehead${suffix}" markerWidth="${size}" markerHeight="${size}" refX="${size - 0.5}" refY="${size / 2}" orient="auto">` +
     `\n    <circle cx="${size / 2}" cy="${size / 2}" r="${r}" fill="none" stroke="${stroke}" stroke-width="1" />` +
     `\n  </marker>` +
-    `\n  <marker id="circlehead-start${suffix}" markerWidth="${size}" markerHeight="${size}" refX="0.5" refY="${size / 2}" orient="auto-start-reverse" markerUnits="userSpaceOnUse">` +
+    `\n  <marker id="circlehead-start${suffix}" markerWidth="${size}" markerHeight="${size}" refX="0.5" refY="${size / 2}" orient="auto-start-reverse">` +
     `\n    <circle cx="${size / 2}" cy="${size / 2}" r="${r}" fill="none" stroke="${stroke}" stroke-width="1" />` +
     `\n  </marker>`
   )
@@ -172,11 +172,11 @@ function crossMarkerDefs(color?: string): string {
   const b = size - pad
   const style = `stroke="${stroke}" stroke-width="1.25" stroke-linecap="round"`
   return (
-    `  <marker id="crosshead${suffix}" markerWidth="${size}" markerHeight="${size}" refX="${size / 2}" refY="${size / 2}" orient="auto" markerUnits="userSpaceOnUse">` +
+    `  <marker id="crosshead${suffix}" markerWidth="${size}" markerHeight="${size}" refX="${size / 2}" refY="${size / 2}" orient="auto">` +
     `\n    <line x1="${a}" y1="${a}" x2="${b}" y2="${b}" ${style} />` +
     `\n    <line x1="${a}" y1="${b}" x2="${b}" y2="${a}" ${style} />` +
     `\n  </marker>` +
-    `\n  <marker id="crosshead-start${suffix}" markerWidth="${size}" markerHeight="${size}" refX="${size / 2}" refY="${size / 2}" orient="auto-start-reverse" markerUnits="userSpaceOnUse">` +
+    `\n  <marker id="crosshead-start${suffix}" markerWidth="${size}" markerHeight="${size}" refX="${size / 2}" refY="${size / 2}" orient="auto-start-reverse">` +
     `\n    <line x1="${a}" y1="${a}" x2="${b}" y2="${b}" ${style} />` +
     `\n    <line x1="${a}" y1="${b}" x2="${b}" y2="${a}" ${style} />` +
     `\n  </marker>`

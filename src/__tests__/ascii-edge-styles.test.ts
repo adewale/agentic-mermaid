@@ -5,7 +5,47 @@
 import { describe, it, expect } from 'bun:test'
 import { renderMermaidAscii } from '../ascii/index.ts'
 
+function rowContaining(rendered: string, ...tokens: string[]): string {
+  const row = rendered.split('\n').find(line => tokens.every(token => line.includes(token)))
+  expect(row).toBeDefined()
+  return row!
+}
+
 describe('ASCII edge styles', () => {
+  describe('connector-row visual contracts', () => {
+    it('places each LR line style on the actual connector row in unicode mode', () => {
+      const cases = [
+        ['graph LR\n  A --> B', '├────►'],
+        ['graph LR\n  A -.-> B', '├┄┄┄┄►'],
+        ['graph LR\n  A ==> B', '├━━━━►'],
+      ] as const
+
+      for (const [source, connector] of cases) {
+        const row = rowContaining(renderMermaidAscii(source), 'A', 'B')
+        expect(row).toContain(connector)
+      }
+    })
+
+    it('places each LR line style on the actual connector row in ascii mode', () => {
+      const cases = [
+        ['graph LR\n  A --> B', '|---->'],
+        ['graph LR\n  A -.-> B', '|....>'],
+        ['graph LR\n  A ==> B', '|====>'],
+      ] as const
+
+      for (const [source, connector] of cases) {
+        const row = rowContaining(renderMermaidAscii(source, { useAscii: true }), 'A', 'B')
+        expect(row).toContain(connector)
+      }
+    })
+
+    it('keeps bidirectional endpoint markers on the connector row in direction order', () => {
+      const row = rowContaining(renderMermaidAscii('graph LR\n  A o--x B'), 'A', 'B')
+      expect(row).toContain('◯────✕')
+      expect(row.indexOf('◯')).toBeLessThan(row.indexOf('✕'))
+    })
+  })
+
   describe('solid edges (default)', () => {
     it('renders solid edges with ─ in unicode mode', () => {
       const result = renderMermaidAscii(`

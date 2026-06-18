@@ -9,6 +9,7 @@ import type { PositionedGraph } from '../../src/types.ts'
 const ROOT = join(import.meta.dir, '..', '..')
 const OUT_DIR = join(ROOT, 'docs', 'pr-assets')
 const OUT_FILE = 'issue-38-style-permutation-contact-sheet.png'
+export const OUTPUT_PATH = join(OUT_DIR, OUT_FILE)
 
 const OPTIONS = {
   style: {
@@ -225,12 +226,18 @@ const sheet = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="
   ${grid}
 </svg>`
 
-mkdirSync(OUT_DIR, { recursive: true })
 const png = new Resvg(sheet, {
   fitTo: { mode: 'width', value: width },
   background: COLORS.bg,
   font: { loadSystemFonts: false, fontFiles: FONT_FILES, defaultFontFamily: 'DejaVu Sans' },
 }).render().asPng()
 
-writeFileSync(join(OUT_DIR, OUT_FILE), png)
-console.log(`wrote docs/pr-assets/${OUT_FILE} (${Math.round(png.byteLength / 1024)} KB)`)
+export function buildPng(): Uint8Array {
+  return png
+}
+
+if (import.meta.main) {
+  mkdirSync(OUT_DIR, { recursive: true })
+  writeFileSync(OUTPUT_PATH, png)
+  console.log(`wrote docs/pr-assets/${OUT_FILE} (${Math.round(png.byteLength / 1024)} KB)`)
+}

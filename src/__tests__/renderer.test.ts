@@ -5,7 +5,6 @@
  * depending on the layout engine.
  */
 import { describe, it, expect } from 'bun:test'
-import { Resvg } from '@resvg/resvg-js'
 import { renderSvg } from '../renderer.ts'
 import type { DiagramColors } from '../theme.ts'
 import type { PositionedGraph, PositionedNode, PositionedEdge, PositionedGroup } from '../types.ts'
@@ -52,63 +51,6 @@ function makeEdge(overrides: Partial<PositionedEdge> = {}): PositionedEdge {
 /** Default light colors — CSS custom properties handle actual styling */
 const lightColors: DiagramColors = { bg: '#FFFFFF', fg: '#27272A' }
 const darkColors: DiagramColors = { bg: '#18181B', fg: '#FAFAFA' }
-
-interface PixelBox {
-  left: number
-  top: number
-  right: number
-  bottom: number
-  width: number
-  height: number
-}
-
-function colorPixelBox(
-  svg: string,
-  isColor: (r: number, g: number, b: number, a: number) => boolean,
-  region: { left: number; top: number; right: number; bottom: number },
-): PixelBox {
-  const rendered = new Resvg(svg, { background: '#ffffff' }).render()
-  let left = Number.POSITIVE_INFINITY
-  let top = Number.POSITIVE_INFINITY
-  let right = Number.NEGATIVE_INFINITY
-  let bottom = Number.NEGATIVE_INFINITY
-  for (let y = Math.max(0, region.top); y < Math.min(rendered.height, region.bottom); y++) {
-    for (let x = Math.max(0, region.left); x < Math.min(rendered.width, region.right); x++) {
-      const offset = (y * rendered.width + x) * 4
-      const r = rendered.pixels[offset]!
-      const g = rendered.pixels[offset + 1]!
-      const b = rendered.pixels[offset + 2]!
-      const a = rendered.pixels[offset + 3]!
-      if (!isColor(r, g, b, a)) continue
-      left = Math.min(left, x)
-      top = Math.min(top, y)
-      right = Math.max(right, x)
-      bottom = Math.max(bottom, y)
-    }
-  }
-  if (!Number.isFinite(left)) throw new Error('expected at least one matching pixel')
-  return { left, top, right, bottom, width: right - left + 1, height: bottom - top + 1 }
-}
-
-function renderMeasuredArrow(style: PositionedEdge['style']): string {
-  return renderSvg(
-    makeGraph({
-      width: 220,
-      height: 100,
-      edges: [
-        makeEdge({
-          style,
-          points: [{ x: 20, y: 50 }, { x: 180, y: 50 }],
-          inlineStyle: { stroke: '#ff0000' },
-        }),
-      ],
-    }),
-    lightColors,
-    'Inter',
-    false,
-    { style: { edge: { lineWidth: 2.25 } } },
-  )
-}
 
 // ============================================================================
 // SVG structure
@@ -348,40 +290,8 @@ describe('renderSvg – edges', () => {
     const edge = makeEdge({ style: 'thick' })
     const graph = makeGraph({ edges: [edge] })
     const svg = renderSvg(graph, lightColors)
-    // Base connector stroke is 1px, thick is doubled to 2px
+    // Base connector stroke is 1px, thick is doubled to 2px.
     expect(svg).toContain('stroke-width="2"')
-  })
-
-  it('keeps endpoint markers fixed-size when edge stroke widths change', () => {
-    const graph = makeGraph({
-      edges: [
-        makeEdge({ style: 'solid', hasArrowStart: true, hasArrowEnd: true }),
-        makeEdge({ style: 'thick', hasArrowEnd: true, endMarker: 'circle' }),
-        makeEdge({ style: 'thick', hasArrowEnd: true, endMarker: 'cross' }),
-      ],
-    })
-    const svg = renderSvg(graph, lightColors)
-    expect(svg).toContain('<marker id="arrowhead"')
-    expect(svg).toContain('<marker id="arrowhead-start"')
-    expect(svg).toContain('<marker id="circlehead"')
-    expect(svg).toContain('<marker id="crosshead"')
-    expect(svg.match(/markerUnits="userSpaceOnUse"/g)?.length).toBe(6)
-  })
-
-  it('rasterizes thick arrowheads at the same glyph size as solid arrowheads', () => {
-    const red = (r: number, g: number, b: number, a: number) => a > 0 && r > 180 && g < 80 && b < 80
-    const endpointRegion = { left: 130, top: 20, right: 190, bottom: 80 }
-    const solid = colorPixelBox(renderMeasuredArrow('solid'), red, endpointRegion)
-    const thickSvg = renderMeasuredArrow('thick')
-    const thick = colorPixelBox(thickSvg, red, endpointRegion)
-
-    expect(thick.height).toBeLessThanOrEqual(solid.height + 2)
-
-    // Red side of the contract: the legacy SVG default (`markerUnits=strokeWidth`)
-    // makes the same thick endpoint visibly much taller in the raster output.
-    const legacyScaledMarkerSvg = thickSvg.replaceAll(' markerUnits="userSpaceOnUse"', '')
-    const legacy = colorPixelBox(legacyScaledMarkerSvg, red, endpointRegion)
-    expect(legacy.height).toBeGreaterThan(thick.height * 2)
   })
 
   it('does not add dasharray to solid edges', () => {

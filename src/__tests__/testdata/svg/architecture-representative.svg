@@ -1,45 +1,45 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 665.966 226" width="665.966" height="226" style="--bg:#FFFFFF;--fg:#27272A;--font:Inter;background:var(--bg)">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 665.966 226" width="665.966" height="226" style="--bg:#FFFFFF;--fg:#27272A;--font:Inter;background:#FFFFFF">
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap');
   text { font-family: var(--font, 'Inter'), system-ui, sans-serif; }
   svg {
     /* Derived from --bg and --fg (overridable via --line, --accent, etc.) */
-    --_text:          var(--fg);
-    --_text-sec:      var(--muted, color-mix(in srgb, var(--fg) 60%, var(--bg)));
-    --_text-muted:    var(--muted, color-mix(in srgb, var(--fg) 40%, var(--bg)));
-    --_text-faint:    color-mix(in srgb, var(--fg) 25%, var(--bg));
-    --_line:          var(--line, color-mix(in srgb, var(--fg) 50%, var(--bg)));
-    --_arrow:         var(--accent, color-mix(in srgb, var(--fg) 85%, var(--bg)));
-    --_node-fill:     var(--surface, color-mix(in srgb, var(--fg) 3%, var(--bg)));
-    --_node-stroke:   var(--border, color-mix(in srgb, var(--fg) 20%, var(--bg)));
-    --_group-fill:    var(--bg);
-    --_group-hdr:     color-mix(in srgb, var(--fg) 5%, var(--bg));
-    --_inner-stroke:  color-mix(in srgb, var(--fg) 12%, var(--bg));
-    --_key-badge:     color-mix(in srgb, var(--fg) 10%, var(--bg));
+    --_text:          #27272A;
+    --_text-sec:      #7d7d7f;
+    --_text-muted:    #a9a9aa;
+    --_text-faint:    #c9c9ca;
+    --_line:          #939395;
+    --_arrow:         #47474a;
+    --_node-fill:     #f9f9f9;
+    --_node-stroke:   #d4d4d4;
+    --_group-fill:    #FFFFFF;
+    --_group-hdr:     #f4f4f4;
+    --_inner-stroke:  #e5e5e5;
+    --_key-badge:     #e9e9ea;
   }
 </style>
 <style>
-  .architecture-group-frame { fill: var(--arch-group-fill, color-mix(in srgb, var(--_node-fill) 82%, var(--bg))); stroke: none; }
-  .architecture-group-band { fill: color-mix(in srgb, var(--_arrow) 5%, var(--arch-group-fill, var(--bg))); stroke: none; }
-  .architecture-group-outline { fill: none; stroke: var(--arch-group-stroke, var(--_node-stroke)); stroke-width: 1; }
-  .architecture-group-label { fill: var(--_text-sec); }
-  .architecture-service-card { fill: var(--arch-service-fill, color-mix(in srgb, var(--_node-fill) 92%, var(--bg))); stroke: none; }
-  .architecture-service-outline { fill: none; stroke: var(--arch-service-stroke, var(--_node-stroke)); stroke-width: 1; }
-  .architecture-service-label { fill: var(--_text); }
-  .architecture-edge { fill: none; stroke: var(--_line); stroke-width: 1; stroke-linejoin: round; }
-  .architecture-edge-label-bg { fill: color-mix(in srgb, var(--bg) 90%, var(--_group-hdr)); stroke: color-mix(in srgb, var(--_line) 18%, var(--bg)); stroke-width: 0.75; }
-  .architecture-edge-label-text { fill: var(--_text-muted); }
-  .architecture-junction-ring { fill: var(--bg); stroke: var(--_arrow); stroke-width: 1.25; }
-  .architecture-junction-core { fill: color-mix(in srgb, var(--_arrow) 24%, var(--bg)); stroke: var(--_arrow); stroke-width: 0.75; }
-  .architecture-icon-mark { fill: none; stroke: var(--_arrow); stroke-width: 1.25; stroke-linecap: round; stroke-linejoin: round; }
-  .architecture-icon-glyph { fill: var(--_arrow); }
+  .architecture-group-frame { fill: #fafafa; stroke: none; }
+  .architecture-group-band { fill: #f6f6f6; stroke: none; }
+  .architecture-group-outline { fill: none; stroke: #d4d4d4; stroke-width: 1; }
+  .architecture-group-label { fill: #7d7d7f; }
+  .architecture-service-card { fill: #f9f9f9; stroke: none; }
+  .architecture-service-outline { fill: none; stroke: #d4d4d4; stroke-width: 1; }
+  .architecture-service-label { fill: #27272A; }
+  .architecture-edge { fill: none; stroke: #939395; stroke-width: 1; stroke-linejoin: round; }
+  .architecture-edge-label-bg { fill: #fefefe; stroke: #ececec; stroke-width: 0.75; }
+  .architecture-edge-label-text { fill: #a9a9aa; }
+  .architecture-junction-ring { fill: #FFFFFF; stroke: #47474a; stroke-width: 1.25; }
+  .architecture-junction-core { fill: #d3d3d4; stroke: #47474a; stroke-width: 0.75; }
+  .architecture-icon-mark { fill: none; stroke: #47474a; stroke-width: 1.25; stroke-linecap: round; stroke-linejoin: round; }
+  .architecture-icon-glyph { fill: #47474a; }
 </style>
 <defs>
   <marker id="architecture-arrow-end" markerWidth="8" markerHeight="5" refX="7" refY="2.5" orient="auto">
-    <polygon points="0 0, 8 2.5, 0 5" fill="var(--_arrow)" stroke="var(--_arrow)" stroke-width="0.75" stroke-linejoin="round" />
+    <polygon points="0 0, 8 2.5, 0 5" fill="#47474a" stroke="#47474a" stroke-width="0.75" stroke-linejoin="round" />
   </marker>
   <marker id="architecture-arrow-start" markerWidth="8" markerHeight="5" refX="1" refY="2.5" orient="auto-start-reverse">
-    <polygon points="8 0, 0 2.5, 8 5" fill="var(--_arrow)" stroke="var(--_arrow)" stroke-width="0.75" stroke-linejoin="round" />
+    <polygon points="8 0, 0 2.5, 8 5" fill="#47474a" stroke="#47474a" stroke-width="0.75" stroke-linejoin="round" />
   </marker>
 </defs>
 <g class="architecture-group" data-id="edge" data-label="Edge">
