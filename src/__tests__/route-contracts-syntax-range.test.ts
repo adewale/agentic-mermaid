@@ -78,13 +78,18 @@ function terminalMarkerGap(style: { edgeLabelFontSize: number; lineWidth?: numbe
   return Math.max(18, style.edgeLabelFontSize + ARROW_HEAD.width + strokeWidth * 2)
 }
 
-function edgeStyleWitnessGap(edge: PositionedEdge): number {
-  if (edge.style !== 'dotted') return 0
+function maxTerminalMarkerGap(style: { edgeLabelFontSize: number; lineWidth?: number }): number {
+  const lineWidth = style.lineWidth ?? 1
+  const maxStrokeWidth = lineWidth * 2
+  return Math.max(18, style.edgeLabelFontSize + ARROW_HEAD.width + maxStrokeWidth * 2)
+}
+
+function maxEdgeStyleWitnessGap(): number {
   return FLOWCHART_DOTTED_DASH.dash * 3 + FLOWCHART_DOTTED_DASH.gap * 2
 }
 
-function terminalReadableGap(style: { edgeLabelFontSize: number; lineWidth?: number }, edge: PositionedEdge): number {
-  return terminalMarkerGap(style, edge) + edgeStyleWitnessGap(edge)
+function terminalReadableGap(style: { edgeLabelFontSize: number; lineWidth?: number }): number {
+  return maxTerminalMarkerGap(style) + maxEdgeStyleWitnessGap()
 }
 
 function labelHalfExtentAlongSegment(
@@ -181,7 +186,7 @@ function expectLabelShowsVisiblePortStubs(
   const verticalFlow = direction === 'TD' || direction === 'BT'
   const beforeGap = labelPortStubGap(style)
   const afterGap = edge.hasArrowEnd && index === edge.points.length - 1
-    ? terminalReadableGap(style, edge)
+    ? terminalReadableGap(style)
     : labelPortStubGap(style)
   if (verticalFlow) {
     expect(edge.labelPosition!.x).toBeCloseTo(box.x + box.w / 2, 3)
@@ -245,6 +250,30 @@ function stableProductLoopGeometry(positioned: ReturnType<typeof layoutGraphSync
         : undefined,
     })),
   }
+}
+
+const PRODUCT_LOOP_STYLE_OPTIONS = {
+  style: {
+    text: { fontSize: 13, letterSpacing: 0.1 },
+    node: { fontSize: 15, fontWeight: 600, letterSpacing: -0.1, paddingX: 22, paddingY: 14, cornerRadius: 16, lineWidth: 1.5 },
+    edge: { fontSize: 12, fontWeight: 600, letterSpacing: 0.1, lineWidth: 2.25, bendRadius: 12 },
+    group: { fontSize: 12, fontWeight: 700, letterSpacing: 0.8, textTransform: 'uppercase' as const, padding: 24, paddingY: 18, cornerRadius: 18, borderColor: '#f97316', lineWidth: 1.5 },
+  },
+}
+
+const PRODUCT_LOOP_BRANCH_STYLES = [
+  { name: 'solid', op: '-->' },
+  { name: 'dotted', op: '-.->' },
+  { name: 'thick', op: '==>' },
+] as const
+
+function productLoopSource(yesOp = '-->', needsWorkOp = '-.->'): string {
+  return `flowchart TD
+  subgraph product [Product Loop]
+    A[Capture request] --> B{Ready?}
+    B ${yesOp}|yes| C[Ship]
+    B ${needsWorkOp}|needs work| D[Refine]
+  end`
 }
 
 const EDGE_VOCABULARY: ReadonlyArray<{
@@ -413,22 +442,9 @@ describe('syntax range — & multi-edge chains hit the same fan heuristics', () 
     // Characterization from issue #42 plus the editor regression reported
     // while tackling #38: the branch spread is good (SW/SE bundle anchors),
     // but the label pill must not ride up into the decision diamond.
-    const source = `flowchart TD
-  subgraph product [Product Loop]
-    A[Capture request] --> B{Ready?}
-    B -->|yes| C[Ship]
-    B -.->|needs work| D[Refine]
-  end`
-    const options = {
-      style: {
-        text: { fontSize: 13, letterSpacing: 0.1 },
-        node: { fontSize: 15, fontWeight: 600, letterSpacing: -0.1, paddingX: 22, paddingY: 14, cornerRadius: 16, lineWidth: 1.5 },
-        edge: { fontSize: 12, fontWeight: 600, letterSpacing: 0.1, lineWidth: 2.25, bendRadius: 12 },
-        group: { fontSize: 12, fontWeight: 700, letterSpacing: 0.8, textTransform: 'uppercase' as const, padding: 24, paddingY: 18, cornerRadius: 18, borderColor: '#f97316', lineWidth: 1.5 },
-      },
-    }
-    const positioned = layoutGraphSync(parseMermaid(source), options)
-    const style = resolveRenderStyle(options)
+    const source = productLoopSource()
+    const positioned = layoutGraphSync(parseMermaid(source), PRODUCT_LOOP_STYLE_OPTIONS)
+    const style = resolveRenderStyle(PRODUCT_LOOP_STYLE_OPTIONS)
     const decision = positioned.nodes.find(n => n.id === 'B')!
     const decisionSouth = shapePorts(decision).S.y
     const yes = findEdge(positioned.edges, 'B', 'C')
@@ -460,8 +476,8 @@ describe('syntax range — & multi-edge chains hit the same fan heuristics', () 
       nodes: [
         { id: 'A', x: 70.625, y: 86, width: 162.35, height: 47.5, shape: 'rectangle' },
         { id: 'B', x: 88.775, y: 181.5, width: 126.05, height: 126.05, shape: 'diamond' },
-        { id: 'C', x: 46.55, y: 472.65, width: 91.25, height: 47.5, shape: 'rectangle' },
-        { id: 'D', x: 165.8, y: 472.65, width: 91.25, height: 47.5, shape: 'rectangle' },
+        { id: 'C', x: 46.55, y: 486.15, width: 91.25, height: 47.5, shape: 'rectangle' },
+        { id: 'D', x: 165.8, y: 486.15, width: 91.25, height: 47.5, shape: 'rectangle' },
       ],
       edges: [
         {
@@ -475,19 +491,30 @@ describe('syntax range — & multi-edge chains hit the same fan heuristics', () 
           source: 'B',
           target: 'C',
           label: 'yes',
-          points: [{ x: 120.288, y: 276.038 }, { x: 120.288, y: 352.05 }, { x: 92.175, y: 352.05 }, { x: 92.175, y: 472.65 }],
+          points: [{ x: 120.288, y: 276.038 }, { x: 120.288, y: 356.55 }, { x: 92.175, y: 356.55 }, { x: 92.175, y: 486.15 }],
           routeCertificate: { routeClass: 'primary-forward', bendCount: 2, sourcePort: 'SW', targetPort: 'N', invariant: 'bundle' },
         },
         {
           source: 'B',
           target: 'D',
           label: 'needs work',
-          points: [{ x: 183.313, y: 276.038 }, { x: 183.313, y: 352.05 }, { x: 211.425, y: 352.05 }, { x: 211.425, y: 472.65 }],
+          points: [{ x: 183.313, y: 276.038 }, { x: 183.313, y: 356.55 }, { x: 211.425, y: 356.55 }, { x: 211.425, y: 486.15 }],
           routeCertificate: { routeClass: 'primary-forward', bendCount: 2, sourcePort: 'SE', targetPort: 'N', invariant: 'bundle' },
         },
       ],
     })
     zeroHardViolations(source)
+  })
+
+  it('Product Loop geometry is invariant across visible branch style permutations', () => {
+    const baseline = stableProductLoopGeometry(layoutGraphSync(parseMermaid(productLoopSource()), PRODUCT_LOOP_STYLE_OPTIONS))
+    for (const yesStyle of PRODUCT_LOOP_BRANCH_STYLES) {
+      for (const needsWorkStyle of PRODUCT_LOOP_BRANCH_STYLES) {
+        const source = productLoopSource(yesStyle.op, needsWorkStyle.op)
+        expect(stableProductLoopGeometry(layoutGraphSync(parseMermaid(source), PRODUCT_LOOP_STYLE_OPTIONS)))
+          .toEqual(baseline)
+      }
+    }
   })
 
   it('a three-way decision fan-out allocates sibling labels with readable gaps', () => {

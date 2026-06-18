@@ -870,6 +870,14 @@ function elkToPositioned(
   const arrowMargin = ARROW_HEAD.width
   const padding = layoutPadding
 
+  for (const node of nodes) {
+    width = Math.max(width, node.x + node.width + padding)
+    height = Math.max(height, node.y + node.height + padding)
+  }
+  for (const bound of flattenGroupBounds(groups)) {
+    width = Math.max(width, bound.right + padding)
+    height = Math.max(height, bound.bottom + padding)
+  }
   for (const edge of edges) {
     for (const p of edge.points) {
       width = Math.max(width, p.x + arrowMargin + padding)
@@ -1382,13 +1390,18 @@ function terminalMarkerGap(style: LabelMetricsStyle, edge: PositionedEdge): numb
   return Math.max(18, style.edgeLabelFontSize + ARROW_HEAD.width + strokeWidth * 2)
 }
 
-function edgeStyleWitnessGap(edge: PositionedEdge): number {
-  if (edge.style !== 'dotted') return 0
+function maxTerminalMarkerGap(style: LabelMetricsStyle): number {
+  const lineWidth = (style as LabelMetricsStyle & { lineWidth?: number }).lineWidth ?? 1
+  const maxStrokeWidth = lineWidth * 2
+  return Math.max(18, style.edgeLabelFontSize + ARROW_HEAD.width + maxStrokeWidth * 2)
+}
+
+function maxEdgeStyleWitnessGap(): number {
   return FLOWCHART_DOTTED_DASH.dash * 3 + FLOWCHART_DOTTED_DASH.gap * 2
 }
 
-function terminalReadableGap(style: LabelMetricsStyle, edge: PositionedEdge): number {
-  return terminalMarkerGap(style, edge) + edgeStyleWitnessGap(edge)
+function terminalReadableGap(style: LabelMetricsStyle): number {
+  return maxTerminalMarkerGap(style) + maxEdgeStyleWitnessGap()
 }
 
 function labelHalfExtentAlongSegment(
@@ -1423,8 +1436,8 @@ function clearsTerminalMarkers(
 
 function labelEndpointGaps(edge: PositionedEdge, points: Point[], segmentIndex: number, style: LabelMetricsStyle): { start: number; end: number } {
   return {
-    start: edge.hasArrowStart && segmentIndex === 1 ? terminalMarkerGap(style, edge) : labelPortStubGap(style),
-    end: edge.hasArrowEnd && segmentIndex === points.length - 1 ? terminalReadableGap(style, edge) : labelPortStubGap(style),
+    start: edge.hasArrowStart && segmentIndex === 1 ? maxTerminalMarkerGap(style) : labelPortStubGap(style),
+    end: edge.hasArrowEnd && segmentIndex === points.length - 1 ? terminalReadableGap(style) : labelPortStubGap(style),
   }
 }
 
@@ -1469,13 +1482,13 @@ function terminalLabelRunLength(
   const labelExtent = f.isHorizontal ? box.width : box.height
   const visibleGap = Math.max(
     labelPortStubGap(style),
-    edge.hasArrowEnd ? terminalReadableGap(style, edge) : labelPortStubGap(style),
+    edge.hasArrowEnd ? terminalReadableGap(style) : labelPortStubGap(style),
   )
   // When there is room, balance the outside-source corridor into three equal
   // visible runs: source boundary to bend, bend to label, and label to target.
   const corridor = (targetBoundary - sourceBoundary) * f.sign
   const balancedGap = (corridor - labelExtent) / 3
-  if (balancedGap >= visibleGap) return labelExtent + balancedGap * 2
+  if (balancedGap >= visibleGap - 0.001) return labelExtent + balancedGap * 2
   return labelExtent + labelPortStubGap(style) + visibleGap + 2
 }
 
@@ -1485,7 +1498,7 @@ function terminalLabelCorridorLength(edge: PositionedEdge, direction: Direction,
   const labelExtent = layoutFlow(direction).isHorizontal ? box.width : box.height
   const visibleGap = Math.max(
     labelPortStubGap(style),
-    edge.hasArrowEnd ? terminalReadableGap(style, edge) : labelPortStubGap(style),
+    edge.hasArrowEnd ? terminalReadableGap(style) : labelPortStubGap(style),
   )
   return labelExtent + visibleGap * 3
 }

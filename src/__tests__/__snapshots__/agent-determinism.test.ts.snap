@@ -204,7 +204,7 @@ exports[`drift sentinel sentinel: flowchart TD /   A{Decision} --> B[Yes] /   A 
 {
   "bounds": {
     "h": 283,
-    "w": 234,
+    "w": 238,
   },
   "edges": [
     {
