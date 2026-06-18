@@ -31,7 +31,7 @@ import type {
   NodeShape,
   DiamondFacet,
 } from './types.ts'
-import { ARROW_HEAD, resolveRenderStyle } from './styles.ts'
+import { ARROW_HEAD, FLOWCHART_DOTTED_DASH, resolveRenderStyle } from './styles.ts'
 import type { ResolvedRenderStyle } from './styles.ts'
 import { measureMultilineText } from './text-metrics.ts'
 import { elkLayoutSync } from './elk-instance.ts'
@@ -1140,6 +1140,47 @@ function nodeInsideGroups(node: PositionedNode, groups: PositionedGroup[]): bool
   return visit(groups)
 }
 
+function flattenPositionedGroups(groups: PositionedGroup[], out: PositionedGroup[] = []): PositionedGroup[] {
+  for (const group of groups) {
+    out.push(group)
+    flattenPositionedGroups(group.children, out)
+  }
+  return out
+}
+
+function rectInsideGroup(rect: { x: number; y: number; width: number; height: number }, group: PositionedGroup): boolean {
+  return rect.x >= group.x - 0.5 &&
+    rect.y >= group.y - 0.5 &&
+    rect.x + rect.width <= group.x + group.width + 0.5 &&
+    rect.y + rect.height <= group.y + group.height + 0.5
+}
+
+function expandGroupsForMainShift(
+  groups: PositionedGroup[],
+  rects: Array<{ x: number; y: number; width: number; height: number }>,
+  direction: Direction,
+  delta: number,
+): void {
+  if (delta <= 0) return
+  const f = layoutFlow(direction)
+  const expanded = new Set<PositionedGroup>()
+  for (const group of flattenPositionedGroups(groups)) {
+    if (expanded.has(group) || !rects.some(rect => rectInsideGroup(rect, group))) continue
+    expanded.add(group)
+    if (f.isHorizontal) {
+      if (f.sign > 0) group.width += delta
+      else {
+        group.x -= delta
+        group.width += delta
+      }
+    } else if (f.sign > 0) group.height += delta
+    else {
+      group.y -= delta
+      group.height += delta
+    }
+  }
+}
+
 function equalizePeerNodeDimensions(nodes: PositionedNode[], edges: PositionedEdge[], groups: PositionedGroup[], graph: MermaidGraph): void {
   const nodeMap = new Map(nodes.map(n => [n.id, n]))
   const incoming = new Map<string, PositionedEdge[]>()
@@ -1341,6 +1382,15 @@ function terminalMarkerGap(style: LabelMetricsStyle, edge: PositionedEdge): numb
   return Math.max(18, style.edgeLabelFontSize + ARROW_HEAD.width + strokeWidth * 2)
 }
 
+function edgeStyleWitnessGap(edge: PositionedEdge): number {
+  if (edge.style !== 'dotted') return 0
+  return FLOWCHART_DOTTED_DASH.dash * 3 + FLOWCHART_DOTTED_DASH.gap * 2
+}
+
+function terminalReadableGap(style: LabelMetricsStyle, edge: PositionedEdge): number {
+  return terminalMarkerGap(style, edge) + edgeStyleWitnessGap(edge)
+}
+
 function labelHalfExtentAlongSegment(
   box: { width: number; height: number },
   a: Point,
@@ -1374,7 +1424,7 @@ function clearsTerminalMarkers(
 function labelEndpointGaps(edge: PositionedEdge, points: Point[], segmentIndex: number, style: LabelMetricsStyle): { start: number; end: number } {
   return {
     start: edge.hasArrowStart && segmentIndex === 1 ? terminalMarkerGap(style, edge) : labelPortStubGap(style),
-    end: edge.hasArrowEnd && segmentIndex === points.length - 1 ? terminalMarkerGap(style, edge) : labelPortStubGap(style),
+    end: edge.hasArrowEnd && segmentIndex === points.length - 1 ? terminalReadableGap(style, edge) : labelPortStubGap(style),
   }
 }
 
@@ -1419,7 +1469,7 @@ function terminalLabelRunLength(
   const labelExtent = f.isHorizontal ? box.width : box.height
   const visibleGap = Math.max(
     labelPortStubGap(style),
-    edge.hasArrowEnd ? terminalMarkerGap(style, edge) : labelPortStubGap(style),
+    edge.hasArrowEnd ? terminalReadableGap(style, edge) : labelPortStubGap(style),
   )
   // When there is room, balance the outside-source corridor into three equal
   // visible runs: source boundary to bend, bend to label, and label to target.
@@ -1427,6 +1477,17 @@ function terminalLabelRunLength(
   const balancedGap = (corridor - labelExtent) / 3
   if (balancedGap >= visibleGap) return labelExtent + balancedGap * 2
   return labelExtent + labelPortStubGap(style) + visibleGap + 2
+}
+
+function terminalLabelCorridorLength(edge: PositionedEdge, direction: Direction, style: LabelMetricsStyle): number {
+  if (!edge.label) return 0
+  const box = labelBoxAt(edge.label, { x: 0, y: 0 }, style)
+  const labelExtent = layoutFlow(direction).isHorizontal ? box.width : box.height
+  const visibleGap = Math.max(
+    labelPortStubGap(style),
+    edge.hasArrowEnd ? terminalReadableGap(style, edge) : labelPortStubGap(style),
+  )
+  return labelExtent + visibleGap * 3
 }
 
 function bundledLabelCandidates(edge: PositionedEdge, points: Point[], nodes: PositionedNode[], direction: Direction, style: LabelMetricsStyle): BundledLabelCandidate[] {
@@ -1616,6 +1677,11 @@ function applySymmetricFanoutEmissions(
     if (!peer) continue
 
     const oldTargets = targets.map(t => ({ t, x: t.x, y: t.y, width: t.width, height: t.height }))
+    const oldGroups = flattenPositionedGroups(groups).map(group => ({ group, x: group.x, y: group.y, width: group.width, height: group.height }))
+    const restoreGeometry = () => {
+      for (const old of oldTargets) { old.t.x = old.x; old.t.y = old.y; old.t.width = old.width; old.t.height = old.height }
+      for (const old of oldGroups) { old.group.x = old.x; old.group.y = old.y; old.group.width = old.width; old.group.height = old.height }
+    }
     const maxWidth = Math.max(...targets.map(t => t.width))
     const maxHeight = Math.max(...targets.map(t => t.height))
     const axis = nodeCrossCenter(source, graph.direction)
@@ -1663,16 +1729,35 @@ function applySymmetricFanoutEmissions(
       clear = placementClear()
     }
     if (!clear) {
-      for (const old of oldTargets) { old.t.x = old.x; old.t.y = old.y; old.t.width = old.width; old.t.height = old.height }
+      restoreGeometry()
       continue
     }
 
     const sourceEdge = f.isHorizontal
       ? (f.sourceSide === 'E' ? source.x + source.width : source.x)
       : (f.sourceSide === 'S' ? source.y + source.height : source.y)
-    const targetEdge = f.isHorizontal
+    let targetEdge = f.isHorizontal
       ? (f.sign > 0 ? Math.min(...targets.map(t => t.x)) : Math.max(...targets.map(t => t.x + t.width)))
       : (f.sign > 0 ? Math.min(...targets.map(t => t.y)) : Math.max(...targets.map(t => t.y + t.height)))
+    const requiredCorridor = Math.max(0, ...sorted.map(edge => terminalLabelCorridorLength(edge, graph.direction, style)))
+    const currentCorridor = (targetEdge - sourceEdge) * f.sign
+    if (requiredCorridor > currentCorridor + 0.001) {
+      const delta = requiredCorridor - currentCorridor
+      const targetRectsBeforeShift = targets.map(t => ({ x: t.x, y: t.y, width: t.width, height: t.height }))
+      for (const target of targets) {
+        if (f.isHorizontal) target.x += delta * f.sign
+        else target.y += delta * f.sign
+      }
+      expandGroupsForMainShift(groups, targetRectsBeforeShift, graph.direction, delta)
+      clear = placementClear()
+      if (!clear) {
+        restoreGeometry()
+        continue
+      }
+      targetEdge = f.isHorizontal
+        ? (f.sign > 0 ? Math.min(...targets.map(t => t.x)) : Math.max(...targets.map(t => t.x + t.width)))
+        : (f.sign > 0 ? Math.min(...targets.map(t => t.y)) : Math.max(...targets.map(t => t.y + t.height)))
+    }
     const requiredTerminalRun = Math.max(0, ...sorted.map(edge => terminalLabelRunLength(edge, graph.direction, style, sourceEdge, targetEdge)))
     const midpointElbow = sourceEdge + (targetEdge - sourceEdge) * 0.5
     const capacityElbow = targetEdge - f.sign * requiredTerminalRun
@@ -1686,7 +1771,7 @@ function applySymmetricFanoutEmissions(
       proposed.push({ edge, points })
     }
     if (!clear) {
-      for (const old of oldTargets) { old.t.x = old.x; old.t.y = old.y; old.t.width = old.width; old.t.height = old.height }
+      restoreGeometry()
       continue
     }
     for (const { edge, points } of proposed) {

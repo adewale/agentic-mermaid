@@ -21,7 +21,7 @@ import { layoutGraphSync } from '../layout-engine.ts'
 import { parseMermaid } from '../parser.ts'
 import { assessLayout, hardViolations } from '../layout-rubric.ts'
 import { labelRect, shapePorts } from '../route-contracts.ts'
-import { ARROW_HEAD, resolveRenderStyle } from '../styles.ts'
+import { ARROW_HEAD, FLOWCHART_DOTTED_DASH, resolveRenderStyle } from '../styles.ts'
 import type { EdgeMarker, EdgeStyle, PositionedEdge } from '../types.ts'
 
 function layoutEdges(source: string): PositionedEdge[] {
@@ -76,6 +76,15 @@ function terminalMarkerGap(style: { edgeLabelFontSize: number; lineWidth?: numbe
   const lineWidth = style.lineWidth ?? 1
   const strokeWidth = edge.style === 'thick' ? lineWidth * 2 : lineWidth
   return Math.max(18, style.edgeLabelFontSize + ARROW_HEAD.width + strokeWidth * 2)
+}
+
+function edgeStyleWitnessGap(edge: PositionedEdge): number {
+  if (edge.style !== 'dotted') return 0
+  return FLOWCHART_DOTTED_DASH.dash * 3 + FLOWCHART_DOTTED_DASH.gap * 2
+}
+
+function terminalReadableGap(style: { edgeLabelFontSize: number; lineWidth?: number }, edge: PositionedEdge): number {
+  return terminalMarkerGap(style, edge) + edgeStyleWitnessGap(edge)
 }
 
 function labelHalfExtentAlongSegment(
@@ -172,7 +181,7 @@ function expectLabelShowsVisiblePortStubs(
   const verticalFlow = direction === 'TD' || direction === 'BT'
   const beforeGap = labelPortStubGap(style)
   const afterGap = edge.hasArrowEnd && index === edge.points.length - 1
-    ? terminalMarkerGap(style, edge)
+    ? terminalReadableGap(style, edge)
     : labelPortStubGap(style)
   if (verticalFlow) {
     expect(edge.labelPosition!.x).toBeCloseTo(box.x + box.w / 2, 3)
@@ -451,8 +460,8 @@ describe('syntax range — & multi-edge chains hit the same fan heuristics', () 
       nodes: [
         { id: 'A', x: 70.625, y: 86, width: 162.35, height: 47.5, shape: 'rectangle' },
         { id: 'B', x: 88.775, y: 181.5, width: 126.05, height: 126.05, shape: 'diamond' },
-        { id: 'C', x: 46.55, y: 425.15, width: 91.25, height: 47.5, shape: 'rectangle' },
-        { id: 'D', x: 165.8, y: 425.15, width: 91.25, height: 47.5, shape: 'rectangle' },
+        { id: 'C', x: 46.55, y: 472.65, width: 91.25, height: 47.5, shape: 'rectangle' },
+        { id: 'D', x: 165.8, y: 472.65, width: 91.25, height: 47.5, shape: 'rectangle' },
       ],
       edges: [
         {
@@ -466,14 +475,14 @@ describe('syntax range — & multi-edge chains hit the same fan heuristics', () 
           source: 'B',
           target: 'C',
           label: 'yes',
-          points: [{ x: 120.288, y: 276.038 }, { x: 120.288, y: 336.217 }, { x: 92.175, y: 336.217 }, { x: 92.175, y: 425.15 }],
+          points: [{ x: 120.288, y: 276.038 }, { x: 120.288, y: 352.05 }, { x: 92.175, y: 352.05 }, { x: 92.175, y: 472.65 }],
           routeCertificate: { routeClass: 'primary-forward', bendCount: 2, sourcePort: 'SW', targetPort: 'N', invariant: 'bundle' },
         },
         {
           source: 'B',
           target: 'D',
           label: 'needs work',
-          points: [{ x: 183.313, y: 276.038 }, { x: 183.313, y: 336.217 }, { x: 211.425, y: 336.217 }, { x: 211.425, y: 425.15 }],
+          points: [{ x: 183.313, y: 276.038 }, { x: 183.313, y: 352.05 }, { x: 211.425, y: 352.05 }, { x: 211.425, y: 472.65 }],
           routeCertificate: { routeClass: 'primary-forward', bendCount: 2, sourcePort: 'SE', targetPort: 'N', invariant: 'bundle' },
         },
       ],

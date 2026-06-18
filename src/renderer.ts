@@ -1,7 +1,7 @@
 import type { PositionedGraph, PositionedNode, PositionedEdge, PositionedGroup, Point, EdgeMarker, RenderOptions } from './types.ts'
 import type { DiagramColors } from './theme.ts'
 import { svgOpenTag, buildStyleBlock, buildShadowDefs } from './theme.ts'
-import { STROKE_WIDTHS, ARROW_HEAD, resolveRenderStyle } from './styles.ts'
+import { STROKE_WIDTHS, ARROW_HEAD, FLOWCHART_DOTTED_DASH, resolveRenderStyle } from './styles.ts'
 import type { ResolvedRenderStyle } from './styles.ts'
 import { measureMultilineText } from './text-metrics.ts'
 import { renderMultilineText, renderMultilineTextWithBackground, escapeXml } from './multiline-utils.ts'
@@ -254,7 +254,7 @@ function renderEdge(edge: PositionedEdge, style: ResolvedRenderStyle): string {
   if (edge.style === 'invisible') return ''
 
   const pathData = style.edgeBendRadius > 0 ? pointsToPathD(edge.points, style.edgeBendRadius) : pointsToPolylinePath(edge.points)
-  const dashArray = edge.style === 'dotted' ? ' stroke-dasharray="4 4"' : ''
+  const dashArray = edge.style === 'dotted' ? ` stroke-dasharray="${FLOWCHART_DOTTED_DASH.dash} ${FLOWCHART_DOTTED_DASH.gap}"` : ''
   const baseStrokeWidth = edge.style === 'thick' ? style.lineWidth * 2 : style.lineWidth
   const strokeColor = escapeAttr(edge.inlineStyle?.stroke ?? 'var(--_line)')
   const strokeWidth = escapeAttr(edge.inlineStyle?.['stroke-width'] ?? String(baseStrokeWidth))

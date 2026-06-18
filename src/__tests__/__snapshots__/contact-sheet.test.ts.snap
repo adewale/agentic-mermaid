@@ -1920,7 +1920,7 @@ exports[`contact sheet — pinned geometry (re-pin deliberately, review the shee
       "label": {
         "text": "yes",
         "x": 88,
-        "y": 353,
+        "y": 378,
       },
       "path": [
         [
@@ -1929,15 +1929,15 @@ exports[`contact sheet — pinned geometry (re-pin deliberately, review the shee
         ],
         [
           113,
-          309,
+          322,
         ],
         [
           88,
-          309,
+          322,
         ],
         [
           88,
-          397,
+          434,
         ],
       ],
       "to": "C",
@@ -1948,7 +1948,7 @@ exports[`contact sheet — pinned geometry (re-pin deliberately, review the shee
       "label": {
         "text": "needs work",
         "x": 195,
-        "y": 353,
+        "y": 378,
       },
       "path": [
         [
@@ -1957,15 +1957,15 @@ exports[`contact sheet — pinned geometry (re-pin deliberately, review the shee
         ],
         [
           169,
-          309,
+          322,
         ],
         [
           195,
-          309,
+          322,
         ],
         [
           195,
-          397,
+          434,
         ],
       ],
       "to": "D",
@@ -1973,7 +1973,7 @@ exports[`contact sheet — pinned geometry (re-pin deliberately, review the shee
   ],
   "groups": [
     {
-      "h": 410,
+      "h": 447,
       "id": "product",
       "label": "Product Loop",
       "members": [],
@@ -2009,7 +2009,7 @@ exports[`contact sheet — pinned geometry (re-pin deliberately, review the shee
       "shape": "rectangle",
       "w": 79,
       "x": 48,
-      "y": 397,
+      "y": 434,
     },
     {
       "h": 37,
@@ -2018,7 +2018,7 @@ exports[`contact sheet — pinned geometry (re-pin deliberately, review the shee
       "shape": "rectangle",
       "w": 79,
       "x": 155,
-      "y": 397,
+      "y": 434,
     },
   ],
   "version": 1,
@@ -2028,7 +2028,7 @@ exports[`contact sheet — pinned geometry (re-pin deliberately, review the shee
 exports[`contact sheet — pinned geometry (re-pin deliberately, review the sheet) X — three-way TD decision — equivalent branch spread 1`] = `
 {
   "bounds": {
-    "h": 351,
+    "h": 359,
     "w": 382,
   },
   "edges": [
@@ -2038,7 +2038,7 @@ exports[`contact sheet — pinned geometry (re-pin deliberately, review the shee
       "label": {
         "text": "left",
         "x": 64,
-        "y": 210,
+        "y": 249,
       },
       "path": [
         [
@@ -2047,15 +2047,15 @@ exports[`contact sheet — pinned geometry (re-pin deliberately, review the shee
         ],
         [
           143,
-          182,
+          199,
         ],
         [
           64,
-          182,
+          199,
         ],
         [
           64,
-          262,
+          311,
         ],
       ],
       "to": "L",
@@ -2066,7 +2066,7 @@ exports[`contact sheet — pinned geometry (re-pin deliberately, review the shee
       "label": {
         "text": "middle",
         "x": 173,
-        "y": 210,
+        "y": 250,
       },
       "path": [
         [
@@ -2075,7 +2075,7 @@ exports[`contact sheet — pinned geometry (re-pin deliberately, review the shee
         ],
         [
           173,
-          262,
+          311,
         ],
       ],
       "to": "M",
@@ -2086,7 +2086,7 @@ exports[`contact sheet — pinned geometry (re-pin deliberately, review the shee
       "label": {
         "text": "right",
         "x": 282,
-        "y": 210,
+        "y": 249,
       },
       "path": [
         [
@@ -2095,15 +2095,15 @@ exports[`contact sheet — pinned geometry (re-pin deliberately, review the shee
         ],
         [
           202,
-          182,
+          199,
         ],
         [
           282,
-          182,
+          199,
         ],
         [
           282,
-          262,
+          311,
         ],
       ],
       "to": "R",
@@ -2128,7 +2128,7 @@ exports[`contact sheet — pinned geometry (re-pin deliberately, review the shee
       "shape": "rectangle",
       "w": 81,
       "x": 23,
-      "y": 262,
+      "y": 311,
     },
     {
       "h": 37,
@@ -2137,7 +2137,7 @@ exports[`contact sheet — pinned geometry (re-pin deliberately, review the shee
       "shape": "rectangle",
       "w": 81,
       "x": 132,
-      "y": 262,
+      "y": 311,
     },
     {
       "h": 37,
@@ -2146,7 +2146,7 @@ exports[`contact sheet — pinned geometry (re-pin deliberately, review the shee
       "shape": "rectangle",
       "w": 81,
       "x": 241,
-      "y": 262,
+      "y": 311,
     },
   ],
   "version": 1,

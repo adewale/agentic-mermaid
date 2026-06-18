@@ -127,7 +127,7 @@ function fullBeforeAfter(beforeSvg: string, afterSvg: string): string {
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">
     <rect width="${width}" height="${height}" fill="${COLORS.bg}"/>
     <text x="${gutter}" y="70" font-family="DejaVu Sans" font-size="44" font-weight="700" fill="${COLORS.fg}">Issue #38 decision branch labels</text>
-    <text x="${gutter}" y="116" font-family="DejaVu Sans" font-size="24" fill="${COLORS.muted}">Left: main before. Right: symmetric label ports with balanced visible bend corridors.</text>
+    <text x="${gutter}" y="116" font-family="DejaVu Sans" font-size="24" fill="${COLORS.muted}">Left: main before. Right: symmetric label ports with style-readable label exits.</text>
     <text x="${gutter}" y="154" font-family="DejaVu Sans" font-size="20" fill="${COLORS.muted}">Rendered at high resolution from real SVG output; not hand-captured.</text>
     ${label('BEFORE', gutter, top, '#9A3412')}
     ${label('AFTER', gutter * 2 + panelWidth, top, '#15803D')}
@@ -150,15 +150,23 @@ function union(rects: Rect[]): Rect {
 
 function focusBox(svg: string): Rect {
   const rects: Rect[] = []
-  const node = svg.match(/<g class="node" data-id="B"[\s\S]*?<polygon points="([^"]+)"/)
-  if (node) {
-    const points = node[1]!.trim().split(/\s+/).flatMap(pair => {
-      const coords = pair.split(',').map(Number)
-      const x = coords[0]
-      const y = coords[1]
-      return Number.isFinite(x) && Number.isFinite(y) ? [{ x: x!, y: y! }] : []
-    })
-    rects.push(union(points.map(point => ({ x: point.x, y: point.y, width: 0, height: 0 }))))
+  for (const node of svg.matchAll(/<g class="node" data-id="([BCD])"[\s\S]*?<\/g>/g)) {
+    const body = node[0]
+    const rect = body.match(/<rect[^>]* x="([\d.-]+)" y="([\d.-]+)" width="([\d.-]+)" height="([\d.-]+)"/)
+    if (rect) {
+      rects.push({ x: Number(rect[1]), y: Number(rect[2]), width: Number(rect[3]), height: Number(rect[4]) })
+      continue
+    }
+    const polygon = body.match(/<polygon points="([^"]+)"/)
+    if (polygon) {
+      const points = polygon[1]!.trim().split(/\s+/).flatMap(pair => {
+        const coords = pair.split(',').map(Number)
+        const x = coords[0]
+        const y = coords[1]
+        return Number.isFinite(x) && Number.isFinite(y) ? [{ x: x!, y: y! }] : []
+      })
+      rects.push(union(points.map(point => ({ x: point.x, y: point.y, width: 0, height: 0 }))))
+    }
   }
   for (const match of svg.matchAll(/<rect class="edge-label-halo" x="([\d.-]+)" y="([\d.-]+)" width="([\d.-]+)" height="([\d.-]+)"/g)) {
     rects.push({ x: Number(match[1]), y: Number(match[2]), width: Number(match[3]), height: Number(match[4]) })
@@ -206,7 +214,7 @@ function zoomBeforeAfter(beforeSvg: string, afterSvg: string): string {
     <rect width="${width}" height="${height}" fill="${COLORS.bg}"/>
     <text x="${gutter}" y="70" font-family="DejaVu Sans" font-size="44" font-weight="700" fill="${COLORS.fg}">Issue #38 label clearance zoom</text>
     <text x="${gutter}" y="116" font-family="DejaVu Sans" font-size="24" fill="${COLORS.muted}">Zoomed around the Ready? diamond and outgoing branch labels.</text>
-    <text x="${gutter}" y="154" font-family="DejaVu Sans" font-size="20" fill="${COLORS.muted}">The after panel balances source-to-bend, bend-to-label, and label-to-target runs.</text>
+    <text x="${gutter}" y="154" font-family="DejaVu Sans" font-size="20" fill="${COLORS.muted}">The after panel leaves enough post-label dashed stroke to read the edge style.</text>
     ${label('BEFORE', gutter, 202, '#9A3412')}
     ${label('AFTER', gutter * 2 + panelWidth, 202, '#15803D')}
     ${panel(before, beforeCrop, beforeScale, gutter, 'before-crop')}
