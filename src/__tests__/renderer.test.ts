@@ -294,6 +294,22 @@ describe('renderSvg – edges', () => {
     expect(svg).toContain('stroke-width="2"')
   })
 
+  it('keeps endpoint markers fixed-size when edge stroke widths change', () => {
+    const graph = makeGraph({
+      edges: [
+        makeEdge({ style: 'solid', hasArrowStart: true, hasArrowEnd: true }),
+        makeEdge({ style: 'thick', hasArrowEnd: true, endMarker: 'circle' }),
+        makeEdge({ style: 'thick', hasArrowEnd: true, endMarker: 'cross' }),
+      ],
+    })
+    const svg = renderSvg(graph, lightColors)
+    expect(svg).toContain('<marker id="arrowhead"')
+    expect(svg).toContain('<marker id="arrowhead-start"')
+    expect(svg).toContain('<marker id="circlehead"')
+    expect(svg).toContain('<marker id="crosshead"')
+    expect(svg.match(/markerUnits="userSpaceOnUse"/g)?.length).toBe(6)
+  })
+
   it('does not add dasharray to solid edges', () => {
     const edge = makeEdge({ style: 'solid' })
     const graph = makeGraph({ edges: [edge] })

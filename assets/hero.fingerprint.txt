@@ -22,10 +22,10 @@
   }
 </style>
 <defs>
-  <marker id="arrowhead" markerWidth="8" markerHeight="5" refX="7" refY="2.5" orient="auto">
+  <marker id="arrowhead" markerWidth="8" markerHeight="5" refX="7" refY="2.5" orient="auto" markerUnits="userSpaceOnUse">
     <polygon points="0 0, 8 2.5, 0 5" fill="#FF4801" stroke="#FF4801" stroke-width="0.75" stroke-linejoin="round" />
   </marker>
-  <marker id="arrowhead-start" markerWidth="8" markerHeight="5" refX="7" refY="2.5" orient="auto-start-reverse">
+  <marker id="arrowhead-start" markerWidth="8" markerHeight="5" refX="7" refY="2.5" orient="auto-start-reverse" markerUnits="userSpaceOnUse">
     <polygon points="0 0, 8 2.5, 0 5" fill="#FF4801" stroke="#FF4801" stroke-width="0.75" stroke-linejoin="round" />
   </marker>
 </defs>
