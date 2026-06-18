@@ -131,6 +131,40 @@ describe('non-graph adapters: debug certificates stay family-specific (#26/#38)'
     expect(layoutMermaid(p.value).edges.every(e => e.route === undefined)).toBe(true)
   })
 
+  it('sequence debug label anchors match rendered message text anchors', () => {
+    const p = parseMermaid('sequenceDiagram\n  participant A\n  participant B\n  A->>B: hello')
+    expect(p.ok).toBe(true)
+    if (!p.ok) return
+    const layout = layoutMermaid(p.value, { debug: true })
+    const edge = layout.edges[0]!
+    expect(Number(edge.label?.x)).toBe(140)
+    expect(Number(edge.label?.y)).toBe(80)
+    expect(edge.label?.text).toBe('hello')
+  })
+
+  it('sequence self-message debug certificate uses the rendered loop geometry', () => {
+    const p = parseMermaid('sequenceDiagram\n  participant A\n  A->>A: self')
+    expect(p.ok).toBe(true)
+    if (!p.ok) return
+    const layout = layoutMermaid(p.value, { debug: true })
+    expect(layout.edges).toHaveLength(1)
+    const edge = layout.edges[0]!
+    expect(edge.path).toHaveLength(4)
+    expect(edge.route).toEqual(expect.objectContaining({
+      routeClass: 'family-layout', family: 'sequence', invariant: 'self-message', bendCount: 2, selfMessage: true, horizontal: false,
+    }))
+  })
+
+  it('sequence opaque block content feeds real rendered-layout geometry', () => {
+    const p = parseMermaid('sequenceDiagram\n  participant A\n  participant B\n  loop retry\n    A->>B: ping\n  end\n  Note right of B: cached')
+    expect(p.ok).toBe(true)
+    if (!p.ok) return
+    const layout = layoutMermaid(p.value, { debug: true })
+    expect(layout.edges.length).toBeGreaterThan(0)
+    expect(layout.groups.some(g => g.id.startsWith('block#'))).toBe(true)
+    expect(layout.nodes.some(n => n.id.startsWith('note#') && n.label === 'cached')).toBe(true)
+  })
+
   it('timeline and chart families emit layout certificates only in debug layout', () => {
     for (const kind of ['timeline', 'xychart', 'pie', 'quadrant', 'gantt'] as const) {
       const p = parseMermaid(SOURCES[kind]!)

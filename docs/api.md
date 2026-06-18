@@ -119,6 +119,8 @@ import {
   asFlowchart,
   mutate,
   verifyMermaid,
+  analyzeMermaid,
+  analyzeMermaidSource,
   serializeMermaid,
 } from 'agentic-mermaid/agent'
 ```
@@ -131,6 +133,7 @@ Core functions:
 | `asFlowchart(d)` / `asState(d)` / `asSequence(d)` / `asTimeline(d)` / `asClass(d)` / `asEr(d)` / `asJourney(d)` / `asArchitecture(d)` / `asXyChart(d)` / `asPie(d)` / `asQuadrant(d)` / `asGantt(d)` | Narrow to a mutable family or return `null`. |
 | `mutate(d, op)` | Apply a kind-discriminated typed mutation. |
 | `verifyMermaid(d)` | Return structural warnings and layout evidence. |
+| `analyzeMermaid(d)` / `analyzeMermaidSource(source)` | Return deterministic non-rendering facts: feedback edges, source-only action records, and Gantt critical-path/slack summary when available. |
 | `serializeMermaid(d)` | Emit source only after verifying. |
 | `layoutMermaid(d)` | Return layout JSON for quality/inspection; `layoutMermaid(d, { debug: true })` includes graph route certificates, accepted family certificates (class/ER/architecture/sequence/timeline/charts), and V1 region/action sidecars. Certificates include exact ports plus side/slot/role port assignments where applicable. |
 | `measureQuality(layout)` / `checkQuality(layout)` | Perceptual quality metrics. |

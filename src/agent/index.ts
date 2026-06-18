@@ -155,12 +155,17 @@ function buildRenderedRegions(d: ValidDiagram, layout: RenderedLayout): Rendered
       })
     }
     if (edge.label) {
+      const w = Math.max(1, edge.label.text.length * 7)
+      const h = 14
+      const labelX = d.kind === 'sequence' && edge.from === edge.to
+        ? edge.label.x // sequence self-message labels render with text-anchor="start"
+        : edge.label.x - w / 2
       regions.push({
         id: `label:${edge.id}`,
         kind: 'label',
         elementId: edge.id,
         parentId: `edge:${edge.id}`,
-        bounds: { x: edge.label.x, y: edge.label.y, w: toFinite(Math.max(1, edge.label.text.length * 7)), h: toFinite(14) },
+        bounds: { x: toFinite(labelX), y: toFinite(edge.label.y - h / 2), w: toFinite(w), h: toFinite(h) },
       })
     }
   }

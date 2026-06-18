@@ -21,6 +21,13 @@ describe('#7254/#7255 SVG accessibility', () => {
     expect(svg).toContain('multi line description')
   })
 
+  test('sequence malformed accDescr opener does not prevent rendering valid messages', () => {
+    const svg = renderMermaidSVG('sequenceDiagram\n  accDescr: {foo\n  A->>B: hi')
+    expect(svg).toContain('hi')
+    expect(svg).toContain('data-id="A"')
+    expect(svg).toContain('data-id="B"')
+  })
+
   test('diagram without acc directives emits no <title>/<desc> (back-compat)', () => {
     const svg = renderMermaidSVG('flowchart TD\n A --> B')
     expect(svg).not.toContain('<title')

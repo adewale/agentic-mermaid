@@ -780,10 +780,10 @@ ${codes}
 
 ## Library
 
-\`import { parseMermaid, mutate, verifyMermaid, serializeMermaid,
-renderMermaidASCII, renderMermaidPNG, renderMermaidSVG,
-renderMermaidASCIIWithMeta, describeMermaid, asciiToMermaid,
-verifyNoExternalRefs } from 'agentic-mermaid/agent'\`
+\`import { parseMermaid, mutate, verifyMermaid, analyzeMermaid,
+analyzeMermaidSource, serializeMermaid, renderMermaidASCII,
+renderMermaidPNG, renderMermaidSVG, renderMermaidASCIIWithMeta,
+describeMermaid, asciiToMermaid, verifyNoExternalRefs } from 'agentic-mermaid/agent'\`
 
 ## Docs
 

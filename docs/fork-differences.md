@@ -86,7 +86,7 @@ Users can discover fork features through:
 
 ## Layout and quality work
 
-- A layout before/after comparison harness (`eval/layout-compare/`) and per-family `RenderedLayout` adapters so perceptual metrics gate layout changes with evidence.
+- A layout before/after comparison harness (`eval/layout-compare/`) and per-family `RenderedLayout` adapters so perceptual metrics gate layout changes with evidence. Debug JSON can also expose opt-in route/family certificates plus region/action sidecars for tooling; default JSON stays compact.
 - Still different from the current upstream release (Beautiful Mermaid 1.1.3): decision-branch routing emits a diamond's branches from facet-mid ports as mirror-symmetric routes (the layout symmetry floor), and an edge to a subgraph attaches to its container with `direction` overrides honored inside it — a case upstream 1.1.3 still mis-routes (`mermaid-js/mermaid#2509` leaves it unsolved). Both are shown side by side on the [differences page](https://adewale.github.io/beautiful-mermaid/differences).
 - Already upstreamed: fan-in grouping (upstream #68/#69) and labeled fan-out trunk sharing with box-start connector placement (#111/#112/#113, upstream PR #113) landed here first and now render identically in Beautiful Mermaid 1.1.3 — they are no longer fork-only.
 - ER cardinality parsing matches Mermaid's lexer exactly; malformed relationship lines error loudly instead of being silently dropped.

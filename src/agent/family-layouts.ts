@@ -45,6 +45,7 @@ import { layoutClassDiagramSync } from '../class/layout.ts'
 import { parseErDiagram } from '../er/parser.ts'
 import { layoutErDiagramSync } from '../er/layout.ts'
 import { layoutSequenceDiagram } from '../sequence/layout.ts'
+import { parseSequenceDiagram } from '../sequence/parser.ts'
 import { parseTimelineDiagram } from '../timeline/parser.ts'
 import { layoutTimelineDiagram } from '../timeline/layout.ts'
 import { parseJourneyDiagram } from '../journey/parser.ts'
@@ -233,29 +234,31 @@ function nodeCenterWithinGroup(n: RenderedLayoutNode, g: RenderedLayoutGroup, to
 
 function sequenceToRendered(d: ValidDiagram, opts: { debug?: boolean } = {}): RenderedLayout {
   try {
-    if (d.body.kind !== 'sequence') return emptyRenderedLayout(d.kind)
-    const positioned = layoutSequenceDiagram({
-      actors: d.body.participants.map(p => ({ id: p.id, label: p.label, type: p.kind })),
-      messages: d.body.messages.map(m => ({
-        from: m.from, to: m.to, label: m.text,
-        lineStyle: m.style === 'reply' || m.style === 'async-dashed' || m.style === 'lost-dashed' ? 'dashed' : 'solid',
-        arrowHead: m.style === 'async' || m.style === 'async-dashed' ? 'open' : 'filled',
-      })),
-      blocks: [], notes: [],
-    })
+    if (d.kind !== 'sequence') return emptyRenderedLayout(d.kind)
+    const positioned = layoutSequenceDiagram(parseSequenceDiagram(toMermaidLines(d.canonicalSource)))
     const lifelineByActor = new Map(positioned.lifelines.map(l => [l.actorId, l.x]))
-    return {
-      version: 1, kind: d.kind,
-      nodes: positioned.actors.map(a => ({
+    const nodes: RenderedLayoutNode[] = [
+      ...positioned.actors.map(a => ({
         id: a.id, x: f(a.x - a.width / 2), y: f(a.y), w: f(a.width), h: f(a.height),
         shape: 'rectangle', label: a.label,
       })),
-      edges: positioned.messages.map((m, i) => ({
-        id: `msg#${i}:${m.from}->${m.to}`, from: m.from, to: m.to,
-        path: [[f(m.x1), f(m.y)], [f(m.x2), f(m.y)]],
-        label: m.label ? { x: f((m.x1 + m.x2) / 2), y: f(m.y), text: m.label } : undefined,
-        route: opts.debug ? sequenceRouteCertificate(i, m, lifelineByActor) : undefined,
+      ...positioned.notes.map((n, i) => ({
+        id: `note#${i}`, x: f(n.x), y: f(n.y), w: f(n.width), h: f(n.height),
+        shape: 'note', label: n.text,
       })),
+    ]
+    return {
+      version: 1, kind: d.kind,
+      nodes,
+      edges: positioned.messages.map((m, i) => {
+        const path = sequenceMessagePath(m)
+        return {
+          id: `msg#${i}:${m.from}->${m.to}`, from: m.from, to: m.to,
+          path: path.map(p => [f(p.x), f(p.y)] as [Finite, Finite]),
+          label: m.label ? sequenceMessageLabel(m) : undefined,
+          route: opts.debug ? sequenceRouteCertificate(i, m, path, lifelineByActor) : undefined,
+        }
+      }),
       groups: positioned.blocks.map((b, i) => ({
         id: `block#${i}:${b.type}`, x: f(b.x), y: f(b.y), w: f(b.width), h: f(b.height), members: [], label: b.label,
       })),
@@ -264,22 +267,43 @@ function sequenceToRendered(d: ValidDiagram, opts: { debug?: boolean } = {}): Re
   } catch { return emptyRenderedLayout(d.kind) }
 }
 
+function sequenceMessagePath(message: { x1: number; x2: number; y: number; isSelf: boolean }): Point[] {
+  if (!message.isSelf) return [{ x: message.x1, y: message.y }, { x: message.x2, y: message.y }]
+  const loopW = 30
+  const loopH = 20
+  return [
+    { x: message.x1, y: message.y },
+    { x: message.x1 + loopW, y: message.y },
+    { x: message.x1 + loopW, y: message.y + loopH },
+    { x: message.x2, y: message.y + loopH },
+  ]
+}
+
+function sequenceMessageLabel(message: { x1: number; x2: number; y: number; isSelf: boolean; label: string }): { x: Finite; y: Finite; text: string } {
+  if (message.isSelf) return { x: f(message.x1 + 38), y: f(message.y + 10), text: message.label }
+  return { x: f((message.x1 + message.x2) / 2), y: f(message.y - 10), text: message.label }
+}
+
 function sequenceRouteCertificate(
   edgeIndex: number,
   message: { from: string; to: string; x1: number; x2: number; y: number; isSelf: boolean },
+  points: Point[],
   lifelineByActor: Map<string, number>,
 ): FamilyRouteCertificate {
   const sourceX = lifelineByActor.get(message.from)
   const targetX = lifelineByActor.get(message.to)
-  const sourceLifeline = sourceX !== undefined && Math.abs(message.x1 - sourceX) <= 1
-  const targetLifeline = targetX !== undefined && Math.abs(message.x2 - targetX) <= 1
-  const horizontal = true // sequence messages render on a single lifeline row in this adapter
+  const first = points[0]
+  const last = points[points.length - 1]
+  const sourceLifeline = sourceX !== undefined && first !== undefined && Math.abs(first.x - sourceX) <= 1
+  const targetLifeline = targetX !== undefined && last !== undefined && Math.abs(last.x - targetX) <= 1
+  const horizontal = !message.isSelf && points.every(p => Math.abs(p.y - message.y) <= 1)
+  const orthogonal = routeOrthogonal(points)
   return {
     family: 'sequence',
     edgeIndex,
     routeClass: 'family-layout',
-    invariant: sourceLifeline && targetLifeline ? (message.isSelf ? 'self-message' : 'lifeline-message') : 'unverified-family-route',
-    bendCount: 0,
+    invariant: sourceLifeline && targetLifeline && orthogonal ? (message.isSelf ? 'self-message' : 'lifeline-message') : 'unverified-family-route',
+    bendCount: bendCount(points),
     horizontal,
     sourceLifeline,
     targetLifeline,

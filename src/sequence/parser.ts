@@ -53,8 +53,14 @@ export function parseSequenceDiagram(lines: string[]): SequenceDiagram {
     const accDescrStart = line.match(/^accDescr\s*:?\s*\{\s*(.*)$/i)
     if (accDescrStart) {
       const parsed = collectAccessibilityBlock(accDescrStart[1] ?? '', lines, i)
-      diagram.accessibilityDescription = normalizeBrTags(parsed.text)
-      i = parsed.nextIndex
+      if (parsed) {
+        diagram.accessibilityDescription = normalizeBrTags(parsed.text)
+        i = parsed.nextIndex
+      }
+      // If the block is malformed, ignore only the opener and keep parsing the
+      // rest of the diagram. The agent parser preserves the bad line as opaque
+      // source; the renderer should not turn that preservation into a hard
+      // render throw for otherwise valid messages.
       continue
     }
 
@@ -223,7 +229,7 @@ function parseAccessibilityLine(line: string, directive: 'accTitle' | 'accDescr'
   return match ? normalizeBrTags(match[1]!.trim()) : undefined
 }
 
-function collectAccessibilityBlock(initial: string, lines: string[], startIndex: number): { text: string; nextIndex: number } {
+function collectAccessibilityBlock(initial: string, lines: string[], startIndex: number): { text: string; nextIndex: number } | null {
   const initialEnd = initial.indexOf('}')
   if (initialEnd !== -1) return { text: initial.slice(0, initialEnd).trim(), nextIndex: startIndex }
   const parts = [initial.trim()].filter(Boolean)
@@ -237,7 +243,7 @@ function collectAccessibilityBlock(initial: string, lines: string[], startIndex:
     }
     parts.push(line)
   }
-  throw new Error('Sequence accDescr block is missing a closing "}"')
+  return null
 }
 
 /** Ensure an actor exists, creating a default participant if not */

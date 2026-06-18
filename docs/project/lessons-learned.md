@@ -561,7 +561,7 @@ silent-loss bug, and the wrapper-fidelity batch) converged on one method and
 one contract lesson.
 
 **The method: probe official documentation examples through the round-trip,
-not just our own fixtures.** The `@{ shape: ... }` silent-loss bug (BUILD-20,
+not just our own fixtures.** The `@{ shape: ... }` silent-loss bug (BUILD-23,
 issue #29) was found by taking the Mermaid docs' own typed-shape syntax and
 running it through `parseMermaid → serializeMermaid`; the wrapper-fidelity
 gaps (BUILD-21) were found the same way with the syntax-reference's
@@ -688,3 +688,26 @@ forget it." Good citizenship is therefore both a contract and a gap map: Gantt
 sets the destination, the matrix records current state, and the upstream
 ratchets keep the deeper-compatibility path executable beyond the now-closed
 BUILD-22 matrix gaps without pretending BUILD-20's full-suite harvest is done.
+
+## PR #54 audit lesson — closure PRs need adversarial self-review, not just green checks
+
+The final #26/#38 closure pass exposed three classes of mistakes that ordinary
+green tests did not make obvious enough:
+
+- **Debug metadata can lie even when rendering looks fine.** Sequence self-message
+  SVG drew a loop, but the layout JSON adapter initially flattened it to a
+  two-point zero-bend line and certified that false geometry. Certificate tests
+  must check the rendered family geometry, not just that a certificate object
+  exists.
+- **Generated-site inputs are docs too.** Updating `docs/features.md` and
+  `docs/api.md` was not enough; pages such as `/differences` are generated from
+  `scripts/site/*` copy and need the same capability audit as Markdown docs.
+- **Seed ratchets are useful only when named honestly.** The BUILD-20 seed bench
+  is valuable as a cross-family parser/DB smoke ratchet, but the full upstream
+  parser/DB harvest is now tracked separately as issue #55 so future readers do
+  not mistake one curated case per family for comprehensive conformance.
+
+The practice change: before merging a broad closure PR, run a fresh-context
+review explicitly asking "what claims would become false if a consumer trusted
+our debug metadata, generated site copy, or issue labels?" Then either fix the
+claim or carve out a named follow-up.

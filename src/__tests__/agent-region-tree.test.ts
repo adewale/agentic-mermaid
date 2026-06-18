@@ -38,6 +38,38 @@ describe('stable region tree MVP', () => {
     expect(layout.actions).toContainEqual(expect.objectContaining({ id: 'action:flowchart:A:0', regionId: 'node:A', executable: false, security: 'safe' }))
   })
 
+  test('debug label regions use a real bounding box around the label center', () => {
+    const parsed = parseMermaid('flowchart LR\n  A -- retry --> B')
+    expect(parsed.ok).toBe(true)
+    if (!parsed.ok) return
+
+    const layout = layoutMermaid(parsed.value, { debug: true })
+    const edge = layout.edges.find(e => e.label?.text === 'retry')
+    const label = layout.regions?.find(r => r.id === `label:${edge?.id}`)
+    expect(edge?.label).toBeDefined()
+    expect(label).toBeDefined()
+    if (!edge?.label || !label) return
+    expect(label.bounds.x).toBeLessThan(edge.label.x)
+    expect(label.bounds.y).toBeLessThan(edge.label.y)
+    expect(label.bounds.x + label.bounds.w).toBeGreaterThan(edge.label.x)
+    expect(label.bounds.y + label.bounds.h).toBeGreaterThan(edge.label.y)
+  })
+
+  test('sequence self-message label region respects start-anchored text', () => {
+    const parsed = parseMermaid('sequenceDiagram\n  participant A\n  A->>A: self')
+    expect(parsed.ok).toBe(true)
+    if (!parsed.ok) return
+
+    const layout = layoutMermaid(parsed.value, { debug: true })
+    const edge = layout.edges[0]!
+    const label = layout.regions?.find(r => r.id === `label:${edge.id}`)
+    expect(label).toBeDefined()
+    if (!edge.label || !label) return
+    expect(label.bounds.x).toBe(edge.label.x)
+    expect(label.bounds.y).toBeLessThan(edge.label.y)
+    expect(label.bounds.x + label.bounds.w).toBeGreaterThan(edge.label.x)
+  })
+
   test('flowchart SVG marks subgraph regions with stable ids and parent ids', () => {
     const svg = renderMermaidSVG(SOURCE)
     expect(svg).toContain('class="subgraph" data-id="Outer" data-region="subgraph" data-label="Outer Region"')

@@ -289,6 +289,13 @@ interface VerifyResult {
   layout: { version: 1; kind: DiagramKind; nodes: unknown[]; edges: unknown[]; groups: unknown[]; bounds: { w: number; h: number } }
 }
 
+interface DiagramAnalysis {
+  kind: DiagramKind
+  feedbackEdges: Array<{ edgeIndex: number; from: string; to: string; label?: string; routeClass: string }>
+  actions: Array<{ id?: string; regionId?: string; family: DiagramKind; target: string; action: 'href' | 'call' | 'callback'; raw: string; line?: number; href?: string; security: 'safe' | 'unsafe' | 'source-only' | 'unsupported'; executable: false; message?: string }>
+  gantt?: { criticalPathTaskIds: string[]; slackByTaskId: Record<string, number>; projectStart: number; projectEnd: number; entryTaskIds: string[]; sinkTaskIds: string[] }
+}
+
 declare const mermaid: {
   parseMermaid(source: string): Result<ValidDiagram, { code: string; message: string }[]>
   asFlowchart(d: ValidDiagram): FlowchartValidDiagram | null
@@ -316,6 +323,8 @@ declare const mermaid: {
   mutate(d: QuadrantValidDiagram,  op: QuadrantMutationOp):  Result<QuadrantValidDiagram, { code: string; message: string }>
   mutate(d: GanttValidDiagram,     op: GanttMutationOp):     Result<GanttValidDiagram, { code: string; message: string }>
   verifyMermaid(input: ValidDiagram | string, opts?: { suppress?: WarningCode[]; labelCharCap?: number }): VerifyResult
+  analyzeMermaid(d: ValidDiagram): DiagramAnalysis
+  analyzeMermaidSource(source: string): Result<DiagramAnalysis, { code: string; message: string }[]>
   serializeMermaid(d: ValidDiagram): string
   renderMermaidSVG(input: ValidDiagram | string, opts?: { security?: 'default' | 'strict'; idPrefix?: string; ganttToday?: string; mermaidConfig?: MermaidRuntimeConfig }): string
   renderMermaidASCII(input: ValidDiagram | string, opts?: { useAscii?: boolean; ganttToday?: string; mermaidConfig?: MermaidRuntimeConfig }): string

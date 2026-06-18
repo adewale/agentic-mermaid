@@ -98,8 +98,8 @@ crash→fallback fixture rather than broad crash-freedom stress tests alone.
 | class | own ELK engine | **family certificate only** — `elkLayoutSync` direct; no graph route classes/straightening, but debug `orthogonal-box` certs exist | `src/class/layout.ts`; `src/__tests__/agent-family-layouts.test.ts` |
 | ER | own ELK engine | **family certificate only** — same class of `orthogonal-box` debug certs; no graph route classes/straightening | `src/er/layout.ts`; `src/__tests__/agent-family-layouts.test.ts` |
 | sequence | own engine (lifelines) | no graph heuristics by design; real layout geometry now feeds quality and verify | `src/sequence/*`, `src/agent/family-layouts.ts` |
-| timeline / journey / xychart / pie / quadrant | own engines | no graph heuristics; real family layout adapters feed quality/verify, with Gantt extra schedule/geometric tripwires | `src/agent/family-layouts.ts` |
-| ASCII (all graph families) | separate grid pathfinder | **separate stack**: longest-path layering, FIFO ties, label-segment policy, edge bundling, container clipping — parallel to, not consuming, route classes | `src/ascii/*`; `docs/mutation-testing.md` ASCII lane |
+| timeline / journey / xychart / pie / quadrant / gantt | own engines | no graph heuristics; real family layout adapters feed quality/verify; Gantt adds schedule/geometric tripwires and schedule analysis | `src/agent/family-layouts.ts` |
+| ASCII (all graph families) | separate grid pathfinder | **separate stack with shared route intent**: converter seeds `classifyRoutes()` route classes; grid placement consumes `primary-forward`; terminal routing still emits ASCII warnings rather than SVG route certificates | `src/ascii/*`; `docs/mutation-testing.md` ASCII lane |
 
 The `route-contracts.md` §6.1/§10 claim that class/ER inherit graph route
 contracts via `layoutGraphSync` was **false** and has been corrected. The
