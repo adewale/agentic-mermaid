@@ -13,11 +13,20 @@ import {
   buildArtifacts as buildVisualQualityArtifacts,
   collectVisualQualityRows,
 } from '../../scripts/characterization/visual-quality.ts'
+import {
+  buildPng as buildIssue38StylePermutationPng,
+  OUTPUT_PATH as ISSUE38_STYLE_PERMUTATION_PATH,
+} from '../../scripts/pr-assets/issue-38-style-permutations.ts'
 
 describe('characterisation generated artifacts', () => {
   it('contact sheets are in sync with their generators', () => {
     expect(readFileSync(CONTACT_SHEET_PATH, 'utf8')).toBe(buildContactSheet())
     expect(readFileSync(FAMILY_CONTACT_SHEET_PATH, 'utf8')).toBe(buildFamilyContactSheet())
+  })
+
+  it('issue #38 style permutation PNG is in sync with its generator', () => {
+    expect(existsSync(ISSUE38_STYLE_PERMUTATION_PATH)).toBe(true)
+    expect(readFileSync(ISSUE38_STYLE_PERMUTATION_PATH)).toEqual(Buffer.from(buildIssue38StylePermutationPng()))
   })
 
   it('visual quality report and SVG snapshots are in sync with their generator', () => {

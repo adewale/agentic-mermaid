@@ -290,7 +290,7 @@ describe('renderSvg – edges', () => {
     const edge = makeEdge({ style: 'thick' })
     const graph = makeGraph({ edges: [edge] })
     const svg = renderSvg(graph, lightColors)
-    // Base connector stroke is 1px, thick is doubled to 2px
+    // Base connector stroke is 1px, thick is doubled to 2px.
     expect(svg).toContain('stroke-width="2"')
   })
 
@@ -368,6 +368,8 @@ describe('renderSvg – edge labels', () => {
     const svg = renderSvg(graph, lightColors)
     expect(svg).toContain('>Yes</text>')
     expect(svg).toContain('rx="2" ry="2"')
+    expect(svg).toContain('class="edge-label-halo"')
+    expect(svg.indexOf('class="edge-label-halo"')).toBeLessThan(svg.indexOf('>Yes</text>'))
   })
 
   it('does not render label elements for edges without labels', () => {

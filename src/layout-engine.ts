@@ -31,7 +31,7 @@ import type {
   NodeShape,
   DiamondFacet,
 } from './types.ts'
-import { ARROW_HEAD, resolveRenderStyle } from './styles.ts'
+import { ARROW_HEAD, FLOWCHART_DOTTED_DASH, resolveRenderStyle } from './styles.ts'
 import type { ResolvedRenderStyle } from './styles.ts'
 import { measureMultilineText } from './text-metrics.ts'
 import { elkLayoutSync } from './elk-instance.ts'
@@ -852,9 +852,10 @@ function elkToPositioned(
   // Symmetry pass: small equivalent fan-outs and duplicate labeled edges carry
   // visual meaning. Re-route them before certification and mark the accepted
   // routes as bundle-owned so the certifying straightener preserves the shape.
-  applySymmetricFanoutEmissions(nodes, edges, groups, graph, bundled)
+  applySymmetricFanoutEmissions(nodes, edges, groups, graph, bundled, style)
   applySymmetricParallelEdgeLanes(nodes, edges, groups, graph, bundled, style)
   collapseTinyBundledHitches(nodes, edges, bundled)
+  reassignBundledSiblingLabels(nodes, edges, bundled, graph.direction, style)
 
   // Route contracts (docs/design/route-contracts.md): simplify every polyline,
   // straighten primary-forward routes whose direct lane proves clear, and
@@ -869,6 +870,14 @@ function elkToPositioned(
   const arrowMargin = ARROW_HEAD.width
   const padding = layoutPadding
 
+  for (const node of nodes) {
+    width = Math.max(width, node.x + node.width + padding)
+    height = Math.max(height, node.y + node.height + padding)
+  }
+  for (const bound of flattenGroupBounds(groups)) {
+    width = Math.max(width, bound.right + padding)
+    height = Math.max(height, bound.bottom + padding)
+  }
   for (const edge of edges) {
     for (const p of edge.points) {
       width = Math.max(width, p.x + arrowMargin + padding)
@@ -968,39 +977,52 @@ interface EdgeSegment {
   labelPosition?: Point
 }
 
-/**
- * Calculate the midpoint along a polyline path.
- * Walks the path to find the point at half the total length.
- */
-function calculatePathMidpoint(points: Point[]): Point {
-  if (points.length === 0) return { x: 0, y: 0 }
-  if (points.length === 1) return points[0]!
-
-  // Calculate total length
+function polylineLength(points: Point[]): number {
   let totalLength = 0
   for (let i = 1; i < points.length; i++) {
     const dx = points[i]!.x - points[i - 1]!.x
     const dy = points[i]!.y - points[i - 1]!.y
     totalLength += Math.sqrt(dx * dx + dy * dy)
   }
+  return totalLength
+}
 
-  // Walk to halfway point
-  let remaining = totalLength / 2
+function pointAtPathDistance(points: Point[], distance: number): { point: Point; segmentIndex: number; pathDistance: number } {
+  if (points.length === 0) return { point: { x: 0, y: 0 }, segmentIndex: 0, pathDistance: 0 }
+  if (points.length === 1) return { point: points[0]!, segmentIndex: 0, pathDistance: 0 }
+
+  const target = Math.max(0, Math.min(polylineLength(points), distance))
+  let remaining = target
+  let walked = 0
   for (let i = 1; i < points.length; i++) {
     const dx = points[i]!.x - points[i - 1]!.x
     const dy = points[i]!.y - points[i - 1]!.y
     const segLen = Math.sqrt(dx * dx + dy * dy)
+    if (segLen === 0) continue
     if (remaining <= segLen) {
       const t = remaining / segLen
       return {
-        x: points[i - 1]!.x + t * dx,
-        y: points[i - 1]!.y + t * dy,
+        point: {
+          x: points[i - 1]!.x + t * dx,
+          y: points[i - 1]!.y + t * dy,
+        },
+        segmentIndex: i,
+        pathDistance: walked + remaining,
       }
     }
     remaining -= segLen
+    walked += segLen
   }
 
-  return points[points.length - 1]!
+  return { point: points[points.length - 1]!, segmentIndex: points.length - 1, pathDistance: walked }
+}
+
+/**
+ * Calculate the midpoint along a polyline path.
+ * Walks the path to find the point at half the total length.
+ */
+function calculatePathMidpoint(points: Point[]): Point {
+  return pointAtPathDistance(points, polylineLength(points) / 2).point
 }
 
 // ============================================================================
@@ -1124,6 +1146,47 @@ function nodeInsideGroups(node: PositionedNode, groups: PositionedGroup[]): bool
       node.x + node.width <= group.x + group.width + 0.5 &&
       node.y + node.height <= group.y + group.height + 0.5) || visit(group.children))
   return visit(groups)
+}
+
+function flattenPositionedGroups(groups: PositionedGroup[], out: PositionedGroup[] = []): PositionedGroup[] {
+  for (const group of groups) {
+    out.push(group)
+    flattenPositionedGroups(group.children, out)
+  }
+  return out
+}
+
+function rectInsideGroup(rect: { x: number; y: number; width: number; height: number }, group: PositionedGroup): boolean {
+  return rect.x >= group.x - 0.5 &&
+    rect.y >= group.y - 0.5 &&
+    rect.x + rect.width <= group.x + group.width + 0.5 &&
+    rect.y + rect.height <= group.y + group.height + 0.5
+}
+
+function expandGroupsForMainShift(
+  groups: PositionedGroup[],
+  rects: Array<{ x: number; y: number; width: number; height: number }>,
+  direction: Direction,
+  delta: number,
+): void {
+  if (delta <= 0) return
+  const f = layoutFlow(direction)
+  const expanded = new Set<PositionedGroup>()
+  for (const group of flattenPositionedGroups(groups)) {
+    if (expanded.has(group) || !rects.some(rect => rectInsideGroup(rect, group))) continue
+    expanded.add(group)
+    if (f.isHorizontal) {
+      if (f.sign > 0) group.width += delta
+      else {
+        group.x -= delta
+        group.width += delta
+      }
+    } else if (f.sign > 0) group.height += delta
+    else {
+      group.y -= delta
+      group.height += delta
+    }
+  }
 }
 
 function equalizePeerNodeDimensions(nodes: PositionedNode[], edges: PositionedEdge[], groups: PositionedGroup[], graph: MermaidGraph): void {
@@ -1281,6 +1344,16 @@ function collapseTinyBundledHitches(nodes: PositionedNode[], edges: PositionedEd
   }
 }
 
+function labelBoxAt(label: string, center: Point, style: LabelMetricsStyle): { x: number; y: number; width: number; height: number } {
+  const metrics = measureMultilineText(label, style.edgeLabelFontSize, style.edgeLabelFontWeight)
+  return {
+    x: center.x - (metrics.width + 16) / 2,
+    y: center.y - (metrics.height + 16) / 2,
+    width: metrics.width + 16,
+    height: metrics.height + 16,
+  }
+}
+
 function longestSegmentMidpoint(points: Point[]): Point {
   let best: [Point, Point] = [points[0]!, points[points.length - 1]!]
   let bestLength = -1
@@ -1292,12 +1365,303 @@ function longestSegmentMidpoint(points: Point[]): Point {
   return { x: (best[0].x + best[1].x) / 2, y: (best[0].y + best[1].y) / 2 }
 }
 
+interface BundledLabelCandidate {
+  point: Point
+  box: { x: number; y: number; width: number; height: number }
+  rank: number
+  pathDistance: number
+  routeMidpointDistance: number
+  segmentMidpointDistance: number
+  straightRunPenalty: number
+  terminalSegmentPenalty: number
+}
+
+function readableLabelGap(style: LabelMetricsStyle): number {
+  return Math.max(8, style.edgeLabelFontSize * 0.75)
+}
+
+function labelPortStubGap(style: LabelMetricsStyle): number {
+  return Math.max(12, style.edgeLabelFontSize)
+}
+
+function terminalMarkerGap(style: LabelMetricsStyle, edge: PositionedEdge): number {
+  const lineWidth = (style as LabelMetricsStyle & { lineWidth?: number }).lineWidth ?? 1
+  const strokeWidth = edge.style === 'thick' ? lineWidth * 2 : lineWidth
+  return Math.max(18, style.edgeLabelFontSize + ARROW_HEAD.width + strokeWidth * 2)
+}
+
+function maxTerminalMarkerGap(style: LabelMetricsStyle): number {
+  const lineWidth = (style as LabelMetricsStyle & { lineWidth?: number }).lineWidth ?? 1
+  const maxStrokeWidth = lineWidth * 2
+  return Math.max(18, style.edgeLabelFontSize + ARROW_HEAD.width + maxStrokeWidth * 2)
+}
+
+function maxEdgeStyleWitnessGap(): number {
+  return FLOWCHART_DOTTED_DASH.dash * 3 + FLOWCHART_DOTTED_DASH.gap * 2
+}
+
+function terminalReadableGap(style: LabelMetricsStyle): number {
+  return maxTerminalMarkerGap(style) + maxEdgeStyleWitnessGap()
+}
+
+function labelHalfExtentAlongSegment(
+  box: { width: number; height: number },
+  a: Point,
+  b: Point,
+): number {
+  return Math.abs(b.x - a.x) >= Math.abs(b.y - a.y) ? box.width / 2 : box.height / 2
+}
+
+function clearsTerminalMarkers(
+  edge: PositionedEdge,
+  points: Point[],
+  segmentIndex: number,
+  point: Point,
+  box: { width: number; height: number },
+  style: LabelMetricsStyle,
+): boolean {
+  const clearance = terminalMarkerGap(style, edge)
+  if (edge.hasArrowStart && segmentIndex === 1) {
+    const start = points[0]!
+    const halfExtent = labelHalfExtentAlongSegment(box, start, points[1]!)
+    if (Math.hypot(point.x - start.x, point.y - start.y) < halfExtent + clearance) return false
+  }
+  if (edge.hasArrowEnd && segmentIndex === points.length - 1) {
+    const end = points[points.length - 1]!
+    const halfExtent = labelHalfExtentAlongSegment(box, points[points.length - 2]!, end)
+    if (Math.hypot(point.x - end.x, point.y - end.y) < halfExtent + clearance) return false
+  }
+  return true
+}
+
+function labelEndpointGaps(edge: PositionedEdge, points: Point[], segmentIndex: number, style: LabelMetricsStyle): { start: number; end: number } {
+  return {
+    start: edge.hasArrowStart && segmentIndex === 1 ? maxTerminalMarkerGap(style) : labelPortStubGap(style),
+    end: edge.hasArrowEnd && segmentIndex === points.length - 1 ? terminalReadableGap(style) : labelPortStubGap(style),
+  }
+}
+
+function segmentAlignedWithFlow(a: Point, b: Point, direction: Direction): boolean {
+  return layoutFlow(direction).isHorizontal
+    ? Math.abs(a.y - b.y) < 0.01
+    : Math.abs(a.x - b.x) < 0.01
+}
+
+function labelFitsInsideSegment(
+  box: { width: number; height: number },
+  point: Point,
+  a: Point,
+  b: Point,
+  gaps: { start: number; end: number },
+): boolean {
+  const halfExtent = labelHalfExtentAlongSegment(box, a, b)
+  return Math.hypot(point.x - a.x, point.y - a.y) >= halfExtent + gaps.start &&
+    Math.hypot(point.x - b.x, point.y - b.y) >= halfExtent + gaps.end
+}
+
+function feasibleLabelSlots(box: { width: number; height: number }, a: Point, b: Point, gaps: { start: number; end: number }): number[] {
+  const length = Math.hypot(b.x - a.x, b.y - a.y)
+  if (length === 0) return []
+  const halfExtent = labelHalfExtentAlongSegment(box, a, b)
+  const start = (halfExtent + gaps.start) / length
+  const end = 1 - (halfExtent + gaps.end) / length
+  if (start > end) return []
+  return [(start + end) / 2]
+}
+
+function terminalLabelRunLength(
+  edge: PositionedEdge,
+  direction: Direction,
+  style: LabelMetricsStyle,
+  sourceBoundary: number,
+  targetBoundary: number,
+): number {
+  if (!edge.label) return 0
+  const f = layoutFlow(direction)
+  const box = labelBoxAt(edge.label, { x: 0, y: 0 }, style)
+  const labelExtent = f.isHorizontal ? box.width : box.height
+  const visibleGap = Math.max(
+    labelPortStubGap(style),
+    edge.hasArrowEnd ? terminalReadableGap(style) : labelPortStubGap(style),
+  )
+  // When there is room, balance the outside-source corridor into three equal
+  // visible runs: source boundary to bend, bend to label, and label to target.
+  const corridor = (targetBoundary - sourceBoundary) * f.sign
+  const balancedGap = (corridor - labelExtent) / 3
+  if (balancedGap >= visibleGap - 0.001) return labelExtent + balancedGap * 2
+  return labelExtent + labelPortStubGap(style) + visibleGap + 2
+}
+
+function terminalLabelCorridorLength(edge: PositionedEdge, direction: Direction, style: LabelMetricsStyle): number {
+  if (!edge.label) return 0
+  const box = labelBoxAt(edge.label, { x: 0, y: 0 }, style)
+  const labelExtent = layoutFlow(direction).isHorizontal ? box.width : box.height
+  const visibleGap = Math.max(
+    labelPortStubGap(style),
+    edge.hasArrowEnd ? terminalReadableGap(style) : labelPortStubGap(style),
+  )
+  return labelExtent + visibleGap * 3
+}
+
+function bundledLabelCandidates(edge: PositionedEdge, points: Point[], nodes: PositionedNode[], direction: Direction, style: LabelMetricsStyle): BundledLabelCandidate[] {
+  if (!edge.label) return []
+  const totalLength = polylineLength(points)
+  if (totalLength === 0) return []
+  const midpointDistance = totalLength / 2
+  const raw: Array<BundledLabelCandidate & { order: number }> = []
+  const slots = [0.5, 0.45, 0.55, 0.4, 0.6, 0.35, 0.65, 0.3, 0.7, 0.25, 0.75, 0.2, 0.8, 1 / 6, 5 / 6]
+
+  let segmentStartDistance = 0
+  for (let i = 1; i < points.length; i++) {
+    const a = points[i - 1]!, b = points[i]!
+    const length = Math.hypot(b.x - a.x, b.y - a.y)
+    if (length === 0) continue
+    const flowAligned = segmentAlignedWithFlow(a, b, direction)
+    const terminalSegment = (edge.hasArrowStart && i === 1) || (edge.hasArrowEnd && i === points.length - 1)
+    const baseBox = labelBoxAt(edge.label, { x: 0, y: 0 }, style)
+    const gaps = labelEndpointGaps(edge, points, i, style)
+    const segmentSlots = [...slots, ...feasibleLabelSlots(baseBox, a, b, gaps)]
+      .filter((slot, index, all) => slot >= 0 && slot <= 1 && all.findIndex(other => Math.abs(other - slot) < 0.001) === index)
+    for (let order = 0; order < segmentSlots.length; order++) {
+      const t = segmentSlots[order]!
+      const point = { x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t }
+      const box = labelBoxAt(edge.label, point, style)
+      if (nodes.some(node => rectsOverlap(box, node, 2))) continue
+      if (!clearsTerminalMarkers(edge, points, i, point, box, style)) continue
+      const fitsInsideSegment = labelFitsInsideSegment(box, point, a, b, gaps)
+      raw.push({
+        point,
+        box,
+        order,
+        rank: 0,
+        pathDistance: segmentStartDistance + length * t,
+        routeMidpointDistance: Math.abs(segmentStartDistance + length * t - midpointDistance),
+        segmentMidpointDistance: Math.abs(length * (t - 0.5)),
+        straightRunPenalty: flowAligned && fitsInsideSegment ? 0 : flowAligned ? 2 : 10,
+        terminalSegmentPenalty: terminalSegment ? 1 : 0,
+      })
+    }
+    segmentStartDistance += length
+  }
+
+  raw.sort((a, b) =>
+    a.straightRunPenalty - b.straightRunPenalty ||
+    a.terminalSegmentPenalty - b.terminalSegmentPenalty ||
+    a.segmentMidpointDistance - b.segmentMidpointDistance ||
+    a.routeMidpointDistance - b.routeMidpointDistance ||
+    a.order - b.order ||
+    a.pathDistance - b.pathDistance)
+  return raw.map((candidate, rank) => ({ ...candidate, rank }))
+}
+
+function bestBundledLabelPosition(edge: PositionedEdge, points: Point[], nodes: PositionedNode[], direction: Direction, style: LabelMetricsStyle): Point {
+  return bundledLabelCandidates(edge, points, nodes, direction, style)[0]?.point ?? calculatePathMidpoint(points)
+}
+
+function bundledLabelAssignmentCost(chosen: BundledLabelCandidate[], direction: Direction): number {
+  const f = layoutFlow(direction)
+  const mainValues = chosen.map(candidate => candidate.point[f.main])
+  const mainSpread = Math.max(...mainValues) - Math.min(...mainValues)
+  const totalStraightRunPenalty = chosen.reduce((sum, candidate) => sum + candidate.straightRunPenalty, 0)
+  const totalTerminalSegmentPenalty = chosen.reduce((sum, candidate) => sum + candidate.terminalSegmentPenalty, 0)
+  const totalSegmentMidpointDistance = chosen.reduce((sum, candidate) => sum + candidate.segmentMidpointDistance, 0)
+  const totalRouteMidpointDistance = chosen.reduce((sum, candidate) => sum + candidate.routeMidpointDistance, 0)
+  const totalRank = chosen.reduce((sum, candidate) => sum + candidate.rank, 0)
+  // Prefer labels on a flow-axis straight run so the route enters and exits through
+  // opposite label ports. Among readable straight-run slots, preserve sibling
+  // symmetry before endpoint aesthetics; a terminal segment is acceptable once
+  // marker clearance has already admitted the candidate.
+  return totalStraightRunPenalty * 10000 +
+    mainSpread * 100 +
+    totalTerminalSegmentPenalty * 1000 +
+    totalSegmentMidpointDistance * 4 +
+    totalRank * 0.25 +
+    totalRouteMidpointDistance * 0.1
+}
+
+function assignBundledFanoutLabels(
+  proposed: Array<{ edge: PositionedEdge; points: Point[] }>,
+  nodes: PositionedNode[],
+  direction: Direction,
+  style: LabelMetricsStyle,
+): void {
+  const labeled = proposed.filter(({ edge }) => edge.label)
+  if (labeled.length === 0) return
+  if (labeled.length === 1) {
+    const only = labeled[0]!
+    only.edge.labelPosition = bestBundledLabelPosition(only.edge, only.points, nodes, direction, style)
+    return
+  }
+
+  const candidateSets = labeled.map(({ edge, points }) => bundledLabelCandidates(edge, points, nodes, direction, style))
+  if (candidateSets.some(candidates => candidates.length === 0)) {
+    for (const { edge, points } of labeled) edge.labelPosition = bestBundledLabelPosition(edge, points, nodes, direction, style)
+    return
+  }
+
+  const gap = readableLabelGap(style)
+  let best: BundledLabelCandidate[] | undefined
+  let bestCost = Number.POSITIVE_INFINITY
+  const chosen: BundledLabelCandidate[] = []
+  const search = (index: number) => {
+    if (index === candidateSets.length) {
+      const cost = bundledLabelAssignmentCost(chosen, direction)
+      if (cost < bestCost) {
+        bestCost = cost
+        best = chosen.slice()
+      }
+      return
+    }
+    for (const candidate of candidateSets[index]!) {
+      if (chosen.some(other => rectsOverlap(candidate.box, other.box, gap))) continue
+      chosen.push(candidate)
+      search(index + 1)
+      chosen.pop()
+    }
+  }
+  search(0)
+
+  if (!best) {
+    for (const { edge, points } of labeled) edge.labelPosition = bestBundledLabelPosition(edge, points, nodes, direction, style)
+    return
+  }
+  for (let i = 0; i < labeled.length; i++) labeled[i]!.edge.labelPosition = best[i]!.point
+}
+
+function reassignBundledSiblingLabels(
+  nodes: PositionedNode[],
+  edges: PositionedEdge[],
+  bundled: ReadonlySet<PositionedEdge>,
+  direction: Direction,
+  style: LabelMetricsStyle,
+): void {
+  const nodeMap = new Map(nodes.map(n => [n.id, n]))
+  const bySource = new Map<string, PositionedEdge[]>()
+  for (const edge of edges) {
+    if (!bundled.has(edge) || !edge.label || !positionedEdgeForwardish(edge, nodeMap, direction)) continue
+    if (!bySource.has(edge.source)) bySource.set(edge.source, [])
+    bySource.get(edge.source)!.push(edge)
+  }
+  for (const group of bySource.values()) {
+    if (group.length < 2 || group.length > 3) continue
+    if (new Set(group.map(edge => edge.target)).size < group.length) continue
+    const sorted = [...group].sort((a, b) => {
+      const aTarget = nodeMap.get(a.target)
+      const bTarget = nodeMap.get(b.target)
+      if (!aTarget || !bTarget) return (a.edgeIndex ?? 0) - (b.edgeIndex ?? 0)
+      return nodeCrossCenter(aTarget, direction) - nodeCrossCenter(bTarget, direction)
+    })
+    assignBundledFanoutLabels(sorted.map(edge => ({ edge, points: edge.points })), nodes, direction, style)
+  }
+}
+
 function applySymmetricFanoutEmissions(
   nodes: PositionedNode[],
   edges: PositionedEdge[],
   groups: PositionedGroup[],
   graph: MermaidGraph,
   bundled: Set<PositionedEdge>,
+  style: LabelMetricsStyle,
 ): void {
   const nodeMap = new Map(nodes.map(n => [n.id, n]))
   const bySource = new Map<string, PositionedEdge[]>()
@@ -1326,6 +1690,11 @@ function applySymmetricFanoutEmissions(
     if (!peer) continue
 
     const oldTargets = targets.map(t => ({ t, x: t.x, y: t.y, width: t.width, height: t.height }))
+    const oldGroups = flattenPositionedGroups(groups).map(group => ({ group, x: group.x, y: group.y, width: group.width, height: group.height }))
+    const restoreGeometry = () => {
+      for (const old of oldTargets) { old.t.x = old.x; old.t.y = old.y; old.t.width = old.width; old.t.height = old.height }
+      for (const old of oldGroups) { old.group.x = old.x; old.group.y = old.y; old.group.width = old.width; old.group.height = old.height }
+    }
     const maxWidth = Math.max(...targets.map(t => t.width))
     const maxHeight = Math.max(...targets.map(t => t.height))
     const axis = nodeCrossCenter(source, graph.direction)
@@ -1373,17 +1742,39 @@ function applySymmetricFanoutEmissions(
       clear = placementClear()
     }
     if (!clear) {
-      for (const old of oldTargets) { old.t.x = old.x; old.t.y = old.y; old.t.width = old.width; old.t.height = old.height }
+      restoreGeometry()
       continue
     }
 
     const sourceEdge = f.isHorizontal
       ? (f.sourceSide === 'E' ? source.x + source.width : source.x)
       : (f.sourceSide === 'S' ? source.y + source.height : source.y)
-    const targetEdge = f.isHorizontal
+    let targetEdge = f.isHorizontal
       ? (f.sign > 0 ? Math.min(...targets.map(t => t.x)) : Math.max(...targets.map(t => t.x + t.width)))
       : (f.sign > 0 ? Math.min(...targets.map(t => t.y)) : Math.max(...targets.map(t => t.y + t.height)))
-    const elbow = sourceEdge + (targetEdge - sourceEdge) * 0.5
+    const requiredCorridor = Math.max(0, ...sorted.map(edge => terminalLabelCorridorLength(edge, graph.direction, style)))
+    const currentCorridor = (targetEdge - sourceEdge) * f.sign
+    if (requiredCorridor > currentCorridor + 0.001) {
+      const delta = requiredCorridor - currentCorridor
+      const targetRectsBeforeShift = targets.map(t => ({ x: t.x, y: t.y, width: t.width, height: t.height }))
+      for (const target of targets) {
+        if (f.isHorizontal) target.x += delta * f.sign
+        else target.y += delta * f.sign
+      }
+      expandGroupsForMainShift(groups, targetRectsBeforeShift, graph.direction, delta)
+      clear = placementClear()
+      if (!clear) {
+        restoreGeometry()
+        continue
+      }
+      targetEdge = f.isHorizontal
+        ? (f.sign > 0 ? Math.min(...targets.map(t => t.x)) : Math.max(...targets.map(t => t.x + t.width)))
+        : (f.sign > 0 ? Math.min(...targets.map(t => t.y)) : Math.max(...targets.map(t => t.y + t.height)))
+    }
+    const requiredTerminalRun = Math.max(0, ...sorted.map(edge => terminalLabelRunLength(edge, graph.direction, style, sourceEdge, targetEdge)))
+    const midpointElbow = sourceEdge + (targetEdge - sourceEdge) * 0.5
+    const capacityElbow = targetEdge - f.sign * requiredTerminalRun
+    const elbow = ((capacityElbow - midpointElbow) * f.sign < 0) ? capacityElbow : midpointElbow
     const proposed: Array<{ edge: PositionedEdge; points: Point[] }> = []
     for (let i = 0; i < sorted.length; i++) {
       const edge = sorted[i]!
@@ -1393,15 +1784,15 @@ function applySymmetricFanoutEmissions(
       proposed.push({ edge, points })
     }
     if (!clear) {
-      for (const old of oldTargets) { old.t.x = old.x; old.t.y = old.y; old.t.width = old.width; old.t.height = old.height }
+      restoreGeometry()
       continue
     }
     for (const { edge, points } of proposed) {
       edge.points = points
-      if (edge.label) edge.labelPosition = longestSegmentMidpoint(points)
       edge.routeCertificate = undefined
       bundled.add(edge)
     }
+    assignBundledFanoutLabels(proposed, nodes, graph.direction, style)
   }
 }
 

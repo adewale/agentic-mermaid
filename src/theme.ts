@@ -540,6 +540,16 @@ export function inlineResolvedColors(svg: string, colors: DiagramColors): string
   if (colors.muted && isHexColor(colors.muted)) vars.set('muted', colors.muted)
   if (colors.surface && isHexColor(colors.surface)) vars.set('surface', colors.surface)
   if (colors.border && isHexColor(colors.border)) vars.set('border', colors.border)
+
+  // Some family renderers define concrete custom properties on the SVG root
+  // before using them in style-block fallbacks. Learn those up front so
+  // var(--family-token, fallback) prefers the authored token over fallback.
+  const cssDefRegex = /--([\w-]+)\s*:\s*(#[0-9a-fA-F]{3,8})\s*;?/g
+  let initialDefMatch
+  while ((initialDefMatch = cssDefRegex.exec(svg)) !== null) {
+    vars.set(initialDefMatch[1]!, initialDefMatch[2]!)
+  }
+
   // Derived internal variables
   vars.set('_text', rc.text)
   vars.set('_text-sec', rc.textSec)

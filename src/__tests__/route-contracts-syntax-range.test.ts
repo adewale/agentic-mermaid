@@ -20,6 +20,8 @@ import fc from 'fast-check'
 import { layoutGraphSync } from '../layout-engine.ts'
 import { parseMermaid } from '../parser.ts'
 import { assessLayout, hardViolations } from '../layout-rubric.ts'
+import { labelRect, shapePorts } from '../route-contracts.ts'
+import { ARROW_HEAD, FLOWCHART_DOTTED_DASH, resolveRenderStyle } from '../styles.ts'
 import type { EdgeMarker, EdgeStyle, PositionedEdge } from '../types.ts'
 
 function layoutEdges(source: string): PositionedEdge[] {
@@ -49,6 +51,229 @@ function geometry(source: string): string {
 function zeroHardViolations(source: string): void {
   const graph = parseMermaid(source)
   expect(hardViolations(assessLayout(graph, layoutGraphSync(graph)))).toEqual([])
+}
+
+function rectsOverlap(
+  a: { x: number; y: number; w: number; h: number },
+  b: { x: number; y: number; w: number; h: number },
+  pad = 0,
+): boolean {
+  return a.x < b.x + b.w + pad &&
+    a.x + a.w + pad > b.x &&
+    a.y < b.y + b.h + pad &&
+    a.y + a.h + pad > b.y
+}
+
+function readableLabelGap(style: { edgeLabelFontSize: number }): number {
+  return Math.max(8, style.edgeLabelFontSize * 0.75)
+}
+
+function labelPortStubGap(style: { edgeLabelFontSize: number }): number {
+  return Math.max(12, style.edgeLabelFontSize)
+}
+
+function terminalMarkerGap(style: { edgeLabelFontSize: number; lineWidth?: number }, edge: PositionedEdge): number {
+  const lineWidth = style.lineWidth ?? 1
+  const strokeWidth = edge.style === 'thick' ? lineWidth * 2 : lineWidth
+  return Math.max(18, style.edgeLabelFontSize + ARROW_HEAD.width + strokeWidth * 2)
+}
+
+function maxTerminalMarkerGap(style: { edgeLabelFontSize: number; lineWidth?: number }): number {
+  const lineWidth = style.lineWidth ?? 1
+  const maxStrokeWidth = lineWidth * 2
+  return Math.max(18, style.edgeLabelFontSize + ARROW_HEAD.width + maxStrokeWidth * 2)
+}
+
+function maxEdgeStyleWitnessGap(): number {
+  return FLOWCHART_DOTTED_DASH.dash * 3 + FLOWCHART_DOTTED_DASH.gap * 2
+}
+
+function terminalReadableGap(style: { edgeLabelFontSize: number; lineWidth?: number }): number {
+  return maxTerminalMarkerGap(style) + maxEdgeStyleWitnessGap()
+}
+
+function labelHalfExtentAlongSegment(
+  box: { w: number; h: number },
+  a: { x: number; y: number },
+  b: { x: number; y: number },
+): number {
+  return Math.abs(b.x - a.x) >= Math.abs(b.y - a.y) ? box.w / 2 : box.h / 2
+}
+
+function expectLabelClearsTerminalMarkers(
+  edge: PositionedEdge,
+  box: { x: number; y: number; w: number; h: number },
+  style: { edgeLabelFontSize: number; lineWidth?: number },
+): void {
+  const clearance = terminalMarkerGap(style, edge)
+  const label = edge.labelPosition!
+  if (edge.hasArrowStart && edge.points.length >= 2 && distanceToPolyline(label, edge.points.slice(0, 2)) <= 0.001) {
+    const start = edge.points[0]!
+    const halfExtent = labelHalfExtentAlongSegment(box, start, edge.points[1]!)
+    expect(Math.hypot(label.x - start.x, label.y - start.y)).toBeGreaterThanOrEqual(halfExtent + clearance - 0.001)
+  }
+  if (edge.hasArrowEnd && edge.points.length >= 2 && distanceToPolyline(label, edge.points.slice(-2)) <= 0.001) {
+    const end = edge.points[edge.points.length - 1]!
+    const halfExtent = labelHalfExtentAlongSegment(box, edge.points[edge.points.length - 2]!, end)
+    expect(Math.hypot(label.x - end.x, label.y - end.y)).toBeGreaterThanOrEqual(halfExtent + clearance - 0.001)
+  }
+}
+
+function pointToSegmentDistance(
+  point: { x: number; y: number },
+  a: { x: number; y: number },
+  b: { x: number; y: number },
+): number {
+  const dx = b.x - a.x
+  const dy = b.y - a.y
+  const lenSq = dx * dx + dy * dy
+  if (lenSq === 0) return Math.hypot(point.x - a.x, point.y - a.y)
+
+  const t = Math.max(0, Math.min(1, ((point.x - a.x) * dx + (point.y - a.y) * dy) / lenSq))
+  const projX = a.x + t * dx
+  const projY = a.y + t * dy
+  return Math.hypot(point.x - projX, point.y - projY)
+}
+
+function distanceToPolyline(point: { x: number; y: number }, points: Array<{ x: number; y: number }>): number {
+  let minDistance = Infinity
+  for (let i = 1; i < points.length; i++) {
+    minDistance = Math.min(minDistance, pointToSegmentDistance(point, points[i - 1]!, points[i]!))
+  }
+  return minDistance
+}
+
+function bestLabelSegment(edge: PositionedEdge): { index: number; a: { x: number; y: number }; b: { x: number; y: number } } {
+  let best = { index: 1, distance: Infinity }
+  for (let i = 1; i < edge.points.length; i++) {
+    const distance = pointToSegmentDistance(edge.labelPosition!, edge.points[i - 1]!, edge.points[i]!)
+    if (distance < best.distance) best = { index: i, distance }
+  }
+  expect(best.distance).toBeLessThanOrEqual(0.001)
+  return { index: best.index, a: edge.points[best.index - 1]!, b: edge.points[best.index]! }
+}
+
+function expectLabelUsesStraightRunPorts(
+  edge: PositionedEdge,
+  box: { x: number; y: number; w: number; h: number },
+  direction: 'TD' | 'BT' | 'LR' | 'RL',
+): void {
+  const { a, b } = bestLabelSegment(edge)
+  const verticalFlow = direction === 'TD' || direction === 'BT'
+  const epsilon = 0.001
+  if (verticalFlow) {
+    expect(Math.abs(a.x - b.x)).toBeLessThanOrEqual(epsilon)
+    expect(edge.labelPosition!.x).toBeGreaterThanOrEqual(box.x - epsilon)
+    expect(edge.labelPosition!.x).toBeLessThanOrEqual(box.x + box.w + epsilon)
+    expect(box.y).toBeGreaterThanOrEqual(Math.min(a.y, b.y) - epsilon)
+    expect(box.y + box.h).toBeLessThanOrEqual(Math.max(a.y, b.y) + epsilon)
+  } else {
+    expect(Math.abs(a.y - b.y)).toBeLessThanOrEqual(epsilon)
+    expect(edge.labelPosition!.y).toBeGreaterThanOrEqual(box.y - epsilon)
+    expect(edge.labelPosition!.y).toBeLessThanOrEqual(box.y + box.h + epsilon)
+    expect(box.x).toBeGreaterThanOrEqual(Math.min(a.x, b.x) - epsilon)
+    expect(box.x + box.w).toBeLessThanOrEqual(Math.max(a.x, b.x) + epsilon)
+  }
+}
+
+function expectLabelShowsVisiblePortStubs(
+  edge: PositionedEdge,
+  box: { x: number; y: number; w: number; h: number },
+  direction: 'TD' | 'BT' | 'LR' | 'RL',
+  style: { edgeLabelFontSize: number; lineWidth?: number },
+): void {
+  const { index, a, b } = bestLabelSegment(edge)
+  const verticalFlow = direction === 'TD' || direction === 'BT'
+  const beforeGap = labelPortStubGap(style)
+  const afterGap = edge.hasArrowEnd && index === edge.points.length - 1
+    ? terminalReadableGap(style)
+    : labelPortStubGap(style)
+  if (verticalFlow) {
+    expect(edge.labelPosition!.x).toBeCloseTo(box.x + box.w / 2, 3)
+    expect(box.y - Math.min(a.y, b.y)).toBeGreaterThanOrEqual(beforeGap - 0.001)
+    expect(Math.max(a.y, b.y) - (box.y + box.h)).toBeGreaterThanOrEqual(afterGap - 0.001)
+  } else {
+    expect(edge.labelPosition!.y).toBeCloseTo(box.y + box.h / 2, 3)
+    expect(box.x - Math.min(a.x, b.x)).toBeGreaterThanOrEqual(beforeGap - 0.001)
+    expect(Math.max(a.x, b.x) - (box.x + box.w)).toBeGreaterThanOrEqual(afterGap - 0.001)
+  }
+}
+
+function expectBalancedTerminalLabelCorridor(
+  edge: PositionedEdge,
+  box: { x: number; y: number; w: number; h: number },
+  direction: 'TD' | 'BT' | 'LR' | 'RL',
+  sourceBoundaryMain: number,
+): void {
+  const { a, b } = bestLabelSegment(edge)
+  const verticalFlow = direction === 'TD' || direction === 'BT'
+  const main = verticalFlow ? 'y' : 'x'
+  const boxStart = verticalFlow ? box.y : box.x
+  const boxExtent = verticalFlow ? box.h : box.w
+  const sign = direction === 'BT' || direction === 'RL' ? -1 : 1
+  const sourceBoundary = sourceBoundaryMain * sign
+  const bend = a[main] * sign
+  const target = b[main] * sign
+  const labelStart = (sign > 0 ? boxStart : boxStart + boxExtent) * sign
+  const labelEnd = (sign > 0 ? boxStart + boxExtent : boxStart) * sign
+  const sourceToBend = bend - sourceBoundary
+  const bendToLabel = labelStart - bend
+  const labelToTarget = target - labelEnd
+  expect(sourceToBend).toBeCloseTo(bendToLabel, 3)
+  expect(bendToLabel).toBeCloseTo(labelToTarget, 3)
+}
+
+function stableProductLoopGeometry(positioned: ReturnType<typeof layoutGraphSync>) {
+  const round = (n: number) => Math.round(n * 1000) / 1000
+  return {
+    nodes: positioned.nodes.map(n => ({
+      id: n.id,
+      x: round(n.x),
+      y: round(n.y),
+      width: round(n.width),
+      height: round(n.height),
+      shape: n.shape,
+    })),
+    edges: positioned.edges.map(e => ({
+      source: e.source,
+      target: e.target,
+      label: e.label,
+      points: e.points.map(p => ({ x: round(p.x), y: round(p.y) })),
+      routeCertificate: e.routeCertificate
+        ? {
+            routeClass: e.routeCertificate.routeClass,
+            bendCount: e.routeCertificate.bendCount,
+            sourcePort: e.routeCertificate.sourcePort,
+            targetPort: e.routeCertificate.targetPort,
+            invariant: e.routeCertificate.invariant,
+          }
+        : undefined,
+    })),
+  }
+}
+
+const PRODUCT_LOOP_STYLE_OPTIONS = {
+  style: {
+    text: { fontSize: 13, letterSpacing: 0.1 },
+    node: { fontSize: 15, fontWeight: 600, letterSpacing: -0.1, paddingX: 22, paddingY: 14, cornerRadius: 16, lineWidth: 1.5 },
+    edge: { fontSize: 12, fontWeight: 600, letterSpacing: 0.1, lineWidth: 2.25, bendRadius: 12 },
+    group: { fontSize: 12, fontWeight: 700, letterSpacing: 0.8, textTransform: 'uppercase' as const, padding: 24, paddingY: 18, cornerRadius: 18, borderColor: '#f97316', lineWidth: 1.5 },
+  },
+}
+
+const PRODUCT_LOOP_BRANCH_STYLES = [
+  { name: 'solid', op: '-->' },
+  { name: 'dotted', op: '-.->' },
+  { name: 'thick', op: '==>' },
+] as const
+
+function productLoopSource(yesOp = '-->', needsWorkOp = '-.->'): string {
+  return `flowchart TD
+  subgraph product [Product Loop]
+    A[Capture request] --> B{Ready?}
+    B ${yesOp}|yes| C[Ship]
+    B ${needsWorkOp}|needs work| D[Refine]
+  end`
 }
 
 const EDGE_VOCABULARY: ReadonlyArray<{
@@ -211,6 +436,149 @@ describe('syntax range — & multi-edge chains hit the same fan heuristics', () 
     expect(qp.points[0]!.x).toBeCloseTo(qr.points[0]!.x, 3)
     expect(qp.points[0]!.y).toBeLessThan(qr.points[0]!.y)
     zeroHardViolations('flowchart LR\n  Q{Decide} --> P[One] & R[Two]')
+  })
+
+  it('a styled TD decision fan-out keeps branch labels clear of the diamond tip', () => {
+    // Characterization from issue #42 plus the editor regression reported
+    // while tackling #38: the branch spread is good (SW/SE bundle anchors),
+    // but the label pill must not ride up into the decision diamond.
+    const source = productLoopSource()
+    const positioned = layoutGraphSync(parseMermaid(source), PRODUCT_LOOP_STYLE_OPTIONS)
+    const style = resolveRenderStyle(PRODUCT_LOOP_STYLE_OPTIONS)
+    const decision = positioned.nodes.find(n => n.id === 'B')!
+    const decisionSouth = shapePorts(decision).S.y
+    const yes = findEdge(positioned.edges, 'B', 'C')
+    const needsWork = findEdge(positioned.edges, 'B', 'D')
+    const yesLabel = labelRect(yes, style)!
+    const needsWorkLabel = labelRect(needsWork, style)!
+
+    expect(findEdge(positioned.edges, 'A', 'B').routeCertificate?.sourcePort).toBe('S')
+    expect(findEdge(positioned.edges, 'A', 'B').routeCertificate?.targetPort).toBe('N')
+    expect(yes.routeCertificate?.invariant).toBe('bundle')
+    expect(needsWork.routeCertificate?.invariant).toBe('bundle')
+    expect(yes.routeCertificate?.sourcePort).toBe('SW')
+    expect(needsWork.routeCertificate?.sourcePort).toBe('SE')
+    expect(distanceToPolyline(yes.labelPosition!, yes.points)).toBeLessThanOrEqual(0.001)
+    expect(distanceToPolyline(needsWork.labelPosition!, needsWork.points)).toBeLessThanOrEqual(0.001)
+    expectLabelUsesStraightRunPorts(yes, yesLabel, 'TD')
+    expectLabelUsesStraightRunPorts(needsWork, needsWorkLabel, 'TD')
+    expectLabelShowsVisiblePortStubs(yes, yesLabel, 'TD', style)
+    expectLabelShowsVisiblePortStubs(needsWork, needsWorkLabel, 'TD', style)
+    expectBalancedTerminalLabelCorridor(yes, yesLabel, 'TD', decisionSouth)
+    expectBalancedTerminalLabelCorridor(needsWork, needsWorkLabel, 'TD', decisionSouth)
+    expect(yes.labelPosition!.y).toBeCloseTo(needsWork.labelPosition!.y, 3)
+    expect(rectsOverlap(yesLabel, needsWorkLabel, readableLabelGap(style))).toBe(false)
+    expectLabelClearsTerminalMarkers(yes, yesLabel, style)
+    expectLabelClearsTerminalMarkers(needsWork, needsWorkLabel, style)
+    expect(yesLabel.y).toBeGreaterThanOrEqual(decisionSouth + 2)
+    expect(needsWorkLabel.y).toBeGreaterThanOrEqual(decisionSouth + 2)
+    expect(stableProductLoopGeometry(positioned)).toEqual({
+      nodes: [
+        { id: 'A', x: 70.625, y: 86, width: 162.35, height: 47.5, shape: 'rectangle' },
+        { id: 'B', x: 88.775, y: 181.5, width: 126.05, height: 126.05, shape: 'diamond' },
+        { id: 'C', x: 46.55, y: 486.15, width: 91.25, height: 47.5, shape: 'rectangle' },
+        { id: 'D', x: 165.8, y: 486.15, width: 91.25, height: 47.5, shape: 'rectangle' },
+      ],
+      edges: [
+        {
+          source: 'A',
+          target: 'B',
+          label: undefined,
+          points: [{ x: 151.8, y: 133.5 }, { x: 151.8, y: 181.5 }],
+          routeCertificate: { routeClass: 'primary-forward', bendCount: 0, sourcePort: 'S', targetPort: 'N', invariant: 'straight' },
+        },
+        {
+          source: 'B',
+          target: 'C',
+          label: 'yes',
+          points: [{ x: 120.288, y: 276.038 }, { x: 120.288, y: 356.55 }, { x: 92.175, y: 356.55 }, { x: 92.175, y: 486.15 }],
+          routeCertificate: { routeClass: 'primary-forward', bendCount: 2, sourcePort: 'SW', targetPort: 'N', invariant: 'bundle' },
+        },
+        {
+          source: 'B',
+          target: 'D',
+          label: 'needs work',
+          points: [{ x: 183.313, y: 276.038 }, { x: 183.313, y: 356.55 }, { x: 211.425, y: 356.55 }, { x: 211.425, y: 486.15 }],
+          routeCertificate: { routeClass: 'primary-forward', bendCount: 2, sourcePort: 'SE', targetPort: 'N', invariant: 'bundle' },
+        },
+      ],
+    })
+    zeroHardViolations(source)
+  })
+
+  it('Product Loop geometry is invariant across visible branch style permutations', () => {
+    const baseline = stableProductLoopGeometry(layoutGraphSync(parseMermaid(productLoopSource()), PRODUCT_LOOP_STYLE_OPTIONS))
+    for (const yesStyle of PRODUCT_LOOP_BRANCH_STYLES) {
+      for (const needsWorkStyle of PRODUCT_LOOP_BRANCH_STYLES) {
+        const source = productLoopSource(yesStyle.op, needsWorkStyle.op)
+        expect(stableProductLoopGeometry(layoutGraphSync(parseMermaid(source), PRODUCT_LOOP_STYLE_OPTIONS)))
+          .toEqual(baseline)
+      }
+    }
+  })
+
+  it('a three-way decision fan-out allocates sibling labels with readable gaps', () => {
+    const source = `flowchart TD
+  Q{Choose}
+  Q -->|alpha| A[Alpha]
+  Q -->|beta path| B[Beta]
+  Q -.->|gamma| C[Gamma]`
+    const positioned = layoutGraphSync(parseMermaid(source))
+    const style = resolveRenderStyle({})
+    const branchEdges = positioned.edges.filter(e => e.source === 'Q')
+    const labelRects = branchEdges.map(edge => {
+      expect(edge.routeCertificate?.invariant).toBe('bundle')
+      expect(distanceToPolyline(edge.labelPosition!, edge.points)).toBeLessThanOrEqual(0.001)
+      const rect = labelRect(edge, style)!
+      expectLabelUsesStraightRunPorts(edge, rect, 'TD')
+      expectLabelClearsTerminalMarkers(edge, rect, style)
+      return rect
+    })
+
+    for (let i = 0; i < labelRects.length; i++) {
+      for (let j = i + 1; j < labelRects.length; j++) {
+        expect(rectsOverlap(labelRects[i]!, labelRects[j]!, readableLabelGap(style))).toBe(false)
+      }
+    }
+    zeroHardViolations(source)
+  })
+
+  it('property: labeled decision fan-out labels stay off incident nodes across directions', () => {
+    fc.assert(
+      fc.property(
+        fc.constantFrom('TD', 'BT', 'LR', 'RL'),
+        fc.constantFrom('yes', 'no', 'ok', 'fix', 'ship', 'work'),
+        fc.constantFrom('retry', 'else', 'wait', 'redo', 'safe', 'fail'),
+        (dir, labelA, labelB) => {
+          const source = `flowchart ${dir}
+  Q{Ready?}
+  Q -->|${labelA}| A[Alpha]
+  Q -.->|${labelB}| B[Beta]`
+          const graph = parseMermaid(source)
+          const positioned = layoutGraphSync(graph)
+          const style = resolveRenderStyle({})
+          const nodes = new Map(positioned.nodes.map(n => [n.id, n]))
+          const labelRects: Array<{ x: number; y: number; w: number; h: number }> = []
+
+          for (const edge of positioned.edges.filter(e => e.source === 'Q')) {
+            const rect = labelRect(edge, style)
+            expect(rect).not.toBeNull()
+            labelRects.push(rect!)
+            const sourceNode = nodes.get(edge.source)!
+            const targetNode = nodes.get(edge.target)!
+            expect(rectsOverlap(rect!, { x: sourceNode.x, y: sourceNode.y, w: sourceNode.width, h: sourceNode.height }, 2)).toBe(false)
+            expect(rectsOverlap(rect!, { x: targetNode.x, y: targetNode.y, w: targetNode.width, h: targetNode.height }, 2)).toBe(false)
+            expect(distanceToPolyline(edge.labelPosition!, edge.points)).toBeLessThanOrEqual(0.001)
+            expectLabelUsesStraightRunPorts(edge, rect!, dir)
+            expectLabelClearsTerminalMarkers(edge, rect!, style)
+            expect(edge.labelPosition).toBeDefined()
+            expect(edge.routeCertificate).toBeDefined()
+          }
+          expect(rectsOverlap(labelRects[0]!, labelRects[1]!, readableLabelGap(style))).toBe(false)
+        },
+      ),
+      { numRuns: 40 },
+    )
   })
 
   it('hard rubric metrics stay zero for a 3-target & fan-out in all directions', () => {

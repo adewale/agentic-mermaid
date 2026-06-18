@@ -12,7 +12,7 @@ gates: `src/__tests__/contact-sheet.test.ts`,
 
 | Family | SVG snapshot | SVG SHA | PNG SHA | PNG bytes | SVG size | Layout bounds | Nodes/edges | Crossings | Bends | Route px | Area fill | Label fit | Label overlaps | Edge-label clearance | Aspect |
 |--------|--------------|---------|---------|----------:|----------|---------------|-------------|----------:|------:|---------:|----------:|----------:|---------------:|---------------------:|-------:|
-| Flowchart | [flowchart.svg](./visual-snapshots/flowchart.svg) | `39597f57f13f` | `ca194a9212de` | 9001 | 279.6835x434.582 | 280x435 | 4/4 | 0 | 0 | 533 | 15.5% | 100.0% | 0 | 89 | 0.64 |
+| Flowchart | [flowchart.svg](./visual-snapshots/flowchart.svg) | `c7309bf2da77` | `15045f285709` | 8930 | 279.6835x434.582 | 280x435 | 4/4 | 0 | 0 | 533 | 15.5% | 100.0% | 0 | 89 | 0.64 |
 | State diagram | [state.svg](./visual-snapshots/state.svg) | `1c4a472c8c2f` | `c2729a406f0e` | 7382 | 241.14266666666668x375.15000000000003 | 241x375 | 5/5 | 0 | 6 | 628 | 11.3% | 100.0% | 0 | n/a | 0.64 |
 | Sequence diagram | [sequence.svg](./visual-snapshots/sequence.svg) | `d4c56a07b76b` | `725fe413d753` | 7207 | 420x280 | 420x280 | 3/4 | 0 | 0 | 560 | 8.2% | 100.0% | 0 | 171 | 1.50 |
 | Class diagram | [class.svg](./visual-snapshots/class.svg) | `61e6b7f26fa9` | `1e617c4a61a0` | 4047 | 360x237.8 | 360x238 | 3/2 | 0 | 2 | 240 | 20.6% | 100.0% | 0 | n/a | 1.51 |
@@ -23,7 +23,7 @@ gates: `src/__tests__/contact-sheet.test.ts`,
 | XY chart | [xychart.svg](./visual-snapshots/xychart.svg) | `89848b33b2fb` | `b003ddcb84b9` | 15398 | 700x500 | 700x500 | 6/0 | 0 | 0 | 0 | 37.6% | 50.0% | 0 | n/a | 1.40 |
 | Pie chart | [pie.svg](./visual-snapshots/pie.svg) | `0f86fa0f0d48` | `6fb477a893ab` | 10770 | 368.79x276 | 369x276 | 3/0 | 0 | 0 | 0 | 4.1% | 100.0% | 0 | n/a | 1.34 |
 | Quadrant chart | [quadrant.svg](./visual-snapshots/quadrant.svg) | `17b8c9f88ad9` | `65e95a1c90d2` | 9396 | 456x492 | 456x492 | 2/0 | 0 | 0 | 0 | 0.1% | 100.0% | 0 | n/a | 0.93 |
-| Architecture diagram | [architecture.svg](./visual-snapshots/architecture.svg) | `4da7dcb9f3f0` | `0ca57591262d` | 1376 | 414x188 | 414x188 | 2/1 | 0 | 0 | 78 | 14.8% | 100.0% | 0 | n/a | 2.20 |
+| Architecture diagram | [architecture.svg](./visual-snapshots/architecture.svg) | `4241bc600b6e` | `5512686b7606` | 4266 | 414x188 | 414x188 | 2/1 | 0 | 0 | 78 | 14.8% | 100.0% | 0 | n/a | 2.20 |
 
 ## Sources
 

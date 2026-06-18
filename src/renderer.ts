@@ -1,7 +1,7 @@
 import type { PositionedGraph, PositionedNode, PositionedEdge, PositionedGroup, Point, EdgeMarker, RenderOptions } from './types.ts'
 import type { DiagramColors } from './theme.ts'
 import { svgOpenTag, buildStyleBlock, buildShadowDefs } from './theme.ts'
-import { STROKE_WIDTHS, ARROW_HEAD, resolveRenderStyle } from './styles.ts'
+import { STROKE_WIDTHS, ARROW_HEAD, FLOWCHART_DOTTED_DASH, resolveRenderStyle } from './styles.ts'
 import type { ResolvedRenderStyle } from './styles.ts'
 import { measureMultilineText } from './text-metrics.ts'
 import { renderMultilineText, renderMultilineTextWithBackground, escapeXml } from './multiline-utils.ts'
@@ -254,7 +254,7 @@ function renderEdge(edge: PositionedEdge, style: ResolvedRenderStyle): string {
   if (edge.style === 'invisible') return ''
 
   const pathData = style.edgeBendRadius > 0 ? pointsToPathD(edge.points, style.edgeBendRadius) : pointsToPolylinePath(edge.points)
-  const dashArray = edge.style === 'dotted' ? ' stroke-dasharray="4 4"' : ''
+  const dashArray = edge.style === 'dotted' ? ` stroke-dasharray="${FLOWCHART_DOTTED_DASH.dash} ${FLOWCHART_DOTTED_DASH.gap}"` : ''
   const baseStrokeWidth = edge.style === 'thick' ? style.lineWidth * 2 : style.lineWidth
   const strokeColor = escapeAttr(edge.inlineStyle?.stroke ?? 'var(--_line)')
   const strokeWidth = escapeAttr(edge.inlineStyle?.['stroke-width'] ?? String(baseStrokeWidth))
@@ -443,9 +443,15 @@ function renderEdgeLabel(edge: PositionedEdge, font: string, style: ResolvedRend
   const mid = edge.labelPosition ?? edgeMidpoint(edge.points)
   const label = edge.label!
   const padding = 8
+  const strokeWidth = edge.style === 'thick' ? style.lineWidth * 2 : style.lineWidth
+  const haloPadding = padding + Math.max(4, strokeWidth * 2)
 
   // Measure text (works for both single and multi-line)
   const metrics = measureMultilineText(label, style.edgeLabelFontSize, style.edgeLabelFontWeight)
+  const haloWidth = metrics.width + haloPadding * 2
+  const haloHeight = metrics.height + haloPadding * 2
+  const halo = `<rect class="edge-label-halo" x="${mid.x - haloWidth / 2}" y="${mid.y - haloHeight / 2}" ` +
+    `width="${haloWidth}" height="${haloHeight}" rx="4" ry="4" fill="var(--bg)" stroke="none" />`
 
   // Wrap in <g class="edge-label"> with reference to the edge it belongs to
   const content = renderMultilineTextWithBackground(
@@ -465,6 +471,7 @@ function renderEdgeLabel(edge: PositionedEdge, font: string, style: ResolvedRend
   // Semantic wrapper: links label to its edge via data-from/data-to
   return (
     `<g class="edge-label" data-from="${escapeAttr(edge.source)}" data-to="${escapeAttr(edge.target)}" data-label="${escapeAttr(label)}">\n` +
+    `  ${halo}\n` +
     `  ${content.replace(/\n/g, '\n  ')}\n` +
     `</g>`
   )

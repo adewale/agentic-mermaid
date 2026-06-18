@@ -343,11 +343,10 @@ export function renderMermaidSVG(
       const archOptions = archVisual.padding != null ? { ...options, padding: options.padding ?? archVisual.padding } : options
       const diagram = parseArchitectureDiagram(lines)
       const positioned = layoutArchitectureDiagram(diagram, archOptions, archVisual.visual)
-      // Architecture renderer already inlines its own variables; apply compact
-      // post-processing on the way out so the --compact flag is honored.
       const rawArch = renderArchitectureSvg(positioned, colors, font, transparent, archVisual.visual)
-      const out = finalizeSvg(rawArch)
-      return compact ? compactSvg(out) : out
+      // Architecture carries accessibility through its parser/renderer, so only
+      // run the shared color/id/security post-pass here.
+      return resolve(rawArch, colors, false)
     }
     case 'sequence': {
       const diagram = parseSequenceDiagram(lines)

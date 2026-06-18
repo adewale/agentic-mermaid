@@ -114,4 +114,22 @@ config:
     expect(svg).toContain('API &amp; &lt;Gateway&gt;')
     expect(svg).toContain('reads &lt;records&gt;')
   })
+
+  it('runs architecture output through shared compact and id-prefix post-processing', () => {
+    const source = `architecture-beta
+      service api(server)[API]
+      service db(database)[DB]
+      api:R --> L:db`
+    const plain = renderMermaidSVG(source, { embedFontImport: false })
+    const compact = renderMermaidSVG(source, {
+      compact: true,
+      embedFontImport: false,
+      idPrefix: 'arch-fixture-',
+    })
+
+    expect(compact.length).toBeLessThan(plain.length)
+    expect(compact).toContain('id="arch-fixture-architecture-arrow-end"')
+    expect(compact).toContain('marker-end="url(#arch-fixture-architecture-arrow-end)"')
+    expect(compact).not.toContain('marker-end="url(#architecture-arrow-end)"')
+  })
 })

@@ -22,6 +22,31 @@ approval layer for reviewable layout drift:
 
 No implementation code was changed to produce any of this.
 
+## Visual testing rule
+
+Snapshots and contact sheets are approval evidence, not the whole oracle. When a
+bug report says something **looks** wrong, add at least one executable visual
+contract that would fail before updating any golden file. Pick the cheapest
+contract that observes the thing users actually see:
+
+| Visual risk | Preferred contract | Examples |
+|-------------|--------------------|----------|
+| Route geometry, ports, label lanes, overlaps | Geometry/rubric invariant over positioned layout | `route-contracts*.test.ts`, `layout-rubric.test.ts`, `contact-sheet.test.ts` hard metrics |
+| Effective color, stroke thickness, blank/collapsed render, visible endpoint glyphs | Raster invariant with `@resvg/resvg-js` pixels | `visual-rendering-contracts.test.ts`, `helpers/raster.ts` |
+| ASCII/Unicode line style or marker placement | Row/region assertion on the rendered character grid | `ascii-edge-styles.test.ts` connector-row contracts |
+| Broad family drift that needs human judgement | Golden/snapshot/contact sheet after an invariant already guards the principle | `visual-quality.md`, `visual-snapshots/*.svg`, PR screenshots |
+| Parser, escaping, config, IDs, public API shape | Structural/string assertion | Parser/security/integration tests |
+
+The red-green loop for visual work is:
+
+1. Reproduce the bad rendering with the smallest diagram that shows the fault.
+2. Encode the visual principle as geometry, raster, or row-level evidence.
+3. Prove the test is sensitive: where practical, simulate the old behaviour or
+   run a temporary source-level sabotage before trusting the green run.
+4. Fix the implementation.
+5. Regenerate approval artifacts only after the invariant test passes and the
+   visual diff has been reviewed.
+
 ## Relationship to PR 30
 
 PR 30 changed the right baseline for layout characterisation. It introduced the

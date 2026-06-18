@@ -95,6 +95,12 @@ export const ARROW_HEAD = {
   height: 5,
 } as const
 
+/** Flowchart dotted-edge stroke pattern; renderer emits stroke-dasharray="4 4". */
+export const FLOWCHART_DOTTED_DASH = {
+  dash: 4,
+  gap: 4,
+} as const
+
 // ============================================================================
 // Render style option resolution
 // ============================================================================
@@ -254,4 +260,3 @@ export function resolveRenderStyle(
     groupLineWidth: positiveNumber(defaults.groupLineWidth ?? STROKE_WIDTHS.outerBox, group?.lineWidth),
   }
 }
-
