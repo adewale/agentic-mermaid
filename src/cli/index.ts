@@ -19,7 +19,7 @@ import type {
   FlowchartMutationOp, StateMutationOp, SequenceMutationOp, TimelineMutationOp, ClassMutationOp, ErMutationOp, JourneyMutationOp, ArchitectureMutationOp, XyChartMutationOp, PieMutationOp, QuadrantMutationOp, GanttMutationOp, AnyMutationOp,
   MutationError, Result, MutableValidDiagram,
 } from '../agent/types.ts'
-import { WARNING_SEVERITY, WARNING_TIER } from '../agent/types.ts'
+import { WARNING_SEVERITY, WARNING_TIER, rankWarnings } from '../agent/types.ts'
 import { BUILTIN_FAMILY_METADATA, knownFamilies, getFamily } from '../agent/families.ts'
 import type { BuiltinFamilyId } from '../agent/families.ts'
 import '../agent/families-builtin.ts'
@@ -382,7 +382,11 @@ function cmdVerify(args: ParsedArgs): number {
   const suppress = suppressRaw ? (suppressRaw.split(',').map(s => s.trim()).filter(Boolean) as WarningCode[]) : undefined
   const labelCharCap = typeof args.flags['label-cap'] === 'string' ? parseInt(args.flags['label-cap'], 10) : undefined
   const r = verifyMermaid(source, { suppress, labelCharCap })
-  process.stdout.write(JSON.stringify(r, replacer) + '\n')
+  // Move 6: surface a severity-ranked view (Tier 1 structural → Tier 2 geometric
+  // → Tier 3 lint; errors before warnings) so the most-important issue is read
+  // first, instead of in detection order. `warnings` stays as-is for back-compat.
+  const envelope = { ...r, ranked: rankWarnings(r.warnings) }
+  process.stdout.write(JSON.stringify(envelope, replacer) + '\n')
   return r.ok ? EXIT_OK : EXIT_VERIFY_FAILED
 }
 

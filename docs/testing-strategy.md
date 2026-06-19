@@ -155,9 +155,12 @@ Tests can be green and still worthless. Two gates test the tests:
   reverts a fixed bug in a detached worktree and asserts the suite goes
   **red**, proving the regression test actually bites.
 
-**Runs:** **nightly**, not per-PR (`nightly-route-mutation.yml`). A full
-module takes 5–15 minutes, so the broad lanes are intentionally off the PR
-gate.
+**Runs:** the broad route/ascii lanes run **nightly**
+(`nightly-route-mutation.yml`) — a full module takes 5–15 minutes. A **fast
+incremental lane** (`stryker.incremental.config.json`, the `mutation-incremental`
+CI job) mutates only the small pure faithfulness counter
+(`src/agent/structural-count.ts`) with a sub-second unit runner, so it gates
+**per-PR** (~1 min, measured 92% kill / break-threshold 80).
 **Why this matters:** line coverage is reported per-PR but is a weak
 adequacy signal — coverage is not strongly correlated with fault detection
 once suite size is controlled (Inozemtseva & Holmes, ICSE 2014), whereas
@@ -234,7 +237,8 @@ real judge run can.
 | `measureQuality`/`checkQuality`, ugly-detector, layout rubric, heuristic-tracker ratchet | ✅ | | |
 | Browser/screenshot e2e, CLI/security e2e, single-binary e2e | ✅ (`e2e` job) | | |
 | Type check, README hero check | ✅ | | |
-| Mutation lanes (Stryker) + sabotage | | ✅ | on touch |
+| Mutation: incremental lane (structural-count core) | ✅ (`mutation-incremental` job) | | |
+| Mutation: broad route/ascii lanes + sabotage | | ✅ | on touch |
 | layout-compare before/after | | | ✅ |
 | Benchmark (timing/size vs competitors) | harness only | | ✅ |
 | LLM-as-judge (real model) | mock only (faithfulness axis independent) | | ✅ |
@@ -265,9 +269,10 @@ gates rather than adding new machinery:
    admittedly rough. The CI LLM mock's readability/aesthetics axes remain
    metric-derived (only its faithfulness axis is now independent), so it
    cannot validate those metrics — only a real periodic judge run can.
-2. Mutation and sabotage — the truest adequacy signals — still run nightly.
-   Line coverage is no longer the per-PR headline (it is framed as a finder),
-   but no fast mutation lane gates per-PR yet.
+2. The *broad* mutation lanes and sabotage still run nightly; a fast
+   incremental lane now gates the faithfulness counter per-PR, but most core
+   modules' adequacy is still only measured nightly. Line coverage is no
+   longer the per-PR headline (it is framed as a finder).
 3. The benchmark is not on the PR gate (timing variance). Browser/screenshot
    e2e and the heuristic-tracker ratchet now are.
 4. Determinism is proven Bun↔Node on one architecture; cross-architecture

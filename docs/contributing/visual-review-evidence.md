@@ -21,6 +21,22 @@ not hand-edited screenshots. Use the smallest artifact that matches the change.
 - `eval/layout-compare` compares before/after layout faithfulness and quality over a corpus. “0 regressions” means no configured metric/faithfulness regression, not a claim of pixel parity with Mermaid.js.
 - Browser screenshots prove the shipped site/editor still renders and remains usable. Pixel-diff is only active when dependencies are available, so reviewer inspection still matters.
 
+## Golden-snapshot drift gate (`[approve-goldens]`)
+
+Committed goldens under `src/__tests__/testdata/` are a **hard CI gate**, not an
+ignorable warning. The `ci.yml` "Golden snapshot drift" step fails the build if:
+
+- running the suite leaves **uncommitted** changes under `testdata/` (regenerate
+  and commit them), or
+- the PR's HEAD commit **modifies** committed goldens **without** the reviewed
+  token `[approve-goldens]` in the commit message.
+
+So when a renderer change legitimately moves goldens: regenerate them, **review
+the diff** (this is the human decision the gate enforces), commit the result,
+and put `[approve-goldens]` in that commit's message. A stray `[approve-goldens]`
+on a commit that changes no goldens also fails, to keep the token meaningful. The
+PR template restates this as a checklist item.
+
 ## Reviewer checklist
 
 1. Does the PR say which visual command was run?

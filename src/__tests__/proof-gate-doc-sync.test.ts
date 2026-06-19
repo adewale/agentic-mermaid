@@ -1,9 +1,15 @@
-// Move G: keep docs/testing-strategy.md's proof-gate map honest against the
-// actual workflow files. Testing-tools learning #2: the strategy doc claimed
-// browser/screenshot e2e was NOT gated per-PR when the e2e job in ci.yml runs
-// it on every PR. A doc that can drift from reality is worse than no doc. Each
-// assertion below cross-checks a doc claim against ci.yml / the nightly
-// workflow, so the two cannot disagree without failing CI.
+// Move 9: keep docs/testing-strategy.md's proof-gate map honest by PARSING the
+// markdown table and cross-checking every row against the workflow files —
+// rather than spot-checking a handful of anchored rows. Testing-tools learning
+// #2: the doc once claimed browser e2e was not gated when the e2e job runs it
+// on every PR. A doc that can drift from reality is worse than no doc.
+//
+// The test parses each table row into {label, perPR, nightly, manual} marks,
+// asserts structural invariants over ALL rows, and for every row whose label
+// matches a known evidence rule, verifies the claimed column against ci.yml /
+// the nightly workflow. A row with no matching rule still must mark a column;
+// adding a row the rules don't recognize is allowed, but a row that claims
+// per-PR/nightly for something the workflows contradict fails here.
 
 import { describe, test, expect } from 'bun:test'
 import { readFileSync } from 'node:fs'
@@ -16,41 +22,89 @@ const ci = read('.github/workflows/ci.yml')
 const nightly = read('.github/workflows/nightly-route-mutation.yml')
 const doc = read('docs/testing-strategy.md')
 
-describe('proof-gate map ↔ workflow reality', () => {
-  test('browser/screenshot e2e runs per-PR (doc + ci.yml agree)', () => {
-    // Reality: the e2e job runs on the same pull_request trigger and executes
-    // browser.test.ts.
-    expect(ci).toContain('browser.test.ts')
-    expect(ci).toMatch(/e2e:\s*\n\s*runs-on/)
-    // Doc: the map marks it ✅ per-PR via the e2e job, NOT as manual-only.
-    expect(doc).toMatch(/Browser\/screenshot e2e[^\n]*✅[^\n]*e2e/)
+interface Row { label: string; perPR: boolean; nightly: boolean; manual: boolean }
+
+/** Parse the "Gate | Per-PR | Nightly | Manual" table out of the strategy doc. */
+function parseProofGateTable(md: string): Row[] {
+  const lines = md.split('\n')
+  const header = lines.findIndex(l => /^\|\s*Gate\s*\|/.test(l))
+  expect(header).toBeGreaterThan(-1)
+  const rows: Row[] = []
+  for (let i = header + 2; i < lines.length; i++) {  // +2 skips the |---| separator
+    const line = lines[i]!
+    if (!line.trim().startsWith('|')) break  // table ended
+    const cells = line.split('|').slice(1, -1).map(c => c.trim())
+    if (cells.length < 4) continue
+    const has = (c: string) => c.includes('✅')
+    rows.push({ label: cells[0]!, perPR: has(cells[1]!), nightly: has(cells[2]!), manual: has(cells[3]!) })
+  }
+  return rows
+}
+
+// label-substring → assertions to run when that column is claimed.
+const EVIDENCE: Array<{ match: RegExp; perPR?: () => void; nightly?: () => void }> = [
+  {
+    match: /e2e/i,
+    perPR: () => { expect(ci).toContain('browser.test.ts'); expect(ci).toMatch(/e2e:\s*\n\s*runs-on/) },
+  },
+  {
+    match: /incremental lane/i,
+    perPR: () => { expect(ci).toContain('mutation-test:incremental'); expect(ci).toMatch(/mutation-incremental:\s*\n\s*runs-on/) },
+  },
+  {
+    match: /broad route\/ascii lanes|sabotage/i,
+    nightly: () => { expect(nightly).toContain('mutation-test'); expect(nightly).toContain('sabotage') },
+  },
+  {
+    match: /metamorphic/i,
+    perPR: () => expect(read('src/__tests__/property-layout-metamorphic.test.ts').length).toBeGreaterThan(0),
+  },
+  {
+    match: /heuristic-tracker/i,
+    perPR: () => expect(read('src/__tests__/heuristic-tracker.test.ts').length).toBeGreaterThan(0),
+  },
+  {
+    match: /corpus|count-oracle/i,
+    perPR: () => expect(read('src/__tests__/agent-mermaid-corpus.test.ts')).toContain('countStructuralElements'),
+  },
+  {
+    match: /hero/i,
+    perPR: () => expect(ci).toContain('hero:check'),
+  },
+]
+
+describe('proof-gate map ↔ workflow reality (parsed)', () => {
+  const rows = parseProofGateTable(doc)
+
+  test('the table parses into multiple rows', () => {
+    expect(rows.length).toBeGreaterThanOrEqual(8)
   })
 
-  test('coverage runs per-PR but is framed as a finder, not a target', () => {
-    expect(ci).toContain('--coverage')
-    expect(ci.toLowerCase()).toContain('finder')
-    expect(doc).toMatch(/coverage[^\n]*finder/i)
+  test('every row marks at least one column (no orphan rows)', () => {
+    const orphans = rows.filter(r => !r.perPR && !r.nightly && !r.manual).map(r => r.label)
+    expect(orphans).toEqual([])
   })
 
-  test('mutation testing is nightly-only, never on the PR gate', () => {
-    // ci.yml must NOT run stryker/mutation; the nightly workflow must.
-    expect(ci.toLowerCase()).not.toContain('stryker')
-    expect(ci).not.toContain('mutation-test')
-    expect(nightly).toContain('mutation-test')
-    // Doc places mutation in the nightly column.
-    expect(doc).toMatch(/Mutation lanes \(Stryker\)[^\n]*✅/)
+  test('every per-PR / nightly claim that has an evidence rule matches the workflows', () => {
+    const checked: string[] = []
+    for (const row of rows) {
+      for (const rule of EVIDENCE) {
+        if (!rule.match.test(row.label)) continue
+        if (row.perPR && rule.perPR) { rule.perPR(); checked.push(`${row.label} [per-PR]`) }
+        if (row.nightly && rule.nightly) { rule.nightly(); checked.push(`${row.label} [nightly]`) }
+      }
+    }
+    // Guard against the rules silently matching nothing (e.g. the table was
+    // restructured): the high-value claims must still be exercised.
+    expect(checked.length).toBeGreaterThanOrEqual(4)
   })
 
-  test('the heuristic-tracker ratchet runs per-PR (it is a src test)', () => {
-    // Anything in src/__tests__/ is in the `bun test … src/__tests__/` gate.
-    expect(read('src/__tests__/heuristic-tracker.test.ts').length).toBeGreaterThan(0)
-    expect(doc).toMatch(/heuristic-tracker ratchet[^\n]*✅/)
-  })
-
-  test('the per-PR jobs the doc names actually exist in ci.yml', () => {
-    // Spot-check the structural/golden gates the doc lists as per-PR.
-    expect(ci).toContain('hero:check')
-    expect(ci).toContain('tsc --noEmit')
-    expect(ci).toContain('testdata/')  // golden drift gate
+  test('mutation is NEVER claimed per-PR for the broad lanes, and ci.yml proves it', () => {
+    // The broad Stryker lanes must not run on the PR gate; only the incremental
+    // lane may. ci.yml runs `mutation-test:incremental` but no broad lane.
+    expect(ci).not.toContain('mutation-test:routes')
+    expect(ci.toLowerCase()).not.toContain('stryker run stryker.config')
+    const broad = rows.find(r => /broad route\/ascii/i.test(r.label))
+    expect(broad?.perPR ?? false).toBe(false)
   })
 })

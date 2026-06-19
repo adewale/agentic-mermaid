@@ -109,6 +109,7 @@
     "hero:check": "bun run scripts/site/hero.ts --check",
     "characterization:check": "bun run scripts/characterization/contact-sheet.ts --check && bun run scripts/characterization/contact-sheet-families.ts --check && bun run scripts/characterization/visual-quality.ts --check",
     "mutation-test": "npx stryker run",
+    "mutation-test:incremental": "npx stryker run stryker.incremental.config.json",
     "mutation-test:characterization": "npx stryker run stryker.characterization.config.json",
     "mutation-test:ascii": "npx stryker run stryker.ascii.config.json",
     "mutation-test:families": "npx stryker run stryker.families.config.json",
