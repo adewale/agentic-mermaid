@@ -19,7 +19,7 @@
 // which the round-trip-stability gate already covers).
 // ============================================================================
 
-import type { ValidDiagram, StateNode } from './types.ts'
+import type { ValidDiagram, StateNode, LayoutWarning } from './types.ts'
 
 export interface StructuralCount {
   /** Primary entities: nodes, participants, states, classes, entities, slices… */
@@ -106,4 +106,25 @@ export function countStructuralElements(d: ValidDiagram): StructuralCount | null
 
 export function countsEqual(a: StructuralCount, b: StructuralCount): boolean {
   return a.nodes === b.nodes && a.edges === b.edges && a.groups === b.groups
+}
+
+/**
+ * Pure faithfulness verdict over the before/after counts of a round-trip
+ * (Move 3): the decision logic of the CONTENT_DROPPED_ON_ROUNDTRIP verify lint,
+ * separated from the parse/serialize I/O so it lives in the mutation-gated
+ * counter module and is directly unit-testable with constructed counts.
+ *
+ *   before = null  → opaque body, nothing to check (no warning).
+ *   after  = null  → the serialization did not re-parse: total loss.
+ *   counts differ  → a node/edge/group was dropped or duplicated.
+ *   counts equal    → faithful (no warning).
+ */
+export function faithfulnessWarning(
+  before: StructuralCount | null,
+  after: StructuralCount | null,
+): LayoutWarning[] {
+  if (!before) return []
+  if (!after) return [{ code: 'CONTENT_DROPPED_ON_ROUNDTRIP', before, after: { nodes: 0, edges: 0, groups: 0 } }]
+  if (!countsEqual(before, after)) return [{ code: 'CONTENT_DROPPED_ON_ROUNDTRIP', before, after }]
+  return []
 }

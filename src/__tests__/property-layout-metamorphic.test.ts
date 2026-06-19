@@ -27,6 +27,7 @@ import { parseMermaid, verifyMermaid, layoutMermaid, measureQuality } from '../a
 import { countStructuralElements, type StructuralCount } from '../agent/structural-count.ts'
 import { BUILTIN_FAMILY_METADATA } from '../agent/families.ts'
 import { METAMORPHIC_FAMILIES } from './helpers/metamorphic-families.ts'
+import { FAMILY_COUNT_FIXTURES } from './helpers/family-count-fixtures.ts'
 
 /** Parse + structural count, asserting the source is well-formed and structured. */
 function counts(source: string): StructuralCount {
@@ -63,6 +64,29 @@ describe('metamorphic: relations across all renderable families', () => {
     expect(covered).toEqual(registered)
     // And each generator is self-consistent: its declared family matches its key.
     for (const [key, gen] of Object.entries(METAMORPHIC_FAMILIES)) expect(gen.family as string).toBe(key)
+  })
+
+  // Move 5: the shared count fixture and the metamorphic registry must agree on
+  // the family set (both derive from the central registry), so a new family
+  // cannot be half-covered.
+  test('the shared count fixture covers exactly the registered families', () => {
+    const fixtureFamilies = new Set(FAMILY_COUNT_FIXTURES.map(f => f.family))
+    const registered = new Set(BUILTIN_FAMILY_METADATA.map(f => f.id))
+    expect([...fixtureFamilies].sort()).toEqual([...registered].sort())
+  })
+
+  // Move 4: a pinned (non-property) smoke that each generator's base build
+  // VERIFIES clean for a fixed seed — not just parses structured. Catches a
+  // generator that emits parseable-but-warning source.
+  test('every generator base build verifies clean at a fixed seed', () => {
+    const failures: Array<{ family: string; warnings: unknown }> = []
+    for (const fam of Object.values(METAMORPHIC_FAMILIES)) {
+      const p = parseMermaid(fam.build(fam.kRange[0], 'qseed'))
+      if (!p.ok) { failures.push({ family: fam.family, warnings: 'PARSE_FAIL' }); continue }
+      const v = verifyMermaid(p.value)
+      if (!v.ok) failures.push({ family: fam.family, warnings: v.warnings })
+    }
+    expect(failures).toEqual([])
   })
 
   for (const fam of Object.values(METAMORPHIC_FAMILIES)) {

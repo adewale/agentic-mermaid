@@ -28,14 +28,17 @@ ignorable warning. The `ci.yml` "Golden snapshot drift" step fails the build if:
 
 - running the suite leaves **uncommitted** changes under `testdata/` (regenerate
   and commit them), or
-- the PR's HEAD commit **modifies** committed goldens **without** the reviewed
-  token `[approve-goldens]` in the commit message.
+- the PR's HEAD commit **modifies** committed goldens **without** an approval
+  line starting with `[approve-goldens]`.
 
 So when a renderer change legitimately moves goldens: regenerate them, **review
 the diff** (this is the human decision the gate enforces), commit the result,
-and put `[approve-goldens]` in that commit's message. A stray `[approve-goldens]`
-on a commit that changes no goldens also fails, to keep the token meaningful. The
-PR template restates this as a checklist item.
+and **start a commit-message line** with `[approve-goldens]`. The token only
+counts at the start of a line — merely mentioning it mid-sentence (as this doc
+does) is not approval, so prose about the gate can't trip it. A standalone
+`[approve-goldens]` line on a commit that changes no goldens also fails, to keep
+the token meaningful. The gate logic lives in `scripts/ci/golden-drift.ts` and is
+unit-tested; the PR template restates it as a checklist item.
 
 ## Reviewer checklist
 

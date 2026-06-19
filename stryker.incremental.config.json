@@ -2,12 +2,13 @@
   "$schema": "https://raw.githubusercontent.com/stryker-mutator/stryker/master/packages/core/schema/stryker-core.schema.json",
   "_comment": "Fast per-PR mutation lane. Scoped to the small, pure faithfulness + quality core so a full run is quick enough to gate every PR (the broad route/ascii lanes stay nightly). Run with `--since <base-ref>` to mutate only files changed in the PR; without it, the whole (small) set runs. Gates via thresholds.break — a survived mutant here is a real test gap in the highest-leverage new logic.",
   "mutate": [
-    "src/agent/structural-count.ts"
+    "src/agent/structural-count.ts",
+    "src/agent/types.ts:890-897"
   ],
   "ignorePatterns": ["/site/**", "/dist/**", "/coverage/**", "/index.html", "/editor.html", "/.stryker-tmp-*/**"],
   "testRunner": "command",
   "commandRunner": {
-    "command": "bun test src/__tests__/structural-count.test.ts"
+    "command": "bun test src/__tests__/structural-count.test.ts src/__tests__/rank-warnings.test.ts"
   },
   "reporters": ["clear-text", "progress", "json"],
   "jsonReporter": {
@@ -17,6 +18,6 @@
   "concurrency": 4,
   "tempDirName": ".stryker-tmp-incremental",
   "disableTypeChecks": true,
-  "_thresholds_note": "Measured 92.21% (71/77 killed) on the structural-count core; break=80 leaves headroom for the ~6 equivalent mutants while still failing a real regression.",
+  "_thresholds_note": "Measured 92.59% (100/108 killed) over the structural-count core + faithfulnessWarning + rankWarnings; break=80 leaves headroom for the ~8 equivalent mutants while still failing a real regression. CI runs with `--since <base>` so only files changed in the PR are mutated.",
   "thresholds": { "high": 95, "low": 85, "break": 80 }
 }

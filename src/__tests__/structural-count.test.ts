@@ -8,7 +8,8 @@
 
 import { describe, test, expect } from 'bun:test'
 import { parseMermaid } from '../agent/index.ts'
-import { countStructuralElements, countsEqual, type StructuralCount } from '../agent/structural-count.ts'
+import { countStructuralElements, countsEqual, faithfulnessWarning, type StructuralCount } from '../agent/structural-count.ts'
+import { FAMILY_COUNT_FIXTURES } from './helpers/family-count-fixtures.ts'
 
 function count(src: string): StructuralCount {
   const p = parseMermaid(src)
@@ -20,24 +21,9 @@ function count(src: string): StructuralCount {
 }
 
 describe('countStructuralElements — exact projection per family', () => {
-  const cases: Array<[string, string, StructuralCount]> = [
-    ['flowchart', 'flowchart TD\n  A-->B\n  B-->C', { nodes: 3, edges: 2, groups: 0 }],
-    ['flowchart+subgraph', 'flowchart TD\n  subgraph G\n    A-->B\n  end\n  B-->C', { nodes: 3, edges: 2, groups: 1 }],
-    ['sequence', 'sequenceDiagram\n  participant A\n  participant B\n  A->>B: m', { nodes: 2, edges: 1, groups: 0 }],
-    ['state', 'stateDiagram-v2\n  s0-->s1\n  s1-->s2', { nodes: 3, edges: 2, groups: 0 }],
-    ['class', 'classDiagram\n  class A\n  class B\n  A-->B', { nodes: 2, edges: 1, groups: 0 }],
-    ['er', 'erDiagram\n  A ||--o{ B : r\n  B ||--o{ C : r', { nodes: 3, edges: 2, groups: 0 }],
-    ['pie', 'pie title P\n  "X" : 1\n  "Y" : 2\n  "Z" : 3', { nodes: 3, edges: 0, groups: 0 }],
-    ['quadrant', 'quadrantChart\n  x-axis Low --> High\n  y-axis Bad --> Good\n  A: [0.3, 0.6]\n  B: [0.7, 0.2]', { nodes: 2, edges: 0, groups: 0 }],
-    ['journey', 'journey\n  title J\n  section S\n    T0: 5: Me\n    T1: 3: Me', { nodes: 2, edges: 0, groups: 1 }],
-    ['timeline', 'timeline\n  title T\n  2020 : E0\n  2021 : E1', { nodes: 4, edges: 0, groups: 1 }],
-    ['gantt', 'gantt\n  title G\n  dateFormat YYYY-MM-DD\n  section S\n  T0 : a, 2020-01-01, 1d\n  T1 : b, 2020-01-02, 1d', { nodes: 2, edges: 0, groups: 1 }],
-    ['xychart', 'xychart-beta\n  x-axis [a, b, c]\n  y-axis 0 --> 100\n  bar [1, 2, 3]\n  line [3, 2, 1]', { nodes: 2, edges: 0, groups: 0 }],
-    ['architecture', 'architecture-beta\n  group g(cloud)[G]\n  service a(server)[A] in g\n  service b(disk)[B] in g\n  a:R -- L:b', { nodes: 2, edges: 1, groups: 1 }],
-  ]
-  for (const [name, src, expected] of cases) {
-    test(`${name} ⇒ ${JSON.stringify(expected)}`, () => {
-      expect(count(src)).toEqual(expected)
+  for (const { family, source, count: expected } of FAMILY_COUNT_FIXTURES) {
+    test(`${family} ${JSON.stringify(expected)} — ${source.split('\n')[0]}`, () => {
+      expect(count(source)).toEqual(expected)
     })
   }
 
@@ -59,5 +45,35 @@ describe('countStructuralElements — exact projection per family', () => {
     expect(countsEqual({ nodes: 1, edges: 2, groups: 3 }, { nodes: 9, edges: 2, groups: 3 })).toBe(false)
     expect(countsEqual({ nodes: 1, edges: 2, groups: 3 }, { nodes: 1, edges: 9, groups: 3 })).toBe(false)
     expect(countsEqual({ nodes: 1, edges: 2, groups: 3 }, { nodes: 1, edges: 2, groups: 9 })).toBe(false)
+  })
+})
+
+// Move 3: the pure faithfulness verdict (the logic of the
+// CONTENT_DROPPED_ON_ROUNDTRIP lint, now in the mutation-gated counter module).
+describe('faithfulnessWarning — the round-trip drop verdict', () => {
+  const C = (n: number, e: number, g: number): StructuralCount => ({ nodes: n, edges: e, groups: g })
+
+  test('opaque before (null) ⇒ no warning', () => {
+    expect(faithfulnessWarning(null, C(1, 1, 0))).toEqual([])
+    expect(faithfulnessWarning(null, null)).toEqual([])
+  })
+
+  test('equal counts ⇒ no warning', () => {
+    expect(faithfulnessWarning(C(3, 2, 1), C(3, 2, 1))).toEqual([])
+  })
+
+  test('null after (re-parse failed) ⇒ total-loss warning with zeroed after', () => {
+    const w = faithfulnessWarning(C(3, 2, 1), null)
+    expect(w).toHaveLength(1)
+    expect(w[0]!.code).toBe('CONTENT_DROPPED_ON_ROUNDTRIP')
+    expect((w[0] as { after: StructuralCount }).after).toEqual({ nodes: 0, edges: 0, groups: 0 })
+  })
+
+  test('a drop on ANY axis ⇒ warning carrying before + after', () => {
+    for (const after of [C(2, 2, 1), C(3, 1, 1), C(3, 2, 0), C(4, 2, 1)]) {
+      const w = faithfulnessWarning(C(3, 2, 1), after)
+      expect(w).toHaveLength(1)
+      expect((w[0] as { before: StructuralCount; after: StructuralCount })).toMatchObject({ before: { nodes: 3, edges: 2, groups: 1 }, after })
+    }
   })
 })

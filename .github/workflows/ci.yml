@@ -48,31 +48,13 @@ jobs:
         run: bun run hero:check
 
       - name: Golden snapshot drift is a hard gate (reviewed-token required)
-        # If running the suite regenerated any committed golden under testdata/,
-        # the change must be acknowledged: the diff has to be committed AND the
-        # HEAD commit message must carry the reviewed token [approve-goldens].
-        # A bare ::warning:: was ignorable (testing-tools learning #2: ignorable
-        # signals drift); this fails the build unless a human signed off.
-        run: |
-          drift="$(git diff --name-only -- src/__tests__/testdata/)"
-          if [ -n "$drift" ]; then
-            echo "::group::Uncommitted golden drift"
-            git diff --stat -- src/__tests__/testdata/
-            echo "::endgroup::"
-            echo "::error::Running the suite changed committed goldens under src/__tests__/testdata/ that were not committed. Re-generate, review, commit them, and put [approve-goldens] in the commit message."
-            exit 1
-          fi
-          if git log -1 --format=%B | grep -q '\[approve-goldens\]'; then
-            if git show --name-only --format= HEAD | grep -q 'src/__tests__/testdata/'; then
-              echo "::notice::Golden changes in this commit are explicitly approved via [approve-goldens]."
-            else
-              echo "::error::[approve-goldens] is present but HEAD changes no goldens under src/__tests__/testdata/. Remove the stray token."
-              exit 1
-            fi
-          elif git show --name-only --format= HEAD | grep -q 'src/__tests__/testdata/'; then
-            echo "::error::HEAD modifies committed goldens under src/__tests__/testdata/ without the reviewed token. Add [approve-goldens] to the commit message after reviewing the golden diff."
-            exit 1
-          fi
+        # The decision logic lives in scripts/ci/golden-drift.ts and is
+        # unit-tested (src/__tests__/golden-drift.test.ts) — a bare ::warning::
+        # was ignorable (testing-tools learning #2), and inline bash was
+        # untestable (learning: fold gate logic into tested code). The script
+        # fails the build unless golden movement is committed AND approved with
+        # [approve-goldens] in the commit message.
+        run: bun run scripts/ci/golden-drift.ts
 
   e2e:
     runs-on: ubuntu-latest
@@ -106,23 +88,36 @@ jobs:
       - name: Run browser E2E tests
         run: cd e2e && bun test browser.test.ts --timeout 600000
 
-  # Fast incremental mutation gate (Move 7). The broad route/ascii mutation
-  # lanes stay nightly (too slow to gate every PR); this lane mutates only the
-  # small, pure faithfulness counter (src/agent/structural-count.ts) with a
-  # sub-second unit-test runner, so a full run is ~1 min and gates per-PR via
-  # the config's thresholds.break. It is the adequacy signal that line coverage
-  # is not (Inozemtseva & Holmes; Just et al.) — see docs/testing-strategy.md.
+  # Fast incremental mutation gate. The broad route/ascii lanes stay nightly
+  # (too slow to gate every PR); this lane mutates the small, pure faithfulness/
+  # ranking core (structural-count.ts + faithfulnessWarning + rankWarnings) with
+  # a sub-second unit runner — measured ~92% kill in ~1 min, gated by
+  # thresholds.break=80. It is the adequacy signal that line coverage is not
+  # (Inozemtseva & Holmes; Just et al.) — see docs/testing-strategy.md.
+  #
+  # `--since` scopes mutation to files changed in the PR, so when none of the
+  # mutate-listed files changed the lane is a fast no-op; when more core files
+  # are added to the config's `mutate`, this same job covers them automatically.
   mutation-incremental:
     runs-on: ubuntu-latest
     needs: test
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
+        with:
+          # `--since` needs history + the base branch to diff against.
+          fetch-depth: 0
       - name: Setup Bun
         uses: oven-sh/setup-bun@v1
         with:
           bun-version: 1.3.13
       - name: Install dependencies
         run: bun install
-      - name: Incremental mutation lane (structural-count core)
-        run: bun run mutation-test:incremental
+      - name: Incremental mutation lane (faithfulness + ranking core)
+        # On a PR, diff against the base branch; on push to main, --since main is
+        # an empty diff, so the lane no-ops. fetch-depth:0 guarantees the ref
+        # exists, so no fallback is needed (and a real threshold break must fail).
+        run: |
+          BASE="origin/${{ github.base_ref || 'main' }}"
+          echo "Incremental mutation since $BASE"
+          npx stryker run stryker.incremental.config.json --since "$BASE"

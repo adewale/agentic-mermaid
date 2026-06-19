@@ -42,14 +42,23 @@ function parseProofGateTable(md: string): Row[] {
 }
 
 // label-substring → assertions to run when that column is claimed.
-const EVIDENCE: Array<{ match: RegExp; perPR?: () => void; nightly?: () => void }> = [
+const EVIDENCE: Array<{ match: RegExp; perPR?: () => void; nightly?: () => void; manual?: () => void }> = [
+  {
+    // Manual-only harnesses must NOT be invoked as a gating step in ci.yml.
+    match: /layout-compare/i,
+    manual: () => expect(ci).not.toContain('layout-compare/run.ts'),
+  },
+  {
+    match: /benchmark/i,
+    manual: () => { expect(ci).not.toContain('eval/benchmark'); expect(ci).not.toContain('sample-bench') },
+  },
   {
     match: /e2e/i,
     perPR: () => { expect(ci).toContain('browser.test.ts'); expect(ci).toMatch(/e2e:\s*\n\s*runs-on/) },
   },
   {
     match: /incremental lane/i,
-    perPR: () => { expect(ci).toContain('mutation-test:incremental'); expect(ci).toMatch(/mutation-incremental:\s*\n\s*runs-on/) },
+    perPR: () => { expect(ci).toContain('stryker.incremental.config.json'); expect(ci).toMatch(/mutation-incremental:\s*\n\s*runs-on/) },
   },
   {
     match: /broad route\/ascii lanes|sabotage/i,
@@ -85,18 +94,31 @@ describe('proof-gate map ↔ workflow reality (parsed)', () => {
     expect(orphans).toEqual([])
   })
 
-  test('every per-PR / nightly claim that has an evidence rule matches the workflows', () => {
+  test('every per-PR / nightly / manual claim with an evidence rule matches the workflows', () => {
     const checked: string[] = []
     for (const row of rows) {
       for (const rule of EVIDENCE) {
         if (!rule.match.test(row.label)) continue
         if (row.perPR && rule.perPR) { rule.perPR(); checked.push(`${row.label} [per-PR]`) }
         if (row.nightly && rule.nightly) { rule.nightly(); checked.push(`${row.label} [nightly]`) }
+        if (row.manual && rule.manual) { rule.manual(); checked.push(`${row.label} [manual]`) }
       }
     }
     // Guard against the rules silently matching nothing (e.g. the table was
     // restructured): the high-value claims must still be exercised.
-    expect(checked.length).toBeGreaterThanOrEqual(4)
+    expect(checked.length).toBeGreaterThanOrEqual(5)
+  })
+
+  test('manual-only rows are not secretly gated as per-PR CI steps', () => {
+    // A row marked ONLY manual must not be wired into ci.yml as a gate — that
+    // would make the "manual" claim a lie (the inverse of learning #2).
+    const manualOnly = rows.filter(r => r.manual && !r.perPR && !r.nightly)
+    expect(manualOnly.length).toBeGreaterThan(0)  // the table has manual rows
+    for (const row of manualOnly) {
+      for (const rule of EVIDENCE) {
+        if (rule.match.test(row.label) && rule.manual) rule.manual()
+      }
+    }
   })
 
   test('mutation is NEVER claimed per-PR for the broad lanes, and ci.yml proves it', () => {

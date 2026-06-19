@@ -12,8 +12,8 @@ The checklist below covers the two CI gates that need a human decision.
 - [ ] Tests pass locally (`bun test src/__tests__/`) and `bun x tsc --noEmit` is clean.
 - [ ] **Golden snapshots:** I did **not** change committed goldens under
       `src/__tests__/testdata/` **— OR —** I reviewed the golden diff, it is
-      intended, and **this PR's commit message contains the `[approve-goldens]`
-      token**. (CI hard-fails on unreviewed golden drift — see
+      intended, and **a commit-message line starts with `[approve-goldens]`**.
+      (CI hard-fails on unreviewed golden drift — see
       [docs/contributing/visual-review-evidence.md](../docs/contributing/visual-review-evidence.md).)
 - [ ] If I added a diagram family, it is wired into the central registries
       (`BUILTIN_FAMILY_METADATA`, metamorphic generators, baselines) per the

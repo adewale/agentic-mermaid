@@ -7,7 +7,7 @@
 
 import { parseMermaid as parseValidDiagram } from './parse.ts'
 import { serializeMermaid } from './serialize.ts'
-import { countStructuralElements, countsEqual } from './structural-count.ts'
+import { countStructuralElements, faithfulnessWarning } from './structural-count.ts'
 import { layoutGraphSync } from '../layout-engine.ts'
 import { parseMermaid as parseFlowchartLegacy } from '../parser.ts'
 import { auditRouteContracts, findRouteHitches } from '../route-contracts.ts'
@@ -62,22 +62,21 @@ function opaqueSourceHasOnlyHeader(kind: ValidDiagram['kind'], source: string): 
  * no structured arrays (their faithfulness is byte-verbatim) and are skipped.
  */
 function roundtripFaithfulnessWarnings(d: ValidDiagram): LayoutWarning[] {
+  // Thin I/O wrapper: do the parse → serialize → re-parse, then defer the
+  // verdict to the pure (mutation-gated, unit-tested) faithfulnessWarning.
   const before = countStructuralElements(d)
   if (!before) return []
   try {
     const reparsed = parseValidDiagram(serializeMermaid(d))
-    if (!reparsed.ok) {
-      return [{ code: 'CONTENT_DROPPED_ON_ROUNDTRIP', before, after: { nodes: 0, edges: 0, groups: 0 } }]
-    }
+    if (!reparsed.ok) return faithfulnessWarning(before, null)  // total loss
     const after = countStructuralElements(reparsed.value)
-    if (after && !countsEqual(before, after)) {
-      return [{ code: 'CONTENT_DROPPED_ON_ROUNDTRIP', before, after }]
-    }
+    if (!after) return []  // reparsed to an opaque body — the round-trip gate owns that
+    return faithfulnessWarning(before, after)
   } catch {
     // Serialization/parse threw — the round-trip-stability gate owns that
     // failure mode; don't double-report it as a faithfulness drop.
+    return []
   }
-  return []
 }
 
 export function verifyMermaid(input: ValidDiagram | string, opts: VerifyOptions = {}): VerifyResult {
