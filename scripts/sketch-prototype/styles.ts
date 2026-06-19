@@ -45,6 +45,10 @@ export interface Style {
   misregister?: number    // riso: duplicate strokes offset in a 2nd colour
   misColor?: string
   spotPalette?: string[]  // solid fill: pick a flat spot colour per region (seeded)
+  glowColor?: string      // offset drop-glow behind filled shapes (screenprint registration)
+  glowOffset?: number
+  labelHalo?: string      // override the text knockout colour (default: page bg)
+  labelInk?: string       // override the label ink (default: auto-contrast vs halo)
 }
 
 const BLUE = '#1f3a8a', BLACK = '#161616', SUMI = '#1c1c1c'
@@ -177,19 +181,18 @@ export const STYLES: Style[] = [
   },
   // ---- requested styles ----
   {
-    // ref: replicate.com/jakedahn/flux-latentpop — "vibrant backgrounds with
-    // grungy limited screenprinting color goodness". Flat limited spot-colour
-    // separations on a warm ground, heavy distress, registration offset.
+    // ref: replicate.com/jakedahn/flux-latentpop (+ supplied example images) —
+    // bold flat cartoon screenprint: VIVID ORANGE ground, deep-navy shapes with
+    // an ACID YELLOW-GREEN rim light, a CORAL offset glow behind, subtle grain.
     name: 'flux-latentpop', label: 'Flux LatentPop',
-    blurb: 'Limited-palette screenprint: flat spot-colour fills, worn grain, registration offset.',
-    colors: { bg: '#efe2c4', fg: '#241019', line: '#241019', accent: '#d1402e', muted: '#7c5c4a', surface: '#efe2c4', border: '#241019' },
+    blurb: 'Bold flat screenprint: vivid orange ground, navy shapes, acid-green rims, coral offset glow.',
+    colors: { bg: '#f4791f', fg: '#181425', line: '#181425', accent: '#c3e021', muted: '#9a5a23', surface: '#f4791f', border: '#c3e021' },
     font: 'DejaVu Sans', fontFile: '../../assets/fonts/DejaVuSans-Bold.ttf',
-    stroke: 'jittered', roughness: 0.9, passes: 1, strokeWidth: 3.0, linecap: 'round',
-    fill: 'solid', fillColor: '#2a7d8c', baseTone: 1, toneFromLuminance: false, keepHue: false, hachureAngle: 15,
-    spotPalette: ['#d1402e', '#2a7d8c', '#e4a93c', '#3f6c51'],
-    backdrop: 'rice', misregister: 2.4, misColor: '#d1402e',
-    defs: '<filter id="grunge" x="-12%" y="-12%" width="124%" height="124%"><feTurbulence type="fractalNoise" baseFrequency="0.014 0.02" numOctaves="3" seed="7" result="n"/><feDisplacementMap in="SourceGraphic" in2="n" scale="3.2"/></filter>',
-    strokeFilter: 'grunge', fillFilter: 'grunge',
+    stroke: 'jittered', roughness: 0.6, passes: 1, strokeWidth: 3.2, linecap: 'round',
+    fill: 'solid', fillColor: '#181425', baseTone: 1, toneFromLuminance: false, keepHue: false, hachureAngle: 15,
+    backdrop: 'rice',
+    glowColor: '#ef4d23', glowOffset: 6,
+    labelHalo: '#181425', labelInk: '#eaf6a0',
   },
   {
     // ref: makingsoftware.com (Dan Hollick) — WHITE ground, pure black ink,

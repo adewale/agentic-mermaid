@@ -30,11 +30,10 @@ let fails = 0
 console.log('style                  text(ink→effBg)  line→page   ink')
 console.log('─'.repeat(70))
 for (const st of STYLES) {
-  // Labels are always knocked out to the page colour by a paint-order halo
-  // (restyle.ts), so the effective background under text is the PAGE, not the
-  // fill. Check the chosen ink against the page.
-  const effBg = st.colors.bg
-  const ink = adjustToContrast(st.colors.fg, effBg, WCAG.textAA)
+  // Labels are knocked out to a halo colour (default page; a style may override
+  // it, e.g. a dark chip behind light text). Check ink vs that halo colour.
+  const effBg = st.labelHalo ?? st.colors.bg
+  const ink = st.labelInk ?? adjustToContrast(st.colors.fg, effBg, WCAG.textAA)
   const textR = contrastRatio(ink, effBg)
   const lineR = contrastRatio(st.colors.line, st.colors.bg)
   // Tufte deliberately uses faint rules; only flag non-text contrast elsewhere.

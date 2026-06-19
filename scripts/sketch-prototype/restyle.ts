@@ -127,8 +127,13 @@ function fillRegion(poly: Point[], fillSrc: string | undefined, st: Style, seed:
 function closedShape(poly: Point[], stroke: string | undefined, fill: string | undefined, st: Style, seed: number): string {
   if (stroke === 'none' && (!fill || fill === 'none')) return ''
   const sc = stroke && stroke !== 'none' ? stroke : st.colors.line
-  const fillStr = area(poly) >= MIN_FILL_AREA ? fillRegion(poly, fill, st, seed) : ''
-  return fillStr + (stroke === 'none' ? '' : strokeClosed(poly, sc, st, seed))
+  const big = area(poly) >= MIN_FILL_AREA
+  // Offset drop-glow behind the filled shape (screenprint registration look).
+  const glow = st.glowColor && big
+    ? `<path d="${poly.map((p, i) => `${i ? 'L' : 'M'}${r3(p.x + (st.glowOffset ?? 5))},${r3(p.y + (st.glowOffset ?? 5))}`).join(' ')} Z" fill="${st.glowColor}" stroke="none"/>`
+    : ''
+  const fillStr = big ? fillRegion(poly, fill, st, seed) : ''
+  return glow + fillStr + (stroke === 'none' ? '' : strokeClosed(poly, sc, st, seed))
 }
 
 export function restyle(svg: string, st: Style, opts: { backdrop?: boolean } = {}): string {
@@ -192,8 +197,11 @@ export function restyle(svg: string, st: Style, opts: { backdrop?: boolean } = {
   // (solid spot colour, dense hachure, dots…). The ink is then chosen to clear
   // 4.5:1 against the page — the surface the halo actually reveals — which makes
   // a single ink choice valid regardless of what's painted behind the glyph.
-  const ink = adjustToContrast(st.colors.fg, st.colors.bg, WCAG.textAA)
-  const halo = `paint-order:stroke;stroke:${st.colors.bg};stroke-width:3.4px;stroke-linejoin:round;`
+  // Halo colour defaults to the page; a style may override it (e.g. a dark
+  // "chip" behind light text). Ink defaults to auto-contrast against the halo.
+  const haloColor = st.labelHalo ?? st.colors.bg
+  const ink = st.labelInk ?? adjustToContrast(st.colors.fg, haloColor, WCAG.textAA)
+  const halo = `paint-order:stroke;stroke:${haloColor};stroke-width:3.4px;stroke-linejoin:round;`
   parts.push(`<style>text{font-family:'${st.font}',serif !important;fill:${ink} !important;${halo}} .edge-label-halo,.edge-label rect{fill:${st.colors.bg} !important;stroke:none !important;}</style>`)
   if (opts.backdrop !== false) parts.push(backdrop(st, w, h))
   parts.push(body, '</svg>')
