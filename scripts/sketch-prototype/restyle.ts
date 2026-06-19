@@ -90,9 +90,10 @@ function fillRegion(poly: Point[], fillSrc: string | undefined, st: Style, seed:
       return `<path d="${d}" stroke="${ink}" stroke-width="${st.strokeWidth * 0.7}" fill="none" opacity="${0.4 + 0.4 * tone}"${st.strokeFilter ? ` filter="url(#${st.strokeFilter})"` : ''}/>`
     }
     case 'stipple':
-      return `<path d="${stipple(poly, tone, rng, { density: 0.02 })}" fill="${ink}" stroke="none"/>`
+      // cap density so dots never bury the label text underneath
+      return `<path d="${stipple(poly, Math.min(tone, 0.5), rng, { density: 0.013 })}" fill="${ink}" stroke="none"/>`
     case 'halftone':
-      return `<path d="${halftone(poly, tone, 7, st.hachureAngle)}" fill="${ink}" stroke="none"/>`
+      return `<path d="${halftone(poly, Math.min(tone, 0.55), 8, st.hachureAngle)}" fill="${ink}" stroke="none"/>`
     case 'wash':
       return watercolorWash(poly, rng, ink, { opacity: st.name === 'watercolor' ? 0.26 : 0.12 + 0.5 * tone, edge: st.name === 'watercolor' ? 0.3 : 0.18 })
     default: return ''

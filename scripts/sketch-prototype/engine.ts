@@ -191,7 +191,7 @@ export function halftone(poly: Point[], tone: number, gap: number, angleDeg = 30
   const t = clamp01(tone)
   const bb = bbox(poly)
   const ang = (angleDeg * Math.PI) / 180, c = Math.cos(ang), s = Math.sin(ang)
-  const rMax = gap * 0.62
+  const rMax = gap * 0.5
   const out: string[] = []
   for (let gy = bb.minY - gap; gy < bb.maxY + gap; gy += gap) {
     for (let gx = bb.minX - gap; gx < bb.maxX + gap; gx += gap) {

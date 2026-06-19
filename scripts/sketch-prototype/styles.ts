@@ -63,7 +63,7 @@ export const STYLES: Style[] = [
     colors: { bg: '#ffffff', fg: BLACK, line: BLACK, accent: BLACK, muted: '#444', surface: '#ffffff', border: BLACK },
     font: 'EB Garamond', fontFile: 'EBGaramond.ttf',
     stroke: 'jittered', roughness: 0.5, passes: 1, strokeWidth: 1.0, linecap: 'butt',
-    fill: 'crosshatch', fillColor: BLACK, baseTone: 0.22, toneFromLuminance: true, keepHue: false, hachureAngle: -45,
+    fill: 'crosshatch', fillColor: BLACK, baseTone: 0.18, toneFromLuminance: true, keepHue: false, hachureAngle: -45,
     backdrop: 'plain',
   },
   {
@@ -121,7 +121,7 @@ export const STYLES: Style[] = [
     colors: { bg: '#f6f1e7', fg: '#2a2620', line: '#2a2620', accent: '#5a2d1a', muted: '#6b6356', surface: '#f6f1e7', border: '#2a2620' },
     font: 'EB Garamond', fontFile: 'EBGaramond.ttf',
     stroke: 'jittered', roughness: 0.3, passes: 1, strokeWidth: 0.8, linecap: 'butt',
-    fill: 'stipple', fillColor: '#2a2620', baseTone: 0.3, toneFromLuminance: true, keepHue: false, hachureAngle: -41,
+    fill: 'stipple', fillColor: '#2a2620', baseTone: 0.18, toneFromLuminance: true, keepHue: false, hachureAngle: -41,
     backdrop: 'plain',
   },
   {
@@ -130,7 +130,7 @@ export const STYLES: Style[] = [
     colors: { bg: '#fffef7', fg: '#111', line: '#111', accent: '#d11', muted: '#444', surface: '#fffef7', border: '#111' },
     font: 'Caveat', fontFile: 'Caveat.ttf',
     stroke: 'jittered', roughness: 0.8, passes: 2, strokeWidth: 2.4, linecap: 'round',
-    fill: 'halftone', fillColor: '#111', baseTone: 0.45, toneFromLuminance: true, keepHue: false, hachureAngle: 30,
+    fill: 'halftone', fillColor: '#111', baseTone: 0.16, toneFromLuminance: true, keepHue: false, hachureAngle: 30,
     backdrop: 'plain',
   },
   {
@@ -150,7 +150,7 @@ export const STYLES: Style[] = [
     colors: { bg: '#f4ecd8', fg: '#161210', line: '#161210', accent: '#161210', muted: '#161210', surface: '#f4ecd8', border: '#161210' },
     font: 'EB Garamond', fontFile: 'EBGaramond.ttf',
     stroke: 'jittered', roughness: 0.9, passes: 1, strokeWidth: 2.6, linecap: 'butt',
-    fill: 'hachure', fillColor: '#161210', baseTone: 0.25, toneFromLuminance: true, keepHue: false, hachureAngle: -90,
+    fill: 'hachure', fillColor: '#161210', baseTone: 0.18, toneFromLuminance: true, keepHue: false, hachureAngle: -90,
     backdrop: 'plain',
   },
   {

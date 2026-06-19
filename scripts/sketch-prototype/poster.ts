@@ -24,11 +24,24 @@ function raster(svg: string, width: number, bg?: string) {
 }
 const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
 
-// layout (logical px; whole poster is scaled up at raster time)
-const HEAD_COL = 240, HEAD_ROW = 92, CELL_W = 340, CELL_H = 252, PAD = 36, GAP = 6
+// Bump in-diagram type sizes so labels are a LARGE fraction of each diagram —
+// this is what makes text legible once a diagram is shrunk into a cell.
+const TYPE_OPT = {
+  style: {
+    text: { fontSize: 22 },
+    node: { fontSize: 26, fontWeight: 600, paddingX: 22, paddingY: 14 },
+    edge: { fontSize: 22, fontWeight: 600 },
+    group: { fontSize: 22, fontWeight: 700 },
+  },
+}
+
+// layout (logical px; whole poster is scaled up at raster time). Big cells +
+// big type = readable. Each diagram is rendered at ~cell pixel size (no
+// down-rezzing), so text stays crisp.
+const HEAD_COL = 250, HEAD_ROW = 110, CELL_W = 520, CELL_H = 400, PAD = 44, GAP = 8
 const COLS = DIAGRAMS.length, ROWS = STYLES.length
 const POSTER_W = HEAD_COL + COLS * CELL_W + PAD * 2
-const POSTER_H = HEAD_ROW + ROWS * CELL_H + PAD * 2 + 70
+const POSTER_H = HEAD_ROW + ROWS * CELL_H + PAD * 2 + 90
 
 function cellBg(st: Style, x: number, y: number, w: number, h: number): string {
   const p = [`<rect x="${x}" y="${y}" width="${w}" height="${h}" fill="${st.colors.bg}"/>`]
@@ -40,33 +53,34 @@ function cellBg(st: Style, x: number, y: number, w: number, h: number): string {
 function build(): string {
   const P: string[] = [`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${POSTER_W} ${POSTER_H}" width="${POSTER_W}" height="${POSTER_H}">`]
   P.push(`<rect width="${POSTER_W}" height="${POSTER_H}" fill="#1b1b1f"/>`)
-  P.push(`<text x="${PAD}" y="48" font-family="EB Garamond,serif" font-size="44" fill="#f5f5f0">Hand-rendered Mermaid — ${ROWS} styles × ${COLS} diagram types</text>`)
+  P.push(`<text x="${PAD}" y="66" font-family="EB Garamond,serif" font-size="60" fill="#f5f5f0">Hand-rendered Mermaid — ${ROWS} styles × ${COLS} diagram types</text>`)
 
-  const ox = PAD, oy = PAD + 58
+  const ox = PAD, oy = PAD + 80
   // column headers
   DIAGRAMS.forEach((d, c) => {
     const x = ox + HEAD_COL + c * CELL_W
-    P.push(`<text x="${x + CELL_W / 2}" y="${oy + HEAD_ROW - 28}" text-anchor="middle" font-family="EB Garamond,serif" font-size="22" fill="#e8e8e2">${esc(d.type)}</text>`)
+    P.push(`<text x="${x + CELL_W / 2}" y="${oy + HEAD_ROW - 36}" text-anchor="middle" font-family="EB Garamond,serif" font-size="40" fill="#e8e8e2">${esc(d.type)}</text>`)
   })
 
   STYLES.forEach((st, r) => {
     const y = oy + HEAD_ROW + r * CELL_H
     // row header
-    P.push(`<text x="${ox + 14}" y="${y + CELL_H / 2 - 8}" font-family="EB Garamond,serif" font-size="24" fill="#f5f5f0">${esc(st.label)}</text>`)
-    P.push(`<text x="${ox + 14}" y="${y + CELL_H / 2 + 16}" font-family="EB Garamond,serif" font-size="13" fill="#a8a8a2"><tspan>${esc(st.name)}</tspan></text>`)
+    P.push(`<text x="${ox + 16}" y="${y + CELL_H / 2 - 10}" font-family="EB Garamond,serif" font-size="38" fill="#f5f5f0">${esc(st.label)}</text>`)
+    P.push(`<text x="${ox + 16}" y="${y + CELL_H / 2 + 24}" font-family="EB Garamond,serif" font-size="22" fill="#a8a8a2">${esc(st.name)}</text>`)
     DIAGRAMS.forEach((d, c) => {
       const x = ox + HEAD_COL + c * CELL_W
       P.push(cellBg(st, x + GAP, y + GAP, CELL_W - GAP * 2, CELL_H - GAP * 2))
+      const availW = CELL_W - GAP * 2 - 24, availH = CELL_H - GAP * 2 - 24
       try {
-        const raw = renderMermaidSVG(d.src, { bg: st.colors.bg, fg: st.colors.fg, line: st.colors.line, accent: st.colors.accent, muted: st.colors.muted, surface: st.colors.surface, border: st.colors.border, font: st.font, embedFontImport: false, transparent: true })
+        const raw = renderMermaidSVG(d.src, { bg: st.colors.bg, fg: st.colors.fg, line: st.colors.line, accent: st.colors.accent, muted: st.colors.muted, surface: st.colors.surface, border: st.colors.border, font: st.font, embedFontImport: false, transparent: true, ...TYPE_OPT })
         const styled = restyle(raw, st, { backdrop: false })
-        const img = raster(styled, 620)
-        const availW = CELL_W - GAP * 2 - 16, availH = CELL_H - GAP * 2 - 16
-        const sc = Math.min(availW / img.w, availH / img.h)
-        const dw = img.w * sc, dh = img.h * sc
+        // render the diagram at ~final cell pixel size so its text is crisp (no down-rez)
+        const img = raster(styled, Math.round(availW * SCALE))
+        const sc = Math.min(availW / (img.w / SCALE), availH / (img.h / SCALE))
+        const dw = (img.w / SCALE) * sc, dh = (img.h / SCALE) * sc
         P.push(`<image x="${x + (CELL_W - dw) / 2}" y="${y + (CELL_H - dh) / 2}" width="${dw}" height="${dh}" href="data:image/png;base64,${img.png.toString('base64')}"/>`)
       } catch (e) {
-        P.push(`<text x="${x + CELL_W / 2}" y="${y + CELL_H / 2}" text-anchor="middle" font-family="EB Garamond" font-size="12" fill="#c33">${esc((e as Error).message).slice(0, 36)}</text>`)
+        P.push(`<text x="${x + CELL_W / 2}" y="${y + CELL_H / 2}" text-anchor="middle" font-family="EB Garamond" font-size="20" fill="#c33">${esc((e as Error).message).slice(0, 36)}</text>`)
       }
     })
   })
@@ -77,7 +91,7 @@ function build(): string {
 // Output knobs (env-overridable):
 //   SCALE  supersample factor          (default 1.5)
 //   COLORS palette size; 0 = lossless  (default 256 — line art quantizes cleanly)
-const SCALE = Number(process.env.SCALE ?? 2)
+const SCALE = Number(process.env.SCALE ?? 1.5)
 const COLORS = Number(process.env.COLORS ?? 256)
 
 console.log(`building poster ${ROWS}x${COLS} (${POSTER_W}x${POSTER_H} logical) @ ${SCALE}x, ${COLORS || 'lossless'} colours...`)
