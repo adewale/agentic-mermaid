@@ -17,6 +17,6 @@
   "concurrency": 4,
   "tempDirName": ".stryker-tmp-incremental",
   "disableTypeChecks": true,
-  "_thresholds_note": "Mutates the structural-count counter (countStructuralElements + faithfulnessWarning + isDrop). The few survivors are equivalent mutants on the opaque/default null-returning branches (see docs/mutation-testing.md §incremental). Regenerate to confirm the score; break=90 fails any real regression.",
+  "thresholds_comment": "Mutates the structural-count counter (countStructuralElements + faithfulnessWarning + isDrop). The few survivors are equivalent mutants on the opaque/default null-returning branches (see docs/mutation-testing.md §incremental). Regenerate to confirm the score; break=90 fails any real regression.",
   "thresholds": { "high": 97, "low": 92, "break": 90 }
 }

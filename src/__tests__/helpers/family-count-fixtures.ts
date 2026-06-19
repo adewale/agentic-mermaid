@@ -19,6 +19,7 @@ export interface FamilyCountFixture {
 export const FAMILY_COUNT_FIXTURES: FamilyCountFixture[] = [
   { family: 'flowchart', source: 'flowchart TD\n  A-->B\n  B-->C', count: { nodes: 3, edges: 2, groups: 0 } },
   { family: 'flowchart', source: 'flowchart TD\n  subgraph G\n    A-->B\n  end\n  B-->C', count: { nodes: 3, edges: 2, groups: 1 } },
+  { family: 'flowchart', source: 'flowchart TD\n  subgraph Outer\n    subgraph Inner\n      A-->B\n    end\n    B-->C\n  end', count: { nodes: 3, edges: 2, groups: 2 } },
   { family: 'sequence', source: 'sequenceDiagram\n  participant A\n  participant B\n  A->>B: m', count: { nodes: 2, edges: 1, groups: 0 } },
   { family: 'state', source: 'stateDiagram-v2\n  s0-->s1\n  s1-->s2', count: { nodes: 3, edges: 2, groups: 0 } },
   // Doubly-nested composite: pins the recursive `edges += inner.edges` accumulation

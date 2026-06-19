@@ -20,6 +20,7 @@
 // ============================================================================
 
 import type { ValidDiagram, StateNode, LayoutWarning } from './types.ts'
+import type { MermaidSubgraph } from '../types.ts'
 
 export interface StructuralCount {
   /** Primary entities: nodes, participants, states, classes, entities, slices… */
@@ -44,6 +45,15 @@ function countStates(states: StateNode[]): { nodes: number; edges: number } {
   return { nodes, edges }
 }
 
+function countSubgraphs(subgraphs: MermaidSubgraph[]): number {
+  let groups = 0
+  for (const sg of subgraphs) {
+    groups++
+    groups += countSubgraphs(sg.children)
+  }
+  return groups
+}
+
 /**
  * Count the structured elements of a diagram, or null for opaque bodies (which
  * carry no structured arrays — their faithfulness is byte-verbatim, covered by
@@ -54,7 +64,7 @@ export function countStructuralElements(d: ValidDiagram): StructuralCount | null
   switch (body.kind) {
     case 'flowchart': {
       const g = body.graph
-      return { nodes: g.nodes.size, edges: g.edges.length, groups: g.subgraphs.length }
+      return { nodes: g.nodes.size, edges: g.edges.length, groups: countSubgraphs(g.subgraphs) }
     }
     case 'sequence':
       return { nodes: body.participants.length, edges: body.messages.length, groups: 0 }

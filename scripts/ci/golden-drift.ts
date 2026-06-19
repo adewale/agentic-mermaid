@@ -33,6 +33,22 @@ export const APPROVE_TOKEN = '[approve-goldens]'
 // with [approve-goldens]. Real approvers write `[approve-goldens] <reason>`.
 export const APPROVE_TOKEN_RE = /^[ \t]*\[approve-goldens\]/m
 
+export function parseGitStatusPorcelainZ(output: string): string[] {
+  const entries = output.split('\0').filter(Boolean)
+  const paths: string[] = []
+  for (let i = 0; i < entries.length; i++) {
+    const entry = entries[i]!
+    const status = entry.slice(0, 2)
+    const path = entry.slice(3)
+    if (!path) continue
+    paths.push(path)
+    if ((status[0] === 'R' || status[0] === 'C' || status[1] === 'R' || status[1] === 'C') && i + 1 < entries.length) {
+      i++ // porcelain -z includes the original path as the next NUL field.
+    }
+  }
+  return [...new Set(paths)]
+}
+
 /**
  * Pure gate decision. Precedence: uncommitted drift is always a hard fail
  * (regenerate + commit first); then the token vs. golden-change cross-check.
@@ -42,7 +58,7 @@ export function evaluateGoldenDrift(f: GoldenDriftFacts): GoldenDriftVerdict {
     return {
       ok: false,
       code: 'uncommitted-drift',
-      message: `Running the suite changed committed goldens that were not committed: ${f.uncommittedGoldenFiles.join(', ')}. Regenerate, review, commit them, and start a commit-message line with ${APPROVE_TOKEN}.`,
+      message: `Running the suite left uncommitted golden changes: ${f.uncommittedGoldenFiles.join(', ')}. Regenerate, review, commit them, and start a commit-message line with ${APPROVE_TOKEN}.`,
     }
   }
   const hasToken = APPROVE_TOKEN_RE.test(f.commitMessage)
@@ -84,7 +100,7 @@ if (import.meta.main) {
   const [base, prHead] = parents
 
   const facts: GoldenDriftFacts = {
-    uncommittedGoldenFiles: lines(`git diff --name-only -- ${GOLDEN_DIR}`),
+    uncommittedGoldenFiles: parseGitStatusPorcelainZ(run(`git status --porcelain=v1 -z --untracked-files=all -- ${GOLDEN_DIR}`)),
     headGoldenFiles: isMerge
       ? lines(`git diff --name-only ${base}...${prHead} -- ${GOLDEN_DIR}`)
       : lines(`git show --name-only --format= HEAD -- ${GOLDEN_DIR}`),

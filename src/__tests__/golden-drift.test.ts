@@ -4,7 +4,7 @@
 // meaningful.
 
 import { describe, test, expect } from 'bun:test'
-import { evaluateGoldenDrift, APPROVE_TOKEN, type GoldenDriftFacts } from '../../scripts/ci/golden-drift.ts'
+import { evaluateGoldenDrift, parseGitStatusPorcelainZ, APPROVE_TOKEN, type GoldenDriftFacts } from '../../scripts/ci/golden-drift.ts'
 
 const base: GoldenDriftFacts = { uncommittedGoldenFiles: [], headGoldenFiles: [], commitMessage: 'chore: something' }
 const F = (over: Partial<GoldenDriftFacts>): GoldenDriftFacts => ({ ...base, ...over })
@@ -56,5 +56,39 @@ describe('evaluateGoldenDrift', () => {
     ]) {
       expect(v.message).toContain(APPROVE_TOKEN)
     }
+  })
+})
+
+describe('parseGitStatusPorcelainZ', () => {
+  test('captures tracked modifications and untracked generated goldens', () => {
+    const out = [
+      ' M src/__tests__/testdata/existing.svg',
+      '?? src/__tests__/testdata/new.svg',
+      '',
+    ].join('\0')
+    expect(parseGitStatusPorcelainZ(out)).toEqual([
+      'src/__tests__/testdata/existing.svg',
+      'src/__tests__/testdata/new.svg',
+    ])
+  })
+
+  test('reports the destination path for renamed/copied porcelain entries', () => {
+    const out = [
+      'R  src/__tests__/testdata/new-name.svg',
+      'src/__tests__/testdata/old-name.svg',
+      'C  src/__tests__/testdata/copied.svg',
+      'src/__tests__/testdata/source.svg',
+      '',
+    ].join('\0')
+    expect(parseGitStatusPorcelainZ(out)).toEqual([
+      'src/__tests__/testdata/new-name.svg',
+      'src/__tests__/testdata/copied.svg',
+    ])
+  })
+
+  test('feeds untracked files into the uncommitted-drift verdict', () => {
+    const [untracked] = parseGitStatusPorcelainZ('?? src/__tests__/testdata/new.svg\0')
+    const v = evaluateGoldenDrift(F({ uncommittedGoldenFiles: [untracked!] }))
+    expect(v).toMatchObject({ ok: false, code: 'uncommitted-drift' })
   })
 })
