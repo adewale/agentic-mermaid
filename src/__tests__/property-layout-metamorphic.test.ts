@@ -132,3 +132,97 @@ describe('metamorphic: layout + faithfulness relations', () => {
     )
   })
 })
+
+// ---- the same relations across non-graph families (Move H) -----------------
+//
+// The structural counter (src/agent/structural-count.ts) projects every family
+// onto {nodes, edges, groups}, so the relabeling + monotonicity relations are
+// not flowchart-specific. Each family generator declares its primary entities
+// explicitly so node/edge counts are predictable.
+
+const pairsArb = (k: number) =>
+  fc.array(
+    fc.tuple(fc.integer({ min: 0, max: k - 1 }), fc.integer({ min: 0, max: k - 1 })).filter(([a, b]) => a !== b),
+    { minLength: 1, maxLength: 6 },
+  )
+
+const familySpec: fc.Arbitrary<FlowSpec> = fc
+  .integer({ min: 2, max: 5 })
+  .chain(k => fc.record({ k: fc.constant(k), pairs: pairsArb(k) }))
+
+function buildSequence(spec: FlowSpec, idFor: (i: number) => string): string {
+  const lines = ['sequenceDiagram']
+  for (let i = 0; i < spec.k; i++) lines.push(`  participant ${idFor(i)}`)
+  for (const [a, b] of spec.pairs) lines.push(`  ${idFor(a)}->>${idFor(b)}: m${a}_${b}`)
+  return lines.join('\n')
+}
+
+function buildClass(spec: FlowSpec, idFor: (i: number) => string): string {
+  const lines = ['classDiagram']
+  for (let i = 0; i < spec.k; i++) lines.push(`  class ${idFor(i)}`)
+  for (const [a, b] of spec.pairs) lines.push(`  ${idFor(a)} --> ${idFor(b)}`)
+  return lines.join('\n')
+}
+
+function buildEr(spec: FlowSpec, idFor: (i: number) => string): string {
+  // A covering chain guarantees all k entities appear; extra pairs add relations.
+  const lines = ['erDiagram']
+  for (let i = 0; i < spec.k - 1; i++) lines.push(`  ${idFor(i)} ||--o{ ${idFor(i + 1)} : rel`)
+  for (const [a, b] of spec.pairs) lines.push(`  ${idFor(a)} ||--o{ ${idFor(b)} : rel`)
+  return lines.join('\n')
+}
+
+const families = [
+  { name: 'sequence', build: buildSequence, def: (i: number) => `P${i}`, rel: (k: number, i: number) => `Q${k - 1 - i}`, addNode: '\n  participant EXTRA', addEdge: (id: (i: number) => string) => `\n  ${id(0)}->>${id(1)}: extra` },
+  { name: 'class', build: buildClass, def: (i: number) => `C${i}`, rel: (k: number, i: number) => `Z${k - 1 - i}`, addNode: '\n  class EXTRA', addEdge: (id: (i: number) => string) => `\n  ${id(0)} --> ${id(1)}` },
+  // ER has no isolated-entity syntax without attribute blocks, so it asserts
+  // relabeling + relation-add only (no disconnected-node relation).
+  { name: 'er', build: buildEr, def: (i: number) => `E${i}`, rel: (k: number, i: number) => `Y${k - 1 - i}`, addNode: null, addEdge: (id: (i: number) => string) => `\n  ${id(0)} ||--o{ ${id(1)} : extra` },
+] as const
+
+describe('metamorphic: relations across non-graph families', () => {
+  for (const fam of families) {
+    const id = fam.def
+
+    test(`${fam.name} MR2 relabeling — bijective id rename preserves structure`, () => {
+      fc.assert(
+        fc.property(familySpec, spec => {
+          const original = fam.build(spec, id)
+          const relabeled = fam.build(spec, i => fam.rel(spec.k, i))
+          expect(counts(relabeled)).toEqual(counts(original))
+          const po = parseMermaid(original), pr = parseMermaid(relabeled)
+          if (po.ok && pr.ok) expect(verifyMermaid(pr.value).ok).toBe(verifyMermaid(po.value).ok)
+        }),
+        { numRuns: 50 },
+      )
+    })
+
+    if (fam.addNode) {
+      test(`${fam.name} MR3 entity addition — +1 node, edges unchanged`, () => {
+        fc.assert(
+          fc.property(familySpec, spec => {
+            const base = fam.build(spec, id)
+            const cb = counts(base)
+            const ca = counts(base + fam.addNode)
+            expect(ca.nodes).toBe(cb.nodes + 1)
+            expect(ca.edges).toBe(cb.edges)
+          }),
+          { numRuns: 50 },
+        )
+      })
+    }
+
+    test(`${fam.name} MR4 relation addition — +1 edge, node count unchanged`, () => {
+      fc.assert(
+        fc.property(familySpec, spec => {
+          const base = fam.build(spec, id)
+          const cb = counts(base)
+          const ca = counts(base + fam.addEdge(id))
+          expect(ca.edges).toBe(cb.edges + 1)
+          expect(ca.nodes).toBe(cb.nodes)
+        }),
+        { numRuns: 50 },
+      )
+    })
+  }
+})

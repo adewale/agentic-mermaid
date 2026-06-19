@@ -12,6 +12,30 @@ import { onShapeOutline } from '../../src/layout-rubric.ts'
 import type { NodeShape, PositionedNode } from '../../src/types.ts'
 
 export interface Finding { kind: string; severity: 'hard' | 'soft'; detail: string }
+
+// Evidence-based impact order, mirroring the QualityBounds provenance
+// (src/agent/quality.ts BOUND_PROVENANCE, grounded in Purchase 1997/2002):
+// readability-destroying defects (edges through nodes, overlaps) outrank
+// routing-shape defects (diagonals, hitches, floating endpoints), which outrank
+// raster-only sanity hints. detect()/detectSvg()/detectAscii() sort by this so
+// the worst finding is read first instead of in discovery order.
+const IMPACT_RANK: Record<string, number> = {
+  'edge-through-node': 0, 'ascii-edge-through-node': 0, 'node-overlap': 0,
+  'diagonal-segment': 1, 'hitch': 1, 'floating-endpoint': 1,
+  'png-diagonal-ink': 2,
+}
+
+export function findingRank(kind: string): number {
+  return IMPACT_RANK[kind] ?? 1
+}
+
+/** Stable sort of findings by evidence-based impact (then discovery order). */
+export function sortByImpact(findings: Finding[]): Finding[] {
+  return findings
+    .map((f, i) => [f, i] as const)
+    .sort(([a, ai], [b, bi]) => (findingRank(a.kind) - findingRank(b.kind)) || (ai - bi))
+    .map(([f]) => f)
+}
 export interface RNode { id: string; shape: NodeShape; x: number; y: number; w: number; h: number }
 export interface REdge { from: string; to: string; pts: { x: number; y: number }[] }
 export interface Rendered { nodes: RNode[]; edges: REdge[] }
@@ -86,7 +110,7 @@ export function detect(d: Rendered): Finding[] {
     const ox = Math.min(a.x + a.w, b.x + b.w) - Math.max(a.x, b.x), oy = Math.min(a.y + a.h, b.y + b.h) - Math.max(a.y, b.y)
     if (ox > 1 && oy > 1) out.push({ kind: 'node-overlap', severity: 'hard', detail: `${a.id} overlaps ${b.id} (${Math.round(ox * oy)}px²)` })
   }
-  return out
+  return sortByImpact(out)
 }
 
 // --------------------------------------------------------------------------
@@ -207,5 +231,5 @@ export function detectAscii(ascii: string, regions: AsciiRegion[]): Finding[] {
       }
     }
   }
-  return out
+  return sortByImpact(out)
 }

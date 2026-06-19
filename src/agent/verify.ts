@@ -6,6 +6,8 @@
 // ============================================================================
 
 import { parseMermaid as parseValidDiagram } from './parse.ts'
+import { serializeMermaid } from './serialize.ts'
+import { countStructuralElements, countsEqual } from './structural-count.ts'
 import { layoutGraphSync } from '../layout-engine.ts'
 import { parseMermaid as parseFlowchartLegacy } from '../parser.ts'
 import { auditRouteContracts, findRouteHitches } from '../route-contracts.ts'
@@ -50,6 +52,34 @@ function opaqueSourceHasOnlyHeader(kind: ValidDiagram['kind'], source: string): 
   return (aliases[kind] ?? [kind]).some(alias => header === alias || header.startsWith(`${alias} `))
 }
 
+/**
+ * Tier-3 faithfulness lint: does the structured {nodes, edges, groups} tally
+ * survive a parse → serialize → re-parse cycle? Round-trip *byte*-stability
+ * (already gated elsewhere) only proves serialize∘parse is idempotent; this
+ * proves canonical serialization is not silently dropping a node/edge/group —
+ * the ER `}o` class of bug. Promoted from a corpus-only check + the LLM-judge
+ * helper so it now runs on EVERY verify, for every family. Opaque bodies carry
+ * no structured arrays (their faithfulness is byte-verbatim) and are skipped.
+ */
+function roundtripFaithfulnessWarnings(d: ValidDiagram): LayoutWarning[] {
+  const before = countStructuralElements(d)
+  if (!before) return []
+  try {
+    const reparsed = parseValidDiagram(serializeMermaid(d))
+    if (!reparsed.ok) {
+      return [{ code: 'CONTENT_DROPPED_ON_ROUNDTRIP', before, after: { nodes: 0, edges: 0, groups: 0 } }]
+    }
+    const after = countStructuralElements(reparsed.value)
+    if (after && !countsEqual(before, after)) {
+      return [{ code: 'CONTENT_DROPPED_ON_ROUNDTRIP', before, after }]
+    }
+  } catch {
+    // Serialization/parse threw — the round-trip-stability gate owns that
+    // failure mode; don't double-report it as a faithfulness drop.
+  }
+  return []
+}
+
 export function verifyMermaid(input: ValidDiagram | string, opts: VerifyOptions = {}): VerifyResult {
   const d = typeof input === 'string' ? unwrap(input) : input
   if (!d) return finalize([{ code: 'EMPTY_DIAGRAM' }], emptyRenderedLayout('flowchart'), opts)
@@ -67,7 +97,8 @@ export function verifyMermaid(input: ValidDiagram | string, opts: VerifyOptions 
     ? [{ code: 'COMMENT_DROPPED', count: d.meta.droppedComments.length, lines: d.meta.droppedComments.map(c => c.line) }]
     : []
   const sourceWarnings = d.kind === 'flowchart' ? flowchartUnsupportedSyntaxWarnings(d.canonicalSource) : []
-  const pluginWarnings = dedupedConcat(dedupedConcat(metaWarnings, dispatchFamilyVerify(d, opts)), sourceWarnings)
+  const faithfulnessWarnings = roundtripFaithfulnessWarnings(d)
+  const pluginWarnings = dedupedConcat(dedupedConcat(dedupedConcat(metaWarnings, dispatchFamilyVerify(d, opts)), sourceWarnings), faithfulnessWarnings)
 
   if (d.body.kind === 'sequence') return mergeFinalize(verifySequence(d as ValidDiagram & { body: SequenceBody }, cap, opts), pluginWarnings, opts)
   if (d.body.kind === 'timeline') return mergeFinalize(verifyTimeline(d as ValidDiagram & { body: import('./types.ts').TimelineBody }, cap, opts), pluginWarnings, opts)

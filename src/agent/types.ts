@@ -785,7 +785,7 @@ export type Tier2WarningCode =
  * Tier 3 (advisory lint). Family-specific quality hints for common agent
  * mistakes that still parse and render. Lint warnings never flip verify.ok.
  */
-export type Tier3WarningCode = 'DUPLICATE_EDGE' | 'UNREACHABLE_NODE' | 'DECISION_BRANCH_UNLABELED' | 'COMMENT_DROPPED' | 'UNSUPPORTED_SYNTAX'
+export type Tier3WarningCode = 'DUPLICATE_EDGE' | 'UNREACHABLE_NODE' | 'DECISION_BRANCH_UNLABELED' | 'COMMENT_DROPPED' | 'UNSUPPORTED_SYNTAX' | 'CONTENT_DROPPED_ON_ROUNDTRIP'
 export type WarningCode = Tier1WarningCode | Tier2WarningCode | Tier3WarningCode
 
 export type LayoutWarning =
@@ -816,6 +816,14 @@ export type LayoutWarning =
   | { code: 'DECISION_BRANCH_UNLABELED'; node: NodeId; edge: EdgeId }
   | { code: 'COMMENT_DROPPED'; count: number; lines: number[] }
   | { code: 'UNSUPPORTED_SYNTAX'; line?: number; syntax: string; message: string }
+  /**
+   * Structured content was lost across a parse → serialize → re-parse cycle:
+   * the {nodes, edges, groups} tally changed, so canonical serialization is
+   * silently dropping (or duplicating) a node/edge/group even though the bytes
+   * may re-parse. The faithfulness analogue of COMMENT_DROPPED — "100% parse
+   * success is not faithfulness" (Loop 17). Lint, never flips verify.ok.
+   */
+  | { code: 'CONTENT_DROPPED_ON_ROUNDTRIP'; before: { nodes: number; edges: number; groups: number }; after: { nodes: number; edges: number; groups: number } }
 
 export const WARNING_SEVERITY: Record<WarningCode, WarningSeverity> = {
   EMPTY_DIAGRAM: 'error',
@@ -838,6 +846,7 @@ export const WARNING_SEVERITY: Record<WarningCode, WarningSeverity> = {
   DECISION_BRANCH_UNLABELED: 'warning',
   COMMENT_DROPPED: 'warning',
   UNSUPPORTED_SYNTAX: 'warning',
+  CONTENT_DROPPED_ON_ROUNDTRIP: 'warning',
 }
 
 export const WARNING_TIER: Record<WarningCode, WarningTier> = {
@@ -861,6 +870,7 @@ export const WARNING_TIER: Record<WarningCode, WarningTier> = {
   DECISION_BRANCH_UNLABELED: 'lint',
   COMMENT_DROPPED: 'lint',
   UNSUPPORTED_SYNTAX: 'lint',
+  CONTENT_DROPPED_ON_ROUNDTRIP: 'lint',
 }
 
 export const DEFAULT_LABEL_CHAR_CAP = 40

@@ -43,5 +43,8 @@ e2e/screenshots/current-*.png
 reports/
 dist/am
 
-# Claude Code agent worktrees (session-transient, never ship)
-.claude/
+# Claude Code agent worktrees + personal settings (session-transient, never ship).
+# Exception: the shared SessionStart hook (.claude/settings.json) IS committed so
+# fresh web/CI sessions run `bun install` before the suite (testing-tools #1).
+.claude/*
+!.claude/settings.json

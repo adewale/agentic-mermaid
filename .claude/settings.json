@@ -1,0 +1,15 @@
+{
+  "$comment": "SessionStart runs bun install so a freshly-cloned web/CI session can run the full suite immediately. Learning #1 from the testing-tools work: a fresh checkout failed 149 tests because fast-check (a devDependency) was not installed; CI masked it by installing first. This guarantees the property/metamorphic suite is runnable from the first command.",
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bun install --frozen-lockfile || bun install"
+          }
+        ]
+      }
+    ]
+  }
+}

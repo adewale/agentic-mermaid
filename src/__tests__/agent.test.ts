@@ -806,9 +806,9 @@ describe('verify', () => {
 })
 
 describe('warning vocabulary', () => {
-  test('20 codes, all tiered + severity', () => {
+  test('21 codes, all tiered + severity', () => {
     const codes = Object.keys(WARNING_SEVERITY)
-    expect(codes.length).toBe(20)
+    expect(codes.length).toBe(21)
     for (const c of codes) {
       expect(WARNING_SEVERITY[c as keyof typeof WARNING_SEVERITY]).toMatch(/^(error|warning)$/)
       expect(WARNING_TIER[c as keyof typeof WARNING_TIER]).toMatch(/^(structural|geometric|lint)$/)

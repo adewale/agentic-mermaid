@@ -591,7 +591,14 @@ describe('skill eval manifest coverage', () => {
 
 describe('shipped distribution artifacts present', () => {
   test('skill bundle + workflow + examples', () => {
-    expect(existsSync(join(REPO, '.claude'))).toBe(false)
+    // .claude may exist ONLY to carry the shared SessionStart hook
+    // (.claude/settings.json) that runs `bun install` for fresh web/CI sessions.
+    // No personal settings (.local) and no bundled agents/worktrees may ship.
+    if (existsSync(join(REPO, '.claude'))) {
+      const entries = readdirSync(join(REPO, '.claude'))
+      expect(entries.sort()).toEqual(['settings.json'])
+    }
+    expect(existsSync(join(REPO, '.claude/settings.local.json'))).toBe(false)
     expect(existsSync(join(REPO, '.agents'))).toBe(false)
     expect(existsSync(join(REPO, 'skills/README.md'))).toBe(true)
     expect(existsSync(join(REPO, 'skills/agentic-mermaid-diagram-workflow/SKILL.md'))).toBe(true)

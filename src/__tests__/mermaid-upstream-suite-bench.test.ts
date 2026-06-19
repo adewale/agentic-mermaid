@@ -7,6 +7,7 @@ import {
   layoutMermaid, parseMermaid, serializeMermaid, verifyMermaid,
 } from '../agent/index.ts'
 import type { DiagramKind, ValidDiagram } from '../agent/types.ts'
+import { countStructuralElements } from '../agent/structural-count.ts'
 
 interface BenchCase {
   id: string
@@ -291,7 +292,15 @@ describe('BUILD-20 Mermaid upstream parser/DB bench', () => {
       const serialized = serializeMermaid(parsed.value)
       const reparsed = parseMermaid(serialized)
       expect(reparsed.ok, reparsed.ok ? '' : reparsed.error.map(e => e.message).join('; ')).toBe(true)
-      if (reparsed.ok) expect(serializeMermaid(reparsed.value)).toBe(serialized)
+      if (reparsed.ok) {
+        expect(serializeMermaid(reparsed.value)).toBe(serialized)
+        // Faithfulness count-oracle (unifies the three differential gates on one
+        // check): byte-stability above proves serialize∘parse is idempotent;
+        // this proves no node/edge/group was silently dropped on the way.
+        const before = countStructuralElements(parsed.value)
+        const after = countStructuralElements(reparsed.value)
+        if (before && after) expect({ id: c.id, ...after }).toEqual({ id: c.id, ...before })
+      }
     })
   }
 
