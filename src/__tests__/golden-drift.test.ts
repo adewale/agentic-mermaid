@@ -4,7 +4,7 @@
 // meaningful.
 
 import { describe, test, expect } from 'bun:test'
-import { evaluateGoldenDrift, parseGitStatusPorcelainZ, APPROVE_TOKEN, type GoldenDriftFacts } from '../../scripts/ci/golden-drift.ts'
+import { evaluateGoldenDrift, githubPushBeforeSha, parseGitStatusPorcelainZ, APPROVE_TOKEN, type GoldenDriftFacts } from '../../scripts/ci/golden-drift.ts'
 
 const base: GoldenDriftFacts = { uncommittedGoldenFiles: [], headGoldenFiles: [], commitMessage: 'chore: something' }
 const F = (over: Partial<GoldenDriftFacts>): GoldenDriftFacts => ({ ...base, ...over })
@@ -90,5 +90,24 @@ describe('parseGitStatusPorcelainZ', () => {
     const [untracked] = parseGitStatusPorcelainZ('?? src/__tests__/testdata/new.svg\0')
     const v = evaluateGoldenDrift(F({ uncommittedGoldenFiles: [untracked!] }))
     expect(v).toMatchObject({ ok: false, code: 'uncommitted-drift' })
+  })
+})
+
+describe('githubPushBeforeSha', () => {
+  test('extracts the before SHA from GitHub push event JSON', () => {
+    expect(githubPushBeforeSha('push', JSON.stringify({
+      before: '0123456789abcdef0123456789abcdef01234567',
+    }))).toBe('0123456789abcdef0123456789abcdef01234567')
+  })
+
+  test('ignores non-push, branch-creation, malformed, and missing payloads', () => {
+    expect(githubPushBeforeSha('pull_request', JSON.stringify({
+      before: '0123456789abcdef0123456789abcdef01234567',
+    }))).toBeNull()
+    expect(githubPushBeforeSha('push', JSON.stringify({
+      before: '0000000000000000000000000000000000000000',
+    }))).toBeNull()
+    expect(githubPushBeforeSha('push', '{')).toBeNull()
+    expect(githubPushBeforeSha('push', undefined)).toBeNull()
   })
 })

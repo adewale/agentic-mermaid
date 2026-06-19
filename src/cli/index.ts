@@ -147,9 +147,12 @@ With --json, the svg/ascii/unicode forms wrap output as {"<format>": "..."}.`,
   verify: `am verify <file|-> [--suppress A,B] [--label-cap N]
 Always emits JSON: {ok, warnings[], layout}.
 Tier-1 error codes flip ok=false:
-EMPTY_DIAGRAM, EDGE_MISANCHORED, OFF_CANVAS, GROUP_BREACH. Warnings:
-UNKNOWN_SHAPE, LABEL_OVERFLOW (char-cap), NODE_OVERLAP, ROUTE_SELF_CROSS, ROUTE_HITCH (+ other ROUTE_* route-contract tripwires),
-DUPLICATE_EDGE, UNREACHABLE_NODE. Tier-3 lint is advisory.
+EMPTY_DIAGRAM, EDGE_MISANCHORED, OFF_CANVAS, GROUP_BREACH. Warning codes:
+UNKNOWN_SHAPE, LABEL_OVERFLOW (char-cap), UNRESOLVABLE_SCHEDULE,
+NODE_OVERLAP, ROUTE_SELF_CROSS, ROUTE_HITCH, ROUTE_UNEXPLAINED_BEND, ROUTE_LABEL_ON_SHARED_TRUNK,
+ROUTE_CONTAINER_MISANCHOR, ROUTE_SHAPE_MISANCHOR, ROUTE_STALE_AFTER_NODE_MOVE,
+DUPLICATE_EDGE, UNREACHABLE_NODE, DECISION_BRANCH_UNLABELED, COMMENT_DROPPED, UNSUPPORTED_SYNTAX,
+CONTENT_DROPPED_ON_ROUNDTRIP. Tier-3 lint is advisory.
 Exit 0 if ok, 3 if verify reports severity='error'.`,
   parse: `am parse <file|->
 Emits ValidDiagram JSON (Maps serialized to objects). Exit 2 on parse error.

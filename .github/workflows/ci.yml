@@ -98,8 +98,8 @@ jobs:
   # Fast incremental mutation gate. The broad route/ascii lanes stay nightly
   # (too slow to gate every PR); this lane mutates the small, pure faithfulness/
   # ranking core (structural-count.ts + faithfulnessWarning + rankWarnings) with
-  # a sub-second unit runner — measured ~92% kill in ~1 min, gated by
-  # thresholds.break=80. It is the adequacy signal that line coverage is not
+  # a sub-second unit runner — measured ~96% kill in ~1 min, gated by
+  # thresholds.break=90. It is the adequacy signal that line coverage is not
   # (Inozemtseva & Holmes; Just et al.) — see docs/testing-strategy.md.
   #
   # `--since` scopes mutation to files changed in the PR, so when none of the

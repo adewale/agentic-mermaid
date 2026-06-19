@@ -160,7 +160,7 @@ Tests can be green and still worthless. Two gates test the tests:
 incremental lane** (`stryker.incremental.config.json`, the `mutation-incremental`
 CI job) mutates only the small pure faithfulness counter
 (`src/agent/structural-count.ts`) with a sub-second unit runner, so it gates
-**per-PR** (~1 min, measured 92% kill / break-threshold 80).
+**per-PR** (~1 min, measured 96% kill / break-threshold 90).
 **Why this matters:** line coverage is reported per-PR but is a weak
 adequacy signal — coverage is not strongly correlated with fault detection
 once suite size is controlled (Inozemtseva & Holmes, ICSE 2014), whereas

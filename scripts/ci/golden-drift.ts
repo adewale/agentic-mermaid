@@ -49,6 +49,20 @@ export function parseGitStatusPorcelainZ(output: string): string[] {
   return [...new Set(paths)]
 }
 
+const ZERO_SHA_RE = /^0{40}$/
+
+export function githubPushBeforeSha(eventName: string | undefined, eventJson: string | undefined): string | null {
+  if (eventName !== 'push' || !eventJson) return null
+  try {
+    const before = JSON.parse(eventJson).before
+    if (typeof before !== 'string') return null
+    if (!/^[0-9a-f]{40}$/i.test(before) || ZERO_SHA_RE.test(before)) return null
+    return before
+  } catch {
+    return null
+  }
+}
+
 /**
  * Pure gate decision. Precedence: uncommitted drift is always a hard fail
  * (regenerate + commit first); then the token vs. golden-change cross-check.
@@ -98,14 +112,23 @@ if (import.meta.main) {
   const parents = run('git rev-list --parents -n 1 HEAD').trim().split(/\s+/).slice(1)
   const isMerge = parents.length >= 2
   const [base, prHead] = parents
+  let pushBefore: string | null = null
+  if (!isMerge && process.env.GITHUB_EVENT_PATH) {
+    const { readFileSync } = await import('node:fs')
+    pushBefore = githubPushBeforeSha(process.env.GITHUB_EVENT_NAME, readFileSync(process.env.GITHUB_EVENT_PATH, 'utf8'))
+  }
 
   const facts: GoldenDriftFacts = {
     uncommittedGoldenFiles: parseGitStatusPorcelainZ(run(`git status --porcelain=v1 -z --untracked-files=all -- ${GOLDEN_DIR}`)),
     headGoldenFiles: isMerge
       ? lines(`git diff --name-only ${base}...${prHead} -- ${GOLDEN_DIR}`)
+      : pushBefore
+        ? lines(`git diff --name-only ${pushBefore}..HEAD -- ${GOLDEN_DIR}`)
       : lines(`git show --name-only --format= HEAD -- ${GOLDEN_DIR}`),
     commitMessage: isMerge
       ? run(`git log --format=%B ${base}..${prHead}`)
+      : pushBefore
+        ? run(`git log --format=%B ${pushBefore}..HEAD`)
       : run('git log -1 --format=%B'),
   }
   const v = evaluateGoldenDrift(facts)

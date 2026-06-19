@@ -282,7 +282,7 @@ Tier 1 warnings are reliable structural/source checks. Do not suppress Tier 1 er
 
 Tier 2 warnings are advisory geometric checks for flowchart/state: `NODE_OVERLAP`, `ROUTE_SELF_CROSS`, and the route-contract tripwires `ROUTE_HITCH`, `ROUTE_UNEXPLAINED_BEND`, `ROUTE_LABEL_ON_SHARED_TRUNK`, `ROUTE_CONTAINER_MISANCHOR`, `ROUTE_SHAPE_MISANCHOR`, `ROUTE_STALE_AFTER_NODE_MOVE`.
 
-Tier 3 warnings are advisory lint checks for common agent mistakes or source-preserved Mermaid syntax that is not fully modeled: `DUPLICATE_EDGE`, `UNREACHABLE_NODE`, `DECISION_BRANCH_UNLABELED`, `COMMENT_DROPPED`, `UNSUPPORTED_SYNTAX`. They do not flip `verify.ok`, but they are worth fixing when the caller asks for clean maintainable diagrams.
+Tier 3 warnings are advisory lint checks for common agent mistakes or source-preserved Mermaid syntax that is not fully modeled: `DUPLICATE_EDGE`, `UNREACHABLE_NODE`, `DECISION_BRANCH_UNLABELED`, `COMMENT_DROPPED`, `UNSUPPORTED_SYNTAX`, `CONTENT_DROPPED_ON_ROUNDTRIP`. They do not flip `verify.ok`, but they are worth fixing when the caller asks for clean maintainable diagrams.
 
 ## Common anti-patterns
 

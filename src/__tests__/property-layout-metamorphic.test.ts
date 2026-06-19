@@ -160,4 +160,3 @@ describe('metamorphic: relations across all renderable families', () => {
     }
   }
 })
-
