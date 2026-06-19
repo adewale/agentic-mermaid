@@ -159,7 +159,40 @@ getStyle(name): ResolvedStyle
 
 Mirror the existing `THEMES` record in `theme.ts`: styles are data, hot-swappable,
 and a JSON schema can validate externally shipped styles. The prototype's
-`styles.ts` is exactly this table (13 entries) in flattened form.
+`styles.ts` is exactly this table (now 15 entries) in flattened form.
+
+### 3.3a Authoring a custom style (DELIVERABLE: a guide doc)
+
+> **Commitment:** ship `docs/style-authoring.md` — a guide that shows both
+> **people and their agents** how to write a style, end to end. It belongs next
+> to the existing agent-facing material (`AGENT_NATIVE.md`,
+> `Instructions_for_agents.md`, `llms.txt`) and is surfaced to agents via
+> `llms.txt` + the `--agent-instructions` CLI output, so an LLM can author a
+> style from the docs alone.
+
+What's involved in a custom style — and why it's small — is the whole point of
+the architecture: **a style is one data record.** The guide will cover:
+
+1. **Pick the four strategies + a palette + a font.** Choose `stroke`
+   (`crisp|jittered|brush|pencil`), `fill`
+   (`none|hachure|crosshatch|stipple|halftone|wash|scribble`), `backdrop`, and a
+   `compositor`/palette; set the params (`roughness`, `hachureGap`, `brushWidth`,
+   `baseTone`, …). No engine code. *Two real examples added this round —
+   `flux-latentpop` (screenprint: vivid ground + `halftone` + misregistration +
+   grunge filter) and `making-software` (cream + `none` fill + blue accent
+   edges + serif) — were each just a `StyleSpec` literal.*
+2. **`registerStyle(spec)`** (or drop a JSON file in a styles dir). The contrast
+   guardrail (§7) runs automatically; `contrast-audit.ts` tells you pass/fail.
+3. **Only write code if you need a *new* strategy variant** (e.g. a novel fill).
+   That implements one of the four interfaces in §3.2 and registers it — the
+   guide documents each interface contract + the determinism rule (seed in,
+   bytes out).
+4. **Verify**: run the audit, drop the style into the contact-sheet/poster
+   harness, eyeball all 12 diagram types.
+
+The guide will include a copy-paste `StyleSpec` template, the parameter
+reference, the determinism/seed contract, the WCAG guardrail behaviour, and a
+worked agent prompt ("add a style that looks like X").
 
 ### 3.4 Public API
 

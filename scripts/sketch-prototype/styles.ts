@@ -173,4 +173,31 @@ export const STYLES: Style[] = [
     defs: '<filter id="wax"><feTurbulence type="turbulence" baseFrequency="0.04 0.06" numOctaves="3" result="n"/><feDisplacementMap in="SourceGraphic" in2="n" scale="2.2"/></filter>',
     strokeFilter: 'wax',
   },
+  // ---- requested styles ----
+  {
+    // ref: replicate.com/jakedahn/flux-latentpop — "vibrant backgrounds with
+    // grungy limited screenprinting color goodness". Bold ink, halftone shading,
+    // registration offset, distress texture on a vivid ground.
+    name: 'flux-latentpop', label: 'Flux LatentPop',
+    blurb: 'Grungy limited-palette screenprint: vivid ground, bold ink, halftone, registration offset.',
+    colors: { bg: '#e98a3c', fg: '#241c2b', line: '#241c2b', accent: '#16a39a', muted: '#5b4a52', surface: '#e98a3c', border: '#241c2b' },
+    font: 'DejaVu Sans', fontFile: '../../assets/fonts/DejaVuSans.ttf',
+    stroke: 'jittered', roughness: 1.1, passes: 2, strokeWidth: 3.2, linecap: 'round',
+    fill: 'halftone', fillColor: '#241c2b', baseTone: 0.3, toneFromLuminance: true, keepHue: false, hachureAngle: 15,
+    backdrop: 'rice', misregister: 2.6, misColor: '#16a39a',
+    defs: '<filter id="grunge" x="-10%" y="-10%" width="120%" height="120%"><feTurbulence type="fractalNoise" baseFrequency="0.012 0.018" numOctaves="3" result="n"/><feDisplacementMap in="SourceGraphic" in2="n" scale="2.6"/></filter>',
+    strokeFilter: 'grunge',
+  },
+  {
+    // ref: makingsoftware.com (Dan Hollick) — warm cream, monotone near-black
+    // ink with a vivid blue accent (the squiggly blue line), serif + mono type,
+    // minimal/brutalist technical-illustration look.
+    name: 'making-software', label: 'Making Software',
+    blurb: 'Warm cream, near-black ink, vivid-blue accent edges, serif type. Minimal technical illustration.',
+    colors: { bg: '#f7f3ea', fg: '#1b1b1d', line: '#2b54ff', accent: '#2b54ff', muted: '#6b6b6b', surface: '#f7f3ea', border: '#1b1b1d' },
+    font: 'EB Garamond', fontFile: 'EBGaramond.ttf',
+    stroke: 'jittered', roughness: 0.5, passes: 1, strokeWidth: 1.5, linecap: 'round',
+    fill: 'none', fillColor: '#2b54ff', baseTone: 0, toneFromLuminance: false, keepHue: false, hachureAngle: -41,
+    backdrop: 'plain',
+  },
 ]
