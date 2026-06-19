@@ -139,3 +139,32 @@ a graph that needs three chained rounds would be a synthetic-input test.
 - `edge-routing.ts` label segment filter (`width >= lenLabel && index > 1 &&
   orientationMatches`): the labeled-fanout invariants pin the TD vertical-drop
   case; LR orientation and the index>1 exclusion lack direct coverage.
+
+## Incremental per-PR lane (`stryker.incremental.config.json`)
+
+A fast lane gates the small, pure faithfulness/ranking core on every PR (the
+`mutation-incremental` CI job), separate from the broad nightly lanes. It
+mutates `src/agent/structural-count.ts` (the counter + `faithfulnessWarning`)
+and the `rankWarnings` range of `src/agent/types.ts`, run by the sub-second
+`structural-count.test.ts` + `rank-warnings.test.ts` unit runner. CI passes
+`--since <base>` so only files a PR actually changes are mutated.
+
+Baseline (June 2026): **96.30% (104/108 killed), break threshold 90.** The four
+survivors are all equivalent mutants and are accepted, not chased:
+
+- `structural-count.ts:96` (`case 'opaque': return null`) — two mutants
+  (the case label + its string). Equivalent: an opaque body returns `null`, and
+  the `default` branch *also* returns `null`, so mutating the `opaque` case
+  cannot change the result for any input.
+- `structural-count.ts:98` (`default:` exhaustiveness branch) — two mutants
+  (the branch condition + its block). Unreachable by construction: all twelve
+  families are handled explicitly and the `const _never: never = body` assigns
+  compile-time exhaustiveness, so the branch never executes at runtime.
+
+What earlier batches of survivors taught us (now killed, kept as regression
+fixtures): the recursive `edges += inner.edges` state accumulation needed a
+*doubly-nested* composite-state fixture; `nodes = services + junctions` needed
+an architecture fixture that actually contains a junction; and the sort
+comparator `tierDiff || severityDiff` needed a **scrambled** input (neither
+sorted nor reverse-sorted) so a constant-comparator mutant — always-0 keeps the
+input order, always-1 reverses it — is wrong either way.

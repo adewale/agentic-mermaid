@@ -21,6 +21,9 @@ export const FAMILY_COUNT_FIXTURES: FamilyCountFixture[] = [
   { family: 'flowchart', source: 'flowchart TD\n  subgraph G\n    A-->B\n  end\n  B-->C', count: { nodes: 3, edges: 2, groups: 1 } },
   { family: 'sequence', source: 'sequenceDiagram\n  participant A\n  participant B\n  A->>B: m', count: { nodes: 2, edges: 1, groups: 0 } },
   { family: 'state', source: 'stateDiagram-v2\n  s0-->s1\n  s1-->s2', count: { nodes: 3, edges: 2, groups: 0 } },
+  // Doubly-nested composite: pins the recursive `edges += inner.edges` accumulation
+  // (a nested transition must propagate up). Kills the AssignmentOperator mutant.
+  { family: 'state', source: 'stateDiagram-v2\n  [*] --> Outer\n  state Outer {\n    state Mid {\n      a --> b\n    }\n  }', count: { nodes: 4, edges: 2, groups: 0 } },
   { family: 'class', source: 'classDiagram\n  class A\n  class B\n  A-->B', count: { nodes: 2, edges: 1, groups: 0 } },
   { family: 'er', source: 'erDiagram\n  A ||--o{ B : r\n  B ||--o{ C : r', count: { nodes: 3, edges: 2, groups: 0 } },
   { family: 'pie', source: 'pie title P\n  "X" : 1\n  "Y" : 2\n  "Z" : 3', count: { nodes: 3, edges: 0, groups: 0 } },
@@ -30,4 +33,7 @@ export const FAMILY_COUNT_FIXTURES: FamilyCountFixture[] = [
   { family: 'gantt', source: 'gantt\n  title G\n  dateFormat YYYY-MM-DD\n  section S\n  T0 : a, 2020-01-01, 1d\n  T1 : b, 2020-01-02, 1d', count: { nodes: 2, edges: 0, groups: 1 } },
   { family: 'xychart', source: 'xychart-beta\n  x-axis [a, b, c]\n  y-axis 0 --> 100\n  bar [1, 2, 3]\n  line [3, 2, 1]', count: { nodes: 2, edges: 0, groups: 0 } },
   { family: 'architecture', source: 'architecture-beta\n  group g(cloud)[G]\n  service a(server)[A] in g\n  service b(disk)[B] in g\n  a:R -- L:b', count: { nodes: 2, edges: 1, groups: 1 } },
+  // A junction makes nodes = services + junctions discriminating (1 + 1 = 2):
+  // kills the ArithmeticOperator mutant that flips `+` to `-` (1 - 1 = 0).
+  { family: 'architecture', source: 'architecture-beta\n  group g(cloud)[G]\n  service a(server)[A] in g\n  junction jx in g\n  a:R -- L:jx', count: { nodes: 2, edges: 1, groups: 1 } },
 ]

@@ -8,7 +8,8 @@ import { readFileSync, existsSync } from 'node:fs'
 import { join } from 'node:path'
 import { parseMermaid, serializeMermaid, verifyMermaid } from '../agent/index.ts'
 import { runParseVerifyRoundtrip } from '../../eval/shared/run-bench.ts'
-import { countStructuralElements, countsEqual } from '../../eval/shared/structural-count.ts'
+import { countStructuralElements } from '../../eval/shared/structural-count.ts'
+import { faithfulnessWarning } from '../agent/structural-count.ts'
 
 const CORPUS_PATH = join(import.meta.dir, '..', '..', 'eval', 'mermaid-docs-corpus', 'corpus.json')
 const DIVERGENCES_PATH = join(import.meta.dir, '..', '..', 'eval', 'mermaid-docs-corpus', 'divergences.json')
@@ -151,7 +152,10 @@ describe('mermaid-js docs corpus (271 examples, 12 families)', () => {
         const p2 = parseMermaid(serializeMermaid(p1.value))
         if (p2.ok) after = countStructuralElements(p2.value)
       } catch { /* falls through to drop record */ }
-      if (!after || !countsEqual(before, after)) {
+      // Route through the one tested verdict (faithfulnessWarning) so all three
+      // differential gates share identical drop semantics. `before` is non-null
+      // here; a null `after` is reported as total loss by the helper.
+      if (faithfulnessWarning(before, after).length > 0) {
         drops.push({ key: corpusKey(entry), before, after })
       }
     }

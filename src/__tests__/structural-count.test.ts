@@ -69,10 +69,11 @@ describe('faithfulnessWarning — the round-trip drop verdict', () => {
     expect((w[0] as { after: StructuralCount }).after).toEqual({ nodes: 0, edges: 0, groups: 0 })
   })
 
-  test('a drop on ANY axis ⇒ warning carrying before + after', () => {
+  test('a drop on ANY axis ⇒ CONTENT_DROPPED_ON_ROUNDTRIP carrying before + after', () => {
     for (const after of [C(2, 2, 1), C(3, 1, 1), C(3, 2, 0), C(4, 2, 1)]) {
       const w = faithfulnessWarning(C(3, 2, 1), after)
       expect(w).toHaveLength(1)
+      expect(w[0]!.code).toBe('CONTENT_DROPPED_ON_ROUNDTRIP')
       expect((w[0] as { before: StructuralCount; after: StructuralCount })).toMatchObject({ before: { nodes: 3, edges: 2, groups: 1 }, after })
     }
   })

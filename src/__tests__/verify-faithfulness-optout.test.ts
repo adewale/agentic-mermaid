@@ -7,7 +7,7 @@
 import { describe, test, expect } from 'bun:test'
 import { verifyMermaid } from '../agent/verify.ts'
 import { parseMermaid } from '../agent/parse.ts'
-import { runBatchLine } from '../cli/index.ts'
+import { runBatchLine, renderMarkdownBlocks } from '../cli/index.ts'
 
 const SRC = 'flowchart TD\n  A[Start] --> B{Check}\n  B -->|yes| C[Done]\n  B -->|no| A'
 
@@ -38,5 +38,20 @@ describe('roundtripFaithfulness opt-out reachability', () => {
   test('an unknown option key does not break batch verify (back-compat)', () => {
     const out = runBatchLine(JSON.stringify({ op: 'verify', source: SRC }))
     expect(out.ok).toBe(true)
+  })
+
+  // Move 2 finding: render/preview do NOT verify internally, so they never pay
+  // the faithfulness cost (there was nothing to opt out of). Lock that the bulk
+  // markdown render path is a pure render — its results carry render output, not
+  // verify warnings — so a future change can't silently add a per-block verify.
+  test('bulk markdown render is verify-free (no warnings in its results)', () => {
+    const md = '```mermaid\n' + SRC + '\n```\n\n```mermaid\nflowchart LR\n  X-->Y\n```'
+    const results = renderMarkdownBlocks(md)
+    expect(results.length).toBe(2)
+    for (const r of results) {
+      expect(r.ok).toBe(true)
+      expect(r).not.toHaveProperty('warnings')
+      expect(r).not.toHaveProperty('ranked')
+    }
   })
 })

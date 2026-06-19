@@ -44,4 +44,25 @@ describe('rankWarnings', () => {
   test('empty input yields empty output', () => {
     expect(rankWarnings([])).toEqual([])
   })
+
+  // Focused 2-element cases that isolate each half of the sort comparator
+  // `tierDiff || severityDiff`, so dropping EITHER half flips the result
+  // (input is given in reverse of the expected order).
+  test('within one tier, the severity tiebreak orders error before warning', () => {
+    const ranked = rankWarnings([W.labelStructuralWarning, W.emptyStructuralError])
+    expect(ranked.map(r => r.code)).toEqual(['EMPTY_DIAGRAM', 'LABEL_OVERFLOW'])
+  })
+
+  test('at equal severity, the tier term orders structural before lint', () => {
+    const ranked = rankWarnings([W.dupLint, W.labelStructuralWarning])  // both severity=warning
+    expect(ranked.map(r => r.code)).toEqual(['LABEL_OVERFLOW', 'DUPLICATE_EDGE'])
+  })
+
+  // A SCRAMBLED input whose correct order is neither the input order nor its
+  // reverse — so a comparator stuck at a constant (always-0 keeps input,
+  // always-1 reverses it) produces a wrong order either way.
+  test('a scrambled input sorts correctly (defeats a constant comparator)', () => {
+    const ranked = rankWarnings([W.overlapGeometric, W.emptyStructuralError, W.dupLint, W.labelStructuralWarning])
+    expect(ranked.map(r => r.code)).toEqual(['EMPTY_DIAGRAM', 'LABEL_OVERFLOW', 'NODE_OVERLAP', 'DUPLICATE_EDGE'])
+  })
 })

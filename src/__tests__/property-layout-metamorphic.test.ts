@@ -93,6 +93,15 @@ describe('metamorphic: relations across all renderable families', () => {
     const [kmin, kmax] = fam.kRange
     const kArb = fc.integer({ min: kmin, max: kmax })
 
+    // Move 6: MR1 determinism for EVERY family (the top-level MR1 covered only
+    // flowchart) — measuring the same layout twice must be byte-identical.
+    test(`${fam.family}: MR1 determinism — identical metrics across two layouts`, () => {
+      const p = parseMermaid(fam.build(fam.kRange[0], 'qseed'))
+      expect(p.ok).toBe(true)
+      if (!p.ok) return
+      expect(measureQuality(layoutMermaid(p.value))).toEqual(measureQuality(layoutMermaid(p.value)))
+    })
+
     test(`${fam.family}: base build is structured + verifiable`, () => {
       fc.assert(fc.property(kArb, tagArb, (k, t) => {
         const p = parseMermaid(fam.build(k, t))

@@ -33,6 +33,15 @@ describe('PR template ↔ family-citizenship registries', () => {
     for (const r of REQUIRED_FAMILY_REGISTRIES) expect(r.size()).toBeGreaterThan(0)
   })
 
+  test('the template lists the registries in canonical order', () => {
+    // Move 7: the checklist must read in the same order as REQUIRED_FAMILY_
+    // REGISTRIES, so the canonical array is the single source of order too.
+    const positions = REQUIRED_FAMILY_REGISTRIES.map(r => TEMPLATE.indexOf(r.token))
+    expect(positions.every(p => p >= 0)).toBe(true)
+    const sorted = [...positions].sort((a, b) => a - b)
+    expect(positions).toEqual(sorted)
+  })
+
   test('the template has the golden-approval checklist item', () => {
     expect(TEMPLATE).toContain('[approve-goldens]')
     expect(TEMPLATE).toContain('testdata/')

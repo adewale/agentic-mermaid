@@ -42,7 +42,7 @@ function parseErrorEnvelope(errors: ParseError[]): { ok: false; error: { code: s
 
 interface ParsedArgs { command?: string; positional: string[]; flags: Record<string, string | boolean> }
 
-const BOOLEAN_FLAGS = new Set(['agent-instructions', 'ascii', 'certificates', 'help', 'json', 'watch', 'open', 'force', 'no-faithfulness-check'])
+export const BOOLEAN_FLAGS = new Set(['agent-instructions', 'ascii', 'certificates', 'help', 'json', 'watch', 'open', 'force', 'no-faithfulness-check'])
 
 function parseArgs(argv: string[]): ParsedArgs {
   const out: ParsedArgs = { positional: [], flags: {} }
@@ -79,7 +79,7 @@ function readSourceArg(arg: string | undefined): string {
 
 function replacer(_k: string, v: unknown): unknown { return v instanceof Map ? Object.fromEntries(v) : v }
 
-const GLOBAL_USAGE = `Usage: am <command> [options] [file|-]
+export const GLOBAL_USAGE = `Usage: am <command> [options] [file|-]
 
 Commands:
   render <file|->        Render to SVG/ASCII/Unicode/layout JSON/PNG

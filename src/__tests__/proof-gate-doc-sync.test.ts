@@ -22,7 +22,7 @@ const ci = read('.github/workflows/ci.yml')
 const nightly = read('.github/workflows/nightly-route-mutation.yml')
 const doc = read('docs/testing-strategy.md')
 
-interface Row { label: string; perPR: boolean; nightly: boolean; manual: boolean }
+interface Row { label: string; perPR: boolean; nightly: boolean; manual: boolean; perPRcell: string }
 
 /** Parse the "Gate | Per-PR | Nightly | Manual" table out of the strategy doc. */
 function parseProofGateTable(md: string): Row[] {
@@ -36,7 +36,7 @@ function parseProofGateTable(md: string): Row[] {
     const cells = line.split('|').slice(1, -1).map(c => c.trim())
     if (cells.length < 4) continue
     const has = (c: string) => c.includes('✅')
-    rows.push({ label: cells[0]!, perPR: has(cells[1]!), nightly: has(cells[2]!), manual: has(cells[3]!) })
+    rows.push({ label: cells[0]!, perPR: has(cells[1]!), nightly: has(cells[2]!), manual: has(cells[3]!), perPRcell: cells[1]! })
   }
   return rows
 }
@@ -107,6 +107,21 @@ describe('proof-gate map ↔ workflow reality (parsed)', () => {
     // Guard against the rules silently matching nothing (e.g. the table was
     // restructured): the high-value claims must still be exercised.
     expect(checked.length).toBeGreaterThanOrEqual(5)
+  })
+
+  test('"harness only" cells are backed by a real harness test, not a CI gate', () => {
+    // A cell that says the gate runs "harness only" must (a) NOT be a gating
+    // per-PR step (no ✅), and (b) have a harness test that proves the harness
+    // itself runs. The benchmark is the canonical example.
+    const harnessRows = rows.filter(r => /harness only/i.test(r.perPRcell))
+    expect(harnessRows.length).toBeGreaterThan(0)
+    for (const row of harnessRows) {
+      expect(row.perPR).toBe(false)  // "harness only" is not a ✅ gate
+      if (/benchmark/i.test(row.label)) {
+        expect(read('src/__tests__/benchmark-harness.test.ts').length).toBeGreaterThan(0)
+        expect(ci).not.toContain('sample-bench')  // the real benchmark is not gated
+      }
+    }
   })
 
   test('manual-only rows are not secretly gated as per-PR CI steps', () => {

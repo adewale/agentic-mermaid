@@ -18,6 +18,6 @@
   "concurrency": 4,
   "tempDirName": ".stryker-tmp-incremental",
   "disableTypeChecks": true,
-  "_thresholds_note": "Measured 92.59% (100/108 killed) over the structural-count core + faithfulnessWarning + rankWarnings; break=80 leaves headroom for the ~8 equivalent mutants while still failing a real regression. CI runs with `--since <base>` so only files changed in the PR are mutated.",
-  "thresholds": { "high": 95, "low": 85, "break": 80 }
+  "_thresholds_note": "Measured 96.30% (104/108 killed) over the structural-count core + faithfulnessWarning + rankWarnings. The 4 remaining survivors are equivalent mutants on the opaque/default null-returning branches (see docs/mutation-testing.md §incremental). break=90 leaves headroom for those 4 while failing any real regression. CI runs with `--since <base>` so only files changed in the PR are mutated.",
+  "thresholds": { "high": 97, "low": 92, "break": 90 }
 }
