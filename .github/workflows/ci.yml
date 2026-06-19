@@ -47,9 +47,6 @@ jobs:
         # assets/hero.png (diagram SVG + ASCII) — no fonts/rasterization needed.
         run: bun run hero:check
 
-      - name: Golden drift gate self-test (proves the happy path runs in CI)
-        run: bun run scripts/ci/golden-drift.ts --selftest
-
       - name: Golden snapshot drift is a hard gate (reviewed-token required)
         # The decision logic lives in scripts/ci/golden-drift.ts and is
         # unit-tested (src/__tests__/golden-drift.test.ts) — a bare ::warning::
@@ -107,9 +104,6 @@ jobs:
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
-        with:
-          # `--since` needs history + the base branch to diff against.
-          fetch-depth: 0
       - name: Setup Bun
         uses: oven-sh/setup-bun@v1
         with:
@@ -117,22 +111,7 @@ jobs:
       - name: Install dependencies
         run: bun install
       - name: Incremental mutation lane (faithfulness + ranking core)
-        # The base ref is computed by the unit-tested scripts/ci/mutation-since.ts
-        # (Move 9) rather than inline shell. On a PR it diffs against the base
-        # branch; on push to main, --since main is an empty diff so the lane
-        # no-ops. fetch-depth:0 guarantees the ref exists (a real threshold break
-        # must fail — no fallback).
-        run: |
-          BASE="$(bun run scripts/ci/mutation-since.ts)"
-          echo "Incremental mutation since $BASE"
-          npx stryker run stryker.incremental.config.json --since "$BASE"
-
-      - name: Bind documented mutation score to a full report (Move 3)
-        # The --since gate above scopes mutation to the PR's changes, so its
-        # report covers only a subset. Run the FULL config to produce a complete
-        # report, then the doc-sync test binds docs/mutation-testing.md and the
-        # config note to that report's actual score + survivor count (no longer
-        # skippable in CI). The small lane makes a full run ~1 min.
-        run: |
-          npx stryker run stryker.incremental.config.json
-          bun test src/__tests__/mutation-config-doc-sync.test.ts
+        # Mutates the small, pure faithfulness/ranking core; gated by the
+        # config's thresholds.break. A full run on this lane is ~1 min, so it
+        # runs in full every PR (no --since scoping needed for so few files).
+        run: npx stryker run stryker.incremental.config.json

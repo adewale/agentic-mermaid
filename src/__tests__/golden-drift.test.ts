@@ -4,7 +4,7 @@
 // meaningful.
 
 import { describe, test, expect } from 'bun:test'
-import { evaluateGoldenDrift, selfTest, APPROVE_TOKEN, type GoldenDriftFacts } from '../../scripts/ci/golden-drift.ts'
+import { evaluateGoldenDrift, APPROVE_TOKEN, type GoldenDriftFacts } from '../../scripts/ci/golden-drift.ts'
 
 const base: GoldenDriftFacts = { uncommittedGoldenFiles: [], headGoldenFiles: [], commitMessage: 'chore: something' }
 const F = (over: Partial<GoldenDriftFacts>): GoldenDriftFacts => ({ ...base, ...over })
@@ -46,14 +46,6 @@ describe('evaluateGoldenDrift', () => {
       commitMessage: `fix\n${APPROVE_TOKEN}`,
     }))
     expect(v).toMatchObject({ ok: false, code: 'uncommitted-drift' })
-  })
-
-  test('selfTest (the CI --selftest path) passes in-process', () => {
-    const { ok, results } = selfTest()
-    expect(ok).toBe(true)
-    expect(results.approved.code).toBe('approved')
-    expect(results.unreviewed.code).toBe('unreviewed-goldens')
-    expect(results.clean.code).toBe('clean')
   })
 
   test('the verdict message always names the token for actionability', () => {

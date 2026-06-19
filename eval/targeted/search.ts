@@ -67,21 +67,6 @@ export function crossingFitness(spec: FlowSpec): number {
   try { return measureQuality(layoutMermaid(p.value)).edgeCrossings } catch { return 0 }
 }
 
-/** Cheap combinatorial proxy for crossings: edge pairs that interleave on the
- *  natural 0..k-1 node ordering. Pure O(edges²), no rendering — a non-trivial
- *  landscape for unit-testing that guided search beats random, without ELK. */
-export function interleaveFitness(spec: FlowSpec): number {
-  const e = spec.edges.map(([a, b]) => [Math.min(a, b), Math.max(a, b)] as const)
-  let crossings = 0
-  for (let i = 0; i < e.length; i++) {
-    for (let j = i + 1; j < e.length; j++) {
-      const [a1, b1] = e[i]!, [a2, b2] = e[j]!
-      if ((a1 < a2 && a2 < b1 && b1 < b2) || (a2 < a1 && a1 < b2 && b2 < b1)) crossings++
-    }
-  }
-  return crossings
-}
-
 export function randomFlowSpec(rng: () => number): FlowSpec {
   // A richer space than tiny graphs: crossings need enough nodes/edges to have a
   // gradient for the search to climb (on 4-node graphs the fitness is too flat

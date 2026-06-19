@@ -9,7 +9,7 @@
 import { describe, test, expect } from 'bun:test'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { BOOLEAN_FLAGS, FLAG_SPECS, GLOBAL_USAGE, COMMAND_HELP, usageBracket, parseArgs } from '../cli/index.ts'
+import { BOOLEAN_FLAGS, FLAG_SPECS, GLOBAL_USAGE, COMMAND_HELP, parseArgs } from '../cli/index.ts'
 import { parseFlagsBlock, parseUsageFlags, booleanFlagReads } from './helpers/cli-flag-parsing.ts'
 
 describe('BOOLEAN_FLAGS ↔ global help Flags block (Move 4 helper)', () => {
@@ -57,12 +57,6 @@ describe('FLAG_SPECS is the single source (Move 10)', () => {
       expect({ name: f.name, known: f.name in FLAG_SPECS }).toEqual({ name: f.name, known: true })
       expect({ name: f.name, takesArg: f.takesArg }).toEqual({ name: f.name, takesArg: Boolean(FLAG_SPECS[f.name]!.arg) })
     }
-  })
-
-  test('usageBracket renders booleans and value flags from the spec', () => {
-    expect(usageBracket('json')).toBe('[--json]')
-    expect(usageBracket('suppress')).toBe('[--suppress <CODES>]')
-    expect(() => usageBracket('not-a-flag')).toThrow(/unknown flag/)
   })
 })
 

@@ -42,11 +42,10 @@ function parseErrorEnvelope(errors: ParseError[]): { ok: false; error: { code: s
 
 export interface ParsedArgs { command?: string; positional: string[]; flags: Record<string, string | boolean> }
 
-// Single source of truth for CLI flags (Move 10). A flag with no `arg` is a
-// boolean; `arg` is the usage placeholder shown in `[--flag <arg>]`. BOOLEAN_FLAGS
-// is DERIVED from this, so the parser's boolean classification cannot drift from
-// the documented usage — and `usageBracket` renders the help form from the same
-// spec.
+// Single source of truth for CLI flags. A flag with no `arg` is a boolean;
+// `arg` is the usage placeholder shown in `[--flag <arg>]`. BOOLEAN_FLAGS is
+// DERIVED from this, so the parser's boolean classification cannot drift from
+// the documented usage.
 export const FLAG_SPECS: Record<string, { arg?: string }> = {
   // booleans
   'agent-instructions': {}, 'ascii': {}, 'certificates': {}, 'help': {}, 'json': {},
@@ -58,13 +57,6 @@ export const FLAG_SPECS: Record<string, { arg?: string }> = {
 }
 
 export const BOOLEAN_FLAGS = new Set(Object.keys(FLAG_SPECS).filter(name => !FLAG_SPECS[name]!.arg))
-
-/** Render a flag's usage form from its spec: `[--flag]` or `[--flag <arg>]`. */
-export function usageBracket(name: string): string {
-  const spec = FLAG_SPECS[name]
-  if (!spec) throw new Error(`unknown flag: ${name}`)
-  return spec.arg ? `[--${name} <${spec.arg}>]` : `[--${name}]`
-}
 
 export function parseArgs(argv: string[]): ParsedArgs {
   const out: ParsedArgs = { positional: [], flags: {} }

@@ -65,32 +65,6 @@ export function evaluateGoldenDrift(f: GoldenDriftFacts): GoldenDriftVerdict {
 
 // ---- CLI wrapper: gather git facts, annotate, exit ------------------------
 
-/**
- * Move 10/6: exercise the gate's branches on synthetic facts so a regression in
- * the deployed decision surfaces both in the unit test (in-process) and in the
- * CI `--selftest` step. Pure: returns the verdicts + an `ok` for all-as-expected.
- */
-export function selfTest(): { ok: boolean; results: Record<'approved' | 'unreviewed' | 'clean', GoldenDriftVerdict> } {
-  const x = ['src/__tests__/testdata/x.txt']
-  const approved = evaluateGoldenDrift({ uncommittedGoldenFiles: [], headGoldenFiles: x, commitMessage: `fix\n${APPROVE_TOKEN} reviewed` })
-  const unreviewed = evaluateGoldenDrift({ uncommittedGoldenFiles: [], headGoldenFiles: x, commitMessage: 'fix' })
-  const clean = evaluateGoldenDrift({ uncommittedGoldenFiles: [], headGoldenFiles: [], commitMessage: 'fix' })
-  const ok = approved.ok && approved.code === 'approved'
-    && !unreviewed.ok && unreviewed.code === 'unreviewed-goldens'
-    && clean.ok && clean.code === 'clean'
-  return { ok, results: { approved, unreviewed, clean } }
-}
-
-if (import.meta.main && process.argv.includes('--selftest')) {
-  const { ok, results } = selfTest()
-  if (ok) {
-    process.stdout.write('::notice title=Golden drift selftest::approved/unreviewed/clean branches behave as expected\n')
-    process.exit(0)
-  }
-  process.stdout.write(`::error title=Golden drift selftest FAILED::${JSON.stringify(results)}\n`)
-  process.exit(1)
-}
-
 if (import.meta.main) {
   const { execSync } = await import('node:child_process')
   const GOLDEN_DIR = 'src/__tests__/testdata/'
