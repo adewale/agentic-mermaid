@@ -324,4 +324,17 @@ export const STYLES: Style[] = [
     fill: 'none', fillColor: '#3a3a3a', baseTone: 0, toneFromLuminance: false, keepHue: false, hachureAngle: -41,
     backdrop: 'plain', nodeCornerRadius: 6, mono: true,
   },
+  {
+    // ★ GiscardPunk (Florent Deloison): French 1970s retro-futurism — warm
+    // "harvest" palette (burnt orange / mustard / olive / brown) on cream,
+    // dark-brown ink, chunky rounded pill nodes, flat colour blocks, paper grain.
+    name: 'giscardpunk', label: 'GiscardPunk',
+    blurb: 'French 70s retro-futurism: warm harvest palette on cream, dark-brown ink, chunky rounded pills.',
+    colors: { bg: '#efe3cb', fg: '#3a2a1a', line: '#3a2a1a', accent: '#c8531c', muted: '#7a4a24', surface: '#efe3cb', border: '#3a2a1a' },
+    font: 'Fredoka', fontFile: 'Fredoka.ttf',
+    stroke: 'jittered', roughness: 0.4, passes: 1, strokeWidth: 4.0, linecap: 'round',
+    fill: 'solid', fillColor: '#c8531c', baseTone: 1, toneFromLuminance: false, keepHue: false, hachureAngle: -41,
+    spotPalette: ['#c8531c', '#d8a23a', '#6e7b2f', '#7a4a24', '#a23b22'],
+    backdrop: 'rice', nodeCornerRadius: 16, labelHalo: '#efe3cb',
+  },
 ]
