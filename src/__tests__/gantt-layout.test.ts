@@ -51,7 +51,6 @@ describe('gantt layout — plot geometry', () => {
     }
   })
 
-  // upstream: mermaid-js/mermaid#1301 — gantt axis/bar overlap on long date ranges
   test('rows never overlap in standard mode', () => {
     const { layout } = layoutOf(BASIC)
     const sorted = [...layout.rows].sort((a, b) => a.y - b.y)
@@ -124,6 +123,30 @@ describe('gantt layout — axes and markers', () => {
     const top = layoutOf(BASIC.replace('dateFormat YYYY-MM-DD', 'dateFormat YYYY-MM-DD\n  topAxis'))
     expect(top.layout.topAxis).toBe(true)
     expect(top.layout.plot.y).toBeGreaterThan(base.layout.plot.y)
+  })
+
+  // upstream: mermaid-js/mermaid#1301 — gantt axis/bar overlap on long date ranges
+  test('long-range axis labels stay clear of task bars (#1301)', () => {
+    const { layout } = layoutOf(`gantt
+      title Multi-year roadmap
+      dateFormat YYYY-MM-DD
+      axisFormat %Y
+      topAxis
+      section Delivery
+        Discover :a, 2016-01-01, 400d
+        Build :b, after a, 520d
+        Launch :c, after b, 180d
+    `)
+    const axisLabelHalfHeight = 6
+    const topAxisLabelBottom = layout.plot.y - 10 + axisLabelHalfHeight
+    const bottomAxisLabelTop = layout.plot.y + layout.plot.h + 12 - axisLabelHalfHeight
+    const firstBarTop = Math.min(...layout.bars.map(b => b.y))
+    const lastBarBottom = Math.max(...layout.bars.map(b => b.y + b.h))
+
+    expect(layout.topAxis).toBe(true)
+    expect(layout.ticks.length).toBeGreaterThan(1)
+    expect(topAxisLabelBottom).toBeLessThanOrEqual(firstBarTop)
+    expect(bottomAxisLabelTop).toBeGreaterThanOrEqual(lastBarBottom)
   })
 
   test('ticks are bounded even with a 1minute interval over months (mermaid PR #7197)', () => {

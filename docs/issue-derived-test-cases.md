@@ -54,15 +54,15 @@ These are public Mermaid / Beautiful Mermaid issues worth turning into small, ed
 A May 2026 GitHub issue/PR search found recurring layout-quality themes in both Mermaid and Beautiful Mermaid:
 
 - [mermaid-js/mermaid#6049 — Flowchart ugly self linking nodes](https://github.com/mermaid-js/mermaid/issues/6049)
-  - Fixture idea: self-loop on a styled node. Assert the loop stays outside the node, has bounded route length, and does not obscure the label.
+  - Fixture status: `src/__tests__/aesthetic-issue-regressions.test.ts` renders a flowchart self-loop and asserts the loop has no hard geometric defects; `src/__tests__/layout-quality-heuristics.test.ts` keeps the broader self-loop clearance guard.
 - [mermaid-js/mermaid#5060 — Avoidable overlapping curves in flow-chart](https://github.com/mermaid-js/mermaid/issues/5060)
-  - Fixture idea: repeated parallel edges with long labels. Assert edge-label proximity and crossing/overlap counts stay below a threshold.
+  - Fixture status: `src/__tests__/aesthetic-issue-regressions.test.ts` renders repeated parallel labeled edges and asserts distinct edge paths, zero crossings, no hard defects, and separated label boxes.
 - [mermaid-js/mermaid#6046 — subgraph links should affect positioning more than inter-graph links](https://github.com/mermaid-js/mermaid/issues/6046)
   - Fixture idea: nested subgraphs with invisible/loose links. Assert group order follows source intent and cross-group edges do not dominate internal layout.
 - [mermaid-js/mermaid#7492 — C4 overlapping labels/text overflow/crossing arrows](https://github.com/mermaid-js/mermaid/issues/7492)
   - Fixture idea: labels near containers. Assert text stays inside boxes and edge labels keep minimum clearance from unrelated nodes.
 - [mermaid-js/mermaid#2792 — graph lines sometimes overlap boxes](https://github.com/mermaid-js/mermaid/issues/2792)
-  - Fixture idea: route-vs-node collision. Assert no edge segment passes through unrelated node bounding boxes.
+  - Fixture status: `src/__tests__/aesthetic-issue-regressions.test.ts` renders a transitive route and asserts the ugly-detector reports no edge-through-node defect.
 - [lukilabs/beautiful-mermaid#83 — TD/TB flowchart layout flipping horizontal](https://github.com/lukilabs/beautiful-mermaid/issues/83)
   - Fixture idea: vertical process with repeated feedback edges. Assert TD/TB diagrams remain height-dominant or within a bounded aspect ratio.
 - [lukilabs/beautiful-mermaid#68 — fan-in groups not target-aware](https://github.com/lukilabs/beautiful-mermaid/issues/68)
@@ -76,27 +76,29 @@ A May 2026 GitHub issue/PR search found recurring layout-quality themes in both 
 
 ## Aesthetic-issue coverage audit (issue-keyed)
 
-A June 2026 audit confirmed that the *behavior* behind the 13 layout-aesthetic
-complaints in [`mermaid-layout-complaints.md`](./mermaid-layout-complaints.md)
-was guarded by the general detector/metric/route-certificate layers, but no
-test was keyed to the upstream issue number (so `git grep '#6476'` found only
-docs). That traceability gap is now closed:
+A June 2026 audit turned the 13 layout-aesthetic complaints in
+[`mermaid-layout-complaints.md`](./mermaid-layout-complaints.md) into an
+explicit coverage ledger. Direct issue-keyed fixtures now guard the complaints
+that can be expressed against supported diagram families; broader existing
+assertions are tagged where they already covered the behavior; unsupported,
+deferred, and policy-out-of-scope cases remain recorded below.
 
 - **Issue-keyed regression fixtures** —
   [`src/__tests__/aesthetic-issue-regressions.test.ts`](../src/__tests__/aesthetic-issue-regressions.test.ts)
   renders a small repro graph per complaint and asserts, through the real
   renderer, that Agentic Mermaid does not exhibit it: `#6476` (avoidable edge
   crossings → 0 on a planar bipartite graph), `#5601` (planar state diagram
-  stays planar), `#5060` (parallel labeled edges, no geometric defects),
+  stays planar), `#5060` (parallel labeled edges use distinct rendered paths,
+  keep labels separate, and produce no geometric defects),
   `#2792` (transitive edge does not pass through an intervening node, via the
   ugly-detector `edge-through-node` check), `#2131` (edge labels keep
-  clearance from unrelated nodes), and `#6336`/`#6049` (self-loop endpoints on
-  the outline, no defects).
+  clearance from unrelated nodes and from each other), and `#6336`/`#6049`
+  (state and flowchart self-loops render without hard defects).
 - **Tagged existing assertions** (now greppable by issue number): `#815`
   (declared node/source order — `agent-auth-flow.test.ts`,
   `layout-quality-heuristics.test.ts`), `#1984`/`#3262` (scale-collapse
-  whitespace + aspect — `agent-quality.test.ts`), `#1301` (gantt rows never
-  overlap — `gantt-layout.test.ts`), and `#1765` (activation/note/block
+  whitespace + aspect — `agent-quality.test.ts`), `#1301` (long-range Gantt
+  axis labels stay clear of task bars — `gantt-layout.test.ts`), and `#1765` (activation/note/block
   clearance — `sequence-layout.test.ts`).
 - **`#7492` (C4 overlapping labels/arrows)** — no fixture yet: the C4 family
   is not rendered. Tracked under **BUILD-6** (new upstream families); add the
@@ -118,13 +120,14 @@ Current useful heuristics:
 
 - `verifyMermaid` warnings: `OFF_CANVAS`, `GROUP_BREACH`, `NODE_OVERLAP`, `ROUTE_SELF_CROSS`, `LABEL_OVERFLOW`, `DUPLICATE_EDGE`, `UNREACHABLE_NODE`;
 - `measureQuality(layoutMermaid(d))` / `checkQuality(...)`: edge crossings, label legibility, whitespace balance, label-edge proximity, and aspect ratio;
+- issue-keyed fixtures that gate selected repro diagrams individually, including zero crossings and label-vs-label box separation for parallel edge labels;
 - family-specific geometry assertions, such as Auth Flow's source-order progression and backward feedback-edge routing;
 - layout-quality heuristic tests for declared-direction progress (`TD`/`BT`/`LR`/`RL`), edge-vs-node collisions excluding attached endpoints, feedback-process cleanliness, root node vs top-level subgraph source order, and self-loop clearance;
 - PNG/SVG screenshot comparison for artifacts that layout JSON cannot see, such as rounded-fill raster artifacts.
 
 High-value next heuristics for layout-improvement corpora:
 
-- edge-label bounding-box overlap with unrelated nodes/edges;
+- promote edge-label bounding-box overlap with unrelated labels/nodes/edges from fixture-local checks into a shared metric;
 - route corridor reuse by unrelated edge families;
 - target-aware fan-in/fan-out clustering score;
 - group-header text fit, especially with CJK/fullwidth labels.
