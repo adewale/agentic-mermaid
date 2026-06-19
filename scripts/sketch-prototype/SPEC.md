@@ -320,32 +320,6 @@ cheap) vs *after* (warm neutrals, one accent, Fraunces, rounded → premium);
 Flux LatentPop's caricature vs faithful versions. Examples teach the judgement
 the checklist can only gesture at.
 
-### 3.3c Provenance, attribution & naming (learned: styles derive from people)
-
-A growing share of styles trace to a **specific living creator, brand, or named
-movement** — Making Software (Dan Hollick), Excalidraw, Balsamiq, Flux LatentPop
-(jakedahn), GiscardPunk (Florent Deloison). That carries credit and trademark
-obligations the spec must encode:
-
-```ts
-interface StyleSpec {
-  // …
-  source?: { ref: string; creator?: string; license?: string; note?: string }
-}
-```
-
-- **Require `source`** on any style derived from an external reference — for
-  attribution in UI/docs, and so the authoring guide can cite it.
-- **Name by aesthetic, not by trademark/person**, unless it's the movement's own
-  public name. We shipped **"Vinegar"** (not "Balsamiq") deliberately; "Making
-  Software" is borderline (it's a product) and should arguably be renamed to a
-  descriptive name ("warm-serif minimal") with the product credited in `source`.
-  "GiscardPunk" is the movement's self-chosen name — fine to use with credit.
-- **Respect fonts/asset licences** (track per bundled font; all current ones are
-  OFL). Flag any style whose defining font isn't redistributable.
-- This is also a **legibility-of-credit** matter: bundled posters/galleries
-  should surface `source.creator` so we're visibly crediting, not appropriating.
-
 ### 3.4 Public API
 
 Extend `RenderOptions` (`src/types.ts`) and resolve in `resolveRenderStyle`:
