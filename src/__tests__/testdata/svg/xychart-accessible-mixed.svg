@@ -14,6 +14,8 @@
     --_group-fill:    #f8fafc;
     --_group-hdr:     #eeeff1;
     --_inner-stroke:  #dfe1e3;
+    --_edge-label-bg: #f4f6f8;
+    --_edge-label-stroke: #e3e5e7;
     --_key-badge:     #e3e5e7;
   }
 </style>

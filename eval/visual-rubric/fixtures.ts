@@ -20,6 +20,7 @@ export interface RubricFixture {
     maxCrossings?: number
     maxBendsPerEdge?: number
     minPortAnchoredEdgeRate?: number
+    maxPeerBarycenterDelta?: number
   }
 }
 
@@ -58,7 +59,11 @@ export function simpleFixtures(): RubricFixture[] {
       fixtures.push({
         id: `${pattern}-${dir}`,
         source: build(dir),
-        expect: { maxCrossings: 0, maxBendsPerEdge: 4 },
+        expect: {
+          maxCrossings: 0,
+          maxBendsPerEdge: 4,
+          ...((pattern === 'fanout3' || pattern === 'fanin') ? { maxPeerBarycenterDelta: 0.75 } : {}),
+        },
       })
     }
     for (const [shape, wrap] of Object.entries(SHAPES)) {

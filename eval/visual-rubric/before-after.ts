@@ -86,6 +86,11 @@ const CELL_W = (W - PAD * 2 - GAP) / 2
 const CELL_H = 300
 const ROW_H = LABEL_H + CELL_H + 38
 const H = 92 + cases.length * ROW_H + 30
+const SHEET_BG = '#f8fafc'
+const CARD_BG = '#ffffff'
+const CARD_STROKE = '#d1d5db'
+const TEXT = '#111827'
+const TEXT_MUTED = '#4b5563'
 
 function esc(s: string): string {
   return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
@@ -102,20 +107,20 @@ function renderCard(renderer: RendererModule, source: string, width: number): { 
 }
 
 const blocks: string[] = []
-blocks.push('<rect width="100%" height="100%" fill="#fdf6ec"/>')
-blocks.push(`<text x="${PAD}" y="34" font-size="21" font-weight="800" fill="#5c1a0a">PR #54 before/after — generated from origin/main vs this branch</text>`)
-blocks.push(`<text x="${PAD}" y="62" font-size="13" fill="#7a4a32">Left: ${esc(baseLabel)}. Right: ${esc(afterLabel)}. Same sources, same renderMermaidSVG entrypoint.</text>`)
-blocks.push(`<text x="${PAD}" y="88" font-size="15" font-weight="700" fill="#8b2f12">BEFORE — main</text>`)
+blocks.push(`<rect width="100%" height="100%" fill="${SHEET_BG}"/>`)
+blocks.push(`<text x="${PAD}" y="34" font-size="21" font-weight="800" fill="${TEXT}">PR #54 before/after — generated from origin/main vs this branch</text>`)
+blocks.push(`<text x="${PAD}" y="62" font-size="13" fill="${TEXT_MUTED}">Left: ${esc(baseLabel)}. Right: ${esc(afterLabel)}. Same sources, same renderMermaidSVG entrypoint.</text>`)
+blocks.push(`<text x="${PAD}" y="88" font-size="15" font-weight="700" fill="#991b1b">BEFORE — main</text>`)
 blocks.push(`<text x="${PAD + CELL_W + GAP}" y="88" font-size="15" font-weight="700" fill="#1f6f43">AFTER — ${esc(afterLabel)}</text>`)
 
 for (let i = 0; i < cases.length; i++) {
   const c = cases[i]!
   const y = 105 + i * ROW_H
-  blocks.push(`<text x="${PAD}" y="${y}" font-size="14" font-weight="700" fill="#4b2618">${esc(c.id)} — ${esc(c.title)}</text>`)
+  blocks.push(`<text x="${PAD}" y="${y}" font-size="14" font-weight="700" fill="${TEXT}">${esc(c.id)} — ${esc(c.title)}</text>`)
   for (const [col, renderer] of [[0, baseModule], [1, { renderMermaidSVG: renderAfter }]] as const) {
     const x = PAD + col * (CELL_W + GAP)
     const cardY = y + 16
-    blocks.push(`<rect x="${x}" y="${cardY}" width="${CELL_W}" height="${CELL_H}" rx="10" fill="#fffaf4" stroke="#ead4c2"/>`)
+    blocks.push(`<rect x="${x}" y="${cardY}" width="${CELL_W}" height="${CELL_H}" rx="10" fill="${CARD_BG}" stroke="${CARD_STROKE}"/>`)
     const rendered = renderCard(renderer, c.source, CELL_W - 36)
     if (rendered.href) {
       blocks.push(`<image x="${x + 18}" y="${cardY + 14}" width="${CELL_W - 36}" height="${CELL_H - 28}" preserveAspectRatio="xMidYMid meet" href="${rendered.href}"/>`)

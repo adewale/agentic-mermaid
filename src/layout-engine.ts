@@ -964,6 +964,7 @@ function elkToPositioned(
   // pulls, slide one endpoint node along the cross axis so the two midpoint
   // ports share a lane — straight AND port-exact, no routing trade.
   alignPortLanes(nodes, edges, groups, graph.direction, style)
+  centerPeerBarycenters(nodes, edges, groups, graph, style)
 
   // Mermaid variable-length links (`---->`, `====>`, `~~~~`) mean rank
   // distance, not just source spelling. Apply the conservative DAG/no-group
@@ -1443,6 +1444,66 @@ function equalizePeerNodeDimensions(nodes: PositionedNode[], edges: PositionedEd
     }
   }
   if (changed) packFlowLayerCrossAxis(nodes, graph.direction)
+}
+
+function centerPeerBarycenters(
+  nodes: PositionedNode[],
+  edges: PositionedEdge[],
+  groups: PositionedGroup[],
+  graph: MermaidGraph,
+  style: LabelMetricsStyle,
+): void {
+  const nodeMap = new Map(nodes.map(n => [n.id, n]))
+  const candidatePeers = (candidateEdges: PositionedEdge[], peerEnd: 'source' | 'target'): PositionedNode[] | undefined => {
+    if (candidateEdges.length < 2 || candidateEdges.length > 6) return undefined
+    const firstStyle = candidateEdges[0]!.style
+    if (candidateEdges.some(edge => edge.label || edge.style !== firstStyle)) return undefined
+    const ids = candidateEdges.map(edge => edge[peerEnd])
+    if (new Set(ids).size !== ids.length) return undefined
+    const peers = ids.map(id => nodeMap.get(id)).filter((node): node is PositionedNode => !!node)
+    if (peers.length !== ids.length) return undefined
+    if (!peers.every(node => node.shape === 'rectangle' && !nodeInsideGroups(node, groups))) return undefined
+    if (!sameFlowLayer(peers, graph.direction, 28)) return undefined
+    for (let i = 0; i < peers.length; i++) for (let j = 0; j < peers.length; j++) {
+      if (i !== j && logicalGraphReaches(graph, peers[i]!.id, peers[j]!.id)) return undefined
+    }
+    return peers
+  }
+
+  for (let pass = 0; pass < 3; pass++) {
+    const bySource = new Map<string, PositionedEdge[]>()
+    const byTarget = new Map<string, PositionedEdge[]>()
+    for (const edge of edges) {
+      if (!positionedEdgeForwardish(edge, nodeMap, graph.direction)) continue
+      if (!bySource.has(edge.source)) bySource.set(edge.source, [])
+      bySource.get(edge.source)!.push(edge)
+      if (!byTarget.has(edge.target)) byTarget.set(edge.target, [])
+      byTarget.get(edge.target)!.push(edge)
+    }
+
+    let moved = false
+    const moveHub = (hub: PositionedNode | undefined, peers: PositionedNode[]): void => {
+      if (!hub || hub.shape !== 'rectangle' || nodeInsideGroups(hub, groups)) return
+      const barycenter = peers.reduce((sum, peer) => sum + nodeCrossCenter(peer, graph.direction), 0) / peers.length
+      const delta = barycenter - nodeCrossCenter(hub, graph.direction)
+      if (Math.abs(delta) <= 0.5) return
+      const movedIds = new Set([hub.id])
+      if (!crossShiftSafe(movedIds, nodes, edges, graph.direction, delta, style)) return
+      layoutDebug('[peer-barycenter] center', hub.id, 'by', delta.toFixed(1))
+      shiftNodeSetCross(movedIds, nodes, edges, graph.direction, delta)
+      moved = true
+    }
+
+    for (const [sourceId, outgoing] of bySource) {
+      const peers = candidatePeers(outgoing, 'target')
+      if (peers) moveHub(nodeMap.get(sourceId), peers)
+    }
+    for (const [targetId, incoming] of byTarget) {
+      const peers = candidatePeers(incoming, 'source')
+      if (peers) moveHub(nodeMap.get(targetId), peers)
+    }
+    if (!moved) break
+  }
 }
 
 function alignForkRejoinPeerCenters(

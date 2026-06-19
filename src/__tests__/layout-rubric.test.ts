@@ -48,6 +48,30 @@ describe('rubric ratchets — the MFA regression scores stay at least this good'
   })
 })
 
+describe('visual rubric — peer barycenter ratchets', () => {
+  it('tracks same-layer peer fan-out centering as a visual metric', () => {
+    const graph = parseMermaid(`flowchart TD
+      Dispatcher --> Email[Email Worker]
+      Dispatcher --> SMS[SMS Worker]
+      Dispatcher --> Push[Push Worker]
+      Dispatcher --> Webhook[Webhook Worker]`)
+    const result = assessLayout(graph, layoutGraphSync(graph))
+    expect(result.metrics.peerBarycenterDelta).toBeLessThanOrEqual(0.75)
+  })
+
+  it('tracks non-terminal peer fan-in/fan-out centering as a visual metric', () => {
+    const graph = parseMermaid(`flowchart TD
+      A[A] --> C[C]
+      B[B] --> C
+      C --> D[D]
+      C --> E[E]
+      D --> F[F]
+      E --> F`)
+    const result = assessLayout(graph, layoutGraphSync(graph))
+    expect(result.metrics.peerBarycenterDelta).toBeLessThanOrEqual(0.75)
+  })
+})
+
 // ============================================================================
 // Property-based oracles
 // ============================================================================

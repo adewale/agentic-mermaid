@@ -42,6 +42,9 @@ export function scoreFixture(fixture: RubricFixture): Omit<ScoredFixture, 'svg'>
   if (e.minPortAnchoredEdgeRate !== undefined && m.portAnchoredEdgeRate < e.minPortAnchoredEdgeRate) {
     failures.push(`[soft] portAnchoredEdgeRate ${m.portAnchoredEdgeRate.toFixed(2)} < ${e.minPortAnchoredEdgeRate}`)
   }
+  if (e.maxPeerBarycenterDelta !== undefined && m.peerBarycenterDelta > e.maxPeerBarycenterDelta) {
+    failures.push(`[soft] peerBarycenterDelta ${m.peerBarycenterDelta.toFixed(2)} > ${e.maxPeerBarycenterDelta}`)
+  }
   return { fixture, result, failures }
 }
 
@@ -57,6 +60,7 @@ function galleryHtml(scored: ScoredFixture[], title: string): string {
         <td>crossings ${m.edgeCrossings}</td><td>bends ${m.totalBends} (max ${m.maxBendsPerEdge})</td>
         <td>port-anchored ${(m.portAnchoredEdgeRate * 100).toFixed(0)}%</td>
         <td>port-ends ${(m.portEndpointRate * 100).toFixed(0)}%</td>
+        <td>peer bary Δ ${m.peerBarycenterDelta.toFixed(1)}px</td>
       </tr></table>
       ${failHtml ? `<ul class="failures">${failHtml}</ul>` : ''}
       <details><summary>source</summary><pre>${s.fixture.source.replace(/</g, '&lt;')}</pre></details>

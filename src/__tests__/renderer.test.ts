@@ -362,14 +362,30 @@ describe('renderSvg – edges', () => {
 // ============================================================================
 
 describe('renderSvg – edge labels', () => {
-  it('renders edge label with background pill', () => {
+  it('renders edge label with theme-aware background chrome', () => {
     const edge = makeEdge({ label: 'Yes' })
     const graph = makeGraph({ edges: [edge] })
     const svg = renderSvg(graph, lightColors)
     expect(svg).toContain('>Yes</text>')
     expect(svg).toContain('rx="2" ry="2"')
     expect(svg).toContain('class="edge-label-halo"')
+    expect(svg).toContain('--_edge-label-bg:')
+    expect(svg).toContain('--_edge-label-stroke:')
+    expect(svg).toContain('fill="var(--_edge-label-bg)"')
+    expect(svg).toContain('stroke="var(--_edge-label-stroke)"')
     expect(svg.indexOf('class="edge-label-halo"')).toBeLessThan(svg.indexOf('>Yes</text>'))
+  })
+
+  it('edge labels do not emit a hard-white pill on non-white themes', () => {
+    const edge = makeEdge({ label: 'Go' })
+    const graph = makeGraph({ edges: [edge] })
+    const svg = renderSvg(graph, { bg: '#FFFBF5', fg: '#521000', surface: '#FFFDFB', border: '#D4B89E' })
+    const labelStart = svg.indexOf('class="edge-label"')
+    const labelEnd = svg.indexOf('</g>', labelStart)
+    const labelSvg = svg.slice(labelStart, labelEnd)
+    expect(labelSvg).not.toContain('fill="#FFFFFF"')
+    expect(labelSvg).not.toContain('fill="var(--bg)"')
+    expect(labelSvg).toContain('fill="var(--_edge-label-bg)"')
   })
 
   it('does not render label elements for edges without labels', () => {

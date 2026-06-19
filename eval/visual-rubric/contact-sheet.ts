@@ -35,6 +35,8 @@ const resvgOptions = (fitTo: { mode: 'width'; value: number }) => ({
 const COLS = 2
 const CELL_W = 700
 const CELL_H = 300
+const SHEET_BG = '#ffffff'
+const TEXT = '#111827'
 
 function esc(s: string): string {
   return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
@@ -49,13 +51,13 @@ export function renderContactSheetSvg(): string {
     const svg = renderMermaidSVG(sc.source, { font: FONT_FAMILY, embedFontImport: false }).replace(/<\?xml[^>]*\?>/, '')
     const png = new Resvg(svg, resvgOptions({ mode: 'width', value: 620 })).render().asPng()
     const b64 = Buffer.from(png).toString('base64')
-    return `<text x="${x}" y="${y - 8}" font-size="15" font-weight="bold" fill="#5c1a0a">${esc(sc.letter)} — ${esc(sc.title)}</text>
+    return `<text x="${x}" y="${y - 8}" font-size="15" font-weight="bold" fill="${TEXT}">${esc(sc.letter)} — ${esc(sc.title)}</text>
     <image x="${x}" y="${y}" width="${CELL_W - 60}" height="${CELL_H - 70}" preserveAspectRatio="xMinYMin meet" href="data:image/png;base64,${b64}"/>`
   }).join('\n')
 
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${COLS * CELL_W + 40}" height="${rows * CELL_H + 60}" font-family="${FONT_FAMILY}">
-  <rect width="100%" height="100%" fill="#fdf6ec"/>
-  <text x="20" y="30" font-size="20" font-weight="bold" fill="#5c1a0a">Port ranking + port-lane alignment — contact sheet (pinned in contact-sheet.test.ts)</text>
+  <rect width="100%" height="100%" fill="${SHEET_BG}"/>
+  <text x="20" y="30" font-size="20" font-weight="bold" fill="${TEXT}">Port ranking + port-lane alignment — contact sheet (pinned in contact-sheet.test.ts)</text>
   ${cells}</svg>`
 }
 

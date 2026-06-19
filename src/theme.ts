@@ -105,6 +105,10 @@ export const MIX = {
   groupHeader:  5,
   /** Inner divider strokes: fg mixed at 12% */
   innerStroke:  12,
+  /** Edge label backing tint: fg mixed at 2% */
+  edgeLabelBg:  2,
+  /** Edge label backing stroke: fg mixed at 10% */
+  edgeLabelStroke: 10,
   /** Key badge background opacity (ER diagrams) */
   keyBadge:     10,
 } as const
@@ -344,6 +348,8 @@ export function buildStyleBlock(font: string, hasMonoFont: boolean, shadow?: boo
     --_group-fill:    var(--bg);
     --_group-hdr:     color-mix(in srgb, var(--fg) ${MIX.groupHeader}%, var(--bg));
     --_inner-stroke:  color-mix(in srgb, var(--fg) ${MIX.innerStroke}%, var(--bg));
+    --_edge-label-bg: color-mix(in srgb, var(--fg) ${MIX.edgeLabelBg}%, var(--bg));
+    --_edge-label-stroke: color-mix(in srgb, var(--fg) ${MIX.edgeLabelStroke}%, var(--bg));
     --_key-badge:     color-mix(in srgb, var(--fg) ${MIX.keyBadge}%, var(--bg));`
 
   // Shadow CSS — applies drop shadow to node/box groups when enabled
@@ -482,6 +488,8 @@ export interface ResolvedColors {
   groupFill: string
   groupHdr: string
   innerStroke: string
+  edgeLabelBg: string
+  edgeLabelStroke: string
   keyBadge: string
 }
 
@@ -505,6 +513,8 @@ export function resolveColors(colors: DiagramColors): ResolvedColors {
     groupFill: bg,
     groupHdr: mixHex(fg, bg, MIX.groupHeader),
     innerStroke: mixHex(fg, bg, MIX.innerStroke),
+    edgeLabelBg: mixHex(fg, bg, MIX.edgeLabelBg),
+    edgeLabelStroke: mixHex(fg, bg, MIX.edgeLabelStroke),
     keyBadge: mixHex(fg, bg, MIX.keyBadge),
   }
 }
@@ -562,6 +572,8 @@ export function inlineResolvedColors(svg: string, colors: DiagramColors): string
   vars.set('_group-fill', rc.groupFill)
   vars.set('_group-hdr', rc.groupHdr)
   vars.set('_inner-stroke', rc.innerStroke)
+  vars.set('_edge-label-bg', rc.edgeLabelBg)
+  vars.set('_edge-label-stroke', rc.edgeLabelStroke)
   vars.set('_key-badge', rc.keyBadge)
 
   let text = svg

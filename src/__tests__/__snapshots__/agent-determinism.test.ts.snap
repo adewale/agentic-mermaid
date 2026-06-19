@@ -305,6 +305,14 @@ exports[`drift sentinel sentinel: flowchart LR /   A --> B /   A --> C /   B -->
       "path": [
         [
           100,
+          91,
+        ],
+        [
+          124,
+          91,
+        ],
+        [
+          124,
           58,
         ],
         [
@@ -321,11 +329,11 @@ exports[`drift sentinel sentinel: flowchart LR /   A --> B /   A --> C /   B -->
       "path": [
         [
           100,
-          58,
+          91,
         ],
         [
           124,
-          58,
+          91,
         ],
         [
           124,
@@ -397,7 +405,7 @@ exports[`drift sentinel sentinel: flowchart LR /   A --> B /   A --> C /   B -->
       "shape": "rectangle",
       "w": 60,
       "x": 40,
-      "y": 40,
+      "y": 72,
     },
     {
       "h": 37,
