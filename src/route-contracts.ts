@@ -614,6 +614,40 @@ function portPoint(node: PositionedNode, side: PortSide | DiamondFacet): Point {
   return shapePorts(node)[side as PortSide]
 }
 
+function repairRectLikeEndpointOverflow(edge: PositionedEdge, node: PositionedNode, isStart: boolean): void {
+  if (!RECT_LIKE.has(node.shape) || edge.points.length < 2) return
+  const idx = isStart ? 0 : edge.points.length - 1
+  const p = edge.points[idx]!
+  const x0 = node.x
+  const x1 = node.x + node.width
+  const y0 = node.y
+  const y1 = node.y + node.height
+  const near = (a: number, b: number) => Math.abs(a - b) <= PORT_TOLERANCE
+  const pushStub = (outline: Point, stub: Point) => {
+    edge.points[idx] = outline
+    if (Math.abs(outline.x - stub.x) <= EPS && Math.abs(outline.y - stub.y) <= EPS) return
+    if (isStart) {
+      const next = edge.points[1]
+      if (!next || Math.abs(next.x - stub.x) > EPS || Math.abs(next.y - stub.y) > EPS) edge.points.splice(1, 0, stub)
+    } else {
+      const prev = edge.points[edge.points.length - 2]
+      if (!prev || Math.abs(prev.x - stub.x) > EPS || Math.abs(prev.y - stub.y) > EPS) edge.points.splice(edge.points.length - 1, 0, stub)
+    }
+  }
+
+  if (near(p.x, x0) || near(p.x, x1)) {
+    const x = near(p.x, x0) ? x0 : x1
+    if (p.y < y0 - PORT_TOLERANCE) pushStub({ x, y: y0 }, { x, y: p.y })
+    else if (p.y > y1 + PORT_TOLERANCE) pushStub({ x, y: y1 }, { x, y: p.y })
+    return
+  }
+  if (near(p.y, y0) || near(p.y, y1)) {
+    const y = near(p.y, y0) ? y0 : y1
+    if (p.x < x0 - PORT_TOLERANCE) pushStub({ x: x0, y }, { x: p.x, y })
+    else if (p.x > x1 + PORT_TOLERANCE) pushStub({ x: x1, y }, { x: p.x, y })
+  }
+}
+
 function diamondSpreadPortSet(axis: Axis, count: number): Array<PortSide | DiamondFacet> | null {
   if (axis.main === 'x') {
     if (axis.sign > 0) {
@@ -1275,12 +1309,14 @@ export function applyRouteContracts(
       }
     } else if (cert.invariant === 'explained-detour' &&
       (cert.bendCount > 2 || routeThroughNodeBBox(edge, ctx) ||
+        !portAt(source!, edge.points[0]!) ||
         !portAt(target!, edge.points[edge.points.length - 1]!))) {
       // Bend minimization (the Tamassia tradition): when the lane is
       // genuinely blocked, a 2-bend Z that terminates on the target's port
-      // still beats ELK's multi-bend staircase. Also triggered whenever the
-      // kept route passes through a node — the stale-corridor signature of
-      // a later pass moving a node into an already-routed channel.
+      // still beats ELK's multi-bend staircase. The same repair applies when
+      // either endpoint has drifted off its rendered outline. Also triggered
+      // whenever the kept route passes through a node — the stale-corridor
+      // signature of a later pass moving a node into an already-routed channel.
       // Proof-gated like everything else; failure keeps the explained route.
       if (tryZRoute(edge, source!, target!, ctx, edgeAxis)) {
         cert.bendCount = bendCount(edge.points)
@@ -1725,6 +1761,13 @@ export function applyRouteContracts(
     if (!changed) break
     retry.length = 0
     retry.push(...still)
+  }
+
+  for (const edge of positioned.edges) {
+    const sourceNode = nodeMap.get(edge.source)
+    const targetNode = nodeMap.get(edge.target)
+    if (sourceNode) repairRectLikeEndpointOverflow(edge, sourceNode, true)
+    if (targetNode) repairRectLikeEndpointOverflow(edge, targetNode, false)
   }
 
   const certificates: RouteCertificate[] = []

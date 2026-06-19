@@ -48,6 +48,25 @@ describe('rubric ratchets — the MFA regression scores stay at least this good'
   })
 })
 
+describe('rubric ratchets — endpoint outline regressions', () => {
+  it('duplicate detours re-anchor source and target endpoints onto shape outlines', () => {
+    const graph = parseMermaid(`flowchart LR
+  N0[n0]
+  N1[n1]
+  N2[n2]
+  N3[(n3)]
+  N4[n4]
+  N4 --> N0
+  N0 -- go --> N4
+  N2 --> N3
+  N2 --> N3
+  N4 --> N3`)
+    const positioned = layoutGraphSync(graph)
+    const result = assessLayout(graph, positioned)
+    expect(result.violations.filter(v => v.metric === 'offOutlineEndpoints')).toEqual([])
+  })
+})
+
 describe('visual rubric — peer barycenter ratchets', () => {
   it('tracks same-layer peer fan-out centering as a visual metric', () => {
     const graph = parseMermaid(`flowchart TD
