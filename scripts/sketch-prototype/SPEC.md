@@ -181,10 +181,26 @@ interface StyleSpec {
   glowColor?: string; glowOffset?: number      // offset drop-glow behind shapes (latentpop)
   seal?: boolean                               // decorative chop (chinese brush)
 
-  // 5 — READABILITY (WCAG guardrail, §7)
+  // 5 — READABILITY (WCAG guardrail, §7) + typography
   labelHalo?: string                    // text knockout colour (default: page bg)
   labelInk?: string                     // label colour (default: auto-contrast vs halo)
+  textTransform?: 'uppercase'           // e.g. blueprint all-caps lettering
+  letterSpacing?: number
 }
+```
+
+A style may also need **decorative "furniture"** that isn't a per-shape mark —
+e.g. the blueprint's border frame + title block, or a red seal. These live in
+the `Backdrop` strategy (it gets the page width/height), so the registry exposes
+backdrops as first-class, not just flat colours. Authenticity research per style
+(pen-and-ink = *no* interior hatching; blueprint = Prussian blue + white lines +
+title block; chalkboard = dusty broken strokes; risograph = 2 spot inks +
+misregistration + grain; whiteboard = thick translucent marker strokes) is what
+drove these surface additions — a custom-style API must expose all of:
+backdrop furniture, per-style filter `defs`, spot palettes, registration offset,
+text-transform, and the label halo/ink overrides.
+
+```ts
 registerStyle(spec)               // third-party styles register here
 getStyle(name): ResolvedStyle
 ```

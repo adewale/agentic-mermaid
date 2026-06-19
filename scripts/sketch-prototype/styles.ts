@@ -1,18 +1,14 @@
 // ============================================================================
-// Thirteen aesthetic styles, expressed as DATA.
+// Aesthetic styles, expressed as DATA. A Style composes four orthogonal
+// strategies (the pluggable seam — see SPEC): stroke · fill · backdrop · postfx.
+// Adding/removing a style = editing this table. No engine changes required.
 //
-// A Style composes four orthogonal strategies (the pluggable seam — see SPEC):
-//   stroke : how an outline/edge is drawn
-//   fill   : how a region is shaded (tone-driven)
-//   backdrop: the "page"
-//   postfx : palette + svg filters/compositing
-//
-// Adding a style = adding one record here. No engine changes required.
+// Each style is grounded in research notes (see commit history / SPEC refs).
 // ============================================================================
 
 export type StrokeKind = 'crisp' | 'jittered' | 'brush' | 'pencil'
 export type FillKind = 'none' | 'hachure' | 'crosshatch' | 'stipple' | 'halftone' | 'wash' | 'scribble' | 'solid'
-export type BackdropKind = 'paper-ruled' | 'plain' | 'rice' | 'washi' | 'grid' | 'slate'
+export type BackdropKind = 'paper-ruled' | 'plain' | 'rice' | 'washi' | 'grid' | 'slate' | 'blueprint'
 
 export interface Style {
   name: string
@@ -34,176 +30,127 @@ export interface Style {
   fillColor: string
   baseTone: number        // floor tone applied to every region (so boxes aren't empty)
   toneFromLuminance: boolean
-  keepHue: boolean        // watercolor: fill with the original region colour
+  keepHue: boolean        // fill with the region's own colour
   hachureAngle: number
 
   backdrop: BackdropKind
   defs?: string
   strokeFilter?: string
-  fillFilter?: string     // distress filter applied to solid fills (screenprint)
+  fillFilter?: string
   seal?: boolean
   misregister?: number    // riso: duplicate strokes offset in a 2nd colour
   misColor?: string
-  spotPalette?: string[]  // solid fill: pick a flat spot colour per region (seeded)
-  glowColor?: string      // offset drop-glow behind filled shapes (screenprint registration)
+  spotPalette?: string[]  // solid/wash: pick a per-region colour (seeded)
+  glowColor?: string
   glowOffset?: number
   labelHalo?: string      // override the text knockout colour (default: page bg)
   labelInk?: string       // override the label ink (default: auto-contrast vs halo)
+  textTransform?: 'uppercase'
+  letterSpacing?: number
 }
-
-const BLUE = '#1f3a8a', BLACK = '#161616', SUMI = '#1c1c1c'
 
 export const STYLES: Style[] = [
   {
+    // Matches the reference notebook photo: deep-navy ballpoint, clean confident
+    // single strokes, EMPTY boxes (no shading), faint blue ruled paper.
     name: 'hand-drawn', label: 'Hand-drawn (notebook)',
-    blurb: 'Blue ballpoint on ruled paper. Damped-bow double strokes, tonal hachure.',
-    colors: { bg: '#fbfaf3', fg: BLUE, line: BLUE, accent: BLUE, muted: '#5566aa', surface: '#fbfaf3', border: BLUE },
+    blurb: 'Deep-navy ballpoint on faint-ruled paper. Clean confident strokes, unfilled boxes.',
+    colors: { bg: '#fbfaf3', fg: '#1e2f6b', line: '#1e2f6b', accent: '#1e2f6b', muted: '#5566aa', surface: '#fbfaf3', border: '#1e2f6b' },
     font: 'Caveat', fontFile: 'Caveat.ttf',
-    stroke: 'jittered', roughness: 1.5, passes: 2, strokeWidth: 1.6, linecap: 'round',
-    fill: 'hachure', fillColor: BLUE, baseTone: 0.18, toneFromLuminance: true, keepHue: false, hachureAngle: -41,
+    stroke: 'jittered', roughness: 1.0, passes: 2, strokeWidth: 1.8, linecap: 'round',
+    fill: 'none', fillColor: '#1e2f6b', baseTone: 0, toneFromLuminance: false, keepHue: false, hachureAngle: -41,
     backdrop: 'paper-ruled',
   },
   {
+    // Research: pen-and-ink diagrams are CONTOUR-driven — no interior hatching.
+    // Confident near-black ink on warm cream; serif lettering; no fills.
     name: 'pen-and-ink', label: 'Pen & ink',
-    blurb: 'Fine confident lines; tone built from cross-hatch density. Black on white.',
-    colors: { bg: '#ffffff', fg: BLACK, line: BLACK, accent: BLACK, muted: '#444', surface: '#ffffff', border: BLACK },
+    blurb: 'Contour-driven technical pen: confident near-black ink on cream, no interior hatching.',
+    colors: { bg: '#f4ecd8', fg: '#1a1a1a', line: '#1a1a1a', accent: '#3d2b1f', muted: '#5b4636', surface: '#f4ecd8', border: '#1a1a1a' },
     font: 'EB Garamond', fontFile: 'EBGaramond.ttf',
-    stroke: 'jittered', roughness: 0.5, passes: 1, strokeWidth: 1.0, linecap: 'butt',
-    fill: 'crosshatch', fillColor: BLACK, baseTone: 0.18, toneFromLuminance: true, keepHue: false, hachureAngle: -45,
+    stroke: 'jittered', roughness: 0.5, passes: 1, strokeWidth: 1.5, linecap: 'round',
+    fill: 'none', fillColor: '#1a1a1a', baseTone: 0, toneFromLuminance: false, keepHue: false, hachureAngle: -45,
     backdrop: 'plain',
   },
   {
+    // Research: data-ink maximalism. Warm off-white, near-black, ONE sparing
+    // dark-red accent, faint grey hairline connectors, serif type, no fills.
     name: 'tufte', label: 'Tufte (minimal)',
-    blurb: 'Maximum data-ink: hairline strokes, no fills, serif type, quiet page.',
-    colors: { bg: '#fffff8', fg: '#111', line: '#bbb', accent: '#7a0000', muted: '#888', surface: '#fffff8', border: '#cfcfcf' },
+    blurb: 'Max data-ink: hairline grey connectors, serif labels, one sparing dark-red accent.',
+    colors: { bg: '#fffff8', fg: '#111111', line: '#b4b4ac', accent: '#a00000', muted: '#8a8a82', surface: '#fffff8', border: '#d8d8cf' },
     font: 'EB Garamond', fontFile: 'EBGaramond.ttf',
-    stroke: 'crisp', roughness: 0, passes: 1, strokeWidth: 0.7, linecap: 'butt',
+    stroke: 'crisp', roughness: 0, passes: 1, strokeWidth: 0.8, linecap: 'butt',
     fill: 'none', fillColor: '#000', baseTone: 0, toneFromLuminance: false, keepHue: false, hachureAngle: -45,
     backdrop: 'plain',
   },
   {
-    name: 'chinese-brush', label: 'Chinese paintbrush',
-    blurb: 'Tapered brushwork (variable-width ribbons), ink-wash fills, rice paper, a red seal.',
-    colors: { bg: '#f3ece0', fg: '#1a1a1a', line: '#1a1a1a', accent: '#b22222', muted: '#555', surface: '#f3ece0', border: '#1a1a1a' },
-    font: 'Caveat', fontFile: 'Caveat.ttf',
-    stroke: 'brush', roughness: 1.0, passes: 1, strokeWidth: 3.4, brushWidth: 9, linecap: 'round',
-    fill: 'wash', fillColor: '#1a1a1a', baseTone: 0.10, toneFromLuminance: true, keepHue: false, hachureAngle: -41,
-    backdrop: 'rice', seal: true,
-  },
-  {
-    name: 'sumi-e', label: 'Sumi-e (ink wash)',
-    blurb: 'Sparse monochrome brush gestures, soft ink bleed, generous empty space.',
-    colors: { bg: '#f7f5ef', fg: SUMI, line: SUMI, accent: SUMI, muted: '#666', surface: '#f7f5ef', border: SUMI },
-    font: 'Caveat', fontFile: 'Caveat.ttf',
-    stroke: 'brush', roughness: 1.3, passes: 1, strokeWidth: 2.8, brushWidth: 8, linecap: 'round',
-    fill: 'wash', fillColor: SUMI, baseTone: 0.06, toneFromLuminance: true, keepHue: false, hachureAngle: -41,
-    backdrop: 'washi',
-    defs: '<filter id="sumi-bleed" x="-25%" y="-25%" width="150%" height="150%"><feGaussianBlur stdDeviation="0.5"/></filter>',
-    strokeFilter: 'sumi-bleed',
-  },
-  // ---- the 8 new styles ----
-  {
+    // Research: cyanotype. Deep Prussian-blue ground, thin uniform WHITE lines,
+    // NO fills, border frame + bottom-right title block, all-caps mono lettering.
     name: 'blueprint', label: 'Blueprint',
-    blurb: 'White ink on cyanotype ground, drafting grid, precise thin lines.',
-    colors: { bg: '#10497e', fg: '#eaf3ff', line: '#eaf3ff', accent: '#ffffff', muted: '#bcd6f0', surface: '#10497e', border: '#dfeeff' },
-    font: 'EB Garamond', fontFile: 'EBGaramond.ttf',
-    stroke: 'jittered', roughness: 0.35, passes: 1, strokeWidth: 1.1, linecap: 'butt',
-    fill: 'none', fillColor: '#eaf3ff', baseTone: 0, toneFromLuminance: false, keepHue: false, hachureAngle: -45,
-    backdrop: 'grid',
+    blurb: 'Cyanotype: Prussian-blue ground, thin white lines, border + title block, all-caps mono.',
+    colors: { bg: '#0e3a6b', fg: '#eef3f8', line: '#eef3f8', accent: '#ffffff', muted: '#a9c2e0', surface: '#0e3a6b', border: '#eef3f8' },
+    font: 'Share Tech Mono', fontFile: 'ShareTechMono.ttf',
+    stroke: 'jittered', roughness: 0.28, passes: 1, strokeWidth: 1.0, linecap: 'butt',
+    fill: 'none', fillColor: '#eef3f8', baseTone: 0, toneFromLuminance: false, keepHue: false, hachureAngle: -45,
+    backdrop: 'blueprint', textTransform: 'uppercase', letterSpacing: 1,
   },
   {
+    // Curtis-style layered washes; now with a varied watercolour spot palette so
+    // colour genuinely leads, plus edge-darkening (pigment pooling).
     name: 'watercolor', label: 'Watercolor',
-    blurb: 'Layered translucent glazes with edge-darkening; colour leads. (Curtis-style fake.)',
-    colors: { bg: '#fdfbf6', fg: '#3a3a3a', line: '#52606d', accent: '#c0653a', muted: '#8a8a8a', surface: '#eaf2f8', border: '#7a93a8' },
+    blurb: 'Layered translucent washes in a varied pigment palette, with edge-darkening.',
+    colors: { bg: '#fdfbf6', fg: '#33312e', line: '#6a7b86', accent: '#c0653a', muted: '#8a8a8a', surface: '#eaf2f8', border: '#7a93a8' },
     font: 'Caveat', fontFile: 'Caveat.ttf',
-    stroke: 'jittered', roughness: 1.1, passes: 1, strokeWidth: 1.3, linecap: 'round', strokeOpacity: 0.8,
-    fill: 'wash', fillColor: '#6fa8c7', baseTone: 0.5, toneFromLuminance: false, keepHue: true, hachureAngle: -41,
-    backdrop: 'plain',
-    defs: '<filter id="wc-grain"><feTurbulence type="fractalNoise" baseFrequency="0.7" numOctaves="2" result="n"/><feColorMatrix in="n" type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 0.05 0"/></filter>',
-  },
-  {
-    name: 'stipple', label: 'Stipple engraving',
-    blurb: 'Tone built from blue-noise dot density. Old-textbook / banknote feel.',
-    colors: { bg: '#f6f1e7', fg: '#2a2620', line: '#2a2620', accent: '#5a2d1a', muted: '#6b6356', surface: '#f6f1e7', border: '#2a2620' },
-    font: 'EB Garamond', fontFile: 'EBGaramond.ttf',
-    stroke: 'jittered', roughness: 0.3, passes: 1, strokeWidth: 0.8, linecap: 'butt',
-    fill: 'stipple', fillColor: '#2a2620', baseTone: 0.28, toneFromLuminance: true, keepHue: false, hachureAngle: -41,
+    stroke: 'jittered', roughness: 1.0, passes: 1, strokeWidth: 1.2, linecap: 'round', strokeOpacity: 0.8,
+    fill: 'wash', fillColor: '#6fa8c7', baseTone: 0.55, toneFromLuminance: false, keepHue: false, hachureAngle: -41,
+    spotPalette: ['#e08a8a', '#8fb8d4', '#a9cf98', '#e6c879', '#c39bd1', '#e0a878'],
     backdrop: 'plain',
   },
   {
-    name: 'comic-halftone', label: 'Comic / halftone',
-    blurb: 'Bold ink outlines and Ben-Day dots whose radius tracks tone.',
-    colors: { bg: '#fffef7', fg: '#111', line: '#111', accent: '#d11', muted: '#444', surface: '#fffef7', border: '#111' },
-    font: 'Caveat', fontFile: 'Caveat.ttf',
-    stroke: 'jittered', roughness: 0.8, passes: 2, strokeWidth: 2.4, linecap: 'round',
-    fill: 'halftone', fillColor: '#111', baseTone: 0.16, toneFromLuminance: true, keepHue: false, hachureAngle: 30,
-    backdrop: 'plain',
-  },
-  {
+    // Research: green slate, off-white (never pure white) chalk, dusty broken
+    // strokes, loose open hatching, pastel accents.
     name: 'chalkboard', label: 'Chalkboard',
-    blurb: 'Dusty light strokes on slate; loose scribble shading.',
-    colors: { bg: '#22312c', fg: '#eef3ee', line: '#dfe8df', accent: '#f4d35e', muted: '#9fb4a4', surface: '#22312c', border: '#e6efe6' },
+    blurb: 'Green slate, dusty off-white chalk, broken strokes, loose open hatching.',
+    colors: { bg: '#2b3d35', fg: '#f3efe2', line: '#e3ebe0', accent: '#f6e58d', muted: '#9fb4a4', surface: '#2b3d35', border: '#f0f3ec' },
     font: 'Caveat', fontFile: 'Caveat.ttf',
-    stroke: 'pencil', roughness: 1.8, passes: 2, strokeWidth: 1.5, linecap: 'round', strokeOpacity: 0.85,
-    fill: 'scribble', fillColor: '#dfe8df', baseTone: 0.16, toneFromLuminance: true, keepHue: false, hachureAngle: -38,
+    stroke: 'pencil', roughness: 1.6, passes: 2, strokeWidth: 1.6, linecap: 'round', strokeOpacity: 0.82,
+    fill: 'scribble', fillColor: '#f3efe2', baseTone: 0.12, toneFromLuminance: true, keepHue: false, hachureAngle: -38,
     backdrop: 'slate',
     defs: '<filter id="chalk"><feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="2" result="n"/><feDisplacementMap in="SourceGraphic" in2="n" scale="1.6"/></filter>',
     strokeFilter: 'chalk',
   },
   {
-    name: 'woodcut', label: 'Woodcut / linocut',
-    blurb: 'High-contrast carved lines; tone ONLY from line spacing, never grey.',
-    colors: { bg: '#f4ecd8', fg: '#161210', line: '#161210', accent: '#161210', muted: '#161210', surface: '#f4ecd8', border: '#161210' },
-    font: 'EB Garamond', fontFile: 'EBGaramond.ttf',
-    stroke: 'jittered', roughness: 0.9, passes: 1, strokeWidth: 2.6, linecap: 'butt',
-    fill: 'hachure', fillColor: '#161210', baseTone: 0.18, toneFromLuminance: true, keepHue: false, hachureAngle: -90,
-    backdrop: 'plain',
-  },
-  {
+    // Research: real Riso spot inks (Fluorescent Pink + Blue), visible
+    // misregistration, grain, paper showing through, bold sans.
     name: 'risograph', label: 'Risograph',
-    blurb: 'Two-ink overprint with deliberate misregistration and paper grain.',
-    colors: { bg: '#f4efe6', fg: '#2b2b8f', line: '#2b2b8f', accent: '#ff5a5f', muted: '#6a6ab0', surface: '#f4efe6', border: '#2b2b8f' },
-    font: 'Caveat', fontFile: 'Caveat.ttf',
-    stroke: 'jittered', roughness: 0.7, passes: 1, strokeWidth: 1.8, linecap: 'round',
-    fill: 'wash', fillColor: '#2b2b8f', baseTone: 0.3, toneFromLuminance: true, keepHue: false, hachureAngle: -41,
-    backdrop: 'rice', misregister: 2.4, misColor: '#ff5a5f',
-  },
-  {
-    name: 'crayon', label: 'Crayon',
-    blurb: 'Waxy textured strokes and loose multi-pass scribble fills.',
-    colors: { bg: '#fffdf6', fg: '#3a2f2a', line: '#6b4f3a', accent: '#d1495b', muted: '#8a7a6a', surface: '#fffdf6', border: '#6b4f3a' },
-    font: 'Caveat', fontFile: 'Caveat.ttf',
-    stroke: 'pencil', roughness: 2.2, passes: 2, strokeWidth: 2.2, linecap: 'round', strokeOpacity: 0.9,
-    fill: 'scribble', fillColor: '#d1495b', baseTone: 0.2, toneFromLuminance: true, keepHue: false, hachureAngle: -33,
-    backdrop: 'plain',
-    defs: '<filter id="wax"><feTurbulence type="turbulence" baseFrequency="0.04 0.06" numOctaves="3" result="n"/><feDisplacementMap in="SourceGraphic" in2="n" scale="2.2"/></filter>',
-    strokeFilter: 'wax',
-  },
-  // ---- requested styles ----
-  {
-    // ref: replicate.com/jakedahn/flux-latentpop (+ supplied example images) —
-    // bold flat cartoon screenprint: VIVID ORANGE ground, deep-navy shapes with
-    // an ACID YELLOW-GREEN rim light, a CORAL offset glow behind, subtle grain.
-    name: 'flux-latentpop', label: 'Flux LatentPop',
-    blurb: 'Bold flat screenprint: vivid orange ground, navy shapes, acid-green rims, coral offset glow.',
-    colors: { bg: '#f4791f', fg: '#181425', line: '#181425', accent: '#c3e021', muted: '#9a5a23', surface: '#f4791f', border: '#c3e021' },
+    blurb: 'Two Riso spot inks (fluoro pink + blue), visible misregistration, grain, paper showing.',
+    colors: { bg: '#f4f0e6', fg: '#1f2147', line: '#0078bf', accent: '#ff48b0', muted: '#5a6a9a', surface: '#f4f0e6', border: '#0078bf' },
     font: 'DejaVu Sans', fontFile: '../../assets/fonts/DejaVuSans-Bold.ttf',
-    stroke: 'jittered', roughness: 0.6, passes: 1, strokeWidth: 3.2, linecap: 'round',
-    fill: 'solid', fillColor: '#181425', baseTone: 1, toneFromLuminance: false, keepHue: false, hachureAngle: 15,
-    backdrop: 'rice',
-    glowColor: '#ef4d23', glowOffset: 6,
-    labelHalo: '#181425', labelInk: '#eaf6a0',
+    stroke: 'jittered', roughness: 0.7, passes: 1, strokeWidth: 2.4, linecap: 'round',
+    fill: 'wash', fillColor: '#0078bf', baseTone: 0.45, toneFromLuminance: false, keepHue: false, hachureAngle: -41,
+    spotPalette: ['#ff48b0', '#0078bf'],
+    backdrop: 'rice', misregister: 2.8, misColor: '#ff48b0',
   },
   {
-    // ref: makingsoftware.com (Dan Hollick) — WHITE ground, pure black ink,
-    // Arizona serif + Departure mono, vivid accents (signature blue #002ef4).
-    // Clean, precise technical illustration with a hand-drawn squiggle accent.
+    // ref: makingsoftware.com — white ground, pure-black serif ink, vivid-blue
+    // (#002ef4) accent lines, precise technical illustration. (Own poster.)
     name: 'making-software', label: 'Making Software',
-    blurb: 'White ground, pure-black serif ink, vivid-blue (#002ef4) accent lines. Precise technical illustration.',
+    blurb: 'White ground, pure-black serif ink, vivid-blue (#002ef4) accent lines.',
     colors: { bg: '#ffffff', fg: '#000000', line: '#002ef4', accent: '#002ef4', muted: '#6b7280', surface: '#ffffff', border: '#000000' },
     font: 'EB Garamond', fontFile: 'EBGaramond.ttf',
     stroke: 'jittered', roughness: 0.32, passes: 1, strokeWidth: 1.6, linecap: 'round',
     fill: 'none', fillColor: '#002ef4', baseTone: 0, toneFromLuminance: false, keepHue: false, hachureAngle: -41,
+    backdrop: 'plain',
+  },
+  {
+    // Research: dry-erase whiteboard. Light board, the standard 4 marker
+    // colours, thick translucent rounded strokes, no fills, marker handwriting.
+    name: 'whiteboard', label: 'Whiteboard',
+    blurb: 'Dry-erase board: thick translucent marker strokes, multiple marker colours, no fills.',
+    colors: { bg: '#f8f9fa', fg: '#1f2430', line: '#2b6cb0', accent: '#d64545', muted: '#2f855a', surface: '#f8f9fa', border: '#1f2430' },
+    font: 'Caveat', fontFile: 'Caveat.ttf',
+    stroke: 'jittered', roughness: 0.85, passes: 1, strokeWidth: 4.2, linecap: 'round', strokeOpacity: 0.9,
+    fill: 'none', fillColor: '#2b6cb0', baseTone: 0, toneFromLuminance: false, keepHue: false, hachureAngle: -41,
     backdrop: 'plain',
   },
 ]

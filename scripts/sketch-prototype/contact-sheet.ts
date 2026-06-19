@@ -14,7 +14,7 @@ import { restyle, backdrop, seal } from './restyle.ts'
 import { DIAGRAMS } from './diagrams.ts'
 
 const DIR = import.meta.dir
-const FONT_FILES = ['Caveat.ttf', 'EBGaramond.ttf'].map(f => join(DIR, f))
+const FONT_FILES = ['Caveat.ttf', 'EBGaramond.ttf', 'ShareTechMono.ttf'].map(f => join(DIR, f))
   .concat(['../../assets/fonts/DejaVuSans.ttf', '../../assets/fonts/DejaVuSans-Bold.ttf'].map(f => join(DIR, f)))
 
 function raster(svg: string, width: number, bg?: string) {

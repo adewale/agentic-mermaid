@@ -112,8 +112,11 @@ function fillRegion(poly: Point[], fillSrc: string | undefined, st: Style, seed:
       return `<path d="${stipple(poly, Math.min(tone, 0.6), rng, { density: 0.02 })}" fill="${ink}" stroke="none"/>`
     case 'halftone':
       return `<path d="${halftone(poly, Math.min(tone, 0.55), 8, st.hachureAngle)}" fill="${ink}" stroke="none"/>`
-    case 'wash':
-      return watercolorWash(poly, rng, ink, { opacity: st.name === 'watercolor' ? 0.26 : 0.12 + 0.5 * tone, edge: st.name === 'watercolor' ? 0.3 : 0.18 })
+    case 'wash': {
+      // spot-palette gives watercolor/riso varied per-region pigment
+      const wc = st.spotPalette?.length ? st.spotPalette[Math.abs(seed) % st.spotPalette.length]! : ink
+      return watercolorWash(poly, rng, wc, { opacity: st.name === 'watercolor' ? 0.30 : 0.16 + 0.45 * tone, edge: st.name === 'watercolor' ? 0.38 : 0.22 })
+    }
     case 'solid': {
       // flat spot-colour separation (screenprint). Pick a colour from the spot
       // palette per region (seeded) for the limited-palette look.
@@ -205,7 +208,9 @@ export function restyle(svg: string, st: Style, opts: { backdrop?: boolean } = {
   const haloColor = st.labelHalo ?? st.colors.bg
   const ink = st.labelInk ?? adjustToContrast(st.colors.fg, haloColor, WCAG.textAA)
   const halo = `paint-order:stroke;stroke:${haloColor};stroke-width:3.4px;stroke-linejoin:round;`
-  parts.push(`<style>text{font-family:'${st.font}',serif !important;fill:${ink} !important;${halo}} .edge-label-halo,.edge-label rect{fill:${st.colors.bg} !important;stroke:none !important;}</style>`)
+  const tt = st.textTransform ? `text-transform:${st.textTransform};` : ''
+  const ls = st.letterSpacing ? `letter-spacing:${st.letterSpacing}px;` : ''
+  parts.push(`<style>text{font-family:'${st.font}',serif !important;fill:${ink} !important;${halo}${tt}${ls}} .edge-label-halo,.edge-label rect{fill:${st.colors.bg} !important;stroke:none !important;}</style>`)
   if (opts.backdrop !== false) parts.push(backdrop(st, w, h))
   parts.push(body, '</svg>')
   return parts.join('\n')
@@ -217,9 +222,27 @@ export function backdrop(st: Style, w: number, h: number): string {
   const p: string[] = [rect(0, 0, w, h, st.colors.bg)]
   switch (st.backdrop) {
     case 'paper-ruled':
-      for (let y = 40; y < h; y += 26) p.push(`<line x1="0" y1="${y}" x2="${w}" y2="${y}" stroke="#9fc0d8" stroke-width="0.8" opacity="0.45"/>`)
-      p.push(`<line x1="42" y1="0" x2="42" y2="${h}" stroke="#d98b8b" stroke-width="0.8" opacity="0.5"/>`)
+      // faint blue horizontal rules only (no red margin) — matches the photo
+      for (let y = 40; y < h; y += 26) p.push(`<line x1="0" y1="${y}" x2="${w}" y2="${y}" stroke="#aebfd0" stroke-width="0.8" opacity="0.4"/>`)
       break
+    case 'blueprint': {
+      // border frame + faint grid + bottom-right title block (cyanotype furniture)
+      const m = Math.round(Math.min(w, h) * 0.035) + 8
+      for (let x = m; x < w - m; x += 26) p.push(`<line x1="${x}" y1="${m}" x2="${x}" y2="${h - m}" stroke="#cfe0f2" stroke-width="0.4" opacity="0.16"/>`)
+      for (let y = m; y < h - m; y += 26) p.push(`<line x1="${m}" y1="${y}" x2="${w - m}" y2="${y}" stroke="#cfe0f2" stroke-width="0.4" opacity="0.16"/>`)
+      p.push(`<rect x="${m}" y="${m}" width="${w - 2 * m}" height="${h - 2 * m}" fill="none" stroke="${st.colors.line}" stroke-width="1.4"/>`)
+      p.push(`<rect x="${m + 3}" y="${m + 3}" width="${w - 2 * m - 6}" height="${h - 2 * m - 6}" fill="none" stroke="${st.colors.line}" stroke-width="0.6"/>`)
+      const tbW = Math.min(330, w * 0.42), tbH = 76, tx = w - m - tbW, ty = h - m - tbH
+      p.push(`<rect x="${tx}" y="${ty}" width="${tbW}" height="${tbH}" fill="none" stroke="${st.colors.line}" stroke-width="1"/>`)
+      p.push(`<line x1="${tx}" y1="${ty + tbH / 2}" x2="${tx + tbW}" y2="${ty + tbH / 2}" stroke="${st.colors.line}" stroke-width="0.6"/>`)
+      p.push(`<line x1="${tx + tbW * 0.6}" y1="${ty}" x2="${tx + tbW * 0.6}" y2="${ty + tbH}" stroke="${st.colors.line}" stroke-width="0.6"/>`)
+      const tf = `font-family="${st.font}" fill="${st.colors.fg}" letter-spacing="1"`
+      p.push(`<text x="${tx + 8}" y="${ty + 20}" font-size="13" ${tf}>AGENTIC MERMAID</text>`)
+      p.push(`<text x="${tx + 8}" y="${ty + tbH / 2 + 20}" font-size="11" ${tf}>DRAWN BY · M</text>`)
+      p.push(`<text x="${tx + tbW * 0.6 + 8}" y="${ty + 20}" font-size="11" ${tf}>NO. 001</text>`)
+      p.push(`<text x="${tx + tbW * 0.6 + 8}" y="${ty + tbH / 2 + 20}" font-size="11" ${tf}>SCALE 1:1</text>`)
+      break
+    }
     case 'grid':
       for (let x = 0; x < w; x += 24) p.push(`<line x1="${x}" y1="0" x2="${x}" y2="${h}" stroke="#bcd6f0" stroke-width="0.5" opacity="0.28"/>`)
       for (let y = 0; y < h; y += 24) p.push(`<line x1="0" y1="${y}" x2="${w}" y2="${y}" stroke="#bcd6f0" stroke-width="0.5" opacity="0.28"/>`)
