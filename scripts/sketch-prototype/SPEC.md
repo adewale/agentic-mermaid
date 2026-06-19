@@ -354,6 +354,39 @@ and **colour theme** (palette) orthogonal, mediated by **semantic tokens**.
 - Defaults cascade (Excalidraw "current-item" lesson): the resolved
   (style × theme) applies to every new element/family with no per-type wiring.
 
+### 3.8 The monochrome contract (TESTED)
+
+A **monochrome** style (`mono: true`) conveys tone/emphasis through
+**shading/hatching density and line weight — never through multiple fill hues**.
+Mixing hues inside a one-ink aesthetic (e.g. coloured node fills in "hand-drawn")
+breaks internal consistency and looks wrong. The contract, enforced by
+`styles.test.ts` (CI gate, alongside the WCAG audit):
+
+- a `mono` style must not carry a multi-hue `spotPalette` (hue spread < 20°),
+  and must keep `keepHue:false`;
+- its `line`/`border`/`fill` inks share one hue family (a single *accent* — like
+  Tufte's red or Making Software's blue — is still allowed);
+- emphasis/value therefore comes from the *fill strategy* (hachure gap,
+  cross-hatch, stipple density), exactly as patent/engraving/pen-and-ink do.
+
+Corollary (also a design rule): **don't shade a region you write inside.** A
+chalk/marker author draws a box and writes in it — they don't crosshatch its
+interior. Label-bearing nodes default to unfilled outlines; hatching is reserved
+for *semantic* tone (emphasis, group bands, chart values), gated by
+`MIN/MAX_FILL_AREA` and `baseTone`.
+
+### 3.9 Density class — delicate styles need room
+
+Styles are not equally robust at small sizes (observed: Making Software's
+hairlines + serif + whitespace read beautifully large but go faint in a dense
+poster cell, whereas bold styles like Sketchnotes hold up). A style should
+declare a **density class** (`delicate | normal | bold`) so the renderer can
+pick a sensible minimum render size / line-weight floor per context. Premium,
+restrained styles are *delicate* by nature — the system should give them space
+rather than letting them shrink into illegibility. (This is why the standalone
+Making Software poster — bigger cells — looked better than its small cell in the
+combined grid; the fix is min-size, not heavier strokes.)
+
 ---
 
 ## 4. Engine primitives & the literature
@@ -463,6 +496,10 @@ style × diagram-role over the IR.
   visual-regression surface, slotting into `characterization:check`.
 - **Mutation tests:** add a `stryker.styles.config.json` targeting the mark
   primitives (they're pure and well-isolated — ideal mutation targets).
+- **Invariant tests (shipped): `styles.test.ts`** — asserts the monochrome
+  contract (§3.8), the WCAG 4.5:1 label-contrast contract (§7) for every style,
+  and structural well-formedness. 39 assertions, runs under `bun test`. These
+  encode the design rules as a CI gate so a new style can't regress them.
 
 ---
 
@@ -552,7 +589,56 @@ implementation.)
 
 ---
 
-## 14. References
+## 14. What makes a good diagram style + candidate backlog
+
+Synthesised from building ~15 styles and a wide aesthetic survey. A good
+*diagram* style is not the same as a good *illustration* style:
+
+1. **Outline + flat fill beats texture + depth.** Hard dark stroke + ungraded
+   fill survives shrinking; soft/3-D looks (clay, embroidery, voxel,
+   glassmorphism, neumorphism) collapse at small size.
+2. **Edges are first-class.** Favour aesthetics with a native connector grammar
+   (schematic traces, transit routes) over icon systems (ISOTYPE) that lack one.
+3. **Tone discipline — earn every value.** Hierarchy via line weight / hatch
+   density; colour is a *semantic* channel, not decoration (the §3.8 contract).
+4. **Legible small, legible at a glance.** Labels are the usual failure point —
+   default to clean type on a flat ground; ornamental scripts need a size budget
+   (the §3.9 density class).
+5. **Maps cleanly to box/edge/label primitives** (ideally with a layout grammar
+   the renderer can exploit: a character grid, a route lattice, registers).
+6. **High figure–ground contrast** (why neumorphism/glassmorphism are weak).
+7. **Restraint over horror vacui** — confine ornament to titles/legends/borders.
+8. **Distinctive in one glance** from stroke + palette signature alone.
+
+**Candidate backlog** (ranked for diagrams; ★ = surprising/non-obvious):
+- ★ **Terminal / TUI box-drawing** — monospace Unicode box glyphs; the medium
+  *is* a node-link rendering technique, not a skin. Monochrome.
+- **Transit / subway map (Beck)** — 45° route lattice, uniform coloured strokes,
+  station dots; edges first-class. (Beck derived it from a circuit schematic.)
+- ★ **PCB / circuit schematic** — boxes=components, edges=traces, junction dots;
+  has both a mono line variant and the green/gold board variant.
+- **Patent drawing (USPTO)** — the ideal disciplined *monochrome* skin: uniform
+  line weight, tone only via oblique hatching, numbered leader-line callouts.
+- ★ **Stained glass** — bold black "came" outlines + flat luminous fills; already
+  a bold-outline/flat-fill diagram. Polychrome.
+- ★ **Star chart / celestial atlas** — magnitude-sized star nodes (free node
+  weighting), faint coordinate grid, Greek-letter keyed labels.
+- **Bauhaus** — geometric primitives, primary palette, geometric sans; "the
+  designed flowchart."
+- **Ukiyo-e woodblock** — bold keyline + large flat colour areas.
+- ★ **Mesoamerican codex** — glyph-nodes joined by *footprint* paths (a fresh
+  arrow metaphor); heavy contours, flat saturated fills.
+- **Mid-century infographic** — flat teal/mustard/red on cream; a reliable
+  polychrome default.
+
+Monochrome-friendly (tone via hatching): terminal, patent, star chart,
+engraving, sumi-e, schematic-line. Inherently polychrome (colour carries
+meaning): transit, PCB-board, stained glass, Bauhaus, codex, ukiyo-e,
+mid-century. (Picking a style's `mono` flag follows directly from this split.)
+
+---
+
+## 15. References
 
 - Winkenbach & Salesin, *Computer-Generated Pen-and-Ink Illustration*, SIGGRAPH '94.
 - Praun, Hoppe, Webb, Finkelstein, *Real-Time Hatching*, SIGGRAPH 2001 (Tonal Art Maps).

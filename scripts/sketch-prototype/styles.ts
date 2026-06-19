@@ -50,19 +50,26 @@ export interface Style {
   nodeCornerRadius?: number // round node corners (for crisp/clean styles)
   boxShadow?: boolean       // soft drop-shadow under shapes (whiteboard)
   ringNode?: boolean        // draw nodes as circular ink rings (Arrival)
+  /**
+   * Monochrome contract: this style conveys tone/emphasis via SHADING/HATCHING
+   * density, never via multiple fill hues. Enforced by styles.test.ts:
+   * a mono style must NOT set a multi-hue spotPalette and must keep keepHue=false.
+   * (A single accent colour — like Tufte's red — is still allowed.)
+   */
+  mono?: boolean
 }
 
 export const STYLES: Style[] = [
   {
-    // Matches the reference notebook photo: deep-navy ballpoint, clean confident
-    // single strokes, EMPTY boxes (no shading), faint blue ruled paper.
+    // Matches the reference notebook photo: BLACK ink, clean confident single
+    // strokes, EMPTY boxes (no shading), faint ruled paper. Monochrome.
     name: 'hand-drawn', label: 'Hand-drawn (notebook)',
-    blurb: 'Deep-navy ballpoint on faint-ruled paper. Clean confident strokes, unfilled boxes.',
-    colors: { bg: '#fbfaf3', fg: '#1e2f6b', line: '#1e2f6b', accent: '#1e2f6b', muted: '#5566aa', surface: '#fbfaf3', border: '#1e2f6b' },
+    blurb: 'Black ink on faint-ruled paper. Clean confident strokes, unfilled boxes.',
+    colors: { bg: '#fbfaf3', fg: '#1a1a1a', line: '#1a1a1a', accent: '#1a1a1a', muted: '#555555', surface: '#fbfaf3', border: '#1a1a1a' },
     font: 'Caveat', fontFile: 'Caveat.ttf',
     stroke: 'jittered', roughness: 1.0, passes: 2, strokeWidth: 1.8, linecap: 'round',
-    fill: 'none', fillColor: '#1e2f6b', baseTone: 0, toneFromLuminance: false, keepHue: false, hachureAngle: -41,
-    backdrop: 'paper-ruled',
+    fill: 'none', fillColor: '#1a1a1a', baseTone: 0, toneFromLuminance: false, keepHue: false, hachureAngle: -41,
+    backdrop: 'paper-ruled', mono: true,
   },
   {
     // Research: pen-and-ink diagrams are CONTOUR-driven — no interior hatching.
@@ -73,7 +80,7 @@ export const STYLES: Style[] = [
     font: 'EB Garamond', fontFile: 'EBGaramond.ttf',
     stroke: 'jittered', roughness: 0.5, passes: 1, strokeWidth: 1.5, linecap: 'round',
     fill: 'none', fillColor: '#1a1a1a', baseTone: 0, toneFromLuminance: false, keepHue: false, hachureAngle: -45,
-    backdrop: 'plain',
+    backdrop: 'plain', mono: true,
   },
   {
     // Research: data-ink maximalism. Warm off-white, near-black, ONE sparing
@@ -84,7 +91,7 @@ export const STYLES: Style[] = [
     font: 'EB Garamond', fontFile: 'EBGaramond.ttf',
     stroke: 'crisp', roughness: 0, passes: 1, strokeWidth: 0.8, linecap: 'butt',
     fill: 'none', fillColor: '#000', baseTone: 0, toneFromLuminance: false, keepHue: false, hachureAngle: -45,
-    backdrop: 'plain',
+    backdrop: 'plain', mono: true,
   },
   {
     // Research: cyanotype. Deep Prussian-blue ground, thin uniform WHITE lines,
@@ -95,7 +102,7 @@ export const STYLES: Style[] = [
     font: 'Share Tech Mono', fontFile: 'ShareTechMono.ttf',
     stroke: 'jittered', roughness: 0.28, passes: 1, strokeWidth: 1.0, linecap: 'butt',
     fill: 'none', fillColor: '#eef3f8', baseTone: 0, toneFromLuminance: false, keepHue: false, hachureAngle: -45,
-    backdrop: 'blueprint', textTransform: 'uppercase', letterSpacing: 1,
+    backdrop: 'blueprint', textTransform: 'uppercase', letterSpacing: 1, mono: true,
   },
   {
     // Curtis-style layered washes; now with a varied watercolour spot palette so
@@ -111,14 +118,15 @@ export const STYLES: Style[] = [
   },
   {
     // Research: green slate, off-white (never pure white) chalk, dusty broken
-    // strokes, loose open hatching, pastel accents.
+    // strokes. A real person draws a box and writes INSIDE it — they do NOT
+    // crosshatch the interior. So: outlines only, no node fill. Monochrome.
     name: 'chalkboard', label: 'Chalkboard',
-    blurb: 'Green slate, dusty off-white chalk, broken strokes, loose open hatching.',
+    blurb: 'Green slate, dusty off-white chalk, broken strokes, unfilled boxes (you write inside them).',
     colors: { bg: '#2b3d35', fg: '#f3efe2', line: '#e3ebe0', accent: '#f6e58d', muted: '#9fb4a4', surface: '#2b3d35', border: '#f0f3ec' },
     font: 'Caveat', fontFile: 'Caveat.ttf',
     stroke: 'pencil', roughness: 1.6, passes: 2, strokeWidth: 1.6, linecap: 'round', strokeOpacity: 0.82,
-    fill: 'scribble', fillColor: '#f3efe2', baseTone: 0.12, toneFromLuminance: true, keepHue: false, hachureAngle: -38,
-    backdrop: 'slate',
+    fill: 'none', fillColor: '#f3efe2', baseTone: 0, toneFromLuminance: false, keepHue: false, hachureAngle: -38,
+    backdrop: 'slate', mono: true,
     defs: '<filter id="chalk"><feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="2" result="n"/><feDisplacementMap in="SourceGraphic" in2="n" scale="1.6"/></filter>',
     strokeFilter: 'chalk',
   },
@@ -144,9 +152,9 @@ export const STYLES: Style[] = [
     blurb: 'Warm off-white, stone-black hairlines, rounded boxes, Fraunces serif, one blue accent.',
     colors: { bg: '#fafaf9', fg: '#0c0a09', line: '#0c0a09', accent: '#002ef4', muted: '#57534e', surface: '#fafaf9', border: '#0c0a09' },
     font: 'Fraunces', fontFile: 'Fraunces.ttf',
-    stroke: 'crisp', roughness: 0, passes: 1, strokeWidth: 1.3, linecap: 'round',
+    stroke: 'crisp', roughness: 0, passes: 1, strokeWidth: 1.6, linecap: 'round',
     fill: 'none', fillColor: '#002ef4', baseTone: 0, toneFromLuminance: false, keepHue: false, hachureAngle: -41,
-    backdrop: 'plain', nodeCornerRadius: 7,
+    backdrop: 'plain', nodeCornerRadius: 7, mono: true,
   },
   {
     // ref: excalidraw.com (research) — rough.js sketchy dark #1e1e1e strokes,
@@ -195,42 +203,6 @@ export const STYLES: Style[] = [
     font: 'Architects Daughter', fontFile: 'ArchitectsDaughter.ttf',
     stroke: 'jittered', roughness: 1.3, passes: 2, strokeWidth: 1.7, linecap: 'round', strokeOpacity: 0.9,
     fill: 'scribble', fillColor: '#b8bcc2', baseTone: 0.16, toneFromLuminance: true, keepHue: false, hachureAngle: -45,
-    backdrop: 'plain', boxShadow: true,
-  },
-  {
-    // research: Arrival heptapod logograms — circular variable-weight ink rings
-    // with splatter, on warm pale ground; labels stay clean sans on a chip.
-    name: 'arrival', label: 'Arrival (logograms)',
-    blurb: 'Heptapod ink rings: circular variable-weight ink bands with splatter on pale ground.',
-    colors: { bg: '#f1efe9', fg: '#15130f', line: '#15130f', accent: '#3a352d', muted: '#5c574d', surface: '#f1efe9', border: '#15130f' },
-    font: 'DejaVu Sans', fontFile: '../../assets/fonts/DejaVuSans.ttf',
-    stroke: 'jittered', roughness: 1.6, passes: 2, strokeWidth: 5.0, linecap: 'round',
-    fill: 'none', fillColor: '#15130f', baseTone: 0, toneFromLuminance: false, keepHue: false, hachureAngle: -41,
-    backdrop: 'plain', ringNode: true,
-  },
-  {
-    // BetiDraws (research): warm "crayon over canvas" storybook — cream canvas,
-    // warm-brown hand outlines, soft warm fills, crayon grain, rounded shapes.
-    name: 'betidraws', label: 'BetiDraws (crayon)',
-    blurb: 'Warm crayon-over-canvas storybook: cream ground, brown hand outlines, soft warm fills.',
-    colors: { bg: '#f4ecdc', fg: '#3a2a22', line: '#3a2a22', accent: '#e8896a', muted: '#7a6657', surface: '#f4ecdc', border: '#3a2a22' },
-    font: 'Fredoka', fontFile: 'Fredoka.ttf',
-    stroke: 'pencil', roughness: 1.8, passes: 2, strokeWidth: 2.6, linecap: 'round', strokeOpacity: 0.92,
-    fill: 'solid', fillColor: '#e8896a', baseTone: 1, toneFromLuminance: false, keepHue: false, hachureAngle: -33,
-    spotPalette: ['#e8896a', '#4fa39a', '#e3b23c', '#8fb97a', '#d98c9a'],
-    backdrop: 'plain', nodeCornerRadius: 10,
-    defs: '<filter id="crayon"><feTurbulence type="fractalNoise" baseFrequency="0.04 0.05" numOctaves="3" result="n"/><feDisplacementMap in="SourceGraphic" in2="n" scale="2.4"/></filter>',
-    strokeFilter: 'crayon', fillFilter: 'crayon',
-  },
-  {
-    // Vegetius (research): late-Roman military-treatise manuscript — aged
-    // parchment, sepia/iron-gall ink, rubric-red emphasis, Roman capitals.
-    name: 'vegetius', label: 'Vegetius (manuscript)',
-    blurb: 'Roman military-treatise manuscript: aged parchment, iron-gall sepia ink, rubric-red, Roman caps.',
-    colors: { bg: '#e3d4b0', fg: '#2c1e10', line: '#3a2a18', accent: '#8b2e1f', muted: '#6b5a3e', surface: '#e3d4b0', border: '#3a2a18' },
-    font: 'Cinzel', fontFile: 'Cinzel.ttf',
-    stroke: 'jittered', roughness: 0.7, passes: 1, strokeWidth: 1.6, linecap: 'round',
-    fill: 'none', fillColor: '#8b2e1f', baseTone: 0, toneFromLuminance: false, keepHue: false, hachureAngle: -41,
-    backdrop: 'parchment', textTransform: 'uppercase', letterSpacing: 0.5,
+    backdrop: 'plain', boxShadow: true, mono: true,
   },
 ]
