@@ -38,7 +38,7 @@ const TYPE_OPT = {
 // layout (logical px; whole poster is scaled up at raster time). Big cells +
 // big type = readable. Each diagram is rendered at ~cell pixel size (no
 // down-rezzing), so text stays crisp.
-const HEAD_COL = 250, HEAD_ROW = 110, CELL_W = 520, CELL_H = 400, PAD = 44, GAP = 8
+const HEAD_COL = 360, HEAD_ROW = 110, CELL_W = 520, CELL_H = 400, PAD = 44, GAP = 8
 // Making Software has its own dedicated poster (ms-poster.ts); exclude it here.
 const POSTER_STYLES = STYLES.filter(s => s.name !== 'making-software')
 const COLS = DIAGRAMS.length, ROWS = POSTER_STYLES.length
@@ -50,6 +50,19 @@ function cellBg(st: Style, x: number, y: number, w: number, h: number): string {
   if (st.backdrop === 'grid') for (let gx = x; gx < x + w; gx += 22) p.push(`<line x1="${gx}" y1="${y}" x2="${gx}" y2="${y + h}" stroke="#bcd6f0" stroke-width="0.5" opacity="0.25"/>`)
   if (st.backdrop === 'paper-ruled') for (let gy = y + 20; gy < y + h; gy += 22) p.push(`<line x1="${x}" y1="${gy}" x2="${x + w}" y2="${gy}" stroke="#9fc0d8" stroke-width="0.6" opacity="0.4"/>`)
   return p.join('')
+}
+
+// Split a style label into <=2 lines so it stays large and readable in the
+// header column. Breaks at the space nearest the middle.
+function wrapLabel(label: string): string[] {
+  if (label.length <= 11 || !label.includes(' ')) return [label]
+  const sp = label.split(' ')
+  let best = 1, diff = Infinity
+  for (let i = 1; i < sp.length; i++) {
+    const a = sp.slice(0, i).join(' ').length, b = sp.slice(i).join(' ').length
+    if (Math.abs(a - b) < diff) { diff = Math.abs(a - b); best = i }
+  }
+  return [sp.slice(0, best).join(' '), sp.slice(best).join(' ')]
 }
 
 function build(): string {
@@ -66,9 +79,11 @@ function build(): string {
 
   POSTER_STYLES.forEach((st, r) => {
     const y = oy + HEAD_ROW + r * CELL_H
-    // row header
-    P.push(`<text x="${ox + 16}" y="${y + CELL_H / 2 - 10}" font-family="EB Garamond,serif" font-size="38" fill="#f5f5f0">${esc(st.label)}</text>`)
-    P.push(`<text x="${ox + 16}" y="${y + CELL_H / 2 + 24}" font-family="EB Garamond,serif" font-size="22" fill="#a8a8a2">${esc(st.name)}</text>`)
+    // row header — large, high-contrast, wrapped to fit the header column
+    const lines = wrapLabel(st.label)
+    const fs = 50, lh = 56
+    const top = y + CELL_H / 2 - ((lines.length - 1) * lh) / 2 - 6
+    lines.forEach((ln, i) => P.push(`<text x="${ox + 18}" y="${top + i * lh}" font-family="DejaVu Sans" font-weight="bold" font-size="${fs}" fill="#ffffff">${esc(ln)}</text>`))
     DIAGRAMS.forEach((d, c) => {
       const x = ox + HEAD_COL + c * CELL_W
       P.push(cellBg(st, x + GAP, y + GAP, CELL_W - GAP * 2, CELL_H - GAP * 2))

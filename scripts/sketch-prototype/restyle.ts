@@ -22,6 +22,9 @@ const lerp = (a: number, b: number, t: number) => a + (b - a) * t
 // Don't shade regions smaller than this — keeps edge/transition-label boxes and
 // tiny nodes clean so their text stays legible (an "indication"-style guard).
 const MIN_FILL_AREA = 2700
+// Don't shade huge background plates (chart plot areas, section bands) — they
+// read as ground, not shapes; filling them swamps the content.
+const MAX_FILL_AREA = 48000
 
 const num = (s: string | undefined, d = 0) => (s == null ? d : parseFloat(s))
 const attr = (t: string, n: string): string | undefined => t.match(new RegExp(`\\b${n}="([^"]*)"`))?.[1]
@@ -95,7 +98,7 @@ function fillRegion(poly: Point[], fillSrc: string | undefined, st: Style, seed:
     case 'crosshatch':
       return roughPolyFill(poly, {
         seed: seed ^ 0x51, roughness: st.roughness, stroke: ink, strokeWidth: st.strokeWidth,
-        fill: ink, fillStyle: 'cross-hatch', fillWeight: 0.7, hachureGap: lerp(6, 3, tone),
+        fill: ink, fillStyle: 'cross-hatch', fillWeight: 0.9, hachureGap: lerp(5, 2.6, tone),
         hachureAngle: st.hachureAngle, fillOpacity: 0.8, passes: 1,
       })
     case 'scribble': {
@@ -106,7 +109,7 @@ function fillRegion(poly: Point[], fillSrc: string | undefined, st: Style, seed:
     }
     case 'stipple':
       // cap density so dots never bury the label text underneath
-      return `<path d="${stipple(poly, Math.min(tone, 0.5), rng, { density: 0.013 })}" fill="${ink}" stroke="none"/>`
+      return `<path d="${stipple(poly, Math.min(tone, 0.6), rng, { density: 0.02 })}" fill="${ink}" stroke="none"/>`
     case 'halftone':
       return `<path d="${halftone(poly, Math.min(tone, 0.55), 8, st.hachureAngle)}" fill="${ink}" stroke="none"/>`
     case 'wash':
@@ -127,7 +130,7 @@ function fillRegion(poly: Point[], fillSrc: string | undefined, st: Style, seed:
 function closedShape(poly: Point[], stroke: string | undefined, fill: string | undefined, st: Style, seed: number): string {
   if (stroke === 'none' && (!fill || fill === 'none')) return ''
   const sc = stroke && stroke !== 'none' ? stroke : st.colors.line
-  const big = area(poly) >= MIN_FILL_AREA
+  const a = area(poly); const big = a >= MIN_FILL_AREA && a <= MAX_FILL_AREA
   // Offset drop-glow behind the filled shape (screenprint registration look).
   const glow = st.glowColor && big
     ? `<path d="${poly.map((p, i) => `${i ? 'L' : 'M'}${r3(p.x + (st.glowOffset ?? 5))},${r3(p.y + (st.glowOffset ?? 5))}`).join(' ')} Z" fill="${st.glowColor}" stroke="none"/>`
@@ -155,7 +158,7 @@ export function restyle(svg: string, st: Style, opts: { backdrop?: boolean } = {
         const r = roughPathD(d, {
           seed, roughness: Math.max(0.6, st.roughness), stroke: stroke && stroke !== 'none' ? stroke : st.colors.line,
           strokeWidth: st.strokeWidth, linecap: st.linecap, passes: 1,
-          fill: hasFill ? fill : undefined, fillStyle: st.fill === 'wash' ? 'solid' : 'hachure',
+          fill: hasFill ? fill : undefined, fillStyle: (st.fill === 'wash' || st.fill === 'solid') ? 'solid' : 'hachure',
           fillWeight: 0.8, hachureGap: 5, fillOpacity: hasFill ? (st.fill === 'wash' ? 0.5 : 0.85) : undefined,
         })
         return r || t

@@ -145,21 +145,72 @@ payoff; serialize via OpSets (not RoughSVG) so we never depend on a DOM.
 
 ### 3.3 A Style = selection + params (`src/styles/registry.ts`)
 
+The exact authoring surface below was **converged empirically** by iterating 15
+styles across all diagram types (the refinement loop). It is the minimum set of
+knobs that let a style both *exemplify its reference* and *stay readable*.
+
 ```ts
 interface StyleSpec {
-  name: string; label: string;
-  stroke: StrokeRef; fill: FillRef; backdrop: BackdropRef; compositor?: CompositorRef;
-  palette?: Partial<DiagramColors>;     // composes with the user's theme
-  font?: string;                        // composes with --font
-  params: Record<string, number|string|boolean>;   // roughness, gap, brushWidth…
+  name: string; label: string; blurb: string
+
+  // palette — composes with the user's theme (any style × any palette)
+  colors: { bg; fg; line; accent; muted; surface; border }
+  font: string
+
+  // 1 — STROKE
+  stroke: 'crisp' | 'jittered' | 'brush' | 'pencil'
+  roughness: number; passes: number; strokeWidth: number
+  brushWidth?: number; linecap: 'round'|'butt'; strokeOpacity?: number
+  strokeFilter?: string                 // svg filter id (chalk/sumi-bleed/grunge…)
+
+  // 2 — FILL (tone-driven)
+  fill: 'none'|'hachure'|'crosshatch'|'stipple'|'halftone'|'wash'|'scribble'|'solid'
+  fillColor: string; baseTone: number   // floor shading so shapes aren't empty
+  toneFromLuminance: boolean            // derive extra tone from the region's value
+  keepHue: boolean                      // fill with the region's own colour (charts)
+  hachureAngle: number
+  spotPalette?: string[]                // solid: per-region flat spot colour (screenprint)
+  fillFilter?: string
+
+  // 3 — BACKDROP
+  backdrop: 'plain'|'paper-ruled'|'grid'|'slate'|'rice'|'washi'
+  defs?: string                         // custom <filter> defs the style references
+
+  // 4 — COMPOSITOR / effects
+  misregister?: number; misColor?: string     // duotone registration offset (riso)
+  glowColor?: string; glowOffset?: number      // offset drop-glow behind shapes (latentpop)
+  seal?: boolean                               // decorative chop (chinese brush)
+
+  // 5 — READABILITY (WCAG guardrail, §7)
+  labelHalo?: string                    // text knockout colour (default: page bg)
+  labelInk?: string                     // label colour (default: auto-contrast vs halo)
 }
 registerStyle(spec)               // third-party styles register here
 getStyle(name): ResolvedStyle
 ```
 
+**Surface lessons from the loop** (what we had to add to make styles exemplary
+*and* legible — these are the non-obvious bits a custom-style API must expose):
+- `solid` fill + `spotPalette` + `glowColor/Offset` — needed for flat-colour
+  screenprint looks (Flux LatentPop); pure hatch/wash can't express them.
+- `labelHalo`/`labelInk` — a single page-knockout ink fails when a style fills
+  shapes dark (e.g. navy nodes on orange); the override lets labels be
+  light-on-dark while staying WCAG-checked.
+- Region-size gating (`MIN_FILL_AREA`/`MAX_FILL_AREA`, engine globals) — don't
+  shade tiny label boxes (readability) *or* huge background plates / chart plot
+  areas (they swamp content). Without the upper cap, gantt/quadrant backgrounds
+  drowned the data.
+- `strokeFilter`/`fillFilter` + `defs` — per-style SVG filters (chalk dust, ink
+  bleed, grunge) are essential to several looks; the registry must allow a style
+  to ship its own filter defs.
+- `baseTone` + `toneFromLuminance` + `keepHue` — separate "how much default
+  shading", "shade by semantic value", and "keep chart colours" — all three are
+  needed and independent.
+
 Mirror the existing `THEMES` record in `theme.ts`: styles are data, hot-swappable,
 and a JSON schema can validate externally shipped styles. The prototype's
 `styles.ts` is exactly this table (now 15 entries) in flattened form.
+
 
 ### 3.3a Authoring a custom style (DELIVERABLE: a guide doc)
 

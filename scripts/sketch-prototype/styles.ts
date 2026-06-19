@@ -86,8 +86,8 @@ export const STYLES: Style[] = [
     blurb: 'Tapered brushwork (variable-width ribbons), ink-wash fills, rice paper, a red seal.',
     colors: { bg: '#f3ece0', fg: '#1a1a1a', line: '#1a1a1a', accent: '#b22222', muted: '#555', surface: '#f3ece0', border: '#1a1a1a' },
     font: 'Caveat', fontFile: 'Caveat.ttf',
-    stroke: 'brush', roughness: 1.0, passes: 1, strokeWidth: 3, brushWidth: 7, linecap: 'round',
-    fill: 'wash', fillColor: '#2b2b2b', baseTone: 0.14, toneFromLuminance: true, keepHue: false, hachureAngle: -41,
+    stroke: 'brush', roughness: 1.0, passes: 1, strokeWidth: 3.4, brushWidth: 9, linecap: 'round',
+    fill: 'wash', fillColor: '#1a1a1a', baseTone: 0.10, toneFromLuminance: true, keepHue: false, hachureAngle: -41,
     backdrop: 'rice', seal: true,
   },
   {
@@ -95,10 +95,10 @@ export const STYLES: Style[] = [
     blurb: 'Sparse monochrome brush gestures, soft ink bleed, generous empty space.',
     colors: { bg: '#f7f5ef', fg: SUMI, line: SUMI, accent: SUMI, muted: '#666', surface: '#f7f5ef', border: SUMI },
     font: 'Caveat', fontFile: 'Caveat.ttf',
-    stroke: 'brush', roughness: 1.3, passes: 1, strokeWidth: 2.4, brushWidth: 6, linecap: 'round',
-    fill: 'wash', fillColor: SUMI, baseTone: 0.08, toneFromLuminance: true, keepHue: false, hachureAngle: -41,
+    stroke: 'brush', roughness: 1.3, passes: 1, strokeWidth: 2.8, brushWidth: 8, linecap: 'round',
+    fill: 'wash', fillColor: SUMI, baseTone: 0.06, toneFromLuminance: true, keepHue: false, hachureAngle: -41,
     backdrop: 'washi',
-    defs: '<filter id="sumi-bleed" x="-25%" y="-25%" width="150%" height="150%"><feGaussianBlur stdDeviation="0.7"/></filter>',
+    defs: '<filter id="sumi-bleed" x="-25%" y="-25%" width="150%" height="150%"><feGaussianBlur stdDeviation="0.5"/></filter>',
     strokeFilter: 'sumi-bleed',
   },
   // ---- the 8 new styles ----
@@ -127,7 +127,7 @@ export const STYLES: Style[] = [
     colors: { bg: '#f6f1e7', fg: '#2a2620', line: '#2a2620', accent: '#5a2d1a', muted: '#6b6356', surface: '#f6f1e7', border: '#2a2620' },
     font: 'EB Garamond', fontFile: 'EBGaramond.ttf',
     stroke: 'jittered', roughness: 0.3, passes: 1, strokeWidth: 0.8, linecap: 'butt',
-    fill: 'stipple', fillColor: '#2a2620', baseTone: 0.18, toneFromLuminance: true, keepHue: false, hachureAngle: -41,
+    fill: 'stipple', fillColor: '#2a2620', baseTone: 0.28, toneFromLuminance: true, keepHue: false, hachureAngle: -41,
     backdrop: 'plain',
   },
   {
