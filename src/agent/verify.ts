@@ -161,11 +161,13 @@ function verifyGraph(graph: import('../types.ts').MermaidGraph, kind: ValidDiagr
 
   // Tier 1 — structural
   for (const edge of graph.edges) {
-    if (!graph.nodes.has(edge.source) || !graph.nodes.has(edge.target)) {
+    const hasSource = graph.nodes.has(edge.source) || Boolean(findSubgraphById(graph.subgraphs, edge.source))
+    const hasTarget = graph.nodes.has(edge.target) || Boolean(findSubgraphById(graph.subgraphs, edge.target))
+    if (!hasSource || !hasTarget) {
       warnings.push({
         code: 'EDGE_MISANCHORED', edge: `${edge.source}->${edge.target}`,
-        from: graph.nodes.has(edge.source) ? edge.source : undefined,
-        to: graph.nodes.has(edge.target) ? edge.target : undefined,
+        from: hasSource ? edge.source : undefined,
+        to: hasTarget ? edge.target : undefined,
       })
     }
   }

@@ -1,0 +1,35 @@
+{
+  "version": 1,
+  "upstreamRevision": "a2d9686451df7c4644a3eeca20535bbd4c5776b0",
+  "budgets": {
+    "importedCaseFloor": 648,
+    "importedBlockFloor": 658,
+    "localGaps": {
+      "totalBlocks": 0,
+      "byReason": {},
+      "byFamily": {},
+      "byFamilyReason": {
+        "architecture": {},
+        "class": {},
+        "er": {},
+        "flowchart": {},
+        "journey": {},
+        "quadrant": {},
+        "sequence": {},
+        "state": {},
+        "timeline": {},
+        "xychart": {}
+      }
+    }
+  },
+  "observed": {
+    "importedCases": 648,
+    "importedBlocks": 658,
+    "localGaps": {
+      "totalBlocks": 0,
+      "byReason": {},
+      "byFamily": {},
+      "byFamilyReason": {}
+    }
+  }
+}

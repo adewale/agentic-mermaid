@@ -197,8 +197,9 @@ function renderShape(node: MermaidNode): string {
 }
 
 function escapeLabel(label: string): string {
-  if (/[\[\]{}()<>|]/.test(label)) return `"${label.replace(/"/g, '\\"')}"`
-  return label
+  const normalized = label.replace(/\r?\n/g, '<br>')
+  if (/[\[\]{}()|]/.test(normalized)) return `"${normalized.replace(/["\\]/g, '\\$&')}"`
+  return normalized
 }
 
 function renderEdge(edge: MermaidEdge, nodes: Map<string, MermaidNode>, declaredInline: Set<string>): string {

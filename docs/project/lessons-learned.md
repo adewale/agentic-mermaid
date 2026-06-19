@@ -671,10 +671,10 @@ exceptions:
   flowchart/link-routing, architecture+xychart, and Gantt lanes.
 - **Executable upstream-docs harvest and divergence evidence** now covers all
   registered families via the regenerated 271-example Mermaid docs corpus plus
-  `eval/mermaid-docs-corpus/divergences.json`. PR #54 adds a cross-family
-  parser/DB seed ratchet in `eval/mermaid-upstream-suite-bench/`, while the
-  full upstream parser/DB suite harvests remain the deeper BUILD-20 workstream
-  and Gantt's deeper family-specific pilot remains in `eval/mermaid-gantt-bench/`.
+  `eval/mermaid-docs-corpus/divergences.json`. The cross-family parser/DB
+  bench in `eval/mermaid-upstream-suite-bench/` now accounts for every current
+  renderable-family BUILD-20 upstream block, while Gantt's deeper
+  family-specific pilot remains in `eval/mermaid-gantt-bench/`.
 - **Generated-site drift was real.** Pie, Quadrant, and Gantt were supported
   families but the sample gallery still lacked explicit color/prefix handling;
   #41 fixed that instance and added tests so future family categories cannot
@@ -687,7 +687,7 @@ merge blocker today, and this is the test/backlog hook that will fail if we
 forget it." Good citizenship is therefore both a contract and a gap map: Gantt
 sets the destination, the matrix records current state, and the upstream
 ratchets keep the deeper-compatibility path executable beyond the now-closed
-BUILD-22 matrix gaps without pretending BUILD-20's full-suite harvest is done.
+BUILD-22 matrix gaps.
 
 ## PR #54 audit lesson — closure PRs need adversarial self-review, not just green checks
 
@@ -702,10 +702,12 @@ green tests did not make obvious enough:
 - **Generated-site inputs are docs too.** Updating `docs/features.md` and
   `docs/api.md` was not enough; pages such as `/differences` are generated from
   `scripts/site/*` copy and need the same capability audit as Markdown docs.
-- **Seed ratchets are useful only when named honestly.** The BUILD-20 seed bench
-  is valuable as a cross-family parser/DB smoke ratchet, but the full upstream
-  parser/DB harvest is now tracked separately as issue #55 so future readers do
-  not mistake one curated case per family for comprehensive conformance.
+- **Seed ratchets are useful only when named honestly.** The first BUILD-20
+  seed bench was valuable as a cross-family parser/DB smoke ratchet, but it
+  had to be named as partial until the full accounted harvest replaced it. The
+  current bench records imported blocks, excluded blocks, and zero deferred
+  blocks so future readers do not mistake curated smoke coverage for
+  comprehensive accounting.
 
 The practice change: before merging a broad closure PR, run a fresh-context
 review explicitly asking "what claims would become false if a consumer trusted

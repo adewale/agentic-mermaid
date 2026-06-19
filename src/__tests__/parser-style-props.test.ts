@@ -39,4 +39,9 @@ describe('M4 style props — comma-aware splitting', () => {
   test('trailing semicolon still tolerated with rgb()', () => {
     expect(nodeStyle('style A fill:rgb(1,2,3);')).toEqual({ fill: 'rgb(1,2,3)' })
   })
+
+  test('style statements without key/value properties are ignored', () => {
+    const g = parseMermaid('flowchart TD\n  A --> B\n  style e red')
+    expect(g.nodeStyles.has('e')).toBe(false)
+  })
 })

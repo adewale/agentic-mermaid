@@ -32,6 +32,39 @@ describe('parseMermaid – graph header', () => {
     expect(g.direction).toBe(dir)
   })
 
+  it.each([
+    ['>', 'LR'],
+    ['<', 'RL'],
+    ['^', 'BT'],
+    ['v', 'TB'],
+  ] as const)('accepts Mermaid direction shorthand %s', (raw, dir) => {
+    const g = parseMermaid(`graph ${raw};A-->B;`)
+    expect(g.direction).toBe(dir)
+    expect(g.edges).toHaveLength(1)
+  })
+
+  it('accepts a semicolon-packed header and first statement', () => {
+    const g = parseMermaid('graph TD;A-->B;')
+    expect(g.direction).toBe('TD')
+    expect(g.nodes.has('A')).toBe(true)
+    expect(g.nodes.has('B')).toBe(true)
+    expect(g.edges).toHaveLength(1)
+  })
+
+  it('accepts swimlane as a flowchart header alias', () => {
+    const g = parseMermaid('swimlane LR;A-->B;')
+    expect(g.direction).toBe('LR')
+    expect(g.nodes.has('A')).toBe(true)
+    expect(g.nodes.has('B')).toBe(true)
+    expect(g.edges).toHaveLength(1)
+  })
+
+  it('parses quoted rectangle labels containing bracket characters', () => {
+    const g = parseMermaid('graph TD;A["chimpansen hoppar ()[]"] --> C;')
+    expect(g.nodes.get('A')?.label).toBe('chimpansen hoppar ()[]')
+    expect(g.edges).toHaveLength(1)
+  })
+
   it('is case-insensitive for the keyword', () => {
     const g = parseMermaid('graph td\n  A --> B')
     expect(g.direction).toBe('TD')
@@ -592,6 +625,22 @@ describe('parseMermaid – subgraphs', () => {
     expect(outer.children[0]!.nodeIds).toContain('B')
     expect(outer.nodeIds).toContain('C')
     expect(outer.nodeIds).toContain('D')
+  })
+
+  it('treats bare references to declared subgraph ids as group endpoints', () => {
+    const g = parseMermaid(`flowchart TB
+      subgraph B
+        c
+      end
+      a-->c
+      subgraph A
+        b-->B
+        a
+      end`)
+    const a = g.subgraphs.find(s => s.id === 'A')
+    expect(g.nodes.has('B')).toBe(false)
+    expect(a?.nodeIds).toEqual(['b'])
+    expect(g.edges).toContainEqual(expect.objectContaining({ source: 'b', target: 'B' }))
   })
 
   it('does NOT track nodes in subgraphs where they are merely referenced (regression)', () => {

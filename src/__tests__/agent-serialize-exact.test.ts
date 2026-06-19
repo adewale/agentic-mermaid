@@ -53,6 +53,15 @@ describe('flowchart trailing newline', () => {
   })
 })
 
+describe('flowchart label escaping', () => {
+  test('serializes line breaks as br tags and quoted bracket labels stably', () => {
+    const out = ser('graph TD;A["chimpansen hoppar ()[]"] --> C(Chimpansen hoppar åäö  <br> -  ÅÄÖ);')
+    expect(out).toContain('A["chimpansen hoppar ()[]"]')
+    expect(out).toContain('C(Chimpansen hoppar åäö  <br> -  ÅÄÖ)')
+    expect(ser(out)).toBe(out)
+  })
+})
+
 describe('opaque body trailing newline', () => {
   test('opaque body without trailing newline gets one appended', () => {
     // synthesizeFromGraph an opaque body without trailing newline

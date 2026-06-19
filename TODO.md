@@ -85,21 +85,26 @@ dependents after. IDs are stable names, not an ordering.
   - [ ] mindmap, gitgraph: still to implement. Order the remaining
     two by the real README corpus run (network required) per the evidence
     step above — `eval/family-usage/RESULTS.md` does not assert that ordering.
-- [ ] **BUILD-20 — Upstream test-suite harvests for every family.** Apply
+- [x] **BUILD-20 — Upstream test-suite harvests for every current renderable family.** Apply
   [docs/contributing/harvesting-upstream-tests.md](./docs/contributing/harvesting-upstream-tests.md)
   (the method piloted by `eval/mermaid-gantt-bench/`, which found one real
   compat bug, one semantic boundary divergence, and the verify/render seam
-  that became `UNRESOLVABLE_SCHEDULE`) to the remaining families. The PR #54
-  seed bench in [`eval/mermaid-upstream-suite-bench/`](./eval/mermaid-upstream-suite-bench/)
-  adds one portable parser/DB-derived ratchet per current renderable family,
-  but it is not the full upstream parser/DB suite harvest.
-  - [ ] flowchart, state (largest upstream suites; route-contracts work may
-    want their routing fixtures too)
-  - [ ] class, ER, pie, quadrant, timeline, journey, xychart, architecture
-  - [ ] sequence: fold the existing MermaidSeqBench gate into the same
-    cases/exclusions/README shape so all benches read alike
-  - [ ] mindmap, gitgraph: harvest BEFORE implementing (BUILD-5) — the specs
-    should be written against upstream's real test semantics, not just docs
+  that became `UNRESOLVABLE_SCHEDULE`) to the remaining current families. The
+  [`eval/mermaid-upstream-suite-bench/`](./eval/mermaid-upstream-suite-bench/)
+  bench now pins upstream Mermaid at `a2d9686451df7c4644a3eeca20535bbd4c5776b0`,
+  provides `bun run harvest:upstream` and `bun run harvest:upstream:refresh-check`,
+  records a family-by-family manifest for all 1,170 considered parser/DB
+  blocks, imports 488 source blocks, accounts for 682 exclusions, and leaves
+  0 deferred blocks. The executable gate covers 483 cases including the
+  68-case Gantt companion bench. Local compatibility exclusions carry BUILD-20
+  tracking metadata, exact case assertions are enforced, and `ratchet.json`
+  prevents imported coverage from falling or local-gap budgets from growing.
+  - [x] flowchart, state, sequence, class, ER, timeline, journey,
+    architecture, xychart, pie, quadrant, and gantt all have checked
+    cases/exclusions/manifest accounting.
+  - [ ] mindmap, gitgraph: harvest BEFORE implementing (BUILD-5) — these are
+    future families, so they are outside the current renderable-family BUILD-20
+    closure.
 - [x] **BUILD-22 — Diagram-family citizenship gap backfill** (`done`). The
   checked matrix in
   [`docs/contributing/diagram-family-citizenship.matrix.json`](./docs/contributing/diagram-family-citizenship.matrix.json)
@@ -119,9 +124,8 @@ dependents after. IDs are stable names, not an ordering.
     `mutation-test:<family>` scripts). Flowchart/link routing,
     xychart/architecture, and Gantt keep their existing focused lanes.
   - [x] Executable docs-corpus divergence ledger exists for current known
-    non-Gantt Mermaid-docs divergences; PR #54 adds a cross-family parser/DB
-    seed ratchet, while full upstream parser/DB suite harvests remain the
-    deeper BUILD-20 workstream.
+    non-Gantt Mermaid-docs divergences; the cross-family parser/DB bench now
+    accounts for every current renderable-family BUILD-20 upstream block.
   - [x] Generated-site/sample family coverage is tied to
     `BUILTIN_FAMILY_METADATA` by the existing property generator tests,
     including explicit gallery affordance/prefix checks for Pie, Quadrant, and

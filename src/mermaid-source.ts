@@ -540,7 +540,7 @@ export function detectDiagramTypeFromFirstLine(firstLine: string): RoutedDiagram
   if (/^sequencediagram\s*$/.test(line)) return 'sequence'
   if (/^classdiagram\s*$/.test(line)) return 'class'
   if (/^erdiagram\s*$/.test(line)) return 'er'
-  if (/^(?:flowchart|graph)\b/.test(line) || /^statediagram(?:-v2)?\s*$/.test(line)) return 'flowchart'
+  if (/^(?:flowchart|graph|swimlane)\b/.test(line) || /^statediagram(?:-v2)?\s*$/.test(line)) return 'flowchart'
   return null
 }
 
@@ -560,7 +560,7 @@ export function detectLooseDiagramTypeFromFirstLine(firstLine: string): RoutedDi
   if (/^sequencediagram\b/.test(line)) return 'sequence'
   if (/^classdiagram\b/.test(line)) return 'class'
   if (/^erdiagram\b/.test(line)) return 'er'
-  if (/^(?:flowchart|graph)\b/.test(line) || /^statediagram(?:-v2)?\b/.test(line)) return 'flowchart'
+  if (/^(?:flowchart|graph|swimlane)\b/.test(line) || /^statediagram(?:-v2)?\b/.test(line)) return 'flowchart'
   return null
 }
 

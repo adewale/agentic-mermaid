@@ -1779,6 +1779,7 @@ export function auditRouteContracts(
   const TOL = 1
 
   for (const edge of positioned.edges) {
+    if (edge.points.length < 2) continue
     const cert = edge.routeCertificate
     const id = edgeId(edge)
 

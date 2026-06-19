@@ -66,6 +66,14 @@ describe('sequence parsing — structured', () => {
     expect(d.body.participants[0]).toEqual({ id: 'A', label: 'Alice', kind: 'participant' })
     expect(d.body.participants[1]).toEqual({ id: 'B', label: 'Bob', kind: 'actor' })
   })
+  test('semicolon-packed sequence statements are structured', () => {
+    const d = parse('sequenceDiagram;Alice->Bob: Hello Bob, how are you?;Note right of Bob: Bob thinks;Bob-->Alice: I am good thanks!;')
+    expect(d.body.kind).toBe('sequence')
+    if (d.body.kind !== 'sequence') return
+    expect(d.body.messages.map(m => m.text)).toEqual(['Hello Bob, how are you?', 'I am good thanks!'])
+    expect(d.body.statements?.some(st => st.kind === 'opaque-block')).toBe(true)
+    expect(verifyMermaid(d).ok).toBe(true)
+  })
 })
 
 // BUILD-18 headline: a sequence with a block construct (alt) is now structured

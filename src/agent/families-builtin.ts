@@ -188,8 +188,9 @@ registerFamily({
   detect: l => l.startsWith('sequencediagram'),
   extractLabels: extractSequenceLabels,
   parse: (lines, opaqueSource) => {
-    const rawBodyLines = opaqueSource.split(/\r?\n/).slice(1)
-    const body = parseSequenceBody(lines.slice(1), rawBodyLines)
+    const expandedLines = expandInlineSequenceStatements(lines)
+    const rawBodyLines = sequenceRawBodyLines(opaqueSource, expandedLines)
+    const body = parseSequenceBody(expandedLines.slice(1), rawBodyLines)
     return ok(body ?? { kind: 'opaque', family: 'sequence', source: opaqueSource })
   },
   serialize: body => {
@@ -201,6 +202,19 @@ registerFamily({
     return mutateSequence(body, op as never)
   },
 })
+
+function expandInlineSequenceStatements(lines: string[]): string[] {
+  const header = lines[0]?.trim() ?? ''
+  if (!/^sequenceDiagram\s*;/i.test(header)) return lines
+  return [...header.split(';').map(part => part.trim()).filter(Boolean), ...lines.slice(1)]
+}
+
+function sequenceRawBodyLines(opaqueSource: string, expandedLines: string[]): string[] {
+  const raw = opaqueSource.split(/\r?\n/)
+  const headerAt = raw.findIndex(l => /^sequenceDiagram\b/i.test(l.trim()))
+  if (headerAt >= 0 && raw[headerAt]!.includes(';')) return expandedLines.slice(1)
+  return headerAt >= 0 ? raw.slice(headerAt + 1) : raw.slice(1)
+}
 
 // ---- Timeline -------------------------------------------------------------
 function extractTimelineLabels(source: string): ExtractedLabel[] {

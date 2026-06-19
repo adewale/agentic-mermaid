@@ -873,6 +873,16 @@ describe('layoutMermaid debug exposure (issue #25 acceptance criterion 8, open q
 })
 
 describe('route audit tripwires fire on post-certification corruption', () => {
+  it('skips certified edges with fewer than 2 points instead of throwing', () => {
+    for (const points of [[], [{ x: 10, y: 20 }]] as const) {
+      const graph = parseMermaid('flowchart LR\n  A --> B')
+      const positioned = layoutGraphSync(graph)
+      const e = findEdge(positioned.edges, 'A', 'B')
+      e.points = [...points]
+      expect(auditRouteContracts(positioned, graph)).toEqual([])
+    }
+  })
+
   it('ROUTE_UNEXPLAINED_BEND: a diagonal segment on a certified edge', () => {
     const graph = parseMermaid(MFA_SOURCE)
     const positioned = layoutGraphSync(graph)
