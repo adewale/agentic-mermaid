@@ -2,10 +2,10 @@ import { describe, expect, it } from 'bun:test'
 import fc from 'fast-check'
 import { buildRoutePortHints, layoutGraphSync } from '../layout-engine.ts'
 import { parseMermaid } from '../parser.ts'
-import { applyRouteContracts, auditRouteContracts, classifyRoutes, directLaneBlockers, findLabelSlot, findRouteHitches, shapePorts, simplifyPolyline } from '../route-contracts.ts'
+import { applyRouteContracts, auditRouteContracts, classifyRoutes, diamondFacetPorts, directLaneBlockers, findLabelSlot, findRouteHitches, shapePorts, simplifyPolyline } from '../route-contracts.ts'
 import { measureMultilineText } from '../text-metrics.ts'
 import { layoutMermaid, parseMermaid as agentParse, verifyMermaid } from '../agent/index.ts'
-import type { PositionedEdge, PositionedGraph, PositionedGroup, PositionedNode } from '../types.ts'
+import type { AnyPort, Point, PositionedEdge, PositionedGraph, PositionedGroup, PositionedNode } from '../types.ts'
 
 /** The MFA/login regression from issue #25 — every dogleg here had a clear direct lane. */
 const MFA_SOURCE = `flowchart LR
@@ -27,6 +27,32 @@ function findEdge(edges: PositionedEdge[], from: string, to: string, label?: str
   const e = edges.find(e => e.source === from && e.target === to && (label === undefined || e.label === label))
   if (!e) throw new Error(`edge ${from}->${to} not found`)
   return e
+}
+
+function legalPorts(node: PositionedNode): Partial<Record<AnyPort, Point>> {
+  return node.shape === 'diamond'
+    ? { ...shapePorts(node), ...diamondFacetPorts(node) }
+    : shapePorts(node)
+}
+
+function expectSourceEndpointAtNamedPort(edge: PositionedEdge, source: PositionedNode): void {
+  const port = edge.routeCertificate?.sourcePort
+  if (!port) throw new Error(`${edge.source}->${edge.target} emitted from a non-port source endpoint`)
+  const expected = legalPorts(source)[port]
+  if (!expected) throw new Error(`${edge.source}->${edge.target} reported invalid source port ${port}`)
+  const actual = edge.points[0]!
+  expect(Math.abs(actual.x - expected.x)).toBeLessThanOrEqual(0.5)
+  expect(Math.abs(actual.y - expected.y)).toBeLessThanOrEqual(0.5)
+}
+
+function expectTargetEndpointAtNamedPort(edge: PositionedEdge, target: PositionedNode): void {
+  const port = edge.routeCertificate?.targetPort
+  if (!port) throw new Error(`${edge.source}->${edge.target} entered a non-port target endpoint`)
+  const expected = legalPorts(target)[port]
+  if (!expected) throw new Error(`${edge.source}->${edge.target} reported invalid target port ${port}`)
+  const actual = edge.points[edge.points.length - 1]!
+  expect(Math.abs(actual.x - expected.x)).toBeLessThanOrEqual(0.5)
+  expect(Math.abs(actual.y - expected.y)).toBeLessThanOrEqual(0.5)
 }
 
 function isStraightHorizontal(e: PositionedEdge): boolean {
@@ -1396,6 +1422,51 @@ describe('port ranking — sharp bits win when a side carries one line (issue #2
       const q = positioned.nodes.find(n => n.id === 'Q')!
       const center = q[cross] + (cross === 'y' ? q.height : q.width) / 2
       expect(Math.abs(Math.abs(a.points[0]![cross] - center) - Math.abs(b.points[0]![cross] - center))).toBeLessThanOrEqual(0.75)
+    }
+  })
+
+  it('a TD decision fork/rejoin exits the diamond through lower facet ports before honoring target lanes', () => {
+    const positioned = layoutGraphSync(parseMermaid(`flowchart TD
+  A[Start] --> B{Decision?}
+  B -->|Yes| C[Do the thing]
+  B -->|No| D[Skip it]
+  C --> E[End]
+  D --> E`))
+    const yes = findEdge(positioned.edges, 'B', 'C', 'Yes')
+    const no = findEdge(positioned.edges, 'B', 'D', 'No')
+    const decision = positioned.nodes.find(n => n.id === 'B')!
+    const center = decision.x + decision.width / 2
+
+    expect(yes.routeCertificate?.sourcePort).toBe('SW')
+    expect(no.routeCertificate?.sourcePort).toBe('SE')
+    expect(yes.points[0]!.x).toBeLessThan(center)
+    expect(no.points[0]!.x).toBeGreaterThan(center)
+    expect(yes.points[0]!.y).toBeCloseTo(no.points[0]!.y, 3)
+  })
+
+  it('a TD decision fork/rejoin emits every line from a named source port', () => {
+    const positioned = layoutGraphSync(parseMermaid(`flowchart TD
+  A[Start] --> B{Decision?}
+  B -->|Yes| C[Do the thing]
+  B -->|No| D[Skip it]
+  C --> E[End]
+  D --> E`))
+    const nodes = new Map(positioned.nodes.map(node => [node.id, node]))
+    for (const edge of positioned.edges) {
+      expectSourceEndpointAtNamedPort(edge, nodes.get(edge.source)!)
+    }
+  })
+
+  it('a TD decision fork/rejoin enters every target through a named target port', () => {
+    const positioned = layoutGraphSync(parseMermaid(`flowchart TD
+  A[Start] --> B{Decision?}
+  B -->|Yes| C[Do the thing]
+  B -->|No| D[Skip it]
+  C --> E[End]
+  D --> E`))
+    const nodes = new Map(positioned.nodes.map(node => [node.id, node]))
+    for (const edge of positioned.edges) {
+      expectTargetEndpointAtNamedPort(edge, nodes.get(edge.target)!)
     }
   })
 

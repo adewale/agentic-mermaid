@@ -607,6 +607,137 @@ function portSharpness(shape: PositionedNode['shape']): number {
   return shape === 'diamond' ? 2 : 1
 }
 
+function portPoint(node: PositionedNode, side: PortSide | DiamondFacet): Point {
+  if (node.shape === 'diamond' && (side === 'NE' || side === 'SE' || side === 'SW' || side === 'NW')) {
+    return diamondFacetPorts(node)[side]
+  }
+  return shapePorts(node)[side as PortSide]
+}
+
+function diamondSpreadPortSet(axis: Axis, count: number): Array<PortSide | DiamondFacet> | null {
+  if (axis.main === 'x') {
+    if (axis.sign > 0) {
+      if (count === 2) return ['NE', 'SE']
+      if (count === 3) return ['NE', 'E', 'SE']
+    } else {
+      if (count === 2) return ['NW', 'SW']
+      if (count === 3) return ['NW', 'W', 'SW']
+    }
+  } else if (axis.sign > 0) {
+    if (count === 2) return ['SW', 'SE']
+    if (count === 3) return ['SW', 'S', 'SE']
+  } else {
+    if (count === 2) return ['NW', 'NE']
+    if (count === 3) return ['NW', 'N', 'NE']
+  }
+  return null
+}
+
+interface DiamondSpreadAssignment {
+  sourcePort: PortSide | DiamondFacet
+  sourceLane: number
+}
+
+function diamondSpreadAssignment(
+  edge: PositionedEdge,
+  source: PositionedNode,
+  ctx: LaneContext,
+  axis: Axis,
+): DiamondSpreadAssignment | null {
+  if (source.shape !== 'diamond' || edge.edgeIndex === undefined || ctx.classes?.[edge.edgeIndex] !== 'primary-forward') {
+    return null
+  }
+  const nodeMap = new Map(ctx.nodes.map(node => [node.id, node]))
+  const siblings = ctx.edges
+    .filter(candidate => candidate.source === edge.source &&
+      candidate.edgeIndex !== undefined &&
+      ctx.classes?.[candidate.edgeIndex] === 'primary-forward' &&
+      nodeMap.has(candidate.target))
+    .sort((a, b) => {
+      const aTarget = nodeMap.get(a.target)!
+      const bTarget = nodeMap.get(b.target)!
+      const aCross = aTarget[axis.cross] + (axis.cross === 'y' ? aTarget.height : aTarget.width) / 2
+      const bCross = bTarget[axis.cross] + (axis.cross === 'y' ? bTarget.height : bTarget.width) / 2
+      return aCross - bCross || (a.edgeIndex ?? 0) - (b.edgeIndex ?? 0)
+    })
+  const ports = diamondSpreadPortSet(axis, siblings.length)
+  if (!ports) return null
+  const index = siblings.indexOf(edge)
+  if (index < 0) return null
+  const sourcePort = ports[index]!
+  return { sourcePort, sourceLane: portPoint(source, sourcePort)[axis.cross] }
+}
+
+function diamondSpreadLane(
+  edge: PositionedEdge,
+  source: PositionedNode,
+  ctx: LaneContext,
+  axis: Axis,
+): number | undefined {
+  return diamondSpreadAssignment(edge, source, ctx, axis)?.sourceLane
+}
+
+function diamondSpreadTargetsShareRank(
+  edge: PositionedEdge,
+  source: PositionedNode,
+  ctx: LaneContext,
+  axis: Axis,
+): boolean {
+  if (source.shape !== 'diamond' || edge.edgeIndex === undefined || ctx.classes?.[edge.edgeIndex] !== 'primary-forward') {
+    return false
+  }
+  const nodeMap = new Map(ctx.nodes.map(node => [node.id, node]))
+  const siblings = ctx.edges.filter(candidate => candidate.source === edge.source &&
+    candidate.edgeIndex !== undefined &&
+    ctx.classes?.[candidate.edgeIndex] === 'primary-forward' &&
+    nodeMap.has(candidate.target))
+  if (!diamondSpreadPortSet(axis, siblings.length)) return false
+  const targetMains = siblings.map(candidate => {
+    const target = nodeMap.get(candidate.target)!
+    return target[axis.main] + (axis.main === 'x' ? target.width : target.height) / 2
+  })
+  return Math.max(...targetMains) - Math.min(...targetMains) <= 1
+}
+
+interface DiamondSpreadTargetPortConstraint {
+  sourcePort: PortSide | DiamondFacet
+  sourceLane: number
+  targetPort: PortSide
+  targetLane: number
+}
+
+function diamondSpreadTargetPortConstraint(
+  edge: PositionedEdge,
+  source: PositionedNode,
+  target: PositionedNode,
+  ctx: LaneContext,
+  axis: Axis,
+): DiamondSpreadTargetPortConstraint | null {
+  const spread = diamondSpreadAssignment(edge, source, ctx, axis)
+  if (!spread || !diamondSpreadTargetsShareRank(edge, source, ctx, axis)) return null
+  const targetPort = facingSide(axis, -1)
+  const targetLane = shapePorts(target)[targetPort][axis.cross]
+  if (Math.abs(spread.sourceLane - targetLane) <= PORT_TOLERANCE) return null
+  return { ...spread, targetPort, targetLane }
+}
+
+function satisfiesDiamondSpreadTargetPortConstraint(
+  edge: PositionedEdge,
+  source: PositionedNode,
+  target: PositionedNode,
+  constraint: DiamondSpreadTargetPortConstraint,
+): boolean {
+  if (edge.points.length <= 2) return false
+  const start = edge.points[0]!
+  const end = edge.points[edge.points.length - 1]!
+  const sourcePort = portPoint(source, constraint.sourcePort)
+  const targetPort = shapePorts(target)[constraint.targetPort]
+  return Math.abs(start.x - sourcePort.x) <= PORT_TOLERANCE &&
+    Math.abs(start.y - sourcePort.y) <= PORT_TOLERANCE &&
+    Math.abs(end.x - targetPort.x) <= PORT_TOLERANCE &&
+    Math.abs(end.y - targetPort.y) <= PORT_TOLERANCE
+}
+
 /**
  * Primary edges own the straight lane (spec §5): when proving a primary
  * lane, the reciprocal feedback partner's label is movable decoration —
@@ -929,6 +1060,8 @@ function tryStraighten(
     push(srcPortLane)
     push(tgtPortLane)
   } else {
+    const spreadLane = diamondSpreadLane(edge, source, ctx, axis)
+    if (spreadLane !== undefined) push(spreadLane)
     push(tgtPortLane)
     push(srcPortLane)
   }
@@ -1097,6 +1230,19 @@ export function applyRouteContracts(
         return { applied: false, mutated: JSON.stringify(edge.points) !== beforeGeometry }
       }
     }
+    const portConstraint = diamondSpreadTargetPortConstraint(edge, source!, target!, ctx, edgeAxis)
+    if (portConstraint &&
+      tryZRoute(edge, source!, target!, ctx, edgeAxis, false, {
+        sourceLane: portConstraint.sourceLane,
+        targetLane: portConstraint.targetLane,
+        preferSourceJog: true,
+      })) {
+      cert.invariant = 'explained-detour'
+      cert.directLaneClear = false
+      cert.directLaneBlockedBy = [{ kind: 'port', id: edgeId(edge) }]
+      cert.bendCount = bendCount(edge.points)
+      return { applied: false, mutated: JSON.stringify(edge.points) !== beforeGeometry }
+    }
     const attempt = tryStraighten(edge, source!, target!, ctx, edgeAxis)
     if (attempt.applied) {
       const mutated = JSON.stringify(edge.points) !== beforeGeometry
@@ -1159,6 +1305,7 @@ export function applyRouteContracts(
     ctx: LaneContext,
     axis: Axis,
     sourcePortOnly = false,
+    forcedLanes?: { sourceLane?: number; targetLane?: number; preferSourceJog?: boolean },
   ): boolean {
     if (edge.points.length < 2) return false
     const srcSpan = attachSpan(source, axis)
@@ -1171,13 +1318,21 @@ export function applyRouteContracts(
     const pushTo = (arr: number[], v: number) => {
       if (arr.every(prev => Math.abs(prev - v) > 0.5)) arr.push(v)
     }
-    pushTo(c1s, source[axis.cross] + (axis.cross === 'y' ? source.height : source.width) / 2)
-    if (!sourcePortOnly) {
-      pushTo(c1s, edge.points[0]![axis.cross])
-      for (const v of crossVals) pushTo(c1s, v)
+    if (forcedLanes?.sourceLane !== undefined) {
+      pushTo(c1s, forcedLanes.sourceLane)
+    } else {
+      pushTo(c1s, source[axis.cross] + (axis.cross === 'y' ? source.height : source.width) / 2)
+      if (!sourcePortOnly) {
+        pushTo(c1s, edge.points[0]![axis.cross])
+        for (const v of crossVals) pushTo(c1s, v)
+      }
     }
-    pushTo(c2s, target[axis.cross] + (axis.cross === 'y' ? target.height : target.width) / 2)
-    pushTo(c2s, edge.points[edge.points.length - 1]![axis.cross])
+    if (forcedLanes?.targetLane !== undefined) {
+      pushTo(c2s, forcedLanes.targetLane)
+    } else {
+      pushTo(c2s, target[axis.cross] + (axis.cross === 'y' ? target.height : target.width) / 2)
+      pushTo(c2s, edge.points[edge.points.length - 1]![axis.cross])
+    }
 
     const relaxDiamond = (node: PositionedNode, span: CrossSpan): CrossSpan =>
       node.shape === 'diamond'
@@ -1194,7 +1349,10 @@ export function applyRouteContracts(
         if (Math.abs(c1 - c2) < CLEARANCE) continue // that would be a hitch, not a Z
         const srcMain = anchorMain(source, c1, axis, 1)
         if ((tgtMain - srcMain) * axis.sign <= EPS) continue
-        for (const jog of [tgtMain - axis.sign * 12, (srcMain + tgtMain) / 2, srcMain + axis.sign * 12]) {
+        const jogs = forcedLanes?.preferSourceJog
+          ? [srcMain + axis.sign * 12, (srcMain + tgtMain) / 2, tgtMain - axis.sign * 12]
+          : [tgtMain - axis.sign * 12, (srcMain + tgtMain) / 2, srcMain + axis.sign * 12]
+        for (const jog of jogs) {
           if ((jog - srcMain) * axis.sign <= EPS || (tgtMain - jog) * axis.sign <= EPS) continue
           // The label rides the longest lane only; the other lane and the
           // hop are proved with a label-stripped probe so the own-label
@@ -1670,6 +1828,8 @@ export function findRouteHitches(
     if (!isStraightenable(source.shape)) continue
     if (!isStraightenable(target.shape)) continue
     if (cert.routeClass !== 'feedback' && !isMonotoneStaircase(points, edgeAxis)) continue
+    const portConstraint = diamondSpreadTargetPortConstraint(edge, source, target, ctx, edgeAxis)
+    if (portConstraint && satisfiesDiamondSpreadTargetPortConstraint(edge, source, target, portConstraint)) continue
     // Vertex-emit edges (single-line diamond side) bend deliberately when no
     // straight vertex lane exists; their probe is restricted to that lane.
     const srcSideUse = sideUse.get(`${edge.source}:${facingSide(edgeAxis, 1)}`) ?? 1
