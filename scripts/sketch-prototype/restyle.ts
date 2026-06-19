@@ -14,9 +14,26 @@ import {
   stipple, halftone, watercolorWash, hachureLines,
 } from './engine.ts'
 import { roughPolyOutline, roughPolyFill, roughOpen, roughPathD } from './rough-adapter.ts'
+import { adjustToContrast, mix, WCAG } from './contrast.ts'
 import type { Style } from './styles.ts'
 
 const lerp = (a: number, b: number, t: number) => a + (b - a) * t
+
+// Representative fraction of a filled region covered by ink marks, per fill
+// kind — used to estimate the effective background luminance under a label.
+function fillCoverage(st: Style): number {
+  const t = st.baseTone
+  switch (st.fill) {
+    case 'none': return 0
+    case 'hachure': return Math.min(0.5, 0.2 + t * 0.6)
+    case 'crosshatch': return Math.min(0.6, 0.4 + t * 0.4)
+    case 'stipple': return Math.min(0.5, t * 0.7)
+    case 'halftone': return Math.min(0.6, t * 0.9)
+    case 'wash': return 0.25
+    case 'scribble': return Math.min(0.55, 0.3 + t * 0.4)
+    default: return 0
+  }
+}
 
 const num = (s: string | undefined, d = 0) => (s == null ? d : parseFloat(s))
 const attr = (t: string, n: string): string | undefined => t.match(new RegExp(`\\b${n}="([^"]*)"`))?.[1]
@@ -172,7 +189,18 @@ export function restyle(svg: string, st: Style, opts: { backdrop?: boolean } = {
   const w = num(vb[1], 800), h = num(vb[2], 600)
   const parts = [head]
   if (st.defs) parts.push(`<defs>${st.defs}</defs>`)
-  parts.push(`<style>text{font-family:'${st.font}',serif !important;fill:${st.colors.fg} !important;} .edge-label-halo,.edge-label rect{fill:${st.colors.bg} !important;stroke:none !important;}</style>`)
+
+  // WCAG readability guardrail (see contrast.ts):
+  //  - effective background under a label = page blended with the fill marks
+  //  - pick a label ink that clears 4.5:1 against that effective background
+  //  - add a page-coloured paint-order halo so glyphs separate from busy fills
+  const cov = fillCoverage(st)
+  const effBg = cov > 0 ? mix(st.colors.bg, st.fillColor, cov) : st.colors.bg
+  const ink = adjustToContrast(st.colors.fg, effBg, WCAG.textAA)
+  const halo = st.fill !== 'none'
+    ? `paint-order:stroke;stroke:${st.colors.bg};stroke-width:2.4px;stroke-linejoin:round;`
+    : ''
+  parts.push(`<style>text{font-family:'${st.font}',serif !important;fill:${ink} !important;${halo}} .edge-label-halo,.edge-label rect{fill:${st.colors.bg} !important;stroke:none !important;}</style>`)
   if (opts.backdrop !== false) parts.push(backdrop(st, w, h))
   parts.push(body, '</svg>')
   return parts.join('\n')

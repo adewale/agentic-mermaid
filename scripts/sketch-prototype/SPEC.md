@@ -238,7 +238,42 @@ existing `renderSvg` back-to-front ordering.
 
 ---
 
-## 7. Determinism & testing
+## 7. Readability & contrast (WCAG math only)
+
+We borrow **only the math** from WCAG — relative luminance + contrast ratio +
+the threshold constants (`contrast.ts`, ~40 lines, zero deps). No ARIA, no
+conformance framework. (The renderer already injects `<title>/<desc>`/ARIA in
+`index.ts`; that stays as-is.) Three uses, all as a render-time guardrail:
+
+1. **Effective-background text check.** The background *under a label* isn't the
+   page — it's the page blended with the local fill marks. We estimate that
+   blended luminance (`fillCoverage(style)` → `mix(page, fillColor, coverage)`)
+   and pick a label ink that clears **4.5:1** (WCAG 1.4.3 AA; large text gets the
+   3:1 allowance, which our enlarged node labels already satisfy). `adjustToContrast`
+   nudges the ink toward black/white, preserving hue as far as possible.
+2. **Paint-order halo.** For any fill style, labels get a page-coloured
+   `paint-order:stroke` halo so glyphs separate from busy hachure/dots
+   regardless of what's behind them (verified under resvg). This is the
+   systematic version of the manual tone-capping that was needed for
+   halftone/stipple.
+3. **Non-text contrast.** Strokes/borders vs page are checked against **3:1**
+   (WCAG 1.4.11); weak palettes can be auto-bumped. Exposed as opt-in so
+   deliberately low-contrast styles (Tufte's faint rules) aren't overridden.
+
+Plus **1.4.1 Use of Color**: meaning never rests on hue alone — our styles
+already differentiate by shape/texture (hachure vs stipple vs dots), so a
+monochrome or colour-blind viewer still reads structure; hue-led charts (pie)
+keep texture + labels.
+
+**Testable property.** `contrast-audit.ts` runs the two ratios for every style
+and exits non-zero on any failure, so readability gates CI like a golden test.
+Current status: all 13 styles PASS (text ≥4.5:1, non-text ≥3:1; Tufte's faint
+rules exempted by design). In production the same check runs per
+style × diagram-role over the IR.
+
+---
+
+## 8. Determinism & testing
 
 - **Seed contract:** `seed(drawable) = hash(options.seed, drawable.id, role, markIndex)`.
   All randomness flows from `makeRng(seed)` (mulberry32). Verified: the prototype
@@ -253,7 +288,7 @@ existing `renderSvg` back-to-front ordering.
 
 ---
 
-## 8. Fonts
+## 9. Fonts
 
 Styles name a font (`Caveat`, `EB Garamond`, …) threaded through the existing
 `--font` CSS variable. For PNG via **resvg (no web-font fetch)** the TTF must be
@@ -262,7 +297,7 @@ Ship OFL fonts only; record provenance. Browser SVG keeps the `@import`.
 
 ---
 
-## 9. Substrate & capability negotiation
+## 10. Substrate & capability negotiation
 
 | Effect | Browser SVG | resvg/PNG | Fallback |
 |---|---|---|---|
@@ -282,7 +317,7 @@ canvas/WebGL backend — the IR is the unification point.
 
 ---
 
-## 10. Phasing
+## 11. Phasing
 
 1. **IR + crisp StrokeRenderer for flowchart** behind `aesthetic:'crisp'`,
    asserting byte-identical output vs today (safety net).
@@ -297,7 +332,7 @@ canvas/WebGL backend — the IR is the unification point.
 
 ---
 
-## 11. Risks
+## 12. Risks
 
 - **IR refactor surface.** Touching every family emitter is the main cost.
   Mitigation: IR shape is small; crisp renderer validates equivalence per family.
@@ -309,7 +344,7 @@ canvas/WebGL backend — the IR is the unification point.
 
 ---
 
-## 12. References
+## 13. References
 
 - Winkenbach & Salesin, *Computer-Generated Pen-and-Ink Illustration*, SIGGRAPH '94.
 - Praun, Hoppe, Webb, Finkelstein, *Real-Time Hatching*, SIGGRAPH 2001 (Tonal Art Maps).
