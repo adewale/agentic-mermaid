@@ -11,10 +11,18 @@
 import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'node:fs'
 import { join, dirname } from 'node:path'
 import { parseMermaid } from '../../src/agent/parse.ts'
-import { renderMermaidSVG } from '../../src/agent/index.ts'
+import { renderMermaidSVG, serializeMermaid } from '../../src/agent/index.ts'
 import { measureQuality, type QualityMetrics } from '../../src/agent/quality.ts'
 import { layoutMermaid } from '../../src/agent/index.ts'
 import { runBatchedOperations } from '../../src/shared/batched.ts'
+import { countStructuralElements, countsEqual } from '../shared/structural-count.ts'
+
+/** A blessed reference render to anchor the judge (reference-guided judging,
+ *  Zheng et al. 2023 — reduces judge variance vs. scoring in a vacuum). */
+export interface JudgeReference {
+  svg: string
+  note?: string
+}
 
 export interface JudgeRequest {
   origin: string
@@ -23,6 +31,8 @@ export interface JudgeRequest {
   svg: string
   metrics: QualityMetrics | null
   rubric: string
+  /** Optional golden anchor for reference-guided scoring. */
+  reference?: JudgeReference
 }
 
 export interface JudgeScore {
@@ -48,7 +58,9 @@ Rate the rendered Mermaid diagram on three axes, 1 (poor) to 5 (excellent).
 Output strict JSON: { "readability": N, "faithfulness": N, "aesthetics": N, "notes": ["..."] }
 `.trim()
 
-export function buildJudgeRequest(family: string, source: string, origin: string): JudgeRequest | null {
+export function buildJudgeRequest(
+  family: string, source: string, origin: string, reference?: JudgeReference,
+): JudgeRequest | null {
   const p = parseMermaid(source)
   if (!p.ok) return null
   let svg: string
@@ -57,7 +69,103 @@ export function buildJudgeRequest(family: string, source: string, origin: string
   if (p.value.body.kind === 'flowchart') {
     try { metrics = measureQuality(layoutMermaid(p.value)) } catch { /* ignore */ }
   }
-  return { origin, family, source, svg, metrics, rubric: RUBRIC }
+  return { origin, family, source, svg, metrics, rubric: RUBRIC, ...(reference ? { reference } : {}) }
+}
+
+// ============================================================================
+// Protocol hardening (Move 1) — the gaps the original harness left open.
+//
+// The CI judge is a deterministic mock derived from measureQuality (see the
+// test), so it cannot independently validate the perceptual metrics — it is
+// wiring, not judgment. The primitives below make the REAL (periodic) judge
+// trustworthy by implementing the documented LLM-judge mitigations from
+// Zheng et al., "Judging LLM-as-a-Judge" (NeurIPS 2023):
+//   • position bias  → judgePairwiseDebiased scores both orders and only
+//                       trusts a verdict the two orders agree on.
+//   • self-enhancement→ assertJudgeIndependence refuses a judge from the same
+//                       model family that authored the diagram.
+//   • scoring variance→ JudgeReference threads a golden anchor (above).
+// And independentFaithfulness gives faithfulness an oracle that does NOT come
+// from measureQuality, breaking the metric↔judge circularity for that axis.
+// ============================================================================
+
+/** Decide which of two renders is better. Used for the de-biasing wrapper. */
+export type PairwiseJudgeFn = (left: JudgeRequest, right: JudgeRequest) => Promise<'left' | 'right' | 'tie'>
+
+export interface DebiasedVerdict {
+  /** 'a'/'b' when both orders agree; 'inconsistent' when the judge flipped. */
+  winner: 'a' | 'b' | 'tie' | 'inconsistent'
+  raw: { ab: 'left' | 'right' | 'tie'; ba: 'left' | 'right' | 'tie' }
+}
+
+/**
+ * Run a pairwise judge in BOTH orders and only trust a verdict the two orders
+ * agree on. A position-biased judge (always picks the first/left option) flips
+ * its answer when the inputs swap, so this returns 'inconsistent' rather than a
+ * biased winner.
+ */
+export async function judgePairwiseDebiased(
+  a: JudgeRequest, b: JudgeRequest, judge: PairwiseJudgeFn,
+): Promise<DebiasedVerdict> {
+  const ab = await judge(a, b)   // a on the left
+  const ba = await judge(b, a)   // a on the right
+  const firstSaysA = ab === 'left' ? 'a' : ab === 'right' ? 'b' : 'tie'
+  const secondSaysA = ba === 'left' ? 'b' : ba === 'right' ? 'a' : 'tie'
+  if (firstSaysA === secondSaysA) return { winner: firstSaysA, raw: { ab, ba } }
+  return { winner: 'inconsistent', raw: { ab, ba } }
+}
+
+/** Coarse model-family bucket: 'claude-opus-4-8' → 'claude', 'gpt-4o' → 'gpt'. */
+export function modelFamily(model: string): string {
+  const m = model.toLowerCase()
+  if (m.includes('claude') || m.includes('anthropic')) return 'claude'
+  if (m.startsWith('gpt') || m.includes('openai') || m.startsWith('o1') || m.startsWith('o3')) return 'gpt'
+  if (m.includes('gemini') || m.includes('google')) return 'gemini'
+  if (m.includes('llama')) return 'llama'
+  return m.split(/[-_/ ]/)[0] ?? m
+}
+
+/**
+ * Guard against self-enhancement bias: a judge from the same model family that
+ * authored the diagram favors its own output by 10–25% (Zheng et al.). Throw so
+ * a periodic run cannot silently grade itself.
+ */
+export function assertJudgeIndependence(authorModel: string, judgeModel: string): void {
+  if (modelFamily(authorModel) === modelFamily(judgeModel)) {
+    throw new Error(
+      `judge independence violation: judge '${judgeModel}' shares model family ` +
+      `'${modelFamily(judgeModel)}' with the author '${authorModel}'. Use a different family.`,
+    )
+  }
+}
+
+/**
+ * Faithfulness oracle that is INDEPENDENT of measureQuality (and of the LLM):
+ * 5 when a parse → serialize → re-parse cycle preserves the structured
+ * {nodes, edges, groups} tally, lower when content is dropped. This is the
+ * "every node and edge from the source is present" axis of the rubric grounded
+ * in a structural check rather than in the perceptual metrics it is meant to
+ * corroborate. Returns null for sources that don't parse or are opaque.
+ */
+export function independentFaithfulness(source: string): number | null {
+  const p1 = parseMermaid(source)
+  if (!p1.ok) return null
+  const before = countStructuralElements(p1.value)
+  if (!before) return null
+  try {
+    const p2 = parseMermaid(serializeMermaid(p1.value))
+    if (!p2.ok) return 1
+    const after = countStructuralElements(p2.value)
+    if (!after) return 1
+    if (countsEqual(before, after)) return 5
+    // Partial loss scales the penalty by how much of the content survived.
+    const total = before.nodes + before.edges + before.groups
+    const kept = Math.min(after.nodes, before.nodes) + Math.min(after.edges, before.edges) + Math.min(after.groups, before.groups)
+    const frac = total > 0 ? kept / total : 1
+    return Math.max(1, Math.round(1 + frac * 4))
+  } catch {
+    return 1
+  }
 }
 
 export function aggregateScores(scores: JudgeScore[]): {

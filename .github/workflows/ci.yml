@@ -23,10 +23,21 @@ jobs:
       - name: Install dependencies
         run: bun install
 
-      - name: Run tests with coverage
-        # Text coverage is enough for CI signal; avoid lcov generation in PR
-        # runners because Bun can leave the coverage writer hanging there.
+      - name: Run tests (coverage = under-tested finder, NOT an adequacy target)
+        # The pass/fail of this suite is the gate. Coverage is printed only to
+        # locate under-tested files — it is deliberately NOT a quality target:
+        # line coverage is weakly correlated with fault detection once suite
+        # size is controlled (Inozemtseva & Holmes, ICSE 2014). The real
+        # adequacy signal is the mutation score, which runs nightly
+        # (nightly-route-mutation.yml) because a full run is too slow to gate
+        # every PR. See docs/testing-strategy.md.
         run: bun test --coverage --coverage-reporter=text src/__tests__/
+
+      - name: Adequacy signal reminder
+        # Surface where the trustworthy adequacy number lives so a green
+        # coverage column is not mistaken for a strong suite.
+        run: |
+          echo "::notice title=Adequacy signal::Line coverage above is a finder, not a target. The mutation score (nightly-route-mutation.yml) is the adequacy signal — see docs/testing-strategy.md."
 
       - name: Type check
         run: bun x tsc --noEmit

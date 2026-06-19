@@ -13,7 +13,7 @@
 import { describe, test, expect } from 'bun:test'
 import { readFileSync, existsSync } from 'node:fs'
 import { join } from 'node:path'
-import { buildJudgeRequest, runWithJudge, aggregateScores, type JudgeRequest, type JudgeScore, type JudgeFn } from '../../eval/llm-judge/judge.ts'
+import { buildJudgeRequest, runWithJudge, aggregateScores, independentFaithfulness, type JudgeRequest, type JudgeScore, type JudgeFn } from '../../eval/llm-judge/judge.ts'
 
 const CORPUS_PATH = join(import.meta.dir, '..', '..', 'eval', 'mermaid-docs-corpus', 'corpus.json')
 
@@ -29,13 +29,15 @@ function loadStratifiedSample(perFamily: number): CorpusEntry[] {
   return out
 }
 
-// Deterministic mock judge: scores derived from quality metrics. This is NOT
-// a stand-in for a real LLM judge — it's a stub so the harness wiring can
-// be tested in CI without model spend.
+// Deterministic mock judge. Readability/aesthetics are still derived from the
+// perceptual metrics (this is a harness stub, not a real judge), but
+// FAITHFULNESS now comes from independentFaithfulness() — a structural
+// parse→serialize→re-parse count check that does NOT consult measureQuality.
+// That decouples the faithfulness axis from the metrics it is meant to
+// corroborate, so this axis is no longer circular (Move 1).
 const mockJudge: JudgeFn = async (req: JudgeRequest): Promise<JudgeScore> => {
   const m = req.metrics
   let readability = 4
-  let faithfulness = 5
   let aesthetics = 4
   if (m) {
     if (m.labelLegibility < 0.5) readability -= 2
@@ -45,6 +47,7 @@ const mockJudge: JudgeFn = async (req: JudgeRequest): Promise<JudgeScore> => {
     else if (crossingRatio > 0.05) aesthetics -= 1
     if (m.whitespaceBalance < 0.05 || m.whitespaceBalance > 0.7) aesthetics -= 1
   }
+  const faithfulness = independentFaithfulness(req.source) ?? 5
   return {
     origin: req.origin,
     readability: Math.max(1, readability),

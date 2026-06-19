@@ -72,12 +72,15 @@ independent spec:
 
 - **ASCII goldens** — `scripts/update-ascii-goldens.ts`, `testdata/{unicode,ascii}/*.txt`.
 - **SVG snapshots** and **contact sheets** — per-family rendered output.
-- **Screenshot baselines** — `e2e/screenshots/baseline-*.png` (Playwright).
+- **Screenshot baselines** — `e2e/screenshots/baseline-*.png`, diffed against
+  fresh Playwright renders with a per-channel threshold in `e2e/browser.test.ts`.
 - **Snapshot drift sentinel** — CI flags any change under `testdata/` so a
   golden never moves silently.
 
-**Runs:** ASCII/SVG goldens per PR. Browser/screenshot e2e and the broad
-contact sheets are **not** on the per-PR gate today.
+**Runs:** ASCII/SVG goldens per PR. The browser/screenshot e2e suite also runs
+per PR — it is the `e2e` job in `ci.yml` (`needs: test`), which installs
+Chromium and runs `browser.test.ts` (screenshot diff), the CLI/security e2e,
+and the single-binary e2e. The broad contact sheets are not on the per-PR gate.
 **Does not prove:** that a *changed* golden is an improvement — only that
 change was noticed. Judging the change still needs a human or the
 before/after harness (`eval/layout-compare`).
@@ -103,10 +106,14 @@ lesson). The `@{shape}` silent-loss and ER `}o` bugs both escaped 2,200+
 self-authored tests and were caught only by docs-derived sources.
 
 **Runs:** every PR (corpus + seqbench + upstream-suite ratchet).
-**Does not prove:** faithfulness everywhere. "100% parse success is not
-faithfulness" (Loop 17) — a renderer can parse and still silently drop
-content, which is why count-oracles (node/edge/group counts) were added
-where the drops bit.
+**Faithfulness count-oracle:** the corpus gate now also asserts that the
+structured `{nodes, edges, groups}` tally survives a parse → serialize →
+re-parse cycle for **every** renderable family
+(`eval/shared/structural-count.ts`, gated in `agent-mermaid-corpus.test.ts`).
+Round-trip *byte*-stability only proves serialize∘parse is idempotent; this
+count check proves parse did not silently drop content — the ER `}o` class of
+bug ("100% parse success is not faithfulness", Loop 17) now fails CI directly
+rather than only where a hand-written oracle happened to bite.
 
 ## 4. Metamorphic oracles — relations instead of ground truth
 
@@ -119,12 +126,19 @@ must agree." This sidesteps the oracle problem without a human:
 - **Determinism** — three separate processes produce byte-identical layout
   JSON; Bun and Node produce byte-identical JSON on the same source; ASCII
   and PNG output hash-stable across 10+ repeated runs.
+- **Layout/faithfulness relations** — `property-layout-metamorphic.test.ts`
+  formalizes relations that were previously implicit: determinism (same source
+  ⇒ identical metrics), node-id **relabeling invariance** (ids carry no
+  meaning), **disconnected-node monotonicity** (adding an isolated node adds
+  exactly one node and drops nothing), and **edge-add monotonicity**.
+  Statement-permutation invariance is deliberately *not* asserted — source
+  order is a stated design property, so permuting statements may legitimately
+  change geometry.
 
 **Runs:** every PR.
 **Does not prove:** cross-architecture equality (x86_64 hash vs ARM64 hash
-is not compared), nor input-order independence (edge-insertion order is not
-yet stressed — see `quality.md`). These are the natural places to *extend*
-the metamorphic set, since the technique is the same.
+is not compared). That is the natural next place to *extend* the metamorphic
+set, since the technique is the same.
 
 ## 5. Pseudo-oracles — is the suite itself strong enough?
 
@@ -163,19 +177,27 @@ This is where we approximate aesthetics deterministically:
 - **layout rubric / visual-rubric** — hard violations (must be 0) plus soft
   thresholds (crossings, bends, port-anchored rate).
 - **heuristic-tracker** — baseline-comparison of routing metrics with
-  improvement/regression deltas.
+  improvement/regression deltas, now gated per PR (`heuristic-tracker.test.ts`):
+  hard violations must stay 0 and no tracked example may regress on a soft
+  metric without a reviewed `baseline.json` update in the same change.
 - **route-contract tripwires** — `ROUTE_*` codes that must stay 0; any hit
   means the layout pipeline regressed, not the diagram.
 
-**Runs:** `measureQuality`, ugly-detector, and the layout rubric gate per
-PR. heuristic-tracker is **manual** today.
+**Runs:** `measureQuality`, ugly-detector, the layout rubric, and the
+heuristic-tracker ratchet all gate per PR.
+**Bound provenance (Move 6):** each `QualityBounds` band now carries an
+explicit basis — `edgeCrossings` is `evidence` (the one aesthetic with strong
+human-subject support: Purchase 1997/2002), `labelLegibility` is `derived`
+(labels must physically fit), `whitespaceBalance`/`labelEdgeProximity` are
+`chosen` (plausible but unvalidated), and `aspectRatio` is a `sanity`
+guardrail. `checkQuality` returns `ranked` violations tagged primary /
+secondary / sanity so a consumer weights a crossings violation above a
+whitespace one (`BOUND_PROVENANCE` in `src/agent/quality.ts`).
 **Does not prove:** that the diagram is good to a *human* eye. The bands
 are honest approximations with headroom — "we do not claim our metrics
 match a human designer's eye; they catch the worst regressions"
-(`quality.md`). The empirical graph-drawing literature (Purchase) supports
-weighting **edge crossings** highest, with bends and symmetry mattering
-less — useful provenance for calibrating the bands rather than asserting
-them.
+(`quality.md`). Provenance makes the calibration honest; it does not make a
+`chosen` band correct.
 
 ## 7. Human / model oracles — the axis nothing else covers
 
@@ -187,13 +209,19 @@ them.
 **Runs:** the real LLM judge is **periodic / pre-release only** — model
 spend plus nondeterminism make it unfit for a per-PR gate. In CI it is
 replaced by a deterministic mock.
-**Known limitation:** the CI mock derives its scores from the same
-geometric metrics it is meant to validate, so it is a harness-wiring check,
-not an independent judgment. When the real judge runs, the known LLM-judge
-biases apply — position, verbosity, and self-enhancement (Zheng et al.,
-NeurIPS 2023) — which is why comparative judging should randomize order,
-use the goldens as references, and avoid grading a diagram with the same
-model family that authored it.
+**Protocol hardening (Move 1):** the readability/aesthetics axes of the CI
+mock are still derived from the perceptual metrics (it is a wiring stub), but
+the **faithfulness** axis now comes from `independentFaithfulness()` — a
+structural parse → serialize → re-parse count check that does *not* consult
+`measureQuality`, removing the circularity on that axis. The real judge has
+primitives for the documented LLM-judge biases (Zheng et al., NeurIPS 2023):
+`judgePairwiseDebiased` scores both orders and trusts only an agreeing verdict
+(position bias), `assertJudgeIndependence` refuses a judge from the same model
+family that authored the diagram (self-enhancement), and `JudgeReference`
+threads a golden anchor (reference-guided scoring).
+**Known limitation:** the mock's readability/aesthetics axes remain
+metric-derived, so they cannot independently validate those metrics — only a
+real judge run can.
 
 ## What runs where (proof-gate map)
 
@@ -201,15 +229,15 @@ model family that authored it.
 |---|---|---|---|
 | Tier-1 verify, contract/schema, doc-sync | ✅ | | |
 | ASCII/SVG goldens + snapshot sentinel | ✅ (sentinel = warning) | | |
-| mermaid-docs corpus, MermaidSeqBench, upstream-suite ratchet | ✅ | | |
-| Round-trip + determinism (cross-process, Bun↔Node) | ✅ | | |
-| `measureQuality`/`checkQuality`, ugly-detector, layout rubric | ✅ | | |
+| mermaid-docs corpus + faithfulness count-oracle, MermaidSeqBench, upstream-suite ratchet | ✅ | | |
+| Round-trip + determinism + layout/faithfulness metamorphic relations | ✅ | | |
+| `measureQuality`/`checkQuality`, ugly-detector, layout rubric, heuristic-tracker ratchet | ✅ | | |
+| Browser/screenshot e2e, CLI/security e2e, single-binary e2e | ✅ (`e2e` job) | | |
 | Type check, README hero check | ✅ | | |
 | Mutation lanes (Stryker) + sabotage | | ✅ | on touch |
-| Browser/screenshot e2e | | | ✅ (`test:browser`) |
-| heuristic-tracker, layout-compare before/after | | | ✅ |
+| layout-compare before/after | | | ✅ |
 | Benchmark (timing/size vs competitors) | harness only | | ✅ |
-| LLM-as-judge (real model) | mock only | | ✅ |
+| LLM-as-judge (real model) | mock only (faithfulness axis independent) | | ✅ |
 
 ## Why the suite is shaped this way
 
@@ -233,17 +261,19 @@ model family that authored it.
 These are real today and are the natural targets for *enhancing* existing
 gates rather than adding new machinery:
 
-1. The per-PR aesthetic signal is the weakest gate; the metrics are
-   admittedly rough and the CI LLM judge is circular.
-2. Mutation and sabotage — the truest adequacy signals — run nightly, while
-   line coverage (a weaker signal) is the per-PR headline.
-3. heuristic-tracker, browser/screenshot e2e, and the benchmark are not on
-   the PR gate.
+1. The per-PR aesthetic signal is still the weakest gate; the metrics are
+   admittedly rough. The CI LLM mock's readability/aesthetics axes remain
+   metric-derived (only its faithfulness axis is now independent), so it
+   cannot validate those metrics — only a real periodic judge run can.
+2. Mutation and sabotage — the truest adequacy signals — still run nightly.
+   Line coverage is no longer the per-PR headline (it is framed as a finder),
+   but no fast mutation lane gates per-PR yet.
+3. The benchmark is not on the PR gate (timing variance). Browser/screenshot
+   e2e and the heuristic-tracker ratchet now are.
 4. Determinism is proven Bun↔Node on one architecture; cross-architecture
-   byte equality is not asserted, and input-order independence is not
-   stressed.
-5. `QualityBounds` thresholds are chosen, not validated against
-   human-perception evidence.
+   byte equality is not asserted.
+5. `QualityBounds` thresholds are now provenance-tagged, but the `chosen`
+   bands are still not validated against human-perception evidence.
 6. The snapshot drift sentinel warns but does not block.
 
 The deepest gap is structural, and `project/lessons-learned.md` (Loop 13)

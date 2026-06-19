@@ -8,6 +8,7 @@ import { readFileSync, existsSync } from 'node:fs'
 import { join } from 'node:path'
 import { parseMermaid, serializeMermaid, verifyMermaid } from '../agent/index.ts'
 import { runParseVerifyRoundtrip } from '../../eval/shared/run-bench.ts'
+import { countStructuralElements, countsEqual } from '../../eval/shared/structural-count.ts'
 
 const CORPUS_PATH = join(import.meta.dir, '..', '..', 'eval', 'mermaid-docs-corpus', 'corpus.json')
 const DIVERGENCES_PATH = join(import.meta.dir, '..', '..', 'eval', 'mermaid-docs-corpus', 'divergences.json')
@@ -128,6 +129,33 @@ describe('mermaid-js docs corpus (271 examples, 12 families)', () => {
         expect({ key, ledgered: divergenceKeys.has(key), verifyOk: verify.ok, stable }).toEqual({ key, ledgered: true, verifyOk: verify.ok, stable })
       }
     }
+  })
+
+  // Faithfulness count-oracle (Loop 17: "100% parse success is not
+  // faithfulness"). Round-trip byte-stability proves serialize∘parse is
+  // idempotent; it does NOT prove parse preserved the source's content. This
+  // gate asserts the structured {nodes, edges, groups} tally survives a
+  // parse → serialize → re-parse cycle for EVERY renderable family, so a
+  // silently-dropped relationship (the ER `}o` class of bug) fails CI even
+  // when the bytes round-trip cleanly. Opaque bodies (no structured arrays)
+  // are covered by the round-trip-stability gate and skipped here.
+  test('faithfulness: structured element counts survive round-trip (all families)', () => {
+    const drops: Array<{ key: string; before: unknown; after: unknown }> = []
+    for (const entry of corpus) {
+      const p1 = parseMermaid(entry.source)
+      if (!p1.ok) continue  // parse-rate floors above own parse failures
+      const before = countStructuralElements(p1.value)
+      if (!before) continue  // opaque — round-trip-stability gate owns it
+      let after: ReturnType<typeof countStructuralElements> = null
+      try {
+        const p2 = parseMermaid(serializeMermaid(p1.value))
+        if (p2.ok) after = countStructuralElements(p2.value)
+      } catch { /* falls through to drop record */ }
+      if (!after || !countsEqual(before, after)) {
+        drops.push({ key: corpusKey(entry), before, after })
+      }
+    }
+    expect(drops).toEqual([])
   })
 
   for (const family of Object.keys(expected)) {
