@@ -14,7 +14,7 @@
  * geometry, so a port or clipping regression cannot hide itself.
  */
 
-import type { MermaidGraph, Point, PositionedGraph, PositionedNode } from './types.ts'
+import type { MermaidGraph, Point, PositionedGraph, PositionedGroup, PositionedNode } from './types.ts'
 import { diamondFacetPorts, findRouteHitches, shapePorts } from './route-contracts.ts'
 import { measureMultilineText } from './text-metrics.ts'
 import { resolveRenderStyle } from './styles.ts'
@@ -49,6 +49,8 @@ export interface RubricMetrics {
   portEndpointRate: number
   /** Fraction of edges with at least one end on a canonical port. */
   portAnchoredEdgeRate: number
+  /** Largest cross-axis offset between a peer hub and its peer barycenter. */
+  peerBarycenterDelta: number
 }
 
 export interface RubricResult {
@@ -269,6 +271,92 @@ function pointToSegmentDistance(p: Point, a: Point, b: Point): number {
   return Math.hypot(p.x - (a.x + t * dx), p.y - (a.y + t * dy))
 }
 
+function nodeCrossCenter(node: PositionedNode, direction: MermaidGraph['direction']): number {
+  return direction === 'LR' || direction === 'RL'
+    ? node.y + node.height / 2
+    : node.x + node.width / 2
+}
+
+function nodeMainStart(node: PositionedNode, direction: MermaidGraph['direction']): number {
+  return direction === 'LR' || direction === 'RL' ? node.x : node.y
+}
+
+function nodeMainEnd(node: PositionedNode, direction: MermaidGraph['direction']): number {
+  return direction === 'LR' || direction === 'RL'
+    ? node.x + node.width
+    : node.y + node.height
+}
+
+function forwardish(source: PositionedNode, target: PositionedNode, direction: MermaidGraph['direction']): boolean {
+  if (direction === 'LR') return nodeMainStart(target, direction) > nodeMainEnd(source, direction)
+  if (direction === 'RL') return nodeMainEnd(target, direction) < nodeMainStart(source, direction)
+  if (direction === 'BT') return nodeMainEnd(target, direction) < nodeMainStart(source, direction)
+  return nodeMainStart(target, direction) > nodeMainEnd(source, direction)
+}
+
+function samePeerLayer(nodes: PositionedNode[], direction: MermaidGraph['direction']): boolean {
+  if (nodes.length < 2) return false
+  const starts = nodes.map(node => nodeMainStart(node, direction))
+  return Math.max(...starts) - Math.min(...starts) <= 1
+}
+
+function nodeInsideGroups(node: PositionedNode, groups: PositionedGroup[]): boolean {
+  const visit = (items: PositionedGroup[]): boolean => items.some(group =>
+    (node.x >= group.x - 0.5 && node.y >= group.y - 0.5 &&
+      node.x + node.width <= group.x + group.width + 0.5 &&
+      node.y + node.height <= group.y + group.height + 0.5) || visit(group.children))
+  return visit(groups)
+}
+
+function logicalGraphReaches(graph: MermaidGraph, from: string, to: string): boolean {
+  const outgoing = new Map<string, string[]>()
+  for (const edge of graph.edges) {
+    if (!outgoing.has(edge.source)) outgoing.set(edge.source, [])
+    outgoing.get(edge.source)!.push(edge.target)
+  }
+  const seen = new Set<string>()
+  const stack = [from]
+  while (stack.length > 0) {
+    const id = stack.pop()!
+    if (id === to) return true
+    if (seen.has(id)) continue
+    seen.add(id)
+    for (const next of outgoing.get(id) ?? []) stack.push(next)
+  }
+  return false
+}
+
+function peerBarycenterDelta(positioned: PositionedGraph, graph: MermaidGraph): number {
+  const nodeMap = new Map(positioned.nodes.map(n => [n.id, n]))
+  const bySource = new Map<string, PositionedNode[]>()
+  const byTarget = new Map<string, PositionedNode[]>()
+  for (const edge of positioned.edges) {
+    if (edge.label) continue
+    const source = nodeMap.get(edge.source)
+    const target = nodeMap.get(edge.target)
+    if (!source || !target || !forwardish(source, target, graph.direction)) continue
+    if (!bySource.has(edge.source)) bySource.set(edge.source, [])
+    bySource.get(edge.source)!.push(target)
+    if (!byTarget.has(edge.target)) byTarget.set(edge.target, [])
+    byTarget.get(edge.target)!.push(source)
+  }
+  let worst = 0
+  const update = (hub: PositionedNode | undefined, peers: PositionedNode[]) => {
+    if (!hub || peers.length < 2 || peers.length > 6 || !samePeerLayer(peers, graph.direction)) return
+    if (hub.shape !== 'rectangle' || nodeInsideGroups(hub, positioned.groups)) return
+    if (!peers.every(peer => peer.shape === 'rectangle' && !nodeInsideGroups(peer, positioned.groups))) return
+    if (new Set(peers.map(peer => peer.id)).size !== peers.length) return
+    for (let i = 0; i < peers.length; i++) for (let j = 0; j < peers.length; j++) {
+      if (i !== j && logicalGraphReaches(graph, peers[i]!.id, peers[j]!.id)) return
+    }
+    const barycenter = peers.reduce((sum, peer) => sum + nodeCrossCenter(peer, graph.direction), 0) / peers.length
+    worst = Math.max(worst, Math.abs(nodeCrossCenter(hub, graph.direction) - barycenter))
+  }
+  for (const [source, targets] of bySource) update(nodeMap.get(source), targets)
+  for (const [target, sources] of byTarget) update(nodeMap.get(target), sources)
+  return worst
+}
+
 /**
  * Score a positioned layout against the rubric. Pure and deterministic:
  * identical input produces identical metrics.
@@ -396,6 +484,7 @@ export function assessLayout(graph: MermaidGraph, positioned: PositionedGraph): 
       maxBendsPerEdge: maxBends,
       portEndpointRate: measuredEnds === 0 ? 1 : portEnds / measuredEnds,
       portAnchoredEdgeRate: positioned.edges.length === 0 ? 1 : portAnchoredEdges / positioned.edges.length,
+      peerBarycenterDelta: peerBarycenterDelta(positioned, graph),
     },
     violations,
   }

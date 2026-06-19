@@ -2378,11 +2378,11 @@ exports[`contact sheet — pinned geometry (re-pin deliberately, review the shee
       "label": undefined,
       "path": [
         [
-          321,
+          366,
           77,
         ],
         [
-          321,
+          366,
           95,
         ],
         [
@@ -2402,11 +2402,11 @@ exports[`contact sheet — pinned geometry (re-pin deliberately, review the shee
       "label": undefined,
       "path": [
         [
-          321,
+          366,
           77,
         ],
         [
-          321,
+          366,
           95,
         ],
         [
@@ -2426,11 +2426,11 @@ exports[`contact sheet — pinned geometry (re-pin deliberately, review the shee
       "label": undefined,
       "path": [
         [
-          321,
+          366,
           77,
         ],
         [
-          321,
+          366,
           95,
         ],
         [
@@ -2450,11 +2450,11 @@ exports[`contact sheet — pinned geometry (re-pin deliberately, review the shee
       "label": undefined,
       "path": [
         [
-          321,
+          366,
           77,
         ],
         [
-          321,
+          366,
           95,
         ],
         [
@@ -2478,7 +2478,7 @@ exports[`contact sheet — pinned geometry (re-pin deliberately, review the shee
       "label": "Dispatcher",
       "shape": "rectangle",
       "w": 107,
-      "x": 268,
+      "x": 312,
       "y": 40,
     },
     {
@@ -3345,8 +3345,16 @@ exports[`contact sheet — pinned geometry (re-pin deliberately, review the shee
           58,
         ],
         [
-          148,
+          124,
           58,
+        ],
+        [
+          124,
+          91,
+        ],
+        [
+          148,
+          91,
         ],
       ],
       "to": "C",
@@ -3366,11 +3374,11 @@ exports[`contact sheet — pinned geometry (re-pin deliberately, review the shee
         ],
         [
           124,
-          58,
+          91,
         ],
         [
           148,
-          58,
+          91,
         ],
       ],
       "to": "C",
@@ -3382,19 +3390,19 @@ exports[`contact sheet — pinned geometry (re-pin deliberately, review the shee
       "path": [
         [
           208,
-          52,
+          85,
         ],
         [
           232,
-          52,
+          85,
         ],
         [
           232,
-          26,
+          58,
         ],
         [
           256,
-          26,
+          58,
         ],
       ],
       "to": "D",
@@ -3406,19 +3414,19 @@ exports[`contact sheet — pinned geometry (re-pin deliberately, review the shee
       "path": [
         [
           208,
-          65,
+          97,
         ],
         [
           232,
-          65,
+          97,
         ],
         [
           232,
-          91,
+          123,
         ],
         [
           256,
-          91,
+          123,
         ],
       ],
       "to": "E",
@@ -3452,7 +3460,7 @@ exports[`contact sheet — pinned geometry (re-pin deliberately, review the shee
       "shape": "rectangle",
       "w": 60,
       "x": 148,
-      "y": 40,
+      "y": 72,
     },
     {
       "h": 37,
@@ -3461,7 +3469,7 @@ exports[`contact sheet — pinned geometry (re-pin deliberately, review the shee
       "shape": "rectangle",
       "w": 60,
       "x": 256,
-      "y": 8,
+      "y": 40,
     },
     {
       "h": 37,
@@ -3470,7 +3478,7 @@ exports[`contact sheet — pinned geometry (re-pin deliberately, review the shee
       "shape": "rectangle",
       "w": 60,
       "x": 256,
-      "y": 72,
+      "y": 105,
     },
   ],
   "version": 1,
@@ -3713,19 +3721,19 @@ exports[`contact sheet — pinned geometry (re-pin deliberately, review the shee
       "label": undefined,
       "path": [
         [
-          213,
+          286,
           196,
         ],
         [
-          213,
+          286,
           208,
         ],
         [
-          464,
+          500,
           208,
         ],
         [
-          464,
+          500,
           220,
         ],
       ],
@@ -3745,11 +3753,11 @@ exports[`contact sheet — pinned geometry (re-pin deliberately, review the shee
           208,
         ],
         [
-          464,
+          500,
           208,
         ],
         [
-          464,
+          500,
           220,
         ],
       ],
@@ -3761,11 +3769,11 @@ exports[`contact sheet — pinned geometry (re-pin deliberately, review the shee
       "label": undefined,
       "path": [
         [
-          464,
+          484,
           257,
         ],
         [
-          464,
+          484,
           305,
         ],
       ],
@@ -3809,11 +3817,11 @@ exports[`contact sheet — pinned geometry (re-pin deliberately, review the shee
           128,
         ],
         [
-          213,
+          286,
           128,
         ],
         [
-          213,
+          286,
           142,
         ],
       ],
@@ -3833,11 +3841,11 @@ exports[`contact sheet — pinned geometry (re-pin deliberately, review the shee
           128,
         ],
         [
-          213,
+          286,
           128,
         ],
         [
-          213,
+          286,
           142,
         ],
       ],
@@ -3857,11 +3865,11 @@ exports[`contact sheet — pinned geometry (re-pin deliberately, review the shee
           128,
         ],
         [
-          213,
+          286,
           128,
         ],
         [
-          213,
+          286,
           142,
         ],
       ],
@@ -3881,11 +3889,11 @@ exports[`contact sheet — pinned geometry (re-pin deliberately, review the shee
           128,
         ],
         [
-          213,
+          286,
           128,
         ],
         [
-          213,
+          286,
           142,
         ],
       ],
@@ -4081,7 +4089,7 @@ exports[`contact sheet — pinned geometry (re-pin deliberately, review the shee
       "label": "AAA\\n(keita)",
       "shape": "rectangle",
       "w": 88,
-      "x": 169,
+      "x": 242,
       "y": 142,
     },
     {
@@ -4126,7 +4134,7 @@ exports[`contact sheet — pinned geometry (re-pin deliberately, review the shee
       "label": "CCC",
       "shape": "rectangle",
       "w": 69,
-      "x": 429,
+      "x": 466,
       "y": 220,
     },
     {
@@ -4871,7 +4879,7 @@ exports[`contact sheet — pinned geometry (re-pin deliberately, review the shee
 {
   "bounds": {
     "h": 202,
-    "w": 363,
+    "w": 371,
   },
   "edges": [
     {
@@ -4880,19 +4888,19 @@ exports[`contact sheet — pinned geometry (re-pin deliberately, review the shee
       "label": undefined,
       "path": [
         [
-          151,
+          160,
           77,
         ],
         [
-          151,
+          160,
           95,
         ],
         [
-          64,
+          72,
           95,
         ],
         [
-          64,
+          72,
           113,
         ],
       ],
@@ -4904,11 +4912,11 @@ exports[`contact sheet — pinned geometry (re-pin deliberately, review the shee
       "label": undefined,
       "path": [
         [
-          173,
+          181,
           77,
         ],
         [
-          173,
+          181,
           113,
         ],
       ],
@@ -4920,19 +4928,19 @@ exports[`contact sheet — pinned geometry (re-pin deliberately, review the shee
       "label": undefined,
       "path": [
         [
-          194,
+          203,
           77,
         ],
         [
-          194,
+          203,
           95,
         ],
         [
-          282,
+          291,
           95,
         ],
         [
-          282,
+          291,
           113,
         ],
       ],
@@ -4948,7 +4956,7 @@ exports[`contact sheet — pinned geometry (re-pin deliberately, review the shee
       "label": "Source",
       "shape": "rectangle",
       "w": 86,
-      "x": 130,
+      "x": 138,
       "y": 40,
     },
     {
@@ -4957,7 +4965,7 @@ exports[`contact sheet — pinned geometry (re-pin deliberately, review the shee
       "label": "Left",
       "shape": "rectangle",
       "w": 81,
-      "x": 23,
+      "x": 32,
       "y": 113,
     },
     {
@@ -4966,7 +4974,7 @@ exports[`contact sheet — pinned geometry (re-pin deliberately, review the shee
       "label": "Middle",
       "shape": "rectangle",
       "w": 81,
-      "x": 132,
+      "x": 141,
       "y": 113,
     },
     {
@@ -4975,7 +4983,7 @@ exports[`contact sheet — pinned geometry (re-pin deliberately, review the shee
       "label": "Right",
       "shape": "rectangle",
       "w": 81,
-      "x": 241,
+      "x": 250,
       "y": 113,
     },
   ],
@@ -5000,8 +5008,16 @@ exports[`contact sheet — pinned geometry (re-pin deliberately, review the shee
           58,
         ],
         [
-          148,
+          124,
           58,
+        ],
+        [
+          124,
+          91,
+        ],
+        [
+          148,
+          91,
         ],
       ],
       "to": "C",
@@ -5021,11 +5037,11 @@ exports[`contact sheet — pinned geometry (re-pin deliberately, review the shee
         ],
         [
           124,
-          58,
+          91,
         ],
         [
           148,
-          58,
+          91,
         ],
       ],
       "to": "C",
@@ -5037,19 +5053,19 @@ exports[`contact sheet — pinned geometry (re-pin deliberately, review the shee
       "path": [
         [
           214,
-          52,
+          85,
         ],
         [
           238,
-          52,
+          85,
         ],
         [
           238,
-          26,
+          58,
         ],
         [
           262,
-          26,
+          58,
         ],
       ],
       "to": "D",
@@ -5061,19 +5077,19 @@ exports[`contact sheet — pinned geometry (re-pin deliberately, review the shee
       "path": [
         [
           214,
-          65,
+          97,
         ],
         [
           238,
-          65,
+          97,
         ],
         [
           238,
-          91,
+          123,
         ],
         [
           262,
-          91,
+          123,
         ],
       ],
       "to": "E",
@@ -5107,7 +5123,7 @@ exports[`contact sheet — pinned geometry (re-pin deliberately, review the shee
       "shape": "rectangle",
       "w": 66,
       "x": 148,
-      "y": 40,
+      "y": 72,
     },
     {
       "h": 37,
@@ -5116,7 +5132,7 @@ exports[`contact sheet — pinned geometry (re-pin deliberately, review the shee
       "shape": "rectangle",
       "w": 60,
       "x": 262,
-      "y": 8,
+      "y": 40,
     },
     {
       "h": 37,
@@ -5125,7 +5141,7 @@ exports[`contact sheet — pinned geometry (re-pin deliberately, review the shee
       "shape": "rectangle",
       "w": 60,
       "x": 262,
-      "y": 72,
+      "y": 105,
     },
   ],
   "version": 1,
@@ -5489,6 +5505,14 @@ exports[`contact sheet — pinned geometry (re-pin deliberately, review the shee
         ],
         [
           70,
+          101,
+        ],
+        [
+          114,
+          101,
+        ],
+        [
+          114,
           125,
         ],
       ],
@@ -5508,11 +5532,11 @@ exports[`contact sheet — pinned geometry (re-pin deliberately, review the shee
           101,
         ],
         [
-          70,
+          114,
           101,
         ],
         [
-          70,
+          114,
           125,
         ],
       ],
@@ -5524,8 +5548,16 @@ exports[`contact sheet — pinned geometry (re-pin deliberately, review the shee
       "label": undefined,
       "path": [
         [
-          70,
+          114,
           162,
+        ],
+        [
+          114,
+          186,
+        ],
+        [
+          70,
+          186,
         ],
         [
           70,
@@ -5540,11 +5572,11 @@ exports[`contact sheet — pinned geometry (re-pin deliberately, review the shee
       "label": undefined,
       "path": [
         [
-          70,
+          114,
           162,
         ],
         [
-          70,
+          114,
           186,
         ],
         [
@@ -5634,7 +5666,7 @@ exports[`contact sheet — pinned geometry (re-pin deliberately, review the shee
       "label": "C",
       "shape": "rectangle",
       "w": 60,
-      "x": 40,
+      "x": 84,
       "y": 125,
     },
     {

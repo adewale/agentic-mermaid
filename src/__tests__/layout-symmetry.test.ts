@@ -56,6 +56,32 @@ const P_TERMINAL_FAN_OUT = `flowchart TD
   Source --> Mid[Middle]
   Source --> Right[Right]`
 
+const Q_RECIPROCAL_PEER_MERGE_FAN_OUT = `flowchart TD
+  A[A] --> C[C]
+  B[B] --> C
+  C --> D[D]
+  C --> E[E]
+  D --> F[F]
+  E --> F`
+
+const PEER_COUNTS = [2, 3, 4, 5, 6] as const
+
+function peerIds(count: number): string[] {
+  return Array.from({ length: count }, (_, index) => `P${index + 1}`)
+}
+
+function peerFanOut(count: number): string {
+  return `flowchart TD
+  Hub[Hub]
+${peerIds(count).map(id => `  Hub --> ${id}[Peer]`).join('\n')}`
+}
+
+function peerFanIn(count: number): string {
+  return `flowchart TD
+${peerIds(count).map(id => `  ${id}[Peer] --> Hub[Hub]`).join('\n')}
+  Hub --> Tail[Tail]`
+}
+
 function layout(source: string): PositionedGraph {
   return layoutGraphSync(parseMermaid(source))
 }
@@ -74,6 +100,9 @@ function edge(g: PositionedGraph, source: string, target: string, label?: string
 
 function cx(n: PositionedNode): number { return n.x + n.width / 2 }
 function cy(n: PositionedNode): number { return n.y + n.height / 2 }
+function barycenter(nodes: PositionedNode[]): number {
+  return nodes.reduce((sum, n) => sum + cx(n), 0) / nodes.length
+}
 function close(a: number, b: number, tolerance = 0.75): void { expect(Math.abs(a - b)).toBeLessThanOrEqual(tolerance) }
 function pkey(p: Point): string { return `${p.x.toFixed(1)},${p.y.toFixed(1)}` }
 function isVertical(e: PositionedEdge): boolean { return e.points.length === 2 && Math.abs(e.points[0]!.x - e.points[1]!.x) <= 0.75 }
@@ -86,6 +115,22 @@ function equalSize(nodes: PositionedNode[]): void {
 }
 
 describe('layout symmetry floor', () => {
+  for (const count of PEER_COUNTS) {
+    test(`${count}-way rectangle fan-out centers the hub over its peer barycenter`, () => {
+      const g = layout(peerFanOut(count))
+      const peers = peerIds(count).map(id => node(g, id))
+      equalSize(peers)
+      close(cx(node(g, 'Hub')), barycenter(peers))
+    })
+
+    test(`${count}-way rectangle fan-in centers the hub over its peer barycenter`, () => {
+      const g = layout(peerFanIn(count))
+      const peers = peerIds(count).map(id => node(g, id))
+      equalSize(peers)
+      close(cx(node(g, 'Hub')), barycenter(peers))
+    })
+  }
+
   test('high-degree equivalent fan-in stays centered and keeps its owned continuation straight', () => {
     const g = layout(C_FIVE_WAY_FAN_IN)
     const sources = ['Web', 'Mobile', 'CLI', 'Partner', 'Cron'].map(id => node(g, id))
@@ -102,10 +147,27 @@ describe('layout symmetry floor', () => {
     const g = layout(D_DISPATCHER_FAN_OUT)
     const targets = ['Email', 'SMS', 'Push', 'Webhook'].map(id => node(g, id))
     equalSize(targets)
+    const dispatcher = node(g, 'Dispatcher')
+    close(cx(dispatcher), barycenter(targets))
     const exits = g.edges.map(e => pkey(e.points[0]!))
     const trunks = g.edges.map(e => pkey(e.points[1]!))
     expect(new Set(exits).size).toBe(1)
     expect(new Set(trunks).size).toBe(1)
+    close(edge(g, 'Dispatcher', 'Email').points[0]!.x, barycenter(targets))
+  })
+
+  test('non-terminal peer groups center through fan-in and fan-out chains', () => {
+    const g = layout(Q_RECIPROCAL_PEER_MERGE_FAN_OUT)
+    const a = node(g, 'A')
+    const b = node(g, 'B')
+    const c = node(g, 'C')
+    const d = node(g, 'D')
+    const e = node(g, 'E')
+    const f = node(g, 'F')
+    equalSize([a, b, c, d, e, f])
+    close(cx(c), barycenter([a, b]))
+    close(cx(c), barycenter([d, e]))
+    close(cx(f), barycenter([d, e]))
   })
 
   test('small terminal peer fan-out uses symmetric source emissions and equal target boxes', () => {
