@@ -808,6 +808,7 @@ describe('sequence layout – note positioning', () => {
   })
 })
 
+// upstream: mermaid-js/mermaid#1765 — control multiple/overlapping activations
 describe('sequence layout – activation/note/block properties', () => {
   it('generated activation, note, and block cases keep chrome clear of structural boxes', () => {
     fc.assert(

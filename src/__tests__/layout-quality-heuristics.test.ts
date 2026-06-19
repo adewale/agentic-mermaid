@@ -111,6 +111,7 @@ describe('programmatic bad-layout heuristics', () => {
     expect(edgeNodeCollisions(rightToLeft)).toEqual([])
   })
 
+  // upstream: mermaid-js/mermaid#815 — declared node/source order not preserved
   test('root nodes declared before top-level subgraphs stay before them', () => {
     const layout = layoutOf(`flowchart TD
       A[Root]
@@ -142,6 +143,7 @@ describe('programmatic bad-layout heuristics', () => {
     expect(checkQuality(layout, { aspectBand: [0.1, 5] }).violations).toEqual([])
   })
 
+  // upstream: mermaid-js/mermaid#6336 (state) / #6049 (flowchart) — ugly self-loops
   test('self-loops stay outside the node and preserve legibility', () => {
     const layout = layoutOf(`flowchart TB
       start([Start])

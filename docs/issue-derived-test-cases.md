@@ -74,6 +74,44 @@ A May 2026 GitHub issue/PR search found recurring layout-quality themes in both 
 - [lukilabs/beautiful-mermaid#121 — ER/class ASCII labels truncated/overlapping](https://github.com/lukilabs/beautiful-mermaid/issues/121)
   - Fixture status: representative class/ER golden files now assert labels survive and connectors remain attached; keep this theme in the generated matrix for longer label/attribute variants.
 
+## Aesthetic-issue coverage audit (issue-keyed)
+
+A June 2026 audit confirmed that the *behavior* behind the 13 layout-aesthetic
+complaints in [`mermaid-layout-complaints.md`](./mermaid-layout-complaints.md)
+was guarded by the general detector/metric/route-certificate layers, but no
+test was keyed to the upstream issue number (so `git grep '#6476'` found only
+docs). That traceability gap is now closed:
+
+- **Issue-keyed regression fixtures** —
+  [`src/__tests__/aesthetic-issue-regressions.test.ts`](../src/__tests__/aesthetic-issue-regressions.test.ts)
+  renders a small repro graph per complaint and asserts, through the real
+  renderer, that Agentic Mermaid does not exhibit it: `#6476` (avoidable edge
+  crossings → 0 on a planar bipartite graph), `#5601` (planar state diagram
+  stays planar), `#5060` (parallel labeled edges, no geometric defects),
+  `#2792` (transitive edge does not pass through an intervening node, via the
+  ugly-detector `edge-through-node` check), `#2131` (edge labels keep
+  clearance from unrelated nodes), and `#6336`/`#6049` (self-loop endpoints on
+  the outline, no defects).
+- **Tagged existing assertions** (now greppable by issue number): `#815`
+  (declared node/source order — `agent-auth-flow.test.ts`,
+  `layout-quality-heuristics.test.ts`), `#1984`/`#3262` (scale-collapse
+  whitespace + aspect — `agent-quality.test.ts`), `#1301` (gantt rows never
+  overlap — `gantt-layout.test.ts`), and `#1765` (activation/note/block
+  clearance — `sequence-layout.test.ts`).
+- **`#7492` (C4 overlapping labels/arrows)** — no fixture yet: the C4 family
+  is not rendered. Tracked under **BUILD-6** (new upstream families); add the
+  fixture when C4 lands.
+- **`#3723` (same-rank constraint) and `#5420` (manual node positioning)** —
+  documented **won't-do by policy**, no fixture. `#3723` is "watch-only"
+  (adopt only if Mermaid core standardizes a `config:` key — see C6); `#5420`
+  is out of scope (the agent loop is the substitute — see C1). Neither is a
+  bug we can regression-guard, because not implementing them is the decision.
+
+These guards assert "Agentic Mermaid does not exhibit the complaint," not
+"the upstream Mermaid bug is fixed" — every cited issue is a defect in
+mermaid-js's own dagre renderer, which this fork does not share (see
+[`mermaid-layout-complaints.md`](./mermaid-layout-complaints.md) R4).
+
 ## Programmatic bad-layout heuristics
 
 Current useful heuristics:

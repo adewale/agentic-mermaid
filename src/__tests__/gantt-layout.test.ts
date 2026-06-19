@@ -51,6 +51,7 @@ describe('gantt layout — plot geometry', () => {
     }
   })
 
+  // upstream: mermaid-js/mermaid#1301 — gantt axis/bar overlap on long date ranges
   test('rows never overlap in standard mode', () => {
     const { layout } = layoutOf(BASIC)
     const sorted = [...layout.rows].sort((a, b) => a.y - b.y)

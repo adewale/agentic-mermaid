@@ -156,7 +156,11 @@ dependents after. IDs are stable names, not an ordering.
   TreeView first: it is hierarchical, ASCII-friendly, and requested against
   the upstream fork network (lukilabs/beautiful-mermaid#114). Treat
   beta-grammar families (Venn, Ishikawa, Wardley) as watch-and-wait until
-  upstream syntax stabilizes.
+  upstream syntax stabilizes. C4 belongs here too: the layout-aesthetic
+  complaint mermaid-js/mermaid#7492 (C4 overlapping labels/text overflow/
+  crossing arrows) cannot get a regression fixture until C4 is rendered — the
+  aesthetic-issue coverage audit
+  (`docs/issue-derived-test-cases.md`) defers it to this item.
 - [x] **BUILD-15 — Journey structured mutation (pilot)** (`done`). Typed
   `JourneyBody` (title/sections/tasks with 1..5 scores and actors), 10 ops,
   `asJourney` narrower, verify hook, lossless opaque fallback for unmodeled

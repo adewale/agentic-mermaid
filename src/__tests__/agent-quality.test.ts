@@ -79,6 +79,7 @@ describe('quality metrics — deterministic', () => {
     expect(m.edgeCrossings).toBe(0)
   })
 
+  // upstream: mermaid-js/mermaid#1984 — massive whitespace above/below large graphs (detection)
   test('whitespace balance is in 0..1', () => {
     const p = parseMermaid('flowchart LR\n  A --> B --> C\n  A --> C')
     expect(p.ok).toBe(true)
@@ -99,6 +100,7 @@ describe('quality metrics — deterministic', () => {
 
 describe('quality metrics — generated large flowchart corpora', () => {
   for (const entry of GENERATED_FLOWCHART_CORPUS) {
+    // upstream: mermaid-js/mermaid#1984 / #3262 — scale-collapse whitespace + over-wide aspect
     test(`${entry.nodeCount} nodes keeps aspect and whitespace measurable`, () => {
       const p = parseMermaid(generatedLayeredFlowchart(entry))
       expect(p.ok).toBe(true)
