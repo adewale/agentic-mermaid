@@ -8,6 +8,8 @@
 import { writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { Resvg } from '@resvg/resvg-js'
+// @ts-expect-error - upng-js ships no types
+import UPNG from 'upng-js'
 import { renderMermaidSVG } from '../../src/index.ts'
 import { STYLES, type Style } from './styles.ts'
 import { restyle } from './restyle.ts'
@@ -72,7 +74,23 @@ function build(): string {
   return P.join('\n')
 }
 
-console.log(`building poster ${ROWS}x${COLS} (${POSTER_W}x${POSTER_H} logical)...`)
-const { png } = raster(build(), POSTER_W * 2, '#1b1b1f') // 2x supersample for detail
-writeFileSync(join(DIR, 'poster.png'), png)
-console.log('wrote poster.png at', POSTER_W * 2, 'px wide')
+// Output knobs (env-overridable):
+//   SCALE  supersample factor          (default 1.5)
+//   COLORS palette size; 0 = lossless  (default 256 — line art quantizes cleanly)
+const SCALE = Number(process.env.SCALE ?? 2)
+const COLORS = Number(process.env.COLORS ?? 256)
+
+console.log(`building poster ${ROWS}x${COLS} (${POSTER_W}x${POSTER_H} logical) @ ${SCALE}x, ${COLORS || 'lossless'} colours...`)
+const rendered = new Resvg(build(), {
+  fitTo: { mode: 'width', value: Math.round(POSTER_W * SCALE) },
+  background: '#1b1b1f',
+  font: { loadSystemFonts: false, fontFiles: FONT_FILES, defaultFontFamily: 'Caveat' },
+}).render()
+
+// UPNG re-encodes (and optionally palette-quantizes) the raw RGBA far smaller
+// than resvg's encoder. 256 colours is visually lossless for line/flat art.
+const px = rendered.pixels
+const ab = px.buffer.slice(px.byteOffset, px.byteOffset + px.byteLength)
+const out = Buffer.from(UPNG.encode([ab], rendered.width, rendered.height, COLORS))
+writeFileSync(join(DIR, 'poster.png'), out)
+console.log(`wrote poster.png  ${rendered.width}x${rendered.height}px  ${(out.length / 1e6).toFixed(2)} MB`)

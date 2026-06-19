@@ -160,6 +160,7 @@
     "playwright": "^1.58.2",
     "shiki": "^3.19.0",
     "tsup": "^8.5.1",
-    "typescript": "^5.9.3"
+    "typescript": "^5.9.3",
+    "upng-js": "^2.1.0"
   }
 }
