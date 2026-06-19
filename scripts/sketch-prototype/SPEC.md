@@ -559,6 +559,15 @@ already differentiate by shape/texture (hachure vs stipple vs dots), so a
 monochrome or colour-blind viewer still reads structure; hue-led charts (pie)
 keep texture + labels.
 
+**Readability is cross-cutting — it also governs the CHROME, not just the art.**
+A recurring lesson: the *presentation* layer (galleries, contact sheets, the
+poster's row/column labels, captions, legends) must obey the same contract as
+the diagrams. Generated labels must **auto-fit and never clip/overflow** into
+adjacent content, and meet the same contrast bar. (Concretely: the poster's
+left-hand style names now auto-fit the header column instead of spilling into
+the first cell.) Any tool that *renders a label the user will read* — diagram,
+legend, or framing chrome — is in scope for the readability gate.
+
 **Testable property.** `contrast-audit.ts` runs the two ratios for every style
 and exits non-zero on any failure, so readability gates CI like a golden test.
 Current status: all 15 styles PASS (text ≥4.5:1, non-text ≥3:1; Tufte's faint

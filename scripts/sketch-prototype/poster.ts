@@ -38,7 +38,7 @@ const TYPE_OPT = {
 // layout (logical px; whole poster is scaled up at raster time). Big cells +
 // big type = readable. Each diagram is rendered at ~cell pixel size (no
 // down-rezzing), so text stays crisp.
-const HEAD_COL = 360, HEAD_ROW = 110, CELL_W = 520, CELL_H = 400, PAD = 44, GAP = 8
+const HEAD_COL = 400, HEAD_ROW = 110, CELL_W = 520, CELL_H = 400, PAD = 44, GAP = 8
 const POSTER_STYLES = STYLES // all styles incl. Making Software (the premium exemplar)
 const COLS = DIAGRAMS.length, ROWS = POSTER_STYLES.length
 const POSTER_W = HEAD_COL + COLS * CELL_W + PAD * 2
@@ -78,9 +78,12 @@ function build(): string {
 
   POSTER_STYLES.forEach((st, r) => {
     const y = oy + HEAD_ROW + r * CELL_H
-    // row header — large, high-contrast, wrapped to fit the header column
+    // row header — large, high-contrast, wrapped AND auto-fit to the header
+    // column so even long single-word labels never spill into the first cell.
     const lines = wrapLabel(st.label)
-    const fs = 50, lh = 56
+    const maxLen = Math.max(...lines.map(l => l.length))
+    const fs = Math.max(26, Math.min(50, Math.floor((HEAD_COL - 34) / (maxLen * 0.62))))
+    const lh = Math.round(fs * 1.12)
     const top = y + CELL_H / 2 - ((lines.length - 1) * lh) / 2 - 6
     lines.forEach((ln, i) => P.push(`<text x="${ox + 18}" y="${top + i * lh}" font-family="DejaVu Sans" font-weight="bold" font-size="${fs}" fill="#ffffff">${esc(ln)}</text>`))
     DIAGRAMS.forEach((d, c) => {
