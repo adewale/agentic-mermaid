@@ -12,6 +12,13 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+        with:
+          # Full history (not the default shallow depth-1). On a pull_request the
+          # checkout is the merge ref: HEAD is a merge commit whose parents
+          # [base, prHead] the golden-drift gate diffs to find the PR's OWN
+          # golden changes. Shallow checkout omits those parents, so the gate
+          # saw a parentless commit and flagged the whole testdata tree.
+          fetch-depth: 0
 
       - name: Setup Bun
         uses: oven-sh/setup-bun@v1
