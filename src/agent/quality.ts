@@ -12,12 +12,15 @@
 //     node's width at a 12px font baseline.
 //   - whitespaceBalance: ratio of node-occupied area to total canvas area
 //     (0..1). Targets a band — too dense AND too sparse both lose points.
-//   - labelEdgeProximity: min pixel distance between any edge-label and the
-//     nearest non-attached node bbox. Lower means labels overlap nodes.
+//   - labelEdgeProximity: min pixel distance between any edge-label bbox and
+//     the nearest non-attached node bbox or other edge-label bbox. Lower means
+//     labels overlap nodes or each other.
 //   - aspectRatio: canvas width/height. Used as a sanity check, not a gate.
 // ============================================================================
 
 import type { RenderedLayout, RenderedLayoutNode, RenderedLayoutEdge } from './types.ts'
+import { measureMultilineText } from '../text-metrics.ts'
+import { FONT_SIZES, FONT_WEIGHTS } from '../styles.ts'
 
 export interface QualityMetrics {
   edgeCrossings: number
@@ -36,7 +39,7 @@ export interface QualityBounds {
   minLabelLegibility?: number
   /** Whitespace fill band [min, max]. Default [0.05, 0.55]. */
   whitespaceBand?: [number, number]
-  /** Min pixels between any edge-label and a non-attached node. Default 4. */
+  /** Min pixels between any edge-label bbox and a non-attached node or another edge-label. Default 4. */
   minLabelEdgeProximity?: number
   /** Aspect ratio band [min, max]. Default [0.2, 5.0]. */
   aspectBand?: [number, number]
@@ -51,6 +54,7 @@ export const DEFAULT_BOUNDS: Required<QualityBounds> = {
 }
 
 const CHAR_PX = 7  // approx character width at 12px font
+const EDGE_LABEL_BOX_PADDING = 8
 
 export function measureQuality(layout: RenderedLayout): QualityMetrics {
   return {
@@ -85,7 +89,7 @@ export function checkQuality(layout: RenderedLayout, bounds: QualityBounds = {})
     violations.push(`whitespace balance ${(m.whitespaceBalance * 100).toFixed(1)}% outside band [${b.whitespaceBand[0] * 100}–${b.whitespaceBand[1] * 100}]%`)
   }
   if (m.labelEdgeProximity < b.minLabelEdgeProximity) {
-    violations.push(`label-edge proximity ${m.labelEdgeProximity}px < min ${b.minLabelEdgeProximity}px`)
+    violations.push(`edge-label clearance ${m.labelEdgeProximity}px < min ${b.minLabelEdgeProximity}px`)
   }
   if (m.aspectRatio < b.aspectBand[0] || m.aspectRatio > b.aspectBand[1]) {
     violations.push(`aspect ratio ${m.aspectRatio.toFixed(2)} outside band [${b.aspectBand[0]}–${b.aspectBand[1]}]`)
@@ -145,17 +149,43 @@ function measureWhitespaceBalance(layout: RenderedLayout): number {
   return Math.min(1, filled / total)
 }
 
-// ---- label-edge proximity ------------------------------------------------
+// ---- edge-label proximity ------------------------------------------------
+
+interface Rect { x: number; y: number; w: number; h: number }
+
+function nodeBox(n: RenderedLayoutNode): Rect {
+  return { x: n.x, y: n.y, w: n.w, h: n.h }
+}
+
+function edgeLabelBox(label: NonNullable<RenderedLayoutEdge['label']>): Rect {
+  const metrics = measureMultilineText(label.text, FONT_SIZES.edgeLabel, FONT_WEIGHTS.edgeLabel)
+  const w = metrics.width + EDGE_LABEL_BOX_PADDING * 2
+  const h = metrics.height + EDGE_LABEL_BOX_PADDING * 2
+  return { x: label.x - w / 2, y: label.y - h / 2, w, h }
+}
+
+function rectDistance(a: Rect, b: Rect): number {
+  const dx = Math.max(0, Math.max(a.x - (b.x + b.w), b.x - (a.x + a.w)))
+  const dy = Math.max(0, Math.max(a.y - (b.y + b.h), b.y - (a.y + a.h)))
+  return Math.hypot(dx, dy)
+}
 
 function measureLabelEdgeProximity(layout: RenderedLayout): number {
   let min = Infinity
-  for (const e of layout.edges) {
-    if (!e.label) continue
+  const labels = layout.edges
+    .filter((e): e is RenderedLayoutEdge & { label: NonNullable<RenderedLayoutEdge['label']> } => e.label !== undefined)
+    .map(e => ({ edge: e, box: edgeLabelBox(e.label) }))
+
+  for (const { edge, box } of labels) {
     for (const n of layout.nodes) {
-      if (n.id === e.from || n.id === e.to) continue
-      const dx = Math.max(0, Math.max(n.x - e.label.x, e.label.x - (n.x + n.w)))
-      const dy = Math.max(0, Math.max(n.y - e.label.y, e.label.y - (n.y + n.h)))
-      const d = Math.sqrt(dx * dx + dy * dy)
+      if (n.id === edge.from || n.id === edge.to) continue
+      const d = rectDistance(box, nodeBox(n))
+      if (d < min) min = d
+    }
+  }
+  for (let i = 0; i < labels.length; i++) {
+    for (let j = i + 1; j < labels.length; j++) {
+      const d = rectDistance(labels[i]!.box, labels[j]!.box)
       if (d < min) min = d
     }
   }

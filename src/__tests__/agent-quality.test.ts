@@ -8,6 +8,7 @@ import { join } from 'node:path'
 import { parseMermaid } from '../agent/parse.ts'
 import { layoutMermaid } from '../agent/index.ts'
 import { measureQuality, checkQuality } from '../agent/quality.ts'
+import { toFinite, type RenderedLayout } from '../agent/types.ts'
 
 const CORPUS_PATH = join(import.meta.dir, '..', '..', 'eval', 'mermaid-docs-corpus', 'corpus.json')
 interface CorpusEntry { family: string; source: string; origin: string; index: number }
@@ -42,6 +43,8 @@ function generatedLayeredFlowchart({ nodeCount, layers, rows }: typeof GENERATED
   }
   return lines.join('\n')
 }
+
+function f(n: number) { return toFinite(n) }
 
 describe('quality metrics — deterministic', () => {
   test('measureQuality returns finite numbers for any flowchart', () => {
@@ -95,6 +98,25 @@ describe('quality metrics — deterministic', () => {
     if (!p.ok || p.value.body.kind !== 'flowchart') return
     const m = measureQuality(layoutMermaid(p.value))
     expect(m.labelLegibility).toBe(1)
+  })
+
+  test('labelEdgeProximity includes label-to-label box overlap', () => {
+    const layout: RenderedLayout = {
+      version: 1,
+      kind: 'flowchart',
+      nodes: [],
+      groups: [],
+      edges: [
+        { id: 'A->B', from: 'A', to: 'B', path: [[f(0), f(0)], [f(100), f(0)]], label: { x: f(80), y: f(50), text: 'first' } },
+        { id: 'C->D', from: 'C', to: 'D', path: [[f(0), f(100)], [f(100), f(100)]], label: { x: f(80), y: f(50), text: 'second' } },
+      ],
+      bounds: { w: f(160), h: f(120) },
+    }
+    const m = measureQuality(layout)
+    expect(m.labelEdgeProximity).toBe(0)
+    const v = checkQuality(layout, { whitespaceBand: [0, 1] })
+    expect(v.ok).toBe(false)
+    expect(v.violations).toContain('edge-label clearance 0px < min 4px')
   })
 })
 
