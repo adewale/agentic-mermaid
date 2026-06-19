@@ -311,4 +311,17 @@ export const STYLES: Style[] = [
     spotPalette: ['#2a9d8f', '#e1ad01', '#d1495b', '#3d5a80'],
     backdrop: 'plain', nodeCornerRadius: 3, labelHalo: '#f3ead9',
   },
+  {
+    // ★ "Vinegar" — Balsamiq-style LOW-FIDELITY wireframe/mockup. Greyscale
+    // sketch, wobbly single strokes, Balsamiq Sans, unfilled rounded containers.
+    // Lo-fi on purpose: signals "draft — critique structure, not pixels".
+    // Monochrome (one sparse blue accent allowed).
+    name: 'vinegar', label: 'Vinegar (lo-fi)',
+    blurb: 'Balsamiq-style lo-fi wireframe: greyscale sketch, wobbly strokes, Balsamiq Sans, unfilled rounded boxes.',
+    colors: { bg: '#fcfcfa', fg: '#3a3a3a', line: '#3a3a3a', accent: '#2c6fb3', muted: '#8a8a88', surface: '#fcfcfa', border: '#3a3a3a' },
+    font: 'Balsamiq Sans', fontFile: 'BalsamiqSans.ttf',
+    stroke: 'jittered', roughness: 1.0, passes: 1, strokeWidth: 2.0, linecap: 'round',
+    fill: 'none', fillColor: '#3a3a3a', baseTone: 0, toneFromLuminance: false, keepHue: false, hachureAngle: -41,
+    backdrop: 'plain', nodeCornerRadius: 6, mono: true,
+  },
 ]

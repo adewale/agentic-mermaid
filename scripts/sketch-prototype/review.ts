@@ -9,7 +9,7 @@ import { restyle } from './restyle.ts'
 import { DIAGRAMS } from './diagrams.ts'
 
 const DIR = import.meta.dir
-const FONTS = ['Caveat.ttf', 'EBGaramond.ttf', 'ShareTechMono.ttf', 'Fraunces.ttf', 'ArchitectsDaughter.ttf', 'Cinzel.ttf', 'Fredoka.ttf', '../../assets/fonts/DejaVuSans.ttf', '../../assets/fonts/DejaVuSans-Bold.ttf'].map(f => join(DIR, f))
+const FONTS = ['Caveat.ttf', 'EBGaramond.ttf', 'ShareTechMono.ttf', 'Fraunces.ttf', 'ArchitectsDaughter.ttf', 'Cinzel.ttf', 'Fredoka.ttf', 'BalsamiqSans.ttf', '../../assets/fonts/DejaVuSans.ttf', '../../assets/fonts/DejaVuSans-Bold.ttf'].map(f => join(DIR, f))
 const di = Number(process.argv[2] ?? 0)
 const d = DIAGRAMS[di]!
 const TYPE_OPT = { style: { text: { fontSize: 22 }, node: { fontSize: 26, fontWeight: 600, paddingX: 22, paddingY: 14 }, edge: { fontSize: 22, fontWeight: 600 }, group: { fontSize: 22, fontWeight: 700 } } }

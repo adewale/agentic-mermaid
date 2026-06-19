@@ -286,6 +286,40 @@ The guide will include a copy-paste `StyleSpec` template, the parameter
 reference, the determinism/seed contract, the WCAG guardrail behaviour, and a
 worked agent prompt ("add a style that looks like X").
 
+### 3.3b Documenting what makes a GOOD style (a quality rubric, DELIVERABLE)
+
+> **Commitment:** `docs/style-authoring.md` must include a **quality rubric** —
+> not just "how to wire a style up" but "how to make it *good*." This is the
+> single highest-leverage doc: across this project the difference between a
+> cheap style and a premium one was never the mechanics, always the judgement.
+
+The rubric is a checklist a human or agent self-applies before shipping a style.
+It codifies the lessons earned here:
+
+1. **Source it.** Start from real references (photos, the actual product, a
+   research pass). Name the reference in the spec. Naive-from-memory looks cheap.
+2. **Premium-by-default audit.** No pure `#000`/`#fff`; warm/true neutrals; a
+   *real* bundled typeface (not a system fallback); refined hairlines; one
+   accent unless the aesthetic is intrinsically polychrome; whitespace; flat
+   (no gratuitous shadow/gradient). (See §3.6 — these are also the defaults.)
+3. **Monochrome contract** (§3.8): if mono, tone comes from hatch/shading, never
+   multiple hues; don't shade a region you write inside.
+4. **Legibility gates (automated):** must pass `styles.test.ts` (WCAG 4.5:1
+   label, mono contract) and the visual readability check at *small* size
+   (§3.9 density class).
+5. **Diagram-fit, not illustration-fit** (§14 principles): outline+flat-fill
+   over texture+depth; edges first-class; maps to box/edge/label primitives;
+   distinctive at a glance.
+6. **Fidelity, not caricature:** capture the 2–3 signatures that make the
+   reference recognisable; resist piling on every motif (the "caricature" trap
+   we hit repeatedly).
+
+The doc must show **worked good/bad pairs** as calibration — e.g. Making
+Software *before* (pure black/white, blue-on-everything, generic serif →
+cheap) vs *after* (warm neutrals, one accent, Fraunces, rounded → premium);
+Flux LatentPop's caricature vs faithful versions. Examples teach the judgement
+the checklist can only gesture at.
+
 ### 3.4 Public API
 
 Extend `RenderOptions` (`src/types.ts`) and resolve in `resolveRenderStyle`:
@@ -362,6 +396,16 @@ that every style inherits unless it opts out:
 
 A `StyleSpec` overrides only what it needs; the defaults keep the floor high so
 the *next* contributed style starts at "Making Software" quality, not "ugly".
+
+**Fidelity intent (learned from Vinegar/Balsamiq).** "Premium" is not the only
+goal — some styles are *deliberately* low-fidelity. Balsamiq's entire value is
+looking unfinished (it signals "draft — critique structure, not pixels"). So a
+style declares an `intent: 'premium' | 'draft' | 'lofi'`, and premium defaults
+are **opt-out**: a `lofi` style keeps the WCAG/legibility floor but inverts the
+polish defaults (intentional wobble, greyscale, rough rather than refined). The
+quality rubric (§3.3b) then judges a style **against its own declared intent** —
+a lo-fi mock that looks polished has *failed*, just as a premium style that
+looks cheap has. "Premium-by-default" means *high-floor*, not *uniform gloss*.
 
 ### 3.7 How styles and themes compose (orthogonal, token-mediated)
 
