@@ -47,6 +47,8 @@ export interface Style {
   labelInk?: string       // override the label ink (default: auto-contrast vs halo)
   textTransform?: 'uppercase'
   letterSpacing?: number
+  nodeCornerRadius?: number // round node corners (for crisp/clean styles)
+  boxShadow?: boolean       // soft drop-shadow under shapes (whiteboard)
 }
 
 export const STYLES: Style[] = [
@@ -132,14 +134,30 @@ export const STYLES: Style[] = [
     backdrop: 'rice', misregister: 2.8, misColor: '#ff48b0',
   },
   {
-    // ref: makingsoftware.com — white ground, pure-black serif ink, vivid-blue
-    // (#002ef4) accent lines, precise technical illustration. (Own poster.)
+    // ref: makingsoftware.com (research). The premium feel = warm neutrals
+    // (NOT pure #000/#fff), refined HAIRLINES, ROUNDED corners, a Fraunces serif
+    // (closest free match to ABC Arizona), and ONE accent per figure — blue
+    // #002ef4 as highlight only, geometry stays monochrome. Precise (crisp),
+    // not hand-drawn. Own poster.
     name: 'making-software', label: 'Making Software',
-    blurb: 'White ground, pure-black serif ink, vivid-blue (#002ef4) accent lines.',
-    colors: { bg: '#ffffff', fg: '#000000', line: '#002ef4', accent: '#002ef4', muted: '#6b7280', surface: '#ffffff', border: '#000000' },
-    font: 'EB Garamond', fontFile: 'EBGaramond.ttf',
-    stroke: 'jittered', roughness: 0.32, passes: 1, strokeWidth: 1.6, linecap: 'round',
+    blurb: 'Warm off-white, stone-black hairlines, rounded boxes, Fraunces serif, one blue accent.',
+    colors: { bg: '#fafaf9', fg: '#0c0a09', line: '#0c0a09', accent: '#002ef4', muted: '#57534e', surface: '#fafaf9', border: '#0c0a09' },
+    font: 'Fraunces', fontFile: 'Fraunces.ttf',
+    stroke: 'crisp', roughness: 0, passes: 1, strokeWidth: 1.3, linecap: 'round',
     fill: 'none', fillColor: '#002ef4', baseTone: 0, toneFromLuminance: false, keepHue: false, hachureAngle: -41,
+    backdrop: 'plain', nodeCornerRadius: 7,
+  },
+  {
+    // ref: excalidraw.com (research) — rough.js sketchy dark #1e1e1e strokes,
+    // PASTEL hachure fills distinct from the stroke, rounded corners, open
+    // arrowheads, casual hand font. The community's #1 requested look.
+    name: 'excalidraw', label: 'Excalidraw',
+    blurb: 'rough.js sketch: dark #1e1e1e strokes, pastel hachure fills, casual hand lettering.',
+    colors: { bg: '#ffffff', fg: '#1e1e1e', line: '#1e1e1e', accent: '#1971c2', muted: '#495057', surface: '#ffffff', border: '#1e1e1e' },
+    font: 'Architects Daughter', fontFile: 'ArchitectsDaughter.ttf',
+    stroke: 'jittered', roughness: 1.1, passes: 2, strokeWidth: 1.8, linecap: 'round',
+    fill: 'hachure', fillColor: '#a5d8ff', baseTone: 0.55, toneFromLuminance: false, keepHue: false, hachureAngle: -41,
+    spotPalette: ['#a5d8ff', '#ffc9c9', '#b2f2bb', '#ffec99', '#d0bfff', '#ffd8a8'],
     backdrop: 'plain',
   },
   {
@@ -151,6 +169,7 @@ export const STYLES: Style[] = [
     font: 'Caveat', fontFile: 'Caveat.ttf',
     stroke: 'jittered', roughness: 0.85, passes: 1, strokeWidth: 4.2, linecap: 'round', strokeOpacity: 0.9,
     fill: 'none', fillColor: '#2b6cb0', baseTone: 0, toneFromLuminance: false, keepHue: false, hachureAngle: -41,
-    backdrop: 'plain',
+    backdrop: 'plain', boxShadow: true,
+    defs: '<filter id="wbsh" x="-20%" y="-20%" width="140%" height="160%"><feGaussianBlur stdDeviation="2.6"/></filter>',
   },
 ]

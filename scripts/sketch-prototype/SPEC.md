@@ -186,6 +186,8 @@ interface StyleSpec {
   labelInk?: string                     // label colour (default: auto-contrast vs halo)
   textTransform?: 'uppercase'           // e.g. blueprint all-caps lettering
   letterSpacing?: number
+  nodeCornerRadius?: number             // rounded boxes (crisp/clean styles)
+  boxShadow?: boolean                   // soft drop-shadow under shapes (whiteboard)
 }
 ```
 
@@ -222,6 +224,21 @@ getStyle(name): ResolvedStyle
 - `baseTone` + `toneFromLuminance` + `keepHue` — separate "how much default
   shading", "shade by semantic value", and "keep chart colours" — all three are
   needed and independent.
+- **Typography + neutrals decide "premium vs ugly".** The Making Software rebuild
+  was the clearest lesson: a faithful palette is not enough. The premium read
+  came from (a) warm neutrals — `#fafaf9`/`#0c0a09`, never pure `#fff`/`#000`;
+  (b) the *right* serif (Fraunces, closest free match to ABC Arizona) not a
+  generic one; (c) refined hairlines + rounded corners (`nodeCornerRadius`);
+  (d) ONE accent per figure (blue highlight), geometry otherwise monochrome.
+  So a custom-style API must expose font *and* corner radius *and* discourage
+  pure-black/white, or naive styles look cheap. (Excalidraw needed the inverse
+  insight: hachure fill must be a PASTEL distinct from the dark stroke — a
+  `spotPalette` on the `hachure` fill, not the ink colour.)
+- **Fonts are the gating dependency.** Several styles only land with the right
+  bundled TTF (Fraunces, Share Tech Mono, Architects Daughter…). The registry
+  needs a font-asset story; resvg/PNG needs real TTFs (woff2 web fonts aren't
+  enough). Departure Mono (Making Software's mono) remains a TODO — no OFL TTF
+  was retrievable in-sandbox.
 
 Mirror the existing `THEMES` record in `theme.ts`: styles are data, hot-swappable,
 and a JSON schema can validate externally shipped styles. The prototype's
@@ -445,7 +462,37 @@ canvas/WebGL backend — the IR is the unification point.
 
 ---
 
-## 13. References
+## 13. Community signal & upstream contribution
+
+**What users actually ask for** (Mermaid.js + Beautiful-Mermaid issue trackers):
+1) hand-drawn/sketch look (Mermaid #1886 → shipped `look: handDrawn`; ongoing
+tuning), 2) custom/unified CSS-variable theming, 3) dark mode, 4) per-element
+colour, 5) fonts. So this work targets the #1 ask, and the orthogonal
+style×theme design matches the #2 expectation.
+
+**Lessons from Mermaid Chart's "new looks" launch + its reception:**
+- Readability/contrast is the loudest *real* complaint (esp. dark mode) — not
+  style taste. Our WCAG guardrail (§7) is therefore core, not cosmetic.
+- Apply every look uniformly across *all* diagram types; partial coverage that
+  silently fails (e.g. handDrawn on packet diagrams) erodes trust — gate
+  unsupported combos instead.
+- Decouple look (geometry/stroke) from theme (colour); let them compose.
+- Default to the polished/precise look; position hand-drawn as informal.
+- Per-diagram opt-in via inline metadata; keep a stable "classic" default.
+
+**Beautiful-Mermaid #115/#116 → file a separate issue.** #115 (open) reports
+unreadable labels on custom fills; PR #116 (open) fixes it with a BT.601
+brightness flip. Our guardrail is a strict superset: WCAG relative-luminance +
+contrast *ratios* (4.5:1 text / 3:1 non-text), per-style halo/ink overrides, and
+a CI audit. Recommendation: open a standalone proposal — *"WCAG contrast-based
+label-inking guardrail (4.5:1 text / 3:1 stroke), generalizing #115/#116"* —
+cross-linked to #115/#116 (offer #116 as a fast partial fix), rather than
+scope-creeping their PR. (`contrast.ts` + `contrast-audit.ts` are the reference
+implementation.)
+
+---
+
+## 14. References
 
 - Winkenbach & Salesin, *Computer-Generated Pen-and-Ink Illustration*, SIGGRAPH '94.
 - Praun, Hoppe, Webb, Finkelstein, *Real-Time Hatching*, SIGGRAPH 2001 (Tonal Art Maps).

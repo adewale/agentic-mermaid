@@ -16,7 +16,7 @@ import { restyle } from './restyle.ts'
 import { DIAGRAMS } from './diagrams.ts'
 
 const DIR = import.meta.dir
-const FONT_FILES = ['Caveat.ttf', 'EBGaramond.ttf', 'ShareTechMono.ttf', '../../assets/fonts/DejaVuSans.ttf', '../../assets/fonts/DejaVuSans-Bold.ttf'].map(f => join(DIR, f))
+const FONT_FILES = ['Caveat.ttf', 'EBGaramond.ttf', 'ShareTechMono.ttf', 'Fraunces.ttf', 'ArchitectsDaughter.ttf', '../../assets/fonts/DejaVuSans.ttf', '../../assets/fonts/DejaVuSans-Bold.ttf'].map(f => join(DIR, f))
 
 function raster(svg: string, width: number, bg?: string) {
   const r = new Resvg(svg, { fitTo: { mode: 'width', value: width }, background: bg, font: { loadSystemFonts: false, fontFiles: FONT_FILES, defaultFontFamily: 'Caveat' } }).render()
@@ -89,7 +89,7 @@ function build(): string {
       P.push(cellBg(st, x + GAP, y + GAP, CELL_W - GAP * 2, CELL_H - GAP * 2))
       const availW = CELL_W - GAP * 2 - 24, availH = CELL_H - GAP * 2 - 24
       try {
-        const raw = renderMermaidSVG(d.src, { bg: st.colors.bg, fg: st.colors.fg, line: st.colors.line, accent: st.colors.accent, muted: st.colors.muted, surface: st.colors.surface, border: st.colors.border, font: st.font, embedFontImport: false, transparent: true, ...TYPE_OPT })
+        const raw = renderMermaidSVG(d.src, { bg: st.colors.bg, fg: st.colors.fg, line: st.colors.line, accent: st.colors.accent, muted: st.colors.muted, surface: st.colors.surface, border: st.colors.border, font: st.font, embedFontImport: false, transparent: true, ...TYPE_OPT, style: { ...TYPE_OPT.style, node: { ...TYPE_OPT.style.node, cornerRadius: st.nodeCornerRadius } } })
         const styled = restyle(raw, st, { backdrop: false })
         // render the diagram at ~final cell pixel size so its text is crisp (no down-rez)
         const img = raster(styled, Math.round(availW * SCALE))

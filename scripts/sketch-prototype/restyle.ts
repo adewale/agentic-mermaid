@@ -87,14 +87,17 @@ function fillRegion(poly: Point[], fillSrc: string | undefined, st: Style, seed:
   const rng = makeRng(seed ^ 0x9e3779b9)
   const ink = st.keepHue && lum(fillSrc) != null ? fillSrc! : st.fillColor
   switch (st.fill) {
-    case 'hachure':
-      // rough.js hachure; tone drives gap (density). Cross-hatch when dark.
+    case 'hachure': {
+      // spot palette lets the hachure fill be a PASTEL distinct from the dark
+      // stroke (Excalidraw); otherwise hatch in the ink colour.
+      const hk = st.spotPalette?.length ? st.spotPalette[Math.abs(seed) % st.spotPalette.length]! : ink
       return roughPolyFill(poly, {
-        seed: seed ^ 0x51, roughness: st.roughness, stroke: ink, strokeWidth: st.strokeWidth,
-        fill: ink, fillStyle: tone > 0.55 ? 'cross-hatch' : 'hachure',
-        fillWeight: Math.max(0.6, st.strokeWidth * 0.45), hachureGap: lerp(11, 4, tone),
-        hachureAngle: st.hachureAngle, fillOpacity: 0.5 + 0.4 * tone, passes: 1,
+        seed: seed ^ 0x51, roughness: st.roughness, stroke: hk, strokeWidth: st.strokeWidth,
+        fill: hk, fillStyle: tone > 0.6 ? 'cross-hatch' : 'hachure',
+        fillWeight: Math.max(0.6, st.strokeWidth * 0.5), hachureGap: lerp(10, 4, tone),
+        hachureAngle: st.hachureAngle, fillOpacity: st.spotPalette ? 0.9 : 0.5 + 0.4 * tone, passes: 1,
       })
+    }
     case 'crosshatch':
       return roughPolyFill(poly, {
         seed: seed ^ 0x51, roughness: st.roughness, stroke: ink, strokeWidth: st.strokeWidth,
@@ -134,12 +137,16 @@ function closedShape(poly: Point[], stroke: string | undefined, fill: string | u
   if (stroke === 'none' && (!fill || fill === 'none')) return ''
   const sc = stroke && stroke !== 'none' ? stroke : st.colors.line
   const a = area(poly); const big = a >= MIN_FILL_AREA && a <= MAX_FILL_AREA
+  // Soft drop-shadow under the shape (whiteboard marker on a glossy board).
+  const shadow = st.boxShadow && big
+    ? `<path d="${poly.map((p, i) => `${i ? 'L' : 'M'}${r3(p.x + 2)},${r3(p.y + 4)}`).join(' ')} Z" fill="none" stroke="#00000026" stroke-width="${st.strokeWidth}" filter="url(#wbsh)"/>`
+    : ''
   // Offset drop-glow behind the filled shape (screenprint registration look).
   const glow = st.glowColor && big
     ? `<path d="${poly.map((p, i) => `${i ? 'L' : 'M'}${r3(p.x + (st.glowOffset ?? 5))},${r3(p.y + (st.glowOffset ?? 5))}`).join(' ')} Z" fill="${st.glowColor}" stroke="none"/>`
     : ''
   const fillStr = big ? fillRegion(poly, fill, st, seed) : ''
-  return glow + fillStr + (stroke === 'none' ? '' : strokeClosed(poly, sc, st, seed))
+  return shadow + glow + fillStr + (stroke === 'none' ? '' : strokeClosed(poly, sc, st, seed))
 }
 
 export function restyle(svg: string, st: Style, opts: { backdrop?: boolean } = {}): string {

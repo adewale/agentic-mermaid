@@ -20,7 +20,7 @@ import { restyle } from './restyle.ts'
 import { DIAGRAMS } from './diagrams.ts'
 
 const DIR = import.meta.dir
-const FONT_FILES = ['Caveat.ttf', 'EBGaramond.ttf', 'ShareTechMono.ttf', '../../assets/fonts/DejaVuSans.ttf', '../../assets/fonts/DejaVuSans-Bold.ttf'].map(f => join(DIR, f))
+const FONT_FILES = ['Caveat.ttf', 'EBGaramond.ttf', 'ShareTechMono.ttf', 'Fraunces.ttf', 'ArchitectsDaughter.ttf', '../../assets/fonts/DejaVuSans.ttf', '../../assets/fonts/DejaVuSans-Bold.ttf'].map(f => join(DIR, f))
 const st = STYLES.find(s => s.name === 'making-software')!
 const SCALE = Number(process.env.SCALE ?? 1.6)
 const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
@@ -45,9 +45,9 @@ const W = PAD * 2 + COLS * CELL_W, H = PAD * 2 + TITLE_H + ROWS * (CELL_H + CAP_
 const P: string[] = [`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" width="${W}" height="${H}">`]
 P.push(`<rect width="${W}" height="${H}" fill="${st.colors.bg}"/>`)
 // Title + signature squiggle underline.
-P.push(`<text x="${PAD}" y="${PAD + 56}" font-family="EB Garamond,serif" font-size="64" fill="${st.colors.fg}">Making Software — every diagram type</text>`)
+P.push(`<text x="${PAD}" y="${PAD + 56}" font-family="Fraunces,serif" font-size="64" fill="${st.colors.fg}">Making Software — every diagram type</text>`)
 P.push(squiggle(PAD, PAD + 760, PAD + 78, 4, 13, st.colors.accent, 3.2))
-P.push(`<text x="${PAD}" y="${PAD + 118}" font-family="EB Garamond,serif" font-size="24" fill="${st.colors.muted}">${esc(st.blurb)}  ·  fonts substituted (New York→EB Garamond)</text>`)
+P.push(`<text x="${PAD}" y="${PAD + 118}" font-family="Fraunces,serif" font-size="24" fill="${st.colors.muted}">${esc(st.blurb)}  ·  Arizona→Fraunces; Departure Mono pending</text>`)
 
 DIAGRAMS.forEach((d, i) => {
   const col = i % COLS, row = Math.floor(i / COLS)
@@ -55,7 +55,7 @@ DIAGRAMS.forEach((d, i) => {
   const y = PAD + TITLE_H + row * (CELL_H + CAP_H)
   const availW = CELL_W - 36, availH = CELL_H - 24
   try {
-    const raw = renderMermaidSVG(d.src, { bg: st.colors.bg, fg: st.colors.fg, line: st.colors.line, accent: st.colors.accent, muted: st.colors.muted, surface: st.colors.surface, border: st.colors.border, font: st.font, embedFontImport: false, transparent: true, style: { text: { fontSize: 22 }, node: { fontSize: 26, fontWeight: 600, paddingX: 22, paddingY: 14 }, edge: { fontSize: 22, fontWeight: 600 }, group: { fontSize: 22, fontWeight: 700 } } })
+    const raw = renderMermaidSVG(d.src, { bg: st.colors.bg, fg: st.colors.fg, line: st.colors.line, accent: st.colors.accent, muted: st.colors.muted, surface: st.colors.surface, border: st.colors.border, font: st.font, embedFontImport: false, transparent: true, style: { text: { fontSize: 22 }, node: { fontSize: 26, fontWeight: 600, paddingX: 22, paddingY: 14, cornerRadius: st.nodeCornerRadius }, edge: { fontSize: 22, fontWeight: 600 }, group: { fontSize: 22, fontWeight: 700 } } })
     const img = raster(restyle(raw, st, { backdrop: false }), availW * SCALE)
     const sc = Math.min(availW / (img.w / SCALE), availH / (img.h / SCALE))
     const dw = (img.w / SCALE) * sc, dh = (img.h / SCALE) * sc
@@ -65,7 +65,7 @@ DIAGRAMS.forEach((d, i) => {
   }
   // caption with a small squiggle underline
   const cx = x + CELL_W / 2, cy = y + CELL_H + 24
-  P.push(`<text x="${cx}" y="${cy}" text-anchor="middle" font-family="EB Garamond,serif" font-size="30" fill="${st.colors.fg}">${esc(d.type)}</text>`)
+  P.push(`<text x="${cx}" y="${cy}" text-anchor="middle" font-family="Fraunces,serif" font-size="30" fill="${st.colors.fg}">${esc(d.type)}</text>`)
   P.push(squiggle(cx - d.type.length * 8, cx + d.type.length * 8, cy + 12, 2.4, 10))
 })
 P.push('</svg>')
