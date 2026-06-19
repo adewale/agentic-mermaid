@@ -18,6 +18,8 @@
     --_group-fill:    #FFFBF5;
     --_group-hdr:     #f6efe9;
     --_inner-stroke:  #eadfd8;
+    --_edge-label-bg: #fcf6f0;
+    --_edge-label-stroke: #eee4dd;
     --_key-badge:     #eee4dd;
   }
 </style>
@@ -37,23 +39,23 @@
 <polyline class="edge" data-from="MFA" data-to="Session" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" data-label="ok" points="655.6999999999999,123.63333333333333 761.23,123.63333333333333 761.23,139.44150000000002 773.23,139.44150000000002" fill="none" stroke="#C9A88A" stroke-width="1" marker-end="url(#arrowhead)" />
 <polyline class="edge" data-from="MFA" data-to="UI" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" data-label="fail" points="608.2755,76.20883333333333 608.2755,51 231.6905,51 231.6905,122.35" fill="none" stroke="#C9A88A" stroke-width="1" marker-end="url(#arrowhead)" />
 <g class="edge-label" data-from="Auth" data-to="UI" data-label="no">
-  <rect class="edge-label-halo" x="256.851" y="182.3" width="37.53" height="38.3" rx="4" ry="4" fill="#FFFBF5" stroke="none" />
-  <rect x="260.851" y="186.3" width="29.53" height="30.3" rx="2" ry="2" fill="#FFFBF5" stroke="#eadfd8" stroke-width="1" />
+  <rect class="edge-label-halo" x="256.851" y="182.3" width="37.53" height="38.3" rx="4" ry="4" fill="#fcf6f0" stroke="none" />
+  <rect x="260.851" y="186.3" width="29.53" height="30.3" rx="2" ry="2" fill="#fcf6f0" stroke="#eee4dd" stroke-width="1" />
   <text x="275.616" y="201.45000000000002" text-anchor="middle" font-size="11" font-weight="400" fill="#85532E" dy="3.8499999999999996">no</text>
 </g>
 <g class="edge-label" data-from="Auth" data-to="MFA" data-label="yes">
-  <rect class="edge-label-halo" x="485.9643333333333" y="121.65" width="43.47" height="38.3" rx="4" ry="4" fill="#FFFBF5" stroke="none" />
-  <rect x="489.9643333333333" y="125.65" width="35.47" height="30.3" rx="2" ry="2" fill="#FFFBF5" stroke="#eadfd8" stroke-width="1" />
+  <rect class="edge-label-halo" x="485.9643333333333" y="121.65" width="43.47" height="38.3" rx="4" ry="4" fill="#fcf6f0" stroke="none" />
+  <rect x="489.9643333333333" y="125.65" width="35.47" height="30.3" rx="2" ry="2" fill="#fcf6f0" stroke="#eee4dd" stroke-width="1" />
   <text x="507.6993333333333" y="140.8" text-anchor="middle" font-size="11" font-weight="400" fill="#85532E" dy="3.8499999999999996">yes</text>
 </g>
 <g class="edge-label" data-from="MFA" data-to="Session" data-label="ok">
-  <rect class="edge-label-halo" x="689.6999999999999" y="104.48333333333332" width="37.53" height="38.3" rx="4" ry="4" fill="#FFFBF5" stroke="none" />
-  <rect x="693.6999999999999" y="108.48333333333332" width="29.53" height="30.3" rx="2" ry="2" fill="#FFFBF5" stroke="#eadfd8" stroke-width="1" />
+  <rect class="edge-label-halo" x="689.6999999999999" y="104.48333333333332" width="37.53" height="38.3" rx="4" ry="4" fill="#fcf6f0" stroke="none" />
+  <rect x="693.6999999999999" y="108.48333333333332" width="29.53" height="30.3" rx="2" ry="2" fill="#fcf6f0" stroke="#eee4dd" stroke-width="1" />
   <text x="708.4649999999999" y="123.63333333333333" text-anchor="middle" font-size="11" font-weight="400" fill="#85532E" dy="3.8499999999999996">ok</text>
 </g>
 <g class="edge-label" data-from="MFA" data-to="UI" data-label="fail">
-  <rect class="edge-label-halo" x="400.62399999999997" y="31.85" width="38.717999999999996" height="38.3" rx="4" ry="4" fill="#FFFBF5" stroke="none" />
-  <rect x="404.62399999999997" y="35.85" width="30.717999999999996" height="30.3" rx="2" ry="2" fill="#FFFBF5" stroke="#eadfd8" stroke-width="1" />
+  <rect class="edge-label-halo" x="400.62399999999997" y="31.85" width="38.717999999999996" height="38.3" rx="4" ry="4" fill="#fcf6f0" stroke="none" />
+  <rect x="404.62399999999997" y="35.85" width="30.717999999999996" height="30.3" rx="2" ry="2" fill="#fcf6f0" stroke="#eee4dd" stroke-width="1" />
   <text x="419.98299999999995" y="51" text-anchor="middle" font-size="11" font-weight="400" fill="#85532E" dy="3.8499999999999996">fail</text>
 </g>
 <g class="node" data-id="User" data-label="User" data-shape="circle">
