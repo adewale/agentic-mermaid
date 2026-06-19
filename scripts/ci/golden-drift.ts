@@ -68,13 +68,29 @@ export function evaluateGoldenDrift(f: GoldenDriftFacts): GoldenDriftVerdict {
 if (import.meta.main) {
   const { execSync } = await import('node:child_process')
   const GOLDEN_DIR = 'src/__tests__/testdata/'
+  const run = (cmd: string) => execSync(cmd, { encoding: 'utf8' })
   const lines = (cmd: string) =>
-    execSync(cmd, { encoding: 'utf8' }).split('\n').map(s => s.trim()).filter(Boolean)
+    run(cmd).split('\n').map(s => s.trim()).filter(Boolean)
+
+  // On a GitHub `pull_request` build the checkout is the MERGE ref: HEAD is a
+  // synthetic merge commit whose parents are [base, prHead]. `git show HEAD`
+  // there surfaces whatever the BASE branch changed since the fork point (e.g.
+  // main regenerating goldens), not what this PR changed — a false positive.
+  // When HEAD has 2+ parents, scope the gate to the PR's own net change
+  // (base...prHead) and read the token from the PR's own commit messages, not
+  // the auto-generated merge message.
+  const parents = run('git rev-list --parents -n 1 HEAD').trim().split(/\s+/).slice(1)
+  const isMerge = parents.length >= 2
+  const [base, prHead] = parents
 
   const facts: GoldenDriftFacts = {
     uncommittedGoldenFiles: lines(`git diff --name-only -- ${GOLDEN_DIR}`),
-    headGoldenFiles: lines(`git show --name-only --format= HEAD -- ${GOLDEN_DIR}`),
-    commitMessage: execSync('git log -1 --format=%B', { encoding: 'utf8' }),
+    headGoldenFiles: isMerge
+      ? lines(`git diff --name-only ${base}...${prHead} -- ${GOLDEN_DIR}`)
+      : lines(`git show --name-only --format= HEAD -- ${GOLDEN_DIR}`),
+    commitMessage: isMerge
+      ? run(`git log --format=%B ${base}..${prHead}`)
+      : run('git log -1 --format=%B'),
   }
   const v = evaluateGoldenDrift(facts)
   if (v.ok) {
