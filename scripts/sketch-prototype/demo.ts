@@ -18,23 +18,23 @@ import { seedFrom, type Point } from './rough.ts'
 const W = 940, H = 700
 const A: Aesthetic = HandDrawn
 
-interface Node { id: string; lines: string[]; cx: number; cy: number; w: number; h: number; stacked?: boolean }
+interface Node { id: string; lines: string[]; cx: number; cy: number; w: number; h: number }
 
 const center: Node = { id: 'core', lines: ['Agentic', 'Core'], cx: W / 2, cy: H / 2, w: 150, h: 110 }
 
 // Ten satellites placed on an ellipse around the core, angles chosen to echo
 // the photo (top, top-right, right, …).
-const labels: { lines: string[]; stacked?: boolean }[] = [
-  { lines: ['Sandboxes'], stacked: true },
-  { lines: ['Dynamic', 'Workers'], stacked: true },
-  { lines: ['Dynamic', 'Workflows'], stacked: true },
+const labels: { lines: string[] }[] = [
+  { lines: ['Sandboxes'] },
+  { lines: ['Dynamic', 'Workers'] },
+  { lines: ['Dynamic', 'Workflows'] },
   { lines: ['Browser', 'Run'] },
-  { lines: ['Artifacts'], stacked: true },
+  { lines: ['Artifacts'] },
   { lines: ['Queues'] },
-  { lines: ['Workflows'], stacked: true },
+  { lines: ['Workflows'] },
   { lines: ['Storage', '(D1, KV, R2, etc.)'] },
-  { lines: ['Sub-agents', 'with loadable', 'context'], stacked: true },
-  { lines: ['Bindings'], stacked: true },
+  { lines: ['Sub-agents', 'with loadable', 'context'] },
+  { lines: ['Bindings'] },
 ]
 
 const RX = 330, RY = 250
@@ -44,7 +44,7 @@ const satellites: Node[] = labels.map((l, i) => {
   const cy = H / 2 + Math.sin(ang) * RY
   const w = Math.max(110, 16 + l.lines.reduce((m, s) => Math.max(m, s.length), 0) * 10)
   const h = 40 + (l.lines.length - 1) * 22
-  return { id: 'n' + i, lines: l.lines, cx, cy, w, h, stacked: l.stacked }
+  return { id: 'n' + i, lines: l.lines, cx, cy, w, h }
 })
 
 // Edge endpoint on a box border, on the line from box centre toward `toward`.
@@ -59,11 +59,6 @@ function port(n: Node, toward: Point): Point {
 function boxAt(n: Node): string {
   const x = n.cx - n.w / 2, y = n.cy - n.h / 2
   const parts: string[] = []
-  // "Stacked" look: two offset outlines behind the main box.
-  if (n.stacked) {
-    parts.push(A.box(x + 10, y + 12, n.w, n.h, seedFrom(n.id + 'b2')))
-    parts.push(A.box(x + 5, y + 6, n.w, n.h, seedFrom(n.id + 'b1')))
-  }
   parts.push(A.box(x, y, n.w, n.h, seedFrom(n.id)))
   // Label (upright; the handwriting font carries the look).
   const fs = 22
