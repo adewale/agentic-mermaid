@@ -136,6 +136,20 @@ function fillRegion(poly: Point[], fillSrc: string | undefined, st: Style, seed:
 function closedShape(poly: Point[], stroke: string | undefined, fill: string | undefined, st: Style, seed: number): string {
   if (stroke === 'none' && (!fill || fill === 'none')) return ''
   const sc = stroke && stroke !== 'none' ? stroke : st.colors.line
+  // Arrival: draw the node as a circular variable-weight ink ring + splatter.
+  if (st.ringNode) {
+    const xs = poly.map(p => p.x), ys = poly.map(p => p.y)
+    const cx = (Math.min(...xs) + Math.max(...xs)) / 2, cy = (Math.min(...ys) + Math.max(...ys)) / 2
+    const r = Math.max(Math.max(...xs) - Math.min(...xs), Math.max(...ys) - Math.min(...ys)) / 2 + 6
+    const rng = makeRng(seed)
+    const ring = circlePoly(cx, cy, r, r, 20)
+    const out: string[] = []
+    // variable weight: two overlaid rough rings at different widths
+    for (const w of [st.strokeWidth, st.strokeWidth * 0.5]) out.push(roughPolyOutline(ring, { ...roughOpts(st, sc, seed ^ Math.round(w * 7)), strokeWidth: w }))
+    // splatter dots/blots just outside the band
+    for (let i = 0; i < 5; i++) { const a2 = rng() * Math.PI * 2, rr = r + (rng() - 0.3) * 10, dr = 0.8 + rng() * 2.2; out.push(`<circle cx="${r3(cx + Math.cos(a2) * rr)}" cy="${r3(cy + Math.sin(a2) * rr)}" r="${r3(dr)}" fill="${sc}"/>`) }
+    return out.join('')
+  }
   const a = area(poly); const big = a >= MIN_FILL_AREA && a <= MAX_FILL_AREA
   // Soft drop-shadow under the shape (whiteboard marker on a glossy board).
   const shadow = st.boxShadow && big
@@ -248,6 +262,18 @@ export function backdrop(st: Style, w: number, h: number): string {
       p.push(`<text x="${tx + 8}" y="${ty + tbH / 2 + 20}" font-size="11" ${tf}>DRAWN BY · M</text>`)
       p.push(`<text x="${tx + tbW * 0.6 + 8}" y="${ty + 20}" font-size="11" ${tf}>NO. 001</text>`)
       p.push(`<text x="${tx + tbW * 0.6 + 8}" y="${ty + tbH / 2 + 20}" font-size="11" ${tf}>SCALE 1:1</text>`)
+      // north arrow (top-right) + graphic scale bar (bottom-left)
+      const nx = w - m - 36, ny = m + 46
+      p.push(`<path d="M${nx},${ny} l8,22 l-8,-7 l-8,7 Z" fill="none" stroke="${st.colors.line}" stroke-width="1"/><text x="${nx}" y="${ny - 6}" text-anchor="middle" font-family="${st.font}" font-size="11" fill="${st.colors.fg}">N</text>`)
+      const sx = m + 14, sy = h - m - 16
+      for (let i = 0; i < 4; i++) p.push(`<rect x="${sx + i * 18}" y="${sy}" width="18" height="5" fill="none" stroke="${st.colors.line}" stroke-width="0.8"/>`)
+      break
+    }
+    case 'parchment': {
+      // aged vellum: warm blotches + faint horizontal ruling
+      p.push(`<defs><filter id="pmt"><feTurbulence type="fractalNoise" baseFrequency="0.012 0.014" numOctaves="3" result="n"/><feColorMatrix in="n" type="matrix" values="0 0 0 0 0.18  0 0 0 0 0.12  0 0 0 0 0.04  0 0 0 0.06 0"/></filter></defs><rect width="${w}" height="${h}" filter="url(#pmt)"/>`)
+      for (let y = 46; y < h; y += 30) p.push(`<line x1="36" y1="${y}" x2="${w - 36}" y2="${y}" stroke="#8b6f42" stroke-width="0.5" opacity="0.18"/>`)
+      p.push(`<line x1="60" y1="20" x2="60" y2="${h - 20}" stroke="#9b2d20" stroke-width="0.7" opacity="0.3"/>`)
       break
     }
     case 'grid':

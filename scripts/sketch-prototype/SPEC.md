@@ -294,6 +294,66 @@ Default `aesthetic` = `'crisp'` ⇒ **byte-identical to today** (critical for
 existing goldens). Per-element override via Mermaid `:::class` (already parsed
 into `classNames`) maps a class → fill/stroke strategy for mixed-media diagrams.
 
+### 3.5 Central registry → automatic coverage of every diagram type
+
+The single most important architectural property: **a style is registered once
+and works for every diagram type — forever, including types added later.** This
+falls out of the Drawable IR (§3.1): family renderers emit semantic primitives
+(`region`/`connector`/`label`/…); the `StyleEngine` turns *primitives* into SVG
+via the four strategies. A style never names a diagram family. So:
+
+- `registerStyle(spec)` adds a row to one global `STYLES` registry (mirrors
+  `THEMES`). The poster/contact-sheet iterate the registry × the diagram-type
+  registry — `N` styles × `M` types with **zero per-pair code** (the prototype
+  already does this: adding the 5 styles this round needed no per-family work).
+- A **new diagram family** only has to emit the IR; it then renders in *all*
+  registered styles automatically. A **new style** only implements the
+  strategies; it applies to *all* families automatically. This `N+M` (not `N×M`)
+  wiring is the whole point.
+- Capability gating: if a style declares it can't support a primitive, the
+  engine falls back to `crisp` for that primitive rather than failing silently
+  (the Mermaid `handDrawn`-breaks-on-packet lesson, §13).
+
+### 3.6 Premium-by-default — Making Software as the baseline
+
+Making Software is the **exemplar**: a custom style should look premium without
+the author getting everything right. So the registry ships **premium defaults**
+that every style inherits unless it opts out:
+
+- Neutrals are never pure `#000`/`#fff` — default ink/page resolve to slightly
+  warm/desaturated tokens.
+- A real bundled typeface (never a bare system fallback); fonts are a
+  first-class registry asset (§9).
+- Refined hairlines + a default `nodeCornerRadius` + generous label padding.
+- **One accent per figure** — geometry stays monochrome unless a style asks for
+  multi-colour fills (`spotPalette`).
+- Whitespace, flat (no gratuitous shadows/gradients), and the WCAG guardrail
+  (§7) always on.
+
+A `StyleSpec` overrides only what it needs; the defaults keep the floor high so
+the *next* contributed style starts at "Making Software" quality, not "ugly".
+
+### 3.7 How styles and themes compose (orthogonal, token-mediated)
+
+From Excalidraw's architecture: keep **aesthetic** (geometry/stroke/fill/texture)
+and **colour theme** (palette) orthogonal, mediated by **semantic tokens**.
+
+- A `StyleSpec` should reference palette **tokens** (`stroke: --fg`,
+  `fill: --accent`, `band: --surface`) rather than literal hex; the active
+  **theme** resolves tokens → concrete colours (the existing `theme.ts`
+  CSS-variable system already is this resolver).
+- Styles therefore define *behaviour* (roughness, fill pattern, stroke width,
+  roundness, texture); themes define *the colours the tokens map to*. Result:
+  **any style × any theme** — "hand-drawn × Dracula", "blueprint × Solarized".
+- A style may still pin intrinsic colours where the aesthetic *is* the colour
+  (blueprint's cyanotype blue, LatentPop's spot inks) — those are declared as
+  style-owned constants, not theme tokens, and documented as such.
+- Excalidraw's dark mode is a lossy render-time invert; we do better — themes
+  resolve tokens to palettes authored for each mode, and the WCAG guardrail
+  re-checks contrast after resolution, so a style stays legible under any theme.
+- Defaults cascade (Excalidraw "current-item" lesson): the resolved
+  (style × theme) applies to every new element/family with no per-type wiring.
+
 ---
 
 ## 4. Engine primitives & the literature

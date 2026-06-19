@@ -16,7 +16,7 @@ import { restyle } from './restyle.ts'
 import { DIAGRAMS } from './diagrams.ts'
 
 const DIR = import.meta.dir
-const FONT_FILES = ['Caveat.ttf', 'EBGaramond.ttf', 'ShareTechMono.ttf', 'Fraunces.ttf', 'ArchitectsDaughter.ttf', '../../assets/fonts/DejaVuSans.ttf', '../../assets/fonts/DejaVuSans-Bold.ttf'].map(f => join(DIR, f))
+const FONT_FILES = ['Caveat.ttf', 'EBGaramond.ttf', 'ShareTechMono.ttf', 'Fraunces.ttf', 'ArchitectsDaughter.ttf', 'Cinzel.ttf', 'Fredoka.ttf', '../../assets/fonts/DejaVuSans.ttf', '../../assets/fonts/DejaVuSans-Bold.ttf'].map(f => join(DIR, f))
 
 function raster(svg: string, width: number, bg?: string) {
   const r = new Resvg(svg, { fitTo: { mode: 'width', value: width }, background: bg, font: { loadSystemFonts: false, fontFiles: FONT_FILES, defaultFontFamily: 'Caveat' } }).render()
@@ -39,8 +39,7 @@ const TYPE_OPT = {
 // big type = readable. Each diagram is rendered at ~cell pixel size (no
 // down-rezzing), so text stays crisp.
 const HEAD_COL = 360, HEAD_ROW = 110, CELL_W = 520, CELL_H = 400, PAD = 44, GAP = 8
-// Making Software has its own dedicated poster (ms-poster.ts); exclude it here.
-const POSTER_STYLES = STYLES.filter(s => s.name !== 'making-software')
+const POSTER_STYLES = STYLES // all styles incl. Making Software (the premium exemplar)
 const COLS = DIAGRAMS.length, ROWS = POSTER_STYLES.length
 const POSTER_W = HEAD_COL + COLS * CELL_W + PAD * 2
 const POSTER_H = HEAD_ROW + ROWS * CELL_H + PAD * 2 + 90

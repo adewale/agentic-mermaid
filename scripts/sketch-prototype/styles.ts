@@ -8,7 +8,7 @@
 
 export type StrokeKind = 'crisp' | 'jittered' | 'brush' | 'pencil'
 export type FillKind = 'none' | 'hachure' | 'crosshatch' | 'stipple' | 'halftone' | 'wash' | 'scribble' | 'solid'
-export type BackdropKind = 'paper-ruled' | 'plain' | 'rice' | 'washi' | 'grid' | 'slate' | 'blueprint'
+export type BackdropKind = 'paper-ruled' | 'plain' | 'rice' | 'washi' | 'grid' | 'slate' | 'blueprint' | 'parchment'
 
 export interface Style {
   name: string
@@ -49,6 +49,7 @@ export interface Style {
   letterSpacing?: number
   nodeCornerRadius?: number // round node corners (for crisp/clean styles)
   boxShadow?: boolean       // soft drop-shadow under shapes (whiteboard)
+  ringNode?: boolean        // draw nodes as circular ink rings (Arrival)
 }
 
 export const STYLES: Style[] = [
@@ -90,7 +91,7 @@ export const STYLES: Style[] = [
     // NO fills, border frame + bottom-right title block, all-caps mono lettering.
     name: 'blueprint', label: 'Blueprint',
     blurb: 'Cyanotype: Prussian-blue ground, thin white lines, border + title block, all-caps mono.',
-    colors: { bg: '#0e3a6b', fg: '#eef3f8', line: '#eef3f8', accent: '#ffffff', muted: '#a9c2e0', surface: '#0e3a6b', border: '#eef3f8' },
+    colors: { bg: '#0a2a5e', fg: '#e8eef5', line: '#dbe6f0', accent: '#ffffff', muted: '#9fbbe0', surface: '#0a2a5e', border: '#e8eef5' },
     font: 'Share Tech Mono', fontFile: 'ShareTechMono.ttf',
     stroke: 'jittered', roughness: 0.28, passes: 1, strokeWidth: 1.0, linecap: 'butt',
     fill: 'none', fillColor: '#eef3f8', baseTone: 0, toneFromLuminance: false, keepHue: false, hachureAngle: -45,
@@ -171,5 +172,65 @@ export const STYLES: Style[] = [
     fill: 'none', fillColor: '#2b6cb0', baseTone: 0, toneFromLuminance: false, keepHue: false, hachureAngle: -41,
     backdrop: 'plain', boxShadow: true,
     defs: '<filter id="wbsh" x="-20%" y="-20%" width="140%" height="160%"><feGaussianBlur stdDeviation="2.6"/></filter>',
+  },
+  {
+    // research: visual note-taking — bold wobbly containers, drop shadows,
+    // limited cheerful accents, chunky arrows, marker lettering.
+    name: 'sketchnotes', label: 'Sketchnotes',
+    blurb: 'Visual notes: bold wobbly containers, lifted drop shadows, cheerful accent fills, marker hand.',
+    colors: { bg: '#fbf7ef', fg: '#1d1d1b', line: '#1d1d1b', accent: '#f08c00', muted: '#2a9d8f', surface: '#fbf7ef', border: '#1d1d1b' },
+    font: 'Architects Daughter', fontFile: 'ArchitectsDaughter.ttf',
+    stroke: 'jittered', roughness: 1.2, passes: 2, strokeWidth: 3.0, linecap: 'round',
+    fill: 'solid', fillColor: '#f08c00', baseTone: 1, toneFromLuminance: false, keepHue: false, hachureAngle: -41,
+    spotPalette: ['#ffe3c2', '#c7ece6', '#fdebb6', '#f7d5c4'],
+    backdrop: 'plain', boxShadow: true, nodeCornerRadius: 8,
+    defs: '<filter id="wbsh" x="-20%" y="-20%" width="140%" height="160%"><feGaussianBlur stdDeviation="2.2"/></filter>',
+  },
+  {
+    // research: industrial-design graphite sketch — toned paper, graphite (not
+    // black), construction-line wobble, cool-grey shading, ONE marker accent.
+    name: 'pencil', label: 'Pencil sketch',
+    blurb: 'Industrial-design graphite: toned paper, dark-grey lines, cool-grey shading, one orange marker accent.',
+    colors: { bg: '#efe9dd', fg: '#2b2b2b', line: '#3a3a3a', accent: '#e8703a', muted: '#9aa0a8', surface: '#efe9dd', border: '#2b2b2b' },
+    font: 'Architects Daughter', fontFile: 'ArchitectsDaughter.ttf',
+    stroke: 'jittered', roughness: 1.3, passes: 2, strokeWidth: 1.7, linecap: 'round', strokeOpacity: 0.9,
+    fill: 'scribble', fillColor: '#b8bcc2', baseTone: 0.16, toneFromLuminance: true, keepHue: false, hachureAngle: -45,
+    backdrop: 'plain', boxShadow: true,
+  },
+  {
+    // research: Arrival heptapod logograms — circular variable-weight ink rings
+    // with splatter, on warm pale ground; labels stay clean sans on a chip.
+    name: 'arrival', label: 'Arrival (logograms)',
+    blurb: 'Heptapod ink rings: circular variable-weight ink bands with splatter on pale ground.',
+    colors: { bg: '#f1efe9', fg: '#15130f', line: '#15130f', accent: '#3a352d', muted: '#5c574d', surface: '#f1efe9', border: '#15130f' },
+    font: 'DejaVu Sans', fontFile: '../../assets/fonts/DejaVuSans.ttf',
+    stroke: 'jittered', roughness: 1.6, passes: 2, strokeWidth: 5.0, linecap: 'round',
+    fill: 'none', fillColor: '#15130f', baseTone: 0, toneFromLuminance: false, keepHue: false, hachureAngle: -41,
+    backdrop: 'plain', ringNode: true,
+  },
+  {
+    // BetiDraws (research): warm "crayon over canvas" storybook — cream canvas,
+    // warm-brown hand outlines, soft warm fills, crayon grain, rounded shapes.
+    name: 'betidraws', label: 'BetiDraws (crayon)',
+    blurb: 'Warm crayon-over-canvas storybook: cream ground, brown hand outlines, soft warm fills.',
+    colors: { bg: '#f4ecdc', fg: '#3a2a22', line: '#3a2a22', accent: '#e8896a', muted: '#7a6657', surface: '#f4ecdc', border: '#3a2a22' },
+    font: 'Fredoka', fontFile: 'Fredoka.ttf',
+    stroke: 'pencil', roughness: 1.8, passes: 2, strokeWidth: 2.6, linecap: 'round', strokeOpacity: 0.92,
+    fill: 'solid', fillColor: '#e8896a', baseTone: 1, toneFromLuminance: false, keepHue: false, hachureAngle: -33,
+    spotPalette: ['#e8896a', '#4fa39a', '#e3b23c', '#8fb97a', '#d98c9a'],
+    backdrop: 'plain', nodeCornerRadius: 10,
+    defs: '<filter id="crayon"><feTurbulence type="fractalNoise" baseFrequency="0.04 0.05" numOctaves="3" result="n"/><feDisplacementMap in="SourceGraphic" in2="n" scale="2.4"/></filter>',
+    strokeFilter: 'crayon', fillFilter: 'crayon',
+  },
+  {
+    // Vegetius (research): late-Roman military-treatise manuscript — aged
+    // parchment, sepia/iron-gall ink, rubric-red emphasis, Roman capitals.
+    name: 'vegetius', label: 'Vegetius (manuscript)',
+    blurb: 'Roman military-treatise manuscript: aged parchment, iron-gall sepia ink, rubric-red, Roman caps.',
+    colors: { bg: '#e3d4b0', fg: '#2c1e10', line: '#3a2a18', accent: '#8b2e1f', muted: '#6b5a3e', surface: '#e3d4b0', border: '#3a2a18' },
+    font: 'Cinzel', fontFile: 'Cinzel.ttf',
+    stroke: 'jittered', roughness: 0.7, passes: 1, strokeWidth: 1.6, linecap: 'round',
+    fill: 'none', fillColor: '#8b2e1f', baseTone: 0, toneFromLuminance: false, keepHue: false, hachureAngle: -41,
+    backdrop: 'parchment', textTransform: 'uppercase', letterSpacing: 0.5,
   },
 ]
