@@ -106,7 +106,7 @@ Built-ins (in the prototype today across `engine.ts` + `rough-adapter.ts`):
 | Strategy | Variants | Engine |
 |---|---|---|
 | StrokeRenderer | `crisp`, `jittered` (damped-bow double stroke), `pencil` (overshoot + displacement), `brush` (tapered ribbon) | **rough.js** for `jittered`/`pencil` & arbitrary paths; native for `brush` |
-| FillStrategy | `none`, `hachure`, `crosshatch`, `stipple` (blue-noise), `halftone`, `wash` (glaze + edge-darkening), `scribble` | **rough.js** for `hachure`/`crosshatch`/`dots`; native for `stipple`/`halftone`/`wash`/`scribble` |
+| FillStrategy | `none`, `hachure`, `crosshatch`, `stipple` (blue-noise), `halftone`, `wash` (glaze + edge-darkening), `scribble`, `solid` (flat spot-colour, screenprint) | **rough.js** for `hachure`/`crosshatch`/`dots`; native for the rest |
 | Backdrop | `plain`, `paper-ruled`, `grid`, `slate`, `rice`, `washi` | native |
 | Compositor | palette + optional `blur`/`grain`/`glow`/`misregister` | native |
 
@@ -278,17 +278,18 @@ the threshold constants (`contrast.ts`, ~40 lines, zero deps). No ARIA, no
 conformance framework. (The renderer already injects `<title>/<desc>`/ARIA in
 `index.ts`; that stays as-is.) Three uses, all as a render-time guardrail:
 
-1. **Effective-background text check.** The background *under a label* isn't the
-   page — it's the page blended with the local fill marks. We estimate that
-   blended luminance (`fillCoverage(style)` → `mix(page, fillColor, coverage)`)
-   and pick a label ink that clears **4.5:1** (WCAG 1.4.3 AA; large text gets the
-   3:1 allowance, which our enlarged node labels already satisfy). `adjustToContrast`
-   nudges the ink toward black/white, preserving hue as far as possible.
-2. **Paint-order halo.** For any fill style, labels get a page-coloured
-   `paint-order:stroke` halo so glyphs separate from busy hachure/dots
-   regardless of what's behind them (verified under resvg). This is the
-   systematic version of the manual tone-capping that was needed for
-   halftone/stipple.
+1. **Knock text out to the page (halo), then contrast vs the page.** Every label
+   gets a page-coloured `paint-order:stroke` halo, so the glyph never sits
+   directly on a fill (solid spot colour, dense hachure, dots…) — the page shows
+   through behind it. The ink is then chosen to clear **4.5:1** against the
+   *page* (the surface the halo reveals), which makes one ink choice valid
+   regardless of what's painted behind. This sidesteps the impossible case where
+   a region's fill spans light *and* dark spot colours. `adjustToContrast` nudges
+   the ink toward black/white, preserving hue as far as possible. (Large text
+   gets the 3:1 allowance, which our enlarged labels already satisfy.)
+2. **Don't shade tiny regions.** Fills are skipped below `MIN_FILL_AREA`
+   (edge/transition-label boxes, micro-nodes) — an "indication"-style guard so
+   small labels stay on clean ground. Heavy fills are also tone-capped.
 3. **Non-text contrast.** Strokes/borders vs page are checked against **3:1**
    (WCAG 1.4.11); weak palettes can be auto-bumped. Exposed as opt-in so
    deliberately low-contrast styles (Tufte's faint rules) aren't overridden.
@@ -300,7 +301,7 @@ keep texture + labels.
 
 **Testable property.** `contrast-audit.ts` runs the two ratios for every style
 and exits non-zero on any failure, so readability gates CI like a golden test.
-Current status: all 13 styles PASS (text ≥4.5:1, non-text ≥3:1; Tufte's faint
+Current status: all 15 styles PASS (text ≥4.5:1, non-text ≥3:1; Tufte's faint
 rules exempted by design). In production the same check runs per
 style × diagram-role over the IR.
 

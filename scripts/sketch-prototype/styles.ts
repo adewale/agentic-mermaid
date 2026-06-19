@@ -11,7 +11,7 @@
 // ============================================================================
 
 export type StrokeKind = 'crisp' | 'jittered' | 'brush' | 'pencil'
-export type FillKind = 'none' | 'hachure' | 'crosshatch' | 'stipple' | 'halftone' | 'wash' | 'scribble'
+export type FillKind = 'none' | 'hachure' | 'crosshatch' | 'stipple' | 'halftone' | 'wash' | 'scribble' | 'solid'
 export type BackdropKind = 'paper-ruled' | 'plain' | 'rice' | 'washi' | 'grid' | 'slate'
 
 export interface Style {
@@ -40,9 +40,11 @@ export interface Style {
   backdrop: BackdropKind
   defs?: string
   strokeFilter?: string
+  fillFilter?: string     // distress filter applied to solid fills (screenprint)
   seal?: boolean
   misregister?: number    // riso: duplicate strokes offset in a 2nd colour
   misColor?: string
+  spotPalette?: string[]  // solid fill: pick a flat spot colour per region (seeded)
 }
 
 const BLUE = '#1f3a8a', BLACK = '#161616', SUMI = '#1c1c1c'
@@ -176,28 +178,29 @@ export const STYLES: Style[] = [
   // ---- requested styles ----
   {
     // ref: replicate.com/jakedahn/flux-latentpop — "vibrant backgrounds with
-    // grungy limited screenprinting color goodness". Bold ink, halftone shading,
-    // registration offset, distress texture on a vivid ground.
+    // grungy limited screenprinting color goodness". Flat limited spot-colour
+    // separations on a warm ground, heavy distress, registration offset.
     name: 'flux-latentpop', label: 'Flux LatentPop',
-    blurb: 'Grungy limited-palette screenprint: vivid ground, bold ink, halftone, registration offset.',
-    colors: { bg: '#e98a3c', fg: '#241c2b', line: '#241c2b', accent: '#16a39a', muted: '#5b4a52', surface: '#e98a3c', border: '#241c2b' },
-    font: 'DejaVu Sans', fontFile: '../../assets/fonts/DejaVuSans.ttf',
-    stroke: 'jittered', roughness: 1.1, passes: 2, strokeWidth: 3.2, linecap: 'round',
-    fill: 'halftone', fillColor: '#241c2b', baseTone: 0.3, toneFromLuminance: true, keepHue: false, hachureAngle: 15,
-    backdrop: 'rice', misregister: 2.6, misColor: '#16a39a',
-    defs: '<filter id="grunge" x="-10%" y="-10%" width="120%" height="120%"><feTurbulence type="fractalNoise" baseFrequency="0.012 0.018" numOctaves="3" result="n"/><feDisplacementMap in="SourceGraphic" in2="n" scale="2.6"/></filter>',
-    strokeFilter: 'grunge',
+    blurb: 'Limited-palette screenprint: flat spot-colour fills, worn grain, registration offset.',
+    colors: { bg: '#efe2c4', fg: '#241019', line: '#241019', accent: '#d1402e', muted: '#7c5c4a', surface: '#efe2c4', border: '#241019' },
+    font: 'DejaVu Sans', fontFile: '../../assets/fonts/DejaVuSans-Bold.ttf',
+    stroke: 'jittered', roughness: 0.9, passes: 1, strokeWidth: 3.0, linecap: 'round',
+    fill: 'solid', fillColor: '#2a7d8c', baseTone: 1, toneFromLuminance: false, keepHue: false, hachureAngle: 15,
+    spotPalette: ['#d1402e', '#2a7d8c', '#e4a93c', '#3f6c51'],
+    backdrop: 'rice', misregister: 2.4, misColor: '#d1402e',
+    defs: '<filter id="grunge" x="-12%" y="-12%" width="124%" height="124%"><feTurbulence type="fractalNoise" baseFrequency="0.014 0.02" numOctaves="3" seed="7" result="n"/><feDisplacementMap in="SourceGraphic" in2="n" scale="3.2"/></filter>',
+    strokeFilter: 'grunge', fillFilter: 'grunge',
   },
   {
-    // ref: makingsoftware.com (Dan Hollick) — warm cream, monotone near-black
-    // ink with a vivid blue accent (the squiggly blue line), serif + mono type,
-    // minimal/brutalist technical-illustration look.
+    // ref: makingsoftware.com (Dan Hollick) — WHITE ground, pure black ink,
+    // Arizona serif + Departure mono, vivid accents (signature blue #002ef4).
+    // Clean, precise technical illustration with a hand-drawn squiggle accent.
     name: 'making-software', label: 'Making Software',
-    blurb: 'Warm cream, near-black ink, vivid-blue accent edges, serif type. Minimal technical illustration.',
-    colors: { bg: '#f7f3ea', fg: '#1b1b1d', line: '#2b54ff', accent: '#2b54ff', muted: '#6b6b6b', surface: '#f7f3ea', border: '#1b1b1d' },
+    blurb: 'White ground, pure-black serif ink, vivid-blue (#002ef4) accent lines. Precise technical illustration.',
+    colors: { bg: '#ffffff', fg: '#000000', line: '#002ef4', accent: '#002ef4', muted: '#6b7280', surface: '#ffffff', border: '#000000' },
     font: 'EB Garamond', fontFile: 'EBGaramond.ttf',
-    stroke: 'jittered', roughness: 0.5, passes: 1, strokeWidth: 1.5, linecap: 'round',
-    fill: 'none', fillColor: '#2b54ff', baseTone: 0, toneFromLuminance: false, keepHue: false, hachureAngle: -41,
+    stroke: 'jittered', roughness: 0.32, passes: 1, strokeWidth: 1.6, linecap: 'round',
+    fill: 'none', fillColor: '#002ef4', baseTone: 0, toneFromLuminance: false, keepHue: false, hachureAngle: -41,
     backdrop: 'plain',
   },
 ]

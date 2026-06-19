@@ -39,7 +39,9 @@ const TYPE_OPT = {
 // big type = readable. Each diagram is rendered at ~cell pixel size (no
 // down-rezzing), so text stays crisp.
 const HEAD_COL = 250, HEAD_ROW = 110, CELL_W = 520, CELL_H = 400, PAD = 44, GAP = 8
-const COLS = DIAGRAMS.length, ROWS = STYLES.length
+// Making Software has its own dedicated poster (ms-poster.ts); exclude it here.
+const POSTER_STYLES = STYLES.filter(s => s.name !== 'making-software')
+const COLS = DIAGRAMS.length, ROWS = POSTER_STYLES.length
 const POSTER_W = HEAD_COL + COLS * CELL_W + PAD * 2
 const POSTER_H = HEAD_ROW + ROWS * CELL_H + PAD * 2 + 90
 
@@ -62,7 +64,7 @@ function build(): string {
     P.push(`<text x="${x + CELL_W / 2}" y="${oy + HEAD_ROW - 36}" text-anchor="middle" font-family="EB Garamond,serif" font-size="40" fill="#e8e8e2">${esc(d.type)}</text>`)
   })
 
-  STYLES.forEach((st, r) => {
+  POSTER_STYLES.forEach((st, r) => {
     const y = oy + HEAD_ROW + r * CELL_H
     // row header
     P.push(`<text x="${ox + 16}" y="${y + CELL_H / 2 - 10}" font-family="EB Garamond,serif" font-size="38" fill="#f5f5f0">${esc(st.label)}</text>`)

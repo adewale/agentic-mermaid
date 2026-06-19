@@ -14,26 +14,14 @@ import {
   stipple, halftone, watercolorWash, hachureLines,
 } from './engine.ts'
 import { roughPolyOutline, roughPolyFill, roughOpen, roughPathD } from './rough-adapter.ts'
-import { adjustToContrast, mix, WCAG } from './contrast.ts'
+import { area } from './engine.ts'
+import { adjustToContrast, WCAG } from './contrast.ts'
 import type { Style } from './styles.ts'
 
 const lerp = (a: number, b: number, t: number) => a + (b - a) * t
-
-// Representative fraction of a filled region covered by ink marks, per fill
-// kind — used to estimate the effective background luminance under a label.
-function fillCoverage(st: Style): number {
-  const t = st.baseTone
-  switch (st.fill) {
-    case 'none': return 0
-    case 'hachure': return Math.min(0.5, 0.2 + t * 0.6)
-    case 'crosshatch': return Math.min(0.6, 0.4 + t * 0.4)
-    case 'stipple': return Math.min(0.5, t * 0.7)
-    case 'halftone': return Math.min(0.6, t * 0.9)
-    case 'wash': return 0.25
-    case 'scribble': return Math.min(0.55, 0.3 + t * 0.4)
-    default: return 0
-  }
-}
+// Don't shade regions smaller than this — keeps edge/transition-label boxes and
+// tiny nodes clean so their text stays legible (an "indication"-style guard).
+const MIN_FILL_AREA = 2700
 
 const num = (s: string | undefined, d = 0) => (s == null ? d : parseFloat(s))
 const attr = (t: string, n: string): string | undefined => t.match(new RegExp(`\\b${n}="([^"]*)"`))?.[1]
@@ -123,6 +111,14 @@ function fillRegion(poly: Point[], fillSrc: string | undefined, st: Style, seed:
       return `<path d="${halftone(poly, Math.min(tone, 0.55), 8, st.hachureAngle)}" fill="${ink}" stroke="none"/>`
     case 'wash':
       return watercolorWash(poly, rng, ink, { opacity: st.name === 'watercolor' ? 0.26 : 0.12 + 0.5 * tone, edge: st.name === 'watercolor' ? 0.3 : 0.18 })
+    case 'solid': {
+      // flat spot-colour separation (screenprint). Pick a colour from the spot
+      // palette per region (seeded) for the limited-palette look.
+      const color = st.spotPalette?.length ? st.spotPalette[Math.abs(seed) % st.spotPalette.length]! : ink
+      const d = poly.map((p, i) => `${i ? 'L' : 'M'}${r3(p.x)},${r3(p.y)}`).join(' ') + ' Z'
+      const ff = st.fillFilter ? ` filter="url(#${st.fillFilter})"` : ''
+      return `<path d="${d}" fill="${color}" fill-opacity="0.95" stroke="none"${ff}/>`
+    }
     default: return ''
   }
 }
@@ -131,7 +127,8 @@ function fillRegion(poly: Point[], fillSrc: string | undefined, st: Style, seed:
 function closedShape(poly: Point[], stroke: string | undefined, fill: string | undefined, st: Style, seed: number): string {
   if (stroke === 'none' && (!fill || fill === 'none')) return ''
   const sc = stroke && stroke !== 'none' ? stroke : st.colors.line
-  return fillRegion(poly, fill, st, seed) + (stroke === 'none' ? '' : strokeClosed(poly, sc, st, seed))
+  const fillStr = area(poly) >= MIN_FILL_AREA ? fillRegion(poly, fill, st, seed) : ''
+  return fillStr + (stroke === 'none' ? '' : strokeClosed(poly, sc, st, seed))
 }
 
 export function restyle(svg: string, st: Style, opts: { backdrop?: boolean } = {}): string {
@@ -190,16 +187,13 @@ export function restyle(svg: string, st: Style, opts: { backdrop?: boolean } = {
   const parts = [head]
   if (st.defs) parts.push(`<defs>${st.defs}</defs>`)
 
-  // WCAG readability guardrail (see contrast.ts):
-  //  - effective background under a label = page blended with the fill marks
-  //  - pick a label ink that clears 4.5:1 against that effective background
-  //  - add a page-coloured paint-order halo so glyphs separate from busy fills
-  const cov = fillCoverage(st)
-  const effBg = cov > 0 ? mix(st.colors.bg, st.fillColor, cov) : st.colors.bg
-  const ink = adjustToContrast(st.colors.fg, effBg, WCAG.textAA)
-  const halo = st.fill !== 'none'
-    ? `paint-order:stroke;stroke:${st.colors.bg};stroke-width:2.4px;stroke-linejoin:round;`
-    : ''
+  // WCAG readability guardrail (see contrast.ts). Every label is knocked out to
+  // the PAGE colour with a paint-order halo, so it never sits directly on a fill
+  // (solid spot colour, dense hachure, dots…). The ink is then chosen to clear
+  // 4.5:1 against the page — the surface the halo actually reveals — which makes
+  // a single ink choice valid regardless of what's painted behind the glyph.
+  const ink = adjustToContrast(st.colors.fg, st.colors.bg, WCAG.textAA)
+  const halo = `paint-order:stroke;stroke:${st.colors.bg};stroke-width:3.4px;stroke-linejoin:round;`
   parts.push(`<style>text{font-family:'${st.font}',serif !important;fill:${ink} !important;${halo}} .edge-label-halo,.edge-label rect{fill:${st.colors.bg} !important;stroke:none !important;}</style>`)
   if (opts.backdrop !== false) parts.push(backdrop(st, w, h))
   parts.push(body, '</svg>')
