@@ -96,7 +96,7 @@ export function verifyMermaid(input: ValidDiagram | string, opts: VerifyOptions 
     ? [{ code: 'COMMENT_DROPPED', count: d.meta.droppedComments.length, lines: d.meta.droppedComments.map(c => c.line) }]
     : []
   const sourceWarnings = d.kind === 'flowchart' ? flowchartUnsupportedSyntaxWarnings(d.canonicalSource) : []
-  const faithfulnessWarnings = opts.roundtripFaithfulness === false ? [] : roundtripFaithfulnessWarnings(d)
+  const faithfulnessWarnings = roundtripFaithfulnessWarnings(d)
   const pluginWarnings = dedupedConcat(dedupedConcat(dedupedConcat(metaWarnings, dispatchFamilyVerify(d, opts)), sourceWarnings), faithfulnessWarnings)
 
   if (d.body.kind === 'sequence') return mergeFinalize(verifySequence(d as ValidDiagram & { body: SequenceBody }, cap, opts), pluginWarnings, opts)

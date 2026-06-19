@@ -19,7 +19,7 @@ import type {
   FlowchartMutationOp, StateMutationOp, SequenceMutationOp, TimelineMutationOp, ClassMutationOp, ErMutationOp, JourneyMutationOp, ArchitectureMutationOp, XyChartMutationOp, PieMutationOp, QuadrantMutationOp, GanttMutationOp, AnyMutationOp,
   MutationError, Result, MutableValidDiagram,
 } from '../agent/types.ts'
-import { WARNING_SEVERITY, WARNING_TIER, rankWarnings } from '../agent/types.ts'
+import { WARNING_SEVERITY, WARNING_TIER } from '../agent/types.ts'
 import { BUILTIN_FAMILY_METADATA, knownFamilies, getFamily } from '../agent/families.ts'
 import type { BuiltinFamilyId } from '../agent/families.ts'
 import '../agent/families-builtin.ts'
@@ -49,7 +49,7 @@ export interface ParsedArgs { command?: string; positional: string[]; flags: Rec
 export const FLAG_SPECS: Record<string, { arg?: string }> = {
   // booleans
   'agent-instructions': {}, 'ascii': {}, 'certificates': {}, 'help': {}, 'json': {},
-  'watch': {}, 'open': {}, 'force': {}, 'no-faithfulness-check': {}, 'canonical-wrapper': {},
+  'watch': {}, 'open': {}, 'force': {}, 'canonical-wrapper': {},
   // value flags (placeholder = what the usage shows after the flag)
   'suppress': { arg: 'CODES' }, 'label-cap': { arg: 'N' }, 'op': { arg: 'JSON' },
   'ops': { arg: 'JSON|file' }, 'output': { arg: 'FILE' }, 'format': { arg: 'fmt' },
@@ -120,7 +120,6 @@ Flags:
   --force                For init-agent: refresh generated skill/MCP files
   --suppress <CODES>     For verify: comma-separated WarningCodes to suppress
   --label-cap <N>        For verify: LABEL_OVERFLOW char cap (default 40)
-  --no-faithfulness-check For verify: skip the CONTENT_DROPPED_ON_ROUNDTRIP lint
   --certificates         For render --format json: include route/family certificates
   --agent-instructions   Print the canonical agent-use guide
   --help                 Show this message (or per-command help: am <cmd> --help)
@@ -145,9 +144,8 @@ Render a diagram. Default is SVG.
   --watch           Re-render one input file on change (non-PNG only)
 Multiple inputs emit a JSON results array for non-PNG formats.
 With --json, the svg/ascii/unicode forms wrap output as {"<format>": "..."}.`,
-  verify: `am verify <file|-> [--suppress A,B] [--label-cap N] [--no-faithfulness-check]
-Always emits JSON: {ok, warnings[], ranked[], layout}. --no-faithfulness-check
-skips the CONTENT_DROPPED_ON_ROUNDTRIP lint on bulk/preview verifies.
+  verify: `am verify <file|-> [--suppress A,B] [--label-cap N]
+Always emits JSON: {ok, warnings[], layout}.
 Tier-1 error codes flip ok=false:
 EMPTY_DIAGRAM, EDGE_MISANCHORED, OFF_CANVAS, GROUP_BREACH. Warnings:
 UNKNOWN_SHAPE, LABEL_OVERFLOW (char-cap), NODE_OVERLAP, ROUTE_SELF_CROSS, ROUTE_HITCH (+ other ROUTE_* route-contract tripwires),
@@ -398,15 +396,8 @@ function cmdVerify(args: ParsedArgs): number {
   const suppressRaw = typeof args.flags.suppress === 'string' ? args.flags.suppress : ''
   const suppress = suppressRaw ? (suppressRaw.split(',').map(s => s.trim()).filter(Boolean) as WarningCode[]) : undefined
   const labelCharCap = typeof args.flags['label-cap'] === 'string' ? parseInt(args.flags['label-cap'], 10) : undefined
-  // Move 6: skip the CONTENT_DROPPED_ON_ROUNDTRIP serialize+parse on a bulk/
-  // preview verify that is not a commit point.
-  const roundtripFaithfulness = args.flags['no-faithfulness-check'] ? false : undefined
-  const r = verifyMermaid(source, { suppress, labelCharCap, roundtripFaithfulness })
-  // Move 6: surface a severity-ranked view (Tier 1 structural → Tier 2 geometric
-  // → Tier 3 lint; errors before warnings) so the most-important issue is read
-  // first, instead of in detection order. `warnings` stays as-is for back-compat.
-  const envelope = { ...r, ranked: rankWarnings(r.warnings) }
-  process.stdout.write(JSON.stringify(envelope, replacer) + '\n')
+  const r = verifyMermaid(source, { suppress, labelCharCap })
+  process.stdout.write(JSON.stringify(r, replacer) + '\n')
   return r.ok ? EXIT_OK : EXIT_VERIFY_FAILED
 }
 
@@ -934,9 +925,7 @@ export function runBatchLine(rawLine: string, lineIndex = 0): BatchOutput {
         return { ok: true, op, data: asAscii ? { ascii: out } : { svg: out } }
       }
       case 'verify': {
-        // Move 6: batch callers may pass `roundtripFaithfulness: false` to skip
-        // the faithfulness lint on bulk verifies that are not commit points.
-        const options = parsed.options as { suppress?: WarningCode[]; labelCharCap?: number; roundtripFaithfulness?: boolean } | undefined
+        const options = parsed.options as { suppress?: WarningCode[]; labelCharCap?: number } | undefined
         const r = verifyMermaid(parsed.source, options ?? {})
         return { ok: true, op, data: JSON.parse(JSON.stringify(r, replacer)) }
       }

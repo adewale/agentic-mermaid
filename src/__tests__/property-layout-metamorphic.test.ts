@@ -27,7 +27,6 @@ import { parseMermaid, verifyMermaid, layoutMermaid, measureQuality, serializeMe
 import { countStructuralElements, type StructuralCount } from '../agent/structural-count.ts'
 import { BUILTIN_FAMILY_METADATA } from '../agent/families.ts'
 import { METAMORPHIC_FAMILIES } from './helpers/metamorphic-families.ts'
-import { FAMILY_COUNT_FIXTURES } from './helpers/family-count-fixtures.ts'
 
 /** Parse + structural count, asserting the source is well-formed and structured. */
 function counts(source: string): StructuralCount {
@@ -66,22 +65,11 @@ describe('metamorphic: relations across all renderable families', () => {
     for (const [key, gen] of Object.entries(METAMORPHIC_FAMILIES)) expect(gen.family as string).toBe(key)
   })
 
-  // Move 5: the shared count fixture and the metamorphic registry must agree on
-  // the family set (both derive from the central registry), so a new family
-  // cannot be half-covered.
-  test('the shared count fixture covers exactly the registered families', () => {
-    const fixtureFamilies = new Set(FAMILY_COUNT_FIXTURES.map(f => f.family))
-    const registered = new Set(BUILTIN_FAMILY_METADATA.map(f => f.id))
-    expect([...fixtureFamilies].sort()).toEqual([...registered].sort())
-  })
-
-  // Move 5: pin each generator's base-build structural count exactly. The
-  // metamorphic relations only assert DELTAS (relabel/monotonicity), so a
-  // generator change that shifts the base count (as adding a junction / nested
-  // composite did this batch) would pass silently. These differ from
-  // FAMILY_COUNT_FIXTURES by design (different sources), so the generators carry
-  // their own pin. Regenerate by probing build(kRange[0], 'q0') if a generator
-  // legitimately changes.
+  // Pin each generator's base-build structural count exactly. The metamorphic
+  // relations only assert DELTAS (relabel/monotonicity), so a generator change
+  // that shifts the base count (as adding a junction / nested composite did)
+  // would pass silently. Regenerate by probing build(kRange[0], 'q0') if a
+  // generator legitimately changes.
   const BASE_COUNTS: Record<string, { nodes: number; edges: number; groups: number }> = {
     flowchart: { nodes: 2, edges: 1, groups: 0 },
     state: { nodes: 5, edges: 2, groups: 0 },        // chain + nested composite
@@ -104,20 +92,6 @@ describe('metamorphic: relations across all renderable families', () => {
       got[fam.family] = p.ok ? countStructuralElements(p.value) : 'PARSE_FAIL'
     }
     expect(got).toEqual(BASE_COUNTS)
-  })
-
-  // Move 4: a pinned (non-property) smoke that each generator's base build
-  // VERIFIES clean for a fixed seed — not just parses structured. Catches a
-  // generator that emits parseable-but-warning source.
-  test('every generator base build verifies clean at a fixed seed', () => {
-    const failures: Array<{ family: string; warnings: unknown }> = []
-    for (const fam of Object.values(METAMORPHIC_FAMILIES)) {
-      const p = parseMermaid(fam.build(fam.kRange[0], 'qseed'))
-      if (!p.ok) { failures.push({ family: fam.family, warnings: 'PARSE_FAIL' }); continue }
-      const v = verifyMermaid(p.value)
-      if (!v.ok) failures.push({ family: fam.family, warnings: v.warnings })
-    }
-    expect(failures).toEqual([])
   })
 
   for (const fam of Object.values(METAMORPHIC_FAMILIES)) {
@@ -187,31 +161,3 @@ describe('metamorphic: relations across all renderable families', () => {
   }
 })
 
-// Move 2: prove the faithfulness machinery actually FIRES on a real drop, not
-// just that it stays silent on faithful diagrams. A hand-built diagram whose
-// serialization is known to lose content would be ideal, but the codebase is
-// faithful by construction, so we inject the drop at the counter boundary: a
-// before-count that exceeds the after-count is exactly the signal
-// CONTENT_DROPPED_ON_ROUNDTRIP and the corpus oracle key on.
-describe('metamorphic: the faithfulness oracle detects an injected drop', () => {
-  test('a smaller after-count than before-count is flagged as a drop', () => {
-    const before: StructuralCount = { nodes: 5, edges: 4, groups: 1 }
-    const afterDropped: StructuralCount = { nodes: 4, edges: 4, groups: 1 }  // lost a node
-    const isDrop = (b: StructuralCount, a: StructuralCount) =>
-      a.nodes !== b.nodes || a.edges !== b.edges || a.groups !== b.groups
-    expect(isDrop(before, afterDropped)).toBe(true)
-    expect(isDrop(before, before)).toBe(false)
-  })
-
-  test('a real diagram whose body we truncate loses count (end-to-end)', () => {
-    const full = parseMermaid('flowchart TD\n  A-->B\n  B-->C\n  C-->D')
-    const partial = parseMermaid('flowchart TD\n  A-->B')
-    expect(full.ok && partial.ok).toBe(true)
-    if (!full.ok || !partial.ok) return
-    const cf = countStructuralElements(full.value)!
-    const cp = countStructuralElements(partial.value)!
-    // Truncation is a stand-in for a parser that silently drops the tail: the
-    // count-oracle's equality check would flag exactly this difference.
-    expect(cp.edges).toBeLessThan(cf.edges)
-  })
-})

@@ -226,22 +226,21 @@ threads a golden anchor (reference-guided scoring).
 metric-derived, so they cannot independently validate those metrics — only a
 real judge run can.
 
-## What runs where (proof-gate map)
+## What runs where
 
-| Gate | Per-PR (`ci.yml`) | Nightly | Manual / periodic |
-|---|---|---|---|
-| Tier-1 verify, contract/schema, doc-sync | ✅ | | |
-| ASCII/SVG goldens + snapshot sentinel | ✅ (sentinel = warning) | | |
-| mermaid-docs corpus + faithfulness count-oracle, MermaidSeqBench, upstream-suite ratchet | ✅ | | |
-| Round-trip + determinism + layout/faithfulness metamorphic relations | ✅ | | |
-| `measureQuality`/`checkQuality`, ugly-detector, layout rubric, heuristic-tracker ratchet | ✅ | | |
-| Browser/screenshot e2e, CLI/security e2e, single-binary e2e | ✅ (`e2e` job) | | |
-| Type check, README hero check | ✅ | | |
-| Mutation: incremental lane (structural-count core) | ✅ (`mutation-incremental` job) | | |
-| Mutation: broad route/ascii lanes + sabotage | | ✅ | on touch |
-| layout-compare before/after | | | ✅ |
-| Benchmark (timing/size vs competitors) | harness only | | ✅ |
-| LLM-as-judge (real model) | mock only (faithfulness axis independent) | | ✅ |
+`ci.yml` is the source of truth for what gates each PR — read it rather than a
+table here, which would drift. In broad strokes:
+
+- **Per-PR (`ci.yml`):** the unit/property suite (`bun test src/__tests__/`) —
+  Tier-1 verify, goldens, the differential + faithfulness + metamorphic gates,
+  `measureQuality`/ugly-detector/layout-rubric, the heuristic-tracker ratchet,
+  the corpus/seqbench/upstream benches — plus type check, the hero check, the
+  golden-drift gate, the browser/CLI/binary e2e job, and the fast incremental
+  mutation lane.
+- **Nightly (`nightly-route-mutation.yml`):** the broad Stryker route/ascii
+  lanes and the sabotage suite.
+- **Manual / periodic:** `layout-compare` before/after, the benchmark vs
+  competitors, and the real LLM-as-judge run.
 
 ## Why the suite is shaped this way
 

@@ -21,15 +21,6 @@ export function parseFlagsBlock(usage: string): FlagDoc[] {
   return out
 }
 
-/** Parse `[--flag]` / `[--flag VAL]` brackets out of a one-line usage string. */
-export function parseUsageFlags(usageLine: string): FlagDoc[] {
-  const out: FlagDoc[] = []
-  for (const m of usageLine.matchAll(/\[--([A-Za-z][\w-]*)([^\]]*)\]/g)) {
-    out.push({ name: m[1]!, takesArg: m[2]!.trim().length > 0 })
-  }
-  return out
-}
-
 /**
  * Flag names read from CLI source in an unambiguously BOOLEAN context
  * (`flags.x ?`, `flags['x'] ?`, `=== true`, `Boolean(flags.x)`, `if (flags.x)`).

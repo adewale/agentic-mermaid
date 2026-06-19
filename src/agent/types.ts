@@ -873,41 +873,11 @@ export const WARNING_TIER: Record<WarningCode, WarningTier> = {
   CONTENT_DROPPED_ON_ROUNDTRIP: 'lint',
 }
 
-/**
- * A warning annotated with its tier + severity, for consumers that want to
- * present the most-important issue first. The project's established importance
- * order IS the tier system (Tier 1 structural > Tier 2 geometric > Tier 3 lint),
- * mirroring the evidence-based severity ranking used for layout-rubric/
- * ugly-detector output; within a tier, errors precede warnings.
- */
-export interface RankedWarning {
-  code: WarningCode
-  tier: WarningTier
-  severity: WarningSeverity
-  warning: LayoutWarning
-}
-
-const TIER_ORDER: Record<WarningTier, number> = { structural: 0, geometric: 1, lint: 2 }
-const SEVERITY_ORDER: Record<WarningSeverity, number> = { error: 0, warning: 1 }
-
-export function rankWarnings(warnings: LayoutWarning[]): RankedWarning[] {
-  return warnings
-    .map(w => ({ code: w.code, tier: WARNING_TIER[w.code], severity: WARNING_SEVERITY[w.code], warning: w }))
-    .sort((a, b) => (TIER_ORDER[a.tier] - TIER_ORDER[b.tier]) || (SEVERITY_ORDER[a.severity] - SEVERITY_ORDER[b.severity]))
-}
-
 export const DEFAULT_LABEL_CHAR_CAP = 40
 
 export interface VerifyOptions {
   suppress?: WarningCode[]
   labelCharCap?: number
-  /**
-   * Run the CONTENT_DROPPED_ON_ROUNDTRIP faithfulness lint (parse → serialize →
-   * re-parse count check). On by default. Set false on hot paths (batch/render
-   * loops) where the extra serialize+parse per verify is not worth it — the
-   * corpus/seqbench/upstream gates still cover faithfulness in CI.
-   */
-  roundtripFaithfulness?: boolean
 }
 
 export type RenderedRegionKind = 'node' | 'edge' | 'label' | 'group' | 'canvas'

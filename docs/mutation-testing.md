@@ -142,15 +142,15 @@ a graph that needs three chained rounds would be a synthetic-input test.
 
 ## Incremental per-PR lane (`stryker.incremental.config.json`)
 
-A fast lane gates the small, pure faithfulness/ranking core on every PR (the
+A fast lane gates the small, pure faithfulness counter on every PR (the
 `mutation-incremental` CI job), separate from the broad nightly lanes. It
-mutates `src/agent/structural-count.ts` (the counter + `faithfulnessWarning`)
-and the `rankWarnings` range of `src/agent/types.ts`, run by the sub-second
-`structural-count.test.ts` + `rank-warnings.test.ts` unit runner. CI passes
-`--since <base>` so only files a PR actually changes are mutated.
+mutates `src/agent/structural-count.ts` (the counter + `faithfulnessWarning` +
+`isDrop`), run by the sub-second `structural-count.test.ts` unit runner. A full
+run is ~1 min, so it runs in full each PR.
 
-Baseline (June 2026): **96.46% (109/113 killed), break threshold 90.** The four
-survivors are all equivalent mutants and are accepted, not chased:
+Score is ~96% (regenerate to confirm; the report lands in `reports/mutation/`),
+gated by `thresholds.break: 90`. The few survivors are all equivalent mutants,
+accepted not chased:
 
 - `structural-count.ts:96` (`case 'opaque': return null`) — two mutants
   (the case label + its string). Equivalent: an opaque body returns `null`, and
@@ -161,13 +161,10 @@ survivors are all equivalent mutants and are accepted, not chased:
   families are handled explicitly and the `const _never: never = body` assigns
   compile-time exhaustiveness, so the branch never executes at runtime.
 
-What earlier batches of survivors taught us (now killed, kept as regression
-fixtures): the recursive `edges += inner.edges` state accumulation needed a
-*doubly-nested* composite-state fixture; `nodes = services + junctions` needed
-an architecture fixture that actually contains a junction; and the sort
-comparator `tierDiff || severityDiff` needed a **scrambled** input (neither
-sorted nor reverse-sorted) so a constant-comparator mutant — always-0 keeps the
-input order, always-1 reverses it — is wrong either way.
+What earlier survivors taught us (now killed, kept as regression fixtures): the
+recursive `edges += inner.edges` state accumulation needed a *doubly-nested*
+composite-state fixture, and `nodes = services + junctions` needed an
+architecture fixture that actually contains a junction.
 
 ### Why `verify.ts`'s faithfulness wrapper is NOT in the gated mutate set
 
