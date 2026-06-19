@@ -23,7 +23,8 @@ export type {
   ClassMutationOp, ErMutationOp, JourneyMutationOp, ArchitectureMutationOp, XyChartMutationOp, PieMutationOp, QuadrantMutationOp, GanttMutationOp, AnyMutationOp,
   NodeId, EdgeId, GroupId, ParticipantId,
   LayoutWarning, WarningCode, Tier1WarningCode, Tier2WarningCode, WarningSeverity, WarningTier,
-  VerifyOptions, VerifyResult, RenderedLayout, RenderedLayoutNode, RenderedLayoutEdge, RenderedLayoutGroup,
+  VerifyOptions, VerifyResult, RenderedLayout, RenderedLayoutNode, RenderedLayoutEdge, RenderedLayoutGroup, RenderedRegion, RenderedRegionKind,
+  DiagramAnalysis, DiagramActionRecord, DiagramActionKind, DiagramActionSecurity, FeedbackEdgeAnalysis, GanttScheduleAnalysisSummary,
   Finite,
 } from './types.ts'
 
@@ -34,13 +35,17 @@ export { mutate, edgeIdOf } from './mutate.ts'
 export { verifyMermaid } from './verify.ts'
 export { measureQuality, checkQuality, DEFAULT_BOUNDS } from './quality.ts'
 export type { QualityMetrics, QualityBounds, QualityVerdict } from './quality.ts'
+export type { RouteCertificate, FamilyRouteCertificate, LayoutRouteCertificate, LayoutRouteClass, RouteClass, RouteBlocker, RoutePortAssignment, PortSemanticRole, AnyPort, PortSide, DiamondFacet } from '../types.ts'
 export { registerFamily, getFamily, knownFamilies, BUILTIN_FAMILY_METADATA, BUILTIN_FAMILY_METADATA_COVERS_DIAGRAM_KIND, builtinFamilyMetadata } from './families.ts'
 export type { FamilyPlugin, ExtractedLabel, BuiltinFamilyMetadata, BuiltinFamilyId } from './families.ts'
 export { renderMermaidPNG } from './png.ts'
 export type { PngOptions } from './png.ts'
-export { renderMermaidASCIIWithMeta } from '../ascii/meta.ts'
-export type { AsciiRegion, AsciiWithMeta, RegionKind } from '../ascii/meta.ts'
+export { renderMermaidASCIIWithMeta, ASCII_ROUTE_PARITY_CONTRACT } from '../ascii/meta.ts'
+export type { AsciiRegion, AsciiWithMeta, RegionKind, AsciiWarning, AsciiWarningCode } from '../ascii/meta.ts'
 export { describeMermaid, describeMermaidSource, describeMermaidTree } from './describe.ts'
+export { analyzeMermaid, analyzeMermaidSource, collectActionRecords } from './analyze.ts'
+export { TEXT_MEASUREMENT_CONTRACT, measureText, measureTextWidth } from '../text-metrics.ts'
+export type { TextMeasurementContract, TextMeasurementInput, TextMeasurementResult } from '../text-metrics.ts'
 export type { DescribeTree } from './describe.ts'
 export type { DescribeOptions } from './describe.ts'
 export { asciiToMermaid } from '../ascii/reverse.ts'
@@ -52,9 +57,11 @@ import { layoutGraphSync } from '../layout-engine.ts'
 import { parseMermaid as parseFlowchartLegacy } from '../parser.ts'
 import { stateBodyToGraph } from './state-body.ts'
 import { serializeMermaid as _serialize } from './serialize.ts'
-import type { ValidDiagram, RenderedLayout } from './types.ts'
+import type { ValidDiagram, RenderedLayout, RenderedRegion } from './types.ts'
 import { positionedToRenderedLayout, emptyRenderedLayout } from './layout-to-rendered.ts'
 import { layoutFamilyToRendered } from './family-layouts.ts'
+import { collectActionRecords as collectRenderedActionRecords } from './analyze.ts'
+import { toFinite } from './types.ts'
 
 export function renderMermaidSVG(input: ValidDiagram | string, opts: Parameters<typeof _svg>[1] = {}): string {
   return _svg(typeof input === 'string' ? input : _serialize(input), opts)
@@ -63,100 +70,122 @@ export function renderMermaidASCII(input: ValidDiagram | string, opts: Parameter
   return _ascii(typeof input === 'string' ? input : _serialize(input), opts)
 }
 
-export function layoutMermaid(d: ValidDiagram, opts: { debug?: boolean } = {}): RenderedLayout {
+export interface LayoutMermaidOptions { debug?: boolean; regions?: boolean; actions?: boolean }
+
+export function layoutMermaid(d: ValidDiagram, opts: LayoutMermaidOptions = {}): RenderedLayout {
   if (d.body.kind === 'flowchart') {
-    return positionedToRenderedLayout(layoutGraphSync(d.body.graph, {}), d.kind, opts)
+    return enrichRenderedLayout(d, positionedToRenderedLayout(layoutGraphSync(d.body.graph, {}), d.kind, opts), opts)
   }
   // State diagrams (BUILD-19) project to a MermaidGraph via the legacy parser,
   // so layout reuses the flowchart geometric path.
   if (d.body.kind === 'state') {
-    return positionedToRenderedLayout(layoutGraphSync(stateBodyToGraph(d.body), {}), d.kind, opts)
+    return enrichRenderedLayout(d, positionedToRenderedLayout(layoutGraphSync(stateBodyToGraph(d.body), {}), d.kind, opts), opts)
   }
   if (d.body.kind === 'opaque' && d.kind === 'flowchart') {
     try {
-      return positionedToRenderedLayout(layoutGraphSync(parseFlowchartLegacy(d.canonicalSource), {}), d.kind, opts)
+      return enrichRenderedLayout(d, positionedToRenderedLayout(layoutGraphSync(parseFlowchartLegacy(d.canonicalSource), {}), d.kind, opts), opts)
     } catch {
       return emptyRenderedLayout(d.kind)
     }
   }
-  if (d.body.kind === 'sequence') return layoutSequenceToRendered(d as ValidDiagram & { body: SequenceBody })
-  if (d.body.kind === 'timeline') return layoutTimelineToRendered(d as ValidDiagram & { body: TimelineBody })
-  // QUAL-1: class/er/journey/architecture/xychart/pie/quadrant project their
-  // real positioned layout (parsed from d.canonicalSource — works for both
-  // structured and opaque bodies) so the perceptual-quality metrics see them.
-  const familyLayout = layoutFamilyToRendered(d)
-  if (familyLayout) return familyLayout
-  return emptyRenderedLayout(d.kind)
+  // QUAL-1: renderable non-graph families project their real positioned
+  // layout (parsed from d.canonicalSource — works for both structured and
+  // opaque bodies) so the perceptual-quality metrics see them. Debug mode
+  // includes family-specific route/layout certificates where available.
+  const familyLayout = layoutFamilyToRendered(d, opts)
+  if (familyLayout) return enrichRenderedLayout(d, familyLayout, opts)
+  return enrichRenderedLayout(d, emptyRenderedLayout(d.kind), opts)
 }
 
-// ---- Sequence + Timeline → RenderedLayout adapters ------------------------
-//
-// Phase D — expose real geometric layouts for non-flowchart families so the
-// perceptual-quality checks from Phase F apply uniformly. NODE_OVERLAP and
-// ROUTE_SELF_CROSS (Tier 2) remain flowchart-specific by design — those
-// concepts don't generalize. For sequence/timeline, geometric concerns are
-// covered by the perceptual metrics (label legibility, whitespace balance,
-// edge crossings) acting on the layouts these adapters produce.
-
-import { layoutSequenceDiagram } from '../sequence/layout.ts'
-import { layoutTimelineDiagram } from '../timeline/layout.ts'
-import type { TimelineBody, SequenceBody, Finite } from './types.ts'
-import { toFinite } from './types.ts'
-
-function f(n: number): Finite { return toFinite(Math.round(n)) }
-
-function layoutSequenceToRendered(d: ValidDiagram & { body: SequenceBody }): RenderedLayout {
-  const positioned = layoutSequenceDiagram({
-    actors: d.body.participants.map(p => ({ id: p.id, label: p.label, type: p.kind })),
-    messages: d.body.messages.map(m => ({
-      from: m.from, to: m.to, label: m.text,
-      style: m.style === 'reply' ? 'reply' : m.style === 'sync' ? 'sync' : 'async',
-    })),
-    blocks: [], notes: [], activations: [],
-  } as unknown as Parameters<typeof layoutSequenceDiagram>[0])
-  return {
-    version: 1, kind: d.kind,
-    nodes: positioned.actors.map(a => ({
-      id: a.id, x: f(a.x - a.width / 2), y: f(a.y), w: f(a.width), h: f(a.height),
-      shape: 'rectangle', label: a.label,
-    })),
-    edges: positioned.messages.map((m, i) => ({
-      id: `msg#${i}:${m.from}->${m.to}`, from: m.from, to: m.to,
-      path: [[f(m.x1), f(m.y)], [f(m.x2), f(m.y)]] as [Finite, Finite][],
-      label: m.label ? { x: f((m.x1 + m.x2) / 2), y: f(m.y), text: m.label } : undefined,
-    })),
-    groups: [],
-    bounds: { w: f(positioned.width), h: f(positioned.height) },
+function enrichRenderedLayout(d: ValidDiagram, layout: RenderedLayout, opts: LayoutMermaidOptions): RenderedLayout {
+  const wantRegions = opts.debug || opts.regions
+  const wantActions = opts.debug || opts.actions
+  if (!wantRegions && !wantActions) return layout
+  const next: RenderedLayout = { ...layout }
+  if (wantRegions) next.regions = buildRenderedRegions(d, layout)
+  if (wantActions) {
+    const nodeIds = new Set<string>(layout.nodes.map(n => n.id))
+    next.actions = collectRenderedActionRecords(d)
+      .filter(a => nodeIds.has(a.target))
+      .map(a => ({ ...a, regionId: a.regionId ?? `node:${a.target}` }))
   }
+  return next
 }
 
-function layoutTimelineToRendered(d: ValidDiagram & { body: TimelineBody }): RenderedLayout {
-  // The legacy timeline layout consumes a different parsed shape; rather than
-  // shimming, build a synthetic positioned layout: one node per event,
-  // arranged left-to-right by section then period, top-down by event index.
-  const NODE_W = 120, NODE_H = 40, PAD = 16, ROW_H = NODE_H + PAD
-  const nodes: RenderedLayout['nodes'] = []
-  let col = 0
-  for (const s of d.body.sections) {
-    for (const p of s.periods) {
-      let row = 0
-      // period label node
-      nodes.push({
-        id: `${p.id}:label`, x: f(col * (NODE_W + PAD) + PAD), y: f(PAD),
-        w: f(NODE_W), h: f(NODE_H), shape: 'rectangle', label: p.label,
+function buildRenderedRegions(d: ValidDiagram, layout: RenderedLayout): RenderedRegion[] {
+  const regions: RenderedRegion[] = [{
+    id: 'canvas',
+    kind: 'canvas',
+    bounds: { x: toFinite(0), y: toFinite(0), w: layout.bounds.w, h: layout.bounds.h },
+  }]
+  const groupByMember = new Map<string, string>()
+  for (const group of layout.groups) for (const member of group.members) groupByMember.set(member, group.id)
+  const sourceLines = sourceLineHints(d)
+  for (const group of layout.groups) {
+    regions.push({
+      id: `group:${group.id}`,
+      kind: 'group',
+      elementId: group.id,
+      parentId: group.parentId ? `group:${group.parentId}` : 'canvas',
+      bounds: { x: group.x, y: group.y, w: group.w, h: group.h },
+      sourceLine: d.source.groups.get(group.id)?.line ?? sourceLines.groups.get(group.id),
+    })
+  }
+  for (const node of layout.nodes) {
+    regions.push({
+      id: `node:${node.id}`,
+      kind: 'node',
+      elementId: node.id,
+      parentId: groupByMember.has(node.id) ? `group:${groupByMember.get(node.id)!}` : 'canvas',
+      bounds: { x: node.x, y: node.y, w: node.w, h: node.h },
+      sourceLine: d.source.nodes.get(node.id)?.line ?? sourceLines.nodes.get(node.id),
+    })
+  }
+  for (const edge of layout.edges) {
+    const xs = edge.path.map(p => p[0])
+    const ys = edge.path.map(p => p[1])
+    if (xs.length > 0 && ys.length > 0) {
+      const minX = Math.min(...xs), maxX = Math.max(...xs), minY = Math.min(...ys), maxY = Math.max(...ys)
+      regions.push({
+        id: `edge:${edge.id}`,
+        kind: 'edge',
+        elementId: edge.id,
+        parentId: 'canvas',
+        bounds: { x: toFinite(minX), y: toFinite(minY), w: toFinite(Math.max(1, maxX - minX)), h: toFinite(Math.max(1, maxY - minY)) },
       })
-      row++
-      for (const e of p.events) {
-        nodes.push({
-          id: e.id, x: f(col * (NODE_W + PAD) + PAD), y: f(PAD + row * ROW_H),
-          w: f(NODE_W), h: f(NODE_H), shape: 'rectangle', label: e.text,
-        })
-        row++
-      }
-      col++
+    }
+    if (edge.label) {
+      const w = Math.max(1, edge.label.text.length * 7)
+      const h = 14
+      const labelX = d.kind === 'sequence' && edge.from === edge.to
+        ? edge.label.x // sequence self-message labels render with text-anchor="start"
+        : edge.label.x - w / 2
+      regions.push({
+        id: `label:${edge.id}`,
+        kind: 'label',
+        elementId: edge.id,
+        parentId: `edge:${edge.id}`,
+        bounds: { x: toFinite(labelX), y: toFinite(edge.label.y - h / 2), w: toFinite(w), h: toFinite(h) },
+      })
     }
   }
-  const w = Math.max(NODE_W + PAD * 2, col * (NODE_W + PAD) + PAD)
-  const h = nodes.reduce((m, n) => Math.max(m, n.y + n.h + PAD), PAD)
-  return { version: 1, kind: d.kind, nodes, edges: [], groups: [], bounds: { w: f(w), h: f(h) } }
+  return regions
+}
+
+function sourceLineHints(d: ValidDiagram): { nodes: Map<string, number>; groups: Map<string, number> } {
+  const nodes = new Map<string, number>()
+  const groups = new Map<string, number>()
+  const source = d.body.kind === 'opaque' ? d.body.source : d.canonicalSource
+  const lines = source.split(/\r?\n/)
+  for (let i = 0; i < lines.length; i++) {
+    const text = lines[i]!
+    const group = text.match(/^\s*subgraph\s+([A-Za-z0-9_:-]+)/)
+    if (group?.[1] && !groups.has(group[1])) groups.set(group[1], i + 1)
+    for (const node of text.matchAll(/(?:^|[\s&;])([A-Za-z][A-Za-z0-9_:-]*)(?=\s*(?:\[|\(|\{|--|==|-.|$))/g)) {
+      const id = node[1]!
+      if (id === 'subgraph' || id === 'end' || id === d.kind) continue
+      if (!nodes.has(id)) nodes.set(id, i + 1)
+    }
+  }
+  return { nodes, groups }
 }

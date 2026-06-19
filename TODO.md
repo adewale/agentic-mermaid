@@ -85,21 +85,26 @@ dependents after. IDs are stable names, not an ordering.
   - [ ] mindmap, gitgraph: still to implement. Order the remaining
     two by the real README corpus run (network required) per the evidence
     step above — `eval/family-usage/RESULTS.md` does not assert that ordering.
-- [ ] **BUILD-20 — Upstream test-suite harvests for every family.** Apply
+- [x] **BUILD-20 — Upstream test-suite harvests for every current renderable family.** Apply
   [docs/contributing/harvesting-upstream-tests.md](./docs/contributing/harvesting-upstream-tests.md)
   (the method piloted by `eval/mermaid-gantt-bench/`, which found one real
   compat bug, one semantic boundary divergence, and the verify/render seam
-  that became `UNRESOLVABLE_SCHEDULE`) to the remaining families. Vendor
-  mermaid's `parser/<family>.spec.js` + `<family>Db.spec.ts` (+ ASCII-fork
-  inputs, licenses permitting) into `eval/mermaid-<family>-bench/` with an
-  executable exclusions ledger and a CI runner test.
-  - [ ] flowchart, state (largest upstream suites; route-contracts work may
-    want their routing fixtures too)
-  - [ ] class, ER, pie, quadrant, timeline, journey, xychart, architecture
-  - [ ] sequence: fold the existing MermaidSeqBench gate into the same
-    cases/exclusions/README shape so all benches read alike
-  - [ ] mindmap, gitgraph: harvest BEFORE implementing (BUILD-5) — the specs
-    should be written against upstream's real test semantics, not just docs
+  that became `UNRESOLVABLE_SCHEDULE`) to the remaining current families. The
+  [`eval/mermaid-upstream-suite-bench/`](./eval/mermaid-upstream-suite-bench/)
+  bench now pins upstream Mermaid at `a2d9686451df7c4644a3eeca20535bbd4c5776b0`,
+  provides `bun run harvest:upstream` and `bun run harvest:upstream:refresh-check`,
+  records a family-by-family manifest for all 1,170 considered parser/DB
+  blocks, imports 488 source blocks, accounts for 682 exclusions, and leaves
+  0 deferred blocks. The executable gate covers 483 cases including the
+  68-case Gantt companion bench. Local compatibility exclusions carry BUILD-20
+  tracking metadata, exact case assertions are enforced, and `ratchet.json`
+  prevents imported coverage from falling or local-gap budgets from growing.
+  - [x] flowchart, state, sequence, class, ER, timeline, journey,
+    architecture, xychart, pie, quadrant, and gantt all have checked
+    cases/exclusions/manifest accounting.
+  - [ ] mindmap, gitgraph: harvest BEFORE implementing (BUILD-5) — these are
+    future families, so they are outside the current renderable-family BUILD-20
+    closure.
 - [x] **BUILD-22 — Diagram-family citizenship gap backfill** (`done`). The
   checked matrix in
   [`docs/contributing/diagram-family-citizenship.matrix.json`](./docs/contributing/diagram-family-citizenship.matrix.json)
@@ -119,8 +124,8 @@ dependents after. IDs are stable names, not an ordering.
     `mutation-test:<family>` scripts). Flowchart/link routing,
     xychart/architecture, and Gantt keep their existing focused lanes.
   - [x] Executable docs-corpus divergence ledger exists for current known
-    non-Gantt Mermaid-docs divergences; full upstream parser/DB suite harvests
-    remain the deeper BUILD-20 workstream.
+    non-Gantt Mermaid-docs divergences; the cross-family parser/DB bench now
+    accounts for every current renderable-family BUILD-20 upstream block.
   - [x] Generated-site/sample family coverage is tied to
     `BUILTIN_FAMILY_METADATA` by the existing property generator tests,
     including explicit gallery affordance/prefix checks for Pie, Quadrant, and
@@ -330,23 +335,18 @@ dependents after. IDs are stable names, not an ordering.
   synced across types/capabilities/llms.txt/SDK declaration/agent guides.
   The 2A destination (segment-preserving comment retention) is tracked under
   the BUILD-18 follow-up below.
-- [ ] **BUILD-20 — `@{ ... }` node metadata: stop silent loss and phantom
-  nodes** (`todo`). Issue
+- [x] **BUILD-23 — `@{ ... }` node metadata safety floor** (`done`). Issue
   <https://github.com/adewale/beautiful-mermaid/issues/29>. Mermaid v11.3+
-  typed-shape syntax (`A@{ shape: manual-input, label: "..." }`) is not
-  tokenized: inline use drops the edge and target node, standalone lines are
-  erased, and the multiline form fabricates phantom nodes from the metadata
-  keys (`shape[shape]`, `label[label]`) — all with `verify.ok: true` and a
-  lossy `serializeMermaid`. Violates the no-silent-loss and round-trip
-  guarantees. Fix per the preservation ladder: tokenize `@{ ... }` (single
-  and multiline) as one unit, then either error loudly or preserve
-  source-opaque and render the node with its `label` as a rectangle; never
-  fabricate nodes. Round-trip property tests + goldens for all three repro
-  shapes; corpus diff via BUILD-13 harness. Modeled support for the v11
-  shape vocabulary (ISO 5807/ANSI X3.5 symbols mapped onto `NodeShape`) is a
-  separate follow-up. Prerequisite for BUILD-1, which needs the same
-  tokenization for `@{ view: collapsed }`.
-- [ ] **BUILD-1 — Collapsible subgraphs (#7785)** (`todo`, after BUILD-20). Track Mermaid PR
+  typed-shape syntax no longer silently drops edges/targets or fabricates
+  phantom metadata-key nodes in the covered repros: parser/tokenization keeps
+  metadata attached to the intended node or preserves unsupported forms
+  opaquely; `src/__tests__/flowchart-metadata.test.ts` pins inline,
+  standalone, and multiline safety cases plus round-trip behavior. Modeled
+  support for the full v11 typed-shape vocabulary (ISO 5807/ANSI X3.5 symbols
+  mapped onto `NodeShape`) remains separate (#44). BUILD-1 still needs
+  compatible `@{ view: collapsed }` semantics, but no longer starts from a
+  silent-loss parser floor.
+- [ ] **BUILD-1 — Collapsible subgraphs (#7785)** (`todo`, after BUILD-23 metadata safety floor; independent of BUILD-20 harvest). Track Mermaid PR
   <https://github.com/mermaid-js/mermaid/pull/7785> (`@{ view: collapsed }`
   metadata syntax) and stay syntax-compatible. Large, but a real readability
   win for agent-generated architecture diagrams; pairs naturally with typed

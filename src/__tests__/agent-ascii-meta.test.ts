@@ -2,7 +2,7 @@
 // node ids and whose column ranges line up with the rendered characters.
 
 import { describe, test, expect } from 'bun:test'
-import { renderMermaidASCIIWithMeta } from '../ascii/meta.ts'
+import { ASCII_ROUTE_PARITY_CONTRACT, renderMermaidASCIIWithMeta } from '../ascii/meta.ts'
 
 describe('renderMermaidASCIIWithMeta', () => {
   test('flowchart: every node id appears in regions', () => {
@@ -115,6 +115,13 @@ describe('renderMermaidASCIIWithMeta', () => {
       }
     })
   }
+
+  test('route parity contract is explicit and edge-region gaps are structured warnings', () => {
+    const result = renderMermaidASCIIWithMeta('flowchart LR\n  A --> B\n')
+    expect(result.routeParity).toBe(ASCII_ROUTE_PARITY_CONTRACT)
+    expect(result.routeParity.routeIntent).toBe('shared-route-classes')
+    expect(result.warnings).toContainEqual(expect.objectContaining({ code: 'ASCII_EDGE_REGION_UNMAPPED', severity: 'degraded' }))
+  })
 
   test('stable: same input → same regions (deterministic)', () => {
     const src = 'flowchart TD\n  A --> B\n  B --> C\n'

@@ -1,12 +1,12 @@
 /**
- * Render PR #30 before/after evidence by comparing a base worktree against
+ * Render PR #54 before/after evidence by comparing a base worktree against
  * the current branch. The base worktree must have dependencies available
  * (the simplest local setup is a node_modules symlink to this checkout):
  *
- *   git worktree add --detach /tmp/bm-main-pr30 origin/main
- *   ln -s "$PWD/node_modules" /tmp/bm-main-pr30/node_modules
+ *   git worktree add --detach /tmp/bm-main-pr54 origin/main
+ *   ln -s "$PWD/node_modules" /tmp/bm-main-pr54/node_modules
  *   bun run eval/visual-rubric/before-after.ts \
- *     --base-dir /tmp/bm-main-pr30 \
+ *     --base-dir /tmp/bm-main-pr54 \
  *     --out docs/pr-assets/before-after.png
  */
 import { Resvg } from '@resvg/resvg-js'
@@ -32,8 +32,8 @@ function argValue(name: string, fallback: string): string {
 }
 
 const out = argValue('--out', 'docs/pr-assets/before-after.png')
-const baseDir = argValue('--base-dir', '/tmp/bm-main-pr30')
-const baseLabel = argValue('--base-label', 'origin/main @ 42e5d5c')
+const baseDir = argValue('--base-dir', '/tmp/bm-main-pr54')
+const baseLabel = argValue('--base-label', 'origin/main')
 const afterLabel = argValue('--after-label', 'this branch')
 
 const baseModule = await import(pathToFileURL(resolve(baseDir, 'src/index.ts')).href) as RendererModule
@@ -103,10 +103,10 @@ function renderCard(renderer: RendererModule, source: string, width: number): { 
 
 const blocks: string[] = []
 blocks.push('<rect width="100%" height="100%" fill="#fdf6ec"/>')
-blocks.push(`<text x="${PAD}" y="34" font-size="21" font-weight="800" fill="#5c1a0a">PR #30 before/after — generated from merge-base/main vs this branch</text>`)
+blocks.push(`<text x="${PAD}" y="34" font-size="21" font-weight="800" fill="#5c1a0a">PR #54 before/after — generated from origin/main vs this branch</text>`)
 blocks.push(`<text x="${PAD}" y="62" font-size="13" fill="#7a4a32">Left: ${esc(baseLabel)}. Right: ${esc(afterLabel)}. Same sources, same renderMermaidSVG entrypoint.</text>`)
 blocks.push(`<text x="${PAD}" y="88" font-size="15" font-weight="700" fill="#8b2f12">BEFORE — main</text>`)
-blocks.push(`<text x="${PAD + CELL_W + GAP}" y="88" font-size="15" font-weight="700" fill="#1f6f43">AFTER — PR #30</text>`)
+blocks.push(`<text x="${PAD + CELL_W + GAP}" y="88" font-size="15" font-weight="700" fill="#1f6f43">AFTER — ${esc(afterLabel)}</text>`)
 
 for (let i = 0; i < cases.length; i++) {
   const c = cases[i]!

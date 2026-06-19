@@ -48,6 +48,18 @@ describe('am render --format json', () => {
     expect(typeof payload.bounds.h).toBe('number')
     expect(payload.nodes.length).toBeGreaterThanOrEqual(3)
   })
+  test('certificates flag includes route certificates without changing default JSON', () => {
+    const f = tmpFile('flowchart LR\n  A --> B\n  B --> C\n')
+    const regular = capture(() => runCli(['render', '--format', 'json', f]))
+    const withCerts = capture(() => runCli(['render', '--format', 'json', '--certificates', f]))
+    expect(regular.code).toBe(0)
+    expect(withCerts.code).toBe(0)
+    const plain = JSON.parse(regular.out) as { edges: Array<{ route?: unknown }> }
+    const debug = JSON.parse(withCerts.out) as { edges: Array<{ route?: { routeClass: string; invariant: string } }> }
+    expect(plain.edges.every(e => e.route === undefined)).toBe(true)
+    expect(debug.edges.every(e => e.route?.routeClass === 'primary-forward')).toBe(true)
+    expect(debug.edges.every(e => typeof e.route?.invariant === 'string')).toBe(true)
+  })
   test('json on sequence diagram surfaces participants as nodes', () => {
     const f = tmpFile('sequenceDiagram\n  A->>B: Hi\n')
     const { code, out } = capture(() => runCli(['render', '--format', 'json', f]))

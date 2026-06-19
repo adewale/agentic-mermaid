@@ -191,6 +191,31 @@ describe('vocabulary doc-sync', () => {
     }
   })
 
+  test('source preservation ladder lists every built-in family and all levels', () => {
+    const ladder = readFileSync(join(REPO, 'docs/design/source-preservation-ladder.md'), 'utf8')
+    for (const level of ['L0', 'L1', 'L2', 'L3', 'L4']) expect(ladder).toContain(level)
+    for (const family of BUILTIN_FAMILY_METADATA) {
+      expect({ family: family.id, listed: new RegExp(`\\|\\s*${escapeRegExp(family.id)}\\s*\\|`).test(ladder) })
+        .toEqual({ family: family.id, listed: true })
+    }
+  })
+
+  test('TODO backlog IDs are unique', () => {
+    const todo = readFileSync(join(REPO, 'TODO.md'), 'utf8')
+    const ids = [...todo.matchAll(/\*\*([A-Z]+-\d+)\b/g)].map(m => m[1]!)
+    const duplicates = ids.filter((id, i) => ids.indexOf(id) !== i)
+    expect(duplicates).toEqual([])
+  })
+
+  test('nightly route mutation workflow stays synced with documented commands', () => {
+    const workflow = readFileSync(join(REPO, '.github/workflows/nightly-route-mutation.yml'), 'utf8')
+    const docs = readFileSync(join(REPO, 'docs/mutation-testing.md'), 'utf8')
+    for (const command of ['bun run mutation-test:routes', 'bun run mutation-test:routes:certs', 'bun run mutation-test:routes:subgraph', 'bun run sabotage:routes']) {
+      expect(workflow).toContain(command)
+      expect(docs).toContain(command.replace('bun run ', ''))
+    }
+  })
+
   test('every warning code in Instructions_for_agents.md and spec', () => {
     const guide = readFileSync(join(REPO, 'Instructions_for_agents.md'), 'utf8')
     const spec = readFileSync(join(REPO, 'AGENT_NATIVE.md'), 'utf8')

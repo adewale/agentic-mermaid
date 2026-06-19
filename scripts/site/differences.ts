@@ -113,8 +113,8 @@ const CARDS: Card[] = [
   },
   {
     tag: 'Output',
-    title: 'PNG and JSON layout from the library',
-    body: 'Alongside SVG and ASCII, the library and the <code>am</code> CLI render PNG without a browser (via resvg) and can emit the computed layout as JSON, for tools that place nodes themselves.',
+    title: 'PNG, JSON layout, and debug layout evidence',
+    body: 'Alongside SVG and ASCII, the library and the <code>am</code> CLI render PNG without a browser (via resvg) and can emit computed layout JSON. Debug layout JSON can opt into route/family certificates plus region/action sidecars for tools that need evidence; default JSON stays compact.',
   },
   {
     tag: 'Styling',
@@ -134,7 +134,7 @@ const CARDS: Card[] = [
   {
     tag: 'Layout',
     title: 'Specific layout and parsing fixes',
-    body: 'Some routing still differs from the current upstream release (see the layout examples above): decision branches leave a diamond from facet-mid ports as mirror-symmetric routes, and an edge to a subgraph attaches to its container with <code>direction</code> honored inside it. Earlier fan-in and fan-out-trunk fixes from this fork were contributed upstream and now render the same in Beautiful Mermaid 1.1.3. ER cardinality is parsed to match Mermaid&rsquo;s lexer, so a malformed relationship line raises an error instead of being silently dropped.',
+    body: 'Some routing still differs from the current upstream release (see the layout examples above): decision branches leave a diamond from facet-mid ports as mirror-symmetric routes, and an edge to a subgraph attaches to its container with <code>direction</code> honored inside it. The route engine now carries opt-in proof metadata, and ASCII rendering consumes the same route-intent classifier rather than a separate hand-written guess. Earlier fan-in and fan-out-trunk fixes from this fork were contributed upstream and now render the same in Beautiful Mermaid 1.1.3. ER cardinality is parsed to match Mermaid&rsquo;s lexer, so a malformed relationship line raises an error instead of being silently dropped.',
   },
 ]
 

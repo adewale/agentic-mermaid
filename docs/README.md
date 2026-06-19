@@ -36,6 +36,7 @@ This directory holds the long-form documentation. The root README is intentional
 | Doc | Purpose |
 |---|---|
 | [`contributing/adding-diagram-types.md`](./contributing/adding-diagram-types.md) | How to add a Mermaid-supported diagram family. |
+| [`contributing/visual-review-evidence.md`](./contributing/visual-review-evidence.md) | Which reproducible visual artifacts are required for layout/rendering changes. |
 | [`contributing/diagram-family-citizenship.md`](./contributing/diagram-family-citizenship.md) | Enforced good-citizen checklist and matrix for family/surface drift (issue #41). |
 | [`contributing/harvesting-upstream-tests.md`](./contributing/harvesting-upstream-tests.md) | How to vendor upstream/fork test suites into an executable compatibility bench. |
 | [`layout-characterization/README.md`](./layout-characterization/README.md) | Layout and visual testing approach: properties, contact sheets, raster contracts, and approval artifacts. |

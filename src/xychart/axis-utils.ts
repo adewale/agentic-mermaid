@@ -1,11 +1,9 @@
 import type { XYChart } from './types.ts'
 
 export function getDataCount(chart: Pick<XYChart, 'xAxis' | 'series'>): number {
-  if (chart.xAxis.categories) return chart.xAxis.categories.length
-  for (const series of chart.series) {
-    if (series.data.length > 0) return series.data.length
-  }
-  return 1
+  const seriesCount = Math.max(0, ...chart.series.map(series => series.data.length))
+  if (chart.xAxis.categories) return Math.max(1, chart.xAxis.categories.length, seriesCount)
+  return Math.max(1, seriesCount)
 }
 
 export function getDataXValues(chart: Pick<XYChart, 'xAxis' | 'series'>, count = getDataCount(chart)): number[] {
@@ -18,7 +16,7 @@ export function getDataXValues(chart: Pick<XYChart, 'xAxis' | 'series'>, count =
 }
 
 export function getCategoryLabels(chart: Pick<XYChart, 'xAxis' | 'series'>, count = getDataCount(chart)): string[] {
-  if (chart.xAxis.categories) return chart.xAxis.categories
+  if (chart.xAxis.categories) return Array.from({ length: count }, (_, index) => chart.xAxis.categories![index] ?? String(index + 1))
   if (chart.xAxis.range) return getDataXValues(chart, count).map(value => formatTickValue(value))
   return Array.from({ length: count }, (_, index) => String(index + 1))
 }

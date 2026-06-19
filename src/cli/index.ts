@@ -42,7 +42,7 @@ function parseErrorEnvelope(errors: ParseError[]): { ok: false; error: { code: s
 
 interface ParsedArgs { command?: string; positional: string[]; flags: Record<string, string | boolean> }
 
-const BOOLEAN_FLAGS = new Set(['agent-instructions', 'ascii', 'help', 'json', 'watch', 'open', 'force'])
+const BOOLEAN_FLAGS = new Set(['agent-instructions', 'ascii', 'certificates', 'help', 'json', 'watch', 'open', 'force'])
 
 function parseArgs(argv: string[]): ParsedArgs {
   const out: ParsedArgs = { positional: [], flags: {} }
@@ -106,6 +106,7 @@ Flags:
   --force                For init-agent: refresh generated skill/MCP files
   --suppress <CODES>     For verify: comma-separated WarningCodes to suppress
   --label-cap <N>        For verify: LABEL_OVERFLOW char cap (default 40)
+  --certificates         For render --format json: include route/family certificates
   --agent-instructions   Print the canonical agent-use guide
   --help                 Show this message (or per-command help: am <cmd> --help)
 
@@ -123,6 +124,7 @@ Render a diagram. Default is SVG.
   --format ascii    7-bit ASCII art (also via --ascii)
   --format unicode  Unicode box-drawing ASCII art
   --format json     Layout JSON (nodes, edges, groups, bounds)
+  --certificates     With --format json, include route/family certificates
   --format png      PNG bytes; requires --output <file.png>; no watch/multi-input
   --security strict Remove external-fetch refs from SVG output
   --watch           Re-render one input file on change (non-PNG only)
@@ -258,7 +260,7 @@ function cmdRender(args: ParsedArgs, json: boolean): number {
     const results = args.positional.map((file, index) => {
       try {
         const src = readSourceArg(file)
-        const output = renderMultiInputOnce(src, format, { security })
+        const output = renderMultiInputOnce(src, format, { security, certificates: args.flags.certificates === true })
         return { index, file, ok: true, output }
       } catch (e) {
         const parseEnvelope = e as { ok?: false; error?: { code?: string; message?: string; details?: unknown } }
@@ -278,7 +280,7 @@ function cmdRender(args: ParsedArgs, json: boolean): number {
     return EXIT_ARG_ERROR
   }
   if (args.flags.watch && typeof args.positional[0] === 'string' && args.positional[0] !== '-') {
-    return cmdRenderWatch(args.positional[0], format, args, json, { security })
+    return cmdRenderWatch(args.positional[0], format, args, json, { security, certificates: args.flags.certificates === true })
   }
 
   const source = readSourceArg(args.positional[0])
@@ -303,7 +305,7 @@ function cmdRender(args: ParsedArgs, json: boolean): number {
   if (format === 'json') {
     // Loop 9 M3 — structured layout JSON. parseMermaid → layoutMermaid →
     // emit nodes/edges/groups/bounds with stable key ordering.
-    const layout = layoutMermaid(parsed.value)
+    const layout = layoutMermaid(parsed.value, { debug: args.flags.certificates === true })
     process.stdout.write(JSON.stringify(layout) + '\n')
     return EXIT_OK
   }
@@ -320,12 +322,12 @@ function cmdRender(args: ParsedArgs, json: boolean): number {
   return EXIT_OK
 }
 
-function renderMultiInputOnce(source: string, format: string, opts: { security?: 'default' | 'strict' } = {}): unknown {
+function renderMultiInputOnce(source: string, format: string, opts: { security?: 'default' | 'strict'; certificates?: boolean } = {}): unknown {
   if (format === 'svg') return renderMermaidSVG(source, { security: opts.security })
   if (format === 'json') {
     const parsed = parseMermaid(source)
     if (!parsed.ok) throw parseErrorEnvelope(parsed.error)
-    return layoutMermaid(parsed.value)
+    return layoutMermaid(parsed.value, { debug: opts.certificates === true })
   }
   return renderMermaidASCII(source, { useAscii: format === 'ascii' })
 }
@@ -335,17 +337,17 @@ function renderMultiInputOnce(source: string, format: string, opts: { security?:
  * requested format, returns the output string. Extracted so it's unit-testable
  * without fs.watch timing.
  */
-export function renderFileOnce(file: string, format: string, opts: { security?: 'default' | 'strict' } = {}): string {
+export function renderFileOnce(file: string, format: string, opts: { security?: 'default' | 'strict'; certificates?: boolean } = {}): string {
   const src = readFileSync(file, 'utf8')
   if (format === 'ascii' || format === 'unicode') return renderMermaidASCII(src, { useAscii: format === 'ascii' })
   if (format === 'json') {
     const p = parseMermaid(src)
-    return p.ok ? JSON.stringify(layoutMermaid(p.value)) : JSON.stringify(parseErrorEnvelope(p.error))
+    return p.ok ? JSON.stringify(layoutMermaid(p.value, { debug: opts.certificates === true })) : JSON.stringify(parseErrorEnvelope(p.error))
   }
   return renderMermaidSVG(src, { security: opts.security })
 }
 
-function cmdRenderWatch(file: string, format: string, args: ParsedArgs, _json: boolean, opts: { security?: 'default' | 'strict' } = {}): number {
+function cmdRenderWatch(file: string, format: string, args: ParsedArgs, _json: boolean, opts: { security?: 'default' | 'strict'; certificates?: boolean } = {}): number {
   const outFile = typeof args.flags.output === 'string' ? args.flags.output : ''
   const emit = () => {
     try {
@@ -778,10 +780,10 @@ ${codes}
 
 ## Library
 
-\`import { parseMermaid, mutate, verifyMermaid, serializeMermaid,
-renderMermaidASCII, renderMermaidPNG, renderMermaidSVG,
-renderMermaidASCIIWithMeta, describeMermaid, asciiToMermaid,
-verifyNoExternalRefs } from 'agentic-mermaid/agent'\`
+\`import { parseMermaid, mutate, verifyMermaid, analyzeMermaid,
+analyzeMermaidSource, serializeMermaid, renderMermaidASCII,
+renderMermaidPNG, renderMermaidSVG, renderMermaidASCIIWithMeta,
+describeMermaid, asciiToMermaid, verifyNoExternalRefs } from 'agentic-mermaid/agent'\`
 
 ## Docs
 

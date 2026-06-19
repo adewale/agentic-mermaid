@@ -1,0 +1,306 @@
+{
+  "upstream": {
+    "repo": "mermaid-js/mermaid",
+    "revision": "a2d9686451df7c4644a3eeca20535bbd4c5776b0",
+    "branch": "develop",
+    "harvestDate": "2026-06-18",
+    "license": "MIT"
+  },
+  "scope": "Current Agentic Mermaid renderable built-in families. Every considered upstream parser/DB block is imported as a public-API case, excluded with a documented reason, or delegated to the dedicated Gantt companion bench.",
+  "families": [
+    {
+      "family": "flowchart",
+      "status": "full-harvest-accounted",
+      "consideredBlocks": 301,
+      "importedCases": 186,
+      "importedBlocks": 191,
+      "excludedBlocks": 110,
+      "deferredBlocks": 0,
+      "files": [
+        {
+          "path": "packages/mermaid/src/diagrams/flowchart/flowChartShapes.spec.js",
+          "testBlocks": 3
+        },
+        {
+          "path": "packages/mermaid/src/diagrams/flowchart/flowDb.spec.ts",
+          "testBlocks": 13
+        },
+        {
+          "path": "packages/mermaid/src/diagrams/flowchart/parser/flow-arrows.spec.js",
+          "testBlocks": 14
+        },
+        {
+          "path": "packages/mermaid/src/diagrams/flowchart/parser/flow-comments.spec.js",
+          "testBlocks": 9
+        },
+        {
+          "path": "packages/mermaid/src/diagrams/flowchart/parser/flow-direction.spec.js",
+          "testBlocks": 4
+        },
+        {
+          "path": "packages/mermaid/src/diagrams/flowchart/parser/flow-edges.spec.js",
+          "testBlocks": 29
+        },
+        {
+          "path": "packages/mermaid/src/diagrams/flowchart/parser/flow-interactions.spec.js",
+          "testBlocks": 13
+        },
+        {
+          "path": "packages/mermaid/src/diagrams/flowchart/parser/flow-lines.spec.js",
+          "testBlocks": 12
+        },
+        {
+          "path": "packages/mermaid/src/diagrams/flowchart/parser/flow-md-string.spec.js",
+          "testBlocks": 2
+        },
+        {
+          "path": "packages/mermaid/src/diagrams/flowchart/parser/flow-node-data.spec.js",
+          "testBlocks": 30
+        },
+        {
+          "path": "packages/mermaid/src/diagrams/flowchart/parser/flow-singlenode.spec.js",
+          "testBlocks": 34
+        },
+        {
+          "path": "packages/mermaid/src/diagrams/flowchart/parser/flow-style.spec.js",
+          "testBlocks": 25
+        },
+        {
+          "path": "packages/mermaid/src/diagrams/flowchart/parser/flow-text.spec.js",
+          "testBlocks": 59
+        },
+        {
+          "path": "packages/mermaid/src/diagrams/flowchart/parser/flow-vertice-chaining.spec.js",
+          "testBlocks": 7
+        },
+        {
+          "path": "packages/mermaid/src/diagrams/flowchart/parser/flow.spec.js",
+          "testBlocks": 25
+        },
+        {
+          "path": "packages/mermaid/src/diagrams/flowchart/parser/subgraph.spec.js",
+          "testBlocks": 22
+        }
+      ]
+    },
+    {
+      "family": "state",
+      "status": "full-harvest-accounted",
+      "consideredBlocks": 108,
+      "importedCases": 79,
+      "importedBlocks": 82,
+      "excludedBlocks": 26,
+      "deferredBlocks": 0,
+      "files": [
+        {
+          "path": "packages/mermaid/src/diagrams/state/parser/state-parser.spec.js",
+          "testBlocks": 16
+        },
+        {
+          "path": "packages/mermaid/src/diagrams/state/parser/state-style.spec.js",
+          "testBlocks": 24
+        },
+        {
+          "path": "packages/mermaid/src/diagrams/state/stateDb.spec.js",
+          "testBlocks": 6
+        },
+        {
+          "path": "packages/mermaid/src/diagrams/state/stateDiagram-v2.spec.js",
+          "testBlocks": 32
+        },
+        {
+          "path": "packages/mermaid/src/diagrams/state/stateDiagram.spec.js",
+          "testBlocks": 30
+        }
+      ]
+    },
+    {
+      "family": "sequence",
+      "status": "full-harvest-accounted",
+      "consideredBlocks": 139,
+      "importedCases": 126,
+      "importedBlocks": 127,
+      "excludedBlocks": 12,
+      "deferredBlocks": 0,
+      "files": [
+        {
+          "path": "packages/mermaid/src/diagrams/sequence/sequenceDiagram.spec.js",
+          "testBlocks": 139
+        }
+      ],
+      "companionBench": "src/__tests__/agent-mermaidseqbench.test.ts"
+    },
+    {
+      "family": "class",
+      "status": "full-harvest-accounted",
+      "consideredBlocks": 251,
+      "importedCases": 35,
+      "importedBlocks": 36,
+      "excludedBlocks": 215,
+      "deferredBlocks": 0,
+      "files": [
+        {
+          "path": "packages/mermaid/src/diagrams/class/parser/class.spec.js",
+          "testBlocks": 2
+        },
+        {
+          "path": "packages/mermaid/src/diagrams/class/classDiagram.spec.ts",
+          "testBlocks": 156
+        },
+        {
+          "path": "packages/mermaid/src/diagrams/class/classTypes.spec.ts",
+          "testBlocks": 93
+        }
+      ]
+    },
+    {
+      "family": "er",
+      "status": "full-harvest-accounted",
+      "consideredBlocks": 142,
+      "importedCases": 61,
+      "importedBlocks": 61,
+      "excludedBlocks": 81,
+      "deferredBlocks": 0,
+      "files": [
+        {
+          "path": "packages/mermaid/src/diagrams/er/parser/erDiagram.spec.js",
+          "testBlocks": 116
+        },
+        {
+          "path": "packages/mermaid/src/diagrams/er/parser/subgraph.spec.js",
+          "testBlocks": 18
+        },
+        {
+          "path": "packages/mermaid/src/diagrams/er/erDb.spec.js",
+          "testBlocks": 8
+        }
+      ]
+    },
+    {
+      "family": "timeline",
+      "status": "full-harvest-accounted",
+      "consideredBlocks": 11,
+      "importedCases": 9,
+      "importedBlocks": 9,
+      "excludedBlocks": 2,
+      "deferredBlocks": 0,
+      "files": [
+        {
+          "path": "packages/mermaid/src/diagrams/timeline/timeline.spec.js",
+          "testBlocks": 11
+        }
+      ]
+    },
+    {
+      "family": "gantt",
+      "status": "dedicated-full-family-bench-existing",
+      "consideredBlocks": 68,
+      "importedCases": 68,
+      "importedBlocks": 68,
+      "excludedBlocks": 0,
+      "deferredBlocks": 0,
+      "files": [
+        {
+          "path": "packages/mermaid/src/diagrams/gantt/parser/gantt.spec.js",
+          "testBlocks": 0
+        },
+        {
+          "path": "packages/mermaid/src/diagrams/gantt/ganttDb.spec.ts",
+          "testBlocks": 0
+        }
+      ],
+      "companionBench": "eval/mermaid-gantt-bench/"
+    },
+    {
+      "family": "journey",
+      "status": "full-harvest-accounted",
+      "consideredBlocks": 10,
+      "importedCases": 2,
+      "importedBlocks": 2,
+      "excludedBlocks": 8,
+      "deferredBlocks": 0,
+      "files": [
+        {
+          "path": "packages/mermaid/src/diagrams/user-journey/parser/journey.spec.js",
+          "testBlocks": 7
+        },
+        {
+          "path": "packages/mermaid/src/diagrams/user-journey/journeyDb.spec.js",
+          "testBlocks": 3
+        }
+      ]
+    },
+    {
+      "family": "architecture",
+      "status": "full-harvest-accounted",
+      "consideredBlocks": 33,
+      "importedCases": 9,
+      "importedBlocks": 9,
+      "excludedBlocks": 24,
+      "deferredBlocks": 0,
+      "files": [
+        {
+          "path": "packages/mermaid/src/diagrams/architecture/architecture.spec.ts",
+          "testBlocks": 26
+        },
+        {
+          "path": "packages/mermaid/src/diagrams/architecture/architectureSeed.spec.ts",
+          "testBlocks": 7
+        }
+      ]
+    },
+    {
+      "family": "xychart",
+      "status": "full-harvest-accounted",
+      "consideredBlocks": 64,
+      "importedCases": 40,
+      "importedBlocks": 40,
+      "excludedBlocks": 24,
+      "deferredBlocks": 0,
+      "files": [
+        {
+          "path": "packages/mermaid/src/diagrams/xychart/parser/xychart.jison.spec.ts",
+          "testBlocks": 58
+        },
+        {
+          "path": "packages/mermaid/src/diagrams/xychart/xychartDb.spec.ts",
+          "testBlocks": 6
+        }
+      ]
+    },
+    {
+      "family": "pie",
+      "status": "full-harvest-accounted",
+      "consideredBlocks": 14,
+      "importedCases": 11,
+      "importedBlocks": 11,
+      "excludedBlocks": 3,
+      "deferredBlocks": 0,
+      "files": [
+        {
+          "path": "packages/mermaid/src/diagrams/pie/pie.spec.ts",
+          "testBlocks": 14
+        }
+      ]
+    },
+    {
+      "family": "quadrant",
+      "status": "full-harvest-accounted",
+      "consideredBlocks": 29,
+      "importedCases": 22,
+      "importedBlocks": 22,
+      "excludedBlocks": 7,
+      "deferredBlocks": 0,
+      "files": [
+        {
+          "path": "packages/mermaid/src/diagrams/quadrant-chart/parser/quadrant.jison.spec.ts",
+          "testBlocks": 24
+        },
+        {
+          "path": "packages/mermaid/src/diagrams/quadrant-chart/quadrantDb.spec.ts",
+          "testBlocks": 5
+        }
+      ]
+    }
+  ]
+}

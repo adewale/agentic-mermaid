@@ -80,7 +80,7 @@ New diagram support should normally include most of these layers:
 - Parser tests for valid syntax, invalid syntax, comments, quoted labels, multiline labels, and diagram-specific edge cases
 - Layout tests when layout rules are specialized, especially spacing, bounds, and overlap avoidance
 - Integration tests for parse -> layout -> render using a basic example, a realistic example, and an edge case
-- SVG snapshot or golden tests when visual structure matters, including at least one Mermaid docs example
+- SVG snapshot or golden tests when visual structure matters, including at least one Mermaid docs example; follow [`visual-review-evidence.md`](./visual-review-evidence.md) for contact sheets, layout-compare, rubric galleries, and browser screenshot expectations
 - Theme and compatibility tests for dark/light themes, CSS variable inputs, and frontmatter/config handling where relevant
 - ASCII tests when ASCII rendering is supported, including Unicode mode and ASCII-safe mode; add exact fixtures under `src/__tests__/testdata/{ascii,unicode}/` and regenerate them with `bun run goldens:ascii`
 - Regression tests for easy-to-break behavior such as ordering, escaping, markers, label normalization, or routing

@@ -125,23 +125,72 @@ export function getCharWidth(char: string): number {
  * @param fontWeight - Font weight (affects width slightly)
  * @returns Estimated width in pixels
  */
-export function measureTextWidth(text: string, fontSize: number, fontWeight: number): number {
-  // Base ratio calibrated for Inter font family
-  // Heavier weights are slightly wider
-  // Added +0.02 buffer to prevent edge truncation of characters like 's' at line ends
-  const baseRatio = fontWeight >= 600 ? 0.60 : fontWeight >= 500 ? 0.57 : 0.54
+export interface TextMeasurementContract {
+  version: 1
+  unit: 'px'
+  fontCalibration: 'Inter-compatible proportional estimate'
+  wideCodepoints: 'src/shared/unicode-ranges.ts'
+  emojiDetection: 'Emoji_Presentation-or-Extended_Pictographic'
+  ambiguousWidth: 'single-cell'
+}
 
-  let totalWidth = 0
+export const TEXT_MEASUREMENT_CONTRACT: TextMeasurementContract = {
+  version: 1,
+  unit: 'px',
+  fontCalibration: 'Inter-compatible proportional estimate',
+  wideCodepoints: 'src/shared/unicode-ranges.ts',
+  emojiDetection: 'Emoji_Presentation-or-Extended_Pictographic',
+  ambiguousWidth: 'single-cell',
+}
 
+export interface TextMeasurementInput {
+  text: string
+  fontSize: number
+  fontWeight: number
+}
+
+export interface TextMeasurementResult {
+  contract: TextMeasurementContract
+  width: number
+  charWidthUnits: number
+  codePointCount: number
+  fontSize: number
+  fontWeight: number
+  baseRatio: number
+  minPadding: number
+}
+
+function textBaseRatio(fontWeight: number): number {
+  // Base ratio calibrated for Inter font family.
+  // Heavier weights are slightly wider.
+  // Includes the +0.02 buffer that prevents edge truncation at line ends.
+  return fontWeight >= 600 ? 0.60 : fontWeight >= 500 ? 0.57 : 0.54
+}
+
+export function measureText(input: TextMeasurementInput): TextMeasurementResult {
+  const baseRatio = textBaseRatio(input.fontWeight)
+  let charWidthUnits = 0
+  let codePointCount = 0
   // Iterate over code points (handles surrogate pairs for emoji/CJK)
-  for (const char of text) {
-    totalWidth += getCharWidth(char)
+  for (const char of input.text) {
+    charWidthUnits += getCharWidth(char)
+    codePointCount++
   }
+  const minPadding = input.fontSize * 0.15
+  return {
+    contract: TEXT_MEASUREMENT_CONTRACT,
+    width: charWidthUnits * input.fontSize * baseRatio + minPadding,
+    charWidthUnits,
+    codePointCount,
+    fontSize: input.fontSize,
+    fontWeight: input.fontWeight,
+    baseRatio,
+    minPadding,
+  }
+}
 
-  // Add minimum padding to prevent truncation at text boundaries
-  // Increased from 0.1 to 0.15 for better label separation and collision prevention
-  const minPadding = fontSize * 0.15
-  return totalWidth * fontSize * baseRatio + minPadding
+export function measureTextWidth(text: string, fontSize: number, fontWeight: number): number {
+  return measureText({ text, fontSize, fontWeight }).width
 }
 
 // ============================================================================

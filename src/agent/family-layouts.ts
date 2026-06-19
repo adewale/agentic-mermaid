@@ -35,6 +35,7 @@
 // ============================================================================
 
 import type { ValidDiagram, RenderedLayout, RenderedLayoutNode, RenderedLayoutEdge, RenderedLayoutGroup, LayoutWarning, Finite } from './types.ts'
+import type { FamilyRouteCertificate, Point } from '../types.ts'
 import { toFinite } from './types.ts'
 import { emptyRenderedLayout } from './layout-to-rendered.ts'
 
@@ -43,13 +44,17 @@ import { parseClassDiagram } from '../class/parser.ts'
 import { layoutClassDiagramSync } from '../class/layout.ts'
 import { parseErDiagram } from '../er/parser.ts'
 import { layoutErDiagramSync } from '../er/layout.ts'
+import { layoutSequenceDiagram } from '../sequence/layout.ts'
+import { parseSequenceDiagram } from '../sequence/parser.ts'
+import { parseTimelineDiagram } from '../timeline/parser.ts'
+import { layoutTimelineDiagram } from '../timeline/layout.ts'
 import { parseJourneyDiagram } from '../journey/parser.ts'
 import { layoutJourneyDiagram } from '../journey/layout.ts'
 import { parseArchitectureDiagram } from '../architecture/parser.ts'
 import { layoutArchitectureDiagram } from '../architecture/layout.ts'
 import { parseXYChart } from '../xychart/parser.ts'
 import { layoutXYChart } from '../xychart/layout.ts'
-import type { PositionedArchitectureGroup } from '../architecture/types.ts'
+import type { PositionedArchitectureEdge, PositionedArchitectureGroup, PositionedArchitectureJunction, PositionedArchitectureService } from '../architecture/types.ts'
 import { parsePieChart } from '../pie/parser.ts'
 import { layoutPieChart } from '../pie/layout.ts'
 import { parseQuadrantChart } from '../quadrant/parser.ts'
@@ -64,38 +69,43 @@ function f(n: number): Finite { return toFinite(Math.round(n)) }
  * Family-aware RenderedLayout adapter. Dispatches on body kind; for the
  * renderable non-graph families it layouts from d.canonicalSource (which is
  * always populated for both structured and opaque bodies). Returns null for
- * families this module doesn't own (flowchart/state/sequence/timeline are
- * handled in index.ts) so the caller can keep its existing dispatch.
+ * families this module doesn't own (flowchart/state graph layouts and opaque
+ * flowchart compatibility are handled in index.ts) so the caller can keep its
+ * existing dispatch.
  */
-export function layoutFamilyToRendered(d: ValidDiagram): RenderedLayout | null {
+export function layoutFamilyToRendered(d: ValidDiagram, opts: { debug?: boolean } = {}): RenderedLayout | null {
   // Each adapter is self-contained: it wraps the legacy parse+layout in
   // try/catch and degrades to emptyRenderedLayout(d.kind) on render-error, so
   // an invalid opaque body of a renderable family never makes this throw.
   switch (d.kind) {
-    case 'class':        return classToRendered(d)
-    case 'er':           return erToRendered(d)
+    case 'class':        return classToRendered(d, opts)
+    case 'er':           return erToRendered(d, opts)
+    case 'sequence':     return sequenceToRendered(d, opts)
+    case 'timeline':     return timelineToRendered(d, opts)
     case 'journey':      return journeyToRendered(d)
-    case 'architecture': return architectureToRendered(d)
-    case 'xychart':      return xychartToRendered(d)
-    case 'pie':          return pieToRendered(d)
-    case 'quadrant':     return quadrantToRendered(d)
-    case 'gantt':        return ganttToRendered(d)
+    case 'architecture': return architectureToRendered(d, opts)
+    case 'xychart':      return xychartToRendered(d, opts)
+    case 'pie':          return pieToRendered(d, opts)
+    case 'quadrant':     return quadrantToRendered(d, opts)
+    case 'gantt':        return ganttToRendered(d, opts)
     default:             return null
   }
 }
 
 // ---- class ----------------------------------------------------------------
 
-function classToRendered(d: ValidDiagram): RenderedLayout {
+function classToRendered(d: ValidDiagram, opts: { debug?: boolean } = {}): RenderedLayout {
   try {
     const positioned = layoutClassDiagramSync(parseClassDiagram(toMermaidLines(d.canonicalSource)))
     const nodes: RenderedLayoutNode[] = positioned.classes.map(c => ({
       id: c.id, x: f(c.x), y: f(c.y), w: f(c.width), h: f(c.height), shape: 'rectangle', label: c.label,
     }))
+    const boxById = new Map(positioned.classes.map(c => [c.id, { x: c.x, y: c.y, width: c.width, height: c.height }]))
     const edges: RenderedLayoutEdge[] = positioned.relationships.map((r, i) => ({
       id: `rel#${i}:${r.from}->${r.to}`, from: r.from, to: r.to,
       path: r.points.map(p => [f(p.x), f(p.y)] as [Finite, Finite]),
       label: r.label && r.labelPosition ? { x: f(r.labelPosition.x), y: f(r.labelPosition.y), text: r.label } : undefined,
+      route: opts.debug ? boxRouteCertificate('class', i, r.points, boxById.get(r.from), boxById.get(r.to)) : undefined,
     }))
     return { version: 1, kind: d.kind, nodes, edges, groups: [], bounds: { w: f(positioned.width), h: f(positioned.height) } }
   } catch { return emptyRenderedLayout(d.kind) }
@@ -103,25 +113,236 @@ function classToRendered(d: ValidDiagram): RenderedLayout {
 
 // ---- er -------------------------------------------------------------------
 
-function erToRendered(d: ValidDiagram): RenderedLayout {
+function erToRendered(d: ValidDiagram, opts: { debug?: boolean } = {}): RenderedLayout {
   try {
     const positioned = layoutErDiagramSync(parseErDiagram(toMermaidLines(d.canonicalSource)))
     const nodes: RenderedLayoutNode[] = positioned.entities.map(e => ({
       id: e.id, x: f(e.x), y: f(e.y), w: f(e.width), h: f(e.height), shape: 'rectangle', label: e.label,
     }))
+    const boxById = new Map(positioned.entities.map(e => [e.id, { x: e.x, y: e.y, width: e.width, height: e.height }]))
     const edges: RenderedLayoutEdge[] = positioned.relationships.map((r, i) => ({
       id: `rel#${i}:${r.entity1}->${r.entity2}`, from: r.entity1, to: r.entity2,
       path: r.points.map(p => [f(p.x), f(p.y)] as [Finite, Finite]),
       label: r.label ? labelMidpoint(r.points, r.label) : undefined,
+      route: opts.debug ? boxRouteCertificate('er', i, r.points, boxById.get(r.entity1), boxById.get(r.entity2)) : undefined,
     }))
     return { version: 1, kind: d.kind, nodes, edges, groups: [], bounds: { w: f(positioned.width), h: f(positioned.height) } }
   } catch { return emptyRenderedLayout(d.kind) }
+}
+
+function boxRouteCertificate(
+  family: 'class' | 'er',
+  edgeIndex: number,
+  points: Point[],
+  source: { x: number; y: number; width: number; height: number } | undefined,
+  target: { x: number; y: number; width: number; height: number } | undefined,
+): FamilyRouteCertificate {
+  const sourceBoundary = !!(source && points[0] && pointOnRawRectBoundary(points[0].x, points[0].y, source, 1))
+  const targetBoundary = !!(target && points[points.length - 1] && pointOnRawRectBoundary(points[points.length - 1]!.x, points[points.length - 1]!.y, target, 1))
+  const orthogonal = routeOrthogonal(points)
+  return {
+    family,
+    edgeIndex,
+    routeClass: 'family-layout',
+    invariant: sourceBoundary && targetBoundary && orthogonal ? 'orthogonal-box' : 'unverified-family-route',
+    bendCount: bendCount(points),
+    orthogonal,
+    sourceBoundary,
+    targetBoundary,
+  }
+}
+
+function routeOrthogonal(points: Point[]): boolean {
+  for (let i = 1; i < points.length; i++) {
+    const a = points[i - 1]!, b = points[i]!
+    if (Math.abs(a.x - b.x) > 0.5 && Math.abs(a.y - b.y) > 0.5) return false
+  }
+  return true
+}
+
+function bendCount(points: Point[]): number {
+  if (points.length < 3) return 0
+  let bends = 0
+  for (let i = 1; i < points.length - 1; i++) {
+    const a = points[i - 1]!, b = points[i]!, c = points[i + 1]!
+    const sameX = Math.abs(a.x - b.x) <= 0.5 && Math.abs(b.x - c.x) <= 0.5
+    const sameY = Math.abs(a.y - b.y) <= 0.5 && Math.abs(b.y - c.y) <= 0.5
+    if (!sameX && !sameY) bends++
+  }
+  return bends
+}
+
+function pointOnRawRectBoundary(x: number, y: number, n: { x: number; y: number; width: number; height: number }, tol: number): boolean {
+  const onVertical = (Math.abs(x - n.x) <= tol || Math.abs(x - (n.x + n.width)) <= tol) && y >= n.y - tol && y <= n.y + n.height + tol
+  const onHorizontal = (Math.abs(y - n.y) <= tol || Math.abs(y - (n.y + n.height)) <= tol) && x >= n.x - tol && x <= n.x + n.width + tol
+  return onVertical || onHorizontal
 }
 
 function labelMidpoint(points: Array<{ x: number; y: number }>, text: string): { x: Finite; y: Finite; text: string } | undefined {
   if (points.length === 0) return undefined
   const mid = points[Math.floor(points.length / 2)]!
   return { x: f(mid.x), y: f(mid.y), text }
+}
+
+type ElementCertificateFamily = 'timeline' | 'xychart' | 'pie' | 'quadrant' | 'gantt'
+type ElementCertificateInvariant = Extract<FamilyRouteCertificate, { family: ElementCertificateFamily }>['invariant']
+
+function elementCertificates(
+  family: ElementCertificateFamily,
+  layout: RenderedLayout,
+  invariant: ElementCertificateInvariant,
+  referenceGroup?: RenderedLayoutGroup,
+  containment: 'bounds' | 'center' = 'bounds',
+): FamilyRouteCertificate[] {
+  const groupsByMember = new Map<string, RenderedLayoutGroup>()
+  for (const group of layout.groups) {
+    for (const member of group.members) groupsByMember.set(member, group)
+  }
+  return layout.nodes.map(n => {
+    const withinBounds = nodeWithinBounds(n, layout.bounds)
+    const group = groupsByMember.get(n.id) ?? referenceGroup
+    const withinGroup = group ? (containment === 'center' ? nodeCenterWithinGroup(n, group) : nodeWithinGroup(n, group)) : undefined
+    return {
+      family,
+      elementId: n.id,
+      routeClass: 'family-layout',
+      invariant: withinBounds && (withinGroup ?? true) ? invariant : 'unverified-family-layout',
+      bounds: { x: n.x, y: n.y, w: n.w, h: n.h },
+      center: { x: f(n.x + n.w / 2), y: f(n.y + n.h / 2) },
+      containment,
+      withinBounds,
+      ...(group ? { groupId: group.id, withinGroup } : {}),
+    }
+  })
+}
+
+function nodeWithinBounds(n: RenderedLayoutNode, bounds: RenderedLayout['bounds'], tol = 0.5): boolean {
+  return n.x >= -tol && n.y >= -tol && n.x + n.w <= bounds.w + tol && n.y + n.h <= bounds.h + tol
+}
+
+function nodeWithinGroup(n: RenderedLayoutNode, g: RenderedLayoutGroup, tol = 0.5): boolean {
+  return n.x >= g.x - tol && n.y >= g.y - tol && n.x + n.w <= g.x + g.w + tol && n.y + n.h <= g.y + g.h + tol
+}
+
+function nodeCenterWithinGroup(n: RenderedLayoutNode, g: RenderedLayoutGroup, tol = 0.5): boolean {
+  const cx = n.x + n.w / 2
+  const cy = n.y + n.h / 2
+  return cx >= g.x - tol && cy >= g.y - tol && cx <= g.x + g.w + tol && cy <= g.y + g.h + tol
+}
+
+// ---- sequence -------------------------------------------------------------
+
+function sequenceToRendered(d: ValidDiagram, opts: { debug?: boolean } = {}): RenderedLayout {
+  try {
+    if (d.kind !== 'sequence') return emptyRenderedLayout(d.kind)
+    const positioned = layoutSequenceDiagram(parseSequenceDiagram(toMermaidLines(d.canonicalSource)))
+    const lifelineByActor = new Map(positioned.lifelines.map(l => [l.actorId, l.x]))
+    const nodes: RenderedLayoutNode[] = [
+      ...positioned.actors.map(a => ({
+        id: a.id, x: f(a.x - a.width / 2), y: f(a.y), w: f(a.width), h: f(a.height),
+        shape: 'rectangle', label: a.label,
+      })),
+      ...positioned.notes.map((n, i) => ({
+        id: `note#${i}`, x: f(n.x), y: f(n.y), w: f(n.width), h: f(n.height),
+        shape: 'note', label: n.text,
+      })),
+    ]
+    return {
+      version: 1, kind: d.kind,
+      nodes,
+      edges: positioned.messages.map((m, i) => {
+        const path = sequenceMessagePath(m)
+        return {
+          id: `msg#${i}:${m.from}->${m.to}`, from: m.from, to: m.to,
+          path: path.map(p => [f(p.x), f(p.y)] as [Finite, Finite]),
+          label: m.label ? sequenceMessageLabel(m) : undefined,
+          route: opts.debug ? sequenceRouteCertificate(i, m, path, lifelineByActor) : undefined,
+        }
+      }),
+      groups: positioned.blocks.map((b, i) => ({
+        id: `block#${i}:${b.type}`, x: f(b.x), y: f(b.y), w: f(b.width), h: f(b.height), members: [], label: b.label,
+      })),
+      bounds: { w: f(positioned.width), h: f(positioned.height) },
+    }
+  } catch { return emptyRenderedLayout(d.kind) }
+}
+
+function sequenceMessagePath(message: { x1: number; x2: number; y: number; isSelf: boolean }): Point[] {
+  if (!message.isSelf) return [{ x: message.x1, y: message.y }, { x: message.x2, y: message.y }]
+  const loopW = 30
+  const loopH = 20
+  return [
+    { x: message.x1, y: message.y },
+    { x: message.x1 + loopW, y: message.y },
+    { x: message.x1 + loopW, y: message.y + loopH },
+    { x: message.x2, y: message.y + loopH },
+  ]
+}
+
+function sequenceMessageLabel(message: { x1: number; x2: number; y: number; isSelf: boolean; label: string }): { x: Finite; y: Finite; text: string } {
+  if (message.isSelf) return { x: f(message.x1 + 38), y: f(message.y + 10), text: message.label }
+  return { x: f((message.x1 + message.x2) / 2), y: f(message.y - 10), text: message.label }
+}
+
+function sequenceRouteCertificate(
+  edgeIndex: number,
+  message: { from: string; to: string; x1: number; x2: number; y: number; isSelf: boolean },
+  points: Point[],
+  lifelineByActor: Map<string, number>,
+): FamilyRouteCertificate {
+  const sourceX = lifelineByActor.get(message.from)
+  const targetX = lifelineByActor.get(message.to)
+  const first = points[0]
+  const last = points[points.length - 1]
+  const sourceLifeline = sourceX !== undefined && first !== undefined && Math.abs(first.x - sourceX) <= 1
+  const targetLifeline = targetX !== undefined && last !== undefined && Math.abs(last.x - targetX) <= 1
+  const horizontal = !message.isSelf && points.every(p => Math.abs(p.y - message.y) <= 1)
+  const orthogonal = routeOrthogonal(points)
+  return {
+    family: 'sequence',
+    edgeIndex,
+    routeClass: 'family-layout',
+    invariant: sourceLifeline && targetLifeline && orthogonal ? (message.isSelf ? 'self-message' : 'lifeline-message') : 'unverified-family-route',
+    bendCount: bendCount(points),
+    horizontal,
+    sourceLifeline,
+    targetLifeline,
+    selfMessage: message.isSelf,
+  }
+}
+
+// ---- timeline -------------------------------------------------------------
+
+function timelineToRendered(d: ValidDiagram, opts: { debug?: boolean } = {}): RenderedLayout {
+  try {
+    const positioned = layoutTimelineDiagram(parseTimelineDiagram(toMermaidLines(d.canonicalSource)))
+    const nodes: RenderedLayoutNode[] = []
+    const groups: RenderedLayoutGroup[] = []
+    for (const section of positioned.sections) {
+      const members: string[] = []
+      for (const period of section.periods) {
+        const periodId = `${period.id}:period`
+        nodes.push({
+          id: periodId, x: f(period.pillX), y: f(period.pillY), w: f(period.pillWidth), h: f(period.pillHeight),
+          shape: 'rounded', label: period.label,
+        })
+        members.push(periodId)
+        for (const event of period.events) {
+          nodes.push({
+            id: event.id, x: f(event.x), y: f(event.y), w: f(event.width), h: f(event.height),
+            shape: 'rectangle', label: event.text,
+          })
+          members.push(event.id)
+        }
+      }
+      if (section.framed) {
+        groups.push({ id: section.id, x: f(section.x), y: f(section.y), w: f(section.width), h: f(section.height), members, label: section.label })
+      }
+    }
+    const layout: RenderedLayout = { version: 1, kind: d.kind, nodes, edges: [], groups, bounds: { w: f(positioned.width), h: f(positioned.height) } }
+    if (opts.debug) layout.certificates = elementCertificates('timeline', layout, 'timeline-interval')
+    return layout
+  } catch { return emptyRenderedLayout(d.kind) }
 }
 
 // ---- journey --------------------------------------------------------------
@@ -145,7 +366,7 @@ function journeyToRendered(d: ValidDiagram): RenderedLayout {
 
 // ---- architecture ---------------------------------------------------------
 
-function architectureToRendered(d: ValidDiagram): RenderedLayout {
+function architectureToRendered(d: ValidDiagram, opts: { debug?: boolean } = {}): RenderedLayout {
   try {
     const positioned = layoutArchitectureDiagram(parseArchitectureDiagram(toMermaidLines(d.canonicalSource)))
     const nodes: RenderedLayoutNode[] = [
@@ -156,24 +377,80 @@ function architectureToRendered(d: ValidDiagram): RenderedLayout {
         id: j.id, x: f(j.x), y: f(j.y), w: f(j.width), h: f(j.height), shape: 'circle' as const, label: undefined,
       })),
     ]
+    const flatGroups = new Map<string, PositionedArchitectureGroup>()
+    const groups: RenderedLayoutGroup[] = []
+    const flatten = (g: PositionedArchitectureGroup): void => {
+      flatGroups.set(g.id, g)
+      groups.push({ id: g.id, x: f(g.x), y: f(g.y), w: f(g.width), h: f(g.height), members: [], label: g.label, parentId: g.parentId })
+      for (const c of g.children) flatten(c)
+    }
+    for (const g of positioned.groups) flatten(g)
+    const serviceById = new Map(positioned.services.map(s => [s.id, s]))
+    const junctionById = new Map(positioned.junctions.map(j => [j.id, j]))
     const edges: RenderedLayoutEdge[] = positioned.edges.map((e, i) => ({
       id: `edge#${i}:${e.source.id}->${e.target.id}`, from: e.source.id, to: e.target.id,
       path: e.points.map(p => [f(p.x), f(p.y)] as [Finite, Finite]),
       label: e.label && e.labelPosition ? { x: f(e.labelPosition.x), y: f(e.labelPosition.y), text: e.label } : undefined,
+      route: opts.debug ? architectureRouteCertificate(i, e, serviceById, junctionById, flatGroups) : undefined,
     }))
-    const groups: RenderedLayoutGroup[] = []
-    const flatten = (g: PositionedArchitectureGroup): void => {
-      groups.push({ id: g.id, x: f(g.x), y: f(g.y), w: f(g.width), h: f(g.height), members: [], label: g.label })
-      for (const c of g.children) flatten(c)
-    }
-    for (const g of positioned.groups) flatten(g)
     return { version: 1, kind: d.kind, nodes, edges, groups, bounds: { w: f(positioned.width), h: f(positioned.height) } }
   } catch { return emptyRenderedLayout(d.kind) }
 }
 
+function architectureRouteCertificate(
+  edgeIndex: number,
+  edge: PositionedArchitectureEdge,
+  services: Map<string, PositionedArchitectureService>,
+  junctions: Map<string, PositionedArchitectureJunction>,
+  groups: Map<string, PositionedArchitectureGroup>,
+): FamilyRouteCertificate {
+  const boundsFor = (endpoint: PositionedArchitectureEdge['source']) => {
+    if (endpoint.boundary === 'group') {
+      const service = services.get(endpoint.id)
+      return service?.parentId ? groups.get(service.parentId) : undefined
+    }
+    return services.get(endpoint.id) ?? junctions.get(endpoint.id)
+  }
+  const sourceBounds = boundsFor(edge.source)
+  const targetBounds = boundsFor(edge.target)
+  const first = edge.points[0]
+  const last = edge.points[edge.points.length - 1]
+  const sourceAnchored = !!(first && sourceBounds && pointOnSide(first, sourceBounds, edge.source.side, 1))
+  const targetAnchored = !!(last && targetBounds && pointOnSide(last, targetBounds, edge.target.side, 1))
+  const orthogonal = routeOrthogonal(edge.points)
+  return {
+    family: 'architecture',
+    edgeIndex,
+    routeClass: 'family-layout',
+    invariant: sourceAnchored && targetAnchored && orthogonal ? 'side-anchored' : 'unverified-family-route',
+    bendCount: bendCount(edge.points),
+    orthogonal,
+    sourceSide: edge.source.side,
+    targetSide: edge.target.side,
+    sourceBoundary: edge.source.boundary,
+    targetBoundary: edge.target.boundary,
+    sourceAnchored,
+    targetAnchored,
+  }
+}
+
+function pointOnSide(
+  point: Point,
+  bounds: { x: number; y: number; width: number; height: number },
+  side: 'L' | 'R' | 'T' | 'B',
+  tol: number,
+): boolean {
+  switch (side) {
+    case 'L': return Math.abs(point.x - bounds.x) <= tol && point.y >= bounds.y - tol && point.y <= bounds.y + bounds.height + tol
+    case 'R': return Math.abs(point.x - (bounds.x + bounds.width)) <= tol && point.y >= bounds.y - tol && point.y <= bounds.y + bounds.height + tol
+    case 'T': return Math.abs(point.y - bounds.y) <= tol && point.x >= bounds.x - tol && point.x <= bounds.x + bounds.width + tol
+    case 'B': return Math.abs(point.y - (bounds.y + bounds.height)) <= tol && point.x >= bounds.x - tol && point.x <= bounds.x + bounds.width + tol
+  }
+}
+
 // ---- xychart --------------------------------------------------------------
 
-function xychartToRendered(d: ValidDiagram): RenderedLayout {
+function xychartToRendered(d: ValidDiagram, opts: { debug?: boolean } = {}): RenderedLayout {
   try {
     const normalized = normalizeMermaidSource(d.canonicalSource)
     const positioned = layoutXYChart(parseXYChart(normalized.lines, normalized.frontmatter))
@@ -194,13 +471,15 @@ function xychartToRendered(d: ValidDiagram): RenderedLayout {
       id: 'plot', x: f(positioned.plotArea.x), y: f(positioned.plotArea.y),
       w: f(positioned.plotArea.width), h: f(positioned.plotArea.height), members: [],
     }]
-    return { version: 1, kind: d.kind, nodes, edges: [], groups, bounds: { w: f(positioned.width), h: f(positioned.height) } }
+    const layout: RenderedLayout = { version: 1, kind: d.kind, nodes, edges: [], groups, bounds: { w: f(positioned.width), h: f(positioned.height) } }
+    if (opts.debug) layout.certificates = elementCertificates('xychart', layout, 'plot-contained', groups[0], 'center')
+    return layout
   } catch { return emptyRenderedLayout(d.kind) }
 }
 
 // ---- pie ------------------------------------------------------------------
 
-function pieToRendered(d: ValidDiagram): RenderedLayout {
+function pieToRendered(d: ValidDiagram, opts: { debug?: boolean } = {}): RenderedLayout {
   try {
     const positioned = layoutPieChart(parsePieChart(toMermaidLines(d.canonicalSource)))
     // Pie has no structural nodes/edges — the slices are angular wedges. Use
@@ -213,13 +492,15 @@ function pieToRendered(d: ValidDiagram): RenderedLayout {
       const w = Math.max(l.swatchSize, labelText.length * CHAR_PX + l.swatchSize)
       return { id: `slice#${i}:${l.label}`, x: f(l.x), y: f(l.y), w: f(w), h: f(l.swatchSize), shape: 'rectangle', label: labelText }
     })
-    return { version: 1, kind: d.kind, nodes, edges: [], groups: [], bounds: { w: f(positioned.width), h: f(positioned.height) } }
+    const layout: RenderedLayout = { version: 1, kind: d.kind, nodes, edges: [], groups: [], bounds: { w: f(positioned.width), h: f(positioned.height) } }
+    if (opts.debug) layout.certificates = elementCertificates('pie', layout, 'legend-contained')
+    return layout
   } catch { return emptyRenderedLayout(d.kind) }
 }
 
 // ---- gantt ------------------------------------------------------------------
 
-function ganttToRendered(d: ValidDiagram): RenderedLayout {
+function ganttToRendered(d: ValidDiagram, opts: { debug?: boolean } = {}): RenderedLayout {
   try {
     const normalized = normalizeMermaidSource(d.canonicalSource)
     const model = applyGanttFrontmatterConfig(parseGanttModel(normalized.lines), normalized.frontmatter)
@@ -245,7 +526,9 @@ function ganttToRendered(d: ValidDiagram): RenderedLayout {
       members: positioned.bars.filter(b => b.sectionIndex === i).map(b => b.id ?? `task#${b.taskIndex}`),
       label: s.label,
     }))
-    return { version: 1, kind: d.kind, nodes, edges: [], groups, bounds: { w: f(positioned.width), h: f(positioned.height) } }
+    const layout: RenderedLayout = { version: 1, kind: d.kind, nodes, edges: [], groups, bounds: { w: f(positioned.width), h: f(positioned.height) } }
+    if (opts.debug) layout.certificates = elementCertificates('gantt', layout, 'section-contained')
+    return layout
   } catch { return emptyRenderedLayout(d.kind) }
 }
 
@@ -277,6 +560,67 @@ export function ganttScheduleWarning(d: ValidDiagram): LayoutWarning | null {
  * tested), so these fire only if a later pass mutates geometry — the same
  * zero-noise contract as the route-contract tripwires.
  */
+export function layoutGeometryWarnings(
+  layout: RenderedLayout,
+  opts: { edgeAnchors?: boolean; nodeOverlaps?: boolean; groupContainment?: boolean } = {},
+): LayoutWarning[] {
+  const warnings: LayoutWarning[] = []
+  const TOL = 0.5
+  for (const n of layout.nodes) {
+    if (n.x < -TOL || n.x + n.w > layout.bounds.w + TOL) warnings.push({ code: 'OFF_CANVAS', target: n.id, axis: 'x' })
+    if (n.y < -TOL || n.y + n.h > layout.bounds.h + TOL) warnings.push({ code: 'OFF_CANVAS', target: n.id, axis: 'y' })
+  }
+  for (const e of layout.edges) {
+    for (const [x, y] of e.path) {
+      if (x < -TOL || x > layout.bounds.w + TOL) { warnings.push({ code: 'OFF_CANVAS', target: e.id, axis: 'x' }); break }
+    }
+    for (const [x, y] of e.path) {
+      if (y < -TOL || y > layout.bounds.h + TOL) { warnings.push({ code: 'OFF_CANVAS', target: e.id, axis: 'y' }); break }
+    }
+  }
+  if (opts.nodeOverlaps) {
+    for (let i = 0; i < layout.nodes.length; i++) {
+      for (let j = i + 1; j < layout.nodes.length; j++) {
+        const a = layout.nodes[i]!, b = layout.nodes[j]!
+        const ox = Math.max(0, Math.min(a.x + a.w, b.x + b.w) - Math.max(a.x, b.x))
+        const oy = Math.max(0, Math.min(a.y + a.h, b.y + b.h) - Math.max(a.y, b.y))
+        const area = ox * oy
+        if (area > TOL) warnings.push({ code: 'NODE_OVERLAP', a: a.id, b: b.id, areaPx: Math.round(area) })
+      }
+    }
+  }
+  if (opts.groupContainment) {
+    const nodeById = new Map(layout.nodes.map(n => [n.id, n]))
+    for (const g of layout.groups) {
+      for (const memberId of g.members) {
+        const n = nodeById.get(memberId)
+        if (!n) continue
+        const inside = n.x >= g.x - TOL && n.y >= g.y - TOL &&
+          n.x + n.w <= g.x + g.w + TOL && n.y + n.h <= g.y + g.h + TOL
+        if (!inside) warnings.push({ code: 'GROUP_BREACH', group: g.id, member: memberId })
+      }
+    }
+  }
+  if (opts.edgeAnchors) {
+    const nodeById = new Map(layout.nodes.map(n => [n.id, n]))
+    for (const e of layout.edges) {
+      const first = e.path[0]
+      const last = e.path[e.path.length - 1]
+      const source = nodeById.get(e.from)
+      const target = nodeById.get(e.to)
+      if (first && source && !pointOnRectBoundary(first[0], first[1], source, TOL)) warnings.push({ code: 'ROUTE_SHAPE_MISANCHOR', edge: e.id, node: source.id })
+      if (last && target && !pointOnRectBoundary(last[0], last[1], target, TOL)) warnings.push({ code: 'ROUTE_SHAPE_MISANCHOR', edge: e.id, node: target.id })
+    }
+  }
+  return warnings
+}
+
+function pointOnRectBoundary(x: number, y: number, n: RenderedLayoutNode, tol: number): boolean {
+  const onVertical = (Math.abs(x - n.x) <= tol || Math.abs(x - (n.x + n.w)) <= tol) && y >= n.y - tol && y <= n.y + n.h + tol
+  const onHorizontal = (Math.abs(y - n.y) <= tol || Math.abs(y - (n.y + n.h)) <= tol) && x >= n.x - tol && x <= n.x + n.w + tol
+  return onVertical || onHorizontal
+}
+
 export function ganttGeometryWarnings(layout: RenderedLayout): LayoutWarning[] {
   const warnings: LayoutWarning[] = []
   const TOL = 0.5 // coordinates round through f(); allow rounding slack
@@ -299,7 +643,7 @@ export function ganttGeometryWarnings(layout: RenderedLayout): LayoutWarning[] {
 
 // ---- quadrant -------------------------------------------------------------
 
-function quadrantToRendered(d: ValidDiagram): RenderedLayout {
+function quadrantToRendered(d: ValidDiagram, opts: { debug?: boolean } = {}): RenderedLayout {
   try {
     const positioned = layoutQuadrantChart(parseQuadrantChart(toMermaidLines(d.canonicalSource)))
     const nodes: RenderedLayoutNode[] = positioned.points.map((p, i) => ({
@@ -309,6 +653,8 @@ function quadrantToRendered(d: ValidDiagram): RenderedLayout {
     const groups: RenderedLayoutGroup[] = positioned.regions.map(r => ({
       id: `quadrant#${r.number}`, x: f(r.x), y: f(r.y), w: f(r.width), h: f(r.height), members: [], label: r.label,
     }))
-    return { version: 1, kind: d.kind, nodes, edges: [], groups, bounds: { w: f(positioned.width), h: f(positioned.height) } }
+    const layout: RenderedLayout = { version: 1, kind: d.kind, nodes, edges: [], groups, bounds: { w: f(positioned.width), h: f(positioned.height) } }
+    if (opts.debug) layout.certificates = elementCertificates('quadrant', layout, 'plot-contained')
+    return layout
   } catch { return emptyRenderedLayout(d.kind) }
 }

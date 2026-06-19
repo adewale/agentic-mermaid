@@ -128,6 +128,16 @@ describe('state round-trip identity', () => {
       expect(s1.startsWith('stateDiagram-v2')).toBe(true)
     })
   }
+
+  test('standalone alias with label equal to id stays renderable', () => {
+    const d = state(`stateDiagram-v2
+  state "as" as as`)
+    const out = serializeMermaid(d)
+    expect(out).toContain('state "as" as as')
+    const v = verifyMermaid(d)
+    expect(v.warnings.map(w => w.code)).not.toContain('EMPTY_DIAGRAM')
+    expect(v.ok).toBe(true)
+  })
 })
 
 // ---------------------------------------------------------------------------
@@ -358,6 +368,24 @@ describe('state verify — geometric Tier 2 projection (parity with flowchart)',
     const flat = JSON.stringify(v.layout)
     expect(flat).not.toContain('NaN')
     expect(flat).not.toContain('Infinity')
+  })
+
+  test('composite state ids are valid transition endpoints', () => {
+    const r = parseMermaid(`stateDiagram-v2
+      state Configuring {
+        [*] --> NewValueSelection
+        NewValueSelection --> NewValuePreview : EvNewValue
+        NewValuePreview --> NewValueSelection : EvNewValueRejected
+
+        state NewValuePreview {
+          State1 --> State2
+        }
+      }`)
+    expect(r.ok).toBe(true)
+    if (!r.ok) return
+    const v = verifyMermaid(r.value)
+    expect(v.warnings.filter(w => w.code === 'EDGE_MISANCHORED')).toEqual([])
+    expect(v.ok).toBe(true)
   })
 
   test('Tier 2 codes are reachable for state (same code path as flowchart)', () => {

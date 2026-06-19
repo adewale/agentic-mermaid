@@ -9,6 +9,7 @@ export type ExecutionTraceCall =
   | { verb: 'mutate'; body: 'flowchart' | 'state' | 'sequence' | 'timeline' | 'class' | 'er' | 'journey' | 'architecture' | 'xychart' | 'pie' | 'quadrant' | 'gantt' | 'opaque'; input?: number; output?: number; opKind?: string; fingerprint?: string }
   | { verb: 'verify'; diagram?: number; ok?: boolean; inspected?: boolean; fingerprint?: string }
   | { verb: 'verify_inspect'; diagram?: number; property: 'ok' | 'warnings' | 'layout' }
+  | { verb: 'analyze'; diagram?: number; source?: string; ok?: boolean; fingerprint?: string }
   | { verb: 'serialize'; diagram?: number; source?: string; fingerprint?: string }
 
 type TraceMutationBody = Extract<ExecutionTraceCall, { verb: 'mutate' }>['body']
@@ -430,6 +431,8 @@ function createTracingMermaid(trace?: ExecutionTraceCall[], makeSandboxError?: (
     asGantt: mermaid.asGantt,
     mutate: mermaid.mutate,
     verifyMermaid: mermaid.verifyMermaid,
+    analyzeMermaid: mermaid.analyzeMermaid,
+    analyzeMermaidSource: mermaid.analyzeMermaidSource,
     serializeMermaid: mermaid.serializeMermaid,
     renderMermaidSVG: mermaid.renderMermaidSVG,
     renderMermaidASCII: mermaid.renderMermaidASCII,
@@ -499,6 +502,20 @@ function createTracingMermaid(trace?: ExecutionTraceCall[], makeSandboxError?: (
         preventExtensions() { return readonly() },
         getPrototypeOf(target) { return protoFor(target) },
       }))
+    })
+    else if (prop === 'analyzeMermaid') value = harden((d: any) => {
+      assertOpen()
+      requireTrustedDiagram(d, 'analyzeMermaid')
+      const r = hostCall(() => target.analyzeMermaid(rawOf(d)))
+      push({ verb: 'analyze', diagram: idOf(d), ok: true, fingerprint: fingerprint(d) })
+      return harden(r)
+    })
+    else if (prop === 'analyzeMermaidSource') value = harden((source: string) => {
+      assertOpen()
+      if (typeof source !== 'string') throw sandboxError('Code Mode analyzeMermaidSource source must be a string')
+      const r = hostCall(() => target.analyzeMermaidSource(source))
+      push({ verb: 'analyze', source, ok: r.ok })
+      return harden(r)
     })
     else if (prop === 'serializeMermaid') value = harden((d: any) => {
       assertOpen()

@@ -80,12 +80,27 @@ type RouteInvariant =
   | 'container-attach'
   | 'unverified-shape'     // endpoint shape has no straight attachment side
 
+type RoutePortAssignment = {
+  side: 'N' | 'E' | 'S' | 'W'
+  slotIndex: number          // 0-based order along that side
+  slotCount: number          // endpoints allocated to this node side
+  role: 'flow-source' | 'flow-target' | 'feedback-source' | 'feedback-target'
+    | 'self-loop-source' | 'self-loop-target'
+    | 'container-source' | 'container-target'
+    | 'cross-hierarchy-source' | 'cross-hierarchy-target'
+  port?: AnyPort             // exact designated port when final geometry lands on one
+}
+
 type RouteCertificateBase = {
   edgeIndex: number          // index into MermaidGraph.edges
   routeClass: RouteClass
   bendCount: number
   directLaneClear?: boolean  // primary-forward and feedback
   directLaneBlockedBy?: Array<{ kind: 'node' | 'label' | 'channel' | 'span' | 'crossing'; id: string }>
+  sourcePort?: AnyPort
+  targetPort?: AnyPort
+  sourcePortAssignment?: RoutePortAssignment
+  targetPortAssignment?: RoutePortAssignment
 }
 
 type RouteCertificate =
@@ -293,27 +308,44 @@ capacities) and Visio connection points with static vs dynamic glue:
   port lanes exactly and nothing else.
 - Certificates record `sourcePort`/`targetPort` whenever an endpoint sits
   on a canonical port, computed after all geometry settles.
+- Certificates also record `sourcePortAssignment`/`targetPortAssignment`,
+  the dynamic allocator's additive side/slot/role view: physical side,
+  deterministic slot order along that side (`N/S` left→right, `E/W`
+  top→bottom), semantic role (`flow-*`, `feedback-*`, etc.), and the exact
+  `AnyPort` when the final endpoint is designated. This does **not**
+  reinterpret the V1 `sourcePort`/`targetPort` vocabulary; it is the stable
+  bridge for debugging and for feeding port intent into placement.
+- Pre-layout placement now consumes a conservative slice of the same intent:
+  primary-forward edges get ELK `FIXED_SIDE` node-port hints (`E/W` for LR/RL,
+  `S/N` for TD/BT) only when neither endpoint participates in a non-primary
+  route. Cyclic, feedback, container, and cross-hierarchy lanes deliberately
+  skip those hints so outer-channel and family-specific contracts cannot be
+  stolen by stale pre-layout ports.
 
-State diagrams inherit all of this through their projected graphs
-(`stateBodyToGraph` → `layoutGraphSync`); architecture's side-anchored
-syntax (`L`/`R`/`T`/`B`) maps 1:1 onto `W`/`E`/`N`/`S` ports and its
-layout calls `layoutGraphSync` too. Class and ER do **not**: they render
-through their own ELK engines (`src/class/layout.ts`, `src/er/layout.ts`
-call `elkLayoutSync` directly), so the route-contract pass never sees
-their edges. This is a **deliberate, evidence-backed boundary**, not a
-silent gap: the straightener exists to remove diagonals and
-duplicate/collinear points, and ELK ORTHOGONAL already drives both to
-zero for the relationship-edge model — measured at zero across class
-diagrams up to 11 cross-linked relationships (with cardinalities and
-composition/aggregation markers) and cross-linked ER schemas, pinned by
-`src/__tests__/class-er-edge-quality.test.ts`. The straightener would
-therefore be a no-op here. Full route-contract adoption (port ranking,
-alignment) remains an optional future enhancement, worth its risk only
-if that guardrail ever fails on a realistic diagram — tracked as issue
-#26 WS7 (see `docs/design/issue-26-audit.md`).
-Sequence/timeline have no graph ports —
-their anchors are lifelines and intervals (issue #26 WS1 family
-certificates).
+State diagrams inherit all graph certificates through their projected graphs
+(`stateBodyToGraph` → `layoutGraphSync`). Non-graph families expose
+family-specific certificates only when they own a final-geometry model:
+architecture debug layouts now emit `family-layout` / `side-anchored`
+endpoint-side certificates after the architecture reroute, while class and ER
+debug layouts emit `family-layout` / `orthogonal-box` certificates for
+relationship endpoints anchored on class/entity boxes. Default layout JSON
+remains certificate-free.
+
+Class and ER still render through their own ELK engines (`src/class/layout.ts`,
+`src/er/layout.ts` call `elkLayoutSync` directly), so they do not participate
+in the graph route straightener or port ranking. This is deliberate: class and
+ER boxes carry compartment/attribute-row geometry and cardinality endpoint
+semantics that the generic flowchart graph pass does not model. Projecting them
+through `MermaidGraph` would either discard those row/compartment constraints or
+require a second family-specific clipping pass after graph certification, which
+would recreate the stale-certificate problem this document forbids. Their
+family certificates and verify tripwires cover the accepted invariant instead:
+orthogonal relationship paths, on-canvas non-overlapping boxes, and endpoints on
+class/entity boundaries. Sequence messages likewise expose opt-in family `lifeline-message`
+certificates, while timeline/chart families expose element-containment layout
+certificates. These are family certificates rather than graph-route ports:
+sequence anchors are lifelines, and timeline/chart anchors are intervals,
+plot boxes, legend rows, sections, or quadrant regions.
 
 ### 6.2 Port ranking — the cost model over the four ports
 
@@ -577,6 +609,30 @@ heuristic tracker (`bun run track`): 6 improvements (E/G/K + the
 diamond-reciprocal example move their endpoints onto designated ports),
 0 regressions, 0 hard violations across all 51 examples.
 
+#### 6.2.5 Dynamic side/slot/role allocator
+
+The allocator now runs as a first-class route-contract component. For every
+final node endpoint it derives:
+
+- **side** — the physical cardinal side used by the final endpoint (facet-mid
+  diamonds keep the semantic adjacent side when possible, e.g. NE/SE on an
+  E-exit);
+- **slotIndex/slotCount** — deterministic order among endpoints on that node
+  side, sorted by final side coordinate (`N/S`: x, `E/W`: y), then source
+  order; and
+- **role** — why the endpoint is there (`flow-source`, `flow-target`,
+  `feedback-source`, `feedback-target`, container/cross-hierarchy/self-loop
+  variants).
+
+The same allocator also feeds the existing port-ranking occupancy map, but
+that occupancy deliberately counts the **semantic** side for primary and
+unlabeled feedback endpoints only, preserving the proven routing behavior
+while exposing richer final endpoint metadata. Labeled feedback keeps its
+outer-channel route and does not compete for the facing side. This closes the
+#26/#38 dynamic-port slice without changing default JSON: assignments are
+visible only on opt-in debug certificates (`layoutMermaid(d, { debug: true })`
+or `am render --format json --certificates`).
+
 All of these compositions are pinned by the **contact sheet**
 (`eval/visual-rubric/scenarios.ts`, lettered A–V; rendered for humans by
 `bun run contact:sheet`): `src/__tests__/contact-sheet.test.ts` asserts
@@ -651,13 +707,12 @@ bbox today and warning on every one would be noise, not signal.
 
 Still deliberately out of scope:
 
-- Mutating ELK port constraints (`FIXED_SIDE` etc.) — issue #25 Phase 2.
-  Re-evaluated with the prover in place: `FIXED_SIDE` alone cannot pin port
-  *positions* (only sides, which ELK already picks correctly here), so it
-  would not remove the endpoint spread that causes hitches; `FIXED_POS`
-  everywhere would fight ELK's crossing minimization. The certifying pass
-  is the load-bearing mechanism; ports are worth revisiting only if corpus
-  evidence shows side-choice errors.
+- Broad ELK port mutation. A conservative `FIXED_SIDE` hint now runs only for
+  primary-forward edges whose endpoints are not incident to feedback/container/
+  cross-hierarchy routes, where it agrees with route intent and cannot steal
+  outer lanes. Cyclic, feedback, container, cross-hierarchy and family-rerouted
+  cases remain owned by the certifying repair pass; `FIXED_POS`
+  everywhere would still fight ELK's crossing minimization.
 
 ## 8. Pipeline placement
 
@@ -706,10 +761,10 @@ shipped.
 |---|---|
 | Phase 0 — diagnostics (classification + certificates) | implemented |
 | Phase 1 — validation warnings | complete: all six ROUTE_* codes implemented as zero-noise tripwires |
-| Phase 2 — semantic `FIXED_SIDE` ports | re-evaluated and not needed for hitches (see §7): FIXED_SIDE cannot pin positions, and the prover already enforces the outcome ports were meant to produce; revisit only on corpus evidence of side-choice errors |
+| Phase 2 — semantic `FIXED_SIDE` ports | conservative slice implemented: primary-forward edges feed inferred source/target side intent to ELK fixed-side ports only when neither endpoint participates in a non-primary route; cycles/feedback/container/cross-hierarchy rely on final certificates |
 | Phase 3 — certifying simplifier | implemented (proof-free + proof-carrying layers) |
 | Phase 4 — bundle contract | first slice implemented: bundled paths are proved clear of nodes, blocked members fall out of the bundle; per-trunk certificates deferred |
-| Phase 5 — family adoption | graph-projected families (state composites via `stateBodyToGraph`, architecture via its `layoutGraphSync` call) already flow through classification, straightening, container repair, and certificates; class/ER keep their own ELK engines (`elkLayoutSync` direct) and do NOT yet flow through the route-contract pass (adoption gap, issue #26 WS7); non-graph families (sequence/timeline/charts) need family-specific layout certificates per issue #25 §14 — out of routing scope |
+| Phase 5 — family adoption | state composites (`stateBodyToGraph`) flow through graph route contracts and certificates; architecture now emits family-specific endpoint-side certificates in debug layouts; class/ER keep their own ELK engines and emit family-specific orthogonal-box certificates plus rendered-layout geometry tripwires; sequence emits lifeline-message certificates; timeline/charts emit family element-containment layout certificates |
 
 ## 11. Acceptance criteria mapping
 
@@ -720,12 +775,12 @@ shipped.
 5. Diamond endpoints land on the diamond polygon, not bbox corners — ray-intersection re-anchoring + property test + `ROUTE_SHAPE_MISANCHOR` tripwire.
 6. No node movement after the route pass — pipeline placement + `ROUTE_STALE_AFTER_NODE_MOVE` tripwire.
 7. Corpus diff shows no regressions — `eval/layout-compare` runs recorded in the PR (18 changed / 0 regressions for the full batch).
-8. Diagnostics available to tests and the debug UI — `classifyRoutes` / `auditRouteContracts` / `findRouteHitches` exported, and `layoutMermaid(d, { debug: true })` attaches each edge's `RouteCertificate` to the layout JSON (issue #25 open question 1, as recommended).
+8. Diagnostics available to tests and tooling — `classifyRoutes` / `auditRouteContracts` / `findRouteHitches` exported; `layoutMermaid(d, { debug: true })` attaches graph `RouteCertificate`s and accepted family `FamilyRouteCertificate`s to layout JSON; and `am render --format json --certificates` exposes the same opt-in certificate schema without changing default JSON output.
 
 ## 12. Issue #25 open questions, resolved
 
-1. *Certificates public or test-only?* — exposed via `layoutMermaid(d, { debug: true })` (the issue's own recommendation); default output unchanged.
+1. *Certificates public or test-only?* — public but opt-in: `layoutMermaid(d, { debug: true })` and `am render --format json --certificates` expose route certificates; default JSON remains certificate-free for schema stability. V1 certificates keep the concrete `AnyPort = N|E|S|W|NE|SE|SW|NW` vocabulary, and the additive side+slot+semantic-role allocator is exposed as `sourcePortAssignment` / `targetPortAssignment`.
 2. *Mermaid source route hints?* — no, as recommended; intent stays inferred from semantics and author order.
 3. *Should feedback always detour?* — resolved by adopting ELK's feedbackEdges outer-channel routing plus loop tightening: labeled feedback loops around the nodes (label riding the loop with reserved space), unlabeled feedback collapses to a parallel straight back-arrow when provably clear. Feedback never shares the forward lane.
 4. *Should labels force a bend?* — a label may only sit ON its own route (Kakoulis–Tollis unambiguity; dot's virtual-node doctrine). If the straight lane cannot host the pill, the edge keeps its outer loop — the canvas grows to make room, the label never floats beside a lane it doesn't belong to.
-5. *Should architecture use ELK?* — unchanged: architecture keeps shared placement plus its own side-anchored rerouting; its graphs flow through classification/certification like every layoutGraphSync caller.
+5. *Should architecture use ELK?* — unchanged: architecture keeps shared placement plus its own side-anchored rerouting. Public debug layout now exposes architecture-specific endpoint-side certificates for the final geometry instead of stale graph certificates.

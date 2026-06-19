@@ -50,23 +50,20 @@ describe('mermaid-js docs corpus (271 examples, 12 families)', () => {
   })
 
   // Per-family parse rate. mermaid-js's docs use some constructs we don't
-  // model or intentionally warn on (e.g., nested state pseudostate geometry).
+  // model or intentionally warn on.
   // The gate is set per-family from the observed-correct baseline; regressions
   // cause CI failure.
   // Floors observed from the docs-corpus baseline. Regression-only — if a
   // future change drops a rate below floor, the test fails with the full
   // rate report so it's obvious what changed.
   //
-  // BUILD-19 — state diagrams now own a dedicated StateBody IR. The modeled
-  // subset (simple states/transitions/`[*]`/composites/direction) round-trips
-  // structurally; everything else (`<<fork>>`/`<<choice>>`/notes/`--`/
-  // `classDef`) falls back to a lossless opaque body. Round-trip jumped 5% →
-  // 100% (all 20 samples stable). Verify 80% (4 dense/composite samples emit
-  // advisory geometric/structural warnings from the graph projection — non-
-  // fatal). Floors raised to lock in the improvement.
+  // BUILD-19 — state diagrams now own a dedicated StateBody IR. BUILD-20
+  // tightened nested pseudostate endpoint projection, so the docs examples now
+  // parse, verify, and round-trip at 100%. Floors stay at the observed green
+  // baseline to catch regressions.
   const expected: Record<string, { minParse: number; minVerify: number; minRoundTrip: number }> = {
     flowchart:    { minParse: 1.00, minVerify: 1.00, minRoundTrip: 1.00 },
-    state:        { minParse: 1.00, minVerify: 0.80, minRoundTrip: 1.00 },
+    state:        { minParse: 1.00, minVerify: 1.00, minRoundTrip: 1.00 },
     sequence:     { minParse: 1.00, minVerify: 1.00, minRoundTrip: 1.00 },
     class:        { minParse: 1.00, minVerify: 1.00, minRoundTrip: 1.00 },
     er:           { minParse: 1.00, minVerify: 1.00, minRoundTrip: 1.00 },

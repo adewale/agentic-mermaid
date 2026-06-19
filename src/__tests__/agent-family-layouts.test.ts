@@ -19,11 +19,14 @@ const EPS = 1
 const SOURCES: Record<string, string> = {
   class: 'classDiagram\n  Animal <|-- Dog\n  Animal <|-- Cat\n  Animal : +String name\n  Animal : +eat()\n  class Dog {\n    +bark()\n  }\n  class Cat {\n    +meow()\n  }',
   er: 'erDiagram\n  CUSTOMER ||--o{ ORDER : places\n  ORDER ||--|{ LINE_ITEM : contains\n  CUSTOMER {\n    string name\n    string email\n  }',
+  sequence: 'sequenceDiagram\n  participant A as Alice\n  participant B as Bob\n  A->>B: Hello\n  B-->>A: Hi',
+  timeline: 'timeline\n  title Releases\n  section Alpha\n    2024 Q1 : Prototype : Test\n  section Beta\n    2024 Q2 : Launch',
   journey: 'journey\n  title My day\n  section Work\n    Make tea: 5: Me\n    Do work: 1: Me, Cat\n  section Home\n    Sit down: 5: Me',
   architecture: 'architecture-beta\n  group api(cloud)[API]\n  service db(database)[DB] in api\n  service server(server)[Server] in api\n  db:L -- R:server',
   xychart: 'xychart-beta\n  title "Sales"\n  x-axis [jan, feb, mar]\n  y-axis "Revenue" 0 --> 100\n  bar [30, 60, 90]\n  line [10, 50, 80]',
   pie: 'pie showData\n  title Pets\n  "Dogs" : 40\n  "Cats" : 35\n  "Birds" : 25',
   quadrant: 'quadrantChart\n  title Reach\n  x-axis Low --> High\n  y-axis Bad --> Good\n  quadrant-1 A\n  quadrant-2 B\n  quadrant-3 C\n  quadrant-4 D\n  Point One: [0.3, 0.6]\n  Point Two: [0.8, 0.2]',
+  gantt: 'gantt\n  dateFormat YYYY-MM-DD\n  section Build\n    Core :core, 2024-01-01, 2d\n    Docs :docs, after core, 1d',
 }
 
 function layoutOf(src: string): RenderedLayout {
@@ -102,6 +105,94 @@ describe('QUAL-1: verify.layout carries real geometry', () => {
       expect(v.layout.nodes.length).toBeGreaterThan(0)
     })
   }
+})
+
+// ---- family route certificates --------------------------------------------
+
+describe('non-graph adapters: debug certificates stay family-specific (#26/#38)', () => {
+  it('architecture emits endpoint-side certificates only in debug layout', () => {
+    const p = parseMermaid(SOURCES.architecture!)
+    expect(p.ok).toBe(true)
+    if (!p.ok) return
+    const layout = layoutMermaid(p.value, { debug: true })
+    expect(layout.edges.length).toBeGreaterThan(0)
+    expect(layout.edges.every(e => e.route?.routeClass === 'family-layout' && 'family' in e.route && e.route.family === 'architecture' && e.route.invariant === 'side-anchored')).toBe(true)
+    const plain = layoutMermaid(p.value)
+    expect(plain.edges.every(e => e.route === undefined)).toBe(true)
+  })
+
+  it('sequence emits lifeline-message certificates only in debug layout', () => {
+    const p = parseMermaid(SOURCES.sequence!)
+    expect(p.ok).toBe(true)
+    if (!p.ok) return
+    const layout = layoutMermaid(p.value, { debug: true })
+    expect(layout.edges.length).toBeGreaterThan(0)
+    expect(layout.edges.every(e => e.route?.routeClass === 'family-layout' && 'family' in e.route && e.route.family === 'sequence' && e.route.invariant === 'lifeline-message')).toBe(true)
+    expect(layoutMermaid(p.value).edges.every(e => e.route === undefined)).toBe(true)
+  })
+
+  it('sequence debug label anchors match rendered message text anchors', () => {
+    const p = parseMermaid('sequenceDiagram\n  participant A\n  participant B\n  A->>B: hello')
+    expect(p.ok).toBe(true)
+    if (!p.ok) return
+    const layout = layoutMermaid(p.value, { debug: true })
+    const edge = layout.edges[0]!
+    expect(Number(edge.label?.x)).toBe(140)
+    expect(Number(edge.label?.y)).toBe(80)
+    expect(edge.label?.text).toBe('hello')
+  })
+
+  it('sequence self-message debug certificate uses the rendered loop geometry', () => {
+    const p = parseMermaid('sequenceDiagram\n  participant A\n  A->>A: self')
+    expect(p.ok).toBe(true)
+    if (!p.ok) return
+    const layout = layoutMermaid(p.value, { debug: true })
+    expect(layout.edges).toHaveLength(1)
+    const edge = layout.edges[0]!
+    expect(edge.path).toHaveLength(4)
+    expect(edge.route).toEqual(expect.objectContaining({
+      routeClass: 'family-layout', family: 'sequence', invariant: 'self-message', bendCount: 2, selfMessage: true, horizontal: false,
+    }))
+  })
+
+  it('sequence opaque block content feeds real rendered-layout geometry', () => {
+    const p = parseMermaid('sequenceDiagram\n  participant A\n  participant B\n  loop retry\n    A->>B: ping\n  end\n  Note right of B: cached')
+    expect(p.ok).toBe(true)
+    if (!p.ok) return
+    const layout = layoutMermaid(p.value, { debug: true })
+    expect(layout.edges.length).toBeGreaterThan(0)
+    expect(layout.groups.some(g => g.id.startsWith('block#'))).toBe(true)
+    expect(layout.nodes.some(n => n.id.startsWith('note#') && n.label === 'cached')).toBe(true)
+  })
+
+  it('timeline and chart families emit layout certificates only in debug layout', () => {
+    for (const kind of ['timeline', 'xychart', 'pie', 'quadrant', 'gantt'] as const) {
+      const p = parseMermaid(SOURCES[kind]!)
+      expect(p.ok).toBe(true)
+      if (!p.ok) continue
+      const layout = layoutMermaid(p.value, { debug: true })
+      expect(layout.nodes.length).toBeGreaterThan(0)
+      expect(layout.certificates?.length).toBe(layout.nodes.length)
+      expect(layout.certificates?.every(c => c.routeClass === 'family-layout' && 'family' in c && c.family === kind)).toBe(true)
+      expect(layout.certificates?.every(c => 'bounds' in c && 'center' in c && 'containment' in c)).toBe(true)
+      if (kind === 'xychart') expect(layout.certificates?.every(c => 'containment' in c && c.containment === 'center')).toBe(true)
+      const plain = layoutMermaid(p.value)
+      expect(plain.certificates).toBeUndefined()
+    }
+  })
+
+  it('class and ER emit orthogonal box-boundary certificates only in debug layout', () => {
+    for (const kind of ['class', 'er'] as const) {
+      const p = parseMermaid(SOURCES[kind]!)
+      expect(p.ok).toBe(true)
+      if (!p.ok) continue
+      const layout = layoutMermaid(p.value, { debug: true })
+      expect(layout.edges.length).toBeGreaterThan(0)
+      expect(layout.edges.every(e => e.route?.routeClass === 'family-layout' && 'family' in e.route && e.route.family === kind && e.route.invariant === 'orthogonal-box')).toBe(true)
+      const plain = layoutMermaid(p.value)
+      expect(plain.edges.every(e => e.route === undefined)).toBe(true)
+    }
+  })
 })
 
 // ---- opaque / invalid renderable families must not throw -------------------

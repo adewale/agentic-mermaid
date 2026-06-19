@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'bun:test'
 import fc from 'fast-check'
-import { layoutGraphSync } from '../layout-engine.ts'
+import { buildRoutePortHints, layoutGraphSync } from '../layout-engine.ts'
 import { parseMermaid } from '../parser.ts'
 import { applyRouteContracts, auditRouteContracts, classifyRoutes, directLaneBlockers, findLabelSlot, findRouteHitches, shapePorts, simplifyPolyline } from '../route-contracts.ts'
 import { measureMultilineText } from '../text-metrics.ts'
@@ -296,6 +296,50 @@ describe('certificates', () => {
     } else {
       expect(e.routeCertificate?.bendCount).toBe(0)
     }
+  })
+
+  it('debug certificates expose dynamic port side, ordered slot, and semantic role', () => {
+    const positioned = layoutGraphSync(parseMermaid('flowchart LR\n  A --> B\n  A --> C'))
+    const ab = findEdge(positioned.edges, 'A', 'B')
+    const ac = findEdge(positioned.edges, 'A', 'C')
+    expect(ab.routeCertificate?.sourcePortAssignment).toEqual({
+      side: 'E', slotIndex: 0, slotCount: 2, role: 'flow-source',
+    })
+    expect(ac.routeCertificate?.sourcePortAssignment).toEqual({
+      side: 'E', slotIndex: 1, slotCount: 2, role: 'flow-source',
+    })
+    expect(ab.routeCertificate?.targetPortAssignment).toMatchObject({
+      side: 'W', slotIndex: 0, slotCount: 1, role: 'flow-target', port: 'W',
+    })
+  })
+
+  it('pre-layout port hints apply per independent primary edge, not whole-graph all-or-nothing', () => {
+    const graph = parseMermaid('flowchart LR\n  A --> B\n  C --> D\n  D --> C')
+    const hints = buildRoutePortHints(graph, new Set())
+    expect(hints.byEndpoint.get('0:source')).toMatchObject({ nodeId: 'A', side: 'E' })
+    expect(hints.byEndpoint.get('0:target')).toMatchObject({ nodeId: 'B', side: 'W' })
+    expect(hints.byEndpoint.has('1:source')).toBe(false)
+    expect(hints.byEndpoint.has('2:source')).toBe(false)
+  })
+
+  it('pre-layout port hints skip nodes inside direction-override subgraphs', () => {
+    const graph = parseMermaid('flowchart TD\n  subgraph Inner\n    direction LR\n    A --> B\n  end\n  C --> D')
+    const hints = buildRoutePortHints(graph, new Set())
+    expect(hints.byEndpoint.has('0:source')).toBe(false)
+    expect(hints.byEndpoint.has('0:target')).toBe(false)
+    expect(hints.byEndpoint.get('1:source')).toMatchObject({ nodeId: 'C', side: 'S' })
+  })
+
+  it('feedback endpoints get flipped-side semantic roles without changing sourcePort/targetPort', () => {
+    const positioned = layoutGraphSync(parseMermaid('flowchart LR\n  A --> B\n  B --> A'))
+    const fwd = findEdge(positioned.edges, 'A', 'B')
+    const back = findEdge(positioned.edges, 'B', 'A')
+    expect(fwd.routeCertificate?.sourcePortAssignment).toMatchObject({ side: 'E', role: 'flow-source' })
+    expect(fwd.routeCertificate?.targetPortAssignment).toMatchObject({ side: 'W', role: 'flow-target' })
+    expect(back.routeCertificate?.sourcePortAssignment).toMatchObject({ side: 'W', role: 'feedback-source' })
+    expect(back.routeCertificate?.targetPortAssignment).toMatchObject({ side: 'E', role: 'feedback-target' })
+    expect(back.routeCertificate?.sourcePort).toBeUndefined()
+    expect(back.routeCertificate?.targetPort).toBeUndefined()
   })
 })
 
@@ -829,6 +873,16 @@ describe('layoutMermaid debug exposure (issue #25 acceptance criterion 8, open q
 })
 
 describe('route audit tripwires fire on post-certification corruption', () => {
+  it('skips certified edges with fewer than 2 points instead of throwing', () => {
+    for (const points of [[], [{ x: 10, y: 20 }]] as const) {
+      const graph = parseMermaid('flowchart LR\n  A --> B')
+      const positioned = layoutGraphSync(graph)
+      const e = findEdge(positioned.edges, 'A', 'B')
+      e.points = [...points]
+      expect(auditRouteContracts(positioned, graph)).toEqual([])
+    }
+  })
+
   it('ROUTE_UNEXPLAINED_BEND: a diagonal segment on a certified edge', () => {
     const graph = parseMermaid(MFA_SOURCE)
     const positioned = layoutGraphSync(graph)

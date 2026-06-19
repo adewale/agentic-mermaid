@@ -2,7 +2,23 @@
  * Tests for text-metrics module — variable-width character measurement.
  */
 import { describe, it, expect } from 'bun:test'
-import { getCharWidth, measureTextWidth } from '../text-metrics'
+import { getCharWidth, measureText, measureTextWidth, TEXT_MEASUREMENT_CONTRACT } from '../text-metrics'
+
+// ============================================================================
+// Shared contract
+// ============================================================================
+
+describe('TEXT_MEASUREMENT_CONTRACT', () => {
+  it('exposes the same width contract used by measureTextWidth', () => {
+    const measured = measureText({ text: 'Hello中国🙂', fontSize: 14, fontWeight: 500 })
+    expect(measured.contract).toBe(TEXT_MEASUREMENT_CONTRACT)
+    expect(measured.contract.wideCodepoints).toBe('src/shared/unicode-ranges.ts')
+    expect(measured.contract.ambiguousWidth).toBe('single-cell')
+    expect(measured.width).toBe(measureTextWidth('Hello中国🙂', 14, 500))
+    expect(measured.charWidthUnits).toBeGreaterThan(0)
+    expect(measured.codePointCount).toBe(8)
+  })
+})
 
 // ============================================================================
 // Character width classification

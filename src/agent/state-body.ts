@@ -229,7 +229,7 @@ function renderScope(states: StateNode[], transitions: StateTransition[], direct
       out.push(`${indent}${header}`)
       renderScope(s.states ?? [], s.transitions ?? [], s.direction, indent + '  ', out)
       out.push(`${indent}}`)
-    } else if (s.label !== undefined && s.label !== s.id) {
+    } else if (s.label !== undefined) {
       out.push(`${indent}state "${s.label}" as ${s.id}`)
     }
     // Bare simple states with no label are emitted implicitly via transitions;

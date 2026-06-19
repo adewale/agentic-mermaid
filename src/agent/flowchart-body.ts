@@ -39,16 +39,86 @@ export function parseFlowchartBody(canonicalSource: string): Result<FlowchartBod
 // ---- SourceMap --------------------------------------------------------------
 
 export function buildFlowchartSourceMap(body: FlowchartBody, canonicalSource: string): SourceMap {
-  const map: SourceMap = { nodes: new Map(), edges: new Map(), groups: new Map() }
+  const map: SourceMap = { nodes: new Map(), edges: new Map(), groups: new Map(), labels: new Map() }
   const lines = canonicalSource.split(/\r?\n/)
+
   for (const id of Array.from(body.graph.nodes.keys())) {
     const re = new RegExp(`\\b${escapeRegex(id)}\\b`)
     for (let i = 0; i < lines.length; i++) {
-      const idx = lines[i]!.search(re)
-      if (idx >= 0) { map.nodes.set(id, { line: i + 1, col: idx + 1 }); break }
+      const line = lines[i]!
+      const idx = line.search(re)
+      if (idx >= 0) {
+        map.nodes.set(id, { line: i + 1, col: idx + 1 })
+        const node = body.graph.nodes.get(id)
+        const labelCol = node ? labelColumn(line, node.label, idx + id.length) : -1
+        if (labelCol >= 0) map.labels.set(`node:${id}`, { line: i + 1, col: labelCol + 1 })
+        break
+      }
     }
   }
+
+  for (const sg of body.graph.subgraphs) mapSubgraphSource(sg, lines, map)
+
+  body.graph.edges.forEach((edge, index) => {
+    const indexedKey = edgeSourceMapKey(index, edge)
+    const pairKey = `${edge.source}->${edge.target}`
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i]!
+      if (!lineMentionsEdge(line, edge.source, edge.target)) continue
+      const col = Math.max(0, line.search(new RegExp(`\\b${escapeRegex(edge.source)}\\b`)))
+      const loc = { line: i + 1, col: col + 1 }
+      map.edges.set(indexedKey, loc)
+      if (!map.edges.has(pairKey)) map.edges.set(pairKey, loc)
+      if (edge.label) {
+        const labelCol = labelColumn(line, edge.label, edgeOperatorSearchStart(line, col, edge.source))
+        if (labelCol >= 0) map.labels.set(indexedKey, { line: i + 1, col: labelCol + 1 })
+      }
+      break
+    }
+  })
+
   return map
+}
+
+function edgeSourceMapKey(index: number, edge: MermaidEdge): string { return `edge#${index}:${edge.source}->${edge.target}` }
+
+function lineMentionsEdge(line: string, source: string, target: string): boolean {
+  if (!/(?:[-.=~]+|<[-.=]+|[-.=]+[>ox]|[ox][-.=])/.test(line)) return false
+  const sourceIdx = line.search(new RegExp(`\\b${escapeRegex(source)}\\b`))
+  const targetIdx = source === target ? sourceIdx : line.search(new RegExp(`\\b${escapeRegex(target)}\\b`))
+  // Source maps follow the canonical source direction for ordinary Mermaid
+  // chains. This rejects the common false positive where the previous forward
+  // line `A --> B` also mentions a later feedback edge's endpoint pair `B,A`.
+  return sourceIdx >= 0 && targetIdx >= 0 && (source === target || sourceIdx <= targetIdx)
+}
+
+function edgeOperatorSearchStart(line: string, sourceCol: number, source: string): number {
+  const afterSource = sourceCol + source.length
+  const operatorOffset = line.slice(afterSource).search(/[-.=~]/)
+  return operatorOffset >= 0 ? afterSource + operatorOffset : afterSource
+}
+
+function labelColumn(line: string, label: string, afterCol: number): number {
+  if (!label || label.trim().length === 0) return -1
+  const direct = line.indexOf(label, Math.max(0, afterCol))
+  if (direct >= 0) return direct
+  const escaped = label.replace(/<br\s*\/?\s*>/gi, '\\n')
+  if (escaped !== label) return line.indexOf(escaped, Math.max(0, afterCol))
+  return -1
+}
+
+function mapSubgraphSource(sg: MermaidSubgraph, lines: string[], map: SourceMap): void {
+  const re = new RegExp(`^\\s*subgraph\\s+${escapeRegex(sg.id)}(?:\\b|\\[|$)`, 'i')
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i]!
+    if (!re.test(line)) continue
+    const col = line.indexOf(sg.id)
+    map.groups.set(sg.id, { line: i + 1, col: col + 1 })
+    const labelCol = sg.label && sg.label !== sg.id ? labelColumn(line, sg.label, col + sg.id.length) : -1
+    if (labelCol >= 0) map.labels.set(`group:${sg.id}`, { line: i + 1, col: labelCol + 1 })
+    break
+  }
+  for (const child of sg.children) mapSubgraphSource(child, lines, map)
 }
 
 function escapeRegex(s: string): string { return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') }
@@ -127,8 +197,9 @@ function renderShape(node: MermaidNode): string {
 }
 
 function escapeLabel(label: string): string {
-  if (/[\[\]{}()<>|]/.test(label)) return `"${label.replace(/"/g, '\\"')}"`
-  return label
+  const normalized = label.replace(/\r?\n/g, '<br>')
+  if (/[\[\]{}()|]/.test(normalized)) return `"${normalized.replace(/["\\]/g, '\\$&')}"`
+  return normalized
 }
 
 function renderEdge(edge: MermaidEdge, nodes: Map<string, MermaidNode>, declaredInline: Set<string>): string {

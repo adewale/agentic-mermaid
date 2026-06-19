@@ -233,6 +233,19 @@ describe('xychart verify + render', () => {
     expect(series.warnings.find(w => w.code === 'LABEL_OVERFLOW')).toBeDefined()
   })
 
+  test('mixed-length bar and line series stay inside the chart bounds', () => {
+    const d = xychart(`xychart-beta
+  x-axis xAxisName
+  y-axis yAxisName
+  bar barTitle1 [23, 45, 56.6]
+  line lineTitle1 [11, 45.5, 67, 23]
+  bar barTitle2 [13, 42, 56.89]
+  line lineTitle2 [45, 99, 12]`)
+    const v = verifyMermaid(d)
+    expect(v.warnings.filter(w => w.code === 'OFF_CANVAS')).toEqual([])
+    expect(v.ok).toBe(true)
+  })
+
   test('mutated chart renders through the legacy renderer', async () => {
     const { renderMermaidSVG } = await import('../agent/index.ts')
     const d = apply(xychart(), { kind: 'set_title', title: 'Rendered' })

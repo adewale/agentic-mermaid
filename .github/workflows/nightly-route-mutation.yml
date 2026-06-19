@@ -1,0 +1,57 @@
+name: Nightly route mutation
+
+on:
+  schedule:
+    # Broad Stryker route lanes are intentionally off the PR gate; run them
+    # nightly so mutation survivors are visible without blocking normal CI.
+    - cron: '17 3 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  route-mutation:
+    name: ${{ matrix.name }}
+    runs-on: ubuntu-latest
+    timeout-minutes: ${{ matrix.timeout }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: routes
+            command: bun run mutation-test:routes
+            timeout: 90
+          - name: route-certificates
+            command: bun run mutation-test:routes:certs
+            timeout: 45
+          - name: subgraph-routing
+            command: bun run mutation-test:routes:subgraph
+            timeout: 60
+          - name: sabotage-routes
+            command: bun run sabotage:routes
+            timeout: 30
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v1
+        with:
+          bun-version: 1.3.13
+
+      - name: Install dependencies
+        run: bun install
+
+      - name: Run ${{ matrix.name }}
+        run: ${{ matrix.command }}
+
+      - name: Upload mutation reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: route-mutation-${{ matrix.name }}
+          path: |
+            reports/mutation/**
+            .stryker-tmp*/reports/**
+          if-no-files-found: ignore

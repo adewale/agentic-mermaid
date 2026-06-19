@@ -218,6 +218,6 @@ function tryParseInitObject(inner: string): Record<string, unknown> {
 }
 
 function emptySourceMap(): SourceMap {
-  return { nodes: new Map(), edges: new Map(), groups: new Map() }
+  return { nodes: new Map(), edges: new Map(), groups: new Map(), labels: new Map() }
 }
 

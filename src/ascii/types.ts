@@ -6,7 +6,7 @@
 // and graph structures used by the ASCII/Unicode renderer.
 // ============================================================================
 
-import type { NodeShape, EdgeMarker } from '../types.ts'
+import type { NodeShape, EdgeMarker, RouteClass } from '../types.ts'
 
 // Re-export shared graph types for convenience
 export type { NodeShape, EdgeMarker }
@@ -113,6 +113,8 @@ export interface AsciiEdge {
   labelLine: GridCoord[]
   startDir: Direction
   endDir: Direction
+  /** Shared semantic route intent from classifyRoutes(); consumed by grid placement/routing parity. */
+  routeClass?: RouteClass
   /** Line style: solid (default), dotted (-.->) or thick (==>) */
   style: AsciiEdgeStyle
   /** Whether to render a marker at the start (source end) of the edge */

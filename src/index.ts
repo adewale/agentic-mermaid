@@ -26,7 +26,7 @@
 //   const svg = renderMermaidSVG('graph TD\n  A --> B')
 // ============================================================================
 
-export type { RenderOptions, MermaidGraph, PositionedGraph, RouteCertificate, RouteClass, RouteBlocker } from './types.ts'
+export type { RenderOptions, MermaidGraph, PositionedGraph, RouteCertificate, FamilyRouteCertificate, LayoutRouteCertificate, LayoutRouteClass, RouteClass, RouteBlocker, RoutePortAssignment, PortSemanticRole, AnyPort, PortSide, DiamondFacet } from './types.ts'
 export type { DiagramColors, ThemeName, ResolvedColors } from './theme.ts'
 export { fromShikiTheme, THEMES, DEFAULTS, resolveColors, inlineResolvedColors } from './theme.ts'
 export { parseMermaid } from './parser.ts'
@@ -34,6 +34,8 @@ export { renderMermaidASCII, renderMermaidAscii } from './ascii/index.ts'
 export type { AsciiRenderOptions } from './ascii/index.ts'
 export type { MermaidRuntimeConfig, MermaidThemeVariables, TimelineRuntimeConfig } from './mermaid-source.ts'
 export { parseArchitectureDiagram, architectureToMermaidGraph } from './architecture/parser.ts'
+export { TEXT_MEASUREMENT_CONTRACT, measureText, measureTextWidth } from './text-metrics.ts'
+export type { TextMeasurementContract, TextMeasurementInput, TextMeasurementResult } from './text-metrics.ts'
 
 import { decodeXML } from 'entities'
 import { parseMermaid } from './parser.ts'

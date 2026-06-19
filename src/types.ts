@@ -62,10 +62,11 @@ export interface MermaidEdge {
   startMarker?: EdgeMarker
   /** Marker shape at end when hasArrowEnd=true. Defaults to 'arrow' if undefined. */
   endMarker?: EdgeMarker
-  /** Mermaid link length (rank distance): 1 = base operator, 2 = one extra
-   *  shaft unit (`--->`, `-..->`, `====>`, `~~~~`), etc. Undefined ≡ 1, so
-   *  base-form edges serialize byte-identically. Preserved through
-   *  round-trip; layout does not yet honor the extra rank distance. */
+  /** Mermaid link length (rank-distance intent): 1 = base operator, 2 = one
+   *  extra shaft unit (`--->`, `-..->`, `====>`, `~~~~`), etc. Undefined ≡ 1,
+   *  so base-form edges serialize byte-identically. Preserved through
+   *  round-trip; layout honors this conservatively for simple primary-forward
+   *  no-subgraph DAGs and leaves grouped/cyclic cases to ELK. */
   length?: number
 }
 
@@ -144,6 +145,8 @@ export type RouteClass =
   | 'container'       // endpoint is a subgraph id
   | 'cross-hierarchy' // endpoints live in different subgraph scopes
 
+export type LayoutRouteClass = RouteClass | 'family-layout'
+
 /** The four canonical connection points of a shape (Visio connection-point /
  *  yFiles port-candidate model). For every Mermaid shape these lie at the
  *  bbox side midpoints: the diamond's vertices, the rectangle's side
@@ -161,6 +164,34 @@ export type DiamondFacet = 'NE' | 'SE' | 'SW' | 'NW'
 /** A port an endpoint may sit on: a cardinal vertex/side-midpoint, or — on a
  *  diamond — a facet-midpoint. */
 export type AnyPort = PortSide | DiamondFacet
+
+export type PortSemanticRole =
+  | 'flow-source'
+  | 'flow-target'
+  | 'feedback-source'
+  | 'feedback-target'
+  | 'self-loop-source'
+  | 'self-loop-target'
+  | 'container-source'
+  | 'container-target'
+  | 'cross-hierarchy-source'
+  | 'cross-hierarchy-target'
+
+/** Dynamic port allocation metadata: which side an endpoint semantically uses,
+ *  its deterministic order among the endpoints on that side, and why it is
+ *  there. This extends `sourcePort`/`targetPort` without changing their V1
+ *  vocabulary: exact endpoint ports remain `AnyPort`, while the allocation
+ *  records side-level slot/role intent for pre-layout and debugging. */
+export interface RoutePortAssignment {
+  side: PortSide
+  /** 0-based deterministic order along the side (N/S: left→right; E/W: top→bottom). */
+  slotIndex: number
+  /** Number of endpoints allocated to this node side. */
+  slotCount: number
+  role: PortSemanticRole
+  /** Exact designated port when the final endpoint landed on one. */
+  port?: AnyPort
+}
 
 export interface RouteBlocker {
   kind: 'node' | 'label' | 'channel' | 'span' | 'crossing'
@@ -190,6 +221,10 @@ interface RouteCertificateBase {
   /** Set when the endpoint sits exactly on a port: a cardinal side-midpoint
    *  for every shape, or a diamond facet-midpoint (NE/SE/SW/NW). */
   targetPort?: AnyPort
+  /** Dynamic side/slot/role allocation for the source endpoint. */
+  sourcePortAssignment?: RoutePortAssignment
+  /** Dynamic side/slot/role allocation for the target endpoint. */
+  targetPortAssignment?: RoutePortAssignment
 }
 
 export type StraightRouteCertificate = RouteCertificateBase & {
@@ -205,6 +240,60 @@ export type NonStraightRouteCertificate = RouteCertificateBase & {
 }
 
 export type RouteCertificate = StraightRouteCertificate | NonStraightRouteCertificate
+
+export type FamilyRouteCertificate =
+  | {
+    family: 'class' | 'er'
+    edgeIndex: number
+    routeClass: 'family-layout'
+    invariant: 'orthogonal-box' | 'unverified-family-route'
+    bendCount: number
+    orthogonal: boolean
+    sourceBoundary: boolean
+    targetBoundary: boolean
+  }
+  | {
+    family: 'architecture'
+    edgeIndex: number
+    routeClass: 'family-layout'
+    invariant: 'side-anchored' | 'unverified-family-route'
+    bendCount: number
+    orthogonal: boolean
+    sourceSide: 'L' | 'R' | 'T' | 'B'
+    targetSide: 'L' | 'R' | 'T' | 'B'
+    sourceBoundary: 'item' | 'group'
+    targetBoundary: 'item' | 'group'
+    sourceAnchored: boolean
+    targetAnchored: boolean
+  }
+  | {
+    family: 'sequence'
+    edgeIndex: number
+    routeClass: 'family-layout'
+    invariant: 'lifeline-message' | 'self-message' | 'unverified-family-route'
+    bendCount: number
+    horizontal: boolean
+    sourceLifeline: boolean
+    targetLifeline: boolean
+    selfMessage: boolean
+  }
+  | {
+    family: 'timeline' | 'xychart' | 'pie' | 'quadrant' | 'gantt'
+    elementId: string
+    routeClass: 'family-layout'
+    invariant: 'timeline-interval' | 'plot-contained' | 'legend-contained' | 'section-contained' | 'unverified-family-layout'
+    /** Node/mark box in layout coordinates; included so cert consumers do not have to join back to nodes. */
+    bounds: { x: number; y: number; w: number; h: number }
+    /** Center point used by plot/region-mark containment certs. */
+    center: { x: number; y: number }
+    /** Whether the cert proves the full box or the semantic mark center is contained. */
+    containment: 'bounds' | 'center'
+    withinBounds: boolean
+    groupId?: string
+    withinGroup?: boolean
+  }
+
+export type LayoutRouteCertificate = RouteCertificate | FamilyRouteCertificate
 
 export interface Point {
   x: number

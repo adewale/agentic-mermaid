@@ -29,6 +29,7 @@ export type SdkCall =
   | { verb: 'mutate'; body: 'flowchart' | 'state' | 'sequence' | 'timeline' | 'class' | 'er' | 'journey' | 'architecture' | 'xychart' | 'pie' | 'quadrant' | 'gantt' | 'opaque'; input?: DiagramRef; output?: DiagramRef; opKind?: string; fingerprint?: string }
   | { verb: 'verify'; diagram?: DiagramRef; ok?: boolean; inspected?: boolean; fingerprint?: string }
   | { verb: 'verify_inspect'; diagram?: DiagramRef; property: 'ok' | 'warnings' | 'layout' }
+  | { verb: 'analyze'; diagram?: DiagramRef; source?: string; ok?: boolean; fingerprint?: string }
   | { verb: 'serialize'; diagram?: DiagramRef; source?: string; fingerprint?: string }
   | { verb: 'string_concat' }   // the agent built source by hand
   | { verb: 'regenerate' }      // the agent re-emitted whole source from scratch

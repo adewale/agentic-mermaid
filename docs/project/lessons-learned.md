@@ -561,7 +561,7 @@ silent-loss bug, and the wrapper-fidelity batch) converged on one method and
 one contract lesson.
 
 **The method: probe official documentation examples through the round-trip,
-not just our own fixtures.** The `@{ shape: ... }` silent-loss bug (BUILD-20,
+not just our own fixtures.** The `@{ shape: ... }` silent-loss bug (BUILD-23,
 issue #29) was found by taking the Mermaid docs' own typed-shape syntax and
 running it through `parseMermaid → serializeMermaid`; the wrapper-fidelity
 gaps (BUILD-21) were found the same way with the syntax-reference's
@@ -671,9 +671,10 @@ exceptions:
   flowchart/link-routing, architecture+xychart, and Gantt lanes.
 - **Executable upstream-docs harvest and divergence evidence** now covers all
   registered families via the regenerated 271-example Mermaid docs corpus plus
-  `eval/mermaid-docs-corpus/divergences.json`. Full upstream parser/DB suite
-  harvests remain the deeper BUILD-20 workstream, but they are no longer a
-  citizenship-matrix exception.
+  `eval/mermaid-docs-corpus/divergences.json`. The cross-family parser/DB
+  bench in `eval/mermaid-upstream-suite-bench/` now accounts for every current
+  renderable-family BUILD-20 upstream block, while Gantt's deeper
+  family-specific pilot remains in `eval/mermaid-gantt-bench/`.
 - **Generated-site drift was real.** Pie, Quadrant, and Gantt were supported
   families but the sample gallery still lacked explicit color/prefix handling;
   #41 fixed that instance and added tests so future family categories cannot
@@ -684,5 +685,31 @@ uncomfortable. If it reads as "we're allowed to ignore this," it has failed.
 It should read as "this is the exact remaining work, this is why it is not a
 merge blocker today, and this is the test/backlog hook that will fail if we
 forget it." Good citizenship is therefore both a contract and a gap map: Gantt
-sets the destination, the matrix records current state, and BUILD-20 remains
-the named deeper-compatibility path beyond the now-closed BUILD-22 matrix gaps.
+sets the destination, the matrix records current state, and the upstream
+ratchets keep the deeper-compatibility path executable beyond the now-closed
+BUILD-22 matrix gaps.
+
+## PR #54 audit lesson — closure PRs need adversarial self-review, not just green checks
+
+The final #26/#38 closure pass exposed three classes of mistakes that ordinary
+green tests did not make obvious enough:
+
+- **Debug metadata can lie even when rendering looks fine.** Sequence self-message
+  SVG drew a loop, but the layout JSON adapter initially flattened it to a
+  two-point zero-bend line and certified that false geometry. Certificate tests
+  must check the rendered family geometry, not just that a certificate object
+  exists.
+- **Generated-site inputs are docs too.** Updating `docs/features.md` and
+  `docs/api.md` was not enough; pages such as `/differences` are generated from
+  `scripts/site/*` copy and need the same capability audit as Markdown docs.
+- **Seed ratchets are useful only when named honestly.** The first BUILD-20
+  seed bench was valuable as a cross-family parser/DB smoke ratchet, but it
+  had to be named as partial until the full accounted harvest replaced it. The
+  current bench records imported blocks, excluded blocks, and zero deferred
+  blocks so future readers do not mistake curated smoke coverage for
+  comprehensive accounting.
+
+The practice change: before merging a broad closure PR, run a fresh-context
+review explicitly asking "what claims would become false if a consumer trusted
+our debug metadata, generated site copy, or issue labels?" Then either fix the
+claim or carve out a named follow-up.

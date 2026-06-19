@@ -50,7 +50,7 @@ Tier 3 (lint, advisory): `DUPLICATE_EDGE`, `UNREACHABLE_NODE`, `DECISION_BRANCH_
 `am render-markdown <file.md> [--ascii]` — render each Mermaid fenced block; skips invalid diagrams, never aborts the file. JSON: `{blocks:[{index,ok,output|error}]}`.
 Exit codes: `0` ok, `2` arg/parse/mutation error, `3` verify-failed, `4` internal. Parse and verify-failure errors carry `error.details` arrays, not stringified blobs.
 
-Library extras: `renderMermaidPNG(src,{fitTo,background})` returns PNG bytes; `renderMermaidASCIIWithMeta(src)` → `{ascii,regions}` for TUI click-mapping; `asciiToMermaid(ascii)` reverses flowchart ASCII (best-effort, lossy); `verifyNoExternalRefs(svg)` asserts no external fetch; `renderMermaidSVG(src,{idPrefix})` namespaces def ids for multi-diagram pages. See SECURITY.md.
+Library extras: `renderMermaidPNG(src,{fitTo,background})` returns PNG bytes; `renderMermaidASCIIWithMeta(src)` → `{ascii,regions,warnings,routeParity}` for TUI click-mapping; `analyzeMermaid(d)` / `analyzeMermaidSource(source)` returns non-rendering feedback/action/Gantt facts; `asciiToMermaid(ascii)` reverses flowchart ASCII (best-effort, lossy); `verifyNoExternalRefs(svg)` asserts no external fetch; `renderMermaidSVG(src,{idPrefix})` namespaces def ids for multi-diagram pages. See SECURITY.md.
 
 ## Anti-patterns
 

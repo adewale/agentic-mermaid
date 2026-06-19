@@ -6,7 +6,7 @@
 // nothing). The only verify knob is labelCharCap. See AGENT_NATIVE.md § (1).
 // ============================================================================
 
-import type { MermaidGraph, NodeShape, EdgeStyle, RouteCertificate } from '../types.ts'
+import type { MermaidGraph, NodeShape, EdgeStyle, LayoutRouteCertificate, RouteCertificate, RouteClass } from '../types.ts'
 import type { MermaidFrontmatterMap, MermaidConfigMap } from '../mermaid-source.ts'
 
 // ---- Result ---------------------------------------------------------------
@@ -444,10 +444,58 @@ export interface ValidDiagramMeta {
   droppedComments?: SourceComment[]
 }
 
+export interface SourceLocation { line: number; col: number }
+
 export interface SourceMap {
-  nodes: Map<string, { line: number; col: number }>
-  edges: Map<string, { line: number; col: number }>
-  groups: Map<string, { line: number; col: number }>
+  nodes: Map<string, SourceLocation>
+  edges: Map<string, SourceLocation>
+  groups: Map<string, SourceLocation>
+  /** Stable label spans where known: `node:<id>`, `edge#<i>:<from>-><to>`, `group:<id>`. */
+  labels: Map<string, SourceLocation>
+}
+
+export type DiagramActionKind = 'href' | 'call' | 'callback'
+export type DiagramActionSecurity = 'safe' | 'unsafe' | 'source-only' | 'unsupported'
+
+export interface DiagramActionRecord {
+  /** Stable source-side action id (`action:<family>:<target>:<n>`). */
+  id?: string
+  /** Region id this action attaches to when a rendered layout exposes regions. */
+  regionId?: string
+  family: DiagramKind
+  target: string
+  action: DiagramActionKind
+  /** Original action payload after the target id; never executed by analysis. */
+  raw: string
+  line?: number
+  href?: string
+  security: DiagramActionSecurity
+  executable: false
+  message?: string
+}
+
+export interface FeedbackEdgeAnalysis {
+  edgeIndex: number
+  from: NodeId
+  to: NodeId
+  label?: string
+  routeClass: RouteClass
+}
+
+export interface GanttScheduleAnalysisSummary {
+  criticalPathTaskIds: string[]
+  slackByTaskId: Record<string, number>
+  projectStart: number
+  projectEnd: number
+  entryTaskIds: string[]
+  sinkTaskIds: string[]
+}
+
+export interface DiagramAnalysis {
+  kind: DiagramKind
+  feedbackEdges: FeedbackEdgeAnalysis[]
+  actions: DiagramActionRecord[]
+  gantt?: GanttScheduleAnalysisSummary
 }
 
 export type DiagramBody =
@@ -822,17 +870,30 @@ export interface VerifyOptions {
   labelCharCap?: number
 }
 
+export type RenderedRegionKind = 'node' | 'edge' | 'label' | 'group' | 'canvas'
+
+export interface RenderedRegion {
+  id: string
+  kind: RenderedRegionKind
+  elementId?: string
+  parentId?: string
+  bounds: { x: Finite; y: Finite; w: Finite; h: Finite }
+  sourceLine?: number
+}
+
 export interface RenderedLayoutNode {
   id: NodeId; x: Finite; y: Finite; w: Finite; h: Finite; shape: string; label?: string
 }
 export interface RenderedLayoutEdge {
   id: EdgeId; from: NodeId; to: NodeId; path: [Finite, Finite][]
   label?: { x: Finite; y: Finite; text: string }
-  /** Route-contract certificate; present only under layoutMermaid(d, { debug: true }). */
-  route?: RouteCertificate
+  /** Layout/route certificate; present only under layoutMermaid(d, { debug: true }) for families with a certificate model. */
+  route?: LayoutRouteCertificate
 }
 export interface RenderedLayoutGroup {
   id: GroupId; x: Finite; y: Finite; w: Finite; h: Finite; members: NodeId[]; label?: string
+  /** Parent group id for flattened region-tree consumers; undefined means root-level group. */
+  parentId?: GroupId
 }
 export interface RenderedLayout {
   version: 1
@@ -840,6 +901,12 @@ export interface RenderedLayout {
   nodes: RenderedLayoutNode[]
   edges: RenderedLayoutEdge[]
   groups: RenderedLayoutGroup[]
+  /** Layout/family certificates for non-edge invariants; present only under layoutMermaid(d, { debug: true }). */
+  certificates?: LayoutRouteCertificate[]
+  /** Optional region sidecar for renderer/action alignment; debug-only in layoutMermaid V1. */
+  regions?: RenderedRegion[]
+  /** Optional source-only actions aligned to region ids; debug-only in layoutMermaid V1. */
+  actions?: DiagramActionRecord[]
   bounds: { w: Finite; h: Finite }
 }
 

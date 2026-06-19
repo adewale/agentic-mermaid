@@ -18,7 +18,7 @@ import { normalizeBrTags } from './multiline-utils.ts'
  * Throws on invalid/unsupported input.
  */
 export function parseMermaid(text: string): MermaidGraph {
-  const lines = coalesceMetadataLines(text.split('\n')).map(l => l.trim()).filter(l => l.length > 0 && !l.startsWith('%%'))
+  const lines = expandInlineHeaderStatements(coalesceMetadataLines(text.split('\n')).map(l => l.trim()).filter(l => l.length > 0 && !l.startsWith('%%')))
 
   if (lines.length === 0) {
     throw new Error('Empty mermaid diagram')
@@ -34,6 +34,12 @@ export function parseMermaid(text: string): MermaidGraph {
 
   // Flowchart: "graph TD" or "flowchart LR"
   return parseFlowchart(lines)
+}
+
+function expandInlineHeaderStatements(lines: string[]): string[] {
+  if (lines.length === 0 || !lines[0]!.includes(';')) return lines
+  if (!/^(?:graph|flowchart|swimlane|stateDiagram(?:-v2)?)(?:\b|\s)/i.test(lines[0]!)) return lines
+  return [...splitFlowchartStatements(lines[0]!), ...lines.slice(1)]
 }
 
 /**
@@ -156,12 +162,12 @@ function isUnsupportedEdgeMetadataLine(line: string): boolean {
 // ============================================================================
 
 function parseFlowchart(lines: string[]): MermaidGraph {
-  const headerMatch = lines[0]!.match(/^(?:graph|flowchart)\s+(TD|TB|LR|BT|RL)\s*$/i)
+  const headerMatch = lines[0]!.match(/^(?:graph|flowchart|swimlane)\s+(TD|TB|LR|BT|RL|[<>^v])\s*$/i)
   if (!headerMatch) {
     throw new Error(`Invalid mermaid header: "${lines[0]}". Expected "graph TD", "flowchart LR", "stateDiagram-v2", etc.`)
   }
 
-  const direction = headerMatch[1]!.toUpperCase() as Direction
+  const direction = normalizeFlowchartDirection(headerMatch[1]!)
 
   const graph: MermaidGraph = {
     direction,
@@ -176,6 +182,7 @@ function parseFlowchart(lines: string[]): MermaidGraph {
 
   // Subgraph stack for nested subgraphs.
   const subgraphStack: MermaidSubgraph[] = []
+  const declaredSubgraphIds = collectDeclaredFlowchartSubgraphIds(lines.slice(1))
 
   for (let i = 1; i < lines.length; i++) {
     for (const line of splitFlowchartStatements(lines[i]!)) {
@@ -187,6 +194,7 @@ function parseFlowchart(lines: string[]): MermaidGraph {
       if (classDefMatch) {
         const names = classDefMatch[1]!.split(',').map(s => s.trim()).filter(Boolean)
         const props = parseStyleProps(classDefMatch[2]!)
+        if (Object.keys(props).length === 0) continue
         for (const name of names) graph.classDefs.set(name, props)
         continue
       }
@@ -207,6 +215,7 @@ function parseFlowchart(lines: string[]): MermaidGraph {
       if (styleMatch) {
         const nodeIds = styleMatch[1]!.split(',').map(s => s.trim())
         const props = parseStyleProps(styleMatch[2]!)
+        if (Object.keys(props).length === 0) continue
         for (const id of nodeIds) {
           graph.nodeStyles.set(id, { ...graph.nodeStyles.get(id), ...props })
         }
@@ -218,6 +227,7 @@ function parseFlowchart(lines: string[]): MermaidGraph {
       if (linkStyleMatch) {
         const target = linkStyleMatch[1]!.trim()
         const props = parseStyleProps(linkStyleMatch[2]!)
+        if (Object.keys(props).length === 0) continue
         if (target === 'default') {
           graph.linkStyles.set('default', { ...graph.linkStyles.get('default'), ...props })
         } else {
@@ -274,11 +284,34 @@ function parseFlowchart(lines: string[]): MermaidGraph {
       }
 
       // --- Edge/node definitions ---
-      parseEdgeLine(line, graph, subgraphStack)
+      parseEdgeLine(line, graph, subgraphStack, declaredSubgraphIds)
     }
   }
 
   return graph
+}
+
+function collectDeclaredFlowchartSubgraphIds(lines: string[]): Set<string> {
+  const ids = new Set<string>()
+  for (const raw of lines) {
+    for (const line of splitFlowchartStatements(raw)) {
+      const subgraphMatch = line.match(/^subgraph\s+(.+)$/)
+      if (!subgraphMatch) continue
+      const rest = subgraphMatch[1]!.trim()
+      const bracketMatch = rest.match(/^([\w-]+)\s*\[(.+)\]$/)
+      ids.add(bracketMatch ? bracketMatch[1]! : rest.replace(/\s+/g, '_').replace(/[^\w]/g, ''))
+    }
+  }
+  return ids
+}
+
+function normalizeFlowchartDirection(raw: string): Direction {
+  const direction = raw.toUpperCase()
+  if (direction === '>') return 'LR'
+  if (direction === '<') return 'RL'
+  if (direction === '^') return 'BT'
+  if (direction === 'V') return 'TB'
+  return direction as Direction
 }
 
 // ============================================================================
@@ -335,6 +368,7 @@ function parseStateDiagram(lines: string[]): MermaidGraph {
     if (linkStyleMatch) {
       const target = linkStyleMatch[1]!.trim()
       const props = parseStyleProps(linkStyleMatch[2]!)
+      if (Object.keys(props).length === 0) continue
       if (target === 'default') {
         graph.linkStyles.set('default', { ...graph.linkStyles.get('default'), ...props })
       } else {
@@ -637,12 +671,13 @@ function consumeClassShorthand(text: string): { className: string; length: numbe
 function parseEdgeLine(
   line: string,
   graph: MermaidGraph,
-  subgraphStack: MermaidSubgraph[]
+  subgraphStack: MermaidSubgraph[],
+  declaredSubgraphIds: Set<string> = new Set(),
 ): void {
   let remaining = line.trim()
 
   // Parse the first node group (possibly with & separators)
-  const firstGroup = consumeNodeGroup(remaining, graph, subgraphStack)
+  const firstGroup = consumeNodeGroup(remaining, graph, subgraphStack, declaredSubgraphIds)
   if (!firstGroup || firstGroup.ids.length === 0) return
 
   remaining = firstGroup.remaining.trim()
@@ -691,7 +726,7 @@ function parseEdgeLine(
     }
 
     // Parse the next node group
-    const nextGroup = consumeNodeGroup(remaining, graph, subgraphStack)
+    const nextGroup = consumeNodeGroup(remaining, graph, subgraphStack, declaredSubgraphIds)
     if (!nextGroup || nextGroup.ids.length === 0) break
 
     remaining = nextGroup.remaining.trim()
@@ -729,9 +764,10 @@ interface ConsumedNodeGroup {
 function consumeNodeGroup(
   text: string,
   graph: MermaidGraph,
-  subgraphStack: MermaidSubgraph[]
+  subgraphStack: MermaidSubgraph[],
+  declaredSubgraphIds: Set<string>,
 ): ConsumedNodeGroup | null {
-  const first = consumeNode(text, graph, subgraphStack)
+  const first = consumeNode(text, graph, subgraphStack, declaredSubgraphIds)
   if (!first) return null
 
   const ids = [first.id]
@@ -740,7 +776,7 @@ function consumeNodeGroup(
   // Check for & separators
   while (remaining.startsWith('&')) {
     remaining = remaining.slice(1).trim()
-    const next = consumeNode(remaining, graph, subgraphStack)
+    const next = consumeNode(remaining, graph, subgraphStack, declaredSubgraphIds)
     if (!next) break
     ids.push(next.id)
     remaining = next.remaining.trim()
@@ -813,6 +849,19 @@ function parseMetadataLabel(metadata: string): string | undefined {
   return raw.trim()
 }
 
+function consumeQuotedNode(
+  text: string,
+  graph: MermaidGraph,
+  subgraphStack: MermaidSubgraph[]
+): ConsumedNode | null {
+  const match = text.match(/^([\w-]+)\["((?:\\.|[^"\\])*)"\]/)
+  if (!match) return null
+  const id = match[1]!
+  const label = normalizeBrTags(match[2]!.replace(/\\(["\\])/g, '$1'))
+  registerNode(graph, subgraphStack, { id, label, shape: 'rectangle' })
+  return { id, remaining: text.slice(match[0].length) }
+}
+
 /**
  * Try to consume a node definition from the start of `text`.
  * If the node has a shape+label (e.g. A[Text]), it's registered in the graph.
@@ -822,7 +871,8 @@ function parseMetadataLabel(metadata: string): string | undefined {
 function consumeNode(
   text: string,
   graph: MermaidGraph,
-  subgraphStack: MermaidSubgraph[]
+  subgraphStack: MermaidSubgraph[],
+  declaredSubgraphIds: Set<string>,
 ): ConsumedNode | null {
   const metadataNode = consumeMetadataNode(text, graph, subgraphStack)
   if (metadataNode) {
@@ -834,6 +884,9 @@ function consumeNode(
     }
     return { id: metadataNode.id, remaining }
   }
+
+  const quotedNode = consumeQuotedNode(text, graph, subgraphStack)
+  if (quotedNode) return quotedNode
 
   let id: string | null = null
   let remaining: string = text
@@ -858,7 +911,7 @@ function consumeNode(
     const bare = consumeBareNodeId(text)
     if (bare) {
       id = bare.id
-      if (!graph.nodes.has(id)) {
+      if (!graph.nodes.has(id) && !declaredSubgraphIds.has(id)) {
         registerNode(graph, subgraphStack, { id, label: id, shape: 'rectangle' })
       }
       remaining = text.slice(bare.length)

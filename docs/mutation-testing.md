@@ -30,9 +30,12 @@ bun run mutation-test:routes:subgraph  # subgraph endpoint/LCA routing
 bun run sabotage:routes                # one-line revert checks against committed HEAD; expects focused tests to fail
 ```
 
-The JSON report lands in `reports/mutation/` (gitignored). This is not part
-of CI: run it when you touch ASCII core logic, or when adding tests there and
-you want proof they bite.
+The JSON report lands in `reports/mutation/` (gitignored). Broad route lanes
+are intentionally not part of the PR gate, but `.github/workflows/nightly-route-mutation.yml`
+runs `mutation-test:routes`, `mutation-test:routes:certs`,
+`mutation-test:routes:subgraph`, and `sabotage:routes` nightly and on manual
+`workflow_dispatch`, uploading reports as artifacts. Run the narrow lane locally
+when you touch ASCII/route core logic and want immediate proof the tests bite.
 
 ## Policy
 
