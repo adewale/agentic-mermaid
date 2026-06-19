@@ -8,7 +8,7 @@
 
 import { describe, test, expect } from 'bun:test'
 import { parseMermaid } from '../agent/index.ts'
-import { countStructuralElements, countsEqual, faithfulnessWarning, type StructuralCount } from '../agent/structural-count.ts'
+import { countStructuralElements, countsEqual, faithfulnessWarning, isDrop, type StructuralCount } from '../agent/structural-count.ts'
 import { FAMILY_COUNT_FIXTURES } from './helpers/family-count-fixtures.ts'
 
 function count(src: string): StructuralCount {
@@ -67,6 +67,13 @@ describe('faithfulnessWarning — the round-trip drop verdict', () => {
     expect(w).toHaveLength(1)
     expect(w[0]!.code).toBe('CONTENT_DROPPED_ON_ROUNDTRIP')
     expect((w[0] as { after: StructuralCount }).after).toEqual({ nodes: 0, edges: 0, groups: 0 })
+  })
+
+  test('isDrop is the boolean view of the verdict', () => {
+    expect(isDrop(null, C(1, 1, 0))).toBe(false)        // opaque before
+    expect(isDrop(C(3, 2, 1), C(3, 2, 1))).toBe(false)  // equal
+    expect(isDrop(C(3, 2, 1), C(2, 2, 1))).toBe(true)   // node dropped
+    expect(isDrop(C(3, 2, 1), null)).toBe(true)         // total loss
   })
 
   test('a drop on ANY axis ⇒ CONTENT_DROPPED_ON_ROUNDTRIP carrying before + after', () => {

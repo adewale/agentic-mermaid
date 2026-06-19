@@ -58,8 +58,16 @@ export const METAMORPHIC_FAMILIES: Record<DiagramKind, FamilyMetamorphic> = {
   state: {
     family: 'state',
     // A standalone `state X` declaration flips the body to opaque, so there is
-    // no clean add-primary; relabel + add-relation cover it.
-    build: (k, t) => lines('stateDiagram-v2', ...range(k - 1).map(i => `  ${t}${i} --> ${t}${i + 1}`)),
+    // no clean add-primary; relabel + add-relation cover it. The trailing
+    // composite block (Move 1) exercises the recursive nested-state/transition
+    // count path that flat chains never reach.
+    build: (k, t) => lines(
+      'stateDiagram-v2',
+      ...range(k - 1).map(i => `  ${t}${i} --> ${t}${i + 1}`),
+      `  state ${t}comp {`,
+      `    ${t}ca --> ${t}cb`,
+      `  }`,
+    ),
     kRange: [2, 6],
     addPrimary: null,
     addRelation: (_k, t) => `\n  ${t}1 --> ${t}0`,
@@ -95,10 +103,13 @@ export const METAMORPHIC_FAMILIES: Record<DiagramKind, FamilyMetamorphic> = {
   },
   architecture: {
     family: 'architecture',
+    // A junction (Move 1) makes nodes = services + junctions discriminating, so
+    // the relabel/determinism relations exercise the junction-count path.
     build: (k, t) => lines(
       'architecture-beta',
       `  group ${t}g(cloud)[G]`,
       ...range(k).map(i => `  service ${t}s${i}(server)[S${i}] in ${t}g`),
+      `  junction ${t}j in ${t}g`,
       ...range(k - 1).map(i => `  ${t}s${i}:R -- L:${t}s${i + 1}`),
     ),
     kRange: [2, 5],

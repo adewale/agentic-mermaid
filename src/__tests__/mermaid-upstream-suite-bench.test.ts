@@ -7,7 +7,7 @@ import {
   layoutMermaid, parseMermaid, serializeMermaid, verifyMermaid,
 } from '../agent/index.ts'
 import type { DiagramKind, ValidDiagram } from '../agent/types.ts'
-import { countStructuralElements, faithfulnessWarning } from '../agent/structural-count.ts'
+import { countStructuralElements, isDrop } from '../agent/structural-count.ts'
 
 interface BenchCase {
   id: string
@@ -302,7 +302,7 @@ describe('BUILD-20 Mermaid upstream parser/DB bench', () => {
         // Route through the shared verdict (Move 3). Keep this gate's original
         // lenient policy: a structured body that re-parses to OPAQUE (after=null)
         // is owned by the byte round-trip check above, not flagged here.
-        if (before && after) expect({ id: c.id, drop: faithfulnessWarning(before, after).length > 0, before, after }).toEqual({ id: c.id, drop: false, before, after })
+        if (before && after) expect({ id: c.id, drop: isDrop(before, after), before, after }).toEqual({ id: c.id, drop: false, before, after })
       }
     })
   }

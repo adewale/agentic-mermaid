@@ -23,7 +23,7 @@
 
 import { describe, test, expect } from 'bun:test'
 import fc from 'fast-check'
-import { parseMermaid, verifyMermaid, layoutMermaid, measureQuality } from '../agent/index.ts'
+import { parseMermaid, verifyMermaid, layoutMermaid, measureQuality, serializeMermaid } from '../agent/index.ts'
 import { countStructuralElements, type StructuralCount } from '../agent/structural-count.ts'
 import { BUILTIN_FAMILY_METADATA } from '../agent/families.ts'
 import { METAMORPHIC_FAMILIES } from './helpers/metamorphic-families.ts'
@@ -100,6 +100,16 @@ describe('metamorphic: relations across all renderable families', () => {
       expect(p.ok).toBe(true)
       if (!p.ok) return
       expect(measureQuality(layoutMermaid(p.value))).toEqual(measureQuality(layoutMermaid(p.value)))
+    })
+
+    // Move 9: serialization determinism for every family — two serializations of
+    // the same diagram are byte-identical (a precondition for the round-trip and
+    // faithfulness gates to be meaningful).
+    test(`${fam.family}: MR1 determinism — byte-identical serialization`, () => {
+      const p = parseMermaid(fam.build(fam.kRange[0], 'qseed'))
+      expect(p.ok).toBe(true)
+      if (!p.ok) return
+      expect(serializeMermaid(p.value)).toBe(serializeMermaid(p.value))
     })
 
     test(`${fam.family}: base build is structured + verifiable`, () => {

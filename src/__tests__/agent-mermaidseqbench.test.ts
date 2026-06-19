@@ -10,7 +10,7 @@ import { existsSync } from 'node:fs'
 import { join } from 'node:path'
 import { loadDataset, runBench, parseCsv } from '../../eval/mermaidseqbench/runner.ts'
 import { parseMermaid, serializeMermaid } from '../agent/index.ts'
-import { countStructuralElements, faithfulnessWarning } from '../agent/structural-count.ts'
+import { countStructuralElements, isDrop } from '../agent/structural-count.ts'
 
 const DATA = join(import.meta.dir, '..', '..', 'eval', 'mermaidseqbench', 'data.csv')
 const have = existsSync(DATA)
@@ -43,7 +43,7 @@ if (have) {
         const p2 = parseMermaid(serializeMermaid(p1.value))
         const after = p2.ok ? countStructuralElements(p2.value) : null
         // Shared verdict (Move 3): same drop semantics as the corpus + upstream gates.
-        if (faithfulnessWarning(before, after).length > 0) drops.push(row.title)
+        if (isDrop(before, after)) drops.push(row.title)
       }
       expect(drops).toEqual([])
     })

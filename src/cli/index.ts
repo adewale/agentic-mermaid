@@ -42,7 +42,7 @@ function parseErrorEnvelope(errors: ParseError[]): { ok: false; error: { code: s
 
 interface ParsedArgs { command?: string; positional: string[]; flags: Record<string, string | boolean> }
 
-export const BOOLEAN_FLAGS = new Set(['agent-instructions', 'ascii', 'certificates', 'help', 'json', 'watch', 'open', 'force', 'no-faithfulness-check'])
+export const BOOLEAN_FLAGS = new Set(['agent-instructions', 'ascii', 'certificates', 'help', 'json', 'watch', 'open', 'force', 'no-faithfulness-check', 'canonical-wrapper'])
 
 function parseArgs(argv: string[]): ParsedArgs {
   const out: ParsedArgs = { positional: [], flags: {} }
@@ -118,7 +118,7 @@ Exit codes:
   4  uncaught internal failure
 `
 
-const COMMAND_HELP: Record<string, string> = {
+export const COMMAND_HELP: Record<string, string> = {
   render: `am render <file|-> [--format svg|ascii|unicode|json|png] [--ascii] [--json]
 Render a diagram. Default is SVG.
   --format svg      SVG markup (default)

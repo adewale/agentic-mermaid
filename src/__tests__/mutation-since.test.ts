@@ -17,4 +17,14 @@ describe('sinceRef', () => {
   test('surrounding whitespace is trimmed', () => {
     expect(sinceRef('  feature-x \n')).toBe('origin/feature-x')
   })
+
+  test('a SHA base is used as-is (no origin/ prefix)', () => {
+    expect(sinceRef('a1b2c3d')).toBe('a1b2c3d')                              // short SHA
+    expect(sinceRef('0123456789abcdef0123456789abcdef01234567')).toBe('0123456789abcdef0123456789abcdef01234567')  // full SHA
+  })
+
+  test('a branch that merely looks word-like still gets origin/', () => {
+    expect(sinceRef('release')).toBe('origin/release')  // not hex-only
+    expect(sinceRef('abcdefg')).toBe('origin/abcdefg')  // contains g → not a SHA
+  })
 })

@@ -9,8 +9,11 @@
  * (diffing against itself yields an empty change set → the lane no-ops).
  */
 export function sinceRef(baseRef: string | undefined): string {
-  const branch = (baseRef ?? '').trim() || 'main'
-  return `origin/${branch}`
+  const ref = (baseRef ?? '').trim() || 'main'
+  // A SHA (detached HEAD / merge base) is already a concrete commit — prefixing
+  // `origin/` would make it an invalid ref. Branch names get the remote prefix.
+  if (/^[0-9a-f]{7,40}$/i.test(ref)) return ref
+  return `origin/${ref}`
 }
 
 if (import.meta.main) {

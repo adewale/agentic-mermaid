@@ -128,3 +128,13 @@ export function faithfulnessWarning(
   if (!countsEqual(before, after)) return [{ code: 'CONTENT_DROPPED_ON_ROUNDTRIP', before, after }]
   return []
 }
+
+/**
+ * Boolean view of {@link faithfulnessWarning} for the differential gates
+ * (corpus / seqbench / upstream), which only need "did content drop?" — reads
+ * better than `faithfulnessWarning(...).length > 0` at the call sites and is
+ * independently testable.
+ */
+export function isDrop(before: StructuralCount | null, after: StructuralCount | null): boolean {
+  return faithfulnessWarning(before, after).length > 0
+}

@@ -65,19 +65,29 @@ export function evaluateGoldenDrift(f: GoldenDriftFacts): GoldenDriftVerdict {
 
 // ---- CLI wrapper: gather git facts, annotate, exit ------------------------
 
-if (import.meta.main && process.argv.includes('--selftest')) {
-  // Move 10: prove the gate's branches behave IN CI (not only in the unit test).
-  // Exercises the approved happy path + the unreviewed failure on synthetic
-  // facts, so a regression in the deployed script surfaces in the CI run itself.
-  const approved = evaluateGoldenDrift({ uncommittedGoldenFiles: [], headGoldenFiles: ['src/__tests__/testdata/x.txt'], commitMessage: `fix\n${APPROVE_TOKEN} reviewed` })
-  const unreviewed = evaluateGoldenDrift({ uncommittedGoldenFiles: [], headGoldenFiles: ['src/__tests__/testdata/x.txt'], commitMessage: 'fix' })
+/**
+ * Move 10/6: exercise the gate's branches on synthetic facts so a regression in
+ * the deployed decision surfaces both in the unit test (in-process) and in the
+ * CI `--selftest` step. Pure: returns the verdicts + an `ok` for all-as-expected.
+ */
+export function selfTest(): { ok: boolean; results: Record<'approved' | 'unreviewed' | 'clean', GoldenDriftVerdict> } {
+  const x = ['src/__tests__/testdata/x.txt']
+  const approved = evaluateGoldenDrift({ uncommittedGoldenFiles: [], headGoldenFiles: x, commitMessage: `fix\n${APPROVE_TOKEN} reviewed` })
+  const unreviewed = evaluateGoldenDrift({ uncommittedGoldenFiles: [], headGoldenFiles: x, commitMessage: 'fix' })
   const clean = evaluateGoldenDrift({ uncommittedGoldenFiles: [], headGoldenFiles: [], commitMessage: 'fix' })
-  const okPaths = approved.code === 'approved' && approved.ok && !unreviewed.ok && unreviewed.code === 'unreviewed-goldens' && clean.ok
-  if (okPaths) {
+  const ok = approved.ok && approved.code === 'approved'
+    && !unreviewed.ok && unreviewed.code === 'unreviewed-goldens'
+    && clean.ok && clean.code === 'clean'
+  return { ok, results: { approved, unreviewed, clean } }
+}
+
+if (import.meta.main && process.argv.includes('--selftest')) {
+  const { ok, results } = selfTest()
+  if (ok) {
     process.stdout.write('::notice title=Golden drift selftest::approved/unreviewed/clean branches behave as expected\n')
     process.exit(0)
   }
-  process.stdout.write(`::error title=Golden drift selftest FAILED::${JSON.stringify({ approved, unreviewed, clean })}\n`)
+  process.stdout.write(`::error title=Golden drift selftest FAILED::${JSON.stringify(results)}\n`)
   process.exit(1)
 }
 
