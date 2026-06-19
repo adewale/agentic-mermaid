@@ -42,4 +42,17 @@ describe('CONTENT_DROPPED_ON_ROUNDTRIP verify lint', () => {
     if (!p.ok) return
     expect(verifyMermaid(p.value).ok).toBe(true)
   })
+
+  // Move 6: an OPAQUE body (the wrapper's `before === null` branch) must never
+  // produce a faithfulness drop — its faithfulness contract is byte-verbatim,
+  // owned by the round-trip-stability gate. Exercises that wrapper branch
+  // end-to-end through verify (a titled xychart falls to opaque).
+  test('an opaque body produces no faithfulness drop', () => {
+    const p = parseMermaid('xychart-beta\n  title "A title forces opaque"\n  bar [1, 2, 3]')
+    expect(p.ok).toBe(true)
+    if (!p.ok) return
+    expect(p.value.body.kind).toBe('opaque')
+    const drops = verifyMermaid(p.value).warnings.filter(w => w.code === 'CONTENT_DROPPED_ON_ROUNDTRIP')
+    expect(drops).toEqual([])
+  })
 })

@@ -1,33 +1,18 @@
-// Move 5: keep BOOLEAN_FLAGS in sync with the help text, so a new flag can't be
-// documented as a boolean (no `<ARG>`) without being registered as boolean in
-// the parser — the exact footgun avoided by hand when adding
-// --no-faithfulness-check. The global "Flags:" block is the source: a flag
-// documented WITHOUT a `<ARG>` placeholder takes no value and MUST be in
-// BOOLEAN_FLAGS; a flag documented WITH one must NOT be.
+// Flag/registry consistency (Moves 4, 1, 2, 10).
+//
+// The CLI parser's boolean classification (BOOLEAN_FLAGS, derived from
+// FLAG_SPECS) must stay consistent with three things: the help text, the
+// per-command usage, and how flags are actually READ in the CLI source. A
+// mismatch is the bug class that let `am format --canonical-wrapper file`
+// consume the filename.
 
 import { describe, test, expect } from 'bun:test'
-import { BOOLEAN_FLAGS, GLOBAL_USAGE, COMMAND_HELP } from '../cli/index.ts'
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
+import { BOOLEAN_FLAGS, FLAG_SPECS, GLOBAL_USAGE, COMMAND_HELP, usageBracket, parseArgs } from '../cli/index.ts'
+import { parseFlagsBlock, parseUsageFlags, booleanFlagReads } from './helpers/cli-flag-parsing.ts'
 
-interface FlagDoc { name: string; takesArg: boolean }
-
-function parseFlagsBlock(usage: string): FlagDoc[] {
-  const lines = usage.split('\n')
-  const start = lines.findIndex(l => /^Flags:/.test(l))
-  expect(start).toBeGreaterThan(-1)
-  const out: FlagDoc[] = []
-  for (let i = start + 1; i < lines.length; i++) {
-    const line = lines[i]!
-    if (line.trim() === '' || /^\S/.test(line)) break  // block ends at a blank or unindented line
-    // `  --flag <ARG>   desc`  or  `  --flag   desc`. The \b must sit right after
-    // the flag name; an <ARG> ends in `>` (non-word) so a \b after it would fail
-    // and mask the arg — keep the optional <ARG> group AFTER the word boundary.
-    const m = line.match(/^\s+--([A-Za-z][\w-]*)\b(\s+<[^>]+>)?/)
-    if (m) out.push({ name: m[1]!, takesArg: Boolean(m[2]) })
-  }
-  return out
-}
-
-describe('BOOLEAN_FLAGS ↔ help text', () => {
+describe('BOOLEAN_FLAGS ↔ global help Flags block (Move 4 helper)', () => {
   const flags = parseFlagsBlock(GLOBAL_USAGE)
 
   test('the Flags block parses into several documented flags', () => {
@@ -36,43 +21,86 @@ describe('BOOLEAN_FLAGS ↔ help text', () => {
   })
 
   test('every value-less documented flag is registered as boolean', () => {
-    const unregistered = flags.filter(f => !f.takesArg && !BOOLEAN_FLAGS.has(f.name)).map(f => f.name)
-    expect(unregistered).toEqual([])
+    expect(flags.filter(f => !f.takesArg && !BOOLEAN_FLAGS.has(f.name)).map(f => f.name)).toEqual([])
   })
 
   test('every flag documented with a <ARG> is NOT boolean', () => {
-    const misregistered = flags.filter(f => f.takesArg && BOOLEAN_FLAGS.has(f.name)).map(f => f.name)
-    expect(misregistered).toEqual([])
+    expect(flags.filter(f => f.takesArg && BOOLEAN_FLAGS.has(f.name)).map(f => f.name)).toEqual([])
   })
 })
-
-// Move 4: the same boolean/value contract over the per-command usage lines.
-// Usage syntax marks booleans as `[--flag]` and value flags as `[--flag VAL]`
-// or `[--flag a|b]`, so a flag's value-ness is read from the bracket content.
-function parseUsageFlags(usageLine: string): FlagDoc[] {
-  const out: FlagDoc[] = []
-  for (const m of usageLine.matchAll(/\[--([A-Za-z][\w-]*)([^\]]*)\]/g)) {
-    out.push({ name: m[1]!, takesArg: m[2]!.trim().length > 0 })
-  }
-  return out
-}
 
 describe('BOOLEAN_FLAGS ↔ per-command usage (COMMAND_HELP)', () => {
   const perCommand = Object.entries(COMMAND_HELP).map(([cmd, help]) => ({ cmd, flags: parseUsageFlags(help.split('\n')[0]!) }))
 
   test('several commands document bracketed flags', () => {
-    const total = perCommand.reduce((n, c) => n + c.flags.length, 0)
-    expect(total).toBeGreaterThanOrEqual(6)
+    expect(perCommand.reduce((n, c) => n + c.flags.length, 0)).toBeGreaterThanOrEqual(6)
   })
 
   test('value-less bracket flags are registered boolean; valued ones are not', () => {
     const bad: string[] = []
-    for (const { cmd, flags } of perCommand) {
-      for (const f of flags) {
-        if (!f.takesArg && !BOOLEAN_FLAGS.has(f.name)) bad.push(`${cmd}: [--${f.name}] value-less but not in BOOLEAN_FLAGS`)
-        if (f.takesArg && BOOLEAN_FLAGS.has(f.name)) bad.push(`${cmd}: [--${f.name} …] valued but in BOOLEAN_FLAGS`)
-      }
+    for (const { cmd, flags } of perCommand) for (const f of flags) {
+      if (!f.takesArg && !BOOLEAN_FLAGS.has(f.name)) bad.push(`${cmd}: [--${f.name}] value-less but not boolean`)
+      if (f.takesArg && BOOLEAN_FLAGS.has(f.name)) bad.push(`${cmd}: [--${f.name} …] valued but boolean`)
     }
     expect(bad).toEqual([])
+  })
+})
+
+describe('FLAG_SPECS is the single source (Move 10)', () => {
+  test('BOOLEAN_FLAGS is exactly the arg-less specs', () => {
+    const derived = Object.keys(FLAG_SPECS).filter(n => !FLAG_SPECS[n]!.arg).sort()
+    expect([...BOOLEAN_FLAGS].sort()).toEqual(derived)
+  })
+
+  test('every flag in the global Flags block has a matching FLAG_SPEC', () => {
+    for (const f of parseFlagsBlock(GLOBAL_USAGE)) {
+      expect({ name: f.name, known: f.name in FLAG_SPECS }).toEqual({ name: f.name, known: true })
+      expect({ name: f.name, takesArg: f.takesArg }).toEqual({ name: f.name, takesArg: Boolean(FLAG_SPECS[f.name]!.arg) })
+    }
+  })
+
+  test('usageBracket renders booleans and value flags from the spec', () => {
+    expect(usageBracket('json')).toBe('[--json]')
+    expect(usageBracket('suppress')).toBe('[--suppress <CODES>]')
+    expect(() => usageBracket('not-a-flag')).toThrow(/unknown flag/)
+  })
+})
+
+describe('code reads ↔ BOOLEAN_FLAGS (Move 2)', () => {
+  const cliSource = readFileSync(join(import.meta.dir, '..', 'cli', 'index.ts'), 'utf8')
+
+  test('every flag read in a boolean context is registered boolean', () => {
+    // Closes the loop from the OTHER direction: a flag used as `flags.x ?` /
+    // `=== true` / `Boolean(...)` / `if (flags.x)` MUST be in BOOLEAN_FLAGS,
+    // regardless of whether it was documented. This is the direct guard the
+    // --canonical-wrapper bug needed.
+    const used = booleanFlagReads(cliSource)
+    const unregistered = [...used].filter(n => !BOOLEAN_FLAGS.has(n))
+    expect(unregistered).toEqual([])
+  })
+
+  test('the detector actually finds the known boolean reads', () => {
+    const used = booleanFlagReads(cliSource)
+    expect(used.has('canonical-wrapper')).toBe(true)  // flags['canonical-wrapper'] ?
+    expect(used.has('ascii')).toBe(true)              // flags.ascii ?
+  })
+})
+
+describe('parseArgs boolean flags before a positional (Move 1 regression)', () => {
+  test('--canonical-wrapper before the file keeps the file as positional', () => {
+    // The exact bug: a boolean flag immediately before a positional must not
+    // swallow it as the flag value.
+    const a = parseArgs(['format', '--canonical-wrapper', 'diagram.mmd'])
+    expect(a.flags['canonical-wrapper']).toBe(true)
+    expect(a.positional).toContain('diagram.mmd')
+  })
+
+  test('every boolean flag preserves a following positional', () => {
+    for (const name of BOOLEAN_FLAGS) {
+      if (name === 'help' || name === 'agent-instructions') continue  // global, no positional use
+      const a = parseArgs(['render', `--${name}`, 'file.mmd'])
+      expect({ name, flag: a.flags[name], hasFile: a.positional.includes('file.mmd') })
+        .toEqual({ name, flag: true, hasFile: true })
+    }
   })
 })

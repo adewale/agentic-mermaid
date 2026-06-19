@@ -50,6 +50,27 @@ describe('incremental mutation baseline ↔ docs (Move 3)', () => {
     expect(doc).toContain(`${noteScore}%`)
   })
 
+  // Move 7: the documented survivor COUNT (prose: "the four survivors") must
+  // equal total−killed, and the report's Survived count when present — so the
+  // count can't go stale the way a hard-coded number would.
+  test('the documented survivor count matches killed/total (and the report)', () => {
+    const m = note.match(/(\d+)\/(\d+) killed/)
+    expect(m).not.toBeNull()
+    const killed = Number(m![1]), total = Number(m![2])
+    const survivors = total - killed
+    expect(doc).toContain(`${killed}/${total}`)
+    const words = ['zero', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine']
+    const docFlat = doc.toLowerCase().replace(/\s+/g, ' ')  // the count can wrap across a line
+    expect(docFlat).toContain(`${words[survivors]} survivor`)
+
+    const reportPath = join(ROOT, 'reports/mutation/incremental-mutation.json')
+    if (!existsSync(reportPath)) return
+    const report = JSON.parse(readFileSync(reportPath, 'utf8')) as { files: Record<string, { mutants: Array<{ status: string }> }> }
+    let survived = 0
+    for (const f of Object.values(report.files)) for (const mu of f.mutants) if (mu.status === 'Survived') survived++
+    expect(survived).toBe(survivors)
+  })
+
   test('if the JSON report is present, its score matches the documented number', () => {
     const reportPath = join(ROOT, 'reports/mutation/incremental-mutation.json')
     if (!existsSync(reportPath)) return  // report is gitignored / not generated in this run

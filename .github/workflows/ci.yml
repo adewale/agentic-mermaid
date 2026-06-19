@@ -126,3 +126,13 @@ jobs:
           BASE="$(bun run scripts/ci/mutation-since.ts)"
           echo "Incremental mutation since $BASE"
           npx stryker run stryker.incremental.config.json --since "$BASE"
+
+      - name: Bind documented mutation score to a full report (Move 3)
+        # The --since gate above scopes mutation to the PR's changes, so its
+        # report covers only a subset. Run the FULL config to produce a complete
+        # report, then the doc-sync test binds docs/mutation-testing.md and the
+        # config note to that report's actual score + survivor count (no longer
+        # skippable in CI). The small lane makes a full run ~1 min.
+        run: |
+          npx stryker run stryker.incremental.config.json
+          bun test src/__tests__/mutation-config-doc-sync.test.ts

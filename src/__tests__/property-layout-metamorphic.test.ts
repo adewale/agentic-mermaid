@@ -75,6 +75,37 @@ describe('metamorphic: relations across all renderable families', () => {
     expect([...fixtureFamilies].sort()).toEqual([...registered].sort())
   })
 
+  // Move 5: pin each generator's base-build structural count exactly. The
+  // metamorphic relations only assert DELTAS (relabel/monotonicity), so a
+  // generator change that shifts the base count (as adding a junction / nested
+  // composite did this batch) would pass silently. These differ from
+  // FAMILY_COUNT_FIXTURES by design (different sources), so the generators carry
+  // their own pin. Regenerate by probing build(kRange[0], 'q0') if a generator
+  // legitimately changes.
+  const BASE_COUNTS: Record<string, { nodes: number; edges: number; groups: number }> = {
+    flowchart: { nodes: 2, edges: 1, groups: 0 },
+    state: { nodes: 5, edges: 2, groups: 0 },        // chain + nested composite
+    sequence: { nodes: 2, edges: 1, groups: 0 },
+    class: { nodes: 2, edges: 1, groups: 0 },
+    er: { nodes: 2, edges: 1, groups: 0 },
+    architecture: { nodes: 3, edges: 1, groups: 1 }, // 2 services + 1 junction
+    xychart: { nodes: 1, edges: 0, groups: 0 },
+    pie: { nodes: 2, edges: 0, groups: 0 },
+    quadrant: { nodes: 2, edges: 0, groups: 0 },
+    journey: { nodes: 2, edges: 0, groups: 1 },
+    timeline: { nodes: 4, edges: 0, groups: 1 },
+    gantt: { nodes: 2, edges: 0, groups: 1 },
+  }
+
+  test('every generator base build has its pinned structural count', () => {
+    const got: Record<string, unknown> = {}
+    for (const fam of Object.values(METAMORPHIC_FAMILIES)) {
+      const p = parseMermaid(fam.build(fam.kRange[0], 'q0'))
+      got[fam.family] = p.ok ? countStructuralElements(p.value) : 'PARSE_FAIL'
+    }
+    expect(got).toEqual(BASE_COUNTS)
+  })
+
   // Move 4: a pinned (non-property) smoke that each generator's base build
   // VERIFIES clean for a fixed seed — not just parses structured. Catches a
   // generator that emits parseable-but-warning source.

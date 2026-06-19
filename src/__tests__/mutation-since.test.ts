@@ -27,4 +27,12 @@ describe('sinceRef', () => {
     expect(sinceRef('release')).toBe('origin/release')  // not hex-only
     expect(sinceRef('abcdefg')).toBe('origin/abcdefg')  // contains g → not a SHA
   })
+
+  test('rejects refs git itself forbids (Move 9)', () => {
+    expect(() => sinceRef('foo bar')).toThrow(/invalid base ref/)   // internal space
+    expect(() => sinceRef('a..b')).toThrow(/invalid base ref/)      // double-dot
+    expect(() => sinceRef('-evil')).toThrow(/invalid base ref/)     // leading dash
+    expect(() => sinceRef('a~1')).toThrow(/invalid base ref/)       // tilde
+    expect(() => sinceRef('a:b')).toThrow(/invalid base ref/)       // colon
+  })
 })

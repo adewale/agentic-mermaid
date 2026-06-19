@@ -10,6 +10,12 @@
  */
 export function sinceRef(baseRef: string | undefined): string {
   const ref = (baseRef ?? '').trim() || 'main'
+  // Reject refs git itself forbids (git-check-ref-format): no whitespace, no
+  // `..`, no leading `-`, none of ~^:?*[ \. A malformed GITHUB_BASE_REF should
+  // fail loudly rather than build a bogus `--since` argument.
+  if (/\s/.test(ref) || ref.includes('..') || ref.startsWith('-') || /[~^:?*[\\]/.test(ref)) {
+    throw new Error(`invalid base ref: ${JSON.stringify(ref)}`)
+  }
   // A SHA (detached HEAD / merge base) is already a concrete commit — prefixing
   // `origin/` would make it an invalid ref. Branch names get the remote prefix.
   if (/^[0-9a-f]{7,40}$/i.test(ref)) return ref

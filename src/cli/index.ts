@@ -40,11 +40,33 @@ function parseErrorEnvelope(errors: ParseError[]): { ok: false; error: { code: s
   return { ok: false, error: { code: 'PARSE_FAILED', message, details: errors } }
 }
 
-interface ParsedArgs { command?: string; positional: string[]; flags: Record<string, string | boolean> }
+export interface ParsedArgs { command?: string; positional: string[]; flags: Record<string, string | boolean> }
 
-export const BOOLEAN_FLAGS = new Set(['agent-instructions', 'ascii', 'certificates', 'help', 'json', 'watch', 'open', 'force', 'no-faithfulness-check', 'canonical-wrapper'])
+// Single source of truth for CLI flags (Move 10). A flag with no `arg` is a
+// boolean; `arg` is the usage placeholder shown in `[--flag <arg>]`. BOOLEAN_FLAGS
+// is DERIVED from this, so the parser's boolean classification cannot drift from
+// the documented usage — and `usageBracket` renders the help form from the same
+// spec.
+export const FLAG_SPECS: Record<string, { arg?: string }> = {
+  // booleans
+  'agent-instructions': {}, 'ascii': {}, 'certificates': {}, 'help': {}, 'json': {},
+  'watch': {}, 'open': {}, 'force': {}, 'no-faithfulness-check': {}, 'canonical-wrapper': {},
+  // value flags (placeholder = what the usage shows after the flag)
+  'suppress': { arg: 'CODES' }, 'label-cap': { arg: 'N' }, 'op': { arg: 'JSON' },
+  'ops': { arg: 'JSON|file' }, 'output': { arg: 'FILE' }, 'format': { arg: 'fmt' },
+  'security': { arg: 'mode' }, 'dir': { arg: 'DIR' },
+}
 
-function parseArgs(argv: string[]): ParsedArgs {
+export const BOOLEAN_FLAGS = new Set(Object.keys(FLAG_SPECS).filter(name => !FLAG_SPECS[name]!.arg))
+
+/** Render a flag's usage form from its spec: `[--flag]` or `[--flag <arg>]`. */
+export function usageBracket(name: string): string {
+  const spec = FLAG_SPECS[name]
+  if (!spec) throw new Error(`unknown flag: ${name}`)
+  return spec.arg ? `[--${name} <${spec.arg}>]` : `[--${name}]`
+}
+
+export function parseArgs(argv: string[]): ParsedArgs {
   const out: ParsedArgs = { positional: [], flags: {} }
   let i = 0
   while (i < argv.length) {
