@@ -451,7 +451,7 @@ function renderEdgeLabel(edge: PositionedEdge, font: string, style: ResolvedRend
   const haloWidth = metrics.width + haloPadding * 2
   const haloHeight = metrics.height + haloPadding * 2
   const halo = `<rect class="edge-label-halo" x="${mid.x - haloWidth / 2}" y="${mid.y - haloHeight / 2}" ` +
-    `width="${haloWidth}" height="${haloHeight}" rx="4" ry="4" fill="var(--_edge-label-bg)" stroke="none" />`
+    `width="${haloWidth}" height="${haloHeight}" rx="4" ry="4" fill="var(--bg)" stroke="none" />`
 
   // Wrap in <g class="edge-label"> with reference to the edge it belongs to
   const content = renderMultilineTextWithBackground(
@@ -465,7 +465,7 @@ function renderEdgeLabel(edge: PositionedEdge, font: string, style: ResolvedRend
     // Use --_text-sec for better contrast (was --_text-muted)
     `text-anchor="middle" font-size="${style.edgeLabelFontSize}" font-weight="${style.edgeLabelFontWeight}"${style.edgeLetterSpacing !== 0 ? ` letter-spacing="${style.edgeLetterSpacing}"` : ''} fill="var(--_text-sec)"`,
     // Increased stroke width from 0.5 to 1 for better label separation from edges
-    `rx="2" ry="2" fill="var(--_edge-label-bg)" stroke="var(--_edge-label-stroke)" stroke-width="1"`
+    `rx="2" ry="2" fill="var(--bg)" stroke="var(--_inner-stroke)" stroke-width="1"`
   )
 
   // Semantic wrapper: links label to its edge via data-from/data-to

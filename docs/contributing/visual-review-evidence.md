@@ -29,5 +29,4 @@ not hand-edited screenshots. Use the smallest artifact that matches the change.
 4. If a visual check is skipped, is there a reason and an alternate structural test?
 5. Are large generated reports linked/attached rather than committed?
 6. For peer fan-in/fan-out screenshots, is the hub centered over the peer group?
-7. For labeled edges, does the label chrome blend with the diagram background instead of reading as a hard white pill?
-8. Does the review wrapper match the rendered diagram background, or use a neutral surface, so it does not create false label/background contrast?
+7. Does the review wrapper match the rendered diagram background, or use a neutral surface, so it does not create false label/background contrast?

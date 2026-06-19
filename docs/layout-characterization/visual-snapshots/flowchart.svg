@@ -14,8 +14,6 @@
     --_group-fill:    #FFFFFF;
     --_group-hdr:     #f4f4f4;
     --_inner-stroke:  #e5e5e5;
-    --_edge-label-bg: #fbfbfb;
-    --_edge-label-stroke: #e9e9ea;
     --_key-badge:     #e9e9ea;
   }
 </style>
@@ -32,13 +30,13 @@
 <polyline class="edge" data-from="Check" data-to="Retry" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" data-label="no" points="179.6835,177.14100000000002 179.68350000000004,345.682" fill="none" stroke="#939395" stroke-width="1" marker-end="url(#char-flowchart-arrowhead)" />
 <polyline class="edge" data-from="Retry" data-to="Check" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" points="158.04500000000002,345.682 158.04500000000002,198.7795" fill="none" stroke="#939395" stroke-width="1" marker-end="url(#char-flowchart-arrowhead)" />
 <g class="edge-label" data-from="Check" data-to="Done" data-label="yes">
-  <rect class="edge-label-halo" x="53.46650000000001" y="268.382" width="43.47" height="38.3" rx="4" ry="4" fill="#fbfbfb" stroke="none" />
-  <rect x="57.46650000000001" y="272.382" width="35.47" height="30.3" rx="2" ry="2" fill="#fbfbfb" stroke="#e9e9ea" stroke-width="1" />
+  <rect class="edge-label-halo" x="53.46650000000001" y="268.382" width="43.47" height="38.3" rx="4" ry="4" fill="#FFFFFF" stroke="none" />
+  <rect x="57.46650000000001" y="272.382" width="35.47" height="30.3" rx="2" ry="2" fill="#FFFFFF" stroke="#e5e5e5" stroke-width="1" />
   <text x="75.20150000000001" y="287.532" text-anchor="middle" font-size="11" font-weight="400" fill="#7d7d7f" dy="3.8499999999999996">yes</text>
 </g>
 <g class="edge-label" data-from="Check" data-to="Retry" data-label="no">
-  <rect class="edge-label-halo" x="160.9185" y="268.382" width="37.53" height="38.3" rx="4" ry="4" fill="#fbfbfb" stroke="none" />
-  <rect x="164.9185" y="272.382" width="29.53" height="30.3" rx="2" ry="2" fill="#fbfbfb" stroke="#e9e9ea" stroke-width="1" />
+  <rect class="edge-label-halo" x="160.9185" y="268.382" width="37.53" height="38.3" rx="4" ry="4" fill="#FFFFFF" stroke="none" />
+  <rect x="164.9185" y="272.382" width="29.53" height="30.3" rx="2" ry="2" fill="#FFFFFF" stroke="#e5e5e5" stroke-width="1" />
   <text x="179.6835" y="287.532" text-anchor="middle" font-size="11" font-weight="400" fill="#7d7d7f" dy="3.8499999999999996">no</text>
 </g>
 <g class="node" data-id="Start" data-label="Start" data-shape="rectangle">
