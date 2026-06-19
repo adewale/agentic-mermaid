@@ -119,7 +119,7 @@ mermaid-js's own dagre renderer, which this fork does not share (see
 Current useful heuristics:
 
 - `verifyMermaid` warnings: `OFF_CANVAS`, `GROUP_BREACH`, `NODE_OVERLAP`, `ROUTE_SELF_CROSS`, `LABEL_OVERFLOW`, `DUPLICATE_EDGE`, `UNREACHABLE_NODE`;
-- `measureQuality(layoutMermaid(d))` / `checkQuality(...)`: edge crossings, label legibility, whitespace balance, edge-label clearance from non-attached nodes and other edge labels, and aspect ratio;
+- `measureQuality(layoutMermaid(d))` / `checkQuality(...)`: edge crossings, label legibility, whitespace balance, edge-label clearance from non-attached nodes, other edge labels, and other edge paths, and aspect ratio;
 - issue-keyed fixtures that gate selected repro diagrams individually, including zero crossings and label-vs-label box separation for parallel edge labels;
 - family-specific geometry assertions, such as Auth Flow's source-order progression and backward feedback-edge routing;
 - layout-quality heuristic tests for declared-direction progress (`TD`/`BT`/`LR`/`RL`), edge-vs-node collisions excluding attached endpoints, feedback-process cleanliness, root node vs top-level subgraph source order, and self-loop clearance;
@@ -127,7 +127,6 @@ Current useful heuristics:
 
 High-value next heuristics for layout-improvement corpora:
 
-- promote edge-label bounding-box overlap with unrelated edges from fixture-local checks into a shared metric;
 - route corridor reuse by unrelated edge families;
 - target-aware fan-in/fan-out clustering score;
 - group-header text fit, especially with CJK/fullwidth labels.

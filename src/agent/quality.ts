@@ -13,8 +13,8 @@
 //   - whitespaceBalance: ratio of node-occupied area to total canvas area
 //     (0..1). Targets a band — too dense AND too sparse both lose points.
 //   - labelEdgeProximity: min pixel distance between any edge-label bbox and
-//     the nearest non-attached node bbox or other edge-label bbox. Lower means
-//     labels overlap nodes or each other.
+//     the nearest non-attached node bbox, other edge-label bbox, or non-own
+//     edge path. Lower means labels overlap nodes, edges, or each other.
 //   - aspectRatio: canvas width/height. Used as a sanity check, not a gate.
 // ============================================================================
 
@@ -39,7 +39,7 @@ export interface QualityBounds {
   minLabelLegibility?: number
   /** Whitespace fill band [min, max]. Default [0.05, 0.55]. */
   whitespaceBand?: [number, number]
-  /** Min pixels between any edge-label bbox and a non-attached node or another edge-label. Default 4. */
+  /** Min pixels between any edge-label bbox and a non-attached node, another edge-label, or another edge path. Default 4. */
   minLabelEdgeProximity?: number
   /** Aspect ratio band [min, max]. Default [0.2, 5.0]. */
   aspectBand?: [number, number]
@@ -55,6 +55,7 @@ export const DEFAULT_BOUNDS: Required<QualityBounds> = {
 
 const CHAR_PX = 7  // approx character width at 12px font
 const EDGE_LABEL_BOX_PADDING = 8
+const GEOM_EPS = 1e-9
 
 export function measureQuality(layout: RenderedLayout): QualityMetrics {
   return {
@@ -152,6 +153,7 @@ function measureWhitespaceBalance(layout: RenderedLayout): number {
 // ---- edge-label proximity ------------------------------------------------
 
 interface Rect { x: number; y: number; w: number; h: number }
+type Point = [number, number]
 
 function nodeBox(n: RenderedLayoutNode): Rect {
   return { x: n.x, y: n.y, w: n.w, h: n.h }
@@ -168,6 +170,75 @@ function rectDistance(a: Rect, b: Rect): number {
   const dx = Math.max(0, Math.max(a.x - (b.x + b.w), b.x - (a.x + a.w)))
   const dy = Math.max(0, Math.max(a.y - (b.y + b.h), b.y - (a.y + a.h)))
   return Math.hypot(dx, dy)
+}
+
+function pointInRect(p: Point, r: Rect): boolean {
+  return p[0] >= r.x && p[0] <= r.x + r.w && p[1] >= r.y && p[1] <= r.y + r.h
+}
+
+function pointToRectDistance(p: Point, r: Rect): number {
+  const dx = Math.max(0, Math.max(r.x - p[0], p[0] - (r.x + r.w)))
+  const dy = Math.max(0, Math.max(r.y - p[1], p[1] - (r.y + r.h)))
+  return Math.hypot(dx, dy)
+}
+
+function pointToSegmentDistance(p: Point, a: Point, b: Point): number {
+  const dx = b[0] - a[0]
+  const dy = b[1] - a[1]
+  const lenSq = dx * dx + dy * dy
+  if (lenSq === 0) return Math.hypot(p[0] - a[0], p[1] - a[1])
+
+  const t = Math.max(0, Math.min(1, ((p[0] - a[0]) * dx + (p[1] - a[1]) * dy) / lenSq))
+  const projX = a[0] + t * dx
+  const projY = a[1] + t * dy
+  return Math.hypot(p[0] - projX, p[1] - projY)
+}
+
+function segmentsIntersectInclusive(a: Point, b: Point, c: Point, d: Point): boolean {
+  const orient = (p: Point, q: Point, r: Point): number =>
+    (q[0] - p[0]) * (r[1] - p[1]) - (q[1] - p[1]) * (r[0] - p[0])
+  const onSegment = (p: Point, q: Point, r: Point): boolean =>
+    q[0] >= Math.min(p[0], r[0]) - GEOM_EPS && q[0] <= Math.max(p[0], r[0]) + GEOM_EPS &&
+    q[1] >= Math.min(p[1], r[1]) - GEOM_EPS && q[1] <= Math.max(p[1], r[1]) + GEOM_EPS
+
+  const o1 = orient(a, b, c)
+  const o2 = orient(a, b, d)
+  const o3 = orient(c, d, a)
+  const o4 = orient(c, d, b)
+  if (Math.abs(o1) <= GEOM_EPS && onSegment(a, c, b)) return true
+  if (Math.abs(o2) <= GEOM_EPS && onSegment(a, d, b)) return true
+  if (Math.abs(o3) <= GEOM_EPS && onSegment(c, a, d)) return true
+  if (Math.abs(o4) <= GEOM_EPS && onSegment(c, b, d)) return true
+  return (o1 > 0) !== (o2 > 0) && (o3 > 0) !== (o4 > 0)
+}
+
+function segmentIntersectsRect(a: Point, b: Point, r: Rect): boolean {
+  if (pointInRect(a, r) || pointInRect(b, r)) return true
+
+  const topLeft: Point = [r.x, r.y]
+  const topRight: Point = [r.x + r.w, r.y]
+  const bottomRight: Point = [r.x + r.w, r.y + r.h]
+  const bottomLeft: Point = [r.x, r.y + r.h]
+  return segmentsIntersectInclusive(a, b, topLeft, topRight) ||
+    segmentsIntersectInclusive(a, b, topRight, bottomRight) ||
+    segmentsIntersectInclusive(a, b, bottomRight, bottomLeft) ||
+    segmentsIntersectInclusive(a, b, bottomLeft, topLeft)
+}
+
+function rectToSegmentDistance(r: Rect, a: Point, b: Point): number {
+  if (segmentIntersectsRect(a, b, r)) return 0
+
+  const corners: Point[] = [
+    [r.x, r.y],
+    [r.x + r.w, r.y],
+    [r.x + r.w, r.y + r.h],
+    [r.x, r.y + r.h],
+  ]
+  return Math.min(
+    pointToRectDistance(a, r),
+    pointToRectDistance(b, r),
+    ...corners.map(c => pointToSegmentDistance(c, a, b)),
+  )
 }
 
 function measureLabelEdgeProximity(layout: RenderedLayout): number {
@@ -187,6 +258,15 @@ function measureLabelEdgeProximity(layout: RenderedLayout): number {
     for (let j = i + 1; j < labels.length; j++) {
       const d = rectDistance(labels[i]!.box, labels[j]!.box)
       if (d < min) min = d
+    }
+  }
+  for (const { edge, box } of labels) {
+    for (const other of layout.edges) {
+      if (other === edge) continue
+      for (let i = 0; i < other.path.length - 1; i++) {
+        const d = rectToSegmentDistance(box, other.path[i]!, other.path[i + 1]!)
+        if (d < min) min = d
+      }
     }
   }
   return min

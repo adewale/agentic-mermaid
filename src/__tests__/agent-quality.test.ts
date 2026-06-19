@@ -118,6 +118,42 @@ describe('quality metrics — deterministic', () => {
     expect(v.ok).toBe(false)
     expect(v.violations).toContain('edge-label clearance 0px < min 4px')
   })
+
+  test('labelEdgeProximity includes label-to-unrelated-edge path overlap', () => {
+    const layout: RenderedLayout = {
+      version: 1,
+      kind: 'flowchart',
+      nodes: [],
+      groups: [],
+      edges: [
+        { id: 'A->B', from: 'A', to: 'B', path: [[f(0), f(50)], [f(100), f(50)]], label: { x: f(50), y: f(50), text: 'on route' } },
+        { id: 'C->D', from: 'C', to: 'D', path: [[f(50), f(0)], [f(50), f(100)]] },
+      ],
+      bounds: { w: f(120), h: f(120) },
+    }
+    const m = measureQuality(layout)
+    expect(m.labelEdgeProximity).toBe(0)
+    const v = checkQuality(layout, { whitespaceBand: [0, 1] })
+    expect(v.ok).toBe(false)
+    expect(v.violations).toContain('edge-label clearance 0px < min 4px')
+  })
+
+  test("labelEdgeProximity ignores the label's own edge path", () => {
+    const layout: RenderedLayout = {
+      version: 1,
+      kind: 'flowchart',
+      nodes: [],
+      groups: [],
+      edges: [
+        { id: 'A->B', from: 'A', to: 'B', path: [[f(0), f(50)], [f(100), f(50)]], label: { x: f(50), y: f(50), text: 'own route' } },
+      ],
+      bounds: { w: f(120), h: f(120) },
+    }
+    const m = measureQuality(layout)
+    expect(m.labelEdgeProximity).toBe(Infinity)
+    const v = checkQuality(layout, { whitespaceBand: [0, 1] })
+    expect(v.ok).toBe(true)
+  })
 })
 
 describe('quality metrics — generated large flowchart corpora', () => {
