@@ -101,14 +101,47 @@ interface Compositor     { defs(ctx): string; palette(base: DiagramColors): Diag
                            wrap(svg: string, ctx): string }      // filters, grain, misregistration
 ```
 
-Built-ins (all in the prototype today as functions in `engine.ts`):
+Built-ins (in the prototype today across `engine.ts` + `rough-adapter.ts`):
 
-| Strategy | Variants |
-|---|---|
-| StrokeRenderer | `crisp`, `jittered` (damped-bow double stroke), `brush` (tapered ribbon), `pencil` (overshoot + displacement) |
-| FillStrategy | `none`, `hachure` (tonal), `crosshatch`, `stipple` (blue-noise), `halftone`, `wash` (glaze + edge-darkening), `scribble` |
-| Backdrop | `plain`, `paper-ruled`, `grid`, `slate`, `rice`, `washi` |
-| Compositor | palette + optional `blur`/`grain`/`glow`/`misregister` |
+| Strategy | Variants | Engine |
+|---|---|---|
+| StrokeRenderer | `crisp`, `jittered` (damped-bow double stroke), `pencil` (overshoot + displacement), `brush` (tapered ribbon) | **rough.js** for `jittered`/`pencil` & arbitrary paths; native for `brush` |
+| FillStrategy | `none`, `hachure`, `crosshatch`, `stipple` (blue-noise), `halftone`, `wash` (glaze + edge-darkening), `scribble` | **rough.js** for `hachure`/`crosshatch`/`dots`; native for `stipple`/`halftone`/`wash`/`scribble` |
+| Backdrop | `plain`, `paper-ruled`, `grid`, `slate`, `rice`, `washi` | native |
+| Compositor | palette + optional `blur`/`grain`/`glow`/`misregister` | native |
+
+#### rough.js as the default stroke/hatch engine
+
+The prototype uses **rough.js** (`roughjs/bin/generator`, the headless API — no
+DOM/canvas) as the default `StrokeRenderer` for `jittered`/`pencil` and the
+default `FillStrategy` for `hachure`/`crosshatch`/`dots`. We call
+`gen.polygon/linearPath/path(...)`, then serialize the returned **OpSets** with
+`gen.opsToPath()` into our own `<path>` elements (`rough-adapter.ts`), keeping
+control of attributes (CSS-var theming, filters) and resvg-safety.
+
+Why it earns its place:
+- **Arbitrary `<path>` coverage.** `gen.path(d, …)` roughens *any* SVG path —
+  pie wedges, cylinders, curved chart series, rounded headers — which the
+  regex-only prototype left un-styled. This is the single biggest correctness
+  win; the poster's pie/xy columns are now hand-rendered in every style.
+- **Mature line model** (length-damped bowing, double stroke, non-meeting
+  ellipse endpoints) and a built-in fill repertoire (`hachure`, `cross-hatch`,
+  `dots`, `zigzag`, `solid`) mapping straight onto our `FillStrategy` knobs
+  (`hachureGap`, `hachureAngle`, `fillWeight`).
+- **Determinism.** Every call passes an explicit integer `seed`; rough's PRNG is
+  a pure function of it ⇒ byte-stable output (verified). **Pin the rough.js
+  version** so seeded geometry can't shift under a dependency bump (treat a bump
+  as a golden-fixture change).
+
+What stays native (rough.js can't do these): tone-as-density **ladders**
+(Tonal Art Maps), **blue-noise stipple** (Secord), tone-sized **halftone**,
+tapered variable-width **brush ribbons** (sumi-e), **watercolor** glaze +
+edge-darkening, direction fields, "indication", and the compositing layer
+(grain, misregistration, backdrops). rough.js is the sketchy-stroke + basic-hatch
+60%; our engine owns the differentiated 40%.
+
+Cost: one small (~native-free, pure-JS) runtime dependency. Acceptable for the
+payoff; serialize via OpSets (not RoughSVG) so we never depend on a DOM.
 
 ### 3.3 A Style = selection + params (`src/styles/registry.ts`)
 
@@ -148,12 +181,15 @@ into `classNames`) maps a class → fill/stroke strategy for mixed-media diagram
 
 ## 4. Engine primitives & the literature
 
-Implemented in the prototype `engine.ts`; production moves to `src/styles/marks/`.
+The sketchy **stroke + hachure/cross-hatch** marks are produced by **rough.js**
+(see §3.2). The primitives below are the *native* additions in `engine.ts` that
+rough.js does not provide; production moves them to `src/styles/marks/`. (The
+hand-rolled `inkLine`/`inkPolygon` remain as a zero-dependency fallback engine.)
 
 | Primitive | Source idea | Notes |
 |---|---|---|
-| `inkLine` (damped-bow, 2-pass) | rough.js / "Mimicking Hand-Drawn Pencil Lines" | bow ∝ √len, capped; draw twice |
-| `inkPolygon` (corner overshoot) | pencil-line realism | start-before/end-after each edge |
+| rough.js generator | rough.js / "Mimicking Hand-Drawn Pencil Lines" | default stroke + hachure/cross-hatch; arbitrary path roughening |
+| `inkLine`/`inkPolygon` (fallback) | pencil-line realism | damped-bow, corner overshoot; used if rough.js absent |
 | `brushStroke` (tapered ribbon) | sumi-e brush footprint (Xie et al.; contour-driven sumi-e) | filled outline, half-width = pressure(t) |
 | `tonalHachure` | Winkenbach & Salesin; Praun et al. Tonal Art Maps | tone → gap + #directions (1→2→3) |
 | `hachureLines` (scanline, rotated) | Winkenbach & Salesin (BSP clip → scanline) | clip parallel lines to region |
@@ -250,8 +286,9 @@ canvas/WebGL backend — the IR is the unification point.
 
 1. **IR + crisp StrokeRenderer for flowchart** behind `aesthetic:'crisp'`,
    asserting byte-identical output vs today (safety net).
-2. **`jittered`+`hachure`+tone** → ship `hand-drawn`, `pen-and-ink`, `tufte`.
-   Add goldens + poster row.
+2. **Adopt rough.js** (pinned) as the `jittered`/`pencil` stroke + `hachure`/
+   `crosshatch`/`dots` fill engine, incl. arbitrary-path roughening; ship
+   `hand-drawn`, `pen-and-ink`, `tufte` with tone. Add goldens + poster row.
 3. **`brush`/`wash`/`stipple`/`halftone`** → ship the remaining styles.
 4. **Extend IR to each family** (sequence, class, er, …) one at a time; the
    prototype already shows all families survive the transform, so this is

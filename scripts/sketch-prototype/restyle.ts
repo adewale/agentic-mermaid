@@ -10,10 +10,13 @@
 
 import { type Point } from './rough.ts'
 import {
-  makeRng, inkLine, inkPolygon, brushStroke, brushPolygon,
-  tonalHachure, stipple, halftone, watercolorWash, hachureLines,
+  makeRng, brushStroke, brushPolygon,
+  stipple, halftone, watercolorWash, hachureLines,
 } from './engine.ts'
+import { roughPolyOutline, roughPolyFill, roughOpen, roughPathD } from './rough-adapter.ts'
 import type { Style } from './styles.ts'
+
+const lerp = (a: number, b: number, t: number) => a + (b - a) * t
 
 const num = (s: string | undefined, d = 0) => (s == null ? d : parseFloat(s))
 const attr = (t: string, n: string): string | undefined => t.match(new RegExp(`\\b${n}="([^"]*)"`))?.[1]
@@ -51,20 +54,21 @@ function strokeWrap(d: string, color: string, st: Style, fillRibbon = false): st
     : `<path d="${d}" fill="none" stroke="${color}" stroke-width="${st.strokeWidth}" stroke-linecap="${st.linecap}"${op}${f}/>`
   return mis + main
 }
+// Shared rough.js option bundle for a style.
+function roughOpts(st: Style, color: string, seed: number) {
+  return {
+    seed, roughness: st.roughness, bowing: 1, stroke: color, strokeWidth: st.strokeWidth,
+    linecap: st.linecap, strokeOpacity: st.strokeOpacity, strokeFilter: st.strokeFilter, passes: st.passes,
+  }
+}
 function strokeClosed(poly: Point[], color: string, st: Style, seed: number): string {
-  const rng = makeRng(seed)
-  if (st.stroke === 'brush') return brushPolygon(poly, rng, { width: st.brushWidth ?? st.strokeWidth * 2, wobble: st.roughness }).map(d => strokeWrap(d, color, st, true)).join('')
-  const d = inkPolygon(poly, rng, { roughness: st.roughness, passes: st.passes, overshoot: st.stroke === 'pencil' ? 4 : 2.5 })
-  return strokeWrap(d, color, st)
+  // brush is native (tapered ribbons rough.js can't do); everything else → rough.js
+  if (st.stroke === 'brush') return brushPolygon(poly, makeRng(seed), { width: st.brushWidth ?? st.strokeWidth * 2, wobble: st.roughness }).map(d => strokeWrap(d, color, st, true)).join('')
+  return roughPolyOutline(poly, roughOpts(st, color, seed))
 }
 function strokeOpen(pts: Point[], color: string, st: Style, seed: number, dash?: string): string {
-  const rng = makeRng(seed)
-  if (st.stroke === 'brush') return pts.slice(1).map((p, i) => strokeWrap(brushStroke(pts[i]!, p, rng, { width: (st.brushWidth ?? st.strokeWidth * 2) * 0.7, wobble: st.roughness }), color, st, true)).join('')
-  const d = pts.slice(1).map((p, i) => inkLine(pts[i]!, p, rng, { roughness: st.roughness, passes: st.passes })).join(' ')
-  const dashAttr = dash ? ` stroke-dasharray="${dash}"` : ''
-  const f = st.strokeFilter ? ` filter="url(#${st.strokeFilter})"` : ''
-  const op = st.strokeOpacity != null ? ` stroke-opacity="${st.strokeOpacity}"` : ''
-  return `<path d="${d}" fill="none" stroke="${color}" stroke-width="${st.strokeWidth}" stroke-linecap="${st.linecap}"${dashAttr}${op}${f}/>`
+  if (st.stroke === 'brush') return pts.slice(1).map((p, i) => strokeWrap(brushStroke(pts[i]!, p, makeRng(seed), { width: (st.brushWidth ?? st.strokeWidth * 2) * 0.7, wobble: st.roughness }), color, st, true)).join('')
+  return roughOpen(pts, roughOpts(st, color, seed))
 }
 
 // --- fill strategies (tone-driven) -----------------------------------------
@@ -75,14 +79,20 @@ function fillRegion(poly: Point[], fillSrc: string | undefined, st: Style, seed:
   const rng = makeRng(seed ^ 0x9e3779b9)
   const ink = st.keepHue && lum(fillSrc) != null ? fillSrc! : st.fillColor
   switch (st.fill) {
-    case 'hachure': {
-      const { d } = tonalHachure(poly, tone, rng, { baseAngle: st.hachureAngle })
-      return `<path d="${d}" stroke="${ink}" stroke-width="${Math.max(0.6, st.strokeWidth * 0.45)}" fill="none" opacity="${0.55 + 0.4 * tone}"/>`
-    }
-    case 'crosshatch': {
-      const d = hachureLines(poly, st.hachureAngle, 4.6 - 2 * tone, rng) + ' ' + hachureLines(poly, st.hachureAngle + 90, 4.6 - 2 * tone, rng)
-      return `<path d="${d}" stroke="${ink}" stroke-width="0.7" fill="none" opacity="0.75"/>`
-    }
+    case 'hachure':
+      // rough.js hachure; tone drives gap (density). Cross-hatch when dark.
+      return roughPolyFill(poly, {
+        seed: seed ^ 0x51, roughness: st.roughness, stroke: ink, strokeWidth: st.strokeWidth,
+        fill: ink, fillStyle: tone > 0.55 ? 'cross-hatch' : 'hachure',
+        fillWeight: Math.max(0.6, st.strokeWidth * 0.45), hachureGap: lerp(11, 4, tone),
+        hachureAngle: st.hachureAngle, fillOpacity: 0.5 + 0.4 * tone, passes: 1,
+      })
+    case 'crosshatch':
+      return roughPolyFill(poly, {
+        seed: seed ^ 0x51, roughness: st.roughness, stroke: ink, strokeWidth: st.strokeWidth,
+        fill: ink, fillStyle: 'cross-hatch', fillWeight: 0.7, hachureGap: lerp(6, 3, tone),
+        hachureAngle: st.hachureAngle, fillOpacity: 0.8, passes: 1,
+      })
     case 'scribble': {
       // loose multi-pass hachure at varying angles → crayon/chalk shading
       const g = 6 - 3 * tone
@@ -115,6 +125,22 @@ export function restyle(svg: string, st: Style, opts: { backdrop?: boolean } = {
 
   if (st.stroke !== 'crisp') {
     body = body
+      // FIRST: arbitrary <path> shapes (pie wedges, cylinders, curved series) —
+      // the gap the regex prototype left un-styled. rough.js handles any `d`.
+      // Runs before the shape→<path> rewrites below so it only sees originals.
+      .replace(/<path\b[^>]*\/>/g, t => {
+        const d = attr(t, 'd'); if (!d) return t
+        const stroke = attr(t, 'stroke'), fill = attr(t, 'fill')
+        const seed = seedAt(d.length, d.charCodeAt(1) || 0, d.charCodeAt(d.length - 1) || 0)
+        const hasFill = fill && fill !== 'none' && fill !== 'transparent'
+        const r = roughPathD(d, {
+          seed, roughness: Math.max(0.6, st.roughness), stroke: stroke && stroke !== 'none' ? stroke : st.colors.line,
+          strokeWidth: st.strokeWidth, linecap: st.linecap, passes: 1,
+          fill: hasFill ? fill : undefined, fillStyle: st.fill === 'wash' ? 'solid' : 'hachure',
+          fillWeight: 0.8, hachureGap: 5, fillOpacity: hasFill ? (st.fill === 'wash' ? 0.5 : 0.85) : undefined,
+        })
+        return r || t
+      })
       .replace(/<rect\b[^>]*\/>/g, t => {
         const x = num(attr(t, 'x')), y = num(attr(t, 'y')), w = num(attr(t, 'width')), h = num(attr(t, 'height'))
         if (!w || !h) return t
