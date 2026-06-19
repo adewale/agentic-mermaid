@@ -96,7 +96,7 @@ type RouteCertificateBase = {
   routeClass: RouteClass
   bendCount: number
   directLaneClear?: boolean  // primary-forward and feedback
-  directLaneBlockedBy?: Array<{ kind: 'node' | 'label' | 'channel' | 'span' | 'crossing'; id: string }>
+  directLaneBlockedBy?: Array<{ kind: 'node' | 'label' | 'channel' | 'span' | 'crossing' | 'port'; id: string }>
   sourcePort?: AnyPort
   targetPort?: AnyPort
   sourcePortAssignment?: RoutePortAssignment
@@ -224,6 +224,14 @@ If no candidate lane is clear, the certificate records
 with the concrete blockers, e.g. the MFA fixture's `D --No--> G` is blocked
 by node `F` standing in every candidate lane — exactly the explained detour
 issue #25 demands.
+
+Diamond fan-outs have one extra port-constraint case: when sibling decision
+branches share a target rank, branches spread across the diamond's facet/cardinal
+ports and still enter each peer target through its facing cardinal port. If those
+two port lanes differ, a straight segment would have to give up one endpoint
+contract; the branch is therefore certified as an `explained-detour` blocked by
+`kind: 'port'`, and verification treats the Z-route as intentional only while
+the final endpoints still sit on the selected ports.
 
 **Bundle contract (issue #25 Phase 4, first slice):** the fan-out/fan-in
 bundler used to rebuild trunk paths with no obstacle awareness, so a skip

@@ -194,7 +194,7 @@ export interface RoutePortAssignment {
 }
 
 export interface RouteBlocker {
-  kind: 'node' | 'label' | 'channel' | 'span' | 'crossing'
+  kind: 'node' | 'label' | 'channel' | 'span' | 'crossing' | 'port'
   id: string
 }
 

@@ -543,6 +543,44 @@ describe('syntax range — & multi-edge chains hit the same fan heuristics', () 
     zeroHardViolations(source)
   })
 
+  it('a three-way decision rejoin keeps target-port branch labels visually separated', () => {
+    const source = `flowchart TD
+  A[Request] --> B{Route?}
+  B -->|alpha| C[Alpha]
+  B -->|beta| D[Beta]
+  B -->|gamma| E[Gamma]
+  C --> F[Done]
+  D --> F
+  E --> F`
+    const positioned = layoutGraphSync(parseMermaid(source))
+    const style = resolveRenderStyle({})
+    const nodes = new Map(positioned.nodes.map(node => [node.id, node]))
+    const center = nodes.get('B')!.x + nodes.get('B')!.width / 2
+    expect(nodes.get('D')!.x + nodes.get('D')!.width / 2).toBeCloseTo(center, 3)
+    expect(nodes.get('F')!.x + nodes.get('F')!.width / 2).toBeCloseTo(center, 3)
+    const branchEdges = positioned.edges.filter(e => e.source === 'B')
+    const labelRects = branchEdges.map(edge => {
+      expect(edge.routeCertificate?.sourcePort).toBeDefined()
+      expect(edge.routeCertificate?.targetPort).toBe('N')
+      if (edge.label === 'beta') {
+        expect(edge.routeCertificate?.sourcePort).toBe('S')
+        expect(edge.routeCertificate?.invariant).toBe('straight')
+        for (const point of edge.points) expect(point.x).toBeCloseTo(center, 3)
+      } else {
+        expect(edge.routeCertificate?.directLaneBlockedBy).toContainEqual({ kind: 'port', id: `${edge.source}->${edge.target}` })
+      }
+      expect(distanceToPolyline(edge.labelPosition!, edge.points)).toBeLessThanOrEqual(0.001)
+      return labelRect(edge, style)!
+    })
+
+    for (let i = 0; i < labelRects.length; i++) {
+      for (let j = i + 1; j < labelRects.length; j++) {
+        expect(rectsOverlap(labelRects[i]!, labelRects[j]!, readableLabelGap(style))).toBe(false)
+      }
+    }
+    zeroHardViolations(source)
+  })
+
   it('property: labeled decision fan-out labels stay off incident nodes across directions', () => {
     fc.assert(
       fc.property(

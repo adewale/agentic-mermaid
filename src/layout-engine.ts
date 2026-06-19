@@ -956,6 +956,7 @@ function elkToPositioned(
   // pack layers before port-lane alignment so downstream centering/routing sees
   // the symmetric geometry instead of incidental text-size differences.
   equalizePeerNodeDimensions(nodes, edges, groups, graph)
+  alignForkRejoinPeerCenters(nodes, edges, groups, graph, style)
 
   // Port-lane alignment (Rüegg et al. GD'15: straightness THROUGH ports, not
   // through arbitrary attachment points): when a straight edge floats off
@@ -1444,6 +1445,80 @@ function equalizePeerNodeDimensions(nodes: PositionedNode[], edges: PositionedEd
   if (changed) packFlowLayerCrossAxis(nodes, graph.direction)
 }
 
+function alignForkRejoinPeerCenters(
+  nodes: PositionedNode[],
+  edges: PositionedEdge[],
+  groups: PositionedGroup[],
+  graph: MermaidGraph,
+  style: LabelMetricsStyle,
+): void {
+  const nodeMap = new Map(nodes.map(n => [n.id, n]))
+  const bySource = new Map<string, PositionedEdge[]>()
+  for (const edge of edges) {
+    if (!positionedEdgeForwardish(edge, nodeMap, graph.direction)) continue
+    if (!bySource.has(edge.source)) bySource.set(edge.source, [])
+    bySource.get(edge.source)!.push(edge)
+  }
+  const forwardIndegree = (id: string): number => edges.filter(edge =>
+    edge.target === id && positionedEdgeForwardish(edge, nodeMap, graph.direction)).length
+  const forwardOutgoing = (id: string): PositionedEdge[] => edges.filter(edge =>
+    edge.source === id && edge.target !== id && positionedEdgeForwardish(edge, nodeMap, graph.direction))
+  const ownedForwardClosure = (root: PositionedNode, initial: ReadonlySet<string>): PositionedNode[] => {
+    const out: PositionedNode[] = []
+    const seen = new Set(initial)
+    const queue = [root]
+    while (queue.length > 0) {
+      const node = queue.shift()!
+      if (seen.has(node.id)) continue
+      seen.add(node.id)
+      out.push(node)
+      for (const edge of forwardOutgoing(node.id)) {
+        const next = nodeMap.get(edge.target)
+        if (!next || seen.has(next.id)) continue
+        if (forwardIndegree(next.id) === 1) queue.push(next)
+      }
+    }
+    return out
+  }
+
+  for (const [sourceId, outgoing] of bySource) {
+    if (outgoing.length !== 3) continue
+    const source = nodeMap.get(sourceId)
+    if (!source || source.shape !== 'diamond' || nodeInsideGroups(source, groups)) continue
+    const sorted = [...outgoing].sort((a, b) => nodeCrossCenter(nodeMap.get(a.target)!, graph.direction) - nodeCrossCenter(nodeMap.get(b.target)!, graph.direction))
+    const targets = sorted.map(edge => nodeMap.get(edge.target)).filter((node): node is PositionedNode => !!node)
+    if (targets.length !== sorted.length) continue
+    if (!targets.every(target => target.shape === 'rectangle' && !nodeInsideGroups(target, groups))) continue
+    if (!sameFlowLayer(targets, graph.direction, 28)) continue
+    let peer = true
+    for (let i = 0; i < targets.length; i++) for (let j = 0; j < targets.length; j++) {
+      if (i !== j && logicalGraphReaches(graph, targets[i]!.id, targets[j]!.id)) peer = false
+    }
+    if (!peer) continue
+
+    const childOut = targets.map(target => forwardOutgoing(target.id))
+    if (!childOut.every(list => list.length === 1)) continue
+    const rejoinId = childOut[0]![0]!.target
+    if (!childOut.every(list => list[0]!.target === rejoinId)) continue
+    const rejoin = nodeMap.get(rejoinId)
+    if (!rejoin || nodeInsideGroups(rejoin, groups)) continue
+
+    const movedIds = new Set(targets.map(target => target.id))
+    for (const node of ownedForwardClosure(rejoin, movedIds)) movedIds.add(node.id)
+    if ([...movedIds].some(id => {
+      const node = nodeMap.get(id)
+      return !node || nodeInsideGroups(node, groups)
+    })) continue
+
+    const rowCenter = (nodeCrossCenter(targets[0]!, graph.direction) + nodeCrossCenter(targets[targets.length - 1]!, graph.direction)) / 2
+    const delta = nodeCrossCenter(source, graph.direction) - rowCenter
+    if (Math.abs(delta) <= 0.5) continue
+    if (!crossShiftSafe(movedIds, nodes, edges, graph.direction, delta, style)) continue
+    layoutDebug('[fork-rejoin] center', source.id, 'peer island by', delta.toFixed(1))
+    shiftNodeSetCross(movedIds, nodes, edges, graph.direction, delta)
+  }
+}
+
 function connectionPort(node: PositionedNode, side: 'N' | 'E' | 'S' | 'W' | DiamondFacet): Point {
   if (node.shape === 'diamond' && (side === 'NE' || side === 'SE' || side === 'SW' || side === 'NW')) return diamondFacetPorts(node)[side]
   return shapePorts(node)[side as 'N' | 'E' | 'S' | 'W']
@@ -1558,6 +1633,99 @@ function honorLinkRankDistance(nodes: PositionedNode[], edges: PositionedEdge[],
     edge.points = doglegBetween(start, end, graph.direction, elbow)
     if (edge.label) edge.labelPosition = calculatePathMidpoint(edge.points)
   }
+}
+
+function shiftTerminalRunCross(edge: PositionedEdge, direction: Direction, fromEnd: boolean, delta: number): void {
+  if (edge.points.length === 0) return
+  const f = layoutFlow(direction)
+  const idx = fromEnd ? edge.points.length - 1 : 0
+  const step = fromEnd ? -1 : 1
+  const ref = edge.points[idx]![f.cross]
+  let mainLo = Infinity
+  let mainHi = -Infinity
+  for (let i = idx; i >= 0 && i < edge.points.length; i += step) {
+    if (Math.abs(edge.points[i]![f.cross] - ref) > 0.5) break
+    mainLo = Math.min(mainLo, edge.points[i]![f.main])
+    mainHi = Math.max(mainHi, edge.points[i]![f.main])
+    edge.points[i]![f.cross] += delta
+  }
+  if (edge.labelPosition &&
+    Math.abs(edge.labelPosition[f.cross] - ref) <= 12 &&
+    edge.labelPosition[f.main] >= mainLo - 0.5 &&
+    edge.labelPosition[f.main] <= mainHi + 0.5) {
+    edge.labelPosition[f.cross] += delta
+  }
+}
+
+function shiftNodeSetCross(
+  movedIds: ReadonlySet<string>,
+  nodes: PositionedNode[],
+  edges: PositionedEdge[],
+  direction: Direction,
+  delta: number,
+): void {
+  const f = layoutFlow(direction)
+  for (const node of nodes) {
+    if (!movedIds.has(node.id)) continue
+    node[f.cross] += delta
+  }
+  for (const edge of edges) {
+    const srcMoved = movedIds.has(edge.source)
+    const tgtMoved = movedIds.has(edge.target)
+    if (srcMoved && tgtMoved) {
+      for (const point of edge.points) point[f.cross] += delta
+      if (edge.labelPosition) edge.labelPosition[f.cross] += delta
+    } else if (tgtMoved) {
+      shiftTerminalRunCross(edge, direction, true, delta)
+    } else if (srcMoved) {
+      shiftTerminalRunCross(edge, direction, false, delta)
+    }
+  }
+}
+
+function crossShiftSafe(
+  movedIds: ReadonlySet<string>,
+  nodes: PositionedNode[],
+  edges: PositionedEdge[],
+  direction: Direction,
+  delta: number,
+  style: LabelMetricsStyle,
+): boolean {
+  const f = layoutFlow(direction)
+  const moved = nodes.filter(node => movedIds.has(node.id))
+  const shifted = new Map(moved.map(node => [node.id, {
+    x: f.isHorizontal ? node.x : node.x + delta,
+    y: f.isHorizontal ? node.y + delta : node.y,
+    width: node.width,
+    height: node.height,
+  }]))
+  for (const box of shifted.values()) {
+    if (box.x < 0 || box.y < 0) return false
+  }
+  for (let i = 0; i < moved.length; i++) {
+    const a = shifted.get(moved[i]!.id)!
+    for (let j = i + 1; j < moved.length; j++) {
+      if (rectsOverlap(a, shifted.get(moved[j]!.id)!, 8)) return false
+    }
+    for (const other of nodes) {
+      if (movedIds.has(other.id)) continue
+      if (rectsOverlap(a, other, 8)) return false
+    }
+  }
+  for (const node of moved) {
+    const box = shifted.get(node.id)!
+    for (const edge of edges) {
+      if (movedIds.has(edge.source) || movedIds.has(edge.target)) continue
+      for (let i = 1; i < edge.points.length; i++) {
+        const a = edge.points[i - 1]!, b = edge.points[i]!
+        if (Math.max(a.x, b.x) > box.x + 0.5 && Math.min(a.x, b.x) < box.x + box.width - 0.5 &&
+          Math.max(a.y, b.y) > box.y + 0.5 && Math.min(a.y, b.y) < box.y + box.height - 0.5) return false
+      }
+      const rect = labelRect(edge, style)
+      if (rect && rectsOverlap(box, { x: rect.x, y: rect.y, width: rect.w, height: rect.h }, 8)) return false
+    }
+  }
+  return true
 }
 
 function collapseTinyBundledHitches(nodes: PositionedNode[], edges: PositionedEdge[], bundled: Set<PositionedEdge>): void {
