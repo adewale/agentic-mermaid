@@ -205,4 +205,110 @@ export const STYLES: Style[] = [
     fill: 'scribble', fillColor: '#b8bcc2', baseTone: 0.16, toneFromLuminance: true, keepHue: false, hachureAngle: -45,
     backdrop: 'plain', boxShadow: true, mono: true,
   },
+  // ---- candidate backlog (deep-search), added as data-only styles ----
+  {
+    // ★ Terminal / TUI: phosphor-green monospace on black, crisp thin lines.
+    name: 'terminal', label: 'Terminal / TUI',
+    blurb: 'Phosphor-green monospace on black; crisp thin box-rules, no fills.',
+    colors: { bg: '#0b0f0b', fg: '#3bd16f', line: '#33b85f', accent: '#7dffa6', muted: '#2a8048', surface: '#0b0f0b', border: '#33b85f' },
+    font: 'Share Tech Mono', fontFile: 'ShareTechMono.ttf',
+    stroke: 'crisp', roughness: 0, passes: 1, strokeWidth: 1.1, linecap: 'butt',
+    fill: 'none', fillColor: '#33b85f', baseTone: 0, toneFromLuminance: false, keepHue: false, hachureAngle: -45,
+    backdrop: 'plain', mono: true,
+  },
+  {
+    // Transit map (Beck): clean white, thick rounded route strokes, station nodes.
+    name: 'transit', label: 'Transit map',
+    blurb: 'Beck tube-map: thick rounded route lines, rounded station nodes, clean sans.',
+    colors: { bg: '#fbfbf9', fg: '#1a1a2e', line: '#d1232a', accent: '#0067a8', muted: '#5a6172', surface: '#fbfbf9', border: '#1a1a2e' },
+    font: 'DejaVu Sans', fontFile: '../../assets/fonts/DejaVuSans-Bold.ttf',
+    stroke: 'crisp', roughness: 0, passes: 1, strokeWidth: 5.0, linecap: 'round',
+    fill: 'none', fillColor: '#0067a8', baseTone: 0, toneFromLuminance: false, keepHue: false, hachureAngle: -41,
+    backdrop: 'plain', nodeCornerRadius: 12,
+  },
+  {
+    // ★ PCB schematic: green solder mask, gold traces, white silkscreen, mono.
+    name: 'pcb', label: 'PCB schematic',
+    blurb: 'Circuit board: green solder-mask ground, gold traces, white silkscreen, mono labels.',
+    colors: { bg: '#0d3b2e', fg: '#eef3ee', line: '#e0b84a', accent: '#ffd76a', muted: '#7fae8e', surface: '#0d3b2e', border: '#e0b84a' },
+    font: 'Share Tech Mono', fontFile: 'ShareTechMono.ttf',
+    stroke: 'jittered', roughness: 0.25, passes: 1, strokeWidth: 1.6, linecap: 'round',
+    fill: 'none', fillColor: '#e0b84a', baseTone: 0, toneFromLuminance: false, keepHue: false, hachureAngle: -41,
+    backdrop: 'plain', textTransform: 'uppercase', letterSpacing: 0.5,
+  },
+  {
+    // Patent drawing: uniform black line on white, tone via oblique hatching, no fills besides hatch.
+    name: 'patent', label: 'Patent drawing',
+    blurb: 'USPTO patent: uniform thin black lines on white, tone via oblique hatching. Monochrome.',
+    colors: { bg: '#ffffff', fg: '#111111', line: '#111111', accent: '#111111', muted: '#444444', surface: '#ffffff', border: '#111111' },
+    font: 'EB Garamond', fontFile: 'EBGaramond.ttf',
+    stroke: 'jittered', roughness: 0.3, passes: 1, strokeWidth: 1.1, linecap: 'butt',
+    fill: 'hachure', fillColor: '#111111', baseTone: 0.14, toneFromLuminance: true, keepHue: false, hachureAngle: -50,
+    backdrop: 'plain', mono: true,
+  },
+  {
+    // ★ Stained glass: bold black cames + flat luminous jewel-tone fills.
+    name: 'stained-glass', label: 'Stained glass',
+    blurb: 'Bold black lead cames + flat luminous jewel-tone panels.',
+    colors: { bg: '#e7e1d4', fg: '#15130f', line: '#0a0a0a', accent: '#9b1b30', muted: '#6b6456', surface: '#e7e1d4', border: '#0a0a0a' },
+    font: 'Cinzel', fontFile: 'Cinzel.ttf',
+    stroke: 'jittered', roughness: 0.5, passes: 1, strokeWidth: 4.5, linecap: 'round',
+    fill: 'solid', fillColor: '#1f4e8c', baseTone: 1, toneFromLuminance: false, keepHue: false, hachureAngle: -41,
+    spotPalette: ['#1f4e8c', '#9b1b30', '#1b7a4b', '#c79a2e', '#5b2a86', '#2a8c9b'],
+    backdrop: 'plain',
+  },
+  {
+    // ★ Star chart: deep night sky, faint coordinate grid, pale-gold nodes/lines.
+    name: 'star-chart', label: 'Star chart',
+    blurb: 'Celestial atlas: deep night-sky ground, faint coordinate grid, pale-gold stars and lines.',
+    colors: { bg: '#0b1026', fg: '#ece4c4', line: '#8a96c0', accent: '#f0e6b8', muted: '#6b76a0', surface: '#0b1026', border: '#cfc69e' },
+    font: 'EB Garamond', fontFile: 'EBGaramond.ttf',
+    stroke: 'jittered', roughness: 0.35, passes: 1, strokeWidth: 1.0, linecap: 'round',
+    fill: 'none', fillColor: '#ece4c4', baseTone: 0, toneFromLuminance: false, keepHue: false, hachureAngle: -41,
+    backdrop: 'grid',
+  },
+  {
+    // Bauhaus: geometric primaries, black, warm-white, geometric sans.
+    name: 'bauhaus', label: 'Bauhaus',
+    blurb: 'Geometric primary blocks (red/yellow/blue) + black, on warm white. The designed flowchart.',
+    colors: { bg: '#f4f1ea', fg: '#15140f', line: '#15140f', accent: '#e53935', muted: '#55524a', surface: '#f4f1ea', border: '#15140f' },
+    font: 'DejaVu Sans', fontFile: '../../assets/fonts/DejaVuSans-Bold.ttf',
+    stroke: 'crisp', roughness: 0, passes: 1, strokeWidth: 2.4, linecap: 'butt',
+    fill: 'solid', fillColor: '#1e88e5', baseTone: 1, toneFromLuminance: false, keepHue: false, hachureAngle: -41,
+    spotPalette: ['#e53935', '#fdd835', '#1e88e5', '#15140f'],
+    backdrop: 'plain', labelHalo: '#f4f1ea',
+  },
+  {
+    // Ukiyo-e woodblock: bold keyline + flat muted traditional colour on washi.
+    name: 'ukiyo-e', label: 'Ukiyo-e',
+    blurb: 'Woodblock: bold dark keyline + large flat muted colour areas on washi paper.',
+    colors: { bg: '#efe6d2', fg: '#2a2018', line: '#2a2018', accent: '#c0432e', muted: '#6b5d49', surface: '#efe6d2', border: '#2a2018' },
+    font: 'EB Garamond', fontFile: 'EBGaramond.ttf',
+    stroke: 'jittered', roughness: 0.7, passes: 1, strokeWidth: 2.6, linecap: 'round',
+    fill: 'solid', fillColor: '#2e4a6b', baseTone: 1, toneFromLuminance: false, keepHue: false, hachureAngle: -41,
+    spotPalette: ['#2e4a6b', '#c0432e', '#c89b3c', '#6b8e6b', '#9a6b52'],
+    backdrop: 'washi',
+  },
+  {
+    // ★ Mesoamerican codex: heavy black contours, flat saturated fills, amate paper.
+    name: 'codex', label: 'Mesoamerican codex',
+    blurb: 'Codex: heavy black contours, flat saturated red/turquoise/ochre fills, amate-paper ground.',
+    colors: { bg: '#e2c79a', fg: '#1d1408', line: '#1d1408', accent: '#b3331f', muted: '#6e5a36', surface: '#e2c79a', border: '#1d1408' },
+    font: 'DejaVu Sans', fontFile: '../../assets/fonts/DejaVuSans-Bold.ttf',
+    stroke: 'jittered', roughness: 0.6, passes: 1, strokeWidth: 3.0, linecap: 'round',
+    fill: 'solid', fillColor: '#b3331f', baseTone: 1, toneFromLuminance: false, keepHue: false, hachureAngle: -41,
+    spotPalette: ['#b3331f', '#2a8c8c', '#d9a441', '#3a5a8c', '#6e4b2a'],
+    backdrop: 'rice', labelHalo: '#e2c79a',
+  },
+  {
+    // Mid-century modern infographic: flat teal/mustard/red on cream, clean sans.
+    name: 'mid-century', label: 'Mid-century',
+    blurb: 'Mid-century infographic: flat teal/mustard/red blocks on cream, clean sans, lots of air.',
+    colors: { bg: '#f3ead9', fg: '#2b2b2b', line: '#2b2b2b', accent: '#d1495b', muted: '#7a756b', surface: '#f3ead9', border: '#2b2b2b' },
+    font: 'DejaVu Sans', fontFile: '../../assets/fonts/DejaVuSans.ttf',
+    stroke: 'crisp', roughness: 0, passes: 1, strokeWidth: 1.4, linecap: 'butt',
+    fill: 'solid', fillColor: '#2a9d8f', baseTone: 1, toneFromLuminance: false, keepHue: false, hachureAngle: -41,
+    spotPalette: ['#2a9d8f', '#e1ad01', '#d1495b', '#3d5a80'],
+    backdrop: 'plain', nodeCornerRadius: 3, labelHalo: '#f3ead9',
+  },
 ]

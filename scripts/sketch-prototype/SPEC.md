@@ -71,9 +71,10 @@ The renderer emits primitives instead of strings:
 
 ```ts
 type Drawable =
-  | { kind: 'region'; path: Outline; role: NodeRole; tone: number; hue?: string; z: number; id: string }
+  | { kind: 'region'; path: Outline; role: NodeRole; tone: number; hue?: string;
+      weight?: number; z: number; id: string }            // weight: importance (star magnitude)
   | { kind: 'connector'; path: Polyline; lineStyle: 'solid'|'dotted'|'thick'|'invisible';
-      startMarker?: Marker; endMarker?: Marker; id: string }
+      startMarker?: Marker; endMarker?: Marker; routeId?: string; junction?: boolean; id: string }
   | { kind: 'label'; text: string; x: number; y: number; anchor; font; weight; role }
   | { kind: 'divider'; a: Point; b: Point; role }      // class member rules, ER separators
   | { kind: 'glyph'; ... }                              // icons, seals, milestone diamonds
@@ -86,6 +87,13 @@ type Outline = { contour: Point[]; holes?: Point[][]; corner?: number }  // clos
   lifeline; do hatch a node).
 - `tone ∈ [0,1]` and optional `hue` are computed once, semantically (§5).
 - `z` preserves paint order for correct stroke clipping (§6, "indication").
+- **`weight` + `routeId` + `junction` were added after the candidate-set
+  build** (§14): styles like star-chart (node size ∝ magnitude), transit/PCB
+  (per-route/per-net colour + junction dots) genuinely need these channels — a
+  pure colour/stroke skin can't express them. The IR must carry the *semantic
+  hooks* a style might map to, or those styles degrade to generic approximations
+  (which is exactly what the prototype does today, since it post-processes
+  finished SVG and these channels don't survive).
 
 Every family renderer produces `Drawable[]`. This is the only invasive change,
 but it is mechanical and shared: the crisp renderer becomes a default
@@ -313,6 +321,28 @@ via the four strategies. A style never names a diagram family. So:
 - Capability gating: if a style declares it can't support a primitive, the
   engine falls back to `crisp` for that primitive rather than failing silently
   (the Mermaid `handDrawn`-breaks-on-packet lesson, §13).
+- **Proven:** the 10-style candidate batch (terminal, transit, PCB, patent,
+  stained-glass, star-chart, Bauhaus, ukiyo-e, codex, mid-century) was added as
+  **pure data records — zero engine changes.** That `N+M` property is now an
+  explicit invariant: *"adding a typical style requires no new engine code."*
+  Make it a test/PR-check (a style PR that touches the engine is a smell —
+  either it's genuinely a new strategy/primitive, or it's doing something the
+  registry should provide).
+
+### 3.5a Three integration tiers (depth of style hooks)
+
+The candidate set revealed that styles want *different depths* of control:
+1. **Restyle (post-process)** — today's prototype: rewrite finished SVG. Cheap,
+   universal, but blind to semantics (loses `weight`/`routeId`, can't reroute).
+2. **Strategy backend (the target)** — consume the Drawable IR; control
+   stroke/fill/backdrop/compositor + per-role choices. Covers ~90% of styles.
+3. **Layout-aware (deepest)** — a few aesthetics ARE a spatial grammar, not a
+   skin: terminal/TUI wants a **character grid**; transit wants a **45° route
+   lattice**; PCB wants **orthogonal net routing + junctions**; codex wants
+   **registers**. Their most authentic form influences *layout*, not just
+   painting. The spec should expose an optional **layout hook** (a style may
+   post-process or constrain ELK's routing/placement) as tier 3 — used rarely,
+   gated, and always degrading gracefully to tier 2.
 
 ### 3.6 Premium-by-default — Making Software as the baseline
 
@@ -470,6 +500,15 @@ conformance framework. (The renderer already injects `<title>/<desc>`/ARIA in
 3. **Non-text contrast.** Strokes/borders vs page are checked against **3:1**
    (WCAG 1.4.11); weak palettes can be auto-bumped. Exposed as opt-in so
    deliberately low-contrast styles (Tufte's faint rules) aren't overridden.
+4. **Contrast must be checked against the ACTUAL local background, not just the
+   page.** The candidate set surfaced this: stained-glass cames are near-black
+   on a dark *leading* ground but read fine against the bright *glass fills* —
+   the page-relative audit wrongly failed them. Lesson: for a region with a
+   solid/opaque fill, the outline's background is the **fill**, and a label's
+   background is the **halo-over-fill** — the guardrail/audit should resolve the
+   effective local bg per element role (page · fill · halo) before measuring.
+   (Today's prototype side-steps it by giving filled styles a light ground; the
+   IR-based version should compute it properly.)
 
 Plus **1.4.1 Use of Color**: meaning never rests on hue alone — our styles
 already differentiate by shape/texture (hachure vs stipple vs dots), so a
