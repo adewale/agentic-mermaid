@@ -4,6 +4,8 @@ import { join } from 'node:path'
 
 import { BUILTIN_FAMILY_METADATA, type BuiltinFamilyId } from '../agent/families.ts'
 import { MUTATION_OPS_BY_FAMILY } from '../cli/index.ts'
+import { parseMermaid, verifyMermaid, serializeMermaid, renderMermaidSVG, renderMermaidASCII } from '../agent/index.ts'
+import { FAMILY_COUNT_FIXTURES } from './helpers/family-count-fixtures.ts'
 
 const REPO = join(import.meta.dir, '..', '..')
 const MATRIX_PATH = join(REPO, 'docs/contributing/diagram-family-citizenship.matrix.json')
@@ -32,7 +34,11 @@ const EXPECTED_SURFACES = [
   'mutationLane',
 ] as const
 
-const TRACKED_EXCEPTION_SURFACES = new Set(['stableRegions', 'upstreamHarvest', 'divergenceLedger', 'mutationLane'])
+// Previously four surfaces could ship as tracked 'exception's. The backfill (#49)
+// drove the matrix to zero exceptions, so the contract now admits NONE: every
+// family must satisfy every surface. Any regression back to an 'exception' fails
+// both "every exception is tracked" and "core surfaces cannot be deferred". (#41)
+const TRACKED_EXCEPTION_SURFACES = new Set<SurfaceId>()
 
 type SurfaceId = typeof EXPECTED_SURFACES[number]
 
@@ -255,6 +261,47 @@ describe('diagram-family citizenship ratchet (issue #41)', () => {
         expect({ family, surface, status: row.cells[surface].status }).toEqual({ family, surface, status: 'satisfied' })
       }
     }
+  })
+
+  test('behavioral citizenship: every family parses, verifies, renders SVG+ASCII, round-trips, and is deterministic', () => {
+    // Most matrix cells are evidenced by file-existence only. This test makes the
+    // core surfaces (detectionParse, serializeRoundTrip, verifyRenderSeam,
+    // svgRender, asciiUnicodeRender, determinism) behavioral: it actually exercises
+    // the capability for every registered family, so a family that regressed while
+    // its evidence file still existed would now fail here. (#41)
+    const registryIds = new Set<string>(BUILTIN_FAMILY_METADATA.map(f => f.id))
+    const covered = new Set<string>()
+    for (const fx of FAMILY_COUNT_FIXTURES) {
+      const parsed = parseMermaid(fx.source)
+      expect({ family: fx.family, parseOk: parsed.ok }).toEqual({ family: fx.family, parseOk: true })
+      if (!parsed.ok) continue
+      covered.add(fx.family)
+
+      // detectionParse: detected as the right family.
+      expect({ family: fx.family, kind: parsed.value.kind }).toEqual({ family: fx.family, kind: fx.family })
+      // verifyRenderSeam: structural verify passes.
+      expect({ family: fx.family, verifyOk: verifyMermaid(fx.source).ok }).toEqual({ family: fx.family, verifyOk: true })
+      // serializeRoundTrip: serialize → reparse → serialize is stable.
+      const serialized = serializeMermaid(parsed.value)
+      const reparsed = parseMermaid(serialized)
+      expect({ family: fx.family, reparseOk: reparsed.ok }).toEqual({ family: fx.family, reparseOk: true })
+      if (reparsed.ok) {
+        expect({ family: fx.family, stable: serializeMermaid(reparsed.value) === serialized })
+          .toEqual({ family: fx.family, stable: true })
+      }
+      // svgRender: emits a real SVG document.
+      const svg = renderMermaidSVG(fx.source)
+      expect({ family: fx.family, svg: svg.includes('<svg') && svg.length > 100 })
+        .toEqual({ family: fx.family, svg: true })
+      // asciiUnicodeRender: emits non-empty text.
+      expect({ family: fx.family, ascii: renderMermaidASCII(fx.source).trim().length > 0 })
+        .toEqual({ family: fx.family, ascii: true })
+      // determinism: identical SVG across repeated renders.
+      expect({ family: fx.family, deterministic: renderMermaidSVG(fx.source) === svg })
+        .toEqual({ family: fx.family, deterministic: true })
+    }
+    // No registered family is silently skipped: each must have a behavioral fixture.
+    expect([...registryIds].filter(id => !covered.has(id)).sort()).toEqual([])
   })
 
   test('family-sensitive cells cite load-bearing family-specific evidence', () => {
