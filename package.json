@@ -127,7 +127,7 @@
     "mutation-test:quadrant": "npx stryker run stryker.quadrant.config.json",
     "sabotage:routes": "bun run eval/sabotage/route-regressions.ts",
     "mutation-test:gantt": "npx stryker run stryker.gantt.config.json",
-    "lint": "bun test src/__tests__/agent-substrate-lint.test.ts",
+    "lint": "bun test src/__tests__/agent-substrate-lint.test.ts src/__tests__/test-quality-lint.test.ts",
     "eval:agent-live": "bun run eval/agent-usage/live.ts",
     "rubric:visual": "bun run eval/visual-rubric/run.ts",
     "contact:sheet": "bun run eval/visual-rubric/contact-sheet.ts",

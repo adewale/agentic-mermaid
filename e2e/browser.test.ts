@@ -14,10 +14,11 @@ import { describe, it, expect, beforeAll, afterAll } from 'bun:test'
 import { join } from 'path'
 import { chromium, type Browser, type BrowserContext, type CDPSession, type Page } from 'playwright'
 import { BUILTIN_FAMILY_METADATA } from '../src/agent/families.ts'
+import { serveWithAvailablePort } from './test-port.ts'
 
 const ROOT = join(import.meta.dir, '..')
-const PORT = 4567 // Avoid collision with dev server on 3456
-const BASE = `http://localhost:${PORT}`
+const PREFERRED_PORT = 4567
+let BASE = ''
 const SCREENSHOT_DIR = join(ROOT, 'e2e', 'screenshots')
 // Browser font rasterization differs between local macOS and GitHub's Linux runners.
 // Structural SVG assertions catch the exact regression; this tolerance keeps
@@ -217,8 +218,8 @@ beforeAll(async () => {
   await Bun.spawn(['mkdir', '-p', SCREENSHOT_DIR]).exited
 
   // Start a simple static file server
-  server = Bun.serve({
-    port: PORT,
+  const served = serveWithAvailablePort({
+    preferredPort: PREFERRED_PORT,
     async fetch(req) {
       const url = new URL(req.url)
       const route = url.pathname === '/'
@@ -235,6 +236,8 @@ beforeAll(async () => {
       return new Response('Not found', { status: 404 })
     },
   })
+  server = served.server
+  BASE = served.base
 
   // Launch Playwright browser
   browser = await chromium.launch()
@@ -576,7 +579,13 @@ describe('browser: random theme button', () => {
       { timeout: 30_000 },
     )
     const savedAfter = await page.evaluate(() => localStorage.getItem('mermaid-theme'))
-    expect(savedAfter).toBeTruthy()
+    const themeKeys = await page.evaluate(() =>
+      Array.from(document.querySelectorAll<HTMLElement>('[data-theme]'))
+        .map(el => el.dataset.theme)
+        .filter((theme): theme is string => typeof theme === 'string' && theme.length > 0),
+    )
+    expect(savedAfter).not.toBeNull()
+    expect(themeKeys).toContain(savedAfter)
   }, 120_000)
 
 })

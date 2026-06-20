@@ -60,8 +60,10 @@ if (have) {
     })
   })
 } else {
-  describe.skip('MermaidSeqBench (dataset not downloaded; skipping)', () => {
-    test('skipped', () => { /* placeholder */ })
+  describe('MermaidSeqBench optional dataset', () => {
+    test('records that dataset-backed assertions are absent in the default checkout', () => {
+      expect(existsSync(DATA)).toBe(false)
+    })
   })
 }
 
