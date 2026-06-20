@@ -3,6 +3,7 @@
 // ============================================================================
 
 import { describe, it, expect } from 'bun:test'
+import fc from 'fast-check'
 import { renderMermaidAscii } from '../ascii/index.ts'
 
 function rowContaining(rendered: string, ...tokens: string[]): string {
@@ -43,6 +44,39 @@ describe('ASCII edge styles', () => {
       const row = rowContaining(renderMermaidAscii('graph LR\n  A o--x B'), 'A', 'B')
       expect(row).toContain('◯────✕')
       expect(row.indexOf('◯')).toBeLessThan(row.indexOf('✕'))
+    })
+
+    // Property: for ANY single LR edge with random labels, the chosen line style
+    // renders its own glyph and never leaks another style's dashed/thick glyph
+    // (the solid glyph aliases box borders, so it is only asserted present). Holds
+    // in both unicode and ascii modes.
+    it('renders the chosen LR line-style glyph without leaking another style (property)', () => {
+      const GLYPH = {
+        unicode: { solid: '─', dotted: '┄', thick: '━' },
+        ascii: { solid: '-', dotted: '.', thick: '=' },
+      } as const
+      const OP = { solid: '-->', dotted: '-.->', thick: '==>' } as const
+      const labelArb = fc.array(fc.constantFrom(...'abcXYZ012'.split('')), { minLength: 1, maxLength: 5 })
+        .map(cs => cs.join('') || 'N')
+      fc.assert(
+        fc.property(
+          labelArb, labelArb,
+          fc.constantFrom('solid', 'dotted', 'thick'),
+          fc.boolean(),
+          (a, b, style, ascii) => {
+            if (a === b) return true
+            const out = renderMermaidAscii(`graph LR\n  ${a} ${OP[style]} ${b}`, ascii ? { useAscii: true } : undefined)
+            const glyph = ascii ? GLYPH.ascii : GLYPH.unicode
+            if (!out.includes(glyph[style])) return false
+            // No OTHER style's special (dashed/thick) glyph leaks in.
+            for (const other of ['dotted', 'thick'] as const) {
+              if (other !== style && out.includes(glyph[other])) return false
+            }
+            return true
+          },
+        ),
+        { numRuns: 500 },
+      )
     })
   })
 
