@@ -15,6 +15,7 @@ import { layoutGraphSync } from '../layout-engine.ts'
 import { parseMermaid } from '../parser.ts'
 import { assessLayout, hardViolations, onShapeOutline } from '../layout-rubric.ts'
 import { shapePorts, diamondFacetPorts } from '../route-contracts.ts'
+import { EDGE_FORMS, renderEdgeLine } from './helpers/edge-vocabulary.ts'
 import { complicatedFixtures, simpleFixtures } from '../../eval/visual-rubric/fixtures.ts'
 import { scoreFixture } from '../../eval/visual-rubric/run.ts'
 
@@ -111,6 +112,12 @@ const SHAPE_WRAPPERS = [
   (l: string) => `[\\${l}\\]`,
 ] as const
 
+// The seeded counting ratchets at the bottom of this file pin
+// `fc.sample(randomFlowchart, { seed: 4242 })` against calibrated
+// crossing/separation baselines, so this generator's fast-check shape must stay
+// stable — plain solid `-->` only. Widening it (e.g. adding an edge `form`)
+// reshuffles the seeded draw and silently moves those baselines; the geometric
+// oracles use `randomFlowchartWideEdges` below instead.
 const randomFlowchart = fc
   .record({
     direction: fc.constantFrom('LR', 'TD', 'RL', 'BT'),
@@ -130,6 +137,37 @@ const randomFlowchart = fc
       .map(({ a, b, labeled }) => [names[a % nodeCount]!, names[b % nodeCount]!, labeled] as const)
       .filter(([a, b]) => a !== b)
       .map(([a, b, labeled]) => `  ${a} ${labeled ? '-- go ' : ''}--> ${b}`)
+    if (edges.length === 0) edges.push(`  ${names[0]} --> ${names[1]}`)
+    return `flowchart ${direction}\n${decl}\n${edges.join('\n')}`
+  })
+
+// Same scaffolding as `randomFlowchart`, but every edge samples the full
+// edge-syntax vocabulary (issue #37): all three line styles (solid/dotted/thick),
+// uni- and bi-directional, and every marker (arrow/circle/cross), plus open and
+// invisible links. The geometric oracles (endpoint-on-outline, ports, hitches,
+// rubric) consume this so they run across the whole vocabulary — markers trim
+// where an edge meets the shape outline, so this is real geometric coverage, not
+// just cosmetic styling. Kept separate from `randomFlowchart` so the seeded
+// counting ratchets stay pinned to their calibrated sample.
+const randomFlowchartWideEdges = fc
+  .record({
+    direction: fc.constantFrom('LR', 'TD', 'RL', 'BT'),
+    nodeCount: fc.integer({ min: 3, max: 6 }),
+    shapePicks: fc.array(fc.nat(SHAPE_WRAPPERS.length - 1), { minLength: 6, maxLength: 6 }),
+    edgePicks: fc.array(
+      fc.record({ a: fc.nat(5), b: fc.nat(5), labeled: fc.boolean(), form: fc.nat(EDGE_FORMS.length - 1) }),
+      { minLength: 2, maxLength: 8 },
+    ),
+  })
+  .map(({ direction, nodeCount, shapePicks, edgePicks }) => {
+    const names = Array.from({ length: nodeCount }, (_, i) => `N${i}`)
+    const decl = names
+      .map((n, i) => `  ${n}${SHAPE_WRAPPERS[shapePicks[i % shapePicks.length]!]!(`n${i}`)}`)
+      .join('\n')
+    const edges = edgePicks
+      .map(({ a, b, labeled, form }) => [names[a % nodeCount]!, names[b % nodeCount]!, labeled, form] as const)
+      .filter(([a, b]) => a !== b)
+      .map(([a, b, labeled, form]) => `  ${renderEdgeLine(a, b, EDGE_FORMS[form]!, labeled ? 'go' : '')}`)
     if (edges.length === 0) edges.push(`  ${names[0]} --> ${names[1]}`)
     return `flowchart ${direction}\n${decl}\n${edges.join('\n')}`
   })
@@ -156,10 +194,31 @@ function polylinesCross(p: RubricPt[], q: RubricPt[]): boolean {
   return false
 }
 
+describe('issue #37 — property generators sample the full edge-syntax vocabulary', () => {
+  it('every sampled edge form parses to its declared style and markers (not silently collapsed)', () => {
+    for (const form of EDGE_FORMS) {
+      const source = `flowchart LR\n  A[a]\n  B[b]\n  ${renderEdgeLine('A', 'B', form)}`
+      const positioned = layoutGraphSync(parseMermaid(source))
+      expect({ form: form.name, edges: positioned.edges.length }).toEqual({ form: form.name, edges: 1 })
+      const e = positioned.edges[0]!
+      expect({ form: form.name, style: e.style }).toEqual({ form: form.name, style: form.style })
+      expect({ form: form.name, startMarker: e.startMarker }).toEqual({ form: form.name, startMarker: form.startMarker })
+      expect({ form: form.name, endMarker: e.endMarker }).toEqual({ form: form.name, endMarker: form.endMarker })
+    }
+  })
+
+  it('the vocabulary spans all three line styles, both directions, and every marker', () => {
+    expect(new Set(EDGE_FORMS.map(f => f.style))).toEqual(new Set(['solid', 'dotted', 'thick', 'invisible']))
+    expect(EDGE_FORMS.some(f => f.startMarker === 'arrow' && f.endMarker === 'arrow')).toBe(true)
+    expect(new Set(EDGE_FORMS.flatMap(f => [f.startMarker, f.endMarker].filter(Boolean)))).toEqual(new Set(['arrow', 'circle', 'cross']))
+    expect(EDGE_FORMS.some(f => f.startMarker === undefined && f.endMarker === undefined)).toBe(true)
+  })
+})
+
 describe('property: ports and outlines (mathematical oracles over random diagrams)', () => {
   it('every edge endpoint lies on the rendered shape outline — all shapes, all directions', () => {
     fc.assert(
-      fc.property(randomFlowchart, source => {
+      fc.property(randomFlowchartWideEdges, source => {
         const graph = parseMermaid(source)
         const positioned = layoutGraphSync(graph)
         const nodeMap = new Map(positioned.nodes.map(n => [n.id, n]))
@@ -180,7 +239,7 @@ describe('property: ports and outlines (mathematical oracles over random diagram
 
   it('certificate port fields always agree with the geometric port oracle', () => {
     fc.assert(
-      fc.property(randomFlowchart, source => {
+      fc.property(randomFlowchartWideEdges, source => {
         const graph = parseMermaid(source)
         const positioned = layoutGraphSync(graph)
         const nodeMap = new Map(positioned.nodes.map(n => [n.id, n]))
@@ -215,7 +274,7 @@ describe('property: ports and outlines (mathematical oracles over random diagram
 
   it('no hitch survives: no edge bends while a clear lane exists for it', () => {
     fc.assert(
-      fc.property(randomFlowchart, source => {
+      fc.property(randomFlowchartWideEdges, source => {
         const graph = parseMermaid(source)
         const positioned = layoutGraphSync(graph)
         return assessLayout(graph, positioned).metrics.hitches === 0
@@ -226,7 +285,7 @@ describe('property: ports and outlines (mathematical oracles over random diagram
 
   it('every hard rubric metric is zero for arbitrary small diagrams', () => {
     fc.assert(
-      fc.property(randomFlowchart, source => {
+      fc.property(randomFlowchartWideEdges, source => {
         const graph = parseMermaid(source)
         const positioned = layoutGraphSync(graph)
         return hardViolations(assessLayout(graph, positioned)).length === 0

@@ -26,6 +26,9 @@ export function flowchartUnsupportedSyntaxWarnings(source: string): LayoutWarnin
     if (isUnsupportedEdgeMetadataStatement(text)) {
       warnings.push({ code: 'UNSUPPORTED_SYNTAX', line, syntax: 'flowchart_edge_metadata', message: 'Flowchart edge metadata is preserved as source but ignored by the local renderer/layout.' })
     }
+    if (isNodeMetadataStatement(text)) {
+      warnings.push({ code: 'UNSUPPORTED_SYNTAX', line, syntax: 'flowchart_node_metadata', message: 'Flowchart node metadata (@{ shape: ... }) is preserved as source and its label is rendered, but the v11 shape vocabulary is not yet modeled by the local renderer/layout.' })
+    }
     if (isFlowchartInteractionDirective(text)) {
       warnings.push({ code: 'UNSUPPORTED_SYNTAX', line, syntax: 'flowchart_interaction_directive', message: 'Flowchart click/href directives are preserved as source but ignored by the local renderer for security and layout.' })
     }
@@ -64,7 +67,20 @@ function isUnsupportedEdgeMetadataStatement(statement: string): boolean {
   const metadata = match[1]!
   // Node metadata is source-preserved by the opaque fallback. Edge metadata
   // has animate/curve semantics only Mermaid itself understands today.
-  return !/(?:^|,)\s*(?:shape|label|icon|img)\s*:/i.test(metadata)
+  return !isNodeMetadata(metadata)
+}
+
+// `id@{ shape: ... }` node metadata (Mermaid v11.3+). Preserved losslessly by the
+// opaque fallback (issue #29), but still unmodeled — so it is surfaced loudly,
+// like every other unsupported flowchart construct (issue #36), rather than kept
+// silent. Advisory (Tier-3): it never flips verify.ok and never drops source.
+function isNodeMetadataStatement(statement: string): boolean {
+  const match = statement.trim().match(/^[\w-]+@\s*\{([\s\S]*)\}\s*$/)
+  return match ? isNodeMetadata(match[1]!) : false
+}
+
+function isNodeMetadata(metadata: string): boolean {
+  return /(?:^|,)\s*(?:shape|label|icon|img)\s*:/i.test(metadata)
 }
 
 function maskFlowchartLabels(statement: string): string {

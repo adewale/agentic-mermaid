@@ -59,6 +59,18 @@ const cases: SabotageCase[] = [
     command: ['bun', 'test', 'src/__tests__/subgraph-direction.test.ts', 'src/__tests__/subgraph-hierarchy-exhaustive.test.ts', '--timeout', '120000'],
     expectedFailure: /nested subgraph-id edges under direction overrides attach to the container|ROUTE_CONTAINER_MISANCHOR|edge should be present/,
   },
+  {
+    // Issue #25 acceptance criterion 3: "disabling the direct-lane proof
+    // reintroduces a failing test." Neuter tryStraighten (the repair the
+    // direct-lane proof authorizes) so it never straightens; the MFA forward
+    // lanes then keep their doglegs and the criterion-1 straightness test fails.
+    name: 'disabling the direct-lane straightening proof reintroduces MFA hitches',
+    file: 'src/route-contracts.ts',
+    oldText: '  if (!srcSpan || !tgtSpan) return { applied: false, blockers: [] }\n',
+    newText: '  if (true || !srcSpan || !tgtSpan) return { applied: false, blockers: [] }\n',
+    command: ['bun', 'test', 'src/__tests__/route-contracts.test.ts', '--timeout', '120000'],
+    expectedFailure: /MFA\/login regression.*straight horizontal lane|isStraightHorizontal/,
+  },
 ]
 
 function run(command: string[], cwd: string, options: { expectFailure?: boolean; timeout?: number } = {}) {
