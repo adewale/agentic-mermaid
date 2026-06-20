@@ -154,3 +154,42 @@ retrofit careful, family-by-family work behind snapshot tests rather than a swee
    frontmatter as post-parse middleware like gantt). (Addresses I4.)
 6. Split the certificate type to reflect reality, or produce family certs in the core layout path.
    (Addresses I6.)
+
+---
+
+## 5. Reconciliation with existing design docs
+
+This audit was derived from source, but several existing docs already describe parts of this
+architecture. Cross-checked against them, the findings **agree**; three earn an honest refinement.
+
+| Existing doc | Relates to | Verdict |
+|---|---|---|
+| [`AGENT_NATIVE.md`](../../AGENT_NATIVE.md) | I3, I6, I7 | Agrees; refines I3 and I7 (below). The agent-stack design rationale. |
+| [`contributing/diagram-family-citizenship.md`](../contributing/diagram-family-citizenship.md) | I1, I8 | Agrees; the family×surface drift is **already CI-guarded** (below). |
+| [`design/source-preservation-ladder.md`](./source-preservation-ladder.md) | I7 | Agrees; formalizes the structured\|opaque model as levels L0–L4. |
+
+**I1 refinement — the drift is already test-guarded.** `diagram-family-citizenship.md` (issue #41)
+defines a family×surface matrix whose `detectionParse` row requires that "shared detector, agent parse,
+SVG render, ASCII render, CLI, and MCP paths route consistently" (state's flowchart-renderer split is the
+one documented exception), enforced by `diagram-family-citizenship.test.ts`. So the risk I1 names — three
+dispatch sites that "cannot drift-check each other" — is mitigated **today** by an external CI ratchet.
+The recommendation (unify on the `FamilyPlugin` registry) still stands, but as *making the drift-check
+structural rather than test-based*, not as introducing a check that is absent.
+
+**I3 refinement — `RenderedLayout` is the deliberate canonical artifact.** `AGENT_NATIVE.md` §1 establishes
+that the **layout JSON (`RenderedLayout`) is THE canonical artifact, not the SVG** ("two render results are
+equal iff their layout JSON is structurally equal") — it is the determinism/equality oracle pinned by the
+cross-process and drift-sentinel tests. It is therefore not redundant debt: `PositionedGraph` is the
+SVG-specific geometry, `RenderedLayout` is the surface-neutral equality contract. The fix is to make the
+`PositionedGraph → RenderedLayout` lowering explicit (one derives from the other), **not** to pick a winner.
+
+**I7 refinement — the re-parse seam is documented and round-trip-tested.** `AGENT_NATIVE.md` §3 makes
+`canonicalSource` "the round-trip pillar" and states "structured renderers use this as input" — so the
+agent-layout re-parse I flagged is a *documented* design choice, guarded by the round-trip identity
+properties (`serializeMermaid(parseMermaid(s)) ≡ normalize(s)` and `parseMermaid(serializeMermaid(d)) ≡ d`,
+property-tested). The coupling is **tested, not hidden**; laying out the structured body directly is a
+decoupling/perf option (lower-urgency than first stated) that applies only to **L3/L4** structured bodies
+(per the source-preservation ladder) — for **L1** opaque bodies, text *is* the representation and
+re-parsing is correct by design. Likewise I7 seam (a): the **public** mutation surface is strongly typed
+(per-family `mutate` overloads + branded `as*` narrowers with compile-time rejection of opaque bodies,
+`AGENT_NATIVE.md` §3); the duck-typed narrowing is an internal implementation detail, not the public contract.

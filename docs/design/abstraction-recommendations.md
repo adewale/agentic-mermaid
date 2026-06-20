@@ -2,7 +2,11 @@
 
 Status: recommendations from academic-literature review. Drafted 2026-06-20.
 Companion to [`abstraction-audit.md`](./abstraction-audit.md) (the current-state snapshot and
-the source of issue numbers **I1–I9**, referenced throughout).
+the source of issue numbers **I1–I9**, referenced throughout). Reconciled with the pre-existing
+design docs it overlaps — [`AGENT_NATIVE.md`](../../AGENT_NATIVE.md) (agent stack),
+[`contributing/diagram-family-citizenship.md`](../contributing/diagram-family-citizenship.md)
+(family×surface CI ratchet), and [`source-preservation-ladder.md`](./source-preservation-ladder.md)
+(structured\|opaque levels); see the audit's §5 for the agreement and the I1/I3/I7 refinements.
 
 > Web access note: WebSearch/WebFetch **were available** in this environment. Every citation
 > below was bibliographically verified against authoritative records (dblp, arXiv, official
@@ -169,10 +173,13 @@ types into one universal geometry IR (see (e)). Instead, two cheap, high-value m
    gives `RenderContext`, `FamilyPlugin.layout`, and PNG/SVG entrypoints **one** type to name without
    forcing structural unification of the bodies. Minimal, mechanical, and it makes I2's `RenderContext`
    well-typed.
-2. **Demote `RenderedLayout` to a documented projection.** It is the agent stack's debug/serialization
-   view, produced by `agent/layout-to-rendered.ts`. Mark it explicitly as *a lowering of
-   `PositionedDiagram` for the agent surface* (an MLIR-style lower-level dialect), not a rival source
-   of truth — and make it *derive from* the positioned model, never be built in parallel.
+2. **Make the `PositionedGraph → RenderedLayout` lowering explicit.** Per `AGENT_NATIVE.md` §1,
+   `RenderedLayout` (the layout JSON) is the *canonical determinism/equality artifact* — "two render
+   results are equal iff their layout JSON is structurally equal," pinned by the cross-process and
+   drift-sentinel tests — so it is **not** a debug view to demote. The two models sit at genuinely
+   different levels (MLIR-style dialects): `PositionedDiagram` is SVG-facing geometry, `RenderedLayout`
+   is the surface-neutral equality oracle. The fix is to make one *derive from* the other through an
+   explicit lowering (`agent/layout-to-rendered.ts`), never built in parallel, so the two cannot diverge.
 
 **(d) Tradeoffs / determinism risk.** Adding a marker base is zero-runtime and deterministic. The real
 risk is over-reach: a too-rich shared base (ports, edges, groups) would force every family to satisfy
@@ -330,10 +337,14 @@ applies to. King: don't round-trip through text you already parsed — operate o
   just verbose). If desired, route mutation through `FamilyPlugin.mutate` (already in the interface,
   `families.ts:55`) so each family owns its narrowing in one place rather than re-checking at every op.
   This is the I1 registry paying off again. **Low priority** — it is verbosity, not a bug.
-- **(seam b) is the real one.** Where a family can lay out its **structured body directly**, give
-  `FamilyPlugin` a `layout?(body, opts)` hook (I1/I3) and prefer it over re-parsing `canonicalSource`.
-  This removes the hidden coupling "agent layout correctness depends on serializer round-trip fidelity,"
-  which is a genuine latent bug class (any serializer imperfection silently corrupts layout).
+- **(seam b) is the structural one — but reconciled, lower-urgency.** Where a family can lay out its
+  **structured body directly**, give `FamilyPlugin` a `layout?(body, opts)` hook (I1/I3) and prefer it
+  over re-parsing `canonicalSource`. This decouples agent layout from serializer round-trip fidelity.
+  Per `AGENT_NATIVE.md` §3, however, `canonicalSource` is the *documented* "round-trip pillar"
+  ("structured renderers use this as input") and the coupling is already guarded by round-trip identity
+  property tests — so this is a **decoupling/perf** improvement, not the closing of an unguarded hole,
+  and it applies only to **L3/L4** structured bodies (the source-preservation ladder). For **L1** opaque
+  bodies, text is the representation and re-parsing is correct.
 
 **(d) Tradeoffs / determinism risk.** Seam (b) is the **highest-value correctness fix** in the whole
 audit *and* a determinism improvement (fewer round-trips = fewer places for the text path to diverge).

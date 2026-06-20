@@ -41,6 +41,8 @@ This directory holds the long-form documentation. The root README is intentional
 | [`contributing/diagram-family-citizenship.md`](./contributing/diagram-family-citizenship.md) | Enforced good-citizen checklist and matrix for family/surface drift (issue #41). |
 | [`contributing/harvesting-upstream-tests.md`](./contributing/harvesting-upstream-tests.md) | How to vendor upstream/fork test suites into an executable compatibility bench. |
 | [`layout-characterization/README.md`](./layout-characterization/README.md) | Layout and visual testing approach: properties, contact sheets, raster contracts, and approval artifacts. |
+| [`design/abstraction-audit.md`](./design/abstraction-audit.md) | Whole-system abstraction audit: the three-stacks model and ranked issue list I1–I9. |
+| [`design/abstraction-recommendations.md`](./design/abstraction-recommendations.md) | Literature-grounded recommendations for I1–I9, with a prioritized roadmap. |
 | [`design/architecture.md`](./design/architecture.md) | Architecture diagram implementation notes. |
 | [`design/gantt.md`](./design/gantt.md) | Gantt support specification and compatibility boundaries. |
 | [`design/gantt-research.md`](./design/gantt-research.md) | Gantt literature review and commercial UX survey. |
