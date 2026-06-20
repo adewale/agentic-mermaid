@@ -593,8 +593,8 @@ Known upgrades during migration:
 
 Recommended deployment shape:
 
-- Cloudflare Pages for static assets and preview deployments.
-- Optional Cloudflare Worker only for redirects, headers, cache policy, and immutable asset routing.
+- Cloudflare Workers with Workers Static Assets serving the built site. Static-asset requests are served from Cloudflare’s edge for free and unmetered, with no Worker code on the hot path and no asset-storage cost.
+- The Worker code path stays limited to redirects, headers, cache policy, and asset routing.
 - No Worker route that evaluates user code or renders diagrams server-side.
 - Canonical domain configured by environment variable, e.g. `SITE_ORIGIN=https://agenticmermaid.dev`.
 - Base path configurable so the same generator can still build the GitHub Pages mirror under `/beautiful-mermaid/` during transition.
@@ -616,7 +616,7 @@ Headers:
 5. **Impeccable-style journey layer.** Add the start rail, intent/channel chooser, harness cards, workflow demo, warning-code pages, and FAQ before expanding visual polish.
 6. **Editor/gallery migration.** Move existing Pages editor/gallery into the new route structure without losing current E2E coverage.
 7. **AX pass.** Add raw Markdown links for curated public docs only, copyable agent cards, accessible diagram descriptions, warning/error-code references, public-skill bundle generation, schema validation tests, and a guard that product navigation does not expose hidden repo-only docs or development skills.
-8. **Cloudflare deployment.** Add Cloudflare Pages config and preview deploy docs. Keep GitHub Pages until the new domain is verified.
+8. **Cloudflare deployment.** Add the Workers Static Assets config (a `wrangler` project with an `assets` binding) and preview-URL docs. Keep GitHub Pages until the new domain is verified.
 9. **Cutover.** Update README/docs links to canonical domain. Keep old `/beautiful-mermaid/` links working where feasible.
 
 ## Acceptance criteria
@@ -645,7 +645,7 @@ Two distribution paths exist, and they fall on opposite sides of this spec’s h
 
 Package the existing `agentic-mermaid-mcp` stdio server as a one-double-click `.mcpb` bundle for Claude Desktop and equivalent local-extension installers. This is not a new runtime: it is the same local MCP this spec already endorses under “Tools remain local,” wrapped for zero-friction install. It runs entirely on the user’s machine, renders locally, and contacts no Agentic Mermaid server, so it satisfies every non-goal — no hosted Code Mode, no hosted MCP endpoint, no remote render API.
 
-This is also the concrete answer to the open decision about a downloadable agent bundle: the `.mcpb` is that bundle, in the format the Connectors UI consumes. Hosting cost is zero — it is a static release artifact (GitHub Releases or a `/downloads` path on Cloudflare Pages), and the site’s job is to document and link it, exactly as it does for the CLI and library.
+This is also the concrete answer to the open decision about a downloadable agent bundle: the `.mcpb` is that bundle, in the format the Connectors UI consumes. Hosting cost is zero — it is a static release artifact (GitHub Releases or a `/downloads` path served as a Workers static asset), and the site’s job is to document and link it, exactly as it does for the CLI and library.
 
 ### Path B — Hosted remote connector / MCP App. Future owner-decision, out of scope for v1.
 
@@ -657,7 +657,7 @@ If Path B is ever approved, the cost is dominated by stance and stewardship, not
 
 | Cost area | Assessment |
 |---|---|
-| Compute / hosting | Near-zero and co-located. The site already deploys on Cloudflare Pages with an optional Worker; the MCP Apps UI is a static bundle that fits Pages at no marginal cost. Only a thin MCP JSON-RPC route would need a real Worker — which the deployment section currently forbids (“No Worker route that evaluates user code or renders diagrams server-side”), so enabling it is a spec change, not a config change. Rendering is synchronous and browserless (`mermaid-ast` + `elkjs` + `resvg`, with the `resvg` WASM build on Workers); Cloudflare’s zero egress keeps image payloads cheap. Realistic infra: roughly free at demo scale, low tens of dollars per million renders at popularity. |
+| Compute / hosting | Near-zero and co-located. The site already runs on Cloudflare Workers with Workers Static Assets, so the MCP Apps UI ships as a static asset — served free and unmetered. The Worker is already deployed; exposing Path B means adding a dynamic `fetch` route (for example `/mcp`) to it — trivial infra, but exactly what the deployment section forbids (“No Worker route that evaluates user code or renders diagrams server-side”), so enabling it is a spec change, not a config change. Only those dynamic invocations are billed as Worker requests (the $5/mo tier covers 10M; static-asset loads stay free); rendering is synchronous and browserless (`mermaid-ast` + `elkjs` + `resvg`, with the `resvg` WASM build on Workers), and Cloudflare’s zero egress keeps image payloads cheap. Realistic infra: roughly free at demo scale, low tens of dollars per million renders at popularity. |
 | Security hardening | The real engineering cost. A public endpoint must not expose the `execute` Code Mode `node:vm` tool; restrict it to bounded `render`/`describe`/structured-edit tools with input-size caps, render timeouts, and rate limits. The current server’s artifact size limits and sandbox timeouts are a starting point. |
 | Directory compliance | Streamable HTTP transport (today’s server is custom HTTP/SSE on protocol `2024-11-05` and would need updating), authless or OAuth 2.1, a stable privacy-policy URL, `title` + `readOnlyHint` on every tool (the exposed render/describe/edit tools are read-only — a clean review), an icon, a test account, and 3–5 MCP App screenshots. |
 | Ongoing stewardship | Anthropic requires maintaining security and functionality and responding promptly to security issues — an open-ended commitment, and the largest true cost. |
