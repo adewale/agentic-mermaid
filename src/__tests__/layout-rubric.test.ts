@@ -48,6 +48,25 @@ describe('rubric ratchets — the MFA regression scores stay at least this good'
   })
 })
 
+describe('rubric ratchets — endpoint outline regressions', () => {
+  it('duplicate detours re-anchor source and target endpoints onto shape outlines', () => {
+    const graph = parseMermaid(`flowchart LR
+  N0[n0]
+  N1[n1]
+  N2[n2]
+  N3[(n3)]
+  N4[n4]
+  N4 --> N0
+  N0 -- go --> N4
+  N2 --> N3
+  N2 --> N3
+  N4 --> N3`)
+    const positioned = layoutGraphSync(graph)
+    const result = assessLayout(graph, positioned)
+    expect(result.violations.filter(v => v.metric === 'offOutlineEndpoints')).toEqual([])
+  })
+})
+
 describe('visual rubric — peer barycenter ratchets', () => {
   it('tracks same-layer peer fan-out centering as a visual metric', () => {
     const graph = parseMermaid(`flowchart TD
@@ -115,6 +134,12 @@ const randomFlowchart = fc
     return `flowchart ${direction}\n${decl}\n${edges.join('\n')}`
   })
 
+// Pinned so CI is reproducible: an unseeded property run draws fresh inputs
+// every time, so an intermittent layout regression surfaces as a flaky failure
+// on one machine and not another. A fixed seed checks the same 120 generated
+// diagrams on every run; bump it deliberately to re-roll the sample.
+const PROPERTY_SEED = 0x10ad
+
 describe('property: ports and outlines (mathematical oracles over random diagrams)', () => {
   it('every edge endpoint lies on the rendered shape outline — all shapes, all directions', () => {
     fc.assert(
@@ -133,7 +158,7 @@ describe('property: ports and outlines (mathematical oracles over random diagram
         }
         return true
       }),
-      { numRuns: 120 },
+      { numRuns: 120, seed: PROPERTY_SEED },
     )
   })
 
@@ -168,7 +193,7 @@ describe('property: ports and outlines (mathematical oracles over random diagram
         }
         return true
       }),
-      { numRuns: 120 },
+      { numRuns: 120, seed: PROPERTY_SEED },
     )
   })
 
@@ -179,7 +204,7 @@ describe('property: ports and outlines (mathematical oracles over random diagram
         const positioned = layoutGraphSync(graph)
         return assessLayout(graph, positioned).metrics.hitches === 0
       }),
-      { numRuns: 120 },
+      { numRuns: 120, seed: PROPERTY_SEED },
     )
   })
 
@@ -190,7 +215,7 @@ describe('property: ports and outlines (mathematical oracles over random diagram
         const positioned = layoutGraphSync(graph)
         return hardViolations(assessLayout(graph, positioned)).length === 0
       }),
-      { numRuns: 120 },
+      { numRuns: 120, seed: PROPERTY_SEED },
     )
   })
 })

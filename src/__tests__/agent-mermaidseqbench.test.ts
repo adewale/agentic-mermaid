@@ -9,6 +9,8 @@ import { describe, test, expect } from 'bun:test'
 import { existsSync } from 'node:fs'
 import { join } from 'node:path'
 import { loadDataset, runBench, parseCsv } from '../../eval/mermaidseqbench/runner.ts'
+import { parseMermaid, serializeMermaid } from '../agent/index.ts'
+import { countStructuralElements, isDrop } from '../agent/structural-count.ts'
 
 const DATA = join(import.meta.dir, '..', '..', 'eval', 'mermaidseqbench', 'data.csv')
 const have = existsSync(DATA)
@@ -28,6 +30,23 @@ if (have) {
     test('every sample round-trips losslessly', () => {
       expect(c.roundTripStable).toBe(c.total)
     })
+    test('faithfulness: participant/message counts survive round-trip (count-oracle)', () => {
+      // Unifies the three differential gates on one faithfulness check: a
+      // structured sequence body must not silently drop a participant or
+      // message on serialize → re-parse, even when the bytes round-trip.
+      const drops: string[] = []
+      for (const row of rows) {
+        const p1 = parseMermaid(row.expected)
+        if (!p1.ok) continue
+        const before = countStructuralElements(p1.value)
+        if (!before) continue  // opaque fallback — byte round-trip gate owns it
+        const p2 = parseMermaid(serializeMermaid(p1.value))
+        const after = p2.ok ? countStructuralElements(p2.value) : null
+        // Shared verdict (Move 3): same drop semantics as the corpus + upstream gates.
+        if (isDrop(before, after)) drops.push(row.title)
+      }
+      expect(drops).toEqual([])
+    })
     test('segment-preserving structured parse engaged for the real-world syntax (Note/alt/activate)', () => {
       // BUILD-18: the dataset's expected outputs use Note/alt/loop/activate/
       // autonumber, which used to force the WHOLE body opaque. They now parse
@@ -41,8 +60,10 @@ if (have) {
     })
   })
 } else {
-  describe.skip('MermaidSeqBench (dataset not downloaded; skipping)', () => {
-    test('skipped', () => { /* placeholder */ })
+  describe('MermaidSeqBench optional dataset', () => {
+    test('records that dataset-backed assertions are absent in the default checkout', () => {
+      expect(existsSync(DATA)).toBe(false)
+    })
   })
 }
 

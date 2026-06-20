@@ -7,6 +7,7 @@ import {
   layoutMermaid, parseMermaid, serializeMermaid, verifyMermaid,
 } from '../agent/index.ts'
 import type { DiagramKind, ValidDiagram } from '../agent/types.ts'
+import { countStructuralElements, isDrop } from '../agent/structural-count.ts'
 
 interface BenchCase {
   id: string
@@ -291,7 +292,18 @@ describe('BUILD-20 Mermaid upstream parser/DB bench', () => {
       const serialized = serializeMermaid(parsed.value)
       const reparsed = parseMermaid(serialized)
       expect(reparsed.ok, reparsed.ok ? '' : reparsed.error.map(e => e.message).join('; ')).toBe(true)
-      if (reparsed.ok) expect(serializeMermaid(reparsed.value)).toBe(serialized)
+      if (reparsed.ok) {
+        expect(serializeMermaid(reparsed.value)).toBe(serialized)
+        // Faithfulness count-oracle (unifies the three differential gates on one
+        // check): byte-stability above proves serialize∘parse is idempotent;
+        // this proves no node/edge/group was silently dropped on the way.
+        const before = countStructuralElements(parsed.value)
+        const after = countStructuralElements(reparsed.value)
+        // Route through the shared verdict (Move 3). Keep this gate's original
+        // lenient policy: a structured body that re-parses to OPAQUE (after=null)
+        // is owned by the byte round-trip check above, not flagged here.
+        if (before && after) expect({ id: c.id, drop: isDrop(before, after), before, after }).toEqual({ id: c.id, drop: false, before, after })
+      }
     })
   }
 

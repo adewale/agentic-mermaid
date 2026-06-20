@@ -139,3 +139,44 @@ a graph that needs three chained rounds would be a synthetic-input test.
 - `edge-routing.ts` label segment filter (`width >= lenLabel && index > 1 &&
   orientationMatches`): the labeled-fanout invariants pin the TD vertical-drop
   case; LR orientation and the index>1 exclusion lack direct coverage.
+
+## Incremental per-PR lane (`stryker.incremental.config.json`)
+
+A fast lane gates the small, pure faithfulness counter on every PR (the
+`mutation-incremental` CI job), separate from the broad nightly lanes. It
+mutates `src/agent/structural-count.ts` (the counter + `faithfulnessWarning` +
+`isDrop`), run by the sub-second `structural-count.test.ts` unit runner. A full
+run is ~1 min, so it runs in full each PR.
+
+Score is ~96% (regenerate to confirm; the report lands in `reports/mutation/`),
+gated by `thresholds.break: 90`. The few survivors are all equivalent mutants,
+accepted not chased:
+
+- `structural-count.ts:96` (`case 'opaque': return null`) — two mutants
+  (the case label + its string). Equivalent: an opaque body returns `null`, and
+  the `default` branch *also* returns `null`, so mutating the `opaque` case
+  cannot change the result for any input.
+- `structural-count.ts:98` (`default:` exhaustiveness branch) — two mutants
+  (the branch condition + its block). Unreachable by construction: all twelve
+  families are handled explicitly and the `const _never: never = body` assigns
+  compile-time exhaustiveness, so the branch never executes at runtime.
+
+What earlier survivors taught us (now killed, kept as regression fixtures): the
+recursive `edges += inner.edges` state accumulation needed a *doubly-nested*
+composite-state fixture, and `nodes = services + junctions` needed an
+architecture fixture that actually contains a junction.
+
+### Why `verify.ts`'s faithfulness wrapper is NOT in the gated mutate set
+
+Move 2 measured `roundtripFaithfulnessWarnings` (the I/O wrapper around the pure
+`faithfulnessWarning`): **26.67% kill / 11 survivors**. The survivors are all on
+the wrapper's defensive branches — `if (!reparsed.ok) …`, `if (!after) …`, and
+the `catch` — which no *real* diagram exercises: a structured diagram's
+serialization always re-parses, and re-parses structured (not opaque), and never
+throws. Those branches are therefore unkillable through real `verifyMermaid`
+inputs without a synthetic drop, and the *decision logic* they guard already
+lives in `faithfulnessWarning`, which the incremental lane gates at 96%+. Adding
+the wrapper to the gated `mutate` would crater the score to ~27% and force either
+a meaningless break threshold or a pile of accepted survivors. So the wrapper
+stays out of the gated set and is recorded here as I/O-glue equivalents; its
+logic is covered where it actually lives.

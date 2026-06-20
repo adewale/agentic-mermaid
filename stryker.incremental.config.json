@@ -1,0 +1,22 @@
+{
+  "$schema": "https://raw.githubusercontent.com/stryker-mutator/stryker/master/packages/core/schema/stryker-core.schema.json",
+  "_comment": "Fast per-PR mutation lane over the small, pure faithfulness counter, so a full run is quick enough to gate every PR (the broad route/ascii lanes stay nightly). Gates via thresholds.break.",
+  "mutate": [
+    "src/agent/structural-count.ts"
+  ],
+  "ignorePatterns": ["/site/**", "/dist/**", "/coverage/**", "/index.html", "/editor.html", "/.stryker-tmp-*/**"],
+  "testRunner": "command",
+  "commandRunner": {
+    "command": "bun test src/__tests__/structural-count.test.ts"
+  },
+  "reporters": ["clear-text", "progress", "json"],
+  "jsonReporter": {
+    "fileName": "reports/mutation/incremental-mutation.json"
+  },
+  "timeoutMS": 30000,
+  "concurrency": 4,
+  "tempDirName": ".stryker-tmp-incremental",
+  "disableTypeChecks": true,
+  "thresholds_comment": "Mutates the structural-count counter (countStructuralElements + faithfulnessWarning + isDrop). The few survivors are equivalent mutants on the opaque/default null-returning branches (see docs/mutation-testing.md §incremental). Regenerate to confirm the score; break=90 fails any real regression.",
+  "thresholds": { "high": 97, "low": 92, "break": 90 }
+}

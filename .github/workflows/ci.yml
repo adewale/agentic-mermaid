@@ -12,6 +12,13 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+        with:
+          # Full history (not the default shallow depth-1). On a pull_request the
+          # checkout is the merge ref: HEAD is a merge commit whose parents
+          # [base, prHead] the golden-drift gate diffs to find the PR's OWN
+          # golden changes. Shallow checkout omits those parents, so the gate
+          # saw a parentless commit and flagged the whole testdata tree.
+          fetch-depth: 0
 
       - name: Setup Bun
         uses: oven-sh/setup-bun@v1
@@ -23,10 +30,21 @@ jobs:
       - name: Install dependencies
         run: bun install
 
-      - name: Run tests with coverage
-        # Text coverage is enough for CI signal; avoid lcov generation in PR
-        # runners because Bun can leave the coverage writer hanging there.
+      - name: Run tests (coverage = under-tested finder, NOT an adequacy target)
+        # The pass/fail of this suite is the gate. Coverage is printed only to
+        # locate under-tested files — it is deliberately NOT a quality target:
+        # line coverage is weakly correlated with fault detection once suite
+        # size is controlled (Inozemtseva & Holmes, ICSE 2014). The real
+        # adequacy signal is the mutation score, which runs nightly
+        # (nightly-route-mutation.yml) because a full run is too slow to gate
+        # every PR. See docs/testing-strategy.md.
         run: bun test --coverage --coverage-reporter=text src/__tests__/
+
+      - name: Adequacy signal reminder
+        # Surface where the trustworthy adequacy number lives so a green
+        # coverage column is not mistaken for a strong suite.
+        run: |
+          echo "::notice title=Adequacy signal::Line coverage above is a finder, not a target. The mutation score (nightly-route-mutation.yml) is the adequacy signal — see docs/testing-strategy.md."
 
       - name: Type check
         run: bun x tsc --noEmit
@@ -36,12 +54,14 @@ jobs:
         # assets/hero.png (diagram SVG + ASCII) — no fonts/rasterization needed.
         run: bun run hero:check
 
-      - name: Check for unreviewed snapshot changes
-        run: |
-          if git diff --name-only | grep -q 'src/__tests__/testdata/'; then
-            echo "::warning::Snapshot files in src/__tests__/testdata/ were modified. Please review the golden file changes."
-            git diff --stat -- src/__tests__/testdata/
-          fi
+      - name: Golden snapshot drift is a hard gate (reviewed-token required)
+        # The decision logic lives in scripts/ci/golden-drift.ts and is
+        # unit-tested (src/__tests__/golden-drift.test.ts) — a bare ::warning::
+        # was ignorable (testing-tools learning #2), and inline bash was
+        # untestable (learning: fold gate logic into tested code). The script
+        # fails the build unless golden movement is committed AND approved with
+        # a commit-message line starting with [approve-goldens].
+        run: bun run scripts/ci/golden-drift.ts
 
   e2e:
     runs-on: ubuntu-latest
@@ -74,3 +94,31 @@ jobs:
 
       - name: Run browser E2E tests
         run: cd e2e && bun test browser.test.ts --timeout 600000
+
+  # Fast incremental mutation gate. The broad route/ascii lanes stay nightly
+  # (too slow to gate every PR); this lane mutates the small, pure faithfulness/
+  # ranking core (structural-count.ts + faithfulnessWarning + rankWarnings) with
+  # a sub-second unit runner — measured ~96% kill in ~1 min, gated by
+  # thresholds.break=90. It is the adequacy signal that line coverage is not
+  # (Inozemtseva & Holmes; Just et al.) — see docs/testing-strategy.md.
+  #
+  # `--since` scopes mutation to files changed in the PR, so when none of the
+  # mutate-listed files changed the lane is a fast no-op; when more core files
+  # are added to the config's `mutate`, this same job covers them automatically.
+  mutation-incremental:
+    runs-on: ubuntu-latest
+    needs: test
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v1
+        with:
+          bun-version: 1.3.13
+      - name: Install dependencies
+        run: bun install
+      - name: Incremental mutation lane (faithfulness + ranking core)
+        # Mutates the small, pure faithfulness/ranking core; gated by the
+        # config's thresholds.break. A full run on this lane is ~1 min, so it
+        # runs in full every PR (no --since scoping needed for so few files).
+        run: npx stryker run stryker.incremental.config.json

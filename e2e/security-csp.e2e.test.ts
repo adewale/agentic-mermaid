@@ -1,9 +1,10 @@
 import { describe, it, expect, beforeAll, afterAll } from 'bun:test'
 import { chromium, type Browser, type Page } from 'playwright'
 import { renderMermaidSVG } from '../src/index.ts'
+import { serveWithAvailablePort } from './test-port.ts'
 
-const PORT = 4571
-const BASE = `http://localhost:${PORT}`
+const PREFERRED_PORT = 4571
+let BASE = ''
 const NONCE = 'agentic-mermaid-csp-test'
 
 const HOSTILE_SOURCE = `---
@@ -24,8 +25,8 @@ let strictSvg = ''
 
 beforeAll(async () => {
   strictSvg = renderMermaidSVG(HOSTILE_SOURCE, { security: 'strict' })
-  server = Bun.serve({
-    port: PORT,
+  const served = serveWithAvailablePort({
+    preferredPort: PREFERRED_PORT,
     fetch() {
       const csp = [
         "default-src 'none'",
@@ -65,6 +66,8 @@ beforeAll(async () => {
       return new Response(html, { headers: { 'content-type': 'text/html; charset=utf-8', 'content-security-policy': csp } })
     },
   })
+  server = served.server
+  BASE = served.base
   browser = await chromium.launch()
   page = await browser.newPage()
 }, 120_000)

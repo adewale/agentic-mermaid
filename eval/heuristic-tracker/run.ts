@@ -54,7 +54,9 @@ function fanInSymmetryError(pos: any): number | null {
   return any ? Number(worst.toFixed(1)) : null
 }
 
-function score(source: string): Row | { error: string } {
+export type ScoreResult = Row | { error: string }
+
+export function score(source: string): ScoreResult {
   let pos: any
   try { pos = layoutGraphSync(parseMermaid(source)) } catch (e) { return { error: String(e).slice(0, 60) } }
   if (!pos || pos.nodes.length === 0) return { error: 'empty layout' }
@@ -76,53 +78,105 @@ function score(source: string): Row | { error: string } {
   }
 }
 
-const examples = trackedExamples()
-const current: Record<string, Row | { error: string }> = {}
-for (const ex of examples) current[`${ex.group}/${ex.name}`] = score(ex.source)
+export const baselinePath = join(dirname(new URL(import.meta.url).pathname), 'baseline.json')
 
-const baselinePath = join(dirname(new URL(import.meta.url).pathname), 'baseline.json')
-const update = process.argv.includes('--update')
-
-if (update) {
-  writeFileSync(baselinePath, JSON.stringify(current, null, 2) + '\n')
-  console.log(`wrote baseline: ${Object.keys(current).length} examples`)
-  process.exit(0)
+/** Score every tracked example, keyed `group/name`. */
+export function scoreAll(): Record<string, ScoreResult> {
+  const current: Record<string, ScoreResult> = {}
+  for (const ex of trackedExamples()) current[`${ex.group}/${ex.name}`] = score(ex.source)
+  return current
 }
 
-const baseline: Record<string, any> = existsSync(baselinePath) ? JSON.parse(readFileSync(baselinePath, 'utf8')) : {}
-let totalHard = 0, regressions = 0, improvements = 0
-const fmt = (v: any) => v === null ? '·' : String(v)
-console.log('group/name'.padEnd(34), 'hard off bend strt xing  sym   Δ(vs baseline)')
-for (const ex of examples) {
-  const key = `${ex.group}/${ex.name}`
-  const c = current[key] as any
-  const b = baseline[key]
-  if (c.error) { console.log(key.padEnd(34), `ERROR: ${c.error}`); continue }
-  totalHard += c.hard
-  const deltas: string[] = []
-  if (b && !b.error) {
+export function loadBaseline(): Record<string, any> {
+  return existsSync(baselinePath) ? JSON.parse(readFileSync(baselinePath, 'utf8')) : {}
+}
+
+export interface RegressionReport {
+  totalHard: number
+  improvements: number
+  regressions: number
+  /** Per-example regressed metrics, e.g. `flowchart/auth: crossings 3→5`. */
+  regressionDetails: string[]
+  /** Examples whose scorer errored (parse/layout failure). */
+  errors: string[]
+}
+
+/**
+ * Compare current scores to a baseline. A regression is: more hard violations,
+ * more bends/crossings/off-cardinal endpoints, fewer straight edges, or a worse
+ * fan-in symmetry error — the same directions the CLI prints with ✗.
+ */
+export function compareToBaseline(
+  current: Record<string, ScoreResult>,
+  baseline: Record<string, any>,
+): RegressionReport {
+  let totalHard = 0, improvements = 0, regressions = 0
+  const regressionDetails: string[] = []
+  const errors: string[] = []
+  for (const [key, cAny] of Object.entries(current)) {
+    const c = cAny as any
+    if (c.error) { errors.push(`${key}: ${c.error}`); continue }
+    totalHard += c.hard
+    const b = baseline[key]
+    if (!b || b.error) continue
     for (const m of ['hard', 'offCardinal', 'bends', 'straight', 'crossings'] as const) {
       const d = c[m] - b[m]
-      if (d !== 0) {
-        // improvement: fewer hard/offCardinal/bends/crossings OR more straight
-        const better = m === 'straight' ? d > 0 : d < 0
-        deltas.push(`${m}${d > 0 ? '+' : ''}${d}${better ? '✓' : '✗'}`)
-        if (better) improvements++; else regressions++
-      }
+      if (d === 0) continue
+      const better = m === 'straight' ? d > 0 : d < 0
+      if (better) improvements++
+      else { regressions++; regressionDetails.push(`${key}: ${m} ${b[m]}→${c[m]}`) }
     }
     if (c.symErr !== null && b.symErr !== null && Math.abs(c.symErr - b.symErr) > 0.5) {
       const d = c.symErr - b.symErr
-      deltas.push(`sym${d > 0 ? '+' : ''}${d.toFixed(1)}${d < 0 ? '✓' : '✗'}`)
-      if (d < 0) improvements++; else regressions++
+      if (d < 0) improvements++
+      else { regressions++; regressionDetails.push(`${key}: symErr ${b.symErr}→${c.symErr}`) }
     }
   }
-  console.log(
-    key.padEnd(34),
-    String(c.hard).padStart(4), String(c.offCardinal).padStart(3), String(c.bends).padStart(4),
-    String(c.straight).padStart(4), String(c.crossings).padStart(4), fmt(c.symErr).padStart(5),
-    '  ' + (deltas.join(' ') || (b ? '=' : 'new')),
-  )
+  return { totalHard, improvements, regressions, regressionDetails, errors }
 }
-console.log('—'.repeat(70))
-console.log(`examples: ${examples.length}   total HARD violations: ${totalHard}   vs baseline: ${improvements} improvements, ${regressions} regressions`)
-if (totalHard > 0) { console.error('FAIL: hard-metric violations present'); process.exit(1) }
+
+if (import.meta.main) {
+  const examples = trackedExamples()
+  const current = scoreAll()
+  const update = process.argv.includes('--update')
+
+  if (update) {
+    writeFileSync(baselinePath, JSON.stringify(current, null, 2) + '\n')
+    console.log(`wrote baseline: ${Object.keys(current).length} examples`)
+    process.exit(0)
+  }
+
+  const baseline = loadBaseline()
+  const fmt = (v: any) => v === null ? '·' : String(v)
+  console.log('group/name'.padEnd(34), 'hard off bend strt xing  sym   Δ(vs baseline)')
+  for (const ex of examples) {
+    const key = `${ex.group}/${ex.name}`
+    const c = current[key] as any
+    const b = baseline[key]
+    if (c.error) { console.log(key.padEnd(34), `ERROR: ${c.error}`); continue }
+    const deltas: string[] = []
+    if (b && !b.error) {
+      for (const m of ['hard', 'offCardinal', 'bends', 'straight', 'crossings'] as const) {
+        const d = c[m] - b[m]
+        if (d !== 0) {
+          const better = m === 'straight' ? d > 0 : d < 0
+          deltas.push(`${m}${d > 0 ? '+' : ''}${d}${better ? '✓' : '✗'}`)
+        }
+      }
+      if (c.symErr !== null && b.symErr !== null && Math.abs(c.symErr - b.symErr) > 0.5) {
+        const d = c.symErr - b.symErr
+        deltas.push(`sym${d > 0 ? '+' : ''}${d.toFixed(1)}${d < 0 ? '✓' : '✗'}`)
+      }
+    }
+    console.log(
+      key.padEnd(34),
+      String(c.hard).padStart(4), String(c.offCardinal).padStart(3), String(c.bends).padStart(4),
+      String(c.straight).padStart(4), String(c.crossings).padStart(4), fmt(c.symErr).padStart(5),
+      '  ' + (deltas.join(' ') || (b ? '=' : 'new')),
+    )
+  }
+  const report = compareToBaseline(current, baseline)
+  console.log('—'.repeat(70))
+  console.log(`examples: ${examples.length}   total HARD violations: ${report.totalHard}   vs baseline: ${report.improvements} improvements, ${report.regressions} regressions`)
+  if (report.totalHard > 0) { console.error('FAIL: hard-metric violations present'); process.exit(1) }
+}

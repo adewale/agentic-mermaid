@@ -19,9 +19,37 @@ import { diamondFacetPorts, findRouteHitches, shapePorts } from './route-contrac
 import { measureMultilineText } from './text-metrics.ts'
 import { resolveRenderStyle } from './styles.ts'
 
+/**
+ * Evidence-based impact rank for a violation, mirroring the QualityBounds
+ * provenance (src/agent/quality.ts BOUND_PROVENANCE, grounded in Purchase
+ * 1997/2002): readability-destroying defects (edges through nodes, overlaps,
+ * crossings) rank above routing-shape defects (bends, diagonals, hitches),
+ * which rank above endpoint/label-placement cosmetics. Reports sort by this so
+ * the most-impactful violation is read first, not buried in declaration order.
+ */
+export type RubricSeverity = 'primary' | 'secondary' | 'cosmetic'
+
+const RUBRIC_SEVERITY: Record<string, RubricSeverity> = {
+  edgeThroughNode: 'primary',
+  nodeOverlaps: 'primary',
+  diagonalSegments: 'secondary',
+  unexplainedBends: 'secondary',
+  hitches: 'secondary',
+  offOutlineEndpoints: 'cosmetic',
+  labelOffRoute: 'cosmetic',
+}
+
+const RUBRIC_SEVERITY_ORDER: Record<RubricSeverity, number> = { primary: 0, secondary: 1, cosmetic: 2 }
+
+export function rubricSeverity(metric: string): RubricSeverity {
+  return RUBRIC_SEVERITY[metric] ?? 'secondary'
+}
+
 export interface RubricViolation {
   metric: string
   detail: string
+  /** Evidence-based impact rank; reports are sorted by it. */
+  severity: RubricSeverity
 }
 
 export interface RubricMetrics {
@@ -363,7 +391,8 @@ function peerBarycenterDelta(positioned: PositionedGraph, graph: MermaidGraph): 
  */
 export function assessLayout(graph: MermaidGraph, positioned: PositionedGraph): RubricResult {
   const style = resolveRenderStyle({})
-  const violations: RubricViolation[] = []
+  // Built without severity, then enriched + sorted by impact at the return.
+  const violations: Array<Omit<RubricViolation, 'severity'>> = []
   const nodeMap = new Map(positioned.nodes.map(n => [n.id, n]))
 
   let offOutline = 0
@@ -486,7 +515,9 @@ export function assessLayout(graph: MermaidGraph, positioned: PositionedGraph): 
       portAnchoredEdgeRate: positioned.edges.length === 0 ? 1 : portAnchoredEdges / positioned.edges.length,
       peerBarycenterDelta: peerBarycenterDelta(positioned, graph),
     },
-    violations,
+    violations: violations
+      .map(v => ({ ...v, severity: rubricSeverity(v.metric) }))
+      .sort((a, b) => RUBRIC_SEVERITY_ORDER[a.severity] - RUBRIC_SEVERITY_ORDER[b.severity]),
   }
 }
 

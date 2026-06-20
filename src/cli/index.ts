@@ -40,11 +40,25 @@ function parseErrorEnvelope(errors: ParseError[]): { ok: false; error: { code: s
   return { ok: false, error: { code: 'PARSE_FAILED', message, details: errors } }
 }
 
-interface ParsedArgs { command?: string; positional: string[]; flags: Record<string, string | boolean> }
+export interface ParsedArgs { command?: string; positional: string[]; flags: Record<string, string | boolean> }
 
-const BOOLEAN_FLAGS = new Set(['agent-instructions', 'ascii', 'certificates', 'help', 'json', 'watch', 'open', 'force'])
+// Single source of truth for CLI flags. A flag with no `arg` is a boolean;
+// `arg` is the usage placeholder shown in `[--flag <arg>]`. BOOLEAN_FLAGS is
+// DERIVED from this, so the parser's boolean classification cannot drift from
+// the documented usage.
+export const FLAG_SPECS: Record<string, { arg?: string }> = {
+  // booleans
+  'agent-instructions': {}, 'ascii': {}, 'certificates': {}, 'help': {}, 'json': {},
+  'watch': {}, 'open': {}, 'force': {}, 'canonical-wrapper': {},
+  // value flags (placeholder = what the usage shows after the flag)
+  'suppress': { arg: 'CODES' }, 'label-cap': { arg: 'N' }, 'op': { arg: 'JSON' },
+  'ops': { arg: 'JSON|file' }, 'output': { arg: 'FILE' }, 'format': { arg: 'fmt' },
+  'security': { arg: 'mode' }, 'dir': { arg: 'DIR' },
+}
 
-function parseArgs(argv: string[]): ParsedArgs {
+export const BOOLEAN_FLAGS = new Set(Object.keys(FLAG_SPECS).filter(name => !FLAG_SPECS[name]!.arg))
+
+export function parseArgs(argv: string[]): ParsedArgs {
   const out: ParsedArgs = { positional: [], flags: {} }
   let i = 0
   while (i < argv.length) {
@@ -79,7 +93,7 @@ function readSourceArg(arg: string | undefined): string {
 
 function replacer(_k: string, v: unknown): unknown { return v instanceof Map ? Object.fromEntries(v) : v }
 
-const GLOBAL_USAGE = `Usage: am <command> [options] [file|-]
+export const GLOBAL_USAGE = `Usage: am <command> [options] [file|-]
 
 Commands:
   render <file|->        Render to SVG/ASCII/Unicode/layout JSON/PNG
@@ -117,7 +131,7 @@ Exit codes:
   4  uncaught internal failure
 `
 
-const COMMAND_HELP: Record<string, string> = {
+export const COMMAND_HELP: Record<string, string> = {
   render: `am render <file|-> [--format svg|ascii|unicode|json|png] [--ascii] [--json]
 Render a diagram. Default is SVG.
   --format svg      SVG markup (default)
@@ -131,10 +145,14 @@ Render a diagram. Default is SVG.
 Multiple inputs emit a JSON results array for non-PNG formats.
 With --json, the svg/ascii/unicode forms wrap output as {"<format>": "..."}.`,
   verify: `am verify <file|-> [--suppress A,B] [--label-cap N]
-Always emits JSON: {ok, warnings[], layout}. Tier-1 error codes flip ok=false:
-EMPTY_DIAGRAM, EDGE_MISANCHORED, OFF_CANVAS, GROUP_BREACH. Warnings:
-UNKNOWN_SHAPE, LABEL_OVERFLOW (char-cap), NODE_OVERLAP, ROUTE_SELF_CROSS, ROUTE_HITCH (+ other ROUTE_* route-contract tripwires),
-DUPLICATE_EDGE, UNREACHABLE_NODE. Tier-3 lint is advisory.
+Always emits JSON: {ok, warnings[], layout}.
+Tier-1 error codes flip ok=false:
+EMPTY_DIAGRAM, EDGE_MISANCHORED, OFF_CANVAS, GROUP_BREACH. Warning codes:
+UNKNOWN_SHAPE, LABEL_OVERFLOW (char-cap), UNRESOLVABLE_SCHEDULE,
+NODE_OVERLAP, ROUTE_SELF_CROSS, ROUTE_HITCH, ROUTE_UNEXPLAINED_BEND, ROUTE_LABEL_ON_SHARED_TRUNK,
+ROUTE_CONTAINER_MISANCHOR, ROUTE_SHAPE_MISANCHOR, ROUTE_STALE_AFTER_NODE_MOVE,
+DUPLICATE_EDGE, UNREACHABLE_NODE, DECISION_BRANCH_UNLABELED, COMMENT_DROPPED, UNSUPPORTED_SYNTAX,
+CONTENT_DROPPED_ON_ROUNDTRIP. Tier-3 lint is advisory.
 Exit 0 if ok, 3 if verify reports severity='error'.`,
   parse: `am parse <file|->
 Emits ValidDiagram JSON (Maps serialized to objects). Exit 2 on parse error.

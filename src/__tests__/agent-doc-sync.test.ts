@@ -7,7 +7,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { AGENT_INSTRUCTIONS } from '../cli/agent-instructions.ts'
 import { AGENTS_SNIPPET, INIT_SKILL_MD } from '../cli/init-agent.ts'
-import { MUTATION_OPS_BY_FAMILY, buildCapabilities } from '../cli/index.ts'
+import { COMMAND_HELP, MUTATION_OPS_BY_FAMILY, buildCapabilities } from '../cli/index.ts'
 import { SDK_DECLARATION } from '../mcp/sdk-decl.ts'
 import { WARNING_SEVERITY, WARNING_TIER } from '../agent/types.ts'
 import {
@@ -222,6 +222,16 @@ describe('vocabulary doc-sync', () => {
     for (const code of Object.keys(WARNING_SEVERITY)) {
       expect(guide).toContain(code)
       expect(spec).toContain(code)
+    }
+  })
+  test('public verify docs list every warning code', () => {
+    const surfaces = [
+      COMMAND_HELP.verify,
+      readFileSync(join(REPO, 'docs/features.md'), 'utf8'),
+      readFileSync(join(REPO, 'docs/agent-api-cookbook.md'), 'utf8'),
+    ]
+    for (const code of Object.keys(WARNING_SEVERITY)) {
+      for (const surface of surfaces) expect(surface).toContain(code)
     }
   })
   test('every code tiered + severity', () => {
@@ -591,7 +601,13 @@ describe('skill eval manifest coverage', () => {
 
 describe('shipped distribution artifacts present', () => {
   test('skill bundle + workflow + examples', () => {
-    expect(existsSync(join(REPO, '.claude'))).toBe(false)
+    // No committed Claude hooks/settings or bundled agents/worktrees may ship.
+    // An empty local .claude directory is harmless because Git does not track it.
+    if (existsSync(join(REPO, '.claude'))) {
+      const entries = readdirSync(join(REPO, '.claude'))
+      expect(entries.sort()).toEqual([])
+    }
+    expect(existsSync(join(REPO, '.claude/settings.local.json'))).toBe(false)
     expect(existsSync(join(REPO, '.agents'))).toBe(false)
     expect(existsSync(join(REPO, 'skills/README.md'))).toBe(true)
     expect(existsSync(join(REPO, 'skills/agentic-mermaid-diagram-workflow/SKILL.md'))).toBe(true)

@@ -53,6 +53,63 @@ export const DEFAULT_BOUNDS: Required<QualityBounds> = {
   aspectBand: [0.2, 5.0],
 }
 
+// ---- provenance + severity -------------------------------------------------
+//
+// The bands above are a mix of evidence-backed and chosen thresholds, and
+// pretending they are equally well-founded is dishonest (quality.md: "we do
+// not claim our metrics match a human designer's eye"). The graph-drawing
+// aesthetics literature — Purchase, "Which Aesthetic Has the Greatest Effect
+// on Human Understanding?" (GD 1997) and "Metrics for Graph Drawing
+// Aesthetics" (JVLC 2002) — measured, with human subjects, that minimizing
+// EDGE CROSSINGS dominates comprehension; bends and symmetry matter far less;
+// and aspect ratio is a sanity bound, not an aesthetic. We record that
+// provenance here so a reader knows which violation to weight, and so future
+// recalibration starts from the evidence rather than from feel.
+
+export type BoundBasis =
+  | 'evidence'   // backed by human-subject graph-drawing studies
+  | 'derived'    // mechanical correctness (labels must physically fit)
+  | 'chosen'     // plausible heuristic, not validated against human perception
+  | 'sanity'     // a guardrail against the absurd, not an aesthetic target
+
+export type ViolationSeverity =
+  | 'primary'    // the aesthetic with the strongest evidence of impact
+  | 'secondary'  // measurable but weaker human-comprehension impact
+  | 'sanity'     // out-of-range guardrail, not a quality verdict
+
+export interface BoundProvenance {
+  basis: BoundBasis
+  severity: ViolationSeverity
+  note: string
+}
+
+/** Per-metric provenance. Keyed by the QualityMetrics field each bound gates. */
+export const BOUND_PROVENANCE: Record<
+  'edgeCrossings' | 'labelLegibility' | 'whitespaceBalance' | 'labelEdgeProximity' | 'aspectRatio',
+  BoundProvenance
+> = {
+  edgeCrossings: {
+    basis: 'evidence', severity: 'primary',
+    note: 'Crossings are the single aesthetic with the strongest human-subject evidence (Purchase 1997/2002). Weight this violation highest.',
+  },
+  labelLegibility: {
+    basis: 'derived', severity: 'secondary',
+    note: 'Labels that exceed node width are mechanically unreadable; the 7px/char model under-estimates fit under condensed fonts.',
+  },
+  labelEdgeProximity: {
+    basis: 'chosen', severity: 'secondary',
+    note: 'Edge-labels overlapping nodes hurt readability, but the 4px floor is chosen, not validated against perception.',
+  },
+  whitespaceBalance: {
+    basis: 'chosen', severity: 'secondary',
+    note: 'A node/canvas fill band is a rough proxy for "too sparse / too dense"; the literature gives weak support and the band is hand-set.',
+  },
+  aspectRatio: {
+    basis: 'sanity', severity: 'sanity',
+    note: 'Aspect ratio is a guardrail against absurd canvases, not an aesthetic; Purchase did not find it drives comprehension.',
+  },
+}
+
 const CHAR_PX = 7  // approx character width at 12px font
 const EDGE_LABEL_BOX_PADDING = 8
 const GEOM_EPS = 1e-9
@@ -69,33 +126,50 @@ export function measureQuality(layout: RenderedLayout): QualityMetrics {
   }
 }
 
+export interface RankedViolation {
+  metric: keyof typeof BOUND_PROVENANCE
+  severity: ViolationSeverity
+  message: string
+}
+
 export interface QualityVerdict {
   ok: boolean
   metrics: QualityMetrics
+  /** Human-readable violation strings. Backward-compatible. */
   violations: string[]
+  /**
+   * The same violations, each tagged with its evidence-based severity so a
+   * consumer can weight a crossings violation above a whitespace one
+   * (Purchase 1997/2002). Ordered primary → secondary → sanity.
+   */
+  ranked: RankedViolation[]
 }
 
 export function checkQuality(layout: RenderedLayout, bounds: QualityBounds = {}): QualityVerdict {
   const b = { ...DEFAULT_BOUNDS, ...bounds }
   const m = measureQuality(layout)
-  const violations: string[] = []
+  const ranked: RankedViolation[] = []
+  const flag = (metric: keyof typeof BOUND_PROVENANCE, message: string) =>
+    ranked.push({ metric, severity: BOUND_PROVENANCE[metric].severity, message })
   const pairs = Math.max(1, m.edgeCount * (m.edgeCount - 1) / 2)
   if (m.edgeCrossings / pairs > b.maxCrossingsRatio) {
-    violations.push(`edge crossings ${m.edgeCrossings}/${pairs} (${(m.edgeCrossings / pairs * 100).toFixed(1)}%) > cap ${(b.maxCrossingsRatio * 100).toFixed(1)}%`)
+    flag('edgeCrossings', `edge crossings ${m.edgeCrossings}/${pairs} (${(m.edgeCrossings / pairs * 100).toFixed(1)}%) > cap ${(b.maxCrossingsRatio * 100).toFixed(1)}%`)
   }
   if (m.labelLegibility < b.minLabelLegibility) {
-    violations.push(`label legibility ${(m.labelLegibility * 100).toFixed(0)}% < min ${(b.minLabelLegibility * 100).toFixed(0)}%`)
+    flag('labelLegibility', `label legibility ${(m.labelLegibility * 100).toFixed(0)}% < min ${(b.minLabelLegibility * 100).toFixed(0)}%`)
   }
   if (m.whitespaceBalance < b.whitespaceBand[0] || m.whitespaceBalance > b.whitespaceBand[1]) {
-    violations.push(`whitespace balance ${(m.whitespaceBalance * 100).toFixed(1)}% outside band [${b.whitespaceBand[0] * 100}–${b.whitespaceBand[1] * 100}]%`)
+    flag('whitespaceBalance', `whitespace balance ${(m.whitespaceBalance * 100).toFixed(1)}% outside band [${b.whitespaceBand[0] * 100}–${b.whitespaceBand[1] * 100}]%`)
   }
   if (m.labelEdgeProximity < b.minLabelEdgeProximity) {
-    violations.push(`edge-label clearance ${m.labelEdgeProximity}px < min ${b.minLabelEdgeProximity}px`)
+    flag('labelEdgeProximity', `edge-label clearance ${m.labelEdgeProximity}px < min ${b.minLabelEdgeProximity}px`)
   }
   if (m.aspectRatio < b.aspectBand[0] || m.aspectRatio > b.aspectBand[1]) {
-    violations.push(`aspect ratio ${m.aspectRatio.toFixed(2)} outside band [${b.aspectBand[0]}–${b.aspectBand[1]}]`)
+    flag('aspectRatio', `aspect ratio ${m.aspectRatio.toFixed(2)} outside band [${b.aspectBand[0]}–${b.aspectBand[1]}]`)
   }
-  return { ok: violations.length === 0, metrics: m, violations }
+  const order: Record<ViolationSeverity, number> = { primary: 0, secondary: 1, sanity: 2 }
+  ranked.sort((x, y) => order[x.severity] - order[y.severity])
+  return { ok: ranked.length === 0, metrics: m, violations: ranked.map(v => v.message), ranked }
 }
 
 // ---- crossings -----------------------------------------------------------

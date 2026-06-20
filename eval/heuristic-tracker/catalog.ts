@@ -46,9 +46,10 @@ export function trackedExamples(): TrackedExample[] {
   // Group 3 — peer fan-ins (unlabelled, single column) at several N: should be
   // mirror-symmetric (hub centered) and merge at one exact port.
   for (const shape of ['rectangle', 'circle', 'diamond'] as const) {
+    const sh = SHAPES[shape]!
     for (const N of [2, 3, 4, 5]) {
       const lines = ['flowchart LR']
-      for (let i = 0; i < N; i++) lines.push(`  ${SHAPES[shape](`S${i}`)} --> ${SHAPES[shape]('T')}`)
+      for (let i = 0; i < N; i++) lines.push(`  ${sh(`S${i}`)} --> ${sh('T')}`)
       out.push({ group: 'fan-in', name: `${shape}-N${N}`, source: lines.join('\n'),
         intent: 'hub centered on source barycenter; all edges merge at one exact port; mirror-symmetric' })
     }
