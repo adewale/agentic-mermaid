@@ -1643,16 +1643,26 @@ function honorLinkRankDistance(nodes: PositionedNode[], edges: PositionedEdge[],
   if (graph.subgraphs.length > 0) return
   if (!graph.edges.some(e => (e.length ?? 1) > 1)) return
   const classes = classifyRoutes(graph)
-  if (classes.some(cls => cls !== 'primary-forward')) return
+  // Without subgraphs the only classes are primary-forward, feedback, and
+  // self-loop; container/cross-hierarchy require a subgraph and are already
+  // excluded above. Feedback (back) edges and self-loops do not constrain the
+  // forward rank axis, so we still honor link length on the forward sub-DAG —
+  // we just exclude those edges from the descendant walk so a cycle never
+  // drags the lengthened edge's own source forward with its target.
+  if (classes.some(cls => cls !== 'primary-forward' && cls !== 'feedback' && cls !== 'self-loop')) return
+  const forward = (i: number): boolean => (classes[i] ?? 'primary-forward') === 'primary-forward'
 
   const nodeMap = new Map(nodes.map(n => [n.id, n]))
   const f = layoutFlow(graph.direction)
   const outgoing = new Map<string, string[]>()
-  for (const edge of graph.edges) {
+  for (let i = 0; i < graph.edges.length; i++) {
+    if (!forward(i)) continue
+    const edge = graph.edges[i]!
     if (!outgoing.has(edge.source)) outgoing.set(edge.source, [])
     outgoing.get(edge.source)!.push(edge.target)
   }
 
+  const mainDelta = new Map<string, number>() // net main-axis shift applied per node
   const moveNodeAndDescendants = (start: string, delta: number): void => {
     if (Math.abs(delta) < 0.5) return
     const seen = new Set<string>()
@@ -1662,7 +1672,10 @@ function honorLinkRankDistance(nodes: PositionedNode[], edges: PositionedEdge[],
       if (seen.has(id)) continue
       seen.add(id)
       const n = nodeMap.get(id)
-      if (n) n[f.main] += delta
+      if (n) {
+        n[f.main] += delta
+        mainDelta.set(id, (mainDelta.get(id) ?? 0) + delta)
+      }
       for (const next of outgoing.get(id) ?? []) stack.push(next)
     }
   }
@@ -1671,6 +1684,7 @@ function honorLinkRankDistance(nodes: PositionedNode[], edges: PositionedEdge[],
   const nodeExit = (n: PositionedNode): number => f.sign === 1 ? n[f.main] + nodeMainSize(n, graph.direction) : n[f.main]
 
   for (let i = 0; i < graph.edges.length; i++) {
+    if (!forward(i)) continue // back edges/self-loops do not set forward rank distance
     const spec = graph.edges[i]!
     const length = spec.length ?? 1
     if (length <= 1) continue
@@ -1682,12 +1696,43 @@ function honorLinkRankDistance(nodes: PositionedNode[], edges: PositionedEdge[],
     if (currentGap < minGap) moveNodeAndDescendants(target.id, (minGap - currentGap) * f.sign)
   }
 
-  // Reconnect every DAG edge after the rank-distance move. This keeps edge
-  // endpoints and labels coherent before shape clipping + route certification.
+  // Feedback edges escape to a lane just outside the node band on the
+  // max-cross side (matching ELK's deterministic feedbackEdges placement). The
+  // lane must clear every node so the back edge never grazes an intermediate
+  // box after the gap widens.
+  const FEEDBACK_LANE_GAP = 10
+  const crossMaxEdge = (n: PositionedNode): number => nodeCrossCenter(n, graph.direction) + nodeCrossSize(n, graph.direction) / 2
+  const laneCross = Math.max(...nodes.map(crossMaxEdge)) + FEEDBACK_LANE_GAP
+  const point = (mainV: number, crossV: number): Point =>
+    f.main === 'x' ? { x: mainV, y: crossV } : { x: crossV, y: mainV }
+
+  // Reconnect every edge after the rank-distance move so no endpoint is left
+  // pointing at a node's pre-move position (which would trip the route-staleness
+  // certifier). Forward edges get a forward dogleg; feedback (back) edges re-loop
+  // through the outer lane; self-loops ride along with their (possibly moved)
+  // node. applyRouteContracts certifies the final geometry.
   for (const edge of edges) {
     const source = nodeMap.get(edge.source)
     const target = nodeMap.get(edge.target)
-    if (!source || !target || source.id === target.id) continue
+    if (!source || !target) continue
+    if (source.id === target.id) {
+      const delta = mainDelta.get(source.id) ?? 0
+      if (delta !== 0) for (const p of edge.points) p[f.main] += delta
+      if (delta !== 0 && edge.labelPosition) edge.labelPosition[f.main] += delta
+      continue
+    }
+    if (edge.edgeIndex !== undefined && !forward(edge.edgeIndex)) {
+      // Feedback U-detour: drop to the outer lane at the source, run back along
+      // it, and rise into the target — both anchored at the max-cross side.
+      edge.points = [
+        point(nodeMainCenter(source, graph.direction), crossMaxEdge(source)),
+        point(nodeMainCenter(source, graph.direction), laneCross),
+        point(nodeMainCenter(target, graph.direction), laneCross),
+        point(nodeMainCenter(target, graph.direction), crossMaxEdge(target)),
+      ]
+      if (edge.label) edge.labelPosition = calculatePathMidpoint(edge.points)
+      continue
+    }
     const start = shapePorts(source)[f.sourceSide]
     const end = shapePorts(target)[f.targetSide]
     const elbow = (start[f.main] + end[f.main]) / 2

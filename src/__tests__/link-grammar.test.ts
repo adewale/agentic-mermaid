@@ -156,6 +156,52 @@ describe('link length affects layout rank distance', () => {
   })
 })
 
+// A back edge (`C --> A` closing a cycle) classifies as `feedback`; it does not
+// constrain forward rank distance. PR #54 bailed out of link-length honoring for
+// the whole graph the moment any non-`primary-forward` edge appeared, so a
+// lengthened forward edge inside a cycle was silently ignored. The forward
+// sub-DAG still has a well-defined flow axis, so the lengthened link must push
+// its target the requested extra ranks while the back edge re-routes cleanly.
+describe('link length is honored across a feedback (back) edge', () => {
+  const cyclic = (dir: string, op: string) =>
+    `flowchart ${dir}\n  A[One] ${op} B[Two]\n  B --> C[Three]\n  C --> A`
+
+  it('a lengthened forward edge still pushes its target despite a back edge (LR)', () => {
+    const { layoutGraphSync } = require('../layout-engine.ts') as typeof import('../layout-engine.ts')
+    const base = layoutGraphSync(parseMermaid(cyclic('LR', '-->')))
+    const long = layoutGraphSync(parseMermaid(cyclic('LR', '---->')))
+    const gap = (g: typeof base): number => {
+      const a = g.nodes.find(n => n.id === 'A')!
+      const b = g.nodes.find(n => n.id === 'B')!
+      return b.x - (a.x + a.width)
+    }
+    expect(gap(long)).toBeGreaterThan(gap(base) + 40)
+    expect(long.edges[0]!.routeCertificate?.routeClass).toBe('primary-forward')
+    expect(long.edges[2]!.routeCertificate?.routeClass).toBe('feedback')
+  })
+
+  it('honors the extra rank in every direction and keeps verification clean', () => {
+    for (const dir of ['LR', 'RL', 'TD', 'BT'] as const) {
+      const base = verifyMermaid(cyclic(dir, '-->'))
+      const long = verifyMermaid(cyclic(dir, '---->'))
+      expect(long.ok).toBe(true)
+      expect(long.warnings.filter(w => w.code.startsWith('ROUTE_'))).toEqual([])
+      expect(long.warnings.filter(w => w.code === 'OFF_CANVAS')).toEqual([])
+      const gapAB = (v: typeof long): number => {
+        const a = v.layout.nodes.find(n => n.id === 'A')!
+        const b = v.layout.nodes.find(n => n.id === 'B')!
+        switch (dir) {
+          case 'LR': return b.x - (a.x + a.w)
+          case 'RL': return a.x - (b.x + b.w)
+          case 'TD': return b.y - (a.y + a.h)
+          default: return a.y - (b.y + b.h)
+        }
+      }
+      expect(gapAB(long)).toBeGreaterThan(gapAB(base) + 40)
+    }
+  })
+})
+
 describe('variable-length links interact correctly with the straightener', () => {
   it('a long dotted arrow still straightens and keeps its dotted style', () => {
     const pos = parseMermaid('flowchart LR\n  A[One] -..-> B[Two]')
