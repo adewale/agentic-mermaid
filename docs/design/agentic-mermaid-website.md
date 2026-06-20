@@ -80,7 +80,7 @@ These references improve the site by tightening motion, polish, copy, and skill 
 - No package-publish automation from the site.
 - No `beautiful-mermaid` compatibility wrapper or alternate package identity.
 
-The site may run the renderer in the visitor’s browser for the editor/gallery. That is local client-side rendering, not a hosted execution surface.
+The site may run the renderer in the visitor’s browser for the editor/gallery. That is local client-side rendering, not a hosted execution surface. Packaging the existing local `agentic-mermaid-mcp` as a `.mcpb` extension is consistent with these non-goals; a hosted remote connector is not, and is recorded as a future owner-decision under “Distribution to agent platforms (Claude Connectors and MCP Apps)”.
 
 ## Public surface policy
 
@@ -635,6 +635,40 @@ Headers:
 - Unsupported Mermaid-family reference pages are omitted from product navigation or clearly marked as non-rendering authoring references.
 - Share-link copy warns when source is embedded in the URL.
 
+## Distribution to agent platforms (Claude Connectors and MCP Apps)
+
+In February 2026 Excalidraw shipped an official Claude Connector, co-developed with Anthropic and built on the MCP Apps extension, that streams an interactive Excalidraw canvas into the chat. Anthropic is actively seeding its Connectors directory with interactive visual tools, and a deterministic diagram renderer is a natural candidate. This section fixes a deliberate stance so the distribution question is not reopened ad hoc or allowed to quietly cross the local-first non-goals.
+
+Two distribution paths exist, and they fall on opposite sides of this spec’s hosted-execution line.
+
+### Path A — Local extension bundle (`.mcpb`/DXT). In scope.
+
+Package the existing `agentic-mermaid-mcp` stdio server as a one-double-click `.mcpb` bundle for Claude Desktop and equivalent local-extension installers. This is not a new runtime: it is the same local MCP this spec already endorses under “Tools remain local,” wrapped for zero-friction install. It runs entirely on the user’s machine, renders locally, and contacts no Agentic Mermaid server, so it satisfies every non-goal — no hosted Code Mode, no hosted MCP endpoint, no remote render API.
+
+This is also the concrete answer to the open decision about a downloadable agent bundle: the `.mcpb` is that bundle, in the format the Connectors UI consumes. Hosting cost is zero — it is a static release artifact (GitHub Releases or a `/downloads` path on Cloudflare Pages), and the site’s job is to document and link it, exactly as it does for the CLI and library.
+
+### Path B — Hosted remote connector / MCP App. Future owner-decision, out of scope for v1.
+
+A remote connector is a hosted MCP server reachable over Streamable HTTP that the directory lists for “search → Connect,” with no user install; matching the Excalidraw experience would also register an MCP Apps UI resource so the diagram renders as an interactive widget. This conflicts directly with the Non-goals (“No hosted MCP/SSE endpoint for arbitrary clients,” “No remote diagram-rendering API in v1”) and is recorded here as a future direction requiring an explicit owner decision and a security model — deferred in the same way as orchestration, not folded into v1.
+
+One nuance to preserve for that future decision: because the renderer is zero-DOM and already runs client-side, an MCP Apps widget could do all rendering in the visitor’s browser, which is consistent with the spec’s “local client-side rendering, not a hosted execution surface” carve-out. The part that still crosses the line is the hosted MCP transport endpoint the connector dials — that is a hosted MCP server by definition, and it is the specific thing the non-goal forbids.
+
+If Path B is ever approved, the cost is dominated by stance and stewardship, not infrastructure:
+
+| Cost area | Assessment |
+|---|---|
+| Compute / hosting | Near-zero and co-located. The site already deploys on Cloudflare Pages with an optional Worker; the MCP Apps UI is a static bundle that fits Pages at no marginal cost. Only a thin MCP JSON-RPC route would need a real Worker — which the deployment section currently forbids (“No Worker route that evaluates user code or renders diagrams server-side”), so enabling it is a spec change, not a config change. Rendering is synchronous and browserless (`mermaid-ast` + `elkjs` + `resvg`, with the `resvg` WASM build on Workers); Cloudflare’s zero egress keeps image payloads cheap. Realistic infra: roughly free at demo scale, low tens of dollars per million renders at popularity. |
+| Security hardening | The real engineering cost. A public endpoint must not expose the `execute` Code Mode `node:vm` tool; restrict it to bounded `render`/`describe`/structured-edit tools with input-size caps, render timeouts, and rate limits. The current server’s artifact size limits and sandbox timeouts are a starting point. |
+| Directory compliance | Streamable HTTP transport (today’s server is custom HTTP/SSE on protocol `2024-11-05` and would need updating), authless or OAuth 2.1, a stable privacy-policy URL, `title` + `readOnlyHint` on every tool (the exposed render/describe/edit tools are read-only — a clean review), an icon, a test account, and 3–5 MCP App screenshots. |
+| Ongoing stewardship | Anthropic requires maintaining security and functionality and responding promptly to security issues — an open-ended commitment, and the largest true cost. |
+
+Because Anthropic is seeding the directory and co-built the Excalidraw connector, the right entry for Path B — if approved — is direct outreach to `mcp-review@anthropic.com`, not only the cold submission portal.
+
+### Recommendation
+
+- Ship Path A (`.mcpb` bundle) with or shortly after the website launch: low-effort, zero-hosting, strengthens the local-tools story, and reaches Claude Desktop and the Connectors UI as a local extension without touching any non-goal.
+- Hold Path B as an explicit future owner-decision. Do not build a hosted connector under this spec; revisit only with a deliberate change to the hosted-execution non-goal and a security model.
+
 ## Open decisions
 
 - Production domain name.
@@ -644,4 +678,6 @@ Headers:
 - Which harness cards ship in v1, and which stay generic.
 - Whether `agentic-mermaid-live-editor` should remain a skill at all, move to contributor docs, or move to a development-only skill directory excluded from public package/site artifacts.
 - Whether the website offers a downloadable agent bundle/ZIP in addition to `am init-agent`.
+- Whether to package `agentic-mermaid-mcp` as a local `.mcpb`/DXT Claude Desktop bundle and list it in the Connectors directory as a local extension (see “Distribution to agent platforms”).
+- Whether to ever expose a hosted remote connector / MCP App, which would require revisiting the hosted-execution non-goal and adding a security model.
 - Whether examples include pre-rendered SVG/ASCII artifacts for no-JavaScript preview.
