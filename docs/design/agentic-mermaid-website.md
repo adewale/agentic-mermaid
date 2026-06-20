@@ -400,7 +400,7 @@ AX here means **agent experience**: how easy it is for a non-human caller to ret
 
 - `package`: name, version, imports, bins, npm status, checked timestamp;
 - `repo`, canonical site, and legacy Pages base;
-- `hostedExecution`: `{ codeMode:false, renderApi:false, mcp:{ available:true, url, transport:"streamable-http", recommended:"self-host", execute:false, tools:["render","verify","describe","mutate"] } }` — the hosted MCP is optional and the recommended path is self-hosting;
+- `hostedExecution`: `{ codeMode:false, renderApi:false, mcp:{ available:true, url, transport:"streamable-http", auth:"none", recommended:"self-host", execute:false, tools:["render","verify","describe","mutate"] } }` — the hosted MCP is optional, authless, and the recommended path is self-hosting;
 - `machineRoutes`: llms, instructions, capabilities, schemas, examples, harnesses, recipes, skills;
 - `skills`: public skill ids and raw entrypoint URLs;
 - `stopRules`: verify before serialize/render/return, source-level-only behavior, no fabricated `ValidDiagram`, prefer local tools and treat the hosted MCP as an optional fallback, no arbitrary-code execution backend;
@@ -596,7 +596,7 @@ Recommended deployment shape:
 
 - Cloudflare Workers with Workers Static Assets serving the built site. Static-asset requests are served from Cloudflare’s edge for free and unmetered, with no Worker code on the hot path and no asset-storage cost.
 - For the static site, the Worker code path stays limited to redirects, headers, cache policy, and asset routing.
-- An optional bounded MCP route (e.g. `/mcp`) on the same Worker may render/verify/edit diagrams server-side. It must not evaluate arbitrary user code — the `execute` Code Mode sandbox stays local-only — and it stays stateless with input caps, render timeouts, and rate limits.
+- An optional bounded MCP route (e.g. `/mcp`) on the same Worker may render/verify/edit diagrams server-side. It must not evaluate arbitrary user code — the `execute` Code Mode sandbox stays local-only — and it stays stateless and authless, with per-IP/global rate limits, input caps, and render timeouts as the abuse control.
 - Canonical domain configured by environment variable, e.g. `SITE_ORIGIN=https://agenticmermaid.dev`.
 - Base path configurable so the same generator can still build the GitHub Pages mirror under `/beautiful-mermaid/` during transition.
 
@@ -617,7 +617,7 @@ Headers:
 5. **Impeccable-style journey layer.** Add the start rail, intent/channel chooser, harness cards, workflow demo, warning-code pages, and FAQ before expanding visual polish.
 6. **Editor/gallery migration.** Move existing Pages editor/gallery into the new route structure without losing current E2E coverage.
 7. **AX pass.** Add raw Markdown links for curated public docs only, copyable agent cards, accessible diagram descriptions, warning/error-code references, public-skill bundle generation, schema validation tests, and a guard that product navigation does not expose hidden repo-only docs or development skills.
-8. **Cloudflare deployment.** Add the Workers Static Assets config (a `wrangler` project with an `assets` binding) and preview-URL docs. Optionally add the bounded hosted-MCP route (`/mcp`) on the same Worker — behind input caps, timeouts, and rate limits, with `execute` disabled. Keep GitHub Pages until the new domain is verified.
+8. **Cloudflare deployment.** Add the Workers Static Assets config (a `wrangler` project with an `assets` binding) and preview-URL docs. Optionally add the bounded hosted-MCP route (`/mcp`) on the same Worker — authless, behind per-IP/global rate limits, input caps, and timeouts, with `execute` disabled. The Mermaid-inline MCP App UI is a later release. Keep GitHub Pages until the new domain is verified.
 9. **Cutover.** Update README/docs links to canonical domain. Keep old `/beautiful-mermaid/` links working where feasible.
 
 ## Acceptance criteria
@@ -650,20 +650,21 @@ This is also the concrete answer to the open decision about a downloadable agent
 
 ### Path B — Optional hosted MCP server (and MCP App). In scope; self-hosting recommended.
 
-Run a hosted MCP server, reachable over Streamable HTTP, that the Connectors directory can list for “search → Connect” with no user install. Matching the Excalidraw and draw.io experience, the same server can register an MCP Apps UI resource (`ui://…`, `text/html+mcp`, sandboxed iframe) so a diagram renders as an interactive widget in the chat. Because the renderer is zero-DOM, that widget renders client-side in the visitor’s browser; the server’s work is the bounded tool calls plus serving the static UI asset.
+Run a hosted MCP server, reachable over Streamable HTTP, that the Connectors directory can list for “search → Connect” with no user install. The first hosted release exposes bounded MCP **tools only**. A later release adds the **Mermaid-inline MCP App UI** — an MCP Apps resource (`ui://…`, `text/html+mcp`, sandboxed iframe) that renders a diagram as an interactive widget in the chat, matching the Excalidraw and draw.io experience. Because the renderer is zero-DOM, that widget renders client-side in the visitor’s browser; the server’s work stays the bounded tool calls plus serving the static UI asset.
 
-The decision is to offer this, with two firm boundaries:
+The decision is to offer this, with three firm boundaries:
 
 - **Bounded tools only.** The hosted endpoint exposes `render`, `verify`, `describe`, and structured-edit/`mutate`. It does **not** expose the `execute` Code Mode `node:vm` sandbox — arbitrary code execution stays local-only — and it is stateless (no accounts, no saved diagrams).
+- **Authless and rate-limited.** The endpoint requires no login. Because there is no per-user identity to throttle, abuse control is per-IP and global rate limiting, plus the input-size caps and render timeouts above.
 - **Local-first documentation.** Every MCP page leads with self-hosting (stdio/library/CLI or the `.mcpb`) and presents the hosted endpoint as a convenience for users who cannot self-host. The hosted URL is advertised in `/agent-manifest.json` with `recommended:"self-host"`.
 
 Cost, on the Cloudflare Workers + Static Assets deployment this spec already assumes:
 
 | Cost area | Assessment |
 |---|---|
-| Compute / hosting | Low and co-located. The MCP Apps UI ships as a Workers static asset — served free and unmetered. The hosted MCP is a dynamic `fetch` route (e.g. `/mcp`) on the same Worker; only those invocations are billed (the $5/mo tier covers 10M), static-asset loads stay free, and Cloudflare’s zero egress keeps image payloads cheap. Rendering is synchronous and browserless (`mermaid-ast` + `elkjs` + `resvg`, with the `resvg` WASM build on Workers). Realistic infra: roughly free at demo scale, low tens of dollars per million renders at popularity. |
+| Compute / hosting | Low and co-located. The hosted MCP is a dynamic `fetch` route (e.g. `/mcp`) on the same Worker; only those invocations are billed (the $5/mo tier covers 10M), and Cloudflare’s zero egress keeps image payloads cheap. When the MCP App UI ships (a later release) it is a Workers static asset — served free and unmetered. Rendering is synchronous and browserless (`mermaid-ast` + `elkjs` + `resvg`, with the `resvg` WASM build on Workers). Realistic infra: roughly free at demo scale, low tens of dollars per million renders at popularity. |
 | Security hardening | The main engineering cost, and the reason `execute` is excluded. Bound the public surface to `render`/`verify`/`describe`/`mutate` with input-size caps, render timeouts, and rate limits. The current server’s artifact size limits and sandbox timeouts are a starting point. |
-| Directory compliance | Streamable HTTP transport (today’s server is custom HTTP/SSE on protocol `2024-11-05` and would need updating), authless or OAuth 2.1, a stable privacy-policy URL, `title` + `readOnlyHint` on every tool (the exposed render/describe/edit tools are read-only — a clean review), an icon, a test account, and 3–5 MCP App screenshots. |
+| Directory compliance | Streamable HTTP transport (today’s server is custom HTTP/SSE on protocol `2024-11-05` and would need updating), authless (no OAuth), a stable privacy-policy URL, `title` + `readOnlyHint` on every tool (the exposed render/describe/edit tools are read-only — a clean review), an icon, a test account, and — once the MCP App UI ships — 3–5 MCP App screenshots. |
 | Ongoing stewardship | Anthropic requires maintaining security and functionality and responding promptly to security issues — an open-ended commitment, and the largest true cost. |
 
 Because Anthropic is seeding the directory and co-built the Excalidraw connector — and because the closest peer, the official draw.io MCP App, renders **XML only inline** and bounces **Mermaid** to an external editor — a deterministic **Mermaid-inline** MCP App is an open, differentiated lane. The right entry is direct outreach to `mcp-review@anthropic.com`, not only the cold submission portal.
@@ -671,7 +672,7 @@ Because Anthropic is seeding the directory and co-built the Excalidraw connector
 ### Recommendation
 
 - Ship Path A (`.mcpb` bundle) first: zero-hosting, no review gate, and it makes self-hosting the obvious default.
-- Stand up Path B (the bounded hosted MCP, optionally with the Mermaid-inline MCP App) as the convenience tier — keeping `execute` local-only and every doc page local-first.
+- Stand up Path B in two phases: first the bounded, **authless, rate-limited** hosted MCP **tools** as the convenience tier; then add the **Mermaid-inline MCP App UI** in a later release. Keep `execute` local-only and every doc page local-first throughout.
 
 ## Open decisions
 
@@ -682,6 +683,5 @@ Because Anthropic is seeding the directory and co-built the Excalidraw connector
 - Which harness cards ship in v1, and which stay generic.
 - Whether `agentic-mermaid-live-editor` should remain a skill at all, move to contributor docs, or move to a development-only skill directory excluded from public package/site artifacts.
 - Whether the website offers a downloadable agent bundle/ZIP in addition to `am init-agent`.
-- Hosted MCP specifics (now that it is in scope): authless vs OAuth, the rate-limit/quota policy, and whether the Mermaid-inline MCP App UI ships in the first hosted release or follows it.
 - `.mcpb`/DXT packaging specifics: which tools to bundle for local install (Code Mode included locally), signing, and release channel.
 - Whether examples include pre-rendered SVG/ASCII artifacts for no-JavaScript preview.
