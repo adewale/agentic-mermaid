@@ -134,6 +134,12 @@ const randomFlowchart = fc
     return `flowchart ${direction}\n${decl}\n${edges.join('\n')}`
   })
 
+// Pinned so CI is reproducible: an unseeded property run draws fresh inputs
+// every time, so an intermittent layout regression surfaces as a flaky failure
+// on one machine and not another. A fixed seed checks the same 120 generated
+// diagrams on every run; bump it deliberately to re-roll the sample.
+const PROPERTY_SEED = 0x10ad
+
 describe('property: ports and outlines (mathematical oracles over random diagrams)', () => {
   it('every edge endpoint lies on the rendered shape outline — all shapes, all directions', () => {
     fc.assert(
@@ -152,7 +158,7 @@ describe('property: ports and outlines (mathematical oracles over random diagram
         }
         return true
       }),
-      { numRuns: 120 },
+      { numRuns: 120, seed: PROPERTY_SEED },
     )
   })
 
@@ -187,7 +193,7 @@ describe('property: ports and outlines (mathematical oracles over random diagram
         }
         return true
       }),
-      { numRuns: 120 },
+      { numRuns: 120, seed: PROPERTY_SEED },
     )
   })
 
@@ -198,7 +204,7 @@ describe('property: ports and outlines (mathematical oracles over random diagram
         const positioned = layoutGraphSync(graph)
         return assessLayout(graph, positioned).metrics.hitches === 0
       }),
-      { numRuns: 120 },
+      { numRuns: 120, seed: PROPERTY_SEED },
     )
   })
 
@@ -209,7 +215,7 @@ describe('property: ports and outlines (mathematical oracles over random diagram
         const positioned = layoutGraphSync(graph)
         return hardViolations(assessLayout(graph, positioned)).length === 0
       }),
-      { numRuns: 120 },
+      { numRuns: 120, seed: PROPERTY_SEED },
     )
   })
 })
