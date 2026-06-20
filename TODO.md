@@ -365,10 +365,12 @@ dependents after. IDs are stable names, not an ordering.
 - [ ] **BUILD-4 — Agentic Mermaid website** (`todo`, after BUILD-7).
   Build a canonical domain-hosted Agentic Mermaid website that subsumes the
   current GitHub Pages gallery/editor and adds first-class agent onboarding
-  artifacts. This is explicitly **not** a hosted Code Mode, MCP, or remote
-  render endpoint; agents get static manifests, capabilities, schemas,
-  recipes, skill/docs URLs, and local install/setup guidance. Spec:
-  `docs/design/agentic-mermaid-website.md`.
+  artifacts. Local self-hosting stays the recommended default; an optional
+  authless, rate-limited hosted MCP (bounded render/verify/describe/edit, no
+  `execute` Code Mode) is in scope, with the Mermaid-inline MCP App UI in a
+  later release. Still **not** a hosted Code Mode or remote render API; agents
+  get static manifests, capabilities, schemas, recipes, skill/docs URLs, and
+  local install/setup guidance. Spec: `docs/design/agentic-mermaid-website.md`.
 
 - [x] **QUAL-1 — Perceptual-quality coverage for non-graph families**
   (`done`). `layoutMermaid` now has `RenderedLayout` adapters for EVERY
