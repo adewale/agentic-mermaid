@@ -7,6 +7,7 @@ import { onShapeOutline } from '../layout-rubric.ts'
 import { measureMultilineText } from '../text-metrics.ts'
 import { layoutMermaid, parseMermaid as agentParse, verifyMermaid } from '../agent/index.ts'
 import type { AnyPort, Point, PositionedEdge, PositionedGraph, PositionedGroup, PositionedNode } from '../types.ts'
+import { EDGE_FORMS, renderEdgeLine } from './helpers/edge-vocabulary.ts'
 
 /** The MFA/login regression from issue #25 — every dogleg here had a clear direct lane. */
 const MFA_SOURCE = `flowchart LR
@@ -1768,7 +1769,9 @@ describe('route contracts — properties', () => {
     .record({
       nodeCount: fc.integer({ min: 3, max: 7 }),
       edgePicks: fc.array(
-        fc.tuple(fc.nat(6), fc.nat(6), fc.constantFrom('', '', '', 'yes', 'No', 'on error')),
+        // The 4th element samples the wider edge-syntax vocabulary (issue #37):
+        // every line style, direction, and marker reaches the route contracts.
+        fc.tuple(fc.nat(6), fc.nat(6), fc.constantFrom('', '', '', 'yes', 'No', 'on error'), fc.nat(EDGE_FORMS.length - 1)),
         { minLength: 2, maxLength: 10 },
       ),
       direction: fc.constantFrom('LR', 'TD', 'RL', 'BT'),
@@ -1776,9 +1779,9 @@ describe('route contracts — properties', () => {
     .map(({ nodeCount, edgePicks, direction }) => {
       const names = Array.from({ length: nodeCount }, (_, i) => `N${i}`)
       const lines = edgePicks
-        .map(([a, b, label]) => [names[a % nodeCount]!, names[b % nodeCount]!, label] as const)
+        .map(([a, b, label, form]) => [names[a % nodeCount]!, names[b % nodeCount]!, label, form] as const)
         .filter(([a, b]) => a !== b)
-        .map(([a, b, label]) => label ? `  ${a} -- ${label} --> ${b}` : `  ${a} --> ${b}`)
+        .map(([a, b, label, form]) => `  ${renderEdgeLine(a, b, EDGE_FORMS[form]!, label)}`)
       if (lines.length === 0) lines.push(`  ${names[0]} --> ${names[1]}`)
       return `flowchart ${direction}\n${lines.join('\n')}`
     })
