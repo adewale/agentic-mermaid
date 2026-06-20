@@ -37,6 +37,7 @@ import type { ResolvedRenderStyle } from './styles.ts'
 import { measureMultilineText } from './text-metrics.ts'
 import { elkLayoutSync } from './elk-instance.ts'
 import { clipEdgeToShape } from './shape-clipping.ts'
+import { onShapeOutline } from './layout-rubric.ts'
 import { applyRouteContracts, classifyRoutes, diamondFacetPorts, labelRect, PORT_EXACT, shapePorts, simplifyPolyline } from './route-contracts.ts'
 import type { LabelMetricsStyle } from './route-contracts.ts'
 
@@ -1000,6 +1001,7 @@ function elkToPositioned(
   // routes as bundle-owned so the certifying straightener preserves the shape.
   applySymmetricFanoutEmissions(nodes, edges, groups, graph, bundled, style)
   applySymmetricParallelEdgeLanes(nodes, edges, groups, graph, bundled, style)
+  applyParallelDuplicateLanes(nodes, edges, groups, graph, bundled)
   collapseTinyBundledHitches(nodes, edges, bundled)
   reassignBundledSiblingLabels(nodes, edges, bundled, graph.direction, style)
 
@@ -2574,6 +2576,198 @@ function applySymmetricParallelEdgeLanes(
 }
 
 /**
+ * Parallel-lane contract for duplicate same-direction edges (a multigraph:
+ * `A --> B` written two or more times). ELK + the port allocator fan the
+ * endpoints across a node side, but only a few pixels apart, and the
+ * per-edge bends stack at the same column — a cramped near-overlapping
+ * double line. The graph-drawing convention (yFiles ParallelEdgeRouter; OGDF's
+ * Kandinsky "center straight, neighbours offset" model) is to route the group
+ * as EVENLY-SEPARATED parallel orthogonal lanes. We do exactly that here:
+ *
+ *  - spread both endpoints across distinct, evenly-spaced slots on the shared
+ *    flow sides (separation clamped to fit the shorter side, so endpoints stay
+ *    on the outline — verified with the same `onShapeOutline` oracle the tests
+ *    use), and
+ *  - when the nodes are offset on the cross axis, give each edge its own jog
+ *    column (staggered by the lane separation) so the vertical segments run
+ *    parallel instead of overlapping.
+ *
+ * Scoped to the rare duplicate-pair case: only UNLABELED, forward, side-to-side
+ * pairs between PORT_EXACT shapes outside any group. Labeled parallel pairs are
+ * owned by `applySymmetricParallelEdgeLanes` (they need outer lanes for their
+ * labels); everything else is left to the certifying route contracts.
+ */
+function applyParallelDuplicateLanes(
+  nodes: PositionedNode[],
+  edges: PositionedEdge[],
+  groups: PositionedGroup[],
+  graph: MermaidGraph,
+  bundled: Set<PositionedEdge>,
+): void {
+  const nodeMap = new Map(nodes.map(n => [n.id, n]))
+  const f = layoutFlow(graph.direction)
+  const TARGET_SEP = 14
+  const MARGIN = 5
+  const BASE_GAP = 16
+  const mainSize = (n: PositionedNode) => (f.isHorizontal ? n.width : n.height)
+  const crossSize = (n: PositionedNode) => (f.isHorizontal ? n.height : n.width)
+  const mk = (mainVal: number, crossVal: number): Point =>
+    f.isHorizontal ? { x: mainVal, y: crossVal } : { x: crossVal, y: mainVal }
+
+  // Target-centric fan-in distribution. We bucket every side-to-side, unlabeled
+  // edge by the hub it enters — not just by directed pair — because a duplicate
+  // band is only readable if the OTHER edges sharing that hub's entry face are
+  // spread with it. Distributing the whole bucket fixes three defects the old
+  // pair-only pass left behind:
+  //   - crowding/crossing: a third distinct feeder (e.g. N4->N3 in issue #62)
+  //     used to land inside a separated duplicate band, crossing through it;
+  //   - silent collapse: when a hub had other feeders the pair-only pass often
+  //     bailed, leaving ELK's overlap so the duplicates rendered as one line;
+  //   - tight feedback pairs: a duplicate BACK-edge entered the hub's flow-exit
+  //     face at ~6px because neither lane pass owned it.
+  // Forward edges enter the hub's flow-facing side; feedback (back) edges enter
+  // the opposite, flow-exit side. We handle the two faces as independent buckets
+  // with mirrored exit/entry sides and jog direction. Gated on a genuine
+  // duplicate (same source >= 2) per face, so pure distinct-peer fan-in is left
+  // to the merge-centering pass (issue #26 WS3).
+  const highSide = (n: PositionedNode) => n[f.main] + mainSize(n)
+  const lowSide = (n: PositionedNode) => n[f.main]
+  const sourceOnHigh = f.sourceSide === 'E' || f.sourceSide === 'S'
+  const targetOnLow = f.targetSide === 'W' || f.targetSide === 'N'
+  // Forward uses the flow sides; feedback uses their opposites.
+  const exitSide = (n: PositionedNode, back: boolean) => (sourceOnHigh !== back ? highSide(n) : lowSide(n))
+  const entrySide = (n: PositionedNode, back: boolean) => (targetOnLow !== back ? lowSide(n) : highSide(n))
+
+  const fwdByTarget = new Map<string, PositionedEdge[]>()
+  const backByTarget = new Map<string, PositionedEdge[]>()
+  for (const edge of edges) {
+    if (edge.source === edge.target || edge.label) continue
+    const source = nodeMap.get(edge.source)
+    const target = nodeMap.get(edge.target)
+    if (!source || !target) continue
+    if (!PORT_EXACT.has(source.shape) || !PORT_EXACT.has(target.shape)) continue
+    if (nodeInsideGroups(source, groups) || nodeInsideGroups(target, groups)) continue
+    // Forward: target sits ahead on the source's flow side, side-to-side with
+    // room for a lane. Feedback: target sits behind, so the edge enters the
+    // hub's flow-exit face. Anything else stays with its route contract.
+    const push = (m: Map<string, PositionedEdge[]>) => {
+      if (!m.has(edge.target)) m.set(edge.target, [])
+      m.get(edge.target)!.push(edge)
+    }
+    if ((entrySide(target, false) - exitSide(source, false)) * f.sign > BASE_GAP) push(fwdByTarget)
+    else if ((exitSide(source, true) - entrySide(target, true)) * f.sign > BASE_GAP) push(backByTarget)
+  }
+
+  const distribute = (bucket: PositionedEdge[], back: boolean): void => {
+    if (bucket.length < 2) return
+    // Gate: act only when a real duplicate shares this face. Without one this is
+    // ordinary distinct fan-in, which merge-centering renders as a clean merge.
+    const srcCounts = new Map<string, number>()
+    for (const edge of bucket) srcCounts.set(edge.source, (srcCounts.get(edge.source) ?? 0) + 1)
+    if (![...srcCounts.values()].some(count => count >= 2)) return
+
+    const target = nodeMap.get(bucket[0]!.target)!
+    const entryMain = entrySide(target, back)
+    const tCenter = target[f.cross] + crossSize(target) / 2
+
+    // Order by source cross-position (duplicates from one source kept adjacent
+    // and stable by edgeIndex) so the assigned lanes never cross.
+    const srcCenter = (edge: PositionedEdge) => {
+      const s = nodeMap.get(edge.source)!
+      return s[f.cross] + crossSize(s) / 2
+    }
+    bucket.sort((a, b) => srcCenter(a) - srcCenter(b) || (a.edgeIndex ?? 0) - (b.edgeIndex ?? 0))
+
+    const k = bucket.length
+    const sep = Math.min(TARGET_SEP, (crossSize(target) - 2 * MARGIN) / (k - 1))
+    if (sep < 4) return // too tight to separate meaningfully — leave as-is
+
+    // Duplicates from the same source also need distinct exit lanes on their
+    // shared source side, else their source endpoints would overlap.
+    const bySource = new Map<string, PositionedEdge[]>()
+    for (const edge of bucket) {
+      if (!bySource.has(edge.source)) bySource.set(edge.source, [])
+      bySource.get(edge.source)!.push(edge)
+    }
+
+    // Lay out each lane (source exit slot, target entry slot, riser column),
+    // then order the riser columns so duplicate lanes NEST instead of crossing.
+    const lanes: Array<{ edge: PositionedEdge; source: PositionedNode; exitMain: number; sCross: number; tCross: number }> = []
+    const col: number[] = []
+    for (let i = 0; i < k; i++) {
+      const edge = bucket[i]!
+      const source = nodeMap.get(edge.source)!
+      const exitMain = exitSide(source, back)
+      const tCross = tCenter + (i - (k - 1) / 2) * sep
+
+      const sibs = bySource.get(edge.source)!
+      const sSep = sibs.length > 1
+        ? Math.min(sep, (crossSize(source) - 2 * MARGIN) / (sibs.length - 1))
+        : 0
+      const sCross = source[f.cross] + crossSize(source) / 2 + (sibs.indexOf(edge) - (sibs.length - 1) / 2) * sSep
+
+      // Each edge jogs at its own column, staggered by the lane separation, so
+      // the cross-axis segments stay parallel rather than overlapping. Feedback
+      // edges run against the flow, so their jog steps the other way.
+      let jog = exitMain + (back ? -1 : 1) * f.sign * (BASE_GAP + i * sep)
+      const lo = Math.min(exitMain, entryMain), hi = Math.max(exitMain, entryMain)
+      if (jog <= lo + 4 || jog >= hi - 4) jog = (exitMain + entryMain) / 2
+      lanes.push({ edge, source, exitMain, sCross, tCross })
+      col.push(jog)
+    }
+
+    // Nest riser columns within each run of duplicate lanes (same source, hence
+    // same directed pair in this target bucket). When the pair bends across the
+    // flow, the UPPER lane's riser must sit farther out so the lower lane's exit
+    // run does not cut across it (an upward bend is the mirror, handled by the
+    // reversal below). Endpoints are untouched, so separation/order is preserved.
+    for (let a = 0; a < k;) {
+      let b = a
+      while (b + 1 < k && bucket[b + 1]!.source === bucket[a]!.source) b++
+      if (b > a && lanes[a]!.tCross - lanes[a]!.sCross > 0) {
+        const slice = col.slice(a, b + 1).reverse()
+        for (let r = a; r <= b; r++) col[r] = slice[r - a]!
+      }
+      a = b + 1
+    }
+
+    const proposed: Array<{ edge: PositionedEdge; points: Point[] }> = []
+    let ok = true
+    for (let i = 0; i < k; i++) {
+      const { edge, source, exitMain, sCross, tCross } = lanes[i]!
+      const jog = col[i]!
+      let pts: Point[]
+      if (Math.abs(sCross - tCross) <= 0.5) {
+        pts = [mk(exitMain, sCross), mk(entryMain, tCross)]
+      } else {
+        pts = [mk(exitMain, sCross), mk(jog, sCross), mk(jog, tCross), mk(entryMain, tCross)]
+      }
+      pts = clipEdgeToShape(pts, source, true)
+      pts = clipEdgeToShape(pts, target, false)
+      pts = simplifyPolyline(pts)
+      if (pts.length < 2 ||
+        !onShapeOutline(source, pts[0]!) ||
+        !onShapeOutline(target, pts[pts.length - 1]!) ||
+        !routeClearOfNodes(pts, nodes, new Set([source.id, target.id]))) {
+        ok = false
+        break
+      }
+      proposed.push({ edge, points: pts })
+    }
+    if (!ok) return
+    for (const { edge, points } of proposed) {
+      edge.points = points
+      edge.labelPosition = undefined
+      edge.routeCertificate = undefined
+      bundled.add(edge)
+    }
+  }
+
+  for (const bucket of fwdByTarget.values()) distribute(bucket, false)
+  for (const bucket of backByTarget.values()) distribute(bucket, true)
+}
+
+/**
  * Recursively extract edges from ELK result including those inside subgraphs.
  * Edges are distributed to subgraphs for direction override to work,
  * so we need to collect them from all levels with proper coordinate offsets.
@@ -3080,15 +3274,25 @@ function alignPortLanes(
     return true
   }
 
-  const shiftRun = (e: PositionedEdge, fromEnd: boolean, delta: number): void => {
+  // `anchorFar` keeps the endpoint OPPOSITE the shifted run pinned. A straight
+  // 2-point edge is a single run spanning the whole polyline, so an unguarded
+  // shift drags its far endpoint off a node that is NOT moving (issue #62: the
+  // hub slide rigidly translated the straight duplicate edges feeding the hub,
+  // pulling their source endpoints off the source node's side). Anchoring the
+  // far end leaves a diagonal stub that applyRouteContracts re-anchors onto the
+  // merged port lane. Staircase runs never reach the far endpoint, so the flag
+  // is a no-op for them.
+  const shiftRun = (e: PositionedEdge, fromEnd: boolean, delta: number, anchorFar = false): void => {
     const pts = e.points
     const idx = fromEnd ? pts.length - 1 : 0
     const step = fromEnd ? -1 : 1
+    const farIdx = fromEnd ? 0 : pts.length - 1
     const ref = pts[idx]![cross]
     let mainLo = Infinity
     let mainHi = -Infinity
     for (let i = idx; i >= 0 && i < pts.length; i += step) {
       if (Math.abs(pts[i]![cross] - ref) > 0.5) break
+      if (anchorFar && i === farIdx) break
       mainLo = Math.min(mainLo, pts[i]![main])
       mainHi = Math.max(mainHi, pts[i]![main])
       pts[i]![cross] += delta
@@ -3237,9 +3441,9 @@ function alignPortLanes(
         for (const p of e.points) p[cross] += delta
         if (e.labelPosition) e.labelPosition[cross] += delta
       } else if (tgtTouch) {
-        shiftRun(e, true, delta)
+        shiftRun(e, true, delta, /* anchorFar */ true)
       } else if (srcTouch) {
-        shiftRun(e, false, delta)
+        shiftRun(e, false, delta, /* anchorFar */ true)
       }
     }
   }

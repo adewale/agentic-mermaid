@@ -5700,3 +5700,377 @@ exports[`contact sheet — pinned geometry (re-pin deliberately, review the shee
   "version": 1,
 }
 `;
+
+exports[`contact sheet — pinned geometry (re-pin deliberately, review the sheet) AP — duplicate pair into a shared hub — nested, non-crossing lanes 1`] = `
+{
+  "bounds": {
+    "h": 182,
+    "w": 248,
+  },
+  "edges": [
+    {
+      "from": "A",
+      "id": "A->C",
+      "label": undefined,
+      "path": [
+        [
+          112,
+          52,
+        ],
+        [
+          141,
+          52,
+        ],
+        [
+          141,
+          77,
+        ],
+        [
+          148,
+          77,
+        ],
+      ],
+      "to": "C",
+    },
+    {
+      "from": "A",
+      "id": "A->C",
+      "label": undefined,
+      "path": [
+        [
+          112,
+          65,
+        ],
+        [
+          128,
+          65,
+        ],
+        [
+          128,
+          91,
+        ],
+        [
+          148,
+          91,
+        ],
+      ],
+      "to": "C",
+    },
+    {
+      "from": "B",
+      "id": "B->C",
+      "label": undefined,
+      "path": [
+        [
+          112,
+          123,
+        ],
+        [
+          130,
+          123,
+        ],
+        [
+          130,
+          104,
+        ],
+        [
+          148,
+          104,
+        ],
+      ],
+      "to": "C",
+    },
+  ],
+  "groups": [],
+  "kind": "flowchart",
+  "nodes": [
+    {
+      "h": 37,
+      "id": "A",
+      "label": "a",
+      "shape": "rectangle",
+      "w": 60,
+      "x": 52,
+      "y": 40,
+    },
+    {
+      "h": 37,
+      "id": "B",
+      "label": "b",
+      "shape": "rectangle",
+      "w": 60,
+      "x": 52,
+      "y": 105,
+    },
+    {
+      "h": 37,
+      "id": "C",
+      "label": "c",
+      "shape": "rectangle",
+      "w": 60,
+      "x": 148,
+      "y": 72,
+    },
+  ],
+  "version": 1,
+}
+`;
+
+exports[`contact sheet — pinned geometry (re-pin deliberately, review the sheet) AQ — duplicate feedback pair — separated back-edge lanes 1`] = `
+{
+  "bounds": {
+    "h": 139,
+    "w": 296,
+  },
+  "edges": [
+    {
+      "from": "A",
+      "id": "A->B",
+      "label": undefined,
+      "path": [
+        [
+          124,
+          58,
+        ],
+        [
+          172,
+          58,
+        ],
+      ],
+      "to": "B",
+    },
+    {
+      "from": "B",
+      "id": "B->A",
+      "label": undefined,
+      "path": [
+        [
+          172,
+          51,
+        ],
+        [
+          124,
+          51,
+        ],
+      ],
+      "to": "A",
+    },
+    {
+      "from": "B",
+      "id": "B->A",
+      "label": undefined,
+      "path": [
+        [
+          172,
+          65,
+        ],
+        [
+          124,
+          65,
+        ],
+      ],
+      "to": "A",
+    },
+  ],
+  "groups": [],
+  "kind": "flowchart",
+  "nodes": [
+    {
+      "h": 37,
+      "id": "A",
+      "label": "a",
+      "shape": "rectangle",
+      "w": 60,
+      "x": 64,
+      "y": 40,
+    },
+    {
+      "h": 37,
+      "id": "B",
+      "label": "b",
+      "shape": "rectangle",
+      "w": 60,
+      "x": 172,
+      "y": 40,
+    },
+  ],
+  "version": 1,
+}
+`;
+
+exports[`contact sheet — pinned geometry (re-pin deliberately, review the sheet) AR — issue #62 repro — mixed duplicate/feedback fan-in 1`] = `
+{
+  "bounds": {
+    "h": 282,
+    "w": 342,
+  },
+  "edges": [
+    {
+      "from": "N4",
+      "id": "N4->N0",
+      "label": undefined,
+      "path": [
+        [
+          106,
+          188,
+        ],
+        [
+          230,
+          188,
+        ],
+      ],
+      "to": "N0",
+    },
+    {
+      "from": "N0",
+      "id": "N0->N4",
+      "label": {
+        "text": "go",
+        "x": 171,
+        "y": 222,
+      },
+      "path": [
+        [
+          260,
+          207,
+        ],
+        [
+          260,
+          223,
+        ],
+        [
+          76,
+          223,
+        ],
+        [
+          76,
+          207,
+        ],
+      ],
+      "to": "N4",
+    },
+    {
+      "from": "N2",
+      "id": "N2->N3",
+      "label": undefined,
+      "path": [
+        [
+          106,
+          116,
+        ],
+        [
+          136,
+          116,
+        ],
+        [
+          136,
+          142,
+        ],
+        [
+          148,
+          142,
+        ],
+      ],
+      "to": "N3",
+    },
+    {
+      "from": "N2",
+      "id": "N2->N3",
+      "label": undefined,
+      "path": [
+        [
+          106,
+          130,
+        ],
+        [
+          122,
+          130,
+        ],
+        [
+          122,
+          156,
+        ],
+        [
+          148,
+          156,
+        ],
+      ],
+      "to": "N3",
+    },
+    {
+      "from": "N4",
+      "id": "N4->N3",
+      "label": undefined,
+      "path": [
+        [
+          106,
+          188,
+        ],
+        [
+          127,
+          188,
+        ],
+        [
+          127,
+          170,
+        ],
+        [
+          148,
+          170,
+        ],
+      ],
+      "to": "N3",
+    },
+  ],
+  "groups": [],
+  "kind": "flowchart",
+  "nodes": [
+    {
+      "h": 37,
+      "id": "N1",
+      "label": "n1",
+      "shape": "rectangle",
+      "w": 60,
+      "x": 46,
+      "y": 40,
+    },
+    {
+      "h": 37,
+      "id": "N2",
+      "label": "n2",
+      "shape": "rectangle",
+      "w": 60,
+      "x": 46,
+      "y": 105,
+    },
+    {
+      "h": 37,
+      "id": "N4",
+      "label": "n4",
+      "shape": "rectangle",
+      "w": 60,
+      "x": 46,
+      "y": 170,
+    },
+    {
+      "h": 37,
+      "id": "N0",
+      "label": "n0",
+      "shape": "rectangle",
+      "w": 60,
+      "x": 230,
+      "y": 170,
+    },
+    {
+      "h": 51,
+      "id": "N3",
+      "label": "n3",
+      "shape": "cylinder",
+      "w": 60,
+      "x": 148,
+      "y": 130,
+    },
+  ],
+  "version": 1,
+}
+`;

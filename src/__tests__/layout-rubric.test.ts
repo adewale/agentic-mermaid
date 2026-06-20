@@ -140,6 +140,22 @@ const randomFlowchart = fc
 // diagrams on every run; bump it deliberately to re-roll the sample.
 const PROPERTY_SEED = 0x10ad
 
+// Proper segment-intersection test between two orthogonal polylines, excluding
+// shared endpoints (edges that legitimately meet at a node touch, not cross).
+type RubricPt = { x: number; y: number }
+function polylinesCross(p: RubricPt[], q: RubricPt[]): boolean {
+  const orient = (a: RubricPt, b: RubricPt, c: RubricPt) => Math.sign((b.x - a.x) * (c.y - a.y) - (b.y - a.y) * (c.x - a.x))
+  const same = (a: RubricPt, b: RubricPt) => Math.abs(a.x - b.x) < 1e-6 && Math.abs(a.y - b.y) < 1e-6
+  for (let i = 0; i < p.length - 1; i++) {
+    for (let j = 0; j < q.length - 1; j++) {
+      const [a, b, c, d] = [p[i]!, p[i + 1]!, q[j]!, q[j + 1]!]
+      if (same(a, c) || same(a, d) || same(b, c) || same(b, d)) continue
+      if (orient(c, d, a) !== orient(c, d, b) && orient(a, b, c) !== orient(a, b, d)) return true
+    }
+  }
+  return false
+}
+
 describe('property: ports and outlines (mathematical oracles over random diagrams)', () => {
   it('every edge endpoint lies on the rendered shape outline — all shapes, all directions', () => {
     fc.assert(
@@ -217,5 +233,83 @@ describe('property: ports and outlines (mathematical oracles over random diagram
       }),
       { numRuns: 120, seed: PROPERTY_SEED },
     )
+  })
+
+  // "No two edges cross unless logically required", specialized to the case
+  // where a crossing is PROVABLY never required: duplicate edges (the same
+  // directed pair written more than once) share BOTH endpoints, so two of them
+  // crossing is always a pure routing defect (issue #62). The fan-in pass nests
+  // these lanes, but it bails on shapes/dense layouts it does not own, so a few
+  // residual crossings survive. A general all-pairs crossing oracle is NOT a
+  // valid invariant (non-planar graphs must cross), and even the shared-endpoint
+  // sibling case is far from clean today — so this is a downward RATCHET over a
+  // fixed seeded sample: the count must not grow. Lower the baseline as the
+  // count drops; the target is zero.
+  it('duplicate-edge crossings stay at or below the pinned baseline (ratchet, target 0)', () => {
+    // Deterministic sample of the same generator the other oracles use.
+    const DUPLICATE_CROSSING_BASELINE = 3
+    const samples = fc.sample(randomFlowchart, { numRuns: 300, seed: 4242 })
+    let crossings = 0
+    for (const source of samples) {
+      const edges = layoutGraphSync(parseMermaid(source)).edges
+      for (let i = 0; i < edges.length; i++) {
+        for (let j = i + 1; j < edges.length; j++) {
+          const a = edges[i]!, b = edges[j]!
+          if (a.source === b.source && a.target === b.target && !a.label && !b.label
+            && polylinesCross(a.points, b.points)) crossings++
+        }
+      }
+    }
+    expect(crossings).toBeLessThanOrEqual(DUPLICATE_CROSSING_BASELINE)
+  })
+
+  // Sibling crossings: two edges that share exactly one endpoint (a fan-in,
+  // fan-out, or chain-adjacent pair, but not a duplicate). Edges incident to a
+  // common node can always be ordered not to cross each other, so these are
+  // also never logically required — but unlike duplicates they are far from
+  // clean today (the port allocator/router leaves many). This is a separate
+  // downward RATCHET to stop the count growing while it is driven toward zero;
+  // it is NOT a claim that the current number is acceptable.
+  it('sibling-edge crossings stay at or below the pinned baseline (ratchet, target 0)', () => {
+    const SIBLING_CROSSING_BASELINE = 95
+    const samples = fc.sample(randomFlowchart, { numRuns: 300, seed: 4242 })
+    let crossings = 0
+    for (const source of samples) {
+      const edges = layoutGraphSync(parseMermaid(source)).edges
+      for (let i = 0; i < edges.length; i++) {
+        for (let j = i + 1; j < edges.length; j++) {
+          const a = edges[i]!, b = edges[j]!
+          const sharesNode = a.source === b.source || a.target === b.target || a.source === b.target || a.target === b.source
+          const duplicate = a.source === b.source && a.target === b.target
+          if (sharesNode && !duplicate && polylinesCross(a.points, b.points)) crossings++
+        }
+      }
+    }
+    expect(crossings).toBeLessThanOrEqual(SIBLING_CROSSING_BASELINE)
+  })
+
+  // Duplicates must be VISIBLY separated, not collapsed onto one line. The lane
+  // pass spreads them, but bails on shapes/dense layouts it does not own, so a
+  // few pairs still land < 11px apart at one end. Downward ratchet; target 0.
+  it('unseparated duplicate pairs stay at or below the pinned baseline (ratchet, target 0)', () => {
+    const MIN_SEP = 11
+    const UNSEPARATED_DUPLICATE_BASELINE = 7
+    const dist = (p: RubricPt, q: RubricPt) => Math.hypot(p.x - q.x, p.y - q.y)
+    const samples = fc.sample(randomFlowchart, { numRuns: 300, seed: 4242 })
+    let unseparated = 0
+    for (const source of samples) {
+      const edges = layoutGraphSync(parseMermaid(source)).edges
+      for (let i = 0; i < edges.length; i++) {
+        for (let j = i + 1; j < edges.length; j++) {
+          const a = edges[i]!, b = edges[j]!
+          if (a.source === b.source && a.target === b.target && !a.label && !b.label) {
+            const srcGap = dist(a.points[0]!, b.points[0]!)
+            const tgtGap = dist(a.points[a.points.length - 1]!, b.points[b.points.length - 1]!)
+            if (Math.min(srcGap, tgtGap) < MIN_SEP) unseparated++
+          }
+        }
+      }
+    }
+    expect(unseparated).toBeLessThanOrEqual(UNSEPARATED_DUPLICATE_BASELINE)
   })
 })
