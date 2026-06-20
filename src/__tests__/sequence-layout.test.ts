@@ -227,6 +227,62 @@ describe('sequence layout – block spacing', () => {
   })
 })
 
+describe('sequence layout – spacing properties (over random sequences)', () => {
+  const ACTORS = ['A', 'B', 'C', 'D'] as const
+
+  // Generalizes "messages outside blocks are spaced at the base row height":
+  // for ANY block-free sequence, every consecutive message gap is exactly 40.
+  it('block-free sequences space every message at exactly the base row height', () => {
+    const arb = fc.record({
+      actorCount: fc.integer({ min: 2, max: 4 }),
+      msgs: fc.array(fc.record({ f: fc.nat(3), t: fc.nat(3), dash: fc.boolean() }), { minLength: 2, maxLength: 8 }),
+    })
+    fc.assert(
+      fc.property(arb, ({ actorCount, msgs }) => {
+        const actors = ACTORS.slice(0, actorCount)
+        const lines = ['sequenceDiagram', ...actors.map(a => `  participant ${a}`)]
+        for (const m of msgs) {
+          const from = actors[m.f % actorCount]!, to = actors[m.t % actorCount]!
+          if (from === to) continue
+          lines.push(`  ${from}${m.dash ? '-->>' : '->>'}${to}: x`)
+        }
+        const result = layout(lines.join('\n'))
+        for (let i = 1; i < result.messages.length; i++) {
+          if (result.messages[i]!.y - result.messages[i - 1]!.y !== 40) return false
+        }
+        return true
+      }),
+      { numRuns: 400 },
+    )
+  })
+
+  // Robustness over the richer generator (blocks, dividers, notes, self-calls):
+  // message rows stay finite and strictly ordered, never spaced tighter than the
+  // base row height — blocks/dividers/notes only ever ADD space.
+  it('messages stay finite and ordered with gaps never below the base height', () => {
+    const arb = fc.record({
+      actorCount: fc.integer({ min: 2, max: 4 }),
+      messageCount: fc.integer({ min: 1, max: 6 }),
+      noteMask: fc.array(fc.boolean(), { minLength: 6, maxLength: 6 }),
+      notePicks: fc.array(fc.nat(2), { minLength: 6, maxLength: 6 }),
+      selfMask: fc.array(fc.boolean(), { minLength: 6, maxLength: 6 }),
+    })
+    fc.assert(
+      fc.property(arb, input => {
+        const result = layout(generatedSequenceSource(input))
+        for (const m of result.messages) if (!Number.isFinite(m.y)) return false
+        for (let i = 1; i < result.messages.length; i++) {
+          // 1e-6 tolerance: gaps accumulate through block/divider offsets, so a
+          // genuine 40 can land at 39.9999… in floating point.
+          if (!(result.messages[i]!.y - result.messages[i - 1]!.y >= 40 - 1e-6)) return false
+        }
+        return true
+      }),
+      { numRuns: 400 },
+    )
+  })
+})
+
 describe('sequence layout – block positioning', () => {
   it('block top is above the first message with room for the header', () => {
     const result = layout(`sequenceDiagram

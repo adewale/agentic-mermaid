@@ -9,6 +9,7 @@
  * - Integration: full SVG output with multi-line labels
  */
 import { describe, it, expect } from 'bun:test'
+import fc from 'fast-check'
 import { parseMermaid } from '../parser.ts'
 import { parseSequenceDiagram } from '../sequence/parser.ts'
 import { parseClassDiagram } from '../class/parser.ts'
@@ -843,3 +844,42 @@ function extractFirstRectWidth(svg: string): number {
   const match = svg.match(/<rect[^>]*width="(\d+(?:\.\d+)?)"/)
   return match ? parseFloat(match[1]!) : 0
 }
+
+// Properties over random multi-line labels. The metrics are a pure function of
+// the lines, so they have exact invariants (height is line-count × line-height)
+// and metamorphic ones (adding a line adds exactly one line-height and never
+// shrinks the width).
+describe('measureMultilineText – properties over random labels', () => {
+  const lineArb = fc.array(fc.constantFrom(...'abcDEF 123,.!()'.split('')), { maxLength: 24 }).map(cs => cs.join(''))
+  const labelArb = fc.array(lineArb, { minLength: 1, maxLength: 8 }).map(ls => ls.join('\n'))
+  const fontSizeArb = fc.integer({ min: 8, max: 40 })
+  const fontWeightArb = fc.constantFrom(400, 600, 700)
+
+  it('height is exactly line-count × line-height; width is the widest line; all finite', () => {
+    fc.assert(
+      fc.property(labelArb, fontSizeArb, fontWeightArb, (text, fontSize, fontWeight) => {
+        const m = measureMultilineText(text, fontSize, fontWeight)
+        const lines = text.split('\n')
+        if (m.lines.length !== lines.length) return false
+        if (m.lineHeight !== fontSize * LINE_HEIGHT_RATIO) return false
+        if (m.height !== lines.length * m.lineHeight) return false
+        const widest = Math.max(...lines.map(l => measureTextWidth(stripFormattingTags(l), fontSize, fontWeight)))
+        if (Math.abs(m.width - widest) > 1e-6) return false
+        return Number.isFinite(m.width) && Number.isFinite(m.height) && m.width >= 0 && m.height >= 0
+      }),
+      { numRuns: 400 },
+    )
+  })
+
+  it('adding a line adds exactly one line-height and never shrinks the width', () => {
+    fc.assert(
+      fc.property(labelArb, lineArb, fontSizeArb, fontWeightArb, (text, extra, fontSize, fontWeight) => {
+        const before = measureMultilineText(text, fontSize, fontWeight)
+        const after = measureMultilineText(`${text}\n${extra}`, fontSize, fontWeight)
+        if (Math.abs(after.height - before.height - fontSize * LINE_HEIGHT_RATIO) > 1e-6) return false
+        return after.width >= before.width - 1e-6
+      }),
+      { numRuns: 400 },
+    )
+  })
+})
