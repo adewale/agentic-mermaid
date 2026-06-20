@@ -150,6 +150,39 @@ describe('flowchart parser conformance safety floor (issue #36)', () => {
     expect(verifyMermaid(source).warnings).toContainEqual(expect.objectContaining({ code: 'UNSUPPORTED_SYNTAX', syntax: 'flowchart_interaction_directive', line: 3 }))
   })
 
+  test('markdown-string labels are source-preserved and warned, never silently dropped', () => {
+    const source = 'flowchart LR\n  A["`**bold** text`"] --> B\n'
+    const diagram = parseAgent(source)
+    expect(diagram.body.kind).toBe('opaque')
+    expect(serializeMermaid(diagram)).toBe(source)
+    const verify = verifyMermaid(source)
+    expect(verify.ok).toBe(true)
+    expect(verify.warnings).toContainEqual(expect.objectContaining({ code: 'UNSUPPORTED_SYNTAX', syntax: 'flowchart_markdown_string', line: 2 }))
+  })
+
+  test('node metadata @{ shape } is preserved losslessly AND warned loudly (issue #36), no phantom nodes', () => {
+    const source = 'flowchart LR\n  A@{ shape: rounded, label: "Start" }\n  A --> B\n'
+    const graph = parseGraph(source)
+    expect([...graph.nodes.keys()].sort()).toEqual(['A', 'B'])
+    expect(graph.nodes.has('shape')).toBe(false)
+    expect(graph.nodes.has('label')).toBe(false)
+
+    const diagram = parseAgent(source)
+    expect(diagram.body.kind).toBe('opaque')
+    expect(serializeMermaid(diagram)).toBe(source)
+
+    const verify = verifyMermaid(source)
+    // Advisory (Tier-3): the warning is loud but never flips verify.ok and never drops source.
+    expect(verify.ok).toBe(true)
+    expect(verify.warnings).toContainEqual(expect.objectContaining({ code: 'UNSUPPORTED_SYNTAX', syntax: 'flowchart_node_metadata', line: 2 }))
+
+    // Edge metadata must NOT be reclassified as node metadata.
+    const edgeMeta = verifyMermaid('flowchart LR\n  A e1@==> B\n  e1@{ animate: true }\n').warnings
+      .map(w => w.code === 'UNSUPPORTED_SYNTAX' ? w.syntax : '').filter(Boolean)
+    expect(edgeMeta).toContain('flowchart_edge_metadata')
+    expect(edgeMeta).not.toContain('flowchart_node_metadata')
+  })
+
   test('class shorthand before compact arrows keeps the edge and escaped classDef commas', () => {
     const graph = parseGraph('flowchart LR\n  A:::animate-->B\n  classDef animate stroke-dasharray: 9\\,5,stroke:#333;')
     expect(graph.edges.map(e => `${e.source}->${e.target}`)).toEqual(['A->B'])
