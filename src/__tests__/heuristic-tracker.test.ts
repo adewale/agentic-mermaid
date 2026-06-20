@@ -14,6 +14,10 @@
 
 import { describe, test, expect } from 'bun:test'
 import { scoreAll, loadBaseline, compareToBaseline } from '../../eval/heuristic-tracker/run.ts'
+import { trackedExamples } from '../../eval/heuristic-tracker/catalog.ts'
+import { parseMermaid } from '../parser.ts'
+import { layoutGraphSync } from '../layout-engine.ts'
+import { auditRouteContracts } from '../route-contracts.ts'
 
 describe('heuristic-tracker ratchet', () => {
   const current = scoreAll()
@@ -32,5 +36,37 @@ describe('heuristic-tracker ratchet', () => {
     const baselineKeys = Object.keys(baseline).length
     expect(baselineKeys).toBeGreaterThan(0)
     expect(baselineKeys).toBe(Object.keys(current).length)
+  })
+
+  // Issue #25 acceptance criterion 7: "corpus diff shows no increase in unexplained
+  // bends, edge crossings, or label overlap." Unexplained bends and label overlap
+  // are STRUCTURAL route-contract findings that are deterministic across runtimes
+  // (verified stable), unlike raw edge-crossing COUNTS, which depend on non-portable
+  // ELK float geometry (see the file header) and stay a local soft metric, not a gate.
+  //
+  // This is a no-increase ratchet: the corpus may currently carry the known
+  // offenders below; any NEW unexplained-bend/label-overlap finding fails, and
+  // fixing a known one fails too (so the baseline only ever shrinks).
+  const KNOWN_ROUTE_CONTRACT_OFFENDERS = [
+    'contact-sheet/AJ: ROUTE_LABEL_ON_SHARED_TRUNK D->E',
+  ]
+
+  test('no NEW unexplained-bend or label-overlap findings across the tracked corpus (criterion 7)', () => {
+    const offenders: string[] = []
+    for (const ex of trackedExamples()) {
+      const key = `${ex.group}/${ex.name}`
+      try {
+        const graph = parseMermaid(ex.source)
+        const positioned = layoutGraphSync(graph)
+        for (const f of auditRouteContracts(positioned, graph)) {
+          if (f.code === 'ROUTE_UNEXPLAINED_BEND' || f.code === 'ROUTE_LABEL_ON_SHARED_TRUNK') {
+            offenders.push(`${key}: ${f.code} ${f.edge}`)
+          }
+        }
+      } catch (e) {
+        offenders.push(`${key}: layout error ${String(e).slice(0, 40)}`)
+      }
+    }
+    expect(offenders.sort()).toEqual([...KNOWN_ROUTE_CONTRACT_OFFENDERS].sort())
   })
 })
