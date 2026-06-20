@@ -443,6 +443,7 @@ describe('root docs consistency', () => {
     expect(readdirSync(REPO).filter(f => f.endsWith('.md')).sort()).toEqual([
       'AGENT_NATIVE.md',
       'CHANGELOG.md',
+      'CLAUDE.md',
       'Instructions_for_agents.md',
       'README.md',
       'SECURITY.md',
