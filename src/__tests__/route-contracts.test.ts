@@ -3,6 +3,7 @@ import fc from 'fast-check'
 import { buildRoutePortHints, layoutGraphSync } from '../layout-engine.ts'
 import { parseMermaid } from '../parser.ts'
 import { applyRouteContracts, auditRouteContracts, classifyRoutes, diamondFacetPorts, directLaneBlockers, findLabelSlot, findRouteHitches, shapePorts, simplifyPolyline } from '../route-contracts.ts'
+import { onShapeOutline } from '../layout-rubric.ts'
 import { measureMultilineText } from '../text-metrics.ts'
 import { layoutMermaid, parseMermaid as agentParse, verifyMermaid } from '../agent/index.ts'
 import type { AnyPort, Point, PositionedEdge, PositionedGraph, PositionedGroup, PositionedNode } from '../types.ts'
@@ -708,6 +709,182 @@ describe('duplicate parallel edges (fast-check counterexample, pinned)', () => {
     const positioned = layoutGraphSync(graph)
     expect(findRouteHitches(positioned, graph)).toEqual([])
   })
+
+  // Issue #62: a hub-centering slide rigidly translated the straight, 2-point
+  // duplicate edges that fed the hub, dragging their SOURCE endpoints off the
+  // source node's side. Surfaced by the outline oracle in layout-rubric.test.ts.
+  //
+  // Asserts every edge endpoint lands on its node's rendered outline. The
+  // ISSUE_62_REPRO case is the regression guard — it fails on the pre-fix code
+  // (the N2->N3 source floats ~32px below N2). The remaining cases are the
+  // simplest expressions of the same feature (a multigraph: >1 edge on one
+  // directed pair); they passed before the fix too, so they document the
+  // contract and guard against future regressions rather than this one.
+  const ISSUE_62_REPRO = `flowchart LR
+  N0[n0]
+  N1[n1]
+  N2[n2]
+  N3[(n3)]
+  N4[n4]
+  N4 --> N0
+  N0 -- go --> N4
+  N2 --> N3
+  N2 --> N3
+  N4 --> N3`
+  const outlineCases: Record<string, string> = {
+    // The simplest possible multigraph: two edges, one directed pair.
+    'simplest pair — two A-->B edges (LR)': 'flowchart LR\n  A --> B\n  A --> B',
+    'simplest pair — two A-->B edges (TD)': 'flowchart TD\n  A --> B\n  A --> B',
+    'three parallel A-->B edges (LR)': 'flowchart LR\n  A --> B\n  A --> B\n  A --> B',
+    'labeled parallel pair (distinct labels)': 'flowchart LR\n  A -- yes --> B\n  A -- no --> B',
+    'duplicate feeder into a shared hub': 'flowchart LR\n  A --> C\n  A --> C\n  B --> C',
+    'issue #62 repro (regression guard)': ISSUE_62_REPRO,
+  }
+  for (const [name, source] of Object.entries(outlineCases)) {
+    it(`keeps both endpoints on the node outline — ${name}`, () => {
+      const positioned = layoutGraphSync(parseMermaid(source))
+      const nodeMap = new Map(positioned.nodes.map(n => [n.id, n]))
+      for (const e of positioned.edges) {
+        for (const [id, pt] of [
+          [e.source, e.points[0]!],
+          [e.target, e.points[e.points.length - 1]!],
+        ] as const) {
+          const node = nodeMap.get(id)
+          if (!node) continue
+          expect({ edge: `${e.source}->${e.target}#${e.edgeIndex}`, anchor: id, on: onShapeOutline(node, pt) })
+            .toEqual({ edge: `${e.source}->${e.target}#${e.edgeIndex}`, anchor: id, on: true })
+        }
+      }
+    })
+  }
+
+  // The parallel-lane contract (yFiles ParallelEdgeRouter / OGDF Kandinsky):
+  // duplicate same-direction edges render as evenly-separated parallel lanes,
+  // not a cramped near-overlapping bundle. Pre-enhancement the endpoints sat
+  // ~7px apart; the lanes now spread to a readable separation that fits the
+  // node side. The minimum here (>= 11px) fails on the pre-enhancement routing.
+  const MIN_LANE_SEP = 11
+  // Feedback (back-edge) duplicates enter the hub's flow-EXIT face and were
+  // owned by neither lane pass, so ELK left them ~6px apart. The face-aware
+  // distribution now spreads them too. `src`/`tgt` name the duplicated pair.
+  const laneCases: Array<{ name: string; source: string; cross: 'x' | 'y'; count: number; src?: string; tgt?: string }> = [
+    { name: 'two A-->B (LR)', source: 'flowchart LR\n  A --> B\n  A --> B', cross: 'y', count: 2 },
+    { name: 'three A-->B (LR)', source: 'flowchart LR\n  A --> B\n  A --> B\n  A --> B', cross: 'y', count: 3 },
+    { name: 'two A-->B (TD)', source: 'flowchart TD\n  A --> B\n  A --> B', cross: 'x', count: 2 },
+    { name: 'feedback pair B-->A (LR)', source: 'flowchart LR\n  A --> B\n  B --> A\n  B --> A', cross: 'y', count: 2, src: 'B', tgt: 'A' },
+    { name: 'feedback pair B-->A (TD)', source: 'flowchart TD\n  A --> B\n  B --> A\n  B --> A', cross: 'x', count: 2, src: 'B', tgt: 'A' },
+  ]
+  for (const { name, source, cross, count, src = 'A', tgt = 'B' } of laneCases) {
+    it(`routes duplicate edges as separated parallel lanes — ${name}`, () => {
+      const positioned = layoutGraphSync(parseMermaid(source))
+      const dups = positioned.edges
+        .filter(e => e.source === src && e.target === tgt)
+        .sort((a, b) => (a.edgeIndex ?? 0) - (b.edgeIndex ?? 0))
+      expect(dups.length).toBe(count)
+      const srcCross = dups.map(e => e.points[0]![cross])
+      const tgtCross = dups.map(e => e.points[e.points.length - 1]![cross])
+      for (let i = 1; i < dups.length; i++) {
+        expect(Math.abs(srcCross[i]! - srcCross[i - 1]!)).toBeGreaterThanOrEqual(MIN_LANE_SEP)
+        expect(Math.abs(tgtCross[i]! - tgtCross[i - 1]!)).toBeGreaterThanOrEqual(MIN_LANE_SEP)
+      }
+      // Distinct polylines — no two duplicates collapse onto one path.
+      const paths = new Set(dups.map(e => JSON.stringify(e.points)))
+      expect(paths.size).toBe(count)
+    })
+  }
+
+  // Mixed fan-in contract: a hub that receives a duplicate pair AND other
+  // feeders must distribute the WHOLE entry face, not just the pair. Before the
+  // target-centric distribution, the pair-only pass left two defects here:
+  //   - silent data loss: when the hub had other feeders the pass bailed and
+  //     ELK's overlap stood, so the duplicates rendered as one indistinguishable
+  //     line ('duplicate feeder into a shared hub' measured 0px apart);
+  //   - crowding/crossing: a third distinct feeder landed inside the separated
+  //     duplicate band and crossed through it (issue #62 repro: ~7px + 1 cross).
+  // Both assert every incoming endpoint is separated and that entry order
+  // matches source order (no crossing). Pure distinct fan-in is excluded — it
+  // stays a clean merge via the barycenter pass (issue #26 WS3), asserted last.
+  const mixedFanInCases: Array<{ name: string; source: string; hub: string }> = [
+    { name: 'duplicate feeder into a shared hub', source: 'flowchart LR\n  A --> C\n  A --> C\n  B --> C', hub: 'C' },
+    {
+      name: 'issue #62 repro (duplicate pair + distinct feeder)',
+      source: ISSUE_62_REPRO,
+      hub: 'N3',
+    },
+  ]
+  for (const { name, source, hub } of mixedFanInCases) {
+    it(`distributes a mixed fan-in without collapse or crossing — ${name}`, () => {
+      const positioned = layoutGraphSync(parseMermaid(source))
+      const nodeMap = new Map(positioned.nodes.map(n => [n.id, n]))
+      const incoming = positioned.edges.filter(e => e.target === hub)
+      expect(incoming.length).toBeGreaterThanOrEqual(3)
+
+      // No silent collapse: every pair of entry endpoints is readably apart.
+      const ends = incoming.map(e => e.points[e.points.length - 1]!)
+      for (let i = 0; i < ends.length; i++) {
+        for (let j = i + 1; j < ends.length; j++) {
+          expect(Math.hypot(ends[i]!.x - ends[j]!.x, ends[i]!.y - ends[j]!.y))
+            .toBeGreaterThanOrEqual(MIN_LANE_SEP)
+        }
+      }
+      // No crossing: order of entry endpoints (top→bottom) matches the order of
+      // their sources (top→bottom), with duplicate siblings tie-broken by index.
+      const srcCenter = (id: string) => {
+        const n = nodeMap.get(id)!
+        return n.y + n.height / 2
+      }
+      const bySource = [...incoming].sort((a, b) =>
+        srcCenter(a.source) - srcCenter(b.source) || (a.edgeIndex ?? 0) - (b.edgeIndex ?? 0))
+      const byEntry = [...incoming].sort((a, b) =>
+        a.points[a.points.length - 1]!.y - b.points[b.points.length - 1]!.y)
+      expect(byEntry.map(e => `${e.source}#${e.edgeIndex}`))
+        .toEqual(bySource.map(e => `${e.source}#${e.edgeIndex}`))
+    })
+  }
+
+  it('leaves pure distinct fan-in as a clean merge (issue #26 WS3 untouched)', () => {
+    const positioned = layoutGraphSync(parseMermaid('flowchart LR\n  A --> C\n  B --> C\n  D --> C'))
+    const ends = positioned.edges.filter(e => e.target === 'C').map(e => e.points[e.points.length - 1]!)
+    expect(ends.length).toBe(3)
+    // With no duplicate present the distribution stays out; the feeders merge to
+    // a single coincident entry port rather than fanning across the hub side.
+    const maxSep = Math.max(...ends.flatMap((p, i) => ends.slice(i + 1).map(q => Math.hypot(p.x - q.x, p.y - q.y))))
+    expect(maxSep).toBeLessThan(1)
+  })
+
+  // When a duplicate pair feeds a hub that is cross-axis OFFSET from the source
+  // (the lanes bend across the flow), the riser columns must nest so the lanes
+  // do not cross mid-path. The earlier staggered-by-index columns put the upper
+  // lane's riser nearer, so the lower lane's exit run cut across it. This guards
+  // the *path*, not just endpoint order, which the mixed-fan-in test covers.
+  const properSegmentsCross = (p: Point[], q: Point[]): boolean => {
+    const o = (a: Point, b: Point, c: Point) => Math.sign((b.x - a.x) * (c.y - a.y) - (b.y - a.y) * (c.x - a.x))
+    const same = (a: Point, b: Point) => Math.abs(a.x - b.x) < 1e-6 && Math.abs(a.y - b.y) < 1e-6
+    for (let i = 0; i < p.length - 1; i++) {
+      for (let j = 0; j < q.length - 1; j++) {
+        const [a, b, c, d] = [p[i]!, p[i + 1]!, q[j]!, q[j + 1]!]
+        if (same(a, c) || same(a, d) || same(b, c) || same(b, d)) continue
+        if (o(c, d, a) !== o(c, d, b) && o(a, b, c) !== o(a, b, d)) return true
+      }
+    }
+    return false
+  }
+  const offsetHubCases: Record<string, { source: string; hub: string }> = {
+    'issue #62 repro (N2 above N3)': { source: ISSUE_62_REPRO, hub: 'N3' },
+    'shared hub, duplicate above hub': { source: 'flowchart LR\n  A[a] --> C[c]\n  A --> C\n  B[b] --> C', hub: 'C' },
+  }
+  for (const [name, { source, hub }] of Object.entries(offsetHubCases)) {
+    it(`nests offset duplicate lanes without crossing mid-path — ${name}`, () => {
+      const positioned = layoutGraphSync(parseMermaid(source))
+      const incoming = positioned.edges.filter(e => e.target === hub)
+      for (let i = 0; i < incoming.length; i++) {
+        for (let j = i + 1; j < incoming.length; j++) {
+          expect({ pair: `${incoming[i]!.source}#${incoming[i]!.edgeIndex}×${incoming[j]!.source}#${incoming[j]!.edgeIndex}`, cross: properSegmentsCross(incoming[i]!.points, incoming[j]!.points) })
+            .toEqual({ pair: `${incoming[i]!.source}#${incoming[i]!.edgeIndex}×${incoming[j]!.source}#${incoming[j]!.edgeIndex}`, cross: false })
+        }
+      }
+    })
+  }
 })
 
 describe('straightened certificate finality (fast-check counterexample, pinned)', () => {
