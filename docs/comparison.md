@@ -42,7 +42,7 @@ changelogs for the current state.
 | Deterministic output | Not a goal (browser/layout variance) | Mostly stable, not a tested guarantee | ✅ byte-identical across runs/processes, CI-gated |
 | Round-trip guarantee (parse → serialize keeps your source) | — | — | ✅ verbatim for unmodeled syntax, canonical for structured bodies |
 | CLI | `mermaid-cli` (`mmdc`, Puppeteer-based) | — | `am` (render/verify/mutate/batch/preview/…, single-binary build) |
-| MCP / agent surface | Official hosted MCP (validation, PNG, Mermaid Chart integration) | — | Code Mode `execute()` MCP (stdio + HTTP/SSE), `llms.txt`, agent skill |
+| MCP / agent surface | Official hosted MCP (validation, PNG, Mermaid Chart integration) | — | Self-hostable Code Mode `execute()` MCP (stdio + HTTP); local-first, with an optional authless hosted MCP (bounded tools) and `.mcpb` install planned ([website spec](./design/agentic-mermaid-website.md)); `llms.txt`, agent skill |
 | Interactivity (click handlers, animations) | ✅ | Partial (tooltips) | Inherited where upstream has it; not a focus |
 | Ecosystem & docs | Vast — the de-facto standard, GitHub/GitLab/Notion render it natively | Growing, popular for terminal/AI use | Small; this repo |
 
