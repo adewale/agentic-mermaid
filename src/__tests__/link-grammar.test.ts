@@ -258,6 +258,76 @@ describe('link length is honored inside a subgraph (container grows to fit)', ()
   })
 })
 
+// The last bucket of #32: links that CROSS a subgraph boundary — `cross-hierarchy`
+// (node in one scope to a node in another) and `container` (an endpoint IS a
+// subgraph). These set rank distance just like a plain forward link. A subgraph
+// is laid out as a unit, so a boundary-crossing link moves the whole enclosing
+// box rigidly rather than shearing one inner node out of it.
+describe('link length is honored across subgraph boundaries', () => {
+  const mainGap = (v: { layout: { nodes: any[]; groups: any[] } }, dir: string, aId: string, bId: string): number => {
+    const find = (id: string) => v.layout.nodes.find(n => n.id === id) ?? v.layout.groups.find(g => g.id === id)
+    const a = find(aId)!, b = find(bId)!
+    switch (dir) {
+      case 'LR': return b.x - (a.x + a.w)
+      case 'RL': return a.x - (b.x + b.w)
+      case 'TD': return b.y - (a.y + a.h)
+      default: return a.y - (b.y + b.h)
+    }
+  }
+
+  it('a cross-hierarchy link between two subgraphs pushes its target every direction', () => {
+    const tpl = (dir: string, op: string) =>
+      `flowchart ${dir}\n  subgraph S1\n    A[One]\n  end\n  subgraph S2\n    B[Two]\n  end\n  A ${op} B`
+    for (const dir of ['LR', 'RL', 'TD', 'BT'] as const) {
+      const base = verifyMermaid(tpl(dir, '-->'))
+      const long = verifyMermaid(tpl(dir, '---->'))
+      expect(long.ok).toBe(true)
+      expect(long.warnings.filter(w => w.code.startsWith('ROUTE_'))).toEqual([])
+      expect(long.warnings.filter(w => w.code === 'OFF_CANVAS')).toEqual([])
+      expect(mainGap(long, dir, 'A', 'B')).toBeGreaterThan(mainGap(base, dir, 'A', 'B') + 40)
+    }
+    // route class is unchanged — still a cross-hierarchy link, just spaced further.
+    const { layoutGraphSync } = require('../layout-engine.ts') as typeof import('../layout-engine.ts')
+    const pos = layoutGraphSync(parseMermaid(tpl('LR', '---->')))
+    expect(pos.edges[0]!.routeCertificate?.routeClass).toBe('cross-hierarchy')
+  })
+
+  it('a container link (subgraph → node) pushes its target every direction', () => {
+    const tpl = (dir: string, op: string) =>
+      `flowchart ${dir}\n  subgraph S1\n    A[One]\n  end\n  S1 ${op} T[End]`
+    for (const dir of ['LR', 'RL', 'TD', 'BT'] as const) {
+      const base = verifyMermaid(tpl(dir, '-->'))
+      const long = verifyMermaid(tpl(dir, '---->'))
+      expect(long.ok).toBe(true)
+      expect(long.warnings.filter(w => w.code.startsWith('ROUTE_'))).toEqual([])
+      expect(mainGap(long, dir, 'S1', 'T')).toBeGreaterThan(mainGap(base, dir, 'S1', 'T') + 40)
+    }
+    const { layoutGraphSync } = require('../layout-engine.ts') as typeof import('../layout-engine.ts')
+    const pos = layoutGraphSync(parseMermaid(tpl('LR', '---->')))
+    expect(pos.edges[0]!.routeCertificate?.routeClass).toBe('container')
+  })
+
+  it('a link crossing into a direction-override subgraph moves the whole box, not one node', () => {
+    // mermaid#2509 shape: TB stacking inside an LR flow. The lengthened external
+    // link must keep top/bottom stacked in the same column (the box moved as one).
+    const layout = (op: string) => verifyMermaid(
+      `flowchart LR\n  subgraph S2\n    direction TB\n    top[top] ${op} bottom[bottom]\n  end\n  outside ----> top`,
+    )
+    const long = layout('-->')
+    expect(long.ok).toBe(true)
+    const top = long.layout.nodes.find(n => n.id === 'top')!
+    const bottom = long.layout.nodes.find(n => n.id === 'bottom')!
+    const outside = long.layout.nodes.find(n => n.id === 'outside')!
+    // Internal TB stacking survived the shove: bottom below top, same column.
+    expect(bottom.y).toBeGreaterThan(top.y + top.h / 2)
+    expect(Math.abs(bottom.x - top.x)).toBeLessThan(top.w)
+    // And the external long link actually pushed the box well clear of `outside`.
+    const base = verifyMermaid('flowchart LR\n  subgraph S2\n    direction TB\n    top[top] --> bottom[bottom]\n  end\n  outside --> top')
+    const gap = (v: typeof long) => v.layout.nodes.find(n => n.id === 'top')!.x - (outside.x + outside.w)
+    expect(top.x - (outside.x + outside.w)).toBeGreaterThan(gap(base) + 40)
+  })
+})
+
 describe('variable-length links interact correctly with the straightener', () => {
   it('a long dotted arrow still straightens and keeps its dotted style', () => {
     const pos = parseMermaid('flowchart LR\n  A[One] -..-> B[Two]')
