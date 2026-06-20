@@ -82,6 +82,17 @@ ${peerIds(count).map(id => `  ${id}[Peer] --> Hub[Hub]`).join('\n')}
   Hub --> Tail[Tail]`
 }
 
+const MIXED_DIRECTIONS = ['TD', 'BT', 'LR', 'RL'] as const
+
+// A non-terminal hub that receives from `n` incoming peers and fans out to `m`
+// outgoing peers — the mixed fan-in/fan-out class from issue #61.
+function mixedHub(n: number, m: number, dir: string): string {
+  const lines = [`flowchart ${dir}`]
+  for (let i = 0; i < n; i++) lines.push(`  I${i}[In ${i}] --> H[Hub]`)
+  for (let j = 0; j < m; j++) lines.push(`  H --> O${j}[Out ${j}]`)
+  return lines.join('\n')
+}
+
 function layout(source: string): PositionedGraph {
   return layoutGraphSync(parseMermaid(source))
 }
@@ -102,6 +113,21 @@ function cx(n: PositionedNode): number { return n.x + n.width / 2 }
 function cy(n: PositionedNode): number { return n.y + n.height / 2 }
 function barycenter(nodes: PositionedNode[]): number {
   return nodes.reduce((sum, n) => sum + cx(n), 0) / nodes.length
+}
+// Cross-axis center: x for vertical layouts (TD/BT), y for horizontal (LR/RL).
+function crossOf(n: PositionedNode, dir: string): number {
+  return dir === 'LR' || dir === 'RL' ? cy(n) : cx(n)
+}
+function crossBarycenter(nodes: PositionedNode[], dir: string): number {
+  return nodes.reduce((sum, n) => sum + crossOf(n, dir), 0) / nodes.length
+}
+// Worst cross-axis offset of the hub from either peer barycenter — the
+// peerBarycenterDelta from issue #61, measured on a single mixed hub.
+function mixedHubDelta(g: PositionedGraph, n: number, m: number, dir: string): number {
+  const hub = crossOf(node(g, 'H'), dir)
+  const ins = Array.from({ length: n }, (_, i) => node(g, `I${i}`))
+  const outs = Array.from({ length: m }, (_, j) => node(g, `O${j}`))
+  return Math.max(Math.abs(hub - crossBarycenter(ins, dir)), Math.abs(hub - crossBarycenter(outs, dir)))
 }
 function close(a: number, b: number, tolerance = 0.75): void { expect(Math.abs(a - b)).toBeLessThanOrEqual(tolerance) }
 function pkey(p: Point): string { return `${p.x.toFixed(1)},${p.y.toFixed(1)}` }
@@ -212,5 +238,40 @@ describe('layout symmetry floor', () => {
     expect(right.labelPosition!.x).toBeGreaterThan(maxX)
     close(left.labelPosition!.y, right.labelPosition!.y)
     expect(new Set([left, right].map(e => pkey(e.points[0]!))).size).toBe(2)
+  })
+})
+
+// Issue #61: a non-terminal hub that both receives from a peer group and fans
+// out to another peer group must be centered with BOTH sides in view, not by
+// whichever centering pass writes last.
+describe('mixed fan-in/fan-out hub centering', () => {
+  for (const dir of MIXED_DIRECTIONS) {
+    // Small fan-outs (2–3 terminal peers) are re-spread around the hub by a
+    // downstream pass, so that side follows the hub. The hub must honor the
+    // anchored incoming barycenter and still end centered on both sides.
+    for (let n = 2; n <= 6; n++) for (let m = 2; m <= 3; m++) {
+      test(`${dir} ${n}-in/${m}-out hub centers on both peer barycenters`, () => {
+        expect(mixedHubDelta(layout(mixedHub(n, m, dir)), n, m, dir)).toBeLessThanOrEqual(0.75)
+      })
+    }
+    // Large fan-outs (4–6) are anchored on both sides. When the incoming and
+    // outgoing barycenters disagree, no single hub position clears both; the
+    // hub sits at their midpoint — the minimax-optimal one-node placement.
+    // Ratchet the worst residual offset to the documented midpoint floor,
+    // halving the pre-fix worst case of ~8px.
+    for (let n = 2; n <= 6; n++) for (let m = 4; m <= 6; m++) {
+      test(`${dir} ${n}-in/${m}-out hub stays within the midpoint floor`, () => {
+        expect(mixedHubDelta(layout(mixedHub(n, m, dir)), n, m, dir)).toBeLessThanOrEqual(4.05)
+      })
+    }
+  }
+
+  test('mixed hub placement is deterministic across repeated layouts', () => {
+    for (const dir of MIXED_DIRECTIONS) {
+      const a = layout(mixedHub(4, 6, dir))
+      const b = layout(mixedHub(4, 6, dir))
+      expect(node(a, 'H').x).toBe(node(b, 'H').x)
+      expect(node(a, 'H').y).toBe(node(b, 'H').y)
+    }
   })
 })

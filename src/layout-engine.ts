@@ -1483,25 +1483,64 @@ function centerPeerBarycenters(
     }
 
     let moved = false
-    const moveHub = (hub: PositionedNode | undefined, peers: PositionedNode[]): void => {
+    const peerBarycenter = (peers: PositionedNode[]): number =>
+      peers.reduce((sum, peer) => sum + nodeCrossCenter(peer, graph.direction), 0) / peers.length
+
+    // A small fan-out (2–3 terminal peers) is re-spread symmetrically around the
+    // hub by applySymmetricFanoutEmissions LATER in the pipeline, so that side
+    // follows wherever the hub lands — its barycenter is "free" and must not
+    // pull the hub here, or we fight a downstream pass and leave the anchored
+    // side off. Mirror that pass's eligibility (size + terminal targets).
+    const respreadFollowsHub = (hubId: string, peers: PositionedNode[]): boolean =>
+      peers.length >= 2 && peers.length <= 3 &&
+      peers.every(peer => edges.every(edge => edge.source !== peer.id && (edge.target !== peer.id || edge.source === hubId)))
+
+    // A hub may be a pure fan-out (eligible outgoing peer group only), a pure
+    // fan-in (incoming only), or a MIXED fan-in/fan-out hub with both. Centering
+    // optimizes over every ANCHORED peer-barycenter constraint at once rather
+    // than letting whichever pass writes last win:
+    //   - one anchored constraint  -> sit exactly on it
+    //   - two that disagree        -> sit at their midpoint, the minimax-optimal
+    //     one-node placement (halves the worst offset, deterministic regardless
+    //     of peer counts or direction)
+    // A free (downstream-re-spread) side is dropped from the optimization; if it
+    // is the only side, we still center on it so pure small fan-outs keep their
+    // existing placement.
+    const moveHub = (
+      hub: PositionedNode | undefined,
+      outPeers: PositionedNode[] | undefined,
+      inPeers: PositionedNode[] | undefined,
+    ): void => {
       if (!hub || hub.shape !== 'rectangle' || nodeInsideGroups(hub, groups)) return
-      const barycenter = peers.reduce((sum, peer) => sum + nodeCrossCenter(peer, graph.direction), 0) / peers.length
-      const delta = barycenter - nodeCrossCenter(hub, graph.direction)
+      const anchored: number[] = []
+      // Incoming source peers have no symmetric re-spread pass: always anchored.
+      if (inPeers) anchored.push(peerBarycenter(inPeers))
+      if (outPeers && !respreadFollowsHub(hub.id, outPeers)) anchored.push(peerBarycenter(outPeers))
+      // No anchored side (only a free fan-out): fall back to centering on it.
+      if (anchored.length === 0 && outPeers) anchored.push(peerBarycenter(outPeers))
+      if (anchored.length === 0) return
+      const target = anchored.length === 1
+        ? anchored[0]!
+        : (Math.min(...anchored) + Math.max(...anchored)) / 2
+      const delta = target - nodeCrossCenter(hub, graph.direction)
       if (Math.abs(delta) <= 0.5) return
       const movedIds = new Set([hub.id])
       if (!crossShiftSafe(movedIds, nodes, edges, graph.direction, delta, style)) return
-      layoutDebug('[peer-barycenter] center', hub.id, 'by', delta.toFixed(1))
+      layoutDebug('[peer-barycenter] center', hub.id, 'by', delta.toFixed(1), anchored.length === 2 ? '(mixed)' : '')
       shiftNodeSetCross(movedIds, nodes, edges, graph.direction, delta)
       moved = true
     }
 
-    for (const [sourceId, outgoing] of bySource) {
-      const peers = candidatePeers(outgoing, 'target')
-      if (peers) moveHub(nodeMap.get(sourceId), peers)
-    }
-    for (const [targetId, incoming] of byTarget) {
-      const peers = candidatePeers(incoming, 'source')
-      if (peers) moveHub(nodeMap.get(targetId), peers)
+    // Process every hub once with all of its eligible constraints together, in
+    // a deterministic id order, so a mixed hub is centered with both sides in
+    // view rather than by whichever pass writes last.
+    const hubIds = [...new Set([...bySource.keys(), ...byTarget.keys()])].sort()
+    for (const hubId of hubIds) {
+      const outgoing = bySource.get(hubId)
+      const incoming = byTarget.get(hubId)
+      const outPeers = outgoing ? candidatePeers(outgoing, 'target') : undefined
+      const inPeers = incoming ? candidatePeers(incoming, 'source') : undefined
+      moveHub(nodeMap.get(hubId), outPeers, inPeers)
     }
     if (!moved) break
   }

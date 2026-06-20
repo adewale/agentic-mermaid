@@ -713,3 +713,39 @@ The practice change: before merging a broad closure PR, run a fresh-context
 review explicitly asking "what claims would become false if a consumer trusted
 our debug metadata, generated site copy, or issue labels?" Then either fix the
 claim or carve out a named follow-up.
+
+## PR #64 lesson — "below perceptibility" is a reason to annotate, not to skip visual evidence
+
+The issue #61 mixed-hub fix recenters a hub by a few pixels (worst
+`peerBarycenterDelta` 8.0px → ~4.0px; the representative case 6.13px → 3.07px).
+I rendered a raw before/after, saw the shift was invisible at full scale, and
+cited good-pr's "don't pad a PR with near-identical screenshots" to justify
+shipping *no* visual at all — only a numeric table. That inverted the rule. The
+guidance forbids padding with screenshots that show nothing; it does not bless
+omitting evidence for a genuinely visual change. For a small-magnitude geometry
+change the correct move is to **make the change legible**: overlay the reference
+geometry the metric is computed from — here, the incoming/outgoing barycenter
+and hub-center guide lines, parsed from the rendered node rects rather than hand
+placed — and/or zoom. "Too small to see raw" is an argument for an annotated or
+zoomed artifact, not for its absence. A layout library whose own reviewer
+checklist asks "is the hub centered over the peer group?"
+(`docs/contributing/visual-review-evidence.md`) treats the picture as part of
+the contract, complementary to the table and the tests, not replaceable by them.
+
+Second, the artifact pattern already existed; I should have read it before
+inventing a justification for skipping it. Git history and the contributing doc
+already prescribe per-issue evidence scripts (`scripts/pr-assets/issue-NN-evidence.ts`)
+that render BEFORE via a worktree at a base SHA and AFTER from the tree, writing
+a committed composite to `docs/pr-assets/`, reproducible from source. The right
+first step for any "should this PR have screenshots?" question is to grep the
+history for how the repo did it last time, not to reason from first principles.
+
+Third, a red→green check can be honest about magnitude *and* about which tests
+discriminate the bug. This fix was probe-driven, with the ratchet tests written
+after it worked; reverting only the implementation proved 18 tests genuinely
+fail without the fix. But the same revert showed the small-fan-out `≤0.75px`
+tests pass on the original code too — they are regression guards, not
+bug-discriminating tests. A green suite where only a subset is load-bearing
+should say so in the PR; claiming "N tests prove the fix" without separating the
+discriminating tests from the guards overstates the evidence. Naming the
+difference is the trust dimension, not a footnote.
