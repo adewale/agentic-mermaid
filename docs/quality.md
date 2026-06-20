@@ -24,7 +24,7 @@ A diagram is considered **good looking** when it satisfies, in order:
    | `edgeCrossings` | pairs of edge segments that visually intersect | ≤ 5% of edge pairs |
    | `labelLegibility` | fraction of node labels whose rendered length fits the node width | ≥ 85% |
    | `whitespaceBalance` | node area ÷ canvas area | 5%–55% (too sparse AND too dense lose) |
-   | `labelEdgeProximity` | min pixel distance between any edge-label and a non-attached node | ≥ 4 px |
+   | `labelEdgeProximity` | min pixel distance between any edge-label box and a non-attached node, another edge-label box, or another edge path | ≥ 4 px |
    | `aspectRatio` | canvas w/h | 0.2–5.0 |
 
    These are computed by `measureQuality(layout)` and gated by

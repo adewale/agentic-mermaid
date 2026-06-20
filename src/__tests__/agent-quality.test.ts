@@ -8,6 +8,7 @@ import { join } from 'node:path'
 import { parseMermaid } from '../agent/parse.ts'
 import { layoutMermaid } from '../agent/index.ts'
 import { measureQuality, checkQuality } from '../agent/quality.ts'
+import { toFinite, type RenderedLayout } from '../agent/types.ts'
 
 const CORPUS_PATH = join(import.meta.dir, '..', '..', 'eval', 'mermaid-docs-corpus', 'corpus.json')
 interface CorpusEntry { family: string; source: string; origin: string; index: number }
@@ -42,6 +43,8 @@ function generatedLayeredFlowchart({ nodeCount, layers, rows }: typeof GENERATED
   }
   return lines.join('\n')
 }
+
+function f(n: number) { return toFinite(n) }
 
 describe('quality metrics — deterministic', () => {
   test('measureQuality returns finite numbers for any flowchart', () => {
@@ -79,6 +82,7 @@ describe('quality metrics — deterministic', () => {
     expect(m.edgeCrossings).toBe(0)
   })
 
+  // upstream: mermaid-js/mermaid#1984 — massive whitespace above/below large graphs (detection)
   test('whitespace balance is in 0..1', () => {
     const p = parseMermaid('flowchart LR\n  A --> B --> C\n  A --> C')
     expect(p.ok).toBe(true)
@@ -95,10 +99,66 @@ describe('quality metrics — deterministic', () => {
     const m = measureQuality(layoutMermaid(p.value))
     expect(m.labelLegibility).toBe(1)
   })
+
+  test('labelEdgeProximity includes label-to-label box overlap', () => {
+    const layout: RenderedLayout = {
+      version: 1,
+      kind: 'flowchart',
+      nodes: [],
+      groups: [],
+      edges: [
+        { id: 'A->B', from: 'A', to: 'B', path: [[f(0), f(0)], [f(100), f(0)]], label: { x: f(80), y: f(50), text: 'first' } },
+        { id: 'C->D', from: 'C', to: 'D', path: [[f(0), f(100)], [f(100), f(100)]], label: { x: f(80), y: f(50), text: 'second' } },
+      ],
+      bounds: { w: f(160), h: f(120) },
+    }
+    const m = measureQuality(layout)
+    expect(m.labelEdgeProximity).toBe(0)
+    const v = checkQuality(layout, { whitespaceBand: [0, 1] })
+    expect(v.ok).toBe(false)
+    expect(v.violations).toContain('edge-label clearance 0px < min 4px')
+  })
+
+  test('labelEdgeProximity includes label-to-unrelated-edge path overlap', () => {
+    const layout: RenderedLayout = {
+      version: 1,
+      kind: 'flowchart',
+      nodes: [],
+      groups: [],
+      edges: [
+        { id: 'A->B', from: 'A', to: 'B', path: [[f(0), f(50)], [f(100), f(50)]], label: { x: f(50), y: f(50), text: 'on route' } },
+        { id: 'C->D', from: 'C', to: 'D', path: [[f(50), f(0)], [f(50), f(100)]] },
+      ],
+      bounds: { w: f(120), h: f(120) },
+    }
+    const m = measureQuality(layout)
+    expect(m.labelEdgeProximity).toBe(0)
+    const v = checkQuality(layout, { whitespaceBand: [0, 1] })
+    expect(v.ok).toBe(false)
+    expect(v.violations).toContain('edge-label clearance 0px < min 4px')
+  })
+
+  test("labelEdgeProximity ignores the label's own edge path", () => {
+    const layout: RenderedLayout = {
+      version: 1,
+      kind: 'flowchart',
+      nodes: [],
+      groups: [],
+      edges: [
+        { id: 'A->B', from: 'A', to: 'B', path: [[f(0), f(50)], [f(100), f(50)]], label: { x: f(50), y: f(50), text: 'own route' } },
+      ],
+      bounds: { w: f(120), h: f(120) },
+    }
+    const m = measureQuality(layout)
+    expect(m.labelEdgeProximity).toBe(Infinity)
+    const v = checkQuality(layout, { whitespaceBand: [0, 1] })
+    expect(v.ok).toBe(true)
+  })
 })
 
 describe('quality metrics — generated large flowchart corpora', () => {
   for (const entry of GENERATED_FLOWCHART_CORPUS) {
+    // upstream: mermaid-js/mermaid#1984 / #3262 — scale-collapse whitespace + over-wide aspect
     test(`${entry.nodeCount} nodes keeps aspect and whitespace measurable`, () => {
       const p = parseMermaid(generatedLayeredFlowchart(entry))
       expect(p.ok).toBe(true)

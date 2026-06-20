@@ -198,7 +198,8 @@ edge they describe.
 - Fixture/test: this engine passes edge labels into layout as first-class
   inline ELK labels (`elk.edgeLabels.inline: 'true'`,
   `src/layout-engine.ts`), so they reserve space instead of being overlaid;
-  `labelEdgeProximity` (≥4px to any non-attached node) gates regressions.
+  `labelEdgeProximity` (≥4px to any non-attached node, other edge-label
+  box, or other edge path) gates regressions.
   ASCII branch labels are pinned to sibling branch segments, not shared
   trunks: `src/__tests__/ascii-fanout-trunk-labeled.test.ts`,
   `ascii-pathfinder-trunk.test.ts`, plus exact goldens under
