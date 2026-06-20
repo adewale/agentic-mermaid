@@ -1,10 +1,10 @@
 # Agentic Mermaid website specification
 
-Status: draft. Owner decision needed for the production domain. This replaces the earlier idea of a hosted Cloudflare Code Mode app with a website that helps humans and agents use Agentic Mermaid locally and safely.
+Status: draft. Owner decision needed for the production domain. This replaces the earlier idea of a hosted Cloudflare Code Mode app with a website that helps humans and agents use Agentic Mermaid locally and safely, plus an **optional hosted MCP server** for users who cannot self-host — with local self-hosting kept as the recommended default.
 
 ## Brief
 
-Build a canonical Agentic Mermaid website on a dedicated domain, subsuming the current GitHub Pages gallery/editor while adding first-class agent onboarding. The site does **not** expose a hosted Code Mode endpoint, hosted MCP server, remote renderer API, or arbitrary code execution service.
+Build a canonical Agentic Mermaid website on a dedicated domain, subsuming the current GitHub Pages gallery/editor while adding first-class agent onboarding. The site offers an **optional** hosted MCP server (bounded `render`/`verify`/`describe`/edit tools), but the documentation **recommends self-hosting the MCP locally** as the default. It does **not** expose a hosted Code Mode `execute(code)` endpoint, an arbitrary code-execution service, a separate REST renderer API, or accounts/persistence.
 
 Assumptions:
 
@@ -20,7 +20,7 @@ The website is not “Mermaid live plus AI.” It is a **trustworthy operating m
 
 Humans need confidence: “Will this render my diagram, can I export it, and how do I install it?” Agents need a sharper contract: “What can I call, what must I not call, what JSON shape tells me capabilities, and how do I verify before returning a result?”
 
-The site should feel like a document/tool hybrid: calm docs, runnable examples, exact manifests, and one excellent local editor. Avoid generic SaaS hero patterns, hosted-agent claims, and any wording that implies the site will run untrusted agent code.
+The site should feel like a document/tool hybrid: calm docs, runnable examples, exact manifests, and one excellent local editor. Avoid generic SaaS hero patterns and any wording that implies the site will run untrusted agent code. The optional hosted MCP is presented as a convenience, not the default path: local self-hosting is what the docs recommend.
 
 ## AX framework
 
@@ -28,9 +28,9 @@ Mathias Biilmann frames Agent Experience around four questions: access, context,
 
 | AX area | Site decision |
 |---|---|
-| Access | Agents can access static docs, raw Markdown, JSON manifests, schemas, examples, and skill files without JavaScript, login, cookies, or browser automation. They do not access a hosted rendering or Code Mode backend. |
+| Access | Agents can access static docs, raw Markdown, JSON manifests, schemas, examples, and skill files without JavaScript, login, cookies, or browser automation. The static surface needs no backend; an optional hosted MCP exists for render/verify/edit calls, but agents are pointed at local tools first and never at a Code Mode backend. |
 | Context | The site provides `llms.txt`, `agent-instructions.md`, `agent-manifest.json`, `capabilities.json`, recipes, warning/error pages, and raw skill files. Docs should support raw Markdown retrieval or content negotiation for agent fetches. |
-| Tools | The tools remain local: package import, `am` CLI, and `agentic-mermaid-mcp`. The website teaches setup and returns machine-readable contracts; it does not become the tool runtime. |
+| Tools | Local tools are the recommended default: package import, `am` CLI, and a self-hosted `agentic-mermaid-mcp`. An optional hosted MCP server is available for users who cannot self-host. The website teaches setup and returns machine-readable contracts; it never becomes a runtime for arbitrary code. |
 | Orchestration | Out of scope for v1. The site does not trigger agent runs, queue work, host sandboxes, or run user code. Future orchestration must be a separate owner decision with a security model. |
 
 This is the main product correction: AX does not mean adding a chatbot to the website. It means making any user’s chosen agent successful with local tools and exact context.
@@ -46,7 +46,7 @@ I used [`pbakaus/impeccable`](https://github.com/pbakaus/impeccable) as the comp
 5. **Treat machine-readable files as product UI.** Impeccable ships `llms.txt`, docs, generated counts, and harness-specific install material. Agentic Mermaid should version and validate every agent artifact: manifests, schemas, capabilities, recipes, and examples.
 6. **Index failure modes.** Impeccable’s detector lab and FAQ make errors browsable. Agentic Mermaid needs warning-code pages, parse-error examples, and “safe automatic fix?” guidance.
 7. **Support harness differences directly.** Impeccable documents Claude, Cursor, Gemini, Codex, GitHub Copilot, Pi, OpenCode, and others. Agentic Mermaid should provide local setup cards for the same agent environments instead of assuming one MCP client.
-8. **Avoid the fake-product surface.** Impeccable is clear about what runs locally and what the site demonstrates. Agentic Mermaid must be louder: no hosted Code Mode, no hosted MCP, no server-side render API.
+8. **Avoid the fake-product surface.** Impeccable is clear about what runs locally and what the site demonstrates. Agentic Mermaid must be louder: no hosted Code Mode, no arbitrary server-side code execution, no separate render API. The optional hosted MCP is the one server-side surface, and the docs frame it as a convenience over the recommended local setup.
 
 ## Additional design-engineering references
 
@@ -72,15 +72,14 @@ These references improve the site by tightening motion, polish, copy, and skill 
 
 ## Non-goals
 
-- No hosted Code Mode `execute(code)` endpoint.
-- No hosted MCP/SSE endpoint for arbitrary clients.
-- No remote diagram-rendering API in v1.
+- No hosted Code Mode `execute(code)` endpoint or arbitrary code-execution service. The optional hosted MCP (see “Distribution to agent platforms”) exposes bounded `render`/`verify`/`describe`/structured-edit tools only.
+- No separate REST diagram-rendering API; rendering is available through local tools or the optional hosted MCP, which is stateless and self-host-recommended.
 - No accounts, cloud projects, saved diagrams, teams, billing, or private workspaces.
 - No AI diagram generation chatbot.
 - No package-publish automation from the site.
 - No `beautiful-mermaid` compatibility wrapper or alternate package identity.
 
-The site may run the renderer in the visitor’s browser for the editor/gallery. That is local client-side rendering, not a hosted execution surface. Packaging the existing local `agentic-mermaid-mcp` as a `.mcpb` extension is consistent with these non-goals; a hosted remote connector is not, and is recorded as a future owner-decision under “Distribution to agent platforms (Claude Connectors and MCP Apps)”.
+The site may run the renderer in the visitor’s browser for the editor/gallery (local client-side rendering). Two additions are in scope and described under “Distribution to agent platforms (Claude Connectors and MCP Apps)”: a local `agentic-mermaid-mcp` packaged as a `.mcpb` extension, and an **optional hosted MCP server** exposing bounded render/verify/edit tools. Self-hosting the MCP locally remains the recommended default, and the hosted endpoint never runs arbitrary `execute(code)`.
 
 ## Public surface policy
 
@@ -115,15 +114,16 @@ Public pages must be generated from product truth where possible: package metada
 | Library API: `agentic-mermaid` | Yes | `/docs/api`, install recipes. |
 | Agent API: `agentic-mermaid/agent` | Yes | `/agents`, `/docs/api`, recipes, `agent-manifest.json`. |
 | CLI verbs: `render`, `verify`, `parse`, `serialize`, `mutate`, `preview`, `format`, `describe`, `capabilities`, `batch`, `render-markdown`, `llms-txt`, `init-agent` | Yes | `/docs/cli`, `/recipes/*`, warning/error pages. |
-| Local MCP Code Mode | Yes, local setup only | `/docs/mcp`, `/agents`; stdio first, HTTP/SSE opt-in. |
-| MCP HTTP/SSE transport | Yes, docs only | Local/loopback docs with non-loopback auth warning. |
-| Managed MCP artifacts | Yes, docs only | Artifact recipe and MCP HTTP docs. |
+| Local MCP (recommended default) | Yes | `/docs/mcp`, `/agents`; stdio first, self-hosted HTTP opt-in. Code Mode `execute` is available here for trusted local use. |
+| Optional hosted MCP server | Yes, bounded tools | Convenience Streamable HTTP endpoint exposing `render`/`verify`/`describe`/structured-edit only — no `execute`. Docs recommend self-hosting first. See “Distribution to agent platforms”. |
+| MCP transport (Streamable HTTP) | Yes | Same transport for local and hosted; non-loopback auth warning for self-hosted HTTP. |
+| Managed MCP artifacts | Yes | Artifact recipe; applies to local and hosted MCP (size/TTL caps). |
 | `agentic-mermaid-diagram-workflow` skill | Yes | Public skill landing, raw `SKILL.md`, required references. |
 | `agentic-mermaid-live-editor` skill | No public product exposure | Keep out of product navigation, public skill catalog, and `am init-agent`. If retained, move to contributor docs or a development-only skill location excluded from package onboarding. |
 | Upstream Mermaid syntax references in skills | Curated/guarded | Omit from product nav or stamp as non-rendering syntax references. |
 | Eval manifests and quality evidence | Summarize | `/docs/quality` or `/evidence`; no private prompts/transcripts. |
 | Mutation configs, Stryker details, backlog, project notes | No primary exposure | Repository only or contributor docs. |
-| Hosted Code Mode/MCP/render API | No | Explicit non-goal and manifest negative capability. |
+| Hosted Code Mode / arbitrary code execution / separate REST render API | No | The hosted MCP excludes `execute(code)`; no bespoke render API. Manifest negative capability. |
 | `asciiToMermaid` reverse converter | Advanced docs only | API docs with lossy/best-effort warning. |
 | TUI click-map metadata | Advanced docs only | API docs; not editor headline feature. |
 
@@ -186,7 +186,7 @@ Success criteria:
 ### H4 — Configure an agent
 
 1. Visit `/agents`.
-2. Choose the environment: CLI-only, JS/TS library, local MCP Code Mode.
+2. Choose the environment: CLI-only, JS/TS library, local MCP (recommended), or the optional hosted MCP.
 3. Copy one setup block:
    - install package;
    - run `am init-agent`;
@@ -196,7 +196,7 @@ Success criteria:
 
 Success criteria:
 
-- The page teaches local execution, not a hosted endpoint.
+- The page leads with local execution and presents the hosted MCP as an explicitly optional fallback.
 - It gives agents enough context to avoid regeneration, unverified serialization, and unsupported mutation.
 - Every snippet is tested or generated from tested docs.
 
@@ -267,22 +267,23 @@ Agents do not need a prettier homepage. They need stable retrieval, exact comman
 Success criteria:
 
 - All files are static, cacheable, CORS-readable, and useful without JavaScript.
-- The manifest says “no hosted Code Mode endpoint” explicitly.
+- The manifest states the hosted-execution posture explicitly: hosted MCP available (bounded tools), no hosted Code Mode `execute`, local self-hosting recommended.
 - JSON schemas are linked from the manifest.
 
-### A2 — Pick the right local channel
+### A2 — Pick the right channel (local first)
 
 1. Read channel matrix from `/agents` or `/agent-manifest.json`:
    - JS/TS available → import `agentic-mermaid/agent`.
    - shell only → use `am` CLI.
-   - MCP client configured → launch local `agentic-mermaid-mcp`.
+   - MCP client configured → launch a local `agentic-mermaid-mcp` (recommended).
+   - cannot self-host → connect the optional hosted MCP (bounded tools, no `execute`).
 2. Copy the narrowest recipe.
 3. Run local smoke test.
 
 Success criteria:
 
-- The site does not tell an agent to call the website as a renderer/API.
-- The setup path is explicit about stdio default for MCP and HTTP/SSE opt-in.
+- The site recommends local tools first and offers the hosted MCP only as an explicit fallback; it never exposes a bespoke REST render API.
+- The setup path is explicit about stdio default for local MCP, self-hosted HTTP opt-in, and the optional hosted endpoint.
 - The agent can detect if npm is unavailable and report that as a blocker.
 
 ### A3 — Edit an existing diagram safely
@@ -338,7 +339,7 @@ Success criteria:
 
 - The agent can proceed without guessing config paths.
 - Unsupported harness features are explicit.
-- No route points at the website as an execution backend.
+- No route points at the website as an arbitrary-code execution backend; the optional hosted MCP is the only server-side tool surface and is bounded.
 
 ### A7 — Decide when to stop and ask for human review
 
@@ -378,7 +379,7 @@ AX here means **agent experience**: how easy it is for a non-human caller to ret
 |---|---|---|
 | `/llms.txt` | text | Compact discovery digest. Generated by `am llms-txt`. |
 | `/agent-instructions.md` | Markdown | Canonical short guide. Generated by `am --agent-instructions`. |
-| `/agent-manifest.json` | JSON | Site/package manifest: package identity, machine routes, public skills, stop rules, and negative hosted-execution capabilities. |
+| `/agent-manifest.json` | JSON | Site/package manifest: package identity, machine routes, public skills, stop rules, and hosted-execution posture (optional hosted MCP with bounded tools; no hosted Code Mode). |
 | `/capabilities.json` | JSON | Output of `am capabilities --json`, including families, edit policies, outputs, warning codes, mutation ops. |
 | `/schemas/capabilities.schema.json` | JSON Schema | Schema for `/capabilities.json`. |
 | `/schemas/agent-manifest.schema.json` | JSON Schema | Schema for `/agent-manifest.json`. |
@@ -399,10 +400,10 @@ AX here means **agent experience**: how easy it is for a non-human caller to ret
 
 - `package`: name, version, imports, bins, npm status, checked timestamp;
 - `repo`, canonical site, and legacy Pages base;
-- `hostedExecution`: `{ codeMode:false, mcp:false, renderApi:false }`;
+- `hostedExecution`: `{ codeMode:false, renderApi:false, mcp:{ available:true, url, transport:"streamable-http", recommended:"self-host", execute:false, tools:["render","verify","describe","mutate"] } }` — the hosted MCP is optional and the recommended path is self-hosting;
 - `machineRoutes`: llms, instructions, capabilities, schemas, examples, harnesses, recipes, skills;
 - `skills`: public skill ids and raw entrypoint URLs;
-- `stopRules`: verify before serialize/render/return, source-level-only behavior, no fabricated `ValidDiagram`, no website execution backend;
+- `stopRules`: verify before serialize/render/return, source-level-only behavior, no fabricated `ValidDiagram`, prefer local tools and treat the hosted MCP as an optional fallback, no arbitrary-code execution backend;
 - `generatedFrom`: package version, git SHA, build time.
 
 `/skills/index.json` and each per-skill manifest must include:
@@ -501,7 +502,7 @@ Must ship:
 - Warning/error reference with examples and safe-fix guidance.
 - Shared vocabulary page for agent and human terminology.
 - Skill-bundle landing page modeled after a skill marketplace listing, with install command, supported harnesses, raw files, and safety notes.
-- Security/privacy page: no hosted code execution, no server-side diagram storage, local browser rendering, strict-mode guidance.
+- Security/privacy page: optional hosted MCP scope (bounded tools, no `execute`, stateless), no server-side diagram storage, local browser rendering and self-hosting recommended, strict-mode guidance.
 - Release/version page: current package version, git SHA, changelog link, npm status.
 
 Should ship after the migration works:
@@ -518,7 +519,7 @@ Should not ship unless a future product decision changes the scope:
 
 - Login or persistence.
 - Cloud rendering API.
-- Hosted Code Mode or hosted MCP.
+- Hosted Code Mode `execute(code)` or any arbitrary server-side code execution. (A bounded, optional hosted MCP **is** in scope — see “Distribution to agent platforms”.)
 - AI prompt-to-diagram generation.
 - Team/workspace features.
 - Payment/pricing pages.
@@ -529,7 +530,7 @@ Recommended routes:
 
 | Route | Audience | Content |
 |---|---|---|
-| `/` | humans + agents | Product overview, try/install/agent setup, current version, no-hosted-endpoint notice. |
+| `/` | humans + agents | Product overview, try/install/agent setup, current version, and the local-first / optional-hosted-MCP posture. |
 | `/editor` | humans | Current GitHub Pages live editor, redesigned as canonical app with SVG preview plus ASCII/Unicode text output. |
 | `/gallery` | humans | Current sample showcase with filters, deep links, and SVG/ASCII/Unicode output tabs where supported. |
 | `/families` | humans + agents | Supported family matrix, outputs, edit policy, examples. |
@@ -539,7 +540,7 @@ Recommended routes:
 | `/docs` | humans + agents | Documentation index. |
 | `/docs/api` | developers + agents | Library/API docs. |
 | `/docs/cli` | developers + agents | CLI recipes. |
-| `/docs/mcp` | developers + agents | Local MCP setup, stdio default, HTTP/SSE opt-in security. |
+| `/docs/mcp` | developers + agents | MCP setup: self-hosting (recommended) with stdio default and HTTP opt-in, plus the optional hosted MCP endpoint and its bounded scope. |
 | `/docs/ascii` | humans + agents | ASCII/Unicode output, color modes, terminal use, limitations. |
 | `/docs/theming` | humans + developers | Built-in themes, CSS variables, Shiki import, role styling. |
 | `/docs/config` | developers + agents | Mermaid frontmatter, init directives, supported runtime config. |
@@ -553,7 +554,7 @@ Recommended routes:
 | `/errors/<code>` | agents + humans | Bad input, corrected input, local verification command, and escalation threshold. |
 | `/examples` | agents | Example index as docs; JSON version at `/examples/index.json`. |
 | `/evidence` | evaluators | Curated quality/eval evidence, CI status, and hidden-prompt policy without raw private transcripts. |
-| `/security` | humans + agents | Security model, no hosted execution, CSP, SVG external refs, share-link privacy. |
+| `/security` | humans + agents | Security model: optional hosted MCP scope (no `execute`, stateless), CSP, SVG external refs, share-link privacy. |
 | `/releases` | humans + agents | Version, changelog, npm availability, git SHA. |
 | `/llms.txt` | agents | Discovery digest. |
 | `/agent-instructions.md` | agents | Canonical guide. |
@@ -594,8 +595,8 @@ Known upgrades during migration:
 Recommended deployment shape:
 
 - Cloudflare Workers with Workers Static Assets serving the built site. Static-asset requests are served from Cloudflare’s edge for free and unmetered, with no Worker code on the hot path and no asset-storage cost.
-- The Worker code path stays limited to redirects, headers, cache policy, and asset routing.
-- No Worker route that evaluates user code or renders diagrams server-side.
+- For the static site, the Worker code path stays limited to redirects, headers, cache policy, and asset routing.
+- An optional bounded MCP route (e.g. `/mcp`) on the same Worker may render/verify/edit diagrams server-side. It must not evaluate arbitrary user code — the `execute` Code Mode sandbox stays local-only — and it stays stateless with input caps, render timeouts, and rate limits.
 - Canonical domain configured by environment variable, e.g. `SITE_ORIGIN=https://agenticmermaid.dev`.
 - Base path configurable so the same generator can still build the GitHub Pages mirror under `/beautiful-mermaid/` during transition.
 
@@ -616,12 +617,12 @@ Headers:
 5. **Impeccable-style journey layer.** Add the start rail, intent/channel chooser, harness cards, workflow demo, warning-code pages, and FAQ before expanding visual polish.
 6. **Editor/gallery migration.** Move existing Pages editor/gallery into the new route structure without losing current E2E coverage.
 7. **AX pass.** Add raw Markdown links for curated public docs only, copyable agent cards, accessible diagram descriptions, warning/error-code references, public-skill bundle generation, schema validation tests, and a guard that product navigation does not expose hidden repo-only docs or development skills.
-8. **Cloudflare deployment.** Add the Workers Static Assets config (a `wrangler` project with an `assets` binding) and preview-URL docs. Keep GitHub Pages until the new domain is verified.
+8. **Cloudflare deployment.** Add the Workers Static Assets config (a `wrangler` project with an `assets` binding) and preview-URL docs. Optionally add the bounded hosted-MCP route (`/mcp`) on the same Worker — behind input caps, timeouts, and rate limits, with `execute` disabled. Keep GitHub Pages until the new domain is verified.
 9. **Cutover.** Update README/docs links to canonical domain. Keep old `/beautiful-mermaid/` links working where feasible.
 
 ## Acceptance criteria
 
-- The site has no hosted Code Mode, MCP, or render API endpoint.
+- The site exposes no hosted Code Mode `execute(code)`, arbitrary-code execution, or bespoke REST render API. Any hosted MCP is bounded (render/verify/describe/edit), stateless, and documented as optional with self-hosting recommended.
 - `/editor` and `/gallery` cover all current GitHub Pages functionality and add first-class ASCII/Unicode text output.
 - `/llms.txt`, `/agent-instructions.md`, `/capabilities.json`, `/agent-manifest.json`, `/harnesses.json`, `/skills/index.json`, `/recipes/index.json`, and schemas are generated, validated, and linked.
 - A JS-disabled crawler can retrieve agent docs, package names, capabilities, setup commands, skill files, and harness setup guidance.
@@ -639,35 +640,38 @@ Headers:
 
 In February 2026 Excalidraw shipped an official Claude Connector, co-developed with Anthropic and built on the MCP Apps extension, that streams an interactive Excalidraw canvas into the chat. Anthropic is actively seeding its Connectors directory with interactive visual tools, and a deterministic diagram renderer is a natural candidate. This section fixes a deliberate stance so the distribution question is not reopened ad hoc or allowed to quietly cross the local-first non-goals.
 
-Two distribution paths exist, and they fall on opposite sides of this spec’s hosted-execution line.
+Two distribution paths exist; both are in scope, and the documentation ranks them **local-first** — the hosted option is a convenience, not the default.
 
-### Path A — Local extension bundle (`.mcpb`/DXT). In scope.
+### Path A — Local extension bundle (`.mcpb`/DXT). Recommended default.
 
-Package the existing `agentic-mermaid-mcp` stdio server as a one-double-click `.mcpb` bundle for Claude Desktop and equivalent local-extension installers. This is not a new runtime: it is the same local MCP this spec already endorses under “Tools remain local,” wrapped for zero-friction install. It runs entirely on the user’s machine, renders locally, and contacts no Agentic Mermaid server, so it satisfies every non-goal — no hosted Code Mode, no hosted MCP endpoint, no remote render API.
+Package the existing `agentic-mermaid-mcp` stdio server as a one-double-click `.mcpb` bundle for Claude Desktop and equivalent local-extension installers. This is not a new runtime: it is the same local MCP the spec recommends as the default channel, wrapped for zero-friction install. It runs entirely on the user’s machine, renders locally, contacts no Agentic Mermaid server, and may keep the full toolset — including Code Mode `execute` — because the trust boundary is the user’s own machine.
 
 This is also the concrete answer to the open decision about a downloadable agent bundle: the `.mcpb` is that bundle, in the format the Connectors UI consumes. Hosting cost is zero — it is a static release artifact (GitHub Releases or a `/downloads` path served as a Workers static asset), and the site’s job is to document and link it, exactly as it does for the CLI and library.
 
-### Path B — Hosted remote connector / MCP App. Future owner-decision, out of scope for v1.
+### Path B — Optional hosted MCP server (and MCP App). In scope; self-hosting recommended.
 
-A remote connector is a hosted MCP server reachable over Streamable HTTP that the directory lists for “search → Connect,” with no user install; matching the Excalidraw experience would also register an MCP Apps UI resource so the diagram renders as an interactive widget. This conflicts directly with the Non-goals (“No hosted MCP/SSE endpoint for arbitrary clients,” “No remote diagram-rendering API in v1”) and is recorded here as a future direction requiring an explicit owner decision and a security model — deferred in the same way as orchestration, not folded into v1.
+Run a hosted MCP server, reachable over Streamable HTTP, that the Connectors directory can list for “search → Connect” with no user install. Matching the Excalidraw and draw.io experience, the same server can register an MCP Apps UI resource (`ui://…`, `text/html+mcp`, sandboxed iframe) so a diagram renders as an interactive widget in the chat. Because the renderer is zero-DOM, that widget renders client-side in the visitor’s browser; the server’s work is the bounded tool calls plus serving the static UI asset.
 
-One nuance to preserve for that future decision: because the renderer is zero-DOM and already runs client-side, an MCP Apps widget could do all rendering in the visitor’s browser, which is consistent with the spec’s “local client-side rendering, not a hosted execution surface” carve-out. The part that still crosses the line is the hosted MCP transport endpoint the connector dials — that is a hosted MCP server by definition, and it is the specific thing the non-goal forbids.
+The decision is to offer this, with two firm boundaries:
 
-If Path B is ever approved, the cost is dominated by stance and stewardship, not infrastructure:
+- **Bounded tools only.** The hosted endpoint exposes `render`, `verify`, `describe`, and structured-edit/`mutate`. It does **not** expose the `execute` Code Mode `node:vm` sandbox — arbitrary code execution stays local-only — and it is stateless (no accounts, no saved diagrams).
+- **Local-first documentation.** Every MCP page leads with self-hosting (stdio/library/CLI or the `.mcpb`) and presents the hosted endpoint as a convenience for users who cannot self-host. The hosted URL is advertised in `/agent-manifest.json` with `recommended:"self-host"`.
+
+Cost, on the Cloudflare Workers + Static Assets deployment this spec already assumes:
 
 | Cost area | Assessment |
 |---|---|
-| Compute / hosting | Near-zero and co-located. The site already runs on Cloudflare Workers with Workers Static Assets, so the MCP Apps UI ships as a static asset — served free and unmetered. The Worker is already deployed; exposing Path B means adding a dynamic `fetch` route (for example `/mcp`) to it — trivial infra, but exactly what the deployment section forbids (“No Worker route that evaluates user code or renders diagrams server-side”), so enabling it is a spec change, not a config change. Only those dynamic invocations are billed as Worker requests (the $5/mo tier covers 10M; static-asset loads stay free); rendering is synchronous and browserless (`mermaid-ast` + `elkjs` + `resvg`, with the `resvg` WASM build on Workers), and Cloudflare’s zero egress keeps image payloads cheap. Realistic infra: roughly free at demo scale, low tens of dollars per million renders at popularity. |
-| Security hardening | The real engineering cost. A public endpoint must not expose the `execute` Code Mode `node:vm` tool; restrict it to bounded `render`/`describe`/structured-edit tools with input-size caps, render timeouts, and rate limits. The current server’s artifact size limits and sandbox timeouts are a starting point. |
+| Compute / hosting | Low and co-located. The MCP Apps UI ships as a Workers static asset — served free and unmetered. The hosted MCP is a dynamic `fetch` route (e.g. `/mcp`) on the same Worker; only those invocations are billed (the $5/mo tier covers 10M), static-asset loads stay free, and Cloudflare’s zero egress keeps image payloads cheap. Rendering is synchronous and browserless (`mermaid-ast` + `elkjs` + `resvg`, with the `resvg` WASM build on Workers). Realistic infra: roughly free at demo scale, low tens of dollars per million renders at popularity. |
+| Security hardening | The main engineering cost, and the reason `execute` is excluded. Bound the public surface to `render`/`verify`/`describe`/`mutate` with input-size caps, render timeouts, and rate limits. The current server’s artifact size limits and sandbox timeouts are a starting point. |
 | Directory compliance | Streamable HTTP transport (today’s server is custom HTTP/SSE on protocol `2024-11-05` and would need updating), authless or OAuth 2.1, a stable privacy-policy URL, `title` + `readOnlyHint` on every tool (the exposed render/describe/edit tools are read-only — a clean review), an icon, a test account, and 3–5 MCP App screenshots. |
 | Ongoing stewardship | Anthropic requires maintaining security and functionality and responding promptly to security issues — an open-ended commitment, and the largest true cost. |
 
-Because Anthropic is seeding the directory and co-built the Excalidraw connector, the right entry for Path B — if approved — is direct outreach to `mcp-review@anthropic.com`, not only the cold submission portal.
+Because Anthropic is seeding the directory and co-built the Excalidraw connector — and because the closest peer, the official draw.io MCP App, renders **XML only inline** and bounces **Mermaid** to an external editor — a deterministic **Mermaid-inline** MCP App is an open, differentiated lane. The right entry is direct outreach to `mcp-review@anthropic.com`, not only the cold submission portal.
 
 ### Recommendation
 
-- Ship Path A (`.mcpb` bundle) with or shortly after the website launch: low-effort, zero-hosting, strengthens the local-tools story, and reaches Claude Desktop and the Connectors UI as a local extension without touching any non-goal.
-- Hold Path B as an explicit future owner-decision. Do not build a hosted connector under this spec; revisit only with a deliberate change to the hosted-execution non-goal and a security model.
+- Ship Path A (`.mcpb` bundle) first: zero-hosting, no review gate, and it makes self-hosting the obvious default.
+- Stand up Path B (the bounded hosted MCP, optionally with the Mermaid-inline MCP App) as the convenience tier — keeping `execute` local-only and every doc page local-first.
 
 ## Open decisions
 
@@ -678,6 +682,6 @@ Because Anthropic is seeding the directory and co-built the Excalidraw connector
 - Which harness cards ship in v1, and which stay generic.
 - Whether `agentic-mermaid-live-editor` should remain a skill at all, move to contributor docs, or move to a development-only skill directory excluded from public package/site artifacts.
 - Whether the website offers a downloadable agent bundle/ZIP in addition to `am init-agent`.
-- Whether to package `agentic-mermaid-mcp` as a local `.mcpb`/DXT Claude Desktop bundle and list it in the Connectors directory as a local extension (see “Distribution to agent platforms”).
-- Whether to ever expose a hosted remote connector / MCP App, which would require revisiting the hosted-execution non-goal and adding a security model.
+- Hosted MCP specifics (now that it is in scope): authless vs OAuth, the rate-limit/quota policy, and whether the Mermaid-inline MCP App UI ships in the first hosted release or follows it.
+- `.mcpb`/DXT packaging specifics: which tools to bundle for local install (Code Mode included locally), signing, and release channel.
 - Whether examples include pre-rendered SVG/ASCII artifacts for no-JavaScript preview.
