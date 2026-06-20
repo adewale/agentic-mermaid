@@ -52,6 +52,9 @@ jobs:
         run: |
           echo "::notice title=Adequacy signal::Line coverage above is a finder, not a target. The mutation score is the adequacy signal — but the nightly lane currently times out (PR #63 has the sharding fix); regenerate locally per docs/mutation-testing.md."
 
+      - name: Run sketch prototype style checks
+        run: bun run sketch:check
+
       - name: Type check
         run: bun x tsc --noEmit
 

@@ -25,8 +25,10 @@ export interface RoughOpts {
   stroke: string
   strokeWidth: number
   linecap?: string
+  dash?: string
   strokeOpacity?: number
   strokeFilter?: string
+  extraAttrs?: string
   passes?: number        // 1 ⇒ single stroke (disableMultiStroke)
   // fill (optional)
   fill?: string
@@ -57,13 +59,15 @@ function toOptions(o: RoughOpts) {
 function render(sets: { type: string; ops: any[] }[], o: RoughOpts, opts: { outline?: boolean; fill?: boolean } = { outline: true, fill: true }): string {
   const filter = o.strokeFilter ? ` filter="url(#${o.strokeFilter})"` : ''
   const sop = o.strokeOpacity != null ? ` stroke-opacity="${o.strokeOpacity}"` : ''
+  const dash = o.dash ? ` stroke-dasharray="${o.dash}"` : ''
+  const extra = o.extraAttrs ?? ''
   const cap = o.linecap ?? 'round'
   const out: string[] = []
   for (const set of sets) {
     const d = gen.opsToPath(set as any, 2)
     if (!d) continue
     if (set.type === 'path' && opts.outline) {
-      out.push(`<path d="${d}" fill="none" stroke="${o.stroke}" stroke-width="${o.strokeWidth}" stroke-linecap="${cap}"${sop}${filter}/>`)
+      out.push(`<path d="${d}" fill="none" stroke="${o.stroke}" stroke-width="${o.strokeWidth}" stroke-linecap="${cap}"${dash}${sop}${filter}${extra}/>`)
     } else if (set.type === 'fillPath' && opts.fill) {
       out.push(`<path d="${d}" fill="${o.fill}" fill-opacity="${o.fillOpacity ?? 1}" stroke="none"/>`)
     } else if (set.type === 'fillSketch' && opts.fill) {

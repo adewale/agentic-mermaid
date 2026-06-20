@@ -47,6 +47,7 @@ function buildSheet(st: Style): string {
         bg: st.colors.bg, fg: st.colors.fg, line: st.colors.line, accent: st.colors.accent,
         muted: st.colors.muted, surface: st.colors.surface, border: st.colors.border,
         font: st.font, embedFontImport: false, transparent: true,
+        style: { node: { cornerRadius: st.nodeCornerRadius } },
       })
       const styled = restyle(raw, st, { backdrop: false })
       img = raster(styled, 760) // transparent background

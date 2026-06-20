@@ -14,6 +14,7 @@
 //   - observational line tweaks (length-damped bow)   [rough.js / pencil-line]
 // ============================================================================
 
+import { getStroke } from 'perfect-freehand'
 import { makeRng, type Point } from './rough.ts'
 
 const r3 = (n: number) => Math.round(n * 1000) / 1000
@@ -134,6 +135,62 @@ export function brushStroke(a: Point, b: Point, rng: () => number, o: { width?: 
 // brush a whole polygon: each edge is its own stroke (calligraphic, gaps at corners)
 export function brushPolygon(poly: Point[], rng: () => number, o: { width?: number; wobble?: number } = {}): string[] {
   return poly.map((a, i) => brushStroke(a, poly[(i + 1) % poly.length]!, rng, o))
+}
+
+function strokePathFromOutline(outline: number[][]): string {
+  if (outline.length < 2) return ''
+  const d = [`M${r3(outline[0]![0]!)},${r3(outline[0]![1]!)}`]
+  for (let i = 1; i < outline.length; i++) {
+    const [x0, y0] = outline[i]!
+    const [x1, y1] = outline[(i + 1) % outline.length]!
+    d.push(`Q${r3(x0!)},${r3(y0!)} ${r3((x0! + x1!) / 2)},${r3((y0! + y1!) / 2)}`)
+  }
+  d.push('Z')
+  return d.join(' ')
+}
+
+function sampledCenterline(pts: Point[], rng: () => number, closed: boolean, wobble: number): [number, number, number][] {
+  const src = closed ? [...pts, pts[0]!] : pts
+  const out: [number, number, number][] = []
+  for (let i = 0; i < src.length - 1; i++) {
+    const a = src[i]!, b = src[i + 1]!
+    const len = Math.hypot(b.x - a.x, b.y - a.y) || 1
+    const steps = Math.max(1, Math.ceil(len / 14))
+    const nx = -(b.y - a.y) / len, ny = (b.x - a.x) / len
+    for (let j = 0; j < steps; j++) {
+      if (i > 0 && j === 0) continue
+      const t = j / steps
+      const atEnd = !closed && ((i === 0 && j === 0) || (i === src.length - 2 && j === steps))
+      const jitter = atEnd ? 0 : (rng() - 0.5) * 2 * wobble
+      const p = {
+        x: lerp(a.x, b.x, t) + nx * jitter,
+        y: lerp(a.y, b.y, t) + ny * jitter,
+      }
+      const phase = (i + t) / Math.max(1, src.length - 1)
+      const pressure = clamp01(0.52 + Math.sin(phase * Math.PI * 2) * 0.12 + (rng() - 0.5) * 0.16)
+      out.push([p.x, p.y, pressure])
+    }
+  }
+  const last = src[src.length - 1]!
+  out.push([last.x, last.y, closed ? out[0]?.[2] ?? 0.55 : 0.46])
+  return out
+}
+
+export function freehandStroke(pts: Point[], rng: () => number, o: { width?: number; wobble?: number; closed?: boolean } = {}): string {
+  if (pts.length < 2) return ''
+  const closed = o.closed ?? false
+  const input = sampledCenterline(pts, rng, closed, o.wobble ?? 1)
+  const outline = getStroke(input, {
+    size: o.width ?? 8,
+    thinning: 0.58,
+    smoothing: 0.62,
+    streamline: 0.35,
+    simulatePressure: false,
+    start: { cap: true, taper: closed ? 0 : 10 },
+    end: { cap: true, taper: closed ? 0 : 14 },
+    last: true,
+  }) as number[][]
+  return strokePathFromOutline(outline)
 }
 
 // --- fills ------------------------------------------------------------------

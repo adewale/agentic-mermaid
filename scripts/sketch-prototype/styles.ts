@@ -6,7 +6,7 @@
 // Each style is grounded in research notes (see commit history / SPEC refs).
 // ============================================================================
 
-export type StrokeKind = 'crisp' | 'jittered' | 'brush' | 'pencil'
+export type StrokeKind = 'crisp' | 'jittered' | 'brush' | 'pencil' | 'freehand'
 export type FillKind = 'none' | 'hachure' | 'crosshatch' | 'stipple' | 'halftone' | 'wash' | 'scribble' | 'solid'
 export type BackdropKind = 'paper-ruled' | 'plain' | 'rice' | 'washi' | 'grid' | 'slate' | 'blueprint' | 'parchment'
 
@@ -60,6 +60,41 @@ export interface Style {
 }
 
 export const STYLES: Style[] = [
+  {
+    // Anthropic public palette: ivory grounds, slate text, clay/accent ink,
+    // with secondary soft swatches used as quiet fills.
+    name: 'crab', label: 'Crab',
+    blurb: 'Anthropic-inspired ivory, slate, and clay with restrained editorial fills.',
+    colors: { bg: '#faf9f5', fg: '#141413', line: '#141413', accent: '#c6613f', muted: '#5e5d59', surface: '#f0eee6', border: '#3d3d3a' },
+    font: 'Fraunces', fontFile: 'Fraunces.ttf',
+    stroke: 'crisp', roughness: 0, passes: 1, strokeWidth: 1.5, linecap: 'round',
+    fill: 'solid', fillColor: '#d97757', baseTone: 1, toneFromLuminance: false, keepHue: false, hachureAngle: -41,
+    spotPalette: ['#e8e6dc', '#e3dacc', '#bcd1ca', '#cbcadb', '#ebcece', '#d97757'],
+    backdrop: 'plain', nodeCornerRadius: 8, labelHalo: '#faf9f5',
+  },
+  {
+    // CF Workers design system: warm cream surfaces, warm brown text,
+    // Cloudflare orange accent, subtle fills, dashed-border feeling.
+    name: 'salmon', label: 'Salmon',
+    blurb: 'Cloudflare Workers design-system tokens: cream, warm brown, orange, dashed-card energy.',
+    colors: { bg: '#F5F1EB', fg: '#521000', line: '#521000', accent: '#FF4801', muted: '#8B5B4A', surface: '#FFFBF5', border: '#EBD5C1' },
+    font: 'DejaVu Sans', fontFile: '../../assets/fonts/DejaVuSans.ttf',
+    stroke: 'crisp', roughness: 0, passes: 1, strokeWidth: 1.7, linecap: 'round',
+    fill: 'solid', fillColor: '#FF4801', baseTone: 1, toneFromLuminance: false, keepHue: false, hachureAngle: -41,
+    spotPalette: ['#FEF7ED', '#FFFBF5', '#FFE7D6', '#FFD4BD', '#FFB38A'],
+    backdrop: 'plain', nodeCornerRadius: 16, labelHalo: '#FFFBF5',
+  },
+  {
+    // Perfect Freehand: pressure-sensitive filled stroke outlines from
+    // perfect-freehand, with a clean paper ground and no node fills.
+    name: 'freehand', label: 'Freehand',
+    blurb: 'Pressure-sensitive perfect-freehand ribbons: tapered marker strokes on clean paper.',
+    colors: { bg: '#fffaf1', fg: '#20201d', line: '#20201d', accent: '#277da1', muted: '#6c6a61', surface: '#fffaf1', border: '#20201d' },
+    font: 'Architects Daughter', fontFile: 'ArchitectsDaughter.ttf',
+    stroke: 'freehand', roughness: 1.1, passes: 1, strokeWidth: 2.2, brushWidth: 8.5, linecap: 'round', strokeOpacity: 0.95,
+    fill: 'none', fillColor: '#20201d', baseTone: 0, toneFromLuminance: false, keepHue: false, hachureAngle: -41,
+    backdrop: 'plain', nodeCornerRadius: 10, mono: true,
+  },
   {
     // Matches the reference notebook photo: BLACK ink, clean confident single
     // strokes, EMPTY boxes (no shading), faint ruled paper. Monochrome.

@@ -11,6 +11,7 @@
 import { type Point } from './rough.ts'
 import {
   makeRng, brushStroke, brushPolygon,
+  freehandStroke,
   stipple, halftone, watercolorWash, hachureLines,
 } from './engine.ts'
 import { roughPolyOutline, roughPolyFill, roughOpen, roughPathD } from './rough-adapter.ts'
@@ -27,9 +28,11 @@ const MIN_FILL_AREA = 2700
 const MAX_FILL_AREA = 48000
 
 const num = (s: string | undefined, d = 0) => (s == null ? d : parseFloat(s))
-const attr = (t: string, n: string): string | undefined => t.match(new RegExp(`\\b${n}="([^"]*)"`))?.[1]
+const attrName = (n: string) => n.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+const attr = (t: string, n: string): string | undefined => t.match(new RegExp(`(?:^|\\s)${attrName(n)}="([^"]*)"`))?.[1]
 const seedAt = (...n: number[]) => (Math.round(n.reduce((a, b) => a * 31 + b, 7)) >>> 0) || 1
 const r3 = (n: number) => Math.round(n * 1000) / 1000
+const preservedOpenAttrs = ['marker-start', 'marker-mid', 'marker-end', 'stroke-dashoffset'] as const
 
 function lum(hex?: string): number | null {
   if (!hex || hex === 'none' || hex === 'transparent' || hex[0] !== '#') return null
@@ -41,8 +44,37 @@ function lum(hex?: string): number | null {
 function circlePoly(cx: number, cy: number, rx: number, ry: number, n = 24): Point[] {
   return Array.from({ length: n }, (_, i) => ({ x: cx + Math.cos((i / n) * 2 * Math.PI) * rx, y: cy + Math.sin((i / n) * 2 * Math.PI) * ry }))
 }
+function roundedRectPoly(x: number, y: number, w: number, h: number, rx: number, ry: number): Point[] {
+  const crx = Math.min(Math.max(0, rx), w / 2)
+  const cry = Math.min(Math.max(0, ry), h / 2)
+  if (crx <= 0 || cry <= 0) return [{ x, y }, { x: x + w, y }, { x: x + w, y: y + h }, { x, y: y + h }]
+
+  const pts: Point[] = []
+  const segments = 5
+  const addArc = (cx: number, cy: number, start: number, end: number, includeStart: boolean) => {
+    for (let i = includeStart ? 0 : 1; i <= segments; i++) {
+      const a = start + ((end - start) * i) / segments
+      pts.push({ x: cx + Math.cos(a) * crx, y: cy + Math.sin(a) * cry })
+    }
+  }
+  addArc(x + w - crx, y + cry, -Math.PI / 2, 0, true)
+  addArc(x + w - crx, y + h - cry, 0, Math.PI / 2, false)
+  addArc(x + crx, y + h - cry, Math.PI / 2, Math.PI, false)
+  addArc(x + crx, y + cry, Math.PI, Math.PI * 1.5, false)
+  return pts
+}
 function parsePts(s: string): Point[] {
   return s.trim().split(/\s+/).map(p => { const [x, y] = p.split(',').map(Number); return { x: x!, y: y! } }).filter(p => Number.isFinite(p.x) && Number.isFinite(p.y))
+}
+function preserveAttrs(t: string, names = preservedOpenAttrs): string {
+  return names.map(name => {
+    const value = attr(t, name)
+    return value ? ` ${name}="${value}"` : ''
+  }).join('')
+}
+function pathD(poly: Point[], closed: boolean): string {
+  const d = poly.map((p, i) => `${i ? 'L' : 'M'}${r3(p.x)},${r3(p.y)}`).join(' ')
+  return closed ? `${d} Z` : d
 }
 function toneFor(st: Style, fillSrc?: string): number {
   let t = st.baseTone
@@ -51,32 +83,48 @@ function toneFor(st: Style, fillSrc?: string): number {
 }
 
 // --- stroke strategies ------------------------------------------------------
-function strokeWrap(d: string, color: string, st: Style, fillRibbon = false): string {
+function strokeWrap(d: string, color: string, st: Style, fillRibbon = false, extraAttrs = '', dash?: string): string {
   const f = st.strokeFilter ? ` filter="url(#${st.strokeFilter})"` : ''
   const op = st.strokeOpacity != null ? ` stroke-opacity="${st.strokeOpacity}"` : ''
+  const dashAttr = dash ? ` stroke-dasharray="${dash}"` : ''
   const mis = st.misregister
-    ? `<path d="${d}" transform="translate(${st.misregister},${st.misregister})" ${fillRibbon ? `fill="${st.misColor}" fill-opacity="0.7" stroke="none"` : `fill="none" stroke="${st.misColor}" stroke-opacity="0.7" stroke-width="${st.strokeWidth}"`}/>`
+    ? `<path d="${d}" transform="translate(${st.misregister},${st.misregister})" ${fillRibbon ? `fill="${st.misColor}" fill-opacity="0.7" stroke="none"` : `fill="none" stroke="${st.misColor}" stroke-opacity="0.7" stroke-width="${st.strokeWidth}"${dashAttr}`}/>`
     : ''
   const main = fillRibbon
-    ? `<path d="${d}" fill="${color}" stroke="none"${op}${f}/>`
-    : `<path d="${d}" fill="none" stroke="${color}" stroke-width="${st.strokeWidth}" stroke-linecap="${st.linecap}"${op}${f}/>`
+    ? `<path d="${d}" fill="${color}" stroke="none"${op}${f}${extraAttrs}/>`
+    : `<path d="${d}" fill="none" stroke="${color}" stroke-width="${st.strokeWidth}" stroke-linecap="${st.linecap}"${dashAttr}${op}${f}${extraAttrs}/>`
   return mis + main
 }
 // Shared rough.js option bundle for a style.
-function roughOpts(st: Style, color: string, seed: number) {
+function roughOpts(st: Style, color: string, seed: number, extra: { dash?: string; extraAttrs?: string } = {}) {
   return {
     seed, roughness: st.roughness, bowing: 1, stroke: color, strokeWidth: st.strokeWidth,
     linecap: st.linecap, strokeOpacity: st.strokeOpacity, strokeFilter: st.strokeFilter, passes: st.passes,
+    ...extra,
   }
 }
 function strokeClosed(poly: Point[], color: string, st: Style, seed: number): string {
+  if (st.stroke === 'crisp') return strokeWrap(pathD(poly, true), color, st)
   // brush is native (tapered ribbons rough.js can't do); everything else → rough.js
   if (st.stroke === 'brush') return brushPolygon(poly, makeRng(seed), { width: st.brushWidth ?? st.strokeWidth * 2, wobble: st.roughness }).map(d => strokeWrap(d, color, st, true)).join('')
+  if (st.stroke === 'freehand') return strokeWrap(freehandStroke(poly, makeRng(seed), { width: st.brushWidth ?? st.strokeWidth * 3, wobble: st.roughness, closed: true }), color, st, true)
   return roughPolyOutline(poly, roughOpts(st, color, seed))
 }
-function strokeOpen(pts: Point[], color: string, st: Style, seed: number, dash?: string): string {
-  if (st.stroke === 'brush') return pts.slice(1).map((p, i) => strokeWrap(brushStroke(pts[i]!, p, makeRng(seed), { width: (st.brushWidth ?? st.strokeWidth * 2) * 0.7, wobble: st.roughness }), color, st, true)).join('')
-  return roughOpen(pts, roughOpts(st, color, seed))
+function openStroke(pts: Point[], color: string, st: Style, seed: number, t: string): string {
+  const extraAttrs = preserveAttrs(t)
+  const dash = attr(t, 'stroke-dasharray')
+  if (st.stroke === 'crisp') return strokeWrap(pathD(pts, false), color, st, false, extraAttrs, dash)
+  if (st.stroke === 'brush') return pts.slice(1).map((p, i) => {
+      const attrs = i === pts.length - 2 ? extraAttrs : ''
+      return strokeWrap(brushStroke(pts[i]!, p, makeRng(seed), { width: (st.brushWidth ?? st.strokeWidth * 2) * 0.7, wobble: st.roughness }), color, st, true, attrs, dash)
+    }).join('')
+  if (st.stroke === 'freehand') {
+    const d = freehandStroke(pts, makeRng(seed), { width: st.brushWidth ?? st.strokeWidth * 3, wobble: st.roughness })
+    const markerPath = extraAttrs ? `<path d="${pathD(pts, false)}" fill="none" stroke="${color}" stroke-width="0.1" stroke-opacity="0.01"${extraAttrs}/>` : ''
+    const dashOverlay = dash ? strokeWrap(pathD(pts, false), color, st, false, '', dash) : ''
+    return strokeWrap(d, color, st, true) + dashOverlay + markerPath
+  }
+  return roughOpen(pts, roughOpts(st, color, seed, { dash, extraAttrs }))
 }
 
 // --- fill strategies (tone-driven) -----------------------------------------
@@ -169,50 +217,53 @@ export function restyle(svg: string, st: Style, opts: { backdrop?: boolean } = {
   const head = svg.slice(0, splitAt)
   let body = svg.slice(splitAt).replace('</svg>', '')
 
-  if (st.stroke !== 'crisp') {
-    body = body
-      // FIRST: arbitrary <path> shapes (pie wedges, cylinders, curved series) —
-      // the gap the regex prototype left un-styled. rough.js handles any `d`.
-      // Runs before the shape→<path> rewrites below so it only sees originals.
-      .replace(/<path\b[^>]*\/>/g, t => {
-        const d = attr(t, 'd'); if (!d) return t
-        const stroke = attr(t, 'stroke'), fill = attr(t, 'fill')
-        const seed = seedAt(d.length, d.charCodeAt(1) || 0, d.charCodeAt(d.length - 1) || 0)
-        const hasFill = fill && fill !== 'none' && fill !== 'transparent'
-        const r = roughPathD(d, {
-          seed, roughness: Math.max(0.6, st.roughness), stroke: stroke && stroke !== 'none' ? stroke : st.colors.line,
-          strokeWidth: st.strokeWidth, linecap: st.linecap, passes: 1,
-          fill: hasFill ? fill : undefined, fillStyle: (st.fill === 'wash' || st.fill === 'solid') ? 'solid' : 'hachure',
-          fillWeight: 0.8, hachureGap: 5, fillOpacity: hasFill ? (st.fill === 'wash' ? 0.5 : 0.85) : undefined,
-        })
-        return r || t
+  body = body
+    // FIRST: arbitrary <path> shapes (pie wedges, cylinders, curved series) —
+    // the gap the regex prototype left un-styled. rough.js handles any `d`.
+    // Runs before the shape→<path> rewrites below so it only sees originals.
+    .replace(/<path\b[^>]*\/>/g, t => {
+      const d = attr(t, 'd'); if (!d) return t
+      const stroke = attr(t, 'stroke'), fill = attr(t, 'fill')
+      const seed = seedAt(d.length, d.charCodeAt(1) || 0, d.charCodeAt(d.length - 1) || 0)
+      const hasFill = fill && fill !== 'none' && fill !== 'transparent'
+      const sc = stroke && stroke !== 'none' ? stroke : st.colors.line
+      if (st.stroke === 'crisp') return t
+      const r = roughPathD(d, {
+        seed, roughness: Math.max(0.6, st.roughness), stroke: sc,
+        strokeWidth: st.strokeWidth, linecap: st.linecap, passes: 1,
+        fill: hasFill ? fill : undefined, fillStyle: (st.fill === 'wash' || st.fill === 'solid') ? 'solid' : 'hachure',
+        fillWeight: 0.8, hachureGap: 5, fillOpacity: hasFill ? (st.fill === 'wash' ? 0.5 : 0.85) : undefined,
+        dash: attr(t, 'stroke-dasharray'), extraAttrs: preserveAttrs(t),
       })
-      .replace(/<rect\b[^>]*\/>/g, t => {
-        const x = num(attr(t, 'x')), y = num(attr(t, 'y')), w = num(attr(t, 'width')), h = num(attr(t, 'height'))
-        if (!w || !h) return t
-        return closedShape([{ x, y }, { x: x + w, y }, { x: x + w, y: y + h }, { x, y: y + h }], attr(t, 'stroke'), attr(t, 'fill'), st, seedAt(x, y, w, h))
-      })
-      .replace(/<circle\b[^>]*\/>/g, t => {
-        const cx = num(attr(t, 'cx')), cy = num(attr(t, 'cy')), r = num(attr(t, 'r'))
-        return r ? closedShape(circlePoly(cx, cy, r, r), attr(t, 'stroke'), attr(t, 'fill'), st, seedAt(cx, cy, r)) : t
-      })
-      .replace(/<ellipse\b[^>]*\/>/g, t => {
-        const cx = num(attr(t, 'cx')), cy = num(attr(t, 'cy')), rx = num(attr(t, 'rx')), ry = num(attr(t, 'ry'))
-        return rx && ry ? closedShape(circlePoly(cx, cy, rx, ry), attr(t, 'stroke'), attr(t, 'fill'), st, seedAt(cx, cy, rx, ry)) : t
-      })
-      .replace(/<polygon\b[^>]*\/>/g, t => {
-        const pts = parsePts(attr(t, 'points') ?? '')
-        return pts.length >= 3 ? closedShape(pts, attr(t, 'stroke'), attr(t, 'fill'), st, seedAt(pts[0]!.x, pts[0]!.y, pts.length)) : t
-      })
-      .replace(/<polyline\b[^>]*\/>/g, t => {
-        const pts = parsePts(attr(t, 'points') ?? '')
-        return pts.length >= 2 ? strokeOpen(pts, attr(t, 'stroke') ?? st.colors.line, st, seedAt(pts[0]!.x, pts[0]!.y, pts.length), attr(t, 'stroke-dasharray')) : t
-      })
-      .replace(/<line\b[^>]*\/>/g, t => {
-        const a = { x: num(attr(t, 'x1')), y: num(attr(t, 'y1')) }, b = { x: num(attr(t, 'x2')), y: num(attr(t, 'y2')) }
-        return strokeOpen([a, b], attr(t, 'stroke') ?? st.colors.line, st, seedAt(a.x, a.y, b.x, b.y), attr(t, 'stroke-dasharray'))
-      })
-  }
+      return r || t
+    })
+    .replace(/<rect\b[^>]*\/>/g, t => {
+      const x = num(attr(t, 'x')), y = num(attr(t, 'y')), w = num(attr(t, 'width')), h = num(attr(t, 'height'))
+      if (!w || !h) return t
+      const rx = num(attr(t, 'rx'), num(attr(t, 'ry')))
+      const ry = num(attr(t, 'ry'), rx)
+      return closedShape(roundedRectPoly(x, y, w, h, rx, ry), attr(t, 'stroke'), attr(t, 'fill'), st, seedAt(x, y, w, h))
+    })
+    .replace(/<circle\b[^>]*\/>/g, t => {
+      const cx = num(attr(t, 'cx')), cy = num(attr(t, 'cy')), r = num(attr(t, 'r'))
+      return r ? closedShape(circlePoly(cx, cy, r, r), attr(t, 'stroke'), attr(t, 'fill'), st, seedAt(cx, cy, r)) : t
+    })
+    .replace(/<ellipse\b[^>]*\/>/g, t => {
+      const cx = num(attr(t, 'cx')), cy = num(attr(t, 'cy')), rx = num(attr(t, 'rx')), ry = num(attr(t, 'ry'))
+      return rx && ry ? closedShape(circlePoly(cx, cy, rx, ry), attr(t, 'stroke'), attr(t, 'fill'), st, seedAt(cx, cy, rx, ry)) : t
+    })
+    .replace(/<polygon\b[^>]*\/>/g, t => {
+      const pts = parsePts(attr(t, 'points') ?? '')
+      return pts.length >= 3 ? closedShape(pts, attr(t, 'stroke'), attr(t, 'fill'), st, seedAt(pts[0]!.x, pts[0]!.y, pts.length)) : t
+    })
+    .replace(/<polyline\b[^>]*\/>/g, t => {
+      const pts = parsePts(attr(t, 'points') ?? '')
+      return pts.length >= 2 ? openStroke(pts, attr(t, 'stroke') ?? st.colors.line, st, seedAt(pts[0]!.x, pts[0]!.y, pts.length), t) : t
+    })
+    .replace(/<line\b[^>]*\/>/g, t => {
+      const a = { x: num(attr(t, 'x1')), y: num(attr(t, 'y1')) }, b = { x: num(attr(t, 'x2')), y: num(attr(t, 'y2')) }
+      return openStroke([a, b], attr(t, 'stroke') ?? st.colors.line, st, seedAt(a.x, a.y, b.x, b.y), t)
+    })
 
   const vb = head.match(/viewBox="0 0 ([\d.]+) ([\d.]+)"/) || []
   const w = num(vb[1], 800), h = num(vb[2], 600)

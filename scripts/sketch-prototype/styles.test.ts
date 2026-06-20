@@ -8,6 +8,8 @@
 // ============================================================================
 
 import { test, expect } from 'bun:test'
+import { renderMermaidSVG } from '../../src/index.ts'
+import { restyle } from './restyle.ts'
 import { STYLES, type Style } from './styles.ts'
 import { relLuminance, contrastRatio, adjustToContrast, WCAG } from './contrast.ts'
 
@@ -74,3 +76,51 @@ for (const s of STYLES) {
     expect(relLuminance(s.colors.bg)).toBeGreaterThanOrEqual(0) // parses
   })
 }
+
+test('restyle preserves arrowheads and dashed edge semantics on roughened edges', () => {
+  const handDrawn = STYLES.find(s => s.name === 'hand-drawn')!
+  const raw = renderMermaidSVG(`flowchart TD
+    A-.->B
+    B-->C`, { transparent: true, embedFontImport: false })
+  const styled = restyle(raw, handDrawn, { backdrop: false })
+
+  expect(styled).toContain('marker-end="url(#arrowhead)"')
+  expect(styled).toContain('stroke-dasharray=')
+  expect(styled).not.toContain('marker-end="arrow"')
+})
+
+test('restyle preserves concrete marker URLs instead of semantic data-marker names', () => {
+  const handDrawn = STYLES.find(s => s.name === 'hand-drawn')!
+  const raw = renderMermaidSVG('flowchart TD\n  A o--x B', { transparent: true, embedFontImport: false })
+  const styled = restyle(raw, handDrawn, { backdrop: false })
+
+  expect(styled).toContain('marker-start="url(#circlehead-start)"')
+  expect(styled).toContain('marker-end="url(#crosshead)"')
+  expect(styled).not.toContain('marker-start="circle"')
+  expect(styled).not.toContain('marker-end="cross"')
+})
+
+test('crisp styles still apply solid fill palettes', () => {
+  const bauhaus = STYLES.find(s => s.name === 'bauhaus')!
+  const raw = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 140 100"><rect x="0" y="0" width="100" height="61" fill="#ffffff" stroke="#000000" /></svg>'
+  const styled = restyle(raw, bauhaus, { backdrop: false })
+
+  expect(styled).toContain('fill="#e53935"')
+  expect(styled).toContain('stroke-width="2.4"')
+  expect(styled).not.toContain('<rect x="0" y="0" width="100" height="61"')
+})
+
+test('restyle preserves rounded rectangle geometry', () => {
+  const transit = STYLES.find(s => s.name === 'transit')!
+  const raw = renderMermaidSVG('flowchart TD\n  A[Alpha]', {
+    transparent: true,
+    embedFontImport: false,
+    style: { node: { cornerRadius: 12 } },
+  })
+  const styled = restyle(raw, transit, { backdrop: false })
+  const d = styled.match(/<path d="([^"]+)"[^>]*stroke="#d4d4d4"/)?.[1]
+
+  expect(d).toBeTruthy()
+  expect(d!.match(/L/g)?.length ?? 0).toBeGreaterThan(8)
+  expect(styled).not.toContain('<rect')
+})
