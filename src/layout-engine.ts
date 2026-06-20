@@ -967,11 +967,12 @@ function elkToPositioned(
   centerPeerBarycenters(nodes, edges, groups, graph, style)
 
   // Mermaid variable-length links (`---->`, `====>`, `~~~~`) mean rank
-  // distance, not just source spelling. Apply the conservative DAG/no-group
-  // slice before bundling/clipping so downstream route contracts certify the
-  // final geometry. More complex grouped/cyclic cases deliberately keep ELK's
-  // placement until the full port allocator lands.
-  honorLinkRankDistance(nodes, edges, graph)
+  // distance, not just source spelling. Shove the target sub-DAG before
+  // bundling/clipping so downstream route contracts certify the final geometry.
+  // Covers flat DAGs, cycles/feedback, and links enclosed in a single
+  // subgraph (the container box grows to follow its members). Cross-hierarchy
+  // and container edges still keep ELK's placement.
+  honorLinkRankDistance(nodes, edges, groups, graph)
 
   // Bundle fan-out/fan-in edge paths into shared trunks when mergeEdges is enabled
   const bundled = mergeEdges
@@ -1639,57 +1640,218 @@ function routeClearOfNodes(points: Point[], nodes: PositionedNode[], exclude: Re
   return true
 }
 
-function honorLinkRankDistance(nodes: PositionedNode[], edges: PositionedEdge[], graph: MermaidGraph): void {
-  if (graph.subgraphs.length > 0) return
+function honorLinkRankDistance(nodes: PositionedNode[], edges: PositionedEdge[], groups: PositionedGroup[], graph: MermaidGraph): void {
   if (!graph.edges.some(e => (e.length ?? 1) > 1)) return
   const classes = classifyRoutes(graph)
-  if (classes.some(cls => cls !== 'primary-forward')) return
-
-  const nodeMap = new Map(nodes.map(n => [n.id, n]))
   const f = layoutFlow(graph.direction)
-  const outgoing = new Map<string, string[]>()
-  for (const edge of graph.edges) {
-    if (!outgoing.has(edge.source)) outgoing.set(edge.source, [])
-    outgoing.get(edge.source)!.push(edge.target)
+  const nodeMap = new Map(nodes.map(n => [n.id, n]))
+  const groupMap = new Map<string, PositionedGroup>()
+  const flattenGroups = (gs: PositionedGroup[]): void => { for (const g of gs) { groupMap.set(g.id, g); flattenGroups(g.children) } }
+  flattenGroups(groups)
+
+  // A subgraph endpoint (`container` edge) expands to every node it encloses, so
+  // shoving the unit moves the whole box. `cross-hierarchy` and `container` links
+  // set rank distance just like `primary-forward`; only feedback (back) edges and
+  // self-loops are excluded from the forward walk — a lengthened back edge is pure
+  // styling and a cycle must never drag the lengthened edge's own source forward.
+  const collectMembers = (sg: MermaidSubgraph, acc: string[]): void => {
+    for (const id of sg.nodeIds) acc.push(id)
+    for (const child of sg.children) collectMembers(child, acc)
+  }
+  const unitNodes = (id: string): string[] => {
+    if (nodeMap.has(id)) return [id]
+    const sg = findSubgraph(graph.subgraphs, id)
+    if (!sg) return []
+    const acc: string[] = []
+    collectMembers(sg, acc)
+    return acc
   }
 
-  const moveNodeAndDescendants = (start: string, delta: number): void => {
+  // Subgraph membership path (outermost → innermost) for every node id.
+  const scopeChainOf = new Map<string, string[]>()
+  const walkScopes = (sgs: MermaidSubgraph[], ancestors: string[]): void => {
+    for (const sg of sgs) {
+      const chain = [...ancestors, sg.id]
+      for (const id of sg.nodeIds) scopeChainOf.set(id, chain)
+      walkScopes(sg.children, chain)
+    }
+  }
+  walkScopes(graph.subgraphs, [])
+
+  // The rigid unit a lengthened link moves: an individual node when the link
+  // stays within the endpoints' shared scope, but the whole enclosing subgraph
+  // when the link crosses into it — a subgraph (especially one with its own
+  // direction override) is laid out as a unit, so shoving one inner node along
+  // the outer axis would shear its internal arrangement.
+  const movableUnit = (src: string, tgt: string): string[] => {
+    if (groupMap.has(tgt)) return unitNodes(tgt)
+    const tgtChain = scopeChainOf.get(tgt) ?? []
+    const srcScopes = new Set(scopeChainOf.get(src) ?? [])
+    if (groupMap.has(src)) srcScopes.add(src)
+    for (const sgId of tgtChain) if (!srcScopes.has(sgId)) return unitNodes(sgId)
+    return [tgt]
+  }
+  const setsRankDistance = (i: number): boolean => {
+    const cls = classes[i] ?? 'primary-forward'
+    return cls === 'primary-forward' || cls === 'cross-hierarchy' || cls === 'container'
+  }
+
+  // Main-axis entry/exit of an endpoint that may be a node OR a subgraph box.
+  const mainSpan = (id: string): { start: number; size: number } | null => {
+    const n = nodeMap.get(id)
+    if (n) return { start: n[f.main], size: nodeMainSize(n, graph.direction) }
+    const g = groupMap.get(id)
+    if (g) return { start: g[f.main], size: f.main === 'x' ? g.width : g.height }
+    return null
+  }
+  const endpointEntry = (id: string): number | null => { const s = mainSpan(id); return s ? (f.sign === 1 ? s.start : s.start + s.size) : null }
+  const endpointExit = (id: string): number | null => { const s = mainSpan(id); return s ? (f.sign === 1 ? s.start + s.size : s.start) : null }
+  const isForwardish = (src: string, tgt: string): boolean => {
+    const ex = endpointExit(src), en = endpointEntry(tgt)
+    return ex !== null && en !== null && (en - ex) * f.sign > 0
+  }
+
+  // Forward adjacency over node ids, with subgraph endpoints expanded to members.
+  const outgoing = new Map<string, string[]>()
+  for (let i = 0; i < graph.edges.length; i++) {
+    if (!setsRankDistance(i)) continue
+    const edge = graph.edges[i]!
+    if (!isForwardish(edge.source, edge.target)) continue
+    for (const u of unitNodes(edge.source)) for (const v of unitNodes(edge.target)) {
+      if (!outgoing.has(u)) outgoing.set(u, [])
+      outgoing.get(u)!.push(v)
+    }
+  }
+
+  const mainDelta = new Map<string, number>() // net main-axis shift applied per node
+  const moveSet = (starts: string[], delta: number): void => {
     if (Math.abs(delta) < 0.5) return
     const seen = new Set<string>()
-    const stack = [start]
+    const stack = [...starts]
     while (stack.length > 0) {
       const id = stack.pop()!
       if (seen.has(id)) continue
       seen.add(id)
       const n = nodeMap.get(id)
-      if (n) n[f.main] += delta
+      if (n) {
+        n[f.main] += delta
+        mainDelta.set(id, (mainDelta.get(id) ?? 0) + delta)
+      }
       for (const next of outgoing.get(id) ?? []) stack.push(next)
     }
   }
 
-  const nodeEntry = (n: PositionedNode): number => f.sign === 1 ? n[f.main] : n[f.main] + nodeMainSize(n, graph.direction)
-  const nodeExit = (n: PositionedNode): number => f.sign === 1 ? n[f.main] + nodeMainSize(n, graph.direction) : n[f.main]
+  // Capture each container's per-side insets (ELK's padding + label allowance)
+  // before any node moves, so we can rebuild the box around the shifted members
+  // afterwards without guessing the padding. Bottom-up so a parent box always
+  // sees its children's rebuilt boxes.
+  interface BoxBounds { x: number; y: number; r: number; b: number }
+  interface Inset { l: number; t: number; r: number; b: number }
+  const insetByGroup = new Map<string, Inset>()
+  const groupMemberBounds = (group: PositionedGroup): BoxBounds | null => {
+    let x = Infinity, y = Infinity, r = -Infinity, b = -Infinity
+    const sg = findSubgraph(graph.subgraphs, group.id)
+    for (const id of sg?.nodeIds ?? []) {
+      const n = nodeMap.get(id)
+      if (!n) continue
+      x = Math.min(x, n.x); y = Math.min(y, n.y)
+      r = Math.max(r, n.x + n.width); b = Math.max(b, n.y + n.height)
+    }
+    for (const child of group.children) {
+      x = Math.min(x, child.x); y = Math.min(y, child.y)
+      r = Math.max(r, child.x + child.width); b = Math.max(b, child.y + child.height)
+    }
+    return Number.isFinite(x) ? { x, y, r, b } : null
+  }
+  const recordGroupInsets = (group: PositionedGroup): void => {
+    for (const child of group.children) recordGroupInsets(child)
+    const bb = groupMemberBounds(group)
+    if (bb) insetByGroup.set(group.id, { l: bb.x - group.x, t: bb.y - group.y, r: group.x + group.width - bb.r, b: group.y + group.height - bb.b })
+  }
+  const regrowGroup = (group: PositionedGroup): void => {
+    for (const child of group.children) regrowGroup(child) // rebuild children first
+    const bb = groupMemberBounds(group)
+    const ins = insetByGroup.get(group.id)
+    if (!bb || !ins) return
+    group.x = bb.x - ins.l
+    group.y = bb.y - ins.t
+    group.width = bb.r + ins.r - group.x
+    group.height = bb.b + ins.b - group.y
+  }
+  for (const group of groups) recordGroupInsets(group)
 
   for (let i = 0; i < graph.edges.length; i++) {
+    if (!setsRankDistance(i)) continue
     const spec = graph.edges[i]!
     const length = spec.length ?? 1
     if (length <= 1) continue
-    const source = nodeMap.get(spec.source)
-    const target = nodeMap.get(spec.target)
-    if (!source || !target) continue
-    const currentGap = (nodeEntry(target) - nodeExit(source)) * f.sign
+    if (!isForwardish(spec.source, spec.target)) continue
+    const exitS = endpointExit(spec.source), entryT = endpointEntry(spec.target)
+    if (exitS === null || entryT === null) continue
+    const currentGap = (entryT - exitS) * f.sign
     const minGap = DEFAULTS.layerSpacing + (length - 1) * (DEFAULTS.layerSpacing + 40)
-    if (currentGap < minGap) moveNodeAndDescendants(target.id, (minGap - currentGap) * f.sign)
+    if (currentGap < minGap) moveSet(movableUnit(spec.source, spec.target), (minGap - currentGap) * f.sign)
   }
 
-  // Reconnect every DAG edge after the rank-distance move. This keeps edge
-  // endpoints and labels coherent before shape clipping + route certification.
+  // Grow/translate every container so it still encloses its (possibly moved) members.
+  for (const group of groups) regrowGroup(group)
+
+  // Feedback edges escape to a lane just outside the node band on the
+  // max-cross side (matching ELK's deterministic feedbackEdges placement). The
+  // lane must clear every node so the back edge never grazes an intermediate
+  // box after the gap widens.
+  const FEEDBACK_LANE_GAP = 10
+  const crossMaxEdge = (n: PositionedNode): number => nodeCrossCenter(n, graph.direction) + nodeCrossSize(n, graph.direction) / 2
+  const laneCross = Math.max(...nodes.map(crossMaxEdge)) + FEEDBACK_LANE_GAP
+  const point = (mainV: number, crossV: number): Point =>
+    f.main === 'x' ? { x: mainV, y: crossV } : { x: crossV, y: mainV }
+
+  // Attach point on the flow side of an endpoint that may be a node or a box.
+  const flowPort = (id: string, side: 'N' | 'E' | 'S' | 'W'): Point | null => {
+    const n = nodeMap.get(id)
+    if (n) return shapePorts(n)[side]
+    const g = groupMap.get(id)
+    if (!g) return null
+    const cx = g.x + g.width / 2, cy = g.y + g.height / 2
+    switch (side) {
+      case 'E': return { x: g.x + g.width, y: cy }
+      case 'W': return { x: g.x, y: cy }
+      case 'S': return { x: cx, y: g.y + g.height }
+      default: return { x: cx, y: g.y }
+    }
+  }
+
+  // Reconnect every edge after the rank-distance move so no endpoint is left
+  // pointing at a node's pre-move position (which would trip the route-staleness
+  // certifier). Primary-forward / cross-hierarchy / container links get a forward
+  // dogleg between their (node or box) ports; feedback (back) edges re-loop
+  // through the outer lane; self-loops ride along with their moved node.
+  // applyRouteContracts certifies the final geometry.
   for (const edge of edges) {
-    const source = nodeMap.get(edge.source)
-    const target = nodeMap.get(edge.target)
-    if (!source || !target || source.id === target.id) continue
-    const start = shapePorts(source)[f.sourceSide]
-    const end = shapePorts(target)[f.targetSide]
+    const cls = edge.edgeIndex !== undefined ? (classes[edge.edgeIndex] ?? 'primary-forward') : 'primary-forward'
+    if (cls === 'self-loop') {
+      const delta = mainDelta.get(edge.source) ?? 0
+      if (delta !== 0) for (const p of edge.points) p[f.main] += delta
+      if (delta !== 0 && edge.labelPosition) edge.labelPosition[f.main] += delta
+      continue
+    }
+    if (cls === 'feedback') {
+      const source = nodeMap.get(edge.source), target = nodeMap.get(edge.target)
+      if (!source || !target) continue
+      // Feedback U-detour: drop to the outer lane at the source, run back along
+      // it, and rise into the target — both anchored at the max-cross side.
+      edge.points = [
+        point(nodeMainCenter(source, graph.direction), crossMaxEdge(source)),
+        point(nodeMainCenter(source, graph.direction), laneCross),
+        point(nodeMainCenter(target, graph.direction), laneCross),
+        point(nodeMainCenter(target, graph.direction), crossMaxEdge(target)),
+      ]
+      if (edge.label) edge.labelPosition = calculatePathMidpoint(edge.points)
+      continue
+    }
+    const start = flowPort(edge.source, f.sourceSide)
+    const end = flowPort(edge.target, f.targetSide)
+    if (!start || !end) continue
     const elbow = (start[f.main] + end[f.main]) / 2
     edge.points = doglegBetween(start, end, graph.direction, elbow)
     if (edge.label) edge.labelPosition = calculatePathMidpoint(edge.points)
