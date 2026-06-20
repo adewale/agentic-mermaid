@@ -91,6 +91,7 @@ describe('tweet auth-flow agent workflow', () => {
     expect(png.length).toBeGreaterThan(10_000)
   })
 
+  // upstream: mermaid-js/mermaid#815 (declared node order) / #5227 (backwards arrows)
   test('keeps the primary LR path in source order and routes feedback edges backward', () => {
     const diagram = buildAuthFlowWithAgenticMermaid()
     const layout = layoutMermaid(diagram)
