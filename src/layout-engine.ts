@@ -967,11 +967,12 @@ function elkToPositioned(
   centerPeerBarycenters(nodes, edges, groups, graph, style)
 
   // Mermaid variable-length links (`---->`, `====>`, `~~~~`) mean rank
-  // distance, not just source spelling. Apply the conservative DAG/no-group
-  // slice before bundling/clipping so downstream route contracts certify the
-  // final geometry. More complex grouped/cyclic cases deliberately keep ELK's
-  // placement until the full port allocator lands.
-  honorLinkRankDistance(nodes, edges, graph)
+  // distance, not just source spelling. Shove the target sub-DAG before
+  // bundling/clipping so downstream route contracts certify the final geometry.
+  // Covers flat DAGs, cycles/feedback, and links enclosed in a single
+  // subgraph (the container box grows to follow its members). Cross-hierarchy
+  // and container edges still keep ELK's placement.
+  honorLinkRankDistance(nodes, edges, groups, graph)
 
   // Bundle fan-out/fan-in edge paths into shared trunks when mergeEdges is enabled
   const bundled = mergeEdges
@@ -1639,16 +1640,18 @@ function routeClearOfNodes(points: Point[], nodes: PositionedNode[], exclude: Re
   return true
 }
 
-function honorLinkRankDistance(nodes: PositionedNode[], edges: PositionedEdge[], graph: MermaidGraph): void {
-  if (graph.subgraphs.length > 0) return
+function honorLinkRankDistance(nodes: PositionedNode[], edges: PositionedEdge[], groups: PositionedGroup[], graph: MermaidGraph): void {
   if (!graph.edges.some(e => (e.length ?? 1) > 1)) return
   const classes = classifyRoutes(graph)
-  // Without subgraphs the only classes are primary-forward, feedback, and
-  // self-loop; container/cross-hierarchy require a subgraph and are already
-  // excluded above. Feedback (back) edges and self-loops do not constrain the
-  // forward rank axis, so we still honor link length on the forward sub-DAG —
-  // we just exclude those edges from the descendant walk so a cycle never
-  // drags the lengthened edge's own source forward with its target.
+  // Feedback (back) edges and self-loops do not constrain the forward rank axis,
+  // so we still honor link length on the forward sub-DAG — we just exclude those
+  // edges from the descendant walk so a cycle never drags the lengthened edge's
+  // own source forward with its target. Container and cross-hierarchy edges
+  // (links that cross a subgraph boundary) still keep ELK's placement: shoving
+  // across a boundary would need the container-attach routing re-derived, which
+  // this pass does not yet do. A lengthened link wholly inside one subgraph
+  // classifies as primary-forward, so it is handled — the enclosing box grows
+  // to follow its members below.
   if (classes.some(cls => cls !== 'primary-forward' && cls !== 'feedback' && cls !== 'self-loop')) return
   const forward = (i: number): boolean => (classes[i] ?? 'primary-forward') === 'primary-forward'
 
@@ -1683,6 +1686,45 @@ function honorLinkRankDistance(nodes: PositionedNode[], edges: PositionedEdge[],
   const nodeEntry = (n: PositionedNode): number => f.sign === 1 ? n[f.main] : n[f.main] + nodeMainSize(n, graph.direction)
   const nodeExit = (n: PositionedNode): number => f.sign === 1 ? n[f.main] + nodeMainSize(n, graph.direction) : n[f.main]
 
+  // Capture each container's per-side insets (ELK's padding + label allowance)
+  // before any node moves, so we can rebuild the box around the shifted members
+  // afterwards without guessing the padding. Bottom-up so a parent box always
+  // sees its children's rebuilt boxes.
+  interface BoxBounds { x: number; y: number; r: number; b: number }
+  interface Inset { l: number; t: number; r: number; b: number }
+  const insetByGroup = new Map<string, Inset>()
+  const groupMemberBounds = (group: PositionedGroup): BoxBounds | null => {
+    let x = Infinity, y = Infinity, r = -Infinity, b = -Infinity
+    const sg = findSubgraph(graph.subgraphs, group.id)
+    for (const id of sg?.nodeIds ?? []) {
+      const n = nodeMap.get(id)
+      if (!n) continue
+      x = Math.min(x, n.x); y = Math.min(y, n.y)
+      r = Math.max(r, n.x + n.width); b = Math.max(b, n.y + n.height)
+    }
+    for (const child of group.children) {
+      x = Math.min(x, child.x); y = Math.min(y, child.y)
+      r = Math.max(r, child.x + child.width); b = Math.max(b, child.y + child.height)
+    }
+    return Number.isFinite(x) ? { x, y, r, b } : null
+  }
+  const recordGroupInsets = (group: PositionedGroup): void => {
+    for (const child of group.children) recordGroupInsets(child)
+    const bb = groupMemberBounds(group)
+    if (bb) insetByGroup.set(group.id, { l: bb.x - group.x, t: bb.y - group.y, r: group.x + group.width - bb.r, b: group.y + group.height - bb.b })
+  }
+  const regrowGroup = (group: PositionedGroup): void => {
+    for (const child of group.children) regrowGroup(child) // rebuild children first
+    const bb = groupMemberBounds(group)
+    const ins = insetByGroup.get(group.id)
+    if (!bb || !ins) return
+    group.x = bb.x - ins.l
+    group.y = bb.y - ins.t
+    group.width = bb.r + ins.r - group.x
+    group.height = bb.b + ins.b - group.y
+  }
+  for (const group of groups) recordGroupInsets(group)
+
   for (let i = 0; i < graph.edges.length; i++) {
     if (!forward(i)) continue // back edges/self-loops do not set forward rank distance
     const spec = graph.edges[i]!
@@ -1695,6 +1737,9 @@ function honorLinkRankDistance(nodes: PositionedNode[], edges: PositionedEdge[],
     const minGap = DEFAULTS.layerSpacing + (length - 1) * (DEFAULTS.layerSpacing + 40)
     if (currentGap < minGap) moveNodeAndDescendants(target.id, (minGap - currentGap) * f.sign)
   }
+
+  // Grow every container so it still encloses its (possibly moved) members.
+  for (const group of groups) regrowGroup(group)
 
   // Feedback edges escape to a lane just outside the node band on the
   // max-cross side (matching ELK's deterministic feedbackEdges placement). The

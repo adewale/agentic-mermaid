@@ -202,6 +202,62 @@ describe('link length is honored across a feedback (back) edge', () => {
   })
 })
 
+// Link length inside a subgraph: PR #54 bailed the moment a graph had any
+// subgraph, so a lengthened link enclosed in a container was ignored and the
+// container never widened to honor it. The forward sub-DAG inside the container
+// has a well-defined flow axis, so the lengthened link must push its target the
+// requested extra ranks AND the enclosing container box must grow to keep the
+// moved nodes inside it.
+describe('link length is honored inside a subgraph (container grows to fit)', () => {
+  const enclosed = (dir: string, op: string) =>
+    `flowchart ${dir}\n  subgraph S [Group]\n    A[One] ${op} B[Two]\n    B --> C[Three]\n  end`
+
+  it('a lengthened link inside a container pushes its target and widens the box (LR)', () => {
+    const base = verifyMermaid(enclosed('LR', '-->'))
+    const long = verifyMermaid(enclosed('LR', '---->'))
+    const gap = (v: typeof long): number => {
+      const a = v.layout.nodes.find(n => n.id === 'A')!
+      const b = v.layout.nodes.find(n => n.id === 'B')!
+      return b.x - (a.x + a.w)
+    }
+    expect(gap(long)).toBeGreaterThan(gap(base) + 40)
+
+    // The container must still enclose every member after the widening.
+    const group = long.layout.groups.find(g => g.id === 'S')!
+    for (const id of ['A', 'B', 'C']) {
+      const n = long.layout.nodes.find(node => node.id === id)!
+      expect(n.x).toBeGreaterThanOrEqual(group.x - 0.5)
+      expect(n.x + n.w).toBeLessThanOrEqual(group.x + group.w + 0.5)
+      expect(n.y).toBeGreaterThanOrEqual(group.y - 0.5)
+      expect(n.y + n.h).toBeLessThanOrEqual(group.y + group.h + 0.5)
+    }
+    // and it must actually be wider than the base box (the link length took effect).
+    const baseGroup = base.layout.groups.find(g => g.id === 'S')!
+    expect(group.w).toBeGreaterThan(baseGroup.w + 40)
+  })
+
+  it('honors the extra rank in every direction inside a container with clean verification', () => {
+    for (const dir of ['LR', 'RL', 'TD', 'BT'] as const) {
+      const base = verifyMermaid(enclosed(dir, '-->'))
+      const long = verifyMermaid(enclosed(dir, '---->'))
+      expect(long.ok).toBe(true)
+      expect(long.warnings.filter(w => w.code.startsWith('ROUTE_'))).toEqual([])
+      expect(long.warnings.filter(w => w.code === 'OFF_CANVAS')).toEqual([])
+      const gapAB = (v: typeof long): number => {
+        const a = v.layout.nodes.find(n => n.id === 'A')!
+        const b = v.layout.nodes.find(n => n.id === 'B')!
+        switch (dir) {
+          case 'LR': return b.x - (a.x + a.w)
+          case 'RL': return a.x - (b.x + b.w)
+          case 'TD': return b.y - (a.y + a.h)
+          default: return a.y - (b.y + b.h)
+        }
+      }
+      expect(gapAB(long)).toBeGreaterThan(gapAB(base) + 40)
+    }
+  })
+})
+
 describe('variable-length links interact correctly with the straightener', () => {
   it('a long dotted arrow still straightens and keeps its dotted style', () => {
     const pos = parseMermaid('flowchart LR\n  A[One] -..-> B[Two]')
