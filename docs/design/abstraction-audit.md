@@ -33,6 +33,28 @@ the `RouteClass`/port vocabulary. Everything larger forks per stack.
 
 ## 2. Inventory of abstraction layers
 
+The 12 built-in families this inventory spans — the canonical roster, **generated from
+`BUILTIN_FAMILY_METADATA` (`src/agent/families.ts`)** and pinned by
+[`audit-family-table.test.ts`](../../src/__tests__/audit-family-table.test.ts) so it cannot drift
+from the registry (regenerate with `UPDATE_GOLDEN=1 bun test src/__tests__/audit-family-table.test.ts`):
+
+<!-- FAMILY-TABLE:start -->
+| Family | `kind` | Mermaid header(s) | SDK narrower |
+|---|---|---|---|
+| Flowchart | `flowchart` | `flowchart`, `graph` | `asFlowchart` |
+| State | `state` | `stateDiagram`, `stateDiagram-v2` | `asState` |
+| Sequence | `sequence` | `sequenceDiagram` | `asSequence` |
+| Timeline | `timeline` | `timeline` | `asTimeline` |
+| Class | `class` | `classDiagram` | `asClass` |
+| ER | `er` | `erDiagram` | `asEr` |
+| Journey | `journey` | `journey` | `asJourney` |
+| Architecture | `architecture` | `architecture-beta` | `asArchitecture` |
+| XY chart | `xychart` | `xychart`, `xychart-beta` | `asXyChart` |
+| Pie | `pie` | `pie` | `asPie` |
+| Quadrant | `quadrant` | `quadrantChart` | `asQuadrant` |
+| Gantt | `gantt` | `gantt` | `asGantt` |
+<!-- FAMILY-TABLE:end -->
+
 - **Domain IR (input):** `MermaidGraph` (flowchart, `types.ts:7`) + 10 family input types
   (`SequenceDiagram`, `ClassDiagram`, `ErDiagram`, `TimelineDiagram`, `JourneyDiagram`,
   `XYChart`, `PieChart`, `QuadrantChart`, `GanttModel`, `ArchitectureDiagram`) + agent

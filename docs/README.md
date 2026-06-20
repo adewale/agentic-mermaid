@@ -32,7 +32,43 @@ This directory holds the long-form documentation. The root README is intentional
 | [`../skills/`](../skills/) | Agent-agnostic skill bundles. |
 | [`../evals/`](../evals/) | Skill eval manifest, fixtures, and benchmark instructions. |
 
-## Contributor/project docs
+## Contributor / project docs
+
+The design docs split into two tiers — **system** (how the engine works, cross-cutting) and
+**per-family** (how one diagram type works). See
+[`project/doc-reorg-plan.md`](./project/doc-reorg-plan.md) for the migration that physically
+co-locates them.
+
+### System design — how the engine works
+
+| Doc | Purpose |
+|---|---|
+| [`design/system/`](./design/system/README.md) | **Start here.** Rendered three-stacks architecture overview (dogfooded, drift-proof) routing to the audit and design docs. |
+| [`design/abstraction-audit.md`](./design/abstraction-audit.md) | Whole-system abstraction audit: the three-stacks model and ranked issue list I1–I9. |
+| [`design/abstraction-recommendations.md`](./design/abstraction-recommendations.md) | Literature-grounded recommendations for I1–I9, with a prioritized roadmap. |
+| [`design/route-contracts.md`](./design/route-contracts.md) | Route contracts: edge classification, direct-lane proofs, certifying straightener (issue #25). |
+| [`design/layout-rubric.md`](./design/layout-rubric.md) | Deterministic layout-quality rubric: metrics, CI gates, and property oracles. |
+| [`design/source-preservation-ladder.md`](./design/source-preservation-ladder.md) | The structured\|opaque family-adoption contract (levels L0–L4). |
+| [`design/ugly-layouts.md`](./design/ugly-layouts.md) | Ugly-layout detector: catalogued failure shapes and heuristics. |
+| [`design/issue-26-audit.md`](./design/issue-26-audit.md) | Flowchart principled-layout heuristics inventory and conformance review (issue #26). |
+| [`design/issue-26-38-closure.md`](./design/issue-26-38-closure.md) | Principled-layout closure-decision ledger (issues #26/#38). |
+
+### Per-family design notes
+
+| Doc | Purpose |
+|---|---|
+| [`design/families/`](./design/families/README.md) | Per-family hub: which families have a design note, and where each family's other surfaces live. |
+| [`design/families/architecture-beta.md`](./design/families/architecture-beta.md) | `architecture-beta` diagram-type implementation notes. |
+| [`design/gantt.md`](./design/gantt.md) | Gantt support specification and compatibility boundaries. |
+| [`design/gantt-research.md`](./design/gantt-research.md) | Gantt literature review and commercial UX survey. |
+| [`design/journey.md`](./design/journey.md) | Journey diagram implementation notes. |
+| [`design/xychart.md`](./design/xychart.md) | XY chart implementation notes. |
+| [`design/flowchart-parser-conformance.md`](./design/flowchart-parser-conformance.md) | Flowchart syntax conformance catalogue and unsupported-syntax warning policy (issue #36). |
+
+> Only `architecture-beta` has moved into `design/families/` so far (it was the one collision-free
+> rename); the other per-family notes still live in `design/` and migrate in Phase 1 of the reorg.
+
+### Project & process
 
 | Doc | Purpose |
 |---|---|
@@ -41,20 +77,12 @@ This directory holds the long-form documentation. The root README is intentional
 | [`contributing/diagram-family-citizenship.md`](./contributing/diagram-family-citizenship.md) | Enforced good-citizen checklist and matrix for family/surface drift (issue #41). |
 | [`contributing/harvesting-upstream-tests.md`](./contributing/harvesting-upstream-tests.md) | How to vendor upstream/fork test suites into an executable compatibility bench. |
 | [`layout-characterization/README.md`](./layout-characterization/README.md) | Layout and visual testing approach: properties, contact sheets, raster contracts, and approval artifacts. |
-| [`design/system/`](./design/system/README.md) | **System architecture — start here.** Rendered three-stacks overview (a dogfooded, drift-proof figure) routing to the audit and design docs. |
-| [`design/abstraction-audit.md`](./design/abstraction-audit.md) | Whole-system abstraction audit: the three-stacks model and ranked issue list I1–I9. |
-| [`design/abstraction-recommendations.md`](./design/abstraction-recommendations.md) | Literature-grounded recommendations for I1–I9, with a prioritized roadmap. |
-| [`design/architecture.md`](./design/architecture.md) | Architecture diagram implementation notes. |
-| [`design/gantt.md`](./design/gantt.md) | Gantt support specification and compatibility boundaries. |
-| [`design/gantt-research.md`](./design/gantt-research.md) | Gantt literature review and commercial UX survey. |
-| [`design/journey.md`](./design/journey.md) | Journey diagram implementation notes. |
-| [`design/route-contracts.md`](./design/route-contracts.md) | Route contracts: edge classification, direct-lane proofs, certifying straightener (issue #25). |
-| [`design/flowchart-parser-conformance.md`](./design/flowchart-parser-conformance.md) | Flowchart syntax conformance catalogue and unsupported-syntax warning policy (issue #36). |
-| [`design/xychart.md`](./design/xychart.md) | XY chart implementation notes. |
-| [`project/design.md`](./project/design.md) | Historical/design notes. |
+| [`project/design.md`](./project/design.md) | Historical/design notes (editor UI design system). |
 | [`project/divergences.md`](./project/divergences.md) | Deliberate divergences and guardrails. |
 | [`project/product.md`](./project/product.md) | Product brief. |
 | [`project/lessons-learned.md`](./project/lessons-learned.md) | Implementation lessons. |
+| [`project/doc-reorg-plan.md`](./project/doc-reorg-plan.md) | Plan to separate per-family from system docs (this reorg). |
+| [`project/dogfooding-docs-strategy.md`](./project/dogfooding-docs-strategy.md) | How we render and pin our own docs with our own tools. |
 | [`issue-derived-test-cases.md`](./issue-derived-test-cases.md) | Issue-derived regression coverage map. |
 | [`mermaid-layout-complaints.md`](./mermaid-layout-complaints.md) | Mermaid layout complaint catalog, root causes, and coverage scorecard. |
 | [`pr11-reviewer-guide.md`](./pr11-reviewer-guide.md) | Historical PR #11 reviewer map. |
