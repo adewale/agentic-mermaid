@@ -8,6 +8,7 @@ not hand-edited screenshots. Use the smallest artifact that matches the change.
 | Change type | Required evidence |
 |---|---|
 | Route contracts, ports, shape anchors, or contact geometry | `bun test src/__tests__/route-contracts.test.ts src/__tests__/contact-sheet.test.ts`; regenerate/review `docs/pr-assets/contact-sheet.png` when scenarios or geometry intentionally change. |
+| Duplicate / parallel edges (a multigraph — the same directed pair written more than once) | `bun test src/__tests__/route-contracts.test.ts`; review the duplicate/parallel cases on the contact sheet (`AP`–`AR`) and the crossing ratchet in `layout-rubric.test.ts`. A duplicate-specific before/after lives at `docs/pr-assets/issue-62-duplicate-edge-lanes-before-after.png` (regenerate with `bun run scripts/pr-assets/issue-62-evidence.ts`). |
 | ASCII/Unicode routing or region metadata | Exact goldens/tests: `bun run goldens:ascii:check` plus relevant `src/__tests__/ascii*.test.ts` / `agent-ascii-meta.test.ts`. |
 | Family renderer/layout changes | Family parser/layout/renderer tests, SVG snapshot where available, and `agent-family-layouts.test.ts`. |
 | Broad layout heuristics | `bun run rubric:visual` and/or `eval/layout-compare` before/after output attached to the PR. Commit only small canonical assets; attach large HTML reports as artifacts. |
@@ -16,7 +17,8 @@ not hand-edited screenshots. Use the smallest artifact that matches the change.
 
 ## Artifact meanings
 
-- `docs/pr-assets/contact-sheet.png` is the committed reviewer contact sheet for route/port geometry. The byte-match test ensures it reflects the current renderer.
+- `docs/pr-assets/contact-sheet.png` is the committed reviewer contact sheet for route/port geometry. The byte-match test ensures it reflects the current renderer. Scenarios `AP`–`AR` cover duplicate/parallel edges: duplicates must render as evenly-separated, nested (non-crossing) parallel lanes — never a collapsed single line or a crossed pair.
+- The duplicate-edge crossing ratchet (`layout-rubric.test.ts`) counts duplicate-pair crossings over the random-flowchart generator and holds the count at or below its pinned baseline. Duplicate edges share both endpoints, so a crossing between them is never logically required; the baseline is a regression ceiling whose target is zero — lower it when the count drops.
 - `eval/visual-rubric` produces deterministic scored galleries. Its scores are a gate for obvious regressions, not a replacement for human review.
 - `eval/layout-compare` compares before/after layout faithfulness and quality over a corpus. “0 regressions” means no configured metric/faithfulness regression, not a claim of pixel parity with Mermaid.js.
 - Browser screenshots prove the shipped site/editor still renders and remains usable. Pixel-diff is only active when dependencies are available, so reviewer inspection still matters.

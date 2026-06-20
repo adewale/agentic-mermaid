@@ -212,5 +212,20 @@ export function contactSheetScenarios(): ContactSheetScenario[] {
   C --> E[E]
   D --> F[F]
   E --> F` },
+    // AP–AR: duplicate / parallel edges (a multigraph — the same directed pair
+    // written more than once). These lock in the lane contract from issue #62:
+    // duplicates render as evenly-separated, nested (non-crossing) parallel
+    // lanes, never a collapsed single line or a crossed pair.
+    // AP: a duplicate pair sharing a hub that ALSO has a distinct feeder — the
+    // pair must not collapse, and the two lanes nest without crossing each other
+    // (the hub sits below the source, so the offset lanes used to cross).
+    { letter: 'AP', title: 'duplicate pair into a shared hub — nested, non-crossing lanes', source: 'flowchart LR\n  A[a] --> C[c]\n  A --> C\n  B[b] --> C' },
+    // AQ: a duplicate FEEDBACK pair enters the hub's flow-exit face; both
+    // back-edges spread to readable parallel lanes instead of overlapping.
+    { letter: 'AQ', title: 'duplicate feedback pair — separated back-edge lanes', source: 'flowchart LR\n  A[a] --> B[b]\n  B --> A\n  B --> A' },
+    // AR: the issue #62 repro — duplicate pair + feedback loop + distinct feeder
+    // into one cylinder hub; every endpoint on-outline, lanes separated and not
+    // crossing.
+    { letter: 'AR', title: 'issue #62 repro — mixed duplicate/feedback fan-in', source: 'flowchart LR\n  N0[n0]\n  N1[n1]\n  N2[n2]\n  N3[(n3)]\n  N4[n4]\n  N4 --> N0\n  N0 -- go --> N4\n  N2 --> N3\n  N2 --> N3\n  N4 --> N3' },
   ]
 }

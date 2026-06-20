@@ -48,3 +48,8 @@ dist/am
 # fresh web/CI sessions run `bun install` before the suite (testing-tools #1).
 .claude/*
 !.claude/settings.json
+
+# Vendored agent skills (installed locally via `npx skills add`, never shipped —
+# the repo's distribution policy ships skills under skills/ instead)
+.agents/
+skills-lock.json

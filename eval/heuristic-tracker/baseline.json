@@ -558,5 +558,29 @@
     "straight": 6,
     "crossings": 0,
     "symErr": 25.3
+  },
+  "contact-sheet/AP": {
+    "hard": 0,
+    "offCardinal": 4,
+    "bends": 6,
+    "straight": 0,
+    "crossings": 0,
+    "symErr": 24.3
+  },
+  "contact-sheet/AQ": {
+    "hard": 0,
+    "offCardinal": 4,
+    "bends": 0,
+    "straight": 3,
+    "crossings": 0,
+    "symErr": 7
+  },
+  "contact-sheet/AR": {
+    "hard": 0,
+    "offCardinal": 4,
+    "bends": 8,
+    "straight": 1,
+    "crossings": 0,
+    "symErr": 24.8
   }
 }
