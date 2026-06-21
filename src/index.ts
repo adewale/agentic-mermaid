@@ -26,9 +26,10 @@
 //   const svg = renderMermaidSVG('graph TD\n  A --> B')
 // ============================================================================
 
-export type { RenderOptions, MermaidGraph, PositionedGraph, RouteCertificate, FamilyRouteCertificate, LayoutRouteCertificate, LayoutRouteClass, RouteClass, RouteBlocker, RoutePortAssignment, PortSemanticRole, AnyPort, PortSide, DiamondFacet } from './types.ts'
+export type { RenderOptions, RenderContext, MermaidGraph, PositionedDiagram, PositionedGraph, RouteCertificate, EdgeRouteCertificate, FamilyEdgeRouteCertificate, RegionContainmentCertificate, FamilyRouteCertificate, LayoutRouteCertificate, LayoutRouteClass, RouteClass, RouteBlocker, RoutePortAssignment, PortSemanticRole, AnyPort, PortSide, DiamondFacet } from './types.ts'
 export type { DiagramColors, ThemeName, ResolvedColors } from './theme.ts'
 export { fromShikiTheme, THEMES, DEFAULTS, resolveColors, inlineResolvedColors } from './theme.ts'
+export { resolveDiagramColors } from './color-resolver.ts'
 export { parseMermaid } from './parser.ts'
 export { renderMermaidASCII, renderMermaidAscii } from './ascii/index.ts'
 export type { AsciiRenderOptions } from './ascii/index.ts'
@@ -38,107 +39,20 @@ export { TEXT_MEASUREMENT_CONTRACT, measureText, measureTextWidth } from './text
 export type { TextMeasurementContract, TextMeasurementInput, TextMeasurementResult } from './text-metrics.ts'
 
 import { decodeXML } from 'entities'
-import { parseMermaid } from './parser.ts'
-import { layoutGraphSync } from './layout.ts'
-import { renderSvg, compactSvg, namespaceSvgIds } from './renderer.ts'
-import type { RenderOptions } from './types.ts'
+import { compactSvg, namespaceSvgIds } from './renderer.ts'
+import type { PositionedDiagram, RenderContext, RenderOptions } from './types.ts'
 import type { DiagramColors } from './theme.ts'
-import { DEFAULTS, THEMES, inlineResolvedColors } from './theme.ts'
+import { inlineResolvedColors } from './theme.ts'
 import { normalizeMermaidSource, detectDiagramTypeFromFirstLine } from './mermaid-source.ts'
-import type { MermaidRuntimeConfig, MermaidThemeVariables } from './mermaid-source.ts'
+import { readThemeValue, resolveDiagramColors } from './color-resolver.ts'
+import { getFamily } from './render-family-hooks.ts'
+import type { FamilyLayoutResult } from './agent/families.ts'
+import type { DiagramKind } from './agent/types.ts'
 
-import { parseSequenceDiagram } from './sequence/parser.ts'
-import { layoutSequenceDiagram } from './sequence/layout.ts'
-import { renderSequenceSvg } from './sequence/renderer.ts'
-import { parseClassDiagram } from './class/parser.ts'
-import { layoutClassDiagramSync } from './class/layout.ts'
-import { renderClassSvg } from './class/renderer.ts'
-import { parseErDiagram } from './er/parser.ts'
-import { layoutErDiagramSync } from './er/layout.ts'
-import { renderErSvg } from './er/renderer.ts'
-import { parseTimelineDiagram } from './timeline/parser.ts'
-import { layoutTimelineDiagram } from './timeline/layout.ts'
-import { renderTimelineSvg } from './timeline/renderer.ts'
-import { parseJourneyDiagram } from './journey/parser.ts'
-import { layoutJourneyDiagram } from './journey/layout.ts'
-import { renderJourneySvg } from './journey/renderer.ts'
-import { parseXYChart } from './xychart/parser.ts'
-import { layoutXYChart } from './xychart/layout.ts'
-import { renderXYChartSvg } from './xychart/renderer.ts'
-import { parsePieChart } from './pie/parser.ts'
-import { layoutPieChart } from './pie/layout.ts'
-import { renderPieSvg } from './pie/renderer.ts'
-import { parseQuadrantChart } from './quadrant/parser.ts'
-import { layoutQuadrantChart } from './quadrant/layout.ts'
-import { renderQuadrantSvg } from './quadrant/renderer.ts'
-import { parseGanttModel, applyGanttFrontmatterConfig } from './gantt/parser.ts'
-import { resolveGanttSchedule } from './gantt/schedule.ts'
-import { layoutGantt } from './gantt/layout.ts'
-import { renderGanttSvg } from './gantt/renderer.ts'
-import { parseArchitectureDiagram } from './architecture/parser.ts'
-import { layoutArchitectureDiagram } from './architecture/layout.ts'
-import { renderArchitectureSvg } from './architecture/renderer.ts'
-import { resolveArchitectureVisualConfig } from './architecture/config.ts'
-
-/**
- * Build a DiagramColors object from render options.
- * Uses DEFAULTS for bg/fg when not provided, and passes through
- * optional enrichment colors (line, accent, muted, surface, border).
- */
-const ZINC_DARK = THEMES['zinc-dark'] ?? { bg: '#18181B', fg: '#FAFAFA' }
-
-const MERMAID_THEME_COLORS: Record<string, DiagramColors> = {
-  default: { bg: DEFAULTS.bg, fg: DEFAULTS.fg },
-  base: { bg: DEFAULTS.bg, fg: DEFAULTS.fg },
-  neutral: { bg: '#ffffff', fg: '#1f2937', line: '#9ca3af', accent: '#6b7280', muted: '#6b7280' },
-  dark: {
-    bg: ZINC_DARK.bg,
-    fg: ZINC_DARK.fg,
-    line: ZINC_DARK.line,
-    accent: ZINC_DARK.accent,
-    muted: ZINC_DARK.muted,
-    surface: ZINC_DARK.surface,
-    border: ZINC_DARK.border,
-  },
-  forest: { bg: '#f0fdf4', fg: '#14532d', line: '#4d7c0f', accent: '#15803d', muted: '#65a30d', border: '#86efac' },
-}
-
-function buildColors(options: RenderOptions, config: MermaidRuntimeConfig, font?: string): DiagramColors {
-  const theme = resolveThemeColors(config.theme)
-  const vars = config.themeVariables
-
-  return {
-    bg: options.bg ?? readThemeValue(vars, 'background', 'mainBkg') ?? theme?.bg ?? DEFAULTS.bg,
-    fg: options.fg ?? readThemeValue(vars, 'primaryTextColor', 'textColor', 'nodeTextColor') ?? theme?.fg ?? DEFAULTS.fg,
-    line: options.line ?? readThemeValue(vars, 'lineColor', 'defaultLinkColor') ?? theme?.line,
-    accent: options.accent ?? readThemeValue(vars, 'arrowheadColor', 'primaryColor') ?? theme?.accent,
-    muted: options.muted ?? readThemeValue(vars, 'secondaryTextColor', 'tertiaryTextColor') ?? theme?.muted,
-    surface: options.surface ?? readThemeValue(vars, 'primaryColor', 'nodeBkg', 'mainBkg') ?? theme?.surface,
-    border: options.border ?? readThemeValue(vars, 'primaryBorderColor', 'secondaryBorderColor') ?? theme?.border,
-    shadow: options.shadow ?? theme?.shadow,
-    // Threaded so `--font:<family>` lands on the SVG root via svgOpenTag.
-    font,
-    // Renderers read this to gate the Google Fonts @import. Default true preserves
-    // wire compat; CLI / PNG paths set it false.
-    embedFontImport: options.embedFontImport,
-  }
-}
-
-function resolveThemeColors(themeName: string | undefined): DiagramColors | undefined {
-  if (!themeName) return undefined
-  if (themeName in THEMES) return THEMES[themeName as keyof typeof THEMES]
-  return MERMAID_THEME_COLORS[themeName.toLowerCase()]
-}
-
-function readThemeValue(vars: MermaidThemeVariables | undefined, ...keys: string[]): string | undefined {
-  if (!vars) return undefined
-
-  for (const key of keys) {
-    const value = vars[key]
-    if (typeof value === 'string' && value.length > 0) return value
-  }
-
-  return undefined
+function normalizeFamilyLayoutResult(
+  result: FamilyLayoutResult | PositionedDiagram,
+): FamilyLayoutResult {
+  return 'positioned' in result ? result : { positioned: result }
 }
 
 /**
@@ -314,10 +228,15 @@ export function renderMermaidSVG(
   const effectiveOptions: RenderOptions = options.security === 'strict'
     ? { ...options, embedFontImport: false }
     : options
-  const colors = buildColors(effectiveOptions, normalizedSource.config, font)
-  const transparent = options.transparent ?? false
+  const colors = resolveDiagramColors(effectiveOptions, normalizedSource.config, font)
   const diagramType = detectDiagramTypeFromFirstLine(normalizedSource.firstLine) ?? 'flowchart'
   const lines = normalizedSource.lines
+  const renderOptions: RenderOptions = { ...effectiveOptions, mermaidConfig: normalizedSource.config }
+  const renderContext = <TPositioned extends PositionedDiagram>(
+    positioned: TPositioned,
+    c: DiagramColors = colors,
+    opts: RenderOptions = renderOptions,
+  ): RenderContext<TPositioned> => ({ positioned, colors: c, options: opts })
   // resolve() inlines CSS variables for non-browser renderers (resvg).
   // When `compact` is on we additionally round coords and collapse whitespace.
   const compact = options.compact ?? false
@@ -339,81 +258,20 @@ export function renderMermaidSVG(
     return compact ? compactSvg(out) : out
   }
 
-  switch (diagramType) {
-    case 'architecture': {
-      const archVisual = resolveArchitectureVisualConfig(normalizedSource.frontmatter, colors, options)
-      const archOptions = archVisual.padding != null ? { ...options, padding: options.padding ?? archVisual.padding } : options
-      const diagram = parseArchitectureDiagram(lines)
-      const positioned = layoutArchitectureDiagram(diagram, archOptions, archVisual.visual)
-      const rawArch = renderArchitectureSvg(positioned, colors, font, transparent, archVisual.visual)
-      // Architecture carries accessibility through its parser/renderer, so only
-      // run the shared color/id/security post-pass here.
-      return resolve(rawArch, colors, false)
-    }
-    case 'sequence': {
-      const diagram = parseSequenceDiagram(lines)
-      const positioned = layoutSequenceDiagram(diagram, options)
-      return resolve(renderSequenceSvg(positioned, colors, font, transparent, options))
-    }
-    case 'class': {
-      const diagram = parseClassDiagram(lines)
-      const positioned = layoutClassDiagramSync(diagram, options)
-      return resolve(renderClassSvg(positioned, colors, font, transparent, options))
-    }
-    case 'er': {
-      const diagram = parseErDiagram(lines)
-      const positioned = layoutErDiagramSync(diagram, options)
-      return resolve(renderErSvg(positioned, colors, font, transparent, options))
-    }
-    case 'timeline': {
-      const diagram = parseTimelineDiagram(lines)
-      const positioned = layoutTimelineDiagram(diagram, options)
-      return resolve(renderTimelineSvg(
-        positioned,
-        colors,
-        font,
-        transparent,
-        normalizedSource.config.timeline,
-        normalizedSource.config.themeVariables,
-        options,
-      ))
-    }
-    case 'journey': {
-      const diagram = parseJourneyDiagram(lines)
-      const positioned = layoutJourneyDiagram(diagram, options)
-      return resolve(renderJourneySvg(positioned, colors, font, transparent, options))
-    }
-    case 'xychart': {
-      const chart = parseXYChart(lines, normalizedSource.frontmatter)
-      const positioned = layoutXYChart(chart, options)
-      const chartColors = !options.bg && chart.theme.backgroundColor
-        ? { ...colors, bg: chart.theme.backgroundColor }
-        : colors
-      return resolve(renderXYChartSvg(positioned, chartColors, font, transparent, options.interactive ?? false, options), chartColors, false)
-    }
-    case 'pie': {
-      const chart = parsePieChart(lines)
-      const positioned = layoutPieChart(chart, options, colors)
-      return resolve(renderPieSvg(positioned, colors, font, transparent, options))
-    }
-    case 'quadrant': {
-      const chart = parseQuadrantChart(lines)
-      const positioned = layoutQuadrantChart(chart, options)
-      return resolve(renderQuadrantSvg(positioned, colors, font, transparent, options))
-    }
-    case 'gantt': {
-      const model = applyGanttFrontmatterConfig(parseGanttModel(lines), normalizedSource.frontmatter)
-      const schedule = resolveGanttSchedule(model, { today: options.ganttToday })
-      const positioned = layoutGantt(model, schedule, { today: schedule.today })
-      return resolve(renderGanttSvg(positioned, colors, font, transparent))
-    }
-    case 'flowchart':
-    default: {
-      const graph = parseMermaid(normalizedSource.text)
-      const positioned = layoutGraphSync(graph, options)
-      return resolve(renderSvg(positioned, colors, font, transparent, options))
-    }
+  const family = getFamily(diagramType as DiagramKind)
+  if (!family?.layout || !family.renderSvg) {
+    throw new Error(`No SVG renderer registered for Mermaid family ${diagramType}`)
   }
+
+  const layout = normalizeFamilyLayoutResult(family.layout({
+    source: normalizedSource,
+    options,
+    renderOptions,
+    colors,
+  }))
+  const renderColors = layout.colors ?? colors
+  const rawSvg = family.renderSvg(renderContext(layout.positioned, renderColors, layout.options ?? renderOptions))
+  return resolve(rawSvg, renderColors, layout.injectAccessibility ?? true)
 }
 
 /**

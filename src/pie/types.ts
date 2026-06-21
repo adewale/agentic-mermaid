@@ -13,6 +13,8 @@
 // Values must be positive numbers (> 0); negative values are a hard error.
 // ============================================================================
 
+import type { PositionedDiagram } from '../types.ts'
+
 /** A single labelled slice of the pie. */
 export interface PieEntry {
   /** The slice label (contents of the `"..."` quotes). */
@@ -46,8 +48,6 @@ export interface PositionedPieSlice {
   startAngle: number
   /** End angle in radians. */
   endAngle: number
-  /** Resolved fill color (hex or a CSS var() reference). */
-  color: string
   /** SVG path `d` attribute for the slice wedge. */
   path: string
 }
@@ -56,7 +56,6 @@ export interface PositionedPieLegendItem {
   label: string
   value: number
   fraction: number
-  color: string
   /** Top-left of the swatch. */
   x: number
   y: number
@@ -66,7 +65,7 @@ export interface PositionedPieLegendItem {
   textY: number
 }
 
-export interface PositionedPieChart {
+export interface PositionedPieChart extends PositionedDiagram {
   width: number
   height: number
   title?: { text: string; x: number; y: number }

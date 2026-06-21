@@ -23,25 +23,12 @@
 //   const ascii = renderMermaidASCII('graph LR\n  A --> B')
 // ============================================================================
 
-import { parseMermaid } from '../parser.ts'
-import { convertToAsciiGraph } from './converter.ts'
-import { createMapping } from './grid.ts'
-import { drawGraph } from './draw.ts'
-import { canvasToString, flipCanvasVertically, flipRoleCanvasVertically } from './canvas.ts'
-import { renderSequenceAscii } from './sequence.ts'
-import { renderClassAscii } from './class-diagram.ts'
-import { renderErAscii } from './er-diagram.ts'
-import { renderTimelineAscii } from './timeline.ts'
-import { renderGanttAscii } from './gantt.ts'
-import { renderJourneyAscii } from './journey.ts'
-import { renderXYChartAscii } from './xychart.ts'
-import { renderPieAscii } from './pie.ts'
-import { renderQuadrantAscii } from './quadrant.ts'
-import { renderArchitectureAscii } from './architecture.ts'
 import { detectColorMode, DEFAULT_ASCII_THEME, diagramColorsToAsciiTheme } from './ansi.ts'
 import type { AsciiConfig, AsciiTheme, ColorMode } from './types.ts'
 import { normalizeMermaidSource, detectDiagramTypeFromFirstLine } from '../mermaid-source.ts'
 import type { MermaidRuntimeConfig } from '../mermaid-source.ts'
+import { getFamily } from '../render-family-hooks.ts'
+import type { DiagramKind } from '../agent/types.ts'
 
 // Re-export types for external use
 export type { AsciiTheme, ColorMode }
@@ -141,81 +128,20 @@ export function renderMermaidASCII(
 
   const diagramType = detectDiagramTypeFromFirstLine(normalizedSource.firstLine) ?? 'flowchart'
 
-  switch (diagramType) {
-    case 'architecture': {
-      const vars = normalizedSource.config.themeVariables
-      const archColors: import('../theme.ts').DiagramColors = {
-        bg: (vars?.background as string) ?? '#ffffff',
-        fg: (vars?.primaryTextColor as string) ?? (vars?.textColor as string) ?? '#27272A',
-        line: vars?.lineColor as string | undefined,
-        accent: vars?.primaryColor as string | undefined,
-      }
-      const archTheme = { ...theme, ...diagramColorsToAsciiTheme(archColors) }
-      return renderArchitectureAscii(normalizedSource.lines, config, colorMode, archTheme)
-    }
-
-    case 'xychart':
-      return renderXYChartAscii(normalizedSource.text, config, colorMode, theme, normalizedSource.frontmatter)
-
-    case 'pie':
-      return renderPieAscii(normalizedSource.lines, config, colorMode, theme)
-
-    case 'quadrant':
-      return renderQuadrantAscii(normalizedSource.lines, config, colorMode, theme)
-
-    case 'sequence':
-      return renderSequenceAscii(normalizedSource.text, config, colorMode, theme)
-
-    case 'class':
-      return renderClassAscii(normalizedSource.text, config, colorMode, theme)
-
-    case 'er':
-      return renderErAscii(normalizedSource.text, config, colorMode, theme)
-
-    case 'timeline':
-      return renderTimelineAscii(normalizedSource.lines, config, colorMode, theme)
-
-    case 'gantt':
-      return renderGanttAscii(normalizedSource.lines, config, colorMode, theme, normalizedSource.frontmatter, {
-        maxWidth: options.maxWidth,
-        today: options.ganttToday,
-      })
-
-    case 'journey':
-      return renderJourneyAscii(normalizedSource.text, config, colorMode, theme)
-
-    case 'flowchart':
-    default: {
-      // Flowchart + state diagram pipeline (original)
-      const parsed = parseMermaid(normalizedSource.text)
-
-      // Normalize direction for grid layout.
-      // BT is laid out as TD then flipped vertically after drawing.
-      // RL is treated as LR (full RL support not yet implemented).
-      if (parsed.direction === 'LR' || parsed.direction === 'RL') {
-        config.graphDirection = 'LR'
-      } else {
-        config.graphDirection = 'TD'
-      }
-
-      const graph = convertToAsciiGraph(parsed, config)
-      createMapping(graph)
-      drawGraph(graph)
-
-      // BT: flip the finished canvas vertically so the flow runs bottom→top.
-      // The grid layout ran as TD; flipping + character remapping produces BT.
-      if (parsed.direction === 'BT') {
-        flipCanvasVertically(graph.canvas)
-        flipRoleCanvasVertically(graph.roleCanvas)
-      }
-
-      return canvasToString(graph.canvas, {
-        roleCanvas: graph.roleCanvas,
-        colorMode,
-        theme,
-      })
-    }
+  const family = getFamily(diagramType as DiagramKind)
+  if (!family?.renderAscii) {
+    throw new Error(`No ASCII renderer registered for Mermaid family ${diagramType}`)
   }
+  return family.renderAscii({
+    source: normalizedSource,
+    config,
+    colorMode,
+    theme,
+    options: {
+      maxWidth: options.maxWidth,
+      ganttToday: options.ganttToday,
+    },
+  })
 }
 
 /** @deprecated Use `renderMermaidASCII` */

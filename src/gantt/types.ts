@@ -12,6 +12,8 @@
 // caller (GanttClock), per the spec's determinism contract.
 // ============================================================================
 
+import type { PositionedDiagram } from '../types.ts'
+
 /** Integer milliseconds since the Unix epoch, UTC. */
 export type EpochMs = number
 
@@ -232,7 +234,7 @@ export interface GanttRowLayout {
   h: number
 }
 
-export interface GanttLayoutResult {
+export interface GanttLayoutResult extends PositionedDiagram {
   title?: string
   width: number
   height: number

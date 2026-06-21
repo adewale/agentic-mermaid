@@ -1,5 +1,5 @@
 import type { PositionedBar, PositionedXYChart } from './types.ts'
-import type { RenderOptions } from '../types.ts'
+import type { RenderContext, RenderOptions } from '../types.ts'
 import type { DiagramColors } from '../theme.ts'
 import { svgOpenTag, buildStyleBlock, buildShadowDefs } from '../theme.ts'
 import { TEXT_BASELINE_SHIFT, estimateTextWidth, STROKE_WIDTHS, resolveRenderStyle } from '../styles.ts'
@@ -51,13 +51,12 @@ const TIP = {
 } as const
 
 export function renderXYChartSvg(
-  chart: PositionedXYChart,
-  colors: DiagramColors,
-  font: string = 'Inter',
-  transparent: boolean = false,
-  interactive: boolean = false,
-  options: RenderOptions = {},
+  ctx: RenderContext<PositionedXYChart>,
 ): string {
+  const { positioned: chart, colors, options } = ctx
+  const font = colors.font ?? 'Inter'
+  const transparent = options.transparent ?? false
+  const interactive = options.interactive ?? false
   const parts: string[] = []
   const style = resolveRenderStyle(options, XY_STYLE_DEFAULTS)
 
@@ -252,20 +251,20 @@ function chartStyles(
   .xychart-bar-group:hover .xychart-tip,
   .xychart-dot-group:hover .xychart-tip { opacity: 1; }` : ''
 
-  const titleColor = themeOverrides.titleColor ?? 'var(--_text)'
-  const xAxisLabelColor = themeOverrides.xAxisLabelColor ?? 'var(--_text)'
-  const yAxisLabelColor = themeOverrides.yAxisLabelColor ?? 'var(--_text)'
-  const xAxisTickColor = themeOverrides.xAxisTickColor ?? 'var(--_text-sec)'
-  const yAxisTickColor = themeOverrides.yAxisTickColor ?? 'var(--_text-sec)'
-  const xAxisLineColor = themeOverrides.xAxisLineColor ?? 'var(--_text-sec)'
-  const yAxisLineColor = themeOverrides.yAxisLineColor ?? 'var(--_text-sec)'
-  const xAxisTitleColor = themeOverrides.xAxisTitleColor ?? 'var(--_text)'
-  const yAxisTitleColor = themeOverrides.yAxisTitleColor ?? 'var(--_text)'
+  const titleColor = themeOverrides.titleColor ?? renderStyle.groupTextColor ?? renderStyle.nodeTextColor ?? 'var(--_text)'
+  const xAxisLabelColor = themeOverrides.xAxisLabelColor ?? renderStyle.nodeTextColor ?? 'var(--_text)'
+  const yAxisLabelColor = themeOverrides.yAxisLabelColor ?? renderStyle.nodeTextColor ?? 'var(--_text)'
+  const xAxisTickColor = themeOverrides.xAxisTickColor ?? renderStyle.groupTextColor ?? 'var(--_text-sec)'
+  const yAxisTickColor = themeOverrides.yAxisTickColor ?? renderStyle.groupTextColor ?? 'var(--_text-sec)'
+  const xAxisLineColor = themeOverrides.xAxisLineColor ?? renderStyle.edgeStrokeColor ?? 'var(--_text-sec)'
+  const yAxisLineColor = themeOverrides.yAxisLineColor ?? renderStyle.edgeStrokeColor ?? 'var(--_text-sec)'
+  const xAxisTitleColor = themeOverrides.xAxisTitleColor ?? renderStyle.edgeTextColor ?? renderStyle.nodeTextColor ?? 'var(--_text)'
+  const yAxisTitleColor = themeOverrides.yAxisTitleColor ?? renderStyle.edgeTextColor ?? renderStyle.nodeTextColor ?? 'var(--_text)'
   const colorVarsBlock = colorVarDefs.length > 0 ? `\n  svg {\n${colorVarDefs.join('\n')}\n  }` : ''
 
   const extraThemeCss = chart.theme.themeCss ? `\n${chart.theme.themeCss}\n` : ''
   const style = `<style>
-  .xychart-grid { stroke: color-mix(in srgb, var(--fg) 14%, transparent); stroke-width: 1; }
+  .xychart-grid { stroke: ${renderStyle.edgeStrokeColor ?? 'color-mix(in srgb, var(--fg) 14%, transparent)'}; stroke-width: 1${renderStyle.edgeStrokeColor ? '; opacity: 0.25' : ''}; }
   .xychart-axis-line { fill: none; }
   .xychart-tick { fill: none; }
   .xychart-x-axis-line { stroke: ${xAxisLineColor}; }
@@ -275,14 +274,14 @@ function chartStyles(
   .xychart-bar { stroke: none; }
   .xychart-line { fill: none; stroke-width: ${renderStyle.lineWidth}; stroke-linecap: round; stroke-linejoin: round; }
   .xychart-dot { stroke: var(--bg); stroke-width: 2; }
-  .xychart-label { fill: var(--_text); }
+  .xychart-label { fill: ${renderStyle.nodeTextColor ?? 'var(--_text)'}; }
   .xychart-x-label { fill: ${xAxisLabelColor}; }
   .xychart-y-label { fill: ${yAxisLabelColor}; }
-  .xychart-axis-title { fill: var(--_text); }
+  .xychart-axis-title { fill: ${renderStyle.edgeTextColor ?? renderStyle.nodeTextColor ?? 'var(--_text)'}; }
   .xychart-x-axis-title { fill: ${xAxisTitleColor}; }
   .xychart-y-axis-title { fill: ${yAxisTitleColor}; }
   .xychart-title { fill: ${titleColor}; }
-  .xychart-data-label { fill: var(--_text); pointer-events: none; }${colorVarsBlock}
+  .xychart-data-label { fill: ${renderStyle.nodeTextColor ?? 'var(--_text)'}; pointer-events: none; }${colorVarsBlock}
 ${seriesRules.join('\n')}${tipRules}${extraThemeCss}
 </style>`
 

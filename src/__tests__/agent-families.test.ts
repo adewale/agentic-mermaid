@@ -3,7 +3,7 @@
 import { describe, test, expect } from 'bun:test'
 import { parseMermaid } from '../agent/parse.ts'
 import { verifyMermaid } from '../agent/verify.ts'
-import { knownFamilies, getFamily, registerFamily, extractLabelsGeneric } from '../agent/families.ts'
+import { BUILTIN_FAMILY_METADATA, knownFamilies, getFamily, registerFamily, extractLabelsGeneric } from '../agent/families.ts'
 import '../agent/families-builtin.ts'
 import type { DiagramKind } from '../agent/types.ts'
 
@@ -15,6 +15,10 @@ describe('family registry', () => {
     }
   })
 
+  test('knownFamilies returns built-ins in metadata order', () => {
+    expect(knownFamilies()).toEqual(BUILTIN_FAMILY_METADATA.map(f => f.id))
+  })
+
   test('each built-in has an extractLabels function', () => {
     for (const id of knownFamilies()) {
       const p = getFamily(id)
@@ -23,13 +27,16 @@ describe('family registry', () => {
   })
 
   test('registerFamily accepts a new id and getFamily round-trips', () => {
+    const original = getFamily('flowchart')
+    expect(original).toBeDefined()
     const fake = { id: 'flowchart' as DiagramKind, detect: () => false, extractLabels: () => [{ text: 't', target: 't' }] }
     // ID collision allowed — last write wins (caller intent: override)
-    registerFamily(fake)
-    expect(getFamily('flowchart')?.extractLabels?.('')).toEqual([{ text: 't', target: 't' }])
-    // restore built-in
-    delete require.cache[require.resolve('../agent/families-builtin.ts')]
-    require('../agent/families-builtin.ts')
+    try {
+      registerFamily(fake)
+      expect(getFamily('flowchart')?.extractLabels?.('')).toEqual([{ text: 't', target: 't' }])
+    } finally {
+      registerFamily(original!)
+    }
   })
 })
 

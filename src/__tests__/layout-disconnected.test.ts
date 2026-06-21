@@ -9,7 +9,7 @@
  */
 import { describe, it, expect } from 'bun:test'
 import { renderMermaidSync, parseMermaid } from '../index.ts'
-import { layoutGraphSync } from '../layout.ts'
+import { layoutGraphSync } from '../layout-engine.ts'
 
 // ============================================================================
 // Test helpers

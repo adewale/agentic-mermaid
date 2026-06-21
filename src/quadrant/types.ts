@@ -20,6 +20,8 @@
 // ERROR LOUDLY — they are never silently dropped.
 // ============================================================================
 
+import type { PositionedDiagram } from '../types.ts'
+
 /** A single plotted point. */
 export interface QuadrantPoint {
   /** The point label (the text before the `:`). */
@@ -70,8 +72,6 @@ export interface PositionedQuadrantRegion {
   y: number
   width: number
   height: number
-  /** Resolved fill (a CSS color-mix() expression, theme-variable driven). */
-  fill: string
   /** Centered label anchor. */
   labelX: number
   labelY: number
@@ -96,7 +96,7 @@ export interface PositionedQuadrantAxisLabel {
   anchor: 'start' | 'middle' | 'end'
 }
 
-export interface PositionedQuadrantChart {
+export interface PositionedQuadrantChart extends PositionedDiagram {
   width: number
   height: number
   title?: { text: string; x: number; y: number }

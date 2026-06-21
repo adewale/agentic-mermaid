@@ -347,11 +347,12 @@ semantics that the generic flowchart graph pass does not model. Projecting them
 through `MermaidGraph` would either discard those row/compartment constraints or
 require a second family-specific clipping pass after graph certification, which
 would recreate the stale-certificate problem this document forbids. Their
-family certificates and verify tripwires cover the accepted invariant instead:
+`FamilyEdgeRouteCertificate`s and verify tripwires cover the accepted invariant instead:
 orthogonal relationship paths, on-canvas non-overlapping boxes, and endpoints on
 class/entity boundaries. Sequence messages likewise expose opt-in family `lifeline-message`
-certificates, while timeline/chart families expose element-containment layout
-certificates. These are family certificates rather than graph-route ports:
+`FamilyEdgeRouteCertificate`s, while timeline/chart families expose
+`RegionContainmentCertificate`s. These are family-specific certificates rather
+than graph-route ports:
 sequence anchors are lifelines, and timeline/chart anchors are intervals,
 plot boxes, legend rows, sections, or quadrant regions.
 
@@ -783,7 +784,7 @@ shipped.
 5. Diamond endpoints land on the diamond polygon, not bbox corners — ray-intersection re-anchoring + property test + `ROUTE_SHAPE_MISANCHOR` tripwire.
 6. No node movement after the route pass — pipeline placement + `ROUTE_STALE_AFTER_NODE_MOVE` tripwire.
 7. Corpus diff shows no regressions — `eval/layout-compare` runs recorded in the PR (18 changed / 0 regressions for the full batch).
-8. Diagnostics available to tests and tooling — `classifyRoutes` / `auditRouteContracts` / `findRouteHitches` exported; `layoutMermaid(d, { debug: true })` attaches graph `RouteCertificate`s and accepted family `FamilyRouteCertificate`s to layout JSON; and `am render --format json --certificates` exposes the same opt-in certificate schema without changing default JSON output.
+8. Diagnostics available to tests and tooling — `classifyRoutes` / `auditRouteContracts` / `findRouteHitches` exported; `layoutMermaid(d, { debug: true })` attaches graph `RouteCertificate`s, family `FamilyEdgeRouteCertificate`s, and `RegionContainmentCertificate`s to layout JSON; and `am render --format json --certificates` exposes the same opt-in certificate schema without changing default JSON output.
 
 ## 12. Issue #25 open questions, resolved
 

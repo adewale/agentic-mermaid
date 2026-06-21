@@ -14,12 +14,45 @@ import type {
   DiagramKind, DiagramBody, ValidDiagramMeta, ParseError, SourceMap,
   AnyMutationOp, MutationError, LayoutWarning, VerifyOptions, Result,
 } from './types.ts'
+import type { PositionedDiagram, RenderContext, RenderOptions } from '../types.ts'
+import type { DiagramColors } from '../theme.ts'
+import type { NormalizedMermaidSource } from '../mermaid-source.ts'
+import type { AsciiConfig, AsciiTheme, ColorMode } from '../ascii/types.ts'
 
 export interface ExtractedLabel {
   /** The label text, with quotes stripped. */
   text: string
   /** Best-effort target identifier (node id, participant, period, etc.). */
   target: string
+}
+
+export interface FamilyLayoutContext {
+  source: NormalizedMermaidSource
+  options: RenderOptions
+  /** Render options after public-entrypoint normalization, e.g. security/font/config threading. */
+  renderOptions: RenderOptions
+  colors: DiagramColors
+}
+
+export interface FamilyLayoutResult<TPositioned extends PositionedDiagram = PositionedDiagram> {
+  positioned: TPositioned
+  /** Optional family-specific palette override for rendering/finalization. */
+  colors?: DiagramColors
+  /** Optional family-specific render options override for RenderContext. */
+  options?: RenderOptions
+  /** False when the family renderer already owns SVG accessibility metadata. */
+  injectAccessibility?: boolean
+}
+
+export interface AsciiContext {
+  source: NormalizedMermaidSource
+  config: AsciiConfig
+  colorMode: ColorMode
+  theme: AsciiTheme
+  options: {
+    maxWidth?: number
+    ganttToday?: string
+  }
 }
 
 export interface FamilyPlugin {
@@ -55,6 +88,12 @@ export interface FamilyPlugin {
   mutate?: (body: DiagramBody, op: AnyMutationOp) => Result<DiagramBody, MutationError>
   /** Optional: family-specific verify (Tier 1 + Tier 2). Returns warnings only. */
   verify?: (body: DiagramBody, opts: VerifyOptions) => LayoutWarning[]
+  /** Optional: family-specific source-to-positioned layout for public SVG rendering. */
+  layout?: (ctx: FamilyLayoutContext) => FamilyLayoutResult | PositionedDiagram
+  /** Optional: family-specific SVG renderer fed by a positioned layout result. */
+  renderSvg?: (ctx: RenderContext<PositionedDiagram>) => string
+  /** Optional: family-specific ASCII renderer. */
+  renderAscii?: (ctx: AsciiContext) => string
 }
 
 export interface BuiltinFamilyMetadata {
@@ -113,7 +152,14 @@ export function getFamily(kind: DiagramKind): FamilyPlugin | undefined {
 }
 
 export function knownFamilies(): DiagramKind[] {
-  return Array.from(REGISTRY.keys())
+  const builtinIds = new Set<DiagramKind>(BUILTIN_FAMILY_METADATA.map(f => f.id))
+  const builtins = BUILTIN_FAMILY_METADATA
+    .map(f => f.id)
+    .filter(id => REGISTRY.has(id))
+  const external = Array.from(REGISTRY.keys())
+    .filter(id => !builtinIds.has(id))
+    .sort()
+  return [...builtins, ...external]
 }
 
 // ---- Generic label extractor ----------------------------------------------

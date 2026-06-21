@@ -168,9 +168,9 @@ function extractErLayout(
 }
 
 /**
- * Lay out a parsed ER diagram using ELK.js (synchronous).
+ * Lay out a parsed ER diagram using ELK.js.
  */
-export function layoutErDiagramSync(
+export function layoutErDiagram(
   diagram: ErDiagram,
   options: RenderOptions = {}
 ): PositionedErDiagram {

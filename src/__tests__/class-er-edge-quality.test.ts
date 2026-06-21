@@ -15,9 +15,9 @@
 // silently regressing.
 import { describe, expect, it } from 'bun:test'
 import { parseClassDiagram } from '../class/parser.ts'
-import { layoutClassDiagramSync } from '../class/layout.ts'
+import { layoutClassDiagram } from '../class/layout.ts'
 import { parseErDiagram } from '../er/parser.ts'
-import { layoutErDiagramSync } from '../er/layout.ts'
+import { layoutErDiagram } from '../er/layout.ts'
 import { verifyMermaid } from '../agent/index.ts'
 
 const prep = (t: string) => t.split('\n').map(l => l.trim()).filter(l => l.length > 0)
@@ -84,7 +84,7 @@ const ER_DIAGRAMS: Array<[string, string]> = [
 
 describe('class diagram relationship edges are orthogonal and clean (ELK direct, no straightener)', () => {
   it.each(CLASS_DIAGRAMS)('%s: zero diagonals, zero duplicate points', (_name, src) => {
-    const d = layoutClassDiagramSync(parseClassDiagram(prep(src)))
+    const d = layoutClassDiagram(parseClassDiagram(prep(src)))
     expect(d.relationships.length).toBeGreaterThan(0)
     const defects = edgeDefects(d.relationships.map(r => r.points as Pt[]))
     expect(defects.diagonals).toBe(0)
@@ -107,7 +107,7 @@ describe('class/ER semantic layout validators (#33)', () => {
 
 describe('ER diagram relationship edges are orthogonal and clean (ELK direct, no straightener)', () => {
   it.each(ER_DIAGRAMS)('%s: zero diagonals, zero duplicate points', (_name, src) => {
-    const d = layoutErDiagramSync(parseErDiagram(prep(src)))
+    const d = layoutErDiagram(parseErDiagram(prep(src)))
     expect(d.relationships.length).toBeGreaterThan(0)
     const defects = edgeDefects(d.relationships.map(r => r.points as Pt[]))
     expect(defects.diagonals).toBe(0)

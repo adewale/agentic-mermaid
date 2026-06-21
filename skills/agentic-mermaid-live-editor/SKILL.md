@@ -113,7 +113,7 @@ Call your override function in:
 
 ### Case C: Requires renderer support
 
-Add to `RenderOptions` in `src/types.ts`, thread through `buildColors`/`svgOpenTag` in `src/theme.ts`, and use via CSS variable in `buildStyleBlock`.
+Add to `RenderOptions` in `src/types.ts`, normalize through `resolveDiagramColors` in `src/color-resolver.ts` when it affects the semantic palette, then expose it through `svgOpenTag`/`buildStyleBlock` in `src/theme.ts` when the live editor needs a CSS-variable override.
 
 ---
 

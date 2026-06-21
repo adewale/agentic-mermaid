@@ -1,12 +1,69 @@
 # Abstraction recommendations — academic-literature review
 
-Status: recommendations from academic-literature review. Drafted 2026-06-20.
-Companion to [`abstraction-audit.md`](./abstraction-audit.md) (the current-state snapshot and
-the source of issue numbers **I1–I9**, referenced throughout). Reconciled with the pre-existing
+Status: recommendations from academic-literature review. Drafted 2026-06-20;
+reappraised and updated 2026-06-21 after the issue #71 implementation.
+Companion to [`abstraction-audit.md`](./abstraction-audit.md) (the historical pre-implementation
+snapshot and the source of issue numbers **I1–I9**, referenced throughout). Reconciled with the pre-existing
 design docs it overlaps — [`AGENT_NATIVE.md`](../../../AGENT_NATIVE.md) (agent stack),
 [`contributing/diagram-family-citizenship.md`](../../contributing/diagram-family-citizenship.md)
 (family×surface CI ratchet), and [`source-preservation-ladder.md`](./source-preservation-ladder.md)
 (structured\|opaque levels); see the audit's §5 for the agreement and the I1/I3/I7 refinements.
+
+## 2026-06-21 reappraisal
+
+The original issue spec was rechecked against the implemented code, the
+`adewale/testing-best-practices` testing research, current competitor behavior, and fresh source
+checks on the literature. The core direction still holds, but two details were improved:
+
+1. `FamilyPlugin.layout` should be a **source-context hook**, not a `body` hook. The stronger
+   wording in the original roadmap ("layout the structured body directly") overfits L3/L4 bodies and
+   is wrong for L1 opaque bodies, accessibility directives, frontmatter, and `%%init%%` preservation.
+   The implemented contract uses `FamilyLayoutContext { source, options, renderOptions, colors }`.
+   That still removes the duplicated public SVG/ASCII switches while keeping source-preservation
+   semantics explicit.
+2. `knownFamilies()` should not expose mutable `Map` insertion order. The reappraisal keeps the
+   keyed registry but requires deterministic iteration: built-ins follow `BUILTIN_FAMILY_METADATA`;
+   any external registrations sort lexically after the built-ins.
+
+### Evidence Update
+
+- **Academic architecture:** Wadler's expression-problem framing still supports a registry of
+  operations by family; TypeScript's discriminated-union/`never` exhaustiveness model supports the
+  certificate split and exhaustive proof switches. MLIR's "dialects and lowering" lesson and
+  Graphviz's attributed-graph/layout/output separation support multiple family-specific layout
+  dialects, not one universal geometry IR.
+- **Competitive analysis:** Mermaid now documents many diagram families, frontmatter/config, and
+  evolving layout/look support; it explicitly limits layout/look support to some diagram types today
+  while expanding it. Graphviz exposes DOT, layout engines, output formats, and attributes as
+  separate concerns. PlantUML supports several layout engines and output formats, but ASCII is only
+  broadly documented for sequence diagrams. D2 documents layout-engine tradeoffs and engine-specific
+  feature gaps. The pattern across competitors is **separated surfaces and explicit layout engines**,
+  not a single geometry model for every diagram and output.
+- **Theming practice:** Mermaid's `themeVariables` remain a compatibility requirement. The 2026
+  Design Tokens Community Group draft reinforces a named-token/alias direction, but it is explicitly
+  a preview and not a W3C standard. The best current move is therefore the implemented
+  `DiagramColors`/CSS-variable waist with semantic role slots, not importing a full design-token JSON
+  object into the public API.
+- **Testing practice:** The testing-best-practices guidance maps directly to this refactor:
+  characterization/snapshot tests for byte-stable rendering, property tests for parser/config/layout
+  invariants, doc-sync tests for registry/docs drift, visual/pixel contracts where SVG appearance is
+  the output, and mutation lanes as adequacy checks. The implementation added direct registry dispatch
+  coverage (`render-family-hooks.test.ts`) and rides the existing 4k+ suite, property tests, visual
+  contracts, and mutation configuration.
+
+### Updated Closure Matrix
+
+| Issue | Original claim | Reappraisal | Implemented/spec outcome |
+|---|---|---|---|
+| I1 | Three dispatch mechanisms should converge on `FamilyPlugin`. | Still best. Registry iteration also needs deterministic order. | SVG and ASCII route through `layout`/`renderSvg`/`renderAscii` hooks; `knownFamilies()` is metadata-ordered. |
+| I2 | Renderer signatures should collapse to `RenderContext`. | Still best; keep context thin. | All SVG renderers consume `{ positioned, colors, options }`. |
+| I3 | Add a shared `PositionedDiagram` marker but do not invent a universal IR. | Still best; competitors and MLIR/Graphviz reinforce dialect-style geometry. | `PositionedDiagram` exists; family positioned types remain specialized. |
+| I4 | Push parse/layout/render leaks down. | Mostly best; architecture legitimately needs layout metrics, not whole visual config. | Pie colors are render-time, xychart frontmatter is post-parse middleware, Gantt has a named pipeline, architecture passes layout metrics and render visual separately. |
+| I5 | Consolidate color models onto one internal waist. | Still best; do not adopt full design-token spec yet. | `resolveDiagramColors` normalizes options/themes/themeVariables; inline style resolvers and role color slots feed families. |
+| I6 | Split fake certificate union by what each certificate proves. | Still best. | `EdgeRouteCertificate`, `FamilyEdgeRouteCertificate`, and `RegionContainmentCertificate` are explicit; `layoutCertificateProof` exhaustively classifies them. |
+| I7 | Prefer structured-body layout over reparsing `canonicalSource`. | Revised. Prefer registered **layout hooks over duplicated public dispatch**, but keep source context as the hook input. Body-only layout is future work only for families that can prove it is lossless. | `FamilyPlugin.layout(ctx)` owns source-to-positioned layout; structured render paths avoid stale `canonicalSource` where supported without breaking opaque bodies. |
+| I8 | Keep ASCII geometry isolated; share only family-set/dispatch. | Still best; PlantUML/D2 reinforce output-specific geometry. | ASCII uses `renderAscii` hooks but retains grid layout/A* internals. |
+| I9 | Delete vestigial re-export and dead parameters; normalize names opportunistically. | Still best, but broad rename churn is lower priority than behavior-preserving closure. | `src/layout.ts` is gone and unused renderer `_options` are folded into `RenderContext`; broad naming normalization remains optional churn, not issue-blocking. |
 
 > Web access note: WebSearch/WebFetch **were available** in this environment. Every citation
 > below was bibliographically verified against authoritative records (dblp, arXiv, official
@@ -19,7 +76,7 @@ design docs it overlaps — [`AGENT_NATIVE.md`](../../../AGENT_NATIVE.md) (agent
 
 ## 0. The shape of the problem, in the literature's terms
 
-The audit's core finding — the same ~12 diagram **families** are processed by ~5 **operations**
+The audit's baseline finding — the same ~12 diagram **families** were processed by ~5 **operations**
 (parse, layout, render-SVG, render-ASCII, mutate, verify) across **three** stacks (SVG, ASCII,
 agent IR) with **three** dispatch mechanisms — is, almost exactly, two classic problems stacked
 on top of each other:
@@ -73,11 +130,11 @@ already uses, and it is the concrete form of "make the waist thin" (the hourglas
 
 **(a) Lens.** This is the **Expression Problem** (Wadler 1998) plus the **Microkernel/plug-in**
 architectural pattern (POSA1, Buschmann et al. 1996). The agent stack's
-`FamilyPlugin { id, detect, parse?, serialize?, mutate?, verify? }` in
-`Map<DiagramKind, FamilyPlugin>` (`src/agent/families.ts:25,105`) *is* a microkernel: a minimal core
-that owns only registration + dispatch, with each family a plug-in. The two hand-written
-`switch(diagramType)` statements (`src/index.ts:342`, `src/ascii/index.ts`) are the decomposition
-Wadler shows fails — adding a family means editing three sites that cannot drift-check each other.
+`FamilyPlugin` in `Map<DiagramKind, FamilyPlugin>` (`src/agent/families.ts`) *is* a microkernel: a
+minimal core that owns only registration + dispatch, with each family a plug-in. At audit time, the
+SVG and ASCII public entrypoints also had hand-written `switch(diagramType)` statements; that was the
+decomposition Wadler shows fails — adding a family meant editing three sites that could not
+drift-check each other.
 
 **(b) Prescription.** Keep one core that knows only the registration/dispatch contract; deliver all
 per-family behavior as registered plug-ins (Parnas 1972: hide the decision "which family is this?"
@@ -88,13 +145,13 @@ behind one module). Add the missing operations to the existing plug-in interface
 ```
 renderSvg?:   (ctx: RenderContext) => string          // see I2 for RenderContext
 renderAscii?: (ctx: AsciiContext)  => string
-layout?:      (body: DiagramBody, opts) => PositionedDiagram   // see I3
+layout?:      (ctx: FamilyLayoutContext) => FamilyLayoutResult | PositionedDiagram
 ```
 
-Then replace `renderMermaidSVG`'s `switch` (`src/index.ts:342`) and the ASCII `switch` with
-`getFamily(kind)?.renderSvg(ctx)`. **Do not** delete the `switch` arms wholesale on day one — migrate
-**one family at a time**, leaving the `switch` as a fallback for un-migrated families, so each move is
-a single-family diff behind snapshot tests. The end state deletes both `switch` statements.
+The now-implemented end state routes public SVG and ASCII rendering through keyed registry lookup
+(`getFamily(kind)`) and the hooks above. If this pattern is repeated in another surface, keep the same
+incremental migration rule used here: move one family at a time behind snapshot tests, then delete the
+fallback dispatch only after every family has a hook.
 
 **(d) Tradeoffs / determinism risk.** The registry is a `Map` populated at import in
 `families-builtin.ts`. **Risk:** if dispatch ever iterates the registry (e.g. `knownFamilies()`
@@ -120,8 +177,8 @@ high-value** — but justify it as *de-duplication of dispatch*, not as open ext
 transparent=false, options={})` (`src/renderer.ts:37`) has drifted into 4-, 6-, and 7-arg variants
 (`renderTimelineSvg` has 7; `renderArchitectureSvg`'s `visual` *replaces* `options`;
 `renderPie/QuadrantSvg` accept `_options` they ignore). Three positional args are already
-redundant: `font` is folded into `colors` (`buildColors(opts, config, font)` sets
-`DiagramColors.font`, `index.ts:106`), and `transparent` is a lone boolean.
+redundant: `font` is folded into `colors` (`resolveDiagramColors(options, config, font)` sets
+`DiagramColors.font`), and `transparent` is a lone boolean.
 
 **(b) Prescription.** Collapse the positional tail into one **capability/context object** — a single
 predictable interface every renderer accepts (Lampson; Strategy's "one interface, many
@@ -141,8 +198,9 @@ becomes `(ctx: RenderContext) => string`. This is a no-op on geometry, so it is 
 
 **(d) Tradeoffs / determinism risk.** Essentially none for geometry — same inputs, same outputs;
 verify with snapshot tests. Minor risk: defaulting (`font='Inter'`, `transparent=false`) must be
-applied at the *boundary* (`buildColors`/`buildContext`) so no call site silently changes a default.
-Make the defaults explicit in one constructor, not scattered.
+applied at the *boundary* (`resolveDiagramColors` plus the public render entrypoint's context
+construction) so no call site silently changes a default. Make the defaults explicit in one
+constructor, not scattered.
 
 **(e) Where theory doesn't transfer.** A Parameter Object can become a god-bag if every family dumps
 unrelated config into it. Keep `RenderContext` thin (3 fields) and push family-specifics into a typed,
@@ -199,10 +257,10 @@ contract (a bounding box and a render target) without paying for unification we'
 
 **(a) Lens.** Direct hit for **Parnas (1972/1979)** information hiding and the **Graphviz/ELK
 layout-vs-render boundary**. The leaks are decisions placed in the wrong module:
-- `layoutPieChart(chart, options, colors)` — layout consumes `DiagramColors` to assign slice colors.
+- Audit-time `layoutPieChart(chart, options, colors)` — layout consumed `DiagramColors` to assign slice colors.
 - `layoutArchitectureDiagram(diagram, options, visual)` + `resolveArchitectureVisualConfig` — visual
   config threaded through *both* layout and render, bypassing `options`.
-- `parseXYChart(lines, frontmatter)` — theme/frontmatter baked in during *parsing*.
+- Audit-time `parseXYChart(lines, frontmatter)` — theme/frontmatter was baked in during *parsing*.
 - Gantt is a hand-wired **4-stage** pipeline in `index.ts:404`.
 
 ELK's prescription is unambiguous: layout is a *pure geometry service*; color and visual styling are
@@ -253,7 +311,7 @@ once, so downstream code never re-resolves). Everything below the waist sees onl
 
 **(c) Recommendation.** Make **`DiagramColors` (+ the CSS-custom-property layer) the single internal
 contract.** Treat `MermaidThemeVariables`, `classDefs/nodeStyles/linkStyles`, and `RenderOptions` as
-**input dialects** that a boundary function (`buildColors`, `index.ts:106`) *parses* into `DiagramColors`
+**input dialects** that a boundary function (`resolveDiagramColors`) *parses* into `DiagramColors`
 — after which no renderer consults the raw dialects. Concretely: the precedence rule "classDef beats
 themeVariables beats RenderOptions" lives in **one** resolver, not scattered across families. Extend the
 **role-style** abstraction (`DiagramStyleOptions` / `resolveRenderStyle`) — which the audit rightly
@@ -276,14 +334,13 @@ simplify) would be a correctness regression, not a cleanup.
 ## I6 — "Route contracts" is two abstractions sharing one type union
 
 **(a) Lens.** **"Making illegal states unrepresentable"** (Minsky) and **ADTs + exhaustiveness checking**.
-`LayoutRouteCertificate = RouteCertificate | FamilyRouteCertificate` (`src/types.ts:296`) *looks*
-unified but the two arms share neither producer, consumer, nor lifecycle:
-- `RouteCertificate` (flowchart) is keyed by `edgeIndex`, carries `invariant: 'straight' | …`, and is
-  produced in **core** (`route-contracts.ts`, attached to `PositionedEdge.routeCertificate`).
-- `FamilyRouteCertificate` is a 4-way union (`types.ts:244`): class/er + architecture + sequence are
-  keyed by `edgeIndex`; **timeline/xychart/pie/quadrant/gantt are keyed by `elementId`**, with totally
-  different invariants (`'plot-contained'`, `'section-contained'`). It is produced **only** in
-  `agent/family-layouts.ts`; the core SVG path attaches none.
+At audit time, `LayoutRouteCertificate = RouteCertificate | FamilyRouteCertificate` looked unified
+but the arms shared neither producer, consumer, nor lifecycle:
+- `RouteCertificate` (flowchart) was keyed by `edgeIndex`, carried `invariant: 'straight' | …`, and
+  was produced in **core** (`route-contracts.ts`, attached to `PositionedEdge.routeCertificate`).
+- The old `FamilyRouteCertificate` shape mixed edge proofs (class/ER, architecture, sequence) with
+  element/region proofs (timeline/xychart/pie/quadrant/gantt), so some members were keyed by
+  `edgeIndex` while others were keyed by `elementId`.
 
 A union whose arms have different *keys* (`edgeIndex` vs `elementId`) and different lifecycles is a
 *structural* union, not a *semantic* one — it permits illegal states (a "certificate" with no producer
@@ -294,13 +351,12 @@ type** to reflect that there are genuinely two-or-three different certificate co
 the lifecycle** by producing family certs in the core layout path so the union becomes real.
 
 **(c) Recommendation — split, don't fake-unify.** Rename to expose reality:
-`type EdgeRouteCertificate = RouteCertificate` (edge-indexed, route-shape invariants) and
-`type RegionContainmentCertificate` (the `elementId`-keyed containment arm). Keep the edge-keyed family
-certs (class/er/architecture/sequence) with the flowchart edge certs *only if* they share a consumer;
-otherwise keep them separate. The umbrella `LayoutRouteCertificate` can remain as a *sum for the
-debug-sidecar field* (`RenderedLayout.certificates`, `agent/types.ts:915`) but its members should be
-**named by what they prove**, and the verifier should `switch` exhaustively over them so a new
-certificate kind is a compile error, not a silent gap.
+The implemented split names what each certificate proves:
+`EdgeRouteCertificate = RouteCertificate | FamilyEdgeRouteCertificate` for edge-indexed route proofs,
+and `RegionContainmentCertificate` for element/region containment proofs. The umbrella
+`LayoutRouteCertificate` remains only as a debug-sidecar sum whose members are **named by what they
+prove**. `layoutCertificateProof` switches exhaustively over those names so a new certificate kind is
+a compile error, not a silent gap.
 
 **(d) Tradeoffs / determinism risk.** This is a **type-level rename + redocument** with no geometry
 change — low determinism risk. The discipline risk is that the agent verify path and core route path
@@ -325,9 +381,9 @@ syntax" state — a model worth celebrating, not fixing. The two seams are real,
 
 - **(seam a) Mutation ops are duck-typed:** `mutate(body, op: AnyMutationOp)` with each family
   narrowing via `if (body.kind !== 'class') return err(...)`.
-- **(seam b) Layout re-parses `canonicalSource`** through the core per-family parser instead of laying
-  out the structured `body` it already holds — a text round-trip that couples agent layout to
-  *serializer fidelity*.
+- **(seam b) Layout re-parses `canonicalSource`** through the core per-family parser instead of using
+  the family registry as the owner of layout dispatch — a text round-trip that can couple agent layout
+  to *serializer fidelity* for L3/L4 structured bodies.
 
 **(b) Prescription.** Minsky: push the narrowing into the *type* so an op can only reach a body it
 applies to. King: don't round-trip through text you already parsed — operate on the structured value.
@@ -337,27 +393,29 @@ applies to. King: don't round-trip through text you already parsed — operate o
   just verbose). If desired, route mutation through `FamilyPlugin.mutate` (already in the interface,
   `families.ts:55`) so each family owns its narrowing in one place rather than re-checking at every op.
   This is the I1 registry paying off again. **Low priority** — it is verbosity, not a bug.
-- **(seam b) is the structural one — but reconciled, lower-urgency.** Where a family can lay out its
-  **structured body directly**, give `FamilyPlugin` a `layout?(body, opts)` hook (I1/I3) and prefer it
-  over re-parsing `canonicalSource`. This decouples agent layout from serializer round-trip fidelity.
-  Per `AGENT_NATIVE.md` §3, however, `canonicalSource` is the *documented* "round-trip pillar"
-  ("structured renderers use this as input") and the coupling is already guarded by round-trip identity
-  property tests — so this is a **decoupling/perf** improvement, not the closing of an unguarded hole,
-  and it applies only to **L3/L4** structured bodies (the source-preservation ladder). For **L1** opaque
-  bodies, text is the representation and re-parsing is correct.
+- **(seam b) is the structural one — but reconciled, lower-urgency.** Give `FamilyPlugin` a
+  source-context `layout?(ctx)` hook (I1/I3) and prefer it over public-entrypoint switch statements.
+  This lets each family own the exact parse/config/layout pipeline it needs while preserving
+  frontmatter, accessibility directives, and opaque-source semantics. Per `AGENT_NATIVE.md` §3,
+  however, `canonicalSource` is the *documented* "round-trip pillar" ("structured renderers use this
+  as input") and the coupling is already guarded by round-trip identity property tests — so direct
+  **structured-body** layout is a future decoupling/perf option, not the closure requirement, and it
+  applies only to **L3/L4** structured bodies. For **L1** opaque bodies, text is the representation and
+  re-parsing is correct.
 
-**(d) Tradeoffs / determinism risk.** Seam (b) is the **highest-value correctness fix** in the whole
-audit *and* a determinism improvement (fewer round-trips = fewer places for the text path to diverge).
-But it is **structural, higher-risk**: laying out the body directly must produce *byte-identical*
-geometry to the current re-parse path, or it's a behavior change. Gate per family with snapshot tests;
-migrate only families whose body is a faithful superset of what the parser reconstructs. Some families
-may *not* round-trip losslessly today — for those, fixing the serializer first (or keeping the re-parse)
-is the honest call.
+**(d) Tradeoffs / determinism risk.** The source-context hook is lower-risk than the original body-only
+wording because it moves dispatch without changing which source dialects a family can faithfully
+understand. A later body-direct layout path is higher-risk: it must produce *byte-identical* geometry
+to the source-context path, or it is a behavior change. Gate any such migration per family with
+snapshot tests; migrate only families whose body is a faithful superset of what the parser
+reconstructs. Some families may *not* round-trip losslessly today — for those, keeping source-context
+layout is the honest call.
 
 **(e) Where theory doesn't transfer.** "Never round-trip through text" is too absolute. For the **opaque**
-body, text *is* the only representation — re-parsing is correct and unavoidable. The recommendation
-applies strictly to **structured** bodies. And duck-typed narrowing (seam a) is a non-issue the theory
-would over-engineer; resist the urge to build a typed op-dispatch matrix for it.
+body, text *is* the only representation — source-context layout is correct and unavoidable. The
+body-direct optimization applies strictly to **structured** bodies. And duck-typed narrowing (seam a)
+is a non-issue the theory would over-engineer; resist the urge to build a typed op-dispatch matrix for
+it.
 
 ---
 
@@ -398,13 +456,14 @@ they've actually converged, never preemptively.
 ## I9 — Vestigial / cosmetic
 
 **(a) Lens.** **Lampson** ("do one thing well"; remove needless indirection) and **TypeScript exhaustiveness checking**.
-`src/layout.ts` is a one-line re-export of `layoutGraphSync` (pure indirection); naming is inconsistent
-(`parseXDiagram` vs `parseXChart` vs `parseGanttModel`; `Sync` suffix on only 3 of 11 sync layout fns);
-`_options` params (pie/quadrant) advertise a contract not honored.
+At audit time, `src/layout.ts` was a one-line re-export of `layoutGraphSync`
+(pure indirection); naming was inconsistent (`parseXDiagram` vs `parseXChart`
+vs `parseGanttModel`; `Sync` suffix on only 3 of 11 sync layout fns);
+`_options` params (pie/quadrant) advertised a contract not honored.
 
 **(b/c) Prescription / recommendation.** Pure hygiene, **mechanical, lowest-risk**, do alongside the
 structural work it touches:
-- Inline `src/layout.ts`'s re-export at call sites and delete the file (Lampson: needless indirection).
+- Issue #71 inlined `src/layout.ts`'s re-export at call sites and deleted the file (Lampson: needless indirection).
 - Normalize naming to one convention (`parse<Family>` / `layout<Family>`); drop the `Sync` suffix
   (all are sync — the distinction is meaningless). Do this as a **single rename commit** so blame stays
   legible.
@@ -419,23 +478,24 @@ names once, not twice.
 
 ---
 
-## Prioritized roadmap
+## Closure Roadmap
 
-Sequenced so each step de-risks the next, mechanical/low-risk first, with the one high-value structural
-correctness fix (I7 seam b) called out. Every step is gated by the repo's snapshot/determinism tests.
+This table supersedes the original issue roadmap. It records the implementation closure criteria after
+the 2026-06-21 reappraisal. Every behavior-affecting row is gated by the repo's snapshot,
+property-based, visual-contract, and determinism tests.
 
-| # | Change | Issues | Risk | Why here |
-|---|---|---|---|---|
-| 1 | Introduce `RenderContext` + marker `PositionedDiagram` base; migrate `renderSvg` signature family-by-family | I2, I3 | **Low** (pure refactor, no geometry change) | Gives every later step *one* type to name (the thin waist). Snapshot-safe. |
-| 2 | Split the certificate type by what it proves (`EdgeRouteCertificate` vs `RegionContainmentCertificate`); exhaustive verify `switch` | I6 | **Low** (type rename, no geometry) | Removes a fake union before anything depends on it. |
-| 3 | Add `renderSvg`/`renderAscii`/`layout` hooks to `FamilyPlugin`; route dispatch through the registry one family at a time; delete both `switch` statements last | I1, I8 | **Low→Med** (mechanical per family; keyed lookup keeps determinism) | The audit's highest-leverage target; unblocks I8 family-set de-dup. |
-| 4 | Push I4 leaks down: pie colors → render; xychart frontmatter → post-parse middleware (mirror Gantt); name the Gantt pipeline; pass architecture *metrics* (not whole visual) to layout | I4 | **Med** (pie color-order must stay byte-identical) | Needs RenderContext (step 1) as the place render-time color lands. |
-| 5 | Consolidate color models: make `DiagramColors`+CSS-vars the internal waist; parse themeVariables/classDefs/RenderOptions into it at the boundary; extend role styles with color slots | I5 | **Med** (precedence must not change — lock with goldens first) | Largest surface; do after the render boundary (steps 1,4) is clean. |
-| 6 | Prefer `FamilyPlugin.layout(body)` over re-parsing `canonicalSource` for structured bodies | I7 (seam b) | **High** (must reproduce geometry exactly; some families may not round-trip losslessly yet) | The real correctness win; do last, per family, behind snapshots. |
-| 7 | Hygiene: delete `src/layout.ts` re-export; normalize `parse*`/`layout*` naming; drop `_options`/`Sync` | I9 | **Low** (no geometry) | Do *after* renames settle so final names land once. |
+| # | Closure criterion | Issues | Status |
+|---|---|---|---|
+| 1 | `RenderContext` + marker `PositionedDiagram`; all SVG renderers use the context object. | I2, I3 | Done. |
+| 2 | Split certificate concepts by proof type; exhaustively classify every certificate variant. | I6 | Done via `EdgeRouteCertificate`, `FamilyEdgeRouteCertificate`, `RegionContainmentCertificate`, and `layoutCertificateProof`. |
+| 3 | Add `layout`/`renderSvg`/`renderAscii` hooks to `FamilyPlugin`; remove public SVG/ASCII switch dispatch; make registry iteration deterministic. | I1, I8 | Done; `knownFamilies()` follows metadata order. |
+| 4 | Move I4 leaks to their owning stages: pie colors at render, xychart config post-parse, named Gantt pipeline, architecture metrics-only layout input. | I4 | Done. |
+| 5 | Consolidate color resolution onto `DiagramColors` + CSS vars and semantic role color slots. | I5 | Done; Mermaid dialects remain accepted at the boundary. |
+| 6 | Prefer registered source-context layout hooks over duplicated public dispatch; reserve body-direct layout for future per-family optimizations that can prove lossless parity. | I7 (seam b) | Done for closure; body-direct layout is not required for issue #71. |
+| 7 | Delete vestigial `src/layout.ts`; remove dead renderer params; avoid broad naming churn unless it falls out naturally. | I9 | Done for blocking hygiene; global rename normalization remains optional. |
 
-Seam (a) of I7 (duck-typed mutation) is **deliberately omitted** — fold it into step 3 only if the
-registry route makes it free; it is verbosity, not a bug.
+Seam (a) of I7 (duck-typed mutation) remains deliberately omitted — the registry route would not make a
+typed op-dispatch matrix simpler, and the current public mutation surface is already narrowed by family.
 
 ---
 
@@ -556,6 +616,35 @@ URL not independently fetched. No URLs or page numbers were fabricated.
   constraints," *J. Visual Languages & Computing* 25(2):89–106, 2014. DOI 10.1016/j.jvlc.2013.11.005. **[D]**
 - Sören Domrös, Reinhard von Hanxleden, Miro Spönemann, Ulf Rüegg, Christoph Daniel Schulze, "The Eclipse
   Layout Kernel," arXiv:2311.00533, 2023. **[V]** <https://arxiv.org/abs/2311.00533>
+
+**2026-06-21 competitive / industry reappraisal sources**
+- Mermaid documentation, "Diagram Syntax" and layout/look configuration (site version 11.15.0). **[V]**
+  <https://mermaid.js.org/intro/syntax-reference.html>
+- Mermaid documentation, "Theme Configuration" (`themeVariables`, derived colors, per-family variables).
+  **[V]** <https://mermaid.js.org/config/theming.html>
+- Graphviz documentation, "Documentation" overview (DOT language, layout engines, output formats,
+  attributes). **[V]** <https://graphviz.org/documentation/>
+- PlantUML home page (supported diagram families, layout engines, output formats) and ASCII-art page
+  (ASCII/Unicode documented for sequence diagrams). **[V]** <https://plantuml.com/> ·
+  <https://plantuml.com/ascii-art>
+- D2 documentation, "Introduction", "Layouts", and "Themes" (declarative diagramming, engine tradeoffs,
+  theme overrides). **[V]** <https://d2lang.com/tour/intro/> ·
+  <https://d2lang.com/tour/layouts/> · <https://d2lang.com/tour/themes/>
+- Design Tokens Community Group, "Design Tokens Format Module 2025.10," Draft Community Group Report,
+  13 June 2026. **[V]** Preview draft; explicitly not a W3C standard.
+  <https://www.designtokens.org/tr/drafts/format/>
+
+**Testing practice sources used for reappraisal**
+- `adewale/testing-best-practices` skill and references (TypeScript, golden/snapshot tests, correctness by
+  construction, mutation/testing-type decision guide). **[V]**
+  <https://github.com/adewale/testing-best-practices>
+- Koen Claessen & John Hughes, "QuickCheck: A Lightweight Tool for Random Testing of Haskell Programs,"
+  ICFP 2000. DOI 10.1145/351240.351266. **[D]**
+- Yue Jia & Mark Harman, "An Analysis and Survey of the Development of Mutation Testing," *IEEE TSE*
+  37(5):649-678, 2011. DOI 10.1109/TSE.2010.62. **[D]**
+- James Somers, "What if writing tests was a joyful experience?", Jane Street Blog, 9 Jan 2023
+  (expect/snapshot tests and readable output discipline). **[V]**
+  <https://blog.janestreet.com/the-joy-of-expect-tests/>
 
 **Complexity & cost of duplication**
 - Ben Moseley & Peter Marks, "Out of the Tar Pit," 2006. **[V]**

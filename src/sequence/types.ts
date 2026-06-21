@@ -5,6 +5,8 @@
 // Sequence diagrams show actor interactions over time (vertical timeline).
 // ============================================================================
 
+import type { PositionedDiagram } from '../types.ts'
+
 /** Parsed sequence diagram — logical structure from mermaid text */
 export interface SequenceDiagram {
   /** Optional accessibility title (Mermaid accTitle) */
@@ -70,7 +72,7 @@ export interface Note {
 // Positioned sequence diagram — ready for SVG rendering
 // ============================================================================
 
-export interface PositionedSequenceDiagram {
+export interface PositionedSequenceDiagram extends PositionedDiagram {
   width: number
   height: number
   accessibilityTitle?: string

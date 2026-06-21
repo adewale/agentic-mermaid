@@ -5,9 +5,23 @@
  * depending on the layout engine.
  */
 import { describe, it, expect } from 'bun:test'
-import { renderSvg } from '../renderer.ts'
+import { renderSvg as renderSvgWithContext } from '../renderer.ts'
 import type { DiagramColors } from '../theme.ts'
-import type { PositionedGraph, PositionedNode, PositionedEdge, PositionedGroup } from '../types.ts'
+import type { PositionedGraph, PositionedNode, PositionedEdge, PositionedGroup, RenderOptions } from '../types.ts'
+
+function renderSvg(
+  positioned: PositionedGraph,
+  colors: DiagramColors,
+  font = 'Inter',
+  transparent = false,
+  options: RenderOptions = {},
+): string {
+  return renderSvgWithContext({
+    positioned,
+    colors: { ...colors, font },
+    options: { ...options, transparent },
+  })
+}
 
 /** Minimal positioned graph for testing */
 function makeGraph(overrides: Partial<PositionedGraph> = {}): PositionedGraph {

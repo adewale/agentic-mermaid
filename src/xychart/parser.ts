@@ -34,12 +34,10 @@ import type {
  * Parse a Mermaid xychart / xychart-beta diagram from preprocessed lines.
  * Lines should already be trimmed and comment-stripped.
  */
-export function parseXYChart(lines: string[], frontmatter: MermaidFrontmatterMap = {}): XYChart {
+export function parseXYChart(lines: string[]): XYChart {
   const xAxis: XYAxis = {}
   const yAxis: XYAxis = {}
   const series: XYChartSeries[] = []
-  const config = resolveXYChartConfig(frontmatter)
-  const theme = resolveXYChartTheme(frontmatter)
   const statements = expandXYChartStatements(lines)
   let title: string | undefined
   let accTitle: string | undefined
@@ -147,19 +145,31 @@ export function parseXYChart(lines: string[], frontmatter: MermaidFrontmatterMap
     yAxis.range = { min: 0, max: 100 }
   }
 
-  if (!headerOrientation && config.chartOrientation === 'horizontal') {
-    horizontal = true
-  }
-
   return {
     title,
     accessibility: accTitle || accDescription ? { title: accTitle, description: accDescription } : undefined,
     horizontal,
+    headerOrientation,
     xAxis,
     yAxis,
     series,
+    config: resolveXYChartConfig({}),
+    theme: resolveXYChartTheme({}),
+  }
+}
+
+export function applyXYChartFrontmatterConfig(
+  chart: XYChart,
+  frontmatter: MermaidFrontmatterMap = {},
+): XYChart {
+  const config = resolveXYChartConfig(frontmatter)
+  return {
+    ...chart,
+    horizontal: chart.headerOrientation
+      ? chart.horizontal
+      : config.chartOrientation === 'horizontal',
     config,
-    theme,
+    theme: resolveXYChartTheme(frontmatter),
   }
 }
 
@@ -285,7 +295,7 @@ function pushValue(values: string[], rawValue: string): void {
   if (value.length > 0) values.push(value)
 }
 
-function resolveXYChartConfig(frontmatter: MermaidFrontmatterMap): XYChartConfig {
+export function resolveXYChartConfig(frontmatter: MermaidFrontmatterMap): XYChartConfig {
   const configRoot = getFrontmatterMap(frontmatter, ['config']) ?? frontmatter
   const root = getFrontmatterMap(frontmatter, ['config', 'xyChart']) ?? getFrontmatterMap(frontmatter, ['xyChart']) ?? {}
   const chartOrientation = getString(root, ['chartOrientation'])
@@ -307,7 +317,7 @@ function resolveXYChartConfig(frontmatter: MermaidFrontmatterMap): XYChartConfig
   }
 }
 
-function resolveXYChartTheme(frontmatter: MermaidFrontmatterMap): XYChartTheme {
+export function resolveXYChartTheme(frontmatter: MermaidFrontmatterMap): XYChartTheme {
   const configRoot = getFrontmatterMap(frontmatter, ['config']) ?? frontmatter
   const root = getFrontmatterMap(frontmatter, ['config', 'themeVariables', 'xyChart'])
     ?? getFrontmatterMap(frontmatter, ['themeVariables', 'xyChart'])

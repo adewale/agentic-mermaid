@@ -11,7 +11,7 @@
 // ============================================================================
 
 import { describe, expect, it } from 'bun:test'
-import { parseMermaid, layoutMermaid, measureQuality, verifyMermaid } from '../agent/index.ts'
+import { layoutCertificateProof, parseMermaid, layoutMermaid, measureQuality, verifyMermaid } from '../agent/index.ts'
 import type { RenderedLayout } from '../agent/index.ts'
 
 const EPS = 1
@@ -95,6 +95,48 @@ describe('QUAL-1 adapters: layoutMermaid is deterministic', () => {
   }
 })
 
+// ---- structured body layout ------------------------------------------------
+
+describe('QUAL-1 adapters: structured bodies do not reparse canonicalSource', () => {
+  const STRUCTURED = [
+    {
+      kind: 'xychart',
+      source: 'xychart-beta\n  title Sales\n  x-axis [jan, feb, mar]\n  y-axis Revenue 0 --> 100\n  bar [30, 60, 90]',
+      broken: 'xychart-beta\n  this would not produce chart nodes',
+    },
+    {
+      kind: 'pie',
+      source: SOURCES.pie!,
+      broken: 'pie\n  this is not a slice',
+    },
+    {
+      kind: 'quadrant',
+      source: SOURCES.quadrant!,
+      broken: 'quadrantChart\n  Broken: [2, 3]',
+    },
+    {
+      kind: 'gantt',
+      source: 'gantt\n  section Build\n    Core :core, 2024-01-01, 2d\n    Docs :docs, after core, 1d',
+      broken: 'gantt\n  Bad line without task metadata',
+    },
+  ] as const
+
+  for (const { kind, source, broken } of STRUCTURED) {
+    it(`${kind}: parsed body is enough to produce real geometry`, () => {
+      const p = parseMermaid(source)
+      expect(p.ok).toBe(true)
+      if (!p.ok) return
+      expect(p.value.body.kind).toBe(kind)
+      const corrupted = { ...p.value, canonicalSource: broken }
+      const layout = layoutMermaid(corrupted)
+      expect(layout.kind).toBe(kind)
+      expect(layout.nodes.length).toBeGreaterThan(0)
+      expect(layout.bounds.w).toBeGreaterThan(0)
+      expect(layout.bounds.h).toBeGreaterThan(0)
+    })
+  }
+})
+
 // ---- verify.layout is now truthful -----------------------------------------
 
 describe('QUAL-1: verify.layout carries real geometry', () => {
@@ -117,6 +159,7 @@ describe('non-graph adapters: debug certificates stay family-specific (#26/#38)'
     const layout = layoutMermaid(p.value, { debug: true })
     expect(layout.edges.length).toBeGreaterThan(0)
     expect(layout.edges.every(e => e.route?.routeClass === 'family-layout' && 'family' in e.route && e.route.family === 'architecture' && e.route.invariant === 'side-anchored')).toBe(true)
+    expect(layout.edges.every(e => e.route && layoutCertificateProof(e.route) === 'edge-route')).toBe(true)
     const plain = layoutMermaid(p.value)
     expect(plain.edges.every(e => e.route === undefined)).toBe(true)
   })
@@ -128,6 +171,7 @@ describe('non-graph adapters: debug certificates stay family-specific (#26/#38)'
     const layout = layoutMermaid(p.value, { debug: true })
     expect(layout.edges.length).toBeGreaterThan(0)
     expect(layout.edges.every(e => e.route?.routeClass === 'family-layout' && 'family' in e.route && e.route.family === 'sequence' && e.route.invariant === 'lifeline-message')).toBe(true)
+    expect(layout.edges.every(e => e.route && layoutCertificateProof(e.route) === 'edge-route')).toBe(true)
     expect(layoutMermaid(p.value).edges.every(e => e.route === undefined)).toBe(true)
   })
 
@@ -174,6 +218,7 @@ describe('non-graph adapters: debug certificates stay family-specific (#26/#38)'
       expect(layout.nodes.length).toBeGreaterThan(0)
       expect(layout.certificates?.length).toBe(layout.nodes.length)
       expect(layout.certificates?.every(c => c.routeClass === 'family-layout' && 'family' in c && c.family === kind)).toBe(true)
+      expect(layout.certificates?.every(c => layoutCertificateProof(c) === 'region-containment')).toBe(true)
       expect(layout.certificates?.every(c => 'bounds' in c && 'center' in c && 'containment' in c)).toBe(true)
       if (kind === 'xychart') expect(layout.certificates?.every(c => 'containment' in c && c.containment === 'center')).toBe(true)
       const plain = layoutMermaid(p.value)
@@ -189,6 +234,7 @@ describe('non-graph adapters: debug certificates stay family-specific (#26/#38)'
       const layout = layoutMermaid(p.value, { debug: true })
       expect(layout.edges.length).toBeGreaterThan(0)
       expect(layout.edges.every(e => e.route?.routeClass === 'family-layout' && 'family' in e.route && e.route.family === kind && e.route.invariant === 'orthogonal-box')).toBe(true)
+      expect(layout.edges.every(e => e.route && layoutCertificateProof(e.route) === 'edge-route')).toBe(true)
       const plain = layoutMermaid(p.value)
       expect(plain.edges.every(e => e.route === undefined)).toBe(true)
     }

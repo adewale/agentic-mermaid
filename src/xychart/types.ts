@@ -6,6 +6,8 @@
 // or numeric x-axes.
 // ============================================================================
 
+import type { PositionedDiagram } from '../types.ts'
+
 /** Parsed XY chart — logical structure from mermaid text */
 export interface XYChart {
   /** Optional chart title */
@@ -14,6 +16,8 @@ export interface XYChart {
   accessibility?: XYChartAccessibility
   /** Chart orientation: vertical (default) or horizontal */
   horizontal: boolean
+  /** Source header orientation, when explicitly present. Config cannot override it. */
+  headerOrientation?: 'vertical' | 'horizontal'
   /** X-axis configuration */
   xAxis: XYAxis
   /** Y-axis configuration */
@@ -163,7 +167,7 @@ export interface XYChartTheme {
 // Positioned XY chart — ready for SVG rendering
 // ============================================================================
 
-export interface PositionedXYChart {
+export interface PositionedXYChart extends PositionedDiagram {
   width: number
   height: number
   accessibility?: XYChartAccessibility

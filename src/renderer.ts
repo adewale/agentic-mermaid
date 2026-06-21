@@ -1,11 +1,11 @@
-import type { PositionedGraph, PositionedNode, PositionedEdge, PositionedGroup, Point, EdgeMarker, RenderOptions } from './types.ts'
-import type { DiagramColors } from './theme.ts'
+import type { PositionedGraph, PositionedNode, PositionedEdge, PositionedGroup, Point, EdgeMarker, RenderContext } from './types.ts'
 import { svgOpenTag, buildStyleBlock, buildShadowDefs } from './theme.ts'
 import { STROKE_WIDTHS, ARROW_HEAD, FLOWCHART_DOTTED_DASH, resolveRenderStyle } from './styles.ts'
 import type { ResolvedRenderStyle } from './styles.ts'
 import { measureMultilineText } from './text-metrics.ts'
 import { renderMultilineText, renderMultilineTextWithBackground, escapeXml } from './multiline-utils.ts'
 import { topRoundedRectPath } from './svg-paths.ts'
+import { resolveInlineNodeTextColor } from './color-resolver.ts'
 
 // ============================================================================
 // SVG renderer — converts a PositionedGraph into an SVG string.
@@ -35,12 +35,11 @@ import { topRoundedRectPath } from './svg-paths.ts'
  * @param transparent - If true, renders with transparent background.
  */
 export function renderSvg(
-  graph: PositionedGraph,
-  colors: DiagramColors,
-  font: string = 'Inter',
-  transparent: boolean = false,
-  options: RenderOptions = {},
+  ctx: RenderContext<PositionedGraph>,
 ): string {
+  const { positioned: graph, colors, options } = ctx
+  const font = colors.font ?? 'Inter'
+  const transparent = options.transparent ?? false
   const parts: string[] = []
   const style = resolveRenderStyle(options)
 
@@ -53,6 +52,7 @@ export function renderSvg(
   if (shadowDefs) parts.push(shadowDefs)
   // Per-color arrow markers for edges with custom stroke via linkStyle
   const customStrokeColors = new Set<string>()
+  if (style.edgeStrokeColor) customStrokeColors.add(style.edgeStrokeColor)
   let needsCircle = false
   let needsCross = false
   for (const edge of graph.edges) {
@@ -214,13 +214,13 @@ function renderGroup(group: PositionedGroup, font: string, style: ResolvedRender
   // Outer rectangle
   parts.push(
     `  <rect x="${group.x}" y="${group.y}" width="${group.width}" height="${group.height}" ` +
-    `rx="${style.groupCornerRadius}" ry="${style.groupCornerRadius}" fill="var(--_group-fill)" stroke="${escapeAttr(style.groupBorderColor ?? 'var(--_node-stroke)')}" stroke-width="${style.groupLineWidth}" />`
+    `rx="${style.groupCornerRadius}" ry="${style.groupCornerRadius}" fill="${escapeAttr(style.groupFillColor ?? 'var(--_group-fill)')}" stroke="${escapeAttr(style.groupBorderColor ?? 'var(--_node-stroke)')}" stroke-width="${style.groupLineWidth}" />`
   )
 
   // Header band
   parts.push(
     `  <path d="${topRoundedRectPath(group.x, group.y, group.width, headerHeight, style.groupCornerRadius)}" ` +
-    `fill="var(--_group-hdr)" stroke="${escapeAttr(style.groupBorderColor ?? 'var(--_node-stroke)')}" stroke-width="${style.groupLineWidth}" />`
+    `fill="${escapeAttr(style.groupHeaderFillColor ?? 'var(--_group-hdr)')}" stroke="${escapeAttr(style.groupBorderColor ?? 'var(--_node-stroke)')}" stroke-width="${style.groupLineWidth}" />`
   )
 
   // Header label (supports multi-line via <br> tags)
@@ -230,7 +230,7 @@ function renderGroup(group: PositionedGroup, font: string, style: ResolvedRender
       group.x + style.groupLabelPaddingX,
       group.y + headerHeight / 2,
       style.groupHeaderFontSize,
-      `font-size="${style.groupHeaderFontSize}" font-weight="${style.groupHeaderFontWeight}"${style.groupFont ? ` font-family="${escapeAttr(style.groupFont)}"` : ''}${style.groupLetterSpacing !== 0 ? ` letter-spacing="${style.groupLetterSpacing}"` : ''} fill="var(--_text-sec)"`
+      `font-size="${style.groupHeaderFontSize}" font-weight="${style.groupHeaderFontWeight}"${style.groupFont ? ` font-family="${escapeAttr(style.groupFont)}"` : ''}${style.groupLetterSpacing !== 0 ? ` letter-spacing="${style.groupLetterSpacing}"` : ''} fill="${escapeAttr(style.groupTextColor ?? 'var(--_text-sec)')}"`
     )
   )
 
@@ -256,12 +256,13 @@ function renderEdge(edge: PositionedEdge, style: ResolvedRenderStyle): string {
   const pathData = style.edgeBendRadius > 0 ? pointsToPathD(edge.points, style.edgeBendRadius) : pointsToPolylinePath(edge.points)
   const dashArray = edge.style === 'dotted' ? ` stroke-dasharray="${FLOWCHART_DOTTED_DASH.dash} ${FLOWCHART_DOTTED_DASH.gap}"` : ''
   const baseStrokeWidth = edge.style === 'thick' ? style.lineWidth * 2 : style.lineWidth
-  const strokeColor = escapeAttr(edge.inlineStyle?.stroke ?? 'var(--_line)')
+  const markerColor = edge.inlineStyle?.stroke ?? style.edgeStrokeColor
+  const strokeColor = escapeAttr(markerColor ?? 'var(--_line)')
   const strokeWidth = escapeAttr(edge.inlineStyle?.['stroke-width'] ?? String(baseStrokeWidth))
 
   // Build marker attributes based on arrow direction flags
   // Use color-specific markers when edge has a custom stroke from linkStyle
-  const suffix = edge.inlineStyle?.stroke ? `-${markerSuffix(edge.inlineStyle.stroke)}` : ''
+  const suffix = markerColor ? `-${markerSuffix(markerColor)}` : ''
   let markers = ''
   if (edge.hasArrowEnd) {
     const prefix = markerIdPrefix(edge.endMarker ?? 'arrow')
@@ -463,7 +464,7 @@ function renderEdgeLabel(edge: PositionedEdge, font: string, style: ResolvedRend
     style.edgeLabelFontSize,
     padding,
     // Use --_text-sec for better contrast (was --_text-muted)
-    `text-anchor="middle" font-size="${style.edgeLabelFontSize}" font-weight="${style.edgeLabelFontWeight}"${style.edgeLetterSpacing !== 0 ? ` letter-spacing="${style.edgeLetterSpacing}"` : ''} fill="var(--_text-sec)"`,
+    `text-anchor="middle" font-size="${style.edgeLabelFontSize}" font-weight="${style.edgeLabelFontWeight}"${style.edgeLetterSpacing !== 0 ? ` letter-spacing="${style.edgeLetterSpacing}"` : ''} fill="${escapeAttr(style.edgeTextColor ?? 'var(--_text-sec)')}"`,
     // Increased stroke width from 0.5 to 1 for better label separation from edges
     `rx="2" ry="2" fill="var(--bg)" stroke="var(--_inner-stroke)" stroke-width="1"`
   )
@@ -553,8 +554,8 @@ function renderNodeShape(node: PositionedNode, style: ResolvedRenderStyle): stri
   // Resolve fill and stroke — inline styles (from mermaid `style` directives)
   // override the CSS variable defaults. When no inline style is present, the
   // CSS variable handles theming automatically via color-mix() derivation.
-  const fill = escapeAttr(inlineStyle?.fill ?? 'var(--_node-fill)')
-  const stroke = escapeAttr(inlineStyle?.stroke ?? 'var(--_node-stroke)')
+  const fill = escapeAttr(inlineStyle?.fill ?? style.nodeFillColor ?? 'var(--_node-fill)')
+  const stroke = escapeAttr(inlineStyle?.stroke ?? style.nodeBorderColor ?? 'var(--_node-stroke)')
   const sw = escapeAttr(inlineStyle?.['stroke-width'] ?? String(style.nodeLineWidth))
 
   switch (shape) {
@@ -809,44 +810,6 @@ function renderStateEnd(x: number, y: number, w: number, h: number): string {
 // Node label rendering
 // ============================================================================
 
-function parseHexToRgb(hex: string): { r: number; g: number; b: number } | null {
-  const match = hex.match(/^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$/)
-  if (!match) return null
-  const raw = match[1]!
-  const full = raw.length === 3
-    ? raw.split('').map(ch => ch + ch).join('')
-    : raw
-  return {
-    r: Number.parseInt(full.slice(0, 2), 16),
-    g: Number.parseInt(full.slice(2, 4), 16),
-    b: Number.parseInt(full.slice(4, 6), 16),
-  }
-}
-
-function parseRgbFunction(color: string): { r: number; g: number; b: number } | null {
-  const match = color.match(/^rgba?\(\s*(\d{1,3})(?:\s*,\s*|\s+)(\d{1,3})(?:\s*,\s*|\s+)(\d{1,3})/i)
-  if (!match) return null
-  const rgb = {
-    r: Number.parseInt(match[1]!, 10),
-    g: Number.parseInt(match[2]!, 10),
-    b: Number.parseInt(match[3]!, 10),
-  }
-  return Object.values(rgb).every(v => v >= 0 && v <= 255) ? rgb : null
-}
-
-function contrastTextColor(fill: string): string | undefined {
-  const rgb = parseHexToRgb(fill) ?? parseRgbFunction(fill)
-  if (!rgb) return undefined
-  const brightness = (rgb.r * 299 + rgb.g * 587 + rgb.b * 114) / 1000
-  return brightness > 140 ? '#000000' : '#FFFFFF'
-}
-
-function nodeTextColor(node: PositionedNode): string {
-  if (node.inlineStyle?.color) return node.inlineStyle.color
-  if (node.inlineStyle?.fill) return contrastTextColor(node.inlineStyle.fill) ?? 'var(--_text)'
-  return 'var(--_text)'
-}
-
 function renderNodeLabel(node: PositionedNode, font: string, style: ResolvedRenderStyle): string {
   // State pseudostates have no label
   if (node.shape === 'state-start' || node.shape === 'state-end') {
@@ -856,7 +819,7 @@ function renderNodeLabel(node: PositionedNode, font: string, style: ResolvedRend
   const cx = node.x + node.width / 2
   const cy = node.y + node.height / 2
 
-  const textColor = escapeAttr(nodeTextColor(node))
+  const textColor = escapeAttr(resolveInlineNodeTextColor(node.inlineStyle, style.nodeTextColor ?? 'var(--_text)'))
 
   return renderMultilineText(
     node.label,

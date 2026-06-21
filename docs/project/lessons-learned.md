@@ -1,4 +1,4 @@
-# Lessons Learned — Loops 1 through 21
+# Lessons Learned — Loops 1 through 22
 
 This document replaces the Loop 1 retrospective. It is the cumulative
 narrative across the agentic-mermaid fork. Each section reflects what a
@@ -749,3 +749,57 @@ bug-discriminating tests. A green suite where only a subset is load-bearing
 should say so in the PR; claiming "N tests prove the fix" without separating the
 discriminating tests from the guards overstates the evidence. Naming the
 difference is the trust dimension, not a footnote.
+
+## Loop 22 / issue #71 lesson — abstractions are product contracts, not cleanup
+
+The commit history since the fork from Beautiful Mermaid has a pattern that is
+easy to miss when looking at any one PR: the durable improvements were the
+ones that turned a claim into an executable waist. The first fork commits made
+rendering parity and fork positioning visible. The agent-native loop turned
+"agents can edit diagrams" into typed parse/mutate/verify surfaces. The route
+work turned "layout quality" into certificates, mutation scores, contact
+sheets, and tripwires. Gantt and the family-citizenship work turned "we support
+this family" into registry projections, generated docs, SDK declarations, eval
+fixtures, and CI checks. Issue #71 is the same lesson at the architecture
+level: an abstraction is not done when the code compiles; it is done when every
+consumer reaches the same checked contract.
+
+The original issue #71 spec was mostly right, but this session showed why old
+specs need a second audit after the codebase has taught us more. The best
+solution was not a body-only `FamilyPlugin.layout` hook; that would have made
+opaque bodies, frontmatter, `%%init%%`, and accessibility directives second
+class. The implemented solution made layout hooks source-context hooks. The
+best solution was also not "iterate the registry map and trust insertion
+order"; the history from family citizenship and generated-doc drift says
+family order is a product surface, so built-ins now follow
+`BUILTIN_FAMILY_METADATA` and external registrations sort after them.
+Re-reading the spec against the academic literature, competitive examples, and
+the repo's own failure history improved the design more than simply executing
+the old checklist would have.
+
+The docs audit after implementation was not administrative polish. It found
+that current-facing docs still carried old nouns: `buildColors`,
+`FamilyRouteCertificate`, and vague "route/family certificates." Those names
+are part of the API an agent or maintainer learns from. Leaving them in public
+docs would create a second abstraction in prose after the code had unified the
+real one. Historical docs are allowed to keep old names, but they must label
+their era; current docs must use current contracts. This is the same lesson as
+the generated-site and `llms.txt` fixes: docs, skills, PR descriptions, and
+generated assets are not collateral. They are discovery surfaces.
+
+The practice change is concrete:
+
+- Reappraise old specs before implementing them wholesale. Ask which claims
+  are still true after the last 20 commits, not just whether the requested
+  task is clear.
+- Prefer thin waist contracts over universal models. `RenderContext`,
+  `resolveDiagramColors`, `FamilyPlugin` hooks, and the certificate split each
+  remove duplicated decisions without pretending SVG, ASCII, agent layout, and
+  family-specific geometry are one IR.
+- When a refactor renames an abstraction, grep the docs and skills for the old
+  nouns before calling the PR done. Either update the reference or mark it
+  explicitly as audit-time history.
+- Use the fork's own history as evidence. If a prior lesson says generated
+  docs drift, family lists drift, or visual claims need artifacts, treat that
+  as a design constraint in the next abstraction PR, not as trivia from an old
+  retrospective.

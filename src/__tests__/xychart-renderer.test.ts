@@ -6,7 +6,7 @@
  */
 import { describe, it, expect } from 'bun:test'
 import { preprocessMermaidSource } from '../mermaid-source.ts'
-import { parseXYChart } from '../xychart/parser.ts'
+import { applyXYChartFrontmatterConfig, parseXYChart } from '../xychart/parser.ts'
 import { layoutXYChart } from '../xychart/layout.ts'
 import { renderXYChartSvg } from '../xychart/renderer.ts'
 import type { DiagramColors } from '../theme.ts'
@@ -15,8 +15,8 @@ const lightColors: DiagramColors = { bg: '#FFFFFF', fg: '#27272A' }
 
 function render(text: string, interactive: boolean = false) {
   const processed = preprocessMermaidSource(text)
-  const chart = layoutXYChart(parseXYChart(processed.lines, processed.frontmatter))
-  return renderXYChartSvg(chart, lightColors, 'Inter', false, interactive)
+  const chart = layoutXYChart(applyXYChartFrontmatterConfig(parseXYChart(processed.lines), processed.frontmatter))
+  return renderXYChartSvg({ positioned: chart, colors: { ...lightColors, font: 'Inter' }, options: { interactive } })
 }
 
 describe('renderXYChartSvg – structure', () => {

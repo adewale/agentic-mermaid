@@ -6,10 +6,10 @@ import { parseSequenceDiagram } from '../sequence/parser.ts'
 import { layoutSequenceDiagram } from '../sequence/layout.ts'
 import { renderSequenceSvg } from '../sequence/renderer.ts'
 import { parseClassDiagram } from '../class/parser.ts'
-import { layoutClassDiagramSync } from '../class/layout.ts'
+import { layoutClassDiagram } from '../class/layout.ts'
 import { renderClassSvg } from '../class/renderer.ts'
 import { parseErDiagram } from '../er/parser.ts'
-import { layoutErDiagramSync } from '../er/layout.ts'
+import { layoutErDiagram } from '../er/layout.ts'
 import { renderErSvg } from '../er/renderer.ts'
 import { renderMermaidASCII } from '../ascii/index.ts'
 
@@ -56,7 +56,7 @@ describe('TODO coverage – sequence renderer and ASCII regressions', () => {
   it('renders semantic sequence SVG components directly', () => {
     const parsed = parseSequenceDiagram(['sequenceDiagram', 'participant A as Alice', 'participant B as Bob', 'A->>B: Hello'])
     const positioned = layoutSequenceDiagram(parsed)
-    const svg = renderSequenceSvg(positioned, githubLight)
+    const svg = renderSequenceSvg({ positioned, colors: githubLight, options: {} })
     expect(svg).toContain('class="actor" data-id="A"')
     expect(svg).toContain('class="message" data-from="A" data-to="B"')
     expect(svg).toContain('Hello')
@@ -75,7 +75,7 @@ describe('TODO coverage – sequence renderer and ASCII regressions', () => {
 
 describe('TODO coverage – class and ER layout/renderer units', () => {
   it('lays out class nodes and relationships with finite positive dimensions', () => {
-    const positioned = layoutClassDiagramSync(parseClassDiagram(['classDiagram', 'Animal <|-- Dog', 'class Animal', 'class Dog']))
+    const positioned = layoutClassDiagram(parseClassDiagram(['classDiagram', 'Animal <|-- Dog', 'class Animal', 'class Dog']))
     expect(positioned.classes).toHaveLength(2)
     expect(positioned.relationships).toHaveLength(1)
     for (const cls of positioned.classes) {
@@ -86,15 +86,15 @@ describe('TODO coverage – class and ER layout/renderer units', () => {
   })
 
   it('renders class SVG compartments and relationship markers directly', () => {
-    const positioned = layoutClassDiagramSync(parseClassDiagram(['classDiagram', 'Animal <|-- Dog', 'class Animal {', '+eat() void', '}']))
-    const svg = renderClassSvg(positioned, githubLight)
+    const positioned = layoutClassDiagram(parseClassDiagram(['classDiagram', 'Animal <|-- Dog', 'class Animal {', '+eat() void', '}']))
+    const svg = renderClassSvg({ positioned, colors: githubLight, options: {} })
     expect(svg).toContain('class="class-node"')
     expect(svg).toContain('marker-start="url(#cls-inherit)"')
     expect(svg).toContain('eat()')
   })
 
   it('lays out ER entities and relationships with finite positive dimensions', () => {
-    const positioned = layoutErDiagramSync(parseErDiagram(['erDiagram', 'CUSTOMER ||--o{ ORDER : places']))
+    const positioned = layoutErDiagram(parseErDiagram(['erDiagram', 'CUSTOMER ||--o{ ORDER : places']))
     expect(positioned.entities).toHaveLength(2)
     expect(positioned.relationships).toHaveLength(1)
     for (const entity of positioned.entities) {
@@ -105,14 +105,14 @@ describe('TODO coverage – class and ER layout/renderer units', () => {
   })
 
   it('renders ER SVG entities, attributes, relationships, and labels directly', () => {
-    const positioned = layoutErDiagramSync(parseErDiagram([
+    const positioned = layoutErDiagram(parseErDiagram([
       'erDiagram',
       'CUSTOMER ||--o{ ORDER : places',
       'CUSTOMER {',
       'string id PK "primary key"',
       '}',
     ]))
-    const svg = renderErSvg(positioned, githubLight)
+    const svg = renderErSvg({ positioned, colors: githubLight, options: {} })
     expect(svg).toContain('class="entity" data-id="CUSTOMER"')
     expect(svg).toContain('class="er-relationship"')
     expect(svg).toContain('places')

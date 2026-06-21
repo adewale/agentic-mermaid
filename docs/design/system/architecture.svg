@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 959.0244999999999 1092.7820000000002" width="959.0244999999999" height="1092.7820000000002" style="--bg:#FFFFFF;--fg:#27272A;--font:Inter;background:#FFFFFF">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1381.6179999999997 963.882" width="1381.6179999999997" height="963.882" style="--bg:#FFFFFF;--fg:#27272A;--font:Inter;background:#FFFFFF">
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap');
   text { font-family: var(--font, 'Inter'), system-ui, sans-serif; }
@@ -27,119 +27,111 @@
   </marker>
 </defs>
 <g class="subgraph" data-id="SVGSTACK" data-region="subgraph" data-label="SVG stack · renderMermaidSVG">
-  <rect x="40" y="497.582" width="254.754" height="385.4" rx="0" ry="0" fill="#FFFFFF" stroke="#d4d4d4" stroke-width="1" />
-  <path d="M40,497.582 H294.754 V525.582 H40 Z" fill="#f4f4f4" stroke="#d4d4d4" stroke-width="1" />
-  <text x="52" y="511.582" font-size="12" font-weight="600" fill="#7d7d7f" dy="4.199999999999999">SVG stack · renderMermaidSVG</text>
+  <rect x="479.8599999999998" y="616.282" width="273.279" height="300.5" rx="0" ry="0" fill="#FFFFFF" stroke="#d4d4d4" stroke-width="1" />
+  <path d="M479.8599999999998,616.282 H753.1389999999998 V644.282 H479.8599999999998 Z" fill="#f4f4f4" stroke="#d4d4d4" stroke-width="1" />
+  <text x="491.8599999999998" y="630.282" font-size="12" font-weight="600" fill="#7d7d7f" dy="4.199999999999999">SVG stack · renderMermaidSVG</text>
 </g>
 <g class="subgraph" data-id="ASCIISTACK" data-region="subgraph" data-label="ASCII stack · renderMermaidASCII">
-  <rect x="322.754" y="521.5820000000001" width="260.6085" height="368.5" rx="0" ry="0" fill="#FFFFFF" stroke="#d4d4d4" stroke-width="1" />
-  <path d="M322.754,521.5820000000001 H583.3625 V549.5820000000001 H322.754 Z" fill="#f4f4f4" stroke="#d4d4d4" stroke-width="1" />
-  <text x="334.754" y="535.5820000000001" font-size="12" font-weight="600" fill="#7d7d7f" dy="4.199999999999999">ASCII stack · renderMermaidASCII</text>
+  <rect x="781.1389999999998" y="640.2819999999999" width="288.09899999999993" height="283.6" rx="0" ry="0" fill="#FFFFFF" stroke="#d4d4d4" stroke-width="1" />
+  <path d="M781.1389999999998,640.2819999999999 H1069.2379999999998 V668.2819999999999 H781.1389999999998 Z" fill="#f4f4f4" stroke="#d4d4d4" stroke-width="1" />
+  <text x="793.1389999999998" y="654.2819999999999" font-size="12" font-weight="600" fill="#7d7d7f" dy="4.199999999999999">ASCII stack · renderMermaidASCII</text>
 </g>
 <g class="subgraph" data-id="AGENTSTACK" data-region="subgraph" data-label="Agent stack · parse / mutate / verify">
-  <rect x="611.3625" y="582.4820000000001" width="307.6619999999999" height="283.6" rx="0" ry="0" fill="#FFFFFF" stroke="#d4d4d4" stroke-width="1" />
-  <path d="M611.3625,582.4820000000001 H919.0244999999999 V610.4820000000001 H611.3625 Z" fill="#f4f4f4" stroke="#d4d4d4" stroke-width="1" />
-  <text x="623.3625" y="596.4820000000001" font-size="12" font-weight="600" fill="#7d7d7f" dy="4.199999999999999">Agent stack · parse / mutate / verify</text>
+  <rect x="1097.2379999999998" y="616.282" width="244.37999999999997" height="198.70000000000002" rx="0" ry="0" fill="#FFFFFF" stroke="#d4d4d4" stroke-width="1" />
+  <path d="M1097.2379999999998,616.282 H1341.6179999999997 V644.282 H1097.2379999999998 Z" fill="#f4f4f4" stroke="#d4d4d4" stroke-width="1" />
+  <text x="1109.2379999999998" y="630.282" font-size="12" font-weight="600" fill="#7d7d7f" dy="4.199999999999999">Agent stack · parse / mutate / verify</text>
 </g>
-<polyline class="edge" data-from="SRC" data-to="NORM" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" points="475.25149999999996,76.9 475.2515,124.9" fill="none" stroke="#939395" stroke-width="1" marker-end="url(#arrowhead)" />
-<polyline class="edge" data-from="NORM" data-to="DET" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" points="475.2515,178.70000000000002 475.2515,226.70000000000002" fill="none" stroke="#939395" stroke-width="1" marker-end="url(#arrowhead)" />
-<polyline class="edge" data-from="FAM" data-to="CORE" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" points="686.9132499999998,950.9820000000001 686.9132500000001,998.9820000000001" fill="none" stroke="#939395" stroke-width="1" marker-end="url(#arrowhead)" />
-<polyline class="edge" data-from="DET" data-to="SW1" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" data-label="SVG" points="430.606,360.63649999999996 430.606,417.28200000000004 167.377,417.28200000000004 167.377,553.5820000000001" fill="none" stroke="#939395" stroke-width="1" marker-end="url(#arrowhead)" />
-<polyline class="edge" data-from="DET" data-to="SW2" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" data-label="ASCII / unicode" points="475.2515,405.28200000000004 475.2515,553.5820000000001" fill="none" stroke="#939395" stroke-width="1" marker-end="url(#arrowhead)" />
-<polyline class="edge" data-from="DET" data-to="REG" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" data-label="agent IR" points="519.897,360.63649999999996 519.8969999999999,441.28200000000015 791.6474999999999,441.28200000000015 791.6474999999999,638.482" fill="none" stroke="#939395" stroke-width="1" marker-end="url(#arrowhead)" />
-<polyline class="edge" data-from="SW2" data-to="FAM" data-style="dotted" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" points="505.9551666666667,590.4820000000001 505.9551666666667,614.4820000000001 524.0840000000001,614.4820000000001 524.084,902.0820000000001 675.1050833333333,902.0820000000001 675.1050833333331,914.0820000000001" fill="none" stroke="#939395" stroke-width="1" stroke-dasharray="4 4" marker-end="url(#arrowhead)" />
-<polyline class="edge" data-from="REG" data-to="FAM" data-style="dotted" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" points="828.7731666666666,675.382 849.7425,675.3820000000001 849.7425,902.0820000000001 698.7214166666665,902.0820000000001 698.7214166666665,914.0820000000001" fill="none" stroke="#939395" stroke-width="1" stroke-dasharray="4 4" marker-end="url(#arrowhead)" />
-<polyline class="edge" data-from="SW1" data-to="L1" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" points="167.377,590.4820000000001 167.377,638.482" fill="none" stroke="#939395" stroke-width="1" marker-end="url(#arrowhead)" />
-<polyline class="edge" data-from="L1" data-to="ELK" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" points="167.377,692.282 167.377,723.3820000000001" fill="none" stroke="#939395" stroke-width="1" marker-end="url(#arrowhead)" />
-<polyline class="edge" data-from="ELK" data-to="O1" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" points="167.377,777.182 167.377,825.1820000000001" fill="none" stroke="#939395" stroke-width="1" marker-end="url(#arrowhead)" />
-<polyline class="edge" data-from="SW2" data-to="L2" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" points="426.41900000000004,590.4820000000001 426.41900000000004,638.482" fill="none" stroke="#939395" stroke-width="1" marker-end="url(#arrowhead)" />
-<polyline class="edge" data-from="L2" data-to="GRID" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" points="426.41900000000004,675.382 426.41900000000004,723.3820000000001" fill="none" stroke="#939395" stroke-width="1" marker-end="url(#arrowhead)" />
-<polyline class="edge" data-from="GRID" data-to="O2" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" points="426.41900000000004,777.1820000000001 426.41900000000004,825.1820000000001" fill="none" stroke="#939395" stroke-width="1" marker-end="url(#arrowhead)" />
-<polyline class="edge" data-from="REG" data-to="VD" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" points="733.5524999999999,675.382 733.5524999999999,723.3820000000001" fill="none" stroke="#939395" stroke-width="1" marker-end="url(#arrowhead)" />
-<polyline class="edge" data-from="VD" data-to="RL" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" points="733.5524999999999,777.1820000000001 733.5524999999999,825.1820000000001" fill="none" stroke="#939395" stroke-width="1" marker-end="url(#arrowhead)" />
-<g class="edge-label" data-from="DET" data-to="SW1" data-label="SVG">
-  <rect class="edge-label-halo" x="143.377" y="420.28200000000004" width="47.03399999999999" height="38.3" rx="4" ry="4" fill="#FFFFFF" stroke="none" />
-  <rect x="147.377" y="424.28200000000004" width="39.03399999999999" height="30.3" rx="2" ry="2" fill="#FFFFFF" stroke="#e5e5e5" stroke-width="1" />
-  <text x="166.894" y="439.432" text-anchor="middle" font-size="11" font-weight="400" fill="#7d7d7f" dy="3.8499999999999996">SVG</text>
+<polyline class="edge" data-from="SRC" data-to="NORM" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" points="925.1884999999996,76.9 925.1884999999997,124.9" fill="none" stroke="#939395" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="NORM" data-to="DET" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" points="925.1884999999997,178.70000000000002 925.1884999999997,226.70000000000002" fill="none" stroke="#939395" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="DET" data-to="REG" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" points="925.1884999999997,405.28200000000004 925.1884999999997,453.28200000000004" fill="none" stroke="#939395" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="FAM" data-to="CORE" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" points="249.9299999999999,110.7 249.9299999999999,158.7" fill="none" stroke="#939395" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="REG" data-to="L1" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" data-label="SVG hooks" points="842.0829999999997,523.982 842.0829999999997,535.9820000000001 616.4994999999998,535.9820000000001 616.4994999999998,672.2819999999999" fill="none" stroke="#939395" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="REG" data-to="L2" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" data-label="ASCII / unicode hook" points="925.1884999999997,523.982 925.1884999999997,672.2819999999999" fill="none" stroke="#939395" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="REG" data-to="VD" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" data-label="agent hooks" points="1008.2939999999996,523.982 1008.2939999999998,535.9820000000001 1219.4279999999997,535.9820000000001 1219.4279999999999,672.2819999999999" fill="none" stroke="#939395" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="L1" data-to="CTX" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" points="616.4994999999998,726.082 616.4994999999998,765.6320000000001" fill="none" stroke="#939395" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="CTX" data-to="O1" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" points="616.4994999999998,819.432 616.4994999999998,867.432" fill="none" stroke="#939395" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="L2" data-to="GRID" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" points="925.1884999999997,709.1819999999999 925.1884999999997,765.6320000000001" fill="none" stroke="#939395" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="GRID" data-to="O2" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" points="925.1884999999997,819.4320000000001 925.1884999999997,867.432" fill="none" stroke="#939395" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="VD" data-to="RL" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" points="1219.4279999999999,726.082 1219.4279999999999,765.6320000000001" fill="none" stroke="#939395" stroke-width="1" marker-end="url(#arrowhead)" />
+<g class="edge-label" data-from="REG" data-to="L1" data-label="SVG hooks">
+  <rect class="edge-label-halo" x="576.9994999999998" y="538.9820000000001" width="78.51599999999999" height="38.3" rx="4" ry="4" fill="#FFFFFF" stroke="none" />
+  <rect x="580.9994999999998" y="542.9820000000001" width="70.51599999999999" height="30.3" rx="2" ry="2" fill="#FFFFFF" stroke="#e5e5e5" stroke-width="1" />
+  <text x="616.2574999999998" y="558.1320000000001" text-anchor="middle" font-size="11" font-weight="400" fill="#7d7d7f" dy="3.8499999999999996">SVG hooks</text>
 </g>
-<g class="edge-label" data-from="DET" data-to="SW2" data-label="ASCII / unicode">
-  <rect class="edge-label-halo" x="426.75149999999996" y="444.28200000000015" width="96.336" height="38.3" rx="4" ry="4" fill="#FFFFFF" stroke="none" />
-  <rect x="430.75149999999996" y="448.28200000000015" width="88.336" height="30.3" rx="2" ry="2" fill="#FFFFFF" stroke="#e5e5e5" stroke-width="1" />
-  <text x="474.91949999999997" y="463.43200000000013" text-anchor="middle" font-size="11" font-weight="400" fill="#7d7d7f" dy="3.8499999999999996">ASCII / unicode</text>
+<g class="edge-label" data-from="REG" data-to="L2" data-label="ASCII / unicode hook">
+  <rect class="edge-label-halo" x="864.1884999999997" y="562.982" width="121.878" height="38.3" rx="4" ry="4" fill="#FFFFFF" stroke="none" />
+  <rect x="868.1884999999997" y="566.982" width="113.878" height="30.3" rx="2" ry="2" fill="#FFFFFF" stroke="#e5e5e5" stroke-width="1" />
+  <text x="925.1274999999997" y="582.132" text-anchor="middle" font-size="11" font-weight="400" fill="#7d7d7f" dy="3.8499999999999996">ASCII / unicode hook</text>
 </g>
-<g class="edge-label" data-from="DET" data-to="REG" data-label="agent IR">
-  <rect class="edge-label-halo" x="759.6474999999999" y="505.18200000000013" width="63.07200000000001" height="38.3" rx="4" ry="4" fill="#FFFFFF" stroke="none" />
-  <rect x="763.6474999999999" y="509.18200000000013" width="55.07200000000001" height="30.3" rx="2" ry="2" fill="#FFFFFF" stroke="#e5e5e5" stroke-width="1" />
-  <text x="791.1835" y="524.3320000000001" text-anchor="middle" font-size="11" font-weight="400" fill="#7d7d7f" dy="3.8499999999999996">agent IR</text>
+<g class="edge-label" data-from="REG" data-to="VD" data-label="agent hooks">
+  <rect class="edge-label-halo" x="1177.4279999999997" y="538.9820000000001" width="83.268" height="38.3" rx="4" ry="4" fill="#FFFFFF" stroke="none" />
+  <rect x="1181.4279999999997" y="542.9820000000001" width="75.268" height="30.3" rx="2" ry="2" fill="#FFFFFF" stroke="#e5e5e5" stroke-width="1" />
+  <text x="1219.0619999999997" y="558.1320000000001" text-anchor="middle" font-size="11" font-weight="400" fill="#7d7d7f" dy="3.8499999999999996">agent hooks</text>
 </g>
 <g class="node" data-id="SRC" data-label="Mermaid source text" data-shape="rectangle">
-  <rect x="394.626" y="40" width="161.251" height="36.900000000000006" rx="0" ry="0" fill="#f9f9f9" stroke="#d4d4d4" stroke-width="0.75" />
-  <text x="475.25149999999996" y="58.45" text-anchor="middle" font-size="13" font-weight="500" fill="#27272A" dy="4.55">Mermaid source text</text>
+  <rect x="844.5629999999996" y="40" width="161.251" height="36.900000000000006" rx="0" ry="0" fill="#f9f9f9" stroke="#d4d4d4" stroke-width="0.75" />
+  <text x="925.1884999999996" y="58.45" text-anchor="middle" font-size="13" font-weight="500" fill="#27272A" dy="4.55">Mermaid source text</text>
 </g>
 <g class="node" data-id="NORM" data-label="normalize source
 frontmatter · %%init%% · config" data-shape="rectangle">
-  <rect x="367.57950000000005" y="124.9" width="215.34399999999997" height="53.800000000000004" rx="0" ry="0" fill="#f9f9f9" stroke="#d4d4d4" stroke-width="0.75" />
-  <text x="475.2515" y="151.8" text-anchor="middle" font-size="13" font-weight="500" fill="#27272A"><tspan x="475.2515" dy="-3.9000000000000012">normalize source</tspan><tspan x="475.2515" dy="16.900000000000002">frontmatter · %%init%% · config</tspan></text>
+  <rect x="817.5164999999997" y="124.9" width="215.34399999999997" height="53.800000000000004" rx="0" ry="0" fill="#f9f9f9" stroke="#d4d4d4" stroke-width="0.75" />
+  <text x="925.1884999999997" y="151.8" text-anchor="middle" font-size="13" font-weight="500" fill="#27272A"><tspan x="925.1884999999997" dy="-3.9000000000000012">normalize source</tspan><tspan x="925.1884999999997" dy="16.900000000000002">frontmatter · %%init%% · config</tspan></text>
 </g>
 <g class="node" data-id="DET" data-label="detect diagram type" data-shape="diamond">
-  <polygon points="475.2515,226.7 564.5425,315.991 475.2515,405.282 385.9605,315.991" fill="#f9f9f9" stroke="#d4d4d4" stroke-width="0.75" />
-  <text x="475.2515" y="315.991" text-anchor="middle" font-size="13" font-weight="500" fill="#27272A" dy="4.55">detect diagram type</text>
+  <polygon points="925.1884999999997,226.7 1014.4794999999997,315.991 925.1884999999997,405.282 835.8974999999998,315.991" fill="#f9f9f9" stroke="#d4d4d4" stroke-width="0.75" />
+  <text x="925.1884999999997" y="315.991" text-anchor="middle" font-size="13" font-weight="500" fill="#27272A" dy="4.55">detect diagram type</text>
 </g>
-<g class="node" data-id="SW1" data-label="dispatch: switch · 11 arms" data-shape="rectangle">
-  <rect x="75.266" y="553.5820000000001" width="184.22199999999998" height="36.900000000000006" rx="0" ry="0" fill="#f9f9f9" stroke="#d4d4d4" stroke-width="0.75" />
-  <text x="167.377" y="572.0320000000002" text-anchor="middle" font-size="13" font-weight="500" fill="#27272A" dy="4.55">dispatch: switch · 11 arms</text>
+<g class="node" data-id="REG" data-label="FamilyPlugin registry
+detect · parse · layout · renderSvg · renderAscii
+serialize · mutate · verify" data-shape="rectangle">
+  <rect x="758.9774999999997" y="453.28200000000004" width="332.42199999999997" height="70.7" rx="0" ry="0" fill="#f9f9f9" stroke="#d4d4d4" stroke-width="0.75" />
+  <text x="925.1884999999997" y="488.63200000000006" text-anchor="middle" font-size="13" font-weight="500" fill="#27272A"><tspan x="925.1884999999997" dy="-12.350000000000001">FamilyPlugin registry</tspan><tspan x="925.1884999999997" dy="16.900000000000002">detect · parse · layout · renderSvg · renderAscii</tspan><tspan x="925.1884999999997" dy="16.900000000000002">serialize · mutate · verify</tspan></text>
 </g>
-<g class="node" data-id="L1" data-label="per-family
-parse → layout → render" data-shape="rectangle">
-  <rect x="78.23" y="638.482" width="178.29399999999998" height="53.800000000000004" rx="0" ry="0" fill="#f9f9f9" stroke="#d4d4d4" stroke-width="0.75" />
-  <text x="167.377" y="665.382" text-anchor="middle" font-size="13" font-weight="500" fill="#27272A"><tspan x="167.377" dy="-3.9000000000000012">per-family</tspan><tspan x="167.377" dy="16.900000000000002">parse → layout → render</tspan></text>
+<g class="node" data-id="L1" data-label="source-context layout hook
+parse → config middleware → layout" data-shape="rectangle">
+  <rect x="495.8599999999998" y="672.2819999999999" width="241.27899999999997" height="53.800000000000004" rx="0" ry="0" fill="#f9f9f9" stroke="#d4d4d4" stroke-width="0.75" />
+  <text x="616.4994999999998" y="699.1819999999999" text-anchor="middle" font-size="13" font-weight="500" fill="#27272A"><tspan x="616.4994999999998" dy="-3.9000000000000012">source-context layout hook</tspan><tspan x="616.4994999999998" dy="16.900000000000002">parse → config middleware → layout</tspan></text>
 </g>
-<g class="node" data-id="ELK" data-label="ELK layout · Positioned* types
-route certificates" data-shape="rectangle">
-  <rect x="56" y="723.3820000000001" width="222.754" height="53.800000000000004" rx="0" ry="0" fill="#f9f9f9" stroke="#d4d4d4" stroke-width="0.75" />
-  <text x="167.377" y="750.282" text-anchor="middle" font-size="13" font-weight="500" fill="#27272A"><tspan x="167.377" dy="-3.9000000000000012">ELK layout · Positioned* types</tspan><tspan x="167.377" dy="16.900000000000002">route certificates</tspan></text>
+<g class="node" data-id="CTX" data-label="RenderContext
+positioned · colors · options" data-shape="rectangle">
+  <rect x="512.5324999999998" y="765.6320000000001" width="207.934" height="53.800000000000004" rx="0" ry="0" fill="#f9f9f9" stroke="#d4d4d4" stroke-width="0.75" />
+  <text x="616.4994999999998" y="792.532" text-anchor="middle" font-size="13" font-weight="500" fill="#27272A"><tspan x="616.4994999999998" dy="-3.9000000000000012">RenderContext</tspan><tspan x="616.4994999999998" dy="16.900000000000002">positioned · colors · options</tspan></text>
 </g>
 <g class="node" data-id="O1" data-label="SVG string" data-shape="rectangle">
-  <rect x="114.90950000000001" y="825.1820000000001" width="104.93499999999999" height="36.900000000000006" rx="0" ry="0" fill="#f9f9f9" stroke="#d4d4d4" stroke-width="0.75" />
-  <text x="167.377" y="843.6320000000002" text-anchor="middle" font-size="13" font-weight="500" fill="#27272A" dy="4.55">SVG string</text>
+  <rect x="564.0319999999998" y="867.432" width="104.93499999999999" height="36.900000000000006" rx="0" ry="0" fill="#f9f9f9" stroke="#d4d4d4" stroke-width="0.75" />
+  <text x="616.4994999999998" y="885.8820000000001" text-anchor="middle" font-size="13" font-weight="500" fill="#27272A" dy="4.55">SVG string</text>
 </g>
-<g class="node" data-id="SW2" data-label="dispatch: switch · 11 arms" data-shape="rectangle">
-  <rect x="383.14050000000003" y="553.5820000000001" width="184.22199999999998" height="36.900000000000006" rx="0" ry="0" fill="#f9f9f9" stroke="#d4d4d4" stroke-width="0.75" />
-  <text x="475.2515" y="572.0320000000002" text-anchor="middle" font-size="13" font-weight="500" fill="#27272A" dy="4.55">dispatch: switch · 11 arms</text>
+<g class="node" data-id="L2" data-label="renderAscii hook" data-shape="rectangle">
+  <rect x="852.7139999999997" y="672.2819999999999" width="144.949" height="36.900000000000006" rx="0" ry="0" fill="#f9f9f9" stroke="#d4d4d4" stroke-width="0.75" />
+  <text x="925.1884999999997" y="690.732" text-anchor="middle" font-size="13" font-weight="500" fill="#27272A" dy="4.55">renderAscii hook</text>
 </g>
-<g class="node" data-id="L2" data-label="per-family layout" data-shape="rectangle">
-  <rect x="358.02000000000004" y="638.482" width="136.798" height="36.900000000000006" rx="0" ry="0" fill="#f9f9f9" stroke="#d4d4d4" stroke-width="0.75" />
-  <text x="426.41900000000004" y="656.932" text-anchor="middle" font-size="13" font-weight="500" fill="#27272A" dy="4.55">per-family layout</text>
-</g>
-<g class="node" data-id="GRID" data-label="AsciiGraph · Canvas
-A* pathfinder · no ELK" data-shape="rectangle">
-  <rect x="338.754" y="723.3820000000001" width="175.33" height="53.800000000000004" rx="0" ry="0" fill="#f9f9f9" stroke="#d4d4d4" stroke-width="0.75" />
-  <text x="426.41900000000004" y="750.282" text-anchor="middle" font-size="13" font-weight="500" fill="#27272A"><tspan x="426.41900000000004" dy="-3.9000000000000012">AsciiGraph · Canvas</tspan><tspan x="426.41900000000004" dy="16.900000000000002">A* pathfinder · no ELK</tspan></text>
+<g class="node" data-id="GRID" data-label="grid geometry
+AsciiGraph · Canvas · A* pathfinder" data-shape="rectangle">
+  <rect x="797.1389999999998" y="765.6320000000001" width="256.09899999999993" height="53.800000000000004" rx="0" ry="0" fill="#f9f9f9" stroke="#d4d4d4" stroke-width="0.75" />
+  <text x="925.1884999999997" y="792.532" text-anchor="middle" font-size="13" font-weight="500" fill="#27272A"><tspan x="925.1884999999997" dy="-3.9000000000000012">grid geometry</tspan><tspan x="925.1884999999997" dy="16.900000000000002">AsciiGraph · Canvas · A* pathfinder</tspan></text>
 </g>
 <g class="node" data-id="O2" data-label="text grid" data-shape="rectangle">
-  <rect x="382.1025" y="825.1820000000001" width="88.633" height="36.900000000000006" rx="0" ry="0" fill="#f9f9f9" stroke="#d4d4d4" stroke-width="0.75" />
-  <text x="426.41900000000004" y="843.6320000000002" text-anchor="middle" font-size="13" font-weight="500" fill="#27272A" dy="4.55">text grid</text>
-</g>
-<g class="node" data-id="REG" data-label="dispatch: FamilyPlugin registry" data-shape="rectangle">
-  <rect x="680.2705" y="638.482" width="222.75399999999996" height="36.900000000000006" rx="0" ry="0" fill="#f9f9f9" stroke="#d4d4d4" stroke-width="0.75" />
-  <text x="791.6474999999999" y="656.932" text-anchor="middle" font-size="13" font-weight="500" fill="#27272A" dy="4.55">dispatch: FamilyPlugin registry</text>
+  <rect x="880.8719999999997" y="867.432" width="88.633" height="36.900000000000006" rx="0" ry="0" fill="#f9f9f9" stroke="#d4d4d4" stroke-width="0.75" />
+  <text x="925.1884999999997" y="885.8820000000001" text-anchor="middle" font-size="13" font-weight="500" fill="#27272A" dy="4.55">text grid</text>
 </g>
 <g class="node" data-id="VD" data-label="ValidDiagram · DiagramBody
 structured | opaque" data-shape="rectangle">
-  <rect x="627.3625" y="723.3820000000001" width="212.37999999999997" height="53.800000000000004" rx="0" ry="0" fill="#f9f9f9" stroke="#d4d4d4" stroke-width="0.75" />
-  <text x="733.5524999999999" y="750.282" text-anchor="middle" font-size="13" font-weight="500" fill="#27272A"><tspan x="733.5524999999999" dy="-3.9000000000000012">ValidDiagram · DiagramBody</tspan><tspan x="733.5524999999999" dy="16.900000000000002">structured | opaque</tspan></text>
+  <rect x="1113.2379999999998" y="672.2819999999999" width="212.37999999999997" height="53.800000000000004" rx="0" ry="0" fill="#f9f9f9" stroke="#d4d4d4" stroke-width="0.75" />
+  <text x="1219.4279999999999" y="699.1819999999999" text-anchor="middle" font-size="13" font-weight="500" fill="#27272A"><tspan x="1219.4279999999999" dy="-3.9000000000000012">ValidDiagram · DiagramBody</tspan><tspan x="1219.4279999999999" dy="16.900000000000002">structured | opaque</tspan></text>
 </g>
 <g class="node" data-id="RL" data-label="RenderedLayout" data-shape="rectangle">
-  <rect x="662.1895" y="825.1820000000001" width="142.726" height="36.900000000000006" rx="0" ry="0" fill="#f9f9f9" stroke="#d4d4d4" stroke-width="0.75" />
-  <text x="733.5525" y="843.6320000000002" text-anchor="middle" font-size="13" font-weight="500" fill="#27272A" dy="4.55">RenderedLayout</text>
+  <rect x="1148.0649999999998" y="765.6320000000001" width="142.726" height="36.900000000000006" rx="0" ry="0" fill="#f9f9f9" stroke="#d4d4d4" stroke-width="0.75" />
+  <text x="1219.4279999999999" y="784.0820000000001" text-anchor="middle" font-size="13" font-weight="500" fill="#27272A" dy="4.55">RenderedLayout</text>
 </g>
-<g class="node" data-id="FAM" data-label="FAM" data-shape="rectangle">
-  <rect x="651.4887499999999" y="914.0820000000001" width="70.84899999999999" height="36.900000000000006" rx="0" ry="0" fill="#f9f9f9" stroke="#d4d4d4" stroke-width="0.75" />
-  <text x="686.9132499999998" y="932.5320000000002" text-anchor="middle" font-size="13" font-weight="500" fill="#27272A" dy="4.55">FAM</text>
+<g class="node" data-id="FAM" data-label="12 diagram families
+flowchart · sequence · class · er · gantt
+pie · journey · timeline · quadrant · xychart · architecture · state" data-shape="rectangle">
+  <rect x="40" y="40" width="419.8599999999998" height="70.7" rx="0" ry="0" fill="#f9f9f9" stroke="#d4d4d4" stroke-width="0.75" />
+  <text x="249.9299999999999" y="75.35" text-anchor="middle" font-size="13" font-weight="500" fill="#27272A"><tspan x="249.9299999999999" dy="-12.350000000000001">12 diagram families</tspan><tspan x="249.9299999999999" dy="16.900000000000002">flowchart · sequence · class · er · gantt</tspan><tspan x="249.9299999999999" dy="16.900000000000002">pie · journey · timeline · quadrant · xychart · architecture · state</tspan></text>
 </g>
 <g class="node" data-id="CORE" data-label="shared core types · types.ts
 NodeShape · EdgeStyle · MermaidGraph · RouteClass" data-shape="rectangle">
-  <rect x="504.77075" y="998.9820000000001" width="364.28499999999997" height="53.800000000000004" rx="0" ry="0" fill="#f9f9f9" stroke="#d4d4d4" stroke-width="0.75" />
-  <text x="686.9132500000001" y="1025.882" text-anchor="middle" font-size="13" font-weight="500" fill="#27272A"><tspan x="686.9132500000001" dy="-3.9000000000000012">shared core types · types.ts</tspan><tspan x="686.9132500000001" dy="16.900000000000002">NodeShape · EdgeStyle · MermaidGraph · RouteClass</tspan></text>
+  <rect x="67.78749999999991" y="158.7" width="364.28499999999997" height="53.800000000000004" rx="0" ry="0" fill="#f9f9f9" stroke="#d4d4d4" stroke-width="0.75" />
+  <text x="249.9299999999999" y="185.6" text-anchor="middle" font-size="13" font-weight="500" fill="#27272A"><tspan x="249.9299999999999" dy="-3.9000000000000012">shared core types · types.ts</tspan><tspan x="249.9299999999999" dy="16.900000000000002">NodeShape · EdgeStyle · MermaidGraph · RouteClass</tspan></text>
 </g>
 </svg>

@@ -5,6 +5,8 @@
 // Journey diagrams group scored tasks into optional sections with per-task actors.
 // ============================================================================
 
+import type { PositionedDiagram } from '../types.ts'
+
 /** Parsed journey diagram — logical structure from Mermaid text */
 export interface JourneyDiagram {
   /** Optional diagram title */
@@ -37,7 +39,7 @@ export interface JourneyTask {
 // Positioned journey diagram — ready for SVG rendering
 // ============================================================================
 
-export interface PositionedJourneyDiagram {
+export interface PositionedJourneyDiagram extends PositionedDiagram {
   width: number
   height: number
   title?: PositionedJourneyTitle

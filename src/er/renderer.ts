@@ -1,6 +1,5 @@
 import type { PositionedErDiagram, PositionedErEntity, PositionedErRelationship, ErAttribute, Cardinality } from './types.ts'
-import type { RenderOptions } from '../types.ts'
-import type { DiagramColors } from '../theme.ts'
+import type { RenderContext } from '../types.ts'
 import { svgOpenTag, buildStyleBlock, buildShadowDefs } from '../theme.ts'
 import { FONT_SIZES, FONT_WEIGHTS, STROKE_WIDTHS, estimateTextWidth, TEXT_BASELINE_SHIFT, resolveRenderStyle } from '../styles.ts'
 import type { RenderStyleDefaults, ResolvedRenderStyle } from '../styles.ts'
@@ -55,12 +54,11 @@ const ER_FONT = {
  * @param transparent - If true, renders with transparent background.
  */
 export function renderErSvg(
-  diagram: PositionedErDiagram,
-  colors: DiagramColors,
-  font: string = 'Inter',
-  transparent: boolean = false,
-  options: RenderOptions = {},
+  ctx: RenderContext<PositionedErDiagram>,
 ): string {
+  const { positioned: diagram, colors, options } = ctx
+  const font = colors.font ?? 'Inter'
+  const transparent = options.transparent ?? false
   const parts: string[] = []
   const style = resolveRenderStyle(options, ER_STYLE_DEFAULTS)
   const uid = `er-${hashAccessibility(diagram.width, diagram.height, diagram.entities.length, diagram.relationships.length)}`
@@ -127,13 +125,13 @@ function renderEntityBox(entity: PositionedErEntity, style: ResolvedRenderStyle)
   // Outer rectangle
   parts.push(
     `  <rect x="${x}" y="${y}" width="${width}" height="${height}" ` +
-    `rx="${style.cornerRadius ?? 0}" ry="${style.cornerRadius ?? 0}" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="${style.nodeLineWidth}" />`
+    `rx="${style.cornerRadius ?? 0}" ry="${style.cornerRadius ?? 0}" fill="${escapeAttr(style.nodeFillColor ?? 'var(--_node-fill)')}" stroke="${escapeAttr(style.nodeBorderColor ?? 'var(--_node-stroke)')}" stroke-width="${style.nodeLineWidth}" />`
   )
 
   // Header background
   parts.push(
     `  <path d="${topRoundedRectPath(x, y, width, headerHeight, style.cornerRadius ?? 0)}" ` +
-    `fill="var(--_group-hdr)" stroke="var(--_node-stroke)" stroke-width="${style.nodeLineWidth}" />`
+    `fill="${escapeAttr(style.groupHeaderFillColor ?? 'var(--_group-hdr)')}" stroke="${escapeAttr(style.nodeBorderColor ?? 'var(--_node-stroke)')}" stroke-width="${style.nodeLineWidth}" />`
   )
 
   // Entity name (supports multi-line via <br> tags)
@@ -143,7 +141,7 @@ function renderEntityBox(entity: PositionedErEntity, style: ResolvedRenderStyle)
       x + width / 2,
       y + headerHeight / 2,
       style.nodeLabelFontSize,
-      `text-anchor="middle" font-size="${style.nodeLabelFontSize}" font-weight="${style.nodeLabelFontWeight}"${letterAttr(style.nodeLetterSpacing)} fill="var(--_text)"`
+      `text-anchor="middle" font-size="${style.nodeLabelFontSize}" font-weight="${style.nodeLabelFontWeight}"${letterAttr(style.nodeLetterSpacing)} fill="${escapeAttr(style.nodeTextColor ?? 'var(--_text)')}"`
     )
   )
 
@@ -151,7 +149,7 @@ function renderEntityBox(entity: PositionedErEntity, style: ResolvedRenderStyle)
   const attrTop = y + headerHeight
   parts.push(
     `  <line x1="${x}" y1="${attrTop}" x2="${x + width}" y2="${attrTop}" ` +
-    `stroke="var(--_node-stroke)" stroke-width="${Math.min(style.nodeLineWidth, STROKE_WIDTHS.innerBox)}" />`
+    `stroke="${escapeAttr(style.nodeBorderColor ?? 'var(--_node-stroke)')}" stroke-width="${Math.min(style.nodeLineWidth, STROKE_WIDTHS.innerBox)}" />`
   )
 
   // Attribute rows
@@ -165,7 +163,7 @@ function renderEntityBox(entity: PositionedErEntity, style: ResolvedRenderStyle)
   if (attributes.length === 0) {
     parts.push(
       `  <text x="${x + width / 2}" y="${attrTop + rowHeight / 2}" text-anchor="middle" dy="${TEXT_BASELINE_SHIFT}" ` +
-      `font-size="${ER_FONT.attrSize}" fill="var(--_text-faint)" font-style="italic">(no attributes)</text>`
+      `font-size="${ER_FONT.attrSize}" fill="${escapeAttr(style.nodeTextColor ?? 'var(--_text-faint)')}" font-style="italic">(no attributes)</text>`
     )
   }
 
@@ -257,13 +255,13 @@ function renderRelationshipLine(rel: PositionedErRelationship, style: ResolvedRe
 
   if (style.edgeBendRadius > 0 && rel.points.length > 2) {
     return (
-      `<path ${dataAttrs.join(' ')}${labelAttr} d="${pointsToPathD(rel.points, style.edgeBendRadius)}" fill="none" stroke="var(--_line)" ` +
+      `<path ${dataAttrs.join(' ')}${labelAttr} d="${pointsToPathD(rel.points, style.edgeBendRadius)}" fill="none" stroke="${escapeAttr(style.edgeStrokeColor ?? 'var(--_line)')}" ` +
       `stroke-width="${style.lineWidth}"${dashArray} />`
     )
   }
 
   return (
-    `<polyline ${dataAttrs.join(' ')}${labelAttr} points="${pathData}" fill="none" stroke="var(--_line)" ` +
+    `<polyline ${dataAttrs.join(' ')}${labelAttr} points="${pathData}" fill="none" stroke="${escapeAttr(style.edgeStrokeColor ?? 'var(--_line)')}" ` +
     `stroke-width="${style.lineWidth}"${dashArray} />`
   )
 }
@@ -283,7 +281,7 @@ function renderRelationshipLabel(rel: PositionedErRelationship, style: ResolvedR
     `<rect x="${mid.x - bgW / 2}" y="${mid.y - bgH / 2}" width="${bgW}" height="${bgH}" rx="2" ry="2" ` +
     `fill="var(--bg)" stroke="var(--_inner-stroke)" stroke-width="0.5" />` +
     `\n${renderMultilineText(rel.label, mid.x, mid.y, style.edgeLabelFontSize,
-      `text-anchor="middle" font-size="${style.edgeLabelFontSize}" font-weight="${style.edgeLabelFontWeight}"${letterAttr(style.edgeLetterSpacing)} fill="var(--_text-muted)"`)}`
+      `text-anchor="middle" font-size="${style.edgeLabelFontSize}" font-weight="${style.edgeLabelFontWeight}"${letterAttr(style.edgeLetterSpacing)} fill="${escapeAttr(style.edgeTextColor ?? 'var(--_text-muted)')}"`)}`
   )
 }
 
@@ -325,6 +323,7 @@ function renderCrowsFoot(
 ): string {
   const parts: string[] = []
   const sw = style.lineWidth + 0.25
+  const stroke = escapeAttr(style.edgeStrokeColor ?? 'var(--_line)')
 
   // Calculate direction from toward → point (unit vector)
   const dx = point.x - toward.x
@@ -355,7 +354,7 @@ function renderCrowsFoot(
     parts.push(
       `<line x1="${tipX + px * halfW}" y1="${tipY + py * halfW}" ` +
       `x2="${tipX - px * halfW}" y2="${tipY - py * halfW}" ` +
-      `stroke="var(--_line)" stroke-width="${sw}" />`
+      `stroke="${stroke}" stroke-width="${sw}" />`
     )
     // Second line slightly back for "exactly one" emphasis
     const line2X = tipX - ux * 4
@@ -363,7 +362,7 @@ function renderCrowsFoot(
     parts.push(
       `<line x1="${line2X + px * halfW}" y1="${line2Y + py * halfW}" ` +
       `x2="${line2X - px * halfW}" y2="${line2Y - py * halfW}" ` +
-      `stroke="var(--_line)" stroke-width="${sw}" />`
+      `stroke="${stroke}" stroke-width="${sw}" />`
     )
   }
 
@@ -378,19 +377,19 @@ function renderCrowsFoot(
       // Top fan line
       `<line x1="${cfTipX + px * fanW}" y1="${cfTipY + py * fanW}" ` +
       `x2="${backX}" y2="${backY}" ` +
-      `stroke="var(--_line)" stroke-width="${sw}" />`
+      `stroke="${stroke}" stroke-width="${sw}" />`
     )
     parts.push(
       // Center line
       `<line x1="${cfTipX}" y1="${cfTipY}" ` +
       `x2="${backX}" y2="${backY}" ` +
-      `stroke="var(--_line)" stroke-width="${sw}" />`
+      `stroke="${stroke}" stroke-width="${sw}" />`
     )
     parts.push(
       // Bottom fan line
       `<line x1="${cfTipX - px * fanW}" y1="${cfTipY - py * fanW}" ` +
       `x2="${backX}" y2="${backY}" ` +
-      `stroke="var(--_line)" stroke-width="${sw}" />`
+      `stroke="${stroke}" stroke-width="${sw}" />`
     )
   }
 
@@ -401,7 +400,7 @@ function renderCrowsFoot(
     const circleY = point.y - uy * circleOffset
     parts.push(
       `<circle cx="${circleX}" cy="${circleY}" r="4" ` +
-      `fill="var(--bg)" stroke="var(--_line)" stroke-width="${sw}" />`
+      `fill="var(--bg)" stroke="${stroke}" stroke-width="${sw}" />`
     )
   }
 

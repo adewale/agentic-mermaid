@@ -1,5 +1,5 @@
 import type { PositionedJourneyDiagram, PositionedJourneySection, PositionedJourneyTask, PositionedJourneyActorPill } from './types.ts'
-import type { RenderOptions } from '../types.ts'
+import type { RenderContext } from '../types.ts'
 import type { DiagramColors } from '../theme.ts'
 import { svgOpenTag, buildStyleBlock, buildShadowDefs } from '../theme.ts'
 import { renderMultilineText, escapeXml } from '../multiline-utils.ts'
@@ -53,12 +53,11 @@ const JOURNEY_STYLE_DEFAULTS: RenderStyleDefaults = {
  * Render a positioned journey diagram as an SVG string.
  */
 export function renderJourneySvg(
-  diagram: PositionedJourneyDiagram,
-  colors: DiagramColors,
-  font: string = 'Inter',
-  transparent: boolean = false,
-  options: RenderOptions = {},
+  ctx: RenderContext<PositionedJourneyDiagram>,
 ): string {
+  const { positioned: diagram, colors, options } = ctx
+  const font = colors.font ?? 'Inter'
+  const transparent = options.transparent ?? false
   const parts: string[] = []
   const style = resolveRenderStyle(options, JOURNEY_STYLE_DEFAULTS)
 
@@ -135,16 +134,16 @@ function openJourneySvgTag(
 
 function journeyStyles(style: ResolvedRenderStyle): string {
   return `<style>
-  .journey-title { fill: var(--_text); }
-  .journey-section-bg { fill: color-mix(in srgb, var(--_node-fill) 88%, var(--bg)); stroke: ${style.groupBorderColor ?? 'var(--_node-stroke)'}; stroke-width: ${style.groupLineWidth}; }
-  .journey-section-band { fill: color-mix(in srgb, var(--_arrow) 8%, var(--bg)); stroke: ${style.groupBorderColor ?? 'var(--_node-stroke)'}; stroke-width: ${style.groupLineWidth}; }
-  .journey-section-label { fill: var(--_text-sec); }
-  .journey-task-card { fill: var(--_node-fill); stroke: var(--_node-stroke); stroke-width: ${style.nodeLineWidth}; }
-  .journey-task-text { fill: var(--_text); }
-  .journey-score-cell-filled { fill: var(--_arrow); stroke: var(--_arrow); stroke-width: 1; }
-  .journey-score-cell-empty { fill: color-mix(in srgb, var(--bg) 55%, var(--_node-fill)); stroke: color-mix(in srgb, var(--_node-stroke) 82%, var(--bg)); stroke-width: 1; }
-  .journey-actor-pill { fill: color-mix(in srgb, var(--_arrow) 8%, var(--bg)); stroke: color-mix(in srgb, var(--_arrow) 22%, var(--bg)); stroke-width: 1; }
-  .journey-actor-text { fill: var(--_text-sec); }
+  .journey-title { fill: ${style.groupTextColor ?? style.nodeTextColor ?? 'var(--_text)'}; }
+  .journey-section-bg { fill: ${style.groupFillColor ?? 'color-mix(in srgb, var(--_node-fill) 88%, var(--bg))'}; stroke: ${style.groupBorderColor ?? 'var(--_node-stroke)'}; stroke-width: ${style.groupLineWidth}; }
+  .journey-section-band { fill: ${style.groupHeaderFillColor ?? 'color-mix(in srgb, var(--_arrow) 8%, var(--bg))'}; stroke: ${style.groupBorderColor ?? 'var(--_node-stroke)'}; stroke-width: ${style.groupLineWidth}; }
+  .journey-section-label { fill: ${style.groupTextColor ?? 'var(--_text-sec)'}; }
+  .journey-task-card { fill: ${style.nodeFillColor ?? 'var(--_node-fill)'}; stroke: ${style.nodeBorderColor ?? 'var(--_node-stroke)'}; stroke-width: ${style.nodeLineWidth}; }
+  .journey-task-text { fill: ${style.nodeTextColor ?? 'var(--_text)'}; }
+  .journey-score-cell-filled { fill: ${style.edgeStrokeColor ?? 'var(--_arrow)'}; stroke: ${style.edgeStrokeColor ?? 'var(--_arrow)'}; stroke-width: 1; }
+  .journey-score-cell-empty { fill: color-mix(in srgb, var(--bg) 55%, ${style.nodeFillColor ?? 'var(--_node-fill)'}); stroke: color-mix(in srgb, ${style.nodeBorderColor ?? 'var(--_node-stroke)'} 82%, var(--bg)); stroke-width: 1; }
+  .journey-actor-pill { fill: color-mix(in srgb, ${style.edgeStrokeColor ?? 'var(--_arrow)'} 8%, var(--bg)); stroke: color-mix(in srgb, ${style.edgeStrokeColor ?? 'var(--_arrow)'} 22%, var(--bg)); stroke-width: 1; }
+  .journey-actor-text { fill: ${style.groupTextColor ?? 'var(--_text-sec)'}; }
 </style>`
 }
 

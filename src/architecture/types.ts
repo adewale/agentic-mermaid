@@ -5,7 +5,7 @@
 // positioned structures used by the SVG renderer.
 // ============================================================================
 
-import type { Point } from '../types.ts'
+import type { Point, PositionedDiagram } from '../types.ts'
 
 export type ArchitectureSide = 'L' | 'R' | 'T' | 'B'
 export type ArchitectureEndpointBoundary = 'item' | 'group'
@@ -101,7 +101,7 @@ export interface PositionedArchitectureEdge {
   labelPosition?: Point
 }
 
-export interface PositionedArchitectureDiagram {
+export interface PositionedArchitectureDiagram extends PositionedDiagram {
   width: number
   height: number
   groups: PositionedArchitectureGroup[]

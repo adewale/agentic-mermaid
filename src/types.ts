@@ -1,4 +1,6 @@
 import type { MermaidRuntimeConfig } from './mermaid-source.ts'
+import type { DiagramColors } from './theme.ts'
+import type { ArchitectureVisualConfig } from './architecture/config.ts'
 
 // ============================================================================
 // Parsed graph — logical structure extracted from Mermaid text
@@ -88,7 +90,18 @@ export interface MermaidSubgraph {
 // Positioned graph — after ELK layout, ready for SVG rendering
 // ============================================================================
 
-export interface PositionedGraph {
+export interface PositionedDiagram {
+  width: number
+  height: number
+}
+
+export interface RenderContext<TPositioned extends PositionedDiagram = PositionedDiagram> {
+  positioned: TPositioned
+  colors: DiagramColors
+  options: RenderOptions
+}
+
+export interface PositionedGraph extends PositionedDiagram {
   width: number
   height: number
   nodes: PositionedNode[]
@@ -241,7 +254,7 @@ export type NonStraightRouteCertificate = RouteCertificateBase & {
 
 export type RouteCertificate = StraightRouteCertificate | NonStraightRouteCertificate
 
-export type FamilyRouteCertificate =
+export type FamilyEdgeRouteCertificate =
   | {
     family: 'class' | 'er'
     edgeIndex: number
@@ -277,23 +290,26 @@ export type FamilyRouteCertificate =
     targetLifeline: boolean
     selfMessage: boolean
   }
-  | {
-    family: 'timeline' | 'xychart' | 'pie' | 'quadrant' | 'gantt'
-    elementId: string
-    routeClass: 'family-layout'
-    invariant: 'timeline-interval' | 'plot-contained' | 'legend-contained' | 'section-contained' | 'unverified-family-layout'
-    /** Node/mark box in layout coordinates; included so cert consumers do not have to join back to nodes. */
-    bounds: { x: number; y: number; w: number; h: number }
-    /** Center point used by plot/region-mark containment certs. */
-    center: { x: number; y: number }
-    /** Whether the cert proves the full box or the semantic mark center is contained. */
-    containment: 'bounds' | 'center'
-    withinBounds: boolean
-    groupId?: string
-    withinGroup?: boolean
-  }
 
-export type LayoutRouteCertificate = RouteCertificate | FamilyRouteCertificate
+export type RegionContainmentCertificate = {
+  family: 'timeline' | 'xychart' | 'pie' | 'quadrant' | 'gantt'
+  elementId: string
+  routeClass: 'family-layout'
+  invariant: 'timeline-interval' | 'plot-contained' | 'legend-contained' | 'section-contained' | 'unverified-family-layout'
+  /** Node/mark box in layout coordinates; included so cert consumers do not have to join back to nodes. */
+  bounds: { x: number; y: number; w: number; h: number }
+  /** Center point used by plot/region-mark containment certs. */
+  center: { x: number; y: number }
+  /** Whether the cert proves the full box or the semantic mark center is contained. */
+  containment: 'bounds' | 'center'
+  withinBounds: boolean
+  groupId?: string
+  withinGroup?: boolean
+}
+
+export type EdgeRouteCertificate = RouteCertificate | FamilyEdgeRouteCertificate
+export type FamilyRouteCertificate = FamilyEdgeRouteCertificate | RegionContainmentCertificate
+export type LayoutRouteCertificate = EdgeRouteCertificate | RegionContainmentCertificate
 
 export interface Point {
   x: number
@@ -328,6 +344,8 @@ export interface TextRoleStyle {
   fontWeight?: number
   /** Letter spacing in px for this semantic text role. */
   letterSpacing?: number
+  /** Text fill color for this semantic role. */
+  textColor?: string
 }
 
 export interface BoxRoleStyle {
@@ -339,6 +357,10 @@ export interface BoxRoleStyle {
   cornerRadius?: number
   /** Border/stroke width in px for rectangular/card-like elements. */
   lineWidth?: number
+  /** Fill color for rectangular/card-like elements. */
+  fillColor?: string
+  /** Border/stroke color for rectangular/card-like elements. */
+  borderColor?: string
 }
 
 export interface NodeRoleStyle extends TextRoleStyle, BoxRoleStyle {}
@@ -348,6 +370,8 @@ export interface EdgeRoleStyle extends TextRoleStyle {
   lineWidth?: number
   /** Orthogonal connector bend radius in px. */
   bendRadius?: number
+  /** Connector stroke color. */
+  strokeColor?: string
 }
 
 export interface GroupRoleStyle extends TextRoleStyle, BoxRoleStyle {
@@ -355,10 +379,10 @@ export interface GroupRoleStyle extends TextRoleStyle, BoxRoleStyle {
   fontFamily?: string
   /** Header/label text transform. */
   textTransform?: TextTransform
-  /** Border color for group-like containers. */
-  borderColor?: string
   /** Border stroke width in px for group-like containers. */
   lineWidth?: number
+  /** Header/band fill color for group-like containers. */
+  headerFillColor?: string
 }
 
 export interface DiagramStyleOptions {
@@ -411,6 +435,10 @@ export interface RenderOptions {
   interactive?: boolean
   /** Optional explicit drop shadows on node shapes. Default: false */
   shadow?: boolean
+  /** Family-specific SVG renderer options for architecture-beta diagrams. */
+  architecture?: {
+    visual?: ArchitectureVisualConfig
+  }
   /** Optional Mermaid-style runtime config (analogous to initialize/frontmatter config). */
   mermaidConfig?: MermaidRuntimeConfig
   /**
