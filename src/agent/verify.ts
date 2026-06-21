@@ -110,7 +110,7 @@ export function verifyMermaid(input: ValidDiagram | string, opts: VerifyOptions 
   // the per-body warnings (journey added by BUILD-15, architecture by BUILD-17).
   // Gantt adds geometric tripwires (OFF_CANVAS / GROUP_BREACH) over its real
   // layout and surfaces unresolvable schedules (UNRESOLVABLE_SCHEDULE),
-  // alongside the body-level plugin warnings — see docs/design/gantt.md
+  // alongside the body-level plugin warnings — see docs/design/families/gantt.md
   // §Verification.
   if (d.body.kind === 'gantt') {
     const layout = layoutFamilyToRendered(d) ?? emptyRenderedLayout(d.kind)
@@ -246,7 +246,7 @@ function verifyGraph(graph: import('../types.ts').MermaidGraph, kind: ValidDiagr
   // upholds these invariants itself (straight clear lanes, border-anchored
   // containers, on-shape endpoints, labels on their own lines), so any hit
   // here means some pass mutated geometry after route certification.
-  // See docs/design/route-contracts.md.
+  // See docs/design/system/route-contracts.md.
   for (const hitch of findRouteHitches(positioned, graph)) {
     warnings.push({ code: 'ROUTE_HITCH', edge: hitch.edge, deviationPx: hitch.deviationPx })
   }

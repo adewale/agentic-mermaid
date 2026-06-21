@@ -59,5 +59,5 @@ getter defaults, and renderer DOM assertions.
 
 Re-fetch the two mermaid spec files from `develop`, diff against the vendored
 sources here, and add new cases / exclusions as upstream's suite grows. The
-spec's watchlist (docs/design/gantt.md §Not supported) flags the syntax areas
+spec's watchlist (docs/design/families/gantt.md §Not supported) flags the syntax areas
 most likely to change.

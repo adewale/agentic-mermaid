@@ -1,5 +1,5 @@
 // ============================================================================
-// Visual-rubric fixture batteries (docs/design/layout-rubric.md).
+// Visual-rubric fixture batteries (docs/design/system/layout-rubric.md).
 //
 // SIMPLE: a combinatorial battery of small diagrams — every routing pattern
 // the route contracts make claims about, across all four directions, and a

@@ -1,7 +1,7 @@
 // ============================================================================
 // Gantt syntax parser — Mermaid-compatible `gantt` source → GanttModel.
 //
-// Renderer-grade parser with error semantics (docs/design/gantt.md §Parser
+// Renderer-grade parser with error semantics (docs/design/families/gantt.md §Parser
 // rules): never silently drop a line; duplicate task ids are errors; invalid
 // directives/tasks are errors with line numbers. The agent-grade structured-
 // or-opaque parser lives in src/agent/gantt-body.ts and shares the task-line

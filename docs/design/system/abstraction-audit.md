@@ -35,7 +35,7 @@ the `RouteClass`/port vocabulary. Everything larger forks per stack.
 
 The 12 built-in families this inventory spans — the canonical roster, **generated from
 `BUILTIN_FAMILY_METADATA` (`src/agent/families.ts`)** and pinned by
-[`audit-family-table.test.ts`](../../src/__tests__/audit-family-table.test.ts) so it cannot drift
+[`audit-family-table.test.ts`](../../../src/__tests__/audit-family-table.test.ts) so it cannot drift
 from the registry (regenerate with `UPDATE_GOLDEN=1 bun test src/__tests__/audit-family-table.test.ts`):
 
 <!-- FAMILY-TABLE:start -->
@@ -186,8 +186,8 @@ architecture. Cross-checked against them, the findings **agree**; three earn an 
 
 | Existing doc | Relates to | Verdict |
 |---|---|---|
-| [`AGENT_NATIVE.md`](../../AGENT_NATIVE.md) | I3, I6, I7 | Agrees; refines I3 and I7 (below). The agent-stack design rationale. |
-| [`contributing/diagram-family-citizenship.md`](../contributing/diagram-family-citizenship.md) | I1, I8 | Agrees; the family×surface drift is **already CI-guarded** (below). |
+| [`AGENT_NATIVE.md`](../../../AGENT_NATIVE.md) | I3, I6, I7 | Agrees; refines I3 and I7 (below). The agent-stack design rationale. |
+| [`contributing/diagram-family-citizenship.md`](../../contributing/diagram-family-citizenship.md) | I1, I8 | Agrees; the family×surface drift is **already CI-guarded** (below). |
 | [`design/source-preservation-ladder.md`](./source-preservation-ladder.md) | I7 | Agrees; formalizes the structured\|opaque model as levels L0–L4. |
 
 **I1 refinement — the drift is already test-guarded.** `diagram-family-citizenship.md` (issue #41)

@@ -74,7 +74,7 @@ dependents after. IDs are stable names, not an ordering.
     `src/ascii/pie.ts`), routing, agent surface (detect + extractLabels),
     showcase samples, docs, and goldens. Now promoted to structured mutation —
     `src/agent/pie-body.ts`, `asPie`, 7 ops (see Unreleased changelog).
-  - [x] Gantt family (per the [docs/design/gantt.md](./docs/design/gantt.md)
+  - [x] Gantt family (per the [docs/design/families/gantt.md](./docs/design/families/gantt.md)
     spec from PR #24): `src/gantt/` (types/parser/schedule/layout/SVG +
     `src/ascii/gantt.ts`), routing, segment-preserving typed mutation from day
     one (`src/agent/gantt-body.ts`, `asGantt`, 9 ops), pure wall-clock-free

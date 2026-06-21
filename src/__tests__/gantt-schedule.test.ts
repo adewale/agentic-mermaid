@@ -1,4 +1,4 @@
-// Gantt scheduler unit tests (docs/design/gantt.md §3 scheduling rules):
+// Gantt scheduler unit tests (docs/design/families/gantt.md §3 scheduling rules):
 // date/duration parsing, after/until resolution, excludes extension,
 // includes override, inclusiveEndDates, structured errors (unknown refs,
 // cycles named, missing first start, schedule overflow), explicit clock.

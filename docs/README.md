@@ -44,14 +44,14 @@ co-locates them.
 | Doc | Purpose |
 |---|---|
 | [`design/system/`](./design/system/README.md) | **Start here.** Rendered three-stacks architecture overview (dogfooded, drift-proof) routing to the audit and design docs. |
-| [`design/abstraction-audit.md`](./design/abstraction-audit.md) | Whole-system abstraction audit: the three-stacks model and ranked issue list I1–I9. |
-| [`design/abstraction-recommendations.md`](./design/abstraction-recommendations.md) | Literature-grounded recommendations for I1–I9, with a prioritized roadmap. |
-| [`design/route-contracts.md`](./design/route-contracts.md) | Route contracts: edge classification, direct-lane proofs, certifying straightener (issue #25). |
-| [`design/layout-rubric.md`](./design/layout-rubric.md) | Deterministic layout-quality rubric: metrics, CI gates, and property oracles. |
-| [`design/source-preservation-ladder.md`](./design/source-preservation-ladder.md) | The structured\|opaque family-adoption contract (levels L0–L4). |
-| [`design/ugly-layouts.md`](./design/ugly-layouts.md) | Ugly-layout detector: catalogued failure shapes and heuristics. |
-| [`design/issue-26-audit.md`](./design/issue-26-audit.md) | Flowchart principled-layout heuristics inventory and conformance review (issue #26). |
-| [`design/issue-26-38-closure.md`](./design/issue-26-38-closure.md) | Principled-layout closure-decision ledger (issues #26/#38). |
+| [`design/system/abstraction-audit.md`](./design/system/abstraction-audit.md) | Whole-system abstraction audit: the three-stacks model and ranked issue list I1–I9. |
+| [`design/system/abstraction-recommendations.md`](./design/system/abstraction-recommendations.md) | Literature-grounded recommendations for I1–I9, with a prioritized roadmap. |
+| [`design/system/route-contracts.md`](./design/system/route-contracts.md) | Route contracts: edge classification, direct-lane proofs, certifying straightener (issue #25). |
+| [`design/system/layout-rubric.md`](./design/system/layout-rubric.md) | Deterministic layout-quality rubric: metrics, CI gates, and property oracles. |
+| [`design/system/source-preservation-ladder.md`](./design/system/source-preservation-ladder.md) | The structured\|opaque family-adoption contract (levels L0–L4). |
+| [`design/system/ugly-layouts.md`](./design/system/ugly-layouts.md) | Ugly-layout detector: catalogued failure shapes and heuristics. |
+| [`design/system/issue-26-audit.md`](./design/system/issue-26-audit.md) | Flowchart principled-layout heuristics inventory and conformance review (issue #26). |
+| [`design/system/issue-26-38-closure.md`](./design/system/issue-26-38-closure.md) | Principled-layout closure-decision ledger (issues #26/#38). |
 
 ### Per-family design notes
 
@@ -59,14 +59,14 @@ co-locates them.
 |---|---|
 | [`design/families/`](./design/families/README.md) | Per-family hub: which families have a design note, and where each family's other surfaces live. |
 | [`design/families/architecture-beta.md`](./design/families/architecture-beta.md) | `architecture-beta` diagram-type implementation notes. |
-| [`design/gantt.md`](./design/gantt.md) | Gantt support specification and compatibility boundaries. |
-| [`design/gantt-research.md`](./design/gantt-research.md) | Gantt literature review and commercial UX survey. |
-| [`design/journey.md`](./design/journey.md) | Journey diagram implementation notes. |
-| [`design/xychart.md`](./design/xychart.md) | XY chart implementation notes. |
-| [`design/flowchart-parser-conformance.md`](./design/flowchart-parser-conformance.md) | Flowchart syntax conformance catalogue and unsupported-syntax warning policy (issue #36). |
+| [`design/families/gantt.md`](./design/families/gantt.md) | Gantt support specification and compatibility boundaries. |
+| [`design/families/gantt-research.md`](./design/families/gantt-research.md) | Gantt literature review and commercial UX survey. |
+| [`design/families/journey.md`](./design/families/journey.md) | Journey diagram implementation notes. |
+| [`design/families/xychart.md`](./design/families/xychart.md) | XY chart implementation notes. |
+| [`design/families/flowchart-parser-conformance.md`](./design/families/flowchart-parser-conformance.md) | Flowchart syntax conformance catalogue and unsupported-syntax warning policy (issue #36). |
 
-> Only `architecture-beta` has moved into `design/families/` so far (it was the one collision-free
-> rename); the other per-family notes still live in `design/` and migrate in Phase 1 of the reorg.
+> All per-family notes now live in `design/families/` and all cross-cutting notes in `design/system/`
+> (the [doc-reorg plan](./project/doc-reorg-plan.md) Phase 1 migration is complete).
 
 ### Project & process
 

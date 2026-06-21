@@ -1,5 +1,5 @@
 /**
- * Deterministic layout-quality rubric (docs/design/layout-rubric.md).
+ * Deterministic layout-quality rubric (docs/design/system/layout-rubric.md).
  *
  * Computes the empirically validated graph-drawing aesthetics (Purchase 1997,
  * 2002: crossings and bends are the strongest comprehension factors), the

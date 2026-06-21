@@ -1003,7 +1003,7 @@ function elkToPositioned(
   collapseTinyBundledHitches(nodes, edges, bundled)
   reassignBundledSiblingLabels(nodes, edges, bundled, graph.direction, style)
 
-  // Route contracts (docs/design/route-contracts.md): simplify every polyline,
+  // Route contracts (docs/design/system/route-contracts.md): simplify every polyline,
   // straighten primary-forward routes whose direct lane proves clear, and
   // certify every edge. After this point only whole-graph translation is
   // allowed: it preserves route classes, ports, bends, clear lanes, and certs.
@@ -3695,7 +3695,7 @@ function findGroupsContainingPoint(
 }
 
 /**
- * Bundle contract (docs/design/route-contracts.md): a rebuilt trunk/branch
+ * Bundle contract (docs/design/system/route-contracts.md): a rebuilt trunk/branch
  * path may not pass through any node other than the edge's own endpoints.
  * The half-pixel tolerance lets a path graze a border without counting.
  */

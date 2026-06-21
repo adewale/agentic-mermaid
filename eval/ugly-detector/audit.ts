@@ -1,7 +1,7 @@
 /**
  * Ugly-layout audit — renders every diagram corpus in this project to SVG, PNG
  * and ASCII and runs the ugly-layout detectors (eval/ugly-detector/detect.ts,
- * specified by docs/design/ugly-layouts.md) over the RENDERED output.
+ * specified by docs/design/system/ugly-layouts.md) over the RENDERED output.
  *
  *   bun run eval/ugly-detector/audit.ts            # audit, summary + hard findings
  *   bun run eval/ugly-detector/audit.ts --verbose  # also list soft findings

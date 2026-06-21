@@ -1,5 +1,5 @@
 /**
- * Route contracts — principled routing without hitches (docs/design/route-contracts.md).
+ * Route contracts — principled routing without hitches (docs/design/system/route-contracts.md).
  *
  * ELK's FREE port placement spreads edge endpoints along node sides, so a
  * forward edge between two nodes that share a centerline often gets a short

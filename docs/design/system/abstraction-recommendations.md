@@ -3,8 +3,8 @@
 Status: recommendations from academic-literature review. Drafted 2026-06-20.
 Companion to [`abstraction-audit.md`](./abstraction-audit.md) (the current-state snapshot and
 the source of issue numbers **I1–I9**, referenced throughout). Reconciled with the pre-existing
-design docs it overlaps — [`AGENT_NATIVE.md`](../../AGENT_NATIVE.md) (agent stack),
-[`contributing/diagram-family-citizenship.md`](../contributing/diagram-family-citizenship.md)
+design docs it overlaps — [`AGENT_NATIVE.md`](../../../AGENT_NATIVE.md) (agent stack),
+[`contributing/diagram-family-citizenship.md`](../../contributing/diagram-family-citizenship.md)
 (family×surface CI ratchet), and [`source-preservation-ladder.md`](./source-preservation-ladder.md)
 (structured\|opaque levels); see the audit's §5 for the agreement and the I1/I3/I7 refinements.
 

@@ -1,4 +1,4 @@
-// Gantt syntax parser tests (docs/design/gantt.md §Test tiers, parser row):
+// Gantt syntax parser tests (docs/design/families/gantt.md §Test tiers, parser row):
 // Mermaid docs examples as fixtures, malformed headers, duplicate ids, task
 // labels containing `#`/`;`/keywords, click href/call, multiple excludes/
 // includes, structured errors for unsupported/invalid syntax — plus a

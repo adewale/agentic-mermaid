@@ -1,7 +1,7 @@
 # System architecture — start here
 
 How the Agentic Mermaid engine fits together. This is the entry point the
-[abstraction audit](../abstraction-audit.md) identified as missing: a single top-down
+[abstraction audit](./abstraction-audit.md) identified as missing: a single top-down
 view of the whole system, distinct from the per-diagram-type design notes.
 
 ![Agentic Mermaid abstraction architecture: one normalized source fans out to three stacks (SVG, ASCII, agent IR) that dispatch over the same 12 diagram families three different ways and bottom out on shared core types](./architecture.svg)
@@ -31,12 +31,11 @@ produced *by* the system, and pinned the same way we pin layout determinism.
 
 ## Read next
 
-- [`abstraction-audit.md`](../abstraction-audit.md) — the three-stacks model in full + the ranked issue list **I1–I9**.
-- [`abstraction-recommendations.md`](../abstraction-recommendations.md) — literature-grounded fixes for I1–I9 + the prioritized roadmap.
-- [`route-contracts.md`](../route-contracts.md) — the flowchart routing engine (edge classification, direct-lane proofs, certifying straightener).
-- [`layout-rubric.md`](../layout-rubric.md) — the deterministic layout-quality rubric.
-- [`source-preservation-ladder.md`](../source-preservation-ladder.md) — the structured\|opaque family-adoption contract (L0–L4).
+- [`abstraction-audit.md`](./abstraction-audit.md) — the three-stacks model in full + the ranked issue list **I1–I9**.
+- [`abstraction-recommendations.md`](./abstraction-recommendations.md) — literature-grounded fixes for I1–I9 + the prioritized roadmap.
+- [`route-contracts.md`](./route-contracts.md) — the flowchart routing engine (edge classification, direct-lane proofs, certifying straightener).
+- [`layout-rubric.md`](./layout-rubric.md) — the deterministic layout-quality rubric.
+- [`source-preservation-ladder.md`](./source-preservation-ladder.md) — the structured\|opaque family-adoption contract (L0–L4).
 
-> These design docs currently live one level up in `docs/design/`. The
-> [documentation reorganization plan](../../project/doc-reorg-plan.md) proposes moving
-> them into this `system/` folder; until then, this page links up to them.
+> These design docs are co-located here in `design/system/` — the
+> [documentation reorganization plan](../../project/doc-reorg-plan.md) moved them in Phase 1.

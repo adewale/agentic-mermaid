@@ -1,7 +1,9 @@
 # Documentation reorganization plan — separating per-family from system docs
 
-Status: **plan / proposal. No files have been moved or renamed.** Drafted 2026-06-20.
-Follows from [`design/abstraction-audit.md`](../design/abstraction-audit.md) §5 and the
+Status: **executed.** Phase 0 and Phase 1 are complete — all per-family notes now live in
+`docs/design/families/` and all cross-cutting/system docs in `docs/design/system/`, with every
+code/test/config/doc reference swept. Drafted and executed 2026-06-20.
+Follows from [`design/abstraction-audit.md`](../design/system/abstraction-audit.md) §5 and the
 documentation-taxonomy diagnosis: `docs/design/` mixes per-diagram-type notes with whole-system
 design, the dominant index axis is *audience* (not type-vs-system), and there is no single
 system-architecture entry point. This plan fixes that with the **smallest safe change first**.
@@ -65,10 +67,10 @@ references rot (and several are read by tests). Inventory gathered for this plan
 | Doc | Referenced from (must update on move) | Move risk |
 |---|---|---|
 | `architecture.md` | **`docs/README.md` only** | **Low — safe rename** |
-| `route-contracts.md` | code: `src/types.ts`(×2), `src/route-contracts.ts`, `src/layout-engine.ts`(×2), `src/cli/agent-instructions.ts`, `src/agent/verify.ts`; docs: `Instructions_for_agents.md`, `CHANGELOG.md`, `docs/quality.md`, `docs/mutation-testing.md`, `docs/design/layout-rubric.md`; config: `stryker.routes.config.json` | High |
+| `route-contracts.md` | code: `src/types.ts`(×2), `src/route-contracts.ts`, `src/layout-engine.ts`(×2), `src/cli/agent-instructions.ts`, `src/agent/verify.ts`; docs: `Instructions_for_agents.md`, `CHANGELOG.md`, `docs/quality.md`, `docs/mutation-testing.md`, `docs/design/system/layout-rubric.md`; config: `stryker.routes.config.json` | High |
 | `gantt.md` | ~20 refs: `src/gantt/*`(5), `src/agent/*`(4), `src/ascii/gantt.ts`, 7 tests, `AGENT_NATIVE.md`(×2), `TODO.md`, `eval/mermaid-gantt-bench/*`, `CHANGELOG.md`, `docs/contributing/*`, `…citizenship.matrix.json` | High |
 | `layout-rubric.md` | `src/layout-rubric.ts`, `src/__tests__/layout-rubric.test.ts`, `eval/visual-rubric/*`(2), `CHANGELOG.md` | Med |
-| `source-preservation-ladder.md` | **`src/__tests__/agent-doc-sync.test.ts:195`** (a doc-sync test — may assert the path), `docs/design/issue-26-audit.md`, the two abstraction docs | Med — **test caveat** |
+| `source-preservation-ladder.md` | **`src/__tests__/agent-doc-sync.test.ts:195`** (a doc-sync test — may assert the path), `docs/design/system/issue-26-audit.md`, the two abstraction docs | Med — **test caveat** |
 | `ugly-layouts.md` | `eval/ugly-detector/*`(2), `src/__tests__/ugly-detector.test.ts` | Med |
 | `issue-26-audit.md` | `src/__tests__/link-grammar.test.ts`, `src/__tests__/heuristic-coverage.test.ts` | Med |
 | `xychart.md` | `docs/contributing/adding-diagram-types.md` | Low |

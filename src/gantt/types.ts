@@ -1,7 +1,7 @@
 // ============================================================================
 // Gantt diagram types — semantic model, calendar, schedule, layout.
 //
-// Implements docs/design/gantt.md (PR #24): the parser produces a source-
+// Implements docs/design/families/gantt.md (PR #24): the parser produces a source-
 // faithful GanttModel; src/gantt/schedule.ts resolves dates/dependencies into
 // a GanttSchedule; src/gantt/layout.ts turns the schedule into geometry shared
 // by the SVG and ASCII renderers. Renderers never compute dates.

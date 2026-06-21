@@ -192,7 +192,7 @@ describe('vocabulary doc-sync', () => {
   })
 
   test('source preservation ladder lists every built-in family and all levels', () => {
-    const ladder = readFileSync(join(REPO, 'docs/design/source-preservation-ladder.md'), 'utf8')
+    const ladder = readFileSync(join(REPO, 'docs/design/system/source-preservation-ladder.md'), 'utf8')
     for (const level of ['L0', 'L1', 'L2', 'L3', 'L4']) expect(ladder).toContain(level)
     for (const family of BUILTIN_FAMILY_METADATA) {
       expect({ family: family.id, listed: new RegExp(`\\|\\s*${escapeRegExp(family.id)}\\s*\\|`).test(ladder) })

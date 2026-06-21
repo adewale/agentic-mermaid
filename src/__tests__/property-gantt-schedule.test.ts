@@ -1,4 +1,4 @@
-// Property tests for the Gantt scheduler + layout (docs/design/gantt.md
+// Property tests for the Gantt scheduler + layout (docs/design/families/gantt.md
 // §Property invariants): finite generated task DAGs — not arbitrary line
 // strings — drive the resolver, and each property pins an invariant the spec
 // names. fast-check is seeded by default per run; failures shrink to a

@@ -553,7 +553,7 @@ export function ganttScheduleWarning(d: ValidDiagram): LayoutWarning | null {
 }
 
 /**
- * Geometric tripwires for the gantt layout (docs/design/gantt.md
+ * Geometric tripwires for the gantt layout (docs/design/families/gantt.md
  * §Verification; issue #26 WS11): OFF_CANVAS when a resolved bar/milestone
  * leaves the canvas, GROUP_BREACH when a section-owned bar leaves its section
  * band. The layout produces contained geometry by construction (property-

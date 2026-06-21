@@ -1,5 +1,5 @@
 /**
- * Doc-sync: the built-in family roster table in docs/design/abstraction-audit.md is generated
+ * Doc-sync: the built-in family roster table in docs/design/system/abstraction-audit.md is generated
  * from BUILTIN_FAMILY_METADATA. This test rebuilds the table from the registry and asserts the
  * doc's <!-- FAMILY-TABLE --> region matches, so adding or renaming a built-in family forces the
  * audit to be regenerated in the same change (the prose inventory cannot drift from the code).
@@ -12,7 +12,7 @@ import { readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { BUILTIN_FAMILY_METADATA } from '../agent/families.ts'
 
-const auditPath = join(import.meta.dir, '..', '..', 'docs', 'design', 'abstraction-audit.md')
+const auditPath = join(import.meta.dir, '..', '..', 'docs', 'design', 'system', 'abstraction-audit.md')
 const START = '<!-- FAMILY-TABLE:start -->'
 const END = '<!-- FAMILY-TABLE:end -->'
 

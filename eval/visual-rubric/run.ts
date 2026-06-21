@@ -1,5 +1,5 @@
 // ============================================================================
-// Visual rubric harness (docs/design/layout-rubric.md).
+// Visual rubric harness (docs/design/system/layout-rubric.md).
 //
 // Renders the SIMPLE battery (every routing pattern x direction x shape) and
 // the COMPLICATED set, scores each against the deterministic layout rubric,

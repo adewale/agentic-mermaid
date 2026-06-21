@@ -1,4 +1,4 @@
-// Gantt SVG integration tests (docs/design/gantt.md §Test tiers, SVG row):
+// Gantt SVG integration tests (docs/design/families/gantt.md §Test tiers, SVG row):
 // deterministic output, a committed representative golden, status classes,
 // strict-security guarantees, accessibility injection, theme contrast for
 // status bars in light/dark themes, and the supplied-clock today marker.

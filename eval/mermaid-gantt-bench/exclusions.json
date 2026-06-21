@@ -7,7 +7,7 @@
     "reason": "silent-ignore-vs-named-error",
     "upstreamBehavior": "The grammar accepts 'weekdays' (a token the docs explicitly say is unsupported); isInvalidDate never matches it, so it is silently ignored and the chart renders.",
     "oursErrorCode": "GANTT_BAD_DATE",
-    "notes": "Spec-mandated divergence (docs/design/gantt.md: fail clearly for unsupported syntax instead of silently mis-rendering). The agent layer still parses, round-trips, and reports verify UNRESOLVABLE_SCHEDULE. NB: the task line was added here to give the schedule something to resolve; upstream's original fixture is directive-only."
+    "notes": "Spec-mandated divergence (docs/design/families/gantt.md: fail clearly for unsupported syntax instead of silently mis-rendering). The agent layer still parses, round-trips, and reports verify UNRESOLVABLE_SCHEDULE. NB: the task line was added here to give the schedule something to resolve; upstream's original fixture is directive-only."
   },
   {
     "id": "e2-after-unknown-id",
