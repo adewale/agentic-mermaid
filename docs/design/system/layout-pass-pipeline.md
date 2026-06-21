@@ -55,7 +55,7 @@ interface LayoutPass {
   doc: string                       // one-line role (the §8 line is GENERATED from this)
   after: string[]                   // partial-order deps, each with a recorded reason (see §3.1)
   mutates: PassEffect[]             // what geometry it changes (a SET — see note) — drives the freeze (§3.2)
-  mayChangeMetrics: RubricMetric[]  // rubric metrics it is permitted to move — the ratchet (§3.3)
+  mayChangeMetrics: Partial<Record<RubricMetric, MetricBudget>>  // per-metric DIRECTION/budget — the ratchet (§3.3, resolves OQ-B1)
   determinism: 'pure-order' | 'fixed-point' | 'in-place'
   enabled?: (ctx: LayoutPassContext) => boolean   // e.g. bundling is gated on mergeEdges
   run: (ctx: LayoutPassContext) => void           // mutates the shared PositionedGraph in place
@@ -74,8 +74,14 @@ writes node positions *and* dimensions). `extract` marks the producer — the fi
 from ELK; `translate` marks the lone finalizer permitted after the freeze; the `bounds` computation at
 the tail is pure arithmetic, a **non-pass epilogue** that is not a member of the list.
 
-`LayoutPassContext` is the real shared bag, not a model: `{ nodes, edges, groups, graph,
-direction, style, bundled, margins, layoutPadding }` plus a `frozen` flag the runner sets.
+`LayoutPassContext` is a faithful superset of the call-site state (resolves OQ-D2):
+`{ nodes, edges, groups, graph, style, margins, bundled, mergeEdges, elkResult, layoutPadding }`
+plus a `frozen` flag and two *derived* fields — `direction` (from `graph`) and a **lazy `nodeMap`**
+that invalidates on any position change (the real pipeline rebuilds it after the node-moving
+passes). `bundled` is a *transient channel*, not frozen geometry (resolves OQ-A3): it lives only
+from `bundleEdgePaths` to `applyRouteContracts` and is never read after the freeze. There is no
+separate `phase` field (resolves OQ-C1): `mutates`' `extract`/`translate` members already mark the
+producer and finalizer.
 The whole pipeline is one ordered constant:
 
 ```ts
@@ -107,13 +113,24 @@ to add a single `(dx, dy)` to every node, group, edge point and label — a pure
 allowed while a stray re-center is caught. This turns
 `route-contracts.md`'s prose rule into a typed, checked one.
 
-### 3.3 Ratchet (must be *measured*, not declared — audit A2)
-`mayChangeMetrics` is the symmetry-saga discipline made structural: a pass may move only the
-metrics it lists, and **no pass may worsen `hard`**. Critically, the real implementation must
-not *trust* the declared set (the prototype's weakness): in a debug/test mode the runner calls
-the existing `assessLayout` (`src/layout-rubric.ts`) before and after each pass and asserts the
-delta touches only declared metrics. The declaration is the contract; the rubric is the proof.
-This makes "centering must not cost crossings" a CI check instead of a reviewer's memory.
+### 3.3 Ratchet (measured · directional · end-state for `hard`)
+`mayChangeMetrics` is the symmetry-saga discipline made structural, with three refinements:
+
+- **Measured, not declared** (prototype audit A2): a debug/test runner calls `assessLayout`
+  (`src/layout-rubric.ts`) before and after each pass and asserts the delta obeys the declaration —
+  the declaration is the contract, the rubric is the proof.
+- **Directional, not a bare set** (resolves OQ-B1): passes *trade* metrics — fan-in centering spends
+  **+2 bends to buy symmetry** (`route-contracts.md` §6.2.3, "the literature-validated trade"). So a
+  pass declares a per-metric `MetricBudget` (`'improve-only' | { worsenBy: n }`), e.g.
+  `{ symErr: 'improve-only', bends: { worsenBy: 2 } }`. A flat set can't tell an intended trade from
+  a regression.
+- **`hard` is end-state, not per-pass** (resolves OQ-A2): two hard metrics (`unexplainedBends`,
+  `hitches`) are defined *relative to route certificates* that exist only after `applyRouteContracts`,
+  and `diagonalSegments`/`offOutlineEndpoints` are legitimately nonzero on raw ELK edges until
+  `clipEdgeToShape`+route contracts. So `hard == 0` is asserted **once, on the final graph**; per
+  pass the runner checks only the directional budget.
+- **Debug/CI only** (resolves OQ-B2): `assessLayout` is pairwise (O(n²)); the measured ratchet rides
+  tests, never the production render path — production runs the bare runner.
 
 ## 4. Determinism and the migration plan (the real risk)
 
@@ -127,9 +144,13 @@ the determinism-preserving migration, and it follows the proven PR #74 playbook 
    output across the contact sheet (A–V), the 271-entry docs corpus, the determinism grid, and
    the cross-process test. This is a pure indirection step — zero geometry change by
    construction.
-2. Relocate the 13 private passes into `src/layout/passes/` as `(ctx) => void` units, one
-   commit each, snapshot-gated. (Adding `export`/moving a function is behavior-preserving; the
-   gate proves it.)
+2. **Extract the shared geometry kernel first** (resolves OQ-D1). The 13 private passes lean on a
+   heavily-used set of module-scope primitives — `layoutFlow` (×24), `shapePorts` (×12),
+   `nodeCrossCenter` (×11), plus `rectsOverlap`/`simplifyPolyline`/`PORT_EXACT`/`DEFAULTS` … — out of
+   ~105 module-scope symbols. Move those into `src/layout/geometry.ts` *before* relocating any pass,
+   or a pass drags the whole module with it. Then relocate the passes into `src/layout/passes/` as
+   `(ctx) => void` units, one commit each, snapshot-gated (moving a function is behavior-preserving;
+   the gate proves it).
 3. Generate `route-contracts.md §8` from the manifest (`doc` fields) via a doc-sync test, the
    way `BUILTIN_FAMILY_METADATA` projects family lists. The drift in §1 becomes impossible.
 4. Turn on the §3 invariant checks in the test/debug runner; fix or annotate any pass whose
@@ -180,8 +201,8 @@ A self-critique, so the spec inherits the lessons rather than the prototype's sh
   sheet + corpus + determinism grid + cross-process snapshots — red-first is "any diff fails."
 - **Property tests** (mirroring `property-abstraction-waists.test.ts`): the pipeline is a valid
   topological order of its `after` graph; no `positions`/`dimensions` pass runs after `frozen`;
-  for a random corpus, `assessLayout` deltas per pass ⊆ declared `mayChangeMetrics`; `hard`
-  stays 0 across every pass. Plus a **commutativity guard** for any passes declared mutually
+  for a random corpus, each pass's `assessLayout` delta obeys its directional `MetricBudget`
+  (§3.3); `hard` is checked once on the final graph (end-state — OQ-A2), not per pass. Plus a **commutativity guard** for any passes declared mutually
   unordered (the three symmetric passes, §8 R1): all orderings must produce byte-identical geometry
   across the corpus, so a future order-sensitive change fails loudly.
 - **Doc-sync test:** `route-contracts.md §8` is generated from the manifest; drift fails CI.
@@ -207,43 +228,23 @@ A self-critique, so the spec inherits the lessons rather than the prototype's sh
   positions *and* dimensions (hence `mutates` is a set, §2); it runs pre-route so the freeze is moot
   for it today, and the `dimensions` effect kind keeps a future post-route resize honest.
 
-### Open  (P1 = real design risk · P2 = refinement)
+### Resolved this iteration
 
-*Effect & freeze model*
-- **A2 (P1) — is `hard == 0` per-pass or end-state?** Intermediate passes (e.g. `alignPortLanes`
-  sliding a node) can transiently create an overlap a later pass clears, but the rubric's hard
-  metrics are end-state. Per-pass is too strict (false positives); end-state-only can't localize the
-  culprit. Lean: end-state for `hard`, per-pass for ownership/direction.
-- **A3 (P2) — `bundled` is a non-geometry channel** written by bundling + the symmetric passes and
-  read by route contracts. Is it frozen post-route, and does `reads`/`writes` cover Set membership?
+All nine open questions were resolved; the contract changes land in §2–§4 and §7/§9.
 
-*Ratchet semantics*
-- **B1 (P1) — `mayChangeMetrics` needs direction, not just a set.** Passes *trade* metrics (fan-in
-  centering buys symmetry with +2 bends). "May change X" ≠ "may worsen X"; without a per-metric
-  direction/budget (`improve-only` | `may-worsen` | `trade≤N`) an intended trade is
-  indistinguishable from a regression.
-- **B2 (P2) — cost & placement of the measured ratchet.** `assessLayout` × passes × corpus is
-  expensive; confirm it rides debug/CI only, never the production render path.
+| # | Resolution | Encoded in |
+|---|---|---|
+| **OQ-A2** — `hard == 0` is **end-state, not per-pass**: `unexplainedBends`/`hitches` are certificate-relative (certs exist only after `applyRouteContracts`) and `diagonalSegments`/`offOutlineEndpoints` are nonzero on raw ELK edges until clipping, so hard is asserted once on the final graph. | §3.3, §7 |
+| **OQ-A3** — `bundled` is a **transient channel** (lifespan `bundleEdgePaths → applyRouteContracts`), never read after the freeze; excluded from frozen geometry. *(verified: no `bundled` reference past `applyRouteContracts`.)* | §2 |
+| **OQ-B1** — the ratchet is **directional, not a set**: `mayChangeMetrics` becomes a per-metric `MetricBudget`. *(grounded in the documented +2-bends-for-symmetry fan-in trade.)* | §2, §3.3 |
+| **OQ-B2** — the measured ratchet is **debug/CI only** (`assessLayout` is O(n²)); production runs the bare runner. | §3.3 |
+| **OQ-C1** — **no `phase` field**; `mutates`' `extract`/`translate` members already mark producer and finalizer. | §2 |
+| **OQ-C2** — **post-ELK is the permanent boundary**; ELK + `mermaidToElk` are the frontend, never passes. | §9 |
+| **OQ-D1** — migration needs a **shared-kernel extraction first**: the 13 passes lean on ~15 module-scope geometry primitives (out of ~105 symbols), so `src/layout/geometry.ts` must precede the pass relocation. | §4 step 2 |
+| **OQ-D2** — `LayoutPassContext` is a **faithful superset** with a lazy, invalidating `nodeMap`. *(enumerated from the call site.)* | §2 |
+| **OQ-E2** — **ASCII stays SVG-isolated**: grid + A* with no certificate/rubric vocabulary, so the contract can't transfer; share the concept, never the type. *(verified: no cert/rubric symbols in `src/ascii/`.)* | §9 |
 
-*Pipeline boundary*
-- **C1 (P1, partly settled in §2) — phase tagging.** The list is `extract` → … → `translate`;
-  ELK/`mermaidToElk` are upstream; `bounds` is a non-pass epilogue. Open: do producer/finalizer
-  passes need an explicit `phase` tag, or does `mutates` (`extract`/`translate`) carry it?
-- **C2 (P2) — end-to-end vs post-ELK only?** Should `mermaidToElk`+ELK ever be passes (full
-  nanopass), or is post-ELK the permanent boundary? Lean: post-ELK only — ELK is a black box.
-
-*Migration mechanics*
-- **D1 (P1) — extraction blast radius.** The 13 private passes close over module-scope state (22
-  `DEFAULTS`/`ARROW_HEAD`/`PORT_EXACT`… references); relocating them to `src/layout/passes/` likely
-  needs a precursor "shared kernel" extraction. Scope it before promising migration step 2.
-- **D2 (P2) — context assembly.** Passes take inline-computed args (`margins`, a `nodeMap` rebuilt
-  *after* node moves, the `mergeEdges` gate). Is `LayoutPassContext` a faithful superset, and does it
-  need lazy/derived fields (a `nodeMap` that recomputes on position change)?
-
-*Cross-surface*
-- **E2 (P2) — should ASCII's grid pipeline adopt the same `LayoutPass` shape?** Share the
-  *abstraction* only if the corpus shows the `after`/freeze/ratchet vocabulary fits grid geometry;
-  else keep it SVG-side (I8: share intent, not geometry).
+No open questions remain in this draft. Remaining risk is execution risk — the §4 migration must reproduce byte-identical geometry per step — not design ambiguity.
 
 ## 9. Where the academic ideal is the *wrong* call here
 
@@ -260,6 +261,14 @@ A self-critique, so the spec inherits the lessons rather than the prototype's sh
   pass list treats `applyRouteContracts` as one opaque pass (its internal
   classify→simplify→straighten→certify fixed-point is owned by the contract doc); only the
   whole-graph `translate` finalizer runs after it.
+- **Keep ELK and `mermaidToElk` out of the pass list** (resolves OQ-C2). They are the *frontend* —
+  a parser plus a third-party black-box engine (the ELK degradation ladder proves we cannot
+  decompose it). The pass list operates only on `PositionedGraph`; post-ELK is the permanent
+  boundary, not a way-station toward staging ELK itself.
+- **Do not lift the ASCII grid pipeline onto this type** (resolves OQ-E2). ASCII is grid + A* with
+  no `RouteCertificate`/`assessLayout` vocabulary, so `mutates`/freeze/ratchet do not transfer;
+  share at most the *concept* of an ordered list, never the type (the I8 "share intent, not
+  geometry" doctrine).
 
 ---
 
