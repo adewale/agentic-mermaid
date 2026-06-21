@@ -69,19 +69,44 @@ re-implements clipping crudely, and double-pays for SVG it then rewrites.
 
 ## 3. Target architecture
 
-Introduce a proper **SceneGraph IR** between "renderer knows
-geometry+semantics" and "SVG bytes", plus a **StyleBackend** interface that
-consumes it. The current Agentic Mermaid crisp renderer is implemented by
-`DefaultBackend` (selected by public `aesthetic:'crisp'`); rough.js is
-implemented by `RoughBackend`; pressure-sensitive freehand strokes are a native
-`HybridBackend` capability. They are peers behind the same semantic contract,
-not "default SVG" plus an after-the-fact effect.
+Introduce a proper post-layout **SceneGraph IR** between each family's
+positioned layout result and "SVG bytes", plus a **StyleBackend** interface that
+consumes it. This is a render-mark IR, not a universal layout model: family
+parsers, layout algorithms, certificates, and `Positioned*` types remain
+family-specific. The new waist sits at the existing render-family hook layer:
+public SVG rendering dispatches through the family registry, each family lowers
+its positioned result to SceneGraph marks, and the selected backend serializes
+those marks.
+
+The current Agentic Mermaid crisp renderer is implemented by `DefaultBackend`
+(selected by public `aesthetic:'crisp'`); rough.js is implemented by
+`RoughBackend`; pressure-sensitive freehand strokes are a native `HybridBackend`
+capability. They are peers behind the same semantic contract, not "default SVG"
+plus an after-the-fact effect.
 
 ```
-source ─► parse ─► style resolution ─► layout metrics ─► layout ─► SceneGraph ─► StyleBackend ─► SVG/PNG
-                       │                  ▲                         ▲
-                       └─ assets/fonts ───┘                         └─ roles · channels · metadata
+source ─► family hook ─► style/color resolution ─► layout metrics ─► family layout ─► positioned result
+                                  │                  ▲
+                                  └─ assets/fonts ───┘
+
+positioned result ─► family SceneGraph lowering ─► StyleBackend ─► SVG/PNG
+                              ▲                         ▲
+                              └─ roles · channels · metadata
 ```
+
+Stable abstraction waists:
+- `FamilyLayoutContext`: source, options, render options, and resolved colors
+  enter a family-specific layout hook without forcing a body-only layout model.
+- `PositionedDiagram`: the common minimum for laid-out family results; concrete
+  positioned types remain specialized.
+- `SceneGraph`: the post-layout semantic render-mark tree.
+- `ResolvedElementStyle`: the already-resolved cascade attached to scene nodes.
+- `StyleBackend`: family-agnostic mark serialization and composition.
+
+Style packs must not widen these waists by smuggling family-specific layout
+logic into backend parameters. If a style needs layout-aware behavior
+(`terminal`, `transit`, `pcb`), it declares that capability as a family hook or
+layout hint with testable rubric constraints.
 
 ### 3.1 SceneGraph IR (`src/render-ir.ts`)
 
@@ -155,9 +180,19 @@ interface TextNode extends SceneNodeBase {
   distinct. A stipple cloud or hachure fill must not become the hover/focus
   target; the original semantic hit area survives as an `InteractionNode`.
 
-Every family renderer produces a `SceneGraph`. This is the main invasive change,
-but it is mechanical and shared: the crisp renderer becomes the default
-`StyleBackend` consuming the same IR, so behaviour is preserved exactly.
+Every built-in family renderer produces a `SceneGraph`. This is the main
+invasive change, but it is mechanical and shared: the crisp renderer becomes
+the default `StyleBackend` consuming the same IR, so behaviour is preserved
+exactly. The migration should happen as one coordinated all-family milestone,
+not as an indefinitely mixed production state: every built-in family must have
+a SceneGraph lowering, default-backend rendering, preservation fixtures, and
+registry coverage before the new production path becomes the default.
+
+This builds on the post-rebase `render-family-hooks.ts` architecture instead of
+creating a parallel renderer stack. The family registry remains the dispatch
+waist; SceneGraph lowering is a new registered render operation beside
+`layout`, `renderSvg`, and `renderAscii`. ASCII may receive semantic channels
+later, but its grid/A* geometry remains output-specific.
 
 ### 3.2 Style backends (`src/styles/backends.ts`)
 
@@ -184,6 +219,8 @@ may expose, not the top-level architecture. This keeps `DefaultBackend`,
 `RoughBackend`, and `HybridBackend` honest: all must preserve labels, markers,
 ARIA/title/desc, classes, IDs, links, tooltips, hit targets, themes, security
 mode, determinism, and static-export compatibility through the same interface.
+Backends do not dispatch on diagram family; family-specific knowledge ends at
+the SceneGraph lowering hook.
 
 Built-in backends:
 
@@ -616,7 +653,7 @@ Formal precedence:
 
 ```text
 Mermaid family semantic defaults
-  < active theme tokens (`theme.ts` CSS variables)
+  < active theme tokens (`theme.ts` CSS variables / `resolveDiagramColors`)
   < aesthetic defaults / premium floor
   < aesthetic role rules
   < Mermaid `classDef`
@@ -624,6 +661,17 @@ Mermaid family semantic defaults
   < per-element API override
   < accessibility policy
 ```
+
+This extends the existing internal color waist rather than introducing a second
+resolver. `resolveDiagramColors()` remains the boundary that normalizes Mermaid
+theme names, `themeVariables`, public render options, and font embedding into
+`DiagramColors`; `resolveNodeInlineStyle()` / `resolveEdgeInlineStyle()` remain
+the family-source layer for `classDef`, `style`, and `linkStyle`. Production
+style resolution should add aesthetic defaults, role rules, semantic-channel
+derivations, local-background contrast, and accessibility policy on top of that
+resolved model. The resolved result is stored as
+`ResolvedElementStyle`/metadata on SceneGraph nodes, so backends consume a
+single contract and never rediscover colors from serialized SVG.
 
 The final accessibility step is policy-controlled:
 - `accessibility: 'adjust'` auto-nudges label/stroke colours to pass contrast
@@ -815,6 +863,11 @@ style × diagram-role over the IR.
 
 ## 8. Determinism & testing
 
+Use the repository's post-rebase testing taxonomy: every gate must say what
+kind of oracle it is and what it does *not* prove. Line coverage is a finder,
+not an adequacy target; mutation score and sabotage/property failures are the
+stronger evidence that style contracts actually bite.
+
 - **Seed contract:** `seed(node, stream) = hash(options.seed, stableSceneNodeId,
   streamName)`, where `streamName` is a semantic substream such as
   `outline/pass:0`, `outline/pass:1`, `fill/hatch:17`, `marker:end`, or
@@ -827,20 +880,31 @@ style × diagram-role over the IR.
   emitter. Styled backends must be deterministic per dependency/font/rasterizer
   version; cross-substrate acceptance is bounded visual difference plus
   identical preserved semantics where the substrate supports them.
-- **Preservation gate comes first:** before judging appearance, tests assert
-  that markers, dash arrays, IDs, classes, `data-*`, inline styles, transforms,
-  clip paths, masks, ARIA/title/desc, links, tooltips, hit targets, text runs,
-  route certificates, and focus/hover affordances survive crisp and styled
-  rendering.
-- **Goldens:** add SVG fixtures per (style × representative diagram). Because
-  output is deterministic, these are stable. Default `crisp` reuses existing
-  fixtures unchanged.
-- **Contact sheet / poster:** keep `scripts/sketch-prototype/poster.ts` as the
-  visual-review surface. The automated prototype gate is `bun run sketch:check`;
-  add a poster check/fingerprint mode before wiring raster poster output into
-  `characterization:check`.
-- **Mutation tests:** add a `stryker.styles.config.json` targeting the mark
-  primitives (they're pure and well-isolated — ideal mutation targets).
+- **Specified oracles / preservation gate:** before judging appearance, tests
+  assert that markers, dash arrays, IDs, classes, `data-*`, inline styles,
+  transforms, clip paths, masks, ARIA/title/desc, links, tooltips, hit targets,
+  text runs, route certificates, and focus/hover affordances survive crisp and
+  styled rendering. This is the functional correctness gate.
+- **Derived oracles / goldens:** add SVG fixtures per
+  (style × representative diagram). Because output is deterministic, these are
+  stable. Default `crisp` reuses existing fixtures unchanged. Golden drift only
+  proves that output changed; human or rubric review still decides whether the
+  change is an improvement.
+- **Derived + human oracles / contact sheet and poster:** keep
+  `scripts/sketch-prototype/poster.ts` as the visual-review surface. The
+  automated prototype gate is `bun run sketch:check`; add a poster
+  check/fingerprint mode before wiring raster poster output into
+  `characterization:check`. Poster review is evidence, not a substitute for
+  structural preservation or property tests.
+- **Metamorphic oracles:** add relation tests for style resolution and lowering:
+  stable seed + same SceneGraph gives byte-identical marks; changing only a
+  non-rendered ID does not change geometry; accessibility adjustment can change
+  color but not layout metrics; disabling a backend capability falls back
+  without dropping semantic nodes.
+- **Pseudo-oracles / adequacy:** add a `stryker.styles.config.json` or
+  incremental Stryker lane targeting pure style resolution, channel-to-tone
+  mapping, capability negotiation, and mark primitives. These are ideal mutation
+  targets because they are deterministic and isolated.
 - **Invariant tests (shipped): `styles.test.ts`** — asserts the monochrome
   contract (§3.8), the WCAG 4.5:1 label-contrast contract (§7) for every style,
   and structural well-formedness. Together with `contrast-audit.ts`, this runs
@@ -853,6 +917,11 @@ style × diagram-role over the IR.
   RTL/emoji labels; classDefs and inline styles; transparent/dark backgrounds;
   zero/negative/extreme chart values; tiny/huge diagrams; browser/resvg
   differences; duplicate IDs; strict-security output.
+- **Heuristic / perceptual oracles:** layout-aware styles (`terminal`,
+  `transit`, `pcb`, future architectural/register styles) feed their hard and
+  soft constraints into the existing layout-rubric / visual-rubric model rather
+  than inventing private "looks better" checks. Hard violations stay zero;
+  soft metrics ratchet with reviewed baselines.
 - **Performance budgets:** each backend declares scale-aware limits for SVG
   bytes, generated path commands, dots/hatches per region, filters/clip paths,
   render time, resvg memory, raster dimensions, cache keys, and simplification
@@ -909,30 +978,40 @@ declares the capabilities it requires. The renderer picks the fallback when
 targeting PNG or strict security mode. Reuse the existing browser-vs-resvg
 plumbing (`inlineResolvedColors`, strict-security `stripExternalRefs`).
 
-**Cross-substrate bonus:** the SceneGraph + semantic channels can also drive the
+**Cross-substrate bonus:** SceneGraph roles and semantic channels can inform the
 existing **ASCII** renderer (channels → glyph density/route characters/status
-markers) and future canvas/WebGL backends — the IR is the unification point.
+markers) and future canvas/WebGL backends. They are not a mandate to collapse
+ASCII geometry into SVG geometry: the post-rebase architecture keeps ASCII's
+grid/A* internals output-specific while sharing family registration and
+semantic dispatch.
 
 ---
 
 ## 11. Phasing
 
-1. **Style resolution + SceneGraph + `DefaultBackend` for flowchart** behind
-   `aesthetic:'crisp'`, asserting preserved semantics and byte-identical output
-   until the serializer replacement is deliberate. Include font asset/metric
-   resolution, padding, marker extents, stroke/effect bounds, and minimum feature
-   size before layout, even for the crisp default, so all backends share the same
-   pipeline.
-2. **Adopt rough.js** (pinned) as `RoughBackend`: `jittered`/`pencil`
+1. **All-family SceneGraph lowering + `DefaultBackend` behind the existing
+   family registry.** Migrate every built-in renderable family in one coordinated
+   branch: flowchart/state, sequence, class, ER, timeline, journey, xychart, pie,
+   quadrant, gantt, and architecture. Each family gets a lowering hook from its
+   positioned result to SceneGraph, crisp default rendering through
+   `DefaultBackend`, preservation fixtures, accessibility/interaction fixtures,
+   and registry/doc-sync coverage before the path is enabled by default. Include
+   font asset/metric resolution, padding, marker extents, stroke/effect bounds,
+   and minimum feature size before layout, even for the crisp default, so all
+   backends share the same pipeline.
+2. **One-shot equivalence gate before switching default.** The all-family branch
+   must prove: default `crisp` output is byte-identical where the serializer has
+   not intentionally changed; any deliberate serialization drift has golden
+   review; semantic preservation passes for every representative family fixture;
+   layout-rubric hard violations stay zero; `render-family-hooks` dispatch stays
+   deterministic.
+3. **Adopt rough.js** (pinned) as `RoughBackend`: `jittered`/`pencil`
    stroke + `hachure`/`crosshatch`/`dots` fill, incl. arbitrary-path roughening;
    ship `hand-drawn`, `Excalidraw`, `pen-and-ink`, `tufte` with tone. Add
    goldens + poster row.
-3. **`HybridBackend` extensions** (`freehand` via perfect-freehand,
+4. **`HybridBackend` extensions** (`freehand` via perfect-freehand,
    `brush`/`wash`/`stipple`/`halftone`, compositors, reviewed font assets such
    as Excalifont) → ship the remaining styles.
-4. **Extend IR to each family** (sequence, class, er, …) one at a time; the
-   prototype already shows all families survive the transform, so this is
-   incremental, not speculative.
 5. **Direction fields, indication, Lloyd relaxation, K–M watercolor** as polish.
 
 ---
