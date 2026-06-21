@@ -54,7 +54,7 @@ interface LayoutPass {
   id: string
   doc: string                       // one-line role (the §8 line is GENERATED from this)
   after: string[]                   // partial-order deps, each with a recorded reason (see §3.1)
-  mutates: PassEffect               // what geometry it changes — drives the freeze invariant (§3.2)
+  mutates: PassEffect[]             // what geometry it changes (a SET — see note) — drives the freeze (§3.2)
   mayChangeMetrics: RubricMetric[]  // rubric metrics it is permitted to move — the ratchet (§3.3)
   determinism: 'pure-order' | 'fixed-point' | 'in-place'
   enabled?: (ctx: LayoutPassContext) => boolean   // e.g. bundling is gated on mergeEdges
@@ -68,6 +68,11 @@ type PassEffect =
   | 'translate'    // uniform whole-graph shift — preserves ALL routes/ports/certs
   | 'extract'      // builds geometry from ELK output (pre-routing)
 ```
+
+**`mutates` is a *set*, not one value** (correction grounded in the code: `equalizePeerNodeDimensions`
+writes node positions *and* dimensions). `extract` marks the producer — the first pass builds geometry
+from ELK; `translate` marks the lone finalizer permitted after the freeze; the `bounds` computation at
+the tail is pure arithmetic, a **non-pass epilogue** that is not a member of the list.
 
 `LayoutPassContext` is the real shared bag, not a model: `{ nodes, edges, groups, graph,
 direction, style, bundled, margins, layoutPadding }` plus a `frozen` flag the runner sets.
@@ -87,17 +92,19 @@ a fixed, source-ordered list, dispatched by a thin runner (`render-family-hooks.
 ### 3.1 Ordering (partial, with reasons)
 Each `after` edge carries *why* it exists (recoverable from the comments/commits), e.g.
 `alignPortLanes` after `equalizePeerNodeDimensions` ("downstream centering must see symmetric
-boxes"), the symmetry passes after `bundleEdgePaths`+`clipEdgeToShape`. The runner topologically
+boxes"), the symmetry passes after `bundleEdgePaths`+`clipEdgeToShape` — but, per §8 R1, with **no `after`
+among themselves** (their order is empirically free). The runner topologically
 checks the declared order; the prototype's flat chain (audit A5) is replaced by the real
 partial order so the list documents *constraints*, not just *a* sequence.
 
 ### 3.2 Freeze (precise definition — audit A4)
-`applyRouteContracts` sets `frozen`. After it, a pass may run **iff** its `mutates` is
-`'translate'` or `'edges'`-that-recertify; `'positions'` and `'dimensions'` are rejected,
-because moving a box or a node invalidates the ports/lanes/certificates the route pass just
-proved. The prototype's coarse "movesNodes" flag is split into `positions`/`dimensions`/
-`translate` so the legitimate post-freeze pass (`translateGeometryToNonNegativeOrigin`, a
-uniform shift) is allowed while a stray re-center is caught. This turns
+`applyRouteContracts` sets `frozen`. After it, a pass may run **iff** every effect in its
+`mutates` set is `'translate'` (or an `'edges'` write that re-certifies); any `'positions'` or
+`'dimensions'` effect is rejected, because moving a box or a node invalidates the
+ports/lanes/certificates the route pass just proved. The prototype's coarse "movesNodes" flag is split into `positions`/`dimensions`/
+`translate` so the legitimate post-freeze pass (`translateGeometryToNonNegativeOrigin`, verified
+to add a single `(dx, dy)` to every node, group, edge point and label — a pure uniform shift) is
+allowed while a stray re-center is caught. This turns
 `route-contracts.md`'s prose rule into a typed, checked one.
 
 ### 3.3 Ratchet (must be *measured*, not declared — audit A2)
@@ -174,23 +181,69 @@ A self-critique, so the spec inherits the lessons rather than the prototype's sh
 - **Property tests** (mirroring `property-abstraction-waists.test.ts`): the pipeline is a valid
   topological order of its `after` graph; no `positions`/`dimensions` pass runs after `frozen`;
   for a random corpus, `assessLayout` deltas per pass ⊆ declared `mayChangeMetrics`; `hard`
-  stays 0 across every pass.
+  stays 0 across every pass. Plus a **commutativity guard** for any passes declared mutually
+  unordered (the three symmetric passes, §8 R1): all orderings must produce byte-identical geometry
+  across the corpus, so a future order-sensitive change fails loudly.
 - **Doc-sync test:** `route-contracts.md §8` is generated from the manifest; drift fails CI.
 - **Mutation lane:** the relocated passes join the scoped Stryker config (most are currently
   unreachable to it because they're private — a coverage win on its own).
 
-## 8. Open questions
+## 8. Questions — resolved and open
 
-1. **Is the intra-symmetry order load-bearing?** (`applySymmetricFanoutEmissions` →
-   `applySymmetricParallelEdgeLanes` → `applyParallelDuplicateLanes`.) The saga commits imply
-   yes; confirm by permuting under the corpus gate and record the real `after` reasons.
-2. **Should ASCII's grid pipeline adopt the same `LayoutPass` shape?** Tempting, but its passes
-   are grid-geometry, not float — keep the *abstraction* shared only if the corpus shows the
-   `after`/freeze/ratchet vocabulary actually fits; otherwise this stays SVG-side (the I8
-   doctrine: share intent, not geometry).
-3. **Where do `equalizePeerNodeDimensions`' dimension changes sit relative to the freeze?** They
-   precede routing so it's moot today, but the `dimensions` effect kind exists to keep it
-   honest if a future pass wants to resize post-route.
+### Resolved
+
+- **R1 (was OQ1) — the three symmetric passes' order is NOT load-bearing.** Permuting
+  `applySymmetricFanoutEmissions` / `applySymmetricParallelEdgeLanes` /
+  `applyParallelDuplicateLanes` through all **6** orderings produced **byte-identical**
+  `layoutMermaid` geometry across an **83-diagram** corpus (the heuristic-tracker triggers —
+  reciprocal / fan-in N=3–8 / diamond / mfa — plus 10 targeted fan-out/parallel/duplicate
+  fixtures). They are non-trivial there (skipping all three changes **28/83** diagrams), so this is
+  commutativity, not vacuity. *Consequence:* the three declare an `after` on bundling/clipping but
+  **none on each other** (§3.1). *Caveat:* corpus-empirical, not a proof — they share the `bundled`
+  set, so a diagram where one edge is simultaneously a symmetric-fanout member and an exact
+  duplicate could in principle interact; the commutativity guard (§7) rides CI so any future break
+  fails loudly.
+- **R2 (was OQ3) — `equalizePeerNodeDimensions` vs the freeze — subsumed by A1.** It writes node
+  positions *and* dimensions (hence `mutates` is a set, §2); it runs pre-route so the freeze is moot
+  for it today, and the `dimensions` effect kind keeps a future post-route resize honest.
+
+### Open  (P1 = real design risk · P2 = refinement)
+
+*Effect & freeze model*
+- **A2 (P1) — is `hard == 0` per-pass or end-state?** Intermediate passes (e.g. `alignPortLanes`
+  sliding a node) can transiently create an overlap a later pass clears, but the rubric's hard
+  metrics are end-state. Per-pass is too strict (false positives); end-state-only can't localize the
+  culprit. Lean: end-state for `hard`, per-pass for ownership/direction.
+- **A3 (P2) — `bundled` is a non-geometry channel** written by bundling + the symmetric passes and
+  read by route contracts. Is it frozen post-route, and does `reads`/`writes` cover Set membership?
+
+*Ratchet semantics*
+- **B1 (P1) — `mayChangeMetrics` needs direction, not just a set.** Passes *trade* metrics (fan-in
+  centering buys symmetry with +2 bends). "May change X" ≠ "may worsen X"; without a per-metric
+  direction/budget (`improve-only` | `may-worsen` | `trade≤N`) an intended trade is
+  indistinguishable from a regression.
+- **B2 (P2) — cost & placement of the measured ratchet.** `assessLayout` × passes × corpus is
+  expensive; confirm it rides debug/CI only, never the production render path.
+
+*Pipeline boundary*
+- **C1 (P1, partly settled in §2) — phase tagging.** The list is `extract` → … → `translate`;
+  ELK/`mermaidToElk` are upstream; `bounds` is a non-pass epilogue. Open: do producer/finalizer
+  passes need an explicit `phase` tag, or does `mutates` (`extract`/`translate`) carry it?
+- **C2 (P2) — end-to-end vs post-ELK only?** Should `mermaidToElk`+ELK ever be passes (full
+  nanopass), or is post-ELK the permanent boundary? Lean: post-ELK only — ELK is a black box.
+
+*Migration mechanics*
+- **D1 (P1) — extraction blast radius.** The 13 private passes close over module-scope state (22
+  `DEFAULTS`/`ARROW_HEAD`/`PORT_EXACT`… references); relocating them to `src/layout/passes/` likely
+  needs a precursor "shared kernel" extraction. Scope it before promising migration step 2.
+- **D2 (P2) — context assembly.** Passes take inline-computed args (`margins`, a `nodeMap` rebuilt
+  *after* node moves, the `mergeEdges` gate). Is `LayoutPassContext` a faithful superset, and does it
+  need lazy/derived fields (a `nodeMap` that recomputes on position change)?
+
+*Cross-surface*
+- **E2 (P2) — should ASCII's grid pipeline adopt the same `LayoutPass` shape?** Share the
+  *abstraction* only if the corpus shows the `after`/freeze/ratchet vocabulary fits grid geometry;
+  else keep it SVG-side (I8: share intent, not geometry).
 
 ## 9. Where the academic ideal is the *wrong* call here
 
@@ -204,7 +257,9 @@ A self-critique, so the spec inherits the lessons rather than the prototype's sh
 - **Do not unify with the route-contract internal stages** (classify→simplify→straighten→certify).
   Those are sub-steps *inside* one pass with their own fixed-point loop; flattening them into the
   top-level list would leak the straightener's internals and break its iteration contract. The
-  pass list stops at `applyRouteContracts`; the contract doc owns what's inside it.
+  pass list treats `applyRouteContracts` as one opaque pass (its internal
+  classify→simplify→straighten→certify fixed-point is owned by the contract doc); only the
+  whole-graph `translate` finalizer runs after it.
 
 ---
 
