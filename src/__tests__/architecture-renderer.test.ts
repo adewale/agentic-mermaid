@@ -69,7 +69,7 @@ function makeDiagram(overrides: Partial<PositionedArchitectureDiagram> = {}): Po
 
 describe('renderArchitectureSvg', () => {
   it('escapes labels and data attributes safely', () => {
-    const svg = renderArchitectureSvg(makeDiagram(), lightColors)
+    const svg = renderArchitectureSvg({ positioned: makeDiagram(), colors: lightColors, options: {} })
 
     expect(svg).toContain('Application &lt;Zone&gt;')
     expect(svg).toContain('API &amp; &lt;Gateway&gt;')
@@ -79,20 +79,28 @@ describe('renderArchitectureSvg', () => {
   })
 
   it('emits architecture-specific markers, classes, and theme tokens', () => {
-    const svg = renderArchitectureSvg(makeDiagram(), lightColors)
+    const svg = renderArchitectureSvg({ positioned: makeDiagram(), colors: lightColors, options: {} })
 
     expect(svg).toContain('id="architecture-arrow-end"')
     expect(svg).toContain('class="architecture-service"')
     expect(svg).toContain('class="architecture-edge"')
-    expect(svg).toContain('stroke: var(--_line);')
-    expect(svg).toContain('fill="var(--_arrow)"')
+    expect(svg).toContain('stroke: var(--arch-edge-stroke, var(--_line));')
+    expect(svg).toContain('fill="var(--arch-edge-stroke, var(--_arrow))"')
   })
 
   it('draws structural header fills as paths and omits decorative service rails', () => {
-    const svg = renderArchitectureSvg(makeDiagram(), lightColors, 'Inter', false, {
-      ...DEFAULT_ARCHITECTURE_VISUAL,
-      groupCornerRadius: 18,
-      serviceCornerRadius: 16,
+    const svg = renderArchitectureSvg({
+      positioned: makeDiagram(),
+      colors: lightColors,
+      options: {
+        architecture: {
+          visual: {
+            ...DEFAULT_ARCHITECTURE_VISUAL,
+            groupCornerRadius: 18,
+            serviceCornerRadius: 16,
+          },
+        },
+      },
     })
 
     expect(svg).toContain('<path class="architecture-group-band"')

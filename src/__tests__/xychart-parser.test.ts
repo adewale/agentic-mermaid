@@ -6,11 +6,11 @@
  */
 import { describe, it, expect } from 'bun:test'
 import { preprocessMermaidSource } from '../mermaid-source.ts'
-import { parseXYChart } from '../xychart/parser.ts'
+import { applyXYChartFrontmatterConfig, parseXYChart } from '../xychart/parser.ts'
 
 function parse(text: string) {
   const processed = preprocessMermaidSource(text)
-  return parseXYChart(processed.lines, processed.frontmatter)
+  return applyXYChartFrontmatterConfig(parseXYChart(processed.lines), processed.frontmatter)
 }
 
 describe('parseXYChart – syntax', () => {

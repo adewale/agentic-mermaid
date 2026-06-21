@@ -5,9 +5,7 @@ import type {
   PositionedPieLegendItem,
 } from './types.ts'
 import type { RenderOptions } from '../types.ts'
-import type { DiagramColors } from '../theme.ts'
 import { measureTextWidth } from '../text-metrics.ts'
-import { getSeriesColor, CHART_ACCENT_FALLBACK, isValidHex } from '../xychart/colors.ts'
 
 // ============================================================================
 // Pie chart layout engine
@@ -33,17 +31,6 @@ const PIE = {
   legendRowGap: 8,
   legendSwatchToText: 8,
 } as const
-
-/**
- * Resolve the palette color for slice index `i` from the theme accent.
- * Index 0 is the accent; later indices are same-family shades (reusing the
- * xychart color utility so pie matches the rest of the chart family).
- */
-function sliceColor(index: number, accent: string | undefined, bg: string | undefined): string {
-  const safeAccent = accent && isValidHex(accent) ? accent : CHART_ACCENT_FALLBACK
-  const safeBg = bg && isValidHex(bg) ? bg : undefined
-  return getSeriesColor(index, safeAccent, safeBg)
-}
 
 /** Format a numeric value compactly (drops trailing `.0`). */
 export function formatPieValue(value: number): string {
@@ -96,7 +83,6 @@ function round(n: number): number {
 export function layoutPieChart(
   chart: PieChart,
   options: RenderOptions = {},
-  colors?: DiagramColors,
 ): PositionedPieChart {
   const total = chart.entries.reduce((sum, e) => sum + e.value, 0)
 
@@ -133,8 +119,6 @@ export function layoutPieChart(
   const height = contentTop + contentHeight + PIE.paddingY
 
   // Slices — clockwise from 12 o'clock, source order.
-  const accent = colors?.accent
-  const bg = colors?.bg
   const slices: PositionedPieSlice[] = []
   let angle = 0
   chart.entries.forEach((entry, index) => {
@@ -142,14 +126,12 @@ export function layoutPieChart(
     const startAngle = angle
     const endAngle = total > 0 ? angle + fraction * Math.PI * 2 : angle
     angle = endAngle
-    const color = sliceColor(index, accent, bg)
     slices.push({
       label: entry.label,
       value: entry.value,
       fraction,
       startAngle,
       endAngle,
-      color,
       path: slicePath(cx, cy, radius, startAngle, endAngle),
     })
   })
@@ -157,12 +139,10 @@ export function layoutPieChart(
   // Legend rows.
   const legend: PositionedPieLegendItem[] = legendLabels.map((l, i) => {
     const rowY = legendTop + i * legendRowHeight
-    const color = sliceColor(l.index, accent, bg)
     return {
       label: l.entry.label,
       value: l.entry.value,
       fraction: l.fraction,
-      color,
       x: legendX,
       y: rowY,
       swatchSize: PIE.legendSwatch,

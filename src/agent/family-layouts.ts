@@ -34,16 +34,28 @@
 // layoutMermaid(d) called twice is deep-equal.
 // ============================================================================
 
-import type { ValidDiagram, RenderedLayout, RenderedLayoutNode, RenderedLayoutEdge, RenderedLayoutGroup, LayoutWarning, Finite } from './types.ts'
-import type { FamilyRouteCertificate, Point } from '../types.ts'
+import type {
+  ValidDiagram,
+  RenderedLayout,
+  RenderedLayoutNode,
+  RenderedLayoutEdge,
+  RenderedLayoutGroup,
+  LayoutWarning,
+  Finite,
+  XyChartBody,
+  PieBody,
+  QuadrantBody,
+  GanttBody,
+} from './types.ts'
+import type { FamilyEdgeRouteCertificate, Point, RegionContainmentCertificate } from '../types.ts'
 import { toFinite } from './types.ts'
 import { emptyRenderedLayout } from './layout-to-rendered.ts'
 
 import { toMermaidLines, normalizeMermaidSource } from '../mermaid-source.ts'
 import { parseClassDiagram } from '../class/parser.ts'
-import { layoutClassDiagramSync } from '../class/layout.ts'
+import { layoutClassDiagram } from '../class/layout.ts'
 import { parseErDiagram } from '../er/parser.ts'
-import { layoutErDiagramSync } from '../er/layout.ts'
+import { layoutErDiagram } from '../er/layout.ts'
 import { layoutSequenceDiagram } from '../sequence/layout.ts'
 import { parseSequenceDiagram } from '../sequence/parser.ts'
 import { parseTimelineDiagram } from '../timeline/parser.ts'
@@ -52,16 +64,21 @@ import { parseJourneyDiagram } from '../journey/parser.ts'
 import { layoutJourneyDiagram } from '../journey/layout.ts'
 import { parseArchitectureDiagram } from '../architecture/parser.ts'
 import { layoutArchitectureDiagram } from '../architecture/layout.ts'
-import { parseXYChart } from '../xychart/parser.ts'
+import { applyXYChartFrontmatterConfig, parseXYChart, resolveXYChartConfig, resolveXYChartTheme } from '../xychart/parser.ts'
 import { layoutXYChart } from '../xychart/layout.ts'
+import type { XYAxis, XYChart } from '../xychart/types.ts'
 import type { PositionedArchitectureEdge, PositionedArchitectureGroup, PositionedArchitectureJunction, PositionedArchitectureService } from '../architecture/types.ts'
 import { parsePieChart } from '../pie/parser.ts'
 import { layoutPieChart } from '../pie/layout.ts'
+import type { PieChart } from '../pie/types.ts'
 import { parseQuadrantChart } from '../quadrant/parser.ts'
 import { layoutQuadrantChart } from '../quadrant/layout.ts'
-import { parseGanttModel, applyGanttFrontmatterConfig } from '../gantt/parser.ts'
+import type { QuadrantChart } from '../quadrant/types.ts'
+import { parseGanttModel, applyGanttFrontmatterConfig, GANTT_DURATION_RE } from '../gantt/parser.ts'
 import { resolveGanttSchedule } from '../gantt/schedule.ts'
+import { buildGanttRenderPipeline } from '../gantt/pipeline.ts'
 import { layoutGantt } from '../gantt/layout.ts'
+import type { GanttEndExpr, GanttLayoutResult, GanttModel, GanttModelSection, GanttModelTask, GanttStartExpr, GanttTaskTag } from '../gantt/types.ts'
 
 function f(n: number): Finite { return toFinite(Math.round(n)) }
 
@@ -96,7 +113,7 @@ export function layoutFamilyToRendered(d: ValidDiagram, opts: { debug?: boolean 
 
 function classToRendered(d: ValidDiagram, opts: { debug?: boolean } = {}): RenderedLayout {
   try {
-    const positioned = layoutClassDiagramSync(parseClassDiagram(toMermaidLines(d.canonicalSource)))
+    const positioned = layoutClassDiagram(parseClassDiagram(toMermaidLines(d.canonicalSource)))
     const nodes: RenderedLayoutNode[] = positioned.classes.map(c => ({
       id: c.id, x: f(c.x), y: f(c.y), w: f(c.width), h: f(c.height), shape: 'rectangle', label: c.label,
     }))
@@ -115,7 +132,7 @@ function classToRendered(d: ValidDiagram, opts: { debug?: boolean } = {}): Rende
 
 function erToRendered(d: ValidDiagram, opts: { debug?: boolean } = {}): RenderedLayout {
   try {
-    const positioned = layoutErDiagramSync(parseErDiagram(toMermaidLines(d.canonicalSource)))
+    const positioned = layoutErDiagram(parseErDiagram(toMermaidLines(d.canonicalSource)))
     const nodes: RenderedLayoutNode[] = positioned.entities.map(e => ({
       id: e.id, x: f(e.x), y: f(e.y), w: f(e.width), h: f(e.height), shape: 'rectangle', label: e.label,
     }))
@@ -136,7 +153,7 @@ function boxRouteCertificate(
   points: Point[],
   source: { x: number; y: number; width: number; height: number } | undefined,
   target: { x: number; y: number; width: number; height: number } | undefined,
-): FamilyRouteCertificate {
+): FamilyEdgeRouteCertificate {
   const sourceBoundary = !!(source && points[0] && pointOnRawRectBoundary(points[0].x, points[0].y, source, 1))
   const targetBoundary = !!(target && points[points.length - 1] && pointOnRawRectBoundary(points[points.length - 1]!.x, points[points.length - 1]!.y, target, 1))
   const orthogonal = routeOrthogonal(points)
@@ -185,7 +202,7 @@ function labelMidpoint(points: Array<{ x: number; y: number }>, text: string): {
 }
 
 type ElementCertificateFamily = 'timeline' | 'xychart' | 'pie' | 'quadrant' | 'gantt'
-type ElementCertificateInvariant = Extract<FamilyRouteCertificate, { family: ElementCertificateFamily }>['invariant']
+type ElementCertificateInvariant = RegionContainmentCertificate['invariant']
 
 function elementCertificates(
   family: ElementCertificateFamily,
@@ -193,7 +210,7 @@ function elementCertificates(
   invariant: ElementCertificateInvariant,
   referenceGroup?: RenderedLayoutGroup,
   containment: 'bounds' | 'center' = 'bounds',
-): FamilyRouteCertificate[] {
+): RegionContainmentCertificate[] {
   const groupsByMember = new Map<string, RenderedLayoutGroup>()
   for (const group of layout.groups) {
     for (const member of group.members) groupsByMember.set(member, group)
@@ -289,7 +306,7 @@ function sequenceRouteCertificate(
   message: { from: string; to: string; x1: number; x2: number; y: number; isSelf: boolean },
   points: Point[],
   lifelineByActor: Map<string, number>,
-): FamilyRouteCertificate {
+): FamilyEdgeRouteCertificate {
   const sourceX = lifelineByActor.get(message.from)
   const targetX = lifelineByActor.get(message.to)
   const first = points[0]
@@ -403,7 +420,7 @@ function architectureRouteCertificate(
   services: Map<string, PositionedArchitectureService>,
   junctions: Map<string, PositionedArchitectureJunction>,
   groups: Map<string, PositionedArchitectureGroup>,
-): FamilyRouteCertificate {
+): FamilyEdgeRouteCertificate {
   const boundsFor = (endpoint: PositionedArchitectureEdge['source']) => {
     if (endpoint.boundary === 'group') {
       const service = services.get(endpoint.id)
@@ -452,8 +469,7 @@ function pointOnSide(
 
 function xychartToRendered(d: ValidDiagram, opts: { debug?: boolean } = {}): RenderedLayout {
   try {
-    const normalized = normalizeMermaidSource(d.canonicalSource)
-    const positioned = layoutXYChart(parseXYChart(normalized.lines, normalized.frontmatter))
+    const positioned = layoutXYChart(xychartForRenderedLayout(d))
     const nodes: RenderedLayoutNode[] = []
     // Bars are the primary boxes.
     positioned.bars.forEach((b, i) => {
@@ -477,11 +493,58 @@ function xychartToRendered(d: ValidDiagram, opts: { debug?: boolean } = {}): Ren
   } catch { return emptyRenderedLayout(d.kind) }
 }
 
+function xychartForRenderedLayout(d: ValidDiagram): XYChart {
+  const normalized = normalizeMermaidSource(d.canonicalSource)
+  if (d.body.kind === 'xychart') return xychartFromBody(d.body, normalized.frontmatter)
+  return applyXYChartFrontmatterConfig(parseXYChart(normalized.lines), normalized.frontmatter)
+}
+
+function xychartFromBody(body: XyChartBody, frontmatter: ReturnType<typeof normalizeMermaidSource>['frontmatter']): XYChart {
+  const series = body.series.map((s): XYChart['series'][number] => ({
+    type: s.kind,
+    label: s.name,
+    data: [...s.values],
+  }))
+  const yAxis = xyAxisFromBody(body.yAxis)
+  if (!yAxis.range && series.length > 0) {
+    const allValues = series.flatMap(s => s.data)
+    let min = Math.min(...allValues)
+    let max = Math.max(...allValues)
+    const span = max - min || 1
+    min = min - span * 0.1
+    max = max + span * 0.1
+    if (min > 0 && min < span * 0.5) min = 0
+    yAxis.range = { min, max }
+  }
+  if (!yAxis.range) yAxis.range = { min: 0, max: 100 }
+
+  const chart: XYChart = {
+    horizontal: body.horizontal ?? false,
+    xAxis: xyAxisFromBody(body.xAxis),
+    yAxis,
+    series,
+    config: resolveXYChartConfig({}),
+    theme: resolveXYChartTheme({}),
+  }
+  if (body.title !== undefined) chart.title = body.title
+  if (body.horizontal !== undefined) chart.headerOrientation = body.horizontal ? 'horizontal' : 'vertical'
+  return applyXYChartFrontmatterConfig(chart, frontmatter)
+}
+
+function xyAxisFromBody(axis: XyChartBody['xAxis']): XYAxis {
+  const out: XYAxis = {}
+  if (!axis) return out
+  if (axis.name !== undefined) out.title = axis.name
+  if (axis.categories) out.categories = [...axis.categories]
+  if (axis.range) out.range = { ...axis.range }
+  return out
+}
+
 // ---- pie ------------------------------------------------------------------
 
 function pieToRendered(d: ValidDiagram, opts: { debug?: boolean } = {}): RenderedLayout {
   try {
-    const positioned = layoutPieChart(parsePieChart(toMermaidLines(d.canonicalSource)))
+    const positioned = layoutPieChart(pieChartForRenderedLayout(d))
     // Pie has no structural nodes/edges — the slices are angular wedges. Use
     // each slice's legend row as a label-anchored box (legend swatch top-left,
     // approximate width from label length at the legend font baseline). This
@@ -498,14 +561,25 @@ function pieToRendered(d: ValidDiagram, opts: { debug?: boolean } = {}): Rendere
   } catch { return emptyRenderedLayout(d.kind) }
 }
 
+function pieChartForRenderedLayout(d: ValidDiagram): PieChart {
+  if (d.body.kind === 'pie') return pieChartFromBody(d.body)
+  return parsePieChart(toMermaidLines(d.canonicalSource))
+}
+
+function pieChartFromBody(body: PieBody): PieChart {
+  const chart: PieChart = {
+    showData: body.showData,
+    entries: body.slices.map(s => ({ label: s.label, value: s.value })),
+  }
+  if (body.title !== undefined) chart.title = body.title
+  return chart
+}
+
 // ---- gantt ------------------------------------------------------------------
 
 function ganttToRendered(d: ValidDiagram, opts: { debug?: boolean } = {}): RenderedLayout {
   try {
-    const normalized = normalizeMermaidSource(d.canonicalSource)
-    const model = applyGanttFrontmatterConfig(parseGanttModel(normalized.lines), normalized.frontmatter)
-    const schedule = resolveGanttSchedule(model)
-    const positioned = layoutGantt(model, schedule)
+    const positioned = ganttPositionedForRenderedLayout(d)
     // Bars and milestones are the nodes; section bands are the groups. Verts
     // and ticks are markers, not boxes — they carry no node area. Milestones
     // report the diamond's true bounding box; the zero-width floor on bars is
@@ -530,6 +604,75 @@ function ganttToRendered(d: ValidDiagram, opts: { debug?: boolean } = {}): Rende
     if (opts.debug) layout.certificates = elementCertificates('gantt', layout, 'section-contained')
     return layout
   } catch { return emptyRenderedLayout(d.kind) }
+}
+
+function ganttPositionedForRenderedLayout(d: ValidDiagram): GanttLayoutResult {
+  const normalized = normalizeMermaidSource(d.canonicalSource)
+  if (d.body.kind === 'gantt') {
+    const model = ganttModelFromBody(d.body)
+    if (model) {
+      const configured = applyGanttFrontmatterConfig(model, normalized.frontmatter)
+      const schedule = resolveGanttSchedule(configured)
+      return layoutGantt(configured, schedule, { today: schedule.today })
+    }
+  }
+  return buildGanttRenderPipeline(normalized.lines, normalized.frontmatter).positioned
+}
+
+function ganttModelFromBody(body: GanttBody): GanttModel | null {
+  if (body.statements?.some(st => st.kind === 'opaque-block')) return null
+  const sections: GanttModelSection[] = body.sections.map((s, index) => {
+    const section: GanttModelSection = { taskIndexes: [], line: index + 1 }
+    if (s.label !== undefined) section.label = s.label
+    return section
+  })
+  const model: GanttModel = {
+    dateFormat: 'YYYY-MM-DD',
+    inclusiveEndDates: false,
+    topAxis: false,
+    excludes: [],
+    includes: [],
+    weekendStart: 'saturday',
+    weekStart: 'sunday',
+    sections: sections.length > 0 ? sections : [{ taskIndexes: [] }],
+    tasks: [],
+    clicks: [],
+  }
+  if (body.title !== undefined) model.title = body.title
+
+  for (let sectionIndex = 0; sectionIndex < body.sections.length; sectionIndex++) {
+    const section = body.sections[sectionIndex]!
+    const modelSection = model.sections[sectionIndex]!
+    for (const task of section.tasks) {
+      const taskIndex = model.tasks.length
+      const modelTask: GanttModelTask = {
+        index: taskIndex,
+        label: task.label,
+        tags: [...task.tags] as GanttTaskTag[],
+        end: ganttEndExpr(task.end),
+        sectionIndex,
+        line: taskIndex + 1,
+      }
+      if (task.taskId !== undefined) modelTask.id = task.taskId
+      if (task.start !== undefined) modelTask.start = ganttStartExpr(task.start)
+      model.tasks.push(modelTask)
+      modelSection.taskIndexes.push(taskIndex)
+    }
+  }
+  return model
+}
+
+function ganttStartExpr(raw: string): GanttStartExpr {
+  const after = raw.match(/^after\s+(.+)$/)
+  if (after) return { kind: 'after', refs: after[1]!.split(/\s+/).filter(Boolean) }
+  return { kind: 'date', raw }
+}
+
+function ganttEndExpr(raw: string): GanttEndExpr {
+  const until = raw.match(/^until\s+(.+)$/)
+  if (until) return { kind: 'until', refs: until[1]!.split(/\s+/).filter(Boolean) }
+  if (GANTT_DURATION_RE.test(raw)) return { kind: 'duration', raw }
+  return { kind: 'date', raw }
 }
 
 /**
@@ -645,7 +788,7 @@ export function ganttGeometryWarnings(layout: RenderedLayout): LayoutWarning[] {
 
 function quadrantToRendered(d: ValidDiagram, opts: { debug?: boolean } = {}): RenderedLayout {
   try {
-    const positioned = layoutQuadrantChart(parseQuadrantChart(toMermaidLines(d.canonicalSource)))
+    const positioned = layoutQuadrantChart(quadrantChartForRenderedLayout(d))
     const nodes: RenderedLayoutNode[] = positioned.points.map((p, i) => ({
       id: `point#${i}:${p.label}`, x: f(p.cx - p.radius), y: f(p.cy - p.radius),
       w: f(p.radius * 2), h: f(p.radius * 2), shape: 'circle', label: p.label,
@@ -657,4 +800,20 @@ function quadrantToRendered(d: ValidDiagram, opts: { debug?: boolean } = {}): Re
     if (opts.debug) layout.certificates = elementCertificates('quadrant', layout, 'plot-contained')
     return layout
   } catch { return emptyRenderedLayout(d.kind) }
+}
+
+function quadrantChartForRenderedLayout(d: ValidDiagram): QuadrantChart {
+  if (d.body.kind === 'quadrant') return quadrantChartFromBody(d.body)
+  return parseQuadrantChart(toMermaidLines(d.canonicalSource))
+}
+
+function quadrantChartFromBody(body: QuadrantBody): QuadrantChart {
+  const chart: QuadrantChart = {
+    quadrants: [...body.quadrants] as QuadrantChart['quadrants'],
+    points: body.points.map(p => ({ label: p.label, x: p.x, y: p.y })),
+  }
+  if (body.title !== undefined) chart.title = body.title
+  if (body.xAxis) chart.xAxis = { ...body.xAxis }
+  if (body.yAxis) chart.yAxis = { ...body.yAxis }
+  return chart
 }

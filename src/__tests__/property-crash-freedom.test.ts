@@ -8,7 +8,7 @@ import { parseErDiagram } from '../er/parser.ts'
 import { parseTimelineDiagram } from '../timeline/parser.ts'
 import { parseJourneyDiagram } from '../journey/parser.ts'
 import { parseArchitectureDiagram } from '../architecture/parser.ts'
-import { parseXYChart } from '../xychart/parser.ts'
+import { applyXYChartFrontmatterConfig, parseXYChart } from '../xychart/parser.ts'
 import { normalizeMermaidSource, preprocessMermaidSource } from '../mermaid-source.ts'
 
 const NUM_RUNS = 200
@@ -301,7 +301,7 @@ describe('crash-freedom: parseArchitectureDiagram', () => {
 })
 
 // ===========================================================================
-// parseXYChart (accepts lines: string[], frontmatter?: MermaidFrontmatterMap)
+// parseXYChart is source-only; frontmatter is applied as a post-parse pass.
 // ===========================================================================
 
 describe('crash-freedom: parseXYChart', () => {
@@ -340,7 +340,7 @@ describe('crash-freedom: parseXYChart', () => {
 
     fc.assert(
       fc.property(randomLinesArb, frontmatterArb, (bodyLines, frontmatter) => {
-        assertNoUndefinedCrash(() => parseXYChart(['xychart-beta', ...bodyLines], frontmatter))
+        assertNoUndefinedCrash(() => applyXYChartFrontmatterConfig(parseXYChart(['xychart-beta', ...bodyLines]), frontmatter))
       }),
       { numRuns: NUM_RUNS },
     )

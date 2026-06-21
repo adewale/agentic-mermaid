@@ -6,12 +6,12 @@
  */
 import { describe, it, expect } from 'bun:test'
 import { preprocessMermaidSource } from '../mermaid-source.ts'
-import { parseXYChart } from '../xychart/parser.ts'
+import { applyXYChartFrontmatterConfig, parseXYChart } from '../xychart/parser.ts'
 import { layoutXYChart } from '../xychart/layout.ts'
 
 function layout(text: string) {
   const processed = preprocessMermaidSource(text)
-  return layoutXYChart(parseXYChart(processed.lines, processed.frontmatter))
+  return layoutXYChart(applyXYChartFrontmatterConfig(parseXYChart(processed.lines), processed.frontmatter))
 }
 
 describe('xychart layout – dimensions and bounds', () => {

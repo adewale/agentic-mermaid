@@ -3,7 +3,7 @@ import fc from 'fast-check'
 
 import { preprocessMermaidSource, toMermaidLines } from '../mermaid-source.ts'
 import { layoutXYChart } from '../xychart/layout.ts'
-import { parseXYChart } from '../xychart/parser.ts'
+import { applyXYChartFrontmatterConfig, parseXYChart } from '../xychart/parser.ts'
 
 const PROPERTY_RUNS = 60
 const WORD_CHARS = [...'abcdefghijklmnopqrstuvwxyz']
@@ -136,7 +136,7 @@ describe('property-based xychart parsing', () => {
         ].join('\n')
 
         const processed = preprocessMermaidSource(source)
-        const chart = parseXYChart(processed.lines, processed.frontmatter)
+        const chart = applyXYChartFrontmatterConfig(parseXYChart(processed.lines), processed.frontmatter)
 
         expect(chart.config.width).toBe(width)
         expect(chart.config.height).toBe(height)

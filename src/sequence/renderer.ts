@@ -1,6 +1,5 @@
 import type { PositionedSequenceDiagram, PositionedActor, Lifeline, PositionedMessage, Activation, PositionedBlock, PositionedNote } from './types.ts'
-import type { RenderOptions } from '../types.ts'
-import type { DiagramColors } from '../theme.ts'
+import type { RenderContext } from '../types.ts'
 import { svgOpenTag, buildStyleBlock, buildShadowDefs } from '../theme.ts'
 import { FONT_SIZES, FONT_WEIGHTS, STROKE_WIDTHS, ARROW_HEAD, estimateTextWidth, TEXT_BASELINE_SHIFT, resolveRenderStyle } from '../styles.ts'
 import type { RenderStyleDefaults, ResolvedRenderStyle } from '../styles.ts'
@@ -48,12 +47,11 @@ const SEQUENCE_STYLE_DEFAULTS: RenderStyleDefaults = {
  * @param transparent - If true, renders with transparent background.
  */
 export function renderSequenceSvg(
-  diagram: PositionedSequenceDiagram,
-  colors: DiagramColors,
-  font: string = 'Inter',
-  transparent: boolean = false,
-  options: RenderOptions = {},
+  ctx: RenderContext<PositionedSequenceDiagram>,
 ): string {
+  const { positioned: diagram, colors, options } = ctx
+  const font = colors.font ?? 'Inter'
+  const transparent = options.transparent ?? false
   const parts: string[] = []
   const style = resolveRenderStyle(options, SEQUENCE_STYLE_DEFAULTS)
   const uid = `seq-${hashAccessibility(diagram.width, diagram.height, diagram.actors.length, diagram.messages.length)}`
@@ -67,7 +65,7 @@ export function renderSequenceSvg(
   parts.push('<defs>')
 
   // Arrow marker definitions
-  parts.push(arrowMarkerDefs())
+  parts.push(arrowMarkerDefs(style))
   const shadowDefs = buildShadowDefs(colors)
   if (shadowDefs) parts.push(shadowDefs)
   parts.push('</defs>')
@@ -91,7 +89,7 @@ export function renderSequenceSvg(
 
   // 3. Activation boxes
   for (const activation of diagram.activations) {
-    parts.push(renderActivation(activation))
+    parts.push(renderActivation(activation, style))
   }
 
   // 4. Messages (horizontal arrows with labels)
@@ -117,16 +115,17 @@ export function renderSequenceSvg(
 // Arrow marker definitions
 // ============================================================================
 
-function arrowMarkerDefs(): string {
+function arrowMarkerDefs(style: ResolvedRenderStyle): string {
   const w = ARROW_HEAD.width
   const h = ARROW_HEAD.height
+  const edgeColor = escapeAttr(style.edgeStrokeColor ?? 'var(--_arrow)')
   return (
     `  <marker id="seq-arrow" markerWidth="${w}" markerHeight="${h}" refX="${w}" refY="${h / 2}" orient="auto-start-reverse">` +
-    `\n    <polygon points="0 0, ${w} ${h / 2}, 0 ${h}" fill="var(--_arrow)" />` +
+    `\n    <polygon points="0 0, ${w} ${h / 2}, 0 ${h}" fill="${edgeColor}" />` +
     `\n  </marker>` +
     // Open arrow head (just lines, no fill)
     `\n  <marker id="seq-arrow-open" markerWidth="${w}" markerHeight="${h}" refX="${w}" refY="${h / 2}" orient="auto-start-reverse">` +
-    `\n    <polyline points="0 0, ${w} ${h / 2}, 0 ${h}" fill="none" stroke="var(--_arrow)" stroke-width="1" />` +
+    `\n    <polyline points="0 0, ${w} ${h / 2}, 0 ${h}" fill="none" stroke="${edgeColor}" stroke-width="1" />` +
     `\n  </marker>`
   )
 }
@@ -157,7 +156,7 @@ function renderActor(actor: PositionedActor, style: ResolvedRenderStyle): string
     const tx = x - 12 * s            // center icon horizontally on actor.x
     const ty = y + (height - 24 * s) / 2  // center icon vertically in actor box
     const sw = style.nodeLineWidth / s  // compensate for scale transform
-    const iconStroke = 'var(--_line)'      // use line color for actor icon strokes
+    const iconStroke = escapeAttr(style.edgeStrokeColor ?? 'var(--_line)')
 
     parts.push(
       `  <g transform="translate(${tx},${ty}) scale(${s})">` +
@@ -172,18 +171,18 @@ function renderActor(actor: PositionedActor, style: ResolvedRenderStyle): string
     // Label below the icon (supports multi-line)
     parts.push(
       '  ' + renderMultilineText(label, x, y + height + 14, style.nodeLabelFontSize,
-        `font-size="${style.nodeLabelFontSize}" text-anchor="middle" font-weight="${style.nodeLabelFontWeight}"${letterAttr(style.nodeLetterSpacing)} fill="var(--_text)"`)
+        `font-size="${style.nodeLabelFontSize}" text-anchor="middle" font-weight="${style.nodeLabelFontWeight}"${letterAttr(style.nodeLetterSpacing)} fill="${escapeAttr(style.nodeTextColor ?? 'var(--_text)')}"`)
     )
   } else {
     // Participant: rectangle box with label (supports multi-line)
     const boxX = x - width / 2
     parts.push(
       `  <rect x="${boxX}" y="${y}" width="${width}" height="${height}" rx="${style.cornerRadius ?? 4}" ry="${style.cornerRadius ?? 4}" ` +
-      `fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="${style.nodeLineWidth}" />`
+      `fill="${escapeAttr(style.nodeFillColor ?? 'var(--_node-fill)')}" stroke="${escapeAttr(style.nodeBorderColor ?? 'var(--_node-stroke)')}" stroke-width="${style.nodeLineWidth}" />`
     )
     parts.push(
       '  ' + renderMultilineText(label, x, y + height / 2, style.nodeLabelFontSize,
-        `font-size="${style.nodeLabelFontSize}" text-anchor="middle" font-weight="${style.nodeLabelFontWeight}"${letterAttr(style.nodeLetterSpacing)} fill="var(--_text)"`)
+        `font-size="${style.nodeLabelFontSize}" text-anchor="middle" font-weight="${style.nodeLabelFontWeight}"${letterAttr(style.nodeLetterSpacing)} fill="${escapeAttr(style.nodeTextColor ?? 'var(--_text)')}"`)
     )
   }
 
@@ -199,7 +198,7 @@ function renderLifeline(lifeline: Lifeline, style: ResolvedRenderStyle): string 
   return (
     `<line class="lifeline" data-actor="${escapeAttr(lifeline.actorId)}" ` +
     `x1="${lifeline.x}" y1="${lifeline.topY}" x2="${lifeline.x}" y2="${lifeline.bottomY}" ` +
-    `stroke="var(--_line)" stroke-width="${Math.max(0.75, style.lineWidth * 0.75)}" stroke-dasharray="6 4" />`
+    `stroke="${escapeAttr(style.edgeStrokeColor ?? 'var(--_line)')}" stroke-width="${Math.max(0.75, style.lineWidth * 0.75)}" stroke-dasharray="6 4" />`
   )
 }
 
@@ -207,11 +206,11 @@ function renderLifeline(lifeline: Lifeline, style: ResolvedRenderStyle): string 
  * Render an activation box (narrow filled rectangle on lifeline).
  * Includes data-actor to link to its actor.
  */
-function renderActivation(activation: Activation): string {
+function renderActivation(activation: Activation, style: ResolvedRenderStyle): string {
   return (
     `<rect class="activation" data-actor="${escapeAttr(activation.actorId)}" ` +
     `x="${activation.x}" y="${activation.topY}" width="${activation.width}" height="${activation.bottomY - activation.topY}" ` +
-    `fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="${STROKE_WIDTHS.innerBox}" />`
+    `fill="${escapeAttr(style.nodeFillColor ?? 'var(--_node-fill)')}" stroke="${escapeAttr(style.nodeBorderColor ?? 'var(--_node-stroke)')}" stroke-width="${STROKE_WIDTHS.innerBox}" />`
   )
 }
 
@@ -239,24 +238,24 @@ function renderMessage(msg: PositionedMessage, style: ResolvedRenderStyle): stri
     const labelPadding = 8 // Space between loop and label
     parts.push(
       `  <polyline points="${msg.x1},${msg.y} ${msg.x1 + loopW},${msg.y} ${msg.x1 + loopW},${msg.y + loopH} ${msg.x2},${msg.y + loopH}" ` +
-      `fill="none" stroke="var(--_line)" stroke-width="${style.lineWidth}"${dashArray} marker-end="url(#${markerId})" />`
+      `fill="none" stroke="${escapeAttr(style.edgeStrokeColor ?? 'var(--_line)')}" stroke-width="${style.lineWidth}"${dashArray} marker-end="url(#${markerId})" />`
     )
     // Label to the right of the loop (supports multi-line)
     parts.push(
       '  ' + renderMultilineText(msg.label, msg.x1 + loopW + labelPadding, msg.y + loopH / 2, style.edgeLabelFontSize,
-        `font-size="${style.edgeLabelFontSize}" text-anchor="start" font-weight="${style.edgeLabelFontWeight}"${letterAttr(style.edgeLetterSpacing)} fill="var(--_text-muted)"`)
+        `font-size="${style.edgeLabelFontSize}" text-anchor="start" font-weight="${style.edgeLabelFontWeight}"${letterAttr(style.edgeLetterSpacing)} fill="${escapeAttr(style.edgeTextColor ?? 'var(--_text-muted)')}"`)
     )
   } else {
     // Normal message: horizontal arrow
     parts.push(
       `  <line x1="${msg.x1}" y1="${msg.y}" x2="${msg.x2}" y2="${msg.y}" ` +
-      `stroke="var(--_line)" stroke-width="${style.lineWidth}"${dashArray} marker-end="url(#${markerId})" />`
+      `stroke="${escapeAttr(style.edgeStrokeColor ?? 'var(--_line)')}" stroke-width="${style.lineWidth}"${dashArray} marker-end="url(#${markerId})" />`
     )
     // Label above the arrow, centered (supports multi-line)
     const midX = (msg.x1 + msg.x2) / 2
     parts.push(
       '  ' + renderMultilineText(msg.label, midX, msg.y - 10, style.edgeLabelFontSize,
-        `font-size="${style.edgeLabelFontSize}" text-anchor="middle" font-weight="${style.edgeLabelFontWeight}"${letterAttr(style.edgeLetterSpacing)} fill="var(--_text-muted)"`)
+        `font-size="${style.edgeLabelFontSize}" text-anchor="middle" font-weight="${style.edgeLabelFontWeight}"${letterAttr(style.edgeLetterSpacing)} fill="${escapeAttr(style.edgeTextColor ?? 'var(--_text-muted)')}"`)
     )
   }
 
@@ -280,7 +279,7 @@ function renderBlock(block: PositionedBlock, style: ResolvedRenderStyle): string
   // Outer rectangle
   parts.push(
     `  <rect x="${block.x}" y="${block.y}" width="${block.width}" height="${block.height}" ` +
-    `rx="${style.groupCornerRadius}" ry="${style.groupCornerRadius}" fill="none" stroke="${escapeAttr(style.groupBorderColor ?? 'var(--_node-stroke)')}" stroke-width="${style.groupLineWidth}" />`
+    `rx="${style.groupCornerRadius}" ry="${style.groupCornerRadius}" fill="${escapeAttr(style.groupFillColor ?? 'none')}" stroke="${escapeAttr(style.groupBorderColor ?? 'var(--_node-stroke)')}" stroke-width="${style.groupLineWidth}" />`
   )
 
   // Type label tab (top-left corner)
@@ -292,7 +291,7 @@ function renderBlock(block: PositionedBlock, style: ResolvedRenderStyle): string
 
   parts.push(
     `  <rect x="${block.x}" y="${block.y}" width="${tabWidth}" height="${tabHeight}" ` +
-    `fill="var(--_group-hdr)" stroke="${escapeAttr(style.groupBorderColor ?? 'var(--_node-stroke)')}" stroke-width="${style.groupLineWidth}" />`
+    `fill="${escapeAttr(style.groupHeaderFillColor ?? 'var(--_group-hdr)')}" stroke="${escapeAttr(style.groupBorderColor ?? 'var(--_node-stroke)')}" stroke-width="${style.groupLineWidth}" />`
   )
   // Block type label (supports multi-line via <br> tags)
   parts.push(
@@ -301,7 +300,7 @@ function renderBlock(block: PositionedBlock, style: ResolvedRenderStyle): string
       block.x + style.groupLabelPaddingX,
       block.y + tabHeight / 2,
       style.groupHeaderFontSize,
-      `font-size="${style.groupHeaderFontSize}" font-weight="${style.groupHeaderFontWeight}"${style.groupFont ? ` font-family="${escapeAttr(style.groupFont)}"` : ''}${letterAttr(style.groupLetterSpacing)} fill="var(--_text-sec)"`
+      `font-size="${style.groupHeaderFontSize}" font-weight="${style.groupHeaderFontWeight}"${style.groupFont ? ` font-family="${escapeAttr(style.groupFont)}"` : ''}${letterAttr(style.groupLetterSpacing)} fill="${escapeAttr(style.groupTextColor ?? 'var(--_text-sec)')}"`
     )
   )
 
@@ -309,13 +308,13 @@ function renderBlock(block: PositionedBlock, style: ResolvedRenderStyle): string
   for (const divider of block.dividers) {
     parts.push(
       `  <line x1="${block.x}" y1="${divider.y}" x2="${block.x + block.width}" y2="${divider.y}" ` +
-      `stroke="var(--_line)" stroke-width="${Math.max(0.75, style.lineWidth * 0.75)}" stroke-dasharray="6 4" />`
+      `stroke="${escapeAttr(style.edgeStrokeColor ?? 'var(--_line)')}" stroke-width="${Math.max(0.75, style.lineWidth * 0.75)}" stroke-dasharray="6 4" />`
     )
     if (divider.label) {
       // Divider label supports multi-line
       parts.push(
         '  ' + renderMultilineText(`[${divider.label}]`, block.x + 8, divider.y + 14, style.edgeLabelFontSize,
-          `font-size="${style.edgeLabelFontSize}" text-anchor="start" font-weight="${style.edgeLabelFontWeight}"${letterAttr(style.edgeLetterSpacing)} fill="var(--_text-muted)"`)
+          `font-size="${style.edgeLabelFontSize}" text-anchor="start" font-weight="${style.edgeLabelFontWeight}"${letterAttr(style.edgeLetterSpacing)} fill="${escapeAttr(style.edgeTextColor ?? 'var(--_text-muted)')}"`)
       )
     }
   }
@@ -339,9 +338,9 @@ function renderNote(note: PositionedNote, style: ResolvedRenderStyle): string {
   return (
     `<g class="note"${positionAttr}${actorsAttr}>` +
     `\n  <rect x="${x}" y="${y}" width="${w}" height="${h}" rx="${style.cornerRadius ?? 0}" ry="${style.cornerRadius ?? 0}" ` +
-    `fill="var(--bg)" stroke="var(--_node-stroke)" stroke-width="${STROKE_WIDTHS.innerBox}" />` +
+    `fill="${escapeAttr(style.nodeFillColor ?? 'var(--bg)')}" stroke="${escapeAttr(style.nodeBorderColor ?? 'var(--_node-stroke)')}" stroke-width="${STROKE_WIDTHS.innerBox}" />` +
     `\n  ${renderMultilineText(note.text, x + w / 2, y + h / 2, style.nodeLabelFontSize,
-      `font-size="${style.nodeLabelFontSize}" text-anchor="middle" font-weight="${style.nodeLabelFontWeight}"${letterAttr(style.nodeLetterSpacing)} fill="var(--_text-muted)"`)}` +
+      `font-size="${style.nodeLabelFontSize}" text-anchor="middle" font-weight="${style.nodeLabelFontWeight}"${letterAttr(style.nodeLetterSpacing)} fill="${escapeAttr(style.nodeTextColor ?? 'var(--_text-muted)')}"`)}` +
     `\n</g>`
   )
 }

@@ -201,9 +201,9 @@ function extractClassLayout(
 }
 
 /**
- * Lay out a parsed class diagram using ELK.js (synchronous).
+ * Lay out a parsed class diagram using ELK.js.
  */
-export function layoutClassDiagramSync(
+export function layoutClassDiagram(
   diagram: ClassDiagram,
   options: RenderOptions = {}
 ): PositionedClassDiagram {

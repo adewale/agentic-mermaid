@@ -1,33 +1,29 @@
 graph TD
   SRC["Mermaid source text"] --> NORM["normalize source<br/>frontmatter · %%init%% · config"]
   NORM --> DET{"detect diagram type"}
+  DET --> REG["FamilyPlugin registry<br/>detect · parse · layout · renderSvg · renderAscii<br/>serialize · mutate · verify"]
 
   subgraph SVGSTACK["SVG stack · renderMermaidSVG"]
     direction TB
-    SW1["dispatch: switch · 11 arms"] --> L1["per-family<br/>parse → layout → render"]
-    L1 --> ELK["ELK layout · Positioned* types<br/>route certificates"]
-    ELK --> O1["SVG string"]
+    L1["source-context layout hook<br/>parse → config middleware → layout"] --> CTX["RenderContext<br/>positioned · colors · options"]
+    CTX --> O1["SVG string"]
   end
 
   subgraph ASCIISTACK["ASCII stack · renderMermaidASCII"]
     direction TB
-    SW2["dispatch: switch · 11 arms"] --> L2["per-family layout"]
-    L2 --> GRID["AsciiGraph · Canvas<br/>A* pathfinder · no ELK"]
+    L2["renderAscii hook"] --> GRID["grid geometry<br/>AsciiGraph · Canvas · A* pathfinder"]
     GRID --> O2["text grid"]
   end
 
   subgraph AGENTSTACK["Agent stack · parse / mutate / verify"]
     direction TB
-    REG["dispatch: FamilyPlugin registry"] --> VD["ValidDiagram · DiagramBody<br/>structured | opaque"]
-    VD --> RL["RenderedLayout"]
+    VD["ValidDiagram · DiagramBody<br/>structured | opaque"] --> RL["RenderedLayout"]
   end
 
-  DET -->|"SVG"| SW1
-  DET -->|"ASCII / unicode"| SW2
-  DET -->|"agent IR"| REG
+  REG -->|"SVG hooks"| L1
+  REG -->|"ASCII / unicode hook"| L2
+  REG -->|"agent hooks"| VD
 
-  SW1 -.same 12 families.-> FAM
-  SW2 -.-> FAM
-  REG -.-> FAM
+  REG -.same 12 families.-> FAM
   FAM["12 diagram families<br/>flowchart · sequence · class · er · gantt<br/>pie · journey · timeline · quadrant · xychart · architecture · state"]
   FAM --> CORE["shared core types · types.ts<br/>NodeShape · EdgeStyle · MermaidGraph · RouteClass"]

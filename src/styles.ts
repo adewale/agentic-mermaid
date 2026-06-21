@@ -124,12 +124,20 @@ export interface RenderStyleDefaults {
   diamondExtraPadding?: number
   nodeCornerRadius?: number
   nodeLineWidth?: number
+  nodeFillColor?: string
+  nodeBorderColor?: string
+  nodeTextColor?: string
   edgeLineWidth: number
   edgeBendRadius?: number
+  edgeStrokeColor?: string
+  edgeTextColor?: string
   groupFont?: string
   groupTextTransform?: TextTransform
   groupCornerRadius: number
   groupBorderColor?: string
+  groupFillColor?: string
+  groupHeaderFillColor?: string
+  groupTextColor?: string
   groupPaddingX: number
   groupPaddingY: number
   groupLabelPaddingX?: number
@@ -151,12 +159,20 @@ export interface ResolvedRenderStyle {
   diamondExtraPadding: number
   cornerRadius?: number
   nodeLineWidth: number
+  nodeFillColor?: string
+  nodeBorderColor?: string
+  nodeTextColor?: string
   lineWidth: number
   edgeBendRadius: number
+  edgeStrokeColor?: string
+  edgeTextColor?: string
   groupFont?: string
   groupTextTransform?: TextTransform
   groupCornerRadius: number
   groupBorderColor?: string
+  groupFillColor?: string
+  groupHeaderFillColor?: string
+  groupTextColor?: string
   groupPaddingX: number
   groupPaddingY: number
   groupLabelPaddingX: number
@@ -248,12 +264,20 @@ export function resolveRenderStyle(
     diamondExtraPadding: defaults.diamondExtraPadding ?? NODE_PADDING.diamondExtra,
     cornerRadius,
     nodeLineWidth: positiveNumber(defaults.nodeLineWidth ?? STROKE_WIDTHS.innerBox, node?.lineWidth),
+    nodeFillColor: finiteString(node?.fillColor, defaults.nodeFillColor),
+    nodeBorderColor: finiteString(node?.borderColor, defaults.nodeBorderColor),
+    nodeTextColor: finiteString(node?.textColor, text?.textColor, defaults.nodeTextColor),
     lineWidth: positiveNumber(defaults.edgeLineWidth, edge?.lineWidth),
     edgeBendRadius: nonNegativeNumber(defaults.edgeBendRadius ?? 0, edge?.bendRadius),
+    edgeStrokeColor: finiteString(edge?.strokeColor, defaults.edgeStrokeColor),
+    edgeTextColor: finiteString(edge?.textColor, text?.textColor, defaults.edgeTextColor),
     groupFont: finiteString(group?.fontFamily, defaults.groupFont),
     groupTextTransform: textTransform(group?.textTransform, defaults.groupTextTransform),
     groupCornerRadius: nonNegativeNumber(defaults.groupCornerRadius, group?.cornerRadius),
     groupBorderColor: finiteString(group?.borderColor, defaults.groupBorderColor),
+    groupFillColor: finiteString(group?.fillColor, defaults.groupFillColor),
+    groupHeaderFillColor: finiteString(group?.headerFillColor, defaults.groupHeaderFillColor),
+    groupTextColor: finiteString(group?.textColor, text?.textColor, defaults.groupTextColor),
     groupPaddingX: explicitGroupPaddingX ?? defaults.groupPaddingX,
     groupPaddingY: nonNegativeNumber(defaults.groupPaddingY, group?.paddingY),
     groupLabelPaddingX: explicitGroupPaddingX ?? defaults.groupLabelPaddingX ?? defaults.groupPaddingX,

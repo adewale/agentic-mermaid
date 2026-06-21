@@ -5,6 +5,8 @@
 // ER diagrams show database entities, their attributes, and relationships.
 // ============================================================================
 
+import type { PositionedDiagram } from '../types.ts'
+
 /** Parsed ER diagram — logical structure from mermaid text */
 export interface ErDiagram {
   /** Optional accessibility title (Mermaid accTitle) */
@@ -62,7 +64,7 @@ export interface ErRelationship {
 // Positioned ER diagram — ready for SVG rendering
 // ============================================================================
 
-export interface PositionedErDiagram {
+export interface PositionedErDiagram extends PositionedDiagram {
   width: number
   height: number
   accessibilityTitle?: string

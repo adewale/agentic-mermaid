@@ -6,7 +6,7 @@
 // nothing). The only verify knob is labelCharCap. See AGENT_NATIVE.md § (1).
 // ============================================================================
 
-import type { MermaidGraph, NodeShape, EdgeStyle, LayoutRouteCertificate, RouteCertificate, RouteClass } from '../types.ts'
+import type { MermaidGraph, NodeShape, EdgeStyle, EdgeRouteCertificate, RegionContainmentCertificate, RouteCertificate, RouteClass } from '../types.ts'
 import type { MermaidFrontmatterMap, MermaidConfigMap } from '../mermaid-source.ts'
 
 // ---- Result ---------------------------------------------------------------
@@ -897,8 +897,8 @@ export interface RenderedLayoutNode {
 export interface RenderedLayoutEdge {
   id: EdgeId; from: NodeId; to: NodeId; path: [Finite, Finite][]
   label?: { x: Finite; y: Finite; text: string }
-  /** Layout/route certificate; present only under layoutMermaid(d, { debug: true }) for families with a certificate model. */
-  route?: LayoutRouteCertificate
+  /** Edge route certificate; present only under layoutMermaid(d, { debug: true }) for families with an edge certificate model. */
+  route?: EdgeRouteCertificate
 }
 export interface RenderedLayoutGroup {
   id: GroupId; x: Finite; y: Finite; w: Finite; h: Finite; members: NodeId[]; label?: string
@@ -911,8 +911,8 @@ export interface RenderedLayout {
   nodes: RenderedLayoutNode[]
   edges: RenderedLayoutEdge[]
   groups: RenderedLayoutGroup[]
-  /** Layout/family certificates for non-edge invariants; present only under layoutMermaid(d, { debug: true }). */
-  certificates?: LayoutRouteCertificate[]
+  /** Region-containment certificates for non-edge invariants; present only under layoutMermaid(d, { debug: true }). */
+  certificates?: RegionContainmentCertificate[]
   /** Optional region sidecar for renderer/action alignment; debug-only in layoutMermaid V1. */
   regions?: RenderedRegion[]
   /** Optional source-only actions aligned to region ids; debug-only in layoutMermaid V1. */

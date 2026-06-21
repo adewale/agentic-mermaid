@@ -11,7 +11,7 @@
 // Multi-series support: each series gets a distinct color from a palette.
 // ============================================================================
 
-import { parseXYChart } from '../xychart/parser.ts'
+import { applyXYChartFrontmatterConfig, parseXYChart } from '../xychart/parser.ts'
 import type { XYChart } from '../xychart/types.ts'
 import type { MermaidFrontmatterMap } from '../mermaid-source.ts'
 import type { AsciiConfig, AsciiTheme, ColorMode, CharRole, Canvas, RoleCanvas } from './types.ts'
@@ -100,7 +100,7 @@ export function renderXYChartAscii(
   frontmatter: MermaidFrontmatterMap = {},
 ): string {
   const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 0 && !l.startsWith('%%'))
-  const chart = parseXYChart(lines, frontmatter)
+  const chart = applyXYChartFrontmatterConfig(parseXYChart(lines), frontmatter)
   const ch = config.useAscii ? ASC : UNI
 
   if (chart.horizontal) {

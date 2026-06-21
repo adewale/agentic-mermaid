@@ -5,6 +5,8 @@
 // Class diagrams show UML class relationships, inheritance, composition, etc.
 // ============================================================================
 
+import type { PositionedDiagram } from '../types.ts'
+
 /** Parsed class diagram — logical structure from mermaid text */
 export interface ClassDiagram {
   /** Optional accessibility title (Mermaid accTitle) */
@@ -84,7 +86,7 @@ export interface ClassNamespace {
 // Positioned class diagram — ready for SVG rendering
 // ============================================================================
 
-export interface PositionedClassDiagram {
+export interface PositionedClassDiagram extends PositionedDiagram {
   width: number
   height: number
   accessibilityTitle?: string

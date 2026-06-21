@@ -42,18 +42,6 @@ function round(n: number): number {
 }
 
 /**
- * Per-quadrant background fill, derived from theme variables via color-mix so
- * the fills track the active theme (consistent with theme.ts conventions).
- * Quadrants alternate two subtle accent tints so all four regions are visible
- * but never loud. Returns a CSS color expression (resolved at render time).
- */
-function quadrantFill(number: 1 | 2 | 3 | 4): string {
-  // 1 (top-right) and 3 (bottom-left) share one tint; 2 and 4 the other.
-  const accentPct = number === 1 || number === 3 ? 10 : 5
-  return `color-mix(in srgb, var(--accent, var(--_arrow)) ${accentPct}%, var(--bg))`
-}
-
-/**
  * Lay out a parsed quadrant chart into pixel space.
  */
 export function layoutQuadrantChart(
@@ -88,7 +76,6 @@ export function layoutQuadrantChart(
       y: round(y),
       width: round(half),
       height: round(half),
-      fill: quadrantFill(number),
       labelX: round(x + half / 2),
       labelY: round(y + half / 2),
     }

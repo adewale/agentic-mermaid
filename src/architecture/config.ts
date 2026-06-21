@@ -16,6 +16,43 @@ export interface ArchitectureVisualConfig {
   groupLabelPaddingX: number
   groupCornerRadius: number
   groupLineWidth: number
+  groupText?: string
+  serviceFontSize: number
+  serviceFontWeight: number
+  serviceLetterSpacing: number
+  servicePaddingX: number
+  servicePaddingY: number
+  serviceCornerRadius: number
+  serviceLineWidth: number
+  serviceText?: string
+  edgeFontSize: number
+  edgeFontWeight: number
+  edgeLetterSpacing: number
+  edgeLineWidth: number
+  edgeBendRadius: number
+  edgeStroke?: string
+  edgeText?: string
+  iconSize: number
+  serviceIconSize: number
+  junctionOuterRadius: number
+  junctionInnerRadius: number
+  groupSurface?: string
+  groupHeaderSurface?: string
+  groupBorder?: string
+  serviceSurface?: string
+  serviceBorder?: string
+}
+
+export interface ArchitectureLayoutMetrics {
+  groupFontSize: number
+  groupFontWeight: number
+  groupLetterSpacing: number
+  groupFont?: string
+  groupTextTransform?: 'uppercase' | 'lowercase' | 'capitalize'
+  groupPaddingX: number
+  groupPaddingY: number
+  groupCornerRadius: number
+  groupLineWidth: number
   serviceFontSize: number
   serviceFontWeight: number
   serviceLetterSpacing: number
@@ -28,18 +65,11 @@ export interface ArchitectureVisualConfig {
   edgeLetterSpacing: number
   edgeLineWidth: number
   edgeBendRadius: number
-  iconSize: number
-  serviceIconSize: number
-  junctionOuterRadius: number
-  junctionInnerRadius: number
-  groupSurface?: string
-  groupBorder?: string
-  serviceSurface?: string
-  serviceBorder?: string
 }
 
 export interface ResolvedArchitectureVisualConfig {
   visual: ArchitectureVisualConfig
+  layout: ArchitectureLayoutMetrics
   padding?: number
 }
 
@@ -160,13 +190,48 @@ export function resolveArchitectureVisualConfig(
     serviceIconSize,
     junctionOuterRadius,
     junctionInnerRadius,
-    groupSurface: pickString(themeVariables, 'clusterBkg') ?? colors.surface,
+    groupSurface: style.groupFillColor ?? pickString(themeVariables, 'clusterBkg') ?? colors.surface,
+    groupHeaderSurface: style.groupHeaderFillColor,
     groupBorder: style.groupBorderColor ?? pickString(themeVariables, 'clusterBorder') ?? colors.border,
-    serviceSurface: pickString(themeVariables, 'mainBkg', 'secondaryColor') ?? colors.surface,
-    serviceBorder: pickString(themeVariables, 'primaryBorderColor') ?? colors.border,
+    groupText: style.groupTextColor,
+    serviceSurface: style.nodeFillColor ?? pickString(themeVariables, 'mainBkg', 'secondaryColor') ?? colors.surface,
+    serviceBorder: style.nodeBorderColor ?? pickString(themeVariables, 'primaryBorderColor') ?? colors.border,
+    serviceText: style.nodeTextColor,
+    edgeStroke: style.edgeStrokeColor,
+    edgeText: style.edgeTextColor,
   }
 
-  return { visual, padding: getNumber(architecture, 'padding') }
+  return {
+    visual,
+    layout: architectureLayoutMetrics(visual),
+    padding: getNumber(architecture, 'padding'),
+  }
+}
+
+export function architectureLayoutMetrics(visual: ArchitectureVisualConfig): ArchitectureLayoutMetrics {
+  return {
+    groupFontSize: visual.groupFontSize,
+    groupFontWeight: visual.groupFontWeight,
+    groupLetterSpacing: visual.groupLetterSpacing,
+    groupFont: visual.groupFont,
+    groupTextTransform: visual.groupTextTransform,
+    groupPaddingX: visual.groupPaddingX,
+    groupPaddingY: visual.groupPaddingY,
+    groupCornerRadius: visual.groupCornerRadius,
+    groupLineWidth: visual.groupLineWidth,
+    serviceFontSize: visual.serviceFontSize,
+    serviceFontWeight: visual.serviceFontWeight,
+    serviceLetterSpacing: visual.serviceLetterSpacing,
+    servicePaddingX: visual.servicePaddingX,
+    servicePaddingY: visual.servicePaddingY,
+    serviceCornerRadius: visual.serviceCornerRadius,
+    serviceLineWidth: visual.serviceLineWidth,
+    edgeFontSize: visual.edgeFontSize,
+    edgeFontWeight: visual.edgeFontWeight,
+    edgeLetterSpacing: visual.edgeLetterSpacing,
+    edgeLineWidth: visual.edgeLineWidth,
+    edgeBendRadius: visual.edgeBendRadius,
+  }
 }
 
 function pickString(map: MermaidFrontmatterMap | undefined, ...keys: string[]): string | undefined {

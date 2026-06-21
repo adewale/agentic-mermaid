@@ -1,11 +1,16 @@
 # Abstraction audit — current state and issue list
 
-Status: audit snapshot. Captured 2026-06-20. Scope: the abstraction surfaces across
+Status: historical audit snapshot. Captured 2026-06-20, before the issue #71
+implementation. Scope: the abstraction surfaces across
 `src/` (core pipeline, per-family modules, `agent/`, `ascii/`, styling/theming).
 
 This document captures **what we have today** and the **list of issues**. Literature-grounded
 recommendations are tracked separately in
 [`abstraction-recommendations.md`](./abstraction-recommendations.md).
+
+> 2026-06-21 note: this is now the **pre-implementation baseline**, not the
+> current architecture. The current closure spec and reappraisal are in
+> [`abstraction-recommendations.md`](./abstraction-recommendations.md#2026-06-21-reappraisal).
 
 ---
 

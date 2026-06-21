@@ -5,6 +5,8 @@
 // Timeline diagrams show chronological milestones grouped into optional sections.
 // ============================================================================
 
+import type { PositionedDiagram } from '../types.ts'
+
 /** Parsed timeline diagram — logical structure from Mermaid text */
 export interface TimelineDiagram {
   /** Optional timeline title */
@@ -39,7 +41,7 @@ export interface TimelineEvent {
 // Positioned timeline diagram — ready for SVG rendering
 // ============================================================================
 
-export interface PositionedTimelineDiagram {
+export interface PositionedTimelineDiagram extends PositionedDiagram {
   width: number
   height: number
   title?: PositionedTimelineTitle

@@ -40,6 +40,7 @@ import { clipEdgeToShape } from './shape-clipping.ts'
 import { onShapeOutline } from './layout-rubric.ts'
 import { applyRouteContracts, classifyRoutes, diamondFacetPorts, labelRect, PORT_EXACT, shapePorts, simplifyPolyline } from './route-contracts.ts'
 import type { LabelMetricsStyle } from './route-contracts.ts'
+import { resolveEdgeInlineStyle, resolveNodeInlineStyle } from './color-resolver.ts'
 
 type LayoutDebugEnv = {
   APL_DEBUG?: string
@@ -1132,8 +1133,7 @@ function extractNodesAndGroups(
       // This is a leaf node
       const mNode = graph.nodes.get(child.id)
       if (mNode) {
-        // Resolve inline styles from nodeStyles map and classDefs
-        const inlineStyle = resolveNodeStyle(child.id, graph)
+        const inlineStyle = resolveNodeInlineStyle(child.id, graph)
         // User-assigned Mermaid class name(s) for external CSS targeting (#81).
         const assigned = graph.classAssignments.get(child.id)
         const classNames = assigned ? assigned.split(/\s+/).filter(Boolean) : undefined
@@ -2889,7 +2889,7 @@ function extractEdgesRecursively(
       endMarker: originalEdge.endMarker,
       points: orthogonalPoints,
       labelPosition,
-      inlineStyle: resolveEdgeStyle(edgeIndex, graph),
+      inlineStyle: resolveEdgeInlineStyle(edgeIndex, graph),
       edgeIndex,
     })
   }
@@ -3060,57 +3060,6 @@ function collectAllSubgraphIds(sg: MermaidSubgraph, out: Set<string>): void {
   for (const child of sg.children) {
     collectAllSubgraphIds(child, out)
   }
-}
-
-/**
- * Resolve inline styles for a node from classDefs and nodeStyles.
- * Class styles are applied first, then explicit style directives override.
- */
-function resolveNodeStyle(
-  nodeId: string,
-  graph: MermaidGraph
-): Record<string, string> | undefined {
-  let result: Record<string, string> | undefined
-
-  // First, apply class styles (if node has a class assignment)
-  const className = graph.classAssignments.get(nodeId)
-  if (className) {
-    const classDef = graph.classDefs.get(className)
-    if (classDef) {
-      result = { ...classDef }
-    }
-  }
-
-  // Then, apply explicit style directives (override class styles)
-  const nodeStyle = graph.nodeStyles.get(nodeId)
-  if (nodeStyle) {
-    result = result ? { ...result, ...nodeStyle } : { ...nodeStyle }
-  }
-
-  return result
-}
-
-/**
- * Resolve inline styles for an edge from linkStyles map.
- * Default link style is applied first, then index-specific overrides.
- */
-function resolveEdgeStyle(
-  edgeIndex: number,
-  graph: MermaidGraph
-): Record<string, string> | undefined {
-  let result: Record<string, string> | undefined
-
-  const defaultStyle = graph.linkStyles.get('default')
-  if (defaultStyle) {
-    result = { ...defaultStyle }
-  }
-
-  const indexStyle = graph.linkStyles.get(edgeIndex)
-  if (indexStyle) {
-    result = result ? { ...result, ...indexStyle } : { ...indexStyle }
-  }
-
-  return result
 }
 
 // ============================================================================

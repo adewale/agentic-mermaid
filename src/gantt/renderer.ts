@@ -18,9 +18,11 @@
 // ============================================================================
 
 import type { GanttLayoutResult } from './types.ts'
-import type { DiagramColors } from '../theme.ts'
+import type { RenderContext } from '../types.ts'
 import { svgOpenTag, buildStyleBlock } from '../theme.ts'
 import { escapeXml } from '../multiline-utils.ts'
+import { STROKE_WIDTHS, resolveRenderStyle } from '../styles.ts'
+import type { RenderStyleDefaults, ResolvedRenderStyle } from '../styles.ts'
 
 const GS = {
   titleFontSize: 17,
@@ -30,22 +32,52 @@ const GS = {
   barRadius: 3,
 } as const
 
-function ganttStyles(): string {
+const GANTT_STYLE_DEFAULTS: RenderStyleDefaults = {
+  nodeLabelFontSize: GS.labelFontSize,
+  edgeLabelFontSize: GS.axisFontSize,
+  groupHeaderFontSize: GS.sectionFontSize,
+  nodeLabelFontWeight: 500,
+  edgeLabelFontWeight: 500,
+  groupHeaderFontWeight: 600,
+  nodePaddingX: 0,
+  nodePaddingY: 0,
+  nodeLineWidth: STROKE_WIDTHS.innerBox,
+  edgeLineWidth: STROKE_WIDTHS.connector,
+  groupCornerRadius: 0,
+  groupPaddingX: 0,
+  groupPaddingY: 0,
+  groupLineWidth: STROKE_WIDTHS.outerBox,
+}
+
+function ganttStyles(style: ResolvedRenderStyle): string {
+  const groupFill = style.groupFillColor ?? 'var(--surface, var(--fg))'
+  const groupOpacity = style.groupFillColor ? '1' : '0.07'
+  const edgeStroke = style.edgeStrokeColor ?? 'var(--line, var(--border, var(--fg)))'
+  const nodeFill = style.nodeFillColor ?? 'var(--accent, var(--fg))'
+  const nodeBorder = style.nodeBorderColor ?? 'var(--fg)'
+  const doneFill = style.nodeFillColor ?? 'var(--muted, var(--line, var(--fg)))'
+  const criticalFill = style.nodeFillColor ?? 'var(--fg)'
+  const criticalStroke = style.nodeBorderColor ?? style.edgeStrokeColor ?? 'var(--accent, var(--fg))'
+  const titleFill = style.groupTextColor ?? style.nodeTextColor ?? 'var(--fg)'
+  const groupText = style.groupTextColor ?? style.nodeTextColor ?? 'var(--fg)'
+  const taskText = style.nodeTextColor ?? 'var(--fg)'
+  const axisText = style.edgeTextColor ?? style.groupTextColor ?? 'var(--muted, var(--fg))'
+
   return `<style>
-  .gantt-section-band { fill: var(--surface, var(--fg)); opacity: 0.07; }
-  .gantt-grid-line { stroke: var(--line, var(--border, var(--fg))); stroke-width: 1; opacity: 0.45; }
-  .gantt-bar { fill: var(--accent, var(--fg)); stroke: none; opacity: 0.92; }
-  .gantt-bar-active { fill: var(--accent, var(--fg)); stroke: var(--fg); stroke-width: 1.5; opacity: 1; }
-  .gantt-bar-done { fill: var(--muted, var(--line, var(--fg))); opacity: 0.55; }
-  .gantt-bar-crit { fill: var(--fg); stroke: var(--accent, var(--fg)); stroke-width: 1.5; opacity: 0.95; }
-  .gantt-milestone { fill: var(--accent, var(--fg)); stroke: var(--fg); stroke-width: 1; }
-  .gantt-milestone-crit { fill: var(--fg); stroke: var(--accent, var(--fg)); stroke-width: 1.5; }
-  .gantt-vert-marker { stroke: var(--line, var(--fg)); stroke-width: 2; stroke-dasharray: 6 3; }
-  .gantt-today-marker { stroke: var(--accent, var(--fg)); stroke-width: 2; stroke-dasharray: 4 3; }
-  .gantt-title { fill: var(--fg); }
-  .gantt-section-label { fill: var(--fg); }
-  .gantt-task-label { fill: var(--fg); }
-  .gantt-axis-label { fill: var(--muted, var(--fg)); }
+  .gantt-section-band { fill: ${groupFill}; opacity: ${groupOpacity}; }
+  .gantt-grid-line { stroke: ${edgeStroke}; stroke-width: ${style.lineWidth}; opacity: ${style.edgeStrokeColor ? '0.6' : '0.45'}; }
+  .gantt-bar { fill: ${nodeFill}; stroke: ${style.nodeBorderColor ? nodeBorder : 'none'};${style.nodeBorderColor ? ` stroke-width: ${style.nodeLineWidth};` : ''} opacity: 0.92; }
+  .gantt-bar-active { fill: ${nodeFill}; stroke: ${nodeBorder}; stroke-width: ${Math.max(1.5, style.nodeLineWidth)}; opacity: 1; }
+  .gantt-bar-done { fill: ${doneFill}; opacity: ${style.nodeFillColor ? '0.72' : '0.55'}; }
+  .gantt-bar-crit { fill: ${criticalFill}; stroke: ${criticalStroke}; stroke-width: ${Math.max(1.5, style.nodeLineWidth)}; opacity: 0.95; }
+  .gantt-milestone { fill: ${nodeFill}; stroke: ${nodeBorder}; stroke-width: ${Math.max(1, style.nodeLineWidth)}; }
+  .gantt-milestone-crit { fill: ${criticalFill}; stroke: ${criticalStroke}; stroke-width: ${Math.max(1.5, style.nodeLineWidth)}; }
+  .gantt-vert-marker { stroke: ${edgeStroke}; stroke-width: ${Math.max(2, style.lineWidth)}; stroke-dasharray: 6 3; }
+  .gantt-today-marker { stroke: ${style.edgeStrokeColor ?? 'var(--accent, var(--fg))'}; stroke-width: ${Math.max(2, style.lineWidth)}; stroke-dasharray: 4 3; }
+  .gantt-title { fill: ${titleFill}; }
+  .gantt-section-label { fill: ${groupText}; }
+  .gantt-task-label { fill: ${taskText}; }
+  .gantt-axis-label { fill: ${axisText}; }
 </style>`
 }
 
@@ -56,23 +88,34 @@ function statusClass(tags: readonly string[]): string {
   return 'gantt-bar'
 }
 
-function text(x: number, y: number, content: string, cls: string, size: number, weight: number, anchor = 'start'): string {
+function text(
+  x: number,
+  y: number,
+  content: string,
+  cls: string,
+  size: number,
+  weight: number,
+  anchor = 'start',
+  letterSpacing = 0,
+): string {
+  const letter = letterSpacing !== 0 ? ` letter-spacing="${letterSpacing}"` : ''
   return `<text class="${cls}" x="${r(x)}" y="${r(y)}" text-anchor="${anchor}" dominant-baseline="middle" ` +
-    `font-size="${size}" font-weight="${weight}">${escapeXml(content)}</text>`
+    `font-size="${size}" font-weight="${weight}"${letter}>${escapeXml(content)}</text>`
 }
 
 function r(n: number): number { return Math.round(n * 100) / 100 }
 
 export function renderGanttSvg(
-  layout: GanttLayoutResult,
-  colors: DiagramColors,
-  font: string = 'Inter',
-  transparent: boolean = false,
+  ctx: RenderContext<GanttLayoutResult>,
 ): string {
+  const { positioned: layout, colors, options } = ctx
+  const font = colors.font ?? 'Inter'
+  const transparent = options.transparent ?? false
+  const style = resolveRenderStyle(options, GANTT_STYLE_DEFAULTS)
   const parts: string[] = []
   parts.push(svgOpenTag(layout.width, layout.height, colors, transparent))
   parts.push(buildStyleBlock(font, false, colors.shadow, colors.embedFontImport))
-  parts.push(ganttStyles())
+  parts.push(ganttStyles(style))
 
   const plot = layout.plot
   const plotBottom = plot.y + plot.h
@@ -91,20 +134,20 @@ export function renderGanttSvg(
 
   // Axis labels: bottom always; top additionally under `topAxis`.
   for (const tick of layout.ticks) {
-    parts.push(text(tick.x, plotBottom + 12, tick.label, 'gantt-axis-label', GS.axisFontSize, 500, 'middle'))
+    parts.push(text(tick.x, plotBottom + 12, tick.label, 'gantt-axis-label', style.edgeLabelFontSize, style.edgeLabelFontWeight, 'middle', style.edgeLetterSpacing))
     if (layout.topAxis) {
-      parts.push(text(tick.x, plot.y - 10, tick.label, 'gantt-axis-label', GS.axisFontSize, 500, 'middle'))
+      parts.push(text(tick.x, plot.y - 10, tick.label, 'gantt-axis-label', style.edgeLabelFontSize, style.edgeLabelFontWeight, 'middle', style.edgeLetterSpacing))
     }
   }
 
   // Section + task labels in the left column (role: text).
   for (const s of layout.sections) {
     if (s.label !== undefined) {
-      parts.push(text(8, s.y + layout.barHeight / 2 + 4, s.label, 'gantt-section-label', GS.sectionFontSize, 600))
+      parts.push(text(8, s.y + layout.barHeight / 2 + 4, s.label, 'gantt-section-label', style.groupHeaderFontSize, style.groupHeaderFontWeight, 'start', style.groupLetterSpacing))
     }
   }
   for (const bar of layout.bars) {
-    parts.push(text(16, bar.y + bar.h / 2, bar.label, 'gantt-task-label', GS.labelFontSize, 500))
+    parts.push(text(16, bar.y + bar.h / 2, bar.label, 'gantt-task-label', style.nodeLabelFontSize, style.nodeLabelFontWeight, 'start', style.nodeLetterSpacing))
   }
 
   // Bars + milestones (role: node).
@@ -127,7 +170,7 @@ export function renderGanttSvg(
   // Vert markers (role: edge): full-height line + label at the top.
   for (const v of layout.verts) {
     parts.push(`<line class="gantt-vert-marker" x1="${r(v.x)}" y1="${r(plot.y)}" x2="${r(v.x)}" y2="${r(plotBottom)}" />`)
-    parts.push(text(v.x, plot.y - (layout.topAxis ? 24 : 8), v.label, 'gantt-axis-label', GS.axisFontSize, 600, 'middle'))
+    parts.push(text(v.x, plot.y - (layout.topAxis ? 24 : 8), v.label, 'gantt-axis-label', style.edgeLabelFontSize, Math.max(style.edgeLabelFontWeight, 600), 'middle', style.edgeLetterSpacing))
   }
 
   // Today marker — only with a supplied clock.
@@ -136,7 +179,7 @@ export function renderGanttSvg(
   }
 
   if (layout.title) {
-    parts.push(text(layout.width / 2, 18, layout.title, 'gantt-title', GS.titleFontSize, 600, 'middle'))
+    parts.push(text(layout.width / 2, 18, layout.title, 'gantt-title', GS.titleFontSize, Math.max(style.groupHeaderFontWeight, 600), 'middle', style.groupLetterSpacing))
   }
 
   parts.push('</svg>')

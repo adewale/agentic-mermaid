@@ -13,7 +13,7 @@ import { mutate } from '../agent/mutate.ts'
 import { verifyMermaid } from '../agent/verify.ts'
 import { asXyChart } from '../agent/types.ts'
 import type { XyChartValidDiagram, XyChartMutationOp } from '../agent/types.ts'
-import { parseXYChart } from '../xychart/parser.ts'
+import { applyXYChartFrontmatterConfig, parseXYChart } from '../xychart/parser.ts'
 import { normalizeMermaidSource } from '../mermaid-source.ts'
 
 const SRC = `xychart-beta
@@ -87,7 +87,7 @@ describe('xychart differential vs legacy parseXYChart', () => {
       const d = xychart(src)
       const out = serializeMermaid(d)
       const norm = normalizeMermaidSource(out)
-      const legacy = parseXYChart(norm.lines, norm.frontmatter)
+      const legacy = applyXYChartFrontmatterConfig(parseXYChart(norm.lines), norm.frontmatter)
 
       expect(legacy.title).toBe(d.body.title)
       expect(legacy.horizontal).toBe(Boolean(d.body.horizontal))
@@ -172,7 +172,7 @@ describe('xychart mutation ops', () => {
     const d = apply(xychart(), { kind: 'add_series', kind2: 'bar', values: [99, 100] })
     expect(d.body.series[2]!.values).toHaveLength(2)
     const norm = normalizeMermaidSource(serializeMermaid(d))
-    const legacy = parseXYChart(norm.lines, norm.frontmatter)
+    const legacy = applyXYChartFrontmatterConfig(parseXYChart(norm.lines), norm.frontmatter)
     expect(legacy.series[2]!.data).toEqual([99, 100])
     expect(legacy.xAxis.categories).toHaveLength(3)
   })

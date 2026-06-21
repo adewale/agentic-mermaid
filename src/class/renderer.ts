@@ -1,6 +1,5 @@
 import type { PositionedClassDiagram, PositionedClassNode, PositionedClassRelationship, ClassMember, RelationshipType } from './types.ts'
-import type { RenderOptions } from '../types.ts'
-import type { DiagramColors } from '../theme.ts'
+import type { RenderContext } from '../types.ts'
 import { svgOpenTag, buildStyleBlock, buildShadowDefs } from '../theme.ts'
 import { FONT_SIZES, FONT_WEIGHTS, STROKE_WIDTHS, estimateTextWidth, TEXT_BASELINE_SHIFT, resolveRenderStyle } from '../styles.ts'
 import type { RenderStyleDefaults, ResolvedRenderStyle } from '../styles.ts'
@@ -55,12 +54,11 @@ const CLS_FONT = {
  * @param transparent - If true, renders with transparent background.
  */
 export function renderClassSvg(
-  diagram: PositionedClassDiagram,
-  colors: DiagramColors,
-  font: string = 'Inter',
-  transparent: boolean = false,
-  options: RenderOptions = {},
+  ctx: RenderContext<PositionedClassDiagram>,
 ): string {
+  const { positioned: diagram, colors, options } = ctx
+  const font = colors.font ?? 'Inter'
+  const transparent = options.transparent ?? false
   const parts: string[] = []
   const style = resolveRenderStyle(options, CLASS_STYLE_DEFAULTS)
   const uid = `class-${hashAccessibility(diagram.width, diagram.height, diagram.classes.length, diagram.relationships.length)}`
@@ -72,7 +70,7 @@ export function renderClassSvg(
   parts.push(svgOpenTag(diagram.width, diagram.height, colors, transparent, rootAttrs))
   parts.push(buildStyleBlock(font, true, colors.shadow, colors.embedFontImport))
   parts.push('<defs>')
-  parts.push(relationshipMarkerDefs())
+  parts.push(relationshipMarkerDefs(style))
   const shadowDefs = buildShadowDefs(colors)
   if (shadowDefs) parts.push(shadowDefs)
   parts.push('</defs>')
@@ -119,23 +117,24 @@ export function renderClassSvg(
  *
  * Uses var(--_arrow) for fill/stroke and var(--bg) for hollow marker fills.
  */
-function relationshipMarkerDefs(): string {
+function relationshipMarkerDefs(style: ResolvedRenderStyle): string {
+  const edgeColor = escapeAttr(style.edgeStrokeColor ?? 'var(--_arrow)')
   return (
     // Hollow triangle (inheritance, realization) — points at target
     `  <marker id="cls-inherit" markerWidth="12" markerHeight="10" refX="12" refY="5" orient="auto-start-reverse">` +
-    `\n    <polygon points="0 0, 12 5, 0 10" fill="var(--bg)" stroke="var(--_arrow)" stroke-width="1.5" />` +
+    `\n    <polygon points="0 0, 12 5, 0 10" fill="var(--bg)" stroke="${edgeColor}" stroke-width="1.5" />` +
     `\n  </marker>` +
     // Filled diamond (composition) — points at source
     `\n  <marker id="cls-composition" markerWidth="12" markerHeight="10" refX="0" refY="5" orient="auto-start-reverse">` +
-    `\n    <polygon points="6 0, 12 5, 6 10, 0 5" fill="var(--_arrow)" stroke="var(--_arrow)" stroke-width="1" />` +
+    `\n    <polygon points="6 0, 12 5, 6 10, 0 5" fill="${edgeColor}" stroke="${edgeColor}" stroke-width="1" />` +
     `\n  </marker>` +
     // Hollow diamond (aggregation) — points at source
     `\n  <marker id="cls-aggregation" markerWidth="12" markerHeight="10" refX="0" refY="5" orient="auto-start-reverse">` +
-    `\n    <polygon points="6 0, 12 5, 6 10, 0 5" fill="var(--bg)" stroke="var(--_arrow)" stroke-width="1.5" />` +
+    `\n    <polygon points="6 0, 12 5, 6 10, 0 5" fill="var(--bg)" stroke="${edgeColor}" stroke-width="1.5" />` +
     `\n  </marker>` +
     // Open arrow (association, dependency)
     `\n  <marker id="cls-arrow" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto-start-reverse">` +
-    `\n    <polyline points="0 0, 8 3, 0 6" fill="none" stroke="var(--_arrow)" stroke-width="1.5" />` +
+    `\n    <polyline points="0 0, 8 3, 0 6" fill="none" stroke="${edgeColor}" stroke-width="1.5" />` +
     `\n  </marker>`
   )
 }
@@ -164,13 +163,13 @@ function renderClassBox(cls: PositionedClassNode, style: ResolvedRenderStyle): s
   // Outer rectangle (full box)
   parts.push(
     `  <rect x="${x}" y="${y}" width="${width}" height="${height}" ` +
-    `rx="${style.cornerRadius ?? 0}" ry="${style.cornerRadius ?? 0}" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="${style.nodeLineWidth}" />`
+    `rx="${style.cornerRadius ?? 0}" ry="${style.cornerRadius ?? 0}" fill="${escapeAttr(style.nodeFillColor ?? 'var(--_node-fill)')}" stroke="${escapeAttr(style.nodeBorderColor ?? 'var(--_node-stroke)')}" stroke-width="${style.nodeLineWidth}" />`
   )
 
   // Header background
   parts.push(
     `  <path d="${topRoundedRectPath(x, y, width, headerHeight, style.cornerRadius ?? 0)}" ` +
-    `fill="var(--_group-hdr)" stroke="var(--_node-stroke)" stroke-width="${style.nodeLineWidth}" />`
+    `fill="${escapeAttr(style.groupHeaderFillColor ?? 'var(--_group-hdr)')}" stroke="${escapeAttr(style.nodeBorderColor ?? 'var(--_node-stroke)')}" stroke-width="${style.nodeLineWidth}" />`
   )
 
   // Annotation (<<interface>>, <<abstract>>, etc.)
@@ -180,7 +179,7 @@ function renderClassBox(cls: PositionedClassNode, style: ResolvedRenderStyle): s
     parts.push(
       `  <text x="${x + width / 2}" y="${annotY}" text-anchor="middle" dy="${TEXT_BASELINE_SHIFT}" ` +
       `font-size="${CLS_FONT.annotationSize}" font-weight="${CLS_FONT.annotationWeight}" ` +
-      `font-style="italic" fill="var(--_text-muted)">&lt;&lt;${escapeXml(cls.annotation)}&gt;&gt;</text>`
+      `font-style="italic" fill="${escapeAttr(style.nodeTextColor ?? 'var(--_text-muted)')}">&lt;&lt;${escapeXml(cls.annotation)}&gt;&gt;</text>`
     )
     nameY = y + headerHeight / 2 + 6
   }
@@ -192,7 +191,7 @@ function renderClassBox(cls: PositionedClassNode, style: ResolvedRenderStyle): s
       x + width / 2,
       nameY,
       style.nodeLabelFontSize,
-      `text-anchor="middle" font-size="${style.nodeLabelFontSize}" font-weight="${style.nodeLabelFontWeight}"${letterAttr(style.nodeLetterSpacing)} fill="var(--_text)"`
+      `text-anchor="middle" font-size="${style.nodeLabelFontSize}" font-weight="${style.nodeLabelFontWeight}"${letterAttr(style.nodeLetterSpacing)} fill="${escapeAttr(style.nodeTextColor ?? 'var(--_text)')}"`
     )
   )
 
@@ -200,7 +199,7 @@ function renderClassBox(cls: PositionedClassNode, style: ResolvedRenderStyle): s
   const attrTop = y + headerHeight
   parts.push(
     `  <line x1="${x}" y1="${attrTop}" x2="${x + width}" y2="${attrTop}" ` +
-    `stroke="var(--_node-stroke)" stroke-width="${Math.min(style.nodeLineWidth, STROKE_WIDTHS.innerBox)}" />`
+    `stroke="${escapeAttr(style.nodeBorderColor ?? 'var(--_node-stroke)')}" stroke-width="${Math.min(style.nodeLineWidth, STROKE_WIDTHS.innerBox)}" />`
   )
 
   // Attributes
@@ -208,21 +207,21 @@ function renderClassBox(cls: PositionedClassNode, style: ResolvedRenderStyle): s
   for (let i = 0; i < cls.attributes.length; i++) {
     const member = cls.attributes[i]!
     const memberY = attrTop + 4 + i * memberRowH + memberRowH / 2
-    parts.push('  ' + renderMember(member, x + style.nodePaddingX, memberY))
+    parts.push('  ' + renderMember(member, x + style.nodePaddingX, memberY, style))
   }
 
   // Divider line between attributes and methods
   const methodTop = attrTop + attrHeight
   parts.push(
     `  <line x1="${x}" y1="${methodTop}" x2="${x + width}" y2="${methodTop}" ` +
-    `stroke="var(--_node-stroke)" stroke-width="${Math.min(style.nodeLineWidth, STROKE_WIDTHS.innerBox)}" />`
+    `stroke="${escapeAttr(style.nodeBorderColor ?? 'var(--_node-stroke)')}" stroke-width="${Math.min(style.nodeLineWidth, STROKE_WIDTHS.innerBox)}" />`
   )
 
   // Methods
   for (let i = 0; i < cls.methods.length; i++) {
     const member = cls.methods[i]!
     const memberY = methodTop + 4 + i * memberRowH + memberRowH / 2
-    parts.push('  ' + renderMember(member, x + style.nodePaddingX, memberY))
+    parts.push('  ' + renderMember(member, x + style.nodePaddingX, memberY, style))
   }
 
   parts.push('</g>')
@@ -238,7 +237,7 @@ function renderClassBox(cls: PositionedClassNode, style: ResolvedRenderStyle): s
  *   - colon separator → textFaint
  *   - type annotation → textMuted
  */
-function renderMember(member: ClassMember, x: number, y: number): string {
+function renderMember(member: ClassMember, x: number, y: number, style: ResolvedRenderStyle): string {
   const fontStyle = member.isAbstract ? ' font-style="italic"' : ''
   const decoration = member.isStatic ? ' text-decoration="underline"' : ''
 
@@ -253,7 +252,7 @@ function renderMember(member: ClassMember, x: number, y: number): string {
   const displayName = member.isMethod
     ? `${member.name}(${member.params || ''})`
     : member.name
-  spans.push(`<tspan fill="var(--_text-sec)">${escapeXml(displayName)}</tspan>`)
+  spans.push(`<tspan fill="${escapeAttr(style.nodeTextColor ?? 'var(--_text-sec)')}">${escapeXml(displayName)}</tspan>`)
 
   if (member.type) {
     spans.push(`<tspan fill="var(--_text-faint)">: </tspan>`)
@@ -311,13 +310,13 @@ function renderRelationship(rel: PositionedClassRelationship, style: ResolvedRen
 
   if (style.edgeBendRadius > 0 && rel.points.length > 2) {
     return (
-      `<path ${dataAttrs.join(' ')} d="${pointsToPathD(rel.points, style.edgeBendRadius)}" fill="none" stroke="var(--_line)" ` +
+      `<path ${dataAttrs.join(' ')} d="${pointsToPathD(rel.points, style.edgeBendRadius)}" fill="none" stroke="${escapeAttr(style.edgeStrokeColor ?? 'var(--_line)')}" ` +
       `stroke-width="${style.lineWidth}"${dashArray}${markers} />`
     )
   }
 
   return (
-    `<polyline ${dataAttrs.join(' ')} points="${pathData}" fill="none" stroke="var(--_line)" ` +
+    `<polyline ${dataAttrs.join(' ')} points="${pathData}" fill="none" stroke="${escapeAttr(style.edgeStrokeColor ?? 'var(--_line)')}" ` +
     `stroke-width="${style.lineWidth}"${dashArray}${markers} />`
   )
 }
@@ -369,7 +368,7 @@ function renderRelationshipLabels(rel: PositionedClassRelationship, style: Resol
     const pos = rel.labelPosition ?? midpoint(rel.points)
     parts.push(
       renderMultilineText(rel.label, pos.x, pos.y - 8, style.edgeLabelFontSize,
-        `font-size="${style.edgeLabelFontSize}" text-anchor="middle" font-weight="${style.edgeLabelFontWeight}"${letterAttr(style.edgeLetterSpacing)} fill="var(--_text-muted)"`)
+        `font-size="${style.edgeLabelFontSize}" text-anchor="middle" font-weight="${style.edgeLabelFontWeight}"${letterAttr(style.edgeLetterSpacing)} fill="${escapeAttr(style.edgeTextColor ?? 'var(--_text-muted)')}"`)
     )
   }
 
@@ -380,7 +379,7 @@ function renderRelationshipLabels(rel: PositionedClassRelationship, style: Resol
     const offset = cardinalityOffset(p, next)
     parts.push(
       renderMultilineText(rel.fromCardinality, p.x + offset.x, p.y + offset.y, style.edgeLabelFontSize,
-        `font-size="${style.edgeLabelFontSize}" text-anchor="middle" font-weight="${style.edgeLabelFontWeight}"${letterAttr(style.edgeLetterSpacing)} fill="var(--_text-muted)"`)
+        `font-size="${style.edgeLabelFontSize}" text-anchor="middle" font-weight="${style.edgeLabelFontWeight}"${letterAttr(style.edgeLetterSpacing)} fill="${escapeAttr(style.edgeTextColor ?? 'var(--_text-muted)')}"`)
     )
   }
 
@@ -391,7 +390,7 @@ function renderRelationshipLabels(rel: PositionedClassRelationship, style: Resol
     const offset = cardinalityOffset(p, prev)
     parts.push(
       renderMultilineText(rel.toCardinality, p.x + offset.x, p.y + offset.y, style.edgeLabelFontSize,
-        `font-size="${style.edgeLabelFontSize}" text-anchor="middle" font-weight="${style.edgeLabelFontWeight}"${letterAttr(style.edgeLetterSpacing)} fill="var(--_text-muted)"`)
+        `font-size="${style.edgeLabelFontSize}" text-anchor="middle" font-weight="${style.edgeLabelFontWeight}"${letterAttr(style.edgeLetterSpacing)} fill="${escapeAttr(style.edgeTextColor ?? 'var(--_text-muted)')}"`)
     )
   }
 

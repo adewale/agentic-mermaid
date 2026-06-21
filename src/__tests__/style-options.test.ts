@@ -1,11 +1,44 @@
 import { describe, expect, it } from 'bun:test'
 import fc from 'fast-check'
 import { renderMermaidSVG } from '../index.ts'
-import { renderSvg } from '../renderer.ts'
+import { renderSvg as renderSvgWithContext } from '../renderer.ts'
 import type { DiagramColors } from '../theme.ts'
-import type { PositionedEdge, PositionedGraph, PositionedGroup, PositionedNode } from '../types.ts'
+import type { PositionedEdge, PositionedGraph, PositionedGroup, PositionedNode, RenderOptions } from '../types.ts'
 
 const colors: DiagramColors = { bg: '#ffffff', fg: '#111827' }
+const semanticColorOptions: RenderOptions = {
+  style: {
+    node: {
+      fillColor: '#fee2e2',
+      borderColor: '#991b1b',
+      textColor: '#111827',
+    },
+    edge: {
+      strokeColor: '#2563eb',
+      textColor: '#1e3a8a',
+    },
+    group: {
+      fillColor: '#f0fdf4',
+      headerFillColor: '#dcfce7',
+      borderColor: '#15803d',
+      textColor: '#14532d',
+    },
+  },
+}
+
+function renderSvg(
+  positioned: PositionedGraph,
+  palette: DiagramColors,
+  font = 'Inter',
+  transparent = false,
+  options: RenderOptions = {},
+): string {
+  return renderSvgWithContext({
+    positioned,
+    colors: { ...palette, font },
+    options: { ...options, transparent },
+  })
+}
 
 function graph(overrides: Partial<PositionedGraph> = {}): PositionedGraph {
   return { width: 320, height: 240, nodes: [], edges: [], groups: [], ...overrides }
@@ -107,6 +140,50 @@ describe('RenderOptions semantic style roles', () => {
     expect(styled).toContain('letter-spacing="-0.25"')
     expect(styled).toContain('font-size="15" font-weight="400"')
     expect(styled).toContain('stroke-width="2.5"')
+  })
+
+  it('applies semantic color roles through the core SVG renderer', () => {
+    const source = `graph TD
+      subgraph backend [Backend]
+        A[API] -->|route| B[DB]
+      end`
+    const svg = renderMermaidSVG(source, semanticColorOptions)
+    const nodeA = firstNodeRect(svg, 'A').attrs
+    const group = firstSubgraphRect(svg, 'backend').attrs
+
+    expect(nodeA).toContain('fill="#fee2e2"')
+    expect(nodeA).toContain('stroke="#991b1b"')
+    expect(svg).toContain('fill="#111827"')
+    expect(svg).toContain('stroke="#2563eb"')
+    expect(svg).toContain('fill="#1e3a8a"')
+    expect(group).toContain('fill="#f0fdf4"')
+    expect(group).toContain('stroke="#15803d"')
+    expect(svg).toContain('fill="#dcfce7"')
+    expect(svg).toContain('fill="#14532d"')
+  })
+
+  it('keeps Mermaid inline color directives above semantic style defaults', () => {
+    const source = `graph TD
+      A[Alpha] -->|route| B[Beta]
+      style A fill:#ff0000,stroke:#00ff00,color:#0000ff
+      linkStyle 0 stroke:#123456`
+    const svg = renderMermaidSVG(source, semanticColorOptions)
+    const nodeAStart = svg.indexOf('<g class="node" data-id="A"')
+    const nodeBStart = svg.indexOf('<g class="node" data-id="B"')
+    const nodeA = svg.slice(nodeAStart, nodeBStart)
+    const nodeB = svg.slice(nodeBStart)
+    const edgeTag = svg.match(/<(?:path|polyline) class="edge"[^>]+data-from="A"[^>]+>/)?.[0] ?? ''
+
+    expect(nodeA).toContain('fill="#ff0000"')
+    expect(nodeA).toContain('stroke="#00ff00"')
+    expect(nodeA).toContain('fill="#0000ff"')
+    expect(nodeA).not.toContain('fill="#fee2e2"')
+    expect(nodeA).not.toContain('stroke="#991b1b"')
+    expect(nodeB).toContain('fill="#fee2e2"')
+    expect(nodeB).toContain('stroke="#991b1b"')
+    expect(edgeTag).toContain('stroke="#123456"')
+    expect(edgeTag).not.toContain('stroke="#2563eb"')
+    expect(svg).toContain('fill="#1e3a8a"')
   })
 
   it('preserves default SVG output when style options are omitted or invalid', () => {
@@ -244,11 +321,16 @@ describe('RenderOptions semantic style roles', () => {
           paddingY: 30,
           cornerRadius: 14,
           lineWidth: 2.25,
+          fillColor: '#fee2e2',
+          borderColor: '#991b1b',
+          textColor: '#111827',
         },
         edge: {
           fontSize: 18,
           lineWidth: 3,
           bendRadius: 10,
+          strokeColor: '#2563eb',
+          textColor: '#1e3a8a',
         },
         group: {
           fontSize: 20,
@@ -257,6 +339,9 @@ describe('RenderOptions semantic style roles', () => {
           textTransform: 'uppercase' as const,
           cornerRadius: 16,
           borderColor: '#ff00aa',
+          fillColor: '#f0fdf4',
+          headerFillColor: '#dcfce7',
+          textColor: '#14532d',
           paddingX: 48,
           paddingY: 36,
           lineWidth: 2,
@@ -264,13 +349,16 @@ describe('RenderOptions semantic style roles', () => {
       },
     }
     const cases = [
-      ['architecture', 'architecture-beta\n  group backend(cloud)[Backend]\n  service api(server)[API] in backend\n  service db(database)[DB] in backend\n  api:R -[reads]-> L:db', ['font-size="24"', 'rx="14"', 'stroke-width: 3', 'font-size="18"']],
-      ['sequence', 'sequenceDiagram\n  Alice->>Bob: Hello', ['font-size="24"', 'rx="14"', 'stroke-width="3"', 'font-size="18"']],
-      ['class', 'classDiagram\n  Animal <|-- Dog : inherits\n  class Animal\n  class Dog', ['font-size="24"', 'rx="14"', 'stroke-width="3"', 'font-size="18"']],
-      ['er', 'erDiagram\n  CUSTOMER ||--o{ ORDER : places', ['font-size="24"', 'rx="14"', 'stroke-width="3"', 'font-size="18"']],
-      ['timeline', 'timeline\n  section Releases\n  2020 : Event A', ['font-size="24"', 'rx="14"', 'stroke-width: 3', 'font-size="20"']],
-      ['journey', 'journey\n  title User Journey\n  section Login\n    Open app: 5: User', ['font-size="24"', 'rx="14"', 'font-size="20"']],
-      ['xychart', 'xychart-beta\n  title Sales\n  x-axis [A, B, C]\n  y-axis "Count" 0 --> 10\n  line [3, 7, 5]', ['font-size="24"', 'font-size="20"', 'stroke-width: 3']],
+      ['architecture', 'architecture-beta\n  group backend(cloud)[Backend]\n  service api(server)[API] in backend\n  service db(database)[DB] in backend\n  api:R -[reads]-> L:db', ['font-size="24"', 'rx="14"', 'stroke-width: 3', 'font-size="18"', '--arch-service-fill:#fee2e2', '--arch-group-band:#dcfce7', '--arch-edge-stroke:#2563eb']],
+      ['sequence', 'sequenceDiagram\n  Alice->>Bob: Hello', ['font-size="24"', 'rx="14"', 'stroke-width="3"', 'font-size="18"', 'fill="#fee2e2"', 'stroke="#991b1b"', 'stroke="#2563eb"']],
+      ['class', 'classDiagram\n  Animal <|-- Dog : inherits\n  class Animal\n  class Dog', ['font-size="24"', 'rx="14"', 'stroke-width="3"', 'font-size="18"', 'fill="#fee2e2"', 'stroke="#991b1b"', 'stroke="#2563eb"', 'fill="#dcfce7"']],
+      ['er', 'erDiagram\n  CUSTOMER ||--o{ ORDER : places', ['font-size="24"', 'rx="14"', 'stroke-width="3"', 'font-size="18"', 'fill="#fee2e2"', 'stroke="#991b1b"', 'stroke="#2563eb"', 'fill="#dcfce7"']],
+      ['timeline', 'timeline\n  section Releases\n  2020 : Event A', ['font-size="24"', 'rx="14"', 'stroke-width: 3', 'font-size="20"', '#fee2e2', '#2563eb', '#f0fdf4', '#dcfce7']],
+      ['journey', 'journey\n  title User Journey\n  section Login\n    Open app: 5: User', ['font-size="24"', 'rx="14"', 'font-size="20"', '#fee2e2', '#2563eb', '#f0fdf4', '#dcfce7']],
+      ['xychart', 'xychart-beta\n  title Sales\n  x-axis [A, B, C]\n  y-axis "Count" 0 --> 10\n  line [3, 7, 5]', ['font-size="24"', 'font-size="20"', 'stroke-width: 3', '#111827', '#2563eb', '#1e3a8a', '#14532d']],
+      ['gantt', 'gantt\n  dateFormat YYYY-MM-DD\n  title Plan\n  section Build\n    Spec :spec, 2024-01-01, 2d', ['font-size="24"', 'font-size="20"', 'stroke-width: 3', '#fee2e2', '#991b1b', '#2563eb', '#f0fdf4']],
+      ['pie', 'pie title Pets\n  "Dogs" : 3\n  "Cats" : 2', ['font-size="24"', 'font-size="20"', '#991b1b', '#111827', '#14532d']],
+      ['quadrant', 'quadrantChart\n  title Priorities\n  x-axis Low --> High\n  y-axis Risk --> Reward\n  quadrant-1 Plan\n  quadrant-2 Invest\n  quadrant-3 Ignore\n  quadrant-4 Monitor\n  A: [0.7, 0.8]', ['font-size="24"', 'font-size="20"', 'stroke-width: 3', '#fee2e2', '#991b1b', '#2563eb', '#1e3a8a']],
     ] as const
 
     for (const [name, source, expectations] of cases) {

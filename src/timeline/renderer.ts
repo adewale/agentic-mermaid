@@ -1,5 +1,5 @@
 import type { PositionedTimelineDiagram, PositionedTimelineSection, PositionedTimelinePeriod, PositionedTimelineEvent } from './types.ts'
-import type { RenderOptions } from '../types.ts'
+import type { RenderContext } from '../types.ts'
 import type { DiagramColors } from '../theme.ts'
 import { svgOpenTag, buildStyleBlock, buildShadowDefs } from '../theme.ts'
 import { renderMultilineText, escapeXml } from '../multiline-utils.ts'
@@ -62,14 +62,13 @@ interface TimelineFamilyPalette {
  * Render a positioned timeline diagram as an SVG string.
  */
 export function renderTimelineSvg(
-  diagram: PositionedTimelineDiagram,
-  colors: DiagramColors,
-  font: string = 'Inter',
-  transparent: boolean = false,
-  timelineConfig: TimelineRuntimeConfig = {},
-  themeVariables?: MermaidThemeVariables,
-  options: RenderOptions = {},
+  ctx: RenderContext<PositionedTimelineDiagram>,
 ): string {
+  const { positioned: diagram, colors, options } = ctx
+  const font = colors.font ?? 'Inter'
+  const transparent = options.transparent ?? false
+  const timelineConfig = options.mermaidConfig?.timeline ?? {}
+  const themeVariables = options.mermaidConfig?.themeVariables
   const parts: string[] = []
   const style = resolveRenderStyle(options, TIMELINE_STYLE_DEFAULTS)
   const useSectionFamilies = diagram.sections.some(section => Boolean(section.label))
@@ -135,18 +134,18 @@ export function renderTimelineSvg(
 
 function timelineStyles(style: ResolvedRenderStyle): string {
   return `<style>
-  .timeline-title { fill: var(--_text); }
-  .timeline-rail { stroke: var(--_line); stroke-width: ${style.lineWidth}; stroke-linecap: round; }
-  .timeline-section-bg { fill: var(--tl-section-bg, color-mix(in srgb, var(--_node-fill) 88%, var(--bg))); stroke: var(--tl-line, ${style.groupBorderColor ?? 'var(--_node-stroke)'}); stroke-width: ${style.groupLineWidth}; }
-  .timeline-section-band { fill: var(--tl-section-band, color-mix(in srgb, var(--_arrow) 8%, var(--bg))); stroke: var(--tl-line, ${style.groupBorderColor ?? 'var(--_node-stroke)'}); stroke-width: ${style.groupLineWidth}; }
-  .timeline-section-label { fill: var(--tl-label, var(--_text-sec)); }
-  .timeline-stem { stroke: var(--tl-line, color-mix(in srgb, var(--_arrow) 32%, var(--_line))); stroke-width: ${Math.max(1, style.lineWidth * 0.75)}; stroke-dasharray: 3 4; }
-  .timeline-marker-ring { fill: var(--bg); stroke: var(--tl-line, var(--_arrow)); stroke-width: 1.5; }
-  .timeline-marker-core { fill: var(--tl-accent, var(--_arrow)); }
-  .timeline-period-pill { fill: var(--tl-pill-fill, color-mix(in srgb, var(--_arrow) 7%, var(--bg))); stroke: var(--tl-pill-stroke, color-mix(in srgb, var(--_arrow) 20%, var(--bg))); stroke-width: ${style.nodeLineWidth}; }
-  .timeline-period-text { fill: var(--tl-label, var(--_text)); }
-  .timeline-event-card { fill: var(--tl-event-fill, var(--_node-fill)); stroke: var(--tl-line, var(--_node-stroke)); stroke-width: ${style.nodeLineWidth}; }
-  .timeline-event-text { fill: var(--tl-label, var(--_text-muted)); }
+  .timeline-title { fill: ${style.groupTextColor ?? style.nodeTextColor ?? 'var(--_text)'}; }
+  .timeline-rail { stroke: ${style.edgeStrokeColor ?? 'var(--_line)'}; stroke-width: ${style.lineWidth}; stroke-linecap: round; }
+  .timeline-section-bg { fill: var(--tl-section-bg, ${style.groupFillColor ?? 'color-mix(in srgb, var(--_node-fill) 88%, var(--bg))'}); stroke: var(--tl-line, ${style.groupBorderColor ?? 'var(--_node-stroke)'}); stroke-width: ${style.groupLineWidth}; }
+  .timeline-section-band { fill: var(--tl-section-band, ${style.groupHeaderFillColor ?? 'color-mix(in srgb, var(--_arrow) 8%, var(--bg))'}); stroke: var(--tl-line, ${style.groupBorderColor ?? 'var(--_node-stroke)'}); stroke-width: ${style.groupLineWidth}; }
+  .timeline-section-label { fill: var(--tl-label, ${style.groupTextColor ?? 'var(--_text-sec)'}); }
+  .timeline-stem { stroke: var(--tl-line, ${style.edgeStrokeColor ?? 'color-mix(in srgb, var(--_arrow) 32%, var(--_line))'}); stroke-width: ${Math.max(1, style.lineWidth * 0.75)}; stroke-dasharray: 3 4; }
+  .timeline-marker-ring { fill: var(--bg); stroke: var(--tl-line, ${style.edgeStrokeColor ?? 'var(--_arrow)'}); stroke-width: 1.5; }
+  .timeline-marker-core { fill: var(--tl-accent, ${style.edgeStrokeColor ?? 'var(--_arrow)'}); }
+  .timeline-period-pill { fill: var(--tl-pill-fill, ${style.nodeFillColor ?? 'color-mix(in srgb, var(--_arrow) 7%, var(--bg))'}); stroke: var(--tl-pill-stroke, ${style.nodeBorderColor ?? 'color-mix(in srgb, var(--_arrow) 20%, var(--bg))'}); stroke-width: ${style.nodeLineWidth}; }
+  .timeline-period-text { fill: var(--tl-label, ${style.nodeTextColor ?? 'var(--_text)'}); }
+  .timeline-event-card { fill: var(--tl-event-fill, ${style.nodeFillColor ?? 'var(--_node-fill)'}); stroke: var(--tl-line, ${style.nodeBorderColor ?? 'var(--_node-stroke)'}); stroke-width: ${style.nodeLineWidth}; }
+  .timeline-event-text { fill: var(--tl-label, ${style.nodeTextColor ?? 'var(--_text-muted)'}); }
 </style>`
 }
 

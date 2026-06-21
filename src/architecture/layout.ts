@@ -1,6 +1,6 @@
 import type { Point, RenderOptions } from '../types.ts'
-import type { ArchitectureVisualConfig } from './config.ts'
-import { layoutGraphSync } from '../layout.ts'
+import type { ArchitectureLayoutMetrics } from './config.ts'
+import { layoutGraphSync } from '../layout-engine.ts'
 import { architectureToMermaidGraph } from './parser.ts'
 import type {
   ArchitectureDiagram,
@@ -45,7 +45,7 @@ interface ResolvedEndpoint {
 export function layoutArchitectureDiagram(
   diagram: ArchitectureDiagram,
   options: RenderOptions = {},
-  visual?: ArchitectureVisualConfig,
+  metrics?: ArchitectureLayoutMetrics,
 ): PositionedArchitectureDiagram {
   const graph = architectureToMermaidGraph(diagram)
   const positioned = layoutGraphSync(graph, {
@@ -54,34 +54,33 @@ export function layoutArchitectureDiagram(
     layerSpacing: options.layerSpacing ?? 56,
     componentSpacing: options.componentSpacing,
     preserveSubgraphChildOrder: true,
-    style: visual ? {
+    style: metrics ? {
       node: {
-        fontSize: visual.serviceFontSize,
-        fontWeight: visual.serviceFontWeight,
-        letterSpacing: visual.serviceLetterSpacing,
-        paddingX: visual.servicePaddingX,
-        paddingY: visual.servicePaddingY,
-        cornerRadius: visual.serviceCornerRadius,
-        lineWidth: visual.serviceLineWidth,
+        fontSize: metrics.serviceFontSize,
+        fontWeight: metrics.serviceFontWeight,
+        letterSpacing: metrics.serviceLetterSpacing,
+        paddingX: metrics.servicePaddingX,
+        paddingY: metrics.servicePaddingY,
+        cornerRadius: metrics.serviceCornerRadius,
+        lineWidth: metrics.serviceLineWidth,
       },
       edge: {
-        fontSize: visual.edgeFontSize,
-        fontWeight: visual.edgeFontWeight,
-        letterSpacing: visual.edgeLetterSpacing,
-        lineWidth: visual.edgeLineWidth,
-        bendRadius: visual.edgeBendRadius,
+        fontSize: metrics.edgeFontSize,
+        fontWeight: metrics.edgeFontWeight,
+        letterSpacing: metrics.edgeLetterSpacing,
+        lineWidth: metrics.edgeLineWidth,
+        bendRadius: metrics.edgeBendRadius,
       },
       group: {
-        fontSize: visual.groupFontSize,
-        fontWeight: visual.groupFontWeight,
-        letterSpacing: visual.groupLetterSpacing,
-        fontFamily: visual.groupFont,
-        textTransform: visual.groupTextTransform,
-        paddingX: visual.groupPaddingX,
-        paddingY: visual.groupPaddingY,
-        cornerRadius: visual.groupCornerRadius,
-        borderColor: visual.groupBorder,
-        lineWidth: visual.groupLineWidth,
+        fontSize: metrics.groupFontSize,
+        fontWeight: metrics.groupFontWeight,
+        letterSpacing: metrics.groupLetterSpacing,
+        fontFamily: metrics.groupFont,
+        textTransform: metrics.groupTextTransform,
+        paddingX: metrics.groupPaddingX,
+        paddingY: metrics.groupPaddingY,
+        cornerRadius: metrics.groupCornerRadius,
+        lineWidth: metrics.groupLineWidth,
       },
     } : undefined,
   })

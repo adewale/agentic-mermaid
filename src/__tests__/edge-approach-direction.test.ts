@@ -13,7 +13,7 @@
 
 import { describe, it, expect } from 'bun:test'
 import { parseMermaid } from '../parser.ts'
-import { layoutGraphSync } from '../layout.ts'
+import { layoutGraphSync } from '../layout-engine.ts'
 
 interface Point {
   x: number

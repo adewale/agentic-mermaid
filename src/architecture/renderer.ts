@@ -8,7 +8,7 @@ import type {
 import type { ArchitectureVisualConfig } from './config.ts'
 import { DEFAULT_ARCHITECTURE_VISUAL } from './config.ts'
 import type { DiagramColors } from '../theme.ts'
-import type { Point } from '../types.ts'
+import type { Point, RenderContext } from '../types.ts'
 import { svgOpenTag, buildStyleBlock } from '../theme.ts'
 import { renderMultilineText, renderMultilineTextWithBackground, escapeXml } from '../multiline-utils.ts'
 import { measureMultilineText } from '../text-metrics.ts'
@@ -18,18 +18,23 @@ import { topRoundedRectPath } from '../svg-paths.ts'
  * Render a positioned architecture diagram as SVG.
  */
 export function renderArchitectureSvg(
-  diagram: PositionedArchitectureDiagram,
-  colors: DiagramColors,
-  font: string = 'Inter',
-  transparent: boolean = false,
-  visual: ArchitectureVisualConfig = DEFAULT_ARCHITECTURE_VISUAL,
+  ctx: RenderContext<PositionedArchitectureDiagram>,
 ): string {
+  const { positioned: diagram, colors, options } = ctx
+  const font = colors.font ?? 'Inter'
+  const transparent = options.transparent ?? false
+  const visual = options.architecture?.visual ?? DEFAULT_ARCHITECTURE_VISUAL
   const parts: string[] = []
   const archVars = [
     visual.groupSurface ? `--arch-group-fill:${visual.groupSurface}` : '',
+    visual.groupHeaderSurface ? `--arch-group-band:${visual.groupHeaderSurface}` : '',
     visual.groupBorder ? `--arch-group-stroke:${visual.groupBorder}` : '',
+    visual.groupText ? `--arch-group-label:${visual.groupText}` : '',
     visual.serviceSurface ? `--arch-service-fill:${visual.serviceSurface}` : '',
     visual.serviceBorder ? `--arch-service-stroke:${visual.serviceBorder}` : '',
+    visual.serviceText ? `--arch-service-label:${visual.serviceText}` : '',
+    visual.edgeStroke ? `--arch-edge-stroke:${visual.edgeStroke}` : '',
+    visual.edgeText ? `--arch-edge-label:${visual.edgeText}` : '',
   ].filter(Boolean).join(';')
 
   const hasTitle = Boolean(diagram.accessibilityTitle)
@@ -84,19 +89,19 @@ export function renderArchitectureSvg(
 function architectureStyles(visual: ArchitectureVisualConfig): string {
   return `<style>
   .architecture-group-frame { fill: var(--arch-group-fill, color-mix(in srgb, var(--_node-fill) 82%, var(--bg))); stroke: none; }
-  .architecture-group-band { fill: color-mix(in srgb, var(--_arrow) 5%, var(--arch-group-fill, var(--bg))); stroke: none; }
+  .architecture-group-band { fill: var(--arch-group-band, color-mix(in srgb, var(--arch-edge-stroke, var(--_arrow)) 5%, var(--arch-group-fill, var(--bg)))); stroke: none; }
   .architecture-group-outline { fill: none; stroke: var(--arch-group-stroke, var(--_node-stroke)); stroke-width: ${visual.groupLineWidth}; }
-  .architecture-group-label { fill: var(--_text-sec); }
+  .architecture-group-label { fill: var(--arch-group-label, var(--_text-sec)); }
   .architecture-service-card { fill: var(--arch-service-fill, color-mix(in srgb, var(--_node-fill) 92%, var(--bg))); stroke: none; }
   .architecture-service-outline { fill: none; stroke: var(--arch-service-stroke, var(--_node-stroke)); stroke-width: ${visual.serviceLineWidth}; }
-  .architecture-service-label { fill: var(--_text); }
-  .architecture-edge { fill: none; stroke: var(--_line); stroke-width: ${visual.edgeLineWidth}; stroke-linejoin: round; }
-  .architecture-edge-label-bg { fill: color-mix(in srgb, var(--bg) 90%, var(--_group-hdr)); stroke: color-mix(in srgb, var(--_line) 18%, var(--bg)); stroke-width: 0.75; }
-  .architecture-edge-label-text { fill: var(--_text-muted); }
-  .architecture-junction-ring { fill: var(--bg); stroke: var(--_arrow); stroke-width: 1.25; }
-  .architecture-junction-core { fill: color-mix(in srgb, var(--_arrow) 24%, var(--bg)); stroke: var(--_arrow); stroke-width: 0.75; }
-  .architecture-icon-mark { fill: none; stroke: var(--_arrow); stroke-width: 1.25; stroke-linecap: round; stroke-linejoin: round; }
-  .architecture-icon-glyph { fill: var(--_arrow); }
+  .architecture-service-label { fill: var(--arch-service-label, var(--_text)); }
+  .architecture-edge { fill: none; stroke: var(--arch-edge-stroke, var(--_line)); stroke-width: ${visual.edgeLineWidth}; stroke-linejoin: round; }
+  .architecture-edge-label-bg { fill: color-mix(in srgb, var(--bg) 90%, var(--_group-hdr)); stroke: color-mix(in srgb, var(--arch-edge-stroke, var(--_line)) 18%, var(--bg)); stroke-width: 0.75; }
+  .architecture-edge-label-text { fill: var(--arch-edge-label, var(--_text-muted)); }
+  .architecture-junction-ring { fill: var(--bg); stroke: var(--arch-edge-stroke, var(--_arrow)); stroke-width: 1.25; }
+  .architecture-junction-core { fill: color-mix(in srgb, var(--arch-edge-stroke, var(--_arrow)) 24%, var(--bg)); stroke: var(--arch-edge-stroke, var(--_arrow)); stroke-width: 0.75; }
+  .architecture-icon-mark { fill: none; stroke: var(--arch-edge-stroke, var(--_arrow)); stroke-width: 1.25; stroke-linecap: round; stroke-linejoin: round; }
+  .architecture-icon-glyph { fill: var(--arch-edge-stroke, var(--_arrow)); }
 </style>`
 }
 
@@ -300,10 +305,10 @@ function fallbackIconGlyph(icon: string): string {
 function arrowMarkerDefs(): string {
   return [
     '  <marker id="architecture-arrow-end" markerWidth="8" markerHeight="5" refX="7" refY="2.5" orient="auto">',
-    '    <polygon points="0 0, 8 2.5, 0 5" fill="var(--_arrow)" stroke="var(--_arrow)" stroke-width="0.75" stroke-linejoin="round" />',
+    '    <polygon points="0 0, 8 2.5, 0 5" fill="var(--arch-edge-stroke, var(--_arrow))" stroke="var(--arch-edge-stroke, var(--_arrow))" stroke-width="0.75" stroke-linejoin="round" />',
     '  </marker>',
     '  <marker id="architecture-arrow-start" markerWidth="8" markerHeight="5" refX="1" refY="2.5" orient="auto-start-reverse">',
-    '    <polygon points="8 0, 0 2.5, 8 5" fill="var(--_arrow)" stroke="var(--_arrow)" stroke-width="0.75" stroke-linejoin="round" />',
+    '    <polygon points="8 0, 0 2.5, 8 5" fill="var(--arch-edge-stroke, var(--_arrow))" stroke="var(--arch-edge-stroke, var(--_arrow))" stroke-width="0.75" stroke-linejoin="round" />',
     '  </marker>',
   ].join('\n')
 }
