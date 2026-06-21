@@ -177,8 +177,8 @@ high-value** — but justify it as *de-duplication of dispatch*, not as open ext
 transparent=false, options={})` (`src/renderer.ts:37`) has drifted into 4-, 6-, and 7-arg variants
 (`renderTimelineSvg` has 7; `renderArchitectureSvg`'s `visual` *replaces* `options`;
 `renderPie/QuadrantSvg` accept `_options` they ignore). Three positional args are already
-redundant: `font` is folded into `colors` (`buildColors(opts, config, font)` sets
-`DiagramColors.font`, `index.ts:106`), and `transparent` is a lone boolean.
+redundant: `font` is folded into `colors` (`resolveDiagramColors(options, config, font)` sets
+`DiagramColors.font`), and `transparent` is a lone boolean.
 
 **(b) Prescription.** Collapse the positional tail into one **capability/context object** — a single
 predictable interface every renderer accepts (Lampson; Strategy's "one interface, many
@@ -198,8 +198,9 @@ becomes `(ctx: RenderContext) => string`. This is a no-op on geometry, so it is 
 
 **(d) Tradeoffs / determinism risk.** Essentially none for geometry — same inputs, same outputs;
 verify with snapshot tests. Minor risk: defaulting (`font='Inter'`, `transparent=false`) must be
-applied at the *boundary* (`buildColors`/`buildContext`) so no call site silently changes a default.
-Make the defaults explicit in one constructor, not scattered.
+applied at the *boundary* (`resolveDiagramColors` plus the public render entrypoint's context
+construction) so no call site silently changes a default. Make the defaults explicit in one
+constructor, not scattered.
 
 **(e) Where theory doesn't transfer.** A Parameter Object can become a god-bag if every family dumps
 unrelated config into it. Keep `RenderContext` thin (3 fields) and push family-specifics into a typed,
@@ -256,10 +257,10 @@ contract (a bounding box and a render target) without paying for unification we'
 
 **(a) Lens.** Direct hit for **Parnas (1972/1979)** information hiding and the **Graphviz/ELK
 layout-vs-render boundary**. The leaks are decisions placed in the wrong module:
-- `layoutPieChart(chart, options, colors)` — layout consumes `DiagramColors` to assign slice colors.
+- Audit-time `layoutPieChart(chart, options, colors)` — layout consumed `DiagramColors` to assign slice colors.
 - `layoutArchitectureDiagram(diagram, options, visual)` + `resolveArchitectureVisualConfig` — visual
   config threaded through *both* layout and render, bypassing `options`.
-- `parseXYChart(lines, frontmatter)` — theme/frontmatter baked in during *parsing*.
+- Audit-time `parseXYChart(lines, frontmatter)` — theme/frontmatter was baked in during *parsing*.
 - Gantt is a hand-wired **4-stage** pipeline in `index.ts:404`.
 
 ELK's prescription is unambiguous: layout is a *pure geometry service*; color and visual styling are
@@ -310,7 +311,7 @@ once, so downstream code never re-resolves). Everything below the waist sees onl
 
 **(c) Recommendation.** Make **`DiagramColors` (+ the CSS-custom-property layer) the single internal
 contract.** Treat `MermaidThemeVariables`, `classDefs/nodeStyles/linkStyles`, and `RenderOptions` as
-**input dialects** that a boundary function (`buildColors`, `index.ts:106`) *parses* into `DiagramColors`
+**input dialects** that a boundary function (`resolveDiagramColors`) *parses* into `DiagramColors`
 — after which no renderer consults the raw dialects. Concretely: the precedence rule "classDef beats
 themeVariables beats RenderOptions" lives in **one** resolver, not scattered across families. Extend the
 **role-style** abstraction (`DiagramStyleOptions` / `resolveRenderStyle`) — which the audit rightly
@@ -333,14 +334,13 @@ simplify) would be a correctness regression, not a cleanup.
 ## I6 — "Route contracts" is two abstractions sharing one type union
 
 **(a) Lens.** **"Making illegal states unrepresentable"** (Minsky) and **ADTs + exhaustiveness checking**.
-`LayoutRouteCertificate = RouteCertificate | FamilyRouteCertificate` (`src/types.ts:296`) *looks*
-unified but the two arms share neither producer, consumer, nor lifecycle:
-- `RouteCertificate` (flowchart) is keyed by `edgeIndex`, carries `invariant: 'straight' | …`, and is
-  produced in **core** (`route-contracts.ts`, attached to `PositionedEdge.routeCertificate`).
-- `FamilyRouteCertificate` is a 4-way union (`types.ts:244`): class/er + architecture + sequence are
-  keyed by `edgeIndex`; **timeline/xychart/pie/quadrant/gantt are keyed by `elementId`**, with totally
-  different invariants (`'plot-contained'`, `'section-contained'`). It is produced **only** in
-  `agent/family-layouts.ts`; the core SVG path attaches none.
+At audit time, `LayoutRouteCertificate = RouteCertificate | FamilyRouteCertificate` looked unified
+but the arms shared neither producer, consumer, nor lifecycle:
+- `RouteCertificate` (flowchart) was keyed by `edgeIndex`, carried `invariant: 'straight' | …`, and
+  was produced in **core** (`route-contracts.ts`, attached to `PositionedEdge.routeCertificate`).
+- The old `FamilyRouteCertificate` shape mixed edge proofs (class/ER, architecture, sequence) with
+  element/region proofs (timeline/xychart/pie/quadrant/gantt), so some members were keyed by
+  `edgeIndex` while others were keyed by `elementId`.
 
 A union whose arms have different *keys* (`edgeIndex` vs `elementId`) and different lifecycles is a
 *structural* union, not a *semantic* one — it permits illegal states (a "certificate" with no producer
@@ -351,13 +351,12 @@ type** to reflect that there are genuinely two-or-three different certificate co
 the lifecycle** by producing family certs in the core layout path so the union becomes real.
 
 **(c) Recommendation — split, don't fake-unify.** Rename to expose reality:
-`type EdgeRouteCertificate = RouteCertificate` (edge-indexed, route-shape invariants) and
-`type RegionContainmentCertificate` (the `elementId`-keyed containment arm). Keep the edge-keyed family
-certs (class/er/architecture/sequence) with the flowchart edge certs *only if* they share a consumer;
-otherwise keep them separate. The umbrella `LayoutRouteCertificate` can remain as a *sum for the
-debug-sidecar field* (`RenderedLayout.certificates`, `agent/types.ts:915`) but its members should be
-**named by what they prove**, and the verifier should `switch` exhaustively over them so a new
-certificate kind is a compile error, not a silent gap.
+The implemented split names what each certificate proves:
+`EdgeRouteCertificate = RouteCertificate | FamilyEdgeRouteCertificate` for edge-indexed route proofs,
+and `RegionContainmentCertificate` for element/region containment proofs. The umbrella
+`LayoutRouteCertificate` remains only as a debug-sidecar sum whose members are **named by what they
+prove**. `layoutCertificateProof` switches exhaustively over those names so a new certificate kind is
+a compile error, not a silent gap.
 
 **(d) Tradeoffs / determinism risk.** This is a **type-level rename + redocument** with no geometry
 change — low determinism risk. The discipline risk is that the agent verify path and core route path
@@ -457,13 +456,14 @@ they've actually converged, never preemptively.
 ## I9 — Vestigial / cosmetic
 
 **(a) Lens.** **Lampson** ("do one thing well"; remove needless indirection) and **TypeScript exhaustiveness checking**.
-`src/layout.ts` is a one-line re-export of `layoutGraphSync` (pure indirection); naming is inconsistent
-(`parseXDiagram` vs `parseXChart` vs `parseGanttModel`; `Sync` suffix on only 3 of 11 sync layout fns);
-`_options` params (pie/quadrant) advertise a contract not honored.
+At audit time, `src/layout.ts` was a one-line re-export of `layoutGraphSync`
+(pure indirection); naming was inconsistent (`parseXDiagram` vs `parseXChart`
+vs `parseGanttModel`; `Sync` suffix on only 3 of 11 sync layout fns);
+`_options` params (pie/quadrant) advertised a contract not honored.
 
 **(b/c) Prescription / recommendation.** Pure hygiene, **mechanical, lowest-risk**, do alongside the
 structural work it touches:
-- Inline `src/layout.ts`'s re-export at call sites and delete the file (Lampson: needless indirection).
+- Issue #71 inlined `src/layout.ts`'s re-export at call sites and deleted the file (Lampson: needless indirection).
 - Normalize naming to one convention (`parse<Family>` / `layout<Family>`); drop the `Sync` suffix
   (all are sync — the distinction is meaningless). Do this as a **single rename commit** so blame stays
   legible.

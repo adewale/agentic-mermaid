@@ -158,7 +158,7 @@ if (!parsed.ok) throw new Error('parse failed')
 
 const verify = verifyMermaid(parsed.value, { labelCharCap: 28 })
 const quality = measureQuality(layoutMermaid(parsed.value))
-const routes = layoutMermaid(parsed.value, { debug: true }) // opt-in route/family certificates
+const routes = layoutMermaid(parsed.value, { debug: true }) // opt-in route, family-edge, and region certificates
 const analysis = analyzeMermaid(parsed.value) // feedback edges, actions, Gantt critical path/slack
 
 return {
@@ -172,7 +172,7 @@ return {
 }
 ```
 
-Route/family certificates are opt-in; when graph-edge certificates are present, `sourcePort`/`targetPort` are exact endpoint anchors and `sourcePortAssignment`/`targetPortAssignment` describe side, ordered slot, slot count, and semantic role. Sequence/timeline/chart certificates use family-specific anchor/containment fields instead. Debug layouts also expose V1 `regions` and source-only `actions` sidecars so agents can attach UI affordances without executing Mermaid callbacks.
+Route, family-edge, and region certificates are opt-in; when graph-edge or family-edge certificates are present, `sourcePort`/`targetPort` are exact endpoint anchors where the family exposes them, and `sourcePortAssignment`/`targetPortAssignment` describe side, ordered slot, slot count, and semantic role for graph routes. Timeline/chart certificates use region-containment fields instead. Debug layouts also expose V1 `regions` and source-only `actions` sidecars so agents can attach UI affordances without executing Mermaid callbacks.
 
 Use render artifacts for human visual review:
 

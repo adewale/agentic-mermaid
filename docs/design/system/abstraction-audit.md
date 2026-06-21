@@ -1,23 +1,26 @@
-# Abstraction audit — current state and issue list
+# Abstraction audit — historical baseline and issue list
 
 Status: historical audit snapshot. Captured 2026-06-20, before the issue #71
 implementation. Scope: the abstraction surfaces across
 `src/` (core pipeline, per-family modules, `agent/`, `ascii/`, styling/theming).
 
-This document captures **what we have today** and the **list of issues**. Literature-grounded
+This document captures **what the code looked like on 2026-06-20** and the **list of issues**. It is
+kept as the historical baseline for issue #71, not as the current architecture reference.
+Literature-grounded
 recommendations are tracked separately in
 [`abstraction-recommendations.md`](./abstraction-recommendations.md).
 
 > 2026-06-21 note: this is now the **pre-implementation baseline**, not the
 > current architecture. The current closure spec and reappraisal are in
 > [`abstraction-recommendations.md`](./abstraction-recommendations.md#2026-06-21-reappraisal).
+> Line references and type names below are audit-time references.
 
 ---
 
 ## 1. Mental model: three stacks over one source
 
-Every diagram nominally flows `source → normalize → parse → layout → render`. That pipeline
-is implemented **three independent times**, once per output surface, over the same set of 12
+Every diagram nominally flowed `source → normalize → parse → layout → render`. At audit time, that
+pipeline was implemented **three independent times**, once per output surface, over the same set of 12
 diagram families:
 
 | Stack | Entry | Dispatch | Layout model | Output |
@@ -26,7 +29,7 @@ diagram families:
 | **ASCII** | `renderMermaidASCII` (`src/ascii/index.ts`) | `switch(diagramType)` — 11 arms | `AsciiGraph`/`Canvas` (own A* layout, no ELK) | text |
 | **Agent** | `parseMermaid`/`mutate`/`verify`/… (`src/agent/`) | `FamilyPlugin` **registry** (`src/agent/families.ts`) | `ValidDiagram`/`DiagramBody` + `RenderedLayout` | typed IR |
 
-The triplication is the root cause of most issues below: the same concept ("a sequence
+This triplication was the root cause of most issues below: the same concept ("a sequence
 diagram," "a node," "an edge route") has up to three representations, and the three stacks
 dispatch over families three different ways.
 
@@ -67,8 +70,9 @@ from the registry (regenerate with `UPDATE_GOLDEN=1 bun test src/__tests__/audit
 - **Layout output (positioned):** `PositionedGraph` (`types.ts:91`) + 10 unrelated `Positioned*`/
   `*LayoutResult` siblings + agent `RenderedLayout` (a second normalized model).
 - **Routing / quality:** `route-contracts.ts` (`classifyRoutes`, `allocateRoutePorts`,
-  `applyRouteContracts`, `auditRouteContracts`) producing `RouteCertificate`; `FamilyRouteCertificate`
-  (produced only in `agent/family-layouts.ts`); `layout-rubric.ts` (`assessLayout` → `RubricResult`);
+  `applyRouteContracts`, `auditRouteContracts`) producing `RouteCertificate`;
+  audit-time `FamilyRouteCertificate` (produced only in `agent/family-layouts.ts`);
+  `layout-rubric.ts` (`assessLayout` → `RubricResult`);
   agent `verify` (3-tier `LayoutWarning`).
 - **Styling / color:** five color models — `RenderOptions`, `DiagramColors` (`theme.ts`),
   `ResolvedColors` (`theme.ts`), `MermaidThemeVariables` (`mermaid-source.ts`),
@@ -100,7 +104,7 @@ options={})` (`renderer.ts:37`). Drift across families:
 - `renderPieSvg` / `renderQuadrantSvg(…, _options)` — `options` accepted but unused
 
 Three positional args are redundant: `font` is also folded into `colors`
-(`buildColors(opts, config, font)` sets `DiagramColors.font`, `index.ts:106`), and `transparent`
+(audit-time `buildColors(opts, config, font)` sets `DiagramColors.font`, `index.ts:106`), and `transparent`
 is a lone boolean that could live in `colors`/`options`. A single
 `RenderContext { positioned, colors, options }` collapses the row and kills the drift.
 
@@ -112,10 +116,10 @@ and `agent/family-layouts.ts` translate into it. "A laid-out diagram" has no can
 
 ### I4 — Layering leaks: render/config concerns pushed up into parse and layout
 Clean for ~7 families, broken for 4:
-- `layoutPieChart(chart, options, colors)` — layout consumes `DiagramColors` to assign slice colors.
+- Audit-time `layoutPieChart(chart, options, colors)` — layout consumes `DiagramColors` to assign slice colors.
 - `layoutArchitectureDiagram(diagram, options, visual)` + `resolveArchitectureVisualConfig` —
   visual config threaded through layout *and* render, bypassing `options`.
-- `parseXYChart(lines, frontmatter)` — frontmatter/theme baked in during *parsing*.
+- Audit-time `parseXYChart(lines, frontmatter)` — frontmatter/theme baked in during *parsing*.
 - Gantt is a **4-stage** pipeline (`parseGanttModel → applyGanttFrontmatterConfig →
   resolveGanttSchedule → layoutGantt → render`), hand-wired in `index.ts:404`.
 
@@ -130,10 +134,10 @@ typography/spacing only, and do not reach pie/quadrant/gantt/architecture.
 
 ### I6 — "Route contracts" is two abstractions sharing one type union
 `RouteCertificate` (flowchart) is produced in the **core** (`route-contracts.ts:1169`
-`applyRouteContracts`, attached to `PositionedEdge.routeCertificate`). `FamilyRouteCertificate`
+`applyRouteContracts`, attached to `PositionedEdge.routeCertificate`). Audit-time `FamilyRouteCertificate`
 (class/er/architecture/sequence/timeline/…) is produced **only** in `agent/family-layouts.ts`
 (`:139`, `:196`, `:292`, `:406`); the core SVG render path for families attaches no certificates.
-`LayoutRouteCertificate = RouteCertificate | FamilyRouteCertificate` looks unified but the two
+Audit-time `LayoutRouteCertificate = RouteCertificate | FamilyRouteCertificate` looks unified but the two
 arms share neither producer, consumer, nor lifecycle.
 
 ### I7 — The agent layer is the reference design — with two seams
@@ -154,7 +158,7 @@ registry the SVG side lacks). Cost: "shape," "edge routing," and "fan-in/out bun
 exist twice, so a parity change must be made in two places.
 
 ### I9 — Vestigial / cosmetic
-- `src/layout.ts` is a one-line re-export of `layoutGraphSync` — pure indirection.
+- Audit-time `src/layout.ts` is a one-line re-export of `layoutGraphSync` — pure indirection.
 - Naming inconsistency: `parseXDiagram` vs `parseXChart` vs `parseGanttModel`; `Sync` suffix on
   only 3 of 11 layout fns (all are sync).
 - `_options` unused params (pie/quadrant) advertise a contract the function does not honor.
@@ -195,13 +199,13 @@ architecture. Cross-checked against them, the findings **agree**; three earn an 
 | [`contributing/diagram-family-citizenship.md`](../../contributing/diagram-family-citizenship.md) | I1, I8 | Agrees; the family×surface drift is **already CI-guarded** (below). |
 | [`design/source-preservation-ladder.md`](./source-preservation-ladder.md) | I7 | Agrees; formalizes the structured\|opaque model as levels L0–L4. |
 
-**I1 refinement — the drift is already test-guarded.** `diagram-family-citizenship.md` (issue #41)
+**I1 refinement — the drift was already test-guarded.** `diagram-family-citizenship.md` (issue #41)
 defines a family×surface matrix whose `detectionParse` row requires that "shared detector, agent parse,
 SVG render, ASCII render, CLI, and MCP paths route consistently" (state's flowchart-renderer split is the
 one documented exception), enforced by `diagram-family-citizenship.test.ts`. So the risk I1 names — three
-dispatch sites that "cannot drift-check each other" — is mitigated **today** by an external CI ratchet.
-The recommendation (unify on the `FamilyPlugin` registry) still stands, but as *making the drift-check
-structural rather than test-based*, not as introducing a check that is absent.
+dispatch sites that "cannot drift-check each other" — was already mitigated by an external CI ratchet.
+The issue #71 implementation made that drift-check structural by routing SVG and ASCII through
+`FamilyPlugin` hooks.
 
 **I3 refinement — `RenderedLayout` is the deliberate canonical artifact.** `AGENT_NATIVE.md` §1 establishes
 that the **layout JSON (`RenderedLayout`) is THE canonical artifact, not the SVG** ("two render results are

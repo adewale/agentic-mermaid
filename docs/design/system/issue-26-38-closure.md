@@ -61,8 +61,8 @@ Completed slices from the remaining #26/#38 ordering:
 8. `analyzeMermaid(Source)` exposes feedback edges, Gantt critical path/slack, and source-only action records.
 9. Action/security records use a non-executing record model; unsafe schemes are flagged source-only/unsafe.
 10. Mermaid link length is honored conservatively for simple no-subgraph primary-forward DAGs in all four directions.
-11. Class/ER received semantic layout validators and debug family certificates: real layout geometry, on-canvas/non-overlap checks, relationship endpoint-on-box tripwires, and `orthogonal-box` certificates.
-12. Architecture now emits final-geometry `side-anchored` family certificates in debug layouts; stale graph certificates remain forbidden.
+11. Class/ER received semantic layout validators and debug `FamilyEdgeRouteCertificate`s: real layout geometry, on-canvas/non-overlap checks, relationship endpoint-on-box tripwires, and `orthogonal-box` certificates.
+12. Architecture now emits final-geometry `side-anchored` `FamilyEdgeRouteCertificate`s in debug layouts; stale graph certificates remain forbidden.
 13. Stable region-tree V1: flowchart layout JSON flattens subgraphs with `parentId` + direct `members`; debug layout JSON exposes `regions` plus non-executing `actions`; SVG subgraph groups carry `data-region`/`data-parent-id`; ASCII metadata exposes best-effort subgraph label regions.
 14. ASCII/Unicode route parity is explicit: `ASCII_ROUTE_PARITY_CONTRACT` records the mapping from shared `classifyRoutes()` route intent to terminal-grid routing; `renderMermaidASCIIWithMeta` emits structured degradation warnings such as `ASCII_EDGE_REGION_UNMAPPED`.
 15. Dynamic route port allocation now exposes side + ordered slot + semantic role on opt-in route certificates while preserving V1 `sourcePort` / `targetPort`.
