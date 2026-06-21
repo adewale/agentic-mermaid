@@ -1,6 +1,6 @@
 // ============================================================================
 // Gantt structured body: parse / serialize / mutate / verify (FamilyPlugin
-// hooks) — docs/design/gantt.md §"First-release syntax matrix".
+// hooks) — docs/design/families/gantt.md §"First-release syntax matrix".
 //
 // Segment-preserving structured body (the BUILD-18 sequence pattern): typed
 // ops cover the modeled statements — title, sections, tasks — while calendar

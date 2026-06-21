@@ -1,5 +1,5 @@
 // ============================================================================
-// Gantt layout — schedule → deterministic geometry (docs/design/gantt.md §4).
+// Gantt layout — schedule → deterministic geometry (docs/design/families/gantt.md §4).
 //
 // One layout model feeds both renderers: the SVG renderer consumes the pixel
 // geometry directly; the ASCII renderer reuses tick *selection* (the resolved

@@ -1,5 +1,5 @@
 // Tests for the ugly-layout detector (eval/ugly-detector/detect.ts), the tool
-// specified by docs/design/ugly-layouts.md. Covers each detector on synthetic
+// specified by docs/design/system/ugly-layouts.md. Covers each detector on synthetic
 // inputs, the SVG/ASCII adapters on real renderer output, and regressions for
 // the two false positives the project audit surfaced (cylinder multi-primitive
 // footprint, sub-pixel clip-floor jog).

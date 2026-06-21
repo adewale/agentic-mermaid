@@ -14,7 +14,7 @@ A diagram is considered **good looking** when it satisfies, in order:
    `ROUTE_UNEXPLAINED_BEND`, `ROUTE_LABEL_ON_SHARED_TRUNK`,
    `ROUTE_CONTAINER_MISANCHOR`, `ROUTE_SHAPE_MISANCHOR`,
    `ROUTE_STALE_AFTER_NODE_MOVE`) should always be zero — they are
-   route-contract tripwires (see `docs/design/route-contracts.md`), and
+   route-contract tripwires (see `docs/design/system/route-contracts.md`), and
    any hit means the layout pipeline regressed, not the diagram.
 
 3. **Perceptual metrics fall in the default `QualityBounds` band:**

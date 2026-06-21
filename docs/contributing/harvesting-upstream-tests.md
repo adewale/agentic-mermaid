@@ -73,7 +73,7 @@ no license file must not be vendored, only summarized).
    that holds the floor below 1.00 and why that is honest.
 6. **Re-run the search before each release** for new upstream tests (the
    family's design doc should carry the watchlist of in-flight upstream
-   syntax, as `docs/design/gantt.md` does).
+   syntax, as `docs/design/families/gantt.md` does).
 
 ## Exclusion reason codes
 

@@ -129,13 +129,13 @@ export interface PositionedEdge {
   inlineStyle?: Record<string, string>
   /** Index into MermaidGraph.edges this positioned edge was extracted from */
   edgeIndex?: number
-  /** Route contract certificate attached by the layout pipeline (docs/design/route-contracts.md) */
+  /** Route contract certificate attached by the layout pipeline (docs/design/system/route-contracts.md) */
   routeCertificate?: RouteCertificate
 }
 
 // ============================================================================
 // Route contracts — semantic routing intent and per-edge certificates
-// (docs/design/route-contracts.md)
+// (docs/design/system/route-contracts.md)
 // ============================================================================
 
 export type RouteClass =

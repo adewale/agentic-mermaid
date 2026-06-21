@@ -67,7 +67,7 @@ Current SVG rendering decisions:
 
 ## Compatibility Notes
 
-Supported Mermaid compatibility surface is documented in [README.md](../../README.md).
+Supported Mermaid compatibility surface is documented in [README.md](../../../README.md).
 
 Intentional gap today:
 

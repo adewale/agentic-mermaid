@@ -119,7 +119,7 @@
           "evidence": [
             "src/agent/flowchart-body.ts",
             "src/parser.ts",
-            "docs/design/flowchart-parser-conformance.md"
+            "docs/design/families/flowchart-parser-conformance.md"
           ]
         },
         "serializeRoundTrip": {
@@ -1979,7 +1979,7 @@
             "src/agent/gantt-body.ts",
             "src/gantt/parser.ts",
             "src/gantt/schedule.ts",
-            "docs/design/gantt.md"
+            "docs/design/families/gantt.md"
           ]
         },
         "serializeRoundTrip": {

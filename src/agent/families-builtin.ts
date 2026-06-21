@@ -853,7 +853,7 @@ registerFamily({
   detect: l => l.startsWith('gantt'),
   extractLabels: extractGanttLabels,
   // Source-level structural checks (EMPTY/LABEL_OVERFLOW/EDGE_MISANCHORED on
-  // after/until refs); see docs/design/gantt.md §Verification.
+  // after/until refs); see docs/design/families/gantt.md §Verification.
   verify: (body, opts) => body.kind === 'gantt' ? verifyGantt(body, opts) : [],
   buildSourceMap: buildGanttSourceMap,
   parse: (lines, opaqueSource) => {

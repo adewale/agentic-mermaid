@@ -1,4 +1,4 @@
-// Gantt agent surface (docs/design/gantt.md §Test tiers, agent row):
+// Gantt agent surface (docs/design/families/gantt.md §Test tiers, agent row):
 // parseMermaid detects kind:'gantt'; the segment-preserving structured body
 // keeps directives/click/comment lines VERBATIM while exposing typed ops on
 // title/sections/tasks; serialize is idempotent; every declared op

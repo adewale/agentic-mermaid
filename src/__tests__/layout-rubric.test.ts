@@ -1,5 +1,5 @@
 // ============================================================================
-// Deterministic layout-correctness rubric in CI (docs/design/layout-rubric.md)
+// Deterministic layout-correctness rubric in CI (docs/design/system/layout-rubric.md)
 // plus the property-based port/outline/hitch oracles.
 //
 // The rubric metrics implement the empirically validated graph-drawing

@@ -1,5 +1,5 @@
 // ============================================================================
-// ASCII renderer — Gantt diagrams (docs/design/gantt.md §5).
+// ASCII renderer — Gantt diagrams (docs/design/families/gantt.md §5).
 //
 // Terminal shape (the pgavlin / kais-radwan convergence the spec records):
 // a left label column, section rows, a fixed-width timeline plot, and a date

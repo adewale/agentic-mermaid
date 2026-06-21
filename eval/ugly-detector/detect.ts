@@ -1,5 +1,5 @@
 /**
- * Ugly-layout detector — finds the defects defined in docs/design/ugly-layouts.md
+ * Ugly-layout detector — finds the defects defined in docs/design/system/ugly-layouts.md
  * in RENDERED output (SVG, PNG, ASCII), not the internal geometry. See that doc
  * for the definition of each defect.
  *

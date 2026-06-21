@@ -1,6 +1,6 @@
 {
   "$schema": "https://raw.githubusercontent.com/stryker-mutator/stryker/master/packages/core/schema/stryker-core.schema.json",
-  "_comment": "Scoped mutation testing for the route-contracts module (docs/design/route-contracts.md). A surviving mutant in the direct-lane proof would mean the certifying straightener can straighten without proof.",
+  "_comment": "Scoped mutation testing for the route-contracts module (docs/design/system/route-contracts.md). A surviving mutant in the direct-lane proof would mean the certifying straightener can straighten without proof.",
   "mutate": [
     "src/route-contracts.ts"
   ],

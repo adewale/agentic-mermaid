@@ -29,7 +29,7 @@ Two regeneration shapes, both gated by `UPDATE_GOLDEN=1 bun test <file>`:
    Mermaid and rendered by our own engine; the test asserts the render is deterministic across
    calls and matches the committed SVG. Docs *about* the system, produced *by* the system.
 2. **The family roster table** — the built-in-families table in
-   `docs/design/abstraction-audit.md` §2, pinned by `src/__tests__/audit-family-table.test.ts`.
+   `docs/design/system/abstraction-audit.md` §2, pinned by `src/__tests__/audit-family-table.test.ts`.
    It is generated from `BUILTIN_FAMILY_METADATA`; add or rename a family and the test fails until
    the audit is regenerated.
 

@@ -1,4 +1,4 @@
-// Gantt layout tests (docs/design/gantt.md §Test tiers, layout row):
+// Gantt layout tests (docs/design/families/gantt.md §Test tiers, layout row):
 // bars stay in the plot area; labels stay in the label column; compact rows
 // do not overlap; `vert` consumes no task row; topAxis geometry; bounded
 // tick generation with a too-fine explicit tickInterval.

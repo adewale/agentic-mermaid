@@ -1,5 +1,5 @@
 // ============================================================================
-// Gantt SVG renderer (docs/design/gantt.md §4).
+// Gantt SVG renderer (docs/design/families/gantt.md §4).
 //
 // Consumes the resolved GanttLayoutResult — never computes dates. Theme roles
 // map to the shared CSS custom properties:

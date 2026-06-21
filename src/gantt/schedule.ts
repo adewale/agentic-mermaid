@@ -1,5 +1,5 @@
 // ============================================================================
-// Gantt calendar + dependency resolver (docs/design/gantt.md §3).
+// Gantt calendar + dependency resolver (docs/design/families/gantt.md §3).
 //
 // Pure and deterministic: no DOM, no SVG, no wall clock. All instants are
 // integer milliseconds since the Unix epoch, UTC (EpochMs). Date-only
