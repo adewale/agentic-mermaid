@@ -1488,14 +1488,14 @@ function centerPeerBarycenters(
     const peerBarycenter = (peers: PositionedNode[]): number =>
       peers.reduce((sum, peer) => sum + nodeCrossCenter(peer, graph.direction), 0) / peers.length
 
-    // A small fan-out (2–3 terminal peers) is re-spread symmetrically around the
-    // hub by applySymmetricFanoutEmissions LATER in the pipeline, so that side
-    // follows wherever the hub lands — its barycenter is "free" and must not
-    // pull the hub here, or we fight a downstream pass and leave the anchored
-    // side off. Mirror that pass's eligibility (size + terminal targets).
-    const respreadFollowsHub = (hubId: string, peers: PositionedNode[]): boolean =>
-      peers.length >= 2 && peers.length <= 3 &&
+    // A small terminal fan-out (2–3) is re-spread symmetrically around the hub by
+    // applySymmetricFanoutEmissions LATER in the pipeline, so that side follows
+    // wherever the hub lands — its barycenter is "free" and must not pull the hub
+    // here, or we fight a downstream pass and leave the anchored side off.
+    const isTerminalFanout = (hubId: string, peers: PositionedNode[]): boolean =>
       peers.every(peer => edges.every(edge => edge.source !== peer.id && (edge.target !== peer.id || edge.source === hubId)))
+    const smallTerminalFanout = (hubId: string, peers: PositionedNode[]): boolean =>
+      peers.length >= 2 && peers.length <= 3 && isTerminalFanout(hubId, peers)
 
     // A hub may be a pure fan-out (eligible outgoing peer group only), a pure
     // fan-in (incoming only), or a MIXED fan-in/fan-out hub with both. Centering
@@ -1505,21 +1505,49 @@ function centerPeerBarycenters(
     //   - two that disagree        -> sit at their midpoint, the minimax-optimal
     //     one-node placement (halves the worst offset, deterministic regardless
     //     of peer counts or direction)
-    // A free (downstream-re-spread) side is dropped from the optimization; if it
-    // is the only side, we still center on it so pure small fan-outs keep their
-    // existing placement.
+    // A free (downstream-re-spread) small fan-out is dropped from the set.
+    //
+    // SPECIAL CASE (issue #61) — a MIXED hub whose incoming and outgoing
+    // barycenters disagree by more than the midpoint can absorb, with a LARGE
+    // (4–6) terminal fan-out: the midpoint would leave both sides ~half the gap
+    // off, and re-emitting the fan-out per edge would trade its clean shared trunk
+    // for cramped stubs. Instead, rigidly shift the terminal out-group onto the
+    // incoming barycenter (preserving its even spacing and shared trunk) and sit
+    // the hub there too, so both sides are centered with the trunk intact. Falls
+    // back to the midpoint below when shifting the out-group is unsafe.
+    const MIXED_LARGE_GAP = 1.5
     const moveHub = (
       hub: PositionedNode | undefined,
       outPeers: PositionedNode[] | undefined,
       inPeers: PositionedNode[] | undefined,
     ): void => {
       if (!hub || hub.shape !== 'rectangle' || nodeInsideGroups(hub, groups)) return
+      const inBary = inPeers ? peerBarycenter(inPeers) : undefined
+      const outBary = outPeers ? peerBarycenter(outPeers) : undefined
+
+      if (inBary !== undefined && outBary !== undefined && outPeers!.length >= 4
+        && isTerminalFanout(hub.id, outPeers!) && Math.abs(inBary - outBary) > MIXED_LARGE_GAP) {
+        const outIds = new Set(outPeers!.map(p => p.id))
+        const hubIds = new Set([hub.id])
+        const outDelta = inBary - outBary
+        const hubDelta = inBary - nodeCrossCenter(hub, graph.direction)
+        if (crossShiftSafe(outIds, nodes, edges, graph.direction, outDelta, style)
+          && crossShiftSafe(hubIds, nodes, edges, graph.direction, hubDelta, style)) {
+          shiftNodeSetCross(outIds, nodes, edges, graph.direction, outDelta)
+          if (Math.abs(hubDelta) > 0.5) shiftNodeSetCross(hubIds, nodes, edges, graph.direction, hubDelta)
+          layoutDebug('[peer-barycenter] trunk-shift', hub.id, 'outs by', outDelta.toFixed(1))
+          moved = true
+          return
+        }
+        // Unsafe to shift the out-group: fall through to the midpoint below.
+      }
+
       const anchored: number[] = []
       // Incoming source peers have no symmetric re-spread pass: always anchored.
-      if (inPeers) anchored.push(peerBarycenter(inPeers))
-      if (outPeers && !respreadFollowsHub(hub.id, outPeers)) anchored.push(peerBarycenter(outPeers))
+      if (inBary !== undefined) anchored.push(inBary)
+      if (outBary !== undefined && !(outPeers && smallTerminalFanout(hub.id, outPeers))) anchored.push(outBary)
       // No anchored side (only a free fan-out): fall back to centering on it.
-      if (anchored.length === 0 && outPeers) anchored.push(peerBarycenter(outPeers))
+      if (anchored.length === 0 && outBary !== undefined) anchored.push(outBary)
       if (anchored.length === 0) return
       const target = anchored.length === 1
         ? anchored[0]!
