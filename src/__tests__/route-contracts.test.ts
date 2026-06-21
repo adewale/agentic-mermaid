@@ -2,12 +2,20 @@ import { afterAll, beforeAll, describe, expect, it } from 'bun:test'
 import fc from 'fast-check'
 import { buildRoutePortHints, layoutGraphSync } from '../layout-engine.ts'
 import { parseMermaid } from '../parser.ts'
-import { applyRouteContracts, auditRouteContracts, classifyRoutes, diamondFacetPorts, directLaneBlockers, findLabelSlot, findRouteHitches, shapePorts, simplifyPolyline } from '../route-contracts.ts'
+import { applyRouteContracts, auditRouteContracts, classifyRoutes, diamondFacetPorts, directLaneBlockers, findLabelSlot, findRouteHitches, shapePorts, simplifyPolyline, tryRepairContainerEdge } from '../route-contracts.ts'
 import { onShapeOutline } from '../layout-rubric.ts'
 import { measureMultilineText } from '../text-metrics.ts'
 import { layoutMermaid, parseMermaid as agentParse, verifyMermaid } from '../agent/index.ts'
 import type { AnyPort, Point, PositionedEdge, PositionedGraph, PositionedGroup, PositionedNode } from '../types.ts'
 import { EDGE_FORMS, renderEdgeLine } from './helpers/edge-vocabulary.ts'
+
+// Pin fast-check for THIS file only (restored afterwards) so the command-runner
+// mutation lane is reproducible — a mutant must be killed/survive deterministically
+// rather than depend on the run's RNG seed. Scoped via before/afterAll so the
+// suite's other ~29 fast-check files keep their default (random) seeds.
+const priorFastCheck = fc.readConfigureGlobal()
+beforeAll(() => fc.configureGlobal({ ...priorFastCheck, seed: 20260620 }))
+afterAll(() => fc.configureGlobal(priorFastCheck))
 
 /** The MFA/login regression from issue #25 — every dogleg here had a clear direct lane. */
 const MFA_SOURCE = `flowchart LR
@@ -628,6 +636,26 @@ describe('directLaneBlockers (unit)', () => {
     expect(directLaneBlockers(labeled, 50, 0, pillW + 8 + 1, ctx())).toEqual([])
   })
 
+  it('a non-square label pill blocks via its true main extent: width (not height), with the full 2x clearance', () => {
+    // The label-rect main extent uses rect.w on a horizontal lane plus
+    // 2*CLEARANCE (lines ~804-805). A near-square 'No' pill cannot discriminate
+    // width from height, so the w/h swap, the zeroed extent, and the clearance
+    // term all survive there. A wide, short pill placed just past the lane's
+    // LEFT end reaches back into [0,100] ONLY through rect.w + the full
+    // clearance: swapping in the (small) height, zeroing the extent, negating
+    // 2*CLEARANCE, or turning it into a division all retract the pill clear.
+    const m2 = measureMultilineText('wide wide wide wide', 12, 400)
+    const w2 = m2.width + 16
+    const wideLabel = (lx: number) =>
+      edge('P', 'Q', [{ x: 500, y: 500 }, { x: 520, y: 500 }], { label: 'wide wide wide wide', labelPosition: { x: lx, y: 50 } })
+    // rMainHi(correct) = rect.x + rect.w + CLEARANCE; this lx puts it a hair past 0.
+    const lx = -w2 / 2 - 2
+    expect(directLaneBlockers(probe, 50, 0, 100, ctx({ edges: [wideLabel(lx)] })))
+      .toEqual([{ kind: 'label', id: 'P->Q' }])
+    // One pill-width further left and even the true extent falls short of the lane.
+    expect(directLaneBlockers(probe, 50, 0, 100, ctx({ edges: [wideLabel(lx - w2)] }))).toEqual([])
+  })
+
   describe('vertical axis (TD): same proofs with main/cross swapped', () => {
     const vAxis = { main: 'y', cross: 'x', sign: 1 } as const
     const vProbe = edge('A', 'B', [{ x: 50, y: 0 }, { x: 50, y: 100 }])
@@ -998,6 +1026,30 @@ describe('findLabelSlot (unit)', () => {
     const a = { id: 'A', label: 'A', shape: 'rectangle' as const, x: 150, y: 20, width: 100, height: 60 }
     expect(findLabelSlot(mkEdge({ label: 'No' }), start, end, ctx({ nodes: [a] }))).toEqual({ x: 200, y: 50 })
   })
+
+  it('the slot-overlap test is pinned on all four sides, not just +x: a pill grazing the 2px pad band on the left or on either vertical side staggers the label', () => {
+    // rectsOverlap (line ~867) is a four-clause conjunction; the existing
+    // boundary test only exercises the +x clause. A blocker pill nudged one
+    // pill-extent toward the midpoint slot on each remaining side overlaps it by
+    // exactly the +PAD term, forcing a stagger — mutating that +PAD to -PAD on
+    // the left / above / below clause would leave the midpoint clear. A long
+    // lane keeps the 1/3 fallback slot far from every blocker so the stagger
+    // target is unambiguous.
+    const pillH = m.height + 16
+    const long0 = { x: 0, y: 50 }, long1 = { x: 900, y: 50 } // midpoint 450, 1/3 at 300
+    const blockerAt = (cx: number, cy: number) => mkEdge({
+      source: 'P', target: 'Q', edgeIndex: 1, label: 'No', labelPosition: { x: cx, y: cy },
+      points: [{ x: 5000, y: 5000 }, { x: 5020, y: 5000 }],
+    })
+    const staggers = (cx: number, cy: number) => {
+      const s = findLabelSlot(mkEdge({ label: 'No' }), long0, long1, ctx({ edges: [blockerAt(cx, cy)] }))
+      expect(s!.x).toBeCloseTo(900 / 3, 6)
+      expect(s!.y).toBe(50)
+    }
+    staggers(450 - pillW, 50) // left clause (-x)
+    staggers(450, 50 + pillH) // below clause (+y)
+    staggers(450, 50 - pillH) // above clause (-y)
+  })
 })
 
 describe('primary-over-feedback priority (unit)', () => {
@@ -1242,6 +1294,131 @@ describe('route audit — boundary harvest', () => {
   })
 })
 
+describe('route audit — exact-boundary harvest (mutation survivors)', () => {
+  // The audit tripwires are gated on exact tolerances (onRectPerimeter's ±1px,
+  // the ±2px "still attached" inflation, the non-incident ±0.5 inset). These
+  // pin each boundary on every border/axis, approaching endpoints orthogonally
+  // so no spurious ROUTE_UNEXPLAINED_BEND fires.
+  function auditAfter(dir: 'LR' | 'TD', mutate: (e: PositionedEdge, b: PositionedNode, a: PositionedNode) => void): string[] {
+    const graph = parseMermaid(`flowchart ${dir}\n  A --> B`)
+    const p = layoutGraphSync(graph)
+    const a = p.nodes.find(n => n.id === 'A')!, b = p.nodes.find(n => n.id === 'B')!
+    mutate(findEdge(p.edges, 'A', 'B'), b, a)
+    return auditRouteContracts(p, graph).map(f => f.code)
+  }
+
+  it('ROUTE_SHAPE_MISANCHOR: a point exactly 1px off any border is still on the perimeter (silent)', () => {
+    const cy = (b: PositionedNode) => b.y + b.height / 2
+    const cx = (b: PositionedNode) => b.x + b.width / 2
+    // left / right via LR (horizontal approach)
+    expect(auditAfter('LR', (e, b) => { e.points = [e.points[0]!, { x: b.x - 1, y: cy(b) }] })).toEqual([])
+    expect(auditAfter('LR', (e, b) => { e.points = [e.points[0]!, { x: b.x + b.width + 1, y: cy(b) }] })).toEqual([])
+    // top / bottom via TD (vertical approach)
+    expect(auditAfter('TD', (e, b, a) => { e.points = [{ x: cx(b), y: a.y + a.height }, { x: cx(b), y: b.y - 1 }] })).toEqual([])
+    expect(auditAfter('TD', (e, b, a) => { e.points = [{ x: cx(b), y: a.y + a.height }, { x: cx(b), y: b.y + b.height + 1 }] })).toEqual([])
+  })
+
+  it('ROUTE_SHAPE_MISANCHOR vs STALE: exactly 2px off a border is still attached (misanchor, not stale)', () => {
+    const check = (codes: string[]) => {
+      expect(codes).toContain('ROUTE_SHAPE_MISANCHOR')
+      expect(codes).not.toContain('ROUTE_STALE_AFTER_NODE_MOVE')
+    }
+    const cy = (b: PositionedNode) => b.y + b.height / 2
+    const cx = (b: PositionedNode) => b.x + b.width / 2
+    check(auditAfter('LR', (e, b) => { e.points = [e.points[0]!, { x: b.x - 2, y: cy(b) }] }))
+    check(auditAfter('LR', (e, b) => { e.points = [e.points[0]!, { x: b.x + b.width + 2, y: cy(b) }] }))
+    check(auditAfter('TD', (e, b, a) => { e.points = [{ x: cx(b), y: a.y + a.height }, { x: cx(b), y: b.y - 2 }] }))
+    check(auditAfter('TD', (e, b, a) => { e.points = [{ x: cx(b), y: a.y + a.height }, { x: cx(b), y: b.y + b.height + 2 }] }))
+  })
+
+  it('ROUTE_UNEXPLAINED_BEND: fires on a FEEDBACK edge, not only primary-forward', () => {
+    const graph = parseMermaid('flowchart LR\n  A --> B\n  B --> A')
+    const p = layoutGraphSync(graph)
+    const fb = findEdge(p.edges, 'B', 'A')
+    expect(fb.routeCertificate?.routeClass).toBe('feedback')
+    const s = fb.points[0]!, t = fb.points[fb.points.length - 1]!
+    fb.points = [s, { x: (s.x + t.x) / 2, y: s.y + 25 }, t] // inject a diagonal
+    expect(auditRouteContracts(p, graph).map(f => f.code)).toContain('ROUTE_UNEXPLAINED_BEND')
+  })
+
+  it('ROUTE_STALE_AFTER_NODE_MOVE: non-incident overlap respects segment direction and the ±0.5 inset', () => {
+    // A cert-less edge isolates the non-incident scan: every other tripwire is
+    // cert-gated. C's inner bbox is x(100.5, 159.5), y(100.5, 139.5).
+    const stale = (points: Point[]): string[] => {
+      const graph = parseMermaid('flowchart LR\n  X --> Y')
+      const positioned = {
+        nodes: [
+          { id: 'X', label: 'X', shape: 'rectangle', x: 0, y: 0, width: 20, height: 20 },
+          { id: 'Y', label: 'Y', shape: 'rectangle', x: 400, y: 400, width: 20, height: 20 },
+          { id: 'C', label: 'C', shape: 'rectangle', x: 100, y: 100, width: 60, height: 40 },
+        ] as PositionedNode[],
+        edges: [{ source: 'X', target: 'Y', edgeIndex: 0, points }] as PositionedEdge[],
+        groups: [] as PositionedGroup[],
+      }
+      return auditRouteContracts(positioned, graph).map(f => f.code)
+    }
+    const STALE = 'ROUTE_STALE_AFTER_NODE_MOVE'
+    // entering from the left (only max-x inside) and from the right (only min-x
+    // inside) — pins both ends of the segment-direction min/max.
+    expect(stale([{ x: 50, y: 120 }, { x: 130, y: 120 }])).toContain(STALE)
+    expect(stale([{ x: 130, y: 120 }, { x: 250, y: 120 }])).toContain(STALE)
+    expect(stale([{ x: 120, y: 50 }, { x: 120, y: 120 }])).toContain(STALE) // vertical, min/max on y
+    // grazing exactly the ±0.5 inset on each axis is NOT an overlap (silent).
+    expect(stale([{ x: 50, y: 120 }, { x: 100.5, y: 120 }])).toEqual([])
+    expect(stale([{ x: 159.5, y: 120 }, { x: 250, y: 120 }])).toEqual([])
+    expect(stale([{ x: 120, y: 50 }, { x: 120, y: 100.5 }])).toEqual([])
+  })
+})
+
+describe('route audit — property-based & metamorphic coverage (fast-check)', () => {
+  // Kill the boundary-tolerance survivors as a CLASS instead of one pixel
+  // fixture at a time: fc.double probes offsets arbitrarily close to the ±tol
+  // and ±2 thresholds. Plus a metamorphic relation — audit findings must be
+  // invariant under whole-diagram translation (catches absolute-coordinate
+  // / sign mutants that example-based fixtures miss).
+  it('SHAPE_MISANCHOR/STALE trichotomy holds for any offset off a vertical border', () => {
+    const graph = parseMermaid('flowchart LR\n  A --> B')
+    const base = layoutGraphSync(graph)
+    const b = base.nodes.find(n => n.id === 'B')!
+    const cy = b.y + b.height / 2
+    fc.assert(fc.property(
+      fc.constantFrom('left' as const, 'right' as const),
+      fc.double({ min: 0, max: 5, noNaN: true }),
+      (border, off) => {
+        const p = structuredClone(base)
+        const e = findEdge(p.edges, 'A', 'B')
+        const x = border === 'left' ? b.x - off : b.x + b.width + off
+        e.points = [e.points[0]!, { x, y: cy }]
+        const codes = auditRouteContracts(p, graph).map(f => f.code)
+        const misanchor = codes.includes('ROUTE_SHAPE_MISANCHOR')
+        const stale = codes.includes('ROUTE_STALE_AFTER_NODE_MOVE')
+        if (off <= 1) return !misanchor && !stale // within tol → on perimeter
+        if (off <= 2) return misanchor && !stale  // off perimeter, still attached
+        return stale && !misanchor                // detached
+      },
+    ), { numRuns: 300 })
+  })
+
+  it('audit findings are invariant under whole-diagram translation (metamorphic)', () => {
+    const graph = parseMermaid(MFA_SOURCE)
+    const base = layoutGraphSync(graph)
+    const baseCodes = JSON.stringify(auditRouteContracts(base, graph).map(f => f.code).sort())
+    fc.assert(fc.property(
+      fc.integer({ min: -1000, max: 1000 }),
+      fc.integer({ min: -1000, max: 1000 }),
+      (dx, dy) => {
+        const p = structuredClone(base)
+        for (const n of p.nodes) { n.x += dx; n.y += dy }
+        for (const e of p.edges) {
+          e.points = e.points.map(pt => ({ x: pt.x + dx, y: pt.y + dy }))
+          if (e.labelPosition) e.labelPosition = { x: e.labelPosition.x + dx, y: e.labelPosition.y + dy }
+        }
+        return JSON.stringify(auditRouteContracts(p, graph).map(f => f.code).sort()) === baseCodes
+      },
+    ), { numRuns: 100 })
+  })
+})
+
 describe('container repair — axis selection harvest', () => {
   function flat(groups: PositionedGraph['groups'], out: PositionedGraph['groups'] = []): PositionedGraph['groups'] {
     for (const g of groups) { out.push(g); flat(g.children, out) }
@@ -1302,6 +1479,42 @@ describe('container repair — axis selection harvest', () => {
     const positioned = layoutGraphSync(graph)
     const e = findEdge(positioned.edges, 'S', 'Pipeline')
     expect(e.routeCertificate?.invariant).toBe('container-attach')
+  })
+})
+
+describe('tryRepairContainerEdge (unit)', () => {
+  const style = { edgeLabelFontSize: 12, edgeLabelFontWeight: 400 }
+  const rect = (id: string, x: number, y: number, shape = 'rectangle') =>
+    ({ id, label: id, shape, x, y, width: 40, height: 40 })
+  const mkEdge = (points: Array<{ x: number; y: number }>): PositionedEdge =>
+    ({ source: 'S', target: 'T', style: 'solid', hasArrowStart: false, hasArrowEnd: true, points, edgeIndex: 0 }) as PositionedEdge
+  const repair = (edge: PositionedEdge, nodes: ReturnType<typeof rect>[]) =>
+    tryRepairContainerEdge(
+      edge,
+      new Map() as Parameters<typeof tryRepairContainerEdge>[1],
+      new Map(nodes.map(n => [n.id, n])) as unknown as Parameters<typeof tryRepairContainerEdge>[2],
+      { nodes, edges: [edge], axis: { main: 'x', cross: 'y', sign: 1 }, style } as unknown as Parameters<typeof tryRepairContainerEdge>[3],
+    )
+
+  // S sits below T (gap 60px in y), so the only positive gap is the reversed
+  // lane (target-above-source, sign:-1) — the direction the integration suite
+  // never exercised. A clear vertical channel at the shared x straightens it.
+  it('repairs a dog-legged container edge in the reversed direction (target above source)', () => {
+    const edge = mkEdge([{ x: 20, y: 100 }, { x: 70, y: 100 }, { x: 70, y: 40 }, { x: 20, y: 40 }])
+    const ok = repair(edge, [rect('S', 0, 100), rect('T', 0, 0)])
+    expect(ok).toBe(true)
+    expect(edge.points.length).toBe(2)
+    expect(Math.abs(edge.points[0]!.x - edge.points[1]!.x)).toBeLessThan(0.01)
+  })
+
+  it('declines (returns false) when an endpoint is not a rect-like shape', () => {
+    const edge = mkEdge([{ x: 20, y: 100 }, { x: 70, y: 100 }, { x: 70, y: 40 }, { x: 20, y: 40 }])
+    expect(repair(edge, [rect('S', 0, 100, 'circle'), rect('T', 0, 0)])).toBe(false)
+  })
+
+  it('leaves an already-straight border-to-border lane untouched', () => {
+    const edge = mkEdge([{ x: 20, y: 100 }, { x: 20, y: 40 }])
+    expect(repair(edge, [rect('S', 0, 100), rect('T', 0, 0)])).toBe(false)
   })
 })
 
@@ -1761,6 +1974,178 @@ describe('port ranking — sharp bits win when a side carries one line (issue #2
     const e = findEdge(positioned.edges, 'Q1', 'Q2')
     expect(e.routeCertificate?.sourcePort).toBe('E')
     expect(e.points.length).toBeLessThanOrEqual(4)
+  })
+})
+
+describe('vertex hook — entry side across axes and suppression guards (route-certificate harvest)', () => {
+  // Hand-built geometry (like the issue #26 hook test above) makes
+  // tryVertexHook deterministic. The existing test pins LR with the target
+  // BELOW the lane (entry side N); these pin the mirror (S) and the rotated
+  // cross axis (W/E under TD), plus the two early-return guards — the survivor
+  // harvest for src/route-contracts.ts lines 1422-1451.
+  const FONT = { edgeLabelFontSize: 11, edgeLabelFontWeight: 400 }
+
+  it('LR with the target ABOVE the lane hooks into the exact South port (mirror of the North case)', () => {
+    const graph = parseMermaid('flowchart LR\n  Q{Decide} --> T[Target]')
+    const positioned = {
+      nodes: [
+        { id: 'Q', label: 'Decide', shape: 'diamond', x: 40, y: 150, width: 100, height: 100 },
+        { id: 'T', label: 'Target', shape: 'rectangle', x: 300, y: 40, width: 80, height: 36 },
+      ] as PositionedNode[],
+      edges: [{
+        source: 'Q', target: 'T',
+        points: [{ x: 140, y: 200 }, { x: 220, y: 200 }, { x: 220, y: 58 }, { x: 300, y: 58 }],
+      }] as PositionedEdge[],
+      groups: [] as PositionedGroup[],
+    }
+    applyRouteContracts(positioned, graph, new Set(), FONT)
+    const e = positioned.edges[0]!
+    expect(e.points.length).toBe(3)
+    expect(e.routeCertificate?.sourcePort).toBe('E')
+    expect(e.routeCertificate?.targetPort).toBe('S')
+    expect(e.points[e.points.length - 1]).toEqual({ x: 340, y: 76 })
+  })
+
+  it('TD with the target to the lower-RIGHT hooks into the exact West port', () => {
+    const graph = parseMermaid('flowchart TD\n  Q{Decide} --> T[Target]')
+    const positioned = {
+      nodes: [
+        { id: 'Q', label: 'Decide', shape: 'diamond', x: 40, y: 40, width: 100, height: 100 },
+        { id: 'T', label: 'Target', shape: 'rectangle', x: 200, y: 300, width: 80, height: 36 },
+      ] as PositionedNode[],
+      edges: [{
+        source: 'Q', target: 'T',
+        points: [{ x: 90, y: 140 }, { x: 90, y: 200 }, { x: 240, y: 200 }, { x: 240, y: 300 }],
+      }] as PositionedEdge[],
+      groups: [] as PositionedGroup[],
+    }
+    applyRouteContracts(positioned, graph, new Set(), FONT)
+    const e = positioned.edges[0]!
+    expect(e.points.length).toBe(3)
+    expect(e.routeCertificate?.sourcePort).toBe('S')
+    expect(e.routeCertificate?.targetPort).toBe('W')
+    expect(e.points[e.points.length - 1]).toEqual({ x: 200, y: 318 })
+  })
+
+  it('TD with the target to the lower-LEFT hooks into the exact East port', () => {
+    const graph = parseMermaid('flowchart TD\n  Q{Decide} --> T[Target]')
+    const positioned = {
+      nodes: [
+        { id: 'Q', label: 'Decide', shape: 'diamond', x: 300, y: 40, width: 100, height: 100 },
+        { id: 'T', label: 'Target', shape: 'rectangle', x: 120, y: 300, width: 80, height: 36 },
+      ] as PositionedNode[],
+      edges: [{
+        source: 'Q', target: 'T',
+        points: [{ x: 350, y: 140 }, { x: 350, y: 200 }, { x: 160, y: 200 }, { x: 160, y: 300 }],
+      }] as PositionedEdge[],
+      groups: [] as PositionedGroup[],
+    }
+    applyRouteContracts(positioned, graph, new Set(), FONT)
+    const e = positioned.edges[0]!
+    expect(e.points.length).toBe(3)
+    expect(e.routeCertificate?.sourcePort).toBe('S')
+    expect(e.routeCertificate?.targetPort).toBe('E')
+    expect(e.points[e.points.length - 1]).toEqual({ x: 200, y: 318 })
+  })
+
+  it('a stub shorter than HOOK_STUB_MIN suppresses the hook (no 1-bend into the facing port)', () => {
+    // entryCross - lane = 3 px (< HOOK_STUB_MIN = 8): the hook would be a
+    // degenerate near-zero stub, so tryVertexHook bails and the Z is used.
+    const graph = parseMermaid('flowchart LR\n  Q{Decide} --> T[Target]')
+    const positioned = {
+      nodes: [
+        { id: 'Q', label: 'Decide', shape: 'diamond', x: 40, y: 40, width: 100, height: 100 },
+        { id: 'T', label: 'Target', shape: 'rectangle', x: 300, y: 93, width: 80, height: 36 },
+      ] as PositionedNode[],
+      edges: [{
+        source: 'Q', target: 'T',
+        points: [{ x: 140, y: 90 }, { x: 220, y: 90 }, { x: 220, y: 111 }, { x: 300, y: 111 }],
+      }] as PositionedEdge[],
+      groups: [] as PositionedGroup[],
+    }
+    applyRouteContracts(positioned, graph, new Set(), FONT)
+    const e = positioned.edges[0]!
+    const hookedIntoNorth = e.points.length === 3 && Math.abs(e.points[2]!.y - 93) < 0.5
+    expect(hookedIntoNorth).toBe(false)
+  })
+
+  it('a sibling already holding the facing entry port suppresses the hook (fan-in merge wins)', () => {
+    // S -> T already lands on T's West (flow-side) port, so the merge outranks
+    // the hook: Q -> T must NOT take the 1-bend North hook.
+    const graph = parseMermaid('flowchart LR\n  Q{Decide} --> T[Target]\n  S[Side] --> T')
+    const positioned = {
+      nodes: [
+        { id: 'Q', label: 'Decide', shape: 'diamond', x: 40, y: 40, width: 100, height: 100 },
+        { id: 'T', label: 'Target', shape: 'rectangle', x: 300, y: 120, width: 80, height: 36 },
+        { id: 'S', label: 'Side', shape: 'rectangle', x: 40, y: 120, width: 80, height: 36 },
+      ] as PositionedNode[],
+      edges: [
+        { source: 'Q', target: 'T', points: [{ x: 140, y: 90 }, { x: 220, y: 90 }, { x: 220, y: 138 }, { x: 300, y: 138 }] },
+        { source: 'S', target: 'T', points: [{ x: 120, y: 138 }, { x: 300, y: 138 }] },
+      ] as PositionedEdge[],
+      groups: [] as PositionedGroup[],
+    }
+    applyRouteContracts(positioned, graph, new Set(), FONT)
+    const qt = positioned.edges[0]!
+    const hookedIntoNorth = qt.points.length === 3 && Math.abs(qt.points[2]!.y - 120) < 0.5
+    expect(hookedIntoNorth).toBe(false)
+    expect(qt.routeCertificate?.targetPort).not.toBe('N')
+  })
+})
+
+describe('reciprocal & off-port enrollment — straight edges still re-lane (route-certificate harvest)', () => {
+  // The "already straight" branch (route-contracts.ts lines 1681-1705) must
+  // still enroll two kinds of straight edge: one floating off its ports, and a
+  // reciprocal-pair member sitting on the shared centerline. Hand-built,
+  // straight-on-entry geometry isolates each enrollment trigger so the survivor
+  // harvest for lines 1693-1704 has something to bite.
+  const FONT = { edgeLabelFontSize: 11, edgeLabelFontWeight: 400 }
+
+  it('a straight, on-port reciprocal pair still enrolls and splits to the symmetric lane (center ± 6)', () => {
+    // Both edges enter already straight AND on the shared port lane (y=120);
+    // the ONLY reason to re-lane is the reciprocal flag. Drop it and they stay
+    // overlapping on y=120.
+    const graph = parseMermaid('flowchart LR\n  A --> B\n  B --> A')
+    const positioned = {
+      nodes: [
+        { id: 'A', label: 'A', shape: 'rectangle', x: 40, y: 100, width: 80, height: 40 },
+        { id: 'B', label: 'B', shape: 'rectangle', x: 300, y: 100, width: 80, height: 40 },
+      ] as PositionedNode[],
+      edges: [
+        { source: 'A', target: 'B', edgeIndex: 0, points: [{ x: 120, y: 120 }, { x: 300, y: 120 }] },
+        { source: 'B', target: 'A', edgeIndex: 1, points: [{ x: 300, y: 120 }, { x: 120, y: 120 }] },
+      ] as PositionedEdge[],
+      groups: [] as PositionedGroup[],
+    }
+    applyRouteContracts(positioned, graph, new Set(), FONT)
+    const ab = positioned.edges[0]!, ba = positioned.edges[1]!
+    expect(isStraightHorizontal(ab)).toBe(true)
+    expect(isStraightHorizontal(ba)).toBe(true)
+    expect(ab.points[0]!.y).toBeCloseTo(114, 5) // primary takes the low side
+    expect(ba.points[0]!.y).toBeCloseTo(126, 5) // feedback the high side
+    expect(Math.abs(ab.points[0]!.y - ba.points[0]!.y)).toBeCloseTo(12, 5)
+  })
+
+  it('a straight edge floating off the ports enrolls and snaps onto the exact port lane', () => {
+    // Straight but 10px below both port midpoints (ELK FREE placement). The
+    // off-port check must enroll it so it re-lanes onto the E->W port lane.
+    const graph = parseMermaid('flowchart LR\n  A --> B')
+    const positioned = {
+      nodes: [
+        { id: 'A', label: 'A', shape: 'rectangle', x: 40, y: 100, width: 80, height: 40 },
+        { id: 'B', label: 'B', shape: 'rectangle', x: 300, y: 100, width: 80, height: 40 },
+      ] as PositionedNode[],
+      edges: [
+        { source: 'A', target: 'B', edgeIndex: 0, points: [{ x: 120, y: 130 }, { x: 300, y: 130 }] },
+      ] as PositionedEdge[],
+      groups: [] as PositionedGroup[],
+    }
+    applyRouteContracts(positioned, graph, new Set(), FONT)
+    const e = positioned.edges[0]!
+    expect(isStraightHorizontal(e)).toBe(true)
+    expect(e.points[0]!.y).toBeCloseTo(120, 5)
+    expect(e.routeCertificate?.sourcePort).toBe('E')
+    expect(e.routeCertificate?.targetPort).toBe('W')
   })
 })
 

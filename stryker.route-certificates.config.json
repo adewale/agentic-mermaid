@@ -1,9 +1,9 @@
 {
   "$schema": "https://raw.githubusercontent.com/stryker-mutator/stryker/master/packages/core/schema/stryker-core.schema.json",
-  "_comment": "Narrow mutation lane for route-certificate finality and stale-route audit tripwires. Complements, but does not replace, the broader mutation-test:routes lane.",
+  "_comment": "Narrow mutation lane for route-certificate finality and stale-route audit tripwires. Complements, but does not replace, the broader mutation-test:routes lane. Generic command runner (bun test). Line ranges track src/route-contracts.ts and need re-pointing if the file shifts.",
   "mutate": [
-    "src/route-contracts.ts:1420-1452",
-    "src/route-contracts.ts:1688-1704"
+    "src/route-contracts.ts:1456-1488",
+    "src/route-contracts.ts:1724-1740"
   ],
   "ignorePatterns": ["/site/**", "/dist/**", "/coverage/**", "/index.html", "/editor.html", "/.stryker-tmp-*/**"],
   "testRunner": "command",

@@ -1,10 +1,10 @@
 {
   "$schema": "https://raw.githubusercontent.com/stryker-mutator/stryker/master/packages/core/schema/stryker-core.schema.json",
-  "_comment": "Scoped mutation testing for the route-contracts module (docs/design/system/route-contracts.md). A surviving mutant in the direct-lane proof would mean the certifying straightener can straighten without proof.",
+  "_comment": "Scoped mutation testing for the route-contracts module (docs/design/system/route-contracts.md). A surviving mutant in the direct-lane proof would mean the certifying straightener can straighten without proof. Generic command runner (reruns the bun test file per mutant); the nightly shards this lane by line range so each shard finishes inside the cap — see .github/workflows/nightly-route-mutation.yml and docs/mutation-testing.md.",
   "mutate": [
     "src/route-contracts.ts"
   ],
-  "ignorePatterns": ["/site/**", "/dist/**", "/coverage/**"],
+  "ignorePatterns": ["/site/**", "/dist/**", "/coverage/**", "/.stryker-tmp-*/**"],
   "testRunner": "command",
   "commandRunner": {
     "command": "bun test src/__tests__/route-contracts.test.ts"

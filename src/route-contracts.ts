@@ -2227,7 +2227,7 @@ export function findRouteHitches(
  * — the same machinery as node straightening, with the container rect
  * standing in as a rectangle. Returns true when the route was repaired.
  */
-function tryRepairContainerEdge(
+export function tryRepairContainerEdge(
   edge: PositionedEdge,
   groupMap: Map<string, PositionedGroup>,
   nodeMap: Map<string, PositionedNode>,

@@ -19,8 +19,25 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - name: routes
-            command: bun run mutation-test:routes
+          # The broad route-contracts lane (~3.5k mutants) runs on the generic
+          # command runner, which reruns the whole bun test file per mutant — too
+          # slow to finish in one job. Shard it by line range — ranges are
+          # deliberately uneven, balanced by measured mutant density (~870 each,
+          # not by line count) so the longest shard is ~¼ of the total wall-clock.
+          # They run in parallel; each completes inside the cap. Reassemble survivors
+          # by downloading every route-mutation-routes-shard-* artifact and
+          # running scripts/mutation-survivors.ts. See docs/mutation-testing.md.
+          - name: routes-shard-1
+            command: npx stryker run stryker.routes.config.json --mutate 'src/route-contracts.ts:1-606'
+            timeout: 90
+          - name: routes-shard-2
+            command: npx stryker run stryker.routes.config.json --mutate 'src/route-contracts.ts:607-1160'
+            timeout: 90
+          - name: routes-shard-3
+            command: npx stryker run stryker.routes.config.json --mutate 'src/route-contracts.ts:1161-1629'
+            timeout: 90
+          - name: routes-shard-4
+            command: npx stryker run stryker.routes.config.json --mutate 'src/route-contracts.ts:1630-2105'
             timeout: 90
           - name: route-certificates
             command: bun run mutation-test:routes:certs
