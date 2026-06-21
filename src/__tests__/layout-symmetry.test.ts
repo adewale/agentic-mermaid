@@ -246,22 +246,15 @@ describe('layout symmetry floor', () => {
 // whichever centering pass writes last.
 describe('mixed fan-in/fan-out hub centering', () => {
   for (const dir of MIXED_DIRECTIONS) {
-    // Small fan-outs (2–3 terminal peers) are re-spread around the hub by a
-    // downstream pass, so that side follows the hub. The hub must honor the
-    // anchored incoming barycenter and still end centered on both sides.
-    for (let n = 2; n <= 6; n++) for (let m = 2; m <= 3; m++) {
+    // Every mixed hub — small (2–3) or large (4–6) terminal fan-out — must end
+    // centered on BOTH peer barycenters within 0.75px. The incoming side (which
+    // has no re-spread pass) anchors the hub; the terminal fan-out is re-spread
+    // symmetrically around it by applySymmetricFanoutEmissions, so neither side
+    // is left off. This replaces the earlier ~4px "midpoint floor" the hub used
+    // to settle at when both sides were anchored and disagreed (issue #61).
+    for (let n = 2; n <= 6; n++) for (let m = 2; m <= 6; m++) {
       test(`${dir} ${n}-in/${m}-out hub centers on both peer barycenters`, () => {
         expect(mixedHubDelta(layout(mixedHub(n, m, dir)), n, m, dir)).toBeLessThanOrEqual(0.75)
-      })
-    }
-    // Large fan-outs (4–6) are anchored on both sides. When the incoming and
-    // outgoing barycenters disagree, no single hub position clears both; the
-    // hub sits at their midpoint — the minimax-optimal one-node placement.
-    // Ratchet the worst residual offset to the documented midpoint floor,
-    // halving the pre-fix worst case of ~8px.
-    for (let n = 2; n <= 6; n++) for (let m = 4; m <= 6; m++) {
-      test(`${dir} ${n}-in/${m}-out hub stays within the midpoint floor`, () => {
-        expect(mixedHubDelta(layout(mixedHub(n, m, dir)), n, m, dir)).toBeLessThanOrEqual(4.05)
       })
     }
   }

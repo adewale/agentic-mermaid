@@ -7,8 +7,9 @@
  * The hub shift is only a few pixels, so each panel overlays the computed
  * barycenter guide lines (parsed from the rendered SVG's node rects, not hand
  * placed): blue = incoming barycenter, orange = outgoing barycenter, green =
- * hub center. BEFORE pins the hub to the incoming side; AFTER sits it on the
- * in/out midpoint.
+ * hub center. BEFORE sits the hub at the in/out midpoint (~half the gap off each
+ * side); AFTER centers it on both by rigidly shifting the terminal out-group
+ * onto the incoming barycenter, keeping the fan-out's shared trunk intact.
  *
  *   bun run scripts/pr-assets/issue-61-evidence.ts
  */
@@ -22,7 +23,7 @@ import { renderMermaidSVG } from '../../src/index.ts'
 const ROOT = join(import.meta.dir, '..', '..')
 const OUT_DIR = join(ROOT, 'docs', 'pr-assets')
 // Parent of the fix commit — isolates exactly this PR's centering change.
-const BEFORE_SHA = '1dc77fe6a2d2cba55e4a3c6e21256cdad04f9974'
+const BEFORE_SHA = 'a86a17ab873fbb749fbf88990f30ca158429f989'
 
 const SOURCE = `flowchart TD
   I0[In 0] --> H[Hub]
@@ -141,10 +142,10 @@ const beforeSvg = renderSvgAtSha(BEFORE_SHA)
 const afterSvg = renderMermaidSVG(SOURCE, { embedFontImport: false })
 
 const headerH = 96
-const before = panel(beforeSvg, 'BEFORE', `main ${BEFORE_SHA.slice(0, 7)} — last-writer wins`, PAD, headerH)
+const before = panel(beforeSvg, 'BEFORE', `main ${BEFORE_SHA.slice(0, 7)} — midpoint floor`, PAD, headerH)
 const gap = 24
 const afterY = headerH + before.height + gap
-const after = panel(afterSvg, 'AFTER', 'this branch — mixed-hub midpoint', PAD, afterY)
+const after = panel(afterSvg, 'AFTER', 'this branch — centered, shared trunk preserved', PAD, afterY)
 const totalH = afterY + after.height + PAD
 
 const sheet = `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${totalH}" viewBox="0 0 ${W} ${totalH}" font-family="DejaVu Sans, Inter, system-ui, sans-serif">
