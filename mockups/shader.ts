@@ -16,9 +16,9 @@ const temp: string[] = []
   const clip = { x: Math.round(box!.x), y: Math.round(box!.y), width: Math.round(box!.width), height: Math.round(box!.height) }
   const phases = [
     { t: 0.0, cap: 'resting' },
-    { t: 2.0, cap: 'signal departs A' },
-    { t: 3.25, cap: 'at the bend' },
-    { t: 4.5, cap: 'arriving at B' },
+    { t: 2.84, cap: 'top rank' },
+    { t: 4.17, cap: 'middle rank' },
+    { t: 5.49, cap: 'bottom rank' },
   ]
   for (let i = 0; i < phases.length; i++) {
     await page.evaluate((t) => { (window as any).__SHADER_TIME__ = t }, phases[i].t)
@@ -48,7 +48,7 @@ const temp: string[] = []
   const ctx = await browser.newContext({ viewport: { width: 1320, height: 200 }, deviceScaleFactor: 3, colorScheme: 'light', reducedMotion: 'no-preference' })
   const page = await ctx.newPage()
   await page.goto(url('home.html'), { waitUntil: 'load' })
-  await page.evaluate(() => { (window as any).__SHADER_TIME__ = 3.0 })
+  await page.evaluate(() => { (window as any).__SHADER_TIME__ = 4.17 })
   await page.waitForTimeout(300)
   await page.screenshot({ path: 'mockups/shot-shader-context.png', clip: { x: 16, y: 8, width: 320, height: 46 } })
   await ctx.close()

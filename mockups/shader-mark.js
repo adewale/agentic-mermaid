@@ -1,50 +1,47 @@
-/* The brand mark — the product's own primitive, not a sea metaphor: two nodes
-   joined by a deterministically routed orthogonal edge (what the layout engine
-   makes). A WebGL shader renders the accent ground and sends a faint signal
-   travelling the edge now and then — an agent moving through the diagram. Static
-   under prefers-reduced-motion; the signal quickens on hover; falls back to the
-   flat accent fill (white diagram still shown) if WebGL is unavailable.
+/* The brand mark — a small layered directed graph, after Kozo Sugiyama's method
+   for drawing DAGs (rank assignment, crossing minimisation, downward flow): the
+   family of algorithms the layout engine uses. A WebGL shader paints the accent
+   ground and lets a soft light sweep DOWN through the ranks now and then, the way
+   the method passes over layers — a signal propagating through the hierarchy.
+   Static under prefers-reduced-motion; quicker on hover; falls back to the flat
+   accent fill (white graph still shown) if WebGL is unavailable.
 
-   The edge route is shared, in viewBox(48) coords, with the shader (as uv with a
-   flipped y) and with favicon.svg / the docs end-mark. */
+   Node/edge coordinates (viewBox 48, top-down) are shared with the shader (as a
+   viewBox-space point) and with favicon.svg / the docs end-mark. */
 (function () {
   const NS = 'http://www.w3.org/2000/svg';
   function el(name, attrs) { const e = document.createElementNS(NS, name); for (const k in attrs) e.setAttribute(k, attrs[k]); return e; }
-  function diagramSVG() {
+
+  // layered DAG: rank 1 {A}, rank 2 {B,C}, rank 3 {D,E}; edges only between adjacent ranks
+  const N = { A: [17, 10], B: [11, 24], C: [31, 24], D: [19, 38], E: [37, 38] };
+  const EDGES = [['A', 'B'], ['A', 'C'], ['B', 'D'], ['C', 'D'], ['C', 'E']];
+
+  function graphSVG() {
     const svg = el('svg', { viewBox: '0 0 48 48', fill: 'none', 'aria-hidden': 'true' });
-    svg.appendChild(el('rect', { x: 6, y: 8, width: 15, height: 10, rx: 3, fill: 'currentColor' }));      // node A
-    svg.appendChild(el('rect', { x: 27, y: 30, width: 15, height: 10, rx: 3, fill: 'currentColor' }));    // node B
-    svg.appendChild(el('path', { d: 'M21,13 H34.5 V28.5', stroke: 'currentColor', 'stroke-width': 2.3, 'stroke-linecap': 'round', 'stroke-linejoin': 'round' }));
-    svg.appendChild(el('path', { d: 'M34.5,30.5 L32.3,26.4 L36.7,26.4 Z', fill: 'currentColor' }));       // arrowhead into B
+    for (const [a, b] of EDGES) svg.appendChild(el('line', { x1: N[a][0], y1: N[a][1], x2: N[b][0], y2: N[b][1], stroke: 'currentColor', 'stroke-width': 2, 'stroke-linecap': 'round' }));
+    for (const k in N) svg.appendChild(el('circle', { cx: N[k][0], cy: N[k][1], r: 2.7, fill: 'currentColor' }));
     return svg;
   }
 
   const VERT = 'attribute vec2 p; void main(){ gl_Position = vec4(p, 0.0, 1.0); }';
   const FRAG = `precision highp float;
     uniform vec2 u_res; uniform float u_time; uniform float u_hover;
-    float seg(vec2 p, vec2 a, vec2 b, float base, out float arc){
-      vec2 pa = p - a, ba = b - a; float h = clamp(dot(pa, ba) / dot(ba, ba), 0.0, 1.0);
-      arc = base + h * length(ba); return length(pa - ba * h);
-    }
+    float sdSeg(vec2 p, vec2 a, vec2 b){ vec2 pa=p-a, ba=b-a; float h=clamp(dot(pa,ba)/dot(ba,ba),0.0,1.0); return length(pa-ba*h); }
     void main(){
       vec2 uv = gl_FragCoord.xy / u_res;
-      // accent ground: a gentle vertical gradient, no caustic
-      vec3 aDeep = vec3(0.043, 0.388, 0.310);
-      vec3 aMid  = vec3(0.055, 0.435, 0.336);
+      vec3 aDeep = vec3(0.043, 0.388, 0.310), aMid = vec3(0.055, 0.435, 0.336);
       vec3 col = mix(aDeep, aMid, smoothstep(0.0, 1.0, uv.y));
-      // edge route A->B->C (viewBox 21,13 -> 34.5,13 -> 34.5,28.5, as uv with flipped y)
-      vec2 A = vec2(0.43750, 0.72917), B = vec2(0.71875, 0.72917), C = vec2(0.71875, 0.40625);
-      float L1 = length(B - A), L2 = length(C - B), L = L1 + L2;
-      float a1, a2;
-      float d1 = seg(uv, A, B, 0.0, a1);
-      float d2 = seg(uv, B, C, L1, a2);
-      float dist = min(d1, d2);
-      float arc = d1 < d2 ? a1 : a2;
-      col = mix(col, aMid, smoothstep(0.05, 0.0, dist) * 0.14);          // faint wire so the route reads
-      float head = fract(u_time * (0.16 + 0.10 * u_hover)) * (L + 0.55) - 0.30;  // signal sweeps, with a gap
-      float along = smoothstep(0.13, 0.0, abs(arc - head));
-      float near = smoothstep(0.075, 0.0, dist);
-      col = mix(col, vec3(0.64, 0.87, 0.77), near * along * (0.55 + 0.35 * u_hover));
+      vec2 P = vec2(uv.x, 1.0 - uv.y) * 48.0;            // viewBox space, y down
+      vec2 A=vec2(17.,10.), B=vec2(11.,24.), C=vec2(31.,24.), D=vec2(19.,38.), E=vec2(37.,38.);
+      float g = 1e9;
+      g = min(g, length(P-A)-2.7); g = min(g, length(P-B)-2.7); g = min(g, length(P-C)-2.7);
+      g = min(g, length(P-D)-2.7); g = min(g, length(P-E)-2.7);
+      g = min(g, sdSeg(P,A,B)-1.0); g = min(g, sdSeg(P,A,C)-1.0); g = min(g, sdSeg(P,B,D)-1.0);
+      g = min(g, sdSeg(P,C,D)-1.0); g = min(g, sdSeg(P,C,E)-1.0);
+      float halo = smoothstep(3.4, 0.6, g);             // glow ring around the graph
+      float band = fract(u_time * (0.12 + 0.07 * u_hover)) * 88.0 - 20.0;   // light descends the ranks, with a gap
+      float sweep = smoothstep(7.0, 0.0, abs(P.y - band));
+      col = mix(col, vec3(0.64, 0.87, 0.77), halo * sweep * (0.6 + 0.35 * u_hover));
       float d = distance(uv, vec2(0.5));
       col *= 1.0 - 0.18 * smoothstep(0.25, 0.82, d);
       gl_FragColor = vec4(col, 1.0);
@@ -53,7 +50,7 @@
   function setup(mark) {
     const glyph = document.createElement('span');
     glyph.className = 'glyph';
-    glyph.appendChild(diagramSVG());
+    glyph.appendChild(graphSVG());
     const canvas = document.createElement('canvas');
     mark.textContent = '';
     mark.appendChild(canvas);
@@ -101,7 +98,7 @@
       gl.uniform1f(uHover, hov);
       gl.drawArrays(gl.TRIANGLES, 0, 3);
     }
-    if (reduce) { draw(0.0, 0); return; }   // t=0 sits in the signal's gap: clean static diagram
+    if (reduce) { draw(0.0, 0); return; }   // t=0 sits in the sweep's gap: clean static graph
     function frame(ms) {
       hover += (target - hover) * 0.08;
       const tt = (typeof window.__SHADER_TIME__ === 'number') ? window.__SHADER_TIME__ : ms * 0.001;

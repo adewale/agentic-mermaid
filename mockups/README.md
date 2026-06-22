@@ -44,11 +44,11 @@ sink into the background). Dark applies via OS preference
 carries a toggle. Diagrams render onto a light panel (`--diagram-bg`) in both
 themes so the geometry stays legible.
 
-The logo is the same self-contained chip in both modes — a white node-edge
-diagram on the pine accent — so the brand reads identically light or dark. A
+The logo is the same self-contained chip in both modes — a white layered graph
+on the pine accent — so the brand reads identically light or dark. A
 `--mark-ring` token is transparent in light and a faint white hairline in dark,
-so the chip's edge stays crisp against the near-black nav. The same diagram is
-the `favicon.svg`.
+so the chip's edge stays crisp against the near-black nav. The same graph is the
+`favicon.svg`.
 
 The layout collapses to a single column at 820px and reduces the display sizes;
 the nav swaps its links for a menu button below that width.
@@ -93,23 +93,26 @@ environment has no video encoder.
 
 ## The living mark (a restrained shader)
 
-The logo is the product's own primitive rather than a sea metaphor: two nodes
-joined by a deterministically routed orthogonal edge — the shape the layout
-engine makes. A WebGL fragment shader paints the accent ground and sends a faint
-signal travelling the edge (`A → bend → B`) now and then: an agent moving
-through the diagram. It stays restrained by confinement (26px), one accent
-family, and a gap between signals; it settles to a single still frame under
-`prefers-reduced-motion`, the signal quickens on hover, and it falls back to the
-flat accent fill (white diagram still shown) if WebGL is missing.
-`shader-demo.html` shows it large; `shot-shader.png` is a four-frame filmstrip of
-the signal travelling A → bend → B.
+The logo is a small layered directed graph, after Kozo Sugiyama's framework for
+drawing DAGs — rank assignment, crossing minimisation, downward flow — which is
+the family of algorithms the layout engine uses (via ELK). Three ranks
+(`{A} / {B,C} / {D,E}`), edges only between adjacent ranks. A WebGL fragment
+shader paints the accent ground and lets a soft light sweep *down through the
+ranks* now and then, the way the method passes over layers: a signal propagating
+through the hierarchy. It stays restrained by confinement (26px), one accent
+family, and a gap between sweeps; it settles to a single still frame under
+`prefers-reduced-motion`, quickens on hover, and falls back to the flat accent
+fill (white graph still shown) if WebGL is missing. `shader-demo.html` shows it
+large; `shot-shader.png` is a four-frame filmstrip of the sweep lighting each
+rank top to bottom.
 
-The diagram is one drawing — nodes as filled rects, the route as a stroked
-orthogonal path with an arrowhead — shared by the logo glyph, `favicon.svg`
-(white on the pine square), and the end-mark closing the docs article. The edge
-geometry is shared with the shader too, in `uv` with a flipped y, so the signal
-tracks the same route the white edge draws. (An earlier version used a trident;
-it was dropped as too on-the-nose for a "mermaid" product.)
+The graph is one drawing — circles for nodes, strokes for edges — shared by the
+logo glyph, `favicon.svg` (white on the pine square), and the end-mark closing
+the docs article. The same node/edge coordinates drive the shader (in viewBox
+space), so the sweep lights exactly the ranks the white graph draws. (Earlier
+versions used a trident and then a two-node flowchart; both were dropped — the
+trident as too on-the-nose for a "mermaid" product, the flowchart as too
+generic.)
 
 ## Regenerate
 
