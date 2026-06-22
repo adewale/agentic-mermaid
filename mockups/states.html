@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Interaction states — Agentic Mermaid</title>
+<link rel="stylesheet" href="styles.css">
+<style>
+  .sheet { max-width: 1000px; margin: 0 auto; padding: var(--sp-7) var(--sp-5); }
+  .demo { display: grid; grid-template-columns: 200px 1fr; gap: var(--sp-5); padding: var(--sp-5) 0; border-top: 1px solid var(--line); align-items: center; }
+  .demo:first-of-type { border-top: 0; }
+  .demo h3 { margin: 0; }
+  .demo p { margin: 6px 0 0; font-size: var(--t-sm); color: var(--ink-soft); max-width: 40ch; }
+  .row { display: flex; gap: var(--sp-5); align-items: center; flex-wrap: wrap; }
+  .state { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; }
+  .state .cap { font-size: 12px; color: var(--ink-faint); font-family: var(--mono); }
+  .hit { position: relative; width: 40px; height: 40px; display: inline-grid; place-items: center; border: 1px dashed var(--line-strong); border-radius: 10px; }
+  .hit .glyph { width: 18px; height: 18px; color: var(--ink-soft); }
+  /* concentric demo boxes */
+  .cc { width: 150px; height: 96px; background: var(--chip); display: grid; place-items: center; padding: 12px; }
+  .cc .inner { width: 100%; height: 100%; background: var(--accent); }
+  .cc.bad  { border-radius: 16px; } .cc.bad  .inner { border-radius: 14px; }   /* radius ignores the inset */
+  .cc.good { border-radius: 16px; } .cc.good .inner { border-radius: 4px; }    /* inner = outer (16) − inset (12) */
+  .num { font-size: 22px; line-height: 1.5; }
+  .num .l { color: var(--ink-faint); font-size: 12px; font-family: var(--mono); display:block; }
+</style>
+</head>
+<body>
+
+<nav class="nav">
+  <div class="wrap nav__in">
+    <span class="brand"><span class="mark">&#8776;</span> Agentic&nbsp;Mermaid</span>
+    <span class="nav__links"><a href="#">Editor</a><a href="#">Docs</a></span>
+    <span class="nav__spacer"></span>
+    <span class="nav__meta">interaction states</span>
+    <button class="iconbtn" aria-label="Toggle dark mode" style="margin-left:var(--sp-3);">&#9680;</button>
+  </div>
+</nav>
+
+<div class="sheet">
+  <h1 style="font-size:33px;">Interaction states &amp; craft</h1>
+  <p class="prose">The values applied across the mockups, shown in one place. States that need a cursor are drawn explicitly here so they read in a screenshot.</p>
+
+  <div class="demo">
+    <div><h3>Primary button</h3><p>Default, hover (darker fill), keyboard focus ring, and a <code>scale(0.96)</code> press.</p></div>
+    <div class="row">
+      <div class="state"><a class="btn btn--primary">Open editor</a><span class="cap">default</span></div>
+      <div class="state"><a class="btn btn--primary" style="background:var(--accent-hover);">Open editor</a><span class="cap">hover</span></div>
+      <div class="state"><a class="btn btn--primary" style="outline:2px solid var(--link); outline-offset:2px;">Open editor</a><span class="cap">focus-visible</span></div>
+      <div class="state"><a class="btn btn--primary" style="transform:scale(0.96);">Open editor</a><span class="cap">:active 0.96</span></div>
+    </div>
+  </div>
+
+  <div class="demo">
+    <div><h3>Ghost button</h3><p>Border strengthens on hover; same focus ring and press.</p></div>
+    <div class="row">
+      <div class="state"><a class="btn btn--ghost">Read the guide</a><span class="cap">default</span></div>
+      <div class="state"><a class="btn btn--ghost" style="border-color:var(--ink-faint);">Read the guide</a><span class="cap">hover</span></div>
+      <div class="state"><a class="btn btn--ghost" style="outline:2px solid var(--link); outline-offset:2px;">Read the guide</a><span class="cap">focus-visible</span></div>
+      <div class="state"><a class="btn btn--ghost" style="transform:scale(0.96);">Read the guide</a><span class="cap">:active 0.96</span></div>
+    </div>
+  </div>
+
+  <div class="demo">
+    <div><h3>Hit area</h3><p>Icon buttons keep a 40&times;40 target even when the glyph is smaller.</p></div>
+    <div class="row">
+      <button class="iconbtn">&#9680;</button>
+      <span class="hit"><svg class="glyph" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 12h16M12 4v16"/></svg></span>
+      <span class="cap">40&times;40 minimum</span>
+    </div>
+  </div>
+
+  <div class="demo">
+    <div><h3>Concentric radius</h3><p>An inset child's radius should equal the parent radius minus the inset (16 &minus; 12 = 4). Equal radii on both look subtly wrong.</p></div>
+    <div class="row">
+      <div class="state"><div class="cc bad"><div class="inner"></div></div><span class="cap">off — inner 14</span></div>
+      <div class="state"><div class="cc good"><div class="inner"></div></div><span class="cap">on — inner 4</span></div>
+    </div>
+  </div>
+
+  <div class="demo">
+    <div><h3>Tabular numbers</h3><p>Metrics and versions use fixed-width figures so values don't shift as they change.</p></div>
+    <div class="row" style="gap:var(--sp-7);">
+      <div class="num" style="font-variant-numeric:proportional-nums;"><span class="l">proportional</span>1,418.30<br>9,007.61</div>
+      <div class="num tnum"><span class="l">tabular</span>1,418.30<br>9,007.61</div>
+    </div>
+  </div>
+
+  <div class="demo">
+    <div><h3>Motion tokens</h3><p>ease-out for anything responding to the user. Short for frequent motion, longer for one-time entrance.</p></div>
+    <div class="row" style="gap:var(--sp-6);">
+      <svg width="120" height="84" viewBox="0 0 120 84" style="border:1px solid var(--line); border-radius:8px; background:var(--surface);">
+        <path d="M0,80 C26.4,0 43.2,0 120,4" fill="none" stroke="var(--accent)" stroke-width="2.5"/>
+      </svg>
+      <div style="font-family:var(--mono); font-size:13px; color:var(--ink-soft); line-height:1.9;">
+        <div>--ease-out: cubic-bezier(0.22, 1, 0.36, 1)</div>
+        <div>--dur-1: 140ms <span style="color:var(--ink-faint);">hover / press</span></div>
+        <div>--dur-2: 220ms <span style="color:var(--ink-faint);">theme crossfade</span></div>
+        <div>--dur-3: 460ms <span style="color:var(--ink-faint);">entrance</span></div>
+      </div>
+    </div>
+  </div>
+
+</div>
+</body>
+</html>

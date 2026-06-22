@@ -16,10 +16,10 @@ async function shoot(variant: string, opts: Parameters<typeof browser.newContext
   await ctx.close()
 }
 
-// desktop light + dark (theme via emulated prefers-color-scheme), then narrow mobile
-await shoot('light',  { viewport: { width: 1440, height: 1000 }, deviceScaleFactor: 2, colorScheme: 'light' })
-await shoot('dark',   { viewport: { width: 1440, height: 1000 }, deviceScaleFactor: 2, colorScheme: 'dark' })
-await shoot('mobile', { viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, colorScheme: 'light', isMobile: true, hasTouch: true })
+// stills freeze the final state (reduced-motion) so the entrance animation isn't caught mid-flight
+await shoot('light',  { viewport: { width: 1440, height: 1000 }, deviceScaleFactor: 2, colorScheme: 'light', reducedMotion: 'reduce' })
+await shoot('dark',   { viewport: { width: 1440, height: 1000 }, deviceScaleFactor: 2, colorScheme: 'dark', reducedMotion: 'reduce' })
+await shoot('mobile', { viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, colorScheme: 'light', isMobile: true, hasTouch: true, reducedMotion: 'reduce' })
 
 await browser.close()
 console.log('done')

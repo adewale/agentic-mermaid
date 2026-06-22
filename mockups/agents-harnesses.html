@@ -128,5 +128,13 @@
   <span class="nav__spacer"></span>
   <a href="#">harnesses.json</a><a href="#">agent-manifest.json</a><a href="#">capabilities.json</a>
 </div></footer>
+<script>
+  for (const b of document.querySelectorAll('.iconbtn[aria-label="Toggle dark mode"]'))
+    b.addEventListener('click', () => {
+      const h = document.documentElement;
+      const dark = (h.getAttribute('data-theme') || (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')) === 'dark';
+      h.setAttribute('data-theme', dark ? 'light' : 'dark');
+    });
+</script>
 </body>
 </html>

@@ -25,7 +25,7 @@
 <!-- HERO: short, punchy headline (not a full sentence at display size); roman serif -->
 <header class="section--tight">
   <div class="wrap grid-hero">
-    <div>
+    <div class="reveal">
       <span class="tag">Local-first · deterministic</span>
       <h1 style="margin-top:var(--sp-4); max-width:13ch;">Diagrams your agents can edit.</h1>
       <p class="prose" style="font-size:18px;">
@@ -41,7 +41,7 @@
         12 diagram families · SVG · PNG · ASCII · Unicode · JSON layout
       </p>
     </div>
-    <div class="diagram hero-diagram" aria-label="Rendered flowchart of the agent edit loop">
+    <div class="diagram hero-diagram reveal" style="--d:90ms" aria-label="Rendered flowchart of the agent edit loop">
       <img src="diagrams/workflow-tb.svg" alt="parse, narrow, mutate, verify, then serialize and render">
     </div>
   </div>
@@ -57,14 +57,14 @@
 
     <div class="grid-3" style="margin-top:var(--sp-5);">
 
-      <div class="card">
+      <div class="card reveal" style="--d:0ms">
         <span class="label">Try in the browser</span>
         <h3 style="margin-top:var(--sp-3);">Render and export, no install</h3>
         <p class="prose" style="font-size:var(--t-sm);">Paste Mermaid, get SVG/PNG and text output, copy a share link.</p>
         <a class="btn btn--primary" href="#" style="margin-top:var(--sp-2);">Open editor</a>
       </div>
 
-      <div class="card">
+      <div class="card reveal" style="--d:70ms">
         <span class="label">Install locally</span>
         <h3 style="margin-top:var(--sp-3);">Library, CLI, or local MCP</h3>
         <div class="term" style="margin-top:var(--sp-3);">
@@ -75,7 +75,7 @@
         </div>
       </div>
 
-      <div class="card">
+      <div class="card reveal" style="--d:140ms">
         <span class="label">Configure an agent</span>
         <h3 style="margin-top:var(--sp-3);">Wire it into your harness</h3>
         <p class="prose" style="font-size:var(--t-sm); margin-bottom:var(--sp-3);">Claude Code, Cursor, Codex, Gemini CLI, Copilot, Pi, OpenCode, generic MCP.</p>
@@ -159,5 +159,13 @@
   </div>
 </footer>
 
+<script>
+  for (const b of document.querySelectorAll('.iconbtn[aria-label="Toggle dark mode"]'))
+    b.addEventListener('click', () => {
+      const h = document.documentElement;
+      const dark = (h.getAttribute('data-theme') || (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')) === 'dark';
+      h.setAttribute('data-theme', dark ? 'light' : 'dark');
+    });
+</script>
 </body>
 </html>

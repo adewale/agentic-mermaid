@@ -37,12 +37,36 @@ The embedded diagrams are real renderer output, not hand-drawn SVG:
 `diagrams/*.mmd` are the sources, rendered with `am render`. The `Inter`
 `@import` the renderer emits is stripped so the pages are self-contained.
 
+## Craft and motion
+
+The interaction layer follows Emil Kowalski's `emil-design-eng`, Jakub Krehel's
+`make-interfaces-feel-better`, Paul Bakaus' `impeccable`, and the
+[animations.dev vocabulary](https://animations.dev/vocabulary):
+
+- ease-out (`cubic-bezier(0.22, 1, 0.36, 1)`) for anything responding to the
+  user; durations are short for frequent motion (140ms hover/press), longer for
+  one-time entrance (460ms).
+- press feedback is `scale(0.96)`; transitions name specific properties (never
+  `all`) and move only transform/opacity/color so the GPU composites them.
+- keyboard focus shows a visible ring; hit areas stay 40×40; changing numbers
+  use tabular figures; nested radii are concentric (inner = outer − inset).
+- theme switching crossfades; the load entrance is staggered; both collapse
+  under `prefers-reduced-motion: reduce`.
+
+`states.html` shows these values in one sheet (states that need a cursor are
+drawn explicitly so they read in a screenshot). `shot-motion-*.png` are
+frame-by-frame filmstrips of the theme crossfade and the entrance, since the
+environment has no video encoder.
+
 ## Regenerate
 
 ```bash
 # diagrams (SVG + Unicode), then strip the web-font @import (see git history for the one-liner)
 bun run bin/am.ts render mockups/diagrams/workflow.mmd --format svg > mockups/diagrams/workflow.svg
 
-# screenshots → mockups/shot-<page>-{light,dark,mobile}.png
+# page stills → mockups/shot-<page>-{light,dark,mobile}.png
 bun run mockups/shot.ts
+
+# states sheet + motion filmstrips → shot-states-{light,dark}.png, shot-motion-{theme,entrance}.png
+bun run mockups/record.ts
 ```
