@@ -10,6 +10,15 @@ generated routes or machine manifests.
 - `home.html` — landing + three-way start rail (`/`).
 - `editor.html` — editor workbench with SVG/Unicode output and the tiered `verify` panel (`/editor`).
 - `agents-harnesses.html` — local-MCP setup cards per harness (`/agents/harnesses`).
+- `states.html`, `alternatives.html` — craft reference sheets, not site routes.
+
+## Controls (no pills)
+
+Pills read soft and consumer, which fights the precise manual/workbench voice.
+Buttons use an 8px radius (the same family as the 7px mark and 8px inputs), tags
+are squared 6px chips with a leading status dot, and the editor's output switch
+is an underlined tab bar. `alternatives.html` shows the options compared
+(soft-square vs sharp; chip+dot vs mono-bracket vs keyline; tabs vs boxed).
 
 ## Themes and responsiveness
 

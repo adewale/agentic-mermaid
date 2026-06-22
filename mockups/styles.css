@@ -130,7 +130,7 @@ a:focus-visible, .btn:focus-visible, .iconbtn:focus-visible, .pill:focus-visible
 
 /* buttons — one transition rule covers press + hover + theme */
 .btn { display: inline-flex; align-items: center; gap: var(--sp-2); min-height: 40px; padding: 0 var(--sp-5);
-  border-radius: 999px; font-size: var(--t-sm); font-weight: 600; cursor: pointer; border: 1px solid transparent;
+  border-radius: 8px; font-size: var(--t-sm); font-weight: 600; cursor: pointer; border: 1px solid transparent;
   transition: transform var(--dur-1) var(--ease-out), background-color var(--dur-2) var(--ease-out),
               border-color var(--dur-2) var(--ease-out), color var(--dur-2) var(--ease-out); }
 .btn:active { transform: scale(0.96); }
@@ -140,9 +140,12 @@ a:focus-visible, .btn:focus-visible, .iconbtn:focus-visible, .pill:focus-visible
 .btn--ghost:hover { border-color: var(--ink-faint); text-decoration: none; }
 
 /* tags / labels */
-.tag { display: inline-flex; align-items: center; gap: 6px; height: 24px; padding: 0 10px; border-radius: 999px;
+/* tags — squared chip with a leading status dot, not a pill */
+.tag { display: inline-flex; align-items: center; gap: 7px; height: 24px; padding: 0 9px; border-radius: 6px;
   background: var(--accent-tint); color: var(--link); font-size: var(--t-label); font-weight: 600; }
+.tag::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: var(--accent); flex: none; }
 .tag--neutral { background: var(--chip); color: var(--ink-soft); }
+.tag--neutral::before { background: var(--ink-faint); }
 .label { font-size: var(--t-label); font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: var(--ink-faint); }
 
 /* cards — hairline edge, no shadow; hover lifts via transform + border, not a glow */
