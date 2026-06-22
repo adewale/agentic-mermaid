@@ -15,10 +15,10 @@ const temp: string[] = []
   const box = await page.locator('.demo-big').boundingBox()
   const clip = { x: Math.round(box!.x), y: Math.round(box!.y), width: Math.round(box!.width), height: Math.round(box!.height) }
   const phases = [
-    { t: 5.27, cap: 'resting — overlooked' },
-    { t: 1.00, cap: 'surfacing' },
-    { t: 1.34, cap: 'there' },
-    { t: 1.90, cap: 'dissolving' },
+    { t: 6.16, cap: 'resting — overlooked' },
+    { t: 1.10, cap: 'surfacing' },
+    { t: 1.67, cap: 'there' },
+    { t: 2.50, cap: 'dissolving' },
   ]
   for (let i = 0; i < phases.length; i++) {
     await page.evaluate((t) => { (window as any).__SHADER_TIME__ = t }, phases[i].t)
@@ -48,7 +48,7 @@ const temp: string[] = []
   const ctx = await browser.newContext({ viewport: { width: 1320, height: 200 }, deviceScaleFactor: 3, colorScheme: 'light', reducedMotion: 'no-preference' })
   const page = await ctx.newPage()
   await page.goto(url('home.html'), { waitUntil: 'load' })
-  await page.evaluate(() => { (window as any).__SHADER_TIME__ = 5.27 })
+  await page.evaluate(() => { (window as any).__SHADER_TIME__ = 6.16 })
   await page.waitForTimeout(300)
   await page.screenshot({ path: 'mockups/shot-shader-context.png', clip: { x: 16, y: 8, width: 320, height: 46 } })
   await ctx.close()
