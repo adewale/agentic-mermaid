@@ -10,19 +10,20 @@
    - changing numbers use tabular figures so they don't shift width */
 
 :root {
-  --paper:      #F7F8F9;
+  /* one teal-anchored neutral ramp; dark is the same hue at low lightness (see [data-theme="dark"]) */
+  --paper:      #F5F7F6;
   --surface:    #FFFFFF;
   --diagram-bg: #FFFFFF;
-  --ink:        #16202A;
-  --ink-soft:   #49555F;
-  --ink-faint:  #5E6973;
-  --line:       #DEE2E5;
-  --line-strong:#C9CFD4;
-  --chip:       #EEF1F3;
+  --ink:        #18211E;
+  --ink-soft:   #48544F;
+  --ink-faint:  #5E6A65;
+  --line:       #DCE3E0;
+  --line-strong:#C6CEC9;
+  --chip:       #ECF0EE;
   --accent:     #0E6E55;
   --accent-hover:#0A5642;
   --link:       #0E6E55;
-  --accent-tint:#E9F1EE;
+  --accent-tint:#E6F1ED;
   --warn:       #8A5300;
   --warn-tint:  #FBF1E2;
   --danger:     #B42318;
@@ -30,6 +31,7 @@
   --term-fg:    #E9EEEB;
   --term-dim:   #9DB1A8;
   --term-accent:#7CC3A6;
+  --mark-ring:  rgba(0, 0, 0, 0);   /* logo edge ring — transparent in light, faint in dark */
 
   --serif: 'DejaVu Serif', Charter, Georgia, serif;
   --sans:  'DejaVu Sans', system-ui, sans-serif;
@@ -47,19 +49,21 @@
 }
 
 [data-theme="dark"] {
-  --paper:#0E1413; --surface:#141C19; --diagram-bg:#ECEFEE;
-  --ink:#E8EDEA; --ink-soft:#AAB4AF; --ink-faint:#818E87;
-  --line:#26302B; --line-strong:#37433D; --chip:#1E2723;
+  --paper:#0F1613; --surface:#1A2420; --diagram-bg:#ECEFEE;
+  --ink:#E9EEEB; --ink-soft:#A6B2AC; --ink-faint:#74827B;
+  --line:#2D3833; --line-strong:#414D47; --chip:#232E2A;
   --accent:#1C8568; --accent-hover:#157A5F; --link:#6FC2A2;
-  --accent-tint:#163129; --warn:#E0A75A; --warn-tint:#2A2418; --term-bg:#0A100E;
+  --accent-tint:#18332B; --warn:#E0A75A; --warn-tint:#2A2418; --term-bg:#0C1410;
+  --mark-ring:rgba(255,255,255,0.09);
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --paper:#0E1413; --surface:#141C19; --diagram-bg:#ECEFEE;
-    --ink:#E8EDEA; --ink-soft:#AAB4AF; --ink-faint:#818E87;
-    --line:#26302B; --line-strong:#37433D; --chip:#1E2723;
+    --paper:#0F1613; --surface:#1A2420; --diagram-bg:#ECEFEE;
+    --ink:#E9EEEB; --ink-soft:#A6B2AC; --ink-faint:#74827B;
+    --line:#2D3833; --line-strong:#414D47; --chip:#232E2A;
     --accent:#1C8568; --accent-hover:#157A5F; --link:#6FC2A2;
-    --accent-tint:#163129; --warn:#E0A75A; --warn-tint:#2A2418; --term-bg:#0A100E;
+    --accent-tint:#18332B; --warn:#E0A75A; --warn-tint:#2A2418; --term-bg:#0C1410;
+    --mark-ring:rgba(255,255,255,0.09);
   }
 }
 
@@ -118,9 +122,10 @@ a:focus-visible, .btn:focus-visible, .iconbtn:focus-visible, .pill:focus-visible
 .brand { display: flex; align-items: center; gap: var(--sp-3); font-family: var(--serif); font-weight: 700; font-size: 18px; color: var(--ink); }
 .brand .mark { width: 26px; height: 26px; border-radius: 7px; background: var(--accent); display: inline-grid; place-items: center; color: #fff; font-family: var(--mono); font-size: 14px; font-weight: 700; }
 /* living mark — a WebGL caustic canvas sits behind the glyph (see shader-mark.js) */
-.mark { position: relative; overflow: hidden; }
+.mark { position: relative; overflow: hidden; box-shadow: 0 0 0 1px var(--mark-ring); }
 .mark > canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
-.mark > .glyph { position: relative; z-index: 1; text-shadow: 0 1px 2px rgba(0, 0, 0, 0.28); }
+.mark > .glyph { position: relative; z-index: 1; display: inline-flex; }
+.mark > .glyph svg { width: 1.4em; height: 1.4em; display: block; filter: drop-shadow(0 1px 1.5px rgba(0, 0, 0, 0.30)); }
 .nav__links { display: flex; gap: var(--sp-5); margin-left: var(--sp-2); }
 .nav__links a { color: var(--ink-soft); font-size: var(--t-sm); }
 .nav__links a:hover { color: var(--ink); text-decoration: none; }

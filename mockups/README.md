@@ -34,12 +34,24 @@ is an underlined tab bar. `alternatives.html` shows the options compared
 
 ## Themes and responsiveness
 
-Two themes share one token set in `styles.css`. Dark mode applies via OS
-preference (`prefers-color-scheme: dark`) or an explicit `[data-theme="dark"]`
-attribute; the nav carries a toggle affordance. Diagrams render onto a light
-panel (`--diagram-bg`) in both themes so the geometry stays legible. The layout
-collapses to a single column at 820px and reduces the display sizes; the nav
-swaps its links for a menu button below that width.
+Two themes share one token set in `styles.css`, and they are deliberately the
+same system at two lightnesses rather than two palettes. The neutrals are
+anchored on one faintly teal hue — light is a cool paper, dark a teal-charcoal —
+and the steps are parallel: in both modes a surface lifts a clear notch off the
+background and a hairline border stays visible (the earlier dark mode let cards
+sink into the background). Dark applies via OS preference
+(`prefers-color-scheme: dark`) or an explicit `[data-theme="dark"]`; the nav
+carries a toggle. Diagrams render onto a light panel (`--diagram-bg`) in both
+themes so the geometry stays legible.
+
+The logo is the same self-contained chip in both modes — a white trident on a
+pine caustic — so the brand reads identically light or dark. A `--mark-ring`
+token is transparent in light and a faint white hairline in dark, so the chip's
+edge stays crisp against the near-black nav. The same trident is the
+`favicon.svg`.
+
+The layout collapses to a single column at 820px and reduces the display sizes;
+the nav swaps its links for a menu button below that width.
 
 ## Design and writing constraints
 
@@ -81,24 +93,21 @@ environment has no video encoder.
 
 ## The living mark (a restrained shader)
 
-`shader-mark.js` renders a WebGL fragment shader behind the brand glyph: a slow
-pine-to-mint caustic, the size of the 26px mark. The logo is a wave and the
-product is mermaid, so the motion is on-brand rather than decorative. It stays
-restrained by confinement (26px), palette (one accent family), and speed; a
-soft vignette plus a glyph text-shadow keep the `≈` legible. It settles to a
-single frame under `prefers-reduced-motion`, stirs slightly on hover, and falls
-back to the flat accent fill if WebGL is missing. `shader-demo.html` shows it
-large; `shot-shader.png` is a four-frame filmstrip of the caustic flowing.
+The logo is a white forged trident (Poseidon, the sea, the mermaid) over a slow
+pine-to-mint caustic rendered by a WebGL fragment shader, the size of the 26px
+mark. The water stays restrained by confinement (26px), one accent palette, and
+speed; a soft vignette plus a drop-shadow on the trident keep it legible. It
+settles to a single frame under `prefers-reduced-motion`, the water stirs on
+hover, and it falls back to the flat accent fill (trident still shown) if WebGL
+is missing. `shader-demo.html` shows it large; `shot-shader.png` is a four-frame
+filmstrip of the water moving behind the mark.
 
-A trident is hidden in the water (Poseidon, the sea, the mermaid). It is a
-forged silhouette — curved outer tines, a leaf centre blade, a collar and a
-finial: a trident, not a pitchfork (a pitchfork has straight, plain tines). The
-shape is one vector path, shared between the shader (rasterised to a mask) and
-the docs end-mark. In the mark it stays unlit at rest and a travelling sheen
-lights it whole every several seconds, so most people overlook it most of the
-time and it stays recognizable when caught. The resting phase is what the page
-stills and the nav show. The same motif recurs once, quietly, as the end-mark
-closing the docs article — the kind of fleuron readers skim past.
+The trident is one vector path: curved outer tines, a leaf centre blade, a
+collar and a finial. It is a trident, not a pitchfork (a pitchfork has straight,
+plain tines). The same path is the `favicon.svg` (white on the pine square) and
+the end-mark closing the docs article, so the motif is one drawing in three
+places. An earlier version hid the trident inside the caustic; it was removed
+when the trident became the logo.
 
 ## Regenerate
 
