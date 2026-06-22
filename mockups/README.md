@@ -95,11 +95,14 @@ environment has no video encoder.
 
 The logo is a small layered directed graph, after Kozo Sugiyama's framework for
 drawing DAGs — rank assignment, crossing minimisation, downward flow — which is
-the family of algorithms the layout engine uses (via ELK). Three ranks
-(`{A} / {B,C} / {D,E}`). Most edges hop one rank, but one (`A → E`) spans two and
-is **routed through a dummy node** `V` in rank 2 — the framework's signature move
-for long edges, drawn as a gentle bend with a small hollow node on it that
-rewards a second look.
+the family of algorithms the layout engine uses (via ELK). The flow converges:
+three source nodes in rank 1 (the prong tips) route to one sink in rank 3 (the
+handle). Every edge spans two ranks, so each is **routed through a dummy node**
+in rank 2 — the framework's signature move for long edges — and the three dummies
+line up as a crossbar. The upshot: the layered drawing **vaguely resembles a
+trident**, emergent from the layout rather than drawn as one (a wink back at an
+earlier idea this arc had rejected as too literal). The dummies are small hollow
+circles that reward a second look.
 
 Two motions, both true to the method:
 

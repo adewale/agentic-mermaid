@@ -31,7 +31,7 @@ async function filmstrip(srcs: { src: string; cap: string }[], out: string) {
   await page.waitForTimeout(1200)   // let the layer-assignment settle finish
   const box = await page.locator('.demo-big').boundingBox()
   const clip = { x: Math.round(box!.x), y: Math.round(box!.y), width: Math.round(box!.width), height: Math.round(box!.height) }
-  const phases = [{ t: 0.0, cap: 'resting' }, { t: 2.84, cap: 'top rank' }, { t: 4.17, cap: 'middle rank' }, { t: 5.49, cap: 'bottom rank' }]
+  const phases = [{ t: 0.0, cap: 'resting' }, { t: 2.65, cap: 'tips' }, { t: 4.1, cap: 'crossbar' }, { t: 5.5, cap: 'handle' }]
   const out: { src: string; cap: string }[] = []
   for (let i = 0; i < phases.length; i++) {
     await page.evaluate((t) => { (window as any).__SHADER_TIME__ = t }, phases[i].t)
@@ -51,7 +51,7 @@ async function filmstrip(srcs: { src: string; cap: string }[], out: string) {
   const box = await page.locator('.demo-big').boundingBox()
   const clip = { x: Math.round(box!.x), y: Math.round(box!.y), width: Math.round(box!.width), height: Math.round(box!.height) }
   await page.reload({ waitUntil: 'load' })          // restart the CSS settle from the top
-  const times = [80, 300, 560, 980], caps = ['rank 1 lands', 'ranks 2–3', 'edges route', 'long edge + dummy']
+  const times = [80, 300, 560, 980], caps = ['tips land', 'handle drops in', 'tines route', 'through the dummies']
   const out: { src: string; cap: string }[] = []
   let prev = 0
   for (let i = 0; i < times.length; i++) {
@@ -69,7 +69,7 @@ async function filmstrip(srcs: { src: string; cap: string }[], out: string) {
   const page = await ctx.newPage()
   await page.goto(url('home.html'), { waitUntil: 'load' })
   await page.waitForTimeout(1200)
-  await page.evaluate(() => { (window as any).__SHADER_TIME__ = 4.17 })
+  await page.evaluate(() => { (window as any).__SHADER_TIME__ = 4.1 })
   await page.waitForTimeout(120)
   await page.screenshot({ path: 'mockups/shot-shader-context.png', clip: { x: 16, y: 8, width: 320, height: 46 } })
   await ctx.close()
