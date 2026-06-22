@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The living mark — Agentic Mermaid</title>
+<link rel="stylesheet" href="styles.css">
+<style>
+  .sheet { max-width: 760px; margin: 0 auto; padding: var(--sp-7) var(--sp-5); text-align: center; }
+  .demo-big { width: 220px; height: 220px; border-radius: 30px; background: var(--accent); color: #fff;
+    display: inline-grid; place-items: center; margin: var(--sp-6) auto var(--sp-5); }
+  .demo-big .glyph { font-family: var(--mono); font-weight: 700; font-size: 120px; }
+  .sheet p { margin-left: auto; margin-right: auto; }
+</style>
+</head>
+<body>
+
+<nav class="nav">
+  <div class="wrap nav__in">
+    <span class="brand"><span class="mark">&#8776;</span> Agentic&nbsp;Mermaid</span>
+    <span class="nav__spacer"></span>
+    <span class="nav__meta">the living mark</span>
+  </div>
+</nav>
+
+<div class="sheet">
+  <h1 style="font-size:33px;">A little tumult of delight</h1>
+  <p class="prose">The logo is a wave, and the product is mermaid. So the mark holds a caustic — a slow pine-to-mint shimmer rendered by a WebGL fragment shader, confined to 26&nbsp;px in the nav. It settles to one still frame under reduced-motion and stirs a touch on hover.</p>
+  <span class="mark demo-big">&#8776;</span>
+  <p class="prose" style="font-size:var(--t-sm); color:var(--ink-faint);">Shown large so the motion reads; in the nav it is the size of the mark on the left.</p>
+</div>
+
+<script src="shader-mark.js"></script>
+</body>
+</html>

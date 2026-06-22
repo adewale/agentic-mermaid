@@ -92,6 +92,7 @@
 
 </div>
 
+<script src="shader-mark.js"></script>
 <script>
   for (const b of document.querySelectorAll('.iconbtn[aria-label="Toggle dark mode"]'))
     b.addEventListener('click', () => { const h=document.documentElement; const d=(h.getAttribute('data-theme')||(matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light'))==='dark'; h.setAttribute('data-theme', d?'light':'dark'); });

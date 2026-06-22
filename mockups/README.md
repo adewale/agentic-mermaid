@@ -79,6 +79,17 @@ drawn explicitly so they read in a screenshot). `shot-motion-*.png` are
 frame-by-frame filmstrips of the theme crossfade and the entrance, since the
 environment has no video encoder.
 
+## The living mark (a restrained shader)
+
+`shader-mark.js` renders a WebGL fragment shader behind the brand glyph: a slow
+pine-to-mint caustic, the size of the 26px mark. The logo is a wave and the
+product is mermaid, so the motion is on-brand rather than decorative. It stays
+restrained by confinement (26px), palette (one accent family), and speed; a
+soft vignette plus a glyph text-shadow keep the `≈` legible. It settles to a
+single frame under `prefers-reduced-motion`, stirs slightly on hover, and falls
+back to the flat accent fill if WebGL is missing. `shader-demo.html` shows it
+large; `shot-shader.png` is a four-frame filmstrip of the caustic flowing.
+
 ## Regenerate
 
 ```bash
@@ -90,4 +101,7 @@ bun run mockups/shot.ts
 
 # states sheet + motion filmstrips → shot-states-{light,dark}.png, shot-motion-{theme,entrance}.png
 bun run mockups/record.ts
+
+# living-mark shader filmstrip → shot-shader.png, shot-shader-context.png
+bun run mockups/shader.ts
 ```
