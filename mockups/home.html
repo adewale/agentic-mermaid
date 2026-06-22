@@ -1,0 +1,161 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Agentic Mermaid</title>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<nav class="nav">
+  <div class="wrap nav__in">
+    <span class="brand"><span class="mark">&#8776;</span> Agentic&nbsp;Mermaid</span>
+    <span class="nav__links">
+      <a href="#">Editor</a><a href="#">Gallery</a><a href="#">Families</a>
+      <a href="#">Agents</a><a href="#">Docs</a><a href="#">Security</a>
+    </span>
+    <span class="nav__spacer"></span>
+    <span class="nav__meta">v0.1.0 · MIT</span>
+  </div>
+</nav>
+
+<!-- HERO: short, punchy headline (not a full sentence at display size); roman serif -->
+<header class="section--tight">
+  <div class="wrap" style="display:grid; grid-template-columns: 1.05fr 0.95fr; gap: var(--sp-7); align-items:center;">
+    <div>
+      <span class="tag">Local-first · deterministic</span>
+      <h1 style="margin-top:var(--sp-4); max-width:13ch;">Diagrams your agents can edit.</h1>
+      <p class="prose" style="font-size:18px;">
+        Render Mermaid to SVG, PNG, ASCII, or Unicode. Then parse, verify, and safely
+        mutate it through a typed surface built for agents. Same input, same geometry,
+        every run.
+      </p>
+      <div style="display:flex; gap:var(--sp-3); margin-top:var(--sp-5);">
+        <a class="btn btn--primary" href="#">Open the editor</a>
+        <a class="btn btn--ghost" href="#">Read the agent guide</a>
+      </div>
+      <p style="margin-top:var(--sp-5); color:var(--ink-faint); font-size:var(--t-sm);">
+        12 diagram families · SVG · PNG · ASCII · Unicode · JSON layout
+      </p>
+    </div>
+    <div class="diagram" aria-label="Rendered flowchart of the agent edit loop" style="display:flex; justify-content:center;">
+      <img src="diagrams/workflow-tb.svg" alt="parse, narrow, mutate, verify, then serialize and render" style="width:auto; max-height:400px;">
+    </div>
+  </div>
+</header>
+
+<hr class="rule">
+
+<!-- START RAIL: three real paths, treatments deliberately varied (not an identical grid) -->
+<section class="section">
+  <div class="wrap">
+    <h2>Start where you are</h2>
+    <p class="prose">Three ways in. Pick one and reach something working in a single screen.</p>
+
+    <div style="display:grid; grid-template-columns: repeat(3, 1fr); gap:var(--sp-5); margin-top:var(--sp-5);">
+
+      <div class="card">
+        <span class="label">Try in the browser</span>
+        <h3 style="margin-top:var(--sp-3);">Render and export, no install</h3>
+        <p class="prose" style="font-size:var(--t-sm);">Paste Mermaid, get SVG/PNG and text output, copy a share link.</p>
+        <a class="btn btn--primary" href="#" style="margin-top:var(--sp-2);">Open editor</a>
+      </div>
+
+      <div class="card">
+        <span class="label">Install locally</span>
+        <h3 style="margin-top:var(--sp-3);">Library, CLI, or local MCP</h3>
+        <div class="term" style="margin-top:var(--sp-3);">
+          <span class="copy">copy</span>
+          <div><span class="pr">$</span> npm i agentic-mermaid</div>
+          <div><span class="pr">$</span> npx agentic-mermaid-mcp</div>
+          <div class="dim"># stdio by default; HTTP is opt-in</div>
+        </div>
+      </div>
+
+      <div class="card">
+        <span class="label">Configure an agent</span>
+        <h3 style="margin-top:var(--sp-3);">Wire it into your harness</h3>
+        <p class="prose" style="font-size:var(--t-sm); margin-bottom:var(--sp-3);">Claude Code, Cursor, Codex, Gemini CLI, Copilot, Pi, OpenCode, generic MCP.</p>
+        <div class="term">
+          <span class="pr">$</span> am init-agent
+        </div>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<hr class="rule">
+
+<!-- GALLERY STRIP: real rendered output, varied captions -->
+<section class="section">
+  <div class="wrap">
+    <div style="display:flex; align-items:baseline; justify-content:space-between; gap:var(--sp-5);">
+      <h2 style="margin:0;">One model, four ways out</h2>
+      <a href="#" style="font-size:var(--t-sm);">Browse the gallery &rarr;</a>
+    </div>
+    <p class="prose" style="margin-top:var(--sp-3);">Every family renders to vector, raster, and text. The same geometry, byte-identical across processes.</p>
+
+    <div style="display:grid; grid-template-columns: 1.2fr 0.9fr 0.9fr; gap:var(--sp-5); margin-top:var(--sp-5);">
+      <div class="diagram">
+        <div class="tag tag--neutral" style="margin-bottom:var(--sp-3);">sequence</div>
+        <img src="diagrams/sequence.svg" alt="sequence diagram between an agent and Agentic Mermaid">
+      </div>
+      <div class="diagram">
+        <div class="tag tag--neutral" style="margin-bottom:var(--sp-3);">state</div>
+        <img src="diagrams/state.svg" alt="state diagram: draft, verified, rendered">
+      </div>
+      <div class="diagram" style="display:flex; flex-direction:column;">
+        <div class="tag tag--neutral" style="margin-bottom:var(--sp-3);">unicode output</div>
+        <div class="ascii" style="flex:1;">&#9484;&#9472;&#9472;&#9472;&#9472;&#9472;&#9488;
+&#9474; Draft &#9474;
+&#9492;&#9472;&#9472;&#9472;&#9472;&#9472;&#9496;
+    &#9474; verify ok
+    &#9660;
+&#9484;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9488;
+&#9474; Verified  &#9474;
+&#9492;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9496;
+    &#9474; render
+    &#9660;
+&#9484;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9488;
+&#9474; Rendered  &#9474;
+&#9492;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9496;</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<hr class="rule">
+
+<!-- STANCE: plain language, no buzzwords -->
+<section class="section">
+  <div class="wrap" style="display:grid; grid-template-columns: 1fr 1fr; gap:var(--sp-7);">
+    <div>
+      <h2>Built for the edit loop, not just the render</h2>
+      <p class="prose">A render-only library makes an agent regenerate the whole diagram to move one node.
+        Here, existing diagrams go <strong>parse &rarr; narrow &rarr; mutate &rarr; verify &rarr; serialize</strong>,
+        and <code>verify</code> returns structured warnings in three tiers plus perceptual quality metrics.</p>
+      <p class="prose">Anything it cannot model round-trips losslessly through preserved source, so nothing is silently dropped.</p>
+    </div>
+    <div>
+      <h2>Local by default</h2>
+      <p class="prose">Run the library, the <code>am</code> CLI, or a local MCP server over stdio.
+        Code Mode <code>execute</code> stays local, for trusted use only.</p>
+      <p class="prose">An optional hosted MCP exposes only <code>render</code>, <code>verify</code>, <code>describe</code>,
+        and structured edits. Authless, rate-limited, no arbitrary code. Self-hosting is the recommended path.</p>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap foot">
+    <span style="font-family:var(--serif); font-weight:700; color:var(--ink);">Agentic Mermaid</span>
+    <span class="nav__spacer"></span>
+    <a href="#">llms.txt</a><a href="#">agent-instructions.md</a><a href="#">capabilities.json</a>
+    <a href="#">agent-manifest.json</a><a href="#">GitHub</a>
+  </div>
+</footer>
+
+</body>
+</html>

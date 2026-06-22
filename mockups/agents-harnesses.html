@@ -1,0 +1,133 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Harnesses — Agentic Mermaid</title>
+<link rel="stylesheet" href="styles.css">
+<style>
+  .crumb { color:var(--ink-faint); font-size:var(--t-sm); }
+  .crumb a { color:var(--ink-faint); }
+  .hgrid { display:grid; grid-template-columns:repeat(3,1fr); gap:var(--sp-5); margin-top:var(--sp-5); }
+  .hcard { background:var(--surface); border:1px solid var(--line); border-radius:var(--radius-card); padding:var(--sp-5); }
+  .hcard h3 { margin:0 0 var(--sp-2); display:flex; align-items:center; gap:8px; }
+  .hcard .role { font-size:var(--t-sm); color:var(--ink-soft); margin:0 0 var(--sp-3); }
+  .smoke { font-size:13px; color:var(--ink-faint); margin-top:var(--sp-3); }
+  .smoke b { color:var(--ink-soft); font-weight:600; }
+  .feature { display:grid; grid-template-columns:1fr 1fr; gap:var(--sp-6); align-items:start;
+             background:var(--surface); border:1px solid var(--line); border-radius:var(--radius-card); padding:var(--sp-6); }
+</style>
+</head>
+<body>
+
+<nav class="nav">
+  <div class="wrap nav__in">
+    <span class="brand"><span class="mark">&#8776;</span> Agentic&nbsp;Mermaid</span>
+    <span class="nav__links"><a href="#">Editor</a><a href="#">Gallery</a><a href="#">Families</a><a href="#">Agents</a><a href="#">Docs</a></span>
+    <span class="nav__spacer"></span>
+    <span class="nav__meta">stdio default · HTTP opt-in</span>
+  </div>
+</nav>
+
+<header class="section--tight">
+  <div class="wrap" style="max-width:820px;">
+    <p class="crumb"><a href="#">Agents</a> / Harnesses</p>
+    <h1 style="margin-top:var(--sp-3); max-width:16ch;">Set up your harness</h1>
+    <p class="prose" style="font-size:18px;">
+      Add the local MCP server over stdio, then run the smoke task to confirm the agent
+      can render, verify, and edit. Each card is generated from <code>harnesses.json</code>.
+    </p>
+  </div>
+</header>
+
+<section class="section--tight">
+  <div class="wrap">
+
+    <!-- featured harness, treatment differs from the grid -->
+    <div class="feature">
+      <div>
+        <span class="tag">Recommended</span>
+        <h3 style="margin-top:var(--sp-3); font-size:var(--t-h2);">Claude Code</h3>
+        <p class="role">One command registers the stdio server. No HTTP, no token, no account.</p>
+        <div class="smoke"><b>Smoke task:</b> &ldquo;Render <code>workflow.mmd</code> to PNG, then verify it and fix any lint.&rdquo;</div>
+        <p class="smoke">Channels: library · CLI · local MCP · skill</p>
+      </div>
+      <div class="term">
+        <span class="copy">copy</span>
+        <div class="dim"># register the local server</div>
+        <div><span class="pr">$</span> claude mcp add agentic-mermaid \</div>
+        <div>&nbsp;&nbsp;&nbsp;&nbsp;-- npx agentic-mermaid-mcp</div>
+        <div style="height:8px;"></div>
+        <div class="dim"># confirm tools are reachable</div>
+        <div><span class="pr">$</span> claude mcp list</div>
+        <div class="ok">&#10003; agentic-mermaid · render verify describe mutate</div>
+      </div>
+    </div>
+
+    <div class="hgrid">
+
+      <div class="hcard">
+        <h3>Cursor</h3>
+        <p class="role">Add a server entry to <code>~/.cursor/mcp.json</code>.</p>
+        <div class="term"><div class="dim">"agentic-mermaid": {</div><div>&nbsp;&nbsp;"command": "npx",</div><div>&nbsp;&nbsp;"args": ["agentic-mermaid-mcp"]</div><div class="dim">}</div></div>
+        <p class="smoke"><b>Smoke:</b> render + verify a flowchart.</p>
+      </div>
+
+      <div class="hcard">
+        <h3>Codex</h3>
+        <p class="role">Declare it under <code>[mcp_servers]</code> in <code>config.toml</code>.</p>
+        <div class="term"><div class="dim">[mcp_servers.agentic-mermaid]</div><div>command = "npx"</div><div>args = ["agentic-mermaid-mcp"]</div></div>
+        <p class="smoke"><b>Smoke:</b> mutate a node, re-verify.</p>
+      </div>
+
+      <div class="hcard">
+        <h3>Gemini CLI</h3>
+        <p class="role">Register the stdio server.</p>
+        <div class="term"><span class="pr">$</span> gemini mcp add \<br>&nbsp;&nbsp;agentic-mermaid \<br>&nbsp;&nbsp;npx agentic-mermaid-mcp</div>
+        <p class="smoke"><b>Smoke:</b> export PNG to a file.</p>
+      </div>
+
+      <div class="hcard">
+        <h3>GitHub Copilot</h3>
+        <p class="role">Add to <code>.vscode/mcp.json</code> in the workspace.</p>
+        <div class="term"><div class="dim">"servers": {</div><div>&nbsp;"agentic-mermaid": { ... }</div><div class="dim">}</div></div>
+        <p class="smoke"><b>Smoke:</b> describe a diagram.</p>
+      </div>
+
+      <div class="hcard">
+        <h3>Pi · OpenCode</h3>
+        <p class="role">Both read a stdio MCP entry from their config.</p>
+        <div class="term"><span class="pr">$</span> npx agentic-mermaid-mcp<br><span class="dim"># add under mcp: in the config</span></div>
+        <p class="smoke"><b>Smoke:</b> parse &rarr; mutate &rarr; serialize.</p>
+      </div>
+
+      <div class="hcard">
+        <h3>Generic MCP</h3>
+        <p class="role">Any client that speaks MCP over stdio.</p>
+        <div class="term"><span class="pr">$</span> npx agentic-mermaid-mcp<br><span class="dim"># transport: stdio (default)</span><br><span class="dim"># --transport http to opt in</span></div>
+        <p class="smoke"><b>Smoke:</b> call <code>capabilities</code>.</p>
+      </div>
+
+    </div>
+
+    <!-- local vs hosted note -->
+    <div class="card" style="margin-top:var(--sp-6); display:flex; gap:var(--sp-5); align-items:flex-start;">
+      <span class="tag tag--neutral" style="margin-top:2px;">note</span>
+      <p class="prose" style="margin:0;">
+        Self-hosting over stdio is the default and the recommended path. The optional
+        hosted MCP is a convenience for clients that cannot self-host: it exposes only
+        <code>render</code>, <code>verify</code>, <code>describe</code>, and structured edits,
+        rate-limited and authless. It never runs Code Mode <code>execute</code>.
+      </p>
+    </div>
+
+  </div>
+</section>
+
+<footer><div class="wrap foot">
+  <span style="font-family:var(--serif); font-weight:700; color:var(--ink);">Agentic Mermaid</span>
+  <span class="nav__spacer"></span>
+  <a href="#">harnesses.json</a><a href="#">agent-manifest.json</a><a href="#">capabilities.json</a>
+</div></footer>
+</body>
+</html>
