@@ -6,7 +6,7 @@ const url = (p: string) => `file://${cwd}/mockups/${p}`
 const browser = await chromium.launch()
 const temp: string[] = []
 
-// the white-trident logo over the living caustic — four frames of the water moving behind it
+// the node-edge logo with a signal travelling the routed edge — four phases A -> bend -> B
 {
   const ctx = await browser.newContext({ viewport: { width: 900, height: 760 }, deviceScaleFactor: 2, colorScheme: 'light', reducedMotion: 'no-preference' })
   const page = await ctx.newPage()
@@ -14,17 +14,22 @@ const temp: string[] = []
   await page.waitForTimeout(300)
   const box = await page.locator('.demo-big').boundingBox()
   const clip = { x: Math.round(box!.x), y: Math.round(box!.y), width: Math.round(box!.width), height: Math.round(box!.height) }
-  const times = [0.4, 1.1, 2.0, 3.0]
-  for (let i = 0; i < times.length; i++) {
-    await page.evaluate((t) => { (window as any).__SHADER_TIME__ = t }, times[i])
+  const phases = [
+    { t: 0.0, cap: 'resting' },
+    { t: 2.0, cap: 'signal departs A' },
+    { t: 3.25, cap: 'at the bend' },
+    { t: 4.5, cap: 'arriving at B' },
+  ]
+  for (let i = 0; i < phases.length; i++) {
+    await page.evaluate((t) => { (window as any).__SHADER_TIME__ = t }, phases[i].t)
     await page.waitForTimeout(140)
     await page.screenshot({ path: `mockups/_s${i}.png`, clip }); temp.push(`_s${i}.png`)
   }
   await ctx.close()
 
-  const frames = times.map((t, i) => `<figure style="margin:0">
+  const frames = phases.map((ph, i) => `<figure style="margin:0">
     <img src="_s${i}.png" style="width:200px;height:200px;display:block;border-radius:26px;border:1px solid var(--line);">
-    <figcaption style="font-family:var(--mono);font-size:12px;color:var(--ink-faint);margin-top:8px;text-align:center;">t = ${t.toFixed(1)}s</figcaption>
+    <figcaption style="font-family:var(--mono);font-size:12px;color:var(--ink-faint);margin-top:8px;text-align:center;">${ph.cap}</figcaption>
   </figure>`).join('')
   writeFileSync(`${cwd}/mockups/_strip.html`, `<!doctype html><meta charset="utf-8"><link rel="stylesheet" href="styles.css">
 <body style="margin:0"><div style="display:flex;gap:18px;padding:24px;background:var(--paper);width:max-content;">${frames}</div></body>`)
@@ -38,12 +43,12 @@ const temp: string[] = []
   console.log('built shot-shader.png')
 }
 
-// the mark in context — the white trident in the real nav
+// the mark in context — the node-edge diagram in the real nav
 {
   const ctx = await browser.newContext({ viewport: { width: 1320, height: 200 }, deviceScaleFactor: 3, colorScheme: 'light', reducedMotion: 'no-preference' })
   const page = await ctx.newPage()
   await page.goto(url('home.html'), { waitUntil: 'load' })
-  await page.evaluate(() => { (window as any).__SHADER_TIME__ = 2.0 })
+  await page.evaluate(() => { (window as any).__SHADER_TIME__ = 3.0 })
   await page.waitForTimeout(300)
   await page.screenshot({ path: 'mockups/shot-shader-context.png', clip: { x: 16, y: 8, width: 320, height: 46 } })
   await ctx.close()

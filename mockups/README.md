@@ -44,11 +44,11 @@ sink into the background). Dark applies via OS preference
 carries a toggle. Diagrams render onto a light panel (`--diagram-bg`) in both
 themes so the geometry stays legible.
 
-The logo is the same self-contained chip in both modes — a white trident on a
-pine caustic — so the brand reads identically light or dark. A `--mark-ring`
-token is transparent in light and a faint white hairline in dark, so the chip's
-edge stays crisp against the near-black nav. The same trident is the
-`favicon.svg`.
+The logo is the same self-contained chip in both modes — a white node-edge
+diagram on the pine accent — so the brand reads identically light or dark. A
+`--mark-ring` token is transparent in light and a faint white hairline in dark,
+so the chip's edge stays crisp against the near-black nav. The same diagram is
+the `favicon.svg`.
 
 The layout collapses to a single column at 820px and reduces the display sizes;
 the nav swaps its links for a menu button below that width.
@@ -93,21 +93,23 @@ environment has no video encoder.
 
 ## The living mark (a restrained shader)
 
-The logo is a white forged trident (Poseidon, the sea, the mermaid) over a slow
-pine-to-mint caustic rendered by a WebGL fragment shader, the size of the 26px
-mark. The water stays restrained by confinement (26px), one accent palette, and
-speed; a soft vignette plus a drop-shadow on the trident keep it legible. It
-settles to a single frame under `prefers-reduced-motion`, the water stirs on
-hover, and it falls back to the flat accent fill (trident still shown) if WebGL
-is missing. `shader-demo.html` shows it large; `shot-shader.png` is a four-frame
-filmstrip of the water moving behind the mark.
+The logo is the product's own primitive rather than a sea metaphor: two nodes
+joined by a deterministically routed orthogonal edge — the shape the layout
+engine makes. A WebGL fragment shader paints the accent ground and sends a faint
+signal travelling the edge (`A → bend → B`) now and then: an agent moving
+through the diagram. It stays restrained by confinement (26px), one accent
+family, and a gap between signals; it settles to a single still frame under
+`prefers-reduced-motion`, the signal quickens on hover, and it falls back to the
+flat accent fill (white diagram still shown) if WebGL is missing.
+`shader-demo.html` shows it large; `shot-shader.png` is a four-frame filmstrip of
+the signal travelling A → bend → B.
 
-The trident is one vector path: curved outer tines, a leaf centre blade, a
-collar and a finial. It is a trident, not a pitchfork (a pitchfork has straight,
-plain tines). The same path is the `favicon.svg` (white on the pine square) and
-the end-mark closing the docs article, so the motif is one drawing in three
-places. An earlier version hid the trident inside the caustic; it was removed
-when the trident became the logo.
+The diagram is one drawing — nodes as filled rects, the route as a stroked
+orthogonal path with an arrowhead — shared by the logo glyph, `favicon.svg`
+(white on the pine square), and the end-mark closing the docs article. The edge
+geometry is shared with the shader too, in `uv` with a flipped y, so the signal
+tracks the same route the white edge draws. (An earlier version used a trident;
+it was dropped as too on-the-nose for a "mermaid" product.)
 
 ## Regenerate
 

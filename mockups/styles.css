@@ -125,7 +125,7 @@ a:focus-visible, .btn:focus-visible, .iconbtn:focus-visible, .pill:focus-visible
 .mark { position: relative; overflow: hidden; box-shadow: 0 0 0 1px var(--mark-ring); }
 .mark > canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
 .mark > .glyph { position: relative; z-index: 1; display: inline-flex; }
-.mark > .glyph svg { width: 1.4em; height: 1.4em; display: block; filter: drop-shadow(0 1px 1.5px rgba(0, 0, 0, 0.30)); }
+.mark > .glyph svg { width: 1.65em; height: 1.65em; display: block; filter: drop-shadow(0 1px 1.5px rgba(0, 0, 0, 0.28)); }
 .nav__links { display: flex; gap: var(--sp-5); margin-left: var(--sp-2); }
 .nav__links a { color: var(--ink-soft); font-size: var(--t-sm); }
 .nav__links a:hover { color: var(--ink); text-decoration: none; }
