@@ -10,7 +10,19 @@ generated routes or machine manifests.
 - `home.html` — landing + three-way start rail (`/`).
 - `editor.html` — editor workbench with SVG/Unicode output and the tiered `verify` panel (`/editor`).
 - `agents-harnesses.html` — local-MCP setup cards per harness (`/agents/harnesses`).
+- `docs-article.html` — a `/docs` reading page in an editorial idiom.
 - `states.html`, `alternatives.html` — craft reference sheets, not site routes.
+
+## Editorial docs surfaces (A List Apart / Zeldman)
+
+The reading surfaces under `/docs` follow A List Apart and Jeffrey Zeldman:
+type-led, web-standards, accent only in links, generous measure. The article
+column switches to a **serif body** for long-form gravitas (the app and
+marketing pages keep the sans body) and uses the editorial furniture those
+sites are known for — masthead and tagline, a deck/standfirst, a hairline
+byline, numbered sections for a real sequence, a drop cap, a figure with a
+caption, and a pull quote set between rules, not in a tinted box. The
+byline credits `capabilities.json`, since docs are generated from product truth.
 
 ## Controls (no pills)
 
