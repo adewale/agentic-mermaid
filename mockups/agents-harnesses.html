@@ -8,14 +8,11 @@
 <style>
   .crumb { color:var(--ink-faint); font-size:var(--t-sm); }
   .crumb a { color:var(--ink-faint); }
-  .hgrid { display:grid; grid-template-columns:repeat(3,1fr); gap:var(--sp-5); margin-top:var(--sp-5); }
   .hcard { background:var(--surface); border:1px solid var(--line); border-radius:var(--radius-card); padding:var(--sp-5); }
   .hcard h3 { margin:0 0 var(--sp-2); display:flex; align-items:center; gap:8px; }
   .hcard .role { font-size:var(--t-sm); color:var(--ink-soft); margin:0 0 var(--sp-3); }
   .smoke { font-size:13px; color:var(--ink-faint); margin-top:var(--sp-3); }
   .smoke b { color:var(--ink-soft); font-weight:600; }
-  .feature { display:grid; grid-template-columns:1fr 1fr; gap:var(--sp-6); align-items:start;
-             background:var(--surface); border:1px solid var(--line); border-radius:var(--radius-card); padding:var(--sp-6); }
 </style>
 </head>
 <body>
@@ -26,6 +23,8 @@
     <span class="nav__links"><a href="#">Editor</a><a href="#">Gallery</a><a href="#">Families</a><a href="#">Agents</a><a href="#">Docs</a></span>
     <span class="nav__spacer"></span>
     <span class="nav__meta">stdio default · HTTP opt-in</span>
+    <button class="iconbtn" aria-label="Toggle dark mode" title="Toggle theme" style="margin-left:var(--sp-3);">&#9680;</button>
+    <button class="iconbtn nav__menu" aria-label="Menu">&#9776;</button>
   </div>
 </nav>
 
@@ -64,7 +63,7 @@
       </div>
     </div>
 
-    <div class="hgrid">
+    <div class="hgrid" style="margin-top:var(--sp-5);">
 
       <div class="hcard">
         <h3>Cursor</h3>

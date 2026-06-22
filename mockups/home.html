@@ -17,19 +17,21 @@
     </span>
     <span class="nav__spacer"></span>
     <span class="nav__meta">v0.1.0 · MIT</span>
+    <button class="iconbtn" aria-label="Toggle dark mode" title="Toggle theme" style="margin-left:var(--sp-3);">&#9680;</button>
+    <button class="iconbtn nav__menu" aria-label="Menu">&#9776;</button>
   </div>
 </nav>
 
 <!-- HERO: short, punchy headline (not a full sentence at display size); roman serif -->
 <header class="section--tight">
-  <div class="wrap" style="display:grid; grid-template-columns: 1.05fr 0.95fr; gap: var(--sp-7); align-items:center;">
+  <div class="wrap grid-hero">
     <div>
       <span class="tag">Local-first · deterministic</span>
       <h1 style="margin-top:var(--sp-4); max-width:13ch;">Diagrams your agents can edit.</h1>
       <p class="prose" style="font-size:18px;">
         Render Mermaid to SVG, PNG, ASCII, or Unicode. Then parse, verify, and safely
-        mutate it through a typed surface built for agents. Same input, same geometry,
-        every run.
+        mutate it through a typed surface built for agents. Layout is deterministic:
+        identical input produces identical geometry.
       </p>
       <div style="display:flex; gap:var(--sp-3); margin-top:var(--sp-5);">
         <a class="btn btn--primary" href="#">Open the editor</a>
@@ -39,8 +41,8 @@
         12 diagram families · SVG · PNG · ASCII · Unicode · JSON layout
       </p>
     </div>
-    <div class="diagram" aria-label="Rendered flowchart of the agent edit loop" style="display:flex; justify-content:center;">
-      <img src="diagrams/workflow-tb.svg" alt="parse, narrow, mutate, verify, then serialize and render" style="width:auto; max-height:400px;">
+    <div class="diagram hero-diagram" aria-label="Rendered flowchart of the agent edit loop">
+      <img src="diagrams/workflow-tb.svg" alt="parse, narrow, mutate, verify, then serialize and render">
     </div>
   </div>
 </header>
@@ -53,7 +55,7 @@
     <h2>Start where you are</h2>
     <p class="prose">Three ways in. Pick one and reach something working in a single screen.</p>
 
-    <div style="display:grid; grid-template-columns: repeat(3, 1fr); gap:var(--sp-5); margin-top:var(--sp-5);">
+    <div class="grid-3" style="margin-top:var(--sp-5);">
 
       <div class="card">
         <span class="label">Try in the browser</span>
@@ -95,9 +97,9 @@
       <h2 style="margin:0;">One model, four ways out</h2>
       <a href="#" style="font-size:var(--t-sm);">Browse the gallery &rarr;</a>
     </div>
-    <p class="prose" style="margin-top:var(--sp-3);">Every family renders to vector, raster, and text. The same geometry, byte-identical across processes.</p>
+    <p class="prose" style="margin-top:var(--sp-3);">Every family renders to vector, raster, and text from one layout, byte-identical across processes.</p>
 
-    <div style="display:grid; grid-template-columns: 1.2fr 0.9fr 0.9fr; gap:var(--sp-5); margin-top:var(--sp-5);">
+    <div class="grid-gallery" style="margin-top:var(--sp-5);">
       <div class="diagram">
         <div class="tag tag--neutral" style="margin-bottom:var(--sp-3);">sequence</div>
         <img src="diagrams/sequence.svg" alt="sequence diagram between an agent and Agentic Mermaid">
@@ -130,9 +132,9 @@
 
 <!-- STANCE: plain language, no buzzwords -->
 <section class="section">
-  <div class="wrap" style="display:grid; grid-template-columns: 1fr 1fr; gap:var(--sp-7);">
+  <div class="wrap grid-2">
     <div>
-      <h2>Built for the edit loop, not just the render</h2>
+      <h2>Edit one node without regenerating the diagram</h2>
       <p class="prose">A render-only library makes an agent regenerate the whole diagram to move one node.
         Here, existing diagrams go <strong>parse &rarr; narrow &rarr; mutate &rarr; verify &rarr; serialize</strong>,
         and <code>verify</code> returns structured warnings in three tiers plus perceptual quality metrics.</p>
