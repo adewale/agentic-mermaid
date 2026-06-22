@@ -90,6 +90,13 @@ single frame under `prefers-reduced-motion`, stirs slightly on hover, and falls
 back to the flat accent fill if WebGL is missing. `shader-demo.html` shows it
 large; `shot-shader.png` is a four-frame filmstrip of the caustic flowing.
 
+A trident is hidden in the water (Poseidon, the sea, the mermaid): an SDF of a
+trident that stays near-invisible at rest and blooms whole every several
+seconds, so most people overlook it most of the time and it stays recognizable
+when caught. The resting phase is what the page stills and the nav show. The
+same motif recurs once, quietly, as the end-mark dingbat closing the docs
+article — the kind of fleuron readers skim past.
+
 ## Regenerate
 
 ```bash

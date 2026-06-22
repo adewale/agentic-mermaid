@@ -11,6 +11,15 @@
     float noise(vec2 p){ vec2 i=floor(p), f=fract(p); vec2 u=f*f*(3.0-2.0*f);
       return mix(mix(hash(i), hash(i+vec2(1.,0.)), u.x), mix(hash(i+vec2(0.,1.)), hash(i+vec2(1.,1.)), u.x), u.y); }
     float fbm(vec2 p){ float v=0.0, a=0.5; for(int i=0;i<4;i++){ v+=a*noise(p); p*=2.0; a*=0.5; } return v; }
+    float sdSeg(vec2 p, vec2 a, vec2 b){ vec2 pa=p-a, ba=b-a; float h=clamp(dot(pa,ba)/dot(ba,ba),0.0,1.0); return length(pa-ba*h); }
+    float trident(vec2 p){            // centered ~[-0.5,0.5]; shaft, crossbar, three prongs
+      float d = sdSeg(p, vec2(0.0,-0.40), vec2(0.0,0.16));
+      d = min(d, sdSeg(p, vec2(-0.24,0.16), vec2(0.24,0.16)));
+      d = min(d, sdSeg(p, vec2(0.0,0.16), vec2(0.0,0.42)));
+      d = min(d, sdSeg(p, vec2(-0.24,0.16), vec2(-0.24,0.36)));
+      d = min(d, sdSeg(p, vec2(0.24,0.16), vec2(0.24,0.36)));
+      return d;
+    }
     void main(){
       vec2 uv = gl_FragCoord.xy / u_res;
       float t = u_time * (0.15 + u_hover * 0.20);
@@ -22,6 +31,10 @@
       vec3 mint = vec3(0.435, 0.760, 0.640);
       vec3 col = mix(deep, mid, f);
       col = mix(col, mint, caustic * (0.42 + 0.28 * u_hover));
+      // a trident hidden in the water — mostly overlooked, blooms whole every several seconds
+      float tmask = smoothstep(0.046, 0.020, trident(uv - 0.5));
+      float bloom = pow(0.5 + 0.5 * sin(u_time * 0.8 + 0.5), 4.0);
+      col = mix(col, mint, tmask * ((0.04 + 0.30 * bloom) + 0.05 * smoothstep(0.5, 0.95, caustic)) * (0.85 + 0.6 * u_hover));
       float d = distance(uv, vec2(0.5));
       col *= 1.0 - 0.22 * smoothstep(0.2, 0.78, d);   // soft vignette keeps the glyph legible
       gl_FragColor = vec4(col, 1.0);
@@ -78,8 +91,13 @@
       gl.uniform1f(uHover, hov);
       gl.drawArrays(gl.TRIANGLES, 0, 3);
     }
-    if (reduce) { draw(2.0, 0); return; }    // one settled frame, no loop
-    function frame(ms) { hover += (target - hover) * 0.08; draw(ms * 0.001, hover); requestAnimationFrame(frame); }
+    if (reduce) { draw(5.27, 0); return; }   // settled frame chosen where the trident is hidden
+    function frame(ms) {
+      hover += (target - hover) * 0.08;
+      const tt = (typeof window.__SHADER_TIME__ === 'number') ? window.__SHADER_TIME__ : ms * 0.001;
+      draw(tt, hover);
+      requestAnimationFrame(frame);
+    }
     requestAnimationFrame(frame);
   }
 
