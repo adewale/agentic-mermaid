@@ -96,23 +96,31 @@ environment has no video encoder.
 The logo is a small layered directed graph, after Kozo Sugiyama's framework for
 drawing DAGs — rank assignment, crossing minimisation, downward flow — which is
 the family of algorithms the layout engine uses (via ELK). Three ranks
-(`{A} / {B,C} / {D,E}`), edges only between adjacent ranks. A WebGL fragment
-shader paints the accent ground and lets a soft light sweep *down through the
-ranks* now and then, the way the method passes over layers: a signal propagating
-through the hierarchy. It stays restrained by confinement (26px), one accent
-family, and a gap between sweeps; it settles to a single still frame under
-`prefers-reduced-motion`, quickens on hover, and falls back to the flat accent
-fill (white graph still shown) if WebGL is missing. `shader-demo.html` shows it
-large; `shot-shader.png` is a four-frame filmstrip of the sweep lighting each
-rank top to bottom.
+(`{A} / {B,C} / {D,E}`). Most edges hop one rank, but one (`A → E`) spans two and
+is **routed through a dummy node** `V` in rank 2 — the framework's signature move
+for long edges, drawn as a gentle bend with a small hollow node on it that
+rewards a second look.
 
-The graph is one drawing — circles for nodes, strokes for edges — shared by the
-logo glyph, `favicon.svg` (white on the pine square), and the end-mark closing
-the docs article. The same node/edge coordinates drive the shader (in viewBox
-space), so the sweep lights exactly the ranks the white graph draws. (Earlier
-versions used a trident and then a two-node flowchart; both were dropped — the
-trident as too on-the-nose for a "mermaid" product, the flowchart as too
-generic.)
+Two motions, both true to the method:
+
+- **On load the mark assembles like the layout it depicts** — ranks settle into
+  place top to bottom (layer assignment), then the edges route in, the long edge
+  and its dummy last. `shot-shader-settle.png` is the filmstrip.
+- **A WebGL shader sweeps a soft light down through the ranks** now and then, the
+  way the method passes over layers: a signal propagating through the hierarchy.
+  `shot-shader.png` is the filmstrip.
+
+It stays restrained by confinement (26px), one accent family, and gaps between
+both motions; it settles to a single still frame under `prefers-reduced-motion`,
+quickens on hover, and falls back to the flat accent fill (white graph still
+shown) if WebGL is missing.
+
+The graph is one drawing — circles for nodes, strokes for edges, the long edge a
+bent polyline, the dummy a hollow circle — shared by the logo glyph,
+`favicon.svg`, and the docs end-mark. The same node/edge coordinates drive the
+shader (in viewBox space), so the sweep lights exactly the ranks the white graph
+draws. (Earlier versions used a trident, then a two-node flowchart; both were
+dropped — too on-the-nose, then too generic.)
 
 ## Regenerate
 

@@ -188,6 +188,15 @@ footer { border-top: 1px solid var(--line); color: var(--ink-faint); font-size: 
 @media (prefers-reduced-motion: no-preference) {
   @keyframes fadeUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
   .reveal { opacity: 0; animation: fadeUp var(--dur-3) var(--ease-out) var(--d, 0ms) both; }
+
+  /* the mark assembles like the layout it depicts: ranks settle top-to-bottom, then edges route in */
+  @keyframes settle { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: translateY(0); } }
+  @keyframes routein { from { opacity: 0; } to { opacity: 1; } }
+  .mark .glyph .nrank1 { animation: settle 0.42s var(--ease-out) 0s both; }
+  .mark .glyph .nrank2 { animation: settle 0.42s var(--ease-out) 0.12s both; }
+  .mark .glyph .nrank3 { animation: settle 0.42s var(--ease-out) 0.24s both; }
+  .mark .glyph .edge { animation: routein 0.34s var(--ease-out) 0.40s both; }
+  .mark .glyph .edge-long, .mark .glyph .dummy { animation: routein 0.42s var(--ease-out) 0.56s both; }
 }
 
 /* mobile */
