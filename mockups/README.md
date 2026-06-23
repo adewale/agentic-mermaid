@@ -32,23 +32,27 @@ are squared 6px chips with a leading status dot, and the editor's output switch
 is an underlined tab bar. `alternatives.html` shows the options compared
 (soft-square vs sharp; chip+dot vs mono-bracket vs keyline; tabs vs boxed).
 
-## Dark, sparse, document-first
-
-There is **one theme: dark.** The light mode and the toggle were removed — a
-single `:root` in `styles.css`, no `prefers-color-scheme`/`[data-theme]`
-machinery.
+## Themed, sparse, document-first
 
 The site reads like a **rendered Markdown document.** One centred column at a
 `70ch` measure, generous whitespace, text before chrome. The element set is the
 Markdown set — headings, paragraphs, lists, `<hr>` rules between sections, fenced
 code blocks, blockquotes, tables, and figures — with no cards, panels, grids, or
-shadows. Links are the only accent. Diagrams render **dark** — re-themed via a
-`themeVariables` init directive in the `.mmd` source (dark background, light
-text, pine arrowheads) — so they sit inside a `<figure>` as a quiet dark panel
-with a hairline border, rather than the stark white plate they used before. The
-masthead is a single quiet line (mark, wordmark, a few text links, a hairline)
-rather than an app nav. A faint desaturated grain (`body::before`,
-`feTurbulence`, ~7% opacity) gives the flat dark some texture.
+shadows. Links are the only accent. The masthead is a single quiet line (mark,
+wordmark, text links, a switcher, a hairline) rather than an app nav. A faint
+desaturated grain (`body::before`, `feTurbulence`, ~7%) gives the dark some
+texture.
+
+**Theme switcher** (`theme.js` + `[data-theme]` palettes in `styles.css`),
+echoing the GitHub Pages one — named palettes with colour swatches — but as a
+single quiet trigger that opens a smooth dropdown, with the whole page
+**colour-crossfading** (0.35s) on change. Six themes drawn from the renderer's
+own: **Pine** (dark, default), **Paper** (light), **Nord**, **Dracula**,
+**Solarized** (light), **GitHub**. Each diagram ships a light and a dark render
+(`workflow-{light,dark}.svg`, re-themed via a `themeVariables` init directive in
+the source) and crossfades to match the theme; light themes show the light
+diagram, dark themes the dark. Choice persists in `localStorage`, with an inline
+head guard against a flash of the default.
 
 On the renderer's themes: our diagrams previously used the fork's `default`
 (`zinc-light`), whose closest stock Mermaid theme is `neutral` (grayscale); the

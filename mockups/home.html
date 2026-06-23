@@ -6,6 +6,7 @@
 <title>Agentic Mermaid</title>
 <link rel="icon" href="favicon.svg" type="image/svg+xml">
 <link rel="stylesheet" href="styles.css">
+<script>(function(){try{var t=localStorage.getItem('am-theme');if(t&&t!=='pine')document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
 </head>
 <body>
 
@@ -13,6 +14,10 @@
   <div class="bar">
     <span class="brand"><span class="mark"></span> Agentic&nbsp;Mermaid</span>
     <span class="links"><a href="#">Editor</a><a href="#">Gallery</a><a href="#">Docs</a><a href="#">Agents</a><a href="#">GitHub</a></span>
+    <div class="theme-switch">
+      <button class="theme-btn" aria-haspopup="true" aria-expanded="false" aria-label="Theme"><span class="sw"></span><span class="name">Pine</span><span class="chev"></span></button>
+      <div class="theme-menu" role="menu"></div>
+    </div>
   </div>
   <hr>
 </header>
@@ -43,7 +48,10 @@
   <p>Every family renders to vector, raster, and text from one layout, byte-identical across processes. Outputs: SVG, PNG, ASCII, Unicode, and JSON layout, across twelve diagram families.</p>
 
   <figure>
-    <div class="plate"><img src="diagrams/workflow.svg" alt="parse, narrow, mutate, verify, then serialize and render"></div>
+    <div class="plate"><div class="dia-wrap">
+      <img class="dia dia-dark" src="diagrams/workflow-dark.svg" alt="parse, narrow, mutate, verify, then serialize and render">
+      <img class="dia dia-light" src="diagrams/workflow-light.svg" alt="" aria-hidden="true">
+    </div></div>
     <figcaption>The agent edit loop, rendered to SVG.</figcaption>
   </figure>
 
@@ -75,5 +83,6 @@
 </footer>
 
 <script src="shader-mark.js"></script>
+<script src="theme.js"></script>
 </body>
 </html>
