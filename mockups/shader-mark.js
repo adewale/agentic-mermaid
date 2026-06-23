@@ -15,17 +15,17 @@
   const NS = 'http://www.w3.org/2000/svg';
   function el(name, attrs) { const e = document.createElementNS(NS, name); for (const k in attrs) e.setAttribute(k, attrs[k]); return e; }
 
-  // rank 1: tips L,M,R (sources) · rank 2: dummies Vl,Vm,Vr (the crossbar) · rank 3: handle H (sink)
-  const N = { L: [11, 8], M: [24, 7], R: [37, 8], Vl: [16, 23], Vm: [24, 23], Vr: [32, 23], H: [24, 38] };
+  // CRAP-tuned: tines on a 3-column grid (14/24/34), center tine taller, dead-centre shaft
+  const N = { L: [14, 7], M: [24, 4], R: [34, 7], Vl: [14, 22], Vm: [24, 22], Vr: [34, 22], H: [24, 38] };
 
   function graphSVG() {
     const svg = el('svg', { viewBox: '0 0 48 48', fill: 'none', 'aria-hidden': 'true' });
-    const longEdge = (tip, dummy) => el('polyline', { points: `${N[tip]} ${N[dummy]} ${N.H}`, stroke: 'currentColor', 'stroke-width': 2, 'stroke-linecap': 'round', 'stroke-linejoin': 'round', class: 'edge edge-long' });
-    svg.appendChild(longEdge('L', 'Vl')); svg.appendChild(longEdge('M', 'Vm')); svg.appendChild(longEdge('R', 'Vr'));
-    const node = (k, rank) => el('circle', { cx: N[k][0], cy: N[k][1], r: 2.7, fill: 'currentColor', class: 'node nrank' + rank });
-    svg.appendChild(node('L', 1)); svg.appendChild(node('M', 1)); svg.appendChild(node('R', 1));
-    svg.appendChild(node('H', 3));
-    for (const k of ['Vl', 'Vm', 'Vr']) svg.appendChild(el('circle', { cx: N[k][0], cy: N[k][1], r: 1.8, stroke: 'currentColor', 'stroke-width': 1.3, class: 'dummy' }));
+    const longEdge = (tip, dummy, sw) => el('polyline', { points: `${N[tip]} ${N[dummy]} ${N.H}`, stroke: 'currentColor', 'stroke-width': sw, 'stroke-linecap': 'round', 'stroke-linejoin': 'round', class: 'edge edge-long' });
+    svg.appendChild(longEdge('L', 'Vl', 1.9)); svg.appendChild(longEdge('M', 'Vm', 2.4)); svg.appendChild(longEdge('R', 'Vr', 1.9)); // heavier central shaft = contrast
+    const node = (k, rank, r) => el('circle', { cx: N[k][0], cy: N[k][1], r: r, fill: 'currentColor', class: 'node nrank' + rank });
+    svg.appendChild(node('L', 1, 2.5)); svg.appendChild(node('M', 1, 2.5)); svg.appendChild(node('R', 1, 2.5));
+    svg.appendChild(node('H', 3, 3.3));   // sink is the focal point = contrast
+    for (const k of ['Vl', 'Vm', 'Vr']) svg.appendChild(el('circle', { cx: N[k][0], cy: N[k][1], r: 1.7, stroke: 'currentColor', 'stroke-width': 1.3, class: 'dummy' }));
     return svg;
   }
 
@@ -38,13 +38,13 @@
       vec3 aDeep = vec3(0.043, 0.388, 0.310), aMid = vec3(0.055, 0.435, 0.336);
       vec3 col = mix(aDeep, aMid, smoothstep(0.0, 1.0, uv.y));
       vec2 P = vec2(uv.x, 1.0 - uv.y) * 48.0;
-      vec2 L=vec2(11.,8.), M=vec2(24.,7.), R=vec2(37.,8.);
-      vec2 Vl=vec2(16.,23.), Vm=vec2(24.,23.), Vr=vec2(32.,23.), H=vec2(24.,38.);
+      vec2 L=vec2(14.,7.), M=vec2(24.,4.), R=vec2(34.,7.);
+      vec2 Vl=vec2(14.,22.), Vm=vec2(24.,22.), Vr=vec2(34.,22.), H=vec2(24.,38.);
       float g = 1e9;
-      g=min(g,length(P-L)-2.7); g=min(g,length(P-M)-2.7); g=min(g,length(P-R)-2.7); g=min(g,length(P-H)-2.7);
-      g=min(g,sdSeg(P,L,Vl)-1.0); g=min(g,sdSeg(P,Vl,H)-1.0);
-      g=min(g,sdSeg(P,M,Vm)-1.0); g=min(g,sdSeg(P,Vm,H)-1.0);
-      g=min(g,sdSeg(P,R,Vr)-1.0); g=min(g,sdSeg(P,Vr,H)-1.0);
+      g=min(g,length(P-L)-2.5); g=min(g,length(P-M)-2.5); g=min(g,length(P-R)-2.5); g=min(g,length(P-H)-3.3);
+      g=min(g,sdSeg(P,L,Vl)-0.95); g=min(g,sdSeg(P,Vl,H)-0.95);
+      g=min(g,sdSeg(P,M,Vm)-1.15); g=min(g,sdSeg(P,Vm,H)-1.15);
+      g=min(g,sdSeg(P,R,Vr)-0.95); g=min(g,sdSeg(P,Vr,H)-0.95);
       float halo = smoothstep(3.4, 0.6, g);
       float band = fract(u_time * (0.12 + 0.07 * u_hover)) * 88.0 - 20.0;
       float sweep = smoothstep(7.0, 0.0, abs(P.y - band));
