@@ -42,9 +42,19 @@ The site reads like a **rendered Markdown document.** One centred column at a
 `70ch` measure, generous whitespace, text before chrome. The element set is the
 Markdown set — headings, paragraphs, lists, `<hr>` rules between sections, fenced
 code blocks, blockquotes, tables, and figures — with no cards, panels, grids, or
-shadows. Links are the only accent. Diagrams sit on a light plate inside a
-`<figure>`, the way an image sits in a README. The masthead is a single quiet
-line (mark, wordmark, a few text links, a hairline) rather than an app nav.
+shadows. Links are the only accent. Diagrams render **dark** — re-themed via a
+`themeVariables` init directive in the `.mmd` source (dark background, light
+text, pine arrowheads) — so they sit inside a `<figure>` as a quiet dark panel
+with a hairline border, rather than the stark white plate they used before. The
+masthead is a single quiet line (mark, wordmark, a few text links, a hairline)
+rather than an app nav. A faint desaturated grain (`body::before`,
+`feTurbulence`, ~7% opacity) gives the flat dark some texture.
+
+On the renderer's themes: our diagrams previously used the fork's `default`
+(`zinc-light`), whose closest stock Mermaid theme is `neutral` (grayscale); the
+site's pine accent is nearest `forest`. There is no stock dark-green theme,
+which is why the white diagrams clashed — so the figures now carry an explicit
+dark palette that matches the page.
 
 `states.html` and `alternatives.html` are kept only as design-history reference
 sheets; a small legacy-component block at the end of `styles.css` exists solely

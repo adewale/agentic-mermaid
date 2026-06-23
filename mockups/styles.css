@@ -7,7 +7,7 @@
 :root {
   --paper:      #0F1512;   /* page */
   --surface:    #151D1A;   /* code / quiet panels */
-  --diagram-bg: #ECEFEE;   /* diagrams sit on a light plate, like images */
+  --diagram-bg: #141D19;   /* diagrams now render dark to match the page (was a stark light plate) */
   --ink:        #E7ECE9;
   --ink-soft:   #A4AFAA;
   --ink-faint:  #6F7C76;
@@ -44,6 +44,9 @@
 * { box-sizing: border-box; }
 html { -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility; }
 body { margin: 0; background: var(--paper); color: var(--ink); font-family: var(--sans); font-size: 17px; line-height: 1.7; }
+/* a faint grain so the flat dark gains some texture */
+body::before { content: ""; position: fixed; inset: 0; pointer-events: none; z-index: -1; opacity: 0.07;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E"); }
 
 /* ---- the document column ---- */
 .doc { max-width: var(--measure); margin: 0 auto; padding: 8px 24px 128px; }
@@ -101,7 +104,7 @@ td code { font-size: 12.5px; }
 
 /* ---- figures: diagrams inline like images, on a light plate ---- */
 figure { margin: 26px 0; }
-figure .plate { background: var(--diagram-bg); border-radius: 8px; padding: 20px; }
+figure .plate { background: var(--diagram-bg); border: 1px solid var(--line); border-radius: 8px; padding: 18px; }
 figure .plate img { display: block; width: 100%; height: auto; }
 figure pre { margin: 0; }
 figcaption { color: var(--ink-faint); font-size: 13px; margin-top: 8px; }
