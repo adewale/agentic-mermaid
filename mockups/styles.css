@@ -152,7 +152,7 @@ body::before { content: ""; position: fixed; inset: 0; pointer-events: none; z-i
 .masthead .links { margin-left: auto; display: flex; gap: 20px; }
 .masthead .links a { color: var(--ink-faint); font-size: 14px; }
 .masthead .links a:hover { color: var(--ink); text-decoration: none; }
-.masthead hr { border: 0; border-top: 1px solid var(--line); margin: 20px 0 0; }
+.masthead hr { border: 0; margin: 20px 0 0; }
 .crumb { color: var(--ink-faint); font-size: 14px; margin: 36px 0 0; }
 .crumb a { color: var(--ink-faint); }
 
@@ -171,14 +171,14 @@ small { color: var(--ink-faint); font-size: 14px; }
 ul, ol { margin: 0 0 20px; padding-left: 22px; }
 li { margin: 7px 0; }
 li::marker { color: var(--ink-faint); }
-hr { border: 0; border-top: 1px solid var(--line); margin: 44px 0; }
+hr { border: 0; margin: 24px 0; }
 .go { color: var(--link); font-weight: 600; white-space: nowrap; }
 .go::after { content: " \2192"; }
 
 /* ---- code: inline + fenced, like markdown ---- */
 code { font-family: var(--mono); font-size: 0.9em; }
 :not(pre) > code { background: var(--surface); padding: 1px 6px; border-radius: 5px; }
-pre { background: var(--code-bg); border: 1px solid var(--line); border-radius: 8px; padding: 15px 18px; overflow: auto; margin: 0 0 20px; }
+pre { background: var(--surface); border-radius: 8px; padding: 15px 18px; overflow: auto; margin: 0 0 20px; }
 pre code { font-size: 13.5px; line-height: 1.75; color: var(--code-fg); background: none; padding: 0; }
 .c { color: var(--ink-faint); } .k { color: var(--link); } .ok { color: var(--link); }
 
@@ -193,7 +193,7 @@ td code { font-size: 12.5px; }
 
 /* ---- figures: diagrams inline like images, on a light plate ---- */
 figure { margin: 26px 0; }
-figure .plate { background: var(--diagram-bg); border: 1px solid var(--line); border-radius: 8px; padding: 18px; }
+figure .plate { background: var(--diagram-bg); border-radius: 8px; padding: 18px; }
 /* diagram crossfades between a light and a dark render depending on the theme */
 .dia-wrap { position: relative; }
 .dia-wrap .dia { display: block; width: 100%; height: auto; transition: opacity 0.35s ease; }
@@ -227,7 +227,7 @@ figure .plate img { display: block; width: 100%; height: auto; }
 figure pre { margin: 0; }
 figcaption { color: var(--ink-faint); font-size: 13px; margin-top: 8px; }
 
-footer { max-width: var(--measure); margin: 0 auto; padding: 28px 24px 56px; border-top: 1px solid var(--line); }
+footer { max-width: var(--measure); margin: 0 auto; padding: 28px 24px 56px; }
 .footlinks { display: flex; gap: 18px; flex-wrap: wrap; font-size: 14px; }
 .footlinks a { color: var(--ink-soft); }
 .footlinks .sep { color: var(--line-strong); }
