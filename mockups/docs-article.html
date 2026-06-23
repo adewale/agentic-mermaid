@@ -7,153 +7,84 @@
 <link rel="icon" href="favicon.svg" type="image/svg+xml">
 <link rel="stylesheet" href="styles.css">
 <style>
-  /* Editorial layer — inspired by A List Apart / Jeffrey Zeldman:
-     type-led, accent only in links, generous measure, article furniture.
-     The reading column uses a serif body for long-form gravitas; the app and
-     marketing pages keep the sans body. */
-  .masthead { border-bottom: 1px solid var(--line); }
-  .masthead .in { display: flex; align-items: baseline; gap: var(--sp-4); height: 58px; }
-  .tagline { color: var(--ink-faint); font-size: var(--t-sm); font-style: italic; }
-  .article { max-width: 680px; margin: 0 auto; padding: 0 var(--sp-5); }
-  .crumb { font-size: var(--t-sm); color: var(--ink-faint); font-family: var(--sans); margin: var(--sp-7) 0 var(--sp-4); }
-  .crumb a { color: var(--ink-faint); }
-  .title { font-size: 46px; line-height: 1.08; letter-spacing: -0.01em; margin: 0 0 var(--sp-4); }
-  .deck { font-family: var(--serif); font-size: 21px; line-height: 1.5; color: var(--ink-soft); margin: 0 0 var(--sp-5); }
-  .byline { font-family: var(--sans); font-size: 13.5px; color: var(--ink-faint); border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); padding: 12px 0; display: flex; flex-wrap: wrap; gap: 10px; }
-  .byline .sep { color: var(--line-strong); }
-  .article .body { font-family: var(--serif); font-size: 19px; line-height: 1.72; color: var(--ink); }
-  .article .body p { max-width: none; margin: 0 0 var(--sp-5); }
-  .lead::first-letter { font-family: var(--serif); font-weight: 700; float: left; font-size: 3.4em; line-height: 0.78; padding: 6px 10px 0 0; color: var(--ink); }
-  .sec { margin-top: var(--sp-6); }
-  .sec h2 { font-size: 25px; display: flex; align-items: baseline; gap: 12px; margin-bottom: var(--sp-3); }
-  .sec h2 .num { font-size: 21px; color: var(--accent); font-variant-numeric: tabular-nums; min-width: 1.4em; }
-  figure { margin: var(--sp-6) 0; }
-  figure .diagram { padding: var(--sp-5); }
-  figcaption { font-family: var(--sans); font-size: 13px; color: var(--ink-faint); margin-top: 10px; }
-  figcaption b { color: var(--ink-soft); font-weight: 600; }
-  .pull { font-family: var(--serif); font-size: 27px; line-height: 1.32; color: var(--ink); text-align: center;
-          border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); padding: var(--sp-5) var(--sp-2); margin: var(--sp-6) 0; }
-  .aside { font-family: var(--sans); font-size: 15px; line-height: 1.6; color: var(--ink-soft); background: var(--surface);
-           border: 1px solid var(--line); border-radius: var(--radius-card); padding: var(--sp-5); margin: var(--sp-6) 0; }
-  .aside .k { display: block; font-size: var(--t-label); font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; color: var(--ink-faint); margin-bottom: 8px; }
-  .codeblock { font-family: var(--mono); font-size: 13.5px; line-height: 1.7; background: var(--term-bg); color: var(--term-fg); border-radius: 10px; padding: var(--sp-4) var(--sp-5); margin: var(--sp-5) 0; overflow: auto; }
-  .codeblock .c { color: var(--term-dim); } .codeblock .ok { color: #7CC3A6; }
-  .endrule { border: 0; border-top: 1px solid var(--line); margin: var(--sp-7) 0 var(--sp-5); }
-  .related a { display: block; font-family: var(--serif); font-size: 18px; padding: 10px 0; border-bottom: 1px solid var(--line); color: var(--ink); }
-  .related a:hover { color: var(--link); text-decoration: none; }
-  .related .small { font-family: var(--sans); font-size: 12.5px; color: var(--ink-faint); }
-  .endmark { text-align: center; margin-top: var(--sp-6); color: var(--ink-faint); }
+  .endmark { text-align: center; margin: 56px 0 0; color: var(--ink-faint); }
+  .endmark svg { width: 22px; height: 22px; }
 </style>
 </head>
 <body>
 
 <header class="masthead">
-  <div class="wrap in">
-    <span class="brand"><span class="mark">&#8776;</span> Agentic&nbsp;Mermaid</span>
-    <span class="tagline">The manual for agents that draw</span>
-    <span class="nav__spacer"></span>
-    <button class="iconbtn" aria-label="Toggle dark mode" title="Toggle theme">&#9680;</button>
+  <div class="bar">
+    <span class="brand"><span class="mark"></span> Agentic&nbsp;Mermaid</span>
+    <span class="links"><a href="#">Editor</a><a href="#">Gallery</a><a href="#">Docs</a><a href="#">Agents</a><a href="#">GitHub</a></span>
   </div>
+  <hr>
 </header>
 
-<article class="article">
-  <p class="crumb"><a href="#">Docs</a> &rarr; <a href="#">The edit loop</a></p>
-  <h1 class="title">Editing a diagram without regenerating it</h1>
-  <p class="deck">A render-only tool makes an agent rebuild the whole diagram to move one node.
-    Agentic Mermaid keeps the diagram structured, so an edit is five small steps, and
-    <code>verify</code> gates the last one.</p>
-  <p class="byline">The Manual <span class="sep">·</span> Updated 22 June 2026 <span class="sep">·</span> Generated from <code>capabilities.json</code> <span class="sep">·</span> 6 min read</p>
+<main class="doc">
+  <p class="crumb"><a href="#">Docs</a> / The edit loop</p>
+  <h1>Editing a diagram without regenerating it</h1>
+  <p class="lead">A render-only tool makes an agent rebuild the whole diagram to move one node. Agentic Mermaid keeps the diagram structured, so an edit is five small steps, and <code>verify</code> gates the last one.</p>
+  <p class="muted"><small>The Manual &middot; Updated 22 June 2026 &middot; Generated from <code>capabilities.json</code> &middot; 6 min read</small></p>
 
-  <div class="body">
-    <p class="lead">Most diagram tools render and stop. You hand them source, they hand back a picture,
-      and to change one node you send the whole source again. That is fine for a person editing by
-      hand and wasteful for an agent editing in a loop, where every regeneration risks moving nodes
-      that were already correct.</p>
+  <hr>
 
-    <p>The fix is to treat an existing diagram as structured data, not a string. A typed surface
-      exposes the parts an agent can name and change, and refuses edits it cannot make safely. The
-      loop has five steps.</p>
+  <p>Most diagram tools render and stop. You hand them source, they hand back a picture, and to change one node you send the whole source again. That is fine for a person editing by hand and wasteful for an agent editing in a loop, where every regeneration risks moving nodes that were already correct.</p>
+  <p>The fix is to treat an existing diagram as structured data, not a string. A typed surface exposes the parts an agent can name and change, and refuses edits it cannot make safely. The loop has five steps.</p>
 
-    <section class="sec">
-      <h2><span class="num">1</span> Parse</h2>
-      <p>Read the source into a typed model. Anything the model does not understand round-trips
-        through preserved source, so an unusual block is carried verbatim rather than dropped.</p>
-    </section>
+  <h3>1 &middot; Parse</h3>
+  <p>Read the source into a typed model. Anything the model does not understand round-trips through preserved source, so an unusual block is carried verbatim rather than dropped.</p>
 
-    <section class="sec">
-      <h2><span class="num">2</span> Narrow</h2>
-      <p>Select the one node or edge the edit touches. Narrowing keeps the change local, which is
-        what protects the rest of the layout from drifting.</p>
-    </section>
+  <h3>2 &middot; Narrow</h3>
+  <p>Select the one node or edge the edit touches. Narrowing keeps the change local, which is what protects the rest of the layout from drifting.</p>
 
-    <figure>
-      <div class="diagram"><img src="diagrams/workflow.svg" alt="parse, narrow, mutate, verify, then serialize and render"></div>
-      <figcaption><b>Figure 1.</b> The five-step loop. <code>verify</code> sits between <code>mutate</code> and <code>serialize</code>; a warning sends the work back to narrow.</figcaption>
-    </figure>
+  <figure>
+    <div class="plate"><img src="diagrams/workflow.svg" alt="parse, narrow, mutate, verify, then serialize and render"></div>
+    <figcaption>The five-step loop. <code>verify</code> sits between <code>mutate</code> and <code>serialize</code>; a warning sends the work back to narrow.</figcaption>
+  </figure>
 
-    <section class="sec">
-      <h2><span class="num">3</span> Mutate</h2>
-      <p>Apply a named operation to the narrowed selection. The operation returns a new typed model;
-        it does not rewrite the source by hand.</p>
-      <div class="codeblock"><div>mutate(diagram, addEdge: &#123; from: "verify", to: "serialize", label: "ok" &#125;)</div><div class="c">// returns a ValidDiagram, or a structured error</div></div>
-    </section>
+  <h3>3 &middot; Mutate</h3>
+  <p>Apply a named operation to the narrowed selection. The operation returns a new typed model; it does not rewrite the source by hand.</p>
+  <pre><code>mutate(diagram, addEdge: { from: "verify", to: "serialize", label: "ok" })
+<span class="c">// returns a ValidDiagram, or a structured error</span></code></pre>
 
-    <blockquote class="pull">verify is the gate. Nothing serializes until it passes.</blockquote>
+  <h3>4 &middot; Verify</h3>
+  <p>Check the result before trusting it. <code>verify</code> returns warnings in three tiers — structural, geometric, and lint — plus perceptual quality metrics. An agent reads the tiers and decides whether to fix, re-narrow, or stop and ask a human.</p>
+  <pre><code>verify(diagram)
+<span class="ok">&#10003; ok</span>   structural 0   geometric 0   lint 1
+<span class="c">// COMMENT_DROPPED line 4 — inline %% comment removed on serialize</span></code></pre>
 
-    <section class="sec">
-      <h2><span class="num">4</span> Verify</h2>
-      <p>Check the result before trusting it. <code>verify</code> returns warnings in three tiers,
-        structural, geometric, and lint, plus perceptual quality metrics. An agent reads the tiers
-        and decides whether to fix, re-narrow, or stop and ask a human.</p>
-      <div class="codeblock"><div>verify(diagram)</div><div class="ok">&#10003; ok &nbsp; structural 0 &nbsp; geometric 0 &nbsp; lint 1</div><div class="c">// COMMENT_DROPPED line 4 — inline %% comment removed on serialize</div></div>
-    </section>
+  <h3>5 &middot; Serialize</h3>
+  <p>Write the typed model back to Mermaid source, then render to SVG, PNG, ASCII, or Unicode. Because layout is deterministic, the same model produces the same geometry every run.</p>
 
-    <section class="sec">
-      <h2><span class="num">5</span> Serialize</h2>
-      <p>Write the typed model back to Mermaid source, then render to SVG, PNG, ASCII, or Unicode.
-        Because layout is deterministic, the same model produces the same geometry every run.</p>
-    </section>
+  <blockquote>Stop rule. Never return a diagram you have not verified, and never fabricate a passing result. If a structural warning will not clear after two attempts, serialize what you have and ask a human to look.</blockquote>
 
-    <div class="aside">
-      <span class="k">Stop rule</span>
-      Never return a diagram you have not verified, and never fabricate a passing result. If a
-      structural warning will not clear after two attempts, serialize what you have and ask a human
-      to look.
-    </div>
+  <p>The loop is the product: parse, narrow, mutate, verify, serialize. The picture is only the last step, and the only one a render-first tool ever gives you.</p>
 
-    <p>The loop is the product: parse, narrow, mutate, verify, serialize. The picture is only the
-      last step, and the only one a render-first tool ever gives you.</p>
+  <hr>
 
-    <p class="endmark">
-      <svg width="24" height="24" viewBox="0 0 48 48" fill="none" role="img" aria-label="End of article">
-        <g stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
-          <polyline points="14,7 14,22 24,38" stroke-width="1.9"/><polyline points="24,4 24,22 24,38" stroke-width="2.3"/><polyline points="34,7 34,22 24,38" stroke-width="1.9"/>
-        </g>
-        <g fill="currentColor"><circle cx="14" cy="7" r="2.5"/><circle cx="24" cy="4" r="2.5"/><circle cx="34" cy="7" r="2.5"/><circle cx="24" cy="38" r="3.2"/></g>
-        <g fill="none" stroke="currentColor" stroke-width="1.3"><circle cx="14" cy="22" r="1.7"/><circle cx="24" cy="22" r="1.7"/><circle cx="34" cy="22" r="1.7"/></g>
-      </svg>
-    </p>
-  </div>
+  <h3>More in the manual</h3>
+  <ul>
+    <li><a href="#">Reading a verify result</a> — the three warning tiers, with fixes</li>
+    <li><a href="#">Source-level edits for opaque bodies</a> — journey, xychart, architecture</li>
+    <li><a href="#">Rendering to ASCII and Unicode</a> — color modes and terminal use</li>
+  </ul>
 
-  <hr class="endrule">
-  <nav class="related">
-    <p style="font-family:var(--sans); font-size:var(--t-label); font-weight:700; letter-spacing:0.05em; text-transform:uppercase; color:var(--ink-faint);">More in the manual</p>
-    <a href="#">Reading a verify result <span class="small">— the three warning tiers, with fixes</span></a>
-    <a href="#">Source-level edits for opaque bodies <span class="small">— journey, xychart, architecture</span></a>
-    <a href="#">Rendering to ASCII and Unicode <span class="small">— color modes and terminal use</span></a>
-  </nav>
-</article>
+  <p class="endmark">
+    <svg viewBox="0 0 48 48" fill="none" role="img" aria-label="End">
+      <g stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+        <polyline points="14,7 14,22 24,38" stroke-width="1.9"/><polyline points="24,4 24,22 24,38" stroke-width="2.3"/><polyline points="34,7 34,22 24,38" stroke-width="1.9"/>
+      </g>
+      <g fill="currentColor"><circle cx="14" cy="7" r="2.5"/><circle cx="24" cy="4" r="2.5"/><circle cx="34" cy="7" r="2.5"/><circle cx="24" cy="38" r="3.2"/></g>
+      <g fill="none" stroke="currentColor" stroke-width="1.3"><circle cx="14" cy="22" r="1.7"/><circle cx="24" cy="22" r="1.7"/><circle cx="34" cy="22" r="1.7"/></g>
+    </svg>
+  </p>
+</main>
 
-<footer style="margin-top:var(--sp-7)"><div class="wrap foot">
-  <span style="font-family:var(--serif); font-weight:700; color:var(--ink);">Agentic Mermaid</span>
-  <span class="nav__spacer"></span>
-  <a href="#">llms.txt</a><a href="#">agent-instructions.md</a><a href="#">capabilities.json</a>
-</div></footer>
+<footer>
+  <div class="footlinks"><a href="#">llms.txt</a><span class="sep">&middot;</span><a href="#">agent-instructions.md</a><span class="sep">&middot;</span><a href="#">capabilities.json</a><span class="sep">&middot;</span><a href="#">GitHub</a></div>
+</footer>
 
 <script src="shader-mark.js"></script>
-<script>
-  for (const b of document.querySelectorAll('.iconbtn[aria-label="Toggle dark mode"]'))
-    b.addEventListener('click', () => { const h=document.documentElement; const d=(h.getAttribute('data-theme')||(matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light'))==='dark'; h.setAttribute('data-theme', d?'light':'dark'); });
-</script>
 </body>
 </html>

@@ -9,165 +9,71 @@
 </head>
 <body>
 
-<nav class="nav">
-  <div class="wrap nav__in">
-    <span class="brand"><span class="mark">&#8776;</span> Agentic&nbsp;Mermaid</span>
-    <span class="nav__links">
-      <a href="#">Editor</a><a href="#">Gallery</a><a href="#">Families</a>
-      <a href="#">Agents</a><a href="#">Docs</a><a href="#">Security</a>
-    </span>
-    <span class="nav__spacer"></span>
-    <span class="nav__meta">v0.1.0 · MIT</span>
-    <button class="iconbtn" aria-label="Toggle dark mode" title="Toggle theme" style="margin-left:var(--sp-3);">&#9680;</button>
-    <button class="iconbtn nav__menu" aria-label="Menu">&#9776;</button>
+<header class="masthead">
+  <div class="bar">
+    <span class="brand"><span class="mark"></span> Agentic&nbsp;Mermaid</span>
+    <span class="links"><a href="#">Editor</a><a href="#">Gallery</a><a href="#">Docs</a><a href="#">Agents</a><a href="#">GitHub</a></span>
   </div>
-</nav>
-
-<!-- HERO: short, punchy headline (not a full sentence at display size); roman serif -->
-<header class="section--tight">
-  <div class="wrap grid-hero">
-    <div class="reveal">
-      <span class="tag">Local-first · deterministic</span>
-      <h1 style="margin-top:var(--sp-4); max-width:13ch;">Diagrams your agents can edit.</h1>
-      <p class="prose" style="font-size:18px;">
-        Render Mermaid to SVG, PNG, ASCII, or Unicode. Then parse, verify, and safely
-        mutate it through a typed surface built for agents. Layout is deterministic:
-        identical input produces identical geometry.
-      </p>
-      <div style="display:flex; gap:var(--sp-3); margin-top:var(--sp-5);">
-        <a class="btn btn--primary" href="#">Open the editor</a>
-        <a class="btn btn--ghost" href="#">Read the agent guide</a>
-      </div>
-      <p style="margin-top:var(--sp-5); color:var(--ink-faint); font-size:var(--t-sm);">
-        12 diagram families · SVG · PNG · ASCII · Unicode · JSON layout
-      </p>
-    </div>
-    <div class="diagram hero-diagram reveal" style="--d:90ms" aria-label="Rendered flowchart of the agent edit loop">
-      <img src="diagrams/workflow-tb.svg" alt="parse, narrow, mutate, verify, then serialize and render">
-    </div>
-  </div>
+  <hr>
 </header>
 
-<hr class="rule">
+<main class="doc">
 
-<!-- START RAIL: three real paths, treatments deliberately varied (not an identical grid) -->
-<section class="section">
-  <div class="wrap">
-    <h2>Start where you are</h2>
-    <p class="prose">Three ways in. Pick one and reach something working in a single screen.</p>
+  <h1>Diagrams your agents can edit</h1>
+  <p class="lead">Render Mermaid to SVG, PNG, ASCII, or Unicode, then parse, verify, and safely mutate it through a typed surface built for agents.</p>
+  <p>Layout is deterministic: identical input produces identical geometry. Anything the model cannot represent round-trips losslessly through preserved source, so nothing is silently dropped.</p>
 
-    <div class="grid-3" style="margin-top:var(--sp-5);">
+  <hr>
 
-      <div class="card reveal" style="--d:0ms">
-        <span class="label">Try in the browser</span>
-        <h3 style="margin-top:var(--sp-3);">Render and export, no install</h3>
-        <p class="prose" style="font-size:var(--t-sm);">Paste Mermaid, get SVG/PNG and text output, copy a share link.</p>
-        <a class="btn btn--primary" href="#" style="margin-top:var(--sp-2);">Open editor</a>
-      </div>
+  <h2>Start</h2>
+  <p>Three ways in.</p>
+  <ul>
+    <li><strong>Try it in the browser.</strong> Paste Mermaid, get SVG/PNG and text output, copy a share link. <a class="go" href="#">Open the editor</a></li>
+    <li><strong>Install locally</strong> — library, CLI, or a local MCP server over stdio:</li>
+  </ul>
+  <pre><code><span class="k">$</span> npm i agentic-mermaid
+<span class="k">$</span> npx agentic-mermaid-mcp      <span class="c"># stdio by default; HTTP is opt-in</span></code></pre>
+  <ul>
+    <li><strong>Configure an agent.</strong> <code>am init-agent</code> wires it into Claude Code, Cursor, Codex, Gemini CLI, GitHub Copilot, Pi, OpenCode, or any generic MCP client.</li>
+  </ul>
 
-      <div class="card reveal" style="--d:70ms">
-        <span class="label">Install locally</span>
-        <h3 style="margin-top:var(--sp-3);">Library, CLI, or local MCP</h3>
-        <div class="term" style="margin-top:var(--sp-3);">
-          <span class="copy">copy</span>
-          <div><span class="pr">$</span> npm i agentic-mermaid</div>
-          <div><span class="pr">$</span> npx agentic-mermaid-mcp</div>
-          <div class="dim"># stdio by default; HTTP is opt-in</div>
-        </div>
-      </div>
+  <hr>
 
-      <div class="card reveal" style="--d:140ms">
-        <span class="label">Configure an agent</span>
-        <h3 style="margin-top:var(--sp-3);">Wire it into your harness</h3>
-        <p class="prose" style="font-size:var(--t-sm); margin-bottom:var(--sp-3);">Claude Code, Cursor, Codex, Gemini CLI, Copilot, Pi, OpenCode, generic MCP.</p>
-        <div class="term">
-          <span class="pr">$</span> am init-agent
-        </div>
-      </div>
+  <h2>One model, four ways out</h2>
+  <p>Every family renders to vector, raster, and text from one layout, byte-identical across processes. Outputs: SVG, PNG, ASCII, Unicode, and JSON layout, across twelve diagram families.</p>
 
-    </div>
-  </div>
-</section>
+  <figure>
+    <div class="plate"><img src="diagrams/workflow.svg" alt="parse, narrow, mutate, verify, then serialize and render"></div>
+    <figcaption>The agent edit loop, rendered to SVG.</figcaption>
+  </figure>
 
-<hr class="rule">
+  <p>The same diagram as Unicode text:</p>
+  <pre><code>&#9484;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9488;     &#9484;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9488;     &#9484;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9488;     &#9484;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9488;     &#9671;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9671;
+&#9474; Source .mmd &#9500;&#9472;&#9472;&#9658;&#9474; parse &#9500;&#9472;&#9472;&#9658;&#9474; narrow &#9500;&#9472;&#9472;&#9658;&#9474;  mutate  &#9500;&#9472;&#9472;&#9658;&#9474; verify &#9500;&#9472;&#9658; render
+&#9492;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9496;     &#9492;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9496;     &#9492;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9496;     &#9492;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9496;     &#9671;&#9472;&#9516;&#9472;&#9472;&#9472;&#9472;&#9671;
+                                       &#9650;                         &#9474;
+                                       &#9492;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472; warnings &#9472;&#9472;&#9472;&#9472;&#9472;&#9496;</code></pre>
 
-<!-- GALLERY STRIP: real rendered output, varied captions -->
-<section class="section">
-  <div class="wrap">
-    <div style="display:flex; align-items:baseline; justify-content:space-between; gap:var(--sp-5);">
-      <h2 style="margin:0;">One model, four ways out</h2>
-      <a href="#" style="font-size:var(--t-sm);">Browse the gallery &rarr;</a>
-    </div>
-    <p class="prose" style="margin-top:var(--sp-3);">Every family renders to vector, raster, and text from one layout, byte-identical across processes.</p>
+  <hr>
 
-    <div class="grid-gallery" style="margin-top:var(--sp-5);">
-      <div class="diagram">
-        <div class="tag tag--neutral" style="margin-bottom:var(--sp-3);">sequence</div>
-        <img src="diagrams/sequence.svg" alt="sequence diagram between an agent and Agentic Mermaid">
-      </div>
-      <div class="diagram">
-        <div class="tag tag--neutral" style="margin-bottom:var(--sp-3);">state</div>
-        <img src="diagrams/state.svg" alt="state diagram: draft, verified, rendered">
-      </div>
-      <div class="diagram" style="display:flex; flex-direction:column;">
-        <div class="tag tag--neutral" style="margin-bottom:var(--sp-3);">unicode output</div>
-        <div class="ascii" style="flex:1;">&#9484;&#9472;&#9472;&#9472;&#9472;&#9472;&#9488;
-&#9474; Draft &#9474;
-&#9492;&#9472;&#9472;&#9472;&#9472;&#9472;&#9496;
-    &#9474; verify ok
-    &#9660;
-&#9484;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9488;
-&#9474; Verified  &#9474;
-&#9492;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9496;
-    &#9474; render
-    &#9660;
-&#9484;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9488;
-&#9474; Rendered  &#9474;
-&#9492;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9496;</div>
-      </div>
-    </div>
-  </div>
-</section>
+  <h2>Edit one node without regenerating the diagram</h2>
+  <p>A render-only library makes an agent regenerate the whole diagram to move one node. Here, existing diagrams go <strong>parse &rarr; narrow &rarr; mutate &rarr; verify &rarr; serialize</strong>, and <code>verify</code> returns structured warnings in three tiers plus perceptual quality metrics. An agent reads the tiers and decides whether to fix, re-narrow, or stop and ask a human.</p>
 
-<hr class="rule">
+  <h2>Local by default</h2>
+  <p>Run the library, the <code>am</code> CLI, or a local MCP server over stdio. Code Mode <code>execute</code> stays local, for trusted use only. An optional hosted MCP exposes only <code>render</code>, <code>verify</code>, <code>describe</code>, and structured edits, authless and rate-limited, with no arbitrary code. Self-hosting is the recommended path.</p>
 
-<!-- STANCE: plain language, no buzzwords -->
-<section class="section">
-  <div class="wrap grid-2">
-    <div>
-      <h2>Edit one node without regenerating the diagram</h2>
-      <p class="prose">A render-only library makes an agent regenerate the whole diagram to move one node.
-        Here, existing diagrams go <strong>parse &rarr; narrow &rarr; mutate &rarr; verify &rarr; serialize</strong>,
-        and <code>verify</code> returns structured warnings in three tiers plus perceptual quality metrics.</p>
-      <p class="prose">Anything it cannot model round-trips losslessly through preserved source, so nothing is silently dropped.</p>
-    </div>
-    <div>
-      <h2>Local by default</h2>
-      <p class="prose">Run the library, the <code>am</code> CLI, or a local MCP server over stdio.
-        Code Mode <code>execute</code> stays local, for trusted use only.</p>
-      <p class="prose">An optional hosted MCP exposes only <code>render</code>, <code>verify</code>, <code>describe</code>,
-        and structured edits. Authless, rate-limited, no arbitrary code. Self-hosting is the recommended path.</p>
-    </div>
-  </div>
-</section>
+</main>
 
 <footer>
-  <div class="wrap foot">
-    <span style="font-family:var(--serif); font-weight:700; color:var(--ink);">Agentic Mermaid</span>
-    <span class="nav__spacer"></span>
-    <a href="#">llms.txt</a><a href="#">agent-instructions.md</a><a href="#">capabilities.json</a>
-    <a href="#">agent-manifest.json</a><a href="#">GitHub</a>
+  <div class="footlinks">
+    <a href="#">llms.txt</a><span class="sep">&middot;</span>
+    <a href="#">agent-instructions.md</a><span class="sep">&middot;</span>
+    <a href="#">capabilities.json</a><span class="sep">&middot;</span>
+    <a href="#">agent-manifest.json</a><span class="sep">&middot;</span>
+    <a href="#">GitHub</a>
   </div>
 </footer>
 
 <script src="shader-mark.js"></script>
-<script>
-  for (const b of document.querySelectorAll('.iconbtn[aria-label="Toggle dark mode"]'))
-    b.addEventListener('click', () => {
-      const h = document.documentElement;
-      const dark = (h.getAttribute('data-theme') || (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')) === 'dark';
-      h.setAttribute('data-theme', dark ? 'light' : 'dark');
-    });
-</script>
 </body>
 </html>

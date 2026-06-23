@@ -6,137 +6,74 @@
 <title>Harnesses — Agentic Mermaid</title>
 <link rel="icon" href="favicon.svg" type="image/svg+xml">
 <link rel="stylesheet" href="styles.css">
-<style>
-  .crumb { color:var(--ink-faint); font-size:var(--t-sm); }
-  .crumb a { color:var(--ink-faint); }
-  .hcard { background:var(--surface); border:1px solid var(--line); border-radius:var(--radius-card); padding:var(--sp-5); }
-  .hcard h3 { margin:0 0 var(--sp-2); display:flex; align-items:center; gap:8px; }
-  .hcard .role { font-size:var(--t-sm); color:var(--ink-soft); margin:0 0 var(--sp-3); }
-  .smoke { font-size:13px; color:var(--ink-faint); margin-top:var(--sp-3); }
-  .smoke b { color:var(--ink-soft); font-weight:600; }
-</style>
 </head>
 <body>
 
-<nav class="nav">
-  <div class="wrap nav__in">
-    <span class="brand"><span class="mark">&#8776;</span> Agentic&nbsp;Mermaid</span>
-    <span class="nav__links"><a href="#">Editor</a><a href="#">Gallery</a><a href="#">Families</a><a href="#">Agents</a><a href="#">Docs</a></span>
-    <span class="nav__spacer"></span>
-    <span class="nav__meta">stdio default · HTTP opt-in</span>
-    <button class="iconbtn" aria-label="Toggle dark mode" title="Toggle theme" style="margin-left:var(--sp-3);">&#9680;</button>
-    <button class="iconbtn nav__menu" aria-label="Menu">&#9776;</button>
+<header class="masthead">
+  <div class="bar">
+    <span class="brand"><span class="mark"></span> Agentic&nbsp;Mermaid</span>
+    <span class="links"><a href="#">Editor</a><a href="#">Gallery</a><a href="#">Docs</a><a href="#">Agents</a><a href="#">GitHub</a></span>
   </div>
-</nav>
-
-<header class="section--tight">
-  <div class="wrap" style="max-width:820px;">
-    <p class="crumb"><a href="#">Agents</a> / Harnesses</p>
-    <h1 style="margin-top:var(--sp-3); max-width:16ch;">Set up your harness</h1>
-    <p class="prose" style="font-size:18px;">
-      Add the local MCP server over stdio, then run the smoke task to confirm the agent
-      can render, verify, and edit. Each card is generated from <code>harnesses.json</code>.
-    </p>
-  </div>
+  <hr>
 </header>
 
-<section class="section--tight">
-  <div class="wrap">
+<main class="doc">
+  <p class="crumb"><a href="#">Docs</a> / <a href="#">Agents</a> / Harnesses</p>
+  <h1>Set up your harness</h1>
+  <p class="lead">Add the local MCP server over stdio, then run the smoke task to confirm the agent can render, verify, and edit.</p>
+  <p>Every block below is generated from <code>harnesses.json</code>. Self-hosting over stdio is the default and the recommended path.</p>
 
-    <!-- featured harness, treatment differs from the grid -->
-    <div class="feature">
-      <div>
-        <span class="tag">Recommended</span>
-        <h3 style="margin-top:var(--sp-3); font-size:var(--t-h2);">Claude Code</h3>
-        <p class="role">One command registers the stdio server. No HTTP, no token, no account.</p>
-        <div class="smoke"><b>Smoke task:</b> &ldquo;Render <code>workflow.mmd</code> to PNG, then verify it and fix any lint.&rdquo;</div>
-        <p class="smoke">Channels: library · CLI · local MCP · skill</p>
-      </div>
-      <div class="term">
-        <span class="copy">copy</span>
-        <div class="dim"># register the local server</div>
-        <div><span class="pr">$</span> claude mcp add agentic-mermaid \</div>
-        <div>&nbsp;&nbsp;&nbsp;&nbsp;-- npx agentic-mermaid-mcp</div>
-        <div style="height:8px;"></div>
-        <div class="dim"># confirm tools are reachable</div>
-        <div><span class="pr">$</span> claude mcp list</div>
-        <div class="ok">&#10003; agentic-mermaid · render verify describe mutate</div>
-      </div>
-    </div>
+  <hr>
 
-    <div class="hgrid" style="margin-top:var(--sp-5);">
+  <h2>Claude Code</h2>
+  <p>One command registers the stdio server. No HTTP, no token, no account.</p>
+  <pre><code><span class="c"># register the local server</span>
+<span class="k">$</span> claude mcp add agentic-mermaid -- npx agentic-mermaid-mcp
+<span class="k">$</span> claude mcp list
+<span class="ok">&#10003;</span> agentic-mermaid &#183; render verify describe mutate</code></pre>
+  <p class="muted"><small>Smoke task: &ldquo;Render <code>workflow.mmd</code> to PNG, then verify it and fix any lint.&rdquo;</small></p>
 
-      <div class="hcard">
-        <h3>Cursor</h3>
-        <p class="role">Add a server entry to <code>~/.cursor/mcp.json</code>.</p>
-        <div class="term"><div class="dim">"agentic-mermaid": {</div><div>&nbsp;&nbsp;"command": "npx",</div><div>&nbsp;&nbsp;"args": ["agentic-mermaid-mcp"]</div><div class="dim">}</div></div>
-        <p class="smoke"><b>Smoke:</b> render + verify a flowchart.</p>
-      </div>
+  <h2>Cursor</h2>
+  <p>Add a server entry to <code>~/.cursor/mcp.json</code>.</p>
+  <pre><code>"agentic-mermaid": { "command": "npx", "args": ["agentic-mermaid-mcp"] }</code></pre>
 
-      <div class="hcard">
-        <h3>Codex</h3>
-        <p class="role">Declare it under <code>[mcp_servers]</code> in <code>config.toml</code>.</p>
-        <div class="term"><div class="dim">[mcp_servers.agentic-mermaid]</div><div>command = "npx"</div><div>args = ["agentic-mermaid-mcp"]</div></div>
-        <p class="smoke"><b>Smoke:</b> mutate a node, re-verify.</p>
-      </div>
+  <h2>Codex</h2>
+  <p>Declare it under <code>[mcp_servers]</code> in <code>config.toml</code>.</p>
+  <pre><code>[mcp_servers.agentic-mermaid]
+command = "npx"
+args = ["agentic-mermaid-mcp"]</code></pre>
 
-      <div class="hcard">
-        <h3>Gemini CLI</h3>
-        <p class="role">Register the stdio server.</p>
-        <div class="term"><span class="pr">$</span> gemini mcp add \<br>&nbsp;&nbsp;agentic-mermaid \<br>&nbsp;&nbsp;npx agentic-mermaid-mcp</div>
-        <p class="smoke"><b>Smoke:</b> export PNG to a file.</p>
-      </div>
+  <h2>Gemini CLI</h2>
+  <p>Register the stdio server.</p>
+  <pre><code><span class="k">$</span> gemini mcp add agentic-mermaid npx agentic-mermaid-mcp</code></pre>
 
-      <div class="hcard">
-        <h3>GitHub Copilot</h3>
-        <p class="role">Add to <code>.vscode/mcp.json</code> in the workspace.</p>
-        <div class="term"><div class="dim">"servers": {</div><div>&nbsp;"agentic-mermaid": { ... }</div><div class="dim">}</div></div>
-        <p class="smoke"><b>Smoke:</b> describe a diagram.</p>
-      </div>
+  <h2>GitHub Copilot</h2>
+  <p>Add to <code>.vscode/mcp.json</code> in the workspace.</p>
+  <pre><code>"servers": { "agentic-mermaid": { "command": "npx", "args": ["agentic-mermaid-mcp"] } }</code></pre>
 
-      <div class="hcard">
-        <h3>Pi · OpenCode</h3>
-        <p class="role">Both read a stdio MCP entry from their config.</p>
-        <div class="term"><span class="pr">$</span> npx agentic-mermaid-mcp<br><span class="dim"># add under mcp: in the config</span></div>
-        <p class="smoke"><b>Smoke:</b> parse &rarr; mutate &rarr; serialize.</p>
-      </div>
+  <h2>Pi &middot; OpenCode</h2>
+  <p>Both read a stdio MCP entry from their config.</p>
+  <pre><code><span class="k">$</span> npx agentic-mermaid-mcp     <span class="c"># add under mcp: in the config</span></code></pre>
 
-      <div class="hcard">
-        <h3>Generic MCP</h3>
-        <p class="role">Any client that speaks MCP over stdio.</p>
-        <div class="term"><span class="pr">$</span> npx agentic-mermaid-mcp<br><span class="dim"># transport: stdio (default)</span><br><span class="dim"># --transport http to opt in</span></div>
-        <p class="smoke"><b>Smoke:</b> call <code>capabilities</code>.</p>
-      </div>
+  <h2>Generic MCP</h2>
+  <p>Any client that speaks MCP over stdio.</p>
+  <pre><code><span class="k">$</span> npx agentic-mermaid-mcp           <span class="c"># transport: stdio (default)</span>
+<span class="k">$</span> npx agentic-mermaid-mcp --transport http   <span class="c"># opt in to HTTP</span></code></pre>
 
-    </div>
+  <hr>
 
-    <!-- local vs hosted note -->
-    <div class="card" style="margin-top:var(--sp-6); display:flex; gap:var(--sp-5); align-items:flex-start;">
-      <span class="tag tag--neutral" style="margin-top:2px;">note</span>
-      <p class="prose" style="margin:0;">
-        Self-hosting over stdio is the default and the recommended path. The optional
-        hosted MCP is a convenience for clients that cannot self-host: it exposes only
-        <code>render</code>, <code>verify</code>, <code>describe</code>, and structured edits,
-        rate-limited and authless. It never runs Code Mode <code>execute</code>.
-      </p>
-    </div>
+  <blockquote>The optional hosted MCP is a convenience for clients that cannot self-host. It exposes only <code>render</code>, <code>verify</code>, <code>describe</code>, and structured edits, rate-limited and authless. It never runs Code Mode <code>execute</code>.</blockquote>
+</main>
 
+<footer>
+  <div class="footlinks">
+    <a href="#">harnesses.json</a><span class="sep">&middot;</span>
+    <a href="#">agent-manifest.json</a><span class="sep">&middot;</span>
+    <a href="#">capabilities.json</a><span class="sep">&middot;</span>
+    <a href="#">GitHub</a>
   </div>
-</section>
+</footer>
 
-<footer><div class="wrap foot">
-  <span style="font-family:var(--serif); font-weight:700; color:var(--ink);">Agentic Mermaid</span>
-  <span class="nav__spacer"></span>
-  <a href="#">harnesses.json</a><a href="#">agent-manifest.json</a><a href="#">capabilities.json</a>
-</div></footer>
 <script src="shader-mark.js"></script>
-<script>
-  for (const b of document.querySelectorAll('.iconbtn[aria-label="Toggle dark mode"]'))
-    b.addEventListener('click', () => {
-      const h = document.documentElement;
-      const dark = (h.getAttribute('data-theme') || (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')) === 'dark';
-      h.setAttribute('data-theme', dark ? 'light' : 'dark');
-    });
-</script>
 </body>
 </html>

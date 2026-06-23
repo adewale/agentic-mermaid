@@ -32,26 +32,23 @@ are squared 6px chips with a leading status dot, and the editor's output switch
 is an underlined tab bar. `alternatives.html` shows the options compared
 (soft-square vs sharp; chip+dot vs mono-bracket vs keyline; tabs vs boxed).
 
-## Themes and responsiveness
+## Dark, sparse, document-first
 
-Two themes share one token set in `styles.css`, and they are deliberately the
-same system at two lightnesses rather than two palettes. The neutrals are
-anchored on one faintly teal hue — light is a cool paper, dark a teal-charcoal —
-and the steps are parallel: in both modes a surface lifts a clear notch off the
-background and a hairline border stays visible (the earlier dark mode let cards
-sink into the background). Dark applies via OS preference
-(`prefers-color-scheme: dark`) or an explicit `[data-theme="dark"]`; the nav
-carries a toggle. Diagrams render onto a light panel (`--diagram-bg`) in both
-themes so the geometry stays legible.
+There is **one theme: dark.** The light mode and the toggle were removed — a
+single `:root` in `styles.css`, no `prefers-color-scheme`/`[data-theme]`
+machinery.
 
-The logo is the same self-contained chip in both modes — a white layered graph
-on the pine accent — so the brand reads identically light or dark. A
-`--mark-ring` token is transparent in light and a faint white hairline in dark,
-so the chip's edge stays crisp against the near-black nav. The same graph is the
-`favicon.svg`.
+The site reads like a **rendered Markdown document.** One centred column at a
+`70ch` measure, generous whitespace, text before chrome. The element set is the
+Markdown set — headings, paragraphs, lists, `<hr>` rules between sections, fenced
+code blocks, blockquotes, tables, and figures — with no cards, panels, grids, or
+shadows. Links are the only accent. Diagrams sit on a light plate inside a
+`<figure>`, the way an image sits in a README. The masthead is a single quiet
+line (mark, wordmark, a few text links, a hairline) rather than an app nav.
 
-The layout collapses to a single column at 820px and reduces the display sizes;
-the nav swaps its links for a menu button below that width.
+`states.html` and `alternatives.html` are kept only as design-history reference
+sheets; a small legacy-component block at the end of `styles.css` exists solely
+so they still render in dark. They are not site pages.
 
 ## Design and writing constraints
 
