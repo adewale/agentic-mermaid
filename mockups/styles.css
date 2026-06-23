@@ -27,8 +27,17 @@
    --bg/--fg/--accent, so changing the palette can't restyle the logo, the
    texture, or the type. */
 :root {
-  --brand-pine: #0E6E55;   /* the logo chip; the WebGL mark is hardcoded to match */
-  --brand-on:   #FFFFFF;   /* the white graph glyph on the chip */
+  /* the logo chip — lighter, tonal green-on-green, with a deep-green glyph
+     (never white). The chip's living surface is the WebGL shader, painted from
+     the --m-* tokens below; --brand-pine is only the pre-canvas fallback and
+     tracks the shader mid. A --m-sweep darker than the chip keeps the sweep
+     visible on a light chip. (Tonal alt: --brand-pine #2E9E7E, --brand-on
+     #DEF4EC, --m-deep #257E63, --m-mid #2E9E7E, --m-sweep #BFE9D8.) */
+  --brand-pine: #6FC2A2;   /* chip fallback ≈ the shader mid */
+  --brand-on:   #0A4434;   /* the graph glyph — deep forest */
+  --m-deep:     #5CB897;   /* shader gradient, foot */
+  --m-mid:      #79C9AB;   /* shader gradient, head */
+  --m-sweep:    #C2EAD9;   /* the descending sweep — a gentle lift, lighter than the chip */
   /* the grain *recipe* (body::before: desaturated feTurbulence) is brand-constant
      — no theme restyles it. Its --grain opacity is calibrated per scheme (see the
      SCHEME layer) so the texture *feels* even: dark noise on a light base needs
@@ -139,7 +148,7 @@ body::before { content: ""; position: fixed; inset: 0; pointer-events: none; z-i
 .mark { position: relative; overflow: hidden; box-shadow: 0 0 0 1px var(--mark-ring); }
 .mark > canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
 .mark > .glyph { position: relative; z-index: 1; display: inline-flex; }
-.mark > .glyph svg { width: 1.6em; height: 1.6em; display: block; color: #fff; filter: drop-shadow(0 1px 1px rgba(0,0,0,0.30)); }
+.mark > .glyph svg { width: 1.6em; height: 1.6em; display: block; color: var(--brand-on); filter: drop-shadow(0 0.5px 0.5px rgba(0,0,0,0.18)); }
 .masthead .links { margin-left: auto; display: flex; gap: 20px; }
 .masthead .links a { color: var(--ink-faint); font-size: 14px; }
 .masthead .links a:hover { color: var(--ink); text-decoration: none; }

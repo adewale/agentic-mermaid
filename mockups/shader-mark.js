@@ -32,10 +32,11 @@
   const VERT = 'attribute vec2 p; void main(){ gl_Position = vec4(p, 0.0, 1.0); }';
   const FRAG = `precision highp float;
     uniform vec2 u_res; uniform float u_time; uniform float u_hover;
+    uniform vec3 u_cDeep; uniform vec3 u_cMid; uniform vec3 u_cSweep;
     float sdSeg(vec2 p, vec2 a, vec2 b){ vec2 pa=p-a, ba=b-a; float h=clamp(dot(pa,ba)/dot(ba,ba),0.0,1.0); return length(pa-ba*h); }
     void main(){
       vec2 uv = gl_FragCoord.xy / u_res;
-      vec3 aDeep = vec3(0.043, 0.388, 0.310), aMid = vec3(0.055, 0.435, 0.336);
+      vec3 aDeep = u_cDeep, aMid = u_cMid;
       vec3 col = mix(aDeep, aMid, smoothstep(0.0, 1.0, uv.y));
       vec2 P = vec2(uv.x, 1.0 - uv.y) * 48.0;
       vec2 L=vec2(14.,7.), M=vec2(24.,4.), R=vec2(34.,7.);
@@ -48,7 +49,7 @@
       float halo = smoothstep(3.4, 0.6, g);
       float band = fract(u_time * (0.12 + 0.07 * u_hover)) * 88.0 - 20.0;
       float sweep = smoothstep(7.0, 0.0, abs(P.y - band));
-      col = mix(col, vec3(0.64, 0.87, 0.77), halo * sweep * (0.6 + 0.35 * u_hover));
+      col = mix(col, u_cSweep, halo * sweep * (0.6 + 0.35 * u_hover));
       float d = distance(uv, vec2(0.5));
       col *= 1.0 - 0.18 * smoothstep(0.25, 0.82, d);
       gl_FragColor = vec4(col, 1.0);
@@ -84,6 +85,17 @@
     const uRes = gl.getUniformLocation(prog, 'u_res');
     const uTime = gl.getUniformLocation(prog, 'u_time');
     const uHover = gl.getUniformLocation(prog, 'u_hover');
+
+    // mark palette from CSS custom properties (the brand layer), so the green is
+    // declared in CSS alongside the other brand tokens rather than hard-coded
+    // here. --m-sweep lighter than the chip lifts; darker than it dips — which
+    // is how a light chip keeps a visible sweep. Falls back to the pine palette.
+    const hexToVec3 = (h) => { h = (h || '').trim().replace('#', ''); if (h.length === 3) h = h.split('').map(c => c + c).join(''); const n = parseInt(h, 16) || 0; return [((n >> 16) & 255) / 255, ((n >> 8) & 255) / 255, (n & 255) / 255]; };
+    const cs = getComputedStyle(mark);
+    const pick = (name, def) => { const v = cs.getPropertyValue(name); return hexToVec3(v && v.trim() ? v : def); };
+    gl.uniform3fv(gl.getUniformLocation(prog, 'u_cDeep'), pick('--m-deep', '#0B634F'));
+    gl.uniform3fv(gl.getUniformLocation(prog, 'u_cMid'), pick('--m-mid', '#0E6F56'));
+    gl.uniform3fv(gl.getUniformLocation(prog, 'u_cSweep'), pick('--m-sweep', '#A3DEC4'));
 
     let hover = 0, target = 0;
     mark.addEventListener('pointerenter', () => { target = 1; });

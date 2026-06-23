@@ -81,8 +81,9 @@ default.
 Carrying ~20 palettes without 20 hand-tuned blocks — and without letting any of
 them restyle the product — needs structure. `styles.css` is **three layers**:
 
-1. **Brand** (`:root`, `--brand-*`) — *constant.* The logo chip (`--brand-pine`,
-   the colour the WebGL mark is hardcoded to), the grain texture (`body::before`,
+1. **Brand** (`:root`, `--brand-*`) — *constant.* The logo chip (a lighter,
+   tonal green — `--brand-pine` plus the shader's `--m-deep`/`--m-mid`/`--m-sweep`
+   and a deep-green glyph `--brand-on`, never white), the grain texture (`body::before`,
    a desaturated `feTurbulence`), and the type. **No `[data-theme]` or
    `[data-scheme]` block restyles these, and the brand elements read only from
    this layer** — never from `--bg`/`--fg`. That is the isolation seam: switching
@@ -175,13 +176,16 @@ Two motions, both true to the method:
 
 It stays restrained by confinement (26px), one accent family, and gaps between
 both motions; it settles to a single still frame under `prefers-reduced-motion`,
-quickens on hover, and falls back to the flat accent fill (white graph still
-shown) if WebGL is missing.
+quickens on hover, and falls back to the flat chip fill (the deep-green graph
+still shown) if WebGL is missing. The shader's three greens are read from CSS
+custom properties (`--m-deep`/`--m-mid`/`--m-sweep`) rather than hard-coded, so
+the mark palette lives in the brand layer; `mark-greens.html` and
+`mark-live.html` are the shade exploration and the Fern/Tonal in-context test.
 
 The graph is one drawing — circles for nodes, strokes for edges, the long edge a
 bent polyline, the dummy a hollow circle — shared by the logo glyph,
 `favicon.svg`, and the docs end-mark. The same node/edge coordinates drive the
-shader (in viewBox space), so the sweep lights exactly the ranks the white graph
+shader (in viewBox space), so the sweep lights exactly the ranks the graph
 draws. (Earlier versions used a trident, then a two-node flowchart; both were
 dropped — too on-the-nose, then too generic.)
 
