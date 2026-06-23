@@ -12,6 +12,11 @@ generated routes or machine manifests.
 - `agents-harnesses.html` — local-MCP setup cards per harness (`/agents/harnesses`).
 - `docs-article.html` — a `/docs` reading page in an editorial idiom.
 - `states.html`, `alternatives.html` — craft reference sheets, not site routes.
+- `tufte-max.html` — an experiment, not a site page: the editor's `verify` panel
+  rebuilt in full Tufte idiom — an asymmetric measure with a working right
+  margin, the tier explanations as true **sidenotes**, the diagram as a **margin
+  figure**, the metrics as inline **sparklines**, and none of the grain, shader,
+  or switcher the data-ink ratio would cut.
 
 ## Editorial docs surfaces (A List Apart / Zeldman)
 
@@ -173,4 +178,7 @@ bun run mockups/record.ts
 
 # living-mark shader filmstrip → shot-shader.png, shot-shader-context.png
 bun run mockups/shader.ts
+
+# the Tufte Max experiment → shot-tufte-max.png
+bun run mockups/tufte-shot.ts
 ```
