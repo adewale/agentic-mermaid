@@ -22,7 +22,10 @@
   @media (max-width: 1100px) {
     .tufte-docs .masthead, .tufte-docs main.doc, .tufte-docs footer { margin-left: 2vw; }
   }
-  .tufte-docs main.doc { counter-reset: sidenote; }
+  .tufte-docs main.doc { counter-reset: sidenote; font-family: var(--serif); }
+  /* Tuftean type: a serif reading column, sans-serif headers */
+  .tufte-docs main.doc h1,
+  .tufte-docs main.doc h3 { font-family: var(--sans); letter-spacing: -0.005em; }
 
   /* the reading column is ~58%; the remaining ~42% is working space */
   .tufte-docs main.doc > p,
@@ -71,8 +74,11 @@
     .tufte-docs main.doc > .lead, .tufte-docs main.doc > .crumb, .tufte-docs main.doc > ul,
     .tufte-docs main.doc > pre, .tufte-docs main.doc > blockquote, .tufte-docs main.doc > figure,
     .tufte-docs main.doc > .endmark { width: 100%; }
+    /* the note becomes a block in normal flow, set off by an indent + rule;
+       it appears right after the sentence fragment that cites it, still
+       carrying its number, so the reference stays legible without a margin. */
     .tufte-docs .sidenote, .tufte-docs .marginnote {
-      float: none; width: auto; margin: 10px 0 14px;
+      display: block; float: none; width: auto; margin: 12px 0 16px;
       padding-left: 14px; border-left: 2px solid var(--line-strong);
     }
   }

@@ -22,8 +22,10 @@ generated routes or machine manifests.
 
 The reading surfaces under `/docs` follow A List Apart and Jeffrey Zeldman —
 type-led, web-standards, accent only in links — and take the long-form page into
-**Edward Tufte's idiom**: an **asymmetric measure** (a ~58% reading column, the
-rest a working right margin) rather than a centred column with dead margins. The
+**Edward Tufte's idiom**: a **serif reading column with sans-serif headers** (the
+inverse of the marketing pages' serif-display/sans-body, and closer to a printed
+manual), set on an **asymmetric measure** (a ~58% reading column, the rest a
+working right margin) rather than a centred column with dead margins. The
 editorial furniture is there — masthead and tagline, a deck/standfirst, a
 hairline byline crediting `capabilities.json`, numbered sections, a captioned
 figure, a stop-rule set between rules rather than in a tinted box — but the
@@ -39,9 +41,14 @@ Crucially this **layers on top of the live theme system**, not instead of it: th
 sidenotes and sparklines read the themed `--ink-soft` / `--accent` / `--line`, so
 they re-skin with the switcher (the numbers and sparkline dots take each theme's
 accent), and the grain, switcher, and shader mark all stay. The layout is scoped
-to the page via a `.tufte-docs` body class and collapses to indented, left-ruled
-blocks under `760px`. `tufte-max.html` is the standalone, maximalist version of
-the same idea (no switcher, no grain, no shader); this is the shippable read.
+to the page via a `.tufte-docs` body class. Under `760px` the margin has nowhere
+to go, so each note drops into the flow as a block (`display: block`) directly
+after the sentence fragment that cites it — indented, left-ruled, still carrying
+its number — and the reading column returns to full width. (A tap-to-reveal
+toggle would avoid the mid-sentence interruption, at the cost of interactivity;
+the always-shown block is the static default.) `tufte-max.html` is the
+standalone, maximalist version of the same idea (no switcher, no grain, no
+shader); this is the shippable read.
 
 ## Controls (no pills)
 
