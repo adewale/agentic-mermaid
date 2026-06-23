@@ -8,11 +8,80 @@
 <link rel="stylesheet" href="styles.css">
 <script>(function(){try{var t=localStorage.getItem('am-theme');var L={'zinc-light':1,'github-light':1,'solarized-light':1,'catppuccin-latte':1,'nord-light':1,'tokyo-night-light':1,'salmon':1,'tufte':1};if(t&&t!=='pine')document.documentElement.setAttribute('data-theme',t);document.documentElement.setAttribute('data-scheme',(t&&L[t])?'light':'dark');}catch(e){}})();</script>
 <style>
+  /* ---- /docs in the Tufte idiom ----------------------------------------
+     An asymmetric measure with a working right margin: the verify tiers
+     become true sidenotes and the metrics become inline sparklines. This
+     layers on top of the live theme system — sidenotes and sparklines read
+     the themed --ink-soft / --accent / --line, so they re-skin with the
+     switcher, and the grain, switcher, and shader mark all stay. Scoped to
+     this page via the .tufte-docs body class. */
+
+  .tufte-docs .masthead,
+  .tufte-docs main.doc,
+  .tufte-docs footer { max-width: 1160px; margin: 0 auto 0 6vw; }
+  @media (max-width: 1100px) {
+    .tufte-docs .masthead, .tufte-docs main.doc, .tufte-docs footer { margin-left: 2vw; }
+  }
+  .tufte-docs main.doc { counter-reset: sidenote; }
+
+  /* the reading column is ~58%; the remaining ~42% is working space */
+  .tufte-docs main.doc > p,
+  .tufte-docs main.doc > h1,
+  .tufte-docs main.doc > h3,
+  .tufte-docs main.doc > .lead,
+  .tufte-docs main.doc > .crumb,
+  .tufte-docs main.doc > ul,
+  .tufte-docs main.doc > pre,
+  .tufte-docs main.doc > blockquote,
+  .tufte-docs main.doc > figure,
+  .tufte-docs main.doc > .endmark { width: 58%; box-sizing: border-box; }
+  .tufte-docs main.doc > hr { width: 100%; }
+
+  /* margin apparatus: spans inside paragraphs, floated line-adjacent */
+  .tufte-docs .sidenote, .tufte-docs .marginnote {
+    float: right; clear: right;
+    width: 43%; margin-right: -48%;
+    box-sizing: border-box;
+    font-size: 13px; line-height: 1.5; color: var(--ink-soft);
+    margin-bottom: 16px;
+  }
+  .tufte-docs .sidenote code, .tufte-docs .marginnote code { font-size: 11.5px; }
+  /* numbered sidenotes: the ref superscript and the note share one counter */
+  .tufte-docs .snref { counter-increment: sidenote; }
+  .tufte-docs .snref::after {
+    content: counter(sidenote);
+    font-size: 0.68em; vertical-align: super; line-height: 0;
+    color: var(--accent); margin-left: 1px;
+  }
+  .tufte-docs .sidenote::before {
+    content: counter(sidenote);
+    font-size: 0.72em; vertical-align: super; line-height: 0;
+    color: var(--accent); margin-right: 5px;
+  }
+
+  /* sparklines — word-sized, inline with the prose (data-words) */
+  .tufte-docs .spark { display: inline-block; width: 58px; height: 15px; vertical-align: -2px; margin: 0 2px; }
+  .tufte-docs .spark polyline { fill: none; stroke: var(--ink-soft); stroke-width: 1.1; }
+  .tufte-docs .spark .end { fill: var(--accent); }
+  .tufte-docs .sparkval { color: var(--accent); font-variant-numeric: tabular-nums; }
+
+  /* on a narrow screen the margin collapses to indented blocks */
+  @media (max-width: 760px) {
+    .tufte-docs main.doc > p, .tufte-docs main.doc > h1, .tufte-docs main.doc > h3,
+    .tufte-docs main.doc > .lead, .tufte-docs main.doc > .crumb, .tufte-docs main.doc > ul,
+    .tufte-docs main.doc > pre, .tufte-docs main.doc > blockquote, .tufte-docs main.doc > figure,
+    .tufte-docs main.doc > .endmark { width: 100%; }
+    .tufte-docs .sidenote, .tufte-docs .marginnote {
+      float: none; width: auto; margin: 10px 0 14px;
+      padding-left: 14px; border-left: 2px solid var(--line-strong);
+    }
+  }
+
   .endmark { text-align: center; margin: 56px 0 0; color: var(--ink-faint); }
   .endmark svg { width: 22px; height: 22px; }
 </style>
 </head>
-<body>
+<body class="tufte-docs">
 
 <header class="masthead">
   <div class="bar">
@@ -38,10 +107,10 @@
   <p>The fix is to treat an existing diagram as structured data, not a string. A typed surface exposes the parts an agent can name and change, and refuses edits it cannot make safely. The loop has five steps.</p>
 
   <h3>1 &middot; Parse</h3>
-  <p>Read the source into a typed model. Anything the model does not understand round-trips through preserved source, so an unusual block is carried verbatim rather than dropped.</p>
+  <p>Read the source into a typed model. Anything the model does not understand round-trips through preserved source,<span class="snref"></span><span class="sidenote">An unusual block — a raw <code>journey</code> body, say — is carried verbatim as a string and re-emitted untouched, so parsing never silently drops what it cannot model.</span> so an unusual block is carried verbatim rather than dropped.</p>
 
   <h3>2 &middot; Narrow</h3>
-  <p>Select the one node or edge the edit touches. Narrowing keeps the change local, which is what protects the rest of the layout from drifting.</p>
+  <p>Select the one node or edge the edit touches. Narrowing keeps the change local,<span class="snref"></span><span class="sidenote">Locality is the whole game: touch one node and the other forty keep their coordinates, so a one-line edit can&rsquo;t reflow the diagram.</span> which is what protects the rest of the layout from drifting.</p>
 
   <figure>
     <div class="plate"><div class="dia-wrap">
@@ -57,13 +126,14 @@
 <span class="c">// returns a ValidDiagram, or a structured error</span></code></pre>
 
   <h3>4 &middot; Verify</h3>
-  <p>Check the result before trusting it. <code>verify</code> returns warnings in three tiers — structural, geometric, and lint — plus perceptual quality metrics. An agent reads the tiers and decides whether to fix, re-narrow, or stop and ask a human.</p>
+  <p>Check the result before trusting it. <code>verify</code> returns warnings in three tiers — <strong>structural</strong><span class="snref"></span><span class="sidenote">Tier&nbsp;1 — the graph is malformed: a dangling edge, a duplicate id, an edge to a node that isn&rsquo;t there. Blocks <code>serialize</code>; never ship past one.</span>, <strong>geometric</strong><span class="snref"></span><span class="sidenote">Tier&nbsp;2 — valid but ugly: overlapping nodes, a label crossing an edge, a port on the wrong side. Advisory, not fatal.</span>, and <strong>lint</strong><span class="snref"></span><span class="sidenote">Tier&nbsp;3 — style and lossiness: a non-canonical arrow, or a dropped comment. Cosmetic.</span> — plus perceptual quality metrics.<span class="marginnote">Scored by the deterministic rubric in <code>layout-rubric.ts</code>, not asserted by the agent. The same diagram always scores the same, so you can diff a metric across edits and watch it move.</span> An agent reads the tiers and decides whether to fix, re-narrow, or stop and ask a human.</p>
   <pre><code>verify(diagram)
 <span class="ok">&#10003; ok</span>   structural 0   geometric 0   lint 1
 <span class="c">// COMMENT_DROPPED line 4 — inline %% comment removed on serialize</span></code></pre>
+  <p>The one lint here is a dropped comment<span class="snref"></span><span class="sidenote"><code>COMMENT_DROPPED</code>, line&nbsp;4. The inline <code>%%</code> comment isn&rsquo;t representable in the typed model — move it onto its own line above the node to keep it.</span> on line&nbsp;4. Across this diagram&rsquo;s five edits, legibility climbed&nbsp;<svg class="spark" viewBox="0 0 58 15" aria-hidden="true"><polyline points="0,10.8 14.5,7.4 29,4.9 43.5,3.4 58,2.5"/><circle class="end" cx="58" cy="2.5" r="1.6"/></svg>&nbsp;to <span class="sparkval">0.98</span> and edge crossings fell&nbsp;<svg class="spark" viewBox="0 0 58 15" aria-hidden="true"><polyline points="0,2 14.5,6.8 29,6.8 43.5,11.4 58,14"/><circle class="end" cx="58" cy="14" r="1.6"/></svg>&nbsp;to <span class="sparkval">0</span>.</p>
 
   <h3>5 &middot; Serialize</h3>
-  <p>Write the typed model back to Mermaid source, then render to SVG, PNG, ASCII, or Unicode. Because layout is deterministic, the same model produces the same geometry every run.</p>
+  <p>Write the typed model back to Mermaid source, then render to SVG, PNG, ASCII, or Unicode. Because layout is deterministic,<span class="snref"></span><span class="sidenote">Same input, same bytes — no RNG, no clock. A CI snapshot of the SVG is stable, so a diff means a real geometry change, not noise.</span> the same model produces the same geometry every run.</p>
 
   <blockquote>Stop rule. Never return a diagram you have not verified, and never fabricate a passing result. If a structural warning will not clear after two attempts, serialize what you have and ask a human to look.</blockquote>
 

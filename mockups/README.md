@@ -18,16 +18,30 @@ generated routes or machine manifests.
   figure**, the metrics as inline **sparklines**, and none of the grain, shader,
   or switcher the data-ink ratio would cut.
 
-## Editorial docs surfaces (A List Apart / Zeldman)
+## Editorial docs surfaces — the Tufte treatment (`docs-article.html`)
 
-The reading surfaces under `/docs` follow A List Apart and Jeffrey Zeldman:
-type-led, web-standards, accent only in links, generous measure. The article
-column switches to a **serif body** for long-form gravitas (the app and
-marketing pages keep the sans body) and uses the editorial furniture those
-sites are known for — masthead and tagline, a deck/standfirst, a hairline
-byline, numbered sections for a real sequence, a drop cap, a figure with a
-caption, and a pull quote set between rules, not in a tinted box. The
-byline credits `capabilities.json`, since docs are generated from product truth.
+The reading surfaces under `/docs` follow A List Apart and Jeffrey Zeldman —
+type-led, web-standards, accent only in links — and take the long-form page into
+**Edward Tufte's idiom**: an **asymmetric measure** (a ~58% reading column, the
+rest a working right margin) rather than a centred column with dead margins. The
+editorial furniture is there — masthead and tagline, a deck/standfirst, a
+hairline byline crediting `capabilities.json`, numbered sections, a captioned
+figure, a stop-rule set between rules rather than in a tinted box — but the
+margin now does work:
+
+- the `verify` tiers (**structural / geometric / lint**) are explained as true
+  **sidenotes** — numbered notes that sit line-adjacent to their referent, no
+  footnote round-trip — with the metric provenance as an unnumbered margin note;
+- the quality metrics are **sparklines**, word-sized graphics inline in the prose
+  (legibility `0.98`, edge crossings `0`), not a low-density table.
+
+Crucially this **layers on top of the live theme system**, not instead of it: the
+sidenotes and sparklines read the themed `--ink-soft` / `--accent` / `--line`, so
+they re-skin with the switcher (the numbers and sparkline dots take each theme's
+accent), and the grain, switcher, and shader mark all stay. The layout is scoped
+to the page via a `.tufte-docs` body class and collapses to indented, left-ruled
+blocks under `760px`. `tufte-max.html` is the standalone, maximalist version of
+the same idea (no switcher, no grain, no shader); this is the shippable read.
 
 ## Controls (no pills)
 
