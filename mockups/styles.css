@@ -51,7 +51,7 @@ body { margin: 0; background: var(--paper); color: var(--ink); font-family: var(
 /* ---- masthead: one quiet line, like a document title bar ---- */
 .masthead { max-width: var(--measure); margin: 0 auto; padding: 30px 24px 0; }
 .masthead .bar { display: flex; align-items: center; gap: 14px; }
-.brand { display: inline-flex; align-items: center; gap: 10px; font-family: var(--serif); font-weight: 700; font-size: 18px; color: var(--ink); }
+.brand { display: inline-flex; align-items: center; gap: 10px; font-family: var(--serif); font-weight: 400; font-size: 18px; color: var(--ink); }
 .brand .mark { width: 24px; height: 24px; border-radius: 6px; background: #0E6E55; color: #fff; display: inline-grid; place-items: center; }
 .mark { position: relative; overflow: hidden; box-shadow: 0 0 0 1px var(--mark-ring); }
 .mark > canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
@@ -65,10 +65,10 @@ body { margin: 0; background: var(--paper); color: var(--ink); font-family: var(
 .crumb a { color: var(--ink-faint); }
 
 /* ---- prose: headings, text, lists, rules ---- */
-h1, h2, h3 { font-family: var(--serif); color: var(--ink); line-height: 1.18; letter-spacing: -0.005em; font-weight: 700; }
-h1 { font-size: 40px; margin: 40px 0 16px; }
-h2 { font-size: 25px; margin: 52px 0 12px; }
-h3 { font-size: 19px; margin: 30px 0 8px; }
+h1, h2, h3 { font-family: var(--serif); color: var(--ink); font-weight: 400; line-height: 1.22; letter-spacing: 0; }
+h1 { font-size: 37px; margin: 40px 0 16px; letter-spacing: -0.01em; }
+h2 { font-size: 24px; margin: 52px 0 12px; }
+h3 { font-size: 18px; margin: 30px 0 8px; }
 .lead { font-size: 20px; line-height: 1.55; color: var(--ink-soft); margin: 0 0 24px; }
 p { margin: 0 0 20px; }
 a { color: var(--link); text-decoration: none; }
