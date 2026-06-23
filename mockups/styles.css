@@ -1,33 +1,35 @@
-/* Agentic Mermaid — dark, sparse, document-first.
-   The site reads like a rendered Markdown file: one column, generous whitespace,
-   text before chrome, rules instead of cards, one accent (links). Dark is the
-   only theme. The legacy component block at the end exists only so the two
-   design reference sheets (states.html, alternatives.html) still render. */
+/* Agentic Mermaid — dark, sparse, document-first, and fully themeable.
 
+   Three layers, deliberately separated so the product stays recognisable
+   whatever palette the reader picks:
+
+     1. BRAND   (:root, --brand-*)  constant. The logo chip, the grain
+                                    texture, the type. No theme or scheme
+                                    block may set these — this is the
+                                    isolation seam.
+     2. THEME   ([data-theme])      swappable. A theme supplies only a triplet
+                                    — --bg, --fg, --accent — and the whole
+                                    hierarchy (--ink-soft, --line, --chip …) is
+                                    derived from it with color-mix(). A new
+                                    theme is three numbers, so the switcher can
+                                    carry every renderer palette cheaply.
+     3. SCHEME  ([data-scheme])     light | dark. The few tokens that depend on
+                                    polarity (the diagram plate, the mark ring,
+                                    the code panel) and the light/dark diagram
+                                    swap.
+
+   The legacy component block at the very end exists only so the two design
+   reference sheets (states.html, alternatives.html) still render. */
+
+/* ============================ 1 · BRAND ============================
+   Isolated from every theme and scheme. The brand elements (.brand .mark,
+   body::before, the type) read ONLY from this layer, never from
+   --bg/--fg/--accent, so changing the palette can't restyle the logo, the
+   texture, or the type. */
 :root {
-  --paper:      #0F1512;   /* page */
-  --surface:    #151D1A;   /* code / quiet panels */
-  --diagram-bg: #141D19;   /* diagrams now render dark to match the page (was a stark light plate) */
-  --ink:        #E7ECE9;
-  --ink-soft:   #A4AFAA;
-  --ink-faint:  #6F7C76;
-  --line:       #232E29;
-  --line-strong:#36423C;
-  --chip:       #1E2723;
-  --accent:     #6FC2A2;   /* links */
-  --accent-hover:#8FD3BA;
-  --link:       #6FC2A2;
-  --accent-tint:#17312A;
-  --warn:       #E0A75A;
-  --warn-tint:  #2A2418;
-  --danger:     #E08A80;
-  --term-bg:    #0C1310;
-  --term-fg:    #E7ECE9;
-  --term-dim:   #8FA199;
-  --term-accent:#7CC3A6;
-  --mark-ring:  rgba(255, 255, 255, 0.10);
-  --code-bg:    #0C1310;
-  --code-fg:    #E7ECE9;
+  --brand-pine: #0E6E55;   /* the logo chip; the WebGL mark is hardcoded to match */
+  --brand-on:   #FFFFFF;   /* the white graph glyph on the chip */
+  --grain:      0.07;      /* texture strength — the same faint grain everywhere */
 
   --serif: 'DejaVu Serif', Charter, Georgia, serif;
   --sans:  'DejaVu Sans', system-ui, sans-serif;
@@ -35,50 +37,75 @@
 
   --measure: 70ch;
   --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+}
 
-  /* legacy tokens — only consumed by states.html / alternatives.html */
-  --accent-press: #8FD3BA; --ease: cubic-bezier(0.22, 1, 0.36, 1);
+/* ============================ 2 · THEME ============================
+   Default palette is Pine (our dark green). Every theme below sets only the
+   triplet; the hierarchy is derived once, here, from those three values, so
+   it recomputes automatically whenever a [data-theme] block swaps them. */
+:root {
+  --bg:     #0F1512;
+  --fg:     #E7ECE9;
+  --accent: #6FC2A2;
+
+  /* derived hierarchy — a coherent mono ramp from the triplet */
+  --paper:        var(--bg);
+  --ink:          var(--fg);
+  --ink-soft:     color-mix(in srgb, var(--fg) 64%, var(--bg));
+  --ink-faint:    color-mix(in srgb, var(--fg) 42%, var(--bg));
+  --surface:      color-mix(in srgb, var(--fg) 5%,  var(--bg));
+  --chip:         color-mix(in srgb, var(--fg) 9%,  var(--bg));
+  --line:         color-mix(in srgb, var(--fg) 13%, var(--bg));
+  --line-strong:  color-mix(in srgb, var(--fg) 24%, var(--bg));
+  --link:         var(--accent);
+  --accent-hover: color-mix(in srgb, var(--accent) 68%, var(--fg));
+  --accent-tint:  color-mix(in srgb, var(--accent) 14%, var(--bg));
+  --code-fg:      var(--fg);
+
+  /* status + terminal + legacy tokens (kept stable / derived across themes) */
+  --warn: #E0A75A; --warn-tint: #2A2418; --danger: #E08A80;
+  --term-bg: var(--code-bg); --term-fg: var(--fg); --term-dim: var(--ink-soft); --term-accent: var(--accent);
+  --accent-press: var(--accent-hover); --ease: cubic-bezier(0.22, 1, 0.36, 1);
   --radius-card: 12px; --radius-input: 8px;
   --sp-1: 4px; --sp-2: 8px; --sp-3: 12px; --sp-4: 16px; --sp-5: 24px; --sp-6: 40px; --sp-7: 64px; --sp-8: 96px;
   --t-hero: 43px; --t-h2: 29px; --t-h3: 20px; --t-body: 17px; --t-sm: 14.5px; --t-label: 12.5px;
 }
 
-/* themes — set [data-theme] on <html>; default (:root above) is Pine (dark).
-   Paper and Solarized are light (the diagram swaps to its light variant). */
-[data-theme="paper"] {
-  --paper:#F5F7F6; --surface:#FFFFFF; --diagram-bg:#FFFFFF;
-  --ink:#18211E; --ink-soft:#48544F; --ink-faint:#5E6A65;
-  --line:#DCE3E0; --line-strong:#C6CEC9; --chip:#ECF0EE;
-  --accent:#0E6E55; --link:#0E6E55; --accent-tint:#E6F1ED;
-  --code-bg:#F0F3F1; --code-fg:#1B2521; --mark-ring:rgba(0,0,0,0.10);
+/* every renderer theme, as a triplet (bg / fg / accent). set [data-theme] on
+   <html>; default (:root above) is Pine. order: light, then dark. */
+[data-theme="zinc-light"]        { --bg:#FFFFFF; --fg:#27272A; --accent:#2563EB; }
+[data-theme="github-light"]      { --bg:#FFFFFF; --fg:#1F2328; --accent:#0969DA; }
+[data-theme="solarized-light"]   { --bg:#FDF6E3; --fg:#586E75; --accent:#268BD2; }
+[data-theme="catppuccin-latte"]  { --bg:#EFF1F5; --fg:#4C4F69; --accent:#8839EF; }
+[data-theme="nord-light"]        { --bg:#ECEFF4; --fg:#2E3440; --accent:#5E81AC; }
+[data-theme="tokyo-night-light"] { --bg:#D5D6DB; --fg:#343B58; --accent:#34548A; }
+[data-theme="salmon"]            { --bg:#FFFBF5; --fg:#521000; --accent:#D23C00; }
+[data-theme="tufte"]             { --bg:#FFFFF8; --fg:#111111; --accent:#7A0000; }
+[data-theme="zinc-dark"]         { --bg:#18181B; --fg:#FAFAFA; --accent:#60A5FA; }
+[data-theme="github-dark"]       { --bg:#0D1117; --fg:#E6EDF3; --accent:#4493F8; }
+[data-theme="tokyo-night"]       { --bg:#1A1B26; --fg:#A9B1D6; --accent:#7AA2F7; }
+[data-theme="tokyo-night-storm"] { --bg:#24283B; --fg:#A9B1D6; --accent:#7AA2F7; }
+[data-theme="catppuccin-mocha"]  { --bg:#1E1E2E; --fg:#CDD6F4; --accent:#CBA6F7; }
+[data-theme="nord"]              { --bg:#2E3440; --fg:#D8DEE9; --accent:#88C0D0; }
+[data-theme="dracula"]           { --bg:#282A36; --fg:#F8F8F2; --accent:#BD93F9; }
+[data-theme="solarized-dark"]    { --bg:#002B36; --fg:#93A1A1; --accent:#268BD2; }
+[data-theme="one-dark"]          { --bg:#282C34; --fg:#ABB2BF; --accent:#C678DD; }
+[data-theme="salmon-dark"]       { --bg:#1F1008; --fg:#F5DCC8; --accent:#FF6B35; }
+[data-theme="tufte-dark"]        { --bg:#1C1C1A; --fg:#E8E4DC; --accent:#C87070; }
+
+/* ============================ 3 · SCHEME ===========================
+   Polarity-dependent tokens + the light/dark diagram swap. Dark is the default
+   (Pine and every dark theme); light themes opt in via data-scheme, set by the
+   switcher (and the inline head guard) alongside data-theme. */
+:root, [data-scheme="dark"] {
+  --diagram-bg: #141D19;                       /* frames the dark diagram render */
+  --mark-ring:  rgba(255,255,255,0.10);
+  --code-bg:    color-mix(in srgb, var(--bg) 82%, #000);
 }
-[data-theme="nord"] {
-  --paper:#2E3440; --surface:#39414F; --diagram-bg:#141D19;
-  --ink:#E5E9F0; --ink-soft:#AEB7C7; --ink-faint:#7B8597;
-  --line:#3B4252; --line-strong:#4C566A; --chip:#3B4252;
-  --accent:#88C0D0; --link:#9DD0DE; --accent-tint:rgba(136,192,208,0.14);
-  --code-bg:#272D38; --code-fg:#E5E9F0; --mark-ring:rgba(255,255,255,0.10);
-}
-[data-theme="dracula"] {
-  --paper:#282A36; --surface:#343746; --diagram-bg:#141D19;
-  --ink:#F8F8F2; --ink-soft:#C7C9DB; --ink-faint:#8A8FB0;
-  --line:#3A3D4D; --line-strong:#4D5167; --chip:#343746;
-  --accent:#BD93F9; --link:#CBA6FA; --accent-tint:rgba(189,147,249,0.14);
-  --code-bg:#21222C; --code-fg:#F8F8F2; --mark-ring:rgba(255,255,255,0.10);
-}
-[data-theme="solarized"] {
-  --paper:#FDF6E3; --surface:#FFFEF6; --diagram-bg:#FFFFFF;
-  --ink:#3D4C50; --ink-soft:#657B83; --ink-faint:#93A1A1;
-  --line:#EAE3CC; --line-strong:#D6CFB8; --chip:#EEE8D5;
-  --accent:#268BD2; --link:#268BD2; --accent-tint:rgba(38,139,210,0.12);
-  --code-bg:#F3ECD5; --code-fg:#3D4C50; --mark-ring:rgba(0,0,0,0.10);
-}
-[data-theme="github"] {
-  --paper:#0D1117; --surface:#161B22; --diagram-bg:#141D19;
-  --ink:#E6EDF3; --ink-soft:#9198A1; --ink-faint:#6E7681;
-  --line:#21262D; --line-strong:#30363D; --chip:#161B22;
-  --accent:#4493F8; --link:#58A6FF; --accent-tint:rgba(68,147,248,0.14);
-  --code-bg:#0A0E14; --code-fg:#E6EDF3; --mark-ring:rgba(255,255,255,0.10);
+[data-scheme="light"] {
+  --diagram-bg: #FFFFFF;                        /* frames the light diagram render */
+  --mark-ring:  rgba(0,0,0,0.10);
+  --code-bg:    color-mix(in srgb, var(--bg) 95%, var(--fg));
 }
 
 /* smooth crossfade on theme change */
@@ -91,8 +118,9 @@ pre, pre code, code, blockquote, th, td, hr, figure .plate, footer, .footlinks a
 * { box-sizing: border-box; }
 html { -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility; }
 body { margin: 0; background: var(--paper); color: var(--ink); font-family: var(--sans); font-size: 17px; line-height: 1.7; }
-/* a faint grain so the flat dark gains some texture */
-body::before { content: ""; position: fixed; inset: 0; pointer-events: none; z-index: -1; opacity: 0.07;
+/* a faint grain so the flat surface gains some texture — brand-constant
+   (opacity from --grain), so it survives every theme unchanged */
+body::before { content: ""; position: fixed; inset: 0; pointer-events: none; z-index: -1; opacity: var(--grain);
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E"); }
 
 /* ---- the document column ---- */
@@ -102,7 +130,7 @@ body::before { content: ""; position: fixed; inset: 0; pointer-events: none; z-i
 .masthead { max-width: var(--measure); margin: 0 auto; padding: 30px 24px 0; }
 .masthead .bar { display: flex; align-items: center; gap: 14px; }
 .brand { display: inline-flex; align-items: center; gap: 10px; font-family: var(--serif); font-weight: 400; font-size: 18px; color: var(--ink); }
-.brand .mark { width: 24px; height: 24px; border-radius: 6px; background: #0E6E55; color: #fff; display: inline-grid; place-items: center; }
+.brand .mark { width: 24px; height: 24px; border-radius: 6px; background: var(--brand-pine); color: var(--brand-on); display: inline-grid; place-items: center; }
 .mark { position: relative; overflow: hidden; box-shadow: 0 0 0 1px var(--mark-ring); }
 .mark > canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
 .mark > .glyph { position: relative; z-index: 1; display: inline-flex; }
@@ -156,8 +184,8 @@ figure .plate { background: var(--diagram-bg); border: 1px solid var(--line); bo
 .dia-wrap { position: relative; }
 .dia-wrap .dia { display: block; width: 100%; height: auto; transition: opacity 0.35s ease; }
 .dia-wrap .dia-light { position: absolute; inset: 0; opacity: 0; }
-[data-theme="paper"] .dia-light, [data-theme="solarized"] .dia-light { opacity: 1; }
-[data-theme="paper"] .dia-dark, [data-theme="solarized"] .dia-dark { opacity: 0; }
+[data-scheme="light"] .dia-light { opacity: 1; }
+[data-scheme="light"] .dia-dark { opacity: 0; }
 
 /* ---- theme switcher (in the masthead) ---- */
 .theme-switch { position: relative; margin-left: 18px; }
@@ -165,11 +193,16 @@ figure .plate { background: var(--diagram-bg); border: 1px solid var(--line); bo
 .theme-btn:hover { color: var(--ink); }
 .theme-btn .sw { width: 12px; height: 12px; border-radius: 50%; box-shadow: inset 0 0 0 1px rgba(128,128,128,0.4); flex: none; }
 .theme-btn .chev { width: 0; height: 0; border-left: 4px solid transparent; border-right: 4px solid transparent; border-top: 5px solid currentColor; opacity: 0.55; }
-.theme-menu { position: absolute; right: 0; top: 38px; min-width: 172px; background: var(--surface); border: 1px solid var(--line-strong); border-radius: 10px; padding: 6px; z-index: 30;
+.theme-menu { position: absolute; right: 0; top: 38px; min-width: 208px; max-height: min(66vh, 540px); overflow-y: auto; background: var(--surface); border: 1px solid var(--line-strong); border-radius: 10px; padding: 6px; z-index: 30;
   box-shadow: 0 12px 34px rgba(0,0,0,0.38);
   opacity: 0; transform: translateY(-5px) scale(0.97); transform-origin: top right; pointer-events: none;
-  transition: opacity 0.17s ease, transform 0.22s var(--ease-out); }
+  transition: opacity 0.17s ease, transform 0.22s var(--ease-out);
+  scrollbar-width: thin; scrollbar-color: var(--line-strong) transparent; }
+.theme-menu::-webkit-scrollbar { width: 8px; }
+.theme-menu::-webkit-scrollbar-thumb { background: var(--line-strong); border-radius: 8px; border: 2px solid var(--surface); }
 .theme-switch.open .theme-menu { opacity: 1; transform: none; pointer-events: auto; }
+.theme-group { padding: 8px 10px 4px; font-size: 10.5px; font-weight: 700; letter-spacing: 0.07em; text-transform: uppercase; color: var(--ink-faint); }
+.theme-group:first-child { padding-top: 4px; }
 .theme-item { display: flex; align-items: center; gap: 10px; width: 100%; padding: 7px 10px; border: 0; background: none; color: var(--ink-soft); font-family: var(--sans); font-size: 13.5px; border-radius: 7px; cursor: pointer; text-align: left; }
 .theme-item:hover { background: var(--chip); color: var(--ink); }
 .theme-item .sw { width: 13px; height: 13px; border-radius: 50%; box-shadow: inset 0 0 0 1px rgba(128,128,128,0.4); flex: none; }

@@ -1,7 +1,14 @@
 import { chromium } from 'playwright'
 
 const browser = await chromium.launch()
-const themes = ['pine', 'paper', 'nord', 'dracula', 'solarized', 'github']
+
+// a representative spread across light + dark, to verify the logo and the grain
+// stay constant while everything else re-skins.
+const themes = [
+  'pine',
+  'zinc-light', 'github-light', 'solarized-light', 'tufte', 'salmon',
+  'github-dark', 'tokyo-night', 'catppuccin-mocha', 'dracula', 'nord', 'tufte-dark',
+]
 
 for (const t of themes) {
   const ctx = await browser.newContext({ viewport: { width: 1040, height: 1000 }, deviceScaleFactor: 2, reducedMotion: 'reduce' })
@@ -14,15 +21,15 @@ for (const t of themes) {
   console.log('theme', t)
 }
 
-// the dropdown open, to show the switcher UI
+// the dropdown open, to show the grouped, scrollable switcher UI
 {
-  const ctx = await browser.newContext({ viewport: { width: 1040, height: 760 }, deviceScaleFactor: 2, reducedMotion: 'reduce' })
+  const ctx = await browser.newContext({ viewport: { width: 1040, height: 900 }, deviceScaleFactor: 2, reducedMotion: 'reduce' })
   const page = await ctx.newPage()
   await page.goto(`file://${process.cwd()}/mockups/home.html`, { waitUntil: 'load' })
   await page.waitForTimeout(200)
   await page.click('.theme-btn')
   await page.waitForTimeout(250)
-  await page.screenshot({ path: 'mockups/shot-theme-menu.png', clip: { x: 0, y: 0, width: 1040, height: 440 } })
+  await page.screenshot({ path: 'mockups/shot-theme-menu.png', clip: { x: 0, y: 0, width: 1040, height: 640 } })
   await ctx.close()
   console.log('menu')
 }

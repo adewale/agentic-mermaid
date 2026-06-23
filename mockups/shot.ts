@@ -16,7 +16,7 @@ async function shoot(suffix: string, opts: Parameters<typeof browser.newContext>
   await ctx.close()
 }
 
-// dark is the only theme; reduced-motion freezes the mark's settle for crisp stills
+// Pine is the default theme; reduced-motion freezes the mark's settle for crisp stills
 await shoot('', { viewport: { width: 1040, height: 1000 }, deviceScaleFactor: 2, reducedMotion: 'reduce' })
 await shoot('-mobile', { viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, reducedMotion: 'reduce', isMobile: true, hasTouch: true })
 

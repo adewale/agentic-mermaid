@@ -39,26 +39,44 @@ The site reads like a **rendered Markdown document.** One centred column at a
 Markdown set — headings, paragraphs, lists, `<hr>` rules between sections, fenced
 code blocks, blockquotes, tables, and figures — with no cards, panels, grids, or
 shadows. Links are the only accent. The masthead is a single quiet line (mark,
-wordmark, text links, a switcher, a hairline) rather than an app nav. A faint
-desaturated grain (`body::before`, `feTurbulence`, ~7%) gives the dark some
-texture.
+wordmark, text links, a switcher, a hairline) rather than an app nav.
 
-**Theme switcher** (`theme.js` + `[data-theme]` palettes in `styles.css`),
-echoing the GitHub Pages one — named palettes with colour swatches — but as a
-single quiet trigger that opens a smooth dropdown, with the whole page
-**colour-crossfading** (0.35s) on change. Six themes drawn from the renderer's
-own: **Pine** (dark, default), **Paper** (light), **Nord**, **Dracula**,
-**Solarized** (light), **GitHub**. Each diagram ships a light and a dark render
-(`workflow-{light,dark}.svg`, re-themed via a `themeVariables` init directive in
-the source) and crossfades to match the theme; light themes show the light
-diagram, dark themes the dark. Choice persists in `localStorage`, with an inline
-head guard against a flash of the default.
+## Theme switcher — every renderer theme, brand held constant
 
-On the renderer's themes: our diagrams previously used the fork's `default`
-(`zinc-light`), whose closest stock Mermaid theme is `neutral` (grayscale); the
-site's pine accent is nearest `forest`. There is no stock dark-green theme,
-which is why the white diagrams clashed — so the figures now carry an explicit
-dark palette that matches the page.
+The switcher carries **every theme in the renderer's registry** (`src/theme.ts`)
+— Zinc, GitHub, Solarized, Catppuccin, Nord, Tokyo Night, Dracula, One Dark,
+Salmon, Tufte, in their light and dark variants — plus **Pine**, our dark-green
+default. It echoes the GitHub Pages switcher (named palettes with colour
+swatches) but as a single quiet trigger that opens a smooth, grouped, scrollable
+dropdown, with the whole page **colour-crossfading** (0.35s) on change. Choice
+persists in `localStorage`, with an inline head guard against a flash of the
+default.
+
+Carrying ~20 palettes without 20 hand-tuned blocks — and without letting any of
+them restyle the product — needs structure. `styles.css` is **three layers**:
+
+1. **Brand** (`:root`, `--brand-*`) — *constant.* The logo chip (`--brand-pine`,
+   the colour the WebGL mark is hardcoded to), the grain texture
+   (`body::before`, `feTurbulence`, `--grain` ~7%), and the type. **No
+   `[data-theme]` or `[data-scheme]` block sets a `--brand-*` token, and the
+   brand elements read only from this layer** — never from `--bg`/`--fg`. That is
+   the isolation seam: switching the palette cannot touch the logo, the texture,
+   or the fonts.
+2. **Theme** (`[data-theme]`) — *swappable.* A theme supplies only a **triplet**
+   — `--bg`, `--fg`, `--accent` — and the whole hierarchy (`--ink-soft`,
+   `--line`, `--chip`, `--surface`, …) is **derived from it with `color-mix()`**,
+   the same trick the renderer's own `buildStyleBlock` uses. A new theme is three
+   numbers, so the registry maps onto the switcher cheaply.
+3. **Scheme** (`[data-scheme="light|dark"]`, set by `theme.js` alongside the
+   theme) — the few tokens that genuinely depend on polarity: the diagram plate,
+   the mark ring, the code panel, and the light/dark **diagram swap**.
+
+Each diagram ships a light and a dark render (`workflow-{light,dark}.svg`,
+re-themed via a `themeVariables` init directive in the source) and crossfades to
+match the scheme; the plate matches each render's own background so the figure
+reads as one framed object on any page colour. The diagrams previously clashed
+because there is no stock dark-green Mermaid theme (our pine accent is nearest
+`forest`), so the figures carry an explicit dark palette that matches the page.
 
 `states.html` and `alternatives.html` are kept only as design-history reference
 sheets; a small legacy-component block at the end of `styles.css` exists solely
