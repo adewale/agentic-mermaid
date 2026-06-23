@@ -42,12 +42,12 @@ sidenotes and sparklines read the themed `--ink-soft` / `--accent` / `--line`, s
 they re-skin with the switcher (the numbers and sparkline dots take each theme's
 accent), and the grain, switcher, and shader mark all stay. The layout is scoped
 to the page via a `.tufte-docs` body class. Under `760px` the margin has nowhere
-to go, so each note drops into the flow as a block (`display: block`) directly
-after the sentence fragment that cites it — indented, left-ruled, still carrying
-its number — and the reading column returns to full width. (A tap-to-reveal
-toggle would avoid the mid-sentence interruption, at the cost of interactivity;
-the always-shown block is the static default.) `tufte-max.html` is the
-standalone, maximalist version of the same idea (no switcher, no grain, no
+to go, so notes become **tap-to-reveal**: each number — and a `⊞` for the
+unnumbered margin note — is a `<label>` tied to a hidden checkbox, so tapping it
+opens that note inline as an indented, left-ruled block right where it is cited,
+and the sentence reads uninterrupted until you ask for a note. (The checkbox hack
+means no JS; the trade-off is the toggle isn't keyboard-focusable.) `tufte-max.html`
+is the standalone, maximalist version of the same idea (no switcher, no grain, no
 shader); this is the shippable read.
 
 ## Controls (no pills)
