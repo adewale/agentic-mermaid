@@ -29,7 +29,10 @@
 :root {
   --brand-pine: #0E6E55;   /* the logo chip; the WebGL mark is hardcoded to match */
   --brand-on:   #FFFFFF;   /* the white graph glyph on the chip */
-  --grain:      0.07;      /* texture strength — the same faint grain everywhere */
+  /* the grain *recipe* (body::before: desaturated feTurbulence) is brand-constant
+     — no theme restyles it. Its --grain opacity is calibrated per scheme (see the
+     SCHEME layer) so the texture *feels* even: dark noise on a light base needs
+     more than light noise lifting off a dark base. */
 
   --serif: 'DejaVu Serif', Charter, Georgia, serif;
   --sans:  'DejaVu Sans', system-ui, sans-serif;
@@ -101,11 +104,13 @@
   --diagram-bg: #141D19;                       /* frames the dark diagram render */
   --mark-ring:  rgba(255,255,255,0.10);
   --code-bg:    color-mix(in srgb, var(--bg) 82%, #000);
+  --grain:      0.07;                           /* light noise on a dark base reads strongly */
 }
 [data-scheme="light"] {
   --diagram-bg: #FFFFFF;                        /* frames the light diagram render */
   --mark-ring:  rgba(0,0,0,0.10);
   --code-bg:    color-mix(in srgb, var(--bg) 95%, var(--fg));
+  --grain:      0.15;                           /* dark noise on a light base needs more to match */
 }
 
 /* smooth crossfade on theme change */

@@ -56,12 +56,15 @@ Carrying ~20 palettes without 20 hand-tuned blocks — and without letting any o
 them restyle the product — needs structure. `styles.css` is **three layers**:
 
 1. **Brand** (`:root`, `--brand-*`) — *constant.* The logo chip (`--brand-pine`,
-   the colour the WebGL mark is hardcoded to), the grain texture
-   (`body::before`, `feTurbulence`, `--grain` ~7%), and the type. **No
-   `[data-theme]` or `[data-scheme]` block sets a `--brand-*` token, and the
-   brand elements read only from this layer** — never from `--bg`/`--fg`. That is
-   the isolation seam: switching the palette cannot touch the logo, the texture,
-   or the fonts.
+   the colour the WebGL mark is hardcoded to), the grain texture (`body::before`,
+   a desaturated `feTurbulence`), and the type. **No `[data-theme]` or
+   `[data-scheme]` block restyles these, and the brand elements read only from
+   this layer** — never from `--bg`/`--fg`. That is the isolation seam: switching
+   the palette cannot touch the logo, the texture, or the fonts. The grain
+   *recipe* is constant; only its `--grain` opacity is calibrated per scheme (in
+   layer 3) — dark noise on a light base needs more to read than light noise
+   lifting off a dark base — so the texture *feels* even rather than fading out
+   on the light themes.
 2. **Theme** (`[data-theme]`) — *swappable.* A theme supplies only a **triplet**
    — `--bg`, `--fg`, `--accent` — and the whole hierarchy (`--ink-soft`,
    `--line`, `--chip`, `--surface`, …) is **derived from it with `color-mix()`**,
@@ -69,7 +72,9 @@ them restyle the product — needs structure. `styles.css` is **three layers**:
    numbers, so the registry maps onto the switcher cheaply.
 3. **Scheme** (`[data-scheme="light|dark"]`, set by `theme.js` alongside the
    theme) — the few tokens that genuinely depend on polarity: the diagram plate,
-   the mark ring, the code panel, and the light/dark **diagram swap**.
+   the mark ring, the code panel, the light/dark **diagram swap**, and the
+   `--grain` opacity that keeps the brand texture feeling even (0.07 dark / 0.15
+   light).
 
 Each diagram ships a light and a dark render (`workflow-{light,dark}.svg`,
 re-themed via a `themeVariables` init directive in the source) and crossfades to
