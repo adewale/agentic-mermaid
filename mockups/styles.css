@@ -52,13 +52,14 @@
 }
 
 /* ============================ 2 · THEME ============================
-   Default palette is Pine (our dark green). Every theme below sets only the
-   triplet; the hierarchy is derived once, here, from those three values, so
-   it recomputes automatically whenever a [data-theme] block swaps them. */
+   Default palette is Pine Light (our green on a light ground). Every theme
+   below sets only the triplet; the hierarchy is derived once, here, from those
+   three values, so it recomputes automatically whenever a [data-theme] block
+   swaps them. The original dark Pine lives on as [data-theme="pine-dark"]. */
 :root {
-  --bg:     #0F1512;
-  --fg:     #E7ECE9;
-  --accent: #6FC2A2;
+  --bg:     #F4F8F6;
+  --fg:     #16231E;
+  --accent: #1A7351;
 
   /* derived hierarchy — a coherent mono ramp from the triplet */
   --paper:        var(--bg);
@@ -93,6 +94,7 @@
 [data-theme="tokyo-night-light"] { --bg:#D5D6DB; --fg:#343B58; --accent:#34548A; }
 [data-theme="salmon"]            { --bg:#FFFBF5; --fg:#521000; --accent:#D23C00; }
 [data-theme="tufte"]             { --bg:#FFFFF8; --fg:#111111; --accent:#7A0000; }
+[data-theme="pine-dark"]         { --bg:#0F1512; --fg:#E7ECE9; --accent:#6FC2A2; }
 [data-theme="zinc-dark"]         { --bg:#18181B; --fg:#FAFAFA; --accent:#60A5FA; }
 [data-theme="github-dark"]       { --bg:#0D1117; --fg:#E6EDF3; --accent:#4493F8; }
 [data-theme="tokyo-night"]       { --bg:#1A1B26; --fg:#A9B1D6; --accent:#7AA2F7; }
@@ -106,20 +108,20 @@
 [data-theme="tufte-dark"]        { --bg:#1C1C1A; --fg:#E8E4DC; --accent:#C87070; }
 
 /* ============================ 3 · SCHEME ===========================
-   Polarity-dependent tokens + the light/dark diagram swap. Dark is the default
-   (Pine and every dark theme); light themes opt in via data-scheme, set by the
-   switcher (and the inline head guard) alongside data-theme. */
-:root, [data-scheme="dark"] {
-  --diagram-bg: #141D19;                       /* frames the dark diagram render */
-  --mark-ring:  rgba(255,255,255,0.10);
-  --code-bg:    color-mix(in srgb, var(--bg) 82%, #000);
-  --grain:      0.07;                           /* light noise on a dark base reads strongly */
-}
-[data-scheme="light"] {
+   Polarity-dependent tokens + the light/dark diagram swap. Light is the default
+   (Pine Light and every light theme); dark themes opt in via data-scheme, set by
+   the switcher (and the inline head guard) alongside data-theme. */
+:root, [data-scheme="light"] {
   --diagram-bg: #FFFFFF;                        /* frames the light diagram render */
   --mark-ring:  rgba(0,0,0,0.10);
   --code-bg:    color-mix(in srgb, var(--bg) 95%, var(--fg));
   --grain:      0.15;                           /* dark noise on a light base needs more to match */
+}
+[data-scheme="dark"] {
+  --diagram-bg: #141D19;                       /* frames the dark diagram render */
+  --mark-ring:  rgba(255,255,255,0.10);
+  --code-bg:    color-mix(in srgb, var(--bg) 82%, #000);
+  --grain:      0.07;                           /* light noise on a dark base reads strongly */
 }
 
 /* smooth crossfade on theme change */

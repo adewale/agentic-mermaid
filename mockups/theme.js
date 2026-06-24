@@ -9,7 +9,7 @@
 (function () {
   const THEMES = [
     // brand default
-    { id: 'pine',              name: 'Pine',               sw: '#0F1512', dark: true,  brand: true },
+    { id: 'pine',              name: 'Pine',               sw: '#F4F8F6', dark: false, brand: true },
     // light
     { id: 'zinc-light',        name: 'Zinc Light',         sw: '#FFFFFF', dark: false },
     { id: 'github-light',      name: 'GitHub Light',       sw: '#FFFFFF', dark: false },
@@ -20,6 +20,7 @@
     { id: 'salmon',            name: 'Salmon',             sw: '#FFFBF5', dark: false },
     { id: 'tufte',             name: 'Tufte',              sw: '#FFFFF8', dark: false },
     // dark
+    { id: 'pine-dark',         name: 'Pine Dark',          sw: '#0F1512', dark: true },
     { id: 'zinc-dark',         name: 'Zinc Dark',          sw: '#18181B', dark: true },
     { id: 'github-dark',       name: 'GitHub Dark',        sw: '#0D1117', dark: true },
     { id: 'tokyo-night',       name: 'Tokyo Night',        sw: '#1A1B26', dark: true },
