@@ -39,14 +39,49 @@
 
   let sync = () => {};
 
-  function apply(id) {
+  const reduceMQ = window.matchMedia ? window.matchMedia('(prefers-reduced-motion: reduce)') : { matches: false };
+
+  // mobile browser chrome (address bar, notch) tracks the active theme's bg
+  function syncMeta() {
+    try {
+      const bg = getComputedStyle(document.documentElement).getPropertyValue('--bg').trim();
+      if (!bg) return;
+      let m = document.querySelector('meta[name="theme-color"]');
+      if (!m) { m = document.createElement('meta'); m.name = 'theme-color'; document.head.appendChild(m); }
+      m.content = bg;
+    } catch (e) {}
+  }
+
+  function setTheme(id) {
     const html = document.documentElement;
     const t = byId(id);
     if (t.brand) html.removeAttribute('data-theme');
     else html.setAttribute('data-theme', t.id);
     html.setAttribute('data-scheme', t.dark ? 'dark' : 'light');
     try { localStorage.setItem(KEY, t.id); } catch (e) {}
+    syncMeta();
     sync();
+  }
+
+  // Wrap the swap in a click-origin ripple where View Transitions exist; else
+  // fall back to the CSS crossfade. Reduced motion gets an honest instant swap.
+  function apply(id, origin) {
+    if (!document.startViewTransition || reduceMQ.matches) { setTheme(id); return; }
+    let x = origin && origin.x != null ? origin.x : null;
+    let y = origin && origin.y != null ? origin.y : null;
+    if (x == null) {
+      const b = document.querySelector('.theme-btn');
+      if (b) { const r = b.getBoundingClientRect(); x = r.left + r.width / 2; y = r.top + r.height / 2; }
+      else { x = window.innerWidth / 2; y = window.innerHeight / 2; }
+    }
+    const end = Math.hypot(Math.max(x, window.innerWidth - x), Math.max(y, window.innerHeight - y));
+    const vt = document.startViewTransition(() => setTheme(id));
+    vt.ready.then(() => {
+      document.documentElement.animate(
+        { clipPath: ['circle(0px at ' + x + 'px ' + y + 'px)', 'circle(' + end + 'px at ' + x + 'px ' + y + 'px)'] },
+        { duration: 460, easing: 'cubic-bezier(0.22, 1, 0.36, 1)', pseudoElement: '::view-transition-new(root)' }
+      );
+    }).catch(() => {});
   }
 
   function init() {
@@ -74,7 +109,7 @@
       it.type = 'button';
       it.dataset.id = t.id;
       it.innerHTML = '<span class="sw" style="background:' + t.sw + '"></span><span class="lbl">' + t.name + '</span><span class="ck">✓</span>';
-      it.addEventListener('click', () => { apply(t.id); close(); });
+      it.addEventListener('click', (e) => { apply(t.id, { x: e.clientX, y: e.clientY }); close(); });
       menu.appendChild(it);
       items.push(it);
     });
@@ -99,8 +134,8 @@
     document.addEventListener('keydown', (e) => { if (e.key === 'Escape') close(); });
 
     // self-heal a stale/unknown stored id (e.g. an earlier naming) → fall to Pine
-    if (THEMES.some((t) => t.id === current())) sync();
-    else apply('pine');
+    if (THEMES.some((t) => t.id === current())) { sync(); syncMeta(); }
+    else setTheme('pine');
   }
 
   if (document.readyState !== 'loading') init();

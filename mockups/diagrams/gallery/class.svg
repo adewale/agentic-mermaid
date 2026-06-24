@@ -1,0 +1,56 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 214.8 337.8" width="214.8" height="337.8" style="--bg:#FFFFFF;--fg:#27272A;--font:Inter;background:#FFFFFF">
+<style>
+  text { font-family: var(--font, 'Inter'), system-ui, sans-serif; }
+  .mono { font-family: 'JetBrains Mono', 'SF Mono', 'Fira Code', ui-monospace, monospace; }
+  svg {
+    /* Derived from --bg and --fg (overridable via --line, --accent, etc.) */
+    --_text:          #27272A;
+    --_text-sec:      #7d7d7f;
+    --_text-muted:    #a9a9aa;
+    --_text-faint:    #c9c9ca;
+    --_line:          #939395;
+    --_arrow:         #47474a;
+    --_node-fill:     #f9f9f9;
+    --_node-stroke:   #d4d4d4;
+    --_group-fill:    #FFFFFF;
+    --_group-hdr:     #f4f4f4;
+    --_inner-stroke:  #e5e5e5;
+    --_key-badge:     #e9e9ea;
+  }
+</style>
+<defs>
+  <marker id="cls-inherit" markerWidth="12" markerHeight="10" refX="12" refY="5" orient="auto-start-reverse">
+    <polygon points="0 0, 12 5, 0 10" fill="#FFFFFF" stroke="#47474a" stroke-width="1.5" />
+  </marker>
+  <marker id="cls-composition" markerWidth="12" markerHeight="10" refX="0" refY="5" orient="auto-start-reverse">
+    <polygon points="6 0, 12 5, 6 10, 0 5" fill="#47474a" stroke="#47474a" stroke-width="1" />
+  </marker>
+  <marker id="cls-aggregation" markerWidth="12" markerHeight="10" refX="0" refY="5" orient="auto-start-reverse">
+    <polygon points="6 0, 12 5, 6 10, 0 5" fill="#FFFFFF" stroke="#47474a" stroke-width="1.5" />
+  </marker>
+  <marker id="cls-arrow" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto-start-reverse">
+    <polyline points="0 0, 8 3, 0 6" fill="none" stroke="#47474a" stroke-width="1.5" />
+  </marker>
+</defs>
+<polyline class="class-relationship" data-from="Diagram" data-to="Node" data-type="association" data-marker-at="to" points="107.4,148.9 107.4,208.9" fill="none" stroke="#939395" stroke-width="1" marker-end="url(#cls-arrow)" />
+<g class="class-node" data-id="Diagram" data-label="Diagram">
+  <rect x="40" y="40" width="134.8" height="108.9" rx="0" ry="0" fill="#f9f9f9" stroke="#d4d4d4" stroke-width="1" />
+  <path d="M40,40 H174.8 V72.9 H40 Z" fill="#f4f4f4" stroke="#d4d4d4" stroke-width="1" />
+  <text x="107.4" y="56.45" text-anchor="middle" font-size="13" font-weight="700" fill="#27272A" dy="4.55">Diagram</text>
+  <line x1="40" y1="72.9" x2="174.8" y2="72.9" stroke="#d4d4d4" stroke-width="0.75" />
+  <text x="48" y="86.9" class="mono" dy="0.35em" font-size="11" font-weight="400"><tspan fill="#c9c9ca">+ </tspan><tspan fill="#7d7d7f">string</tspan><tspan fill="#c9c9ca">: </tspan><tspan fill="#a9a9aa">source</tspan></text>
+  <line x1="40" y1="100.9" x2="174.8" y2="100.9" stroke="#d4d4d4" stroke-width="0.75" />
+  <text x="48" y="114.9" class="mono" dy="0.35em" font-size="11" font-weight="400"><tspan fill="#c9c9ca">+ </tspan><tspan fill="#7d7d7f">render()</tspan><tspan fill="#c9c9ca">: </tspan><tspan fill="#a9a9aa">Svg</tspan></text>
+  <text x="48" y="134.9" class="mono" dy="0.35em" font-size="11" font-weight="400"><tspan fill="#c9c9ca">+ </tspan><tspan fill="#7d7d7f">verify()</tspan><tspan fill="#c9c9ca">: </tspan><tspan fill="#a9a9aa">Report</tspan></text>
+</g>
+<g class="class-node" data-id="Node" data-label="Node">
+  <rect x="47.400000000000006" y="208.9" width="120" height="88.9" rx="0" ry="0" fill="#f9f9f9" stroke="#d4d4d4" stroke-width="1" />
+  <path d="M47.400000000000006,208.9 H167.4 V241.8 H47.400000000000006 Z" fill="#f4f4f4" stroke="#d4d4d4" stroke-width="1" />
+  <text x="107.4" y="225.35000000000002" text-anchor="middle" font-size="13" font-weight="700" fill="#27272A" dy="4.55">Node</text>
+  <line x1="47.400000000000006" y1="241.8" x2="167.4" y2="241.8" stroke="#d4d4d4" stroke-width="0.75" />
+  <text x="55.400000000000006" y="255.8" class="mono" dy="0.35em" font-size="11" font-weight="400"><tspan fill="#c9c9ca">+ </tspan><tspan fill="#7d7d7f">string</tspan><tspan fill="#c9c9ca">: </tspan><tspan fill="#a9a9aa">id</tspan></text>
+  <text x="55.400000000000006" y="275.8" class="mono" dy="0.35em" font-size="11" font-weight="400"><tspan fill="#c9c9ca">+ </tspan><tspan fill="#7d7d7f">string</tspan><tspan fill="#c9c9ca">: </tspan><tspan fill="#a9a9aa">label</tspan></text>
+  <line x1="47.400000000000006" y1="289.8" x2="167.4" y2="289.8" stroke="#d4d4d4" stroke-width="0.75" />
+</g>
+
+</svg>

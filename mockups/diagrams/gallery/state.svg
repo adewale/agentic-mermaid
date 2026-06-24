@@ -1,0 +1,72 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 296.18216666666666 676.8000000000001" width="296.18216666666666" height="676.8000000000001" style="--bg:#FFFFFF;--fg:#27272A;--font:Inter;background:#FFFFFF">
+<style>
+  text { font-family: var(--font, 'Inter'), system-ui, sans-serif; }
+  svg {
+    /* Derived from --bg and --fg (overridable via --line, --accent, etc.) */
+    --_text:          #27272A;
+    --_text-sec:      #7d7d7f;
+    --_text-muted:    #a9a9aa;
+    --_text-faint:    #c9c9ca;
+    --_line:          #939395;
+    --_arrow:         #47474a;
+    --_node-fill:     #f9f9f9;
+    --_node-stroke:   #d4d4d4;
+    --_group-fill:    #FFFFFF;
+    --_group-hdr:     #f4f4f4;
+    --_inner-stroke:  #e5e5e5;
+    --_key-badge:     #e9e9ea;
+  }
+</style>
+<defs>
+  <marker id="arrowhead" markerWidth="8" markerHeight="5" refX="7" refY="2.5" orient="auto">
+    <polygon points="0 0, 8 2.5, 0 5" fill="#47474a" stroke="#47474a" stroke-width="0.75" stroke-linejoin="round" />
+  </marker>
+  <marker id="arrowhead-start" markerWidth="8" markerHeight="5" refX="7" refY="2.5" orient="auto-start-reverse">
+    <polygon points="0 0, 8 2.5, 0 5" fill="#47474a" stroke="#47474a" stroke-width="0.75" stroke-linejoin="round" />
+  </marker>
+</defs>
+<polyline class="edge" data-from="_start" data-to="Parse" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" points="86.169,68 86.169,116" fill="none" stroke="#939395" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="Parse" data-to="Narrow" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" points="100.57066666666667,152.9 100.57066666666667,200.9" fill="none" stroke="#939395" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="Narrow" data-to="Mutate" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" points="100.57066666666667,237.8 100.57066666666667,285.8" fill="none" stroke="#939395" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="Mutate" data-to="Verify" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" points="100.57066666666667,322.70000000000005 100.57066666666667,370.70000000000005" fill="none" stroke="#939395" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="Verify" data-to="Serialize" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" data-label="ok" points="87.651,407.6 87.651,523.9000000000001" fill="none" stroke="#939395" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="Verify" data-to="Narrow" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" data-label="warnings" points="139.32966666666667,389.15000000000003 196.18216666666666,389.15000000000003 196.18216666666666,219.35000000000002 143.77566666666667,219.35000000000002" fill="none" stroke="#939395" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="Serialize" data-to="_end" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" points="87.651,560.8000000000001 87.651,608.8000000000001" fill="none" stroke="#939395" stroke-width="1" marker-end="url(#arrowhead)" />
+<g class="edge-label" data-from="Verify" data-to="Serialize" data-label="ok">
+  <rect class="edge-label-halo" x="68.886" y="446.6000000000001" width="37.53" height="38.3" rx="4" ry="4" fill="#FFFFFF" stroke="none" />
+  <rect x="72.886" y="450.6000000000001" width="29.53" height="30.3" rx="2" ry="2" fill="#FFFFFF" stroke="#e5e5e5" stroke-width="1" />
+  <text x="87.651" y="465.75000000000006" text-anchor="middle" font-size="11" font-weight="400" fill="#7d7d7f" dy="3.8499999999999996">ok</text>
+</g>
+<g class="edge-label" data-from="Verify" data-to="Narrow" data-label="warnings">
+  <rect class="edge-label-halo" x="161.37916666666666" y="285.1" width="69.606" height="38.3" rx="4" ry="4" fill="#FFFFFF" stroke="none" />
+  <rect x="165.37916666666666" y="289.1" width="61.606" height="30.3" rx="2" ry="2" fill="#FFFFFF" stroke="#e5e5e5" stroke-width="1" />
+  <text x="196.18216666666666" y="304.25" text-anchor="middle" font-size="11" font-weight="400" fill="#7d7d7f" dy="3.8499999999999996">warnings</text>
+</g>
+<g class="node" data-id="_start" data-label="" data-shape="state-start">
+  <circle cx="86.169" cy="54" r="12" fill="#27272A" stroke="none" />
+</g>
+<g class="node" data-id="Parse" data-label="Parse" data-shape="rounded">
+  <rect x="46.669" y="116" width="79" height="36.900000000000006" rx="6" ry="6" fill="#f9f9f9" stroke="#d4d4d4" stroke-width="0.75" />
+  <text x="86.169" y="134.45" text-anchor="middle" font-size="13" font-weight="500" fill="#27272A" dy="4.55">Parse</text>
+</g>
+<g class="node" data-id="Narrow" data-label="Narrow" data-shape="rounded">
+  <rect x="57.36566666666667" y="200.9" width="86.41" height="36.900000000000006" rx="6" ry="6" fill="#f9f9f9" stroke="#d4d4d4" stroke-width="0.75" />
+  <text x="100.57066666666667" y="219.35000000000002" text-anchor="middle" font-size="13" font-weight="500" fill="#27272A" dy="4.55">Narrow</text>
+</g>
+<g class="node" data-id="Mutate" data-label="Mutate" data-shape="rounded">
+  <rect x="59.959166666666675" y="285.8" width="81.22299999999998" height="36.900000000000006" rx="6" ry="6" fill="#f9f9f9" stroke="#d4d4d4" stroke-width="0.75" />
+  <text x="100.57066666666667" y="304.25" text-anchor="middle" font-size="13" font-weight="500" fill="#27272A" dy="4.55">Mutate</text>
+</g>
+<g class="node" data-id="Verify" data-label="Verify" data-shape="rounded">
+  <rect x="61.81166666666667" y="370.70000000000005" width="77.518" height="36.900000000000006" rx="6" ry="6" fill="#f9f9f9" stroke="#d4d4d4" stroke-width="0.75" />
+  <text x="100.57066666666667" y="389.15000000000003" text-anchor="middle" font-size="13" font-weight="500" fill="#27272A" dy="4.55">Verify</text>
+</g>
+<g class="node" data-id="Serialize" data-label="Serialize" data-shape="rounded">
+  <rect x="40" y="523.9000000000001" width="95.30199999999999" height="36.900000000000006" rx="6" ry="6" fill="#f9f9f9" stroke="#d4d4d4" stroke-width="0.75" />
+  <text x="87.651" y="542.3500000000001" text-anchor="middle" font-size="13" font-weight="500" fill="#27272A" dy="4.55">Serialize</text>
+</g>
+<g class="node" data-id="_end" data-label="" data-shape="state-end">
+  <circle cx="87.651" cy="622.8000000000001" r="12" fill="none" stroke="#27272A" stroke-width="1.5" />
+  <circle cx="87.651" cy="622.8000000000001" r="8" fill="#27272A" stroke="none" />
+</g>
+</svg>

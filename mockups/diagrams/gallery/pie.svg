@@ -1,0 +1,39 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 382.13 276" width="382.13" height="276" style="--bg:#FFFFFF;--fg:#27272A;--font:Inter;background:#FFFFFF" role="img" aria-roledescription="pie chart">
+<style>
+  text { font-family: var(--font, 'Inter'), system-ui, sans-serif; }
+  svg {
+    /* Derived from --bg and --fg (overridable via --line, --accent, etc.) */
+    --_text:          #27272A;
+    --_text-sec:      #7d7d7f;
+    --_text-muted:    #a9a9aa;
+    --_text-faint:    #c9c9ca;
+    --_line:          #939395;
+    --_arrow:         #47474a;
+    --_node-fill:     #f9f9f9;
+    --_node-stroke:   #d4d4d4;
+    --_group-fill:    #FFFFFF;
+    --_group-hdr:     #f4f4f4;
+    --_inner-stroke:  #e5e5e5;
+    --_key-badge:     #e9e9ea;
+  }
+</style>
+<style>
+  .pie-slice { stroke: #FFFFFF; stroke-width: 1.5; }
+  .pie-legend-swatch { stroke: #d4d4d4; stroke-width: 1; }
+  .pie-legend-text { fill: #27272A; }
+  .pie-title { fill: #27272A; }
+</style>
+<path class="pie-slice" d="M 119 157 L 119 62 A 95 95 0 0 1 174.84 233.86 Z" fill="#3b82f6" data-label="SVG" data-value="40" data-percent="40.0%" />
+<path class="pie-slice" d="M 119 157 L 174.84 233.86 A 95 95 0 0 1 42.14 212.84 Z" fill="#0d5ba5" data-label="PNG" data-value="25" data-percent="25.0%" />
+<path class="pie-slice" d="M 119 157 L 42.14 212.84 A 95 95 0 0 1 42.14 101.16 Z" fill="#5f79f2" data-label="ASCII" data-value="20" data-percent="20.0%" />
+<path class="pie-slice" d="M 119 157 L 42.14 101.16 A 95 95 0 0 1 119 62 Z" fill="#0a5076" data-label="Unicode" data-value="15" data-percent="15.0%" />
+<rect class="pie-legend-swatch" x="246" y="117" width="14" height="14" rx="2" ry="2" fill="#3b82f6" />
+<text x="268" y="124" class="pie-legend-text" text-anchor="start" dominant-baseline="middle" font-size="13" font-weight="500" dy="4.55">SVG (40.0%)</text>
+<rect class="pie-legend-swatch" x="246" y="139" width="14" height="14" rx="2" ry="2" fill="#0d5ba5" />
+<text x="268" y="146" class="pie-legend-text" text-anchor="start" dominant-baseline="middle" font-size="13" font-weight="500" dy="4.55">PNG (25.0%)</text>
+<rect class="pie-legend-swatch" x="246" y="161" width="14" height="14" rx="2" ry="2" fill="#5f79f2" />
+<text x="268" y="168" class="pie-legend-text" text-anchor="start" dominant-baseline="middle" font-size="13" font-weight="500" dy="4.55">ASCII (20.0%)</text>
+<rect class="pie-legend-swatch" x="246" y="183" width="14" height="14" rx="2" ry="2" fill="#0a5076" />
+<text x="268" y="190" class="pie-legend-text" text-anchor="start" dominant-baseline="middle" font-size="13" font-weight="500" dy="4.55">Unicode (15.0%)</text>
+<text x="191.06" y="33" class="pie-title" text-anchor="middle" dominant-baseline="middle" font-size="18" font-weight="600" dy="6.3">Output formats</text>
+</svg>

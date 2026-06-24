@@ -124,6 +124,22 @@
   --grain:      0.07;                           /* light noise on a dark base reads strongly */
 }
 
+/* keep native UI (scrollbars, form controls, the canvas) in the right polarity
+   the instant the attributes are set, even before the rest of CSS applies */
+:root, :root[data-scheme="light"] { color-scheme: light; }
+:root[data-scheme="dark"] { color-scheme: dark; }
+
+/* theme switch: a click-origin ripple via the View Transitions API, layered over
+   the crossfade below — which stays the fallback wherever View Transitions are
+   unavailable or reduced motion is requested. theme.js flips data-theme/
+   data-scheme inside startViewTransition; this only shapes the reveal. */
+::view-transition-old(root), ::view-transition-new(root) { animation: none; mix-blend-mode: normal; }
+::view-transition-old(root) { z-index: 1; }
+::view-transition-new(root) { z-index: 2; }
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-group(*), ::view-transition-old(root), ::view-transition-new(root) { animation: none !important; }
+}
+
 /* smooth crossfade on theme change */
 body, .doc, .masthead, .masthead .links a, h1, h2, h3, p, a, strong, .lead, .muted, .crumb,
 pre, pre code, code, blockquote, th, td, hr, figure .plate, footer, .footlinks a, .footlinks .sep,
@@ -228,6 +244,15 @@ figure .plate { background: var(--diagram-bg); border-radius: 8px; padding: 18px
 figure .plate img { display: block; width: 100%; height: auto; }
 figure pre { margin: 0; }
 figcaption { color: var(--ink-faint); font-size: 13px; margin-top: 8px; }
+
+/* ---- gallery: a contact sheet of family renders. each SVG carries its own
+   white ground, so the tiles read as light tiles on every theme ---- */
+.gallery { display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px; margin: 28px 0; }
+.gallery figure { margin: 0; }
+.gallery .plate { background: #fff; padding: 14px; border-radius: 10px; overflow: hidden; }
+.gallery .plate img { display: block; width: 100%; height: auto; }
+.gallery figcaption b { color: var(--ink); font-weight: 700; }
+@media (max-width: 640px) { .gallery { grid-template-columns: 1fr; } }
 
 footer { max-width: var(--measure); margin: 0 auto; padding: 28px 24px 56px; }
 .footlinks { display: flex; gap: 18px; flex-wrap: wrap; font-size: 14px; }

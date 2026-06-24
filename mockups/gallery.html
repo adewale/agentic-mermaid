@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Gallery — Agentic Mermaid</title>
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="styles.css">
+<script>(function(){try{var t=localStorage.getItem('am-theme')||'pine';var L={'pine':1,'zinc-light':1,'github-light':1,'solarized-light':1,'catppuccin-latte':1,'nord-light':1,'tokyo-night-light':1,'salmon':1,'tufte':1};if(t!=='pine')document.documentElement.setAttribute('data-theme',t);document.documentElement.setAttribute('data-scheme',L[t]?'light':'dark');}catch(e){}})();</script>
+</head>
+<body>
+
+<header class="masthead">
+  <div class="bar">
+    <span class="brand"><span class="mark"></span> Agentic&nbsp;Mermaid</span>
+    <span class="links"><a href="editor.html">Editor</a><a href="gallery.html">Gallery</a><a href="docs-article.html">Docs</a><a href="agents.html">Agents</a><a href="https://github.com/adewale/beautiful-mermaid">GitHub</a></span>
+    <div class="theme-switch">
+      <button class="theme-btn" aria-haspopup="true" aria-expanded="false" aria-label="Theme"><span class="sw"></span><span class="name">Pine</span><span class="chev"></span></button>
+      <div class="theme-menu" role="menu"></div>
+    </div>
+  </div>
+  <hr>
+</header>
+
+<main class="doc">
+  <p class="crumb"><a href="home.html">Agentic Mermaid</a> / Gallery</p>
+  <h1>Gallery</h1>
+  <p class="lead">One layout engine, twelve diagram families. Every tile below is real renderer output — the same <code>am render</code> that ships in the package — not a hand-drawn screenshot.</p>
+  <p>Layout is deterministic: each of these renders byte-identically every run, so a diagram in your docs and the same diagram in CI agree to the pixel. <a class="go" href="families.html">Browse the families</a></p>
+
+  <div class="gallery">
+    <figure>
+      <div class="plate"><img src="diagrams/gallery/flowchart.svg" alt="Flowchart of the edit loop"></div>
+      <figcaption><b>Flowchart</b> — control flow, here the edit loop itself.</figcaption>
+    </figure>
+    <figure>
+      <div class="plate"><img src="diagrams/gallery/sequence.svg" alt="Sequence diagram between an agent and the renderer"></div>
+      <figcaption><b>Sequence</b> — messages between an agent and the renderer.</figcaption>
+    </figure>
+    <figure>
+      <div class="plate"><img src="diagrams/gallery/state.svg" alt="State diagram of the parse to serialize lifecycle"></div>
+      <figcaption><b>State</b> — the parse → verify → serialize lifecycle.</figcaption>
+    </figure>
+    <figure>
+      <div class="plate"><img src="diagrams/gallery/class.svg" alt="Class diagram of the diagram model"></div>
+      <figcaption><b>Class</b> — the typed model an edit narrows into.</figcaption>
+    </figure>
+    <figure>
+      <div class="plate"><img src="diagrams/gallery/er.svg" alt="Entity-relationship diagram of diagram, node, edge"></div>
+      <figcaption><b>Entity&#8209;relationship</b> — diagram, node, and edge as a schema.</figcaption>
+    </figure>
+    <figure>
+      <div class="plate"><img src="diagrams/gallery/journey.svg" alt="User journey of the agent edit loop"></div>
+      <figcaption><b>User journey</b> — the loop scored as an experience.</figcaption>
+    </figure>
+    <figure>
+      <div class="plate"><img src="diagrams/gallery/gantt.svg" alt="Gantt chart of the edit loop on a timeline"></div>
+      <figcaption><b>Gantt</b> — the same loop laid on a timeline.</figcaption>
+    </figure>
+    <figure>
+      <div class="plate"><img src="diagrams/gallery/pie.svg" alt="Pie chart of output format share"></div>
+      <figcaption><b>Pie</b> — the four output formats, by share.</figcaption>
+    </figure>
+  </div>
+
+  <p class="muted"><small>Each render also comes out as PNG, ASCII, Unicode, and layout JSON from the one model. The four families not pictured — quadrant, timeline, XY chart, architecture — render the same way.</small></p>
+</main>
+
+<footer>
+  <div class="footlinks">
+    <a href="editor.html">Open the editor</a><span class="sep">&middot;</span>
+    <a href="families.html">Families</a><span class="sep">&middot;</span>
+    <a href="#">capabilities.json</a><span class="sep">&middot;</span>
+    <a href="https://github.com/adewale/beautiful-mermaid">GitHub</a>
+  </div>
+</footer>
+
+<script src="shader-mark.js"></script>
+<script src="theme.js"></script>
+</body>
+</html>

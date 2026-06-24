@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Families — Agentic Mermaid</title>
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="styles.css">
+<script>(function(){try{var t=localStorage.getItem('am-theme')||'pine';var L={'pine':1,'zinc-light':1,'github-light':1,'solarized-light':1,'catppuccin-latte':1,'nord-light':1,'tokyo-night-light':1,'salmon':1,'tufte':1};if(t!=='pine')document.documentElement.setAttribute('data-theme',t);document.documentElement.setAttribute('data-scheme',L[t]?'light':'dark');}catch(e){}})();</script>
+</head>
+<body>
+
+<header class="masthead">
+  <div class="bar">
+    <span class="brand"><span class="mark"></span> Agentic&nbsp;Mermaid</span>
+    <span class="links"><a href="editor.html">Editor</a><a href="gallery.html">Gallery</a><a href="docs-article.html">Docs</a><a href="agents.html">Agents</a><a href="https://github.com/adewale/beautiful-mermaid">GitHub</a></span>
+    <div class="theme-switch">
+      <button class="theme-btn" aria-haspopup="true" aria-expanded="false" aria-label="Theme"><span class="sw"></span><span class="name">Pine</span><span class="chev"></span></button>
+      <div class="theme-menu" role="menu"></div>
+    </div>
+  </div>
+  <hr>
+</header>
+
+<main class="doc">
+  <p class="crumb"><a href="home.html">Agentic Mermaid</a> / Families</p>
+  <h1>Diagram families</h1>
+  <p class="lead">Twelve families, one deterministic layout engine. Each parses from Mermaid text and renders to SVG, PNG, ASCII, Unicode, and layout JSON from the same positioned model.</p>
+  <p>Every family carries a route certificate — a machine-checkable claim about how its edges were routed (orthogonal boxes for class and ER, lifelines for sequence, side-anchored links for architecture) — which is what lets <code>verify</code> answer in tiers rather than guesses.</p>
+
+  <table>
+    <thead><tr><th>Family</th><th>What it draws</th></tr></thead>
+    <tbody>
+      <tr><td><strong>Flowchart</strong></td><td>Control and data flow; the default graph layout.</td></tr>
+      <tr><td><strong>Sequence</strong></td><td>Messages exchanged over time between participants.</td></tr>
+      <tr><td><strong>State</strong></td><td>Lifecycles and transitions (<code>stateDiagram-v2</code>).</td></tr>
+      <tr><td><strong>Class</strong></td><td>Types, fields, and the relationships between them.</td></tr>
+      <tr><td><strong>Entity&#8209;relationship</strong></td><td>Data schemas and their cardinality.</td></tr>
+      <tr><td><strong>User journey</strong></td><td>Steps through a task, scored by experience.</td></tr>
+      <tr><td><strong>Gantt</strong></td><td>Tasks and sections laid across a timeline.</td></tr>
+      <tr><td><strong>Pie</strong></td><td>Proportions of a whole.</td></tr>
+      <tr><td><strong>Quadrant</strong></td><td>Items placed against two axes.</td></tr>
+      <tr><td><strong>Timeline</strong></td><td>Chronological milestones grouped into sections.</td></tr>
+      <tr><td><strong>XY chart</strong></td><td>Line and bar plots on x/y axes.</td></tr>
+      <tr><td><strong>Architecture</strong></td><td>Services and groups with side-anchored links.</td></tr>
+    </tbody>
+  </table>
+
+  <p>See any of them rendered in the <a class="go" href="gallery.html">gallery</a>, or open one in the <a class="go" href="editor.html">editor</a>.</p>
+</main>
+
+<footer>
+  <div class="footlinks">
+    <a href="gallery.html">Gallery</a><span class="sep">&middot;</span>
+    <a href="#">capabilities.json</a><span class="sep">&middot;</span>
+    <a href="#">schemas/</a><span class="sep">&middot;</span>
+    <a href="https://github.com/adewale/beautiful-mermaid">GitHub</a>
+  </div>
+</footer>
+
+<script src="shader-mark.js"></script>
+<script src="theme.js"></script>
+</body>
+</html>

@@ -1,0 +1,58 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 671.321 209.186" width="671.321" height="209.186" style="--bg:#FFFFFF;--fg:#27272A;--font:Inter;background:#FFFFFF">
+<style>
+  text { font-family: var(--font, 'Inter'), system-ui, sans-serif; }
+  svg {
+    /* Derived from --bg and --fg (overridable via --line, --accent, etc.) */
+    --_text:          #27272A;
+    --_text-sec:      #7d7d7f;
+    --_text-muted:    #a9a9aa;
+    --_text-faint:    #c9c9ca;
+    --_line:          #939395;
+    --_arrow:         #47474a;
+    --_node-fill:     #f9f9f9;
+    --_node-stroke:   #d4d4d4;
+    --_group-fill:    #FFFFFF;
+    --_group-hdr:     #f4f4f4;
+    --_inner-stroke:  #e5e5e5;
+    --_key-badge:     #e9e9ea;
+  }
+</style>
+<defs>
+  <marker id="arrowhead" markerWidth="8" markerHeight="5" refX="7" refY="2.5" orient="auto">
+    <polygon points="0 0, 8 2.5, 0 5" fill="#47474a" stroke="#47474a" stroke-width="0.75" stroke-linejoin="round" />
+  </marker>
+  <marker id="arrowhead-start" markerWidth="8" markerHeight="5" refX="7" refY="2.5" orient="auto-start-reverse">
+    <polygon points="0 0, 8 2.5, 0 5" fill="#47474a" stroke="#47474a" stroke-width="0.75" stroke-linejoin="round" />
+  </marker>
+</defs>
+<polyline class="edge" data-from="A" data-to="B" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" points="156.791,90.018 204.791,90.018" fill="none" stroke="#939395" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="B" data-to="C" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" points="282.30899999999997,90.018 330.30899999999997,90.018" fill="none" stroke="#939395" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="C" data-to="D" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" data-label="ok" points="430.34499999999997,90.018 547.875,90.018" fill="none" stroke="#939395" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="C" data-to="B" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" data-label="warnings" points="380.327,140.036 380.327,150.036 243.55,150.036 243.55,108.468" fill="none" stroke="#939395" stroke-width="1" marker-end="url(#arrowhead)" />
+<g class="edge-label" data-from="C" data-to="D" data-label="ok">
+  <rect class="edge-label-halo" x="470.345" y="70.868" width="37.53" height="38.3" rx="4" ry="4" fill="#FFFFFF" stroke="none" />
+  <rect x="474.345" y="74.868" width="29.53" height="30.3" rx="2" ry="2" fill="#FFFFFF" stroke="#e5e5e5" stroke-width="1" />
+  <text x="489.11" y="90.018" text-anchor="middle" font-size="11" font-weight="400" fill="#7d7d7f" dy="3.8499999999999996">ok</text>
+</g>
+<g class="edge-label" data-from="C" data-to="B" data-label="warnings">
+  <rect class="edge-label-halo" x="220.70299999999997" y="130.036" width="69.606" height="38.3" rx="4" ry="4" fill="#FFFFFF" stroke="none" />
+  <rect x="224.70299999999997" y="134.036" width="61.606" height="30.3" rx="2" ry="2" fill="#FFFFFF" stroke="#e5e5e5" stroke-width="1" />
+  <text x="255.50599999999997" y="149.186" text-anchor="middle" font-size="11" font-weight="400" fill="#7d7d7f" dy="3.8499999999999996">warnings</text>
+</g>
+<g class="node" data-id="A" data-label="Source .mmd" data-shape="stadium">
+  <rect x="40" y="71.568" width="116.79099999999998" height="36.900000000000006" rx="18.450000000000003" ry="18.450000000000003" fill="#f9f9f9" stroke="#d4d4d4" stroke-width="0.75" />
+  <text x="98.3955" y="90.018" text-anchor="middle" font-size="13" font-weight="500" fill="#27272A" dy="4.55">Source .mmd</text>
+</g>
+<g class="node" data-id="B" data-label="parse" data-shape="rectangle">
+  <rect x="204.791" y="71.568" width="77.518" height="36.900000000000006" rx="0" ry="0" fill="#f9f9f9" stroke="#d4d4d4" stroke-width="0.75" />
+  <text x="243.55" y="90.018" text-anchor="middle" font-size="13" font-weight="500" fill="#27272A" dy="4.55">parse</text>
+</g>
+<g class="node" data-id="C" data-label="verify" data-shape="diamond">
+  <polygon points="380.327,40 430.345,90.018 380.327,140.036 330.30899999999997,90.018" fill="#f9f9f9" stroke="#d4d4d4" stroke-width="0.75" />
+  <text x="380.327" y="90.018" text-anchor="middle" font-size="13" font-weight="500" fill="#27272A" dy="4.55">verify</text>
+</g>
+<g class="node" data-id="D" data-label="render" data-shape="rectangle">
+  <rect x="547.875" y="71.568" width="83.446" height="36.900000000000006" rx="0" ry="0" fill="#f9f9f9" stroke="#d4d4d4" stroke-width="0.75" />
+  <text x="589.598" y="90.018" text-anchor="middle" font-size="13" font-weight="500" fill="#27272A" dy="4.55">render</text>
+</g>
+</svg>

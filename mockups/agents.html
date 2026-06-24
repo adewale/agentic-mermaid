@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Agents — Agentic Mermaid</title>
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="styles.css">
+<script>(function(){try{var t=localStorage.getItem('am-theme')||'pine';var L={'pine':1,'zinc-light':1,'github-light':1,'solarized-light':1,'catppuccin-latte':1,'nord-light':1,'tokyo-night-light':1,'salmon':1,'tufte':1};if(t!=='pine')document.documentElement.setAttribute('data-theme',t);document.documentElement.setAttribute('data-scheme',L[t]?'light':'dark');}catch(e){}})();</script>
+</head>
+<body>
+
+<header class="masthead">
+  <div class="bar">
+    <span class="brand"><span class="mark"></span> Agentic&nbsp;Mermaid</span>
+    <span class="links"><a href="editor.html">Editor</a><a href="gallery.html">Gallery</a><a href="docs-article.html">Docs</a><a href="agents.html">Agents</a><a href="https://github.com/adewale/beautiful-mermaid">GitHub</a></span>
+    <div class="theme-switch">
+      <button class="theme-btn" aria-haspopup="true" aria-expanded="false" aria-label="Theme"><span class="sw"></span><span class="name">Pine</span><span class="chev"></span></button>
+      <div class="theme-menu" role="menu"></div>
+    </div>
+  </div>
+  <hr>
+</header>
+
+<main class="doc">
+  <p class="crumb"><a href="home.html">Agentic Mermaid</a> / Agents</p>
+  <h1>A diagram surface built for agents</h1>
+  <p class="lead">A render-only library makes an agent regenerate the whole diagram to move one node. Agentic Mermaid exposes a typed surface — parse, narrow, mutate, verify, serialize — so an agent changes only what it means to and leaves the rest untouched.</p>
+  <p>Two things make that safe: layout is deterministic, so an edit can't silently shift a node that was already correct, and <code>verify</code> answers in structured tiers an agent can act on. Everything below runs locally; the hosted MCP is optional.</p>
+
+  <hr>
+
+  <h2>The edit loop</h2>
+  <p>Existing diagrams go <strong>parse &rarr; narrow &rarr; mutate &rarr; verify &rarr; serialize</strong>. <code>narrow</code> scopes the edit to one node or edge; <code>mutate</code> applies it; <code>verify</code> returns warnings in three tiers — structural, geometric, lint — plus perceptual quality metrics. An agent reads the tiers and decides whether to ship, re-narrow, or stop and ask a human.</p>
+  <figure>
+    <div class="plate"><div class="dia-wrap">
+      <img class="dia dia-dark" src="diagrams/workflow-dark.svg" alt="parse, narrow, mutate, verify, then serialize and render">
+      <img class="dia dia-light" src="diagrams/workflow-light.svg" alt="" aria-hidden="true">
+    </div></div>
+    <figcaption>The agent edit loop, rendered to SVG. <a class="go" href="docs-article.html">Read the full walkthrough</a></figcaption>
+  </figure>
+
+  <h2>Run it locally</h2>
+  <p>The library, the <code>am</code> CLI, and a local MCP server over stdio all ship in one package. Code Mode <code>execute</code> stays local, for trusted use only.</p>
+  <pre><code><span class="k">$</span> npm i agentic-mermaid
+<span class="k">$</span> npx agentic-mermaid-mcp      <span class="c"># stdio by default; HTTP is opt-in</span></code></pre>
+  <p>Each harness — Claude Code, Cursor, Codex, Gemini CLI, Copilot, Pi, OpenCode — registers the stdio server with one line. <a class="go" href="agents-harnesses.html">Set up your harness</a></p>
+
+  <h2>The diagram-workflow skill</h2>
+  <p>The consumer skill, <code>agentic-mermaid-diagram-workflow</code>, wraps the edit loop as one guided task: describe the change in words, and the skill narrows, mutates, verifies, and reports back in tiers. <a class="go" href="agents-workflow.html">See the workflow</a></p>
+
+  <h2>Machine-readable context</h2>
+  <p>The same site an agent can read without scraping a page. Each surface is a stable URL:</p>
+  <ul>
+    <li><strong><a href="#">llms.txt</a></strong> — the one-screen orientation: what the tool is, the loop, the limits.</li>
+    <li><strong><a href="#">agent-instructions.md</a></strong> — the operating guide: when to narrow, how to read a verify result.</li>
+    <li><strong><a href="#">capabilities.json</a></strong> — formats, families, and the exact tool signatures.</li>
+    <li><strong><a href="#">agent-manifest.json</a></strong> — the manifest a client discovers the server with.</li>
+    <li><strong><a href="#">harnesses.json</a></strong> — the per-client setup blocks, the source for the harness page.</li>
+    <li><strong><a href="#">schemas/</a></strong> — the JSON Schemas for every tool's input and output.</li>
+  </ul>
+
+  <hr>
+
+  <blockquote>Self-hosting over stdio is the default and the recommended path. The optional hosted MCP is authless and rate-limited, exposes only <code>render</code>, <code>verify</code>, <code>describe</code>, and structured edits, and never runs Code Mode <code>execute</code>.</blockquote>
+</main>
+
+<footer>
+  <div class="footlinks">
+    <a href="#">llms.txt</a><span class="sep">&middot;</span>
+    <a href="#">agent-instructions.md</a><span class="sep">&middot;</span>
+    <a href="#">capabilities.json</a><span class="sep">&middot;</span>
+    <a href="#">agent-manifest.json</a><span class="sep">&middot;</span>
+    <a href="https://github.com/adewale/beautiful-mermaid">GitHub</a>
+  </div>
+</footer>
+
+<script src="shader-mark.js"></script>
+<script src="theme.js"></script>
+</body>
+</html>
