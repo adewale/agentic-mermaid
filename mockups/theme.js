@@ -21,6 +21,7 @@
     { id: 'salmon',            name: 'Salmon',             sw: '#FFFBF5', dark: false },
     { id: 'tufte',             name: 'Tufte',              sw: '#FFFFF8', dark: false },
     // dark
+    { id: 'dusk',              name: 'Dusk',               sw: '#2A2521', dark: true },
     { id: 'paper-dark',        name: 'Paper Dark',         sw: '#16130D', dark: true },
     { id: 'pine-dark',         name: 'Pine Dark',          sw: '#0F1512', dark: true },
     { id: 'zinc-dark',         name: 'Zinc Dark',          sw: '#18181B', dark: true },

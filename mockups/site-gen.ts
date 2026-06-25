@@ -8,8 +8,8 @@
 //   - editor/js/examples.js        EDITOR_EXAMPLES          (canonical example + blurb per family)
 //   - bin/am.ts capabilities/llms-txt/--agent-instructions  (the agent surfaces)
 //
-// Outputs: mockups/diagrams/gallery/<id>.svg, the gallery grid in gallery.html,
-// the families table in families.html, and the agent files in mockups/.
+// Outputs: the gallery grid (inline themeable SVGs) in gallery.html, the
+// families table in families.html, and the agent files in mockups/.
 
 import { BUILTIN_FAMILY_METADATA } from '../src/agent/families.ts'
 import { handleRequest } from '../src/mcp/server.ts'
@@ -17,7 +17,6 @@ import { renderMermaidSVG } from '../src/index.ts'
 
 const ROOT = import.meta.dir + '/../'
 const M = import.meta.dir + '/'
-const GAL = M + 'diagrams/gallery/'
 
 // canonical examples: id -> { source, description, label }. examples.js also
 // contains the editor's DOM code, so pull out just the EDITOR_EXAMPLES literal
@@ -52,18 +51,20 @@ const stripFont = (svg: string) => svg.split('\n').filter((l) => !l.includes('fo
 const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
 
 // 1 · one tile per family, rendered from its canonical example
-const tiles: { id: string; label: string; desc: string }[] = []
+const tiles: { id: string; label: string; desc: string; svg: string }[] = []
 for (const fam of BUILTIN_FAMILY_METADATA) {
   const ex = exById.get(fam.editorExampleId)
   if (!ex) { console.warn('!! no example for', fam.id, '(' + fam.editorExampleId + ')'); continue }
-  await Bun.write(GAL + fam.id + '.svg', stripFont(am(['render', '-', '--format', 'svg'], ex.source)))
-  tiles.push({ id: fam.id, label: fam.label, desc: (ex.description || fam.label).trim() })
-  console.log('  rendered', fam.id + '.svg')
+  // themeable inline SVG; idPrefix namespaces marker ids so 12 SVGs coexist on one page
+  const svg = stripFont(renderMermaidSVG(ex.source, { bg: 'var(--bg)', fg: 'var(--fg)', accent: 'var(--accent)', transparent: true, idPrefix: fam.id + '-' })
+    .replace('--bg:var(--bg);--fg:var(--fg);--accent:var(--accent);', ''))
+  tiles.push({ id: fam.id, label: fam.label, desc: (ex.description || fam.label).trim(), svg })
+  console.log('  themed', fam.id)
 }
 
 // 2 · inject the gallery grid + families table (registry order)
 const figures = tiles.map((t) =>
-  `    <figure>\n      <div class="plate"><img src="diagrams/gallery/${t.id}.svg" alt="${esc(t.label)} diagram"></div>\n      <figcaption><b>${esc(t.label)}</b> — ${esc(t.desc)}</figcaption>\n    </figure>`
+  `    <figure>\n      <div class="plate" role="img" aria-label="${esc(t.label)} diagram">${t.svg}</div>\n      <figcaption><b>${esc(t.label)}</b> — ${esc(t.desc)}</figcaption>\n    </figure>`
 ).join('\n')
 let gallery = await Bun.file(M + 'gallery.html').text()
 gallery = gallery.replace(/<div class="gallery">[\s\S]*?<\/div>(\s*<p class="muted">)/,
