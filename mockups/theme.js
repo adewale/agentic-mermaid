@@ -9,8 +9,9 @@
 (function () {
   const THEMES = [
     // brand default
-    { id: 'pine',              name: 'Pine',               sw: '#F4F8F6', dark: false, brand: true },
+    { id: 'paper',             name: 'Paper',              sw: '#F5F0E4', dark: false, brand: true },
     // light
+    { id: 'pine-light',        name: 'Pine Light',         sw: '#F4F8F6', dark: false },
     { id: 'zinc-light',        name: 'Zinc Light',         sw: '#FFFFFF', dark: false },
     { id: 'github-light',      name: 'GitHub Light',       sw: '#FFFFFF', dark: false },
     { id: 'solarized-light',   name: 'Solarized Light',    sw: '#FDF6E3', dark: false },
@@ -20,6 +21,7 @@
     { id: 'salmon',            name: 'Salmon',             sw: '#FFFBF5', dark: false },
     { id: 'tufte',             name: 'Tufte',              sw: '#FFFFF8', dark: false },
     // dark
+    { id: 'paper-dark',        name: 'Paper Dark',         sw: '#16130D', dark: true },
     { id: 'pine-dark',         name: 'Pine Dark',          sw: '#0F1512', dark: true },
     { id: 'zinc-dark',         name: 'Zinc Dark',          sw: '#18181B', dark: true },
     { id: 'github-dark',       name: 'GitHub Dark',        sw: '#0D1117', dark: true },
@@ -35,7 +37,7 @@
   ];
   const KEY = 'am-theme';
   const byId = (id) => THEMES.find((x) => x.id === id) || THEMES[0];
-  const current = () => document.documentElement.getAttribute('data-theme') || 'pine';
+  const current = () => document.documentElement.getAttribute('data-theme') || 'paper';
 
   let sync = () => {};
 
@@ -135,7 +137,7 @@
 
     // self-heal a stale/unknown stored id (e.g. an earlier naming) → fall to Pine
     if (THEMES.some((t) => t.id === current())) { sync(); syncMeta(); }
-    else setTheme('pine');
+    else setTheme('paper');
   }
 
   if (document.readyState !== 'loading') init();
