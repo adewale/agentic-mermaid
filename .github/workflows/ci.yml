@@ -54,6 +54,14 @@ jobs:
         # assets/hero.png (diagram SVG + ASCII) — no fonts/rasterization needed.
         run: bun run hero:check
 
+      - name: Check the registry-driven mockup site is current
+        # mockups/ gallery tiles, families table, and agent surfaces are
+        # generated from the family registry + capabilities + MCP tools. This
+        # re-runs the generator in --check mode and fails if a committed file
+        # drifted (e.g. a new family, a capability change, or a renderer change
+        # that wasn't regenerated). Regenerate with `bun run site`.
+        run: bun run site:check
+
       - name: Golden snapshot drift is a hard gate (reviewed-token required)
         # The decision logic lives in scripts/ci/golden-drift.ts and is
         # unit-tested (src/__tests__/golden-drift.test.ts) — a bare ::warning::

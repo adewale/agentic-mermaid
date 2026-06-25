@@ -50,6 +50,19 @@ function am(args: string[], stdin?: string): string {
 const stripFont = (svg: string) => svg.split('\n').filter((l) => !l.includes('fonts.googleapis.com')).join('\n')
 const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
 
+// `--check` (CI gate): don't write — compare each generated file to what's on
+// disk and collect drift, so a stale committed mockup fails the build instead
+// of silently shipping. Mirrors hero:check. Generation is idempotent, so an
+// in-sync tree produces byte-identical output here.
+const CHECK = process.argv.includes('--check')
+const stale: string[] = []
+async function emit(path: string, content: string) {
+  if (!CHECK) { await Bun.write(path, content); return }
+  const f = Bun.file(path)
+  const cur = (await f.exists()) ? await f.text() : null
+  if (cur !== content) stale.push(path.replace(M, 'mockups/'))
+}
+
 // 1 · one tile per family, rendered from its canonical example
 const tiles: { id: string; label: string; desc: string; svg: string }[] = []
 for (const fam of BUILTIN_FAMILY_METADATA) {
@@ -59,7 +72,7 @@ for (const fam of BUILTIN_FAMILY_METADATA) {
   const svg = stripFont(renderMermaidSVG(ex.source, { bg: 'var(--bg)', fg: 'var(--fg)', accent: 'var(--accent)', transparent: true, idPrefix: fam.id + '-' })
     .replace('--bg:var(--bg);--fg:var(--fg);--accent:var(--accent);', ''))
   tiles.push({ id: fam.id, label: fam.label, desc: (ex.description || fam.label).trim(), svg })
-  console.log('  themed', fam.id)
+  if (!CHECK) console.log('  themed', fam.id)
 }
 
 // 2 · inject the gallery grid + families table (registry order)
@@ -69,12 +82,12 @@ const figures = tiles.map((t) =>
 let gallery = await Bun.file(M + 'gallery.html').text()
 gallery = gallery.replace(/<div class="gallery">[\s\S]*?<\/div>(\s*<p class="muted">)/,
   `<div class="gallery">\n${figures}\n  </div>$1`)
-await Bun.write(M + 'gallery.html', gallery)
+await emit(M + 'gallery.html', gallery)
 
 const rows = tiles.map((t) => `      <tr><td><strong>${esc(t.label)}</strong></td><td>${esc(t.desc)}</td></tr>`).join('\n')
 let families = await Bun.file(M + 'families.html').text()
 families = families.replace(/<tbody>[\s\S]*?<\/tbody>/, `<tbody>\n${rows}\n    </tbody>`)
-await Bun.write(M + 'families.html', families)
+await emit(M + 'families.html', families)
 
 // 2b · the home page's "Unicode text" block, from the real renderer
 const uni = am(['render', M + 'diagrams/workflow.mmd', '--format', 'unicode'])
@@ -82,7 +95,7 @@ const uni = am(['render', M + 'diagrams/workflow.mmd', '--format', 'unicode'])
 let home = await Bun.file(M + 'home.html').text()
 home = home.replace(/(The same diagram as Unicode text:<\/p>\s*<pre><code>)[\s\S]*?(<\/code><\/pre>)/,
   '$1' + esc(uni) + '$2')
-await Bun.write(M + 'home.html', home)
+await emit(M + 'home.html', home)
 
 // 2c · the edit-loop figure as ONE themeable inline SVG. Rendered with the
 // engine's documented live-theming mode (bg/fg/accent as CSS vars, transparent),
@@ -93,30 +106,30 @@ const wfThemeable = renderMermaidSVG(await Bun.file(M + 'diagrams/workflow.mmd')
   { bg: 'var(--bg)', fg: 'var(--fg)', accent: 'var(--accent)', transparent: true })
   .replace('--bg:var(--bg);--fg:var(--fg);--accent:var(--accent);', '')
   .split('\n').filter((l) => !l.includes('fonts.googleapis.com')).join('\n')
-await Bun.write(M + 'diagrams/workflow-themeable.svg', wfThemeable)
+await emit(M + 'diagrams/workflow-themeable.svg', wfThemeable)
 for (const page of ['home.html', 'agents.html', 'editor.html', 'docs-article.html']) {
   const h = await Bun.file(M + page).text()
   // Idempotent: match the already-injected dia-plate form OR the original
   // hand-authored plate>dia-wrap form, so re-runs pick up token changes too.
   const out = h.replace(/<div class="plate dia-plate">[\s\S]*?<\/div>|<div class="plate"><div class="dia-wrap">[\s\S]*?<\/div><\/div>/,
     `<div class="plate dia-plate">\n      ${wfThemeable}\n    </div>`)
-  if (out !== h) { await Bun.write(M + page, out); console.log('  themed figure ->', page) }
+  await emit(M + page, out)
 }
 
 // 3 · the agent surfaces, straight from the CLI + MCP server
 const capJson = am(['capabilities', '--json'])
-await Bun.write(M + 'capabilities.json', capJson)
-await Bun.write(M + 'llms.txt', am(['llms-txt']))
-await Bun.write(M + 'agent-instructions.md', am(['--agent-instructions']))
+await emit(M + 'capabilities.json', capJson)
+await emit(M + 'llms.txt', am(['llms-txt']))
+await emit(M + 'agent-instructions.md', am(['--agent-instructions']))
 
 // real tool contracts (schemas/) from the MCP server's own tools/list
 const toolsList: any = await handleRequest({ jsonrpc: '2.0', id: 1, method: 'tools/list', params: {} } as any)
 const tools: any[] = toolsList?.result?.tools ?? []
 for (const t of tools) {
-  await Bun.write(M + 'schemas/' + t.name + '.json',
+  await emit(M + 'schemas/' + t.name + '.json',
     JSON.stringify({ name: t.name, description: t.description, inputSchema: t.inputSchema }, null, 2) + '\n')
 }
-await Bun.write(M + 'schemas/index.json',
+await emit(M + 'schemas/index.json',
   JSON.stringify({ server: 'agentic-mermaid-mcp', tools: tools.map((t) => ({ name: t.name, schema: 'schemas/' + t.name + '.json' })) }, null, 2) + '\n')
 
 const cap = JSON.parse(capJson)
@@ -132,7 +145,7 @@ const manifest = {
   mcp: server,
   context: { llms: '/llms.txt', instructions: '/agent-instructions.md', capabilities: '/capabilities.json', harnesses: '/harnesses.json', schemas: '/schemas/index.json' },
 }
-await Bun.write(M + 'agent-manifest.json', JSON.stringify(manifest, null, 2) + '\n')
+await emit(M + 'agent-manifest.json', JSON.stringify(manifest, null, 2) + '\n')
 
 const harnesses = {
   default: 'stdio', recommended: 'self-hosted', server,
@@ -146,6 +159,15 @@ const harnesses = {
     { id: 'generic', name: 'Generic MCP', register: 'npx agentic-mermaid-mcp' },
   ],
 }
-await Bun.write(M + 'harnesses.json', JSON.stringify(harnesses, null, 2) + '\n')
+await emit(M + 'harnesses.json', JSON.stringify(harnesses, null, 2) + '\n')
 
-console.log(`\ndone — ${tiles.length} families, ${tools.length} tool schemas, agent surfaces regenerated`)
+if (CHECK) {
+  if (stale.length) {
+    console.error(`site-gen --check: ${stale.length} generated file(s) are stale relative to the registries:\n  ` +
+      stale.join('\n  ') + '\nRegenerate with `bun run mockups/site-gen.ts` and commit.')
+    process.exit(1)
+  }
+  console.log(`site-gen --check: in sync — ${tiles.length} families, ${tools.length} tool schemas.`)
+} else {
+  console.log(`\ndone — ${tiles.length} families, ${tools.length} tool schemas, agent surfaces regenerated`)
+}
