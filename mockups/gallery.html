@@ -30,47 +30,63 @@
 
   <div class="gallery">
     <figure>
-      <div class="plate"><img src="diagrams/gallery/flowchart.svg" alt="Flowchart of the edit loop"></div>
-      <figcaption><b>Flowchart</b> — control flow, here the edit loop itself.</figcaption>
+      <div class="plate"><img src="diagrams/gallery/flowchart.svg" alt="Flowchart diagram"></div>
+      <figcaption><b>Flowchart</b> — Decision flow with labeled branches.</figcaption>
     </figure>
     <figure>
-      <div class="plate"><img src="diagrams/gallery/sequence.svg" alt="Sequence diagram between an agent and the renderer"></div>
-      <figcaption><b>Sequence</b> — messages between an agent and the renderer.</figcaption>
+      <div class="plate"><img src="diagrams/gallery/state.svg" alt="State diagram"></div>
+      <figcaption><b>State</b> — Lifecycle using Mermaid stateDiagram-v2 syntax.</figcaption>
     </figure>
     <figure>
-      <div class="plate"><img src="diagrams/gallery/state.svg" alt="State diagram of the parse to serialize lifecycle"></div>
-      <figcaption><b>State</b> — the parse → verify → serialize lifecycle.</figcaption>
+      <div class="plate"><img src="diagrams/gallery/sequence.svg" alt="Sequence diagram"></div>
+      <figcaption><b>Sequence</b> — Request/response messages between participants.</figcaption>
     </figure>
     <figure>
-      <div class="plate"><img src="diagrams/gallery/class.svg" alt="Class diagram of the diagram model"></div>
-      <figcaption><b>Class</b> — the typed model an edit narrows into.</figcaption>
+      <div class="plate"><img src="diagrams/gallery/timeline.svg" alt="Timeline diagram"></div>
+      <figcaption><b>Timeline</b> — Chronological milestones with sections.</figcaption>
     </figure>
     <figure>
-      <div class="plate"><img src="diagrams/gallery/er.svg" alt="Entity-relationship diagram of diagram, node, edge"></div>
-      <figcaption><b>Entity&#8209;relationship</b> — diagram, node, and edge as a schema.</figcaption>
+      <div class="plate"><img src="diagrams/gallery/class.svg" alt="Class diagram"></div>
+      <figcaption><b>Class</b> — Classes with members and relationships.</figcaption>
     </figure>
     <figure>
-      <div class="plate"><img src="diagrams/gallery/journey.svg" alt="User journey of the agent edit loop"></div>
-      <figcaption><b>User journey</b> — the loop scored as an experience.</figcaption>
+      <div class="plate"><img src="diagrams/gallery/er.svg" alt="ER diagram"></div>
+      <figcaption><b>ER</b> — Entities, attributes, keys, and cardinality markers.</figcaption>
     </figure>
     <figure>
-      <div class="plate"><img src="diagrams/gallery/gantt.svg" alt="Gantt chart of the edit loop on a timeline"></div>
-      <figcaption><b>Gantt</b> — the same loop laid on a timeline.</figcaption>
+      <div class="plate"><img src="diagrams/gallery/journey.svg" alt="Journey diagram"></div>
+      <figcaption><b>Journey</b> — Scored user tasks grouped by section.</figcaption>
     </figure>
     <figure>
-      <div class="plate"><img src="diagrams/gallery/pie.svg" alt="Pie chart of output format share"></div>
-      <figcaption><b>Pie</b> — the four output formats, by share.</figcaption>
+      <div class="plate"><img src="diagrams/gallery/architecture.svg" alt="Architecture diagram"></div>
+      <figcaption><b>Architecture</b> — Services, groups, icons, and routed connections.</figcaption>
+    </figure>
+    <figure>
+      <div class="plate"><img src="diagrams/gallery/xychart.svg" alt="XY chart diagram"></div>
+      <figcaption><b>XY chart</b> — Bar and line series using xychart syntax.</figcaption>
+    </figure>
+    <figure>
+      <div class="plate"><img src="diagrams/gallery/pie.svg" alt="Pie diagram"></div>
+      <figcaption><b>Pie</b> — Proportional slices with values shown in the legend.</figcaption>
+    </figure>
+    <figure>
+      <div class="plate"><img src="diagrams/gallery/quadrant.svg" alt="Quadrant diagram"></div>
+      <figcaption><b>Quadrant</b> — Two-axis priority map with labeled regions and points.</figcaption>
+    </figure>
+    <figure>
+      <div class="plate"><img src="diagrams/gallery/gantt.svg" alt="Gantt diagram"></div>
+      <figcaption><b>Gantt</b> — Sections, dependencies, status tags, and a milestone.</figcaption>
     </figure>
   </div>
 
-  <p class="muted"><small>Each render also comes out as PNG, ASCII, Unicode, and layout JSON from the one model. The four families not pictured — quadrant, timeline, XY chart, architecture — render the same way.</small></p>
+  <p class="muted"><small>Every tile is generated from the family registry and that family's canonical example, so a new diagram family appears here automatically. Each also renders to PNG, ASCII, Unicode, and layout JSON from the one model.</small></p>
 </main>
 
 <footer>
   <div class="footlinks">
     <a href="editor.html">Open the editor</a><span class="sep">&middot;</span>
     <a href="families.html">Families</a><span class="sep">&middot;</span>
-    <a href="#">capabilities.json</a><span class="sep">&middot;</span>
+    <a href="capabilities.json">capabilities.json</a><span class="sep">&middot;</span>
     <a href="https://github.com/adewale/beautiful-mermaid">GitHub</a>
   </div>
 </footer>

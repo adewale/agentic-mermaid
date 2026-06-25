@@ -195,6 +195,11 @@ dropped — too on-the-nose, then too generic.)
 # diagrams (SVG + Unicode), then strip the web-font @import (see git history for the one-liner)
 bun run bin/am.ts render mockups/diagrams/workflow.mmd --format svg > mockups/diagrams/workflow.svg
 
+# gallery tiles, families table, and the agent-surface files — all generated
+# from the family registry (src/agent/families.ts), the editor examples, and the
+# `am` CLI. Re-run when a diagram family is added and it shows up everywhere.
+bun run mockups/site-gen.ts
+
 # page stills → mockups/shot-<page>-{light,dark,mobile}.png
 bun run mockups/shot.ts
 

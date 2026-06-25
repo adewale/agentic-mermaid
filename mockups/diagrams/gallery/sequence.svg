@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 282.5395 280" width="282.5395" height="280" style="--bg:#FFFFFF;--fg:#27272A;--font:Inter;background:#FFFFFF">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 420 280" width="420" height="280" style="--bg:#FFFFFF;--fg:#27272A;--font:Inter;background:#FFFFFF">
 <style>
   text { font-family: var(--font, 'Inter'), system-ui, sans-serif; }
   svg {
@@ -25,30 +25,35 @@
     <polyline points="0 0, 8 2.5, 0 5" fill="none" stroke="#47474a" stroke-width="1" />
   </marker>
 </defs>
-<line class="lifeline" data-actor="A" x1="70" y1="70" x2="70" y2="250" stroke="#939395" stroke-width="0.75" stroke-dasharray="6 4" />
-<line class="lifeline" data-actor="M" x1="210" y1="70" x2="210" y2="250" stroke="#939395" stroke-width="0.75" stroke-dasharray="6 4" />
-<g class="message" data-from="A" data-to="M" data-label="render(source)" data-line-style="solid" data-arrow-head="filled" data-self="false">
+<line class="lifeline" data-actor="User" x1="70" y1="70" x2="70" y2="250" stroke="#939395" stroke-width="0.75" stroke-dasharray="6 4" />
+<line class="lifeline" data-actor="App" x1="210" y1="70" x2="210" y2="250" stroke="#939395" stroke-width="0.75" stroke-dasharray="6 4" />
+<line class="lifeline" data-actor="API" x1="350" y1="70" x2="350" y2="250" stroke="#939395" stroke-width="0.75" stroke-dasharray="6 4" />
+<g class="message" data-from="User" data-to="App" data-label="Click export" data-line-style="solid" data-arrow-head="filled" data-self="false">
   <line x1="70" y1="90" x2="210" y2="90" stroke="#939395" stroke-width="1" marker-end="url(#seq-arrow)" />
-  <text x="140" y="80" font-size="11" text-anchor="middle" font-weight="400" fill="#a9a9aa" dy="3.8499999999999996">render(source)</text>
+  <text x="140" y="80" font-size="11" text-anchor="middle" font-weight="400" fill="#a9a9aa" dy="3.8499999999999996">Click export</text>
 </g>
-<g class="message" data-from="M" data-to="A" data-label="svg + warnings" data-line-style="dashed" data-arrow-head="filled" data-self="false">
-  <line x1="210" y1="130" x2="70" y2="130" stroke="#939395" stroke-width="1" stroke-dasharray="6 4" marker-end="url(#seq-arrow)" />
-  <text x="140" y="120" font-size="11" text-anchor="middle" font-weight="400" fill="#a9a9aa" dy="3.8499999999999996">svg + warnings</text>
+<g class="message" data-from="App" data-to="API" data-label="Render SVG" data-line-style="solid" data-arrow-head="filled" data-self="false">
+  <line x1="210" y1="130" x2="350" y2="130" stroke="#939395" stroke-width="1" marker-end="url(#seq-arrow)" />
+  <text x="280" y="120" font-size="11" text-anchor="middle" font-weight="400" fill="#a9a9aa" dy="3.8499999999999996">Render SVG</text>
 </g>
-<g class="message" data-from="A" data-to="M" data-label="mutate(node)" data-line-style="solid" data-arrow-head="filled" data-self="false">
-  <line x1="70" y1="170" x2="210" y2="170" stroke="#939395" stroke-width="1" marker-end="url(#seq-arrow)" />
-  <text x="140" y="160" font-size="11" text-anchor="middle" font-weight="400" fill="#a9a9aa" dy="3.8499999999999996">mutate(node)</text>
+<g class="message" data-from="API" data-to="App" data-label="SVG string" data-line-style="dashed" data-arrow-head="filled" data-self="false">
+  <line x1="350" y1="170" x2="210" y2="170" stroke="#939395" stroke-width="1" stroke-dasharray="6 4" marker-end="url(#seq-arrow)" />
+  <text x="280" y="160" font-size="11" text-anchor="middle" font-weight="400" fill="#a9a9aa" dy="3.8499999999999996">SVG string</text>
 </g>
-<g class="message" data-from="M" data-to="A" data-label="verified" data-line-style="dashed" data-arrow-head="filled" data-self="false">
+<g class="message" data-from="App" data-to="User" data-label="Download" data-line-style="dashed" data-arrow-head="filled" data-self="false">
   <line x1="210" y1="210" x2="70" y2="210" stroke="#939395" stroke-width="1" stroke-dasharray="6 4" marker-end="url(#seq-arrow)" />
-  <text x="140" y="200" font-size="11" text-anchor="middle" font-weight="400" fill="#a9a9aa" dy="3.8499999999999996">verified</text>
+  <text x="140" y="200" font-size="11" text-anchor="middle" font-weight="400" fill="#a9a9aa" dy="3.8499999999999996">Download</text>
 </g>
-<g class="actor" data-id="A" data-label="Agent" data-type="participant">
+<g class="actor" data-id="User" data-label="User" data-type="participant">
   <rect x="30" y="30" width="80" height="40" rx="4" ry="4" fill="#f9f9f9" stroke="#d4d4d4" stroke-width="1" />
-  <text x="70" y="50" font-size="13" text-anchor="middle" font-weight="500" fill="#27272A" dy="4.55">Agent</text>
+  <text x="70" y="50" font-size="13" text-anchor="middle" font-weight="500" fill="#27272A" dy="4.55">User</text>
 </g>
-<g class="actor" data-id="M" data-label="Mermaid" data-type="participant">
-  <rect x="167.4605" y="30" width="85.07900000000001" height="40" rx="4" ry="4" fill="#f9f9f9" stroke="#d4d4d4" stroke-width="1" />
-  <text x="210" y="50" font-size="13" text-anchor="middle" font-weight="500" fill="#27272A" dy="4.55">Mermaid</text>
+<g class="actor" data-id="App" data-label="App" data-type="participant">
+  <rect x="170" y="30" width="80" height="40" rx="4" ry="4" fill="#f9f9f9" stroke="#d4d4d4" stroke-width="1" />
+  <text x="210" y="50" font-size="13" text-anchor="middle" font-weight="500" fill="#27272A" dy="4.55">App</text>
+</g>
+<g class="actor" data-id="API" data-label="API" data-type="participant">
+  <rect x="310" y="30" width="80" height="40" rx="4" ry="4" fill="#f9f9f9" stroke="#d4d4d4" stroke-width="1" />
+  <text x="350" y="50" font-size="13" text-anchor="middle" font-weight="500" fill="#27272A" dy="4.55">API</text>
 </g>
 </svg>

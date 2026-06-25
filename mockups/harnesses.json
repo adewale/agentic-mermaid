@@ -1,0 +1,51 @@
+{
+  "default": "stdio",
+  "recommended": "self-hosted",
+  "server": {
+    "command": "npx",
+    "args": [
+      "-y",
+      "--package",
+      "agentic-mermaid",
+      "agentic-mermaid-mcp"
+    ],
+    "transport": "stdio"
+  },
+  "clients": [
+    {
+      "id": "claude-code",
+      "name": "Claude Code",
+      "register": "claude mcp add agentic-mermaid -- npx agentic-mermaid-mcp"
+    },
+    {
+      "id": "cursor",
+      "name": "Cursor",
+      "config": "~/.cursor/mcp.json"
+    },
+    {
+      "id": "codex",
+      "name": "Codex",
+      "config": "config.toml [mcp_servers]"
+    },
+    {
+      "id": "gemini-cli",
+      "name": "Gemini CLI",
+      "register": "gemini mcp add agentic-mermaid npx agentic-mermaid-mcp"
+    },
+    {
+      "id": "github-copilot",
+      "name": "GitHub Copilot",
+      "config": ".vscode/mcp.json"
+    },
+    {
+      "id": "pi-opencode",
+      "name": "Pi · OpenCode",
+      "config": "stdio mcp entry"
+    },
+    {
+      "id": "generic",
+      "name": "Generic MCP",
+      "register": "npx agentic-mermaid-mcp"
+    }
+  ]
+}
