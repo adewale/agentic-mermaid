@@ -96,7 +96,9 @@ const wfThemeable = renderMermaidSVG(await Bun.file(M + 'diagrams/workflow.mmd')
 await Bun.write(M + 'diagrams/workflow-themeable.svg', wfThemeable)
 for (const page of ['home.html', 'agents.html', 'editor.html', 'docs-article.html']) {
   const h = await Bun.file(M + page).text()
-  const out = h.replace(/<div class="plate"><div class="dia-wrap">[\s\S]*?<\/div><\/div>/,
+  // Idempotent: match the already-injected dia-plate form OR the original
+  // hand-authored plate>dia-wrap form, so re-runs pick up token changes too.
+  const out = h.replace(/<div class="plate dia-plate">[\s\S]*?<\/div>|<div class="plate"><div class="dia-wrap">[\s\S]*?<\/div><\/div>/,
     `<div class="plate dia-plate">\n      ${wfThemeable}\n    </div>`)
   if (out !== h) { await Bun.write(M + page, out); console.log('  themed figure ->', page) }
 }
