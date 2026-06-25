@@ -215,6 +215,10 @@ td code { font-size: 12.5px; }
 /* ---- figures: diagrams inline like images, on a light plate ---- */
 figure { margin: 26px 0; }
 figure .plate { background: var(--diagram-bg); border-radius: 8px; padding: 18px; }
+/* a themeable inline diagram inherits --bg/--fg/--accent, so it sits on a
+   theme-derived plate and recolours with the whole page (no fixed dark/light swap) */
+figure .plate.dia-plate { background: color-mix(in srgb, var(--fg) 4%, var(--bg)); }
+figure .plate.dia-plate svg { display: block; width: 100%; height: auto; }
 /* diagram crossfades between a light and a dark render depending on the theme */
 .dia-wrap { position: relative; }
 .dia-wrap .dia { display: block; width: 100%; height: auto; transition: opacity 0.35s ease; }

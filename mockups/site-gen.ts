@@ -13,6 +13,7 @@
 
 import { BUILTIN_FAMILY_METADATA } from '../src/agent/families.ts'
 import { handleRequest } from '../src/mcp/server.ts'
+import { renderMermaidSVG } from '../src/index.ts'
 
 const ROOT = import.meta.dir + '/../'
 const M = import.meta.dir + '/'
@@ -81,6 +82,23 @@ let home = await Bun.file(M + 'home.html').text()
 home = home.replace(/(The same diagram as Unicode text:<\/p>\s*<pre><code>)[\s\S]*?(<\/code><\/pre>)/,
   '$1' + esc(uni) + '$2')
 await Bun.write(M + 'home.html', home)
+
+// 2c · the edit-loop figure as ONE themeable inline SVG. Rendered with the
+// engine's documented live-theming mode (bg/fg/accent as CSS vars, transparent),
+// then the cyclic self-refs on the root are stripped so it inherits the page's
+// --bg/--fg/--accent — the diagram recolours with every theme via the engine's
+// own color-mix(), instead of being two fixed light/dark renders.
+const wfThemeable = renderMermaidSVG(await Bun.file(M + 'diagrams/workflow.mmd').text(),
+  { bg: 'var(--bg)', fg: 'var(--fg)', accent: 'var(--accent)', transparent: true })
+  .replace('--bg:var(--bg);--fg:var(--fg);--accent:var(--accent);', '')
+  .split('\n').filter((l) => !l.includes('fonts.googleapis.com')).join('\n')
+await Bun.write(M + 'diagrams/workflow-themeable.svg', wfThemeable)
+for (const page of ['home.html', 'agents.html', 'editor.html', 'docs-article.html']) {
+  const h = await Bun.file(M + page).text()
+  const out = h.replace(/<div class="plate"><div class="dia-wrap">[\s\S]*?<\/div><\/div>/,
+    `<div class="plate dia-plate">\n      ${wfThemeable}\n    </div>`)
+  if (out !== h) { await Bun.write(M + page, out); console.log('  themed figure ->', page) }
+}
 
 // 3 · the agent surfaces, straight from the CLI + MCP server
 const capJson = am(['capabilities', '--json'])
