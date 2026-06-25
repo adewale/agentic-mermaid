@@ -23,13 +23,24 @@
     "quadrant",
     "gantt"
   ],
-  "tools": [
-    "render",
-    "verify",
-    "describe",
-    "parse",
-    "serialize",
-    "mutate"
+  "mcpTools": [
+    "execute",
+    "render_png",
+    "describe"
+  ],
+  "narrowers": [
+    "asFlowchart",
+    "asState",
+    "asSequence",
+    "asTimeline",
+    "asClass",
+    "asEr",
+    "asJourney",
+    "asArchitecture",
+    "asXyChart",
+    "asPie",
+    "asQuadrant",
+    "asGantt"
   ],
   "mcp": {
     "command": "npx",
@@ -45,6 +56,7 @@
     "llms": "/llms.txt",
     "instructions": "/agent-instructions.md",
     "capabilities": "/capabilities.json",
-    "harnesses": "/harnesses.json"
+    "harnesses": "/harnesses.json",
+    "schemas": "/schemas/index.json"
   }
 }

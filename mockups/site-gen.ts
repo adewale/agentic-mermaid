@@ -12,6 +12,7 @@
 // the families table in families.html, and the agent files in mockups/.
 
 import { BUILTIN_FAMILY_METADATA } from '../src/agent/families.ts'
+import { handleRequest } from '../src/mcp/server.ts'
 
 const ROOT = import.meta.dir + '/../'
 const M = import.meta.dir + '/'
@@ -73,11 +74,29 @@ let families = await Bun.file(M + 'families.html').text()
 families = families.replace(/<tbody>[\s\S]*?<\/tbody>/, `<tbody>\n${rows}\n    </tbody>`)
 await Bun.write(M + 'families.html', families)
 
-// 3 · the agent surfaces, straight from the CLI
+// 2b · the home page's "Unicode text" block, from the real renderer
+const uni = am(['render', M + 'diagrams/workflow.mmd', '--format', 'unicode'])
+  .split('\n').map((l) => l.replace(/\s+$/, '')).join('\n').replace(/\n+$/, '')
+let home = await Bun.file(M + 'home.html').text()
+home = home.replace(/(The same diagram as Unicode text:<\/p>\s*<pre><code>)[\s\S]*?(<\/code><\/pre>)/,
+  '$1' + esc(uni) + '$2')
+await Bun.write(M + 'home.html', home)
+
+// 3 · the agent surfaces, straight from the CLI + MCP server
 const capJson = am(['capabilities', '--json'])
 await Bun.write(M + 'capabilities.json', capJson)
 await Bun.write(M + 'llms.txt', am(['llms-txt']))
 await Bun.write(M + 'agent-instructions.md', am(['--agent-instructions']))
+
+// real tool contracts (schemas/) from the MCP server's own tools/list
+const toolsList: any = await handleRequest({ jsonrpc: '2.0', id: 1, method: 'tools/list', params: {} } as any)
+const tools: any[] = toolsList?.result?.tools ?? []
+for (const t of tools) {
+  await Bun.write(M + 'schemas/' + t.name + '.json',
+    JSON.stringify({ name: t.name, description: t.description, inputSchema: t.inputSchema }, null, 2) + '\n')
+}
+await Bun.write(M + 'schemas/index.json',
+  JSON.stringify({ server: 'agentic-mermaid-mcp', tools: tools.map((t) => ({ name: t.name, schema: 'schemas/' + t.name + '.json' })) }, null, 2) + '\n')
 
 const cap = JSON.parse(capJson)
 const server = { command: 'npx', args: ['-y', '--package', 'agentic-mermaid', 'agentic-mermaid-mcp'], transport: 'stdio' }
@@ -87,9 +106,10 @@ const manifest = {
   description: 'Agent-native Mermaid runtime: parse, verify, mutate, and render diagrams through a typed surface. Deterministic SVG, PNG, ASCII, Unicode, and JSON.',
   outputFormats: cap.outputFormats,
   families: cap.families.map((f: any) => f.id),
-  tools: ['render', 'verify', 'describe', 'parse', 'serialize', 'mutate'],
+  mcpTools: tools.map((t) => t.name),                  // the MCP server's actual tools
+  narrowers: BUILTIN_FAMILY_METADATA.map((f) => f.narrower), // typed narrower per family
   mcp: server,
-  context: { llms: '/llms.txt', instructions: '/agent-instructions.md', capabilities: '/capabilities.json', harnesses: '/harnesses.json' },
+  context: { llms: '/llms.txt', instructions: '/agent-instructions.md', capabilities: '/capabilities.json', harnesses: '/harnesses.json', schemas: '/schemas/index.json' },
 }
 await Bun.write(M + 'agent-manifest.json', JSON.stringify(manifest, null, 2) + '\n')
 
@@ -107,4 +127,4 @@ const harnesses = {
 }
 await Bun.write(M + 'harnesses.json', JSON.stringify(harnesses, null, 2) + '\n')
 
-console.log(`\ndone — ${tiles.length} families, agent surfaces regenerated from the registry`)
+console.log(`\ndone — ${tiles.length} families, ${tools.length} tool schemas, agent surfaces regenerated`)

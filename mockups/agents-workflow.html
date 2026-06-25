@@ -40,15 +40,14 @@
   </ol>
 
   <h2>A run, end to end</h2>
-  <pre><code><span class="k">&gt;</span> describe: label the V&rarr;N edge "warnings", move N left of M
-<span class="ok">&#10003;</span> narrowed: edge V&rarr;N, node N
-<span class="ok">&#10003;</span> mutated: 1 edge labelled, 1 node moved
-verify:
-  tier 1 &#183; structural   0
-  tier 2 &#183; geometric    0
-  tier 3 &#183; lint         <span class="c">1  (edge label overlaps node M)</span>
-  legibility 0.97 &#183; edge crossings 0
-<span class="k">&rarr;</span> re-narrowed: nudged the label offset &middot; lint 0 &middot; shipped</code></pre>
+  <pre><code><span class="k">&gt;</span> describe: rename N to spell out "narrow, then move below mutate"
+<span class="ok">&#10003;</span> narrowed: node N
+<span class="ok">&#10003;</span> mutated: 1 node relabelled
+verify &rarr; { "ok": true, "warnings": [
+  { "code": "LABEL_OVERFLOW", "target": "N", "charCount": 60, "limit": 40 }   <span class="c">// tier: structural</span>
+] }
+<span class="k">&gt;</span> re-narrow: shorten N&rsquo;s label
+verify &rarr; { "ok": true, "warnings": [] }   <span class="ok">&#10003; shipped</span></code></pre>
   <p>Because layout is deterministic, the re-narrow moved only the label — every other node landed exactly where it was, so the agent never re-checks work it already trusted.</p>
 
   <h2>When to use it</h2>
