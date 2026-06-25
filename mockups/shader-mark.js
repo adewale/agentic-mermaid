@@ -16,8 +16,9 @@
   function el(name, attrs) { const e = document.createElementNS(NS, name); for (const k in attrs) e.setAttribute(k, attrs[k]); return e; }
 
   // CRAP-tuned: tines on a 3-column grid (14/24/34), center tine taller, dead-centre shaft;
-  // y-rows shifted +2.5 from the rank grid so the glyph's bounding box sits centred in the 48 box
-  const N = { L: [14, 9.5], M: [24, 6.5], R: [34, 9.5], Vl: [14, 24.5], Vm: [24, 24.5], Vr: [34, 24.5], H: [24, 40.5] };
+  // y-rows shifted +1.5 from the rank grid — optically centred (a touch above the geometric
+  // centre, so the heavy sink + shaft don't drag the glyph low)
+  const N = { L: [14, 8.5], M: [24, 5.5], R: [34, 8.5], Vl: [14, 23.5], Vm: [24, 23.5], Vr: [34, 23.5], H: [24, 39.5] };
 
   function graphSVG() {
     const svg = el('svg', { viewBox: '0 0 48 48', fill: 'none', 'aria-hidden': 'true' });
@@ -40,8 +41,8 @@
       vec3 aDeep = u_cDeep, aMid = u_cMid;
       vec3 col = mix(aDeep, aMid, smoothstep(0.0, 1.0, uv.y));
       vec2 P = vec2(uv.x, 1.0 - uv.y) * 48.0;
-      vec2 L=vec2(14.,9.5), M=vec2(24.,6.5), R=vec2(34.,9.5);
-      vec2 Vl=vec2(14.,24.5), Vm=vec2(24.,24.5), Vr=vec2(34.,24.5), H=vec2(24.,40.5);
+      vec2 L=vec2(14.,8.5), M=vec2(24.,5.5), R=vec2(34.,8.5);
+      vec2 Vl=vec2(14.,23.5), Vm=vec2(24.,23.5), Vr=vec2(34.,23.5), H=vec2(24.,39.5);
       float g = 1e9;
       g=min(g,length(P-L)-2.5); g=min(g,length(P-M)-2.5); g=min(g,length(P-R)-2.5); g=min(g,length(P-H)-3.3);
       g=min(g,sdSeg(P,L,Vl)-0.95); g=min(g,sdSeg(P,Vl,H)-0.95);
