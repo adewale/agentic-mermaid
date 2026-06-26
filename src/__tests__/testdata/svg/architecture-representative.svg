@@ -5,9 +5,9 @@
   svg {
     /* Derived from --bg and --fg (overridable via --line, --accent, etc.) */
     --_text:          #27272A;
-    --_text-sec:      #7d7d7f;
-    --_text-muted:    #a9a9aa;
-    --_text-faint:    #c9c9ca;
+    --_text-sec:      #575759;
+    --_text-muted:    #707072;
+    --_text-faint:    #8a8a8c;
     --_line:          #939395;
     --_arrow:         #47474a;
     --_node-fill:     #f9f9f9;
@@ -22,13 +22,13 @@
   .architecture-group-frame { fill: #fafafa; stroke: none; }
   .architecture-group-band { fill: #f6f6f6; stroke: none; }
   .architecture-group-outline { fill: none; stroke: #d4d4d4; stroke-width: 1; }
-  .architecture-group-label { fill: #7d7d7f; }
+  .architecture-group-label { fill: #575759; }
   .architecture-service-card { fill: #f9f9f9; stroke: none; }
   .architecture-service-outline { fill: none; stroke: #d4d4d4; stroke-width: 1; }
   .architecture-service-label { fill: #27272A; }
   .architecture-edge { fill: none; stroke: #939395; stroke-width: 1; stroke-linejoin: round; }
   .architecture-edge-label-bg { fill: #fefefe; stroke: #ececec; stroke-width: 0.75; }
-  .architecture-edge-label-text { fill: #a9a9aa; }
+  .architecture-edge-label-text { fill: #707072; }
   .architecture-junction-ring { fill: #FFFFFF; stroke: #47474a; stroke-width: 1.25; }
   .architecture-junction-core { fill: #d3d3d4; stroke: #47474a; stroke-width: 0.75; }
   .architecture-icon-mark { fill: none; stroke: #47474a; stroke-width: 1.25; stroke-linecap: round; stroke-linejoin: round; }

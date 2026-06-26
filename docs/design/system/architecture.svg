@@ -5,9 +5,9 @@
   svg {
     /* Derived from --bg and --fg (overridable via --line, --accent, etc.) */
     --_text:          #27272A;
-    --_text-sec:      #7d7d7f;
-    --_text-muted:    #a9a9aa;
-    --_text-faint:    #c9c9ca;
+    --_text-sec:      #575759;
+    --_text-muted:    #707072;
+    --_text-faint:    #8a8a8c;
     --_line:          #939395;
     --_arrow:         #47474a;
     --_node-fill:     #f9f9f9;
@@ -29,17 +29,17 @@
 <g class="subgraph" data-id="SVGSTACK" data-region="subgraph" data-label="SVG stack · renderMermaidSVG">
   <rect x="479.8599999999998" y="616.282" width="273.279" height="300.5" rx="0" ry="0" fill="#FFFFFF" stroke="#d4d4d4" stroke-width="1" />
   <path d="M479.8599999999998,616.282 H753.1389999999998 V644.282 H479.8599999999998 Z" fill="#f4f4f4" stroke="#d4d4d4" stroke-width="1" />
-  <text x="491.8599999999998" y="630.282" font-size="12" font-weight="600" fill="#7d7d7f" dy="4.199999999999999">SVG stack · renderMermaidSVG</text>
+  <text x="491.8599999999998" y="630.282" font-size="12" font-weight="600" fill="#575759" dy="4.199999999999999">SVG stack · renderMermaidSVG</text>
 </g>
 <g class="subgraph" data-id="ASCIISTACK" data-region="subgraph" data-label="ASCII stack · renderMermaidASCII">
   <rect x="781.1389999999998" y="640.2819999999999" width="288.09899999999993" height="283.6" rx="0" ry="0" fill="#FFFFFF" stroke="#d4d4d4" stroke-width="1" />
   <path d="M781.1389999999998,640.2819999999999 H1069.2379999999998 V668.2819999999999 H781.1389999999998 Z" fill="#f4f4f4" stroke="#d4d4d4" stroke-width="1" />
-  <text x="793.1389999999998" y="654.2819999999999" font-size="12" font-weight="600" fill="#7d7d7f" dy="4.199999999999999">ASCII stack · renderMermaidASCII</text>
+  <text x="793.1389999999998" y="654.2819999999999" font-size="12" font-weight="600" fill="#575759" dy="4.199999999999999">ASCII stack · renderMermaidASCII</text>
 </g>
 <g class="subgraph" data-id="AGENTSTACK" data-region="subgraph" data-label="Agent stack · parse / mutate / verify">
   <rect x="1097.2379999999998" y="616.282" width="244.37999999999997" height="198.70000000000002" rx="0" ry="0" fill="#FFFFFF" stroke="#d4d4d4" stroke-width="1" />
   <path d="M1097.2379999999998,616.282 H1341.6179999999997 V644.282 H1097.2379999999998 Z" fill="#f4f4f4" stroke="#d4d4d4" stroke-width="1" />
-  <text x="1109.2379999999998" y="630.282" font-size="12" font-weight="600" fill="#7d7d7f" dy="4.199999999999999">Agent stack · parse / mutate / verify</text>
+  <text x="1109.2379999999998" y="630.282" font-size="12" font-weight="600" fill="#575759" dy="4.199999999999999">Agent stack · parse / mutate / verify</text>
 </g>
 <polyline class="edge" data-from="SRC" data-to="NORM" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" points="925.1884999999996,76.9 925.1884999999997,124.9" fill="none" stroke="#939395" stroke-width="1" marker-end="url(#arrowhead)" />
 <polyline class="edge" data-from="NORM" data-to="DET" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" points="925.1884999999997,178.70000000000002 925.1884999999997,226.70000000000002" fill="none" stroke="#939395" stroke-width="1" marker-end="url(#arrowhead)" />
@@ -56,17 +56,17 @@
 <g class="edge-label" data-from="REG" data-to="L1" data-label="SVG hooks">
   <rect class="edge-label-halo" x="576.9994999999998" y="538.9820000000001" width="78.51599999999999" height="38.3" rx="4" ry="4" fill="#FFFFFF" stroke="none" />
   <rect x="580.9994999999998" y="542.9820000000001" width="70.51599999999999" height="30.3" rx="2" ry="2" fill="#FFFFFF" stroke="#e5e5e5" stroke-width="1" />
-  <text x="616.2574999999998" y="558.1320000000001" text-anchor="middle" font-size="11" font-weight="400" fill="#7d7d7f" dy="3.8499999999999996">SVG hooks</text>
+  <text x="616.2574999999998" y="558.1320000000001" text-anchor="middle" font-size="11" font-weight="400" fill="#575759" dy="3.8499999999999996">SVG hooks</text>
 </g>
 <g class="edge-label" data-from="REG" data-to="L2" data-label="ASCII / unicode hook">
   <rect class="edge-label-halo" x="864.1884999999997" y="562.982" width="121.878" height="38.3" rx="4" ry="4" fill="#FFFFFF" stroke="none" />
   <rect x="868.1884999999997" y="566.982" width="113.878" height="30.3" rx="2" ry="2" fill="#FFFFFF" stroke="#e5e5e5" stroke-width="1" />
-  <text x="925.1274999999997" y="582.132" text-anchor="middle" font-size="11" font-weight="400" fill="#7d7d7f" dy="3.8499999999999996">ASCII / unicode hook</text>
+  <text x="925.1274999999997" y="582.132" text-anchor="middle" font-size="11" font-weight="400" fill="#575759" dy="3.8499999999999996">ASCII / unicode hook</text>
 </g>
 <g class="edge-label" data-from="REG" data-to="VD" data-label="agent hooks">
   <rect class="edge-label-halo" x="1177.4279999999997" y="538.9820000000001" width="83.268" height="38.3" rx="4" ry="4" fill="#FFFFFF" stroke="none" />
   <rect x="1181.4279999999997" y="542.9820000000001" width="75.268" height="30.3" rx="2" ry="2" fill="#FFFFFF" stroke="#e5e5e5" stroke-width="1" />
-  <text x="1219.0619999999997" y="558.1320000000001" text-anchor="middle" font-size="11" font-weight="400" fill="#7d7d7f" dy="3.8499999999999996">agent hooks</text>
+  <text x="1219.0619999999997" y="558.1320000000001" text-anchor="middle" font-size="11" font-weight="400" fill="#575759" dy="3.8499999999999996">agent hooks</text>
 </g>
 <g class="node" data-id="SRC" data-label="Mermaid source text" data-shape="rectangle">
   <rect x="844.5629999999996" y="40" width="161.251" height="36.900000000000006" rx="0" ry="0" fill="#f9f9f9" stroke="#d4d4d4" stroke-width="0.75" />

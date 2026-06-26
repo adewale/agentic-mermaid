@@ -6,9 +6,9 @@
   svg {
     /* Derived from --bg and --fg (overridable via --line, --accent, etc.) */
     --_text:          #27272A;
-    --_text-sec:      #7d7d7f;
-    --_text-muted:    #a9a9aa;
-    --_text-faint:    #c9c9ca;
+    --_text-sec:      #575759;
+    --_text-muted:    #707072;
+    --_text-faint:    #8a8a8c;
     --_line:          #939395;
     --_arrow:         #47474a;
     --_node-fill:     #f9f9f9;
@@ -23,13 +23,13 @@
   .journey-title { fill: #27272A; }
   .journey-section-bg { fill: #fafafa; stroke: #d4d4d4; stroke-width: 1; }
   .journey-section-band { fill: #f0f0f1; stroke: #d4d4d4; stroke-width: 1; }
-  .journey-section-label { fill: #7d7d7f; }
+  .journey-section-label { fill: #575759; }
   .journey-task-card { fill: #f9f9f9; stroke: #d4d4d4; stroke-width: 1; }
   .journey-task-text { fill: #27272A; }
   .journey-score-cell-filled { fill: #47474a; stroke: #47474a; stroke-width: 1; }
   .journey-score-cell-empty { fill: #fcfcfc; stroke: #dcdcdc; stroke-width: 1; }
   .journey-actor-pill { fill: #f0f0f1; stroke: #d7d7d7; stroke-width: 1; }
-  .journey-actor-text { fill: #7d7d7f; }
+  .journey-actor-text { fill: #575759; }
 </style>
 <g class="journey-section" data-id="section-0" data-label="Discover">
   <rect class="journey-section-bg" x="32" y="75.4" width="256" height="156.8" rx="0" ry="0" />

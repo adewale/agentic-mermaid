@@ -4,9 +4,9 @@
   svg {
     /* Derived from --bg and --fg (overridable via --line, --accent, etc.) */
     --_text:          #27272A;
-    --_text-sec:      #7d7d7f;
-    --_text-muted:    #a9a9aa;
-    --_text-faint:    #c9c9ca;
+    --_text-sec:      #575759;
+    --_text-muted:    #707072;
+    --_text-faint:    #8a8a8c;
     --_line:          #939395;
     --_arrow:         #47474a;
     --_node-fill:     #f9f9f9;
@@ -21,10 +21,10 @@
   .quadrant-region { stroke: none; }
   .quadrant-divider { stroke: #939395; stroke-width: 1; }
   .quadrant-border { stroke: #d4d4d4; stroke-width: 2; }
-  .quadrant-label { fill: #7d7d7f; }
+  .quadrant-label { fill: #575759; }
   .quadrant-point { fill: #47474a; stroke: #FFFFFF; stroke-width: 1; }
   .quadrant-point-label { fill: #27272A; }
-  .quadrant-axis-label { fill: #a9a9aa; }
+  .quadrant-axis-label { fill: #707072; }
   .quadrant-title { fill: #27272A; }
 </style>
 <rect class="quadrant-region" x="52" y="60" width="190" height="190" fill="#f6f6f6" data-quadrant="2" />

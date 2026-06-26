@@ -7,7 +7,7 @@
     --_text:          #1f2937;
     --_text-sec:      #6b7280;
     --_text-muted:    #6b7280;
-    --_text-faint:    #101726;
+    --_text-faint:    #161e2c;
     --_line:          #f59e0b;
     --_arrow:         #38bdf8;
     --_node-fill:     #38bdf8;
