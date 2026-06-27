@@ -87,12 +87,14 @@ export const DEFAULTS: Readonly<{ bg: string; fg: string }> = {
 export const MIX = {
   /** Primary text: near-full fg */
   text:         100, // just use --fg directly
-  /** Secondary text (group headers): fg mixed at 60% */
-  textSec:      60,
-  /** Muted text (edge labels, notes): fg mixed at 40% */
-  textMuted:    40,
-  /** Faint text (de-emphasized): fg mixed at 25% */
-  textFaint:    25,
+  /** Secondary text (group headers): fg mixed at 78% — WCAG AA on text */
+  textSec:      78,
+  /** Muted text (edge labels, member types): fg mixed at 66% so diagram
+   *  text clears WCAG AA (4.5:1) on the default themes; ≥3:1 on low-contrast
+   *  palettes whose base fg/bg cannot mathematically support an AA muted tier. */
+  textMuted:    66,
+  /** Faint text (visibility markers, separators): fg mixed at 54% — ≥3:1 */
+  textFaint:    54,
   /** Edge/connector lines: fg mixed at 50% for clear visibility */
   line:         50,
   /** Arrow head fill: fg mixed at 85% for clear visibility */

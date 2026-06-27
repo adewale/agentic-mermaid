@@ -4,9 +4,9 @@
   svg {
     /* Derived from --bg and --fg (overridable via --line, --accent, etc.) */
     --_text:          #27272A;
-    --_text-sec:      #7d7d7f;
-    --_text-muted:    #a9a9aa;
-    --_text-faint:    #c9c9ca;
+    --_text-sec:      #575759;
+    --_text-muted:    #707072;
+    --_text-faint:    #8a8a8c;
     --_line:          #939395;
     --_arrow:         #47474a;
     --_node-fill:     #f9f9f9;
@@ -22,14 +22,14 @@
   .timeline-rail { stroke: #939395; stroke-width: 1.5; stroke-linecap: round; }
   .timeline-section-bg { fill: #fafafa; stroke: #d4d4d4; stroke-width: 1; }
   .timeline-section-band { fill: #f0f0f1; stroke: #d4d4d4; stroke-width: 1; }
-  .timeline-section-label { fill: #7d7d7f; }
+  .timeline-section-label { fill: #575759; }
   .timeline-stem { stroke: #7b7b7d; stroke-width: 1.125; stroke-dasharray: 3 4; }
   .timeline-marker-ring { fill: #FFFFFF; stroke: #47474a; stroke-width: 1.5; }
   .timeline-marker-core { fill: #47474a; }
   .timeline-period-pill { fill: #f2f2f2; stroke: #dadadb; stroke-width: 1; }
   .timeline-period-text { fill: #27272A; }
   .timeline-event-card { fill: #f9f9f9; stroke: #d4d4d4; stroke-width: 1; }
-  .timeline-event-text { fill: #a9a9aa; }
+  .timeline-event-text { fill: #707072; }
 </style>
 <title id="char-timeline-tl-1p1dpwc-title">Release Plan</title>
 <g class="timeline-section" data-id="section-0" data-label="Build" data-family="0" style="--tl-accent:#47474a;--tl-fill:#f9f9f9;--tl-label:#27272A;--tl-line:#939395;--tl-section-bg:#ffffff;--tl-section-band:#fefefe;--tl-pill-fill:#fefefe;--tl-pill-stroke:#b8b8b9;--tl-event-fill:#f9f9f9">

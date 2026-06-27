@@ -10,7 +10,7 @@
     --_text:          #521000;
     --_text-sec:      #85532E;
     --_text-muted:    #85532E;
-    --_text-faint:    #d4c0b8;
+    --_text-faint:    #a27c71;
     --_line:          #C9A88A;
     --_arrow:         #FF4801;
     --_node-fill:     #FFFDFB;

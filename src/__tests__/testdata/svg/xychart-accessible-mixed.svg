@@ -4,9 +4,9 @@
   svg {
     /* Derived from --bg and --fg (overridable via --line, --accent, etc.) */
     --_text:          #27272A;
-    --_text-sec:      #7b7b7e;
-    --_text-muted:    #a4a6a8;
-    --_text-faint:    #c4c5c8;
+    --_text-sec:      #555558;
+    --_text-muted:    #6e6f71;
+    --_text-faint:    #87888b;
     --_line:          #909193;
     --_arrow:         #46474a;
     --_node-fill:     #f2f4f6;
@@ -21,10 +21,10 @@
   .xychart-grid { stroke: #dbdcdf; stroke-width: 1; }
   .xychart-axis-line { fill: none; }
   .xychart-tick { fill: none; }
-  .xychart-x-axis-line { stroke: #7b7b7e; }
-  .xychart-y-axis-line { stroke: #7b7b7e; }
-  .xychart-x-tick { stroke: #7b7b7e; }
-  .xychart-y-tick { stroke: #7b7b7e; }
+  .xychart-x-axis-line { stroke: #555558; }
+  .xychart-y-axis-line { stroke: #555558; }
+  .xychart-x-tick { stroke: #555558; }
+  .xychart-y-tick { stroke: #555558; }
   .xychart-bar { stroke: none; }
   .xychart-line { fill: none; stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; }
   .xychart-dot { stroke: #f8fafc; stroke-width: 2; }

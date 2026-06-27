@@ -4,9 +4,9 @@
   svg {
     /* Derived from --bg and --fg (overridable via --line, --accent, etc.) */
     --_text:          #27272A;
-    --_text-sec:      #7d7d7f;
-    --_text-muted:    #a9a9aa;
-    --_text-faint:    #c9c9ca;
+    --_text-sec:      #575759;
+    --_text-muted:    #707072;
+    --_text-faint:    #8a8a8c;
     --_line:          #939395;
     --_arrow:         #47474a;
     --_node-fill:     #f9f9f9;
@@ -32,12 +32,12 @@
 <g class="edge-label" data-from="Check" data-to="Done" data-label="yes">
   <rect class="edge-label-halo" x="53.46650000000001" y="268.382" width="43.47" height="38.3" rx="4" ry="4" fill="#FFFFFF" stroke="none" />
   <rect x="57.46650000000001" y="272.382" width="35.47" height="30.3" rx="2" ry="2" fill="#FFFFFF" stroke="#e5e5e5" stroke-width="1" />
-  <text x="75.20150000000001" y="287.532" text-anchor="middle" font-size="11" font-weight="400" fill="#7d7d7f" dy="3.8499999999999996">yes</text>
+  <text x="75.20150000000001" y="287.532" text-anchor="middle" font-size="11" font-weight="400" fill="#575759" dy="3.8499999999999996">yes</text>
 </g>
 <g class="edge-label" data-from="Check" data-to="Retry" data-label="no">
   <rect class="edge-label-halo" x="160.9185" y="268.382" width="37.53" height="38.3" rx="4" ry="4" fill="#FFFFFF" stroke="none" />
   <rect x="164.9185" y="272.382" width="29.53" height="30.3" rx="2" ry="2" fill="#FFFFFF" stroke="#e5e5e5" stroke-width="1" />
-  <text x="179.6835" y="287.532" text-anchor="middle" font-size="11" font-weight="400" fill="#7d7d7f" dy="3.8499999999999996">no</text>
+  <text x="179.6835" y="287.532" text-anchor="middle" font-size="11" font-weight="400" fill="#575759" dy="3.8499999999999996">no</text>
 </g>
 <g class="node" data-id="Start" data-label="Start" data-shape="rectangle">
   <rect x="92.38850000000001" y="40" width="70.108" height="36.900000000000006" rx="0" ry="0" fill="#f9f9f9" stroke="#d4d4d4" stroke-width="0.75" />
