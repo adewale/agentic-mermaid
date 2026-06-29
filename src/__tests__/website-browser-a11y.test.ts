@@ -112,7 +112,7 @@ describe('website browser accessibility smoke', () => {
     const metrics = await page.evaluate(() => {
       const body = getComputedStyle(document.body)
       const doc = document.querySelector('.doc') as HTMLElement
-      const lead = document.querySelector('.home-main > .lead') as HTMLElement
+      const lead = document.querySelector('.home-main .page-header > .lead') as HTMLElement
       const code = document.querySelector('.agent-prompt code') as HTMLElement
       const h1 = document.querySelector('h1') as HTMLElement
       const unicode = document.querySelector('.unicode-diagram') as HTMLElement

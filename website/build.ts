@@ -226,8 +226,7 @@ function mastheadHtml(currentHref = '') {
   return `<header class="masthead"><div class="bar"><a class="brand" href="/"><span class="mark"></span> Agentic&nbsp;Mermaid</a><span class="links">${nav}</span></div><hr></header>`
 }
 
-function pageShell(title: string, lead: string, body: string, crumb = '', currentHref = '') {
-  const crumbHtml = crumb ? `<p class="crumb"><a href="/">Agentic Mermaid</a> / ${crumb}</p>` : ''
+function pageShell(title: string, lead: string, body: string, _crumb = '', currentHref = '') {
   return `<!doctype html>
 <html lang="en">
 <head>
@@ -245,9 +244,10 @@ ${agentDiscoveryLinks}
 <a class="skip-link" href="#main">Skip to content</a>
 ${mastheadHtml(currentHref)}
 <main id="main" class="doc">
-${crumbHtml}
+<section class="page-header">
 <h1>${escapeHtml(title)}</h1>
 <p class="lead">${escapeHtml(lead)}</p>
+</section>
 ${body}
 </main>
 <footer><div class="footlinks"><a href="/llms.txt">llms.txt</a><span class="sep">&middot;</span><a href="/agent-instructions.md">agent-instructions.md</a><span class="sep">&middot;</span><a href="/capabilities.json">capabilities.json</a><span class="sep">&middot;</span><a href="/agent-manifest.json">agent-manifest.json</a><span class="sep">&middot;</span><a href="https://github.com/adewale/beautiful-mermaid">GitHub</a></div></footer>

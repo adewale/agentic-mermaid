@@ -21,14 +21,38 @@
 
 <main class="doc home-main">
 
-  <h1>Diagrams your agents can edit</h1>
-  <p class="lead">Agentic Mermaid renders one Mermaid source as SVG, PNG, ASCII, Unicode, and JSON layout. For edits, agents work from the existing source: parse it, narrow to the family, mutate the requested node or edge, verify, and return Mermaid you can review instead of a redraw.</p>
+  <section class="page-header">
+    <h1><span class="line">Diagrams your</span> <span class="line">agents can edit</span></h1>
+    <p class="lead">Agentic Mermaid renders one Mermaid source as SVG, PNG, ASCII, Unicode, and JSON layout. For edits, agents parse the existing source, make the smallest typed change, verify it, and return Mermaid you can review.</p>
+    <div class="page-actions" data-copy-widget data-copy-name="Prompt">
+      <a class="primary-action" href="editor.html">Open editor</a>
+      <button class="secondary-action" type="button" data-copy-target="home-agent-prompt" data-copy-name="Prompt"><span>Copy agent prompt</span></button>
+      <a class="secondary-action" href="examples/">View examples</a>
+      <span class="copy-prompt-status" role="status" aria-live="polite"></span>
+    </div>
+  </section>
+
+  <section class="quick-start" aria-labelledby="quick-start-title">
+    <p class="section-kicker">Agent quick start</p>
+    <h2 id="quick-start-title">Parse, mutate, verify</h2>
+    <ol class="quick-steps">
+      <li><strong>Parse source.</strong> Start from Mermaid text, not a screenshot or regenerated guess.</li>
+      <li><strong>Narrow intent.</strong> Use the matching family surface such as <code>asFlowchart</code>, <code>asSequence</code>, or <code>asGantt</code>.</li>
+      <li><strong>Mutate deliberately.</strong> Change the requested node, edge, task, relation, or event while preserving unmodeled syntax.</li>
+      <li><strong>Verify before return.</strong> Read structural, geometric, and lint warnings before serializing or rendering artifacts.</li>
+    </ol>
+    <p class="agent-trace" aria-label="Expected agent trace"><span>parseMermaid</span><span>asFlowchart</span><span>mutate(add_edge)</span><span>verifyMermaid</span><span>serializeMermaid</span></p>
+  </section>
+
+
+  <h2 id="local-setup">Local setup</h2>
+  <p>Self-hosting over stdio is the default path. The website is documentation plus a browser-local editor; it is not a render API and it does not run hosted Code Mode.</p>
 
   <section class="agent-hero agent-hero-primary" aria-labelledby="agent-prompt-title">
     <div class="agent-hero-head">
-      <p class="agent-kicker meta-label">Start here</p>
-      <h2 id="agent-prompt-title">Copy the agent contract</h2>
-      <p>Give your coding agent the loop first. Use the prompt for one task, or copy the MCP config to wire the local stdio server into your harness.</p>
+      <p class="agent-kicker meta-label">Local handoff</p>
+      <h2 id="agent-prompt-title">Copy the exact contract</h2>
+      <p>Use the prompt for one task, or copy the MCP config to wire the local stdio server into your harness.</p>
     </div>
     <div class="copy-prompt-card copy-prompt-primary" data-copy-widget data-copy-name="Prompt">
       <div class="copy-prompt-bar">
@@ -77,11 +101,13 @@ parseMermaid → asFlowchart → mutate(add_edge) → verifyMermaid → serializ
       <p class="copy-prompt-hint">Run from the cloned repo root, or replace <code>bin/agentic-mermaid-mcp.ts</code> with an absolute path.</p>
       <p class="copy-prompt-status" id="home-mcp-copy-status" role="status" aria-live="polite"></p>
     </div>
-    <div class="agent-actions">
-      <a class="go" href="editor.html">Open editor</a>
-      <a class="go" href="harnesses.json">harnesses.json</a>
-    </div>
   </section>
+
+  <pre><code><span class="k">$</span> git clone https://github.com/adewale/beautiful-mermaid
+<span class="k">$</span> cd beautiful-mermaid && bun install && bun run build
+<span class="k">$</span> bun run bin/am.ts --help
+<span class="k">$</span> bun run bin/agentic-mermaid-mcp.ts      <span class="c"># stdio MCP</span></code></pre>
+  <p class="muted">Claude Code, Cursor, Codex, Gemini CLI, GitHub Copilot, Pi, OpenCode, and generic MCP clients all use the same local command. Client-specific setup is exposed in <a href="harnesses.json">harnesses.json</a>.</p>
 
   <nav class="agent-entrypoints" aria-label="Agent entrypoints">
     <strong>Machine context</strong>
@@ -97,24 +123,6 @@ parseMermaid → asFlowchart → mutate(add_edge) → verifyMermaid → serializ
     <a href="/skills/agentic-mermaid-diagram-workflow/">workflow skill</a>
   </nav>
 
-  <hr>
-
-  <h2>How the edit loop stays safe</h2>
-  <ol class="workflow-list">
-    <li><strong>Parse.</strong> Start from Mermaid source, not a screenshot or regenerated guess.</li>
-    <li><strong>Narrow.</strong> Resolve the request to a family-specific surface like <code>asFlowchart</code>, <code>asSequence</code>, or <code>asGantt</code>.</li>
-    <li><strong>Mutate.</strong> Change the intended node, edge, task, relation, or event while unmodeled syntax remains preserved source.</li>
-    <li><strong>Verify.</strong> Read structural, geometric, and lint tiers before serializing or returning artifacts.</li>
-  </ol>
-  <p class="agent-trace" aria-label="Expected agent trace"><span>parseMermaid</span><span>asFlowchart</span><span>mutate(add_edge)</span><span>verifyMermaid</span><span>serializeMermaid</span></p>
-
-  <h2 id="local-setup">Local setup</h2>
-  <p>Self-hosting over stdio is the default path. The website is documentation plus a browser-local editor; it is not a render API and it does not run hosted Code Mode.</p>
-  <pre><code><span class="k">$</span> git clone https://github.com/adewale/beautiful-mermaid
-<span class="k">$</span> cd beautiful-mermaid && bun install && bun run build
-<span class="k">$</span> bun run bin/am.ts --help
-<span class="k">$</span> bun run bin/agentic-mermaid-mcp.ts      <span class="c"># stdio MCP</span></code></pre>
-  <p class="muted">Claude Code, Cursor, Codex, Gemini CLI, GitHub Copilot, Pi, OpenCode, and generic MCP clients all use the same local command. Client-specific setup is exposed in <a href="harnesses.json">harnesses.json</a>.</p>
 
   <h2>One source, five outputs</h2>
   <p>Every family renders to vector, raster, and text from one layout, byte-identical across processes. Outputs: SVG, PNG, ASCII, Unicode, and JSON layout, across twelve diagram families.</p>

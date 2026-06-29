@@ -33,7 +33,6 @@
   main.tufte > p,
   main.tufte > h1,
   main.tufte > .lead,
-  main.tufte > .crumb,
   main.tufte > pre,
   main.tufte > blockquote,
   main.tufte > .endmark { width: 58%; box-sizing: border-box; }
@@ -82,7 +81,7 @@
 
   /* on a narrow screen the margin collapses: notes become indented blocks */
   @media (max-width: 760px) {
-    main.tufte > p, main.tufte > h1, main.tufte > .lead, main.tufte > .crumb,
+    main.tufte > p, main.tufte > h1, main.tufte > .lead,
     main.tufte > pre, main.tufte > blockquote, main.tufte > .endmark { width: 100%; }
     .sidenote, .marginnote, .marginfig {
       float: none; width: auto; margin: 10px 0 14px; padding-left: 14px;
@@ -111,7 +110,6 @@
 </header>
 
 <main class="tufte tmax">
-  <p class="crumb"><a href="#">Docs</a> / The edit loop / Verify</p>
   <h1>Reading a verify result</h1>
   <p class="lead">Every edit ends at <code>verify</code>. It answers in three tiers and a few computed metrics – read them, then ship, re-narrow, or stop.</p>
 
