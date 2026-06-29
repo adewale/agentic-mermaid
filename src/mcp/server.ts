@@ -11,6 +11,7 @@ import { SDK_DECLARATION } from './sdk-decl.ts'
 import { createArtifactStore, type ArtifactRecord, type ArtifactStore } from './artifacts.ts'
 import { renderMermaidPNG } from '../agent/png.ts'
 import { BUILTIN_FAMILY_METADATA } from '../agent/families.ts'
+import pkg from '../../package.json'
 
 export interface JsonRpcRequest { jsonrpc: '2.0'; id?: number | string | null; method: string; params?: unknown }
 export interface JsonRpcResponse { jsonrpc: '2.0'; id: number | string | null; result?: unknown; error?: { code: number; message: string; data?: unknown } }
@@ -40,7 +41,9 @@ export interface HttpMcpServer {
 }
 
 const SERVER_NAME = 'agentic-mermaid-mcp'
-const SERVER_VERSION = '0.4.0'
+// Derived from package.json so the MCP handshake version always matches the
+// published npm package and cannot drift.
+const SERVER_VERSION = pkg.version
 const PROTOCOL_VERSION = '2024-11-05'
 const MAX_RPC_BODY_BYTES = 1024 * 1024
 const MAX_SANDBOX_TIMEOUT_MS = 30_000

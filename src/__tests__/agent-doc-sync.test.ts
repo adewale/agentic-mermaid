@@ -733,5 +733,10 @@ describe('shipped distribution artifacts present', () => {
     for (const example of ['examples/agent-loop.ts', 'examples/mcp-vs-cli-complex-diagrams.ts', 'examples/agent-improve-auth-flow.ts']) expect(pkg.files).toContain(example)
     expect(existsSync(join(REPO, 'assets/fonts/DejaVuSans.ttf'))).toBe(true)
     expect(existsSync(join(REPO, 'assets/fonts/DejaVuSans-Bold.ttf'))).toBe(true)
+    // Tarball slimming: sourcemaps, shipped tests, and PR-evidence images are
+    // kept out of the npm tarball via files negation (keeps unpacked size ~10MB).
+    for (const exclude of ['!dist/**/*.map', '!src/**/__tests__/**', '!src/**/*.test.ts', '!docs/pr-assets/**']) expect(pkg.files).toContain(exclude)
+    // Redundant Bun source bins are not published; the bin map points at dist/*.js.
+    expect(pkg.files).not.toContain('bin/')
   })
 })
