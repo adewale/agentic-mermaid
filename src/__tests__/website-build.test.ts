@@ -247,8 +247,13 @@ describe('Workers Static Assets website contract', () => {
     expect(schema.properties.warningCodes.items.properties.tier.enum).toEqual(['structural', 'geometric', 'lint'])
     const examplesIndex = JSON.parse(read('examples/index.json'))
     expect(examplesIndex.examples.map((example: any) => example.id)).toEqual(editorExampleIds())
-    expect(read('examples/index.html')).toContain('id="styled-xychart"')
-    expect(read('examples/index.html')).toContain('Rendered during the website build from the same source the editor loads.')
+    const examplesHtml = read('examples/index.html')
+    expect(examplesHtml).toContain('id="styled-xychart"')
+    expect(examplesHtml).toContain('Rendered during the website build from the same source the editor loads.')
+    expect(examplesHtml).toContain('--accent:#1A7351')
+    expect(examplesHtml).toContain('This page renders them with one fixed review theme')
+    expect(examplesHtml).not.toContain('#f97316')
+    expect(examplesHtml).not.toContain('#3b82f6')
     for (const example of examplesIndex.examples) {
       const galleryId = example.galleryUrl.split('#')[1]
       const familyId = example.docs.split('#')[1]

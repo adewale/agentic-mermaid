@@ -292,8 +292,28 @@ const familyByDiagramType: Record<string, string> = {
 function familyForExample(example: any) {
   return familyByExampleId.get(example.id) ?? BUILTIN_FAMILY_METADATA.find((family) => family.id === familyByDiagramType[example.diagramType])
 }
+const WEBSITE_EXAMPLE_THEME = {
+  bg: '#FFFFFF',
+  fg: '#27272A',
+  accent: '#1A7351',
+  line: '#8B9791',
+  muted: '#5D6864',
+  surface: '#F8FAF8',
+  border: '#D3DDD7',
+  font: 'Avenir Next',
+}
 function renderExampleSvg(example: any) {
-  return renderMermaidSVG(example.source, { ...(example.options ?? {}), security: 'strict', compact: true, idPrefix: `example-${example.id}-` }).replace(/[ \t]+$/gm, '')
+  // The editor examples intentionally carry their own options. The public
+  // Examples page uses one review theme so cards can be compared side by side;
+  // chart palettes still derive from the single site accent above.
+  return renderMermaidSVG(example.source, {
+    ...WEBSITE_EXAMPLE_THEME,
+    interactive: Boolean(example.options?.interactive),
+    security: 'strict',
+    compact: true,
+    embedFontImport: false,
+    idPrefix: `example-${example.id}-`,
+  }).replace(/[ \t]+$/gm, '')
 }
 function examplesShowcaseHtml(editorExamples: any[]) {
   const groups = new Map<string, any[]>()
@@ -305,7 +325,7 @@ function examplesShowcaseHtml(editorExamples: any[]) {
   return '<div class="example-showcase">' + Array.from(groups, ([category, examples]) => `
 <section class="example-group" aria-labelledby="examples-${escapeAttr(category.toLowerCase().replace(/[^a-z0-9]+/g, '-'))}">
 <h2 id="examples-${escapeAttr(category.toLowerCase().replace(/[^a-z0-9]+/g, '-'))}">${escapeHtml(category)}</h2>
-<p class="muted">${category === 'Role style presets' ? 'These use the editor style role preset, so the same source shows how node, edge, text, and group roles affect supported families.' : 'These are the examples exposed by the editor picker for each supported diagram family.'}</p>
+<p class="muted">${category === 'Role style presets' ? 'These load role-style presets in the editor. This page renders them with one fixed review theme so the examples stay visually comparable.' : 'These are the examples exposed by the editor picker for each supported diagram family, rendered with one fixed review theme.'}</p>
 ${examples.map((example) => `
 <article class="example-sample" id="${escapeAttr(example.id)}">
   <header class="example-sample-head">
