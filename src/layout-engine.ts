@@ -43,6 +43,22 @@ import type { LabelMetricsStyle } from './route-contracts.ts'
 import { resolveEdgeInlineStyle, resolveNodeInlineStyle } from './color-resolver.ts'
 import { runPipeline } from './layout/pass.ts'
 import type { LayoutPass, PassContextBase } from './layout/pass.ts'
+import {
+  DEFAULTS,
+  flattenGroupBounds,
+  polylineLength,
+  pointAtPathDistance,
+  calculatePathMidpoint,
+  layoutFlow,
+  positionedNodeCenter,
+  nodeMainStart,
+  nodeCrossStart,
+  nodeCrossSize,
+  nodeMainSize,
+  nodeCrossCenter,
+  nodeMainCenter,
+  rectsOverlap,
+} from './layout/geometry.ts'
 
 type LayoutDebugEnv = {
   APL_DEBUG?: string
@@ -74,15 +90,6 @@ type ElkConversionOptions = Required<Pick<RenderOptions, 'font' | 'padding' | 'n
 // ============================================================================
 
 /** Default render options (layout-only) */
-const DEFAULTS = {
-  font: 'Inter',
-  padding: 40,
-  nodeSpacing: 28,
-  layerSpacing: 48,
-  mergeEdges: true,
-  thoroughness: 3,
-} as const
-
 /** Convert Mermaid direction to ELK direction */
 function directionToElk(dir: MermaidGraph['direction']): string {
   switch (dir) {
@@ -906,15 +913,6 @@ interface MarginInfo {
 }
 
 /** Recursively flatten all group bounding boxes (including nested children) */
-function flattenGroupBounds(groups: PositionedGroup[]): Array<{ x: number; y: number; right: number; bottom: number }> {
-  const bounds: Array<{ x: number; y: number; right: number; bottom: number }> = []
-  for (const g of groups) {
-    bounds.push({ x: g.x, y: g.y, right: g.x + g.width, bottom: g.y + g.height })
-    bounds.push(...flattenGroupBounds(g.children))
-  }
-  return bounds
-}
-
 /** The mutable bag the post-ELK geometry passes thread through (see ./layout/pass.ts). */
 export interface LayoutPassContext extends PassContextBase {
   readonly elkResult: ElkNode
@@ -1242,105 +1240,9 @@ interface EdgeSegment {
   labelPosition?: Point
 }
 
-function polylineLength(points: Point[]): number {
-  let totalLength = 0
-  for (let i = 1; i < points.length; i++) {
-    const dx = points[i]!.x - points[i - 1]!.x
-    const dy = points[i]!.y - points[i - 1]!.y
-    totalLength += Math.sqrt(dx * dx + dy * dy)
-  }
-  return totalLength
-}
-
-function pointAtPathDistance(points: Point[], distance: number): { point: Point; segmentIndex: number; pathDistance: number } {
-  if (points.length === 0) return { point: { x: 0, y: 0 }, segmentIndex: 0, pathDistance: 0 }
-  if (points.length === 1) return { point: points[0]!, segmentIndex: 0, pathDistance: 0 }
-
-  const target = Math.max(0, Math.min(polylineLength(points), distance))
-  let remaining = target
-  let walked = 0
-  for (let i = 1; i < points.length; i++) {
-    const dx = points[i]!.x - points[i - 1]!.x
-    const dy = points[i]!.y - points[i - 1]!.y
-    const segLen = Math.sqrt(dx * dx + dy * dy)
-    if (segLen === 0) continue
-    if (remaining <= segLen) {
-      const t = remaining / segLen
-      return {
-        point: {
-          x: points[i - 1]!.x + t * dx,
-          y: points[i - 1]!.y + t * dy,
-        },
-        segmentIndex: i,
-        pathDistance: walked + remaining,
-      }
-    }
-    remaining -= segLen
-    walked += segLen
-  }
-
-  return { point: points[points.length - 1]!, segmentIndex: points.length - 1, pathDistance: walked }
-}
-
-/**
- * Calculate the midpoint along a polyline path.
- * Walks the path to find the point at half the total length.
- */
-function calculatePathMidpoint(points: Point[]): Point {
-  return pointAtPathDistance(points, polylineLength(points) / 2).point
-}
-
 // ============================================================================
 // Symmetry floor post-processing
 // ============================================================================
-
-function layoutFlow(direction: Direction): {
-  isHorizontal: boolean
-  main: 'x' | 'y'
-  cross: 'x' | 'y'
-  sign: 1 | -1
-  sourceSide: 'N' | 'E' | 'S' | 'W'
-  targetSide: 'N' | 'E' | 'S' | 'W'
-} {
-  if (direction === 'LR') return { isHorizontal: true, main: 'x', cross: 'y', sign: 1, sourceSide: 'E', targetSide: 'W' }
-  if (direction === 'RL') return { isHorizontal: true, main: 'x', cross: 'y', sign: -1, sourceSide: 'W', targetSide: 'E' }
-  if (direction === 'BT') return { isHorizontal: false, main: 'y', cross: 'x', sign: -1, sourceSide: 'N', targetSide: 'S' }
-  return { isHorizontal: false, main: 'y', cross: 'x', sign: 1, sourceSide: 'S', targetSide: 'N' }
-}
-
-function positionedNodeCenter(node: PositionedNode): Point {
-  return { x: node.x + node.width / 2, y: node.y + node.height / 2 }
-}
-
-function nodeMainStart(node: PositionedNode, direction: Direction): number {
-  const f = layoutFlow(direction)
-  return node[f.main]
-}
-
-function nodeCrossStart(node: PositionedNode, direction: Direction): number {
-  const f = layoutFlow(direction)
-  return node[f.cross]
-}
-
-function nodeCrossSize(node: PositionedNode, direction: Direction): number {
-  return layoutFlow(direction).isHorizontal ? node.height : node.width
-}
-
-function nodeMainSize(node: PositionedNode, direction: Direction): number {
-  return layoutFlow(direction).isHorizontal ? node.width : node.height
-}
-
-function nodeCrossCenter(node: PositionedNode, direction: Direction): number {
-  return nodeCrossStart(node, direction) + nodeCrossSize(node, direction) / 2
-}
-
-function nodeMainCenter(node: PositionedNode, direction: Direction): number {
-  return nodeMainStart(node, direction) + nodeMainSize(node, direction) / 2
-}
-
-function rectsOverlap(a: { x: number; y: number; width: number; height: number }, b: { x: number; y: number; width: number; height: number }, pad = 0): boolean {
-  return a.x < b.x + b.width + pad && a.x + a.width + pad > b.x && a.y < b.y + b.height + pad && a.y + a.height + pad > b.y
-}
 
 function positionedEdgeForwardish(edge: PositionedEdge, nodeMap: Map<string, PositionedNode>, direction: Direction): boolean {
   if (edge.source === edge.target) return false
