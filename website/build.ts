@@ -360,8 +360,28 @@ ${examples.map((example) => `
 if (!CHECK) await rm(OUT, { recursive: true, force: true })
 
 // Core mockup-derived pages.
+// #9 — single source of truth for the parse->serialize loop, rendered at two
+// densities: the compact rail on the home page and the section headings in the
+// docs manual. Editing a label or summary here updates both, so they can't drift.
+const LOOP_STEPS = [
+  { label: 'Parse', short: 'Read the source into a typed model; unmodeled syntax round-trips as preserved source.' },
+  { label: 'Narrow', short: 'Resolve the one node or edge the edit touches via the matching family surface (<code>asFlowchart</code>, <code>asSequence</code>, …).' },
+  { label: 'Mutate', short: 'Change the requested node, edge, task, relation, or event while preserving unmodeled syntax.' },
+  { label: 'Verify', short: 'Read structural, geometric, and lint warnings before serializing or rendering artifacts.' },
+  { label: 'Serialize', short: 'Write the typed model back to Mermaid source, then render only when an artifact is needed.' },
+] as const
+function injectLoopRail(html: string) {
+  const items = LOOP_STEPS.map((s) => `      <li><strong>${s.label}.</strong> ${s.short}</li>`).join('\n')
+  return html.replace(/<ol class="quick-steps">[\s\S]*?<\/ol>/, `<ol class="quick-steps">\n${items}\n    </ol>`)
+}
+function injectLoopHeadings(html: string) {
+  return LOOP_STEPS.reduce((h, s, i) => h.replace(new RegExp(`<h2>${i + 1} &middot; [^<]*</h2>`), `<h2>${i + 1} &middot; ${s.label}</h2>`), html)
+}
 for (const [source, target] of pageOutputs) {
-  await emit(target, transformHtml(await readMock(source), topNavHrefForRoute(routeMap[source])))
+  let html = transformHtml(await readMock(source), topNavHrefForRoute(routeMap[source]))
+  if (source === 'home.html') html = injectLoopRail(html)
+  if (source === 'docs-article.html') html = injectLoopHeadings(html)
+  await emit(target, html)
 }
 await emit('editor/index.html', await generateEditorHtml())
 

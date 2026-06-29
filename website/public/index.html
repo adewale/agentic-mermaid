@@ -41,10 +41,11 @@
     <p class="section-kicker">Agent quick start</p>
     <h2 id="quick-start-title">Parse, mutate, verify</h2>
     <ol class="quick-steps">
-      <li><strong>Parse source.</strong> Start from Mermaid text, not a screenshot or regenerated guess.</li>
-      <li><strong>Narrow intent.</strong> Use the matching family surface such as <code>asFlowchart</code>, <code>asSequence</code>, or <code>asGantt</code>.</li>
-      <li><strong>Mutate deliberately.</strong> Change the requested node, edge, task, relation, or event while preserving unmodeled syntax.</li>
-      <li><strong>Verify before return.</strong> Read structural, geometric, and lint warnings before serializing or rendering artifacts.</li>
+      <li><strong>Parse.</strong> Read the source into a typed model; unmodeled syntax round-trips as preserved source.</li>
+      <li><strong>Narrow.</strong> Resolve the one node or edge the edit touches via the matching family surface (<code>asFlowchart</code>, <code>asSequence</code>, …).</li>
+      <li><strong>Mutate.</strong> Change the requested node, edge, task, relation, or event while preserving unmodeled syntax.</li>
+      <li><strong>Verify.</strong> Read structural, geometric, and lint warnings before serializing or rendering artifacts.</li>
+      <li><strong>Serialize.</strong> Write the typed model back to Mermaid source, then render only when an artifact is needed.</li>
     </ol>
     <p class="agent-trace" aria-label="Expected agent trace"><span>parseMermaid</span><span>asFlowchart</span><span>mutate(add_edge)</span><span>verifyMermaid</span><span>serializeMermaid</span></p>
   </section>
