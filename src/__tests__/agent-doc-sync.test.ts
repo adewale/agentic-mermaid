@@ -147,34 +147,53 @@ describe('agent-facing runnable docs', () => {
   })
 
   // Public-API library docs are import-based (not MCP Code Mode), so they cannot
-  // run in the sandbox above. Execute the getting-started snippets as real Bun
-  // modules against the in-repo source so the plain-library quickstart cannot
-  // drift from the actual API (e.g. a Result returned where a string is shown).
-  test('getting-started.md library snippets execute', () => {
-    const blocks = tsCodeBlocks(join(REPO, 'docs/getting-started.md'))
-    expect(blocks.length).toBeGreaterThan(0)
-    // The doc's "untrusted input" snippet uses a reader-supplied placeholder.
-    const PREAMBLE = "const userProvidedSource = 'flowchart TD\\n  A --> B'\n"
-    const dir = mkdtempSync(join(tmpdir(), 'gs-snippets-'))
+  // run in the sandbox above. Execute their standalone snippets as real Bun
+  // modules against the in-repo source. This catches snippets that FAIL TO RUN —
+  // renamed/missing exports, wrong call signatures, options that throw, runtime
+  // errors — i.e. API drift that breaks the documented code. It does NOT catch
+  // silent type/semantic mismatches that still execute (e.g. assigning a Result
+  // to a var the prose calls a string); those need human review. Skipped:
+  // continuation fragments (no import), module/handler fragments (top-level
+  // export/return), and React/JSX blocks.
+  test('public-API doc snippets execute', () => {
+    const AGENT = JSON.stringify(join(REPO, 'src/agent/index.ts'))
+    const CORE = JSON.stringify(join(REPO, 'src/index.ts'))
+    const docs = ['README.md', 'docs/getting-started.md', 'docs/api.md', 'docs/ascii.md', 'docs/config.md', 'docs/theming.md', 'docs/diagram-families.md']
+    // Reader-supplied placeholders the docs reference but expect you to provide.
+    const placeholders = (block: string): string => {
+      const declared = (id: string) => new RegExp(`(?:const|let|var)\\s+${id}\\b`).test(block) || new RegExp(`(?:const|let|var)\\s*\\{[^}]*\\b${id}\\b[^}]*\\}`).test(block)
+      const used = (id: string) => new RegExp(`\\b${id}\\b`).test(block) && !declared(id)
+      const defs: string[] = []
+      if (used('source')) defs.push("const source = 'flowchart TD\\n  API --> DB'")
+      if (used('diagram')) defs.push("const diagram = 'flowchart TD\\n  API --> DB'")
+      if (used('userProvidedSource')) defs.push("const userProvidedSource = 'flowchart TD\\n  A --> B'")
+      if (used('myTheme')) defs.push("const myTheme = { bg: '#ffffff', fg: '#111111' }")
+      if (used('ascii')) defs.push(`import { renderMermaidASCII as __ra } from ${AGENT}\nconst ascii = __ra('flowchart LR\\n  A --> B', { useAscii: true })`)
+      return defs.join('\n')
+    }
+    const dir = mkdtempSync(join(tmpdir(), 'doc-snippets-'))
     try {
       let ran = 0
-      for (const [i, block] of blocks.entries()) {
-        // Point the published specifiers at the in-repo source; running from a
-        // temp cwd keeps any written artifacts (diagram.svg/png) out of the repo.
-        const wired = block
-          .replaceAll("'agentic-mermaid/agent'", JSON.stringify(join(REPO, 'src/agent/index.ts')))
-          .replaceAll("'agentic-mermaid'", JSON.stringify(join(REPO, 'src/index.ts')))
-        const file = join(dir, `block-${i}.ts`)
-        writeFileSync(file, PREAMBLE + wired)
-        const r = spawnSync('bun', ['run', file], { cwd: dir, encoding: 'utf8' })
-        expect({ block: i, status: r.status, stderr: r.stderr }).toEqual({ block: i, status: 0, stderr: '' })
-        ran++
+      for (const doc of docs) {
+        for (const [i, block] of tsCodeBlocks(join(REPO, doc)).entries()) {
+          const runnable = /^\s*import\b/m.test(block) && !/^\s*(?:export|return)\b/m.test(block) && !/from ['"]react['"]/.test(block)
+          if (!runnable) continue
+          // Point published specifiers at in-repo source; a temp cwd keeps any
+          // written artifacts (diagram.svg/png) out of the repo.
+          const wired = block.replaceAll("'agentic-mermaid/agent'", AGENT).replaceAll("'agentic-mermaid'", CORE)
+          const file = join(dir, `${doc.replace(/[/.]/g, '_')}__${i}.ts`)
+          writeFileSync(file, placeholders(block) + '\n' + wired)
+          const r = spawnSync('bun', ['run', file], { cwd: dir, encoding: 'utf8' })
+          expect({ doc, block: i, status: r.status, stderr: r.stderr }).toEqual({ doc, block: i, status: 0, stderr: '' })
+          ran++
+        }
       }
-      expect(ran).toBeGreaterThan(0)
+      // Guard against the skip logic silently excluding everything (23 today).
+      expect(ran).toBeGreaterThanOrEqual(18)
     } finally {
       rmSync(dir, { recursive: true, force: true })
     }
-  }, 60_000)
+  }, 120_000)
 })
 
 describe('vocabulary doc-sync', () => {
@@ -650,6 +669,14 @@ describe('shipped distribution artifacts present', () => {
     expect(existsSync(join(REPO, 'docs/mcp-code-mode-rationale.md'))).toBe(true)
     expect(existsSync(join(REPO, 'docs/agent-workflow-examples.md'))).toBe(true)
   })
+
+  test('agent-loop example runs', async () => {
+    // Previously only existence-checked; execute it so parse/mutate/serialize
+    // drift can't ship green. It prints a human-readable trace, not JSON.
+    const r = await runBunExample(join(REPO, 'examples/agent-loop.ts'))
+    expect({ status: r.status, timedOut: r.timedOut, stderr: r.stderr }).toEqual({ status: 0, timedOut: false, stderr: '' })
+    expect(r.stdout).toContain('round-trips losslessly: true')
+  }, 90_000)
 
   test('MCP/CLI parity example runs', async () => {
     const r = await runBunExample(join(REPO, 'examples/mcp-vs-cli-complex-diagrams.ts'))

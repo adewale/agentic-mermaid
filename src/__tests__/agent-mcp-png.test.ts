@@ -1,9 +1,11 @@
 // Loop 9 M1 — MCP `render_png` tool. Decodes base64 and asserts PNG magic bytes.
 
 import { describe, test, expect } from 'bun:test'
+import { join } from 'node:path'
 import { handleRequest } from '../mcp/server.ts'
 
 const PNG_MAGIC = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]
+const REPO = join(import.meta.dir, '..', '..')
 
 describe('MCP — render_png tool', () => {
   test('happy path returns base64 PNG', async () => {
@@ -76,4 +78,34 @@ describe('MCP — render_png tool', () => {
       expect(payload.ok).toBe(true)
     }
   })
+
+  // Regression: a real client session that runs Code Mode `execute` (a node:vm
+  // sandbox) and then `render_png` must not crash the server. On Bun, loading
+  // the native resvg addon for the first time after a vm context has run panics
+  // the process; runStdio warms the renderer at startup to prevent it. This runs
+  // the actual shipped stdio bin out-of-process so a crash would surface as a
+  // non-zero exit / missing response rather than killing the test runner.
+  test('stdio server survives execute then render_png in one session', async () => {
+    const proc = Bun.spawn(['bun', 'run', join(REPO, 'bin/agentic-mermaid-mcp.ts')], {
+      cwd: REPO, stdin: 'pipe', stdout: 'pipe', stderr: 'pipe',
+    })
+    const requests = [
+      { jsonrpc: '2.0', id: 1, method: 'initialize', params: {} },
+      { jsonrpc: '2.0', id: 2, method: 'tools/call', params: { name: 'execute', arguments: { code: 'return 1' } } },
+      { jsonrpc: '2.0', id: 3, method: 'tools/call', params: { name: 'render_png', arguments: { source: 'flowchart TD\n  A --> B', output: 'base64' } } },
+    ]
+    proc.stdin.write(requests.map(r => JSON.stringify(r)).join('\n') + '\n')
+    await proc.stdin.end()
+    const stdout = await new Response(proc.stdout).text()
+    const exit = await proc.exited
+    // Without the warm-up the process dies with SIGILL (exit 132) after the vm
+    // run, so the render_png response never arrives.
+    expect(exit).toBe(0)
+    const responses = stdout.split('\n').filter(Boolean).map(line => JSON.parse(line) as { id: number; result?: { content: Array<{ text: string }> } })
+    const pngResponse = responses.find(r => r.id === 3)
+    expect(pngResponse).toBeDefined()
+    const payload = JSON.parse(pngResponse!.result!.content[0]!.text) as { ok: boolean; png_base64?: string }
+    expect(payload.ok).toBe(true)
+    expect(Buffer.from(payload.png_base64!, 'base64').length).toBeGreaterThan(100)
+  }, 30_000)
 })
