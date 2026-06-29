@@ -5,7 +5,7 @@
 // ./passes/* can import these helpers WITHOUT importing layout-engine.ts — which
 // is what keeps the dependency one-directional (layout-engine -> passes -> geometry)
 // and free of import cycles.
-import type { Direction, Point, PositionedGroup, PositionedNode } from '../types.ts'
+import type { Direction, MermaidSubgraph, Point, PositionedGroup, PositionedNode } from '../types.ts'
 
 export const DEFAULTS = {
   font: 'Inter',
@@ -119,4 +119,37 @@ export function nodeMainCenter(node: PositionedNode, direction: Direction): numb
 
 export function rectsOverlap(a: { x: number; y: number; width: number; height: number }, b: { x: number; y: number; width: number; height: number }, pad = 0): boolean {
   return a.x < b.x + b.width + pad && a.x + a.width + pad > b.x && a.y < b.y + b.height + pad && a.y + a.height + pad > b.y
+}
+
+/** Margin routing info for cross-hierarchy edges */
+export interface MarginInfo {
+  leftX: number
+  rightX: number
+}
+
+/** Find a subgraph by ID in a nested structure */
+export function findSubgraph(subgraphs: MermaidSubgraph[], id: string): MermaidSubgraph | undefined {
+  for (const sg of subgraphs) {
+    if (sg.id === id) return sg
+    const found = findSubgraph(sg.children, id)
+    if (found) return found
+  }
+  return undefined
+}
+
+type LayoutDebugEnv = {
+  APL_DEBUG?: string
+  APL_NO_CENTER?: string
+  APL_NO_FACET?: string
+  APL_NO_SVERTEX?: string
+}
+
+export function layoutEnvFlag(name: keyof LayoutDebugEnv): boolean {
+  const env = (globalThis as typeof globalThis & { process?: { env?: LayoutDebugEnv } }).process?.env
+  const value = env?.[name]
+  return value === '1' || value === 'true'
+}
+
+export function layoutDebug(...args: unknown[]): void {
+  if (layoutEnvFlag('APL_DEBUG')) console.error(...args)
 }
