@@ -226,7 +226,20 @@ function mastheadHtml(currentHref = '') {
   return `<header class="masthead"><div class="bar"><a class="brand" href="/"><span class="mark"></span> Agentic&nbsp;Mermaid</a><span class="links">${nav}</span></div><hr></header>`
 }
 
-function pageShell(title: string, lead: string, body: string, _crumb = '', currentHref = '') {
+function crumbHtml(crumb: string) {
+  if (!crumb) return ''
+  const sectionHref: Record<string, string> = { Docs: '/docs/', Warnings: '/warnings/', Errors: '/errors/' }
+  const sep = '<span class="crumb-sep" aria-hidden="true">/</span>'
+  const tail = crumb.split(' / ').map((p, i, a) => {
+    const href = i < a.length - 1 ? sectionHref[p] : undefined
+    return href ? `<a href="${href}">${escapeHtml(p)}</a>` : `<span>${escapeHtml(p)}</span>`
+  }).join(sep)
+  return `<nav class="crumb" aria-label="Breadcrumb"><a href="/">Home</a>${sep}${tail}</nav>\n`
+}
+
+// Single page header contract: optional breadcrumb, then h1 + lead, then
+// optional meta row (e.g. "Updated · source · read time") and actions row.
+function pageShell(title: string, lead: string, body: string, crumb = '', currentHref = '', meta = '', actions = '') {
   return `<!doctype html>
 <html lang="en">
 <head>
@@ -245,9 +258,9 @@ ${agentDiscoveryLinks}
 ${mastheadHtml(currentHref)}
 <main id="main" class="doc">
 <section class="page-header">
-<h1>${escapeHtml(title)}</h1>
+${crumbHtml(crumb)}<h1>${escapeHtml(title)}</h1>
 <p class="lead">${escapeHtml(lead)}</p>
-</section>
+${meta ? `<p class="page-meta">${meta}</p>\n` : ''}${actions ? `<div class="page-actions">${actions}</div>\n` : ''}</section>
 ${body}
 </main>
 <footer><div class="footlinks"><a href="/llms.txt">llms.txt</a><span class="sep">&middot;</span><a href="/agent-instructions.md">agent-instructions.md</a><span class="sep">&middot;</span><a href="/capabilities.json">capabilities.json</a><span class="sep">&middot;</span><a href="/agent-manifest.json">agent-manifest.json</a><span class="sep">&middot;</span><a href="https://github.com/adewale/beautiful-mermaid">GitHub</a></div></footer>
@@ -587,7 +600,7 @@ const docPages = [
   ['examples/index.html', 'Examples', 'Every example the editor can load, rendered from the same source list.', examplesShowcaseHtml(EDITOR_EXAMPLES), '/examples/'],
   ['skills/index.html', 'Skills', 'Public consumer skill catalog.', '<p>The public skill is <a href="/skills/agentic-mermaid-diagram-workflow/">agentic-mermaid-diagram-workflow</a>. Capabilities.json is authoritative for renderer support.</p>'],
 ]
-for (const [rel, title, lead, body, currentHref] of docPages) await emit(rel, pageShell(title, lead, body, title, currentHref || (rel.startsWith('docs/') ? '/docs/' : '')))
+for (const [rel, title, lead, body, currentHref] of docPages) await emit(rel, pageShell(title, lead, body, rel.startsWith('docs/') ? `Docs / ${title}` : title, currentHref || (rel.startsWith('docs/') ? '/docs/' : '')))
 
 await emit('warnings/index.html', pageShell('Warnings', 'Warning codes are tiered so agents know whether to fix, retry, or ask.', `<table class="warning-table"><thead><tr><th>Code</th><th>Tier</th><th>Severity</th></tr></thead><tbody>${capabilities.warningCodes.map((w: any) => `<tr><td data-label="Code"><a href="/warnings/${w.code}/"><code>${w.code}</code></a></td><td data-label="Tier">${w.tier}</td><td data-label="Severity">${w.severity}</td></tr>`).join('')}</tbody></table>`, 'Warnings'))
 for (const w of capabilities.warningCodes) {
