@@ -20,19 +20,27 @@ import { describe, test, expect } from 'bun:test'
 import fc from 'fast-check'
 import { parseMermaid, layoutMermaid, renderMermaidSVG } from '../agent/index.ts'
 import { layoutGraphSync } from '../layout-engine.ts'
-import { parseMermaid as parseGraph } from '../parser.ts'
 import { auditRouteContracts } from '../route-contracts.ts'
+import { auditRenderedRoutes } from '../agent/rendered-route-audit.ts'
+import { stateBodyToGraph } from '../agent/state-body.ts'
 import { BUILTIN_FAMILY_METADATA } from '../agent/families.ts'
 import { METAMORPHIC_FAMILIES } from './helpers/metamorphic-families.ts'
-import type { RenderedLayout } from '../agent/types.ts'
+import type { RenderedLayout, ValidDiagram } from '../agent/types.ts'
+import type { MermaidGraph } from '../types.ts'
 
 const SEED = 0x5eed1234
 const tagArb = fc.integer({ min: 0, max: 1_000_000 }).map(n => `q${n.toString(36)}`)
 
-// Families routed through the ELK + route-contract pipeline (parser.ts →
-// layoutGraphSync), so auditRouteContracts is meaningful and a MermaidGraph is
-// available. Other families lay out through family-specific adapters.
-const ROUTE_AUDITED = new Set<string>(['flowchart'])
+// The graph families flow through the ELK route-contract pipeline, so a
+// MermaidGraph is available and the FULL auditRouteContracts applies: flowchart
+// directly, state via its graph conversion (stateBodyToGraph). Every OTHER
+// family is route-audited at the rendered level (auditRenderedRoutes) instead —
+// so the label-on-shared-trunk class can no longer hide in any family.
+function graphFor(d: ValidDiagram): MermaidGraph | null {
+  if (d.body.kind === 'flowchart') return d.body.graph
+  if (d.body.kind === 'state') return stateBodyToGraph(d.body)
+  return null
+}
 
 function assertFiniteGeometry(layout: RenderedLayout): void {
   expect(Number.isFinite(layout.bounds.w) && Number.isFinite(layout.bounds.h)).toBe(true)
@@ -73,8 +81,7 @@ describe('universal fuzz: every renderable family (strong output oracles)', () =
       return s
     })
 
-    const audited = ROUTE_AUDITED.has(fam.family)
-    test(`${fam.family}: fuzzed diagrams are finite, well-formed, deterministic${audited ? ', route-clean' : ''}`, () => {
+    test(`${fam.family}: fuzzed diagrams are finite, well-formed, deterministic, route-clean`, () => {
       fc.assert(
         fc.property(srcArb, src => {
           const p = parseMermaid(src)
@@ -85,10 +92,12 @@ describe('universal fuzz: every renderable family (strong output oracles)', () =
           // geometry determinism — byte-identical re-layout (stronger than MR1's metric equality)
           expect(JSON.stringify(layoutMermaid(p.value))).toBe(JSON.stringify(layout))
           assertWellFormedSvg(renderMermaidSVG(src))
-          if (audited) {
-            const g = parseGraph(src)
-            expect(auditRouteContracts(layoutGraphSync(g), g)).toEqual([])
-          }
+          // route audit, rendered level — EVERY family (the universal
+          // label-on-shared-trunk invariant)
+          expect(auditRenderedRoutes(layout)).toEqual([])
+          // full ELK route-contract audit for the graph families
+          const graph = graphFor(p.value)
+          if (graph) expect(auditRouteContracts(layoutGraphSync(graph), graph)).toEqual([])
         }),
         { numRuns: 40, seed: SEED },
       )
