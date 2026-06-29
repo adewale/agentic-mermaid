@@ -59,6 +59,7 @@ import {
   nodeMainCenter,
   rectsOverlap,
   findSubgraph,
+  layoutEnvFlag,
 } from './layout/geometry.ts'
 import type { MarginInfo } from './layout/geometry.ts'
 import {
@@ -478,7 +479,7 @@ function mermaidToElk(
       sources: [routePortHints.byEndpoint.get(endpointKey(index, 'source'))?.portId ?? edge.source],
       targets: [routePortHints.byEndpoint.get(endpointKey(index, 'target'))?.portId ?? edge.target],
     }
-    if (edge.label) {
+    if (edge.label && !layoutEnvFlag('APL_DECOUPLE_LABELS')) {
       const metrics = measureMultilineText(edge.label, style.edgeLabelFontSize, style.edgeLabelFontWeight)
       elkEdge.labels = [{
         text: edge.label,
@@ -634,7 +635,7 @@ function crossHierarchyElkEdge(info: CrossHierarchyEdgeInfo, style: ResolvedRend
     sources: sourceSubgraph && sourceSubgraph !== hostSubgraph ? [`${sourceSubgraph}_out_${index}`] : [edge.source],
     targets: targetSubgraph && targetSubgraph !== hostSubgraph ? [`${targetSubgraph}_in_${index}`] : [edge.target],
   }
-  if (edge.label) {
+  if (edge.label && !layoutEnvFlag('APL_DECOUPLE_LABELS')) {
     const metrics = measureMultilineText(edge.label, style.edgeLabelFontSize, style.edgeLabelFontWeight)
     elkEdge.labels = [{
       text: edge.label,
@@ -734,7 +735,7 @@ function subgraphToElk(
       sources: [routePortHints.byEndpoint.get(endpointKey(index, 'source'))?.portId ?? edge.source],
       targets: [routePortHints.byEndpoint.get(endpointKey(index, 'target'))?.portId ?? edge.target],
     }
-    if (edge.label) {
+    if (edge.label && !layoutEnvFlag('APL_DECOUPLE_LABELS')) {
       const metrics = measureMultilineText(edge.label, style.edgeLabelFontSize, style.edgeLabelFontWeight)
       elkEdge.labels = [{
         text: edge.label,

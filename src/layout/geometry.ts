@@ -142,6 +142,12 @@ type LayoutDebugEnv = {
   APL_NO_CENTER?: string
   APL_NO_FACET?: string
   APL_NO_SVERTEX?: string
+  // Label-decoupling (opt-in, validated): when set, edge labels are NOT handed
+  // to ELK, so a label cannot displace its target node off the edge's port lane
+  // (the sym A->B mid-port fix). Default is off — ELK still reserves a label
+  // cell — until the bent-duplicate-label route-contract regression is resolved.
+  // See the layout-engine label-injection sites and the decoupling write-up.
+  APL_DECOUPLE_LABELS?: string
 }
 
 export function layoutEnvFlag(name: keyof LayoutDebugEnv): boolean {
