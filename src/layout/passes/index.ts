@@ -87,6 +87,11 @@ export function translateGeometryToNonNegativeOrigin(
     if (edge.labelPosition) { edge.labelPosition.x += dx; edge.labelPosition.y += dy }
   }
 }
+
+/**
+ * Edge segment extracted from ELK result.
+ * Used to combine external and internal segments of hierarchical edges.
+ */
 interface EdgeSegment {
   edgeIndex: number
   isInternal: boolean  // true for port-to-node segments (e.g., "e3_internal")
@@ -1376,6 +1381,29 @@ export function applySymmetricParallelEdgeLanes(
     }
   }
 }
+
+/**
+ * Parallel-lane contract for duplicate same-direction edges (a multigraph:
+ * `A --> B` written two or more times). ELK + the port allocator fan the
+ * endpoints across a node side, but only a few pixels apart, and the
+ * per-edge bends stack at the same column — a cramped near-overlapping
+ * double line. The graph-drawing convention (yFiles ParallelEdgeRouter; OGDF's
+ * Kandinsky "center straight, neighbours offset" model) is to route the group
+ * as EVENLY-SEPARATED parallel orthogonal lanes. We do exactly that here:
+ *
+ *  - spread both endpoints across distinct, evenly-spaced slots on the shared
+ *    flow sides (separation clamped to fit the shorter side, so endpoints stay
+ *    on the outline — verified with the same `onShapeOutline` oracle the tests
+ *    use), and
+ *  - when the nodes are offset on the cross axis, give each edge its own jog
+ *    column (staggered by the lane separation) so the vertical segments run
+ *    parallel instead of overlapping.
+ *
+ * Scoped to the rare duplicate-pair case: only UNLABELED, forward, side-to-side
+ * pairs between PORT_EXACT shapes outside any group. Labeled parallel pairs are
+ * owned by `applySymmetricParallelEdgeLanes` (they need outer lanes for their
+ * labels); everything else is left to the certifying route contracts.
+ */
 export function applyParallelDuplicateLanes(
   nodes: PositionedNode[],
   edges: PositionedEdge[],
@@ -1545,6 +1573,15 @@ export function applyParallelDuplicateLanes(
   for (const bucket of fwdByTarget.values()) distribute(bucket, false)
   for (const bucket of backByTarget.values()) distribute(bucket, true)
 }
+
+/**
+ * Recursively extract edges from ELK result including those inside subgraphs.
+ * Edges are distributed to subgraphs for direction override to work,
+ * so we need to collect them from all levels with proper coordinate offsets.
+ *
+ * For hierarchical edges (cross-hierarchy with ports), combines external and
+ * internal segments into a single continuous edge path.
+ */
 export function extractEdgesRecursively(
   elkNode: ElkNode,
   graph: MermaidGraph,
@@ -1636,6 +1673,23 @@ export function extractEdgesRecursively(
     })
   }
 }
+
+/**
+ * Post-process edge points to ensure all segments are purely orthogonal.
+ *
+ * When ELK uses SEPARATE hierarchy handling (required for subgraph direction
+ * overrides), cross-hierarchy edges may only get start/end coordinates without
+ * intermediate bend points, producing diagonal lines.
+ *
+ * When margins are provided, routes diagonal segments through the left or right
+ * margin of the diagram (outside all subgraphs). Alternates sides and adds
+ * spacing offsets to prevent overlapping parallel edges.
+ *
+ * Without margins, falls back to Z-path through the vertical midpoint.
+ *
+ * Returns the original array reference (identity) if no changes were needed,
+ * so callers can detect whether routing was applied.
+ */
 export function orthogonalizeEdgePoints(
   points: Point[],
   margins?: MarginInfo,
@@ -1686,6 +1740,10 @@ export function orthogonalizeEdgePoints(
 
   return result
 }
+
+/**
+ * Recursively collect edge segments from ELK result.
+ */
 function collectEdgeSegments(
   elkNode: ElkNode,
   segments: Map<number, { external?: EdgeSegment; incoming?: EdgeSegment; outgoing?: EdgeSegment }>,
@@ -1764,6 +1822,28 @@ function collectEdgeSegments(
     }
   }
 }
+
+/**
+ * Port-lane alignment, the placement repair for "straight but off-port":
+ * a 2-point flow-axis edge whose endpoints' midpoint ports sit on different
+ * cross lanes is floating through the overlap sliver of two side spans —
+ * ELK's BALANCED node placement averages competing pulls and aligns such a
+ * node with neither neighbor. Sliding ONE endpoint node by the lane
+ * difference makes the edge midpoint-to-midpoint: port-exact AND straight,
+ * the combination no routing-side repair can reach (port-aware coordinate
+ * assignment in the Brandes–Köpf tradition, Rüegg et al. GD'15).
+ *
+ * Every move is proof-gated, mirroring alignLayerNodes' occlusion doctrine:
+ * - only rect-like endpoints (their flow-side boundary is flat, so the
+ *   edge's main-axis anchors survive a cross slide);
+ * - the slid node's OTHER edges must be bent with a perpendicular segment
+ *   to absorb the shift (their terminal run translates); a second straight
+ *   edge or a group membership vetoes the move;
+ * - the new bbox must keep clear of nodes, foreign edge corridors, and
+ *   label pills.
+ * The target node is tried first (often alone in its layer, the freest),
+ * then the source.
+ */
 export function alignPortLanes(
   nodes: PositionedNode[],
   edges: PositionedEdge[],
@@ -2358,6 +2438,24 @@ export function alignPortLanes(
     }
   }
 }
+
+/**
+ * ELK's orthogonal edge routing staggers nodes within the same layer to create
+ * space for edge bends. This post-processing step groups nodes into layers and
+ * snaps them to the same flow-axis coordinate (Y for TD/TB, X for LR/RL).
+ *
+ * Grouping uses proximity along the flow axis: within a layer, ELK's stagger
+ * is always less than layerSpacing (bounded by edge routing channels), while
+ * adjacent layers are separated by at least layerSpacing + nodeHeight.
+ * A threshold of 0.75 * layerSpacing cleanly separates these cases.
+ *
+ * Directly connected nodes (sharing an edge) are never merged into the same
+ * layer group as an additional safety check.
+ *
+ * Edge endpoints connected to shifted nodes are adjusted proportionally.
+ * Intermediate bend points are left unchanged — edge bundling or clipping
+ * will recalculate them afterwards.
+ */
 export function alignLayerNodes(
   nodes: PositionedNode[],
   edges: PositionedEdge[],
@@ -2512,6 +2610,10 @@ export function alignLayerNodes(
     }
   }
 }
+
+/**
+ * Find all groups (outermost first) that geometrically contain the given point.
+ */
 function findGroupsContainingPoint(
   x: number, y: number,
   groups: PositionedGroup[]
@@ -2525,6 +2627,12 @@ function findGroupsContainingPoint(
   }
   return result
 }
+
+/**
+ * Bundle contract (docs/design/system/route-contracts.md): a rebuilt trunk/branch
+ * path may not pass through any node other than the edge's own endpoints.
+ * The half-pixel tolerance lets a path graze a border without counting.
+ */
 function bundlePathClear(
   points: Point[],
   nodes: PositionedNode[],
@@ -2544,6 +2652,11 @@ function bundlePathClear(
   }
   return true
 }
+
+/**
+ * If `junction` falls inside a group that doesn't contain the reference node,
+ * move it just outside the outermost such group boundary.
+ */
 function adjustJunctionForGroups(
   junctionMain: number,  // the junction coordinate along the flow axis (Y for TD, X for LR)
   refX: number,          // reference node center X (for finding its groups)
@@ -2575,6 +2688,23 @@ function adjustJunctionForGroups(
   if (isBT) return crossingGroup.y + crossingGroup.height + GAP
   return crossingGroup.y - GAP // TD
 }
+
+/**
+ * Bundle fan-out and fan-in edge paths so they share a common trunk segment.
+ *
+ * For fan-out (one source → N targets), all edges exit the source at the same
+ * point, travel along a shared trunk, then branch to their individual targets.
+ * The overlapping trunk segments render as a single visible line.
+ *
+ * Junction points are placed outside subgraph boundaries so branches split
+ * before entering a group, not inside it.
+ *
+ * Constraints: edges in a bundle must share the same style and have no labels.
+ * Self-loops and backward edges (against the graph direction) are excluded.
+ *
+ * Returns the set of edges whose paths the bundler owns, so the route-contract
+ * pass never straightens a trunk-shared path.
+ */
 export function bundleEdgePaths(
   edges: PositionedEdge[],
   nodes: PositionedNode[],
