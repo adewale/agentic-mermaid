@@ -5,6 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Agentic Mermaid</title>
 <link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="icon" href="favicon.ico" type="image/x-icon">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="stylesheet" href="styles.css">
 </head>
 <body>
@@ -12,7 +14,7 @@
 <header class="masthead">
   <div class="bar">
     <a class="brand" href="home.html"><span class="mark"></span> Agentic&nbsp;Mermaid</a>
-    <span class="links"><a href="gallery.html">Gallery</a><a href="families.html">Families</a><a href="docs-article.html">Docs</a><a class="link-editor" href="editor.html">Open editor</a><a class="link-external" href="https://github.com/adewale/beautiful-mermaid" aria-label="GitHub repository (external)">GitHub</a></span>
+    <span class="links"><a href="examples/">Examples</a><a href="gallery.html">Gallery</a><a href="families.html">Families</a><a href="docs-article.html">Docs</a><a class="link-editor" href="editor.html">Open editor</a></span>
   </div>
   <hr>
 </header>
@@ -20,7 +22,7 @@
 <main class="doc home-main">
 
   <h1>Diagrams your agents can edit</h1>
-  <p class="lead">Agentic Mermaid turns Mermaid diagrams into files your docs, pull requests, and terminals can use: SVG and PNG for pages, ASCII and Unicode for text surfaces. It also gives coding agents a safe editing path for existing diagrams, so they can parse the source, change the intended node or edge, verify the result, and hand back Mermaid you can review instead of redrawing the whole diagram from scratch.</p>
+  <p class="lead">Agentic Mermaid renders one Mermaid source as SVG, PNG, ASCII, Unicode, and JSON layout. For edits, agents work from the existing source: parse it, narrow to the family, mutate the requested node or edge, verify, and return Mermaid you can review instead of a redraw.</p>
 
   <section class="agent-hero agent-hero-primary" aria-labelledby="agent-prompt-title">
     <div class="agent-hero-head">
@@ -114,7 +116,7 @@ parseMermaid → asFlowchart → mutate(add_edge) → verifyMermaid → serializ
 <span class="k">$</span> bun run bin/agentic-mermaid-mcp.ts      <span class="c"># stdio MCP</span></code></pre>
   <p class="muted">Claude Code, Cursor, Codex, Gemini CLI, GitHub Copilot, Pi, OpenCode, and generic MCP clients all use the same local command. Client-specific setup is exposed in <a href="harnesses.json">harnesses.json</a>.</p>
 
-  <h2>One model, five outputs</h2>
+  <h2>One source, five outputs</h2>
   <p>Every family renders to vector, raster, and text from one layout, byte-identical across processes. Outputs: SVG, PNG, ASCII, Unicode, and JSON layout, across twelve diagram families.</p>
 
   <figure>

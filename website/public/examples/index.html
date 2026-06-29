@@ -3,9 +3,11 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="description" content="Canonical examples for each supported family.">
+<meta name="description" content="Every example the editor can load, rendered from the same source list.">
 <title>Examples – Agentic Mermaid</title>
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="/favicon.ico" type="image/x-icon">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
 <link rel="stylesheet" href="/styles.css">
 <link rel="alternate" type="text/plain" href="/llms.txt">
 <link rel="alternate" type="application/json" href="/agent-manifest.json">
@@ -13,12 +15,1012 @@
 </head>
 <body>
 <a class="skip-link" href="#main">Skip to content</a>
-<header class="masthead"><div class="bar"><a class="brand" href="/"><span class="mark"></span> Agentic&nbsp;Mermaid</a><span class="links"><a href="/gallery/">Gallery</a><a href="/families/">Families</a><a href="/docs/">Docs</a><a class="link-editor" href="/editor/">Open editor</a><a class="link-external" href="https://github.com/adewale/beautiful-mermaid" aria-label="GitHub repository (external)">GitHub</a></span></div><hr></header>
+<header class="masthead"><div class="bar"><a class="brand" href="/"><span class="mark"></span> Agentic&nbsp;Mermaid</a><span class="links"><a aria-current="page" href="/examples/">Examples</a><a href="/gallery/">Gallery</a><a href="/families/">Families</a><a href="/docs/">Docs</a><a class="link-editor" href="/editor/">Open editor</a></span></div><hr></header>
 <main id="main" class="doc">
 <p class="crumb"><a href="/">Agentic Mermaid</a> / Examples</p>
 <h1>Examples</h1>
-<p class="lead">Canonical examples for each supported family.</p>
-<ul><li><a href="/editor/?example=flowchart-basic">Flowchart</a> – Decision flow with labeled branches.</li><li><a href="/editor/?example=state-basic">State</a> – Lifecycle using Mermaid stateDiagram-v2 syntax.</li><li><a href="/editor/?example=sequence-basic">Sequence</a> – Request/response messages between participants.</li><li><a href="/editor/?example=timeline-basic">Timeline</a> – Chronological milestones with sections.</li><li><a href="/editor/?example=class-basic">Class</a> – Classes with members and relationships.</li><li><a href="/editor/?example=er-basic">ER</a> – Entities, attributes, keys, and cardinality markers.</li><li><a href="/editor/?example=journey-basic">Journey</a> – Scored user tasks grouped by section.</li><li><a href="/editor/?example=architecture-basic">Architecture</a> – Services, groups, icons, and routed connections.</li><li><a href="/editor/?example=xychart-basic">XY chart</a> – Bar and line series using xychart syntax.</li><li><a href="/editor/?example=pie-basic">Pie</a> – Proportional slices with values shown in the legend.</li><li><a href="/editor/?example=quadrant-basic">Quadrant</a> – Two-axis priority map with labeled regions and points.</li><li><a href="/editor/?example=gantt-basic">Gantt</a> – Sections, dependencies, status tags, and a milestone.</li></ul>
+<p class="lead">Every example the editor can load, rendered from the same source list.</p>
+<div class="example-showcase">
+<section class="example-group" aria-labelledby="examples-supported-diagrams">
+<h2 id="examples-supported-diagrams">Supported diagrams</h2>
+<p class="muted">These are the examples exposed by the editor picker for each supported diagram family.</p>
+
+<article class="example-sample" id="flowchart-basic">
+  <header class="example-sample-head">
+    <div>
+      <p class="example-meta">Flowchart</p>
+      <h3>Flowchart</h3>
+      <p>Decision flow with labeled branches.</p>
+    </div>
+    <a class="go" href="/editor/?example=flowchart-basic">Open in editor</a>
+  </header>
+  <div class="example-sample-grid">
+    <section class="example-source" aria-label="Flowchart Mermaid source"><pre><code>flowchart TD
+  A[Start] --&gt; B{Decision?}
+  B --&gt;|Yes| C[Do the thing]
+  B --&gt;|No| D[Skip it]
+  C --&gt; E[End]
+  D --&gt; E</code></pre></section>
+    <figure class="example-render"><div class="example-svg"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 326.96 528.23" width="326.96" height="528.23" style="--bg:#FFFFFF;--fg:#27272A;--font:Inter;background:#FFFFFF"><style>
+  text { font-family: var(--font, 'Inter'), system-ui, sans-serif; }
+  svg {
+
+    --_text:          #27272A;
+    --_text-sec:      #575759;
+    --_text-muted:    #707072;
+    --_text-faint:    #8a8a8c;
+    --_line:          #939395;
+    --_arrow:         #47474a;
+    --_node-fill:     #f9f9f9;
+    --_node-stroke:   #d4d4d4;
+    --_group-fill:    #FFFFFF;
+    --_group-hdr:     #f4f4f4;
+    --_inner-stroke:  #e5e5e5;
+    --_key-badge:     #e9e9ea;
+  }
+</style><defs><marker id="example-flowchart-basic-arrowhead" markerWidth="8" markerHeight="5" refX="7" refY="2.5" orient="auto"><polygon points="0 0, 8 2.5, 0 5" fill="#47474a" stroke="#47474a" stroke-width="0.75" stroke-linejoin="round" /></marker><marker id="example-flowchart-basic-arrowhead-start" markerWidth="8" markerHeight="5" refX="7" refY="2.5" orient="auto-start-reverse"><polygon points="0 0, 8 2.5, 0 5" fill="#47474a" stroke="#47474a" stroke-width="0.75" stroke-linejoin="round" /></marker></defs><polyline class="edge" data-from="A" data-to="B" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" points="154.674,76.9 154.674,124.9" fill="none" stroke="#939395" stroke-width="1" marker-end="url(#example-flowchart-basic-arrowhead)" /><polyline class="edge" data-from="B" data-to="C" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" data-label="Yes" points="123.367,218.823 123.367,230.823 94.32,230.823 94.32,366.43" fill="none" stroke="#939395" stroke-width="1" marker-end="url(#example-flowchart-basic-arrowhead)" /><polyline class="edge" data-from="B" data-to="D" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" data-label="No" points="185.982,218.823 185.982,230.823 226.96,230.823 226.96,366.43" fill="none" stroke="#939395" stroke-width="1" marker-end="url(#example-flowchart-basic-arrowhead)" /><polyline class="edge" data-from="C" data-to="E" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" points="94.32,403.33 94.32,427.33 160.64,427.33 160.64,451.33" fill="none" stroke="#939395" stroke-width="1" marker-end="url(#example-flowchart-basic-arrowhead)" /><polyline class="edge" data-from="D" data-to="E" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" points="226.96,403.33 226.96,427.33 160.64,427.33 160.64,451.33" fill="none" stroke="#939395" stroke-width="1" marker-end="url(#example-flowchart-basic-arrowhead)" /><g class="edge-label" data-from="B" data-to="C" data-label="Yes"><rect class="edge-label-halo" x="71.991" y="279.476" width="44.658" height="38.3" rx="4" ry="4" fill="#FFFFFF" stroke="none" /><rect x="75.991" y="283.476" width="36.658" height="30.3" rx="2" ry="2" fill="#FFFFFF" stroke="#e5e5e5" stroke-width="1" /><text x="94.32" y="298.626" text-anchor="middle" font-size="11" font-weight="400" fill="#575759" dy="3.85">Yes</text></g><g class="edge-label" data-from="B" data-to="D" data-label="No"><rect class="edge-label-halo" x="207.601" y="279.476" width="38.718" height="38.3" rx="4" ry="4" fill="#FFFFFF" stroke="none" /><rect x="211.601" y="283.476" width="30.718" height="30.3" rx="2" ry="2" fill="#FFFFFF" stroke="#e5e5e5" stroke-width="1" /><text x="226.96" y="298.626" text-anchor="middle" font-size="11" font-weight="400" fill="#575759" dy="3.85">No</text></g><g class="node" data-id="A" data-label="Start" data-shape="rectangle"><rect x="119.62" y="40" width="70.108" height="36.9" rx="0" ry="0" fill="#f9f9f9" stroke="#d4d4d4" stroke-width="0.75" /><text x="154.674" y="58.45" text-anchor="middle" font-size="13" font-weight="500" fill="#27272A" dy="4.55">Start</text></g><g class="node" data-id="B" data-label="Decision?" data-shape="diamond"><polygon points="154.674,124.9 217.289,187.515 154.674,250.13 92.059,187.515" fill="#f9f9f9" stroke="#d4d4d4" stroke-width="0.75" /><text x="154.674" y="187.515" text-anchor="middle" font-size="13" font-weight="500" fill="#27272A" dy="4.55">Decision?</text></g><g class="node" data-id="C" data-label="Do the thing" data-shape="rectangle"><rect x="40" y="366.43" width="108.64" height="36.9" rx="0" ry="0" fill="#f9f9f9" stroke="#d4d4d4" stroke-width="0.75" /><text x="94.32" y="384.88" text-anchor="middle" font-size="13" font-weight="500" fill="#27272A" dy="4.55">Do the thing</text></g><g class="node" data-id="D" data-label="Skip it" data-shape="rectangle"><rect x="172.64" y="366.43" width="108.64" height="36.9" rx="0" ry="0" fill="#f9f9f9" stroke="#d4d4d4" stroke-width="0.75" /><text x="226.96" y="384.88" text-anchor="middle" font-size="13" font-weight="500" fill="#27272A" dy="4.55">Skip it</text></g><g class="node" data-id="E" data-label="End" data-shape="rectangle"><rect x="127.809" y="451.33" width="65.662" height="36.9" rx="0" ry="0" fill="#f9f9f9" stroke="#d4d4d4" stroke-width="0.75" /><text x="160.64" y="469.78" text-anchor="middle" font-size="13" font-weight="500" fill="#27272A" dy="4.55">End</text></g></svg></div><figcaption>Rendered during the website build from the same source the editor loads.</figcaption></figure>
+  </div>
+</article>
+<article class="example-sample" id="state-basic">
+  <header class="example-sample-head">
+    <div>
+      <p class="example-meta">State</p>
+      <h3>State diagram</h3>
+      <p>Lifecycle using Mermaid stateDiagram-v2 syntax.</p>
+    </div>
+    <a class="go" href="/editor/?example=state-basic">Open in editor</a>
+  </header>
+  <div class="example-sample-grid">
+    <section class="example-source" aria-label="State diagram Mermaid source"><pre><code>stateDiagram-v2
+  [*] --&gt; Idle
+  Idle --&gt; Processing: start
+  Processing --&gt; Complete: done
+  Processing --&gt; Failed: error
+  Failed --&gt; Idle: retry
+  Complete --&gt; [*]</code></pre></section>
+    <figure class="example-render"><div class="example-svg"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 368.358 575.3" width="368.358" height="575.3" style="--bg:#FFFFFF;--fg:#27272A;--font:Inter;background:#FFFFFF"><style>
+  text { font-family: var(--font, 'Inter'), system-ui, sans-serif; }
+  svg {
+
+    --_text:          #27272A;
+    --_text-sec:      #575759;
+    --_text-muted:    #707072;
+    --_text-faint:    #8a8a8c;
+    --_line:          #939395;
+    --_arrow:         #47474a;
+    --_node-fill:     #f9f9f9;
+    --_node-stroke:   #d4d4d4;
+    --_group-fill:    #FFFFFF;
+    --_group-hdr:     #f4f4f4;
+    --_inner-stroke:  #e5e5e5;
+    --_key-badge:     #e9e9ea;
+  }
+</style><defs><marker id="example-state-basic-arrowhead" markerWidth="8" markerHeight="5" refX="7" refY="2.5" orient="auto"><polygon points="0 0, 8 2.5, 0 5" fill="#47474a" stroke="#47474a" stroke-width="0.75" stroke-linejoin="round" /></marker><marker id="example-state-basic-arrowhead-start" markerWidth="8" markerHeight="5" refX="7" refY="2.5" orient="auto-start-reverse"><polygon points="0 0, 8 2.5, 0 5" fill="#47474a" stroke="#47474a" stroke-width="0.75" stroke-linejoin="round" /></marker></defs><polyline class="edge" data-from="_start" data-to="Idle" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" points="145.227,68 145.227,116" fill="none" stroke="#939395" stroke-width="1" marker-end="url(#example-state-basic-arrowhead)" /><polyline class="edge" data-from="Idle" data-to="Processing" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" data-label="start" points="145.227,152.9 145.227,269.2" fill="none" stroke="#939395" stroke-width="1" marker-end="url(#example-state-basic-arrowhead)" /><polyline class="edge" data-from="Processing" data-to="Complete" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" data-label="done" points="126.626,306.1 126.626,422.4" fill="none" stroke="#939395" stroke-width="1" marker-end="url(#example-state-basic-arrowhead)" /><polyline class="edge" data-from="Processing" data-to="Failed" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" data-label="error" points="182.165,306.1 182.165,422.4" fill="none" stroke="#939395" stroke-width="1" marker-end="url(#example-state-basic-arrowhead)" /><polyline class="edge" data-from="Failed" data-to="Idle" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" data-label="retry" points="242.302,440.85 268.653,440.85 268.653,134.45 176.575,134.45" fill="none" stroke="#939395" stroke-width="1" marker-end="url(#example-state-basic-arrowhead)" /><polyline class="edge" data-from="Complete" data-to="_end" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" points="87.651,459.3 87.651,507.3" fill="none" stroke="#939395" stroke-width="1" marker-end="url(#example-state-basic-arrowhead)" /><g class="edge-label" data-from="Idle" data-to="Processing" data-label="start"><rect class="edge-label-halo" x="121.226" y="191.9" width="47.034" height="38.3" rx="4" ry="4" fill="#FFFFFF" stroke="none" /><rect x="125.226" y="195.9" width="39.034" height="30.3" rx="2" ry="2" fill="#FFFFFF" stroke="#e5e5e5" stroke-width="1" /><text x="144.743" y="211.05" text-anchor="middle" font-size="11" font-weight="400" fill="#575759" dy="3.85">start</text></g><g class="edge-label" data-from="Processing" data-to="Complete" data-label="done"><rect class="edge-label-halo" x="101.921" y="345.1" width="49.41" height="38.3" rx="4" ry="4" fill="#FFFFFF" stroke="none" /><rect x="105.921" y="349.1" width="41.41" height="30.3" rx="2" ry="2" fill="#FFFFFF" stroke="#e5e5e5" stroke-width="1" /><text x="126.626" y="364.25" text-anchor="middle" font-size="11" font-weight="400" fill="#575759" dy="3.85">done</text></g><g class="edge-label" data-from="Processing" data-to="Failed" data-label="error"><rect class="edge-label-halo" x="156.272" y="345.1" width="51.786" height="38.3" rx="4" ry="4" fill="#FFFFFF" stroke="none" /><rect x="160.272" y="349.1" width="43.786" height="30.3" rx="2" ry="2" fill="#FFFFFF" stroke="#e5e5e5" stroke-width="1" /><text x="182.165" y="364.25" text-anchor="middle" font-size="11" font-weight="400" fill="#575759" dy="3.85">error</text></g><g class="edge-label" data-from="Failed" data-to="Idle" data-label="retry"><rect class="edge-label-halo" x="243.653" y="345.1" width="49.41" height="38.3" rx="4" ry="4" fill="#FFFFFF" stroke="none" /><rect x="247.653" y="349.1" width="41.41" height="30.3" rx="2" ry="2" fill="#FFFFFF" stroke="#e5e5e5" stroke-width="1" /><text x="268.358" y="364.25" text-anchor="middle" font-size="11" font-weight="400" fill="#575759" dy="3.85">retry</text></g><g class="node" data-id="_start" data-label="" data-shape="state-start"><circle cx="145.227" cy="54" r="12" fill="#27272A" stroke="none" /></g><g class="node" data-id="Idle" data-label="Idle" data-shape="rounded"><rect x="113.878" y="116" width="62.698" height="36.9" rx="6" ry="6" fill="#f9f9f9" stroke="#d4d4d4" stroke-width="0.75" /><text x="145.227" y="134.45" text-anchor="middle" font-size="13" font-weight="500" fill="#27272A" dy="4.55">Idle</text></g><g class="node" data-id="Processing" data-label="Processing" data-shape="rounded"><rect x="89.425" y="269.2" width="111.604" height="36.9" rx="6" ry="6" fill="#f9f9f9" stroke="#d4d4d4" stroke-width="0.75" /><text x="145.227" y="287.65" text-anchor="middle" font-size="13" font-weight="500" fill="#27272A" dy="4.55">Processing</text></g><g class="node" data-id="Complete" data-label="Complete" data-shape="rounded"><rect x="40" y="422.4" width="95.302" height="36.9" rx="6" ry="6" fill="#f9f9f9" stroke="#d4d4d4" stroke-width="0.75" /><text x="87.651" y="440.85" text-anchor="middle" font-size="13" font-weight="500" fill="#27272A" dy="4.55">Complete</text></g><g class="node" data-id="Failed" data-label="Failed" data-shape="rounded"><rect x="163.302" y="422.4" width="79" height="36.9" rx="6" ry="6" fill="#f9f9f9" stroke="#d4d4d4" stroke-width="0.75" /><text x="202.802" y="440.85" text-anchor="middle" font-size="13" font-weight="500" fill="#27272A" dy="4.55">Failed</text></g><g class="node" data-id="_end" data-label="" data-shape="state-end"><circle cx="87.651" cy="521.3" r="12" fill="none" stroke="#27272A" stroke-width="1.5" /><circle cx="87.651" cy="521.3" r="8" fill="#27272A" stroke="none" /></g></svg></div><figcaption>Rendered during the website build from the same source the editor loads.</figcaption></figure>
+  </div>
+</article>
+<article class="example-sample" id="architecture-basic">
+  <header class="example-sample-head">
+    <div>
+      <p class="example-meta">Architecture</p>
+      <h3>Architecture</h3>
+      <p>Services, groups, icons, and routed connections.</p>
+    </div>
+    <a class="go" href="/editor/?example=architecture-basic">Open in editor</a>
+  </header>
+  <div class="example-sample-grid">
+    <section class="example-source" aria-label="Architecture Mermaid source"><pre><code>architecture-beta
+  group app(cloud)[Application]
+  group data(database)[Data]
+  service web(server)[Web App] in app
+  service api(server)[API] in app
+  service db(database)[Postgres] in data
+  web:R --&gt; L:api
+  api:R --&gt; L:db</code></pre></section>
+    <figure class="example-render"><div class="example-svg"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 646.604 188" width="646.604" height="188" style="--bg:#FFFFFF;--fg:#27272A;--font:Inter;background:#FFFFFF"><style>
+  text { font-family: var(--font, 'Inter'), system-ui, sans-serif; }
+  svg {
+
+    --_text:          #27272A;
+    --_text-sec:      #575759;
+    --_text-muted:    #707072;
+    --_text-faint:    #8a8a8c;
+    --_line:          #939395;
+    --_arrow:         #47474a;
+    --_node-fill:     #f9f9f9;
+    --_node-stroke:   #d4d4d4;
+    --_group-fill:    #FFFFFF;
+    --_group-hdr:     #f4f4f4;
+    --_inner-stroke:  #e5e5e5;
+    --_key-badge:     #e9e9ea;
+  }
+</style><style>
+  .architecture-group-frame { fill: #fafafa; stroke: none; }
+  .architecture-group-band { fill: #f6f6f6; stroke: none; }
+  .architecture-group-outline { fill: none; stroke: #d4d4d4; stroke-width: 1; }
+  .architecture-group-label { fill: #575759; }
+  .architecture-service-card { fill: #f9f9f9; stroke: none; }
+  .architecture-service-outline { fill: none; stroke: #d4d4d4; stroke-width: 1; }
+  .architecture-service-label { fill: #27272A; }
+  .architecture-edge { fill: none; stroke: #939395; stroke-width: 1; stroke-linejoin: round; }
+  .architecture-edge-label-bg { fill: #fefefe; stroke: #ececec; stroke-width: 0.75; }
+  .architecture-edge-label-text { fill: #707072; }
+  .architecture-junction-ring { fill: #FFFFFF; stroke: #47474a; stroke-width: 1.25; }
+  .architecture-junction-core { fill: #d3d3d4; stroke: #47474a; stroke-width: 0.75; }
+  .architecture-icon-mark { fill: none; stroke: #47474a; stroke-width: 1.25; stroke-linecap: round; stroke-linejoin: round; }
+  .architecture-icon-glyph { fill: #47474a; }
+</style><defs><marker id="example-architecture-basic-architecture-arrow-end" markerWidth="8" markerHeight="5" refX="7" refY="2.5" orient="auto"><polygon points="0 0, 8 2.5, 0 5" fill="#47474a" stroke="#47474a" stroke-width="0.75" stroke-linejoin="round" /></marker><marker id="example-architecture-basic-architecture-arrow-start" markerWidth="8" markerHeight="5" refX="1" refY="2.5" orient="auto-start-reverse"><polygon points="8 0, 0 2.5, 8 5" fill="#47474a" stroke="#47474a" stroke-width="0.75" stroke-linejoin="round" /></marker></defs><g class="architecture-group" data-id="app" data-label="Application"><rect class="architecture-group-frame" x="40" y="40" width="335.82" height="108" rx="0" ry="0" /><path class="architecture-group-band" d="M40,40 H375.82 V68 H40 Z" /><rect class="architecture-group-outline" x="40" y="40" width="335.82" height="108" rx="0" ry="0" /><g class="architecture-icon" data-icon="cloud"><circle class="architecture-icon-mark" cx="55.35" cy="54.294" r="2.355" /><circle class="architecture-icon-mark" cx="58.294" cy="52.822" r="2.944" /><circle class="architecture-icon-mark" cx="60.944" cy="54.294" r="2.208" /><path class="architecture-icon-mark" d="M 52.995 56.355 H 62.858" /></g><text x="76" y="54" class="architecture-group-label" text-anchor="start" font-size="12" font-weight="600" dy="4.2">Application</text></g><g class="architecture-group" data-id="data" data-label="Data"><rect class="architecture-group-frame" x="443.82" y="40" width="162.784" height="108" rx="0" ry="0" /><path class="architecture-group-band" d="M443.82,40 H606.604 V68 H443.82 Z" /><rect class="architecture-group-outline" x="443.82" y="40" width="162.784" height="108" rx="0" ry="0" /><g class="architecture-icon" data-icon="database"><ellipse class="architecture-icon-mark" cx="461.82" cy="51.645" rx="3.533" ry="1.472" /><path class="architecture-icon-mark" d="M 458.287 51.645 V 56.944" /><path class="architecture-icon-mark" d="M 465.353 51.645 V 56.944" /><ellipse class="architecture-icon-mark" cx="461.82" cy="54.294" rx="3.533" ry="1.472" /><ellipse class="architecture-icon-mark" cx="461.82" cy="56.944" rx="3.533" ry="1.472" /></g><text x="479.82" y="54" class="architecture-group-label" text-anchor="start" font-size="12" font-weight="600" dy="4.2">Data</text></g><polyline class="architecture-edge" data-from="web" data-to="api" data-from-side="R" data-to-side="L" data-from-boundary="item" data-to-boundary="item" points="183.82,108 239.82,108" marker-end="url(#example-architecture-basic-architecture-arrow-end)" /><polyline class="architecture-edge" data-from="api" data-to="db" data-from-side="R" data-to-side="L" data-from-boundary="item" data-to-boundary="item" points="359.82,108 459.82,108" marker-end="url(#example-architecture-basic-architecture-arrow-end)" /><g class="architecture-service" data-id="web" data-label="Web App"><rect class="architecture-service-card" x="56" y="84" width="127.82" height="48" rx="0" ry="0" /><rect class="architecture-service-outline" x="56" y="84" width="127.82" height="48" rx="0" ry="0" /><g class="architecture-icon" data-icon="server"><rect class="architecture-icon-mark" x="81.04" y="103.68" width="7.92" height="8.64" rx="0" ry="0" /><path class="architecture-icon-mark" d="M 82.12 106.56 H 87.88" /><path class="architecture-icon-mark" d="M 82.12 109.08 H 87.88" /></g><text x="108" y="108" class="architecture-service-label" text-anchor="start" font-size="13" font-weight="500" dy="4.55">Web App</text></g><g class="architecture-service" data-id="api" data-label="API"><rect class="architecture-service-card" x="239.82" y="84" width="120" height="48" rx="0" ry="0" /><rect class="architecture-service-outline" x="239.82" y="84" width="120" height="48" rx="0" ry="0" /><g class="architecture-icon" data-icon="server"><rect class="architecture-icon-mark" x="264.86" y="103.68" width="7.92" height="8.64" rx="0" ry="0" /><path class="architecture-icon-mark" d="M 265.94 106.56 H 271.7" /><path class="architecture-icon-mark" d="M 265.94 109.08 H 271.7" /></g><text x="291.82" y="108" class="architecture-service-label" text-anchor="start" font-size="13" font-weight="500" dy="4.55">API</text></g><g class="architecture-service" data-id="db" data-label="Postgres"><rect class="architecture-service-card" x="459.82" y="84" width="130.784" height="48" rx="0" ry="0" /><rect class="architecture-service-outline" x="459.82" y="84" width="130.784" height="48" rx="0" ry="0" /><g class="architecture-icon" data-icon="database"><ellipse class="architecture-icon-mark" cx="488.82" cy="105.12" rx="4.32" ry="1.8" /><path class="architecture-icon-mark" d="M 484.5 105.12 V 111.6" /><path class="architecture-icon-mark" d="M 493.14 105.12 V 111.6" /><ellipse class="architecture-icon-mark" cx="488.82" cy="108.36" rx="4.32" ry="1.8" /><ellipse class="architecture-icon-mark" cx="488.82" cy="111.6" rx="4.32" ry="1.8" /></g><text x="511.82" y="108" class="architecture-service-label" text-anchor="start" font-size="13" font-weight="500" dy="4.55">Postgres</text></g></svg></div><figcaption>Rendered during the website build from the same source the editor loads.</figcaption></figure>
+  </div>
+</article>
+<article class="example-sample" id="sequence-basic">
+  <header class="example-sample-head">
+    <div>
+      <p class="example-meta">Sequence</p>
+      <h3>Sequence</h3>
+      <p>Request/response messages between participants.</p>
+    </div>
+    <a class="go" href="/editor/?example=sequence-basic">Open in editor</a>
+  </header>
+  <div class="example-sample-grid">
+    <section class="example-source" aria-label="Sequence Mermaid source"><pre><code>sequenceDiagram
+  participant User
+  participant App
+  participant API
+  User-&gt;&gt;App: Click export
+  App-&gt;&gt;API: Render SVG
+  API--&gt;&gt;App: SVG string
+  App--&gt;&gt;User: Download</code></pre></section>
+    <figure class="example-render"><div class="example-svg"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 420 280" width="420" height="280" style="--bg:#FFFFFF;--fg:#27272A;--font:Inter;background:#FFFFFF"><style>
+  text { font-family: var(--font, 'Inter'), system-ui, sans-serif; }
+  svg {
+
+    --_text:          #27272A;
+    --_text-sec:      #575759;
+    --_text-muted:    #707072;
+    --_text-faint:    #8a8a8c;
+    --_line:          #939395;
+    --_arrow:         #47474a;
+    --_node-fill:     #f9f9f9;
+    --_node-stroke:   #d4d4d4;
+    --_group-fill:    #FFFFFF;
+    --_group-hdr:     #f4f4f4;
+    --_inner-stroke:  #e5e5e5;
+    --_key-badge:     #e9e9ea;
+  }
+</style><defs><marker id="example-sequence-basic-seq-arrow" markerWidth="8" markerHeight="5" refX="8" refY="2.5" orient="auto-start-reverse"><polygon points="0 0, 8 2.5, 0 5" fill="#47474a" /></marker><marker id="example-sequence-basic-seq-arrow-open" markerWidth="8" markerHeight="5" refX="8" refY="2.5" orient="auto-start-reverse"><polyline points="0 0, 8 2.5, 0 5" fill="none" stroke="#47474a" stroke-width="1" /></marker></defs><line class="lifeline" data-actor="User" x1="70" y1="70" x2="70" y2="250" stroke="#939395" stroke-width="0.75" stroke-dasharray="6 4" /><line class="lifeline" data-actor="App" x1="210" y1="70" x2="210" y2="250" stroke="#939395" stroke-width="0.75" stroke-dasharray="6 4" /><line class="lifeline" data-actor="API" x1="350" y1="70" x2="350" y2="250" stroke="#939395" stroke-width="0.75" stroke-dasharray="6 4" /><g class="message" data-from="User" data-to="App" data-label="Click export" data-line-style="solid" data-arrow-head="filled" data-self="false"><line x1="70" y1="90" x2="210" y2="90" stroke="#939395" stroke-width="1" marker-end="url(#example-sequence-basic-seq-arrow)" /><text x="140" y="80" font-size="11" text-anchor="middle" font-weight="400" fill="#707072" dy="3.85">Click export</text></g><g class="message" data-from="App" data-to="API" data-label="Render SVG" data-line-style="solid" data-arrow-head="filled" data-self="false"><line x1="210" y1="130" x2="350" y2="130" stroke="#939395" stroke-width="1" marker-end="url(#example-sequence-basic-seq-arrow)" /><text x="280" y="120" font-size="11" text-anchor="middle" font-weight="400" fill="#707072" dy="3.85">Render SVG</text></g><g class="message" data-from="API" data-to="App" data-label="SVG string" data-line-style="dashed" data-arrow-head="filled" data-self="false"><line x1="350" y1="170" x2="210" y2="170" stroke="#939395" stroke-width="1" stroke-dasharray="6 4" marker-end="url(#example-sequence-basic-seq-arrow)" /><text x="280" y="160" font-size="11" text-anchor="middle" font-weight="400" fill="#707072" dy="3.85">SVG string</text></g><g class="message" data-from="App" data-to="User" data-label="Download" data-line-style="dashed" data-arrow-head="filled" data-self="false"><line x1="210" y1="210" x2="70" y2="210" stroke="#939395" stroke-width="1" stroke-dasharray="6 4" marker-end="url(#example-sequence-basic-seq-arrow)" /><text x="140" y="200" font-size="11" text-anchor="middle" font-weight="400" fill="#707072" dy="3.85">Download</text></g><g class="actor" data-id="User" data-label="User" data-type="participant"><rect x="30" y="30" width="80" height="40" rx="4" ry="4" fill="#f9f9f9" stroke="#d4d4d4" stroke-width="1" /><text x="70" y="50" font-size="13" text-anchor="middle" font-weight="500" fill="#27272A" dy="4.55">User</text></g><g class="actor" data-id="App" data-label="App" data-type="participant"><rect x="170" y="30" width="80" height="40" rx="4" ry="4" fill="#f9f9f9" stroke="#d4d4d4" stroke-width="1" /><text x="210" y="50" font-size="13" text-anchor="middle" font-weight="500" fill="#27272A" dy="4.55">App</text></g><g class="actor" data-id="API" data-label="API" data-type="participant"><rect x="310" y="30" width="80" height="40" rx="4" ry="4" fill="#f9f9f9" stroke="#d4d4d4" stroke-width="1" /><text x="350" y="50" font-size="13" text-anchor="middle" font-weight="500" fill="#27272A" dy="4.55">API</text></g></svg></div><figcaption>Rendered during the website build from the same source the editor loads.</figcaption></figure>
+  </div>
+</article>
+<article class="example-sample" id="class-basic">
+  <header class="example-sample-head">
+    <div>
+      <p class="example-meta">Class</p>
+      <h3>Class</h3>
+      <p>Classes with members and relationships.</p>
+    </div>
+    <a class="go" href="/editor/?example=class-basic">Open in editor</a>
+  </header>
+  <div class="example-sample-grid">
+    <section class="example-source" aria-label="Class Mermaid source"><pre><code>classDiagram
+  class Renderer {
+    +renderSVG(source) string
+    +renderASCII(source) string
+  }
+  class Theme {
+    +bg string
+    +fg string
+  }
+  Renderer --&gt; Theme : uses</code></pre></section>
+    <figure class="example-render"><div class="example-svg"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 287.4 398.1" width="287.4" height="398.1" style="--bg:#FFFFFF;--fg:#27272A;--font:Inter;background:#FFFFFF"><style>
+  text { font-family: var(--font, 'Inter'), system-ui, sans-serif; }
+  .mono { font-family: 'JetBrains Mono', 'SF Mono', 'Fira Code', ui-monospace, monospace; }
+  svg {
+
+    --_text:          #27272A;
+    --_text-sec:      #575759;
+    --_text-muted:    #707072;
+    --_text-faint:    #8a8a8c;
+    --_line:          #939395;
+    --_arrow:         #47474a;
+    --_node-fill:     #f9f9f9;
+    --_node-stroke:   #d4d4d4;
+    --_group-fill:    #FFFFFF;
+    --_group-hdr:     #f4f4f4;
+    --_inner-stroke:  #e5e5e5;
+    --_key-badge:     #e9e9ea;
+  }
+</style><defs><marker id="example-class-basic-cls-inherit" markerWidth="12" markerHeight="10" refX="12" refY="5" orient="auto-start-reverse"><polygon points="0 0, 12 5, 0 10" fill="#FFFFFF" stroke="#47474a" stroke-width="1.5" /></marker><marker id="example-class-basic-cls-composition" markerWidth="12" markerHeight="10" refX="0" refY="5" orient="auto-start-reverse"><polygon points="6 0, 12 5, 6 10, 0 5" fill="#47474a" stroke="#47474a" stroke-width="1" /></marker><marker id="example-class-basic-cls-aggregation" markerWidth="12" markerHeight="10" refX="0" refY="5" orient="auto-start-reverse"><polygon points="6 0, 12 5, 6 10, 0 5" fill="#FFFFFF" stroke="#47474a" stroke-width="1.5" /></marker><marker id="example-class-basic-cls-arrow" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto-start-reverse"><polyline points="0 0, 8 3, 0 6" fill="none" stroke="#47474a" stroke-width="1.5" /></marker></defs><polyline class="class-relationship" data-from="Renderer" data-to="Theme" data-type="association" data-marker-at="to" data-label="uses" points="143.7,128.9 143.7,269.2" fill="none" stroke="#939395" stroke-width="1" marker-end="url(#example-class-basic-cls-arrow)" /><g class="class-node" data-id="Renderer" data-label="Renderer"><rect x="40" y="40" width="207.4" height="88.9" rx="0" ry="0" fill="#f9f9f9" stroke="#d4d4d4" stroke-width="1" /><path d="M40,40 H247.4 V72.9 H40 Z" fill="#f4f4f4" stroke="#d4d4d4" stroke-width="1" /><text x="143.7" y="56.45" text-anchor="middle" font-size="13" font-weight="700" fill="#27272A" dy="4.55">Renderer</text><line x1="40" y1="72.9" x2="247.4" y2="72.9" stroke="#d4d4d4" stroke-width="0.75" /><line x1="40" y1="80.9" x2="247.4" y2="80.9" stroke="#d4d4d4" stroke-width="0.75" /><text x="48" y="94.9" class="mono" dy="0.35em" font-size="11" font-weight="400"><tspan fill="#8a8a8c">+ </tspan><tspan fill="#575759">renderSVG(source)</tspan><tspan fill="#8a8a8c">: </tspan><tspan fill="#707072">string</tspan></text><text x="48" y="114.9" class="mono" dy="0.35em" font-size="11" font-weight="400"><tspan fill="#8a8a8c">+ </tspan><tspan fill="#575759">renderASCII(source)</tspan><tspan fill="#8a8a8c">: </tspan><tspan fill="#707072">string</tspan></text></g><g class="class-node" data-id="Theme" data-label="Theme"><rect x="83.7" y="269.2" width="120" height="88.9" rx="0" ry="0" fill="#f9f9f9" stroke="#d4d4d4" stroke-width="1" /><path d="M83.7,269.2 H203.7 V302.1 H83.7 Z" fill="#f4f4f4" stroke="#d4d4d4" stroke-width="1" /><text x="143.7" y="285.65" text-anchor="middle" font-size="13" font-weight="700" fill="#27272A" dy="4.55">Theme</text><line x1="83.7" y1="302.1" x2="203.7" y2="302.1" stroke="#d4d4d4" stroke-width="0.75" /><text x="91.7" y="316.1" class="mono" dy="0.35em" font-size="11" font-weight="400"><tspan fill="#8a8a8c">+ </tspan><tspan fill="#575759">string</tspan><tspan fill="#8a8a8c">: </tspan><tspan fill="#707072">bg</tspan></text><text x="91.7" y="336.1" class="mono" dy="0.35em" font-size="11" font-weight="400"><tspan fill="#8a8a8c">+ </tspan><tspan fill="#575759">string</tspan><tspan fill="#8a8a8c">: </tspan><tspan fill="#707072">fg</tspan></text><line x1="83.7" y1="350.1" x2="203.7" y2="350.1" stroke="#d4d4d4" stroke-width="0.75" /></g><text x="124.995" y="191.05" font-size="11" text-anchor="middle" font-weight="400" fill="#707072" dy="3.85">uses</text></svg></div><figcaption>Rendered during the website build from the same source the editor loads.</figcaption></figure>
+  </div>
+</article>
+<article class="example-sample" id="er-basic">
+  <header class="example-sample-head">
+    <div>
+      <p class="example-meta">ER</p>
+      <h3>ER diagram</h3>
+      <p>Entities, attributes, keys, and cardinality markers.</p>
+    </div>
+    <a class="go" href="/editor/?example=er-basic">Open in editor</a>
+  </header>
+  <div class="example-sample-grid">
+    <section class="example-source" aria-label="ER diagram Mermaid source"><pre><code>erDiagram
+  CUSTOMER {
+    string id PK
+    string email
+  }
+  ORDER {
+    string id PK
+    date created
+  }
+  LINE_ITEM {
+    string id PK
+    int quantity
+  }
+  CUSTOMER ||--o{ ORDER : places
+  ORDER ||--|{ LINE_ITEM : contains</code></pre></section>
+    <figure class="example-render"><div class="example-svg"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 951.768 158" width="951.768" height="158" style="--bg:#FFFFFF;--fg:#27272A;--font:Inter;background:#FFFFFF"><style>
+  text { font-family: var(--font, 'Inter'), system-ui, sans-serif; }
+  .mono { font-family: 'JetBrains Mono', 'SF Mono', 'Fira Code', ui-monospace, monospace; }
+  svg {
+
+    --_text:          #27272A;
+    --_text-sec:      #575759;
+    --_text-muted:    #707072;
+    --_text-faint:    #8a8a8c;
+    --_line:          #939395;
+    --_arrow:         #47474a;
+    --_node-fill:     #f9f9f9;
+    --_node-stroke:   #d4d4d4;
+    --_group-fill:    #FFFFFF;
+    --_group-hdr:     #f4f4f4;
+    --_inner-stroke:  #e5e5e5;
+    --_key-badge:     #e9e9ea;
+  }
+</style><defs></defs><polyline class="er-relationship" data-entity1="CUSTOMER" data-entity2="ORDER" data-cardinality1="one" data-cardinality2="zero-many" data-identifying="true" data-label="places" points="180,79 401.726,79" fill="none" stroke="#939395" stroke-width="1" /><polyline class="er-relationship" data-entity1="ORDER" data-entity2="LINE_ITEM" data-cardinality1="one" data-cardinality2="many" data-identifying="true" data-label="contains" points="541.726,79 771.768,79" fill="none" stroke="#939395" stroke-width="1" /><g class="entity" data-id="CUSTOMER" data-label="CUSTOMER"><rect x="40" y="40" width="140" height="78" rx="0" ry="0" fill="#f9f9f9" stroke="#d4d4d4" stroke-width="1" /><path d="M40,40 H180 V74 H40 Z" fill="#f4f4f4" stroke="#d4d4d4" stroke-width="1" /><text x="110" y="57" text-anchor="middle" font-size="13" font-weight="700" fill="#27272A" dy="4.55">CUSTOMER</text><line x1="40" y1="74" x2="180" y2="74" stroke="#d4d4d4" stroke-width="0.75" /><rect x="47" y="78" width="22.31" height="14" rx="2" ry="2" fill="#e9e9ea" /><text x="58.155" y="85" text-anchor="middle" dy="0.35em" font-size="9" font-weight="600" fill="#575759">PK</text><text x="76.31" y="85" class="mono" dy="0.35em" font-size="11" font-weight="400"><tspan fill="#707072">string</tspan></text><text x="172" y="85" class="mono" text-anchor="end" dy="0.35em" font-size="11" font-weight="400"><tspan fill="#575759">id</tspan></text><text x="48" y="107" class="mono" dy="0.35em" font-size="11" font-weight="400"><tspan fill="#707072">string</tspan></text><text x="172" y="107" class="mono" text-anchor="end" dy="0.35em" font-size="11" font-weight="400"><tspan fill="#575759">email</tspan></text></g><g class="entity" data-id="ORDER" data-label="ORDER"><rect x="401.726" y="40" width="140" height="78" rx="0" ry="0" fill="#f9f9f9" stroke="#d4d4d4" stroke-width="1" /><path d="M401.726,40 H541.726 V74 H401.726 Z" fill="#f4f4f4" stroke="#d4d4d4" stroke-width="1" /><text x="471.726" y="57" text-anchor="middle" font-size="13" font-weight="700" fill="#27272A" dy="4.55">ORDER</text><line x1="401.726" y1="74" x2="541.726" y2="74" stroke="#d4d4d4" stroke-width="0.75" /><rect x="408.726" y="78" width="22.31" height="14" rx="2" ry="2" fill="#e9e9ea" /><text x="419.881" y="85" text-anchor="middle" dy="0.35em" font-size="9" font-weight="600" fill="#575759">PK</text><text x="438.036" y="85" class="mono" dy="0.35em" font-size="11" font-weight="400"><tspan fill="#707072">string</tspan></text><text x="533.726" y="85" class="mono" text-anchor="end" dy="0.35em" font-size="11" font-weight="400"><tspan fill="#575759">id</tspan></text><text x="409.726" y="107" class="mono" dy="0.35em" font-size="11" font-weight="400"><tspan fill="#707072">date</tspan></text><text x="533.726" y="107" class="mono" text-anchor="end" dy="0.35em" font-size="11" font-weight="400"><tspan fill="#575759">created</tspan></text></g><g class="entity" data-id="LINE_ITEM" data-label="LINE_ITEM"><rect x="771.768" y="40" width="140" height="78" rx="0" ry="0" fill="#f9f9f9" stroke="#d4d4d4" stroke-width="1" /><path d="M771.768,40 H911.768 V74 H771.768 Z" fill="#f4f4f4" stroke="#d4d4d4" stroke-width="1" /><text x="841.768" y="57" text-anchor="middle" font-size="13" font-weight="700" fill="#27272A" dy="4.55">LINE_ITEM</text><line x1="771.768" y1="74" x2="911.768" y2="74" stroke="#d4d4d4" stroke-width="0.75" /><rect x="778.768" y="78" width="22.31" height="14" rx="2" ry="2" fill="#e9e9ea" /><text x="789.923" y="85" text-anchor="middle" dy="0.35em" font-size="9" font-weight="600" fill="#575759">PK</text><text x="808.078" y="85" class="mono" dy="0.35em" font-size="11" font-weight="400"><tspan fill="#707072">string</tspan></text><text x="903.768" y="85" class="mono" text-anchor="end" dy="0.35em" font-size="11" font-weight="400"><tspan fill="#575759">id</tspan></text><text x="779.768" y="107" class="mono" dy="0.35em" font-size="11" font-weight="400"><tspan fill="#707072">int</tspan></text><text x="903.768" y="107" class="mono" text-anchor="end" dy="0.35em" font-size="11" font-weight="400"><tspan fill="#575759">quantity</tspan></text></g><line x1="184" y1="73" x2="184" y2="85" stroke="#939395" stroke-width="1.25" /><line x1="188" y1="73" x2="188" y2="85" stroke="#939395" stroke-width="1.25" /><line x1="397.726" y1="86" x2="385.726" y2="79" stroke="#939395" stroke-width="1.25" /><line x1="397.726" y1="79" x2="385.726" y2="79" stroke="#939395" stroke-width="1.25" /><line x1="397.726" y1="72" x2="385.726" y2="79" stroke="#939395" stroke-width="1.25" /><circle cx="381.726" cy="79" r="4" fill="#FFFFFF" stroke="#939395" stroke-width="1.25" /><line x1="545.726" y1="73" x2="545.726" y2="85" stroke="#939395" stroke-width="1.25" /><line x1="549.726" y1="73" x2="549.726" y2="85" stroke="#939395" stroke-width="1.25" /><line x1="767.768" y1="86" x2="755.768" y2="79" stroke="#939395" stroke-width="1.25" /><line x1="767.768" y1="79" x2="755.768" y2="79" stroke="#939395" stroke-width="1.25" /><line x1="767.768" y1="72" x2="755.768" y2="79" stroke="#939395" stroke-width="1.25" /><rect x="270" y="68.85" width="41.726" height="20.3" rx="2" ry="2" fill="#FFFFFF" stroke="#e5e5e5" stroke-width="0.5" /><text x="290.863" y="79" text-anchor="middle" font-size="11" font-weight="400" fill="#707072" dy="3.85">places</text><rect x="631.726" y="68.85" width="50.042" height="20.3" rx="2" ry="2" fill="#FFFFFF" stroke="#e5e5e5" stroke-width="0.5" /><text x="656.747" y="79" text-anchor="middle" font-size="11" font-weight="400" fill="#707072" dy="3.85">contains</text></svg></div><figcaption>Rendered during the website build from the same source the editor loads.</figcaption></figure>
+  </div>
+</article>
+<article class="example-sample" id="timeline-basic">
+  <header class="example-sample-head">
+    <div>
+      <p class="example-meta">Timeline</p>
+      <h3>Timeline</h3>
+      <p>Chronological milestones with sections.</p>
+    </div>
+    <a class="go" href="/editor/?example=timeline-basic">Open in editor</a>
+  </header>
+  <div class="example-sample-grid">
+    <section class="example-source" aria-label="Timeline Mermaid source"><pre><code>timeline
+  title Product roadmap
+  section Foundation
+  2024 Q1 : Prototype
+          : Parser coverage
+  section Launch
+  2024 Q2 : Public editor
+          : SVG export</code></pre></section>
+    <figure class="example-render"><div class="example-svg"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 420 332.2" width="420" height="332.2" style="--bg:#FFFFFF;--fg:#27272A;--font:Inter;background:#FFFFFF" role="img" aria-labelledby="tl-1eap86h-title"><style>
+  text { font-family: var(--font, 'Inter'), system-ui, sans-serif; }
+  svg {
+
+    --_text:          #27272A;
+    --_text-sec:      #575759;
+    --_text-muted:    #707072;
+    --_text-faint:    #8a8a8c;
+    --_line:          #939395;
+    --_arrow:         #47474a;
+    --_node-fill:     #f9f9f9;
+    --_node-stroke:   #d4d4d4;
+    --_group-fill:    #FFFFFF;
+    --_group-hdr:     #f4f4f4;
+    --_inner-stroke:  #e5e5e5;
+    --_key-badge:     #e9e9ea;
+  }
+</style><style>
+  .timeline-title { fill: #27272A; }
+  .timeline-rail { stroke: #939395; stroke-width: 1.5; stroke-linecap: round; }
+  .timeline-section-bg { fill: #fafafa; stroke: #d4d4d4; stroke-width: 1; }
+  .timeline-section-band { fill: #f0f0f1; stroke: #d4d4d4; stroke-width: 1; }
+  .timeline-section-label { fill: #575759; }
+  .timeline-stem { stroke: #7b7b7d; stroke-width: 1.125; stroke-dasharray: 3 4; }
+  .timeline-marker-ring { fill: #FFFFFF; stroke: #47474a; stroke-width: 1.5; }
+  .timeline-marker-core { fill: #47474a; }
+  .timeline-period-pill { fill: #f2f2f2; stroke: #dadadb; stroke-width: 1; }
+  .timeline-period-text { fill: #27272A; }
+  .timeline-event-card { fill: #f9f9f9; stroke: #d4d4d4; stroke-width: 1; }
+  .timeline-event-text { fill: #707072; }
+</style><title id="example-timeline-basic-tl-1eap86h-title">Product roadmap</title><g class="timeline-section" data-id="section-0" data-label="Foundation" data-family="0" style="--tl-accent:#47474a;--tl-fill:#f9f9f9;--tl-label:#27272A;--tl-line:#939395;--tl-section-bg:#ffffff;--tl-section-band:#fefefe;--tl-pill-fill:#fefefe;--tl-pill-stroke:#b8b8b9;--tl-event-fill:#f9f9f9"><rect class="timeline-section-bg" x="32" y="75.4" width="164" height="228.8" rx="0" ry="0" /><path class="timeline-section-band" d="M32,75.4 H196 V105.4 H32 Z" /><text x="44" y="90.4" class="timeline-section-label" text-anchor="start" font-size="12" font-weight="600" dy="4.2">Foundation</text></g><g class="timeline-section" data-id="section-1" data-label="Launch" data-family="1" style="--tl-accent:#47474a;--tl-fill:#f9f9f9;--tl-label:#27272A;--tl-line:#939395;--tl-section-bg:#ffffff;--tl-section-band:#fefefe;--tl-pill-fill:#fefefe;--tl-pill-stroke:#b8b8b9;--tl-event-fill:#f9f9f9"><rect class="timeline-section-bg" x="224" y="75.4" width="164" height="228.8" rx="0" ry="0" /><path class="timeline-section-band" d="M224,75.4 H388 V105.4 H224 Z" /><text x="236" y="90.4" class="timeline-section-label" text-anchor="start" font-size="12" font-weight="600" dy="4.2">Launch</text></g><line class="timeline-rail" x1="114" y1="177" x2="306" y2="177" /><g class="timeline-period" data-id="period-0" data-label="2024 Q1" data-section="Foundation" data-family="0" style="--tl-accent:#47474a;--tl-fill:#f9f9f9;--tl-label:#27272A;--tl-line:#939395;--tl-section-bg:#ffffff;--tl-section-band:#fefefe;--tl-pill-fill:#fefefe;--tl-pill-stroke:#b8b8b9;--tl-event-fill:#f9f9f9"><line class="timeline-stem" x1="114" y1="185" x2="114" y2="195" /><rect class="timeline-period-pill" x="77.86" y="119.4" width="72.28" height="35.6" rx="0" ry="0" /><text x="114" y="137.2" class="timeline-period-text" text-anchor="middle" font-size="12" font-weight="600" dy="4.2">2024 Q1</text><circle class="timeline-marker-ring" cx="114" cy="177" r="8" /><circle class="timeline-marker-core" cx="114" cy="177" r="4.5" /><g class="timeline-event" data-id="event-0" data-period="2024 Q1" data-section="Foundation" data-family="0"><rect class="timeline-event-card" x="50" y="205" width="128" height="35.6" rx="0" ry="0" /><text x="64" y="222.8" class="timeline-event-text" text-anchor="start" font-size="12" font-weight="400" dy="4.2">Prototype</text></g><g class="timeline-event" data-id="event-1" data-period="2024 Q1" data-section="Foundation" data-family="0"><rect class="timeline-event-card" x="50" y="250.6" width="128" height="35.6" rx="0" ry="0" /><text x="64" y="268.4" class="timeline-event-text" text-anchor="start" font-size="12" font-weight="400" dy="4.2">Parser coverage</text></g></g><g class="timeline-period" data-id="period-1" data-label="2024 Q2" data-section="Launch" data-family="1" style="--tl-accent:#47474a;--tl-fill:#f9f9f9;--tl-label:#27272A;--tl-line:#939395;--tl-section-bg:#ffffff;--tl-section-band:#fefefe;--tl-pill-fill:#fefefe;--tl-pill-stroke:#b8b8b9;--tl-event-fill:#f9f9f9"><line class="timeline-stem" x1="306" y1="185" x2="306" y2="195" /><rect class="timeline-period-pill" x="267.7" y="119.4" width="76.6" height="35.6" rx="0" ry="0" /><text x="306" y="137.2" class="timeline-period-text" text-anchor="middle" font-size="12" font-weight="600" dy="4.2">2024 Q2</text><circle class="timeline-marker-ring" cx="306" cy="177" r="8" /><circle class="timeline-marker-core" cx="306" cy="177" r="4.5" /><g class="timeline-event" data-id="event-2" data-period="2024 Q2" data-section="Launch" data-family="1"><rect class="timeline-event-card" x="242" y="205" width="128" height="35.6" rx="0" ry="0" /><text x="256" y="222.8" class="timeline-event-text" text-anchor="start" font-size="12" font-weight="400" dy="4.2">Public editor</text></g><g class="timeline-event" data-id="event-3" data-period="2024 Q2" data-section="Launch" data-family="1"><rect class="timeline-event-card" x="242" y="250.6" width="128" height="35.6" rx="0" ry="0" /><text x="256" y="268.4" class="timeline-event-text" text-anchor="start" font-size="12" font-weight="400" dy="4.2">SVG export</text></g></g><text x="210" y="39.7" class="timeline-title" text-anchor="middle" font-size="18" font-weight="600" dy="6.3">Product roadmap</text></svg></div><figcaption>Rendered during the website build from the same source the editor loads.</figcaption></figure>
+  </div>
+</article>
+<article class="example-sample" id="journey-basic">
+  <header class="example-sample-head">
+    <div>
+      <p class="example-meta">Journey</p>
+      <h3>User journey</h3>
+      <p>Scored user tasks grouped by section.</p>
+    </div>
+    <a class="go" href="/editor/?example=journey-basic">Open in editor</a>
+  </header>
+  <div class="example-sample-grid">
+    <section class="example-source" aria-label="User journey Mermaid source"><pre><code>journey
+  title Editor adoption
+  section Try
+    Open editor: 5: User
+    Load example: 4: User, Developer
+  section Share
+    Copy URL: 5: User
+    Export SVG: 4: Developer</code></pre></section>
+    <figure class="example-render"><div class="example-svg"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 604 353.4" width="604" height="353.4" style="--bg:#FFFFFF;--fg:#27272A;--font:Inter;background:#FFFFFF" role="img" aria-roledescription="user journey" aria-labelledby="journey-13n63iu-title"><title id="example-journey-basic-journey-13n63iu-title">Editor adoption</title><style>
+  text { font-family: var(--font, 'Inter'), system-ui, sans-serif; }
+  svg {
+
+    --_text:          #27272A;
+    --_text-sec:      #575759;
+    --_text-muted:    #707072;
+    --_text-faint:    #8a8a8c;
+    --_line:          #939395;
+    --_arrow:         #47474a;
+    --_node-fill:     #f9f9f9;
+    --_node-stroke:   #d4d4d4;
+    --_group-fill:    #FFFFFF;
+    --_group-hdr:     #f4f4f4;
+    --_inner-stroke:  #e5e5e5;
+    --_key-badge:     #e9e9ea;
+  }
+</style><style>
+  .journey-title { fill: #27272A; }
+  .journey-section-bg { fill: #fafafa; stroke: #d4d4d4; stroke-width: 1; }
+  .journey-section-band { fill: #f0f0f1; stroke: #d4d4d4; stroke-width: 1; }
+  .journey-section-label { fill: #575759; }
+  .journey-task-card { fill: #f9f9f9; stroke: #d4d4d4; stroke-width: 1; }
+  .journey-task-text { fill: #27272A; }
+  .journey-score-cell-filled { fill: #47474a; stroke: #47474a; stroke-width: 1; }
+  .journey-score-cell-empty { fill: #fcfcfc; stroke: #dcdcdc; stroke-width: 1; }
+  .journey-actor-pill { fill: #f0f0f1; stroke: #d7d7d7; stroke-width: 1; }
+  .journey-actor-text { fill: #575759; }
+</style><g class="journey-section" data-id="section-0" data-label="Try"><rect class="journey-section-bg" x="32" y="75.4" width="256" height="250" rx="0" ry="0" /><path class="journey-section-band" d="M32,75.4 H288 V103 H32 Z" /><text x="44" y="89.2" class="journey-section-label" text-anchor="start" font-size="12" font-weight="600" dy="4.2">Try</text></g><g class="journey-section" data-id="section-1" data-label="Share"><rect class="journey-section-bg" x="316" y="75.4" width="256" height="250" rx="0" ry="0" /><path class="journey-section-band" d="M316,75.4 H572 V103 H316 Z" /><text x="328" y="89.2" class="journey-section-label" text-anchor="start" font-size="12" font-weight="600" dy="4.2">Share</text></g><g class="journey-task" data-id="task-0" data-score="5" data-section="Try" data-actors="User"><rect class="journey-task-card" x="50" y="135" width="220" height="79.2" rx="0" ry="0" /><text x="64" y="155.45" class="journey-task-text" text-anchor="start" font-size="13" font-weight="500" dy="4.55">Open editor</text><rect class="journey-score-cell-filled" x="186" y="150.45" width="10" height="10" rx="2" ry="2" /><rect class="journey-score-cell-filled" x="201" y="150.45" width="10" height="10" rx="2" ry="2" /><rect class="journey-score-cell-filled" x="216" y="150.45" width="10" height="10" rx="2" ry="2" /><rect class="journey-score-cell-filled" x="231" y="150.45" width="10" height="10" rx="2" ry="2" /><rect class="journey-score-cell-filled" x="246" y="150.45" width="10" height="10" rx="2" ry="2" /><g class="journey-actor" data-actor="User"><rect class="journey-actor-pill" x="64" y="175.9" width="44.05" height="26.3" rx="13.15" ry="13.15" /><text x="86.025" y="189.05" class="journey-actor-text" text-anchor="middle" font-size="11" font-weight="600" dy="3.85">User</text></g></g><g class="journey-task" data-id="task-1" data-score="4" data-section="Try" data-actors="User, Developer"><rect class="journey-task-card" x="50" y="228.2" width="220" height="79.2" rx="0" ry="0" /><text x="64" y="248.65" class="journey-task-text" text-anchor="start" font-size="13" font-weight="500" dy="4.55">Load example</text><rect class="journey-score-cell-filled" x="186" y="243.65" width="10" height="10" rx="2" ry="2" /><rect class="journey-score-cell-filled" x="201" y="243.65" width="10" height="10" rx="2" ry="2" /><rect class="journey-score-cell-filled" x="216" y="243.65" width="10" height="10" rx="2" ry="2" /><rect class="journey-score-cell-filled" x="231" y="243.65" width="10" height="10" rx="2" ry="2" /><rect class="journey-score-cell-empty" x="246" y="243.65" width="10" height="10" rx="2" ry="2" /><g class="journey-actor" data-actor="User"><rect class="journey-actor-pill" x="64" y="269.1" width="44.05" height="26.3" rx="13.15" ry="13.15" /><text x="86.025" y="282.25" class="journey-actor-text" text-anchor="middle" font-size="11" font-weight="600" dy="3.85">User</text></g><g class="journey-actor" data-actor="Developer"><rect class="journey-actor-pill" x="114.05" y="269.1" width="73.09" height="26.3" rx="13.15" ry="13.15" /><text x="150.595" y="282.25" class="journey-actor-text" text-anchor="middle" font-size="11" font-weight="600" dy="3.85">Developer</text></g></g><g class="journey-task" data-id="task-2" data-score="5" data-section="Share" data-actors="User"><rect class="journey-task-card" x="334" y="135" width="220" height="79.2" rx="0" ry="0" /><text x="348" y="155.45" class="journey-task-text" text-anchor="start" font-size="13" font-weight="500" dy="4.55">Copy URL</text><rect class="journey-score-cell-filled" x="470" y="150.45" width="10" height="10" rx="2" ry="2" /><rect class="journey-score-cell-filled" x="485" y="150.45" width="10" height="10" rx="2" ry="2" /><rect class="journey-score-cell-filled" x="500" y="150.45" width="10" height="10" rx="2" ry="2" /><rect class="journey-score-cell-filled" x="515" y="150.45" width="10" height="10" rx="2" ry="2" /><rect class="journey-score-cell-filled" x="530" y="150.45" width="10" height="10" rx="2" ry="2" /><g class="journey-actor" data-actor="User"><rect class="journey-actor-pill" x="348" y="175.9" width="44.05" height="26.3" rx="13.15" ry="13.15" /><text x="370.025" y="189.05" class="journey-actor-text" text-anchor="middle" font-size="11" font-weight="600" dy="3.85">User</text></g></g><g class="journey-task" data-id="task-3" data-score="4" data-section="Share" data-actors="Developer"><rect class="journey-task-card" x="334" y="228.2" width="220" height="79.2" rx="0" ry="0" /><text x="348" y="248.65" class="journey-task-text" text-anchor="start" font-size="13" font-weight="500" dy="4.55">Export SVG</text><rect class="journey-score-cell-filled" x="470" y="243.65" width="10" height="10" rx="2" ry="2" /><rect class="journey-score-cell-filled" x="485" y="243.65" width="10" height="10" rx="2" ry="2" /><rect class="journey-score-cell-filled" x="500" y="243.65" width="10" height="10" rx="2" ry="2" /><rect class="journey-score-cell-filled" x="515" y="243.65" width="10" height="10" rx="2" ry="2" /><rect class="journey-score-cell-empty" x="530" y="243.65" width="10" height="10" rx="2" ry="2" /><g class="journey-actor" data-actor="Developer"><rect class="journey-actor-pill" x="348" y="269.1" width="73.09" height="26.3" rx="13.15" ry="13.15" /><text x="384.545" y="282.25" class="journey-actor-text" text-anchor="middle" font-size="11" font-weight="600" dy="3.85">Developer</text></g></g><text x="302" y="39.7" class="journey-title" text-anchor="middle" font-size="18" font-weight="600" dy="6.3">Editor adoption</text></svg></div><figcaption>Rendered during the website build from the same source the editor loads.</figcaption></figure>
+  </div>
+</article>
+<article class="example-sample" id="xychart-basic">
+  <header class="example-sample-head">
+    <div>
+      <p class="example-meta">XY Chart</p>
+      <h3>XY chart</h3>
+      <p>Bar and line series using xychart syntax.</p>
+    </div>
+    <a class="go" href="/editor/?example=xychart-basic">Open in editor</a>
+  </header>
+  <div class="example-sample-grid">
+    <section class="example-source" aria-label="XY chart Mermaid source"><pre><code>xychart
+  title "Weekly renders"
+  x-axis [Mon, Tue, Wed, Thu, Fri]
+  y-axis "Renders" 0 --&gt; 100
+  bar [25, 42, 58, 74, 88]
+  line [18, 35, 52, 70, 95]</code></pre></section>
+    <figure class="example-render"><div class="example-svg"><svg data-xychart-colors="1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 700 500" width="100%" height="100%" style="--bg:#FFFFFF;--fg:#27272A;--font:Inter;background:#FFFFFF;max-width:700px" id="example-xychart-basic-mermaid-1mhoy6r" class="xychart" aria-roledescription="xychart"><style>
+  text { font-family: var(--font, 'Inter'), system-ui, sans-serif; }
+  svg {
+
+    --_text:          #27272A;
+    --_text-sec:      #575759;
+    --_text-muted:    #707072;
+    --_text-faint:    #8a8a8c;
+    --_line:          #939395;
+    --_arrow:         #47474a;
+    --_node-fill:     #f9f9f9;
+    --_node-stroke:   #d4d4d4;
+    --_group-fill:    #FFFFFF;
+    --_group-hdr:     #f4f4f4;
+    --_inner-stroke:  #e5e5e5;
+    --_key-badge:     #e9e9ea;
+  }
+</style><style>
+  .xychart-grid { stroke: #e1e1e1; stroke-width: 1; }
+  .xychart-axis-line { fill: none; }
+  .xychart-tick { fill: none; }
+  .xychart-x-axis-line { stroke: #575759; }
+  .xychart-y-axis-line { stroke: #575759; }
+  .xychart-x-tick { stroke: #575759; }
+  .xychart-y-tick { stroke: #575759; }
+  .xychart-bar { stroke: none; }
+  .xychart-line { fill: none; stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; }
+  .xychart-dot { stroke: #FFFFFF; stroke-width: 2; }
+  .xychart-label { fill: #27272A; }
+  .xychart-x-label { fill: #27272A; }
+  .xychart-y-label { fill: #27272A; }
+  .xychart-axis-title { fill: #27272A; }
+  .xychart-x-axis-title { fill: #27272A; }
+  .xychart-y-axis-title { fill: #27272A; }
+  .xychart-title { fill: #27272A; }
+  .xychart-data-label { fill: #27272A; pointer-events: none; }
+  svg {
+    --xychart-color-0: #3b82f6;
+    --xychart-color-1: #0d5ba5;
+  }
+  .xychart-bar.xychart-color-0 { fill: #3b82f6; }
+  path.xychart-color-0, line.xychart-color-0 { stroke: #3b82f6; }
+  circle.xychart-color-0 { fill: #3b82f6; }
+  .xychart-bar.xychart-color-1 { fill: #0d5ba5; }
+  path.xychart-color-1, line.xychart-color-1 { stroke: #0d5ba5; }
+  circle.xychart-color-1 { fill: #0d5ba5; }
+  .xychart-tip { opacity: 0; pointer-events: none; }
+  .xychart-tip-bg { fill: #27272A; }
+  .xychart-tip-text { fill: #FFFFFF; font-size: 15px; font-weight: 500; }
+  .xychart-tip-ptr { fill: #27272A; }
+  .xychart-bar-group:hover .xychart-tip,
+  .xychart-dot-group:hover .xychart-tip { opacity: 1; }
+</style><line x1="63.24" y1="469" x2="700" y2="469" class="xychart-grid"/><line x1="63.24" y1="426.1" x2="700" y2="426.1" class="xychart-grid"/><line x1="63.24" y1="383.2" x2="700" y2="383.2" class="xychart-grid"/><line x1="63.24" y1="340.3" x2="700" y2="340.3" class="xychart-grid"/><line x1="63.24" y1="297.4" x2="700" y2="297.4" class="xychart-grid"/><line x1="63.24" y1="254.5" x2="700" y2="254.5" class="xychart-grid"/><line x1="63.24" y1="211.6" x2="700" y2="211.6" class="xychart-grid"/><line x1="63.24" y1="168.7" x2="700" y2="168.7" class="xychart-grid"/><line x1="63.24" y1="125.8" x2="700" y2="125.8" class="xychart-grid"/><line x1="63.24" y1="82.9" x2="700" y2="82.9" class="xychart-grid"/><line x1="63.24" y1="40" x2="700" y2="40" class="xychart-grid"/><line x1="63.24" y1="470" x2="700" y2="470" class="xychart-axis-line xychart-x-axis-line" stroke-width="2"/><line x1="126.92" y1="471" x2="126.92" y2="476" class="xychart-tick xychart-x-tick" stroke-width="2"/><line x1="254.27" y1="471" x2="254.27" y2="476" class="xychart-tick xychart-x-tick" stroke-width="2"/><line x1="381.62" y1="471" x2="381.62" y2="476" class="xychart-tick xychart-x-tick" stroke-width="2"/><line x1="508.97" y1="471" x2="508.97" y2="476" class="xychart-tick xychart-x-tick" stroke-width="2"/><line x1="636.32" y1="471" x2="636.32" y2="476" class="xychart-tick xychart-x-tick" stroke-width="2"/><line x1="62.24" y1="40" x2="62.24" y2="469" class="xychart-axis-line xychart-y-axis-line" stroke-width="2"/><line x1="61.24" y1="469" x2="56.24" y2="469" class="xychart-tick xychart-y-tick" stroke-width="2"/><line x1="61.24" y1="426.1" x2="56.24" y2="426.1" class="xychart-tick xychart-y-tick" stroke-width="2"/><line x1="61.24" y1="383.2" x2="56.24" y2="383.2" class="xychart-tick xychart-y-tick" stroke-width="2"/><line x1="61.24" y1="340.3" x2="56.24" y2="340.3" class="xychart-tick xychart-y-tick" stroke-width="2"/><line x1="61.24" y1="297.4" x2="56.24" y2="297.4" class="xychart-tick xychart-y-tick" stroke-width="2"/><line x1="61.24" y1="254.5" x2="56.24" y2="254.5" class="xychart-tick xychart-y-tick" stroke-width="2"/><line x1="61.24" y1="211.6" x2="56.24" y2="211.6" class="xychart-tick xychart-y-tick" stroke-width="2"/><line x1="61.24" y1="168.7" x2="56.24" y2="168.7" class="xychart-tick xychart-y-tick" stroke-width="2"/><line x1="61.24" y1="125.8" x2="56.24" y2="125.8" class="xychart-tick xychart-y-tick" stroke-width="2"/><line x1="61.24" y1="82.9" x2="56.24" y2="82.9" class="xychart-tick xychart-y-tick" stroke-width="2"/><line x1="61.24" y1="40" x2="56.24" y2="40" class="xychart-tick xychart-y-tick" stroke-width="2"/><rect x="66.43" y="361.75" width="120.98" height="107.25" class="xychart-bar xychart-color-0" data-value="25" data-label="Mon"/><rect x="193.78" y="288.82" width="120.98" height="180.18" class="xychart-bar xychart-color-0" data-value="42" data-label="Tue"/><rect x="321.13" y="220.18" width="120.98" height="248.82" class="xychart-bar xychart-color-0" data-value="58" data-label="Wed"/><rect x="448.48" y="151.54" width="120.98" height="317.46" class="xychart-bar xychart-color-0" data-value="74" data-label="Thu"/><rect x="575.83" y="91.48" width="120.98" height="377.52" class="xychart-bar xychart-color-0" data-value="88" data-label="Fri"/><path d="M126.92,391.78 L254.27,318.85 L381.62,245.92 L508.97,168.7 L636.32,61.45" class="xychart-line xychart-color-1"/><text x="126.92" y="495" text-anchor="middle" font-size="14" font-weight="400" dy="0.35em" class="xychart-label xychart-x-label">Mon</text><text x="254.271" y="495" text-anchor="middle" font-size="14" font-weight="400" dy="0.35em" class="xychart-label xychart-x-label">Tue</text><text x="381.622" y="495" text-anchor="middle" font-size="14" font-weight="400" dy="0.35em" class="xychart-label xychart-x-label">Wed</text><text x="508.973" y="495" text-anchor="middle" font-size="14" font-weight="400" dy="0.35em" class="xychart-label xychart-x-label">Thu</text><text x="636.324" y="495" text-anchor="middle" font-size="14" font-weight="400" dy="0.35em" class="xychart-label xychart-x-label">Fri</text><text x="51.244" y="469" text-anchor="end" dominant-baseline="middle" font-size="14" font-weight="400" class="xychart-label xychart-y-label">0</text><text x="51.244" y="426.1" text-anchor="end" dominant-baseline="middle" font-size="14" font-weight="400" class="xychart-label xychart-y-label">10</text><text x="51.244" y="383.2" text-anchor="end" dominant-baseline="middle" font-size="14" font-weight="400" class="xychart-label xychart-y-label">20</text><text x="51.244" y="340.3" text-anchor="end" dominant-baseline="middle" font-size="14" font-weight="400" class="xychart-label xychart-y-label">30</text><text x="51.244" y="297.4" text-anchor="end" dominant-baseline="middle" font-size="14" font-weight="400" class="xychart-label xychart-y-label">40</text><text x="51.244" y="254.5" text-anchor="end" dominant-baseline="middle" font-size="14" font-weight="400" class="xychart-label xychart-y-label">50</text><text x="51.244" y="211.6" text-anchor="end" dominant-baseline="middle" font-size="14" font-weight="400" class="xychart-label xychart-y-label">60</text><text x="51.244" y="168.7" text-anchor="end" dominant-baseline="middle" font-size="14" font-weight="400" class="xychart-label xychart-y-label">70</text><text x="51.244" y="125.8" text-anchor="end" dominant-baseline="middle" font-size="14" font-weight="400" class="xychart-label xychart-y-label">80</text><text x="51.244" y="82.9" text-anchor="end" dominant-baseline="middle" font-size="14" font-weight="400" class="xychart-label xychart-y-label">90</text><text x="51.244" y="40" text-anchor="end" dominant-baseline="middle" font-size="14" font-weight="400" class="xychart-label xychart-y-label">100</text><text x="17.8" y="254.5" text-anchor="middle" transform="rotate(-90,17.8,254.5)" font-size="16" font-weight="400" dy="0.35em" class="xychart-axis-title xychart-y-axis-title">Renders</text><text x="350" y="30" text-anchor="middle" font-size="20" font-weight="500" dy="0.35em" class="xychart-title">Weekly renders</text><g class="xychart-bar-group"><rect x="66.43" y="361.75" width="120.98" height="107.25" fill="transparent"/><title>Mon: 25</title><g class="xychart-tip"><rect x="103.24" y="317.75" width="47.35" height="32" rx="8" class="xychart-tip xychart-tip-bg"/><path d="M120.92,349.75 L132.92,349.75 L126.92,355.75 Z" class="xychart-tip xychart-tip-ptr"/><text x="126.92" y="333.75" text-anchor="middle" dy="0.35em" class="xychart-tip xychart-tip-text">25</text></g></g><g class="xychart-bar-group"><rect x="193.78" y="288.82" width="120.98" height="180.18" fill="transparent"/><title>Tue: 42</title><g class="xychart-tip"><rect x="230.6" y="244.82" width="47.35" height="32" rx="8" class="xychart-tip xychart-tip-bg"/><path d="M248.27,276.82 L260.27,276.82 L254.27,282.82 Z" class="xychart-tip xychart-tip-ptr"/><text x="254.27" y="260.82" text-anchor="middle" dy="0.35em" class="xychart-tip xychart-tip-text">42</text></g></g><g class="xychart-bar-group"><rect x="321.13" y="220.18" width="120.98" height="248.82" fill="transparent"/><title>Wed: 58</title><g class="xychart-tip"><rect x="357.95" y="176.18" width="47.35" height="32" rx="8" class="xychart-tip xychart-tip-bg"/><path d="M375.62,208.18 L387.62,208.18 L381.62,214.18 Z" class="xychart-tip xychart-tip-ptr"/><text x="381.62" y="192.18" text-anchor="middle" dy="0.35em" class="xychart-tip xychart-tip-text">58</text></g></g><g class="xychart-bar-group"><rect x="448.48" y="151.54" width="120.98" height="317.46" fill="transparent"/><title>Thu: 74</title><g class="xychart-tip"><rect x="485.3" y="107.54" width="47.35" height="32" rx="8" class="xychart-tip xychart-tip-bg"/><path d="M502.97,139.54 L514.97,139.54 L508.97,145.54 Z" class="xychart-tip xychart-tip-ptr"/><text x="508.97" y="123.54" text-anchor="middle" dy="0.35em" class="xychart-tip xychart-tip-text">74</text></g></g><g class="xychart-bar-group"><rect x="575.83" y="91.48" width="120.98" height="377.52" fill="transparent"/><title>Fri: 88</title><g class="xychart-tip"><rect x="612.65" y="47.48" width="47.35" height="32" rx="8" class="xychart-tip xychart-tip-bg"/><path d="M630.32,79.48 L642.32,79.48 L636.32,85.48 Z" class="xychart-tip xychart-tip-ptr"/><text x="636.32" y="63.48" text-anchor="middle" dy="0.35em" class="xychart-tip xychart-tip-text">88</text></g></g><g class="xychart-dot-group"><circle cx="126.92" cy="391.78" r="12" fill="transparent" class="xychart-hit"/><circle cx="126.92" cy="391.78" r="4" class="xychart-dot xychart-color-1" data-value="18" data-label="Mon"/><title>Mon: 18</title><g class="xychart-tip"><rect x="105.81" y="343.78" width="42.22" height="32" rx="8" class="xychart-tip xychart-tip-bg"/><path d="M120.92,375.78 L132.92,375.78 L126.92,381.78 Z" class="xychart-tip xychart-tip-ptr"/><text x="126.92" y="359.78" text-anchor="middle" dy="0.35em" class="xychart-tip xychart-tip-text">18</text></g></g><g class="xychart-dot-group"><circle cx="254.27" cy="318.85" r="12" fill="transparent" class="xychart-hit"/><circle cx="254.27" cy="318.85" r="4" class="xychart-dot xychart-color-1" data-value="35" data-label="Tue"/><title>Tue: 35</title><g class="xychart-tip"><rect x="230.6" y="270.85" width="47.35" height="32" rx="8" class="xychart-tip xychart-tip-bg"/><path d="M248.27,302.85 L260.27,302.85 L254.27,308.85 Z" class="xychart-tip xychart-tip-ptr"/><text x="254.27" y="286.85" text-anchor="middle" dy="0.35em" class="xychart-tip xychart-tip-text">35</text></g></g><g class="xychart-dot-group"><circle cx="381.62" cy="245.92" r="12" fill="transparent" class="xychart-hit"/><circle cx="381.62" cy="245.92" r="4" class="xychart-dot xychart-color-1" data-value="52" data-label="Wed"/><title>Wed: 52</title><g class="xychart-tip"><rect x="357.95" y="197.92" width="47.35" height="32" rx="8" class="xychart-tip xychart-tip-bg"/><path d="M375.62,229.92 L387.62,229.92 L381.62,235.92 Z" class="xychart-tip xychart-tip-ptr"/><text x="381.62" y="213.92" text-anchor="middle" dy="0.35em" class="xychart-tip xychart-tip-text">52</text></g></g><g class="xychart-dot-group"><circle cx="508.97" cy="168.7" r="12" fill="transparent" class="xychart-hit"/><circle cx="508.97" cy="168.7" r="4" class="xychart-dot xychart-color-1" data-value="70" data-label="Thu"/><title>Thu: 70</title><g class="xychart-tip"><rect x="485.3" y="120.7" width="47.35" height="32" rx="8" class="xychart-tip xychart-tip-bg"/><path d="M502.97,152.7 L514.97,152.7 L508.97,158.7 Z" class="xychart-tip xychart-tip-ptr"/><text x="508.97" y="136.7" text-anchor="middle" dy="0.35em" class="xychart-tip xychart-tip-text">70</text></g></g><g class="xychart-dot-group"><circle cx="636.32" cy="61.45" r="12" fill="transparent" class="xychart-hit"/><circle cx="636.32" cy="61.45" r="4" class="xychart-dot xychart-color-1" data-value="95" data-label="Fri"/><title>Fri: 95</title><g class="xychart-tip"><rect x="612.65" y="13.45" width="47.35" height="32" rx="8" class="xychart-tip xychart-tip-bg"/><path d="M630.32,45.45 L642.32,45.45 L636.32,51.45 Z" class="xychart-tip xychart-tip-ptr"/><text x="636.32" y="29.45" text-anchor="middle" dy="0.35em" class="xychart-tip xychart-tip-text">95</text></g></g></svg></div><figcaption>Rendered during the website build from the same source the editor loads.</figcaption></figure>
+  </div>
+</article>
+<article class="example-sample" id="pie-basic">
+  <header class="example-sample-head">
+    <div>
+      <p class="example-meta">Pie</p>
+      <h3>Pie chart</h3>
+      <p>Proportional slices with values shown in the legend.</p>
+    </div>
+    <a class="go" href="/editor/?example=pie-basic">Open in editor</a>
+  </header>
+  <div class="example-sample-grid">
+    <section class="example-source" aria-label="Pie chart Mermaid source"><pre><code>pie showData
+  title Export requests by format
+  "SVG" : 42
+  "PNG" : 28
+  "ASCII" : 18
+  "Unicode" : 12</code></pre></section>
+    <figure class="example-render"><div class="example-svg"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 402.14 276" width="402.14" height="276" style="--bg:#FFFFFF;--fg:#27272A;--font:Inter;background:#FFFFFF" role="img" aria-roledescription="pie chart"><style>
+  text { font-family: var(--font, 'Inter'), system-ui, sans-serif; }
+  svg {
+
+    --_text:          #27272A;
+    --_text-sec:      #575759;
+    --_text-muted:    #707072;
+    --_text-faint:    #8a8a8c;
+    --_line:          #939395;
+    --_arrow:         #47474a;
+    --_node-fill:     #f9f9f9;
+    --_node-stroke:   #d4d4d4;
+    --_group-fill:    #FFFFFF;
+    --_group-hdr:     #f4f4f4;
+    --_inner-stroke:  #e5e5e5;
+    --_key-badge:     #e9e9ea;
+  }
+</style><style>
+  .pie-slice { stroke: #FFFFFF; stroke-width: 1.5; }
+  .pie-legend-swatch { stroke: #d4d4d4; stroke-width: 1; }
+  .pie-legend-text { fill: #27272A; }
+  .pie-title { fill: #27272A; }
+</style><path class="pie-slice" d="M 119 157 L 119 62 A 95 95 0 0 1 164.77 240.25 Z" fill="#3b82f6" data-label="SVG" data-value="42" data-percent="42.0%" /><path class="pie-slice" d="M 119 157 L 164.77 240.25 A 95 95 0 0 1 28.65 186.36 Z" fill="#0d5ba5" data-label="PNG" data-value="28" data-percent="28.0%" /><path class="pie-slice" d="M 119 157 L 28.65 186.36 A 95 95 0 0 1 53.97 87.75 Z" fill="#5f79f2" data-label="ASCII" data-value="18" data-percent="18.0%" /><path class="pie-slice" d="M 119 157 L 53.97 87.75 A 95 95 0 0 1 119 62 Z" fill="#0a5076" data-label="Unicode" data-value="12" data-percent="12.0%" /><rect class="pie-legend-swatch" x="246" y="117" width="14" height="14" rx="2" ry="2" fill="#3b82f6" /><text x="268" y="124" class="pie-legend-text" text-anchor="start" dominant-baseline="middle" font-size="13" font-weight="500" dy="4.55">SVG [42] (42.0%)</text><rect class="pie-legend-swatch" x="246" y="139" width="14" height="14" rx="2" ry="2" fill="#0d5ba5" /><text x="268" y="146" class="pie-legend-text" text-anchor="start" dominant-baseline="middle" font-size="13" font-weight="500" dy="4.55">PNG [28] (28.0%)</text><rect class="pie-legend-swatch" x="246" y="161" width="14" height="14" rx="2" ry="2" fill="#5f79f2" /><text x="268" y="168" class="pie-legend-text" text-anchor="start" dominant-baseline="middle" font-size="13" font-weight="500" dy="4.55">ASCII [18] (18.0%)</text><rect class="pie-legend-swatch" x="246" y="183" width="14" height="14" rx="2" ry="2" fill="#0a5076" /><text x="268" y="190" class="pie-legend-text" text-anchor="start" dominant-baseline="middle" font-size="13" font-weight="500" dy="4.55">Unicode [12] (12.0%)</text><text x="201.07" y="33" class="pie-title" text-anchor="middle" dominant-baseline="middle" font-size="18" font-weight="600" dy="6.3">Export requests by format</text></svg></div><figcaption>Rendered during the website build from the same source the editor loads.</figcaption></figure>
+  </div>
+</article>
+<article class="example-sample" id="quadrant-basic">
+  <header class="example-sample-head">
+    <div>
+      <p class="example-meta">Quadrant</p>
+      <h3>Quadrant chart</h3>
+      <p>Two-axis priority map with labeled regions and points.</p>
+    </div>
+    <a class="go" href="/editor/?example=quadrant-basic">Open in editor</a>
+  </header>
+  <div class="example-sample-grid">
+    <section class="example-source" aria-label="Quadrant chart Mermaid source"><pre><code>quadrantChart
+  title Feature priorities
+  x-axis Low impact --&gt; High impact
+  y-axis Low effort --&gt; High effort
+  quadrant-1 Plan carefully
+  quadrant-2 Big bets
+  quadrant-3 Defer
+  quadrant-4 Quick wins
+  SVG export: [0.78, 0.28]
+  MCP setup: [0.62, 0.72]
+  Theme polish: [0.35, 0.24]</code></pre></section>
+    <figure class="example-render"><div class="example-svg"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 456 492" width="456" height="492" style="--bg:#FFFFFF;--fg:#27272A;--font:Inter;background:#FFFFFF" role="img" aria-roledescription="quadrant chart"><style>
+  text { font-family: var(--font, 'Inter'), system-ui, sans-serif; }
+  svg {
+
+    --_text:          #27272A;
+    --_text-sec:      #575759;
+    --_text-muted:    #707072;
+    --_text-faint:    #8a8a8c;
+    --_line:          #939395;
+    --_arrow:         #47474a;
+    --_node-fill:     #f9f9f9;
+    --_node-stroke:   #d4d4d4;
+    --_group-fill:    #FFFFFF;
+    --_group-hdr:     #f4f4f4;
+    --_inner-stroke:  #e5e5e5;
+    --_key-badge:     #e9e9ea;
+  }
+</style><style>
+  .quadrant-region { stroke: none; }
+  .quadrant-divider { stroke: #939395; stroke-width: 1; }
+  .quadrant-border { stroke: #d4d4d4; stroke-width: 2; }
+  .quadrant-label { fill: #575759; }
+  .quadrant-point { fill: #47474a; stroke: #FFFFFF; stroke-width: 1; }
+  .quadrant-point-label { fill: #27272A; }
+  .quadrant-axis-label { fill: #707072; }
+  .quadrant-title { fill: #27272A; }
+</style><rect class="quadrant-region" x="52" y="60" width="190" height="190" fill="#f6f6f6" data-quadrant="2" /><rect class="quadrant-region" x="242" y="60" width="190" height="190" fill="#ededed" data-quadrant="1" /><rect class="quadrant-region" x="52" y="250" width="190" height="190" fill="#ededed" data-quadrant="3" /><rect class="quadrant-region" x="242" y="250" width="190" height="190" fill="#f6f6f6" data-quadrant="4" /><line class="quadrant-divider" x1="242" y1="60" x2="242" y2="440" /><line class="quadrant-divider" x1="52" y1="250" x2="432" y2="250" /><rect class="quadrant-border" x="52" y="60" width="380" height="380" fill="none" /><text x="147" y="155" class="quadrant-label" text-anchor="middle" dominant-baseline="middle" font-size="15" font-weight="600" dy="5.25">Big bets</text><text x="337" y="155" class="quadrant-label" text-anchor="middle" dominant-baseline="middle" font-size="15" font-weight="600" dy="5.25">Plan carefully</text><text x="147" y="345" class="quadrant-label" text-anchor="middle" dominant-baseline="middle" font-size="15" font-weight="600" dy="5.25">Defer</text><text x="337" y="345" class="quadrant-label" text-anchor="middle" dominant-baseline="middle" font-size="15" font-weight="600" dy="5.25">Quick wins</text><circle class="quadrant-point" cx="348.4" cy="333.6" r="6" data-label="SVG export" data-x="0.78" data-y="0.28" /><text x="358.4" y="333.6" class="quadrant-point-label" text-anchor="start" dominant-baseline="middle" font-size="12" font-weight="500" dy="4.2">SVG export</text><circle class="quadrant-point" cx="287.6" cy="166.4" r="6" data-label="MCP setup" data-x="0.62" data-y="0.72" /><text x="297.6" y="166.4" class="quadrant-point-label" text-anchor="start" dominant-baseline="middle" font-size="12" font-weight="500" dy="4.2">MCP setup</text><circle class="quadrant-point" cx="185" cy="348.8" r="6" data-label="Theme polish" data-x="0.35" data-y="0.24" /><text x="195" y="348.8" class="quadrant-point-label" text-anchor="start" dominant-baseline="middle" font-size="12" font-weight="500" dy="4.2">Theme polish</text><text class="quadrant-axis-label" x="56" y="457" text-anchor="start" font-size="13" font-weight="500">Low impact</text><text class="quadrant-axis-label" x="428" y="457" text-anchor="end" font-size="13" font-weight="500">High impact</text><text class="quadrant-axis-label" x="37" y="436" text-anchor="start" font-size="13" font-weight="500" transform="rotate(-90 37 436)">Low effort</text><text class="quadrant-axis-label" x="37" y="64" text-anchor="end" font-size="13" font-weight="500" transform="rotate(-90 37 64)">High effort</text><text x="242" y="33" class="quadrant-title" text-anchor="middle" dominant-baseline="middle" font-size="18" font-weight="600" dy="6.3">Feature priorities</text></svg></div><figcaption>Rendered during the website build from the same source the editor loads.</figcaption></figure>
+  </div>
+</article>
+<article class="example-sample" id="gantt-basic">
+  <header class="example-sample-head">
+    <div>
+      <p class="example-meta">Gantt</p>
+      <h3>Gantt chart</h3>
+      <p>Sections, dependencies, status tags, and a milestone.</p>
+    </div>
+    <a class="go" href="/editor/?example=gantt-basic">Open in editor</a>
+  </header>
+  <div class="example-sample-grid">
+    <section class="example-source" aria-label="Gantt chart Mermaid source"><pre><code>gantt
+  title Release train
+  dateFormat YYYY-MM-DD
+  excludes weekends
+  section Build
+    Completed task :done, des1, 2024-01-08, 2024-01-10
+    Active task    :active, des2, 2024-01-11, 3d
+    Future task    :des3, after des2, 5d
+  section Ship
+    Crit review    :crit, rev1, after des3, 2d
+    Release        :milestone, m1, after rev1, 0d</code></pre></section>
+    <figure class="example-render"><div class="example-svg"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 735 312" width="735" height="312" style="--bg:#FFFFFF;--fg:#27272A;--font:Inter;background:#FFFFFF"><style>
+  text { font-family: var(--font, 'Inter'), system-ui, sans-serif; }
+  svg {
+
+    --_text:          #27272A;
+    --_text-sec:      #575759;
+    --_text-muted:    #707072;
+    --_text-faint:    #8a8a8c;
+    --_line:          #939395;
+    --_arrow:         #47474a;
+    --_node-fill:     #f9f9f9;
+    --_node-stroke:   #d4d4d4;
+    --_group-fill:    #FFFFFF;
+    --_group-hdr:     #f4f4f4;
+    --_inner-stroke:  #e5e5e5;
+    --_key-badge:     #e9e9ea;
+  }
+</style><style>
+  .gantt-section-band { fill: #27272A; opacity: 0.07; }
+  .gantt-grid-line { stroke: #27272A; stroke-width: 1; opacity: 0.45; }
+  .gantt-bar { fill: #27272A; stroke: none; opacity: 0.92; }
+  .gantt-bar-active { fill: #27272A; stroke: #27272A; stroke-width: 1.5; opacity: 1; }
+  .gantt-bar-done { fill: #27272A; opacity: 0.55; }
+  .gantt-bar-crit { fill: #27272A; stroke: #27272A; stroke-width: 1.5; opacity: 0.95; }
+  .gantt-milestone { fill: #27272A; stroke: #27272A; stroke-width: 1; }
+  .gantt-milestone-crit { fill: #27272A; stroke: #27272A; stroke-width: 1.5; }
+  .gantt-vert-marker { stroke: #27272A; stroke-width: 2; stroke-dasharray: 6 3; }
+  .gantt-today-marker { stroke: #27272A; stroke-width: 2; stroke-dasharray: 4 3; }
+  .gantt-title { fill: #27272A; }
+  .gantt-section-label { fill: #27272A; }
+  .gantt-task-label { fill: #27272A; }
+  .gantt-axis-label { fill: #27272A; }
+</style><rect class="gantt-section-band" x="119" y="50" width="600" height="120" /><line class="gantt-grid-line" x1="330.76" y1="50" x2="330.76" y2="272" /><line class="gantt-grid-line" x1="577.82" y1="50" x2="577.82" y2="272" /><text class="gantt-axis-label" x="330.76" y="284" text-anchor="middle" dominant-baseline="middle" font-size="11" font-weight="500">01-14</text><text class="gantt-axis-label" x="577.82" y="284" text-anchor="middle" dominant-baseline="middle" font-size="11" font-weight="500">01-21</text><text class="gantt-section-label" x="8" y="65" text-anchor="start" dominant-baseline="middle" font-size="13" font-weight="600">Build</text><text class="gantt-section-label" x="8" y="191" text-anchor="start" dominant-baseline="middle" font-size="13" font-weight="600">Ship</text><text class="gantt-task-label" x="16" y="91" text-anchor="start" dominant-baseline="middle" font-size="13" font-weight="500">Completed task</text><text class="gantt-task-label" x="16" y="121" text-anchor="start" dominant-baseline="middle" font-size="13" font-weight="500">Active task</text><text class="gantt-task-label" x="16" y="151" text-anchor="start" dominant-baseline="middle" font-size="13" font-weight="500">Future task</text><text class="gantt-task-label" x="16" y="217" text-anchor="start" dominant-baseline="middle" font-size="13" font-weight="500">Crit review</text><text class="gantt-task-label" x="16" y="247" text-anchor="start" dominant-baseline="middle" font-size="13" font-weight="500">Release</text><rect class="gantt-bar gantt-bar-done" x="119" y="80" width="70.59" height="22" rx="3" ry="3" data-task="des1" /><rect class="gantt-bar gantt-bar-active" x="224.88" y="110" width="176.47" height="22" rx="3" ry="3" data-task="des2" /><rect class="gantt-bar" x="401.35" y="140" width="247.06" height="22" rx="3" ry="3" data-task="des3" /><rect class="gantt-bar gantt-bar-crit" x="648.41" y="206" width="70.59" height="22" rx="3" ry="3" data-task="rev1" /><path class="gantt-milestone" d="M 708 236 L 719 247 L 708 258 L 697 247 Z" data-task="m1" /><text class="gantt-title" x="367.5" y="18" text-anchor="middle" dominant-baseline="middle" font-size="17" font-weight="600">Release train</text></svg></div><figcaption>Rendered during the website build from the same source the editor loads.</figcaption></figure>
+  </div>
+</article>
+</section>
+
+<section class="example-group" aria-labelledby="examples-role-style-presets">
+<h2 id="examples-role-style-presets">Role style presets</h2>
+<p class="muted">These use the editor style role preset, so the same source shows how node, edge, text, and group roles affect supported families.</p>
+
+<article class="example-sample" id="styled-flowchart">
+  <header class="example-sample-head">
+    <div>
+      <p class="example-meta">Flowchart</p>
+      <h3>Styled flowchart</h3>
+      <p>Flowchart using semantic node, edge, text, and group roles.</p>
+    </div>
+    <a class="go" href="/editor/?example=styled-flowchart">Open in editor</a>
+  </header>
+  <div class="example-sample-grid">
+    <section class="example-source" aria-label="Styled flowchart Mermaid source"><pre><code>flowchart TD
+  subgraph product [Product Loop]
+    A[Capture request] --&gt; B{Ready?}
+    B --&gt;|yes| C[Ship]
+    B -.-&gt;|needs work| D[Refine]
+  end</code></pre></section>
+    <figure class="example-render"><div class="example-svg"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 325.9 591.65" width="325.9" height="591.65" style="--bg:#FFFFFF;--fg:#27272A;--font:Inter;background:#FFFFFF"><style>
+  text { font-family: var(--font, 'Inter'), system-ui, sans-serif; }
+  svg {
+
+    --_text:          #27272A;
+    --_text-sec:      #575759;
+    --_text-muted:    #707072;
+    --_text-faint:    #8a8a8c;
+    --_line:          #939395;
+    --_arrow:         #47474a;
+    --_node-fill:     #f9f9f9;
+    --_node-stroke:   #d4d4d4;
+    --_group-fill:    #FFFFFF;
+    --_group-hdr:     #f4f4f4;
+    --_inner-stroke:  #e5e5e5;
+    --_key-badge:     #e9e9ea;
+  }
+</style><defs><marker id="example-styled-flowchart-arrowhead" markerWidth="8" markerHeight="5" refX="7" refY="2.5" orient="auto"><polygon points="0 0, 8 2.5, 0 5" fill="#47474a" stroke="#47474a" stroke-width="0.75" stroke-linejoin="round" /></marker><marker id="example-styled-flowchart-arrowhead-start" markerWidth="8" markerHeight="5" refX="7" refY="2.5" orient="auto-start-reverse"><polygon points="0 0, 8 2.5, 0 5" fill="#47474a" stroke="#47474a" stroke-width="0.75" stroke-linejoin="round" /></marker></defs><g class="subgraph" data-id="product" data-region="subgraph" data-label="Product Loop"><rect x="40" y="40" width="245.9" height="511.65" rx="18" ry="18" fill="#FFFFFF" stroke="#f97316" stroke-width="1.5" /><path d="M58,40 H267.9 A18,18 0 0 1 285.9,58 V68 H40 V58 A18,18 0 0 1 58,40 Z" fill="#f4f4f4" stroke="#f97316" stroke-width="1.5" /><text x="64" y="54" font-size="12" font-weight="700" letter-spacing="0.8" fill="#575759" dy="4.2">PRODUCT LOOP</text></g><path class="edge" data-from="A" data-to="B" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" d="M159.8,133.5 L159.8,181.5" fill="none" stroke="#939395" stroke-width="2.25" marker-end="url(#example-styled-flowchart-arrowhead)" /><path class="edge" data-from="B" data-to="C" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" data-label="yes" d="M128.288,276.038 L128.288,344.55 Q128.288,356.55 116.288,356.55 L112.175,356.55 Q100.175,356.55 100.175,368.55 L100.175,486.15" fill="none" stroke="#939395" stroke-width="2.25" marker-end="url(#example-styled-flowchart-arrowhead)" /><path class="edge" data-from="B" data-to="D" data-style="dotted" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" data-label="needs work" d="M191.313,276.038 L191.313,344.55 Q191.313,356.55 203.313,356.55 L207.425,356.55 Q219.425,356.55 219.425,368.55 L219.425,486.15" fill="none" stroke="#939395" stroke-width="2.25" stroke-dasharray="4 4" marker-end="url(#example-styled-flowchart-arrowhead)" /><g class="edge-label" data-from="B" data-to="C" data-label="yes"><rect class="edge-label-halo" x="75.975" y="401.05" width="48.4" height="40.6" rx="4" ry="4" fill="#FFFFFF" stroke="none" /><rect x="80.475" y="405.55" width="39.4" height="31.6" rx="2" ry="2" fill="#FFFFFF" stroke="#e5e5e5" stroke-width="1" /><text x="100.175" y="421.35" text-anchor="middle" font-size="12" font-weight="600" letter-spacing="0.1" fill="#575759" dy="4.2">yes</text></g><g class="edge-label" data-from="B" data-to="D" data-label="needs work"><rect class="edge-label-halo" x="172.545" y="401.05" width="93.76" height="40.6" rx="4" ry="4" fill="#FFFFFF" stroke="none" /><rect x="177.045" y="405.55" width="84.76" height="31.6" rx="2" ry="2" fill="#FFFFFF" stroke="#e5e5e5" stroke-width="1" /><text x="219.425" y="421.35" text-anchor="middle" font-size="12" font-weight="600" letter-spacing="0.1" fill="#575759" dy="4.2">needs work</text></g><g class="node" data-id="A" data-label="Capture request" data-shape="rectangle"><rect x="78.625" y="86" width="162.35" height="47.5" rx="16" ry="16" fill="#f9f9f9" stroke="#d4d4d4" stroke-width="1.5" /><text x="159.8" y="109.75" text-anchor="middle" font-size="15" font-weight="600" letter-spacing="-0.1" fill="#27272A" dy="5.25">Capture request</text></g><g class="node" data-id="B" data-label="Ready?" data-shape="diamond"><polygon points="159.8,181.5 222.825,244.525 159.8,307.55 96.775,244.525" fill="#f9f9f9" stroke="#d4d4d4" stroke-width="1.5" /><text x="159.8" y="244.525" text-anchor="middle" font-size="15" font-weight="600" letter-spacing="-0.1" fill="#27272A" dy="5.25">Ready?</text></g><g class="node" data-id="C" data-label="Ship" data-shape="rectangle"><rect x="54.55" y="486.15" width="91.25" height="47.5" rx="16" ry="16" fill="#f9f9f9" stroke="#d4d4d4" stroke-width="1.5" /><text x="100.175" y="509.9" text-anchor="middle" font-size="15" font-weight="600" letter-spacing="-0.1" fill="#27272A" dy="5.25">Ship</text></g><g class="node" data-id="D" data-label="Refine" data-shape="rectangle"><rect x="173.8" y="486.15" width="91.25" height="47.5" rx="16" ry="16" fill="#f9f9f9" stroke="#d4d4d4" stroke-width="1.5" /><text x="219.425" y="509.9" text-anchor="middle" font-size="15" font-weight="600" letter-spacing="-0.1" fill="#27272A" dy="5.25">Refine</text></g></svg></div><figcaption>Rendered during the website build from the same source the editor loads.</figcaption></figure>
+  </div>
+</article>
+<article class="example-sample" id="styled-state">
+  <header class="example-sample-head">
+    <div>
+      <p class="example-meta">State</p>
+      <h3>Styled state</h3>
+      <p>State diagram consuming the same flowchart/state role mapping.</p>
+    </div>
+    <a class="go" href="/editor/?example=styled-state">Open in editor</a>
+  </header>
+  <div class="example-sample-grid">
+    <section class="example-source" aria-label="Styled state Mermaid source"><pre><code>stateDiagram-v2
+  [*] --&gt; Draft
+  Draft --&gt; Review: submit
+  Review --&gt; Draft: request changes
+  Review --&gt; Published: approve
+  Published --&gt; [*]</code></pre></section>
+    <figure class="example-render"><div class="example-svg"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 303.833 609.7" width="303.833" height="609.7" style="--bg:#FFFFFF;--fg:#27272A;--font:Inter;background:#FFFFFF"><style>
+  text { font-family: var(--font, 'Inter'), system-ui, sans-serif; }
+  svg {
+
+    --_text:          #27272A;
+    --_text-sec:      #575759;
+    --_text-muted:    #707072;
+    --_text-faint:    #8a8a8c;
+    --_line:          #939395;
+    --_arrow:         #47474a;
+    --_node-fill:     #f9f9f9;
+    --_node-stroke:   #d4d4d4;
+    --_group-fill:    #FFFFFF;
+    --_group-hdr:     #f4f4f4;
+    --_inner-stroke:  #e5e5e5;
+    --_key-badge:     #e9e9ea;
+  }
+</style><defs><marker id="example-styled-state-arrowhead" markerWidth="8" markerHeight="5" refX="7" refY="2.5" orient="auto"><polygon points="0 0, 8 2.5, 0 5" fill="#47474a" stroke="#47474a" stroke-width="0.75" stroke-linejoin="round" /></marker><marker id="example-styled-state-arrowhead-start" markerWidth="8" markerHeight="5" refX="7" refY="2.5" orient="auto-start-reverse"><polygon points="0 0, 8 2.5, 0 5" fill="#47474a" stroke="#47474a" stroke-width="0.75" stroke-linejoin="round" /></marker></defs><path class="edge" data-from="_start" data-to="Draft" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" d="M115.533,68 L115.533,116" fill="none" stroke="#939395" stroke-width="2.25" marker-end="url(#example-styled-state-arrowhead)" /><path class="edge" data-from="Draft" data-to="Review" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" data-label="submit" d="M115.533,163.5 L115.533,281.1" fill="none" stroke="#939395" stroke-width="2.25" marker-end="url(#example-styled-state-arrowhead)" /><path class="edge" data-from="Review" data-to="Draft" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" data-label="request changes" d="M164.758,304.85 L191.833,304.85 Q203.833,304.85 203.833,292.85 L203.833,151.75 Q203.833,139.75 191.833,139.75 L155.758,139.75" fill="none" stroke="#939395" stroke-width="2.25" marker-end="url(#example-styled-state-arrowhead)" /><path class="edge" data-from="Review" data-to="Published" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" data-label="approve" d="M99.125,328.6 L99.125,446.2" fill="none" stroke="#939395" stroke-width="2.25" marker-end="url(#example-styled-state-arrowhead)" /><path class="edge" data-from="Published" data-to="_end" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" d="M99.125,493.7 L99.125,541.7" fill="none" stroke="#939395" stroke-width="2.25" marker-end="url(#example-styled-state-arrowhead)" /><g class="edge-label" data-from="Draft" data-to="Review" data-label="submit"><rect class="edge-label-halo" x="84.033" y="202" width="62.8" height="40.6" rx="4" ry="4" fill="#FFFFFF" stroke="none" /><rect x="88.533" y="206.5" width="53.8" height="31.6" rx="2" ry="2" fill="#FFFFFF" stroke="#e5e5e5" stroke-width="1" /><text x="115.433" y="222.3" text-anchor="middle" font-size="12" font-weight="600" letter-spacing="0.1" fill="#575759" dy="4.2">submit</text></g><g class="edge-label" data-from="Review" data-to="Draft" data-label="request changes"><rect class="edge-label-halo" x="141.833" y="202" width="124" height="40.6" rx="4" ry="4" fill="#FFFFFF" stroke="none" /><rect x="146.333" y="206.5" width="115" height="31.6" rx="2" ry="2" fill="#FFFFFF" stroke="#e5e5e5" stroke-width="1" /><text x="203.833" y="222.3" text-anchor="middle" font-size="12" font-weight="600" letter-spacing="0.1" fill="#575759" dy="4.2">request changes</text></g><g class="edge-label" data-from="Review" data-to="Published" data-label="approve"><rect class="edge-label-halo" x="61.245" y="367.1" width="75.76" height="40.6" rx="4" ry="4" fill="#FFFFFF" stroke="none" /><rect x="65.745" y="371.6" width="66.76" height="31.6" rx="2" ry="2" fill="#FFFFFF" stroke="#e5e5e5" stroke-width="1" /><text x="99.125" y="387.4" text-anchor="middle" font-size="12" font-weight="600" letter-spacing="0.1" fill="#575759" dy="4.2">approve</text></g><g class="node" data-id="_start" data-label="" data-shape="state-start"><circle cx="115.533" cy="54" r="12" fill="#27272A" stroke="none" /></g><g class="node" data-id="Draft" data-label="Draft" data-shape="rounded"><rect x="75.308" y="116" width="80.45" height="47.5" rx="16" ry="16" fill="#f9f9f9" stroke="#d4d4d4" stroke-width="1.5" /><text x="115.533" y="139.75" text-anchor="middle" font-size="15" font-weight="600" letter-spacing="-0.1" fill="#27272A" dy="5.25">Draft</text></g><g class="node" data-id="Review" data-label="Review" data-shape="rounded"><rect x="66.308" y="281.1" width="98.45" height="47.5" rx="16" ry="16" fill="#f9f9f9" stroke="#d4d4d4" stroke-width="1.5" /><text x="115.533" y="304.85" text-anchor="middle" font-size="15" font-weight="600" letter-spacing="-0.1" fill="#27272A" dy="5.25">Review</text></g><g class="node" data-id="Published" data-label="Published" data-shape="rounded"><rect x="40" y="446.2" width="118.25" height="47.5" rx="16" ry="16" fill="#f9f9f9" stroke="#d4d4d4" stroke-width="1.5" /><text x="99.125" y="469.95" text-anchor="middle" font-size="15" font-weight="600" letter-spacing="-0.1" fill="#27272A" dy="5.25">Published</text></g><g class="node" data-id="_end" data-label="" data-shape="state-end"><circle cx="99.125" cy="555.7" r="12" fill="none" stroke="#27272A" stroke-width="1.5" /><circle cx="99.125" cy="555.7" r="8" fill="#27272A" stroke="none" /></g></svg></div><figcaption>Rendered during the website build from the same source the editor loads.</figcaption></figure>
+  </div>
+</article>
+<article class="example-sample" id="styled-architecture">
+  <header class="example-sample-head">
+    <div>
+      <p class="example-meta">Architecture</p>
+      <h3>Styled architecture</h3>
+      <p>Architecture services, groups, and connectors styled semantically.</p>
+    </div>
+    <a class="go" href="/editor/?example=styled-architecture">Open in editor</a>
+  </header>
+  <div class="example-sample-grid">
+    <section class="example-source" aria-label="Styled architecture Mermaid source"><pre><code>architecture-beta
+  group edge(cloud)[Edge Layer]
+  group core(server)[Core Services]
+  service web(server)[Web App] in edge
+  service api(server)[API] in core
+  service db(database)[Postgres] in core
+  web:R --&gt; L:api
+  api:R --&gt; L:db</code></pre></section>
+    <figure class="example-render"><div class="example-svg"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 710.1 197.5" width="710.1" height="197.5" style="--bg:#FFFFFF;--fg:#27272A;--font:Inter;background:#FFFFFF;--arch-group-stroke:#f97316"><style>
+  text { font-family: var(--font, 'Inter'), system-ui, sans-serif; }
+  svg {
+
+    --_text:          #27272A;
+    --_text-sec:      #575759;
+    --_text-muted:    #707072;
+    --_text-faint:    #8a8a8c;
+    --_line:          #939395;
+    --_arrow:         #47474a;
+    --_node-fill:     #f9f9f9;
+    --_node-stroke:   #d4d4d4;
+    --_group-fill:    #FFFFFF;
+    --_group-hdr:     #f4f4f4;
+    --_inner-stroke:  #e5e5e5;
+    --_key-badge:     #e9e9ea;
+  }
+</style><style>
+  .architecture-group-frame { fill: #fafafa; stroke: none; }
+  .architecture-group-band { fill: #f6f6f6; stroke: none; }
+  .architecture-group-outline { fill: none; stroke: #f97316; stroke-width: 1.5; }
+  .architecture-group-label { fill: #575759; }
+  .architecture-service-card { fill: #f9f9f9; stroke: none; }
+  .architecture-service-outline { fill: none; stroke: #d4d4d4; stroke-width: 1.5; }
+  .architecture-service-label { fill: #27272A; }
+  .architecture-edge { fill: none; stroke: #939395; stroke-width: 2.25; stroke-linejoin: round; }
+  .architecture-edge-label-bg { fill: #fefefe; stroke: #ececec; stroke-width: 0.75; }
+  .architecture-edge-label-text { fill: #707072; }
+  .architecture-junction-ring { fill: #FFFFFF; stroke: #47474a; stroke-width: 1.25; }
+  .architecture-junction-core { fill: #d3d3d4; stroke: #47474a; stroke-width: 0.75; }
+  .architecture-icon-mark { fill: none; stroke: #47474a; stroke-width: 1.25; stroke-linecap: round; stroke-linejoin: round; }
+  .architecture-icon-glyph { fill: #47474a; }
+</style><defs><marker id="example-styled-architecture-architecture-arrow-end" markerWidth="8" markerHeight="5" refX="7" refY="2.5" orient="auto"><polygon points="0 0, 8 2.5, 0 5" fill="#47474a" stroke="#47474a" stroke-width="0.75" stroke-linejoin="round" /></marker><marker id="example-styled-architecture-architecture-arrow-start" markerWidth="8" markerHeight="5" refX="1" refY="2.5" orient="auto-start-reverse"><polygon points="8 0, 0 2.5, 8 5" fill="#47474a" stroke="#47474a" stroke-width="0.75" stroke-linejoin="round" /></marker></defs><g class="architecture-group" data-id="edge" data-label="Edge Layer"><rect class="architecture-group-frame" x="40" y="40" width="191.25" height="117.5" rx="18" ry="18" /><path class="architecture-group-band" d="M58,40 H213.25 A18,18 0 0 1 231.25,58 V68 H40 V58 A18,18 0 0 1 58,40 Z" /><rect class="architecture-group-outline" x="40" y="40" width="191.25" height="117.5" rx="18" ry="18" /><g class="architecture-icon" data-icon="cloud"><circle class="architecture-icon-mark" cx="55.35" cy="54.294" r="2.355" /><circle class="architecture-icon-mark" cx="58.294" cy="52.822" r="2.944" /><circle class="architecture-icon-mark" cx="60.944" cy="54.294" r="2.208" /><path class="architecture-icon-mark" d="M 52.995 56.355 H 62.858" /></g><text x="76" y="54" class="architecture-group-label" text-anchor="start" font-size="12" font-weight="700" letter-spacing="0.8" dy="4.2">EDGE LAYER</text></g><g class="architecture-group" data-id="core" data-label="Core Services"><rect class="architecture-group-frame" x="299.25" y="40" width="370.85" height="117.5" rx="18" ry="18" /><path class="architecture-group-band" d="M317.25,40 H652.1 A18,18 0 0 1 670.1,58 V68 H299.25 V58 A18,18 0 0 1 317.25,40 Z" /><rect class="architecture-group-outline" x="299.25" y="40" width="370.85" height="117.5" rx="18" ry="18" /><g class="architecture-icon" data-icon="server"><rect class="architecture-icon-mark" x="314.012" y="50.467" width="6.477" height="7.066" rx="0" ry="0" /><path class="architecture-icon-mark" d="M 314.895 52.822 H 319.605" /><path class="architecture-icon-mark" d="M 314.895 54.883 H 319.605" /></g><text x="335.25" y="54" class="architecture-group-label" text-anchor="start" font-size="12" font-weight="700" letter-spacing="0.8" dy="4.2">CORE SERVICES</text></g><polyline class="architecture-edge" data-from="web" data-to="api" data-from-side="R" data-to-side="L" data-from-boundary="item" data-to-boundary="item" points="207.25,112.75 323.25,112.75" marker-end="url(#example-styled-architecture-architecture-arrow-end)" /><polyline class="architecture-edge" data-from="api" data-to="db" data-from-side="R" data-to-side="L" data-from-boundary="item" data-to-boundary="item" points="443.25,112.75 499.25,112.75" marker-end="url(#example-styled-architecture-architecture-arrow-end)" /><g class="architecture-service" data-id="web" data-label="Web App"><rect class="architecture-service-card" x="64" y="86" width="143.25" height="53.5" rx="16" ry="16" /><rect class="architecture-service-outline" x="64" y="86" width="143.25" height="53.5" rx="16" ry="16" /><g class="architecture-icon" data-icon="server"><rect class="architecture-icon-mark" x="91.04" y="108.43" width="7.92" height="8.64" rx="0" ry="0" /><path class="architecture-icon-mark" d="M 92.12 111.31 H 97.88" /><path class="architecture-icon-mark" d="M 92.12 113.83 H 97.88" /></g><text x="119.4" y="112.75" class="architecture-service-label" text-anchor="start" font-size="15" font-weight="600" letter-spacing="-0.1" dy="5.25">Web App</text></g><g class="architecture-service" data-id="api" data-label="API"><rect class="architecture-service-card" x="323.25" y="86" width="120" height="53.5" rx="16" ry="16" /><rect class="architecture-service-outline" x="323.25" y="86" width="120" height="53.5" rx="16" ry="16" /><g class="architecture-icon" data-icon="server"><rect class="architecture-icon-mark" x="350.29" y="108.43" width="7.92" height="8.64" rx="0" ry="0" /><path class="architecture-icon-mark" d="M 351.37 111.31 H 357.13" /><path class="architecture-icon-mark" d="M 351.37 113.83 H 357.13" /></g><text x="378.65" y="112.75" class="architecture-service-label" text-anchor="start" font-size="15" font-weight="600" letter-spacing="-0.1" dy="5.25">API</text></g><g class="architecture-service" data-id="db" data-label="Postgres"><rect class="architecture-service-card" x="499.25" y="86" width="146.85" height="53.5" rx="16" ry="16" /><rect class="architecture-service-outline" x="499.25" y="86" width="146.85" height="53.5" rx="16" ry="16" /><g class="architecture-icon" data-icon="database"><ellipse class="architecture-icon-mark" cx="530.25" cy="109.87" rx="4.32" ry="1.8" /><path class="architecture-icon-mark" d="M 525.93 109.87 V 116.35" /><path class="architecture-icon-mark" d="M 534.57 109.87 V 116.35" /><ellipse class="architecture-icon-mark" cx="530.25" cy="113.11" rx="4.32" ry="1.8" /><ellipse class="architecture-icon-mark" cx="530.25" cy="116.35" rx="4.32" ry="1.8" /></g><text x="554.65" y="112.75" class="architecture-service-label" text-anchor="start" font-size="15" font-weight="600" letter-spacing="-0.1" dy="5.25">Postgres</text></g></svg></div><figcaption>Rendered during the website build from the same source the editor loads.</figcaption></figure>
+  </div>
+</article>
+<article class="example-sample" id="styled-sequence">
+  <header class="example-sample-head">
+    <div>
+      <p class="example-meta">Sequence</p>
+      <h3>Styled sequence</h3>
+      <p>Participants use node style; messages use edge style.</p>
+    </div>
+    <a class="go" href="/editor/?example=styled-sequence">Open in editor</a>
+  </header>
+  <div class="example-sample-grid">
+    <section class="example-source" aria-label="Styled sequence Mermaid source"><pre><code>sequenceDiagram
+  participant U as User
+  participant E as Editor
+  participant R as Renderer
+  U-&gt;&gt;E: Change style role
+  E-&gt;&gt;R: render(source, options.style)
+  R--&gt;&gt;E: SVG</code></pre></section>
+    <figure class="example-render"><div class="example-svg"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 442.3 251.4" width="442.3" height="251.4" style="--bg:#FFFFFF;--fg:#27272A;--font:Inter;background:#FFFFFF"><style>
+  text { font-family: var(--font, 'Inter'), system-ui, sans-serif; }
+  svg {
+
+    --_text:          #27272A;
+    --_text-sec:      #575759;
+    --_text-muted:    #707072;
+    --_text-faint:    #8a8a8c;
+    --_line:          #939395;
+    --_arrow:         #47474a;
+    --_node-fill:     #f9f9f9;
+    --_node-stroke:   #d4d4d4;
+    --_group-fill:    #FFFFFF;
+    --_group-hdr:     #f4f4f4;
+    --_inner-stroke:  #e5e5e5;
+    --_key-badge:     #e9e9ea;
+  }
+</style><defs><marker id="example-styled-sequence-seq-arrow" markerWidth="8" markerHeight="5" refX="8" refY="2.5" orient="auto-start-reverse"><polygon points="0 0, 8 2.5, 0 5" fill="#47474a" /></marker><marker id="example-styled-sequence-seq-arrow-open" markerWidth="8" markerHeight="5" refX="8" refY="2.5" orient="auto-start-reverse"><polyline points="0 0, 8 2.5, 0 5" fill="none" stroke="#47474a" stroke-width="1" /></marker></defs><line class="lifeline" data-actor="U" x1="71.125" y1="77.5" x2="71.125" y2="221.4" stroke="#939395" stroke-width="1.688" stroke-dasharray="6 4" /><line class="lifeline" data-actor="E" x1="211.125" y1="77.5" x2="211.125" y2="221.4" stroke="#939395" stroke-width="1.688" stroke-dasharray="6 4" /><line class="lifeline" data-actor="R" x1="354.075" y1="77.5" x2="354.075" y2="221.4" stroke="#939395" stroke-width="1.688" stroke-dasharray="6 4" /><g class="message" data-from="U" data-to="E" data-label="Change style role" data-line-style="solid" data-arrow-head="filled" data-self="false"><line x1="71.125" y1="97.5" x2="211.125" y2="97.5" stroke="#939395" stroke-width="2.25" marker-end="url(#example-styled-sequence-seq-arrow)" /><text x="141.125" y="87.5" font-size="12" text-anchor="middle" font-weight="600" letter-spacing="0.1" fill="#707072" dy="4.2">Change style role</text></g><g class="message" data-from="E" data-to="R" data-label="render(source, options.style)" data-line-style="solid" data-arrow-head="filled" data-self="false"><line x1="211.125" y1="138.8" x2="354.075" y2="138.8" stroke="#939395" stroke-width="2.25" marker-end="url(#example-styled-sequence-seq-arrow)" /><text x="282.6" y="128.8" font-size="12" text-anchor="middle" font-weight="600" letter-spacing="0.1" fill="#707072" dy="4.2">render(source, options.style)</text></g><g class="message" data-from="R" data-to="E" data-label="SVG" data-line-style="dashed" data-arrow-head="filled" data-self="false"><line x1="354.075" y1="180.1" x2="211.125" y2="180.1" stroke="#939395" stroke-width="2.25" stroke-dasharray="6 4" marker-end="url(#example-styled-sequence-seq-arrow)" /><text x="282.6" y="170.1" font-size="12" text-anchor="middle" font-weight="600" letter-spacing="0.1" fill="#707072" dy="4.2">SVG</text></g><g class="actor" data-id="U" data-label="User" data-type="participant"><rect x="30" y="30" width="82.25" height="47.5" rx="16" ry="16" fill="#f9f9f9" stroke="#d4d4d4" stroke-width="1.5" /><text x="71.125" y="53.75" font-size="15" text-anchor="middle" font-weight="600" letter-spacing="-0.1" fill="#27272A" dy="5.25">User</text></g><g class="actor" data-id="E" data-label="Editor" data-type="participant"><rect x="166.4" y="30" width="89.45" height="47.5" rx="16" ry="16" fill="#f9f9f9" stroke="#d4d4d4" stroke-width="1.5" /><text x="211.125" y="53.75" font-size="15" text-anchor="middle" font-weight="600" letter-spacing="-0.1" fill="#27272A" dy="5.25">Editor</text></g><g class="actor" data-id="R" data-label="Renderer" data-type="participant"><rect x="295.85" y="30" width="116.45" height="47.5" rx="16" ry="16" fill="#f9f9f9" stroke="#d4d4d4" stroke-width="1.5" /><text x="354.075" y="53.75" font-size="15" text-anchor="middle" font-weight="600" letter-spacing="-0.1" fill="#27272A" dy="5.25">Renderer</text></g></svg></div><figcaption>Rendered during the website build from the same source the editor loads.</figcaption></figure>
+  </div>
+</article>
+<article class="example-sample" id="styled-class">
+  <header class="example-sample-head">
+    <div>
+      <p class="example-meta">Class</p>
+      <h3>Styled class</h3>
+      <p>Class boxes and relationships through shared style roles.</p>
+    </div>
+    <a class="go" href="/editor/?example=styled-class">Open in editor</a>
+  </header>
+  <div class="example-sample-grid">
+    <section class="example-source" aria-label="Styled class Mermaid source"><pre><code>classDiagram
+  class Renderer {
+    +renderSVG(source) string
+    +renderASCII(source) string
+  }
+  class StyleResolver {
+    +resolveRenderStyle(options) object
+  }
+  Renderer --&gt; StyleResolver : uses</code></pre></section>
+    <figure class="example-render"><div class="example-svg"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 368.2 420.6" width="368.2" height="420.6" style="--bg:#FFFFFF;--fg:#27272A;--font:Inter;background:#FFFFFF"><style>
+  text { font-family: var(--font, 'Inter'), system-ui, sans-serif; }
+  .mono { font-family: 'JetBrains Mono', 'SF Mono', 'Fira Code', ui-monospace, monospace; }
+  svg {
+
+    --_text:          #27272A;
+    --_text-sec:      #575759;
+    --_text-muted:    #707072;
+    --_text-faint:    #8a8a8c;
+    --_line:          #939395;
+    --_arrow:         #47474a;
+    --_node-fill:     #f9f9f9;
+    --_node-stroke:   #d4d4d4;
+    --_group-fill:    #FFFFFF;
+    --_group-hdr:     #f4f4f4;
+    --_inner-stroke:  #e5e5e5;
+    --_key-badge:     #e9e9ea;
+  }
+</style><defs><marker id="example-styled-class-cls-inherit" markerWidth="12" markerHeight="10" refX="12" refY="5" orient="auto-start-reverse"><polygon points="0 0, 12 5, 0 10" fill="#FFFFFF" stroke="#47474a" stroke-width="1.5" /></marker><marker id="example-styled-class-cls-composition" markerWidth="12" markerHeight="10" refX="0" refY="5" orient="auto-start-reverse"><polygon points="6 0, 12 5, 6 10, 0 5" fill="#47474a" stroke="#47474a" stroke-width="1" /></marker><marker id="example-styled-class-cls-aggregation" markerWidth="12" markerHeight="10" refX="0" refY="5" orient="auto-start-reverse"><polygon points="6 0, 12 5, 6 10, 0 5" fill="#FFFFFF" stroke="#47474a" stroke-width="1.5" /></marker><marker id="example-styled-class-cls-arrow" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto-start-reverse"><polyline points="0 0, 8 3, 0 6" fill="none" stroke="#47474a" stroke-width="1.5" /></marker></defs><polyline class="class-relationship" data-from="Renderer" data-to="StyleResolver" data-type="association" data-marker-at="to" data-label="uses" points="184.1,149.5 184.1,291.1" fill="none" stroke="#939395" stroke-width="2.25" marker-end="url(#example-styled-class-cls-arrow)" /><g class="class-node" data-id="Renderer" data-label="Renderer"><rect x="66.4" y="40" width="235.4" height="109.5" rx="16" ry="16" fill="#f9f9f9" stroke="#d4d4d4" stroke-width="1.5" /><path d="M82.4,40 H285.8 A16,16 0 0 1 301.8,56 V87.5 H66.4 V56 A16,16 0 0 1 82.4,40 Z" fill="#f4f4f4" stroke="#d4d4d4" stroke-width="1.5" /><text x="184.1" y="63.75" text-anchor="middle" font-size="15" font-weight="600" letter-spacing="-0.1" fill="#27272A" dy="5.25">Renderer</text><line x1="66.4" y1="87.5" x2="301.8" y2="87.5" stroke="#d4d4d4" stroke-width="0.75" /><line x1="66.4" y1="95.5" x2="301.8" y2="95.5" stroke="#d4d4d4" stroke-width="0.75" /><text x="88.4" y="109.5" class="mono" dy="0.35em" font-size="11" font-weight="400"><tspan fill="#8a8a8c">+ </tspan><tspan fill="#575759">renderSVG(source)</tspan><tspan fill="#8a8a8c">: </tspan><tspan fill="#707072">string</tspan></text><text x="88.4" y="129.5" class="mono" dy="0.35em" font-size="11" font-weight="400"><tspan fill="#8a8a8c">+ </tspan><tspan fill="#575759">renderASCII(source)</tspan><tspan fill="#8a8a8c">: </tspan><tspan fill="#707072">string</tspan></text></g><g class="class-node" data-id="StyleResolver" data-label="StyleResolver"><rect x="40" y="291.1" width="288.2" height="89.5" rx="16" ry="16" fill="#f9f9f9" stroke="#d4d4d4" stroke-width="1.5" /><path d="M56,291.1 H312.2 A16,16 0 0 1 328.2,307.1 V338.6 H40 V307.1 A16,16 0 0 1 56,291.1 Z" fill="#f4f4f4" stroke="#d4d4d4" stroke-width="1.5" /><text x="184.1" y="314.85" text-anchor="middle" font-size="15" font-weight="600" letter-spacing="-0.1" fill="#27272A" dy="5.25">StyleResolver</text><line x1="40" y1="338.6" x2="328.2" y2="338.6" stroke="#d4d4d4" stroke-width="0.75" /><line x1="40" y1="346.6" x2="328.2" y2="346.6" stroke="#d4d4d4" stroke-width="0.75" /><text x="62" y="360.6" class="mono" dy="0.35em" font-size="11" font-weight="400"><tspan fill="#8a8a8c">+ </tspan><tspan fill="#575759">resolveRenderStyle(options)</tspan><tspan fill="#8a8a8c">: </tspan><tspan fill="#707072">object</tspan></text></g><text x="162.8" y="212.3" font-size="12" text-anchor="middle" font-weight="600" letter-spacing="0.1" fill="#707072" dy="4.2">uses</text></svg></div><figcaption>Rendered during the website build from the same source the editor loads.</figcaption></figure>
+  </div>
+</article>
+<article class="example-sample" id="styled-er">
+  <header class="example-sample-head">
+    <div>
+      <p class="example-meta">ER</p>
+      <h3>Styled ER</h3>
+      <p>ER entities and relationships inherit node/edge roles.</p>
+    </div>
+    <a class="go" href="/editor/?example=styled-er">Open in editor</a>
+  </header>
+  <div class="example-sample-grid">
+    <section class="example-source" aria-label="Styled ER Mermaid source"><pre><code>erDiagram
+  USER {
+    string id PK
+    string email
+  }
+  DIAGRAM {
+    string id PK
+    string source
+  }
+  EXPORT {
+    string id PK
+    string format
+  }
+  USER ||--o{ DIAGRAM : creates
+  DIAGRAM ||--o{ EXPORT : renders</code></pre></section>
+    <figure class="example-render"><div class="example-svg"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 971.76 171.5" width="971.76" height="171.5" style="--bg:#FFFFFF;--fg:#27272A;--font:Inter;background:#FFFFFF"><style>
+  text { font-family: var(--font, 'Inter'), system-ui, sans-serif; }
+  .mono { font-family: 'JetBrains Mono', 'SF Mono', 'Fira Code', ui-monospace, monospace; }
+  svg {
+
+    --_text:          #27272A;
+    --_text-sec:      #575759;
+    --_text-muted:    #707072;
+    --_text-faint:    #8a8a8c;
+    --_line:          #939395;
+    --_arrow:         #47474a;
+    --_node-fill:     #f9f9f9;
+    --_node-stroke:   #d4d4d4;
+    --_group-fill:    #FFFFFF;
+    --_group-hdr:     #f4f4f4;
+    --_inner-stroke:  #e5e5e5;
+    --_key-badge:     #e9e9ea;
+  }
+</style><defs></defs><polyline class="er-relationship" data-entity1="USER" data-entity2="DIAGRAM" data-cardinality1="one" data-cardinality2="zero-many" data-identifying="true" data-label="creates" points="180,85.75 414.44,85.75" fill="none" stroke="#939395" stroke-width="2.25" /><polyline class="er-relationship" data-entity1="DIAGRAM" data-entity2="EXPORT" data-cardinality1="one" data-cardinality2="zero-many" data-identifying="true" data-label="renders" points="554.44,85.75 791.76,85.75" fill="none" stroke="#939395" stroke-width="2.25" /><g class="entity" data-id="USER" data-label="USER"><rect x="40" y="40" width="140" height="91.5" rx="16" ry="16" fill="#f9f9f9" stroke="#d4d4d4" stroke-width="1.5" /><path d="M56,40 H164 A16,16 0 0 1 180,56 V87.5 H40 V56 A16,16 0 0 1 56,40 Z" fill="#f4f4f4" stroke="#d4d4d4" stroke-width="1.5" /><text x="110" y="63.75" text-anchor="middle" font-size="15" font-weight="600" letter-spacing="-0.1" fill="#27272A" dy="5.25">USER</text><line x1="40" y1="87.5" x2="180" y2="87.5" stroke="#d4d4d4" stroke-width="0.75" /><rect x="51" y="91.5" width="22.31" height="14" rx="2" ry="2" fill="#e9e9ea" /><text x="62.155" y="98.5" text-anchor="middle" dy="0.35em" font-size="9" font-weight="600" fill="#575759">PK</text><text x="79.31" y="98.5" class="mono" dy="0.35em" font-size="11" font-weight="400"><tspan fill="#707072">string</tspan></text><text x="169" y="98.5" class="mono" text-anchor="end" dy="0.35em" font-size="11" font-weight="400"><tspan fill="#575759">id</tspan></text><text x="51" y="120.5" class="mono" dy="0.35em" font-size="11" font-weight="400"><tspan fill="#707072">string</tspan></text><text x="169" y="120.5" class="mono" text-anchor="end" dy="0.35em" font-size="11" font-weight="400"><tspan fill="#575759">email</tspan></text></g><g class="entity" data-id="DIAGRAM" data-label="DIAGRAM"><rect x="414.44" y="40" width="140" height="91.5" rx="16" ry="16" fill="#f9f9f9" stroke="#d4d4d4" stroke-width="1.5" /><path d="M430.44,40 H538.44 A16,16 0 0 1 554.44,56 V87.5 H414.44 V56 A16,16 0 0 1 430.44,40 Z" fill="#f4f4f4" stroke="#d4d4d4" stroke-width="1.5" /><text x="484.44" y="63.75" text-anchor="middle" font-size="15" font-weight="600" letter-spacing="-0.1" fill="#27272A" dy="5.25">DIAGRAM</text><line x1="414.44" y1="87.5" x2="554.44" y2="87.5" stroke="#d4d4d4" stroke-width="0.75" /><rect x="425.44" y="91.5" width="22.31" height="14" rx="2" ry="2" fill="#e9e9ea" /><text x="436.595" y="98.5" text-anchor="middle" dy="0.35em" font-size="9" font-weight="600" fill="#575759">PK</text><text x="453.75" y="98.5" class="mono" dy="0.35em" font-size="11" font-weight="400"><tspan fill="#707072">string</tspan></text><text x="543.44" y="98.5" class="mono" text-anchor="end" dy="0.35em" font-size="11" font-weight="400"><tspan fill="#575759">id</tspan></text><text x="425.44" y="120.5" class="mono" dy="0.35em" font-size="11" font-weight="400"><tspan fill="#707072">string</tspan></text><text x="543.44" y="120.5" class="mono" text-anchor="end" dy="0.35em" font-size="11" font-weight="400"><tspan fill="#575759">source</tspan></text></g><g class="entity" data-id="EXPORT" data-label="EXPORT"><rect x="791.76" y="40" width="140" height="91.5" rx="16" ry="16" fill="#f9f9f9" stroke="#d4d4d4" stroke-width="1.5" /><path d="M807.76,40 H915.76 A16,16 0 0 1 931.76,56 V87.5 H791.76 V56 A16,16 0 0 1 807.76,40 Z" fill="#f4f4f4" stroke="#d4d4d4" stroke-width="1.5" /><text x="861.76" y="63.75" text-anchor="middle" font-size="15" font-weight="600" letter-spacing="-0.1" fill="#27272A" dy="5.25">EXPORT</text><line x1="791.76" y1="87.5" x2="931.76" y2="87.5" stroke="#d4d4d4" stroke-width="0.75" /><rect x="802.76" y="91.5" width="22.31" height="14" rx="2" ry="2" fill="#e9e9ea" /><text x="813.915" y="98.5" text-anchor="middle" dy="0.35em" font-size="9" font-weight="600" fill="#575759">PK</text><text x="831.07" y="98.5" class="mono" dy="0.35em" font-size="11" font-weight="400"><tspan fill="#707072">string</tspan></text><text x="920.76" y="98.5" class="mono" text-anchor="end" dy="0.35em" font-size="11" font-weight="400"><tspan fill="#575759">id</tspan></text><text x="802.76" y="120.5" class="mono" dy="0.35em" font-size="11" font-weight="400"><tspan fill="#707072">string</tspan></text><text x="920.76" y="120.5" class="mono" text-anchor="end" dy="0.35em" font-size="11" font-weight="400"><tspan fill="#575759">format</tspan></text></g><line x1="184" y1="79.75" x2="184" y2="91.75" stroke="#939395" stroke-width="2.5" /><line x1="188" y1="79.75" x2="188" y2="91.75" stroke="#939395" stroke-width="2.5" /><line x1="410.44" y1="92.75" x2="398.44" y2="85.75" stroke="#939395" stroke-width="2.5" /><line x1="410.44" y1="85.75" x2="398.44" y2="85.75" stroke="#939395" stroke-width="2.5" /><line x1="410.44" y1="78.75" x2="398.44" y2="85.75" stroke="#939395" stroke-width="2.5" /><circle cx="394.44" cy="85.75" r="4" fill="#FFFFFF" stroke="#939395" stroke-width="2.5" /><line x1="558.44" y1="79.75" x2="558.44" y2="91.75" stroke="#939395" stroke-width="2.5" /><line x1="562.44" y1="79.75" x2="562.44" y2="91.75" stroke="#939395" stroke-width="2.5" /><line x1="787.76" y1="92.75" x2="775.76" y2="85.75" stroke="#939395" stroke-width="2.5" /><line x1="787.76" y1="85.75" x2="775.76" y2="85.75" stroke="#939395" stroke-width="2.5" /><line x1="787.76" y1="78.75" x2="775.76" y2="85.75" stroke="#939395" stroke-width="2.5" /><circle cx="771.76" cy="85.75" r="4" fill="#FFFFFF" stroke="#939395" stroke-width="2.5" /><rect x="270" y="74.95" width="54.44" height="21.6" rx="2" ry="2" fill="#FFFFFF" stroke="#e5e5e5" stroke-width="0.5" /><text x="297.22" y="85.75" text-anchor="middle" font-size="12" font-weight="600" letter-spacing="0.1" fill="#707072" dy="4.2">creates</text><rect x="644.44" y="74.95" width="57.32" height="21.6" rx="2" ry="2" fill="#FFFFFF" stroke="#e5e5e5" stroke-width="0.5" /><text x="673.1" y="85.75" text-anchor="middle" font-size="12" font-weight="600" letter-spacing="0.1" fill="#707072" dy="4.2">renders</text></svg></div><figcaption>Rendered during the website build from the same source the editor loads.</figcaption></figure>
+  </div>
+</article>
+<article class="example-sample" id="styled-timeline">
+  <header class="example-sample-head">
+    <div>
+      <p class="example-meta">Timeline</p>
+      <h3>Styled timeline</h3>
+      <p>Timeline periods and events styled as semantic cards/groups.</p>
+    </div>
+    <a class="go" href="/editor/?example=styled-timeline">Open in editor</a>
+  </header>
+  <div class="example-sample-grid">
+    <section class="example-source" aria-label="Styled timeline Mermaid source"><pre><code>timeline
+  title Fork Roadmap
+  section Discover
+  2024 Q2 : Audit forks
+          : Extract small PRs
+  section Ship
+  2024 Q3 : Style roles
+          : Live editor presets</code></pre></section>
+    <figure class="example-render"><div class="example-svg"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 539.7 364" width="539.7" height="364" style="--bg:#FFFFFF;--fg:#27272A;--font:Inter;background:#FFFFFF" role="img" aria-labelledby="tl-16z9zyc-title"><style>
+  text { font-family: var(--font, 'Inter'), system-ui, sans-serif; }
+  svg {
+
+    --_text:          #27272A;
+    --_text-sec:      #575759;
+    --_text-muted:    #707072;
+    --_text-faint:    #8a8a8c;
+    --_line:          #939395;
+    --_arrow:         #47474a;
+    --_node-fill:     #f9f9f9;
+    --_node-stroke:   #d4d4d4;
+    --_group-fill:    #FFFFFF;
+    --_group-hdr:     #f4f4f4;
+    --_inner-stroke:  #e5e5e5;
+    --_key-badge:     #e9e9ea;
+  }
+</style><style>
+  .timeline-title { fill: #27272A; }
+  .timeline-rail { stroke: #939395; stroke-width: 2.25; stroke-linecap: round; }
+  .timeline-section-bg { fill: #fafafa; stroke: #f97316; stroke-width: 1.5; }
+  .timeline-section-band { fill: #f0f0f1; stroke: #f97316; stroke-width: 1.5; }
+  .timeline-section-label { fill: #575759; }
+  .timeline-stem { stroke: #7b7b7d; stroke-width: 1.6875; stroke-dasharray: 3 4; }
+  .timeline-marker-ring { fill: #FFFFFF; stroke: #47474a; stroke-width: 1.5; }
+  .timeline-marker-core { fill: #47474a; }
+  .timeline-period-pill { fill: #f2f2f2; stroke: #dadadb; stroke-width: 1.5; }
+  .timeline-period-text { fill: #27272A; }
+  .timeline-event-card { fill: #f9f9f9; stroke: #d4d4d4; stroke-width: 1.5; }
+  .timeline-event-text { fill: #707072; }
+</style><title id="example-styled-timeline-tl-16z9zyc-title">Fork Roadmap</title><g class="timeline-section" data-id="section-0" data-label="Discover" data-family="0" style="--tl-accent:#47474a;--tl-fill:#f9f9f9;--tl-label:#27272A;--tl-line:#939395;--tl-section-bg:#ffffff;--tl-section-band:#fefefe;--tl-pill-fill:#fefefe;--tl-pill-stroke:#b8b8b9;--tl-event-fill:#f9f9f9"><rect class="timeline-section-bg" x="32" y="75.4" width="218.45" height="260.6" rx="18" ry="18" /><path class="timeline-section-band" d="M50,75.4 H232.45 A18,18 0 0 1 250.45,93.4 V105.4 H32 V93.4 A18,18 0 0 1 50,75.4 Z" /><text x="56" y="90.4" class="timeline-section-label" text-anchor="start" font-size="12" font-weight="700" letter-spacing="0.8" dy="4.2">Discover</text></g><g class="timeline-section" data-id="section-1" data-label="Ship" data-family="1" style="--tl-accent:#47474a;--tl-fill:#f9f9f9;--tl-label:#27272A;--tl-line:#939395;--tl-section-bg:#ffffff;--tl-section-band:#fefefe;--tl-pill-fill:#fefefe;--tl-pill-stroke:#b8b8b9;--tl-event-fill:#f9f9f9"><rect class="timeline-section-bg" x="278.45" y="75.4" width="229.25" height="260.6" rx="18" ry="18" /><path class="timeline-section-band" d="M296.45,75.4 H489.7 A18,18 0 0 1 507.7,93.4 V105.4 H278.45 V93.4 A18,18 0 0 1 296.45,75.4 Z" /><text x="302.45" y="90.4" class="timeline-section-label" text-anchor="start" font-size="12" font-weight="700" letter-spacing="0.8" dy="4.2">Ship</text></g><line class="timeline-rail" x1="141.225" y1="185" x2="393.075" y2="185" /><g class="timeline-period" data-id="period-0" data-label="2024 Q2" data-section="Discover" data-family="0" style="--tl-accent:#47474a;--tl-fill:#f9f9f9;--tl-label:#27272A;--tl-line:#939395;--tl-section-bg:#ffffff;--tl-section-band:#fefefe;--tl-pill-fill:#fefefe;--tl-pill-stroke:#b8b8b9;--tl-event-fill:#f9f9f9"><line class="timeline-stem" x1="141.225" y1="193" x2="141.225" y2="203" /><rect class="timeline-period-pill" x="94.925" y="119.4" width="92.6" height="43.6" rx="16" ry="16" /><text x="141.225" y="141.2" class="timeline-period-text" text-anchor="middle" font-size="12" font-weight="600" letter-spacing="0.1" dy="4.2">2024 Q2</text><circle class="timeline-marker-ring" cx="141.225" cy="185" r="8" /><circle class="timeline-marker-core" cx="141.225" cy="185" r="4.5" /><g class="timeline-event" data-id="event-0" data-period="2024 Q2" data-section="Discover" data-family="0"><rect class="timeline-event-card" x="77.225" y="213" width="128" height="47.5" rx="16" ry="16" /><text x="99.225" y="236.75" class="timeline-event-text" text-anchor="start" font-size="15" font-weight="600" letter-spacing="-0.1" dy="5.25">Audit forks</text></g><g class="timeline-event" data-id="event-1" data-period="2024 Q2" data-section="Discover" data-family="0"><rect class="timeline-event-card" x="56" y="270.5" width="170.45" height="47.5" rx="16" ry="16" /><text x="78" y="294.25" class="timeline-event-text" text-anchor="start" font-size="15" font-weight="600" letter-spacing="-0.1" dy="5.25">Extract small PRs</text></g></g><g class="timeline-period" data-id="period-1" data-label="2024 Q3" data-section="Ship" data-family="1" style="--tl-accent:#47474a;--tl-fill:#f9f9f9;--tl-label:#27272A;--tl-line:#939395;--tl-section-bg:#ffffff;--tl-section-band:#fefefe;--tl-pill-fill:#fefefe;--tl-pill-stroke:#b8b8b9;--tl-event-fill:#f9f9f9"><line class="timeline-stem" x1="393.075" y1="193" x2="393.075" y2="203" /><rect class="timeline-period-pill" x="346.775" y="119.4" width="92.6" height="43.6" rx="16" ry="16" /><text x="393.075" y="141.2" class="timeline-period-text" text-anchor="middle" font-size="12" font-weight="600" letter-spacing="0.1" dy="4.2">2024 Q3</text><circle class="timeline-marker-ring" cx="393.075" cy="185" r="8" /><circle class="timeline-marker-core" cx="393.075" cy="185" r="4.5" /><g class="timeline-event" data-id="event-2" data-period="2024 Q3" data-section="Ship" data-family="1"><rect class="timeline-event-card" x="329.075" y="213" width="128" height="47.5" rx="16" ry="16" /><text x="351.075" y="236.75" class="timeline-event-text" text-anchor="start" font-size="15" font-weight="600" letter-spacing="-0.1" dy="5.25">Style roles</text></g><g class="timeline-event" data-id="event-3" data-period="2024 Q3" data-section="Ship" data-family="1"><rect class="timeline-event-card" x="302.45" y="270.5" width="181.25" height="47.5" rx="16" ry="16" /><text x="324.45" y="294.25" class="timeline-event-text" text-anchor="start" font-size="15" font-weight="600" letter-spacing="-0.1" dy="5.25">Live editor presets</text></g></g><text x="269.85" y="39.7" class="timeline-title" text-anchor="middle" font-size="18" font-weight="600" dy="6.3">Fork Roadmap</text></svg></div><figcaption>Rendered during the website build from the same source the editor loads.</figcaption></figure>
+  </div>
+</article>
+<article class="example-sample" id="styled-journey">
+  <header class="example-sample-head">
+    <div>
+      <p class="example-meta">Journey</p>
+      <h3>Styled journey</h3>
+      <p>Journey sections, task cards, and actor chips use role styles.</p>
+    </div>
+    <a class="go" href="/editor/?example=styled-journey">Open in editor</a>
+  </header>
+  <div class="example-sample-grid">
+    <section class="example-source" aria-label="Styled journey Mermaid source"><pre><code>journey
+  title Editor adoption
+  section Try
+    Open preset: 5: User
+    Tune roles: 4: Designer, Developer
+  section Share
+    Copy URL: 5: User
+    Export SVG: 4: Developer</code></pre></section>
+    <figure class="example-render"><div class="example-svg"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 629.55 369.2" width="629.55" height="369.2" style="--bg:#FFFFFF;--fg:#27272A;--font:Inter;background:#FFFFFF" role="img" aria-roledescription="user journey" aria-labelledby="journey-1maa1fm-title"><title id="example-styled-journey-journey-1maa1fm-title">Editor adoption</title><style>
+  text { font-family: var(--font, 'Inter'), system-ui, sans-serif; }
+  svg {
+
+    --_text:          #27272A;
+    --_text-sec:      #575759;
+    --_text-muted:    #707072;
+    --_text-faint:    #8a8a8c;
+    --_line:          #939395;
+    --_arrow:         #47474a;
+    --_node-fill:     #f9f9f9;
+    --_node-stroke:   #d4d4d4;
+    --_group-fill:    #FFFFFF;
+    --_group-hdr:     #f4f4f4;
+    --_inner-stroke:  #e5e5e5;
+    --_key-badge:     #e9e9ea;
+  }
+</style><style>
+  .journey-title { fill: #27272A; }
+  .journey-section-bg { fill: #fafafa; stroke: #f97316; stroke-width: 1.5; }
+  .journey-section-band { fill: #f0f0f1; stroke: #f97316; stroke-width: 1.5; }
+  .journey-section-label { fill: #575759; }
+  .journey-task-card { fill: #f9f9f9; stroke: #d4d4d4; stroke-width: 1.5; }
+  .journey-task-text { fill: #27272A; }
+  .journey-score-cell-filled { fill: #47474a; stroke: #47474a; stroke-width: 1; }
+  .journey-score-cell-empty { fill: #fcfcfc; stroke: #dcdcdc; stroke-width: 1; }
+  .journey-actor-pill { fill: #f0f0f1; stroke: #d7d7d7; stroke-width: 1; }
+  .journey-actor-text { fill: #575759; }
+</style><g class="journey-section" data-id="section-0" data-label="Try"><rect class="journey-section-bg" x="32" y="75.4" width="269.55" height="265.8" rx="18" ry="18" /><path class="journey-section-band" d="M50,75.4 H283.55 A18,18 0 0 1 301.55,93.4 V103 H32 V93.4 A18,18 0 0 1 50,75.4 Z" /><text x="56" y="89.2" class="journey-section-label" text-anchor="start" font-size="12" font-weight="700" letter-spacing="0.8" dy="4.2">Try</text></g><g class="journey-section" data-id="section-1" data-label="Share"><rect class="journey-section-bg" x="329.55" y="75.4" width="268" height="265.8" rx="18" ry="18" /><path class="journey-section-band" d="M347.55,75.4 H579.55 A18,18 0 0 1 597.55,93.4 V103 H329.55 V93.4 A18,18 0 0 1 347.55,75.4 Z" /><text x="353.55" y="89.2" class="journey-section-label" text-anchor="start" font-size="12" font-weight="700" letter-spacing="0.8" dy="4.2">Share</text></g><g class="journey-task" data-id="task-0" data-score="5" data-section="Try" data-actors="User"><rect class="journey-task-card" x="56" y="135" width="221.55" height="87.1" rx="16" ry="16" /><text x="78" y="158.75" class="journey-task-text" text-anchor="start" font-size="15" font-weight="600" letter-spacing="-0.1" dy="5.25">Open preset</text><rect class="journey-score-cell-filled" x="185.55" y="153.75" width="10" height="10" rx="2" ry="2" /><rect class="journey-score-cell-filled" x="200.55" y="153.75" width="10" height="10" rx="2" ry="2" /><rect class="journey-score-cell-filled" x="215.55" y="153.75" width="10" height="10" rx="2" ry="2" /><rect class="journey-score-cell-filled" x="230.55" y="153.75" width="10" height="10" rx="2" ry="2" /><rect class="journey-score-cell-filled" x="245.55" y="153.75" width="10" height="10" rx="2" ry="2" /><g class="journey-actor" data-actor="User"><rect class="journey-actor-pill" x="78" y="180.5" width="46.6" height="27.6" rx="13.8" ry="13.8" /><text x="101.3" y="194.3" class="journey-actor-text" text-anchor="middle" font-size="12" font-weight="600" letter-spacing="0.1" dy="4.2">User</text></g></g><g class="journey-task" data-id="task-1" data-score="4" data-section="Try" data-actors="Designer, Developer"><rect class="journey-task-card" x="56" y="236.1" width="221.55" height="87.1" rx="16" ry="16" /><text x="78" y="259.85" class="journey-task-text" text-anchor="start" font-size="15" font-weight="600" letter-spacing="-0.1" dy="5.25">Tune roles</text><rect class="journey-score-cell-filled" x="185.55" y="254.85" width="10" height="10" rx="2" ry="2" /><rect class="journey-score-cell-filled" x="200.55" y="254.85" width="10" height="10" rx="2" ry="2" /><rect class="journey-score-cell-filled" x="215.55" y="254.85" width="10" height="10" rx="2" ry="2" /><rect class="journey-score-cell-filled" x="230.55" y="254.85" width="10" height="10" rx="2" ry="2" /><rect class="journey-score-cell-empty" x="245.55" y="254.85" width="10" height="10" rx="2" ry="2" /><g class="journey-actor" data-actor="Designer"><rect class="journey-actor-pill" x="78" y="281.6" width="71.08" height="27.6" rx="13.8" ry="13.8" /><text x="113.54" y="295.4" class="journey-actor-text" text-anchor="middle" font-size="12" font-weight="600" letter-spacing="0.1" dy="4.2">Designer</text></g><g class="journey-actor" data-actor="Developer"><rect class="journey-actor-pill" x="155.08" y="281.6" width="78.28" height="27.6" rx="13.8" ry="13.8" /><text x="194.22" y="295.4" class="journey-actor-text" text-anchor="middle" font-size="12" font-weight="600" letter-spacing="0.1" dy="4.2">Developer</text></g></g><g class="journey-task" data-id="task-2" data-score="5" data-section="Share" data-actors="User"><rect class="journey-task-card" x="353.55" y="135" width="220" height="87.1" rx="16" ry="16" /><text x="375.55" y="158.75" class="journey-task-text" text-anchor="start" font-size="15" font-weight="600" letter-spacing="-0.1" dy="5.25">Copy URL</text><rect class="journey-score-cell-filled" x="481.55" y="153.75" width="10" height="10" rx="2" ry="2" /><rect class="journey-score-cell-filled" x="496.55" y="153.75" width="10" height="10" rx="2" ry="2" /><rect class="journey-score-cell-filled" x="511.55" y="153.75" width="10" height="10" rx="2" ry="2" /><rect class="journey-score-cell-filled" x="526.55" y="153.75" width="10" height="10" rx="2" ry="2" /><rect class="journey-score-cell-filled" x="541.55" y="153.75" width="10" height="10" rx="2" ry="2" /><g class="journey-actor" data-actor="User"><rect class="journey-actor-pill" x="375.55" y="180.5" width="46.6" height="27.6" rx="13.8" ry="13.8" /><text x="398.85" y="194.3" class="journey-actor-text" text-anchor="middle" font-size="12" font-weight="600" letter-spacing="0.1" dy="4.2">User</text></g></g><g class="journey-task" data-id="task-3" data-score="4" data-section="Share" data-actors="Developer"><rect class="journey-task-card" x="353.55" y="236.1" width="220" height="87.1" rx="16" ry="16" /><text x="375.55" y="259.85" class="journey-task-text" text-anchor="start" font-size="15" font-weight="600" letter-spacing="-0.1" dy="5.25">Export SVG</text><rect class="journey-score-cell-filled" x="481.55" y="254.85" width="10" height="10" rx="2" ry="2" /><rect class="journey-score-cell-filled" x="496.55" y="254.85" width="10" height="10" rx="2" ry="2" /><rect class="journey-score-cell-filled" x="511.55" y="254.85" width="10" height="10" rx="2" ry="2" /><rect class="journey-score-cell-filled" x="526.55" y="254.85" width="10" height="10" rx="2" ry="2" /><rect class="journey-score-cell-empty" x="541.55" y="254.85" width="10" height="10" rx="2" ry="2" /><g class="journey-actor" data-actor="Developer"><rect class="journey-actor-pill" x="375.55" y="281.6" width="78.28" height="27.6" rx="13.8" ry="13.8" /><text x="414.69" y="295.4" class="journey-actor-text" text-anchor="middle" font-size="12" font-weight="600" letter-spacing="0.1" dy="4.2">Developer</text></g></g><text x="314.775" y="39.7" class="journey-title" text-anchor="middle" font-size="18" font-weight="600" dy="6.3">Editor adoption</text></svg></div><figcaption>Rendered during the website build from the same source the editor loads.</figcaption></figure>
+  </div>
+</article>
+<article class="example-sample" id="styled-xychart">
+  <header class="example-sample-head">
+    <div>
+      <p class="example-meta">XY Chart</p>
+      <h3>Styled xychart</h3>
+      <p>XY chart title, axes, grid, and series labels with shared roles.</p>
+    </div>
+    <a class="go" href="/editor/?example=styled-xychart">Open in editor</a>
+  </header>
+  <div class="example-sample-grid">
+    <section class="example-source" aria-label="Styled xychart Mermaid source"><pre><code>xychart
+  title "Styled Adoption"
+  x-axis [Mon, Tue, Wed, Thu, Fri]
+  y-axis "Renders" 0 --&gt; 100
+  bar [25, 42, 58, 74, 88]
+  line [18, 35, 52, 70, 95]</code></pre></section>
+    <figure class="example-render"><div class="example-svg"><svg data-xychart-colors="1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 700 500" width="100%" height="100%" style="--bg:#FFFFFF;--fg:#27272A;--font:Inter;background:#FFFFFF;max-width:700px" id="example-styled-xychart-mermaid-1b68v1y" class="xychart" aria-roledescription="xychart"><style>
+  text { font-family: var(--font, 'Inter'), system-ui, sans-serif; }
+  svg {
+
+    --_text:          #27272A;
+    --_text-sec:      #575759;
+    --_text-muted:    #707072;
+    --_text-faint:    #8a8a8c;
+    --_line:          #939395;
+    --_arrow:         #47474a;
+    --_node-fill:     #f9f9f9;
+    --_node-stroke:   #d4d4d4;
+    --_group-fill:    #FFFFFF;
+    --_group-hdr:     #f4f4f4;
+    --_inner-stroke:  #e5e5e5;
+    --_key-badge:     #e9e9ea;
+  }
+</style><style>
+  .xychart-grid { stroke: #e1e1e1; stroke-width: 1; }
+  .xychart-axis-line { fill: none; }
+  .xychart-tick { fill: none; }
+  .xychart-x-axis-line { stroke: #575759; }
+  .xychart-y-axis-line { stroke: #575759; }
+  .xychart-x-tick { stroke: #575759; }
+  .xychart-y-tick { stroke: #575759; }
+  .xychart-bar { stroke: none; }
+  .xychart-line { fill: none; stroke-width: 2.25; stroke-linecap: round; stroke-linejoin: round; }
+  .xychart-dot { stroke: #FFFFFF; stroke-width: 2; }
+  .xychart-label { fill: #27272A; }
+  .xychart-x-label { fill: #27272A; }
+  .xychart-y-label { fill: #27272A; }
+  .xychart-axis-title { fill: #27272A; }
+  .xychart-x-axis-title { fill: #27272A; }
+  .xychart-y-axis-title { fill: #27272A; }
+  .xychart-title { fill: #27272A; }
+  .xychart-data-label { fill: #27272A; pointer-events: none; }
+  svg {
+    --xychart-color-0: #3b82f6;
+    --xychart-color-1: #0d5ba5;
+  }
+  .xychart-bar.xychart-color-0 { fill: #3b82f6; }
+  path.xychart-color-0, line.xychart-color-0 { stroke: #3b82f6; }
+  circle.xychart-color-0 { fill: #3b82f6; }
+  .xychart-bar.xychart-color-1 { fill: #0d5ba5; }
+  path.xychart-color-1, line.xychart-color-1 { stroke: #0d5ba5; }
+  circle.xychart-color-1 { fill: #0d5ba5; }
+  .xychart-tip { opacity: 0; pointer-events: none; }
+  .xychart-tip-bg { fill: #27272A; }
+  .xychart-tip-text { fill: #FFFFFF; font-size: 15px; font-weight: 500; }
+  .xychart-tip-ptr { fill: #27272A; }
+  .xychart-bar-group:hover .xychart-tip,
+  .xychart-dot-group:hover .xychart-tip { opacity: 1; }
+</style><line x1="60.94" y1="467.75" x2="700" y2="467.75" class="xychart-grid"/><line x1="60.94" y1="424.18" x2="700" y2="424.18" class="xychart-grid"/><line x1="60.94" y1="380.6" x2="700" y2="380.6" class="xychart-grid"/><line x1="60.94" y1="337.03" x2="700" y2="337.03" class="xychart-grid"/><line x1="60.94" y1="293.45" x2="700" y2="293.45" class="xychart-grid"/><line x1="60.94" y1="249.88" x2="700" y2="249.88" class="xychart-grid"/><line x1="60.94" y1="206.3" x2="700" y2="206.3" class="xychart-grid"/><line x1="60.94" y1="162.73" x2="700" y2="162.73" class="xychart-grid"/><line x1="60.94" y1="119.15" x2="700" y2="119.15" class="xychart-grid"/><line x1="60.94" y1="75.57" x2="700" y2="75.57" class="xychart-grid"/><line x1="60.94" y1="32" x2="700" y2="32" class="xychart-grid"/><line x1="60.94" y1="468.88" x2="700" y2="468.88" class="xychart-axis-line xychart-x-axis-line" stroke-width="2.25"/><line x1="124.85" y1="470" x2="124.85" y2="475" class="xychart-tick xychart-x-tick" stroke-width="2.25"/><line x1="252.66" y1="470" x2="252.66" y2="475" class="xychart-tick xychart-x-tick" stroke-width="2.25"/><line x1="380.47" y1="470" x2="380.47" y2="475" class="xychart-tick xychart-x-tick" stroke-width="2.25"/><line x1="508.28" y1="470" x2="508.28" y2="475" class="xychart-tick xychart-x-tick" stroke-width="2.25"/><line x1="636.09" y1="470" x2="636.09" y2="475" class="xychart-tick xychart-x-tick" stroke-width="2.25"/><line x1="59.82" y1="32" x2="59.82" y2="467.75" class="xychart-axis-line xychart-y-axis-line" stroke-width="2.25"/><line x1="58.69" y1="467.75" x2="53.69" y2="467.75" class="xychart-tick xychart-y-tick" stroke-width="2.25"/><line x1="58.69" y1="424.18" x2="53.69" y2="424.18" class="xychart-tick xychart-y-tick" stroke-width="2.25"/><line x1="58.69" y1="380.6" x2="53.69" y2="380.6" class="xychart-tick xychart-y-tick" stroke-width="2.25"/><line x1="58.69" y1="337.03" x2="53.69" y2="337.03" class="xychart-tick xychart-y-tick" stroke-width="2.25"/><line x1="58.69" y1="293.45" x2="53.69" y2="293.45" class="xychart-tick xychart-y-tick" stroke-width="2.25"/><line x1="58.69" y1="249.88" x2="53.69" y2="249.88" class="xychart-tick xychart-y-tick" stroke-width="2.25"/><line x1="58.69" y1="206.3" x2="53.69" y2="206.3" class="xychart-tick xychart-y-tick" stroke-width="2.25"/><line x1="58.69" y1="162.73" x2="53.69" y2="162.73" class="xychart-tick xychart-y-tick" stroke-width="2.25"/><line x1="58.69" y1="119.15" x2="53.69" y2="119.15" class="xychart-tick xychart-y-tick" stroke-width="2.25"/><line x1="58.69" y1="75.57" x2="53.69" y2="75.57" class="xychart-tick xychart-y-tick" stroke-width="2.25"/><line x1="58.69" y1="32" x2="53.69" y2="32" class="xychart-tick xychart-y-tick" stroke-width="2.25"/><rect x="64.14" y="358.81" width="121.42" height="108.94" class="xychart-bar xychart-color-0" data-value="25" data-label="Mon"/><rect x="191.95" y="284.74" width="121.42" height="183.02" class="xychart-bar xychart-color-0" data-value="42" data-label="Tue"/><rect x="319.76" y="215.02" width="121.42" height="252.74" class="xychart-bar xychart-color-0" data-value="58" data-label="Wed"/><rect x="447.57" y="145.3" width="121.42" height="322.46" class="xychart-bar xychart-color-0" data-value="74" data-label="Thu"/><rect x="575.38" y="84.29" width="121.42" height="383.46" class="xychart-bar xychart-color-0" data-value="88" data-label="Fri"/><path d="M124.85,389.32 L252.66,315.24 L380.47,241.16 L508.28,162.73 L636.09,53.79" class="xychart-line xychart-color-1"/><text x="124.846" y="495" text-anchor="middle" font-size="15" font-weight="600" letter-spacing="-0.1" dy="0.35em" class="xychart-label xychart-x-label">Mon</text><text x="252.658" y="495" text-anchor="middle" font-size="15" font-weight="600" letter-spacing="-0.1" dy="0.35em" class="xychart-label xychart-x-label">Tue</text><text x="380.47" y="495" text-anchor="middle" font-size="15" font-weight="600" letter-spacing="-0.1" dy="0.35em" class="xychart-label xychart-x-label">Wed</text><text x="508.282" y="495" text-anchor="middle" font-size="15" font-weight="600" letter-spacing="-0.1" dy="0.35em" class="xychart-label xychart-x-label">Thu</text><text x="636.094" y="495" text-anchor="middle" font-size="15" font-weight="600" letter-spacing="-0.1" dy="0.35em" class="xychart-label xychart-x-label">Fri</text><text x="48.69" y="467.75" text-anchor="end" dominant-baseline="middle" font-size="15" font-weight="600" letter-spacing="-0.1" class="xychart-label xychart-y-label">0</text><text x="48.69" y="424.175" text-anchor="end" dominant-baseline="middle" font-size="15" font-weight="600" letter-spacing="-0.1" class="xychart-label xychart-y-label">10</text><text x="48.69" y="380.6" text-anchor="end" dominant-baseline="middle" font-size="15" font-weight="600" letter-spacing="-0.1" class="xychart-label xychart-y-label">20</text><text x="48.69" y="337.025" text-anchor="end" dominant-baseline="middle" font-size="15" font-weight="600" letter-spacing="-0.1" class="xychart-label xychart-y-label">30</text><text x="48.69" y="293.45" text-anchor="end" dominant-baseline="middle" font-size="15" font-weight="600" letter-spacing="-0.1" class="xychart-label xychart-y-label">40</text><text x="48.69" y="249.875" text-anchor="end" dominant-baseline="middle" font-size="15" font-weight="600" letter-spacing="-0.1" class="xychart-label xychart-y-label">50</text><text x="48.69" y="206.3" text-anchor="end" dominant-baseline="middle" font-size="15" font-weight="600" letter-spacing="-0.1" class="xychart-label xychart-y-label">60</text><text x="48.69" y="162.725" text-anchor="end" dominant-baseline="middle" font-size="15" font-weight="600" letter-spacing="-0.1" class="xychart-label xychart-y-label">70</text><text x="48.69" y="119.15" text-anchor="end" dominant-baseline="middle" font-size="15" font-weight="600" letter-spacing="-0.1" class="xychart-label xychart-y-label">80</text><text x="48.69" y="75.575" text-anchor="end" dominant-baseline="middle" font-size="15" font-weight="600" letter-spacing="-0.1" class="xychart-label xychart-y-label">90</text><text x="48.69" y="32" text-anchor="end" dominant-baseline="middle" font-size="15" font-weight="600" letter-spacing="-0.1" class="xychart-label xychart-y-label">100</text><text x="14.6" y="249.875" text-anchor="middle" transform="rotate(-90,14.6,249.875)" font-size="12" font-weight="600" letter-spacing="0.1" dy="0.35em" class="xychart-axis-title xychart-y-axis-title">Renders</text><text x="350" y="22" text-anchor="middle" font-size="12" font-weight="700" letter-spacing="0.8" dy="0.35em" class="xychart-title">Styled Adoption</text><g class="xychart-bar-group"><rect x="64.14" y="358.81" width="121.42" height="108.94" fill="transparent"/><title>Mon: 25</title><g class="xychart-tip"><rect x="101.17" y="314.81" width="47.35" height="32" rx="8" class="xychart-tip xychart-tip-bg"/><path d="M118.85,346.81 L130.85,346.81 L124.85,352.81 Z" class="xychart-tip xychart-tip-ptr"/><text x="124.85" y="330.81" text-anchor="middle" dy="0.35em" class="xychart-tip xychart-tip-text">25</text></g></g><g class="xychart-bar-group"><rect x="191.95" y="284.74" width="121.42" height="183.02" fill="transparent"/><title>Tue: 42</title><g class="xychart-tip"><rect x="228.98" y="240.74" width="47.35" height="32" rx="8" class="xychart-tip xychart-tip-bg"/><path d="M246.66,272.74 L258.66,272.74 L252.66,278.74 Z" class="xychart-tip xychart-tip-ptr"/><text x="252.66" y="256.74" text-anchor="middle" dy="0.35em" class="xychart-tip xychart-tip-text">42</text></g></g><g class="xychart-bar-group"><rect x="319.76" y="215.02" width="121.42" height="252.74" fill="transparent"/><title>Wed: 58</title><g class="xychart-tip"><rect x="356.79" y="171.02" width="47.35" height="32" rx="8" class="xychart-tip xychart-tip-bg"/><path d="M374.47,203.02 L386.47,203.02 L380.47,209.02 Z" class="xychart-tip xychart-tip-ptr"/><text x="380.47" y="187.02" text-anchor="middle" dy="0.35em" class="xychart-tip xychart-tip-text">58</text></g></g><g class="xychart-bar-group"><rect x="447.57" y="145.3" width="121.42" height="322.46" fill="transparent"/><title>Thu: 74</title><g class="xychart-tip"><rect x="484.61" y="101.3" width="47.35" height="32" rx="8" class="xychart-tip xychart-tip-bg"/><path d="M502.28,133.3 L514.28,133.3 L508.28,139.3 Z" class="xychart-tip xychart-tip-ptr"/><text x="508.28" y="117.3" text-anchor="middle" dy="0.35em" class="xychart-tip xychart-tip-text">74</text></g></g><g class="xychart-bar-group"><rect x="575.38" y="84.29" width="121.42" height="383.46" fill="transparent"/><title>Fri: 88</title><g class="xychart-tip"><rect x="612.42" y="40.29" width="47.35" height="32" rx="8" class="xychart-tip xychart-tip-bg"/><path d="M630.09,72.29 L642.09,72.29 L636.09,78.29 Z" class="xychart-tip xychart-tip-ptr"/><text x="636.09" y="56.29" text-anchor="middle" dy="0.35em" class="xychart-tip xychart-tip-text">88</text></g></g><g class="xychart-dot-group"><circle cx="124.85" cy="389.32" r="12" fill="transparent" class="xychart-hit"/><circle cx="124.85" cy="389.32" r="4" class="xychart-dot xychart-color-1" data-value="18" data-label="Mon"/><title>Mon: 18</title><g class="xychart-tip"><rect x="103.74" y="341.32" width="42.22" height="32" rx="8" class="xychart-tip xychart-tip-bg"/><path d="M118.85,373.32 L130.85,373.32 L124.85,379.32 Z" class="xychart-tip xychart-tip-ptr"/><text x="124.85" y="357.32" text-anchor="middle" dy="0.35em" class="xychart-tip xychart-tip-text">18</text></g></g><g class="xychart-dot-group"><circle cx="252.66" cy="315.24" r="12" fill="transparent" class="xychart-hit"/><circle cx="252.66" cy="315.24" r="4" class="xychart-dot xychart-color-1" data-value="35" data-label="Tue"/><title>Tue: 35</title><g class="xychart-tip"><rect x="228.98" y="267.24" width="47.35" height="32" rx="8" class="xychart-tip xychart-tip-bg"/><path d="M246.66,299.24 L258.66,299.24 L252.66,305.24 Z" class="xychart-tip xychart-tip-ptr"/><text x="252.66" y="283.24" text-anchor="middle" dy="0.35em" class="xychart-tip xychart-tip-text">35</text></g></g><g class="xychart-dot-group"><circle cx="380.47" cy="241.16" r="12" fill="transparent" class="xychart-hit"/><circle cx="380.47" cy="241.16" r="4" class="xychart-dot xychart-color-1" data-value="52" data-label="Wed"/><title>Wed: 52</title><g class="xychart-tip"><rect x="356.79" y="193.16" width="47.35" height="32" rx="8" class="xychart-tip xychart-tip-bg"/><path d="M374.47,225.16 L386.47,225.16 L380.47,231.16 Z" class="xychart-tip xychart-tip-ptr"/><text x="380.47" y="209.16" text-anchor="middle" dy="0.35em" class="xychart-tip xychart-tip-text">52</text></g></g><g class="xychart-dot-group"><circle cx="508.28" cy="162.73" r="12" fill="transparent" class="xychart-hit"/><circle cx="508.28" cy="162.73" r="4" class="xychart-dot xychart-color-1" data-value="70" data-label="Thu"/><title>Thu: 70</title><g class="xychart-tip"><rect x="484.61" y="114.73" width="47.35" height="32" rx="8" class="xychart-tip xychart-tip-bg"/><path d="M502.28,146.73 L514.28,146.73 L508.28,152.73 Z" class="xychart-tip xychart-tip-ptr"/><text x="508.28" y="130.73" text-anchor="middle" dy="0.35em" class="xychart-tip xychart-tip-text">70</text></g></g><g class="xychart-dot-group"><circle cx="636.09" cy="53.79" r="12" fill="transparent" class="xychart-hit"/><circle cx="636.09" cy="53.79" r="4" class="xychart-dot xychart-color-1" data-value="95" data-label="Fri"/><title>Fri: 95</title><g class="xychart-tip"><rect x="612.42" y="5.79" width="47.35" height="32" rx="8" class="xychart-tip xychart-tip-bg"/><path d="M630.09,37.79 L642.09,37.79 L636.09,43.79 Z" class="xychart-tip xychart-tip-ptr"/><text x="636.09" y="21.79" text-anchor="middle" dy="0.35em" class="xychart-tip xychart-tip-text">95</text></g></g></svg></div><figcaption>Rendered during the website build from the same source the editor loads.</figcaption></figure>
+  </div>
+</article>
+</section>
+</div>
 </main>
 <footer><div class="footlinks"><a href="/llms.txt">llms.txt</a><span class="sep">&middot;</span><a href="/agent-instructions.md">agent-instructions.md</a><span class="sep">&middot;</span><a href="/capabilities.json">capabilities.json</a><span class="sep">&middot;</span><a href="/agent-manifest.json">agent-manifest.json</a><span class="sep">&middot;</span><a href="https://github.com/adewale/beautiful-mermaid">GitHub</a></div></footer>
 <script src="/shader-mark.js"></script>

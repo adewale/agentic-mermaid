@@ -24,7 +24,39 @@ function editorScriptRel(editorHtml = read('editor/index.html')) {
   return rel!
 }
 
+function editorExampleIds() {
+  const src = readFileSync(join(REPO, 'editor/js/examples.js'), 'utf8')
+  const start = src.indexOf('var EDITOR_EXAMPLES = [')
+  const end = src.indexOf('];', start)
+  return [...src.slice(start, end).matchAll(/\bid:\s*'([^']+)'/g)].map((m) => m[1]!)
+}
+
 describe('Workers Static Assets website contract', () => {
+  test('Cloudflare MCP config follows the official agent setup endpoints', () => {
+    const expected = {
+      cloudflare: 'https://mcp.cloudflare.com/mcp',
+      'cloudflare-docs': 'https://docs.mcp.cloudflare.com/mcp',
+      'cloudflare-bindings': 'https://bindings.mcp.cloudflare.com/mcp',
+      'cloudflare-builds': 'https://builds.mcp.cloudflare.com/mcp',
+      'cloudflare-observability': 'https://observability.mcp.cloudflare.com/mcp',
+    }
+    for (const rel of ['.cursor/mcp.json', '.vscode/mcp.json']) {
+      const config = JSON.parse(readFileSync(join(REPO, rel), 'utf8'))
+      expect(Object.keys(config.mcpServers).sort()).toEqual(Object.keys(expected).sort())
+      for (const [name, url] of Object.entries(expected)) {
+        expect(config.mcpServers[name]).toEqual({ url })
+      }
+    }
+  })
+
+  test('Wrangler uses the JSONC Static Assets config', () => {
+    expect(existsSync(join(REPO, 'website/wrangler.toml'))).toBe(false)
+    const config = JSON.parse(readFileSync(join(REPO, 'website/wrangler.jsonc'), 'utf8'))
+    expect(config.compatibility_date).toBe('2026-06-27')
+    expect(config.assets).toEqual({ directory: './public', binding: 'ASSETS' })
+    expect(readFileSync(join(REPO, 'package.json'), 'utf8')).toContain('wrangler@latest dev --port 9095 --ip 127.0.0.1')
+  })
+
   test('required human and machine routes are generated', () => {
     const routes = [
       'index.html', 'editor/index.html', 'gallery/index.html', 'families/index.html',
@@ -43,6 +75,16 @@ describe('Workers Static Assets website contract', () => {
     expect(existsSync(join(SITE, 'agents/index.html'))).toBe(false)
     expect(existsSync(join(SITE, 'agents/harnesses/index.html'))).toBe(false)
     expect(existsSync(join(SITE, 'agents/workflow/index.html'))).toBe(false)
+  })
+
+  test('all generated pages use the trident favicon assets', () => {
+    const favicon = read('favicon.svg')
+    expect(favicon).toContain('Agentic Mermaid')
+    expect(favicon).toContain('points="14,8.5 14,23.5 24,39.5"')
+    expect(existsSync(join(SITE, 'favicon.ico'))).toBe(true)
+    expect(existsSync(join(SITE, 'apple-touch-icon.png'))).toBe(true)
+    const offenders = files().filter((f) => f.endsWith('.html') && !read(f).includes('href="/favicon.svg"'))
+    expect(offenders).toEqual([])
   })
 
   test('public html has no placeholder links', () => {
@@ -66,7 +108,7 @@ describe('Workers Static Assets website contract', () => {
     expect(home).toContain('copy-prompt-primary')
     expect(home).toContain('Copy prompt')
     expect(home).toContain('Replace this with your edit request and include the Mermaid source')
-    expect(home).toContain('Agentic Mermaid turns Mermaid diagrams into files your docs, pull requests, and terminals can use')
+    expect(home).toContain('Agentic Mermaid renders one Mermaid source as SVG, PNG, ASCII, Unicode, and JSON layout')
     expect(home).toContain('data-copy-name="MCP config"')
     expect(home).toContain('Copy MCP config')
     expect(home).toContain('Run from the cloned repo root')
@@ -78,7 +120,7 @@ describe('Workers Static Assets website contract', () => {
     expect(home).toContain('/schemas/index.json')
     expect(home).toContain('/examples/index.json')
     expect(home).toContain('/recipes/index.json')
-    expect(home).toContain('One model, five outputs')
+    expect(home).toContain('One source, five outputs')
     expect(home).toContain('class="unicode-diagram"')
     expect(gallery).toContain('<p class="gallery-prompt"><span>Prompt</span>')
     expect(gallery).toContain('<p class="gallery-ops"><span>Trace</span> <code>asFlowchart')
@@ -111,16 +153,21 @@ describe('Workers Static Assets website contract', () => {
     expect(editor).not.toContain('id="pan-btn" type="button" title="Pan (hold to drag)" aria-label="Pan preview">')
   })
 
-  test('masthead distinguishes app and external links from document navigation', () => {
-    for (const rel of ['index.html', 'docs/index.html', 'gallery/index.html', 'skills/agentic-mermaid-diagram-workflow/index.html']) {
+  test('masthead exposes examples and the editor without repository chrome', () => {
+    for (const rel of ['index.html', 'docs/index.html', 'gallery/index.html', 'examples/index.html', 'skills/agentic-mermaid-diagram-workflow/index.html']) {
       const html = read(rel)
-      expect(html).toContain('<a class="link-editor" href="/editor/">Open editor</a>')
-      expect(html).toContain('<a class="link-external" href="https://github.com/adewale/beautiful-mermaid" aria-label="GitHub repository (external)">GitHub</a>')
+      const masthead = html.match(/<header class="masthead"[\s\S]*?<\/header>/)?.[0] ?? ''
+      expect(masthead).toContain('href="/examples/"')
+      expect(masthead).toContain('<a class="link-editor" href="/editor/">Open editor</a>')
+      expect(masthead).not.toContain('github.com')
       expect(html).not.toContain('<a href="/install/">Install</a>')
       expect(html).not.toContain('<a href="/agents/">Agents</a>')
       expect(html).not.toContain('class="theme-switch"')
       expect(html).not.toContain('<a href="/editor/">Editor</a><a href="/gallery/">')
     }
+    const examplesMasthead = read('examples/index.html').match(/<header class="masthead"[\s\S]*?<\/header>/)?.[0] ?? ''
+    expect(examplesMasthead).toContain('href="/examples/"')
+    expect(examplesMasthead).toContain('aria-current="page"')
     expect(read('gallery/index.html')).toContain('<a href="/gallery/" aria-current="page">Gallery</a>')
     expect(read('docs/index.html')).toContain('<a href="/docs/" aria-current="page">Docs</a>')
     expect(read('_redirects')).not.toContain('/agents')
@@ -129,7 +176,6 @@ describe('Workers Static Assets website contract', () => {
     expect(read('_redirects')).not.toContain('/home')
     const styles = read('styles.css')
     expect(styles).toContain('.masthead .links .link-editor')
-    expect(styles).toContain('.masthead .links .link-external::after { content: "↗";')
     expect(styles).not.toContain('.theme-switch')
     expect(styles).not.toContain('.theme-menu')
   })
@@ -200,6 +246,9 @@ describe('Workers Static Assets website contract', () => {
     expect(schema.properties.families.items.required).toContain('mutationOps')
     expect(schema.properties.warningCodes.items.properties.tier.enum).toEqual(['structural', 'geometric', 'lint'])
     const examplesIndex = JSON.parse(read('examples/index.json'))
+    expect(examplesIndex.examples.map((example: any) => example.id)).toEqual(editorExampleIds())
+    expect(read('examples/index.html')).toContain('id="styled-xychart"')
+    expect(read('examples/index.html')).toContain('Rendered during the website build from the same source the editor loads.')
     for (const example of examplesIndex.examples) {
       const galleryId = example.galleryUrl.split('#')[1]
       const familyId = example.docs.split('#')[1]

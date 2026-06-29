@@ -106,7 +106,7 @@
     "website": "bun run website/build.ts",
     "website:check": "bun run website/build.ts --check",
     "website:dev": "cd website && WRANGLER_SEND_METRICS=false npx --yes wrangler@latest dev --port 9095 --ip 127.0.0.1",
-    "deploy": "echo 'GitHub Pages deploys from main via .github/workflows/pages.yml. Cloudflare Workers Static Assets preview: cd website && npx --yes wrangler@latest deploy.'",
+    "deploy": "echo 'GitHub Pages deploys from main via .github/workflows/pages.yml. Cloudflare Workers Static Assets preview: cd website && WRANGLER_SEND_METRICS=false npx --yes wrangler@latest deploy (uses wrangler.jsonc).'",
     "xychart-test": "bun run scripts/site/xychart-test.ts",
     "prepublishOnly": "npm run build",
     "goldens:ascii": "bun run scripts/update-ascii-goldens.ts",

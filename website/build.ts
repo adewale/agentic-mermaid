@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto'
 import { mkdir, readdir, rm, unlink, writeFile } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
 import { BUILTIN_FAMILY_METADATA } from '../src/agent/families.ts'
+import { renderMermaidSVG } from '../src/index.ts'
 
 const ROOT = join(import.meta.dir, '..')
 const MOCKUPS = join(ROOT, 'mockups')
@@ -90,6 +91,7 @@ function rewriteAttrs(html: string) {
 }
 
 function topNavHrefForRoute(route = '') {
+  if (route === '/examples/') return '/examples/'
   if (route === '/gallery/') return '/gallery/'
   if (route === '/families/') return '/families/'
   if (route === '/docs/' || route.startsWith('/docs/')) return '/docs/'
@@ -100,6 +102,7 @@ function topNavHrefForRoute(route = '') {
 function setNavCurrent(html: string, currentHref = '') {
   if (!currentHref) return html
   const labels: Record<string, string> = {
+    '/examples/': 'Examples',
     '/gallery/': 'Gallery',
     '/families/': 'Families',
     '/docs/': 'Docs',
@@ -169,8 +172,8 @@ function sha256(text: string | Buffer) {
   return createHash('sha256').update(text).digest('hex')
 }
 
-function extractArrayLiteral(src: string, marker: string): string {
-  const lb = src.indexOf('[', src.indexOf(marker))
+function extractBalancedLiteral(src: string, marker: string, open: string, close: string): string {
+  const lb = src.indexOf(open, src.indexOf(marker))
   let depth = 0, q: string | null = null
   for (let i = lb; i < src.length; i++) {
     const c = src[i]
@@ -178,10 +181,16 @@ function extractArrayLiteral(src: string, marker: string): string {
     if (c === "'" || c === '"' || c === '`') { q = c; continue }
     if (c === '/' && src[i + 1] === '/') { const nl = src.indexOf('\n', i); i = nl < 0 ? src.length : nl; continue }
     if (c === '/' && src[i + 1] === '*') { const e = src.indexOf('*/', i + 2); i = e < 0 ? src.length : e + 1; continue }
-    if (c === '[') depth++
-    else if (c === ']' && --depth === 0) return src.slice(lb, i + 1)
+    if (c === open) depth++
+    else if (c === close && --depth === 0) return src.slice(lb, i + 1)
   }
   throw new Error('could not extract ' + marker)
+}
+function extractArrayLiteral(src: string, marker: string): string {
+  return extractBalancedLiteral(src, marker, '[', ']')
+}
+function extractObjectLiteral(src: string, marker: string): string {
+  return extractBalancedLiteral(src, marker, '{', '}')
 }
 
 async function generateEditorHtml() {
@@ -204,6 +213,7 @@ async function generateEditorHtml() {
 
 function mastheadHtml(currentHref = '') {
   const links = [
+    ['/examples/', 'Examples', ''],
     ['/gallery/', 'Gallery', ''],
     ['/families/', 'Families', ''],
     ['/docs/', 'Docs', ''],
@@ -213,7 +223,7 @@ function mastheadHtml(currentHref = '') {
     const attrs = [cls ? `class="${cls}"` : '', currentHref === href ? 'aria-current="page"' : ''].filter(Boolean).join(' ')
     return `<a ${attrs ? attrs + ' ' : ''}href="${href}">${label}</a>`
   }).join('')
-  return `<header class="masthead"><div class="bar"><a class="brand" href="/"><span class="mark"></span> Agentic&nbsp;Mermaid</a><span class="links">${nav}<a class="link-external" href="https://github.com/adewale/beautiful-mermaid" aria-label="GitHub repository (external)">GitHub</a></span></div><hr></header>`
+  return `<header class="masthead"><div class="bar"><a class="brand" href="/"><span class="mark"></span> Agentic&nbsp;Mermaid</a><span class="links">${nav}</span></div><hr></header>`
 }
 
 function pageShell(title: string, lead: string, body: string, crumb = '', currentHref = '') {
@@ -226,6 +236,8 @@ function pageShell(title: string, lead: string, body: string, crumb = '', curren
 <meta name="description" content="${escapeAttr(lead)}">
 <title>${escapeHtml(title)} – Agentic Mermaid</title>
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="/favicon.ico" type="image/x-icon">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
 <link rel="stylesheet" href="/styles.css">
 ${agentDiscoveryLinks}
 </head>
@@ -271,8 +283,46 @@ const installNotice = npmPublished
   : 'This local build has not verified npm publication, so public install copy uses the source-install path.'
 
 const examplesSrc = await Bun.file(join(ROOT, 'editor/js/examples.js')).text()
-const EDITOR_EXAMPLES: any[] = new Function('EDITOR_SEMANTIC_STYLE', 'return (' + extractArrayLiteral(examplesSrc, 'EDITOR_EXAMPLES =') + ');')({})
-const examplesById = new Map<string, any>(EDITOR_EXAMPLES.map((e) => [e.id, e]))
+const EDITOR_SEMANTIC_STYLE: any = new Function('return (' + extractObjectLiteral(examplesSrc, 'EDITOR_SEMANTIC_STYLE =') + ');')()
+const EDITOR_EXAMPLES: any[] = new Function('EDITOR_SEMANTIC_STYLE', 'return (' + extractArrayLiteral(examplesSrc, 'EDITOR_EXAMPLES =') + ');')(EDITOR_SEMANTIC_STYLE)
+const familyByExampleId = new Map<string, any>(BUILTIN_FAMILY_METADATA.map((f) => [f.editorExampleId, f]))
+const familyByDiagramType: Record<string, string> = {
+  Flowchart: 'flowchart', State: 'state', Architecture: 'architecture', Sequence: 'sequence', Class: 'class', ER: 'er', Timeline: 'timeline', Journey: 'journey', 'XY Chart': 'xychart', Pie: 'pie', Quadrant: 'quadrant', Gantt: 'gantt',
+}
+function familyForExample(example: any) {
+  return familyByExampleId.get(example.id) ?? BUILTIN_FAMILY_METADATA.find((family) => family.id === familyByDiagramType[example.diagramType])
+}
+function renderExampleSvg(example: any) {
+  return renderMermaidSVG(example.source, { ...(example.options ?? {}), security: 'strict', compact: true, idPrefix: `example-${example.id}-` }).replace(/[ \t]+$/gm, '')
+}
+function examplesShowcaseHtml(editorExamples: any[]) {
+  const groups = new Map<string, any[]>()
+  for (const example of editorExamples) {
+    const category = example.category ?? 'Examples'
+    if (!groups.has(category)) groups.set(category, [])
+    groups.get(category)!.push(example)
+  }
+  return '<div class="example-showcase">' + Array.from(groups, ([category, examples]) => `
+<section class="example-group" aria-labelledby="examples-${escapeAttr(category.toLowerCase().replace(/[^a-z0-9]+/g, '-'))}">
+<h2 id="examples-${escapeAttr(category.toLowerCase().replace(/[^a-z0-9]+/g, '-'))}">${escapeHtml(category)}</h2>
+<p class="muted">${category === 'Role style presets' ? 'These use the editor style role preset, so the same source shows how node, edge, text, and group roles affect supported families.' : 'These are the examples exposed by the editor picker for each supported diagram family.'}</p>
+${examples.map((example) => `
+<article class="example-sample" id="${escapeAttr(example.id)}">
+  <header class="example-sample-head">
+    <div>
+      <p class="example-meta">${escapeHtml(example.diagramType ?? 'Example')}</p>
+      <h3>${escapeHtml(example.label)}</h3>
+      <p>${escapeHtml(example.description ?? '')}</p>
+    </div>
+    <a class="go" href="/editor/?example=${encodeURIComponent(example.id)}">Open in editor</a>
+  </header>
+  <div class="example-sample-grid">
+    <section class="example-source" aria-label="${escapeAttr(example.label)} Mermaid source"><pre><code>${escapeHtml(String(example.source ?? '').trim())}</code></pre></section>
+    <figure class="example-render"><div class="example-svg">${renderExampleSvg(example)}</div><figcaption>Rendered during the website build from the same source the editor loads.</figcaption></figure>
+  </div>
+</article>`).join('')}
+</section>`).join('\n') + '\n</div>'
+}
 
 if (!CHECK) await rm(OUT, { recursive: true, force: true })
 
@@ -358,17 +408,18 @@ await emitJson('harnesses.json', harnesses)
 
 const examples = {
   generatedFrom,
-  examples: BUILTIN_FAMILY_METADATA.map((family) => {
-    const ex = examplesById.get(family.editorExampleId)
+  examples: EDITOR_EXAMPLES.map((example) => {
+    const family = familyForExample(example)
+    if (!family) throw new Error(`Editor example ${example.id} does not map to a supported family`)
     return {
-      id: family.editorExampleId,
+      id: example.id,
       family: family.id,
-      label: family.label,
-      description: ex?.description ?? family.label,
+      label: example.label,
+      description: example.description ?? example.label,
       headers: family.headers,
-      source: ex?.source?.trim() ?? '',
+      source: String(example.source ?? '').trim(),
       galleryUrl: `/gallery/#${family.id}`,
-      editorUrl: `/editor/?example=${family.editorExampleId}`,
+      editorUrl: `/editor/?example=${example.id}`,
       outputs: capabilities.outputFormats,
       docs: `/families/#${family.id}`,
     }
@@ -418,7 +469,7 @@ await emitJson('skills/index.json', {
 })
 
 // Public llms.txt must not expose repo-only backlog/eval/contributor surfaces.
-const publicLlms = `# Agentic Mermaid\n\nAgentic Mermaid renders, verifies, and safely edits Mermaid diagrams locally. Use the package, CLI, or self-hosted MCP; the website is documentation plus a browser-local editor, not a REST render API.\n\nStart here:\n- /agent-instructions.md – short operating guide for agents\n- /agent-manifest.json – package, routes, stop rules, and hosted-execution posture\n- /capabilities.json – authoritative family/output/mutation/warning contract\n- /examples/index.json – canonical examples\n- /recipes/index.json – local CLI/library/MCP recipes\n- /skills/index.json – public consumer skill catalog\n\nStop rules:\n- Verify before serialize, render, commit, or return.\n- Do not fabricate ValidDiagram objects. Parse first.\n- Prefer local library, CLI, or self-hosted MCP.\n- Do not call this website as a render API or arbitrary-code execution backend.\n`;
+const publicLlms = `# Agentic Mermaid\n\nAgentic Mermaid renders, verifies, and safely edits Mermaid diagrams locally. Use the package, CLI, or self-hosted MCP; the website is documentation plus a browser-local editor, not a REST render API.\n\nStart here:\n- /agent-instructions.md – short operating guide for agents\n- /agent-manifest.json – package, routes, stop rules, and hosted-execution posture\n- /capabilities.json – authoritative family/output/mutation/warning contract\n- /examples/index.json – the same example IDs and sources loaded by the editor\n- /recipes/index.json – local CLI/library/MCP recipes\n- /skills/index.json – public consumer skill catalog\n\nStop rules:\n- Verify before serialize, render, commit, or return.\n- Do not fabricate ValidDiagram objects. Parse first.\n- Prefer local library, CLI, or self-hosted MCP.\n- Do not call this website as a render API or arbitrary-code execution backend.\n`;
 await emit('llms.txt', publicLlms)
 await emit('agent-instructions.md', await Bun.file(join(ROOT, 'Instructions_for_agents.md')).text())
 
@@ -513,7 +564,7 @@ const docPages = [
   ['security/index.html', 'Security and privacy', 'The site is static/local-first and does not run hosted Code Mode.', '<p>Source stays in the browser for the editor. The preview has no hosted render API; <code>/mcp</code> returns a 501 until a bounded hosted MCP is deliberately implemented.</p>'],
   ['releases/index.html', 'Releases', 'Current package and site build metadata.', `<pre><code>package: ${packageJson.name}@${packageJson.version}\ngit: ${generatedFrom.gitSha}\nbuild: ${generatedFrom.buildTime}</code></pre>`],
   ['evidence/index.html', 'Evidence', 'Quality evidence is curated, not raw private prompts.', '<p>Use CI, generated artifacts, and deterministic metrics to review changes. Private eval prompts and holdbacks are not public site content.</p>'],
-  ['examples/index.html', 'Examples', 'Canonical examples for each supported family.', `<ul>${examples.examples.map((e: any) => `<li><a href="${e.editorUrl}">${escapeHtml(e.label)}</a> – ${escapeHtml(e.description)}</li>`).join('')}</ul>`],
+  ['examples/index.html', 'Examples', 'Every example the editor can load, rendered from the same source list.', examplesShowcaseHtml(EDITOR_EXAMPLES), '/examples/'],
   ['skills/index.html', 'Skills', 'Public consumer skill catalog.', '<p>The public skill is <a href="/skills/agentic-mermaid-diagram-workflow/">agentic-mermaid-diagram-workflow</a>. Capabilities.json is authoritative for renderer support.</p>'],
 ]
 for (const [rel, title, lead, body, currentHref] of docPages) await emit(rel, pageShell(title, lead, body, title, currentHref || (rel.startsWith('docs/') ? '/docs/' : '')))

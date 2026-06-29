@@ -29,7 +29,7 @@
     {
       "id": "state-basic",
       "family": "state",
-      "label": "State",
+      "label": "State diagram",
       "description": "Lifecycle using Mermaid stateDiagram-v2 syntax.",
       "headers": [
         "stateDiagram",
@@ -46,6 +46,26 @@
         "json"
       ],
       "docs": "/families/#state"
+    },
+    {
+      "id": "architecture-basic",
+      "family": "architecture",
+      "label": "Architecture",
+      "description": "Services, groups, icons, and routed connections.",
+      "headers": [
+        "architecture-beta"
+      ],
+      "source": "architecture-beta\n  group app(cloud)[Application]\n  group data(database)[Data]\n  service web(server)[Web App] in app\n  service api(server)[API] in app\n  service db(database)[Postgres] in data\n  web:R --> L:api\n  api:R --> L:db",
+      "galleryUrl": "/gallery/#architecture",
+      "editorUrl": "/editor/?example=architecture-basic",
+      "outputs": [
+        "svg",
+        "ascii",
+        "unicode",
+        "png",
+        "json"
+      ],
+      "docs": "/families/#architecture"
     },
     {
       "id": "sequence-basic",
@@ -66,26 +86,6 @@
         "json"
       ],
       "docs": "/families/#sequence"
-    },
-    {
-      "id": "timeline-basic",
-      "family": "timeline",
-      "label": "Timeline",
-      "description": "Chronological milestones with sections.",
-      "headers": [
-        "timeline"
-      ],
-      "source": "timeline\n  title Product roadmap\n  section Foundation\n  2024 Q1 : Prototype\n          : Parser coverage\n  section Launch\n  2024 Q2 : Public editor\n          : SVG export",
-      "galleryUrl": "/gallery/#timeline",
-      "editorUrl": "/editor/?example=timeline-basic",
-      "outputs": [
-        "svg",
-        "ascii",
-        "unicode",
-        "png",
-        "json"
-      ],
-      "docs": "/families/#timeline"
     },
     {
       "id": "class-basic",
@@ -110,7 +110,7 @@
     {
       "id": "er-basic",
       "family": "er",
-      "label": "ER",
+      "label": "ER diagram",
       "description": "Entities, attributes, keys, and cardinality markers.",
       "headers": [
         "erDiagram"
@@ -128,9 +128,29 @@
       "docs": "/families/#er"
     },
     {
+      "id": "timeline-basic",
+      "family": "timeline",
+      "label": "Timeline",
+      "description": "Chronological milestones with sections.",
+      "headers": [
+        "timeline"
+      ],
+      "source": "timeline\n  title Product roadmap\n  section Foundation\n  2024 Q1 : Prototype\n          : Parser coverage\n  section Launch\n  2024 Q2 : Public editor\n          : SVG export",
+      "galleryUrl": "/gallery/#timeline",
+      "editorUrl": "/editor/?example=timeline-basic",
+      "outputs": [
+        "svg",
+        "ascii",
+        "unicode",
+        "png",
+        "json"
+      ],
+      "docs": "/families/#timeline"
+    },
+    {
       "id": "journey-basic",
       "family": "journey",
-      "label": "Journey",
+      "label": "User journey",
       "description": "Scored user tasks grouped by section.",
       "headers": [
         "journey"
@@ -146,26 +166,6 @@
         "json"
       ],
       "docs": "/families/#journey"
-    },
-    {
-      "id": "architecture-basic",
-      "family": "architecture",
-      "label": "Architecture",
-      "description": "Services, groups, icons, and routed connections.",
-      "headers": [
-        "architecture-beta"
-      ],
-      "source": "architecture-beta\n  group app(cloud)[Application]\n  group data(database)[Data]\n  service web(server)[Web App] in app\n  service api(server)[API] in app\n  service db(database)[Postgres] in data\n  web:R --> L:api\n  api:R --> L:db",
-      "galleryUrl": "/gallery/#architecture",
-      "editorUrl": "/editor/?example=architecture-basic",
-      "outputs": [
-        "svg",
-        "ascii",
-        "unicode",
-        "png",
-        "json"
-      ],
-      "docs": "/families/#architecture"
     },
     {
       "id": "xychart-basic",
@@ -191,7 +191,7 @@
     {
       "id": "pie-basic",
       "family": "pie",
-      "label": "Pie",
+      "label": "Pie chart",
       "description": "Proportional slices with values shown in the legend.",
       "headers": [
         "pie"
@@ -211,7 +211,7 @@
     {
       "id": "quadrant-basic",
       "family": "quadrant",
-      "label": "Quadrant",
+      "label": "Quadrant chart",
       "description": "Two-axis priority map with labeled regions and points.",
       "headers": [
         "quadrantChart"
@@ -231,7 +231,7 @@
     {
       "id": "gantt-basic",
       "family": "gantt",
-      "label": "Gantt",
+      "label": "Gantt chart",
       "description": "Sections, dependencies, status tags, and a milestone.",
       "headers": [
         "gantt"
@@ -247,6 +247,189 @@
         "json"
       ],
       "docs": "/families/#gantt"
+    },
+    {
+      "id": "styled-flowchart",
+      "family": "flowchart",
+      "label": "Styled flowchart",
+      "description": "Flowchart using semantic node, edge, text, and group roles.",
+      "headers": [
+        "flowchart",
+        "graph"
+      ],
+      "source": "flowchart TD\n  subgraph product [Product Loop]\n    A[Capture request] --> B{Ready?}\n    B -->|yes| C[Ship]\n    B -.->|needs work| D[Refine]\n  end",
+      "galleryUrl": "/gallery/#flowchart",
+      "editorUrl": "/editor/?example=styled-flowchart",
+      "outputs": [
+        "svg",
+        "ascii",
+        "unicode",
+        "png",
+        "json"
+      ],
+      "docs": "/families/#flowchart"
+    },
+    {
+      "id": "styled-state",
+      "family": "state",
+      "label": "Styled state",
+      "description": "State diagram consuming the same flowchart/state role mapping.",
+      "headers": [
+        "stateDiagram",
+        "stateDiagram-v2"
+      ],
+      "source": "stateDiagram-v2\n  [*] --> Draft\n  Draft --> Review: submit\n  Review --> Draft: request changes\n  Review --> Published: approve\n  Published --> [*]",
+      "galleryUrl": "/gallery/#state",
+      "editorUrl": "/editor/?example=styled-state",
+      "outputs": [
+        "svg",
+        "ascii",
+        "unicode",
+        "png",
+        "json"
+      ],
+      "docs": "/families/#state"
+    },
+    {
+      "id": "styled-architecture",
+      "family": "architecture",
+      "label": "Styled architecture",
+      "description": "Architecture services, groups, and connectors styled semantically.",
+      "headers": [
+        "architecture-beta"
+      ],
+      "source": "architecture-beta\n  group edge(cloud)[Edge Layer]\n  group core(server)[Core Services]\n  service web(server)[Web App] in edge\n  service api(server)[API] in core\n  service db(database)[Postgres] in core\n  web:R --> L:api\n  api:R --> L:db",
+      "galleryUrl": "/gallery/#architecture",
+      "editorUrl": "/editor/?example=styled-architecture",
+      "outputs": [
+        "svg",
+        "ascii",
+        "unicode",
+        "png",
+        "json"
+      ],
+      "docs": "/families/#architecture"
+    },
+    {
+      "id": "styled-sequence",
+      "family": "sequence",
+      "label": "Styled sequence",
+      "description": "Participants use node style; messages use edge style.",
+      "headers": [
+        "sequenceDiagram"
+      ],
+      "source": "sequenceDiagram\n  participant U as User\n  participant E as Editor\n  participant R as Renderer\n  U->>E: Change style role\n  E->>R: render(source, options.style)\n  R-->>E: SVG",
+      "galleryUrl": "/gallery/#sequence",
+      "editorUrl": "/editor/?example=styled-sequence",
+      "outputs": [
+        "svg",
+        "ascii",
+        "unicode",
+        "png",
+        "json"
+      ],
+      "docs": "/families/#sequence"
+    },
+    {
+      "id": "styled-class",
+      "family": "class",
+      "label": "Styled class",
+      "description": "Class boxes and relationships through shared style roles.",
+      "headers": [
+        "classDiagram"
+      ],
+      "source": "classDiagram\n  class Renderer {\n    +renderSVG(source) string\n    +renderASCII(source) string\n  }\n  class StyleResolver {\n    +resolveRenderStyle(options) object\n  }\n  Renderer --> StyleResolver : uses",
+      "galleryUrl": "/gallery/#class",
+      "editorUrl": "/editor/?example=styled-class",
+      "outputs": [
+        "svg",
+        "ascii",
+        "unicode",
+        "png",
+        "json"
+      ],
+      "docs": "/families/#class"
+    },
+    {
+      "id": "styled-er",
+      "family": "er",
+      "label": "Styled ER",
+      "description": "ER entities and relationships inherit node/edge roles.",
+      "headers": [
+        "erDiagram"
+      ],
+      "source": "erDiagram\n  USER {\n    string id PK\n    string email\n  }\n  DIAGRAM {\n    string id PK\n    string source\n  }\n  EXPORT {\n    string id PK\n    string format\n  }\n  USER ||--o{ DIAGRAM : creates\n  DIAGRAM ||--o{ EXPORT : renders",
+      "galleryUrl": "/gallery/#er",
+      "editorUrl": "/editor/?example=styled-er",
+      "outputs": [
+        "svg",
+        "ascii",
+        "unicode",
+        "png",
+        "json"
+      ],
+      "docs": "/families/#er"
+    },
+    {
+      "id": "styled-timeline",
+      "family": "timeline",
+      "label": "Styled timeline",
+      "description": "Timeline periods and events styled as semantic cards/groups.",
+      "headers": [
+        "timeline"
+      ],
+      "source": "timeline\n  title Fork Roadmap\n  section Discover\n  2024 Q2 : Audit forks\n          : Extract small PRs\n  section Ship\n  2024 Q3 : Style roles\n          : Live editor presets",
+      "galleryUrl": "/gallery/#timeline",
+      "editorUrl": "/editor/?example=styled-timeline",
+      "outputs": [
+        "svg",
+        "ascii",
+        "unicode",
+        "png",
+        "json"
+      ],
+      "docs": "/families/#timeline"
+    },
+    {
+      "id": "styled-journey",
+      "family": "journey",
+      "label": "Styled journey",
+      "description": "Journey sections, task cards, and actor chips use role styles.",
+      "headers": [
+        "journey"
+      ],
+      "source": "journey\n  title Editor adoption\n  section Try\n    Open preset: 5: User\n    Tune roles: 4: Designer, Developer\n  section Share\n    Copy URL: 5: User\n    Export SVG: 4: Developer",
+      "galleryUrl": "/gallery/#journey",
+      "editorUrl": "/editor/?example=styled-journey",
+      "outputs": [
+        "svg",
+        "ascii",
+        "unicode",
+        "png",
+        "json"
+      ],
+      "docs": "/families/#journey"
+    },
+    {
+      "id": "styled-xychart",
+      "family": "xychart",
+      "label": "Styled xychart",
+      "description": "XY chart title, axes, grid, and series labels with shared roles.",
+      "headers": [
+        "xychart",
+        "xychart-beta"
+      ],
+      "source": "xychart\n  title \"Styled Adoption\"\n  x-axis [Mon, Tue, Wed, Thu, Fri]\n  y-axis \"Renders\" 0 --> 100\n  bar [25, 42, 58, 74, 88]\n  line [18, 35, 52, 70, 95]",
+      "galleryUrl": "/gallery/#xychart",
+      "editorUrl": "/editor/?example=styled-xychart",
+      "outputs": [
+        "svg",
+        "ascii",
+        "unicode",
+        "png",
+        "json"
+      ],
+      "docs": "/families/#xychart"
     }
   ]
 }
