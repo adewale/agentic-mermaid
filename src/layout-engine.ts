@@ -41,6 +41,8 @@ import { onShapeOutline } from './layout-rubric.ts'
 import { applyRouteContracts, classifyRoutes, diamondFacetPorts, labelRect, PORT_EXACT, shapePorts, simplifyPolyline } from './route-contracts.ts'
 import type { LabelMetricsStyle } from './route-contracts.ts'
 import { resolveEdgeInlineStyle, resolveNodeInlineStyle } from './color-resolver.ts'
+import { runPipeline } from './layout/pass.ts'
+import type { LayoutPass, PassContextBase } from './layout/pass.ts'
 
 type LayoutDebugEnv = {
   APL_DEBUG?: string
@@ -913,6 +915,128 @@ function flattenGroupBounds(groups: PositionedGroup[]): Array<{ x: number; y: nu
   return bounds
 }
 
+/** The mutable bag the post-ELK geometry passes thread through (see ./layout/pass.ts). */
+interface LayoutPassContext extends PassContextBase {
+  readonly elkResult: ElkNode
+  readonly graph: MermaidGraph
+  nodes: PositionedNode[]
+  edges: PositionedEdge[]
+  groups: PositionedGroup[]
+  readonly margins: MarginInfo | undefined
+  bundled: Set<PositionedEdge>
+  readonly mergeEdges: boolean
+  readonly style: ResolvedRenderStyle
+  readonly layoutPadding: number
+  frozen: boolean
+}
+
+// The post-ELK geometry pipeline, reified (docs/design/system/layout-pass-pipeline.md).
+// The array IS the execution path; each `run` delegates to the existing pass function
+// with byte-identical arguments. The three symmetric passes carry no `after` among each
+// other — their order is empirically free (spec §8 R1, verified by a permutation experiment).
+const LAYOUT_PIPELINE: ReadonlyArray<LayoutPass<LayoutPassContext>> = [
+  {
+    id: 'extractEdgesRecursively', doc: 'flatten ELK edges to absolute coords (+orthogonalize cross-hierarchy)',
+    after: [], mutates: ['extract'], determinism: 'pure-order',
+    run: c => { extractEdgesRecursively(c.elkResult, c.graph, c.edges, 0, 0, c.margins) },
+  },
+  {
+    id: 'alignLayerNodes', doc: 'snap same-layer nodes onto a shared flow-axis line',
+    after: ['extractEdgesRecursively'], mutates: ['positions', 'edges'], determinism: 'in-place',
+    mayChangeMetrics: { bends: 'improve-only', straight: 'improve-only' },
+    run: c => { alignLayerNodes(c.nodes, c.edges, c.graph.direction) },
+  },
+  {
+    id: 'equalizePeerNodeDimensions', doc: 'equalize peer box sizes + pack layers so symmetry is visible downstream',
+    after: ['alignLayerNodes'], mutates: ['positions', 'dimensions'], determinism: 'in-place',
+    mayChangeMetrics: { symErr: 'improve-only' },
+    run: c => { equalizePeerNodeDimensions(c.nodes, c.edges, c.groups, c.graph) },
+  },
+  {
+    id: 'alignForkRejoinPeerCenters', doc: 'center fork/rejoin hubs on their peer barycenter',
+    after: ['equalizePeerNodeDimensions'], mutates: ['positions'], determinism: 'in-place',
+    mayChangeMetrics: { symErr: 'improve-only', bends: { worsenBy: 2 } },
+    run: c => { alignForkRejoinPeerCenters(c.nodes, c.edges, c.groups, c.graph, c.style) },
+  },
+  {
+    id: 'alignPortLanes', doc: 'slide one endpoint node so a floating-straight edge becomes port-exact (Ruegg GD15)',
+    after: ['alignForkRejoinPeerCenters'], mutates: ['positions', 'edges'], determinism: 'in-place',
+    mayChangeMetrics: { straight: 'improve-only', portRate: 'improve-only', bends: 'improve-only' },
+    run: c => { alignPortLanes(c.nodes, c.edges, c.groups, c.graph.direction, c.style) },
+  },
+  {
+    id: 'centerPeerBarycenters', doc: 'center peer fan-in/fan-out trunks over peer barycenters (#57/#61)',
+    after: ['alignPortLanes'], mutates: ['positions'], determinism: 'in-place',
+    mayChangeMetrics: { symErr: 'improve-only', bends: { worsenBy: 2 } },
+    run: c => { centerPeerBarycenters(c.nodes, c.edges, c.groups, c.graph, c.style) },
+  },
+  {
+    id: 'honorLinkRankDistance', doc: 'shove target sub-DAG to honor variable-length link rank distance',
+    after: ['centerPeerBarycenters'], mutates: ['positions'], determinism: 'in-place',
+    run: c => { honorLinkRankDistance(c.nodes, c.edges, c.groups, c.graph) },
+  },
+  {
+    id: 'bundleEdgePaths', doc: 'bundle fan-out/fan-in edges into shared trunks (when mergeEdges)',
+    after: ['honorLinkRankDistance'], mutates: ['edges'], determinism: 'pure-order',
+    enabled: c => c.mergeEdges,
+    run: c => { c.bundled = bundleEdgePaths(c.edges, c.nodes, c.groups, c.graph.direction) },
+  },
+  {
+    id: 'clipEdgeToShape', doc: 'clip edge endpoints to real (non-rect) shape outlines',
+    after: ['bundleEdgePaths'], mutates: ['edges'], determinism: 'in-place',
+    mayChangeMetrics: { portRate: 'improve-only' },
+    run: c => {
+      const nodeMap = new Map(c.nodes.map(n => [n.id, n]))
+      for (const edge of c.edges) {
+        const sourceNode = nodeMap.get(edge.source)
+        const targetNode = nodeMap.get(edge.target)
+        if (sourceNode) edge.points = clipEdgeToShape(edge.points, sourceNode, true)
+        if (targetNode) edge.points = clipEdgeToShape(edge.points, targetNode, false)
+      }
+    },
+  },
+  {
+    id: 'applySymmetricFanoutEmissions', doc: 're-route small equivalent fan-outs symmetrically; mark bundle-owned',
+    after: ['clipEdgeToShape'], mutates: ['edges'], determinism: 'in-place',
+    mayChangeMetrics: { symErr: 'improve-only', bends: { worsenBy: 2 } },
+    run: c => { applySymmetricFanoutEmissions(c.nodes, c.edges, c.groups, c.graph, c.bundled, c.style) },
+  },
+  {
+    id: 'applySymmetricParallelEdgeLanes', doc: 'separate parallel edges into symmetric non-crossing lanes',
+    after: ['clipEdgeToShape'], mutates: ['edges'], determinism: 'in-place',
+    mayChangeMetrics: { symErr: 'improve-only', crossings: 'improve-only' },
+    run: c => { applySymmetricParallelEdgeLanes(c.nodes, c.edges, c.groups, c.graph, c.bundled, c.style) },
+  },
+  {
+    id: 'applyParallelDuplicateLanes', doc: 'split exact duplicate edges into separated lanes',
+    after: ['clipEdgeToShape'], mutates: ['edges'], determinism: 'in-place',
+    mayChangeMetrics: { crossings: 'improve-only' },
+    run: c => { applyParallelDuplicateLanes(c.nodes, c.edges, c.groups, c.graph, c.bundled) },
+  },
+  {
+    id: 'collapseTinyBundledHitches', doc: 'remove sub-perceptual hitches introduced by bundling',
+    after: ['applySymmetricFanoutEmissions', 'applySymmetricParallelEdgeLanes', 'applyParallelDuplicateLanes'],
+    mutates: ['edges'], determinism: 'in-place', mayChangeMetrics: { bends: 'improve-only' },
+    run: c => { collapseTinyBundledHitches(c.nodes, c.edges, c.bundled) },
+  },
+  {
+    id: 'reassignBundledSiblingLabels', doc: 're-home labels onto the correct bundled sibling segment',
+    after: ['collapseTinyBundledHitches'], mutates: ['edges'], determinism: 'in-place',
+    run: c => { reassignBundledSiblingLabels(c.nodes, c.edges, c.bundled, c.graph.direction, c.style) },
+  },
+  {
+    id: 'applyRouteContracts', doc: 'classify -> simplify -> straighten (fixed-point) -> certify; FREEZES node geometry',
+    after: ['reassignBundledSiblingLabels'], mutates: ['edges'], determinism: 'fixed-point', freezesNodes: true,
+    mayChangeMetrics: { straight: 'improve-only', bends: 'improve-only', portRate: 'improve-only' },
+    run: c => { applyRouteContracts({ nodes: c.nodes, edges: c.edges, groups: c.groups }, c.graph, c.bundled, c.style) },
+  },
+  {
+    id: 'translateGeometryToNonNegativeOrigin', doc: 'shift whole graph to a non-negative origin (allowed after freeze)',
+    after: ['applyRouteContracts'], mutates: ['translate'], determinism: 'in-place',
+    run: c => { translateGeometryToNonNegativeOrigin(c.nodes, c.edges, c.groups, c.layoutPadding) },
+  },
+]
+
 function elkToPositioned(
   elkResult: ElkNode,
   graph: MermaidGraph,
@@ -943,75 +1067,23 @@ function elkToPositioned(
       }
     : undefined
 
-  // Extract edges recursively from all levels (root and subgraphs)
-  // Edges are distributed to subgraphs for direction override to work,
-  // so we need to collect them from all children with proper offsets
-  extractEdgesRecursively(elkResult, graph, edges, 0, 0, margins)
-
-  // Snap same-layer nodes to the same position along the flow axis.
-  // ELK's orthogonal routing staggers nodes within a layer to create room for
-  // edge bends, but this looks bad. We fix it by aligning layers, then let
-  // edge bundling and clipping recalculate edge paths from corrected positions.
-  alignLayerNodes(nodes, edges, graph.direction)
-
-  // Equivalent peers should look equivalent. Equalize peer box dimensions and
-  // pack layers before port-lane alignment so downstream centering/routing sees
-  // the symmetric geometry instead of incidental text-size differences.
-  equalizePeerNodeDimensions(nodes, edges, groups, graph)
-  alignForkRejoinPeerCenters(nodes, edges, groups, graph, style)
-
-  // Port-lane alignment (Rüegg et al. GD'15: straightness THROUGH ports, not
-  // through arbitrary attachment points): when a straight edge floats off
-  // both midpoint ports because ELK's balanced placement averaged competing
-  // pulls, slide one endpoint node along the cross axis so the two midpoint
-  // ports share a lane — straight AND port-exact, no routing trade.
-  alignPortLanes(nodes, edges, groups, graph.direction, style)
-  centerPeerBarycenters(nodes, edges, groups, graph, style)
-
-  // Mermaid variable-length links (`---->`, `====>`, `~~~~`) mean rank
-  // distance, not just source spelling. Shove the target sub-DAG before
-  // bundling/clipping so downstream route contracts certify the final geometry.
-  // Covers flat DAGs, cycles/feedback, and links enclosed in a single
-  // subgraph (the container box grows to follow its members). Cross-hierarchy
-  // and container edges still keep ELK's placement.
-  honorLinkRankDistance(nodes, edges, groups, graph)
-
-  // Bundle fan-out/fan-in edge paths into shared trunks when mergeEdges is enabled
-  const bundled = mergeEdges
-    ? bundleEdgePaths(edges, nodes, groups, graph.direction)
-    : new Set<PositionedEdge>()
-
-  // Apply shape-aware edge clipping for non-rectangular shapes.
-  // ELK treats all nodes as rectangles, so we need to clip edge endpoints
-  // to the actual shape boundaries (e.g., diamond vertices).
-  const nodeMap = new Map(nodes.map(n => [n.id, n]))
-  for (const edge of edges) {
-    const sourceNode = nodeMap.get(edge.source)
-    const targetNode = nodeMap.get(edge.target)
-
-    if (sourceNode) {
-      edge.points = clipEdgeToShape(edge.points, sourceNode, true)
-    }
-    if (targetNode) {
-      edge.points = clipEdgeToShape(edge.points, targetNode, false)
-    }
+  // Post-ELK geometry pipeline (docs/design/system/layout-pass-pipeline.md): the
+  // LAYOUT_PIPELINE manifest is the execution path. extractNodesAndGroups + margins
+  // (above) are the producer setup; the bounds computation (below) is the epilogue.
+  const ctx: LayoutPassContext = {
+    elkResult,
+    graph,
+    nodes,
+    edges,
+    groups,
+    margins,
+    bundled: new Set<PositionedEdge>(),
+    mergeEdges,
+    style,
+    layoutPadding,
+    frozen: false,
   }
-
-  // Symmetry pass: small equivalent fan-outs and duplicate labeled edges carry
-  // visual meaning. Re-route them before certification and mark the accepted
-  // routes as bundle-owned so the certifying straightener preserves the shape.
-  applySymmetricFanoutEmissions(nodes, edges, groups, graph, bundled, style)
-  applySymmetricParallelEdgeLanes(nodes, edges, groups, graph, bundled, style)
-  applyParallelDuplicateLanes(nodes, edges, groups, graph, bundled)
-  collapseTinyBundledHitches(nodes, edges, bundled)
-  reassignBundledSiblingLabels(nodes, edges, bundled, graph.direction, style)
-
-  // Route contracts (docs/design/system/route-contracts.md): simplify every polyline,
-  // straighten primary-forward routes whose direct lane proves clear, and
-  // certify every edge. After this point only whole-graph translation is
-  // allowed: it preserves route classes, ports, bends, clear lanes, and certs.
-  applyRouteContracts({ nodes, edges, groups }, graph, bundled, style)
-  translateGeometryToNonNegativeOrigin(nodes, edges, groups, layoutPadding)
+  runPipeline(ctx, LAYOUT_PIPELINE)
 
   // Calculate final bounds including all edge points
   // ELK should include edges in its dimensions, but we verify and expand if needed
