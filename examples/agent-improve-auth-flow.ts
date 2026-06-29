@@ -10,14 +10,38 @@
 //   bun run examples/agent-improve-auth-flow.ts --out-dir /tmp/auth-flow-improved
 
 import { Buffer } from 'node:buffer'
-import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
+import { spawnSync } from 'node:child_process'
 import { handleRequest } from '../src/mcp/server.ts'
+
+const REPO = join(import.meta.dir, '..')
 
 function argValue(name: string): string | undefined {
   const idx = process.argv.indexOf(name)
   return idx >= 0 ? process.argv[idx + 1] : undefined
+}
+
+// Render the final source to PNG in a *fresh* process via `am render`. The
+// native PNG renderer (resvg) must not be loaded in this process: after MCP
+// Code Mode runs agent code in a `node:vm` sandbox, loading the native binding
+// here panics Bun (`panic: unreachable` on dlopen-after-vm). Shelling out to
+// the CLI keeps the dlopen in a clean process — same pattern as the MCP/CLI
+// parity example.
+function renderPngOutOfProcess(source: string, outPath: string): void {
+  const srcPath = `${outPath}.src.mmd`
+  writeFileSync(srcPath, source)
+  try {
+    const r = spawnSync(
+      'bun',
+      ['run', join(REPO, 'bin/am.ts'), 'render', srcPath, '--format', 'png', '--output', outPath],
+      { cwd: REPO, encoding: 'utf8' },
+    )
+    if (r.status !== 0) throw new Error(`am render --format png failed (${r.status})\nstderr: ${r.stderr}`)
+  } finally {
+    rmSync(srcPath, { force: true })
+  }
 }
 
 const outDir = resolve(argValue('--out-dir') ?? mkdtempSync(join(tmpdir(), 'am-agent-improve-')))
@@ -153,13 +177,14 @@ writeFileSync(files.source, result.source)
 writeFileSync(files.svg, result.svg)
 writeFileSync(files.ascii, result.ascii)
 // PNG is binary, so the host renders it from the verified final source. The
-// doc-sync smoke test can request a tiny placeholder to avoid loading native
-// PNG bindings in a nested Bun subprocess on constrained CI runners; the real
-// renderMermaidPNG path remains the default and is covered by agent PNG tests.
-const pngBytes = useTestPngPlaceholder
-  ? Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/p9sAAAAASUVORK5CYII=', 'base64')
-  : (await import('../src/agent/index.ts')).renderMermaidPNG(result.source, { fitTo: { width: 1600 }, background: '#f8f7f4' })
-writeFileSync(files.png, pngBytes)
+// default path renders the real PNG out-of-process (see renderPngOutOfProcess);
+// `--test-png-placeholder` writes a tiny stand-in to skip native rendering on
+// environments without the resvg binding.
+if (useTestPngPlaceholder) {
+  writeFileSync(files.png, Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/p9sAAAAASUVORK5CYII=', 'base64'))
+} else {
+  renderPngOutOfProcess(result.source, files.png)
+}
 writeFileSync(files.assessment, JSON.stringify({
   createOps: result.createOps,
   improveOps: result.improveOps,

@@ -1,7 +1,7 @@
 // Doc-sync + no-tautology guards.
 
 import { describe, test, expect } from 'bun:test'
-import { readFileSync, existsSync, readdirSync, mkdtempSync, rmSync } from 'node:fs'
+import { readFileSync, writeFileSync, existsSync, readdirSync, mkdtempSync, rmSync } from 'node:fs'
 import { spawnSync } from 'node:child_process'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -145,6 +145,55 @@ describe('agent-facing runnable docs', () => {
       expect(lintAgentTrace(r.trace as SdkCall[])).toEqual([])
     }
   })
+
+  // Public-API library docs are import-based (not MCP Code Mode), so they cannot
+  // run in the sandbox above. Execute their standalone snippets as real Bun
+  // modules against the in-repo source. This catches snippets that FAIL TO RUN —
+  // renamed/missing exports, wrong call signatures, options that throw, runtime
+  // errors — i.e. API drift that breaks the documented code. It does NOT catch
+  // silent type/semantic mismatches that still execute (e.g. assigning a Result
+  // to a var the prose calls a string); those need human review. Skipped:
+  // continuation fragments (no import), module/handler fragments (top-level
+  // export/return), and React/JSX blocks.
+  test('public-API doc snippets execute', () => {
+    const AGENT = JSON.stringify(join(REPO, 'src/agent/index.ts'))
+    const CORE = JSON.stringify(join(REPO, 'src/index.ts'))
+    const docs = ['README.md', 'docs/getting-started.md', 'docs/api.md', 'docs/ascii.md', 'docs/config.md', 'docs/theming.md', 'docs/diagram-families.md']
+    // Reader-supplied placeholders the docs reference but expect you to provide.
+    const placeholders = (block: string): string => {
+      const declared = (id: string) => new RegExp(`(?:const|let|var)\\s+${id}\\b`).test(block) || new RegExp(`(?:const|let|var)\\s*\\{[^}]*\\b${id}\\b[^}]*\\}`).test(block)
+      const used = (id: string) => new RegExp(`\\b${id}\\b`).test(block) && !declared(id)
+      const defs: string[] = []
+      if (used('source')) defs.push("const source = 'flowchart TD\\n  API --> DB'")
+      if (used('diagram')) defs.push("const diagram = 'flowchart TD\\n  API --> DB'")
+      if (used('userProvidedSource')) defs.push("const userProvidedSource = 'flowchart TD\\n  A --> B'")
+      if (used('myTheme')) defs.push("const myTheme = { bg: '#ffffff', fg: '#111111' }")
+      if (used('ascii')) defs.push(`import { renderMermaidASCII as __ra } from ${AGENT}\nconst ascii = __ra('flowchart LR\\n  A --> B', { useAscii: true })`)
+      return defs.join('\n')
+    }
+    const dir = mkdtempSync(join(tmpdir(), 'doc-snippets-'))
+    try {
+      let ran = 0
+      for (const doc of docs) {
+        for (const [i, block] of tsCodeBlocks(join(REPO, doc)).entries()) {
+          const runnable = /^\s*import\b/m.test(block) && !/^\s*(?:export|return)\b/m.test(block) && !/from ['"]react['"]/.test(block)
+          if (!runnable) continue
+          // Point published specifiers at in-repo source; a temp cwd keeps any
+          // written artifacts (diagram.svg/png) out of the repo.
+          const wired = block.replaceAll("'agentic-mermaid/agent'", AGENT).replaceAll("'agentic-mermaid'", CORE)
+          const file = join(dir, `${doc.replace(/[/.]/g, '_')}__${i}.ts`)
+          writeFileSync(file, placeholders(block) + '\n' + wired)
+          const r = spawnSync('bun', ['run', file], { cwd: dir, encoding: 'utf8' })
+          expect({ doc, block: i, status: r.status, stderr: r.stderr }).toEqual({ doc, block: i, status: 0, stderr: '' })
+          ran++
+        }
+      }
+      // Guard against the skip logic silently excluding everything (23 today).
+      expect(ran).toBeGreaterThanOrEqual(18)
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  }, 120_000)
 })
 
 describe('vocabulary doc-sync', () => {
@@ -621,6 +670,14 @@ describe('shipped distribution artifacts present', () => {
     expect(existsSync(join(REPO, 'docs/agent-workflow-examples.md'))).toBe(true)
   })
 
+  test('agent-loop example runs', async () => {
+    // Previously only existence-checked; execute it so parse/mutate/serialize
+    // drift can't ship green. It prints a human-readable trace, not JSON.
+    const r = await runBunExample(join(REPO, 'examples/agent-loop.ts'))
+    expect({ status: r.status, timedOut: r.timedOut, stderr: r.stderr }).toEqual({ status: 0, timedOut: false, stderr: '' })
+    expect(r.stdout).toContain('round-trips losslessly: true')
+  }, 90_000)
+
   test('MCP/CLI parity example runs', async () => {
     const r = await runBunExample(join(REPO, 'examples/mcp-vs-cli-complex-diagrams.ts'))
     expect({ status: r.status, timedOut: r.timedOut, stderr: r.stderr }).toEqual({ status: 0, timedOut: false, stderr: '' })
@@ -636,7 +693,9 @@ describe('shipped distribution artifacts present', () => {
   test('agent improvement example assesses, mutates, reassesses, and writes render files', async () => {
     const outDir = mkdtempSync(join(tmpdir(), 'am-example-test-'))
     try {
-      const r = await runBunExample(join(REPO, 'examples/agent-improve-auth-flow.ts'), ['--out-dir', outDir, '--test-png-placeholder'], 120_000)
+      // No --test-png-placeholder: exercise the real out-of-process PNG render.
+      // This is the documented `bun run examples/...` invocation end-to-end.
+      const r = await runBunExample(join(REPO, 'examples/agent-improve-auth-flow.ts'), ['--out-dir', outDir], 120_000)
       expect({ status: r.status, timedOut: r.timedOut, stderr: r.stderr }).toEqual({ status: 0, timedOut: false, stderr: '' })
       const payload = JSON.parse(r.stdout)
       expect(payload.ok).toBe(true)
@@ -651,6 +710,8 @@ describe('shipped distribution artifacts present', () => {
       expect(svg).toContain('Login Page')
       expect(ascii).toContain('Dashboard')
       expect(Array.from(png.subarray(0, 8))).toEqual([137, 80, 78, 71, 13, 10, 26, 10])
+      // A real rasterized diagram is many KB; a placeholder/regression would not be.
+      expect(png.length).toBeGreaterThan(1000)
       expect(assessment.improveOps).toBe(3)
     } finally {
       rmSync(outDir, { recursive: true, force: true })
@@ -672,5 +733,10 @@ describe('shipped distribution artifacts present', () => {
     for (const example of ['examples/agent-loop.ts', 'examples/mcp-vs-cli-complex-diagrams.ts', 'examples/agent-improve-auth-flow.ts']) expect(pkg.files).toContain(example)
     expect(existsSync(join(REPO, 'assets/fonts/DejaVuSans.ttf'))).toBe(true)
     expect(existsSync(join(REPO, 'assets/fonts/DejaVuSans-Bold.ttf'))).toBe(true)
+    // Tarball slimming: sourcemaps, shipped tests, and PR-evidence images are
+    // kept out of the npm tarball via files negation (keeps unpacked size ~10MB).
+    for (const exclude of ['!dist/**/*.map', '!src/**/__tests__/**', '!src/**/*.test.ts', '!docs/pr-assets/**']) expect(pkg.files).toContain(exclude)
+    // Redundant Bun source bins are not published; the bin map points at dist/*.js.
+    expect(pkg.files).not.toContain('bin/')
   })
 })

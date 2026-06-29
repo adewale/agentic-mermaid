@@ -10,7 +10,7 @@ Published as `agentic-mermaid`; the GitHub repository and Pages path currently r
 
 [Live Demo & Samples](https://adewale.github.io/beautiful-mermaid/) · [Live Editor](https://adewale.github.io/beautiful-mermaid/editor)
 
-Docs: [docs index](./docs/) · [agent guide](./Instructions_for_agents.md) · [agent API cookbook](./docs/agent-api-cookbook.md) · [skills](./skills/) · [fork differences](./docs/fork-differences.md) · [vs Mermaid & Beautiful Mermaid](./docs/comparison.md) · [changelog](./CHANGELOG.md)
+Docs: [docs index](./docs/) · [getting started](./docs/getting-started.md) · [agent guide](./Instructions_for_agents.md) · [agent API cookbook](./docs/agent-api-cookbook.md) · [skills](./skills/) · [fork differences](./docs/fork-differences.md) · [vs Mermaid & Beautiful Mermaid](./docs/comparison.md) · [changelog](./CHANGELOG.md)
 
 </div>
 

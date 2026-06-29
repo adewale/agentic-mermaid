@@ -11,6 +11,7 @@ import { SDK_DECLARATION } from './sdk-decl.ts'
 import { createArtifactStore, type ArtifactRecord, type ArtifactStore } from './artifacts.ts'
 import { renderMermaidPNG } from '../agent/png.ts'
 import { BUILTIN_FAMILY_METADATA } from '../agent/families.ts'
+import pkg from '../../package.json'
 
 export interface JsonRpcRequest { jsonrpc: '2.0'; id?: number | string | null; method: string; params?: unknown }
 export interface JsonRpcResponse { jsonrpc: '2.0'; id: number | string | null; result?: unknown; error?: { code: number; message: string; data?: unknown } }
@@ -40,7 +41,9 @@ export interface HttpMcpServer {
 }
 
 const SERVER_NAME = 'agentic-mermaid-mcp'
-const SERVER_VERSION = '0.4.0'
+// Derived from package.json so the MCP handshake version always matches the
+// published npm package and cannot drift.
+const SERVER_VERSION = pkg.version
 const PROTOCOL_VERSION = '2024-11-05'
 const MAX_RPC_BODY_BYTES = 1024 * 1024
 const MAX_SANDBOX_TIMEOUT_MS = 30_000
@@ -199,7 +202,24 @@ function getDefaultArtifactStore(): ArtifactStore {
 function reply(id: number | string | null, result: unknown): JsonRpcResponse { return { jsonrpc: '2.0', id, result } }
 function error(id: number | string | null, code: number, message: string): JsonRpcResponse { return { jsonrpc: '2.0', id, error: { code, message } } }
 
+// Force the native resvg (`@resvg/resvg-js`) addon to load NOW, before the
+// server starts handling requests. On Bun, the addon's first `dlopen` — which
+// is deferred until the first `new Resvg()` — panics the runtime
+// (`panic: unreachable`) if it happens *after* a `node:vm` context has run.
+// Code Mode `execute` runs agent code in exactly such a sandbox, so a normal
+// `execute` then `render_png` session would otherwise crash the whole process.
+// Warming here lands the dlopen up front. Guarded so a host without the binding
+// still boots (render_png then reports the failure per-call instead of at start).
+function warmUpPngRenderer(): void {
+  try {
+    renderMermaidPNG('flowchart LR\n  A --> B')
+  } catch {
+    // Binding unavailable in this environment; render_png will surface the error.
+  }
+}
+
 export async function runStdio(options: { artifactDir?: string; maxArtifactBytes?: number; artifactTtlMs?: number } = {}): Promise<void> {
+  warmUpPngRenderer()
   const artifactStore = createArtifactStore({ dir: options.artifactDir, maxBytes: options.maxArtifactBytes, ttlMs: options.artifactTtlMs })
   process.stdin.setEncoding('utf8')
   let buf = ''
@@ -225,6 +245,7 @@ export async function runStdio(options: { artifactDir?: string; maxArtifactBytes
 }
 
 export async function startHttpServer(options: HttpMcpOptions = {}): Promise<HttpMcpServer> {
+  warmUpPngRenderer()
   const host = options.host ?? '127.0.0.1'
   const port = options.port ?? 3000
   if (!isLoopbackHost(host) && !options.authToken) throw new Error('HTTP MCP remote bind requires --auth-token')

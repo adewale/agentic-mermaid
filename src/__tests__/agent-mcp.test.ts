@@ -5,6 +5,7 @@ import { executeInSandbox } from '../mcp/sandbox.ts'
 import { handleRequest } from '../mcp/server.ts'
 import { runCli } from '../cli/index.ts'
 import { BUILTIN_FAMILY_METADATA } from '../agent/families.ts'
+import pkg from '../../package.json'
 
 describe('sandbox — happy', () => {
   test('flowchart workflow', async () => {
@@ -372,6 +373,8 @@ describe('MCP — JSON-RPC happy + sad', () => {
   test('initialize', async () => {
     const r = await handleRequest({ jsonrpc: '2.0', id: 1, method: 'initialize' })
     expect((r!.result as any).serverInfo.name).toBe('agentic-mermaid-mcp')
+    // The MCP handshake version is derived from package.json; keep them aligned.
+    expect((r!.result as any).serverInfo.version).toBe(pkg.version)
     const instructions = (r!.result as any).instructions as string
     for (const family of BUILTIN_FAMILY_METADATA) expect(instructions).toContain(family.narrower)
     expect(instructions).not.toContain('Journey, xychart, architecture')

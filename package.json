@@ -70,7 +70,6 @@
   "files": [
     "src/",
     "dist/",
-    "bin/",
     "assets/fonts/",
     "assets/hero.png",
     "docs/",
@@ -86,7 +85,11 @@
     "SECURITY.md",
     "llms.txt",
     "LICENSE",
-    "README.md"
+    "README.md",
+    "!dist/**/*.map",
+    "!src/**/__tests__/**",
+    "!src/**/*.test.ts",
+    "!docs/pr-assets/**"
   ],
   "scripts": {
     "test": "bun test --coverage src/__tests__/",

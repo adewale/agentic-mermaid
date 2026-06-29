@@ -6,6 +6,7 @@ This directory holds the long-form documentation. The root README is intentional
 
 | Doc | Purpose |
 |---|---|
+| [`getting-started.md`](./getting-started.md) | Plain library use: render a Mermaid string to SVG/PNG/ASCII in 5 minutes. |
 | [`api.md`](./api.md) | Library, agent API, output functions, options, CLI/MCP pointers. |
 | [`diagram-families.md`](./diagram-families.md) | Supported Mermaid families, examples, and edit policy. |
 | [`theming.md`](./theming.md) | Two-color themes, built-in themes, custom themes, Shiki import. |
