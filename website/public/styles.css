@@ -108,7 +108,7 @@
   --radius-card: var(--radius-lg); --radius-input: var(--radius-md);
   --control-bg: var(--surface); --control-bg-hover: var(--chip); --control-fg: var(--ink-soft); --control-border: var(--line-strong);
   --popover-bg: var(--surface); --shadow-control: 0 0 0 1px var(--line); --shadow-popover: 0 18px 44px rgba(0,0,0,0.28);
-  --sp-1: 4px; --sp-2: 8px; --sp-3: 12px; --sp-4: 16px; --sp-5: 24px; --sp-6: 40px; --sp-7: 64px; --sp-8: 96px;
+  --sp-1: 4px; --sp-2: 8px; --sp-3: 12px; --sp-4: 16px; --sp-5: 20px; --sp-6: 24px; --sp-7: 32px; --sp-8: 40px; --sp-9: 56px;
   --t-display: clamp(2.7rem, 6.5vw, 4rem);
   --t-h1: clamp(2.2rem, 4.2vw, 3rem);
   --t-h2: clamp(1.55rem, 2.4vw, 1.85rem);
@@ -218,7 +218,7 @@ body::before { content: ""; position: fixed; inset: 0; pointer-events: none; z-i
 .doc { max-width: var(--content-max); margin: 0 auto; padding: 8px var(--page-gutter) 128px; }
 
 /* ---- masthead: one quiet line, like a document title bar ---- */
-.masthead { max-width: var(--wide-max); margin: 0 auto; padding: 30px var(--page-gutter) 0; }
+.masthead { max-width: var(--content-max); margin: 0 auto; padding: var(--sp-7) var(--page-gutter) 0; }
 .masthead .bar { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
 .brand { display: inline-flex; align-items: center; gap: 7px; font-family: var(--serif); font-weight: 600; font-size: 1.125rem; line-height: var(--lh-tight); letter-spacing: -0.01em; color: var(--ink); text-decoration: none; }
 .brand:hover { color: var(--ink); text-decoration: none; }
@@ -236,31 +236,31 @@ body::before { content: ""; position: fixed; inset: 0; pointer-events: none; z-i
   align-items: center;
   padding: 0 10px;
 }
-.masthead hr { border: 0; margin: 20px 0 0; }
+.masthead hr { border: 0; margin: var(--sp-5) 0 0; }
 
 /* ---- prose: headings, text, lists, rules ---- */
 h1, h2 { font-family: var(--serif); color: var(--ink); font-weight: 600; line-height: var(--lh-title); letter-spacing: var(--track-heading); text-wrap: balance; }
-.page-header { margin: 42px 0 32px; }
+.page-header { margin: var(--sp-8) 0 var(--sp-7); }
 .page-header h1 { margin-top: 0; }
-h1 { font-size: var(--t-h1); margin: 42px 0 18px; }
-.home-main .page-header { margin-top: 42px; }
+h1 { font-size: var(--t-h1); margin: var(--sp-8) 0 var(--sp-4); }
+.home-main .page-header { margin-top: var(--sp-8); }
 .home-main h1 { font-size: var(--t-display); line-height: 1.03; letter-spacing: var(--track-display); }
 .home-main h1 .line { display: block; }
 .home-main .page-header > .lead { max-width: 66ch; font-size: clamp(1.2rem, 1.7vw, 1.42rem); line-height: var(--lh-lead); }
-h2 { font-size: var(--t-h2); margin: 56px 0 14px; }
-h3 { font-family: var(--sans); color: var(--ink); font-size: var(--t-h3); font-weight: 700; line-height: var(--lh-heading); letter-spacing: -0.01em; margin: 34px 0 10px; text-wrap: balance; }
-.lead { font-size: var(--t-lead); line-height: var(--lh-lead); color: var(--ink-soft); margin: 0 0 24px; text-wrap: balance; }
+h2 { font-size: var(--t-h2); margin: var(--sp-9) 0 var(--sp-4); }
+h3 { font-family: var(--sans); color: var(--ink); font-size: var(--t-h3); font-weight: 700; line-height: var(--lh-heading); letter-spacing: -0.01em; margin: var(--sp-7) 0 var(--sp-2); text-wrap: balance; }
+.lead { font-size: var(--t-lead); line-height: var(--lh-lead); color: var(--ink-soft); margin: 0 0 var(--sp-6); text-wrap: balance; }
 p, li, figcaption, blockquote { text-wrap: pretty; }
-p { margin: 0 0 20px; }
+p { margin: 0 0 var(--sp-5); }
 a { color: var(--link); text-decoration: none; }
 a:hover { text-decoration: underline; text-underline-offset: 3px; }
 strong { color: var(--ink); font-weight: 700; }
 .muted { color: var(--ink-faint); }
 small { color: var(--ink-faint); font-size: var(--t-sm); }
-ul, ol { margin: 0 0 20px; padding-left: 22px; }
-li { margin: 7px 0; }
+ul, ol { margin: 0 0 var(--sp-5); padding-left: var(--sp-6); }
+li { margin: var(--sp-2) 0; }
 li::marker { color: var(--ink-faint); }
-hr { border: 0; margin: 24px 0; }
+hr { border: 0; margin: var(--sp-6) 0; }
 .go { color: var(--link); font-weight: 600; white-space: nowrap; }
 .go::after { content: " \2192"; }
 .page-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 12px; margin: 22px 0 0; }
@@ -376,17 +376,17 @@ hr { border: 0; margin: 24px 0; }
 /* ---- code: inline + fenced, like markdown ---- */
 code { font-family: var(--mono); font-size: 0.9em; font-feature-settings: "liga" 0, "calt" 0, "tnum" 1; }
 :not(pre) > code { background: var(--surface-card); padding: 1px 6px; border-radius: var(--radius-sm); }
-pre { background: var(--surface-card); border-radius: var(--radius-md); padding: 15px 18px; overflow: auto; margin: 0 0 20px; }
+pre { background: var(--surface-card); border-radius: var(--radius-md); padding: 15px 18px; overflow: auto; margin: 0 0 var(--sp-5); }
 pre code { font-size: var(--t-mono); line-height: var(--lh-code); color: var(--code-fg); background: none; padding: 0; }
 .unicode-diagram { overflow-x: hidden; }
 .unicode-diagram code { display: block; width: max-content; max-width: none; font-size: min(0.68rem, 1.2vw); line-height: var(--lh-heading); white-space: pre; }
 .c { color: var(--ink-faint); } .k { color: var(--link); } .ok { color: var(--link); }
 
 /* ---- blockquote: a left rule, nothing more ---- */
-blockquote { margin: 0 0 20px; padding: 1px 0 1px 18px; border-left: 2px solid var(--surface-border-strong); color: var(--ink-soft); }
+blockquote { margin: 0 0 var(--sp-5); padding: 1px 0 1px 18px; border-left: 2px solid var(--surface-border-strong); color: var(--ink-soft); }
 
 /* ---- tables: markdown style ---- */
-table { width: 100%; border-collapse: collapse; margin: 0 0 20px; font-size: var(--t-sm); font-variant-numeric: tabular-nums; }
+table { width: 100%; border-collapse: collapse; margin: 0 0 var(--sp-5); font-size: var(--t-sm); font-variant-numeric: tabular-nums; }
 th, td { text-align: left; padding: 9px 14px 9px 0; border-bottom: 1px solid var(--line); vertical-align: top; }
 td code { font-size: 0.8125rem; }
 .table-scroll { max-width: 100%; overflow-x: auto; margin: 0 0 20px; }
@@ -401,7 +401,7 @@ td code { font-size: 0.8125rem; }
 }
 
 /* ---- figures: diagrams inline like images, on an untinted plate ---- */
-figure { margin: 26px 0; }
+figure { margin: var(--sp-6) 0; }
 figure .plate { background: var(--diagram-bg); border-radius: var(--radius-lg); padding: 18px; box-shadow: var(--card-shadow); }
 /* a themeable inline diagram inherits --bg/--fg/--accent. Keep the visible
    plate on the same --bg as the SVG so label halos are not a homepage-only skin. */
@@ -472,7 +472,7 @@ footer { max-width: var(--content-max); margin: 0 auto; padding: 28px var(--page
   body { font-size: 1rem; }
   h1 { font-size: 2.15rem; }
   .home-main h1 { font-size: clamp(2.45rem, 12vw, 3.2rem); }
-  .masthead { padding-top: 26px; }
+  .masthead { padding-top: var(--sp-6); }
   .masthead .bar { gap: 8px 12px; align-items: flex-start; }
   .masthead .links { order: 3; width: 100%; display: flex; flex-wrap: wrap; justify-content: flex-start; gap: 4px 14px; padding: 2px 0 0; overflow: visible; }
   .masthead .links a,
