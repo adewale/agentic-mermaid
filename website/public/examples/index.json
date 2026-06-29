@@ -1,0 +1,252 @@
+{
+  "generatedFrom": {
+    "packageVersion": "0.1.0",
+    "gitSha": "development",
+    "buildTime": "development"
+  },
+  "examples": [
+    {
+      "id": "flowchart-basic",
+      "family": "flowchart",
+      "label": "Flowchart",
+      "description": "Decision flow with labeled branches.",
+      "headers": [
+        "flowchart",
+        "graph"
+      ],
+      "source": "flowchart TD\n  A[Start] --> B{Decision?}\n  B -->|Yes| C[Do the thing]\n  B -->|No| D[Skip it]\n  C --> E[End]\n  D --> E",
+      "galleryUrl": "/gallery/#flowchart",
+      "editorUrl": "/editor/?example=flowchart-basic",
+      "outputs": [
+        "svg",
+        "ascii",
+        "unicode",
+        "png",
+        "json"
+      ],
+      "docs": "/families/#flowchart"
+    },
+    {
+      "id": "state-basic",
+      "family": "state",
+      "label": "State",
+      "description": "Lifecycle using Mermaid stateDiagram-v2 syntax.",
+      "headers": [
+        "stateDiagram",
+        "stateDiagram-v2"
+      ],
+      "source": "stateDiagram-v2\n  [*] --> Idle\n  Idle --> Processing: start\n  Processing --> Complete: done\n  Processing --> Failed: error\n  Failed --> Idle: retry\n  Complete --> [*]",
+      "galleryUrl": "/gallery/#state",
+      "editorUrl": "/editor/?example=state-basic",
+      "outputs": [
+        "svg",
+        "ascii",
+        "unicode",
+        "png",
+        "json"
+      ],
+      "docs": "/families/#state"
+    },
+    {
+      "id": "sequence-basic",
+      "family": "sequence",
+      "label": "Sequence",
+      "description": "Request/response messages between participants.",
+      "headers": [
+        "sequenceDiagram"
+      ],
+      "source": "sequenceDiagram\n  participant User\n  participant App\n  participant API\n  User->>App: Click export\n  App->>API: Render SVG\n  API-->>App: SVG string\n  App-->>User: Download",
+      "galleryUrl": "/gallery/#sequence",
+      "editorUrl": "/editor/?example=sequence-basic",
+      "outputs": [
+        "svg",
+        "ascii",
+        "unicode",
+        "png",
+        "json"
+      ],
+      "docs": "/families/#sequence"
+    },
+    {
+      "id": "timeline-basic",
+      "family": "timeline",
+      "label": "Timeline",
+      "description": "Chronological milestones with sections.",
+      "headers": [
+        "timeline"
+      ],
+      "source": "timeline\n  title Product roadmap\n  section Foundation\n  2024 Q1 : Prototype\n          : Parser coverage\n  section Launch\n  2024 Q2 : Public editor\n          : SVG export",
+      "galleryUrl": "/gallery/#timeline",
+      "editorUrl": "/editor/?example=timeline-basic",
+      "outputs": [
+        "svg",
+        "ascii",
+        "unicode",
+        "png",
+        "json"
+      ],
+      "docs": "/families/#timeline"
+    },
+    {
+      "id": "class-basic",
+      "family": "class",
+      "label": "Class",
+      "description": "Classes with members and relationships.",
+      "headers": [
+        "classDiagram"
+      ],
+      "source": "classDiagram\n  class Renderer {\n    +renderSVG(source) string\n    +renderASCII(source) string\n  }\n  class Theme {\n    +bg string\n    +fg string\n  }\n  Renderer --> Theme : uses",
+      "galleryUrl": "/gallery/#class",
+      "editorUrl": "/editor/?example=class-basic",
+      "outputs": [
+        "svg",
+        "ascii",
+        "unicode",
+        "png",
+        "json"
+      ],
+      "docs": "/families/#class"
+    },
+    {
+      "id": "er-basic",
+      "family": "er",
+      "label": "ER",
+      "description": "Entities, attributes, keys, and cardinality markers.",
+      "headers": [
+        "erDiagram"
+      ],
+      "source": "erDiagram\n  CUSTOMER {\n    string id PK\n    string email\n  }\n  ORDER {\n    string id PK\n    date created\n  }\n  LINE_ITEM {\n    string id PK\n    int quantity\n  }\n  CUSTOMER ||--o{ ORDER : places\n  ORDER ||--|{ LINE_ITEM : contains",
+      "galleryUrl": "/gallery/#er",
+      "editorUrl": "/editor/?example=er-basic",
+      "outputs": [
+        "svg",
+        "ascii",
+        "unicode",
+        "png",
+        "json"
+      ],
+      "docs": "/families/#er"
+    },
+    {
+      "id": "journey-basic",
+      "family": "journey",
+      "label": "Journey",
+      "description": "Scored user tasks grouped by section.",
+      "headers": [
+        "journey"
+      ],
+      "source": "journey\n  title Editor adoption\n  section Try\n    Open editor: 5: User\n    Load example: 4: User, Developer\n  section Share\n    Copy URL: 5: User\n    Export SVG: 4: Developer",
+      "galleryUrl": "/gallery/#journey",
+      "editorUrl": "/editor/?example=journey-basic",
+      "outputs": [
+        "svg",
+        "ascii",
+        "unicode",
+        "png",
+        "json"
+      ],
+      "docs": "/families/#journey"
+    },
+    {
+      "id": "architecture-basic",
+      "family": "architecture",
+      "label": "Architecture",
+      "description": "Services, groups, icons, and routed connections.",
+      "headers": [
+        "architecture-beta"
+      ],
+      "source": "architecture-beta\n  group app(cloud)[Application]\n  group data(database)[Data]\n  service web(server)[Web App] in app\n  service api(server)[API] in app\n  service db(database)[Postgres] in data\n  web:R --> L:api\n  api:R --> L:db",
+      "galleryUrl": "/gallery/#architecture",
+      "editorUrl": "/editor/?example=architecture-basic",
+      "outputs": [
+        "svg",
+        "ascii",
+        "unicode",
+        "png",
+        "json"
+      ],
+      "docs": "/families/#architecture"
+    },
+    {
+      "id": "xychart-basic",
+      "family": "xychart",
+      "label": "XY chart",
+      "description": "Bar and line series using xychart syntax.",
+      "headers": [
+        "xychart",
+        "xychart-beta"
+      ],
+      "source": "xychart\n  title \"Weekly renders\"\n  x-axis [Mon, Tue, Wed, Thu, Fri]\n  y-axis \"Renders\" 0 --> 100\n  bar [25, 42, 58, 74, 88]\n  line [18, 35, 52, 70, 95]",
+      "galleryUrl": "/gallery/#xychart",
+      "editorUrl": "/editor/?example=xychart-basic",
+      "outputs": [
+        "svg",
+        "ascii",
+        "unicode",
+        "png",
+        "json"
+      ],
+      "docs": "/families/#xychart"
+    },
+    {
+      "id": "pie-basic",
+      "family": "pie",
+      "label": "Pie",
+      "description": "Proportional slices with values shown in the legend.",
+      "headers": [
+        "pie"
+      ],
+      "source": "pie showData\n  title Export requests by format\n  \"SVG\" : 42\n  \"PNG\" : 28\n  \"ASCII\" : 18\n  \"Unicode\" : 12",
+      "galleryUrl": "/gallery/#pie",
+      "editorUrl": "/editor/?example=pie-basic",
+      "outputs": [
+        "svg",
+        "ascii",
+        "unicode",
+        "png",
+        "json"
+      ],
+      "docs": "/families/#pie"
+    },
+    {
+      "id": "quadrant-basic",
+      "family": "quadrant",
+      "label": "Quadrant",
+      "description": "Two-axis priority map with labeled regions and points.",
+      "headers": [
+        "quadrantChart"
+      ],
+      "source": "quadrantChart\n  title Feature priorities\n  x-axis Low impact --> High impact\n  y-axis Low effort --> High effort\n  quadrant-1 Plan carefully\n  quadrant-2 Big bets\n  quadrant-3 Defer\n  quadrant-4 Quick wins\n  SVG export: [0.78, 0.28]\n  MCP setup: [0.62, 0.72]\n  Theme polish: [0.35, 0.24]",
+      "galleryUrl": "/gallery/#quadrant",
+      "editorUrl": "/editor/?example=quadrant-basic",
+      "outputs": [
+        "svg",
+        "ascii",
+        "unicode",
+        "png",
+        "json"
+      ],
+      "docs": "/families/#quadrant"
+    },
+    {
+      "id": "gantt-basic",
+      "family": "gantt",
+      "label": "Gantt",
+      "description": "Sections, dependencies, status tags, and a milestone.",
+      "headers": [
+        "gantt"
+      ],
+      "source": "gantt\n  title Release train\n  dateFormat YYYY-MM-DD\n  excludes weekends\n  section Build\n    Completed task :done, des1, 2024-01-08, 2024-01-10\n    Active task    :active, des2, 2024-01-11, 3d\n    Future task    :des3, after des2, 5d\n  section Ship\n    Crit review    :crit, rev1, after des3, 2d\n    Release        :milestone, m1, after rev1, 0d",
+      "galleryUrl": "/gallery/#gantt",
+      "editorUrl": "/editor/?example=gantt-basic",
+      "outputs": [
+        "svg",
+        "ascii",
+        "unicode",
+        "png",
+        "json"
+      ],
+      "docs": "/families/#gantt"
+    }
+  ]
+}

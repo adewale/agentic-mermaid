@@ -1,0 +1,2696 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Agentic Mermaid – Live Editor</title>
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+  <link rel="icon" type="image/x-icon" href="/favicon.ico" />
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+  <style>
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+:root {
+  /* Shared site foundation: editor chrome uses the same Paper tokens as the public pages.
+     The diagram theme dropdown changes render output, not the app shell. */
+  --t-bg: #F5F0E4;
+  --t-fg: #221E16;
+  --t-accent: #9A4A24;
+  --brand-pine: #6FC2A2;
+  --brand-on: #0A4434;
+  --font-serif: Charter, 'Bitstream Charter', 'Iowan Old Style', 'Palatino Linotype', Palatino, Georgia, serif;
+  --font-sans: 'Avenir Next', Avenir, 'Segoe UI', system-ui, sans-serif;
+  --font-mono: 'SFMono-Regular', 'SF Mono', Menlo, Consolas, 'DejaVu Sans Mono', ui-monospace, monospace;
+
+  /* Shadow system */
+  --foreground-rgb: 39, 39, 42;
+  --shadow-border-opacity: 0.08;
+  --shadow-blur-opacity: 0.06;
+
+  /* Shadow tokens (matches showcase .shadow-minimal / .shadow-modal-small) */
+  --shadow-minimal:
+    rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px,
+    rgba(var(--foreground-rgb), 0.06) 0px 0px 0px 1px,
+    rgba(0, 0, 0, var(--shadow-blur-opacity)) 0px 1px 1px -0.5px,
+    rgba(0, 0, 0, var(--shadow-blur-opacity)) 0px 3px 3px -1.5px;
+  --shadow-modal:
+    rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px,
+    rgba(var(--foreground-rgb), 0.06) 0px 0px 0px 1px,
+    rgba(0, 0, 0, calc(var(--shadow-blur-opacity) * 0.67)) 0px 1px 1px -0.5px,
+    rgba(0, 0, 0, calc(var(--shadow-blur-opacity) * 0.67)) 0px 3px 3px 0px,
+    rgba(0, 0, 0, calc(var(--shadow-blur-opacity) * 0.33)) 0px 6px 6px 0px,
+    rgba(0, 0, 0, calc(var(--shadow-blur-opacity) * 0.33)) 0px 12px 12px 0px,
+    rgba(0, 0, 0, calc(var(--shadow-blur-opacity) * 0.33)) 0px 24px 24px 0px;
+
+  /* Semantic colors – derived exactly like the showcase site generator (scripts/site/generate.ts).
+   * Showcase uses color-mix(in srgb, var(--t-bg) N%, var(--t-fg)) for surfaces
+   * and color-mix(in srgb, var(--t-fg) N%, var(--t-bg)) for text/borders.
+   * All use SOLID mixes (bg-based), never transparent-based.
+   *
+   * Showcase surface levels:
+   *   body bg    = fg 4% + bg
+   *   panel bg   = var(--t-bg)  (pure)
+   *   button bg  = bg 97% + fg  (= fg 3% + bg)
+   *   hover bg   = bg 92% + fg  (= fg 8% + bg)
+   *
+   * Showcase text levels:
+   *   primary    = var(--t-fg)
+   *   secondary  = fg 96% + bg  (buttons, controls)
+   *   muted      = fg 95% + bg  (labels, descriptions)
+   *   faint      = fg 92% + bg  (line numbers, placeholders)
+   */
+  --bg: color-mix(in srgb, var(--t-fg) 4%, var(--t-bg));
+  --bg2: var(--t-bg);
+  --bg3: color-mix(in srgb, var(--t-bg) 97%, var(--t-fg));
+  --bg-hover: color-mix(in srgb, var(--t-bg) 92%, var(--t-fg));
+  --foreground-5: color-mix(in srgb, var(--t-fg) 5%, var(--t-bg));
+  --border: color-mix(in srgb, var(--t-fg) 12%, var(--t-bg));
+  --line-strong: color-mix(in srgb, var(--t-fg) 24%, var(--t-bg));
+  --fg: var(--t-fg);
+  --fg2: color-mix(in srgb, var(--t-fg) 96%, var(--t-bg));
+  --fg3: color-mix(in srgb, var(--t-fg) 95%, var(--t-bg));
+  --fg4: color-mix(in srgb, var(--t-fg) 70%, var(--t-bg));
+  --accent: var(--t-accent);
+  --accent2: color-mix(in srgb, var(--t-accent) 80%, var(--t-bg));
+  --blue: var(--t-accent);
+
+  /* Site-name aliases for shared primitives. */
+  --paper: var(--t-bg);
+  --ink: var(--t-fg);
+  --ink-soft: var(--fg2);
+  --ink-faint: var(--fg3);
+  --surface: var(--bg3);
+  --chip: var(--bg-hover);
+  --line: var(--border);
+  --link: var(--accent);
+  --accent-hover: color-mix(in srgb, var(--accent) 68%, var(--ink));
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-pill: 999px;
+  --radius: var(--radius-md);
+  --control-h: 40px;
+  --control-px: 12px;
+  --control-bg: var(--surface);
+  --control-bg-hover: var(--chip);
+  --control-fg: var(--ink-soft);
+  --control-border: var(--line-strong);
+  --popover-bg: var(--surface);
+  --shadow-control: var(--shadow-minimal);
+  --shadow-popover: var(--shadow-modal);
+  --t-body: 1rem;
+  --t-sm: 0.875rem;
+  --t-label: 0.8125rem;
+  --t-control: 0.8125rem;
+  --t-mono: 0.84375rem;
+  --lh-tight: 1.1;
+  --lh-heading: 1.25;
+  --lh-body: 1.6;
+  --lh-code: 1.6;
+  --lh-ui: 1.35;
+
+  /* Semantic status colors */
+  --green: #16a34a;
+  --red: #dc2626;
+}
+
+html,
+body {
+  height: 100%;
+  overflow: hidden;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  font-family: var(--font-sans);
+  font-size: var(--t-body);
+  font-kerning: normal;
+  line-height: var(--lh-body);
+  font-feature-settings: "kern" 1, "liga" 1;
+  background: var(--bg);
+  color: var(--fg);
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  transition:
+    background 0.2s,
+    color 0.2s;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+:where(button, a, input, textarea, [tabindex]):focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--accent) 72%, var(--paper));
+  outline-offset: 2px;
+}
+
+:where(button, input, textarea):disabled,
+:where(button, input, textarea)[aria-disabled="true"] {
+  opacity: 0.45;
+  cursor: not-allowed;
+  transform: none !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+@media (forced-colors: active) {
+  :root {
+    --t-bg: Canvas;
+    --t-fg: CanvasText;
+    --t-accent: LinkText;
+    --bg: Canvas;
+    --bg2: Canvas;
+    --bg3: Canvas;
+    --bg-hover: ButtonFace;
+    --border: ButtonText;
+    --line-strong: ButtonText;
+    --fg: CanvasText;
+    --fg2: CanvasText;
+    --fg3: CanvasText;
+    --fg4: CanvasText;
+    --accent: LinkText;
+    --control-bg: ButtonFace;
+    --control-bg-hover: ButtonFace;
+    --control-fg: ButtonText;
+    --control-border: ButtonText;
+    --popover-bg: Canvas;
+    --shadow-control: none;
+    --shadow-popover: none;
+  }
+  :where(button, a, input, textarea, [tabindex]):focus-visible {
+    outline: 2px solid Highlight;
+    outline-offset: 3px;
+  }
+}
+
+
+.topbar {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-height: 52px;
+  padding: 0 1rem;
+  background: transparent;
+  flex-shrink: 0;
+  z-index: 100;
+}
+.topbar button,
+.topbar a {
+  box-sizing: border-box;
+}
+
+/* Brand – same quiet document primitive as the public site. */
+.app-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  height: var(--control-h);
+  color: var(--ink);
+  font-family: var(--font-serif);
+  font-size: 18px;
+  font-weight: 600;
+  line-height: 1;
+  text-decoration: none;
+  white-space: nowrap;
+}
+.app-brand:hover {
+  color: var(--ink);
+  text-decoration: none;
+}
+.app-brand:active {
+  transform: scale(0.98);
+}
+.app-mark {
+  width: 24px;
+  height: 24px;
+  border-radius: var(--radius-sm);
+  background: var(--brand-pine);
+  color: var(--brand-on);
+  display: inline-grid;
+  place-items: center;
+  overflow: hidden;
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--ink) 10%, transparent);
+  flex: none;
+}
+.app-mark svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+.app-context {
+  color: var(--ink-faint);
+  font-family: var(--font-sans);
+  font-size: var(--t-label);
+}
+.app-context::before {
+  content: "·";
+  margin: 0 0.35rem 0 0.1rem;
+  color: var(--line-strong);
+}
+
+.topbar-sep {
+  width: 1px;
+  height: 20px;
+  background: var(--border);
+  margin: 0 0.25rem;
+}
+
+/* Segmented mode switches. These are not ARIA tabs: desktop switches the
+   left panel only, while mobile switches the whole visible editor view. */
+.mode-switch {
+  display: flex;
+  gap: 1px;
+  background: var(--control-bg);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  padding: 3px;
+}
+.mobile-view-switch {
+  display: none;
+}
+.mode-option {
+  min-height: 32px;
+  padding: 0 12px;
+  border: none;
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--control-fg);
+  font-size: var(--t-control);
+  font-weight: 500;
+  font-family: inherit;
+  cursor: pointer;
+  white-space: nowrap;
+  user-select: none;
+  transition:
+    color 0.15s,
+    background 0.15s,
+    box-shadow 0.15s,
+    transform 0.1s;
+}
+.mode-option:hover {
+  color: var(--fg);
+}
+.mode-option.is-active {
+  color: var(--ink);
+  background: var(--paper);
+  box-shadow: var(--shadow-control);
+}
+.mode-option:active {
+  transform: scale(0.96);
+}
+.examples-toggle {
+  position: relative;
+}
+.examples-toggle.active,
+.examples-toggle[aria-expanded="true"] {
+  color: var(--ink);
+  background: var(--paper);
+  box-shadow: var(--shadow-control);
+}
+.examples-toggle[aria-expanded="true"]::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  bottom: -12px;
+  width: 10px;
+  height: 10px;
+  background: var(--popover-bg);
+  border: 1px solid var(--control-border);
+  border-right: 0;
+  border-bottom: 0;
+  transform: translateX(-50%) rotate(45deg);
+  z-index: 3001;
+}
+
+.spacer {
+  flex: 1;
+}
+
+/* Theme dropdown – custom, not native select */
+.theme-dropdown-wrap {
+  position: relative;
+}
+.theme-dropdown-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: var(--control-h);
+  min-width: 148px;
+  justify-content: space-between;
+  padding: 0 var(--control-px);
+  border: 1px solid var(--control-border);
+  border-radius: var(--radius-md);
+  background: var(--control-bg);
+  box-shadow: none;
+  color: var(--control-fg);
+  font-size: var(--t-control);
+  font-weight: 500;
+  font-family: inherit;
+  cursor: pointer;
+  white-space: nowrap;
+  user-select: none;
+  transition:
+    color 0.15s,
+    background 0.15s,
+    transform 0.1s;
+}
+.theme-dropdown-btn:hover {
+  color: var(--ink);
+  background: var(--control-bg-hover);
+}
+.theme-dropdown-btn:active {
+  transform: scale(0.96);
+}
+.theme-dropdown-btn .theme-swatch {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  border: 1px solid var(--line-strong);
+}
+.theme-dropdown-btn svg {
+  width: 10px;
+  height: 10px;
+  color: var(--fg4);
+  flex-shrink: 0;
+  transition: transform 0.15s;
+}
+.theme-dropdown-btn.open svg {
+  transform: rotate(180deg);
+}
+.theme-dropdown-menu {
+  display: none;
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  min-width: 180px;
+  background: var(--popover-bg);
+  border: 1px solid var(--control-border);
+  border-radius: var(--radius-lg);
+  padding: 6px;
+  z-index: 2000;
+  flex-direction: column;
+  box-shadow: var(--shadow-popover);
+  max-height: 400px;
+  overflow-y: auto;
+}
+.theme-dropdown-menu.open {
+  display: flex;
+}
+.theme-dropdown-item {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 28px 7px 8px;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--fg);
+  font-size: var(--t-label);
+  font-weight: 400;
+  font-family: inherit;
+  cursor: pointer;
+  white-space: nowrap;
+  text-align: left;
+  width: 100%;
+  user-select: none;
+  transition:
+    background 0.15s,
+    transform 0.1s;
+}
+.theme-dropdown-item:hover {
+  background: var(--control-bg-hover);
+}
+.theme-dropdown-item:active {
+  transform: scale(0.96);
+}
+.theme-dropdown-item.active::after {
+  content: "";
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 14px;
+  height: 14px;
+  background: currentColor;
+  -webkit-mask-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round' xmlns='http://www.w3.org/2000/svg'%3E%3Cpolyline points='20 6 9 17 4 12'/%3E%3C/svg%3E");
+  mask-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round' xmlns='http://www.w3.org/2000/svg'%3E%3Cpolyline points='20 6 9 17 4 12'/%3E%3C/svg%3E");
+  -webkit-mask-size: contain;
+  mask-size: contain;
+}
+.theme-dropdown-item .theme-swatch {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  border: 1px solid var(--line-strong);
+}
+
+/* Buttons – match showcase secondary button style */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: var(--control-h);
+  padding: 0 var(--control-px);
+  border: 1px solid var(--control-border);
+  border-radius: var(--radius-md);
+  background: var(--control-bg);
+  box-shadow: none;
+  color: var(--control-fg);
+  font-size: var(--t-control);
+  font-weight: 500;
+  font-family: inherit;
+  cursor: pointer;
+  white-space: nowrap;
+  user-select: none;
+  text-decoration: none;
+  transition:
+    color 0.15s,
+    background 0.15s,
+    opacity 0.15s,
+    transform 0.1s;
+}
+.btn:hover {
+  color: var(--ink);
+  background: var(--control-bg-hover);
+}
+.btn:active {
+  transform: scale(0.96);
+}
+.btn svg {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+}
+#dark-light-btn {
+  width: 40px;
+  min-width: 40px;
+  padding: 0;
+  position: relative;
+}
+#dark-light-btn svg {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%) scale(1);
+  opacity: 1;
+  filter: blur(0);
+  transition:
+    opacity 0.18s cubic-bezier(0.2, 0, 0, 1),
+    transform 0.18s cubic-bezier(0.2, 0, 0, 1),
+    filter 0.18s cubic-bezier(0.2, 0, 0, 1);
+}
+#dark-light-btn #icon-sun,
+#dark-light-btn.is-dark #icon-moon {
+  opacity: 0;
+  filter: blur(4px);
+  transform: translate(-50%, -50%) scale(0.25);
+}
+#dark-light-btn.is-dark #icon-sun {
+  opacity: 1;
+  filter: blur(0);
+  transform: translate(-50%, -50%) scale(1);
+}
+#export-main-btn {
+  width: 140px;
+}
+#export-chevron-btn {
+  width: 40px;
+  min-width: 40px;
+  padding: 0;
+}
+
+/* Primary button – inverted fg/bg */
+.btn-primary {
+  background: var(--accent);
+  border-color: transparent;
+  color: var(--paper);
+  box-shadow: none;
+}
+.btn-primary:hover {
+  opacity: 0.92;
+  background: var(--accent-hover, var(--accent));
+  color: var(--paper);
+}
+.btn-primary:disabled:hover,
+.btn-primary[aria-disabled="true"]:hover {
+  opacity: 0.45;
+  background: var(--accent);
+  color: var(--paper);
+}
+
+@media (max-width: 760px) {
+  .topbar {
+    gap: 0.25rem;
+    padding: 8px 10px;
+    flex-wrap: wrap;
+    align-content: center;
+    overflow: visible;
+  }
+  .app-brand {
+    gap: 8px;
+    font-size: 0;
+  }
+  .app-brand-text::after {
+    content: "AM";
+    font-family: var(--font-sans);
+    font-size: var(--t-label);
+    font-weight: 600;
+  }
+  .app-context {
+    display: none;
+  }
+  .topbar-sep {
+    display: none;
+  }
+  .left-panel-switch {
+    display: none;
+  }
+  .mobile-view-switch {
+    display: flex;
+    order: 20;
+    flex: 1 0 100%;
+  }
+  .mobile-view-switch .mode-option {
+    flex: 1;
+    min-height: 40px;
+  }
+  .examples-toggle,
+  .agent-task-btn {
+    order: 1;
+  }
+  .agent-task-btn {
+    max-width: 64px;
+    font-size: 0;
+  }
+  .agent-task-btn::after {
+    content: "Task";
+    font-size: var(--t-control);
+  }
+  .spacer {
+    display: none;
+  }
+  #dark-light-btn {
+    display: none;
+  }
+  .theme-dropdown-wrap {
+    display: block;
+    order: 1;
+  }
+  .export-wrap {
+    order: 1;
+    margin-left: 0;
+  }
+  .theme-dropdown-btn {
+    min-width: 40px;
+    width: 40px;
+    padding: 0;
+    justify-content: center;
+  }
+  .theme-dropdown-menu {
+    position: fixed;
+    top: 58px;
+    left: 10px;
+    right: 10px;
+    max-height: min(70vh, 420px);
+  }
+  #theme-btn-label,
+  .theme-dropdown-btn svg {
+    display: none;
+  }
+  #export-main-btn {
+    width: 40px;
+    padding: 0;
+    font-size: 0;
+    gap: 0;
+  }
+  #export-main-btn svg {
+    margin: 0;
+  }
+}
+
+
+.main {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+  position: relative;
+}
+
+.examples-sidebar {
+  display: block;
+  position: fixed;
+  top: var(--examples-top, 60px);
+  left: var(--examples-left, 16px);
+  width: var(--examples-width, min(360px, calc(100vw - 24px)));
+  max-height: var(--examples-max-height, calc(100vh - 72px));
+  overflow: hidden;
+  border: 1px solid var(--control-border);
+  border-radius: var(--radius-lg);
+  background: var(--popover-bg);
+  box-shadow: var(--shadow-popover);
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transform: translateY(-6px) scale(0.98);
+  transform-origin: top left;
+  transition:
+    opacity 0.16s ease,
+    transform 0.18s var(--ease-out),
+    visibility 0s linear 0.18s;
+  z-index: 3000;
+}
+.examples-sidebar.open {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+  transform: none;
+  transition-delay: 0s;
+}
+.examples-sidebar-inner {
+  width: 100%;
+  max-height: inherit;
+  display: flex;
+  flex-direction: column;
+}
+.examples-sidebar-header {
+  height: 42px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 12px;
+  border-bottom: 1px solid var(--border);
+  color: var(--fg2);
+  font-size: var(--t-label);
+  font-weight: 700;
+  line-height: var(--lh-ui);
+  text-transform: none;
+  letter-spacing: 0;
+  flex-shrink: 0;
+}
+.examples-sidebar-list {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 12px;
+}
+.examples-sidebar .example-category + .example-category {
+  margin-top: 16px;
+  padding-top: 14px;
+}
+.examples-sidebar .example-category-grid {
+  grid-template-columns: 1fr;
+}
+.examples-sidebar .example-dropdown-item {
+  min-height: 68px;
+}
+.panel-left {
+  display: flex;
+  flex-direction: column;
+  width: 42%;
+  min-width: 280px;
+  border-right: 1px solid var(--border);
+  background: var(--bg2);
+  flex-shrink: 0;
+  position: relative;
+}
+
+.example-category + .example-category {
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+}
+.example-category-title {
+  margin: 0 0 8px;
+  padding: 0 2px;
+  color: var(--fg3);
+  font-size: var(--t-label);
+  font-weight: 700;
+  line-height: var(--lh-ui);
+  text-transform: none;
+  letter-spacing: 0;
+}
+.example-category-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(188px, 1fr));
+  gap: 6px;
+}
+.example-dropdown-item {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 4px 8px;
+  align-items: start;
+  border: none;
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--fg);
+  font: inherit;
+  font-size: var(--t-label);
+  text-align: left;
+  padding: 10px;
+  cursor: pointer;
+  min-height: 72px;
+  text-wrap: pretty;
+  transition:
+    background 0.15s,
+    box-shadow 0.15s,
+    transform 0.1s;
+}
+.example-dropdown-item:hover,
+.example-dropdown-item.active {
+  background: var(--control-bg-hover);
+}
+.example-dropdown-item.active {
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 38%, transparent);
+}
+.example-dropdown-item:active {
+  transform: scale(0.96);
+}
+.example-item-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-weight: 600;
+  line-height: 1.25;
+  text-wrap: balance;
+}
+.example-item-glyph {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--accent) 11%, var(--paper));
+  color: color-mix(in srgb, var(--accent) 78%, var(--ink));
+  font-size: 0.625rem;
+  font-weight: 700;
+  line-height: 1;
+  flex-shrink: 0;
+}
+.example-item-meta {
+  color: var(--fg3);
+  font-size: 0.75rem;
+  line-height: var(--lh-ui);
+  white-space: nowrap;
+}
+.example-item-description {
+  grid-column: 1 / -1;
+  color: var(--fg3);
+  font-size: var(--t-label);
+  line-height: var(--lh-ui);
+  text-wrap: pretty;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.example-menu-footer {
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+}
+.example-clear-btn {
+  width: 100%;
+  min-height: 36px;
+  padding: 9px 10px;
+  border: none;
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--fg2);
+  font: inherit;
+  font-size: var(--t-label);
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    color 0.15s,
+    background 0.15s,
+    transform 0.1s;
+}
+.example-clear-btn:hover {
+  color: var(--fg);
+  background: var(--control-bg-hover);
+}
+.example-clear-btn:active {
+  transform: scale(0.96);
+}
+
+.panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 0.75rem;
+  height: 36px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.panel-title {
+  font-size: var(--t-label);
+  font-weight: 600;
+  line-height: var(--lh-ui);
+  text-transform: none;
+  letter-spacing: 0;
+  color: var(--fg2);
+}
+.panel-actions { display: flex; gap: 0.25rem; }
+.icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--fg2);
+  cursor: pointer;
+  transition: color 0.15s, background 0.15s;
+}
+.icon-btn:hover { color: var(--fg); background: var(--control-bg-hover); }
+.icon-btn svg { width: 14px; height: 14px; }
+.icon-btn.active { background: var(--accent); color: var(--paper); }
+
+.panel-right {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg);
+  min-width: 0;
+  position: relative;
+}
+
+.resize-handle {
+  width: 4px;
+  background: transparent;
+  cursor: col-resize;
+  flex-shrink: 0;
+  transition: background 0.15s;
+  position: relative;
+  z-index: 10;
+  margin-left: -4px;
+}
+.resize-handle::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: -12px;
+  right: -12px;
+}
+.resize-handle:hover, .resize-handle:focus-visible, .resize-handle.dragging {
+  background: var(--accent);
+}
+
+@media (max-width: 760px) {
+  .main {
+    position: relative;
+  }
+  .panel-left,
+  .panel-right {
+    width: 100%;
+    min-width: 0;
+    height: 100%;
+    border-right: 0;
+  }
+  .resize-handle {
+    display: none;
+  }
+  body[data-mobile-panel="code"] .panel-right,
+  body[data-mobile-panel="config"] .panel-right {
+    display: none;
+  }
+  body[data-mobile-panel="preview"] .panel-left {
+    display: none;
+  }
+  body[data-mobile-panel="preview"] .panel-right {
+    display: flex;
+  }
+  .examples-sidebar {
+    width: var(--examples-width, calc(100vw - 20px));
+  }
+  .examples-sidebar-list {
+    padding-bottom: 20px;
+  }
+}
+
+
+.editor-wrap {
+  flex: 1;
+  position: relative;
+  overflow: hidden;
+  display: flex;
+}
+
+.line-numbers {
+  padding: 1rem 0.5rem 1rem 0.75rem;
+  font-family: var(--font-mono);
+  font-size: var(--t-mono);
+  line-height: var(--lh-code);
+  color: var(--fg4);
+  text-align: right;
+  user-select: none;
+  pointer-events: none;
+  background: var(--bg2);
+  min-width: 40px;
+  overflow: hidden;
+  white-space: pre;
+}
+
+.code-editor {
+  flex: 1;
+  padding: 1rem 1rem 1rem 0.5rem;
+  background: transparent;
+  border: none;
+  outline: none;
+  resize: none;
+  color: var(--fg);
+  font-family: var(--font-mono);
+  font-size: var(--t-mono);
+  line-height: var(--lh-code);
+  tab-size: 2;
+  overflow: auto;
+  white-space: pre;
+}
+.code-editor::placeholder {
+  color: var(--fg4);
+}
+.code-editor:focus-visible {
+  outline: none;
+  box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--accent) 48%, transparent);
+}
+
+.status-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 0.75rem;
+  height: 28px;
+  font-family: var(--font-mono);
+  font-size: var(--t-label);
+  color: var(--fg3);
+  flex-shrink: 0;
+  font-variant-numeric: tabular-nums;
+}
+.status-left {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.status-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.status-actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+.status-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--fg3);
+  flex-shrink: 0;
+}
+.status-dot.ok {
+  background: var(--green);
+}
+.status-dot.err {
+  background: var(--red);
+}
+.status-ok {
+  color: var(--green);
+}
+.status-err {
+  color: var(--red);
+}
+
+
+/* Floating toolbar – positioned over the preview area */
+.preview-toolbar {
+  position: absolute;
+  top: 10px;
+  left: 12px;
+  right: 12px;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  pointer-events: none;
+}
+.preview-toolbar > * {
+  pointer-events: auto;
+}
+
+/* Section label */
+.preview-label {
+  font-size: var(--t-label);
+  font-weight: 600;
+  line-height: var(--lh-ui);
+  text-transform: none;
+  letter-spacing: 0;
+  color: var(--fg3);
+  user-select: none;
+}
+
+.toolbar-spacer {
+  flex: 1;
+}
+
+.zoom-controls {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 3px;
+  border-radius: var(--radius-md);
+  background: var(--control-bg);
+  border: 1px solid var(--line);
+  box-shadow: none;
+}
+
+/* Panel header button style */
+.toolbar-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--fg);
+  opacity: 0.5;
+  cursor: pointer;
+  user-select: none;
+  transition:
+    opacity 0.15s,
+    background 0.15s,
+    transform 0.1s;
+}
+.toolbar-btn:hover {
+  opacity: 1;
+}
+.toolbar-btn:active {
+  transform: scale(0.96);
+}
+.toolbar-btn.active {
+  opacity: 1;
+  background: var(--control-bg-hover);
+}
+.toolbar-btn svg {
+  width: 14px;
+  height: 14px;
+}
+
+.zoom-label {
+  font-size: var(--t-label);
+  font-weight: 500;
+  color: var(--fg3);
+  min-width: 40px;
+  text-align: center;
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+.preview-body {
+  flex: 1;
+  overflow: auto;
+  padding: 2rem;
+  padding-top: 2.75rem;
+  box-sizing: border-box;
+  position: relative;
+  z-index: 0;
+  background: var(--bg2);
+}
+.preview-body.pan-mode {
+  cursor: grab;
+}
+.preview-body.pan-mode.panning {
+  cursor: grabbing;
+  user-select: none;
+}
+.preview-body.cmd-pan {
+  cursor: grab;
+}
+.preview-body.cmd-pan.panning {
+  cursor: grabbing;
+  user-select: none;
+}
+
+.preview-inner {
+  min-width: 100%;
+  min-height: 100%;
+  width: max-content;
+  height: max-content;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.preview-inner svg {
+  display: block;
+  flex-shrink: 0;
+}
+
+.preview-error {
+  color: color-mix(in srgb, var(--red) 82%, var(--fg));
+  font-size: 0.875rem;
+  line-height: 1.5;
+  padding: 1.25rem;
+  background: color-mix(in srgb, var(--red) 6%, var(--bg2));
+  border: 1px solid color-mix(in srgb, var(--red) 16%, transparent);
+  border-radius: var(--radius-lg);
+  white-space: normal;
+  max-width: 640px;
+  box-shadow: var(--shadow-control);
+}
+.preview-error-title {
+  display: block;
+  color: var(--fg);
+  font-size: 1rem;
+  margin-bottom: 0.35rem;
+}
+.preview-error-copy {
+  display: block;
+  color: var(--fg2);
+  margin-bottom: 0.75rem;
+}
+.preview-error-detail {
+  display: block;
+  padding: 0.75rem;
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--red) 5%, var(--paper));
+  color: color-mix(in srgb, var(--red) 80%, var(--fg));
+  font-family: var(--font-mono);
+  font-size: 0.8125rem;
+  white-space: pre-wrap;
+  overflow-x: auto;
+}
+
+.preview-placeholder {
+  max-width: 320px;
+  padding: 18px;
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  box-shadow: none;
+  color: var(--fg4);
+  font-size: 0.875rem;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+.placeholder-kicker {
+  color: var(--fg3);
+  font-size: var(--t-label);
+  font-weight: 700;
+  line-height: var(--lh-ui);
+  letter-spacing: 0;
+  text-transform: none;
+}
+.placeholder-title {
+  color: var(--fg);
+  font-size: 20px;
+  line-height: 1.18;
+  text-wrap: balance;
+}
+.placeholder-copy {
+  color: var(--fg3);
+  font-size: var(--t-sm);
+  line-height: var(--lh-lead, 1.48);
+  text-wrap: pretty;
+}
+.placeholder-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 6px;
+}
+.placeholder-example-btn {
+  height: 34px;
+  padding: 0 14px;
+  border: none;
+  border-radius: var(--radius-md);
+  background: var(--control-bg);
+  color: var(--fg);
+  font: inherit;
+  font-size: var(--t-label);
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: var(--shadow-minimal);
+  transition:
+    background 0.15s,
+    transform 0.1s;
+}
+.placeholder-example-btn:hover {
+  background: var(--control-bg-hover);
+}
+.placeholder-example-btn:active {
+  transform: scale(0.96);
+}
+.placeholder-chip {
+  min-height: 40px;
+  padding: 0 10px;
+  border: none;
+  border-radius: var(--radius-pill);
+  background: color-mix(in srgb, var(--accent) 9%, var(--paper));
+  color: color-mix(in srgb, var(--accent) 76%, var(--ink));
+  font: inherit;
+  font-size: 0.75rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition:
+    background 0.15s,
+    transform 0.1s;
+}
+.placeholder-chip:hover {
+  background: color-mix(in srgb, var(--accent) 14%, var(--paper));
+}
+.placeholder-chip:active {
+  transform: scale(0.96);
+}
+
+.verify-panel {
+  border-top: 1px solid var(--border);
+  background: var(--bg2);
+  padding: 8px 10px 10px;
+  flex-shrink: 0;
+}
+.verify-panel-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+.verify-label {
+  color: var(--fg3);
+  font-size: var(--t-label);
+  font-weight: 700;
+  line-height: var(--lh-ui);
+  letter-spacing: 0;
+  text-transform: none;
+}
+.verify-summary {
+  color: var(--fg2);
+  font-size: var(--t-label);
+  text-align: right;
+}
+.verify-tiers {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+}
+.verify-tier {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  gap: 2px 7px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 7px 8px;
+  background: var(--surface);
+  color: var(--fg3);
+  font-size: var(--t-label);
+  line-height: var(--lh-heading);
+}
+.verify-tier strong {
+  color: var(--fg);
+  font-size: var(--t-label);
+  font-weight: 700;
+}
+.verify-tier span:last-child {
+  grid-column: 2;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.verify-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--fg4);
+  grid-row: 1 / span 2;
+}
+.verify-tier.ok .verify-dot { background: var(--green); }
+.verify-tier.warn .verify-dot { background: var(--warn); }
+.verify-tier.err .verify-dot { background: var(--red); }
+.verify-tier.idle { opacity: 0.8; }
+@media (max-width: 760px) {
+  .verify-tiers { grid-template-columns: 1fr; }
+}
+
+.text-output-panel {
+  border-top: 1px solid var(--border);
+  background: var(--bg2);
+  flex-shrink: 0;
+}
+.text-output-toolbar {
+  min-height: 38px;
+  padding: 5px 10px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.text-output-label {
+  color: var(--fg3);
+  font-size: var(--t-label);
+  font-weight: 700;
+  line-height: var(--lh-ui);
+  letter-spacing: 0;
+  text-transform: none;
+}
+.text-output-tabs {
+  margin-left: auto;
+  display: inline-flex;
+  gap: 3px;
+  padding: 3px;
+  border-radius: var(--radius-md);
+  background: var(--control-bg);
+}
+.text-output-tab {
+  height: 28px;
+  padding: 0 9px;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--fg3);
+  font: inherit;
+  font-size: var(--t-label);
+  font-weight: 650;
+}
+.text-output-tab.active {
+  background: var(--paper);
+  color: var(--fg);
+  box-shadow: var(--shadow-control);
+}
+.text-output {
+  max-height: 190px;
+  min-height: 92px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  margin: 0;
+  padding: 12px 14px;
+  border-top: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--fg2);
+  font-family: var(--font-mono);
+  font-size: var(--t-label);
+  line-height: var(--lh-ui);
+  white-space: pre;
+}
+.text-output code { display: inline-block; max-width: 100%; font-family: inherit; font-size: inherit; transform-origin: top left; }
+
+.preview-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 0.75rem;
+  height: 28px;
+  background: var(--bg2);
+  font-family: var(--font-mono);
+  font-size: var(--t-label);
+  color: var(--fg3);
+  flex-shrink: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+
+.config-panel {
+  display: none;
+  flex-direction: column;
+  gap: 0;
+  overflow-y: auto;
+  flex: 1;
+}
+.config-panel.visible { display: flex; }
+
+.config-section {
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid var(--border);
+}
+.config-section-title {
+  font-size: var(--t-sm);
+  font-weight: 600;
+  color: var(--fg);
+  margin-bottom: 0.625rem;
+}
+
+.color-field {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.3rem 0;
+}
+.color-field-label {
+  font-size: var(--t-label);
+  color: var(--fg);
+  flex: 1;
+}
+.color-edit-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  height: 28px;
+  padding: 0 0.5rem 0 0.35rem;
+  background: var(--control-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--fg2);
+  font-size: var(--t-label);
+  font-family: var(--font-mono);
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+  min-width: 100px;
+  justify-content: flex-end;
+}
+.color-edit-btn:hover {
+  background: var(--control-bg-hover);
+  border-color: var(--line-strong);
+}
+.color-swatch {
+  width: 18px;
+  height: 18px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--line-strong);
+  flex-shrink: 0;
+  background: transparent;
+}
+
+.padding-field { padding: 0.3rem 0; }
+.padding-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.5rem;
+}
+.padding-row label { font-size: 0.8rem; color: var(--fg); }
+.padding-num {
+  width: 56px;
+  height: 28px;
+  padding: 0 0.4rem;
+  background: var(--control-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--fg);
+  font-size: var(--t-label);
+  font-family: var(--font-mono);
+  text-align: right;
+  outline: none;
+}
+.padding-num:focus { border-color: var(--accent); }
+.padding-slider {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--control-bg);
+  outline: none;
+  cursor: pointer;
+}
+.padding-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 16px; height: 16px;
+  border-radius: 50%;
+  background: var(--accent);
+  cursor: pointer;
+  border: 2px solid var(--paper);
+  box-shadow: 0 1px 4px color-mix(in srgb, var(--ink) 24%, transparent);
+}
+.padding-slider::-moz-range-thumb {
+  width: 16px; height: 16px;
+  border-radius: 50%;
+  background: var(--accent);
+  cursor: pointer;
+  border: 2px solid var(--paper);
+}
+
+
+.color-popup {
+  display: none;
+  position: fixed;
+  z-index: 3000;
+  background: var(--popover-bg);
+  border: 1px solid var(--control-border);
+  border-radius: var(--radius-lg);
+  padding: 0.75rem;
+  width: 240px;
+  box-shadow: var(--shadow-popover);
+  flex-direction: column;
+  gap: 0.6rem;
+}
+.color-popup.open { display: flex; }
+
+.color-popup-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.1rem;
+}
+.color-popup-title { font-size: var(--t-label); font-weight: 600; color: var(--fg); }
+.color-popup-close {
+  width: 22px; height: 22px;
+  display: flex; align-items: center; justify-content: center;
+  border: none; border-radius: var(--radius-sm);
+  background: transparent; color: var(--fg2);
+  cursor: pointer; font-size: 1rem; line-height: 1;
+}
+.color-popup-close:hover { background: var(--control-bg-hover); color: var(--fg); }
+
+.color-hex-row {
+  display: flex;
+  gap: 0.4rem;
+  align-items: center;
+}
+.color-native {
+  width: 32px; height: 32px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  padding: 2px;
+  background: var(--control-bg);
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.color-hex-input {
+  flex: 1;
+  height: 32px;
+  padding: 0 0.5rem;
+  background: var(--control-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--fg);
+  font-size: var(--t-label);
+  font-family: var(--font-mono);
+  outline: none;
+}
+.color-hex-input:focus { border-color: var(--accent); }
+
+.color-clear-btn {
+  min-height: 40px;
+  padding: 0 0.6rem;
+  background: var(--control-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--fg2);
+  font-size: var(--t-label);
+  font-family: inherit;
+  cursor: pointer;
+}
+.color-clear-btn:hover { color: var(--fg); }
+
+.color-palette-title {
+  font-size: var(--t-label);
+  font-weight: 600;
+  line-height: var(--lh-ui);
+  text-transform: none;
+  letter-spacing: 0;
+  color: var(--fg3);
+}
+.color-palette {
+  display: grid;
+  grid-template-columns: repeat(8, 1fr);
+  gap: 4px;
+}
+.color-swatch-btn {
+  width: 100%;
+  aspect-ratio: 1;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--line-strong);
+  cursor: pointer;
+  transition: transform 0.1s, box-shadow 0.1s;
+}
+.color-swatch-btn:hover {
+  transform: scale(1.15);
+  box-shadow: var(--shadow-control);
+  z-index: 1;
+  position: relative;
+}
+
+
+.font-field {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.3rem 0;
+}
+.font-field-label { font-size: var(--t-label); color: var(--fg); flex: 1; }
+.font-select-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  min-height: 40px;
+  padding: 0 0.5rem;
+  background: var(--control-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--fg);
+  font-size: var(--t-label);
+  cursor: pointer;
+  min-width: 120px;
+  justify-content: space-between;
+  transition: border-color 0.15s;
+}
+.font-select-btn:hover {
+  background: var(--control-bg-hover);
+  border-color: var(--line-strong);
+}
+.font-select-caret { color: var(--fg3); font-size: 0.6rem; }
+
+.font-popup {
+  display: none;
+  position: fixed;
+  z-index: 3000;
+  background: var(--popover-bg);
+  border: 1px solid var(--control-border);
+  border-radius: var(--radius-lg);
+  padding: 0.5rem;
+  width: 220px;
+  max-height: 320px;
+  box-shadow: var(--shadow-popover);
+  flex-direction: column;
+  gap: 0.25rem;
+}
+.font-popup.open { display: flex; }
+.font-search {
+  height: 32px;
+  padding: 0 0.5rem 0 2rem;
+  background: var(--control-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--fg);
+  font-size: var(--t-label);
+  font-family: inherit;
+  outline: none;
+  width: 100%;
+  flex-shrink: 0;
+}
+.font-search:focus { border-color: var(--accent); }
+.font-search-wrap {
+  position: relative;
+  flex-shrink: 0;
+}
+.font-search-icon {
+  position: absolute;
+  left: 0.5rem;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--fg3);
+  pointer-events: none;
+}
+.font-list {
+  overflow-y: auto;
+  flex: 1;
+}
+.font-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  width: 100%;
+  min-height: 40px;
+  padding: 0.4rem 0.5rem;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.82rem;
+  color: var(--fg);
+  text-align: left;
+  transition: background 0.12s;
+}
+.font-item:hover { background: var(--control-bg-hover); }
+.font-item.active { background: color-mix(in srgb, var(--accent) 12%, var(--paper)); color: var(--accent); }
+.font-item-preview { font-size: 1rem; flex-shrink: 0; }
+.font-item-name { flex: 1; }
+.font-section-label {
+  font-size: var(--t-label);
+  font-weight: 700;
+  line-height: var(--lh-ui);
+  text-transform: none;
+  letter-spacing: 0;
+  color: var(--fg3);
+  padding: 0.5rem 0.5rem 0.2rem;
+}
+
+
+.export-wrap {
+  position: relative;
+  display: flex;
+  gap: 0;
+}
+.export-wrap .btn-primary:first-child {
+  border-radius: var(--radius-md) 0 0 var(--radius-md);
+}
+.export-chevron {
+  border-radius: 0 var(--radius-md) var(--radius-md) 0 !important;
+  padding: 0 8px;
+  box-shadow: inset 1px 0 0 color-mix(in srgb, var(--paper) 22%, var(--accent)) !important;
+}
+.export-dropdown {
+  display: none;
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  min-width: 220px;
+  background: var(--popover-bg);
+  border: 1px solid var(--control-border);
+  border-radius: var(--radius-lg);
+  padding: 6px;
+  z-index: 2000;
+  flex-direction: column;
+  box-shadow: var(--shadow-popover);
+}
+.export-dropdown.open {
+  display: flex;
+}
+.export-item {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  width: 100%;
+  padding: 7px 8px;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--fg);
+  font-size: var(--t-control);
+  font-family: inherit;
+  cursor: pointer;
+  text-align: left;
+  user-select: none;
+  transition:
+    background 0.15s,
+    transform 0.1s;
+}
+.export-item:hover {
+  background: var(--control-bg-hover);
+}
+.export-item:disabled:hover,
+.export-item[aria-disabled="true"]:hover {
+  background: transparent;
+}
+.export-item:active {
+  transform: scale(0.96);
+}
+.export-item:disabled:active,
+.export-item[aria-disabled="true"]:active {
+  transform: none;
+}
+.export-item-icon {
+  width: 15px;
+  height: 15px;
+  flex-shrink: 0;
+  color: var(--fg2);
+}
+.export-item-label {
+  flex: 1;
+}
+.export-item-kbd {
+  display: flex;
+  gap: 2px;
+  margin-left: auto;
+}
+.export-item-kbd kbd {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 3px;
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  font-size: 0.625rem;
+  font-family: inherit;
+  color: var(--fg3);
+  font-variant-numeric: tabular-nums;
+}
+.export-divider {
+  height: 1px;
+  background: var(--border);
+  margin: 3px 0;
+}
+.export-size-row {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  padding: 0.4rem 0.6rem;
+  color: var(--fg);
+  font-size: var(--t-label);
+}
+.size-pills {
+  display: flex;
+  gap: 3px;
+  margin-left: auto;
+}
+.size-pill {
+  height: 22px;
+  padding: 0 8px;
+  border-radius: var(--radius-sm);
+  border: none;
+  background: var(--control-bg);
+  color: var(--fg2);
+  font-size: 0.75rem;
+  font-weight: 500;
+  font-family: inherit;
+  cursor: pointer;
+  transition:
+    color 0.15s,
+    background 0.15s,
+    transform 0.1s;
+  font-variant-numeric: tabular-nums;
+}
+.size-pill:hover {
+  color: var(--fg);
+  background: var(--control-bg-hover);
+}
+.size-pill.active {
+  background: var(--accent);
+  color: var(--paper);
+}
+.size-pill:active {
+  transform: scale(0.96);
+}
+
+
+/* Shared affordance system: controls, popovers, labels, surfaces, status. */
+:where(.btn, .theme-dropdown-btn, .font-select-btn, .color-edit-btn, .color-clear-btn, .placeholder-example-btn) {
+  min-height: var(--control-h);
+  border: 1px solid var(--control-border);
+  border-radius: var(--radius-md);
+  background: var(--control-bg);
+  color: var(--control-fg);
+  font-family: var(--font-sans);
+  font-size: var(--t-control);
+  font-weight: 650;
+  box-shadow: none;
+}
+:where(.btn, .theme-dropdown-btn, .font-select-btn, .color-edit-btn, .color-clear-btn, .placeholder-example-btn):hover {
+  background: var(--control-bg-hover);
+  color: var(--ink);
+  border-color: var(--control-border);
+}
+:where(.btn, .theme-dropdown-btn, .font-select-btn, .color-edit-btn, .color-clear-btn, .placeholder-example-btn):active { transform: scale(0.96); }
+:where(.btn, .toolbar-btn, .export-item, .theme-dropdown-item, .text-output-tab, .size-pill, .font-item)[data-copy-state="ok"] { color: var(--link); }
+:where(.btn, .toolbar-btn, .export-item, .theme-dropdown-item, .text-output-tab, .size-pill, .font-item)[data-copy-state="err"] { color: var(--red); }
+:where(.toolbar-btn, .icon-btn) {
+  border-radius: var(--radius-sm);
+  color: var(--control-fg);
+}
+:where(.toolbar-btn, .icon-btn):hover {
+  color: var(--ink);
+  background: var(--control-bg-hover);
+  opacity: 1;
+}
+:where(.mode-switch, .text-output-tabs, .zoom-controls) {
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  background: var(--control-bg);
+  box-shadow: none;
+}
+:where(.mode-option, .text-output-tab, .size-pill, .export-item, .theme-dropdown-item, .font-item, .example-dropdown-item, .example-clear-btn) {
+  border-radius: var(--radius-sm);
+  font-family: var(--font-sans);
+}
+:where(.examples-sidebar, .export-dropdown, .theme-dropdown-menu, .font-popup, .color-popup) {
+  background: var(--popover-bg);
+  border: 1px solid var(--control-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-popover);
+  z-index: 3000;
+}
+:where(.preview-label, .panel-title, .verify-label, .text-output-label, .example-category-title, .font-section-label, .color-palette-title, .placeholder-kicker) {
+  color: var(--fg3);
+  font-family: var(--font-mono);
+  font-size: var(--t-label);
+  font-weight: 650;
+  letter-spacing: 0;
+  text-transform: none;
+}
+:where(.preview-error, .preview-placeholder, .verify-tier, .text-output, .examples-sidebar, .font-popup, .color-popup, .export-dropdown, .theme-dropdown-menu) { border-color: var(--line); }
+:where(.preview-error-detail, .text-output, .preview-footer, .zoom-label) {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+@media (pointer: coarse) {
+  .mode-option,
+  .btn,
+  .theme-dropdown-btn,
+  .theme-dropdown-item,
+  .toolbar-btn,
+  .text-output-tab,
+  .placeholder-example-btn,
+  .example-clear-btn,
+  .export-item,
+  .font-select-btn,
+  .color-edit-btn,
+  .color-clear-btn { min-height: 40px; }
+  .toolbar-btn,
+  .export-chevron { min-width: 40px; }
+}
+
+
+.skip-link {
+  position: fixed;
+  left: 12px;
+  top: 12px;
+  z-index: 10000;
+  transform: translateY(-160%);
+  padding: 8px 10px;
+  border-radius: var(--radius-md);
+  background: var(--paper);
+  color: var(--link);
+  box-shadow: 0 0 0 1px var(--line-strong);
+}
+.skip-link:focus {
+  transform: translateY(0);
+}
+
+/* Toast */
+.toast {
+  position: fixed;
+  bottom: 2rem;
+  left: 50%;
+  transform: translateX(-50%) translateY(0);
+  background: var(--popover-bg);
+  border: 1px solid var(--control-border);
+  border-radius: var(--radius-md);
+  padding: 0.5rem 1rem;
+  font-size: var(--t-control);
+  color: var(--fg);
+  opacity: 0;
+  pointer-events: none;
+  transition:
+    opacity 0.2s,
+    transform 0.2s;
+  z-index: 9999;
+  box-shadow: var(--shadow-popover);
+}
+.toast.show {
+  opacity: 1;
+  transform: translateX(-50%) translateY(-4px);
+}
+
+/* Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--fg4);
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--fg3);
+}
+
+/* Render spinner overlay */
+.render-spinner {
+  position: absolute;
+  top: 0.5rem;
+  right: 0.5rem;
+  width: 18px;
+  height: 18px;
+  border: 2px solid var(--bg-hover);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.6s linear infinite;
+  display: none;
+}
+.render-spinner.visible {
+  display: block;
+}
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+  </style>
+<link rel="alternate" type="text/plain" href="/llms.txt">
+<link rel="alternate" type="application/json" href="/agent-manifest.json">
+<link rel="alternate" type="text/markdown" href="/agent-instructions.md">
+</head>
+<body>
+<a class="skip-link" href="#editor-main">Skip to content</a>
+
+<!-- Top bar -->
+<header class="topbar" role="banner">
+  <h1 class="sr-only">Agentic Mermaid Live Editor</h1>
+  <a href="/" class="app-brand" aria-label="Agentic Mermaid homepage">
+    <span class="app-mark" aria-hidden="true">
+      <svg viewBox="0 0 48 48" focusable="false">
+        <g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="14,8.5 14,23.5 24,39.5" stroke-width="1.9" />
+          <polyline points="24,5.5 24,23.5 24,39.5" stroke-width="2.4" />
+          <polyline points="34,8.5 34,23.5 24,39.5" stroke-width="1.9" />
+        </g>
+        <g fill="currentColor">
+          <circle cx="14" cy="8.5" r="2.5" />
+          <circle cx="24" cy="5.5" r="2.5" />
+          <circle cx="34" cy="8.5" r="2.5" />
+          <circle cx="24" cy="39.5" r="3.3" />
+        </g>
+        <g fill="none" stroke="currentColor" stroke-width="1.3">
+          <circle cx="14" cy="23.5" r="1.7" />
+          <circle cx="24" cy="23.5" r="1.7" />
+          <circle cx="34" cy="23.5" r="1.7" />
+        </g>
+      </svg>
+    </span>
+    <span class="app-brand-text">Agentic&nbsp;Mermaid</span><span class="app-context">Editor</span>
+  </a>
+
+  <div class="topbar-sep" aria-hidden="true"></div>
+
+  <div class="mode-switch left-panel-switch" data-segmented-control role="group" aria-label="Left panel mode">
+    <button class="mode-option is-active" id="mode-source" type="button" aria-pressed="true" aria-controls="editor-view" data-left-panel="code">Source</button>
+    <button class="mode-option" id="mode-style" type="button" aria-pressed="false" aria-controls="config-view" data-left-panel="config">Style</button>
+  </div>
+
+  <div class="mode-switch mobile-view-switch" data-segmented-control role="group" aria-label="Editor view">
+    <button class="mode-option is-active" id="mobile-mode-source" type="button" aria-pressed="true" aria-controls="editor-view" data-mobile-panel="code">Source</button>
+    <button class="mode-option" id="mobile-mode-style" type="button" aria-pressed="false" aria-controls="config-view" data-mobile-panel="config">Style</button>
+    <button class="mode-option" id="mobile-mode-preview" type="button" aria-pressed="false" aria-controls="panel-right" data-mobile-panel="preview">Preview</button>
+  </div>
+
+  <button class="btn examples-toggle" id="examples-sidebar-btn" type="button" aria-pressed="false" aria-expanded="false" aria-controls="examples-sidebar">Examples</button>
+  <button class="btn agent-task-btn" id="copy-agent-task-btn" type="button">Copy agent task</button>
+
+  <div class="spacer"></div>
+
+  <button class="btn" id="dark-light-btn" type="button" title="Toggle dark/light mode">
+    <svg
+      id="icon-moon"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      stroke-width="2"
+      stroke-linecap="round"
+      stroke-linejoin="round"
+    >
+      <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
+    </svg>
+    <svg
+      id="icon-sun"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      stroke-width="2"
+      stroke-linecap="round"
+      stroke-linejoin="round"
+    >
+      <circle cx="12" cy="12" r="5" />
+      <line x1="12" y1="1" x2="12" y2="3" />
+      <line x1="12" y1="21" x2="12" y2="23" />
+      <line x1="4.22" y1="4.22" x2="5.64" y2="5.64" />
+      <line x1="18.36" y1="18.36" x2="19.78" y2="19.78" />
+      <line x1="1" y1="12" x2="3" y2="12" />
+      <line x1="21" y1="12" x2="23" y2="12" />
+      <line x1="4.22" y1="19.78" x2="5.64" y2="18.36" />
+      <line x1="18.36" y1="5.64" x2="19.78" y2="4.22" />
+    </svg>
+  </button>
+
+  <div class="topbar-sep"></div>
+
+  <div class="theme-dropdown-wrap" id="theme-dropdown-wrap">
+    <button class="theme-dropdown-btn" id="theme-dropdown-btn" type="button" aria-label="Diagram theme" aria-haspopup="listbox" aria-expanded="false" aria-controls="theme-dropdown-menu">
+      <span class="theme-swatch" id="theme-btn-swatch"></span>
+      <span id="theme-btn-label">Default</span>
+      <svg
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="2.5"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+      >
+        <polyline points="6 9 12 15 18 9" />
+      </svg>
+    </button>
+    <div class="theme-dropdown-menu" id="theme-dropdown-menu" role="listbox" aria-label="Theme" aria-hidden="true" inert>
+      <button class="theme-dropdown-item active" type="button" role="option" aria-selected="true" data-theme="">Default</button>
+      <button class="theme-dropdown-item" type="button" role="option" aria-selected="false" data-theme="zinc-light"><span class="theme-swatch" style="background:#FFFFFF"></span>zinc-light</button>
+      <button class="theme-dropdown-item" type="button" role="option" aria-selected="false" data-theme="zinc-dark"><span class="theme-swatch" style="background:#18181B"></span>Zinc Dark</button>
+      <button class="theme-dropdown-item" type="button" role="option" aria-selected="false" data-theme="tokyo-night"><span class="theme-swatch" style="background:#1a1b26"></span>Tokyo Night</button>
+      <button class="theme-dropdown-item" type="button" role="option" aria-selected="false" data-theme="tokyo-night-storm"><span class="theme-swatch" style="background:#24283b"></span>Tokyo Storm</button>
+      <button class="theme-dropdown-item" type="button" role="option" aria-selected="false" data-theme="tokyo-night-light"><span class="theme-swatch" style="background:#d5d6db"></span>Tokyo Light</button>
+      <button class="theme-dropdown-item" type="button" role="option" aria-selected="false" data-theme="catppuccin-mocha"><span class="theme-swatch" style="background:#1e1e2e"></span>Catppuccin</button>
+      <button class="theme-dropdown-item" type="button" role="option" aria-selected="false" data-theme="catppuccin-latte"><span class="theme-swatch" style="background:#eff1f5"></span>Latte</button>
+      <button class="theme-dropdown-item" type="button" role="option" aria-selected="false" data-theme="nord"><span class="theme-swatch" style="background:#2e3440"></span>Nord</button>
+      <button class="theme-dropdown-item" type="button" role="option" aria-selected="false" data-theme="nord-light"><span class="theme-swatch" style="background:#eceff4"></span>Nord Light</button>
+      <button class="theme-dropdown-item" type="button" role="option" aria-selected="false" data-theme="dracula"><span class="theme-swatch" style="background:#282a36"></span>Dracula</button>
+      <button class="theme-dropdown-item" type="button" role="option" aria-selected="false" data-theme="github-light"><span class="theme-swatch" style="background:#ffffff"></span>GitHub</button>
+      <button class="theme-dropdown-item" type="button" role="option" aria-selected="false" data-theme="github-dark"><span class="theme-swatch" style="background:#0d1117"></span>GitHub Dark</button>
+      <button class="theme-dropdown-item" type="button" role="option" aria-selected="false" data-theme="solarized-light"><span class="theme-swatch" style="background:#fdf6e3"></span>Solarized</button>
+      <button class="theme-dropdown-item" type="button" role="option" aria-selected="false" data-theme="solarized-dark"><span class="theme-swatch" style="background:#002b36"></span>Solar Dark</button>
+      <button class="theme-dropdown-item" type="button" role="option" aria-selected="false" data-theme="one-dark"><span class="theme-swatch" style="background:#282c34"></span>One Dark</button>
+      <button class="theme-dropdown-item" type="button" role="option" aria-selected="false" data-theme="salmon"><span class="theme-swatch" style="background:#FFFBF5"></span>Salmon</button>
+      <button class="theme-dropdown-item" type="button" role="option" aria-selected="false" data-theme="salmon-dark"><span class="theme-swatch" style="background:#1F1008"></span>Salmon Dark</button>
+      <button class="theme-dropdown-item" type="button" role="option" aria-selected="false" data-theme="tufte"><span class="theme-swatch" style="background:#FFFFF8"></span>Tufte</button>
+      <button class="theme-dropdown-item" type="button" role="option" aria-selected="false" data-theme="tufte-dark"><span class="theme-swatch" style="background:#1C1C1A"></span>Tufte Dark</button>
+    </div>
+  </div>
+
+  <div class="topbar-sep"></div>
+
+  <div class="export-wrap" id="export-wrap">
+    <button class="btn btn-primary" id="export-main-btn" type="button" title="Save PNG (⌘S)" disabled aria-disabled="true">
+      <svg
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="2"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+      >
+        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+        <polyline points="7 10 12 15 17 10" />
+        <line x1="12" y1="15" x2="12" y2="3" />
+      </svg>
+      Export Image
+    </button>
+    <button
+      class="btn btn-primary export-chevron"
+      id="export-chevron-btn"
+      type="button"
+      title="More export options"
+      aria-haspopup="menu"
+      aria-expanded="false"
+      aria-controls="export-dropdown"
+      aria-disabled="false"
+    >
+      <svg
+        width="12"
+        height="12"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="2.5"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+      >
+        <polyline points="6 9 12 15 18 9" />
+      </svg>
+    </button>
+
+    <div class="export-dropdown" id="export-dropdown" role="menu" aria-label="Export options" aria-hidden="true" inert>
+      <button class="export-item" id="export-png-btn" type="button" disabled aria-disabled="true">
+        <svg
+          class="export-item-icon"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1.75"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          <rect x="3" y="3" width="18" height="18" rx="2" />
+          <circle cx="8.5" cy="8.5" r="1.5" />
+          <polyline points="21 15 16 10 5 21" />
+        </svg>
+        <span class="export-item-label">Save PNG</span>
+        <span class="export-item-kbd"><kbd>⌘</kbd><kbd>S</kbd></span>
+      </button>
+
+      <button class="export-item" id="export-svg-btn" type="button" disabled aria-disabled="true">
+        <svg
+          class="export-item-icon"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1.75"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          <rect x="3" y="3" width="18" height="18" rx="2" />
+          <circle cx="8.5" cy="8.5" r="1.5" />
+          <polyline points="21 15 16 10 5 21" />
+        </svg>
+        <span class="export-item-label">Save SVG</span>
+        <span class="export-item-kbd"
+          ><kbd>⌘</kbd><kbd>⇧</kbd><kbd>S</kbd></span
+        >
+      </button>
+
+      <div class="export-divider"></div>
+
+      <button class="export-item" id="copy-source-btn" type="button" data-action="copy-source">
+        <svg
+          class="export-item-icon"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1.75"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          <rect x="9" y="9" width="13" height="13" rx="2" />
+          <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+        </svg>
+        <span class="export-item-label">Copy source</span>
+      </button>
+      <button class="export-item" id="copy-svg-btn" type="button" disabled aria-disabled="true">
+        <svg
+          class="export-item-icon"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1.75"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          <polyline points="16 18 22 12 16 6" />
+          <polyline points="8 6 2 12 8 18" />
+        </svg>
+        <span class="export-item-label">Copy SVG</span>
+      </button>
+      <button class="export-item" id="copy-image-btn" type="button" disabled aria-disabled="true">
+        <svg
+          class="export-item-icon"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1.75"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          <rect x="3" y="3" width="18" height="18" rx="2" />
+          <circle cx="8.5" cy="8.5" r="1.5" />
+          <polyline points="21 15 16 10 5 21" />
+        </svg>
+        <span class="export-item-label">Copy PNG</span>
+      </button>
+      <button class="export-item" id="copy-link-btn" type="button">
+        <svg
+          class="export-item-icon"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1.75"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
+          <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
+        </svg>
+        <span class="export-item-label">Copy link</span>
+      </button>
+
+      <div class="export-divider"></div>
+
+      <div class="export-size-row">
+        <svg
+          class="export-item-icon"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1.75"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          aria-hidden="true"
+        >
+          <polyline points="15 3 21 3 21 9" />
+          <polyline points="9 21 3 21 3 15" />
+          <line x1="21" y1="3" x2="14" y2="10" />
+          <line x1="3" y1="21" x2="10" y2="14" />
+        </svg>
+        <span class="export-item-label">Scale</span>
+        <div class="size-pills" id="size-pills" role="group" aria-label="PNG export scale">
+          <button class="size-pill" type="button" data-scale="1">1x</button>
+          <button class="size-pill" type="button" data-scale="2">2x</button>
+          <button class="size-pill active" type="button" data-scale="4">4x</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</header>
+
+
+<!-- Main -->
+<main class="main" id="editor-main" aria-label="Mermaid editor workspace">
+
+  <!-- Persistent examples sidebar -->
+  <aside class="examples-sidebar" id="examples-sidebar" aria-label="Example diagrams" aria-hidden="true" inert>
+    <div class="examples-sidebar-inner">
+      <div class="examples-sidebar-header">
+        <span>Examples</span>
+        <button class="toolbar-btn" id="examples-sidebar-close" type="button" title="Close examples sidebar" aria-label="Close examples sidebar">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="18" y1="6" x2="6" y2="18"/>
+            <line x1="6" y1="6" x2="18" y2="18"/>
+          </svg>
+        </button>
+      </div>
+      <div class="examples-sidebar-list" id="examples-sidebar-list"></div>
+    </div>
+  </aside>
+
+  <!-- Left panel -->
+<section class="panel-left" id="panel-left" aria-label="Source editor and diagram settings">
+  <!-- Code editor view -->
+  <div class="editor-wrap" id="editor-view" role="region" aria-label="Source editor" aria-hidden="false">
+    <div class="line-numbers" id="line-numbers">1</div>
+    <label class="sr-only" for="code-editor">Mermaid source</label>
+    <textarea
+      class="code-editor"
+      id="code-editor"
+      spellcheck="false"
+      autocomplete="off"
+      autocorrect="off"
+      autocapitalize="off"
+      aria-label="Mermaid source"
+      placeholder="Enter Mermaid diagram syntax here…"
+    ></textarea>
+  </div>
+
+  <!-- Config view -->
+  <div class="config-panel" id="config-view" role="region" aria-label="Style settings" hidden aria-hidden="true">
+    <!-- Colors section -->
+    <div class="config-section">
+      <div class="config-section-title">Colors</div>
+      <div class="color-field">
+        <span class="color-field-label">Background</span>
+        <button class="color-edit-btn" type="button" aria-haspopup="dialog" aria-expanded="false" aria-controls="color-popup" data-cfg="bg" aria-label="Edit background color">
+          <span class="cfg-hex-label" id="cfg-bg-label">–</span>
+          <span class="color-swatch" id="cfg-bg-swatch"></span>
+        </button>
+      </div>
+      <div class="color-field">
+        <span class="color-field-label">Foreground</span>
+        <button class="color-edit-btn" type="button" aria-haspopup="dialog" aria-expanded="false" aria-controls="color-popup" data-cfg="fg" aria-label="Edit foreground color">
+          <span class="cfg-hex-label" id="cfg-fg-label">–</span>
+          <span class="color-swatch" id="cfg-fg-swatch"></span>
+        </button>
+      </div>
+      <div class="color-field">
+        <span class="color-field-label">Accent</span>
+        <button class="color-edit-btn" type="button" aria-haspopup="dialog" aria-expanded="false" aria-controls="color-popup" data-cfg="accent" aria-label="Edit accent color">
+          <span class="cfg-hex-label" id="cfg-accent-label">–</span>
+          <span class="color-swatch" id="cfg-accent-swatch"></span>
+        </button>
+      </div>
+      <div class="color-field">
+        <span class="color-field-label">Line</span>
+        <button class="color-edit-btn" type="button" aria-haspopup="dialog" aria-expanded="false" aria-controls="color-popup" data-cfg="line" aria-label="Edit line color">
+          <span class="cfg-hex-label" id="cfg-line-label">–</span>
+          <span class="color-swatch" id="cfg-line-swatch"></span>
+        </button>
+      </div>
+      <div class="color-field">
+        <span class="color-field-label">Muted</span>
+        <button class="color-edit-btn" type="button" aria-haspopup="dialog" aria-expanded="false" aria-controls="color-popup" data-cfg="muted" aria-label="Edit muted text color">
+          <span class="cfg-hex-label" id="cfg-muted-label">–</span>
+          <span class="color-swatch" id="cfg-muted-swatch"></span>
+        </button>
+      </div>
+      <div class="color-field">
+        <span class="color-field-label">Surface</span>
+        <button class="color-edit-btn" type="button" aria-haspopup="dialog" aria-expanded="false" aria-controls="color-popup" data-cfg="surface" aria-label="Edit surface color">
+          <span class="cfg-hex-label" id="cfg-surface-label">–</span>
+          <span class="color-swatch" id="cfg-surface-swatch"></span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Font section -->
+    <div class="config-section">
+      <div class="config-section-title">Typography</div>
+      <div class="font-field">
+        <span class="font-field-label">Font family</span>
+        <button class="font-select-btn" id="font-select-btn" type="button" aria-label="Choose diagram font family" aria-haspopup="listbox" aria-expanded="false" aria-controls="font-popup">
+          <span id="font-select-label">Default</span>
+          <span class="font-select-caret">▼</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Layout section -->
+    <div class="config-section">
+      <div class="config-section-title">Layout</div>
+      <div class="padding-field">
+        <div class="padding-row">
+          <label for="cfg-padding">Padding</label>
+          <input
+            class="padding-num"
+            id="cfg-padding"
+            type="number"
+            min="0"
+            max="120"
+            value="24"
+          />
+        </div>
+        <input
+          class="padding-slider"
+          id="cfg-padding-slider"
+          type="range"
+          aria-label="Padding"
+          min="0"
+          max="120"
+          value="24"
+        />
+      </div>
+      <div class="padding-field">
+        <div class="padding-row">
+          <label for="cfg-edge-stroke">Edge stroke</label>
+          <input
+            class="padding-num"
+            id="cfg-edge-stroke"
+            type="number"
+            min="0.25"
+            max="6"
+            step="0.25"
+            value="1"
+          />
+        </div>
+        <input
+          class="padding-slider"
+          id="cfg-edge-stroke-slider"
+          type="range"
+          aria-label="Edge stroke"
+          min="0.25"
+          max="6"
+          step="0.25"
+          value="1"
+        />
+      </div>
+      <div class="padding-field">
+        <div class="padding-row">
+          <label for="cfg-node-stroke">Node border</label>
+          <input
+            class="padding-num"
+            id="cfg-node-stroke"
+            type="number"
+            min="0.25"
+            max="6"
+            step="0.25"
+            value="1"
+          />
+        </div>
+        <input
+          class="padding-slider"
+          id="cfg-node-stroke-slider"
+          type="range"
+          aria-label="Node border"
+          min="0.25"
+          max="6"
+          step="0.25"
+          value="1"
+        />
+      </div>
+    </div>
+  </div>
+
+  <!-- Color picker popup (shared) -->
+  <div class="color-popup" id="color-popup" role="dialog" aria-modal="false" aria-labelledby="color-popup-title" aria-hidden="true" inert>
+    <div class="color-popup-header">
+      <span class="color-popup-title" id="color-popup-title">Color</span>
+      <button class="color-popup-close" id="color-popup-close" type="button" aria-label="Close color picker">×</button>
+    </div>
+    <div class="color-hex-row">
+      <label class="sr-only" for="color-native-input">Native color picker</label>
+      <input type="color" class="color-native" id="color-native-input" />
+      <label class="sr-only" for="color-hex-input">Hex color value</label>
+      <input
+        type="text"
+        class="color-hex-input"
+        id="color-hex-input"
+        placeholder="#rrggbb"
+        maxlength="9"
+      />
+      <button class="color-clear-btn" id="color-clear-btn" type="button">Clear</button>
+    </div>
+    <div class="color-palette-title">Presets</div>
+    <div class="color-palette" id="color-palette"></div>
+  </div>
+
+  <!-- Font picker popup -->
+  <div class="font-popup" id="font-popup" aria-hidden="true" inert>
+    <div class="font-search-wrap">
+      <svg
+        class="font-search-icon"
+        width="13"
+        height="13"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="2"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+      >
+        <circle cx="11" cy="11" r="8" />
+        <line x1="21" y1="21" x2="16.65" y2="16.65" />
+      </svg>
+      <label class="sr-only" for="font-search">Search fonts</label>
+      <input class="font-search" id="font-search" placeholder="Quick search" />
+    </div>
+    <div class="font-list" id="font-list" role="listbox" aria-label="Font choices"></div>
+  </div>
+
+  <div class="status-bar">
+    <div class="status-left">
+      <span class="status-dot" id="status-dot"></span>
+      <span id="status-text">Ready</span>
+    </div>
+    <div class="status-right">
+      <span id="cursor-pos">Ln 1, Col 1</span>
+    </div>
+  </div>
+
+</section>
+
+
+  <!-- Resize handle -->
+  <div class="resize-handle" id="resize-handle" role="separator" tabindex="0" aria-label="Resize source and preview panels" aria-orientation="vertical" aria-valuemin="280" aria-valuemax="75" aria-valuenow="42" aria-valuetext="Source panel width 42 percent"></div>
+
+  <!-- Right panel -->
+<section class="panel-right" id="panel-right" aria-label="Rendered preview">
+  <div class="preview-toolbar">
+    <span class="preview-label">Preview</span>
+    <div class="toolbar-spacer"></div>
+    <div class="zoom-controls">
+      <button class="toolbar-btn" id="zoom-out-btn" type="button" title="Zoom out" aria-label="Zoom out">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="8" y1="11" x2="14" y2="11"/>
+        </svg>
+      </button>
+      <span class="zoom-label" id="zoom-label">100%</span>
+      <button class="toolbar-btn" id="zoom-in-btn" type="button" title="Zoom in" aria-label="Zoom in">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="11" y1="8" x2="11" y2="14"/><line x1="8" y1="11" x2="14" y2="11"/>
+        </svg>
+      </button>
+      <button class="toolbar-btn" id="zoom-fit-btn" type="button" title="Fit to view" aria-label="Fit preview to view">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/>
+        </svg>
+      </button>
+      <button class="toolbar-btn" id="pan-btn" type="button" title="Pan (hold to drag)" aria-label="Pan preview" aria-pressed="false">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M18 11V6a2 2 0 0 0-2-2 2 2 0 0 0-2 2"/>
+          <path d="M14 10V4a2 2 0 0 0-2-2 2 2 0 0 0-2 2v2"/>
+          <path d="M10 10.5a2 2 0 0 0-2-2 2 2 0 0 0-2 2v1.5"/>
+          <path d="M18 11a2 2 0 1 1 4 0v3a8 8 0 0 1-8 8h-2a8 8 0 0 1-7.4-5"/>
+          <path d="M6 14v-3a2 2 0 0 0-2-2 2 2 0 0 0-2 2v5"/>
+        </svg>
+      </button>
+    </div>
+  </div>
+
+  <div class="preview-body" id="preview-body">
+    <div class="render-spinner" id="render-spinner"></div>
+    <div class="preview-inner" id="preview-inner">
+      <div class="preview-placeholder" id="preview-placeholder">
+        <span class="placeholder-kicker">Blank canvas</span>
+        <strong class="placeholder-title">No diagram yet</strong>
+        <span class="placeholder-copy">Start typing Mermaid syntax, or load a preset to see SVG, Unicode, and ASCII output.</span>
+        <button class="placeholder-example-btn" type="button" data-action="load-example">Load an example</button>
+      </div>
+    </div>
+  </div>
+
+  <section class="verify-panel" aria-label="Verification status">
+    <div class="verify-panel-head">
+      <span class="verify-label">Verify</span>
+      <span class="verify-summary" id="verify-summary">Waiting for source</span>
+    </div>
+    <div class="verify-tiers" role="list" aria-label="Warning tiers">
+      <div class="verify-tier" id="verify-tier-structural" role="listitem">
+        <span class="verify-dot" aria-hidden="true"></span><strong>Structural</strong><span id="verify-structural">Not run</span>
+      </div>
+      <div class="verify-tier" id="verify-tier-geometric" role="listitem">
+        <span class="verify-dot" aria-hidden="true"></span><strong>Geometric</strong><span id="verify-geometric">Not run</span>
+      </div>
+      <div class="verify-tier" id="verify-tier-lint" role="listitem">
+        <span class="verify-dot" aria-hidden="true"></span><strong>Lint</strong><span id="verify-lint">Not run</span>
+      </div>
+    </div>
+  </section>
+
+  <section class="text-output-panel" aria-label="Text output">
+    <div class="text-output-toolbar">
+      <span class="text-output-label">Text output</span>
+      <div class="text-output-tabs" role="tablist" aria-label="Output format">
+        <button class="text-output-tab active" id="unicode-output-tab" type="button" role="tab" aria-selected="true" aria-controls="unicode-output-wrap" data-output-tab="unicode">Unicode</button>
+        <button class="text-output-tab" id="ascii-output-tab" type="button" role="tab" aria-selected="false" aria-controls="ascii-output-wrap" tabindex="-1" data-output-tab="ascii">ASCII</button>
+      </div>
+      <button class="toolbar-btn" id="copy-text-output-btn" type="button" title="Copy selected text output" aria-label="Copy selected text output">Copy</button>
+    </div>
+    <pre class="text-output active" id="unicode-output-wrap" role="tabpanel" aria-labelledby="unicode-output-tab"><code id="unicode-output">Render a valid diagram to see Unicode output.</code></pre>
+    <pre class="text-output" id="ascii-output-wrap" role="tabpanel" aria-labelledby="ascii-output-tab" hidden><code id="ascii-output">Render a valid diagram to see ASCII output.</code></pre>
+  </section>
+
+  <div class="preview-footer">
+    <span id="render-time"></span>
+    <span>Agentic Mermaid</span>
+  </div>
+</section>
+
+
+</main>
+
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<!-- Bundled renderer -->
+<script type="module" src="/editor/editor-77b6ffd6e5ba.js"></script>
+</body>
+</html>

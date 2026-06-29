@@ -780,7 +780,7 @@ render_png is offline.
 
 ## Output formats
 
-Agentic Mermaid outputs ASCII, PNG, and SVG. Full capability list: ${formats}. SVG strict mode (security: 'strict') emits zero external-fetch
+Agentic Mermaid outputs SVG, PNG, ASCII, Unicode, and JSON layout. Full capability list: ${formats}. SVG strict mode (security: 'strict') emits zero external-fetch
 references — safe for untrusted/agent-generated diagrams. See SECURITY.md.
 
 ## Diagram families

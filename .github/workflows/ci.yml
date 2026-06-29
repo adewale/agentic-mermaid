@@ -62,6 +62,12 @@ jobs:
         # that wasn't regenerated). Regenerate with `bun run site`.
         run: bun run site:check
 
+      - name: Check the Workers Static Assets website is current
+        # website/public is generated from the mockup source plus product truth
+        # (capabilities, examples, skills, schemas, recipes). The check also
+        # rejects stale/orphan generated files and placeholder public links.
+        run: bun run website:check
+
       - name: Golden snapshot drift is a hard gate (reviewed-token required)
         # The decision logic lives in scripts/ci/golden-drift.ts and is
         # unit-tested (src/__tests__/golden-drift.test.ts) — a bare ::warning::

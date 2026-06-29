@@ -1,0 +1,147 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Agentic Mermaid capabilities",
+  "type": "object",
+  "required": [
+    "sdkVersion",
+    "families",
+    "warningCodes",
+    "outputFormats",
+    "generatedFrom"
+  ],
+  "properties": {
+    "sdkVersion": {
+      "type": "string"
+    },
+    "families": {
+      "type": "array",
+      "minItems": 12,
+      "items": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "title": "Family capability",
+        "type": "object",
+        "required": [
+          "id",
+          "hasParse",
+          "hasSerialize",
+          "hasMutate",
+          "hasVerify",
+          "hasExtractLabels",
+          "mutationOps",
+          "editPolicy"
+        ],
+        "properties": {
+          "id": {
+            "enum": [
+              "flowchart",
+              "state",
+              "sequence",
+              "timeline",
+              "class",
+              "er",
+              "journey",
+              "architecture",
+              "xychart",
+              "pie",
+              "quadrant",
+              "gantt"
+            ]
+          },
+          "hasParse": {
+            "type": "boolean"
+          },
+          "hasSerialize": {
+            "type": "boolean"
+          },
+          "hasMutate": {
+            "type": "boolean"
+          },
+          "hasVerify": {
+            "type": "boolean"
+          },
+          "hasExtractLabels": {
+            "type": "boolean"
+          },
+          "mutationOps": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "editPolicy": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "warningCodes": {
+      "type": "array",
+      "minItems": 21,
+      "items": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "title": "Warning code",
+        "type": "object",
+        "required": [
+          "code",
+          "tier",
+          "severity"
+        ],
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "tier": {
+            "enum": [
+              "structural",
+              "geometric",
+              "lint"
+            ]
+          },
+          "severity": {
+            "enum": [
+              "error",
+              "warning"
+            ]
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "outputFormats": {
+      "type": "array",
+      "items": {
+        "enum": [
+          "svg",
+          "ascii",
+          "unicode",
+          "png",
+          "json"
+        ]
+      }
+    },
+    "generatedFrom": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "title": "Generated from",
+      "type": "object",
+      "required": [
+        "packageVersion",
+        "gitSha",
+        "buildTime"
+      ],
+      "properties": {
+        "packageVersion": {
+          "type": "string"
+        },
+        "gitSha": {
+          "type": "string"
+        },
+        "buildTime": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}

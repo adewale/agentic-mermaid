@@ -23,6 +23,9 @@ dist/
 *.log
 npm-debug.log*
 
+# Wrangler local dev/cache state
+website/.wrangler/
+
 # Environment
 .env
 .env.local

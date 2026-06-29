@@ -50,7 +50,7 @@ function am(args: string[], stdin?: string): string {
 const stripFont = (svg: string) => svg.split('\n').filter((l) => !l.includes('fonts.googleapis.com')).join('\n')
 const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
 
-// `--check` (CI gate): don't write — compare each generated file to what's on
+// `--check` (CI gate): don't write – compare each generated file to what's on
 // disk and collect drift, so a stale committed mockup fails the build instead
 // of silently shipping. Mirrors hero:check. Generation is idempotent, so an
 // in-sync tree produces byte-identical output here.
@@ -64,27 +64,68 @@ async function emit(path: string, content: string) {
 }
 
 // 1 · one tile per family, rendered from its canonical example
-const tiles: { id: string; label: string; desc: string; svg: string }[] = []
+const GALLERY_AGENT_PROMPTS: Record<string, string> = {
+  flowchart: 'Add a labeled failure branch and verify that every decision exit is named.',
+  state: 'Add a retry transition from Failed back to Idle, then verify before returning source.',
+  sequence: 'Insert the verification call before export and keep participant order stable.',
+  timeline: 'Add a Review period with one approval event without rewriting other periods.',
+  class: 'Add a repository class and connect it to the service with a typed relationship.',
+  er: 'Add an order line-item relationship and verify cardinalities before serialize.',
+  journey: 'Add an agent verification task and preserve existing scores.',
+  architecture: 'Insert a cache service between the app and database and verify boundaries.',
+  xychart: 'Add a forecast series and verify the axes still render cleanly.',
+  pie: 'Add a Documentation slice and keep labels readable.',
+  quadrant: 'Move one point into the high-impact quadrant and verify coordinates.',
+  gantt: 'Add a verification milestone before release and resolve the schedule.',
+}
+const GALLERY_AGENT_OPS: Record<string, string> = {
+  flowchart: 'asFlowchart · mutate(add_edge/set_label) · verify',
+  state: 'asState · mutate(add_transition) · verify',
+  sequence: 'asSequence · mutate(add_message) · verify',
+  timeline: 'asTimeline · mutate(add_period) · verify',
+  class: 'asClass · mutate(add_class/add_relation) · verify',
+  er: 'asEr · mutate(add_relation) · verify',
+  journey: 'asJourney · mutate(add_task) · verify',
+  architecture: 'asArchitecture · mutate(add_service/add_edge) · verify',
+  xychart: 'asXyChart · mutate(add_series) · verify',
+  pie: 'asPie · mutate(add_slice) · verify',
+  quadrant: 'asQuadrant · mutate(move_point) · verify',
+  gantt: 'asGantt · mutate(add_task) · verify',
+}
+// Class diagrams are tall/text-dense but not wide. Spanning this one compact
+// card prevents the empty second-column hole before the first full-width ER
+// diagram, without forcing the class SVG to scale like a genuinely wide chart.
+const GALLERY_SPAN_FAMILIES = new Set(['class'])
+const tiles: { id: string; label: string; desc: string; svg: string; wide: boolean; span: boolean; prompt: string; ops: string }[] = []
+function svgViewBox(svg: string): { width: number; height: number } | null {
+  const m = svg.match(/viewBox="\s*[-\d.]+\s+[-\d.]+\s+([\d.]+)\s+([\d.]+)\s*"/)
+  if (!m) return null
+  return { width: Number(m[1]), height: Number(m[2]) }
+}
 for (const fam of BUILTIN_FAMILY_METADATA) {
   const ex = exById.get(fam.editorExampleId)
   if (!ex) { console.warn('!! no example for', fam.id, '(' + fam.editorExampleId + ')'); continue }
   // themeable inline SVG; idPrefix namespaces marker ids so 12 SVGs coexist on one page
   const svg = stripFont(renderMermaidSVG(ex.source, { bg: 'var(--bg)', fg: 'var(--fg)', accent: 'var(--accent)', transparent: true, idPrefix: fam.id + '-' })
     .replace('--bg:var(--bg);--fg:var(--fg);--accent:var(--accent);', ''))
-  tiles.push({ id: fam.id, label: fam.label, desc: (ex.description || fam.label).trim(), svg })
+  const vb = svgViewBox(svg)
+  const wide = Boolean(vb && (vb.width >= 560 || vb.width / vb.height >= 2))
+  const span = GALLERY_SPAN_FAMILIES.has(fam.id)
+  tiles.push({ id: fam.id, label: fam.label, desc: (ex.description || fam.label).trim(), svg, wide, span, prompt: GALLERY_AGENT_PROMPTS[fam.id] || 'Edit this diagram with typed mutation ops, then verify before returning source.', ops: GALLERY_AGENT_OPS[fam.id] || 'parse · narrow · mutate · verify' })
   if (!CHECK) console.log('  themed', fam.id)
 }
 
 // 2 · inject the gallery grid + families table (registry order)
-const figures = tiles.map((t) =>
-  `    <figure>\n      <div class="plate" role="img" aria-label="${esc(t.label)} diagram">${t.svg}</div>\n      <figcaption><b>${esc(t.label)}</b> — ${esc(t.desc)}</figcaption>\n    </figure>`
-).join('\n')
+const figures = tiles.map((t) => {
+  const cls = t.span ? 'gallery-compact gallery-span' : t.wide ? 'gallery-wide' : 'gallery-compact'
+  return `    <figure class="${cls}" id="${esc(t.id)}">\n      <figcaption><b>${esc(t.label)}</b> – ${esc(t.desc)}</figcaption>\n      <p class="gallery-prompt"><span>Prompt</span> ${esc(t.prompt)}</p>\n      <p class="gallery-ops"><span>Trace</span> <code>${esc(t.ops)}</code></p>\n      <div class="plate" role="img" aria-label="${esc(t.label)} diagram">${t.svg}</div>\n    </figure>`
+}).join('\n')
 let gallery = await Bun.file(M + 'gallery.html').text()
 gallery = gallery.replace(/<div class="gallery">[\s\S]*?<\/div>(\s*<p class="muted">)/,
   `<div class="gallery">\n${figures}\n  </div>$1`)
 await emit(M + 'gallery.html', gallery)
 
-const rows = tiles.map((t) => `      <tr><td><strong>${esc(t.label)}</strong></td><td>${esc(t.desc)}</td></tr>`).join('\n')
+const rows = tiles.map((t) => `      <tr id="${esc(t.id)}"><td><strong>${esc(t.label)}</strong></td><td>${esc(t.desc)}</td></tr>`).join('\n')
 let families = await Bun.file(M + 'families.html').text()
 families = families.replace(/<tbody>[\s\S]*?<\/tbody>/, `<tbody>\n${rows}\n    </tbody>`)
 await emit(M + 'families.html', families)
@@ -100,14 +141,14 @@ await emit(M + 'home.html', home)
 // 2c · the edit-loop figure as ONE themeable inline SVG. Rendered with the
 // engine's documented live-theming mode (bg/fg/accent as CSS vars, transparent),
 // then the cyclic self-refs on the root are stripped so it inherits the page's
-// --bg/--fg/--accent — the diagram recolours with every theme via the engine's
+// --bg/--fg/--accent – the diagram recolours with every theme via the engine's
 // own color-mix(), instead of being two fixed light/dark renders.
 const wfThemeable = renderMermaidSVG(await Bun.file(M + 'diagrams/workflow.mmd').text(),
   { bg: 'var(--bg)', fg: 'var(--fg)', accent: 'var(--accent)', transparent: true })
   .replace('--bg:var(--bg);--fg:var(--fg);--accent:var(--accent);', '')
   .split('\n').filter((l) => !l.includes('fonts.googleapis.com')).join('\n')
 await emit(M + 'diagrams/workflow-themeable.svg', wfThemeable)
-for (const page of ['home.html', 'agents.html', 'editor.html', 'docs-article.html']) {
+for (const page of ['home.html', 'editor.html', 'docs-article.html']) {
   const h = await Bun.file(M + page).text()
   // Idempotent: match the already-injected dia-plate form OR the original
   // hand-authored plate>dia-wrap form, so re-runs pick up token changes too.
@@ -133,7 +174,7 @@ await emit(M + 'schemas/index.json',
   JSON.stringify({ server: 'agentic-mermaid-mcp', tools: tools.map((t) => ({ name: t.name, schema: 'schemas/' + t.name + '.json' })) }, null, 2) + '\n')
 
 const cap = JSON.parse(capJson)
-const server = { command: 'npx', args: ['-y', '--package', 'agentic-mermaid', 'agentic-mermaid-mcp'], transport: 'stdio' }
+const server = { command: 'bun', args: ['run', 'bin/agentic-mermaid-mcp.ts'], transport: 'stdio' }
 const manifest = {
   name: 'agentic-mermaid',
   version: cap.sdkVersion,
@@ -150,13 +191,13 @@ await emit(M + 'agent-manifest.json', JSON.stringify(manifest, null, 2) + '\n')
 const harnesses = {
   default: 'stdio', recommended: 'self-hosted', server,
   clients: [
-    { id: 'claude-code', name: 'Claude Code', register: 'claude mcp add agentic-mermaid -- npx agentic-mermaid-mcp' },
+    { id: 'claude-code', name: 'Claude Code', register: 'claude mcp add agentic-mermaid -- bun run bin/agentic-mermaid-mcp.ts' },
     { id: 'cursor', name: 'Cursor', config: '~/.cursor/mcp.json' },
     { id: 'codex', name: 'Codex', config: 'config.toml [mcp_servers]' },
-    { id: 'gemini-cli', name: 'Gemini CLI', register: 'gemini mcp add agentic-mermaid npx agentic-mermaid-mcp' },
+    { id: 'gemini-cli', name: 'Gemini CLI', register: 'gemini mcp add agentic-mermaid bun run bin/agentic-mermaid-mcp.ts' },
     { id: 'github-copilot', name: 'GitHub Copilot', config: '.vscode/mcp.json' },
     { id: 'pi-opencode', name: 'Pi · OpenCode', config: 'stdio mcp entry' },
-    { id: 'generic', name: 'Generic MCP', register: 'npx agentic-mermaid-mcp' },
+    { id: 'generic', name: 'Generic MCP', register: 'bun run bin/agentic-mermaid-mcp.ts' },
   ],
 }
 await emit(M + 'harnesses.json', JSON.stringify(harnesses, null, 2) + '\n')
@@ -167,7 +208,7 @@ if (CHECK) {
       stale.join('\n  ') + '\nRegenerate with `bun run mockups/site-gen.ts` and commit.')
     process.exit(1)
   }
-  console.log(`site-gen --check: in sync — ${tiles.length} families, ${tools.length} tool schemas.`)
+  console.log(`site-gen --check: in sync – ${tiles.length} families, ${tools.length} tool schemas.`)
 } else {
-  console.log(`\ndone — ${tiles.length} families, ${tools.length} tool schemas, agent surfaces regenerated`)
+  console.log(`\ndone – ${tiles.length} families, ${tools.length} tool schemas, agent surfaces regenerated`)
 }

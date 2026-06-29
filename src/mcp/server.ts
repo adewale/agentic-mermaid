@@ -79,7 +79,7 @@ Set output to "file" or "url" to write a managed artifact instead; artifact resp
 {path?, url?, mimeType, bytes, sha256}. File/URL artifacts are generated under the MCP server's
 artifact directory with safe names, size limits, and TTL cleanup.
 Uses bundled resvg + DejaVu Sans for same-machine cross-runtime determinism where verified.
-Agentic Mermaid outputs ASCII, PNG, and SVG. For non-PNG output (ASCII/SVG), use execute() with mermaid.renderMermaidASCII or mermaid.renderMermaidSVG — those are streaming text and don't need a dedicated tool.`,
+Agentic Mermaid outputs SVG, PNG, ASCII, Unicode, and JSON layout. For non-PNG output, use execute() with mermaid.renderMermaidSVG, mermaid.renderMermaidASCII (useAscii true for ASCII, false for Unicode), or verifyMermaid(...).layout — those are streaming text/data and don't need a dedicated tool.`,
     inputSchema: {
       type: 'object',
       properties: {

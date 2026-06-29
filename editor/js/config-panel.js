@@ -41,7 +41,7 @@ function updateColorUI(key) {
   var btn    = document.querySelector('.color-edit-btn[data-cfg="' + key + '"]');
 
   if (label) {
-    label.textContent = override || (themeVal ? themeVal : '—');
+    label.textContent = override || (themeVal ? themeVal : '–');
     label.style.opacity = override ? '1' : '0.45';
   }
   if (swatch) {
@@ -50,7 +50,9 @@ function updateColorUI(key) {
     swatch.style.opacity = override ? '1' : (themeVal ? '0.6' : '1');
   }
   if (btn) {
+    var labelText = key.charAt(0).toUpperCase() + key.slice(1);
     btn.title = override ? 'Override: ' + override : (themeVal ? 'Theme default: ' + themeVal : 'Not set');
+    btn.setAttribute('aria-label', 'Edit ' + labelText + ' color' + (effective ? ': ' + effective : ''));
   }
 }
 

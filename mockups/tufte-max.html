@@ -3,17 +3,17 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Reading a verify result — Agentic Mermaid (Tufte Max)</title>
+<title>Reading a verify result – Agentic Mermaid (Tufte Max)</title>
 <link rel="icon" href="favicon.svg" type="image/svg+xml">
 <link rel="stylesheet" href="styles.css">
 <style>
   /* ============================================================
-     Tufte Max — an experiment, not a site page. Takes the editor's
+     Tufte Max – an experiment, not a site page. Takes the editor's
      `verify` panel and rebuilds it the way Edward Tufte would: an
      asymmetric measure with a working right margin, the tier
      explanations as true sidenotes, the diagram as a margin figure,
      the metrics as inline sparklines. No grain, no shader, no
-     switcher — the three things the data-ink ratio would cut.
+     switcher – the three things the data-ink ratio would cut.
      ============================================================ */
 
   :root { --grain: 0; }                 /* the grain was chartjunk → zero */
@@ -68,7 +68,7 @@
   }
   .marginfig .cap { display: block; margin-top: 6px; font-size: 12px; color: var(--ink-faint); }
 
-  /* sparklines — word-sized, inline with the prose (data-words) */
+  /* sparklines – word-sized, inline with the prose (data-words) */
   .spark { display: inline-block; width: 60px; height: 15px; vertical-align: -2px; margin: 0 2px; }
   .spark polyline { fill: none; stroke: var(--ink-soft); stroke-width: 1.1; }
   .spark .end { fill: var(--accent); }
@@ -96,14 +96,14 @@
     <span class="brand">
       <span class="mark"><span class="glyph"><svg viewBox="0 0 48 48" fill="none" aria-hidden="true">
         <g stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
-          <polyline points="14,7 14,22 24,38" stroke-width="1.9"/><polyline points="24,4 24,22 24,38" stroke-width="2.3"/><polyline points="34,7 34,22 24,38" stroke-width="1.9"/>
+          <polyline points="14,8.5 14,23.5 24,39.5" stroke-width="1.9"/><polyline points="24,5.5 24,23.5 24,39.5" stroke-width="2.4"/><polyline points="34,8.5 34,23.5 24,39.5" stroke-width="1.9"/>
         </g>
-        <g fill="currentColor"><circle cx="14" cy="7" r="2.5"/><circle cx="24" cy="4" r="2.5"/><circle cx="34" cy="7" r="2.5"/><circle cx="24" cy="38" r="3.2"/></g>
-        <g fill="none" stroke="currentColor" stroke-width="1.3"><circle cx="14" cy="22" r="1.7"/><circle cx="24" cy="22" r="1.7"/><circle cx="34" cy="22" r="1.7"/></g>
+        <g fill="currentColor"><circle cx="14" cy="8.5" r="2.5"/><circle cx="24" cy="5.5" r="2.5"/><circle cx="34" cy="8.5" r="2.5"/><circle cx="24" cy="39.5" r="3.3"/></g>
+        <g fill="none" stroke="currentColor" stroke-width="1.3"><circle cx="14" cy="23.5" r="1.7"/><circle cx="24" cy="23.5" r="1.7"/><circle cx="34" cy="23.5" r="1.7"/></g>
       </svg></span></span>
       Agentic&nbsp;Mermaid
     </span>
-    <span class="links"><a href="#">Editor</a><a href="#">Docs</a><a href="#">Agents</a><a href="https://github.com/adewale/beautiful-mermaid">GitHub</a></span>
+    <span class="links"><a href="#">Editor</a><a href="#">Docs</a><a href="#">Skill</a><a href="https://github.com/adewale/beautiful-mermaid">GitHub</a></span>
   </div>
   <hr>
 </header>
@@ -111,28 +111,28 @@
 <main class="tufte tmax">
   <p class="crumb"><a href="#">Docs</a> / The edit loop / Verify</p>
   <h1>Reading a verify result</h1>
-  <p class="lead">Every edit ends at <code>verify</code>. It answers in three tiers and a few computed metrics — read them, then ship, re-narrow, or stop.</p>
+  <p class="lead">Every edit ends at <code>verify</code>. It answers in three tiers and a few computed metrics – read them, then ship, re-narrow, or stop.</p>
 
   <pre><code>verify(diagram)
 <span class="ok">&#10003; ok</span>   structural 0   geometric 0   lint 1
-<span class="c">// COMMENT_DROPPED line 4 — inline %% comment removed on serialize</span></code></pre>
+<span class="c">// COMMENT_DROPPED line 4 – inline %% comment removed on serialize</span></code></pre>
 
-  <p>The tiers are ordered by severity. A <strong>structural</strong><span class="snref"></span><span class="sidenote">Tier&nbsp;1 — the graph is malformed: a dangling edge, a duplicate id, an edge to a node that isn&rsquo;t there. Structural warnings block <code>serialize</code>; never ship past one. Zero here.</span> warning means the graph itself is malformed, so it blocks <code>serialize</code> outright. A <strong>geometric</strong><span class="snref"></span><span class="sidenote">Tier&nbsp;2 — valid but ugly: overlapping nodes, a label crossing an edge, a port on the wrong side. Advisory, not fatal — an agent may accept them.</span> warning means the layout is valid but ugly — advisory, and an agent may choose to live with it.</p>
+  <p>The tiers are ordered by severity. A <strong>structural</strong><span class="snref"></span><span class="sidenote">Tier&nbsp;1 – the graph is malformed: a dangling edge, a duplicate id, an edge to a node that isn&rsquo;t there. Structural warnings block <code>serialize</code>; never ship past one. Zero here.</span> warning means the graph itself is malformed, so it blocks <code>serialize</code> outright. A <strong>geometric</strong><span class="snref"></span><span class="sidenote">Tier&nbsp;2 – valid but ugly: overlapping nodes, a label crossing an edge, a port on the wrong side. Advisory, not fatal – an agent may accept them.</span> warning means the layout is valid but ugly – advisory, and an agent may choose to live with it.</p>
 
-  <p><strong>Lint</strong><span class="snref"></span><span class="sidenote">Tier&nbsp;3 — style and lossiness: a non-canonical arrow, or a <code>%%</code> comment dropped on serialize because the typed model has nowhere to keep it.</span> is the cosmetic tier — style and lossiness, like the dropped comment<span class="snref"></span><span class="sidenote"><code>COMMENT_DROPPED</code>, line&nbsp;4. The inline comment isn&rsquo;t representable in the model. Move it onto its own line above the node to keep it.</span> flagged on line&nbsp;4. An agent reads the three tiers and decides whether to fix, re-narrow, or stop and ask a human.</p>
+  <p><strong>Lint</strong><span class="snref"></span><span class="sidenote">Tier&nbsp;3 – style and lossiness: a non-canonical arrow, or a <code>%%</code> comment dropped on serialize because the typed model has nowhere to keep it.</span> is the cosmetic tier – style and lossiness, like the dropped comment<span class="snref"></span><span class="sidenote"><code>COMMENT_DROPPED</code>, line&nbsp;4. The inline comment isn&rsquo;t representable in the model. Move it onto its own line above the node to keep it.</span> flagged on line&nbsp;4. An agent reads the three tiers and decides whether to fix, re-narrow, or stop and ask a human.</p>
 
-  <p>Beneath the tiers sit the perceptual metrics — not asserted but computed from the finished layout.<span class="marginnote">Scored by the deterministic rubric in <code>layout-rubric.ts</code>. The same diagram always scores the same, so you can diff a metric across edits and watch it move rather than trust a claim.</span> Across the five edits this diagram took, legibility climbed&nbsp;<svg class="spark" viewBox="0 0 60 15" aria-hidden="true"><polyline points="0,10.8 15,7.4 30,4.9 45,3.4 60,2.5"/><circle class="end" cx="60" cy="2.5" r="1.6"/></svg>&nbsp;to <span class="sparkval">0.98</span> and edge crossings fell&nbsp;<svg class="spark" viewBox="0 0 60 15" aria-hidden="true"><polyline points="0,2 15,6.8 30,6.8 45,11.4 60,14"/><circle class="end" cx="60" cy="14" r="1.6"/></svg>&nbsp;to <span class="sparkval">0</span>.</p>
+  <p>Beneath the tiers sit the perceptual metrics – not asserted but computed from the finished layout.<span class="marginnote">Scored by the deterministic rubric in <code>layout-rubric.ts</code>. The same diagram always scores the same, so you can diff a metric across edits and watch it move rather than trust a claim.</span> Across the five edits this diagram took, legibility climbed&nbsp;<svg class="spark" viewBox="0 0 60 15" aria-hidden="true"><polyline points="0,10.8 15,7.4 30,4.9 45,3.4 60,2.5"/><circle class="end" cx="60" cy="2.5" r="1.6"/></svg>&nbsp;to <span class="sparkval">0.98</span> and edge crossings fell&nbsp;<svg class="spark" viewBox="0 0 60 15" aria-hidden="true"><polyline points="0,2 15,6.8 30,6.8 45,11.4 60,14"/><circle class="end" cx="60" cy="14" r="1.6"/></svg>&nbsp;to <span class="sparkval">0</span>.</p>
 
-  <p>The loop that produced it<span class="marginfig"><img src="diagrams/workflow-light.svg" alt="parse, narrow, mutate, verify, serialize"><span class="cap"><strong>Figure.</strong> The edit loop. <code>verify</code> sits between <code>mutate</code> and <code>serialize</code>; a warning routes the work back to narrow.</span></span> is the familiar one — parse, narrow, mutate, <strong>verify</strong>, serialize. Verify is the gate, and the one step a render-only tool never gives you: it is why an agent can edit a diagram in place instead of regenerating the whole thing and hoping the parts that were already right survive.</p>
+  <p>The loop that produced it<span class="marginfig"><img src="diagrams/workflow-light.svg" alt="parse, narrow, mutate, verify, serialize"><span class="cap"><strong>Figure.</strong> The edit loop. <code>verify</code> sits between <code>mutate</code> and <code>serialize</code>; a warning routes the work back to narrow.</span></span> is the familiar one – parse, narrow, mutate, <strong>verify</strong>, serialize. Verify is the gate, and the one step a render-only tool never gives you: it is why an agent can edit a diagram in place instead of regenerating the whole thing and hoping the parts that were already right survive.</p>
 
   <blockquote>Never return a diagram you have not verified, and never fabricate a passing result. If a structural warning will not clear in two attempts, serialize what you have and ask a human to look.</blockquote>
 
   <p class="endmark">
     <svg viewBox="0 0 48 48" fill="none" role="img" aria-label="End">
       <g stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
-        <polyline points="14,8.5 14,23.5 24,39.5" stroke-width="1.9"/><polyline points="24,5.5 24,23.5 24,39.5" stroke-width="2.3"/><polyline points="34,8.5 34,23.5 24,39.5" stroke-width="1.9"/>
+        <polyline points="14,8.5 14,23.5 24,39.5" stroke-width="1.9"/><polyline points="24,5.5 24,23.5 24,39.5" stroke-width="2.4"/><polyline points="34,8.5 34,23.5 24,39.5" stroke-width="1.9"/>
       </g>
-      <g fill="currentColor"><circle cx="14" cy="8.5" r="2.5"/><circle cx="24" cy="5.5" r="2.5"/><circle cx="34" cy="8.5" r="2.5"/><circle cx="24" cy="39.5" r="3.2"/></g>
+      <g fill="currentColor"><circle cx="14" cy="8.5" r="2.5"/><circle cx="24" cy="5.5" r="2.5"/><circle cx="34" cy="8.5" r="2.5"/><circle cx="24" cy="39.5" r="3.3"/></g>
       <g fill="none" stroke="currentColor" stroke-width="1.3"><circle cx="14" cy="23.5" r="1.7"/><circle cx="24" cy="23.5" r="1.7"/><circle cx="34" cy="23.5" r="1.7"/></g>
     </svg>
   </p>

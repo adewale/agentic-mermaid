@@ -2,12 +2,10 @@
   "default": "stdio",
   "recommended": "self-hosted",
   "server": {
-    "command": "npx",
+    "command": "bun",
     "args": [
-      "-y",
-      "--package",
-      "agentic-mermaid",
-      "agentic-mermaid-mcp"
+      "run",
+      "bin/agentic-mermaid-mcp.ts"
     ],
     "transport": "stdio"
   },
@@ -15,7 +13,7 @@
     {
       "id": "claude-code",
       "name": "Claude Code",
-      "register": "claude mcp add agentic-mermaid -- npx agentic-mermaid-mcp"
+      "register": "claude mcp add agentic-mermaid -- bun run bin/agentic-mermaid-mcp.ts"
     },
     {
       "id": "cursor",
@@ -30,7 +28,7 @@
     {
       "id": "gemini-cli",
       "name": "Gemini CLI",
-      "register": "gemini mcp add agentic-mermaid npx agentic-mermaid-mcp"
+      "register": "gemini mcp add agentic-mermaid bun run bin/agentic-mermaid-mcp.ts"
     },
     {
       "id": "github-copilot",
@@ -45,7 +43,7 @@
     {
       "id": "generic",
       "name": "Generic MCP",
-      "register": "npx agentic-mermaid-mcp"
+      "register": "bun run bin/agentic-mermaid-mcp.ts"
     }
   ]
 }

@@ -7,10 +7,16 @@
 }
 
 :root {
-  /* 6-color foundation — identical to showcase site generator (scripts/site/generate.ts) */
-  --t-bg: #ffffff;
-  --t-fg: #27272a;
-  --t-accent: #3b82f6;
+  /* Shared site foundation: editor chrome uses the same Paper tokens as the public pages.
+     The diagram theme dropdown changes render output, not the app shell. */
+  --t-bg: #F5F0E4;
+  --t-fg: #221E16;
+  --t-accent: #9A4A24;
+  --brand-pine: #6FC2A2;
+  --brand-on: #0A4434;
+  --font-serif: Charter, 'Bitstream Charter', 'Iowan Old Style', 'Palatino Linotype', Palatino, Georgia, serif;
+  --font-sans: 'Avenir Next', Avenir, 'Segoe UI', system-ui, sans-serif;
+  --font-mono: 'SFMono-Regular', 'SF Mono', Menlo, Consolas, 'DejaVu Sans Mono', ui-monospace, monospace;
 
   /* Shadow system */
   --foreground-rgb: 39, 39, 42;
@@ -32,7 +38,7 @@
     rgba(0, 0, 0, calc(var(--shadow-blur-opacity) * 0.33)) 0px 12px 12px 0px,
     rgba(0, 0, 0, calc(var(--shadow-blur-opacity) * 0.33)) 0px 24px 24px 0px;
 
-  /* Semantic colors — derived exactly like the showcase site generator (scripts/site/generate.ts).
+  /* Semantic colors – derived exactly like the showcase site generator (scripts/site/generate.ts).
    * Showcase uses color-mix(in srgb, var(--t-bg) N%, var(--t-fg)) for surfaces
    * and color-mix(in srgb, var(--t-fg) N%, var(--t-bg)) for text/borders.
    * All use SOLID mixes (bg-based), never transparent-based.
@@ -45,22 +51,59 @@
    *
    * Showcase text levels:
    *   primary    = var(--t-fg)
-   *   secondary  = fg 80% + bg  (buttons, controls)
-   *   muted      = fg 50% + bg  (labels, descriptions)
-   *   faint      = fg 35% + bg  (line numbers, placeholders)
+   *   secondary  = fg 96% + bg  (buttons, controls)
+   *   muted      = fg 95% + bg  (labels, descriptions)
+   *   faint      = fg 92% + bg  (line numbers, placeholders)
    */
   --bg: color-mix(in srgb, var(--t-fg) 4%, var(--t-bg));
   --bg2: var(--t-bg);
   --bg3: color-mix(in srgb, var(--t-bg) 97%, var(--t-fg));
   --bg-hover: color-mix(in srgb, var(--t-bg) 92%, var(--t-fg));
-  --border: color-mix(in srgb, var(--t-fg) 5%, var(--t-bg));
+  --foreground-5: color-mix(in srgb, var(--t-fg) 5%, var(--t-bg));
+  --border: color-mix(in srgb, var(--t-fg) 12%, var(--t-bg));
+  --line-strong: color-mix(in srgb, var(--t-fg) 24%, var(--t-bg));
   --fg: var(--t-fg);
-  --fg2: color-mix(in srgb, var(--t-fg) 80%, var(--t-bg));
-  --fg3: color-mix(in srgb, var(--t-fg) 50%, var(--t-bg));
-  --fg4: color-mix(in srgb, var(--t-fg) 35%, var(--t-bg));
+  --fg2: color-mix(in srgb, var(--t-fg) 96%, var(--t-bg));
+  --fg3: color-mix(in srgb, var(--t-fg) 95%, var(--t-bg));
+  --fg4: color-mix(in srgb, var(--t-fg) 70%, var(--t-bg));
   --accent: var(--t-accent);
   --accent2: color-mix(in srgb, var(--t-accent) 80%, var(--t-bg));
-  --radius: 8px;
+  --blue: var(--t-accent);
+
+  /* Site-name aliases for shared primitives. */
+  --paper: var(--t-bg);
+  --ink: var(--t-fg);
+  --ink-soft: var(--fg2);
+  --ink-faint: var(--fg3);
+  --surface: var(--bg3);
+  --chip: var(--bg-hover);
+  --line: var(--border);
+  --link: var(--accent);
+  --accent-hover: color-mix(in srgb, var(--accent) 68%, var(--ink));
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-pill: 999px;
+  --radius: var(--radius-md);
+  --control-h: 40px;
+  --control-px: 12px;
+  --control-bg: var(--surface);
+  --control-bg-hover: var(--chip);
+  --control-fg: var(--ink-soft);
+  --control-border: var(--line-strong);
+  --popover-bg: var(--surface);
+  --shadow-control: var(--shadow-minimal);
+  --shadow-popover: var(--shadow-modal);
+  --t-body: 1rem;
+  --t-sm: 0.875rem;
+  --t-label: 0.8125rem;
+  --t-control: 0.8125rem;
+  --t-mono: 0.84375rem;
+  --lh-tight: 1.1;
+  --lh-heading: 1.25;
+  --lh-body: 1.6;
+  --lh-code: 1.6;
+  --lh-ui: 1.35;
 
   /* Semantic status colors */
   --green: #16a34a;
@@ -76,11 +119,11 @@ body {
 }
 
 body {
-  font-family:
-    "Atkinson Hyperlegible",
-    system-ui,
-    -apple-system,
-    sans-serif;
+  font-family: var(--font-sans);
+  font-size: var(--t-body);
+  font-kerning: normal;
+  line-height: var(--lh-body);
+  font-feature-settings: "kern" 1, "liga" 1;
   background: var(--bg);
   color: var(--fg);
   display: flex;
@@ -104,7 +147,7 @@ body {
 }
 
 :where(button, a, input, textarea, [tabindex]):focus-visible {
-  outline: 2px solid color-mix(in srgb, var(--t-accent) 72%, var(--t-bg));
+  outline: 2px solid color-mix(in srgb, var(--accent) 72%, var(--paper));
   outline-offset: 2px;
 }
 
@@ -123,5 +166,35 @@ body {
     animation-iteration-count: 1 !important;
     scroll-behavior: auto !important;
     transition-duration: 0.01ms !important;
+  }
+}
+
+@media (forced-colors: active) {
+  :root {
+    --t-bg: Canvas;
+    --t-fg: CanvasText;
+    --t-accent: LinkText;
+    --bg: Canvas;
+    --bg2: Canvas;
+    --bg3: Canvas;
+    --bg-hover: ButtonFace;
+    --border: ButtonText;
+    --line-strong: ButtonText;
+    --fg: CanvasText;
+    --fg2: CanvasText;
+    --fg3: CanvasText;
+    --fg4: CanvasText;
+    --accent: LinkText;
+    --control-bg: ButtonFace;
+    --control-bg-hover: ButtonFace;
+    --control-fg: ButtonText;
+    --control-border: ButtonText;
+    --popover-bg: Canvas;
+    --shadow-control: none;
+    --shadow-popover: none;
+  }
+  :where(button, a, input, textarea, [tabindex]):focus-visible {
+    outline: 2px solid Highlight;
+    outline-offset: 3px;
   }
 }

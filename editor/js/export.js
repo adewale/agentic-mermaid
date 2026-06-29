@@ -22,18 +22,27 @@ function updateExportAvailability() {
   });
 }
 
-function toggleExportDropdown(e) {
-  e.stopPropagation();
-  updateExportAvailability();
-  exportDropdown.classList.toggle('open');
-}
-exportChevronBtn.addEventListener('click', toggleExportDropdown);
-exportMainBtn.addEventListener('click', function() {
-  exportPNG();
+var exportPopup = createPopupController({
+  popup: exportDropdown,
+  trigger: exportChevronBtn,
+  visibility: { toggleTriggerClass: false },
+  beforeOpen: updateExportAvailability,
+  afterOpen: function(meta) {
+    if (meta && meta.focusFirst) {
+      var first = exportDropdown.querySelector('button:not(:disabled)');
+      if (first) first.focus();
+    }
+  },
+  contains: function(target) { return !!target.closest('#export-wrap'); },
 });
 
-document.addEventListener('click', function(e) {
-  if (!e.target.closest('#export-wrap')) exportDropdown.classList.remove('open');
+function setExportDropdownOpen(open, focusFirst) {
+  exportPopup.setOpen(open, { focusFirst: !!focusFirst });
+}
+
+exportDropdown.querySelectorAll('button').forEach(function(btn) { btn.setAttribute('role', 'menuitem'); });
+exportMainBtn.addEventListener('click', function() {
+  exportPNG();
 });
 
 document.getElementById('size-pills').addEventListener('click', function(e) {
@@ -87,7 +96,7 @@ function exportPNG() {
     a.href = url; a.download = 'diagram.png'; a.click();
     URL.revokeObjectURL(url);
     showToast('PNG saved (' + exportScale + 'x)');
-    exportDropdown.classList.remove('open');
+    setExportDropdownOpen(false, false);
   });
 }
 
@@ -100,17 +109,12 @@ function exportSVG() {
   a.href = url; a.download = 'diagram.svg'; a.click();
   URL.revokeObjectURL(url);
   showToast('SVG saved!');
-  exportDropdown.classList.remove('open');
+  setExportDropdownOpen(false, false);
 }
 
 function copySVG() {
   var svgEl = getSvgEl(); if (!svgEl) return;
-  navigator.clipboard.writeText(serializeSvg(svgEl)).then(function() {
-    showToast('SVG copied to clipboard!');
-    exportDropdown.classList.remove('open');
-  }).catch(function() {
-    showToast('Copy SVG failed.');
-  });
+  writeClipboardText(serializeSvg(svgEl), 'SVG copied to clipboard!', 'Copy SVG failed.', document.getElementById('copy-svg-btn'));
 }
 
 function copyImage() {
@@ -118,19 +122,20 @@ function copyImage() {
   svgToPngBlob(svgEl, exportScale, function(blob) {
     try {
       navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]).then(function() {
+        setCopyFeedback(document.getElementById('copy-image-btn'), 'ok');
         showToast('Image copied to clipboard!');
-        exportDropdown.classList.remove('open');
+        setExportDropdownOpen(false, false);
+      }).catch(function() {
+        setCopyFeedback(document.getElementById('copy-image-btn'), 'err');
+        showToast('Copy PNG failed.');
       });
-    } catch(e) { showToast('Copy not supported in this browser.'); }
+    } catch(e) { setCopyFeedback(document.getElementById('copy-image-btn'), 'err'); showToast('Copy not supported in this browser.'); }
   });
 }
 
 function copyURL() {
   updateHash();
-  navigator.clipboard.writeText(window.location.href).then(function() {
-    showToast('URL copied to clipboard!');
-    exportDropdown.classList.remove('open');
-  });
+  writeClipboardText(window.location.href, 'URL copied to clipboard!', 'Copy link failed.', document.getElementById('copy-link-btn'));
 }
 
 document.getElementById('export-png-btn').addEventListener('click', exportPNG);
@@ -142,8 +147,6 @@ updateExportAvailability();
 
 document.addEventListener('keydown', function(e) {
   if (e.target === editor) return;
-  if ((e.metaKey || e.ctrlKey) && !e.shiftKey && e.key === 's') { e.preventDefault(); exportPNG(); }
-  if ((e.metaKey || e.ctrlKey) &&  e.shiftKey && e.key === 'S') { e.preventDefault(); exportSVG(); }
-  if ((e.metaKey || e.ctrlKey) && !e.shiftKey && e.key === 'c') { e.preventDefault(); copyImage(); }
-  if ((e.metaKey || e.ctrlKey) &&  e.shiftKey && e.key === 'C') { e.preventDefault(); copyURL(); }
+  if ((e.metaKey || e.ctrlKey) && !e.shiftKey && e.key.toLowerCase() === 's') { e.preventDefault(); exportPNG(); }
+  if ((e.metaKey || e.ctrlKey) &&  e.shiftKey && e.key.toLowerCase() === 's') { e.preventDefault(); exportSVG(); }
 });

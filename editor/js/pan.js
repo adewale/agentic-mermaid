@@ -2,11 +2,17 @@ var panBtn = document.getElementById('pan-btn');
 var panActive = false;
 var panStart = null;
 
+function syncPanButton() {
+  panBtn.classList.toggle('active', panActive);
+  panBtn.setAttribute('aria-pressed', panActive ? 'true' : 'false');
+  previewBody.classList.toggle('pan-mode', panActive);
+}
+
 panBtn.addEventListener('click', function() {
   panActive = !panActive;
-  panBtn.classList.toggle('active', panActive);
-  previewBody.classList.toggle('pan-mode', panActive);
+  syncPanButton();
 });
+syncPanButton();
 
 previewBody.addEventListener('mousedown', function(e) {
   var shouldPan = panActive || e.metaKey || e.ctrlKey;

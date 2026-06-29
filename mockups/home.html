@@ -6,45 +6,115 @@
 <title>Agentic Mermaid</title>
 <link rel="icon" href="favicon.svg" type="image/svg+xml">
 <link rel="stylesheet" href="styles.css">
-<script>(function(){try{var t=localStorage.getItem('am-theme');if(!t)t=(window.matchMedia&&matchMedia('(prefers-color-scheme:dark)').matches)?'dusk':'paper';var L={'paper':1,'pine-light':1,'zinc-light':1,'github-light':1,'solarized-light':1,'catppuccin-latte':1,'nord-light':1,'tokyo-night-light':1,'salmon':1,'tufte':1};if(t!=='paper')document.documentElement.setAttribute('data-theme',t);document.documentElement.setAttribute('data-scheme',L[t]?'light':'dark');}catch(e){}})();</script>
 </head>
 <body>
 
 <header class="masthead">
   <div class="bar">
-    <span class="brand"><span class="mark"></span> Agentic&nbsp;Mermaid</span>
-    <span class="links"><a href="editor.html">Editor</a><a href="gallery.html">Gallery</a><a href="docs-article.html">Docs</a><a href="agents.html">Agents</a><a href="https://github.com/adewale/beautiful-mermaid">GitHub</a></span>
-    <div class="theme-switch">
-      <button class="theme-btn" aria-haspopup="true" aria-expanded="false" aria-label="Theme"><span class="sw"></span><span class="name">Paper</span><span class="chev"></span></button>
-      <div class="theme-menu" role="menu"></div>
-    </div>
+    <a class="brand" href="home.html"><span class="mark"></span> Agentic&nbsp;Mermaid</a>
+    <span class="links"><a href="gallery.html">Gallery</a><a href="families.html">Families</a><a href="docs-article.html">Docs</a><a class="link-editor" href="editor.html">Open editor</a><a class="link-external" href="https://github.com/adewale/beautiful-mermaid" aria-label="GitHub repository (external)">GitHub</a></span>
   </div>
   <hr>
 </header>
 
-<main class="doc">
+<main class="doc home-main">
 
   <h1>Diagrams your agents can edit</h1>
-  <p class="lead">Render Mermaid to SVG, PNG, ASCII, or Unicode, then parse, verify, and safely mutate it through a typed surface built for agents.</p>
-  <p>Layout is deterministic: identical input produces identical geometry. Anything the model cannot represent round-trips losslessly through preserved source, so nothing is silently dropped.</p>
+  <p class="lead">Agentic Mermaid turns Mermaid diagrams into files your docs, pull requests, and terminals can use: SVG and PNG for pages, ASCII and Unicode for text surfaces. It also gives coding agents a safe editing path for existing diagrams, so they can parse the source, change the intended node or edge, verify the result, and hand back Mermaid you can review instead of redrawing the whole diagram from scratch.</p>
+
+  <section class="agent-hero agent-hero-primary" aria-labelledby="agent-prompt-title">
+    <div class="agent-hero-head">
+      <p class="agent-kicker meta-label">Start here</p>
+      <h2 id="agent-prompt-title">Copy the agent contract</h2>
+      <p>Give your coding agent the loop first. Use the prompt for one task, or copy the MCP config to wire the local stdio server into your harness.</p>
+    </div>
+    <div class="copy-prompt-card copy-prompt-primary" data-copy-widget data-copy-name="Prompt">
+      <div class="copy-prompt-bar">
+        <span class="copy-prompt-label meta-label">Prompt</span>
+        <button class="copy-prompt-btn" type="button" data-copy-target="home-agent-prompt" data-copy-name="Prompt" aria-describedby="home-copy-status">
+          <span class="copy-prompt-icon" aria-hidden="true"></span>
+          <span>Copy prompt</span>
+        </button>
+      </div>
+      <pre class="agent-prompt"><code id="home-agent-prompt">Use Agentic Mermaid locally.
+
+Task: Replace this with your edit request and include the Mermaid source.
+Example task: Add a failure branch from Verify back to Narrow in the pasted flowchart.
+
+Mermaid source:
+&lt;paste your diagram here&gt;
+
+Rules:
+- Do not call the website as a render API.
+- Parse with parseMermaid first.
+- Narrow with the matching as* helper.
+- Use typed mutate operations when the family supports them.
+- Run verifyMermaid before serialize, render, commit, or return.
+- If structural warnings remain after two attempts, return the warnings and ask for review.
+
+Expected trace:
+parseMermaid → asFlowchart → mutate(add_edge) → verifyMermaid → serializeMermaid</code></pre>
+      <p class="copy-prompt-status" id="home-copy-status" role="status" aria-live="polite"></p>
+    </div>
+    <div class="copy-prompt-card agent-config" data-copy-widget data-copy-name="MCP config">
+      <div class="copy-prompt-bar">
+        <span class="copy-prompt-label meta-label">MCP config</span>
+        <button class="copy-prompt-btn" type="button" data-copy-target="home-mcp-config" data-copy-name="MCP config" aria-describedby="home-mcp-copy-status">
+          <span class="copy-prompt-icon" aria-hidden="true"></span>
+          <span>Copy MCP config</span>
+        </button>
+      </div>
+      <pre class="agent-prompt"><code id="home-mcp-config">{
+  "mcpServers": {
+    "agentic-mermaid": {
+      "command": "bun",
+      "args": ["run", "bin/agentic-mermaid-mcp.ts"]
+    }
+  }
+}</code></pre>
+      <p class="copy-prompt-hint">Run from the cloned repo root, or replace <code>bin/agentic-mermaid-mcp.ts</code> with an absolute path.</p>
+      <p class="copy-prompt-status" id="home-mcp-copy-status" role="status" aria-live="polite"></p>
+    </div>
+    <div class="agent-actions">
+      <a class="go" href="editor.html">Open editor</a>
+      <a class="go" href="harnesses.json">harnesses.json</a>
+    </div>
+  </section>
+
+  <nav class="agent-entrypoints" aria-label="Agent entrypoints">
+    <strong>Machine context</strong>
+    <a href="llms.txt">llms.txt</a>
+    <a href="agent-instructions.md">agent-instructions.md</a>
+    <a href="agent-manifest.json">agent-manifest.json</a>
+    <a href="capabilities.json">capabilities.json</a>
+    <a href="harnesses.json">harnesses.json</a>
+    <a href="schemas/index.json">schemas</a>
+    <a href="examples/index.json">examples</a>
+    <a href="recipes/index.json">recipes</a>
+    <a href="skills/index.json">skills index</a>
+    <a href="/skills/agentic-mermaid-diagram-workflow/">workflow skill</a>
+  </nav>
 
   <hr>
 
-  <h2>Start</h2>
-  <p>Three ways in.</p>
-  <ul>
-    <li><strong>Try it in the browser.</strong> Paste Mermaid, get SVG/PNG and text output, copy a share link. <a class="go" href="editor.html">Open the editor</a></li>
-    <li><strong>Install locally</strong> — library, CLI, or a local MCP server over stdio:</li>
-  </ul>
-  <pre><code><span class="k">$</span> npm i agentic-mermaid
-<span class="k">$</span> npx agentic-mermaid-mcp      <span class="c"># stdio by default; HTTP is opt-in</span></code></pre>
-  <ul>
-    <li><strong>Configure an agent.</strong> <code>am init-agent</code> wires it into Claude Code, Cursor, Codex, Gemini CLI, GitHub Copilot, Pi, OpenCode, or any generic MCP client.</li>
-  </ul>
+  <h2>How the edit loop stays safe</h2>
+  <ol class="workflow-list">
+    <li><strong>Parse.</strong> Start from Mermaid source, not a screenshot or regenerated guess.</li>
+    <li><strong>Narrow.</strong> Resolve the request to a family-specific surface like <code>asFlowchart</code>, <code>asSequence</code>, or <code>asGantt</code>.</li>
+    <li><strong>Mutate.</strong> Change the intended node, edge, task, relation, or event while unmodeled syntax remains preserved source.</li>
+    <li><strong>Verify.</strong> Read structural, geometric, and lint tiers before serializing or returning artifacts.</li>
+  </ol>
+  <p class="agent-trace" aria-label="Expected agent trace"><span>parseMermaid</span><span>asFlowchart</span><span>mutate(add_edge)</span><span>verifyMermaid</span><span>serializeMermaid</span></p>
 
-  <hr>
+  <h2 id="local-setup">Local setup</h2>
+  <p>Self-hosting over stdio is the default path. The website is documentation plus a browser-local editor; it is not a render API and it does not run hosted Code Mode.</p>
+  <pre><code><span class="k">$</span> git clone https://github.com/adewale/beautiful-mermaid
+<span class="k">$</span> cd beautiful-mermaid && bun install && bun run build
+<span class="k">$</span> bun run bin/am.ts --help
+<span class="k">$</span> bun run bin/agentic-mermaid-mcp.ts      <span class="c"># stdio MCP</span></code></pre>
+  <p class="muted">Claude Code, Cursor, Codex, Gemini CLI, GitHub Copilot, Pi, OpenCode, and generic MCP clients all use the same local command. Client-specific setup is exposed in <a href="harnesses.json">harnesses.json</a>.</p>
 
-  <h2>One model, four ways out</h2>
+  <h2>One model, five outputs</h2>
   <p>Every family renders to vector, raster, and text from one layout, byte-identical across processes. Outputs: SVG, PNG, ASCII, Unicode, and JSON layout, across twelve diagram families.</p>
 
   <figure>
@@ -122,21 +192,13 @@
   </figure>
 
   <p>The same diagram as Unicode text:</p>
-  <pre><code>┌─────────────┐     ┌───────┐     ┌────────┐     ┌──────────┐     ◇────────◇     ┌────────────────────┐
+  <pre class="unicode-diagram"><code>┌─────────────┐     ┌───────┐     ┌────────┐     ┌──────────┐     ◇────────◇     ┌────────────────────┐
 │             │     │       │     │        │     │          │     │        │     │                    │
 │ Source .mmd ├────►│ parse ├────►│ narrow ├────►│  mutate  ├────►│ verify ├─ok─►│ serialize → render │
 │             │     │       │     │        │     │          │     │        │     │                    │
 └─────────────┘     └───────┘     └────────┘     └──────────┘     ◇────┬───◇     └────────────────────┘
                                        ▲                               │
                                        └───────────warnings────────────┘</code></pre>
-
-  <hr>
-
-  <h2>Edit one node without regenerating the diagram</h2>
-  <p>A render-only library makes an agent regenerate the whole diagram to move one node. Here, existing diagrams go <strong>parse &rarr; narrow &rarr; mutate &rarr; verify &rarr; serialize</strong>, and <code>verify</code> returns structured warnings in three tiers plus perceptual quality metrics. An agent reads the tiers and decides whether to fix, re-narrow, or stop and ask a human.</p>
-
-  <h2>Local by default</h2>
-  <p>Run the library, the <code>am</code> CLI, or a local MCP server over stdio. Code Mode <code>execute</code> stays local, for trusted use only. An optional hosted MCP exposes only <code>render</code>, <code>verify</code>, <code>describe</code>, and structured edits, authless and rate-limited, with no arbitrary code. Self-hosting is the recommended path.</p>
 
 </main>
 

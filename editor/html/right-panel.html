@@ -19,7 +19,7 @@
           <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/>
         </svg>
       </button>
-      <button class="toolbar-btn" id="pan-btn" type="button" title="Pan (hold to drag)" aria-label="Pan preview">
+      <button class="toolbar-btn" id="pan-btn" type="button" title="Pan (hold to drag)" aria-label="Pan preview" aria-pressed="false">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <path d="M18 11V6a2 2 0 0 0-2-2 2 2 0 0 0-2 2"/>
           <path d="M14 10V4a2 2 0 0 0-2-2 2 2 0 0 0-2 2v2"/>
@@ -37,11 +37,42 @@
       <div class="preview-placeholder" id="preview-placeholder">
         <span class="placeholder-kicker">Blank canvas</span>
         <strong class="placeholder-title">No diagram yet</strong>
-        <span class="placeholder-copy">Start typing Mermaid syntax, or load a preset to see SVG output.</span>
+        <span class="placeholder-copy">Start typing Mermaid syntax, or load a preset to see SVG, Unicode, and ASCII output.</span>
         <button class="placeholder-example-btn" type="button" data-action="load-example">Load an example</button>
       </div>
     </div>
   </div>
+
+  <section class="verify-panel" aria-label="Verification status">
+    <div class="verify-panel-head">
+      <span class="verify-label">Verify</span>
+      <span class="verify-summary" id="verify-summary">Waiting for source</span>
+    </div>
+    <div class="verify-tiers" role="list" aria-label="Warning tiers">
+      <div class="verify-tier" id="verify-tier-structural" role="listitem">
+        <span class="verify-dot" aria-hidden="true"></span><strong>Structural</strong><span id="verify-structural">Not run</span>
+      </div>
+      <div class="verify-tier" id="verify-tier-geometric" role="listitem">
+        <span class="verify-dot" aria-hidden="true"></span><strong>Geometric</strong><span id="verify-geometric">Not run</span>
+      </div>
+      <div class="verify-tier" id="verify-tier-lint" role="listitem">
+        <span class="verify-dot" aria-hidden="true"></span><strong>Lint</strong><span id="verify-lint">Not run</span>
+      </div>
+    </div>
+  </section>
+
+  <section class="text-output-panel" aria-label="Text output">
+    <div class="text-output-toolbar">
+      <span class="text-output-label">Text output</span>
+      <div class="text-output-tabs" role="tablist" aria-label="Output format">
+        <button class="text-output-tab active" id="unicode-output-tab" type="button" role="tab" aria-selected="true" aria-controls="unicode-output-wrap" data-output-tab="unicode">Unicode</button>
+        <button class="text-output-tab" id="ascii-output-tab" type="button" role="tab" aria-selected="false" aria-controls="ascii-output-wrap" tabindex="-1" data-output-tab="ascii">ASCII</button>
+      </div>
+      <button class="toolbar-btn" id="copy-text-output-btn" type="button" title="Copy selected text output" aria-label="Copy selected text output">Copy</button>
+    </div>
+    <pre class="text-output active" id="unicode-output-wrap" role="tabpanel" aria-labelledby="unicode-output-tab"><code id="unicode-output">Render a valid diagram to see Unicode output.</code></pre>
+    <pre class="text-output" id="ascii-output-wrap" role="tabpanel" aria-labelledby="ascii-output-tab" hidden><code id="ascii-output">Render a valid diagram to see ASCII output.</code></pre>
+  </section>
 
   <div class="preview-footer">
     <span id="render-time"></span>

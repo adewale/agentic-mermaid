@@ -1,7 +1,8 @@
 <section class="panel-left" id="panel-left" aria-label="Source editor and diagram settings">
   <!-- Code editor view -->
-  <div class="editor-wrap" id="editor-view">
+  <div class="editor-wrap" id="editor-view" role="region" aria-label="Source editor" aria-hidden="false">
     <div class="line-numbers" id="line-numbers">1</div>
+    <label class="sr-only" for="code-editor">Mermaid source</label>
     <textarea
       class="code-editor"
       id="code-editor"
@@ -9,54 +10,55 @@
       autocomplete="off"
       autocorrect="off"
       autocapitalize="off"
-      placeholder="Enter mermaid diagram syntax here…"
+      aria-label="Mermaid source"
+      placeholder="Enter Mermaid diagram syntax here…"
     ></textarea>
   </div>
 
   <!-- Config view -->
-  <div class="config-panel" id="config-view">
+  <div class="config-panel" id="config-view" role="region" aria-label="Style settings" hidden aria-hidden="true">
     <!-- Colors section -->
     <div class="config-section">
       <div class="config-section-title">Colors</div>
       <div class="color-field">
         <span class="color-field-label">Background</span>
-        <button class="color-edit-btn" type="button" data-cfg="bg">
-          <span class="cfg-hex-label" id="cfg-bg-label">—</span>
+        <button class="color-edit-btn" type="button" aria-haspopup="dialog" aria-expanded="false" aria-controls="color-popup" data-cfg="bg" aria-label="Edit background color">
+          <span class="cfg-hex-label" id="cfg-bg-label">–</span>
           <span class="color-swatch" id="cfg-bg-swatch"></span>
         </button>
       </div>
       <div class="color-field">
         <span class="color-field-label">Foreground</span>
-        <button class="color-edit-btn" type="button" data-cfg="fg">
-          <span class="cfg-hex-label" id="cfg-fg-label">—</span>
+        <button class="color-edit-btn" type="button" aria-haspopup="dialog" aria-expanded="false" aria-controls="color-popup" data-cfg="fg" aria-label="Edit foreground color">
+          <span class="cfg-hex-label" id="cfg-fg-label">–</span>
           <span class="color-swatch" id="cfg-fg-swatch"></span>
         </button>
       </div>
       <div class="color-field">
         <span class="color-field-label">Accent</span>
-        <button class="color-edit-btn" type="button" data-cfg="accent">
-          <span class="cfg-hex-label" id="cfg-accent-label">—</span>
+        <button class="color-edit-btn" type="button" aria-haspopup="dialog" aria-expanded="false" aria-controls="color-popup" data-cfg="accent" aria-label="Edit accent color">
+          <span class="cfg-hex-label" id="cfg-accent-label">–</span>
           <span class="color-swatch" id="cfg-accent-swatch"></span>
         </button>
       </div>
       <div class="color-field">
         <span class="color-field-label">Line</span>
-        <button class="color-edit-btn" type="button" data-cfg="line">
-          <span class="cfg-hex-label" id="cfg-line-label">—</span>
+        <button class="color-edit-btn" type="button" aria-haspopup="dialog" aria-expanded="false" aria-controls="color-popup" data-cfg="line" aria-label="Edit line color">
+          <span class="cfg-hex-label" id="cfg-line-label">–</span>
           <span class="color-swatch" id="cfg-line-swatch"></span>
         </button>
       </div>
       <div class="color-field">
         <span class="color-field-label">Muted</span>
-        <button class="color-edit-btn" type="button" data-cfg="muted">
-          <span class="cfg-hex-label" id="cfg-muted-label">—</span>
+        <button class="color-edit-btn" type="button" aria-haspopup="dialog" aria-expanded="false" aria-controls="color-popup" data-cfg="muted" aria-label="Edit muted text color">
+          <span class="cfg-hex-label" id="cfg-muted-label">–</span>
           <span class="color-swatch" id="cfg-muted-swatch"></span>
         </button>
       </div>
       <div class="color-field">
         <span class="color-field-label">Surface</span>
-        <button class="color-edit-btn" type="button" data-cfg="surface">
-          <span class="cfg-hex-label" id="cfg-surface-label">—</span>
+        <button class="color-edit-btn" type="button" aria-haspopup="dialog" aria-expanded="false" aria-controls="color-popup" data-cfg="surface" aria-label="Edit surface color">
+          <span class="cfg-hex-label" id="cfg-surface-label">–</span>
           <span class="color-swatch" id="cfg-surface-swatch"></span>
         </button>
       </div>
@@ -67,7 +69,7 @@
       <div class="config-section-title">Typography</div>
       <div class="font-field">
         <span class="font-field-label">Font family</span>
-        <button class="font-select-btn" id="font-select-btn" type="button">
+        <button class="font-select-btn" id="font-select-btn" type="button" aria-label="Choose diagram font family" aria-haspopup="listbox" aria-expanded="false" aria-controls="font-popup">
           <span id="font-select-label">Default</span>
           <span class="font-select-caret">▼</span>
         </button>
@@ -79,7 +81,7 @@
       <div class="config-section-title">Layout</div>
       <div class="padding-field">
         <div class="padding-row">
-          <label>Padding</label>
+          <label for="cfg-padding">Padding</label>
           <input
             class="padding-num"
             id="cfg-padding"
@@ -93,6 +95,7 @@
           class="padding-slider"
           id="cfg-padding-slider"
           type="range"
+          aria-label="Padding"
           min="0"
           max="120"
           value="24"
@@ -100,7 +103,7 @@
       </div>
       <div class="padding-field">
         <div class="padding-row">
-          <label>Edge stroke</label>
+          <label for="cfg-edge-stroke">Edge stroke</label>
           <input
             class="padding-num"
             id="cfg-edge-stroke"
@@ -115,6 +118,7 @@
           class="padding-slider"
           id="cfg-edge-stroke-slider"
           type="range"
+          aria-label="Edge stroke"
           min="0.25"
           max="6"
           step="0.25"
@@ -123,7 +127,7 @@
       </div>
       <div class="padding-field">
         <div class="padding-row">
-          <label>Node border</label>
+          <label for="cfg-node-stroke">Node border</label>
           <input
             class="padding-num"
             id="cfg-node-stroke"
@@ -138,6 +142,7 @@
           class="padding-slider"
           id="cfg-node-stroke-slider"
           type="range"
+          aria-label="Node border"
           min="0.25"
           max="6"
           step="0.25"
@@ -148,13 +153,15 @@
   </div>
 
   <!-- Color picker popup (shared) -->
-  <div class="color-popup" id="color-popup">
+  <div class="color-popup" id="color-popup" role="dialog" aria-modal="false" aria-labelledby="color-popup-title" aria-hidden="true" inert>
     <div class="color-popup-header">
       <span class="color-popup-title" id="color-popup-title">Color</span>
       <button class="color-popup-close" id="color-popup-close" type="button" aria-label="Close color picker">×</button>
     </div>
     <div class="color-hex-row">
+      <label class="sr-only" for="color-native-input">Native color picker</label>
       <input type="color" class="color-native" id="color-native-input" />
+      <label class="sr-only" for="color-hex-input">Hex color value</label>
       <input
         type="text"
         class="color-hex-input"
@@ -169,7 +176,7 @@
   </div>
 
   <!-- Font picker popup -->
-  <div class="font-popup" id="font-popup">
+  <div class="font-popup" id="font-popup" aria-hidden="true" inert>
     <div class="font-search-wrap">
       <svg
         class="font-search-icon"
@@ -185,9 +192,10 @@
         <circle cx="11" cy="11" r="8" />
         <line x1="21" y1="21" x2="16.65" y2="16.65" />
       </svg>
+      <label class="sr-only" for="font-search">Search fonts</label>
       <input class="font-search" id="font-search" placeholder="Quick search" />
     </div>
-    <div class="font-list" id="font-list"></div>
+    <div class="font-list" id="font-list" role="listbox" aria-label="Font choices"></div>
   </div>
 
   <div class="status-bar">

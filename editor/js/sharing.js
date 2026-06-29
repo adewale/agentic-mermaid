@@ -23,6 +23,11 @@ function getHashSource() {
   return decodeSource(hash) || null;
 }
 
+function getQueryExampleId() {
+  try { return new URLSearchParams(window.location.search).get('example') || ''; }
+  catch(e) { return ''; }
+}
+
 function updateHash() {
   var obj = { source: editor.value };
   if (state.theme) obj.theme = state.theme;

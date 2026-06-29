@@ -1,62 +1,38 @@
 # Site mockups — `agentic-mermaid.dev`
 
-Design-exploration mockups for the Agentic Mermaid website (the Path B /
-[PR #27](https://github.com/adewale/beautiful-mermaid/pull/27) spec). These are
-static concepts, not the production site: they are not wired to the spec's
-generated routes or machine manifests.
+Design-exploration source files for the Agentic Mermaid website (the Path B /
+[PR #27](https://github.com/adewale/beautiful-mermaid/pull/27) spec). The
+Cloudflare Workers Static Assets site now lives in `website/`; its build step
+converts these mockups into clean routes and adds the spec's machine-readable
+manifests, schemas, recipes, examples, and public skill surface.
 
 ## Pages
 
-- `home.html` — landing + three-way start rail (`/`).
+- `home.html` — landing, agent prompt/MCP CTAs, edit loop, and local setup (`/`).
 - `editor.html` — editor workbench with SVG/Unicode output and the tiered `verify` panel (`/editor`).
-- `agents-harnesses.html` — local-MCP setup cards per harness (`/agents/harnesses`).
-- `docs-article.html` — a `/docs` reading page in an editorial idiom.
+- `skill-workflow.html` — public workflow-skill landing (`/skills/agentic-mermaid-diagram-workflow/`).
+- `docs-article.html` — a `/docs` reading page using the same document column,
+  masthead, typography, and control primitives as the rest of the site.
 - `states.html`, `alternatives.html` — craft reference sheets, not site routes.
 - `tufte-max.html` — an experiment, not a site page: the editor's `verify` panel
-  rebuilt in full Tufte idiom — an asymmetric measure with a working right
-  margin, the tier explanations as true **sidenotes**, the diagram as a **margin
-  figure**, the metrics as inline **sparklines**, and none of the grain, shader,
-  or switcher the data-ink ratio would cut.
+  rebuilt in full Tufte idiom.
 
-## Editorial docs surfaces — the Tufte treatment (`docs-article.html`)
+## Editorial docs surfaces — same primitives as the site
 
-The reading surfaces under `/docs` follow A List Apart and Jeffrey Zeldman —
-type-led, web-standards, accent only in links — and take the long-form page into
-**Edward Tufte's idiom**: a **serif reading column with sans-serif headers** (the
-inverse of the marketing pages' serif-display/sans-body, and closer to a printed
-manual), set on an **asymmetric measure** (a ~58% reading column, the rest a
-working right margin) rather than a centred column with dead margins. The
-editorial furniture is there — masthead and tagline, a deck/standfirst, a
-hairline byline crediting `capabilities.json`, numbered sections, a captioned
-figure, a stop-rule set between rules rather than in a tinted box — but the
-margin now does work:
-
-- the `verify` tiers (**structural / geometric / lint**) are explained as true
-  **sidenotes** — numbered notes that sit line-adjacent to their referent, no
-  footnote round-trip — with the metric provenance as an unnumbered margin note;
-- the quality metrics are **sparklines**, word-sized graphics inline in the prose
-  (legibility `0.98`, edge crossings `0`), not a low-density table.
-
-Crucially this **layers on top of the live theme system**, not instead of it: the
-sidenotes and sparklines read the themed `--ink-soft` / `--accent` / `--line`, so
-they re-skin with the switcher (the numbers and sparkline dots take each theme's
-accent), and the grain, switcher, and shader mark all stay. The layout is scoped
-to the page via a `.tufte-docs` body class. Under `760px` the margin has nowhere
-to go, so notes become **tap-to-reveal**: each number — and a `⊞` for the
-unnumbered margin note — is a `<label>` tied to a hidden checkbox, so tapping it
-opens that note inline as an indented, left-ruled block right where it is cited,
-and the sentence reads uninterrupted until you ask for a note. (The checkbox hack
-means no JS; the trade-off is the toggle isn't keyboard-focusable.) `tufte-max.html`
-is the standalone, maximalist version of the same idea (no switcher, no grain, no
-shader); this is the shippable read.
+The `/docs` route is intentionally no longer a separate visual system. It uses
+`styles.css` for the same masthead, centred `70ch` document measure, heading
+scale, code blocks, figures, copy/status widgets, and note primitive as the
+landing, gallery, families, skill, and docs pages. The docs page may still contain explanatory
+notes and sparklines, but they are ordinary reusable prose primitives rather than
+a page-scoped asymmetric Tufte layout.
 
 ## Controls (no pills)
 
 Pills read soft and consumer, which fights the precise manual/workbench voice.
 Buttons use an 8px radius (the same family as the 7px mark and 8px inputs), tags
-are squared 6px chips with a leading status dot, and the editor's output switch
-is an underlined tab bar. `alternatives.html` shows the options compared
-(soft-square vs sharp; chip+dot vs mono-bracket vs keyline; tabs vs boxed).
+are squared 6px chips with a leading status dot, and editor pane controls are
+segmented controls rather than pseudo-tabs. `alternatives.html` shows the older
+options compared as design history.
 
 ## Themed, sparse, document-first
 
@@ -67,60 +43,25 @@ code blocks, blockquotes, tables, and figures — with no cards, panels, grids, 
 shadows. Links are the only accent. The masthead is a single quiet line (mark,
 wordmark, text links, a switcher, a hairline) rather than an app nav.
 
-## Theme switcher — every renderer theme, brand held constant
+## Theme boundary — public shell fixed, diagram themes editor-only
 
-The switcher carries **every theme in the renderer's registry** (`src/theme.ts`)
-— Zinc, GitHub, Solarized, Catppuccin, Nord, Tokyo Night, Dracula, One Dark,
-Salmon, Tufte, in their light and dark variants — plus **Pine**, our dark-green
-default. It echoes the GitHub Pages switcher (named palettes with colour
-swatches) but as a single quiet trigger that opens a smooth, grouped, scrollable
-dropdown, with the whole page **colour-crossfading** (0.35s) on change. Choice
-persists in `localStorage`, with an inline head guard against a flash of the
-default.
+The public site no longer has a global theme picker. Paper/Dusk site chrome is a
+brand surface, not a renderer-theme preview. Diagram themes live in the editor's
+explicit **Diagram theme** dropdown and change render output only; they must not
+retint the public masthead, prose, logo, or docs shell.
 
-Carrying ~20 palettes without 20 hand-tuned blocks — and without letting any of
-them restyle the product — needs structure. `styles.css` is **three layers**:
-
-1. **Brand** (`:root`, `--brand-*`) — *constant.* The logo chip (a lighter,
-   tonal green — `--brand-pine` plus the shader's `--m-deep`/`--m-mid`/`--m-sweep`
-   and a deep-green glyph `--brand-on`, never white), the grain texture (`body::before`,
-   a desaturated `feTurbulence`), and the type. **No `[data-theme]` or
-   `[data-scheme]` block restyles these, and the brand elements read only from
-   this layer** — never from `--bg`/`--fg`. That is the isolation seam: switching
-   the palette cannot touch the logo, the texture, or the fonts. The grain
-   *recipe* is constant; only its `--grain` opacity is calibrated per scheme (in
-   layer 3) — dark noise on a light base needs more to read than light noise
-   lifting off a dark base — so the texture *feels* even rather than fading out
-   on the light themes.
-2. **Theme** (`[data-theme]`) — *swappable.* A theme supplies only a **triplet**
-   — `--bg`, `--fg`, `--accent` — and the whole hierarchy (`--ink-soft`,
-   `--line`, `--chip`, `--surface`, …) is **derived from it with `color-mix()`**,
-   the same trick the renderer's own `buildStyleBlock` uses. A new theme is three
-   numbers, so the registry maps onto the switcher cheaply.
-3. **Scheme** (`[data-scheme="light|dark"]`, set by `theme.js` alongside the
-   theme) — the few tokens that genuinely depend on polarity: the diagram plate,
-   the mark ring, the code panel, the light/dark **diagram swap**, and the
-   `--grain` opacity that keeps the brand texture feeling even (0.07 dark / 0.15
-   light).
-
-Each diagram ships a light and a dark render (`workflow-{light,dark}.svg`,
-re-themed via a `themeVariables` init directive in the source) and crossfades to
-match the scheme; the plate matches each render's own background so the figure
-reads as one framed object on any page colour. The diagrams previously clashed
-because there is no stock dark-green Mermaid theme (our pine accent is nearest
-`forest`), so the figures carry an explicit dark palette that matches the page.
-
-`states.html` and `alternatives.html` are kept only as design-history reference
-sheets; a small legacy-component block at the end of `styles.css` exists solely
-so they still render in dark. They are not site pages.
+The CSS still keeps the brand/theme/scheme token seam because diagrams, plates,
+forced-colors handling, and historical reference sheets use it, but production
+public pages ship without `.theme-switch` markup or global `am-theme` state.
+`theme.js` handles copy widgets and status feedback only.
 
 ## Design and writing constraints
 
 Visual design follows [impeccable.style/slop](https://impeccable.style/slop):
-two real type families (DejaVu Serif display + DejaVu Sans body, roman not
-italic; no Inter/Geist/Space Grotesk/Instrument Serif), one pine-teal accent
-(no gradients), hairline-edged cards with no shadow, 12px card radius, ease-out
-motion, and a flat dark theme with no glowing accents.
+a calibration-sheet type direction (Charter-style serif, Avenir/system sans,
+SF Mono/Menlo mono), a restrained warm accent plus pine brand mark, no generic
+AI gradients, hairline surfaces, modest radii, ease-out motion, and no glowing
+SaaS chrome.
 
 Copy follows [adewale/anti-slop-writing](https://github.com/adewale/anti-slop-writing):
 no "not just X but Y" constructions, no staccato "Same X. Same Y." cadence, and
@@ -195,10 +136,15 @@ dropped — too on-the-nose, then too generic.)
 # diagrams (SVG + Unicode), then strip the web-font @import (see git history for the one-liner)
 bun run bin/am.ts render mockups/diagrams/workflow.mmd --format svg > mockups/diagrams/workflow.svg
 
-# gallery tiles, families table, and the agent-surface files — all generated
+# gallery tiles, families table, and the mockup agent-surface files — all generated
 # from the family registry (src/agent/families.ts), the editor examples, and the
 # `am` CLI. Re-run when a diagram family is added and it shows up everywhere.
 bun run mockups/site-gen.ts
+
+# production static site under website/public, ready for Wrangler
+bun run website
+bun run website:check
+bun run website:dev
 
 # page stills → mockups/shot-<page>-{light,dark,mobile}.png
 bun run mockups/shot.ts

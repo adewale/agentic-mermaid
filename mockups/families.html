@@ -3,21 +3,16 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Families — Agentic Mermaid</title>
+<title>Families – Agentic Mermaid</title>
 <link rel="icon" href="favicon.svg" type="image/svg+xml">
 <link rel="stylesheet" href="styles.css">
-<script>(function(){try{var t=localStorage.getItem('am-theme');if(!t)t=(window.matchMedia&&matchMedia('(prefers-color-scheme:dark)').matches)?'dusk':'paper';var L={'paper':1,'pine-light':1,'zinc-light':1,'github-light':1,'solarized-light':1,'catppuccin-latte':1,'nord-light':1,'tokyo-night-light':1,'salmon':1,'tufte':1};if(t!=='paper')document.documentElement.setAttribute('data-theme',t);document.documentElement.setAttribute('data-scheme',L[t]?'light':'dark');}catch(e){}})();</script>
 </head>
 <body>
 
 <header class="masthead">
   <div class="bar">
-    <span class="brand"><span class="mark"></span> Agentic&nbsp;Mermaid</span>
-    <span class="links"><a href="editor.html">Editor</a><a href="gallery.html">Gallery</a><a href="docs-article.html">Docs</a><a href="agents.html">Agents</a><a href="https://github.com/adewale/beautiful-mermaid">GitHub</a></span>
-    <div class="theme-switch">
-      <button class="theme-btn" aria-haspopup="true" aria-expanded="false" aria-label="Theme"><span class="sw"></span><span class="name">Paper</span><span class="chev"></span></button>
-      <div class="theme-menu" role="menu"></div>
-    </div>
+    <a class="brand" href="home.html"><span class="mark"></span> Agentic&nbsp;Mermaid</a>
+    <span class="links"><a href="gallery.html">Gallery</a><a href="families.html">Families</a><a href="docs-article.html">Docs</a><a class="link-editor" href="editor.html">Open editor</a><a class="link-external" href="https://github.com/adewale/beautiful-mermaid" aria-label="GitHub repository (external)">GitHub</a></span>
   </div>
   <hr>
 </header>
@@ -26,23 +21,23 @@
   <p class="crumb"><a href="home.html">Agentic Mermaid</a> / Families</p>
   <h1>Diagram families</h1>
   <p class="lead">Twelve families, one deterministic layout engine. Each parses from Mermaid text and renders to SVG, PNG, ASCII, Unicode, and layout JSON from the same positioned model.</p>
-  <p>Every family carries a route certificate — a machine-checkable claim about how its edges were routed (orthogonal boxes for class and ER, lifelines for sequence, side-anchored links for architecture) — which is what lets <code>verify</code> answer in tiers rather than guesses.</p>
+  <p>Every family carries a route certificate – a machine-checkable claim about how its edges were routed (orthogonal boxes for class and ER, lifelines for sequence, side-anchored links for architecture) – which is what lets <code>verify</code> answer in tiers rather than guesses.</p>
 
   <table>
     <thead><tr><th>Family</th><th>What it draws</th></tr></thead>
     <tbody>
-      <tr><td><strong>Flowchart</strong></td><td>Decision flow with labeled branches.</td></tr>
-      <tr><td><strong>State</strong></td><td>Lifecycle using Mermaid stateDiagram-v2 syntax.</td></tr>
-      <tr><td><strong>Sequence</strong></td><td>Request/response messages between participants.</td></tr>
-      <tr><td><strong>Timeline</strong></td><td>Chronological milestones with sections.</td></tr>
-      <tr><td><strong>Class</strong></td><td>Classes with members and relationships.</td></tr>
-      <tr><td><strong>ER</strong></td><td>Entities, attributes, keys, and cardinality markers.</td></tr>
-      <tr><td><strong>Journey</strong></td><td>Scored user tasks grouped by section.</td></tr>
-      <tr><td><strong>Architecture</strong></td><td>Services, groups, icons, and routed connections.</td></tr>
-      <tr><td><strong>XY chart</strong></td><td>Bar and line series using xychart syntax.</td></tr>
-      <tr><td><strong>Pie</strong></td><td>Proportional slices with values shown in the legend.</td></tr>
-      <tr><td><strong>Quadrant</strong></td><td>Two-axis priority map with labeled regions and points.</td></tr>
-      <tr><td><strong>Gantt</strong></td><td>Sections, dependencies, status tags, and a milestone.</td></tr>
+      <tr id="flowchart"><td><strong>Flowchart</strong></td><td>Decision flow with labeled branches.</td></tr>
+      <tr id="state"><td><strong>State</strong></td><td>Lifecycle using Mermaid stateDiagram-v2 syntax.</td></tr>
+      <tr id="sequence"><td><strong>Sequence</strong></td><td>Request/response messages between participants.</td></tr>
+      <tr id="timeline"><td><strong>Timeline</strong></td><td>Chronological milestones with sections.</td></tr>
+      <tr id="class"><td><strong>Class</strong></td><td>Classes with members and relationships.</td></tr>
+      <tr id="er"><td><strong>ER</strong></td><td>Entities, attributes, keys, and cardinality markers.</td></tr>
+      <tr id="journey"><td><strong>Journey</strong></td><td>Scored user tasks grouped by section.</td></tr>
+      <tr id="architecture"><td><strong>Architecture</strong></td><td>Services, groups, icons, and routed connections.</td></tr>
+      <tr id="xychart"><td><strong>XY chart</strong></td><td>Bar and line series using xychart syntax.</td></tr>
+      <tr id="pie"><td><strong>Pie</strong></td><td>Proportional slices with values shown in the legend.</td></tr>
+      <tr id="quadrant"><td><strong>Quadrant</strong></td><td>Two-axis priority map with labeled regions and points.</td></tr>
+      <tr id="gantt"><td><strong>Gantt</strong></td><td>Sections, dependencies, status tags, and a milestone.</td></tr>
     </tbody>
   </table>
 

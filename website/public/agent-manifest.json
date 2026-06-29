@@ -1,0 +1,118 @@
+{
+  "name": "agentic-mermaid",
+  "package": {
+    "name": "agentic-mermaid",
+    "version": "0.1.0",
+    "imports": [
+      "agentic-mermaid",
+      "agentic-mermaid/agent"
+    ],
+    "bins": [
+      "am",
+      "agentic-mermaid",
+      "agentic-mermaid-mcp"
+    ],
+    "npmStatus": "unverified",
+    "checked": "not checked in local build",
+    "install": {
+      "command": "git clone https://github.com/adewale/beautiful-mermaid && cd beautiful-mermaid && bun install && bun run build",
+      "note": "This local build has not verified npm publication, so public install copy uses the source-install path."
+    }
+  },
+  "repo": "https://github.com/adewale/beautiful-mermaid",
+  "site": {
+    "canonical": "https://agenticmermaid.dev",
+    "legacyPages": "https://adewale.github.io/beautiful-mermaid/"
+  },
+  "description": "Agent-native Mermaid runtime: parse, verify, mutate, and render diagrams through a typed surface. Deterministic SVG, PNG, ASCII, Unicode, and JSON.",
+  "outputFormats": [
+    "svg",
+    "ascii",
+    "unicode",
+    "png",
+    "json"
+  ],
+  "families": [
+    "flowchart",
+    "state",
+    "sequence",
+    "timeline",
+    "class",
+    "er",
+    "journey",
+    "architecture",
+    "xychart",
+    "pie",
+    "quadrant",
+    "gantt"
+  ],
+  "localMcp": {
+    "recommended": true,
+    "execute": true,
+    "transport": "stdio",
+    "server": {
+      "command": "bun",
+      "args": [
+        "run",
+        "bin/agentic-mermaid-mcp.ts"
+      ],
+      "transport": "stdio"
+    },
+    "tools": [
+      "execute",
+      "render_png",
+      "describe"
+    ]
+  },
+  "hostedExecution": {
+    "codeMode": false,
+    "renderApi": false,
+    "mcp": {
+      "available": false,
+      "url": null,
+      "transport": "streamable-http",
+      "auth": "none",
+      "recommended": "self-host",
+      "execute": false,
+      "tools": [],
+      "localToolSurface": [
+        "execute",
+        "render_png",
+        "describe"
+      ],
+      "futureHostedConstraint": "Do not enable execute(code) or arbitrary server-side code without a separate security/auth/rate-limit decision; a bounded future route may expose non-execution render, describe, verify, or structured-edit operations.",
+      "status": "not enabled in this static Workers preview"
+    }
+  },
+  "machineRoutes": {
+    "llms": "/llms.txt",
+    "instructions": "/agent-instructions.md",
+    "capabilities": "/capabilities.json",
+    "schemas": "/schemas/index.json",
+    "examples": "/examples/index.json",
+    "harnesses": "/harnesses.json",
+    "recipes": "/recipes/index.json",
+    "skills": "/skills/index.json"
+  },
+  "skills": [
+    {
+      "id": "agentic-mermaid-diagram-workflow",
+      "scope": "consumer",
+      "landing": "/skills/agentic-mermaid-diagram-workflow/",
+      "entrypoint": "/skills/agentic-mermaid-diagram-workflow/SKILL.md",
+      "capabilitiesAuthority": "/capabilities.json"
+    }
+  ],
+  "stopRules": [
+    "Verify before serialize, render, commit, or return a diagram artifact.",
+    "Do not fabricate ValidDiagram objects; parse first and preserve opaque source when narrowing is unavailable.",
+    "Prefer local library, CLI, or self-hosted MCP; treat any hosted MCP as an optional bounded fallback only.",
+    "Do not call the website as a REST render API or arbitrary-code execution backend.",
+    "When a family is source-level-only for the requested edit, source-edit deliberately or stop and ask for review."
+  ],
+  "generatedFrom": {
+    "packageVersion": "0.1.0",
+    "gitSha": "development",
+    "buildTime": "development"
+  }
+}

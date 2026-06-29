@@ -1,0 +1,126 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Agentic Mermaid skills catalog",
+  "type": "object",
+  "required": [
+    "generatedFrom",
+    "skills"
+  ],
+  "properties": {
+    "generatedFrom": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "title": "Generated from",
+      "type": "object",
+      "required": [
+        "packageVersion",
+        "gitSha",
+        "buildTime"
+      ],
+      "properties": {
+        "packageVersion": {
+          "type": "string"
+        },
+        "gitSha": {
+          "type": "string"
+        },
+        "buildTime": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
+    "skills": {
+      "type": "array",
+      "items": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "title": "Skill catalog entry",
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "scope",
+          "description",
+          "landing",
+          "entrypoint",
+          "rawFiles",
+          "requiredReferences",
+          "optionalReferences",
+          "capabilitiesAuthority",
+          "supportedLocalChannels",
+          "warning"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "scope": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "landing": {
+            "type": "string"
+          },
+          "entrypoint": {
+            "type": "string"
+          },
+          "rawFiles": {
+            "type": "array",
+            "items": {
+              "$schema": "https://json-schema.org/draft/2020-12/schema",
+              "title": "Skill raw file",
+              "type": "object",
+              "required": [
+                "path",
+                "url",
+                "sha256"
+              ],
+              "properties": {
+                "path": {
+                  "type": "string"
+                },
+                "url": {
+                  "type": "string"
+                },
+                "sha256": {
+                  "type": "string"
+                }
+              },
+              "additionalProperties": false
+            }
+          },
+          "requiredReferences": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "optionalReferences": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "capabilitiesAuthority": {
+            "const": "/capabilities.json"
+          },
+          "supportedLocalChannels": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "warning": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "additionalProperties": false
+}

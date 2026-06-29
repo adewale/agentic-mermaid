@@ -1,6 +1,6 @@
 import { chromium } from 'playwright'
 
-const pages = ['home', 'editor', 'agents-harnesses', 'docs-article']
+const pages = ['home', 'editor', 'skill-workflow', 'docs-article']
 const browser = await chromium.launch()
 
 async function shoot(suffix: string, opts: Parameters<typeof browser.newContext>[0]) {

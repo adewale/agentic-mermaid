@@ -2,36 +2,27 @@ import { chromium } from 'playwright'
 
 const browser = await chromium.launch()
 
-// a representative spread across light + dark, to verify the logo and the grain
-// stay constant while everything else re-skins.
-const themes = [
-  'pine',
-  'zinc-light', 'github-light', 'solarized-light', 'tufte', 'salmon',
-  'github-dark', 'tokyo-night', 'catppuccin-mocha', 'dracula', 'nord', 'tufte-dark',
+// Legacy visual-snapshot helper. The public site no longer exposes a global
+// theme switcher; diagram theme selection lives inside the real editor, so this
+// script now captures representative static mockup surfaces only.
+const pages = [
+  { name: 'home', file: 'home.html', width: 1040, height: 1000 },
+  { name: 'gallery', file: 'gallery.html', width: 1120, height: 1000 },
+  { name: 'editor', file: 'editor.html', width: 1040, height: 1000 },
 ]
 
-for (const t of themes) {
-  const ctx = await browser.newContext({ viewport: { width: 1040, height: 1000 }, deviceScaleFactor: 2, reducedMotion: 'reduce' })
-  await ctx.addInitScript(`try { localStorage.setItem('am-theme', '${t}') } catch (e) {}`)
+for (const p of pages) {
+  const ctx = await browser.newContext({
+    viewport: { width: p.width, height: p.height },
+    deviceScaleFactor: 2,
+    reducedMotion: 'reduce',
+  })
   const page = await ctx.newPage()
-  await page.goto(`file://${process.cwd()}/mockups/home.html`, { waitUntil: 'load' })
+  await page.goto(`file://${process.cwd()}/mockups/${p.file}`, { waitUntil: 'load' })
   await page.waitForTimeout(250)
-  await page.screenshot({ path: `mockups/shot-theme-${t}.png`, fullPage: true })
+  await page.screenshot({ path: `mockups/shot-${p.name}.png`, fullPage: true })
   await ctx.close()
-  console.log('theme', t)
-}
-
-// the dropdown open, to show the grouped, scrollable switcher UI
-{
-  const ctx = await browser.newContext({ viewport: { width: 1040, height: 900 }, deviceScaleFactor: 2, reducedMotion: 'reduce' })
-  const page = await ctx.newPage()
-  await page.goto(`file://${process.cwd()}/mockups/home.html`, { waitUntil: 'load' })
-  await page.waitForTimeout(200)
-  await page.click('.theme-btn')
-  await page.waitForTimeout(250)
-  await page.screenshot({ path: 'mockups/shot-theme-menu.png', clip: { x: 0, y: 0, width: 1040, height: 640 } })
-  await ctx.close()
-  console.log('menu')
+  console.log('shot', p.name)
 }
 
 await browser.close()

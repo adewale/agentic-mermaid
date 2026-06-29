@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Mark — minimal progression</title>
+<title>Mark – minimal progression</title>
 <link rel="stylesheet" href="styles.css">
 <style>
   body { margin: 0; font-family: var(--sans); }
@@ -26,9 +26,9 @@
   .lift   { box-shadow: 0 1px 2px rgba(0,0,0,0.22), 0 0 0 1px rgba(0,0,0,0.10); }
   .gshadow svg { filter: drop-shadow(0 0.5px 0.5px rgba(0,0,0,0.18)); }
   .big { width: 84px; height: 84px; border-radius: 20px; }
-  .big svg { width: 74px; height: 74px; display: block; }
+  .big svg { width: 100%; height: 100%; display: block; }
   .sm  { width: 24px; height: 24px; border-radius: 6px; }
-  .sm svg  { width: 21px; height: 21px; display: block; }
+  .sm svg  { width: 100%; height: 100%; display: block; }
   .row { display: inline-flex; align-items: center; gap: 10px; font-family: var(--serif); font-size: 18px; }
   .stage.dark  .row { color: #E7ECE9; }
   .stage.light .row { color: #18211E; }
@@ -39,7 +39,7 @@
   <div class="stage light" id="light"></div>
 <script>
 const NS = 'http://www.w3.org/2000/svg';
-const N = { L:[14,7], M:[24,4], R:[34,7], Vl:[14,22], Vm:[24,22], Vr:[34,22], H:[24,38] };
+const N = { L:[14,8.5], M:[24,5.5], R:[34,8.5], Vl:[14,23.5], Vm:[24,23.5], Vr:[34,23.5], H:[24,39.5] };
 function glyph(o) {
   const svg = document.createElementNS(NS, 'svg');
   svg.setAttribute('viewBox', '0 0 48 48'); svg.setAttribute('fill', 'none');

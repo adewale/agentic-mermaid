@@ -1,17 +1,44 @@
 <header class="topbar" role="banner">
   <h1 class="sr-only">Agentic Mermaid Live Editor</h1>
-  <a href="/beautiful-mermaid/" class="logo" aria-label="Agentic Mermaid homepage">
-    <span><strong>Agentic Mermaid</strong><span class="logo-sub">Live Editor</span></span>
+  <a href="/beautiful-mermaid/" class="app-brand" aria-label="Agentic Mermaid homepage">
+    <span class="app-mark" aria-hidden="true">
+      <svg viewBox="0 0 48 48" focusable="false">
+        <g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="14,8.5 14,23.5 24,39.5" stroke-width="1.9" />
+          <polyline points="24,5.5 24,23.5 24,39.5" stroke-width="2.4" />
+          <polyline points="34,8.5 34,23.5 24,39.5" stroke-width="1.9" />
+        </g>
+        <g fill="currentColor">
+          <circle cx="14" cy="8.5" r="2.5" />
+          <circle cx="24" cy="5.5" r="2.5" />
+          <circle cx="34" cy="8.5" r="2.5" />
+          <circle cx="24" cy="39.5" r="3.3" />
+        </g>
+        <g fill="none" stroke="currentColor" stroke-width="1.3">
+          <circle cx="14" cy="23.5" r="1.7" />
+          <circle cx="24" cy="23.5" r="1.7" />
+          <circle cx="34" cy="23.5" r="1.7" />
+        </g>
+      </svg>
+    </span>
+    <span class="app-brand-text">Agentic&nbsp;Mermaid</span><span class="app-context">Editor</span>
   </a>
 
   <div class="topbar-sep" aria-hidden="true"></div>
 
-  <nav class="tab-group" aria-label="Editor panes">
-    <button class="tab active" id="tab-code" type="button" data-panel="code">Code</button>
-    <button class="tab" id="tab-config" type="button" data-panel="config">Config</button>
-    <button class="tab mobile-only" id="tab-preview" type="button" data-panel="preview">Preview</button>
-    <button class="tab" id="examples-sidebar-btn" type="button" aria-pressed="false" aria-expanded="false" aria-controls="examples-sidebar">Examples</button>
-  </nav>
+  <div class="mode-switch left-panel-switch" data-segmented-control role="group" aria-label="Left panel mode">
+    <button class="mode-option is-active" id="mode-source" type="button" aria-pressed="true" aria-controls="editor-view" data-left-panel="code">Source</button>
+    <button class="mode-option" id="mode-style" type="button" aria-pressed="false" aria-controls="config-view" data-left-panel="config">Style</button>
+  </div>
+
+  <div class="mode-switch mobile-view-switch" data-segmented-control role="group" aria-label="Editor view">
+    <button class="mode-option is-active" id="mobile-mode-source" type="button" aria-pressed="true" aria-controls="editor-view" data-mobile-panel="code">Source</button>
+    <button class="mode-option" id="mobile-mode-style" type="button" aria-pressed="false" aria-controls="config-view" data-mobile-panel="config">Style</button>
+    <button class="mode-option" id="mobile-mode-preview" type="button" aria-pressed="false" aria-controls="panel-right" data-mobile-panel="preview">Preview</button>
+  </div>
+
+  <button class="btn examples-toggle" id="examples-sidebar-btn" type="button" aria-pressed="false" aria-expanded="false" aria-controls="examples-sidebar">Examples</button>
+  <button class="btn agent-task-btn" id="copy-agent-task-btn" type="button">Copy agent task</button>
 
   <div class="spacer"></div>
 
@@ -51,7 +78,7 @@
   <div class="topbar-sep"></div>
 
   <div class="theme-dropdown-wrap" id="theme-dropdown-wrap">
-    <button class="theme-dropdown-btn" id="theme-dropdown-btn" type="button" aria-haspopup="listbox" aria-expanded="false">
+    <button class="theme-dropdown-btn" id="theme-dropdown-btn" type="button" aria-label="Diagram theme" aria-haspopup="listbox" aria-expanded="false" aria-controls="theme-dropdown-menu">
       <span class="theme-swatch" id="theme-btn-swatch"></span>
       <span id="theme-btn-label">Default</span>
       <svg
@@ -65,7 +92,7 @@
         <polyline points="6 9 12 15 18 9" />
       </svg>
     </button>
-    <div class="theme-dropdown-menu" id="theme-dropdown-menu" role="listbox" aria-label="Theme">
+    <div class="theme-dropdown-menu" id="theme-dropdown-menu" role="listbox" aria-label="Theme" aria-hidden="true" inert>
       {{THEME_ITEMS}}
     </div>
   </div>
@@ -93,6 +120,9 @@
       id="export-chevron-btn"
       type="button"
       title="More export options"
+      aria-haspopup="menu"
+      aria-expanded="false"
+      aria-controls="export-dropdown"
       aria-disabled="false"
     >
       <svg
@@ -109,7 +139,7 @@
       </svg>
     </button>
 
-    <div class="export-dropdown" id="export-dropdown">
+    <div class="export-dropdown" id="export-dropdown" role="menu" aria-label="Export options" aria-hidden="true" inert>
       <button class="export-item" id="export-png-btn" type="button" disabled aria-disabled="true">
         <svg
           class="export-item-icon"
@@ -160,12 +190,11 @@
           stroke-linecap="round"
           stroke-linejoin="round"
         >
-          <polyline points="16 18 22 12 16 6" />
-          <polyline points="8 6 2 12 8 18" />
+          <rect x="9" y="9" width="13" height="13" rx="2" />
+          <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
         </svg>
-        <span class="export-item-label">Copy Source</span>
+        <span class="export-item-label">Copy source</span>
       </button>
-
       <button class="export-item" id="copy-svg-btn" type="button" disabled aria-disabled="true">
         <svg
           class="export-item-icon"
@@ -176,12 +205,11 @@
           stroke-linecap="round"
           stroke-linejoin="round"
         >
-          <rect x="9" y="9" width="13" height="13" rx="2" />
-          <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+          <polyline points="16 18 22 12 16 6" />
+          <polyline points="8 6 2 12 8 18" />
         </svg>
         <span class="export-item-label">Copy SVG</span>
       </button>
-
       <button class="export-item" id="copy-image-btn" type="button" disabled aria-disabled="true">
         <svg
           class="export-item-icon"
@@ -192,13 +220,12 @@
           stroke-linecap="round"
           stroke-linejoin="round"
         >
-          <rect x="9" y="9" width="13" height="13" rx="2" />
-          <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+          <rect x="3" y="3" width="18" height="18" rx="2" />
+          <circle cx="8.5" cy="8.5" r="1.5" />
+          <polyline points="21 15 16 10 5 21" />
         </svg>
-        <span class="export-item-label">Copy Image</span>
-        <span class="export-item-kbd"><kbd>⌘</kbd><kbd>C</kbd></span>
+        <span class="export-item-label">Copy PNG</span>
       </button>
-
       <button class="export-item" id="copy-link-btn" type="button">
         <svg
           class="export-item-icon"
@@ -209,17 +236,10 @@
           stroke-linecap="round"
           stroke-linejoin="round"
         >
-          <path
-            d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"
-          />
-          <path
-            d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"
-          />
+          <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
+          <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
         </svg>
-        <span class="export-item-label">Copy URL</span>
-        <span class="export-item-kbd"
-          ><kbd>⌘</kbd><kbd>⇧</kbd><kbd>C</kbd></span
-        >
+        <span class="export-item-label">Copy link</span>
       </button>
 
       <div class="export-divider"></div>
@@ -233,14 +253,15 @@
           stroke-width="1.75"
           stroke-linecap="round"
           stroke-linejoin="round"
+          aria-hidden="true"
         >
           <polyline points="15 3 21 3 21 9" />
           <polyline points="9 21 3 21 3 15" />
           <line x1="21" y1="3" x2="14" y2="10" />
           <line x1="3" y1="21" x2="10" y2="14" />
         </svg>
-        <span class="export-item-label">Size</span>
-        <div class="size-pills" id="size-pills">
+        <span class="export-item-label">Scale</span>
+        <div class="size-pills" id="size-pills" role="group" aria-label="PNG export scale">
           <button class="size-pill" type="button" data-scale="1">1x</button>
           <button class="size-pill" type="button" data-scale="2">2x</button>
           <button class="size-pill active" type="button" data-scale="4">4x</button>
