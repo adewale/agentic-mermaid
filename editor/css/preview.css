@@ -243,6 +243,22 @@
   transform: scale(0.96);
 }
 
+/* collapsible dock: verify + text output tuck below the preview so the
+   diagram gets the room. Native <details> keeps it accessible with no JS. */
+.preview-dock { flex-shrink: 0; border-top: 1px solid var(--border); background: var(--bg2); }
+.preview-dock > summary { list-style: none; cursor: pointer; display: flex; align-items: center; gap: 8px; min-height: 32px; padding: 4px 10px; color: var(--fg3); font-size: var(--t-label); font-weight: 700; line-height: var(--lh-ui); user-select: none; }
+.preview-dock > summary::-webkit-details-marker { display: none; }
+.preview-dock > summary::before {
+  content: ""; width: 12px; height: 12px; flex: none; background: currentColor;
+  -webkit-mask: url("data:image/svg+xml,%3Csvg viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='3' stroke-linecap='round' stroke-linejoin='round' xmlns='http://www.w3.org/2000/svg'%3E%3Cpolyline points='9 18 15 12 9 6'/%3E%3C/svg%3E") center/contain no-repeat;
+  mask: url("data:image/svg+xml,%3Csvg viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='3' stroke-linecap='round' stroke-linejoin='round' xmlns='http://www.w3.org/2000/svg'%3E%3Cpolyline points='9 18 15 12 9 6'/%3E%3C/svg%3E") center/contain no-repeat;
+  transition: transform 0.16s ease;
+}
+.preview-dock[open] > summary::before { transform: rotate(90deg); }
+.preview-dock > summary:hover { color: var(--fg); }
+.preview-dock > summary:focus-visible { outline: 2px solid color-mix(in srgb, var(--accent) 72%, var(--paper)); outline-offset: -2px; }
+.preview-dock .verify-panel { border-top: 0; }
+
 .verify-panel {
   border-top: 1px solid var(--border);
   background: var(--bg2);

@@ -75,7 +75,7 @@
 .panel-left {
   display: flex;
   flex-direction: column;
-  width: 42%;
+  width: 38%;
   min-width: 280px;
   border-right: 1px solid var(--border);
   background: var(--bg2);
