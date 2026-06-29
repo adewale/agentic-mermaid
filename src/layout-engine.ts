@@ -916,7 +916,7 @@ function flattenGroupBounds(groups: PositionedGroup[]): Array<{ x: number; y: nu
 }
 
 /** The mutable bag the post-ELK geometry passes thread through (see ./layout/pass.ts). */
-interface LayoutPassContext extends PassContextBase {
+export interface LayoutPassContext extends PassContextBase {
   readonly elkResult: ElkNode
   readonly graph: MermaidGraph
   nodes: PositionedNode[]
@@ -934,7 +934,7 @@ interface LayoutPassContext extends PassContextBase {
 // The array IS the execution path; each `run` delegates to the existing pass function
 // with byte-identical arguments. The three symmetric passes carry no `after` among each
 // other — their order is empirically free (spec §8 R1, verified by a permutation experiment).
-const LAYOUT_PIPELINE: ReadonlyArray<LayoutPass<LayoutPassContext>> = [
+export const LAYOUT_PIPELINE: ReadonlyArray<LayoutPass<LayoutPassContext>> = [
   {
     id: 'extractEdgesRecursively', doc: 'flatten ELK edges to absolute coords (+orthogonalize cross-hierarchy)',
     after: [], mutates: ['extract'], determinism: 'pure-order',

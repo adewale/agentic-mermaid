@@ -743,6 +743,33 @@ route-contract pass. `alignLayerNodes` runs before it, so any endpoint drift
 it introduces is repaired or explained by the certifying pass rather than
 shipped.
 
+The diagram above is the conceptual sketch. The **authoritative** post-ELK pass
+order is the `LAYOUT_PIPELINE` manifest in `src/layout-engine.ts` (reified per the
+layout-pass-pipeline design doc), reproduced here and kept
+in sync by `src/__tests__/layout-pass-docsync.test.ts` (regenerate with
+`UPDATE_DOCS=1 bun test src/__tests__/layout-pass-docsync.test.ts`):
+
+<!-- LAYOUT-PIPELINE:start -->
+
+1. `extractEdgesRecursively` - flatten ELK edges to absolute coords (+orthogonalize cross-hierarchy)
+2. `alignLayerNodes` - snap same-layer nodes onto a shared flow-axis line
+3. `equalizePeerNodeDimensions` - equalize peer box sizes + pack layers so symmetry is visible downstream
+4. `alignForkRejoinPeerCenters` - center fork/rejoin hubs on their peer barycenter
+5. `alignPortLanes` - slide one endpoint node so a floating-straight edge becomes port-exact (Ruegg GD15)
+6. `centerPeerBarycenters` - center peer fan-in/fan-out trunks over peer barycenters (#57/#61)
+7. `honorLinkRankDistance` - shove target sub-DAG to honor variable-length link rank distance
+8. `bundleEdgePaths` - bundle fan-out/fan-in edges into shared trunks (when mergeEdges)
+9. `clipEdgeToShape` - clip edge endpoints to real (non-rect) shape outlines
+10. `applySymmetricFanoutEmissions` - re-route small equivalent fan-outs symmetrically; mark bundle-owned
+11. `applySymmetricParallelEdgeLanes` - separate parallel edges into symmetric non-crossing lanes
+12. `applyParallelDuplicateLanes` - split exact duplicate edges into separated lanes
+13. `collapseTinyBundledHitches` - remove sub-perceptual hitches introduced by bundling
+14. `reassignBundledSiblingLabels` - re-home labels onto the correct bundled sibling segment
+15. `applyRouteContracts` - classify -> simplify -> straighten (fixed-point) -> certify; FREEZES node geometry
+16. `translateGeometryToNonNegativeOrigin` - shift whole graph to a non-negative origin (allowed after freeze)
+
+<!-- LAYOUT-PIPELINE:end -->
+
 ## 9. Testing strategy (per testing-best-practices)
 
 - **Red-first regression**: the MFA/login fixture asserts every
