@@ -1169,7 +1169,15 @@ export function applySymmetricFanoutEmissions(
     const targets = sorted.map(e => nodeMap.get(e.target)!).filter(Boolean)
     if (targets.length !== sorted.length) continue
     if (!targets.every(t => t.shape === 'rectangle' && (source.shape === 'diamond' || !nodeInsideGroups(t, groups)))) continue
-    if (!sameFlowLayer(targets, graph.direction, 28)) continue
+    // Same-rank gate. Fan-out targets drift apart on the main axis when their
+    // label widths differ ("warnings" 97px vs "ok" 60px → ~32px apart), so the
+    // tolerance must clear that width-driven drift to see them as peers — while
+    // staying below layerSpacing (48) so genuinely different ranks are still
+    // rejected. The peer confirmation just below is the real safety net, so
+    // loosening this gate cannot equalize non-peers. (Equalizing such peers is
+    // exactly the symmetry the diamond/"warnings"/"ok" fan-out wants; verified
+    // byte-identical on the corpus, which has no fan-out in the 28–40px band.)
+    if (!sameFlowLayer(targets, graph.direction, 40)) continue
     if (!targets.every(t => edges.every(e => e.source !== t.id && (e.target !== t.id || e.source === source.id)))) continue
     let peer = true
     for (let i = 0; i < targets.length; i++) for (let j = 0; j < targets.length; j++) {
