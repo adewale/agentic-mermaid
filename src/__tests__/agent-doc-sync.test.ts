@@ -1,7 +1,7 @@
 // Doc-sync + no-tautology guards.
 
 import { describe, test, expect } from 'bun:test'
-import { readFileSync, existsSync, readdirSync, mkdtempSync, rmSync } from 'node:fs'
+import { readFileSync, writeFileSync, existsSync, readdirSync, mkdtempSync, rmSync } from 'node:fs'
 import { spawnSync } from 'node:child_process'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -145,6 +145,36 @@ describe('agent-facing runnable docs', () => {
       expect(lintAgentTrace(r.trace as SdkCall[])).toEqual([])
     }
   })
+
+  // Public-API library docs are import-based (not MCP Code Mode), so they cannot
+  // run in the sandbox above. Execute the getting-started snippets as real Bun
+  // modules against the in-repo source so the plain-library quickstart cannot
+  // drift from the actual API (e.g. a Result returned where a string is shown).
+  test('getting-started.md library snippets execute', () => {
+    const blocks = tsCodeBlocks(join(REPO, 'docs/getting-started.md'))
+    expect(blocks.length).toBeGreaterThan(0)
+    // The doc's "untrusted input" snippet uses a reader-supplied placeholder.
+    const PREAMBLE = "const userProvidedSource = 'flowchart TD\\n  A --> B'\n"
+    const dir = mkdtempSync(join(tmpdir(), 'gs-snippets-'))
+    try {
+      let ran = 0
+      for (const [i, block] of blocks.entries()) {
+        // Point the published specifiers at the in-repo source; running from a
+        // temp cwd keeps any written artifacts (diagram.svg/png) out of the repo.
+        const wired = block
+          .replaceAll("'agentic-mermaid/agent'", JSON.stringify(join(REPO, 'src/agent/index.ts')))
+          .replaceAll("'agentic-mermaid'", JSON.stringify(join(REPO, 'src/index.ts')))
+        const file = join(dir, `block-${i}.ts`)
+        writeFileSync(file, PREAMBLE + wired)
+        const r = spawnSync('bun', ['run', file], { cwd: dir, encoding: 'utf8' })
+        expect({ block: i, status: r.status, stderr: r.stderr }).toEqual({ block: i, status: 0, stderr: '' })
+        ran++
+      }
+      expect(ran).toBeGreaterThan(0)
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  }, 60_000)
 })
 
 describe('vocabulary doc-sync', () => {
@@ -636,7 +666,9 @@ describe('shipped distribution artifacts present', () => {
   test('agent improvement example assesses, mutates, reassesses, and writes render files', async () => {
     const outDir = mkdtempSync(join(tmpdir(), 'am-example-test-'))
     try {
-      const r = await runBunExample(join(REPO, 'examples/agent-improve-auth-flow.ts'), ['--out-dir', outDir, '--test-png-placeholder'], 120_000)
+      // No --test-png-placeholder: exercise the real out-of-process PNG render.
+      // This is the documented `bun run examples/...` invocation end-to-end.
+      const r = await runBunExample(join(REPO, 'examples/agent-improve-auth-flow.ts'), ['--out-dir', outDir], 120_000)
       expect({ status: r.status, timedOut: r.timedOut, stderr: r.stderr }).toEqual({ status: 0, timedOut: false, stderr: '' })
       const payload = JSON.parse(r.stdout)
       expect(payload.ok).toBe(true)
@@ -651,6 +683,8 @@ describe('shipped distribution artifacts present', () => {
       expect(svg).toContain('Login Page')
       expect(ascii).toContain('Dashboard')
       expect(Array.from(png.subarray(0, 8))).toEqual([137, 80, 78, 71, 13, 10, 26, 10])
+      // A real rasterized diagram is many KB; a placeholder/regression would not be.
+      expect(png.length).toBeGreaterThan(1000)
       expect(assessment.improveOps).toBe(3)
     } finally {
       rmSync(outDir, { recursive: true, force: true })

@@ -59,10 +59,16 @@ const { ascii, regions, warnings, routeParity } = renderMermaidASCIIWithMeta(sou
 ```ts
 import { asciiToMermaid } from 'agentic-mermaid/agent'
 
-const source = asciiToMermaid(ascii)
+const result = asciiToMermaid(ascii)
+if (result.ok) {
+  const source = result.value // reconstructed Mermaid source
+}
 ```
 
-This is best-effort and lossy. It is useful for simple linear flowcharts, not for reconstructing arbitrary Mermaid source.
+`asciiToMermaid` returns a `Result<string, ParseError[]>`: `result.value` holds the
+Mermaid source on success, and `result.error` lists parse errors (e.g. `NO_BOXES`)
+otherwise. This is best-effort and lossy. It is useful for simple linear flowcharts,
+not for reconstructing arbitrary Mermaid source.
 
 ## Supported families
 
