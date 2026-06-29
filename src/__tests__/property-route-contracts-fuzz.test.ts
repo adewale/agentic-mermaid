@@ -11,12 +11,13 @@
 // route-contracts tests use: no unexplained diagonal bends, no mis-anchored
 // endpoints, no stale-after-move routes, no label stranded on a shared trunk.
 //
-// It earns its keep: while being written it shrank, in ~40 generated cases, to
-// a class of ROUTE_LABEL_ON_SHARED_TRUNK faults that the 13 property files and
-// the 258-diagram corpus all miss (a labeled edge bundling onto a sibling's
-// trunk). That class is pinned as characterization tests at the bottom; the
-// generator here is scoped to UNLABELED edges so the gate stays green over the
-// (large) space where the contracts already hold.
+// It earned its keep: while being written it shrank, in ~40 generated cases, to
+// a class of ROUTE_LABEL_ON_SHARED_TRUNK faults the 13 property files and the
+// 258-diagram corpus all miss (a labeled edge bundling onto a sibling's trunk,
+// and a mixed labeled+unlabeled duplicate pair). repairLabelsOnSharedTrunks
+// (route-contracts.ts) now resolves both, so the generator fuzzes LABELED and
+// DUPLICATE edges too; the two original counterexamples are pinned below as
+// regression guards.
 //
 // The seed is pinned so any future counterexample reproduces across CI runs —
 // the existing property tests leave fast-check's seed to chance.
@@ -54,8 +55,9 @@ const diagramArb = fc.integer({ min: 2, max: 7 }).chain(n =>
     // node i+1 (i in 0..n-2) attaches to an earlier node in [0..i] → a connected
     // DAG with natural fan-out when a node is reused as a parent.
     parents: fc.tuple(...range(n - 1).map(i => fc.nat(i))),
-    // extra edges add fan-in, cross-links and back-edges (cycles) for variety.
-    extra: fc.array(fc.record({ from: fc.nat(n - 1), to: fc.nat(n - 1) }), { maxLength: 3 }),
+    // extra edges add fan-in, cross-links, back-edges (cycles), and — with a
+    // label — the labeled/duplicate cases the trunk-label fix must keep clean.
+    extra: fc.array(fc.record({ from: fc.nat(n - 1), to: fc.nat(n - 1), label: fc.constantFrom('', 'yes', 'no', 'retry') }), { maxLength: 3 }),
   }),
 )
 
@@ -63,18 +65,21 @@ type Diagram = {
   dir: typeof DIRECTIONS[number]
   nodes: Array<{ shape: number; label: string }>
   parents: number[]
-  extra: Array<{ from: number; to: number }>
+  extra: Array<{ from: number; to: number; label: string }>
 }
 
 function toSource(d: Diagram): string {
   const lines = [`flowchart ${d.dir}`]
   d.nodes.forEach((node, i) => lines.push(`  ${IDS[i]}${SHAPES[node.shape]!(node.label)}`))
-  const seen = new Set<string>()
-  d.parents.forEach((p, k) => { seen.add(`${p}>${k + 1}`); lines.push(`  ${IDS[p]} --> ${IDS[k + 1]}`) })
+  d.parents.forEach((p, k) => lines.push(`  ${IDS[p]} --> ${IDS[k + 1]}`))
   for (const e of d.extra) {
-    if (e.from === e.to || seen.has(`${e.from}>${e.to}`)) continue // no self-loops / duplicate pairs
-    seen.add(`${e.from}>${e.to}`)
-    lines.push(`  ${IDS[e.from]} --> ${IDS[e.to]}`)
+    if (e.from === e.to) continue // skip self-loops (a distinct contract)
+    // Labeled and duplicate edges ARE generated: a labeled extra that duplicates
+    // a parent edge is the mixed-duplicate case; a labeled extra to a fan-out /
+    // skip target is the bundled-trunk case. repairLabelsOnSharedTrunks must
+    // bring both out route-contract clean.
+    const lbl = e.label ? `|${e.label}|` : ''
+    lines.push(`  ${IDS[e.from]} -->${lbl} ${IDS[e.to]}`)
   }
   return lines.join('\n')
 }
@@ -101,43 +106,40 @@ describe('route-contract structural fuzz (strong oracle on generated structure)'
           throw new Error(`route-contract violations on:\n${src}\n→ ${JSON.stringify(findings)}`)
         }
       }),
-      { numRuns: 200, seed: 0x9e3779b9 },
+      { numRuns: 400, seed: 0x9e3779b9 },
     )
   }, 30000)
 })
 
 // ---------------------------------------------------------------------------
-// KNOWN LIMITATION (discovered by the fuzz above): a LABELED edge that bundles
-// onto a sibling's trunk strands its label on the shared segment
-// (ROUTE_LABEL_ON_SHARED_TRUNK). Neither applyParallelDuplicateLanes (scoped to
-// UNLABELED pairs) nor applySymmetricParallelEdgeLanes (scoped to LABELED pairs)
-// owns the mixed/skip case. The fault is context-dependent — it needs the
-// surrounding fan-out, which is why the curated corpus never hits it. These pin
-// the CURRENT behaviour; when the layout learns to separate these lanes the
-// finding disappears and these tests fail — fold the case into the gate above
-// and delete this block then.
+// Regression guards for ROUTE_LABEL_ON_SHARED_TRUNK. These two minimised
+// counterexamples — a labeled+unlabeled duplicate pair, and a labeled skip-edge
+// sharing a fan-out sibling's trunk — were the faults the fuzz above first
+// surfaced. repairLabelsOnSharedTrunks now relocates the label to a clear
+// segment, or (for an exactly-overlapping duplicate) offsets the labeled edge
+// into its own lane. If the fix regresses, these fail with the exact diagram.
 // ---------------------------------------------------------------------------
-describe('known limitation: labeled edge bundles onto a sibling trunk', () => {
+describe('regression: ROUTE_LABEL_ON_SHARED_TRUNK is repaired', () => {
   const auditCodes = (src: string): string[] => {
     const graph = parseMermaid(src)
     return auditRouteContracts(layoutGraphSync(graph), graph).map(f => f.code)
   }
 
-  it('mixed labeled+unlabeled duplicate pair overlaps exactly (E→F twice)', () => {
+  it('mixed labeled+unlabeled duplicate pair is separated into lanes (E→F twice)', () => {
     const src = [
       'flowchart TD',
       '  A["ok"]', '  B["ok"]', '  C["ok"]', '  D["ok"]', '  E{"rendered"}', '  F["ok"]', '  G["ok"]',
       '  A --> B', '  A --> C', '  A --> D', '  A --> E', '  E --> F', '  A --> G', '  E -->|no| F',
     ].join('\n')
-    expect(auditCodes(src)).toContain('ROUTE_LABEL_ON_SHARED_TRUNK')
+    expect(auditCodes(src)).not.toContain('ROUTE_LABEL_ON_SHARED_TRUNK')
   })
 
-  it('labeled skip-edge shares a sibling trunk (A→F sharing A→B)', () => {
+  it('labeled skip-edge label is relocated off the shared trunk (A→F vs A→B)', () => {
     const src = [
       'flowchart TD',
       '  A["ok"]', '  B["ok"]', '  C["ok"]', '  D["ok"]', '  E["ok"]', '  F["ok"]', '  G["ok"]', '  H["ok"]',
       '  A --> B', '  A --> C', '  A --> D', '  A --> E', '  B --> F', '  B --> G', '  A --> H', '  A -->|yes| F',
     ].join('\n')
-    expect(auditCodes(src)).toContain('ROUTE_LABEL_ON_SHARED_TRUNK')
+    expect(auditCodes(src)).not.toContain('ROUTE_LABEL_ON_SHARED_TRUNK')
   })
 })

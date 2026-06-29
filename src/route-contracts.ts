@@ -1971,6 +1971,159 @@ function flattenGroups(groups: PositionedGroup[], out: Map<string, PositionedGro
   return out
 }
 
+/**
+ * The other edge whose collinear segment shares this labeled edge's pill trunk
+ * (spec §11.4) — the exact condition ROUTE_LABEL_ON_SHARED_TRUNK audits, lifted
+ * into a predicate so the audit and the label-repair pass agree by construction:
+ * the repair fixes precisely what the audit flags. Returns the conflicting edge,
+ * or null when the label is unambiguous.
+ */
+function sharedTrunkConflict(
+  edge: PositionedEdge,
+  edges: PositionedEdge[],
+  style: LabelMetricsStyle,
+): PositionedEdge | null {
+  if (!edge.label || !edge.labelPosition) return null
+  const m = measureMultilineText(edge.label, style.edgeLabelFontSize, style.edgeLabelFontWeight)
+  const pill = pillRect(edge.labelPosition.x, edge.labelPosition.y, m)
+  for (const other of edges) {
+    if (other === edge || (edge.edgeIndex !== undefined && other.edgeIndex === edge.edgeIndex)) continue
+    for (let i = 1; i < other.points.length; i++) {
+      const a = other.points[i - 1]!, b = other.points[i]!
+      const vertical = Math.abs(a.x - b.x) < EPS
+      const horizontal = Math.abs(a.y - b.y) < EPS
+      if (!vertical && !horizontal) continue
+      const sxLo = Math.min(a.x, b.x), sxHi = Math.max(a.x, b.x)
+      const syLo = Math.min(a.y, b.y), syHi = Math.max(a.y, b.y)
+      const hitsPill = sxHi >= pill.x && sxLo <= pill.x + pill.w && syHi >= pill.y && syLo <= pill.y + pill.h
+      if (!hitsPill) continue
+      // Shared trunk only when one of THIS edge's segments is collinear with the
+      // other's; a plain perpendicular crossing is not.
+      for (let j = 1; j < edge.points.length; j++) {
+        const c = edge.points[j - 1]!, d = edge.points[j]!
+        const sameAxis = vertical
+          ? Math.abs(c.x - d.x) < EPS && Math.abs(c.x - a.x) < CLEARANCE
+          : Math.abs(c.y - d.y) < EPS && Math.abs(c.y - a.y) < CLEARANCE
+        if (!sameAxis) continue
+        const cLo = vertical ? Math.min(c.y, d.y) : Math.min(c.x, d.x)
+        const cHi = vertical ? Math.max(c.y, d.y) : Math.max(c.x, d.x)
+        const oLo = vertical ? syLo : sxLo
+        const oHi = vertical ? syHi : sxHi
+        if (Math.min(cHi, oHi) - Math.max(cLo, oLo) > EPS) return other
+      }
+    }
+  }
+  return null
+}
+
+/**
+ * Post-freeze label repair for ROUTE_LABEL_ON_SHARED_TRUNK. A labeled edge whose
+ * pill sits on a trunk shared with another edge is illegible — the reader cannot
+ * tell which edge the label names. An earlier pass can place such a label on a
+ * congested segment (e.g. a labeled edge running alongside its fan-out siblings),
+ * and applyRouteContracts only re-slots labels on edges it re-routes, so these
+ * survive to the output. Here we re-run the clearance-aware findLabelSlot over
+ * the edge's own axis-aligned segments (longest first — most room) and move ONLY
+ * the label to the first position clear of every node and foreign segment.
+ *
+ * Geometry-preserving (labels only) so it is freeze-safe; deterministic (fixed
+ * segment order + findLabelSlot's fixed candidate set). When no clear slot exists
+ * — e.g. an exactly-overlapping duplicate edge shares the whole trunk — the label
+ * is left untouched, since there is nowhere unambiguous to put it.
+ */
+export function repairLabelsOnSharedTrunks(
+  positioned: { nodes: PositionedNode[]; edges: PositionedEdge[]; groups: PositionedGroup[] },
+  graph: MermaidGraph,
+  style: LabelMetricsStyle,
+): void {
+  // The repair only needs to clear the AUDIT condition (a collinear shared
+  // trunk) plus avoid drawing the pill over a node — NOT the stricter
+  // full-clearance findLabelSlot uses, which also rejects harmless
+  // perpendicular crossings and so leaves no slot in dense fan-in/out regions.
+  const pillOverNode = (pill: { x: number; y: number; w: number; h: number }, edge: PositionedEdge): boolean =>
+    positioned.nodes.some(n => n.id !== edge.source && n.id !== edge.target &&
+      pill.x < n.x + n.width && pill.x + pill.w > n.x && pill.y < n.y + n.height && pill.y + pill.h > n.y)
+
+  for (const edge of positioned.edges) {
+    if (!edge.label || !edge.labelPosition || edge.points.length < 2) continue
+    if (!sharedTrunkConflict(edge, positioned.edges, style)) continue
+    const m = measureMultilineText(edge.label, style.edgeLabelFontSize, style.edgeLabelFontWeight)
+    const pw = m.width + 2 * LABEL_PILL_PADDING, ph = m.height + 2 * LABEL_PILL_PADDING
+
+    const segs: Array<{ a: Point; b: Point; vertical: boolean; len: number; i: number }> = []
+    for (let i = 1; i < edge.points.length; i++) {
+      const a = edge.points[i - 1]!, b = edge.points[i]!
+      const vertical = Math.abs(a.x - b.x) < EPS
+      if (vertical || Math.abs(a.y - b.y) < EPS) segs.push({ a, b, vertical, len: Math.abs(a.x - b.x) + Math.abs(a.y - b.y), i })
+    }
+    segs.sort((p, q) => q.len - p.len || p.i - q.i)
+
+    const saved = edge.labelPosition
+    let fixed = false
+    for (const seg of segs) {
+      if (fixed) break
+      const half = (seg.vertical ? ph : pw) / 2
+      if (seg.len <= 2 * half) continue // pill can't sit on this segment without overhanging a bend
+      const tMargin = half / seg.len
+      // Sample the fitting interval, ordered center-out (the midpoint reads best).
+      const N = 11
+      const ts: number[] = []
+      for (let k = 0; k < N; k++) ts.push(tMargin + (1 - 2 * tMargin) * (k / (N - 1)))
+      ts.sort((a, b) => Math.abs(a - 0.5) - Math.abs(b - 0.5))
+      for (const t of ts) {
+        const cx = seg.a.x + (seg.b.x - seg.a.x) * t
+        const cy = seg.a.y + (seg.b.y - seg.a.y) * t
+        edge.labelPosition = { x: cx, y: cy }
+        if (!pillOverNode(pillRect(cx, cy, m), edge) && !sharedTrunkConflict(edge, positioned.edges, style)) { fixed = true; break }
+      }
+    }
+
+    if (!fixed) {
+      // The trunk is shared along the whole route — the signature of a duplicate
+      // edge (same endpoints drawn twice, one labeled). Relocation cannot help,
+      // so offset this labeled edge into a parallel lane and label the lane.
+      // Gated on a straight route whose conflict is a true duplicate, so it never
+      // fires on the (already audit-clean) corpus and cannot regress it.
+      const dup = sharedTrunkConflict(edge, positioned.edges, style)
+      if (dup && dup.source === edge.source && dup.target === edge.target && edge.points.length === 2) {
+        const a = edge.points[0]!, b = edge.points[1]!
+        const vertical = Math.abs(a.x - b.x) < EPS
+        if (vertical || Math.abs(a.y - b.y) < EPS) {
+          const inset = Math.min(14, (vertical ? Math.abs(b.y - a.y) : Math.abs(b.x - a.x)) / 3)
+          const segHitsNode = (p: Point, q: Point, n: PositionedNode): boolean =>
+            Math.max(p.x, q.x) + 4 > n.x && Math.min(p.x, q.x) - 4 < n.x + n.width &&
+            Math.max(p.y, q.y) + 4 > n.y && Math.min(p.y, q.y) - 4 < n.y + n.height
+          const savedPts = edge.points, savedCert = edge.routeCertificate
+          for (const gap of [18, -18, 26, -26]) {
+            let pts: Point[], laneMid: Point
+            if (vertical) {
+              const lane = a.x + gap, dir = Math.sign(b.y - a.y) || 1
+              const y1 = a.y + dir * inset, y2 = b.y - dir * inset
+              pts = [a, { x: a.x, y: y1 }, { x: lane, y: y1 }, { x: lane, y: y2 }, { x: b.x, y: y2 }, b]
+              laneMid = { x: lane, y: (y1 + y2) / 2 }
+            } else {
+              const lane = a.y + gap, dir = Math.sign(b.x - a.x) || 1
+              const x1 = a.x + dir * inset, x2 = b.x - dir * inset
+              pts = [a, { x: x1, y: a.y }, { x: x1, y: lane }, { x: x2, y: lane }, { x: x2, y: b.y }, b]
+              laneMid = { x: (x1 + x2) / 2, y: lane }
+            }
+            if (positioned.nodes.some(n => n.id !== edge.source && n.id !== edge.target &&
+              pts.slice(1).some((q, k) => segHitsNode(pts[k]!, q, n)))) continue
+            edge.points = simplifyPolyline(pts)
+            edge.labelPosition = laneMid
+            edge.routeCertificate = undefined
+            if (!sharedTrunkConflict(edge, positioned.edges, style) && !pillOverNode(pillRect(laneMid.x, laneMid.y, m), edge)) { fixed = true; break }
+            edge.points = savedPts
+            edge.routeCertificate = savedCert
+          }
+        }
+      }
+    }
+
+    if (!fixed) edge.labelPosition = saved // nowhere unambiguous on this route — leave as placed
+  }
+}
+
 export function auditRouteContracts(
   positioned: { nodes: PositionedNode[]; edges: PositionedEdge[]; groups: PositionedGroup[] },
   graph: MermaidGraph,
@@ -2067,38 +2220,8 @@ export function auditRouteContracts(
     // that another edge's collinear segment shares (spec §11.4) — the reader
     // cannot tell which edge the label belongs to.
     if (edge.label && edge.labelPosition) {
-      const m = measureMultilineText(edge.label, style.edgeLabelFontSize, style.edgeLabelFontWeight)
-      const pill = pillRect(edge.labelPosition.x, edge.labelPosition.y, m)
-      outer: for (const other of positioned.edges) {
-        if (other === edge || (edge.edgeIndex !== undefined && other.edgeIndex === edge.edgeIndex)) continue
-        for (let i = 1; i < other.points.length; i++) {
-          const a = other.points[i - 1]!, b = other.points[i]!
-          const vertical = Math.abs(a.x - b.x) < EPS
-          const horizontal = Math.abs(a.y - b.y) < EPS
-          if (!vertical && !horizontal) continue
-          const sxLo = Math.min(a.x, b.x), sxHi = Math.max(a.x, b.x)
-          const syLo = Math.min(a.y, b.y), syHi = Math.max(a.y, b.y)
-          const hitsPill = sxHi >= pill.x && sxLo <= pill.x + pill.w && syHi >= pill.y && syLo <= pill.y + pill.h
-          if (!hitsPill) continue
-          // Shared trunk only when one of THIS edge's segments is collinear
-          // with the other's segment; a plain perpendicular crossing is not.
-          for (let j = 1; j < edge.points.length; j++) {
-            const c = edge.points[j - 1]!, d = edge.points[j]!
-            const sameAxis = vertical
-              ? Math.abs(c.x - d.x) < EPS && Math.abs(c.x - a.x) < CLEARANCE
-              : Math.abs(c.y - d.y) < EPS && Math.abs(c.y - a.y) < CLEARANCE
-            if (!sameAxis) continue
-            const cLo = vertical ? Math.min(c.y, d.y) : Math.min(c.x, d.x)
-            const cHi = vertical ? Math.max(c.y, d.y) : Math.max(c.x, d.x)
-            const oLo = vertical ? syLo : sxLo
-            const oHi = vertical ? syHi : sxHi
-            if (Math.min(cHi, oHi) - Math.max(cLo, oLo) > EPS) {
-              findings.push({ code: 'ROUTE_LABEL_ON_SHARED_TRUNK', edge: id, sharedWith: edgeId(other) })
-              break outer
-            }
-          }
-        }
-      }
+      const other = sharedTrunkConflict(edge, positioned.edges, style)
+      if (other) findings.push({ code: 'ROUTE_LABEL_ON_SHARED_TRUNK', edge: id, sharedWith: edgeId(other) })
     }
   }
   return findings

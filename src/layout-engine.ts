@@ -38,7 +38,7 @@ import { measureMultilineText } from './text-metrics.ts'
 import { elkLayoutSync } from './elk-instance.ts'
 import { clipEdgeToShape } from './shape-clipping.ts'
 import { onShapeOutline } from './layout-rubric.ts'
-import { applyRouteContracts, classifyRoutes, diamondFacetPorts, labelRect, PORT_EXACT, shapePorts, simplifyPolyline } from './route-contracts.ts'
+import { applyRouteContracts, classifyRoutes, diamondFacetPorts, labelRect, PORT_EXACT, repairLabelsOnSharedTrunks, shapePorts, simplifyPolyline } from './route-contracts.ts'
 import type { LabelMetricsStyle } from './route-contracts.ts'
 import { resolveEdgeInlineStyle, resolveNodeInlineStyle } from './color-resolver.ts'
 import { runPipeline } from './layout/pass.ts'
@@ -1025,8 +1025,13 @@ export const LAYOUT_PIPELINE: ReadonlyArray<LayoutPass<LayoutPassContext>> = [
     run: c => { applyRouteContracts({ nodes: c.nodes, edges: c.edges, groups: c.groups }, c.graph, c.bundled, c.style) },
   },
   {
+    id: 'repairLabelsOnSharedTrunks', doc: 're-slot a labeled edge whose pill sits on a trunk shared with another edge (label-only, freeze-safe)',
+    after: ['applyRouteContracts'], mutates: ['edges'], determinism: 'in-place',
+    run: c => { repairLabelsOnSharedTrunks({ nodes: c.nodes, edges: c.edges, groups: c.groups }, c.graph, c.style) },
+  },
+  {
     id: 'translateGeometryToNonNegativeOrigin', doc: 'shift whole graph to a non-negative origin (allowed after freeze)',
-    after: ['applyRouteContracts'], mutates: ['translate'], determinism: 'in-place',
+    after: ['repairLabelsOnSharedTrunks'], mutates: ['translate'], determinism: 'in-place',
     run: c => { translateGeometryToNonNegativeOrigin(c.nodes, c.edges, c.groups, c.layoutPadding) },
   },
 ]

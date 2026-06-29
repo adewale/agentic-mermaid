@@ -766,7 +766,8 @@ in sync by `src/__tests__/layout-pass-docsync.test.ts` (regenerate with
 13. `collapseTinyBundledHitches` - remove sub-perceptual hitches introduced by bundling
 14. `reassignBundledSiblingLabels` - re-home labels onto the correct bundled sibling segment
 15. `applyRouteContracts` - classify -> simplify -> straighten (fixed-point) -> certify; FREEZES node geometry
-16. `translateGeometryToNonNegativeOrigin` - shift whole graph to a non-negative origin (allowed after freeze)
+16. `repairLabelsOnSharedTrunks` - re-slot a labeled edge whose pill sits on a trunk shared with another edge (label-only, freeze-safe)
+17. `translateGeometryToNonNegativeOrigin` - shift whole graph to a non-negative origin (allowed after freeze)
 
 <!-- LAYOUT-PIPELINE:end -->
 
