@@ -1,0 +1,67 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 269.2026666666667 575.3" width="269.2026666666667" height="575.3" style="--bg:#FFFFFF;--fg:#1b2a25;--font:'DejaVu Sans';background:transparent">
+<style>
+  text { font-family: var(--font, 'Inter'), system-ui, sans-serif; }
+  svg {
+    /* Derived from --bg and --fg (overridable via --line, --accent, etc.) */
+    --_text:          #1b2a25;
+    --_text-sec:      #7d7d7f;
+    --_text-muted:    #a9a9aa;
+    --_text-faint:    #c9c9ca;
+    --_line:          #939395;
+    --_arrow:         #47474a;
+    --_node-fill:     #f9f9f9;
+    --_node-stroke:   #d4d4d4;
+    --_group-fill:    #FFFFFF;
+    --_group-hdr:     #f4f4f4;
+    --_inner-stroke:  #e5e5e5;
+    --_key-badge:     #e9e9ea;
+  }
+</style>
+<defs>
+  <marker id="arrowhead" markerWidth="8" markerHeight="5" refX="7" refY="2.5" orient="auto">
+    <polygon points="0 0, 8 2.5, 0 5" fill="#47474a" stroke="#47474a" stroke-width="0.75" stroke-linejoin="round" />
+  </marker>
+  <marker id="arrowhead-start" markerWidth="8" markerHeight="5" refX="7" refY="2.5" orient="auto-start-reverse">
+    <polygon points="0 0, 8 2.5, 0 5" fill="#47474a" stroke="#47474a" stroke-width="0.75" stroke-linejoin="round" />
+  </marker>
+</defs>
+<polyline class="edge" data-from="_start" data-to="Draft" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" points="105.26366666666667,68 105.26366666666667,116" fill="none" stroke="#939395" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="Draft" data-to="Verified" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" data-label="verify ok" points="105.26366666666667,152.9 105.26366666666667,269.20000000000005" fill="none" stroke="#939395" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="Verified" data-to="Rendered" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" data-label="render" points="90.615,306.1 90.615,422.40000000000003" fill="none" stroke="#939395" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="Verified" data-to="Draft" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" data-label="warnings" points="149.20966666666666,287.65000000000003 169.39966666666666,287.65000000000003 169.39966666666666,134.45 140.31766666666667,134.45" fill="none" stroke="#939395" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="Rendered" data-to="_end" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" points="90.615,459.3 90.615,507.29999999999995" fill="none" stroke="#939395" stroke-width="1" marker-end="url(#arrowhead)" />
+<g class="edge-label" data-from="Draft" data-to="Verified" data-label="verify ok">
+  <rect class="edge-label-halo" x="71.76366666666667" y="191.9" width="66.636" height="38.3" rx="4" ry="4" fill="#FFFFFF" stroke="none" />
+  <rect x="75.76366666666667" y="195.9" width="58.635999999999996" height="30.3" rx="2" ry="2" fill="#FFFFFF" stroke="#e5e5e5" stroke-width="1" />
+  <text x="105.08166666666666" y="211.05" text-anchor="middle" font-size="11" font-weight="400" fill="#7d7d7f" dy="3.8499999999999996">verify ok</text>
+</g>
+<g class="edge-label" data-from="Verified" data-to="Rendered" data-label="render">
+  <rect class="edge-label-halo" x="61.158" y="345.1" width="58.913999999999994" height="38.3" rx="4" ry="4" fill="#FFFFFF" stroke="none" />
+  <rect x="65.158" y="349.1" width="50.913999999999994" height="30.3" rx="2" ry="2" fill="#FFFFFF" stroke="#e5e5e5" stroke-width="1" />
+  <text x="90.615" y="364.25" text-anchor="middle" font-size="11" font-weight="400" fill="#7d7d7f" dy="3.8499999999999996">render</text>
+</g>
+<g class="edge-label" data-from="Verified" data-to="Draft" data-label="warnings">
+  <rect class="edge-label-halo" x="134.39966666666666" y="191.9" width="69.606" height="38.3" rx="4" ry="4" fill="#FFFFFF" stroke="none" />
+  <rect x="138.39966666666666" y="195.9" width="61.606" height="30.3" rx="2" ry="2" fill="#FFFFFF" stroke="#e5e5e5" stroke-width="1" />
+  <text x="169.20266666666666" y="211.05" text-anchor="middle" font-size="11" font-weight="400" fill="#7d7d7f" dy="3.8499999999999996">warnings</text>
+</g>
+<g class="node" data-id="_start" data-label="" data-shape="state-start">
+  <circle cx="105.26366666666667" cy="54" r="12" fill="#1b2a25" stroke="none" />
+</g>
+<g class="node" data-id="Draft" data-label="Draft" data-shape="rounded">
+  <rect x="70.20966666666666" y="116" width="70.108" height="36.900000000000006" rx="6" ry="6" fill="#f9f9f9" stroke="#d4d4d4" stroke-width="0.75" />
+  <text x="105.26366666666667" y="134.45" text-anchor="middle" font-size="13" font-weight="500" fill="#1b2a25" dy="4.55">Draft</text>
+</g>
+<g class="node" data-id="Verified" data-label="Verified" data-shape="rounded">
+  <rect x="61.31766666666667" y="269.20000000000005" width="87.892" height="36.900000000000006" rx="6" ry="6" fill="#f9f9f9" stroke="#d4d4d4" stroke-width="0.75" />
+  <text x="105.26366666666667" y="287.65000000000003" text-anchor="middle" font-size="13" font-weight="500" fill="#1b2a25" dy="4.55">Verified</text>
+</g>
+<g class="node" data-id="Rendered" data-label="Rendered" data-shape="rounded">
+  <rect x="40" y="422.40000000000003" width="101.22999999999999" height="36.900000000000006" rx="6" ry="6" fill="#f9f9f9" stroke="#d4d4d4" stroke-width="0.75" />
+  <text x="90.615" y="440.85" text-anchor="middle" font-size="13" font-weight="500" fill="#1b2a25" dy="4.55">Rendered</text>
+</g>
+<g class="node" data-id="_end" data-label="" data-shape="state-end">
+  <circle cx="90.615" cy="521.3" r="12" fill="none" stroke="#1b2a25" stroke-width="1.5" />
+  <circle cx="90.615" cy="521.3" r="8" fill="#1b2a25" stroke="none" />
+</g>
+</svg>

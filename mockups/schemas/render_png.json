@@ -1,0 +1,33 @@
+{
+  "name": "render_png",
+  "description": "Rasterize a Mermaid source string to PNG. By default returns base64-encoded PNG bytes.\nSet output to \"file\" or \"url\" to write a managed artifact instead; artifact responses include\n{path?, url?, mimeType, bytes, sha256}. File/URL artifacts are generated under the MCP server's\nartifact directory with safe names, size limits, and TTL cleanup.\nUses bundled resvg + DejaVu Sans for same-machine cross-runtime determinism where verified.\nAgentic Mermaid outputs SVG, PNG, ASCII, Unicode, and JSON layout. For non-PNG output, use execute() with mermaid.renderMermaidSVG, mermaid.renderMermaidASCII (useAscii true for ASCII, false for Unicode), or verifyMermaid(...).layout — those are streaming text/data and don't need a dedicated tool.",
+  "inputSchema": {
+    "type": "object",
+    "properties": {
+      "source": {
+        "type": "string",
+        "description": "Mermaid source."
+      },
+      "scale": {
+        "type": "number",
+        "description": "Output scale multiplier (default 2 — retina)."
+      },
+      "background": {
+        "type": "string",
+        "description": "CSS color string (default 'white')."
+      },
+      "output": {
+        "type": "string",
+        "enum": [
+          "base64",
+          "file",
+          "url"
+        ],
+        "description": "PNG return mode (default base64)."
+      }
+    },
+    "required": [
+      "source"
+    ]
+  }
+}

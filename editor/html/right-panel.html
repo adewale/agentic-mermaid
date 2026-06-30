@@ -1,8 +1,14 @@
-<section class="panel-right" id="panel-right" aria-label="Rendered preview">
+<section class="panel-right" id="panel-right" aria-label="Rendered output">
   <div class="preview-toolbar">
-    <span class="preview-label">Preview</span>
+    <!-- One canvas, one representation at a time. The same source as Diagram,
+         Unicode box-art, or ASCII — the multi-format story, not a duplicate render. -->
+    <div class="format-switch" data-segmented-control role="group" aria-label="Output format">
+      <button class="format-option is-active" id="format-diagram" type="button" aria-pressed="true" data-canvas-format="diagram">Diagram</button>
+      <button class="format-option" id="format-unicode" type="button" aria-pressed="false" data-canvas-format="unicode">Unicode</button>
+      <button class="format-option" id="format-ascii" type="button" aria-pressed="false" data-canvas-format="ascii">ASCII</button>
+    </div>
     <div class="toolbar-spacer"></div>
-    <div class="zoom-controls">
+    <div class="zoom-controls" id="zoom-controls">
       <button class="toolbar-btn" id="zoom-out-btn" type="button" title="Zoom out" aria-label="Zoom out">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="8" y1="11" x2="14" y2="11"/>
@@ -19,7 +25,7 @@
           <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/>
         </svg>
       </button>
-      <button class="toolbar-btn" id="pan-btn" type="button" title="Pan (hold to drag)" aria-label="Pan preview">
+      <button class="toolbar-btn" id="pan-btn" type="button" title="Pan (hold to drag)" aria-label="Pan preview" aria-pressed="false">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <path d="M18 11V6a2 2 0 0 0-2-2 2 2 0 0 0-2 2"/>
           <path d="M14 10V4a2 2 0 0 0-2-2 2 2 0 0 0-2 2v2"/>
@@ -29,22 +35,38 @@
         </svg>
       </button>
     </div>
+    <button class="toolbar-btn" id="copy-text-output-btn" type="button" title="Copy Mermaid source" aria-label="Copy Mermaid source">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="9" y="9" width="13" height="13" rx="2" />
+        <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+      </svg>
+    </button>
   </div>
 
   <div class="preview-body" id="preview-body">
     <div class="render-spinner" id="render-spinner"></div>
-    <div class="preview-inner" id="preview-inner">
+    <div class="preview-inner" id="preview-inner" data-canvas-view="diagram">
       <div class="preview-placeholder" id="preview-placeholder">
         <span class="placeholder-kicker">Blank canvas</span>
         <strong class="placeholder-title">No diagram yet</strong>
-        <span class="placeholder-copy">Start typing Mermaid syntax, or load a preset to see SVG output.</span>
+        <span class="placeholder-copy">Start typing Mermaid syntax, or load a preset to see Diagram, Unicode, and ASCII output.</span>
         <button class="placeholder-example-btn" type="button" data-action="load-example">Load an example</button>
       </div>
+    </div>
+    <pre class="text-canvas" id="unicode-output-wrap" data-canvas-view="unicode" aria-label="Unicode output" hidden><code id="unicode-output">Render a valid diagram to see Unicode output.</code></pre>
+    <pre class="text-canvas" id="ascii-output-wrap" data-canvas-view="ascii" aria-label="ASCII output" hidden><code id="ascii-output">Render a valid diagram to see ASCII output.</code></pre>
+  </div>
+
+  <div class="verify-bar" id="verify-bar" aria-label="Verification status">
+    <span class="verify-verdict" id="verify-summary">Waiting for source</span>
+    <div class="verify-tiers" role="list" aria-label="Warning tiers">
+      <span class="verify-tier idle" id="verify-tier-structural" role="listitem"><span class="verify-dot" aria-hidden="true"></span>Structural<i id="verify-structural">Not run</i></span>
+      <span class="verify-tier idle" id="verify-tier-geometric" role="listitem"><span class="verify-dot" aria-hidden="true"></span>Geometric<i id="verify-geometric">Not run</i></span>
+      <span class="verify-tier idle" id="verify-tier-lint" role="listitem"><span class="verify-dot" aria-hidden="true"></span>Lint<i id="verify-lint">Not run</i></span>
     </div>
   </div>
 
   <div class="preview-footer">
     <span id="render-time"></span>
-    <span>Agentic Mermaid</span>
   </div>
 </section>

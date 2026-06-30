@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The diagram-workflow skill – Agentic Mermaid</title>
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="icon" href="favicon.ico" type="image/x-icon">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<header class="masthead">
+  <div class="bar">
+    <a class="brand" href="home.html"><span class="mark"></span> Agentic&nbsp;Mermaid</a>
+    <span class="links"><a href="examples/">Examples</a><a href="gallery.html">Gallery</a><a href="families.html">Families</a><a href="docs-article.html">Docs</a><a class="link-editor" href="editor.html">Open editor</a></span>
+  </div>
+  <hr>
+</header>
+
+<main class="doc">
+  <section class="page-header">
+    <h1>The diagram-workflow skill</h1>
+    <p class="lead">One guided task that wraps the whole edit loop. Describe the change in words; the skill narrows to the right node, mutates, verifies, and hands back a tiered report – no raw tool calls to orchestrate.</p>
+  </section>
+  <p>This is the curated public skill, <code>agentic-mermaid-diagram-workflow</code>. The live-editor skill stays out of agent onboarding; for an agent editing diagrams, this is the one to reach for.</p>
+
+  <hr>
+
+  <h2>The shape of a run</h2>
+  <p>Four moves, the same every time.</p>
+  <ol>
+    <li><strong>Describe.</strong> &ldquo;Move the verify node below mutate and label the back-edge <em>warnings</em>.&rdquo; Plain language, no node IDs.</li>
+    <li><strong>Narrow.</strong> The skill resolves your words to a node or edge and scopes the edit there, so nothing else can move.</li>
+    <li><strong>Mutate and verify.</strong> It applies the change and runs <code>verify</code>; structural, geometric, and lint tiers come back with layout details for inspection.</li>
+    <li><strong>Report.</strong> You get the new render plus the tiers – ship, re-narrow, or stop and ask.</li>
+  </ol>
+
+  <h2>A run, end to end</h2>
+  <pre><code><span class="k">&gt;</span> describe: rename N to spell out "narrow, then move below mutate"
+<span class="ok">&#10003;</span> narrowed: node N
+<span class="ok">&#10003;</span> mutated: 1 node relabelled
+verify &rarr; { "ok": true, "warnings": [
+  { "code": "LABEL_OVERFLOW", "target": "N", "charCount": 60, "limit": 40 }   <span class="c">// tier: structural</span>
+] }
+<span class="k">&gt;</span> re-narrow: shorten N&rsquo;s label
+verify &rarr; { "ok": true, "warnings": [] }   <span class="ok">&#10003; shipped</span></code></pre>
+  <p>Because layout is deterministic, the re-narrow moved only the label – every other node landed exactly where it was, so the agent never re-checks work it already trusted.</p>
+
+  <h2>When to use it</h2>
+  <p>Reach for the workflow skill to <strong>change an existing diagram</strong> – the loop is the whole point. To author a diagram from scratch, the local CLI or library renderer is enough; for interactive, human-in-the-loop editing, the browser editor is the better fit. <a class="go" href="harnesses.json">Open harness config</a></p>
+
+  <hr>
+
+  <blockquote>The local stdio MCP exposes <code>execute</code>, <code>render_png</code>, and <code>describe</code>. The workflow skill performs <code>parse</code>, <code>narrow</code>, <code>mutate</code>, and <code>verify</code> inside trusted local Code Mode <code>execute</code>; the hosted MCP remains a future bounded surface and never gets arbitrary <code>execute(code)</code>.</blockquote>
+</main>
+
+<footer>
+  <div class="footlinks">
+    <a href="llms.txt">llms.txt</a><span class="sep">&middot;</span>
+    <a href="capabilities.json">capabilities.json</a><span class="sep">&middot;</span>
+    <a href="agent-instructions.md">agent-instructions.md</a><span class="sep">&middot;</span>
+    <a href="https://github.com/adewale/beautiful-mermaid">GitHub</a>
+  </div>
+</footer>
+
+<script src="shader-mark.js"></script>
+<script src="theme.js"></script>
+</body>
+</html>

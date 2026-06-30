@@ -1,0 +1,345 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Agentic Mermaid agent manifest",
+  "type": "object",
+  "required": [
+    "name",
+    "package",
+    "repo",
+    "site",
+    "description",
+    "outputFormats",
+    "families",
+    "localMcp",
+    "hostedExecution",
+    "machineRoutes",
+    "skills",
+    "stopRules",
+    "generatedFrom"
+  ],
+  "properties": {
+    "name": {
+      "const": "agentic-mermaid"
+    },
+    "package": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "title": "Package",
+      "type": "object",
+      "required": [
+        "name",
+        "version",
+        "imports",
+        "bins",
+        "npmStatus",
+        "checked",
+        "install"
+      ],
+      "properties": {
+        "name": {
+          "const": "agentic-mermaid"
+        },
+        "version": {
+          "type": "string"
+        },
+        "imports": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "bins": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "npmStatus": {
+          "enum": [
+            "published",
+            "unverified"
+          ]
+        },
+        "checked": {
+          "type": "string"
+        },
+        "install": {
+          "type": "object"
+        }
+      },
+      "additionalProperties": false
+    },
+    "repo": {
+      "type": "string"
+    },
+    "site": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "title": "Site",
+      "type": "object",
+      "required": [
+        "canonical",
+        "legacyPages"
+      ],
+      "properties": {
+        "canonical": {
+          "type": "string"
+        },
+        "legacyPages": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
+    "description": {
+      "type": "string"
+    },
+    "outputFormats": {
+      "type": "array",
+      "items": {
+        "enum": [
+          "svg",
+          "ascii",
+          "unicode",
+          "png",
+          "json"
+        ]
+      }
+    },
+    "families": {
+      "type": "array",
+      "items": {
+        "enum": [
+          "flowchart",
+          "state",
+          "sequence",
+          "timeline",
+          "class",
+          "er",
+          "journey",
+          "architecture",
+          "xychart",
+          "pie",
+          "quadrant",
+          "gantt"
+        ]
+      }
+    },
+    "localMcp": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "title": "Local MCP",
+      "type": "object",
+      "required": [
+        "recommended",
+        "execute",
+        "transport",
+        "server",
+        "tools"
+      ],
+      "properties": {
+        "recommended": {
+          "const": true
+        },
+        "execute": {
+          "const": true
+        },
+        "transport": {
+          "const": "stdio"
+        },
+        "server": {
+          "type": "object"
+        },
+        "tools": {
+          "type": "array",
+          "items": {
+            "enum": [
+              "execute",
+              "render_png",
+              "describe"
+            ]
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "hostedExecution": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "title": "Hosted execution posture",
+      "type": "object",
+      "required": [
+        "codeMode",
+        "renderApi",
+        "mcp"
+      ],
+      "properties": {
+        "codeMode": {
+          "const": false
+        },
+        "renderApi": {
+          "const": false
+        },
+        "mcp": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "title": "Hosted MCP posture",
+          "type": "object",
+          "required": [
+            "available",
+            "url",
+            "transport",
+            "auth",
+            "recommended",
+            "execute",
+            "tools",
+            "localToolSurface",
+            "futureHostedConstraint",
+            "status"
+          ],
+          "properties": {
+            "available": {
+              "const": false
+            },
+            "url": {
+              "type": "null"
+            },
+            "transport": {
+              "const": "streamable-http"
+            },
+            "auth": {
+              "const": "none"
+            },
+            "recommended": {
+              "const": "self-host"
+            },
+            "execute": {
+              "const": false
+            },
+            "tools": {
+              "type": "array",
+              "maxItems": 0
+            },
+            "localToolSurface": {
+              "type": "array",
+              "items": {
+                "enum": [
+                  "execute",
+                  "render_png",
+                  "describe"
+                ]
+              }
+            },
+            "futureHostedConstraint": {
+              "type": "string"
+            },
+            "status": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "machineRoutes": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "title": "Machine routes",
+      "type": "object",
+      "required": [
+        "llms",
+        "instructions",
+        "capabilities",
+        "schemas",
+        "examples",
+        "harnesses",
+        "recipes",
+        "skills"
+      ],
+      "properties": {
+        "llms": {
+          "const": "/llms.txt"
+        },
+        "instructions": {
+          "const": "/agent-instructions.md"
+        },
+        "capabilities": {
+          "const": "/capabilities.json"
+        },
+        "schemas": {
+          "const": "/schemas/index.json"
+        },
+        "examples": {
+          "const": "/examples/index.json"
+        },
+        "harnesses": {
+          "const": "/harnesses.json"
+        },
+        "recipes": {
+          "const": "/recipes/index.json"
+        },
+        "skills": {
+          "const": "/skills/index.json"
+        }
+      },
+      "additionalProperties": false
+    },
+    "skills": {
+      "type": "array",
+      "items": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "title": "Skill manifest entry",
+        "type": "object",
+        "required": [
+          "id",
+          "scope",
+          "landing",
+          "entrypoint",
+          "capabilitiesAuthority"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "scope": {
+            "type": "string"
+          },
+          "landing": {
+            "type": "string"
+          },
+          "entrypoint": {
+            "type": "string"
+          },
+          "capabilitiesAuthority": {
+            "const": "/capabilities.json"
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "stopRules": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "generatedFrom": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "title": "Generated from",
+      "type": "object",
+      "required": [
+        "packageVersion",
+        "gitSha",
+        "buildTime"
+      ],
+      "properties": {
+        "packageVersion": {
+          "type": "string"
+        },
+        "gitSha": {
+          "type": "string"
+        },
+        "buildTime": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}

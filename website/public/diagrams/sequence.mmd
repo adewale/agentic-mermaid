@@ -1,0 +1,7 @@
+sequenceDiagram
+  participant A as Agent
+  participant AM as Agentic Mermaid
+  A->>AM: verify(source)
+  AM-->>A: warnings[]
+  A->>AM: mutate(addEdge)
+  AM-->>A: ValidDiagram

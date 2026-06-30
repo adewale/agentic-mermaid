@@ -494,6 +494,7 @@ describe('root docs consistency', () => {
       'CHANGELOG.md',
       'CLAUDE.md',
       'Instructions_for_agents.md',
+      'PRODUCT.md',
       'README.md',
       'SECURITY.md',
       'TODO.md',

@@ -1,0 +1,65 @@
+{
+  "generatedFrom": {
+    "packageVersion": "0.1.0",
+    "gitSha": "development",
+    "buildTime": "development"
+  },
+  "skills": [
+    {
+      "id": "agentic-mermaid-diagram-workflow",
+      "name": "agentic-mermaid-diagram-workflow",
+      "scope": "consumer",
+      "description": "Guided workflow for authoring, editing, verifying, serializing, and rendering Agentic Mermaid diagrams.",
+      "landing": "/skills/agentic-mermaid-diagram-workflow/",
+      "entrypoint": "/skills/agentic-mermaid-diagram-workflow/SKILL.md",
+      "rawFiles": [
+        {
+          "path": "SKILL.md",
+          "url": "/skills/agentic-mermaid-diagram-workflow/SKILL.md",
+          "sha256": "4c1164d2451995310a148aaeaa990a5f0873e13883b6774a59873ac53a4c26f0"
+        },
+        {
+          "path": "references/cli.md",
+          "url": "/skills/agentic-mermaid-diagram-workflow/references/cli.md",
+          "sha256": "a4725ee26a2d0f5dc738bfc6f9089409d0e5ae4978585ee6df7cae8e2b9e9f3b"
+        },
+        {
+          "path": "references/code-mode.md",
+          "url": "/skills/agentic-mermaid-diagram-workflow/references/code-mode.md",
+          "sha256": "d02917725d5453f1c0f4bc26ccf9ee6e2fe8157c164037129eac2d62c3105a34"
+        },
+        {
+          "path": "references/flowchart.md",
+          "url": "/skills/agentic-mermaid-diagram-workflow/references/flowchart.md",
+          "sha256": "c3c954735657f45af744f9c5f86e20684f73341e2a8f96398ec0e591dccdbda3"
+        },
+        {
+          "path": "references/sequence.md",
+          "url": "/skills/agentic-mermaid-diagram-workflow/references/sequence.md",
+          "sha256": "9d7f46290b457584e8bdcf495916f686bceda3381fdbf0b74821fe9ea76090ea"
+        },
+        {
+          "path": "references/timeline.md",
+          "url": "/skills/agentic-mermaid-diagram-workflow/references/timeline.md",
+          "sha256": "f0f90d88ba516eeffed268c4eb965bf8a1f17f496fa23191260949f089cb561f"
+        }
+      ],
+      "requiredReferences": [
+        "/skills/agentic-mermaid-diagram-workflow/references/cli.md",
+        "/skills/agentic-mermaid-diagram-workflow/references/code-mode.md",
+        "/skills/agentic-mermaid-diagram-workflow/references/flowchart.md",
+        "/skills/agentic-mermaid-diagram-workflow/references/sequence.md",
+        "/skills/agentic-mermaid-diagram-workflow/references/timeline.md"
+      ],
+      "optionalReferences": [],
+      "capabilitiesAuthority": "/capabilities.json",
+      "supportedLocalChannels": [
+        "library",
+        "cli",
+        "local-mcp",
+        "skills-capable-harnesses"
+      ],
+      "warning": "Capabilities.json is authoritative; upstream Mermaid syntax references are authoring references, not render-support claims."
+    }
+  ]
+}

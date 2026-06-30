@@ -2,7 +2,7 @@
 
 # Agentic Mermaid
 
-Agentic Mermaid is an open-source Mermaid rendering and editing toolkit, forked from [`lukilabs/beautiful-mermaid`](https://github.com/lukilabs/beautiful-mermaid), for producing deterministic **ASCII, PNG, and SVG** diagrams plus agent-verifiable structured edits.
+Agentic Mermaid is an open-source Mermaid rendering and editing toolkit, forked from [`lukilabs/beautiful-mermaid`](https://github.com/lukilabs/beautiful-mermaid), for producing deterministic **SVG, PNG, ASCII, Unicode, and JSON layout** outputs plus agent-verifiable structured edits.
 
 Published as `agentic-mermaid`; the GitHub repository and Pages path currently remain `adewale/beautiful-mermaid` / `https://adewale.github.io/beautiful-mermaid/`.
 
@@ -31,9 +31,9 @@ Agents should not guess from pixels, concatenate strings, or regenerate whole di
 ## Highlights
 
 - **12 diagram families** — flowchart, state, architecture, sequence, class, ER, timeline, journey, XY chart, pie, quadrant, and Gantt.
-- **ASCII, PNG, SVG** — plus Unicode text and JSON layout.
+- **SVG, PNG, ASCII, Unicode, JSON** — one deterministic layout foundation for page, terminal, and agent workflows.
 - **Synchronous, zero-DOM SVG renderer** — no Puppeteer, no browser flash.
-- **19 built-in themes + Shiki compatibility** — theme from two colors or a VS Code theme.
+- **21 built-in themes + Shiki compatibility** — theme from two colors or a VS Code theme.
 - **Agent-native editing** — typed mutation for all twelve renderable families (flowchart/state, sequence, timeline, class, ER, journey, architecture, XY chart, pie, quadrant, Gantt); source-level round-trip only for opaque fallbacks (unmodeled syntax).
 - **CLI + MCP + library** — `am`, `agentic-mermaid-mcp`, `agentic-mermaid`, and `agentic-mermaid/agent`.
 

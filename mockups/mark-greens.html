@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mark – lighter greens, no white glyph</title>
+<style>
+  :root { --sans: 'DejaVu Sans', system-ui, sans-serif; --mono: 'DejaVu Sans Mono', ui-monospace, monospace; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: #ECEFEE; color: #1A2420; font-family: var(--sans); font-size: 15px; line-height: 1.6; padding: 40px 32px 80px; }
+  h1 { font-weight: 700; font-size: 24px; margin: 0 0 4px; }
+  .sub { color: #5A6661; margin: 0 0 32px; max-width: 60ch; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(196px, 1fr)); gap: 18px; max-width: 1180px; }
+  .card { background: #fff; border: 1px solid #DCE3E0; border-radius: 12px; padding: 22px 18px 16px; text-align: center; }
+  .card.base { border-color: #B9C6C0; background: #F6F8F7; }
+  .big { width: 88px; height: 88px; border-radius: 20px; display: inline-grid; place-items: center; margin: 0 auto 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.12), inset 0 0 0 1px rgba(0,0,0,0.04); }
+  .big svg { width: 100%; height: 100%; display: block; }
+  .row24 { display: flex; align-items: center; justify-content: center; gap: 10px; margin-bottom: 14px; }
+  .m24 { width: 24px; height: 24px; border-radius: 6px; display: inline-grid; place-items: center; box-shadow: inset 0 0 0 1px rgba(0,0,0,0.10); }
+  .m24 svg { width: 100%; height: 100%; display: block; }
+  .nm { font-weight: 700; font-size: 14px; }
+  .hex { font-family: var(--mono); font-size: 11.5px; color: #5A6661; margin-top: 3px; }
+  .cr { font-family: var(--mono); font-size: 11.5px; margin-top: 6px; }
+  .cr b { font-weight: 700; }
+  .pass { color: #137A52; } .warn { color: #9A6212; } .fail { color: #B23A2E; }
+  .strips { margin-top: 40px; max-width: 1180px; }
+  .strip { display: flex; align-items: center; gap: 18px; padding: 18px 22px; border-radius: 12px; flex-wrap: wrap; }
+  .strip.dark { background: #0F1512; } .strip.light { background: #FFFFFF; border: 1px solid #DCE3E0; }
+  .strip .lab { font-size: 12px; font-family: var(--mono); width: 64px; flex: none; }
+  .strip.dark .lab { color: #8FA199; } .strip.light .lab { color: #5A6661; }
+  .strip .brandrow { display: inline-flex; align-items: center; gap: 9px; font-size: 16px; }
+  .strip.dark .brandrow { color: #E7ECE9; } .strip.light .brandrow { color: #18211E; }
+  .note { color: #5A6661; font-size: 13px; margin-top: 28px; max-width: 70ch; }
+</style>
+</head>
+<body>
+<h1>The mark in lighter greens – no white glyph</h1>
+<p class="sub">Tonal, green-on-green badges instead of dark&#8209;green&#8202;+&#8202;white. The first card is the current mark for reference. Numbers are WCAG contrast (glyph vs chip); the strokes are thin, so aim for &#8805;&#8202;3:1.</p>
+
+<div class="grid" id="grid"></div>
+
+<div class="strips">
+  <div class="strip dark"><span class="lab">on dark</span><span id="sd"></span></div>
+  <div class="strip light"><span class="lab">on light</span><span id="sl"></span></div>
+</div>
+
+<p class="note">Each chip is shown at 88px and at the real 24px masthead size. The &ldquo;on dark / on light&rdquo; strips place the 24px mark next to the wordmark on both page grounds, since the chip rides every theme.</p>
+
+<script>
+const GLYPH = `<svg viewBox="0 0 48 48" fill="none">
+  <g stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+    <polyline points="14,8.5 14,23.5 24,39.5" stroke-width="1.9"/><polyline points="24,5.5 24,23.5 24,39.5" stroke-width="2.4"/><polyline points="34,8.5 34,23.5 24,39.5" stroke-width="1.9"/>
+  </g>
+  <g fill="currentColor"><circle cx="14" cy="8.5" r="2.5"/><circle cx="24" cy="5.5" r="2.5"/><circle cx="34" cy="8.5" r="2.5"/><circle cx="24" cy="39.5" r="3.3"/></g>
+  <g fill="none" stroke="currentColor" stroke-width="1.3"><circle cx="14" cy="23.5" r="1.7"/><circle cx="24" cy="23.5" r="1.7"/><circle cx="34" cy="23.5" r="1.7"/></g>
+</svg>`;
+
+const C = [
+  { name: 'Current', chip: '#0E6E55', glyph: '#FFFFFF', base: true },
+  { name: 'Sage',       chip: '#B6E3D1', glyph: '#0E6E55' },
+  { name: 'Spring',     chip: '#8FD3BA', glyph: '#0C5341' },
+  { name: 'Fern',       chip: '#6FC2A2', glyph: '#0A4434' },
+  { name: 'Jade',       chip: '#45B395', glyph: '#08382A' },
+  { name: 'Tonal',      chip: '#2E9E7E', glyph: '#CDEFE2' },
+];
+
+function srgb(c){ c/=255; return c<=0.03928 ? c/12.92 : Math.pow((c+0.055)/1.055, 2.4); }
+function lum(hex){ const n=parseInt(hex.slice(1),16); return 0.2126*srgb((n>>16)&255)+0.7152*srgb((n>>8)&255)+0.0722*srgb(n&255); }
+function contrast(a,b){ const L1=lum(a),L2=lum(b),hi=Math.max(L1,L2),lo=Math.min(L1,L2); return (hi+0.05)/(lo+0.05); }
+function cls(r){ return r>=4.5 ? 'pass' : r>=3 ? 'warn' : 'fail'; }
+
+const grid = document.getElementById('grid');
+for (const c of C) {
+  const r = contrast(c.chip, c.glyph);
+  const el = document.createElement('div');
+  el.className = 'card' + (c.base ? ' base' : '');
+  el.innerHTML =
+    `<div class="big" style="background:${c.chip};color:${c.glyph}">${GLYPH}</div>` +
+    `<div class="row24"><span class="m24" style="background:${c.chip};color:${c.glyph}">${GLYPH}</span></div>` +
+    `<div class="nm">${c.name}</div>` +
+    `<div class="hex">${c.chip} &middot; ${c.glyph}</div>` +
+    `<div class="cr ${cls(r)}"><b>${r.toFixed(1)}:1</b> contrast</div>`;
+  grid.appendChild(el);
+}
+for (const ground of ['sd', 'sl']) {
+  const host = document.getElementById(ground);
+  host.style.display = 'inline-flex'; host.style.gap = '18px'; host.style.flexWrap = 'wrap';
+  for (const c of C) {
+    const b = document.createElement('span');
+    b.className = 'brandrow';
+    b.innerHTML = `<span class="m24" style="background:${c.chip};color:${c.glyph}">${GLYPH}</span> Agentic&nbsp;Mermaid`;
+    host.appendChild(b);
+  }
+}
+</script>
+</body>
+</html>

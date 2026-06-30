@@ -67,7 +67,10 @@ function buildFontList(query) {
 }
 
 function appendFontItem(name, value) {
-  var item = document.createElement('div');
+  var item = document.createElement('button');
+  item.type = 'button';
+  item.setAttribute('role', 'option');
+  item.setAttribute('aria-selected', cfgFont === value ? 'true' : 'false');
   item.className = 'font-item' + (cfgFont === value ? ' active' : '');
   var previewSpan = document.createElement('span');
   previewSpan.className = 'font-item-preview';
@@ -84,40 +87,37 @@ function appendFontItem(name, value) {
     closeFontPopup();
     readConfig();
     scheduleRender(0);
+    fontSelectBtn.focus();
   });
   fontList.appendChild(item);
 }
 
-function openFontPopup() {
-  buildFontList('');
-  fontSearch.value = '';
-  var rect = fontSelectBtn.getBoundingClientRect();
-  var top = rect.bottom + 6;
-  var left = rect.right - 220;
-  if (left < 8) left = 8;
-  fontPopup.style.top  = top  + 'px';
-  fontPopup.style.left = left + 'px';
-  fontPopup.classList.add('open');
-  fontSearch.focus();
-}
-
-function closeFontPopup() {
-  fontPopup.classList.remove('open');
-}
-
-fontSelectBtn.addEventListener('click', function(e) {
-  e.stopPropagation();
-  if (fontPopup.classList.contains('open')) { closeFontPopup(); return; }
-  openFontPopup();
+var fontPopupController = createPopupController({
+  popup: fontPopup,
+  trigger: fontSelectBtn,
+  visibility: { focusSelector: '#font-search' },
+  beforeOpen: function() {
+    buildFontList('');
+    fontSearch.value = '';
+    positionAnchoredPopup(fontPopup, fontSelectBtn, { width: 220, height: 320 });
+  },
+  contains: function(target) {
+    return !!(target.closest('#font-popup') || target.closest('#font-select-btn'));
+  },
+  repositionOnResize: true,
+  position: function() { positionAnchoredPopup(fontPopup, fontSelectBtn, { width: 220, height: 320 }); },
 });
+
+function openFontPopup() {
+  fontPopupController.open({ focusFirst: true });
+}
+
+function closeFontPopup(restoreFocus) {
+  fontPopupController.close({ restoreFocus: !!restoreFocus });
+}
 
 fontSearch.addEventListener('input', function() {
   buildFontList(fontSearch.value);
-});
-
-document.addEventListener('click', function(e) {
-  if (!fontPopup.classList.contains('open')) return;
-  if (!e.target.closest('#font-popup') && !e.target.closest('#font-select-btn')) closeFontPopup();
 });
 
 var paddingNum    = document.getElementById('cfg-padding');

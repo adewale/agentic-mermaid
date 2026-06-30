@@ -41,7 +41,7 @@ function updateColorUI(key) {
   var btn    = document.querySelector('.color-edit-btn[data-cfg="' + key + '"]');
 
   if (label) {
-    label.textContent = override || (themeVal ? themeVal : '—');
+    label.textContent = override || (themeVal ? themeVal : '–');
     label.style.opacity = override ? '1' : '0.45';
   }
   if (swatch) {
@@ -50,7 +50,9 @@ function updateColorUI(key) {
     swatch.style.opacity = override ? '1' : (themeVal ? '0.6' : '1');
   }
   if (btn) {
+    var labelText = key.charAt(0).toUpperCase() + key.slice(1);
     btn.title = override ? 'Override: ' + override : (themeVal ? 'Theme default: ' + themeVal : 'Not set');
+    btn.setAttribute('aria-label', 'Edit ' + labelText + ' color' + (effective ? ': ' + effective : ''));
   }
 }
 
@@ -125,3 +127,56 @@ edgeStrokeNum.addEventListener('input',    function() { setEdgeStroke(edgeStroke
 edgeStrokeSlider.addEventListener('input', function() { setEdgeStroke(edgeStrokeSlider.value); });
 nodeStrokeNum.addEventListener('input',    function() { setNodeStroke(nodeStrokeNum.value); });
 nodeStrokeSlider.addEventListener('input', function() { setNodeStroke(nodeStrokeSlider.value); });
+
+// Clear every override (colors, font, padding, strokes) back to the active
+// theme's defaults. setPadding / fontSelectLabel live in font-picker.js, which
+// loads later but shares scope; this only runs on click, by which point they
+// are defined.
+function resetConfig() {
+  Object.keys(cfgColors).forEach(function(k) { cfgColors[k] = ''; });
+  cfgFont = '';
+  if (typeof fontSelectLabel !== 'undefined' && fontSelectLabel) fontSelectLabel.textContent = 'Default';
+  if (typeof setEdgeStroke === 'function') setEdgeStroke(1);
+  if (typeof setNodeStroke === 'function') setNodeStroke(1);
+  if (typeof setPadding === 'function') setPadding(24);
+  refreshAllColorUIs();
+  readConfig();
+  if (typeof scheduleRender === 'function') scheduleRender(0);
+  if (typeof showToast === 'function') showToast('Style reset to theme.');
+}
+
+var configResetBtn = document.getElementById('config-reset-btn');
+if (configResetBtn) configResetBtn.addEventListener('click', resetConfig);
+
+// Settings overlay: Source stays the left workspace; this slides the diagram
+// settings over it, leaving the preview visible so changes show live. It is
+// independent of the mobile Source/Preview switch.
+var settingsBtn = document.getElementById('settings-btn');
+var settingsCloseBtn = document.getElementById('settings-close-btn');
+function setSettingsOpen(open) {
+  if (!configView) return;
+  configView.hidden = !open;
+  configView.classList.toggle('visible', open);
+  configView.setAttribute('aria-hidden', open ? 'false' : 'true');
+  if (settingsBtn) {
+    settingsBtn.classList.toggle('active', open);
+    settingsBtn.setAttribute('aria-expanded', open ? 'true' : 'false');
+    settingsBtn.setAttribute('aria-pressed', open ? 'true' : 'false');
+  }
+  if (open) {
+    // On mobile the source panel may be hidden (Preview view); the settings
+    // overlay lives over it, so bring it forward before showing them.
+    if (typeof setMobilePanel === 'function') setMobilePanel('code');
+    refreshAllColorUIs();
+  }
+}
+if (settingsBtn) settingsBtn.addEventListener('click', function() { setSettingsOpen(configView.hidden); });
+if (settingsCloseBtn) settingsCloseBtn.addEventListener('click', function() { setSettingsOpen(false); if (settingsBtn) settingsBtn.focus(); });
+document.addEventListener('keydown', function(e) {
+  if (e.key !== 'Escape' || !configView || configView.hidden) return;
+  // A picker popup inside settings (font / colour) owns Escape while it is open,
+  // so let it close and restore its own focus before settings reacts.
+  if (document.querySelector('#font-popup:not([inert]), #color-popup:not([inert])')) return;
+  setSettingsOpen(false);
+  if (settingsBtn) settingsBtn.focus();
+});

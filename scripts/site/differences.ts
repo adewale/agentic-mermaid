@@ -26,10 +26,12 @@ import upstreamLayout from './upstream-layout-snapshots.json' with { type: 'json
 // The palette the inlined figures are rendered in. The page defaults to this
 // theme, so in the default view the figures blend into the page; under other
 // themes they read as fixed light insets (they are baked, not live-themed).
-export const FIGURE_THEME_KEY = 'salmon'
+export const FIGURE_THEME_KEY = 'paper'
 
 // Mirror of the labels used by the gallery + editor so pills read the same.
 const THEME_LABELS: Record<string, string> = {
+  'paper': 'Paper',
+  'dusk': 'Dusk',
   'zinc-dark': 'Zinc Dark',
   'tokyo-night': 'Tokyo Night',
   'tokyo-night-storm': 'Tokyo Storm',
@@ -50,7 +52,7 @@ const THEME_LABELS: Record<string, string> = {
   'tufte-dark': 'Tufte Dark',
 }
 
-const DEFAULT_THEME_KEY = 'salmon'
+const DEFAULT_THEME_KEY = 'paper'
 const VISIBLE_THEMES = new Set([DEFAULT_THEME_KEY, 'dracula', 'solarized-light'])
 
 function escapeHtml(text: string): string {
@@ -834,7 +836,7 @@ ${cardsHtml}
       });
     }
 
-    // -- Restore saved theme, else default to salmon without persisting --
+    // -- Restore saved theme, else default to paper without persisting --
     var savedTheme = localStorage.getItem('mermaid-theme');
     var initialThemeKey = savedTheme && THEMES[savedTheme] ? savedTheme : DEFAULT_PAGE_THEME;
     applyPageTheme(initialThemeKey, Boolean(savedTheme));

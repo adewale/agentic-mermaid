@@ -1,0 +1,49 @@
+{
+  "generatedFrom": {
+    "packageVersion": "0.1.0",
+    "gitSha": "development",
+    "buildTime": "development"
+  },
+  "recipes": [
+    {
+      "id": "new-diagram",
+      "title": "New diagram",
+      "url": "/recipes/new-diagram.md"
+    },
+    {
+      "id": "existing-structured-edit",
+      "title": "Existing structured edit",
+      "url": "/recipes/existing-structured-edit.md"
+    },
+    {
+      "id": "source-level-only",
+      "title": "Source-level-only fallback",
+      "url": "/recipes/source-level-only.md"
+    },
+    {
+      "id": "artifacts",
+      "title": "Review artifacts",
+      "url": "/recipes/artifacts.md"
+    },
+    {
+      "id": "batch-repo",
+      "title": "Batch a repository",
+      "url": "/recipes/batch-repo.md"
+    },
+    {
+      "id": "markdown",
+      "title": "Render Markdown",
+      "url": "/recipes/markdown.md"
+    },
+    {
+      "id": "quality-review",
+      "title": "Quality review",
+      "url": "/recipes/quality-review.md"
+    },
+    {
+      "id": "local-mcp",
+      "title": "Local MCP",
+      "url": "/recipes/local-mcp.md"
+    }
+  ]
+}

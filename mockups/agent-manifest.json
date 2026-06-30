@@ -1,0 +1,60 @@
+{
+  "name": "agentic-mermaid",
+  "version": "0.1.0",
+  "description": "Agent-native Mermaid runtime: parse, verify, mutate, and render diagrams through a typed surface. Deterministic SVG, PNG, ASCII, Unicode, and JSON.",
+  "outputFormats": [
+    "svg",
+    "ascii",
+    "unicode",
+    "png",
+    "json"
+  ],
+  "families": [
+    "flowchart",
+    "state",
+    "sequence",
+    "timeline",
+    "class",
+    "er",
+    "journey",
+    "architecture",
+    "xychart",
+    "pie",
+    "quadrant",
+    "gantt"
+  ],
+  "mcpTools": [
+    "execute",
+    "render_png",
+    "describe"
+  ],
+  "narrowers": [
+    "asFlowchart",
+    "asState",
+    "asSequence",
+    "asTimeline",
+    "asClass",
+    "asEr",
+    "asJourney",
+    "asArchitecture",
+    "asXyChart",
+    "asPie",
+    "asQuadrant",
+    "asGantt"
+  ],
+  "mcp": {
+    "command": "bun",
+    "args": [
+      "run",
+      "bin/agentic-mermaid-mcp.ts"
+    ],
+    "transport": "stdio"
+  },
+  "context": {
+    "llms": "/llms.txt",
+    "instructions": "/agent-instructions.md",
+    "capabilities": "/capabilities.json",
+    "harnesses": "/harnesses.json",
+    "schemas": "/schemas/index.json"
+  }
+}

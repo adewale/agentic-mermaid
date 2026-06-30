@@ -6,8 +6,6 @@ var exportRequiresSvgButtons = [
   exportMainBtn,
   document.getElementById('export-png-btn'),
   document.getElementById('export-svg-btn'),
-  document.getElementById('copy-svg-btn'),
-  document.getElementById('copy-image-btn'),
 ].filter(Boolean);
 
 function hasRenderedSvg() {
@@ -22,18 +20,27 @@ function updateExportAvailability() {
   });
 }
 
-function toggleExportDropdown(e) {
-  e.stopPropagation();
-  updateExportAvailability();
-  exportDropdown.classList.toggle('open');
-}
-exportChevronBtn.addEventListener('click', toggleExportDropdown);
-exportMainBtn.addEventListener('click', function() {
-  exportPNG();
+var exportPopup = createPopupController({
+  popup: exportDropdown,
+  trigger: exportChevronBtn,
+  visibility: { toggleTriggerClass: false },
+  beforeOpen: updateExportAvailability,
+  afterOpen: function(meta) {
+    if (meta && meta.focusFirst) {
+      var first = exportDropdown.querySelector('button:not(:disabled)');
+      if (first) first.focus();
+    }
+  },
+  contains: function(target) { return !!target.closest('#export-wrap'); },
 });
 
-document.addEventListener('click', function(e) {
-  if (!e.target.closest('#export-wrap')) exportDropdown.classList.remove('open');
+function setExportDropdownOpen(open, focusFirst) {
+  exportPopup.setOpen(open, { focusFirst: !!focusFirst });
+}
+
+exportDropdown.querySelectorAll('button').forEach(function(btn) { btn.setAttribute('role', 'menuitem'); });
+exportMainBtn.addEventListener('click', function() {
+  exportPNG();
 });
 
 document.getElementById('size-pills').addEventListener('click', function(e) {
@@ -87,7 +94,7 @@ function exportPNG() {
     a.href = url; a.download = 'diagram.png'; a.click();
     URL.revokeObjectURL(url);
     showToast('PNG saved (' + exportScale + 'x)');
-    exportDropdown.classList.remove('open');
+    setExportDropdownOpen(false, false);
   });
 }
 
@@ -100,50 +107,21 @@ function exportSVG() {
   a.href = url; a.download = 'diagram.svg'; a.click();
   URL.revokeObjectURL(url);
   showToast('SVG saved!');
-  exportDropdown.classList.remove('open');
-}
-
-function copySVG() {
-  var svgEl = getSvgEl(); if (!svgEl) return;
-  navigator.clipboard.writeText(serializeSvg(svgEl)).then(function() {
-    showToast('SVG copied to clipboard!');
-    exportDropdown.classList.remove('open');
-  }).catch(function() {
-    showToast('Copy SVG failed.');
-  });
-}
-
-function copyImage() {
-  var svgEl = getSvgEl(); if (!svgEl) return;
-  svgToPngBlob(svgEl, exportScale, function(blob) {
-    try {
-      navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]).then(function() {
-        showToast('Image copied to clipboard!');
-        exportDropdown.classList.remove('open');
-      });
-    } catch(e) { showToast('Copy not supported in this browser.'); }
-  });
+  setExportDropdownOpen(false, false);
 }
 
 function copyURL() {
   updateHash();
-  navigator.clipboard.writeText(window.location.href).then(function() {
-    showToast('URL copied to clipboard!');
-    exportDropdown.classList.remove('open');
-  });
+  writeClipboardText(window.location.href, 'URL copied to clipboard!', 'Copy link failed.', document.getElementById('copy-link-btn'));
 }
 
 document.getElementById('export-png-btn').addEventListener('click', exportPNG);
 document.getElementById('export-svg-btn').addEventListener('click', exportSVG);
-document.getElementById('copy-svg-btn').addEventListener('click', copySVG);
-document.getElementById('copy-image-btn').addEventListener('click', copyImage);
 document.getElementById('copy-link-btn').addEventListener('click', copyURL);
 updateExportAvailability();
 
 document.addEventListener('keydown', function(e) {
   if (e.target === editor) return;
-  if ((e.metaKey || e.ctrlKey) && !e.shiftKey && e.key === 's') { e.preventDefault(); exportPNG(); }
-  if ((e.metaKey || e.ctrlKey) &&  e.shiftKey && e.key === 'S') { e.preventDefault(); exportSVG(); }
-  if ((e.metaKey || e.ctrlKey) && !e.shiftKey && e.key === 'c') { e.preventDefault(); copyImage(); }
-  if ((e.metaKey || e.ctrlKey) &&  e.shiftKey && e.key === 'C') { e.preventDefault(); copyURL(); }
+  if ((e.metaKey || e.ctrlKey) && !e.shiftKey && e.key.toLowerCase() === 's') { e.preventDefault(); exportPNG(); }
+  if ((e.metaKey || e.ctrlKey) &&  e.shiftKey && e.key.toLowerCase() === 's') { e.preventDefault(); exportSVG(); }
 });
