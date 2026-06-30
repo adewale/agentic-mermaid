@@ -252,3 +252,46 @@ dummy-node vs. `xlabel`/`forcelabels`; `concentrate`), ELK (`LabelDummyInserter`
 Adaptagrams/libavoid + cola.js, tldraw (`normalizedAnchor`/`isPrecise`/elbow
 arrows), Excalidraw (`FixedPointBinding`), draw.io/mxGraph (`exitX`/`entryX` fixed
 connection points; `mxParallelEdgeLayout` spacing).
+
+## Empirical addendum — what we actually measured
+
+The roadmap above lists three theory-backed candidate fixes. We implemented and
+measured each against our own rubric (`bun run track`, corpus-wide column totals;
+the bar is **HARD must stay 0** and a soft net-improvement). **All four levers we
+could test as bounded changes were neutral-or-regressive on this corpus** — the
+current pipeline is already near a local optimum. Reference (current shipping,
+Brandes–Köpf BALANCED + the 6 node passes): **HARD 0, offCardinal 70, bends 351,
+strtDeficit 74, crossings 1** over 74 tracked diagrams.
+
+| Experiment | offCardinal | bends | strtDeficit | crossings | Verdict |
+| --- | --- | --- | --- | --- | --- |
+| **HEAD** (BK BALANCED + 6 passes) | 70 | 351 | 74 | **1** | reference |
+| Bundling net-benefit gate (bends+crossings) | — | — | — | — | wash; trades bend wins for `offCardinal`/sym regressions → reverted |
+| Flip `APL_DECOUPLE_LABELS` default | (6↑ / 23↓ vs baseline incl. **+2 crossings**) | | | | net-regressive; opt-in confirmed correct |
+| **Network-simplex** + `favorStraightEdges` | 64 | 354 | 71 | **3** | lateral: cardinal/straight ↓ but **+2 crossings** |
+| Network-simplex + `nodeFlexibility=PORT_POSITION` | 64 | 354 | 71 | 3 | **no-op** — inert against our `FIXED_SIDE` ports |
+| BK + `bk.edgeStraightening=IMPROVE_STRAIGHTNESS` | 70 | 351 | 74 | 1 | **no-op** — already BK's default |
+
+**Conclusions.**
+
+1. **No ELK placement strategy beats the current pipeline.** Network-simplex
+   reorders enough to add crossings (1→3) on an already-near-crossing-free corpus;
+   `PORT_POSITION` flexibility is inert because our ports are `FIXED_SIDE` with an
+   explicit index. The 6 downstream node passes are doing real, near-optimal work
+   that no placement config replicates.
+2. **The decoupling default-flip and the bundling gate both regress the rubric** —
+   the band-aids the research recommended are net-negative *here*, because our
+   post-ELK passes already extract the straightness/symmetry/cardinality that
+   decoupling and naive bundling give up.
+3. **The genuine remaining win is the exact-router rewrite** (libavoid-style A\*
+   over an orthogonal visibility graph, replacing `route-contracts.ts`) — but its
+   upside is bounded (the corpus is already at crossings = 1) and its cost is a
+   multi-week, high-risk rewrite, so it is not a measured config experiment.
+4. **The bounded, non-regressive, substantive fix the data supports is robustness
+   hardening** — exact integer predicates on snapped coordinates + one independent
+   total checker. It makes the *same* decisions (no golden churn) but consistently,
+   collapsing the 1–2px near-degenerate class that fuzzing keeps surfacing. That,
+   not aggregate-metric chasing, is where the real recurring pain is.
+
+Method/scripts for reproduction live in the session scratchpad; re-run
+`bun run track` and sum the `off/bend/strt/xing` columns to reproduce the table.
