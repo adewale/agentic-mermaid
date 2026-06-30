@@ -2111,52 +2111,49 @@ function syncModeButtons() {
   });
 }
 
-function selectLeftPanel(panel, focusButton) {
-  setLeftPanelMode(panel);
-  setMobilePanel(panel);
-  if (focusButton) {
-    var btn = document.querySelector('[data-left-panel="' + panel + '"]');
-    if (btn) btn.focus();
-  }
+function activateModeButton(button, focusButton) {
+  // Source/Style carry data-left-panel (+ data-mobile-panel); Preview carries
+  // only data-mobile-panel. One handler drives both the desktop left-panel tab
+  // and the mobile whole-view switch from the same adaptive control.
+  var left = button.dataset.leftPanel;
+  var mobile = button.dataset.mobilePanel || left;
+  if (left) setLeftPanelMode(left);
+  else if (mobile === 'code' || mobile === 'config') setLeftPanelMode(mobile);
+  if (mobile) setMobilePanel(mobile);
+  if (focusButton) button.focus();
 }
 
-function selectMobilePanel(panel, focusButton) {
-  if (panel === 'code' || panel === 'config') setLeftPanelMode(panel);
-  setMobilePanel(panel);
-  if (focusButton) {
-    var btn = document.querySelector('[data-mobile-panel="' + panel + '"]');
-    if (btn) btn.focus();
-  }
+function visibleSegmentButtons(group) {
+  // offsetParent is null for display:none buttons (e.g. Preview on desktop),
+  // so arrow-key nav only cycles the options actually on screen.
+  return Array.prototype.slice.call(group.querySelectorAll('.mode-option')).filter(function(b) {
+    return b.offsetParent !== null;
+  });
 }
 
 function moveWithinSegmentedControl(button, direction) {
   var group = button.closest('[data-segmented-control]');
   if (!group) return;
-  var buttons = Array.prototype.slice.call(group.querySelectorAll('button'));
+  var buttons = visibleSegmentButtons(group);
   var index = buttons.indexOf(button);
+  if (index < 0) return;
   var nextIndex = index;
   if (direction === 'Home') nextIndex = 0;
   else if (direction === 'End') nextIndex = buttons.length - 1;
   else nextIndex = (index + (direction === 'ArrowRight' ? 1 : -1) + buttons.length) % buttons.length;
   var next = buttons[nextIndex];
-  if (!next) return;
-  if (next.dataset.leftPanel) selectLeftPanel(next.dataset.leftPanel, true);
-  else if (next.dataset.mobilePanel) selectMobilePanel(next.dataset.mobilePanel, true);
+  if (next) activateModeButton(next, true);
 }
 
-function attachSegmentedControl(selector, selectFn) {
-  document.querySelectorAll(selector).forEach(function(button) {
-    button.addEventListener('click', function() { selectFn(button.dataset.leftPanel || button.dataset.mobilePanel, false); });
-    button.addEventListener('keydown', function(e) {
-      if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(e.key)) return;
-      e.preventDefault();
-      moveWithinSegmentedControl(button, e.key);
-    });
+document.querySelectorAll('[data-segmented-control] .mode-option').forEach(function(button) {
+  button.addEventListener('click', function() { activateModeButton(button, false); });
+  button.addEventListener('keydown', function(e) {
+    if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(e.key)) return;
+    e.preventDefault();
+    moveWithinSegmentedControl(button, e.key);
   });
-}
+});
 
-attachSegmentedControl('[data-left-panel]', selectLeftPanel);
-attachSegmentedControl('[data-mobile-panel]', selectMobilePanel);
 setLeftPanelMode('code');
 setMobilePanel('code');
 
@@ -2299,8 +2296,6 @@ var exportRequiresSvgButtons = [
   exportMainBtn,
   document.getElementById('export-png-btn'),
   document.getElementById('export-svg-btn'),
-  document.getElementById('copy-svg-btn'),
-  document.getElementById('copy-image-btn'),
 ].filter(Boolean);
 
 function hasRenderedSvg() {
@@ -2405,27 +2400,6 @@ function exportSVG() {
   setExportDropdownOpen(false, false);
 }
 
-function copySVG() {
-  var svgEl = getSvgEl(); if (!svgEl) return;
-  writeClipboardText(serializeSvg(svgEl), 'SVG copied to clipboard!', 'Copy SVG failed.', document.getElementById('copy-svg-btn'));
-}
-
-function copyImage() {
-  var svgEl = getSvgEl(); if (!svgEl) return;
-  svgToPngBlob(svgEl, exportScale, function(blob) {
-    try {
-      navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]).then(function() {
-        setCopyFeedback(document.getElementById('copy-image-btn'), 'ok');
-        showToast('Image copied to clipboard!');
-        setExportDropdownOpen(false, false);
-      }).catch(function() {
-        setCopyFeedback(document.getElementById('copy-image-btn'), 'err');
-        showToast('Copy PNG failed.');
-      });
-    } catch(e) { setCopyFeedback(document.getElementById('copy-image-btn'), 'err'); showToast('Copy not supported in this browser.'); }
-  });
-}
-
 function copyURL() {
   updateHash();
   writeClipboardText(window.location.href, 'URL copied to clipboard!', 'Copy link failed.', document.getElementById('copy-link-btn'));
@@ -2433,8 +2407,6 @@ function copyURL() {
 
 document.getElementById('export-png-btn').addEventListener('click', exportPNG);
 document.getElementById('export-svg-btn').addEventListener('click', exportSVG);
-document.getElementById('copy-svg-btn').addEventListener('click', copySVG);
-document.getElementById('copy-image-btn').addEventListener('click', copyImage);
 document.getElementById('copy-link-btn').addEventListener('click', copyURL);
 updateExportAvailability();
 

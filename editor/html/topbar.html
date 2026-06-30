@@ -26,15 +26,13 @@
 
   <div class="topbar-sep" aria-hidden="true"></div>
 
-  <div class="mode-switch left-panel-switch" data-segmented-control role="group" aria-label="Left panel mode">
-    <button class="mode-option is-active" id="mode-source" type="button" aria-pressed="true" aria-controls="editor-view" data-left-panel="code">Source</button>
-    <button class="mode-option" id="mode-style" type="button" aria-pressed="false" aria-controls="config-view" data-left-panel="config">Style</button>
-  </div>
-
-  <div class="mode-switch mobile-view-switch" data-segmented-control role="group" aria-label="Editor view">
-    <button class="mode-option is-active" id="mobile-mode-source" type="button" aria-pressed="true" aria-controls="editor-view" data-mobile-panel="code">Source</button>
-    <button class="mode-option" id="mobile-mode-style" type="button" aria-pressed="false" aria-controls="config-view" data-mobile-panel="config">Style</button>
-    <button class="mode-option" id="mobile-mode-preview" type="button" aria-pressed="false" aria-controls="panel-right" data-mobile-panel="preview">Preview</button>
+  <!-- One adaptive segmented control. Source/Style switch the left panel on
+       desktop; on mobile the same control gains Preview to switch the whole
+       visible view. Still a role="group" segmented control, not an ARIA tabset. -->
+  <div class="mode-switch view-switch" data-segmented-control role="group" aria-label="Editor view">
+    <button class="mode-option is-active" id="mode-source" type="button" aria-pressed="true" aria-controls="editor-view" data-left-panel="code" data-mobile-panel="code">Source</button>
+    <button class="mode-option" id="mode-style" type="button" aria-pressed="false" aria-controls="config-view" data-left-panel="config" data-mobile-panel="config">Style</button>
+    <button class="mode-option mode-preview-only" id="mode-preview" type="button" aria-pressed="false" aria-controls="panel-right" data-mobile-panel="preview">Preview</button>
   </div>
 
   <button class="btn examples-toggle" id="examples-sidebar-btn" type="button" aria-pressed="false" aria-expanded="false" aria-controls="examples-sidebar">Examples</button>
@@ -195,37 +193,6 @@
           <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
         </svg>
         <span class="export-item-label">Copy source</span>
-      </button>
-      <button class="export-item" id="copy-svg-btn" type="button" disabled aria-disabled="true">
-        <svg
-          class="export-item-icon"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="1.75"
-          stroke-linecap="round"
-          stroke-linejoin="round"
-        >
-          <polyline points="16 18 22 12 16 6" />
-          <polyline points="8 6 2 12 8 18" />
-        </svg>
-        <span class="export-item-label">Copy SVG</span>
-      </button>
-      <button class="export-item" id="copy-image-btn" type="button" disabled aria-disabled="true">
-        <svg
-          class="export-item-icon"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="1.75"
-          stroke-linecap="round"
-          stroke-linejoin="round"
-        >
-          <rect x="3" y="3" width="18" height="18" rx="2" />
-          <circle cx="8.5" cy="8.5" r="1.5" />
-          <polyline points="21 15 16 10 5 21" />
-        </svg>
-        <span class="export-item-label">Copy PNG</span>
       </button>
       <button class="export-item" id="copy-link-btn" type="button">
         <svg

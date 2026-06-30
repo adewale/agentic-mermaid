@@ -291,7 +291,9 @@ body {
   border-radius: var(--radius-lg);
   padding: 3px;
 }
-.mobile-view-switch {
+/* Preview only makes sense on mobile, where the right panel is a separate view.
+   On desktop the preview is always visible, so this option is hidden. */
+.mode-preview-only {
   display: none;
 }
 .mode-option {
@@ -592,17 +594,16 @@ body {
   .topbar-sep {
     display: none;
   }
-  .left-panel-switch {
-    display: none;
-  }
-  .mobile-view-switch {
-    display: flex;
+  .view-switch {
     order: 20;
     flex: 1 0 100%;
   }
-  .mobile-view-switch .mode-option {
+  .view-switch .mode-option {
     flex: 1;
     min-height: 40px;
+  }
+  .mode-preview-only {
+    display: inline-flex;
   }
   .examples-toggle,
   .agent-task-btn {
@@ -2117,15 +2118,13 @@ body {
 
   <div class="topbar-sep" aria-hidden="true"></div>
 
-  <div class="mode-switch left-panel-switch" data-segmented-control role="group" aria-label="Left panel mode">
-    <button class="mode-option is-active" id="mode-source" type="button" aria-pressed="true" aria-controls="editor-view" data-left-panel="code">Source</button>
-    <button class="mode-option" id="mode-style" type="button" aria-pressed="false" aria-controls="config-view" data-left-panel="config">Style</button>
-  </div>
-
-  <div class="mode-switch mobile-view-switch" data-segmented-control role="group" aria-label="Editor view">
-    <button class="mode-option is-active" id="mobile-mode-source" type="button" aria-pressed="true" aria-controls="editor-view" data-mobile-panel="code">Source</button>
-    <button class="mode-option" id="mobile-mode-style" type="button" aria-pressed="false" aria-controls="config-view" data-mobile-panel="config">Style</button>
-    <button class="mode-option" id="mobile-mode-preview" type="button" aria-pressed="false" aria-controls="panel-right" data-mobile-panel="preview">Preview</button>
+  <!-- One adaptive segmented control. Source/Style switch the left panel on
+       desktop; on mobile the same control gains Preview to switch the whole
+       visible view. Still a role="group" segmented control, not an ARIA tabset. -->
+  <div class="mode-switch view-switch" data-segmented-control role="group" aria-label="Editor view">
+    <button class="mode-option is-active" id="mode-source" type="button" aria-pressed="true" aria-controls="editor-view" data-left-panel="code" data-mobile-panel="code">Source</button>
+    <button class="mode-option" id="mode-style" type="button" aria-pressed="false" aria-controls="config-view" data-left-panel="config" data-mobile-panel="config">Style</button>
+    <button class="mode-option mode-preview-only" id="mode-preview" type="button" aria-pressed="false" aria-controls="panel-right" data-mobile-panel="preview">Preview</button>
   </div>
 
   <button class="btn examples-toggle" id="examples-sidebar-btn" type="button" aria-pressed="false" aria-expanded="false" aria-controls="examples-sidebar">Examples</button>
@@ -2307,37 +2306,6 @@ body {
           <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
         </svg>
         <span class="export-item-label">Copy source</span>
-      </button>
-      <button class="export-item" id="copy-svg-btn" type="button" disabled aria-disabled="true">
-        <svg
-          class="export-item-icon"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="1.75"
-          stroke-linecap="round"
-          stroke-linejoin="round"
-        >
-          <polyline points="16 18 22 12 16 6" />
-          <polyline points="8 6 2 12 8 18" />
-        </svg>
-        <span class="export-item-label">Copy SVG</span>
-      </button>
-      <button class="export-item" id="copy-image-btn" type="button" disabled aria-disabled="true">
-        <svg
-          class="export-item-icon"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="1.75"
-          stroke-linecap="round"
-          stroke-linejoin="round"
-        >
-          <rect x="3" y="3" width="18" height="18" rx="2" />
-          <circle cx="8.5" cy="8.5" r="1.5" />
-          <polyline points="21 15 16 10 5 21" />
-        </svg>
-        <span class="export-item-label">Copy PNG</span>
       </button>
       <button class="export-item" id="copy-link-btn" type="button">
         <svg
@@ -2694,7 +2662,12 @@ body {
         <button class="text-output-tab active" id="unicode-output-tab" type="button" role="tab" aria-selected="true" aria-controls="unicode-output-wrap" data-output-tab="unicode">Unicode</button>
         <button class="text-output-tab" id="ascii-output-tab" type="button" role="tab" aria-selected="false" aria-controls="ascii-output-wrap" tabindex="-1" data-output-tab="ascii">ASCII</button>
       </div>
-      <button class="toolbar-btn" id="copy-text-output-btn" type="button" title="Copy selected text output" aria-label="Copy selected text output">Copy</button>
+      <button class="toolbar-btn" id="copy-text-output-btn" type="button" title="Copy selected text output" aria-label="Copy selected text output">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="9" y="9" width="13" height="13" rx="2" />
+          <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+        </svg>
+      </button>
     </div>
     <pre class="text-output active" id="unicode-output-wrap" role="tabpanel" aria-labelledby="unicode-output-tab"><code id="unicode-output">Render a valid diagram to see Unicode output.</code></pre>
     <pre class="text-output" id="ascii-output-wrap" role="tabpanel" aria-labelledby="ascii-output-tab" hidden><code id="ascii-output">Render a valid diagram to see ASCII output.</code></pre>
@@ -2712,6 +2685,6 @@ body {
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
 <!-- Bundled renderer -->
-<script type="module" src="/editor/editor-8164906df422.js"></script>
+<script type="module" src="/editor/editor-5cd1baeed113.js"></script>
 </body>
 </html>

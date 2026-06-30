@@ -232,8 +232,11 @@ describe('Workers Static Assets website contract', () => {
 
   test('editor mode switch is not a pseudo-tabset', () => {
     const editor = read('editor/index.html')
-    expect(editor).toContain('class="mode-switch left-panel-switch"')
-    expect(editor).toContain('class="mode-switch mobile-view-switch"')
+    // One adaptive segmented control (Source/Style/Preview), still role="group"
+    // — not two responsive copies, and not an ARIA tabset.
+    expect(editor).toContain('class="mode-switch view-switch" data-segmented-control role="group"')
+    expect(editor).not.toContain('left-panel-switch')
+    expect(editor).not.toContain('mobile-view-switch')
     expect(editor).toContain('data-left-panel="code"')
     expect(editor).toContain('data-left-panel="config"')
     expect(editor).toContain('data-mobile-panel="preview"')
@@ -243,7 +246,7 @@ describe('Workers Static Assets website contract', () => {
     expect(editor).toContain('id="pan-btn" type="button" title="Pan (hold to drag)" aria-label="Pan preview" aria-pressed="false"')
     expect(editor).not.toContain('aria-label="Editor panes"')
     expect(editor).not.toContain('id="mode-source" type="button" role="tab"')
-    expect(editor).not.toContain('id="mobile-mode-preview" type="button" role="tab"')
+    expect(editor).not.toContain('id="mode-preview" type="button" role="tab"')
     expect(editor).not.toContain('id="examples-sidebar-btn" type="button" aria-pressed="false" aria-expanded="false" aria-controls="examples-sidebar">Examples</button>\n  </nav>')
   })
 

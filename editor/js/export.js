@@ -6,8 +6,6 @@ var exportRequiresSvgButtons = [
   exportMainBtn,
   document.getElementById('export-png-btn'),
   document.getElementById('export-svg-btn'),
-  document.getElementById('copy-svg-btn'),
-  document.getElementById('copy-image-btn'),
 ].filter(Boolean);
 
 function hasRenderedSvg() {
@@ -112,27 +110,6 @@ function exportSVG() {
   setExportDropdownOpen(false, false);
 }
 
-function copySVG() {
-  var svgEl = getSvgEl(); if (!svgEl) return;
-  writeClipboardText(serializeSvg(svgEl), 'SVG copied to clipboard!', 'Copy SVG failed.', document.getElementById('copy-svg-btn'));
-}
-
-function copyImage() {
-  var svgEl = getSvgEl(); if (!svgEl) return;
-  svgToPngBlob(svgEl, exportScale, function(blob) {
-    try {
-      navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]).then(function() {
-        setCopyFeedback(document.getElementById('copy-image-btn'), 'ok');
-        showToast('Image copied to clipboard!');
-        setExportDropdownOpen(false, false);
-      }).catch(function() {
-        setCopyFeedback(document.getElementById('copy-image-btn'), 'err');
-        showToast('Copy PNG failed.');
-      });
-    } catch(e) { setCopyFeedback(document.getElementById('copy-image-btn'), 'err'); showToast('Copy not supported in this browser.'); }
-  });
-}
-
 function copyURL() {
   updateHash();
   writeClipboardText(window.location.href, 'URL copied to clipboard!', 'Copy link failed.', document.getElementById('copy-link-btn'));
@@ -140,8 +117,6 @@ function copyURL() {
 
 document.getElementById('export-png-btn').addEventListener('click', exportPNG);
 document.getElementById('export-svg-btn').addEventListener('click', exportSVG);
-document.getElementById('copy-svg-btn').addEventListener('click', copySVG);
-document.getElementById('copy-image-btn').addEventListener('click', copyImage);
 document.getElementById('copy-link-btn').addEventListener('click', copyURL);
 updateExportAvailability();
 

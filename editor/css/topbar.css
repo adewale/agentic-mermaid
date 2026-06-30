@@ -79,7 +79,9 @@
   border-radius: var(--radius-lg);
   padding: 3px;
 }
-.mobile-view-switch {
+/* Preview only makes sense on mobile, where the right panel is a separate view.
+   On desktop the preview is always visible, so this option is hidden. */
+.mode-preview-only {
   display: none;
 }
 .mode-option {
@@ -380,17 +382,16 @@
   .topbar-sep {
     display: none;
   }
-  .left-panel-switch {
-    display: none;
-  }
-  .mobile-view-switch {
-    display: flex;
+  .view-switch {
     order: 20;
     flex: 1 0 100%;
   }
-  .mobile-view-switch .mode-option {
+  .view-switch .mode-option {
     flex: 1;
     min-height: 40px;
+  }
+  .mode-preview-only {
+    display: inline-flex;
   }
   .examples-toggle,
   .agent-task-btn {
