@@ -26,6 +26,18 @@ import { resolveRenderStyle } from './styles.ts'
  * crossings) rank above routing-shape defects (bends, diagonals, hitches),
  * which rank above endpoint/label-placement cosmetics. Reports sort by this so
  * the most-impactful violation is read first, not buried in declaration order.
+ *
+ * JUSTIFIED / SYMMETRIC BEND (not a defect): a bend that is part of a SYMMETRIC
+ * convergence — a fan-out/fan-in bundle, or a co-ranked mixed-label fan-in's
+ * converging dogleg — is "as good as" a straight line and is NOT penalized. The
+ * bend is structurally necessary to converge, and the symmetry it buys offsets
+ * the small bend cost; every reference layered drawer routes a fan that way, and
+ * our own fan-out emitter (applySymmetricFanoutEmissions) does too. So
+ * bundle-certified bends are excluded from totalBends/maxBendsPerEdge below — the
+ * SAME edges findRouteHitches treats as non-hitches, keeping the bend penalty and
+ * the HARD hitch-invariant in agreement. Only UNJUSTIFIED / lone bends still cost
+ * (an off-lane jog with a clear straight lane is a `hitches` HARD violation; a
+ * bend on a 'straight'-certified edge is an `unexplainedBends` HARD violation).
  */
 export type RubricSeverity = 'primary' | 'secondary' | 'cosmetic'
 
@@ -70,8 +82,11 @@ export interface RubricMetrics {
   edgeThroughNode: number
   /** Purchase's strongest validated aesthetic — minimize. */
   edgeCrossings: number
-  /** Purchase-validated — minimize. */
+  /** Purchase-validated — minimize. Excludes justified symmetric-convergence
+   *  bends (bundle-certified fan-out/fan-in spokes): those are "as good as
+   *  straight", the same edges findRouteHitches treats as non-hitches. */
   totalBends: number
+  /** As totalBends, also excluding justified symmetric-convergence bends. */
   maxBendsPerEdge: number
   /** Fraction of edge ends sitting exactly on a canonical port. */
   portEndpointRate: number
@@ -322,10 +337,10 @@ function forwardish(source: PositionedNode, target: PositionedNode, direction: M
   return nodeMainStart(target, direction) > nodeMainEnd(source, direction)
 }
 
-function samePeerLayer(nodes: PositionedNode[], direction: MermaidGraph['direction']): boolean {
+function samePeerLayer(nodes: PositionedNode[], direction: MermaidGraph['direction'], tolerance = 1): boolean {
   if (nodes.length < 2) return false
   const starts = nodes.map(node => nodeMainStart(node, direction))
-  return Math.max(...starts) - Math.min(...starts) <= 1
+  return Math.max(...starts) - Math.min(...starts) <= tolerance
 }
 
 function nodeInsideGroups(node: PositionedNode, groups: PositionedGroup[]): boolean {
@@ -354,12 +369,22 @@ function logicalGraphReaches(graph: MermaidGraph, from: string, to: string): boo
   return false
 }
 
+// The sym metric: largest cross-axis offset between a rectangle peer hub and
+// its peer barycenter — directly the fan-in/fan-out symmetry the centering
+// optimizes. LABELED spokes are INCLUDED (a mixed-label fan-in is exactly the
+// case the co-rank default squares up; excluding its labeled spoke hid the win,
+// so the metric measured nothing there). The peer-layer test is relaxed to the
+// SAME 28px tolerance centerPeerBarycenters uses to decide a fan-in's sources
+// are same-rank peers, so the metric and the centering pass agree on which
+// fan-ins count: a co-ranked mixed-label fan-in is now seen and reads ≈0 when
+// the hub is centered, instead of being invisible. The shape gates (rect hub +
+// rect ungrouped peers, distinct, mutually-unreachable) are unchanged.
+const SYM_PEER_LAYER_TOL = 28
 function peerBarycenterDelta(positioned: PositionedGraph, graph: MermaidGraph): number {
   const nodeMap = new Map(positioned.nodes.map(n => [n.id, n]))
   const bySource = new Map<string, PositionedNode[]>()
   const byTarget = new Map<string, PositionedNode[]>()
   for (const edge of positioned.edges) {
-    if (edge.label) continue
     const source = nodeMap.get(edge.source)
     const target = nodeMap.get(edge.target)
     if (!source || !target || !forwardish(source, target, graph.direction)) continue
@@ -370,7 +395,7 @@ function peerBarycenterDelta(positioned: PositionedGraph, graph: MermaidGraph): 
   }
   let worst = 0
   const update = (hub: PositionedNode | undefined, peers: PositionedNode[]) => {
-    if (!hub || peers.length < 2 || peers.length > 6 || !samePeerLayer(peers, graph.direction)) return
+    if (!hub || peers.length < 2 || peers.length > 6 || !samePeerLayer(peers, graph.direction, SYM_PEER_LAYER_TOL)) return
     if (hub.shape !== 'rectangle' || nodeInsideGroups(hub, positioned.groups)) return
     if (!peers.every(peer => peer.shape === 'rectangle' && !nodeInsideGroups(peer, positioned.groups))) return
     if (new Set(peers.map(peer => peer.id)).size !== peers.length) return
@@ -408,8 +433,21 @@ export function assessLayout(graph: MermaidGraph, positioned: PositionedGraph): 
   for (const e of positioned.edges) {
     const id = `${e.source}->${e.target}`
     const bends = Math.max(0, e.points.length - 2)
-    totalBends += bends
-    maxBends = Math.max(maxBends, bends)
+    // Justified-bend exemption: a bend that is part of a SYMMETRIC convergence
+    // (a fan-out/fan-in bundle, or a co-ranked mixed-label fan-in's dogleg) is
+    // "as good as straight" — the bend is structurally necessary to converge and
+    // the symmetry it buys offsets the cost, the same idiom every reference
+    // layered drawer (and our own fan-out emitter) uses. So it does not count
+    // toward totalBends/maxBendsPerEdge. We key off the SAME 'bundle' certificate
+    // findRouteHitches uses to skip these edges (route-contracts.ts), so the bend
+    // penalty and the HARD hitch-invariant AGREE on what is justified. This does
+    // NOT touch unexplainedBends (which fires only on 'straight'-certified edges,
+    // and a bundle edge is never 'straight') or hitches (HARD, unchanged).
+    const justifiedConvergenceBend = e.routeCertificate?.invariant === 'bundle'
+    if (!justifiedConvergenceBend) {
+      totalBends += bends
+      maxBends = Math.max(maxBends, bends)
+    }
 
     if (bends > 0 && e.routeCertificate?.invariant === 'straight') {
       unexplainedBends += bends

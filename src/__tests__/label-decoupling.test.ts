@@ -11,10 +11,14 @@
 //
 // The CANONICAL port-displacement defect (the minimal repro below — the
 // "warnings → warnings line not using the mid-point port" report) is now fixed in
-// the DEFAULT path, in place and without decoupling, by the alignLabeledSourcePort
-// pass — see labeled-source-port-property.test.ts. So BOTH paths now exit A at its
-// mid-port here; this file keeps the decoupling flag pinned as a regression guard
-// (it must not re-break the port it already preserved).
+// the DEFAULT path without decoupling. NOTE: this repro is a mixed-label fan-in
+// (A->B labelled, B2->B not), so on the default path the co-rank centring squares
+// the hub and A->B converges as a symmetric dogleg whose EXIT is still A's
+// mid-port (alignLabeledSourcePort yields to the convergence here — it only
+// straightens a labelled source into a SINGLE-input target; see
+// labeled-source-port-property.test.ts). Either way A leaves at its mid-port, so
+// this file keeps the decoupling flag pinned as a regression guard that the
+// mid-port exit is preserved (it must not re-break the port it already preserved).
 
 import { describe, test, expect } from 'bun:test'
 import { parseMermaid } from '../parser.ts'
@@ -32,9 +36,9 @@ function abPortGap(): number {
 }
 
 describe('label decoupling (APL_DECOUPLE_LABELS)', () => {
-  test('default path: the labelled edge keeps its mid-port (via alignLabeledSourcePort)', () => {
+  test('default path: the labelled edge keeps its mid-port (symmetric fan-in dogleg)', () => {
     delete process.env.APL_DECOUPLE_LABELS
-    expect(abPortGap()).toBeLessThanOrEqual(1) // mid-port — fixed in place, no decoupling
+    expect(abPortGap()).toBeLessThanOrEqual(1) // mid-port exit — co-rank centres the hub, no decoupling
   })
 
   test('with decoupling enabled: the labelled edge still keeps its mid-port', () => {

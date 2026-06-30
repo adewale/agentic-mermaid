@@ -276,10 +276,19 @@ export function centerPeerBarycenters(
   style: LabelMetricsStyle,
 ): void {
   const nodeMap = new Map(nodes.map(n => [n.id, n]))
-  const candidatePeers = (candidateEdges: PositionedEdge[], peerEnd: 'source' | 'target'): PositionedNode[] | undefined => {
+  // Co-ranking a mixed-label fan-in pre-ELK is the default (see layout-engine
+  // corankFanInBalancingLabels; disable with APL_NO_CORANK_FANIN). Once the
+  // fan-in sources share a rank, the labeled-edge exclusion below is what
+  // otherwise stops the centering — drop it for the fan-in (source-peer) side
+  // so the hub can square up on the now-co-ranked peers. The sameFlowLayer
+  // guard still rejects any fan-in the balancing failed to co-rank, and the
+  // fan-out side stays strict.
+  const corankFanin = !layoutEnvFlag('APL_NO_CORANK_FANIN')
+  const candidatePeers = (candidateEdges: PositionedEdge[], peerEnd: 'source' | 'target', allowLabels = false): PositionedNode[] | undefined => {
     if (candidateEdges.length < 2 || candidateEdges.length > 6) return undefined
     const firstStyle = candidateEdges[0]!.style
-    if (candidateEdges.some(edge => edge.label || edge.style !== firstStyle)) return undefined
+    if (candidateEdges.some(edge => edge.style !== firstStyle)) return undefined
+    if (!allowLabels && candidateEdges.some(edge => edge.label)) return undefined
     const ids = candidateEdges.map(edge => edge[peerEnd])
     if (new Set(ids).size !== ids.length) return undefined
     const peers = ids.map(id => nodeMap.get(id)).filter((node): node is PositionedNode => !!node)
@@ -388,12 +397,172 @@ export function centerPeerBarycenters(
       const outgoing = bySource.get(hubId)
       const incoming = byTarget.get(hubId)
       const outPeers = outgoing ? candidatePeers(outgoing, 'target') : undefined
-      const inPeers = incoming ? candidatePeers(incoming, 'source') : undefined
+      const inPeers = incoming ? candidatePeers(incoming, 'source', corankFanin) : undefined
       moveHub(nodeMap.get(hubId), outPeers, inPeers)
     }
     if (!moved) break
   }
 }
+
+/**
+ * Identify the spokes of every co-ranked mixed-label fan-in (the default
+ * behavior, disabled by APL_NO_CORANK_FANIN; see layout-engine
+ * corankFanInBalancingLabels).
+ *
+ * A fan-in hub fed by both a labeled and an unlabeled edge is co-ranked
+ * pre-ELK so its sources share a rank; centerPeerBarycenters then squares up
+ * the hub and the spokes converge as symmetric doglegs. Those bends are
+ * JUSTIFIED — the convergence is structurally necessary and buys the symmetry —
+ * so the spokes must be treated exactly like the fan-out bundle: skipped by the
+ * hitch oracle and exempt from the bend penalty. This is the single predicate
+ * both consumers (markCorankFanInBundles, alignLabeledSourcePort) share, so the
+ * bend exemption, the hitch HARD-invariant, and the labeled-source-port pass all
+ * AGREE on which spokes are part of a symmetric convergence.
+ *
+ * The gate mirrors corankFanInBalancingLabels (mixed labeled/unlabeled, rect hub
+ * + rect ungrouped sources) AND additionally requires the sources to now sit on
+ * the SAME flow layer (proving the co-rank succeeded) and be mutually
+ * unreachable peers with one shared edge style — i.e. it only fires on a fan-in
+ * the centering could actually square up. Returns hubId -> its incoming spoke
+ * edges. Empty when disabled or no such fan-in exists. Pure/deterministic.
+ */
+export function corankFanInSpokes(
+  nodes: PositionedNode[],
+  edges: PositionedEdge[],
+  groups: PositionedGroup[],
+  graph: MermaidGraph,
+): Map<string, PositionedEdge[]> {
+  const result = new Map<string, PositionedEdge[]>()
+  if (layoutEnvFlag('APL_NO_CORANK_FANIN')) return result
+  const nodeMap = new Map(nodes.map(n => [n.id, n]))
+  const isRectUngrouped = (n: PositionedNode | undefined): boolean =>
+    !!n && n.shape === 'rectangle' && !nodeInsideGroups(n, groups)
+
+  const incoming = new Map<string, PositionedEdge[]>()
+  for (const edge of edges) {
+    if (edge.source === edge.target) continue
+    if (!positionedEdgeForwardish(edge, nodeMap, graph.direction)) continue
+    if (!incoming.has(edge.target)) incoming.set(edge.target, [])
+    incoming.get(edge.target)!.push(edge)
+  }
+
+  for (const [hubId, group] of incoming) {
+    if (group.length < 2 || group.length > 6) continue
+    const hub = nodeMap.get(hubId)
+    if (!isRectUngrouped(hub)) continue
+    // MIXED hub only: some labeled, some not. A uniform fan-in already co-ranks
+    // (and an all-unlabeled one is the plain bundler's job).
+    const labeled = group.filter(e => !!e.label)
+    if (labeled.length === 0 || labeled.length === group.length) continue
+    // One shared edge style, mirroring the centering/bundling gate.
+    const firstStyle = group[0]!.style
+    if (group.some(e => e.style !== firstStyle)) continue
+    // Every source must be a distinct, rect, ungrouped peer.
+    const sources = group.map(e => nodeMap.get(e.source)).filter((n): n is PositionedNode => !!n)
+    if (sources.length !== group.length) continue
+    if (new Set(sources.map(s => s.id)).size !== sources.length) continue
+    if (!sources.every(isRectUngrouped)) continue
+    // The co-rank must actually have landed: the sources sit on one flow layer.
+    if (!sameFlowLayer(sources, graph.direction, 28)) continue
+    // Mutually-unreachable peers (the shape gate centerPeerBarycenters applies).
+    let peers = true
+    for (let i = 0; i < sources.length && peers; i++)
+      for (let j = 0; j < sources.length; j++)
+        if (i !== j && logicalGraphReaches(graph, sources[i]!.id, sources[j]!.id)) { peers = false; break }
+    if (!peers) continue
+    result.set(hubId, group)
+  }
+  return result
+}
+
+/**
+ * Re-route every co-ranked mixed-label fan-in's spokes as clean, symmetric
+ * converging doglegs and mark them bundle-owned — exactly as
+ * applySymmetricFanoutEmissions does for the fan-out (re-route THEN mark).
+ *
+ * Runs after bundleEdgePaths (so it extends the same `bundled` set) and before
+ * applyRouteContracts, which reads the set to stamp cert.invariant = 'bundle'.
+ * That single marker makes findRouteHitches skip the spoke (no false HARD hitch)
+ * AND the layout-rubric exempt its bend — the bend penalty and the HARD
+ * hitch-invariant agree on what counts as a justified symmetric-convergence bend.
+ *
+ * Why re-route, not just mark: the plain bundler (bundleEdgePaths) skips any
+ * group with a labeled edge, so a mixed fan-in keeps ELK's raw spoke geometry —
+ * whose source endpoint can float off the node's port when a wide label reserves
+ * a cell (a 'bundle' edge is not clipped/straightened downstream, so that float
+ * would surface as an offOutlineEndpoints HARD violation). Rebuilding each spoke
+ * from its source's forward PORT to a hub entry point spread symmetrically about
+ * the hub's entry-side midpoint, sharing one elbow, gives a port-exact, mirror
+ * dogleg — the same shape the unlabeled bundler produces.
+ *
+ * Conservative: a hub's spokes are only re-routed+marked when every rebuilt path
+ * is clear of other nodes (mirroring bundleEdgePaths's clearance gate). If any
+ * path is blocked, that hub is left entirely untouched — its spokes keep their
+ * ELK route and the normal route-contract pass clips/certifies them, so the
+ * hard-invariant is never put at risk. Deterministic: geometry derives only from
+ * the frozen node positions and a fixed source ordering.
+ */
+export function markCorankFanInBundles(
+  nodes: PositionedNode[],
+  edges: PositionedEdge[],
+  groups: PositionedGroup[],
+  graph: MermaidGraph,
+  bundled: Set<PositionedEdge>,
+  style: LabelMetricsStyle,
+): void {
+  const nodeMap = new Map(nodes.map(n => [n.id, n]))
+  const f = layoutFlow(graph.direction)
+  for (const [hubId, spokes] of corankFanInSpokes(nodes, edges, groups, graph)) {
+    const hub = nodeMap.get(hubId)!
+    // Order spokes by source cross position so the rebuilt doglegs nest without
+    // crossing (topmost source -> topmost hub entry, etc.). Deterministic.
+    const ordered = [...spokes].sort((a, b) =>
+      nodeCrossCenter(nodeMap.get(a.source)!, graph.direction) - nodeCrossCenter(nodeMap.get(b.source)!, graph.direction))
+    const sources = ordered.map(e => nodeMap.get(e.source)!)
+
+    // Hub entry points: spread symmetrically about the hub entry-side midpoint,
+    // kept inside the side (spacing clamped so the outermost entry stays within
+    // ~80% of the half-side). The entry side is the flow target side.
+    const entryMid = shapePorts(hub)[f.targetSide]
+    const hubCrossHalf = (f.isHorizontal ? hub.height : hub.width) / 2
+    const maxSpan = hubCrossHalf * 1.6
+    const spacing = Math.min(28, ordered.length > 1 ? maxSpan / (ordered.length - 1) : 0)
+    const offsets = symmetricOffsets(ordered.length, spacing)
+
+    // Shared elbow on the main axis, midway between the rank of the (co-ranked)
+    // sources' forward edge and the hub's entry edge — the converging junction.
+    const sourceExitMain = f.isHorizontal
+      ? (f.sourceSide === 'E' ? Math.max(...sources.map(s => s.x + s.width)) : Math.min(...sources.map(s => s.x)))
+      : (f.sourceSide === 'S' ? Math.max(...sources.map(s => s.y + s.height)) : Math.min(...sources.map(s => s.y)))
+    const hubEntryMain = f.isHorizontal ? entryMid.x : entryMid.y
+    const elbow = sourceExitMain + (hubEntryMain - sourceExitMain) / 2
+
+    const proposed: Array<{ edge: PositionedEdge; points: Point[] }> = []
+    let clear = true
+    for (let i = 0; i < ordered.length; i++) {
+      const edge = ordered[i]!
+      const src = sources[i]!
+      const exit = shapePorts(src)[f.sourceSide]
+      const entry: Point = f.isHorizontal
+        ? { x: entryMid.x, y: entryMid.y + offsets[i]! }
+        : { x: entryMid.x + offsets[i]!, y: entryMid.y }
+      const points = doglegBetween(exit, entry, graph.direction, elbow)
+      if (!routeClearOfNodes(points, nodes, new Set([edge.source, edge.target]))) { clear = false; break }
+      proposed.push({ edge, points })
+    }
+    if (!clear) continue // leave this hub's spokes to the normal route-contract path
+
+    for (const { edge, points } of proposed) {
+      edge.points = points
+      edge.routeCertificate = undefined
+      bundled.add(edge)
+    }
+    // Re-home the labeled spokes' pills onto their rebuilt routes (the same
+    // helper bundleEdgePaths-fed labeled fan-outs use).
+    assignBundledFanoutLabels(proposed, nodes, graph.direction, style)
+  }
+}
+
 export function alignForkRejoinPeerCenters(
   nodes: PositionedNode[],
   edges: PositionedEdge[],
@@ -1888,10 +2057,24 @@ export function alignLabeledSourcePort(
   nodes: PositionedNode[],
   edges: PositionedEdge[],
   groups: PositionedGroup[],
+  graph: MermaidGraph,
   direction: Direction,
   style: LabelMetricsStyle,
 ): void {
   if (layoutEnvFlag('APL_NO_LABELED_SOURCE_PORT')) return
+  // A labeled source feeding a co-ranked, symmetrized mixed-label fan-in hub
+  // must YIELD: its spoke is now part of a symmetric convergence (the hub is
+  // centered on its sources' barycenter and the spokes are mirror doglegs).
+  // Re-straightening it onto the source mid-port would pull the spoke off the
+  // converged shape and de-center the hub — the older "labeled source exits
+  // straight at mid-port" contract is, for a fan-in, superseded by the
+  // symmetric-convergence principle (the spoke still EXITS at the mid-port, it
+  // just bends to converge). A labeled source whose target is single-input (no
+  // fan-in) is unaffected and still straightened below. We skip the hub's whole
+  // incoming spoke set via the shared corankFanInSpokes predicate, so this pass,
+  // the bend exemption, and the hitch oracle all agree on the same spokes.
+  const corankFanInTargets = new Set<string>()
+  for (const [hubId] of corankFanInSpokes(nodes, edges, groups, graph)) corankFanInTargets.add(hubId)
   const isHorizontal = direction === 'LR' || direction === 'RL'
   const cross = isHorizontal ? ('y' as const) : ('x' as const)
   const main = isHorizontal ? ('x' as const) : ('y' as const)
@@ -1942,6 +2125,9 @@ export function alignLabeledSourcePort(
 
   for (const e of edges) {
     if (!e.label || e.points.length < 2 || e.source === e.target) continue
+    // Yield to a symmetric mixed-label fan-in: never re-straighten a spoke that
+    // converges into a co-ranked, centered hub (see the note at the top).
+    if (corankFanInTargets.has(e.target)) continue
     const S = nodeMap.get(e.source)
     if (!S || !PORT_EXACT.has(S.shape) || inGroup(S)) continue
     // S must emit exactly this one forward edge — its lane is then S's sole

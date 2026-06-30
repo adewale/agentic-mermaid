@@ -37,7 +37,7 @@ import type { ResolvedRenderStyle } from './styles.ts'
 import { measureMultilineText } from './text-metrics.ts'
 import { elkLayoutSync } from './elk-instance.ts'
 import { clipEdgeToShape } from './shape-clipping.ts'
-import { onShapeOutline } from './layout-rubric.ts'
+import { onShapeOutline, assessLayout, hardViolations } from './layout-rubric.ts'
 import { applyRouteContracts, classifyRoutes, diamondFacetPorts, labelRect, PORT_EXACT, repairLabelsOnSharedTrunks, shapePorts, simplifyPolyline } from './route-contracts.ts'
 import type { LabelMetricsStyle } from './route-contracts.ts'
 import { resolveEdgeInlineStyle, resolveNodeInlineStyle } from './color-resolver.ts'
@@ -73,6 +73,7 @@ import {
   centerPeerBarycenters,
   honorLinkRankDistance,
   bundleEdgePaths,
+  markCorankFanInBundles,
   applySymmetricFanoutEmissions,
   applySymmetricParallelEdgeLanes,
   applyParallelDuplicateLanes,
@@ -266,6 +267,102 @@ interface RoutePortHints {
   byNode: Map<string, RoutePortHint[]>
 }
 
+/** Dimensions of the layout-only ELK label injected to balance a fan-in rank. */
+interface BalancingLabel {
+  width: number
+  height: number
+}
+
+/**
+ * Co-rank mixed-label fan-ins (default ON; disable with APL_NO_CORANK_FANIN).
+ *
+ * A fan-in hub fed by both a LABELED edge and an UNLABELED edge is asymmetric:
+ * ELK reserves an inline-label dummy rank for the labeled edge only, so that
+ * edge's source lands one rank EARLIER than the unlabeled sibling's source
+ * (e.g. `A -->|x| B` with `B2 --> B` puts A one layer before B2). The
+ * peer-barycenter centering can't square up a fan-in whose sources sit on
+ * different ranks.
+ *
+ * The fix balances the rank span: every unlabeled incident edge of a mixed
+ * hub gets a layout-only ELK label (one non-empty space, sized to the WIDEST
+ * labeled sibling so the reserved cell matches) — ELK then allocates the same
+ * dummy rank for it and all the hub's sources co-rank. The label is never
+ * rendered: edge readback keys off the Mermaid edge's own `label`, which stays
+ * undefined for these edges (see extractEdgesRecursively), so this only moves
+ * ranks, never pixels of text. With the sources co-ranked, centerPeerBarycenters
+ * squares up the hub and the spokes converge as symmetric doglegs; that bend is
+ * justified (the convergence is structurally necessary) so the spokes are marked
+ * bundle-owned downstream — see markCorankFanInBundles, findRouteHitches's
+ * 'bundle' skip, and the layout-rubric justified-bend exemption.
+ *
+ * Returns a map from edge index -> the balancing label's dimensions, empty when
+ * disabled (APL_NO_CORANK_FANIN) or no mixed fan-in exists. Deterministic:
+ * dimensions derive only from the sibling labels' measured text.
+ */
+function corankFanInBalancingLabels(
+  graph: MermaidGraph,
+  style: ResolvedRenderStyle,
+): Map<number, BalancingLabel> {
+  const balancing = new Map<number, BalancingLabel>()
+  if (layoutEnvFlag('APL_NO_CORANK_FANIN')) return balancing
+
+  // Group edge indices by target node (the potential fan-in hub). Self-loops
+  // never co-rank a hub and are skipped.
+  const incomingByTarget = new Map<string, number[]>()
+  for (let i = 0; i < graph.edges.length; i++) {
+    const edge = graph.edges[i]!
+    if (edge.source === edge.target) continue
+    if (!incomingByTarget.has(edge.target)) incomingByTarget.set(edge.target, [])
+    incomingByTarget.get(edge.target)!.push(i)
+  }
+
+  for (const [hubId, indices] of incomingByTarget) {
+    if (indices.length < 2) continue
+    const labeled = indices.filter(i => !!graph.edges[i]!.label)
+    const unlabeled = indices.filter(i => !graph.edges[i]!.label)
+    // Only a MIXED hub (some labeled, some not) is desynced; a uniformly
+    // labeled or uniformly unlabeled fan-in already co-ranks.
+    if (labeled.length === 0 || unlabeled.length === 0) continue
+    // Scope to rectangle hubs whose every source is also a rectangle — the
+    // exact shape gate centerPeerBarycenters applies when it squares up the
+    // co-ranked peers. Diamonds (and other shapes) have their own port-lane
+    // alignment that a balancing rank would fight, so leave them untouched.
+    const isRect = (id: string): boolean => graph.nodes.get(id)?.shape === 'rectangle'
+    if (!isRect(hubId)) continue
+    if (!indices.every(i => isRect(graph.edges[i]!.source))) continue
+
+    // Size the balancing cell to the WIDEST labeled sibling so every unlabeled
+    // edge reserves at least as much rank space as the labeled ones — matching
+    // the existing inline-label dimensions (measured width + 8, height + 6).
+    let width = 0
+    let height = 0
+    for (const i of labeled) {
+      const metrics = measureMultilineText(graph.edges[i]!.label!, style.edgeLabelFontSize, style.edgeLabelFontWeight)
+      width = Math.max(width, metrics.width + 8)
+      height = Math.max(height, metrics.height + 6)
+    }
+    for (const i of unlabeled) balancing.set(i, { width, height })
+  }
+
+  return balancing
+}
+
+/** Build the layout-only inline label ELK uses to reserve a balancing rank. */
+function balancingElkLabel(dims: BalancingLabel): NonNullable<ElkExtendedEdge['labels']>[number] {
+  // A single space is non-empty text, so ELK allocates a label dummy (an empty
+  // string is treated as no label and reserves nothing). Inline + CENTER mirror
+  // the real edge-label placement so the reserved rank lines up.
+  return {
+    text: ' ',
+    width: dims.width,
+    height: dims.height,
+    layoutOptions: {
+      'elk.edgeLabels.inline': 'true',
+      'elk.edgeLabels.placement': 'CENTER',
+    },
+  }
+}
+
 /**
  * Convert a MermaidGraph to ELK's nested JSON input format.
  *
@@ -284,6 +381,12 @@ function mermaidToElk(
     subgraphIds.add(sg.id)
     collectSubgraphNodeIds(sg, subgraphNodeIds, subgraphIds)
   }
+
+  // Layout-only balancing labels that co-rank mixed-label fan-ins (default ON;
+  // empty when APL_NO_CORANK_FANIN is set). Applied at every label-injection
+  // site below so the rank balance holds wherever the edge is hosted (root,
+  // subgraph-internal, cross-hierarchy).
+  const balancingLabels = corankFanInBalancingLabels(graph, style)
 
   // Build node-to-subgraph mapping for edge distribution
   const nodeToSubgraph = buildNodeToSubgraphMap(graph.subgraphs)
@@ -464,7 +567,7 @@ function mermaidToElk(
   for (const id of rootOrder) {
     const sg = topLevelSubgraphs.get(id)
     if (sg) {
-      elkGraph.children!.push(subgraphToElk(sg, graph, opts, style, edgesBySubgraph, subgraphPorts, crossEdgesByHost, routePortHints, useSourceAwareChildOrder))
+      elkGraph.children!.push(subgraphToElk(sg, graph, opts, style, edgesBySubgraph, subgraphPorts, crossEdgesByHost, routePortHints, useSourceAwareChildOrder, balancingLabels))
       continue
     }
     const node = graph.nodes.get(id)
@@ -491,13 +594,15 @@ function mermaidToElk(
           'elk.edgeLabels.placement': 'CENTER',
         },
       }]
+    } else if (!edge.label && balancingLabels.has(index)) {
+      elkEdge.labels = [balancingElkLabel(balancingLabels.get(index)!)]
     }
     elkGraph.edges!.push(elkEdge)
   }
 
   // Add root-hosted cross-hierarchy edges (using ports when SEPARATE, direct when INCLUDE_CHILDREN)
   for (const info of crossEdgesByHost.get(null) ?? []) {
-    elkGraph.edges!.push(crossHierarchyElkEdge(info, style))
+    elkGraph.edges!.push(crossHierarchyElkEdge(info, style, balancingLabels))
   }
 
   return elkGraph
@@ -629,7 +734,11 @@ function nodeToElkLeaf(id: string, node: MermaidNode, style: ResolvedRenderStyle
   return elkNode
 }
 
-function crossHierarchyElkEdge(info: CrossHierarchyEdgeInfo, style: ResolvedRenderStyle): ElkExtendedEdge {
+function crossHierarchyElkEdge(
+  info: CrossHierarchyEdgeInfo,
+  style: ResolvedRenderStyle,
+  balancingLabels?: Map<number, BalancingLabel>,
+): ElkExtendedEdge {
   const { index, edge, sourceSubgraph, targetSubgraph, hostSubgraph } = info
   const elkEdge: ElkExtendedEdge = {
     id: `e${index}`,
@@ -647,6 +756,8 @@ function crossHierarchyElkEdge(info: CrossHierarchyEdgeInfo, style: ResolvedRend
         'elk.edgeLabels.placement': 'CENTER',
       },
     }]
+  } else if (!edge.label && balancingLabels?.has(index)) {
+    elkEdge.labels = [balancingElkLabel(balancingLabels.get(index)!)]
   }
   return elkEdge
 }
@@ -674,6 +785,7 @@ function subgraphToElk(
   crossEdgesByHost: Map<string | null, CrossHierarchyEdgeInfo[]>,
   routePortHints: RoutePortHints,
   useSourceAwareOrder: boolean,
+  balancingLabels: Map<number, BalancingLabel>,
 ): ElkGraphNode {
   const groupHeaderHeight = style.groupHeaderFontSize + 16
   const layoutOptions: LayoutOptions = {
@@ -725,7 +837,7 @@ function subgraphToElk(
 
   // Add nested subgraphs recursively
   for (const child of sg.children) {
-    elkNode.children!.push(subgraphToElk(child, graph, opts, style, edgesBySubgraph, subgraphPorts, crossEdgesByHost, routePortHints, useSourceAwareOrder))
+    elkNode.children!.push(subgraphToElk(child, graph, opts, style, edgesBySubgraph, subgraphPorts, crossEdgesByHost, routePortHints, useSourceAwareOrder, balancingLabels))
   }
 
   // Add internal edges (edges where both endpoints are in this subgraph)
@@ -747,6 +859,8 @@ function subgraphToElk(
           'elk.edgeLabels.placement': 'CENTER',
         },
       }]
+    } else if (!edge.label && balancingLabels.has(index)) {
+      elkEdge.labels = [balancingElkLabel(balancingLabels.get(index)!)]
     }
     elkNode.edges!.push(elkEdge)
   }
@@ -978,13 +1092,23 @@ export const LAYOUT_PIPELINE: ReadonlyArray<LayoutPass<LayoutPassContext>> = [
     id: 'alignLabeledSourcePort', doc: 'slide a single-outgoing labelled source onto the lane the straightener will use so the exit stays mid-port (alignPortLanes excludes labelled edges)',
     after: ['honorLinkRankDistance'], mutates: ['positions', 'edges'], determinism: 'in-place',
     mayChangeMetrics: { portRate: 'improve-only' },
-    run: c => { alignLabeledSourcePort(c.nodes, c.edges, c.groups, c.graph.direction, c.style) },
+    run: c => { alignLabeledSourcePort(c.nodes, c.edges, c.groups, c.graph, c.graph.direction, c.style) },
   },
   {
     id: 'bundleEdgePaths', doc: 'bundle fan-out/fan-in edges into shared trunks (when mergeEdges)',
     after: ['alignLabeledSourcePort'], mutates: ['edges'], determinism: 'pure-order',
     enabled: c => c.mergeEdges,
     run: c => { c.bundled = bundleEdgePaths(c.edges, c.nodes, c.groups, c.graph.direction) },
+  },
+  {
+    // Re-route the co-ranked mixed-label fan-in spokes as symmetric converging
+    // doglegs and mark them bundle-owned, so applyRouteContracts certifies them
+    // 'bundle' — the justified-bend marker findRouteHitches and the layout-rubric
+    // both key off. Independent of mergeEdges: the fan-in converges via centering
+    // whether or not the plain bundler ran, so the marker must too.
+    id: 'markCorankFanInBundles', doc: 're-route + mark co-ranked mixed-label fan-in spokes bundle-owned (justified symmetric-convergence bend)',
+    after: ['bundleEdgePaths'], mutates: ['edges'], determinism: 'in-place',
+    run: c => { markCorankFanInBundles(c.nodes, c.edges, c.groups, c.graph, c.bundled, c.style) },
   },
   {
     id: 'clipEdgeToShape', doc: 'clip edge endpoints to real (non-rect) shape outlines',
@@ -1252,7 +1376,36 @@ export function layoutGraphSync(
     }
   }
   if (!result) throw lastError
-  return elkToPositioned(result, graph, DEFAULTS.mergeEdges, opts.padding, style)
+  const positioned = elkToPositioned(result, graph, DEFAULTS.mergeEdges, opts.padding, style)
+
+  // Co-rank certify-or-fallback (the robustness-doc doctrine). The co-rank
+  // balancing labels re-rank a mixed-label fan-in's sources; on rare graphs
+  // (observed in RL/reverse-flow when a co-ranked source also carries an
+  // upstream neighbor) that re-rank, after peer-dimension equalization, can push
+  // a source box into an UNRELATED node — a HARD node-overlap the co-rank
+  // introduced. We never ship a HARD violation: if the co-rank layout has any
+  // hard violation AND the disabled layout is clean, fall back to the disabled
+  // (base) layout, which is byte-equal to APL_NO_CORANK_FANIN. Only runs the
+  // extra assessment when the graph actually used co-rank (the balancing map is
+  // non-empty), so the common path pays nothing. Deterministic: layout is fully
+  // synchronous, so the env toggle is saved/restored within this call with no
+  // interleaving, and the fallback is a pure re-derivation of the same input.
+  if (!layoutEnvFlag('APL_NO_CORANK_FANIN') &&
+      corankFanInBalancingLabels(graph, style).size > 0 &&
+      hardViolations(assessLayout(graph, positioned)).length > 0) {
+    const saved = (globalThis as typeof globalThis & { process?: { env?: Record<string, string | undefined> } }).process?.env
+    const prev = saved?.APL_NO_CORANK_FANIN
+    if (saved) saved.APL_NO_CORANK_FANIN = '1'
+    try {
+      const fallback = layoutGraphSync(graph, options)
+      if (hardViolations(assessLayout(graph, fallback)).length === 0) return fallback
+      // Disabled layout is itself not clean (not a co-rank regression): keep the
+      // original rather than mask an unrelated pre-existing hard violation.
+    } finally {
+      if (saved) { if (prev === undefined) delete saved.APL_NO_CORANK_FANIN; else saved.APL_NO_CORANK_FANIN = prev }
+    }
+  }
+  return positioned
 }
 
 /**

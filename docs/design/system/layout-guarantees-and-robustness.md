@@ -120,6 +120,38 @@ bundle a crossing-free fan. The `simplifyPolyline` bend count + a member-vs-memb
 crossing count make a heuristic *safe* ("bundling never worsens crossings or
 bends"), which itself *is* a 100%-guaranteeable property.
 
+### 3a. The justified / symmetric bend — not every bend is a defect
+
+The aesthetic hierarchy distinguishes a *justified* bend from an *unjustified*
+one. A bend that is part of a **symmetric convergence** — a fan-out/fan-in bundle,
+or a **co-ranked mixed-label fan-in**'s converging dogleg — is "as good as" a
+straight line and is **not penalized**: the bend is structurally necessary to
+converge (N spokes cannot merge into one node without a turn), and the symmetry it
+buys offsets the small bend cost — the idiom every reference layered drawer uses,
+and the one our own fan-out emitter (`applySymmetricFanoutEmissions`) already
+relies on. Only *unjustified / lone* bends cost.
+
+The rubric encodes this exactly: a bend on a `bundle`-certified edge is excluded
+from `totalBends`/`maxBendsPerEdge` — the **same** edges `findRouteHitches` skips
+— so the soft bend penalty and the HARD hitch-invariant agree on what is
+justified, while an off-lane jog with a clear straight lane (`hitches`) or a bend
+on a `straight`-certified edge (`unexplainedBends`) stays a HARD violation.
+
+This dissolves an apparent conflict. A **mixed-label fan-in** (a hub fed by both a
+labelled and an unlabelled edge) used to land asymmetric: ELK reserves an
+inline-label dummy rank for the labelled edge only, so its source ranked one layer
+early and the hub could not be squared up. The fix (default; `APL_NO_CORANK_FANIN`
+to disable) gives each unlabelled sibling a layout-only balancing label so all the
+sources **co-rank**, then centres the hub on their barycentre; the spokes converge
+as symmetric doglegs (`markCorankFanInBundles` re-routes them port-to-port and
+marks them bundle-owned). That *bends the labelled spoke*, which the older
+"labelled source exits straight at its mid-port" contract forbade — but under the
+symmetric-bend principle that is a **corrected contract, not a regression**: the
+spoke still exits at the source mid-port, it just bends to converge. The
+labelled-source-straightening pass (`alignLabeledSourcePort`) accordingly *yields*
+to a fan-in hub and still straightens only a labelled source into a single-input
+target.
+
 ## The bigger architectural opportunity (larger scope, separate track)
 
 Much of the 16-pass whack-a-mole re-derives by hand what an exact solver one stage

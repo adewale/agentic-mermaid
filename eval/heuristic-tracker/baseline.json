@@ -42,7 +42,7 @@
   "contact-sheet/F": {
     "hard": 0,
     "offCardinal": 0,
-    "bends": 4,
+    "bends": 0,
     "straight": 0,
     "crossings": 0,
     "symErr": null
@@ -90,7 +90,7 @@
   "contact-sheet/L": {
     "hard": 0,
     "offCardinal": 0,
-    "bends": 4,
+    "bends": 0,
     "straight": 0,
     "crossings": 0,
     "symErr": 0
@@ -98,7 +98,7 @@
   "contact-sheet/M": {
     "hard": 0,
     "offCardinal": 0,
-    "bends": 4,
+    "bends": 0,
     "straight": 0,
     "crossings": 0,
     "symErr": 0
@@ -106,7 +106,7 @@
   "contact-sheet/N": {
     "hard": 0,
     "offCardinal": 0,
-    "bends": 4,
+    "bends": 0,
     "straight": 0,
     "crossings": 0,
     "symErr": 0
@@ -114,7 +114,7 @@
   "contact-sheet/O": {
     "hard": 0,
     "offCardinal": 0,
-    "bends": 4,
+    "bends": 0,
     "straight": 0,
     "crossings": 0,
     "symErr": 0
@@ -122,7 +122,7 @@
   "contact-sheet/P": {
     "hard": 0,
     "offCardinal": 0,
-    "bends": 4,
+    "bends": 0,
     "straight": 0,
     "crossings": 0,
     "symErr": 0
@@ -130,7 +130,7 @@
   "contact-sheet/Q": {
     "hard": 0,
     "offCardinal": 0,
-    "bends": 4,
+    "bends": 0,
     "straight": 0,
     "crossings": 0,
     "symErr": 0
@@ -154,7 +154,7 @@
   "contact-sheet/T": {
     "hard": 0,
     "offCardinal": 0,
-    "bends": 4,
+    "bends": 0,
     "straight": 0,
     "crossings": 0,
     "symErr": 0
@@ -162,7 +162,7 @@
   "contact-sheet/U": {
     "hard": 0,
     "offCardinal": 0,
-    "bends": 4,
+    "bends": 0,
     "straight": 0,
     "crossings": 0,
     "symErr": 0
@@ -170,7 +170,7 @@
   "contact-sheet/V": {
     "hard": 0,
     "offCardinal": 0,
-    "bends": 4,
+    "bends": 0,
     "straight": 0,
     "crossings": 0,
     "symErr": 0
@@ -178,7 +178,7 @@
   "contact-sheet/W": {
     "hard": 0,
     "offCardinal": 0,
-    "bends": 4,
+    "bends": 0,
     "straight": 1,
     "crossings": 0,
     "symErr": null
@@ -186,7 +186,7 @@
   "contact-sheet/X": {
     "hard": 0,
     "offCardinal": 0,
-    "bends": 4,
+    "bends": 0,
     "straight": 1,
     "crossings": 0,
     "symErr": null
@@ -194,7 +194,7 @@
   "contact-sheet/Y": {
     "hard": 0,
     "offCardinal": 0,
-    "bends": 8,
+    "bends": 0,
     "straight": 2,
     "crossings": 0,
     "symErr": 54.5
@@ -202,7 +202,7 @@
   "contact-sheet/Z": {
     "hard": 0,
     "offCardinal": 0,
-    "bends": 8,
+    "bends": 0,
     "straight": 0,
     "crossings": 0,
     "symErr": null
@@ -210,7 +210,7 @@
   "contact-sheet/AA": {
     "hard": 0,
     "offCardinal": 2,
-    "bends": 8,
+    "bends": 0,
     "straight": 2,
     "crossings": 0,
     "symErr": 0
@@ -218,7 +218,7 @@
   "contact-sheet/AB": {
     "hard": 0,
     "offCardinal": 2,
-    "bends": 4,
+    "bends": 0,
     "straight": 1,
     "crossings": 0,
     "symErr": null
@@ -226,7 +226,7 @@
   "contact-sheet/AC": {
     "hard": 0,
     "offCardinal": 2,
-    "bends": 4,
+    "bends": 0,
     "straight": 1,
     "crossings": 0,
     "symErr": null
@@ -234,7 +234,7 @@
   "contact-sheet/AD": {
     "hard": 0,
     "offCardinal": 0,
-    "bends": 4,
+    "bends": 0,
     "straight": 0,
     "crossings": 0,
     "symErr": null
@@ -242,7 +242,7 @@
   "contact-sheet/AE": {
     "hard": 0,
     "offCardinal": 2,
-    "bends": 4,
+    "bends": 0,
     "straight": 1,
     "crossings": 0,
     "symErr": null
@@ -250,7 +250,7 @@
   "contact-sheet/AF": {
     "hard": 0,
     "offCardinal": 2,
-    "bends": 4,
+    "bends": 0,
     "straight": 1,
     "crossings": 0,
     "symErr": null
@@ -258,23 +258,23 @@
   "contact-sheet/AG": {
     "hard": 0,
     "offCardinal": 2,
-    "bends": 6,
-    "straight": 1,
+    "bends": 0,
+    "straight": 0,
     "crossings": 0,
-    "symErr": 32.5
+    "symErr": 0
   },
   "contact-sheet/AH": {
     "hard": 0,
     "offCardinal": 0,
-    "bends": 12,
+    "bends": 0,
     "straight": 0,
     "crossings": 0,
     "symErr": 66.5
   },
   "contact-sheet/AI": {
     "hard": 0,
-    "offCardinal": 0,
-    "bends": 24,
+    "offCardinal": 2,
+    "bends": 0,
     "straight": 2,
     "crossings": 0,
     "symErr": 54.5
@@ -282,7 +282,7 @@
   "contact-sheet/AJ": {
     "hard": 0,
     "offCardinal": 26,
-    "bends": 33,
+    "bends": 25,
     "straight": 6,
     "crossings": 1,
     "symErr": 151.3
@@ -290,7 +290,7 @@
   "contact-sheet/AK": {
     "hard": 0,
     "offCardinal": 0,
-    "bends": 8,
+    "bends": 0,
     "straight": 0,
     "crossings": 0,
     "symErr": 66.5
@@ -298,7 +298,7 @@
   "contact-sheet/AL": {
     "hard": 0,
     "offCardinal": 2,
-    "bends": 4,
+    "bends": 0,
     "straight": 1,
     "crossings": 0,
     "symErr": null
@@ -306,15 +306,15 @@
   "contact-sheet/AM": {
     "hard": 0,
     "offCardinal": 2,
-    "bends": 6,
-    "straight": 1,
+    "bends": 0,
+    "straight": 0,
     "crossings": 0,
-    "symErr": 32.5
+    "symErr": 0
   },
   "contact-sheet/AN": {
     "hard": 0,
     "offCardinal": 0,
-    "bends": 16,
+    "bends": 0,
     "straight": 2,
     "crossings": 0,
     "symErr": 66.5
@@ -322,10 +322,34 @@
   "contact-sheet/AO": {
     "hard": 0,
     "offCardinal": 0,
-    "bends": 8,
-    "straight": 2,
+    "bends": 0,
+    "straight": 0,
     "crossings": 0,
     "symErr": 66.5
+  },
+  "contact-sheet/AP": {
+    "hard": 0,
+    "offCardinal": 4,
+    "bends": 0,
+    "straight": 0,
+    "crossings": 0,
+    "symErr": 24.3
+  },
+  "contact-sheet/AQ": {
+    "hard": 0,
+    "offCardinal": 4,
+    "bends": 0,
+    "straight": 3,
+    "crossings": 0,
+    "symErr": 7
+  },
+  "contact-sheet/AR": {
+    "hard": 0,
+    "offCardinal": 4,
+    "bends": 2,
+    "straight": 1,
+    "crossings": 0,
+    "symErr": 24.8
   },
   "reciprocal-unlabelled/rectangle": {
     "hard": 0,
@@ -426,7 +450,7 @@
   "fan-in/rectangle-N2": {
     "hard": 0,
     "offCardinal": 0,
-    "bends": 4,
+    "bends": 0,
     "straight": 0,
     "crossings": 0,
     "symErr": 0
@@ -434,7 +458,7 @@
   "fan-in/rectangle-N3": {
     "hard": 0,
     "offCardinal": 0,
-    "bends": 4,
+    "bends": 0,
     "straight": 1,
     "crossings": 0,
     "symErr": 0
@@ -442,7 +466,7 @@
   "fan-in/rectangle-N4": {
     "hard": 0,
     "offCardinal": 0,
-    "bends": 8,
+    "bends": 0,
     "straight": 0,
     "crossings": 0,
     "symErr": 0
@@ -450,7 +474,7 @@
   "fan-in/rectangle-N5": {
     "hard": 0,
     "offCardinal": 0,
-    "bends": 8,
+    "bends": 0,
     "straight": 1,
     "crossings": 0,
     "symErr": 0
@@ -458,7 +482,7 @@
   "fan-in/circle-N2": {
     "hard": 0,
     "offCardinal": 0,
-    "bends": 4,
+    "bends": 0,
     "straight": 0,
     "crossings": 0,
     "symErr": 0
@@ -466,7 +490,7 @@
   "fan-in/circle-N3": {
     "hard": 0,
     "offCardinal": 0,
-    "bends": 4,
+    "bends": 0,
     "straight": 1,
     "crossings": 0,
     "symErr": 0
@@ -474,7 +498,7 @@
   "fan-in/circle-N4": {
     "hard": 0,
     "offCardinal": 0,
-    "bends": 8,
+    "bends": 0,
     "straight": 0,
     "crossings": 0,
     "symErr": 0.4
@@ -482,7 +506,7 @@
   "fan-in/circle-N5": {
     "hard": 0,
     "offCardinal": 0,
-    "bends": 10,
+    "bends": 0,
     "straight": 0,
     "crossings": 0,
     "symErr": 0
@@ -490,7 +514,7 @@
   "fan-in/diamond-N2": {
     "hard": 0,
     "offCardinal": 0,
-    "bends": 4,
+    "bends": 0,
     "straight": 0,
     "crossings": 0,
     "symErr": 0
@@ -498,7 +522,7 @@
   "fan-in/diamond-N3": {
     "hard": 0,
     "offCardinal": 0,
-    "bends": 4,
+    "bends": 0,
     "straight": 1,
     "crossings": 0,
     "symErr": 0
@@ -506,7 +530,7 @@
   "fan-in/diamond-N4": {
     "hard": 0,
     "offCardinal": 0,
-    "bends": 8,
+    "bends": 0,
     "straight": 0,
     "crossings": 0,
     "symErr": 0
@@ -514,7 +538,7 @@
   "fan-in/diamond-N5": {
     "hard": 0,
     "offCardinal": 0,
-    "bends": 10,
+    "bends": 0,
     "straight": 0,
     "crossings": 0,
     "symErr": 0
@@ -530,7 +554,7 @@
   "diamond-offport/F-facet-spread-td": {
     "hard": 0,
     "offCardinal": 0,
-    "bends": 4,
+    "bends": 0,
     "straight": 0,
     "crossings": 0,
     "symErr": null
@@ -546,7 +570,7 @@
   "diamond-offport/three-way-out": {
     "hard": 0,
     "offCardinal": 0,
-    "bends": 4,
+    "bends": 0,
     "straight": 1,
     "crossings": 0,
     "symErr": null
@@ -558,29 +582,5 @@
     "straight": 6,
     "crossings": 0,
     "symErr": 25.3
-  },
-  "contact-sheet/AP": {
-    "hard": 0,
-    "offCardinal": 4,
-    "bends": 6,
-    "straight": 0,
-    "crossings": 0,
-    "symErr": 24.3
-  },
-  "contact-sheet/AQ": {
-    "hard": 0,
-    "offCardinal": 4,
-    "bends": 0,
-    "straight": 3,
-    "crossings": 0,
-    "symErr": 7
-  },
-  "contact-sheet/AR": {
-    "hard": 0,
-    "offCardinal": 4,
-    "bends": 8,
-    "straight": 1,
-    "crossings": 0,
-    "symErr": 24.8
   }
 }

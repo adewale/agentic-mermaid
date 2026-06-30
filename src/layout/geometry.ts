@@ -152,6 +152,23 @@ type LayoutDebugEnv = {
   // cell — until the bent-duplicate-label route-contract regression is resolved.
   // See the layout-engine label-injection sites and the decoupling write-up.
   APL_DECOUPLE_LABELS?: string
+  // DISABLE co-ranking of a mixed-label fan-in (default ON). When a fan-in hub
+  // has sibling edges where some are labeled and some are not, the labeled edge
+  // reserves an extra label-dummy rank so its source lands one rank EARLIER
+  // than the unlabeled sibling's source — an asymmetric fan-in the centering
+  // can't square up. By default each unlabeled sibling edge gets a layout-only
+  // balancing label (a single space, sized to the widest labeled sibling) so
+  // ELK reserves the SAME dummy rank and every source co-ranks;
+  // centerPeerBarycenters then drops its labeled-edge exclusion for that
+  // now-co-ranked hub so it can center on the squared-up peers, and the spokes
+  // converge as symmetric doglegs (marked bundle-owned, so the bend is treated
+  // as justified — see route-contracts findRouteHitches and the layout-rubric
+  // justified-bend exemption). The balancing label is never rendered — readback
+  // keys off the Mermaid edge's own label, which stays undefined. Set this to
+  // restore the pre-co-rank base geometry (so before/after stays bisectable);
+  // matches the other APL_NO_* pass switches. See the layout-engine
+  // label-injection sites and centerPeerBarycenters.
+  APL_NO_CORANK_FANIN?: string
 }
 
 export function layoutEnvFlag(name: keyof LayoutDebugEnv): boolean {

@@ -760,15 +760,16 @@ in sync by `src/__tests__/layout-pass-docsync.test.ts` (regenerate with
 7. `honorLinkRankDistance` - shove target sub-DAG to honor variable-length link rank distance
 8. `alignLabeledSourcePort` - slide a single-outgoing labelled source onto the lane the straightener will use so the exit stays mid-port (alignPortLanes excludes labelled edges)
 9. `bundleEdgePaths` - bundle fan-out/fan-in edges into shared trunks (when mergeEdges)
-10. `clipEdgeToShape` - clip edge endpoints to real (non-rect) shape outlines
-11. `applySymmetricFanoutEmissions` - re-route small equivalent fan-outs symmetrically; mark bundle-owned
-12. `applySymmetricParallelEdgeLanes` - separate parallel edges into symmetric non-crossing lanes
-13. `applyParallelDuplicateLanes` - split exact duplicate edges into separated lanes
-14. `collapseTinyBundledHitches` - remove sub-perceptual hitches introduced by bundling
-15. `reassignBundledSiblingLabels` - re-home labels onto the correct bundled sibling segment
-16. `applyRouteContracts` - classify -> simplify -> straighten (fixed-point) -> certify; FREEZES node geometry
-17. `repairLabelsOnSharedTrunks` - re-slot a labeled edge whose pill sits on a trunk shared with another edge (label-only, freeze-safe)
-18. `translateGeometryToNonNegativeOrigin` - shift whole graph to a non-negative origin (allowed after freeze)
+10. `markCorankFanInBundles` - re-route + mark co-ranked mixed-label fan-in spokes bundle-owned (justified symmetric-convergence bend)
+11. `clipEdgeToShape` - clip edge endpoints to real (non-rect) shape outlines
+12. `applySymmetricFanoutEmissions` - re-route small equivalent fan-outs symmetrically; mark bundle-owned
+13. `applySymmetricParallelEdgeLanes` - separate parallel edges into symmetric non-crossing lanes
+14. `applyParallelDuplicateLanes` - split exact duplicate edges into separated lanes
+15. `collapseTinyBundledHitches` - remove sub-perceptual hitches introduced by bundling
+16. `reassignBundledSiblingLabels` - re-home labels onto the correct bundled sibling segment
+17. `applyRouteContracts` - classify -> simplify -> straighten (fixed-point) -> certify; FREEZES node geometry
+18. `repairLabelsOnSharedTrunks` - re-slot a labeled edge whose pill sits on a trunk shared with another edge (label-only, freeze-safe)
+19. `translateGeometryToNonNegativeOrigin` - shift whole graph to a non-negative origin (allowed after freeze)
 
 <!-- LAYOUT-PIPELINE:end -->
 
