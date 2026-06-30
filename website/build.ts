@@ -213,7 +213,7 @@ async function generateEditorHtml() {
 
 function mastheadHtml(currentHref = '') {
   const links = [
-    ['/why/', 'Why', ''],
+    ['/about/', 'About', ''],
     ['/examples/', 'Examples', ''],
     ['/gallery/', 'Gallery', ''],
     ['/families/', 'Families', ''],
@@ -594,8 +594,21 @@ await emitJson('schemas/index.json', { generatedFrom, schemas: schemaEntries, mc
 
 // Spec route coverage pages.
 const docsIndex = '<hr><h2>Docs index</h2><ul class="doc-index"><li><a href="/docs/api/">Library API</a></li><li><a href="/docs/cli/">CLI</a></li><li><a href="/docs/mcp/">MCP</a></li><li><a href="/docs/source-level/">Source-level edits</a></li><li><a href="/docs/ascii/">ASCII and Unicode</a></li><li><a href="/docs/theming/">Theming</a></li><li><a href="/docs/config/">Config</a></li><li><a href="/docs/react/">React</a></li><li><a href="/docs/quality/">Quality</a></li><li><a href="/docs/vocabulary/">Vocabulary</a></li><li><a href="/docs/fork-differences/">Fork differences</a></li></ul>'
-const whyLead = 'Agentic Mermaid is a fork of beautiful-mermaid, aimed at a job the original did not have: programs that draw and check diagrams with no person watching. It renders without a browser, reports its own layout errors, and edits diagrams as a typed tree.'
-const whyBody = `
+const aboutLead = 'Agentic Mermaid is a fork of beautiful-mermaid, aimed at a job the original did not have: programs that draw and check diagrams with no person watching. It renders without a browser, reports its own layout errors, and edits diagrams as a typed tree.'
+// The brand Paper palette, hex-resolved. The public site is light-only, so these
+// diagrams render once in Paper rather than carrying a var()-token SVG: page-level
+// custom properties do not inherit into an inlined SVG here, which would leave
+// edge-label halos at fill's black initial value. Paper's derived tiers come from
+// the engine's MIX weights, matching #F5F0E4 page tokens exactly (see THEMES.paper).
+const ABOUT_DIAGRAM_THEME = { bg: '#F5F0E4', fg: '#221E16', accent: '#9A4A24' }
+function aboutDiagram(source: string, id: string) {
+  // Drawn by the engine at build time — a page about a Mermaid renderer, rendered
+  // by it. Transparent canvas so the diagram floats on the page; halos resolve to
+  // Paper bg and disappear into it.
+  const svg = renderMermaidSVG(source, { ...ABOUT_DIAGRAM_THEME, transparent: true, security: 'strict', compact: true, embedFontImport: false, idPrefix: `about-${id}-` })
+  return `<figure class="about-diagram">${svg}</figure>`
+}
+const aboutBody = `
 <h2>An agent writes a diagram it cannot see</h2>
 <p>When a coding agent emits a Mermaid block, it is working blind. mermaid.js renders in a browser, so the only way to know whether an edge landed on the right node, or whether two boxes overlap, is to start a headless Chrome, rasterize, and look at the picture. An agent in the middle of a task has no picture to look at, so the diagram ships and the break surfaces when a person opens the page. Agentic Mermaid takes the browser out of the path and hands the agent something it can read instead.</p>
 
@@ -627,9 +640,15 @@ am render flow.mmd --format ascii          # box-drawing, into the terminal</cod
 
 <h2>The loop</h2>
 <p>These are one loop. An agent parses the source, narrows it with <code>asFlowchart</code>, mutates a node, verifies the result, and serializes it back, then renders the same bytes every time and reads the ASCII when it cannot open an image. It runs the whole loop with no browser and without asking a person whether the picture looks right. That last part is what beautiful-mermaid had no reason to do, and the reason this fork exists.</p>
+${aboutDiagram('flowchart LR\n  Parse --> Narrow\n  Narrow --> Mutate\n  Mutate --> Verify\n  Verify -- ok --> Serialize\n  Verify -- warnings --> Narrow', 'loop')}
+<p class="muted">The loop itself, drawn by Agentic Mermaid at build time from six lines of Mermaid.</p>
+
+<h2>Where it comes from</h2>
+<p><a href="https://mermaid.js.org">Mermaid</a> is the text syntax these diagrams are written in; its own renderer draws them in a browser. Drawing that text without a browser has been tried before — <a href="https://github.com/AlexanderGrooff/mermaid-ascii">mermaid-ascii</a> renders Mermaid graphs as ASCII straight in a terminal. <a href="https://github.com/lukilabs/beautiful-mermaid">Beautiful Mermaid</a>, from the team at Craft, is a zero-dependency TypeScript renderer that outputs both SVG and ASCII, with its ASCII engine ported from mermaid-ascii's Go. Agentic Mermaid forks Beautiful Mermaid and adds the typed editing and deterministic verification above it, so an agent can change a diagram and check it, where the renderers before it could only draw one.</p>
+${aboutDiagram('flowchart TD\n  M[Mermaid] --> BM[Beautiful Mermaid]\n  MA[mermaid-ascii] --> BM\n  BM --> AM[Agentic Mermaid]', 'lineage')}
 `
 const docPages = [
-  ['why/index.html', 'Why Agentic Mermaid exists', whyLead, whyBody, '/why/'],
+  ['about/index.html', 'About Agentic Mermaid', aboutLead, aboutBody, '/about/'],
   ['docs/api/index.html', 'Library API', 'Use agentic-mermaid and agentic-mermaid/agent from local JS or TS.', '<p>Import rendering helpers from <code>agentic-mermaid</code> and typed parse/mutate/verify helpers from <code>agentic-mermaid/agent</code>.</p>' + docsIndex],
   ['docs/source-level/index.html', 'Source-level edits', 'When a family or construct cannot be narrowed safely, preserve source deliberately.', '<p>Opaque fallback bodies round-trip losslessly, but they do not expose structured mutation. Edit their preserved source only when the task explicitly asks for source-level changes, then parse and verify before returning artifacts.</p>' + docsIndex],
   ['docs/cli/index.html', 'CLI', 'Use the am CLI for local rendering, verification, batch checks, and Markdown rendering.', '<pre><code>am verify diagram.mmd\nam render diagram.mmd --format svg --output diagram.svg\nam render diagram.mmd --format unicode</code></pre>' + docsIndex],
@@ -697,10 +716,11 @@ const securityHeaders = [
 ].join('\n')
 await emit('_headers', securityHeaders)
 
-const cleanRoutes = ['why', 'editor', 'gallery', 'families', 'docs', 'skills', 'skills/agentic-mermaid-diagram-workflow', 'docs/api', 'docs/source-level', 'docs/cli', 'docs/mcp', 'docs/ascii', 'docs/theming', 'docs/config', 'docs/react', 'docs/quality', 'docs/fork-differences', 'docs/vocabulary', 'warnings', 'errors', 'examples', 'evidence', 'security', 'releases']
+const cleanRoutes = ['about', 'editor', 'gallery', 'families', 'docs', 'skills', 'skills/agentic-mermaid-diagram-workflow', 'docs/api', 'docs/source-level', 'docs/cli', 'docs/mcp', 'docs/ascii', 'docs/theming', 'docs/config', 'docs/react', 'docs/quality', 'docs/fork-differences', 'docs/vocabulary', 'warnings', 'errors', 'examples', 'evidence', 'security', 'releases']
 const redirectLines = [
   ...cleanRoutes.map((r) => `/${r} /${r}/ 308`),
   '/warnings/:code /warnings/:code/ 308', '/errors/:kind /errors/:kind/ 308',
+  '/why /about/ 308', '/why/ /about/ 308',
   '',
 ].join('\n')
 await emit('_redirects', redirectLines)

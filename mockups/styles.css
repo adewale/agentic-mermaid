@@ -244,6 +244,8 @@ h1, h2 { font-family: var(--serif); color: var(--ink); font-weight: 600; line-he
 .page-header h1 { margin-top: 0; }
 /* page-header meta slot: source/updated/read-time on one consistent treatment */
 .page-meta { margin: 0 0 var(--sp-5); color: var(--ink-faint); font-family: var(--mono); font-size: var(--t-label); line-height: var(--lh-ui); }
+.about-diagram { margin: var(--sp-6) auto var(--sp-3); text-align: center; }
+.about-diagram svg { max-width: 100%; height: auto; }
 h1 { font-size: var(--t-h1); margin: var(--sp-8) 0 var(--sp-4); }
 .home-main .page-header { margin-top: var(--sp-8); }
 .home-main h1 { font-size: var(--t-display); line-height: 1.03; letter-spacing: var(--track-display); }

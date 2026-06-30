@@ -1,4 +1,4 @@
-/why /why/ 308
+/about /about/ 308
 /editor /editor/ 308
 /gallery /gallery/ 308
 /families /families/ 308
@@ -24,3 +24,5 @@
 /releases /releases/ 308
 /warnings/:code /warnings/:code/ 308
 /errors/:kind /errors/:kind/ 308
+/why /about/ 308
+/why/ /about/ 308
