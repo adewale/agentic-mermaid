@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Agentic Mermaid is a fork of beautiful-mermaid, aimed at a job the original did not have: programs that draw and check diagrams with no person watching. It renders without a browser, reports its own layout errors, and edits diagrams as a typed tree.">
+<title>Why Agentic Mermaid exists – Agentic Mermaid</title>
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="/favicon.ico" type="image/x-icon">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<link rel="stylesheet" href="/styles.css">
+<link rel="alternate" type="text/plain" href="/llms.txt">
+<link rel="alternate" type="application/json" href="/agent-manifest.json">
+<link rel="alternate" type="text/markdown" href="/agent-instructions.md">
+</head>
+<body>
+<a class="skip-link" href="#main">Skip to content</a>
+<header class="masthead"><div class="bar"><a class="brand" href="/"><span class="mark"></span> Agentic&nbsp;Mermaid</a><span class="links"><a aria-current="page" href="/why/">Why</a><a href="/examples/">Examples</a><a href="/gallery/">Gallery</a><a href="/families/">Families</a><a href="/docs/">Docs</a><a class="link-editor" href="/editor/">Open editor</a></span></div><hr></header>
+<main id="main" class="doc">
+<section class="page-header">
+<h1>Why Agentic Mermaid exists</h1>
+<p class="lead">Agentic Mermaid is a fork of beautiful-mermaid, aimed at a job the original did not have: programs that draw and check diagrams with no person watching. It renders without a browser, reports its own layout errors, and edits diagrams as a typed tree.</p>
+</section>
+
+<h2>An agent writes a diagram it cannot see</h2>
+<p>When a coding agent emits a Mermaid block, it is working blind. mermaid.js renders in a browser, so the only way to know whether an edge landed on the right node, or whether two boxes overlap, is to start a headless Chrome, rasterize, and look at the picture. An agent in the middle of a task has no picture to look at, so the diagram ships and the break surfaces when a person opens the page. Agentic Mermaid takes the browser out of the path and hands the agent something it can read instead.</p>
+
+<h2>The same source renders the same way</h2>
+<p>The layout is a pure function of the source and the theme tokens. Render twice and the geometry is byte-identical, on any machine, with nothing measuring text in a browser. Because the bytes are stable, a rendered SVG can be committed and diffed in review, a PNG can be cached by the hash of its source, and a render can gate a CI job without flaking. mermaid.js holds none of this: its layout moves between versions and depends on the browser doing the measurement.</p>
+<pre><code>am render diagram.mmd --format svg > a.svg
+am render diagram.mmd --format svg > b.svg
+diff a.svg b.svg        # no output: identical bytes, every run, no browser</code></pre>
+
+<h2>Verify before you serialize</h2>
+<p><code>verifyMermaid</code> reads a parsed diagram and sorts its warnings into three tiers. Structural warnings mean the diagram is wrong: an edge anchored to nothing (<code>EDGE_MISANCHORED</code>), a node off the canvas (<code>OFF_CANVAS</code>), content that escaped its group (<code>GROUP_BREACH</code>). Geometric warnings mean it reads but the routing is poor: overlapping nodes (<code>NODE_OVERLAP</code>), a path that crosses itself (<code>ROUTE_SELF_CROSS</code>). Lint warnings cover cleanliness and round-trip loss. Every warning carries a stable code, so an agent runs verify the way it runs a test: check, read the code, fix, check again. The editor shows the same three tiers as you type, <code>am verify</code> prints them, and the MCP server returns them.</p>
+<pre><code>const verify = verifyMermaid(parsed.value)
+if (!verify.ok) throw new Error(JSON.stringify(verify.warnings, null, 2))
+// every warning: a code (EDGE_MISANCHORED), a tier (structural | geometric | lint),
+// and a severity, so the fix is mechanical</code></pre>
+
+<h2>Edits go through a typed tree</h2>
+<p>To add an edge with a string-based tool, you append a line and hope it parses. Agentic Mermaid parses the source into a typed tree, narrows it to a family with <code>asFlowchart</code>, applies one operation, and serializes back. The operation matches a known shape or returns an error, so it cannot half-apply and leave the source corrupt. Syntax the library cannot narrow is preserved verbatim, and a lossy change asks first.</p>
+<pre><code>const flow = asFlowchart(parseMermaid(source).value)   // narrow to flowchart
+const r = mutate(flow, { kind: 'add_edge', from: 'API', to: 'Cache' })
+if (!verifyMermaid(r.value).ok) throw new Error('mutation left it broken')
+const next = serializeMermaid(r.value)                 // typed tree back to text</code></pre>
+
+<h2>One source, five surfaces</h2>
+<p>The same parsed diagram serializes to SVG for a web page, PNG for a document, ASCII and Unicode for a terminal, and JSON for the raw layout coordinates. The text forms are the ones agents actually use: an agent reading a pull request or a CI log sees the diagram as box-drawing characters it can parse, where an image tag would be a dead link. The editor renders all three from the one source in the box on the left, so the Diagram, Unicode, and ASCII tabs are the same diagram under three encodings.</p>
+<pre><code>am render flow.mmd --format svg    > flow.svg
+am render flow.mmd --format png    > flow.png
+am render flow.mmd --format ascii          # box-drawing, into the terminal</code></pre>
+
+<h2>The loop</h2>
+<p>These are one loop. An agent parses the source, narrows it with <code>asFlowchart</code>, mutates a node, verifies the result, and serializes it back, then renders the same bytes every time and reads the ASCII when it cannot open an image. It runs the whole loop with no browser and without asking a person whether the picture looks right. That last part is what beautiful-mermaid had no reason to do, and the reason this fork exists.</p>
+
+</main>
+<footer><div class="footlinks"><a href="/llms.txt">llms.txt</a><span class="sep">&middot;</span><a href="/agent-instructions.md">agent-instructions.md</a><span class="sep">&middot;</span><a href="/capabilities.json">capabilities.json</a><span class="sep">&middot;</span><a href="/agent-manifest.json">agent-manifest.json</a><span class="sep">&middot;</span><a href="https://github.com/adewale/beautiful-mermaid">GitHub</a></div></footer>
+<script src="/shader-mark.js"></script>
+<script src="/theme.js"></script>
+</body>
+</html>

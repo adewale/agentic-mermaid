@@ -213,6 +213,7 @@ async function generateEditorHtml() {
 
 function mastheadHtml(currentHref = '') {
   const links = [
+    ['/why/', 'Why', ''],
     ['/examples/', 'Examples', ''],
     ['/gallery/', 'Gallery', ''],
     ['/families/', 'Families', ''],
@@ -593,7 +594,42 @@ await emitJson('schemas/index.json', { generatedFrom, schemas: schemaEntries, mc
 
 // Spec route coverage pages.
 const docsIndex = '<hr><h2>Docs index</h2><ul class="doc-index"><li><a href="/docs/api/">Library API</a></li><li><a href="/docs/cli/">CLI</a></li><li><a href="/docs/mcp/">MCP</a></li><li><a href="/docs/source-level/">Source-level edits</a></li><li><a href="/docs/ascii/">ASCII and Unicode</a></li><li><a href="/docs/theming/">Theming</a></li><li><a href="/docs/config/">Config</a></li><li><a href="/docs/react/">React</a></li><li><a href="/docs/quality/">Quality</a></li><li><a href="/docs/vocabulary/">Vocabulary</a></li><li><a href="/docs/fork-differences/">Fork differences</a></li></ul>'
+const whyLead = 'Agentic Mermaid is a fork of beautiful-mermaid, aimed at a job the original did not have: programs that draw and check diagrams with no person watching. It renders without a browser, reports its own layout errors, and edits diagrams as a typed tree.'
+const whyBody = `
+<h2>An agent writes a diagram it cannot see</h2>
+<p>When a coding agent emits a Mermaid block, it is working blind. mermaid.js renders in a browser, so the only way to know whether an edge landed on the right node, or whether two boxes overlap, is to start a headless Chrome, rasterize, and look at the picture. An agent in the middle of a task has no picture to look at, so the diagram ships and the break surfaces when a person opens the page. Agentic Mermaid takes the browser out of the path and hands the agent something it can read instead.</p>
+
+<h2>The same source renders the same way</h2>
+<p>The layout is a pure function of the source and the theme tokens. Render twice and the geometry is byte-identical, on any machine, with nothing measuring text in a browser. Because the bytes are stable, a rendered SVG can be committed and diffed in review, a PNG can be cached by the hash of its source, and a render can gate a CI job without flaking. mermaid.js holds none of this: its layout moves between versions and depends on the browser doing the measurement.</p>
+<pre><code>am render diagram.mmd --format svg > a.svg
+am render diagram.mmd --format svg > b.svg
+diff a.svg b.svg        # no output: identical bytes, every run, no browser</code></pre>
+
+<h2>Verify before you serialize</h2>
+<p><code>verifyMermaid</code> reads a parsed diagram and sorts its warnings into three tiers. Structural warnings mean the diagram is wrong: an edge anchored to nothing (<code>EDGE_MISANCHORED</code>), a node off the canvas (<code>OFF_CANVAS</code>), content that escaped its group (<code>GROUP_BREACH</code>). Geometric warnings mean it reads but the routing is poor: overlapping nodes (<code>NODE_OVERLAP</code>), a path that crosses itself (<code>ROUTE_SELF_CROSS</code>). Lint warnings cover cleanliness and round-trip loss. Every warning carries a stable code, so an agent runs verify the way it runs a test: check, read the code, fix, check again. The editor shows the same three tiers as you type, <code>am verify</code> prints them, and the MCP server returns them.</p>
+<pre><code>const verify = verifyMermaid(parsed.value)
+if (!verify.ok) throw new Error(JSON.stringify(verify.warnings, null, 2))
+// every warning: a code (EDGE_MISANCHORED), a tier (structural | geometric | lint),
+// and a severity, so the fix is mechanical</code></pre>
+
+<h2>Edits go through a typed tree</h2>
+<p>To add an edge with a string-based tool, you append a line and hope it parses. Agentic Mermaid parses the source into a typed tree, narrows it to a family with <code>asFlowchart</code>, applies one operation, and serializes back. The operation matches a known shape or returns an error, so it cannot half-apply and leave the source corrupt. Syntax the library cannot narrow is preserved verbatim, and a lossy change asks first.</p>
+<pre><code>const flow = asFlowchart(parseMermaid(source).value)   // narrow to flowchart
+const r = mutate(flow, { kind: 'add_edge', from: 'API', to: 'Cache' })
+if (!verifyMermaid(r.value).ok) throw new Error('mutation left it broken')
+const next = serializeMermaid(r.value)                 // typed tree back to text</code></pre>
+
+<h2>One source, five surfaces</h2>
+<p>The same parsed diagram serializes to SVG for a web page, PNG for a document, ASCII and Unicode for a terminal, and JSON for the raw layout coordinates. The text forms are the ones agents actually use: an agent reading a pull request or a CI log sees the diagram as box-drawing characters it can parse, where an image tag would be a dead link. The editor renders all three from the one source in the box on the left, so the Diagram, Unicode, and ASCII tabs are the same diagram under three encodings.</p>
+<pre><code>am render flow.mmd --format svg    > flow.svg
+am render flow.mmd --format png    > flow.png
+am render flow.mmd --format ascii          # box-drawing, into the terminal</code></pre>
+
+<h2>The loop</h2>
+<p>These are one loop. An agent parses the source, narrows it with <code>asFlowchart</code>, mutates a node, verifies the result, and serializes it back, then renders the same bytes every time and reads the ASCII when it cannot open an image. It runs the whole loop with no browser and without asking a person whether the picture looks right. That last part is what beautiful-mermaid had no reason to do, and the reason this fork exists.</p>
+`
 const docPages = [
+  ['why/index.html', 'Why Agentic Mermaid exists', whyLead, whyBody, '/why/'],
   ['docs/api/index.html', 'Library API', 'Use agentic-mermaid and agentic-mermaid/agent from local JS or TS.', '<p>Import rendering helpers from <code>agentic-mermaid</code> and typed parse/mutate/verify helpers from <code>agentic-mermaid/agent</code>.</p>' + docsIndex],
   ['docs/source-level/index.html', 'Source-level edits', 'When a family or construct cannot be narrowed safely, preserve source deliberately.', '<p>Opaque fallback bodies round-trip losslessly, but they do not expose structured mutation. Edit their preserved source only when the task explicitly asks for source-level changes, then parse and verify before returning artifacts.</p>' + docsIndex],
   ['docs/cli/index.html', 'CLI', 'Use the am CLI for local rendering, verification, batch checks, and Markdown rendering.', '<pre><code>am verify diagram.mmd\nam render diagram.mmd --format svg --output diagram.svg\nam render diagram.mmd --format unicode</code></pre>' + docsIndex],
@@ -661,7 +697,7 @@ const securityHeaders = [
 ].join('\n')
 await emit('_headers', securityHeaders)
 
-const cleanRoutes = ['editor', 'gallery', 'families', 'docs', 'skills', 'skills/agentic-mermaid-diagram-workflow', 'docs/api', 'docs/source-level', 'docs/cli', 'docs/mcp', 'docs/ascii', 'docs/theming', 'docs/config', 'docs/react', 'docs/quality', 'docs/fork-differences', 'docs/vocabulary', 'warnings', 'errors', 'examples', 'evidence', 'security', 'releases']
+const cleanRoutes = ['why', 'editor', 'gallery', 'families', 'docs', 'skills', 'skills/agentic-mermaid-diagram-workflow', 'docs/api', 'docs/source-level', 'docs/cli', 'docs/mcp', 'docs/ascii', 'docs/theming', 'docs/config', 'docs/react', 'docs/quality', 'docs/fork-differences', 'docs/vocabulary', 'warnings', 'errors', 'examples', 'evidence', 'security', 'releases']
 const redirectLines = [
   ...cleanRoutes.map((r) => `/${r} /${r}/ 308`),
   '/warnings/:code /warnings/:code/ 308', '/errors/:kind /errors/:kind/ 308',
