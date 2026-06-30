@@ -169,7 +169,7 @@ describe('website browser accessibility smoke', () => {
       expect(await page.evaluate((selector) => document.activeElement === document.querySelector(selector), spec.button)).toBe(true)
     }
 
-    await page.locator('#mode-style').click()
+    await page.locator('#settings-btn').click()
     for (const spec of [
       { button: '#font-select-btn', popup: '#font-popup' },
       { button: '.color-edit-btn[data-cfg="bg"]', popup: '#color-popup' },

@@ -297,9 +297,9 @@ body {
   border-radius: var(--radius-lg);
   padding: 3px;
 }
-/* Preview only makes sense on mobile, where the right panel is a separate view.
-   On desktop the preview is always visible, so this option is hidden. */
-.mode-preview-only {
+/* On desktop both panels are visible, so the Source/Preview switch is hidden;
+   it only appears on mobile, where one panel shows at a time. */
+.view-switch {
   display: none;
 }
 .mode-option {
@@ -336,7 +336,9 @@ body {
   position: relative;
 }
 .examples-toggle.active,
-.examples-toggle[aria-expanded="true"] {
+.examples-toggle[aria-expanded="true"],
+.settings-toggle.active,
+.settings-toggle[aria-expanded="true"] {
   color: var(--ink);
   background: var(--paper);
   box-shadow: var(--shadow-control);
@@ -557,35 +559,6 @@ body {
   padding: 0;
 }
 
-/* Primary button – inverted fg/bg */
-.btn-primary {
-  background: var(--accent);
-  border-color: transparent;
-  color: var(--paper);
-  box-shadow: none;
-}
-.btn-primary:hover {
-  opacity: 0.92;
-  background: var(--accent-hover, var(--accent));
-  color: var(--paper);
-}
-/* Dark mode: the lightened Dusk accent makes a washed-out fill, so the primary
-   button takes a saturated terracotta with light text instead. */
-[data-scheme="dark"] .btn-primary {
-  background: #BD5F2C;
-  color: #FBF2E1;
-}
-[data-scheme="dark"] .btn-primary:hover {
-  background: #C96E38;
-  color: #FBF2E1;
-}
-.btn-primary:disabled:hover,
-.btn-primary[aria-disabled="true"]:hover {
-  opacity: 0.45;
-  background: var(--accent);
-  color: var(--paper);
-}
-
 @media (max-width: 760px) {
   .topbar {
     gap: 0.25rem;
@@ -611,6 +584,7 @@ body {
     display: none;
   }
   .view-switch {
+    display: flex;
     order: 20;
     flex: 1 0 100%;
   }
@@ -618,10 +592,8 @@ body {
     flex: 1;
     min-height: 40px;
   }
-  .mode-preview-only {
-    display: inline-flex;
-  }
-  .examples-toggle {
+  .examples-toggle,
+  .settings-toggle {
     order: 1;
   }
   .spacer {
@@ -1402,14 +1374,51 @@ body {
 }
 
 
+/* Diagram settings — opens as an overlay over the source workspace (the left
+   panel) so Source stays the home and the preview on the right stays visible. */
 .config-panel {
+  position: absolute;
+  inset: 0;
+  z-index: 6;
   display: none;
   flex-direction: column;
   gap: 0;
   overflow-y: auto;
-  flex: 1;
+  background: var(--bg2);
 }
 .config-panel.visible { display: flex; }
+.config-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 42px;
+  padding: 0 8px 0 12px;
+  border-bottom: 1px solid var(--border);
+  color: var(--fg2);
+  font-size: var(--t-label);
+  font-weight: 700;
+  line-height: var(--lh-ui);
+  flex-shrink: 0;
+  position: sticky;
+  top: 0;
+  background: var(--bg2);
+  z-index: 1;
+}
+.config-close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--fg3);
+  cursor: pointer;
+  transition: color 0.15s, background 0.15s;
+}
+.config-close:hover { color: var(--fg); background: var(--control-bg-hover); }
+.config-close svg { width: 15px; height: 15px; }
 
 .config-section {
   padding: 0.75rem 1rem;
@@ -1752,13 +1761,13 @@ body {
   display: flex;
   gap: 0;
 }
-.export-wrap .btn-primary:first-child {
+.export-wrap .btn:first-child {
   border-radius: var(--radius-md) 0 0 var(--radius-md);
 }
 .export-chevron {
   border-radius: 0 var(--radius-md) var(--radius-md) 0 !important;
   padding: 0 8px;
-  box-shadow: inset 1px 0 0 color-mix(in srgb, var(--paper) 22%, var(--accent)) !important;
+  box-shadow: inset 1px 0 0 var(--control-border) !important;
 }
 .export-dropdown {
   display: none;
@@ -2081,16 +2090,17 @@ body {
 
   <div class="topbar-sep" aria-hidden="true"></div>
 
-  <!-- One adaptive segmented control. Source/Style switch the left panel on
-       desktop; on mobile the same control gains Preview to switch the whole
-       visible view. Still a role="group" segmented control, not an ARIA tabset. -->
+  <!-- Source is the permanent left workspace. This switch only matters on mobile,
+       where one panel shows at a time; on desktop both panels are visible and it
+       is hidden. role="group" segmented control, not an ARIA tabset. -->
   <div class="mode-switch view-switch" data-segmented-control role="group" aria-label="Editor view">
-    <button class="mode-option is-active" id="mode-source" type="button" aria-pressed="true" aria-controls="editor-view" data-left-panel="code" data-mobile-panel="code">Source</button>
-    <button class="mode-option" id="mode-style" type="button" aria-pressed="false" aria-controls="config-view" data-left-panel="config" data-mobile-panel="config">Style</button>
-    <button class="mode-option mode-preview-only" id="mode-preview" type="button" aria-pressed="false" aria-controls="panel-right" data-mobile-panel="preview">Preview</button>
+    <button class="mode-option is-active" id="mode-source" type="button" aria-pressed="true" aria-controls="editor-view" data-mobile-panel="code">Source</button>
+    <button class="mode-option" id="mode-preview" type="button" aria-pressed="false" aria-controls="panel-right" data-mobile-panel="preview">Preview</button>
   </div>
 
   <button class="btn examples-toggle" id="examples-sidebar-btn" type="button" aria-pressed="false" aria-expanded="false" aria-controls="examples-sidebar">Examples</button>
+
+  <button class="btn settings-toggle" id="settings-btn" type="button" aria-pressed="false" aria-expanded="false" aria-controls="config-view" title="Diagram settings: colours, font, and layout for the current diagram">Settings</button>
 
   <div class="spacer"></div>
 
@@ -2171,7 +2181,7 @@ body {
   <div class="topbar-sep"></div>
 
   <div class="export-wrap" id="export-wrap">
-    <button class="btn btn-primary" id="export-main-btn" type="button" title="Save PNG (⌘S)" disabled aria-disabled="true">
+    <button class="btn" id="export-main-btn" type="button" title="Save PNG (⌘S)" disabled aria-disabled="true">
       <svg
         viewBox="0 0 24 24"
         fill="none"
@@ -2187,7 +2197,7 @@ body {
       Export Image
     </button>
     <button
-      class="btn btn-primary export-chevron"
+      class="btn export-chevron"
       id="export-chevron-btn"
       type="button"
       title="More export options"
@@ -2364,7 +2374,13 @@ body {
   </div>
 
   <!-- Config view -->
-  <div class="config-panel" id="config-view" role="region" aria-label="Style settings" hidden aria-hidden="true">
+  <div class="config-panel" id="config-view" role="region" aria-label="Diagram settings" hidden aria-hidden="true">
+    <div class="config-head">
+      <span>Diagram settings</span>
+      <button class="config-close" id="settings-close-btn" type="button" aria-label="Close settings">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
     <!-- Colors section -->
     <div class="config-section">
       <div class="config-section-title">Colors</div>
@@ -2646,6 +2662,6 @@ body {
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
 <!-- Bundled renderer -->
-<script type="module" src="/editor/editor-46fdfc18e777.js"></script>
+<script type="module" src="/editor/editor-0ad5a7e8017b.js"></script>
 </body>
 </html>

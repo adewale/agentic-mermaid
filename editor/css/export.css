@@ -3,13 +3,13 @@
   display: flex;
   gap: 0;
 }
-.export-wrap .btn-primary:first-child {
+.export-wrap .btn:first-child {
   border-radius: var(--radius-md) 0 0 var(--radius-md);
 }
 .export-chevron {
   border-radius: 0 var(--radius-md) var(--radius-md) 0 !important;
   padding: 0 8px;
-  box-shadow: inset 1px 0 0 color-mix(in srgb, var(--paper) 22%, var(--accent)) !important;
+  box-shadow: inset 1px 0 0 var(--control-border) !important;
 }
 .export-dropdown {
   display: none;

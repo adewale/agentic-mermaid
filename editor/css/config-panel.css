@@ -1,11 +1,48 @@
+/* Diagram settings — opens as an overlay over the source workspace (the left
+   panel) so Source stays the home and the preview on the right stays visible. */
 .config-panel {
+  position: absolute;
+  inset: 0;
+  z-index: 6;
   display: none;
   flex-direction: column;
   gap: 0;
   overflow-y: auto;
-  flex: 1;
+  background: var(--bg2);
 }
 .config-panel.visible { display: flex; }
+.config-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 42px;
+  padding: 0 8px 0 12px;
+  border-bottom: 1px solid var(--border);
+  color: var(--fg2);
+  font-size: var(--t-label);
+  font-weight: 700;
+  line-height: var(--lh-ui);
+  flex-shrink: 0;
+  position: sticky;
+  top: 0;
+  background: var(--bg2);
+  z-index: 1;
+}
+.config-close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--fg3);
+  cursor: pointer;
+  transition: color 0.15s, background 0.15s;
+}
+.config-close:hover { color: var(--fg); background: var(--control-bg-hover); }
+.config-close svg { width: 15px; height: 15px; }
 
 .config-section {
   padding: 0.75rem 1rem;

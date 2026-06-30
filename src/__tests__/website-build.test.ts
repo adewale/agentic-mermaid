@@ -232,13 +232,15 @@ describe('Workers Static Assets website contract', () => {
 
   test('editor mode switch is not a pseudo-tabset', () => {
     const editor = read('editor/index.html')
-    // One adaptive segmented control (Source/Style/Preview), still role="group"
-    // — not two responsive copies, and not an ARIA tabset.
+    // Source is the permanent left workspace. The view switch is a mobile-only
+    // Source/Preview control (role="group", not an ARIA tabset); Style is no
+    // longer a peer tab — it moved to a Settings overlay (#config-view).
     expect(editor).toContain('class="mode-switch view-switch" data-segmented-control role="group"')
     expect(editor).not.toContain('left-panel-switch')
     expect(editor).not.toContain('mobile-view-switch')
-    expect(editor).toContain('data-left-panel="code"')
-    expect(editor).toContain('data-left-panel="config"')
+    expect(editor).not.toContain('data-left-panel')
+    expect(editor).toContain('id="settings-btn"')
+    expect(editor).toContain('id="config-view"')
     expect(editor).toContain('data-mobile-panel="preview"')
     expect(editor).toContain('id="examples-sidebar-btn"')
     expect(editor).toContain('id="resize-handle" role="separator"')

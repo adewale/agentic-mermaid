@@ -79,9 +79,9 @@
   border-radius: var(--radius-lg);
   padding: 3px;
 }
-/* Preview only makes sense on mobile, where the right panel is a separate view.
-   On desktop the preview is always visible, so this option is hidden. */
-.mode-preview-only {
+/* On desktop both panels are visible, so the Source/Preview switch is hidden;
+   it only appears on mobile, where one panel shows at a time. */
+.view-switch {
   display: none;
 }
 .mode-option {
@@ -118,7 +118,9 @@
   position: relative;
 }
 .examples-toggle.active,
-.examples-toggle[aria-expanded="true"] {
+.examples-toggle[aria-expanded="true"],
+.settings-toggle.active,
+.settings-toggle[aria-expanded="true"] {
   color: var(--ink);
   background: var(--paper);
   box-shadow: var(--shadow-control);
@@ -339,35 +341,6 @@
   padding: 0;
 }
 
-/* Primary button – inverted fg/bg */
-.btn-primary {
-  background: var(--accent);
-  border-color: transparent;
-  color: var(--paper);
-  box-shadow: none;
-}
-.btn-primary:hover {
-  opacity: 0.92;
-  background: var(--accent-hover, var(--accent));
-  color: var(--paper);
-}
-/* Dark mode: the lightened Dusk accent makes a washed-out fill, so the primary
-   button takes a saturated terracotta with light text instead. */
-[data-scheme="dark"] .btn-primary {
-  background: #BD5F2C;
-  color: #FBF2E1;
-}
-[data-scheme="dark"] .btn-primary:hover {
-  background: #C96E38;
-  color: #FBF2E1;
-}
-.btn-primary:disabled:hover,
-.btn-primary[aria-disabled="true"]:hover {
-  opacity: 0.45;
-  background: var(--accent);
-  color: var(--paper);
-}
-
 @media (max-width: 760px) {
   .topbar {
     gap: 0.25rem;
@@ -393,6 +366,7 @@
     display: none;
   }
   .view-switch {
+    display: flex;
     order: 20;
     flex: 1 0 100%;
   }
@@ -400,10 +374,8 @@
     flex: 1;
     min-height: 40px;
   }
-  .mode-preview-only {
-    display: inline-flex;
-  }
-  .examples-toggle {
+  .examples-toggle,
+  .settings-toggle {
     order: 1;
   }
   .spacer {

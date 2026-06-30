@@ -26,16 +26,17 @@
 
   <div class="topbar-sep" aria-hidden="true"></div>
 
-  <!-- One adaptive segmented control. Source/Style switch the left panel on
-       desktop; on mobile the same control gains Preview to switch the whole
-       visible view. Still a role="group" segmented control, not an ARIA tabset. -->
+  <!-- Source is the permanent left workspace. This switch only matters on mobile,
+       where one panel shows at a time; on desktop both panels are visible and it
+       is hidden. role="group" segmented control, not an ARIA tabset. -->
   <div class="mode-switch view-switch" data-segmented-control role="group" aria-label="Editor view">
-    <button class="mode-option is-active" id="mode-source" type="button" aria-pressed="true" aria-controls="editor-view" data-left-panel="code" data-mobile-panel="code">Source</button>
-    <button class="mode-option" id="mode-style" type="button" aria-pressed="false" aria-controls="config-view" data-left-panel="config" data-mobile-panel="config">Style</button>
-    <button class="mode-option mode-preview-only" id="mode-preview" type="button" aria-pressed="false" aria-controls="panel-right" data-mobile-panel="preview">Preview</button>
+    <button class="mode-option is-active" id="mode-source" type="button" aria-pressed="true" aria-controls="editor-view" data-mobile-panel="code">Source</button>
+    <button class="mode-option" id="mode-preview" type="button" aria-pressed="false" aria-controls="panel-right" data-mobile-panel="preview">Preview</button>
   </div>
 
   <button class="btn examples-toggle" id="examples-sidebar-btn" type="button" aria-pressed="false" aria-expanded="false" aria-controls="examples-sidebar">Examples</button>
+
+  <button class="btn settings-toggle" id="settings-btn" type="button" aria-pressed="false" aria-expanded="false" aria-controls="config-view" title="Diagram settings: colours, font, and layout for the current diagram">Settings</button>
 
   <div class="spacer"></div>
 
@@ -95,7 +96,7 @@
   <div class="topbar-sep"></div>
 
   <div class="export-wrap" id="export-wrap">
-    <button class="btn btn-primary" id="export-main-btn" type="button" title="Save PNG (⌘S)" disabled aria-disabled="true">
+    <button class="btn" id="export-main-btn" type="button" title="Save PNG (⌘S)" disabled aria-disabled="true">
       <svg
         viewBox="0 0 24 24"
         fill="none"
@@ -111,7 +112,7 @@
       Export Image
     </button>
     <button
-      class="btn btn-primary export-chevron"
+      class="btn export-chevron"
       id="export-chevron-btn"
       type="button"
       title="More export options"
