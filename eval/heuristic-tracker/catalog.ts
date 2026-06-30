@@ -73,5 +73,15 @@ export function trackedExamples(): TrackedExample[] {
     source: 'flowchart LR\n  A[User] --> B[Login Page]\n  B --> C{Valid Credentials?}\n  C -- No --> B\n  C -- Yes --> D{MFA Enabled?}\n  D -- No --> G[Create Session]\n  D -- Yes --> E[Enter MFA Code]\n  E --> F{Code Valid?}\n  F -- No --> E\n  F -- Yes --> G',
     intent: 'every clear-lane edge straight; feedback loops outside; labels on their routes' })
 
+  // Group 6 — label CENTRING on symmetric doglegs. A2/B2 feed A/B so the co-rank
+  // squares A->B into a converging dogleg (markCorankFanInBundles), and C fans out
+  // to D/E (applySymmetricFanoutEmissions). Both re-routes used to leave their
+  // label hugging an endpoint (fan-in labelOff 0.28, fan-out 0.16) while staying
+  // HARD-clean, so only the NEW worstLabelOffset metric sees it — this example
+  // locks that class down. Toggling APL_NO_CORANK_FANIN changes this row's labelOff.
+  out.push({ group: 'label-centring', name: 'symmetric-dogleg-labels',
+    source: 'flowchart LR\n  A["warnings"] -->|warnings| B["ok"]\n  B -->|ok| C["rendered"]\n  A2["same word: warnings"] --> A\n  B2["same word: ok"] --> B\n  C -->|warnings| D["warnings"]\n  C -->|ok| E["ok"]',
+    intent: 'every labelled edge label centred on its route (~midpoint), not hugging an endpoint' })
+
   return out
 }

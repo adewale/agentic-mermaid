@@ -14,7 +14,7 @@
  * geometry, so a port or clipping regression cannot hide itself.
  */
 
-import type { MermaidGraph, Point, PositionedGraph, PositionedGroup, PositionedNode } from './types.ts'
+import type { MermaidGraph, Point, PositionedEdge, PositionedGraph, PositionedGroup, PositionedNode } from './types.ts'
 import { diamondFacetPorts, findRouteHitches, shapePorts } from './route-contracts.ts'
 import { measureMultilineText } from './text-metrics.ts'
 import { resolveRenderStyle } from './styles.ts'
@@ -94,6 +94,12 @@ export interface RubricMetrics {
   portAnchoredEdgeRate: number
   /** Largest cross-axis offset between a peer hub and its peer barycenter. */
   peerBarycenterDelta: number
+  /** SOFT label-CENTRING metric: max over labelled edges of
+   *  labelMidpointOffset (|projFrac(label) - 0.5|). 0 = every label centred on
+   *  its route; →0.5 = a label jammed at an endpoint. This is the gap that let
+   *  the symmetric-dogleg hugging through — labelOffRoute only proves a label is
+   *  ON its route, never WELL-PLACED on it. 0 when no labelled edges. */
+  worstLabelOffset: number
 }
 
 export interface RubricResult {
@@ -314,6 +320,49 @@ function pointToSegmentDistance(p: Point, a: Point, b: Point): number {
   return Math.hypot(p.x - (a.x + t * dx), p.y - (a.y + t * dy))
 }
 
+/**
+ * Arc-length position (0..1) along a polyline of the closest point on the route
+ * to `pt` — the fractional projection of a label onto its own edge. 0 is the
+ * source end, 1 the target end, 0.5 the route's arc-length midpoint.
+ */
+function projFrac(pt: Point, pts: Point[]): number {
+  let total = 0
+  const seglen: number[] = []
+  for (let i = 1; i < pts.length; i++) {
+    const d = Math.hypot(pts[i]!.x - pts[i - 1]!.x, pts[i]!.y - pts[i - 1]!.y)
+    seglen.push(d); total += d
+  }
+  let best = Infinity, bestArc = 0, acc = 0
+  for (let i = 1; i < pts.length; i++) {
+    const a = pts[i - 1]!, b = pts[i]!, dx = b.x - a.x, dy = b.y - a.y, l2 = dx * dx + dy * dy
+    let t = l2 ? ((pt.x - a.x) * dx + (pt.y - a.y) * dy) / l2 : 0
+    t = Math.max(0, Math.min(1, t))
+    const px = a.x + t * dx, py = a.y + t * dy, d = Math.hypot(pt.x - px, pt.y - py)
+    if (d < best) { best = d; bestArc = acc + t * seglen[i - 1]! }
+    acc += seglen[i - 1]!
+  }
+  return total ? bestArc / total : 0.5
+}
+
+/**
+ * Label-CENTRING metric (SOFT): how far a label's projection onto its own route
+ * is from the route midpoint. `labelMidpointOffset = |projFrac(labelPosition) -
+ * 0.5|`; 0 is perfectly centred, →0.5 is jammed against an endpoint.
+ *
+ * Why this is its own metric and not covered by labelOffRoute: labelOffRoute
+ * (HARD) only checks a label sits ON its route (Kakoulis–Tollis association),
+ * never WHERE along it. A symmetric re-route (co-rank fan-in / fan-out dogleg)
+ * can leave a label HARD-clean — exactly on its route — yet hugging an endpoint,
+ * which reads as belonging to the node rather than the edge. That hugging slips
+ * past labelOffRoute, the HARD gate, and the byte-exact equivalence gate. This
+ * metric is the missing centring check; dagre places edge labels at the route
+ * midpoint, so a well-placed label scores ≈0.
+ */
+export function labelMidpointOffset(edge: PositionedEdge): number {
+  if (!edge.label || !edge.labelPosition || edge.points.length < 2) return 0
+  return Math.abs(projFrac(edge.labelPosition, edge.points) - 0.5)
+}
+
 function nodeCrossCenter(node: PositionedNode, direction: MermaidGraph['direction']): number {
   return direction === 'LR' || direction === 'RL'
     ? node.y + node.height / 2
@@ -429,6 +478,7 @@ export function assessLayout(graph: MermaidGraph, positioned: PositionedGraph): 
   let portEnds = 0
   let portAnchoredEdges = 0
   let measuredEnds = 0
+  let worstLabelOffset = 0
 
   for (const e of positioned.edges) {
     const id = `${e.source}->${e.target}`
@@ -491,6 +541,8 @@ export function assessLayout(graph: MermaidGraph, positioned: PositionedGraph): 
         labelOffRoute++
         violations.push({ metric: 'labelOffRoute', detail: `${id} label ${best.toFixed(1)}px from its route (allowed ${allow.toFixed(1)})` })
       }
+      // SOFT label-CENTRING aggregate: track the worst (most off-centre) label.
+      worstLabelOffset = Math.max(worstLabelOffset, labelMidpointOffset(e))
     }
   }
 
@@ -552,6 +604,7 @@ export function assessLayout(graph: MermaidGraph, positioned: PositionedGraph): 
       portEndpointRate: measuredEnds === 0 ? 1 : portEnds / measuredEnds,
       portAnchoredEdgeRate: positioned.edges.length === 0 ? 1 : portAnchoredEdges / positioned.edges.length,
       peerBarycenterDelta: peerBarycenterDelta(positioned, graph),
+      worstLabelOffset,
     },
     violations: violations
       .map(v => ({ ...v, severity: rubricSeverity(v.metric) }))

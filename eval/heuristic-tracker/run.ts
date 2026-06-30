@@ -20,6 +20,11 @@ import { trackedExamples } from './catalog.ts'
 
 interface Row {
   hard: number; offCardinal: number; bends: number; straight: number; crossings: number; symErr: number | null
+  /** SOFT label-CENTRING: worst |projFrac(label) - 0.5| over labelled edges
+   *  (layout-rubric worstLabelOffset). Records how well-centred each example's
+   *  labels are so a regression of the symmetric-dogleg hugging class trips the
+   *  gate; null when the example has no labelled edges. */
+  labelOff: number | null
 }
 
 // A "designated" attachment point: the four cardinal side-midpoints for every
@@ -72,9 +77,11 @@ export function score(source: string): ScoreResult {
     if (s && !onCardinal(s, e.points[0])) offCardinal++
     if (t && !onCardinal(t, e.points[e.points.length - 1])) offCardinal++
   }
+  const hasLabel = pos.edges.some((e: any) => e.label && e.labelPosition && e.points.length >= 2)
   return {
     hard: r.violations.length, offCardinal, bends: r.metrics.totalBends, straight,
     crossings: r.metrics.edgeCrossings, symErr: fanInSymmetryError(pos),
+    labelOff: hasLabel ? Number(r.metrics.worstLabelOffset.toFixed(3)) : null,
   }
 }
 
@@ -131,6 +138,13 @@ export function compareToBaseline(
       if (d < 0) improvements++
       else { regressions++; regressionDetails.push(`${key}: symErr ${b.symErr}→${c.symErr}`) }
     }
+    // Label-centring: lower is better (a label drifting toward an endpoint is a
+    // regression). Fractional metric, so a tighter tolerance than symErr's px.
+    if (c.labelOff !== null && b.labelOff != null && Math.abs(c.labelOff - b.labelOff) > 0.005) {
+      const d = c.labelOff - b.labelOff
+      if (d < 0) improvements++
+      else { regressions++; regressionDetails.push(`${key}: labelOff ${b.labelOff}→${c.labelOff}`) }
+    }
   }
   return { totalHard, improvements, regressions, regressionDetails, errors }
 }
@@ -148,7 +162,7 @@ if (import.meta.main) {
 
   const baseline = loadBaseline()
   const fmt = (v: any) => v === null ? '·' : String(v)
-  console.log('group/name'.padEnd(34), 'hard off bend strt xing  sym   Δ(vs baseline)')
+  console.log('group/name'.padEnd(34), 'hard off bend strt xing  sym  lblOff  Δ(vs baseline)')
   for (const ex of examples) {
     const key = `${ex.group}/${ex.name}`
     const c = current[key] as any
@@ -167,11 +181,16 @@ if (import.meta.main) {
         const d = c.symErr - b.symErr
         deltas.push(`sym${d > 0 ? '+' : ''}${d.toFixed(1)}${d < 0 ? '✓' : '✗'}`)
       }
+      if (c.labelOff !== null && b.labelOff != null && Math.abs(c.labelOff - b.labelOff) > 0.005) {
+        const d = c.labelOff - b.labelOff
+        deltas.push(`lblOff${d > 0 ? '+' : ''}${d.toFixed(3)}${d < 0 ? '✓' : '✗'}`)
+      }
     }
     console.log(
       key.padEnd(34),
       String(c.hard).padStart(4), String(c.offCardinal).padStart(3), String(c.bends).padStart(4),
       String(c.straight).padStart(4), String(c.crossings).padStart(4), fmt(c.symErr).padStart(5),
+      fmt(c.labelOff).padStart(6),
       '  ' + (deltas.join(' ') || (b ? '=' : 'new')),
     )
   }

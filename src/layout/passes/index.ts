@@ -558,8 +558,10 @@ export function markCorankFanInBundles(
       bundled.add(edge)
     }
     // Re-home the labeled spokes' pills onto their rebuilt routes (the same
-    // helper bundleEdgePaths-fed labeled fan-outs use).
-    assignBundledFanoutLabels(proposed, nodes, graph.direction, style)
+    // helper bundleEdgePaths-fed labeled fan-outs use), THEN re-centre them onto
+    // the route's main-axis midpoint: the co-rank dogleg otherwise leaves the
+    // single labeled spoke hugging the source (the regression this fixes).
+    assignBundledFanoutLabels(proposed, nodes, graph.direction, style, /* recenter */ true)
   }
 }
 
@@ -1238,53 +1240,184 @@ function bundledLabelAssignmentCost(chosen: BundledLabelCandidate[], direction: 
     totalRank * 0.25 +
     totalRouteMidpointDistance * 0.1
 }
+/** Arc-length position (0..1) of the closest point on `points` to `pt`. The
+ *  centring-quality measure: 0.5 is the route's arc-length midpoint. Mirrors the
+ *  rubric's projFrac (layout-rubric.ts) so the producer and the oracle agree. */
+function labelArcFraction(pt: Point, points: Point[]): number {
+  let total = 0
+  const seglen: number[] = []
+  for (let i = 1; i < points.length; i++) {
+    const d = Math.hypot(points[i]!.x - points[i - 1]!.x, points[i]!.y - points[i - 1]!.y)
+    seglen.push(d); total += d
+  }
+  let best = Infinity, bestArc = 0, acc = 0
+  for (let i = 1; i < points.length; i++) {
+    const a = points[i - 1]!, b = points[i]!, dx = b.x - a.x, dy = b.y - a.y, l2 = dx * dx + dy * dy
+    let t = l2 ? ((pt.x - a.x) * dx + (pt.y - a.y) * dy) / l2 : 0
+    t = Math.max(0, Math.min(1, t))
+    const px = a.x + t * dx, py = a.y + t * dy, d = Math.hypot(pt.x - px, pt.y - py)
+    if (d < best) { best = d; bestArc = acc + t * seglen[i - 1]! }
+    acc += seglen[i - 1]!
+  }
+  return total ? bestArc / total : 0.5
+}
+/**
+ * The point on a (rectilinear) dogleg at the route's MAIN-AXIS midpoint — dagre's
+ * centred edge-label placement. Walks segments for the one straddling the
+ * main-axis midpoint, preferring a flow-aligned segment so the label sits on a
+ * straight run / across the converging elbow rather than along the cross jog.
+ *
+ * The midpoint of a symmetric converging dogleg sits AT (or beside) the elbow — an
+ * INTERIOR bend, not a node-adjacent endpoint — so no port-stub reservation
+ * applies there; the caller's node-overlap and terminal-marker guards are the only
+ * clearances that matter, and they are checked in recenterBundledLabelOnMainAxis.
+ * Null if no flow-aligned segment spans the midpoint (degenerate route).
+ * Pure/deterministic.
+ */
+function mainAxisMidpointOnRoute(points: Point[], direction: Direction): Point | null {
+  const f = layoutFlow(direction)
+  const mains = points.map(p => p[f.main])
+  const mid = (Math.min(...mains) + Math.max(...mains)) / 2
+  let fallback: Point | null = null
+  for (let i = 1; i < points.length; i++) {
+    const a = points[i - 1]!, b = points[i]!
+    const lo = Math.min(a[f.main], b[f.main]), hi = Math.max(a[f.main], b[f.main])
+    if (mid < lo - 1e-6 || mid > hi + 1e-6) continue
+    const span = b[f.main] - a[f.main]
+    if (Math.abs(span) <= 1e-6) continue // cross-aligned segment: not a straight run
+    const t = (mid - a[f.main]) / span
+    const point = { [f.main]: mid, [f.cross]: a[f.cross] + t * (b[f.cross] - a[f.cross]) } as unknown as Point
+    // Prefer a flow-aligned segment (source/target cross coords equal).
+    if (Math.abs(a[f.cross] - b[f.cross]) < 0.01) return point
+    fallback ??= point
+  }
+  return fallback
+}
+/**
+ * Re-centre a bundled symmetric-dogleg label onto the route's main-axis midpoint
+ * (dagre's centred placement) when that strictly improves centring and stays
+ * clean. The candidate placer ranks by per-SEGMENT midpoint, so on a converging
+ * dogleg it parks the label at the middle of the longest flow-aligned segment —
+ * which is near an endpoint of the whole ROUTE (the symmetric-fan-in/fan-out
+ * hugging). This re-homes it to the route's main-axis centre.
+ *
+ * Label-only, post-route, HARD-safe: the re-centred point lies ON the route by
+ * construction (it is a point on a segment), so labelOffRoute stays 0; and we
+ * only move the label if the box there clears every node (same 2px margin the
+ * candidate generator uses), clears the terminal arrow markers (same check the
+ * candidate generator uses), clears the sibling labels, AND is more central than
+ * the old spot. If any guard fails the original placement stands — we never push
+ * a label off-route, into a collision, or onto an arrow head, and never disturb
+ * an already-centred label.
+ */
+function recenterBundledLabelOnMainAxis(
+  edge: PositionedEdge,
+  points: Point[],
+  nodes: PositionedNode[],
+  direction: Direction,
+  style: LabelMetricsStyle,
+  siblingBoxes: ReadonlyArray<{ x: number; y: number; width: number; height: number }> = [],
+  siblingGap = 0,
+): void {
+  if (!edge.label || !edge.labelPosition) return
+  const target = mainAxisMidpointOnRoute(points, direction)
+  if (!target) return
+  // Only re-centre if it is actually more central than the current placement.
+  const currentOffset = Math.abs(labelArcFraction(edge.labelPosition, points) - 0.5)
+  const targetOffset = Math.abs(labelArcFraction(target, points) - 0.5)
+  if (targetOffset >= currentOffset - 1e-6) return
+  const box = labelBoxAt(edge.label, target, style)
+  if (nodes.some(node => rectsOverlap(box, node, 2))) return
+  if (siblingBoxes.some(other => rectsOverlap(box, other, siblingGap))) return
+  // Terminal-marker clearance on the segment the re-centred point lands on (the
+  // same guard the candidate generator applies), so re-centring never parks the
+  // label over a start/end arrow head.
+  const f = layoutFlow(direction)
+  for (let i = 1; i < points.length; i++) {
+    const a = points[i - 1]!, b = points[i]!
+    const lo = Math.min(a[f.main], b[f.main]), hi = Math.max(a[f.main], b[f.main])
+    if (Math.abs(b[f.main] - a[f.main]) <= 1e-6) continue
+    if (target[f.main] < lo - 1e-6 || target[f.main] > hi + 1e-6) continue
+    if (!clearsTerminalMarkers(edge, points, i, target, box, style)) return
+    break
+  }
+  edge.labelPosition = target
+}
 function assignBundledFanoutLabels(
   proposed: Array<{ edge: PositionedEdge; points: Point[] }>,
   nodes: PositionedNode[],
   direction: Direction,
   style: LabelMetricsStyle,
+  // Re-centre each placed label onto its route's main-axis midpoint afterward.
+  // Opt-IN, used only by the co-rank fan-in (markCorankFanInBundles): its
+  // converging dogleg parks the label at a segment midpoint that hugs the route
+  // end. The fan-out emitter does NOT opt in — its terminal-segment labels are
+  // deliberately corridor-balanced (terminalLabelRunLength / issue #38), a
+  // placement re-centring would disturb; leaving that path untouched keeps the
+  // change scoped to the new regression.
+  recenter = false,
 ): void {
   const labeled = proposed.filter(({ edge }) => edge.label)
   if (labeled.length === 0) return
   if (labeled.length === 1) {
     const only = labeled[0]!
     only.edge.labelPosition = bestBundledLabelPosition(only.edge, only.points, nodes, direction, style)
-    return
-  }
-
-  const candidateSets = labeled.map(({ edge, points }) => bundledLabelCandidates(edge, points, nodes, direction, style))
-  if (candidateSets.some(candidates => candidates.length === 0)) {
-    for (const { edge, points } of labeled) edge.labelPosition = bestBundledLabelPosition(edge, points, nodes, direction, style)
-    return
-  }
-
-  const gap = readableLabelGap(style)
-  let best: BundledLabelCandidate[] | undefined
-  let bestCost = Number.POSITIVE_INFINITY
-  const chosen: BundledLabelCandidate[] = []
-  const search = (index: number) => {
-    if (index === candidateSets.length) {
-      const cost = bundledLabelAssignmentCost(chosen, direction)
-      if (cost < bestCost) {
-        bestCost = cost
-        best = chosen.slice()
+  } else {
+    const candidateSets = labeled.map(({ edge, points }) => bundledLabelCandidates(edge, points, nodes, direction, style))
+    if (candidateSets.some(candidates => candidates.length === 0)) {
+      for (const { edge, points } of labeled) edge.labelPosition = bestBundledLabelPosition(edge, points, nodes, direction, style)
+    } else {
+      const gap = readableLabelGap(style)
+      let best: BundledLabelCandidate[] | undefined
+      let bestCost = Number.POSITIVE_INFINITY
+      const chosen: BundledLabelCandidate[] = []
+      const search = (index: number) => {
+        if (index === candidateSets.length) {
+          const cost = bundledLabelAssignmentCost(chosen, direction)
+          if (cost < bestCost) {
+            bestCost = cost
+            best = chosen.slice()
+          }
+          return
+        }
+        for (const candidate of candidateSets[index]!) {
+          if (chosen.some(other => rectsOverlap(candidate.box, other.box, gap))) continue
+          chosen.push(candidate)
+          search(index + 1)
+          chosen.pop()
+        }
       }
-      return
-    }
-    for (const candidate of candidateSets[index]!) {
-      if (chosen.some(other => rectsOverlap(candidate.box, other.box, gap))) continue
-      chosen.push(candidate)
-      search(index + 1)
-      chosen.pop()
-    }
-  }
-  search(0)
+      search(0)
 
-  if (!best) {
-    for (const { edge, points } of labeled) edge.labelPosition = bestBundledLabelPosition(edge, points, nodes, direction, style)
-    return
+      if (!best) {
+        for (const { edge, points } of labeled) edge.labelPosition = bestBundledLabelPosition(edge, points, nodes, direction, style)
+      } else {
+        for (let i = 0; i < labeled.length; i++) labeled[i]!.edge.labelPosition = best[i]!.point
+      }
+    }
   }
-  for (let i = 0; i < labeled.length; i++) labeled[i]!.edge.labelPosition = best[i]!.point
+
+  // Opt-in re-centre: snap each placed label to its route's main-axis midpoint
+  // (dagre's centred placement) when that is strictly more central and stays
+  // clean. The per-segment candidate ranking above parks a label at the middle of
+  // the longest flow-aligned segment, which on the co-rank fan-in's converging
+  // dogleg hugs the route end. Label-only, post-route, HARD-safe; a re-centre that
+  // would collide with a node OR a sibling label already re-centred here is
+  // declined, so sibling separation is preserved.
+  if (!recenter) return
+  const siblingBoxes: Array<{ x: number; y: number; width: number; height: number }> = []
+  const gap = readableLabelGap(style)
+  for (const { edge } of labeled) {
+    if (edge.labelPosition) siblingBoxes.push(labelBoxAt(edge.label!, edge.labelPosition, style))
+  }
+  for (let i = 0; i < labeled.length; i++) {
+    const { edge, points } = labeled[i]!
+    const before = edge.labelPosition
+    const others = siblingBoxes.filter((_, j) => j !== i)
+    recenterBundledLabelOnMainAxis(edge, points, nodes, direction, style, others, gap)
+    // Keep the sibling-box list current so a later edge sees this one's new spot.
+    if (edge.labelPosition && edge.labelPosition !== before) siblingBoxes[i] = labelBoxAt(edge.label!, edge.labelPosition, style)
+  }
 }
 export function reassignBundledSiblingLabels(
   nodes: PositionedNode[],

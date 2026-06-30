@@ -5,7 +5,8 @@
     "bends": 2,
     "straight": 1,
     "crossings": 0,
-    "symErr": 28.4
+    "symErr": 28.4,
+    "labelOff": 0
   },
   "contact-sheet/B": {
     "hard": 0,
@@ -13,7 +14,8 @@
     "bends": 2,
     "straight": 1,
     "crossings": 0,
-    "symErr": 28.4
+    "symErr": 28.4,
+    "labelOff": 0
   },
   "contact-sheet/C": {
     "hard": 0,
@@ -21,7 +23,8 @@
     "bends": 2,
     "straight": 1,
     "crossings": 0,
-    "symErr": 126.5
+    "symErr": 126.5,
+    "labelOff": 0
   },
   "contact-sheet/D": {
     "hard": 0,
@@ -29,7 +32,8 @@
     "bends": 2,
     "straight": 1,
     "crossings": 0,
-    "symErr": 126.5
+    "symErr": 126.5,
+    "labelOff": 0
   },
   "contact-sheet/E": {
     "hard": 0,
@@ -37,7 +41,8 @@
     "bends": 0,
     "straight": 2,
     "crossings": 0,
-    "symErr": null
+    "symErr": null,
+    "labelOff": 0
   },
   "contact-sheet/F": {
     "hard": 0,
@@ -45,7 +50,8 @@
     "bends": 0,
     "straight": 0,
     "crossings": 0,
-    "symErr": null
+    "symErr": null,
+    "labelOff": 0.191
   },
   "contact-sheet/G": {
     "hard": 0,
@@ -53,7 +59,8 @@
     "bends": 0,
     "straight": 2,
     "crossings": 0,
-    "symErr": null
+    "symErr": null,
+    "labelOff": null
   },
   "contact-sheet/H": {
     "hard": 0,
@@ -61,7 +68,8 @@
     "bends": 0,
     "straight": 2,
     "crossings": 0,
-    "symErr": null
+    "symErr": null,
+    "labelOff": null
   },
   "contact-sheet/I": {
     "hard": 0,
@@ -69,7 +77,8 @@
     "bends": 0,
     "straight": 2,
     "crossings": 0,
-    "symErr": null
+    "symErr": null,
+    "labelOff": null
   },
   "contact-sheet/J": {
     "hard": 0,
@@ -77,7 +86,8 @@
     "bends": 0,
     "straight": 2,
     "crossings": 0,
-    "symErr": null
+    "symErr": null,
+    "labelOff": null
   },
   "contact-sheet/K": {
     "hard": 0,
@@ -85,7 +95,8 @@
     "bends": 0,
     "straight": 2,
     "crossings": 0,
-    "symErr": 28
+    "symErr": 28,
+    "labelOff": 0
   },
   "contact-sheet/L": {
     "hard": 0,
@@ -93,7 +104,8 @@
     "bends": 0,
     "straight": 0,
     "crossings": 0,
-    "symErr": 0
+    "symErr": 0,
+    "labelOff": null
   },
   "contact-sheet/M": {
     "hard": 0,
@@ -101,7 +113,8 @@
     "bends": 0,
     "straight": 0,
     "crossings": 0,
-    "symErr": 0
+    "symErr": 0,
+    "labelOff": null
   },
   "contact-sheet/N": {
     "hard": 0,
@@ -109,7 +122,8 @@
     "bends": 0,
     "straight": 0,
     "crossings": 0,
-    "symErr": 0
+    "symErr": 0,
+    "labelOff": null
   },
   "contact-sheet/O": {
     "hard": 0,
@@ -117,7 +131,8 @@
     "bends": 0,
     "straight": 0,
     "crossings": 0,
-    "symErr": 0
+    "symErr": 0,
+    "labelOff": null
   },
   "contact-sheet/P": {
     "hard": 0,
@@ -125,7 +140,8 @@
     "bends": 0,
     "straight": 0,
     "crossings": 0,
-    "symErr": 0
+    "symErr": 0,
+    "labelOff": null
   },
   "contact-sheet/Q": {
     "hard": 0,
@@ -133,7 +149,8 @@
     "bends": 0,
     "straight": 0,
     "crossings": 0,
-    "symErr": 0
+    "symErr": 0,
+    "labelOff": null
   },
   "contact-sheet/R": {
     "hard": 0,
@@ -141,7 +158,8 @@
     "bends": 2,
     "straight": 2,
     "crossings": 0,
-    "symErr": null
+    "symErr": null,
+    "labelOff": 0.178
   },
   "contact-sheet/S": {
     "hard": 0,
@@ -149,7 +167,8 @@
     "bends": 2,
     "straight": 1,
     "crossings": 0,
-    "symErr": null
+    "symErr": null,
+    "labelOff": null
   },
   "contact-sheet/T": {
     "hard": 0,
@@ -157,7 +176,8 @@
     "bends": 0,
     "straight": 0,
     "crossings": 0,
-    "symErr": 0
+    "symErr": 0,
+    "labelOff": null
   },
   "contact-sheet/U": {
     "hard": 0,
@@ -165,7 +185,8 @@
     "bends": 0,
     "straight": 0,
     "crossings": 0,
-    "symErr": 0
+    "symErr": 0,
+    "labelOff": null
   },
   "contact-sheet/V": {
     "hard": 0,
@@ -173,7 +194,8 @@
     "bends": 0,
     "straight": 0,
     "crossings": 0,
-    "symErr": 0
+    "symErr": 0,
+    "labelOff": null
   },
   "contact-sheet/W": {
     "hard": 0,
@@ -181,7 +203,8 @@
     "bends": 0,
     "straight": 1,
     "crossings": 0,
-    "symErr": null
+    "symErr": null,
+    "labelOff": 0.227
   },
   "contact-sheet/X": {
     "hard": 0,
@@ -189,7 +212,8 @@
     "bends": 0,
     "straight": 1,
     "crossings": 0,
-    "symErr": null
+    "symErr": null,
+    "labelOff": 0.262
   },
   "contact-sheet/Y": {
     "hard": 0,
@@ -197,7 +221,8 @@
     "bends": 0,
     "straight": 2,
     "crossings": 0,
-    "symErr": 54.5
+    "symErr": 54.5,
+    "labelOff": null
   },
   "contact-sheet/Z": {
     "hard": 0,
@@ -205,7 +230,8 @@
     "bends": 0,
     "straight": 0,
     "crossings": 0,
-    "symErr": null
+    "symErr": null,
+    "labelOff": null
   },
   "contact-sheet/AA": {
     "hard": 0,
@@ -213,7 +239,8 @@
     "bends": 0,
     "straight": 2,
     "crossings": 0,
-    "symErr": 0
+    "symErr": 0,
+    "labelOff": null
   },
   "contact-sheet/AB": {
     "hard": 0,
@@ -221,7 +248,8 @@
     "bends": 0,
     "straight": 1,
     "crossings": 0,
-    "symErr": null
+    "symErr": null,
+    "labelOff": 0.279
   },
   "contact-sheet/AC": {
     "hard": 0,
@@ -229,7 +257,8 @@
     "bends": 0,
     "straight": 1,
     "crossings": 0,
-    "symErr": null
+    "symErr": null,
+    "labelOff": null
   },
   "contact-sheet/AD": {
     "hard": 0,
@@ -237,7 +266,8 @@
     "bends": 0,
     "straight": 0,
     "crossings": 0,
-    "symErr": null
+    "symErr": null,
+    "labelOff": 0.191
   },
   "contact-sheet/AE": {
     "hard": 0,
@@ -245,7 +275,8 @@
     "bends": 0,
     "straight": 1,
     "crossings": 0,
-    "symErr": null
+    "symErr": null,
+    "labelOff": 0.279
   },
   "contact-sheet/AF": {
     "hard": 0,
@@ -253,7 +284,8 @@
     "bends": 0,
     "straight": 1,
     "crossings": 0,
-    "symErr": null
+    "symErr": null,
+    "labelOff": 0.165
   },
   "contact-sheet/AG": {
     "hard": 0,
@@ -261,7 +293,8 @@
     "bends": 0,
     "straight": 0,
     "crossings": 0,
-    "symErr": 0
+    "symErr": 0,
+    "labelOff": null
   },
   "contact-sheet/AH": {
     "hard": 0,
@@ -269,7 +302,8 @@
     "bends": 0,
     "straight": 0,
     "crossings": 0,
-    "symErr": 66.5
+    "symErr": 66.5,
+    "labelOff": null
   },
   "contact-sheet/AI": {
     "hard": 0,
@@ -277,7 +311,8 @@
     "bends": 0,
     "straight": 2,
     "crossings": 0,
-    "symErr": 54.5
+    "symErr": 54.5,
+    "labelOff": 0.213
   },
   "contact-sheet/AJ": {
     "hard": 0,
@@ -285,7 +320,8 @@
     "bends": 25,
     "straight": 6,
     "crossings": 1,
-    "symErr": 151.3
+    "symErr": 151.3,
+    "labelOff": 0.333
   },
   "contact-sheet/AK": {
     "hard": 0,
@@ -293,7 +329,8 @@
     "bends": 0,
     "straight": 0,
     "crossings": 0,
-    "symErr": 66.5
+    "symErr": 66.5,
+    "labelOff": null
   },
   "contact-sheet/AL": {
     "hard": 0,
@@ -301,7 +338,8 @@
     "bends": 0,
     "straight": 1,
     "crossings": 0,
-    "symErr": null
+    "symErr": null,
+    "labelOff": null
   },
   "contact-sheet/AM": {
     "hard": 0,
@@ -309,7 +347,8 @@
     "bends": 0,
     "straight": 0,
     "crossings": 0,
-    "symErr": 0
+    "symErr": 0,
+    "labelOff": null
   },
   "contact-sheet/AN": {
     "hard": 0,
@@ -317,7 +356,8 @@
     "bends": 0,
     "straight": 2,
     "crossings": 0,
-    "symErr": 66.5
+    "symErr": 66.5,
+    "labelOff": null
   },
   "contact-sheet/AO": {
     "hard": 0,
@@ -325,7 +365,8 @@
     "bends": 0,
     "straight": 0,
     "crossings": 0,
-    "symErr": 66.5
+    "symErr": 66.5,
+    "labelOff": null
   },
   "contact-sheet/AP": {
     "hard": 0,
@@ -333,7 +374,8 @@
     "bends": 0,
     "straight": 0,
     "crossings": 0,
-    "symErr": 24.3
+    "symErr": 24.3,
+    "labelOff": null
   },
   "contact-sheet/AQ": {
     "hard": 0,
@@ -341,7 +383,8 @@
     "bends": 0,
     "straight": 3,
     "crossings": 0,
-    "symErr": 7
+    "symErr": 7,
+    "labelOff": null
   },
   "contact-sheet/AR": {
     "hard": 0,
@@ -349,7 +392,8 @@
     "bends": 2,
     "straight": 1,
     "crossings": 0,
-    "symErr": 24.8
+    "symErr": 24.8,
+    "labelOff": 0.014
   },
   "reciprocal-unlabelled/rectangle": {
     "hard": 0,
@@ -357,7 +401,8 @@
     "bends": 0,
     "straight": 2,
     "crossings": 0,
-    "symErr": null
+    "symErr": null,
+    "labelOff": null
   },
   "reciprocal-labelled/rectangle": {
     "hard": 0,
@@ -365,7 +410,8 @@
     "bends": 2,
     "straight": 1,
     "crossings": 0,
-    "symErr": null
+    "symErr": null,
+    "labelOff": 0
   },
   "reciprocal-unlabelled/diamond": {
     "hard": 0,
@@ -373,7 +419,8 @@
     "bends": 0,
     "straight": 2,
     "crossings": 0,
-    "symErr": null
+    "symErr": null,
+    "labelOff": null
   },
   "reciprocal-labelled/diamond": {
     "hard": 0,
@@ -381,7 +428,8 @@
     "bends": 2,
     "straight": 1,
     "crossings": 0,
-    "symErr": null
+    "symErr": null,
+    "labelOff": 0
   },
   "reciprocal-unlabelled/circle": {
     "hard": 0,
@@ -389,7 +437,8 @@
     "bends": 2,
     "straight": 1,
     "crossings": 0,
-    "symErr": null
+    "symErr": null,
+    "labelOff": null
   },
   "reciprocal-labelled/circle": {
     "hard": 0,
@@ -397,7 +446,8 @@
     "bends": 2,
     "straight": 1,
     "crossings": 0,
-    "symErr": null
+    "symErr": null,
+    "labelOff": 0
   },
   "reciprocal-unlabelled/hexagon": {
     "hard": 0,
@@ -405,7 +455,8 @@
     "bends": 2,
     "straight": 1,
     "crossings": 0,
-    "symErr": null
+    "symErr": null,
+    "labelOff": null
   },
   "reciprocal-labelled/hexagon": {
     "hard": 0,
@@ -413,7 +464,8 @@
     "bends": 2,
     "straight": 1,
     "crossings": 0,
-    "symErr": null
+    "symErr": null,
+    "labelOff": 0
   },
   "reciprocal-unlabelled/stadium": {
     "hard": 0,
@@ -421,7 +473,8 @@
     "bends": 2,
     "straight": 1,
     "crossings": 0,
-    "symErr": null
+    "symErr": null,
+    "labelOff": null
   },
   "reciprocal-labelled/stadium": {
     "hard": 0,
@@ -429,7 +482,8 @@
     "bends": 2,
     "straight": 1,
     "crossings": 0,
-    "symErr": null
+    "symErr": null,
+    "labelOff": 0
   },
   "reciprocal-unlabelled/cylinder": {
     "hard": 0,
@@ -437,7 +491,8 @@
     "bends": 0,
     "straight": 2,
     "crossings": 0,
-    "symErr": null
+    "symErr": null,
+    "labelOff": null
   },
   "reciprocal-labelled/cylinder": {
     "hard": 0,
@@ -445,7 +500,8 @@
     "bends": 2,
     "straight": 1,
     "crossings": 0,
-    "symErr": null
+    "symErr": null,
+    "labelOff": 0
   },
   "fan-in/rectangle-N2": {
     "hard": 0,
@@ -453,7 +509,8 @@
     "bends": 0,
     "straight": 0,
     "crossings": 0,
-    "symErr": 0
+    "symErr": 0,
+    "labelOff": null
   },
   "fan-in/rectangle-N3": {
     "hard": 0,
@@ -461,7 +518,8 @@
     "bends": 0,
     "straight": 1,
     "crossings": 0,
-    "symErr": 0
+    "symErr": 0,
+    "labelOff": null
   },
   "fan-in/rectangle-N4": {
     "hard": 0,
@@ -469,7 +527,8 @@
     "bends": 0,
     "straight": 0,
     "crossings": 0,
-    "symErr": 0
+    "symErr": 0,
+    "labelOff": null
   },
   "fan-in/rectangle-N5": {
     "hard": 0,
@@ -477,7 +536,8 @@
     "bends": 0,
     "straight": 1,
     "crossings": 0,
-    "symErr": 0
+    "symErr": 0,
+    "labelOff": null
   },
   "fan-in/circle-N2": {
     "hard": 0,
@@ -485,7 +545,8 @@
     "bends": 0,
     "straight": 0,
     "crossings": 0,
-    "symErr": 0
+    "symErr": 0,
+    "labelOff": null
   },
   "fan-in/circle-N3": {
     "hard": 0,
@@ -493,7 +554,8 @@
     "bends": 0,
     "straight": 1,
     "crossings": 0,
-    "symErr": 0
+    "symErr": 0,
+    "labelOff": null
   },
   "fan-in/circle-N4": {
     "hard": 0,
@@ -501,7 +563,8 @@
     "bends": 0,
     "straight": 0,
     "crossings": 0,
-    "symErr": 0.4
+    "symErr": 0.4,
+    "labelOff": null
   },
   "fan-in/circle-N5": {
     "hard": 0,
@@ -509,7 +572,8 @@
     "bends": 0,
     "straight": 0,
     "crossings": 0,
-    "symErr": 0
+    "symErr": 0,
+    "labelOff": null
   },
   "fan-in/diamond-N2": {
     "hard": 0,
@@ -517,7 +581,8 @@
     "bends": 0,
     "straight": 0,
     "crossings": 0,
-    "symErr": 0
+    "symErr": 0,
+    "labelOff": null
   },
   "fan-in/diamond-N3": {
     "hard": 0,
@@ -525,7 +590,8 @@
     "bends": 0,
     "straight": 1,
     "crossings": 0,
-    "symErr": 0
+    "symErr": 0,
+    "labelOff": null
   },
   "fan-in/diamond-N4": {
     "hard": 0,
@@ -533,7 +599,8 @@
     "bends": 0,
     "straight": 0,
     "crossings": 0,
-    "symErr": 0
+    "symErr": 0,
+    "labelOff": null
   },
   "fan-in/diamond-N5": {
     "hard": 0,
@@ -541,7 +608,8 @@
     "bends": 0,
     "straight": 0,
     "crossings": 0,
-    "symErr": 0
+    "symErr": 0,
+    "labelOff": null
   },
   "diamond-offport/E-facet-spread": {
     "hard": 0,
@@ -549,7 +617,8 @@
     "bends": 0,
     "straight": 2,
     "crossings": 0,
-    "symErr": null
+    "symErr": null,
+    "labelOff": 0
   },
   "diamond-offport/F-facet-spread-td": {
     "hard": 0,
@@ -557,7 +626,8 @@
     "bends": 0,
     "straight": 0,
     "crossings": 0,
-    "symErr": null
+    "symErr": null,
+    "labelOff": 0.191
   },
   "diamond-offport/K-side-input": {
     "hard": 0,
@@ -565,7 +635,8 @@
     "bends": 0,
     "straight": 2,
     "crossings": 0,
-    "symErr": 28
+    "symErr": 28,
+    "labelOff": 0
   },
   "diamond-offport/three-way-out": {
     "hard": 0,
@@ -573,7 +644,8 @@
     "bends": 0,
     "straight": 1,
     "crossings": 0,
-    "symErr": null
+    "symErr": null,
+    "labelOff": null
   },
   "regression/mfa-login": {
     "hard": 0,
@@ -581,6 +653,16 @@
     "bends": 6,
     "straight": 6,
     "crossings": 0,
-    "symErr": 25.3
+    "symErr": 25.3,
+    "labelOff": 0.064
+  },
+  "label-centring/symmetric-dogleg-labels": {
+    "hard": 0,
+    "offCardinal": 4,
+    "bends": 0,
+    "straight": 2,
+    "crossings": 0,
+    "symErr": 14,
+    "labelOff": 0.16
   }
 }
