@@ -142,6 +142,10 @@ type LayoutDebugEnv = {
   APL_NO_CENTER?: string
   APL_NO_FACET?: string
   APL_NO_SVERTEX?: string
+  // Disable the alignLabeledSourcePort pass (a labelled single-edge source is
+  // left exiting off its mid-port, as it was before that pass). For before/after
+  // evidence and bisecting, matching the other APL_NO_* pass switches.
+  APL_NO_LABELED_SOURCE_PORT?: string
   // Label-decoupling (opt-in, validated): when set, edge labels are NOT handed
   // to ELK, so a label cannot displace its target node off the edge's port lane
   // (the sym A->B mid-port fix). Default is off — ELK still reserves a label

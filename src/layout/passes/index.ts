@@ -1881,6 +1881,7 @@ export function alignLabeledSourcePort(
   groups: PositionedGroup[],
   direction: Direction,
 ): void {
+  if (layoutEnvFlag('APL_NO_LABELED_SOURCE_PORT')) return
   const isHorizontal = direction === 'LR' || direction === 'RL'
   const cross = isHorizontal ? ('y' as const) : ('x' as const)
   const exitSide: 'N' | 'E' | 'S' | 'W' = isHorizontal
