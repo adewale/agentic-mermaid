@@ -1852,6 +1852,108 @@ function collectEdgeSegments(
  * The target node is tried first (often alone in its layer, the freest),
  * then the source.
  */
+/**
+ * Restore the source mid-port for a labelled edge that ELK pushed off it.
+ *
+ * When a labelled edge is handed to ELK it reserves a cell for the inline label
+ * dummy, and that cell displaces the edge's lane off the source node's mid-port:
+ * the edge stays straight but exits the source off-centre (the "warnings →
+ * warnings line not using the mid-point port" defect). alignPortLanes would
+ * slide the node to fix exactly this, but every one of its slide loops EXCLUDES
+ * labelled edges (`if (e.label) continue`), so the labelled case is never
+ * repaired — which is what made global label-decoupling look necessary.
+ *
+ * Here we handle the one case that is unambiguously safe: a source whose ONLY
+ * incident edge is a single straight labelled edge. Sliding that source onto the
+ * edge's existing (already straight) lane makes the exit port-exact WITHOUT
+ * adding a bend and WITHOUT touching any other edge — the node simply moves to
+ * meet its own outgoing edge, so there is no cascade to reason about and the
+ * edge's own geometry (and its label) is unchanged. Gated on the slid box
+ * staying clear of every other node and foreign edge corridor (the same
+ * occlusion doctrine the other slides enforce); the independent hard-invariant
+ * gate (property-hard-invariants) is the backstop. Freeze-safe: only the source
+ * node moves and only its own exit endpoint is re-anchored (exactly, via
+ * shapePorts, so curved shapes stay port-exact).
+ */
+export function alignLabeledSourcePort(
+  nodes: PositionedNode[],
+  edges: PositionedEdge[],
+  groups: PositionedGroup[],
+  direction: Direction,
+): void {
+  const isHorizontal = direction === 'LR' || direction === 'RL'
+  const cross = isHorizontal ? ('y' as const) : ('x' as const)
+  const exitSide: 'N' | 'E' | 'S' | 'W' = isHorizontal
+    ? (direction === 'LR' ? 'E' : 'W')
+    : (direction === 'BT' ? 'N' : 'S')
+  const crossSize = (n: PositionedNode) => (isHorizontal ? n.height : n.width)
+  const portCross = (n: PositionedNode) => n[cross] + crossSize(n) / 2
+  // Clear actual overlap only (the slide moves a node to meet its own edge; a
+  // tight gap to an unrelated node is acceptable, and the independent
+  // hard-invariant gate is the real backstop against any overlap regression).
+  const GAP = 2
+
+  const flat: PositionedGroup[] = []
+  const collect = (gs: PositionedGroup[]) => { for (const g of gs) { flat.push(g); collect(g.children) } }
+  collect(groups)
+  const inGroup = (n: PositionedNode) => flat.some(g =>
+    n.x >= g.x - 0.5 && n.y >= g.y - 0.5 &&
+    n.x + n.width <= g.x + g.width + 0.5 && n.y + n.height <= g.y + g.height + 0.5)
+
+  const nodeMap = new Map(nodes.map(n => [n.id, n]))
+
+  const main = isHorizontal ? ('x' as const) : ('y' as const)
+  // The exit-side main coordinate of S's forward port (right edge for LR, etc).
+  const exitMain = (n: PositionedNode) => (main === 'x'
+    ? (exitSide === 'E' ? n.x + n.width : n.x)
+    : (exitSide === 'S' ? n.y + n.height : n.y))
+
+  for (const e of edges) {
+    if (!e.label || e.points.length < 2 || e.source === e.target) continue
+    const S = nodeMap.get(e.source)
+    if (!S || !PORT_EXACT.has(S.shape) || inGroup(S)) continue
+    // S's ONLY incident edge must be e (degree 1): moving S then touches no
+    // other edge, so there is no run to translate and no far endpoint to drag.
+    if (edges.some(o => o !== e && (o.source === S.id || o.target === S.id))) continue
+    // The edge must actually leave S from its forward exit side, so sliding S
+    // along the cross axis re-centres a genuine side-exit (not a corner stub).
+    const exit = e.points[0]!
+    if (Math.abs(exit[main] - exitMain(S)) > 1) continue
+    const T = nodeMap.get(e.target)
+    if (!T) continue
+    // Align S's mid-port with the TARGET's mid-port. The route here is a
+    // staircase that already exits S at mid-port, but the certifying straightener
+    // will collapse it onto the target's facing-side lane and so pull the exit
+    // OFF S's mid (S's mid can sit outside the target's box, so a straight line
+    // there can't reach it). Sliding S until its mid lines up with the target's
+    // mid lets the straightener draw one straight horizontal that is port-exact
+    // at BOTH ends — no bend — instead of straight-but-off-source-port.
+    const delta = portCross(T) - portCross(S)
+    if (Math.abs(delta) <= 1) continue // mid-ports already aligned
+
+    // The slid box must clear every other node (with margin) and not cut a
+    // foreign edge corridor — never create a node overlap or edge-through-node.
+    const nx = isHorizontal ? S.x : S.x + delta
+    const ny = isHorizontal ? S.y + delta : S.y
+    const hitsNode = nodes.some(o => o !== S &&
+      nx - GAP < o.x + o.width && nx + S.width + GAP > o.x &&
+      ny - GAP < o.y + o.height && ny + S.height + GAP > o.y)
+    if (hitsNode) continue
+    const cutsEdge = edges.some(o => o !== e && o.source !== S.id && o.target !== S.id &&
+      o.points.some((p, i) => {
+        if (i === 0) return false
+        const q = o.points[i - 1]!
+        return Math.max(p.x, q.x) > nx + 0.5 && Math.min(p.x, q.x) < nx + S.width - 0.5 &&
+          Math.max(p.y, q.y) > ny + 0.5 && Math.min(p.y, q.y) < ny + S.height - 0.5
+      }))
+    if (cutsEdge) continue
+
+    if (isHorizontal) S.y += delta
+    else S.x += delta
+    e.points[0] = shapePorts(S)[exitSide]
+  }
+}
+
 export function alignPortLanes(
   nodes: PositionedNode[],
   edges: PositionedEdge[],

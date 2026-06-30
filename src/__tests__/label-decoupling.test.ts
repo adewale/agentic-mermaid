@@ -1,19 +1,20 @@
-// Label-decoupling (opt-in via APL_DECOUPLE_LABELS) — validated, not yet default.
+// Label-decoupling (opt-in via APL_DECOUPLE_LABELS) — an alternative mechanism.
 //
 // An edge label handed to ELK is sized as a layout element, so ELK reserves a
-// cell for it and DISPLACES the target node off the edge's port lane: adding a
-// label to `A -->|x| B` shifts B so A→B leaves A off its mid-port — the sym
-// diagram's A→B defect, and one symptom of a pervasive entanglement (a single
-// label moves nodes in ~99% of fuzzed flowcharts). Decoupling omits labels from
-// ELK (nodes lay out label-free) and lets the existing post-ELK passes place and
-// fit the label, so the port survives. Measured: fixes the port on the minimal
-// repro AND the sym diagram, zero readability cost on the corpus, deterministic.
+// cell for it and can DISPLACE the target node off the edge's port lane: a label
+// moves a node in ~99% of fuzzed flowcharts. Decoupling omits labels from ELK
+// (nodes lay out label-free) and lets the post-ELK passes place the label, so the
+// port survives. It is OFF by default — measured net-regressive on the corpus
+// (6↑/23↓, incl. +2 crossings; see docs/design/system/layout-guarantees-and-
+// robustness.md), because removing the reserved label space repacks nodes in ways
+// the rubric penalises.
 //
-// It is OFF by default because it currently trades a route-contract regression
-// on bent DUPLICATE labels (a labelled edge drawn twice, whose labelled copy
-// gets a multi-bend path the shared-trunk repair's offset-fallback doesn't yet
-// cover — 5/300 fuzzed flowcharts). This test pins both the defect (default) and
-// the fix (flag), so making it the default later is a guarded one-line change.
+// The CANONICAL port-displacement defect (the minimal repro below — the
+// "warnings → warnings line not using the mid-point port" report) is now fixed in
+// the DEFAULT path, in place and without decoupling, by the alignLabeledSourcePort
+// pass — see align-labeled-source-port.test.ts. So BOTH paths now exit A at its
+// mid-port here; this file keeps the decoupling flag pinned as a regression guard
+// (it must not re-break the port it already preserved).
 
 import { describe, test, expect } from 'bun:test'
 import { parseMermaid } from '../parser.ts'
@@ -31,15 +32,15 @@ function abPortGap(): number {
 }
 
 describe('label decoupling (APL_DECOUPLE_LABELS)', () => {
-  test('default (ELK reserves the label cell): the labelled edge is displaced off its mid-port', () => {
+  test('default path: the labelled edge keeps its mid-port (via alignLabeledSourcePort)', () => {
     delete process.env.APL_DECOUPLE_LABELS
-    expect(abPortGap()).toBeGreaterThan(1) // off-port — the defect
+    expect(abPortGap()).toBeLessThanOrEqual(1) // mid-port — fixed in place, no decoupling
   })
 
-  test('with decoupling enabled: the labelled edge keeps its mid-port', () => {
+  test('with decoupling enabled: the labelled edge still keeps its mid-port', () => {
     process.env.APL_DECOUPLE_LABELS = '1'
     try {
-      expect(abPortGap()).toBeLessThanOrEqual(1) // mid-port — the fix
+      expect(abPortGap()).toBeLessThanOrEqual(1) // mid-port — the decoupling mechanism
     } finally {
       delete process.env.APL_DECOUPLE_LABELS
     }

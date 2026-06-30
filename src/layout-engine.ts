@@ -69,6 +69,7 @@ import {
   equalizePeerNodeDimensions,
   alignForkRejoinPeerCenters,
   alignPortLanes,
+  alignLabeledSourcePort,
   centerPeerBarycenters,
   honorLinkRankDistance,
   bundleEdgePaths,
@@ -971,8 +972,17 @@ export const LAYOUT_PIPELINE: ReadonlyArray<LayoutPass<LayoutPassContext>> = [
     run: c => { honorLinkRankDistance(c.nodes, c.edges, c.groups, c.graph) },
   },
   {
+    // Runs LAST among the node-movers (after centering/rank-shoving settle the
+    // target's entry lane) but before the freeze, so it aligns the labelled
+    // source onto the target's FINAL lane.
+    id: 'alignLabeledSourcePort', doc: 'slide a single-edge labelled source onto its target entry lane so the straightener keeps the exit mid-port (alignPortLanes excludes labelled edges)',
+    after: ['honorLinkRankDistance'], mutates: ['positions', 'edges'], determinism: 'in-place',
+    mayChangeMetrics: { portRate: 'improve-only' },
+    run: c => { alignLabeledSourcePort(c.nodes, c.edges, c.groups, c.graph.direction) },
+  },
+  {
     id: 'bundleEdgePaths', doc: 'bundle fan-out/fan-in edges into shared trunks (when mergeEdges)',
-    after: ['honorLinkRankDistance'], mutates: ['edges'], determinism: 'pure-order',
+    after: ['alignLabeledSourcePort'], mutates: ['edges'], determinism: 'pure-order',
     enabled: c => c.mergeEdges,
     run: c => { c.bundled = bundleEdgePaths(c.edges, c.nodes, c.groups, c.graph.direction) },
   },
