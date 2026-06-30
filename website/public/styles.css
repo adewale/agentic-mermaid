@@ -304,6 +304,11 @@ hr { border: 0; margin: var(--sp-6) 0; }
 .example-sample-head h3 { margin: 2px 0 8px; }
 .example-sample-head p { margin-bottom: 0; max-width: 62ch; }
 .example-meta { color: var(--ink-faint); font-size: var(--t-label); line-height: var(--lh-ui); }
+/* The agent task an example answers — prompt, then the trace before serialize.
+   Folded in from the former gallery; mirrors .gallery-prompt/.gallery-ops. */
+.example-prompt, .example-trace { margin: 9px 0 0; max-width: 62ch; color: var(--ink-soft); font-size: var(--t-sm); line-height: 1.46; }
+.example-prompt span, .example-trace span { display: inline-block; min-width: 52px; margin-right: 6px; }
+.example-trace code { font-size: var(--t-label); white-space: normal; }
 .example-sample-grid { display: grid; grid-template-columns: minmax(220px, 0.9fr) minmax(0, 1.35fr); gap: 18px; align-items: stretch; }
 .example-source, .example-render { min-width: 0; margin: 0; border: 1px solid var(--surface-border); border-radius: var(--radius-lg); background: var(--surface-card); box-shadow: var(--shadow-hairline); }
 .example-source pre { height: 100%; min-height: 280px; max-height: 520px; margin: 0; border: 0; border-radius: var(--radius-lg); background: transparent; overflow: auto; }
@@ -526,7 +531,7 @@ footer { max-width: var(--content-max); margin: 0 auto; padding: 28px var(--page
 .masthead .links .link-editor:active { transform: scale(0.97); }
 .copy-prompt-btn[data-copy-state="ok"] { color: var(--link); }
 .copy-prompt-btn[data-copy-state="err"] { color: var(--danger); }
-:where(.meta-label, .agent-kicker, .section-kicker, .copy-prompt-label, .gallery-prompt span, .gallery-ops span) {
+:where(.meta-label, .agent-kicker, .section-kicker, .copy-prompt-label, .gallery-prompt span, .gallery-ops span, .example-prompt span, .example-trace span) {
   color: var(--ink-soft);
   font-family: var(--mono);
   font-size: var(--t-label);

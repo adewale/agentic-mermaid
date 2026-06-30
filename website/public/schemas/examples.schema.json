@@ -42,7 +42,7 @@
           "description",
           "headers",
           "source",
-          "galleryUrl",
+          "renderUrl",
           "editorUrl",
           "outputs",
           "docs"
@@ -82,7 +82,7 @@
           "source": {
             "type": "string"
           },
-          "galleryUrl": {
+          "renderUrl": {
             "type": "string"
           },
           "editorUrl": {

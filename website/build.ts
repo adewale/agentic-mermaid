@@ -15,8 +15,6 @@ const generated = new Map<string, FileContent>()
 const routeMap: Record<string, string> = {
   'home.html': '/',
   'editor.html': '/editor/',
-  'gallery.html': '/gallery/',
-  'families.html': '/families/',
   'docs-article.html': '/docs/',
   'skill-workflow.html': '/skills/agentic-mermaid-diagram-workflow/',
   'llms.txt': '/llms.txt',
@@ -28,8 +26,6 @@ const routeMap: Record<string, string> = {
 
 const pageOutputs: Array<[source: string, target: string]> = [
   ['home.html', 'index.html'],
-  ['gallery.html', 'gallery/index.html'],
-  ['families.html', 'families/index.html'],
   ['docs-article.html', 'docs/index.html'],
   ['skill-workflow.html', 'skills/agentic-mermaid-diagram-workflow/index.html'],
 ]
@@ -92,8 +88,6 @@ function rewriteAttrs(html: string) {
 
 function topNavHrefForRoute(route = '') {
   if (route === '/examples/') return '/examples/'
-  if (route === '/gallery/') return '/gallery/'
-  if (route === '/families/') return '/families/'
   if (route === '/docs/' || route.startsWith('/docs/')) return '/docs/'
   if (route === '/editor/') return '/editor/'
   return ''
@@ -103,8 +97,6 @@ function setNavCurrent(html: string, currentHref = '') {
   if (!currentHref) return html
   const labels: Record<string, string> = {
     '/examples/': 'Examples',
-    '/gallery/': 'Gallery',
-    '/families/': 'Families',
     '/docs/': 'Docs',
     '/editor/': 'Open editor',
   }
@@ -215,8 +207,6 @@ function mastheadHtml(currentHref = '') {
   const links = [
     ['/about/', 'About', ''],
     ['/examples/', 'Examples', ''],
-    ['/gallery/', 'Gallery', ''],
-    ['/families/', 'Families', ''],
     ['/docs/', 'Docs', ''],
     ['/editor/', 'Open editor', 'link-editor'],
   ] as const
@@ -320,6 +310,31 @@ function renderExampleSvg(example: any) {
     idPrefix: `example-${example.id}-`,
   }).replace(/[ \t]+$/gm, '')
 }
+// Per-family agent task: a plausible prompt and the trace an agent runs before
+// it returns source. Absorbed from the former Gallery page so the unified
+// Examples page carries the agentic narrative — prompt, trace, render, deep
+// link — rather than a bare source dump. Keyed by family id.
+const FAMILY_AGENT_TASK: Record<string, { prompt: string; trace: string }> = {
+  flowchart:    { prompt: 'Add a labeled failure branch and verify that every decision exit is named.', trace: 'asFlowchart · mutate(add_edge/set_label) · verify' },
+  state:        { prompt: 'Add a retry transition from Failed back to Idle, then verify before returning source.', trace: 'asState · mutate(add_transition) · verify' },
+  sequence:     { prompt: 'Insert the verification call before export and keep participant order stable.', trace: 'asSequence · mutate(add_message) · verify' },
+  timeline:     { prompt: 'Add a Review period with one approval event without rewriting other periods.', trace: 'asTimeline · mutate(add_period) · verify' },
+  class:        { prompt: 'Add a repository class and connect it to the service with a typed relationship.', trace: 'asClass · mutate(add_class/add_relation) · verify' },
+  er:           { prompt: 'Add an order line-item relationship and verify cardinalities before serialize.', trace: 'asEr · mutate(add_relation) · verify' },
+  journey:      { prompt: 'Add an agent verification task and preserve existing scores.', trace: 'asJourney · mutate(add_task) · verify' },
+  architecture: { prompt: 'Insert a cache service between the app and database and verify boundaries.', trace: 'asArchitecture · mutate(add_service/add_edge) · verify' },
+  xychart:      { prompt: 'Add a forecast series and verify the axes still render cleanly.', trace: 'asXyChart · mutate(add_series) · verify' },
+  pie:          { prompt: 'Add a Documentation slice and keep labels readable.', trace: 'asPie · mutate(add_slice) · verify' },
+  quadrant:     { prompt: 'Move one point into the high-impact quadrant and verify coordinates.', trace: 'asQuadrant · mutate(move_point) · verify' },
+  gantt:        { prompt: 'Add a verification milestone before release and resolve the schedule.', trace: 'asGantt · mutate(add_task) · verify' },
+}
+// One-per-family supported examples are the canonical render for their family, so
+// anchor them by family id — old /gallery/#<family> deep links resolve here after
+// the redirect. Other examples (role-style presets) keep their own id.
+function exampleAnchor(example: any) {
+  const family = familyForExample(example)
+  return example.category === 'Supported diagrams' && family ? family.id : example.id
+}
 function examplesShowcaseHtml(editorExamples: any[]) {
   const groups = new Map<string, any[]>()
   for (const example of editorExamples) {
@@ -330,14 +345,20 @@ function examplesShowcaseHtml(editorExamples: any[]) {
   return '<div class="example-showcase">' + Array.from(groups, ([category, examples]) => `
 <section class="example-group" aria-labelledby="examples-${escapeAttr(category.toLowerCase().replace(/[^a-z0-9]+/g, '-'))}">
 <h2 id="examples-${escapeAttr(category.toLowerCase().replace(/[^a-z0-9]+/g, '-'))}">${escapeHtml(category)}</h2>
-<p class="muted">${category === 'Role style presets' ? 'These load role-style presets in the editor. This page renders them with one fixed review theme so the examples stay visually comparable.' : 'These are the examples exposed by the editor picker for each supported diagram family, rendered with one fixed review theme.'}</p>
-${examples.map((example) => `
-<article class="example-sample" id="${escapeAttr(example.id)}">
+<p class="muted">${category === 'Role style presets' ? 'These load role-style presets in the editor. This page renders them with one fixed review theme so the examples stay visually comparable.' : 'One per supported family, rendered with one fixed review theme. Each pairs the agent task it answers with the source the editor loads.'}</p>
+${examples.map((example) => {
+  const family = familyForExample(example)
+  const task = category === 'Supported diagrams' && family ? FAMILY_AGENT_TASK[family.id] : undefined
+  const taskHtml = task ? `
+      <p class="example-prompt"><span>Prompt</span> ${escapeHtml(task.prompt)}</p>
+      <p class="example-trace"><span>Trace</span> <code>${escapeHtml(task.trace)}</code></p>` : ''
+  return `
+<article class="example-sample" id="${escapeAttr(exampleAnchor(example))}">
   <header class="example-sample-head">
     <div>
       <p class="example-meta">${escapeHtml(example.diagramType ?? 'Example')}</p>
       <h3>${escapeHtml(example.label)}</h3>
-      <p>${escapeHtml(example.description ?? '')}</p>
+      <p>${escapeHtml(example.description ?? '')}</p>${taskHtml}
     </div>
     <a class="go" href="/editor/?example=${encodeURIComponent(example.id)}">Open in editor</a>
   </header>
@@ -345,7 +366,8 @@ ${examples.map((example) => `
     <section class="example-source" aria-label="${escapeAttr(example.label)} Mermaid source"><pre><code>${escapeHtml(String(example.source ?? '').trim())}</code></pre></section>
     <figure class="example-render"><div class="example-svg">${renderExampleSvg(example)}</div><figcaption>Rendered during the website build from the same source the editor loads.</figcaption></figure>
   </div>
-</article>`).join('')}
+</article>`
+}).join('')}
 </section>`).join('\n') + '\n</div>'
 }
 
@@ -370,7 +392,12 @@ function injectLoopHeadings(html: string) {
   return LOOP_STEPS.reduce((h, s, i) => h.replace(new RegExp(`<h2>${i + 1} &middot; [^<]*</h2>`), `<h2>${i + 1} &middot; ${s.label}</h2>`), html)
 }
 for (const [source, target] of pageOutputs) {
-  let html = transformHtml(await readMock(source), topNavHrefForRoute(routeMap[source]))
+  const currentHref = topNavHrefForRoute(routeMap[source])
+  let html = transformHtml(await readMock(source), currentHref)
+  // The mockups carry hand-baked mastheads that predate the About page and the
+  // Examples/Gallery/Families consolidation. Swap in the one canonical masthead
+  // so every shipped page — mockup-derived or generated — shares one nav.
+  html = html.replace(/<header class="masthead">[\s\S]*?<\/header>/, () => mastheadHtml(currentHref))
   if (source === 'home.html') html = injectLoopRail(html)
   if (source === 'docs-article.html') html = injectLoopHeadings(html)
   await emit(target, html)
@@ -463,10 +490,10 @@ const examples = {
       description: example.description ?? example.label,
       headers: family.headers,
       source: String(example.source ?? '').trim(),
-      galleryUrl: `/gallery/#${family.id}`,
+      renderUrl: `/examples/#${exampleAnchor(example)}`,
       editorUrl: `/editor/?example=${example.id}`,
       outputs: capabilities.outputFormats,
-      docs: `/families/#${family.id}`,
+      docs: `/docs/families/#${family.id}`,
     }
   }),
 }
@@ -586,14 +613,14 @@ await emitJson('schemas/recipes.schema.json', objectSchema('Agentic Mermaid reci
 }))
 await emitJson('schemas/examples.schema.json', objectSchema('Agentic Mermaid examples catalog', ['generatedFrom', 'examples'], {
   generatedFrom: generatedFromSchema,
-  examples: { type: 'array', items: objectSchema('Example entry', ['id', 'family', 'label', 'description', 'headers', 'source', 'galleryUrl', 'editorUrl', 'outputs', 'docs'], { id: { type: 'string' }, family: { enum: familyIdEnum }, label: { type: 'string' }, description: { type: 'string' }, headers: stringArray, source: { type: 'string' }, galleryUrl: { type: 'string' }, editorUrl: { type: 'string' }, outputs: { type: 'array', items: { enum: outputFormatEnum } }, docs: { type: 'string' } }) },
+  examples: { type: 'array', items: objectSchema('Example entry', ['id', 'family', 'label', 'description', 'headers', 'source', 'renderUrl', 'editorUrl', 'outputs', 'docs'], { id: { type: 'string' }, family: { enum: familyIdEnum }, label: { type: 'string' }, description: { type: 'string' }, headers: stringArray, source: { type: 'string' }, renderUrl: { type: 'string' }, editorUrl: { type: 'string' }, outputs: { type: 'array', items: { enum: outputFormatEnum } }, docs: { type: 'string' } }) },
 }))
 const toolIndex = JSON.parse(await readMock('schemas/index.json'))
 for (const t of toolIndex.tools ?? []) await copyMockFile(t.schema, t.schema)
 await emitJson('schemas/index.json', { generatedFrom, schemas: schemaEntries, mcpTools: (toolIndex.tools ?? []).map((t: any) => ({ ...t, schema: '/' + t.schema })) })
 
 // Spec route coverage pages.
-const docsIndex = '<hr><h2>Docs index</h2><ul class="doc-index"><li><a href="/docs/api/">Library API</a></li><li><a href="/docs/cli/">CLI</a></li><li><a href="/docs/mcp/">MCP</a></li><li><a href="/docs/source-level/">Source-level edits</a></li><li><a href="/docs/ascii/">ASCII and Unicode</a></li><li><a href="/docs/theming/">Theming</a></li><li><a href="/docs/config/">Config</a></li><li><a href="/docs/react/">React</a></li><li><a href="/docs/quality/">Quality</a></li><li><a href="/docs/vocabulary/">Vocabulary</a></li><li><a href="/docs/fork-differences/">Fork differences</a></li></ul>'
+const docsIndex = '<hr><h2>Docs index</h2><ul class="doc-index"><li><a href="/docs/families/">Diagram families</a></li><li><a href="/docs/api/">Library API</a></li><li><a href="/docs/cli/">CLI</a></li><li><a href="/docs/mcp/">MCP</a></li><li><a href="/docs/source-level/">Source-level edits</a></li><li><a href="/docs/ascii/">ASCII and Unicode</a></li><li><a href="/docs/theming/">Theming</a></li><li><a href="/docs/config/">Config</a></li><li><a href="/docs/react/">React</a></li><li><a href="/docs/quality/">Quality</a></li><li><a href="/docs/vocabulary/">Vocabulary</a></li><li><a href="/docs/fork-differences/">Fork differences</a></li></ul>'
 const aboutLead = 'Agentic Mermaid is a fork of beautiful-mermaid, aimed at a job the original did not have: programs that draw and check diagrams with no person watching. It renders without a browser, reports its own layout errors, and edits diagrams as a typed tree.'
 // The brand Paper palette, hex-resolved. The public site is light-only, so these
 // diagrams render once in Paper rather than carrying a var()-token SVG: page-level
@@ -647,14 +674,42 @@ ${aboutDiagram('flowchart LR\n  Parse --> Narrow\n  Narrow --> Mutate\n  Mutate 
 <p><a href="https://mermaid.js.org">Mermaid</a> is the text syntax these diagrams are written in; its own renderer draws them in a browser. Drawing that text without a browser has been tried before — <a href="https://github.com/AlexanderGrooff/mermaid-ascii">mermaid-ascii</a> renders Mermaid graphs as ASCII straight in a terminal. <a href="https://github.com/lukilabs/beautiful-mermaid">Beautiful Mermaid</a>, from the team at Craft, is a zero-dependency TypeScript renderer that outputs both SVG and ASCII, with its ASCII engine ported from mermaid-ascii's Go. Agentic Mermaid forks Beautiful Mermaid and adds the typed editing and deterministic verification above it, so an agent can change a diagram and check it, where the renderers before it could only draw one.</p>
 ${aboutDiagram('flowchart TD\n  M[Mermaid] --> BM[Beautiful Mermaid]\n  MA[mermaid-ascii] --> BM\n  BM --> AM[Agentic Mermaid]', 'lineage')}
 `
+// The former top-level Families page, folded into Docs as a reference. The 12
+// rows keep their family-id anchors so deep links (and the examples manifest's
+// `docs` field) resolve to /docs/families/#<family>.
+const FAMILY_REFERENCE: Array<[id: string, label: string, draws: string]> = [
+  ['flowchart', 'Flowchart', 'Decision flow with labeled branches.'],
+  ['state', 'State', 'Lifecycle using Mermaid stateDiagram-v2 syntax.'],
+  ['sequence', 'Sequence', 'Request/response messages between participants.'],
+  ['timeline', 'Timeline', 'Chronological milestones with sections.'],
+  ['class', 'Class', 'Classes with members and relationships.'],
+  ['er', 'ER', 'Entities, attributes, keys, and cardinality markers.'],
+  ['journey', 'Journey', 'Scored user tasks grouped by section.'],
+  ['architecture', 'Architecture', 'Services, groups, icons, and routed connections.'],
+  ['xychart', 'XY chart', 'Bar and line series using xychart syntax.'],
+  ['pie', 'Pie', 'Proportional slices with values shown in the legend.'],
+  ['quadrant', 'Quadrant', 'Two-axis priority map with labeled regions and points.'],
+  ['gantt', 'Gantt', 'Sections, dependencies, status tags, and a milestone.'],
+]
+const familiesLead = 'Twelve families share one deterministic layout engine. Each parses from Mermaid text and renders to SVG, PNG, ASCII, Unicode, and layout JSON from the same positioned model.'
+function familiesReferenceHtml() {
+  const rows = FAMILY_REFERENCE.map(([id, label, draws]) => `<tr id="${id}"><td><strong>${escapeHtml(label)}</strong></td><td>${escapeHtml(draws)}</td></tr>`).join('')
+  return `<p>Every family carries a route certificate: a machine-checkable claim about how its edges were routed — orthogonal boxes for class and ER, lifelines for sequence, side-anchored links for architecture. That certificate is what lets <code>verify</code> answer in tiers instead of guessing.</p>
+<table>
+<thead><tr><th>Family</th><th>What it draws</th></tr></thead>
+<tbody>${rows}</tbody>
+</table>
+<p>See any of them rendered on the <a href="/examples/">examples</a> page, or open one in the <a href="/editor/">editor</a>.</p>${docsIndex}`
+}
 const docPages = [
   ['about/index.html', 'About Agentic Mermaid', aboutLead, aboutBody, '/about/'],
+  ['docs/families/index.html', 'Diagram families', familiesLead, familiesReferenceHtml(), '/docs/'],
   ['docs/api/index.html', 'Library API', 'Use agentic-mermaid and agentic-mermaid/agent from local JS or TS.', '<p>Import rendering helpers from <code>agentic-mermaid</code> and typed parse/mutate/verify helpers from <code>agentic-mermaid/agent</code>.</p>' + docsIndex],
   ['docs/source-level/index.html', 'Source-level edits', 'When a family or construct cannot be narrowed safely, preserve source deliberately.', '<p>Opaque fallback bodies round-trip losslessly, but they do not expose structured mutation. Edit their preserved source only when the task explicitly asks for source-level changes, then parse and verify before returning artifacts.</p>' + docsIndex],
   ['docs/cli/index.html', 'CLI', 'Use the am CLI for local rendering, verification, batch checks, and Markdown rendering.', '<pre><code>am verify diagram.mmd\nam render diagram.mmd --format svg --output diagram.svg\nam render diagram.mmd --format unicode</code></pre>' + docsIndex],
   ['docs/mcp/index.html', 'MCP', 'Self-host the MCP over stdio; HTTP is explicit opt-in.', '<p>The local MCP tools are <code>execute</code>, <code>render_png</code>, and <code>describe</code>. Multi-step parse/narrow/mutate/verify workflows run inside <code>execute(code)</code>.</p>' + docsIndex],
   ['docs/ascii/index.html', 'ASCII and Unicode', 'Text output is first-class for terminals, PR comments, and agent review.', '<pre><code>am render diagram.mmd --format ascii\nam render diagram.mmd --format unicode</code></pre>' + docsIndex],
-  ['docs/theming/index.html', 'Theming', 'Themes derive diagram colours from bg, fg, and accent tokens.', '<p>The browser editor and gallery expose renderer themes; SVG output can also inherit CSS variables for live theming.</p>' + docsIndex],
+  ['docs/theming/index.html', 'Theming', 'Themes derive diagram colours from bg, fg, and accent tokens.', '<p>The browser editor exposes renderer themes; SVG output can also inherit CSS variables for live theming.</p>' + docsIndex],
   ['docs/config/index.html', 'Config', 'Mermaid frontmatter and init directives are normalized before rendering.', '<p>Use checked Mermaid config/frontmatter where supported; unsupported syntax is preserved or reported rather than silently dropped.</p>' + docsIndex],
   ['docs/react/index.html', 'React', 'Render locally in React without using the website as a backend.', '<p>Import the library in your app and render SVG/PNG locally. Keep private diagrams in the browser or your own infrastructure.</p>' + docsIndex],
   ['docs/quality/index.html', 'Quality', 'Determinism, verify warnings, and layout metrics make diagram edits reviewable.', '<p><code>verify.ok</code> is a gate, not a promise of visual perfection. Include SVG/PNG/ASCII artifacts for human review when the change is visual.</p>' + docsIndex],
@@ -716,11 +771,14 @@ const securityHeaders = [
 ].join('\n')
 await emit('_headers', securityHeaders)
 
-const cleanRoutes = ['about', 'editor', 'gallery', 'families', 'docs', 'skills', 'skills/agentic-mermaid-diagram-workflow', 'docs/api', 'docs/source-level', 'docs/cli', 'docs/mcp', 'docs/ascii', 'docs/theming', 'docs/config', 'docs/react', 'docs/quality', 'docs/fork-differences', 'docs/vocabulary', 'warnings', 'errors', 'examples', 'evidence', 'security', 'releases']
+const cleanRoutes = ['about', 'editor', 'docs', 'skills', 'skills/agentic-mermaid-diagram-workflow', 'docs/api', 'docs/families', 'docs/source-level', 'docs/cli', 'docs/mcp', 'docs/ascii', 'docs/theming', 'docs/config', 'docs/react', 'docs/quality', 'docs/fork-differences', 'docs/vocabulary', 'warnings', 'errors', 'examples', 'evidence', 'security', 'releases']
 const redirectLines = [
   ...cleanRoutes.map((r) => `/${r} /${r}/ 308`),
   '/warnings/:code /warnings/:code/ 308', '/errors/:kind /errors/:kind/ 308',
   '/why /about/ 308', '/why/ /about/ 308',
+  // Examples absorbed the gallery; Families folded into the docs.
+  '/gallery /examples/ 308', '/gallery/ /examples/ 308',
+  '/families /docs/families/ 308', '/families/ /docs/families/ 308',
   '',
 ].join('\n')
 await emit('_redirects', redirectLines)

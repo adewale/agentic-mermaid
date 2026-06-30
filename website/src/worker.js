@@ -1,8 +1,14 @@
-const redirects = new Map([])
+// Renamed/consolidated routes. Examples absorbed the gallery; Families folded
+// into the docs; Why became About. Mirrors the static _redirects file.
+const redirects = new Map([
+  ['/why', '/about/'], ['/why/', '/about/'],
+  ['/gallery', '/examples/'], ['/gallery/', '/examples/'],
+  ['/families', '/docs/families/'], ['/families/', '/docs/families/'],
+])
 
 const cleanRoutes = new Set([
-  '/editor', '/gallery', '/families', '/docs', '/skills', '/skills/agentic-mermaid-diagram-workflow',
-  '/docs/api', '/docs/source-level', '/docs/cli', '/docs/mcp', '/docs/ascii', '/docs/theming',
+  '/editor', '/docs', '/skills', '/skills/agentic-mermaid-diagram-workflow',
+  '/docs/api', '/docs/families', '/docs/source-level', '/docs/cli', '/docs/mcp', '/docs/ascii', '/docs/theming',
   '/docs/config', '/docs/react', '/docs/quality', '/docs/fork-differences', '/docs/vocabulary',
   '/warnings', '/errors', '/examples', '/evidence', '/security', '/releases',
 ])

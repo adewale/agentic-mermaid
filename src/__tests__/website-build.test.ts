@@ -59,7 +59,7 @@ describe('Workers Static Assets website contract', () => {
 
   test('required human and machine routes are generated', () => {
     const routes = [
-      'index.html', 'editor/index.html', 'gallery/index.html', 'families/index.html',
+      'index.html', 'editor/index.html', 'about/index.html', 'docs/families/index.html',
       'docs/index.html', 'docs/api/index.html', 'docs/source-level/index.html', 'docs/cli/index.html',
       'docs/mcp/index.html', 'docs/ascii/index.html', 'docs/theming/index.html',
       'docs/config/index.html', 'docs/react/index.html', 'docs/quality/index.html',
@@ -96,9 +96,9 @@ describe('Workers Static Assets website contract', () => {
 
   test('agent-first surfaces expose prompts, traces, and discovery links', () => {
     const home = read('index.html')
-    const gallery = read('gallery/index.html')
+    const examples = read('examples/index.html')
     const editor = read('editor/index.html')
-    for (const rel of ['index.html', 'docs/index.html', 'gallery/index.html', 'editor/index.html']) {
+    for (const rel of ['index.html', 'docs/index.html', 'examples/index.html', 'editor/index.html']) {
       const html = read(rel)
       expect(html).toContain('<link rel="alternate" type="text/plain" href="/llms.txt">')
       expect(html).toContain('<link rel="alternate" type="application/json" href="/agent-manifest.json">')
@@ -127,8 +127,8 @@ describe('Workers Static Assets website contract', () => {
     expect(home).toContain('/recipes/index.json')
     expect(home).toContain('One source, five outputs')
     expect(home).toContain('class="unicode-diagram"')
-    expect(gallery).toContain('<p class="gallery-prompt"><span>Prompt</span>')
-    expect(gallery).toContain('<p class="gallery-ops"><span>Trace</span> <code>asFlowchart')
+    expect(examples).toContain('<p class="example-prompt"><span>Prompt</span>')
+    expect(examples).toContain('<p class="example-trace"><span>Trace</span> <code>asFlowchart')
     const editorScript = editorScriptRel(editor)
     expect(existsSync(join(SITE, editorScript))).toBe(true)
     expect(read(editorScript)).toContain('buildAgentTaskPrompt')
@@ -159,10 +159,11 @@ describe('Workers Static Assets website contract', () => {
   })
 
   test('masthead exposes examples and the editor without repository chrome', () => {
-    for (const rel of ['index.html', 'docs/index.html', 'gallery/index.html', 'examples/index.html', 'skills/agentic-mermaid-diagram-workflow/index.html']) {
+    for (const rel of ['index.html', 'docs/index.html', 'about/index.html', 'examples/index.html', 'skills/agentic-mermaid-diagram-workflow/index.html']) {
       const html = read(rel)
       const masthead = html.match(/<header class="masthead"[\s\S]*?<\/header>/)?.[0] ?? ''
       expect(masthead).toContain('href="/examples/"')
+      expect(masthead).toContain('href="/about/"')
       expect(masthead).toContain('<a class="link-editor" href="/editor/">Open editor</a>')
       expect(masthead).not.toContain('github.com')
       expect(html).not.toContain('<a href="/install/">Install</a>')
@@ -170,13 +171,15 @@ describe('Workers Static Assets website contract', () => {
       expect(html).not.toContain('class="crumb"')
       expect(html).not.toContain('Agentic Mermaid</a> /')
       expect(html).not.toContain('class="theme-switch"')
-      expect(html).not.toContain('<a href="/editor/">Editor</a><a href="/gallery/">')
+      // Gallery and Families were consolidated out of the top-level nav.
+      expect(masthead).not.toContain('href="/gallery/"')
+      expect(masthead).not.toContain('href="/families/"')
     }
     const examplesMasthead = read('examples/index.html').match(/<header class="masthead"[\s\S]*?<\/header>/)?.[0] ?? ''
     expect(examplesMasthead).toContain('href="/examples/"')
     expect(examplesMasthead).toContain('aria-current="page"')
-    expect(read('gallery/index.html')).toContain('<a href="/gallery/" aria-current="page">Gallery</a>')
-    expect(read('docs/index.html')).toContain('<a href="/docs/" aria-current="page">Docs</a>')
+    expect(read('about/index.html')).toContain('<a aria-current="page" href="/about/">About</a>')
+    expect(read('docs/index.html')).toContain('<a aria-current="page" href="/docs/">Docs</a>')
     expect(read('_redirects')).not.toContain('/agents')
     expect(read('_redirects')).not.toContain('agents-workflow')
     expect(read('_redirects')).not.toContain('.html')
@@ -213,21 +216,21 @@ describe('Workers Static Assets website contract', () => {
     expect(styles).not.toMatch(/font-size: (?:11|12|13|14)px/)
   })
 
-  test('gallery keeps dense diagrams readable with titles above diagrams', () => {
-    const gallery = read('gallery/index.html')
-    const styles = read('styles.css')
-    const wideAnchors = new Map([['er', 'ER'], ['journey', 'Journey'], ['architecture', 'Architecture'], ['xychart', 'XY chart'], ['gantt', 'Gantt']])
-    for (const [id, label] of wideAnchors) {
-      expect(gallery).toContain(`<figure class="gallery-wide" id="${id}">\n      <figcaption><b>${label}</b>`)
-      expect(gallery).toContain(`<figcaption><b>${label}</b>`)
-      expect(gallery.indexOf(`<figcaption><b>${label}</b>`)).toBeLessThan(gallery.indexOf(`aria-label="${label} diagram"`))
+  test('examples page carries the agent task and a per-family render anchor', () => {
+    const examples = read('examples/index.html')
+    // The consolidated Examples page absorbed the gallery: each supported family
+    // is anchored by family id and pairs an agent prompt with its trace.
+    for (const id of ['flowchart', 'er', 'journey', 'architecture', 'gantt']) {
+      expect(examples).toContain(`<article class="example-sample" id="${id}">`)
     }
-    expect(gallery).toContain('<figure class="gallery-compact gallery-span" id="class">\n      <figcaption><b>Class</b>')
-    expect(gallery.indexOf('<figcaption><b>Class</b>')).toBeLessThan(gallery.indexOf('aria-label="Class diagram"'))
-    expect(styles).toContain('.gallery .gallery-wide, .gallery .gallery-span { grid-column: 1 / -1; }')
-    expect(styles).toContain('.gallery figcaption { margin: 0 0 11px; font-size: 0.9375rem; line-height: 1.42; }')
-    expect(styles).toContain('.gallery-page { max-width: var(--wide-width); }')
-    expect(styles).toContain('.gallery .plate svg, .gallery .plate img { display: block; width: 100%; max-width: 100%; height: auto; margin: 0 auto; }')
+    expect(examples).toContain('<p class="example-prompt"><span>Prompt</span> Add a verification milestone before release')
+    expect(examples).toContain('<p class="example-trace"><span>Trace</span> <code>asGantt · mutate(add_task) · verify</code>')
+    // Role-style presets keep their own id and carry no structural agent task.
+    expect(examples).toContain('<article class="example-sample" id="styled-flowchart">')
+    const styled = examples.slice(examples.indexOf('id="styled-flowchart"'))
+    expect(styled.slice(0, styled.indexOf('</article>'))).not.toContain('class="example-prompt"')
+    const styles = read('styles.css')
+    expect(styles).toContain('.example-prompt, .example-trace')
   })
 
   test('editor mode switch is not a pseudo-tabset', () => {
@@ -278,10 +281,12 @@ describe('Workers Static Assets website contract', () => {
     expect(examplesHtml).not.toContain('#f97316')
     expect(examplesHtml).not.toContain('#3b82f6')
     for (const example of examplesIndex.examples) {
-      const galleryId = example.galleryUrl.split('#')[1]
+      const renderAnchor = example.renderUrl.split('#')[1]
       const familyId = example.docs.split('#')[1]
-      expect(read('gallery/index.html')).toContain(`id="${galleryId}"`)
-      expect(read('families/index.html')).toContain(`id="${familyId}"`)
+      expect(example.renderUrl.startsWith('/examples/#')).toBe(true)
+      expect(examplesHtml).toContain(`id="${renderAnchor}"`)
+      expect(example.docs.startsWith('/docs/families/#')).toBe(true)
+      expect(read('docs/families/index.html')).toContain(`id="${familyId}"`)
       expect(example.editorUrl).toContain('/editor/?example=')
     }
     const examplesSchema = JSON.parse(read('schemas/examples.schema.json'))
