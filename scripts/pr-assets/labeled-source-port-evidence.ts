@@ -1,11 +1,12 @@
-// Before/after evidence for the alignLabeledSourcePort fix.
+// Before/after evidence for the alignLabeledSourcePort fix (chain-translate).
 //
-// BEFORE is the real output with the pass disabled (APL_NO_LABELED_SOURCE_PORT),
-// AFTER is the current tree — so the ONLY variable is the pass. Composes a
-// labelled side-by-side PNG. Also renders the still-unhandled multi-edge case
-// (a labelled source that also carries another edge), which the conservative
-// degree-1 guard skips, as a separate image for the broaden-or-not decision.
-// Reproducible from source, not hand-captured:
+// BEFORE renders with the pass disabled (APL_NO_LABELED_SOURCE_PORT); AFTER is
+// the current tree — so the ONLY variable is the pass. Two rows: a degree-1
+// labelled source (wide label) and a degree-2 source fed by an incoming edge.
+// The fix slides the labelled source — and, for degree 2, its whole upstream
+// chain — onto the lane the certifying straightener will use, so every single-
+// out source in the neighbourhood exits at its mid-port as ONE straight line
+// (no jog). Reproducible from source, not hand-captured:
 //
 //   bun run scripts/pr-assets/labeled-source-port-evidence.ts
 import { existsSync } from 'node:fs'
@@ -24,17 +25,8 @@ const FONT_FILES = [
   join(ROOT, 'assets', 'fonts', 'DejaVuSans-Bold.ttf'),
 ].filter(existsSync)
 
-// The minimal case the fix handles: A's only edge is the labelled A->B and B's
-// slot for it coincides with B's mid-port, so sliding A makes it straight + exact.
-const SINGLE = [
-  'flowchart LR',
-  '  A -->|x| B',
-  '  B2 --> B',
-  '  B --> C',
-].join('\n')
-
-// A degree-1 source but with a WIDER label, which shifts B's input slot off B's
-// mid-port — the fix slides A to B's mid, not the slot, so it only half-helps.
+// A degree-1 labelled source with a WIDE label, which shifts the straightener's
+// lane off the centre — the source slides onto that lane and exits straight.
 const WIDE = [
   'flowchart LR',
   '  A["warnings"] -->|warning| B["ok"]',
@@ -42,8 +34,8 @@ const WIDE = [
   '  B --> C["done"]',
 ].join('\n')
 
-// A labelled source that ALSO carries another edge (incoming Z->A): A is now
-// degree-2, so the conservative pass skips it and A->B stays off its mid-port.
+// A degree-2 source: an incoming Z->A means sliding A must carry Z too, so Z
+// keeps its own mid-port and the whole start->warnings->ok chain stays straight.
 const MULTI = [
   'flowchart LR',
   '  Z["start"] --> A["warnings"]',
@@ -52,67 +44,89 @@ const MULTI = [
   '  B --> C["done"]',
 ].join('\n')
 
-function portGap(src: string): number {
-  const p = layoutGraphSync(parseMermaid(src))
-  const A = p.nodes.find(n => n.id === 'A')!
-  const ab = p.edges.find(e => e.source === 'A' && e.target === 'B')!
-  return Math.abs(ab.points[0]!.y - (A.y + A.height / 2))
-}
-
 function withFlag<T>(on: boolean, fn: () => T): T {
   if (on) process.env.APL_NO_LABELED_SOURCE_PORT = '1'
   else delete process.env.APL_NO_LABELED_SOURCE_PORT
   try { return fn() } finally { delete process.env.APL_NO_LABELED_SOURCE_PORT }
 }
 
+const midCross = (n: { y: number; height: number }) => n.y + n.height / 2
+/** Source-exit gap from mid-port and interior bend count for one edge's source. */
+function stat(src: string, sourceId: string): { gap: number; bends: number } {
+  const p = layoutGraphSync(parseMermaid(src))
+  const S = p.nodes.find(n => n.id === sourceId)!
+  const e = p.edges.find(x => x.source === sourceId)!
+  return { gap: Math.abs(e.points[0]!.y - midCross(S)), bends: Math.max(0, e.points.length - 2) }
+}
+
 function rasterize(svg: string): { b64: string; w: number; h: number } {
   const r = new Resvg(svg, { font: { fontFiles: FONT_FILES, loadSystemFonts: false }, background: THEME.bg })
   const png = r.render().asPng()
-  const { width, height } = r
-  return { b64: Buffer.from(png).toString('base64'), w: width, h: height }
+  return { b64: Buffer.from(png).toString('base64'), w: r.width, h: r.height }
 }
 
-function panel(caption: string, raster: { b64: string; w: number; h: number }, x: number, w: number): string {
-  const imgY = 30
-  const imgX = x + (w - raster.w) / 2
+type Img = ReturnType<typeof rasterize>
+type Row = { title: string; before: Img; after: Img; beforeAnn: string; afterAnn: string }
+
+const COLS = { labelW: 210, headerH: 42 }
+
+function rowSvg(row: Row, colW: number, rowH: number, y0: number): string {
+  const panel = (img: Img, ann: string, x0: number, ok: boolean) => {
+    const ix = x0 + (colW - img.w) / 2
+    return `
+      <text x="${x0 + colW / 2}" y="${y0 + 22}" text-anchor="middle" font-family="sans-serif" font-size="12" fill="${ok ? '#1a7f37' : '#cf222e'}">${ann}</text>
+      <image x="${ix}" y="${y0 + 32}" width="${img.w}" height="${img.h}" href="data:image/png;base64,${img.b64}"/>`
+  }
   return `
-    <text x="${x + w / 2}" y="20" text-anchor="middle" font-family="sans-serif" font-size="14" font-weight="600" fill="${THEME.fg}">${caption}</text>
-    <image x="${imgX}" y="${imgY}" width="${raster.w}" height="${raster.h}" href="data:image/png;base64,${raster.b64}" />`
+    <text x="${COLS.labelW / 2}" y="${y0 + rowH / 2}" text-anchor="middle" font-family="sans-serif" font-size="13" font-weight="600" fill="${THEME.fg}" opacity="0.8">${row.title}</text>
+    ${panel(row.before, row.beforeAnn, COLS.labelW, false)}
+    ${panel(row.after, row.afterAnn, COLS.labelW + colW, true)}`
 }
 
-function sideBySide(file: string, title: string, before: ReturnType<typeof rasterize>, after: ReturnType<typeof rasterize>) {
-  const colW = Math.max(before.w, after.w) + 60
-  const h = Math.max(before.h, after.h) + 70
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${colW * 2}" height="${h}" viewBox="0 0 ${colW * 2} ${h}">
+function beforeAfter(file: string, rows: Row[]) {
+  const colW = Math.max(...rows.flatMap(r => [r.before.w, r.after.w])) + 80
+  const rowH = Math.max(...rows.flatMap(r => [r.before.h, r.after.h])) + 80
+  const W = COLS.labelW + colW * 2
+  const H = COLS.headerH + rowH * rows.length
+  const body = rows.map((r, i) => rowSvg(r, colW, rowH, COLS.headerH + i * rowH)).join('\n')
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">
     <rect width="100%" height="100%" fill="${THEME.bg}"/>
-    <line x1="${colW}" y1="10" x2="${colW}" y2="${h - 10}" stroke="${THEME.line}" stroke-dasharray="4 4"/>
-    ${panel('BEFORE — ' + title.split('|')[0], before, 0, colW)}
-    ${panel('AFTER — ' + title.split('|')[1], after, colW, colW)}
+    <text x="${COLS.labelW + colW / 2}" y="26" text-anchor="middle" font-family="sans-serif" font-size="16" font-weight="700" fill="${THEME.fg}">BEFORE — fix off</text>
+    <text x="${COLS.labelW + colW + colW / 2}" y="26" text-anchor="middle" font-family="sans-serif" font-size="16" font-weight="700" fill="${THEME.fg}">AFTER — fix on</text>
+    <line x1="${COLS.labelW + colW}" y1="10" x2="${COLS.labelW + colW}" y2="${H - 10}" stroke="${THEME.line}" stroke-dasharray="5 5"/>
+    ${body}
   </svg>`
-  const png = new Resvg(svg, { font: { fontFiles: FONT_FILES, loadSystemFonts: false } }).render().asPng()
+  const png = new Resvg(svg, { font: { fontFiles: FONT_FILES, loadSystemFonts: false }, background: THEME.bg }).render().asPng()
   Bun.write(join(OUT_DIR, file), png)
   console.log('wrote', file)
 }
 
-function single(file: string, caption: string, raster: ReturnType<typeof rasterize>) {
-  const w = Math.max(raster.w + 60, 620), h = raster.h + 50
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}">
-    <rect width="100%" height="100%" fill="${THEME.bg}"/>
-    ${panel(caption, raster, 0, w)}
-  </svg>`
-  const png = new Resvg(svg, { font: { fontFiles: FONT_FILES, loadSystemFonts: false } }).render().asPng()
-  Bun.write(join(OUT_DIR, file), png)
-  console.log('wrote', file)
-}
+const fmt = (s: { gap: number; bends: number }) => `${s.gap.toFixed(2)}px${s.bends ? `, ${s.bends} bends` : ', straight'}`
 
-const g = (on: boolean, s: string) => withFlag(on, () => portGap(s)).toFixed(2)
-console.log('MINIMAL  before gap=%s  after gap=%s  (FIXED)', g(true, SINGLE), g(false, SINGLE))
-console.log('WIDE     before gap=%s  after gap=%s  (degree-1, wide label: slot off mid → only half-helps)', g(true, WIDE), g(false, WIDE))
-console.log('MULTI    before gap=%s  after gap=%s  (degree-2 source: pass skips it entirely)', g(true, MULTI), g(false, MULTI))
+const wideBefore = withFlag(true, () => stat(WIDE, 'A'))
+const wideAfter = withFlag(false, () => stat(WIDE, 'A'))
+const multiBeforeZ = withFlag(true, () => stat(MULTI, 'Z'))
+const multiBeforeA = withFlag(true, () => stat(MULTI, 'A'))
+const multiAfterZ = withFlag(false, () => stat(MULTI, 'Z'))
+const multiAfterA = withFlag(false, () => stat(MULTI, 'A'))
 
-const beforeSvg = withFlag(true, () => renderMermaidSVG(SINGLE, { ...THEME, embedFontImport: false }))
-const afterSvg = withFlag(false, () => renderMermaidSVG(SINGLE, { ...THEME, embedFontImport: false }))
-sideBySide('labeled-source-port-before-after.png', 'A→B exits A 14px below centre|A→B exits A at its mid-port, still straight', rasterize(beforeSvg), rasterize(afterSvg))
+console.log('WIDE  A  before=%s  after=%s', fmt(wideBefore), fmt(wideAfter))
+console.log('MULTI Z  before=%s  after=%s', fmt(multiBeforeZ), fmt(multiAfterZ))
+console.log('MULTI A  before=%s  after=%s', fmt(multiBeforeA), fmt(multiAfterA))
 
-const multiSvg = withFlag(false, () => renderMermaidSVG(MULTI, { ...THEME, embedFontImport: false }))
-single('labeled-source-port-multiedge.png', 'Unhandled: degree-2 source (warnings->ok exits off-centre)', rasterize(multiSvg))
+beforeAfter('labeled-source-port-before-after.png', [
+  {
+    title: 'wide degree-1 source',
+    before: rasterize(withFlag(true, () => renderMermaidSVG(WIDE, { ...THEME, embedFontImport: false }))),
+    after: rasterize(withFlag(false, () => renderMermaidSVG(WIDE, { ...THEME, embedFontImport: false }))),
+    beforeAnn: `warnings→ok: ${fmt(wideBefore)}`,
+    afterAnn: `warnings→ok: ${fmt(wideAfter)}`,
+  },
+  {
+    title: 'degree-2 source (start → warnings)',
+    before: rasterize(withFlag(true, () => renderMermaidSVG(MULTI, { ...THEME, embedFontImport: false }))),
+    after: rasterize(withFlag(false, () => renderMermaidSVG(MULTI, { ...THEME, embedFontImport: false }))),
+    beforeAnn: `start→warnings: ${fmt(multiBeforeZ)} · warnings→ok: ${fmt(multiBeforeA)}`,
+    afterAnn: `start→warnings: ${fmt(multiAfterZ)} · warnings→ok: ${fmt(multiAfterA)}`,
+  },
+])
