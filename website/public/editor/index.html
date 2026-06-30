@@ -117,7 +117,13 @@
 
   /* Semantic status colors */
   --green: #16a34a;
+  --warn: #D97706;
   --red: #dc2626;
+
+  /* Preview canvas: a matte so the diagram artboard reads as the artifact,
+     not a shape floating in the chrome. The diagram keeps its own Paper bg. */
+  --canvas-matte: color-mix(in srgb, var(--t-fg) 8%, var(--t-bg));
+  --shadow-artboard: 0 1px 2px rgba(0, 0, 0, 0.04), 0 12px 30px -14px rgba(0, 0, 0, 0.2);
 }
 
 html,
@@ -1151,7 +1157,7 @@ body {
   box-sizing: border-box;
   position: relative;
   z-index: 0;
-  background: var(--bg2);
+  background: var(--canvas-matte);
 }
 .preview-body.pan-mode {
   cursor: grab;
@@ -1181,7 +1187,10 @@ body {
 .preview-inner svg {
   display: block;
   flex-shrink: 0;
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-artboard);
 }
+.preview-inner[hidden] { display: none; }
 
 .preview-error {
   color: color-mix(in srgb, var(--red) 82%, var(--fg));
@@ -1303,153 +1312,85 @@ body {
   transform: scale(0.96);
 }
 
-/* collapsible dock: verify + text output tuck below the preview so the
-   diagram gets the room. Native <details> keeps it accessible with no JS. */
-.preview-dock { flex-shrink: 0; border-top: 1px solid var(--border); background: var(--bg2); }
-.preview-dock > summary { list-style: none; cursor: pointer; display: flex; align-items: center; gap: 8px; min-height: 32px; padding: 4px 10px; color: var(--fg3); font-size: var(--t-label); font-weight: 700; line-height: var(--lh-ui); user-select: none; }
-.preview-dock > summary::-webkit-details-marker { display: none; }
-.preview-dock > summary::before {
-  content: ""; width: 12px; height: 12px; flex: none; background: currentColor;
-  -webkit-mask: url("data:image/svg+xml,%3Csvg viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='3' stroke-linecap='round' stroke-linejoin='round' xmlns='http://www.w3.org/2000/svg'%3E%3Cpolyline points='9 18 15 12 9 6'/%3E%3C/svg%3E") center/contain no-repeat;
-  mask: url("data:image/svg+xml,%3Csvg viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='3' stroke-linecap='round' stroke-linejoin='round' xmlns='http://www.w3.org/2000/svg'%3E%3Cpolyline points='9 18 15 12 9 6'/%3E%3C/svg%3E") center/contain no-repeat;
-  transition: transform 0.16s ease;
-}
-.preview-dock[open] > summary::before { transform: rotate(90deg); }
-.preview-dock > summary:hover { color: var(--fg); }
-.preview-dock > summary:focus-visible { outline: 2px solid color-mix(in srgb, var(--accent) 72%, var(--paper)); outline-offset: -2px; }
-.preview-dock .verify-panel { border-top: 0; }
-
-.verify-panel {
-  border-top: 1px solid var(--border);
-  background: var(--bg2);
-  padding: 8px 10px 10px;
-  flex-shrink: 0;
-}
-.verify-panel-head {
+/* Output format switch — same control idiom as the topbar segmented controls. */
+.format-switch {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  margin-bottom: 8px;
-}
-.verify-label {
-  color: var(--fg3);
-  font-size: var(--t-label);
-  font-weight: 700;
-  line-height: var(--lh-ui);
-  letter-spacing: 0;
-  text-transform: none;
-}
-.verify-summary {
-  color: var(--fg2);
-  font-size: var(--t-label);
-  text-align: right;
-}
-.verify-tiers {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 6px;
-}
-.verify-tier {
-  min-width: 0;
-  display: grid;
-  grid-template-columns: auto 1fr;
-  align-items: center;
-  gap: 2px 7px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
-  padding: 7px 8px;
-  background: var(--surface);
-  color: var(--fg3);
-  font-size: var(--t-label);
-  line-height: var(--lh-heading);
-}
-.verify-tier strong {
-  color: var(--fg);
-  font-size: var(--t-label);
-  font-weight: 700;
-}
-.verify-tier span:last-child {
-  grid-column: 2;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.verify-dot {
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  background: var(--fg4);
-  grid-row: 1 / span 2;
-}
-.verify-tier.ok .verify-dot { background: var(--green); }
-.verify-tier.warn .verify-dot { background: var(--warn); }
-.verify-tier.err .verify-dot { background: var(--red); }
-.verify-tier.idle { opacity: 0.8; }
-@media (max-width: 760px) {
-  .verify-tiers { grid-template-columns: 1fr; }
-}
-
-.text-output-panel {
-  border-top: 1px solid var(--border);
-  background: var(--bg2);
-  flex-shrink: 0;
-}
-.text-output-toolbar {
-  min-height: 38px;
-  padding: 5px 10px;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-.text-output-label {
-  color: var(--fg3);
-  font-size: var(--t-label);
-  font-weight: 700;
-  line-height: var(--lh-ui);
-  letter-spacing: 0;
-  text-transform: none;
-}
-.text-output-tabs {
-  margin-left: auto;
-  display: inline-flex;
-  gap: 3px;
+  gap: 1px;
   padding: 3px;
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-lg);
   background: var(--control-bg);
+  border: 1px solid var(--line);
 }
-.text-output-tab {
-  height: 28px;
-  padding: 0 9px;
-  border: 0;
-  border-radius: var(--radius-sm);
+.format-option {
+  min-height: 30px;
+  padding: 0 11px;
+  border: none;
+  border-radius: var(--radius-md);
   background: transparent;
-  color: var(--fg3);
+  color: var(--control-fg);
   font: inherit;
-  font-size: var(--t-label);
-  font-weight: 650;
+  font-size: var(--t-control);
+  font-weight: 500;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: color 0.15s, background 0.15s, box-shadow 0.15s, transform 0.1s;
 }
-.text-output-tab.active {
+.format-option:hover { color: var(--fg); }
+.format-option.is-active {
+  color: var(--ink);
   background: var(--paper);
-  color: var(--fg);
   box-shadow: var(--shadow-control);
 }
-.text-output {
-  max-height: 190px;
-  min-height: 92px;
-  overflow-y: auto;
-  overflow-x: hidden;
-  margin: 0;
-  padding: 12px 14px;
-  border-top: 1px solid var(--line);
+.format-option:active { transform: scale(0.96); }
+.zoom-controls[hidden] { display: none; }
+
+/* Text canvas — Unicode / ASCII get the same artboard treatment as the diagram,
+   on a code surface, so switching format reads as one canvas, not a side panel. */
+.text-canvas {
+  width: max-content;
+  max-width: 100%;
+  margin: 0 auto;
+  padding: 16px 18px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
   background: var(--surface);
+  box-shadow: var(--shadow-artboard);
   color: var(--fg2);
   font-family: var(--font-mono);
-  font-size: var(--t-label);
+  font-size: var(--t-mono);
   line-height: var(--lh-ui);
   white-space: pre;
 }
-.text-output code { display: inline-block; max-width: 100%; font-family: inherit; font-size: inherit; transform-origin: top left; }
+.text-canvas[hidden] { display: none; }
+.text-canvas code { display: inline-block; font-family: inherit; font-size: inherit; transform-origin: top left; }
+
+/* Verify status — one slim bar. Verdict on the left, tier dots on the right;
+   the dot colour carries pass / advisory / error, so "all clear" stays quiet. */
+.verify-bar {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px 14px;
+  flex-wrap: wrap;
+  min-height: 34px;
+  padding: 5px 12px;
+  border-top: 1px solid var(--border);
+  background: var(--bg2);
+  font-size: var(--t-label);
+  line-height: var(--lh-ui);
+}
+.verify-verdict { color: var(--fg2); font-weight: 650; }
+.verify-tiers { margin-left: auto; display: flex; align-items: center; gap: 13px; flex-wrap: wrap; }
+.verify-tier { display: inline-flex; align-items: center; gap: 5px; color: var(--fg3); white-space: nowrap; }
+.verify-tier i { font-style: normal; color: var(--fg4); }
+.verify-tier.idle { opacity: 0.6; }
+.verify-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--fg4); flex: none; }
+.verify-tier.ok .verify-dot { background: var(--green); }
+.verify-tier.warn .verify-dot { background: var(--warn); }
+.verify-tier.err .verify-dot { background: var(--red); }
+@media (max-width: 760px) {
+  .verify-tiers { margin-left: 0; }
+}
 
 .preview-footer {
   display: flex;
@@ -1942,8 +1883,8 @@ body {
   border-color: var(--control-border);
 }
 :where(.btn, .theme-dropdown-btn, .font-select-btn, .color-edit-btn, .color-clear-btn, .placeholder-example-btn):active { transform: scale(0.96); }
-:where(.btn, .toolbar-btn, .export-item, .theme-dropdown-item, .text-output-tab, .size-pill, .font-item)[data-copy-state="ok"] { color: var(--link); }
-:where(.btn, .toolbar-btn, .export-item, .theme-dropdown-item, .text-output-tab, .size-pill, .font-item)[data-copy-state="err"] { color: var(--red); }
+:where(.btn, .toolbar-btn, .export-item, .theme-dropdown-item, .format-option, .size-pill, .font-item)[data-copy-state="ok"] { color: var(--link); }
+:where(.btn, .toolbar-btn, .export-item, .theme-dropdown-item, .format-option, .size-pill, .font-item)[data-copy-state="err"] { color: var(--red); }
 :where(.toolbar-btn, .icon-btn) {
   border-radius: var(--radius-sm);
   color: var(--control-fg);
@@ -1953,13 +1894,13 @@ body {
   background: var(--control-bg-hover);
   opacity: 1;
 }
-:where(.mode-switch, .text-output-tabs, .zoom-controls) {
+:where(.mode-switch, .format-switch, .zoom-controls) {
   border: 1px solid var(--line);
   border-radius: var(--radius-lg);
   background: var(--control-bg);
   box-shadow: none;
 }
-:where(.mode-option, .text-output-tab, .size-pill, .export-item, .theme-dropdown-item, .font-item, .example-dropdown-item, .example-clear-btn) {
+:where(.mode-option, .format-option, .size-pill, .export-item, .theme-dropdown-item, .font-item, .example-dropdown-item, .example-clear-btn) {
   border-radius: var(--radius-sm);
   font-family: var(--font-sans);
 }
@@ -1978,8 +1919,8 @@ body {
   letter-spacing: 0;
   text-transform: none;
 }
-:where(.preview-error, .preview-placeholder, .verify-tier, .text-output, .examples-sidebar, .font-popup, .color-popup, .export-dropdown, .theme-dropdown-menu) { border-color: var(--line); }
-:where(.preview-error-detail, .text-output, .preview-footer, .zoom-label) {
+:where(.preview-error, .preview-placeholder, .verify-tier, .text-canvas, .examples-sidebar, .font-popup, .color-popup, .export-dropdown, .theme-dropdown-menu) { border-color: var(--line); }
+:where(.preview-error-detail, .text-canvas, .preview-footer, .zoom-label) {
   font-family: var(--font-mono);
   font-variant-numeric: tabular-nums;
 }
@@ -1990,7 +1931,7 @@ body {
   .theme-dropdown-btn,
   .theme-dropdown-item,
   .toolbar-btn,
-  .text-output-tab,
+  .format-option,
   .placeholder-example-btn,
   .example-clear-btn,
   .export-item,
@@ -2590,11 +2531,17 @@ body {
   <div class="resize-handle" id="resize-handle" role="separator" tabindex="0" aria-label="Resize source and preview panels" aria-orientation="vertical" aria-valuemin="280" aria-valuemax="75" aria-valuenow="42" aria-valuetext="Source panel width 42 percent"></div>
 
   <!-- Right panel -->
-<section class="panel-right" id="panel-right" aria-label="Rendered preview">
+<section class="panel-right" id="panel-right" aria-label="Rendered output">
   <div class="preview-toolbar">
-    <span class="preview-label">Preview</span>
+    <!-- One canvas, one representation at a time. The same source as Diagram,
+         Unicode box-art, or ASCII — the multi-format story, not a duplicate render. -->
+    <div class="format-switch" data-segmented-control role="group" aria-label="Output format">
+      <button class="format-option is-active" id="format-diagram" type="button" aria-pressed="true" data-canvas-format="diagram">Diagram</button>
+      <button class="format-option" id="format-unicode" type="button" aria-pressed="false" data-canvas-format="unicode">Unicode</button>
+      <button class="format-option" id="format-ascii" type="button" aria-pressed="false" data-canvas-format="ascii">ASCII</button>
+    </div>
     <div class="toolbar-spacer"></div>
-    <div class="zoom-controls">
+    <div class="zoom-controls" id="zoom-controls">
       <button class="toolbar-btn" id="zoom-out-btn" type="button" title="Zoom out" aria-label="Zoom out">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="8" y1="11" x2="14" y2="11"/>
@@ -2621,58 +2568,36 @@ body {
         </svg>
       </button>
     </div>
+    <button class="toolbar-btn" id="copy-text-output-btn" type="button" title="Copy Mermaid source" aria-label="Copy Mermaid source">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="9" y="9" width="13" height="13" rx="2" />
+        <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+      </svg>
+    </button>
   </div>
 
   <div class="preview-body" id="preview-body">
     <div class="render-spinner" id="render-spinner"></div>
-    <div class="preview-inner" id="preview-inner">
+    <div class="preview-inner" id="preview-inner" data-canvas-view="diagram">
       <div class="preview-placeholder" id="preview-placeholder">
         <span class="placeholder-kicker">Blank canvas</span>
         <strong class="placeholder-title">No diagram yet</strong>
-        <span class="placeholder-copy">Start typing Mermaid syntax, or load a preset to see SVG, Unicode, and ASCII output.</span>
+        <span class="placeholder-copy">Start typing Mermaid syntax, or load a preset to see Diagram, Unicode, and ASCII output.</span>
         <button class="placeholder-example-btn" type="button" data-action="load-example">Load an example</button>
       </div>
     </div>
+    <pre class="text-canvas" id="unicode-output-wrap" data-canvas-view="unicode" aria-label="Unicode output" hidden><code id="unicode-output">Render a valid diagram to see Unicode output.</code></pre>
+    <pre class="text-canvas" id="ascii-output-wrap" data-canvas-view="ascii" aria-label="ASCII output" hidden><code id="ascii-output">Render a valid diagram to see ASCII output.</code></pre>
   </div>
 
-  <details class="preview-dock" id="preview-dock" open>
-  <summary class="preview-dock-head"><span class="preview-dock-title">Verify &amp; output</span></summary>
-  <section class="verify-panel" aria-label="Verification status">
-    <div class="verify-panel-head">
-      <span class="verify-label">Verify</span>
-      <span class="verify-summary" id="verify-summary">Waiting for source</span>
-    </div>
+  <div class="verify-bar" id="verify-bar" aria-label="Verification status">
+    <span class="verify-verdict" id="verify-summary">Waiting for source</span>
     <div class="verify-tiers" role="list" aria-label="Warning tiers">
-      <div class="verify-tier" id="verify-tier-structural" role="listitem">
-        <span class="verify-dot" aria-hidden="true"></span><strong>Structural</strong><span id="verify-structural">Not run</span>
-      </div>
-      <div class="verify-tier" id="verify-tier-geometric" role="listitem">
-        <span class="verify-dot" aria-hidden="true"></span><strong>Geometric</strong><span id="verify-geometric">Not run</span>
-      </div>
-      <div class="verify-tier" id="verify-tier-lint" role="listitem">
-        <span class="verify-dot" aria-hidden="true"></span><strong>Lint</strong><span id="verify-lint">Not run</span>
-      </div>
+      <span class="verify-tier idle" id="verify-tier-structural" role="listitem"><span class="verify-dot" aria-hidden="true"></span>Structural<i id="verify-structural">Not run</i></span>
+      <span class="verify-tier idle" id="verify-tier-geometric" role="listitem"><span class="verify-dot" aria-hidden="true"></span>Geometric<i id="verify-geometric">Not run</i></span>
+      <span class="verify-tier idle" id="verify-tier-lint" role="listitem"><span class="verify-dot" aria-hidden="true"></span>Lint<i id="verify-lint">Not run</i></span>
     </div>
-  </section>
-
-  <section class="text-output-panel" aria-label="Text output">
-    <div class="text-output-toolbar">
-      <span class="text-output-label">Text output</span>
-      <div class="text-output-tabs" role="tablist" aria-label="Output format">
-        <button class="text-output-tab active" id="unicode-output-tab" type="button" role="tab" aria-selected="true" aria-controls="unicode-output-wrap" data-output-tab="unicode">Unicode</button>
-        <button class="text-output-tab" id="ascii-output-tab" type="button" role="tab" aria-selected="false" aria-controls="ascii-output-wrap" tabindex="-1" data-output-tab="ascii">ASCII</button>
-      </div>
-      <button class="toolbar-btn" id="copy-text-output-btn" type="button" title="Copy selected text output" aria-label="Copy selected text output">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
-          <rect x="9" y="9" width="13" height="13" rx="2" />
-          <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
-        </svg>
-      </button>
-    </div>
-    <pre class="text-output active" id="unicode-output-wrap" role="tabpanel" aria-labelledby="unicode-output-tab"><code id="unicode-output">Render a valid diagram to see Unicode output.</code></pre>
-    <pre class="text-output" id="ascii-output-wrap" role="tabpanel" aria-labelledby="ascii-output-tab" hidden><code id="ascii-output">Render a valid diagram to see ASCII output.</code></pre>
-  </section>
-  </details>
+  </div>
 
   <div class="preview-footer">
     <span id="render-time"></span>
@@ -2685,6 +2610,6 @@ body {
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
 <!-- Bundled renderer -->
-<script type="module" src="/editor/editor-5cd1baeed113.js"></script>
+<script type="module" src="/editor/editor-3a2de370e91a.js"></script>
 </body>
 </html>

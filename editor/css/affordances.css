@@ -16,8 +16,8 @@
   border-color: var(--control-border);
 }
 :where(.btn, .theme-dropdown-btn, .font-select-btn, .color-edit-btn, .color-clear-btn, .placeholder-example-btn):active { transform: scale(0.96); }
-:where(.btn, .toolbar-btn, .export-item, .theme-dropdown-item, .text-output-tab, .size-pill, .font-item)[data-copy-state="ok"] { color: var(--link); }
-:where(.btn, .toolbar-btn, .export-item, .theme-dropdown-item, .text-output-tab, .size-pill, .font-item)[data-copy-state="err"] { color: var(--red); }
+:where(.btn, .toolbar-btn, .export-item, .theme-dropdown-item, .format-option, .size-pill, .font-item)[data-copy-state="ok"] { color: var(--link); }
+:where(.btn, .toolbar-btn, .export-item, .theme-dropdown-item, .format-option, .size-pill, .font-item)[data-copy-state="err"] { color: var(--red); }
 :where(.toolbar-btn, .icon-btn) {
   border-radius: var(--radius-sm);
   color: var(--control-fg);
@@ -27,13 +27,13 @@
   background: var(--control-bg-hover);
   opacity: 1;
 }
-:where(.mode-switch, .text-output-tabs, .zoom-controls) {
+:where(.mode-switch, .format-switch, .zoom-controls) {
   border: 1px solid var(--line);
   border-radius: var(--radius-lg);
   background: var(--control-bg);
   box-shadow: none;
 }
-:where(.mode-option, .text-output-tab, .size-pill, .export-item, .theme-dropdown-item, .font-item, .example-dropdown-item, .example-clear-btn) {
+:where(.mode-option, .format-option, .size-pill, .export-item, .theme-dropdown-item, .font-item, .example-dropdown-item, .example-clear-btn) {
   border-radius: var(--radius-sm);
   font-family: var(--font-sans);
 }
@@ -52,8 +52,8 @@
   letter-spacing: 0;
   text-transform: none;
 }
-:where(.preview-error, .preview-placeholder, .verify-tier, .text-output, .examples-sidebar, .font-popup, .color-popup, .export-dropdown, .theme-dropdown-menu) { border-color: var(--line); }
-:where(.preview-error-detail, .text-output, .preview-footer, .zoom-label) {
+:where(.preview-error, .preview-placeholder, .verify-tier, .text-canvas, .examples-sidebar, .font-popup, .color-popup, .export-dropdown, .theme-dropdown-menu) { border-color: var(--line); }
+:where(.preview-error-detail, .text-canvas, .preview-footer, .zoom-label) {
   font-family: var(--font-mono);
   font-variant-numeric: tabular-nums;
 }
@@ -64,7 +64,7 @@
   .theme-dropdown-btn,
   .theme-dropdown-item,
   .toolbar-btn,
-  .text-output-tab,
+  .format-option,
   .placeholder-example-btn,
   .example-clear-btn,
   .export-item,

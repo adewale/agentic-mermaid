@@ -107,7 +107,13 @@
 
   /* Semantic status colors */
   --green: #16a34a;
+  --warn: #D97706;
   --red: #dc2626;
+
+  /* Preview canvas: a matte so the diagram artboard reads as the artifact,
+     not a shape floating in the chrome. The diagram keeps its own Paper bg. */
+  --canvas-matte: color-mix(in srgb, var(--t-fg) 8%, var(--t-bg));
+  --shadow-artboard: 0 1px 2px rgba(0, 0, 0, 0.04), 0 12px 30px -14px rgba(0, 0, 0, 0.2);
 }
 
 html,

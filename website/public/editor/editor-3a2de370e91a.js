@@ -727,6 +727,7 @@ function updateHash() {
 
 
 var renderTimer = null;
+var autoFitPending = true;
 
 function scheduleRender(delay) {
   if (renderTimer) clearTimeout(renderTimer);
@@ -925,6 +926,7 @@ function fitUnicodeOutput() {
   if (!wrap) return;
   unicodeOutput.style.fontSize = '';
   window.requestAnimationFrame(function() {
+    if (!wrap.clientWidth) return; // hidden (not the active canvas) — fit when shown
     var cs = getComputedStyle(wrap);
     var pad = (parseFloat(cs.paddingLeft) || 0) + (parseFloat(cs.paddingRight) || 0);
     var available = Math.max(96, wrap.clientWidth - pad - 4);
@@ -976,6 +978,7 @@ async function doRender() {
     ensurePreviewSvgAccessibility(svgEl, source);
     applyStrokeOverrides(svgEl);
     applyZoom(state.zoom);
+    if (autoFitPending && typeof fitToView === 'function') { fitToView(); autoFitPending = false; }
     statusText.textContent = "OK";
     statusText.className = "status-ok";
     statusDot.className = "status-dot ok";
@@ -1027,9 +1030,21 @@ document.getElementById('zoom-in-btn').addEventListener('click', function() {
 document.getElementById('zoom-out-btn').addEventListener('click', function() {
   applyZoom(state.zoom / 1.25);
 });
-document.getElementById('zoom-fit-btn').addEventListener('click', function() {
-  applyZoom(1);
-});
+function fitToView() {
+  var svgEl = previewInner.querySelector('svg');
+  if (!svgEl || !previewBody) { applyZoom(1); return; }
+  var nat = getSvgNaturalSize(svgEl);
+  var cs = getComputedStyle(previewBody);
+  var padX = (parseFloat(cs.paddingLeft) || 0) + (parseFloat(cs.paddingRight) || 0);
+  var padY = (parseFloat(cs.paddingTop) || 0) + (parseFloat(cs.paddingBottom) || 0);
+  var availW = previewBody.clientWidth - padX - 8;
+  var availH = previewBody.clientHeight - padY - 8;
+  if (availW <= 0 || availH <= 0 || nat.w <= 0 || nat.h <= 0) { applyZoom(1); return; }
+  // Shrink to fit; never enlarge a small diagram past its natural size.
+  applyZoom(Math.min(availW / nat.w, availH / nat.h, 1));
+}
+
+document.getElementById('zoom-fit-btn').addEventListener('click', fitToView);
 
 
 var panBtn = document.getElementById('pan-btn');
@@ -2249,35 +2264,57 @@ if (copySourceBtn) copySourceBtn.addEventListener('click', copySource);
 var copyAgentTaskBtn = document.getElementById('copy-agent-task-btn');
 if (copyAgentTaskBtn) copyAgentTaskBtn.addEventListener('click', copyAgentTask);
 
-function selectTextOutput(kind) {
-  var unicodeWrap = document.getElementById('unicode-output-wrap');
-  var asciiWrap = document.getElementById('ascii-output-wrap');
-  var unicodeTab = document.getElementById('unicode-output-tab');
-  var asciiTab = document.getElementById('ascii-output-tab');
-  var showAscii = kind === 'ascii';
-  if (unicodeWrap) { unicodeWrap.hidden = showAscii; unicodeWrap.classList.toggle('active', !showAscii); }
-  if (asciiWrap) { asciiWrap.hidden = !showAscii; asciiWrap.classList.toggle('active', showAscii); }
-  if (unicodeTab) { unicodeTab.classList.toggle('active', !showAscii); unicodeTab.setAttribute('aria-selected', showAscii ? 'false' : 'true'); unicodeTab.tabIndex = showAscii ? -1 : 0; }
-  if (asciiTab) { asciiTab.classList.toggle('active', showAscii); asciiTab.setAttribute('aria-selected', showAscii ? 'true' : 'false'); asciiTab.tabIndex = showAscii ? 0 : -1; }
-  if (!showAscii && typeof fitUnicodeOutput === 'function') fitUnicodeOutput();
+var currentCanvasFormat = 'diagram';
+var CANVAS_FORMATS = ['diagram', 'unicode', 'ascii'];
+
+// The preview shows one representation of the source at a time. Switching format
+// swaps the canvas view, gates the zoom controls to the diagram, and retargets
+// the copy button — so the same diagram is never on screen twice.
+function selectCanvasFormat(fmt) {
+  if (CANVAS_FORMATS.indexOf(fmt) < 0) fmt = 'diagram';
+  currentCanvasFormat = fmt;
+  document.querySelectorAll('[data-canvas-view]').forEach(function(el) {
+    el.hidden = el.dataset.canvasView !== fmt;
+  });
+  document.querySelectorAll('[data-canvas-format]').forEach(function(btn) {
+    var on = btn.dataset.canvasFormat === fmt;
+    btn.classList.toggle('is-active', on);
+    btn.setAttribute('aria-pressed', on ? 'true' : 'false');
+  });
+  var zoomControls = document.getElementById('zoom-controls');
+  if (zoomControls) zoomControls.hidden = fmt !== 'diagram';
+  if (copyTextOutputBtn) {
+    var label = fmt === 'diagram'
+      ? 'Copy Mermaid source'
+      : 'Copy ' + (fmt === 'ascii' ? 'ASCII' : 'Unicode') + ' output';
+    copyTextOutputBtn.title = label;
+    copyTextOutputBtn.setAttribute('aria-label', label);
+  }
+  if (fmt === 'unicode' && typeof fitUnicodeOutput === 'function') fitUnicodeOutput();
 }
 
-document.querySelectorAll('[data-output-tab]').forEach(function(btn) {
-  btn.addEventListener('click', function() { selectTextOutput(btn.dataset.outputTab); });
+document.querySelectorAll('[data-canvas-format]').forEach(function(btn) {
+  btn.addEventListener('click', function() { selectCanvasFormat(btn.dataset.canvasFormat); });
   btn.addEventListener('keydown', function(e) {
-    if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
+    if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(e.key)) return;
     e.preventDefault();
-    var next = btn.dataset.outputTab === 'ascii' ? 'unicode' : 'ascii';
-    selectTextOutput(next);
-    var nextBtn = document.querySelector('[data-output-tab="' + next + '"]');
-    if (nextBtn) nextBtn.focus();
+    var btns = Array.prototype.slice.call(document.querySelectorAll('[data-canvas-format]'));
+    var i = btns.indexOf(btn);
+    var n = e.key === 'Home' ? 0 : e.key === 'End' ? btns.length - 1
+      : (i + (e.key === 'ArrowRight' ? 1 : -1) + btns.length) % btns.length;
+    selectCanvasFormat(btns[n].dataset.canvasFormat);
+    btns[n].focus();
   });
 });
 
 if (copyTextOutputBtn) copyTextOutputBtn.addEventListener('click', function() {
-  var active = document.querySelector('.text-output.active code');
-  var value = active ? active.textContent : '';
-  writeClipboardText(value || '', 'Text output copied!', 'Copy text output failed.', copyTextOutputBtn);
+  if (currentCanvasFormat === 'diagram') {
+    writeClipboardText(editor.value, 'Source copied!', 'Copy source failed.', copyTextOutputBtn);
+    return;
+  }
+  var el = document.getElementById(currentCanvasFormat + '-output');
+  var name = currentCanvasFormat === 'ascii' ? 'ASCII' : 'Unicode';
+  writeClipboardText(el ? el.textContent : '', name + ' output copied!', 'Copy ' + name + ' failed.', copyTextOutputBtn);
 });
 
 document.addEventListener('click', function(e) {

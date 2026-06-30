@@ -1,4 +1,5 @@
 var renderTimer = null;
+var autoFitPending = true;
 
 function scheduleRender(delay) {
   if (renderTimer) clearTimeout(renderTimer);
@@ -197,6 +198,7 @@ function fitUnicodeOutput() {
   if (!wrap) return;
   unicodeOutput.style.fontSize = '';
   window.requestAnimationFrame(function() {
+    if (!wrap.clientWidth) return; // hidden (not the active canvas) — fit when shown
     var cs = getComputedStyle(wrap);
     var pad = (parseFloat(cs.paddingLeft) || 0) + (parseFloat(cs.paddingRight) || 0);
     var available = Math.max(96, wrap.clientWidth - pad - 4);
@@ -248,6 +250,7 @@ async function doRender() {
     ensurePreviewSvgAccessibility(svgEl, source);
     applyStrokeOverrides(svgEl);
     applyZoom(state.zoom);
+    if (autoFitPending && typeof fitToView === 'function') { fitToView(); autoFitPending = false; }
     statusText.textContent = "OK";
     statusText.className = "status-ok";
     statusDot.className = "status-dot ok";

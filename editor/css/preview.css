@@ -91,7 +91,7 @@
   box-sizing: border-box;
   position: relative;
   z-index: 0;
-  background: var(--bg2);
+  background: var(--canvas-matte);
 }
 .preview-body.pan-mode {
   cursor: grab;
@@ -121,7 +121,10 @@
 .preview-inner svg {
   display: block;
   flex-shrink: 0;
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-artboard);
 }
+.preview-inner[hidden] { display: none; }
 
 .preview-error {
   color: color-mix(in srgb, var(--red) 82%, var(--fg));
@@ -243,153 +246,85 @@
   transform: scale(0.96);
 }
 
-/* collapsible dock: verify + text output tuck below the preview so the
-   diagram gets the room. Native <details> keeps it accessible with no JS. */
-.preview-dock { flex-shrink: 0; border-top: 1px solid var(--border); background: var(--bg2); }
-.preview-dock > summary { list-style: none; cursor: pointer; display: flex; align-items: center; gap: 8px; min-height: 32px; padding: 4px 10px; color: var(--fg3); font-size: var(--t-label); font-weight: 700; line-height: var(--lh-ui); user-select: none; }
-.preview-dock > summary::-webkit-details-marker { display: none; }
-.preview-dock > summary::before {
-  content: ""; width: 12px; height: 12px; flex: none; background: currentColor;
-  -webkit-mask: url("data:image/svg+xml,%3Csvg viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='3' stroke-linecap='round' stroke-linejoin='round' xmlns='http://www.w3.org/2000/svg'%3E%3Cpolyline points='9 18 15 12 9 6'/%3E%3C/svg%3E") center/contain no-repeat;
-  mask: url("data:image/svg+xml,%3Csvg viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='3' stroke-linecap='round' stroke-linejoin='round' xmlns='http://www.w3.org/2000/svg'%3E%3Cpolyline points='9 18 15 12 9 6'/%3E%3C/svg%3E") center/contain no-repeat;
-  transition: transform 0.16s ease;
-}
-.preview-dock[open] > summary::before { transform: rotate(90deg); }
-.preview-dock > summary:hover { color: var(--fg); }
-.preview-dock > summary:focus-visible { outline: 2px solid color-mix(in srgb, var(--accent) 72%, var(--paper)); outline-offset: -2px; }
-.preview-dock .verify-panel { border-top: 0; }
-
-.verify-panel {
-  border-top: 1px solid var(--border);
-  background: var(--bg2);
-  padding: 8px 10px 10px;
-  flex-shrink: 0;
-}
-.verify-panel-head {
+/* Output format switch — same control idiom as the topbar segmented controls. */
+.format-switch {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  margin-bottom: 8px;
-}
-.verify-label {
-  color: var(--fg3);
-  font-size: var(--t-label);
-  font-weight: 700;
-  line-height: var(--lh-ui);
-  letter-spacing: 0;
-  text-transform: none;
-}
-.verify-summary {
-  color: var(--fg2);
-  font-size: var(--t-label);
-  text-align: right;
-}
-.verify-tiers {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 6px;
-}
-.verify-tier {
-  min-width: 0;
-  display: grid;
-  grid-template-columns: auto 1fr;
-  align-items: center;
-  gap: 2px 7px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
-  padding: 7px 8px;
-  background: var(--surface);
-  color: var(--fg3);
-  font-size: var(--t-label);
-  line-height: var(--lh-heading);
-}
-.verify-tier strong {
-  color: var(--fg);
-  font-size: var(--t-label);
-  font-weight: 700;
-}
-.verify-tier span:last-child {
-  grid-column: 2;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.verify-dot {
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  background: var(--fg4);
-  grid-row: 1 / span 2;
-}
-.verify-tier.ok .verify-dot { background: var(--green); }
-.verify-tier.warn .verify-dot { background: var(--warn); }
-.verify-tier.err .verify-dot { background: var(--red); }
-.verify-tier.idle { opacity: 0.8; }
-@media (max-width: 760px) {
-  .verify-tiers { grid-template-columns: 1fr; }
-}
-
-.text-output-panel {
-  border-top: 1px solid var(--border);
-  background: var(--bg2);
-  flex-shrink: 0;
-}
-.text-output-toolbar {
-  min-height: 38px;
-  padding: 5px 10px;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-.text-output-label {
-  color: var(--fg3);
-  font-size: var(--t-label);
-  font-weight: 700;
-  line-height: var(--lh-ui);
-  letter-spacing: 0;
-  text-transform: none;
-}
-.text-output-tabs {
-  margin-left: auto;
-  display: inline-flex;
-  gap: 3px;
+  gap: 1px;
   padding: 3px;
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-lg);
   background: var(--control-bg);
+  border: 1px solid var(--line);
 }
-.text-output-tab {
-  height: 28px;
-  padding: 0 9px;
-  border: 0;
-  border-radius: var(--radius-sm);
+.format-option {
+  min-height: 30px;
+  padding: 0 11px;
+  border: none;
+  border-radius: var(--radius-md);
   background: transparent;
-  color: var(--fg3);
+  color: var(--control-fg);
   font: inherit;
-  font-size: var(--t-label);
-  font-weight: 650;
+  font-size: var(--t-control);
+  font-weight: 500;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: color 0.15s, background 0.15s, box-shadow 0.15s, transform 0.1s;
 }
-.text-output-tab.active {
+.format-option:hover { color: var(--fg); }
+.format-option.is-active {
+  color: var(--ink);
   background: var(--paper);
-  color: var(--fg);
   box-shadow: var(--shadow-control);
 }
-.text-output {
-  max-height: 190px;
-  min-height: 92px;
-  overflow-y: auto;
-  overflow-x: hidden;
-  margin: 0;
-  padding: 12px 14px;
-  border-top: 1px solid var(--line);
+.format-option:active { transform: scale(0.96); }
+.zoom-controls[hidden] { display: none; }
+
+/* Text canvas — Unicode / ASCII get the same artboard treatment as the diagram,
+   on a code surface, so switching format reads as one canvas, not a side panel. */
+.text-canvas {
+  width: max-content;
+  max-width: 100%;
+  margin: 0 auto;
+  padding: 16px 18px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
   background: var(--surface);
+  box-shadow: var(--shadow-artboard);
   color: var(--fg2);
   font-family: var(--font-mono);
-  font-size: var(--t-label);
+  font-size: var(--t-mono);
   line-height: var(--lh-ui);
   white-space: pre;
 }
-.text-output code { display: inline-block; max-width: 100%; font-family: inherit; font-size: inherit; transform-origin: top left; }
+.text-canvas[hidden] { display: none; }
+.text-canvas code { display: inline-block; font-family: inherit; font-size: inherit; transform-origin: top left; }
+
+/* Verify status — one slim bar. Verdict on the left, tier dots on the right;
+   the dot colour carries pass / advisory / error, so "all clear" stays quiet. */
+.verify-bar {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px 14px;
+  flex-wrap: wrap;
+  min-height: 34px;
+  padding: 5px 12px;
+  border-top: 1px solid var(--border);
+  background: var(--bg2);
+  font-size: var(--t-label);
+  line-height: var(--lh-ui);
+}
+.verify-verdict { color: var(--fg2); font-weight: 650; }
+.verify-tiers { margin-left: auto; display: flex; align-items: center; gap: 13px; flex-wrap: wrap; }
+.verify-tier { display: inline-flex; align-items: center; gap: 5px; color: var(--fg3); white-space: nowrap; }
+.verify-tier i { font-style: normal; color: var(--fg4); }
+.verify-tier.idle { opacity: 0.6; }
+.verify-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--fg4); flex: none; }
+.verify-tier.ok .verify-dot { background: var(--green); }
+.verify-tier.warn .verify-dot { background: var(--warn); }
+.verify-tier.err .verify-dot { background: var(--red); }
+@media (max-width: 760px) {
+  .verify-tiers { margin-left: 0; }
+}
 
 .preview-footer {
   display: flex;
