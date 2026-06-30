@@ -1010,17 +1010,33 @@ interface StraightenAttempt {
  * primary-forward edges, the sign-flipped axis for feedback edges (their
  * forward-facing side is the graph's backward-facing one).
  */
-function tryStraighten(
+/** The cross-lane geometry a straightening attempt works within: the two
+ *  attachment spans' overlap, the diamond-relaxed overlap that port lanes may
+ *  use, the ordered candidate lanes, and the port-lane predicate. Shared by the
+ *  mutating straightener (tryStraighten) and the read-only predictor
+ *  (straightLaneFor) so both rank lanes identically. `null` when no lane can
+ *  attach (a span is missing or the relaxed overlap is empty). */
+interface LaneSearch {
+  overlapLo: number
+  overlapHi: number
+  relaxedLo: number
+  relaxedHi: number
+  candidates: number[]
+  isPortLane: (c: number) => boolean
+  emptyRelaxed: boolean
+}
+
+function laneSearch(
   edge: PositionedEdge,
   source: PositionedNode,
   target: PositionedNode,
   ctx: LaneContext,
-  axis: Axis = ctx.axis,
+  axis: Axis,
   restrictToLane?: number,
-): StraightenAttempt {
+): LaneSearch | null {
   const srcSpan = attachSpan(source, axis)
   const tgtSpan = attachSpan(target, axis)
-  if (!srcSpan || !tgtSpan) return { applied: false, blockers: [] }
+  if (!srcSpan || !tgtSpan) return null
 
   const overlapLo = Math.max(srcSpan.lo, tgtSpan.lo)
   const overlapHi = Math.min(srcSpan.hi, tgtSpan.hi)
@@ -1037,7 +1053,7 @@ function tryStraighten(
   const isPortLane = (c: number) =>
     Math.abs(c - portCross(target)) <= PORT_TOLERANCE || Math.abs(c - portCross(source)) <= PORT_TOLERANCE
   if (relaxedLo > relaxedHi) {
-    return { applied: false, blockers: [{ kind: 'span', id: edgeId(edge) }] }
+    return { overlapLo, overlapHi, relaxedLo, relaxedHi, candidates: [], isPortLane, emptyRelaxed: true }
   }
 
   const candidates: number[] = []
@@ -1114,47 +1130,115 @@ function tryStraighten(
     push(((overlapLo + overlapHi) / 2 + overlapHi) / 2)
   }
 
+  return { overlapLo, overlapHi, relaxedLo, relaxedHi, candidates, isPortLane, emptyRelaxed: false }
+}
+
+/** Test ONE candidate lane `c` for a straight `source`->`target` route. Returns
+ *  the proven straight endpoints when the lane is in span, monotone, obstacle-
+ *  clear, crossing-free, and label-hostable; otherwise the blocker(s) that
+ *  rejected it. Pure — never mutates the edge — so both the mutating
+ *  straightener and the read-only predictor share one lane proof. */
+function proveLane(
+  edge: PositionedEdge,
+  source: PositionedNode,
+  target: PositionedNode,
+  c: number,
+  ctx: LaneContext,
+  axis: Axis,
+  search: LaneSearch,
+): { start: Point; end: Point; slot: Point | null } | { blockers: RouteBlocker[] } {
+  const lo = search.isPortLane(c) ? search.relaxedLo : search.overlapLo
+  const hi = search.isPortLane(c) ? search.relaxedHi : search.overlapHi
+  if (c < lo - EPS || c > hi + EPS) return { blockers: [{ kind: 'span', id: edgeId(edge) }] }
+  const srcMain = anchorMain(source, c, axis, 1)
+  const tgtMain = anchorMain(target, c, axis, -1)
+  if ((tgtMain - srcMain) * axis.sign <= EPS) return { blockers: [{ kind: 'span', id: edgeId(edge) }] }
+  const mainLo = Math.min(srcMain, tgtMain)
+  const mainHi = Math.max(srcMain, tgtMain)
+  const found = directLaneBlockers(edge, c, mainLo, mainHi, ctx, axis)
+  if (found.length > 0) return { blockers: found }
+  const start: Point = axis.main === 'x' ? { x: srcMain, y: c } : { x: c, y: srcMain }
+  const end: Point = axis.main === 'x' ? { x: tgtMain, y: c } : { x: c, y: tgtMain }
+  // A repair may never increase edge crossings: a perpendicular crossing is
+  // legal when the router chose it, but the straightener must not create
+  // one that the original route avoided.
+  if (countRouteCrossings([start, end], edge, ctx) > countRouteCrossings(edge.points, edge, ctx)) {
+    return { blockers: [{ kind: 'crossing', id: edgeId(edge) }] }
+  }
+  const slot = findLabelSlot(edge, start, end, ctx)
+  if (slot === null) return { blockers: [{ kind: 'label', id: edgeId(edge) }] }
+  return { start, end, slot }
+}
+
+function tryStraighten(
+  edge: PositionedEdge,
+  source: PositionedNode,
+  target: PositionedNode,
+  ctx: LaneContext,
+  axis: Axis = ctx.axis,
+  restrictToLane?: number,
+): StraightenAttempt {
+  const search = laneSearch(edge, source, target, ctx, axis, restrictToLane)
+  if (!search) return { applied: false, blockers: [] }
+  if (search.emptyRelaxed) return { applied: false, blockers: [{ kind: 'span', id: edgeId(edge) }] }
+
   const blockers: RouteBlocker[] = []
-  for (let candidateIndex = 0; candidateIndex < candidates.length; candidateIndex++) {
-    const c = candidates[candidateIndex]!
-    const lo = isPortLane(c) ? relaxedLo : overlapLo
-    const hi = isPortLane(c) ? relaxedHi : overlapHi
-    if (c < lo - EPS || c > hi + EPS) {
-      blockers.push({ kind: 'span', id: edgeId(edge) })
+  for (let candidateIndex = 0; candidateIndex < search.candidates.length; candidateIndex++) {
+    const c = search.candidates[candidateIndex]!
+    const proven = proveLane(edge, source, target, c, ctx, axis, search)
+    if ('blockers' in proven) {
+      blockers.push(...proven.blockers)
       continue
     }
-    const srcMain = anchorMain(source, c, axis, 1)
-    const tgtMain = anchorMain(target, c, axis, -1)
-    if ((tgtMain - srcMain) * axis.sign <= EPS) {
-      blockers.push({ kind: 'span', id: edgeId(edge) })
-      continue
-    }
-    const mainLo = Math.min(srcMain, tgtMain)
-    const mainHi = Math.max(srcMain, tgtMain)
-    const found = directLaneBlockers(edge, c, mainLo, mainHi, ctx, axis)
-    if (found.length > 0) {
-      blockers.push(...found)
-      continue
-    }
-    const start: Point = axis.main === 'x' ? { x: srcMain, y: c } : { x: c, y: srcMain }
-    const end: Point = axis.main === 'x' ? { x: tgtMain, y: c } : { x: c, y: tgtMain }
-    // A repair may never increase edge crossings: a perpendicular crossing is
-    // legal when the router chose it, but the straightener must not create
-    // one that the original route avoided.
-    if (countRouteCrossings([start, end], edge, ctx) > countRouteCrossings(edge.points, edge, ctx)) {
-      blockers.push({ kind: 'crossing', id: edgeId(edge) })
-      continue
-    }
-    const slot = findLabelSlot(edge, start, end, ctx)
-    if (slot === null) {
-      blockers.push({ kind: 'label', id: edgeId(edge) })
-      continue
-    }
-    edge.points = [start, end]
-    if (edge.label) edge.labelPosition = slot
+    edge.points = [proven.start, proven.end]
+    if (edge.label) edge.labelPosition = proven.slot ?? undefined
     return { applied: true, blockers: [], usedCandidateIndex: candidateIndex }
   }
   return { applied: false, blockers: dedupeBlockers(blockers) }
+}
+
+/**
+ * Read-only predictor: the cross-lane `tryStraighten` would settle this edge
+ * onto for the current node positions, or `null` when no straight lane proves
+ * clear (the edge stays a staircase). Runs the SAME ranked candidate search and
+ * per-lane proof as `tryStraighten` but mutates nothing — so a placement pass
+ * can move the source onto the lane the straightener will use, BEFORE the
+ * freeze, and have the exit land on the moved source's mid-port instead of the
+ * straightener pulling it off. Restricted to primary-forward edges (the class
+ * the placement passes repair); feedback/diamond-spread ranking is unchanged.
+ */
+export function straightLaneFor(
+  edge: PositionedEdge,
+  source: PositionedNode,
+  target: PositionedNode,
+  ctx: LaneContext,
+  axis: Axis = ctx.axis,
+): number | null {
+  const search = laneSearch(edge, source, target, ctx, axis)
+  if (!search || search.emptyRelaxed) return null
+  if (!isStraightenable(source.shape) || !isStraightenable(target.shape)) return null
+  if (!isMonotoneStaircase(edge.points, axis)) return null
+  for (const c of search.candidates) {
+    const proven = proveLane(edge, source, target, c, ctx, axis, search)
+    if (!('blockers' in proven)) return c
+  }
+  return null
+}
+
+/** A minimal LaneContext for the read-only predictor. Omits the port-ranking
+ *  occupancy (sideUse) and route classes the mutating pass derives — the
+ *  predictor treats every foreign label as an obstacle (conservative) and never
+ *  needs the diamond-vertex emit ranking, which the placement passes don't move
+ *  onto. Exported so the placement passes can predict lanes without rebuilding
+ *  the route-class/port-allocation machinery. */
+export function laneContextFor(
+  nodes: PositionedNode[],
+  edges: PositionedEdge[],
+  direction: Direction,
+  style: LabelMetricsStyle,
+): { ctx: LaneContext; axis: Axis } {
+  const axis = axisFor(direction)
+  return { ctx: { nodes, edges, axis, style }, axis }
 }
 
 /**

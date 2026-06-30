@@ -975,10 +975,10 @@ export const LAYOUT_PIPELINE: ReadonlyArray<LayoutPass<LayoutPassContext>> = [
     // Runs LAST among the node-movers (after centering/rank-shoving settle the
     // target's entry lane) but before the freeze, so it aligns the labelled
     // source onto the target's FINAL lane.
-    id: 'alignLabeledSourcePort', doc: 'slide a single-edge labelled source onto its target entry lane so the straightener keeps the exit mid-port (alignPortLanes excludes labelled edges)',
+    id: 'alignLabeledSourcePort', doc: 'slide a single-outgoing labelled source onto the lane the straightener will use so the exit stays mid-port (alignPortLanes excludes labelled edges)',
     after: ['honorLinkRankDistance'], mutates: ['positions', 'edges'], determinism: 'in-place',
     mayChangeMetrics: { portRate: 'improve-only' },
-    run: c => { alignLabeledSourcePort(c.nodes, c.edges, c.groups, c.graph.direction) },
+    run: c => { alignLabeledSourcePort(c.nodes, c.edges, c.groups, c.graph.direction, c.style) },
   },
   {
     id: 'bundleEdgePaths', doc: 'bundle fan-out/fan-in edges into shared trunks (when mergeEdges)',

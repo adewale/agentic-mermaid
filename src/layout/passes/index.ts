@@ -20,7 +20,7 @@ import type { ResolvedRenderStyle } from '../../styles.ts'
 import { measureMultilineText } from '../../text-metrics.ts'
 import { clipEdgeToShape } from '../../shape-clipping.ts'
 import { onShapeOutline } from '../../layout-rubric.ts'
-import { classifyRoutes, diamondFacetPorts, labelRect, PORT_EXACT, shapePorts, simplifyPolyline } from '../../route-contracts.ts'
+import { classifyRoutes, diamondFacetPorts, labelRect, laneContextFor, PORT_EXACT, shapePorts, simplifyPolyline, straightLaneFor } from '../../route-contracts.ts'
 import type { LabelMetricsStyle } from '../../route-contracts.ts'
 import { resolveEdgeInlineStyle } from '../../color-resolver.ts'
 import {
@@ -1863,27 +1863,38 @@ function collectEdgeSegments(
  * labelled edges (`if (e.label) continue`), so the labelled case is never
  * repaired — which is what made global label-decoupling look necessary.
  *
- * Here we handle the one case that is unambiguously safe: a source whose ONLY
- * incident edge is a single straight labelled edge. Sliding that source onto the
- * edge's existing (already straight) lane makes the exit port-exact WITHOUT
- * adding a bend and WITHOUT touching any other edge — the node simply moves to
- * meet its own outgoing edge, so there is no cascade to reason about and the
- * edge's own geometry (and its label) is unchanged. Gated on the slid box
- * staying clear of every other node and foreign edge corridor (the same
- * occlusion doctrine the other slides enforce); the independent hard-invariant
- * gate (property-hard-invariants) is the backstop. Freeze-safe: only the source
- * node moves and only its own exit endpoint is re-anchored (exactly, via
- * shapePorts, so curved shapes stay port-exact).
+ * The source's exit is whatever cross-LANE the certifying straightener
+ * (applyRouteContracts) finally settles the edge onto — and that lane is chosen
+ * downstream: it depends on the target's span, the label pill's fit, and any
+ * fan-in. Aligning the source's mid to the TARGET's mid (the previous fix) only
+ * works when the straightener happens to pick the shared mid lane; with a wide
+ * label the pill cannot sit on the centred lane (so the straightener drops to an
+ * off-centre lane), and with a fan-in skew the mids are too far apart for any
+ * single lane to be port-exact at both ends. Both leave the source off-port.
+ *
+ * The general fix is to move the source onto the lane the straightener WILL use,
+ * BEFORE the freeze, so the exit lands on the moved source's mid-port. We ask
+ * the straightener's own read-only predictor (`straightLaneFor`) which lane it
+ * will pick, iterating to a fixed point because moving the source shifts its
+ * attach span (which can change the feasible lane). Then we slide the source by
+ * that delta and re-anchor its exit endpoint exactly onto the mid-port. The
+ * source may carry incoming edges (degree >= 2): their terminal run translates
+ * with the node (anchored at the far end, the same machinery alignPortLanes
+ * uses), so no edge is dragged off its other endpoint. Gated on the slid box
+ * clearing every other node and foreign edge corridor (the occlusion doctrine
+ * the other slides enforce); the independent hard-invariant gate is the backstop.
  */
 export function alignLabeledSourcePort(
   nodes: PositionedNode[],
   edges: PositionedEdge[],
   groups: PositionedGroup[],
   direction: Direction,
+  style: LabelMetricsStyle,
 ): void {
   if (layoutEnvFlag('APL_NO_LABELED_SOURCE_PORT')) return
   const isHorizontal = direction === 'LR' || direction === 'RL'
   const cross = isHorizontal ? ('y' as const) : ('x' as const)
+  const main = isHorizontal ? ('x' as const) : ('y' as const)
   const exitSide: 'N' | 'E' | 'S' | 'W' = isHorizontal
     ? (direction === 'LR' ? 'E' : 'W')
     : (direction === 'BT' ? 'N' : 'S')
@@ -1902,55 +1913,104 @@ export function alignLabeledSourcePort(
     n.x + n.width <= g.x + g.width + 0.5 && n.y + n.height <= g.y + g.height + 0.5)
 
   const nodeMap = new Map(nodes.map(n => [n.id, n]))
-
-  const main = isHorizontal ? ('x' as const) : ('y' as const)
   // The exit-side main coordinate of S's forward port (right edge for LR, etc).
   const exitMain = (n: PositionedNode) => (main === 'x'
     ? (exitSide === 'E' ? n.x + n.width : n.x)
     : (exitSide === 'S' ? n.y + n.height : n.y))
 
+  // Gather S plus every upstream predecessor that must travel WITH it so its
+  // own incoming edge keeps its mid-port: each single-out, PORT_EXACT and
+  // ungrouped. Returns null if the chain is fed by a fan-out hub or an
+  // unmovable single-out source — we then leave S put rather than knock another
+  // source off its port (the degree-2 defect the narrow slide used to create).
+  const gatherMovableChain = (root: PositionedNode, labelled: PositionedEdge): Set<string> | null => {
+    const set = new Set<string>([root.id])
+    const stack = [root.id]
+    while (stack.length) {
+      const nId = stack.pop()!
+      for (const o of edges) {
+        if (o.target !== nId || o === labelled) continue // incoming edges only
+        const P = nodeMap.get(o.source)
+        if (!P || set.has(P.id)) continue
+        if (edges.filter(x => x.source === P.id).length !== 1) return null // fan-out hub upstream
+        if (!PORT_EXACT.has(P.shape) || inGroup(P)) return null            // unmovable source
+        set.add(P.id); stack.push(P.id)
+      }
+    }
+    return set
+  }
+
   for (const e of edges) {
     if (!e.label || e.points.length < 2 || e.source === e.target) continue
     const S = nodeMap.get(e.source)
     if (!S || !PORT_EXACT.has(S.shape) || inGroup(S)) continue
-    // S's ONLY incident edge must be e (degree 1): moving S then touches no
-    // other edge, so there is no run to translate and no far endpoint to drag.
-    if (edges.some(o => o !== e && (o.source === S.id || o.target === S.id))) continue
+    // S must emit exactly this one forward edge — its lane is then S's sole
+    // claim on the exit side, so re-centring it onto that lane is unambiguous.
+    // (S MAY have incoming edges; their nodes translate with the slide.)
+    if (edges.some(o => o !== e && o.source === S.id && o.target !== S.id)) continue
     // The edge must actually leave S from its forward exit side, so sliding S
     // along the cross axis re-centres a genuine side-exit (not a corner stub).
-    const exit = e.points[0]!
-    if (Math.abs(exit[main] - exitMain(S)) > 1) continue
+    if (Math.abs(e.points[0]![main] - exitMain(S)) > 1) continue
     const T = nodeMap.get(e.target)
-    if (!T) continue
-    // Align S's mid-port with the TARGET's mid-port. The route here is a
-    // staircase that already exits S at mid-port, but the certifying straightener
-    // will collapse it onto the target's facing-side lane and so pull the exit
-    // OFF S's mid (S's mid can sit outside the target's box, so a straight line
-    // there can't reach it). Sliding S until its mid lines up with the target's
-    // mid lets the straightener draw one straight horizontal that is port-exact
-    // at BOTH ends — no bend — instead of straight-but-off-source-port.
-    const delta = portCross(T) - portCross(S)
-    if (Math.abs(delta) <= 1) continue // mid-ports already aligned
+    if (!T || !PORT_EXACT.has(T.shape) || inGroup(T)) continue
 
-    // The slid box must clear every other node (with margin) and not cut a
+    // Find the lane the straightener will settle e onto, then the delta to put
+    // S's mid there. Moving S shifts its attach span, which can change the
+    // feasible lane, so iterate to a fixed point (converges in 1-2 rounds; the
+    // candidate set is discrete). Probe on a CLONE of S so the search never
+    // mutates committed geometry; commit only the converged delta.
+    const { ctx, axis } = laneContextFor(nodes, edges, direction, style)
+    let delta = 0
+    let converged = false
+    const probe = { ...S }
+    for (let iter = 0; iter < 4; iter++) {
+      const lane = straightLaneFor(e, probe, T, ctx, axis)
+      if (lane === null) break
+      const step = lane - portCross(probe)
+      delta += step
+      probe[cross] += step
+      if (Math.abs(step) <= 0.5) { converged = true; break }
+    }
+    if (!converged || Math.abs(delta) <= 1) continue
+
+    // S's slide must carry its whole upstream chain, so no incoming source is
+    // left off its mid-port. Gather it; abort the slide if it can't move cleanly.
+    const chain = gatherMovableChain(S, e)
+    if (!chain) continue
+    const chainNodes = [...chain].map(id => nodeMap.get(id)).filter(Boolean) as PositionedNode[]
+    const movedRect = (n: PositionedNode) => ({
+      x: isHorizontal ? n.x : n.x + delta,
+      y: isHorizontal ? n.y + delta : n.y,
+      width: n.width, height: n.height,
+    })
+    // Every moved box must clear every UNMOVED node (with margin) and not cut a
     // foreign edge corridor — never create a node overlap or edge-through-node.
-    const nx = isHorizontal ? S.x : S.x + delta
-    const ny = isHorizontal ? S.y + delta : S.y
-    const hitsNode = nodes.some(o => o !== S &&
-      nx - GAP < o.x + o.width && nx + S.width + GAP > o.x &&
-      ny - GAP < o.y + o.height && ny + S.height + GAP > o.y)
+    const hitsNode = nodes.some(o => !chain.has(o.id) && chainNodes.some(n => {
+      const m = movedRect(n)
+      return m.x - GAP < o.x + o.width && m.x + m.width + GAP > o.x &&
+        m.y - GAP < o.y + o.height && m.y + m.height + GAP > o.y
+    }))
     if (hitsNode) continue
-    const cutsEdge = edges.some(o => o !== e && o.source !== S.id && o.target !== S.id &&
-      o.points.some((p, i) => {
-        if (i === 0) return false
-        const q = o.points[i - 1]!
-        return Math.max(p.x, q.x) > nx + 0.5 && Math.min(p.x, q.x) < nx + S.width - 0.5 &&
-          Math.max(p.y, q.y) > ny + 0.5 && Math.min(p.y, q.y) < ny + S.height - 0.5
+    // Intra-chain edges move WITH their nodes, so they are exempt from the
+    // foreign-corridor cut test; only edges incident to no moved node count.
+    const cutsEdge = edges.some(o => !chain.has(o.source) && !chain.has(o.target) &&
+      chainNodes.some(n => {
+        const m = movedRect(n)
+        return o.points.some((p, i) => {
+          if (i === 0) return false
+          const q = o.points[i - 1]!
+          return Math.max(p.x, q.x) > m.x + 0.5 && Math.min(p.x, q.x) < m.x + m.width - 0.5 &&
+            Math.max(p.y, q.y) > m.y + 0.5 && Math.min(p.y, q.y) < m.y + m.height - 0.5
+        })
       }))
     if (cutsEdge) continue
 
-    if (isHorizontal) S.y += delta
-    else S.x += delta
+    // Commit: translate every chain node, and every intra-chain edge, rigidly by
+    // delta — so each incoming edge stays straight and exits its source at mid.
+    for (const n of chainNodes) { if (isHorizontal) n.y += delta; else n.x += delta }
+    for (const o of edges) {
+      if (chain.has(o.source) && chain.has(o.target)) for (const p of o.points) p[cross] += delta
+    }
     e.points[0] = shapePorts(S)[exitSide]
   }
 }

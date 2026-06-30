@@ -758,7 +758,7 @@ in sync by `src/__tests__/layout-pass-docsync.test.ts` (regenerate with
 5. `alignPortLanes` - slide one endpoint node so a floating-straight edge becomes port-exact (Ruegg GD15)
 6. `centerPeerBarycenters` - center peer fan-in/fan-out trunks over peer barycenters (#57/#61)
 7. `honorLinkRankDistance` - shove target sub-DAG to honor variable-length link rank distance
-8. `alignLabeledSourcePort` - slide a single-edge labelled source onto its target entry lane so the straightener keeps the exit mid-port (alignPortLanes excludes labelled edges)
+8. `alignLabeledSourcePort` - slide a single-outgoing labelled source onto the lane the straightener will use so the exit stays mid-port (alignPortLanes excludes labelled edges)
 9. `bundleEdgePaths` - bundle fan-out/fan-in edges into shared trunks (when mergeEdges)
 10. `clipEdgeToShape` - clip edge endpoints to real (non-rect) shape outlines
 11. `applySymmetricFanoutEmissions` - re-route small equivalent fan-outs symmetrically; mark bundle-owned

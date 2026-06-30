@@ -12,7 +12,7 @@
 // The CANONICAL port-displacement defect (the minimal repro below — the
 // "warnings → warnings line not using the mid-point port" report) is now fixed in
 // the DEFAULT path, in place and without decoupling, by the alignLabeledSourcePort
-// pass — see align-labeled-source-port.test.ts. So BOTH paths now exit A at its
+// pass — see labeled-source-port-property.test.ts. So BOTH paths now exit A at its
 // mid-port here; this file keeps the decoupling flag pinned as a regression guard
 // (it must not re-break the port it already preserved).
 
