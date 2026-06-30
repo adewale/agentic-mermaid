@@ -107,3 +107,30 @@
   cursor: pointer;
   border: 2px solid var(--paper);
 }
+
+/* Reset overrides back to the active theme. Sits at the foot of the panel
+   (margin-top:auto) so it claims the otherwise-empty space below the sections. */
+.config-footer {
+  margin-top: auto;
+  padding: 0.75rem 1rem;
+}
+.config-reset-btn {
+  width: 100%;
+  min-height: 36px;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--fg2);
+  font: inherit;
+  font-size: var(--t-label);
+  font-weight: 600;
+  cursor: pointer;
+  transition: color 0.15s, background 0.15s, border-color 0.15s, transform 0.1s;
+}
+.config-reset-btn:hover {
+  color: var(--fg);
+  background: var(--control-bg-hover);
+  border-color: var(--line-strong);
+}
+.config-reset-btn:active { transform: scale(0.98); }

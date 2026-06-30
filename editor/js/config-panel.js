@@ -127,3 +127,23 @@ edgeStrokeNum.addEventListener('input',    function() { setEdgeStroke(edgeStroke
 edgeStrokeSlider.addEventListener('input', function() { setEdgeStroke(edgeStrokeSlider.value); });
 nodeStrokeNum.addEventListener('input',    function() { setNodeStroke(nodeStrokeNum.value); });
 nodeStrokeSlider.addEventListener('input', function() { setNodeStroke(nodeStrokeSlider.value); });
+
+// Clear every override (colors, font, padding, strokes) back to the active
+// theme's defaults. setPadding / fontSelectLabel live in font-picker.js, which
+// loads later but shares scope; this only runs on click, by which point they
+// are defined.
+function resetConfig() {
+  Object.keys(cfgColors).forEach(function(k) { cfgColors[k] = ''; });
+  cfgFont = '';
+  if (typeof fontSelectLabel !== 'undefined' && fontSelectLabel) fontSelectLabel.textContent = 'Default';
+  if (typeof setEdgeStroke === 'function') setEdgeStroke(1);
+  if (typeof setNodeStroke === 'function') setNodeStroke(1);
+  if (typeof setPadding === 'function') setPadding(24);
+  refreshAllColorUIs();
+  readConfig();
+  if (typeof scheduleRender === 'function') scheduleRender(0);
+  if (typeof showToast === 'function') showToast('Style reset to theme.');
+}
+
+var configResetBtn = document.getElementById('config-reset-btn');
+if (configResetBtn) configResetBtn.addEventListener('click', resetConfig);

@@ -105,7 +105,7 @@
 }
 .example-dropdown-item {
   display: grid;
-  grid-template-columns: 1fr auto;
+  grid-template-columns: 1fr;
   gap: 4px 8px;
   align-items: start;
   border: none;
@@ -155,12 +155,6 @@
   font-weight: 700;
   line-height: 1;
   flex-shrink: 0;
-}
-.example-item-meta {
-  color: var(--fg3);
-  font-size: 0.75rem;
-  line-height: var(--lh-ui);
-  white-space: nowrap;
 }
 .example-item-description {
   grid-column: 1 / -1;

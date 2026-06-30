@@ -773,7 +773,7 @@ body {
 }
 .example-dropdown-item {
   display: grid;
-  grid-template-columns: 1fr auto;
+  grid-template-columns: 1fr;
   gap: 4px 8px;
   align-items: start;
   border: none;
@@ -823,12 +823,6 @@ body {
   font-weight: 700;
   line-height: 1;
   flex-shrink: 0;
-}
-.example-item-meta {
-  color: var(--fg3);
-  font-size: 0.75rem;
-  line-height: var(--lh-ui);
-  white-space: nowrap;
 }
 .example-item-description {
   grid-column: 1 / -1;
@@ -1517,6 +1511,33 @@ body {
   border: 2px solid var(--paper);
 }
 
+/* Reset overrides back to the active theme. Sits at the foot of the panel
+   (margin-top:auto) so it claims the otherwise-empty space below the sections. */
+.config-footer {
+  margin-top: auto;
+  padding: 0.75rem 1rem;
+}
+.config-reset-btn {
+  width: 100%;
+  min-height: 36px;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--fg2);
+  font: inherit;
+  font-size: var(--t-label);
+  font-weight: 600;
+  cursor: pointer;
+  transition: color 0.15s, background 0.15s, border-color 0.15s, transform 0.1s;
+}
+.config-reset-btn:hover {
+  color: var(--fg);
+  background: var(--control-bg-hover);
+  border-color: var(--line-strong);
+}
+.config-reset-btn:active { transform: scale(0.98); }
+
 
 .color-popup {
   display: none;
@@ -2105,8 +2126,6 @@ body {
     </svg>
   </button>
 
-  <div class="topbar-sep"></div>
-
   <div class="theme-dropdown-wrap" id="theme-dropdown-wrap">
     <button class="theme-dropdown-btn" id="theme-dropdown-btn" type="button" aria-label="Diagram theme" aria-haspopup="listbox" aria-expanded="false" aria-controls="theme-dropdown-menu">
       <span class="theme-swatch" id="theme-btn-swatch"></span>
@@ -2466,6 +2485,10 @@ body {
         />
       </div>
     </div>
+
+    <div class="config-footer">
+      <button class="config-reset-btn" id="config-reset-btn" type="button">Reset to theme</button>
+    </div>
   </div>
 
   <!-- Color picker popup (shared) -->
@@ -2610,6 +2633,6 @@ body {
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
 <!-- Bundled renderer -->
-<script type="module" src="/editor/editor-3a2de370e91a.js"></script>
+<script type="module" src="/editor/editor-699dd7ac13ef.js"></script>
 </body>
 </html>
