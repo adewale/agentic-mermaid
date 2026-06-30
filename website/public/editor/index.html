@@ -569,6 +569,16 @@ body {
   background: var(--accent-hover, var(--accent));
   color: var(--paper);
 }
+/* Dark mode: the lightened Dusk accent makes a washed-out fill, so the primary
+   button takes a saturated terracotta with light text instead. */
+[data-scheme="dark"] .btn-primary {
+  background: #BD5F2C;
+  color: #FBF2E1;
+}
+[data-scheme="dark"] .btn-primary:hover {
+  background: #C96E38;
+  color: #FBF2E1;
+}
 .btn-primary:disabled:hover,
 .btn-primary[aria-disabled="true"]:hover {
   opacity: 0.45;
@@ -611,17 +621,8 @@ body {
   .mode-preview-only {
     display: inline-flex;
   }
-  .examples-toggle,
-  .agent-task-btn {
+  .examples-toggle {
     order: 1;
-  }
-  .agent-task-btn {
-    max-width: 64px;
-    font-size: 0;
-  }
-  .agent-task-btn::after {
-    content: "Task";
-    font-size: var(--t-control);
   }
   .spacer {
     display: none;
@@ -2169,8 +2170,6 @@ body {
 
   <div class="topbar-sep"></div>
 
-  <button class="btn agent-task-btn" id="copy-agent-task-btn" type="button" title="Copy the current diagram, your task, and the agent contract — ready to paste to an agent">Copy for agent</button>
-
   <div class="export-wrap" id="export-wrap">
     <button class="btn btn-primary" id="export-main-btn" type="button" title="Save PNG (⌘S)" disabled aria-disabled="true">
       <svg
@@ -2281,6 +2280,20 @@ body {
           <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
         </svg>
         <span class="export-item-label">Copy link</span>
+      </button>
+      <button class="export-item" id="copy-agent-prompt-btn" type="button" title="Copies a ready-to-paste prompt — your diagram, your task, and the editing rules — for a coding agent like Claude Code or Cursor">
+        <svg
+          class="export-item-icon"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1.75"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+        </svg>
+        <span class="export-item-label">Copy agent prompt</span>
       </button>
 
       <div class="export-divider"></div>
@@ -2633,6 +2646,6 @@ body {
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
 <!-- Bundled renderer -->
-<script type="module" src="/editor/editor-699dd7ac13ef.js"></script>
+<script type="module" src="/editor/editor-46fdfc18e777.js"></script>
 </body>
 </html>

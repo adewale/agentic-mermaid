@@ -761,6 +761,7 @@ function applyThemeToPage(themeKey) {
   root.style.setProperty("--t-fg", chrome.fg);
   root.style.setProperty("--t-accent", chrome.accent);
   root.style.setProperty("color-scheme", isDark ? "dark" : "light");
+  root.setAttribute("data-scheme", isDark ? "dark" : "light");
 
   // Update shadow RGB
   var fg = root.style.getPropertyValue("--t-fg").trim() || chrome.fg;
@@ -2280,7 +2281,7 @@ function clearEditor() {
 
 var copySourceBtn = document.getElementById('copy-source-btn');
 if (copySourceBtn) copySourceBtn.addEventListener('click', copySource);
-var copyAgentTaskBtn = document.getElementById('copy-agent-task-btn');
+var copyAgentTaskBtn = document.getElementById('copy-agent-prompt-btn');
 if (copyAgentTaskBtn) copyAgentTaskBtn.addEventListener('click', copyAgentTask);
 
 var currentCanvasFormat = 'diagram';

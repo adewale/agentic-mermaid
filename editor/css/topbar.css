@@ -351,6 +351,16 @@
   background: var(--accent-hover, var(--accent));
   color: var(--paper);
 }
+/* Dark mode: the lightened Dusk accent makes a washed-out fill, so the primary
+   button takes a saturated terracotta with light text instead. */
+[data-scheme="dark"] .btn-primary {
+  background: #BD5F2C;
+  color: #FBF2E1;
+}
+[data-scheme="dark"] .btn-primary:hover {
+  background: #C96E38;
+  color: #FBF2E1;
+}
 .btn-primary:disabled:hover,
 .btn-primary[aria-disabled="true"]:hover {
   opacity: 0.45;
@@ -393,17 +403,8 @@
   .mode-preview-only {
     display: inline-flex;
   }
-  .examples-toggle,
-  .agent-task-btn {
+  .examples-toggle {
     order: 1;
-  }
-  .agent-task-btn {
-    max-width: 64px;
-    font-size: 0;
-  }
-  .agent-task-btn::after {
-    content: "Task";
-    font-size: var(--t-control);
   }
   .spacer {
     display: none;

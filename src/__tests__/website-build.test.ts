@@ -134,7 +134,7 @@ describe('Workers Static Assets website contract', () => {
     expect(read(editorScript)).toContain('buildAgentTaskPrompt')
     expect(read(editorScript)).toContain('createPopupController')
     expect(read(editorScript)).toContain('URLSearchParams(window.location.search).get(\'example\')')
-    expect(editor).toContain('id="copy-agent-task-btn"')
+    expect(editor).toContain('id="copy-agent-prompt-btn"')
     expect(editor).not.toContain('Browser bundle:')
     expect(statSync(join(SITE, 'editor/index.html')).size).toBeLessThan(250_000)
     expect(gzipSync(read('editor/index.html')).byteLength).toBeLessThan(80_000)

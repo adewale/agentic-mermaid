@@ -94,8 +94,6 @@
 
   <div class="topbar-sep"></div>
 
-  <button class="btn agent-task-btn" id="copy-agent-task-btn" type="button" title="Copy the current diagram, your task, and the agent contract — ready to paste to an agent">Copy for agent</button>
-
   <div class="export-wrap" id="export-wrap">
     <button class="btn btn-primary" id="export-main-btn" type="button" title="Save PNG (⌘S)" disabled aria-disabled="true">
       <svg
@@ -206,6 +204,20 @@
           <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
         </svg>
         <span class="export-item-label">Copy link</span>
+      </button>
+      <button class="export-item" id="copy-agent-prompt-btn" type="button" title="Copies a ready-to-paste prompt — your diagram, your task, and the editing rules — for a coding agent like Claude Code or Cursor">
+        <svg
+          class="export-item-icon"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1.75"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+        </svg>
+        <span class="export-item-label">Copy agent prompt</span>
       </button>
 
       <div class="export-divider"></div>

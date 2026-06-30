@@ -86,7 +86,7 @@ function clearEditor() {
 
 var copySourceBtn = document.getElementById('copy-source-btn');
 if (copySourceBtn) copySourceBtn.addEventListener('click', copySource);
-var copyAgentTaskBtn = document.getElementById('copy-agent-task-btn');
+var copyAgentTaskBtn = document.getElementById('copy-agent-prompt-btn');
 if (copyAgentTaskBtn) copyAgentTaskBtn.addEventListener('click', copyAgentTask);
 
 var currentCanvasFormat = 'diagram';
