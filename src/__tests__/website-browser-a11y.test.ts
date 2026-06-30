@@ -10,6 +10,18 @@ let server: ReturnType<typeof Bun.serve>
 let browser: Browser
 let baseUrl = ''
 
+// This smoke suite needs a real Chromium. The CI `test` job runs the unit suite
+// without installing Playwright browsers (only the separate e2e job does), so
+// skip when none is installed — the same way the cross-runtime determinism tests
+// skip without node/resvg — rather than failing the suite on a missing browser.
+// executablePath() resolves to the bundled Chromium; its presence is the proxy
+// for "Playwright browsers are installed", since the headless shell that
+// launch({headless:true}) actually starts is installed alongside it.
+const haveBrowser = (() => {
+  try { return existsSync(chromium.executablePath()) } catch { return false }
+})()
+const describeBrowser = haveBrowser ? describe : describe.skip
+
 const mime: Record<string, string> = {
   '.html': 'text/html; charset=utf-8',
   '.js': 'text/javascript; charset=utf-8',
@@ -69,26 +81,29 @@ async function brokenAriaControls(page: Page) {
   }))
 }
 
-beforeAll(async () => {
-  server = Bun.serve({
-    port: 0,
-    fetch(req) {
-      const url = new URL(req.url)
-      const abs = fileForPath(url.pathname)
-      if (!abs) return new Response('Not found', { status: 404 })
-      return new Response(Bun.file(abs), { headers: { 'content-type': mime[extname(abs)] || 'application/octet-stream' } })
-    },
+describeBrowser('website browser accessibility smoke', () => {
+  // Hooks live inside the guarded describe so a browser-less run (CI `test` job)
+  // skips them too — a file-level beforeAll runs even when its only describe is
+  // skipped, and launching there is exactly what fails when Chromium is absent.
+  beforeAll(async () => {
+    server = Bun.serve({
+      port: 0,
+      fetch(req) {
+        const url = new URL(req.url)
+        const abs = fileForPath(url.pathname)
+        if (!abs) return new Response('Not found', { status: 404 })
+        return new Response(Bun.file(abs), { headers: { 'content-type': mime[extname(abs)] || 'application/octet-stream' } })
+      },
+    })
+    baseUrl = `http://${server.hostname}:${server.port}`
+    browser = await chromium.launch({ headless: true })
+  }, 30_000)
+
+  afterAll(async () => {
+    await browser?.close()
+    server?.stop(true)
   })
-  baseUrl = `http://${server.hostname}:${server.port}`
-  browser = await chromium.launch({ headless: true })
-})
 
-afterAll(async () => {
-  await browser?.close()
-  server?.stop(true)
-})
-
-describe('website browser accessibility smoke', () => {
   test('public routes have named controls, valid ARIA references, and no mobile horizontal overflow', async () => {
     const page = await browser.newPage({ viewport: { width: 390, height: 900 } })
     for (const route of ['/', '/examples/', '/about/', '/docs/families/#gantt', '/docs/', '/skills/agentic-mermaid-diagram-workflow/']) {
