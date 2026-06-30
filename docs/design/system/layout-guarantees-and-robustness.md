@@ -271,6 +271,8 @@ strtDeficit 74, crossings 1** over 74 tracked diagrams.
 | **Network-simplex** + `favorStraightEdges` | 64 | 354 | 71 | **3** | lateral: cardinal/straight ↓ but **+2 crossings** |
 | Network-simplex + `nodeFlexibility=PORT_POSITION` | 64 | 354 | 71 | 3 | **no-op** — inert against our `FIXED_SIDE` ports |
 | BK + `bk.edgeStraightening=IMPROVE_STRAIGHTNESS` | 70 | 351 | 74 | 1 | **no-op** — already BK's default |
+| Independent hard-invariant gate (corpus + fuzz) | 70 | 351 | 74 | 1 | **shipped** — additive test, zero geometry change |
+| Exact integer-snap predicate in `simplifyPolyline` | 70 | **349** | 75 | **3** | **HARD 0→1** (off circle outline) + crossings → reverted |
 
 **Conclusions.**
 
@@ -283,15 +285,35 @@ strtDeficit 74, crossings 1** over 74 tracked diagrams.
    the band-aids the research recommended are net-negative *here*, because our
    post-ELK passes already extract the straightness/symmetry/cardinality that
    decoupling and naive bundling give up.
-3. **The genuine remaining win is the exact-router rewrite** (libavoid-style A\*
-   over an orthogonal visibility graph, replacing `route-contracts.ts`) — but its
-   upside is bounded (the corpus is already at crossings = 1) and its cost is a
-   multi-week, high-risk rewrite, so it is not a measured config experiment.
-4. **The bounded, non-regressive, substantive fix the data supports is robustness
-   hardening** — exact integer predicates on snapped coordinates + one independent
-   total checker. It makes the *same* decisions (no golden churn) but consistently,
-   collapsing the 1–2px near-degenerate class that fuzzing keeps surfacing. That,
-   not aggregate-metric chasing, is where the real recurring pain is.
+3. **The "sandy ε foundation" hypothesis was wrong — measured.** Converting the
+   shared collinearity predicate in `simplifyPolyline` to an exact integer-snapped
+   orientation determinant (the EGC recommendation) *regressed*: it broke a hard
+   invariant (an endpoint flattened off a **circle outline**) and added crossings,
+   because a fixed 1px decision grid is a *scale-independent* predicate while the
+   existing `|cross| < EPS` is *scale-appropriate* (it only removes float-noise
+   collinearity, ~1e-4 px on long segments) — and our curved-shape endpoints carry
+   load-bearing sub-pixel precision. The scattered ε's are not actually
+   inconsistent in value (the axis test is `0.01` everywhere); the heuristic
+   "fighting" is genuine multi-objective tension (straightness vs symmetry vs
+   cardinality — NP-hard trade-offs), not predicate inconsistency. So exact
+   predicates do **not** unblock the symmetry/decoupling regressions.
+4. **The one delivered win is the independent hard-invariant gate**
+   (`property-hard-invariants.test.ts`): the rubric oracle run over the full
+   flowchart corpus + fuzz, asserting zero hard violations. It is purely additive
+   (no geometry change) and is the safety net that lets new placement/routing
+   heuristics be added aggressively — any hard-invariant regression now fails
+   loudly and immediately. The symmetry/port fix itself remains a **placement
+   heuristic on the pipeline** (as `12ba4e6` already did for fan-out D/E
+   equalization), now protected by that gate — not a foundation rewrite.
+5. **The genuine remaining structural win is still the exact-router rewrite**
+   (libavoid-style A\* over an orthogonal visibility graph) — but its upside is
+   bounded (corpus already at crossings = 1) against a multi-week, high-risk
+   rewrite, so it is a deliberate future bet, not a quick fix.
+
+**Bottom line:** the pipeline is at a well-tuned local optimum; every bounded
+"improve/exactify/re-architect" lever we measured was neutral-or-regressive. The
+durable value is (a) this map of what does and doesn't work, and (b) the independent
+gate that makes the next targeted placement heuristic safe to add.
 
 Method/scripts for reproduction live in the session scratchpad; re-run
 `bun run track` and sum the `off/bend/strt/xing` columns to reproduce the table.
