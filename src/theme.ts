@@ -119,6 +119,17 @@ export const MIX = {
 // ============================================================================
 
 export const THEMES: Record<string, DiagramColors> = {
+  // Brand palette — the Paper / Dusk pair the marketing site and editor chrome
+  // are built on. Specified as bg/fg/accent only (no line/muted/surface/border
+  // overrides) so the derived tiers come straight from the MIX weights, making
+  // these diagrams identical to the ones the public site renders from its page
+  // tokens. `paper` is the editor's default theme.
+  'paper': {
+    bg: '#F5F0E4', fg: '#221E16', accent: '#9A4A24',
+  },
+  'dusk': {
+    bg: '#2A2521', fg: '#E9DFCC', accent: '#CC8A57',
+  },
   'zinc-light': {
     bg: '#FFFFFF', fg: '#27272A',
   },

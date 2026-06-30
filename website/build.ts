@@ -226,20 +226,11 @@ function mastheadHtml(currentHref = '') {
   return `<header class="masthead"><div class="bar"><a class="brand" href="/"><span class="mark"></span> Agentic&nbsp;Mermaid</a><span class="links">${nav}</span></div><hr></header>`
 }
 
-function crumbHtml(crumb: string) {
-  if (!crumb) return ''
-  const sectionHref: Record<string, string> = { Docs: '/docs/', Warnings: '/warnings/', Errors: '/errors/' }
-  const sep = '<span class="crumb-sep" aria-hidden="true">/</span>'
-  const tail = crumb.split(' / ').map((p, i, a) => {
-    const href = i < a.length - 1 ? sectionHref[p] : undefined
-    return href ? `<a href="${href}">${escapeHtml(p)}</a>` : `<span>${escapeHtml(p)}</span>`
-  }).join(sep)
-  return `<nav class="crumb" aria-label="Breadcrumb"><a href="/">Home</a>${sep}${tail}</nav>\n`
-}
-
-// Single page header contract: optional breadcrumb, then h1 + lead, then
-// optional meta row (e.g. "Updated · source · read time") and actions row.
-function pageShell(title: string, lead: string, body: string, crumb = '', currentHref = '', meta = '', actions = '') {
+// Single page header contract: h1 + lead, then an optional meta row
+// (e.g. "Updated · source · read time") and actions row. The public site is
+// deliberately document-first with no breadcrumb chrome (see the website
+// contract test — masthead nav is the only wayfinding the shell ships).
+function pageShell(title: string, lead: string, body: string, currentHref = '', meta = '', actions = '') {
   return `<!doctype html>
 <html lang="en">
 <head>
@@ -258,7 +249,7 @@ ${agentDiscoveryLinks}
 ${mastheadHtml(currentHref)}
 <main id="main" class="doc">
 <section class="page-header">
-${crumbHtml(crumb)}<h1>${escapeHtml(title)}</h1>
+<h1>${escapeHtml(title)}</h1>
 <p class="lead">${escapeHtml(lead)}</p>
 ${meta ? `<p class="page-meta">${meta}</p>\n` : ''}${actions ? `<div class="page-actions">${actions}</div>\n` : ''}</section>
 ${body}
@@ -620,11 +611,11 @@ const docPages = [
   ['examples/index.html', 'Examples', 'Every example the editor can load, rendered from the same source list.', examplesShowcaseHtml(EDITOR_EXAMPLES), '/examples/'],
   ['skills/index.html', 'Skills', 'Public consumer skill catalog.', '<p>The public skill is <a href="/skills/agentic-mermaid-diagram-workflow/">agentic-mermaid-diagram-workflow</a>. Capabilities.json is authoritative for renderer support.</p>'],
 ]
-for (const [rel, title, lead, body, currentHref] of docPages) await emit(rel, pageShell(title, lead, body, rel.startsWith('docs/') ? `Docs / ${title}` : title, currentHref || (rel.startsWith('docs/') ? '/docs/' : '')))
+for (const [rel, title, lead, body, currentHref] of docPages) await emit(rel, pageShell(title, lead, body, currentHref || (rel.startsWith('docs/') ? '/docs/' : '')))
 
-await emit('warnings/index.html', pageShell('Warnings', 'Warning codes are tiered so agents know whether to fix, retry, or ask.', `<table class="warning-table"><thead><tr><th>Code</th><th>Tier</th><th>Severity</th></tr></thead><tbody>${capabilities.warningCodes.map((w: any) => `<tr><td data-label="Code"><a href="/warnings/${w.code}/"><code>${w.code}</code></a></td><td data-label="Tier">${w.tier}</td><td data-label="Severity">${w.severity}</td></tr>`).join('')}</tbody></table>`, 'Warnings'))
+await emit('warnings/index.html', pageShell('Warnings', 'Warning codes are tiered so agents know whether to fix, retry, or ask.', `<table class="warning-table"><thead><tr><th>Code</th><th>Tier</th><th>Severity</th></tr></thead><tbody>${capabilities.warningCodes.map((w: any) => `<tr><td data-label="Code"><a href="/warnings/${w.code}/"><code>${w.code}</code></a></td><td data-label="Tier">${w.tier}</td><td data-label="Severity">${w.severity}</td></tr>`).join('')}</tbody></table>`))
 for (const w of capabilities.warningCodes) {
-  await emit(`warnings/${w.code}/index.html`, pageShell(w.code, `${w.tier} ${w.severity} warning.`, `<p>Run <code>am verify diagram.mmd --json</code>, inspect this code, and apply the smallest source or typed mutation that clears it. If it persists after two mechanical attempts, return the warning and ask for human review.</p>`, `Warnings / ${w.code}`))
+  await emit(`warnings/${w.code}/index.html`, pageShell(w.code, `${w.tier} ${w.severity} warning.`, `<p>Run <code>am verify diagram.mmd --json</code>, inspect this code, and apply the smallest source or typed mutation that clears it. If it persists after two mechanical attempts, return the warning and ask for human review.</p>`))
 }
 const errors = [
   ['parse-error', 'Parse error', 'The source could not be parsed. Preserve the source and point to the line/column when available.'],
@@ -632,8 +623,8 @@ const errors = [
   ['render-error', 'Render error', 'Rendering failed after parse. Return the error and source; do not fabricate an artifact.'],
   ['verify-failed', 'Verify failed', 'The diagram parsed but verification returned blocking structural warnings.'],
 ]
-await emit('errors/index.html', pageShell('Errors', 'Error pages explain recovery paths for local CLI, library, and MCP use.', `<ul>${errors.map(([id, title, desc]) => `<li><a href="/errors/${id}/">${title}</a> – ${desc}</li>`).join('')}</ul>`, 'Errors'))
-for (const [id, title, desc] of errors) await emit(`errors/${id}/index.html`, pageShell(title, desc, '<pre><code>am verify diagram.mmd --json</code></pre><p>Return the structured error to the caller when a safe automatic fix is not obvious.</p>', `Errors / ${title}`))
+await emit('errors/index.html', pageShell('Errors', 'Error pages explain recovery paths for local CLI, library, and MCP use.', `<ul>${errors.map(([id, title, desc]) => `<li><a href="/errors/${id}/">${title}</a> – ${desc}</li>`).join('')}</ul>`))
+for (const [id, title, desc] of errors) await emit(`errors/${id}/index.html`, pageShell(title, desc, '<pre><code>am verify diagram.mmd --json</code></pre><p>Return the structured error to the caller when a safe automatic fix is not obvious.</p>'))
 
 const securityHeaders = [
   '/*',

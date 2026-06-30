@@ -20,6 +20,8 @@
 import { THEMES } from '../../src/theme.ts'
 
 const THEME_LABELS: Record<string, string> = {
+  'paper': 'Paper',
+  'dusk': 'Dusk',
   'zinc-dark': 'Zinc Dark',
   'tokyo-night': 'Tokyo Night',
   'tokyo-night-storm': 'Tokyo Storm',

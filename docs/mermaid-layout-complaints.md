@@ -257,7 +257,7 @@ diagrams; some embeddings are unreadable (dark-theme contrast).
 - Root cause: R5 (renderer/theming defaults, not the layout algorithm).
   Mermaid's v11 `handDrawn`/`neo` "looks" are its own remediation.
 - Fixture/test: inherited from upstream Beautiful Mermaid: two-color theme
-  derivation, 19 built-in themes, Shiki/VS Code theme compatibility. Fork
+  derivation, 21 built-in themes, Shiki/VS Code theme compatibility. Fork
   additions: semantic role styling (`style.node/edge/group/text`),
   Tufte/Salmon theme families (PR #10), auto-contrast on custom fills
   (upstream #115 class) pinned by
