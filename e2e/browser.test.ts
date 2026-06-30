@@ -303,12 +303,12 @@ describe('browser: page loads and renders', () => {
     expect(text).toContain('rendered in')
   }, 60_000)
 
-  it('homepage defaults to salmon, uses fork-owned copy, and reports the rendered example count accurately', async () => {
+  it('homepage defaults to Paper chrome, uses fork-owned copy, and reports the rendered example count accurately', async () => {
     await page.evaluate(() => localStorage.removeItem('mermaid-theme'))
     await gotoApp(BASE)
     await waitForRender(60_000)
 
-    expect(await page.evaluate(() => getComputedStyle(document.body).getPropertyValue('--t-bg').trim())).toBe('#FFFBF5')
+    expect(await page.evaluate(() => getComputedStyle(document.body).getPropertyValue('--t-bg').trim())).toBe('#F5F0E4')
     expect(await page.evaluate(() => localStorage.getItem('mermaid-theme'))).toBeNull()
 
     const text = await page.evaluate(() => document.body.textContent || '')
@@ -592,16 +592,18 @@ describe('browser: random theme button', () => {
 
 describe('browser: live editor integration', () => {
 
-  it('opens /editor to a blank salmon-themed canvas by default', async () => {
+  it('opens /editor to the default loop diagram on Paper chrome', async () => {
     await gotoApp(`${BASE}/editor`)
     await page.waitForSelector('#code-editor', { timeout: 30_000 })
+    await waitForEditorRender(60_000)
 
-    expect(await page.inputValue('#code-editor')).toBe('')
-    expect(await page.evaluate(() => document.getElementById('status-text')?.textContent)).toBe('Ready')
-    expect(await page.evaluate(() => document.querySelector('#preview-inner svg') === null)).toBe(true)
-    expect(await page.evaluate(() => document.getElementById('preview-inner')?.textContent?.includes('Start typing') ?? false)).toBe(true)
-    expect(await page.evaluate(() => document.getElementById('preview-inner')?.textContent?.includes('Load an example') ?? false)).toBe(true)
-    expect(await page.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue('--t-bg').trim())).toBe('#FFFBF5')
+    // The editor opens with its own parse -> verify -> serialize loop already
+    // rendered, so the loop "just works" on first paint instead of a blank canvas.
+    expect(await page.inputValue('#code-editor')).toContain('flowchart TD')
+    expect(await page.evaluate(() => document.querySelector('#preview-inner svg') !== null)).toBe(true)
+    // Chrome is the brand Paper light theme, independent of the diagram theme.
+    expect(await page.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue('--t-bg').trim())).toBe('#F5F0E4')
+    // The default diagram theme is applied automatically, so nothing is persisted.
     expect(await page.evaluate(() => localStorage.getItem('bm-editor-theme'))).toBeNull()
   }, 60_000)
 
@@ -611,12 +613,12 @@ describe('browser: live editor integration', () => {
     await page.waitForSelector('#code-editor', { timeout: 30_000 })
 
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true)
-    expect(await page.locator('#tab-preview').isVisible()).toBe(true)
-    await page.click('#tab-preview')
+    expect(await page.locator('#mode-preview').isVisible()).toBe(true)
+    await page.click('#mode-preview')
     expect(await page.evaluate(() => getComputedStyle(document.getElementById('panel-left')!).display)).toBe('none')
     expect(await page.evaluate(() => getComputedStyle(document.getElementById('panel-right')!).display)).toBe('flex')
 
-    await page.click('#tab-code')
+    await page.click('#mode-source')
     expect(await page.evaluate(() => getComputedStyle(document.getElementById('panel-left')!).display)).toBe('flex')
     await page.setViewportSize({ width: 1280, height: 720 })
   }, 60_000)
@@ -624,6 +626,11 @@ describe('browser: live editor integration', () => {
   it('empty-state CTA opens a persistent examples sidebar', async () => {
     await gotoApp(`${BASE}/editor`)
     await page.waitForSelector('#code-editor', { timeout: 30_000 })
+
+    // The editor opens with the default loop diagram; clearing the source drops
+    // it to the blank-canvas empty state, which surfaces the load-example CTA.
+    await page.fill('#code-editor', '')
+    await page.waitForSelector('[data-action="load-example"]', { state: 'visible', timeout: 30_000 })
 
     expect(await page.evaluate(() => document.getElementById('examples-sidebar')?.classList.contains('open'))).toBe(false)
     await page.click('[data-action="load-example"]')
@@ -645,7 +652,8 @@ describe('browser: live editor integration', () => {
     await page.click('#examples-sidebar .example-dropdown-item[data-example="flowchart-basic"]')
     await waitForEditorRender(60_000)
     expect(await page.inputValue('#code-editor')).toContain('flowchart TD')
-    expect(await page.evaluate(() => document.getElementById('examples-sidebar')?.classList.contains('open'))).toBe(true)
+    // Picking an example closes the sidebar so the rendered result is unobstructed.
+    expect(await page.evaluate(() => document.getElementById('examples-sidebar')?.classList.contains('open'))).toBe(false)
   }, 120_000)
 
   it('opens /editor and renders fork-added diagram families through the bundled renderer', async () => {
@@ -720,17 +728,17 @@ describe('browser: live editor integration', () => {
 
     await page.click('#theme-dropdown-btn')
     await page.click('.theme-dropdown-item[data-theme="salmon"]')
+    // Selecting a diagram theme recolors the rendered SVG, not the editor chrome:
+    // the SVG picks up salmon's --bg while --t-bg stays the Paper brand chrome.
     await page.waitForFunction(
-      (bg: string) => getComputedStyle(document.documentElement).getPropertyValue('--t-bg').trim() === bg,
+      (bg: string) => (document.querySelector('#preview-inner svg')?.getAttribute('style') ?? '').includes('--bg: ' + bg),
       salmonBg,
       { timeout: 30_000 },
     )
     await waitForEditorRender(60_000)
 
     expect(await page.evaluate(() => localStorage.getItem('bm-editor-theme'))).toBe('salmon')
-    expect(await page.evaluate(
-      () => document.querySelector('#preview-inner svg')?.getAttribute('style')?.includes('--bg') ?? false,
-    )).toBe(true)
+    expect(await page.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue('--t-bg').trim())).toBe('#F5F0E4')
   }, 120_000)
 
   it('examples sidebar keeps the selected theme and exposes blank reset without a floating source toolbar', async () => {
@@ -739,8 +747,9 @@ describe('browser: live editor integration', () => {
 
     await page.click('#theme-dropdown-btn')
     await page.click('.theme-dropdown-item[data-theme="salmon"]')
+    // The diagram recolors to salmon; the editor chrome stays Paper.
     await page.waitForFunction(
-      () => getComputedStyle(document.documentElement).getPropertyValue('--t-bg').trim() === '#FFFBF5',
+      () => (document.querySelector('#preview-inner svg')?.getAttribute('style') ?? '').includes('--bg: #FFFBF5'),
       undefined,
       { timeout: 30_000 },
     )
@@ -756,7 +765,8 @@ describe('browser: live editor integration', () => {
       { timeout: 10_000 },
     )
     expect(await page.locator('#copy-source-btn').isVisible()).toBe(true)
-    expect(await page.locator('#export-png-btn').isDisabled()).toBe(true)
+    // The editor opened with the default loop diagram rendered, so PNG export is enabled.
+    expect(await page.locator('#export-png-btn').isDisabled()).toBe(false)
 
     await page.click('#examples-sidebar-btn')
     await page.waitForFunction(
@@ -784,9 +794,17 @@ describe('browser: live editor integration', () => {
       { timeout: 60_000 },
     )
     expect(await page.inputValue('#code-editor')).toContain('stateDiagram-v2')
-    expect(await page.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue('--t-bg').trim())).toBe('#FFFBF5')
+    // Chrome stays Paper; the example kept the salmon diagram theme (not overridden).
+    expect(await page.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue('--t-bg').trim())).toBe('#F5F0E4')
     expect(await page.evaluate(() => localStorage.getItem('bm-editor-theme'))).toBe('salmon')
 
+    // Selecting the example closed the sidebar; re-open it to reach the blank reset.
+    await page.click('#examples-sidebar-btn')
+    await page.waitForFunction(
+      () => document.getElementById('examples-sidebar')?.classList.contains('open') === true,
+      undefined,
+      { timeout: 10_000 },
+    )
     await page.click('#examples-sidebar [data-action="clear-editor"]')
     expect(await page.inputValue('#code-editor')).toBe('')
     expect(await page.evaluate(() => document.getElementById('status-text')?.textContent)).toBe('Ready')
@@ -794,6 +812,9 @@ describe('browser: live editor integration', () => {
   }, 120_000)
 
   it('topbar button dimensions do not shift when toggling day/dark mode', async () => {
+    // #dark-light-btn is hidden below 760px; pin a desktop viewport so a prior
+    // mobile test can't leave it hidden here.
+    await page.setViewportSize({ width: 1280, height: 720 })
     await gotoApp(`${BASE}/editor`)
     await page.waitForSelector('#code-editor', { timeout: 30_000 })
 
@@ -816,11 +837,15 @@ describe('browser: live editor integration', () => {
   it('loads semantic role style examples without overriding the selected theme', async () => {
     await gotoApp(`${BASE}/editor`)
     await page.waitForSelector('#code-editor', { timeout: 30_000 })
+    // The chrome bg must not change with the diagram theme; capture it up front so
+    // the assertion holds whether or not a prior test left the editor in dark mode.
+    const chromeBg = await page.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue('--t-bg').trim())
 
     await page.click('#theme-dropdown-btn')
     await page.click('.theme-dropdown-item[data-theme="dracula"]')
+    // Diagram theme becomes dracula (recolors the SVG); chrome stays Paper.
     await page.waitForFunction(
-      () => getComputedStyle(document.documentElement).getPropertyValue('--t-bg').trim() === '#282a36',
+      () => (document.querySelector('#preview-inner svg')?.getAttribute('style') ?? '').includes('--bg: #282a36'),
       undefined,
       { timeout: 30_000 },
     )
@@ -854,7 +879,8 @@ describe('browser: live editor integration', () => {
       interactive: true,
     })
     expect(hashState.theme).toBe('dracula')
-    expect(await page.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue('--t-bg').trim())).toBe('#282a36')
+    // The diagram keeps the dracula theme; the editor chrome is unchanged by it.
+    expect(await page.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue('--t-bg').trim())).toBe(chromeBg)
     expect(await page.evaluate(() => localStorage.getItem('bm-editor-theme'))).toBe('dracula')
   }, 120_000)
 
