@@ -164,6 +164,7 @@ const html = await generateHtml({
   description: 'Architecture, Timeline, and Journey diagram showcase for Agentic Mermaid.',
   extraSamples,
   visibleThemes: new Set(['tufte', 'tufte-dark', 'salmon', 'salmon-dark']),
+  defaultTheme: 'salmon',
 })
 
 const outPath = new URL('../../examples/showcases/new-diagrams.html', import.meta.url).pathname

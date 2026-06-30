@@ -43,6 +43,8 @@ function formatDescription(text: string): string {
 
 /** Human-readable labels for theme keys */
 const THEME_LABELS: Record<string, string> = {
+  'paper': 'Paper',
+  'dusk': 'Dusk',
   'zinc-dark': 'Zinc Dark',
   'tokyo-night': 'Tokyo Night',
   'tokyo-night-storm': 'Tokyo Storm',
@@ -74,6 +76,8 @@ export interface GenerateHtmlOptions {
   extraSamples?: typeof samples
   /** Theme keys to show as inline pills (in addition to Default). If omitted, uses built-in defaults. */
   visibleThemes?: Set<string>
+  /** The theme the page opens on. Defaults to the brand `paper` theme. */
+  defaultTheme?: string
 }
 
 // Lazy singleton Shiki highlighter — avoids creating multiple instances
@@ -198,7 +202,7 @@ export async function generateHtml(options: GenerateHtmlOptions = {}): Promise<s
 
   // Step 3b: Build theme selector pills (build-time so we include swatches)
   // Only show Default, Dracula, and Solarized inline; rest go in "More" dropdown
-  const DEFAULT_THEME_KEY: string = 'salmon'
+  const DEFAULT_THEME_KEY: string = options.defaultTheme ?? 'paper'
   const VISIBLE_THEMES = options.visibleThemes ?? new Set([DEFAULT_THEME_KEY, 'dracula', 'solarized-light'])
 
   function buildThemePill(key: string, colors: { bg: string; fg: string }, active = false): string {
@@ -1546,7 +1550,7 @@ ${bundleJs}
     };
   }
 
-  var DEFAULT_PAGE_THEME = 'salmon';
+  var DEFAULT_PAGE_THEME = '${DEFAULT_THEME_KEY}';
   var activeThemeKey = '';
   // Original inline style of each SVG as rendered with its own per-sample
   // options ("Default" appearance), captured at default-render time so
