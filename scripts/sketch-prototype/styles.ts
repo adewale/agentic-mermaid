@@ -6,8 +6,8 @@
 // Each style is grounded in research notes (see commit history / SPEC refs).
 // ============================================================================
 
-export type StrokeKind = 'crisp' | 'jittered' | 'brush' | 'pencil' | 'freehand'
-export type FillKind = 'none' | 'hachure' | 'crosshatch' | 'stipple' | 'halftone' | 'wash' | 'scribble' | 'solid'
+export type StrokeKind = 'crisp' | 'jittered' | 'pencil' | 'freehand'
+export type FillKind = 'none' | 'hachure' | 'wash' | 'scribble' | 'solid'
 export type BackdropKind = 'paper-ruled' | 'plain' | 'rice' | 'washi' | 'grid' | 'slate' | 'blueprint' | 'parchment' | 'aurora'
 
 export interface Style {
@@ -37,19 +37,20 @@ export interface Style {
   defs?: string
   strokeFilter?: string
   fillFilter?: string
-  seal?: boolean
   misregister?: number    // riso: duplicate strokes offset in a 2nd colour
   misColor?: string
   spotPalette?: string[]  // solid/wash: pick a per-region colour (seeded)
-  glowColor?: string
-  glowOffset?: number
+  /** wash fill weights — declared fields, never st.name forks (SPEC §11.0e) */
+  washOpacity?: number
+  washEdge?: number
   labelHalo?: string      // override the text knockout colour (default: page bg)
   labelInk?: string       // override the label ink (default: auto-contrast vs halo)
   textTransform?: 'uppercase'
   letterSpacing?: number
   nodeCornerRadius?: number // round node corners (for crisp/clean styles)
   boxShadow?: boolean       // soft drop-shadow under shapes (whiteboard)
-  ringNode?: boolean        // draw nodes as circular ink rings (Arrival)
+  /** deliberately faint non-text rules (Tufte): exempts the 3:1 stroke gate */
+  faintLinesIntentional?: boolean
   /**
    * Monochrome contract: this style conveys tone/emphasis via SHADING/HATCHING
    * density, never via multiple fill hues. Enforced by styles.test.ts:
@@ -128,7 +129,7 @@ export const STYLES: Style[] = [
     font: 'EB Garamond', fontFile: 'EBGaramond.ttf',
     stroke: 'crisp', roughness: 0, passes: 1, strokeWidth: 0.8, linecap: 'butt',
     fill: 'none', fillColor: '#000', baseTone: 0, toneFromLuminance: false, keepHue: false, hachureAngle: -45,
-    backdrop: 'plain', mono: true,
+    backdrop: 'plain', mono: true, faintLinesIntentional: true,
   },
   {
     // Research: cyanotype. Deep Prussian-blue ground, thin uniform WHITE lines,
@@ -151,6 +152,7 @@ export const STYLES: Style[] = [
     stroke: 'jittered', roughness: 1.0, passes: 1, strokeWidth: 1.2, linecap: 'round', strokeOpacity: 0.8,
     fill: 'wash', fillColor: '#6fa8c7', baseTone: 0.55, toneFromLuminance: false, keepHue: false, hachureAngle: -41,
     spotPalette: ['#e08a8a', '#8fb8d4', '#a9cf98', '#e6c879', '#c39bd1', '#e0a878'],
+    washOpacity: 0.30, washEdge: 0.38,
     backdrop: 'plain',
   },
   {

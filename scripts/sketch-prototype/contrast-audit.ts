@@ -11,20 +11,8 @@
 // ============================================================================
 
 import { STYLES } from './styles.ts'
-import { contrastRatio, adjustToContrast, mix, relLuminance, WCAG } from './contrast.ts'
+import { contrastRatio, adjustToContrast, WCAG } from './contrast.ts'
 
-function coverage(fill: string, t: number): number {
-  switch (fill) {
-    case 'none': return 0
-    case 'hachure': return Math.min(0.5, 0.2 + t * 0.6)
-    case 'crosshatch': return Math.min(0.6, 0.4 + t * 0.4)
-    case 'stipple': return Math.min(0.5, t * 0.7)
-    case 'halftone': return Math.min(0.6, t * 0.9)
-    case 'wash': return 0.25
-    case 'scribble': return Math.min(0.55, 0.3 + t * 0.4)
-    default: return 0
-  }
-}
 
 let fails = 0
 console.log('style                  text(ink→effBg)  line→page   ink')
@@ -36,8 +24,8 @@ for (const st of STYLES) {
   const ink = st.labelInk ?? adjustToContrast(st.colors.fg, effBg, WCAG.textAA)
   const textR = contrastRatio(ink, effBg)
   const lineR = contrastRatio(st.colors.line, st.colors.bg)
-  // Tufte deliberately uses faint rules; only flag non-text contrast elsewhere.
-  const lineOk = lineR >= WCAG.nonText || st.name === 'tufte'
+  // Deliberately-faint rules (Tufte) are exempted via a declared style field.
+  const lineOk = lineR >= WCAG.nonText || st.faintLinesIntentional === true
   const textOk = textR >= WCAG.textAA
   if (!textOk || !lineOk) fails++
   const mark = (ok: boolean) => (ok ? '✓' : '✗')

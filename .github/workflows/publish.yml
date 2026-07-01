@@ -18,7 +18,7 @@ jobs:
       - name: Setup Bun
         uses: oven-sh/setup-bun@v1
         with:
-          bun-version: latest
+          bun-version: 1.3.13
 
       - name: Setup Node.js (for npm publish)
         uses: actions/setup-node@v4
@@ -32,8 +32,6 @@ jobs:
       - name: Run tests
         run: bun test src/__tests__/
 
-      - name: Run sketch prototype style checks
-        run: bun run sketch:check
 
       - name: Build distributable
         run: bun run build

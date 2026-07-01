@@ -105,7 +105,10 @@ test('crisp styles still apply solid fill palettes', () => {
   const raw = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 140 100"><rect x="0" y="0" width="100" height="61" fill="#ffffff" stroke="#000000" /></svg>'
   const styled = restyle(raw, bauhaus, { backdrop: false })
 
-  expect(styled).toContain('fill="#e53935"')
+  // the fill is repainted with SOME spot-palette colour (which one is a
+  // function of the seed scheme — don't pin it)
+  const fill = styled.match(/fill="(#[0-9a-fA-F]{6})" fill-opacity/)?.[1]
+  expect(bauhaus.spotPalette).toContain(fill)
   expect(styled).toContain('stroke-width="2.4"')
   expect(styled).not.toContain('<rect x="0" y="0" width="100" height="61"')
 })
@@ -123,4 +126,56 @@ test('restyle preserves rounded rectangle geometry', () => {
   expect(d).toBeTruthy()
   expect(d!.match(/L/g)?.length ?? 0).toBeGreaterThan(8)
   expect(styled).not.toContain('<rect')
+})
+
+// ---------------------------------------------------------------------------
+// Phase 0 regression tests (SPEC §11.0) — written red-first against the
+// confirmed audit findings, then turned green by the fixes.
+// ---------------------------------------------------------------------------
+import { elementSeed } from './restyle.ts'
+
+test('edge-label halo knockouts pass through untouched (audit C1)', () => {
+  const handDrawn = STYLES.find(s => s.name === 'hand-drawn')!
+  const raw = renderMermaidSVG('flowchart TD\n  A -->|go| B', { transparent: true, embedFontImport: false })
+  expect(raw).toContain('edge-label-halo')
+  const styled = restyle(raw, handDrawn, { backdrop: false })
+  expect(styled).toContain('class="edge-label-halo"')
+})
+
+test('closed shapes with no stroke attribute gain no synthesized outline (audit A1)', () => {
+  const handDrawn = STYLES.find(s => s.name === 'hand-drawn')!
+  const raw = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300"><rect x="10" y="10" width="200" height="80" fill="#eeeeee"/></svg>'
+  const styled = restyle(raw, handDrawn, { backdrop: false })
+  expect(styled).toContain('<rect x="10" y="10" width="200" height="80" fill="#eeeeee"/>')
+  expect(styled).not.toContain(`stroke="${handDrawn.colors.line}"`)
+})
+
+test('thick edges keep their 2x width ratio through restyle (audit C4)', () => {
+  const handDrawn = STYLES.find(s => s.name === 'hand-drawn')!
+  const raw = renderMermaidSVG('flowchart TD\n  A ==> B', { transparent: true, embedFontImport: false })
+  expect(raw).toContain('stroke-width="2"')
+  const styled = restyle(raw, handDrawn, { backdrop: false })
+  // hand-drawn strokeWidth 1.8 x source ratio 2 = 3.6
+  expect(styled).toContain('stroke-width="3.6"')
+})
+
+test('congruent same-length paths get different seeds (audit A4)', () => {
+  const a = elementSeed('<path d="M10,20 L110,20"/>', 'path')
+  const b = elementSeed('<path d="M10,80 L110,80"/>', 'path')
+  expect(a).not.toBe(b)
+})
+
+test('marker defs are rewritten to markerUnits=userSpaceOnUse (audit C2/C4)', () => {
+  const handDrawn = STYLES.find(s => s.name === 'hand-drawn')!
+  const raw = renderMermaidSVG('flowchart TD\n  A --> B', { transparent: true, embedFontImport: false })
+  const styled = restyle(raw, handDrawn, { backdrop: false })
+  expect(styled).toContain('markerUnits="userSpaceOnUse"')
+})
+
+test('freehand marker carrier no longer uses a 0.1px stroke (audit C2)', () => {
+  const freehand = STYLES.find(s => s.name === 'freehand')!
+  const raw = renderMermaidSVG('flowchart TD\n  A --> B', { transparent: true, embedFontImport: false })
+  const styled = restyle(raw, freehand, { backdrop: false })
+  expect(styled).toContain('marker-end="url(#arrowhead)"')
+  expect(styled).not.toContain('stroke-width="0.1"')
 })

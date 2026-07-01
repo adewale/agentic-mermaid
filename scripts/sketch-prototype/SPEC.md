@@ -8,7 +8,7 @@ without regressing semantics, routing, interaction, accessibility, the agent API
 or the golden-test contract.
 
 This document specifies the production design. The prototype proves feasibility
-(27 styles × 12 diagram types, byte-deterministic, resvg/PNG-safe) but takes a
+(31 styles × 12 diagram types, byte-deterministic, resvg/PNG-safe) but takes a
 shortcut — it post-processes finished SVG with regexes. The production design
 pushes the same model *into* the renderer instead.
 
@@ -938,7 +938,7 @@ legend, or framing chrome — is in scope for the readability gate.
 
 **Testable property.** `contrast-audit.ts` runs the two ratios for every style
 and exits non-zero on any failure, so readability gates CI like a golden test.
-Current status: all 27 styles PASS (text ≥4.5:1, non-text ≥3:1; Tufte's faint
+Current status: all 31 styles PASS (text ≥4.5:1, non-text ≥3:1; Tufte's faint
 rules exempted by design). In production the same check runs per
 style × diagram-role over the IR.
 
@@ -957,13 +957,15 @@ stronger evidence that style contracts actually bite.
   `freehand/centerline`. Do not key randomness on list position or `markIndex`;
   inserting a new decorative mark must not reshuffle unrelated geometry. All
   randomness flows from `makeRng(seed)` (mulberry32). Verified: the prototype is
-  byte-identical across runs for all 27 styles. **Known violation (Phase 0
-  work):** the prototype currently mixes three schemes — `seedAt` coordinate
-  folds, `seedFrom` string hashes, and `<path>` seeds derived from `d`-string
-  statistics (length + two chars), which the audit confirmed collide on
-  congruent shapes (identical jitter on parallel marks). Unify on the substream
-  contract *before* any backend goldens exist, or the migration invalidates
-  every golden at once.
+  byte-identical across runs for all 31 styles. **Phase 0 resolved the
+  prior violation:** the prototype previously mixed three schemes (`seedAt`
+  coordinate folds, `seedFrom` string hashes, and `<path>` seeds derived from
+  `d`-string statistics) which collided on congruent shapes. It now derives
+  every seed via `elementSeed(elementMarkup, stream)` — a single FNV-1a hash of
+  the element's full markup plus a substream name — so congruent shapes with
+  different positions/ids get distinct jitter (guarded by a regression test).
+  The backend must still upgrade this to the stable-node-id contract above
+  before any goldens exist.
 - **Byte identity vs semantic identity:** the crisp path must remain
   byte-identical until the scene serializer deliberately replaces the old
   emitter. Styled backends must be deterministic per dependency/font/rasterizer
@@ -1090,22 +1092,44 @@ semantic dispatch.
 
 ## 11. Phasing
 
-0. **Stabilize the prototype as the behavioral reference (one small PR).** The
+0. **Stabilize the prototype as the behavioral reference (one small PR).**
+   *Status: IMPLEMENTED in the prototype (all items a-f), guarded by red-first
+   regression tests in `styles.test.ts` (halo pass-through, no synthesized
+   outlines, width-ratio preservation, seed uniqueness, markerUnits, freehand
+   carrier).* The
    Phase-1 backend goldens will be diffed against prototype output, so fix the
    reference before enshrining it. Contents, from the 2026-07 audit (all
-   confirmed): (a) label halos become backend-owned text rendering — stop
-   rewriting/deleting the edge-label knockout rects; (b) treat a *missing*
-   stroke attribute as SVG's default `stroke:none`, not as "stroke in
-   `st.colors.line`" (gantt bands / quadrant plates / xychart bars currently
-   grow phantom borders); (c) preserve source `stroke-width` (thick edges,
-   `linkStyle`) and set `markerUnits="userSpaceOnUse"` on marker defs so
-   arrowheads stop scaling with replacement stroke widths (freehand's 0.1px
-   carrier renders arrowheads at 0.1×); (d) unify seeding on the §8 substream
-   contract; (e) delete the superseded v1 pipeline (`aesthetic.ts` + unused
-   `rough.ts` primitives) and zero-user features (`seal`, `ringNode`,
-   `stroke:'brush'`, `fill:'halftone'`) — unused paths harbour confirmed latent
-   bugs precisely because nothing exercises them; a mechanic may only exist with
-   an exercising style and test; (f) decouple release engineering per §8.
+   confirmed), with scoping verified against the current family renderers:
+   (a) label halos: the rect pass passes `class="edge-label-halo"` knockouts
+   through untouched (backend-owned text rendering is the production form);
+   (b) missing stroke attribute = SVG default `stroke:none` — **for closed
+   shapes** (rect/circle/ellipse/polygon): never synthesize an outline (gantt
+   bands / quadrant plates / xychart bars grew phantom borders). The `<path>`
+   pass keeps its stroke synthesis for now: pie wedges (`fill` attr, no stroke)
+   and class-styled xychart lines are exactly the semantic blindness the IR
+   resolves — passing them through would un-style pie and chart series;
+   (c) preserve source `stroke-width` as a ratio on open strokes
+   (`effective = style.strokeWidth × sourceWidth`, source base = 1) so thick
+   edges and `linkStyle` widths survive, and inject
+   `markerUnits="userSpaceOnUse"` into the consumed marker defs so arrowheads
+   stop scaling with replacement stroke widths (freehand's 0.1px carrier
+   rendered them at 0.1×). Marker size becomes crisp-identical across styles;
+   per-style marker scaling is an aesthetic follow-up;
+   (d) unify seeding: interim scheme `seedFrom(substream + full element tag)`
+   (FNV-1a over the whole serialized element) — kills the confirmed
+   congruent-shape collisions and leaves ONE migration step to the §8
+   `stableSceneNodeId` contract;
+   (e) delete the superseded v1 pipeline (`aesthetic.ts`, `demo.ts`,
+   `contact-sheet.ts`, unused `rough.ts` primitives) and ALL zero-user
+   mechanics — verified set: `seal`, `ringNode`, `glow`, `stroke:'brush'`,
+   `fill:'halftone'|'stipple'|'crosshatch'` — unused paths harbour confirmed
+   latent bugs precisely because nothing exercises them; a mechanic may only
+   exist with an exercising style and test. Also retire the `st.name === …`
+   behaviour forks into declared fields (`washOpacity`/`washEdge`,
+   `faintLinesIntentional`);
+   (f) decouple release engineering per §8 (sketch gate out of publish and out
+   of `characterization:check`; pin the publish toolchain; drop the unused
+   `sharp` dependency).
 1. **All-family SceneGraph lowering + `DefaultBackend` behind the existing
    family registry.** Migrate every built-in renderable family in one coordinated
    branch: flowchart/state, sequence, class, ER, timeline, journey, xychart, pie,
@@ -1177,7 +1201,7 @@ implementation.)
 
 ## 14. What makes a good diagram style + candidate backlog
 
-Synthesised from building 27 prototype styles and a wide aesthetic survey. A good
+Synthesised from building 31 prototype styles and a wide aesthetic survey. A good
 *diagram* style is not the same as a good *illustration* style:
 
 1. **Outline + flat fill beats texture + depth.** Hard dark stroke + ungraded
