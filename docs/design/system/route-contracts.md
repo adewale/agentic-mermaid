@@ -769,7 +769,8 @@ in sync by `src/__tests__/layout-pass-docsync.test.ts` (regenerate with
 16. `reassignBundledSiblingLabels` - re-home labels onto the correct bundled sibling segment
 17. `applyRouteContracts` - classify -> simplify -> straighten (fixed-point) -> certify; FREEZES node geometry
 18. `repairLabelsOnSharedTrunks` - re-slot a labeled edge whose pill sits on a trunk shared with another edge (label-only, freeze-safe)
-19. `translateGeometryToNonNegativeOrigin` - shift whole graph to a non-negative origin (allowed after freeze)
+19. `repairLabelsOffOwnRoute` - re-slot a labeled edge whose pill sits off its OWN route onto it — ELK offset placement on an already-straight edge (label-only, freeze-safe)
+20. `translateGeometryToNonNegativeOrigin` - shift whole graph to a non-negative origin (allowed after freeze)
 
 <!-- LAYOUT-PIPELINE:end -->
 

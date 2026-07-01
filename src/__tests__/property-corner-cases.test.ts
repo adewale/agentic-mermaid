@@ -13,12 +13,12 @@
 // the label-hugging regression that started this work). Deterministic: every
 // input is index-derived (no Date/Math.random), so this is a stable CI gate.
 //
-// Known pre-existing exception, deliberately exercised not dodged: exactly one
-// case (a rare high-degree RL double-hub fan-in, a config the heuristics hand to
-// raw ELK) parks a diamond→hub label 24.6px off its route vs a 19.1px allowance
-// — a 5.5px near-miss, pre-existing on the base commit and out of this PR's
-// scope. It is PINNED below (not silenced): any NEW off-route label, or the same
-// near-miss growing, pushes the count over the pin and fails the gate.
+// Every generator now pins labelOffRoute at ZERO. (The one pre-existing near-miss
+// this gate first surfaced — a high-degree RL double-hub fan-in whose diamond→hub
+// spoke label sat ~25px above a congested shared-approach trunk — is now fixed by
+// the repairLabelsOffOwnRoute pass, which pulls such a label back within the
+// allowance. The pins stay as an explicit contract: any NEW off-route label fails
+// the gate.)
 import { describe, test, expect } from 'bun:test'
 import { parseMermaid } from '../parser.ts'
 import { layoutGraphSync } from '../layout-engine.ts'
@@ -70,7 +70,7 @@ const STRUCTURAL_HARD = HARD_METRICS.filter(m => m !== 'labelOffRoute')
 // generator, case count, and the DOCUMENTED pre-existing labelOffRoute floor
 // (0 unless a specific out-of-scope near-miss is known and pinned).
 const GENERATORS: Array<{ name: string; gen: (i: number) => string; n: number; knownLabelOffRoute: number }> = [
-  { name: 'chained-hubs (BT edgeThroughNode class)', gen: chainedHubs, n: 600, knownLabelOffRoute: 1 }, // 1 = the RL double-hub near-miss (see header)
+  { name: 'chained-hubs (BT edgeThroughNode class)', gen: chainedHubs, n: 600, knownLabelOffRoute: 0 },
   { name: 'mixed-label fan-in (RL overlap class)', gen: mixedFanin, n: 400, knownLabelOffRoute: 0 },
   { name: 'broad families (diamond/cycle/selfloop/parallel/wide)', gen: broad, n: 400, knownLabelOffRoute: 0 },
 ]

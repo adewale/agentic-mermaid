@@ -2411,6 +2411,108 @@ export function repairLabelsOnSharedTrunks(
   }
 }
 
+/**
+ * Post-freeze label repair for labels left OFF their own route. ELK can place an
+ * edge label with a perpendicular offset from the line; applyRouteContracts
+ * re-slots labels only on edges it RE-ROUTES, so a label on an edge that came out
+ * of ELK ALREADY straight (and is not a shared-trunk conflict, so the pass above
+ * skips it too) keeps ELK's offset placement — which the rubric flags as
+ * labelOffRoute once the offset exceeds half the pill height. Seen on a
+ * high-degree mixed-label fan-in, where a straight diamond→hub spoke's label sat
+ * a pill-height above its own line. Re-slot ONLY such labels onto their own
+ * axis-aligned segments (longest first, center-out — the midpoint reads best),
+ * taking the first slot that sits ON the route and clear of every node and
+ * foreign trunk. If none exists, leave the label as placed (a rare off-route
+ * label is a lesser evil than a pill drawn over a node).
+ *
+ * Self-loops are EXCLUDED: their label legitimately sits beside ELK's small loop
+ * stub (a pill-width from it), which is correct, not off-route. Geometry-
+ * preserving (labels only) so it is freeze-safe; deterministic (fixed segment
+ * order + fixed center-out sample). A no-op on the HARD-clean corpus, whose
+ * labels are already on their routes.
+ */
+export function repairLabelsOffOwnRoute(
+  positioned: { nodes: PositionedNode[]; edges: PositionedEdge[]; groups: PositionedGroup[] },
+  graph: MermaidGraph,
+  style: LabelMetricsStyle,
+): void {
+  const distToSeg = (p: Point, a: Point, b: Point): number => {
+    const dx = b.x - a.x, dy = b.y - a.y, l2 = dx * dx + dy * dy
+    if (l2 === 0) return Math.hypot(p.x - a.x, p.y - a.y)
+    const t = Math.max(0, Math.min(1, ((p.x - a.x) * dx + (p.y - a.y) * dy) / l2))
+    return Math.hypot(p.x - (a.x + t * dx), p.y - (a.y + t * dy))
+  }
+  const pillOverNode = (pill: { x: number; y: number; w: number; h: number }, edge: PositionedEdge): boolean =>
+    positioned.nodes.some(n => n.id !== edge.source && n.id !== edge.target &&
+      pill.x < n.x + n.width && pill.x + pill.w > n.x && pill.y < n.y + n.height && pill.y + pill.h > n.y)
+
+  for (const edge of positioned.edges) {
+    if (!edge.label || !edge.labelPosition || edge.points.length < 2) continue
+    if (edge.source === edge.target) continue // self-loop label sits beside the stub — correct, not off-route
+    const m = measureMultilineText(edge.label, style.edgeLabelFontSize, style.edgeLabelFontWeight)
+    const pw = m.width + 2 * LABEL_PILL_PADDING, ph = m.height + 2 * LABEL_PILL_PADDING
+    const allow = ph / 2 + 4 // exactly the rubric's labelOffRoute allowance
+    const routeDist = (p: Point): number => {
+      let d = Infinity
+      for (let i = 1; i < edge.points.length; i++) d = Math.min(d, distToSeg(p, edge.points[i - 1]!, edge.points[i]!))
+      return d
+    }
+    if (routeDist(edge.labelPosition) <= allow) continue // already on its own route — no-op (the corpus case)
+    const clearAt = (x: number, y: number): boolean => routeDist({ x, y }) <= allow &&
+      !pillOverNode(pillRect(x, y, m), edge) &&
+      !sharedTrunkConflict({ ...edge, labelPosition: { x, y } }, positioned.edges, style)
+
+    const segs: Array<{ a: Point; b: Point; vertical: boolean; len: number; i: number }> = []
+    for (let i = 1; i < edge.points.length; i++) {
+      const a = edge.points[i - 1]!, b = edge.points[i]!
+      const vertical = Math.abs(a.x - b.x) < EPS
+      if (vertical || Math.abs(a.y - b.y) < EPS) segs.push({ a, b, vertical, len: Math.abs(a.x - b.x) + Math.abs(a.y - b.y), i })
+    }
+    segs.sort((p, q) => q.len - p.len || p.i - q.i)
+
+    // (1) Prefer a slot ON the route: sample each segment center-out (midpoint
+    // reads best) and take the first clear one.
+    let placed = false
+    for (const seg of segs) {
+      if (placed) break
+      const half = (seg.vertical ? ph : pw) / 2
+      if (seg.len <= 2 * half) continue // pill can't sit on this segment without overhanging a bend
+      const tMargin = half / seg.len
+      const N = 11
+      const ts: number[] = []
+      for (let k = 0; k < N; k++) ts.push(tMargin + (1 - 2 * tMargin) * (k / (N - 1)))
+      ts.sort((a, b) => Math.abs(a - 0.5) - Math.abs(b - 0.5))
+      for (const t of ts) {
+        const cx = seg.a.x + (seg.b.x - seg.a.x) * t
+        const cy = seg.a.y + (seg.b.y - seg.a.y) * t
+        if (clearAt(cx, cy)) { edge.labelPosition = { x: cx, y: cy }; placed = true; break }
+      }
+    }
+    // (2) No on-route slot (the route's approach is a shared/congested trunk, so
+    // every on-route position collides). Pull the label PERPENDICULARLY toward
+    // the route — from wherever ELK parked it — to just inside the allowance
+    // (allow - 1), which still clears the trunk by ~half the remaining gap. Keep
+    // ELK's side first; fall back to the mirror side. This turns an off-route
+    // label into a within-tolerance one without forcing it onto a busy trunk.
+    if (!placed) {
+      let foot = edge.points[0]!, fd = Infinity
+      for (const s of segs.length ? segs : []) {
+        const dx = s.b.x - s.a.x, dy = s.b.y - s.a.y, l2 = dx * dx + dy * dy || 1
+        const t = Math.max(0, Math.min(1, ((edge.labelPosition.x - s.a.x) * dx + (edge.labelPosition.y - s.a.y) * dy) / l2))
+        const fx = s.a.x + t * dx, fy = s.a.y + t * dy, d = Math.hypot(edge.labelPosition.x - fx, edge.labelPosition.y - fy)
+        if (d < fd) { fd = d; foot = { x: fx, y: fy } }
+      }
+      const ux = fd > EPS ? (edge.labelPosition.x - foot.x) / fd : 0
+      const uy = fd > EPS ? (edge.labelPosition.y - foot.y) / fd : -1 // default: lift above
+      const off = allow - 1
+      for (const side of [1, -1]) {
+        const cx = foot.x + ux * off * side, cy = foot.y + uy * off * side
+        if (clearAt(cx, cy)) { edge.labelPosition = { x: cx, y: cy }; break }
+      }
+    }
+  }
+}
+
 export function auditRouteContracts(
   positioned: { nodes: PositionedNode[]; edges: PositionedEdge[]; groups: PositionedGroup[] },
   graph: MermaidGraph,
