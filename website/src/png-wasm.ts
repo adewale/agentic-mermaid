@@ -1,0 +1,33 @@
+// Hosted render_png: resvg-wasm (pinned to the same version as the local napi
+// build) with the repo's bundled DejaVu fonts, mirroring src/agent/png.ts
+// option-for-option. The wasm rasterizer is not guaranteed byte-identical to
+// the napi build, so hosted PNG is a convenience surface, not part of the
+// byte-determinism contract (see docs/quality.md "PNG determinism").
+//
+// Worker-only module: the .wasm/.ttf imports resolve via wrangler bundling
+// rules. build.ts copies the artifacts into ./generated/.
+
+import { initWasm, Resvg } from '@resvg/resvg-wasm'
+import resvgWasmModule from './generated/resvg.wasm'
+import fontRegular from './generated/DejaVuSans.ttf'
+import fontBold from './generated/DejaVuSans-Bold.ttf'
+import { renderMermaidSVG } from '../../src/index.ts'
+
+let ready: Promise<void> | undefined
+
+export async function renderMermaidPNGWasm(source: string, opts: { scale?: number; background?: string } = {}): Promise<Uint8Array> {
+  // initWasm throws if called twice; keep a single init promise per isolate.
+  ready ??= Promise.resolve(initWasm(resvgWasmModule))
+  await ready
+  const svg = renderMermaidSVG(source, { embedFontImport: false })
+  const resvg = new Resvg(svg, {
+    background: opts.background ?? 'white',
+    fitTo: { mode: 'zoom', value: opts.scale ?? 2 },
+    font: {
+      loadSystemFonts: false,
+      fontBuffers: [new Uint8Array(fontRegular), new Uint8Array(fontBold)],
+      defaultFontFamily: 'DejaVu Sans',
+    },
+  })
+  return resvg.render().asPng()
+}

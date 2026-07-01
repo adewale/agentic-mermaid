@@ -1,165 +1,201 @@
 # Hosted MCP on Cloudflare: plan
 
 Plan for turning the website's `/mcp` 501 placeholder into a real hosted MCP
-endpoint at `https://agenticmermaid.dev/mcp`, at $0/month on the Workers Free
-plan, with one explicit, measured trigger for upgrading to Workers Paid ($5/mo).
+endpoint at `https://agenticmermaid.dev/mcp`. The account is on the **Workers
+Paid plan with Dynamic Workers** (<https://developers.cloudflare.com/dynamic-workers/>),
+which changes the earlier free-tier plan in one fundamental way: hosted Code
+Mode (`execute`) is now viable — agent-supplied JavaScript runs in an isolated
+dynamic Worker instead of being local-only.
 
 ## Where we start
 
-- The website is already a Cloudflare Worker with Static Assets
-  (`website/wrangler.jsonc`, `website/src/worker.js`). The worker currently
-  returns an honest 501 at `/mcp`.
-- A full MCP server already exists in `src/mcp/server.ts` with a
-  transport-agnostic JSON-RPC core: `handleRequest(req, context)` takes a
-  parsed JSON-RPC request and returns a response, independent of stdio/HTTP.
-  That function is the reuse seam for the Worker.
-- Current tools: `execute` (Code Mode), `render_png`, `describe`.
+- The website is a Cloudflare Worker with Static Assets
+  (`website/wrangler.jsonc`, `website/src/worker.js`); `/mcp` currently
+  returns an honest 501.
+- The MCP server (`src/mcp/server.ts`) has a transport-agnostic JSON-RPC core,
+  `handleRequest(req, context)`, plus stdio and node HTTP/SSE transports.
+- Tools today: `execute` (Code Mode in a hardened `node:vm` sandbox),
+  `render_png` (native `@resvg/resvg-js`), `describe`.
+- **Viability probe (done):** the pure SDK surface — parse, mutate, verify,
+  analyze, serialize, describe, `renderMermaidSVG`, `renderMermaidASCII`, the
+  Code Mode facade — bundles for the workerd target at 2.2 MB raw / 657 KB
+  gzip with zero Node dependencies, and renders correctly from that bundle.
+  The only native/VM dependencies in the whole graph are `png.ts` (napi resvg)
+  and `sandbox.ts` (`node:vm`), both replaced per the table below. elkjs is
+  the bundled pure-JS build driven synchronously (`src/elk-instance.ts`) and
+  needs nothing from Node.
 
-## What cannot move to Workers as-is
+## Hosted tool surface
 
-Two of the three existing tools depend on capabilities Workers does not have:
-
-| Tool | Blocker | Hosted decision |
+| Tool | Local implementation | Hosted implementation |
 |---|---|---|
-| `execute` | `node:vm` is unavailable in workerd. Cloudflare's Worker Loaders ("Code Mode") could host it but is closed-beta with unsettled pricing. | **Excluded from the hosted server.** Code Mode stays local via stdio (`npx -y agentic-mermaid-mcp`). The hosted server's instructions point agents there. |
-| `render_png` | `@resvg/resvg-js` is a native napi addon. | **Phase 2, optional.** Swap to `@resvg/resvg-wasm` + a bundled font for the Worker build. PNG rasterization will likely exceed the free plan's 10ms CPU budget, so this ships only if/when we move to Workers Paid — or never, since agents can rasterize locally. |
-| `describe` | none (pure JS) | Hosted in phase 1. |
+| `execute` | `node:vm` hardened sandbox | **Dynamic Worker** per code hash: harness module (SDK bundle + the same hardened facade) + agent code as a module, `globalOutbound: null`, `limits: { cpuMs, subRequests: 0 }` |
+| `render_png` | native `@resvg/resvg-js` | `@resvg/resvg-wasm` + bundled DejaVu Sans (convenience surface; wasm output is not covered by the byte-determinism contract) |
+| `describe` | pure | same code, unchanged |
+| `render_svg` | — (use execute) | pure, hosted-only |
+| `render_ascii` | — (use execute) | pure, hosted-only |
+| `verify` | — (use execute) | pure, hosted-only |
 
-Everything else in the rendering pipeline — parser, elkjs layout, SVG/ASCII
-generation, verify — is pure JS/TS with no Node-native dependencies, so it runs
-in workerd directly.
+The three hosted-only pure tools exist for cost, not philosophy: locally,
+`execute` is free, so Code Mode stays the single entry point
+(`docs/mcp-code-mode-rationale.md` still holds). Hosted, every `execute`
+spins/bills a dynamic Worker, so the common render/verify paths get direct
+tools that cost one ordinary Worker invocation and are edge-cacheable. The
+implementations live in the shared hosted core (`src/mcp/hosted-server.ts`),
+not the website, so there is exactly one implementation of each.
 
-## Hosted tool surface (phase 1)
+## Hosted `execute` via Dynamic Workers
 
-The hosted server is a *narrower sibling* of the local server, not a mirror:
-stateless, pure-compute tools only.
+Design (API per <https://developers.cloudflare.com/dynamic-workers/api-reference/>):
 
-- `render_svg` — Mermaid source → themed SVG string.
-- `render_ascii` — Mermaid source → ASCII or Unicode text (`useAscii` flag).
-- `verify` — Mermaid source → `{ ok, warnings, layout }` structured result.
-- `describe` — existing tool, unchanged.
+- The parent Worker holds a `worker_loaders` binding (`LOADER`). On
+  `execute`, it calls `env.LOADER.get(id, async () => workerCode)` where:
+  - `id` = `am-exec-<pkg.version>-<sha256(code)>` — identical code reuses a
+    warm isolate; the callback only runs on cold load.
+  - `workerCode.modules` = the prebuilt **harness** (SDK bundle + Code Mode
+    facade + result plumbing, built by `website/build.ts` and imported into
+    the parent as a text module) plus the agent code wrapped as ONE module
+    per isolate. workerd compiles every registry module eagerly at isolate
+    startup (discovered in the wrangler e2e — a lazy `import()` fallback
+    inside one isolate is impossible), so the expression-first choice
+    `sandbox.ts` makes is decided by the loader itself: the parent starts the
+    expression-form isolate first and falls back to a statement-form isolate
+    when startup fails with a SyntaxError. Statement-form code costs one
+    failed isolate attempt; identical repeats never reach the loader thanks
+    to the response cache.
+  - `globalOutbound: null` — the isolate cannot `fetch()` or `connect()`
+    at all; `env` is empty, so there is nothing to reach or leak.
+  - `getEntrypoint(null, { limits: { cpuMs: min(timeoutMs, 30_000),
+    subRequests: 0 } })` enforces the compute budget; hitting it throws,
+    which maps to the same `{ ok: false, error }` shape as a local timeout.
+- The harness passes the user function the **same hardened `mermaid` facade**
+  the vm sandbox uses (`createTracingMermaid`, extracted to a runtime-neutral
+  `src/mcp/facade.ts`), so read-only results, trusted-diagram checks, and
+  error messages match local behavior. Sync-only enforcement
+  (`unsupportedCodeReason`) runs parent-side before any isolate is created —
+  rejected code costs nothing.
+- Result contract is byte-identical in shape to local: `{ ok, value, logs,
+  error }`, with the same undefined→null promotion and Map/Set JSON
+  normalization.
 
-All four are thin wrappers over the existing `src/agent/` API (they already
-exist inside `execute`'s SDK today). Responses are inline text/JSON only — no
-artifact files, no storage bindings.
+Known, documented divergences from local `execute`:
 
-The hosted `tools/list` description and the `initialize` instructions field
-state explicitly: for Code Mode (`execute`) and deterministic napi PNG, install
-`agentic-mermaid-mcp` locally over stdio.
+1. `timeoutMs` is enforced as **CPU** milliseconds (`cpuMs`), not wall-clock;
+   for pure synchronous compute these are close but not identical.
+2. A warm isolate can serve repeated identical code, so module-level global
+   mutation (`globalThis.x = ...`) may be visible across calls with the same
+   code — locally every call gets a fresh vm context. Response caching (below)
+   makes identical requests return the first result anyway; the divergence is
+   only reachable when the edge cache misses but the isolate is warm.
+3. Isolation authority differs: locally the proxy facade is the security
+   boundary; hosted, the isolate + `globalOutbound: null` is, and the facade
+   is kept for behavioral parity.
 
-## Architecture: stateless Streamable HTTP, no paid primitives
+## Transport: stateless Streamable HTTP
 
-The whole design goal is to need nothing beyond the Worker we already deploy.
+Unchanged from the original plan and still the cheapest correct choice — the
+tools are pure functions of their inputs:
 
-- **Transport:** Streamable HTTP in stateless mode. A single `POST /mcp`
-  endpoint accepts JSON-RPC and returns `application/json` responses. No SSE
-  stream, no sessions (`initialize` succeeds without issuing a session id),
-  `GET /mcp` → 405, notifications → 202. This is spec-conformant for a
-  stateless server and is what Claude Code, Cursor, etc. speak
-  (`claude mcp add --transport http agentic-mermaid https://agenticmermaid.dev/mcp`).
-- **No Durable Objects / agents SDK:** Cloudflare's `McpAgent` class exists for
-  stateful servers and needs Durable Objects. Our tools are pure functions of
-  their input; statelessness is free, so we take it.
-- **No KV / R2 / Queues:** base64/inline responses only. The local server's
-  artifact store (tmpdir + TTL) simply isn't instantiated in the Worker.
-- **Reuse `handleRequest`:** the Worker entry parses the HTTP body, enforces
-  caps, and delegates to the same JSON-RPC core the stdio server uses, with the
-  hosted toolset injected.
-- **Response caching:** layout is deterministic — identical input produces
-  identical geometry. So `tools/call` responses are cached in the Workers Cache
-  API keyed on SHA-256 of `(tool name, canonicalized arguments)`. Repeat
-  renders of the same diagram cost ~0 CPU. This is the single biggest lever for
-  staying inside the free plan's CPU budget.
+- Single `POST /mcp` accepting JSON-RPC, responding `application/json`.
+  No sessions, no SSE stream, `GET /mcp` → 405, notifications → 202.
+- No Durable Objects, agents SDK, KV, R2, or Queues.
+- Protocol version negotiated from a known-good list (the core currently pins
+  `2024-11-05`; Streamable HTTP clients offer `2025-03-26`+).
+- **Response caching:** layout is deterministic, so `tools/call` responses
+  (except nothing — all six tools are deterministic) are cached in the Workers
+  Cache API keyed on SHA-256 of `(tool, canonicalized arguments)`. Repeat
+  requests skip compute entirely; for `execute` they also skip the dynamic
+  Worker, which is the biggest cost lever.
+- Hygiene: 128 KB body cap, 64 KB Mermaid-source/code caps with structured
+  errors pointing at the local CLI, `content-type` enforcement, CORS `*`
+  (public, credential-less, read-only compute), one WAF rate-limiting rule
+  (e.g. 60 req/min/IP on `POST /mcp`, configured in the dashboard and
+  recorded in `website/README.md`).
 
-### Request hygiene / abuse control (all free)
+## Cost model (Workers Paid)
 
-- Body cap: 128 KB for `POST /mcp` (the local server already caps at 1 MB;
-  hosted is tighter).
-- Source cap inside tools (e.g. 64 KB of Mermaid source) with a structured
-  error pointing at the local CLI for huge diagrams.
-- `content-type: application/json` required, mirroring the local HTTP
-  transport's rule.
-- One Cloudflare WAF rate-limiting rule (free plan includes one): e.g.
-  60 requests/min per IP on `POST /mcp`. Configured in the dashboard, recorded
-  in `website/README.md`.
-- CORS: `Access-Control-Allow-Origin: *` on `/mcp` (public read-only compute,
-  no credentials, nothing to CSRF).
-- No auth. There is no user data, no mutation, and no per-user cost beyond the
-  rate limit.
+| Meter | Included | Overage | Our exposure |
+|---|---|---|---|
+| Worker requests | 10 M/month | $0.30/M | every `/mcp` call + one internal request per uncached `execute` |
+| CPU time | 30 M ms/month | $0.02/M ms | renders are ms-scale; `execute` capped at 30 s by `cpuMs` |
+| Unique dynamic Workers | 1,000/month | $0.002/Worker/day | one per **unique** `execute` code string per day (hash-keyed + edge-cached; retries and repeats dedupe) |
 
-## Cost model
+Levers that keep this near the plan's $5/month floor: edge caching of
+deterministic responses, code-hash isolate reuse, parent-side rejection of
+unsupported code, `subRequests: 0`, size caps, and the WAF rate limit as the
+abuse backstop. The pure tools keep the high-volume paths (render/verify) off
+the dynamic-Worker meter entirely. No other billable primitives are used.
 
-| Item | Plan | Cost |
-|---|---|---|
-| Worker requests | Free: 100k/day | $0 |
-| CPU | Free: 10 ms/invocation | $0 |
-| Bundle | Free: 3 MB gzipped (elkjs + our code fits; verify in CI) | $0 |
-| Cache API, WAF rate-limit rule, analytics | Free plan | $0 |
-| Durable Objects, KV, R2, Queues, Workers for Platforms, Worker Loaders | not used | $0 |
+## Verification strategy
 
-**Upgrade trigger (the only one):** move to Workers Paid ($5/mo — 10M
-requests, 30 s CPU, 10 MB bundle) when observability shows either
-(a) recurring CPU-limit terminations (error 1102) on real diagrams, or
-(b) sustained traffic near 100k req/day, or (c) we decide to ship hosted
-`render_png`. Until one of those is true, the bill is $0.
+Two external toolkits gate this work, per the repo owner's direction:
 
-**Known risk on free tier:** a large diagram's elkjs layout may exceed 10 ms
-CPU. Mitigations, in order: cache hit path (repeat requests are free),
-source-size cap, and a structured `error` response advising the local CLI.
-We measure real CPU time via Workers observability before deciding anything.
+- **testing-best-practices** (<https://github.com/adewale/testing-best-practices>):
+  - Red-green for new behavior: hosted-core tests written to fail without the
+    implementation; red/green evidence stated in the PR.
+  - **Differential testing** (`references/differential-testing.md`): the local
+    `node:vm` sandbox is the reference implementation; a corpus of Code Mode
+    snippets (happy paths, SDK misuse, mutation attempts, sync violations,
+    serialization edges) runs through both `executeInSandbox` and the harness
+    execution semantics, asserting matching `{ ok, value, logs, error }`.
+  - Error-path tests, not just invalid input: loader failures, cpu-limit
+    exceptions, oversized bodies, wrong content types, malformed JSON-RPC.
+  - Real objects over mocks: transport tests drive the actual `fetch` handler
+    with real `Request`/`Response`; the only faked seam is the Worker Loader
+    binding (a purpose-built fake implementing `get/getEntrypoint`, since
+    workerd is not available inside `bun test`), and a `wrangler dev` e2e
+    covers the real binding.
+- **cfdoctor** (<https://github.com/adewale/cfdoctor>): static scan
+  (`cfdoctor_static_scan.py`) plus the skill's audit playbook run against
+  `website/` before shipping; findings triaged with evidence and fixed or
+  explicitly accepted in the audit output.
+
+Plus the repo's own gates: `bun test src/__tests__/` (existing MCP tests must
+stay green through the refactor), `bunx tsc --noEmit`, `bun run
+website:check`, and a `wrangler dev` end-to-end pass (`website/e2e-mcp.sh`:
+initialize → tools/list → each tool, including a real dynamic-Worker
+`execute`). Known local-dev limitation found in that pass: wrangler dev does
+not enforce dynamic-worker `cpuMs`, so an unbounded sync loop wedges local
+workerd; production enforces `cpuMs` at the runtime and the parent races a
+wall-clock backstop so `/mcp` always answers. The e2e also flushed out an
+ELK instantiation failure under workerd (fixed in `src/elk-instance.ts` by
+flipping elk-worker's environment sniff with a temporary `document` global
+instead of deleting the undeletable `self`).
 
 ## Implementation steps
 
-1. **Refactor `src/mcp/server.ts` for toolset injection.** Extract the tool
-   registry so a transport chooses `FULL_TOOLS` (stdio/HTTP: execute,
-   render_png, describe) or `HOSTED_TOOLS`. Zero behavior change for existing
-   transports; `agent-mcp.test.ts`, `agent-mcp-http.test.ts`,
-   `agent-mcp-png.test.ts` must stay green untouched.
-2. **Add the pure tools** (`render_svg`, `render_ascii`, `verify`) as thin
-   wrappers over `src/agent/`, available to both toolsets (they're useful
-   locally too, and keeping one implementation avoids drift).
-3. **Worker entry `website/src/worker.ts`.** Wrangler bundles TypeScript with
-   esbuild natively, so the entry can import `handleRequest` from
-   `../../src/mcp/` directly — no separate build step. The existing static
-   asset/redirect/header logic is preserved; the `/mcp` branch replaces the
-   501 with: OPTIONS/CORS handling → method/content-type/body-cap validation →
-   cache lookup → `handleRequest` with `HOSTED_TOOLS` → cache store → JSON
-   response.
-4. **Protocol version.** The core pins `2024-11-05`; Streamable HTTP requires
-   negotiating `2025-03-26`+ and echoing the `MCP-Protocol-Version` header.
-   Make the core accept the client's offered version from a known-good list.
-5. **Tests.**
-   - Unit: drive the Worker's `fetch` handler with `Request` objects in
-     `bun test` (Request/Response are global in Bun) — handshake, tools/list,
-     each tool, cap violations, cache-key stability, CORS preflight.
-   - Update `src/__tests__/website-build.test.ts` wherever it asserts the 501.
-   - E2E smoke: `wrangler dev` + a curl script mirroring
-     `docs/mcp-http-transport.md`'s examples; verify with MCP Inspector and a
-     real `claude mcp add --transport http` session against the preview URL.
-   - CI bundle-size check: `wrangler deploy --dry-run --outdir` and assert
-     gzipped size < 3 MB.
-6. **Docs & agent surfaces.** Update `/docs/mcp` page, `capabilities.json`,
-   `llms.txt`, `agent-instructions.md`, and `website/README.md` (which
-   currently documents the 501 as intentional): hosted endpoint, tool surface,
-   limits, and the local-stdio recommendation for Code Mode/PNG.
-7. **Rollout.** Deploy as a Wrangler preview version first, smoke it, then
-   promote. Watch `wrangler tail` / Workers analytics for 1102s over the first
-   week; that data drives the free-vs-paid decision.
-
-## Phase 2 (only if justified)
-
-- **Hosted PNG:** `@resvg/resvg-wasm` + bundled DejaVu Sans subset. Requires
-  Workers Paid for CPU headroom and possibly bundle size. Caveat to document:
-  wasm resvg output is not guaranteed byte-identical to the local napi build,
-  so hosted PNG is a *convenience* surface, not part of the determinism
-  contract.
-- **Hosted Code Mode:** revisit if/when Cloudflare Worker Loaders reaches GA
-  with published pricing. Until then, `execute` is local-only by design.
+1. **Extract runtime-neutral modules.** `src/mcp/protocol.ts` (JSON-RPC
+   types + reply/error helpers), `src/mcp/facade.ts` (`createTracingMermaid`,
+   `unsupportedCodeReason`, wrapping helpers) importing the pure agent
+   surface, not the barrel (the barrel exports `png.ts`, which drags native
+   resvg into every graph). `server.ts`/`sandbox.ts` keep their exports and
+   behavior; existing tests untouched.
+2. **Hosted core** `src/mcp/hosted-server.ts`: `handleHostedRequest(req,
+   context)` with the six-tool surface; `execute` and `render_png` accept
+   injected implementations so the core stays runtime-neutral and testable in
+   `bun test`.
+3. **Harness** `src/mcp/dynamic-harness.ts` (entry compiled to a single text
+   asset by `website/build.ts`): fetch handler that builds the facade, imports
+   the user module (expression-first with `SyntaxError` fallback), executes,
+   serializes to the `ExecuteResult` contract.
+4. **Website worker** `website/src/worker.ts`: existing static/redirect logic
+   unchanged; `/mcp` branch implements the streamable-HTTP handler, cache
+   layer, loader-backed `execute`, wasm `render_png`. `wrangler.jsonc` gains
+   `worker_loaders`, text/data module rules for the harness and font, and
+   keeps Static Assets.
+5. **Tests** as described under verification; update
+   `src/__tests__/website-build.test.ts` where it asserts the 501.
+6. **cfdoctor audit + wrangler dev e2e**, fix findings.
+7. **Docs**: `website/README.md`, `docs/mcp-http-transport.md` cross-link, a
+   hosted-MCP section documenting the endpoint, tool surface, limits,
+   divergences, and the dashboard-side rate-limit rule.
 
 ## Explicit non-goals
 
-- No hosted arbitrary code execution (the current 501's promise holds:
-  local-first for Code Mode).
-- No REST render API — MCP only. (A `GET /render?src=` API invites hotlinking
-  and cost exposure; MCP clients are the audience.)
-- No accounts, tokens, or billing-adjacent infrastructure.
+- No REST render API — MCP only.
+- No accounts or tokens; abuse control is caps + rate limiting.
+- No hosted artifact storage; `render_png` returns base64 only (`output:
+  "file"/"url"` stay local-server features).
+- Durable Object facets, dynamic Workflows, and egress-controlled outbound
+  fetch (Dynamic Workers features) are all unused — the isolates need no
+  state and no network.

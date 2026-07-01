@@ -55,9 +55,14 @@ describe('Workers Static Assets website contract', () => {
 
   test('Wrangler uses the JSONC Static Assets config', () => {
     expect(existsSync(join(REPO, 'website/wrangler.toml'))).toBe(false)
-    const config = JSON.parse(readFileSync(join(REPO, 'website/wrangler.jsonc'), 'utf8'))
+    const jsonc = readFileSync(join(REPO, 'website/wrangler.jsonc'), 'utf8')
+    const config = JSON.parse(jsonc.replace(/^\s*\/\/.*$/gm, ''))
     expect(config.compatibility_date).toBe('2026-06-27')
     expect(config.assets).toEqual({ directory: './public', binding: 'ASSETS' })
+    // Hosted MCP contract: the Worker Loader binding backs Code Mode execute,
+    // and observability stays on for the public compute endpoint.
+    expect(config.worker_loaders).toEqual([{ binding: 'LOADER' }])
+    expect(config.observability).toEqual({ enabled: true })
     expect(readFileSync(join(REPO, 'package.json'), 'utf8')).toContain('wrangler@latest dev --port 9095 --ip 127.0.0.1')
   })
 
@@ -397,12 +402,15 @@ describe('Workers Static Assets website contract', () => {
     }
   })
 
-  test('MCP claims stay local-first without a stale public harness manifest', () => {
+  test('MCP claims cover the hosted endpoint without a stale public harness manifest', () => {
     expect(existsSync(join(SITE, 'harnesses.json'))).toBe(false)
     const publicText = files().filter((f) => /\.(html|json|md|txt)$/.test(f)).map(read).join('\n')
     expect(publicText).toContain('execute</code>, <code>render_png</code>, and <code>describe</code>')
-    expect(publicText).toContain('The public website does not execute Code Mode')
-    expect(publicText).toContain('<code>/mcp</code> route returns <code>501 hosted_mcp_not_enabled</code>')
+    expect(publicText).toContain('https://agenticmermaid.dev/mcp')
+    expect(publicText).toContain('render_svg')
+    expect(publicText).toContain('render_ascii')
+    // The 501 placeholder era is over; no page may still claim it.
+    expect(publicText).not.toContain('returns a 501')
     expect(publicText).not.toContain('render verify describe mutate')
     expect(publicText).not.toContain('The skill never runs Code Mode')
   })

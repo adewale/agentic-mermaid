@@ -1,8 +1,9 @@
 # Agentic Mermaid
 
-Agentic Mermaid renders, verifies, and safely edits Mermaid diagrams locally. Use the package, CLI, or self-hosted MCP; the website is documentation plus a browser-local editor, not a REST render API.
+Agentic Mermaid renders, verifies, and safely edits Mermaid diagrams. Use the package, CLI, the hosted MCP at /mcp, or a self-hosted MCP; the website is documentation plus a browser-local editor, not a REST render API.
 
 Start here:
+- /mcp – hosted MCP endpoint (stateless streamable HTTP JSON-RPC; tools: execute, render_svg, render_ascii, render_png, verify, describe)
 - /agent-instructions.md – compact operating guide for agents
 - /capabilities.json – authoritative family/output/mutation/warning contract
 - /examples/index.json – the same example IDs and sources loaded by the editor
@@ -11,5 +12,5 @@ Start here:
 Stop rules:
 - Verify before serialize, render, commit, or return.
 - Do not fabricate ValidDiagram objects. Parse first.
-- Prefer local library, CLI, or self-hosted MCP.
-- Do not call this website as a render API or arbitrary-code execution backend.
+- Prefer the local library, CLI, or MCP; the hosted /mcp endpoint covers the same tools with 64KB input caps.
+- Call /mcp with MCP JSON-RPC only; the website is not a REST render API.

@@ -48,20 +48,21 @@ function ensureElk(): void {
     return origSetTimeout(fn, delay)
   }
 
-  // Bun defines `self` (= globalThis) but not `document`, which tricks
-  // elk-worker.min.js into taking the Web Worker branch instead of the
-  // CJS branch. Temporarily hide `self` so it exports {Worker: FakeWorker}.
+  // Bun and Cloudflare workerd define `self` (= globalThis) but not
+  // `document`, which tricks elk-worker.min.js into taking the Web Worker
+  // branch (registering self.onmessage, exporting no Worker) instead of the
+  // CJS branch that exports {Worker: FakeWorker}. Deleting `self` worked on
+  // Bun but not on workerd, where the global is undeletable. Temporarily
+  // defining `document` flips the same branch condition on both runtimes:
+  // elk-worker checks `typeof document === 'undefined' && typeof self !==
+  // 'undefined'` before falling through to module.exports.
   const g = globalThis as Record<string, unknown>
-  const hadSelf = 'self' in g
-  const origSelf = g.self
-  if (hadSelf && typeof g.document === 'undefined') {
-    delete g.self
-  }
+  const hadDocument = typeof g.document !== 'undefined'
+  if (!hadDocument) g.document = {}
 
   elk = new ELKBundled()
 
-  // Restore self
-  if (hadSelf) g.self = origSelf
+  if (!hadDocument) delete g.document
 
   // Restore setTimeout immediately
   globalThis.setTimeout = origSetTimeout

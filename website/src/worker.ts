@@ -1,3 +1,18 @@
+// Website Worker: static assets on Cloudflare's asset path, plus the hosted
+// MCP endpoint at /mcp (stateless Streamable HTTP; see mcp-handler.ts).
+
+import { createMcpHandler } from './mcp-handler.ts'
+import { createLoaderExecute, type WorkerLoaderBinding } from './execute-loader.ts'
+import { renderMermaidPNGWasm } from './png-wasm.ts'
+import executeHarness from './generated/execute-harness.js.txt'
+import pkg from '../../package.json'
+
+interface Env {
+  ASSETS: { fetch(request: Request): Promise<Response> }
+  LOADER: WorkerLoaderBinding
+}
+interface ExecutionContext { waitUntil(promise: Promise<unknown>): void }
+
 // Renamed/consolidated routes. Examples absorbed the gallery; Families folded
 // into the docs; Why became About. Mirrors the static _redirects file.
 const redirects = new Map([
@@ -27,7 +42,7 @@ const csp = [
   "form-action 'none'",
 ].join('; ')
 
-function withHeaders(response, pathname) {
+function withHeaders(response: Response, pathname: string): Response {
   const headers = new Headers(response.headers)
   headers.set('X-Content-Type-Options', 'nosniff')
   headers.set('Referrer-Policy', 'strict-origin-when-cross-origin')
@@ -52,32 +67,27 @@ function withHeaders(response, pathname) {
 }
 
 export default {
-  async fetch(request, env) {
+  async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
     const url = new URL(request.url)
     const pathname = url.pathname.replace(/\/$/, '') || '/'
 
     const redirectTo = redirects.get(url.pathname) || redirects.get(pathname)
-    if (redirectTo) return Response.redirect(new URL(redirectTo + url.search + url.hash, url), 308)
+    if (redirectTo) return Response.redirect(new URL(redirectTo + url.search + url.hash, url).toString(), 308)
     if ((cleanRoutes.has(pathname) || /^\/(warnings|errors)\/[^/.]+$/.test(pathname)) && !url.pathname.endsWith('/')) {
-      return Response.redirect(new URL(pathname + '/' + url.search + url.hash, url), 308)
+      return Response.redirect(new URL(pathname + '/' + url.search + url.hash, url).toString(), 308)
     }
 
-    if (url.pathname === '/mcp' || url.pathname.startsWith('/mcp/')) {
-      return new Response(JSON.stringify({
-        error: 'hosted_mcp_not_enabled',
-        message: 'This Workers Static Assets preview does not enable the optional hosted MCP route. Use local agentic-mermaid-mcp over stdio.',
-        recommended: 'self-host',
-      }, null, 2) + '\n', {
-        status: 501,
-        headers: {
-          'content-type': 'application/json; charset=utf-8',
-          'access-control-allow-origin': '*',
-          'cache-control': 'no-store',
-          'x-content-type-options': 'nosniff',
-          'referrer-policy': 'strict-origin-when-cross-origin',
-          'permissions-policy': 'camera=(), microphone=(), geolocation=(), payment=(), usb=()',
+    if (pathname === '/mcp') {
+      const handler = createMcpHandler({
+        context: {
+          execute: createLoaderExecute(env.LOADER, executeHarness),
+          renderPng: renderMermaidPNGWasm,
         },
+        cache: caches.default,
+        cacheVersion: pkg.version,
+        waitUntil: p => ctx.waitUntil(p),
       })
+      return handler(request)
     }
 
     const response = await env.ASSETS.fetch(request)
