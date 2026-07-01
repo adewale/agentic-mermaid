@@ -1114,28 +1114,35 @@ export function rerouteEdgesThroughNodes(nodes: PositionedNode[], edges: Positio
     }
     return null
   }
-  // Bracket a skip link over/under the obstacle band, exiting the source and
-  // entering the target along the flow axis (the forward/skip case): a short stub
-  // off each port, a jog to the nearest clear cross-lane just past the band, and
-  // the corridor run between. Keeps both ports.
+  // Bracket a route over/under an obstacle, exiting the source and entering the
+  // target along the flow axis: a short stub off each port, a jog to a clear
+  // cross-lane, and the corridor run between. Keeps both ports. Candidate lanes
+  // are just past EACH corridor obstacle's cross-edges (so a lane in the gap
+  // between two obstacles is reachable, e.g. a feedback that must pass between the
+  // target and an unrelated node beside it) plus the whole-band edges as a
+  // fallback — nearest the ports first. This handles both the forward skip link
+  // and the feedback U-route whose return segment cut a node beside the target.
   const bracketOverBand = (pts: Point[], skip: ReadonlySet<string>): Point[] | null => {
     const start = pts[0]!, end = pts[pts.length - 1]!
     const mLo = Math.min(start[f.main], end[f.main]), mHi = Math.max(start[f.main], end[f.main])
     let bandLo = Infinity, bandHi = -Infinity
+    const laneSet: number[] = []
     for (const n of nodes) {
       if (skip.has(n.id)) continue
       const ns = n[f.main], ne = n[f.main] + (f.main === 'x' ? n.width : n.height)
       if (ne <= mLo || ns >= mHi) continue // outside the corridor
       const cs = nodeCrossStart(n, graph.direction), ce = cs + nodeCrossSize(n, graph.direction)
       bandLo = Math.min(bandLo, cs); bandHi = Math.max(bandHi, ce)
+      laneSet.push(cs - THROUGH_LANE_GAP, ce + THROUGH_LANE_GAP) // just past this obstacle's edges
     }
     if (!Number.isFinite(bandLo)) return null
+    laneSet.push(bandLo - THROUGH_LANE_GAP, bandHi + THROUGH_LANE_GAP) // whole-band fallback
     const pt = (mainV: number, crossV: number): Point => (f.main === 'x' ? { x: mainV, y: crossV } : { x: crossV, y: mainV })
     const dir = Math.sign(end[f.main] - start[f.main]) || 1
     const stub = Math.min(12, Math.abs(end[f.main] - start[f.main]) / 3)
     const m1 = start[f.main] + dir * stub, m2 = end[f.main] - dir * stub
     const mean = (start[f.cross] + end[f.cross]) / 2
-    const lanes = [bandLo - THROUGH_LANE_GAP, bandHi + THROUGH_LANE_GAP].sort((p, q) => Math.abs(p - mean) - Math.abs(q - mean))
+    const lanes = [...new Set(laneSet)].sort((p, q) => Math.abs(p - mean) - Math.abs(q - mean))
     for (const lane of lanes) {
       const route = simplifyPolyline([start, pt(m1, start[f.cross]), pt(m1, lane), pt(m2, lane), pt(m2, end[f.cross]), end])
       if (!throughNode(route, skip) && routeClearOfNodes(route, nodes, skip)) return route
