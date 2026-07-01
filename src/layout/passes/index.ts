@@ -252,17 +252,45 @@ export function equalizePeerNodeDimensions(nodes: PositionedNode[], edges: Posit
     const ordered = [...group].sort((a, b) => nodeCrossStart(a, graph.direction) - nodeCrossStart(b, graph.direction))
     let cursor = Math.min(...ordered.map(n => nodeCrossStart(n, graph.direction)))
     const mainStart = Math.min(...ordered.map(n => nodeMainStart(n, graph.direction)))
+    const proposed: Array<{ node: PositionedNode; x: number; y: number }> = []
     for (const node of ordered) {
-      if (f.isHorizontal) {
-        node.x = mainStart
-        node.y = cursor
-      } else {
-        node.x = cursor
-        node.y = mainStart
-      }
+      proposed.push({ node, x: f.isHorizontal ? mainStart : cursor, y: f.isHorizontal ? cursor : mainStart })
+      cursor += (f.isHorizontal ? maxHeight : maxWidth) + 24
+    }
+    // Equalizing grows each peer to the shared max on the MAIN axis. In a reversed
+    // flow (RL/BT) that growth reaches back into the peer's own upstream node —
+    // and packFlowLayerCrossAxis (cross-axis only) cannot pull the two apart,
+    // leaving a nodeOverlaps/offOutlineEndpoints HARD. Skip the group when the
+    // WIDENING newly extends a peer's MAIN-axis span over a non-peer node it did
+    // not originally overlap (while cross-aligned) — the pack-unresolvable case.
+    // Cross-axis collisions with same-layer siblings are LEFT to the pack (as
+    // before), so a clean corpus fan-in is untouched and byte-exact equivalence
+    // holds; only a rare differing-width, upstream-fed reversed fan-in is left at
+    // its natural (already clean) widths instead of widened into an overlap.
+    const ids = new Set(group.map(n => n.id))
+    const iv = (aLo: number, aHi: number, bLo: number, bHi: number) => aLo < bHi - 0.01 && bLo < aHi - 0.01
+    const nonPeers = nodes.filter(o => !ids.has(o.id))
+    const widensOverNeighbour = proposed.some(({ node, x, y }) => {
+      const oMainLo = f.isHorizontal ? node.x : node.y
+      const oMainHi = oMainLo + (f.isHorizontal ? node.width : node.height) // ORIGINAL main span
+      const pMainLo = f.isHorizontal ? x : y
+      const pMainHi = pMainLo + (f.isHorizontal ? maxWidth : maxHeight) // WIDENED main span
+      const pCrossLo = f.isHorizontal ? y : x
+      const pCrossHi = pCrossLo + (f.isHorizontal ? maxHeight : maxWidth)
+      return nonPeers.some(o => {
+        const qMainLo = f.isHorizontal ? o.x : o.y
+        const qMainHi = qMainLo + (f.isHorizontal ? o.width : o.height)
+        const qCrossLo = f.isHorizontal ? o.y : o.x
+        const qCrossHi = qCrossLo + (f.isHorizontal ? o.height : o.width)
+        return iv(pMainLo, pMainHi, qMainLo, qMainHi) && !iv(oMainLo, oMainHi, qMainLo, qMainHi) && iv(pCrossLo, pCrossHi, qCrossLo, qCrossHi)
+      })
+    })
+    if (widensOverNeighbour) continue
+    for (const { node, x, y } of proposed) {
+      node.x = x
+      node.y = y
       node.width = maxWidth
       node.height = maxHeight
-      cursor += (f.isHorizontal ? maxHeight : maxWidth) + 24
       changed = true
     }
   }
