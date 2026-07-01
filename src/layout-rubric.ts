@@ -15,7 +15,7 @@
  */
 
 import type { MermaidGraph, Point, PositionedEdge, PositionedGraph, PositionedGroup, PositionedNode } from './types.ts'
-import { diamondFacetPorts, findRouteHitches, shapePorts } from './route-contracts.ts'
+import { diamondFacetPorts, findRouteHitches, PORT_EXACT, shapePorts } from './route-contracts.ts'
 import { measureMultilineText } from './text-metrics.ts'
 import { resolveRenderStyle } from './styles.ts'
 
@@ -418,7 +418,7 @@ function logicalGraphReaches(graph: MermaidGraph, from: string, to: string): boo
   return false
 }
 
-// The sym metric: largest cross-axis offset between a rectangle peer hub and
+// The sym metric: largest cross-axis offset between a PORT_EXACT peer hub and
 // its peer barycenter — directly the fan-in/fan-out symmetry the centering
 // optimizes. LABELED spokes are INCLUDED (a mixed-label fan-in is exactly the
 // case the co-rank default squares up; excluding its labeled spoke hid the win,
@@ -426,8 +426,12 @@ function logicalGraphReaches(graph: MermaidGraph, from: string, to: string): boo
 // SAME 28px tolerance centerPeerBarycenters uses to decide a fan-in's sources
 // are same-rank peers, so the metric and the centering pass agree on which
 // fan-ins count: a co-ranked mixed-label fan-in is now seen and reads ≈0 when
-// the hub is centered, instead of being invisible. The shape gates (rect hub +
-// rect ungrouped peers, distinct, mutually-unreachable) are unchanged.
+// the hub is centered, instead of being invisible. The shape gate MATCHES the
+// relaxed centerPeerBarycenters guard: the HUB may be any PORT_EXACT shape (a
+// DECISION diamond, round, stadium, …) and so may a FAN-IN peer, so a diamond
+// hub/source centering now registers instead of being invisible; FAN-OUT peers
+// stay rectangle-only (that side is owned by applySymmetricFanoutEmissions).
+// (Still requires distinct, mutually-unreachable peers on one flow layer.)
 const SYM_PEER_LAYER_TOL = 28
 function peerBarycenterDelta(positioned: PositionedGraph, graph: MermaidGraph): number {
   const nodeMap = new Map(positioned.nodes.map(n => [n.id, n]))
@@ -443,10 +447,15 @@ function peerBarycenterDelta(positioned: PositionedGraph, graph: MermaidGraph): 
     byTarget.get(edge.target)!.push(source)
   }
   let worst = 0
-  const update = (hub: PositionedNode | undefined, peers: PositionedNode[]) => {
+  // Peer-shape gate mirrors centerPeerBarycenters exactly so the metric measures
+  // precisely what the pass optimizes: FAN-IN peers may be any PORT_EXACT shape,
+  // FAN-OUT peers stay rectangle-only (applySymmetricFanoutEmissions owns non-rect
+  // fan-out spread; the metric must not claim a fan-out the pass never centres).
+  const update = (hub: PositionedNode | undefined, peers: PositionedNode[], side: 'in' | 'out') => {
     if (!hub || peers.length < 2 || peers.length > 6 || !samePeerLayer(peers, graph.direction, SYM_PEER_LAYER_TOL)) return
-    if (hub.shape !== 'rectangle' || nodeInsideGroups(hub, positioned.groups)) return
-    if (!peers.every(peer => peer.shape === 'rectangle' && !nodeInsideGroups(peer, positioned.groups))) return
+    if (!PORT_EXACT.has(hub.shape) || nodeInsideGroups(hub, positioned.groups)) return
+    const peerShapeOk = (peer: PositionedNode) => side === 'in' ? PORT_EXACT.has(peer.shape) : peer.shape === 'rectangle'
+    if (!peers.every(peer => peerShapeOk(peer) && !nodeInsideGroups(peer, positioned.groups))) return
     if (new Set(peers.map(peer => peer.id)).size !== peers.length) return
     for (let i = 0; i < peers.length; i++) for (let j = 0; j < peers.length; j++) {
       if (i !== j && logicalGraphReaches(graph, peers[i]!.id, peers[j]!.id)) return
@@ -454,8 +463,8 @@ function peerBarycenterDelta(positioned: PositionedGraph, graph: MermaidGraph): 
     const barycenter = peers.reduce((sum, peer) => sum + nodeCrossCenter(peer, graph.direction), 0) / peers.length
     worst = Math.max(worst, Math.abs(nodeCrossCenter(hub, graph.direction) - barycenter))
   }
-  for (const [source, targets] of bySource) update(nodeMap.get(source), targets)
-  for (const [target, sources] of byTarget) update(nodeMap.get(target), sources)
+  for (const [source, targets] of bySource) update(nodeMap.get(source), targets, 'out')
+  for (const [target, sources] of byTarget) update(nodeMap.get(target), sources, 'in')
   return worst
 }
 

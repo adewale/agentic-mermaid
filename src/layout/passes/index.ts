@@ -293,7 +293,20 @@ export function centerPeerBarycenters(
     if (new Set(ids).size !== ids.length) return undefined
     const peers = ids.map(id => nodeMap.get(id)).filter((node): node is PositionedNode => !!node)
     if (peers.length !== ids.length) return undefined
-    if (!peers.every(node => node.shape === 'rectangle' && !nodeInsideGroups(node, groups))) return undefined
+    // Peer-shape gate depends on the side. FAN-IN peers (peerEnd 'source') may be
+    // any PORT_EXACT shape: no downstream pass re-spreads fan-in sources, so a
+    // diamond/round/stadium source is exactly the case that otherwise reverts to
+    // ELK's off-centre placement — centering the hub over their (exact-port)
+    // barycenter is pure win. FAN-OUT peers (peerEnd 'target') stay rectangle-only:
+    // applySymmetricFanoutEmissions OWNS fan-out symmetry and re-spreads rect (or
+    // diamond-source) fan-outs EVENLY; for non-rect fan-out peers it bails, so
+    // centering the hub on their raw, unevenly-spaced ELK barycenter would trade a
+    // clean straight-to-middle-child emit for a worse off-centre one. The hub itself
+    // may still be a diamond (moveHub guard) — its fan-out is re-spread by that pass.
+    const peerShapeOk = peerEnd === 'source'
+      ? (node: PositionedNode) => PORT_EXACT.has(node.shape)
+      : (node: PositionedNode) => node.shape === 'rectangle'
+    if (!peers.every(node => peerShapeOk(node) && !nodeInsideGroups(node, groups))) return undefined
     if (!sameFlowLayer(peers, graph.direction, 28)) return undefined
     for (let i = 0; i < peers.length; i++) for (let j = 0; j < peers.length; j++) {
       if (i !== j && logicalGraphReaches(graph, peers[i]!.id, peers[j]!.id)) return undefined
@@ -349,7 +362,17 @@ export function centerPeerBarycenters(
       outPeers: PositionedNode[] | undefined,
       inPeers: PositionedNode[] | undefined,
     ): void => {
-      if (!hub || hub.shape !== 'rectangle' || nodeInsideGroups(hub, groups)) return
+      // PORT_EXACT hubs (diamond/round/stadium/…) centre exactly like a rectangle:
+      // the hub only translates on the cross axis and re-anchors through its exact
+      // forward port, so a DECISION diamond fan-in/fan-out/mixed hub now squares up
+      // on its peer barycenter instead of reverting to ELK's off-centre placement.
+      // Composes with the passes that already touch diamonds: alignForkRejoinPeerCenters
+      // (runs earlier; a diamond fork→3 rect peers→rejoin) leaves the hub ON its
+      // barycenter, so this pass finds delta≈0 and no-ops there; applySymmetricFanoutEmissions
+      // (runs later) re-spreads a small diamond fan-out around wherever the hub lands,
+      // and a free small fan-out is dropped from the anchored set below so it doesn't
+      // fight that pass.
+      if (!hub || !PORT_EXACT.has(hub.shape) || nodeInsideGroups(hub, groups)) return
       const inBary = inPeers ? peerBarycenter(inPeers) : undefined
       const outBary = outPeers ? peerBarycenter(outPeers) : undefined
 
@@ -435,6 +458,18 @@ export function corankFanInSpokes(
   const result = new Map<string, PositionedEdge[]>()
   if (layoutEnvFlag('APL_NO_CORANK_FANIN')) return result
   const nodeMap = new Map(nodes.map(n => [n.id, n]))
+  // The HUB may be any PORT_EXACT shape (a diamond/round/stadium mixed-label
+  // fan-in co-ranks and centres just like a rectangle one, so its converging
+  // spokes are the same justified symmetric convergence). markCorankFanInBundles
+  // keeps every rebuilt endpoint on-outline (it verifies the spread hub entries
+  // and collapses to the exact port for non-straight-sided hubs), so admitting a
+  // non-rect hub never risks the offOutlineEndpoints HARD invariant.
+  const isPortExactUngroupedHub = (n: PositionedNode | undefined): boolean =>
+    !!n && PORT_EXACT.has(n.shape) && !nodeInsideGroups(n, groups)
+  // The SOURCES stay rectangle-only, mirroring corankFanInBalancingLabels: a
+  // non-rect (diamond/…) SOURCE emitting a single labelled line has its own
+  // exact-vertex exit contract that a converging-bundle re-route would override
+  // (issue #26 WS3 / alignPortLanes). Squaring up the hub never re-emits sources.
   const isRectUngrouped = (n: PositionedNode | undefined): boolean =>
     !!n && n.shape === 'rectangle' && !nodeInsideGroups(n, groups)
 
@@ -449,7 +484,7 @@ export function corankFanInSpokes(
   for (const [hubId, group] of incoming) {
     if (group.length < 2 || group.length > 6) continue
     const hub = nodeMap.get(hubId)
-    if (!isRectUngrouped(hub)) continue
+    if (!isPortExactUngroupedHub(hub)) continue
     // MIXED hub only: some labeled, some not. A uniform fan-in already co-ranks
     // (and an all-unlabeled one is the plain bundler's job).
     const labeled = group.filter(e => !!e.label)
@@ -457,7 +492,7 @@ export function corankFanInSpokes(
     // One shared edge style, mirroring the centering/bundling gate.
     const firstStyle = group[0]!.style
     if (group.some(e => e.style !== firstStyle)) continue
-    // Every source must be a distinct, rect, ungrouped peer.
+    // Every source must be a distinct, rectangle, ungrouped peer.
     const sources = group.map(e => nodeMap.get(e.source)).filter((n): n is PositionedNode => !!n)
     if (sources.length !== group.length) continue
     if (new Set(sources.map(s => s.id)).size !== sources.length) continue
@@ -527,7 +562,19 @@ export function markCorankFanInBundles(
     const hubCrossHalf = (f.isHorizontal ? hub.height : hub.width) / 2
     const maxSpan = hubCrossHalf * 1.6
     const spacing = Math.min(28, ordered.length > 1 ? maxSpan / (ordered.length - 1) : 0)
-    const offsets = symmetricOffsets(ordered.length, spacing)
+    let offsets = symmetricOffsets(ordered.length, spacing)
+    // A spread entry is only ON the outline for a straight-sided (rect-like) hub.
+    // On a diamond/round/stadium/… the flow side is a single vertex or a curve
+    // tip, so an offset entry floats OFF the outline — and a bundle edge is not
+    // clipped downstream, which would surface as an offOutlineEndpoints HARD. When
+    // any spread entry misses the hub outline, collapse every spoke onto the exact
+    // cardinal port (offset 0): the spokes still converge symmetrically through one
+    // shared elbow to a single on-outline port (exactly what an unlabeled diamond
+    // fan-in does) and the labels are still re-centred below.
+    const entryAt = (offset: number): Point => f.isHorizontal
+      ? { x: entryMid.x, y: entryMid.y + offset }
+      : { x: entryMid.x + offset, y: entryMid.y }
+    if (!offsets.every(o => onShapeOutline(hub, entryAt(o)))) offsets = offsets.map(() => 0)
 
     // Shared elbow on the main axis, midway between the rank of the (co-ranked)
     // sources' forward edge and the hub's entry edge — the converging junction.
@@ -543,9 +590,7 @@ export function markCorankFanInBundles(
       const edge = ordered[i]!
       const src = sources[i]!
       const exit = shapePorts(src)[f.sourceSide]
-      const entry: Point = f.isHorizontal
-        ? { x: entryMid.x, y: entryMid.y + offsets[i]! }
-        : { x: entryMid.x + offsets[i]!, y: entryMid.y }
+      const entry = entryAt(offsets[i]!)
       const points = doglegBetween(exit, entry, graph.direction, elbow)
       if (!routeClearOfNodes(points, nodes, new Set([edge.source, edge.target]))) { clear = false; break }
       proposed.push({ edge, points })

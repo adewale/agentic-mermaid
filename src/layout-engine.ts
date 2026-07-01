@@ -323,12 +323,18 @@ function corankFanInBalancingLabels(
     // Only a MIXED hub (some labeled, some not) is desynced; a uniformly
     // labeled or uniformly unlabeled fan-in already co-ranks.
     if (labeled.length === 0 || unlabeled.length === 0) continue
-    // Scope to rectangle hubs whose every source is also a rectangle — the
-    // exact shape gate centerPeerBarycenters applies when it squares up the
-    // co-ranked peers. Diamonds (and other shapes) have their own port-lane
-    // alignment that a balancing rank would fight, so leave them untouched.
+    // The HUB may be any PORT_EXACT shape (a DECISION diamond, round, stadium, …):
+    // co-ranking its mixed-label sources pre-ELK is what lets centerPeerBarycenters
+    // centre such a hub and markCorankFanInBundles converge + centre the labels. The
+    // UNLABELED-only alignPortLanes fan-in centering never fires on a MIXED-label
+    // fan-in, so this does not fight it.
+    // The SOURCES stay rectangle-only, though: a diamond (or other sharp/curved)
+    // SOURCE emitting a single labelled line has its own exact-vertex exit contract
+    // (issue #26 WS3 / alignPortLanes) that a co-rank bundle re-route would override.
+    // Squaring up the hub never requires re-emitting the sources, so leave them.
+    const hubShape = graph.nodes.get(hubId)?.shape
+    if (hubShape === undefined || !PORT_EXACT.has(hubShape)) continue
     const isRect = (id: string): boolean => graph.nodes.get(id)?.shape === 'rectangle'
-    if (!isRect(hubId)) continue
     if (!indices.every(i => isRect(graph.edges[i]!.source))) continue
 
     // Size the balancing cell to the WIDEST labeled sibling so every unlabeled

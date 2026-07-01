@@ -83,5 +83,22 @@ export function trackedExamples(): TrackedExample[] {
     source: 'flowchart LR\n  A["warnings"] -->|warnings| B["ok"]\n  B -->|ok| C["rendered"]\n  A2["same word: warnings"] --> A\n  B2["same word: ok"] --> B\n  C -->|warnings| D["warnings"]\n  C -->|ok| E["ok"]',
     intent: 'every labelled edge label centred on its route (~midpoint), not hugging an endpoint' })
 
+  // Group 7 — NON-RECT (diamond) hub centring. Every centring/co-rank/label-centring
+  // heuristic used to bail on shape !== 'rectangle', so a DECISION diamond hub got
+  // NO barycentre centring and reverted to ELK's off-centre placement. The guards
+  // now admit PORT_EXACT hubs (and fan-in peers), so these centre just like a rect
+  // hub. Both are LR so the tracker's fanInSymmetryError (y-axis) reads the cross
+  // axis correctly. `mixed-hub` is a diamond fed by a labelled + an unlabelled edge
+  // that ALSO fans out to two peers — a MIXED hub the alignPortLanes fan-in centring
+  // cannot touch (it is unlabelled-only and single-forward-branch-only): the hub was
+  // ~22px off its incoming barycentre before, ~0 now. `mixed-label-fanin` is the
+  // co-ranked mixed-label fan-in whose labelled spoke also stops hugging its source.
+  out.push({ group: 'diamond-hub', name: 'mixed-hub',
+    source: 'flowchart LR\n  A["aa"] -->|lab| H{hub}\n  B["bb"] --> H\n  H --> C["c1"]\n  H --> D["c2"]',
+    intent: 'the diamond hub sits on its incoming (rect) peer barycentre; both spokes converge symmetrically at its exact port' })
+  out.push({ group: 'diamond-hub', name: 'mixed-label-fanin',
+    source: 'flowchart LR\n  A["warnings"] -->|warnings| H{decision}\n  B["same word: ok"] --> H\n  H --> C["ok"]',
+    intent: 'co-ranked mixed-label fan-in into a diamond hub: sources co-rank, hub centred, spokes converge, label near the route midpoint' })
+
   return out
 }

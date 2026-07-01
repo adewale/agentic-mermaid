@@ -664,5 +664,23 @@
     "crossings": 0,
     "symErr": 14,
     "labelOff": 0.16
+  },
+  "diamond-hub/mixed-hub": {
+    "hard": 0,
+    "offCardinal": 0,
+    "bends": 0,
+    "straight": 0,
+    "crossings": 0,
+    "symErr": 0,
+    "labelOff": 0.121
+  },
+  "diamond-hub/mixed-label-fanin": {
+    "hard": 0,
+    "offCardinal": 1,
+    "bends": 0,
+    "straight": 1,
+    "crossings": 0,
+    "symErr": 0,
+    "labelOff": 0.092
   }
 }
