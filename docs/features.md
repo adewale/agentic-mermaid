@@ -41,7 +41,7 @@ or preserves source verbatim. Constructs are never silently dropped.
 
 ## Output formats
 
-Agentic Mermaid outputs **ASCII, PNG, and SVG** from the same renderer foundation, with Unicode text and JSON layout available for specialized workflows.
+Agentic Mermaid outputs **SVG, PNG, ASCII, Unicode, and JSON layout** from the same renderer foundation.
 
 - **SVG** — `renderMermaidSVG` (`compact`, `security:'strict'`, CSS
   variable fonts, `idPrefix` namespacing). CLI exposes `--security strict`.

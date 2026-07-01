@@ -1,0 +1,67 @@
+# Research: Agent-first and accessibility-forward sites for Agentic Mermaid
+
+## Summary
+Live web search/fetch tools were not available in this subagent session, so this brief is a desk-research shortlist based on known public patterns through 2026-06 and should be verified before design commitments. The strongest agent-first examples combine machine-readable entry points (`/llms.txt`, `/llms-full.txt`, MCP docs/manifests, copyable prompts) with human docs that are fast, semantic, keyboard-friendly, and easy to quote. The strongest accessibility examples treat docs/product UI as a design system problem: predictable landmarks, skip links, high contrast, robust focus states, reduced-motion support, and examples that degrade gracefully.
+
+## Findings
+1. **`llms.txt` has become the clearest low-friction agent entry point** — The emerging convention is a Markdown file at `/llms.txt` containing curated links and short descriptions, sometimes paired with `/llms-full.txt` for a longer concatenated context. It is useful because coding agents can ingest a compact canonical map instead of crawling navigation-heavy docs. [llmstxt.org](https://llmstxt.org/) / [Mintlify `llms.txt` docs](https://mintlify.com/docs/llms.txt)
+2. **Anthropic docs are a strong agent/developer-facing model** — Anthropic’s developer docs are structured around concrete tasks, SDK snippets, model behavior guidance, and prompt-oriented examples; they are also commonly cited as exposing agent-ingestible docs such as `https://docs.anthropic.com/llms.txt` and `https://docs.anthropic.com/llms-full.txt` where enabled. Lesson: provide an “agent map” plus examples that can be copied with minimal surrounding prose. [Anthropic docs](https://docs.anthropic.com/)
+3. **Model Context Protocol is the most relevant agent-manifest precedent** — MCP’s official site defines a standard way for applications to expose tools/resources/prompts to AI systems. Even if Agentic Mermaid does not need a server immediately, the docs pattern is instructive: clearly distinguish concepts, transports, capabilities, client/server roles, and implementation examples. [MCP docs](https://modelcontextprotocol.io/) / [MCP specification](https://spec.modelcontextprotocol.io/)
+4. **Vercel AI SDK shows agent-native docs for builders** — The AI SDK docs emphasize recipes, framework-specific examples, streaming UI patterns, tool calling, and copyable code. It is a good example for Agentic Mermaid because it separates “conceptual API surface” from “drop-in examples” and likely supports agent-readable surfaces such as `https://ai-sdk.dev/llms.txt`. [Vercel AI SDK docs](https://ai-sdk.dev/docs)
+5. **Cursor docs are a relevant example of docs written for agent workflows** — Cursor’s product docs organize around rules, context, indexing, chat, agent mode, and team controls. Lesson: explicitly document how the product should be used by coding agents, including expected context files and safe editing boundaries. Candidate agent entry: `https://docs.cursor.com/llms.txt` if still live. [Cursor docs](https://docs.cursor.com/)
+6. **OpenAI developer platform is useful for prompt/tool examples, but less ideal as a docs IA model** — OpenAI’s docs include task-oriented guides, API references, and copyable snippets for tool use, structured outputs, and agents. Lesson: provide runnable examples and schema-first docs; caveat: large SPA/product surfaces can be heavier for screen readers and agents than static Markdown-like docs. [OpenAI platform docs](https://platform.openai.com/docs)
+7. **Cloudflare docs are a useful large-scale docs/accessibility reference** — Cloudflare’s docs are fast, highly structured, searchable, and increasingly expose AI/agent helper files such as `llms.txt` on some docs properties. Lesson: keep headings/link text descriptive, make navigation predictable, and expose stable deep links for every concept. [Cloudflare docs](https://developers.cloudflare.com/)
+8. **GitHub Docs are strong for developer trust and accessible patterns** — GitHub Docs combine clear task pages, REST/GraphQL references, changelogs, keyboard-accessible UI, good heading structure, theme support, and copyable commands. Lesson: Agentic Mermaid should provide stable anchors, concise procedural pages, visible “copy” affordances, and robust dark/light contrast. [GitHub Docs](https://docs.github.com/)
+9. **GOV.UK Design System is the accessibility baseline to emulate** — It demonstrates plain-language content, semantic components, skip links, focus indicators, error summaries, form patterns, and documented accessibility decisions. Lesson: for Agentic Mermaid docs and UI, prefer boring, explicit, testable accessibility over decorative interface novelty. [GOV.UK Design System](https://design-system.service.gov.uk/)
+10. **W3C WAI is the authoritative accessibility source** — WAI’s tutorials and ARIA Authoring Practices give normative patterns for landmarks, keyboard interaction, naming, focus management, contrast, and reduced motion. Lesson: any interactive diagram editor/viewer should document keyboard controls, focus order, accessible names, and non-visual equivalents. [W3C WAI](https://www.w3.org/WAI/) / [ARIA APG](https://www.w3.org/WAI/ARIA/apg/)
+11. **BBC GEL and Shopify Polaris show mature product-design-system accessibility** — Both document inclusive component behavior, content guidance, color/contrast, and interaction states. Lesson: Agentic Mermaid should treat docs examples, CLI output pages, generated SVG/PNG previews, and any web UI as components with accessibility contracts. [BBC GEL](https://www.bbc.co.uk/gel) / [Shopify Polaris accessibility](https://polaris.shopify.com/foundations/accessibility)
+12. **Stainless/Speakeasy-style API docs generators are relevant for agent-friendly API surfaces** — Modern API/documentation platforms emphasize generated SDK examples, typed schemas, OpenAPI-first references, and AI-consumable context. Lesson: keep Agentic Mermaid’s typed editing surface documented with canonical TypeScript signatures, JSON-like examples, and machine-readable schema fragments where possible. [Stainless](https://www.stainless.com/) / [Speakeasy](https://www.speakeasy.com/)
+
+## Examples to verify before reuse
+| Site | Source URL | Interesting agent/AX pattern | Lessons for Agentic Mermaid | Caveats |
+|---|---|---|---|---|
+| llms.txt spec | https://llmstxt.org/ | Defines agent-oriented Markdown discovery file | Add `/llms.txt` with install, CLI, API, layout concepts, examples, links to source docs | Convention, not a formal web standard |
+| Mintlify docs | https://mintlify.com/docs/llms.txt | Docs platform support for `llms.txt`/`llms-full.txt` | If using generated docs, ensure agent export is automatic and reviewed | Verify exact current implementation |
+| Anthropic Docs | https://docs.anthropic.com/ | Prompt/task-first docs; likely agent context files | Provide copyable “render/fix/edit diagram” prompts and examples | Verify `llms.txt` URLs live |
+| MCP official docs | https://modelcontextprotocol.io/ | Standardizes tool/resource/prompt exposure to agents | Consider future MCP server exposing render/validate/layout-quality tools | MCP adoption still evolving |
+| Vercel AI SDK | https://ai-sdk.dev/docs | Recipe-driven agent/tool docs | Separate quickstarts, recipes, API refs, and examples | Verify `llms.txt` URL live |
+| Cursor Docs | https://docs.cursor.com/ | Documents rules/context/agent workflows | Add `AGENTS.md`/agent usage page explaining safe edits and tests | Product docs may change quickly |
+| GitHub Docs | https://docs.github.com/ | Accessible developer docs with stable anchors/copy snippets | Use strong heading hierarchy, task pages, copy buttons, changelog | Not specifically agent-first |
+| Cloudflare Developers | https://developers.cloudflare.com/ | Large-scale docs IA, fast pages, deep links | Stable, crawlable docs; concise concept pages | Verify AI helper files per docs property |
+| GOV.UK Design System | https://design-system.service.gov.uk/ | Accessibility-by-default components and content style | Adopt skip links, visible focus, plain language, error summaries | Public-service UI differs from dev tooling |
+| W3C WAI/APG | https://www.w3.org/WAI/ARIA/apg/ | Authoritative keyboard/ARIA patterns | Use as acceptance criteria for any interactive diagram surface | Requires translation into product-specific tests |
+| BBC GEL | https://www.bbc.co.uk/gel | Inclusive design system and media accessibility | Caption/alt strategy for generated diagram previews | Some pages may be less implementation-specific |
+| Shopify Polaris | https://polaris.shopify.com/foundations/accessibility | Product UI accessibility principles | Component-level AX contracts and design tokens | E-commerce context differs |
+
+## AX/design lessons for Agentic Mermaid
+1. **Ship an agent discovery bundle** — Add public docs equivalents of `/llms.txt` and optionally `/llms-full.txt` containing: what the package does, install commands, CLI examples, typed API entry points, supported diagram features, deterministic layout guarantee, common failure modes, and links to tests/source.
+2. **Add copyable prompts, not just copyable code** — Examples: “Convert this rough Mermaid into Agentic Mermaid typed edits,” “Improve layout while preserving semantics,” “Generate a regression test for this diagram,” and “Explain why this layout-quality score changed.”
+3. **Document agent-safe workflows** — Include explicit guidance for coding agents: run `bun test src/__tests__/`, `bunx tsc --noEmit`, `bun run track`; preserve deterministic geometry; avoid unrelated refactors; update visual/metric evidence for layout changes.
+4. **Expose machine-readable API/context** — Consider generated TypeScript API docs, JSON schema for diagram edit operations, examples as fixtures, and a future MCP server with tools like `render`, `validateMermaid`, `scoreLayout`, and `applyTypedEdit`.
+5. **Make generated diagrams accessible by default** — SVG output should support `<title>`, `<desc>`, role/label configuration, readable text, sufficient contrast, and optional textual summary/ASCII alternative. PNG output should be paired in docs with alt text or generated descriptions.
+6. **Use boring accessible docs UI** — Semantic HTML landmarks, skip link, keyboard-accessible nav/search, visible focus, high contrast themes, reduced motion, descriptive link text, stable headings, and no content hidden behind hover-only interactions.
+7. **Design examples for both humans and agents** — Each example should include: source Mermaid, rendered output, typed edit/action, expected result, command to reproduce, and a short explanation of why the geometry is good.
+8. **Prefer stable, crawlable content** — Avoid docs content that only appears after client-side hydration. Agents and assistive technologies benefit from server-rendered/static Markdown-like pages with canonical URLs.
+
+## Sources
+- Kept: llms.txt proposal (https://llmstxt.org/) — core convention for AI-agent-readable site context.
+- Kept: Mintlify `llms.txt` docs (https://mintlify.com/docs/llms.txt) — practical implementation pattern for generated docs.
+- Kept: Anthropic docs (https://docs.anthropic.com/) — strong prompt/task-first AI developer documentation.
+- Kept: MCP docs/spec (https://modelcontextprotocol.io/, https://spec.modelcontextprotocol.io/) — authoritative agent tool/resource/prompt interoperability precedent.
+- Kept: Vercel AI SDK docs (https://ai-sdk.dev/docs) — strong recipe/code-first AI developer docs.
+- Kept: Cursor docs (https://docs.cursor.com/) — agent workflow and context/rules documentation patterns.
+- Kept: OpenAI platform docs (https://platform.openai.com/docs) — schema/tool/prompt examples for developers.
+- Kept: Cloudflare Developers (https://developers.cloudflare.com/) — large-scale accessible developer docs IA.
+- Kept: GitHub Docs (https://docs.github.com/) — trusted developer docs and accessible UI patterns.
+- Kept: GOV.UK Design System (https://design-system.service.gov.uk/) — accessibility-forward component/content patterns.
+- Kept: W3C WAI/APG (https://www.w3.org/WAI/, https://www.w3.org/WAI/ARIA/apg/) — authoritative accessibility guidance.
+- Kept: BBC GEL (https://www.bbc.co.uk/gel) — inclusive product/media design system.
+- Kept: Shopify Polaris accessibility (https://polaris.shopify.com/foundations/accessibility) — product UI accessibility principles.
+- Dropped: Generic “AI SEO”/LLMO blog posts — often speculative, redundant, and less useful than primary docs/specs.
+- Dropped: One-off showcase sites without docs/source — difficult to verify or translate into Agentic Mermaid implementation lessons.
+- Dropped: Marketing-only AI agent landing pages — weak evidence for developer-facing patterns.
+
+## Gaps
+- Live web access/search was not available through the provided tools, so exact current availability of each candidate `llms.txt`, `llms-full.txt`, MCP manifest, or copy-prompt feature must be verified manually.
+- No accessibility audit tooling was run against these sites; AX lessons are based on documented design-system practices and known public patterns, not fresh Lighthouse/axe results.
+- Suggested next steps: run targeted checks for `/<llms.txt>`, `/<llms-full.txt>`, `/.well-known/ai-plugin.json`, MCP docs/manifests, keyboard navigation, heading structure, color contrast, and static-rendered content on the shortlist above.

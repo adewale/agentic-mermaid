@@ -1,0 +1,15 @@
+# Agentic Mermaid
+
+Agentic Mermaid renders, verifies, and safely edits Mermaid diagrams locally. Use the package, CLI, or self-hosted MCP; the website is documentation plus a browser-local editor, not a REST render API.
+
+Start here:
+- /agent-instructions.md – compact operating guide for agents
+- /capabilities.json – authoritative family/output/mutation/warning contract
+- /examples/index.json – the same example IDs and sources loaded by the editor
+- /skills/agentic-mermaid-diagram-workflow/SKILL.md – optional workflow skill for skills-capable agents
+
+Stop rules:
+- Verify before serialize, render, commit, or return.
+- Do not fabricate ValidDiagram objects. Parse first.
+- Prefer local library, CLI, or self-hosted MCP.
+- Do not call this website as a render API or arbitrary-code execution backend.

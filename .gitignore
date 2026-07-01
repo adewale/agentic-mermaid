@@ -6,14 +6,16 @@ dist/
 /site/
 *.tsbuildinfo
 
-# Generated files
-index.html
-editor.html
-differences.html
+# Generated files (root build artifacts from `build:site`; anchored to root so
+# they don't also ignore same-named pages under mockups/)
+/index.html
+/editor.html
+/differences.html
 
 # IDE
 .idea/
-.vscode/
+.vscode/*
+!.vscode/mcp.json
 *.swp
 *.swo
 .DS_Store
@@ -21,6 +23,9 @@ differences.html
 # Logs
 *.log
 npm-debug.log*
+
+# Wrangler local dev/cache state
+website/.wrangler/
 
 # Environment
 .env

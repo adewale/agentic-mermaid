@@ -1,0 +1,20 @@
+Updated Mermaid
+```mermaid
+flowchart TD
+  U[User] -->|opens| L[Login Page]
+  L --> C{Valid credentials?}
+  C -->|Invalid| L
+  C -->|Valid| M{MFA enabled?}
+  M -->|Yes| E[Enter MFA Code]
+  E --> K{Valid code?}
+  K -->|Invalid| E
+  K -->|Valid| S[Create Session]
+  M -->|No| S
+  S --> D[Dashboard]
+```
+
+Verification
+Verified with Agentic Mermaid: `verifyMermaid` returned `ok: true` with no warnings.
+
+Trace
+Local channel: this repo's `./src/agent/index.ts` via `bun -e`. Calls used: `parseMermaid(source)`, `asFlowchart(parsed.value)`, no mutate, `verifyMermaid(parsed.value)`, `serializeMermaid(parsed.value)`.

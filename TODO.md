@@ -362,11 +362,18 @@ dependents after. IDs are stable names, not an ordering.
   exposed them through `WarningCode`, `WARNING_TIER`, `am capabilities`,
   `llms.txt`, MCP SDK declarations, tests, and agent-facing docs. Candidates
   came from EVAL-2's captured/curated real-agent failure corpus.
-- [ ] **BUILD-4 — Cloudflare Worker Code Mode web app** (`todo`, after
-  BUILD-7). Offer a hosted Agentic Mermaid experience using Cloudflare
-  Workers and `@cloudflare/codemode`/CodeMode-style isolation only after
-  scoping the security boundary, auth/rate limits, persistence model, and
-  parity with the current local CLI/MCP/library contract.
+- [ ] **BUILD-4 — Cloudflare Workers website + optional hosted MCP** (`todo`,
+  after BUILD-7). The static Workers Static Assets website now has a concrete
+  `website/` preview path; the remaining hosted surface is an optional bounded
+  MCP route for non-execution rendering, description, verification, or
+  structured edits (tool names TBD; not local Code Mode parity). Hosted Code
+  Mode `execute(code)` and arbitrary server-side code execution remain out of
+  scope unless a separate security boundary, auth/rate-limit, persistence, and
+  CLI/MCP/library parity decision lands. Before enabling `/mcp`, reconsider the
+  Cloudflare primitive mix for performance and cost: Workers Static Assets for
+  UI/client bundles, a narrow Worker route for Streamable HTTP, Cloudflare Rate
+  Limiting or a Durable Object token bucket for abuse control, and R2/KV only if
+  short-lived artifacts or manifests need storage rather than recomputation.
 
 - [x] **QUAL-1 — Perceptual-quality coverage for non-graph families**
   (`done`). `layoutMermaid` now has `RenderedLayout` adapters for EVERY

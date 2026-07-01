@@ -17,7 +17,10 @@ function updateThemeButton() {
   }
   // Update active state in dropdown
   themeMenu.querySelectorAll(".theme-dropdown-item").forEach(function (item) {
-    item.classList.toggle("active", item.dataset.theme === key);
+    var active = item.dataset.theme === key;
+    item.classList.toggle("active", active);
+    item.setAttribute("aria-selected", active ? "true" : "false");
+    item.tabIndex = themeMenu.classList.contains("open") && active ? 0 : -1;
   });
 }
 
@@ -35,38 +38,58 @@ function setTheme(key) {
   scheduleRender(0);
 }
 
-// Toggle dropdown
-themeDropdownBtn.addEventListener("click", function (e) {
-  e.stopPropagation();
-  var isOpen = themeMenu.classList.toggle("open");
-  themeDropdownBtn.classList.toggle("open", isOpen);
-  themeDropdownBtn.setAttribute("aria-expanded", isOpen ? "true" : "false");
+var themeMenuPopup = createPopupController({
+  popup: themeMenu,
+  trigger: themeDropdownBtn,
+  visibility: { manageTabStops: false },
+  afterOpen: function(meta) {
+    syncThemeMenuTabStops(true);
+    if (meta && meta.focusFirst) {
+      var active = themeMenu.querySelector(".theme-dropdown-item.active") || themeMenu.querySelector(".theme-dropdown-item");
+      if (active) active.focus();
+    }
+  },
+  afterClose: function() { syncThemeMenuTabStops(false); },
+  contains: function(target) { return !!target.closest("#theme-dropdown-wrap"); },
 });
+
+function syncThemeMenuTabStops(open) {
+  themeMenu.querySelectorAll(".theme-dropdown-item").forEach(function(item) {
+    var active = item.classList.contains("active");
+    item.tabIndex = open && active ? 0 : -1;
+  });
+}
+
+function setThemeMenuOpen(open, focusActive) {
+  themeMenuPopup.setOpen(open, { focusFirst: !!focusActive });
+}
 
 // Click item
 themeMenu.addEventListener("click", function (e) {
   var item = e.target.closest(".theme-dropdown-item");
   if (!item) return;
   setTheme(item.dataset.theme || "");
-  themeMenu.classList.remove("open");
-  themeDropdownBtn.classList.remove("open");
-  themeDropdownBtn.setAttribute("aria-expanded", "false");
+  setThemeMenuOpen(false, false);
+  themeDropdownBtn.focus();
 });
 
-// Close on outside click
-document.addEventListener("click", function (e) {
-  if (!document.getElementById("theme-dropdown-wrap").contains(e.target)) {
-    themeMenu.classList.remove("open");
-    themeDropdownBtn.classList.remove("open");
-    themeDropdownBtn.setAttribute("aria-expanded", "false");
+themeMenu.addEventListener("keydown", function(e) {
+  var items = Array.prototype.slice.call(themeMenu.querySelectorAll(".theme-dropdown-item"));
+  var current = document.activeElement && document.activeElement.classList.contains("theme-dropdown-item") ? document.activeElement : null;
+  var index = Math.max(0, items.indexOf(current));
+  if (["ArrowDown", "ArrowUp", "Home", "End"].includes(e.key)) {
+    e.preventDefault();
+    var next = index;
+    if (e.key === "Home") next = 0;
+    else if (e.key === "End") next = items.length - 1;
+    else next = (index + (e.key === "ArrowDown" ? 1 : -1) + items.length) % items.length;
+    items[next].tabIndex = 0;
+    items[next].focus();
   }
-});
-
-document.addEventListener("keydown", function(e) {
-  if (e.key !== "Escape") return;
-  themeMenu.classList.remove("open");
-  themeDropdownBtn.classList.remove("open");
-  themeDropdownBtn.setAttribute("aria-expanded", "false");
+  if (e.key === "Enter" || e.key === " ") {
+    e.preventDefault();
+    if (current) current.click();
+  }
 });
 
 // Store label data for lookup
@@ -78,7 +101,8 @@ themeMenu.querySelectorAll(".theme-dropdown-item").forEach(function (item) {
 // Apply initial dark/light mode (must happen after all DOM refs + functions are ready)
 applyColorMode(isDark);
 
-// Restore saved theme, otherwise start on the fork's default salmon theme.
+// Restore saved theme, otherwise start on the brand Paper theme so the editor
+// opens with the same diagram palette the public site renders.
 var savedTheme = localStorage.getItem("bm-editor-theme") || "";
 if (savedTheme && THEMES[savedTheme]) {
   state.theme = savedTheme;
@@ -89,19 +113,37 @@ if (savedTheme && THEMES[savedTheme]) {
 }
 applyThemeToPage(state.theme);
 updateThemeButton();
+setThemeMenuOpen(false, false);
 
-// Load from URL hash or start blank.
-var DEFAULT_SOURCE = "";
+// Load from URL hash or start on an on-brand default so the editor opens with
+// the loop already working (a rendered diagram, verify results, and text
+// output) instead of five empty states. The default is the product's own
+// parse -> verify -> serialize loop.
+var DEFAULT_SOURCE = [
+  "flowchart TD",
+  "  A[Parse source] --> B[Narrow intent]",
+  "  B --> C[Mutate one node]",
+  "  C --> D{Verify}",
+  "  D -- ok --> E[Serialize]",
+  "  D -- warnings --> B",
+].join("\n");
 
 var hashSource = getHashSource();
+var queryExampleId = getQueryExampleId();
+var loadedInitialExample = false;
 if (hashSource) {
   editor.value = hashSource;
   applyThemeToPage(state.theme);
   updateThemeButton();
   refreshAllColorUIs();
+} else if (queryExampleId && typeof loadEditorExample === 'function' && findEditorExample(queryExampleId)) {
+  loadEditorExample(queryExampleId);
+  loadedInitialExample = true;
 } else {
   editor.value = DEFAULT_SOURCE;
 }
 
-updateLineNumbers();
-scheduleRender(0);
+if (!loadedInitialExample) {
+  updateLineNumbers();
+  scheduleRender(0);
+}

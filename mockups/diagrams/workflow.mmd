@@ -1,0 +1,7 @@
+flowchart LR
+  S["Source .mmd"] --> P["parse"]
+  P --> N["narrow"]
+  N --> M["mutate"]
+  M --> V{"verify"}
+  V -->|ok| R["serialize → render"]
+  V -->|warnings| N

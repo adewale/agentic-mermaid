@@ -422,7 +422,6 @@ function renderExamplePaletteHtml() {
       + group.examples.map(function(example) {
         return '<button class="example-dropdown-item" type="button" role="menuitem" data-example="' + escAttr(example.id) + '" data-diagram="' + escAttr(example.diagramType || '') + '" title="' + escAttr(example.description || example.label) + '">'
           + '<span class="example-item-title"><span class="example-item-glyph" aria-hidden="true">' + escHtml(exampleGlyph(example)) + '</span>' + escHtml(example.label) + '</span>'
-          + '<span class="example-item-meta">' + escHtml(example.diagramType || '') + '</span>'
           + '<span class="example-item-description">' + escHtml(example.description || '') + '</span>'
           + '</button>';
       }).join('')
@@ -471,36 +470,63 @@ var examplesSidebarBtn = document.getElementById('examples-sidebar-btn');
 var examplesSidebarClose = document.getElementById('examples-sidebar-close');
 var examplesSidebarList = document.getElementById('examples-sidebar-list');
 
-function setExamplesSidebarOpen(open) {
-  if (!examplesSidebar) return;
-  examplesSidebar.classList.toggle('open', open);
-  examplesSidebar.setAttribute('aria-hidden', open ? 'false' : 'true');
-  if (examplesSidebarBtn) {
-    examplesSidebarBtn.classList.toggle('active', open);
-    examplesSidebarBtn.setAttribute('aria-pressed', open ? 'true' : 'false');
-    examplesSidebarBtn.setAttribute('aria-expanded', open ? 'true' : 'false');
-  }
+function positionExamplesSidebar() {
+  if (!examplesSidebar || !examplesSidebarBtn) return;
+  var rect = examplesSidebarBtn.getBoundingClientRect();
+  var gutter = 12;
+  var preferred = 360;
+  var width = Math.min(preferred, window.innerWidth - gutter * 2);
+  var left = Math.min(Math.max(gutter, rect.left), window.innerWidth - width - gutter);
+  var top = rect.bottom + 8;
+  var maxHeight = Math.max(260, window.innerHeight - top - gutter);
+  examplesSidebar.style.setProperty('--examples-left', Math.round(left) + 'px');
+  examplesSidebar.style.setProperty('--examples-top', Math.round(top) + 'px');
+  examplesSidebar.style.setProperty('--examples-width', Math.round(width) + 'px');
+  examplesSidebar.style.setProperty('--examples-max-height', Math.round(maxHeight) + 'px');
+}
+
+var examplesPopup = typeof createPopupController === 'function' ? createPopupController({
+  popup: examplesSidebar,
+  trigger: examplesSidebarBtn,
+  visibility: { manageTabStops: true, toggleTriggerClass: false },
+  beforeOpen: positionExamplesSidebar,
+  afterOpen: function(meta) {
+    if (examplesSidebarBtn) {
+      examplesSidebarBtn.classList.add('active');
+      examplesSidebarBtn.setAttribute('aria-pressed', 'true');
+    }
+    if (meta && meta.focusFirst && examplesSidebarList) {
+      var activeItem = examplesSidebarList.querySelector('.example-dropdown-item.active') || examplesSidebarList.querySelector('.example-dropdown-item');
+      if (activeItem) activeItem.focus({ preventScroll: false });
+    }
+  },
+  afterClose: function() {
+    if (examplesSidebarBtn) {
+      examplesSidebarBtn.classList.remove('active');
+      examplesSidebarBtn.setAttribute('aria-pressed', 'false');
+    }
+  },
+  contains: function(target) {
+    return !!(target.closest('#examples-sidebar') || target.closest('#examples-sidebar-btn'));
+  },
+  repositionOnResize: true,
+  position: positionExamplesSidebar,
+}) : { setOpen: function() {} };
+
+function setExamplesSidebarOpen(open, meta) {
+  examplesPopup.setOpen(open, meta || {});
 }
 
 function openExamplesSidebar() {
-  setExamplesSidebarOpen(true);
-  if (examplesSidebarList) {
-    var activeItem = examplesSidebarList.querySelector('.example-dropdown-item.active') || examplesSidebarList.querySelector('.example-dropdown-item');
-    if (activeItem) activeItem.focus({ preventScroll: false });
-  }
+  setExamplesSidebarOpen(true, { focusFirst: true });
 }
 
 renderExamplePalettes();
-
-if (examplesSidebarBtn && examplesSidebar) {
-  examplesSidebarBtn.addEventListener('click', function() {
-    setExamplesSidebarOpen(!examplesSidebar.classList.contains('open'));
-  });
-}
+setExamplesSidebarOpen(false);
 
 if (examplesSidebarClose) {
   examplesSidebarClose.addEventListener('click', function() {
-    setExamplesSidebarOpen(false);
+    setExamplesSidebarOpen(false, { restoreFocus: true });
   });
 }
 
@@ -509,6 +535,7 @@ if (examplesSidebarList) {
     var item = e.target.closest('.example-dropdown-item');
     if (!item) return;
     loadEditorExample(item.dataset.example || '');
+    setExamplesSidebarOpen(false);
   });
 }
 
@@ -520,13 +547,6 @@ document.addEventListener('click', function(e) {
   }
   if (e.target.closest('[data-action="load-example"]')) {
     openExamplesSidebar();
-  }
-});
-
-document.addEventListener('keydown', function(e) {
-  if (e.key !== 'Escape') return;
-  if (examplesSidebar && examplesSidebar.classList.contains('open')) {
-    setExamplesSidebarOpen(false);
-    if (examplesSidebarBtn) examplesSidebarBtn.focus();
+    return;
   }
 });

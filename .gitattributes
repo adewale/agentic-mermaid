@@ -1,0 +1,2 @@
+# Generated browser bundle can contain significant whitespace inside template literals.
+website/public/editor/*.js binary

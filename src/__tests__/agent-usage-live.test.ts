@@ -1,11 +1,16 @@
 import { describe, test, expect } from 'bun:test'
-import { existsSync, readFileSync, readdirSync } from 'node:fs'
+import { existsSync, mkdtempSync, readFileSync, readdirSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
 import { basename, join } from 'node:path'
 import { buildLiveEvalSystemPrompt, buildLiveEvalUserPrompt, extractCodeModeScript, resolveLiveModelConfig, runLiveAgentUsageEval, type LiveTranscript } from '../../eval/agent-usage/live.ts'
-import { DEFAULT_CASES, runAgentUsageEval } from '../../eval/agent-usage/run.ts'
+import { buildSubagentPromptEvalRequest, finalizeSubagentPromptEval, prepareSubagentPromptEval } from '../../eval/agent-usage/capture-subagent-prompt-eval.ts'
+import { DEFAULT_CASES, checkAgentUsageTaskSource, runAgentUsageEval } from '../../eval/agent-usage/run.ts'
+import { AGENT_USAGE_SUPPORTED_FAMILIES } from '../../eval/agent-usage/render-quality.ts'
+import { parseMermaid, verifyMermaid } from '../agent/index.ts'
 
 const TRANSCRIPT_ROOT = join(import.meta.dir, '..', '..', 'eval', 'agent-usage', 'transcripts')
 const REQUIRED_RELEASE_TRANSCRIPT_DIR = 'pi-subagent-release-2026-06-10'
+const REQUIRED_ALL_FAMILY_CHAT_TRANSCRIPT_DIR = 'pi-subagent-all-families-2026-06-27-chat'
 
 function committedTranscriptDirs(): string[] {
   return readdirSync(TRANSCRIPT_ROOT, { withFileTypes: true })
@@ -44,6 +49,52 @@ describe('live agent-usage eval harness', () => {
     expect(prompt).toContain(c.input!)
   })
 
+  test('subagent prompt capture prepares harness-agnostic requests and gates responses with the oracle', async () => {
+    const c = DEFAULT_CASES[0]!
+    const dir = mkdtempSync(join(tmpdir(), 'am-subagent-prompt-eval-'))
+    const manifest = prepareSubagentPromptEval({ outDir: dir, provider: 'pi-subagent', model: 'delegate-test', surface: 'homepage', caseIds: [c.id], capturedAt: '2026-06-30T00:00:00.000Z' })
+    const request = readFileSync(manifest.requests[0]!.requestPath, 'utf8')
+    expect(request).toContain('Use one fresh subagent per request')
+    expect(request).toContain('Task prompt under test:')
+    expect(request).toContain(c.prompt)
+    expect(request).toContain('Return only executable synchronous Code Mode JavaScript')
+    expect(request).toContain('on success return an object with { source }')
+    expect(request).toContain('Do not return the public prompt')
+    expect(request).toContain('SDK declaration available in Code Mode')
+    expect(buildSubagentPromptEvalRequest(c, 'skill')).toContain('skills/agentic-mermaid-diagram-workflow/SKILL.md')
+
+    writeFileSync(manifest.requests[0]!.responsePath, `The subagent should not add prose, but the extractor tolerates fences.\n\`\`\`js\n${c.script}\n\`\`\`\n`)
+    const summary = await finalizeSubagentPromptEval({ runDir: dir })
+    expect(summary.ok).toBe(true)
+    expect(summary.provider).toBe('pi-subagent')
+    expect(summary.total).toBe(1)
+    expect(summary.passed).toBe(1)
+    const transcript = JSON.parse(readFileSync(join(dir, `${c.id}.json`), 'utf8')) as LiveTranscript & { surface?: string }
+    expect(transcript.provider).toBe('pi-subagent')
+    expect(transcript.prompts.user).toContain(c.prompt)
+    expect(transcript.result.ok).toBe(true)
+    expect(existsSync(join(dir, 'summary.json'))).toBe(true)
+  })
+
+  test('subagent prompt capture can gate raw chat prompt responses separately from Code Mode', async () => {
+    const c = DEFAULT_CASES.find(c => c.id === 'author_api_sequence_source')!
+    const dir = mkdtempSync(join(tmpdir(), 'am-subagent-chat-eval-'))
+    const manifest = prepareSubagentPromptEval({ outDir: dir, provider: 'claude-subagent', model: 'weakest-test', surface: 'homepage', mode: 'chat', caseIds: [c.id], capturedAt: '2026-06-30T00:00:00.000Z' })
+    const request = readFileSync(manifest.requests[0]!.requestPath, 'utf8')
+    expect(request).toContain('Mode: raw chat prompt')
+    expect(request).toContain('Return the human-facing response requested by the prompt')
+    expect(request).not.toContain('SDK declaration available in Code Mode')
+    writeFileSync(manifest.requests[0]!.responsePath, `## Updated Mermaid\n\n\`\`\`mermaid\nsequenceDiagram\n    actor User\n    participant App\n    participant API\n    User->>App: Export request\n    App->>API: Render SVG\n    API-->>App: SVG string\n    App-->>User: Download\n\`\`\`\n\n## Verification\nRan parseMermaid and verifyMermaid successfully; ok: true, warnings: [].\n\n## Trace\nAuthored a new sequence diagram from context, then ran parseMermaid and verifyMermaid. No mutate was used because this is a new diagram.\n`)
+    const summary = await finalizeSubagentPromptEval({ runDir: dir })
+    expect(summary.ok).toBe(true)
+    expect(summary.mode).toBe('chat')
+    const transcript = JSON.parse(readFileSync(join(dir, `${c.id}.json`), 'utf8')) as LiveTranscript & { mode?: string; extractedSource?: string }
+    expect(transcript.mode).toBe('chat')
+    expect(transcript.extractedSource).toContain('sequenceDiagram')
+    expect(transcript.script).toBe('')
+    expect(transcript.result.ok).toBe(true)
+  })
+
   test('config resolver fails closed without a live API key', () => {
     expect(() => resolveLiveModelConfig({}, ['--provider', 'anthropic', '--model', 'test-model'])).toThrow('Missing API key')
   })
@@ -54,13 +105,39 @@ describe('live agent-usage eval harness', () => {
 
   test('committed live-model transcripts replay through the deterministic oracle', async () => {
     const dirs = committedTranscriptDirs()
-    expect(dirs.map(d => basename(d))).toContain(REQUIRED_RELEASE_TRANSCRIPT_DIR)
+    const dirNames = dirs.map(d => basename(d))
+    expect(dirNames).toContain(REQUIRED_RELEASE_TRANSCRIPT_DIR)
+    expect(dirNames).toContain(REQUIRED_ALL_FAMILY_CHAT_TRANSCRIPT_DIR)
+    const byId = new Map(DEFAULT_CASES.map(c => [c.id, c]))
     for (const dir of dirs) {
       expect(existsSync(join(dir, 'summary.json'))).toBe(true)
-      const transcripts = DEFAULT_CASES.map(c => JSON.parse(readFileSync(join(dir, `${c.id}.json`), 'utf8')) as LiveTranscript)
-      expect(transcripts.map(t => t.caseId)).toEqual(DEFAULT_CASES.map(c => c.id))
+      const summary = JSON.parse(readFileSync(join(dir, 'summary.json'), 'utf8')) as { mode?: 'code' | 'chat'; total?: number; transcripts: string[] }
+      expect(summary.transcripts.length).toBeGreaterThanOrEqual(6)
+      const transcripts = summary.transcripts.map((p) => JSON.parse(readFileSync(join(import.meta.dir, '..', '..', p), 'utf8')) as LiveTranscript & { mode?: 'code' | 'chat'; extractedSource?: string })
       expect(transcripts.every(t => t.provider === 'pi-subagent' && t.result.ok)).toBe(true)
-      const replayCases = DEFAULT_CASES.map(c => ({ ...c, script: transcripts.find(t => t.caseId === c.id)!.script }))
+      const mode = summary.mode ?? transcripts[0]?.mode ?? 'code'
+      if (basename(dir) === REQUIRED_ALL_FAMILY_CHAT_TRANSCRIPT_DIR) {
+        expect(summary.total).toBe(DEFAULT_CASES.length)
+        expect(new Set(transcripts.map(t => t.caseId))).toEqual(new Set(DEFAULT_CASES.map(c => c.id)))
+        const families = new Set(transcripts.map(t => byId.get(t.caseId)?.family).filter(Boolean))
+        expect([...families].sort()).toEqual([...AGENT_USAGE_SUPPORTED_FAMILIES].sort())
+      }
+      if (mode === 'chat') {
+        for (const t of transcripts) {
+          const source = t.extractedSource
+          expect(typeof source).toBe('string')
+          expect(checkAgentUsageTaskSource(t.caseId, source!)).toBe(true)
+          const parsed = parseMermaid(source!)
+          expect(parsed.ok).toBe(true)
+          if (parsed.ok) expect(verifyMermaid(parsed.value).ok).toBe(true)
+        }
+        continue
+      }
+      const replayCases = transcripts.map(t => {
+        const c = byId.get(t.caseId)
+        expect(c).toBeDefined()
+        return { ...c!, script: t.script }
+      })
       const replay = await runAgentUsageEval(replayCases)
       expect(replay.ok).toBe(true)
       expect(replay.passed).toBe(replay.total)

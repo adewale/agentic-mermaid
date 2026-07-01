@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mark — Fern vs Tonal, live</title>
+<link rel="stylesheet" href="styles.css">
+<style>
+  body { margin: 0; font-family: var(--sans); }
+  .stage { display: flex; gap: 72px; padding: 44px 48px; align-items: flex-start; }
+  .stage.dark  { background: #0F1512; }
+  .stage.light { background: #FFFFFF; }
+  .col { display: flex; flex-direction: column; gap: 20px; align-items: flex-start; }
+  .lab { font-family: var(--mono); font-size: 12px; }
+  .stage.dark .lab  { color: #8FA199; }
+  .stage.light .lab { color: #5A6661; }
+  .mark.big   { width: 84px; height: 84px; border-radius: 20px; font-size: 52px; display: inline-grid; place-items: center; background: var(--brand-pine); }
+  .mark.small { width: 24px; height: 24px; border-radius: 6px;  font-size: 15px; display: inline-grid; place-items: center; background: var(--brand-pine); }
+  .brandrow { display: inline-flex; align-items: center; gap: 10px; font-family: var(--serif); font-size: 18px; }
+  .stage.dark  .brandrow { color: #E7ECE9; }
+  .stage.light .brandrow { color: #18211E; }
+  /* .fern uses the :root brand tokens (the new default). .tonal overrides them
+     with the documented alternative palette. */
+  .tonal { --brand-pine:#2E9E7E; --brand-on:#DEF4EC; --m-deep:#257E63; --m-mid:#2E9E7E; --m-sweep:#BFE9D8; }
+</style>
+</head>
+<body>
+  <div class="stage dark">
+    <div class="col">
+      <div class="lab">Fern &middot; on dark</div>
+      <span class="mark big fern"></span>
+      <div class="brandrow"><span class="mark small fern"></span> Agentic&nbsp;Mermaid</div>
+    </div>
+    <div class="col">
+      <div class="lab">Tonal &middot; on dark</div>
+      <span class="mark big tonal"></span>
+      <div class="brandrow"><span class="mark small tonal"></span> Agentic&nbsp;Mermaid</div>
+    </div>
+  </div>
+  <div class="stage light">
+    <div class="col">
+      <div class="lab">Fern &middot; on light</div>
+      <span class="mark big fern"></span>
+      <div class="brandrow"><span class="mark small fern"></span> Agentic&nbsp;Mermaid</div>
+    </div>
+    <div class="col">
+      <div class="lab">Tonal &middot; on light</div>
+      <span class="mark big tonal"></span>
+      <div class="brandrow"><span class="mark small tonal"></span> Agentic&nbsp;Mermaid</div>
+    </div>
+  </div>
+  <script src="shader-mark.js"></script>
+</body>
+</html>

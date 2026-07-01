@@ -1,5 +1,5 @@
 /**
- * Generates editor.html — a live Mermaid editor similar to mermaid.live.
+ * Generates editor.html – a live Mermaid editor similar to mermaid.live.
  *
  * Usage: bun run scripts/site/editor.ts
  *
@@ -12,14 +12,16 @@
  *   - Download SVG / Copy link
  *
  * Source files are organized in editor/:
- *   - editor/css/  — modular CSS components
- *   - editor/js/   — modular JS modules
- *   - editor/html/ — HTML partials (topbar, left-panel, right-panel)
+ *   - editor/css/  – modular CSS components
+ *   - editor/js/   – modular JS modules
+ *   - editor/html/ – HTML partials (topbar, left-panel, right-panel)
  */
 
 import { THEMES } from '../../src/theme.ts'
 
 const THEME_LABELS: Record<string, string> = {
+  'paper': 'Paper',
+  'dusk': 'Dusk',
   'zinc-dark': 'Zinc Dark',
   'tokyo-night': 'Tokyo Night',
   'tokyo-night-storm': 'Tokyo Storm',
@@ -61,6 +63,7 @@ async function readCssFiles(): Promise<string> {
     'css/color-picker.css',
     'css/font-picker.css',
     'css/export.css',
+    'css/affordances.css',
     'css/misc.css',
   ]
   const parts = await Promise.all(order.map(f => readFile(f)))
@@ -127,10 +130,10 @@ async function generateEditorHtml(): Promise<string> {
   console.log(`Browser bundle: ${(bundleJs.length / 1024).toFixed(1)} KB`)
 
   const themeItems = [
-    `<button class="theme-dropdown-item active" type="button" role="option" data-theme="">Default</button>`,
+    `<button class="theme-dropdown-item active" type="button" role="option" aria-selected="true" data-theme="">Default</button>`,
     ...Object.keys(THEMES).map((key) => {
       const theme = THEMES[key]!
-      return `<button class="theme-dropdown-item" type="button" role="option" data-theme="${key}"><span class="theme-swatch" style="background:${theme.bg}"></span>${THEME_LABELS[key] ?? key}</button>`
+      return `<button class="theme-dropdown-item" type="button" role="option" aria-selected="false" data-theme="${key}"><span class="theme-swatch" style="background:${theme.bg}"></span>${THEME_LABELS[key] ?? key}</button>`
     }),
   ].join('\n      ')
 
@@ -145,13 +148,10 @@ async function generateEditorHtml(): Promise<string> {
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Agentic Mermaid — Live Editor</title>
+  <title>Agentic Mermaid – Live Editor</title>
   <link rel="icon" type="image/svg+xml" href="favicon.svg" />
   <link rel="icon" type="image/x-icon" href="favicon.ico" />
   <link rel="apple-touch-icon" href="apple-touch-icon.png" />
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
   <style>
 ${css}
   </style>
@@ -165,7 +165,7 @@ ${html.topbar}
 <main class="main" id="editor-main" aria-label="Mermaid editor workspace">
 
   <!-- Persistent examples sidebar -->
-  <aside class="examples-sidebar" id="examples-sidebar" aria-label="Example diagrams" aria-hidden="true">
+  <aside class="examples-sidebar" id="examples-sidebar" aria-label="Example diagrams" aria-hidden="true" inert>
     <div class="examples-sidebar-inner">
       <div class="examples-sidebar-header">
         <span>Examples</span>
@@ -184,7 +184,7 @@ ${html.topbar}
 ${html.leftPanel}
 
   <!-- Resize handle -->
-  <div class="resize-handle" id="resize-handle"></div>
+  <div class="resize-handle" id="resize-handle" role="separator" tabindex="0" aria-label="Resize source and preview panels" aria-orientation="vertical" aria-valuemin="280" aria-valuemax="75" aria-valuenow="42" aria-valuetext="Source panel width 42 percent"></div>
 
   <!-- Right panel -->
 ${html.rightPanel}

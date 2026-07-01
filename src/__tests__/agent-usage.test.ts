@@ -4,7 +4,9 @@ import { describe, test, expect } from 'bun:test'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { runAllScenarios, lintAgentTrace, type SdkCall } from '../../eval/agent-usage/harness.ts'
-import { runAgentUsageEval } from '../../eval/agent-usage/run.ts'
+import { DEFAULT_CASES, requiresStructuredMutation, runAgentUsageEval } from '../../eval/agent-usage/run.ts'
+import { AGENT_USAGE_SUPPORTED_FAMILIES, scoreAgentUsageRenderedQuality } from '../../eval/agent-usage/render-quality.ts'
+import { extractHomepageAgentPrompt, homepagePromptChecklist } from '../../eval/agent-usage/homepage-prompt.ts'
 import { executeInSandbox } from '../mcp/sandbox.ts'
 import { handleRequest } from '../mcp/server.ts'
 
@@ -150,7 +152,46 @@ describe('anti-pattern linter (the affordances steer agents right)', () => {
   })
 })
 
+describe('homepage prompt eval contract', () => {
+  test('homepage CTA prompt is the prompt used by default agent eval cases', () => {
+    const prompt = extractHomepageAgentPrompt()
+    expect(homepagePromptChecklist(prompt)).toEqual([])
+    expect(prompt).toContain('Create or edit a Mermaid diagram')
+    expect(prompt).toContain('Do not assume this repository is checked out')
+    expect(prompt).toContain('one local channel available to you')
+    expect(prompt).toContain('Library imports, when available')
+    expect(prompt).toContain('For a new diagram, author Mermaid source directly')
+    expect(prompt).toContain('Mutation ops use a `kind` discriminator')
+    expect(prompt).toContain('return an object with `{ source }`')
+    expect(prompt).toContain('In Trace, name the local channel and exact calls/ops used')
+    expect(prompt).toContain('For an existing diagram, parse it')
+    for (const c of DEFAULT_CASES) {
+      expect({ id: c.id, hasPrompt: c.prompt.includes('Create or edit a Mermaid diagram') }).toEqual({ id: c.id, hasPrompt: true })
+      expect({ id: c.id, unresolved: /<replace with|<include the facts|<paste existing/.test(c.prompt) }).toEqual({ id: c.id, unresolved: false })
+    }
+  })
+})
+
 describe('stored agent-usage eval', () => {
+  test('structured default cases cover every supported diagram family', () => {
+    const covered = new Set(DEFAULT_CASES.filter(c => requiresStructuredMutation(c.id)).map(c => c.family).filter(Boolean))
+    expect([...covered].sort()).toEqual([...AGENT_USAGE_SUPPORTED_FAMILIES].sort())
+  })
+
+  test('default eval outputs render into safe, non-empty SVGs with expected labels', async () => {
+    const summary = await scoreAgentUsageRenderedQuality()
+    expect(summary.ok).toBe(true)
+    expect(summary.passed).toBe(summary.total)
+    expect(summary.total).toBe(DEFAULT_CASES.length)
+    expect([...summary.families].sort()).toEqual([...AGENT_USAGE_SUPPORTED_FAMILIES].sort())
+    for (const result of summary.results) {
+      expect({ id: result.id, ok: result.ok, warnings: result.warnings, error: result.error }).toEqual({ id: result.id, ok: true, warnings: [], error: undefined })
+      expect(result.metrics?.width).toBeGreaterThan(0)
+      expect(result.metrics?.height).toBeGreaterThan(0)
+      expect(result.metrics?.svgBytes).toBeGreaterThan(1000)
+    }
+  })
+
   test('default Code Mode transcripts pass task and trace checks', async () => {
     const summary = await runAgentUsageEval()
     expect(summary.ok).toBe(true)

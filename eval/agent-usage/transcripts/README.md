@@ -26,10 +26,24 @@ ANTHROPIC_API_KEY=... AGENT_USAGE_LIVE_MODEL=... \
   bun run eval/agent-usage/live.ts --provider anthropic
 ```
 
-Subagent-backed release-model capture is orchestrated outside this script:
-ask fresh pi subagents to return only synchronous Code Mode JavaScript for each
-`DEFAULT_CASES` task, keep each raw response, replay the extracted scripts with
-`runAgentUsageEval`, and commit the resulting transcript directory.
+Subagent-backed release-model capture is first-class via the harness-agnostic
+capture script:
+
+```sh
+bun run eval:agent-subagent -- prepare --provider pi-subagent --model delegate --surface homepage --mode chat
+# Give each generated requests/*.md file to a fresh Pi/Claude/Codex/etc. subagent.
+# Save exact raw responses to responses/<case-id>.txt.
+bun run eval:agent-subagent -- finalize --run-dir eval/agent-usage/transcripts/pi-subagent-<timestamp>
+```
+
+`prepare` writes request files and response targets. In `--mode code`, `finalize`
+extracts Code Mode JavaScript from raw responses and replays each script with
+`runAgentUsageEval`. In `--mode chat`, it extracts the `Updated Mermaid` source,
+verifies it, and applies the same task oracle plus response-shape checks.
+Both modes write one transcript per task plus `summary.json` and exit nonzero
+unless the oracle accepts every response. Use `--surface homepage`, `--surface
+instructions`, or `--surface skill` to capture which agent-facing context was
+tested.
 
 A passing live transcript must replay through the same sandbox trace linter and
 structural task oracles as the stored deterministic baseline. Do not hand-edit

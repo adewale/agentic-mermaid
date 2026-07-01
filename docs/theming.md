@@ -60,8 +60,10 @@ Because the generated SVG references variables directly, host pages can switch l
 
 ## Built-in themes
 
-Agentic Mermaid ships **19 built-in themes**:
+Agentic Mermaid ships **21 built-in themes**:
 
+- `paper`
+- `dusk`
 - `zinc-light`
 - `zinc-dark`
 - `tokyo-night`

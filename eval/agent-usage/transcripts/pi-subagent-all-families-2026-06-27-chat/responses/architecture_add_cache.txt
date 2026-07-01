@@ -1,0 +1,15 @@
+Updated Mermaid
+```mermaid
+architecture-beta
+  service api(server)[API]
+  service db(database)[DB]
+  service cache(disk)[Cache]
+  api:R --> L:db
+  api:R -[cache]-> L:cache
+```
+
+Verification
+verifyMermaid ok=true; warnings=[]
+
+Trace
+Local channel: repository ./src/agent/index.ts via Bun. Calls/ops: parseMermaid; asArchitecture; mutate({ kind: 'add_service', id: 'cache', label: 'Cache', icon: 'disk' }); mutate({ kind: 'add_edge', from: 'api', to: 'cache', fromSide: 'R', toSide: 'L', label: 'cache', hasArrowEnd: true }); verifyMermaid; serializeMermaid.

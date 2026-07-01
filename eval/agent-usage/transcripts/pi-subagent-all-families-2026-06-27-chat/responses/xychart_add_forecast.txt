@@ -1,0 +1,13 @@
+Updated Mermaid
+```mermaid
+xychart-beta
+  x-axis [Q1, Q2]
+  bar Revenue [1, 2]
+  line Forecast [2, 3]
+```
+
+Verification
+verifyMermaid: ok, no warnings.
+
+Trace
+Local channel: this repo's ./src/agent/index.ts. Calls: parseMermaid, asXyChart, mutate({ kind: "add_series", kind2: "line", name: "Forecast", values: [2, 3] }), verifyMermaid, serializeMermaid.

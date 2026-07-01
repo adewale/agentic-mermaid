@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Alternatives to pills — Agentic Mermaid</title>
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="icon" href="favicon.ico" type="image/x-icon">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="stylesheet" href="styles.css">
+<link rel="stylesheet" href="legacy.css">
+<style>
+  .sheet { max-width: 920px; margin: 0 auto; padding: var(--sp-7) var(--sp-5); }
+  .block { padding: var(--sp-5) 0; border-top: 1px solid var(--line); }
+  .opt { display: grid; grid-template-columns: 230px 1fr; gap: var(--sp-5); align-items: center; padding: 14px 0; }
+  .opt .meta .name { font-weight: 700; }
+  .opt .meta .name .pick { color: var(--link); font-size: 12px; font-weight: 700; margin-left: 6px; }
+  .opt .meta p { margin: 4px 0 0; font-size: 13.5px; color: var(--ink-soft); max-width: 30ch; }
+  .demo { display: flex; gap: 14px; align-items: center; flex-wrap: wrap; }
+
+  /* button radii under test */
+  .b { display:inline-flex; align-items:center; min-height:40px; padding:0 20px; font-size:14.5px; font-weight:600; border:1px solid transparent; cursor:pointer; }
+  .b.primary { background:var(--accent); color:#fff; } .b.ghost { background:var(--surface); color:var(--ink); border-color:var(--line-strong); }
+  .r-pill { border-radius:999px; } .r-soft { border-radius:8px; } .r-sharp { border-radius:2px; }
+
+  /* tag treatments */
+  .tg { display:inline-flex; align-items:center; gap:7px; font-size:12.5px; font-weight:600; }
+  .tg.pill { height:24px; padding:0 10px; border-radius:999px; background:var(--accent-tint); color:var(--link); }
+  .tg.chip { height:24px; padding:0 9px; border-radius:6px; background:var(--accent-tint); color:var(--link); }
+  .tg.chip::before, .tg.keyline::before { content:""; width:6px; height:6px; border-radius:50%; background:var(--accent); display:inline-block; }
+  .tg.bracket { font-family:var(--mono); color:var(--link); }
+  .tg.bracket::before { content:"[ "; } .tg.bracket::after { content:" ]"; }
+  .tg.keyline { text-transform:uppercase; letter-spacing:0.05em; color:var(--ink-soft); font-family:var(--mono); font-size:12px; }
+
+  /* segmented control treatments */
+  .seg-pill { display:inline-flex; gap:6px; background:var(--chip); padding:4px; border-radius:999px; }
+  .seg-pill .i { padding:6px 14px; border-radius:999px; font-size:13.5px; font-weight:600; color:var(--ink-soft); }
+  .seg-pill .i.on { background:var(--surface); color:var(--ink); border:1px solid var(--line); }
+
+  .seg-tabs { display:inline-flex; gap:22px; border-bottom:1px solid var(--line); }
+  .seg-tabs .i { padding:0 0 10px; margin-bottom:-1px; font-size:14px; font-weight:600; color:var(--ink-soft); border-bottom:2px solid transparent; cursor:pointer; }
+  .seg-tabs .i.on { color:var(--ink); border-bottom-color:var(--accent); }
+
+  .seg-box { display:inline-flex; border:1px solid var(--line-strong); border-radius:8px; overflow:hidden; }
+  .seg-box .i { padding:8px 14px; font-size:13.5px; font-weight:600; color:var(--ink-soft); border-right:1px solid var(--line); }
+  .seg-box .i:last-child { border-right:0; }
+  .seg-box .i.on { background:var(--accent-tint); color:var(--link); }
+</style>
+</head>
+<body>
+
+<nav class="nav">
+  <div class="wrap nav__in">
+    <span class="brand"><span class="mark">&#8776;</span> Agentic&nbsp;Mermaid</span>
+    <span class="nav__spacer"></span>
+    <span class="nav__meta">alternatives to pills</span>
+  </div>
+</nav>
+
+<div class="sheet">
+  <h1 style="font-size:33px;">An alternative to pills</h1>
+  <p class="prose">Pills read soft and consumer. This product's voice is a precise manual and workbench, so squared geometry and underlined tabs fit it better. Each control below is shown current &rarr; alternatives, with the recommended option marked.</p>
+
+  <div class="block">
+    <h3 style="margin-bottom:var(--sp-2);">Buttons</h3>
+    <div class="opt"><div class="meta"><span class="name">Full pill</span><p>Current. 999px radius, the universal default.</p></div>
+      <div class="demo"><span class="b primary r-pill">Open editor</span><span class="b ghost r-pill">Read the guide</span></div></div>
+    <div class="opt"><div class="meta"><span class="name">Soft square<span class="pick">recommended</span></span><p>8px radius — ties into the 7/8/12 radius family already used by the mark, inputs, and cards.</p></div>
+      <div class="demo"><span class="b primary r-soft">Open editor</span><span class="b ghost r-soft">Read the guide</span></div></div>
+    <div class="opt"><div class="meta"><span class="name">Sharp</span><p>2px radius — most editorial, but reads colder against the serif.</p></div>
+      <div class="demo"><span class="b primary r-sharp">Open editor</span><span class="b ghost r-sharp">Read the guide</span></div></div>
+  </div>
+
+  <div class="block">
+    <h3 style="margin-bottom:var(--sp-2);">Tags</h3>
+    <div class="opt"><div class="meta"><span class="name">Pill chip</span><p>Current. Fully rounded background chip.</p></div>
+      <div class="demo"><span class="tg pill">local-first</span><span class="tg pill">deterministic</span></div></div>
+    <div class="opt"><div class="meta"><span class="name">Square chip + dot<span class="pick">recommended</span></span><p>6px radius, leading status dot keeps the signal, drops the pill.</p></div>
+      <div class="demo"><span class="tg chip">local-first</span><span class="tg chip">deterministic</span></div></div>
+    <div class="opt"><div class="meta"><span class="name">Mono bracket</span><p>Terminal voice, no fill. Good for code-adjacent contexts.</p></div>
+      <div class="demo"><span class="tg bracket">local-first</span><span class="tg bracket">deterministic</span></div></div>
+    <div class="opt"><div class="meta"><span class="name">Keyline label</span><p>Uppercase mono with a leading dot, no background. Quietest.</p></div>
+      <div class="demo"><span class="tg keyline">local-first</span><span class="tg keyline">deterministic</span></div></div>
+  </div>
+
+  <div class="block">
+    <h3 style="margin-bottom:var(--sp-2);">Segmented control <span style="font-weight:400; color:var(--ink-faint); font-size:14px;">(editor output formats)</span></h3>
+    <div class="opt"><div class="meta"><span class="name">Pill segmented</span><p>Current. Rounded track with a rounded thumb.</p></div>
+      <div class="demo"><span class="seg-pill"><span class="i on">SVG</span><span class="i">Unicode</span><span class="i">ASCII</span><span class="i">PNG</span><span class="i">JSON</span></span></div></div>
+    <div class="opt"><div class="meta"><span class="name">Underlined tabs<span class="pick">recommended</span></span><p>A 2px active underline on a hairline baseline. Scales to many items, reads precise.</p></div>
+      <div class="demo"><span class="seg-tabs"><span class="i on">SVG</span><span class="i">Unicode</span><span class="i">ASCII</span><span class="i">PNG</span><span class="i">JSON</span></span></div></div>
+    <div class="opt"><div class="meta"><span class="name">Boxed segments</span><p>One outlined box, hairline dividers, tinted active cell.</p></div>
+      <div class="demo"><span class="seg-box"><span class="i on">SVG</span><span class="i">Unicode</span><span class="i">ASCII</span><span class="i">PNG</span><span class="i">JSON</span></span></div></div>
+  </div>
+
+</div>
+
+<script src="shader-mark.js"></script>
+<script>
+  for (const b of document.querySelectorAll('.iconbtn[aria-label="Toggle dark mode"]'))
+    b.addEventListener('click', () => { const h=document.documentElement; const d=(h.getAttribute('data-theme')||(matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light'))==='dark'; h.setAttribute('data-theme', d?'light':'dark'); });
+</script>
+</body>
+</html>

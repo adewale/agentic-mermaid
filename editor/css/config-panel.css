@@ -1,18 +1,55 @@
+/* Diagram settings — opens as an overlay over the source workspace (the left
+   panel) so Source stays the home and the preview on the right stays visible. */
 .config-panel {
+  position: absolute;
+  inset: 0;
+  z-index: 6;
   display: none;
   flex-direction: column;
   gap: 0;
   overflow-y: auto;
-  flex: 1;
+  background: var(--bg2);
 }
 .config-panel.visible { display: flex; }
+.config-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 42px;
+  padding: 0 8px 0 12px;
+  border-bottom: 1px solid var(--border);
+  color: var(--fg2);
+  font-size: var(--t-label);
+  font-weight: 700;
+  line-height: var(--lh-ui);
+  flex-shrink: 0;
+  position: sticky;
+  top: 0;
+  background: var(--bg2);
+  z-index: 1;
+}
+.config-close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--fg3);
+  cursor: pointer;
+  transition: color 0.15s, background 0.15s;
+}
+.config-close:hover { color: var(--fg); background: var(--control-bg-hover); }
+.config-close svg { width: 15px; height: 15px; }
 
 .config-section {
   padding: 0.75rem 1rem;
   border-bottom: 1px solid var(--border);
 }
 .config-section-title {
-  font-size: 14px;
+  font-size: var(--t-sm);
   font-weight: 600;
   color: var(--fg);
   margin-bottom: 0.625rem;
@@ -25,7 +62,7 @@
   padding: 0.3rem 0;
 }
 .color-field-label {
-  font-size: 0.8rem;
+  font-size: var(--t-label);
   color: var(--fg);
   flex: 1;
 }
@@ -35,24 +72,26 @@
   gap: 0.4rem;
   height: 28px;
   padding: 0 0.5rem 0 0.35rem;
-  background: var(--bg3);
+  background: var(--control-bg);
   border: 1px solid var(--border);
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   color: var(--fg2);
-  font-size: 0.75rem;
-  font-family: 'JetBrains Mono', monospace;
+  font-size: var(--t-label);
+  font-family: var(--font-mono);
   cursor: pointer;
   transition: border-color 0.15s, background 0.15s;
   min-width: 100px;
   justify-content: flex-end;
 }
-.color-edit-btn:hover { border-color: rgba(255,255,255,0.2); }
-:root.light .color-edit-btn:hover { border-color: rgba(0,0,0,0.2); }
+.color-edit-btn:hover {
+  background: var(--control-bg-hover);
+  border-color: var(--line-strong);
+}
 .color-swatch {
   width: 18px;
   height: 18px;
-  border-radius: 4px;
-  border: 1px solid rgba(0,0,0,0.15);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--line-strong);
   flex-shrink: 0;
   background: transparent;
 }
@@ -69,23 +108,23 @@
   width: 56px;
   height: 28px;
   padding: 0 0.4rem;
-  background: var(--bg3);
+  background: var(--control-bg);
   border: 1px solid var(--border);
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   color: var(--fg);
-  font-size: 0.8rem;
-  font-family: 'JetBrains Mono', monospace;
+  font-size: var(--t-label);
+  font-family: var(--font-mono);
   text-align: right;
   outline: none;
 }
-.padding-num:focus { border-color: var(--blue); }
+.padding-num:focus { border-color: var(--accent); }
 .padding-slider {
   -webkit-appearance: none;
   appearance: none;
   width: 100%;
   height: 4px;
   border-radius: 2px;
-  background: var(--bg3);
+  background: var(--control-bg);
   outline: none;
   cursor: pointer;
 }
@@ -93,15 +132,42 @@
   -webkit-appearance: none;
   width: 16px; height: 16px;
   border-radius: 50%;
-  background: var(--blue);
+  background: var(--accent);
   cursor: pointer;
-  border: 2px solid var(--bg2);
-  box-shadow: 0 1px 4px rgba(0,0,0,0.3);
+  border: 2px solid var(--paper);
+  box-shadow: 0 1px 4px color-mix(in srgb, var(--ink) 24%, transparent);
 }
 .padding-slider::-moz-range-thumb {
   width: 16px; height: 16px;
   border-radius: 50%;
-  background: var(--blue);
+  background: var(--accent);
   cursor: pointer;
-  border: 2px solid var(--bg2);
+  border: 2px solid var(--paper);
 }
+
+/* Reset overrides back to the active theme. Sits at the foot of the panel
+   (margin-top:auto) so it claims the otherwise-empty space below the sections. */
+.config-footer {
+  margin-top: auto;
+  padding: 0.75rem 1rem;
+}
+.config-reset-btn {
+  width: 100%;
+  min-height: 36px;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--fg2);
+  font: inherit;
+  font-size: var(--t-label);
+  font-weight: 600;
+  cursor: pointer;
+  transition: color 0.15s, background 0.15s, border-color 0.15s, transform 0.1s;
+}
+.config-reset-btn:hover {
+  color: var(--fg);
+  background: var(--control-bg-hover);
+  border-color: var(--line-strong);
+}
+.config-reset-btn:active { transform: scale(0.98); }

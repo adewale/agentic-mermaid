@@ -1,0 +1,15 @@
+Updated Mermaid
+```mermaid
+sequenceDiagram
+  A->>B: hi
+  alt ok
+    B-->>A: yes
+  end
+  A->>B: bye
+```
+
+Verification
+verifyMermaid returned ok with no warnings.
+
+Trace
+Local channel: this repo's ./src/agent/index.ts. Calls/ops used: parseMermaid, asSequence, mutate({ kind: "add_message", from: "A", to: "B", text: "bye", style: "sync" }), verifyMermaid, serializeMermaid.

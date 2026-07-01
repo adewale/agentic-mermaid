@@ -1,0 +1,14 @@
+Updated Mermaid
+```mermaid
+classDiagram
+  class Animal
+  class Duck {
+    +quack()
+  }
+```
+
+Verification
+Verified with Agentic Mermaid; `verifyMermaid` returned no warnings.
+
+Trace
+Local channel: this repo's `./src/agent/index.ts`. Calls/ops: `parseMermaid` on supplied source; `asClass`; `mutate({ kind: "add_class", id: "Duck", members: ["+quack()"] })`; `verifyMermaid`; `serializeMermaid`.

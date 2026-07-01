@@ -22,7 +22,7 @@ For brand-new diagrams, author Mermaid source directly, then parse/verify/render
 | MCP Code Mode | An agent needs multi-step edits in one sandboxed call | `agentic-mermaid-mcp`, global `mermaid.*` |
 | CLI | Shell-only verification, rendering, preview, or one-shot mutation | `am ...` |
 
-All three channels expose the same contract: parse, optionally narrow, mutate, verify, serialize/render. Agentic Mermaid outputs ASCII, PNG, and SVG; Unicode text and JSON layout are also available.
+All three channels expose the same contract: parse, optionally narrow, mutate, verify, serialize/render. Agentic Mermaid outputs SVG, PNG, ASCII, Unicode, and JSON layout.
 
 ## Recipe: author a new diagram
 
