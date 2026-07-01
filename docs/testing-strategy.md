@@ -155,8 +155,13 @@ Tests can be green and still worthless. Two gates test the tests:
   reverts a fixed bug in a detached worktree and asserts the suite goes
   **red**, proving the regression test actually bites.
 
-**Runs:** the broad route/ascii lanes run **nightly**
-(`nightly-route-mutation.yml`) — a full module takes 5–15 minutes. A **fast
+**Runs:** the broad route lanes are **scheduled nightly**
+(`nightly-route-mutation.yml`: routes, route-certificates, subgraph-routing,
+sabotage-routes — the ascii lane is manual-only), but every scheduled run since
+2026-06-19 has been cancelled at the 90-minute cap before producing a score
+(the unsharded routes lane alone exceeds it; PR #63 carries the sharding fix) —
+until that lands, regenerate scores locally. A narrow module takes 5–15 minutes
+locally; the full routes lane substantially longer. A **fast
 incremental lane** (`stryker.incremental.config.json`, the `mutation-incremental`
 CI job) mutates only the small pure faithfulness counter
 (`src/agent/structural-count.ts`) with a sub-second unit runner, so it gates
@@ -165,7 +170,7 @@ CI job) mutates only the small pure faithfulness counter
 adequacy signal — coverage is not strongly correlated with fault detection
 once suite size is controlled (Inozemtseva & Holmes, ICSE 2014), whereas
 mutant detection *is* correlated with real-fault detection (Just et al.,
-FSE 2014). The mutation score is the truer number; it just runs less often.
+FSE 2014). The mutation score is the truer number; today it comes from local runs (the nightly lane times out — see above).
 
 ## 6. Heuristic / perceptual oracles — geometry inside human bounds
 
@@ -237,8 +242,9 @@ table here, which would drift. In broad strokes:
   the corpus/seqbench/upstream benches — plus type check, the hero check, the
   golden-drift gate, the browser/CLI/binary e2e job, and the fast incremental
   mutation lane.
-- **Nightly (`nightly-route-mutation.yml`):** the broad Stryker route/ascii
-  lanes and the sabotage suite.
+- **Nightly (`nightly-route-mutation.yml`):** the broad Stryker route lanes
+  and the sabotage suite (scheduled; currently cancelled at the timeout every
+  run — see §5).
 - **Manual / periodic:** `layout-compare` before/after, the benchmark vs
   competitors, and the real LLM-as-judge run.
 
@@ -268,9 +274,10 @@ gates rather than adding new machinery:
    admittedly rough. The CI LLM mock's readability/aesthetics axes remain
    metric-derived (only its faithfulness axis is now independent), so it
    cannot validate those metrics — only a real periodic judge run can.
-2. The *broad* mutation lanes and sabotage still run nightly; a fast
-   incremental lane now gates the faithfulness counter per-PR, but most core
-   modules' adequacy is still only measured nightly. Line coverage is no
+2. The *broad* mutation lanes and sabotage are scheduled nightly but the
+   schedule has never completed a run (timeout — see §5); a fast incremental
+   lane gates the faithfulness counter per-PR, so most core modules' adequacy
+   is currently measured only by local runs. Line coverage is no
    longer the per-PR headline (it is framed as a finder).
 3. The benchmark is not on the PR gate (timing variance). Browser/screenshot
    e2e and the heuristic-tracker ratchet now are.

@@ -52,7 +52,7 @@ Quick automated hygiene check (diff size, tests touched, secrets, debug
 statements, UI files):
 
 ```bash
-bash skills/good-pr/scripts/check-pr-readiness.sh main   # if installed locally
+bash .agents/skills/good-pr/scripts/check-pr-readiness.sh main   # if installed locally
 ```
 
 Do not create a PR unless explicitly asked.

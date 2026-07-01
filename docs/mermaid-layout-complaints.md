@@ -199,7 +199,11 @@ edge they describe.
   inline ELK labels (`elk.edgeLabels.inline: 'true'`,
   `src/layout-engine.ts`), so they reserve space instead of being overlaid;
   `labelEdgeProximity` (≥4px to any non-attached node, other edge-label
-  box, or other edge path) gates regressions.
+  box, or other edge path) gates regressions in the graph families, and the
+  2026-07 overlap audit added a cross-family occlusion gate
+  (`eval/overlap-audit` + `label-overlap-gate.test.ts`: curated corpus at
+  zero label/box overlap findings, per-family fuzz ratchets) after finding
+  label collisions the proximity metric alone had missed in five families.
   ASCII branch labels are pinned to sibling branch segments, not shared
   trunks: `src/__tests__/ascii-fanout-trunk-labeled.test.ts`,
   `ascii-pathfinder-trunk.test.ts`, plus exact goldens under

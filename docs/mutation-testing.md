@@ -1,8 +1,9 @@
 # Mutation testing (ASCII layout core)
 
-Stryker mutation testing is scoped to the four ASCII layout modules where a
+Stryker mutation testing is scoped to the five ASCII layout modules where a
 silent logic regression is most expensive: `src/ascii/pathfinder.ts`,
-`src/ascii/edge-routing.ts`, `src/ascii/converter.ts`, `src/ascii/grid.ts`.
+`src/ascii/edge-routing.ts`, `src/ascii/converter.ts`, `src/ascii/grid.ts`,
+`src/ascii/draw.ts`.
 The config is `stryker.ascii.config.json`; its command runner executes the
 ASCII test files (goldens, invariants, properties, unit tests) per mutant.
 
@@ -31,11 +32,18 @@ npx stryker run stryker.linkrank.config.json  # honorLinkRankDistance packing re
 bun run sabotage:routes                # one-line revert checks against committed HEAD; expects focused tests to fail
 ```
 
-The JSON report lands in `reports/mutation/` (gitignored). Broad route lanes
+The JSON report lands in `reports/mutation/` (gitignored). Beyond the lanes
+documented here, `stryker.*.config.json` also covers the per-family parsers
+(state/sequence/timeline/class/er/journey/pie/quadrant/gantt via
+`mutation-test:families`), characterization, agent, ser2, link-grammar, and
+linkrank lanes — see `package.json` scripts for the full index. Broad route lanes
 are intentionally not part of the PR gate, but `.github/workflows/nightly-route-mutation.yml`
 runs `mutation-test:routes`, `mutation-test:routes:certs`,
 `mutation-test:routes:subgraph`, and `sabotage:routes` nightly and on manual
-`workflow_dispatch`, uploading reports as artifacts. Run the narrow lane locally
+`workflow_dispatch`, uploading reports as artifacts — though every scheduled
+run to date has been cancelled at the 90-minute cap before uploading anything
+(the unsharded routes lane exceeds it; PR #63 carries the sharding fix), so
+current scores come from local runs. Run the narrow lane locally
 when you touch ASCII/route core logic and want immediate proof the tests bite.
 
 ## Policy
