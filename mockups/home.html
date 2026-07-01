@@ -88,6 +88,73 @@ Do not modify project files unless the user explicitly asked you to change files
     <p class="agent-trace" aria-label="Expected agent trace"><span>parseMermaid</span><span>asFlowchart</span><span>mutate(add_edge)</span><span>verifyMermaid</span><span>serializeMermaid</span></p>
   </section>
 
+  <section class="why-typed" aria-labelledby="why-typed-title">
+    <p class="section-kicker">The problem</p>
+    <h2 id="why-typed-title">Why typed edits, not regeneration</h2>
+    <p>Ask an agent to add one edge and most tools make it rewrite the whole file. Every line it did not need to touch gets re-rolled: a <code>%%</code> comment disappears, a label is paraphrased, an edge points at a node that no longer exists — and nothing fails, because nothing was checked.</p>
+    <div class="contrast-grid">
+      <div class="contrast-col">
+        <p class="meta-label">Regenerate the source</p>
+        <ul>
+          <li>Every line rewritten; the diff is the whole file.</li>
+          <li>Comments and unmodeled syntax silently re-rolled.</li>
+          <li>Nothing checks the result before it ships.</li>
+        </ul>
+      </div>
+      <div class="contrast-col contrast-col-mutate">
+        <p class="meta-label">Mutate the typed model</p>
+        <ul>
+          <li>One operation — <code>mutate(flow, { kind: 'add_edge', from: 'API', to: 'Cache' })</code> — applies or returns a structured error; it cannot half-apply.</li>
+          <li>Unmodeled syntax rides along verbatim.</li>
+          <li><code>verifyMermaid</code> gates serialize with tiered warnings and stable codes.</li>
+        </ul>
+      </div>
+    </div>
+    <p class="muted">The diff is the edit you asked for, nothing else. Structured mutation covers most families in full; where only a modeled subset exists, edits fall back to deliberate <a href="/docs/source-level/">source-level changes</a>.</p>
+  </section>
+
+  <section class="channels" aria-labelledby="channels-title">
+    <p class="section-kicker">Same loop, every channel</p>
+    <h2 id="channels-title">One edit, three channels</h2>
+    <p>The same typed edit — parse, add an edge, verify, return source — through whichever channel the agent already has.</p>
+    <div class="tabbed-card" data-tabs>
+      <div class="tab-bar" role="tablist" aria-label="Channels">
+        <button type="button" role="tab" id="channel-tab-library" aria-controls="channel-panel-library" aria-selected="true">Library</button>
+        <button type="button" role="tab" id="channel-tab-cli" aria-controls="channel-panel-cli" aria-selected="false" tabindex="-1">CLI</button>
+        <button type="button" role="tab" id="channel-tab-mcp" aria-controls="channel-panel-mcp" aria-selected="false" tabindex="-1">MCP</button>
+      </div>
+      <div class="tab-panel" role="tabpanel" id="channel-panel-library" aria-labelledby="channel-tab-library" tabindex="0">
+        <p class="meta-label tab-panel-label">Library</p>
+        <pre><code>import { parseMermaid, asFlowchart, mutate, verifyMermaid, serializeMermaid }
+  from 'agentic-mermaid/agent'
+
+const flow = asFlowchart(parseMermaid(source).value)
+const r = mutate(flow, { kind: 'add_edge', from: 'API', to: 'Cache' })
+if (!verifyMermaid(r.value).ok) throw new Error('edit left structural warnings')
+const next = serializeMermaid(r.value)</code></pre>
+      </div>
+      <div class="tab-panel" role="tabpanel" id="channel-panel-cli" aria-labelledby="channel-tab-cli" tabindex="0">
+        <p class="meta-label tab-panel-label">CLI</p>
+        <pre><code><span class="k">$</span> am mutate diagram.mmd --op '{"kind":"add_edge","from":"API","to":"Cache"}'
+<span class="c"># applies the op, verifies, emits source</span>
+<span class="k">$</span> am verify diagram.mmd --json            <span class="c"># tiered warnings, stable codes</span>
+<span class="k">$</span> am render diagram.mmd --format unicode  <span class="c"># same layout, in the terminal</span></code></pre>
+      </div>
+      <div class="tab-panel" role="tabpanel" id="channel-panel-mcp" aria-labelledby="channel-tab-mcp" tabindex="0">
+        <p class="meta-label tab-panel-label">MCP</p>
+        <pre><code><span class="c">// self-hosted MCP Code Mode: the whole loop in one execute(code) call</span>
+execute(`
+  const flow = asFlowchart(parseMermaid(source).value)
+  const r = mutate(flow, { kind: 'add_edge', from: 'API', to: 'Cache' })
+  const v = verifyMermaid(r.value)
+  return v.ok ? { source: serializeMermaid(r.value) }
+              : { error: 'verify failed', warnings: v.warnings }
+`)</code></pre>
+      </div>
+    </div>
+    <p class="muted">In the cloned repo, <code>am</code> is <code>bun run bin/am.ts</code>; MCP wiring is under <a href="#local-setup">local setup</a> below.</p>
+  </section>
+
   <h2 id="local-setup">Local setup</h2>
   <p>Self-hosting over stdio is the default path. The website is documentation plus a browser-local editor; it is not a render API and it does not run hosted Code Mode.</p>
 
@@ -119,6 +186,15 @@ Do not modify project files unless the user explicitly asked you to change files
 
   <h2>One source, five outputs</h2>
   <p>Every family renders to vector, raster, and text from one layout, byte-identical across processes. Outputs: SVG, PNG, ASCII, Unicode, and JSON layout, across twelve diagram families.</p>
+
+  <ul class="fact-strip" aria-label="Capability evidence">
+    <li><a href="/docs/families/"><strong>12</strong> diagram families</a></li>
+    <li><a href="/examples/"><strong>5</strong> outputs per source</a></li>
+    <li><a href="/about/"><strong>Byte-identical</strong> renders, no browser</a></li>
+    <li><a href="/warnings/"><strong>Tiered</strong> warnings, stable codes</a></li>
+    <li><a href="/docs/quality/"><strong>Deterministic</strong> layout metrics</a></li>
+    <li><a href="/evidence/"><strong>Curated</strong> quality evidence</a></li>
+  </ul>
 
   <figure>
     <div class="plate dia-plate">

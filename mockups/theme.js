@@ -51,6 +51,38 @@
     });
   }
 
-  if (document.readyState !== 'loading') initCopyButtons();
-  else document.addEventListener('DOMContentLoaded', initCopyButtons);
+  /* Channel tabs (home page). Markup ships as stacked labeled panels so the
+     content reads without JS; this enhances it into a keyboard-operable ARIA
+     tabset (arrow keys, Home/End) and lets CSS hide the per-panel labels. */
+  function initTabs() {
+    document.querySelectorAll('[data-tabs]').forEach((card) => {
+      const tabs = Array.prototype.slice.call(card.querySelectorAll('[role="tab"]'));
+      const panels = tabs.map((tab) => document.getElementById(tab.getAttribute('aria-controls')));
+      if (!tabs.length || panels.some((panel) => !panel)) return;
+      function select(index, focus) {
+        tabs.forEach((tab, i) => {
+          tab.setAttribute('aria-selected', i === index ? 'true' : 'false');
+          tab.tabIndex = i === index ? 0 : -1;
+          panels[i].hidden = i !== index;
+        });
+        if (focus) tabs[index].focus();
+      }
+      tabs.forEach((tab, i) => {
+        tab.addEventListener('click', () => select(i, false));
+        tab.addEventListener('keydown', (e) => {
+          const delta = e.key === 'ArrowRight' || e.key === 'ArrowDown' ? 1
+            : e.key === 'ArrowLeft' || e.key === 'ArrowUp' ? -1 : 0;
+          if (delta) { e.preventDefault(); select((i + delta + tabs.length) % tabs.length, true); return; }
+          if (e.key === 'Home') { e.preventDefault(); select(0, true); }
+          if (e.key === 'End') { e.preventDefault(); select(tabs.length - 1, true); }
+        });
+      });
+      card.classList.add('tabs-ready');
+      select(Math.max(0, tabs.findIndex((tab) => tab.getAttribute('aria-selected') === 'true')), false);
+    });
+  }
+
+  function init() { initCopyButtons(); initTabs(); }
+  if (document.readyState !== 'loading') init();
+  else document.addEventListener('DOMContentLoaded', init);
 })();

@@ -381,6 +381,38 @@ hr { border: 0; margin: var(--sp-6) 0; }
 .agent-trace { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 18px 0 22px; padding: 12px 0; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); color: var(--ink-soft); font-family: var(--mono); font-size: var(--t-label); line-height: var(--lh-ui); font-variant-numeric: tabular-nums; }
 .agent-trace span { display: inline-flex; align-items: center; }
 .agent-trace span + span::before { content: "→"; margin-right: 8px; color: var(--ink-faint); }
+/* ---- why typed edits: regenerate vs mutate, side by side ---- */
+.why-typed { margin: var(--sp-9) 0 var(--sp-6); }
+.contrast-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; margin: var(--sp-5) 0 var(--sp-4); }
+.contrast-col { padding: var(--sp-4); border: 1px solid var(--surface-border); border-radius: var(--radius-lg); background: var(--surface-card); box-shadow: var(--shadow-hairline); }
+.contrast-col > .meta-label { margin: 0 0 10px; }
+.contrast-col ul { margin: 0; padding-left: 18px; }
+.contrast-col li { margin: 6px 0; font-size: var(--t-sm); line-height: 1.5; }
+.contrast-col-mutate { border-color: color-mix(in srgb, var(--accent) 45%, var(--line-strong)); }
+@media (max-width: 720px) { .contrast-grid { grid-template-columns: 1fr; } }
+
+/* ---- channel tabs: one typed edit through Library, CLI, and MCP.
+   Without JS the panels stack with their own labels; theme.js adds
+   .tabs-ready, reveals the tab bar, and drives panel visibility. ---- */
+.channels { margin: var(--sp-9) 0 var(--sp-6); }
+.tabbed-card { overflow: hidden; margin: var(--sp-4) 0 var(--sp-3); border: 1px solid var(--surface-border); border-radius: var(--radius-lg); background: var(--surface-card); box-shadow: var(--shadow-hairline); }
+.tab-bar { display: flex; flex-wrap: wrap; gap: 6px; padding: 8px; border-bottom: 1px solid var(--line); }
+.tab-bar [role="tab"] { min-height: var(--control-h); padding: 0 var(--control-px); border: 1px solid transparent; border-radius: var(--radius-md); background: transparent; color: var(--ink-faint); font-family: var(--sans); font-size: var(--t-control); font-weight: 700; cursor: pointer; transition: background-color var(--dur-control) var(--ease-out), color var(--dur-control) var(--ease-out); }
+.tab-bar [role="tab"]:hover { background: var(--control-bg-hover); color: var(--ink); }
+.tab-bar [role="tab"][aria-selected="true"] { border-color: var(--control-border); background: var(--control-bg); color: var(--ink); }
+.tab-panel > pre { margin: 0; border-radius: 0; background: transparent; }
+.tab-panel-label { padding: 12px 18px 0; margin: 0; }
+.tabbed-card:not(.tabs-ready) .tab-bar { display: none; }
+.tabbed-card:not(.tabs-ready) .tab-panel + .tab-panel { border-top: 1px solid var(--line); }
+.tabs-ready .tab-panel-label { display: none; }
+
+/* ---- fact strip: capability evidence in one scannable row ---- */
+.fact-strip { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 22px; margin: 0 0 var(--sp-5); padding: 12px 0; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); list-style: none; }
+.fact-strip li { margin: 0; font-size: var(--t-sm); line-height: var(--lh-ui); }
+.fact-strip a { color: var(--ink-soft); }
+.fact-strip a:hover { color: var(--link); text-decoration: none; }
+.fact-strip strong { color: var(--ink); }
+
 .machine-context { margin-top: var(--sp-9); }
 .agent-entrypoints { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; margin: 0 0 22px; padding: 12px 0; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); font-size: var(--t-sm); line-height: var(--lh-ui); }
 .agent-entrypoints strong { color: var(--ink); }
