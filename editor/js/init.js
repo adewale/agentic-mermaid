@@ -116,8 +116,8 @@ updateThemeButton();
 setThemeMenuOpen(false, false);
 
 // Load from URL hash or start on an on-brand default so the editor opens with
-// the loop already working (a rendered diagram, verify results, and text
-// output) instead of five empty states. The default is the product's own
+// the loop already working (a rendered diagram, verify results, and on-demand
+// text outputs) instead of five empty states. The default is the product's own
 // parse -> verify -> serialize loop.
 var DEFAULT_SOURCE = [
   "flowchart TD",

@@ -1,11 +1,17 @@
 import { createHash } from 'node:crypto'
 import { mkdir, readdir, rm, unlink, writeFile } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
+import { renderMermaidSVG as renderBeautifulMermaidSVG } from 'beautiful-mermaid'
 import { BUILTIN_FAMILY_METADATA } from '../src/agent/families.ts'
-import { renderMermaidSVG } from '../src/index.ts'
+import { buildCapabilities } from '../src/cli/index.ts'
+import { renderMermaidASCII, renderMermaidSVG } from '../src/index.ts'
+import { namespaceSvgIds } from '../src/renderer.ts'
 
 const ROOT = join(import.meta.dir, '..')
-const MOCKUPS = join(ROOT, 'mockups')
+const SOURCE = join(import.meta.dir, 'source')
+const SOURCE_PAGES = join(SOURCE, 'pages')
+const SOURCE_ASSETS = join(SOURCE, 'assets')
+const SOURCE_DIAGRAMS = join(SOURCE, 'diagrams')
 const OUT = join(import.meta.dir, 'public')
 const CHECK = process.argv.includes('--check')
 
@@ -87,6 +93,7 @@ function rewriteAttrs(html: string) {
 
 function topNavHrefForRoute(route = '') {
   if (route === '/examples/') return '/examples/'
+  if (route === '/comparisons/') return '/comparisons/'
   if (route === '/docs/' || route.startsWith('/docs/')) return '/docs/'
   if (route === '/editor/') return '/editor/'
   return ''
@@ -96,6 +103,7 @@ function setNavCurrent(html: string, currentHref = '') {
   if (!currentHref) return html
   const labels: Record<string, string> = {
     '/examples/': 'Examples',
+    '/comparisons/': 'Comparisons',
     '/docs/': 'Docs',
     '/editor/': 'Open editor',
   }
@@ -122,8 +130,12 @@ function transformEditorHtml(html: string): string {
   return out
 }
 
-async function readMock(path: string) {
-  return await Bun.file(join(MOCKUPS, path)).text()
+async function readSourcePage(path: string) {
+  return await Bun.file(join(SOURCE_PAGES, path)).text()
+}
+
+async function readSourceDiagram(path: string) {
+  return await Bun.file(join(SOURCE_DIAGRAMS, path)).text()
 }
 
 async function emit(rel: string, content: FileContent) {
@@ -143,8 +155,8 @@ async function copyFileFrom(src: string, destRel: string) {
   await emit(destRel, bytes)
 }
 
-async function copyMockFile(rel: string, destRel = rel) {
-  await copyFileFrom(join(MOCKUPS, rel), destRel)
+async function copySourceAsset(rel: string, destRel = rel) {
+  await copyFileFrom(join(SOURCE_ASSETS, rel), destRel)
 }
 
 async function copyDir(srcAbs: string, destRel: string) {
@@ -206,6 +218,7 @@ function mastheadHtml(currentHref = '') {
   const links = [
     ['/about/', 'About', ''],
     ['/examples/', 'Examples', ''],
+    ['/comparisons/', 'Comparisons', ''],
     ['/docs/', 'Docs', ''],
     ['/editor/', 'Open editor', 'link-editor'],
   ] as const
@@ -259,7 +272,7 @@ function escapeAttr(s: string) {
 }
 
 const packageJson = JSON.parse(await Bun.file(join(ROOT, 'package.json')).text())
-const rawCapabilities = JSON.parse(await readMock('capabilities.json'))
+const rawCapabilities = buildCapabilities()
 const generatedFrom = {
   packageVersion: packageJson.version,
   gitSha: process.env.SITE_GIT_SHA ?? 'development',
@@ -294,11 +307,21 @@ const WEBSITE_EXAMPLE_THEME = {
   border: '#D3DDD7',
   font: 'Avenir Next',
 }
+function addSvgAccessibleName(svg: string, idBase: string, title: string, desc: string) {
+  const safeId = idBase.replace(/[^a-z0-9_-]+/gi, '-')
+  const titleId = `${safeId}-svg-title`
+  const descId = `${safeId}-svg-desc`
+  return svg.replace(/^<svg\b([^>]*)>/, (_full, attrs: string) => {
+    const role = /\brole=/.test(attrs) ? '' : ' role="img"'
+    const labelledby = /\baria-labelledby=/.test(attrs) ? '' : ` aria-labelledby="${titleId} ${descId}"`
+    return `<svg${attrs}${role}${labelledby}><title id="${titleId}">${escapeHtml(title)}</title><desc id="${descId}">${escapeHtml(desc)}</desc>`
+  })
+}
 function renderExampleSvg(example: any) {
   // The editor examples intentionally carry their own options. The public
   // Examples page uses one review theme so cards can be compared side by side;
   // chart palettes still derive from the single site accent above.
-  return renderMermaidSVG(example.source, {
+  const svg = renderMermaidSVG(example.source, {
     ...WEBSITE_EXAMPLE_THEME,
     interactive: Boolean(example.options?.interactive),
     security: 'strict',
@@ -306,6 +329,12 @@ function renderExampleSvg(example: any) {
     embedFontImport: false,
     idPrefix: `example-${example.id}-`,
   }).replace(/[ \t]+$/gm, '')
+  return addSvgAccessibleName(
+    svg,
+    `example-${example.id}`,
+    `${example.label} diagram`,
+    `Build-time render of the ${example.diagramType ?? 'Mermaid'} example loaded by the editor.`,
+  )
 }
 // Per-family agent task: a plausible prompt and the trace an agent runs before
 // it returns source. Absorbed from the former Gallery page so the unified
@@ -368,9 +397,252 @@ ${examples.map((example) => {
 </section>`).join('\n') + '\n</div>'
 }
 
-if (!CHECK) await rm(OUT, { recursive: true, force: true })
+const mermaidRuntimeBytes = Buffer.from(await Bun.file(join(ROOT, 'node_modules/mermaid/dist/mermaid.min.js')).arrayBuffer())
+const mermaidRuntimeRel = `vendor/mermaid-${sha256(mermaidRuntimeBytes).slice(0, 12)}.min.js`
 
-// Core mockup-derived pages.
+type ComparisonCase = { id: string; family: string; source: string }
+const COMPARISON_CASES: ComparisonCase[] = [
+  { id: 'flowchart', family: 'Flowchart', source: `flowchart LR
+  Start([Start]) --> Parse[Parse]
+  Parse --> Decision{Valid?}
+  Decision -->|yes| Cache[(Cache)]
+  Decision -->|retry| Parse
+  Decision -->|no| Error[Return error]
+  Cache --> API[API]
+  API --> DB[(Database)]
+  API --> Queue[[Queue]]
+  Queue --> Worker[Worker]
+  Worker --> DB
+  DB --> Done([Done])` },
+  { id: 'state', family: 'State', source: `stateDiagram-v2
+  [*] --> Idle
+  Idle --> Running: start
+  state Running {
+    [*] --> Fetch
+    Fetch --> Verify
+    Verify --> Fetch: retry
+    Verify --> Commit: ok
+  }
+  Running --> Failed: error
+  Failed --> Idle: reset
+  Running --> [*]: done` },
+  { id: 'sequence', family: 'Sequence', source: `sequenceDiagram
+  actor User
+  participant Agent
+  participant CLI
+  participant Renderer
+  User->>Agent: change diagram
+  Agent->>CLI: mutate
+  CLI->>Renderer: verify
+  alt clean
+    Renderer-->>CLI: ok
+  else warnings
+    Renderer-->>CLI: codes
+    CLI-->>Agent: repair
+  end
+  CLI-->>Agent: source` },
+  { id: 'class', family: 'Class', source: `classDiagram
+  class Diagram {
+    +kind
+    +source
+    +verify()
+  }
+  class Flowchart {
+    +nodes
+    +edges
+    +mutate()
+  }
+  class Warning {
+    +code
+    +tier
+  }
+  Diagram <|-- Flowchart
+  Diagram "1" --> "*" Warning : emits` },
+  { id: 'er', family: 'ER', source: `erDiagram
+  FAMILY ||--o{ DIAGRAM : accepts
+  DIAGRAM ||--o{ WARNING : reports
+  DIAGRAM ||--o{ RENDER : produces
+  FAMILY {
+    string id PK
+    string name
+  }
+  DIAGRAM {
+    string id PK
+    string source
+    string kind
+  }
+  WARNING {
+    string code PK
+    string tier
+  }
+  RENDER {
+    string format PK
+    string hash
+  }` },
+  { id: 'xychart', family: 'XY Chart', source: `xychart
+  title "Layout score"
+  x-axis [Mermaid, Beautiful, Agentic]
+  y-axis "score" 0 --> 100
+  bar [68, 74, 91]
+  line [64, 77, 94]` },
+  { id: 'timeline', family: 'Timeline', source: `timeline
+  title Diagram edit loop
+  Source : Mermaid text
+  Parse : typed model
+  Mutate : one operation
+  Verify : structural warnings
+  Render : SVG : ASCII : PNG` },
+  { id: 'journey', family: 'Journey', source: `journey
+  title Agent editing a diagram
+  section Guess
+    Rewrite whole diagram: 2: Agent
+    Ask human to inspect: 1: Reviewer
+  section Verify
+    Parse source: 5: Agent
+    Mutate target: 5: Agent
+    Check warnings: 5: Agent` },
+  { id: 'architecture', family: 'Architecture', source: `architecture-beta
+  group client(cloud)[Client]
+  group app(cloud)[Application]
+  group data(database)[Data]
+  service browser(server)[Browser] in client
+  service web(server)[Web App] in app
+  service api(server)[API] in app
+  service queue(server)[Queue] in app
+  service db(database)[Postgres] in data
+  browser:R --> L:web
+  web:R --> L:api
+  api:B --> T:queue
+  api:R --> L:db
+  queue:R --> L:db` },
+  { id: 'pie', family: 'Pie', source: `pie showData
+  title Output formats
+  "SVG" : 42
+  "PNG" : 28
+  "ASCII" : 18
+  "Unicode" : 12` },
+  { id: 'quadrant', family: 'Quadrant', source: `quadrantChart
+  title Edit decisions
+  x-axis Low confidence --> High confidence
+  y-axis Low reversibility --> High reversibility
+  quadrant-1 Commit
+  quadrant-2 Review
+  quadrant-3 Ask
+  quadrant-4 Repair
+  typed mutate: [0.82, 0.78]
+  source rewrite: [0.24, 0.22]
+  verify warnings: [0.71, 0.48]` },
+  { id: 'gantt', family: 'Gantt', source: `gantt
+  title Release train
+  dateFormat YYYY-MM-DD
+  excludes weekends
+  section Build
+    Parser        :done, p1, 2024-01-08, 2024-01-10
+    Layout pass   :active, l1, 2024-01-11, 3d
+    Verify        :v1, after l1, 2d
+  section Ship
+    Review        :crit, r1, after v1, 2d
+    Release       :milestone, m1, after r1, 0d` },
+]
+
+function comparisonSvg(svg: string, id: string, engine: string, family: string) {
+  const localSvg = svg.replace(/^\s*@import\s+url\([^)]*\);\n?/gm, '')
+  const namespaced = namespaceSvgIds(localSvg.replace(/[ \t]+$/gm, ''), `${id}-`)
+    .replace(/(<svg\b[^>]*?)\saria-labelledby="[^"]*"/, '$1')
+  return addSvgAccessibleName(namespaced, id, `${engine} ${family}`, `${family} rendered by ${engine}.`)
+}
+function comparisonAgenticSvg(c: ComparisonCase) {
+  return comparisonSvg(renderMermaidSVG(c.source, { ...WEBSITE_EXAMPLE_THEME, security: 'strict', compact: true, embedFontImport: false, idPrefix: `comparison-agentic-${c.id}-` }), `comparison-agentic-${c.id}`, 'Agentic Mermaid', c.family)
+}
+function comparisonBeautifulRender(c: ComparisonCase) {
+  try {
+    return { supported: true, html: comparisonSvg(renderBeautifulMermaidSVG(c.source, { ...WEBSITE_EXAMPLE_THEME, embedFontImport: false } as any), `comparison-beautiful-${c.id}`, 'Beautiful Mermaid', c.family) }
+  } catch {
+    return { supported: false, html: '' }
+  }
+}
+function comparisonPanel(label: string, body: string) {
+  return `<div class="comparison-panel"><h3>${escapeHtml(label)}</h3><div class="comparison-render">${body}</div></div>`
+}
+function comparisonsHtml() {
+  const sections = COMPARISON_CASES.map((c) => {
+    const beautiful = comparisonBeautifulRender(c)
+    const panels = [
+      comparisonPanel('Mermaid', `<pre class="mermaid comparison-mermaid" id="comparison-mermaid-${escapeAttr(c.id)}">${escapeHtml(c.source)}</pre>`),
+      beautiful.supported ? comparisonPanel('Beautiful Mermaid', beautiful.html) : '',
+      comparisonPanel('Agentic Mermaid', comparisonAgenticSvg(c)),
+    ].filter(Boolean).join('\n    ')
+    const note = beautiful.supported ? '' : '\n  <p class="comparison-note">Beautiful Mermaid does not render this family; only Mermaid and Agentic Mermaid are shown.</p>'
+    return `
+<section class="comparison-case${beautiful.supported ? '' : ' comparison-case-omits-beautiful'}" id="${escapeAttr(c.id)}" aria-labelledby="comparison-${escapeAttr(c.id)}-title">
+  <header class="comparison-case-head">
+    <h2 id="comparison-${escapeAttr(c.id)}-title">${escapeHtml(c.family)}</h2>
+    <button class="comparison-focus" type="button" data-comparison-focus aria-label="Open ${escapeAttr(c.family)} comparison larger" title="Open larger comparison"><span aria-hidden="true">⤢</span></button>
+  </header>${note}
+  <div class="comparison-grid">
+    ${panels}
+  </div>
+</section>`
+  }).join('')
+  return `<div class="comparisons">${sections}
+<dialog class="comparison-dialog" data-comparison-dialog aria-labelledby="comparison-dialog-title">
+  <form class="comparison-dialog-bar" method="dialog">
+    <div>
+      <h2 id="comparison-dialog-title">Comparison</h2>
+      <p class="comparison-dialog-note" data-comparison-dialog-note hidden></p>
+    </div>
+    <button class="comparison-dialog-close" type="submit">Close</button>
+  </form>
+  <div class="comparison-dialog-body" data-comparison-dialog-body></div>
+</dialog>
+<script src="/${mermaidRuntimeRel}"></script>
+<script>
+if (window.mermaid) {
+  window.mermaid.initialize({ startOnLoad: false, securityLevel: 'strict', deterministicIds: true, deterministicIDSeed: 'agentic-mermaid-comparisons', theme: 'base', themeVariables: { fontFamily: 'Avenir Next, Segoe UI, system-ui, sans-serif' } });
+  window.mermaid.run({ querySelector: '.comparison-mermaid' }).catch(function() {});
+}
+(function () {
+  var dialog = document.querySelector('[data-comparison-dialog]');
+  if (!dialog || typeof dialog.showModal !== 'function') return;
+  var body = dialog.querySelector('[data-comparison-dialog-body]');
+  var title = dialog.querySelector('#comparison-dialog-title');
+  var note = dialog.querySelector('[data-comparison-dialog-note]');
+  var current = null;
+  function restore() {
+    if (!current) return;
+    current.marker.parentNode.replaceChild(current.grid, current.marker);
+    current = null;
+  }
+  document.querySelectorAll('[data-comparison-focus]').forEach(function (button) {
+    button.addEventListener('click', function () {
+      restore();
+      var section = button.closest('.comparison-case');
+      var grid = section && section.querySelector('.comparison-grid');
+      if (!section || !grid || !body) return;
+      var marker = document.createComment('comparison-grid');
+      grid.parentNode.insertBefore(marker, grid);
+      body.appendChild(grid);
+      title.textContent = section.querySelector('h2').textContent;
+      var noteText = section.querySelector('.comparison-note')?.textContent || '';
+      note.textContent = noteText;
+      note.hidden = !noteText;
+      current = { grid: grid, marker: marker };
+      dialog.showModal();
+    });
+  });
+  dialog.addEventListener('close', restore);
+  dialog.addEventListener('click', function (event) {
+    if (event.target === dialog) dialog.close();
+  });
+})();
+</script>
+</div>`
+}
+
+if (!CHECK) await rm(OUT, { recursive: true, force: true })
+await emit(mermaidRuntimeRel, mermaidRuntimeBytes)
+
+// Core source-derived pages.
 // #9 — single source of truth for the parse->serialize loop, rendered at two
 // densities: the compact rail on the home page and the section headings in the
 // docs manual. Editing a label or summary here updates both, so they can't drift.
@@ -388,23 +660,46 @@ function injectLoopRail(html: string) {
 function injectLoopHeadings(html: string) {
   return LOOP_STEPS.reduce((h, s, i) => h.replace(new RegExp(`<h2>${i + 1} &middot; [^<]*</h2>`), `<h2>${i + 1} &middot; ${s.label}</h2>`), html)
 }
+const workflowSource = await readSourceDiagram('workflow.mmd')
+function addWorkflowSvgA11y(svg: string) {
+  return svg.replace(/^<svg\b([^>]*)>/, (_full, attrs: string) => {
+    const role = /\brole=/.test(attrs) ? '' : ' role="img"'
+    const label = /\baria-labelledby=/.test(attrs) ? '' : ' aria-labelledby="edit-loop-svg-title edit-loop-svg-desc"'
+    return `<svg${attrs}${role}${label}>\n<title id="edit-loop-svg-title">Agentic Mermaid edit loop</title>\n<desc id="edit-loop-svg-desc">Source flows through parse, narrow, mutate, verify, and serialize to render, with warnings routed back for another edit.</desc>`
+  })
+}
+const workflowThemeableSvg = addWorkflowSvgA11y(renderMermaidSVG(workflowSource,
+  { bg: 'var(--bg)', fg: 'var(--fg)', accent: 'var(--accent)', transparent: true })
+  .replace('--bg:var(--bg);--fg:var(--fg);--accent:var(--accent);', '')
+  .split('\n').filter((line) => !line.includes('fonts.googleapis.com')).join('\n'))
+function injectWorkflowSvg(html: string) {
+  return html.replace(/<div class="plate dia-plate">[\s\S]*?<\/div>|<div class="plate"><div class="dia-wrap">[\s\S]*?<\/div><\/div>/,
+    `<div class="plate dia-plate">\n      ${workflowThemeableSvg}\n    </div>`)
+}
+function injectWorkflowUnicode(html: string) {
+  const unicode = renderMermaidASCII(workflowSource, { useAscii: false })
+    .split('\n').map((line) => line.replace(/\s+$/, '')).join('\n').replace(/\n+$/, '')
+  return html.replace(/(The same diagram as Unicode text:<\/p>\s*<pre><code>)[\s\S]*?(<\/code><\/pre>)/,
+    '$1' + escapeHtml(unicode) + '$2')
+}
 for (const [source, target] of pageOutputs) {
   const currentHref = topNavHrefForRoute(routeMap[source])
-  let html = transformHtml(await readMock(source), currentHref)
-  // The mockups carry hand-baked mastheads that predate the About page and the
-  // Examples/Gallery/Families consolidation. Swap in the one canonical masthead
-  // so every shipped page — mockup-derived or generated — shares one nav.
+  let html = transformHtml(await readSourcePage(source), currentHref)
+  // Source pages can carry hand-baked mastheads that predate newer routes.
+  // Swap in the one canonical masthead so every shipped page shares one nav.
   html = html.replace(/<header class="masthead">[\s\S]*?<\/header>/, () => mastheadHtml(currentHref))
-  if (source === 'home.html') html = injectLoopRail(html)
+  html = injectWorkflowSvg(html)
+  if (source === 'home.html') html = injectLoopRail(injectWorkflowUnicode(html))
   if (source === 'docs-article.html') html = injectLoopHeadings(html)
   await emit(target, html)
 }
 await emit('editor/index.html', await generateEditorHtml())
 
 // Static assets.
-for (const asset of ['favicon.svg', 'styles.css', 'theme.js', 'shader-mark.js']) await copyMockFile(asset)
+for (const asset of ['favicon.svg', 'styles.css', 'theme.js', 'shader-mark.js']) await copySourceAsset(asset)
 for (const asset of ['favicon.ico', 'apple-touch-icon.png', 'og-image.png']) await copyFileFrom(join(ROOT, 'public', asset), asset)
-await copyDir(join(MOCKUPS, 'diagrams'), 'diagrams')
+await copyDir(SOURCE_DIAGRAMS, 'diagrams')
+await emit('diagrams/workflow-themeable.svg', workflowThemeableSvg)
 
 const capabilities = { ...rawCapabilities, generatedFrom }
 await emitJson('capabilities.json', capabilities)
@@ -559,6 +854,7 @@ const docPages = [
   ['releases/index.html', 'Releases', 'Current package and site build metadata.', `<pre><code>package: ${packageJson.name}@${packageJson.version}\ngit: ${generatedFrom.gitSha}\nbuild: ${generatedFrom.buildTime}</code></pre>`],
   ['evidence/index.html', 'Evidence', 'Quality evidence is curated, not raw private prompts.', '<p>Use CI, generated artifacts, and deterministic metrics to review changes. Private eval prompts and holdbacks are not public site content.</p>'],
   ['examples/index.html', 'Examples', 'Proof that each editor source parses, renders, and carries an agent task you can replay.', examplesShowcaseHtml(EDITOR_EXAMPLES), '/examples/'],
+  ['comparisons/index.html', 'Comparisons', 'One source per family, rendered three ways.', comparisonsHtml(), '/comparisons/'],
   ['skills/index.html', 'Skills', 'Optional workflow skill.', '<p>The public skill is <a href="/skills/agentic-mermaid-diagram-workflow/">agentic-mermaid-diagram-workflow</a>. Use it when an agent supports skills; otherwise the homepage prompt and <code>agent-instructions.md</code> are the primary agent context.</p>'],
 ]
 for (const [rel, title, lead, body, currentHref] of docPages) await emit(rel, pageShell(title, lead, body, currentHref || (rel.startsWith('docs/') ? '/docs/' : '')))
@@ -582,36 +878,20 @@ const securityHeaders = [
   '  Referrer-Policy: strict-origin-when-cross-origin',
   '  Permissions-Policy: camera=(), microphone=(), geolocation=(), payment=(), usb=()',
   `  Content-Security-Policy: default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; img-src 'self' data: blob:; font-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'; connect-src 'self'; worker-src 'self'; form-action 'none'`,
-  '  Cache-Control: public, max-age=0, must-revalidate',
-  '',
-  '/*.css',
-  '  Cache-Control: public, max-age=3600',
-  '',
-  '/*.js',
-  '  Cache-Control: public, max-age=3600',
-  '',
-  '/editor/*.js',
-  '  Cache-Control: public, max-age=31536000, immutable',
-  '',
-  '/*.svg',
-  '  Cache-Control: public, max-age=3600',
   '',
   '/*.json',
   '  Access-Control-Allow-Origin: *',
-  '  Cache-Control: public, max-age=300',
   '',
   '/*.md',
   '  Access-Control-Allow-Origin: *',
-  '  Cache-Control: public, max-age=300',
   '',
   '/*.txt',
   '  Access-Control-Allow-Origin: *',
-  '  Cache-Control: public, max-age=300',
   '',
 ].join('\n')
 await emit('_headers', securityHeaders)
 
-const cleanRoutes = ['about', 'editor', 'docs', 'skills', 'skills/agentic-mermaid-diagram-workflow', 'docs/getting-started', 'docs/api', 'docs/families', 'docs/source-level', 'docs/cli', 'docs/mcp', 'docs/ascii', 'docs/theming', 'docs/config', 'docs/react', 'docs/quality', 'docs/fork-differences', 'docs/vocabulary', 'warnings', 'errors', 'examples', 'evidence', 'security', 'releases']
+const cleanRoutes = ['about', 'editor', 'docs', 'skills', 'skills/agentic-mermaid-diagram-workflow', 'docs/getting-started', 'docs/api', 'docs/families', 'docs/source-level', 'docs/cli', 'docs/mcp', 'docs/ascii', 'docs/theming', 'docs/config', 'docs/react', 'docs/quality', 'docs/fork-differences', 'docs/vocabulary', 'warnings', 'errors', 'examples', 'comparisons', 'evidence', 'security', 'releases']
 const redirectLines = [
   ...cleanRoutes.map((r) => `/${r} /${r}/ 308`),
   '/warnings/:code /warnings/:code/ 308', '/errors/:kind /errors/:kind/ 308',

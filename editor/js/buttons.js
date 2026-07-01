@@ -126,6 +126,7 @@ function selectCanvasFormat(fmt) {
     copyTextOutputBtn.title = label;
     copyTextOutputBtn.setAttribute('aria-label', label);
   }
+  if (fmt !== 'diagram' && typeof ensureTextOutputs === 'function') ensureTextOutputs();
   if (fmt === 'unicode' && typeof fitUnicodeOutput === 'function') fitUnicodeOutput();
 }
 

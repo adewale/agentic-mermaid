@@ -1,2 +1,3 @@
-# Generated browser bundle can contain significant whitespace inside template literals.
+# Generated browser bundles can contain significant whitespace or third-party minified code.
 website/public/editor/*.js binary
+website/public/vendor/*.min.js binary
