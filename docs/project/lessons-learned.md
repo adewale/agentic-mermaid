@@ -803,3 +803,77 @@ The practice change is concrete:
   docs drift, family lists drift, or visual claims need artifacts, treat that
   as a design constraint in the next abstraction PR, not as trivia from an old
   retrospective.
+
+## PR #79 lesson — a certifying "freeze" is only as strong as its repair set, and contextual metrics couple edges
+
+The pass-manifest work (PR #79, continuing #71/#26) shipped a certifying
+straightener, `applyRouteContracts`, that classifies → straightens → certifies →
+**freezes** node geometry. The intent was a principled contract: after the freeze,
+routes are correct and carry a proof. What the four-round bug hunt actually taught
+us is that **the freeze is not a fixpoint**, and the certificate is only as strong
+as the set of repairs the certifier can perform.
+
+**Post-freeze repair passes are a leak indicator, not a feature.** This PR added a
+fourth pass that runs *after* the freeze to fix what an upstream pass produced:
+`repairLabelsOnSharedTrunks`, `repairLabelsOffOwnRoute`, `reanchorOffOutlineEndpoints`,
+and now `rerouteEdgesThroughNodes`. Each exists because a node-mover
+(`equalizePeerNodeDimensions`, `honorLinkRankDistance`, `alignPortLanes`) mutates
+geometry without re-establishing the contract's invariants, and the certifier
+cannot always repair the result. Two concrete blind spots in the certifier's own
+escape logic were the proximate cause of round 4: `tryZRoute` has no in-span escape
+lane when the obstacle is exactly as tall as the endpoints, and `tryEscapeDetour`'s
+first stub is rejected as a channel conflict when a sibling edge shares the source
+exit lane (there was a shared-*target* fan-in exemption but no shared-*source* one).
+So "we have a certifying straightener" was never the same as "routes are correct
+after the freeze." The durable lesson: when you find yourself adding the *n*th
+downstream net, that is evidence the upstream contract is leaking — the honest fix
+is to give the movers their own clearance checks, or to adopt real ELK ports (#38)
+so an edge cannot dangle or cut a node after a move. The downstream-net route is
+defensible (one class-agnostic net catches any mover, present or future, and is
+provably no-op on the clean corpus), but it is a *tradeoff to name in the PR*, not a
+win to bank silently. An independent design workflow reached the same recommendation
+*and* flagged the same caveat, which is the tell that it is a real fork in the road.
+
+**Gate on the rubric's EXACT predicate for a mechanically-provable no-op.** The
+safety property that made every one of these fixes shippable is "no-op on the
+HARD-clean corpus": gate the new behaviour on a HARD-violation condition the clean
+corpus never exhibits, then let the byte-exact layout-equivalence gate and
+`bun run track` zero-drift *mechanically prove* the no-op instead of asserting it.
+The subtlety worth keeping: a *proxy* predicate (e.g. `routeClearOfNodes` with a
+clearance margin) is a superset of the violation, only *empirically* 0-firing;
+keying detection on the rubric's own predicate (we exported `segmentThroughShape`
+so the trigger set is *exactly* the rubric's `edgeThroughNode` set — "touch ⇔
+already-HARD") closes the gap between "provably no-op" and "no-op so far." When a
+pass is meant to be invisible on good inputs, tie its trigger to the exact oracle
+that defines "bad," not to a convenient approximation.
+
+**Contextual metrics couple edges: fixing one can reclassify another that you never
+touched.** The most surprising finding. Rerouting a through-node edge *vacated a
+lane*, which flipped a *sibling* edge's pre-existing jog from "explained" (its
+straight alternative was blocked) to a `hitch` (the alternative is now clear) — even
+though the sibling's geometry is byte-identical before and after. The `hitch`/`sym`
+family of metrics is contextual: they ask "is there a clearer lane?", so a change
+*elsewhere* can alter a verdict *here*. Consequences: (1) a "never-worse per-edge"
+guarantee is *not* "never-worse per-layout"; (2) a naive global HARD-*count* guard
+is actively counterproductive — here it would preserve the more-severe
+`edgeThroughNode` rather than accept the lesser `hitch`, because count does not
+encode severity. We accepted the reclassification (a through-node becoming a small
+jog is an improvement) and *documented* it, and curated the standing-gate generator
+to the aligned family that isolates the through-node class — the same "isolate the
+class, don't drag in the adjacent swamp" discipline round 3's `conedFanin` used.
+A broad feedback fuzz here surfaced 74 off-outline-endpoint + 31 through-node cases
+from a *separate* pre-existing class; a zero-tolerance gate generator must be a
+targeted instrument, and the broad sweep belongs in a separate advisory harness.
+
+**CI-green under a moving `main`: new gates land retroactively.** A process echo of
+Loops 14 and 19, with a new twist. The `test` job went red not on any test but on a
+`website:check` step that did not exist at the branch's base — `main` had added a
+content-hashed editor bundle + a sync gate, and GitHub CI checks out the PR *merged
+into main*, so it ran a gate the branch had never seen. Because the bundle is hashed
+over `src/`, *any* source change flips its hash and staleness the committed output.
+The generated website bundle is now runtime surface a src-touching PR must
+regenerate (Loop 14's "generated artifacts are product surface," now CI-enforced).
+The lesson for long-lived branches: re-merge `main` periodically not just for code
+but because new *gates* land on `main` and apply retroactively to your merge — and
+after the merge, re-run the equivalence gate and tracker to prove the merge did not
+perturb your own subsystem (it didn't: byte-exact, zero drift) before trusting green.

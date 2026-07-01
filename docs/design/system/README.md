@@ -38,6 +38,7 @@ produced *by* the system, and pinned the same way we pin layout determinism.
 - [`abstraction-recommendations.md`](./abstraction-recommendations.md) — literature-grounded fixes, 2026-06-21 reappraisal, and closure criteria for I1–I9.
 - [`route-contracts.md`](./route-contracts.md) — the flowchart routing engine (edge classification, direct-lane proofs, certifying straightener).
 - [`layout-rubric.md`](./layout-rubric.md) — the deterministic layout-quality rubric.
+- [`layout-guarantees-and-robustness.md`](./layout-guarantees-and-robustness.md) — literature + industry synthesis: which invariants we can guarantee by construction vs. only optimize-and-certify, and the path to fuzz-robustness.
 - [`source-preservation-ladder.md`](./source-preservation-ladder.md) — the structured\|opaque family-adoption contract (L0–L4).
 
 > These design docs are co-located here in `design/system/` — the

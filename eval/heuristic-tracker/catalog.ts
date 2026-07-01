@@ -73,5 +73,32 @@ export function trackedExamples(): TrackedExample[] {
     source: 'flowchart LR\n  A[User] --> B[Login Page]\n  B --> C{Valid Credentials?}\n  C -- No --> B\n  C -- Yes --> D{MFA Enabled?}\n  D -- No --> G[Create Session]\n  D -- Yes --> E[Enter MFA Code]\n  E --> F{Code Valid?}\n  F -- No --> E\n  F -- Yes --> G',
     intent: 'every clear-lane edge straight; feedback loops outside; labels on their routes' })
 
+  // Group 6 — label CENTRING on symmetric doglegs. A2/B2 feed A/B so the co-rank
+  // squares A->B into a converging dogleg (markCorankFanInBundles), and C fans out
+  // to D/E (applySymmetricFanoutEmissions). Both re-routes used to leave their
+  // label hugging an endpoint (fan-in labelOff 0.28, fan-out 0.16) while staying
+  // HARD-clean, so only the NEW worstLabelOffset metric sees it — this example
+  // locks that class down. Toggling APL_NO_CORANK_FANIN changes this row's labelOff.
+  out.push({ group: 'label-centring', name: 'symmetric-dogleg-labels',
+    source: 'flowchart LR\n  A["warnings"] -->|warnings| B["ok"]\n  B -->|ok| C["rendered"]\n  A2["same word: warnings"] --> A\n  B2["same word: ok"] --> B\n  C -->|warnings| D["warnings"]\n  C -->|ok| E["ok"]',
+    intent: 'every labelled edge label centred on its route (~midpoint), not hugging an endpoint' })
+
+  // Group 7 — NON-RECT (diamond) hub centring. Every centring/co-rank/label-centring
+  // heuristic used to bail on shape !== 'rectangle', so a DECISION diamond hub got
+  // NO barycentre centring and reverted to ELK's off-centre placement. The guards
+  // now admit PORT_EXACT hubs (and fan-in peers), so these centre just like a rect
+  // hub. Both are LR so the tracker's fanInSymmetryError (y-axis) reads the cross
+  // axis correctly. `mixed-hub` is a diamond fed by a labelled + an unlabelled edge
+  // that ALSO fans out to two peers — a MIXED hub the alignPortLanes fan-in centring
+  // cannot touch (it is unlabelled-only and single-forward-branch-only): the hub was
+  // ~22px off its incoming barycentre before, ~0 now. `mixed-label-fanin` is the
+  // co-ranked mixed-label fan-in whose labelled spoke also stops hugging its source.
+  out.push({ group: 'diamond-hub', name: 'mixed-hub',
+    source: 'flowchart LR\n  A["aa"] -->|lab| H{hub}\n  B["bb"] --> H\n  H --> C["c1"]\n  H --> D["c2"]',
+    intent: 'the diamond hub sits on its incoming (rect) peer barycentre; both spokes converge symmetrically at its exact port' })
+  out.push({ group: 'diamond-hub', name: 'mixed-label-fanin',
+    source: 'flowchart LR\n  A["warnings"] -->|warnings| H{decision}\n  B["same word: ok"] --> H\n  H --> C["ok"]',
+    intent: 'co-ranked mixed-label fan-in into a diamond hub: sources co-rank, hub centred, spokes converge, label near the route midpoint' })
+
   return out
 }

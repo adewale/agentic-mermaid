@@ -14,8 +14,8 @@
  * geometry, so a port or clipping regression cannot hide itself.
  */
 
-import type { MermaidGraph, Point, PositionedGraph, PositionedGroup, PositionedNode } from './types.ts'
-import { diamondFacetPorts, findRouteHitches, shapePorts } from './route-contracts.ts'
+import type { MermaidGraph, Point, PositionedEdge, PositionedGraph, PositionedGroup, PositionedNode } from './types.ts'
+import { diamondFacetPorts, findRouteHitches, PORT_EXACT, shapePorts } from './route-contracts.ts'
 import { measureMultilineText } from './text-metrics.ts'
 import { resolveRenderStyle } from './styles.ts'
 
@@ -26,6 +26,18 @@ import { resolveRenderStyle } from './styles.ts'
  * crossings) rank above routing-shape defects (bends, diagonals, hitches),
  * which rank above endpoint/label-placement cosmetics. Reports sort by this so
  * the most-impactful violation is read first, not buried in declaration order.
+ *
+ * JUSTIFIED / SYMMETRIC BEND (not a defect): a bend that is part of a SYMMETRIC
+ * convergence — a fan-out/fan-in bundle, or a co-ranked mixed-label fan-in's
+ * converging dogleg — is "as good as" a straight line and is NOT penalized. The
+ * bend is structurally necessary to converge, and the symmetry it buys offsets
+ * the small bend cost; every reference layered drawer routes a fan that way, and
+ * our own fan-out emitter (applySymmetricFanoutEmissions) does too. So
+ * bundle-certified bends are excluded from totalBends/maxBendsPerEdge below — the
+ * SAME edges findRouteHitches treats as non-hitches, keeping the bend penalty and
+ * the HARD hitch-invariant in agreement. Only UNJUSTIFIED / lone bends still cost
+ * (an off-lane jog with a clear straight lane is a `hitches` HARD violation; a
+ * bend on a 'straight'-certified edge is an `unexplainedBends` HARD violation).
  */
 export type RubricSeverity = 'primary' | 'secondary' | 'cosmetic'
 
@@ -70,8 +82,11 @@ export interface RubricMetrics {
   edgeThroughNode: number
   /** Purchase's strongest validated aesthetic — minimize. */
   edgeCrossings: number
-  /** Purchase-validated — minimize. */
+  /** Purchase-validated — minimize. Excludes justified symmetric-convergence
+   *  bends (bundle-certified fan-out/fan-in spokes): those are "as good as
+   *  straight", the same edges findRouteHitches treats as non-hitches. */
   totalBends: number
+  /** As totalBends, also excluding justified symmetric-convergence bends. */
   maxBendsPerEdge: number
   /** Fraction of edge ends sitting exactly on a canonical port. */
   portEndpointRate: number
@@ -79,6 +94,12 @@ export interface RubricMetrics {
   portAnchoredEdgeRate: number
   /** Largest cross-axis offset between a peer hub and its peer barycenter. */
   peerBarycenterDelta: number
+  /** SOFT label-CENTRING metric: max over labelled edges of
+   *  labelMidpointOffset (|projFrac(label) - 0.5|). 0 = every label centred on
+   *  its route; →0.5 = a label jammed at an endpoint. This is the gap that let
+   *  the symmetric-dogleg hugging through — labelOffRoute only proves a label is
+   *  ON its route, never WELL-PLACED on it. 0 when no labelled edges. */
+  worstLabelOffset: number
 }
 
 export interface RubricResult {
@@ -194,7 +215,7 @@ function slantedPolygonVertices(node: PositionedNode): Point[] {
  * (not merely its bbox — a route grazing the empty corner outside a circle's
  * disk or a diamond's facet is legal). Half-pixel tolerance throughout.
  */
-function segmentThroughShape(a: Point, b: Point, node: PositionedNode): boolean {
+export function segmentThroughShape(a: Point, b: Point, node: PositionedNode): boolean {
   const cx = node.x + node.width / 2
   const cy = node.y + node.height / 2
   const hw = node.width / 2
@@ -299,6 +320,68 @@ function pointToSegmentDistance(p: Point, a: Point, b: Point): number {
   return Math.hypot(p.x - (a.x + t * dx), p.y - (a.y + t * dy))
 }
 
+/**
+ * Distance from an axis-aligned rectangle (a label pill) to a segment; 0 when
+ * they touch or overlap. Unlike point-to-segment from the pill CENTRE, this
+ * treats a label whose BODY meets the route as on-route — the correct test for
+ * self-loops, where ELK legitimately parks the label beside the small loop stub
+ * so the pill's near edge touches the stub while its centre sits a pill-width away.
+ */
+function rectToSegmentDistance(cx: number, cy: number, hw: number, hh: number, a: Point, b: Point): number {
+  const inside = (p: Point) => p.x >= cx - hw && p.x <= cx + hw && p.y >= cy - hh && p.y <= cy + hh
+  if (inside(a) || inside(b)) return 0
+  const corners: Point[] = [
+    { x: cx - hw, y: cy - hh }, { x: cx + hw, y: cy - hh },
+    { x: cx + hw, y: cy + hh }, { x: cx - hw, y: cy + hh },
+  ]
+  let best = Infinity
+  for (let i = 0; i < 4; i++) best = Math.min(best, segmentToSegmentDistance(corners[i]!, corners[(i + 1) % 4]!, a, b))
+  return best
+}
+
+/**
+ * Arc-length position (0..1) along a polyline of the closest point on the route
+ * to `pt` — the fractional projection of a label onto its own edge. 0 is the
+ * source end, 1 the target end, 0.5 the route's arc-length midpoint.
+ */
+function projFrac(pt: Point, pts: Point[]): number {
+  let total = 0
+  const seglen: number[] = []
+  for (let i = 1; i < pts.length; i++) {
+    const d = Math.hypot(pts[i]!.x - pts[i - 1]!.x, pts[i]!.y - pts[i - 1]!.y)
+    seglen.push(d); total += d
+  }
+  let best = Infinity, bestArc = 0, acc = 0
+  for (let i = 1; i < pts.length; i++) {
+    const a = pts[i - 1]!, b = pts[i]!, dx = b.x - a.x, dy = b.y - a.y, l2 = dx * dx + dy * dy
+    let t = l2 ? ((pt.x - a.x) * dx + (pt.y - a.y) * dy) / l2 : 0
+    t = Math.max(0, Math.min(1, t))
+    const px = a.x + t * dx, py = a.y + t * dy, d = Math.hypot(pt.x - px, pt.y - py)
+    if (d < best) { best = d; bestArc = acc + t * seglen[i - 1]! }
+    acc += seglen[i - 1]!
+  }
+  return total ? bestArc / total : 0.5
+}
+
+/**
+ * Label-CENTRING metric (SOFT): how far a label's projection onto its own route
+ * is from the route midpoint. `labelMidpointOffset = |projFrac(labelPosition) -
+ * 0.5|`; 0 is perfectly centred, →0.5 is jammed against an endpoint.
+ *
+ * Why this is its own metric and not covered by labelOffRoute: labelOffRoute
+ * (HARD) only checks a label sits ON its route (Kakoulis–Tollis association),
+ * never WHERE along it. A symmetric re-route (co-rank fan-in / fan-out dogleg)
+ * can leave a label HARD-clean — exactly on its route — yet hugging an endpoint,
+ * which reads as belonging to the node rather than the edge. That hugging slips
+ * past labelOffRoute, the HARD gate, and the byte-exact equivalence gate. This
+ * metric is the missing centring check; dagre places edge labels at the route
+ * midpoint, so a well-placed label scores ≈0.
+ */
+export function labelMidpointOffset(edge: PositionedEdge): number {
+  if (!edge.label || !edge.labelPosition || edge.points.length < 2) return 0
+  return Math.abs(projFrac(edge.labelPosition, edge.points) - 0.5)
+}
+
 function nodeCrossCenter(node: PositionedNode, direction: MermaidGraph['direction']): number {
   return direction === 'LR' || direction === 'RL'
     ? node.y + node.height / 2
@@ -322,10 +405,10 @@ function forwardish(source: PositionedNode, target: PositionedNode, direction: M
   return nodeMainStart(target, direction) > nodeMainEnd(source, direction)
 }
 
-function samePeerLayer(nodes: PositionedNode[], direction: MermaidGraph['direction']): boolean {
+function samePeerLayer(nodes: PositionedNode[], direction: MermaidGraph['direction'], tolerance = 1): boolean {
   if (nodes.length < 2) return false
   const starts = nodes.map(node => nodeMainStart(node, direction))
-  return Math.max(...starts) - Math.min(...starts) <= 1
+  return Math.max(...starts) - Math.min(...starts) <= tolerance
 }
 
 function nodeInsideGroups(node: PositionedNode, groups: PositionedGroup[]): boolean {
@@ -354,12 +437,26 @@ function logicalGraphReaches(graph: MermaidGraph, from: string, to: string): boo
   return false
 }
 
+// The sym metric: largest cross-axis offset between a PORT_EXACT peer hub and
+// its peer barycenter — directly the fan-in/fan-out symmetry the centering
+// optimizes. LABELED spokes are INCLUDED (a mixed-label fan-in is exactly the
+// case the co-rank default squares up; excluding its labeled spoke hid the win,
+// so the metric measured nothing there). The peer-layer test is relaxed to the
+// SAME 28px tolerance centerPeerBarycenters uses to decide a fan-in's sources
+// are same-rank peers, so the metric and the centering pass agree on which
+// fan-ins count: a co-ranked mixed-label fan-in is now seen and reads ≈0 when
+// the hub is centered, instead of being invisible. The shape gate MATCHES the
+// relaxed centerPeerBarycenters guard: the HUB may be any PORT_EXACT shape (a
+// DECISION diamond, round, stadium, …) and so may a FAN-IN peer, so a diamond
+// hub/source centering now registers instead of being invisible; FAN-OUT peers
+// stay rectangle-only (that side is owned by applySymmetricFanoutEmissions).
+// (Still requires distinct, mutually-unreachable peers on one flow layer.)
+const SYM_PEER_LAYER_TOL = 28
 function peerBarycenterDelta(positioned: PositionedGraph, graph: MermaidGraph): number {
   const nodeMap = new Map(positioned.nodes.map(n => [n.id, n]))
   const bySource = new Map<string, PositionedNode[]>()
   const byTarget = new Map<string, PositionedNode[]>()
   for (const edge of positioned.edges) {
-    if (edge.label) continue
     const source = nodeMap.get(edge.source)
     const target = nodeMap.get(edge.target)
     if (!source || !target || !forwardish(source, target, graph.direction)) continue
@@ -369,10 +466,15 @@ function peerBarycenterDelta(positioned: PositionedGraph, graph: MermaidGraph): 
     byTarget.get(edge.target)!.push(source)
   }
   let worst = 0
-  const update = (hub: PositionedNode | undefined, peers: PositionedNode[]) => {
-    if (!hub || peers.length < 2 || peers.length > 6 || !samePeerLayer(peers, graph.direction)) return
-    if (hub.shape !== 'rectangle' || nodeInsideGroups(hub, positioned.groups)) return
-    if (!peers.every(peer => peer.shape === 'rectangle' && !nodeInsideGroups(peer, positioned.groups))) return
+  // Peer-shape gate mirrors centerPeerBarycenters exactly so the metric measures
+  // precisely what the pass optimizes: FAN-IN peers may be any PORT_EXACT shape,
+  // FAN-OUT peers stay rectangle-only (applySymmetricFanoutEmissions owns non-rect
+  // fan-out spread; the metric must not claim a fan-out the pass never centres).
+  const update = (hub: PositionedNode | undefined, peers: PositionedNode[], side: 'in' | 'out') => {
+    if (!hub || peers.length < 2 || peers.length > 6 || !samePeerLayer(peers, graph.direction, SYM_PEER_LAYER_TOL)) return
+    if (!PORT_EXACT.has(hub.shape) || nodeInsideGroups(hub, positioned.groups)) return
+    const peerShapeOk = (peer: PositionedNode) => side === 'in' ? PORT_EXACT.has(peer.shape) : peer.shape === 'rectangle'
+    if (!peers.every(peer => peerShapeOk(peer) && !nodeInsideGroups(peer, positioned.groups))) return
     if (new Set(peers.map(peer => peer.id)).size !== peers.length) return
     for (let i = 0; i < peers.length; i++) for (let j = 0; j < peers.length; j++) {
       if (i !== j && logicalGraphReaches(graph, peers[i]!.id, peers[j]!.id)) return
@@ -380,8 +482,8 @@ function peerBarycenterDelta(positioned: PositionedGraph, graph: MermaidGraph): 
     const barycenter = peers.reduce((sum, peer) => sum + nodeCrossCenter(peer, graph.direction), 0) / peers.length
     worst = Math.max(worst, Math.abs(nodeCrossCenter(hub, graph.direction) - barycenter))
   }
-  for (const [source, targets] of bySource) update(nodeMap.get(source), targets)
-  for (const [target, sources] of byTarget) update(nodeMap.get(target), sources)
+  for (const [source, targets] of bySource) update(nodeMap.get(source), targets, 'out')
+  for (const [target, sources] of byTarget) update(nodeMap.get(target), sources, 'in')
   return worst
 }
 
@@ -404,12 +506,26 @@ export function assessLayout(graph: MermaidGraph, positioned: PositionedGraph): 
   let portEnds = 0
   let portAnchoredEdges = 0
   let measuredEnds = 0
+  let worstLabelOffset = 0
 
   for (const e of positioned.edges) {
     const id = `${e.source}->${e.target}`
     const bends = Math.max(0, e.points.length - 2)
-    totalBends += bends
-    maxBends = Math.max(maxBends, bends)
+    // Justified-bend exemption: a bend that is part of a SYMMETRIC convergence
+    // (a fan-out/fan-in bundle, or a co-ranked mixed-label fan-in's dogleg) is
+    // "as good as straight" — the bend is structurally necessary to converge and
+    // the symmetry it buys offsets the cost, the same idiom every reference
+    // layered drawer (and our own fan-out emitter) uses. So it does not count
+    // toward totalBends/maxBendsPerEdge. We key off the SAME 'bundle' certificate
+    // findRouteHitches uses to skip these edges (route-contracts.ts), so the bend
+    // penalty and the HARD hitch-invariant AGREE on what is justified. This does
+    // NOT touch unexplainedBends (which fires only on 'straight'-certified edges,
+    // and a bundle edge is never 'straight') or hitches (HARD, unchanged).
+    const justifiedConvergenceBend = e.routeCertificate?.invariant === 'bundle'
+    if (!justifiedConvergenceBend) {
+      totalBends += bends
+      maxBends = Math.max(maxBends, bends)
+    }
 
     if (bends > 0 && e.routeCertificate?.invariant === 'straight') {
       unexplainedBends += bends
@@ -445,14 +561,23 @@ export function assessLayout(graph: MermaidGraph, positioned: PositionedGraph): 
     if (e.label && e.labelPosition && e.points.length >= 2) {
       const m = measureMultilineText(e.label, style.edgeLabelFontSize, style.edgeLabelFontWeight)
       const allow = (m.height + 16) / 2 + 4
+      // A self-loop's label legitimately sits BESIDE the small loop stub (ELK's
+      // native placement), so its CENTRE is a pill-width from the stub while its
+      // body touches it. Measure pill-to-route for self-loops; centre-to-route
+      // for ordinary edges, where the label is meant to sit ON the line.
+      const selfLoop = e.source === e.target
       let best = Infinity
       for (let i = 1; i < e.points.length; i++) {
-        best = Math.min(best, pointToSegmentDistance(e.labelPosition, e.points[i - 1]!, e.points[i]!))
+        best = Math.min(best, selfLoop
+          ? rectToSegmentDistance(e.labelPosition.x, e.labelPosition.y, (m.width + 16) / 2, (m.height + 16) / 2, e.points[i - 1]!, e.points[i]!)
+          : pointToSegmentDistance(e.labelPosition, e.points[i - 1]!, e.points[i]!))
       }
       if (best > allow) {
         labelOffRoute++
         violations.push({ metric: 'labelOffRoute', detail: `${id} label ${best.toFixed(1)}px from its route (allowed ${allow.toFixed(1)})` })
       }
+      // SOFT label-CENTRING aggregate: track the worst (most off-centre) label.
+      worstLabelOffset = Math.max(worstLabelOffset, labelMidpointOffset(e))
     }
   }
 
@@ -514,6 +639,7 @@ export function assessLayout(graph: MermaidGraph, positioned: PositionedGraph): 
       portEndpointRate: measuredEnds === 0 ? 1 : portEnds / measuredEnds,
       portAnchoredEdgeRate: positioned.edges.length === 0 ? 1 : portAnchoredEdges / positioned.edges.length,
       peerBarycenterDelta: peerBarycenterDelta(positioned, graph),
+      worstLabelOffset,
     },
     violations: violations
       .map(v => ({ ...v, severity: rubricSeverity(v.metric) }))

@@ -110,6 +110,22 @@ export const BOUND_PROVENANCE: Record<
   },
 }
 
+// JUSTIFIED / SYMMETRIC BEND — a bend in the aesthetic hierarchy.
+//
+// Purchase found bends matter for comprehension, but not every bend is a defect.
+// A bend that is part of a SYMMETRIC convergence (a fan-out/fan-in bundle, or a
+// co-ranked mixed-label fan-in's converging dogleg) is "as good as" a straight
+// line and must NOT be penalized: the bend is structurally necessary to converge
+// (you cannot merge N spokes into one node without a turn), and the symmetry it
+// buys — every reference layered drawer routes a fan this way, and our own
+// fan-out emitter applySymmetricFanoutEmissions does too — offsets the small bend
+// cost. Only UNJUSTIFIED / lone bends still cost. The geometric rubric encodes
+// this exactly (src/layout-rubric.ts): bundle-certified bends are excluded from
+// totalBends/maxBendsPerEdge — the SAME edges findRouteHitches treats as
+// non-hitches — so the bend penalty and the HARD hitch-invariant agree on what
+// counts as justified, while an off-lane jog with a clear straight lane (hitches)
+// or a bend on a 'straight'-certified edge (unexplainedBends) stays a violation.
+
 const CHAR_PX = 7  // approx character width at 12px font
 const EDGE_LABEL_BOX_PADDING = 8
 const GEOM_EPS = 1e-9
