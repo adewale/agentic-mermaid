@@ -91,6 +91,46 @@ Users can discover fork features through:
 - Already upstreamed: fan-in grouping (upstream #68/#69) and labeled fan-out trunk sharing with box-start connector placement (#111/#112/#113, upstream PR #113) landed here first and now render identically in Beautiful Mermaid 1.1.3 — they are no longer fork-only.
 - ER cardinality parsing matches Mermaid's lexer exactly; malformed relationship lines error loudly instead of being silently dropped.
 
+## Parser and semantic divergences from Mermaid.js
+
+- **Subgraph membership is *first-defined-wins*.** A node belongs to the subgraph
+  where it is **first defined**, and a top-level reference counts as a definition —
+  so a node referenced at the top level and then listed inside a subgraph block
+  stays at the top level. Mermaid.js instead lets the subgraph *block* claim any
+  node it lists, regardless of a prior top-level reference. In the canonical Mermaid
+  docs example:
+
+  ```mermaid
+  flowchart TB
+      c1-->a2
+      subgraph one
+      a1-->a2
+      end
+      subgraph two
+      b1-->b2
+      end
+      subgraph three
+      c1-->c2
+      end
+  ```
+
+  Mermaid.js places `a2` inside `one` and `c1` inside `three`; this fork keeps `a2`
+  and `c1` at the top level (only `a1`/`c2` are inside those subgraphs). See it both
+  ways: [open in Mermaid Live](https://mermaid.live/edit#pako:eNp10DELwjAQBeC_Et7cDjpmcBBXJ50kyzW5NoU2V9KEIqX_XbSoRXB87z44eDOsOIZG3clkPcWkrkcTlFLK7sryQPs1jLlqIg1eSeC1oe2Zg_txaZK1qZ6u-u98ZN48tF-JAj3HnloHjdkgee7ZQBs4ril3yWBBAcpJLvdgoVPMXCBKbjx0Td3IBfLgKPGppSZS_yYDhZvIJ7Jrk8TzOsRrj-UBwvBYkQ)
+  · [open in the fork editor](https://adewale.github.io/beautiful-mermaid/editor#eyJzb3VyY2UiOiJmbG93Y2hhcnQgVEJcbiAgICBjMS0tPmEyXG4gICAgc3ViZ3JhcGggb25lXG4gICAgYTEtLT5hMlxuICAgIGVuZFxuICAgIHN1YmdyYXBoIHR3b1xuICAgIGIxLS0+YjJcbiAgICBlbmRcbiAgICBzdWJncmFwaCB0aHJlZVxuICAgIGMxLS0+YzJcbiAgICBlbmQifQ==).
+
+  This is a deliberate divergence, not a bug: it gives deterministic
+  *definition-scope* membership with no surprising re-parenting when a node is
+  mentioned again inside a container, consistent with the fork's goal of
+  predictable, source-preserving behavior rather than Mermaid pixel/layout parity
+  (see [#38](https://github.com/adewale/beautiful-mermaid/issues/38)). Mermaid's own
+  users report *its* behavior as a bug (`mermaid-js/mermaid#738`, `#2707`). The rule
+  is inherited from upstream Beautiful Mermaid (introduced in its v1.0.0 rewrite),
+  not fork-invented, and is guarded by `src/__tests__/parser.test.ts` — a node
+  genuinely defined inside one subgraph and later referenced inside another
+  likewise stays in its first subgraph (it is never re-parented by a mere
+  reference).
+
 ## What is intentionally not in this fork
 
 - No committed `dist/` artifacts.
