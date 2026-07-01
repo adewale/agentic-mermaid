@@ -27,6 +27,7 @@ Narrow lanes for PR-scale survivor harvests:
 bun run mutation-test:links            # text-embedded link-length parsing
 bun run mutation-test:routes:certs     # route-certificate finality + stale-route audit
 bun run mutation-test:routes:subgraph  # subgraph endpoint/LCA routing
+npx stryker run stryker.linkrank.config.json  # honorLinkRankDistance packing repair + reconnect fallbacks (issue #81 fix)
 bun run sabotage:routes                # one-line revert checks against committed HEAD; expects focused tests to fail
 ```
 
@@ -52,12 +53,28 @@ documented, not killed with synthetic inputs.
 | edge-routing.ts | 55.1% | 163 | 133 |
 | converter.ts | 38.4% | 94 | 151 |
 | grid.ts | 70.1% | 421 | 180 |
+| layout/passes/index.ts:931-1165 (linkrank packing repair) | 49.86% → 65.07% after the geometry-characterization harvest (355 mutants; killed 176 → 230+1 timeout). The +54 kills were the repair's candidate ORDERING / ahead-node selection / push-delta arithmetic — invisible to HARD-metric assertions (a mutant picking a different clear lane still yields zero violations), pinned instead by per-repro geometry snapshots in `linkrank-packing.test.ts` (layout determinism makes them stable). | 355 | 124 — see classification below |
 | route-contracts.ts | 58.1% → 72.3% → 75.6% → 73.1% across the first three batches; 54.31% at 0b43c90, then 50.69% at 526d9cf after the slanted-family batch (shapePorts generalization, convex-polygon geometry: 2659 → 2740 mutants — absolute kills 1444 → 1381). The percentage fell purely on denominator growth (~3× since batch 3); a survivor-harvest batch is the documented next quality step. | 882 → 2740 | 50.69% (1381 killed) — survivor harvest pending |
 
 (Numbers from the June 2026 runs; regenerate rather than trusting this
 table — the report lands in `reports/mutation/`.)
 
 ## Survivor classification
+
+**linkrank lane residual (124 at the 65.07% run)**, classified:
+
+- **Real gap, next harvest**: the subgraph-scoped `separationUnit` branch (walk the
+  overlapped node's scope chain, push its outermost subgraph unit) never fires — the
+  degenerate repro set has no subgraphs. Killing these needs a subgraph + long-link
+  shove-overlap fixture.
+- **Unexercised defensive fallbacks**: the `rungSource` feedback family and some
+  min-lane branches fire only on inputs the deterministic enumeration no longer
+  produces (0 residual signatures); every adopted route is still runtime-validated by
+  `routeClearOfNodes`, so a wrong fallback cannot ship a through-node route.
+- **Equivalent on the real input domain**: exact-tie tiebreaks (`flowGap !== 0` id
+  fallback), the `pairKey` separator literal (any injective separator), the defensive
+  round cap (`nodes.length * 4` — forward-only motion terminates before it), and the
+  candidate-list `slice(0, 16)` caps (lists are shorter in practice).
 
 **Killed by `src/__tests__/ascii-pathfinder-units.test.ts`** (32 mutants):
 `buildMoveDirs` preferred-direction ordering (it only decides ties between

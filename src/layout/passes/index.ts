@@ -930,6 +930,29 @@ export function honorLinkRankDistance(nodes: PositionedNode[], edges: Positioned
   }
   for (const group of groups) recordGroupInsets(group)
 
+  // ELK hands us non-overlapping boxes; the shove must hand them on. A moved
+  // node can land on (or sweep past) a node outside its downstream closure —
+  // the boxes then overlap and everything near them degenerates (nodeOverlaps,
+  // then edgeThroughNode; issue #81). Snapshot the overlapping pairs (the
+  // rubric's >0.5px box predicate) before any move so the repair below can be
+  // scoped to exactly the pairs this pass introduces.
+  const boxesOverlap = (a: PositionedNode, b: PositionedNode): boolean => {
+    const ox = Math.min(a.x + a.width, b.x + b.width) - Math.max(a.x, b.x)
+    const oy = Math.min(a.y + a.height, b.y + b.height) - Math.max(a.y, b.y)
+    return ox > 0.5 && oy > 0.5
+  }
+  const pairKey = (a: PositionedNode, b: PositionedNode): string => (a.id < b.id ? `${a.id} ${b.id}` : `${b.id} ${a.id}`)
+  const overlappingPairs = (): Array<[PositionedNode, PositionedNode]> => {
+    const pairs: Array<[PositionedNode, PositionedNode]> = []
+    for (let i = 0; i < nodes.length; i++) {
+      for (let j = i + 1; j < nodes.length; j++) {
+        if (boxesOverlap(nodes[i]!, nodes[j]!)) pairs.push([nodes[i]!, nodes[j]!])
+      }
+    }
+    return pairs
+  }
+  const preShovePairs = new Set(overlappingPairs().map(([a, b]) => pairKey(a, b)))
+
   for (let i = 0; i < graph.edges.length; i++) {
     if (!setsRankDistance(i)) continue
     const spec = graph.edges[i]!
@@ -943,6 +966,38 @@ export function honorLinkRankDistance(nodes: PositionedNode[], edges: Positioned
     if (currentGap < minGap) moveSet(movableUnit(spec.source, spec.target), (minGap - currentGap) * f.sign)
   }
 
+  // Treat the shove as physical: whatever it lands on is pushed ahead, never
+  // sat on. The ahead node of each shove-introduced overlap moves further
+  // forward (never backward — a backward move could re-compress a gap the loop
+  // above just honoured), as a unit with its outermost subgraph that excludes
+  // the other node. Forward-only motion cannot cycle, so the fixpoint
+  // terminates; the round cap is a defensive bound, not an expected exit.
+  const separationUnit = (id: string, other: string): string[] => {
+    const otherScopes = new Set(scopeChainOf.get(other) ?? [])
+    for (const sgId of scopeChainOf.get(id) ?? []) if (!otherScopes.has(sgId)) return unitNodes(sgId)
+    return [id]
+  }
+  const pushAhead = (unit: string[], delta: number): void => {
+    for (const id of unit) {
+      const n = nodeMap.get(id)
+      if (!n) continue
+      n[f.main] += delta
+      mainDelta.set(id, (mainDelta.get(id) ?? 0) + delta)
+    }
+  }
+  for (let round = 0; round < nodes.length * 4; round++) {
+    const created = overlappingPairs().filter(([a, b]) => !preShovePairs.has(pairKey(a, b)))
+    if (created.length === 0) break
+    created.sort((p, q) => (pairKey(p[0], p[1]) < pairKey(q[0], q[1]) ? -1 : 1))
+    const [a, b] = created[0]!
+    const flowGap = (nodeMainCenter(a, graph.direction) - nodeMainCenter(b, graph.direction)) * f.sign
+    const [behind, ahead] = (flowGap !== 0 ? flowGap > 0 : a.id > b.id) ? [b, a] : [a, b]
+    const delta = f.sign === 1
+      ? behind[f.main] + nodeMainSize(behind, graph.direction) + DEFAULTS.nodeSpacing - ahead[f.main]
+      : ahead[f.main] + nodeMainSize(ahead, graph.direction) + DEFAULTS.nodeSpacing - behind[f.main]
+    pushAhead(separationUnit(ahead.id, behind.id), delta * f.sign)
+  }
+
   // Grow/translate every container so it still encloses its (possibly moved) members.
   for (const group of groups) regrowGroup(group)
 
@@ -952,7 +1007,9 @@ export function honorLinkRankDistance(nodes: PositionedNode[], edges: Positioned
   // box after the gap widens.
   const FEEDBACK_LANE_GAP = 10
   const crossMaxEdge = (n: PositionedNode): number => nodeCrossCenter(n, graph.direction) + nodeCrossSize(n, graph.direction) / 2
+  const crossMinEdge = (n: PositionedNode): number => nodeCrossCenter(n, graph.direction) - nodeCrossSize(n, graph.direction) / 2
   const laneCross = Math.max(...nodes.map(crossMaxEdge)) + FEEDBACK_LANE_GAP
+  const laneCrossMin = Math.min(...nodes.map(crossMinEdge)) - FEEDBACK_LANE_GAP
   const point = (mainV: number, crossV: number): Point =>
     f.main === 'x' ? { x: mainV, y: crossV } : { x: crossV, y: mainV }
 
@@ -970,6 +1027,23 @@ export function honorLinkRankDistance(nodes: PositionedNode[], edges: Positioned
       default: return { x: cx, y: g.y }
     }
   }
+
+  // Free-channel centers: midpoints of the gaps between sorted box boundaries
+  // along an axis — deterministic, obstacle-derived homes for detour segments
+  // when a canonical route below is blocked. Intervals an orthogonal segment
+  // cannot actually fit through (≤2px, given the 1px route clearance) are
+  // skipped; blocked candidates are weeded out by routeClearOfNodes anyway.
+  const channelCenters = (axis: 'x' | 'y'): number[] => {
+    const stops = new Set<number>()
+    for (const n of nodes) { stops.add(n[axis]); stops.add(n[axis] + (axis === 'x' ? n.width : n.height)) }
+    const sorted = [...stops].sort((a, b) => a - b)
+    const centers: number[] = []
+    for (let i = 1; i < sorted.length; i++) if (sorted[i]! - sorted[i - 1]! > 2) centers.push((sorted[i]! + sorted[i - 1]!) / 2)
+    return centers
+  }
+  const crossAxis: 'x' | 'y' = f.main === 'x' ? 'y' : 'x'
+  const byProximity = (values: number[], anchor: number): number[] =>
+    [...values].sort((a, b) => Math.abs(a - anchor) - Math.abs(b - anchor) || a - b).slice(0, 16)
 
   // Reconnect every edge after the rank-distance move so no endpoint is left
   // pointing at a node's pre-move position (which would trip the route-staleness
@@ -989,21 +1063,88 @@ export function honorLinkRankDistance(nodes: PositionedNode[], edges: Positioned
       const source = nodeMap.get(edge.source), target = nodeMap.get(edge.target)
       if (!source || !target) continue
       // Feedback U-detour: drop to the outer lane at the source, run back along
-      // it, and rise into the target — both anchored at the max-cross side.
-      edge.points = [
-        point(nodeMainCenter(source, graph.direction), crossMaxEdge(source)),
-        point(nodeMainCenter(source, graph.direction), laneCross),
-        point(nodeMainCenter(target, graph.direction), laneCross),
-        point(nodeMainCenter(target, graph.direction), crossMaxEdge(target)),
+      // it, and rise into the target — both anchored at the max-cross side. A
+      // riser can cross a bystander sitting between the node and the lane
+      // (issue #81's no-overlap residual). When — and only when — the max-side
+      // U is blocked, fall back deterministically: the min-side lane, then a
+      // rung variant per lane that leaves the lane at a free channel and
+      // approaches the blocked endpoint through a clear column (the center
+      // anchors stay on-outline for every shape, unlike sliding a riser
+      // off-center). If everything is blocked, keep the canonical max-side
+      // route for the post-freeze net to repair.
+      const mSrc = nodeMainCenter(source, graph.direction), mTgt = nodeMainCenter(target, graph.direction)
+      const uDetour = (lane: number, edgeCross: (n: PositionedNode) => number): Point[] => [
+        point(mSrc, edgeCross(source)), point(mSrc, lane), point(mTgt, lane), point(mTgt, edgeCross(target)),
       ]
+      const rungTarget = (lane: number, edgeCross: (n: PositionedNode) => number, mRung: number, col: number): Point[] => [
+        point(mSrc, edgeCross(source)), point(mSrc, lane), point(mRung, lane), point(mRung, col), point(mTgt, col), point(mTgt, edgeCross(target)),
+      ]
+      const rungSource = (lane: number, edgeCross: (n: PositionedNode) => number, mRung: number, col: number): Point[] => [
+        point(mSrc, edgeCross(source)), point(mSrc, col), point(mRung, col), point(mRung, lane), point(mTgt, lane), point(mTgt, edgeCross(target)),
+      ]
+      const ends = new Set([edge.source, edge.target])
+      const clear = (pts: Point[]): boolean => routeClearOfNodes(simplifyPolyline(pts), nodes, ends)
+      const lanes: Array<[number, (n: PositionedNode) => number]> = [[laneCross, crossMaxEdge], [laneCrossMin, crossMinEdge]]
+      let route: Point[] | undefined
+      for (const [lane, edgeCross] of lanes) {
+        const candidate = uDetour(lane, edgeCross)
+        if (clear(candidate)) { route = candidate; break }
+      }
+      if (!route) {
+        const rungMains = byProximity(channelCenters(f.main === 'x' ? 'x' : 'y'), mTgt)
+        search: for (const [lane, edgeCross] of lanes) {
+          const cols = byProximity(channelCenters(crossAxis), edgeCross(target))
+          for (const build of [rungTarget, rungSource]) {
+            for (const mRung of rungMains) {
+              for (const col of cols) {
+                const candidate = build(lane, edgeCross, mRung, col)
+                if (clear(candidate)) { route = simplifyPolyline(candidate); break search }
+              }
+            }
+          }
+        }
+      }
+      edge.points = route ?? uDetour(laneCross, crossMaxEdge)
       if (edge.label) edge.labelPosition = calculatePathMidpoint(edge.points)
       continue
     }
     const start = flowPort(edge.source, f.sourceSide)
     const end = flowPort(edge.target, f.targetSide)
     if (!start || !end) continue
-    const elbow = (start[f.main] + end[f.main]) / 2
-    edge.points = doglegBetween(start, end, graph.direction, elbow)
+    // A midpoint elbow can put the dogleg's cross run or its entry riser
+    // through a bystander box. When — and only when — the midpoint dogleg is
+    // blocked, fall back deterministically: single elbows at free-channel
+    // centers between the ports (nearest the midpoint first), then a
+    // double-elbow staircase whose cross run rides a free column (the rep2
+    // shape in eval/degenerate-etn: a bystander sitting over the target's
+    // entry port, threadable only through the channel beside it). If every
+    // variant is blocked, keep the midpoint for the post-freeze net to repair.
+    const ends = new Set([edge.source, edge.target])
+    const clear = (pts: Point[]): boolean => routeClearOfNodes(pts, nodes, ends)
+    const lo = Math.min(start[f.main], end[f.main]), hi = Math.max(start[f.main], end[f.main])
+    let route = doglegBetween(start, end, graph.direction, (lo + hi) / 2)
+    if (!clear(route)) {
+      let found: Point[] | undefined
+      const mains = byProximity(channelCenters(f.main === 'x' ? 'x' : 'y').filter(m => m > lo && m < hi), (lo + hi) / 2)
+      for (const m of mains) {
+        const candidate = doglegBetween(start, end, graph.direction, m)
+        if (clear(candidate)) { found = candidate; break }
+      }
+      if (!found) {
+        const cS = start[crossAxis], cE = end[crossAxis]
+        const cols = byProximity(channelCenters(crossAxis), (cS + cE) / 2)
+        staircase: for (const col of cols) {
+          for (const m1 of mains) {
+            for (const m2 of byProximity(mains.filter(m => (m - m1) * f.sign > 0), end[f.main])) {
+              const candidate = simplifyPolyline([start, point(m1, cS), point(m1, col), point(m2, col), point(m2, cE), end])
+              if (clear(candidate)) { found = candidate; break staircase }
+            }
+          }
+        }
+      }
+      if (found) route = found
+    }
+    edge.points = route
     if (edge.label) edge.labelPosition = calculatePathMidpoint(edge.points)
   }
 }
