@@ -84,6 +84,29 @@ function broad(i: number): string {
     default: { const L = [`flowchart ${d}`, `  Z --> H{hub}`]; for (let s = 0; s < 2 + i % 4; s++) L.push(`  H -->${labB(i, s, i + s)} ${sh('T' + s, W[(i + s) % W.length]!, i + s)}`); return L.join('\n') }
   }
 }
+// (4) fan-in peers with their own upstream CONES — reproduces the stale-endpoint
+// offOutlineEndpoints: equalizePeerNodeDimensions repositions a (differing-width,
+// so rectangle) fan-in peer S, and a cone edge U->S into it was left dangling off
+// S's new outline until reanchorOffOutlineEndpoints re-routed it. Cone depth (0-3)
+// comes from hash bits, so deep chains occur in every direction. Simple CHAINS,
+// not branches: a branching cone additionally exercises dense cone-vs-cone
+// routing (a separate pre-existing edgeThroughNode class, out of scope here) and
+// would conflate the two — this generator isolates the stale-endpoint class.
+function conedFanin(i: number): string {
+  const d = DIRS[i % 4], k = 2 + (i % 4), L = [`flowchart ${d}`]
+  for (let s = 0; s < k; s++) {
+    L.push(`  S${s}["${W[(i * 3 + s) % W.length]}"] --> H["hub"]`)
+    let prev = `S${s}`
+    const depth = (hash(i + s) >> 26) % 4
+    for (let z = 0; z < depth; z++) {
+      const u = `U${s}_${z}`
+      L.push(`  ${u}["${W[(i + s + z) % W.length]}"] -->${labB(i, (s + z) & 7, i + z)} ${prev}`)
+      prev = u
+    }
+  }
+  L.push(`  H --> T["t"]`)
+  return L.join('\n')
+}
 
 // Binary structural invariants — must be ZERO everywhere. This is labelOffRoute's
 // complement: the correctness invariants the layout passes fix, none of which
@@ -96,6 +119,7 @@ const GENERATORS: Array<{ name: string; gen: (i: number) => string; n: number; k
   { name: 'chained-hubs (BT edgeThroughNode class)', gen: chainedHubs, n: 600, knownLabelOffRoute: 0 },
   { name: 'mixed-label fan-in (RL overlap class)', gen: mixedFanin, n: 400, knownLabelOffRoute: 0 },
   { name: 'broad families (diamond/cycle/selfloop/parallel/wide)', gen: broad, n: 400, knownLabelOffRoute: 0 },
+  { name: 'coned fan-in (stale-endpoint offOutline class)', gen: conedFanin, n: 500, knownLabelOffRoute: 0 },
 ]
 
 const LABEL_OFFSET_CEIL = 0.45 // soft sanity: a label may drift but never sit essentially AT an endpoint (0.5)
