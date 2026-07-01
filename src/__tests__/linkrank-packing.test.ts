@@ -54,4 +54,20 @@ describe('honorLinkRankDistance packing: a shove never leaves overlaps or blocke
       expect(bad).toEqual([])
     })
   }
+
+  // Characterization: pin the exact repaired geometry. The repair's candidate
+  // ORDERING (free-channel proximity sort, ahead-node selection, push deltas)
+  // is deterministic layout behavior the HARD assertions above cannot see — a
+  // mutant that picks a different clear lane still passes them but changes
+  // geometry. Layout is deterministic by contract, so the digest is stable.
+  for (const [name, src] of cases) {
+    test(`${name}: repaired geometry characterization`, () => {
+      const p = layoutGraphSync(parseMermaid(src))
+      const digest = {
+        nodes: p.nodes.map(n => `${n.id}@${n.x.toFixed(1)},${n.y.toFixed(1)} ${n.width.toFixed(1)}x${n.height.toFixed(1)}`),
+        edges: p.edges.map(e => `${e.source}->${e.target}: ${e.points.map(q => `${q.x.toFixed(1)},${q.y.toFixed(1)}`).join(' ')}`),
+      }
+      expect(digest).toMatchSnapshot()
+    })
+  }
 })
