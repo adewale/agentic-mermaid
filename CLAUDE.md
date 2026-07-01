@@ -16,6 +16,10 @@ editing surface. Source lives in `src/`; the layout pipeline is in
 - `bunx tsc --noEmit` — typecheck.
 - `bun run track` — heuristic layout-quality tracker (improvements/regressions vs baseline).
 - `bun run bin/am.ts render <file> --format png --output out.png` — render a diagram.
+- `bun run website` — regenerate the committed website bundle. **Required after any
+  `src/` change**: CI's `website:check` fails when the checked-in editor bundle no
+  longer matches the source (this has silently broken `main` before — run it before
+  every push that touches `src/`).
 
 Layout is **deterministic**: identical input must produce identical geometry.
 
