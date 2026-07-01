@@ -43,14 +43,45 @@ export function flowchartStatements(source: string): FlowchartStatement[] {
   const statements: FlowchartStatement[] = []
   const lines = source.split(/\r?\n/)
   for (let i = 1; i < lines.length; i++) {
-    const raw = lines[i]!
+    let raw = lines[i]!
+    const startLine = i + 1
+    // A `id@{ ... }` metadata block may span lines (the form Mermaid's docs
+    // use). Join it into ONE statement anchored at the opening line, so the
+    // node-metadata lint sees the same unit the parser tokenizes — otherwise
+    // the multiline form silently misses the UNSUPPORTED_SYNTAX warning the
+    // single-line form gets.
+    while (i + 1 < lines.length && hasUnclosedMetadataBlock(raw)) {
+      i++
+      raw += ' ' + lines[i]!
+    }
     for (const text of splitFlowchartStatements(raw)) {
       const trimmed = text.trim()
       if (!trimmed || trimmed.startsWith('%%')) continue
-      statements.push({ text: trimmed, line: i + 1 })
+      statements.push({ text: trimmed, line: startLine })
     }
   }
   return statements
+}
+
+function hasUnclosedMetadataBlock(text: string): boolean {
+  const at = text.search(/[\w-]+@\s*\{/)
+  if (at < 0) return false
+  let depth = 0
+  let quote: '"' | "'" | '`' | null = null
+  let escaped = false
+  for (let i = at; i < text.length; i++) {
+    const ch = text[i]!
+    if (escaped) { escaped = false; continue }
+    if (ch === '\\') { escaped = true; continue }
+    if (quote) {
+      if (ch === quote) quote = null
+      continue
+    }
+    if (ch === '"' || ch === "'" || ch === '`') { quote = ch; continue }
+    if (ch === '{') depth++
+    else if (ch === '}') { depth--; if (depth === 0) return false }
+  }
+  return depth > 0
 }
 
 function hasFlowchartEdgeId(statement: string): boolean {

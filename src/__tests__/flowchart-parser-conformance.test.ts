@@ -181,6 +181,13 @@ describe('flowchart parser conformance safety floor (issue #36)', () => {
       .map(w => w.code === 'UNSUPPORTED_SYNTAX' ? w.syntax : '').filter(Boolean)
     expect(edgeMeta).toContain('flowchart_edge_metadata')
     expect(edgeMeta).not.toContain('flowchart_node_metadata')
+
+    // The multiline block (the form Mermaid's docs use) must carry the SAME
+    // warning as the single-line form — it previously slipped through the
+    // line-by-line statement split with no warning at all (issue #44).
+    const multiline = verifyMermaid('flowchart TD\n  C@{\n    shape: delay,\n    label: "Wait"\n  }\n  C --> D\n')
+    expect(multiline.ok).toBe(true)
+    expect(multiline.warnings).toContainEqual(expect.objectContaining({ code: 'UNSUPPORTED_SYNTAX', syntax: 'flowchart_node_metadata', line: 2 }))
   })
 
   test('class shorthand before compact arrows keeps the edge and escaped classDef commas', () => {
