@@ -2096,6 +2096,45 @@ export function applyRouteContracts(
   return certificates
 }
 
+/**
+ * Re-issue a certificate for an edge a post-freeze repair has re-routed. A pass
+ * that mutates final route geometry must hand the completeness contract on —
+ * an uncertified edge is exactly what the certificate system exists to forbid
+ * (issue #83: the shared-trunk label lane shipped one). The route class and
+ * direct-lane analysis are inherited from the pre-repair certificate (they
+ * describe the source→target relationship, not the polyline); the bend count
+ * and port contacts are re-measured from the repaired geometry; and a repaired
+ * route only claims 'straight' when it measurably is one now — never a
+ * straightening, which belongs to the certifying straightener alone.
+ */
+export function recertifyReroutedEdge(
+  edge: PositionedEdge,
+  saved: RouteCertificate | undefined,
+  sourceNode?: PositionedNode,
+  targetNode?: PositionedNode,
+): void {
+  if (!saved) { edge.routeCertificate = undefined; return }
+  const base = {
+    edgeIndex: saved.edgeIndex,
+    routeClass: saved.routeClass,
+    bendCount: bendCount(edge.points),
+    directLaneClear: saved.directLaneClear,
+    directLaneBlockedBy: saved.directLaneBlockedBy,
+    sourcePort: sourceNode && edge.points.length > 0 ? portAt(sourceNode, edge.points[0]!) : saved.sourcePort,
+    targetPort: targetNode && edge.points.length > 0 ? portAt(targetNode, edge.points[edge.points.length - 1]!) : saved.targetPort,
+    sourcePortAssignment: saved.sourcePortAssignment,
+    targetPortAssignment: saved.targetPortAssignment,
+  }
+  if (edge.points.length === 2 && bendCount(edge.points) === 0) {
+    edge.routeCertificate = { ...base, invariant: 'straight' }
+    return
+  }
+  edge.routeCertificate = {
+    ...base,
+    invariant: saved.invariant === 'straight' ? 'explained-detour' : saved.invariant,
+  }
+}
+
 // ============================================================================
 // Validation (consumed by verifyMermaid as ROUTE_HITCH)
 // ============================================================================
@@ -2399,7 +2438,11 @@ export function repairLabelsOnSharedTrunks(
             edge.points = simplifyPolyline(pts)
             edge.labelPosition = laneMid
             edge.routeCertificate = undefined
-            if (!sharedTrunkConflict(edge, positioned.edges, style) && !pillOverNode(pillRect(laneMid.x, laneMid.y, m), edge)) { fixed = true; break }
+            if (!sharedTrunkConflict(edge, positioned.edges, style) && !pillOverNode(pillRect(laneMid.x, laneMid.y, m), edge)) {
+              recertifyReroutedEdge(edge, savedCert)
+              fixed = true
+              break
+            }
             edge.points = savedPts
             edge.routeCertificate = savedCert
           }

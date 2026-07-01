@@ -20,7 +20,7 @@ import type { ResolvedRenderStyle } from '../../styles.ts'
 import { measureMultilineText } from '../../text-metrics.ts'
 import { clipEdgeToShape } from '../../shape-clipping.ts'
 import { onShapeOutline, segmentThroughShape } from '../../layout-rubric.ts'
-import { classifyRoutes, diamondFacetPorts, labelRect, laneContextFor, PORT_EXACT, shapePorts, simplifyPolyline, straightLaneFor } from '../../route-contracts.ts'
+import { classifyRoutes, diamondFacetPorts, labelRect, laneContextFor, PORT_EXACT, recertifyReroutedEdge, shapePorts, simplifyPolyline, straightLaneFor } from '../../route-contracts.ts'
 import type { LabelMetricsStyle } from '../../route-contracts.ts'
 import { resolveEdgeInlineStyle } from '../../color-resolver.ts'
 import {
@@ -1180,8 +1180,9 @@ export function reanchorOffOutlineEndpoints(nodes: PositionedNode[], edges: Posi
     const end = shapePorts(target)[f.targetSide]
     const route = doglegBetween(start, end, graph.direction, (start[f.main] + end[f.main]) / 2)
     if (!routeClearOfNodes(route, nodes, new Set([edge.source, edge.target]))) continue
+    const savedCert = edge.routeCertificate
     edge.points = route
-    edge.routeCertificate = undefined
+    recertifyReroutedEdge(edge, savedCert, source, target)
     if (edge.label) edge.labelPosition = calculatePathMidpoint(route)
   }
 }
@@ -1301,8 +1302,9 @@ export function rerouteEdgesThroughNodes(nodes: PositionedNode[], edges: Positio
     if (!onShapeOutline(source, edge.points[0]!) || !onShapeOutline(target, edge.points[edge.points.length - 1]!)) continue
     const route = shiftInteriorSegment(edge.points, skip) ?? bracketOverBand(edge.points, skip)
     if (!route) continue // never-worse: no clean detour found, leave as-is
+    const savedCert = edge.routeCertificate
     edge.points = route
-    edge.routeCertificate = undefined
+    recertifyReroutedEdge(edge, savedCert, source, target)
     if (edge.label) edge.labelPosition = calculatePathMidpoint(route)
   }
 }
