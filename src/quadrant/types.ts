@@ -86,6 +86,11 @@ export interface PositionedQuadrantPoint {
   cx: number
   cy: number
   radius: number
+  /** Collision-avoiding label anchor position (layout-computed; the renderer
+   *  never recomputes label geometry). */
+  labelX: number
+  labelY: number
+  labelAnchor: 'start' | 'end' | 'middle'
 }
 
 export interface PositionedQuadrantAxisLabel {
