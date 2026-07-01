@@ -5,8 +5,12 @@
 // node-overlap; BT chained-hub mixed-shape edgeThroughNode) that a UNIFORM sweep
 // under-samples — index-derived families can systematically miss a class (an
 // earlier fuzzer's self-loop family always landed on odd indices, so its label
-// was always off, and it never exercised the labelled self-loop at all). This
-// gate runs those exact generators plus a broad family sweep and asserts, at
+// was always off, and it never exercised the labelled self-loop at all). A
+// generator audit found several such correlations here; the generators below now
+// DECORRELATE (structural selectors from disjoint residues of i, label/shape
+// toggles from the high bits of a hash of i — see the note by the helpers), so
+// every direction × family × label-state combination is reachable. This gate
+// runs those exact generators plus a broad family sweep and asserts, at
 // ZERO tolerance, the binary STRUCTURAL invariants B/C fix (overlaps,
 // edgeThroughNode, hitches, off-outline, diagonals, unexplained bends) hold
 // everywhere, plus determinism and a soft label-centring ceiling (the class of
@@ -28,37 +32,56 @@ const DIRS = ['LR', 'RL', 'TD', 'BT']
 const W = ['warnings', 'ok', 'same word ok', 'a longer label goes here', 'x', 'errors', 'q', 'done']
 const clean = (s: string) => s.replace(/[^a-z ]/g, '')
 const sh = (id: string, t: string, k: number) => [`${id}["${t}"]`, `${id}{${t}}`, `${id}((${t}))`, `${id}(["${t}"])`, `${id}[/"${t}"/]`][k % 5]
-const lab = (i: number, on: boolean) => on ? `|${clean(W[i % W.length]!)}|` : ''
+// Decorrelation rule (a generator audit found the failure this suite guards
+// against hiding in correlated indices — e.g. the self-loop family always landed
+// on odd i, so its label was ALWAYS off): NEVER let a family/direction/degree
+// selector and an inner label toggle read overlapping bits of i. Structural
+// selectors below use disjoint low residues of i; label/shape toggles use the
+// HIGH bits of a multiplicative hash of i, which are well-mixed and independent
+// of i's low residues (i%4, i%6, ...). All still a pure function of i (no
+// Date/Math.random), so the gate stays deterministic.
+const hash = (i: number) => (Math.imul(i + 1, 2654435761) >>> 0)
+const bit = (i: number, b: number) => (hash(i) >>> (24 + (b & 7))) & 1 // 8 decorrelated toggle bits
+const labB = (i: number, b: number, word: number) => bit(i, b) ? `|${clean(W[word % W.length]!)}|` : ''
 
 // (1) mixed-label fan-in — reproduced the RL widen-into-neighbour node-overlap.
+// Spoke labels now toggle on hash bits, so all-labelled/no-labelled fan-ins occur
+// in EVERY direction (not just LR), which is what surfaces the reversed-flow
+// widen-into-upstream overlap the equalizer now guards against.
 function mixedFanin(i: number): string {
   const d = DIRS[i % 4], k = 2 + (i % 5), L = [`flowchart ${d}`]
-  for (let s = 0; s < k; s++) { L.push(`  S${s}["${W[(i * 3 + s) % W.length]}"] -->${lab(i + s, ((i >> s) & 1) === 0)} H["hub"]`); if ((i + s) % 3 === 0) L.push(`  U${s} --> S${s}`) }
-  L.push(i % 2 ? `  H --> T["t"]` : `  H -->${lab(i, true)} T1["t1"]\n  H --> T2["t2"]`)
+  for (let s = 0; s < k; s++) { L.push(`  S${s}["${W[(i * 3 + s) % W.length]}"] -->${labB(i, s, i + s)} H["hub"]`); if ((i + s) % 3 === 0) L.push(`  U${s} --> S${s}`) }
+  L.push(bit(i, 6) ? `  H --> T["t"]` : `  H -->${labB(i, 7, i)} T1["t1"]\n  H --> T2["t2"]`)
   return L.join('\n')
 }
-// (2) chained hubs + mixed shapes — reproduced the BT edgeThroughNode.
+// (2) chained hubs + mixed shapes — reproduced the BT edgeThroughNode. Fan-in
+// degree (k1) now comes from a slice disjoint from the direction bits, so wide
+// fan-ins occur in every direction (was: k1 locked to direction).
 function chainedHubs(i: number): string {
   const d = DIRS[i % 4], L = [`flowchart ${d}`], wrap = i % 5 === 0
   if (wrap) L.push('  subgraph G')
-  const k1 = 2 + i % 4, k2 = 2 + ((i >> 2) % 3)
-  for (let s = 0; s < k1; s++) { L.push(`  ${sh('P' + s, W[(i * 5 + s) % W.length]!, s + i)} -->${lab(i + s, ((i >> s) & 1) === 0)} H1["hub one"]`); if ((i + s) % 4 === 0) L.push(`  Q${s} --> P${s}`) }
-  L.push(`  H1 -->${lab(i, true)} H2["hub two"]`)
-  for (let s = 0; s < k2; s++) L.push(`  ${sh('R' + s, W[(i + s * 3) % W.length]!, s + i + 1)} -->${lab(i * 7 + s, ((i >> (s + 1)) & 1) === 0)} H2`)
+  const k1 = 2 + ((i >> 2) % 4), k2 = 2 + ((i >> 4) % 3)
+  for (let s = 0; s < k1; s++) { L.push(`  ${sh('P' + s, W[(i * 5 + s) % W.length]!, s + i)} -->${labB(i, s, i + s)} H1["hub one"]`); if ((i + s) % 4 === 0) L.push(`  Q${s} --> P${s}`) }
+  L.push(`  H1 -->${labB(i, 5, i)} H2["hub two"]`)
+  for (let s = 0; s < k2; s++) L.push(`  ${sh('R' + s, W[(i + s * 3) % W.length]!, s + i + 1)} -->${labB(i, s ^ 3, i * 7 + s)} H2`)
   if (wrap) L.push('  end')
   L.push(`  H2 --> Z["end"]`)
   return L.join('\n')
 }
-// (3) broad families — diamonds, cycles, self-loops (labelled), parallel edges, wide labels.
+// (3) broad families — diamonds, cycles, self-loops, parallel edges, wide labels.
+// Direction cycles WITHIN each family (was: each family reached only 2 of 4
+// directions), and label toggles come from hash bits (was: family selector i%6
+// forced constant parity, freezing every toggle — e.g. self-loops were always
+// labelled, parallel bundles always exactly {off,on,none}).
 function broad(i: number): string {
-  const d = DIRS[i % 4]
-  switch (i % 6) {
-    case 0: return `flowchart ${d}\n  A{${clean(W[i % W.length]!)}} -->${lab(i, i % 2 === 0)} B["b"]\n  A -->${lab(i + 1, i % 2 === 0)} C["c"]\n  B --> R["r"]\n  C --> R\n  R --> ${sh('E', 'end', i)}`
-    case 1: return `flowchart ${d}\n  A["a"] -->${lab(i, true)} B["b"]\n  B --> C["c"]\n  C -->${lab(i + 1, i % 2 === 0)} A\n  C --> ${sh('D', 'out', i)}`
-    case 2: return `flowchart ${d}\n  A["a"] -->${lab(i, true)} B["${W[i % W.length]}"]\n  B -->${lab(i + 1, i % 2 === 0)} B\n  B --> C["c"]`
-    case 3: return `flowchart ${d}\n  A["${W[i % W.length]}"] -->${lab(i, i % 2 === 0)} B["b"]\n  A -->${lab(i + 1, (i + 1) % 2 === 0)} B\n  A --> B\n  B --> C`
+  const fam = i % 6, d = DIRS[((i / 6) | 0) % 4]
+  switch (fam) {
+    case 0: return `flowchart ${d}\n  A{${clean(W[i % W.length]!)}} -->${labB(i, 0, i)} B["b"]\n  A -->${labB(i, 1, i + 1)} C["c"]\n  B --> R["r"]\n  C --> R\n  R --> ${sh('E', 'end', i)}`
+    case 1: return `flowchart ${d}\n  A["a"] -->${labB(i, 2, i)} B["b"]\n  B --> C["c"]\n  C -->${labB(i, 3, i + 1)} A\n  C --> ${sh('D', 'out', i)}`
+    case 2: return `flowchart ${d}\n  A["a"] -->${labB(i, 4, i)} B["${W[i % W.length]}"]\n  B -->${labB(i, 5, i + 1)} B\n  B --> C["c"]`
+    case 3: return `flowchart ${d}\n  A["${W[i % W.length]}"] -->${labB(i, 0, i)} B["b"]\n  A -->${labB(i, 1, i + 1)} B\n  A --> B\n  B --> C`
     case 4: return `flowchart ${d}\n  A["a really quite long node label ${i % 7}"] -->|an equally long edge label here| B["ok"]\n  C["c"] --> B\n  B -->|another long-ish label| D["a wide destination label"]`
-    default: { const L = [`flowchart ${d}`, `  Z --> H{hub}`]; for (let s = 0; s < 2 + i % 4; s++) L.push(`  H -->${lab(i + s, ((i >> s) & 1) === 0)} ${sh('T' + s, W[(i + s) % W.length]!, i + s)}`); return L.join('\n') }
+    default: { const L = [`flowchart ${d}`, `  Z --> H{hub}`]; for (let s = 0; s < 2 + i % 4; s++) L.push(`  H -->${labB(i, s, i + s)} ${sh('T' + s, W[(i + s) % W.length]!, i + s)}`); return L.join('\n') }
   }
 }
 
