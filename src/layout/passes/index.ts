@@ -260,39 +260,66 @@ export function equalizePeerNodeDimensions(nodes: PositionedNode[], edges: Posit
     // Equalizing grows each peer to the shared max on the MAIN axis. In a reversed
     // flow (RL/BT) that growth reaches back into the peer's own upstream node —
     // and packFlowLayerCrossAxis (cross-axis only) cannot pull the two apart,
-    // leaving a nodeOverlaps/offOutlineEndpoints HARD. Skip the group when the
-    // WIDENING newly extends a peer's MAIN-axis span over a non-peer node it did
-    // not originally overlap (while cross-aligned) — the pack-unresolvable case.
-    // Cross-axis collisions with same-layer siblings are LEFT to the pack (as
-    // before), so a clean corpus fan-in is untouched and byte-exact equivalence
-    // holds; only a rare differing-width, upstream-fed reversed fan-in is left at
-    // its natural (already clean) widths instead of widened into an overlap.
+    // leaving a nodeOverlaps/offOutlineEndpoints HARD. Rather than drop the
+    // equalization, slide the colliding upstream node (and its whole ancestor
+    // cone, so their relative layout is preserved) further along +main into the
+    // empty region beyond the fan-in, opening room for the wider peer. A peer's
+    // ORIGINAL main span is used to decide "newly over" — a same-layer sibling it
+    // already overlapped on the main axis (a pure cross collision) is LEFT to the
+    // pack, exactly as before, so a clean corpus fan-in triggers nothing here and
+    // byte-exact equivalence holds.
     const ids = new Set(group.map(n => n.id))
     const iv = (aLo: number, aHi: number, bLo: number, bHi: number) => aLo < bHi - 0.01 && bLo < aHi - 0.01
-    const nonPeers = nodes.filter(o => !ids.has(o.id))
-    const widensOverNeighbour = proposed.some(({ node, x, y }) => {
-      const oMainLo = f.isHorizontal ? node.x : node.y
-      const oMainHi = oMainLo + (f.isHorizontal ? node.width : node.height) // ORIGINAL main span
-      const pMainLo = f.isHorizontal ? x : y
-      const pMainHi = pMainLo + (f.isHorizontal ? maxWidth : maxHeight) // WIDENED main span
-      const pCrossLo = f.isHorizontal ? y : x
-      const pCrossHi = pCrossLo + (f.isHorizontal ? maxHeight : maxWidth)
-      return nonPeers.some(o => {
-        const qMainLo = f.isHorizontal ? o.x : o.y
-        const qMainHi = qMainLo + (f.isHorizontal ? o.width : o.height)
-        const qCrossLo = f.isHorizontal ? o.y : o.x
-        const qCrossHi = qCrossLo + (f.isHorizontal ? o.height : o.width)
-        return iv(pMainLo, pMainHi, qMainLo, qMainHi) && !iv(oMainLo, oMainHi, qMainLo, qMainHi) && iv(pCrossLo, pCrossHi, qCrossLo, qCrossHi)
+    const mainIv = (n: { x: number; y: number; width: number; height: number }): [number, number] => {
+      const lo = f.isHorizontal ? n.x : n.y
+      return [lo, lo + (f.isHorizontal ? n.width : n.height)]
+    }
+    const crossIv = (n: { x: number; y: number; width: number; height: number }): [number, number] => {
+      const lo = f.isHorizontal ? n.y : n.x
+      return [lo, lo + (f.isHorizontal ? n.height : n.width)]
+    }
+    // The widened peers, as rectangles (proposed position + shared max size).
+    const widened = proposed.map(({ node, x, y }) => ({ id: node.id, x, y, width: maxWidth, height: maxHeight, orig: mainIv(node) }))
+    // Non-peer nodes the widening newly extends a peer's main span over while
+    // cross-aligned (the pack-unresolvable collisions), + the +main shift to clear.
+    let shift = 0
+    const colliders = new Set<string>()
+    for (const w of widened) {
+      const [pLo, pHi] = mainIv(w), [pcLo, pcHi] = crossIv(w), [woLo, woHi] = w.orig
+      for (const o of nodes) {
+        if (ids.has(o.id)) continue
+        const [qLo, qHi] = mainIv(o), [qcLo, qcHi] = crossIv(o)
+        if (iv(pLo, pHi, qLo, qHi) && !iv(woLo, woHi, qLo, qHi) && iv(pcLo, pcHi, qcLo, qcHi)) {
+          colliders.add(o.id)
+          shift = Math.max(shift, pHi + 24 - qLo)
+        }
+      }
+    }
+    // Move the colliders plus their upstream cone (ancestors via forward edges).
+    const moveIds = new Set<string>()
+    const visit = (id: string) => { if (moveIds.has(id) || ids.has(id)) return; moveIds.add(id); for (const e of incoming.get(id) ?? []) visit(e.source) }
+    for (const id of colliders) visit(id)
+    const movers = nodes.filter(n => moveIds.has(n.id))
+    const origMain = new Map(movers.map(n => [n.id, mainIv(n)] as const))
+    const snap = [...group, ...movers].map(n => ({ n, x: n.x, y: n.y, w: n.width, h: n.height }))
+    if (shift > 0) for (const n of movers) n[f.main] += shift
+    for (const { node, x, y } of proposed) { node.x = x; node.y = y; node.width = maxWidth; node.height = maxHeight }
+    // Verify: no moved node (widened peer or shifted upstream) NEWLY overlaps a
+    // node we did not move on the main axis while cross-aligned. If the reposition
+    // could not clear it (or pushed a mover into something else), revert this group
+    // entirely and leave it un-equalized — correctness over symmetry.
+    const moved = new Set<string>([...ids, ...moveIds])
+    const clash = [...group, ...movers].some(m => {
+      const [mLo, mHi] = mainIv(m), [mcLo, mcHi] = crossIv(m)
+      const [woLo, woHi] = origMain.get(m.id) ?? widened.find(w => w.id === m.id)!.orig
+      return nodes.some(o => {
+        if (moved.has(o.id)) return false
+        const [qLo, qHi] = mainIv(o), [qcLo, qcHi] = crossIv(o)
+        return iv(mLo, mHi, qLo, qHi) && !iv(woLo, woHi, qLo, qHi) && iv(mcLo, mcHi, qcLo, qcHi)
       })
     })
-    if (widensOverNeighbour) continue
-    for (const { node, x, y } of proposed) {
-      node.x = x
-      node.y = y
-      node.width = maxWidth
-      node.height = maxHeight
-      changed = true
-    }
+    if (clash) { for (const s of snap) { s.n.x = s.x; s.n.y = s.y; s.n.width = s.w; s.n.height = s.h }; continue }
+    changed = true
   }
   if (changed) packFlowLayerCrossAxis(nodes, graph.direction)
 }
