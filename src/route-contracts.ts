@@ -1402,7 +1402,12 @@ export function applyRouteContracts(
       // whenever the kept route passes through a node — the stale-corridor
       // signature of a later pass moving a node into an already-routed channel.
       // Proof-gated like everything else; failure keeps the explained route.
-      if (tryZRoute(edge, source!, target!, ctx, edgeAxis)) {
+      // When even the Z can't clear the obstacle (the source's whole flow side
+      // is shadowed), the 3-bend sidestep detour is the last resort — it steps
+      // clear of the obstacle band through a proven gap. Both are proof-gated;
+      // failure keeps the explained route.
+      if (tryZRoute(edge, source!, target!, ctx, edgeAxis) ||
+        tryEscapeDetour(edge, source!, target!, ctx, edgeAxis)) {
         cert.bendCount = bendCount(edge.points)
         mutated = true
       }
@@ -1454,12 +1459,60 @@ export function applyRouteContracts(
       pushTo(c2s, edge.points[edge.points.length - 1]![axis.cross])
     }
 
+    // Obstacle-clearing escape lanes. When a later node-mover parks an
+    // intervening node directly in the entry/exit lane — e.g. a BT hub centred
+    // over its fan-in lands its N-side riser under a sibling diamond, the
+    // edgeThroughNode signature — the node-centre and existing-route lanes above
+    // are ALL blocked, so the Z falls through and the occluding route is kept.
+    // For every node sitting in the source→target main-axis corridor, offer the
+    // two lanes just past its cross-edges (± CLEARANCE): still on the endpoint's
+    // own attach span (the emit stays port-exact), but stepped clear of the
+    // obstacle. Appended AFTER the preferred lanes, so a clean case still takes
+    // its centre lane first (zero churn); every escape lane is still fully
+    // lane-proved below, so this only WIDENS the candidate set — it can never
+    // admit an unproved route. Direction-agnostic (keyed off axis.main/cross).
+    const mainExtent = (node: PositionedNode): [number, number] => {
+      const lo = node[axis.main]
+      return [lo, lo + (axis.main === 'x' ? node.width : node.height)]
+    }
+    const [srcMainLo, srcMainHi] = mainExtent(source)
+    const [tgtMainLo, tgtMainHi] = mainExtent(target)
+    const corridorLo = Math.min(srcMainLo, srcMainHi, tgtMainLo, tgtMainHi)
+    const corridorHi = Math.max(srcMainLo, srcMainHi, tgtMainLo, tgtMainHi)
+    const addEscapeLanes = (arr: number[], span: CrossSpan | null): void => {
+      if (!span) return
+      for (const node of ctx.nodes) {
+        if (node.id === edge.source || node.id === edge.target) continue
+        const [nMainLo, nMainHi] = mainExtent(node)
+        if (nMainHi <= corridorLo + EPS || nMainLo >= corridorHi - EPS) continue // outside the corridor
+        const nCrossLo = node[axis.cross]
+        const nCrossHi = nCrossLo + (axis.cross === 'y' ? node.height : node.width)
+        for (const lane of [nCrossLo - CLEARANCE - EPS, nCrossHi + CLEARANCE + EPS]) {
+          if (lane >= span.lo - EPS && lane <= span.hi + EPS) pushTo(arr, lane)
+        }
+      }
+    }
+    addEscapeLanes(c1s, forcedLanes?.sourceLane === undefined ? srcSpan : null)
+    addEscapeLanes(c2s, forcedLanes?.targetLane === undefined ? tgtSpan : null)
+
     const relaxDiamond = (node: PositionedNode, span: CrossSpan): CrossSpan =>
       node.shape === 'diamond'
         ? { lo: node[axis.cross] + 2, hi: node[axis.cross] + (axis.cross === 'y' ? node.height : node.width) - 2 }
         : span
     const s1 = relaxDiamond(source, srcSpan)
     const s2 = relaxDiamond(target, tgtSpan)
+
+    // The route being replaced occludes a non-incident node — a HARD defect
+    // (e.g. a later node-mover parked a node in the routed corridor). Only in
+    // that repair does the label fall back to an on-route seat when no clear
+    // pill slot exists (see below); an ordinary blockage keeps the strict slot.
+    const repairingOcclusion = routeThroughNodeBBox(edge, ctx)
+    // Deferred on-route label fallback: the first proven occlusion-clearing
+    // route whose label lane has capacity but no fully-clear pill slot. Used
+    // only if the whole search finds no route with a clear slot, so a clean
+    // labelled reroute is always preferred over a grazing one. Deterministic:
+    // it is the first such route in the fixed c2×c1×jog candidate order.
+    let occlusionFallback: { route: Point[]; labelMid: Point } | null = null
 
     for (const c2 of c2s) {
       if (c2 < s2.lo - EPS || c2 > s2.hi + EPS) continue
@@ -1494,19 +1547,169 @@ export function applyRouteContracts(
           // THROUGH a node (a hard defect, e.g. a later pass moved a node
           // into the routed corridor): a legal crossing always beats an
           // occlusion. The Z itself is lane-proved through clear space.
-          if (!routeThroughNodeBBox(edge, ctx) &&
+          if (!repairingOcclusion &&
             countRouteCrossings(route, edge, ctx) > countRouteCrossings(edge.points, edge, ctx)) continue
           if (edge.label) {
-            const slot = longFirst
-              ? findLabelSlot(edge, route[0]!, route[1]!, ctx)
-              : findLabelSlot(edge, route[2]!, route[3]!, ctx)
-            if (!slot) continue
+            const labelLane: [Point, Point] = longFirst ? [route[0]!, route[1]!] : [route[2]!, route[3]!]
+            const slot = findLabelSlot(edge, labelLane[0], labelLane[1], ctx)
+            if (!slot) {
+              // No fully-clear pill slot on this route's label lane. When we are
+              // clearing a through-node OCCLUSION (a HARD defect) and the lane
+              // proved long enough to CARRY the label (the labeled
+              // directLaneBlockers check above passed), remember it as a
+              // fallback and keep searching for a route WITH a clear slot: a
+              // pill grazing a neighbour's bbox corner is a soft label-placement
+              // concern, and trading it for a cleared HARD occlusion is strictly
+              // correct by the rubric (labelOffRoute stays satisfied — the pill
+              // sits on a real segment). Ordinary blockages never set this, so
+              // clean cases keep the strict slot requirement.
+              if (repairingOcclusion && !occlusionFallback) {
+                occlusionFallback = { route, labelMid: { x: (labelLane[0].x + labelLane[1].x) / 2, y: (labelLane[0].y + labelLane[1].y) / 2 } }
+              }
+              continue
+            }
             edge.labelPosition = slot
           }
           edge.points = route
           return true
         }
       }
+    }
+    if (occlusionFallback) {
+      edge.points = occlusionFallback.route
+      if (edge.label) edge.labelPosition = occlusionFallback.labelMid
+      return true
+    }
+    return false
+  }
+
+  /**
+   * Last-resort occlusion repair: a 3-bend "sidestep" detour for the case a
+   * 2-bend Z cannot reach — the source's whole flow-side attach span is
+   * shadowed by an obstacle, so NO straight riser off that side clears it (a BT
+   * hub centred over its fan-in that lands directly beneath a wide downstream
+   * diamond — the edgeThroughNode signature this pass exists to kill). The
+   * detour leaves the source's flow port, rises a short way into the clear gap
+   * just past the source (BEFORE the obstacle), steps sideways to an escape
+   * cross-lane that proves clear through the whole corridor, rises along it past
+   * the obstacle, then Z-hops into the target's flow port:
+   *
+   *     source ─┐(gap)                 in BT (main=y, cross=x, "up" = −y):
+   *             └──────┐(escape lane)  a short N riser, a sidestep in the gap
+   *                    │               below the obstacle, a full riser in a
+   *                    └───┐(hop)       clear cross-lane, then the hop into H2.
+   *                        ▼target
+   *
+   * Every one of the five segments is lane-proved (directLaneBlockers), the
+   * endpoints stay exact flow ports, and the label rides the longest proven
+   * lane (falling back to an on-route seat, exactly as tryZRoute does, since we
+   * only run when the alternative is a HARD through-node occlusion). Runs ONLY
+   * after tryZRoute fails and the current route occludes a node, so no clean or
+   * Z-repairable case is touched. Deterministic: fixed candidate order over the
+   * frozen geometry. Returns true iff it rerouted.
+   */
+  function tryEscapeDetour(
+    edge: PositionedEdge,
+    source: PositionedNode,
+    target: PositionedNode,
+    ctx: LaneContext,
+    axis: Axis,
+  ): boolean {
+    if (!routeThroughNodeBBox(edge, ctx)) return false
+    const srcSpan = attachSpan(source, axis)
+    const tgtSpan = attachSpan(target, axis)
+    if (!srcSpan || !tgtSpan) return false
+    const unlabeled: PositionedEdge = { ...edge, points: [], label: undefined }
+    const crossSize = (n: PositionedNode) => axis.cross === 'y' ? n.height : n.width
+    const mainSizeOf = (n: PositionedNode) => axis.main === 'x' ? n.width : n.height
+
+    // Source flow-port lane (cross-centre) and its forward main edge.
+    const spCross = source[axis.cross] + crossSize(source) / 2
+    const srcMain = source[axis.main] + (axis.sign > 0 ? mainSizeOf(source) : 0)
+    // Target flow-port lane and its backward main edge.
+    const tpCross = target[axis.cross] + crossSize(target) / 2
+    const tgtMain = target[axis.main] + (axis.sign > 0 ? 0 : mainSizeOf(target))
+    if (Math.abs(spCross - srcSpan.lo) > EPS && Math.abs(spCross - srcSpan.hi) > EPS &&
+      (spCross < srcSpan.lo - EPS || spCross > srcSpan.hi + EPS)) return false
+
+    // Corridor obstacles: non-incident nodes whose main-extent lies between the
+    // source's forward edge and the target's backward edge. The nearest one
+    // (measured forward from the source) bounds the gap the sidestep runs in.
+    interface Obs { mainNear: number; crossLo: number; crossHi: number }
+    const obstacles: Obs[] = []
+    for (const n of ctx.nodes) {
+      if (n.id === edge.source || n.id === edge.target) continue
+      const nMainLo = n[axis.main], nMainHi = nMainLo + mainSizeOf(n)
+      const beyondSrc = (nMainLo - srcMain) * axis.sign > EPS || (nMainHi - srcMain) * axis.sign > EPS
+      const beforeTgt = (tgtMain - nMainLo) * axis.sign > EPS || (tgtMain - nMainHi) * axis.sign > EPS
+      if (!beyondSrc || !beforeTgt) continue
+      const mainNear = axis.sign > 0 ? nMainLo : nMainHi
+      obstacles.push({ mainNear, crossLo: n[axis.cross], crossHi: n[axis.cross] + crossSize(n) })
+    }
+    // Only worth attempting when an obstacle actually shadows the source lane.
+    const shadowing = obstacles.filter(o => spCross > o.crossLo - CLEARANCE && spCross < o.crossHi + CLEARANCE)
+    if (shadowing.length === 0) return false
+    // Gap main-coord between the source's exit and the nearest shadowing
+    // obstacle's near edge — the lane the sidestep travels along.
+    const nearestNear = shadowing.reduce((best, o) => (o.mainNear - srcMain) * axis.sign < (best - srcMain) * axis.sign ? o.mainNear : best, shadowing[0]!.mainNear)
+    if ((nearestNear - srcMain) * axis.sign <= CLEARANCE) return false // no room to sidestep before the obstacle
+    const gapMain = srcMain + (nearestNear - srcMain) / 2
+    // Hop main-coord just short of the target's backward edge (mirrors tryZRoute's jog).
+    const hopMain = tgtMain - axis.sign * 12
+    if ((hopMain - gapMain) * axis.sign <= EPS) return false
+
+    // Escape cross-lanes: just past every obstacle's cross-edges, and the
+    // midpoints of the gaps BETWEEN adjacent obstacles (a clean channel like the
+    // R0|R1 gap). Nearest-to-the-source-lane first, so the detour stays compact.
+    const escCandidates: number[] = []
+    const pushCand = (v: number) => { if (escCandidates.every(p => Math.abs(p - v) > 0.5)) escCandidates.push(v) }
+    for (const o of obstacles) { pushCand(o.crossLo - CLEARANCE - EPS); pushCand(o.crossHi + CLEARANCE + EPS) }
+    const crossSorted = [...obstacles].sort((a, b) => a.crossLo - b.crossLo)
+    for (let i = 1; i < crossSorted.length; i++) {
+      const gapLo = crossSorted[i - 1]!.crossHi, gapHi = crossSorted[i]!.crossLo
+      if (gapHi - gapLo > 2 * CLEARANCE) pushCand((gapLo + gapHi) / 2)
+    }
+    escCandidates.sort((a, b) => Math.abs(a - spCross) - Math.abs(b - spCross))
+
+    const pt = (main: number, cross: number): Point =>
+      axis.main === 'x' ? { x: main, y: cross } : { x: cross, y: main }
+    const perpAxis = (from: number, to: number): Axis => axis.main === 'x'
+      ? { main: 'y', cross: 'x', sign: from < to ? 1 : -1 }
+      : { main: 'x', cross: 'y', sign: from < to ? 1 : -1 }
+
+    let fallback: { route: Point[]; labelMid: Point } | null = null
+    for (const escCross of escCandidates) {
+      if (Math.abs(escCross - spCross) < CLEARANCE) continue // that is just the shadowed lane
+      // A: short riser off the source flow port, in the pre-obstacle gap.
+      if (directLaneBlockers(unlabeled, spCross, Math.min(srcMain, gapMain), Math.max(srcMain, gapMain), ctx, axis).length > 0) continue
+      // B: sidestep along the gap to the escape lane.
+      if (directLaneBlockers(unlabeled, gapMain, Math.min(spCross, escCross), Math.max(spCross, escCross), ctx, perpAxis(spCross, escCross)).length > 0) continue
+      // C: full riser along the escape lane, up to the hop.
+      if (directLaneBlockers(unlabeled, escCross, Math.min(gapMain, hopMain), Math.max(gapMain, hopMain), ctx, axis).length > 0) continue
+      // D: hop across to the target's flow-port lane.
+      if (directLaneBlockers(unlabeled, hopMain, Math.min(escCross, tpCross), Math.max(escCross, tpCross), ctx, perpAxis(escCross, tpCross)).length > 0) continue
+      // E: drop into the target flow port.
+      if (directLaneBlockers(unlabeled, tpCross, Math.min(hopMain, tgtMain), Math.max(hopMain, tgtMain), ctx, axis).length > 0) continue
+      const route = simplifyPolyline([
+        pt(srcMain, spCross), pt(gapMain, spCross), pt(gapMain, escCross),
+        pt(hopMain, escCross), pt(hopMain, tpCross), pt(tgtMain, tpCross),
+      ])
+      // The escape riser (segment C) is the longest lane and the only one that
+      // reliably clears the obstacle band — seat the label there.
+      const labelLane: [Point, Point] = [pt(gapMain, escCross), pt(hopMain, escCross)]
+      if (edge.label) {
+        const slot = findLabelSlot(edge, labelLane[0], labelLane[1], ctx)
+        if (slot) { edge.labelPosition = slot; edge.points = route; return true }
+        if (!fallback) fallback = { route, labelMid: { x: (labelLane[0].x + labelLane[1].x) / 2, y: (labelLane[0].y + labelLane[1].y) / 2 } }
+        continue
+      }
+      edge.points = route
+      return true
+    }
+    if (fallback) {
+      edge.points = fallback.route
+      if (edge.label) edge.labelPosition = fallback.labelMid
+      return true
     }
     return false
   }
