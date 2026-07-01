@@ -215,7 +215,7 @@ function slantedPolygonVertices(node: PositionedNode): Point[] {
  * (not merely its bbox — a route grazing the empty corner outside a circle's
  * disk or a diamond's facet is legal). Half-pixel tolerance throughout.
  */
-function segmentThroughShape(a: Point, b: Point, node: PositionedNode): boolean {
+export function segmentThroughShape(a: Point, b: Point, node: PositionedNode): boolean {
   const cx = node.x + node.width / 2
   const cy = node.y + node.height / 2
   const hw = node.width / 2
