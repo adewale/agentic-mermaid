@@ -174,7 +174,7 @@ function fillRegion(poly: Point[], fillSrc: string | undefined, st: Style, seed:
       const color = st.spotPalette?.length ? st.spotPalette[Math.abs(seed) % st.spotPalette.length]! : ink
       const d = poly.map((p, i) => `${i ? 'L' : 'M'}${r3(p.x)},${r3(p.y)}`).join(' ') + ' Z'
       const ff = st.fillFilter ? ` filter="url(#${st.fillFilter})"` : ''
-      return `<path d="${d}" fill="${color}" fill-opacity="0.95" stroke="none"${ff}/>`
+      return `<path d="${d}" fill="${color}" fill-opacity="${st.fillOpacity ?? 0.95}" stroke="none"${ff}/>`
     }
     default: return ''
   }
@@ -338,6 +338,17 @@ export function backdrop(st: Style, w: number, h: number): string {
     case 'washi':
       p.push(`<defs><filter id="rc"><feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="2" result="n"/><feColorMatrix in="n" type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.035 0"/></filter></defs><rect width="${w}" height="${h}" filter="url(#rc)"/>`)
       break
+    case 'aurora': {
+      // glassmorphism ground: dark page + large blurred colour blobs the
+      // translucent fills sit over (backdrop-filter doesn't exist in static
+      // SVG/resvg, so frosted glass is faked with layered semi-opaque fills).
+      const rr = Math.min(w, h)
+      p.push(`<defs><filter id="aur" x="-60%" y="-60%" width="220%" height="220%"><feGaussianBlur stdDeviation="${Math.max(24, rr * 0.08)}"/></filter></defs>`)
+      p.push(`<circle cx="${r3(w * 0.22)}" cy="${r3(h * 0.24)}" r="${r3(rr * 0.30)}" fill="#3b2f6b" filter="url(#aur)"/>`)
+      p.push(`<circle cx="${r3(w * 0.80)}" cy="${r3(h * 0.30)}" r="${r3(rr * 0.26)}" fill="#155e63" filter="url(#aur)"/>`)
+      p.push(`<circle cx="${r3(w * 0.58)}" cy="${r3(h * 0.84)}" r="${r3(rr * 0.30)}" fill="#5b2a4e" filter="url(#aur)"/>`)
+      break
+    }
   }
   return p.join('\n')
 }

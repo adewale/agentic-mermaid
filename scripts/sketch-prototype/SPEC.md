@@ -213,6 +213,18 @@ interface StyleBackend {
 }
 ```
 
+Inside a backend, prefer the **operator-pipeline** shape from the programmable
+line-stylization literature (Grabli et al., *Programmable Rendering of Line
+Drawing*, TOG 2010 — the Freestyle system, the direct academic ancestor of this
+design): a mark flows through `select(role/channel predicate) → chain/split →
+perturb → assign-attributes(arc-length parameterized)`. Small composable
+operators over a semantically-attributed mark stream, rather than monolithic
+per-shape functions — this is also what makes mutation testing of style code
+tractable (§8). Penrose (Ye et al., SIGGRAPH 2020) teaches the complementary
+constraint: styling addresses marks **only via semantic selectors**, never by
+inspecting family-specific geometry — enforce that with a lint/test that
+backends import no family module.
+
 The stroke/fill/backdrop/postfx breakdown is still useful authoring vocabulary,
 but those pieces are backend internals now: they are knobs a backend
 may expose, not the top-level architecture. This keeps `DefaultBackend`,
@@ -599,6 +611,54 @@ the no-prototype-resource asset policy from §9.
 | `vinegar` | `RoughBackend` | `lofi` / `normal` | backend + font asset | Balsamiq Sans reviewed asset; fallback casual sans/cursive | single-pass wobbly stroke, no fill, rounded containers, greyscale palette, intentional low-fidelity polish inversion, `mono:true`. |
 | `giscardpunk` | `HybridBackend` | `premium` / `bold` | backend-only | Fredoka-compatible reviewed asset; rounded sans fallback | chunky rough strokes, `fill:solid`, warm harvest `spotPalette`, `backdrop:rice`, `nodeCornerRadius:16`. |
 
+### 3.5c Design-coverage: which styles exercise the design, and where it's blind
+
+Treat the style set as a **test suite for the architecture**: each style earns
+its place by exercising a distinct part of the contract. The strongest
+exercisers today:
+
+| Style | What it uniquely stress-tests |
+|---|---|
+| `freehand` | native mark capability (perfect-freehand ribbons) + the marker-carrier problem — found the markerUnits bug class |
+| `stained-glass` | local-background contrast (outline reads against the *fill*, not the page — §7.4) |
+| `risograph` | compositor layer (misregistration duplicate-and-offset) |
+| `blueprint` | backdrop furniture (frame/title block) + `textTransform`/`letterSpacing` |
+| `watercolor` | per-region `spotPalette` + wash fills (polychrome semantics) |
+| `making-software` / `tufte` | premium defaults, `delicate` density class, crisp backend |
+| `vinegar` | the fidelity-intent axis (`lofi` inverts polish defaults) |
+| `excalidraw` | font-asset resolution story |
+| `hand-drawn` / `patent` | the monochrome contract |
+| `transit` / `pcb` / `star-chart` / `terminal` | tiers 3–4 — and today they *fail* to exercise them (they degrade to backend-only because the prototype cannot see `routeId`/`weight`/grid), which is exactly the evidence that those channels must live in the IR |
+
+**Where the design is blind — no style exercises it** (each gap below is backed
+by demand or precedent: dark mode is a top-3 Mermaid ask; D2 composes
+`sketch × theme × dark-theme` explicitly and its Terminal theme mutates
+geometry/typography, not just colors; Highcharts ships an auto-applied
+`highContrastTheme` with pattern fills; NN/g documents glassmorphism's contrast
+failures; resvg renders SVG filters but **not** CSS `backdrop-filter`):
+
+1. **Authored dark composition** — nothing tests style × dark-theme
+   token-remapping (§3.7). A dark-native premium style (`midnight`) catches
+   hardcoded-fill leaks in every other style and models D2's dual-emit.
+2. **Accessibility-first** — no style treats the WCAG machinery as the
+   *aesthetic itself*: AAA 7:1 targets, minimum stroke widths, shape/pattern
+   (never hue) as the categorical channel. Precedent: Highcharts; no
+   text-to-diagram tool ships one — `high-contrast`.
+3. **Adversarial contrast** — the guardrail is only proven against styles that
+   *want* to be legible. Glassmorphism (translucent fills over unpredictable
+   backgrounds, gradients, blur) is the documented worst case; it also forces a
+   capability fallback because `backdrop-filter` doesn't exist in static SVG —
+   `glass`.
+4. **Filter-stack compositors on dark grounds** — phosphor glow
+   (blur+merge stacks) with a dark-first palette; PlantUML `crt-amber`/`hacker`
+   precedent — `crt-amber`.
+5. **Still open after those four** (need the IR, documented as Phase-1+ work):
+   true overprint via `mix-blend-mode: multiply` (capability parity test —
+   current risograph fakes it with offset opacity), and a **status/progress
+   style** that maps `SemanticChannels.status` (gantt done/active/crit) to
+   ink treatments — the prototype cannot see those channels at all, which is
+   the sharpest remaining argument for the SceneGraph.
+
 ### 3.6 Premium-by-default — Making Software as the baseline
 
 Making Software is the **exemplar**: a custom style should look premium without
@@ -706,7 +766,7 @@ interior. Label-bearing nodes default to unfilled outlines; hatching is reserved
 for *semantic* tone (emphasis, group bands, chart values), gated by
 `MIN/MAX_FILL_AREA` and `baseTone`.
 
-### 3.9 Density class — delicate styles need room
+### 3.9 Density class & scale coherence — delicate styles need room
 
 Styles are not equally robust at small sizes (observed: Making Software's
 hairlines + serif + whitespace read beautifully large but go faint in a dense
@@ -717,6 +777,23 @@ restrained styles are *delicate* by nature — the system should give them space
 rather than letting them shrink into illegibility. (This is why the standalone
 Making Software poster — bigger cells — looked better than its small cell in the
 combined grid; the fix is min-size, not heavier strokes.)
+
+The principled version of this comes from the scale-coherence literature:
+
+- **Hold apparent tone constant, not stroke count** (Salisbury et al.,
+  *Scale-Dependent Reproduction of Pen-and-Ink Illustrations*, SIGGRAPH '96).
+  Re-derive mark density at the target output scale:
+  `strokeCount ≈ area × targetTone / (strokeWidth × spacing)`, with stroke
+  width held near-constant in **device pixels**. Never scale a fixed set of
+  hatches down with the geometry.
+- **Stylization amplitude is specified in device px and clamped** — roughness
+  jitter and hachure gap must not shrink into fuzz at thumbnail size or balloon
+  at poster size.
+- **Decorative marks appear/disappear in a fixed, seeded priority order**
+  (Markosian et al., *Art-based Rendering with Continuous Levels of Detail*,
+  NPAR 2000) — as available size shrinks, drop splatter/texture marks
+  deterministically instead of scaling everything, so two nearby zoom levels
+  stay visually coherent (the same idea as Praun's TAM mip coherence).
 
 ---
 
@@ -817,7 +894,13 @@ math is one part of that contract:
 1. **Knock text out to the page (halo), then contrast vs the page.** Every label
    gets a page-coloured `paint-order:stroke` halo, so the glyph never sits
    directly on a fill (solid spot colour, dense hachure, dots…) — the page shows
-   through behind it. The ink is then chosen to clear **4.5:1** against the
+   through behind it. Cartography settled the parameters long ago (Imhof's
+   label-placement principles; current OS/QGIS practice): a **1–2 px halo in a
+   contrasting page colour at ~50–70% opacity**, text **rendered last and exempt
+   from stroke perturbation**. In backend terms: labels are a backend-owned part
+   of *text rendering* (drawn after all marks, never jittered), not a knockout
+   rect the style pipeline may rewrite — the prototype's halo-rect deletion bug
+   (audit finding 1) is the canonical failure of getting this wrong. The ink is then chosen to clear **4.5:1** against the
    *page* (the surface the halo reveals), which makes one ink choice valid
    regardless of what's painted behind. This sidesteps the impossible case where
    a region's fill spans light *and* dark spot colours. `adjustToContrast` nudges
@@ -874,12 +957,30 @@ stronger evidence that style contracts actually bite.
   `freehand/centerline`. Do not key randomness on list position or `markIndex`;
   inserting a new decorative mark must not reshuffle unrelated geometry. All
   randomness flows from `makeRng(seed)` (mulberry32). Verified: the prototype is
-  byte-identical across runs for all 27 styles.
+  byte-identical across runs for all 27 styles. **Known violation (Phase 0
+  work):** the prototype currently mixes three schemes — `seedAt` coordinate
+  folds, `seedFrom` string hashes, and `<path>` seeds derived from `d`-string
+  statistics (length + two chars), which the audit confirmed collide on
+  congruent shapes (identical jitter on parallel marks). Unify on the substream
+  contract *before* any backend goldens exist, or the migration invalidates
+  every golden at once.
 - **Byte identity vs semantic identity:** the crisp path must remain
   byte-identical until the scene serializer deliberately replaces the old
   emitter. Styled backends must be deterministic per dependency/font/rasterizer
   version; cross-substrate acceptance is bounded visual difference plus
-  identical preserved semantics where the substrate supports them.
+  identical preserved semantics where the substrate supports them. For the
+  "bounded visual difference" gate use **FLIP** (Andersson et al., HPG 2020) —
+  it was designed for comparing rendered images and tolerates the small spatial
+  shifts seeded roughness produces, where SSIM is shift-brittle and LPIPS is
+  photo-trained; gate styled output at FLIP mean ≈ 0.05–0.1 plus a percentile
+  cap, and keep exact bytes only for the crisp path.
+- **Release-engineering isolation (audit lesson):** prototype/style gates must
+  not sit in the npm publish path while they assert exact renderer output
+  strings — a legitimate `src/` marker-id or palette change would block a
+  release of a package that doesn't even ship the prototype. Keep `sketch:check`
+  a CI-only lane, don't append it to unrelated documented commands
+  (`characterization:check`), and pin the toolchain version in any workflow
+  that gates a release.
 - **Specified oracles / preservation gate:** before judging appearance, tests
   assert that markers, dash arrays, IDs, classes, `data-*`, inline styles,
   transforms, clip paths, masks, ARIA/title/desc, links, tooltips, hit targets,
@@ -989,6 +1090,22 @@ semantic dispatch.
 
 ## 11. Phasing
 
+0. **Stabilize the prototype as the behavioral reference (one small PR).** The
+   Phase-1 backend goldens will be diffed against prototype output, so fix the
+   reference before enshrining it. Contents, from the 2026-07 audit (all
+   confirmed): (a) label halos become backend-owned text rendering — stop
+   rewriting/deleting the edge-label knockout rects; (b) treat a *missing*
+   stroke attribute as SVG's default `stroke:none`, not as "stroke in
+   `st.colors.line`" (gantt bands / quadrant plates / xychart bars currently
+   grow phantom borders); (c) preserve source `stroke-width` (thick edges,
+   `linkStyle`) and set `markerUnits="userSpaceOnUse"` on marker defs so
+   arrowheads stop scaling with replacement stroke widths (freehand's 0.1px
+   carrier renders arrowheads at 0.1×); (d) unify seeding on the §8 substream
+   contract; (e) delete the superseded v1 pipeline (`aesthetic.ts` + unused
+   `rough.ts` primitives) and zero-user features (`seal`, `ringNode`,
+   `stroke:'brush'`, `fill:'halftone'`) — unused paths harbour confirmed latent
+   bugs precisely because nothing exercises them; a mechanic may only exist with
+   an exercising style and test; (f) decouple release engineering per §8.
 1. **All-family SceneGraph lowering + `DefaultBackend` behind the existing
    family registry.** Migrate every built-in renderable family in one coordinated
    branch: flowchart/state, sequence, class, ER, timeline, journey, xychart, pie,
@@ -1117,4 +1234,11 @@ mid-century. (Picking a style's `mono` flag follows directly from this split.)
 - Xie et al., *Artist Agent: RL for Oriental Ink Painting*, 2012; *Contour-driven Sumi-e rendering*.
 - Shihn, *The Algorithms behind Rough.js* (2020); AbdulMassih et al., *Mimicking Hand-Drawn Pencil Lines*.
 - Ruiz, *perfect-freehand* (MIT): pressure-sensitive centerline-to-outline freehand strokes.
+- Grabli, Turquin, Durand, Sillion, *Programmable Rendering of Line Drawing from 3D Scenes* (Freestyle), TOG 2010 — operator-pipeline style modules over a semantically-attributed view map.
+- Salisbury, Anderson, Lischinski, Salesin, *Scale-Dependent Reproduction of Pen-and-Ink Illustrations*, SIGGRAPH '96 — hold apparent tone constant across scale.
+- Markosian et al., *Art-based Rendering with Continuous Levels of Detail*, NPAR 2000 — deterministic ordered appearance of decorative marks.
+- Andersson et al., *FLIP: A Difference Evaluator for Alternating Images*, HPG 2020 — perceptual diff for CI-gating rendered output.
+- Ye et al., *Penrose: From Mathematical Notation to Beautiful Diagrams*, SIGGRAPH 2020 — semantics/style separation via semantic selectors.
+- Imhof, *Positioning Names on Maps* (1975) + OS/QGIS practice — 1–2 px, ~50–70% opacity label halos; text drawn last, never perturbed.
+- Industry: D2 themes (sketch × theme × dark-theme composition; Terminal theme mutates typography/geometry); PlantUML theme gallery (crt-amber, hacker, mimeograph, sketchy); Highcharts `accessibility.highContrastTheme` + pattern fills; NN/g on glassmorphism contrast failures; resvg SVG2 scope (filters yes, `backdrop-filter` no).
 ```

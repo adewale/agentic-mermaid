@@ -48,6 +48,14 @@ function cellBg(st: Style, x: number, y: number, w: number, h: number): string {
   const p = [`<rect x="${x}" y="${y}" width="${w}" height="${h}" fill="${st.colors.bg}"/>`]
   if (st.backdrop === 'grid') for (let gx = x; gx < x + w; gx += 22) p.push(`<line x1="${gx}" y1="${y}" x2="${gx}" y2="${y + h}" stroke="#bcd6f0" stroke-width="0.5" opacity="0.25"/>`)
   if (st.backdrop === 'paper-ruled') for (let gy = y + 20; gy < y + h; gy += 22) p.push(`<line x1="${x}" y1="${gy}" x2="${x + w}" y2="${gy}" stroke="#9fc0d8" stroke-width="0.6" opacity="0.4"/>`)
+  if (st.backdrop === 'aurora') {
+    // glassmorphism cells keep their aurora ground so the translucent panels
+    // actually composite over colour (that's the adversarial point)
+    const rr = Math.min(w, h)
+    p.push(`<circle cx="${x + w * 0.25}" cy="${y + h * 0.3}" r="${rr * 0.32}" fill="#3b2f6b" filter="url(#cellaur)"/>`)
+    p.push(`<circle cx="${x + w * 0.78}" cy="${y + h * 0.35}" r="${rr * 0.26}" fill="#155e63" filter="url(#cellaur)"/>`)
+    p.push(`<circle cx="${x + w * 0.55}" cy="${y + h * 0.82}" r="${rr * 0.3}" fill="#5b2a4e" filter="url(#cellaur)"/>`)
+  }
   return p.join('')
 }
 
@@ -66,6 +74,7 @@ function wrapLabel(label: string): string[] {
 
 function build(): string {
   const P: string[] = [`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${POSTER_W} ${POSTER_H}" width="${POSTER_W}" height="${POSTER_H}">`]
+  P.push(`<defs><filter id="cellaur" x="-60%" y="-60%" width="220%" height="220%"><feGaussianBlur stdDeviation="26"/></filter></defs>`)
   P.push(`<rect width="${POSTER_W}" height="${POSTER_H}" fill="#1b1b1f"/>`)
   P.push(`<text x="${PAD}" y="66" font-family="EB Garamond,serif" font-size="60" fill="#f5f5f0">Hand-rendered Mermaid — ${ROWS} styles × ${COLS} diagram types</text>`)
 

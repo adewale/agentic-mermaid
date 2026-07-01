@@ -8,7 +8,7 @@
 
 export type StrokeKind = 'crisp' | 'jittered' | 'brush' | 'pencil' | 'freehand'
 export type FillKind = 'none' | 'hachure' | 'crosshatch' | 'stipple' | 'halftone' | 'wash' | 'scribble' | 'solid'
-export type BackdropKind = 'paper-ruled' | 'plain' | 'rice' | 'washi' | 'grid' | 'slate' | 'blueprint' | 'parchment'
+export type BackdropKind = 'paper-ruled' | 'plain' | 'rice' | 'washi' | 'grid' | 'slate' | 'blueprint' | 'parchment' | 'aurora'
 
 export interface Style {
   name: string
@@ -57,6 +57,8 @@ export interface Style {
    * (A single accent colour — like Tufte's red — is still allowed.)
    */
   mono?: boolean
+  /** solid-fill opacity override (glassmorphism translucency). Default 0.95. */
+  fillOpacity?: number
 }
 
 export const STYLES: Style[] = [
@@ -371,5 +373,63 @@ export const STYLES: Style[] = [
     fill: 'solid', fillColor: '#c8531c', baseTone: 1, toneFromLuminance: false, keepHue: false, hachureAngle: -41,
     spotPalette: ['#c8531c', '#d8a23a', '#6e7b2f', '#7a4a24', '#a23b22'],
     backdrop: 'rice', nodeCornerRadius: 16, labelHalo: '#efe3cb',
+  },
+  // ---- design-coverage gap styles (SPEC §3.5c): each exercises a dimension
+  // no other style tests. ----
+  {
+    // GAP 1 — authored DARK composition (top-3 community ask; D2 dark-theme
+    // model). Dark-native premium: OLED-near-black ground, cool slate ink,
+    // one restrained indigo accent. Catches hardcoded-light-fill leaks.
+    name: 'midnight', label: 'Midnight',
+    blurb: 'Authored dark theme: OLED-black ground, cool slate hairlines, one indigo accent. Premium dark-native.',
+    colors: { bg: '#0b0e14', fg: '#e6e9f0', line: '#8a93a6', accent: '#7aa2f7', muted: '#6b7385', surface: '#131722', border: '#3a4254' },
+    font: 'Fraunces', fontFile: 'Fraunces.ttf',
+    stroke: 'crisp', roughness: 0, passes: 1, strokeWidth: 1.4, linecap: 'round',
+    fill: 'none', fillColor: '#8a93a6', baseTone: 0, toneFromLuminance: false, keepHue: false, hachureAngle: -41,
+    backdrop: 'plain', nodeCornerRadius: 8, mono: true,
+  },
+  {
+    // GAP 2 — ACCESSIBILITY-FIRST (forced-colors / WHCM; Highcharts
+    // highContrastTheme precedent). The WCAG machinery IS the aesthetic:
+    // AAA-level contrast, heavy minimum strokes, zero decorative fills,
+    // category via shape/pattern never hue. Intentionally pure #000/#fff —
+    // the premium-neutrals default is opted out because system-color fidelity
+    // is the point.
+    name: 'high-contrast', label: 'High contrast',
+    blurb: 'Accessibility-first: AAA contrast, thick strokes, no fills, structure never rests on hue.',
+    colors: { bg: '#ffffff', fg: '#000000', line: '#000000', accent: '#0000cc', muted: '#1a1a1a', surface: '#ffffff', border: '#000000' },
+    font: 'DejaVu Sans', fontFile: '../../assets/fonts/DejaVuSans-Bold.ttf',
+    stroke: 'crisp', roughness: 0, passes: 1, strokeWidth: 2.8, linecap: 'butt',
+    fill: 'none', fillColor: '#000000', baseTone: 0, toneFromLuminance: false, keepHue: false, hachureAngle: -45,
+    backdrop: 'plain', mono: true,
+  },
+  {
+    // GAP 3 — ADVERSARIAL CONTRAST (glassmorphism; NN/g-documented failure
+    // modes). Translucent white panels over an aurora ground — the style the
+    // WCAG guardrail must FIGHT: text sits on unpredictable composited
+    // backgrounds, so the halo/ink machinery is load-bearing, not decorative.
+    // backdrop-filter doesn't exist in static SVG, so frosted glass is faked
+    // with layered semi-opaque fills (the capability-fallback path).
+    name: 'glass', label: 'Glassmorphism',
+    blurb: 'Frosted translucent panels over an aurora ground — the adversarial test of the contrast guardrail.',
+    colors: { bg: '#101423', fg: '#f2f4fa', line: '#c9d4f2', accent: '#8fd3e8', muted: '#8d97b5', surface: '#1a2033', border: '#dfe6fa' },
+    font: 'DejaVu Sans', fontFile: '../../assets/fonts/DejaVuSans.ttf',
+    stroke: 'crisp', roughness: 0, passes: 1, strokeWidth: 1.2, linecap: 'round',
+    fill: 'solid', fillColor: '#ffffff', fillOpacity: 0.14, baseTone: 1, toneFromLuminance: false, keepHue: false, hachureAngle: -41,
+    backdrop: 'aurora', nodeCornerRadius: 14,
+  },
+  {
+    // GAP 4 — FILTER-STACK COMPOSITOR on a dark-first ground (PlantUML
+    // crt-amber / hacker precedent). Phosphor glow = blur+merge filter stack;
+    // all-caps mono lettering. Monochrome by construction (one amber ink).
+    name: 'crt-amber', label: 'CRT amber',
+    blurb: 'Amber phosphor terminal: glowing monochrome strokes on near-black glass, all-caps mono.',
+    colors: { bg: '#120c02', fg: '#ffb000', line: '#e6a000', accent: '#ffd35c', muted: '#a37a20', surface: '#120c02', border: '#e6a000' },
+    font: 'Share Tech Mono', fontFile: 'ShareTechMono.ttf',
+    stroke: 'jittered', roughness: 0.3, passes: 1, strokeWidth: 1.4, linecap: 'butt',
+    fill: 'none', fillColor: '#e6a000', baseTone: 0, toneFromLuminance: false, keepHue: false, hachureAngle: -45,
+    backdrop: 'plain', textTransform: 'uppercase', letterSpacing: 1, mono: true,
+    defs: '<filter id="crtglow" x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur stdDeviation="2.4" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>',
+    strokeFilter: 'crtglow',
   },
 ]
