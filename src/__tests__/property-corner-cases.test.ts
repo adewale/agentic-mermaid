@@ -9,7 +9,11 @@
 // generator audit found several such correlations here; the generators below now
 // DECORRELATE (structural selectors from disjoint residues of i, label/shape
 // toggles from the high bits of a hash of i — see the note by the helpers), so
-// every direction × family × label-state combination is reachable. This gate
+// every direction × family × label-state combination is reachable. Two later
+// generators cover the NODE-MOVE -> edgeThroughNode class: a lengthened skip link
+// honorLinkRankDistance rebuilds straight through the node it jumps, and a fan-in
+// feedback alignPortLanes straightens through a peer source — both re-routed clear
+// by rerouteEdgesThroughNodes and both red if that pass is neutered. This gate
 // runs those exact generators plus a broad family sweep and asserts, at
 // ZERO tolerance, the binary STRUCTURAL invariants B/C fix (overlaps,
 // edgeThroughNode, hitches, off-outline, diagonals, unexplained bends) hold
@@ -107,6 +111,37 @@ function conedFanin(i: number): string {
   L.push(`  H --> T["t"]`)
   return L.join('\n')
 }
+// (5) skip links — a lengthened link (`===>`/`--->`) that jumps one+ collinear
+// nodes. honorLinkRankDistance shoves the target to honour the rank distance then
+// rebuilds the link as a straight dogleg between the (now co-linear) ports — which
+// runs THROUGH the skipped node (edgeThroughNode). rerouteEdgesThroughNodes
+// brackets it clear. Aligned rectangles (uniform shape) so the skip is a clean
+// collinear through-node in every direction, isolating the class: a staggered
+// chain additionally exposes a sibling edge's latent hitch (a separate, lesser
+// matter — the sibling's own geometry is unchanged), out of scope here.
+function skipLink(i: number): string {
+  const d = DIRS[i % 4], n = 3 + (i % 4), L = [`flowchart ${d}`]
+  for (let s = 0; s < n; s++) L.push(`  N${s}["${W[(i + s) % W.length]}"] --> N${s + 1}["${W[(i * 2 + s) % W.length]}"]`)
+  const arrow = ['===>', '--->', '---->', '====>'][(hash(i) >>> 26) % 4]
+  const src = (hash(i) >>> 20) % n, dst = Math.min(src + 2 + ((hash(i) >>> 22) % 2), n)
+  L.push(`  N${src} ${arrow} N${dst}`)
+  return L.join('\n')
+}
+// (6) feedback into a fan-in peer — a centred fan-in hub whose feedback edge (the
+// hub's output looped back to one source) is straightened by alignPortLanes so its
+// return lane runs THROUGH a peer source. The vertical directions with a late
+// feedback target reproduce the on-outline through-node; rerouteEdgesThroughNodes
+// slides the offending descent into the clear peer gap. (LR/RL and early feedback
+// targets instead hit a separate, pre-existing off-outline-feedback class the
+// re-router leaves alone — off-outline is reanchorOffOutlineEndpoints' remit — so
+// this generator pins the clean vertical family that isolates the through-node.)
+function feedbackPeer(i: number): string {
+  const d = ['TD', 'BT'][i % 2], k = 3 + (i % 3), j = k === 3 ? 1 : k - 1, L = [`flowchart ${d}`]
+  for (let s = 0; s < k; s++) L.push(`  S${s}["${W[s % W.length]}"] --> H["hub"]`)
+  L.push(`  H --> T["out"]`)
+  L.push(`  T --> S${j}`)
+  return L.join('\n')
+}
 
 // Binary structural invariants — must be ZERO everywhere. This is labelOffRoute's
 // complement: the correctness invariants the layout passes fix, none of which
@@ -120,6 +155,8 @@ const GENERATORS: Array<{ name: string; gen: (i: number) => string; n: number; k
   { name: 'mixed-label fan-in (RL overlap class)', gen: mixedFanin, n: 400, knownLabelOffRoute: 0 },
   { name: 'broad families (diamond/cycle/selfloop/parallel/wide)', gen: broad, n: 400, knownLabelOffRoute: 0 },
   { name: 'coned fan-in (stale-endpoint offOutline class)', gen: conedFanin, n: 500, knownLabelOffRoute: 0 },
+  { name: 'skip links (honorLinkRankDistance edgeThroughNode class)', gen: skipLink, n: 500, knownLabelOffRoute: 0 },
+  { name: 'feedback into peer (alignPortLanes edgeThroughNode class)', gen: feedbackPeer, n: 120, knownLabelOffRoute: 0 },
 ]
 
 const LABEL_OFFSET_CEIL = 0.45 // soft sanity: a label may drift but never sit essentially AT an endpoint (0.5)
