@@ -321,6 +321,25 @@ function pointToSegmentDistance(p: Point, a: Point, b: Point): number {
 }
 
 /**
+ * Distance from an axis-aligned rectangle (a label pill) to a segment; 0 when
+ * they touch or overlap. Unlike point-to-segment from the pill CENTRE, this
+ * treats a label whose BODY meets the route as on-route — the correct test for
+ * self-loops, where ELK legitimately parks the label beside the small loop stub
+ * so the pill's near edge touches the stub while its centre sits a pill-width away.
+ */
+function rectToSegmentDistance(cx: number, cy: number, hw: number, hh: number, a: Point, b: Point): number {
+  const inside = (p: Point) => p.x >= cx - hw && p.x <= cx + hw && p.y >= cy - hh && p.y <= cy + hh
+  if (inside(a) || inside(b)) return 0
+  const corners: Point[] = [
+    { x: cx - hw, y: cy - hh }, { x: cx + hw, y: cy - hh },
+    { x: cx + hw, y: cy + hh }, { x: cx - hw, y: cy + hh },
+  ]
+  let best = Infinity
+  for (let i = 0; i < 4; i++) best = Math.min(best, segmentToSegmentDistance(corners[i]!, corners[(i + 1) % 4]!, a, b))
+  return best
+}
+
+/**
  * Arc-length position (0..1) along a polyline of the closest point on the route
  * to `pt` — the fractional projection of a label onto its own edge. 0 is the
  * source end, 1 the target end, 0.5 the route's arc-length midpoint.
@@ -542,9 +561,16 @@ export function assessLayout(graph: MermaidGraph, positioned: PositionedGraph): 
     if (e.label && e.labelPosition && e.points.length >= 2) {
       const m = measureMultilineText(e.label, style.edgeLabelFontSize, style.edgeLabelFontWeight)
       const allow = (m.height + 16) / 2 + 4
+      // A self-loop's label legitimately sits BESIDE the small loop stub (ELK's
+      // native placement), so its CENTRE is a pill-width from the stub while its
+      // body touches it. Measure pill-to-route for self-loops; centre-to-route
+      // for ordinary edges, where the label is meant to sit ON the line.
+      const selfLoop = e.source === e.target
       let best = Infinity
       for (let i = 1; i < e.points.length; i++) {
-        best = Math.min(best, pointToSegmentDistance(e.labelPosition, e.points[i - 1]!, e.points[i]!))
+        best = Math.min(best, selfLoop
+          ? rectToSegmentDistance(e.labelPosition.x, e.labelPosition.y, (m.width + 16) / 2, (m.height + 16) / 2, e.points[i - 1]!, e.points[i]!)
+          : pointToSegmentDistance(e.labelPosition, e.points[i - 1]!, e.points[i]!))
       }
       if (best > allow) {
         labelOffRoute++
