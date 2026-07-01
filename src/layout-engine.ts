@@ -67,6 +67,7 @@ import {
   extractEdgesRecursively,
   alignLayerNodes,
   equalizePeerNodeDimensions,
+  reanchorOffOutlineEndpoints,
   alignForkRejoinPeerCenters,
   alignPortLanes,
   alignLabeledSourcePort,
@@ -1166,8 +1167,13 @@ export const LAYOUT_PIPELINE: ReadonlyArray<LayoutPass<LayoutPassContext>> = [
     run: c => { applyRouteContracts({ nodes: c.nodes, edges: c.edges, groups: c.groups }, c.graph, c.bundled, c.style) },
   },
   {
-    id: 'repairLabelsOnSharedTrunks', doc: 're-slot a labeled edge whose pill sits on a trunk shared with another edge (label-only, freeze-safe)',
+    id: 'reanchorOffOutlineEndpoints', doc: 're-route an edge whose endpoint dangles off a moved node onto that node\'s flow port (edge-only, freeze-safe)',
     after: ['applyRouteContracts'], mutates: ['edges'], determinism: 'in-place',
+    run: c => { reanchorOffOutlineEndpoints(c.nodes, c.edges, c.graph) },
+  },
+  {
+    id: 'repairLabelsOnSharedTrunks', doc: 're-slot a labeled edge whose pill sits on a trunk shared with another edge (label-only, freeze-safe)',
+    after: ['reanchorOffOutlineEndpoints'], mutates: ['edges'], determinism: 'in-place',
     run: c => { repairLabelsOnSharedTrunks({ nodes: c.nodes, edges: c.edges, groups: c.groups }, c.graph, c.style) },
   },
   {

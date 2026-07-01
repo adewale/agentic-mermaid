@@ -1007,6 +1007,43 @@ export function honorLinkRankDistance(nodes: PositionedNode[], edges: Positioned
     if (edge.label) edge.labelPosition = calculatePathMidpoint(edge.points)
   }
 }
+/**
+ * Post-freeze safety net for STALE edge endpoints. A pass that MOVES a node is
+ * responsible for re-anchoring the edges incident to it (honorLinkRankDistance,
+ * above, rebuilds its own); but equalizePeerNodeDimensions repositions a fan-in
+ * peer without touching a cone edge INTO it (an upstream `U --> S` where S also
+ * fans into a hub), so that edge is left pointing at S's pre-move position and
+ * its endpoint dangles OFF the moved outline — offOutlineEndpoints (or, if it
+ * grazes a neighbour, edgeThroughNode). applyRouteContracts certifies the stale
+ * route rather than re-anchoring it. After the freeze, re-route any edge whose
+ * endpoint sits off its node's outline as an orthogonal dogleg between the two
+ * nodes' flow-side ports, landing the endpoint back on the outline.
+ *
+ * Fires ONLY on an already-off-outline endpoint — which the HARD-clean corpus
+ * never has — so it is a strict no-op there and byte-exact equivalence holds. A
+ * rebuilt route is adopted only when it clears every other node (an on-outline
+ * endpoint is not worth trading for an edgeThroughNode); self-loops are skipped
+ * (their stub is the renderer's). Deterministic; label re-centred on the new route.
+ */
+export function reanchorOffOutlineEndpoints(nodes: PositionedNode[], edges: PositionedEdge[], graph: MermaidGraph): void {
+  const nodeMap = new Map(nodes.map(n => [n.id, n]))
+  const f = layoutFlow(graph.direction)
+  for (const edge of edges) {
+    if (edge.source === edge.target || edge.points.length < 2) continue
+    const source = nodeMap.get(edge.source), target = nodeMap.get(edge.target)
+    if (!source || !target) continue
+    const srcOff = !onShapeOutline(source, edge.points[0]!)
+    const tgtOff = !onShapeOutline(target, edge.points[edge.points.length - 1]!)
+    if (!srcOff && !tgtOff) continue
+    const start = shapePorts(source)[f.sourceSide]
+    const end = shapePorts(target)[f.targetSide]
+    const route = doglegBetween(start, end, graph.direction, (start[f.main] + end[f.main]) / 2)
+    if (!routeClearOfNodes(route, nodes, new Set([edge.source, edge.target]))) continue
+    edge.points = route
+    edge.routeCertificate = undefined
+    if (edge.label) edge.labelPosition = calculatePathMidpoint(route)
+  }
+}
 function shiftTerminalRunCross(edge: PositionedEdge, direction: Direction, fromEnd: boolean, delta: number): void {
   if (edge.points.length === 0) return
   const f = layoutFlow(direction)
