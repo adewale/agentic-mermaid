@@ -1,0 +1,13 @@
+Updated Mermaid
+```mermaid
+journey
+  section Build
+    Draft: 3: Agent
+    Review: 4: Agent
+```
+
+Verification
+verifyMermaid returned ok=true with no warnings.
+
+Trace
+Local channel: this repo's ./src/agent/index.ts via Bun. Calls/ops used: parseMermaid; asJourney; mutate({ kind: "add_task", sectionIndex: 0, text: "Review", score: 4, actors: ["Agent"] }); verifyMermaid; serializeMermaid.

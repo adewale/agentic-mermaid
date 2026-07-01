@@ -20,8 +20,7 @@ const routeMap: Record<string, string> = {
   'llms.txt': '/llms.txt',
   'agent-instructions.md': '/agent-instructions.md',
   'capabilities.json': '/capabilities.json',
-  'agent-manifest.json': '/agent-manifest.json',
-  'harnesses.json': '/harnesses.json',
+
 }
 
 const pageOutputs: Array<[source: string, target: string]> = [
@@ -33,7 +32,7 @@ const pageOutputs: Array<[source: string, target: string]> = [
 const rootAssets = new Set([
   'favicon.svg', 'favicon.ico', 'apple-touch-icon.png', 'og-image.png',
   'styles.css', 'theme.js', 'shader-mark.js', 'llms.txt', 'agent-instructions.md',
-  'capabilities.json', 'agent-manifest.json', 'harnesses.json',
+  'capabilities.json',
 ])
 
 function splitUrl(value: string): [path: string, suffix: string] {
@@ -48,7 +47,7 @@ function rewriteUrl(value: string): string {
   const [path, suffix] = splitUrl(value)
   if (routeMap[path]) return routeMap[path] + suffix
   if (rootAssets.has(path)) return '/' + path + suffix
-  if (path.startsWith('schemas/') || path.startsWith('diagrams/') || path.startsWith('recipes/') || path.startsWith('skills/') || path.startsWith('examples/')) {
+  if (path.startsWith('diagrams/') || path.startsWith('skills/') || path.startsWith('examples/')) {
     return '/' + path + suffix
   }
   return value
@@ -56,17 +55,17 @@ function rewriteUrl(value: string): string {
 
 const agentDiscoveryLinks = [
   '<link rel="alternate" type="text/plain" href="/llms.txt">',
-  '<link rel="alternate" type="application/json" href="/agent-manifest.json">',
+  '<link rel="alternate" type="application/json" href="/capabilities.json">',
   '<link rel="alternate" type="text/markdown" href="/agent-instructions.md">',
 ].join('\n')
 
 function addHeadDescription(html: string) {
   if (html.includes('name="description"')) return html
-  return html.replace(/<meta name="viewport" content="width=device-width, initial-scale=1"\s*\/?\s*>/, '$&\n<meta name="description" content="Agentic Mermaid renders, verifies, and edits Mermaid diagrams locally, with static agent manifests for CLI, library, and MCP setup.">')
+  return html.replace(/<meta name="viewport" content="width=device-width, initial-scale=1"\s*\/?\s*>/, '$&\n<meta name="description" content="Agentic Mermaid renders, verifies, and edits Mermaid diagrams locally, with compact agent instructions for CLI, library, and MCP use.">')
 }
 
 function addAgentDiscoveryLinks(html: string) {
-  if (html.includes('rel="alternate" type="application/json" href="/agent-manifest.json"')) return html
+  if (html.includes('rel="alternate" type="application/json" href="/capabilities.json"')) return html
   if (/<link rel="stylesheet" href="([^\"]+)"\s*>/.test(html)) {
     return html.replace(/<link rel="stylesheet" href="([^\"]+)"\s*>/, '<link rel="stylesheet" href="$1">\n' + agentDiscoveryLinks)
   }
@@ -245,7 +244,7 @@ ${mastheadHtml(currentHref)}
 ${meta ? `<p class="page-meta">${meta}</p>\n` : ''}${actions ? `<div class="page-actions">${actions}</div>\n` : ''}</section>
 ${body}
 </main>
-<footer><div class="footlinks"><a href="/llms.txt">llms.txt</a><span class="sep">&middot;</span><a href="/agent-instructions.md">agent-instructions.md</a><span class="sep">&middot;</span><a href="/capabilities.json">capabilities.json</a><span class="sep">&middot;</span><a href="/agent-manifest.json">agent-manifest.json</a><span class="sep">&middot;</span><a href="https://github.com/adewale/beautiful-mermaid">GitHub</a></div></footer>
+<footer><div class="footlinks"><a href="/llms.txt">llms.txt</a><span class="sep">&middot;</span><a href="/agent-instructions.md">agent-instructions.md</a><span class="sep">&middot;</span><a href="/capabilities.json">capabilities.json</a><span class="sep">&middot;</span><a href="/examples/index.json">examples.json</a><span class="sep">&middot;</span><a href="/skills/agentic-mermaid-diagram-workflow/SKILL.md">workflow skill</a></div></footer>
 <script src="/shader-mark.js"></script>
 <script src="/theme.js"></script>
 </body>
@@ -261,8 +260,6 @@ function escapeAttr(s: string) {
 
 const packageJson = JSON.parse(await Bun.file(join(ROOT, 'package.json')).text())
 const rawCapabilities = JSON.parse(await readMock('capabilities.json'))
-const mockHarnesses = JSON.parse(await readMock('harnesses.json'))
-const localServer = mockHarnesses.server
 const generatedFrom = {
   packageVersion: packageJson.version,
   gitSha: process.env.SITE_GIT_SHA ?? 'development',
@@ -345,7 +342,7 @@ function examplesShowcaseHtml(editorExamples: any[]) {
   return '<div class="example-showcase">' + Array.from(groups, ([category, examples]) => `
 <section class="example-group" aria-labelledby="examples-${escapeAttr(category.toLowerCase().replace(/[^a-z0-9]+/g, '-'))}">
 <h2 id="examples-${escapeAttr(category.toLowerCase().replace(/[^a-z0-9]+/g, '-'))}">${escapeHtml(category)}</h2>
-<p class="muted">${category === 'Role style presets' ? 'These load role-style presets in the editor. This page renders them with one fixed review theme so the examples stay visually comparable.' : 'One per supported family, rendered with one fixed review theme. Each pairs the agent task it answers with the source the editor loads.'}</p>
+<p class="muted">${category === 'Role style presets' ? 'These load role-style presets in the editor. This page renders them with one fixed review theme so the proof stays visually comparable.' : 'One proof per supported family: the exact editor source, an agent task, the trace before return, and a build-time render from that same source.'}</p>
 ${examples.map((example) => {
   const family = familyForExample(example)
   const task = category === 'Supported diagrams' && family ? FAMILY_AGENT_TASK[family.id] : undefined
@@ -364,7 +361,7 @@ ${examples.map((example) => {
   </header>
   <div class="example-sample-grid">
     <section class="example-source" aria-label="${escapeAttr(example.label)} Mermaid source"><pre><code>${escapeHtml(String(example.source ?? '').trim())}</code></pre></section>
-    <figure class="example-render"><div class="example-svg">${renderExampleSvg(example)}</div><figcaption>Rendered during the website build from the same source the editor loads.</figcaption></figure>
+    <figure class="example-render"><div class="example-svg">${renderExampleSvg(example)}</div><figcaption>Build-time proof: rendered from the same source the editor loads.</figcaption></figure>
   </div>
 </article>`
 }).join('')}
@@ -409,74 +406,8 @@ for (const asset of ['favicon.svg', 'styles.css', 'theme.js', 'shader-mark.js'])
 for (const asset of ['favicon.ico', 'apple-touch-icon.png', 'og-image.png']) await copyFileFrom(join(ROOT, 'public', asset), asset)
 await copyDir(join(MOCKUPS, 'diagrams'), 'diagrams')
 
-const hostedMcp = {
-  available: false,
-  url: null,
-  transport: 'streamable-http',
-  auth: 'none',
-  recommended: 'self-host',
-  execute: false,
-  tools: [],
-  localToolSurface: ['execute', 'render_png', 'describe'],
-  futureHostedConstraint: 'Do not enable execute(code) or arbitrary server-side code without a separate security/auth/rate-limit decision; a bounded future route may expose non-execution render, describe, verify, or structured-edit operations.',
-  status: 'not enabled in this static Workers preview',
-}
-
-const machineRoutes = {
-  llms: '/llms.txt',
-  instructions: '/agent-instructions.md',
-  capabilities: '/capabilities.json',
-  schemas: '/schemas/index.json',
-  examples: '/examples/index.json',
-  harnesses: '/harnesses.json',
-  recipes: '/recipes/index.json',
-  skills: '/skills/index.json',
-}
-
 const capabilities = { ...rawCapabilities, generatedFrom }
 await emitJson('capabilities.json', capabilities)
-
-const manifest = {
-  name: 'agentic-mermaid',
-  package: {
-    name: packageJson.name,
-    version: packageJson.version,
-    imports: ['agentic-mermaid', 'agentic-mermaid/agent'],
-    bins: Object.keys(packageJson.bin ?? {}),
-    npmStatus: npmPublished ? 'published' : 'unverified',
-    checked: npmChecked,
-    install: npmPublished ? { command: 'npm i agentic-mermaid' } : { command: installCommand, note: installNotice },
-  },
-  repo: packageJson.repository?.url ?? 'https://github.com/adewale/beautiful-mermaid',
-  site: { canonical: process.env.SITE_ORIGIN ?? 'https://agenticmermaid.dev', legacyPages: packageJson.homepage },
-  description: 'Agent-native Mermaid runtime: parse, verify, mutate, and render diagrams through a typed surface. Deterministic SVG, PNG, ASCII, Unicode, and JSON.',
-  outputFormats: capabilities.outputFormats,
-  families: capabilities.families.map((f: any) => f.id),
-  localMcp: { recommended: true, execute: true, transport: 'stdio', server: localServer, tools: ['execute', 'render_png', 'describe'] },
-  hostedExecution: { codeMode: false, renderApi: false, mcp: hostedMcp },
-  machineRoutes,
-  skills: [{ id: 'agentic-mermaid-diagram-workflow', scope: 'consumer', landing: '/skills/agentic-mermaid-diagram-workflow/', entrypoint: '/skills/agentic-mermaid-diagram-workflow/SKILL.md', capabilitiesAuthority: '/capabilities.json' }],
-  stopRules: [
-    'Verify before serialize, render, commit, or return a diagram artifact.',
-    'Do not fabricate ValidDiagram objects; parse first and preserve opaque source when narrowing is unavailable.',
-    'Prefer local library, CLI, or self-hosted MCP; treat any hosted MCP as an optional bounded fallback only.',
-    'Do not call the website as a REST render API or arbitrary-code execution backend.',
-    'When a family is source-level-only for the requested edit, source-edit deliberately or stop and ask for review.',
-  ],
-  generatedFrom,
-}
-await emitJson('agent-manifest.json', manifest)
-
-const harnesses = {
-  ...mockHarnesses,
-  recommended: 'self-hosted',
-  localMcpTools: ['execute', 'render_png', 'describe'],
-  localWorkflow: 'Use execute(code) for parse/narrow/mutate/verify/serialize workflows; render_png and describe are helper tools.',
-  hostedMcp,
-  machineRoutes: { manifest: '/agent-manifest.json', capabilities: '/capabilities.json' },
-  generatedFrom,
-}
-await emitJson('harnesses.json', harnesses)
 
 const examples = {
   generatedFrom,
@@ -499,128 +430,19 @@ const examples = {
 }
 await emitJson('examples/index.json', examples)
 
-const recipes = [
-  { id: 'new-diagram', title: 'New diagram', command: 'am verify diagram.mmd && am render diagram.mmd --format svg --output diagram.svg', body: 'Author Mermaid source directly, verify it locally, then render the reviewed artifact.' },
-  { id: 'existing-structured-edit', title: 'Existing structured edit', command: 'Use parseMermaid → asFlowchart/asState/… → mutate → verifyMermaid → serializeMermaid.', body: 'For modeled families, narrow before mutating so an agent changes only the intended node, edge, task, relation, or event.' },
-  { id: 'source-level-only', title: 'Source-level-only fallback', command: 'am verify diagram.mmd', body: 'If a narrower returns null, preserve opaque source and edit text deliberately; stop for human review when semantics are unclear.' },
-  { id: 'artifacts', title: 'Review artifacts', command: 'am render diagram.mmd --format png --output diagram.png', body: 'Produce SVG/PNG for visual review and ASCII/Unicode for terminal or PR comments.' },
-  { id: 'batch-repo', title: 'Batch a repository', command: 'find docs -name "*.mmd" | am batch --jsonl', body: 'Use JSONL batch checks when an agent needs to verify many diagrams and report warnings without stopping at the first failure.' },
-  { id: 'markdown', title: 'Render Markdown', command: 'am render-markdown README.md --output README.rendered.md', body: 'Render Mermaid blocks embedded in Markdown as local review artifacts.' },
-  { id: 'quality-review', title: 'Quality review', command: 'am verify diagram.mmd --json', body: 'Inspect warning tiers, layout metrics, screenshots, and human-visible artifacts; verify.ok is necessary but not visual perfection.' },
-  { id: 'local-mcp', title: 'Local MCP', command: npmPublished ? 'npx agentic-mermaid-mcp' : 'bun run bin/agentic-mermaid-mcp.ts', body: 'Self-host the stdio MCP. Multi-step edits go through execute(code); render_png and describe are helper tools.' },
-] as const
-await emitJson('recipes/index.json', { generatedFrom, recipes: recipes.map(({ id, title }) => ({ id, title, url: `/recipes/${id}.md` })) })
-for (const r of recipes) {
-  await emit(`recipes/${r.id}.md`, `# ${r.title}\n\n${r.body}\n\n\`\`\`bash\n${r.command}\n\`\`\`\n\nLocal-first rule: use the package, CLI, or self-hosted MCP. This website is not a REST render API and does not run hosted Code Mode \`execute(code)\`.\n`)
-}
-
-const skillText = await Bun.file(join(ROOT, 'skills/agentic-mermaid-diagram-workflow/SKILL.md')).text()
 const skillFiles = ['SKILL.md', 'references/cli.md', 'references/code-mode.md', 'references/flowchart.md', 'references/sequence.md', 'references/timeline.md']
-const rawFiles = []
 for (const file of skillFiles) {
   const text = await Bun.file(join(ROOT, 'skills/agentic-mermaid-diagram-workflow', file)).text()
-  rawFiles.push({ path: file, url: `/skills/agentic-mermaid-diagram-workflow/${file}`, sha256: sha256(text) })
   await emit(`skills/agentic-mermaid-diagram-workflow/${file}`, text)
 }
-await emitJson('skills/index.json', {
-  generatedFrom,
-  skills: [{
-    id: 'agentic-mermaid-diagram-workflow',
-    name: 'agentic-mermaid-diagram-workflow',
-    scope: 'consumer',
-    description: 'Guided workflow for authoring, editing, verifying, serializing, and rendering Agentic Mermaid diagrams.',
-    landing: '/skills/agentic-mermaid-diagram-workflow/',
-    entrypoint: '/skills/agentic-mermaid-diagram-workflow/SKILL.md',
-    rawFiles,
-    requiredReferences: rawFiles.filter((f) => f.path.startsWith('references/')).map((f) => f.url),
-    optionalReferences: [],
-    capabilitiesAuthority: '/capabilities.json',
-    supportedLocalChannels: ['library', 'cli', 'local-mcp', 'skills-capable-harnesses'],
-    warning: 'Capabilities.json is authoritative; upstream Mermaid syntax references are authoring references, not render-support claims.',
-  }],
-})
 
 // Public llms.txt must not expose repo-only backlog/eval/contributor surfaces.
-const publicLlms = `# Agentic Mermaid\n\nAgentic Mermaid renders, verifies, and safely edits Mermaid diagrams locally. Use the package, CLI, or self-hosted MCP; the website is documentation plus a browser-local editor, not a REST render API.\n\nStart here:\n- /agent-instructions.md – short operating guide for agents\n- /agent-manifest.json – package, routes, stop rules, and hosted-execution posture\n- /capabilities.json – authoritative family/output/mutation/warning contract\n- /examples/index.json – the same example IDs and sources loaded by the editor\n- /recipes/index.json – local CLI/library/MCP recipes\n- /skills/index.json – public consumer skill catalog\n\nStop rules:\n- Verify before serialize, render, commit, or return.\n- Do not fabricate ValidDiagram objects. Parse first.\n- Prefer local library, CLI, or self-hosted MCP.\n- Do not call this website as a render API or arbitrary-code execution backend.\n`;
+const publicLlms = `# Agentic Mermaid\n\nAgentic Mermaid renders, verifies, and safely edits Mermaid diagrams locally. Use the package, CLI, or self-hosted MCP; the website is documentation plus a browser-local editor, not a REST render API.\n\nStart here:\n- /agent-instructions.md – compact operating guide for agents\n- /capabilities.json – authoritative family/output/mutation/warning contract\n- /examples/index.json – the same example IDs and sources loaded by the editor\n- /skills/agentic-mermaid-diagram-workflow/SKILL.md – optional workflow skill for skills-capable agents\n\nStop rules:\n- Verify before serialize, render, commit, or return.\n- Do not fabricate ValidDiagram objects. Parse first.\n- Prefer local library, CLI, or self-hosted MCP.\n- Do not call this website as a render API or arbitrary-code execution backend.\n`;
 await emit('llms.txt', publicLlms)
 await emit('agent-instructions.md', await Bun.file(join(ROOT, 'Instructions_for_agents.md')).text())
 
-const schemaEntries = [
-  { name: 'capabilities', schema: '/schemas/capabilities.schema.json' },
-  { name: 'agent-manifest', schema: '/schemas/agent-manifest.schema.json' },
-  { name: 'harnesses', schema: '/schemas/harnesses.schema.json' },
-  { name: 'skills', schema: '/schemas/skills.schema.json' },
-  { name: 'recipes', schema: '/schemas/recipes.schema.json' },
-  { name: 'examples', schema: '/schemas/examples.schema.json' },
-]
-type JsonSchema = Record<string, unknown>
-const objectSchema = (title: string, required: string[], properties: Record<string, JsonSchema>, extra: JsonSchema = {}) => ({
-  $schema: 'https://json-schema.org/draft/2020-12/schema', title, type: 'object', required, properties, additionalProperties: false, ...extra,
-})
-const generatedFromSchema = objectSchema('Generated from', ['packageVersion', 'gitSha', 'buildTime'], {
-  packageVersion: { type: 'string' }, gitSha: { type: 'string' }, buildTime: { type: 'string' },
-})
-const stringArray = { type: 'array', items: { type: 'string' } }
-const mcpToolNames = ['execute', 'render_png', 'describe']
-const hostedMcpSchema = objectSchema('Hosted MCP posture', ['available', 'url', 'transport', 'auth', 'recommended', 'execute', 'tools', 'localToolSurface', 'futureHostedConstraint', 'status'], {
-  available: { const: false }, url: { type: 'null' }, transport: { const: 'streamable-http' }, auth: { const: 'none' }, recommended: { const: 'self-host' }, execute: { const: false }, tools: { type: 'array', maxItems: 0 }, localToolSurface: { type: 'array', items: { enum: mcpToolNames } }, futureHostedConstraint: { type: 'string' }, status: { type: 'string' },
-})
-const machineRoutesSchema = objectSchema('Machine routes', ['llms', 'instructions', 'capabilities', 'schemas', 'examples', 'harnesses', 'recipes', 'skills'], {
-  llms: { const: '/llms.txt' }, instructions: { const: '/agent-instructions.md' }, capabilities: { const: '/capabilities.json' }, schemas: { const: '/schemas/index.json' }, examples: { const: '/examples/index.json' }, harnesses: { const: '/harnesses.json' }, recipes: { const: '/recipes/index.json' }, skills: { const: '/skills/index.json' },
-})
-const familyIdEnum = BUILTIN_FAMILY_METADATA.map((f) => f.id)
-const outputFormatEnum = capabilities.outputFormats
-await emitJson('schemas/capabilities.schema.json', objectSchema('Agentic Mermaid capabilities', ['sdkVersion', 'families', 'warningCodes', 'outputFormats', 'generatedFrom'], {
-  sdkVersion: { type: 'string' },
-  families: {
-    type: 'array', minItems: BUILTIN_FAMILY_METADATA.length,
-    items: objectSchema('Family capability', ['id', 'hasParse', 'hasSerialize', 'hasMutate', 'hasVerify', 'hasExtractLabels', 'mutationOps', 'editPolicy'], {
-      id: { enum: familyIdEnum }, hasParse: { type: 'boolean' }, hasSerialize: { type: 'boolean' }, hasMutate: { type: 'boolean' }, hasVerify: { type: 'boolean' }, hasExtractLabels: { type: 'boolean' }, mutationOps: stringArray, editPolicy: { type: 'string' },
-    }),
-  },
-  warningCodes: {
-    type: 'array', minItems: capabilities.warningCodes.length,
-    items: objectSchema('Warning code', ['code', 'tier', 'severity'], { code: { type: 'string' }, tier: { enum: ['structural', 'geometric', 'lint'] }, severity: { enum: ['error', 'warning'] } }),
-  },
-  outputFormats: { type: 'array', items: { enum: outputFormatEnum } },
-  generatedFrom: generatedFromSchema,
-}))
-await emitJson('schemas/agent-manifest.schema.json', objectSchema('Agentic Mermaid agent manifest', ['name', 'package', 'repo', 'site', 'description', 'outputFormats', 'families', 'localMcp', 'hostedExecution', 'machineRoutes', 'skills', 'stopRules', 'generatedFrom'], {
-  name: { const: 'agentic-mermaid' },
-  package: objectSchema('Package', ['name', 'version', 'imports', 'bins', 'npmStatus', 'checked', 'install'], { name: { const: packageJson.name }, version: { type: 'string' }, imports: stringArray, bins: stringArray, npmStatus: { enum: ['published', 'unverified'] }, checked: { type: 'string' }, install: { type: 'object' } }),
-  repo: { type: 'string' },
-  site: objectSchema('Site', ['canonical', 'legacyPages'], { canonical: { type: 'string' }, legacyPages: { type: 'string' } }),
-  description: { type: 'string' }, outputFormats: { type: 'array', items: { enum: outputFormatEnum } }, families: { type: 'array', items: { enum: familyIdEnum } },
-  localMcp: objectSchema('Local MCP', ['recommended', 'execute', 'transport', 'server', 'tools'], { recommended: { const: true }, execute: { const: true }, transport: { const: 'stdio' }, server: { type: 'object' }, tools: { type: 'array', items: { enum: mcpToolNames } } }),
-  hostedExecution: objectSchema('Hosted execution posture', ['codeMode', 'renderApi', 'mcp'], { codeMode: { const: false }, renderApi: { const: false }, mcp: hostedMcpSchema }),
-  machineRoutes: machineRoutesSchema,
-  skills: { type: 'array', items: objectSchema('Skill manifest entry', ['id', 'scope', 'landing', 'entrypoint', 'capabilitiesAuthority'], { id: { type: 'string' }, scope: { type: 'string' }, landing: { type: 'string' }, entrypoint: { type: 'string' }, capabilitiesAuthority: { const: '/capabilities.json' } }) },
-  stopRules: { type: 'array', items: { type: 'string' } }, generatedFrom: generatedFromSchema,
-}))
-await emitJson('schemas/harnesses.schema.json', objectSchema('Agentic Mermaid harnesses', ['default', 'recommended', 'server', 'clients', 'localMcpTools', 'localWorkflow', 'hostedMcp', 'machineRoutes', 'generatedFrom'], {
-  default: { const: 'stdio' }, recommended: { const: 'self-hosted' },
-  server: objectSchema('Server command', ['command', 'args', 'transport'], { command: { type: 'string' }, args: stringArray, transport: { const: 'stdio' } }),
-  clients: { type: 'array', items: objectSchema('MCP client', ['id', 'name'], { id: { type: 'string' }, name: { type: 'string' }, register: { type: 'string' }, config: { type: 'string' } }) },
-  localMcpTools: { type: 'array', items: { enum: mcpToolNames } }, localWorkflow: { type: 'string' }, hostedMcp: hostedMcpSchema, machineRoutes: { type: 'object' }, generatedFrom: generatedFromSchema,
-}))
-await emitJson('schemas/skills.schema.json', objectSchema('Agentic Mermaid skills catalog', ['generatedFrom', 'skills'], {
-  generatedFrom: generatedFromSchema,
-  skills: { type: 'array', items: objectSchema('Skill catalog entry', ['id', 'name', 'scope', 'description', 'landing', 'entrypoint', 'rawFiles', 'requiredReferences', 'optionalReferences', 'capabilitiesAuthority', 'supportedLocalChannels', 'warning'], { id: { type: 'string' }, name: { type: 'string' }, scope: { type: 'string' }, description: { type: 'string' }, landing: { type: 'string' }, entrypoint: { type: 'string' }, rawFiles: { type: 'array', items: objectSchema('Skill raw file', ['path', 'url', 'sha256'], { path: { type: 'string' }, url: { type: 'string' }, sha256: { type: 'string' } }) }, requiredReferences: stringArray, optionalReferences: stringArray, capabilitiesAuthority: { const: '/capabilities.json' }, supportedLocalChannels: stringArray, warning: { type: 'string' } }) },
-}))
-await emitJson('schemas/recipes.schema.json', objectSchema('Agentic Mermaid recipes catalog', ['generatedFrom', 'recipes'], {
-  generatedFrom: generatedFromSchema,
-  recipes: { type: 'array', items: objectSchema('Recipe entry', ['id', 'title', 'url'], { id: { type: 'string' }, title: { type: 'string' }, url: { type: 'string', pattern: '^/recipes/[^/]+\\.md$' } }) },
-}))
-await emitJson('schemas/examples.schema.json', objectSchema('Agentic Mermaid examples catalog', ['generatedFrom', 'examples'], {
-  generatedFrom: generatedFromSchema,
-  examples: { type: 'array', items: objectSchema('Example entry', ['id', 'family', 'label', 'description', 'headers', 'source', 'renderUrl', 'editorUrl', 'outputs', 'docs'], { id: { type: 'string' }, family: { enum: familyIdEnum }, label: { type: 'string' }, description: { type: 'string' }, headers: stringArray, source: { type: 'string' }, renderUrl: { type: 'string' }, editorUrl: { type: 'string' }, outputs: { type: 'array', items: { enum: outputFormatEnum } }, docs: { type: 'string' } }) },
-}))
-const toolIndex = JSON.parse(await readMock('schemas/index.json'))
-for (const t of toolIndex.tools ?? []) await copyMockFile(t.schema, t.schema)
-await emitJson('schemas/index.json', { generatedFrom, schemas: schemaEntries, mcpTools: (toolIndex.tools ?? []).map((t: any) => ({ ...t, schema: '/' + t.schema })) })
-
 // Spec route coverage pages.
-const docsIndex = '<hr><h2>Docs index</h2><ul class="doc-index"><li><a href="/docs/families/">Diagram families</a></li><li><a href="/docs/api/">Library API</a></li><li><a href="/docs/cli/">CLI</a></li><li><a href="/docs/mcp/">MCP</a></li><li><a href="/docs/source-level/">Source-level edits</a></li><li><a href="/docs/ascii/">ASCII and Unicode</a></li><li><a href="/docs/theming/">Theming</a></li><li><a href="/docs/config/">Config</a></li><li><a href="/docs/react/">React</a></li><li><a href="/docs/quality/">Quality</a></li><li><a href="/docs/vocabulary/">Vocabulary</a></li><li><a href="/docs/fork-differences/">Fork differences</a></li></ul>'
+const docsIndex = '<hr><h2>Docs index</h2><ul class="doc-index"><li><a href="/docs/getting-started/">Getting started</a></li><li><a href="/docs/families/">Diagram families</a></li><li><a href="/docs/api/">Library API</a></li><li><a href="/docs/cli/">CLI</a></li><li><a href="/docs/mcp/">MCP</a></li><li><a href="/docs/source-level/">Source-level edits</a></li><li><a href="/docs/ascii/">ASCII and Unicode</a></li><li><a href="/docs/theming/">Theming</a></li><li><a href="/docs/config/">Config</a></li><li><a href="/docs/react/">React</a></li><li><a href="/docs/quality/">Quality</a></li><li><a href="/docs/vocabulary/">Vocabulary</a></li><li><a href="/docs/fork-differences/">Fork differences</a></li></ul>'
 const aboutLead = 'Agentic Mermaid is a fork of beautiful-mermaid, aimed at a job the original did not have: programs that draw and check diagrams with no person watching. It renders without a browser, reports its own layout errors, and edits diagrams as a typed tree.'
 // The brand Paper palette, hex-resolved. The public site is light-only, so these
 // diagrams render once in Paper rather than carrying a var()-token SVG: page-level
@@ -701,8 +523,26 @@ function familiesReferenceHtml() {
 </table>
 <p>See any of them rendered on the <a href="/examples/">examples</a> page, or open one in the <a href="/editor/">editor</a>.</p>${docsIndex}`
 }
+const gettingStartedBody = `<p>Start with Mermaid source, not a screenshot. Render it locally, then give an agent the prompt from the homepage when you want an edit.</p>
+<ol class="start-rail">
+<li><strong>Install Agentic Mermaid.</strong><p>${escapeHtml(installNotice)}</p><pre><code>${escapeHtml(installCommand)}</code></pre></li>
+<li><strong>Create a diagram.</strong><pre><code>cat > diagram.mmd &lt;&lt;'MMD'
+flowchart LR
+  Idea[Idea] --&gt; Draft[Draft]
+  Draft --&gt; Review{Review}
+  Review --&gt;|ok| Ship[Ship]
+MMD</code></pre></li>
+<li><strong>Verify, then render.</strong><pre><code>bun run bin/am.ts verify diagram.mmd --json
+bun run bin/am.ts render diagram.mmd --format svg --output diagram.svg
+bun run bin/am.ts render diagram.mmd --format unicode</code></pre></li>
+<li><strong>Ask an agent for the smallest edit.</strong><p>Copy the homepage prompt, paste your task and source, and require the agent to return Updated Mermaid, Verification, and Trace.</p><a class="go" href="/">Copy the agent prompt</a></li>
+<li><strong>Optional: wire local MCP.</strong><pre><code>bun run bin/agentic-mermaid-mcp.ts</code></pre><p>Use stdio MCP from the cloned repo. The hosted Workers site intentionally does not enable Code Mode or a render API.</p></li>
+</ol>
+${docsIndex}`
+
 const docPages = [
   ['about/index.html', 'About Agentic Mermaid', aboutLead, aboutBody, '/about/'],
+  ['docs/getting-started/index.html', 'Getting started', 'From Mermaid source to a verified local render, then to an agent-safe edit loop.', gettingStartedBody, '/docs/'],
   ['docs/families/index.html', 'Diagram families', familiesLead, familiesReferenceHtml(), '/docs/'],
   ['docs/api/index.html', 'Library API', 'Use agentic-mermaid and agentic-mermaid/agent from local JS or TS.', '<p>Import rendering helpers from <code>agentic-mermaid</code> and typed parse/mutate/verify helpers from <code>agentic-mermaid/agent</code>.</p>' + docsIndex],
   ['docs/source-level/index.html', 'Source-level edits', 'When a family or construct cannot be narrowed safely, preserve source deliberately.', '<p>Opaque fallback bodies round-trip losslessly, but they do not expose structured mutation. Edit their preserved source only when the task explicitly asks for source-level changes, then parse and verify before returning artifacts.</p>' + docsIndex],
@@ -718,8 +558,8 @@ const docPages = [
   ['security/index.html', 'Security and privacy', 'The site is static/local-first and does not run hosted Code Mode.', '<p>Source stays in the browser for the editor. The preview has no hosted render API; <code>/mcp</code> returns a 501 until a bounded hosted MCP is deliberately implemented.</p>'],
   ['releases/index.html', 'Releases', 'Current package and site build metadata.', `<pre><code>package: ${packageJson.name}@${packageJson.version}\ngit: ${generatedFrom.gitSha}\nbuild: ${generatedFrom.buildTime}</code></pre>`],
   ['evidence/index.html', 'Evidence', 'Quality evidence is curated, not raw private prompts.', '<p>Use CI, generated artifacts, and deterministic metrics to review changes. Private eval prompts and holdbacks are not public site content.</p>'],
-  ['examples/index.html', 'Examples', 'Every example the editor can load, rendered from the same source list.', examplesShowcaseHtml(EDITOR_EXAMPLES), '/examples/'],
-  ['skills/index.html', 'Skills', 'Public consumer skill catalog.', '<p>The public skill is <a href="/skills/agentic-mermaid-diagram-workflow/">agentic-mermaid-diagram-workflow</a>. Capabilities.json is authoritative for renderer support.</p>'],
+  ['examples/index.html', 'Examples', 'Proof that each editor source parses, renders, and carries an agent task you can replay.', examplesShowcaseHtml(EDITOR_EXAMPLES), '/examples/'],
+  ['skills/index.html', 'Skills', 'Optional workflow skill.', '<p>The public skill is <a href="/skills/agentic-mermaid-diagram-workflow/">agentic-mermaid-diagram-workflow</a>. Use it when an agent supports skills; otherwise the homepage prompt and <code>agent-instructions.md</code> are the primary agent context.</p>'],
 ]
 for (const [rel, title, lead, body, currentHref] of docPages) await emit(rel, pageShell(title, lead, body, currentHref || (rel.startsWith('docs/') ? '/docs/' : '')))
 
@@ -771,7 +611,7 @@ const securityHeaders = [
 ].join('\n')
 await emit('_headers', securityHeaders)
 
-const cleanRoutes = ['about', 'editor', 'docs', 'skills', 'skills/agentic-mermaid-diagram-workflow', 'docs/api', 'docs/families', 'docs/source-level', 'docs/cli', 'docs/mcp', 'docs/ascii', 'docs/theming', 'docs/config', 'docs/react', 'docs/quality', 'docs/fork-differences', 'docs/vocabulary', 'warnings', 'errors', 'examples', 'evidence', 'security', 'releases']
+const cleanRoutes = ['about', 'editor', 'docs', 'skills', 'skills/agentic-mermaid-diagram-workflow', 'docs/getting-started', 'docs/api', 'docs/families', 'docs/source-level', 'docs/cli', 'docs/mcp', 'docs/ascii', 'docs/theming', 'docs/config', 'docs/react', 'docs/quality', 'docs/fork-differences', 'docs/vocabulary', 'warnings', 'errors', 'examples', 'evidence', 'security', 'releases']
 const redirectLines = [
   ...cleanRoutes.map((r) => `/${r} /${r}/ 308`),
   '/warnings/:code /warnings/:code/ 308', '/errors/:kind /errors/:kind/ 308',
@@ -793,10 +633,9 @@ function assertNoPlaceholders() {
   if (offenders.length) throw new Error(`public HTML has placeholder href="#": ${offenders.join(', ')}`)
 }
 function assertContractShapes() {
-  for (const [name, obj] of Object.entries({ capabilities, manifest, harnesses, examples })) {
+  for (const [name, obj] of Object.entries({ capabilities, examples })) {
     if (!(obj as any).generatedFrom) throw new Error(`${name} missing generatedFrom`)
   }
-  if (manifest.localMcp.tools.join(',') !== 'execute,render_png,describe') throw new Error('manifest local MCP tools drifted from shipped server')
   if (publicLlms.includes('TODO.md') || publicLlms.includes('evals/')) throw new Error('public llms.txt exposes repo-only surfaces')
 }
 assertNoPlaceholders()

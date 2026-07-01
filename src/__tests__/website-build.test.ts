@@ -59,16 +59,15 @@ describe('Workers Static Assets website contract', () => {
 
   test('required human and machine routes are generated', () => {
     const routes = [
-      'index.html', 'editor/index.html', 'about/index.html', 'docs/families/index.html',
+      'index.html', 'editor/index.html', 'about/index.html', 'docs/getting-started/index.html', 'docs/families/index.html',
       'docs/index.html', 'docs/api/index.html', 'docs/source-level/index.html', 'docs/cli/index.html',
       'docs/mcp/index.html', 'docs/ascii/index.html', 'docs/theming/index.html',
       'docs/config/index.html', 'docs/react/index.html', 'docs/quality/index.html',
       'docs/fork-differences/index.html', 'docs/vocabulary/index.html',
       'warnings/index.html', 'errors/index.html', 'examples/index.html', 'evidence/index.html',
       'security/index.html', 'releases/index.html', 'skills/index.html',
-      'llms.txt', 'agent-instructions.md', 'capabilities.json', 'agent-manifest.json',
-      'harnesses.json', 'examples/index.json', 'recipes/index.json', 'skills/index.json',
-      'schemas/index.json', '_headers', '_redirects',
+      'llms.txt', 'agent-instructions.md', 'capabilities.json', 'examples/index.json',
+      'skills/agentic-mermaid-diagram-workflow/SKILL.md', '_headers', '_redirects',
     ]
     for (const route of routes) expect({ route, exists: existsSync(join(SITE, route)) }).toEqual({ route, exists: true })
     expect(existsSync(join(SITE, 'install/index.html'))).toBe(false)
@@ -101,30 +100,46 @@ describe('Workers Static Assets website contract', () => {
     for (const rel of ['index.html', 'docs/index.html', 'examples/index.html', 'editor/index.html']) {
       const html = read(rel)
       expect(html).toContain('<link rel="alternate" type="text/plain" href="/llms.txt">')
-      expect(html).toContain('<link rel="alternate" type="application/json" href="/agent-manifest.json">')
+      expect(html).toContain('<link rel="alternate" type="application/json" href="/capabilities.json">')
       expect(html).toContain('<link rel="alternate" type="text/markdown" href="/agent-instructions.md">')
     }
     expect(home).toContain('id="home-agent-prompt"')
     expect(home).toContain('class="page-actions"')
     expect(home).toContain('Copy agent prompt')
-    expect(home).toContain('Copy the exact contract')
+    const homeMain = home.slice(home.indexOf('<main'))
+    expect(homeMain.indexOf('data-copy-target="home-agent-prompt"')).toBeLessThan(homeMain.indexOf('href="/docs/getting-started/"'))
+    expect(home).toContain('Give this to an agent')
     expect(home).toContain('copy-prompt-card')
     expect(home).toContain('copy-prompt-primary')
     expect(home).toContain('Copy prompt')
-    expect(home).toContain('Replace this with your edit request and include the Mermaid source')
-    expect(home).toContain('Agentic Mermaid renders one Mermaid source as SVG, PNG, ASCII, Unicode, and JSON layout')
+    expect(home).toContain('&lt;replace with the requested diagram goal or edit&gt;')
+    expect(home).toContain('Context:')
+    expect(home).toContain('Do not assume this repository is checked out')
+    expect(home).toContain('one local channel available to you')
+    expect(home).toContain('For a new diagram, author Mermaid source directly')
+    expect(home).toContain('Mutation ops use a `kind` discriminator')
+    expect(home).toContain('return an object with `{ source }`')
+    expect(home).toContain('In Trace, name the local channel and exact calls/ops used')
+    expect(home).toContain('Agentic Mermaid treats Mermaid source as the durable interface')
     expect(home).toContain('data-copy-name="MCP config"')
     expect(home).toContain('Copy MCP config')
     expect(home).toContain('Run from the cloned repo root')
     expect(home).not.toContain('class="copy-btn"')
-    expect(home).toContain('parseMermaid → asFlowchart → mutate(add_edge) → verifyMermaid → serializeMermaid')
+    expect(home).toContain('<span>parseMermaid</span><span>asFlowchart</span><span>mutate(add_edge)</span><span>verifyMermaid</span><span>serializeMermaid</span>')
     expect(home).toContain('aria-label="Agent entrypoints"')
     expect(home).toContain('Agent quick start')
     expect(home).toContain('Parse, mutate, verify')
     expect(home).toContain('id="local-setup"')
-    expect(home).toContain('/schemas/index.json')
+    expect(home.indexOf('id="home-agent-prompt"')).toBeLessThan(home.indexOf('id="local-setup"'))
+    expect(home.indexOf('id="machine-context-title"')).toBeGreaterThan(home.indexOf('One source, five outputs'))
+    expect(read('docs/getting-started/index.html')).toContain('Copy the agent prompt')
+    expect(read('docs/getting-started/index.html')).toContain('From Mermaid source to a verified local render')
     expect(home).toContain('/examples/index.json')
-    expect(home).toContain('/recipes/index.json')
+    expect(home).toContain('/skills/agentic-mermaid-diagram-workflow/SKILL.md')
+    expect(home).not.toContain('/schemas/index.json')
+    expect(home).not.toContain('/recipes/index.json')
+    expect(home).not.toContain('/agent-manifest.json')
+    expect(home).not.toContain('/harnesses.json')
     expect(home).toContain('One source, five outputs')
     expect(home).toContain('class="unicode-diagram"')
     expect(examples).toContain('<p class="example-prompt"><span>Prompt</span>')
@@ -132,6 +147,11 @@ describe('Workers Static Assets website contract', () => {
     const editorScript = editorScriptRel(editor)
     expect(existsSync(join(SITE, editorScript))).toBe(true)
     expect(read(editorScript)).toContain('buildAgentTaskPrompt')
+    expect(read(editorScript)).toContain('Create or edit a Mermaid diagram')
+    expect(read(editorScript)).toContain('Do not assume this repository is checked out')
+    expect(read(editorScript)).toContain('return an object with `{ source }`')
+    expect(read(editorScript)).toContain('In Trace, name the local channel and exact calls/ops used')
+    expect(read(editorScript)).toContain('source-level fallback')
     expect(read(editorScript)).toContain('createPopupController')
     expect(read(editorScript)).toContain('URLSearchParams(window.location.search).get(\'example\')')
     expect(editor).toContain('id="copy-agent-prompt-btn"')
@@ -200,11 +220,13 @@ describe('Workers Static Assets website contract', () => {
     expect(styles).toContain('--lh-code: 1.68;')
     expect(styles).toContain('line-height: var(--lh-body)')
     expect(styles).toContain('--prose-max: 46.25rem;')
-    expect(styles).toContain('--content-max: calc(var(--prose-max) + var(--page-gutter) + var(--page-gutter));')
-    expect(styles).toContain('--wide-max: 1120px;')
+    expect(styles).toContain('--wide-max: 960px;')
+    expect(styles).toContain('--wide-width: min(var(--wide-max), calc(100vw - var(--page-gutter) - var(--page-gutter)));')
+    expect(styles).toContain('--content-max: calc(var(--wide-max) + var(--page-gutter) + var(--page-gutter));')
     expect(styles).toContain('--page-gutter: 24px;')
     expect(styles).toContain('--dur-ui: 0.2s;')
     expect(styles).toContain('--dur-control: 0.16s;')
+    expect(styles).toContain('960px content span')
     expect(styles).toContain('.doc { max-width: var(--content-max);')
     expect(styles).toContain('.meta-label, .agent-kicker')
     expect(styles).toContain('overflow-wrap: break-word')
@@ -255,29 +277,28 @@ describe('Workers Static Assets website contract', () => {
     expect(editor).not.toContain('id="examples-sidebar-btn" type="button" aria-pressed="false" aria-expanded="false" aria-controls="examples-sidebar">Examples</button>\n  </nav>')
   })
 
-  test('machine json includes generatedFrom and specific schema entries', () => {
-    for (const rel of ['capabilities.json', 'agent-manifest.json', 'harnesses.json', 'examples/index.json', 'recipes/index.json', 'skills/index.json']) {
+  test('focused agent artifacts are generated and stale machine catalogs are absent', () => {
+    for (const rel of ['capabilities.json', 'examples/index.json']) {
       const json = JSON.parse(read(rel))
       expect({ rel, generatedFrom: Boolean(json.generatedFrom) }).toEqual({ rel, generatedFrom: true })
     }
-    const schemaIndex = JSON.parse(read('schemas/index.json'))
-    for (const tool of schemaIndex.mcpTools) {
-      expect(tool.schema.startsWith('/schemas/')).toBe(true)
-      expect(existsSync(join(SITE, tool.schema))).toBe(true)
+    for (const rel of ['agent-manifest.json', 'harnesses.json', 'recipes/index.json', 'skills/index.json', 'schemas/index.json']) {
+      expect({ rel, exists: existsSync(join(SITE, rel)) }).toEqual({ rel, exists: false })
     }
-    const schema = JSON.parse(read('schemas/capabilities.schema.json'))
-    expect(schema.required).toContain('families')
-    expect(schema.required).toContain('generatedFrom')
-    expect(schema.additionalProperties).toBe(false)
-    expect(schema.properties.families.items.required).toContain('mutationOps')
-    expect(schema.properties.warningCodes.items.properties.tier.enum).toEqual(['structural', 'geometric', 'lint'])
+    expect(existsSync(join(SITE, 'skills/agentic-mermaid-diagram-workflow/SKILL.md'))).toBe(true)
+    expect(read('llms.txt')).toContain('/skills/agentic-mermaid-diagram-workflow/SKILL.md')
+    expect(read('llms.txt')).not.toContain('/agent-manifest.json')
+    expect(read('llms.txt')).not.toContain('/recipes/index.json')
+    const capabilities = JSON.parse(read('capabilities.json'))
+    expect(capabilities.families.map((family: any) => family.id)).toContain('flowchart')
+    expect(capabilities.warningCodes.map((warning: any) => warning.tier)).toContain('structural')
     const examplesIndex = JSON.parse(read('examples/index.json'))
     expect(examplesIndex.examples.map((example: any) => example.id)).toEqual(editorExampleIds())
     const examplesHtml = read('examples/index.html')
     expect(examplesHtml).toContain('id="styled-xychart"')
-    expect(examplesHtml).toContain('Rendered during the website build from the same source the editor loads.')
+    expect(examplesHtml).toContain('Build-time proof: rendered from the same source the editor loads.')
     expect(examplesHtml).toContain('--accent:#1A7351')
-    expect(examplesHtml).toContain('This page renders them with one fixed review theme')
+    expect(examplesHtml).toContain('one fixed review theme so the proof stays visually comparable')
     expect(examplesHtml).not.toContain('#f97316')
     expect(examplesHtml).not.toContain('#3b82f6')
     for (const example of examplesIndex.examples) {
@@ -289,29 +310,21 @@ describe('Workers Static Assets website contract', () => {
       expect(read('docs/families/index.html')).toContain(`id="${familyId}"`)
       expect(example.editorUrl).toContain('/editor/?example=')
     }
-    const examplesSchema = JSON.parse(read('schemas/examples.schema.json'))
-    expect(examplesSchema.properties.examples.items.required).toContain('source')
   })
 
-  test('MCP claims match the shipped local-first server surface', () => {
-    const manifest = JSON.parse(read('agent-manifest.json'))
-    expect(manifest.localMcp.tools).toEqual(['execute', 'render_png', 'describe'])
-    expect(manifest.hostedExecution.mcp.available).toBe(false)
-    expect(manifest.hostedExecution.mcp.tools).toEqual([])
-    expect(manifest.hostedExecution.mcp.localToolSurface).toEqual(['execute', 'render_png', 'describe'])
-    expect(manifest.hostedExecution.mcp.futureHostedConstraint).toContain('Do not enable execute(code)')
+  test('MCP claims stay local-first without a stale public harness manifest', () => {
+    expect(existsSync(join(SITE, 'harnesses.json'))).toBe(false)
     const publicText = files().filter((f) => /\.(html|json|md|txt)$/.test(f)).map(read).join('\n')
+    expect(publicText).toContain('execute</code>, <code>render_png</code>, and <code>describe</code>')
+    expect(publicText).toContain('<code>/mcp</code> returns a 501')
     expect(publicText).not.toContain('render verify describe mutate')
     expect(publicText).not.toContain('The skill never runs Code Mode')
   })
 
   test('unverified npm publication does not produce npm install copy', () => {
-    const manifest = JSON.parse(read('agent-manifest.json'))
-    if (manifest.package.npmStatus === 'unverified') {
-      const publicText = files().filter((f) => /\.(html|json|md|txt)$/.test(f)).map(read).join('\n')
-      expect(publicText).not.toContain('npm i agentic-mermaid')
-      expect(publicText).not.toContain('npx agentic-mermaid-mcp')
-    }
+    const publicText = files().filter((f) => /\.(html|json|md|txt)$/.test(f)).map(read).join('\n')
+    expect(publicText).not.toContain('npm i agentic-mermaid')
+    expect(publicText).not.toContain('npx agentic-mermaid-mcp')
   })
 
   test('audit fixes keep hidden UI inert, shortcuts scoped, and mobile tables responsive', () => {
@@ -320,7 +333,6 @@ describe('Workers Static Assets website contract', () => {
     const editorAll = editor + '\n' + editorRuntime
     const styles = read('styles.css')
     const theme = read('theme.js')
-    const harnesses = JSON.parse(read('harnesses.json'))
     const home = read('index.html')
     expect(editor).toContain('id="examples-sidebar" aria-label="Example diagrams" aria-hidden="true" inert')
     expect(editorAll).toContain('setExamplesSidebarOpen(false);')
@@ -332,9 +344,6 @@ describe('Workers Static Assets website contract', () => {
     expect(styles).toContain('@media (forced-colors: active)')
     expect(styles).toContain('.warning-table thead { display: none; }')
     expect(read('warnings/index.html')).toContain('<td data-label="Code">')
-    expect(harnesses.recommended).toBe('self-hosted')
-    expect(harnesses.server.command).toBe('bun')
-    expect(harnesses.clients.map((c: any) => c.id)).toContain('claude-code')
     expect(home).toContain('Self-hosting over stdio is the default path')
     expect(editor).toContain('aria-haspopup="menu"')
     expect(editor).toContain('role="dialog" aria-modal="false" aria-labelledby="color-popup-title" aria-hidden="true"')

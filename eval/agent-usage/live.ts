@@ -4,7 +4,7 @@ import { DEFAULT_CASES, requiresStructuredMutation, runAgentUsageEval, type Agen
 import { SDK_DECLARATION } from '../../src/mcp/sdk-decl.ts'
 
 export type LiveProvider = 'anthropic' | 'openai-compatible'
-export type TranscriptProvider = LiveProvider | 'pi-subagent'
+export type TranscriptProvider = LiveProvider | 'pi-subagent' | `${string}-subagent`
 
 export interface LiveModelConfig {
   provider: LiveProvider

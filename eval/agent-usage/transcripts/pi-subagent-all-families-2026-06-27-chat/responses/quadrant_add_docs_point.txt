@@ -1,0 +1,14 @@
+Updated Mermaid
+```mermaid
+quadrantChart
+  x-axis Low --> High
+  y-axis Easy --> Hard
+  API: [0.4, 0.7]
+  Docs: [0.8, 0.2]
+```
+
+Verification
+verifyMermaid ok; warnings: none.
+
+Trace
+Local channel: repo `./src/agent/index.ts` via `bun -e`. Calls: `parseMermaid(source)`, `asQuadrant(parsed.value)`, `mutate(quadrant, { kind: "add_point", label: "Docs", x: 0.8, y: 0.2 })`, `verifyMermaid(mutated.value)`, `serializeMermaid(mutated.value)`.

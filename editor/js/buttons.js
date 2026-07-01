@@ -49,19 +49,30 @@ function detectAgentFamily(source) {
 function buildAgentTaskPrompt() {
   var source = editor.value.trim();
   var detected = detectAgentFamily(source);
-  return 'Use Agentic Mermaid locally.\n\n'
-    + 'Task: Describe the diagram edit you want, then apply it to the Mermaid source below.\n\n'
+  return 'Create or edit a Mermaid diagram with Agentic Mermaid.\n\n'
+    + 'Task:\n<replace with the requested diagram goal or edit>\n\n'
+    + 'Context:\n<include the facts, labels, relationships, and constraints the diagram should express>\n\n'
     + 'Detected family: ' + detected.family + '\n'
     + 'Expected trace: parseMermaid → ' + detected.narrower + ' → mutate(...) → verifyMermaid → serializeMermaid\n\n'
-    + 'Rules:\n'
-    + '- Do not call the website as a render API.\n'
-    + '- Parse with parseMermaid first.\n'
-    + '- Use typed mutation ops when the family supports them; otherwise preserve source and ask before lossy edits.\n'
-    + '- Run verifyMermaid before serialize, render, commit, or return.\n'
-    + '- Return Mermaid source only after structural warnings are clear.\n\n'
-    + 'Mermaid source:\n```mermaid\n'
-    + (source || 'flowchart TD\n  A[Start] --> B[Edit me]')
-    + '\n```';
+    + 'Mermaid source (for edits; leave blank for a new diagram):\n```mermaid\n'
+    + (source || '')
+    + '\n```\n\n'
+    + 'Environment:\n'
+    + '- Do not assume this repository is checked out. Use one local channel available to you: installed `agentic-mermaid/agent`, this repo\'s `./src/agent/index.ts`, the CLI (`am` or `bun run bin/am.ts`), or self-hosted MCP Code Mode.\n'
+    + '- Do not call the website as a render API. If no local Agentic Mermaid channel is available, do not fabricate verification; return the best Mermaid source and say `not verified — Agentic Mermaid unavailable` with what you tried.\n'
+    + '- Library imports, when available: `parseMermaid`, `verifyMermaid`, `serializeMermaid`, `mutate`, and `as*` helpers from `agentic-mermaid/agent`.\n\n'
+    + 'Workflow:\n'
+    + '1. For a new diagram, author Mermaid source directly from the supplied context, then parse it with `parseMermaid`.\n'
+    + '2. For an existing diagram, parse it, narrow with the matching `as*` helper (`asFlowchart`, `asSequence`, `asGantt`, etc.), and prefer the smallest `mutate(...)` operation.\n'
+    + '3. Mutation ops use a `kind` discriminator (for example `{ kind: "add_edge", from, to, label }`). Discover exact ops from local types, `am capabilities --json`, or `/capabilities.json` when present.\n'
+    + '4. If no typed operation fits, make the smallest source-level edit and say `source-level fallback`.\n'
+    + '5. Run `verifyMermaid` on the final diagram or source. If structural warnings remain after one mechanical fix attempt, return the warnings instead of guessing.\n'
+    + '6. Return mode:\n'
+    + '   - In chat, return exactly these sections: Updated Mermaid, Verification, Trace.\n'
+    + '   - In MCP/Code Mode `execute(code)`, return an object with `{ source }` after verification, or `{ error, warnings }`; do not return prose from inside code.\n'
+    + '7. In Updated Mermaid, include only the final Mermaid source in a ```mermaid fence. Do not return SVG, PNG, ASCII, or Unicode unless requested.\n'
+    + '8. In Trace, name the local channel and exact calls/ops used: `parseMermaid`, the `as*` helper, `mutate({ kind: ... })`, `verifyMermaid`, and `serializeMermaid`; for new diagrams say `no mutate`.\n\n'
+    + 'Do not modify project files unless the user explicitly asked you to change files.';
 }
 
 function copyAgentTask() {

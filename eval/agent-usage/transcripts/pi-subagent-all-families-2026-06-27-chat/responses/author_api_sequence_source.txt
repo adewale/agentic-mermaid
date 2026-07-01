@@ -1,0 +1,17 @@
+Updated Mermaid
+```mermaid
+sequenceDiagram
+  participant User
+  participant App
+  participant API
+  User->>App: Export
+  App->>API: Render SVG
+  API-->>App: SVG string
+  App-->>User: Download
+```
+
+Verification
+ok: true; warnings: []
+
+Trace
+Local channel: repo `./src/agent/index.ts` via `bun -e`. Calls: `parseMermaid(source)`, `asSequence(parsed.value)`, no mutate, `serializeMermaid(sequence)`, `verifyMermaid(serialized)`.

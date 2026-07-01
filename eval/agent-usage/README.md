@@ -56,7 +56,7 @@ opaque mutation attempts. The corpus is intentionally expected to fail:
 executable snippets through `runAgentUsageEval` and asserts the deterministic
 oracle rejects them.
 
-## Layer 4 — Stored and live Code Mode evals
+## Layer 4 — Stored, live, and subagent Code Mode evals
 
 `run.ts` executes stored Code Mode scripts through `executeInSandbox({ trace:
 true })`, the linter, and exact task oracles. The stored CI baseline covers
@@ -64,9 +64,29 @@ flowchart, opaque sequence refusal, timeline, class, ER, and new-source-authorin
 call the real MCP JSON-RPC `tools/call execute` path and compare its result to a
 traced replay of the same code.
 
-The real question — "does a frontier model, given only Instructions_for_agents.md
-+ a task, choose the right safe path?" — is handled by `live.ts` when model
-credentials are available:
+For harnesses with subagents, `capture-subagent-prompt-eval.ts` creates a
+first-class transcript capture directory. It is harness-agnostic: Pi, Claude,
+Codex, or another agent harness can dispatch each generated `requests/*.md` file
+to a fresh subagent, save the exact raw response under `responses/*.txt`, then
+run `finalize` to gate every response. Use `--mode code` for executable Code
+Mode transcripts checked with the sandbox trace linter; use `--mode chat` to
+test the raw public prompt response shape by extracting `Updated Mermaid`,
+verifying it, and applying the task oracle.
+
+```sh
+bun run eval:agent-subagent -- prepare --provider pi-subagent --model delegate --surface homepage --mode chat --cases cache_between_api_and_db,author_api_sequence_source
+# dispatch requests/*.md to fresh subagents and save responses/*.txt
+bun run eval:agent-subagent -- finalize --run-dir eval/agent-usage/transcripts/pi-subagent-<timestamp>
+```
+
+Use `--surface homepage`, `--surface instructions`, or `--surface skill` to test
+which agent-facing context is sufficient. The homepage surface uses the exact
+populated homepage prompt from `DEFAULT_CASES`; the instructions and skill
+surfaces inline the corresponding repository docs in the request.
+
+The real API-backed question — "does a frontier model, given only
+Instructions_for_agents.md + a task, choose the right safe path?" — is handled
+by `live.ts` when model credentials are available:
 
 1. Build the exact system prompt from Instructions_for_agents.md + the Code Mode SDK declaration.
 2. Pose tasks across mutable and opaque families.
@@ -83,4 +103,5 @@ nondeterministic; PR CI keeps deterministic replay checks.
 
 Run deterministic layers: `bun run eval/agent-usage/harness.ts`
 Run stored Code Mode eval: `bun run eval/agent-usage/run.ts`
+Prepare/finalize subagent transcript capture: `bun run eval:agent-subagent -- prepare` / `bun run eval:agent-subagent -- finalize --run-dir <dir>`
 Run live-model transcript capture: `bun run eval:agent-live -- --provider anthropic --model <model>`

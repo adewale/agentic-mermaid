@@ -1,0 +1,28 @@
+{
+  "ok": true,
+  "capturedAt": "2026-07-01T12:56:17.960Z",
+  "provider": "pi-subagent",
+  "model": "delegate-all-families",
+  "surface": "homepage",
+  "mode": "chat",
+  "total": 14,
+  "passed": 14,
+  "safePathRate": 1,
+  "structuredPathRate": 1,
+  "transcripts": [
+    "eval/agent-usage/transcripts/pi-subagent-all-families-2026-06-27-chat/cache_between_api_and_db.json",
+    "eval/agent-usage/transcripts/pi-subagent-all-families-2026-06-27-chat/state_add_done_transition.json",
+    "eval/agent-usage/transcripts/pi-subagent-all-families-2026-06-27-chat/sequence_alt_add_message.json",
+    "eval/agent-usage/transcripts/pi-subagent-all-families-2026-06-27-chat/timeline_add_event.json",
+    "eval/agent-usage/transcripts/pi-subagent-all-families-2026-06-27-chat/class_add_duck.json",
+    "eval/agent-usage/transcripts/pi-subagent-all-families-2026-06-27-chat/er_add_order.json",
+    "eval/agent-usage/transcripts/pi-subagent-all-families-2026-06-27-chat/journey_add_review_task.json",
+    "eval/agent-usage/transcripts/pi-subagent-all-families-2026-06-27-chat/architecture_add_cache.json",
+    "eval/agent-usage/transcripts/pi-subagent-all-families-2026-06-27-chat/xychart_add_forecast.json",
+    "eval/agent-usage/transcripts/pi-subagent-all-families-2026-06-27-chat/pie_add_docs_slice.json",
+    "eval/agent-usage/transcripts/pi-subagent-all-families-2026-06-27-chat/quadrant_add_docs_point.json",
+    "eval/agent-usage/transcripts/pi-subagent-all-families-2026-06-27-chat/gantt_add_docs_task.json",
+    "eval/agent-usage/transcripts/pi-subagent-all-families-2026-06-27-chat/author_auth_flow_source.json",
+    "eval/agent-usage/transcripts/pi-subagent-all-families-2026-06-27-chat/author_api_sequence_source.json"
+  ]
+}

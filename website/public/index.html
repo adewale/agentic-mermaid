@@ -3,14 +3,14 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="description" content="Agentic Mermaid renders, verifies, and edits Mermaid diagrams locally, with static agent manifests for CLI, library, and MCP setup.">
+<meta name="description" content="Agentic Mermaid renders, verifies, and edits Mermaid diagrams locally, with compact agent instructions for CLI, library, and MCP use.">
 <title>Agentic Mermaid</title>
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <link rel="icon" href="/favicon.ico" type="image/x-icon">
 <link rel="apple-touch-icon" href="/apple-touch-icon.png">
 <link rel="stylesheet" href="/styles.css">
 <link rel="alternate" type="text/plain" href="/llms.txt">
-<link rel="alternate" type="application/json" href="/agent-manifest.json">
+<link rel="alternate" type="application/json" href="/capabilities.json">
 <link rel="alternate" type="text/markdown" href="/agent-instructions.md">
 </head>
 <body>
@@ -20,14 +20,63 @@
 
 <main id="main" class="doc home-main">
 
-  <section class="page-header">
+  <section class="page-header" data-copy-widget data-copy-name="Agent prompt">
     <h1><span class="line">Diagrams your</span> <span class="line">agents can edit</span></h1>
-    <p class="lead">Agentic Mermaid renders one Mermaid source as SVG, PNG, ASCII, Unicode, and JSON layout. For edits, agents parse the existing source, make the smallest typed change, verify it, and return Mermaid you can review.</p>
-    <div class="page-actions" data-copy-widget data-copy-name="Prompt">
-      <a class="primary-action" href="/editor/">Open editor</a>
-      <button class="secondary-action" type="button" data-copy-target="home-agent-prompt" data-copy-name="Prompt"><span>Copy agent prompt</span></button>
-      <a class="secondary-action" href="/examples/">View examples</a>
-      <span class="copy-prompt-status" role="status" aria-live="polite"></span>
+    <p class="lead">Agentic Mermaid treats Mermaid source as the durable interface: agents parse the existing <code>.mmd</code>, make the smallest typed change, verify it, and return source you can review.</p>
+    <div class="page-actions">
+      <button class="primary-action prompt-action" type="button" data-copy-target="home-agent-prompt" data-copy-name="Agent prompt" aria-describedby="home-copy-status"><span class="copy-prompt-icon" aria-hidden="true"></span><span>Copy agent prompt</span></button>
+      <a class="secondary-action" href="/docs/getting-started/">Getting started</a>
+      <a class="secondary-action" href="/editor/">Open editor</a>
+      <span class="copy-prompt-status" id="home-copy-status" role="status" aria-live="polite"></span>
+    </div>
+  </section>
+
+  <section class="agent-hero agent-hero-primary agent-prompt-first" aria-labelledby="agent-prompt-title">
+    <div class="agent-hero-head">
+      <p class="agent-kicker meta-label">Prompt</p>
+      <h2 id="agent-prompt-title">Give this to an agent</h2>
+      <p>This prompt is intentionally complete: user goal, optional source, local-only tools, verification, and the required return shape.</p>
+    </div>
+    <div class="copy-prompt-card copy-prompt-primary" data-copy-widget data-copy-name="Agent prompt">
+      <div class="copy-prompt-bar">
+        <span class="copy-prompt-label meta-label">Agent prompt</span>
+        <button class="copy-prompt-btn" type="button" data-copy-target="home-agent-prompt" data-copy-name="Agent prompt" aria-describedby="home-card-copy-status">
+          <span class="copy-prompt-icon" aria-hidden="true"></span>
+          <span>Copy prompt</span>
+        </button>
+      </div>
+      <pre class="agent-prompt"><code id="home-agent-prompt">Create or edit a Mermaid diagram with Agentic Mermaid.
+
+Task:
+&lt;replace with the requested diagram goal or edit&gt;
+
+Context:
+&lt;include the facts, labels, relationships, and constraints the diagram should express&gt;
+
+Mermaid source (for edits; leave blank for a new diagram):
+```mermaid
+&lt;paste existing Mermaid source here, or leave blank for a new diagram&gt;
+```
+
+Environment:
+- Do not assume this repository is checked out. Use one local channel available to you: installed `agentic-mermaid/agent`, this repo's `./src/agent/index.ts`, the CLI (`am` or `bun run bin/am.ts`), or self-hosted MCP Code Mode.
+- Do not call the website as a render API. If no local Agentic Mermaid channel is available, do not fabricate verification; return the best Mermaid source and say `not verified — Agentic Mermaid unavailable` with what you tried.
+- Library imports, when available: `parseMermaid`, `verifyMermaid`, `serializeMermaid`, `mutate`, and `as*` helpers from `agentic-mermaid/agent`.
+
+Workflow:
+1. For a new diagram, author Mermaid source directly from the supplied context, then parse it with `parseMermaid`.
+2. For an existing diagram, parse it, narrow with the matching `as*` helper (`asFlowchart`, `asSequence`, `asGantt`, etc.), and prefer the smallest `mutate(...)` operation.
+3. Mutation ops use a `kind` discriminator (for example `{ kind: "add_edge", from, to, label }`). Discover exact ops from local types, `am capabilities --json`, or `/capabilities.json` when present.
+4. If no typed operation fits, make the smallest source-level edit and say `source-level fallback`.
+5. Run `verifyMermaid` on the final diagram or source. If structural warnings remain after one mechanical fix attempt, return the warnings instead of guessing.
+6. Return mode:
+   - In chat, return exactly these sections: Updated Mermaid, Verification, Trace.
+   - In MCP/Code Mode `execute(code)`, return an object with `{ source }` after verification, or `{ error, warnings }`; do not return prose from inside code.
+7. In Updated Mermaid, include only the final Mermaid source in a ```mermaid fence. Do not return SVG, PNG, ASCII, or Unicode unless requested.
+8. In Trace, name the local channel and exact calls/ops used: `parseMermaid`, the `as*` helper, `mutate({ kind: ... })`, `verifyMermaid`, and `serializeMermaid`; for new diagrams say `no mutate`.
+
+Do not modify project files unless the user explicitly asked you to change files.</code></pre>
+      <p class="copy-prompt-status" id="home-card-copy-status" role="status" aria-live="polite"></p>
     </div>
   </section>
 
@@ -44,53 +93,18 @@
     <p class="agent-trace" aria-label="Expected agent trace"><span>parseMermaid</span><span>asFlowchart</span><span>mutate(add_edge)</span><span>verifyMermaid</span><span>serializeMermaid</span></p>
   </section>
 
-
   <h2 id="local-setup">Local setup</h2>
   <p>Self-hosting over stdio is the default path. The website is documentation plus a browser-local editor; it is not a render API and it does not run hosted Code Mode.</p>
 
-  <section class="agent-hero agent-hero-primary" aria-labelledby="agent-prompt-title">
-    <div class="agent-hero-head">
-      <p class="agent-kicker meta-label">Local handoff</p>
-      <h2 id="agent-prompt-title">Copy the exact contract</h2>
-      <p>Use the prompt for one task, or copy the MCP config to wire the local stdio server into your harness.</p>
+  <div class="copy-prompt-card agent-config" data-copy-widget data-copy-name="MCP config">
+    <div class="copy-prompt-bar">
+      <span class="copy-prompt-label meta-label">MCP config</span>
+      <button class="copy-prompt-btn" type="button" data-copy-target="home-mcp-config" data-copy-name="MCP config" aria-describedby="home-mcp-copy-status">
+        <span class="copy-prompt-icon" aria-hidden="true"></span>
+        <span>Copy MCP config</span>
+      </button>
     </div>
-    <div class="copy-prompt-card copy-prompt-primary" data-copy-widget data-copy-name="Prompt">
-      <div class="copy-prompt-bar">
-        <span class="copy-prompt-label meta-label">Prompt</span>
-        <button class="copy-prompt-btn" type="button" data-copy-target="home-agent-prompt" data-copy-name="Prompt" aria-describedby="home-copy-status">
-          <span class="copy-prompt-icon" aria-hidden="true"></span>
-          <span>Copy prompt</span>
-        </button>
-      </div>
-      <pre class="agent-prompt"><code id="home-agent-prompt">Use Agentic Mermaid locally.
-
-Task: Replace this with your edit request and include the Mermaid source.
-Example task: Add a failure branch from Verify back to Narrow in the pasted flowchart.
-
-Mermaid source:
-&lt;paste your diagram here&gt;
-
-Rules:
-- Do not call the website as a render API.
-- Parse with parseMermaid first.
-- Narrow with the matching as* helper.
-- Use typed mutate operations when the family supports them.
-- Run verifyMermaid before serialize, render, commit, or return.
-- If structural warnings remain after two attempts, return the warnings and ask for review.
-
-Expected trace:
-parseMermaid → asFlowchart → mutate(add_edge) → verifyMermaid → serializeMermaid</code></pre>
-      <p class="copy-prompt-status" id="home-copy-status" role="status" aria-live="polite"></p>
-    </div>
-    <div class="copy-prompt-card agent-config" data-copy-widget data-copy-name="MCP config">
-      <div class="copy-prompt-bar">
-        <span class="copy-prompt-label meta-label">MCP config</span>
-        <button class="copy-prompt-btn" type="button" data-copy-target="home-mcp-config" data-copy-name="MCP config" aria-describedby="home-mcp-copy-status">
-          <span class="copy-prompt-icon" aria-hidden="true"></span>
-          <span>Copy MCP config</span>
-        </button>
-      </div>
-      <pre class="agent-prompt"><code id="home-mcp-config">{
+    <pre class="agent-prompt"><code id="home-mcp-config">{
   "mcpServers": {
     "agentic-mermaid": {
       "command": "bun",
@@ -98,31 +112,15 @@ parseMermaid → asFlowchart → mutate(add_edge) → verifyMermaid → serializ
     }
   }
 }</code></pre>
-      <p class="copy-prompt-hint">Run from the cloned repo root, or replace <code>bin/agentic-mermaid-mcp.ts</code> with an absolute path.</p>
-      <p class="copy-prompt-status" id="home-mcp-copy-status" role="status" aria-live="polite"></p>
-    </div>
-  </section>
+    <p class="copy-prompt-hint">Run from the cloned repo root, or replace <code>bin/agentic-mermaid-mcp.ts</code> with an absolute path.</p>
+    <p class="copy-prompt-status" id="home-mcp-copy-status" role="status" aria-live="polite"></p>
+  </div>
 
   <pre><code><span class="k">$</span> git clone https://github.com/adewale/beautiful-mermaid
 <span class="k">$</span> cd beautiful-mermaid && bun install && bun run build
 <span class="k">$</span> bun run bin/am.ts --help
 <span class="k">$</span> bun run bin/agentic-mermaid-mcp.ts      <span class="c"># stdio MCP</span></code></pre>
-  <p class="muted">Claude Code, Cursor, Codex, Gemini CLI, GitHub Copilot, Pi, OpenCode, and generic MCP clients all use the same local command. Client-specific setup is exposed in <a href="/harnesses.json">harnesses.json</a>.</p>
-
-  <nav class="agent-entrypoints" aria-label="Agent entrypoints">
-    <strong>Machine context</strong>
-    <a href="/llms.txt">llms.txt</a>
-    <a href="/agent-instructions.md">agent-instructions.md</a>
-    <a href="/agent-manifest.json">agent-manifest.json</a>
-    <a href="/capabilities.json">capabilities.json</a>
-    <a href="/harnesses.json">harnesses.json</a>
-    <a href="/schemas/index.json">schemas</a>
-    <a href="/examples/index.json">examples</a>
-    <a href="/recipes/index.json">recipes</a>
-    <a href="/skills/index.json">skills index</a>
-    <a href="/skills/agentic-mermaid-diagram-workflow/">workflow skill</a>
-  </nav>
-
+  <p class="muted">Claude Code, Cursor, Codex, Gemini CLI, GitHub Copilot, Pi, OpenCode, and generic MCP clients all use the same local command. The prompt above is the default agent handoff; use <a href="/agent-instructions.md">agent-instructions.md</a> only when the agent needs the longer operating guide.</p>
 
   <h2>One source, five outputs</h2>
   <p>Every family renders to vector, raster, and text from one layout, byte-identical across processes. Outputs: SVG, PNG, ASCII, Unicode, and JSON layout, across twelve diagram families.</p>
@@ -210,6 +208,19 @@ parseMermaid → asFlowchart → mutate(add_edge) → verifyMermaid → serializ
                                        ▲                               │
                                        └───────────warnings────────────┘</code></pre>
 
+  <section class="machine-context" aria-labelledby="machine-context-title">
+    <h2 id="machine-context-title">Machine-readable context</h2>
+    <p class="muted">Most agents only need the prompt. When they need durable context, keep the set small and tested.</p>
+    <nav class="agent-entrypoints" aria-label="Agent entrypoints">
+      <strong>Machine context</strong>
+      <a href="/llms.txt">llms.txt</a>
+      <a href="/agent-instructions.md">agent-instructions.md</a>
+      <a href="/capabilities.json">capabilities.json</a>
+      <a href="/examples/index.json">examples</a>
+      <a href="/skills/agentic-mermaid-diagram-workflow/SKILL.md">workflow skill</a>
+    </nav>
+  </section>
+
 </main>
 
 <footer>
@@ -217,8 +228,8 @@ parseMermaid → asFlowchart → mutate(add_edge) → verifyMermaid → serializ
     <a href="/llms.txt">llms.txt</a><span class="sep">&middot;</span>
     <a href="/agent-instructions.md">agent-instructions.md</a><span class="sep">&middot;</span>
     <a href="/capabilities.json">capabilities.json</a><span class="sep">&middot;</span>
-    <a href="/agent-manifest.json">agent-manifest.json</a><span class="sep">&middot;</span>
-    <a href="https://github.com/adewale/beautiful-mermaid">GitHub</a>
+    <a href="/examples/index.json">examples.json</a><span class="sep">&middot;</span>
+    <a href="/skills/agentic-mermaid-diagram-workflow/SKILL.md">workflow skill</a>
   </div>
 </footer>
 

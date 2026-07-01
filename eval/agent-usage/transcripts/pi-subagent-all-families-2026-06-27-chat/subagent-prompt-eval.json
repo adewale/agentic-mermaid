@@ -1,0 +1,96 @@
+{
+  "schemaVersion": 1,
+  "capturedAt": "2026-07-01T12:56:17.960Z",
+  "provider": "pi-subagent",
+  "model": "delegate-all-families",
+  "surface": "homepage",
+  "mode": "chat",
+  "cases": [
+    "cache_between_api_and_db",
+    "state_add_done_transition",
+    "sequence_alt_add_message",
+    "timeline_add_event",
+    "class_add_duck",
+    "er_add_order",
+    "journey_add_review_task",
+    "architecture_add_cache",
+    "xychart_add_forecast",
+    "pie_add_docs_slice",
+    "quadrant_add_docs_point",
+    "gantt_add_docs_task",
+    "author_auth_flow_source",
+    "author_api_sequence_source"
+  ],
+  "requests": [
+    {
+      "caseId": "cache_between_api_and_db",
+      "requestPath": "eval/agent-usage/transcripts/pi-subagent-all-families-2026-06-27-chat/requests/cache_between_api_and_db.md",
+      "responsePath": "eval/agent-usage/transcripts/pi-subagent-all-families-2026-06-27-chat/responses/cache_between_api_and_db.txt"
+    },
+    {
+      "caseId": "state_add_done_transition",
+      "requestPath": "eval/agent-usage/transcripts/pi-subagent-all-families-2026-06-27-chat/requests/state_add_done_transition.md",
+      "responsePath": "eval/agent-usage/transcripts/pi-subagent-all-families-2026-06-27-chat/responses/state_add_done_transition.txt"
+    },
+    {
+      "caseId": "sequence_alt_add_message",
+      "requestPath": "eval/agent-usage/transcripts/pi-subagent-all-families-2026-06-27-chat/requests/sequence_alt_add_message.md",
+      "responsePath": "eval/agent-usage/transcripts/pi-subagent-all-families-2026-06-27-chat/responses/sequence_alt_add_message.txt"
+    },
+    {
+      "caseId": "timeline_add_event",
+      "requestPath": "eval/agent-usage/transcripts/pi-subagent-all-families-2026-06-27-chat/requests/timeline_add_event.md",
+      "responsePath": "eval/agent-usage/transcripts/pi-subagent-all-families-2026-06-27-chat/responses/timeline_add_event.txt"
+    },
+    {
+      "caseId": "class_add_duck",
+      "requestPath": "eval/agent-usage/transcripts/pi-subagent-all-families-2026-06-27-chat/requests/class_add_duck.md",
+      "responsePath": "eval/agent-usage/transcripts/pi-subagent-all-families-2026-06-27-chat/responses/class_add_duck.txt"
+    },
+    {
+      "caseId": "er_add_order",
+      "requestPath": "eval/agent-usage/transcripts/pi-subagent-all-families-2026-06-27-chat/requests/er_add_order.md",
+      "responsePath": "eval/agent-usage/transcripts/pi-subagent-all-families-2026-06-27-chat/responses/er_add_order.txt"
+    },
+    {
+      "caseId": "journey_add_review_task",
+      "requestPath": "eval/agent-usage/transcripts/pi-subagent-all-families-2026-06-27-chat/requests/journey_add_review_task.md",
+      "responsePath": "eval/agent-usage/transcripts/pi-subagent-all-families-2026-06-27-chat/responses/journey_add_review_task.txt"
+    },
+    {
+      "caseId": "architecture_add_cache",
+      "requestPath": "eval/agent-usage/transcripts/pi-subagent-all-families-2026-06-27-chat/requests/architecture_add_cache.md",
+      "responsePath": "eval/agent-usage/transcripts/pi-subagent-all-families-2026-06-27-chat/responses/architecture_add_cache.txt"
+    },
+    {
+      "caseId": "xychart_add_forecast",
+      "requestPath": "eval/agent-usage/transcripts/pi-subagent-all-families-2026-06-27-chat/requests/xychart_add_forecast.md",
+      "responsePath": "eval/agent-usage/transcripts/pi-subagent-all-families-2026-06-27-chat/responses/xychart_add_forecast.txt"
+    },
+    {
+      "caseId": "pie_add_docs_slice",
+      "requestPath": "eval/agent-usage/transcripts/pi-subagent-all-families-2026-06-27-chat/requests/pie_add_docs_slice.md",
+      "responsePath": "eval/agent-usage/transcripts/pi-subagent-all-families-2026-06-27-chat/responses/pie_add_docs_slice.txt"
+    },
+    {
+      "caseId": "quadrant_add_docs_point",
+      "requestPath": "eval/agent-usage/transcripts/pi-subagent-all-families-2026-06-27-chat/requests/quadrant_add_docs_point.md",
+      "responsePath": "eval/agent-usage/transcripts/pi-subagent-all-families-2026-06-27-chat/responses/quadrant_add_docs_point.txt"
+    },
+    {
+      "caseId": "gantt_add_docs_task",
+      "requestPath": "eval/agent-usage/transcripts/pi-subagent-all-families-2026-06-27-chat/requests/gantt_add_docs_task.md",
+      "responsePath": "eval/agent-usage/transcripts/pi-subagent-all-families-2026-06-27-chat/responses/gantt_add_docs_task.txt"
+    },
+    {
+      "caseId": "author_auth_flow_source",
+      "requestPath": "eval/agent-usage/transcripts/pi-subagent-all-families-2026-06-27-chat/requests/author_auth_flow_source.md",
+      "responsePath": "eval/agent-usage/transcripts/pi-subagent-all-families-2026-06-27-chat/responses/author_auth_flow_source.txt"
+    },
+    {
+      "caseId": "author_api_sequence_source",
+      "requestPath": "eval/agent-usage/transcripts/pi-subagent-all-families-2026-06-27-chat/requests/author_api_sequence_source.md",
+      "responsePath": "eval/agent-usage/transcripts/pi-subagent-all-families-2026-06-27-chat/responses/author_api_sequence_source.txt"
+    }
+  ]
+}

@@ -106,7 +106,7 @@ describeBrowser('website browser accessibility smoke', () => {
 
   test('public routes have named controls, valid ARIA references, and no mobile horizontal overflow', async () => {
     const page = await browser.newPage({ viewport: { width: 390, height: 900 } })
-    for (const route of ['/', '/examples/', '/about/', '/docs/families/#gantt', '/docs/', '/skills/agentic-mermaid-diagram-workflow/']) {
+    for (const route of ['/', '/examples/', '/about/', '/docs/getting-started/', '/docs/families/#gantt', '/docs/', '/skills/agentic-mermaid-diagram-workflow/']) {
       await page.goto(baseUrl + route, { waitUntil: 'networkidle' })
       expect({ route, unnamed: await namedControls(page) }).toEqual({ route, unnamed: [] })
       expect({ route, broken: await brokenAriaControls(page) }).toEqual({ route, broken: [] })
@@ -121,7 +121,7 @@ describeBrowser('website browser accessibility smoke', () => {
     await page.close()
   })
 
-  test('public typography keeps a measured document column and safe code wrapping', async () => {
+  test('public typography keeps the Examples-width document column and safe code wrapping', async () => {
     const page = await browser.newPage({ viewport: { width: 1280, height: 900 } })
     await page.goto(baseUrl + '/', { waitUntil: 'networkidle' })
     const metrics = await page.evaluate(() => {
@@ -144,9 +144,9 @@ describeBrowser('website browser accessibility smoke', () => {
     })
     expect(metrics.bodyLine).toBeGreaterThanOrEqual(1.55)
     expect(metrics.bodyLine).toBeLessThanOrEqual(1.62)
-    expect(metrics.docWidth).toBeGreaterThan(760)
-    expect(metrics.docWidth).toBeLessThanOrEqual(920)
-    expect(metrics.leadWidth).toBeLessThan(metrics.docWidth)
+    expect(metrics.docWidth).toBeGreaterThanOrEqual(1000)
+    expect(metrics.docWidth).toBeLessThanOrEqual(1008)
+    expect(metrics.leadWidth).toBeGreaterThanOrEqual(950)
     expect(metrics.codeWrap).toBe('break-word')
     expect(metrics.codeLigatures).toContain('"liga" 0')
     expect(metrics.unicodeOverflow).toBe(0)

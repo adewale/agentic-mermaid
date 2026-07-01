@@ -1,0 +1,15 @@
+## Updated Mermaid
+
+```mermaid
+flowchart TD
+  API --> Cache
+  Cache --> DB
+```
+
+## Verification
+
+Verified with `verifyMermaid`; result: ok, warnings: [].
+
+## Trace
+
+Local channel: this repo's `./src/agent/index.ts` via Bun. Calls/ops used: `parseMermaid` on the supplied source, `asFlowchart`, `mutate({ kind: "add_node", id: "Cache", label: "Cache" })`, `mutate({ kind: "remove_edge", id: "API->DB" })`, `mutate({ kind: "add_edge", from: "API", to: "Cache" })`, `mutate({ kind: "add_edge", from: "Cache", to: "DB" })`, `verifyMermaid`, and `serializeMermaid`.

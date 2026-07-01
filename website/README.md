@@ -11,12 +11,11 @@ Cloudflare Workers Static Assets site for `agenticmermaid.dev`, generated from t
 
 ## Routes
 
-- `/`, `/editor/`, `/gallery/`, `/families/`, `/docs/`
+- `/`, `/editor/`, `/examples/`, `/about/`, `/docs/`
 - `/docs/api/`, `/docs/source-level/`, `/docs/cli/`, `/docs/mcp/`, `/docs/ascii/`, `/docs/theming/`, `/docs/config/`, `/docs/react/`, `/docs/quality/`, `/docs/fork-differences/`, `/docs/vocabulary/`
 - `/skills/agentic-mermaid-diagram-workflow/`
 - `/warnings/`, `/warnings/<CODE>/`, `/errors/`, `/errors/<kind>/`, `/examples/`, `/evidence/`, `/security/`, `/releases/`
-- `/llms.txt`, `/agent-instructions.md`, `/capabilities.json`, `/agent-manifest.json`, `/harnesses.json`
-- `/schemas/index.json`, `/recipes/index.json`, `/skills/index.json`, `/examples/index.json`
+- `/llms.txt`, `/agent-instructions.md`, `/capabilities.json`, `/examples/index.json`
 - raw `/skills/agentic-mermaid-diagram-workflow/SKILL.md`
 
 ## Commands

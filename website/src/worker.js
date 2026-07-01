@@ -8,7 +8,7 @@ const redirects = new Map([
 
 const cleanRoutes = new Set([
   '/editor', '/docs', '/skills', '/skills/agentic-mermaid-diagram-workflow',
-  '/docs/api', '/docs/families', '/docs/source-level', '/docs/cli', '/docs/mcp', '/docs/ascii', '/docs/theming',
+  '/docs/getting-started', '/docs/api', '/docs/families', '/docs/source-level', '/docs/cli', '/docs/mcp', '/docs/ascii', '/docs/theming',
   '/docs/config', '/docs/react', '/docs/quality', '/docs/fork-differences', '/docs/vocabulary',
   '/warnings', '/errors', '/examples', '/evidence', '/security', '/releases',
 ])

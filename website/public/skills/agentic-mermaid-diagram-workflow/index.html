@@ -3,14 +3,14 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="description" content="Agentic Mermaid renders, verifies, and edits Mermaid diagrams locally, with static agent manifests for CLI, library, and MCP setup.">
+<meta name="description" content="Agentic Mermaid renders, verifies, and edits Mermaid diagrams locally, with compact agent instructions for CLI, library, and MCP use.">
 <title>The diagram-workflow skill – Agentic Mermaid</title>
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <link rel="icon" href="/favicon.ico" type="image/x-icon">
 <link rel="apple-touch-icon" href="/apple-touch-icon.png">
 <link rel="stylesheet" href="/styles.css">
 <link rel="alternate" type="text/plain" href="/llms.txt">
-<link rel="alternate" type="application/json" href="/agent-manifest.json">
+<link rel="alternate" type="application/json" href="/capabilities.json">
 <link rel="alternate" type="text/markdown" href="/agent-instructions.md">
 </head>
 <body>
@@ -48,7 +48,7 @@ verify &rarr; { "ok": true, "warnings": [] }   <span class="ok">&#10003; shipped
   <p>Because layout is deterministic, the re-narrow moved only the label – every other node landed exactly where it was, so the agent never re-checks work it already trusted.</p>
 
   <h2>When to use it</h2>
-  <p>Reach for the workflow skill to <strong>change an existing diagram</strong> – the loop is the whole point. To author a diagram from scratch, the local CLI or library renderer is enough; for interactive, human-in-the-loop editing, the browser editor is the better fit. <a class="go" href="/harnesses.json">Open harness config</a></p>
+  <p>Reach for the workflow skill to <strong>change an existing diagram</strong> – the loop is the whole point. To author a diagram from scratch, the local CLI or library renderer is enough; for interactive, human-in-the-loop editing, the browser editor is the better fit. <a class="go" href="/agent-instructions.md">Read agent instructions</a></p>
 
   <hr>
 
