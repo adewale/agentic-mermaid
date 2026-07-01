@@ -174,6 +174,12 @@ export function audit(svg: string, opts: { textText?: number; textStraddle?: num
       const { w, h } = inter(a, b)
       if (w <= BB || h <= BB) continue
       if (contains(a, b, 2) || contains(b, a, 2)) continue // container pattern: legitimate
+      // An anonymous label backing rect straddling a region border is the
+      // crossable-border pattern (same policy as TEXT-STRADDLE); an OWNED
+      // element box (service, node) crossing a region border stays flagged —
+      // that is a real containment breach.
+      const anonRegionPair = (isRegionPrim(a) && b.owner.startsWith('prim#')) || (isRegionPrim(b) && a.owner.startsWith('prim#'))
+      if (anonRegionPair) continue
       findings.push({ kind: 'BOX-BOX', a: `${a.kind}(${a.owner})`, b: `${b.kind}(${b.owner})`, pen: Math.min(w, h) })
     }
   }
