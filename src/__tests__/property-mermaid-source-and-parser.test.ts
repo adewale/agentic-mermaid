@@ -165,9 +165,17 @@ describe('property-based mermaid source normalization', () => {
 describe('property-based parseMermaid', () => {
   // Pinned seed: unpinned runs made these properties CI seed-lotteries (the
   // Cartesian-product property above failed only on rare rolled seeds; 2026-07
-  // audit). Scoped via before/afterAll so other fast-check suites keep theirs.
-  beforeAll(() => { fc.configureGlobal({ ...fc.readConfigureGlobal(), seed: 20260702 }) })
-  afterAll(() => { fc.resetConfigureGlobal() })
+  // audit). Save/restore (not reset): the preload's repo-wide seed policy must
+  // survive this suite for every file that runs later in the process.
+  let savedFcConfig: ReturnType<typeof fc.readConfigureGlobal>
+  beforeAll(() => {
+    savedFcConfig = fc.readConfigureGlobal()
+    fc.configureGlobal({ ...savedFcConfig, seed: 20260702 })
+  })
+  afterAll(() => {
+    if (savedFcConfig) fc.configureGlobal(savedFcConfig)
+    else fc.resetConfigureGlobal()
+  })
 
   it('is invariant to blank lines, comments, and surrounding whitespace', () => {
     const graphArb = fc

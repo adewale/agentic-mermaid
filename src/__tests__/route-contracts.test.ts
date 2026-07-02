@@ -1769,9 +1769,17 @@ describe('route contracts — properties', () => {
   // random CI flake (~1 run in 7; issue #83). This is the exact seed whose
   // generated counterexample exposed #83 — with the fix it passes, so the old
   // counterexample class is now a permanent deterministic regression check.
-  // Scoped via before/afterAll so other fast-check suites keep their own seeds.
-  beforeAll(() => { fc.configureGlobal({ ...fc.readConfigureGlobal(), seed: -1377631277 }) })
-  afterAll(() => { fc.resetConfigureGlobal() })
+  // Save/restore (not reset): the preload's repo-wide seed policy must survive
+  // this suite for every file that runs later in the process.
+  let savedFcConfig: ReturnType<typeof fc.readConfigureGlobal>
+  beforeAll(() => {
+    savedFcConfig = fc.readConfigureGlobal()
+    fc.configureGlobal({ ...savedFcConfig, seed: -1377631277 })
+  })
+  afterAll(() => {
+    if (savedFcConfig) fc.configureGlobal(savedFcConfig)
+    else fc.resetConfigureGlobal()
+  })
 
   const flowchartArb = fc
     .record({

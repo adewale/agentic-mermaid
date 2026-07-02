@@ -12,7 +12,9 @@ editing surface. Source lives in `src/`; the layout pipeline is in
 ## Commands
 
 - `bun install` — install dependencies.
-- `bun test src/__tests__/` — run the full unit suite (the CI gate).
+- `bun test src/__tests__/` — run the full unit suite (the CI gate). fast-check
+  seeds are pinned by a preload; `AM_FC_SEED=<int>` reproduces a roll,
+  `AM_FC_SEED=random` is finder mode (see `docs/testing-strategy.md` §4).
 - `bunx tsc --noEmit` — typecheck.
 - `bun run track` — heuristic layout-quality tracker (improvements/regressions vs baseline).
 - `bun run bin/am.ts render <file> --format png --output out.png` — render a diagram.

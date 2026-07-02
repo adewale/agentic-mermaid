@@ -1,4 +1,7 @@
 [test]
+# Determinism: pin the fast-check global seed for every property suite
+# (AM_FC_SEED=random rolls fresh seeds; see docs/testing-strategy.md).
+preload = ["./src/__tests__/fc-seed.preload.ts"]
 coverage = true
 coverageReporter = ["text", "lcov"]
 
