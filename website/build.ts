@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto'
 import { mkdir, readdir, rm, unlink, writeFile } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
 import { BUILTIN_FAMILY_METADATA } from '../src/agent/families.ts'
+import { verifyMermaid } from '../src/agent/index.ts'
 import { renderMermaidSVG } from '../src/index.ts'
 
 const ROOT = join(import.meta.dir, '..')
@@ -61,7 +62,42 @@ const agentDiscoveryLinks = [
 
 function addHeadDescription(html: string) {
   if (html.includes('name="description"')) return html
-  return html.replace(/<meta name="viewport" content="width=device-width, initial-scale=1"\s*\/?\s*>/, '$&\n<meta name="description" content="Agentic Mermaid renders, verifies, and edits Mermaid diagrams locally, with compact agent instructions for CLI, library, and MCP use.">')
+  // Match any viewport tag variant (the editor emits `initial-scale=1.0` with
+  // a self-closing slash) so every shipped page gets a meta description.
+  return html.replace(/<meta name="viewport"[^>]*>/, '$&\n<meta name="description" content="Agentic Mermaid renders, verifies, and edits Mermaid diagrams locally, with compact agent instructions for CLI, library, and MCP use.">')
+}
+
+// Social/canonical metadata. og:image, og:url, and rel=canonical need absolute
+// URLs, so they ship only when the deploy sets SITE_ORIGIN (same pattern as
+// SITE_GIT_SHA); the scheme-relative tags ship on every build.
+const siteOrigin = process.env.SITE_ORIGIN ?? ''
+// titleAttr/descriptionAttr must already be attribute-escaped by the caller.
+function socialMetaTags(titleAttr: string, descriptionAttr: string, route = '') {
+  const tags = [
+    `<meta property="og:title" content="${titleAttr}">`,
+    `<meta property="og:description" content="${descriptionAttr}">`,
+    '<meta property="og:type" content="website">',
+    '<meta name="twitter:card" content="summary_large_image">',
+  ]
+  if (siteOrigin && route) {
+    tags.push(
+      `<link rel="canonical" href="${escapeAttr(siteOrigin + route)}">`,
+      `<meta property="og:url" content="${escapeAttr(siteOrigin + route)}">`,
+      `<meta property="og:image" content="${escapeAttr(siteOrigin + '/og-image.png')}">`,
+    )
+  }
+  return tags.join('\n')
+}
+
+// Head-injection step for mockup-derived pages (and the editor): reuse the
+// page's own <title> and meta description so the social card never drifts
+// from the visible page. Both are lifted from markup, so they are already
+// entity-escaped; only stray quotes need re-escaping for the attribute.
+function addSocialMeta(html: string, route = '') {
+  if (html.includes('property="og:title"')) return html
+  const title = (html.match(/<title>([\s\S]*?)<\/title>/)?.[1] ?? 'Agentic Mermaid').trim().replace(/"/g, '&quot;')
+  const description = html.match(/<meta name="description" content="([^"]*)"/)?.[1] ?? ''
+  return html.replace('</head>', socialMetaTags(title, description, route) + '\n</head>')
 }
 
 function addAgentDiscoveryLinks(html: string) {
@@ -104,8 +140,8 @@ function setNavCurrent(html: string, currentHref = '') {
   return html.replace(`<a href="${currentHref}">${label}</a>`, `<a href="${currentHref}" aria-current="page">${label}</a>`)
 }
 
-function transformHtml(html: string, currentHref = ''): string {
-  return setNavCurrent(ensureMainId(addSkipLink(addAgentDiscoveryLinks(addHeadDescription(rewriteAttrs(html))))), currentHref)
+function transformHtml(html: string, currentHref = '', route = ''): string {
+  return setNavCurrent(ensureMainId(addSkipLink(addAgentDiscoveryLinks(addSocialMeta(addHeadDescription(rewriteAttrs(html)), route)))), currentHref)
 }
 
 function transformEditorHtml(html: string): string {
@@ -117,6 +153,7 @@ function transformEditorHtml(html: string): string {
   out = rewriteAttrs(out)
   out = out.replace(/href="\/beautiful-mermaid\/"/g, 'href="/"')
   out = addHeadDescription(out)
+  out = addSocialMeta(out, '/editor/')
   out = addAgentDiscoveryLinks(out)
   out = addSkipLink(out, 'editor-main')
   return out
@@ -228,19 +265,23 @@ function footerHtml() {
 // (e.g. "Updated · source · read time") and actions row. The public site is
 // deliberately document-first with no breadcrumb chrome (see the website
 // contract test — masthead nav is the only wayfinding the shell ships).
-function pageShell(title: string, lead: string, body: string, currentHref = '', meta = '', actions = '') {
+function pageShell(title: string, lead: string, body: string, currentHref = '', meta = '', actions = '', route = '') {
+  // Titles that already carry the brand (e.g. "About Agentic Mermaid") do not
+  // get the suffix a second time.
+  const fullTitle = title.includes('Agentic Mermaid') ? title : `${title} – Agentic Mermaid`
   return `<!doctype html>
 <html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="description" content="${escapeAttr(lead)}">
-<title>${escapeHtml(title)} – Agentic Mermaid</title>
+<title>${escapeHtml(fullTitle)}</title>
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <link rel="icon" href="/favicon.ico" type="image/x-icon">
 <link rel="apple-touch-icon" href="/apple-touch-icon.png">
 <link rel="stylesheet" href="/styles.css">
 ${agentDiscoveryLinks}
+${socialMetaTags(escapeAttr(fullTitle), escapeAttr(lead), route)}
 </head>
 <body>
 <a class="skip-link" href="#main">Skip to content</a>
@@ -257,6 +298,12 @@ ${footerHtml()}
 <script src="/theme.js"></script>
 </body>
 </html>`
+}
+
+// pageShell + emit with the page's own route wired through, so canonical/og:url
+// metadata can carry the exact path when SITE_ORIGIN is set.
+async function emitShell(rel: string, title: string, lead: string, body: string, currentHref = '', meta = '', actions = '') {
+  await emit(rel, pageShell(title, lead, body, currentHref, meta, actions, '/' + rel.replace(/index\.html$/, '')))
 }
 
 function escapeHtml(s: string) {
@@ -280,7 +327,7 @@ const installCommand = npmPublished
   : 'git clone https://github.com/adewale/beautiful-mermaid && cd beautiful-mermaid && bun install && bun run build'
 const installNotice = npmPublished
   ? 'The npm package is marked published for this build.'
-  : 'This local build has not verified npm publication, so public install copy uses the source-install path.'
+  : 'The npm package is not yet published; install from source.'
 
 const examplesSrc = await Bun.file(join(ROOT, 'editor/js/examples.js')).text()
 const EDITOR_SEMANTIC_STYLE: any = new Function('return (' + extractObjectLiteral(examplesSrc, 'EDITOR_SEMANTIC_STYLE =') + ');')()
@@ -340,6 +387,18 @@ function exampleAnchor(example: any) {
   const family = familyForExample(example)
   return example.category === 'Supported diagrams' && family ? family.id : example.id
 }
+function exampleCategoryId(category: string) {
+  return 'examples-' + category.toLowerCase().replace(/[^a-z0-9]+/g, '-')
+}
+// Compact anchor index at the top of the (very tall) Examples page: one row per
+// category, each example label linking to its existing render anchor.
+function examplesTocHtml(groups: Map<string, any[]>) {
+  const rows = Array.from(groups, ([category, examples]) => {
+    const links = examples.map((example) => `<a href="#${escapeAttr(exampleAnchor(example))}">${escapeHtml(example.label)}</a>`).join('<span class="sep">&middot;</span>')
+    return `<p><a href="#${escapeAttr(exampleCategoryId(category))}"><strong>${escapeHtml(category)}</strong></a> ${links}</p>`
+  }).join('\n')
+  return `<nav class="example-toc" aria-label="Examples on this page">\n${rows}\n</nav>`
+}
 function examplesShowcaseHtml(editorExamples: any[]) {
   const groups = new Map<string, any[]>()
   for (const example of editorExamples) {
@@ -347,9 +406,9 @@ function examplesShowcaseHtml(editorExamples: any[]) {
     if (!groups.has(category)) groups.set(category, [])
     groups.get(category)!.push(example)
   }
-  return '<div class="example-showcase">' + Array.from(groups, ([category, examples]) => `
-<section class="example-group" aria-labelledby="examples-${escapeAttr(category.toLowerCase().replace(/[^a-z0-9]+/g, '-'))}">
-<h2 id="examples-${escapeAttr(category.toLowerCase().replace(/[^a-z0-9]+/g, '-'))}">${escapeHtml(category)}</h2>
+  return '<div class="example-showcase">' + examplesTocHtml(groups) + Array.from(groups, ([category, examples]) => `
+<section class="example-group" aria-labelledby="${escapeAttr(exampleCategoryId(category))}">
+<h2 id="${escapeAttr(exampleCategoryId(category))}">${escapeHtml(category)}</h2>
 <p class="muted">${category === 'Role style presets' ? 'These load role-style presets in the editor. This page renders them with one fixed review theme so the proof stays visually comparable.' : 'One proof per supported family: the exact editor source, an agent task, the trace before return, and a build-time render from that same source.'}</p>
 ${examples.map((example) => {
   const family = familyForExample(example)
@@ -407,7 +466,7 @@ function injectDocsIndex(html: string) {
 }
 for (const [source, target] of pageOutputs) {
   const currentHref = topNavHrefForRoute(routeMap[source])
-  let html = transformHtml(await readMock(source), currentHref)
+  let html = transformHtml(await readMock(source), currentHref, routeMap[source])
   // The mockups carry hand-baked mastheads that predate the About page and the
   // Examples/Gallery/Families consolidation. Swap in the one canonical masthead
   // so every shipped page — mockup-derived or generated — shares one nav.
@@ -542,6 +601,28 @@ function familiesReferenceHtml() {
 </table>
 <p>See any of them rendered on the <a href="/examples/">examples</a> page, or open one in the <a href="/editor/">editor</a>.</p>${docsIndex}`
 }
+// The MCP config copy-card, same widget contract as the homepage prompt card
+// (data-copy-widget + data-copy-target + copy-prompt-btn, wired by theme.js).
+// Getting started is the canonical setup home for this config.
+const MCP_CONFIG_JSON = `{
+  "mcpServers": {
+    "agentic-mermaid": {
+      "command": "bun",
+      "args": ["run", "bin/agentic-mermaid-mcp.ts"]
+    }
+  }
+}`
+function mcpConfigCardHtml(idPrefix: string) {
+  return `<div class="copy-prompt-card agent-config" data-copy-widget data-copy-name="MCP config">
+<div class="copy-prompt-bar">
+<span class="copy-prompt-label meta-label">MCP config</span>
+<button class="copy-prompt-btn" type="button" data-copy-target="${idPrefix}-mcp-config" data-copy-name="MCP config" aria-describedby="${idPrefix}-mcp-copy-status"><span class="copy-prompt-icon" aria-hidden="true"></span><span>Copy MCP config</span></button>
+</div>
+<pre class="agent-prompt"><code id="${idPrefix}-mcp-config">${escapeHtml(MCP_CONFIG_JSON)}</code></pre>
+<p class="copy-prompt-hint">Run from the cloned repo root, or replace <code>bin/agentic-mermaid-mcp.ts</code> with an absolute path.</p>
+<p class="copy-prompt-status" id="${idPrefix}-mcp-copy-status" role="status" aria-live="polite"></p>
+</div>`
+}
 const gettingStartedBody = `<p>Start with Mermaid source, not a screenshot. Render it locally, then give an agent the prompt from the homepage when you want an edit.</p>
 <ol class="start-rail">
 <li><strong>Install Agentic Mermaid.</strong><p>${escapeHtml(installNotice)}</p><pre><code>${escapeHtml(installCommand)}</code></pre></li>
@@ -554,8 +635,10 @@ MMD</code></pre></li>
 <li><strong>Verify, then render.</strong><pre><code>bun run bin/am.ts verify diagram.mmd --json
 bun run bin/am.ts render diagram.mmd --format svg --output diagram.svg
 bun run bin/am.ts render diagram.mmd --format unicode</code></pre></li>
-<li><strong>Ask an agent for the smallest edit.</strong><p>Copy the homepage prompt, paste your task and source, and require the agent to return Updated Mermaid, Verification, and Trace.</p><a class="go" href="/">Copy the agent prompt</a></li>
-<li><strong>Optional: wire local MCP.</strong><pre><code>bun run bin/agentic-mermaid-mcp.ts</code></pre><p>Use stdio MCP from the cloned repo. The hosted Workers site intentionally does not enable Code Mode or a render API.</p></li>
+<li><strong>Ask an agent for the smallest edit.</strong><p>Paste your task and source into the homepage agent prompt, and require the agent to return Updated Mermaid, Verification, and Trace.</p><a class="go" href="/#home-agent-prompt">Get the agent prompt on the homepage</a></li>
+<li><strong>Optional: wire local MCP.</strong><p>Self-hosting over stdio is the default path. The website is documentation plus a browser-local editor; it is not a render API and it does not run hosted Code Mode.</p>
+${mcpConfigCardHtml('getting-started')}
+<pre><code>bun run bin/agentic-mermaid-mcp.ts</code></pre><p>Use stdio MCP from the cloned repo. The hosted Workers site intentionally does not enable Code Mode or a render API.</p></li>
 </ol>
 ${docsIndex}`
 
@@ -596,20 +679,168 @@ function docsPagerHtml(rel: string) {
   const next = docsSequence[i + 1]
   return `\n<nav class="doc-pager" aria-label="Docs pages">${prev ? link(prev, 'prev') : ''}${next ? link(next, 'next') : ''}</nav>`
 }
-for (const [rel, title, lead, body, currentHref] of docPages) await emit(rel, pageShell(title, lead, body + docsPagerHtml(rel), currentHref || (rel.startsWith('docs/') ? '/docs/' : '')))
+for (const [rel, title, lead, body, currentHref] of docPages) await emitShell(rel, title, lead, body + docsPagerHtml(rel), currentHref || (rel.startsWith('docs/') ? '/docs/' : ''))
 
-await emit('warnings/index.html', pageShell('Warnings', 'Warning codes are tiered so agents know whether to fix, retry, or ask.', `<table class="warning-table"><thead><tr><th>Code</th><th>Tier</th><th>Severity</th></tr></thead><tbody>${capabilities.warningCodes.map((w: any) => `<tr><td data-label="Code"><a href="/warnings/${w.code}/"><code>${w.code}</code></a></td><td data-label="Tier">${w.tier}</td><td data-label="Severity">${w.severity}</td></tr>`).join('')}</tbody></table>`))
-for (const w of capabilities.warningCodes) {
-  await emit(`warnings/${w.code}/index.html`, pageShell(w.code, `${w.tier} ${w.severity} warning.`, `<p>Run <code>am verify diagram.mmd --json</code>, inspect this code, and apply the smallest source or typed mutation that clears it. If it persists after two mechanical attempts, return the warning and ask for human review.</p><p class="muted">Back to <a href="/warnings/">all warning codes</a>, or <a href="/editor/">open the editor</a> to watch this warning clear as you edit.</p>`))
+// Per-code warning reference. `what` is plain text (it becomes the lead and the
+// meta description); `triggers`/`fix` may carry inline markup. `example` is a
+// minimal Mermaid source expected to fire the code — it is verified at build
+// time against the real engine and the demo ships ONLY when the code actually
+// fires, so the pages can never show a stale or fabricated reproduction.
+// Codes with no small deterministic reproduction (the layout pipeline prevents
+// them by construction, so they are engine-bug tripwires) ship prose only.
+const WARNING_DETAIL: Record<string, { what: string; triggers: string; fix: string; example?: string }> = {
+  EMPTY_DIAGRAM: {
+    what: 'the source parses to a diagram with no drawable content.',
+    triggers: 'A bare header like <code>flowchart TD</code> with no statements after it, a body containing only comments, or a mutation sequence that removed the last node, message, or task.',
+    fix: 'Add at least one element — <code>add_node</code>/<code>add_edge</code> for flowcharts, <code>add_participant</code>/<code>add_message</code> for sequence, <code>add_task</code> for gantt/journey — or check that the intended body was not lost before serializing.',
+    example: 'flowchart TD',
+  },
+  UNRESOLVABLE_SCHEDULE: {
+    what: 'a gantt schedule cannot be resolved to concrete dates, so bars cannot be positioned.',
+    triggers: 'A task whose <code>after</code>/<code>until</code> expression references a task id that does not exist, or a start/end that cannot be parsed against the declared <code>dateFormat</code>. The warning carries the engine reason string.',
+    fix: 'Point the reference at a real task id or give the task explicit dates with the <code>set_task_dates</code> mutation (or edit the offending source line named in the reason).',
+    example: 'gantt\n  title Release\n  dateFormat YYYY-MM-DD\n  section Build\n    Ship :ship, after review, 3d',
+  },
+  EDGE_MISANCHORED: {
+    what: 'an edge, message, or dependency references an endpoint that is not in the diagram.',
+    triggers: 'A gantt <code>after</code> dependency naming a missing task, a sequence message whose participant was removed, or edges left dangling after a <code>remove_node</code> mutation.',
+    fix: 'Add the missing endpoint (<code>add_node</code>, <code>add_participant</code>, <code>add_task</code>) or retarget/remove the dangling edge (<code>remove_edge</code>, <code>remove_message</code>).',
+    example: 'gantt\n  dateFormat YYYY-MM-DD\n  section Build\n    Design :design, 2026-01-01, 2d\n    Ship :ship, after review, 3d',
+  },
+  OFF_CANVAS: {
+    what: 'a positioned node extends past the computed canvas on the reported axis.',
+    triggers: 'Never in normal operation — the engine sizes the canvas around content, so this is a tripwire that fires only when a layout pass moves geometry after the canvas was sized. Layout is deterministic, so a firing input reproduces byte-identically.',
+    fix: 'Not fixable by editing the diagram content itself: simplify or remove the construct that provokes it, and report the source as a renderer bug so the layout defect gets fixed.',
+  },
+  GROUP_BREACH: {
+    what: 'a node that belongs to a subgraph or group is positioned outside its group rectangle.',
+    triggers: 'An engine-bug tripwire like <code>OFF_CANVAS</code>: deeply nested subgraphs combined with cross-group edges are historically where containment slipped. The warning names both the group and the escaping member.',
+    fix: 'Flatten the nesting or move the member out of the group (source edit, or <code>remove_node</code> then re-add outside the subgraph). A reproducible breach is a renderer bug worth reporting with the source.',
+  },
+  UNKNOWN_SHAPE: {
+    what: 'a node carries a shape outside the renderer’s known vocabulary and falls back to a plain rectangle.',
+    triggers: 'Shape syntax the parser modeled but the renderer does not draw — typically newer Mermaid shape names reaching a structured flowchart or state graph.',
+    fix: 'Switch the node to a supported shape (rectangle, rounded, diamond, stadium, circle, hexagon, cylinder, …) with a source edit; the diagram still renders meanwhile, so this is a warning rather than an error.',
+  },
+  LABEL_OVERFLOW: {
+    what: 'a label is longer than the character cap (default 40), which hurts layout and readability.',
+    triggers: 'Prose sentences pasted into node labels, edge labels, message text, or section/period titles — common when an agent copies requirement text verbatim into the diagram.',
+    fix: 'Shorten the text with <code>set_label</code>, <code>set_message_text</code>, or the matching family mutation; raise <code>labelCharCap</code> in <code>VerifyOptions</code> only when long labels are genuinely intended.',
+    example: 'flowchart LR\n  A[This label is far longer than the forty character cap] --> B[Done]',
+  },
+  NODE_OVERLAP: {
+    what: 'two nodes’ boxes intersect in the final layout; the warning reports the pair and the overlap area in pixels.',
+    triggers: 'The deterministic layout separates nodes by construction, so no small flowchart source fires this — it appears only when a family adapter or post-pass produces colliding boxes on dense inputs. It is a tripwire, not an everyday lint.',
+    fix: 'Shorten the labels of the named pair or reduce local density; if the overlap persists on a stable input, treat it as a layout defect and report the source.',
+  },
+  ROUTE_SELF_CROSS: {
+    what: 'a single edge’s routed polyline crosses over itself.',
+    triggers: 'A routing tripwire on the final geometry: the router avoids self-intersection, so a firing means dense cyclic routing degraded. The warning names the edge and the crossing count.',
+    fix: 'Remove or redirect the redundant edge (<code>remove_edge</code>, then <code>add_edge</code> along a simpler path); a persistent self-cross on unchanged source is an engine bug to report.',
+  },
+  ROUTE_HITCH: {
+    what: 'an edge deviates from its certified straight lane by more than the tolerance, reported in pixels.',
+    triggers: 'The layout certifies clear lanes when routes are frozen; a hitch means a later pass mutated geometry after certification. Agents cannot cause this from source alone.',
+    fix: 'Simplify the crossing edges near the named edge if a quick fix is needed, and report the reproducing source — the certificate/geometry mismatch is an engine defect.',
+  },
+  ROUTE_UNEXPLAINED_BEND: {
+    what: 'an orthogonally-routed edge contains a bend its route certificate does not explain.',
+    triggers: 'Orthogonal families (class, ER) certify every bend against an obstacle; an unexplained bend means post-certification geometry drift. Not reachable from well-formed source in normal operation.',
+    fix: 'No source-level fix is expected to be needed; if verify reports it, capture the source and report it as a renderer bug — determinism makes the reproduction exact.',
+  },
+  ROUTE_LABEL_ON_SHARED_TRUNK: {
+    what: 'an edge label sits on a line segment shared with another edge, so it is ambiguous which edge it names.',
+    triggers: 'Fan-in/fan-out patterns where several labeled edges merge onto a shared trunk and a label pill lands on the shared piece rather than the edge’s own segment.',
+    fix: 'Shorten the label with <code>set_label</code> so it fits the edge’s exclusive segment, or restructure the fan so the labeled edge has its own approach.',
+  },
+  ROUTE_CONTAINER_MISANCHOR: {
+    what: 'an edge attached to a subgraph or group does not terminate on the container’s border.',
+    triggers: 'Container-anchored edges must end exactly on the group rectangle; a miss means the border moved after routing. This is a tripwire over final geometry rather than a source mistake.',
+    fix: 'Re-anchor the edge to a member node instead of the container as a workaround, and report the source — the container anchor contract is the engine’s to uphold.',
+  },
+  ROUTE_SHAPE_MISANCHOR: {
+    what: 'an edge endpoint does not sit on the outline of the node shape it connects to (e.g. off a diamond’s facet).',
+    triggers: 'Endpoint-on-shape is checked against the final node geometry; a miss usually accompanies a node that changed size or shape after routes were frozen.',
+    fix: 'Switching the node to a simpler shape (rectangle) is the mechanical workaround; the underlying anchor drift is an engine defect worth reporting with the source.',
+  },
+  ROUTE_STALE_AFTER_NODE_MOVE: {
+    what: 'an edge still follows a corridor computed before its node moved, so it anchors where the node used to be.',
+    triggers: 'A compaction or alignment pass moved a node after edge routing without re-anchoring the affected edges. Not producible from source alone in normal operation.',
+    fix: 'No diagram edit reliably clears it; report the reproducing source. If it blocks a task, removing and re-adding the named edge forces a fresh route.',
+  },
+  DUPLICATE_EDGE: {
+    what: 'two edges with identical endpoints, label, and style — the second adds ink but no information.',
+    triggers: 'An agent re-adding an edge that already exists, typically an <code>add_edge</code> issued without checking the current edge list, or copy-pasted source lines.',
+    fix: 'Remove one copy with <code>remove_edge</code> (or delete the duplicate source line); if two parallel edges are intentional, give them distinct labels so they stop being duplicates.',
+    example: 'flowchart LR\n  A[Start] --> B[Finish]\n  A --> B',
+  },
+  UNREACHABLE_NODE: {
+    what: 'a node cannot be reached from any root (a node with no incoming edges) by following edges.',
+    triggers: 'Disconnected clusters left behind after <code>remove_edge</code>/<code>remove_node</code> mutations, or a cycle with no entry edge from the main flow.',
+    fix: 'Connect the node into the flow with <code>add_edge</code> from a reachable node, or delete it with <code>remove_node</code> if it is leftover.',
+    example: 'flowchart LR\n  A[Start] --> B[Done]\n  C[Orphan] --> D[Cycle]\n  D --> C',
+  },
+  DECISION_BRANCH_UNLABELED: {
+    what: 'a decision diamond with two or more exits has at least one unlabeled exit, so the branch condition is ambiguous.',
+    triggers: 'Adding a second exit to a diamond without a condition label. ISO 5807 / ANSI X3.5 require each exit of a multi-exit decision to be labeled with its condition value.',
+    fix: 'Label every exit — <code>set_label</code> on the unlabeled edge (e.g. <code>yes</code>/<code>no</code>) or add <code>|condition|</code> to the source line.',
+    example: 'flowchart TD\n  A{Ready?} -->|yes| B[Ship]\n  A --> C[Wait]',
+  },
+  COMMENT_DROPPED: {
+    what: 'in-body %% comments will not survive structured serialization; the loss is announced, not silent.',
+    triggers: 'Comments between statements in a structurally-modeled body: the typed tree does not model them, so <code>serializeMermaid</code> writes the body back without them. The warning carries the count and line numbers.',
+    fix: 'Move essential comment content into a label or title before mutating, keep a source-level edit instead of a typed mutation when comments must survive, or accept the loss knowingly.',
+    example: 'flowchart LR\n  %% review note that structured serialization drops\n  A[Start] --> B[Done]',
+  },
+  UNSUPPORTED_SYNTAX: {
+    what: 'the source uses a construct that is preserved verbatim but not modeled or rendered locally.',
+    triggers: 'Flowchart <code>click</code>/<code>href</code> directives, edge IDs and edge metadata, v11 <code>@{ shape: … }</code> node metadata, and markdown strings — each warning names the syntax and line.',
+    fix: 'Remove the directive if local rendering fidelity matters, or keep it knowing the local renderer ignores it; edits touching those lines need source-level editing rather than typed mutations.',
+    example: 'flowchart LR\n  A[Start] --> B[Docs]\n  click B "https://example.com"',
+  },
+  CONTENT_DROPPED_ON_ROUNDTRIP: {
+    what: 'a parse → serialize → re-parse cycle lost nodes, edges, or groups by count.',
+    triggers: 'A serializer defect on unusual syntax: the faithfulness tally before and after the round trip disagrees. This is a tripwire that guards every verify; it should not fire on supported syntax.',
+    fix: 'Do not serialize the typed tree for this diagram — fall back to source-level edits so nothing is lost, and report the source; the before/after counts on the warning pinpoint what vanished.',
+  },
 }
+
+// Build-time check: emit the firing demo only if the example really fires the
+// code against the current engine. A stale example degrades to prose, never to
+// a false claim.
+function warningDemoHtml(code: string, example: string): string {
+  let fired = false
+  try { fired = verifyMermaid(example).warnings.some((w: any) => w.code === code) } catch { fired = false }
+  if (!fired) return ''
+  const editorHash = btoa(unescape(encodeURIComponent(example)))
+  return `\n<h2>See it fire</h2>\n<p>This minimal source triggers <code>${code}</code> — checked at build time against the same engine the editor runs.</p>\n<pre><code>${escapeHtml(example)}</code></pre>\n<p><a class="go" href="/editor/#${editorHash}">Open in the editor and watch it clear</a></p>`
+}
+
+await emitShell('warnings/index.html', 'Warnings', 'Warning codes are tiered so agents know whether to fix, retry, or ask.', `<table class="warning-table"><thead><tr><th>Code</th><th>Tier</th><th>Severity</th></tr></thead><tbody>${capabilities.warningCodes.map((w: any) => `<tr><td data-label="Code"><a href="/warnings/${w.code}/"><code>${w.code}</code></a></td><td data-label="Tier"><span class="tier-badge tier-${w.tier}">${w.tier}</span></td><td data-label="Severity"><span class="sev-badge sev-${w.severity}">${w.severity}</span></td></tr>`).join('')}</tbody></table>`)
+let firingDemos = 0
+for (const w of capabilities.warningCodes) {
+  const detail = WARNING_DETAIL[w.code]
+  const sevNoun = w.severity === 'error' ? 'error' : 'warning'
+  const lead = detail
+    ? `${w.code} is a ${w.tier} ${sevNoun}: ${detail.what}`
+    : `${w.code} is a ${w.tier} ${sevNoun} reported by verify.`
+  const demo = detail?.example ? warningDemoHtml(w.code, detail.example) : ''
+  if (demo) firingDemos++
+  const detailHtml = detail ? `<p><strong>What triggers it.</strong> ${detail.triggers}</p>\n<p><strong>How to fix it.</strong> ${detail.fix}</p>` : ''
+  await emitShell(`warnings/${w.code}/index.html`, w.code, lead, `${detailHtml}${demo}
+<p>Run <code>am verify diagram.mmd --json</code>, inspect this code, and apply the smallest source or typed mutation that clears it. If it persists after two mechanical attempts, return the warning and ask for human review.</p>
+<p class="muted">In the cloned repo, <code>am</code> is <code>bun run bin/am.ts</code>.</p>
+<p class="muted">Back to <a href="/warnings/">all warning codes</a>, or <a href="/editor/">open the editor</a> to watch this warning clear as you edit.</p>`)
+}
+console.log(`website/build: ${firingDemos}/${capabilities.warningCodes.length} warning pages carry a build-time-verified firing demo`)
 const errors = [
   ['parse-error', 'Parse error', 'The source could not be parsed. Preserve the source and point to the line/column when available.'],
   ['mutation-error', 'Mutation error', 'A typed mutation was invalid for the narrowed family or target.'],
   ['render-error', 'Render error', 'Rendering failed after parse. Return the error and source; do not fabricate an artifact.'],
   ['verify-failed', 'Verify failed', 'The diagram parsed but verification returned blocking structural warnings.'],
 ]
-await emit('errors/index.html', pageShell('Errors', 'Error pages explain recovery paths for local CLI, library, and MCP use.', `<ul>${errors.map(([id, title, desc]) => `<li><a href="/errors/${id}/">${title}</a> – ${desc}</li>`).join('')}</ul>`))
-for (const [id, title, desc] of errors) await emit(`errors/${id}/index.html`, pageShell(title, desc, '<pre><code>am verify diagram.mmd --json</code></pre><p>Return the structured error to the caller when a safe automatic fix is not obvious.</p><p class="muted">Back to <a href="/errors/">all errors</a>, or <a href="/editor/">open the editor</a> to reproduce the failure as you type.</p>'))
+await emitShell('errors/index.html', 'Errors', 'Error pages explain recovery paths for local CLI, library, and MCP use.', `<ul>${errors.map(([id, title, desc]) => `<li><a href="/errors/${id}/">${title}</a> – ${desc}</li>`).join('')}</ul>`)
+for (const [id, title, desc] of errors) await emitShell(`errors/${id}/index.html`, title, desc, '<pre><code>am verify diagram.mmd --json</code></pre><p>Return the structured error to the caller when a safe automatic fix is not obvious.</p><p class="muted">Back to <a href="/errors/">all errors</a>, or <a href="/editor/">open the editor</a> to reproduce the failure as you type.</p>')
 
 const securityHeaders = [
   '/*',

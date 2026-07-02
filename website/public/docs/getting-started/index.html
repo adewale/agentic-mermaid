@@ -12,6 +12,10 @@
 <link rel="alternate" type="text/plain" href="/llms.txt">
 <link rel="alternate" type="application/json" href="/capabilities.json">
 <link rel="alternate" type="text/markdown" href="/agent-instructions.md">
+<meta property="og:title" content="Getting started – Agentic Mermaid">
+<meta property="og:description" content="From Mermaid source to a verified local render, then to an agent-safe edit loop.">
+<meta property="og:type" content="website">
+<meta name="twitter:card" content="summary_large_image">
 </head>
 <body>
 <a class="skip-link" href="#main">Skip to content</a>
@@ -23,7 +27,7 @@
 </section>
 <p>Start with Mermaid source, not a screenshot. Render it locally, then give an agent the prompt from the homepage when you want an edit.</p>
 <ol class="start-rail">
-<li><strong>Install Agentic Mermaid.</strong><p>This local build has not verified npm publication, so public install copy uses the source-install path.</p><pre><code>git clone https://github.com/adewale/beautiful-mermaid &amp;&amp; cd beautiful-mermaid &amp;&amp; bun install &amp;&amp; bun run build</code></pre></li>
+<li><strong>Install Agentic Mermaid.</strong><p>The npm package is not yet published; install from source.</p><pre><code>git clone https://github.com/adewale/beautiful-mermaid &amp;&amp; cd beautiful-mermaid &amp;&amp; bun install &amp;&amp; bun run build</code></pre></li>
 <li><strong>Create a diagram.</strong><pre><code>cat > diagram.mmd &lt;&lt;'MMD'
 flowchart LR
   Idea[Idea] --&gt; Draft[Draft]
@@ -33,8 +37,25 @@ MMD</code></pre></li>
 <li><strong>Verify, then render.</strong><pre><code>bun run bin/am.ts verify diagram.mmd --json
 bun run bin/am.ts render diagram.mmd --format svg --output diagram.svg
 bun run bin/am.ts render diagram.mmd --format unicode</code></pre></li>
-<li><strong>Ask an agent for the smallest edit.</strong><p>Copy the homepage prompt, paste your task and source, and require the agent to return Updated Mermaid, Verification, and Trace.</p><a class="go" href="/">Copy the agent prompt</a></li>
-<li><strong>Optional: wire local MCP.</strong><pre><code>bun run bin/agentic-mermaid-mcp.ts</code></pre><p>Use stdio MCP from the cloned repo. The hosted Workers site intentionally does not enable Code Mode or a render API.</p></li>
+<li><strong>Ask an agent for the smallest edit.</strong><p>Paste your task and source into the homepage agent prompt, and require the agent to return Updated Mermaid, Verification, and Trace.</p><a class="go" href="/#home-agent-prompt">Get the agent prompt on the homepage</a></li>
+<li><strong>Optional: wire local MCP.</strong><p>Self-hosting over stdio is the default path. The website is documentation plus a browser-local editor; it is not a render API and it does not run hosted Code Mode.</p>
+<div class="copy-prompt-card agent-config" data-copy-widget data-copy-name="MCP config">
+<div class="copy-prompt-bar">
+<span class="copy-prompt-label meta-label">MCP config</span>
+<button class="copy-prompt-btn" type="button" data-copy-target="getting-started-mcp-config" data-copy-name="MCP config" aria-describedby="getting-started-mcp-copy-status"><span class="copy-prompt-icon" aria-hidden="true"></span><span>Copy MCP config</span></button>
+</div>
+<pre class="agent-prompt"><code id="getting-started-mcp-config">{
+  "mcpServers": {
+    "agentic-mermaid": {
+      "command": "bun",
+      "args": ["run", "bin/agentic-mermaid-mcp.ts"]
+    }
+  }
+}</code></pre>
+<p class="copy-prompt-hint">Run from the cloned repo root, or replace <code>bin/agentic-mermaid-mcp.ts</code> with an absolute path.</p>
+<p class="copy-prompt-status" id="getting-started-mcp-copy-status" role="status" aria-live="polite"></p>
+</div>
+<pre><code>bun run bin/agentic-mermaid-mcp.ts</code></pre><p>Use stdio MCP from the cloned repo. The hosted Workers site intentionally does not enable Code Mode or a render API.</p></li>
 </ol>
 <hr><h2>Docs index</h2><ul class="doc-index"><li><a href="/docs/getting-started/">Getting started</a></li><li><a href="/docs/families/">Diagram families</a></li><li><a href="/docs/api/">Library API</a></li><li><a href="/docs/cli/">CLI</a></li><li><a href="/docs/mcp/">MCP</a></li><li><a href="/docs/source-level/">Source-level edits</a></li><li><a href="/docs/ascii/">ASCII and Unicode</a></li><li><a href="/docs/theming/">Theming</a></li><li><a href="/docs/config/">Config</a></li><li><a href="/docs/react/">React</a></li><li><a href="/docs/quality/">Quality</a></li><li><a href="/warnings/">Warnings</a></li><li><a href="/errors/">Errors</a></li><li><a href="/docs/vocabulary/">Vocabulary</a></li><li><a href="/docs/fork-differences/">Fork differences</a></li></ul>
 <nav class="doc-pager" aria-label="Docs pages"><a class="doc-pager-next" rel="next" href="/docs/families/">Diagram families &rarr;</a></nav>

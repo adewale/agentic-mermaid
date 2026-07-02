@@ -14,10 +14,11 @@
   transform: translateY(0);
 }
 
-/* Toast */
+/* Toast. Bottom offset clears the verify bar (min 34px) plus the preview
+   footer (28px) so a toast never sits on the verify verdict. */
 .toast {
   position: fixed;
-  bottom: 2rem;
+  bottom: calc(34px + 28px + 14px);
   left: 50%;
   transform: translateX(-50%) translateY(0);
   background: var(--popover-bg);

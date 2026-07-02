@@ -101,6 +101,12 @@ var copySourceBtn = document.getElementById('copy-source-btn');
 if (copySourceBtn) copySourceBtn.addEventListener('click', copySource);
 var copyAgentTaskBtn = document.getElementById('copy-agent-prompt-btn');
 if (copyAgentTaskBtn) copyAgentTaskBtn.addEventListener('click', copyAgentTask);
+// Topbar entry point for the same handoff (visible ≥1100px); copy feedback
+// lands on the button that was actually clicked.
+var agentPromptTopbarBtn = document.getElementById('agent-prompt-topbar-btn');
+if (agentPromptTopbarBtn) agentPromptTopbarBtn.addEventListener('click', function() {
+  writeClipboardText(buildAgentTaskPrompt(), 'Agent task prompt copied!', 'Copy agent task failed.', agentPromptTopbarBtn);
+});
 
 var currentCanvasFormat = 'diagram';
 var CANVAS_FORMATS = ['diagram', 'unicode', 'ascii'];

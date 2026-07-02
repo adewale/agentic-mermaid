@@ -12,6 +12,10 @@
 <link rel="alternate" type="text/plain" href="/llms.txt">
 <link rel="alternate" type="application/json" href="/capabilities.json">
 <link rel="alternate" type="text/markdown" href="/agent-instructions.md">
+<meta property="og:title" content="Agentic Mermaid">
+<meta property="og:description" content="Agentic Mermaid renders, verifies, and edits Mermaid diagrams locally, with compact agent instructions for CLI, library, and MCP use.">
+<meta property="og:type" content="website">
+<meta name="twitter:card" content="summary_large_image">
 </head>
 <body>
 <a class="skip-link" href="#main">Skip to content</a>
@@ -26,7 +30,6 @@
     <div class="page-actions">
       <button class="primary-action prompt-action" type="button" data-copy-target="home-agent-prompt" data-copy-name="Agent prompt" aria-describedby="home-copy-status"><span class="copy-prompt-icon" aria-hidden="true"></span><span>Copy agent prompt</span></button>
       <a class="secondary-action" href="/docs/getting-started/">Getting started</a>
-      <a class="secondary-action" href="/editor/">Open editor</a>
       <span class="copy-prompt-status" id="home-copy-status" role="status" aria-live="polite"></span>
     </div>
   </section>
@@ -40,7 +43,9 @@
           <span>Copy prompt</span>
         </button>
       </div>
-      <pre class="agent-prompt"><code id="home-agent-prompt">Create or edit a Mermaid diagram with Agentic Mermaid.
+      <details class="prompt-details">
+        <summary><span class="prompt-summary-closed">Show the full prompt</span><span class="prompt-summary-open">Hide the full prompt</span></summary>
+        <pre class="agent-prompt"><code id="home-agent-prompt">Create or edit a Mermaid diagram with Agentic Mermaid.
 
 Task:
 &lt;replace with the requested diagram goal or edit&gt;
@@ -71,9 +76,84 @@ Workflow:
 8. In Trace, name the local channel and exact calls/ops used: `parseMermaid`, the `as*` helper, `mutate({ kind: ... })`, `verifyMermaid`, and `serializeMermaid`; for new diagrams say `no mutate`.
 
 Do not modify project files unless the user explicitly asked you to change files.</code></pre>
+      </details>
       <p class="copy-prompt-status" id="home-card-copy-status" role="status" aria-live="polite"></p>
     </div>
   </section>
+
+  <figure>
+    <div class="plate dia-plate">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 994.975 209.186" width="994.975" height="209.186" style="--font:Inter">
+<style>
+  text { font-family: var(--font, 'Inter'), system-ui, sans-serif; }
+  svg {
+    /* Derived from --bg and --fg (overridable via --line, --accent, etc.) */
+    --_text:          var(--fg);
+    --_text-sec:      var(--muted, color-mix(in srgb, var(--fg) 78%, var(--bg)));
+    --_text-muted:    var(--muted, color-mix(in srgb, var(--fg) 66%, var(--bg)));
+    --_text-faint:    color-mix(in srgb, var(--fg) 54%, var(--bg));
+    --_line:          var(--line, color-mix(in srgb, var(--fg) 50%, var(--bg)));
+    --_arrow:         var(--accent, color-mix(in srgb, var(--fg) 85%, var(--bg)));
+    --_node-fill:     var(--surface, color-mix(in srgb, var(--fg) 3%, var(--bg)));
+    --_node-stroke:   var(--border, color-mix(in srgb, var(--fg) 20%, var(--bg)));
+    --_group-fill:    var(--bg);
+    --_group-hdr:     color-mix(in srgb, var(--fg) 5%, var(--bg));
+    --_inner-stroke:  color-mix(in srgb, var(--fg) 12%, var(--bg));
+    --_key-badge:     color-mix(in srgb, var(--fg) 10%, var(--bg));
+  }
+</style>
+<defs>
+  <marker id="arrowhead" markerWidth="8" markerHeight="5" refX="7" refY="2.5" orient="auto">
+    <polygon points="0 0, 8 2.5, 0 5" fill="var(--_arrow)" stroke="var(--_arrow)" stroke-width="0.75" stroke-linejoin="round" />
+  </marker>
+  <marker id="arrowhead-start" markerWidth="8" markerHeight="5" refX="7" refY="2.5" orient="auto-start-reverse">
+    <polygon points="0 0, 8 2.5, 0 5" fill="var(--_arrow)" stroke="var(--_arrow)" stroke-width="0.75" stroke-linejoin="round" />
+  </marker>
+</defs>
+<polyline class="edge" data-from="S" data-to="P" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" points="156.791,83.86800000000001 204.791,83.86800000000001" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="P" data-to="N" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" points="282.30899999999997,90.018 330.30899999999997,90.018" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="N" data-to="M" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" points="415.23699999999997,90.018 463.23699999999997,90.018" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="M" data-to="V" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" points="542.237,90.018 590.237,90.018" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="V" data-to="R" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" data-label="ok" points="690.2729999999999,90.018 807.803,90.018" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="V" data-to="N" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" data-label="warnings" points="640.255,140.036 640.255,150.036 372.77299999999997,150.036 372.77299999999997,108.468" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<g class="edge-label" data-from="V" data-to="R" data-label="ok">
+  <rect class="edge-label-halo" x="730.273" y="70.868" width="37.53" height="38.3" rx="4" ry="4" fill="var(--bg)" stroke="none" />
+  <rect x="734.273" y="74.868" width="29.53" height="30.3" rx="2" ry="2" fill="var(--bg)" stroke="var(--_inner-stroke)" stroke-width="1" />
+  <text x="749.038" y="90.018" text-anchor="middle" font-size="11" font-weight="400" fill="var(--_text-sec)" dy="3.8499999999999996">ok</text>
+</g>
+<g class="edge-label" data-from="V" data-to="N" data-label="warnings">
+  <rect class="edge-label-halo" x="480.631" y="130.036" width="69.606" height="38.3" rx="4" ry="4" fill="var(--bg)" stroke="none" />
+  <rect x="484.631" y="134.036" width="61.606" height="30.3" rx="2" ry="2" fill="var(--bg)" stroke="var(--_inner-stroke)" stroke-width="1" />
+  <text x="515.434" y="149.186" text-anchor="middle" font-size="11" font-weight="400" fill="var(--_text-sec)" dy="3.8499999999999996">warnings</text>
+</g>
+<g class="node" data-id="S" data-label="Source .mmd" data-shape="rectangle">
+  <rect x="40" y="65.418" width="116.79099999999998" height="36.900000000000006" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="98.3955" y="83.86800000000001" text-anchor="middle" font-size="13" font-weight="500" fill="var(--_text)" dy="4.55">Source .mmd</text>
+</g>
+<g class="node" data-id="P" data-label="parse" data-shape="rectangle">
+  <rect x="204.791" y="65.418" width="77.518" height="36.900000000000006" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="243.55" y="83.86800000000001" text-anchor="middle" font-size="13" font-weight="500" fill="var(--_text)" dy="4.55">parse</text>
+</g>
+<g class="node" data-id="N" data-label="narrow" data-shape="rectangle">
+  <rect x="330.30899999999997" y="71.568" width="84.928" height="36.900000000000006" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="372.77299999999997" y="90.018" text-anchor="middle" font-size="13" font-weight="500" fill="var(--_text)" dy="4.55">narrow</text>
+</g>
+<g class="node" data-id="M" data-label="mutate" data-shape="rectangle">
+  <rect x="463.23699999999997" y="71.568" width="79" height="36.900000000000006" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="502.73699999999997" y="90.018" text-anchor="middle" font-size="13" font-weight="500" fill="var(--_text)" dy="4.55">mutate</text>
+</g>
+<g class="node" data-id="V" data-label="verify" data-shape="diamond">
+  <polygon points="640.255,40 690.273,90.018 640.255,140.036 590.237,90.018" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="640.255" y="90.018" text-anchor="middle" font-size="13" font-weight="500" fill="var(--_text)" dy="4.55">verify</text>
+</g>
+<g class="node" data-id="R" data-label="serialize → render" data-shape="rectangle">
+  <rect x="807.803" y="71.568" width="147.17200000000003" height="36.900000000000006" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="881.389" y="90.018" text-anchor="middle" font-size="13" font-weight="500" fill="var(--_text)" dy="4.55">serialize → render</text>
+</g>
+</svg>
+    </div>
+    <figcaption>The agent edit loop, rendered to SVG. <a class="go" href="/editor/#Zmxvd2NoYXJ0IExSCiAgU1tTb3VyY2UgLm1tZF0gLS0+IFBbcGFyc2VdCiAgUCAtLT4gTltuYXJyb3ddCiAgTiAtLT4gTVttdXRhdGVdCiAgTSAtLT4gVnt2ZXJpZnl9CiAgViAtLSBvayAtLT4gUltzZXJpYWxpemUg4oaSIHJlbmRlcl0KICBWIC0tIHdhcm5pbmdzIC0tPiBO">Edit this diagram in the editor</a></figcaption>
+  </figure>
 
   <section class="quick-start" aria-labelledby="quick-start-title">
     <p class="section-kicker">Agent quick start</p>
@@ -152,37 +232,10 @@ execute(`
 `)</code></pre>
       </div>
     </div>
-    <p class="muted">In the cloned repo, <code>am</code> is <code>bun run bin/am.ts</code>; MCP wiring is under <a href="#local-setup">local setup</a> below.</p>
+    <p class="muted">In the cloned repo, <code>am</code> is <code>bun run bin/am.ts</code>; MCP wiring is in <a href="/docs/getting-started/">Getting started</a>.</p>
   </section>
 
-  <h2 id="local-setup">Local setup</h2>
-  <p>Self-hosting over stdio is the default path. The website is documentation plus a browser-local editor; it is not a render API and it does not run hosted Code Mode.</p>
-
-  <div class="copy-prompt-card agent-config" data-copy-widget data-copy-name="MCP config">
-    <div class="copy-prompt-bar">
-      <span class="copy-prompt-label meta-label">MCP config</span>
-      <button class="copy-prompt-btn" type="button" data-copy-target="home-mcp-config" data-copy-name="MCP config" aria-describedby="home-mcp-copy-status">
-        <span class="copy-prompt-icon" aria-hidden="true"></span>
-        <span>Copy MCP config</span>
-      </button>
-    </div>
-    <pre class="agent-prompt"><code id="home-mcp-config">{
-  "mcpServers": {
-    "agentic-mermaid": {
-      "command": "bun",
-      "args": ["run", "bin/agentic-mermaid-mcp.ts"]
-    }
-  }
-}</code></pre>
-    <p class="copy-prompt-hint">Run from the cloned repo root, or replace <code>bin/agentic-mermaid-mcp.ts</code> with an absolute path.</p>
-    <p class="copy-prompt-status" id="home-mcp-copy-status" role="status" aria-live="polite"></p>
-  </div>
-
-  <pre><code><span class="k">$</span> git clone https://github.com/adewale/beautiful-mermaid
-<span class="k">$</span> cd beautiful-mermaid && bun install && bun run build
-<span class="k">$</span> bun run bin/am.ts --help
-<span class="k">$</span> bun run bin/agentic-mermaid-mcp.ts      <span class="c"># stdio MCP</span></code></pre>
-  <p class="muted">Claude Code, Cursor, Codex, Gemini CLI, GitHub Copilot, Pi, OpenCode, and generic MCP clients all use the same local command. The prompt above is the default agent handoff; use <a href="/agent-instructions.md">agent-instructions.md</a> only when the agent needs the longer operating guide.</p>
+  <p class="muted">Setup lives in <a href="/docs/getting-started/">Getting started</a>: clone, build, and wire the stdio MCP in two minutes.</p>
 
   <h2>One source, five outputs</h2>
   <p>Every family renders to vector, raster, and text from one layout, byte-identical across processes. Outputs: SVG, PNG, ASCII, Unicode, and JSON layout, across twelve diagram families.</p>
@@ -196,81 +249,8 @@ execute(`
     <li><a href="/evidence/"><strong>Curated</strong> quality evidence</a></li>
   </ul>
 
-  <figure>
-    <div class="plate dia-plate">
-      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 994.975 209.186" width="994.975" height="209.186" style="--font:Inter">
-<style>
-  text { font-family: var(--font, 'Inter'), system-ui, sans-serif; }
-  svg {
-    /* Derived from --bg and --fg (overridable via --line, --accent, etc.) */
-    --_text:          var(--fg);
-    --_text-sec:      var(--muted, color-mix(in srgb, var(--fg) 78%, var(--bg)));
-    --_text-muted:    var(--muted, color-mix(in srgb, var(--fg) 66%, var(--bg)));
-    --_text-faint:    color-mix(in srgb, var(--fg) 54%, var(--bg));
-    --_line:          var(--line, color-mix(in srgb, var(--fg) 50%, var(--bg)));
-    --_arrow:         var(--accent, color-mix(in srgb, var(--fg) 85%, var(--bg)));
-    --_node-fill:     var(--surface, color-mix(in srgb, var(--fg) 3%, var(--bg)));
-    --_node-stroke:   var(--border, color-mix(in srgb, var(--fg) 20%, var(--bg)));
-    --_group-fill:    var(--bg);
-    --_group-hdr:     color-mix(in srgb, var(--fg) 5%, var(--bg));
-    --_inner-stroke:  color-mix(in srgb, var(--fg) 12%, var(--bg));
-    --_key-badge:     color-mix(in srgb, var(--fg) 10%, var(--bg));
-  }
-</style>
-<defs>
-  <marker id="arrowhead" markerWidth="8" markerHeight="5" refX="7" refY="2.5" orient="auto">
-    <polygon points="0 0, 8 2.5, 0 5" fill="var(--_arrow)" stroke="var(--_arrow)" stroke-width="0.75" stroke-linejoin="round" />
-  </marker>
-  <marker id="arrowhead-start" markerWidth="8" markerHeight="5" refX="7" refY="2.5" orient="auto-start-reverse">
-    <polygon points="0 0, 8 2.5, 0 5" fill="var(--_arrow)" stroke="var(--_arrow)" stroke-width="0.75" stroke-linejoin="round" />
-  </marker>
-</defs>
-<polyline class="edge" data-from="S" data-to="P" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" points="156.791,83.86800000000001 204.791,83.86800000000001" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
-<polyline class="edge" data-from="P" data-to="N" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" points="282.30899999999997,90.018 330.30899999999997,90.018" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
-<polyline class="edge" data-from="N" data-to="M" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" points="415.23699999999997,90.018 463.23699999999997,90.018" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
-<polyline class="edge" data-from="M" data-to="V" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" points="542.237,90.018 590.237,90.018" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
-<polyline class="edge" data-from="V" data-to="R" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" data-label="ok" points="690.2729999999999,90.018 807.803,90.018" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
-<polyline class="edge" data-from="V" data-to="N" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" data-label="warnings" points="640.255,140.036 640.255,150.036 372.77299999999997,150.036 372.77299999999997,108.468" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
-<g class="edge-label" data-from="V" data-to="R" data-label="ok">
-  <rect class="edge-label-halo" x="730.273" y="70.868" width="37.53" height="38.3" rx="4" ry="4" fill="var(--bg)" stroke="none" />
-  <rect x="734.273" y="74.868" width="29.53" height="30.3" rx="2" ry="2" fill="var(--bg)" stroke="var(--_inner-stroke)" stroke-width="1" />
-  <text x="749.038" y="90.018" text-anchor="middle" font-size="11" font-weight="400" fill="var(--_text-sec)" dy="3.8499999999999996">ok</text>
-</g>
-<g class="edge-label" data-from="V" data-to="N" data-label="warnings">
-  <rect class="edge-label-halo" x="480.631" y="130.036" width="69.606" height="38.3" rx="4" ry="4" fill="var(--bg)" stroke="none" />
-  <rect x="484.631" y="134.036" width="61.606" height="30.3" rx="2" ry="2" fill="var(--bg)" stroke="var(--_inner-stroke)" stroke-width="1" />
-  <text x="515.434" y="149.186" text-anchor="middle" font-size="11" font-weight="400" fill="var(--_text-sec)" dy="3.8499999999999996">warnings</text>
-</g>
-<g class="node" data-id="S" data-label="Source .mmd" data-shape="rectangle">
-  <rect x="40" y="65.418" width="116.79099999999998" height="36.900000000000006" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
-  <text x="98.3955" y="83.86800000000001" text-anchor="middle" font-size="13" font-weight="500" fill="var(--_text)" dy="4.55">Source .mmd</text>
-</g>
-<g class="node" data-id="P" data-label="parse" data-shape="rectangle">
-  <rect x="204.791" y="65.418" width="77.518" height="36.900000000000006" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
-  <text x="243.55" y="83.86800000000001" text-anchor="middle" font-size="13" font-weight="500" fill="var(--_text)" dy="4.55">parse</text>
-</g>
-<g class="node" data-id="N" data-label="narrow" data-shape="rectangle">
-  <rect x="330.30899999999997" y="71.568" width="84.928" height="36.900000000000006" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
-  <text x="372.77299999999997" y="90.018" text-anchor="middle" font-size="13" font-weight="500" fill="var(--_text)" dy="4.55">narrow</text>
-</g>
-<g class="node" data-id="M" data-label="mutate" data-shape="rectangle">
-  <rect x="463.23699999999997" y="71.568" width="79" height="36.900000000000006" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
-  <text x="502.73699999999997" y="90.018" text-anchor="middle" font-size="13" font-weight="500" fill="var(--_text)" dy="4.55">mutate</text>
-</g>
-<g class="node" data-id="V" data-label="verify" data-shape="diamond">
-  <polygon points="640.255,40 690.273,90.018 640.255,140.036 590.237,90.018" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
-  <text x="640.255" y="90.018" text-anchor="middle" font-size="13" font-weight="500" fill="var(--_text)" dy="4.55">verify</text>
-</g>
-<g class="node" data-id="R" data-label="serialize → render" data-shape="rectangle">
-  <rect x="807.803" y="71.568" width="147.17200000000003" height="36.900000000000006" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
-  <text x="881.389" y="90.018" text-anchor="middle" font-size="13" font-weight="500" fill="var(--_text)" dy="4.55">serialize → render</text>
-</g>
-</svg>
-    </div>
-    <figcaption>The agent edit loop, rendered to SVG. <a class="go" href="/editor/#Zmxvd2NoYXJ0IExSCiAgU1tTb3VyY2UgLm1tZF0gLS0+IFBbcGFyc2VdCiAgUCAtLT4gTltuYXJyb3ddCiAgTiAtLT4gTVttdXRhdGVdCiAgTSAtLT4gVnt2ZXJpZnl9CiAgViAtLSBvayAtLT4gUltzZXJpYWxpemUg4oaSIHJlbmRlcl0KICBWIC0tIHdhcm5pbmdzIC0tPiBO">Edit this diagram in the editor</a></figcaption>
-  </figure>
 
-  <p>The same diagram as Unicode text:</p>
+  <p>The loop diagram at the top of the page again — same source, same layout — as Unicode text:</p>
   <pre class="unicode-diagram"><code>┌─────────────┐     ┌───────┐     ┌────────┐     ┌──────────┐     ◇────────◇     ┌────────────────────┐
 │             │     │       │     │        │     │          │     │        │     │                    │
 │ Source .mmd ├────►│ parse ├────►│ narrow ├────►│  mutate  ├────►│ verify ├─ok─►│ serialize → render │

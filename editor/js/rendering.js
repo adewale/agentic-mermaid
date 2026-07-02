@@ -93,6 +93,11 @@ function buildOptions() {
 }
 
 function setTextOutputs(unicode, ascii) {
+  // Direct writes invalidate any pending lazy render — the panes now show
+  // exactly what the caller asked for (placeholder or error copy).
+  pendingTextSource = null;
+  textRenderedFor.unicode = null;
+  textRenderedFor.ascii = null;
   if (unicodeOutput) {
     unicodeOutput.style.fontSize = '';
     unicodeOutput.textContent = unicode || "Render a valid diagram to see Unicode output.";
@@ -131,11 +136,34 @@ function setVerifyTier(el, labelEl, stateName, text) {
   labelEl.textContent = text;
 }
 
+// Verify-clear moment: when a tier goes from carrying warnings to Clear after
+// an edit, pulse a `tier-cleared` class on the chip for ~1s so CSS can animate
+// the transition. Counts of -1 mean "unknown" (initial load / reset), which
+// never pulses.
+var lastVerifyTierCounts = { structural: -1, geometric: -1, lint: -1 };
+
+function markTierCleared(el, tier, count) {
+  var prev = lastVerifyTierCounts[tier];
+  lastVerifyTierCounts[tier] = count;
+  if (!el || count !== 0 || prev <= 0) return;
+  el.classList.remove("tier-cleared");
+  void el.offsetWidth; // restart the animation if the class was still applied
+  el.classList.add("tier-cleared");
+  setTimeout(function() { el.classList.remove("tier-cleared"); }, 1000);
+}
+
+function resetVerifyTierCounts() {
+  lastVerifyTierCounts.structural = -1;
+  lastVerifyTierCounts.geometric = -1;
+  lastVerifyTierCounts.lint = -1;
+}
+
 function resetVerifyPanel(summary) {
   if (verifySummary) verifySummary.textContent = summary || "Waiting for source";
   setVerifyTier(verifyTierStructural, verifyStructural, "idle", "Not run");
   setVerifyTier(verifyTierGeometric, verifyGeometric, "idle", "Not run");
   setVerifyTier(verifyTierLint, verifyLint, "idle", "Not run");
+  resetVerifyTierCounts();
   updateVerifyDetails([]);
 }
 
@@ -222,8 +250,11 @@ function updateVerifyPanel(source) {
     setVerifyTier(verifyTierStructural, verifyStructural, structuralState, counts.structural ? counts.structural + " warning" + (counts.structural === 1 ? "" : "s") : "Clear");
     setVerifyTier(verifyTierGeometric, verifyGeometric, counts.geometric ? "warn" : "ok", counts.geometric ? counts.geometric + " advisory" + (counts.geometric === 1 ? "" : " warnings") : "Clear");
     setVerifyTier(verifyTierLint, verifyLint, counts.lint ? "warn" : "ok", counts.lint ? counts.lint + " note" + (counts.lint === 1 ? "" : "s") : "Clear");
+    markTierCleared(verifyTierStructural, "structural", counts.structural);
+    markTierCleared(verifyTierGeometric, "geometric", counts.geometric);
+    markTierCleared(verifyTierLint, "lint", counts.lint);
     if (verifySummary) {
-      if (result.ok && warnings.length === 0) verifySummary.textContent = "Verified: safe to export";
+      if (result.ok && warnings.length === 0) verifySummary.textContent = "Verified: no warnings";
       else if (result.ok) verifySummary.textContent = "Verified with review notes";
       else verifySummary.textContent = "Fix structural warnings before export";
     }
@@ -280,19 +311,69 @@ function fitUnicodeOutput() {
   });
 }
 
-function renderTextOutputs(source) {
-  if (!renderMermaidAscii) return;
+// Text outputs render lazily. renderMermaidAscii is synchronous, so rendering
+// both formats eagerly after every SVG render froze the whole tab on large
+// pastes; instead doRender records the source and only the format whose canvas
+// view is actually visible renders. The `hidden` attribute on the
+// [data-canvas-view] wrappers (toggled by selectCanvasFormat in buttons.js) is
+// the view state; a MutationObserver below renders stale output on view switch.
+// ~300 statement lines ≈ 1.5s of synchronous layout per format (measured on a
+// linear flowchart chain) — past that the pane shows a structured too-large
+// message instead of freezing the tab.
+var TEXT_RENDER_MAX_LINES = 300;
+var pendingTextSource = null;
+var textRenderedFor = { unicode: null, ascii: null };
+
+function countSourceLines(source) {
+  var lines = String(source || "").split("\n");
+  var n = 0;
+  for (var i = 0; i < lines.length; i++) if (lines[i].trim()) n++;
+  return n;
+}
+
+function textViewWrap(format) {
+  return document.getElementById(format + "-output-wrap");
+}
+
+function renderTextOutput(format) {
+  var source = pendingTextSource;
+  if (source == null || !renderMermaidAscii) return;
+  if (textRenderedFor[format] === source) return;
+  var el = format === "ascii" ? asciiOutput : unicodeOutput;
+  if (!el) return;
+  textRenderedFor[format] = source;
+  var lines = countSourceLines(source);
+  if (lines > TEXT_RENDER_MAX_LINES) {
+    el.textContent = "Diagram too large for text rendering (" + lines + " lines > " + TEXT_RENDER_MAX_LINES + " line limit). The SVG preview is still available; for text output use the CLI: am render diagram.mmd --format " + format + ".";
+    return;
+  }
   try {
-    var opts = Object.assign({}, buildOptions(), { colorMode: "none" });
-    setTextOutputs(
-      renderMermaidAscii(source, Object.assign({}, opts, { useAscii: false })),
-      renderMermaidAscii(source, Object.assign({}, opts, { useAscii: true })),
-    );
-    fitUnicodeOutput();
+    var opts = Object.assign({}, buildOptions(), { colorMode: "none", useAscii: format === "ascii" });
+    if (format === "unicode") unicodeOutput.style.fontSize = '';
+    el.textContent = renderMermaidAscii(source, opts);
+    if (format === "unicode") fitUnicodeOutput();
   } catch (err) {
-    setTextOutputs("Text output failed: " + String(err || "unknown error"), "Text output failed: " + String(err || "unknown error"));
+    el.textContent = "Text output failed: " + String(err || "unknown error");
   }
 }
+
+function renderTextOutputs(source) {
+  pendingTextSource = source;
+  textRenderedFor.unicode = null;
+  textRenderedFor.ascii = null;
+  ["unicode", "ascii"].forEach(function(format) {
+    var wrap = textViewWrap(format);
+    if (wrap && !wrap.hidden) renderTextOutput(format);
+  });
+}
+
+["unicode", "ascii"].forEach(function(format) {
+  var wrap = textViewWrap(format);
+  if (!wrap || typeof MutationObserver === "undefined") return;
+  new MutationObserver(function() {
+    if (!wrap.hidden) renderTextOutput(format);
+  }).observe(wrap, { attributes: true, attributeFilter: ["hidden"] });
+});
 
 async function doRender() {
   var source = editor.value.trim();

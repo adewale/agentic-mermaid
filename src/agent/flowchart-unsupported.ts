@@ -35,8 +35,62 @@ export function flowchartUnsupportedSyntaxWarnings(source: string): LayoutWarnin
     if (/`/.test(text)) {
       warnings.push({ code: 'UNSUPPORTED_SYNTAX', line, syntax: 'flowchart_markdown_string', message: 'Flowchart markdown strings are preserved as source but not fully modeled by the local parser.' })
     }
+    const malformed = malformedFlowchartStatement(text)
+    if (malformed) {
+      warnings.push({ code: 'UNSUPPORTED_SYNTAX', line, syntax: malformed.syntax, message: malformed.message })
+    }
   }
   return warnings
+}
+
+// Keyword statements where brackets/quotes are free text (subgraph labels) or
+// carry no node/edge content that an unclosed delimiter could swallow.
+const FLOWCHART_KEYWORD_STATEMENT = /^(?:subgraph\s|end$|direction\s|classDef\s|class\s|style\s|linkStyle\s|click\s|href\s)/i
+
+/**
+ * Detect node/edge statements with an unclosed bracket, quote, or |label|
+ * delimiter. The legacy parser recovers by regex-matching whatever prefix it
+ * can, silently dropping everything after the unclosed delimiter — including
+ * arrows, so `A[Start --> B` loses the A→B edge entirely (audit: silent
+ * content loss passed verify clean). Surfaced as UNSUPPORTED_SYNTAX so the
+ * loss is announced rather than silent, mirroring the other checks above.
+ */
+function malformedFlowchartStatement(statement: string): { syntax: string; message: string } | null {
+  if (FLOWCHART_KEYWORD_STATEMENT.test(statement)) return null
+  // Metadata (`id@{ … }`) may span source lines and markdown strings go
+  // opaque; both already have dedicated warnings above — skip to avoid noise.
+  if (/(?:^|[\s;&])[\w-]+@\s*\{/.test(statement) || /`/.test(statement)) return null
+
+  let depth = 0
+  let inQuote = false
+  let pipes = 0
+  let escaped = false
+  for (const ch of statement) {
+    if (inQuote) {
+      // Backslash escapes only exist inside quoted labels (consumeQuotedNode);
+      // outside quotes `\` is literal — lean/trapezoid shapes spell `A[\x\]`.
+      if (escaped) { escaped = false; continue }
+      if (ch === '\\') { escaped = true; continue }
+      if (ch === '"') inQuote = false
+      continue
+    }
+    if (ch === '"') { inQuote = true; continue }
+    if (ch === '|' && depth === 0) { pipes++; continue }
+    if (pipes % 2 === 1) continue  // inside a |edge label|
+    if (ch === '[' || ch === '(' || ch === '{') depth++
+    // Stray closers are tolerated: `A>text]` (asymmetric) closes without opening.
+    else if (ch === ']' || ch === ')' || ch === '}') depth = Math.max(0, depth - 1)
+  }
+  if (inQuote) {
+    return { syntax: 'flowchart_unclosed_quote', message: 'Unclosed double quote — the parser drops or mangles everything after it (labels, arrows, edges). Close the quote.' }
+  }
+  if (pipes % 2 === 1) {
+    return { syntax: 'flowchart_unclosed_pipe', message: 'Unclosed |edge label| delimiter — the parser drops the label and the edge target after it. Close the label with a second |.' }
+  }
+  if (depth > 0) {
+    return { syntax: 'flowchart_unclosed_bracket', message: 'Unclosed bracket — the parser drops or mangles everything after it, including arrows and edges (e.g. `A[Start --> B` loses the A→B edge). Close the bracket or quote the label.' }
+  }
+  return null
 }
 
 export function flowchartStatements(source: string): FlowchartStatement[] {

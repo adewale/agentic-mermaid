@@ -112,6 +112,22 @@
     <span>Share</span>
   </button>
 
+  <!-- Second entry point for the agent handoff (wide viewports only; CSS hides
+       it below 1100px). Shares copyAgentTask with #copy-agent-prompt-btn. -->
+  <button class="btn" id="agent-prompt-topbar-btn" type="button" title="Copies a ready-to-paste prompt — your diagram, your task, and the editing rules — for a coding agent like Claude Code or Cursor">
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      stroke-width="2"
+      stroke-linecap="round"
+      stroke-linejoin="round"
+    >
+      <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+    </svg>
+    <span>Agent prompt</span>
+  </button>
+
   <div class="export-wrap" id="export-wrap">
     <button class="btn" id="export-main-btn" type="button" title="Save PNG (⌘S)" disabled aria-disabled="true">
       <svg
@@ -133,6 +149,7 @@
       id="export-chevron-btn"
       type="button"
       title="More export options"
+      aria-label="More export options"
       aria-haspopup="menu"
       aria-expanded="false"
       aria-controls="export-dropdown"

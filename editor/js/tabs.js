@@ -85,4 +85,12 @@ document.querySelectorAll('[data-segmented-control] .mode-option').forEach(funct
 });
 
 setLeftPanelMode('code');
-setMobilePanel('code');
+// Mobile first-run leads with the rendered diagram and the verify bar — the
+// product's proof — instead of the source pane. init.js switches back to
+// Source when it restores an autosaved draft, so returning editors land
+// mid-edit. Desktop keeps Source active (both panels are visible there).
+setMobilePanel(
+  window.matchMedia && window.matchMedia('(max-width: 760px)').matches
+    ? 'preview'
+    : 'code'
+);

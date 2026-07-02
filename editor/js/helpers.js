@@ -163,7 +163,7 @@ function emptyPreviewHtml() {
   return '<div class="preview-placeholder" id="preview-placeholder">'
     + '<span class="placeholder-kicker">Blank canvas</span>'
     + '<strong class="placeholder-title">No diagram yet</strong>'
-    + '<span class="placeholder-copy">Start typing Mermaid syntax, or load a preset to see SVG, Unicode, and ASCII output.</span>'
+    + '<span class="placeholder-copy">Start typing Mermaid syntax, or load an example to see SVG, Unicode, and ASCII output.</span>'
     + '<div class="placeholder-actions">'
     + '<button class="placeholder-example-btn" type="button" data-action="load-example">Load an example</button>'
     + '<button class="placeholder-chip" type="button" data-example="flowchart-basic">Flowchart</button>'

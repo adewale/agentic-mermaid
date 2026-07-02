@@ -334,6 +334,31 @@
 .verify-tier.warn .verify-dot { background: var(--warn); }
 .verify-tier.err .verify-dot { background: var(--red); }
 
+/* One-time settle when a tier transitions warnings -> Clear (rendering.js adds
+   .tier-cleared). Transform/opacity only; inert if the class never appears. */
+.verify-tier.tier-cleared {
+  animation: verify-tier-cleared 0.4s var(--ease-out) both;
+}
+@keyframes verify-tier-cleared {
+  0% {
+    opacity: 0.55;
+    transform: scale(0.94);
+  }
+  55% {
+    opacity: 1;
+    transform: scale(1.07);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .verify-tier.tier-cleared {
+    animation: none;
+  }
+}
+
 /* Warning details disclosure — the expanded list wraps onto its own row. */
 .verify-details-btn {
   border: 1px solid var(--line);

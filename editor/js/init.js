@@ -12,8 +12,10 @@ function updateThemeButton() {
     themeBtnSwatch.style.display = "";
   } else {
     themeBtnLabel.textContent = "Default";
+    // Keep the ringed swatch visible (CSS supplies a neutral fill) — on mobile
+    // the swatch is the entire control, so hiding it left a blank button.
     themeBtnSwatch.style.background = "";
-    themeBtnSwatch.style.display = "none";
+    themeBtnSwatch.style.display = "";
   }
   // Update active state in dropdown
   themeMenu.querySelectorAll(".theme-dropdown-item").forEach(function (item) {
@@ -183,6 +185,11 @@ if (draftDiscardBtn) draftDiscardBtn.addEventListener("click", discardRestoredDr
       if (hasOwnConfig(draft.config)) state.config = draft.config;
       refreshAllColorUIs();
       showDraftRestoredNotice();
+      // A restored draft means a returning editor: on mobile, put Source (and
+      // the draft notice) back on screen instead of the first-run Preview.
+      if (typeof setMobilePanel === 'function' && document.body.dataset.mobilePanel === 'preview') {
+        setMobilePanel('code');
+      }
     } else {
       editor.value = DEFAULT_SOURCE;
     }

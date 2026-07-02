@@ -169,7 +169,10 @@ export function verifyMermaid(input: ValidDiagram | string, opts: VerifyOptions 
     const opaqueLayout = d.kind === 'flowchart'
       ? layoutOpaqueFlowchart(d)
       : layoutFamilyToRendered(d) ?? emptyRenderedLayout(d.kind)
-    return finalize(dedupedConcat(warnings, pluginWarnings), opaqueLayout, opts)
+    // Opaque bodies are preserved-not-rendered: an empty local layout means
+    // the syntax is unmodeled, not that the diagram is empty — the isEmpty
+    // header-only check above owns genuine emptiness here.
+    return finalize(dedupedConcat(warnings, pluginWarnings), opaqueLayout, opts, false)
   }
 
   const graph = d.body.graph
@@ -290,7 +293,9 @@ function mergeFinalize(prev: VerifyResult, extra: LayoutWarning[], opts: VerifyO
   if (extra.length === 0) return prev
   const merged = dedupedConcat(prev.warnings, extra)
   if (merged === prev.warnings) return prev
-  return finalize(merged, prev.layout, opts)
+  // prev already went through the caller's guardEmptyLayout choice — don't
+  // second-guess it here.
+  return finalize(merged, prev.layout, opts, false)
 }
 
 function warningKey(w: LayoutWarning): string {
@@ -405,7 +410,7 @@ function verifySequence(d: ValidDiagram & { body: SequenceBody }, cap: number, o
     s => s.kind === 'opaque-block' && s.lines.some(l => l.trim().length > 0),
   )
   if (body.participants.length === 0 && body.messages.length === 0 && !hasOpaqueContent) {
-    return finalize([{ code: 'EMPTY_DIAGRAM' }], layout, opts)
+    return finalize([{ code: 'EMPTY_DIAGRAM' }], layout, opts, false)
   }
   const ids = new Set(body.participants.map(p => p.id))
   body.messages.forEach((m, i) => {
@@ -438,7 +443,13 @@ function verifySequence(d: ValidDiagram & { body: SequenceBody }, cap: number, o
       warnings.push({ code: 'LABEL_OVERFLOW', target: lbl.target, charCount: lbl.text.length, limit: cap })
     }
   }
-  return finalize(dedupedConcat(warnings, layoutGeometryWarnings(layout, { nodeOverlaps: true })), layout, opts)
+  // The empty-layout tripwire only arms when there is no structured content:
+  // opaque-only segments still have to lay out SOMETHING (a malformed message
+  // like `Alice->>` renders a 0x0 canvas — announce it), whereas a sequence
+  // WITH participants whose family layout degrades to empty (e.g.
+  // semicolon-packed statements) is a renderer limitation, not emptiness.
+  const guardEmpty = body.participants.length === 0 && body.messages.length === 0
+  return finalize(dedupedConcat(warnings, layoutGeometryWarnings(layout, { nodeOverlaps: true })), layout, opts, guardEmpty)
 }
 
 // ---- helpers --------------------------------------------------------------
@@ -456,10 +467,27 @@ function unwrap(source: string): ValidDiagram | null {
   return r.ok ? r.value : null
 }
 
-function finalize(warnings: LayoutWarning[], layout: RenderedLayout, opts: VerifyOptions): VerifyResult {
+function finalize(warnings: LayoutWarning[], layout: RenderedLayout, opts: VerifyOptions, guardEmptyLayout = true): VerifyResult {
   const suppress = new Set<WarningCode>(opts.suppress ?? [])
   const kept = warnings.filter(w => !suppress.has(w.code))
-  return { ok: !kept.some(w => WARNING_SEVERITY[w.code] === 'error'), warnings: kept, layout }
+  const ok = !kept.some(w => WARNING_SEVERITY[w.code] === 'error')
+  // EMPTY_DIAGRAM tripwire over the FINAL layout: a 0x0 canvas with no
+  // nodes/edges/groups renders as visually nothing, so it must never verify
+  // clean (e.g. `sequenceDiagram\n Alice->>` — a malformed message that lays
+  // out zero participants). Appended AFTER the ok verdict: source that
+  // carries content the local layout cannot express stays ok (the
+  // upstream-suite bench pins that), the warning just announces the empty
+  // render. Truly content-less diagrams keep the explicit, ok-flipping
+  // EMPTY_DIAGRAM their verify paths already push. Callers whose empty layout
+  // means "unmodeled, preserved" rather than "renders nothing" (opaque
+  // bodies) opt out via guardEmptyLayout=false.
+  if (guardEmptyLayout && !suppress.has('EMPTY_DIAGRAM')
+    && layout.nodes.length === 0 && layout.edges.length === 0 && layout.groups.length === 0
+    && layout.bounds.w === 0 && layout.bounds.h === 0
+    && !kept.some(w => w.code === 'EMPTY_DIAGRAM')) {
+    return { ok, warnings: [...kept, { code: 'EMPTY_DIAGRAM' }], layout }
+  }
+  return { ok, warnings: kept, layout }
 }
 
 function rectIntersection(a: { x: number; y: number; width: number; height: number }, b: { x: number; y: number; width: number; height: number }): number {

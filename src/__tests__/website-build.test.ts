@@ -122,18 +122,25 @@ describe('Workers Static Assets website contract', () => {
     expect(home).toContain('return an object with `{ source }`')
     expect(home).toContain('In Trace, name the local channel and exact calls/ops used')
     expect(home).toContain('Agentic Mermaid treats Mermaid source as the durable interface')
-    expect(home).toContain('data-copy-name="MCP config"')
-    expect(home).toContain('Copy MCP config')
-    expect(home).toContain('Run from the cloned repo root')
+    // Setup moved off the homepage: the MCP config card lives on Getting
+    // started, and home carries a single pointer line instead of a section.
+    const gettingStarted = read('docs/getting-started/index.html')
+    expect(gettingStarted).toContain('data-copy-name="MCP config"')
+    expect(gettingStarted).toContain('Copy MCP config')
+    expect(gettingStarted).toContain('Run from the cloned repo root')
+    expect(home).not.toContain('data-copy-name="MCP config"')
     expect(home).not.toContain('class="copy-btn"')
     expect(home).toContain('<span>parseMermaid</span><span>asFlowchart</span><span>mutate(add_edge)</span><span>verifyMermaid</span><span>serializeMermaid</span>')
     expect(home).toContain('aria-label="Agent entrypoints"')
     expect(home).toContain('Agent quick start')
     expect(home).toContain('Parse, mutate, verify')
-    expect(home).toContain('id="local-setup"')
-    expect(home.indexOf('id="home-agent-prompt"')).toBeLessThan(home.indexOf('id="local-setup"'))
+    expect(home).not.toContain('id="local-setup"')
+    expect(home).toContain('Setup lives in <a href="/docs/getting-started/">Getting started</a>')
+    // The prompt is collapsed behind a disclosure; the copy bar stays visible.
+    expect(home).toContain('<details class="prompt-details">')
+    expect(home.indexOf('id="home-agent-prompt"')).toBeLessThan(home.indexOf('id="quick-start-title"'))
     expect(home.indexOf('id="machine-context-title"')).toBeGreaterThan(home.indexOf('One source, five outputs'))
-    expect(read('docs/getting-started/index.html')).toContain('Copy the agent prompt')
+    expect(gettingStarted).toContain('Get the agent prompt on the homepage')
     expect(read('docs/getting-started/index.html')).toContain('From Mermaid source to a verified local render')
     expect(home).toContain('/examples/index.json')
     expect(home).toContain('/skills/agentic-mermaid-diagram-workflow/SKILL.md')
@@ -348,11 +355,38 @@ describe('Workers Static Assets website contract', () => {
     expect(styles).toContain('@media (forced-colors: active)')
     expect(styles).toContain('.warning-table thead { display: none; }')
     expect(read('warnings/index.html')).toContain('<td data-label="Code">')
-    expect(home).toContain('Self-hosting over stdio is the default path')
+    expect(read('docs/getting-started/index.html')).toContain('Self-hosting over stdio is the default path')
     expect(editor).toContain('aria-haspopup="menu"')
     expect(editor).toContain('role="dialog" aria-modal="false" aria-labelledby="color-popup-title" aria-hidden="true"')
     expect(editorAll).toContain('ensurePreviewSvgAccessibility')
     expect(editorAll).toContain('fitUnicodeOutput')
+  })
+
+  test('warning pages carry real per-code content, badges, and social metadata ships site-wide', () => {
+    // The lead is per-code prose, never the old "${tier} ${severity} warning."
+    // template that produced "geometric warning warning." on 21 pages.
+    const nodeOverlap = read('warnings/NODE_OVERLAP/index.html')
+    expect(nodeOverlap).toContain('is a geometric warning:')
+    expect(nodeOverlap).not.toContain('warning warning.')
+    expect(read('warnings/EMPTY_DIAGRAM/index.html')).toContain('is a structural error:')
+    // Firing demos are build-time verified; DUPLICATE_EDGE reliably fires.
+    const duplicateEdge = read('warnings/DUPLICATE_EDGE/index.html')
+    expect(duplicateEdge).toContain('See it fire')
+    expect(duplicateEdge).toContain('Open in the editor and watch it clear')
+    const warningsIndex = read('warnings/index.html')
+    expect(warningsIndex).toContain('class="tier-badge tier-structural"')
+    expect(warningsIndex).toContain('class="sev-badge sev-warning"')
+    expect(read('examples/index.html')).toContain('class="example-toc"')
+    for (const rel of ['index.html', 'docs/index.html', 'editor/index.html', 'warnings/NODE_OVERLAP/index.html']) {
+      const html = read(rel)
+      expect({ rel, og: html.includes('property="og:title"') }).toEqual({ rel, og: true })
+      expect({ rel, tw: html.includes('name="twitter:card"') }).toEqual({ rel, tw: true })
+    }
+    // The editor verdict is truthful copy, not the old overclaim.
+    const editorScript = read(editorScriptRel())
+    expect(editorScript).toContain('Verified: no warnings')
+    expect(editorScript).not.toContain('Verified: safe to export')
+    expect(editorScript).toContain('Diagram too large for text rendering')
   })
 
   test('public llms.txt omits repo-only backlog and eval surfaces', () => {

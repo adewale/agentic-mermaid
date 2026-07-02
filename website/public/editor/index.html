@@ -3,6 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="description" content="Agentic Mermaid renders, verifies, and edits Mermaid diagrams locally, with compact agent instructions for CLI, library, and MCP use.">
   <title>Agentic Mermaid – Live Editor</title>
   <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
   <link rel="icon" type="image/x-icon" href="/favicon.ico" />
@@ -73,8 +74,10 @@
   --border: color-mix(in srgb, var(--t-fg) 12%, var(--t-bg));
   --line-strong: color-mix(in srgb, var(--t-fg) 24%, var(--t-bg));
   --fg: var(--t-fg);
-  --fg2: color-mix(in srgb, var(--t-fg) 96%, var(--t-bg));
-  --fg3: color-mix(in srgb, var(--t-fg) 95%, var(--t-bg));
+  /* Muted ramp mirrors the site shell: soft ≈80% mix, faint ≈64% mix.
+   * Verified on Paper (#F5F0E4): soft 8.01:1 (≥7:1), faint 4.74:1 (≥4.5:1). */
+  --fg2: color-mix(in srgb, var(--t-fg) 80%, var(--t-bg));
+  --fg3: color-mix(in srgb, var(--t-fg) 64%, var(--t-bg));
   --fg4: color-mix(in srgb, var(--t-fg) 70%, var(--t-bg));
   --accent: var(--t-accent);
   --accent2: color-mix(in srgb, var(--t-accent) 80%, var(--t-bg));
@@ -95,6 +98,8 @@
   --radius-lg: 12px;
   --radius-pill: 999px;
   --radius: var(--radius-md);
+  /* Shared motion curve — same value as the site shell's --ease-out. */
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
   --control-h: 40px;
   --control-px: 12px;
   --control-bg: var(--surface);
@@ -115,15 +120,25 @@
   --lh-code: 1.6;
   --lh-ui: 1.35;
 
-  /* Semantic status colors */
-  --green: #16a34a;
-  --warn: #D97706;
+  /* Semantic status colors. Same hues as before, darkened one step so the
+   * verify-tier dots clear 3:1 against the light --bg2 (#F5F0E4):
+   * green 4.41:1, warn 4.42:1, red 4.25:1. Dusk restores the brighter pair
+   * below (the originals fail on Paper but pass on the dark chrome). */
+  --green: #15803D;
+  --warn: #B45309;
   --red: #dc2626;
 
   /* Preview canvas: a matte so the diagram artboard reads as the artifact,
      not a shape floating in the chrome. The diagram keeps its own Paper bg. */
   --canvas-matte: color-mix(in srgb, var(--t-fg) 8%, var(--t-bg));
   --shadow-artboard: 0 1px 2px rgba(0, 0, 0, 0.04), 0 12px 30px -14px rgba(0, 0, 0, 0.2);
+}
+
+/* Dusk chrome (dark-mode.js sets data-scheme): brighter status hues read
+ * better here — green 4.60:1 and warn 4.76:1 against the dark --bg2. */
+:root[data-scheme="dark"] {
+  --green: #16a34a;
+  --warn: #D97706;
 }
 
 html,
@@ -402,7 +417,12 @@ body {
   height: 12px;
   border-radius: 50%;
   flex-shrink: 0;
+  /* Neutral fill for the Default theme (inline style overrides it), and a
+     double ring (--line-strong + --line halo) so the swatch reads as a
+     control even when its fill matches the Paper chrome. */
+  background: var(--paper);
   border: 1px solid var(--line-strong);
+  box-shadow: 0 0 0 1px var(--line);
 }
 .theme-dropdown-btn svg {
   width: 10px;
@@ -481,6 +501,7 @@ body {
   border-radius: 50%;
   flex-shrink: 0;
   border: 1px solid var(--line-strong);
+  box-shadow: 0 0 0 1px var(--line);
 }
 
 /* Buttons – match showcase secondary button style */
@@ -541,9 +562,9 @@ body {
   opacity: 1;
   filter: blur(0);
   transition:
-    opacity 0.18s cubic-bezier(0.2, 0, 0, 1),
-    transform 0.18s cubic-bezier(0.2, 0, 0, 1),
-    filter 0.18s cubic-bezier(0.2, 0, 0, 1);
+    opacity 0.18s var(--ease-out),
+    transform 0.18s var(--ease-out),
+    filter 0.18s var(--ease-out);
 }
 #dark-light-btn #icon-sun,
 #dark-light-btn.is-dark #icon-moon {
@@ -563,6 +584,16 @@ body {
   width: 40px;
   min-width: 40px;
   padding: 0;
+}
+/* Compact agent-handoff entry point, visible only where the topbar has room;
+   the canonical item stays in the export dropdown (#copy-agent-prompt-btn). */
+#agent-prompt-topbar-btn {
+  display: none;
+}
+@media (min-width: 1100px) {
+  #agent-prompt-topbar-btn {
+    display: inline-flex;
+  }
 }
 
 @media (max-width: 760px) {
@@ -605,8 +636,10 @@ body {
   .spacer {
     display: none;
   }
+  /* Keep the dark/light toggle reachable on mobile; the wrapping topbar
+     absorbs the extra 40px icon button. order matches its DOM neighbours. */
   #dark-light-btn {
-    display: none;
+    order: 1;
   }
   /* Touch devices have no keyboard shortcuts to look up. */
   #shortcuts-btn {
@@ -636,6 +669,12 @@ body {
     width: 40px;
     padding: 0;
     justify-content: center;
+  }
+  /* The swatch is the whole control here (label + chevron are hidden), so
+     give it more presence inside the 40px button. */
+  .theme-dropdown-btn .theme-swatch {
+    width: 16px;
+    height: 16px;
   }
   .theme-dropdown-menu {
     position: fixed;
@@ -685,7 +724,7 @@ body {
   transform: translateY(-6px) scale(0.98);
   transform-origin: top left;
   transition:
-    opacity 0.16s ease,
+    opacity 0.16s var(--ease-out),
     transform 0.18s var(--ease-out),
     visibility 0s linear 0.18s;
   z-index: 3000;
@@ -1435,6 +1474,31 @@ body {
 .verify-tier.warn .verify-dot { background: var(--warn); }
 .verify-tier.err .verify-dot { background: var(--red); }
 
+/* One-time settle when a tier transitions warnings -> Clear (rendering.js adds
+   .tier-cleared). Transform/opacity only; inert if the class never appears. */
+.verify-tier.tier-cleared {
+  animation: verify-tier-cleared 0.4s var(--ease-out) both;
+}
+@keyframes verify-tier-cleared {
+  0% {
+    opacity: 0.55;
+    transform: scale(0.94);
+  }
+  55% {
+    opacity: 1;
+    transform: scale(1.07);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .verify-tier.tier-cleared {
+    animation: none;
+  }
+}
+
 /* Warning details disclosure — the expanded list wraps onto its own row. */
 .verify-details-btn {
   border: 1px solid var(--line);
@@ -1547,7 +1611,7 @@ body {
   background: transparent;
   color: var(--fg3);
   cursor: pointer;
-  transition: color 0.15s, background 0.15s;
+  transition: color 0.15s var(--ease-out), background 0.15s var(--ease-out);
 }
 .config-close:hover { color: var(--fg); background: var(--control-bg-hover); }
 .config-close svg { width: 15px; height: 15px; }
@@ -1587,7 +1651,7 @@ body {
   font-size: var(--t-label);
   font-family: var(--font-mono);
   cursor: pointer;
-  transition: border-color 0.15s, background 0.15s;
+  transition: border-color 0.15s var(--ease-out), background 0.15s var(--ease-out);
   min-width: 100px;
   justify-content: flex-end;
 }
@@ -1671,7 +1735,7 @@ body {
   font-size: var(--t-label);
   font-weight: 600;
   cursor: pointer;
-  transition: color 0.15s, background 0.15s, border-color 0.15s, transform 0.1s;
+  transition: color 0.15s var(--ease-out), background 0.15s var(--ease-out), border-color 0.15s var(--ease-out), transform 0.1s var(--ease-out);
 }
 .config-reset-btn:hover {
   color: var(--fg);
@@ -2122,10 +2186,11 @@ body {
   transform: translateY(0);
 }
 
-/* Toast */
+/* Toast. Bottom offset clears the verify bar (min 34px) plus the preview
+   footer (28px) so a toast never sits on the verify verdict. */
 .toast {
   position: fixed;
-  bottom: 2rem;
+  bottom: calc(34px + 28px + 14px);
   left: 50%;
   transform: translateX(-50%) translateY(0);
   background: var(--popover-bg);
@@ -2273,6 +2338,10 @@ body {
 }
 
   </style>
+<meta property="og:title" content="Agentic Mermaid – Live Editor">
+<meta property="og:description" content="Agentic Mermaid renders, verifies, and edits Mermaid diagrams locally, with compact agent instructions for CLI, library, and MCP use.">
+<meta property="og:type" content="website">
+<meta name="twitter:card" content="summary_large_image">
 <link rel="alternate" type="text/plain" href="/llms.txt">
 <link rel="alternate" type="application/json" href="/capabilities.json">
 <link rel="alternate" type="text/markdown" href="/agent-instructions.md">
@@ -2416,6 +2485,22 @@ body {
     <span>Share</span>
   </button>
 
+  <!-- Second entry point for the agent handoff (wide viewports only; CSS hides
+       it below 1100px). Shares copyAgentTask with #copy-agent-prompt-btn. -->
+  <button class="btn" id="agent-prompt-topbar-btn" type="button" title="Copies a ready-to-paste prompt — your diagram, your task, and the editing rules — for a coding agent like Claude Code or Cursor">
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      stroke-width="2"
+      stroke-linecap="round"
+      stroke-linejoin="round"
+    >
+      <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+    </svg>
+    <span>Agent prompt</span>
+  </button>
+
   <div class="export-wrap" id="export-wrap">
     <button class="btn" id="export-main-btn" type="button" title="Save PNG (⌘S)" disabled aria-disabled="true">
       <svg
@@ -2437,6 +2522,7 @@ body {
       id="export-chevron-btn"
       type="button"
       title="More export options"
+      aria-label="More export options"
       aria-haspopup="menu"
       aria-expanded="false"
       aria-controls="export-dropdown"
@@ -2938,7 +3024,7 @@ body {
       <div class="preview-placeholder" id="preview-placeholder">
         <span class="placeholder-kicker">Blank canvas</span>
         <strong class="placeholder-title">No diagram yet</strong>
-        <span class="placeholder-copy">Start typing Mermaid syntax, or load a preset to see Diagram, Unicode, and ASCII output.</span>
+        <span class="placeholder-copy">Start typing Mermaid syntax, or load an example to see Diagram, Unicode, and ASCII output.</span>
         <button class="placeholder-example-btn" type="button" data-action="load-example">Load an example</button>
       </div>
     </div>
@@ -2972,6 +3058,6 @@ body {
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
 <!-- Bundled renderer -->
-<script type="module" src="/editor/editor-7355899a34e0.js"></script>
+<script type="module" src="/editor/editor-072d668f47ab.js"></script>
 </body>
 </html>
