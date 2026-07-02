@@ -1,8 +1,11 @@
 function updateLineNumbers() {
   var lines = editor.value.split('\n').length;
   var html = '';
-  for (var i = 1; i <= lines; i++) html += i + '\n';
-  lineNumbers.textContent = html;
+  for (var i = 1; i <= lines; i++) {
+    // editorErrorLine (helpers.js) marks the line the last render error named.
+    html += i === editorErrorLine ? '<span class="line-number-error">' + i + '</span>\n' : i + '\n';
+  }
+  lineNumbers.innerHTML = html;
 }
 
 function updateCursorPos() {
@@ -20,9 +23,11 @@ editor.addEventListener('scroll', function() {
 
 editor.addEventListener('input', function() {
   if (typeof markActiveExample === 'function') markActiveExample('');
+  setEditorErrorLine(0);
   updateLineNumbers();
   updateCursorPos();
   scheduleRender();
+  if (typeof scheduleDraftSave === 'function') scheduleDraftSave();
 });
 
 editor.addEventListener('keydown', function(e) {
@@ -32,8 +37,10 @@ editor.addEventListener('keydown', function(e) {
     var end   = editor.selectionEnd;
     editor.value = editor.value.substring(0, start) + '  ' + editor.value.substring(end);
     editor.selectionStart = editor.selectionEnd = start + 2;
+    setEditorErrorLine(0);
     updateLineNumbers();
     scheduleRender();
+    if (typeof scheduleDraftSave === 'function') scheduleDraftSave();
     return;
   }
   if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {

@@ -632,11 +632,32 @@ function emptyPreviewHtml() {
     + '</div>';
 }
 
+// Parse errors and render errors name a source position in prose ("line 4" or
+// "4:2"); extract it once so both the error card and the gutter highlight
+// agree on the location.
+function extractErrorLocation(detail) {
+  var text = String(detail || '');
+  var m = text.match(/line\s+(\d+)(?:[^\d]+(?:col|column)\s+(\d+))?/i) || text.match(/(\d+):(\d+)/);
+  if (!m) return null;
+  return { line: parseInt(m[1], 10), column: m[2] ? parseInt(m[2], 10) : 0 };
+}
+
+// The gutter paints this line red until the next successful render or edit
+// clears it (updateLineNumbers reads it on every rebuild).
+var editorErrorLine = 0;
+
+function setEditorErrorLine(line) {
+  var next = line > 0 ? line : 0;
+  if (next === editorErrorLine) return;
+  editorErrorLine = next;
+  if (typeof updateLineNumbers === 'function') updateLineNumbers();
+}
+
 function formatRenderErrorHtml(err) {
   var detail = String(err || 'Unknown render error');
-  var lineMatch = detail.match(/line\s+(\d+)(?:[^\d]+(?:col|column)\s+(\d+))?/i) || detail.match(/(\d+):(\d+)/);
-  var location = lineMatch
-    ? ' Check around line ' + lineMatch[1] + (lineMatch[2] ? ', column ' + lineMatch[2] : '') + '.'
+  var loc = extractErrorLocation(detail);
+  var location = loc
+    ? ' Check around line ' + loc.line + (loc.column ? ', column ' + loc.column : '') + '.'
     : '';
   return '<div class="preview-error" role="alert">'
     + '<strong class="preview-error-title">We could not render this diagram.</strong>'
@@ -680,6 +701,9 @@ var verifyTierLint = document.getElementById("verify-tier-lint");
 var verifyStructural = document.getElementById("verify-structural");
 var verifyGeometric = document.getElementById("verify-geometric");
 var verifyLint = document.getElementById("verify-lint");
+var verifyDetailsBtn = document.getElementById("verify-details-btn");
+var verifyDetails = document.getElementById("verify-details");
+var verifyDetailsList = document.getElementById("verify-details-list");
 var toast = document.getElementById("toast");
 var themeMenu = document.getElementById("theme-dropdown-menu");
 var panelLeft = document.getElementById("panel-left");
@@ -688,29 +712,75 @@ var editorView = document.getElementById("editor-view");
 var configView = document.getElementById("config-view");
 
 
+// Share-link encoding. New links compress the payload with native deflate-raw
+// and carry a "deflate:" prefix; legacy plain-base64 hashes (old links, old
+// bookmarks) stay decodable forever. encodeSource stays synchronous as the
+// fallback for browsers without CompressionStream.
+var HASH_DEFLATE_PREFIX = 'deflate:';
+
 function encodeSource(src) {
   try { return btoa(unescape(encodeURIComponent(src))); } catch(e) { return ''; }
 }
-function decodeSource(b64) {
+function decodeSourceLegacy(b64) {
   try { return decodeURIComponent(escape(atob(b64))); } catch(e) { return ''; }
+}
+
+function bytesToBase64Url(bytes) {
+  var bin = '';
+  for (var i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
+  return btoa(bin).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
+
+function base64UrlToBytes(encoded) {
+  var b64 = encoded.replace(/-/g, '+').replace(/_/g, '/');
+  while (b64.length % 4) b64 += '=';
+  var bin = atob(b64);
+  var bytes = new Uint8Array(bin.length);
+  for (var i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+  return bytes;
+}
+
+async function encodeSourceCompressed(src) {
+  if (typeof CompressionStream === 'undefined') return encodeSource(src);
+  try {
+    var stream = new Blob([src]).stream().pipeThrough(new CompressionStream('deflate-raw'));
+    var buffer = await new Response(stream).arrayBuffer();
+    return HASH_DEFLATE_PREFIX + bytesToBase64Url(new Uint8Array(buffer));
+  } catch(e) {
+    return encodeSource(src);
+  }
+}
+
+async function decodeSource(encoded) {
+  if (encoded.indexOf(HASH_DEFLATE_PREFIX) === 0 && typeof DecompressionStream !== 'undefined') {
+    try {
+      var bytes = base64UrlToBytes(encoded.slice(HASH_DEFLATE_PREFIX.length));
+      var stream = new Blob([bytes]).stream().pipeThrough(new DecompressionStream('deflate-raw'));
+      return await new Response(stream).text();
+    } catch(e) {
+      return '';
+    }
+  }
+  return decodeSourceLegacy(encoded);
 }
 
 function hasOwnConfig(config) {
   return !!config && typeof config === 'object' && Object.keys(config).length > 0;
 }
 
-function getHashSource() {
+async function getHashSource() {
   var hash = window.location.hash.slice(1);
   if (!hash) return null;
+  var decoded = await decodeSource(hash);
   try {
-    var obj = JSON.parse(decodeSource(hash));
+    var obj = JSON.parse(decoded);
     if (obj && obj.source) {
       if (obj.theme) { state.theme = obj.theme; }
       if (hasOwnConfig(obj.config)) { state.config = obj.config; }
       return obj.source;
     }
   } catch(e) {}
-  return decodeSource(hash) || null;
+  return decoded || null;
 }
 
 function getQueryExampleId() {
@@ -718,11 +788,55 @@ function getQueryExampleId() {
   catch(e) { return ''; }
 }
 
+var hashUpdateToken = 0;
+
 function updateHash() {
   var obj = { source: editor.value };
   if (state.theme) obj.theme = state.theme;
   if (hasOwnConfig(state.config)) obj.config = state.config;
-  window.history.replaceState(null, '', '#' + encodeSource(JSON.stringify(obj)));
+  // Compression is async; the token drops stale writes when edits overlap.
+  var token = ++hashUpdateToken;
+  return encodeSourceCompressed(JSON.stringify(obj)).then(function(encoded) {
+    if (token !== hashUpdateToken) return;
+    window.history.replaceState(null, '', '#' + encoded);
+  });
+}
+
+// ── Draft autosave ────────────────────────────────────────────────────────────
+// Source + per-diagram config survive refresh via localStorage, not only the
+// URL hash (which updates after a successful render, so a never-valid diagram
+// would otherwise be lost). Saved on every edit; restored in init.js only when
+// the URL carries no #source and no ?example= param.
+var DRAFT_STORAGE_KEY = 'bm-editor-draft';
+var draftSaveTimer = null;
+
+function saveEditorDraft() {
+  try {
+    localStorage.setItem(DRAFT_STORAGE_KEY, JSON.stringify({
+      source: editor.value,
+      config: state.config,
+      savedAt: Date.now(),
+    }));
+  } catch(e) {}
+}
+
+function scheduleDraftSave() {
+  if (draftSaveTimer) clearTimeout(draftSaveTimer);
+  draftSaveTimer = setTimeout(saveEditorDraft, 400);
+}
+
+function readEditorDraft() {
+  try {
+    var draft = JSON.parse(localStorage.getItem(DRAFT_STORAGE_KEY) || 'null');
+    if (draft && typeof draft.source === 'string' && draft.source.trim()) return draft;
+  } catch(e) {}
+  return null;
+}
+
+function discardEditorDraft() {
+  if (draftSaveTimer) clearTimeout(draftSaveTimer);
+  draftSaveTimer = null;
+  try { localStorage.removeItem(DRAFT_STORAGE_KEY); } catch(e) {}
 }
 
 
@@ -864,6 +978,72 @@ function resetVerifyPanel(summary) {
   setVerifyTier(verifyTierStructural, verifyStructural, "idle", "Not run");
   setVerifyTier(verifyTierGeometric, verifyGeometric, "idle", "Not run");
   setVerifyTier(verifyTierLint, verifyLint, "idle", "Not run");
+  updateVerifyDetails([]);
+}
+
+// Each verify warning is a typed object ({ code, ...fields }); render the
+// non-code fields as "key value" prose so the disclosure stays honest to the
+// structured payload without hardcoding per-code copy.
+function describeVerifyWarning(w) {
+  if (!w || typeof w !== "object") return "";
+  if (w.message) return String(w.message);
+  var parts = [];
+  Object.keys(w).forEach(function(key) {
+    if (key === "code" || key === "message" || key === "line" || key === "lines") return;
+    var value = w[key];
+    if (value == null) return;
+    if (typeof value === "object") {
+      try { value = JSON.stringify(value); } catch (err) { return; }
+    }
+    parts.push(key + " " + value);
+  });
+  return parts.join(", ");
+}
+
+function verifyWarningLocation(w) {
+  if (!w) return "";
+  if (typeof w.line === "number") return "line " + w.line;
+  if (Array.isArray(w.lines) && w.lines.length) {
+    return "line" + (w.lines.length === 1 ? " " : "s ") + w.lines.join(", ");
+  }
+  return "";
+}
+
+function setVerifyDetailsOpen(open) {
+  if (!verifyDetailsBtn || !verifyDetails) return;
+  verifyDetails.hidden = !open;
+  verifyDetailsBtn.setAttribute("aria-expanded", open ? "true" : "false");
+}
+
+// The disclosure lists each warning's stable code (linked to its docs page),
+// prose, and source location. The collapsed tier counts stay the default view.
+function updateVerifyDetails(warnings) {
+  if (!verifyDetailsBtn || !verifyDetailsList) return;
+  if (!warnings.length) {
+    verifyDetailsBtn.hidden = true;
+    verifyDetailsList.innerHTML = "";
+    setVerifyDetailsOpen(false);
+    return;
+  }
+  verifyDetailsBtn.hidden = false;
+  verifyDetailsBtn.textContent = "Details (" + warnings.length + ")";
+  verifyDetailsList.innerHTML = warnings.map(function(w) {
+    var code = String((w && w.code) || "UNKNOWN");
+    var tier = VERIFY_TIER_BY_CODE[code] || "lint";
+    var message = describeVerifyWarning(w);
+    var location = verifyWarningLocation(w);
+    return '<li class="verify-detail ' + escAttr(tier) + '">'
+      + '<a class="verify-detail-code" href="/warnings/' + escAttr(code) + '/" target="_blank" rel="noopener">' + escHtml(code) + '</a>'
+      + (message ? '<span class="verify-detail-message">' + escHtml(message) + '</span>' : '')
+      + (location ? '<span class="verify-detail-location">' + escHtml(location) + '</span>' : '')
+      + '</li>';
+  }).join("");
+}
+
+if (verifyDetailsBtn) {
+  verifyDetailsBtn.addEventListener("click", function() {
+    setVerifyDetailsOpen(verifyDetails.hidden);
+  });
 }
 
 function updateVerifyPanel(source) {
@@ -879,6 +1059,7 @@ function updateVerifyPanel(source) {
       var tier = VERIFY_TIER_BY_CODE[w && w.code] || "lint";
       counts[tier]++;
     });
+    updateVerifyDetails(warnings);
     var structuralState = counts.structural ? (result.ok ? "warn" : "err") : "ok";
     setVerifyTier(verifyTierStructural, verifyStructural, structuralState, counts.structural ? counts.structural + " warning" + (counts.structural === 1 ? "" : "s") : "Clear");
     setVerifyTier(verifyTierGeometric, verifyGeometric, counts.geometric ? "warn" : "ok", counts.geometric ? counts.geometric + " advisory" + (counts.geometric === 1 ? "" : " warnings") : "Clear");
@@ -893,6 +1074,7 @@ function updateVerifyPanel(source) {
     setVerifyTier(verifyTierStructural, verifyStructural, "err", "Fix source first");
     setVerifyTier(verifyTierGeometric, verifyGeometric, "idle", "Not run");
     setVerifyTier(verifyTierLint, verifyLint, "idle", "Not run");
+    updateVerifyDetails([]);
   }
 }
 
@@ -980,6 +1162,7 @@ async function doRender() {
     applyStrokeOverrides(svgEl);
     applyZoom(state.zoom);
     if (autoFitPending && typeof fitToView === 'function') { fitToView(); autoFitPending = false; }
+    setEditorErrorLine(0);
     statusText.textContent = "OK";
     statusText.className = "status-ok";
     statusDot.className = "status-dot ok";
@@ -991,6 +1174,8 @@ async function doRender() {
   } catch (err) {
     var ms = (performance.now() - t0).toFixed(0);
     previewInner.innerHTML = formatRenderErrorHtml(err);
+    var errorLoc = extractErrorLocation(String(err || ""));
+    setEditorErrorLine(errorLoc ? errorLoc.line : 0);
     statusText.textContent = "Error";
     statusText.className = "status-err";
     statusDot.className = "status-dot err";
@@ -1031,6 +1216,10 @@ document.getElementById('zoom-in-btn').addEventListener('click', function() {
 document.getElementById('zoom-out-btn').addEventListener('click', function() {
   applyZoom(state.zoom / 1.25);
 });
+// The percentage readout doubles as the reset control.
+zoomLabel.addEventListener('click', function() {
+  applyZoom(1);
+});
 function fitToView() {
   var svgEl = previewInner.querySelector('svg');
   if (!svgEl || !previewBody) { applyZoom(1); return; }
@@ -1051,6 +1240,7 @@ document.getElementById('zoom-fit-btn').addEventListener('click', fitToView);
 var panBtn = document.getElementById('pan-btn');
 var panActive = false;
 var panStart = null;
+var panPointerId = null;
 
 function syncPanButton() {
   panBtn.classList.toggle('active', panActive);
@@ -1064,28 +1254,38 @@ panBtn.addEventListener('click', function() {
 });
 syncPanButton();
 
-previewBody.addEventListener('mousedown', function(e) {
+// Pointer events (not mouse events) so pan works with touch and pen too;
+// pan-mode sets touch-action: none in CSS so touch drags reach us instead of
+// triggering native scrolling.
+previewBody.addEventListener('pointerdown', function(e) {
   var shouldPan = panActive || e.metaKey || e.ctrlKey;
   if (!shouldPan) return;
-  if (e.button !== 0) return;
+  if (e.pointerType === 'mouse' && e.button !== 0) return;
   e.preventDefault();
+  panPointerId = e.pointerId;
   panStart = { x: e.clientX, y: e.clientY, sl: previewBody.scrollLeft, st: previewBody.scrollTop };
   previewBody.classList.add('panning');
+  if (previewBody.setPointerCapture) {
+    try { previewBody.setPointerCapture(e.pointerId); } catch(err) {}
+  }
 });
 
-window.addEventListener('mousemove', function(e) {
-  if (!panStart) return;
+previewBody.addEventListener('pointermove', function(e) {
+  if (!panStart || e.pointerId !== panPointerId) return;
   var dx = e.clientX - panStart.x;
   var dy = e.clientY - panStart.y;
   previewBody.scrollLeft = panStart.sl - dx;
   previewBody.scrollTop  = panStart.st  - dy;
 });
 
-window.addEventListener('mouseup', function() {
-  if (!panStart) return;
+function endPan(e) {
+  if (!panStart || e.pointerId !== panPointerId) return;
   panStart = null;
+  panPointerId = null;
   previewBody.classList.remove('panning');
-});
+}
+previewBody.addEventListener('pointerup', endPan);
+previewBody.addEventListener('pointercancel', endPan);
 
 window.addEventListener('keydown', function(e) {
   if (e.metaKey || e.ctrlKey) previewBody.classList.add('cmd-pan');
@@ -1098,15 +1298,31 @@ previewBody.addEventListener('wheel', function(e) {
   if (!e.ctrlKey && !e.metaKey) return;
   e.preventDefault();
   var factor = Math.pow(0.999, e.deltaY);
+  var svgEl = previewInner.querySelector('svg');
+  if (!svgEl) {
+    applyZoom(state.zoom * factor);
+    return;
+  }
+  // Anchor the zoom at the cursor: remember which diagram point sits under it,
+  // apply the (clamped) zoom, then scroll so that point lands back under it.
+  var before = svgEl.getBoundingClientRect();
+  var px = (e.clientX - before.left) / (before.width || 1);
+  var py = (e.clientY - before.top) / (before.height || 1);
   applyZoom(state.zoom * factor);
+  var after = svgEl.getBoundingClientRect();
+  previewBody.scrollLeft += (after.left + px * after.width) - e.clientX;
+  previewBody.scrollTop  += (after.top + py * after.height) - e.clientY;
 }, { passive: false });
 
 
 function updateLineNumbers() {
   var lines = editor.value.split('\n').length;
   var html = '';
-  for (var i = 1; i <= lines; i++) html += i + '\n';
-  lineNumbers.textContent = html;
+  for (var i = 1; i <= lines; i++) {
+    // editorErrorLine (helpers.js) marks the line the last render error named.
+    html += i === editorErrorLine ? '<span class="line-number-error">' + i + '</span>\n' : i + '\n';
+  }
+  lineNumbers.innerHTML = html;
 }
 
 function updateCursorPos() {
@@ -1124,9 +1340,11 @@ editor.addEventListener('scroll', function() {
 
 editor.addEventListener('input', function() {
   if (typeof markActiveExample === 'function') markActiveExample('');
+  setEditorErrorLine(0);
   updateLineNumbers();
   updateCursorPos();
   scheduleRender();
+  if (typeof scheduleDraftSave === 'function') scheduleDraftSave();
 });
 
 editor.addEventListener('keydown', function(e) {
@@ -1136,8 +1354,10 @@ editor.addEventListener('keydown', function(e) {
     var end   = editor.selectionEnd;
     editor.value = editor.value.substring(0, start) + '  ' + editor.value.substring(end);
     editor.selectionStart = editor.selectionEnd = start + 2;
+    setEditorErrorLine(0);
     updateLineNumbers();
     scheduleRender();
+    if (typeof scheduleDraftSave === 'function') scheduleDraftSave();
     return;
   }
   if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
@@ -1606,6 +1826,8 @@ function loadEditorExample(id) {
   editor.value = example.source.trim();
   state.config = cloneEditorConfig(example.options);
   markActiveExample(example.id);
+  if (typeof setEditorErrorLine === 'function') setEditorErrorLine(0);
+  if (typeof scheduleDraftSave === 'function') scheduleDraftSave();
 
   // Examples are source/config presets only; keep the user's selected theme.
   if (typeof applyThemeToPage === 'function') applyThemeToPage(state.theme);
@@ -1730,6 +1952,8 @@ function readConfig() {
   if (cfgFont)           cfg.font    = cfgFont;
   if (cfgPadding !== 24) cfg.padding = cfgPadding;
   state.config = cfg;
+  // Per-diagram config rides along in the autosaved draft.
+  if (typeof scheduleDraftSave === 'function') scheduleDraftSave();
 }
 
 var THEME_COLOR_MAP = { bg: 'bg', fg: 'fg', accent: 'accent', line: 'line', muted: 'muted', surface: 'surface' };
@@ -2309,6 +2533,8 @@ function copyAgentTask() {
 
 function clearEditor() {
   editor.value = '';
+  setEditorErrorLine(0);
+  if (typeof discardEditorDraft === 'function') discardEditorDraft();
   updateLineNumbers();
   updateCursorPos();
   previewInner.innerHTML = emptyPreviewHtml();
@@ -2349,7 +2575,7 @@ function selectCanvasFormat(fmt) {
   if (zoomControls) zoomControls.hidden = fmt !== 'diagram';
   if (copyTextOutputBtn) {
     var label = fmt === 'diagram'
-      ? 'Copy Mermaid source'
+      ? 'Copy SVG markup'
       : 'Copy ' + (fmt === 'ascii' ? 'ASCII' : 'Unicode') + ' output';
     copyTextOutputBtn.title = label;
     copyTextOutputBtn.setAttribute('aria-label', label);
@@ -2373,7 +2599,15 @@ document.querySelectorAll('[data-canvas-format]').forEach(function(btn) {
 
 if (copyTextOutputBtn) copyTextOutputBtn.addEventListener('click', function() {
   if (currentCanvasFormat === 'diagram') {
-    writeClipboardText(editor.value, 'Source copied!', 'Copy source failed.', copyTextOutputBtn);
+    // Copy the rendered SVG markup — "Copy source" already lives in the export
+    // dropdown, so the preview copy always copies what is on the canvas.
+    var svgEl = previewInner.querySelector('svg');
+    if (!svgEl) {
+      setCopyFeedback(copyTextOutputBtn, 'err');
+      showToast('Render a diagram before copying its SVG.');
+      return;
+    }
+    writeClipboardText(new XMLSerializer().serializeToString(svgEl), 'SVG markup copied!', 'Copy SVG failed.', copyTextOutputBtn);
     return;
   }
   var el = document.getElementById(currentCanvasFormat + '-output');
@@ -2388,6 +2622,38 @@ document.addEventListener('click', function(e) {
   if (typeof setExamplesSidebarOpen === 'function') setExamplesSidebarOpen(false);
 });
 
+// Keyboard-shortcut cheat sheet — same popup contract as the other popovers:
+// inert + aria-hidden when closed, Escape closes, focus returns to the opener.
+var shortcutsBtn = document.getElementById('shortcuts-btn');
+var shortcutsDialog = document.getElementById('shortcuts-dialog');
+var shortcutsDialogClose = document.getElementById('shortcuts-dialog-close');
+
+var shortcutsPopup = (shortcutsBtn && shortcutsDialog && typeof createPopupController === 'function')
+  ? createPopupController({
+      popup: shortcutsDialog,
+      trigger: shortcutsBtn,
+      visibility: { manageTabStops: true, toggleTriggerClass: false },
+      afterOpen: function() {
+        if (shortcutsDialogClose) shortcutsDialogClose.focus();
+      },
+    })
+  : null;
+
+if (shortcutsDialogClose) shortcutsDialogClose.addEventListener('click', function() {
+  if (shortcutsPopup) shortcutsPopup.close({ source: 'close-button', restoreFocus: true });
+});
+
+document.addEventListener('keydown', function(e) {
+  if (e.key !== '?' || e.metaKey || e.ctrlKey || e.altKey || !shortcutsPopup) return;
+  var target = e.target;
+  var tag = target && target.tagName;
+  // "?" is typed text inside the source editor and other fields; only treat it
+  // as the cheat-sheet shortcut when focus is outside editable controls.
+  if (tag === 'TEXTAREA' || tag === 'INPUT' || tag === 'SELECT' || (target && target.isContentEditable)) return;
+  e.preventDefault();
+  shortcutsPopup.open({ source: 'keyboard' });
+});
+
 
 var exportScale = 4;
 var exportDropdown = document.getElementById('export-dropdown');
@@ -2397,6 +2663,7 @@ var exportRequiresSvgButtons = [
   exportMainBtn,
   document.getElementById('export-png-btn'),
   document.getElementById('export-svg-btn'),
+  document.getElementById('copy-png-btn'),
 ].filter(Boolean);
 
 function hasRenderedSvg() {
@@ -2456,7 +2723,7 @@ function serializeSvg(svgEl) {
   return new XMLSerializer().serializeToString(svgEl);
 }
 
-function svgToPngBlob(svgEl, scale, cb) {
+function svgToPngBlob(svgEl, scale, cb, onError) {
   var serialized = serializeSvg(svgEl);
   var svgBlob = new Blob([serialized], { type: 'image/svg+xml;charset=utf-8' });
   var url = URL.createObjectURL(svgBlob);
@@ -2473,7 +2740,11 @@ function svgToPngBlob(svgEl, scale, cb) {
     URL.revokeObjectURL(url);
     canvas.toBlob(cb, 'image/png');
   };
-  img.onerror = function() { URL.revokeObjectURL(url); showToast('PNG export failed.'); };
+  img.onerror = function() {
+    URL.revokeObjectURL(url);
+    if (onError) onError();
+    else showToast('PNG export failed.');
+  };
   img.src = url;
 }
 
@@ -2501,20 +2772,57 @@ function exportSVG() {
   setExportDropdownOpen(false, false);
 }
 
-function copyURL() {
-  updateHash();
-  writeClipboardText(window.location.href, 'URL copied to clipboard!', 'Copy link failed.', document.getElementById('copy-link-btn'));
+// Copy PNG hands the clipboard a promise immediately so the write stays
+// inside the user-activation window while the PNG encodes off-thread.
+var copyPngBtn = document.getElementById('copy-png-btn');
+
+function copyPNG() {
+  var svgEl = getSvgEl(); if (!svgEl) return;
+  if (typeof ClipboardItem === 'undefined' || !navigator.clipboard || !navigator.clipboard.write) {
+    setCopyFeedback(copyPngBtn, 'err');
+    showToast('Copying images is not supported in this browser.');
+    return;
+  }
+  var blobPromise = new Promise(function(resolve, reject) {
+    svgToPngBlob(svgEl, exportScale, function(blob) {
+      if (blob) resolve(blob);
+      else reject(new Error('PNG encode failed'));
+    }, function() { reject(new Error('PNG encode failed')); });
+  });
+  navigator.clipboard.write([new ClipboardItem({ 'image/png': blobPromise })]).then(function() {
+    setCopyFeedback(copyPngBtn, 'ok');
+    showToast('PNG copied (' + exportScale + 'x)');
+    setExportDropdownOpen(false, false);
+  }).catch(function() {
+    setCopyFeedback(copyPngBtn, 'err');
+    showToast('Copy PNG failed.');
+  });
 }
+
+function copyURL(sourceBtn) {
+  // updateHash compresses asynchronously; wait so the copied URL is current.
+  Promise.resolve(updateHash()).then(function() {
+    writeClipboardText(window.location.href, 'Share link copied to clipboard!', 'Copy link failed.', sourceBtn);
+  });
+}
+
+var copyLinkBtn = document.getElementById('copy-link-btn');
+var shareBtn = document.getElementById('share-btn');
 
 document.getElementById('export-png-btn').addEventListener('click', exportPNG);
 document.getElementById('export-svg-btn').addEventListener('click', exportSVG);
-document.getElementById('copy-link-btn').addEventListener('click', copyURL);
+if (copyPngBtn) copyPngBtn.addEventListener('click', copyPNG);
+copyLinkBtn.addEventListener('click', function() { copyURL(copyLinkBtn); });
+if (shareBtn) shareBtn.addEventListener('click', function() { copyURL(shareBtn); });
 updateExportAvailability();
 
 document.addEventListener('keydown', function(e) {
-  if (e.target === editor) return;
-  if ((e.metaKey || e.ctrlKey) && !e.shiftKey && e.key.toLowerCase() === 's') { e.preventDefault(); exportPNG(); }
-  if ((e.metaKey || e.ctrlKey) &&  e.shiftKey && e.key.toLowerCase() === 's') { e.preventDefault(); exportSVG(); }
+  // Fires even while focus is in the source textarea — where users spend most
+  // of their time — and preempts the browser's own Save dialog.
+  if (!(e.metaKey || e.ctrlKey) || e.key.toLowerCase() !== 's') return;
+  e.preventDefault();
+  if (e.shiftKey) exportSVG();
+  else exportPNG();
 });
 
 
@@ -2781,22 +3089,68 @@ var DEFAULT_SOURCE = [
   "  D -- warnings --> B",
 ].join("\n");
 
-var hashSource = getHashSource();
-var queryExampleId = getQueryExampleId();
-var loadedInitialExample = false;
-if (hashSource) {
-  editor.value = hashSource;
-  applyThemeToPage(state.theme);
-  updateThemeButton();
-  refreshAllColorUIs();
-} else if (queryExampleId && typeof loadEditorExample === 'function' && findEditorExample(queryExampleId)) {
-  loadEditorExample(queryExampleId);
-  loadedInitialExample = true;
-} else {
-  editor.value = DEFAULT_SOURCE;
+// Draft restore notice: polite, transient, with an explicit way to discard.
+var draftNotice = document.getElementById("draft-notice");
+var draftDiscardBtn = document.getElementById("draft-discard-btn");
+var draftNoticeTimer = null;
+
+function hideDraftNotice() {
+  if (draftNoticeTimer) clearTimeout(draftNoticeTimer);
+  draftNoticeTimer = null;
+  if (draftNotice) draftNotice.hidden = true;
 }
 
-if (!loadedInitialExample) {
-  updateLineNumbers();
-  scheduleRender(0);
+function showDraftRestoredNotice() {
+  if (!draftNotice) return;
+  draftNotice.hidden = false;
+  if (draftNoticeTimer) clearTimeout(draftNoticeTimer);
+  draftNoticeTimer = setTimeout(hideDraftNotice, 8000);
 }
+
+function discardRestoredDraft() {
+  if (typeof discardEditorDraft === "function") discardEditorDraft();
+  hideDraftNotice();
+  editor.value = DEFAULT_SOURCE;
+  state.config = {};
+  setEditorErrorLine(0);
+  refreshAllColorUIs();
+  updateLineNumbers();
+  updateCursorPos();
+  scheduleRender(0);
+  showToast("Draft discarded.");
+}
+
+if (draftDiscardBtn) draftDiscardBtn.addEventListener("click", discardRestoredDraft);
+
+// getHashSource decodes compressed share links asynchronously, so the initial
+// source pick runs in an async IIFE; nothing below in this file depends on it.
+(async function initializeEditorSource() {
+  var hashSource = await getHashSource();
+  var queryExampleId = getQueryExampleId();
+  var loadedInitialExample = false;
+  if (hashSource) {
+    editor.value = hashSource;
+    applyThemeToPage(state.theme);
+    updateThemeButton();
+    refreshAllColorUIs();
+  } else if (queryExampleId && typeof loadEditorExample === 'function' && findEditorExample(queryExampleId)) {
+    loadEditorExample(queryExampleId);
+    loadedInitialExample = true;
+  } else {
+    // No shared source in the URL: restore the autosaved draft if one exists.
+    var draft = typeof readEditorDraft === 'function' ? readEditorDraft() : null;
+    if (draft) {
+      editor.value = draft.source;
+      if (hasOwnConfig(draft.config)) state.config = draft.config;
+      refreshAllColorUIs();
+      showDraftRestoredNotice();
+    } else {
+      editor.value = DEFAULT_SOURCE;
+    }
+  }
+
+  if (!loadedInitialExample) {
+    updateLineNumbers();
+    scheduleRender(0);
+  }
+})();

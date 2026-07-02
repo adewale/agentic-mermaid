@@ -527,6 +527,12 @@ body {
   padding: 0;
   position: relative;
 }
+#shortcuts-btn {
+  width: 40px;
+  min-width: 40px;
+  padding: 0;
+  font-size: var(--t-sm);
+}
 #dark-light-btn svg {
   position: absolute;
   top: 50%;
@@ -601,6 +607,21 @@ body {
   }
   #dark-light-btn {
     display: none;
+  }
+  /* Touch devices have no keyboard shortcuts to look up. */
+  #shortcuts-btn {
+    display: none;
+  }
+  #share-btn {
+    order: 1;
+    width: 40px;
+    min-width: 40px;
+    padding: 0;
+    font-size: 0;
+    gap: 0;
+  }
+  #share-btn svg {
+    margin: 0;
   }
   .theme-dropdown-wrap {
     display: block;
@@ -960,6 +981,17 @@ body {
   white-space: pre;
 }
 
+/* A render error that names a source line paints its gutter number; cleared
+   on the next successful render or edit (see setEditorErrorLine). */
+.line-numbers .line-number-error {
+  display: inline-block;
+  min-width: 100%;
+  color: var(--red);
+  font-weight: 700;
+  background: color-mix(in srgb, var(--red) 14%, transparent);
+  border-radius: var(--radius-sm);
+}
+
 .code-editor {
   flex: 1;
   padding: 1rem 1rem 1rem 0.5rem;
@@ -981,6 +1013,42 @@ body {
 .code-editor:focus-visible {
   outline: none;
   box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--accent) 48%, transparent);
+}
+
+/* Draft restore notice — polite and transient, above the status bar. */
+.draft-notice {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 5px 12px;
+  border-top: 1px solid var(--border);
+  background: var(--bg2);
+  color: var(--fg2);
+  font-size: var(--t-label);
+  line-height: var(--lh-ui);
+  flex-shrink: 0;
+}
+.draft-notice[hidden] {
+  display: none;
+}
+.draft-discard-btn {
+  margin-left: auto;
+  border: 1px solid var(--control-border);
+  border-radius: var(--radius-pill);
+  background: var(--control-bg);
+  color: var(--fg2);
+  font: inherit;
+  font-size: var(--t-label);
+  font-weight: 600;
+  padding: 2px 10px;
+  cursor: pointer;
+  transition:
+    color 0.15s,
+    background 0.15s;
+}
+.draft-discard-btn:hover {
+  background: var(--control-bg-hover);
+  color: var(--fg);
 }
 
 .status-bar {
@@ -1106,6 +1174,7 @@ body {
   height: 14px;
 }
 
+/* A button since it doubles as "reset zoom to 100%". */
 .zoom-label {
   font-size: var(--t-label);
   font-weight: 500;
@@ -1114,6 +1183,14 @@ body {
   text-align: center;
   font-family: var(--font-mono);
   font-variant-numeric: tabular-nums;
+  border: none;
+  background: transparent;
+  padding: 0;
+  cursor: pointer;
+  transition: color 0.15s;
+}
+.zoom-label:hover {
+  color: var(--fg);
 }
 
 .preview-body {
@@ -1128,6 +1205,8 @@ body {
 }
 .preview-body.pan-mode {
   cursor: grab;
+  /* Touch drags reach the pointer-event pan handler instead of native scroll. */
+  touch-action: none;
 }
 .preview-body.pan-mode.panning {
   cursor: grabbing;
@@ -1355,6 +1434,59 @@ body {
 .verify-tier.ok .verify-dot { background: var(--green); }
 .verify-tier.warn .verify-dot { background: var(--warn); }
 .verify-tier.err .verify-dot { background: var(--red); }
+
+/* Warning details disclosure — the expanded list wraps onto its own row. */
+.verify-details-btn {
+  border: 1px solid var(--line);
+  border-radius: var(--radius-pill);
+  background: var(--control-bg);
+  color: var(--fg2);
+  font: inherit;
+  font-size: var(--t-label);
+  font-weight: 600;
+  padding: 2px 10px;
+  cursor: pointer;
+  transition:
+    color 0.15s,
+    background 0.15s;
+}
+.verify-details-btn:hover {
+  background: var(--control-bg-hover);
+  color: var(--fg);
+}
+.verify-details-btn[hidden] { display: none; }
+.verify-details { flex-basis: 100%; }
+.verify-details[hidden] { display: none; }
+.verify-details-list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 2px 0 6px;
+  max-height: 160px;
+  overflow-y: auto;
+}
+.verify-detail {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 8px;
+  color: var(--fg3);
+}
+.verify-detail-code {
+  font-family: var(--font-mono);
+  font-size: var(--t-label);
+  color: var(--link);
+  text-decoration: none;
+}
+.verify-detail-code:hover { text-decoration: underline; }
+.verify-detail-message { color: var(--fg2); }
+.verify-detail-location {
+  color: var(--fg4);
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
 @media (max-width: 760px) {
   .verify-tiers { margin-left: 0; }
 }
@@ -2015,6 +2147,93 @@ body {
   transform: translateX(-50%) translateY(-4px);
 }
 
+/* Keyboard shortcuts cheat sheet dialog */
+.shortcuts-dialog {
+  display: none;
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: min(400px, calc(100vw - 32px));
+  max-height: min(70vh, 480px);
+  overflow-y: auto;
+  padding: 14px;
+  background: var(--popover-bg);
+  border: 1px solid var(--control-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-popover);
+  z-index: 4000;
+}
+.shortcuts-dialog.open {
+  display: block;
+}
+.shortcuts-dialog-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+.shortcuts-dialog-title {
+  font-size: var(--t-sm);
+  font-weight: 650;
+  color: var(--fg);
+}
+.shortcuts-dialog-close {
+  width: 28px;
+  height: 28px;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--fg3);
+  font-size: 16px;
+  font-family: inherit;
+  cursor: pointer;
+  transition:
+    color 0.15s,
+    background 0.15s;
+}
+.shortcuts-dialog-close:hover {
+  background: var(--control-bg-hover);
+  color: var(--fg);
+}
+.shortcut-row {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  padding: 5px 0;
+  font-size: var(--t-label);
+  color: var(--fg2);
+}
+.shortcut-keys {
+  display: flex;
+  gap: 2px;
+  flex: none;
+  min-width: 108px;
+}
+.shortcut-keys kbd {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 4px;
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  font-size: 0.625rem;
+  font-family: inherit;
+  color: var(--fg3);
+  font-variant-numeric: tabular-nums;
+}
+.shortcut-desc {
+  flex: 1;
+}
+.shortcuts-dialog-note {
+  margin-top: 8px;
+  font-size: var(--t-label);
+  color: var(--fg4);
+}
+
 /* Scrollbar */
 ::-webkit-scrollbar {
   width: 6px;
@@ -2104,6 +2323,8 @@ body {
 
   <div class="spacer"></div>
 
+  <button class="btn" id="shortcuts-btn" type="button" title="Keyboard shortcuts (?)" aria-label="Keyboard shortcuts" aria-haspopup="dialog" aria-expanded="false" aria-controls="shortcuts-dialog">?</button>
+
   <button class="btn" id="dark-light-btn" type="button" title="Toggle dark/light mode">
     <svg
       id="icon-moon"
@@ -2179,6 +2400,21 @@ body {
   </div>
 
   <div class="topbar-sep"></div>
+
+  <button class="btn" id="share-btn" type="button" title="Copy a shareable link to this diagram">
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      stroke-width="2"
+      stroke-linecap="round"
+      stroke-linejoin="round"
+    >
+      <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
+      <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
+    </svg>
+    <span>Share</span>
+  </button>
 
   <div class="export-wrap" id="export-wrap">
     <button class="btn" id="export-main-btn" type="button" title="Save PNG (⌘S)" disabled aria-disabled="true">
@@ -2259,6 +2495,22 @@ body {
         >
       </button>
 
+      <button class="export-item" id="copy-png-btn" type="button" disabled aria-disabled="true">
+        <svg
+          class="export-item-icon"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1.75"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          <rect x="9" y="9" width="13" height="13" rx="2" />
+          <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+        </svg>
+        <span class="export-item-label">Copy PNG</span>
+      </button>
+
       <div class="export-divider"></div>
 
       <button class="export-item" id="copy-source-btn" type="button" data-action="copy-source">
@@ -2332,6 +2584,52 @@ body {
         </div>
       </div>
     </div>
+  </div>
+
+  <!-- Keyboard shortcuts cheat sheet. Opened by the "?" button or the "?" key
+       (outside the source editor); follows the shared popup contract. -->
+  <div class="shortcuts-dialog" id="shortcuts-dialog" role="dialog" aria-modal="false" aria-labelledby="shortcuts-dialog-title" aria-hidden="true" inert>
+    <div class="shortcuts-dialog-header">
+      <span class="shortcuts-dialog-title" id="shortcuts-dialog-title">Keyboard shortcuts</span>
+      <button class="shortcuts-dialog-close" id="shortcuts-dialog-close" type="button" aria-label="Close keyboard shortcuts">×</button>
+    </div>
+    <div class="shortcut-row">
+      <span class="shortcut-keys"><kbd>⌘</kbd><kbd>S</kbd></span>
+      <span class="shortcut-desc">Save PNG</span>
+    </div>
+    <div class="shortcut-row">
+      <span class="shortcut-keys"><kbd>⌘</kbd><kbd>⇧</kbd><kbd>S</kbd></span>
+      <span class="shortcut-desc">Save SVG</span>
+    </div>
+    <div class="shortcut-row">
+      <span class="shortcut-keys"><kbd>⌘</kbd><kbd>↩</kbd></span>
+      <span class="shortcut-desc">Render now (in the source editor)</span>
+    </div>
+    <div class="shortcut-row">
+      <span class="shortcut-keys"><kbd>Tab</kbd></span>
+      <span class="shortcut-desc">Indent two spaces (in the source editor)</span>
+    </div>
+    <div class="shortcut-row">
+      <span class="shortcut-keys"><kbd>⌘</kbd><kbd>scroll</kbd></span>
+      <span class="shortcut-desc">Zoom the preview at the cursor</span>
+    </div>
+    <div class="shortcut-row">
+      <span class="shortcut-keys"><kbd>⌘</kbd><kbd>drag</kbd></span>
+      <span class="shortcut-desc">Pan the preview</span>
+    </div>
+    <div class="shortcut-row">
+      <span class="shortcut-keys"><kbd>←</kbd><kbd>→</kbd></span>
+      <span class="shortcut-desc">Move within menus and switches; resize panels on the divider</span>
+    </div>
+    <div class="shortcut-row">
+      <span class="shortcut-keys"><kbd>Esc</kbd></span>
+      <span class="shortcut-desc">Close menus and dialogs</span>
+    </div>
+    <div class="shortcut-row">
+      <span class="shortcut-keys"><kbd>?</kbd></span>
+      <span class="shortcut-desc">Open this cheat sheet</span>
+    </div>
+    <p class="shortcuts-dialog-note">On Windows and Linux, use Ctrl in place of ⌘.</p>
   </div>
 </header>
 
@@ -2566,6 +2864,12 @@ body {
     <div class="font-list" id="font-list" role="listbox" aria-label="Font choices"></div>
   </div>
 
+  <!-- Autosave: shown when a locally saved draft was restored on load. -->
+  <div class="draft-notice" id="draft-notice" role="status" hidden>
+    <span>Draft restored</span>
+    <button class="draft-discard-btn" id="draft-discard-btn" type="button">Discard draft</button>
+  </div>
+
   <div class="status-bar">
     <div class="status-left">
       <span class="status-dot" id="status-dot"></span>
@@ -2599,7 +2903,7 @@ body {
           <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="8" y1="11" x2="14" y2="11"/>
         </svg>
       </button>
-      <span class="zoom-label" id="zoom-label">100%</span>
+      <button class="zoom-label" id="zoom-label" type="button" title="Reset zoom to 100%" aria-label="Reset zoom to 100 percent">100%</button>
       <button class="toolbar-btn" id="zoom-in-btn" type="button" title="Zoom in" aria-label="Zoom in">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="11" y1="8" x2="11" y2="14"/><line x1="8" y1="11" x2="14" y2="11"/>
@@ -2649,6 +2953,12 @@ body {
       <span class="verify-tier idle" id="verify-tier-geometric" role="listitem"><span class="verify-dot" aria-hidden="true"></span>Geometric<i id="verify-geometric">Not run</i></span>
       <span class="verify-tier idle" id="verify-tier-lint" role="listitem"><span class="verify-dot" aria-hidden="true"></span>Lint<i id="verify-lint">Not run</i></span>
     </div>
+    <!-- Disclosure: each warning's stable code (linked to /warnings/<CODE>/),
+         message, and source location. Collapsed tier counts stay the default. -->
+    <button class="verify-details-btn" id="verify-details-btn" type="button" aria-expanded="false" aria-controls="verify-details" hidden>Details</button>
+    <div class="verify-details" id="verify-details" hidden>
+      <ul class="verify-details-list" id="verify-details-list" aria-label="Verify warnings"></ul>
+    </div>
   </div>
 
   <div class="preview-footer">
@@ -2662,6 +2972,6 @@ body {
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
 <!-- Bundled renderer -->
-<script type="module" src="/editor/editor-da59487450ee.js"></script>
+<script type="module" src="/editor/editor-7355899a34e0.js"></script>
 </body>
 </html>

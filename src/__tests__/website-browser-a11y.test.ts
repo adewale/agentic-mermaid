@@ -113,8 +113,15 @@ describeBrowser('website browser accessibility smoke', () => {
       const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)
       expect({ route, overflow }).toEqual({ route, overflow: 0 })
       if (route === '/') {
-        const unicodeOverflow = await page.locator('.unicode-diagram').evaluate((el) => el.scrollWidth - el.clientWidth)
-        expect({ route, unicodeOverflow }).toEqual({ route, unicodeOverflow: 0 })
+        // The Unicode diagram scrolls inside its own pre on narrow screens
+        // (overflow-x: auto) so the type stays at a readable floor instead of
+        // shrinking with the viewport; the page itself must still not scroll.
+        const unicode = await page.locator('.unicode-diagram').evaluate((el) => ({
+          overflowX: getComputedStyle(el).overflowX,
+          codeSize: Number.parseFloat(getComputedStyle(el.querySelector('code')!).fontSize),
+        }))
+        expect({ route, overflowX: unicode.overflowX }).toEqual({ route, overflowX: 'auto' })
+        expect(unicode.codeSize).toBeGreaterThanOrEqual(8.8)
       }
       expect(await page.locator('.theme-switch').count()).toBe(0)
     }

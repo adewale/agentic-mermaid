@@ -22,7 +22,7 @@
 <main class="doc home-main">
 
   <section class="page-header" data-copy-widget data-copy-name="Agent prompt">
-    <h1><span class="line">Diagrams your</span> <span class="line">agents can edit</span></h1>
+    <h1><span class="line">Stop regenerating the whole diagram</span> <span class="line">to move one node.</span></h1>
     <p class="lead">Agentic Mermaid treats Mermaid source as the durable interface: agents parse the existing <code>.mmd</code>, make the smallest typed change, verify it, and return source you can review.</p>
     <div class="page-actions">
       <button class="primary-action prompt-action" type="button" data-copy-target="home-agent-prompt" data-copy-name="Agent prompt" aria-describedby="home-copy-status"><span class="copy-prompt-icon" aria-hidden="true"></span><span>Copy agent prompt</span></button>
@@ -267,7 +267,7 @@ execute(`
 </g>
 </svg>
     </div>
-    <figcaption>The agent edit loop, rendered to SVG.</figcaption>
+    <figcaption>The agent edit loop, rendered to SVG. <a class="go" href="/editor/#Zmxvd2NoYXJ0IExSCiAgU1tTb3VyY2UgLm1tZF0gLS0+IFBbcGFyc2VdCiAgUCAtLT4gTltuYXJyb3ddCiAgTiAtLT4gTVttdXRhdGVdCiAgTSAtLT4gVnt2ZXJpZnl9CiAgViAtLSBvayAtLT4gUltzZXJpYWxpemUg4oaSIHJlbmRlcl0KICBWIC0tIHdhcm5pbmdzIC0tPiBO">Edit this diagram in the editor</a></figcaption>
   </figure>
 
   <p>The same diagram as Unicode text:</p>
@@ -294,7 +294,15 @@ execute(`
 
 </main>
 
+<!-- Replaced at build time with the canonical footer from website/build.ts; keep in sync. -->
 <footer>
+  <div class="footlinks">
+    <a href="/warnings/">Warnings</a><span class="sep">&middot;</span>
+    <a href="/errors/">Errors</a><span class="sep">&middot;</span>
+    <a href="/releases/">Releases</a><span class="sep">&middot;</span>
+    <a href="/security/">Security</a><span class="sep">&middot;</span>
+    <a href="https://github.com/adewale/beautiful-mermaid">GitHub</a>
+  </div>
   <div class="footlinks">
     <a href="llms.txt">llms.txt</a><span class="sep">&middot;</span>
     <a href="agent-instructions.md">agent-instructions.md</a><span class="sep">&middot;</span>

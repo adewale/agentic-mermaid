@@ -864,10 +864,18 @@ describe('browser: live editor integration', () => {
       { timeout: 60_000 },
     )
 
-    const hashState = await page.evaluate(() => {
+    const hashState = await page.evaluate(async () => {
+      // Mirrors sharing.js decodeSource: new hashes are deflate:-prefixed
+      // base64url(deflate-raw); legacy hashes are plain base64.
       const hash = window.location.hash.slice(1)
-      const decoded = decodeURIComponent(escape(atob(hash)))
-      return JSON.parse(decoded)
+      if (hash.startsWith('deflate:')) {
+        let b64 = hash.slice('deflate:'.length).replace(/-/g, '+').replace(/_/g, '/')
+        while (b64.length % 4) b64 += '='
+        const bytes = Uint8Array.from(atob(b64), (c) => c.charCodeAt(0))
+        const stream = new Blob([bytes]).stream().pipeThrough(new DecompressionStream('deflate-raw'))
+        return JSON.parse(await new Response(stream).text())
+      }
+      return JSON.parse(decodeURIComponent(escape(atob(hash))))
     })
 
     expect(hashState.config).toMatchObject({

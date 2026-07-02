@@ -216,6 +216,14 @@ function mastheadHtml(currentHref = '') {
   return `<header class="masthead"><div class="bar"><a class="brand" href="/"><span class="mark"></span> Agentic&nbsp;Mermaid</a><span class="links">${nav}</span></div><hr></header>`
 }
 
+// Two footer rows shared by every shipped page: a human row (reference pages
+// plus the repository) and a machine row (agent artifacts). GitHub lives here
+// deliberately — the website contract test forbids repository chrome in the
+// masthead, so the footer is the one place the repo link ships.
+function footerHtml() {
+  return `<footer><div class="footlinks"><a href="/warnings/">Warnings</a><span class="sep">&middot;</span><a href="/errors/">Errors</a><span class="sep">&middot;</span><a href="/releases/">Releases</a><span class="sep">&middot;</span><a href="/security/">Security</a><span class="sep">&middot;</span><a href="https://github.com/adewale/beautiful-mermaid">GitHub</a></div><div class="footlinks"><a href="/llms.txt">llms.txt</a><span class="sep">&middot;</span><a href="/agent-instructions.md">agent-instructions.md</a><span class="sep">&middot;</span><a href="/capabilities.json">capabilities.json</a><span class="sep">&middot;</span><a href="/examples/index.json">examples.json</a><span class="sep">&middot;</span><a href="/skills/agentic-mermaid-diagram-workflow/SKILL.md">workflow skill</a></div></footer>`
+}
+
 // Single page header contract: h1 + lead, then an optional meta row
 // (e.g. "Updated · source · read time") and actions row. The public site is
 // deliberately document-first with no breadcrumb chrome (see the website
@@ -244,7 +252,7 @@ ${mastheadHtml(currentHref)}
 ${meta ? `<p class="page-meta">${meta}</p>\n` : ''}${actions ? `<div class="page-actions">${actions}</div>\n` : ''}</section>
 ${body}
 </main>
-<footer><div class="footlinks"><a href="/llms.txt">llms.txt</a><span class="sep">&middot;</span><a href="/agent-instructions.md">agent-instructions.md</a><span class="sep">&middot;</span><a href="/capabilities.json">capabilities.json</a><span class="sep">&middot;</span><a href="/examples/index.json">examples.json</a><span class="sep">&middot;</span><a href="/skills/agentic-mermaid-diagram-workflow/SKILL.md">workflow skill</a></div></footer>
+${footerHtml()}
 <script src="/shader-mark.js"></script>
 <script src="/theme.js"></script>
 </body>
@@ -388,6 +396,15 @@ function injectLoopRail(html: string) {
 function injectLoopHeadings(html: string) {
   return LOOP_STEPS.reduce((h, s, i) => h.replace(new RegExp(`<h2>${i + 1} &middot; [^<]*</h2>`), `<h2>${i + 1} &middot; ${s.label}</h2>`), html)
 }
+// One canonical docs index. Generated docs pages append it (as `docsIndex`,
+// with a leading rule) and the docs article gets it injected at build time —
+// same single-source pattern as the loop rail — so the mockup's hand-baked
+// list can never drift from the pages that actually ship.
+const docsIndexBody = '<h2>Docs index</h2><ul class="doc-index"><li><a href="/docs/getting-started/">Getting started</a></li><li><a href="/docs/families/">Diagram families</a></li><li><a href="/docs/api/">Library API</a></li><li><a href="/docs/cli/">CLI</a></li><li><a href="/docs/mcp/">MCP</a></li><li><a href="/docs/source-level/">Source-level edits</a></li><li><a href="/docs/ascii/">ASCII and Unicode</a></li><li><a href="/docs/theming/">Theming</a></li><li><a href="/docs/config/">Config</a></li><li><a href="/docs/react/">React</a></li><li><a href="/docs/quality/">Quality</a></li><li><a href="/warnings/">Warnings</a></li><li><a href="/errors/">Errors</a></li><li><a href="/docs/vocabulary/">Vocabulary</a></li><li><a href="/docs/fork-differences/">Fork differences</a></li></ul>'
+const docsIndex = '<hr>' + docsIndexBody
+function injectDocsIndex(html: string) {
+  return html.replace(/<h2>Docs index<\/h2>\s*<ul class="doc-index">[\s\S]*?<\/ul>/, docsIndexBody)
+}
 for (const [source, target] of pageOutputs) {
   const currentHref = topNavHrefForRoute(routeMap[source])
   let html = transformHtml(await readMock(source), currentHref)
@@ -395,8 +412,11 @@ for (const [source, target] of pageOutputs) {
   // Examples/Gallery/Families consolidation. Swap in the one canonical masthead
   // so every shipped page — mockup-derived or generated — shares one nav.
   html = html.replace(/<header class="masthead">[\s\S]*?<\/header>/, () => mastheadHtml(currentHref))
+  // Same treatment for the hand-baked footers: every shipped page carries the
+  // one canonical human + machine link rows.
+  html = html.replace(/<footer>[\s\S]*?<\/footer>/, () => footerHtml())
   if (source === 'home.html') html = injectLoopRail(html)
-  if (source === 'docs-article.html') html = injectLoopHeadings(html)
+  if (source === 'docs-article.html') html = injectDocsIndex(injectLoopHeadings(html))
   await emit(target, html)
 }
 await emit('editor/index.html', await generateEditorHtml())
@@ -442,7 +462,6 @@ await emit('llms.txt', publicLlms)
 await emit('agent-instructions.md', await Bun.file(join(ROOT, 'Instructions_for_agents.md')).text())
 
 // Spec route coverage pages.
-const docsIndex = '<hr><h2>Docs index</h2><ul class="doc-index"><li><a href="/docs/getting-started/">Getting started</a></li><li><a href="/docs/families/">Diagram families</a></li><li><a href="/docs/api/">Library API</a></li><li><a href="/docs/cli/">CLI</a></li><li><a href="/docs/mcp/">MCP</a></li><li><a href="/docs/source-level/">Source-level edits</a></li><li><a href="/docs/ascii/">ASCII and Unicode</a></li><li><a href="/docs/theming/">Theming</a></li><li><a href="/docs/config/">Config</a></li><li><a href="/docs/react/">React</a></li><li><a href="/docs/quality/">Quality</a></li><li><a href="/docs/vocabulary/">Vocabulary</a></li><li><a href="/docs/fork-differences/">Fork differences</a></li></ul>'
 const aboutLead = 'Agentic Mermaid is a fork of beautiful-mermaid, aimed at a job the original did not have: programs that draw and check diagrams with no person watching. It renders without a browser, reports its own layout errors, and edits diagrams as a typed tree.'
 // The brand Paper palette, hex-resolved. The public site is light-only, so these
 // diagrams render once in Paper rather than carrying a var()-token SVG: page-level
@@ -561,11 +580,27 @@ const docPages = [
   ['examples/index.html', 'Examples', 'Proof that each editor source parses, renders, and carries an agent task you can replay.', examplesShowcaseHtml(EDITOR_EXAMPLES), '/examples/'],
   ['skills/index.html', 'Skills', 'Optional workflow skill.', '<p>The public skill is <a href="/skills/agentic-mermaid-diagram-workflow/">agentic-mermaid-diagram-workflow</a>. Use it when an agent supports skills; otherwise the homepage prompt and <code>agent-instructions.md</code> are the primary agent context.</p>'],
 ]
-for (const [rel, title, lead, body, currentHref] of docPages) await emit(rel, pageShell(title, lead, body, currentHref || (rel.startsWith('docs/') ? '/docs/' : '')))
+// Prev/next pager for the manual pages under /docs/, in docPages order with no
+// wrap: the first page has only next, the last only prev. About and the other
+// coverage pages (security, releases, evidence, examples, skills) do not page.
+const docsSequence = docPages.filter(([rel]) => rel.startsWith('docs/'))
+function docsPagerHtml(rel: string) {
+  const i = docsSequence.findIndex(([r]) => r === rel)
+  if (i === -1) return ''
+  const link = (page: (typeof docPages)[number], dir: 'prev' | 'next') => {
+    const href = '/' + page[0].replace(/index\.html$/, '')
+    const label = dir === 'prev' ? `&larr; ${escapeHtml(page[1])}` : `${escapeHtml(page[1])} &rarr;`
+    return `<a class="doc-pager-${dir}" rel="${dir}" href="${href}">${label}</a>`
+  }
+  const prev = docsSequence[i - 1]
+  const next = docsSequence[i + 1]
+  return `\n<nav class="doc-pager" aria-label="Docs pages">${prev ? link(prev, 'prev') : ''}${next ? link(next, 'next') : ''}</nav>`
+}
+for (const [rel, title, lead, body, currentHref] of docPages) await emit(rel, pageShell(title, lead, body + docsPagerHtml(rel), currentHref || (rel.startsWith('docs/') ? '/docs/' : '')))
 
 await emit('warnings/index.html', pageShell('Warnings', 'Warning codes are tiered so agents know whether to fix, retry, or ask.', `<table class="warning-table"><thead><tr><th>Code</th><th>Tier</th><th>Severity</th></tr></thead><tbody>${capabilities.warningCodes.map((w: any) => `<tr><td data-label="Code"><a href="/warnings/${w.code}/"><code>${w.code}</code></a></td><td data-label="Tier">${w.tier}</td><td data-label="Severity">${w.severity}</td></tr>`).join('')}</tbody></table>`))
 for (const w of capabilities.warningCodes) {
-  await emit(`warnings/${w.code}/index.html`, pageShell(w.code, `${w.tier} ${w.severity} warning.`, `<p>Run <code>am verify diagram.mmd --json</code>, inspect this code, and apply the smallest source or typed mutation that clears it. If it persists after two mechanical attempts, return the warning and ask for human review.</p>`))
+  await emit(`warnings/${w.code}/index.html`, pageShell(w.code, `${w.tier} ${w.severity} warning.`, `<p>Run <code>am verify diagram.mmd --json</code>, inspect this code, and apply the smallest source or typed mutation that clears it. If it persists after two mechanical attempts, return the warning and ask for human review.</p><p class="muted">Back to <a href="/warnings/">all warning codes</a>, or <a href="/editor/">open the editor</a> to watch this warning clear as you edit.</p>`))
 }
 const errors = [
   ['parse-error', 'Parse error', 'The source could not be parsed. Preserve the source and point to the line/column when available.'],
@@ -574,7 +609,7 @@ const errors = [
   ['verify-failed', 'Verify failed', 'The diagram parsed but verification returned blocking structural warnings.'],
 ]
 await emit('errors/index.html', pageShell('Errors', 'Error pages explain recovery paths for local CLI, library, and MCP use.', `<ul>${errors.map(([id, title, desc]) => `<li><a href="/errors/${id}/">${title}</a> – ${desc}</li>`).join('')}</ul>`))
-for (const [id, title, desc] of errors) await emit(`errors/${id}/index.html`, pageShell(title, desc, '<pre><code>am verify diagram.mmd --json</code></pre><p>Return the structured error to the caller when a safe automatic fix is not obvious.</p>'))
+for (const [id, title, desc] of errors) await emit(`errors/${id}/index.html`, pageShell(title, desc, '<pre><code>am verify diagram.mmd --json</code></pre><p>Return the structured error to the caller when a safe automatic fix is not obvious.</p><p class="muted">Back to <a href="/errors/">all errors</a>, or <a href="/editor/">open the editor</a> to reproduce the failure as you type.</p>'))
 
 const securityHeaders = [
   '/*',

@@ -40,6 +40,8 @@
 
   <div class="spacer"></div>
 
+  <button class="btn" id="shortcuts-btn" type="button" title="Keyboard shortcuts (?)" aria-label="Keyboard shortcuts" aria-haspopup="dialog" aria-expanded="false" aria-controls="shortcuts-dialog">?</button>
+
   <button class="btn" id="dark-light-btn" type="button" title="Toggle dark/light mode">
     <svg
       id="icon-moon"
@@ -94,6 +96,21 @@
   </div>
 
   <div class="topbar-sep"></div>
+
+  <button class="btn" id="share-btn" type="button" title="Copy a shareable link to this diagram">
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      stroke-width="2"
+      stroke-linecap="round"
+      stroke-linejoin="round"
+    >
+      <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
+      <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
+    </svg>
+    <span>Share</span>
+  </button>
 
   <div class="export-wrap" id="export-wrap">
     <button class="btn" id="export-main-btn" type="button" title="Save PNG (⌘S)" disabled aria-disabled="true">
@@ -174,6 +191,22 @@
         >
       </button>
 
+      <button class="export-item" id="copy-png-btn" type="button" disabled aria-disabled="true">
+        <svg
+          class="export-item-icon"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1.75"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          <rect x="9" y="9" width="13" height="13" rx="2" />
+          <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+        </svg>
+        <span class="export-item-label">Copy PNG</span>
+      </button>
+
       <div class="export-divider"></div>
 
       <button class="export-item" id="copy-source-btn" type="button" data-action="copy-source">
@@ -247,5 +280,51 @@
         </div>
       </div>
     </div>
+  </div>
+
+  <!-- Keyboard shortcuts cheat sheet. Opened by the "?" button or the "?" key
+       (outside the source editor); follows the shared popup contract. -->
+  <div class="shortcuts-dialog" id="shortcuts-dialog" role="dialog" aria-modal="false" aria-labelledby="shortcuts-dialog-title" aria-hidden="true" inert>
+    <div class="shortcuts-dialog-header">
+      <span class="shortcuts-dialog-title" id="shortcuts-dialog-title">Keyboard shortcuts</span>
+      <button class="shortcuts-dialog-close" id="shortcuts-dialog-close" type="button" aria-label="Close keyboard shortcuts">×</button>
+    </div>
+    <div class="shortcut-row">
+      <span class="shortcut-keys"><kbd>⌘</kbd><kbd>S</kbd></span>
+      <span class="shortcut-desc">Save PNG</span>
+    </div>
+    <div class="shortcut-row">
+      <span class="shortcut-keys"><kbd>⌘</kbd><kbd>⇧</kbd><kbd>S</kbd></span>
+      <span class="shortcut-desc">Save SVG</span>
+    </div>
+    <div class="shortcut-row">
+      <span class="shortcut-keys"><kbd>⌘</kbd><kbd>↩</kbd></span>
+      <span class="shortcut-desc">Render now (in the source editor)</span>
+    </div>
+    <div class="shortcut-row">
+      <span class="shortcut-keys"><kbd>Tab</kbd></span>
+      <span class="shortcut-desc">Indent two spaces (in the source editor)</span>
+    </div>
+    <div class="shortcut-row">
+      <span class="shortcut-keys"><kbd>⌘</kbd><kbd>scroll</kbd></span>
+      <span class="shortcut-desc">Zoom the preview at the cursor</span>
+    </div>
+    <div class="shortcut-row">
+      <span class="shortcut-keys"><kbd>⌘</kbd><kbd>drag</kbd></span>
+      <span class="shortcut-desc">Pan the preview</span>
+    </div>
+    <div class="shortcut-row">
+      <span class="shortcut-keys"><kbd>←</kbd><kbd>→</kbd></span>
+      <span class="shortcut-desc">Move within menus and switches; resize panels on the divider</span>
+    </div>
+    <div class="shortcut-row">
+      <span class="shortcut-keys"><kbd>Esc</kbd></span>
+      <span class="shortcut-desc">Close menus and dialogs</span>
+    </div>
+    <div class="shortcut-row">
+      <span class="shortcut-keys"><kbd>?</kbd></span>
+      <span class="shortcut-desc">Open this cheat sheet</span>
+    </div>
+    <p class="shortcuts-dialog-note">On Windows and Linux, use Ctrl in place of ⌘.</p>
   </div>
 </header>

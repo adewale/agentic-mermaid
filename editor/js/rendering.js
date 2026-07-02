@@ -136,6 +136,72 @@ function resetVerifyPanel(summary) {
   setVerifyTier(verifyTierStructural, verifyStructural, "idle", "Not run");
   setVerifyTier(verifyTierGeometric, verifyGeometric, "idle", "Not run");
   setVerifyTier(verifyTierLint, verifyLint, "idle", "Not run");
+  updateVerifyDetails([]);
+}
+
+// Each verify warning is a typed object ({ code, ...fields }); render the
+// non-code fields as "key value" prose so the disclosure stays honest to the
+// structured payload without hardcoding per-code copy.
+function describeVerifyWarning(w) {
+  if (!w || typeof w !== "object") return "";
+  if (w.message) return String(w.message);
+  var parts = [];
+  Object.keys(w).forEach(function(key) {
+    if (key === "code" || key === "message" || key === "line" || key === "lines") return;
+    var value = w[key];
+    if (value == null) return;
+    if (typeof value === "object") {
+      try { value = JSON.stringify(value); } catch (err) { return; }
+    }
+    parts.push(key + " " + value);
+  });
+  return parts.join(", ");
+}
+
+function verifyWarningLocation(w) {
+  if (!w) return "";
+  if (typeof w.line === "number") return "line " + w.line;
+  if (Array.isArray(w.lines) && w.lines.length) {
+    return "line" + (w.lines.length === 1 ? " " : "s ") + w.lines.join(", ");
+  }
+  return "";
+}
+
+function setVerifyDetailsOpen(open) {
+  if (!verifyDetailsBtn || !verifyDetails) return;
+  verifyDetails.hidden = !open;
+  verifyDetailsBtn.setAttribute("aria-expanded", open ? "true" : "false");
+}
+
+// The disclosure lists each warning's stable code (linked to its docs page),
+// prose, and source location. The collapsed tier counts stay the default view.
+function updateVerifyDetails(warnings) {
+  if (!verifyDetailsBtn || !verifyDetailsList) return;
+  if (!warnings.length) {
+    verifyDetailsBtn.hidden = true;
+    verifyDetailsList.innerHTML = "";
+    setVerifyDetailsOpen(false);
+    return;
+  }
+  verifyDetailsBtn.hidden = false;
+  verifyDetailsBtn.textContent = "Details (" + warnings.length + ")";
+  verifyDetailsList.innerHTML = warnings.map(function(w) {
+    var code = String((w && w.code) || "UNKNOWN");
+    var tier = VERIFY_TIER_BY_CODE[code] || "lint";
+    var message = describeVerifyWarning(w);
+    var location = verifyWarningLocation(w);
+    return '<li class="verify-detail ' + escAttr(tier) + '">'
+      + '<a class="verify-detail-code" href="/warnings/' + escAttr(code) + '/" target="_blank" rel="noopener">' + escHtml(code) + '</a>'
+      + (message ? '<span class="verify-detail-message">' + escHtml(message) + '</span>' : '')
+      + (location ? '<span class="verify-detail-location">' + escHtml(location) + '</span>' : '')
+      + '</li>';
+  }).join("");
+}
+
+if (verifyDetailsBtn) {
+  verifyDetailsBtn.addEventListener("click", function() {
+    setVerifyDetailsOpen(verifyDetails.hidden);
+  });
 }
 
 function updateVerifyPanel(source) {
@@ -151,6 +217,7 @@ function updateVerifyPanel(source) {
       var tier = VERIFY_TIER_BY_CODE[w && w.code] || "lint";
       counts[tier]++;
     });
+    updateVerifyDetails(warnings);
     var structuralState = counts.structural ? (result.ok ? "warn" : "err") : "ok";
     setVerifyTier(verifyTierStructural, verifyStructural, structuralState, counts.structural ? counts.structural + " warning" + (counts.structural === 1 ? "" : "s") : "Clear");
     setVerifyTier(verifyTierGeometric, verifyGeometric, counts.geometric ? "warn" : "ok", counts.geometric ? counts.geometric + " advisory" + (counts.geometric === 1 ? "" : " warnings") : "Clear");
@@ -165,6 +232,7 @@ function updateVerifyPanel(source) {
     setVerifyTier(verifyTierStructural, verifyStructural, "err", "Fix source first");
     setVerifyTier(verifyTierGeometric, verifyGeometric, "idle", "Not run");
     setVerifyTier(verifyTierLint, verifyLint, "idle", "Not run");
+    updateVerifyDetails([]);
   }
 }
 
@@ -252,6 +320,7 @@ async function doRender() {
     applyStrokeOverrides(svgEl);
     applyZoom(state.zoom);
     if (autoFitPending && typeof fitToView === 'function') { fitToView(); autoFitPending = false; }
+    setEditorErrorLine(0);
     statusText.textContent = "OK";
     statusText.className = "status-ok";
     statusDot.className = "status-dot ok";
@@ -263,6 +332,8 @@ async function doRender() {
   } catch (err) {
     var ms = (performance.now() - t0).toFixed(0);
     previewInner.innerHTML = formatRenderErrorHtml(err);
+    var errorLoc = extractErrorLocation(String(err || ""));
+    setEditorErrorLine(errorLoc ? errorLoc.line : 0);
     statusText.textContent = "Error";
     statusText.className = "status-err";
     statusDot.className = "status-dot err";

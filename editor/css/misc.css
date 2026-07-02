@@ -39,6 +39,93 @@
   transform: translateX(-50%) translateY(-4px);
 }
 
+/* Keyboard shortcuts cheat sheet dialog */
+.shortcuts-dialog {
+  display: none;
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: min(400px, calc(100vw - 32px));
+  max-height: min(70vh, 480px);
+  overflow-y: auto;
+  padding: 14px;
+  background: var(--popover-bg);
+  border: 1px solid var(--control-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-popover);
+  z-index: 4000;
+}
+.shortcuts-dialog.open {
+  display: block;
+}
+.shortcuts-dialog-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+.shortcuts-dialog-title {
+  font-size: var(--t-sm);
+  font-weight: 650;
+  color: var(--fg);
+}
+.shortcuts-dialog-close {
+  width: 28px;
+  height: 28px;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--fg3);
+  font-size: 16px;
+  font-family: inherit;
+  cursor: pointer;
+  transition:
+    color 0.15s,
+    background 0.15s;
+}
+.shortcuts-dialog-close:hover {
+  background: var(--control-bg-hover);
+  color: var(--fg);
+}
+.shortcut-row {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  padding: 5px 0;
+  font-size: var(--t-label);
+  color: var(--fg2);
+}
+.shortcut-keys {
+  display: flex;
+  gap: 2px;
+  flex: none;
+  min-width: 108px;
+}
+.shortcut-keys kbd {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 4px;
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  font-size: 0.625rem;
+  font-family: inherit;
+  color: var(--fg3);
+  font-variant-numeric: tabular-nums;
+}
+.shortcut-desc {
+  flex: 1;
+}
+.shortcuts-dialog-note {
+  margin-top: 8px;
+  font-size: var(--t-label);
+  color: var(--fg4);
+}
+
 /* Scrollbar */
 ::-webkit-scrollbar {
   width: 6px;

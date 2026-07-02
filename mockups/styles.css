@@ -285,6 +285,9 @@ hr { border: 0; margin: var(--sp-6) 0; }
 .start-rail .go { display: inline-block; margin-top: 4px; }
 .doc-index { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 6px 18px; padding-left: 0; list-style: none; }
 .doc-index li { margin: 0; }
+.doc-pager { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 6px 18px; margin-top: var(--sp-6); padding-top: var(--sp-4); border-top: 1px solid var(--line); font-size: var(--t-sm); }
+.doc-pager a { color: var(--ink-soft); }
+.doc-pager .doc-pager-next { margin-left: auto; }
 .workflow-list { padding-left: 22px; }
 .workflow-list li { margin: 9px 0; }
 .section-kicker { margin: 0 0 8px; color: var(--ink-soft); font-family: var(--mono); font-size: var(--t-label); font-weight: 650; line-height: var(--lh-ui); }
@@ -424,8 +427,8 @@ code { font-family: var(--mono); font-size: 0.9em; font-feature-settings: "liga"
 :not(pre) > code { background: var(--surface-card); padding: 1px 6px; border-radius: var(--radius-sm); }
 pre { background: var(--surface-card); border-radius: var(--radius-md); padding: 15px 18px; overflow: auto; margin: 0 0 var(--sp-5); }
 pre code { font-size: var(--t-mono); line-height: var(--lh-code); color: var(--code-fg); background: none; padding: 0; }
-.unicode-diagram { overflow-x: hidden; }
-.unicode-diagram code { display: block; width: max-content; max-width: none; font-size: min(0.68rem, 1.2vw); line-height: var(--lh-heading); white-space: pre; }
+.unicode-diagram { overflow-x: auto; }
+.unicode-diagram code { display: block; width: max-content; max-width: none; font-size: clamp(0.55rem, 1.2vw, 0.68rem); line-height: var(--lh-heading); white-space: pre; }
 .c { color: var(--ink-faint); } .k { color: var(--link); } .ok { color: var(--link); }
 
 /* ---- blockquote: a left rule, nothing more ---- */
@@ -510,6 +513,7 @@ figcaption { color: var(--ink-faint); font-size: var(--t-label); line-height: 1.
 
 footer { max-width: var(--content-max); margin: 0 auto; padding: 28px var(--page-gutter) 56px; }
 .footlinks { display: flex; gap: 18px; flex-wrap: wrap; font-size: var(--t-sm); }
+.footlinks + .footlinks { margin-top: 8px; }
 .footlinks a { color: var(--ink-soft); }
 .footlinks .sep { color: var(--line-strong); }
 

@@ -24,6 +24,10 @@ document.getElementById('zoom-in-btn').addEventListener('click', function() {
 document.getElementById('zoom-out-btn').addEventListener('click', function() {
   applyZoom(state.zoom / 1.25);
 });
+// The percentage readout doubles as the reset control.
+zoomLabel.addEventListener('click', function() {
+  applyZoom(1);
+});
 function fitToView() {
   var svgEl = previewInner.querySelector('svg');
   if (!svgEl || !previewBody) { applyZoom(1); return; }

@@ -309,6 +309,12 @@
   padding: 0;
   position: relative;
 }
+#shortcuts-btn {
+  width: 40px;
+  min-width: 40px;
+  padding: 0;
+  font-size: var(--t-sm);
+}
 #dark-light-btn svg {
   position: absolute;
   top: 50%;
@@ -383,6 +389,21 @@
   }
   #dark-light-btn {
     display: none;
+  }
+  /* Touch devices have no keyboard shortcuts to look up. */
+  #shortcuts-btn {
+    display: none;
+  }
+  #share-btn {
+    order: 1;
+    width: 40px;
+    min-width: 40px;
+    padding: 0;
+    font-size: 0;
+    gap: 0;
+  }
+  #share-btn svg {
+    margin: 0;
   }
   .theme-dropdown-wrap {
     display: block;

@@ -231,7 +231,10 @@ describe('Workers Static Assets website contract', () => {
     expect(styles).toContain('.doc { max-width: var(--content-max);')
     expect(styles).toContain('.meta-label, .agent-kicker')
     expect(styles).toContain('overflow-wrap: break-word')
-    expect(styles).toContain('.unicode-diagram { overflow-x: hidden; }')
+    // Narrow screens scroll the Unicode diagram instead of shrinking the
+    // type below readability; the floor is clamped at 0.55rem.
+    expect(styles).toContain('.unicode-diagram { overflow-x: auto; }')
+    expect(styles).toContain('font-size: clamp(0.55rem, 1.2vw, 0.68rem)')
     expect(styles).not.toContain('overflow-wrap: anywhere')
     expect(styles).not.toContain('transition: background-color 0.2s ease')
     expect(styles).not.toContain('transition: opacity 0.35s ease')
