@@ -1131,7 +1131,12 @@ semantic dispatch.
    of `characterization:check`; pin the publish toolchain; drop the unused
    `sharp` dependency).
 1. **All-family SceneGraph lowering + `DefaultBackend` behind the existing
-   family registry.** Migrate every built-in renderable family in one coordinated
+   family registry.** *Status: IMPLEMENTED (src/scene/: ir.ts, marks.ts,
+   backend.ts, seed.ts, fidelity.ts). All twelve families lower to the
+   SceneGraph via registered `lowerScene` hooks; every `renderSvg` is
+   DefaultBackend serialization of the lowering; mark constructors build the
+   crisp serialization and semantic fields from the same inputs, and
+   scene-fidelity.test.ts proves they agree across the full corpus.* Migrate every built-in renderable family in one coordinated
    branch: flowchart/state, sequence, class, ER, timeline, journey, xychart, pie,
    quadrant, gantt, and architecture. Each family gets a lowering hook from its
    positioned result to SceneGraph, crisp default rendering through
@@ -1140,7 +1145,11 @@ semantic dispatch.
    font asset/metric resolution, padding, marker extents, stroke/effect bounds,
    and minimum feature size before layout, even for the crisp default, so all
    backends share the same pipeline.
-2. **One-shot equivalence gate before switching default.** The all-family branch
+2. **One-shot equivalence gate before switching default.** *Status:
+   IMPLEMENTED — svg-equivalence.test.ts froze SHA-256 hashes of all 287
+   layout-compare corpus samples × two option profiles BEFORE the migration;
+   the migrated tree reproduces every byte (baseline unchanged), and the
+   golden-drift CI gate reviews any future regeneration.* The all-family branch
    must prove: default `crisp` output is byte-identical where the serializer has
    not intentionally changed; any deliberate serialization drift has golden
    review; semantic preservation passes for every representative family fixture;
@@ -1149,10 +1158,23 @@ semantic dispatch.
 3. **Adopt rough.js** (pinned) as `RoughBackend`: `jittered`/`pencil`
    stroke + `hachure`/`crosshatch`/`dots` fill, incl. arbitrary-path roughening;
    ship `hand-drawn`, `Excalidraw`, `pen-and-ink`, `tufte` with tone. Add
-   goldens + poster row.
+   goldens + poster row. *Status: IMPLEMENTED — src/scene/rough-backend.ts
+   (role-aware sketch walker: shapes/connectors sketch, axes/grids/chrome/text
+   stay crisp; label halos; markerUnits injection; invisible carrier preserves
+   markers/data-*/hit geometry; paint truth parsed from each mark's own crisp
+   element so stroke="none" never grows an outline), style registry
+   (src/scene/style-registry.ts) with registerAesthetic, public
+   RenderOptions.aesthetic/seed, style×theme composition, and
+   styled-output.test.ts goldens (16 fixtures × 7 aesthetics).*
 4. **`HybridBackend` extensions** (`freehand` via perfect-freehand,
    `brush`/`wash`/`stipple`/`halftone`, compositors, reviewed font assets such
-   as Excalifont) → ship the remaining styles.
+   as Excalifont) → ship the remaining styles. *Status: PARTIALLY IMPLEMENTED —
+   src/scene/hybrid-backend.ts ships perfect-freehand pressure ribbons
+   (stroke:'freehand') and watercolor washes (fill:'wash') over the shared
+   walker with rough fallback for arbitrary paths; freehand/watercolor/
+   blueprint registered. Remaining: stipple/halftone/brush compositors,
+   misregistration, per-style filter defs, reviewed font assets — the
+   prototype remains their behavioral reference.*
 5. **Direction fields, indication, Lloyd relaxation, K–M watercolor** as polish.
 
 ---

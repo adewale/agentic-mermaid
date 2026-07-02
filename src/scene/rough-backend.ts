@@ -334,6 +334,12 @@ export function createSketchBackend(id: string, sketcher?: GeometrySketcher): St
           const part = doc.parts[i]!
           out.push(drawNodeStyled(part, ctx, p, doc))
           if (i === 0 && part.kind === 'prelude') {
+            // resvg does not paint the root style="background:…" CSS, so a
+            // styled document carries an explicit page rect (SPEC §10 —
+            // substrate-aware output). Crisp keeps its browser-CSS behavior.
+            if (!part.prelude.transparent) {
+              out.push(`<rect width="${doc.width}" height="${doc.height}" fill="var(--bg)" data-backdrop="page" />`)
+            }
             const backdrop = backdropFor(ctx.style, doc)
             if (backdrop) out.push(backdrop)
           }

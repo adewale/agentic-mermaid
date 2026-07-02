@@ -349,13 +349,23 @@ export function renderMermaidSVG(
   const renderColors = layout.colors ?? colors
   const ctx = renderContext(layout.positioned, renderColors, layout.options ?? renderOptions)
   let rawSvg: string
-  if (aesthetic && aesthetic.backend !== 'default' && family.lowerScene) {
+  if (aesthetic && family.lowerScene) {
     // Styled path: lower to the SceneGraph and serialize with the style's
     // backend. Falls through to crisp when the family has no lowering yet
     // (capability gating — never fail silently on a family/style combo).
     const backend = getBackend(aesthetic.backend)
     if (!backend) throw new Error(`Aesthetic "${aesthetic.name}" selects unregistered backend "${aesthetic.backend}"`)
-    rawSvg = backend.render(family.lowerScene(ctx), { seed: options.seed ?? 0, style: aesthetic })
+    const doc = family.lowerScene(ctx)
+    rawSvg = backend.render(doc, { seed: options.seed ?? 0, style: aesthetic })
+    // Styled documents are substrate-self-contained: resvg does not paint the
+    // root style="background:…" CSS, so aesthetics on the default backend get
+    // an explicit page rect after the prelude (sketch backends add their own).
+    if (aesthetic.backend === 'default' && !(effectiveOptions.transparent ?? false)) {
+      const prelude = doc.parts[0]
+      if (prelude?.kind === 'prelude' && rawSvg.startsWith(prelude.crisp)) {
+        rawSvg = prelude.crisp + `\n<rect width="${doc.width}" height="${doc.height}" fill="var(--bg)" data-backdrop="page" />` + rawSvg.slice(prelude.crisp.length)
+      }
+    }
   } else {
     rawSvg = family.renderSvg(ctx)
   }
