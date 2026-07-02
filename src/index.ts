@@ -44,7 +44,7 @@ import type { PositionedDiagram, RenderContext, RenderOptions } from './types.ts
 import type { DiagramColors } from './theme.ts'
 import { inlineResolvedColors } from './theme.ts'
 import { normalizeMermaidSource, detectDiagramTypeFromFirstLine } from './mermaid-source.ts'
-import { readThemeValue, resolveDiagramColors } from './color-resolver.ts'
+import { CHANNEL_THEME_KEYS, readThemeValue, resolveDiagramColors } from './color-resolver.ts'
 import { getFamily } from './render-family-hooks.ts'
 import type { FamilyLayoutResult } from './agent/families.ts'
 import type { DiagramKind } from './agent/types.ts'
@@ -83,18 +83,10 @@ function resolveAestheticOption(name: string | undefined): AestheticStyle | unde
  */
 function applyAestheticDefaults(options: RenderOptions, spec: AestheticStyle, themeVars?: Record<string, unknown>): RenderOptions {
   const out: RenderOptions = { ...options }
-  // Mermaid themeVariables keys per channel — user-authored theming beats the
-  // style's palette, same as explicit color options (mirrors resolveDiagramColors).
-  const CHANNEL_THEME_KEYS: Record<string, string[]> = {
-    bg: ['background', 'mainBkg'],
-    fg: ['primaryTextColor', 'textColor', 'nodeTextColor'],
-    line: ['lineColor', 'defaultLinkColor'],
-    accent: ['arrowheadColor', 'primaryColor'],
-    muted: ['secondaryTextColor', 'tertiaryTextColor'],
-    surface: ['primaryColor', 'nodeBkg', 'mainBkg'],
-    border: ['primaryBorderColor', 'secondaryBorderColor'],
-  }
-  const themed = (channel: string) => CHANNEL_THEME_KEYS[channel]!.some(k => themeVars?.[k] !== undefined)
+  // User-authored themeVariables beat the style's palette, same as explicit
+  // color options — CHANNEL_THEME_KEYS is the shared key map that
+  // resolveDiagramColors reads from.
+  const themed = (channel: keyof typeof CHANNEL_THEME_KEYS) => CHANNEL_THEME_KEYS[channel].some(k => themeVars?.[k] !== undefined)
   const channels = ['bg', 'fg', 'line', 'accent', 'muted', 'surface', 'border'] as const
   for (const channel of channels) {
     if (out[channel] === undefined && !themed(channel) && spec.colors[channel] !== undefined) {
@@ -349,23 +341,18 @@ export function renderMermaidSVG(
   const renderColors = layout.colors ?? colors
   const ctx = renderContext(layout.positioned, renderColors, layout.options ?? renderOptions)
   let rawSvg: string
+  if (aesthetic && !family.lowerScene) {
+    // Capability gating (SPEC §13): partial coverage that silently falls back
+    // to crisp erodes trust — an unsupported family/style combo fails loud.
+    // Every built-in family registers a lowering; this guards external
+    // registerFamily plugins that haven't added one yet.
+    throw new Error(`Family "${diagramType}" does not support aesthetic rendering (no SceneGraph lowering registered). Render without the aesthetic option, or register a lowerScene hook for the family.`)
+  }
   if (aesthetic && family.lowerScene) {
-    // Styled path: lower to the SceneGraph and serialize with the style's
-    // backend. Falls through to crisp when the family has no lowering yet
-    // (capability gating — never fail silently on a family/style combo).
+    // Styled path: lower to the SceneGraph and serialize with the style's backend.
     const backend = getBackend(aesthetic.backend)
     if (!backend) throw new Error(`Aesthetic "${aesthetic.name}" selects unregistered backend "${aesthetic.backend}"`)
-    const doc = family.lowerScene(ctx)
-    rawSvg = backend.render(doc, { seed: options.seed ?? 0, style: aesthetic })
-    // Styled documents are substrate-self-contained: resvg does not paint the
-    // root style="background:…" CSS, so aesthetics on the default backend get
-    // an explicit page rect after the prelude (sketch backends add their own).
-    if (aesthetic.backend === 'default' && !(effectiveOptions.transparent ?? false)) {
-      const prelude = doc.parts[0]
-      if (prelude?.kind === 'prelude' && rawSvg.startsWith(prelude.crisp)) {
-        rawSvg = prelude.crisp + `\n<rect width="${doc.width}" height="${doc.height}" fill="var(--bg)" data-backdrop="page" />` + rawSvg.slice(prelude.crisp.length)
-      }
-    }
+    rawSvg = backend.render(family.lowerScene(ctx), { seed: effectiveOptions.seed ?? 0, style: aesthetic })
   } else {
     rawSvg = family.renderSvg(ctx)
   }

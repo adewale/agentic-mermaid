@@ -79,11 +79,10 @@ export function group(fields: {
   children: Array<{ node: SceneNode; indent: number }>
   join?: string
   channels?: SemanticChannels
-}, opts: { skipEmptyChildren?: boolean } = {}): GroupMark {
+}): GroupMark {
   const join = fields.join ?? '\n'
   const segments: string[] = [fields.open]
   for (const child of fields.children) {
-    if (opts.skipEmptyChildren && child.node.crisp === '') continue
     segments.push(indentLines(child.node.crisp, child.indent))
   }
   segments.push(fields.close)

@@ -103,14 +103,22 @@ export function lowerPieScene(
     headParts.join('\n'),
   ))
 
-  // Slices.
+  // Slices. Duplicate labels get occurrence suffixes so scene ids stay
+  // unique (the §8 seed contract keys substreams on them).
+  const labelOccurrence = new Map<string, number>()
+  const occurrenceId = (prefix: string, label: string) => {
+    const key = `${prefix}:${label}`
+    const k = labelOccurrence.get(key) ?? 0
+    labelOccurrence.set(key, k + 1)
+    return k === 0 ? key : `${key}#${k}`
+  }
   for (let index = 0; index < chart.slices.length; index++) {
     const slice = chart.slices[index]!
     const pct = formatPiePercent(slice.fraction)
     const fill = sliceColor(index, colors)
     parts.push(marks.shape(
       {
-        id: `slice:${slice.label}`,
+        id: occurrenceId('slice', slice.label),
         role: 'pie-slice',
         geometry: { kind: 'path', d: slice.path },
         // Stroke comes from the .pie-slice rule in pieStyles().
@@ -128,7 +136,7 @@ export function lowerPieScene(
     const fill = sliceColor(index, colors)
     parts.push(marks.shape(
       {
-        id: `legend:${item.label}`,
+        id: occurrenceId('legend', item.label),
         role: 'legend',
         geometry: { kind: 'rect', x: item.x, y: item.y, width: item.swatchSize, height: item.swatchSize, rx: 2, ry: 2 },
         // Stroke comes from the .pie-legend-swatch rule in pieStyles().
@@ -145,7 +153,7 @@ export function lowerPieScene(
     const text = `${item.label}${valuePart} (${formatPiePercent(item.fraction)})`
     parts.push(marks.text(
       {
-        id: `legend-label:${item.label}`,
+        id: occurrenceId('legend-label', item.label),
         role: 'legend',
         text,
         x: item.textX,

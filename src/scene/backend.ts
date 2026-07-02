@@ -11,6 +11,7 @@
 // ============================================================================
 
 import type { SceneDoc, SceneNode } from './ir.ts'
+import { indentLines } from './marks.ts'
 import type { AestheticStyle } from './style-registry.ts'
 
 export interface StyleBackendContext {
@@ -37,8 +38,17 @@ export function composeGroup(
   join: string,
   children: Array<{ serialized: string; indent: number }>,
 ): string {
-  const pad = (s: string, n: number) => (n <= 0 || s === '' ? s : ' '.repeat(n) + s.replace(/\n/g, '\n' + ' '.repeat(n)))
-  return [open, ...children.map(c => pad(c.serialized, c.indent)), close].join(join)
+  return [open, ...children.map(c => indentLines(c.serialized, c.indent)), close].join(join)
+}
+
+/** Styled documents carry an explicit page rect after the prelude — resvg
+ *  does not paint the root style="background:…" CSS (SPEC §10). Emitted by
+ *  every backend when a style is active and the document isn't transparent;
+ *  the crisp path (no style) is byte-identical to previous releases. */
+export function pageRectFor(doc: SceneDoc, ctx: StyleBackendContext): string {
+  const prelude = doc.parts[0]
+  if (!ctx.style || prelude?.kind !== 'prelude' || prelude.prelude.transparent) return ''
+  return `<rect width="${doc.width}" height="${doc.height}" fill="var(--bg)" data-backdrop="page" />`
 }
 
 export const DefaultBackend: StyleBackend = {
@@ -46,8 +56,12 @@ export const DefaultBackend: StyleBackend = {
   drawNode(node: SceneNode): string {
     return node.crisp
   },
-  render(doc: SceneDoc): string {
-    return doc.parts.map(part => part.crisp).join('\n')
+  render(doc: SceneDoc, ctx: StyleBackendContext): string {
+    const pageRect = pageRectFor(doc, ctx)
+    if (!pageRect) return doc.parts.map(part => part.crisp).join('\n')
+    return doc.parts
+      .map((part, i) => (i === 0 ? `${part.crisp}\n${pageRect}` : part.crisp))
+      .join('\n')
   },
 }
 

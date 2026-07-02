@@ -143,7 +143,9 @@ const hybridSketcher: GeometrySketcher = (geom, opts) => {
     }
   }
 
-  if (wantsFreehand) {
+  // Dashed/dotted connectors keep their dash semantics: a filled ribbon
+  // cannot carry stroke-dasharray, so they fall through to the rough stroke.
+  if (wantsFreehand && !opts.dash) {
     const rng = makeRng(opts.seed || 1)
     const width = Math.max(2.5, opts.width * 2.2)
     let ribbon = ''

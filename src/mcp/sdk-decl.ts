@@ -345,6 +345,8 @@ declare const mermaid: {
 //    bodies (unmodeled syntax) are source-level only; if explicitly edited as
 //    text, re-parse and verify before returning.
 // 4. verify.ok is structural, not a visual-quality score; inspect warnings/layout or render artifacts for layout quality.
-// 5. Layout is deterministic; there is no seed. Gantt never reads the wall
+// 5. Layout is deterministic and never seeded. The render option seed only
+//    re-rolls stochastic marks of styled aesthetics (render option aesthetic);
+//    geometry is identical for identical input. Gantt never reads the wall
 //    clock; pass render option ganttToday to draw a deterministic today marker.
 `

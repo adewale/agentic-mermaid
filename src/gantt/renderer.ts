@@ -331,6 +331,12 @@ export function lowerGanttScene(
   // Bars + milestones (roles: task / milestone). Status/progress channels are
   // the key semantic payload — styled backends must never be blind to
   // done/active/crit when redrawing bars.
+  const taskIdOccurrence = new Map<string, number>()
+  const taskSceneId = (key: string) => {
+    const k = taskIdOccurrence.get(key) ?? 0
+    taskIdOccurrence.set(key, k + 1)
+    return k === 0 ? `task:${key}` : `task:${key}#${k}`
+  }
   for (const bar of layout.bars) {
     const section = layout.sections[bar.sectionIndex]?.label
     if (bar.milestoneX !== undefined) {
@@ -344,7 +350,7 @@ export function lowerGanttScene(
         ? { fill: palette.criticalFill, stroke: palette.criticalStroke, strokeWidth: String(Math.max(1.5, style.nodeLineWidth)) }
         : { fill: palette.nodeFill, stroke: palette.nodeBorder, strokeWidth: String(Math.max(1, style.nodeLineWidth)) }
       parts.push(marks.shape({
-        id: `task:${bar.id ?? bar.label}`,
+        id: taskSceneId(bar.id ?? bar.label),
         role: 'milestone',
         geometry: { kind: 'path', d },
         paint: milestonePaint,
@@ -357,7 +363,7 @@ export function lowerGanttScene(
     }
     const status = statusChannel(bar.tags)
     parts.push(marks.shape({
-      id: `task:${bar.id ?? bar.label}`,
+      id: taskSceneId(bar.id ?? bar.label),
       role: 'task',
       geometry: { kind: 'rect', x: r(bar.x), y: r(bar.y), width: r(Math.max(2, bar.w)), height: r(bar.h), rx: GS.barRadius, ry: GS.barRadius },
       paint: barPaint(status, palette, style),

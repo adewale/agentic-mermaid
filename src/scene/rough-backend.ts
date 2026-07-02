@@ -17,15 +17,18 @@
 //
 // Paint truth comes from the mark's own crisp element attributes (parsed with
 // the owned-format element parser, not blind regexes): a child with
-// stroke="none" never grows a synthesized outline, and fills keep their
-// semantic colors (gantt status, pie slices) unless the style's fill policy
-// redraws them.
+// stroke="none" — or an author-suppressed stroke-width of 0 — never grows a
+// synthesized outline, and fills keep their semantic colors (gantt status,
+// pie slices) unless the style's fill policy redraws them. Marks painted only
+// via family CSS classes (no fill/stroke attributes) stay crisp; giving those
+// the tonal treatment is the SPEC §11 phase-5 upgrade (the lowering already
+// carries their semantic paint).
 // ============================================================================
 
 import { RoughGenerator } from 'roughjs/bin/generator'
 import type { Geometry, SceneDoc, SceneNode, ShapeMark, ConnectorMark, TextMark } from './ir.ts'
 import type { StyleBackend, StyleBackendContext } from './backend.ts'
-import { registerBackend, composeGroup } from './backend.ts'
+import { registerBackend, composeGroup, pageRectFor } from './backend.ts'
 import { nodeSeed } from './seed.ts'
 import { topLevelElements } from './fidelity.ts'
 import type { AestheticStyle } from './style-registry.ts'
@@ -60,6 +63,22 @@ export interface RoughParams {
   hachureAngle: number
   hachureGap: number
   fillWeight: number
+}
+
+/** A pluggable geometry renderer: return null to fall back to rough.js.
+ *  HybridBackend supplies perfect-freehand ribbons and watercolor washes;
+ *  RoughBackend uses pure rough.js. */
+export type GeometrySketcher = (
+  geom: Geometry,
+  opts: { seed: number; stroke: string; width: number; fill: string | undefined; p: RoughParams; style: AestheticStyle | undefined; dash: string | undefined },
+) => string | null
+
+/** Per-render walk state — threaded, never module-global, so backends can
+ *  nest or interleave without clobbering each other's sketcher. */
+interface Walk {
+  ctx: StyleBackendContext
+  p: RoughParams
+  sketcher?: GeometrySketcher
 }
 
 function paramsOf(style: AestheticStyle | undefined): RoughParams {
@@ -149,47 +168,68 @@ function sketchGeometry(geom: Geometry, seed: number, stroke: string, strokeWidt
   }
 }
 
-/** Inject attributes into the first tag of an owned-format element string. */
-function injectAttrs(element: string, tag: string, attrs: string): string {
-  return element.replace(new RegExp(`<${tag}(\\s)`), `<${tag} ${attrs}$1`)
+function sketchGeometryVia(walk: Walk, geom: Geometry, seed: number, stroke: string, width: number, fill: string | undefined, dash?: string): string {
+  if (walk.sketcher) {
+    const out = walk.sketcher(geom, { seed, stroke, width, fill, p: walk.p, style: walk.ctx.style, dash })
+    if (out !== null) return out
+  }
+  return sketchGeometry(geom, seed, stroke, width, fill, walk.p, dash)
 }
 
-function sketchShape(node: ShapeMark, ctx: StyleBackendContext, p: RoughParams): string {
-  const ctxStyle = ctx.style
+/** Inject attributes right after the opening tag of an owned-format element.
+ *  The emitters always follow the tag name with a space, so a plain string
+ *  replace suffices (no per-call RegExp construction). */
+function injectAttrs(element: string, tag: string, attrs: string): string {
+  return element.replace(`<${tag} `, `<${tag} ${attrs} `)
+}
+
+/** Effective stroke-width ratio from a crisp attribute. Handles the cases
+ *  Number() gets wrong: unit suffixes ('4px' → 4) and an explicit 0 (an
+ *  author-suppressed border must NOT fall back to 1 — return 0 so the caller
+ *  skips outline synthesis entirely). */
+function strokeWidthRatio(attr: string | undefined): number {
+  if (attr === undefined) return 1
+  const parsed = parseFloat(attr)
+  if (Number.isNaN(parsed)) return 1
+  return parsed
+}
+
+function sketchShape(node: ShapeMark, walk: Walk): string {
+  const p = walk.p
   const els = topLevelElements(node.crisp)
   const geoms: Geometry[] = node.geometry.kind === 'compound' ? node.geometry.children : [node.geometry]
   if (els.length < geoms.length) return node.crisp // crisp/semantic mismatch → stay safe
+  // Multi-element crisps in this codebase place one element per line.
+  const crispLines = node.crisp.split('\n')
+  const crispElementOf = (i: number) => (crispLines.length === 1 && i === 0 ? node.crisp : crispLines[i] ?? '')
   const out: string[] = []
   for (let i = 0; i < geoms.length; i++) {
     const el = els[i]!
     const elStroke = el.attrs.get('stroke')
     const elFill = el.attrs.get('fill')
-    const seed = nodeSeed(ctx.seed, node.id, `outline:${i}`) || 1
-    const hasStroke = elStroke !== undefined && elStroke !== 'none'
+    const seed = nodeSeed(walk.ctx.seed, node.id, `outline:${i}`) || 1
+    const widthRatio = strokeWidthRatio(el.attrs.get('stroke-width'))
+    const hasStroke = elStroke !== undefined && elStroke !== 'none' && widthRatio > 0
     const hasFill = elFill !== undefined && elFill !== 'none'
     // Fill policy: 'none' keeps boxes open (people write inside them);
     // semantic value fills (status colors, slice hues) are preserved either
     // solid-crisp (fill:'none' style keeps the region honest via the crisp
     // element) or re-rendered as hachure/solid sketch fill.
     const wantFill = hasFill && p.fill !== 'none' ? elFill : undefined
-    if (!hasStroke && !hasFill) { out.push(el ? crispElementOf(node.crisp, i) : ''); continue }
     if (!hasStroke) {
-      // Fill-only element (gantt bars, pie halo chips, state-start dots):
-      // never synthesize an outline (Phase 0 lesson b). Keep the crisp fill,
-      // optionally overlaid with sketch fill texture.
-      out.push(crispElementOf(node.crisp, i))
+      // Stroke-less element (gantt bands, halo chips, state-start dots,
+      // width-0 borders): never synthesize an outline (Phase 0 lesson b).
+      out.push(crispElementOf(i))
       continue
     }
-    const strokeWidth = p.strokeWidth * (Number(el.attrs.get('stroke-width')) || 1) / (Number(el.attrs.get('stroke-width')) ? 1 : 1)
-    const width = p.strokeWidth * (Number(el.attrs.get('stroke-width')) || 1)
-    void strokeWidth
-    const sketched = sketchGeometryVia(activeSketcher, ctxStyle, geoms[i]!, seed, elStroke!, Math.max(0.6, Math.min(width, p.strokeWidth * 4)), wantFill, p, el.attrs.get('stroke-dasharray'))
-    if (!sketched) { out.push(crispElementOf(node.crisp, i)); continue }
+    const width = Math.max(0.6, Math.min(p.strokeWidth * widthRatio, p.strokeWidth * 4))
+    const sketched = sketchGeometryVia(walk, geoms[i]!, seed, elStroke!, width, wantFill, el.attrs.get('stroke-dasharray'))
+    if (!sketched) { out.push(crispElementOf(i)); continue }
     // Value-colored solid fills stay: when the style suppresses sketch fills
     // but the element carries a non-default fill, under-paint it crisply so
     // semantic color survives (status bars, quadrant plates).
     if (hasFill && p.fill === 'none' && !isBoxFill(elFill!)) {
-      out.push(crispElementOf(node.crisp, i).replace(/ stroke="[^"]*"/, ' stroke="none"'))
+      out.push(crispElementOf(i).replace(/ stroke="[^"]*"/, ' stroke="none"'))
     }
     out.push(sketched)
   }
@@ -202,36 +242,30 @@ function isBoxFill(fill: string): boolean {
   return fill.startsWith('var(--_node-fill') || fill.startsWith('var(--_group') || fill === 'var(--bg)' || fill === 'var(--surface)'
 }
 
-/** Extract the i-th top-level element's source text from an owned crisp chunk. */
-function crispElementOf(crisp: string, index: number): string {
-  const lines = crisp.split('\n')
-  if (lines.length === 1 && index === 0) return crisp
-  // Multi-element crisps in this codebase place one element per line.
-  return lines[index] ?? ''
-}
-
-function sketchConnector(node: ConnectorMark, ctx: StyleBackendContext, p: RoughParams): string {
+function sketchConnector(node: ConnectorMark, walk: Walk): string {
   if (node.lineStyle === 'invisible' || node.crisp === '') return node.crisp
   const els = topLevelElements(node.crisp)
   const el = els[0]
   if (!el) return node.crisp
   const stroke = el.attrs.get('stroke') ?? 'var(--_line)'
-  const width = p.strokeWidth * (Number(el.attrs.get('stroke-width')) || 1)
-  const seed = nodeSeed(ctx.seed, node.id, 'stroke') || 1
+  const widthRatio = strokeWidthRatio(el.attrs.get('stroke-width'))
+  if (widthRatio <= 0) return node.crisp // author-suppressed stroke stays suppressed
+  const width = walk.p.strokeWidth * widthRatio
+  const seed = nodeSeed(walk.ctx.seed, node.id, 'stroke') || 1
   const dash = el.attrs.get('stroke-dasharray')
   let sketched = ''
   const geom = node.geometry
   if (geom.kind === 'polyline') {
-    sketched = sketchGeometryVia(activeSketcher, ctx.style, { kind: 'polyline', points: geom.points }, seed, stroke, width, undefined, p, dash)
+    sketched = sketchGeometryVia(walk, { kind: 'polyline', points: geom.points }, seed, stroke, width, undefined, dash)
   } else if (geom.kind === 'line') {
-    sketched = sketchGeometryVia(activeSketcher, ctx.style, geom, seed, stroke, width, undefined, p, dash)
+    sketched = sketchGeometryVia(walk, geom, seed, stroke, width, undefined, dash)
   } else if (geom.points && geom.points.length > 1) {
     // Curved-bend paths carry their source polyline; freehand-capable
     // sketchers prefer the points, rough falls back to the path d.
-    sketched = sketchGeometryVia(activeSketcher, ctx.style, { kind: 'polyline', points: geom.points }, seed, stroke, width, undefined, p, dash)
-      || sketchGeometryVia(activeSketcher, ctx.style, { kind: 'path', d: geom.d }, seed, stroke, width, undefined, p, dash)
+    sketched = sketchGeometryVia(walk, { kind: 'polyline', points: geom.points }, seed, stroke, width, undefined, dash)
+      || sketchGeometryVia(walk, { kind: 'path', d: geom.d }, seed, stroke, width, undefined, dash)
   } else {
-    sketched = sketchGeometryVia(activeSketcher, ctx.style, { kind: 'path', d: geom.d }, seed, stroke, width, undefined, p, dash)
+    sketched = sketchGeometryVia(walk, { kind: 'path', d: geom.d }, seed, stroke, width, undefined, dash)
   }
   if (!sketched) return node.crisp
   // Keep the original element as an invisible carrier: markers, class/data-*
@@ -241,11 +275,10 @@ function sketchConnector(node: ConnectorMark, ctx: StyleBackendContext, p: Rough
   return `${carrier}\n${sketched}`
 }
 
-function haloText(node: TextMark, doc: SceneDoc): string {
-  // Cartographic halo: knock the text out to the page so glyphs never sit
-  // directly on strokes/fills. Injected on every <text> in the chunk;
-  // tspans inherit. paint-order draws the stroke behind the glyph.
-  void doc
+// Cartographic halo: knock the text out to the page so glyphs never sit
+// directly on strokes/fills. Injected on every <text> in the chunk; tspans
+// inherit. paint-order draws the stroke behind the glyph.
+function haloText(node: TextMark): string {
   return node.crisp.replace(/<text /g, '<text paint-order="stroke" stroke="var(--bg)" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" ')
 }
 
@@ -269,25 +302,7 @@ function backdropFor(style: AestheticStyle | undefined, doc: SceneDoc): string {
   return ''
 }
 
-/** A pluggable geometry renderer: return null to fall back to rough.js.
- *  HybridBackend supplies perfect-freehand ribbons and watercolor washes;
- *  RoughBackend uses pure rough.js. */
-export type GeometrySketcher = (
-  geom: Geometry,
-  opts: { seed: number; stroke: string; width: number; fill: string | undefined; p: RoughParams; style: AestheticStyle | undefined; dash: string | undefined },
-) => string | null
-
-let activeSketcher: GeometrySketcher | undefined
-
-function sketchGeometryVia(sketcher: GeometrySketcher | undefined, style: AestheticStyle | undefined, geom: Geometry, seed: number, stroke: string, width: number, fill: string | undefined, p: RoughParams, dash?: string): string {
-  if (sketcher) {
-    const out = sketcher(geom, { seed, stroke, width, fill, p, style, dash })
-    if (out !== null) return out
-  }
-  return sketchGeometry(geom, seed, stroke, width, fill, p, dash)
-}
-
-function drawNodeStyled(node: SceneNode, ctx: StyleBackendContext, p: RoughParams, doc: SceneDoc): string {
+function drawNodeStyled(node: SceneNode, walk: Walk): string {
   switch (node.kind) {
     case 'prelude':
       return node.crisp
@@ -298,17 +313,17 @@ function drawNodeStyled(node: SceneNode, ctx: StyleBackendContext, p: RoughParam
       }
       return node.crisp
     case 'shape':
-      return SKETCH_SHAPE_ROLES.has(node.role) ? sketchShape(node, ctx, p) : node.crisp
+      return SKETCH_SHAPE_ROLES.has(node.role) ? sketchShape(node, walk) : node.crisp
     case 'connector':
-      return SKETCH_CONNECTOR_ROLES.has(node.role) ? sketchConnector(node, ctx, p) : node.crisp
+      return SKETCH_CONNECTOR_ROLES.has(node.role) ? sketchConnector(node, walk) : node.crisp
     case 'text':
-      return HALO_TEXT_ROLES.has(node.role) ? haloText(node, doc) : node.crisp
+      return HALO_TEXT_ROLES.has(node.role) ? haloText(node) : node.crisp
     case 'group':
       return composeGroup(
         node.open,
         node.close,
         node.join,
-        node.children.map(child => ({ serialized: drawNodeStyled(child.node, ctx, p, doc), indent: child.indent })),
+        node.children.map(child => ({ serialized: drawNodeStyled(child.node, walk), indent: child.indent })),
       )
   }
 }
@@ -317,37 +332,22 @@ export function createSketchBackend(id: string, sketcher?: GeometrySketcher): St
   return {
     id,
     drawNode(node: SceneNode, ctx: StyleBackendContext): string {
-      const p = paramsOf(ctx.style)
-      activeSketcher = sketcher
-      try {
-        return drawNodeStyled(node, ctx, p, { family: '', width: 0, height: 0, colors: { bg: '#fff', fg: '#000' }, parts: [] })
-      } finally {
-        activeSketcher = undefined
-      }
+      return drawNodeStyled(node, { ctx, p: paramsOf(ctx.style), sketcher })
     },
     render(doc: SceneDoc, ctx: StyleBackendContext): string {
-      const p = paramsOf(ctx.style)
-      activeSketcher = sketcher
-      try {
-        const out: string[] = []
-        for (let i = 0; i < doc.parts.length; i++) {
-          const part = doc.parts[i]!
-          out.push(drawNodeStyled(part, ctx, p, doc))
-          if (i === 0 && part.kind === 'prelude') {
-            // resvg does not paint the root style="background:…" CSS, so a
-            // styled document carries an explicit page rect (SPEC §10 —
-            // substrate-aware output). Crisp keeps its browser-CSS behavior.
-            if (!part.prelude.transparent) {
-              out.push(`<rect width="${doc.width}" height="${doc.height}" fill="var(--bg)" data-backdrop="page" />`)
-            }
-            const backdrop = backdropFor(ctx.style, doc)
-            if (backdrop) out.push(backdrop)
-          }
+      const walk: Walk = { ctx, p: paramsOf(ctx.style), sketcher }
+      const out: string[] = []
+      for (let i = 0; i < doc.parts.length; i++) {
+        const part = doc.parts[i]!
+        out.push(drawNodeStyled(part, walk))
+        if (i === 0 && part.kind === 'prelude') {
+          const pageRect = pageRectFor(doc, ctx)
+          if (pageRect) out.push(pageRect)
+          const backdrop = backdropFor(ctx.style, doc)
+          if (backdrop) out.push(backdrop)
         }
-        return out.join('\n')
-      } finally {
-        activeSketcher = undefined
       }
+      return out.join('\n')
     },
   }
 }

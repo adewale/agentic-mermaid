@@ -60,6 +60,12 @@ describe('styled output', () => {
         throw new Error(`styled-output: drift for ${key} — regenerate deliberately with UPDATE_STYLED_BASELINE=1 + [approve-goldens]`)
       }
     }
+    // Stale keys rot silently otherwise: a removed fixture or aesthetic must
+    // shrink the baseline too (mirrors the svg-equivalence gate).
+    const stale = Object.keys(baseline).filter(k => !(k in records))
+    if (stale.length > 0) {
+      throw new Error(`styled-output: ${stale.length} stale baseline records (e.g. ${stale[0]}) — regenerate with UPDATE_STYLED_BASELINE=1`)
+    }
   })
 
   test('no styled render throws on any fixture', () => {
