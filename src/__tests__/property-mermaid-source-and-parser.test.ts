@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'bun:test'
+import { afterAll, beforeAll, describe, expect, it } from 'bun:test'
 import fc from 'fast-check'
 
 import { mergeMermaidConfigs, normalizeMermaidSource, type MermaidRuntimeConfig } from '../mermaid-source.ts'
@@ -163,6 +163,12 @@ describe('property-based mermaid source normalization', () => {
 })
 
 describe('property-based parseMermaid', () => {
+  // Pinned seed: unpinned runs made these properties CI seed-lotteries (the
+  // Cartesian-product property above failed only on rare rolled seeds; 2026-07
+  // audit). Scoped via before/afterAll so other fast-check suites keep theirs.
+  beforeAll(() => { fc.configureGlobal({ ...fc.readConfigureGlobal(), seed: 20260702 }) })
+  afterAll(() => { fc.resetConfigureGlobal() })
+
   it('is invariant to blank lines, comments, and surrounding whitespace', () => {
     const graphArb = fc
       .uniqueArray(nodeDefArb, { minLength: 2, maxLength: 5, selector: node => node.id })
@@ -201,10 +207,15 @@ describe('property-based parseMermaid', () => {
   })
 
   it('materializes the Cartesian product for parallel link groups', () => {
-    // Avoid IDs ending in repeated hyphens on the left side: `A-- & B --> C`
-    // is grammar-ambiguous with Mermaid's text-label arrow form `A -- text --> C`,
-    // so this property targets unambiguous `&` fanout/fanin materialization.
-    const fanoutIdArb = idArb.filter(id => !/-{2,}$/.test(id))
+    // Avoid IDs containing repeated hyphens anywhere: `s---Py3 --> X` is
+    // grammar-ambiguous with Mermaid's link forms (`s --- Py3` is an open
+    // link, `N--x` a cross-tip link), so such strings are not unambiguously
+    // ids in the grammar and the parser materializes the link reading — in
+    // both this engine and Mermaid. The old trailing-only filter (`-{2,}$`)
+    // let interior runs through, which made this property a seed lottery
+    // (2026-07 audit: it failed CI on the first rolled seed that generated
+    // one). This property targets unambiguous `&` fanout/fanin only.
+    const fanoutIdArb = idArb.filter(id => !/-{2,}/.test(id))
     const parallelArb = fc.record({
       left: fc.uniqueArray(fanoutIdArb, { minLength: 1, maxLength: 3 }),
       right: fc.uniqueArray(fanoutIdArb, { minLength: 1, maxLength: 3 }),
