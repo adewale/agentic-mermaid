@@ -4,7 +4,7 @@
 // every isolate request; real loader behavior is covered by website/e2e-mcp.sh.
 
 import { describe, expect, test } from 'bun:test'
-import { createLoaderExecute, DYNAMIC_WORKER_COMPAT_DATE, MAX_RESULT_BYTES, type WorkerLoaderBinding } from '../../website/src/execute-loader.ts'
+import { createLoaderExecute, deployTag, DYNAMIC_WORKER_COMPAT_DATE, MAX_RESULT_BYTES, type WorkerLoaderBinding } from '../../website/src/execute-loader.ts'
 import pkg from '../../package.json'
 
 interface IsolateRequest { id: string; modules: Record<string, string>; globalOutbound: unknown; limits?: { cpuMs?: number; subRequests?: number } }
@@ -43,8 +43,9 @@ describe('hosted execute loader glue', () => {
     expect(result).toEqual({ ok: true, value: 2, logs: [] })
     expect(requests).toHaveLength(1)
     const req = requests[0]!
-    expect(req.id).toStartWith(`exec-v${pkg.version}-e-`)
-    expect(req.id).toMatch(/-[0-9a-f]{64}$/)
+    // version + harness hash + wrap variant + code hash
+    expect(req.id).toBe(`exec-${await deployTag('HARNESS')}-e-${req.id.split('-').pop()}`)
+    expect(req.id).toMatch(new RegExp(`^exec-v${pkg.version.replace(/\./g, '\\.')}-[0-9a-f]{16}-e-[0-9a-f]{64}$`))
     expect(req.globalOutbound).toBeNull()
     expect(req.limits).toEqual({ cpuMs: 5000, subRequests: 0 })
     expect(req.modules['harness.js']).toBe('HARNESS')
@@ -59,6 +60,16 @@ describe('hosted execute loader glue', () => {
     await execute('2 + 2', 5000)
     expect(requests[0]!.id).toBe(requests[1]!.id)
     expect(requests[2]!.id).not.toBe(requests[0]!.id)
+  })
+
+  test('a changed harness produces different isolate ids for identical code', async () => {
+    // Worker Loader contract: one ID must always map to the same WorkerCode.
+    // A harness/SDK change without a package version bump must still move the
+    // ID, or a warm isolate keeps serving the old code after a deploy.
+    const { loader, requests } = makeLoader(() => okResponse({ ok: true, value: null, logs: [] }))
+    await createLoaderExecute(loader, 'HARNESS-A')('1 + 1', 5000)
+    await createLoaderExecute(loader, 'HARNESS-B')('1 + 1', 5000)
+    expect(requests[0]!.id).not.toBe(requests[1]!.id)
   })
 
   test('a SyntaxError startup failure falls back to the statement-form isolate', async () => {

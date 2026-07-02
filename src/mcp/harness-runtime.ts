@@ -10,6 +10,15 @@
 import { createTracingMermaid } from './facade.ts'
 import type { ExecuteResult } from './sandbox.ts'
 
+// Hosted output bounds, enforced at the source (inside the isolate) so a
+// log-spamming or huge-result run never builds an unbounded response body;
+// the parent's capped read of the isolate response is the backstop. The
+// local vm sandbox has no such caps — a documented hosted divergence.
+export const MAX_RESULT_BYTES = 2 * 1024 * 1024
+export const MAX_LOG_ENTRIES = 1_000
+export const MAX_LOG_BYTES = 256 * 1024
+export const LOGS_TRUNCATED_MARKER = '…[logs truncated: hosted execute caps console output]'
+
 // The globals sandbox.ts pins to undefined in the vm context, minus the ones
 // that are not legal strict-mode parameter names ('constructor' is harmless as
 // a shadow anyway; 'eval' cannot be shadowed but workerd bans it at runtime).
@@ -76,10 +85,23 @@ const toStringTag = (v: unknown): string => Object.prototype.toString.call(v)
  */
 export function runUserCode(fn: unknown): ExecuteResult {
   const logs: string[] = []
+  let logBytes = 0
+  let logsTruncated = false
+  const append = (a: unknown[]) => {
+    if (logsTruncated) return
+    if (logs.length >= MAX_LOG_ENTRIES || logBytes >= MAX_LOG_BYTES) {
+      logsTruncated = true
+      logs.push(LOGS_TRUNCATED_MARKER)
+      return
+    }
+    const line = a.map(coerceLogArg).join(' ')
+    logBytes += line.length
+    logs.push(line)
+  }
   const consoleObj = Object.freeze({
-    log: (...a: unknown[]) => { logs.push(a.map(coerceLogArg).join(' ')) },
-    error: (...a: unknown[]) => { logs.push(a.map(coerceLogArg).join(' ')) },
-    warn: (...a: unknown[]) => { logs.push(a.map(coerceLogArg).join(' ')) },
+    log: (...a: unknown[]) => { append(a) },
+    error: (...a: unknown[]) => { append(a) },
+    warn: (...a: unknown[]) => { append(a) },
   })
   let closed = false
   const mermaid = createTracingMermaid(undefined, message => new Error(String(message)), () => closed)
@@ -107,6 +129,9 @@ export function runUserCode(fn: unknown): ExecuteResult {
     return { ok: false, error: `non-serializable: ${formatHarnessError(e)}`, logs }
   }
   if (stringified === undefined) return { ok: true, value: null, logs }
+  if (stringified.length > MAX_RESULT_BYTES) {
+    return { ok: false, error: `sandbox result exceeded ${MAX_RESULT_BYTES} bytes; reduce console output or returned data`, logs }
+  }
   try { return { ok: true, value: JSON.parse(stringified), logs } }
   catch (e) { return { ok: false, error: `non-serializable: ${e instanceof Error ? e.message : 'invalid JSON'}`, logs } }
 }

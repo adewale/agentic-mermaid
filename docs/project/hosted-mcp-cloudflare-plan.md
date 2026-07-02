@@ -90,6 +90,21 @@ Known, documented divergences from local `execute`:
 3. Isolation authority differs: locally the proxy facade is the security
    boundary; hosted, the isolate + `globalOutbound: null` is, and the facade
    is kept for behavioral parity.
+4. Hosted output is bounded at the source: console logs cap at 1,000
+   entries / 256 KB (a truncation marker is appended) and serialized results
+   at 2 MB, with the parent's capped stream-read of the isolate response as
+   the backstop. The vm sandbox has no output caps.
+
+Post-review hardening (external audit): isolate IDs and the /mcp response
+cache carry a `deployTag` — package version **plus a hash of the harness
+bundle** — because the Worker Loader contract is that one ID always maps to
+the same WorkerCode; without the hash, a harness/SDK change that ships
+without a version bump could keep serving stale warm isolates and stale
+cached results. Request bodies and isolate responses are stream-read with
+hard byte caps (no buffering past the limit), `render_png` clamps `scale`
+to 0.1–8 and enforces a ~16.7 MP output-pixel budget, and the e2e probe
+pins workerd's codegen bans (`eval`, `Function` constructor) plus the log
+cap against a live isolate.
 
 ## Transport: stateless Streamable HTTP
 

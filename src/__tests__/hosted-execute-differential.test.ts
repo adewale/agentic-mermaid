@@ -17,7 +17,7 @@
 import { describe, expect, test } from 'bun:test'
 import { executeInSandbox, type ExecuteResult } from '../mcp/sandbox.ts'
 import { unsupportedCodeReason } from '../mcp/facade.ts'
-import { runUserCode, userModuleSources, formatHarnessError } from '../mcp/harness-runtime.ts'
+import { runUserCode, userModuleSources, formatHarnessError, MAX_LOG_ENTRIES, LOGS_TRUNCATED_MARKER } from '../mcp/harness-runtime.ts'
 
 // Memoized: re-importing an identical data: URL deadlocks under `bun test`
 // (fine in plain bun), and the loader caches per-id isolates anyway.
@@ -117,6 +117,26 @@ describe('hosted execute ≡ vm sandbox', () => {
 })
 
 describe('documented divergences from the vm sandbox', () => {
+  test('hosted log spam truncates at the cap; vm logs are unbounded', async () => {
+    const code = 'for (let i = 0; i < 2000; i++) console.log("line", i); return 1'
+    const local = await executeInSandbox(code)
+    const hosted = await executeHosted(code)
+    expect(local.logs).toHaveLength(2000)
+    expect(hosted.ok).toBe(true)
+    expect(hosted.logs).toHaveLength(MAX_LOG_ENTRIES + 1)
+    expect(hosted.logs![hosted.logs!.length - 1]).toBe(LOGS_TRUNCATED_MARKER)
+  })
+
+  test('hosted results are capped at MAX_RESULT_BYTES; vm results are unbounded', async () => {
+    const code = 'return "x".repeat(3000000)'
+    const local = await executeInSandbox(code)
+    const hosted = await executeHosted(code)
+    expect(local.ok).toBe(true)
+    expect(hosted.ok).toBe(false)
+    expect(hosted.error).toContain('exceeded')
+    expect(hosted.error).toContain('bytes')
+  })
+
   test('sloppy-mode implicit globals: vm allows, strict modules throw', async () => {
     const code = 'x = 1; return x'
     const local = await executeInSandbox(code)

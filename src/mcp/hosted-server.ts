@@ -40,6 +40,10 @@ export const MAX_SOURCE_BYTES = 64 * 1024
 export const MAX_CODE_BYTES = 64 * 1024
 const MAX_EXECUTE_TIMEOUT_MS = 30_000
 const DEFAULT_EXECUTE_TIMEOUT_MS = 5_000
+// Rasterization work grows with scale²; clamp so a tiny source cannot demand
+// unbounded output (the renderer additionally enforces a total pixel budget).
+export const MIN_PNG_SCALE = 0.1
+export const MAX_PNG_SCALE = 8
 
 const TOO_LARGE_HINT = 'input exceeds the hosted size cap; run the local agentic-mermaid CLI or stdio MCP server instead (see https://agenticmermaid.dev/docs/mcp/)'
 
@@ -104,7 +108,7 @@ byte-determinism contract. For file/URL artifacts use the local stdio server.`,
       type: 'object',
       properties: {
         source: { type: 'string', description: 'Mermaid source.' },
-        scale: { type: 'number', description: 'Output scale multiplier (default 2 — retina).' },
+        scale: { type: 'number', description: 'Output scale multiplier (default 2 — retina; clamped to 0.1–8).' },
         background: { type: 'string', description: "CSS color string (default 'white')." },
       },
       required: ['source'],
@@ -248,7 +252,9 @@ async function handleRenderPng(id: number | string | null, args: Record<string, 
     return toolResult(id, { ok: false as const, error: { code: 'PNG_UNAVAILABLE', message: 'PNG rendering is not enabled on this host' } }, true)
   }
   try {
-    const scale = typeof args.scale === 'number' && Number.isFinite(args.scale) ? args.scale : undefined
+    const scale = typeof args.scale === 'number' && Number.isFinite(args.scale)
+      ? Math.min(Math.max(args.scale, MIN_PNG_SCALE), MAX_PNG_SCALE)
+      : undefined
     const background = typeof args.background === 'string' ? args.background : undefined
     const png = await context.renderPng(source, { scale, background })
     return toolResult(id, { ok: true as const, png_base64: base64Encode(png) }, false)

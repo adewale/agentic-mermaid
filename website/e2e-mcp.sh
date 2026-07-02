@@ -80,6 +80,15 @@ check 'GET is 405' '405' \
 check 'OPTIONS preflight is 204' '204' \
   "$(curl -sS --max-time 10 -o /dev/null -w '%{http_code}' -X OPTIONS "$MCP")"
 
+check 'eval is unavailable in the isolate' '\"ok\":false' \
+  "$(j '{"jsonrpc":"2.0","id":15,"method":"tools/call","params":{"name":"execute","arguments":{"code":"return eval(\"1 + 1\")"}}}')"
+
+check 'Function-constructor codegen is unavailable in the isolate' '\"ok\":false' \
+  "$(j '{"jsonrpc":"2.0","id":16,"method":"tools/call","params":{"name":"execute","arguments":{"code":"return ({}).constructor.constructor(\"return 1\")()"}}}')"
+
+check 'log spam is truncated at the cap' 'logs truncated' \
+  "$(j '{"jsonrpc":"2.0","id":17,"method":"tools/call","params":{"name":"execute","arguments":{"code":"for (let i = 0; i < 2000; i++) console.log(\"x\", i); return 1"}}}')"
+
 check 'oversized bodies are 413' '413' \
   "$(python3 -c "import json; print(json.dumps({'jsonrpc':'2.0','id':1,'method':'tools/call','params':{'name':'describe','arguments':{'source':'x'*200000}}}))" | curl -sS --max-time 10 -o /dev/null -w '%{http_code}' -X POST "$MCP" -H 'content-type: application/json' --data @-)"
 

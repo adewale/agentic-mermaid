@@ -205,6 +205,14 @@ describe('hosted render_png', () => {
     expect(ctx.pngCalls).toEqual([{ source: FLOW, scale: 3, background: '#fff' }])
   })
 
+  test('scale is clamped into the documented 0.1-8 range before rasterizing', async () => {
+    const ctx = makeContext()
+    await handleHostedRequest(call('render_png', { source: FLOW, scale: 100 }), ctx)
+    await handleHostedRequest(call('render_png', { source: FLOW, scale: 0.001 }), ctx)
+    await handleHostedRequest(call('render_png', { source: FLOW, scale: 3 }), ctx)
+    expect(ctx.pngCalls.map(c => c.scale)).toEqual([8, 0.1, 3])
+  })
+
   test('file/url artifact modes are a local-server feature', async () => {
     const res = await handleHostedRequest(call('render_png', { source: FLOW, output: 'file' }), makeContext())
     expect(res?.error?.code).toBe(-32602)

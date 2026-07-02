@@ -2,10 +2,13 @@
 // MCP endpoint at /mcp (stateless Streamable HTTP; see mcp-handler.ts).
 
 import { createMcpHandler } from './mcp-handler.ts'
-import { createLoaderExecute, type WorkerLoaderBinding } from './execute-loader.ts'
+import { createLoaderExecute, deployTag, type WorkerLoaderBinding } from './execute-loader.ts'
 import { renderMermaidPNGWasm } from './png-wasm.ts'
 import executeHarness from './generated/execute-harness.js.txt'
-import pkg from '../../package.json'
+
+// Version + harness-content hash: busts cached tool results and dynamic-worker
+// isolate IDs whenever the deployed compute changes, version bump or not.
+const deployTagPromise = deployTag(executeHarness)
 
 interface Env {
   ASSETS: { fetch(request: Request): Promise<Response> }
@@ -84,7 +87,7 @@ export default {
           renderPng: renderMermaidPNGWasm,
         },
         cache: caches.default,
-        cacheVersion: pkg.version,
+        cacheVersion: await deployTagPromise,
         waitUntil: p => ctx.waitUntil(p),
       })
       return handler(request)

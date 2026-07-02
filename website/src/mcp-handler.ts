@@ -11,6 +11,7 @@
 
 import { handleHostedRequest, type HostedMcpContext } from '../../src/mcp/hosted-server.ts'
 import { reply, rpcError, type JsonRpcRequest, type JsonRpcResponse } from '../../src/mcp/protocol.ts'
+import { readCapped } from './execute-loader.ts'
 
 export const MAX_MCP_BODY_BYTES = 128 * 1024
 const CACHE_TTL_SECONDS = 86_400
@@ -105,13 +106,15 @@ export function createMcpHandler(options: McpHandlerOptions): (request: Request)
     if (Number.isFinite(declared) && declared > MAX_MCP_BODY_BYTES) {
       return json(413, { jsonrpc: '2.0', id: null, error: { code: -32000, message: `request body exceeds ${MAX_MCP_BODY_BYTES} bytes` } })
     }
-    let body: string
+    // Stream-read with a hard cap so an oversized chunked body (no or false
+    // Content-Length) is cancelled at the limit instead of buffered whole.
+    let body: string | null
     try {
-      body = await request.text()
+      body = await readCapped(request.body, MAX_MCP_BODY_BYTES)
     } catch {
       return json(400, rpcError(null, -32700, 'unreadable request body'))
     }
-    if (new TextEncoder().encode(body).length > MAX_MCP_BODY_BYTES) {
+    if (body === null) {
       return json(413, { jsonrpc: '2.0', id: null, error: { code: -32000, message: `request body exceeds ${MAX_MCP_BODY_BYTES} bytes` } })
     }
     let parsed: unknown
