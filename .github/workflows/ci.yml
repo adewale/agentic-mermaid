@@ -39,12 +39,12 @@ jobs:
         # (nightly-route-mutation.yml) currently times out before producing it
         # (every run cancelled at the 90-min cap since 2026-06-19; the sharding
         # fix is PR #63) — regenerate scores locally per docs/mutation-testing.md.
-        # lcov (written to coverage/) instead of the text table: bun's stdout
-        # writer intermittently dies with `error: An internal error occurred
-        # (WriteFailed)` mid-table — exit 1 with zero test failures — once the
-        # padded table rows get large enough (seen on run 28576001032 and
-        # reproduced locally). The pass/fail summary still prints.
-        run: bun test --coverage --coverage-reporter=lcov src/__tests__/
+        # Coverage is lcov-only (see bunfig.toml [test].coverageReporter —
+        # bunfig overrides any --coverage-reporter CLI flag): the text table
+        # intermittently kills bun's stdout writer with `error: An internal
+        # error occurred (WriteFailed)`, exiting 1 with zero test failures
+        # (runs 28576001032, 28576303182). The pass/fail summary still prints.
+        run: bun test --coverage src/__tests__/
 
       - name: Adequacy signal reminder
         # Surface where the trustworthy adequacy number lives so a green
