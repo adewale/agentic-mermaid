@@ -32,10 +32,10 @@
   <p>The fix is to treat an existing diagram as structured data, not a string. A typed surface exposes the parts an agent can name and change, and refuses edits it cannot make safely. The loop has five steps.</p>
 
   <h2>1 &middot; Parse</h2>
-  <p>Read the source into a typed model. Anything the model does not understand round-trips through preserved source,<label class="snref" for="sn1"></label><input class="mtoggle" type="checkbox" id="sn1"><span class="sidenote">An unusual block – a raw <code>journey</code> body, say – is carried verbatim as a string and re-emitted untouched, so parsing never silently drops what it cannot model.</span> so an unusual block is carried verbatim rather than dropped.</p>
+  <p>Read the source into a typed model. Anything the model does not understand round-trips through preserved source, so an unusual block is carried verbatim rather than dropped.<label class="snref" for="sn1"></label><input class="mtoggle" type="checkbox" id="sn1"><span class="sidenote">An unusual block – a raw <code>journey</code> body, say – is carried verbatim as a string and re-emitted untouched, so parsing never silently drops what it cannot model.</span></p>
 
   <h2>2 &middot; Narrow</h2>
-  <p>Select the one node or edge the edit touches. Narrowing keeps the change local,<label class="snref" for="sn2"></label><input class="mtoggle" type="checkbox" id="sn2"><span class="sidenote">Locality is the whole game: touch one node and the other forty keep their coordinates, so a one-line edit can&rsquo;t reflow the diagram.</span> which is what protects the rest of the layout from drifting.</p>
+  <p>Select the one node or edge the edit touches. Narrowing keeps the change local, which is what protects the rest of the layout from drifting.<label class="snref" for="sn2"></label><input class="mtoggle" type="checkbox" id="sn2"><span class="sidenote">Locality is the whole game: touch one node and the other forty keep their coordinates, so a one-line edit can&rsquo;t reflow the diagram.</span></p>
 
   <figure>
     <div class="plate dia-plate">
@@ -117,14 +117,14 @@
 <span class="c">// returns a ValidDiagram, or a structured error</span></code></pre>
 
   <h2>4 &middot; Verify</h2>
-  <p>Check the result before trusting it. <code>verify</code> returns warnings in three tiers – <strong>structural</strong><label class="snref" for="sn3"></label><input class="mtoggle" type="checkbox" id="sn3"><span class="sidenote">Tier&nbsp;1 – the graph is malformed: a dangling edge, a duplicate id, an edge to a node that isn&rsquo;t there. Blocks <code>serialize</code>; never ship past one.</span>, <strong>geometric</strong><label class="snref" for="sn4"></label><input class="mtoggle" type="checkbox" id="sn4"><span class="sidenote">Tier&nbsp;2 – valid but ugly: overlapping nodes, a label crossing an edge, a port on the wrong side. Advisory, not fatal.</span>, and <strong>lint</strong><label class="snref" for="sn5"></label><input class="mtoggle" type="checkbox" id="sn5"><span class="sidenote">Tier&nbsp;3 – style and lossiness: a non-canonical arrow, or a dropped comment. Cosmetic.</span> – plus perceptual quality metrics.<label class="mntoggle" for="mn1"></label><input class="mtoggle" type="checkbox" id="mn1"><span class="marginnote">Scored by the deterministic rubric in <code>layout-rubric.ts</code>, not asserted by the agent. The same diagram always scores the same, so you can diff a metric across edits and watch it move.</span> An agent reads the tiers and decides whether to fix, re-narrow, or stop and ask a human.</p>
+  <p>Check the result before trusting it. <code>verify</code> returns warnings in three tiers – <strong>structural</strong>, <strong>geometric</strong>, and <strong>lint</strong> – plus perceptual quality metrics. An agent reads the tiers and decides whether to fix, re-narrow, or stop and ask a human.<label class="snref" for="sn3"></label><input class="mtoggle" type="checkbox" id="sn3"><span class="sidenote">Tier&nbsp;1, structural – the graph is malformed: a dangling edge, a duplicate id, an edge to a node that isn&rsquo;t there. Blocks <code>serialize</code>; never ship past one.</span><label class="snref" for="sn4"></label><input class="mtoggle" type="checkbox" id="sn4"><span class="sidenote">Tier&nbsp;2, geometric – valid but ugly: overlapping nodes, a label crossing an edge, a port on the wrong side. Advisory, not fatal.</span><label class="snref" for="sn5"></label><input class="mtoggle" type="checkbox" id="sn5"><span class="sidenote">Tier&nbsp;3, lint – style and lossiness: a non-canonical arrow, or a dropped comment. Cosmetic.</span><label class="mntoggle" for="mn1"></label><input class="mtoggle" type="checkbox" id="mn1"><span class="marginnote">Quality metrics are scored by the deterministic rubric in <code>layout-rubric.ts</code>, not asserted by the agent. The same diagram always scores the same, so you can diff a metric across edits and watch it move.</span></p>
   <pre><code>verify(diagram)
 <span class="ok">&#10003; ok</span>   structural 0   geometric 0   lint 1
 <span class="c">// COMMENT_DROPPED line 4 – inline %% comment removed on serialize</span></code></pre>
-  <p>The one lint here is a dropped comment<label class="snref" for="sn6"></label><input class="mtoggle" type="checkbox" id="sn6"><span class="sidenote"><code>COMMENT_DROPPED</code>, line&nbsp;4. The inline <code>%%</code> comment isn&rsquo;t representable in the typed model – move it onto its own line above the node to keep it.</span> on line&nbsp;4. Across this diagram&rsquo;s five edits, legibility climbed&nbsp;<svg class="spark" viewBox="0 0 58 15" aria-hidden="true"><polyline points="0,10.8 14.5,7.4 29,4.9 43.5,3.4 58,2.5"/><circle class="end" cx="58" cy="2.5" r="1.6"/></svg>&nbsp;to <span class="sparkval">0.98</span> and edge crossings fell&nbsp;<svg class="spark" viewBox="0 0 58 15" aria-hidden="true"><polyline points="0,2 14.5,6.8 29,6.8 43.5,11.4 58,14"/><circle class="end" cx="58" cy="14" r="1.6"/></svg>&nbsp;to <span class="sparkval">0</span>.</p>
+  <p>The one lint here is a dropped comment on line&nbsp;4. Across this diagram&rsquo;s five edits, legibility climbed&nbsp;<svg class="spark" viewBox="0 0 58 15" aria-hidden="true"><polyline points="0,10.8 14.5,7.4 29,4.9 43.5,3.4 58,2.5"/><circle class="end" cx="58" cy="2.5" r="1.6"/></svg>&nbsp;to <span class="sparkval">0.98</span> and edge crossings fell&nbsp;<svg class="spark" viewBox="0 0 58 15" aria-hidden="true"><polyline points="0,2 14.5,6.8 29,6.8 43.5,11.4 58,14"/><circle class="end" cx="58" cy="14" r="1.6"/></svg>&nbsp;to <span class="sparkval">0</span>.<label class="snref" for="sn6"></label><input class="mtoggle" type="checkbox" id="sn6"><span class="sidenote"><code>COMMENT_DROPPED</code>, line&nbsp;4. The inline <code>%%</code> comment isn&rsquo;t representable in the typed model – move it onto its own line above the node to keep it.</span></p>
 
   <h2>5 &middot; Serialize</h2>
-  <p>Write the typed model back to Mermaid source, then render to SVG, PNG, ASCII, or Unicode. Because layout is deterministic,<label class="snref" for="sn7"></label><input class="mtoggle" type="checkbox" id="sn7"><span class="sidenote">Same input, same bytes – no RNG, no clock. A CI snapshot of the SVG is stable, so a diff means a real geometry change, not noise.</span> the same model produces the same geometry every run.</p>
+  <p>Write the typed model back to Mermaid source, then render to SVG, PNG, ASCII, or Unicode. Because layout is deterministic, the same model produces the same geometry every run.<label class="snref" for="sn7"></label><input class="mtoggle" type="checkbox" id="sn7"><span class="sidenote">Same input, same bytes – no RNG, no clock. A CI snapshot of the SVG is stable, so a diff means a real geometry change, not noise.</span></p>
 
   <blockquote>Stop rule. Never return a diagram you have not verified, and never fabricate a passing result. If a structural warning will not clear after two attempts, serialize what you have and ask a human to look.</blockquote>
 
@@ -140,16 +140,22 @@
     <li><a href="/docs/ascii/">Rendering to ASCII and Unicode</a> – color modes and terminal use</li>
   </ul>
 
+  <!-- Replaced at build time with the canonical docs index from website/build.ts; keep in sync. -->
   <h2>Docs index</h2>
   <ul class="doc-index">
     <li><a href="/docs/getting-started/">Getting started</a></li>
+    <li><a href="/docs/families/">Diagram families</a></li>
     <li><a href="/docs/api/">Library API</a></li>
     <li><a href="/docs/cli/">CLI</a></li>
     <li><a href="/docs/mcp/">MCP</a></li>
+    <li><a href="/docs/source-level/">Source-level edits</a></li>
+    <li><a href="/docs/ascii/">ASCII and Unicode</a></li>
     <li><a href="/docs/theming/">Theming</a></li>
     <li><a href="/docs/config/">Config</a></li>
     <li><a href="/docs/react/">React</a></li>
     <li><a href="/docs/quality/">Quality</a></li>
+    <li><a href="/warnings/">Warnings</a></li>
+    <li><a href="/errors/">Errors</a></li>
     <li><a href="/docs/vocabulary/">Vocabulary</a></li>
     <li><a href="/docs/fork-differences/">Fork differences</a></li>
   </ul>
@@ -165,8 +171,22 @@
   </p>
 </main>
 
+<!-- Replaced at build time with the canonical footer from website/build.ts; keep in sync. -->
 <footer>
-  <div class="footlinks"><a href="llms.txt">llms.txt</a><span class="sep">&middot;</span><a href="agent-instructions.md">agent-instructions.md</a><span class="sep">&middot;</span><a href="capabilities.json">capabilities.json</a><span class="sep">&middot;</span><a href="https://github.com/adewale/beautiful-mermaid">GitHub</a></div>
+  <div class="footlinks">
+    <a href="/warnings/">Warnings</a><span class="sep">&middot;</span>
+    <a href="/errors/">Errors</a><span class="sep">&middot;</span>
+    <a href="/releases/">Releases</a><span class="sep">&middot;</span>
+    <a href="/security/">Security</a><span class="sep">&middot;</span>
+    <a href="https://github.com/adewale/beautiful-mermaid">GitHub</a>
+  </div>
+  <div class="footlinks">
+    <a href="llms.txt">llms.txt</a><span class="sep">&middot;</span>
+    <a href="agent-instructions.md">agent-instructions.md</a><span class="sep">&middot;</span>
+    <a href="capabilities.json">capabilities.json</a><span class="sep">&middot;</span>
+    <a href="examples/index.json">examples.json</a><span class="sep">&middot;</span>
+    <a href="/skills/agentic-mermaid-diagram-workflow/SKILL.md">workflow skill</a>
+  </div>
 </footer>
 
 <script src="shader-mark.js"></script>

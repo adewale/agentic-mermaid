@@ -63,8 +63,10 @@
   --border: color-mix(in srgb, var(--t-fg) 12%, var(--t-bg));
   --line-strong: color-mix(in srgb, var(--t-fg) 24%, var(--t-bg));
   --fg: var(--t-fg);
-  --fg2: color-mix(in srgb, var(--t-fg) 96%, var(--t-bg));
-  --fg3: color-mix(in srgb, var(--t-fg) 95%, var(--t-bg));
+  /* Muted ramp mirrors the site shell: soft ≈80% mix, faint ≈64% mix.
+   * Verified on Paper (#F5F0E4): soft 8.01:1 (≥7:1), faint 4.74:1 (≥4.5:1). */
+  --fg2: color-mix(in srgb, var(--t-fg) 80%, var(--t-bg));
+  --fg3: color-mix(in srgb, var(--t-fg) 64%, var(--t-bg));
   --fg4: color-mix(in srgb, var(--t-fg) 70%, var(--t-bg));
   --accent: var(--t-accent);
   --accent2: color-mix(in srgb, var(--t-accent) 80%, var(--t-bg));
@@ -85,6 +87,8 @@
   --radius-lg: 12px;
   --radius-pill: 999px;
   --radius: var(--radius-md);
+  /* Shared motion curve — same value as the site shell's --ease-out. */
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
   --control-h: 40px;
   --control-px: 12px;
   --control-bg: var(--surface);
@@ -105,15 +109,25 @@
   --lh-code: 1.6;
   --lh-ui: 1.35;
 
-  /* Semantic status colors */
-  --green: #16a34a;
-  --warn: #D97706;
+  /* Semantic status colors. Same hues as before, darkened one step so the
+   * verify-tier dots clear 3:1 against the light --bg2 (#F5F0E4):
+   * green 4.41:1, warn 4.42:1, red 4.25:1. Dusk restores the brighter pair
+   * below (the originals fail on Paper but pass on the dark chrome). */
+  --green: #15803D;
+  --warn: #B45309;
   --red: #dc2626;
 
   /* Preview canvas: a matte so the diagram artboard reads as the artifact,
      not a shape floating in the chrome. The diagram keeps its own Paper bg. */
   --canvas-matte: color-mix(in srgb, var(--t-fg) 8%, var(--t-bg));
   --shadow-artboard: 0 1px 2px rgba(0, 0, 0, 0.04), 0 12px 30px -14px rgba(0, 0, 0, 0.2);
+}
+
+/* Dusk chrome (dark-mode.js sets data-scheme): brighter status hues read
+ * better here — green 4.60:1 and warn 4.76:1 against the dark --bg2. */
+:root[data-scheme="dark"] {
+  --green: #16a34a;
+  --warn: #D97706;
 }
 
 html,

@@ -208,6 +208,12 @@
     <div class="font-list" id="font-list" role="listbox" aria-label="Font choices"></div>
   </div>
 
+  <!-- Autosave: shown when a locally saved draft was restored on load. -->
+  <div class="draft-notice" id="draft-notice" role="status" hidden>
+    <span>Draft restored</span>
+    <button class="draft-discard-btn" id="draft-discard-btn" type="button">Discard draft</button>
+  </div>
+
   <div class="status-bar">
     <div class="status-left" role="status" aria-live="polite" aria-atomic="true">
       <span class="status-dot" id="status-dot" aria-hidden="true"></span>

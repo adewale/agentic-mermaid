@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="description" content="structural error warning.">
+<meta name="description" content="EDGE_MISANCHORED is a structural error: an edge, message, or dependency references an endpoint that is not in the diagram.">
 <title>EDGE_MISANCHORED – Agentic Mermaid</title>
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <link rel="icon" href="/favicon.ico" type="image/x-icon">
@@ -12,6 +12,10 @@
 <link rel="alternate" type="text/plain" href="/llms.txt">
 <link rel="alternate" type="application/json" href="/capabilities.json">
 <link rel="alternate" type="text/markdown" href="/agent-instructions.md">
+<meta property="og:title" content="EDGE_MISANCHORED – Agentic Mermaid">
+<meta property="og:description" content="EDGE_MISANCHORED is a structural error: an edge, message, or dependency references an endpoint that is not in the diagram.">
+<meta property="og:type" content="website">
+<meta name="twitter:card" content="summary_large_image">
 </head>
 <body>
 <a class="skip-link" href="#main">Skip to content</a>
@@ -19,11 +23,23 @@
 <main id="main" class="doc">
 <section class="page-header">
 <h1>EDGE_MISANCHORED</h1>
-<p class="lead">structural error warning.</p>
+<p class="lead">EDGE_MISANCHORED is a structural error: an edge, message, or dependency references an endpoint that is not in the diagram.</p>
 </section>
+<p><strong>What triggers it.</strong> A gantt <code>after</code> dependency naming a missing task, a sequence message whose participant was removed, or edges left dangling after a <code>remove_node</code> mutation.</p>
+<p><strong>How to fix it.</strong> Add the missing endpoint (<code>add_node</code>, <code>add_participant</code>, <code>add_task</code>) or retarget/remove the dangling edge (<code>remove_edge</code>, <code>remove_message</code>).</p>
+<h2>See it fire</h2>
+<p>This minimal source triggers <code>EDGE_MISANCHORED</code> — checked at build time against the same engine the editor runs.</p>
+<pre><code>gantt
+  dateFormat YYYY-MM-DD
+  section Build
+    Design :design, 2026-01-01, 2d
+    Ship :ship, after review, 3d</code></pre>
+<p><a class="go" href="/editor/#Z2FudHQKICBkYXRlRm9ybWF0IFlZWVktTU0tREQKICBzZWN0aW9uIEJ1aWxkCiAgICBEZXNpZ24gOmRlc2lnbiwgMjAyNi0wMS0wMSwgMmQKICAgIFNoaXAgOnNoaXAsIGFmdGVyIHJldmlldywgM2Q=">Open in the editor and watch it clear</a></p>
 <p>Run <code>am verify diagram.mmd --json</code>, inspect this code, and apply the smallest source or typed mutation that clears it. If it persists after two mechanical attempts, return the warning and ask for human review.</p>
+<p class="muted">In the cloned repo, <code>am</code> is <code>bun run bin/am.ts</code>.</p>
+<p class="muted">Back to <a href="/warnings/">all warning codes</a>, or <a href="/editor/">open the editor</a> to watch this warning clear as you edit.</p>
 </main>
-<footer><div class="footlinks"><a href="/llms.txt">llms.txt</a><span class="sep">&middot;</span><a href="/agent-instructions.md">agent-instructions.md</a><span class="sep">&middot;</span><a href="/capabilities.json">capabilities.json</a><span class="sep">&middot;</span><a href="/examples/index.json">examples.json</a><span class="sep">&middot;</span><a href="/skills/agentic-mermaid-diagram-workflow/SKILL.md">workflow skill</a></div></footer>
+<footer><div class="footlinks"><a href="/warnings/">Warnings</a><span class="sep">&middot;</span><a href="/errors/">Errors</a><span class="sep">&middot;</span><a href="/releases/">Releases</a><span class="sep">&middot;</span><a href="/security/">Security</a><span class="sep">&middot;</span><a href="https://github.com/adewale/beautiful-mermaid">GitHub</a></div><div class="footlinks"><a href="/llms.txt">llms.txt</a><span class="sep">&middot;</span><a href="/agent-instructions.md">agent-instructions.md</a><span class="sep">&middot;</span><a href="/capabilities.json">capabilities.json</a><span class="sep">&middot;</span><a href="/examples/index.json">examples.json</a><span class="sep">&middot;</span><a href="/skills/agentic-mermaid-diagram-workflow/SKILL.md">workflow skill</a></div></footer>
 <script src="/shader-mark.js"></script>
 <script src="/theme.js"></script>
 </body>

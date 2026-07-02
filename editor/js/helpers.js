@@ -163,7 +163,7 @@ function emptyPreviewHtml() {
   return '<div class="preview-placeholder" id="preview-placeholder">'
     + '<span class="placeholder-kicker">Blank canvas</span>'
     + '<strong class="placeholder-title">No diagram yet</strong>'
-    + '<span class="placeholder-copy">Start typing Mermaid syntax, or load a preset to see SVG, Unicode, and ASCII output.</span>'
+    + '<span class="placeholder-copy">Start typing Mermaid syntax, or load an example to see SVG, Unicode, and ASCII output.</span>'
     + '<div class="placeholder-actions">'
     + '<button class="placeholder-example-btn" type="button" data-action="load-example">Load an example</button>'
     + '<button class="placeholder-chip" type="button" data-example="flowchart-basic">Flowchart</button>'
@@ -173,11 +173,32 @@ function emptyPreviewHtml() {
     + '</div>';
 }
 
+// Parse errors and render errors name a source position in prose ("line 4" or
+// "4:2"); extract it once so both the error card and the gutter highlight
+// agree on the location.
+function extractErrorLocation(detail) {
+  var text = String(detail || '');
+  var m = text.match(/line\s+(\d+)(?:[^\d]+(?:col|column)\s+(\d+))?/i) || text.match(/(\d+):(\d+)/);
+  if (!m) return null;
+  return { line: parseInt(m[1], 10), column: m[2] ? parseInt(m[2], 10) : 0 };
+}
+
+// The gutter paints this line red until the next successful render or edit
+// clears it (updateLineNumbers reads it on every rebuild).
+var editorErrorLine = 0;
+
+function setEditorErrorLine(line) {
+  var next = line > 0 ? line : 0;
+  if (next === editorErrorLine) return;
+  editorErrorLine = next;
+  if (typeof updateLineNumbers === 'function') updateLineNumbers();
+}
+
 function formatRenderErrorHtml(err) {
   var detail = String(err || 'Unknown render error');
-  var lineMatch = detail.match(/line\s+(\d+)(?:[^\d]+(?:col|column)\s+(\d+))?/i) || detail.match(/(\d+):(\d+)/);
-  var location = lineMatch
-    ? ' Check around line ' + lineMatch[1] + (lineMatch[2] ? ', column ' + lineMatch[2] : '') + '.'
+  var loc = extractErrorLocation(detail);
+  var location = loc
+    ? ' Check around line ' + loc.line + (loc.column ? ', column ' + loc.column : '') + '.'
     : '';
   return '<div class="preview-error" role="alert">'
     + '<strong class="preview-error-title">We could not render this diagram.</strong>'

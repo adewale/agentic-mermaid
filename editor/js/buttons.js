@@ -81,6 +81,8 @@ function copyAgentTask() {
 
 function clearEditor() {
   editor.value = '';
+  setEditorErrorLine(0);
+  if (typeof discardEditorDraft === 'function') discardEditorDraft();
   updateLineNumbers();
   updateCursorPos();
   previewInner.innerHTML = emptyPreviewHtml();
@@ -99,6 +101,12 @@ var copySourceBtn = document.getElementById('copy-source-btn');
 if (copySourceBtn) copySourceBtn.addEventListener('click', copySource);
 var copyAgentTaskBtn = document.getElementById('copy-agent-prompt-btn');
 if (copyAgentTaskBtn) copyAgentTaskBtn.addEventListener('click', copyAgentTask);
+// Topbar entry point for the same handoff (visible ≥1100px); copy feedback
+// lands on the button that was actually clicked.
+var agentPromptTopbarBtn = document.getElementById('agent-prompt-topbar-btn');
+if (agentPromptTopbarBtn) agentPromptTopbarBtn.addEventListener('click', function() {
+  writeClipboardText(buildAgentTaskPrompt(), 'Agent task prompt copied!', 'Copy agent task failed.', agentPromptTopbarBtn);
+});
 
 var currentCanvasFormat = 'diagram';
 var CANVAS_FORMATS = ['diagram', 'unicode', 'ascii'];
@@ -121,7 +129,7 @@ function selectCanvasFormat(fmt) {
   if (zoomControls) zoomControls.hidden = fmt !== 'diagram';
   if (copyTextOutputBtn) {
     var label = fmt === 'diagram'
-      ? 'Copy Mermaid source'
+      ? 'Copy SVG markup'
       : 'Copy ' + (fmt === 'ascii' ? 'ASCII' : 'Unicode') + ' output';
     copyTextOutputBtn.title = label;
     copyTextOutputBtn.setAttribute('aria-label', label);
@@ -146,7 +154,15 @@ document.querySelectorAll('[data-canvas-format]').forEach(function(btn) {
 
 if (copyTextOutputBtn) copyTextOutputBtn.addEventListener('click', function() {
   if (currentCanvasFormat === 'diagram') {
-    writeClipboardText(editor.value, 'Source copied!', 'Copy source failed.', copyTextOutputBtn);
+    // Copy the rendered SVG markup — "Copy source" already lives in the export
+    // dropdown, so the preview copy always copies what is on the canvas.
+    var svgEl = previewInner.querySelector('svg');
+    if (!svgEl) {
+      setCopyFeedback(copyTextOutputBtn, 'err');
+      showToast('Render a diagram before copying its SVG.');
+      return;
+    }
+    writeClipboardText(new XMLSerializer().serializeToString(svgEl), 'SVG markup copied!', 'Copy SVG failed.', copyTextOutputBtn);
     return;
   }
   var el = document.getElementById(currentCanvasFormat + '-output');
@@ -159,4 +175,36 @@ document.addEventListener('click', function(e) {
   if (!clearBtn) return;
   clearEditor();
   if (typeof setExamplesSidebarOpen === 'function') setExamplesSidebarOpen(false);
+});
+
+// Keyboard-shortcut cheat sheet — same popup contract as the other popovers:
+// inert + aria-hidden when closed, Escape closes, focus returns to the opener.
+var shortcutsBtn = document.getElementById('shortcuts-btn');
+var shortcutsDialog = document.getElementById('shortcuts-dialog');
+var shortcutsDialogClose = document.getElementById('shortcuts-dialog-close');
+
+var shortcutsPopup = (shortcutsBtn && shortcutsDialog && typeof createPopupController === 'function')
+  ? createPopupController({
+      popup: shortcutsDialog,
+      trigger: shortcutsBtn,
+      visibility: { manageTabStops: true, toggleTriggerClass: false },
+      afterOpen: function() {
+        if (shortcutsDialogClose) shortcutsDialogClose.focus();
+      },
+    })
+  : null;
+
+if (shortcutsDialogClose) shortcutsDialogClose.addEventListener('click', function() {
+  if (shortcutsPopup) shortcutsPopup.close({ source: 'close-button', restoreFocus: true });
+});
+
+document.addEventListener('keydown', function(e) {
+  if (e.key !== '?' || e.metaKey || e.ctrlKey || e.altKey || !shortcutsPopup) return;
+  var target = e.target;
+  var tag = target && target.tagName;
+  // "?" is typed text inside the source editor and other fields; only treat it
+  // as the cheat-sheet shortcut when focus is outside editable controls.
+  if (tag === 'TEXTAREA' || tag === 'INPUT' || tag === 'SELECT' || (target && target.isContentEditable)) return;
+  e.preventDefault();
+  shortcutsPopup.open({ source: 'keyboard' });
 });

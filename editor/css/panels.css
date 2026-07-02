@@ -23,7 +23,7 @@
   transform: translateY(-6px) scale(0.98);
   transform-origin: top left;
   transition:
-    opacity 0.16s ease,
+    opacity 0.16s var(--ease-out),
     transform 0.18s var(--ease-out),
     visibility 0s linear 0.18s;
   z-index: 3000;

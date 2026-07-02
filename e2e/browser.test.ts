@@ -608,19 +608,27 @@ describe('browser: live editor integration', () => {
   }, 60_000)
 
   it('mobile editor uses pane tabs instead of clipping the workspace', async () => {
-    await page.setViewportSize({ width: 390, height: 844 })
-    await gotoApp(`${BASE}/editor`)
-    await page.waitForSelector('#code-editor', { timeout: 30_000 })
+    // Restore the desktop viewport even on failure — gotoApp carries the
+    // previous page's viewport forward, so a leak here cascades into every
+    // later test that expects the desktop layout.
+    try {
+      await page.setViewportSize({ width: 390, height: 844 })
+      await gotoApp(`${BASE}/editor`)
+      // Mobile first-run opens on Preview so the rendered diagram and the
+      // verify bar are the first thing a phone visitor sees.
+      await page.waitForSelector('#panel-right', { state: 'visible', timeout: 30_000 })
 
-    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true)
-    expect(await page.locator('#mode-preview').isVisible()).toBe(true)
-    await page.click('#mode-preview')
-    expect(await page.evaluate(() => getComputedStyle(document.getElementById('panel-left')!).display)).toBe('none')
-    expect(await page.evaluate(() => getComputedStyle(document.getElementById('panel-right')!).display)).toBe('flex')
+      expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true)
+      expect(await page.locator('#mode-preview').isVisible()).toBe(true)
+      expect(await page.evaluate(() => getComputedStyle(document.getElementById('panel-left')!).display)).toBe('none')
+      expect(await page.evaluate(() => getComputedStyle(document.getElementById('panel-right')!).display)).toBe('flex')
 
-    await page.click('#mode-source')
-    expect(await page.evaluate(() => getComputedStyle(document.getElementById('panel-left')!).display)).toBe('flex')
-    await page.setViewportSize({ width: 1280, height: 720 })
+      await page.click('#mode-source')
+      expect(await page.evaluate(() => getComputedStyle(document.getElementById('panel-left')!).display)).toBe('flex')
+      await page.waitForSelector('#code-editor', { state: 'visible', timeout: 30_000 })
+    } finally {
+      await page.setViewportSize({ width: 1280, height: 720 })
+    }
   }, 60_000)
 
   it('empty-state CTA opens a persistent examples sidebar', async () => {
@@ -864,10 +872,18 @@ describe('browser: live editor integration', () => {
       { timeout: 60_000 },
     )
 
-    const hashState = await page.evaluate(() => {
+    const hashState = await page.evaluate(async () => {
+      // Mirrors sharing.js decodeSource: new hashes are deflate:-prefixed
+      // base64url(deflate-raw); legacy hashes are plain base64.
       const hash = window.location.hash.slice(1)
-      const decoded = decodeURIComponent(escape(atob(hash)))
-      return JSON.parse(decoded)
+      if (hash.startsWith('deflate:')) {
+        let b64 = hash.slice('deflate:'.length).replace(/-/g, '+').replace(/_/g, '/')
+        while (b64.length % 4) b64 += '='
+        const bytes = Uint8Array.from(atob(b64), (c) => c.charCodeAt(0))
+        const stream = new Blob([bytes]).stream().pipeThrough(new DecompressionStream('deflate-raw'))
+        return JSON.parse(await new Response(stream).text())
+      }
+      return JSON.parse(decodeURIComponent(escape(atob(hash))))
     })
 
     expect(hashState.config).toMatchObject({

@@ -453,6 +453,8 @@ function loadEditorExample(id) {
   editor.value = example.source.trim();
   state.config = cloneEditorConfig(example.options);
   markActiveExample(example.id);
+  if (typeof setEditorErrorLine === 'function') setEditorErrorLine(0);
+  if (typeof scheduleDraftSave === 'function') scheduleDraftSave();
 
   // Examples are source/config presets only; keep the user's selected theme.
   if (typeof applyThemeToPage === 'function') applyThemeToPage(state.theme);

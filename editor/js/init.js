@@ -12,8 +12,10 @@ function updateThemeButton() {
     themeBtnSwatch.style.display = "";
   } else {
     themeBtnLabel.textContent = "Default";
+    // Keep the ringed swatch visible (CSS supplies a neutral fill) — on mobile
+    // the swatch is the entire control, so hiding it left a blank button.
     themeBtnSwatch.style.background = "";
-    themeBtnSwatch.style.display = "none";
+    themeBtnSwatch.style.display = "";
   }
   // Update active state in dropdown
   themeMenu.querySelectorAll(".theme-dropdown-item").forEach(function (item) {
@@ -128,22 +130,81 @@ var DEFAULT_SOURCE = [
   "  D -- warnings --> B",
 ].join("\n");
 
-var hashSource = getHashSource();
-var queryExampleId = getQueryExampleId();
-var loadedInitialExample = false;
-if (hashSource) {
-  editor.value = hashSource;
-  applyThemeToPage(state.theme);
-  updateThemeButton();
-  refreshAllColorUIs();
-} else if (queryExampleId && typeof loadEditorExample === 'function' && findEditorExample(queryExampleId)) {
-  loadEditorExample(queryExampleId);
-  loadedInitialExample = true;
-} else {
-  editor.value = DEFAULT_SOURCE;
+// Draft restore notice: polite, transient, with an explicit way to discard.
+var draftNotice = document.getElementById("draft-notice");
+var draftDiscardBtn = document.getElementById("draft-discard-btn");
+var draftNoticeTimer = null;
+
+function hideDraftNotice() {
+  if (draftNoticeTimer) clearTimeout(draftNoticeTimer);
+  draftNoticeTimer = null;
+  if (draftNotice) draftNotice.hidden = true;
 }
 
-if (!loadedInitialExample) {
-  updateLineNumbers();
-  scheduleRender(0);
+function showDraftRestoredNotice() {
+  if (!draftNotice) return;
+  draftNotice.hidden = false;
+  if (draftNoticeTimer) clearTimeout(draftNoticeTimer);
+  draftNoticeTimer = setTimeout(hideDraftNotice, 8000);
 }
+
+function discardRestoredDraft() {
+  if (typeof discardEditorDraft === "function") discardEditorDraft();
+  hideDraftNotice();
+  editor.value = DEFAULT_SOURCE;
+  state.config = {};
+  setEditorErrorLine(0);
+  refreshAllColorUIs();
+  updateLineNumbers();
+  updateCursorPos();
+  scheduleRender(0);
+  showToast("Draft discarded.");
+}
+
+if (draftDiscardBtn) draftDiscardBtn.addEventListener("click", discardRestoredDraft);
+
+// getHashSource decodes compressed share links asynchronously, so the initial
+// source pick runs in an async IIFE; nothing below in this file depends on it.
+(async function initializeEditorSource() {
+  var hashSource = await getHashSource();
+  // A share link that exists but cannot be decoded must say so — silently
+  // showing the recipient their old draft or the default diagram would let
+  // them believe they are looking at what was shared.
+  if (!hashSource && typeof hashDecodeFailure === 'string' && hashDecodeFailure && typeof showToast === 'function') {
+    showToast(hashDecodeFailure === 'unsupported'
+      ? 'This share link needs a newer browser to open (missing DecompressionStream). Showing your own content instead.'
+      : 'This share link could not be decoded (truncated or damaged). Showing your own content instead.');
+  }
+  var queryExampleId = getQueryExampleId();
+  var loadedInitialExample = false;
+  if (hashSource) {
+    editor.value = hashSource;
+    applyThemeToPage(state.theme);
+    updateThemeButton();
+    refreshAllColorUIs();
+  } else if (queryExampleId && typeof loadEditorExample === 'function' && findEditorExample(queryExampleId)) {
+    loadEditorExample(queryExampleId);
+    loadedInitialExample = true;
+  } else {
+    // No shared source in the URL: restore the autosaved draft if one exists.
+    var draft = typeof readEditorDraft === 'function' ? readEditorDraft() : null;
+    if (draft) {
+      editor.value = draft.source;
+      if (hasOwnConfig(draft.config)) state.config = draft.config;
+      refreshAllColorUIs();
+      showDraftRestoredNotice();
+      // A restored draft means a returning editor: on mobile, put Source (and
+      // the draft notice) back on screen instead of the first-run Preview.
+      if (typeof setMobilePanel === 'function' && document.body.dataset.mobilePanel === 'preview') {
+        setMobilePanel('code');
+      }
+    } else {
+      editor.value = DEFAULT_SOURCE;
+    }
+  }
+
+  if (!loadedInitialExample) {
+    updateLineNumbers();
+    scheduleRender(0);
+  }
+})();

@@ -394,7 +394,12 @@ export function offsetDrawingForSubgraphs(graph: AsciiGraph): void {
  */
 export function createMapping(graph: AsciiGraph): void {
   const dir = graph.config.graphDirection
-  const highestPositionPerLevel: number[] = new Array(100).fill(0)
+  // Sparse level tracker — levels grow by 4 per generation, so a fixed-size
+  // array would run out on deep chains (a ~25-node chain already reaches
+  // level 100) and the resulting `undefined` positions turned into NaN grid
+  // coordinates that sent A* pathfinding into an unbounded search (hang).
+  const highestPositionPerLevel = new Map<number, number>()
+  const levelPos = (level: number): number => highestPositionPerLevel.get(level) ?? 0
 
   // Identify root nodes — nodes that aren't the target of any edge
   const nodesFound = new Set<string>()
@@ -504,10 +509,10 @@ export function createMapping(graph: AsciiGraph): void {
   // Place external root nodes
   for (const node of externalRootNodes) {
     const requested: GridCoord = dir === 'LR'
-      ? { x: 0, y: highestPositionPerLevel[0]! }
-      : { x: highestPositionPerLevel[0]!, y: 0 }
+      ? { x: 0, y: levelPos(0) }
+      : { x: levelPos(0), y: 0 }
     reserveSpotInGrid(graph, graph.nodes[node.index]!, requested)
-    highestPositionPerLevel[0] = highestPositionPerLevel[0]! + 4
+    highestPositionPerLevel.set(0, levelPos(0) + 4)
   }
 
   // Place subgraph root nodes at level 4 (one level in from the edge)
@@ -515,10 +520,10 @@ export function createMapping(graph: AsciiGraph): void {
     const subgraphLevel = 4
     for (const node of subgraphRootNodes) {
       const requested: GridCoord = dir === 'LR'
-        ? { x: subgraphLevel, y: highestPositionPerLevel[subgraphLevel]! }
-        : { x: highestPositionPerLevel[subgraphLevel]!, y: subgraphLevel }
+        ? { x: subgraphLevel, y: levelPos(subgraphLevel) }
+        : { x: levelPos(subgraphLevel), y: subgraphLevel }
       reserveSpotInGrid(graph, graph.nodes[node.index]!, requested)
-      highestPositionPerLevel[subgraphLevel] = highestPositionPerLevel[subgraphLevel]! + 4
+      highestPositionPerLevel.set(subgraphLevel, levelPos(subgraphLevel) + 4)
     }
   }
 
@@ -575,7 +580,7 @@ export function createMapping(graph: AsciiGraph): void {
           // side, not from the next free root slot, otherwise a TD edge from a
           // subgraph to a following node can jump sideways and render backward.
           highestPosition = Math.max(
-            highestPositionPerLevel[childLevel]!,
+            levelPos(childLevel),
             edgeDir === 'LR' ? gc.y : gc.x,
           )
         } else if ((inDegree.get(child.name) ?? 0) > 1) {
@@ -584,12 +589,12 @@ export function createMapping(graph: AsciiGraph): void {
           // slot, so each target sits under its own root group and trunk
           // rows of different fan-in groups don't collide.
           highestPosition = Math.max(
-            highestPositionPerLevel[childLevel]!,
+            levelPos(childLevel),
             edgeDir === 'LR' ? gc.y : gc.x,
           )
         } else {
           // Same direction: use level tracker
-          highestPosition = highestPositionPerLevel[childLevel]!
+          highestPosition = levelPos(childLevel)
         }
 
         const requested: GridCoord = edgeDir === 'LR'
@@ -599,7 +604,7 @@ export function createMapping(graph: AsciiGraph): void {
 
         // Only update level tracker for same-direction placements
         if (edgeDir === graph.config.graphDirection) {
-          highestPositionPerLevel[childLevel] = highestPosition + 4
+          highestPositionPerLevel.set(childLevel, highestPosition + 4)
         }
         placedCount++
       }

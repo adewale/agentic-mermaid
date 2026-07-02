@@ -145,11 +145,100 @@ function setVerifyTier(el, labelEl, stateName, text) {
   labelEl.textContent = text;
 }
 
+// Verify-clear moment: when a tier goes from carrying warnings to Clear after
+// an edit, pulse a `tier-cleared` class on the chip for ~1s so CSS can animate
+// the transition. Counts of -1 mean "unknown" (initial load / reset), which
+// never pulses.
+var lastVerifyTierCounts = { structural: -1, geometric: -1, lint: -1 };
+
+function markTierCleared(el, tier, count) {
+  var prev = lastVerifyTierCounts[tier];
+  lastVerifyTierCounts[tier] = count;
+  if (!el || count !== 0 || prev <= 0) return;
+  el.classList.remove("tier-cleared");
+  void el.offsetWidth; // restart the animation if the class was still applied
+  el.classList.add("tier-cleared");
+  setTimeout(function() { el.classList.remove("tier-cleared"); }, 1000);
+}
+
+function resetVerifyTierCounts() {
+  lastVerifyTierCounts.structural = -1;
+  lastVerifyTierCounts.geometric = -1;
+  lastVerifyTierCounts.lint = -1;
+}
+
 function resetVerifyPanel(summary) {
   if (verifySummary) verifySummary.textContent = summary || "Waiting for source";
   setVerifyTier(verifyTierStructural, verifyStructural, "idle", "Not run");
   setVerifyTier(verifyTierGeometric, verifyGeometric, "idle", "Not run");
   setVerifyTier(verifyTierLint, verifyLint, "idle", "Not run");
+  resetVerifyTierCounts();
+  updateVerifyDetails([]);
+}
+
+// Each verify warning is a typed object ({ code, ...fields }); render the
+// non-code fields as "key value" prose so the disclosure stays honest to the
+// structured payload without hardcoding per-code copy.
+function describeVerifyWarning(w) {
+  if (!w || typeof w !== "object") return "";
+  if (w.message) return String(w.message);
+  var parts = [];
+  Object.keys(w).forEach(function(key) {
+    if (key === "code" || key === "message" || key === "line" || key === "lines") return;
+    var value = w[key];
+    if (value == null) return;
+    if (typeof value === "object") {
+      try { value = JSON.stringify(value); } catch (err) { return; }
+    }
+    parts.push(key + " " + value);
+  });
+  return parts.join(", ");
+}
+
+function verifyWarningLocation(w) {
+  if (!w) return "";
+  if (typeof w.line === "number") return "line " + w.line;
+  if (Array.isArray(w.lines) && w.lines.length) {
+    return "line" + (w.lines.length === 1 ? " " : "s ") + w.lines.join(", ");
+  }
+  return "";
+}
+
+function setVerifyDetailsOpen(open) {
+  if (!verifyDetailsBtn || !verifyDetails) return;
+  verifyDetails.hidden = !open;
+  verifyDetailsBtn.setAttribute("aria-expanded", open ? "true" : "false");
+}
+
+// The disclosure lists each warning's stable code (linked to its docs page),
+// prose, and source location. The collapsed tier counts stay the default view.
+function updateVerifyDetails(warnings) {
+  if (!verifyDetailsBtn || !verifyDetailsList) return;
+  if (!warnings.length) {
+    verifyDetailsBtn.hidden = true;
+    verifyDetailsList.innerHTML = "";
+    setVerifyDetailsOpen(false);
+    return;
+  }
+  verifyDetailsBtn.hidden = false;
+  verifyDetailsBtn.textContent = "Details (" + warnings.length + ")";
+  verifyDetailsList.innerHTML = warnings.map(function(w) {
+    var code = String((w && w.code) || "UNKNOWN");
+    var tier = VERIFY_TIER_BY_CODE[code] || "lint";
+    var message = describeVerifyWarning(w);
+    var location = verifyWarningLocation(w);
+    return '<li class="verify-detail ' + escAttr(tier) + '">'
+      + '<a class="verify-detail-code" href="/warnings/' + escAttr(code) + '/" target="_blank" rel="noopener">' + escHtml(code) + '</a>'
+      + (message ? '<span class="verify-detail-message">' + escHtml(message) + '</span>' : '')
+      + (location ? '<span class="verify-detail-location">' + escHtml(location) + '</span>' : '')
+      + '</li>';
+  }).join("");
+}
+
+if (verifyDetailsBtn) {
+  verifyDetailsBtn.addEventListener("click", function() {
+    setVerifyDetailsOpen(verifyDetails.hidden);
+  });
 }
 
 function updateVerifyPanel(source) {
@@ -165,12 +254,16 @@ function updateVerifyPanel(source) {
       var tier = VERIFY_TIER_BY_CODE[w && w.code] || "lint";
       counts[tier]++;
     });
+    updateVerifyDetails(warnings);
     var structuralState = counts.structural ? (result.ok ? "warn" : "err") : "ok";
     setVerifyTier(verifyTierStructural, verifyStructural, structuralState, counts.structural ? counts.structural + " warning" + (counts.structural === 1 ? "" : "s") : "Clear");
     setVerifyTier(verifyTierGeometric, verifyGeometric, counts.geometric ? "warn" : "ok", counts.geometric ? counts.geometric + " advisory" + (counts.geometric === 1 ? "" : " warnings") : "Clear");
     setVerifyTier(verifyTierLint, verifyLint, counts.lint ? "warn" : "ok", counts.lint ? counts.lint + " note" + (counts.lint === 1 ? "" : "s") : "Clear");
+    markTierCleared(verifyTierStructural, "structural", counts.structural);
+    markTierCleared(verifyTierGeometric, "geometric", counts.geometric);
+    markTierCleared(verifyTierLint, "lint", counts.lint);
     if (verifySummary) {
-      if (result.ok && warnings.length === 0) verifySummary.textContent = "Verified: safe to export";
+      if (result.ok && warnings.length === 0) verifySummary.textContent = "Verified: no warnings";
       else if (result.ok) verifySummary.textContent = "Verified with review notes";
       else verifySummary.textContent = "Fix structural warnings before export";
     }
@@ -179,6 +272,7 @@ function updateVerifyPanel(source) {
     setVerifyTier(verifyTierStructural, verifyStructural, "err", "Fix source first");
     setVerifyTier(verifyTierGeometric, verifyGeometric, "idle", "Not run");
     setVerifyTier(verifyTierLint, verifyLint, "idle", "Not run");
+    updateVerifyDetails([]);
   }
 }
 
@@ -226,11 +320,34 @@ function fitUnicodeOutput() {
   });
 }
 
+// Text outputs render lazily: doRender only marks them dirty, and they render
+// when a text canvas view is actually active (doRender's activeCanvasFormat
+// check, or buttons.js calling ensureTextOutputs on view switch). Past the
+// line cap the pane shows a structured too-large message instead of running
+// renderMermaidAscii synchronously on a huge diagram.
+var TEXT_RENDER_MAX_LINES = 300;
+
+function countSourceLines(source) {
+  var lines = String(source || "").split("\n");
+  var n = 0;
+  for (var i = 0; i < lines.length; i++) if (lines[i].trim()) n++;
+  return n;
+}
+
 function renderTextOutputs(source) {
   if (!renderMermaidAscii) return;
   var key = textOutputKey(source);
   if (textOutputCacheKey === key) {
     if (activeCanvasFormat() === "unicode") fitUnicodeOutput();
+    return;
+  }
+  var lines = countSourceLines(source);
+  if (lines > TEXT_RENDER_MAX_LINES) {
+    textOutputCacheKey = key;
+    var tooLarge = function(format) {
+      return "Diagram too large for text rendering (" + lines + " lines > " + TEXT_RENDER_MAX_LINES + " line limit). The SVG preview is still available; for text output use the CLI: am render diagram.mmd --format " + format + ".";
+    };
+    setTextOutputs(tooLarge("unicode"), tooLarge("ascii"));
     return;
   }
   try {
@@ -284,6 +401,7 @@ async function doRender() {
     applyStrokeOverrides(svgEl);
     applyZoom(state.zoom);
     if (autoFitPending && typeof fitToView === 'function') { fitToView(); autoFitPending = false; }
+    setEditorErrorLine(0);
     statusText.textContent = "OK";
     statusText.className = "status-ok";
     statusDot.className = "status-dot ok";
@@ -296,6 +414,8 @@ async function doRender() {
   } catch (err) {
     var ms = (performance.now() - t0).toFixed(0);
     previewInner.innerHTML = formatRenderErrorHtml(err);
+    var errorLoc = extractErrorLocation(String(err || ""));
+    setEditorErrorLine(errorLoc ? errorLoc.line : 0);
     statusText.textContent = "Error";
     statusText.className = "status-err";
     statusDot.className = "status-dot err";

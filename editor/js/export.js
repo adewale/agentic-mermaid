@@ -6,6 +6,7 @@ var exportRequiresSvgButtons = [
   exportMainBtn,
   document.getElementById('export-png-btn'),
   document.getElementById('export-svg-btn'),
+  document.getElementById('copy-png-btn'),
 ].filter(Boolean);
 
 function hasRenderedSvg() {
@@ -65,7 +66,7 @@ function serializeSvg(svgEl) {
   return new XMLSerializer().serializeToString(svgEl);
 }
 
-function svgToPngBlob(svgEl, scale, cb) {
+function svgToPngBlob(svgEl, scale, cb, onError) {
   var serialized = serializeSvg(svgEl);
   var svgBlob = new Blob([serialized], { type: 'image/svg+xml;charset=utf-8' });
   var url = URL.createObjectURL(svgBlob);
@@ -82,7 +83,11 @@ function svgToPngBlob(svgEl, scale, cb) {
     URL.revokeObjectURL(url);
     canvas.toBlob(cb, 'image/png');
   };
-  img.onerror = function() { URL.revokeObjectURL(url); showToast('PNG export failed.'); };
+  img.onerror = function() {
+    URL.revokeObjectURL(url);
+    if (onError) onError();
+    else showToast('PNG export failed.');
+  };
   img.src = url;
 }
 
@@ -110,18 +115,55 @@ function exportSVG() {
   setExportDropdownOpen(false, false);
 }
 
-function copyURL() {
-  updateHash();
-  writeClipboardText(window.location.href, 'URL copied to clipboard!', 'Copy link failed.', document.getElementById('copy-link-btn'));
+// Copy PNG hands the clipboard a promise immediately so the write stays
+// inside the user-activation window while the PNG encodes off-thread.
+var copyPngBtn = document.getElementById('copy-png-btn');
+
+function copyPNG() {
+  var svgEl = getSvgEl(); if (!svgEl) return;
+  if (typeof ClipboardItem === 'undefined' || !navigator.clipboard || !navigator.clipboard.write) {
+    setCopyFeedback(copyPngBtn, 'err');
+    showToast('Copying images is not supported in this browser.');
+    return;
+  }
+  var blobPromise = new Promise(function(resolve, reject) {
+    svgToPngBlob(svgEl, exportScale, function(blob) {
+      if (blob) resolve(blob);
+      else reject(new Error('PNG encode failed'));
+    }, function() { reject(new Error('PNG encode failed')); });
+  });
+  navigator.clipboard.write([new ClipboardItem({ 'image/png': blobPromise })]).then(function() {
+    setCopyFeedback(copyPngBtn, 'ok');
+    showToast('PNG copied (' + exportScale + 'x)');
+    setExportDropdownOpen(false, false);
+  }).catch(function() {
+    setCopyFeedback(copyPngBtn, 'err');
+    showToast('Copy PNG failed.');
+  });
 }
+
+function copyURL(sourceBtn) {
+  // updateHash compresses asynchronously; wait so the copied URL is current.
+  Promise.resolve(updateHash()).then(function() {
+    writeClipboardText(window.location.href, 'Share link copied to clipboard!', 'Copy link failed.', sourceBtn);
+  });
+}
+
+var copyLinkBtn = document.getElementById('copy-link-btn');
+var shareBtn = document.getElementById('share-btn');
 
 document.getElementById('export-png-btn').addEventListener('click', exportPNG);
 document.getElementById('export-svg-btn').addEventListener('click', exportSVG);
-document.getElementById('copy-link-btn').addEventListener('click', copyURL);
+if (copyPngBtn) copyPngBtn.addEventListener('click', copyPNG);
+copyLinkBtn.addEventListener('click', function() { copyURL(copyLinkBtn); });
+if (shareBtn) shareBtn.addEventListener('click', function() { copyURL(shareBtn); });
 updateExportAvailability();
 
 document.addEventListener('keydown', function(e) {
-  if (e.target === editor) return;
-  if ((e.metaKey || e.ctrlKey) && !e.shiftKey && e.key.toLowerCase() === 's') { e.preventDefault(); exportPNG(); }
-  if ((e.metaKey || e.ctrlKey) &&  e.shiftKey && e.key.toLowerCase() === 's') { e.preventDefault(); exportSVG(); }
+  // Fires even while focus is in the source textarea — where users spend most
+  // of their time — and preempts the browser's own Save dialog.
+  if (!(e.metaKey || e.ctrlKey) || e.key.toLowerCase() !== 's') return;
+  e.preventDefault();
+  if (e.shiftKey) exportSVG();
+  else exportPNG();
 });

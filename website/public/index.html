@@ -12,6 +12,10 @@
 <link rel="alternate" type="text/plain" href="/llms.txt">
 <link rel="alternate" type="application/json" href="/capabilities.json">
 <link rel="alternate" type="text/markdown" href="/agent-instructions.md">
+<meta property="og:title" content="Agentic Mermaid">
+<meta property="og:description" content="Agentic Mermaid renders, verifies, and edits Mermaid diagrams locally, with compact agent instructions for CLI, library, and MCP use.">
+<meta property="og:type" content="website">
+<meta name="twitter:card" content="summary_large_image">
 </head>
 <body>
 <a class="skip-link" href="#main">Skip to content</a>
@@ -21,12 +25,11 @@
 <main id="main" class="doc home-main">
 
   <section class="page-header" data-copy-widget data-copy-name="Agent prompt">
-    <h1><span class="line">Diagrams your</span> <span class="line">agents can edit</span></h1>
+    <h1><span class="line">Stop regenerating the whole diagram</span> <span class="line">to move one node.</span></h1>
     <p class="lead">Agentic Mermaid treats Mermaid source as the durable interface: agents parse the existing <code>.mmd</code>, make the smallest typed change, verify it, and return source you can review.</p>
     <div class="page-actions">
       <button class="primary-action prompt-action" type="button" data-copy-target="home-agent-prompt" data-copy-name="Agent prompt" aria-describedby="home-copy-status"><span class="copy-prompt-icon" aria-hidden="true"></span><span>Copy agent prompt</span></button>
       <a class="secondary-action" href="/docs/getting-started/">Getting started</a>
-      <a class="secondary-action" href="/editor/">Open editor</a>
       <span class="copy-prompt-status" id="home-copy-status" role="status" aria-live="polite"></span>
     </div>
   </section>
@@ -40,7 +43,9 @@
           <span>Copy prompt</span>
         </button>
       </div>
-      <pre class="agent-prompt"><code id="home-agent-prompt">Create or edit a Mermaid diagram with Agentic Mermaid.
+      <details class="prompt-details">
+        <summary><span class="prompt-summary-closed">Show the full prompt</span><span class="prompt-summary-open">Hide the full prompt</span></summary>
+        <pre class="agent-prompt"><code id="home-agent-prompt">Create or edit a Mermaid diagram with Agentic Mermaid.
 
 Task:
 &lt;replace with the requested diagram goal or edit&gt;
@@ -71,54 +76,10 @@ Workflow:
 8. In Trace, name the local channel and exact calls/ops used: `parseMermaid`, the `as*` helper, `mutate({ kind: ... })`, `verifyMermaid`, and `serializeMermaid`; for new diagrams say `no mutate`.
 
 Do not modify project files unless the user explicitly asked you to change files.</code></pre>
+      </details>
       <p class="copy-prompt-status" id="home-card-copy-status" role="status" aria-live="polite"></p>
     </div>
   </section>
-
-  <section class="quick-start" aria-labelledby="quick-start-title">
-    <p class="section-kicker">Agent quick start</p>
-    <h2 id="quick-start-title">Parse, mutate, verify</h2>
-    <ol class="quick-steps">
-      <li><strong>Parse.</strong> Read the source into a typed model; unmodeled syntax round-trips as preserved source.</li>
-      <li><strong>Narrow.</strong> Resolve the one node or edge the edit touches via the matching family surface (<code>asFlowchart</code>, <code>asSequence</code>, …).</li>
-      <li><strong>Mutate.</strong> Change the requested node, edge, task, relation, or event while preserving unmodeled syntax.</li>
-      <li><strong>Verify.</strong> Read structural, geometric, and lint warnings before serializing or rendering artifacts.</li>
-      <li><strong>Serialize.</strong> Write the typed model back to Mermaid source, then render only when an artifact is needed.</li>
-    </ol>
-    <p class="agent-trace" aria-label="Expected agent trace"><span>parseMermaid</span><span>asFlowchart</span><span>mutate(add_edge)</span><span>verifyMermaid</span><span>serializeMermaid</span></p>
-  </section>
-
-  <h2 id="local-setup">Local setup</h2>
-  <p>Self-hosting over stdio is the default path. The website is documentation plus a browser-local editor; it is not a render API and it does not run hosted Code Mode.</p>
-
-  <div class="copy-prompt-card agent-config" data-copy-widget data-copy-name="MCP config">
-    <div class="copy-prompt-bar">
-      <span class="copy-prompt-label meta-label">MCP config</span>
-      <button class="copy-prompt-btn" type="button" data-copy-target="home-mcp-config" data-copy-name="MCP config" aria-describedby="home-mcp-copy-status">
-        <span class="copy-prompt-icon" aria-hidden="true"></span>
-        <span>Copy MCP config</span>
-      </button>
-    </div>
-    <pre class="agent-prompt"><code id="home-mcp-config">{
-  "mcpServers": {
-    "agentic-mermaid": {
-      "command": "bun",
-      "args": ["run", "bin/agentic-mermaid-mcp.ts"]
-    }
-  }
-}</code></pre>
-    <p class="copy-prompt-hint">Run from the cloned repo root, or replace <code>bin/agentic-mermaid-mcp.ts</code> with an absolute path.</p>
-    <p class="copy-prompt-status" id="home-mcp-copy-status" role="status" aria-live="polite"></p>
-  </div>
-
-  <pre><code><span class="k">$</span> git clone https://github.com/adewale/beautiful-mermaid
-<span class="k">$</span> cd beautiful-mermaid && bun install && bun run build
-<span class="k">$</span> bun run bin/am.ts --help
-<span class="k">$</span> bun run bin/agentic-mermaid-mcp.ts      <span class="c"># stdio MCP</span></code></pre>
-  <p class="muted">Claude Code, Cursor, Codex, Gemini CLI, GitHub Copilot, Pi, OpenCode, and generic MCP clients all use the same local command. The prompt above is the default agent handoff; use <a href="/agent-instructions.md">agent-instructions.md</a> only when the agent needs the longer operating guide.</p>
-
-  <h2>One source, five outputs</h2>
-  <p>Every family renders to vector, raster, and text from one layout, byte-identical across processes. Outputs: SVG, PNG, ASCII, Unicode, and JSON layout, across twelve diagram families.</p>
 
   <figure>
     <div class="plate dia-plate">
@@ -193,10 +154,104 @@ Do not modify project files unless the user explicitly asked you to change files
 </g>
 </svg>
     </div>
-    <figcaption>The agent edit loop, rendered to SVG.</figcaption>
+    <figcaption>The agent edit loop, rendered to SVG. <a class="go" href="/editor/#Zmxvd2NoYXJ0IExSCiAgU1tTb3VyY2UgLm1tZF0gLS0+IFBbcGFyc2VdCiAgUCAtLT4gTltuYXJyb3ddCiAgTiAtLT4gTVttdXRhdGVdCiAgTSAtLT4gVnt2ZXJpZnl9CiAgViAtLSBvayAtLT4gUltzZXJpYWxpemUg4oaSIHJlbmRlcl0KICBWIC0tIHdhcm5pbmdzIC0tPiBO">Edit this diagram in the editor</a></figcaption>
   </figure>
 
-  <p>The same diagram as Unicode text:</p>
+  <section class="quick-start" aria-labelledby="quick-start-title">
+    <p class="section-kicker">Agent quick start</p>
+    <h2 id="quick-start-title">Parse, mutate, verify</h2>
+    <ol class="quick-steps">
+      <li><strong>Parse.</strong> Read the source into a typed model; unmodeled syntax round-trips as preserved source.</li>
+      <li><strong>Narrow.</strong> Resolve the one node or edge the edit touches via the matching family surface (<code>asFlowchart</code>, <code>asSequence</code>, …).</li>
+      <li><strong>Mutate.</strong> Change the requested node, edge, task, relation, or event while preserving unmodeled syntax.</li>
+      <li><strong>Verify.</strong> Read structural, geometric, and lint warnings before serializing or rendering artifacts.</li>
+      <li><strong>Serialize.</strong> Write the typed model back to Mermaid source, then render only when an artifact is needed.</li>
+    </ol>
+    <p class="agent-trace" aria-label="Expected agent trace"><span>parseMermaid</span><span>asFlowchart</span><span>mutate(add_edge)</span><span>verifyMermaid</span><span>serializeMermaid</span></p>
+  </section>
+
+  <section class="why-typed" aria-labelledby="why-typed-title">
+    <p class="section-kicker">The problem</p>
+    <h2 id="why-typed-title">Why typed edits, not regeneration</h2>
+    <p>Ask an agent to add one edge and most tools make it rewrite the whole file. Every line it did not need to touch gets re-rolled: a <code>%%</code> comment disappears, a label is paraphrased, an edge points at a node that no longer exists — and nothing fails, because nothing was checked.</p>
+    <div class="contrast-grid">
+      <div class="contrast-col">
+        <p class="meta-label">Regenerate the source</p>
+        <ul>
+          <li>Every line rewritten; the diff is the whole file.</li>
+          <li>Comments and unmodeled syntax silently re-rolled.</li>
+          <li>Nothing checks the result before it ships.</li>
+        </ul>
+      </div>
+      <div class="contrast-col contrast-col-mutate">
+        <p class="meta-label">Mutate the typed model</p>
+        <ul>
+          <li>One operation — <code>mutate(flow, { kind: 'add_edge', from: 'API', to: 'Cache' })</code> — applies or returns a structured error; it cannot half-apply.</li>
+          <li>Unmodeled syntax rides along verbatim.</li>
+          <li><code>verifyMermaid</code> gates serialize with tiered warnings and stable codes.</li>
+        </ul>
+      </div>
+    </div>
+    <p class="muted">The diff is the edit you asked for, nothing else. Structured mutation covers most families in full; where only a modeled subset exists, edits fall back to deliberate <a href="/docs/source-level/">source-level changes</a>.</p>
+  </section>
+
+  <section class="channels" aria-labelledby="channels-title">
+    <p class="section-kicker">Same loop, every channel</p>
+    <h2 id="channels-title">One edit, three channels</h2>
+    <p>The same typed edit — parse, add an edge, verify, return source — through whichever channel the agent already has.</p>
+    <div class="tabbed-card" data-tabs>
+      <div class="tab-bar" role="tablist" aria-label="Channels">
+        <button type="button" role="tab" id="channel-tab-library" aria-controls="channel-panel-library" aria-selected="true">Library</button>
+        <button type="button" role="tab" id="channel-tab-cli" aria-controls="channel-panel-cli" aria-selected="false" tabindex="-1">CLI</button>
+        <button type="button" role="tab" id="channel-tab-mcp" aria-controls="channel-panel-mcp" aria-selected="false" tabindex="-1">MCP</button>
+      </div>
+      <div class="tab-panel" role="tabpanel" id="channel-panel-library" aria-labelledby="channel-tab-library" tabindex="0">
+        <p class="meta-label tab-panel-label">Library</p>
+        <pre><code>import { parseMermaid, asFlowchart, mutate, verifyMermaid, serializeMermaid }
+  from 'agentic-mermaid/agent'
+
+const flow = asFlowchart(parseMermaid(source).value)
+const r = mutate(flow, { kind: 'add_edge', from: 'API', to: 'Cache' })
+if (!verifyMermaid(r.value).ok) throw new Error('edit left structural warnings')
+const next = serializeMermaid(r.value)</code></pre>
+      </div>
+      <div class="tab-panel" role="tabpanel" id="channel-panel-cli" aria-labelledby="channel-tab-cli" tabindex="0">
+        <p class="meta-label tab-panel-label">CLI</p>
+        <pre><code><span class="k">$</span> am mutate diagram.mmd --op '{"kind":"add_edge","from":"API","to":"Cache"}'
+<span class="c"># applies the op, verifies, emits source</span>
+<span class="k">$</span> am verify diagram.mmd --json            <span class="c"># tiered warnings, stable codes</span>
+<span class="k">$</span> am render diagram.mmd --format unicode  <span class="c"># same layout, in the terminal</span></code></pre>
+      </div>
+      <div class="tab-panel" role="tabpanel" id="channel-panel-mcp" aria-labelledby="channel-tab-mcp" tabindex="0">
+        <p class="meta-label tab-panel-label">MCP</p>
+        <pre><code><span class="c">// self-hosted MCP Code Mode: the whole loop in one execute(code) call</span>
+execute(`
+  const flow = asFlowchart(parseMermaid(source).value)
+  const r = mutate(flow, { kind: 'add_edge', from: 'API', to: 'Cache' })
+  const v = verifyMermaid(r.value)
+  return v.ok ? { source: serializeMermaid(r.value) }
+              : { error: 'verify failed', warnings: v.warnings }
+`)</code></pre>
+      </div>
+    </div>
+    <p class="muted">In the cloned repo, <code>am</code> is <code>bun run bin/am.ts</code>; MCP wiring is in <a href="/docs/getting-started/">Getting started</a>.</p>
+  </section>
+
+  <p class="muted">Setup lives in <a href="/docs/getting-started/">Getting started</a>: clone, build, and wire the stdio MCP in two minutes.</p>
+
+  <h2>One source, five outputs</h2>
+  <p>Every family renders to vector, raster, and text from one layout, byte-identical across processes. Outputs: SVG, PNG, ASCII, Unicode, and JSON layout, across twelve diagram families.</p>
+
+  <ul class="fact-strip" aria-label="Capability evidence">
+    <li><a href="/docs/families/"><strong>12</strong> diagram families</a></li>
+    <li><a href="/examples/"><strong>5</strong> outputs per source</a></li>
+    <li><a href="/about/"><strong>Byte-identical</strong> renders, no browser</a></li>
+    <li><a href="/warnings/"><strong>Tiered</strong> warnings, stable codes</a></li>
+    <li><a href="/docs/quality/"><strong>Deterministic</strong> layout metrics</a></li>
+    <li><a href="/evidence/"><strong>Curated</strong> quality evidence</a></li>
+  </ul>
+
+  <p>The loop figure at the top of the page again — same source, same layout. The same diagram as Unicode text:</p>
   <pre class="unicode-diagram"><code>┌─────────────┐     ┌───────┐     ┌────────┐     ┌──────────┐     ◇────────◇     ┌────────────────────┐
 │             │     │       │     │        │     │          │     │        │     │                    │
 │ Source .mmd ├────►│ parse ├────►│ narrow ├────►│  mutate  ├────►│ verify ├─ok─►│ serialize → render │
@@ -220,15 +275,8 @@ Do not modify project files unless the user explicitly asked you to change files
 
 </main>
 
-<footer>
-  <div class="footlinks">
-    <a href="/llms.txt">llms.txt</a><span class="sep">&middot;</span>
-    <a href="/agent-instructions.md">agent-instructions.md</a><span class="sep">&middot;</span>
-    <a href="/capabilities.json">capabilities.json</a><span class="sep">&middot;</span>
-    <a href="/examples/index.json">examples.json</a><span class="sep">&middot;</span>
-    <a href="/skills/agentic-mermaid-diagram-workflow/SKILL.md">workflow skill</a>
-  </div>
-</footer>
+<!-- Replaced at build time with the canonical footer from website/build.ts; keep in sync. -->
+<footer><div class="footlinks"><a href="/warnings/">Warnings</a><span class="sep">&middot;</span><a href="/errors/">Errors</a><span class="sep">&middot;</span><a href="/releases/">Releases</a><span class="sep">&middot;</span><a href="/security/">Security</a><span class="sep">&middot;</span><a href="https://github.com/adewale/beautiful-mermaid">GitHub</a></div><div class="footlinks"><a href="/llms.txt">llms.txt</a><span class="sep">&middot;</span><a href="/agent-instructions.md">agent-instructions.md</a><span class="sep">&middot;</span><a href="/capabilities.json">capabilities.json</a><span class="sep">&middot;</span><a href="/examples/index.json">examples.json</a><span class="sep">&middot;</span><a href="/skills/agentic-mermaid-diagram-workflow/SKILL.md">workflow skill</a></div></footer>
 
 <script src="/shader-mark.js"></script>
 <script src="/theme.js"></script>

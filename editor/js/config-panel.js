@@ -23,6 +23,8 @@ function readConfig() {
   if (cfgFont)           cfg.font    = cfgFont;
   if (cfgPadding !== 24) cfg.padding = cfgPadding;
   state.config = cfg;
+  // Per-diagram config rides along in the autosaved draft.
+  if (typeof scheduleDraftSave === 'function') scheduleDraftSave();
 }
 
 var THEME_COLOR_MAP = { bg: 'bg', fg: 'fg', accent: 'accent', line: 'line', muted: 'muted', surface: 'surface' };

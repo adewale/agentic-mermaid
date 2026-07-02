@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="description" content="lint warning warning.">
+<meta name="description" content="UNREACHABLE_NODE is a lint warning: a node cannot be reached from any root (a node with no incoming edges) by following edges.">
 <title>UNREACHABLE_NODE – Agentic Mermaid</title>
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <link rel="icon" href="/favicon.ico" type="image/x-icon">
@@ -12,6 +12,10 @@
 <link rel="alternate" type="text/plain" href="/llms.txt">
 <link rel="alternate" type="application/json" href="/capabilities.json">
 <link rel="alternate" type="text/markdown" href="/agent-instructions.md">
+<meta property="og:title" content="UNREACHABLE_NODE – Agentic Mermaid">
+<meta property="og:description" content="UNREACHABLE_NODE is a lint warning: a node cannot be reached from any root (a node with no incoming edges) by following edges.">
+<meta property="og:type" content="website">
+<meta name="twitter:card" content="summary_large_image">
 </head>
 <body>
 <a class="skip-link" href="#main">Skip to content</a>
@@ -19,11 +23,22 @@
 <main id="main" class="doc">
 <section class="page-header">
 <h1>UNREACHABLE_NODE</h1>
-<p class="lead">lint warning warning.</p>
+<p class="lead">UNREACHABLE_NODE is a lint warning: a node cannot be reached from any root (a node with no incoming edges) by following edges.</p>
 </section>
+<p><strong>What triggers it.</strong> Disconnected clusters left behind after <code>remove_edge</code>/<code>remove_node</code> mutations, or a cycle with no entry edge from the main flow.</p>
+<p><strong>How to fix it.</strong> Connect the node into the flow with <code>add_edge</code> from a reachable node, or delete it with <code>remove_node</code> if it is leftover.</p>
+<h2>See it fire</h2>
+<p>This minimal source triggers <code>UNREACHABLE_NODE</code> — checked at build time against the same engine the editor runs.</p>
+<pre><code>flowchart LR
+  A[Start] --&gt; B[Done]
+  C[Orphan] --&gt; D[Cycle]
+  D --&gt; C</code></pre>
+<p><a class="go" href="/editor/#Zmxvd2NoYXJ0IExSCiAgQVtTdGFydF0gLS0+IEJbRG9uZV0KICBDW09ycGhhbl0gLS0+IERbQ3ljbGVdCiAgRCAtLT4gQw==">Open in the editor and watch it clear</a></p>
 <p>Run <code>am verify diagram.mmd --json</code>, inspect this code, and apply the smallest source or typed mutation that clears it. If it persists after two mechanical attempts, return the warning and ask for human review.</p>
+<p class="muted">In the cloned repo, <code>am</code> is <code>bun run bin/am.ts</code>.</p>
+<p class="muted">Back to <a href="/warnings/">all warning codes</a>, or <a href="/editor/">open the editor</a> to watch this warning clear as you edit.</p>
 </main>
-<footer><div class="footlinks"><a href="/llms.txt">llms.txt</a><span class="sep">&middot;</span><a href="/agent-instructions.md">agent-instructions.md</a><span class="sep">&middot;</span><a href="/capabilities.json">capabilities.json</a><span class="sep">&middot;</span><a href="/examples/index.json">examples.json</a><span class="sep">&middot;</span><a href="/skills/agentic-mermaid-diagram-workflow/SKILL.md">workflow skill</a></div></footer>
+<footer><div class="footlinks"><a href="/warnings/">Warnings</a><span class="sep">&middot;</span><a href="/errors/">Errors</a><span class="sep">&middot;</span><a href="/releases/">Releases</a><span class="sep">&middot;</span><a href="/security/">Security</a><span class="sep">&middot;</span><a href="https://github.com/adewale/beautiful-mermaid">GitHub</a></div><div class="footlinks"><a href="/llms.txt">llms.txt</a><span class="sep">&middot;</span><a href="/agent-instructions.md">agent-instructions.md</a><span class="sep">&middot;</span><a href="/capabilities.json">capabilities.json</a><span class="sep">&middot;</span><a href="/examples/index.json">examples.json</a><span class="sep">&middot;</span><a href="/skills/agentic-mermaid-diagram-workflow/SKILL.md">workflow skill</a></div></footer>
 <script src="/shader-mark.js"></script>
 <script src="/theme.js"></script>
 </body>

@@ -81,11 +81,13 @@
   --fg:     #221E16;
   --accent: #9A4A24;
 
-  /* derived hierarchy — a coherent mono ramp from the triplet */
+  /* derived hierarchy — a coherent mono ramp from the triplet. The three ink
+     steps stay visibly distinct on Paper: ink 14.6:1, soft 8.0:1 (≥7:1),
+     faint 5.4:1 on --bg and 4.9:1 on --surface (≥4.5:1 AA for muted text). */
   --paper:        var(--bg);
   --ink:          var(--fg);
-  --ink-soft:     color-mix(in srgb, var(--fg) 96%, var(--bg));
-  --ink-faint:    color-mix(in srgb, var(--fg) 95%, var(--bg));
+  --ink-soft:     color-mix(in srgb, var(--fg) 80%, var(--bg));
+  --ink-faint:    color-mix(in srgb, var(--fg) 68%, var(--bg));
   --surface:      color-mix(in srgb, var(--fg) 5%,  var(--bg));
   --surface-subtle: color-mix(in srgb, var(--fg) 3%,  var(--bg));
   --surface-raised: color-mix(in srgb, var(--fg) 6%,  var(--bg));
@@ -101,8 +103,10 @@
   --accent-tint:  color-mix(in srgb, var(--accent) 14%, var(--bg));
   --code-fg:      var(--fg);
 
-  /* status + terminal + legacy tokens (kept stable / derived across themes) */
-  --warn: #E0A75A; --warn-tint: #2A2418; --danger: #E08A80;
+  /* status + terminal + legacy tokens (kept stable / derived across themes).
+     Light-polarity status ink on Paper: danger 6.5:1, warn 6.0:1 (the dark
+     pastels live in the [data-scheme="dark"] block). */
+  --warn: #7E5214; --warn-tint: color-mix(in srgb, var(--warn) 14%, var(--bg)); --danger: #96352A;
   --term-bg: var(--code-bg); --term-fg: var(--fg); --term-dim: var(--ink-soft); --term-accent: var(--accent);
   --accent-press: var(--accent-hover); --ease: cubic-bezier(0.22, 1, 0.36, 1);
   --radius-card: var(--radius-lg); --radius-input: var(--radius-md);
@@ -180,6 +184,8 @@
   --card-shadow: 0 0 0 1px rgba(255,255,255,0.08);
   --code-bg:    color-mix(in srgb, var(--bg) 82%, #000);
   --grain:      0.07;                           /* light noise on a dark base reads strongly */
+  /* dark polarity flips the status inks back to pastels on a dark tint */
+  --warn: #E0A75A; --warn-tint: #2A2418; --danger: #E08A80;
 }
 
 /* keep native UI (scrollbars, form controls, the canvas) in the right polarity
@@ -205,10 +211,11 @@ pre, pre code, code, blockquote, th, td, hr, figure .plate, footer, .footlinks a
 * { box-sizing: border-box; }
 html { -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility; font-kerning: normal; }
 body { margin: 0; background: var(--paper); color: var(--ink); font-family: var(--sans); font-size: var(--t-body); line-height: var(--lh-body); font-feature-settings: "kern" 1, "liga" 1; }
+::selection { background: color-mix(in srgb, var(--accent) 22%, var(--bg)); color: var(--ink); }
 .skip-link { position: fixed; left: 12px; top: 12px; z-index: 50; transform: translateY(-160%); padding: 8px 10px; border-radius: 8px; background: var(--paper); color: var(--link); box-shadow: 0 0 0 1px var(--line-strong); }
 .skip-link:focus { transform: translateY(0); }
 :target { scroll-margin-top: 24px; }
-.gallery figure:target, table tr:target { outline: 2px solid color-mix(in srgb, var(--accent) 62%, var(--paper)); outline-offset: 4px; }
+.gallery figure:target, table tr:target { outline: 2px solid var(--accent); outline-offset: 4px; }
 /* a faint grain so the flat surface gains some texture — brand-constant
    (opacity from --grain), so it survives every theme unchanged */
 body::before { content: ""; position: fixed; inset: 0; pointer-events: none; z-index: -1; opacity: var(--grain);
@@ -216,6 +223,17 @@ body::before { content: ""; position: fixed; inset: 0; pointer-events: none; z-i
 
 /* ---- the document column ---- */
 .doc { max-width: var(--content-max); margin: 0 auto; padding: 8px var(--page-gutter) 128px; }
+/* Running prose reads at --prose-max (~66ch); everything that manages its own
+   width — code, tables, figures, the layout strips, and the card sections
+   (quick-start, channels, why-typed, copy-prompt-card, agent-hero) — keeps the
+   full column. The homepage lead opts back out below (.home-main). */
+.doc > p:not(.endmark),
+.doc > blockquote,
+.doc > dl,
+.doc > ul:not(.fact-strip, .doc-index, .start-rail),
+.doc > ol,
+.doc .page-header > .lead,
+.doc .machine-context > p { max-width: var(--prose-max); }
 
 /* ---- masthead: one quiet line, like a document title bar ---- */
 .masthead { max-width: var(--content-max); margin: 0 auto; padding: var(--sp-7) var(--page-gutter) 0; }
@@ -258,8 +276,9 @@ p, li, figcaption, blockquote { text-wrap: pretty; }
 p { margin: 0 0 var(--sp-5); }
 a { color: var(--link); text-decoration: underline; text-decoration-color: transparent; text-underline-offset: 3px; transition: color var(--dur-control) var(--ease-standard), text-decoration-color var(--dur-control) var(--ease-standard); }
 a:hover { text-decoration-color: currentColor; }
-/* keyboard focus ring, theme-aware (forced-colors has its own below) */
-a:focus-visible, button:focus-visible, summary:focus-visible, [tabindex]:focus-visible { outline: 2px solid color-mix(in srgb, var(--accent) 55%, var(--paper)); outline-offset: 3px; }
+/* keyboard focus ring, theme-aware (forced-colors has its own below);
+   full-strength accent clears 3:1 on both --bg (5.5:1) and --surface (5.0:1) */
+a:focus-visible, button:focus-visible, summary:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
 strong { color: var(--ink); font-weight: 700; }
 .muted { color: var(--ink-faint); }
 small { color: var(--ink-faint); font-size: var(--t-sm); }
@@ -268,6 +287,9 @@ li { margin: var(--sp-2) 0; }
 li::marker { color: var(--ink-faint); }
 hr { border: 0; margin: var(--sp-6) 0; }
 .go { color: var(--link); font-weight: 600; white-space: nowrap; }
+/* long .go labels (e.g. getting-started's prompt link) must wrap on phones
+   rather than push the page wider than the viewport */
+@media (max-width: 640px) { .go { white-space: normal; } }
 .go::after { content: " \2192"; }
 .page-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 12px; margin: 22px 0 0; }
 .primary-action, .secondary-action { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: var(--control-h); padding: 0 12px; border-radius: var(--radius-md); font-family: var(--sans); font-size: var(--t-control); font-weight: 700; text-decoration: none; cursor: pointer; transition: background-color var(--dur-control) var(--ease-out), color var(--dur-control) var(--ease-out), border-color var(--dur-control) var(--ease-out), transform var(--dur-press) var(--ease-out); }
@@ -285,6 +307,9 @@ hr { border: 0; margin: var(--sp-6) 0; }
 .start-rail .go { display: inline-block; margin-top: 4px; }
 .doc-index { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 6px 18px; padding-left: 0; list-style: none; }
 .doc-index li { margin: 0; }
+.doc-pager { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 6px 18px; margin-top: var(--sp-6); padding-top: var(--sp-4); border-top: 1px solid var(--line); font-size: var(--t-sm); }
+.doc-pager a { color: var(--ink-soft); }
+.doc-pager .doc-pager-next { margin-left: auto; }
 .workflow-list { padding-left: 22px; }
 .workflow-list li { margin: 9px 0; }
 .section-kicker { margin: 0 0 8px; color: var(--ink-soft); font-family: var(--mono); font-size: var(--t-label); font-weight: 650; line-height: var(--lh-ui); }
@@ -370,6 +395,18 @@ hr { border: 0; margin: var(--sp-6) 0; }
   -webkit-mask-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round' xmlns='http://www.w3.org/2000/svg'%3E%3Cpolyline points='20 6 9 17 4 12'/%3E%3C/svg%3E");
   mask-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round' xmlns='http://www.w3.org/2000/svg'%3E%3Cpolyline points='20 6 9 17 4 12'/%3E%3C/svg%3E");
 }
+/* the full prompt collapses behind a native disclosure; the copy bar above
+   stays visible and still copies the hidden text (textContent survives) */
+.prompt-details > summary { display: flex; align-items: center; gap: 10px; min-height: var(--control-h); padding: 6px 14px; cursor: pointer; list-style: none; color: var(--ink-soft); font-family: var(--sans); font-size: var(--t-sm); font-weight: 600; line-height: var(--lh-ui); transition: color var(--dur-control) var(--ease-out), background-color var(--dur-control) var(--ease-out); }
+.prompt-details > summary::-webkit-details-marker { display: none; }
+.prompt-details > summary:hover { color: var(--ink); background: var(--control-bg-hover); }
+/* the disclosure caret: points right when closed, down when open */
+.prompt-details > summary::before { content: ""; flex: none; width: 7px; height: 7px; border-right: 1.5px solid currentColor; border-bottom: 1.5px solid currentColor; transform: rotate(-45deg); transition: transform var(--dur-control) var(--ease-out); }
+.prompt-details[open] > summary::before { transform: rotate(45deg); }
+.prompt-details[open] > summary { border-bottom: 1px solid var(--line); }
+.prompt-details .prompt-summary-open { display: none; }
+.prompt-details[open] .prompt-summary-open { display: inline; }
+.prompt-details[open] .prompt-summary-closed { display: none; }
 .agent-prompt { margin: 0; border-radius: 0; border: 0; background: transparent; overflow-x: hidden; white-space: pre-wrap; overflow-wrap: break-word; }
 .agent-prompt code { font-size: var(--t-mono); line-height: var(--lh-code); white-space: pre-wrap; overflow-wrap: break-word; font-feature-settings: "liga" 0, "calt" 0, "tnum" 1; }
 .copy-prompt-hint, .copy-prompt-status { min-height: 0; margin: 0; padding: 0 14px 11px; color: var(--ink-faint); font-size: var(--t-label); line-height: var(--lh-ui); }
@@ -381,6 +418,38 @@ hr { border: 0; margin: var(--sp-6) 0; }
 .agent-trace { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 18px 0 22px; padding: 12px 0; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); color: var(--ink-soft); font-family: var(--mono); font-size: var(--t-label); line-height: var(--lh-ui); font-variant-numeric: tabular-nums; }
 .agent-trace span { display: inline-flex; align-items: center; }
 .agent-trace span + span::before { content: "→"; margin-right: 8px; color: var(--ink-faint); }
+/* ---- why typed edits: regenerate vs mutate, side by side ---- */
+.why-typed { margin: var(--sp-9) 0 var(--sp-6); }
+.contrast-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; margin: var(--sp-5) 0 var(--sp-4); }
+.contrast-col { padding: var(--sp-4); border: 1px solid var(--surface-border); border-radius: var(--radius-lg); background: var(--surface-card); box-shadow: var(--shadow-hairline); }
+.contrast-col > .meta-label { margin: 0 0 10px; }
+.contrast-col ul { margin: 0; padding-left: 18px; }
+.contrast-col li { margin: 6px 0; font-size: var(--t-sm); line-height: 1.5; }
+.contrast-col-mutate { border-color: color-mix(in srgb, var(--accent) 45%, var(--line-strong)); }
+@media (max-width: 720px) { .contrast-grid { grid-template-columns: 1fr; } }
+
+/* ---- channel tabs: one typed edit through Library, CLI, and MCP.
+   Without JS the panels stack with their own labels; theme.js adds
+   .tabs-ready, reveals the tab bar, and drives panel visibility. ---- */
+.channels { margin: var(--sp-9) 0 var(--sp-6); }
+.tabbed-card { overflow: hidden; margin: var(--sp-4) 0 var(--sp-3); border: 1px solid var(--surface-border); border-radius: var(--radius-lg); background: var(--surface-card); box-shadow: var(--shadow-hairline); }
+.tab-bar { display: flex; flex-wrap: wrap; gap: 6px; padding: 8px; border-bottom: 1px solid var(--line); }
+.tab-bar [role="tab"] { min-height: var(--control-h); padding: 0 var(--control-px); border: 1px solid transparent; border-radius: var(--radius-md); background: transparent; color: var(--ink-faint); font-family: var(--sans); font-size: var(--t-control); font-weight: 700; cursor: pointer; transition: background-color var(--dur-control) var(--ease-out), color var(--dur-control) var(--ease-out); }
+.tab-bar [role="tab"]:hover { background: var(--control-bg-hover); color: var(--ink); }
+.tab-bar [role="tab"][aria-selected="true"] { border-color: var(--control-border); background: var(--control-bg); color: var(--ink); }
+.tab-panel > pre { margin: 0; border-radius: 0; background: transparent; }
+.tab-panel-label { padding: 12px 18px 0; margin: 0; }
+.tabbed-card:not(.tabs-ready) .tab-bar { display: none; }
+.tabbed-card:not(.tabs-ready) .tab-panel + .tab-panel { border-top: 1px solid var(--line); }
+.tabs-ready .tab-panel-label { display: none; }
+
+/* ---- fact strip: capability evidence in one scannable row ---- */
+.fact-strip { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 22px; margin: 0 0 var(--sp-5); padding: 12px 0; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); list-style: none; }
+.fact-strip li { margin: 0; font-size: var(--t-sm); line-height: var(--lh-ui); }
+.fact-strip a { color: var(--ink-soft); }
+.fact-strip a:hover { color: var(--link); text-decoration: none; }
+.fact-strip strong { color: var(--ink); }
+
 .machine-context { margin-top: var(--sp-9); }
 .agent-entrypoints { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; margin: 0 0 22px; padding: 12px 0; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); font-size: var(--t-sm); line-height: var(--lh-ui); }
 .agent-entrypoints strong { color: var(--ink); }
@@ -392,8 +461,8 @@ code { font-family: var(--mono); font-size: 0.9em; font-feature-settings: "liga"
 :not(pre) > code { background: var(--surface-card); padding: 1px 6px; border-radius: var(--radius-sm); }
 pre { background: var(--surface-card); border-radius: var(--radius-md); padding: 15px 18px; overflow: auto; margin: 0 0 var(--sp-5); }
 pre code { font-size: var(--t-mono); line-height: var(--lh-code); color: var(--code-fg); background: none; padding: 0; }
-.unicode-diagram { overflow-x: hidden; }
-.unicode-diagram code { display: block; width: max-content; max-width: none; font-size: min(0.68rem, 1.2vw); line-height: var(--lh-heading); white-space: pre; }
+.unicode-diagram { overflow-x: auto; }
+.unicode-diagram code { display: block; width: max-content; max-width: none; font-size: clamp(0.55rem, 1.2vw, 0.68rem); line-height: var(--lh-heading); white-space: pre; }
 .c { color: var(--ink-faint); } .k { color: var(--link); } .ok { color: var(--link); }
 
 /* ---- blockquote: a left rule, nothing more ---- */
@@ -405,6 +474,21 @@ th, td { text-align: left; padding: 9px 14px 9px 0; border-bottom: 1px solid var
 td code { font-size: var(--t-label); }
 .table-scroll { max-width: 100%; overflow-x: auto; margin: 0 0 20px; }
 .table-scroll table { margin-bottom: 0; }
+/* Warning tier/severity badges: quiet outlined pills whose ink carries the
+   semantics — structural/error in danger ink, geometric/warning in warn ink,
+   lint in the accent. Values come from the light-polarity status tokens. */
+.tier-badge, .sev-badge { display: inline-block; padding: 1px 9px; border: 1px solid currentColor; border-radius: var(--radius-pill); font-size: var(--t-label); line-height: var(--lh-ui); }
+.tier-structural, .sev-error { color: var(--danger); }
+.tier-geometric, .sev-warning { color: var(--warn); }
+.tier-lint { color: var(--accent); }
+
+/* Examples page jump index: one row per category above the 17k-px showcase. */
+.example-toc { margin: 0 0 var(--sp-7); padding: var(--sp-3) var(--sp-4); border: 1px solid var(--surface-border); border-radius: var(--radius-md); background: var(--surface-card); font-size: var(--t-sm); line-height: 1.55; }
+.example-toc p { margin: var(--sp-1) 0; }
+.example-toc a { color: var(--ink-soft); }
+.example-toc a:hover { color: var(--link); }
+.example-toc strong { color: var(--ink); }
+
 @media (max-width: 640px) {
   .warning-table { display: block; }
   .warning-table thead { display: none; }
@@ -478,6 +562,7 @@ figcaption { color: var(--ink-faint); font-size: var(--t-label); line-height: 1.
 
 footer { max-width: var(--content-max); margin: 0 auto; padding: 28px var(--page-gutter) 56px; }
 .footlinks { display: flex; gap: 18px; flex-wrap: wrap; font-size: var(--t-sm); }
+.footlinks + .footlinks { margin-top: 8px; }
 .footlinks a { color: var(--ink-soft); }
 .footlinks .sep { color: var(--line-strong); }
 
@@ -506,6 +591,27 @@ footer { max-width: var(--content-max); margin: 0 auto; padding: 28px var(--page
   .prompt-action[data-copy-state="ok"] .copy-prompt-icon { animation: copy-pop var(--dur-mark) var(--ease-out); }
   .copy-prompt-btn[data-copy-state="err"],
   .prompt-action[data-copy-state="err"] { animation: copy-shake 0.2s var(--ease-standard); }
+  /* homepage loop figure: one entrance on load, on the mark's clock — nodes
+     settle left-to-right, edges and labels route in behind them. Among the
+     figure's <g> siblings the two edge labels come first, so the six nodes are
+     :nth-of-type(3)–(8); the edges are polylines 1–6, left to right. */
+  .home-main .dia-plate .node { animation: settle var(--dur-mark) var(--ease-out) both; }
+  .home-main .dia-plate .edge,
+  .home-main .dia-plate .edge-label { animation: routein var(--dur-mark) var(--ease-out) both; }
+  .home-main .dia-plate .node:nth-of-type(4),
+  .home-main .dia-plate .edge:nth-of-type(2) { animation-delay: var(--dur-stagger); }
+  .home-main .dia-plate .node:nth-of-type(5),
+  .home-main .dia-plate .edge:nth-of-type(3) { animation-delay: calc(2 * var(--dur-stagger)); }
+  .home-main .dia-plate .node:nth-of-type(6),
+  .home-main .dia-plate .edge:nth-of-type(4) { animation-delay: calc(3 * var(--dur-stagger)); }
+  .home-main .dia-plate .node:nth-of-type(7),
+  .home-main .dia-plate .edge:nth-of-type(5) { animation-delay: calc(4 * var(--dur-stagger)); }
+  .home-main .dia-plate .node:nth-of-type(8),
+  .home-main .dia-plate .edge:nth-of-type(6),
+  .home-main .dia-plate .edge-label { animation-delay: calc(5 * var(--dur-stagger)); }
+  /* channel tabs: the incoming panel fades in instead of snapping */
+  @keyframes panel-in { from { opacity: 0; } to { opacity: 1; } }
+  .tabs-ready .tab-panel:not([hidden]) { animation: panel-in var(--dur-control) var(--ease-out); }
 }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: 0.001ms !important; transition-duration: 0.001ms !important; } }
 
@@ -580,4 +686,13 @@ footer { max-width: var(--content-max); margin: 0 auto; padding: 28px var(--page
   a:focus-visible,
   button:focus-visible,
   summary:focus-visible { outline: 2px solid Highlight; outline-offset: 3px; }
+}
+
+/* ---- print: the document, minus the interactive chrome ---- */
+@media print {
+  body { background: #fff; color: #000; }
+  body::before { display: none; }                    /* no grain on paper */
+  .masthead .links, .page-actions, .copy-prompt-btn, .copy-prompt-status,
+  .skip-link, .footlinks + .footlinks { display: none; }
+  a { color: inherit; text-decoration-color: currentColor; }
 }
