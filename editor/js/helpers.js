@@ -62,7 +62,7 @@ function createPopupController(opts) {
     if (!popup) return;
     meta = meta || {};
     var currentTrigger = popupTrigger(opts);
-    if (open) {
+    if (open && opts.closePeersOnOpen !== false) {
       popupControllers.forEach(function(other) {
         if (other !== controller && other.isOpen()) other.close({ source: 'peer' });
       });

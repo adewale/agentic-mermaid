@@ -1,21 +1,29 @@
-/* Diagram settings — opens as an overlay over the source workspace (the left
-   panel) so Source stays the home and the preview on the right stays visible. */
+/* Diagram settings — same anchored popover grammar as Examples. It is kept in
+   the left-panel partial because it owns diagram configuration controls, but
+   opens from the topbar as a fixed panel so Settings and Examples feel like the
+   same UI primitive. */
 .config-panel {
-  position: absolute;
-  inset: 0;
-  z-index: 6;
+  position: fixed;
+  top: var(--settings-top, 60px);
+  left: var(--settings-left, 16px);
+  z-index: 2000;
   display: none;
   flex-direction: column;
   gap: 0;
+  width: var(--settings-width, min(360px, calc(100vw - 24px)));
+  max-height: var(--settings-max-height, calc(100vh - 72px));
   overflow-y: auto;
-  background: var(--bg2);
+  background: var(--popover-bg);
+  border: 1px solid var(--control-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-popover);
 }
 .config-panel.visible { display: flex; }
 .config-head {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  height: 42px;
+  min-height: 48px;
   padding: 0 8px 0 12px;
   border-bottom: 1px solid var(--border);
   color: var(--fg2);
@@ -25,7 +33,7 @@
   flex-shrink: 0;
   position: sticky;
   top: 0;
-  background: var(--bg2);
+  background: var(--popover-bg);
   z-index: 1;
 }
 .config-close {

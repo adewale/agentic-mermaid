@@ -113,6 +113,7 @@ describeBrowser('website browser accessibility smoke', () => {
       const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)
       expect({ route, overflow }).toEqual({ route, overflow: 0 })
       if (route === '/comparisons/') {
+        await page.waitForFunction(() => document.querySelectorAll('.comparison-mermaid[data-processed="true"]').length === 12, null, { timeout: 10_000 })
         expect(await page.locator('.comparison-mermaid[data-processed="true"]').count()).toBe(12)
         expect(await page.locator('.comparison-panel').count()).toBe(30)
         await page.locator('.comparison-focus').first().click()
@@ -175,6 +176,59 @@ describeBrowser('website browser accessibility smoke', () => {
     await page.close()
   })
 
+  test('editor blank-start URL opens an empty canvas instead of the default or saved draft', async () => {
+    const page = await browser.newPage({ viewport: { width: 1280, height: 900 } })
+    await page.goto(baseUrl + '/editor/', { waitUntil: 'networkidle' })
+    await page.evaluate(() => localStorage.setItem('bm-editor-draft', JSON.stringify({ source: 'flowchart TD\n  Draft --> Restored', config: {}, savedAt: Date.now() })))
+    await page.goto(baseUrl + '/editor/?empty=1', { waitUntil: 'networkidle' })
+    await page.waitForFunction(() => document.querySelector('#preview-placeholder'))
+    expect(await page.locator('#code-editor').inputValue()).toBe('')
+    expect(await page.locator('#preview-placeholder .placeholder-title').textContent()).toContain('No diagram yet')
+    await page.close()
+  })
+
+  test('editor mobile preview controls stay reachable at phone width', async () => {
+    const page = await browser.newPage({ viewport: { width: 390, height: 900 } })
+    await page.goto(baseUrl + '/editor/?example=flowchart-basic', { waitUntil: 'networkidle' })
+    await page.waitForFunction(() => (document.querySelector('#code-editor') as HTMLTextAreaElement | null)?.value.startsWith('flowchart TD'))
+    await page.locator('#mode-preview').click()
+    await page.locator('#preview-inner svg').waitFor({ state: 'visible', timeout: 10_000 })
+    const metrics = await page.evaluate(() => {
+      const selectors = [
+        '.app-brand',
+        '#examples-sidebar-btn',
+        '#settings-btn',
+        '#dark-light-btn',
+        '#theme-dropdown-btn',
+        '#share-btn',
+        '#export-main-btn',
+        '#export-chevron-btn',
+        '#mode-source',
+        '#mode-preview',
+        '#format-diagram',
+        '#format-unicode',
+        '#format-ascii',
+        '#zoom-out-btn',
+        '#zoom-label',
+        '#zoom-in-btn',
+        '#zoom-fit-btn',
+        '#pan-btn',
+        '#copy-text-output-btn',
+      ]
+      return selectors.map((selector) => {
+        const el = document.querySelector(selector) as HTMLElement
+        const rect = el.getBoundingClientRect()
+        return { selector, left: rect.left, right: rect.right, width: rect.width, height: rect.height, viewport: document.documentElement.clientWidth }
+      })
+    })
+    for (const metric of metrics) {
+      expect(metric.left).toBeGreaterThanOrEqual(0)
+      expect(metric.right).toBeLessThanOrEqual(metric.viewport)
+      expect(metric.height).toBeGreaterThanOrEqual(44)
+    }
+    await page.close()
+  })
+
   test('editor popovers are keyboard-operable, inert when closed, and restore focus', async () => {
     const page = await browser.newPage({ viewport: { width: 1280, height: 900 } })
     await page.goto(baseUrl + '/editor/?example=flowchart-basic', { waitUntil: 'networkidle' })
@@ -183,6 +237,7 @@ describeBrowser('website browser accessibility smoke', () => {
 
     expect(await namedControls(page)).toEqual([])
     expect(await brokenAriaControls(page)).toEqual([])
+    expect(await page.evaluate(() => Array.from(document.querySelectorAll('[aria-pressed]')).filter((el) => el.tagName !== 'BUTTON').map((el) => `${el.tagName.toLowerCase()}.${(el as HTMLElement).className}`))).toEqual([])
 
     await page.keyboard.press('Tab')
     expect(await page.evaluate(() => document.activeElement?.classList.contains('skip-link'))).toBe(true)
@@ -191,6 +246,7 @@ describeBrowser('website browser accessibility smoke', () => {
 
     for (const spec of [
       { button: '#examples-sidebar-btn', popup: '#examples-sidebar' },
+      { button: '#settings-btn', popup: '#config-view' },
       { button: '#theme-dropdown-btn', popup: '#theme-dropdown-menu' },
       { button: '#export-chevron-btn', popup: '#export-dropdown' },
     ]) {

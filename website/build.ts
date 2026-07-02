@@ -42,6 +42,9 @@ const rootAssets = new Set([
   'capabilities.json',
 ])
 
+const EDITOR_ROUTE = '/editor/'
+const GENERIC_EDITOR_HREF = '/editor/?empty=1'
+
 function splitUrl(value: string): [path: string, suffix: string] {
   const i = value.search(/[?#]/)
   return i === -1 ? [value, ''] : [value.slice(0, i), value.slice(i)]
@@ -131,7 +134,7 @@ function topNavHrefForRoute(route = '') {
   if (route === '/examples/') return '/examples/'
   if (route === '/comparisons/') return '/comparisons/'
   if (route === '/docs/' || route.startsWith('/docs/')) return '/docs/'
-  if (route === '/editor/') return '/editor/'
+  if (route === EDITOR_ROUTE) return GENERIC_EDITOR_HREF
   return ''
 }
 
@@ -141,7 +144,7 @@ function setNavCurrent(html: string, currentHref = '') {
     '/examples/': 'Examples',
     '/comparisons/': 'Comparisons',
     '/docs/': 'Docs',
-    '/editor/': 'Open editor',
+    [GENERIC_EDITOR_HREF]: 'Open editor',
   }
   const label = labels[currentHref]
   if (!label || html.includes(`href="${currentHref}" aria-current="page"`) || html.includes(`aria-current="page" href="${currentHref}"`)) return html
@@ -257,7 +260,7 @@ function mastheadHtml(currentHref = '') {
     ['/examples/', 'Examples', ''],
     ['/comparisons/', 'Comparisons', ''],
     ['/docs/', 'Docs', ''],
-    ['/editor/', 'Open editor', 'link-editor'],
+    [GENERIC_EDITOR_HREF, 'Open editor', 'link-editor'],
   ] as const
   const nav = links.map(([href, label, cls]) => {
     const attrs = [cls ? `class="${cls}"` : '', currentHref === href ? 'aria-current="page"' : ''].filter(Boolean).join(' ')
@@ -367,9 +370,9 @@ function addSvgAccessibleName(svg: string, idBase: string, title: string, desc: 
   const titleId = `${safeId}-svg-title`
   const descId = `${safeId}-svg-desc`
   return svg.replace(/^<svg\b([^>]*)>/, (_full, attrs: string) => {
-    const role = /\brole=/.test(attrs) ? '' : ' role="img"'
-    const labelledby = /\baria-labelledby=/.test(attrs) ? '' : ` aria-labelledby="${titleId} ${descId}"`
-    return `<svg${attrs}${role}${labelledby}><title id="${titleId}">${escapeHtml(title)}</title><desc id="${descId}">${escapeHtml(desc)}</desc>`
+    const cleanAttrs = attrs.replace(/\saria-labelledby="[^"]*"/g, '')
+    const role = /\brole=/.test(cleanAttrs) ? '' : ' role="img"'
+    return `<svg${cleanAttrs}${role} aria-labelledby="${titleId} ${descId}"><title id="${titleId}">${escapeHtml(title)}</title><desc id="${descId}">${escapeHtml(desc)}</desc>`
   })
 }
 function renderExampleSvg(example: any) {
@@ -426,7 +429,7 @@ function examplesTocHtml(groups: Map<string, any[]>) {
     const links = examples.map((example) => `<a href="#${escapeAttr(exampleAnchor(example))}">${escapeHtml(example.label)}</a>`).join('<span class="sep">&middot;</span>')
     return `<p><a href="#${escapeAttr(exampleCategoryId(category))}"><strong>${escapeHtml(category)}</strong></a> ${links}</p>`
   }).join('\n')
-  return `<nav class="example-toc" aria-label="Examples on this page">\n${rows}\n</nav>`
+  return `<div class="example-tools" role="search"><label for="example-filter">Filter examples</label><input id="example-filter" type="search" data-example-filter placeholder="flowchart, gantt, agent trace"></div><nav class="example-toc" aria-label="Examples on this page">\n${rows}\n</nav>`
 }
 function examplesShowcaseHtml(editorExamples: any[]) {
   const groups = new Map<string, any[]>()
@@ -461,7 +464,22 @@ ${examples.map((example) => {
   </div>
 </article>`
 }).join('')}
-</section>`).join('\n') + '\n</div>'
+</section>`).join('\n') + `
+<script>
+(function () {
+  var input = document.querySelector('[data-example-filter]');
+  if (!input) return;
+  var samples = Array.from(document.querySelectorAll('.example-sample'));
+  function apply() {
+    var q = input.value.trim().toLowerCase();
+    samples.forEach(function (sample) {
+      var haystack = sample.textContent.toLowerCase() + ' ' + sample.id.toLowerCase();
+      sample.hidden = Boolean(q && haystack.indexOf(q) === -1);
+    });
+  }
+  input.addEventListener('input', apply);
+})();
+</script>` + '\n</div>'
 }
 
 const mermaidRuntimeBytes = Buffer.from(await Bun.file(join(ROOT, 'node_modules/mermaid/dist/mermaid.min.js')).arrayBuffer())
@@ -631,9 +649,24 @@ function comparisonBeautifulRender(c: ComparisonCase) {
 function comparisonPanel(label: string, body: string) {
   return `<div class="comparison-panel"><h3>${escapeHtml(label)}</h3><div class="comparison-render">${body}</div></div>`
 }
+const COMPARISON_TAKEAWAYS: Record<string, string> = {
+  flowchart: 'Compare edge routing, label stability, and whether dense fan-out still reads without browser-dependent drift.',
+  state: 'Look for nested-state containment and transition labels that remain readable as the lifecycle grows.',
+  sequence: 'Check participant alignment, block labels, and warning paths: this is the common agent-edit audit loop.',
+  class: 'Compare relationship routing and member-box spacing on a compact class model.',
+  er: 'Inspect cardinality labels and orthogonal routes across a wide schema.',
+  xychart: 'Confirm chart scales, bars, and lines are deterministic rather than screenshot-only proof.',
+  timeline: 'Agentic Mermaid renders this supported family locally; Beautiful Mermaid has no panel for it.',
+  journey: 'The score grid and actor pills demonstrate a family that agents can parse, mutate, and verify locally.',
+  architecture: 'Service groups and routed connections show agent-readable architecture output without a hosted renderer.',
+  pie: 'The slice labels and values come from the same local source model as SVG/PNG/text output.',
+  quadrant: 'Points and axes remain inspectable source, not a static image pasted into docs.',
+  gantt: 'Schedule resolution is verified locally so bad dependencies can fail before an agent returns source.',
+}
 function comparisonsHtml() {
   const sections = COMPARISON_CASES.map((c) => {
     const beautiful = comparisonBeautifulRender(c)
+    const takeaway = COMPARISON_TAKEAWAYS[c.id] ?? 'Compare deterministic local rendering against the browser/runtime render.'
     const panels = [
       comparisonPanel('Mermaid', `<pre class="mermaid comparison-mermaid" id="comparison-mermaid-${escapeAttr(c.id)}">${escapeHtml(c.source)}</pre>`),
       beautiful.supported ? comparisonPanel('Beautiful Mermaid', beautiful.html) : '',
@@ -645,13 +678,21 @@ function comparisonsHtml() {
   <header class="comparison-case-head">
     <h2 id="comparison-${escapeAttr(c.id)}-title">${escapeHtml(c.family)}</h2>
     <button class="comparison-focus" type="button" data-comparison-focus aria-label="Open ${escapeAttr(c.family)} comparison larger" title="Open larger comparison"><span aria-hidden="true">⤢</span></button>
-  </header>${note}
+  </header>
+  <p class="comparison-takeaway"><strong>What to look for.</strong> ${escapeHtml(takeaway)}</p>${note}
   <div class="comparison-grid">
     ${panels}
   </div>
 </section>`
   }).join('')
-  return `<div class="comparisons">${sections}
+  return `<div class="comparison-summary">
+<p><strong>Read this page as evidence, not a shootout.</strong> Each row keeps the same Mermaid source visible, then shows what a browser Mermaid render, upstream Beautiful Mermaid, and Agentic Mermaid can produce locally.</p>
+<ul>
+<li>Agentic Mermaid covers all twelve families shown here and exposes the same source to agents.</li>
+<li>Beautiful Mermaid panels appear only for families it supports; absent panels are labeled, not hidden.</li>
+<li>The runtime Mermaid panels are progressive enhancement: source stays visible even before the browser renderer loads.</li>
+</ul>
+</div><div class="comparisons" data-mermaid-runtime="/${mermaidRuntimeRel}">${sections}
 <dialog class="comparison-dialog" data-comparison-dialog aria-labelledby="comparison-dialog-title">
   <form class="comparison-dialog-bar" method="dialog">
     <div>
@@ -662,12 +703,38 @@ function comparisonsHtml() {
   </form>
   <div class="comparison-dialog-body" data-comparison-dialog-body></div>
 </dialog>
-<script src="/${mermaidRuntimeRel}"></script>
 <script>
-if (window.mermaid) {
-  window.mermaid.initialize({ startOnLoad: false, securityLevel: 'strict', deterministicIds: true, deterministicIDSeed: 'agentic-mermaid-comparisons', theme: 'base', themeVariables: { fontFamily: 'Avenir Next, Segoe UI, system-ui, sans-serif' } });
-  window.mermaid.run({ querySelector: '.comparison-mermaid' }).catch(function() {});
-}
+(function () {
+  var root = document.querySelector('.comparisons');
+  var src = root && root.getAttribute('data-mermaid-runtime');
+  var loading = null;
+  function loadMermaidRuntime() {
+    if (window.mermaid) return Promise.resolve(window.mermaid);
+    if (!src) return Promise.reject(new Error('missing Mermaid runtime'));
+    if (loading) return loading;
+    loading = new Promise(function (resolve, reject) {
+      var script = document.createElement('script');
+      script.src = src;
+      script.async = true;
+      script.onload = function () { resolve(window.mermaid); };
+      script.onerror = reject;
+      document.head.appendChild(script);
+    });
+    return loading;
+  }
+  function renderMermaidPanels() {
+    return loadMermaidRuntime().then(function (mermaid) {
+      if (!mermaid || renderMermaidPanels.done) return;
+      mermaid.initialize({ startOnLoad: false, securityLevel: 'strict', deterministicIds: true, deterministicIDSeed: 'agentic-mermaid-comparisons', theme: 'base', themeVariables: { fontFamily: 'Avenir Next, Segoe UI, system-ui, sans-serif' } });
+      return mermaid.run({ querySelector: '.comparison-mermaid' }).then(function () { renderMermaidPanels.done = true; });
+    }).catch(function() {});
+  }
+  if ('requestIdleCallback' in window) requestIdleCallback(renderMermaidPanels, { timeout: 2500 });
+  else setTimeout(renderMermaidPanels, 1200);
+  ['pointerenter', 'focusin'].forEach(function (eventName) {
+    document.addEventListener(eventName, renderMermaidPanels, { once: true, passive: true });
+  });
+})();
 (function () {
   var dialog = document.querySelector('[data-comparison-dialog]');
   if (!dialog || typeof dialog.showModal !== 'function') return;
@@ -690,7 +757,7 @@ if (window.mermaid) {
       grid.parentNode.insertBefore(marker, grid);
       body.appendChild(grid);
       title.textContent = section.querySelector('h2').textContent;
-      var noteText = section.querySelector('.comparison-note')?.textContent || '';
+      var noteText = section.querySelector('.comparison-note')?.textContent || section.querySelector('.comparison-takeaway')?.textContent || '';
       note.textContent = noteText;
       note.hidden = !noteText;
       current = { grid: grid, marker: marker };
@@ -731,7 +798,7 @@ function injectLoopHeadings(html: string) {
 // with a leading rule) and the docs article gets it injected at build time —
 // same single-source pattern as the loop rail — so the source page's
 // hand-baked list can never drift from the pages that actually ship.
-const docsIndexBody = '<h2>Docs index</h2><ul class="doc-index"><li><a href="/docs/getting-started/">Getting started</a></li><li><a href="/docs/families/">Diagram families</a></li><li><a href="/docs/api/">Library API</a></li><li><a href="/docs/cli/">CLI</a></li><li><a href="/docs/mcp/">MCP</a></li><li><a href="/docs/source-level/">Source-level edits</a></li><li><a href="/docs/ascii/">ASCII and Unicode</a></li><li><a href="/docs/theming/">Theming</a></li><li><a href="/docs/config/">Config</a></li><li><a href="/docs/react/">React</a></li><li><a href="/docs/quality/">Quality</a></li><li><a href="/warnings/">Warnings</a></li><li><a href="/errors/">Errors</a></li><li><a href="/docs/vocabulary/">Vocabulary</a></li><li><a href="/docs/fork-differences/">Fork differences</a></li></ul>'
+const docsIndexBody = '<h2>Docs index</h2><ul class="doc-index doc-index-grouped"><li><strong>Start</strong><ul><li><a href="/docs/getting-started/">Getting started</a></li><li><a href="/docs/families/">Diagram families</a></li><li><a href="/examples/">Examples</a></li></ul></li><li><strong>Use locally</strong><ul><li><a href="/docs/api/">Library API</a></li><li><a href="/docs/cli/">CLI</a></li><li><a href="/docs/mcp/">MCP</a></li><li><a href="/docs/react/">React</a></li></ul></li><li><strong>Debug</strong><ul><li><a href="/warnings/">Warnings</a></li><li><a href="/errors/">Errors</a></li><li><a href="/docs/quality/">Quality</a></li><li><a href="/docs/source-level/">Source-level edits</a></li></ul></li><li><strong>Reference</strong><ul><li><a href="/docs/ascii/">ASCII and Unicode</a></li><li><a href="/docs/theming/">Theming</a></li><li><a href="/docs/config/">Config</a></li><li><a href="/docs/vocabulary/">Vocabulary</a></li><li><a href="/docs/fork-differences/">Fork differences</a></li></ul></li></ul>'
 const docsIndex = '<hr>' + docsIndexBody
 function injectDocsIndex(html: string) {
   return html.replace(/<h2>Docs index<\/h2>\s*<ul class="doc-index">[\s\S]*?<\/ul>/, docsIndexBody)
@@ -894,7 +961,7 @@ function familiesReferenceHtml() {
 <thead><tr><th>Family</th><th>What it draws</th></tr></thead>
 <tbody>${rows}</tbody>
 </table>
-<p>See any of them rendered on the <a href="/examples/">examples</a> page, or open one in the <a href="/editor/">editor</a>.</p>${docsIndex}`
+<p>See any of them rendered on the <a href="/examples/">examples</a> page, or open one in the <a href="${GENERIC_EDITOR_HREF}">editor</a>.</p>${docsIndex}`
 }
 // The MCP config copy-card, same widget contract as the homepage prompt card
 // (data-copy-widget + data-copy-target + copy-prompt-btn, wired by theme.js).
@@ -944,7 +1011,7 @@ const docPages = [
   ['docs/api/index.html', 'Library API', 'Use agentic-mermaid and agentic-mermaid/agent from local JS or TS.', '<p>Import rendering helpers from <code>agentic-mermaid</code> and typed parse/mutate/verify helpers from <code>agentic-mermaid/agent</code>.</p>' + docsIndex],
   ['docs/source-level/index.html', 'Source-level edits', 'When a family or construct cannot be narrowed safely, preserve source deliberately.', '<p>Opaque fallback bodies round-trip losslessly, but they do not expose structured mutation. Edit their preserved source only when the task explicitly asks for source-level changes, then parse and verify before returning artifacts.</p>' + docsIndex],
   ['docs/cli/index.html', 'CLI', 'Use the am CLI for local rendering, verification, batch checks, and Markdown rendering.', '<pre><code>am verify diagram.mmd\nam render diagram.mmd --format svg --output diagram.svg\nam render diagram.mmd --format unicode</code></pre>' + docsIndex],
-  ['docs/mcp/index.html', 'MCP', 'Self-host the MCP over stdio; HTTP is explicit opt-in.', '<p>The local MCP tools are <code>execute</code>, <code>render_png</code>, and <code>describe</code>. Multi-step parse/narrow/mutate/verify workflows run inside <code>execute(code)</code>.</p>' + docsIndex],
+  ['docs/mcp/index.html', 'MCP', 'Self-host the MCP over stdio; HTTP is explicit opt-in.', '<p>The local MCP tools are <code>execute</code>, <code>render_png</code>, and <code>describe</code>. Multi-step parse/narrow/mutate/verify workflows run inside <code>execute(code)</code> on your machine or inside your own MCP host.</p><p><strong>The public website does not execute Code Mode.</strong> The deployed <code>/mcp</code> route returns <code>501 hosted_mcp_not_enabled</code>; use stdio MCP from a local checkout unless you deliberately self-host HTTP.</p>' + docsIndex],
   ['docs/ascii/index.html', 'ASCII and Unicode', 'Text output is first-class for terminals, PR comments, and agent review.', '<pre><code>am render diagram.mmd --format ascii\nam render diagram.mmd --format unicode</code></pre>' + docsIndex],
   ['docs/theming/index.html', 'Theming', 'Themes derive diagram colours from bg, fg, and accent tokens.', '<p>The browser editor exposes renderer themes; SVG output can also inherit CSS variables for live theming.</p>' + docsIndex],
   ['docs/config/index.html', 'Config', 'Mermaid frontmatter and init directives are normalized before rendering.', '<p>Use checked Mermaid config/frontmatter where supported; unsupported syntax is preserved or reported rather than silently dropped.</p>' + docsIndex],
@@ -1112,7 +1179,33 @@ function warningDemoHtml(code: string, example: string): string {
   return `\n<h2>See it fire</h2>\n<p>This minimal source triggers <code>${code}</code> — checked at build time against the same engine the editor runs.</p>\n<pre><code>${escapeHtml(example)}</code></pre>\n<p><a class="go" href="/editor/#${editorHash}">Open in the editor and watch it clear</a></p>`
 }
 
-await emitShell('warnings/index.html', 'Warnings', 'Warning codes are tiered so agents know whether to fix, retry, or ask.', `<table class="warning-table"><thead><tr><th>Code</th><th>Tier</th><th>Severity</th></tr></thead><tbody>${capabilities.warningCodes.map((w: any) => `<tr><td data-label="Code"><a href="/warnings/${w.code}/"><code>${w.code}</code></a></td><td data-label="Tier"><span class="tier-badge tier-${w.tier}">${w.tier}</span></td><td data-label="Severity"><span class="sev-badge sev-${w.severity}">${w.severity}</span></td></tr>`).join('')}</tbody></table>`)
+function warningsIndexHtml() {
+  const rows = capabilities.warningCodes.map((w: any) => `<tr data-warning-row data-code="${escapeAttr(w.code)}" data-tier="${escapeAttr(w.tier)}" data-severity="${escapeAttr(w.severity)}"><td data-label="Code"><a href="/warnings/${w.code}/"><code>${w.code}</code></a></td><td data-label="Tier"><span class="tier-badge tier-${w.tier}">${w.tier}</span></td><td data-label="Severity"><span class="sev-badge sev-${w.severity}">${w.severity}</span></td></tr>`).join('')
+  return `<div class="warning-guide" aria-label="Warning triage guide">
+  <p><strong>Fix structural first.</strong> Structural errors can block safe return. Geometric warnings ask for visual review. Lint warnings usually mean an agent should make a smaller or cleaner edit.</p>
+  <p><a class="go" href="/docs/quality/">Read the quality gate</a></p>
+</div>
+<div class="warning-tools" role="search">
+  <label for="warning-filter">Filter warning codes</label>
+  <input id="warning-filter" type="search" data-warning-filter placeholder="duplicate, structural, lint">
+</div>
+<table class="warning-table"><thead><tr><th>Code</th><th>Tier</th><th>Severity</th></tr></thead><tbody>${rows}</tbody></table>
+<script>
+(function () {
+  var input = document.querySelector('[data-warning-filter]');
+  if (!input) return;
+  var rows = Array.from(document.querySelectorAll('[data-warning-row]'));
+  input.addEventListener('input', function () {
+    var q = input.value.trim().toLowerCase();
+    rows.forEach(function (row) {
+      var text = [row.getAttribute('data-code'), row.getAttribute('data-tier'), row.getAttribute('data-severity')].join(' ').toLowerCase();
+      row.hidden = Boolean(q && text.indexOf(q) === -1);
+    });
+  });
+})();
+</script>`
+}
+await emitShell('warnings/index.html', 'Warnings', 'Warning codes are tiered so agents know whether to fix, retry, or ask.', warningsIndexHtml())
 let firingDemos = 0
 for (const w of capabilities.warningCodes) {
   const detail = WARNING_DETAIL[w.code]
@@ -1126,7 +1219,7 @@ for (const w of capabilities.warningCodes) {
   await emitShell(`warnings/${w.code}/index.html`, w.code, lead, `${detailHtml}${demo}
 <p>Run <code>am verify diagram.mmd --json</code>, inspect this code, and apply the smallest source or typed mutation that clears it. If it persists after two mechanical attempts, return the warning and ask for human review.</p>
 <p class="muted">In the cloned repo, <code>am</code> is <code>bun run bin/am.ts</code>.</p>
-<p class="muted">Back to <a href="/warnings/">all warning codes</a>, or <a href="/editor/">open the editor</a> to watch this warning clear as you edit.</p>`)
+<p class="muted">Back to <a href="/warnings/">all warning codes</a>, or <a href="${GENERIC_EDITOR_HREF}">open the editor</a> to watch this warning clear as you edit.</p>`)
 }
 console.log(`website/build: ${firingDemos}/${capabilities.warningCodes.length} warning pages carry a build-time-verified firing demo`)
 const errors = [
@@ -1136,7 +1229,7 @@ const errors = [
   ['verify-failed', 'Verify failed', 'The diagram parsed but verification returned blocking structural warnings.'],
 ]
 await emitShell('errors/index.html', 'Errors', 'Error pages explain recovery paths for local CLI, library, and MCP use.', `<ul>${errors.map(([id, title, desc]) => `<li><a href="/errors/${id}/">${title}</a> – ${desc}</li>`).join('')}</ul>`)
-for (const [id, title, desc] of errors) await emitShell(`errors/${id}/index.html`, title, desc, '<pre><code>am verify diagram.mmd --json</code></pre><p>Return the structured error to the caller when a safe automatic fix is not obvious.</p><p class="muted">Back to <a href="/errors/">all errors</a>, or <a href="/editor/">open the editor</a> to reproduce the failure as you type.</p>')
+for (const [id, title, desc] of errors) await emitShell(`errors/${id}/index.html`, title, desc, `<pre><code>am verify diagram.mmd --json</code></pre><p>Return the structured error to the caller when a safe automatic fix is not obvious.</p><p class="muted">Back to <a href="/errors/">all errors</a>, or <a href="${GENERIC_EDITOR_HREF}">open the editor</a> to reproduce the failure as you type.</p>`)
 
 const securityHeaders = [
   '/*',

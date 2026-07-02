@@ -394,7 +394,7 @@
   }
   .view-switch .mode-option {
     flex: 1;
-    min-height: 40px;
+    min-height: var(--control-h);
   }
   .examples-toggle,
   .settings-toggle {
@@ -407,6 +407,8 @@
      absorbs the extra 40px icon button. order matches its DOM neighbours. */
   #dark-light-btn {
     order: 1;
+    width: var(--control-h);
+    min-width: var(--control-h);
   }
   /* Touch devices have no keyboard shortcuts to look up. */
   #shortcuts-btn {
@@ -414,8 +416,8 @@
   }
   #share-btn {
     order: 1;
-    width: 40px;
-    min-width: 40px;
+    width: var(--control-h);
+    min-width: var(--control-h);
     padding: 0;
     font-size: 0;
     gap: 0;
@@ -431,14 +433,18 @@
     order: 1;
     margin-left: 0;
   }
+  #export-chevron-btn {
+    width: var(--control-h);
+    min-width: var(--control-h);
+  }
   .theme-dropdown-btn {
-    min-width: 40px;
-    width: 40px;
+    min-width: var(--control-h);
+    width: var(--control-h);
     padding: 0;
     justify-content: center;
   }
   /* The swatch is the whole control here (label + chevron are hidden), so
-     give it more presence inside the 40px button. */
+     give it more presence inside the touch-sized button. */
   .theme-dropdown-btn .theme-swatch {
     width: 16px;
     height: 16px;
@@ -455,7 +461,7 @@
     display: none;
   }
   #export-main-btn {
-    width: 40px;
+    width: var(--control-h);
     padding: 0;
     font-size: 0;
     gap: 0;

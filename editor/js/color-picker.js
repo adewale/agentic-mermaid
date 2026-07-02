@@ -20,6 +20,7 @@ COLOR_PRESETS.forEach(function(hex) {
 var colorPopupController = createPopupController({
   popup: colorPopup,
   trigger: function() { return activeColorAnchor; },
+  closePeersOnOpen: false,
   triggerEvents: false,
   visibility: { focusSelector: '#color-hex-input' },
   beforeOpen: function() {

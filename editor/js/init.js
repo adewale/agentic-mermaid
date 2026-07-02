@@ -163,6 +163,13 @@ function discardRestoredDraft() {
 
 if (draftDiscardBtn) draftDiscardBtn.addEventListener("click", discardRestoredDraft);
 
+function shouldOpenEmptyEditor() {
+  try {
+    var value = new URLSearchParams(window.location.search).get('empty');
+    return value === '1' || value === 'true';
+  } catch(e) { return false; }
+}
+
 // getHashSource decodes compressed share links asynchronously, so the initial
 // source pick runs in an async IIFE; nothing below in this file depends on it.
 (async function initializeEditorSource() {
@@ -176,6 +183,7 @@ if (draftDiscardBtn) draftDiscardBtn.addEventListener("click", discardRestoredDr
       : 'This share link could not be decoded (truncated or damaged). Showing your own content instead.');
   }
   var queryExampleId = getQueryExampleId();
+  var queryEmptyEditor = shouldOpenEmptyEditor();
   var loadedInitialExample = false;
   if (hashSource) {
     editor.value = hashSource;
@@ -185,8 +193,12 @@ if (draftDiscardBtn) draftDiscardBtn.addEventListener("click", discardRestoredDr
   } else if (queryExampleId && typeof loadEditorExample === 'function' && findEditorExample(queryExampleId)) {
     loadEditorExample(queryExampleId);
     loadedInitialExample = true;
+  } else if (queryEmptyEditor) {
+    editor.value = '';
+    state.config = {};
+    refreshAllColorUIs();
   } else {
-    // No shared source in the URL: restore the autosaved draft if one exists.
+    // No shared source or explicit blank-start request in the URL: restore the autosaved draft if one exists.
     var draft = typeof readEditorDraft === 'function' ? readEditorDraft() : null;
     if (draft) {
       editor.value = draft.source;

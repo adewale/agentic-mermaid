@@ -19,18 +19,26 @@
 </head>
 <body>
 <a class="skip-link" href="#main">Skip to content</a>
-<header class="masthead"><div class="bar"><a class="brand" href="/"><span class="mark"></span> Agentic&nbsp;Mermaid</a><span class="links"><a href="/about/">About</a><a href="/examples/">Examples</a><a aria-current="page" href="/comparisons/">Comparisons</a><a href="/docs/">Docs</a><a class="link-editor" href="/editor/">Open editor</a></span></div><hr></header>
+<header class="masthead"><div class="bar"><a class="brand" href="/"><span class="mark"></span> Agentic&nbsp;Mermaid</a><span class="links"><a href="/about/">About</a><a href="/examples/">Examples</a><a aria-current="page" href="/comparisons/">Comparisons</a><a href="/docs/">Docs</a><a class="link-editor" href="/editor/?empty=1">Open editor</a></span></div><hr></header>
 <main id="main" class="doc">
 <section class="page-header">
 <h1>Comparisons</h1>
 <p class="lead">One source per family, rendered three ways.</p>
 </section>
-<div class="comparisons">
+<div class="comparison-summary">
+<p><strong>Read this page as evidence, not a shootout.</strong> Each row keeps the same Mermaid source visible, then shows what a browser Mermaid render, upstream Beautiful Mermaid, and Agentic Mermaid can produce locally.</p>
+<ul>
+<li>Agentic Mermaid covers all twelve families shown here and exposes the same source to agents.</li>
+<li>Beautiful Mermaid panels appear only for families it supports; absent panels are labeled, not hidden.</li>
+<li>The runtime Mermaid panels are progressive enhancement: source stays visible even before the browser renderer loads.</li>
+</ul>
+</div><div class="comparisons" data-mermaid-runtime="/vendor/mermaid-74d7c46dabca.min.js">
 <section class="comparison-case" id="flowchart" aria-labelledby="comparison-flowchart-title">
   <header class="comparison-case-head">
     <h2 id="comparison-flowchart-title">Flowchart</h2>
     <button class="comparison-focus" type="button" data-comparison-focus aria-label="Open Flowchart comparison larger" title="Open larger comparison"><span aria-hidden="true">⤢</span></button>
   </header>
+  <p class="comparison-takeaway"><strong>What to look for.</strong> Compare edge routing, label stability, and whether dense fan-out still reads without browser-dependent drift.</p>
   <div class="comparison-grid">
     <div class="comparison-panel"><h3>Mermaid</h3><div class="comparison-render"><pre class="mermaid comparison-mermaid" id="comparison-mermaid-flowchart">flowchart LR
   Start([Start]) --&gt; Parse[Parse]
@@ -170,6 +178,7 @@
     <h2 id="comparison-state-title">State</h2>
     <button class="comparison-focus" type="button" data-comparison-focus aria-label="Open State comparison larger" title="Open larger comparison"><span aria-hidden="true">⤢</span></button>
   </header>
+  <p class="comparison-takeaway"><strong>What to look for.</strong> Look for nested-state containment and transition labels that remain readable as the lifecycle grows.</p>
   <div class="comparison-grid">
     <div class="comparison-panel"><h3>Mermaid</h3><div class="comparison-render"><pre class="mermaid comparison-mermaid" id="comparison-mermaid-state">stateDiagram-v2
   [*] --&gt; Idle
@@ -304,6 +313,7 @@
     <h2 id="comparison-sequence-title">Sequence</h2>
     <button class="comparison-focus" type="button" data-comparison-focus aria-label="Open Sequence comparison larger" title="Open larger comparison"><span aria-hidden="true">⤢</span></button>
   </header>
+  <p class="comparison-takeaway"><strong>What to look for.</strong> Check participant alignment, block labels, and warning paths: this is the common agent-edit audit loop.</p>
   <div class="comparison-grid">
     <div class="comparison-panel"><h3>Mermaid</h3><div class="comparison-render"><pre class="mermaid comparison-mermaid" id="comparison-mermaid-sequence">sequenceDiagram
   actor User
@@ -432,6 +442,7 @@
     <h2 id="comparison-class-title">Class</h2>
     <button class="comparison-focus" type="button" data-comparison-focus aria-label="Open Class comparison larger" title="Open larger comparison"><span aria-hidden="true">⤢</span></button>
   </header>
+  <p class="comparison-takeaway"><strong>What to look for.</strong> Compare relationship routing and member-box spacing on a compact class model.</p>
   <div class="comparison-grid">
     <div class="comparison-panel"><h3>Mermaid</h3><div class="comparison-render"><pre class="mermaid comparison-mermaid" id="comparison-mermaid-class">classDiagram
   class Diagram {
@@ -546,6 +557,7 @@
     <h2 id="comparison-er-title">ER</h2>
     <button class="comparison-focus" type="button" data-comparison-focus aria-label="Open ER comparison larger" title="Open larger comparison"><span aria-hidden="true">⤢</span></button>
   </header>
+  <p class="comparison-takeaway"><strong>What to look for.</strong> Inspect cardinality labels and orthogonal routes across a wide schema.</p>
   <div class="comparison-grid">
     <div class="comparison-panel"><h3>Mermaid</h3><div class="comparison-render"><pre class="mermaid comparison-mermaid" id="comparison-mermaid-er">erDiagram
   FAMILY ||--o{ DIAGRAM : accepts
@@ -694,6 +706,7 @@
     <h2 id="comparison-xychart-title">XY Chart</h2>
     <button class="comparison-focus" type="button" data-comparison-focus aria-label="Open XY Chart comparison larger" title="Open larger comparison"><span aria-hidden="true">⤢</span></button>
   </header>
+  <p class="comparison-takeaway"><strong>What to look for.</strong> Confirm chart scales, bars, and lines are deterministic rather than screenshot-only proof.</p>
   <div class="comparison-grid">
     <div class="comparison-panel"><h3>Mermaid</h3><div class="comparison-render"><pre class="mermaid comparison-mermaid" id="comparison-mermaid-xychart">xychart
   title "Layout score"
@@ -1316,6 +1329,7 @@
     <h2 id="comparison-timeline-title">Timeline</h2>
     <button class="comparison-focus" type="button" data-comparison-focus aria-label="Open Timeline comparison larger" title="Open larger comparison"><span aria-hidden="true">⤢</span></button>
   </header>
+  <p class="comparison-takeaway"><strong>What to look for.</strong> Agentic Mermaid renders this supported family locally; Beautiful Mermaid has no panel for it.</p>
   <p class="comparison-note">Beautiful Mermaid does not render this family; only Mermaid and Agentic Mermaid are shown.</p>
   <div class="comparison-grid">
     <div class="comparison-panel"><h3>Mermaid</h3><div class="comparison-render"><pre class="mermaid comparison-mermaid" id="comparison-mermaid-timeline">timeline
@@ -1363,6 +1377,7 @@
     <h2 id="comparison-journey-title">Journey</h2>
     <button class="comparison-focus" type="button" data-comparison-focus aria-label="Open Journey comparison larger" title="Open larger comparison"><span aria-hidden="true">⤢</span></button>
   </header>
+  <p class="comparison-takeaway"><strong>What to look for.</strong> The score grid and actor pills demonstrate a family that agents can parse, mutate, and verify locally.</p>
   <p class="comparison-note">Beautiful Mermaid does not render this family; only Mermaid and Agentic Mermaid are shown.</p>
   <div class="comparison-grid">
     <div class="comparison-panel"><h3>Mermaid</h3><div class="comparison-render"><pre class="mermaid comparison-mermaid" id="comparison-mermaid-journey">journey
@@ -1410,6 +1425,7 @@
     <h2 id="comparison-architecture-title">Architecture</h2>
     <button class="comparison-focus" type="button" data-comparison-focus aria-label="Open Architecture comparison larger" title="Open larger comparison"><span aria-hidden="true">⤢</span></button>
   </header>
+  <p class="comparison-takeaway"><strong>What to look for.</strong> Service groups and routed connections show agent-readable architecture output without a hosted renderer.</p>
   <p class="comparison-note">Beautiful Mermaid does not render this family; only Mermaid and Agentic Mermaid are shown.</p>
   <div class="comparison-grid">
     <div class="comparison-panel"><h3>Mermaid</h3><div class="comparison-render"><pre class="mermaid comparison-mermaid" id="comparison-mermaid-architecture">architecture-beta
@@ -1466,6 +1482,7 @@
     <h2 id="comparison-pie-title">Pie</h2>
     <button class="comparison-focus" type="button" data-comparison-focus aria-label="Open Pie comparison larger" title="Open larger comparison"><span aria-hidden="true">⤢</span></button>
   </header>
+  <p class="comparison-takeaway"><strong>What to look for.</strong> The slice labels and values come from the same local source model as SVG/PNG/text output.</p>
   <p class="comparison-note">Beautiful Mermaid does not render this family; only Mermaid and Agentic Mermaid are shown.</p>
   <div class="comparison-grid">
     <div class="comparison-panel"><h3>Mermaid</h3><div class="comparison-render"><pre class="mermaid comparison-mermaid" id="comparison-mermaid-pie">pie showData
@@ -1504,6 +1521,7 @@
     <h2 id="comparison-quadrant-title">Quadrant</h2>
     <button class="comparison-focus" type="button" data-comparison-focus aria-label="Open Quadrant comparison larger" title="Open larger comparison"><span aria-hidden="true">⤢</span></button>
   </header>
+  <p class="comparison-takeaway"><strong>What to look for.</strong> Points and axes remain inspectable source, not a static image pasted into docs.</p>
   <p class="comparison-note">Beautiful Mermaid does not render this family; only Mermaid and Agentic Mermaid are shown.</p>
   <div class="comparison-grid">
     <div class="comparison-panel"><h3>Mermaid</h3><div class="comparison-render"><pre class="mermaid comparison-mermaid" id="comparison-mermaid-quadrant">quadrantChart
@@ -1551,6 +1569,7 @@
     <h2 id="comparison-gantt-title">Gantt</h2>
     <button class="comparison-focus" type="button" data-comparison-focus aria-label="Open Gantt comparison larger" title="Open larger comparison"><span aria-hidden="true">⤢</span></button>
   </header>
+  <p class="comparison-takeaway"><strong>What to look for.</strong> Schedule resolution is verified locally so bad dependencies can fail before an agent returns source.</p>
   <p class="comparison-note">Beautiful Mermaid does not render this family; only Mermaid and Agentic Mermaid are shown.</p>
   <div class="comparison-grid">
     <div class="comparison-panel"><h3>Mermaid</h3><div class="comparison-render"><pre class="mermaid comparison-mermaid" id="comparison-mermaid-gantt">gantt
@@ -1609,12 +1628,38 @@
   </form>
   <div class="comparison-dialog-body" data-comparison-dialog-body></div>
 </dialog>
-<script src="/vendor/mermaid-74d7c46dabca.min.js"></script>
 <script>
-if (window.mermaid) {
-  window.mermaid.initialize({ startOnLoad: false, securityLevel: 'strict', deterministicIds: true, deterministicIDSeed: 'agentic-mermaid-comparisons', theme: 'base', themeVariables: { fontFamily: 'Avenir Next, Segoe UI, system-ui, sans-serif' } });
-  window.mermaid.run({ querySelector: '.comparison-mermaid' }).catch(function() {});
-}
+(function () {
+  var root = document.querySelector('.comparisons');
+  var src = root && root.getAttribute('data-mermaid-runtime');
+  var loading = null;
+  function loadMermaidRuntime() {
+    if (window.mermaid) return Promise.resolve(window.mermaid);
+    if (!src) return Promise.reject(new Error('missing Mermaid runtime'));
+    if (loading) return loading;
+    loading = new Promise(function (resolve, reject) {
+      var script = document.createElement('script');
+      script.src = src;
+      script.async = true;
+      script.onload = function () { resolve(window.mermaid); };
+      script.onerror = reject;
+      document.head.appendChild(script);
+    });
+    return loading;
+  }
+  function renderMermaidPanels() {
+    return loadMermaidRuntime().then(function (mermaid) {
+      if (!mermaid || renderMermaidPanels.done) return;
+      mermaid.initialize({ startOnLoad: false, securityLevel: 'strict', deterministicIds: true, deterministicIDSeed: 'agentic-mermaid-comparisons', theme: 'base', themeVariables: { fontFamily: 'Avenir Next, Segoe UI, system-ui, sans-serif' } });
+      return mermaid.run({ querySelector: '.comparison-mermaid' }).then(function () { renderMermaidPanels.done = true; });
+    }).catch(function() {});
+  }
+  if ('requestIdleCallback' in window) requestIdleCallback(renderMermaidPanels, { timeout: 2500 });
+  else setTimeout(renderMermaidPanels, 1200);
+  ['pointerenter', 'focusin'].forEach(function (eventName) {
+    document.addEventListener(eventName, renderMermaidPanels, { once: true, passive: true });
+  });
+})();
 (function () {
   var dialog = document.querySelector('[data-comparison-dialog]');
   if (!dialog || typeof dialog.showModal !== 'function') return;
@@ -1637,7 +1682,7 @@ if (window.mermaid) {
       grid.parentNode.insertBefore(marker, grid);
       body.appendChild(grid);
       title.textContent = section.querySelector('h2').textContent;
-      var noteText = section.querySelector('.comparison-note')?.textContent || '';
+      var noteText = section.querySelector('.comparison-note')?.textContent || section.querySelector('.comparison-takeaway')?.textContent || '';
       note.textContent = noteText;
       note.hidden = !noteText;
       current = { grid: grid, marker: marker };

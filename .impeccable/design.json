@@ -1,0 +1,113 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-07-02T16:50:36Z",
+  "title": "Design System: Agentic Mermaid",
+  "extensions": {
+    "colorMeta": {
+      "paper": {
+        "role": "neutral",
+        "displayName": "Paper Ground",
+        "canonical": "#F5F0E4",
+        "tonalRamp": ["oklch(15% 0.01 80)", "oklch(25% 0.01 80)", "oklch(38% 0.01 80)", "oklch(52% 0.01 80)", "oklch(68% 0.01 80)", "oklch(82% 0.01 80)", "oklch(91% 0.01 80)", "#F5F0E4"]
+      },
+      "ink": {
+        "role": "neutral",
+        "displayName": "Ink",
+        "canonical": "#221E16",
+        "tonalRamp": ["#221E16", "#383226", "#514A3C", "#706858", "#938B7B", "#B8B1A4", "#D8D1C5", "#F5F0E4"]
+      },
+      "accent-terracotta": {
+        "role": "primary",
+        "displayName": "Terracotta Action",
+        "canonical": "#9A4A24",
+        "tonalRamp": ["oklch(18% 0.06 45)", "oklch(28% 0.08 45)", "#9A4A24", "oklch(52% 0.12 45)", "oklch(64% 0.11 45)", "oklch(76% 0.08 45)", "oklch(88% 0.045 45)", "oklch(95% 0.02 45)"]
+      },
+      "brand-pine": {
+        "role": "primary",
+        "displayName": "Pine Mark",
+        "canonical": "#6FC2A2",
+        "tonalRamp": ["#0A4434", "#1E6E55", "#3F9A7A", "#6FC2A2", "#9DD8C2", "#C2EAD9", "#DEF4EC", "#F4FBF8"]
+      }
+    },
+    "typographyMeta": {
+      "display": { "displayName": "Manual Display", "purpose": "Homepage headline and major brand statements." },
+      "heading": { "displayName": "Manual Heading", "purpose": "Page and section headings." },
+      "body": { "displayName": "Workbench Body", "purpose": "Readable documentation and explanatory prose." },
+      "label": { "displayName": "Trace Label", "purpose": "Agent traces, metadata, code labels, and warning codes." }
+    },
+    "shadows": [
+      { "name": "hairline", "value": "0 1px 0 color-mix(in srgb, var(--fg) 5%, transparent)", "purpose": "Static surface separation." },
+      { "name": "popover", "value": "0 18px 44px rgba(0,0,0,0.28)", "purpose": "Editor overlays and menus only." }
+    ],
+    "motion": [
+      { "name": "ease-out", "value": "cubic-bezier(0.22, 1, 0.36, 1)", "purpose": "Small hover, press, and disclosure transitions." },
+      { "name": "duration-control", "value": "0.16s", "purpose": "Controls and copy-state feedback." },
+      { "name": "duration-ui", "value": "0.2s", "purpose": "Page shell color and border transitions." }
+    ],
+    "breakpoints": [
+      { "name": "mobile", "value": "760px" },
+      { "name": "narrow-public", "value": "720px" },
+      { "name": "wide-agent-button", "value": "1100px" }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "The rare primary path: use with an agent, verify, or commit a clear action.",
+      "html": "<button class=\"ds-btn-primary\">Use with an agent</button>",
+      "css": ".ds-btn-primary{min-height:40px;padding:0 12px;border:1px solid color-mix(in srgb,#9A4A24 42%,#D8D0C1);border-radius:8px;background:#9A4A24;color:#F5F0E4;font:700 0.8125rem Avenir Next,Segoe UI,system-ui,sans-serif}.ds-btn-primary:hover{background:#6b321c}.ds-btn-primary:focus-visible{outline:2px solid #9A4A24;outline-offset:3px}"
+    },
+    {
+      "name": "Secondary Button",
+      "kind": "button",
+      "refersTo": "button-secondary",
+      "description": "A quieter route to editor, docs, install, or local setup.",
+      "html": "<a class=\"ds-btn-secondary\" href=\"/editor/\">Try editor</a>",
+      "css": ".ds-btn-secondary{display:inline-flex;align-items:center;justify-content:center;min-height:40px;padding:0 12px;border:1px solid #D8D0C1;border-radius:8px;background:#EDE7DB;color:#3F382C;text-decoration:none;font:700 0.8125rem Avenir Next,Segoe UI,system-ui,sans-serif}.ds-btn-secondary:hover{background:#E7DFD0;color:#221E16}.ds-btn-secondary:focus-visible{outline:2px solid #9A4A24;outline-offset:3px}"
+    },
+    {
+      "name": "Agent Prompt Card",
+      "kind": "card",
+      "refersTo": "card",
+      "description": "Copy-first agent handoff with collapsible long-form prompt text.",
+      "html": "<section class=\"ds-prompt-card\"><div class=\"ds-prompt-bar\"><strong>Agent prompt</strong><button>Copy agent prompt</button></div><pre>Create or edit a Mermaid diagram...</pre></section>",
+      "css": ".ds-prompt-card{overflow:hidden;border:1px solid #D8D0C1;border-radius:12px;background:#EDE7DB;color:#221E16}.ds-prompt-bar{display:flex;justify-content:space-between;gap:12px;align-items:center;min-height:52px;padding:7px 8px 7px 14px;border-bottom:1px solid #D8D0C1}.ds-prompt-bar strong{font:650 0.8125rem SFMono-Regular,Menlo,monospace;color:#5D5345}.ds-prompt-bar button{min-height:40px;border:1px solid #BBAF9F;border-radius:8px;background:#EDE7DB;color:#3F382C;font-weight:700}.ds-prompt-card pre{margin:0;padding:15px 18px;white-space:pre-wrap;overflow-wrap:break-word}"
+    },
+    {
+      "name": "Warning Badge",
+      "kind": "chip",
+      "refersTo": "chip-warning",
+      "description": "Triage label that pairs color with explicit tier/severity text.",
+      "html": "<span class=\"ds-tier\">structural</span>",
+      "css": ".ds-tier{display:inline-flex;align-items:center;min-height:24px;padding:0 8px;border-radius:999px;background:#E7DFD0;color:#221E16;border:1px solid #D8D0C1;font:650 0.8125rem SFMono-Regular,Menlo,monospace}"
+    }
+  ],
+  "narrative": {
+    "northStar": "A standards manual attached to a capable workbench.",
+    "overview": "Agentic Mermaid’s public site is a document-first brand surface for engineers, documentation authors, and coding agents. It should feel precise, calm, and mechanically trustworthy: a readable manual with enough workbench affordance that visitors can immediately copy an agent prompt, open the editor, install locally, or inspect the machine-readable contract.",
+    "keyCharacteristics": [
+      "Sparse Paper-and-ink surface with one terracotta action accent and an isolated pine logo mark.",
+      "Serif headings for manual authority; system/humanist sans for controls and prose; mono only for code, labels, and traces.",
+      "Flat panels with hairline borders, not glossy cards or SaaS shadows.",
+      "Concrete diagrams, commands, warnings, and source snippets instead of AI-magic claims."
+    ],
+    "rules": [
+      { "name": "The Local-First Honesty Rule", "body": "Color may highlight local commands, warnings, and agent routes, but it must never imply a hosted execution surface.", "section": "colors" },
+      { "name": "The Isolated Mark Rule", "body": "Brand mark tokens are isolated from renderer themes and page scheme tokens.", "section": "colors" },
+      { "name": "The Trace Is Type Rule", "body": "Agent traces and warning codes use mono because they are machine artifacts, not decoration.", "section": "typography" },
+      { "name": "The Artifact First Rule", "body": "Rendered diagrams and source blocks are the visual evidence.", "section": "elevation" }
+    ],
+    "dos": [
+      "Do lead with the honest action order when appropriate: Use with an agent, Try editor, Install locally.",
+      "Do show real Mermaid source, rendered output, warnings, and traces as the proof layer.",
+      "Do keep local-first boundaries visible near MCP and Code Mode language."
+    ],
+    "donts": [
+      "Don't make the site look like a generic SaaS landing page with card grids, glass panels, glowing AI gradients, loud hero metrics, or overbearing CTAs.",
+      "Don't imply hosted Code Mode, arbitrary execution, or a production render API.",
+      "Don't hide core editor controls on mobile; adapt them so Source, Preview, Diagram, Unicode, ASCII, zoom, pan, copy, export, settings, examples, and theme remain reachable."
+    ]
+  }
+}
