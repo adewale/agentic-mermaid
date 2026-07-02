@@ -471,21 +471,28 @@ function finalize(warnings: LayoutWarning[], layout: RenderedLayout, opts: Verif
   const suppress = new Set<WarningCode>(opts.suppress ?? [])
   const kept = warnings.filter(w => !suppress.has(w.code))
   const ok = !kept.some(w => WARNING_SEVERITY[w.code] === 'error')
-  // EMPTY_DIAGRAM tripwire over the FINAL layout: a 0x0 canvas with no
+  // Empty-layout tripwire over the FINAL layout: a 0x0 canvas with no
   // nodes/edges/groups renders as visually nothing, so it must never verify
   // clean (e.g. `sequenceDiagram\n Alice->>` — a malformed message that lays
-  // out zero participants). Appended AFTER the ok verdict: source that
-  // carries content the local layout cannot express stays ok (the
-  // upstream-suite bench pins that), the warning just announces the empty
-  // render. Truly content-less diagrams keep the explicit, ok-flipping
-  // EMPTY_DIAGRAM their verify paths already push. Callers whose empty layout
-  // means "unmodeled, preserved" rather than "renders nothing" (opaque
-  // bodies) opt out via guardEmptyLayout=false.
-  if (guardEmptyLayout && !suppress.has('EMPTY_DIAGRAM')
+  // out zero participants). Source that carries content the local layout
+  // cannot express stays ok (the upstream-suite bench pins that), so the
+  // announcement is UNSUPPORTED_SYNTAX — warning severity, consistent with
+  // the ok verdict — never an appended EMPTY_DIAGRAM, whose declared severity
+  // is error and would contradict ok:true for callers that gate on it. Truly
+  // content-less diagrams keep the explicit, ok-flipping EMPTY_DIAGRAM their
+  // verify paths already push. Callers whose empty layout means "unmodeled,
+  // preserved" rather than "renders nothing" (opaque bodies) opt out via
+  // guardEmptyLayout=false.
+  if (guardEmptyLayout && !suppress.has('UNSUPPORTED_SYNTAX')
     && layout.nodes.length === 0 && layout.edges.length === 0 && layout.groups.length === 0
     && layout.bounds.w === 0 && layout.bounds.h === 0
-    && !kept.some(w => w.code === 'EMPTY_DIAGRAM')) {
-    return { ok, warnings: [...kept, { code: 'EMPTY_DIAGRAM' }], layout }
+    && !kept.some(w => w.code === 'EMPTY_DIAGRAM')
+    && !kept.some(w => w.code === 'UNSUPPORTED_SYNTAX' && w.syntax === 'empty_layout')) {
+    return {
+      ok,
+      warnings: [...kept, { code: 'UNSUPPORTED_SYNTAX', syntax: 'empty_layout', message: 'The source carries content, but the local layout renders nothing (0x0 canvas with no nodes, edges, or groups).' }],
+      layout,
+    }
   }
   return { ok, warnings: kept, layout }
 }

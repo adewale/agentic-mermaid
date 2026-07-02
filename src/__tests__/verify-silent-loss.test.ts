@@ -52,13 +52,18 @@ describe('verify — unclosed flowchart delimiters are reported, not silent', ()
   })
 })
 
-describe('verify — empty layouts fire EMPTY_DIAGRAM', () => {
+describe('verify — empty layouts never verify clean', () => {
   test('sequence with only a malformed message is empty (the audit repro)', () => {
     const r = verifyMermaid('sequenceDiagram\n  Alice->>')
     // Advisory: the source carries (unparseable) content, so ok is preserved —
     // the upstream-suite bench pins content-bearing-but-unrenderable ok:true —
-    // but the empty render is announced instead of verifying clean.
-    expect(r.warnings.map(w => w.code)).toContain('EMPTY_DIAGRAM')
+    // and the announcement is UNSUPPORTED_SYNTAX (warning severity, consistent
+    // with ok:true), never an appended EMPTY_DIAGRAM whose declared severity
+    // is error and would contradict the verdict for ok-gating callers.
+    expect(r.ok).toBe(true)
+    expect(r.warnings.map(w => w.code)).not.toContain('EMPTY_DIAGRAM')
+    const announced = r.warnings.find(w => w.code === 'UNSUPPORTED_SYNTAX' && (w as { syntax?: string }).syntax === 'empty_layout')
+    expect(Boolean(announced)).toBe(true)
   })
 
   test('a truly content-less sequence stays a hard error', () => {

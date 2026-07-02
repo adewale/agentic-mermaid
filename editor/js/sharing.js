@@ -37,13 +37,26 @@ async function encodeSourceCompressed(src) {
   }
 }
 
+// Why the last hash decode produced nothing: 'unsupported' (deflate: link in a
+// browser without DecompressionStream — never fall through to legacy decode,
+// which would silently open the wrong content), 'corrupt' (truncated/damaged
+// link), or null. init.js reads this to tell the recipient instead of
+// silently showing their draft or the default diagram.
+var hashDecodeFailure = null;
+
 async function decodeSource(encoded) {
-  if (encoded.indexOf(HASH_DEFLATE_PREFIX) === 0 && typeof DecompressionStream !== 'undefined') {
+  hashDecodeFailure = null;
+  if (encoded.indexOf(HASH_DEFLATE_PREFIX) === 0) {
+    if (typeof DecompressionStream === 'undefined') {
+      hashDecodeFailure = 'unsupported';
+      return '';
+    }
     try {
       var bytes = base64UrlToBytes(encoded.slice(HASH_DEFLATE_PREFIX.length));
       var stream = new Blob([bytes]).stream().pipeThrough(new DecompressionStream('deflate-raw'));
       return await new Response(stream).text();
     } catch(e) {
+      hashDecodeFailure = 'corrupt';
       return '';
     }
   }
@@ -58,6 +71,7 @@ async function getHashSource() {
   var hash = window.location.hash.slice(1);
   if (!hash) return null;
   var decoded = await decodeSource(hash);
+  if (!decoded && !hashDecodeFailure) hashDecodeFailure = 'corrupt';
   try {
     var obj = JSON.parse(decoded);
     if (obj && obj.source) {

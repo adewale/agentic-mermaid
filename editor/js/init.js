@@ -167,6 +167,14 @@ if (draftDiscardBtn) draftDiscardBtn.addEventListener("click", discardRestoredDr
 // source pick runs in an async IIFE; nothing below in this file depends on it.
 (async function initializeEditorSource() {
   var hashSource = await getHashSource();
+  // A share link that exists but cannot be decoded must say so — silently
+  // showing the recipient their old draft or the default diagram would let
+  // them believe they are looking at what was shared.
+  if (!hashSource && typeof hashDecodeFailure === 'string' && hashDecodeFailure && typeof showToast === 'function') {
+    showToast(hashDecodeFailure === 'unsupported'
+      ? 'This share link needs a newer browser to open (missing DecompressionStream). Showing your own content instead.'
+      : 'This share link could not be decoded (truncated or damaged). Showing your own content instead.');
+  }
   var queryExampleId = getQueryExampleId();
   var loadedInitialExample = false;
   if (hashSource) {
