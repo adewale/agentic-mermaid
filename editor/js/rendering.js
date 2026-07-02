@@ -20,7 +20,7 @@ function hexToRgb(hex) {
 function chromeThemeColors() {
   // Paper (light) / Dusk (dark) — the exact brand triplets the public site
   // ships as its chrome. Keep these in lockstep with the site's [data-theme]
-  // "dusk" block and the :root Paper defaults in mockups/styles.css.
+  // "dusk" block and the :root Paper defaults in website/source/assets/styles.css.
   return isDark
     ? { bg: "#2A2521", fg: "#E9DFCC", accent: "#CC8A57" }
     : { bg: "#F5F0E4", fg: "#221E16", accent: "#9A4A24" };
@@ -95,9 +95,23 @@ function buildOptions() {
 function setTextOutputs(unicode, ascii) {
   if (unicodeOutput) {
     unicodeOutput.style.fontSize = '';
-    unicodeOutput.textContent = unicode || "Render a valid diagram to see Unicode output.";
+    unicodeOutput.textContent = unicode || "Select Unicode to render text output.";
   }
-  if (asciiOutput) asciiOutput.textContent = ascii || "Render a valid diagram to see ASCII output.";
+  if (asciiOutput) asciiOutput.textContent = ascii || "Select ASCII to render text output.";
+}
+
+var textOutputCacheKey = "";
+
+function textOutputKey(source) {
+  return source + "\n" + JSON.stringify(buildOptions());
+}
+
+function activeCanvasFormat() {
+  return typeof currentCanvasFormat === "string" ? currentCanvasFormat : "diagram";
+}
+
+function markTextOutputsDirty() {
+  textOutputCacheKey = "";
 }
 
 var VERIFY_TIER_BY_CODE = {
@@ -214,22 +228,40 @@ function fitUnicodeOutput() {
 
 function renderTextOutputs(source) {
   if (!renderMermaidAscii) return;
+  var key = textOutputKey(source);
+  if (textOutputCacheKey === key) {
+    if (activeCanvasFormat() === "unicode") fitUnicodeOutput();
+    return;
+  }
   try {
     var opts = Object.assign({}, buildOptions(), { colorMode: "none" });
     setTextOutputs(
       renderMermaidAscii(source, Object.assign({}, opts, { useAscii: false })),
       renderMermaidAscii(source, Object.assign({}, opts, { useAscii: true })),
     );
-    fitUnicodeOutput();
+    textOutputCacheKey = key;
+    if (activeCanvasFormat() === "unicode") fitUnicodeOutput();
   } catch (err) {
+    textOutputCacheKey = "";
     setTextOutputs("Text output failed: " + String(err || "unknown error"), "Text output failed: " + String(err || "unknown error"));
   }
+}
+
+function ensureTextOutputs(source) {
+  source = source || editor.value.trim();
+  if (!source) {
+    markTextOutputsDirty();
+    setTextOutputs("", "");
+    return;
+  }
+  renderTextOutputs(source);
 }
 
 async function doRender() {
   var source = editor.value.trim();
   if (!source) {
     previewInner.innerHTML = emptyPreviewHtml();
+    markTextOutputsDirty();
     setTextOutputs("", "");
     statusText.textContent = "Ready";
     statusText.className = "";
@@ -257,7 +289,8 @@ async function doRender() {
     statusDot.className = "status-dot ok";
     renderTime.textContent = "Rendered in " + ms + "ms";
     updateVerifyPanel(source);
-    renderTextOutputs(source);
+    markTextOutputsDirty();
+    if (activeCanvasFormat() !== "diagram") renderTextOutputs(source);
     if (typeof updateExportAvailability === "function") updateExportAvailability();
     updateHash();
   } catch (err) {
@@ -267,6 +300,7 @@ async function doRender() {
     statusText.className = "status-err";
     statusDot.className = "status-dot err";
     renderTime.textContent = "Failed in " + ms + "ms";
+    markTextOutputsDirty();
     resetVerifyPanel("Parse or render failed");
     setVerifyTier(verifyTierStructural, verifyStructural, "err", "Fix source first");
     setTextOutputs("Fix the render error to see Unicode output.", "Fix the render error to see ASCII output.");

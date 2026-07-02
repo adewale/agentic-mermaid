@@ -10,7 +10,7 @@ const cleanRoutes = new Set([
   '/editor', '/docs', '/skills', '/skills/agentic-mermaid-diagram-workflow',
   '/docs/getting-started', '/docs/api', '/docs/families', '/docs/source-level', '/docs/cli', '/docs/mcp', '/docs/ascii', '/docs/theming',
   '/docs/config', '/docs/react', '/docs/quality', '/docs/fork-differences', '/docs/vocabulary',
-  '/warnings', '/errors', '/examples', '/evidence', '/security', '/releases',
+  '/warnings', '/errors', '/examples', '/comparisons', '/evidence', '/security', '/releases',
 ])
 
 const csp = [
@@ -34,6 +34,7 @@ function withHeaders(response, pathname) {
   headers.set('Permissions-Policy', 'camera=(), microphone=(), geolocation=(), payment=(), usb=()')
 
   const type = headers.get('content-type') || ''
+  headers.delete('Cache-Control')
   if (type.includes('text/html')) headers.set('Content-Security-Policy', csp)
 
   if (/\.(json|md|txt)$/i.test(pathname)) {
@@ -41,6 +42,8 @@ function withHeaders(response, pathname) {
     headers.set('Cache-Control', 'public, max-age=300')
   } else if (type.includes('text/html') || response.status === 404) {
     headers.set('Cache-Control', 'no-cache')
+  } else if (/^\/(?:editor\/editor-[a-f0-9]{12}|vendor\/mermaid-[a-f0-9]{12}\.min)\.js$/i.test(pathname)) {
+    headers.set('Cache-Control', 'public, max-age=31536000, immutable')
   } else if (/\.(css|js|svg)$/i.test(pathname)) {
     headers.set('Cache-Control', 'public, max-age=3600')
   }

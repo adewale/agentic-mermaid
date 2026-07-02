@@ -1,0 +1,177 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Editing a diagram without regenerating it – Agentic Mermaid</title>
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="icon" href="favicon.ico" type="image/x-icon">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<header class="masthead">
+  <div class="bar">
+    <a class="brand" href="home.html"><span class="mark"></span> Agentic&nbsp;Mermaid</a>
+    <span class="links"><a href="examples/">Examples</a><a href="gallery.html">Gallery</a><a href="families.html">Families</a><a href="docs-article.html">Docs</a><a class="link-editor" href="editor.html">Open editor</a></span>
+  </div>
+  <hr>
+</header>
+
+<main class="doc">
+  <section class="page-header">
+    <h1>Editing a diagram without regenerating it</h1>
+    <p class="lead">A render-only tool makes an agent rebuild the whole diagram to move one node. Agentic Mermaid keeps the diagram structured, so an edit is five small steps, and <code>verify</code> gates the last one.</p>
+  </section>
+  <p class="muted"><small>The Manual &middot; Updated 22 June 2026 &middot; Generated from <code>capabilities.json</code> &middot; 6 min read</small></p>
+
+  <hr>
+
+  <p>Most diagram tools render and stop. You hand them source, they hand back a picture, and to change one node you send the whole source again. That is fine for a person editing by hand and wasteful for an agent editing in a loop, where every regeneration risks moving nodes that were already correct.</p>
+  <p>The fix is to treat an existing diagram as structured data, not a string. A typed surface exposes the parts an agent can name and change, and refuses edits it cannot make safely. The loop has five steps.</p>
+
+  <h2>1 &middot; Parse</h2>
+  <p>Read the source into a typed model. Anything the model does not understand round-trips through preserved source,<label class="snref" for="sn1"></label><input class="mtoggle" type="checkbox" id="sn1"><span class="sidenote">An unusual block – a raw <code>journey</code> body, say – is carried verbatim as a string and re-emitted untouched, so parsing never silently drops what it cannot model.</span> so an unusual block is carried verbatim rather than dropped.</p>
+
+  <h2>2 &middot; Narrow</h2>
+  <p>Select the one node or edge the edit touches. Narrowing keeps the change local,<label class="snref" for="sn2"></label><input class="mtoggle" type="checkbox" id="sn2"><span class="sidenote">Locality is the whole game: touch one node and the other forty keep their coordinates, so a one-line edit can&rsquo;t reflow the diagram.</span> which is what protects the rest of the layout from drifting.</p>
+
+  <figure>
+    <div class="plate dia-plate">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 994.975 209.186" width="994.975" height="209.186" style="--font:Inter" role="img" aria-labelledby="edit-loop-svg-title edit-loop-svg-desc">
+<title id="edit-loop-svg-title">Agentic Mermaid edit loop</title>
+<desc id="edit-loop-svg-desc">Source flows through parse, narrow, mutate, verify, and serialize to render, with warnings routed back for another edit.</desc>
+<style>
+  text { font-family: var(--font, 'Inter'), system-ui, sans-serif; }
+  svg {
+    /* Derived from --bg and --fg (overridable via --line, --accent, etc.) */
+    --_text:          var(--fg);
+    --_text-sec:      var(--muted, color-mix(in srgb, var(--fg) 78%, var(--bg)));
+    --_text-muted:    var(--muted, color-mix(in srgb, var(--fg) 66%, var(--bg)));
+    --_text-faint:    color-mix(in srgb, var(--fg) 54%, var(--bg));
+    --_line:          var(--line, color-mix(in srgb, var(--fg) 50%, var(--bg)));
+    --_arrow:         var(--accent, color-mix(in srgb, var(--fg) 85%, var(--bg)));
+    --_node-fill:     var(--surface, color-mix(in srgb, var(--fg) 3%, var(--bg)));
+    --_node-stroke:   var(--border, color-mix(in srgb, var(--fg) 20%, var(--bg)));
+    --_group-fill:    var(--bg);
+    --_group-hdr:     color-mix(in srgb, var(--fg) 5%, var(--bg));
+    --_inner-stroke:  color-mix(in srgb, var(--fg) 12%, var(--bg));
+    --_key-badge:     color-mix(in srgb, var(--fg) 10%, var(--bg));
+  }
+</style>
+<defs>
+  <marker id="arrowhead" markerWidth="8" markerHeight="5" refX="7" refY="2.5" orient="auto">
+    <polygon points="0 0, 8 2.5, 0 5" fill="var(--_arrow)" stroke="var(--_arrow)" stroke-width="0.75" stroke-linejoin="round" />
+  </marker>
+  <marker id="arrowhead-start" markerWidth="8" markerHeight="5" refX="7" refY="2.5" orient="auto-start-reverse">
+    <polygon points="0 0, 8 2.5, 0 5" fill="var(--_arrow)" stroke="var(--_arrow)" stroke-width="0.75" stroke-linejoin="round" />
+  </marker>
+</defs>
+<polyline class="edge" data-from="S" data-to="P" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" points="156.791,83.86800000000001 204.791,83.86800000000001" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="P" data-to="N" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" points="282.30899999999997,90.018 330.30899999999997,90.018" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="N" data-to="M" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" points="415.23699999999997,90.018 463.23699999999997,90.018" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="M" data-to="V" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" points="542.237,90.018 590.237,90.018" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="V" data-to="R" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" data-label="ok" points="690.2729999999999,90.018 807.803,90.018" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="V" data-to="N" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" data-label="warnings" points="640.255,140.036 640.255,150.036 372.77299999999997,150.036 372.77299999999997,108.468" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<g class="edge-label" data-from="V" data-to="R" data-label="ok">
+  <rect class="edge-label-halo" x="730.273" y="70.868" width="37.53" height="38.3" rx="4" ry="4" fill="var(--bg)" stroke="none" />
+  <rect x="734.273" y="74.868" width="29.53" height="30.3" rx="2" ry="2" fill="var(--bg)" stroke="var(--_inner-stroke)" stroke-width="1" />
+  <text x="749.038" y="90.018" text-anchor="middle" font-size="11" font-weight="400" fill="var(--_text-sec)" dy="3.8499999999999996">ok</text>
+</g>
+<g class="edge-label" data-from="V" data-to="N" data-label="warnings">
+  <rect class="edge-label-halo" x="480.631" y="130.036" width="69.606" height="38.3" rx="4" ry="4" fill="var(--bg)" stroke="none" />
+  <rect x="484.631" y="134.036" width="61.606" height="30.3" rx="2" ry="2" fill="var(--bg)" stroke="var(--_inner-stroke)" stroke-width="1" />
+  <text x="515.434" y="149.186" text-anchor="middle" font-size="11" font-weight="400" fill="var(--_text-sec)" dy="3.8499999999999996">warnings</text>
+</g>
+<g class="node" data-id="S" data-label="Source .mmd" data-shape="rectangle">
+  <rect x="40" y="65.418" width="116.79099999999998" height="36.900000000000006" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="98.3955" y="83.86800000000001" text-anchor="middle" font-size="13" font-weight="500" fill="var(--_text)" dy="4.55">Source .mmd</text>
+</g>
+<g class="node" data-id="P" data-label="parse" data-shape="rectangle">
+  <rect x="204.791" y="65.418" width="77.518" height="36.900000000000006" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="243.55" y="83.86800000000001" text-anchor="middle" font-size="13" font-weight="500" fill="var(--_text)" dy="4.55">parse</text>
+</g>
+<g class="node" data-id="N" data-label="narrow" data-shape="rectangle">
+  <rect x="330.30899999999997" y="71.568" width="84.928" height="36.900000000000006" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="372.77299999999997" y="90.018" text-anchor="middle" font-size="13" font-weight="500" fill="var(--_text)" dy="4.55">narrow</text>
+</g>
+<g class="node" data-id="M" data-label="mutate" data-shape="rectangle">
+  <rect x="463.23699999999997" y="71.568" width="79" height="36.900000000000006" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="502.73699999999997" y="90.018" text-anchor="middle" font-size="13" font-weight="500" fill="var(--_text)" dy="4.55">mutate</text>
+</g>
+<g class="node" data-id="V" data-label="verify" data-shape="diamond">
+  <polygon points="640.255,40 690.273,90.018 640.255,140.036 590.237,90.018" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="640.255" y="90.018" text-anchor="middle" font-size="13" font-weight="500" fill="var(--_text)" dy="4.55">verify</text>
+</g>
+<g class="node" data-id="R" data-label="serialize → render" data-shape="rectangle">
+  <rect x="807.803" y="71.568" width="147.17200000000003" height="36.900000000000006" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="881.389" y="90.018" text-anchor="middle" font-size="13" font-weight="500" fill="var(--_text)" dy="4.55">serialize → render</text>
+</g>
+</svg>
+    </div>
+    <figcaption>The five-step loop. <code>verify</code> sits between <code>mutate</code> and <code>serialize</code>; a warning sends the work back to narrow.</figcaption>
+  </figure>
+
+  <h2>3 &middot; Mutate</h2>
+  <p>Apply a named operation to the narrowed selection. The operation returns a new typed model; it does not rewrite the source by hand.</p>
+  <pre><code>mutate(diagram, addEdge: { from: "verify", to: "serialize", label: "ok" })
+<span class="c">// returns a ValidDiagram, or a structured error</span></code></pre>
+
+  <h2>4 &middot; Verify</h2>
+  <p>Check the result before trusting it. <code>verify</code> returns warnings in three tiers – <strong>structural</strong><label class="snref" for="sn3"></label><input class="mtoggle" type="checkbox" id="sn3"><span class="sidenote">Tier&nbsp;1 – the graph is malformed: a dangling edge, a duplicate id, an edge to a node that isn&rsquo;t there. Blocks <code>serialize</code>; never ship past one.</span>, <strong>geometric</strong><label class="snref" for="sn4"></label><input class="mtoggle" type="checkbox" id="sn4"><span class="sidenote">Tier&nbsp;2 – valid but ugly: overlapping nodes, a label crossing an edge, a port on the wrong side. Advisory, not fatal.</span>, and <strong>lint</strong><label class="snref" for="sn5"></label><input class="mtoggle" type="checkbox" id="sn5"><span class="sidenote">Tier&nbsp;3 – style and lossiness: a non-canonical arrow, or a dropped comment. Cosmetic.</span> – plus perceptual quality metrics.<label class="mntoggle" for="mn1"></label><input class="mtoggle" type="checkbox" id="mn1"><span class="marginnote">Scored by the deterministic rubric in <code>layout-rubric.ts</code>, not asserted by the agent. The same diagram always scores the same, so you can diff a metric across edits and watch it move.</span> An agent reads the tiers and decides whether to fix, re-narrow, or stop and ask a human.</p>
+  <pre><code>verify(diagram)
+<span class="ok">&#10003; ok</span>   structural 0   geometric 0   lint 1
+<span class="c">// COMMENT_DROPPED line 4 – inline %% comment removed on serialize</span></code></pre>
+  <p>The one lint here is a dropped comment<label class="snref" for="sn6"></label><input class="mtoggle" type="checkbox" id="sn6"><span class="sidenote"><code>COMMENT_DROPPED</code>, line&nbsp;4. The inline <code>%%</code> comment isn&rsquo;t representable in the typed model – move it onto its own line above the node to keep it.</span> on line&nbsp;4. Across this diagram&rsquo;s five edits, legibility climbed&nbsp;<svg class="spark" viewBox="0 0 58 15" aria-hidden="true"><polyline points="0,10.8 14.5,7.4 29,4.9 43.5,3.4 58,2.5"/><circle class="end" cx="58" cy="2.5" r="1.6"/></svg>&nbsp;to <span class="sparkval">0.98</span> and edge crossings fell&nbsp;<svg class="spark" viewBox="0 0 58 15" aria-hidden="true"><polyline points="0,2 14.5,6.8 29,6.8 43.5,11.4 58,14"/><circle class="end" cx="58" cy="14" r="1.6"/></svg>&nbsp;to <span class="sparkval">0</span>.</p>
+
+  <h2>5 &middot; Serialize</h2>
+  <p>Write the typed model back to Mermaid source, then render to SVG, PNG, ASCII, or Unicode. Because layout is deterministic,<label class="snref" for="sn7"></label><input class="mtoggle" type="checkbox" id="sn7"><span class="sidenote">Same input, same bytes – no RNG, no clock. A CI snapshot of the SVG is stable, so a diff means a real geometry change, not noise.</span> the same model produces the same geometry every run.</p>
+
+  <blockquote>Stop rule. Never return a diagram you have not verified, and never fabricate a passing result. If a structural warning will not clear after two attempts, serialize what you have and ask a human to look.</blockquote>
+
+  <p>The loop is the product: parse, narrow, mutate, verify, serialize. The picture is only the last step, and the only one a render-first tool ever gives you.</p>
+
+  <hr>
+
+  <h2>More in the manual</h2>
+  <ul>
+    <li><a href="/docs/getting-started/">Getting started</a> – install, verify, render, and hand a source edit to an agent</li>
+    <li><a href="/warnings/">Reading a verify result</a> – the three warning tiers, with fixes</li>
+    <li><a href="/docs/source-level/">Source-level edits for opaque bodies</a> – preserve unsupported syntax deliberately</li>
+    <li><a href="/docs/ascii/">Rendering to ASCII and Unicode</a> – color modes and terminal use</li>
+  </ul>
+
+  <h2>Docs index</h2>
+  <ul class="doc-index">
+    <li><a href="/docs/getting-started/">Getting started</a></li>
+    <li><a href="/docs/api/">Library API</a></li>
+    <li><a href="/docs/cli/">CLI</a></li>
+    <li><a href="/docs/mcp/">MCP</a></li>
+    <li><a href="/docs/theming/">Theming</a></li>
+    <li><a href="/docs/config/">Config</a></li>
+    <li><a href="/docs/react/">React</a></li>
+    <li><a href="/docs/quality/">Quality</a></li>
+    <li><a href="/docs/vocabulary/">Vocabulary</a></li>
+    <li><a href="/docs/fork-differences/">Fork differences</a></li>
+  </ul>
+
+  <p class="endmark">
+    <svg viewBox="0 0 48 48" fill="none" role="img" aria-label="End">
+      <g stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+        <polyline points="14,8.5 14,23.5 24,39.5" stroke-width="1.9"/><polyline points="24,5.5 24,23.5 24,39.5" stroke-width="2.4"/><polyline points="34,8.5 34,23.5 24,39.5" stroke-width="1.9"/>
+      </g>
+      <g fill="currentColor"><circle cx="14" cy="8.5" r="2.5"/><circle cx="24" cy="5.5" r="2.5"/><circle cx="34" cy="8.5" r="2.5"/><circle cx="24" cy="39.5" r="3.3"/></g>
+      <g fill="none" stroke="currentColor" stroke-width="1.3"><circle cx="14" cy="23.5" r="1.7"/><circle cx="24" cy="23.5" r="1.7"/><circle cx="34" cy="23.5" r="1.7"/></g>
+    </svg>
+  </p>
+</main>
+
+<footer>
+  <div class="footlinks"><a href="llms.txt">llms.txt</a><span class="sep">&middot;</span><a href="agent-instructions.md">agent-instructions.md</a><span class="sep">&middot;</span><a href="capabilities.json">capabilities.json</a><span class="sep">&middot;</span><a href="https://github.com/adewale/beautiful-mermaid">GitHub</a></div>
+</footer>
+
+<script src="shader-mark.js"></script>
+<script src="theme.js"></script>
+</body>
+</html>

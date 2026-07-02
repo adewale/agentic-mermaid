@@ -1,13 +1,14 @@
 # Agentic Mermaid website
 
-Cloudflare Workers Static Assets site for `agenticmermaid.dev`, generated from the PR #76 mockup source and aligned to the website spec in PR #27.
+Cloudflare Workers Static Assets site for `agenticmermaid.dev`, generated from website-owned source files and aligned to the website spec in PR #27.
 
 ## Shape
 
+- `source/` — website-owned source pages, assets, and diagram seeds.
 - `public/` — built static assets served by Cloudflare's asset binding.
 - `src/worker.js` — tiny Worker for the dynamic fallback surface (`/mcp` returns an honest 501 until the optional hosted MCP is implemented). Static asset requests stay on Cloudflare's asset path.
 - `wrangler.jsonc` — Workers Static Assets config with an `ASSETS` binding. Cloudflare recommends JSONC for new Wrangler projects.
-- `build.ts` — converts `mockups/` HTML into clean production routes, generates the agent surfaces required by the spec, and emits `_headers` / `_redirects` for the static hot path.
+- `build.ts` — converts `website/source/` HTML into clean production routes, generates the agent surfaces required by the spec, and emits `_headers` / `_redirects` for the static hot path.
 
 ## Routes
 
@@ -21,7 +22,7 @@ Cloudflare Workers Static Assets site for `agenticmermaid.dev`, generated from t
 ## Commands
 
 ```bash
-bun run website          # rebuild website/public from mockups + product truth
+bun run website          # rebuild website/public from website/source + product truth
 bun run website:check    # verify generated website/public is current
 bun run website:dev      # Wrangler dev server on port 9095
 ```

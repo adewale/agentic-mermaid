@@ -54,18 +54,10 @@ jobs:
         # assets/hero.png (diagram SVG + ASCII) — no fonts/rasterization needed.
         run: bun run hero:check
 
-      - name: Check the registry-driven mockup site is current
-        # mockups/ gallery tiles, families table, and agent surfaces are
-        # generated from the family registry + capabilities + MCP tools. This
-        # re-runs the generator in --check mode and fails if a committed file
-        # drifted (e.g. a new family, a capability change, or a renderer change
-        # that wasn't regenerated). Regenerate with `bun run site`.
-        run: bun run site:check
-
       - name: Check the Workers Static Assets website is current
-        # website/public is generated from the mockup source plus product truth
-        # (capabilities, examples, skills, schemas, recipes). The check also
-        # rejects stale/orphan generated files and placeholder public links.
+        # website/public is generated from website/source plus product truth
+        # (capabilities, examples, skills). The check also rejects stale/orphan
+        # generated files and placeholder public links.
         run: bun run website:check
 
       - name: Golden snapshot drift is a hard gate (reviewed-token required)
