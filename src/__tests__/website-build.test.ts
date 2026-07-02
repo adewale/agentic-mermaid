@@ -494,7 +494,7 @@ describe('Workers Static Assets website contract', () => {
   test('audit fixes give public proof diagrams accessible names and immutable editor assets', () => {
     const home = read('index.html')
     const examples = read('examples/index.html')
-    const worker = readFileSync(join(REPO, 'website/src/worker.js'), 'utf8')
+    const worker = readFileSync(join(REPO, 'website/src/worker.ts'), 'utf8')
     expect(home).toContain('role="img" aria-labelledby="edit-loop-svg-title edit-loop-svg-desc"')
     expect(home).toContain('<title id="edit-loop-svg-title">Agentic Mermaid edit loop</title>')
     expect(examples).toContain('role="img" aria-labelledby="example-flowchart-basic-svg-title example-flowchart-basic-svg-desc"')
