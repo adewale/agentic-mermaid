@@ -493,6 +493,7 @@ describe('root docs consistency', () => {
       'AGENT_NATIVE.md',
       'CHANGELOG.md',
       'CLAUDE.md',
+      'DESIGN.md',
       'Instructions_for_agents.md',
       'PRODUCT.md',
       'README.md',

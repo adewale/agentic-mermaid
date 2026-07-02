@@ -34,7 +34,7 @@ function syncModeButtons() {
     btn.classList.toggle('is-active', active);
     btn.setAttribute('aria-pressed', active ? 'true' : 'false');
   });
-  document.querySelectorAll('[data-mobile-panel]').forEach(function(btn) {
+  document.querySelectorAll('.mode-option[data-mobile-panel]').forEach(function(btn) {
     var active = btn.dataset.mobilePanel === currentMobilePanel;
     btn.classList.toggle('is-active', active);
     btn.setAttribute('aria-pressed', active ? 'true' : 'false');

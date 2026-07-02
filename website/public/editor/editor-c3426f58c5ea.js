@@ -521,7 +521,7 @@ function createPopupController(opts) {
     if (!popup) return;
     meta = meta || {};
     var currentTrigger = popupTrigger(opts);
-    if (open) {
+    if (open && opts.closePeersOnOpen !== false) {
       popupControllers.forEach(function(other) {
         if (other !== controller && other.isOpen()) other.close({ source: 'peer' });
       });
@@ -2176,38 +2176,73 @@ function resetConfig() {
 var configResetBtn = document.getElementById('config-reset-btn');
 if (configResetBtn) configResetBtn.addEventListener('click', resetConfig);
 
-// Settings overlay: Source stays the left workspace; this slides the diagram
-// settings over it, leaving the preview visible so changes show live. It is
-// independent of the mobile Source/Preview switch.
+// Settings popover: use the same anchored panel grammar as Examples. It still
+// brings Source forward on mobile because the config DOM lives in the left panel,
+// but visually it is a topbar popover, not a separate mode.
 var settingsBtn = document.getElementById('settings-btn');
 var settingsCloseBtn = document.getElementById('settings-close-btn');
-function setSettingsOpen(open) {
-  if (!configView) return;
-  configView.hidden = !open;
-  configView.classList.toggle('visible', open);
-  configView.setAttribute('aria-hidden', open ? 'false' : 'true');
-  if (settingsBtn) {
-    settingsBtn.classList.toggle('active', open);
-    settingsBtn.setAttribute('aria-expanded', open ? 'true' : 'false');
-    settingsBtn.setAttribute('aria-pressed', open ? 'true' : 'false');
-  }
-  if (open) {
-    // On mobile the source panel may be hidden (Preview view); the settings
-    // overlay lives over it, so bring it forward before showing them.
-    if (typeof setMobilePanel === 'function') setMobilePanel('code');
-    refreshAllColorUIs();
-  }
+function positionSettingsPanel() {
+  if (!configView || !settingsBtn) return;
+  var rect = settingsBtn.getBoundingClientRect();
+  var gutter = 12;
+  var preferred = 360;
+  var width = Math.min(preferred, window.innerWidth - gutter * 2);
+  var left = Math.min(Math.max(gutter, rect.left), window.innerWidth - width - gutter);
+  var top = rect.bottom + 8;
+  var maxHeight = Math.max(260, window.innerHeight - top - gutter);
+  configView.style.setProperty('--settings-left', Math.round(left) + 'px');
+  configView.style.setProperty('--settings-top', Math.round(top) + 'px');
+  configView.style.setProperty('--settings-width', Math.round(width) + 'px');
+  configView.style.setProperty('--settings-max-height', Math.round(maxHeight) + 'px');
 }
-if (settingsBtn) settingsBtn.addEventListener('click', function() { setSettingsOpen(configView.hidden); });
-if (settingsCloseBtn) settingsCloseBtn.addEventListener('click', function() { setSettingsOpen(false); if (settingsBtn) settingsBtn.focus(); });
+
+var settingsPopup = (settingsBtn && configView && typeof createPopupController === 'function')
+  ? createPopupController({
+      popup: configView,
+      trigger: settingsBtn,
+      className: 'visible',
+      visibility: { manageTabStops: true, toggleTriggerClass: false },
+      closeOnEscape: false,
+      beforeOpen: function(meta) {
+        // On mobile the source panel may be hidden (Preview view); the settings
+        // DOM lives in it, so bring it forward before showing the fixed popover.
+        if (typeof setMobilePanel === 'function') setMobilePanel('code');
+        configView.hidden = false;
+        positionSettingsPanel();
+        refreshAllColorUIs();
+      },
+      afterOpen: function(meta) {
+        settingsBtn.classList.add('active');
+        settingsBtn.setAttribute('aria-pressed', 'true');
+        if (meta && meta.focusFirst) {
+          var first = configView.querySelector('button, input, [href], [tabindex]:not([tabindex="-1"])');
+          if (first) first.focus({ preventScroll: false });
+        }
+      },
+      afterClose: function() {
+        settingsBtn.classList.remove('active');
+        settingsBtn.setAttribute('aria-pressed', 'false');
+        configView.hidden = true;
+      },
+      contains: function(target) {
+        return !!(target.closest('#config-view') || target.closest('#settings-btn') || target.closest('#font-popup') || target.closest('#color-popup'));
+      },
+      repositionOnResize: true,
+      position: positionSettingsPanel,
+    })
+  : { setOpen: function() {}, close: function() {}, isOpen: function() { return false; } };
+function setSettingsOpen(open, meta) {
+  settingsPopup.setOpen(open, meta || {});
+}
+if (settingsCloseBtn) settingsCloseBtn.addEventListener('click', function() { setSettingsOpen(false, { restoreFocus: true }); });
 document.addEventListener('keydown', function(e) {
   if (e.key !== 'Escape' || !configView || configView.hidden) return;
   // A picker popup inside settings (font / colour) owns Escape while it is open,
   // so let it close and restore its own focus before settings reacts.
   if (document.querySelector('#font-popup:not([inert]), #color-popup:not([inert])')) return;
-  setSettingsOpen(false);
-  if (settingsBtn) settingsBtn.focus();
+  setSettingsOpen(false, { restoreFocus: true });
 });
+setSettingsOpen(false);
 
 
 var colorPopup    = document.getElementById('color-popup');
@@ -2232,6 +2267,7 @@ COLOR_PRESETS.forEach(function(hex) {
 var colorPopupController = createPopupController({
   popup: colorPopup,
   trigger: function() { return activeColorAnchor; },
+  closePeersOnOpen: false,
   triggerEvents: false,
   visibility: { focusSelector: '#color-hex-input' },
   beforeOpen: function() {
@@ -2416,6 +2452,7 @@ function appendFontItem(name, value) {
 var fontPopupController = createPopupController({
   popup: fontPopup,
   trigger: fontSelectBtn,
+  closePeersOnOpen: false,
   visibility: { focusSelector: '#font-search' },
   beforeOpen: function() {
     buildFontList('');
@@ -2493,7 +2530,7 @@ function syncModeButtons() {
     btn.classList.toggle('is-active', active);
     btn.setAttribute('aria-pressed', active ? 'true' : 'false');
   });
-  document.querySelectorAll('[data-mobile-panel]').forEach(function(btn) {
+  document.querySelectorAll('.mode-option[data-mobile-panel]').forEach(function(btn) {
     var active = btn.dataset.mobilePanel === currentMobilePanel;
     btn.classList.toggle('is-active', active);
     btn.setAttribute('aria-pressed', active ? 'true' : 'false');
@@ -2615,7 +2652,7 @@ function buildAgentTaskPrompt() {
     + (source || '')
     + '\n```\n\n'
     + 'Environment:\n'
-    + '- Do not assume this repository is checked out. Use one local channel available to you: installed `agentic-mermaid/agent`, this repo\'s `./src/agent/index.ts`, the CLI (`am` or `bun run bin/am.ts`), or self-hosted MCP Code Mode.\n'
+    + '- Do not assume this repository is checked out. Use one local channel available to you: installed `agentic-mermaid/agent`, this repo\'s `./src/agent/index.ts`, the CLI (`am` or `bun run bin/am.ts`), or self-hosted MCP Code Mode. The public website does not execute Code Mode; `/mcp` is intentionally disabled.\n'
     + '- Do not call the website as a render API. If no local Agentic Mermaid channel is available, do not fabricate verification; return the best Mermaid source and say `not verified — Agentic Mermaid unavailable` with what you tried.\n'
     + '- Library imports, when available: `parseMermaid`, `verifyMermaid`, `serializeMermaid`, `mutate`, and `as*` helpers from `agentic-mermaid/agent`.\n\n'
     + 'Workflow:\n'
@@ -2626,7 +2663,7 @@ function buildAgentTaskPrompt() {
     + '5. Run `verifyMermaid` on the final diagram or source. If structural warnings remain after one mechanical fix attempt, return the warnings instead of guessing.\n'
     + '6. Return mode:\n'
     + '   - In chat, return exactly these sections: Updated Mermaid, Verification, Trace.\n'
-    + '   - In MCP/Code Mode `execute(code)`, return an object with `{ source }` after verification, or `{ error, warnings }`; do not return prose from inside code.\n'
+    + '   - In self-hosted MCP/Code Mode `execute(code)`, return an object with `{ source }` after verification, or `{ error, warnings }`; do not return prose from inside code.\n'
     + '7. In Updated Mermaid, include only the final Mermaid source in a ```mermaid fence. Do not return SVG, PNG, ASCII, or Unicode unless requested.\n'
     + '8. In Trace, name the local channel and exact calls/ops used: `parseMermaid`, the `as*` helper, `mutate({ kind: ... })`, `verifyMermaid`, and `serializeMermaid`; for new diagrams say `no mutate`.\n\n'
     + 'Do not modify project files unless the user explicitly asked you to change files.';
@@ -3252,6 +3289,13 @@ function discardRestoredDraft() {
 
 if (draftDiscardBtn) draftDiscardBtn.addEventListener("click", discardRestoredDraft);
 
+function shouldOpenEmptyEditor() {
+  try {
+    var value = new URLSearchParams(window.location.search).get('empty');
+    return value === '1' || value === 'true';
+  } catch(e) { return false; }
+}
+
 // getHashSource decodes compressed share links asynchronously, so the initial
 // source pick runs in an async IIFE; nothing below in this file depends on it.
 (async function initializeEditorSource() {
@@ -3265,6 +3309,7 @@ if (draftDiscardBtn) draftDiscardBtn.addEventListener("click", discardRestoredDr
       : 'This share link could not be decoded (truncated or damaged). Showing your own content instead.');
   }
   var queryExampleId = getQueryExampleId();
+  var queryEmptyEditor = shouldOpenEmptyEditor();
   var loadedInitialExample = false;
   if (hashSource) {
     editor.value = hashSource;
@@ -3274,8 +3319,12 @@ if (draftDiscardBtn) draftDiscardBtn.addEventListener("click", discardRestoredDr
   } else if (queryExampleId && typeof loadEditorExample === 'function' && findEditorExample(queryExampleId)) {
     loadEditorExample(queryExampleId);
     loadedInitialExample = true;
+  } else if (queryEmptyEditor) {
+    editor.value = '';
+    state.config = {};
+    refreshAllColorUIs();
   } else {
-    // No shared source in the URL: restore the autosaved draft if one exists.
+    // No shared source or explicit blank-start request in the URL: restore the autosaved draft if one exists.
     var draft = typeof readEditorDraft === 'function' ? readEditorDraft() : null;
     if (draft) {
       editor.value = draft.source;

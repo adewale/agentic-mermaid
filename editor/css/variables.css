@@ -109,13 +109,12 @@
   --lh-code: 1.6;
   --lh-ui: 1.35;
 
-  /* Semantic status colors. Same hues as before, darkened one step so the
-   * verify-tier dots clear 3:1 against the light --bg2 (#F5F0E4):
-   * green 4.41:1, warn 4.42:1, red 4.25:1. Dusk restores the brighter pair
-   * below (the originals fail on Paper but pass on the dark chrome). */
-  --green: #15803D;
-  --warn: #B45309;
-  --red: #dc2626;
+  /* Semantic status colors. Darkened enough for text as well as dots on the
+   * light Paper chrome: green and warn both clear WCAG AA for small status text.
+   * Dusk restores brighter hues below where light-on-dark reads better. */
+  --green: #166534;
+  --warn: #92400E;
+  --red: #b91c1c;
 
   /* Preview canvas: a matte so the diagram artboard reads as the artifact,
      not a shape floating in the chrome. The diagram keeps its own Paper bg. */
@@ -176,6 +175,12 @@ body {
   opacity: 0.45;
   cursor: not-allowed;
   transform: none !important;
+}
+
+@media (max-width: 760px) {
+  :root {
+    --control-h: 44px;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {

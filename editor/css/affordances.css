@@ -70,7 +70,7 @@
   .export-item,
   .font-select-btn,
   .color-edit-btn,
-  .color-clear-btn { min-height: 40px; }
+  .color-clear-btn { min-height: 44px; }
   .toolbar-btn,
-  .export-chevron { min-width: 40px; }
+  .export-chevron { min-width: 44px; }
 }

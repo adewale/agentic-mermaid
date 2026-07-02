@@ -95,6 +95,7 @@ function appendFontItem(name, value) {
 var fontPopupController = createPopupController({
   popup: fontPopup,
   trigger: fontSelectBtn,
+  closePeersOnOpen: false,
   visibility: { focusSelector: '#font-search' },
   beforeOpen: function() {
     buildFontList('');

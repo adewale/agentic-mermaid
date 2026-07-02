@@ -120,13 +120,12 @@
   --lh-code: 1.6;
   --lh-ui: 1.35;
 
-  /* Semantic status colors. Same hues as before, darkened one step so the
-   * verify-tier dots clear 3:1 against the light --bg2 (#F5F0E4):
-   * green 4.41:1, warn 4.42:1, red 4.25:1. Dusk restores the brighter pair
-   * below (the originals fail on Paper but pass on the dark chrome). */
-  --green: #15803D;
-  --warn: #B45309;
-  --red: #dc2626;
+  /* Semantic status colors. Darkened enough for text as well as dots on the
+   * light Paper chrome: green and warn both clear WCAG AA for small status text.
+   * Dusk restores brighter hues below where light-on-dark reads better. */
+  --green: #166534;
+  --warn: #92400E;
+  --red: #b91c1c;
 
   /* Preview canvas: a matte so the diagram artboard reads as the artifact,
      not a shape floating in the chrome. The diagram keeps its own Paper bg. */
@@ -187,6 +186,12 @@ body {
   opacity: 0.45;
   cursor: not-allowed;
   transform: none !important;
+}
+
+@media (max-width: 760px) {
+  :root {
+    --control-h: 44px;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -627,7 +632,7 @@ body {
   }
   .view-switch .mode-option {
     flex: 1;
-    min-height: 40px;
+    min-height: var(--control-h);
   }
   .examples-toggle,
   .settings-toggle {
@@ -640,6 +645,8 @@ body {
      absorbs the extra 40px icon button. order matches its DOM neighbours. */
   #dark-light-btn {
     order: 1;
+    width: var(--control-h);
+    min-width: var(--control-h);
   }
   /* Touch devices have no keyboard shortcuts to look up. */
   #shortcuts-btn {
@@ -647,8 +654,8 @@ body {
   }
   #share-btn {
     order: 1;
-    width: 40px;
-    min-width: 40px;
+    width: var(--control-h);
+    min-width: var(--control-h);
     padding: 0;
     font-size: 0;
     gap: 0;
@@ -664,14 +671,18 @@ body {
     order: 1;
     margin-left: 0;
   }
+  #export-chevron-btn {
+    width: var(--control-h);
+    min-width: var(--control-h);
+  }
   .theme-dropdown-btn {
-    min-width: 40px;
-    width: 40px;
+    min-width: var(--control-h);
+    width: var(--control-h);
     padding: 0;
     justify-content: center;
   }
   /* The swatch is the whole control here (label + chevron are hidden), so
-     give it more presence inside the 40px button. */
+     give it more presence inside the touch-sized button. */
   .theme-dropdown-btn .theme-swatch {
     width: 16px;
     height: 16px;
@@ -688,7 +699,7 @@ body {
     display: none;
   }
   #export-main-btn {
-    width: 40px;
+    width: var(--control-h);
     padding: 0;
     font-size: 0;
     gap: 0;
@@ -1468,7 +1479,8 @@ body {
 .verify-tiers { margin-left: auto; display: flex; align-items: center; gap: 13px; flex-wrap: wrap; }
 .verify-tier { display: inline-flex; align-items: center; gap: 5px; color: var(--fg3); white-space: nowrap; }
 .verify-tier i { font-style: normal; color: var(--fg4); }
-.verify-tier.idle { opacity: 0.6; }
+.verify-tier.idle { color: var(--fg3); }
+.verify-tier.idle i { color: var(--fg3); }
 .verify-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--fg4); flex: none; }
 .verify-tier.ok .verify-dot { background: var(--green); }
 .verify-tier.warn .verify-dot { background: var(--warn); }
@@ -1552,6 +1564,45 @@ body {
 }
 
 @media (max-width: 760px) {
+  .preview-toolbar {
+    position: relative;
+    top: auto;
+    left: auto;
+    right: auto;
+    z-index: 2;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    padding: 8px;
+    border-bottom: 1px solid var(--border);
+    background: var(--bg2);
+    pointer-events: auto;
+  }
+  .preview-toolbar > * { pointer-events: auto; }
+  .preview-toolbar .format-switch {
+    flex: 1 1 100%;
+  }
+  .preview-toolbar .format-option {
+    flex: 1;
+    min-height: var(--control-h);
+  }
+  .toolbar-spacer { display: none; }
+  .zoom-controls {
+    flex: 1 1 auto;
+    min-width: 0;
+    justify-content: space-between;
+  }
+  .toolbar-btn {
+    width: var(--control-h);
+    height: var(--control-h);
+  }
+  .zoom-label {
+    min-width: var(--control-h);
+    min-height: var(--control-h);
+  }
+  .preview-body {
+    padding: 1rem;
+  }
   .verify-tiers { margin-left: 0; }
 }
 
@@ -1570,24 +1621,32 @@ body {
 }
 
 
-/* Diagram settings — opens as an overlay over the source workspace (the left
-   panel) so Source stays the home and the preview on the right stays visible. */
+/* Diagram settings — same anchored popover grammar as Examples. It is kept in
+   the left-panel partial because it owns diagram configuration controls, but
+   opens from the topbar as a fixed panel so Settings and Examples feel like the
+   same UI primitive. */
 .config-panel {
-  position: absolute;
-  inset: 0;
-  z-index: 6;
+  position: fixed;
+  top: var(--settings-top, 60px);
+  left: var(--settings-left, 16px);
+  z-index: 2000;
   display: none;
   flex-direction: column;
   gap: 0;
+  width: var(--settings-width, min(360px, calc(100vw - 24px)));
+  max-height: var(--settings-max-height, calc(100vh - 72px));
   overflow-y: auto;
-  background: var(--bg2);
+  background: var(--popover-bg);
+  border: 1px solid var(--control-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-popover);
 }
 .config-panel.visible { display: flex; }
 .config-head {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  height: 42px;
+  min-height: 48px;
   padding: 0 8px 0 12px;
   border-bottom: 1px solid var(--border);
   color: var(--fg2);
@@ -1597,7 +1656,7 @@ body {
   flex-shrink: 0;
   position: sticky;
   top: 0;
-  background: var(--bg2);
+  background: var(--popover-bg);
   z-index: 1;
 }
 .config-close {
@@ -2164,9 +2223,9 @@ body {
   .export-item,
   .font-select-btn,
   .color-edit-btn,
-  .color-clear-btn { min-height: 40px; }
+  .color-clear-btn { min-height: 44px; }
   .toolbar-btn,
-  .export-chevron { min-width: 40px; }
+  .export-chevron { min-width: 44px; }
 }
 
 
@@ -2352,7 +2411,7 @@ body {
 <!-- Top bar -->
 <header class="topbar" role="banner">
   <h1 class="sr-only">Agentic Mermaid Live Editor</h1>
-  <a href="/" class="app-brand" aria-label="Agentic Mermaid homepage">
+  <a href="/" class="app-brand" aria-label="Agentic Mermaid Editor home">
     <span class="app-mark" aria-hidden="true">
       <svg viewBox="0 0 48 48" focusable="false">
         <g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
@@ -2428,9 +2487,9 @@ body {
   </button>
 
   <div class="theme-dropdown-wrap" id="theme-dropdown-wrap">
-    <button class="theme-dropdown-btn" id="theme-dropdown-btn" type="button" aria-label="Diagram theme" aria-haspopup="listbox" aria-expanded="false" aria-controls="theme-dropdown-menu">
+    <button class="theme-dropdown-btn" id="theme-dropdown-btn" type="button" aria-haspopup="listbox" aria-expanded="false" aria-controls="theme-dropdown-menu">
       <span class="theme-swatch" id="theme-btn-swatch"></span>
-      <span id="theme-btn-label">Default</span>
+      <span class="sr-only">Diagram theme: </span><span id="theme-btn-label">Default</span>
       <svg
         viewBox="0 0 24 24"
         fill="none"
@@ -2498,7 +2557,7 @@ body {
     >
       <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
     </svg>
-    <span>Agent prompt</span>
+    <span>Copy agent prompt</span>
   </button>
 
   <div class="export-wrap" id="export-wrap">
@@ -2758,7 +2817,7 @@ body {
   </div>
 
   <!-- Config view -->
-  <div class="config-panel" id="config-view" role="region" aria-label="Diagram settings" hidden aria-hidden="true">
+  <div class="config-panel" id="config-view" role="dialog" aria-modal="false" aria-label="Diagram settings" hidden aria-hidden="true" inert>
     <div class="config-head">
       <span>Diagram settings</span>
       <button class="config-close" id="settings-close-btn" type="button" aria-label="Close settings">
@@ -3010,7 +3069,7 @@ body {
         </svg>
       </button>
     </div>
-    <button class="toolbar-btn" id="copy-text-output-btn" type="button" title="Copy Mermaid source" aria-label="Copy Mermaid source">
+    <button class="toolbar-btn" id="copy-text-output-btn" type="button" title="Copy SVG markup" aria-label="Copy SVG markup">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
         <rect x="9" y="9" width="13" height="13" rx="2" />
         <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
@@ -3058,6 +3117,6 @@ body {
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
 <!-- Bundled renderer -->
-<script type="module" src="/editor/editor-bdd5f7037c21.js"></script>
+<script type="module" src="/editor/editor-c3426f58c5ea.js"></script>
 </body>
 </html>
