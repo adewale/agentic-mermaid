@@ -30,15 +30,21 @@ export interface AestheticStyle {
   style?: DiagramStyleOptions
 
   // Rough/hybrid backend parameters (ignored by 'default').
+  /** Stroke rendering: 'jittered' rough.js strokes (default) or 'freehand'
+   *  pressure-ribbon strokes (hybrid backend only). */
+  stroke?: 'jittered' | 'freehand'
   roughness?: number
   bowing?: number
   /** 1 = single stroke (disableMultiStroke), 2 = sketchy double stroke. */
   passes?: number
   strokeWidth?: number
-  fill?: 'none' | 'hachure' | 'solid'
+  fill?: 'none' | 'hachure' | 'solid' | 'wash'
   hachureAngle?: number
   hachureGap?: number
   fillWeight?: number
+  /** Wash fill glaze opacity / edge-darkening opacity (fill: 'wash'). */
+  washOpacity?: number
+  washEdge?: number
   /** Flat page furniture drawn right after the document prelude. */
   backdrop?: 'plain' | 'paper-ruled' | 'grid'
   /** §3.8 monochrome contract: tone via shading/weight, never extra hues. */
@@ -119,6 +125,63 @@ registerAesthetic({
   strokeWidth: 1.5,
   fill: 'none',
   backdrop: 'plain',
+  mono: true,
+})
+
+registerAesthetic({
+  name: 'freehand',
+  label: 'Freehand',
+  blurb: 'Pressure-sensitive marker ribbons — variable-width filled strokes.',
+  backend: 'hybrid',
+  intent: 'draft',
+  density: 'bold',
+  colors: { bg: '#fbfaf7', fg: '#16161a', line: '#1d1d22', accent: '#1d1d22', border: '#1d1d22' },
+  font: 'Architects Daughter',
+  stroke: 'freehand',
+  roughness: 0.9,
+  passes: 1,
+  strokeWidth: 1.6,
+  fill: 'none',
+  backdrop: 'plain',
+  mono: true,
+})
+
+registerAesthetic({
+  name: 'watercolor',
+  label: 'Watercolor',
+  blurb: 'Rough outlines over translucent glazes with pigment-pooled edges.',
+  backend: 'hybrid',
+  intent: 'premium',
+  density: 'normal',
+  colors: { bg: '#fdfbf6', fg: '#31302c', line: '#4d4a44', accent: '#7a6a52', surface: '#ead9b9', border: '#5a564e' },
+  font: 'Caveat',
+  stroke: 'jittered',
+  roughness: 0.9,
+  bowing: 0.8,
+  passes: 1,
+  strokeWidth: 1.5,
+  fill: 'wash',
+  washOpacity: 0.3,
+  washEdge: 0.34,
+  backdrop: 'plain',
+  mono: false,
+})
+
+registerAesthetic({
+  name: 'blueprint',
+  label: 'Blueprint',
+  blurb: 'Cyanotype: white linework on Prussian blue with a drafting grid.',
+  backend: 'rough',
+  intent: 'premium',
+  density: 'bold',
+  colors: { bg: '#123a63', fg: '#eaf2fb', line: '#dbe9f7', accent: '#ffffff', muted: '#b8cfe6', surface: '#1c4a78', border: '#dbe9f7' },
+  font: 'Share Tech Mono',
+  roughness: 0.4,
+  bowing: 0.4,
+  passes: 1,
+  strokeWidth: 1.4,
+  fill: 'none',
+  backdrop: 'grid',
   mono: true,
 })
 

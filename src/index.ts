@@ -52,6 +52,7 @@ import { getAesthetic, knownAesthetics } from './scene/style-registry.ts'
 import type { AestheticStyle } from './scene/style-registry.ts'
 import { getBackend } from './scene/backend.ts'
 import './scene/rough-backend.ts'
+import './scene/hybrid-backend.ts'
 
 export { registerAesthetic, getAesthetic, knownAesthetics } from './scene/style-registry.ts'
 export type { AestheticStyle } from './scene/style-registry.ts'

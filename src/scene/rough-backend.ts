@@ -51,12 +51,12 @@ const HALO_TEXT_ROLES = new Set([
   'label', 'member', 'attribute', 'cardinality', 'legend', 'axis', 'section', 'group-header',
 ])
 
-interface RoughParams {
+export interface RoughParams {
   roughness: number
   bowing: number
   passes: number
   strokeWidth: number
-  fill: 'none' | 'hachure' | 'solid'
+  fill: 'none' | 'hachure' | 'solid' | 'wash'
   hachureAngle: number
   hachureGap: number
   fillWeight: number
@@ -110,6 +110,12 @@ function roundedRectPath(x: number, y: number, w: number, h: number, r: number):
   return `M ${x + rr} ${y} L ${x + w - rr} ${y} Q ${x + w} ${y} ${x + w} ${y + rr} L ${x + w} ${y + h - rr} Q ${x + w} ${y + h} ${x + w - rr} ${y + h} L ${x + rr} ${y + h} Q ${x} ${y + h} ${x} ${y + h - rr} L ${x} ${y + rr} Q ${x} ${y} ${x + rr} ${y} Z`
 }
 
+/** Draw one geometry with rough.js. `fill` undefined means outline-only.
+ *  Exported for HybridBackend's fallback path. */
+export function sketchGeometryRough(geom: Geometry, seed: number, stroke: string, strokeWidth: number, fill: string | undefined, p: RoughParams, dash?: string): string {
+  return sketchGeometry(geom, seed, stroke, strokeWidth, fill, p, dash)
+}
+
 /** Draw one geometry with rough.js. `fill` undefined means outline-only. */
 function sketchGeometry(geom: Geometry, seed: number, stroke: string, strokeWidth: number, fill: string | undefined, p: RoughParams, dash?: string): string {
   const extra = dash ? ` stroke-dasharray="${dash}"` : ''
@@ -149,6 +155,7 @@ function injectAttrs(element: string, tag: string, attrs: string): string {
 }
 
 function sketchShape(node: ShapeMark, ctx: StyleBackendContext, p: RoughParams): string {
+  const ctxStyle = ctx.style
   const els = topLevelElements(node.crisp)
   const geoms: Geometry[] = node.geometry.kind === 'compound' ? node.geometry.children : [node.geometry]
   if (els.length < geoms.length) return node.crisp // crisp/semantic mismatch → stay safe
@@ -176,7 +183,7 @@ function sketchShape(node: ShapeMark, ctx: StyleBackendContext, p: RoughParams):
     const strokeWidth = p.strokeWidth * (Number(el.attrs.get('stroke-width')) || 1) / (Number(el.attrs.get('stroke-width')) ? 1 : 1)
     const width = p.strokeWidth * (Number(el.attrs.get('stroke-width')) || 1)
     void strokeWidth
-    const sketched = sketchGeometry(geoms[i]!, seed, elStroke!, Math.max(0.6, Math.min(width, p.strokeWidth * 4)), wantFill, p, el.attrs.get('stroke-dasharray'))
+    const sketched = sketchGeometryVia(activeSketcher, ctxStyle, geoms[i]!, seed, elStroke!, Math.max(0.6, Math.min(width, p.strokeWidth * 4)), wantFill, p, el.attrs.get('stroke-dasharray'))
     if (!sketched) { out.push(crispElementOf(node.crisp, i)); continue }
     // Value-colored solid fills stay: when the style suppresses sketch fills
     // but the element carries a non-default fill, under-paint it crisply so
@@ -215,11 +222,16 @@ function sketchConnector(node: ConnectorMark, ctx: StyleBackendContext, p: Rough
   let sketched = ''
   const geom = node.geometry
   if (geom.kind === 'polyline') {
-    sketched = sketchGeometry({ kind: 'polyline', points: geom.points }, seed, stroke, width, undefined, p, dash)
+    sketched = sketchGeometryVia(activeSketcher, ctx.style, { kind: 'polyline', points: geom.points }, seed, stroke, width, undefined, p, dash)
   } else if (geom.kind === 'line') {
-    sketched = sketchGeometry(geom, seed, stroke, width, undefined, p, dash)
+    sketched = sketchGeometryVia(activeSketcher, ctx.style, geom, seed, stroke, width, undefined, p, dash)
+  } else if (geom.points && geom.points.length > 1) {
+    // Curved-bend paths carry their source polyline; freehand-capable
+    // sketchers prefer the points, rough falls back to the path d.
+    sketched = sketchGeometryVia(activeSketcher, ctx.style, { kind: 'polyline', points: geom.points }, seed, stroke, width, undefined, p, dash)
+      || sketchGeometryVia(activeSketcher, ctx.style, { kind: 'path', d: geom.d }, seed, stroke, width, undefined, p, dash)
   } else {
-    sketched = sketchGeometry({ kind: 'path', d: geom.d }, seed, stroke, width, undefined, p, dash)
+    sketched = sketchGeometryVia(activeSketcher, ctx.style, { kind: 'path', d: geom.d }, seed, stroke, width, undefined, p, dash)
   }
   if (!sketched) return node.crisp
   // Keep the original element as an invisible carrier: markers, class/data-*
@@ -257,6 +269,24 @@ function backdropFor(style: AestheticStyle | undefined, doc: SceneDoc): string {
   return ''
 }
 
+/** A pluggable geometry renderer: return null to fall back to rough.js.
+ *  HybridBackend supplies perfect-freehand ribbons and watercolor washes;
+ *  RoughBackend uses pure rough.js. */
+export type GeometrySketcher = (
+  geom: Geometry,
+  opts: { seed: number; stroke: string; width: number; fill: string | undefined; p: RoughParams; style: AestheticStyle | undefined; dash: string | undefined },
+) => string | null
+
+let activeSketcher: GeometrySketcher | undefined
+
+function sketchGeometryVia(sketcher: GeometrySketcher | undefined, style: AestheticStyle | undefined, geom: Geometry, seed: number, stroke: string, width: number, fill: string | undefined, p: RoughParams, dash?: string): string {
+  if (sketcher) {
+    const out = sketcher(geom, { seed, stroke, width, fill, p, style, dash })
+    if (out !== null) return out
+  }
+  return sketchGeometry(geom, seed, stroke, width, fill, p, dash)
+}
+
 function drawNodeStyled(node: SceneNode, ctx: StyleBackendContext, p: RoughParams, doc: SceneDoc): string {
   switch (node.kind) {
     case 'prelude':
@@ -283,25 +313,39 @@ function drawNodeStyled(node: SceneNode, ctx: StyleBackendContext, p: RoughParam
   }
 }
 
-export const RoughBackend: StyleBackend = {
-  id: 'rough',
-  drawNode(node: SceneNode, ctx: StyleBackendContext): string {
-    const p = paramsOf(ctx.style)
-    return drawNodeStyled(node, ctx, p, { family: '', width: 0, height: 0, colors: { bg: '#fff', fg: '#000' }, parts: [] })
-  },
-  render(doc: SceneDoc, ctx: StyleBackendContext): string {
-    const p = paramsOf(ctx.style)
-    const out: string[] = []
-    for (let i = 0; i < doc.parts.length; i++) {
-      const part = doc.parts[i]!
-      out.push(drawNodeStyled(part, ctx, p, doc))
-      if (i === 0 && part.kind === 'prelude') {
-        const backdrop = backdropFor(ctx.style, doc)
-        if (backdrop) out.push(backdrop)
+export function createSketchBackend(id: string, sketcher?: GeometrySketcher): StyleBackend {
+  return {
+    id,
+    drawNode(node: SceneNode, ctx: StyleBackendContext): string {
+      const p = paramsOf(ctx.style)
+      activeSketcher = sketcher
+      try {
+        return drawNodeStyled(node, ctx, p, { family: '', width: 0, height: 0, colors: { bg: '#fff', fg: '#000' }, parts: [] })
+      } finally {
+        activeSketcher = undefined
       }
-    }
-    return out.join('\n')
-  },
+    },
+    render(doc: SceneDoc, ctx: StyleBackendContext): string {
+      const p = paramsOf(ctx.style)
+      activeSketcher = sketcher
+      try {
+        const out: string[] = []
+        for (let i = 0; i < doc.parts.length; i++) {
+          const part = doc.parts[i]!
+          out.push(drawNodeStyled(part, ctx, p, doc))
+          if (i === 0 && part.kind === 'prelude') {
+            const backdrop = backdropFor(ctx.style, doc)
+            if (backdrop) out.push(backdrop)
+          }
+        }
+        return out.join('\n')
+      } finally {
+        activeSketcher = undefined
+      }
+    },
+  }
 }
+
+export const RoughBackend: StyleBackend = createSketchBackend('rough')
 
 registerBackend(RoughBackend)

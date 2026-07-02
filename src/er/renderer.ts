@@ -6,11 +6,20 @@ import type { RenderStyleDefaults, ResolvedRenderStyle } from '../styles.ts'
 import { renderMultilineText, escapeXml as escapeXmlUtil } from '../multiline-utils.ts'
 import { measureMultilineText } from '../text-metrics.ts'
 import { topRoundedRectPath } from '../svg-paths.ts'
+import type { Geometry, SceneDoc, SceneNode } from '../scene/ir.ts'
+import * as marks from '../scene/marks.ts'
+import { DefaultBackend } from '../scene/backend.ts'
 
 // ============================================================================
 // ER diagram SVG renderer
 //
-// Renders positioned ER diagrams to SVG.
+// The positioned diagram is first lowered to a SceneGraph (SPEC §3.1): every
+// visual mark becomes a scene node carrying semantic fields (role, geometry,
+// paint, channels, stable id) plus its exact crisp serialization, built here
+// from the same inputs. renderErSvg() is DefaultBackend serialization of that
+// scene, so the default path stays byte-identical to the historical string
+// renderer (corpus-gated by svg-equivalence.test.ts).
+//
 // All colors use CSS custom properties (var(--_xxx)) from the theme system.
 //
 // Render order:
@@ -47,6 +56,12 @@ const ER_FONT = {
   keyWeight: 600,
 } as const
 
+/** A shape emission: semantic geometry + the exact crisp serialization. */
+interface ShapePiece {
+  geometry: Geometry
+  crisp: string
+}
+
 /**
  * Render a positioned ER diagram as an SVG string.
  *
@@ -56,10 +71,20 @@ const ER_FONT = {
 export function renderErSvg(
   ctx: RenderContext<PositionedErDiagram>,
 ): string {
+  return DefaultBackend.render(lowerErScene(ctx), { seed: 0 })
+}
+
+/**
+ * Lower a positioned ER diagram to the SceneGraph IR. Mark order matches the
+ * historical parts[] order exactly; DefaultBackend joins crisps with '\n'.
+ */
+export function lowerErScene(
+  ctx: RenderContext<PositionedErDiagram>,
+): SceneDoc {
   const { positioned: diagram, colors, options } = ctx
   const font = colors.font ?? 'Inter'
   const transparent = options.transparent ?? false
-  const parts: string[] = []
+  const parts: SceneNode[] = []
   const style = resolveRenderStyle(options, ER_STYLE_DEFAULTS)
   const uid = `er-${hashAccessibility(diagram.width, diagram.height, diagram.entities.length, diagram.relationships.length)}`
   const titleId = `${uid}-title`
@@ -67,23 +92,42 @@ export function renderErSvg(
   const rootAttrs = buildAccessibilityAttrs(diagram.accessibilityTitle, diagram.accessibilityDescription, titleId, descId)
 
   // SVG root with CSS variables + style block (with mono font) + defs
-  parts.push(svgOpenTag(diagram.width, diagram.height, colors, transparent, rootAttrs))
-  parts.push(buildStyleBlock(font, true, colors.shadow, colors.embedFontImport))
-  parts.push('<defs>')
+  parts.push(marks.prelude(
+    {
+      id: 'prelude',
+      width: diagram.width,
+      height: diagram.height,
+      colors,
+      transparent,
+      font,
+      hasMonoFont: true,
+    },
+    svgOpenTag(diagram.width, diagram.height, colors, transparent, rootAttrs) + '\n' +
+    buildStyleBlock(font, true, colors.shadow, colors.embedFontImport),
+  ))
+  const defsParts: string[] = []
+  defsParts.push('<defs>')
   const shadowDefs = buildShadowDefs(colors)
-  if (shadowDefs) parts.push(shadowDefs)
-  parts.push('</defs>')
+  if (shadowDefs) defsParts.push(shadowDefs)
+  defsParts.push('</defs>')
+  parts.push(marks.raw({ id: 'defs', role: 'defs' }, defsParts.join('\n')))
 
   if (diagram.accessibilityTitle) {
-    parts.push(`<title id="${titleId}">${escapeXml(diagram.accessibilityTitle)}</title>`)
+    parts.push(marks.raw({ id: 'acc-title', role: 'chrome' },
+      `<title id="${titleId}">${escapeXml(diagram.accessibilityTitle)}</title>`))
   }
   if (diagram.accessibilityDescription) {
-    parts.push(`<desc id="${descId}">${escapeXml(diagram.accessibilityDescription)}</desc>`)
+    parts.push(marks.raw({ id: 'acc-desc', role: 'chrome' },
+      `<desc id="${descId}">${escapeXml(diagram.accessibilityDescription)}</desc>`))
   }
 
   // 1. Relationship lines
+  const lineOccurrence = new Map<string, number>()
   for (const rel of diagram.relationships) {
-    parts.push(renderRelationshipLine(rel, style))
+    const pairKey = `${rel.entity1}-${rel.entity2}`
+    const k = lineOccurrence.get(pairKey) ?? 0
+    lineOccurrence.set(pairKey, k + 1)
+    parts.push(renderRelationshipLine(rel, style, `rel:${pairKey}#${k}`))
   }
 
   // 2. Entity boxes
@@ -92,8 +136,12 @@ export function renderErSvg(
   }
 
   // 3. Cardinality markers at relationship endpoints
+  const cardOccurrence = new Map<string, number>()
   for (const rel of diagram.relationships) {
-    parts.push(renderCardinality(rel, style))
+    const pairKey = `${rel.entity1}-${rel.entity2}`
+    const k = cardOccurrence.get(pairKey) ?? 0
+    cardOccurrence.set(pairKey, k + 1)
+    parts.push(...renderCardinality(rel, style, `card:${pairKey}#${k}`))
   }
 
   // 4. Relationship labels — positions are collision-separated first: two
@@ -101,12 +149,17 @@ export function renderErSvg(
   // route midpoint otherwise (2026-07 overlap audit: 15% of fuzzed ER
   // diagrams print relationship labels on top of each other).
   const labelPos = separateRelationshipLabels(diagram, style)
+  const labelOccurrence = new Map<string, number>()
   for (const rel of diagram.relationships) {
-    parts.push(renderRelationshipLabel(rel, style, labelPos.get(rel)))
+    const pairKey = `${rel.entity1}-${rel.entity2}`
+    const k = labelOccurrence.get(pairKey) ?? 0
+    labelOccurrence.set(pairKey, k + 1)
+    parts.push(...renderRelationshipLabel(rel, style, `rel-label:${pairKey}#${k}`, labelPos.get(rel)))
   }
 
-  parts.push('</svg>')
-  return parts.join('\n')
+  parts.push(marks.raw({ id: 'svg-close', role: 'chrome' }, '</svg>'))
+
+  return { family: 'er', width: diagram.width, height: diagram.height, colors, parts }
 }
 
 // ============================================================================
@@ -117,62 +170,116 @@ export function renderErSvg(
  * Render an entity box with header and attribute rows.
  * Wrapped in <g class="entity"> with semantic data attributes.
  */
-function renderEntityBox(entity: PositionedErEntity, style: ResolvedRenderStyle): string {
+function renderEntityBox(entity: PositionedErEntity, style: ResolvedRenderStyle): SceneNode {
   const { id, x, y, width, height, headerHeight, rowHeight, label, attributes } = entity
-  const parts: string[] = []
+  const children: Array<{ node: SceneNode; indent: number }> = []
 
   // Semantic wrapper with entity metadata
-  parts.push(
-    `<g class="entity" data-id="${escapeAttr(id)}" data-label="${escapeAttr(label)}">`
-  )
+  const open = `<g class="entity" data-id="${escapeAttr(id)}" data-label="${escapeAttr(label)}">`
 
   // Outer rectangle
-  parts.push(
-    `  <rect x="${x}" y="${y}" width="${width}" height="${height}" ` +
-    `rx="${style.cornerRadius ?? 0}" ry="${style.cornerRadius ?? 0}" fill="${escapeAttr(style.nodeFillColor ?? 'var(--_node-fill)')}" stroke="${escapeAttr(style.nodeBorderColor ?? 'var(--_node-stroke)')}" stroke-width="${style.nodeLineWidth}" />`
-  )
+  const rectFill = style.nodeFillColor ?? 'var(--_node-fill)'
+  const rectStroke = style.nodeBorderColor ?? 'var(--_node-stroke)'
+  children.push({
+    indent: 2,
+    node: marks.shape({
+      id: `entity-rect:${id}`,
+      role: 'entity',
+      geometry: { kind: 'rect', x, y, width, height, rx: style.cornerRadius ?? 0, ry: style.cornerRadius ?? 0 },
+      paint: { fill: rectFill, stroke: rectStroke, strokeWidth: String(style.nodeLineWidth) },
+    },
+      `<rect x="${x}" y="${y}" width="${width}" height="${height}" ` +
+      `rx="${style.cornerRadius ?? 0}" ry="${style.cornerRadius ?? 0}" fill="${escapeAttr(rectFill)}" stroke="${escapeAttr(rectStroke)}" stroke-width="${style.nodeLineWidth}" />`),
+  })
 
   // Header background
-  parts.push(
-    `  <path d="${topRoundedRectPath(x, y, width, headerHeight, style.cornerRadius ?? 0)}" ` +
-    `fill="${escapeAttr(style.groupHeaderFillColor ?? 'var(--_group-hdr)')}" stroke="${escapeAttr(style.nodeBorderColor ?? 'var(--_node-stroke)')}" stroke-width="${style.nodeLineWidth}" />`
-  )
+  const headerFill = style.groupHeaderFillColor ?? 'var(--_group-hdr)'
+  const headerPath = topRoundedRectPath(x, y, width, headerHeight, style.cornerRadius ?? 0)
+  children.push({
+    indent: 2,
+    node: marks.shape({
+      id: `entity-header:${id}`,
+      role: 'group-header',
+      geometry: { kind: 'path', d: headerPath },
+      paint: { fill: headerFill, stroke: rectStroke, strokeWidth: String(style.nodeLineWidth) },
+    },
+      `<path d="${headerPath}" ` +
+      `fill="${escapeAttr(headerFill)}" stroke="${escapeAttr(rectStroke)}" stroke-width="${style.nodeLineWidth}" />`),
+  })
 
   // Entity name (supports multi-line via <br> tags)
-  parts.push(
-    '  ' + renderMultilineText(
+  const nameColor = style.nodeTextColor ?? 'var(--_text)'
+  children.push({
+    indent: 2,
+    node: marks.text({
+      id: `entity-name:${id}`,
+      role: 'label',
+      text: label,
+      x: x + width / 2,
+      y: y + headerHeight / 2,
+      fontSize: style.nodeLabelFontSize,
+      anchor: 'middle',
+      paint: { fill: nameColor },
+    }, renderMultilineText(
       label,
       x + width / 2,
       y + headerHeight / 2,
       style.nodeLabelFontSize,
-      `text-anchor="middle" font-size="${style.nodeLabelFontSize}" font-weight="${style.nodeLabelFontWeight}"${letterAttr(style.nodeLetterSpacing)} fill="${escapeAttr(style.nodeTextColor ?? 'var(--_text)')}"`
-    )
-  )
+      `text-anchor="middle" font-size="${style.nodeLabelFontSize}" font-weight="${style.nodeLabelFontWeight}"${letterAttr(style.nodeLetterSpacing)} fill="${escapeAttr(nameColor)}"`
+    )),
+  })
 
   // Divider
   const attrTop = y + headerHeight
-  parts.push(
-    `  <line x1="${x}" y1="${attrTop}" x2="${x + width}" y2="${attrTop}" ` +
-    `stroke="${escapeAttr(style.nodeBorderColor ?? 'var(--_node-stroke)')}" stroke-width="${Math.min(style.nodeLineWidth, STROKE_WIDTHS.innerBox)}" />`
-  )
+  const dividerWidth = Math.min(style.nodeLineWidth, STROKE_WIDTHS.innerBox)
+  children.push({
+    indent: 2,
+    node: marks.shape({
+      id: `entity-divider:${id}`,
+      role: 'chrome',
+      geometry: { kind: 'line', x1: x, y1: attrTop, x2: x + width, y2: attrTop },
+      paint: { stroke: rectStroke, strokeWidth: String(dividerWidth) },
+    },
+      `<line x1="${x}" y1="${attrTop}" x2="${x + width}" y2="${attrTop}" ` +
+      `stroke="${escapeAttr(rectStroke)}" stroke-width="${dividerWidth}" />`),
+  })
 
   // Attribute rows
   for (let i = 0; i < attributes.length; i++) {
     const attr = attributes[i]!
     const rowY = attrTop + i * rowHeight + rowHeight / 2
-    parts.push('  ' + renderAttribute(attr, x, rowY, width, style).replace(/\n/g, '\n  '))
+    for (const node of renderAttribute(attr, id, x, rowY, width, style)) {
+      children.push({ indent: 2, node })
+    }
   }
 
   // Empty row placeholder when no attributes
   if (attributes.length === 0) {
-    parts.push(
-      `  <text x="${x + width / 2}" y="${attrTop + rowHeight / 2}" text-anchor="middle" dy="${TEXT_BASELINE_SHIFT}" ` +
-      `font-size="${ER_FONT.attrSize}" fill="${escapeAttr(style.nodeTextColor ?? 'var(--_text-faint)')}" font-style="italic">(no attributes)</text>`
-    )
+    const emptyColor = style.nodeTextColor ?? 'var(--_text-faint)'
+    children.push({
+      indent: 2,
+      node: marks.text({
+        id: `entity-empty:${id}`,
+        role: 'attribute',
+        text: '(no attributes)',
+        x: x + width / 2,
+        y: attrTop + rowHeight / 2,
+        fontSize: ER_FONT.attrSize,
+        anchor: 'middle',
+        paint: { fill: emptyColor },
+      },
+        `<text x="${x + width / 2}" y="${attrTop + rowHeight / 2}" text-anchor="middle" dy="${TEXT_BASELINE_SHIFT}" ` +
+        `font-size="${ER_FONT.attrSize}" fill="${escapeAttr(emptyColor)}" font-style="italic">(no attributes)</text>`),
+    })
   }
 
-  parts.push('</g>')
-  return parts.join('\n')
+  return marks.group({
+    id: `entity:${id}`,
+    role: 'entity',
+    open,
+    close: '</g>',
+    children,
+  })
 }
 
 /**
@@ -182,55 +289,89 @@ function renderEntityBox(entity: PositionedErEntity, style: ResolvedRenderStyle)
  *
  * Key badge uses var(--_key-badge) for background tint.
  * Comments are shown as tooltips via SVG <title> element.
+ *
+ * Returns the row's scene nodes; when the attribute has a comment they are
+ * wrapped in a single <g><title>…</title> group mark for tooltip support.
  */
-function renderAttribute(attr: ErAttribute, boxX: number, y: number, boxWidth: number, style: ResolvedRenderStyle): string {
-  const parts: string[] = []
-
-  // Wrap in a group if there's a comment (for tooltip support)
-  const hasComment = attr.comment && attr.comment.length > 0
-  if (hasComment) {
-    // Replace <br> with newlines for tooltip display
-    const tooltipText = attr.comment!.replace(/<br\s*\/?>/gi, '\n')
-    parts.push(`<g><title>${escapeXml(tooltipText)}</title>`)
-  }
+function renderAttribute(attr: ErAttribute, entityId: string, boxX: number, y: number, boxWidth: number, style: ResolvedRenderStyle): SceneNode[] {
+  const rowNodes: SceneNode[] = []
+  const attrId = `attr:${entityId}:${attr.name}`
 
   // Key badges on the left (keep proportional font — they're visual tags, not code)
   let keyWidth = 0
   if (attr.keys.length > 0) {
     const keyText = attr.keys.join(',')
     keyWidth = estimateTextWidth(keyText, ER_FONT.keySize, ER_FONT.keyWeight) + 8
-    parts.push(
-      `<rect x="${boxX + Math.max(6, style.nodePaddingX / 2)}" y="${y - 7}" width="${keyWidth}" height="14" rx="2" ry="2" ` +
-      `fill="var(--_key-badge)" />`
-    )
-    parts.push(
-      `<text x="${boxX + Math.max(6, style.nodePaddingX / 2) + keyWidth / 2}" y="${y}" text-anchor="middle" dy="${TEXT_BASELINE_SHIFT}" ` +
-      `font-size="${ER_FONT.keySize}" font-weight="${ER_FONT.keyWeight}" fill="var(--_text-sec)">${attr.keys.join(',')}</text>`
-    )
+    const badgeX = boxX + Math.max(6, style.nodePaddingX / 2)
+    rowNodes.push(marks.shape({
+      id: `${attrId}:key-badge`,
+      role: 'chrome',
+      geometry: { kind: 'rect', x: badgeX, y: y - 7, width: keyWidth, height: 14, rx: 2, ry: 2 },
+      paint: { fill: 'var(--_key-badge)' },
+    },
+      `<rect x="${badgeX}" y="${y - 7}" width="${keyWidth}" height="14" rx="2" ry="2" ` +
+      `fill="var(--_key-badge)" />`))
+    rowNodes.push(marks.text({
+      id: `${attrId}:key-text`,
+      role: 'attribute',
+      text: keyText,
+      x: badgeX + keyWidth / 2,
+      y,
+      fontSize: ER_FONT.keySize,
+      anchor: 'middle',
+      paint: { fill: 'var(--_text-sec)' },
+    },
+      `<text x="${badgeX + keyWidth / 2}" y="${y}" text-anchor="middle" dy="${TEXT_BASELINE_SHIFT}" ` +
+      `font-size="${ER_FONT.keySize}" font-weight="${ER_FONT.keyWeight}" fill="var(--_text-sec)">${attr.keys.join(',')}</text>`))
   }
 
   // Type (left-aligned after keys, monospace with syntax highlighting)
   const typeX = boxX + Math.max(8, style.nodePaddingX / 2) + (keyWidth > 0 ? keyWidth + 6 : 0)
-  parts.push(
+  rowNodes.push(marks.text({
+    id: `${attrId}:type`,
+    role: 'attribute',
+    text: attr.type,
+    x: typeX,
+    y,
+    fontSize: ER_FONT.attrSize,
+    anchor: 'start',
+    paint: { fill: 'var(--_text-muted)' },
+  },
     `<text x="${typeX}" y="${y}" class="mono" dy="${TEXT_BASELINE_SHIFT}" ` +
     `font-size="${ER_FONT.attrSize}" font-weight="${ER_FONT.attrWeight}">` +
-    `<tspan fill="var(--_text-muted)">${escapeXml(attr.type)}</tspan></text>`
-  )
+    `<tspan fill="var(--_text-muted)">${escapeXml(attr.type)}</tspan></text>`))
 
   // Name (right-aligned, monospace with syntax highlighting)
   const nameX = boxX + boxWidth - Math.max(8, style.nodePaddingX / 2)
-  parts.push(
+  rowNodes.push(marks.text({
+    id: attrId,
+    role: 'attribute',
+    text: attr.name,
+    x: nameX,
+    y,
+    fontSize: ER_FONT.attrSize,
+    anchor: 'end',
+    paint: { fill: 'var(--_text-sec)' },
+  },
     `<text x="${nameX}" y="${y}" class="mono" text-anchor="end" dy="${TEXT_BASELINE_SHIFT}" ` +
     `font-size="${ER_FONT.attrSize}" font-weight="${ER_FONT.attrWeight}">` +
-    `<tspan fill="var(--_text-sec)">${escapeXml(attr.name)}</tspan></text>`
-  )
+    `<tspan fill="var(--_text-sec)">${escapeXml(attr.name)}</tspan></text>`))
 
-  // Close the group if we opened one
+  // Wrap in a group if there's a comment (for tooltip support)
+  const hasComment = attr.comment && attr.comment.length > 0
   if (hasComment) {
-    parts.push('</g>')
+    // Replace <br> with newlines for tooltip display
+    const tooltipText = attr.comment!.replace(/<br\s*\/?>/gi, '\n')
+    return [marks.group({
+      id: `${attrId}:row`,
+      role: 'attribute',
+      open: `<g><title>${escapeXml(tooltipText)}</title>`,
+      close: '</g>',
+      children: rowNodes.map(node => ({ node, indent: 0 })),
+    })]
   }
 
-  return parts.join('\n')
+  return rowNodes
 }
 
 // ============================================================================
@@ -240,8 +381,21 @@ function renderAttribute(attr: ErAttribute, boxX: number, y: number, boxWidth: n
 /**
  * Render a relationship line with semantic data attributes.
  */
-function renderRelationshipLine(rel: PositionedErRelationship, style: ResolvedRenderStyle): string {
-  if (rel.points.length < 2) return ''
+function renderRelationshipLine(rel: PositionedErRelationship, style: ResolvedRenderStyle, sceneId: string): SceneNode {
+  const lineStyle = rel.identifying ? 'solid' as const : 'dashed' as const
+  const channels = { category: rel.identifying ? 'identifying' : 'non-identifying' }
+
+  // Degenerate relationships draw nothing (empty crisp keeps the part slot).
+  if (rel.points.length < 2) {
+    return marks.connector({
+      id: sceneId,
+      role: 'relationship',
+      geometry: { kind: 'polyline', points: rel.points },
+      lineStyle: 'invisible',
+      paint: {},
+      channels,
+    }, '')
+  }
 
   const pathData = rel.points.map(p => `${p.x},${p.y}`).join(' ')
   const dashArray = !rel.identifying ? ' stroke-dasharray="6 4"' : ''
@@ -257,20 +411,39 @@ function renderRelationshipLine(rel: PositionedErRelationship, style: ResolvedRe
     `data-identifying="${rel.identifying}"`,
   ]
 
-  if (style.edgeBendRadius > 0 && rel.points.length > 2) {
-    return (
-      `<path ${dataAttrs.join(' ')}${labelAttr} d="${pointsToPathD(rel.points, style.edgeBendRadius)}" fill="none" stroke="${escapeAttr(style.edgeStrokeColor ?? 'var(--_line)')}" ` +
-      `stroke-width="${style.lineWidth}"${dashArray} />`
-    )
+  const strokeColor = style.edgeStrokeColor ?? 'var(--_line)'
+  const paint = {
+    stroke: strokeColor,
+    strokeWidth: String(style.lineWidth),
+    ...(!rel.identifying ? { strokeDasharray: '6 4' } : {}),
   }
 
-  return (
-    `<polyline ${dataAttrs.join(' ')}${labelAttr} points="${pathData}" fill="none" stroke="${escapeAttr(style.edgeStrokeColor ?? 'var(--_line)')}" ` +
-    `stroke-width="${style.lineWidth}"${dashArray} />`
-  )
+  if (style.edgeBendRadius > 0 && rel.points.length > 2) {
+    const d = pointsToPathD(rel.points, style.edgeBendRadius)
+    return marks.connector({
+      id: sceneId,
+      role: 'relationship',
+      geometry: { kind: 'path', d, points: rel.points },
+      lineStyle,
+      paint,
+      channels,
+    },
+      `<path ${dataAttrs.join(' ')}${labelAttr} d="${d}" fill="none" stroke="${escapeAttr(strokeColor)}" ` +
+      `stroke-width="${style.lineWidth}"${dashArray} />`)
+  }
+
+  return marks.connector({
+    id: sceneId,
+    role: 'relationship',
+    geometry: { kind: 'polyline', points: rel.points },
+    lineStyle,
+    paint,
+    channels,
+  },
+    `<polyline ${dataAttrs.join(' ')}${labelAttr} points="${pathData}" fill="none" stroke="${escapeAttr(strokeColor)}" ` +
+    `stroke-width="${style.lineWidth}"${dashArray} />`)
 }
 
-/** Render a relationship label at the midpoint (supports multi-line) */
 /**
  * Deterministic label separation: center-out arc positions along each
  * relationship's own polyline; the first whose pill clears every earlier pill
@@ -324,8 +497,13 @@ function separateRelationshipLabels(
   return out
 }
 
-function renderRelationshipLabel(rel: PositionedErRelationship, style: ResolvedRenderStyle, at?: { x: number; y: number }): string {
-  if (!rel.label || rel.points.length < 2) return ''
+/** Render a relationship label at the midpoint (supports multi-line).
+ *  Emits the background pill and the text as separate marks (in old part order). */
+function renderRelationshipLabel(rel: PositionedErRelationship, style: ResolvedRenderStyle, sceneId: string, at?: { x: number; y: number }): SceneNode[] {
+  if (!rel.label || rel.points.length < 2) {
+    // Old renderer pushed '' for label-less relationships — keep the empty slot.
+    return [marks.raw({ id: sceneId, role: 'label' }, '')]
+  }
 
   const mid = at ?? midpoint(rel.points)
   const metrics = measureMultilineText(rel.label, style.edgeLabelFontSize, style.edgeLabelFontWeight)
@@ -334,16 +512,34 @@ function renderRelationshipLabel(rel: PositionedErRelationship, style: ResolvedR
   const bgW = metrics.width + 8
   const bgH = metrics.height + 6
 
-  return (
+  const pill = marks.shape({
+    id: `${sceneId}:bg`,
+    role: 'chrome',
+    geometry: { kind: 'rect', x: mid.x - bgW / 2, y: mid.y - bgH / 2, width: bgW, height: bgH, rx: 2, ry: 2 },
+    paint: { fill: 'var(--bg)', stroke: 'var(--_inner-stroke)', strokeWidth: '0.5' },
+  },
     `<rect x="${mid.x - bgW / 2}" y="${mid.y - bgH / 2}" width="${bgW}" height="${bgH}" rx="2" ry="2" ` +
-    `fill="var(--bg)" stroke="var(--_inner-stroke)" stroke-width="0.5" />` +
-    `\n${renderMultilineText(rel.label, mid.x, mid.y, style.edgeLabelFontSize,
-      `text-anchor="middle" font-size="${style.edgeLabelFontSize}" font-weight="${style.edgeLabelFontWeight}"${letterAttr(style.edgeLetterSpacing)} fill="${escapeAttr(style.edgeTextColor ?? 'var(--_text-muted)')}"`)}`
-  )
+    `fill="var(--bg)" stroke="var(--_inner-stroke)" stroke-width="0.5" />`)
+
+  const labelColor = style.edgeTextColor ?? 'var(--_text-muted)'
+  const label = marks.text({
+    id: sceneId,
+    role: 'label',
+    text: rel.label,
+    x: mid.x,
+    y: mid.y,
+    fontSize: style.edgeLabelFontSize,
+    anchor: 'middle',
+    paint: { fill: labelColor },
+  }, renderMultilineText(rel.label, mid.x, mid.y, style.edgeLabelFontSize,
+    `text-anchor="middle" font-size="${style.edgeLabelFontSize}" font-weight="${style.edgeLabelFontWeight}"${letterAttr(style.edgeLetterSpacing)} fill="${escapeAttr(labelColor)}"`))
+
+  return [pill, label]
 }
 
 /**
  * Render crow's foot cardinality markers at both endpoints of a relationship.
+ * One shape mark per endpoint (compound geometry of the glyph's lines/circle).
  *
  * Crow's foot notation:
  *   'one':       ─║─   (single vertical line)
@@ -351,21 +547,50 @@ function renderRelationshipLabel(rel: PositionedErRelationship, style: ResolvedR
  *   'many':      ─╢─   (crow's foot + single line)
  *   'zero-many': ─o╣─  (circle + crow's foot)
  */
-function renderCardinality(rel: PositionedErRelationship, style: ResolvedRenderStyle): string {
-  if (rel.points.length < 2) return ''
-  const parts: string[] = []
+function renderCardinality(rel: PositionedErRelationship, style: ResolvedRenderStyle, sceneId: string): SceneNode[] {
+  if (rel.points.length < 2) {
+    // Old renderer pushed '' for degenerate relationships — keep the empty slot.
+    return [marks.shape({
+      id: sceneId,
+      role: 'cardinality',
+      geometry: { kind: 'compound', children: [] },
+      paint: {},
+    }, '')]
+  }
 
   // Entity1 side (first point, direction toward second point)
   const p1 = rel.points[0]!
   const p2 = rel.points[1]!
-  parts.push(renderCrowsFoot(p1, p2, rel.cardinality1, style))
 
   // Entity2 side (last point, direction toward second-to-last point)
   const pN = rel.points[rel.points.length - 1]!
   const pN1 = rel.points[rel.points.length - 2]!
-  parts.push(renderCrowsFoot(pN, pN1, rel.cardinality2, style))
 
-  return parts.join('\n')
+  return [
+    crowsFootMark(p1, p2, rel.cardinality1, style, `${sceneId}:1`),
+    crowsFootMark(pN, pN1, rel.cardinality2, style, `${sceneId}:2`),
+  ]
+}
+
+/** Build the shape mark for one crow's foot glyph from its pieces. */
+function crowsFootMark(
+  point: { x: number; y: number },
+  toward: { x: number; y: number },
+  cardinality: Cardinality,
+  style: ResolvedRenderStyle,
+  sceneId: string,
+): SceneNode {
+  const pieces = renderCrowsFoot(point, toward, cardinality, style)
+  return marks.shape({
+    id: sceneId,
+    role: 'cardinality',
+    geometry: { kind: 'compound', children: pieces.map(p => p.geometry) },
+    paint: {
+      stroke: style.edgeStrokeColor ?? 'var(--_line)',
+      strokeWidth: String(style.lineWidth + 0.25),
+    },
+    channels: { category: cardinality },
+  }, pieces.map(p => p.crisp).join('\n'))
 }
 
 /**
@@ -377,8 +602,8 @@ function renderCrowsFoot(
   toward: { x: number; y: number },
   cardinality: Cardinality,
   style: ResolvedRenderStyle,
-): string {
-  const parts: string[] = []
+): ShapePiece[] {
+  const pieces: ShapePiece[] = []
   const sw = style.lineWidth + 0.25
   const stroke = escapeAttr(style.edgeStrokeColor ?? 'var(--_line)')
 
@@ -386,7 +611,7 @@ function renderCrowsFoot(
   const dx = point.x - toward.x
   const dy = point.y - toward.y
   const len = Math.sqrt(dx * dx + dy * dy)
-  if (len === 0) return ''
+  if (len === 0) return []
   const ux = dx / len
   const uy = dy / len
 
@@ -408,19 +633,31 @@ function renderCrowsFoot(
   // Draw single vertical line (perpendicular to edge) at the tip
   if (hasOneLine) {
     const halfW = 6
-    parts.push(
-      `<line x1="${tipX + px * halfW}" y1="${tipY + py * halfW}" ` +
-      `x2="${tipX - px * halfW}" y2="${tipY - py * halfW}" ` +
-      `stroke="${stroke}" stroke-width="${sw}" />`
-    )
+    const x1 = tipX + px * halfW
+    const y1 = tipY + py * halfW
+    const x2 = tipX - px * halfW
+    const y2 = tipY - py * halfW
+    pieces.push({
+      geometry: { kind: 'line', x1, y1, x2, y2 },
+      crisp:
+        `<line x1="${x1}" y1="${y1}" ` +
+        `x2="${x2}" y2="${y2}" ` +
+        `stroke="${stroke}" stroke-width="${sw}" />`,
+    })
     // Second line slightly back for "exactly one" emphasis
     const line2X = tipX - ux * 4
     const line2Y = tipY - uy * 4
-    parts.push(
-      `<line x1="${line2X + px * halfW}" y1="${line2Y + py * halfW}" ` +
-      `x2="${line2X - px * halfW}" y2="${line2Y - py * halfW}" ` +
-      `stroke="${stroke}" stroke-width="${sw}" />`
-    )
+    const l2x1 = line2X + px * halfW
+    const l2y1 = line2Y + py * halfW
+    const l2x2 = line2X - px * halfW
+    const l2y2 = line2Y - py * halfW
+    pieces.push({
+      geometry: { kind: 'line', x1: l2x1, y1: l2y1, x2: l2x2, y2: l2y2 },
+      crisp:
+        `<line x1="${l2x1}" y1="${l2y1}" ` +
+        `x2="${l2x2}" y2="${l2y2}" ` +
+        `stroke="${stroke}" stroke-width="${sw}" />`,
+    })
   }
 
   // Crow's foot (three lines fanning out from tip)
@@ -430,24 +667,34 @@ function renderCrowsFoot(
     const cfTipX = tipX
     const cfTipY = tipY
     // Three lines from tip to back, fanning out
-    parts.push(
+    const topX1 = cfTipX + px * fanW
+    const topY1 = cfTipY + py * fanW
+    pieces.push({
       // Top fan line
-      `<line x1="${cfTipX + px * fanW}" y1="${cfTipY + py * fanW}" ` +
-      `x2="${backX}" y2="${backY}" ` +
-      `stroke="${stroke}" stroke-width="${sw}" />`
-    )
-    parts.push(
+      geometry: { kind: 'line', x1: topX1, y1: topY1, x2: backX, y2: backY },
+      crisp:
+        `<line x1="${topX1}" y1="${topY1}" ` +
+        `x2="${backX}" y2="${backY}" ` +
+        `stroke="${stroke}" stroke-width="${sw}" />`,
+    })
+    pieces.push({
       // Center line
-      `<line x1="${cfTipX}" y1="${cfTipY}" ` +
-      `x2="${backX}" y2="${backY}" ` +
-      `stroke="${stroke}" stroke-width="${sw}" />`
-    )
-    parts.push(
+      geometry: { kind: 'line', x1: cfTipX, y1: cfTipY, x2: backX, y2: backY },
+      crisp:
+        `<line x1="${cfTipX}" y1="${cfTipY}" ` +
+        `x2="${backX}" y2="${backY}" ` +
+        `stroke="${stroke}" stroke-width="${sw}" />`,
+    })
+    const botX1 = cfTipX - px * fanW
+    const botY1 = cfTipY - py * fanW
+    pieces.push({
       // Bottom fan line
-      `<line x1="${cfTipX - px * fanW}" y1="${cfTipY - py * fanW}" ` +
-      `x2="${backX}" y2="${backY}" ` +
-      `stroke="${stroke}" stroke-width="${sw}" />`
-    )
+      geometry: { kind: 'line', x1: botX1, y1: botY1, x2: backX, y2: backY },
+      crisp:
+        `<line x1="${botX1}" y1="${botY1}" ` +
+        `x2="${backX}" y2="${backY}" ` +
+        `stroke="${stroke}" stroke-width="${sw}" />`,
+    })
   }
 
   // Circle (for zero variants)
@@ -455,13 +702,15 @@ function renderCrowsFoot(
     const circleOffset = hasCrowsFoot ? 20 : 12
     const circleX = point.x - ux * circleOffset
     const circleY = point.y - uy * circleOffset
-    parts.push(
-      `<circle cx="${circleX}" cy="${circleY}" r="4" ` +
-      `fill="var(--bg)" stroke="${stroke}" stroke-width="${sw}" />`
-    )
+    pieces.push({
+      geometry: { kind: 'circle', cx: circleX, cy: circleY, r: 4 },
+      crisp:
+        `<circle cx="${circleX}" cy="${circleY}" r="4" ` +
+        `fill="var(--bg)" stroke="${stroke}" stroke-width="${sw}" />`,
+    })
   }
 
-  return parts.join('\n')
+  return pieces
 }
 
 function pointsToPathD(points: Array<{ x: number; y: number }>, radius: number): string {
