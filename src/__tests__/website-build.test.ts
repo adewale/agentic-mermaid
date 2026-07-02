@@ -423,6 +423,10 @@ describe('Workers Static Assets website contract', () => {
     expect(nodeOverlap).toContain('is a geometric warning:')
     expect(nodeOverlap).not.toContain('warning warning.')
     expect(read('warnings/EMPTY_DIAGRAM/index.html')).toContain('is a structural error:')
+    const unsupportedSyntax = read('warnings/UNSUPPORTED_SYNTAX/index.html')
+    expect(unsupportedSyntax).toContain('syntax: "empty_layout"')
+    expect(unsupportedSyntax).toContain('0×0 canvas with no nodes, edges, or groups')
+    expect(read('agent-instructions.md')).toContain('syntax: "empty_layout"')
     // Firing demos are build-time verified; DUPLICATE_EDGE reliably fires.
     const duplicateEdge = read('warnings/DUPLICATE_EDGE/index.html')
     expect(duplicateEdge).toContain('See it fire')

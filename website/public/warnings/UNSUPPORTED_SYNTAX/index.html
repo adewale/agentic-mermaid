@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="description" content="UNSUPPORTED_SYNTAX is a lint warning: the source uses a construct that is preserved verbatim but not modeled or rendered locally.">
+<meta name="description" content="UNSUPPORTED_SYNTAX is a lint warning: the source uses syntax or content the local structured model cannot faithfully express.">
 <title>UNSUPPORTED_SYNTAX – Agentic Mermaid</title>
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <link rel="icon" href="/favicon.ico" type="image/x-icon">
@@ -13,7 +13,7 @@
 <link rel="alternate" type="application/json" href="/capabilities.json">
 <link rel="alternate" type="text/markdown" href="/agent-instructions.md">
 <meta property="og:title" content="UNSUPPORTED_SYNTAX – Agentic Mermaid">
-<meta property="og:description" content="UNSUPPORTED_SYNTAX is a lint warning: the source uses a construct that is preserved verbatim but not modeled or rendered locally.">
+<meta property="og:description" content="UNSUPPORTED_SYNTAX is a lint warning: the source uses syntax or content the local structured model cannot faithfully express.">
 <meta property="og:type" content="website">
 <meta name="twitter:card" content="summary_large_image">
 </head>
@@ -23,10 +23,10 @@
 <main id="main" class="doc">
 <section class="page-header">
 <h1>UNSUPPORTED_SYNTAX</h1>
-<p class="lead">UNSUPPORTED_SYNTAX is a lint warning: the source uses a construct that is preserved verbatim but not modeled or rendered locally.</p>
+<p class="lead">UNSUPPORTED_SYNTAX is a lint warning: the source uses syntax or content the local structured model cannot faithfully express.</p>
 </section>
-<p><strong>What triggers it.</strong> Flowchart <code>click</code>/<code>href</code> directives, edge IDs and edge metadata, v11 <code>@{ shape: … }</code> node metadata, and markdown strings — each warning names the syntax and line.</p>
-<p><strong>How to fix it.</strong> Remove the directive if local rendering fidelity matters, or keep it knowing the local renderer ignores it; edits touching those lines need source-level editing rather than typed mutations.</p>
+<p><strong>What triggers it.</strong> Flowchart <code>click</code>/<code>href</code> directives, edge IDs and edge metadata, v11 <code>@{ shape: … }</code> node metadata, markdown strings, unclosed delimiters that would silently drop content, or <code>syntax: "empty_layout"</code> when content-bearing source lays out to a 0×0 canvas with no nodes, edges, or groups.</p>
+<p><strong>How to fix it.</strong> For preserved Mermaid syntax, remove the directive if local rendering fidelity matters, or keep it knowing the local renderer ignores it; edits touching those lines need source-level editing rather than typed mutations. For <code>empty_layout</code>, inspect the warning message and <code>verify.layout</code>, then repair the malformed or unsupported source before accepting the artifact.</p>
 <h2>See it fire</h2>
 <p>This minimal source triggers <code>UNSUPPORTED_SYNTAX</code> — checked at build time against the same engine the editor runs.</p>
 <pre><code>flowchart LR
