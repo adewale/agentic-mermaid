@@ -106,22 +106,33 @@ describeBrowser('website browser accessibility smoke', () => {
 
   test('public routes have named controls, valid ARIA references, and no mobile horizontal overflow', async () => {
     const page = await browser.newPage({ viewport: { width: 390, height: 900 } })
-    for (const route of ['/', '/examples/', '/about/', '/docs/getting-started/', '/docs/families/#gantt', '/docs/', '/skills/agentic-mermaid-diagram-workflow/']) {
+    for (const route of ['/', '/examples/', '/comparisons/', '/about/', '/docs/getting-started/', '/docs/families/#gantt', '/docs/', '/skills/agentic-mermaid-diagram-workflow/']) {
       await page.goto(baseUrl + route, { waitUntil: 'networkidle' })
       expect({ route, unnamed: await namedControls(page) }).toEqual({ route, unnamed: [] })
       expect({ route, broken: await brokenAriaControls(page) }).toEqual({ route, broken: [] })
       const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)
       expect({ route, overflow }).toEqual({ route, overflow: 0 })
+      if (route === '/comparisons/') {
+        expect(await page.locator('.comparison-mermaid[data-processed="true"]').count()).toBe(12)
+        expect(await page.locator('.comparison-panel').count()).toBe(30)
+        await page.locator('.comparison-focus').first().click()
+        expect(await page.locator('.comparison-dialog[open]').count()).toBe(1)
+        expect(await page.locator('.comparison-dialog .comparison-panel').count()).toBeGreaterThanOrEqual(2)
+        await page.locator('.comparison-dialog-close').click()
+        expect(await page.locator('.comparison-dialog[open]').count()).toBe(0)
+      }
       if (route === '/') {
-        // The Unicode diagram scrolls inside its own pre on narrow screens
-        // (overflow-x: auto) so the type stays at a readable floor instead of
-        // shrinking with the viewport; the page itself must still not scroll.
-        const unicode = await page.locator('.unicode-diagram').evaluate((el) => ({
-          overflowX: getComputedStyle(el).overflowX,
-          codeSize: Number.parseFloat(getComputedStyle(el.querySelector('code')!).fontSize),
-        }))
-        expect({ route, overflowX: unicode.overflowX }).toEqual({ route, overflowX: 'auto' })
-        expect(unicode.codeSize).toBeGreaterThanOrEqual(8.8)
+        const unicodeMetrics = await page.locator('.unicode-diagram').evaluate((el) => {
+          const code = el.querySelector('code') as HTMLElement
+          return {
+            overflowX: getComputedStyle(el).overflowX,
+            codeSize: Number.parseFloat(getComputedStyle(code).fontSize),
+            containedOverflow: el.scrollWidth - el.clientWidth,
+          }
+        })
+        expect({ route, overflowX: unicodeMetrics.overflowX }).toEqual({ route, overflowX: 'auto' })
+        expect(unicodeMetrics.codeSize).toBeGreaterThanOrEqual(12)
+        expect(unicodeMetrics.containedOverflow).toBeGreaterThanOrEqual(0)
       }
       expect(await page.locator('.theme-switch').count()).toBe(0)
     }
@@ -146,6 +157,7 @@ describeBrowser('website browser accessibility smoke', () => {
         codeLigatures: getComputedStyle(code).fontFeatureSettings,
         h1Tracking: Number.parseFloat(getComputedStyle(h1).letterSpacing),
         unicodeOverflow: unicode.scrollWidth - unicode.clientWidth,
+        unicodeOverflowX: getComputedStyle(unicode).overflowX,
         unicodeCodeSize: getComputedStyle(unicode.querySelector('code') as HTMLElement).fontSize,
       }
     })
@@ -156,8 +168,9 @@ describeBrowser('website browser accessibility smoke', () => {
     expect(metrics.leadWidth).toBeGreaterThanOrEqual(950)
     expect(metrics.codeWrap).toBe('break-word')
     expect(metrics.codeLigatures).toContain('"liga" 0')
-    expect(metrics.unicodeOverflow).toBe(0)
-    expect(Number.parseFloat(metrics.unicodeCodeSize)).toBeLessThan(11.5)
+    expect(metrics.unicodeOverflow).toBeGreaterThanOrEqual(0)
+    expect(metrics.unicodeOverflowX).toBe('auto')
+    expect(Number.parseFloat(metrics.unicodeCodeSize)).toBeGreaterThanOrEqual(12)
     expect(Math.abs(metrics.h1Tracking)).toBeLessThan(2)
     await page.close()
   })

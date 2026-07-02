@@ -757,7 +757,7 @@ in sync by `src/__tests__/layout-pass-docsync.test.ts` (regenerate with
 4. `alignForkRejoinPeerCenters` - center fork/rejoin hubs on their peer barycenter
 5. `alignPortLanes` - slide one endpoint node so a floating-straight edge becomes port-exact (Ruegg GD15)
 6. `centerPeerBarycenters` - center peer fan-in/fan-out trunks over peer barycenters (#57/#61)
-7. `honorLinkRankDistance` - shove target sub-DAG to honor variable-length link rank distance
+7. `honorLinkRankDistance` - shove target sub-DAG to honor variable-length link rank distance; push ahead anything the shove lands on and rebuild blocked reconnect routes through free channels (#81)
 8. `alignLabeledSourcePort` - slide a single-outgoing labelled source onto the lane the straightener will use so the exit stays mid-port (alignPortLanes excludes labelled edges)
 9. `bundleEdgePaths` - bundle fan-out/fan-in edges into shared trunks (when mergeEdges)
 10. `markCorankFanInBundles` - re-route + mark co-ranked mixed-label fan-in spokes bundle-owned (justified symmetric-convergence bend)
@@ -772,7 +772,8 @@ in sync by `src/__tests__/layout-pass-docsync.test.ts` (regenerate with
 19. `rerouteEdgesThroughNodes` - re-route an edge left running through a node by a node-mover (honorLinkRankDistance/alignPortLanes) around the obstacle (edge-only, freeze-safe)
 20. `repairLabelsOnSharedTrunks` - re-slot a labeled edge whose pill sits on a trunk shared with another edge (label-only, freeze-safe)
 21. `repairLabelsOffOwnRoute` - re-slot a labeled edge whose pill sits off its OWN route onto it — ELK offset placement on an already-straight edge (label-only, freeze-safe)
-22. `translateGeometryToNonNegativeOrigin` - shift whole graph to a non-negative origin (allowed after freeze)
+22. `separateEdgeLabelPills` - slide colliding edge-label pills along their own routes into clear slots — parallel/reciprocal lane labels stack at midpoints (label-only, freeze-safe)
+23. `translateGeometryToNonNegativeOrigin` - shift whole graph to a non-negative origin (allowed after freeze)
 
 <!-- LAYOUT-PIPELINE:end -->
 
@@ -788,7 +789,10 @@ in sync by `src/__tests__/layout-pass-docsync.test.ts` (regenerate with
   `directLaneClear` (node, label, channel, span blockers each),
   straightener safety (no straightening without proof; label capacity).
 - **Property tests (fast-check)**: random small DAG-ish flowcharts —
-  certificates exist for every edge; no primary-forward hitch survives when
+  certificates exist for every edge (a post-freeze repair that re-routes an
+  edge re-certifies it via `recertifyReroutedEdge`; gated deterministically by
+  `certificate-completeness.test.ts` — corpus, shrunk #83 repros, fixed-seed
+  duplicate-edge sweep); no primary-forward hitch survives when
   the prover says the lane is clear; straightened endpoints remain on shape
   boundaries; repeated runs byte-identical (determinism).
 - **Goldens**: ASCII goldens must not change (`goldens:ascii:check`); SVG

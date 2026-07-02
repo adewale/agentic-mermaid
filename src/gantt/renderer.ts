@@ -21,7 +21,7 @@ import type { GanttLayoutResult } from './types.ts'
 import type { RenderContext } from '../types.ts'
 import { svgOpenTag, buildStyleBlock } from '../theme.ts'
 import { escapeXml } from '../multiline-utils.ts'
-import { STROKE_WIDTHS, resolveRenderStyle } from '../styles.ts'
+import { estimateTextWidth, STROKE_WIDTHS, resolveRenderStyle } from '../styles.ts'
 import type { RenderStyleDefaults, ResolvedRenderStyle } from '../styles.ts'
 
 const GS = {
@@ -146,8 +146,41 @@ export function renderGanttSvg(
       parts.push(text(8, s.y + layout.barHeight / 2 + 4, s.label, 'gantt-section-label', style.groupHeaderFontSize, style.groupHeaderFontWeight, 'start', style.groupLetterSpacing))
     }
   }
-  for (const bar of layout.bars) {
-    parts.push(text(16, bar.y + bar.h / 2, bar.label, 'gantt-task-label', style.nodeLabelFontSize, style.nodeLabelFontWeight, 'start', style.nodeLetterSpacing))
+  // Compact mode packs several tasks into one lane, so the fixed left-column
+  // slot would print their labels on top of each other (2026-07 overlap
+  // audit). Place each compact label beside its own bar instead: left of the
+  // bar when the gap to the previous bar in the lane fits, else right of the
+  // bar when the gap to the next allows; the first bar of a lane keeps the
+  // left-column look because its left gap starts at the plot edge.
+  if (!layout.compact) {
+    for (const bar of layout.bars) {
+      parts.push(text(16, bar.y + bar.h / 2, bar.label, 'gantt-task-label', style.nodeLabelFontSize, style.nodeLabelFontWeight, 'start', style.nodeLetterSpacing))
+    }
+  } else {
+    const byRow = new Map<number, typeof layout.bars>()
+    for (const bar of layout.bars) {
+      const row = byRow.get(bar.y) ?? []
+      row.push(bar)
+      byRow.set(bar.y, row)
+    }
+    for (const row of byRow.values()) {
+      row.sort((a, b) => a.x - b.x)
+      row.forEach((bar, i) => {
+        const w = estimateTextWidth(bar.label, style.nodeLabelFontSize, style.nodeLabelFontWeight)
+        const cy = bar.y + bar.h / 2
+        const leftLimit = i > 0 ? row[i - 1]!.x + row[i - 1]!.w + 4 : 2
+        const rightLimit = i + 1 < row.length ? row[i + 1]!.x - 4 : layout.width - 2
+        if (bar.x - 6 - w >= leftLimit) {
+          parts.push(text(bar.x - 6, cy, bar.label, 'gantt-task-label', style.nodeLabelFontSize, style.nodeLabelFontWeight, 'end', style.nodeLetterSpacing))
+        } else if (bar.x + bar.w + 6 + w <= rightLimit) {
+          parts.push(text(bar.x + bar.w + 6, cy, bar.label, 'gantt-task-label', style.nodeLabelFontSize, style.nodeLabelFontWeight, 'start', style.nodeLetterSpacing))
+        } else {
+          // No clear slot beside the bar — keep the legacy column (surfaced by
+          // eval/overlap-audit rather than hidden).
+          parts.push(text(16, cy, bar.label, 'gantt-task-label', style.nodeLabelFontSize, style.nodeLabelFontWeight, 'start', style.nodeLetterSpacing))
+        }
+      })
+    }
   }
 
   // Bars + milestones (role: node).

@@ -1,0 +1,1659 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="One source per family, rendered three ways.">
+<title>Comparisons – Agentic Mermaid</title>
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="/favicon.ico" type="image/x-icon">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<link rel="stylesheet" href="/styles.css">
+<link rel="alternate" type="text/plain" href="/llms.txt">
+<link rel="alternate" type="application/json" href="/capabilities.json">
+<link rel="alternate" type="text/markdown" href="/agent-instructions.md">
+<meta property="og:title" content="Comparisons – Agentic Mermaid">
+<meta property="og:description" content="One source per family, rendered three ways.">
+<meta property="og:type" content="website">
+<meta name="twitter:card" content="summary_large_image">
+</head>
+<body>
+<a class="skip-link" href="#main">Skip to content</a>
+<header class="masthead"><div class="bar"><a class="brand" href="/"><span class="mark"></span> Agentic&nbsp;Mermaid</a><span class="links"><a href="/about/">About</a><a href="/examples/">Examples</a><a aria-current="page" href="/comparisons/">Comparisons</a><a href="/docs/">Docs</a><a class="link-editor" href="/editor/">Open editor</a></span></div><hr></header>
+<main id="main" class="doc">
+<section class="page-header">
+<h1>Comparisons</h1>
+<p class="lead">One source per family, rendered three ways.</p>
+</section>
+<div class="comparisons">
+<section class="comparison-case" id="flowchart" aria-labelledby="comparison-flowchart-title">
+  <header class="comparison-case-head">
+    <h2 id="comparison-flowchart-title">Flowchart</h2>
+    <button class="comparison-focus" type="button" data-comparison-focus aria-label="Open Flowchart comparison larger" title="Open larger comparison"><span aria-hidden="true">⤢</span></button>
+  </header>
+  <div class="comparison-grid">
+    <div class="comparison-panel"><h3>Mermaid</h3><div class="comparison-render"><pre class="mermaid comparison-mermaid" id="comparison-mermaid-flowchart">flowchart LR
+  Start([Start]) --&gt; Parse[Parse]
+  Parse --&gt; Decision{Valid?}
+  Decision --&gt;|yes| Cache[(Cache)]
+  Decision --&gt;|retry| Parse
+  Decision --&gt;|no| Error[Return error]
+  Cache --&gt; API[API]
+  API --&gt; DB[(Database)]
+  API --&gt; Queue[[Queue]]
+  Queue --&gt; Worker[Worker]
+  Worker --&gt; DB
+  DB --&gt; Done([Done])</pre></div></div>
+    <div class="comparison-panel"><h3>Beautiful Mermaid</h3><div class="comparison-render"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1028.6209999999999 297.0666666666667" width="1028.6209999999999" height="297.0666666666667" style="--bg:#FFFFFF;--fg:#27272A;--line:#8B9791;--accent:#1A7351;--muted:#5D6864;--surface:#F8FAF8;--border:#D3DDD7;background:var(--bg)" role="img" aria-labelledby="comparison-beautiful-flowchart-svg-title comparison-beautiful-flowchart-svg-desc"><title id="comparison-beautiful-flowchart-svg-title">Beautiful Mermaid Flowchart</title><desc id="comparison-beautiful-flowchart-svg-desc">Flowchart rendered by Beautiful Mermaid.</desc>
+<style>
+  text { font-family: 'Avenir Next', system-ui, sans-serif; }
+  svg {
+    /* Derived from --bg and --fg (overridable via --line, --accent, etc.) */
+    --_text:          var(--fg);
+    --_text-sec:      var(--muted, color-mix(in srgb, var(--fg) 60%, var(--bg)));
+    --_text-muted:    var(--muted, color-mix(in srgb, var(--fg) 40%, var(--bg)));
+    --_text-faint:    color-mix(in srgb, var(--fg) 25%, var(--bg));
+    --_line:          var(--line, color-mix(in srgb, var(--fg) 50%, var(--bg)));
+    --_arrow:         var(--accent, color-mix(in srgb, var(--fg) 85%, var(--bg)));
+    --_node-fill:     var(--surface, color-mix(in srgb, var(--fg) 3%, var(--bg)));
+    --_node-stroke:   var(--border, color-mix(in srgb, var(--fg) 20%, var(--bg)));
+    --_group-fill:    var(--bg);
+    --_group-hdr:     color-mix(in srgb, var(--fg) 5%, var(--bg));
+    --_inner-stroke:  color-mix(in srgb, var(--fg) 12%, var(--bg));
+    --_key-badge:     color-mix(in srgb, var(--fg) 10%, var(--bg));
+  }
+</style>
+<defs>
+  <marker id="comparison-beautiful-flowchart-arrowhead" markerWidth="8" markerHeight="5" refX="7" refY="2.5" orient="auto">
+    <polygon points="0 0, 8 2.5, 0 5" fill="var(--_arrow)" stroke="var(--_arrow)" stroke-width="0.75" stroke-linejoin="round" />
+  </marker>
+  <marker id="comparison-beautiful-flowchart-arrowhead-start" markerWidth="8" markerHeight="5" refX="1" refY="2.5" orient="auto-start-reverse">
+    <polygon points="8 0, 0 2.5, 8 5" fill="var(--_arrow)" stroke="var(--_arrow)" stroke-width="0.75" stroke-linejoin="round" />
+  </marker>
+</defs>
+<polyline class="edge" data-from="Start" data-to="Parse" data-style="solid" data-arrow-start="false" data-arrow-end="true" points="261.108,180.46666666666667 297.108,180.46666666666667 297.108,146.57500000000002 309.108,146.57500000000002" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#comparison-beautiful-flowchart-arrowhead)" />
+<polyline class="edge" data-from="Parse" data-to="Decision" data-style="solid" data-arrow-start="false" data-arrow-end="true" points="309.108,128.125 254.47,128.125 254.47,87.06666666666668 185.06,87.06666666666668 185.06,108.80416666666666 132.7,108.80416666666666" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#comparison-beautiful-flowchart-arrowhead)" />
+<polyline class="edge" data-from="Decision" data-to="Cache" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-label="yes" points="112.1,88.20416666666665 173.06,88.20416666666665 173.06,65.45000000000002 266.47,65.45000000000002" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#comparison-beautiful-flowchart-arrowhead)" />
+<polyline class="edge" data-from="Decision" data-to="Parse" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-label="retry" points="132.7,129.40416666666667 185.06,129.40416666666667 185.06,123.71666666666667 242.47,123.71666666666667 242.47,137.35000000000002 309.108,137.35000000000002" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#comparison-beautiful-flowchart-arrowhead)" />
+<polyline class="edge" data-from="Decision" data-to="Error" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-label="no" points="112.1,150.00416666666666 155.00000000000003,150.00416666666666 155.00000000000003,237.91666666666669 236.53000000000003,237.91666666666669" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#comparison-beautiful-flowchart-arrowhead)" />
+<polyline class="edge" data-from="Cache" data-to="API" data-style="solid" data-arrow-start="false" data-arrow-end="true" points="346.952,65.45000000000002 394.952,65.45000000000002" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#comparison-beautiful-flowchart-arrowhead)" />
+<polyline class="edge" data-from="API" data-to="DB" data-style="solid" data-arrow-start="false" data-arrow-end="true" points="457.65,65.45 481.65,65.45 481.65,66.61666666666666 769.2829999999999,66.61666666666666" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#comparison-beautiful-flowchart-arrowhead)" />
+<polyline class="edge" data-from="API" data-to="Queue" data-style="solid" data-arrow-start="false" data-arrow-end="true" points="457.65,65.45 481.65,65.45 481.65,81.34166666666668 505.65,81.34166666666668" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#comparison-beautiful-flowchart-arrowhead)" />
+<polyline class="edge" data-from="Queue" data-to="Worker" data-style="solid" data-arrow-start="false" data-arrow-end="true" points="586.132,81.34166666666668 634.132,81.34166666666668" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#comparison-beautiful-flowchart-arrowhead)" />
+<polyline class="edge" data-from="Worker" data-to="DB" data-style="solid" data-arrow-start="false" data-arrow-end="true" points="721.2829999999999,81.34166666666668 757.2829999999999,81.34166666666668 757.2829999999999,75.1 769.2829999999999,75.1" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#comparison-beautiful-flowchart-arrowhead)" />
+<polyline class="edge" data-from="DB" data-to="Done" data-style="solid" data-arrow-start="false" data-arrow-end="true" points="867.5489999999999,66.61666666666665 915.5489999999999,66.61666666666665" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#comparison-beautiful-flowchart-arrowhead)" />
+<g class="edge-label" data-from="Decision" data-to="Cache" data-label="yes">
+  <rect x="187" y="49.450000000000024" width="35.47" height="30.3" rx="2" ry="2" fill="var(--bg)" stroke="var(--_inner-stroke)" stroke-width="1" />
+  <text x="204.735" y="64.60000000000002" text-anchor="middle" font-size="11" font-weight="400" fill="var(--_text-sec)" dy="3.8499999999999996">yes</text>
+</g>
+<g class="edge-label" data-from="Decision" data-to="Parse" data-label="retry">
+  <rect x="193.06" y="107.71666666666667" width="41.41" height="30.3" rx="2" ry="2" fill="var(--bg)" stroke="var(--_inner-stroke)" stroke-width="1" />
+  <text x="213.765" y="122.86666666666667" text-anchor="middle" font-size="11" font-weight="400" fill="var(--_text-sec)" dy="3.8499999999999996">retry</text>
+</g>
+<g class="edge-label" data-from="Decision" data-to="Error" data-label="no">
+  <rect x="163.00000000000006" y="221.91666666666669" width="29.53" height="30.3" rx="2" ry="2" fill="var(--bg)" stroke="var(--_inner-stroke)" stroke-width="1" />
+  <text x="177.76500000000004" y="237.0666666666667" text-anchor="middle" font-size="11" font-weight="400" fill="var(--_text-sec)" dy="3.8499999999999996">no</text>
+</g>
+<g class="node" data-id="Start" data-label="Start" data-shape="stadium">
+  <rect x="191" y="162.01666666666665" width="70.108" height="36.900000000000006" rx="18.450000000000003" ry="18.450000000000003" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="226.054" y="180.46666666666664" text-anchor="middle" font-size="13" font-weight="500" fill="var(--_text)" dy="4.55">Start</text>
+</g>
+<g class="node" data-id="Parse" data-label="Parse" data-shape="rectangle">
+  <rect x="309.108" y="118.9" width="79" height="36.900000000000006" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="348.608" y="137.35000000000002" text-anchor="middle" font-size="13" font-weight="500" fill="var(--_text)" dy="4.55">Parse</text>
+</g>
+<g class="node" data-id="Decision" data-label="Valid?" data-shape="diamond">
+  <polygon points="91.5,67.60416666666666 143,119.10416666666666 91.5,170.60416666666666 40,119.10416666666666" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="91.5" y="119.10416666666666" text-anchor="middle" font-size="13" font-weight="500" fill="var(--_text)" dy="4.55">Valid?</text>
+</g>
+<g class="node" data-id="Cache" data-label="Cache" data-shape="cylinder">
+  <rect x="266.47" y="47" width="80.482" height="36.900000000000006" fill="var(--_node-fill)" stroke="none" />
+  <line x1="266.47" y1="47" x2="266.47" y2="83.9" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <line x1="346.952" y1="47" x2="346.952" y2="83.9" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <ellipse cx="306.711" cy="83.9" rx="40.241" ry="7" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <ellipse cx="306.711" cy="47" rx="40.241" ry="7" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="306.711" y="65.45" text-anchor="middle" font-size="13" font-weight="500" fill="var(--_text)" dy="4.55">Cache</text>
+</g>
+<g class="node" data-id="Error" data-label="Return error" data-shape="rectangle">
+  <rect x="236.53000000000003" y="219.46666666666667" width="116.791" height="36.900000000000006" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="294.92550000000006" y="237.91666666666669" text-anchor="middle" font-size="13" font-weight="500" fill="var(--_text)" dy="4.55">Return error</text>
+</g>
+<g class="node" data-id="API" data-label="API" data-shape="rectangle">
+  <rect x="394.952" y="47" width="62.69799999999999" height="36.900000000000006" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="426.301" y="65.45" text-anchor="middle" font-size="13" font-weight="500" fill="var(--_text)" dy="4.55">API</text>
+</g>
+<g class="node" data-id="DB" data-label="Database" data-shape="cylinder">
+  <rect x="769.2829999999999" y="48.16666666666666" width="98.26599999999999" height="36.900000000000006" fill="var(--_node-fill)" stroke="none" />
+  <line x1="769.2829999999999" y1="48.16666666666666" x2="769.2829999999999" y2="85.06666666666666" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <line x1="867.5489999999999" y1="48.16666666666666" x2="867.5489999999999" y2="85.06666666666666" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <ellipse cx="818.4159999999999" cy="85.06666666666666" rx="49.132999999999996" ry="7" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <ellipse cx="818.4159999999999" cy="48.16666666666666" rx="49.132999999999996" ry="7" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="818.4159999999999" y="66.61666666666666" text-anchor="middle" font-size="13" font-weight="500" fill="var(--_text)" dy="4.55">Database</text>
+</g>
+<g class="node" data-id="Queue" data-label="Queue" data-shape="subroutine">
+  <rect x="505.65" y="62.89166666666668" width="80.482" height="36.900000000000006" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <line x1="513.65" y1="62.89166666666668" x2="513.65" y2="99.79166666666669" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <line x1="578.132" y1="62.89166666666668" x2="578.132" y2="99.79166666666669" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="545.891" y="81.34166666666668" text-anchor="middle" font-size="13" font-weight="500" fill="var(--_text)" dy="4.55">Queue</text>
+</g>
+<g class="node" data-id="Worker" data-label="Worker" data-shape="rectangle">
+  <rect x="634.132" y="62.89166666666668" width="87.151" height="36.900000000000006" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="677.7075" y="81.34166666666668" text-anchor="middle" font-size="13" font-weight="500" fill="var(--_text)" dy="4.55">Worker</text>
+</g>
+<g class="node" data-id="Done" data-label="Done" data-shape="stadium">
+  <rect x="915.5489999999999" y="48.16666666666666" width="73.072" height="36.900000000000006" rx="18.450000000000003" ry="18.450000000000003" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="952.0849999999998" y="66.61666666666666" text-anchor="middle" font-size="13" font-weight="500" fill="var(--_text)" dy="4.55">Done</text>
+</g>
+</svg></div></div>
+    <div class="comparison-panel"><h3>Agentic Mermaid</h3><div class="comparison-render"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1273.729 234.925" width="1273.729" height="234.925" style="--bg:#FFFFFF;--fg:#27272A;--line:#8B9791;--accent:#1A7351;--muted:#5D6864;--surface:#F8FAF8;--border:#D3DDD7;--font:Avenir Next;background:#FFFFFF" role="img" aria-labelledby="comparison-agentic-flowchart-svg-title comparison-agentic-flowchart-svg-desc"><title id="comparison-agentic-flowchart-svg-title">Agentic Mermaid Flowchart</title><desc id="comparison-agentic-flowchart-svg-desc">Flowchart rendered by Agentic Mermaid.</desc><style>
+  text { font-family: var(--font, 'Avenir Next'), system-ui, sans-serif; }
+  svg {
+
+    --_text:          #27272A;
+    --_text-sec:      #5D6864;
+    --_text-muted:    #5D6864;
+    --_text-faint:    #8a8a8c;
+    --_line:          #8B9791;
+    --_arrow:         #1A7351;
+    --_node-fill:     #F8FAF8;
+    --_node-stroke:   #D3DDD7;
+    --_group-fill:    #FFFFFF;
+    --_group-hdr:     #f4f4f4;
+    --_inner-stroke:  #e5e5e5;
+    --_key-badge:     #e9e9ea;
+  }
+</style><defs><marker id="comparison-agentic-flowchart-comparison-agentic-flowchart-arrowhead" markerWidth="8" markerHeight="5" refX="7" refY="2.5" orient="auto"><polygon points="0 0, 8 2.5, 0 5" fill="#1A7351" stroke="#1A7351" stroke-width="0.75" stroke-linejoin="round" /></marker><marker id="comparison-agentic-flowchart-comparison-agentic-flowchart-arrowhead-start" markerWidth="8" markerHeight="5" refX="7" refY="2.5" orient="auto-start-reverse"><polygon points="0 0, 8 2.5, 0 5" fill="#1A7351" stroke="#1A7351" stroke-width="0.75" stroke-linejoin="round" /></marker></defs><polyline class="edge" data-from="Start" data-to="Parse" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" points="110.108,114.275 158.108,114.275" fill="none" stroke="#8B9791" stroke-width="1" marker-end="url(#comparison-agentic-flowchart-comparison-agentic-flowchart-arrowhead)" /><polyline class="edge" data-from="Parse" data-to="Decision" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" points="237.108,114.275 285.108,114.275" fill="none" stroke="#8B9791" stroke-width="1" marker-end="url(#comparison-agentic-flowchart-comparison-agentic-flowchart-arrowhead)" /><polyline class="edge" data-from="Decision" data-to="Cache" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" data-label="yes" points="339.283,65.45 508.608,65.45" fill="none" stroke="#8B9791" stroke-width="1" marker-end="url(#comparison-agentic-flowchart-comparison-agentic-flowchart-arrowhead)" /><polyline class="edge" data-from="Decision" data-to="Parse" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" data-label="retry" points="336.608,165.775 336.608,175.775 197.608,175.775 197.608,132.725" fill="none" stroke="#8B9791" stroke-width="1" marker-end="url(#comparison-agentic-flowchart-comparison-agentic-flowchart-arrowhead)" /><polyline class="edge" data-from="Decision" data-to="Error" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" data-label="no" points="362.358,140.025 508.608,140.025" fill="none" stroke="#8B9791" stroke-width="1" marker-end="url(#comparison-agentic-flowchart-comparison-agentic-flowchart-arrowhead)" /><polyline class="edge" data-from="Cache" data-to="API" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" points="589.09,65.45 640.06,65.45" fill="none" stroke="#8B9791" stroke-width="1" marker-end="url(#comparison-agentic-flowchart-comparison-agentic-flowchart-arrowhead)" /><polyline class="edge" data-from="API" data-to="DB" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" points="702.758,56.967 1014.391,56.967" fill="none" stroke="#8B9791" stroke-width="1" marker-end="url(#comparison-agentic-flowchart-comparison-agentic-flowchart-arrowhead)" /><polyline class="edge" data-from="API" data-to="Queue" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" points="702.758,71.6 750.758,71.6" fill="none" stroke="#8B9791" stroke-width="1" marker-end="url(#comparison-agentic-flowchart-comparison-agentic-flowchart-arrowhead)" /><polyline class="edge" data-from="Queue" data-to="Worker" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" points="831.24,80.175 879.24,80.175" fill="none" stroke="#8B9791" stroke-width="1" marker-end="url(#comparison-agentic-flowchart-comparison-agentic-flowchart-arrowhead)" /><polyline class="edge" data-from="Worker" data-to="DB" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" points="966.391,80.175 1014.391,80.175" fill="none" stroke="#8B9791" stroke-width="1" marker-end="url(#comparison-agentic-flowchart-comparison-agentic-flowchart-arrowhead)" /><polyline class="edge" data-from="DB" data-to="Done" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" points="1112.657,65.45 1160.657,65.45" fill="none" stroke="#8B9791" stroke-width="1" marker-end="url(#comparison-agentic-flowchart-comparison-agentic-flowchart-arrowhead)" /><g class="edge-label" data-from="Decision" data-to="Cache" data-label="yes"><rect class="edge-label-halo" x="402.211" y="46.3" width="43.47" height="38.3" rx="4" ry="4" fill="#FFFFFF" stroke="none" /><rect x="406.211" y="50.3" width="35.47" height="30.3" rx="2" ry="2" fill="#FFFFFF" stroke="#e5e5e5" stroke-width="1" /><text x="423.946" y="65.45" text-anchor="middle" font-size="11" font-weight="400" fill="#5D6864" dy="3.85">yes</text></g><g class="edge-label" data-from="Decision" data-to="Parse" data-label="retry"><rect class="edge-label-halo" x="195.698" y="155.775" width="49.41" height="38.3" rx="4" ry="4" fill="#FFFFFF" stroke="none" /><rect x="199.698" y="159.775" width="41.41" height="30.3" rx="2" ry="2" fill="#FFFFFF" stroke="#e5e5e5" stroke-width="1" /><text x="220.403" y="174.925" text-anchor="middle" font-size="11" font-weight="400" fill="#5D6864" dy="3.85">retry</text></g><g class="edge-label" data-from="Decision" data-to="Error" data-label="no"><rect class="edge-label-halo" x="416.718" y="120.875" width="37.53" height="38.3" rx="4" ry="4" fill="#FFFFFF" stroke="none" /><rect x="420.718" y="124.875" width="29.53" height="30.3" rx="2" ry="2" fill="#FFFFFF" stroke="#e5e5e5" stroke-width="1" /><text x="435.483" y="140.025" text-anchor="middle" font-size="11" font-weight="400" fill="#5D6864" dy="3.85">no</text></g><g class="node" data-id="Start" data-label="Start" data-shape="stadium"><rect x="40" y="95.825" width="70.108" height="36.9" rx="18.45" ry="18.45" fill="#F8FAF8" stroke="#D3DDD7" stroke-width="0.75" /><text x="75.054" y="114.275" text-anchor="middle" font-size="13" font-weight="500" fill="#27272A" dy="4.55">Start</text></g><g class="node" data-id="Parse" data-label="Parse" data-shape="rectangle"><rect x="158.108" y="95.825" width="79" height="36.9" rx="0" ry="0" fill="#F8FAF8" stroke="#D3DDD7" stroke-width="0.75" /><text x="197.608" y="114.275" text-anchor="middle" font-size="13" font-weight="500" fill="#27272A" dy="4.55">Parse</text></g><g class="node" data-id="Decision" data-label="Valid?" data-shape="diamond"><polygon points="336.608,62.775 388.108,114.275 336.608,165.775 285.108,114.275" fill="#F8FAF8" stroke="#D3DDD7" stroke-width="0.75" /><text x="336.608" y="114.275" text-anchor="middle" font-size="13" font-weight="500" fill="#27272A" dy="4.55">Valid?</text></g><g class="node" data-id="Cache" data-label="Cache" data-shape="cylinder"><rect x="508.608" y="47" width="80.482" height="36.9" fill="#F8FAF8" stroke="none" /><line x1="508.608" y1="47" x2="508.608" y2="83.9" stroke="#D3DDD7" stroke-width="0.75" /><line x1="589.09" y1="47" x2="589.09" y2="83.9" stroke="#D3DDD7" stroke-width="0.75" /><ellipse cx="548.849" cy="83.9" rx="40.241" ry="7" fill="#F8FAF8" stroke="#D3DDD7" stroke-width="0.75" /><ellipse cx="548.849" cy="47" rx="40.241" ry="7" fill="#F8FAF8" stroke="#D3DDD7" stroke-width="0.75" /><text x="548.849" y="65.45" text-anchor="middle" font-size="13" font-weight="500" fill="#27272A" dy="4.55">Cache</text></g><g class="node" data-id="Error" data-label="Return error" data-shape="rectangle"><rect x="508.608" y="118.9" width="116.791" height="36.9" rx="0" ry="0" fill="#F8FAF8" stroke="#D3DDD7" stroke-width="0.75" /><text x="567.004" y="137.35" text-anchor="middle" font-size="13" font-weight="500" fill="#27272A" dy="4.55">Return error</text></g><g class="node" data-id="API" data-label="API" data-shape="rectangle"><rect x="640.06" y="47" width="62.698" height="36.9" rx="0" ry="0" fill="#F8FAF8" stroke="#D3DDD7" stroke-width="0.75" /><text x="671.409" y="65.45" text-anchor="middle" font-size="13" font-weight="500" fill="#27272A" dy="4.55">API</text></g><g class="node" data-id="Queue" data-label="Queue" data-shape="subroutine"><rect x="750.758" y="61.725" width="80.482" height="36.9" rx="0" ry="0" fill="#F8FAF8" stroke="#D3DDD7" stroke-width="0.75" /><line x1="758.758" y1="61.725" x2="758.758" y2="98.625" stroke="#D3DDD7" stroke-width="0.75" /><line x1="823.24" y1="61.725" x2="823.24" y2="98.625" stroke="#D3DDD7" stroke-width="0.75" /><text x="790.999" y="80.175" text-anchor="middle" font-size="13" font-weight="500" fill="#27272A" dy="4.55">Queue</text></g><g class="node" data-id="Worker" data-label="Worker" data-shape="rectangle"><rect x="879.24" y="61.725" width="87.151" height="36.9" rx="0" ry="0" fill="#F8FAF8" stroke="#D3DDD7" stroke-width="0.75" /><text x="922.816" y="80.175" text-anchor="middle" font-size="13" font-weight="500" fill="#27272A" dy="4.55">Worker</text></g><g class="node" data-id="DB" data-label="Database" data-shape="cylinder"><rect x="1014.391" y="47" width="98.266" height="36.9" fill="#F8FAF8" stroke="none" /><line x1="1014.391" y1="47" x2="1014.391" y2="83.9" stroke="#D3DDD7" stroke-width="0.75" /><line x1="1112.657" y1="47" x2="1112.657" y2="83.9" stroke="#D3DDD7" stroke-width="0.75" /><ellipse cx="1063.524" cy="83.9" rx="49.133" ry="7" fill="#F8FAF8" stroke="#D3DDD7" stroke-width="0.75" /><ellipse cx="1063.524" cy="47" rx="49.133" ry="7" fill="#F8FAF8" stroke="#D3DDD7" stroke-width="0.75" /><text x="1063.524" y="65.45" text-anchor="middle" font-size="13" font-weight="500" fill="#27272A" dy="4.55">Database</text></g><g class="node" data-id="Done" data-label="Done" data-shape="stadium"><rect x="1160.657" y="47" width="73.072" height="36.9" rx="18.45" ry="18.45" fill="#F8FAF8" stroke="#D3DDD7" stroke-width="0.75" /><text x="1197.193" y="65.45" text-anchor="middle" font-size="13" font-weight="500" fill="#27272A" dy="4.55">Done</text></g></svg></div></div>
+  </div>
+</section>
+<section class="comparison-case" id="state" aria-labelledby="comparison-state-title">
+  <header class="comparison-case-head">
+    <h2 id="comparison-state-title">State</h2>
+    <button class="comparison-focus" type="button" data-comparison-focus aria-label="Open State comparison larger" title="Open larger comparison"><span aria-hidden="true">⤢</span></button>
+  </header>
+  <div class="comparison-grid">
+    <div class="comparison-panel"><h3>Mermaid</h3><div class="comparison-render"><pre class="mermaid comparison-mermaid" id="comparison-mermaid-state">stateDiagram-v2
+  [*] --&gt; Idle
+  Idle --&gt; Running: start
+  state Running {
+    [*] --&gt; Fetch
+    Fetch --&gt; Verify
+    Verify --&gt; Fetch: retry
+    Verify --&gt; Commit: ok
+  }
+  Running --&gt; Failed: error
+  Failed --&gt; Idle: reset
+  Running --&gt; [*]: done</pre></div></div>
+    <div class="comparison-panel"><h3>Beautiful Mermaid</h3><div class="comparison-render"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 403.78999999999996 696.2" width="403.78999999999996" height="696.2" style="--bg:#FFFFFF;--fg:#27272A;--line:#8B9791;--accent:#1A7351;--muted:#5D6864;--surface:#F8FAF8;--border:#D3DDD7;background:var(--bg)" role="img" aria-labelledby="comparison-beautiful-state-svg-title comparison-beautiful-state-svg-desc"><title id="comparison-beautiful-state-svg-title">Beautiful Mermaid State</title><desc id="comparison-beautiful-state-svg-desc">State rendered by Beautiful Mermaid.</desc>
+<style>
+  text { font-family: 'Avenir Next', system-ui, sans-serif; }
+  svg {
+    /* Derived from --bg and --fg (overridable via --line, --accent, etc.) */
+    --_text:          var(--fg);
+    --_text-sec:      var(--muted, color-mix(in srgb, var(--fg) 60%, var(--bg)));
+    --_text-muted:    var(--muted, color-mix(in srgb, var(--fg) 40%, var(--bg)));
+    --_text-faint:    color-mix(in srgb, var(--fg) 25%, var(--bg));
+    --_line:          var(--line, color-mix(in srgb, var(--fg) 50%, var(--bg)));
+    --_arrow:         var(--accent, color-mix(in srgb, var(--fg) 85%, var(--bg)));
+    --_node-fill:     var(--surface, color-mix(in srgb, var(--fg) 3%, var(--bg)));
+    --_node-stroke:   var(--border, color-mix(in srgb, var(--fg) 20%, var(--bg)));
+    --_group-fill:    var(--bg);
+    --_group-hdr:     color-mix(in srgb, var(--fg) 5%, var(--bg));
+    --_inner-stroke:  color-mix(in srgb, var(--fg) 12%, var(--bg));
+    --_key-badge:     color-mix(in srgb, var(--fg) 10%, var(--bg));
+  }
+</style>
+<defs>
+  <marker id="comparison-beautiful-state-arrowhead" markerWidth="8" markerHeight="5" refX="7" refY="2.5" orient="auto">
+    <polygon points="0 0, 8 2.5, 0 5" fill="var(--_arrow)" stroke="var(--_arrow)" stroke-width="0.75" stroke-linejoin="round" />
+  </marker>
+  <marker id="comparison-beautiful-state-arrowhead-start" markerWidth="8" markerHeight="5" refX="1" refY="2.5" orient="auto-start-reverse">
+    <polygon points="8 0, 0 2.5, 8 5" fill="var(--_arrow)" stroke="var(--_arrow)" stroke-width="0.75" stroke-linejoin="round" />
+  </marker>
+</defs>
+<g class="subgraph" data-id="Running" data-label="Running">
+  <rect x="40" y="245.20000000000002" width="218.49099999999999" height="257.8" rx="0" ry="0" fill="var(--_group-fill)" stroke="var(--_node-stroke)" stroke-width="1" />
+  <rect x="40" y="245.20000000000002" width="218.49099999999999" height="28" rx="0" ry="0" fill="var(--_group-hdr)" stroke="var(--_node-stroke)" stroke-width="1" />
+  <text x="52" y="259.20000000000005" font-size="12" font-weight="600" fill="var(--_text-sec)" dy="4.199999999999999">Running</text>
+</g>
+<polyline class="edge" data-from="_start" data-to="Idle" data-style="solid" data-arrow-start="false" data-arrow-end="true" points="226.61825,68 226.61825,116" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#comparison-beautiful-state-arrowhead)" />
+<polyline class="edge" data-from="Idle" data-to="Running" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-label="start" points="216.16858333333334,152.9 216.16858333333334,164.9 149.2455,164.9 149.2455,245.20000000000002" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#comparison-beautiful-state-arrowhead)" />
+<polyline class="edge" data-from="Running" data-to="Failed" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-label="error" points="185.66066666666666,503 185.66066666666666,607.3000000000001 231.6591666666667,607.3000000000001 231.6591666666667,619.3000000000001" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#comparison-beautiful-state-arrowhead)" />
+<polyline class="edge" data-from="Failed" data-to="Idle" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-label="reset" points="257.9925,619.3000000000001 257.9925,607.3000000000001 303.991,607.3000000000001 303.991,233.20000000000002 237.0679166666667,233.20000000000002 237.0679166666667,152.9" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#comparison-beautiful-state-arrowhead)" />
+<polyline class="edge" data-from="Running" data-to="_end" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-label="done" points="112.83033333333333,503 112.83033333333333,619.3000000000001" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#comparison-beautiful-state-arrowhead)" />
+<polyline class="edge" data-from="_start2" data-to="Fetch" data-style="solid" data-arrow-start="false" data-arrow-end="true" points="228.49099999999999,402.1 228.49099999999999,414.1 222.99099999999999,414.1 222.99099999999999,450.1" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#comparison-beautiful-state-arrowhead)" />
+<polyline class="edge" data-from="Fetch" data-to="Verify" data-style="solid" data-arrow-start="false" data-arrow-end="true" points="203.982,450.1 203.982,414.1 203.49099999999999,414.1 203.49099999999999,338.1 196.98025,338.1 196.98025,326.1" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#comparison-beautiful-state-arrowhead)" />
+<polyline class="edge" data-from="Verify" data-to="Fetch" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-label="retry" points="177.60075,326.1 177.60075,338.1 174.0855,338.1 174.0855,414.1 184.973,414.1 184.973,450.1" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#comparison-beautiful-state-arrowhead)" />
+<polyline class="edge" data-from="Verify" data-to="Commit" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-label="ok" points="158.22125,326.1 158.22125,338.1 96.982,338.1 96.982,450.1" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#comparison-beautiful-state-arrowhead)" />
+<g class="edge-label" data-from="Idle" data-to="Running" data-label="start">
+  <rect x="129.2455" y="171.9" width="39.034000000000006" height="30.3" rx="2" ry="2" fill="var(--bg)" stroke="var(--_inner-stroke)" stroke-width="1" />
+  <text x="148.7625" y="187.05" text-anchor="middle" font-size="11" font-weight="400" fill="var(--_text-sec)" dy="3.8499999999999996">start</text>
+</g>
+<g class="edge-label" data-from="Running" data-to="Failed" data-label="error">
+  <rect x="163.66066666666666" y="546" width="43.786" height="30.3" rx="2" ry="2" fill="var(--bg)" stroke="var(--_inner-stroke)" stroke-width="1" />
+  <text x="185.55366666666666" y="561.15" text-anchor="middle" font-size="11" font-weight="400" fill="var(--_text-sec)" dy="3.8499999999999996">error</text>
+</g>
+<g class="edge-label" data-from="Failed" data-to="Idle" data-label="reset">
+  <rect x="282.491" y="546" width="42.598" height="30.3" rx="2" ry="2" fill="var(--bg)" stroke="var(--_inner-stroke)" stroke-width="1" />
+  <text x="303.78999999999996" y="561.15" text-anchor="middle" font-size="11" font-weight="400" fill="var(--_text-sec)" dy="3.8499999999999996">reset</text>
+</g>
+<g class="edge-label" data-from="Running" data-to="_end" data-label="done">
+  <rect x="91.83033333333333" y="546" width="41.41" height="30.3" rx="2" ry="2" fill="var(--bg)" stroke="var(--_inner-stroke)" stroke-width="1" />
+  <text x="112.53533333333333" y="561.15" text-anchor="middle" font-size="11" font-weight="400" fill="var(--_text-sec)" dy="3.8499999999999996">done</text>
+</g>
+<g class="edge-label" data-from="Verify" data-to="Fetch" data-label="retry">
+  <rect x="153.08550000000002" y="372.95000000000005" width="41.41" height="30.3" rx="2" ry="2" fill="var(--bg)" stroke="var(--_inner-stroke)" stroke-width="1" />
+  <text x="173.7905" y="388.1" text-anchor="middle" font-size="11" font-weight="400" fill="var(--_text-sec)" dy="3.8499999999999996">retry</text>
+</g>
+<g class="edge-label" data-from="Verify" data-to="Commit" data-label="ok">
+  <rect x="81.982" y="372.95000000000005" width="29.53" height="30.3" rx="2" ry="2" fill="var(--bg)" stroke="var(--_inner-stroke)" stroke-width="1" />
+  <text x="96.747" y="388.1" text-anchor="middle" font-size="11" font-weight="400" fill="var(--_text-sec)" dy="3.8499999999999996">ok</text>
+</g>
+<g class="node" data-id="_start" data-label="" data-shape="state-start">
+  <circle cx="226.61825" cy="54" r="12" fill="var(--_text)" stroke="none" />
+</g>
+<g class="node" data-id="Idle" data-label="Idle" data-shape="rounded">
+  <rect x="195.26925" y="116" width="62.69799999999999" height="36.900000000000006" rx="6" ry="6" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="226.61825" y="134.45" text-anchor="middle" font-size="13" font-weight="500" fill="var(--_text)" dy="4.55">Idle</text>
+</g>
+<g class="node" data-id="Failed" data-label="Failed" data-shape="rounded">
+  <rect x="205.32583333333332" y="619.3000000000001" width="79" height="36.900000000000006" rx="6" ry="6" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="244.82583333333332" y="637.7500000000001" text-anchor="middle" font-size="13" font-weight="500" fill="var(--_text)" dy="4.55">Failed</text>
+</g>
+<g class="node" data-id="_end" data-label="" data-shape="state-end">
+  <circle cx="112.83033333333333" cy="633.3000000000001" r="12" fill="none" stroke="var(--_text)" stroke-width="1.5" />
+  <circle cx="112.83033333333333" cy="633.3000000000001" r="8" fill="var(--_text)" stroke="none" />
+</g>
+<g class="node" data-id="_start2" data-label="" data-shape="state-start">
+  <circle cx="228.49099999999999" cy="388.1" r="12" fill="var(--_text)" stroke="none" />
+</g>
+<g class="node" data-id="Fetch" data-label="Fetch" data-shape="rounded">
+  <rect x="165.964" y="450.1" width="76.036" height="36.900000000000006" rx="6" ry="6" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="203.982" y="468.55" text-anchor="middle" font-size="13" font-weight="500" fill="var(--_text)" dy="4.55">Fetch</text>
+</g>
+<g class="node" data-id="Verify" data-label="Verify" data-shape="rounded">
+  <rect x="138.84175" y="289.20000000000005" width="77.518" height="36.900000000000006" rx="6" ry="6" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="177.60075" y="307.65000000000003" text-anchor="middle" font-size="13" font-weight="500" fill="var(--_text)" dy="4.55">Verify</text>
+</g>
+<g class="node" data-id="Commit" data-label="Commit" data-shape="rounded">
+  <rect x="56" y="450.1" width="81.964" height="36.900000000000006" rx="6" ry="6" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="96.982" y="468.55" text-anchor="middle" font-size="13" font-weight="500" fill="var(--_text)" dy="4.55">Commit</text>
+</g>
+</svg></div></div>
+    <div class="comparison-panel"><h3>Agentic Mermaid</h3><div class="comparison-render"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 403.79 740.2" width="403.79" height="740.2" style="--bg:#FFFFFF;--fg:#27272A;--line:#8B9791;--accent:#1A7351;--muted:#5D6864;--surface:#F8FAF8;--border:#D3DDD7;--font:Avenir Next;background:#FFFFFF" role="img" aria-labelledby="comparison-agentic-state-svg-title comparison-agentic-state-svg-desc"><title id="comparison-agentic-state-svg-title">Agentic Mermaid State</title><desc id="comparison-agentic-state-svg-desc">State rendered by Agentic Mermaid.</desc><style>
+  text { font-family: var(--font, 'Avenir Next'), system-ui, sans-serif; }
+  svg {
+
+    --_text:          #27272A;
+    --_text-sec:      #5D6864;
+    --_text-muted:    #5D6864;
+    --_text-faint:    #8a8a8c;
+    --_line:          #8B9791;
+    --_arrow:         #1A7351;
+    --_node-fill:     #F8FAF8;
+    --_node-stroke:   #D3DDD7;
+    --_group-fill:    #FFFFFF;
+    --_group-hdr:     #f4f4f4;
+    --_inner-stroke:  #e5e5e5;
+    --_key-badge:     #e9e9ea;
+  }
+</style><defs><marker id="comparison-agentic-state-comparison-agentic-state-arrowhead" markerWidth="8" markerHeight="5" refX="7" refY="2.5" orient="auto"><polygon points="0 0, 8 2.5, 0 5" fill="#1A7351" stroke="#1A7351" stroke-width="0.75" stroke-linejoin="round" /></marker><marker id="comparison-agentic-state-comparison-agentic-state-arrowhead-start" markerWidth="8" markerHeight="5" refX="7" refY="2.5" orient="auto-start-reverse"><polygon points="0 0, 8 2.5, 0 5" fill="#1A7351" stroke="#1A7351" stroke-width="0.75" stroke-linejoin="round" /></marker></defs><g class="subgraph" data-id="Running" data-region="subgraph" data-label="Running"><rect x="40" y="269.2" width="218.491" height="257.8" rx="0" ry="0" fill="#FFFFFF" stroke="#D3DDD7" stroke-width="1" /><path d="M40,269.2 H258.491 V297.2 H40 Z" fill="#f4f4f4" stroke="#D3DDD7" stroke-width="1" /><text x="52" y="283.2" font-size="12" font-weight="600" fill="#5D6864" dy="4.2">Running</text></g><polyline class="edge" data-from="_start" data-to="Idle" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" points="149.246,68 149.246,116" fill="none" stroke="#8B9791" stroke-width="1" marker-end="url(#comparison-agentic-state-comparison-agentic-state-arrowhead)" /><polyline class="edge" data-from="Idle" data-to="Running" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" data-label="start" points="149.246,152.9 149.246,269.2" fill="none" stroke="#8B9791" stroke-width="1" marker-end="url(#comparison-agentic-state-comparison-agentic-state-arrowhead)" /><polyline class="edge" data-from="Running" data-to="Failed" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" data-label="error" points="108.496,527 108.496,647.75" fill="none" stroke="#8B9791" stroke-width="1" marker-end="url(#comparison-agentic-state-comparison-agentic-state-arrowhead)" /><polyline class="edge" data-from="Failed" data-to="Idle" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" data-label="reset" points="108.496,684.65 108.496,692.2 303.991,692.2 303.991,104 159.695,104 159.695,116" fill="none" stroke="#8B9791" stroke-width="1" marker-end="url(#comparison-agentic-state-comparison-agentic-state-arrowhead)" /><polyline class="edge" data-from="Running" data-to="_end" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" data-label="done" points="185.661,527 185.661,571.9 189.996,571.9 189.996,647.75" fill="none" stroke="#8B9791" stroke-width="1" marker-end="url(#comparison-agentic-state-comparison-agentic-state-arrowhead)" /><polyline class="edge" data-from="_start2" data-to="Fetch" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" points="228.491,426.1 228.491,474.1" fill="none" stroke="#8B9791" stroke-width="1" marker-end="url(#comparison-agentic-state-comparison-agentic-state-arrowhead)" /><polyline class="edge" data-from="Fetch" data-to="Verify" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" points="203.982,474.1 203.982,438.1 203.491,438.1 203.491,362.1 196.98,362.1 196.98,350.1" fill="none" stroke="#8B9791" stroke-width="1" marker-end="url(#comparison-agentic-state-comparison-agentic-state-arrowhead)" /><polyline class="edge" data-from="Verify" data-to="Fetch" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" data-label="retry" points="177.601,350.1 177.601,362.1 174.086,362.1 174.086,438.1 184.973,438.1 184.973,474.1" fill="none" stroke="#8B9791" stroke-width="1" marker-end="url(#comparison-agentic-state-comparison-agentic-state-arrowhead)" /><polyline class="edge" data-from="Verify" data-to="Commit" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" data-label="ok" points="158.221,350.1 158.221,362.1 96.982,362.1 96.982,474.1" fill="none" stroke="#8B9791" stroke-width="1" marker-end="url(#comparison-agentic-state-comparison-agentic-state-arrowhead)" /><g class="edge-label" data-from="Idle" data-to="Running" data-label="start"><rect class="edge-label-halo" x="125.246" y="191.9" width="47.034" height="38.3" rx="4" ry="4" fill="#FFFFFF" stroke="none" /><rect x="129.246" y="195.9" width="39.034" height="30.3" rx="2" ry="2" fill="#FFFFFF" stroke="#e5e5e5" stroke-width="1" /><text x="148.763" y="211.05" text-anchor="middle" font-size="11" font-weight="400" fill="#5D6864" dy="3.85">start</text></g><g class="edge-label" data-from="Running" data-to="Failed" data-label="error"><rect class="edge-label-halo" x="82.602" y="568.225" width="51.786" height="38.3" rx="4" ry="4" fill="#FFFFFF" stroke="none" /><rect x="86.602" y="572.225" width="43.786" height="30.3" rx="2" ry="2" fill="#FFFFFF" stroke="#e5e5e5" stroke-width="1" /><text x="108.496" y="587.375" text-anchor="middle" font-size="11" font-weight="400" fill="#5D6864" dy="3.85">error</text></g><g class="edge-label" data-from="Failed" data-to="Idle" data-label="reset"><rect class="edge-label-halo" x="278.491" y="650.9" width="50.598" height="38.3" rx="4" ry="4" fill="#FFFFFF" stroke="none" /><rect x="282.491" y="654.9" width="42.598" height="30.3" rx="2" ry="2" fill="#FFFFFF" stroke="#e5e5e5" stroke-width="1" /><text x="303.79" y="670.05" text-anchor="middle" font-size="11" font-weight="400" fill="#5D6864" dy="3.85">reset</text></g><g class="edge-label" data-from="Running" data-to="_end" data-label="done"><rect class="edge-label-halo" x="164.996" y="574.9" width="49.41" height="38.3" rx="4" ry="4" fill="#FFFFFF" stroke="none" /><rect x="168.996" y="578.9" width="41.41" height="30.3" rx="2" ry="2" fill="#FFFFFF" stroke="#e5e5e5" stroke-width="1" /><text x="189.7" y="594.05" text-anchor="middle" font-size="11" font-weight="400" fill="#5D6864" dy="3.85">done</text></g><g class="edge-label" data-from="Verify" data-to="Fetch" data-label="retry"><rect class="edge-label-halo" x="149.086" y="392.95" width="49.41" height="38.3" rx="4" ry="4" fill="#FFFFFF" stroke="none" /><rect x="153.086" y="396.95" width="41.41" height="30.3" rx="2" ry="2" fill="#FFFFFF" stroke="#e5e5e5" stroke-width="1" /><text x="173.791" y="412.1" text-anchor="middle" font-size="11" font-weight="400" fill="#5D6864" dy="3.85">retry</text></g><g class="edge-label" data-from="Verify" data-to="Commit" data-label="ok"><rect class="edge-label-halo" x="78.217" y="398.95" width="37.53" height="38.3" rx="4" ry="4" fill="#FFFFFF" stroke="none" /><rect x="82.217" y="402.95" width="29.53" height="30.3" rx="2" ry="2" fill="#FFFFFF" stroke="#e5e5e5" stroke-width="1" /><text x="96.982" y="418.1" text-anchor="middle" font-size="11" font-weight="400" fill="#5D6864" dy="3.85">ok</text></g><g class="node" data-id="_start" data-label="" data-shape="state-start"><circle cx="149.246" cy="54" r="12" fill="#27272A" stroke="none" /></g><g class="node" data-id="Idle" data-label="Idle" data-shape="rounded"><rect x="117.897" y="116" width="62.698" height="36.9" rx="6" ry="6" fill="#F8FAF8" stroke="#D3DDD7" stroke-width="0.75" /><text x="149.246" y="134.45" text-anchor="middle" font-size="13" font-weight="500" fill="#27272A" dy="4.55">Idle</text></g><g class="node" data-id="_start2" data-label="" data-shape="state-start"><circle cx="228.491" cy="412.1" r="12" fill="#27272A" stroke="none" /></g><g class="node" data-id="Fetch" data-label="Fetch" data-shape="rounded"><rect x="165.964" y="474.1" width="76.036" height="36.9" rx="6" ry="6" fill="#F8FAF8" stroke="#D3DDD7" stroke-width="0.75" /><text x="203.982" y="492.55" text-anchor="middle" font-size="13" font-weight="500" fill="#27272A" dy="4.55">Fetch</text></g><g class="node" data-id="Verify" data-label="Verify" data-shape="rounded"><rect x="138.842" y="313.2" width="77.518" height="36.9" rx="6" ry="6" fill="#F8FAF8" stroke="#D3DDD7" stroke-width="0.75" /><text x="177.601" y="331.65" text-anchor="middle" font-size="13" font-weight="500" fill="#27272A" dy="4.55">Verify</text></g><g class="node" data-id="Commit" data-label="Commit" data-shape="rounded"><rect x="56" y="474.1" width="81.964" height="36.9" rx="6" ry="6" fill="#F8FAF8" stroke="#D3DDD7" stroke-width="0.75" /><text x="96.982" y="492.55" text-anchor="middle" font-size="13" font-weight="500" fill="#27272A" dy="4.55">Commit</text></g><g class="node" data-id="Failed" data-label="Failed" data-shape="rounded"><rect x="68.996" y="647.75" width="79" height="36.9" rx="6" ry="6" fill="#F8FAF8" stroke="#D3DDD7" stroke-width="0.75" /><text x="108.496" y="666.2" text-anchor="middle" font-size="13" font-weight="500" fill="#27272A" dy="4.55">Failed</text></g><g class="node" data-id="_end" data-label="" data-shape="state-end"><circle cx="189.996" cy="661.75" r="12" fill="none" stroke="#27272A" stroke-width="1.5" /><circle cx="189.996" cy="661.75" r="8" fill="#27272A" stroke="none" /></g></svg></div></div>
+  </div>
+</section>
+<section class="comparison-case" id="sequence" aria-labelledby="comparison-sequence-title">
+  <header class="comparison-case-head">
+    <h2 id="comparison-sequence-title">Sequence</h2>
+    <button class="comparison-focus" type="button" data-comparison-focus aria-label="Open Sequence comparison larger" title="Open larger comparison"><span aria-hidden="true">⤢</span></button>
+  </header>
+  <div class="comparison-grid">
+    <div class="comparison-panel"><h3>Mermaid</h3><div class="comparison-render"><pre class="mermaid comparison-mermaid" id="comparison-mermaid-sequence">sequenceDiagram
+  actor User
+  participant Agent
+  participant CLI
+  participant Renderer
+  User-&gt;&gt;Agent: change diagram
+  Agent-&gt;&gt;CLI: mutate
+  CLI-&gt;&gt;Renderer: verify
+  alt clean
+    Renderer--&gt;&gt;CLI: ok
+  else warnings
+    Renderer--&gt;&gt;CLI: codes
+    CLI--&gt;&gt;Agent: repair
+  end
+  CLI--&gt;&gt;Agent: source</pre></div></div>
+    <div class="comparison-panel"><h3>Beautiful Mermaid</h3><div class="comparison-render"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 575.874 452" width="575.874" height="452" style="--bg:#FFFFFF;--fg:#27272A;--line:#8B9791;--accent:#1A7351;--muted:#5D6864;--surface:#F8FAF8;--border:#D3DDD7;background:var(--bg)" role="img" aria-labelledby="comparison-beautiful-sequence-svg-title comparison-beautiful-sequence-svg-desc"><title id="comparison-beautiful-sequence-svg-title">Beautiful Mermaid Sequence</title><desc id="comparison-beautiful-sequence-svg-desc">Sequence rendered by Beautiful Mermaid.</desc>
+<style>
+  text { font-family: 'Avenir Next', system-ui, sans-serif; }
+  svg {
+    /* Derived from --bg and --fg (overridable via --line, --accent, etc.) */
+    --_text:          var(--fg);
+    --_text-sec:      var(--muted, color-mix(in srgb, var(--fg) 60%, var(--bg)));
+    --_text-muted:    var(--muted, color-mix(in srgb, var(--fg) 40%, var(--bg)));
+    --_text-faint:    color-mix(in srgb, var(--fg) 25%, var(--bg));
+    --_line:          var(--line, color-mix(in srgb, var(--fg) 50%, var(--bg)));
+    --_arrow:         var(--accent, color-mix(in srgb, var(--fg) 85%, var(--bg)));
+    --_node-fill:     var(--surface, color-mix(in srgb, var(--fg) 3%, var(--bg)));
+    --_node-stroke:   var(--border, color-mix(in srgb, var(--fg) 20%, var(--bg)));
+    --_group-fill:    var(--bg);
+    --_group-hdr:     color-mix(in srgb, var(--fg) 5%, var(--bg));
+    --_inner-stroke:  color-mix(in srgb, var(--fg) 12%, var(--bg));
+    --_key-badge:     color-mix(in srgb, var(--fg) 10%, var(--bg));
+  }
+</style>
+<defs>
+  <marker id="comparison-beautiful-sequence-seq-arrow" markerWidth="8" markerHeight="5" refX="8" refY="2.5" orient="auto-start-reverse">
+    <polygon points="0 0, 8 2.5, 0 5" fill="var(--_arrow)" />
+  </marker>
+  <marker id="comparison-beautiful-sequence-seq-arrow-open" markerWidth="8" markerHeight="5" refX="8" refY="2.5" orient="auto-start-reverse">
+    <polyline points="0 0, 8 2.5, 0 5" fill="none" stroke="var(--_arrow)" stroke-width="1" />
+  </marker>
+</defs>
+<g class="block" data-type="alt" data-label="clean">
+  <rect x="160" y="198" width="385.874" height="164" rx="0" ry="0" fill="none" stroke="var(--_node-stroke)" stroke-width="1" />
+  <rect x="160" y="198" width="67.15" height="18" fill="var(--_group-hdr)" stroke="var(--_node-stroke)" stroke-width="1" />
+  <text x="166" y="207" font-size="11" font-weight="600" fill="var(--_text-sec)" dy="3.8499999999999996">alt [clean]</text>
+  <line x1="160" y1="274" x2="545.874" y2="274" stroke="var(--_line)" stroke-width="0.75" stroke-dasharray="6 4" />
+  <text x="168" y="288" font-size="11" text-anchor="start" font-weight="400" fill="var(--_text-muted)" dy="3.8499999999999996">[warnings]</text>
+</g>
+<line class="lifeline" data-actor="User" x1="70" y1="70" x2="70" y2="422" stroke="var(--_line)" stroke-width="0.75" stroke-dasharray="6 4" />
+<line class="lifeline" data-actor="Agent" x1="210" y1="70" x2="210" y2="422" stroke="var(--_line)" stroke-width="0.75" stroke-dasharray="6 4" />
+<line class="lifeline" data-actor="CLI" x1="350" y1="70" x2="350" y2="422" stroke="var(--_line)" stroke-width="0.75" stroke-dasharray="6 4" />
+<line class="lifeline" data-actor="Renderer" x1="490" y1="70" x2="490" y2="422" stroke="var(--_line)" stroke-width="0.75" stroke-dasharray="6 4" />
+<g class="message" data-from="User" data-to="Agent" data-label="change diagram" data-line-style="solid" data-arrow-head="filled" data-self="false">
+  <line x1="70" y1="90" x2="210" y2="90" stroke="var(--_line)" stroke-width="1" marker-end="url(#comparison-beautiful-sequence-seq-arrow)" />
+  <text x="140" y="80" font-size="11" text-anchor="middle" font-weight="400" fill="var(--_text-muted)" dy="3.8499999999999996">change diagram</text>
+</g>
+<g class="message" data-from="Agent" data-to="CLI" data-label="mutate" data-line-style="solid" data-arrow-head="filled" data-self="false">
+  <line x1="210" y1="130" x2="350" y2="130" stroke="var(--_line)" stroke-width="1" marker-end="url(#comparison-beautiful-sequence-seq-arrow)" />
+  <text x="280" y="120" font-size="11" text-anchor="middle" font-weight="400" fill="var(--_text-muted)" dy="3.8499999999999996">mutate</text>
+</g>
+<g class="message" data-from="CLI" data-to="Renderer" data-label="verify" data-line-style="solid" data-arrow-head="filled" data-self="false">
+  <line x1="350" y1="170" x2="490" y2="170" stroke="var(--_line)" stroke-width="1" marker-end="url(#comparison-beautiful-sequence-seq-arrow)" />
+  <text x="420" y="160" font-size="11" text-anchor="middle" font-weight="400" fill="var(--_text-muted)" dy="3.8499999999999996">verify</text>
+</g>
+<g class="message" data-from="Renderer" data-to="CLI" data-label="ok" data-line-style="dashed" data-arrow-head="filled" data-self="false">
+  <line x1="490" y1="238" x2="350" y2="238" stroke="var(--_line)" stroke-width="1" stroke-dasharray="6 4" marker-end="url(#comparison-beautiful-sequence-seq-arrow)" />
+  <text x="420" y="228" font-size="11" text-anchor="middle" font-weight="400" fill="var(--_text-muted)" dy="3.8499999999999996">ok</text>
+</g>
+<g class="message" data-from="Renderer" data-to="CLI" data-label="codes" data-line-style="dashed" data-arrow-head="filled" data-self="false">
+  <line x1="490" y1="302" x2="350" y2="302" stroke="var(--_line)" stroke-width="1" stroke-dasharray="6 4" marker-end="url(#comparison-beautiful-sequence-seq-arrow)" />
+  <text x="420" y="292" font-size="11" text-anchor="middle" font-weight="400" fill="var(--_text-muted)" dy="3.8499999999999996">codes</text>
+</g>
+<g class="message" data-from="CLI" data-to="Agent" data-label="repair" data-line-style="dashed" data-arrow-head="filled" data-self="false">
+  <line x1="350" y1="342" x2="210" y2="342" stroke="var(--_line)" stroke-width="1" stroke-dasharray="6 4" marker-end="url(#comparison-beautiful-sequence-seq-arrow)" />
+  <text x="280" y="332" font-size="11" text-anchor="middle" font-weight="400" fill="var(--_text-muted)" dy="3.8499999999999996">repair</text>
+</g>
+<g class="message" data-from="CLI" data-to="Agent" data-label="source" data-line-style="dashed" data-arrow-head="filled" data-self="false">
+  <line x1="350" y1="382" x2="210" y2="382" stroke="var(--_line)" stroke-width="1" stroke-dasharray="6 4" marker-end="url(#comparison-beautiful-sequence-seq-arrow)" />
+  <text x="280" y="372" font-size="11" text-anchor="middle" font-weight="400" fill="var(--_text-muted)" dy="3.8499999999999996">source</text>
+</g>
+<g class="actor" data-id="User" data-label="User" data-type="actor">
+  <g transform="translate(52,32) scale(1.5)">
+    <path d="M21 12C21 16.9706 16.9706 21 12 21C7.02944 21 3 16.9706 3 12C3 7.02944 7.02944 3 12 3C16.9706 3 21 7.02944 21 12Z" fill="none" stroke="var(--_line)" stroke-width="0.6666666666666666" />
+    <path d="M15 10C15 11.6569 13.6569 13 12 13C10.3431 13 9 11.6569 9 10C9 8.34315 10.3431 7 12 7C13.6569 7 15 8.34315 15 10Z" fill="none" stroke="var(--_line)" stroke-width="0.6666666666666666" />
+    <path d="M5.62842 18.3563C7.08963 17.0398 9.39997 16 12 16C14.6 16 16.9104 17.0398 18.3716 18.3563" fill="none" stroke="var(--_line)" stroke-width="0.6666666666666666" />
+  </g>
+  <text x="70" y="84" font-size="13" text-anchor="middle" font-weight="500" fill="var(--_text)" dy="4.55">User</text>
+</g>
+<g class="actor" data-id="Agent" data-label="Agent" data-type="participant">
+  <rect x="170" y="30" width="80" height="40" rx="4" ry="4" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="1" />
+  <text x="210" y="50" font-size="13" text-anchor="middle" font-weight="500" fill="var(--_text)" dy="4.55">Agent</text>
+</g>
+<g class="actor" data-id="CLI" data-label="CLI" data-type="participant">
+  <rect x="310" y="30" width="80" height="40" rx="4" ry="4" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="1" />
+  <text x="350" y="50" font-size="13" text-anchor="middle" font-weight="500" fill="var(--_text)" dy="4.55">CLI</text>
+</g>
+<g class="actor" data-id="Renderer" data-label="Renderer" data-type="participant">
+  <rect x="444.126" y="30" width="91.74799999999999" height="40" rx="4" ry="4" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="1" />
+  <text x="490" y="50" font-size="13" text-anchor="middle" font-weight="500" fill="var(--_text)" dy="4.55">Renderer</text>
+</g>
+</svg></div></div>
+    <div class="comparison-panel"><h3>Agentic Mermaid</h3><div class="comparison-render"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 575.874 452" width="575.874" height="452" style="--bg:#FFFFFF;--fg:#27272A;--line:#8B9791;--accent:#1A7351;--muted:#5D6864;--surface:#F8FAF8;--border:#D3DDD7;--font:Avenir Next;background:#FFFFFF" role="img" aria-labelledby="comparison-agentic-sequence-svg-title comparison-agentic-sequence-svg-desc"><title id="comparison-agentic-sequence-svg-title">Agentic Mermaid Sequence</title><desc id="comparison-agentic-sequence-svg-desc">Sequence rendered by Agentic Mermaid.</desc><style>
+  text { font-family: var(--font, 'Avenir Next'), system-ui, sans-serif; }
+  svg {
+
+    --_text:          #27272A;
+    --_text-sec:      #5D6864;
+    --_text-muted:    #5D6864;
+    --_text-faint:    #8a8a8c;
+    --_line:          #8B9791;
+    --_arrow:         #1A7351;
+    --_node-fill:     #F8FAF8;
+    --_node-stroke:   #D3DDD7;
+    --_group-fill:    #FFFFFF;
+    --_group-hdr:     #f4f4f4;
+    --_inner-stroke:  #e5e5e5;
+    --_key-badge:     #e9e9ea;
+  }
+</style><defs><marker id="comparison-agentic-sequence-comparison-agentic-sequence-seq-arrow" markerWidth="8" markerHeight="5" refX="8" refY="2.5" orient="auto-start-reverse"><polygon points="0 0, 8 2.5, 0 5" fill="#1A7351" /></marker><marker id="comparison-agentic-sequence-comparison-agentic-sequence-seq-arrow-open" markerWidth="8" markerHeight="5" refX="8" refY="2.5" orient="auto-start-reverse"><polyline points="0 0, 8 2.5, 0 5" fill="none" stroke="#1A7351" stroke-width="1" /></marker></defs><g class="block" data-type="alt" data-label="clean"><rect x="160" y="198" width="385.874" height="164" rx="0" ry="0" fill="none" stroke="#D3DDD7" stroke-width="1" /><rect x="160" y="198" width="71.15" height="19" fill="#f4f4f4" stroke="#D3DDD7" stroke-width="1" /><text x="166" y="207.5" font-size="11" font-weight="600" fill="#5D6864" dy="3.85">alt [clean]</text><line x1="160" y1="274" x2="545.874" y2="274" stroke="#8B9791" stroke-width="0.75" stroke-dasharray="6 4" /><text x="168" y="288" font-size="11" text-anchor="start" font-weight="400" fill="#5D6864" dy="3.85">[warnings]</text></g><line class="lifeline" data-actor="User" x1="70" y1="70" x2="70" y2="422" stroke="#8B9791" stroke-width="0.75" stroke-dasharray="6 4" /><line class="lifeline" data-actor="Agent" x1="210" y1="70" x2="210" y2="422" stroke="#8B9791" stroke-width="0.75" stroke-dasharray="6 4" /><line class="lifeline" data-actor="CLI" x1="350" y1="70" x2="350" y2="422" stroke="#8B9791" stroke-width="0.75" stroke-dasharray="6 4" /><line class="lifeline" data-actor="Renderer" x1="490" y1="70" x2="490" y2="422" stroke="#8B9791" stroke-width="0.75" stroke-dasharray="6 4" /><g class="message" data-from="User" data-to="Agent" data-label="change diagram" data-line-style="solid" data-arrow-head="filled" data-self="false"><line x1="70" y1="90" x2="210" y2="90" stroke="#8B9791" stroke-width="1" marker-end="url(#comparison-agentic-sequence-comparison-agentic-sequence-seq-arrow)" /><text x="140" y="80" font-size="11" text-anchor="middle" font-weight="400" fill="#5D6864" dy="3.85">change diagram</text></g><g class="message" data-from="Agent" data-to="CLI" data-label="mutate" data-line-style="solid" data-arrow-head="filled" data-self="false"><line x1="210" y1="130" x2="350" y2="130" stroke="#8B9791" stroke-width="1" marker-end="url(#comparison-agentic-sequence-comparison-agentic-sequence-seq-arrow)" /><text x="280" y="120" font-size="11" text-anchor="middle" font-weight="400" fill="#5D6864" dy="3.85">mutate</text></g><g class="message" data-from="CLI" data-to="Renderer" data-label="verify" data-line-style="solid" data-arrow-head="filled" data-self="false"><line x1="350" y1="170" x2="490" y2="170" stroke="#8B9791" stroke-width="1" marker-end="url(#comparison-agentic-sequence-comparison-agentic-sequence-seq-arrow)" /><text x="420" y="160" font-size="11" text-anchor="middle" font-weight="400" fill="#5D6864" dy="3.85">verify</text></g><g class="message" data-from="Renderer" data-to="CLI" data-label="ok" data-line-style="dashed" data-arrow-head="filled" data-self="false"><line x1="490" y1="238" x2="350" y2="238" stroke="#8B9791" stroke-width="1" stroke-dasharray="6 4" marker-end="url(#comparison-agentic-sequence-comparison-agentic-sequence-seq-arrow)" /><text x="420" y="228" font-size="11" text-anchor="middle" font-weight="400" fill="#5D6864" dy="3.85">ok</text></g><g class="message" data-from="Renderer" data-to="CLI" data-label="codes" data-line-style="dashed" data-arrow-head="filled" data-self="false"><line x1="490" y1="302" x2="350" y2="302" stroke="#8B9791" stroke-width="1" stroke-dasharray="6 4" marker-end="url(#comparison-agentic-sequence-comparison-agentic-sequence-seq-arrow)" /><text x="420" y="292" font-size="11" text-anchor="middle" font-weight="400" fill="#5D6864" dy="3.85">codes</text></g><g class="message" data-from="CLI" data-to="Agent" data-label="repair" data-line-style="dashed" data-arrow-head="filled" data-self="false"><line x1="350" y1="342" x2="210" y2="342" stroke="#8B9791" stroke-width="1" stroke-dasharray="6 4" marker-end="url(#comparison-agentic-sequence-comparison-agentic-sequence-seq-arrow)" /><text x="280" y="332" font-size="11" text-anchor="middle" font-weight="400" fill="#5D6864" dy="3.85">repair</text></g><g class="message" data-from="CLI" data-to="Agent" data-label="source" data-line-style="dashed" data-arrow-head="filled" data-self="false"><line x1="350" y1="382" x2="210" y2="382" stroke="#8B9791" stroke-width="1" stroke-dasharray="6 4" marker-end="url(#comparison-agentic-sequence-comparison-agentic-sequence-seq-arrow)" /><text x="280" y="372" font-size="11" text-anchor="middle" font-weight="400" fill="#5D6864" dy="3.85">source</text></g><g class="actor" data-id="User" data-label="User" data-type="actor"><g transform="translate(52,32) scale(1.5)"><path d="M21 12C21 16.971 16.971 21 12 21C7.029 21 3 16.971 3 12C3 7.029 7.029 3 12 3C16.971 3 21 7.029 21 12Z" fill="none" stroke="#8B9791" stroke-width="0.667" /><path d="M15 10C15 11.657 13.657 13 12 13C10.343 13 9 11.657 9 10C9 8.343 10.343 7 12 7C13.657 7 15 8.343 15 10Z" fill="none" stroke="#8B9791" stroke-width="0.667" /><path d="M5.628 18.356C7.09 17.04 9.4 16 12 16C14.6 16 16.91 17.04 18.372 18.356" fill="none" stroke="#8B9791" stroke-width="0.667" /></g><text x="70" y="84" font-size="13" text-anchor="middle" font-weight="500" fill="#27272A" dy="4.55">User</text></g><g class="actor" data-id="Agent" data-label="Agent" data-type="participant"><rect x="170" y="30" width="80" height="40" rx="4" ry="4" fill="#F8FAF8" stroke="#D3DDD7" stroke-width="1" /><text x="210" y="50" font-size="13" text-anchor="middle" font-weight="500" fill="#27272A" dy="4.55">Agent</text></g><g class="actor" data-id="CLI" data-label="CLI" data-type="participant"><rect x="310" y="30" width="80" height="40" rx="4" ry="4" fill="#F8FAF8" stroke="#D3DDD7" stroke-width="1" /><text x="350" y="50" font-size="13" text-anchor="middle" font-weight="500" fill="#27272A" dy="4.55">CLI</text></g><g class="actor" data-id="Renderer" data-label="Renderer" data-type="participant"><rect x="444.126" y="30" width="91.748" height="40" rx="4" ry="4" fill="#F8FAF8" stroke="#D3DDD7" stroke-width="1" /><text x="490" y="50" font-size="13" text-anchor="middle" font-weight="500" fill="#27272A" dy="4.55">Renderer</text></g></svg></div></div>
+  </div>
+</section>
+<section class="comparison-case" id="class" aria-labelledby="comparison-class-title">
+  <header class="comparison-case-head">
+    <h2 id="comparison-class-title">Class</h2>
+    <button class="comparison-focus" type="button" data-comparison-focus aria-label="Open Class comparison larger" title="Open larger comparison"><span aria-hidden="true">⤢</span></button>
+  </header>
+  <div class="comparison-grid">
+    <div class="comparison-panel"><h3>Mermaid</h3><div class="comparison-render"><pre class="mermaid comparison-mermaid" id="comparison-mermaid-class">classDiagram
+  class Diagram {
+    +kind
+    +source
+    +verify()
+  }
+  class Flowchart {
+    +nodes
+    +edges
+    +mutate()
+  }
+  class Warning {
+    +code
+    +tier
+  }
+  Diagram &lt;|-- Flowchart
+  Diagram "1" --&gt; "*" Warning : emits</pre></div></div>
+    <div class="comparison-panel"><h3>Beautiful Mermaid</h3><div class="comparison-render"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 504" width="300" height="504" style="--bg:#FFFFFF;--fg:#27272A;--line:#8B9791;--accent:#1A7351;--muted:#5D6864;--surface:#F8FAF8;--border:#D3DDD7;background:var(--bg)" role="img" aria-labelledby="comparison-beautiful-class-svg-title comparison-beautiful-class-svg-desc"><title id="comparison-beautiful-class-svg-title">Beautiful Mermaid Class</title><desc id="comparison-beautiful-class-svg-desc">Class rendered by Beautiful Mermaid.</desc>
+<style>
+  text { font-family: 'Avenir Next', system-ui, sans-serif; }
+  .mono { font-family: 'JetBrains Mono', 'SF Mono', 'Fira Code', ui-monospace, monospace; }
+  svg {
+    /* Derived from --bg and --fg (overridable via --line, --accent, etc.) */
+    --_text:          var(--fg);
+    --_text-sec:      var(--muted, color-mix(in srgb, var(--fg) 60%, var(--bg)));
+    --_text-muted:    var(--muted, color-mix(in srgb, var(--fg) 40%, var(--bg)));
+    --_text-faint:    color-mix(in srgb, var(--fg) 25%, var(--bg));
+    --_line:          var(--line, color-mix(in srgb, var(--fg) 50%, var(--bg)));
+    --_arrow:         var(--accent, color-mix(in srgb, var(--fg) 85%, var(--bg)));
+    --_node-fill:     var(--surface, color-mix(in srgb, var(--fg) 3%, var(--bg)));
+    --_node-stroke:   var(--border, color-mix(in srgb, var(--fg) 20%, var(--bg)));
+    --_group-fill:    var(--bg);
+    --_group-hdr:     color-mix(in srgb, var(--fg) 5%, var(--bg));
+    --_inner-stroke:  color-mix(in srgb, var(--fg) 12%, var(--bg));
+    --_key-badge:     color-mix(in srgb, var(--fg) 10%, var(--bg));
+  }
+</style>
+<defs>
+  <marker id="comparison-beautiful-class-cls-inherit" markerWidth="12" markerHeight="10" refX="12" refY="5" orient="auto-start-reverse">
+    <polygon points="0 0, 12 5, 0 10" fill="var(--bg)" stroke="var(--_arrow)" stroke-width="1.5" />
+  </marker>
+  <marker id="comparison-beautiful-class-cls-composition" markerWidth="12" markerHeight="10" refX="0" refY="5" orient="auto-start-reverse">
+    <polygon points="6 0, 12 5, 6 10, 0 5" fill="var(--_arrow)" stroke="var(--_arrow)" stroke-width="1" />
+  </marker>
+  <marker id="comparison-beautiful-class-cls-aggregation" markerWidth="12" markerHeight="10" refX="0" refY="5" orient="auto-start-reverse">
+    <polygon points="6 0, 12 5, 6 10, 0 5" fill="var(--bg)" stroke="var(--_arrow)" stroke-width="1.5" />
+  </marker>
+  <marker id="comparison-beautiful-class-cls-arrow" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto-start-reverse">
+    <polyline points="0 0, 8 3, 0 6" fill="none" stroke="var(--_arrow)" stroke-width="1.5" />
+  </marker>
+</defs>
+<polyline class="class-relationship" data-from="Diagram" data-to="Flowchart" data-type="inheritance" data-marker-at="from" points="100,148 100,208" fill="none" stroke="var(--_line)" stroke-width="1" marker-start="url(#comparison-beautiful-class-cls-inherit)" />
+<polyline class="class-relationship" data-from="Diagram" data-to="Warning" data-type="association" data-marker-at="to" data-label="emits" data-from-cardinality="1" data-to-cardinality="*" points="140,148 140,158 200,158 200,376" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#comparison-beautiful-class-cls-arrow)" />
+<g class="class-node" data-id="Diagram" data-label="Diagram">
+  <rect x="60" y="40" width="120" height="108" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="1" />
+  <rect x="60" y="40" width="120" height="32" rx="0" ry="0" fill="var(--_group-hdr)" stroke="var(--_node-stroke)" stroke-width="1" />
+  <text x="120" y="56" text-anchor="middle" font-size="13" font-weight="700" fill="var(--_text)" dy="4.55">Diagram</text>
+  <line x1="60" y1="72" x2="180" y2="72" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="68" y="86" class="mono" dy="0.35em" font-size="11" font-weight="400"><tspan fill="var(--_text-faint)">+ </tspan><tspan fill="var(--_text-sec)">kind</tspan></text>
+  <text x="68" y="106" class="mono" dy="0.35em" font-size="11" font-weight="400"><tspan fill="var(--_text-faint)">+ </tspan><tspan fill="var(--_text-sec)">source</tspan></text>
+  <line x1="60" y1="120" x2="180" y2="120" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="68" y="134" class="mono" dy="0.35em" font-size="11" font-weight="400"><tspan fill="var(--_text-faint)">+ </tspan><tspan fill="var(--_text-sec)">verify()</tspan></text>
+</g>
+<g class="class-node" data-id="Flowchart" data-label="Flowchart">
+  <rect x="40" y="208" width="120" height="108" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="1" />
+  <rect x="40" y="208" width="120" height="32" rx="0" ry="0" fill="var(--_group-hdr)" stroke="var(--_node-stroke)" stroke-width="1" />
+  <text x="100" y="224" text-anchor="middle" font-size="13" font-weight="700" fill="var(--_text)" dy="4.55">Flowchart</text>
+  <line x1="40" y1="240" x2="160" y2="240" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="48" y="254" class="mono" dy="0.35em" font-size="11" font-weight="400"><tspan fill="var(--_text-faint)">+ </tspan><tspan fill="var(--_text-sec)">nodes</tspan></text>
+  <text x="48" y="274" class="mono" dy="0.35em" font-size="11" font-weight="400"><tspan fill="var(--_text-faint)">+ </tspan><tspan fill="var(--_text-sec)">edges</tspan></text>
+  <line x1="40" y1="288" x2="160" y2="288" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="48" y="302" class="mono" dy="0.35em" font-size="11" font-weight="400"><tspan fill="var(--_text-faint)">+ </tspan><tspan fill="var(--_text-sec)">mutate()</tspan></text>
+</g>
+<g class="class-node" data-id="Warning" data-label="Warning">
+  <rect x="140" y="376" width="120" height="88" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="1" />
+  <rect x="140" y="376" width="120" height="32" rx="0" ry="0" fill="var(--_group-hdr)" stroke="var(--_node-stroke)" stroke-width="1" />
+  <text x="200" y="392" text-anchor="middle" font-size="13" font-weight="700" fill="var(--_text)" dy="4.55">Warning</text>
+  <line x1="140" y1="408" x2="260" y2="408" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="148" y="422" class="mono" dy="0.35em" font-size="11" font-weight="400"><tspan fill="var(--_text-faint)">+ </tspan><tspan fill="var(--_text-sec)">code</tspan></text>
+  <text x="148" y="442" class="mono" dy="0.35em" font-size="11" font-weight="400"><tspan fill="var(--_text-faint)">+ </tspan><tspan fill="var(--_text-sec)">tier</tspan></text>
+  <line x1="140" y1="456" x2="260" y2="456" stroke="var(--_node-stroke)" stroke-width="0.75" />
+</g>
+
+<text x="219.70499999999998" y="254" font-size="11" text-anchor="middle" font-weight="400" fill="var(--_text-muted)" dy="3.8499999999999996">emits</text>
+<text x="126" y="162" font-size="11" text-anchor="middle" font-weight="400" fill="var(--_text-muted)" dy="3.8499999999999996">1</text>
+<text x="186" y="362" font-size="11" text-anchor="middle" font-weight="400" fill="var(--_text-muted)" dy="3.8499999999999996">*</text>
+</svg></div></div>
+    <div class="comparison-panel"><h3>Agentic Mermaid</h3><div class="comparison-render"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 506.7" width="300" height="506.7" style="--bg:#FFFFFF;--fg:#27272A;--line:#8B9791;--accent:#1A7351;--muted:#5D6864;--surface:#F8FAF8;--border:#D3DDD7;--font:Avenir Next;background:#FFFFFF" role="img" aria-labelledby="comparison-agentic-class-svg-title comparison-agentic-class-svg-desc"><title id="comparison-agentic-class-svg-title">Agentic Mermaid Class</title><desc id="comparison-agentic-class-svg-desc">Class rendered by Agentic Mermaid.</desc><style>
+  text { font-family: var(--font, 'Avenir Next'), system-ui, sans-serif; }
+  .mono { font-family: 'JetBrains Mono', 'SF Mono', 'Fira Code', ui-monospace, monospace; }
+  svg {
+
+    --_text:          #27272A;
+    --_text-sec:      #5D6864;
+    --_text-muted:    #5D6864;
+    --_text-faint:    #8a8a8c;
+    --_line:          #8B9791;
+    --_arrow:         #1A7351;
+    --_node-fill:     #F8FAF8;
+    --_node-stroke:   #D3DDD7;
+    --_group-fill:    #FFFFFF;
+    --_group-hdr:     #f4f4f4;
+    --_inner-stroke:  #e5e5e5;
+    --_key-badge:     #e9e9ea;
+  }
+</style><defs><marker id="comparison-agentic-class-comparison-agentic-class-cls-inherit" markerWidth="12" markerHeight="10" refX="12" refY="5" orient="auto-start-reverse"><polygon points="0 0, 12 5, 0 10" fill="#FFFFFF" stroke="#1A7351" stroke-width="1.5" /></marker><marker id="comparison-agentic-class-comparison-agentic-class-cls-composition" markerWidth="12" markerHeight="10" refX="0" refY="5" orient="auto-start-reverse"><polygon points="6 0, 12 5, 6 10, 0 5" fill="#1A7351" stroke="#1A7351" stroke-width="1" /></marker><marker id="comparison-agentic-class-comparison-agentic-class-cls-aggregation" markerWidth="12" markerHeight="10" refX="0" refY="5" orient="auto-start-reverse"><polygon points="6 0, 12 5, 6 10, 0 5" fill="#FFFFFF" stroke="#1A7351" stroke-width="1.5" /></marker><marker id="comparison-agentic-class-comparison-agentic-class-cls-arrow" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto-start-reverse"><polyline points="0 0, 8 3, 0 6" fill="none" stroke="#1A7351" stroke-width="1.5" /></marker></defs><polyline class="class-relationship" data-from="Diagram" data-to="Flowchart" data-type="inheritance" data-marker-at="from" points="100,148.9 100,208.9" fill="none" stroke="#8B9791" stroke-width="1" marker-start="url(#comparison-agentic-class-comparison-agentic-class-cls-inherit)" /><polyline class="class-relationship" data-from="Diagram" data-to="Warning" data-type="association" data-marker-at="to" data-label="emits" data-from-cardinality="1" data-to-cardinality="*" points="140,148.9 140,158.9 200,158.9 200,377.8" fill="none" stroke="#8B9791" stroke-width="1" marker-end="url(#comparison-agentic-class-comparison-agentic-class-cls-arrow)" /><g class="class-node" data-id="Diagram" data-label="Diagram"><rect x="60" y="40" width="120" height="108.9" rx="0" ry="0" fill="#F8FAF8" stroke="#D3DDD7" stroke-width="1" /><path d="M60,40 H180 V72.9 H60 Z" fill="#f4f4f4" stroke="#D3DDD7" stroke-width="1" /><text x="120" y="56.45" text-anchor="middle" font-size="13" font-weight="700" fill="#27272A" dy="4.55">Diagram</text><line x1="60" y1="72.9" x2="180" y2="72.9" stroke="#D3DDD7" stroke-width="0.75" /><text x="68" y="86.9" class="mono" dy="0.35em" font-size="11" font-weight="400"><tspan fill="#8a8a8c">+ </tspan><tspan fill="#5D6864">kind</tspan></text><text x="68" y="106.9" class="mono" dy="0.35em" font-size="11" font-weight="400"><tspan fill="#8a8a8c">+ </tspan><tspan fill="#5D6864">source</tspan></text><line x1="60" y1="120.9" x2="180" y2="120.9" stroke="#D3DDD7" stroke-width="0.75" /><text x="68" y="134.9" class="mono" dy="0.35em" font-size="11" font-weight="400"><tspan fill="#8a8a8c">+ </tspan><tspan fill="#5D6864">verify()</tspan></text></g><g class="class-node" data-id="Flowchart" data-label="Flowchart"><rect x="40" y="208.9" width="120" height="108.9" rx="0" ry="0" fill="#F8FAF8" stroke="#D3DDD7" stroke-width="1" /><path d="M40,208.9 H160 V241.8 H40 Z" fill="#f4f4f4" stroke="#D3DDD7" stroke-width="1" /><text x="100" y="225.35" text-anchor="middle" font-size="13" font-weight="700" fill="#27272A" dy="4.55">Flowchart</text><line x1="40" y1="241.8" x2="160" y2="241.8" stroke="#D3DDD7" stroke-width="0.75" /><text x="48" y="255.8" class="mono" dy="0.35em" font-size="11" font-weight="400"><tspan fill="#8a8a8c">+ </tspan><tspan fill="#5D6864">nodes</tspan></text><text x="48" y="275.8" class="mono" dy="0.35em" font-size="11" font-weight="400"><tspan fill="#8a8a8c">+ </tspan><tspan fill="#5D6864">edges</tspan></text><line x1="40" y1="289.8" x2="160" y2="289.8" stroke="#D3DDD7" stroke-width="0.75" /><text x="48" y="303.8" class="mono" dy="0.35em" font-size="11" font-weight="400"><tspan fill="#8a8a8c">+ </tspan><tspan fill="#5D6864">mutate()</tspan></text></g><g class="class-node" data-id="Warning" data-label="Warning"><rect x="140" y="377.8" width="120" height="88.9" rx="0" ry="0" fill="#F8FAF8" stroke="#D3DDD7" stroke-width="1" /><path d="M140,377.8 H260 V410.7 H140 Z" fill="#f4f4f4" stroke="#D3DDD7" stroke-width="1" /><text x="200" y="394.25" text-anchor="middle" font-size="13" font-weight="700" fill="#27272A" dy="4.55">Warning</text><line x1="140" y1="410.7" x2="260" y2="410.7" stroke="#D3DDD7" stroke-width="0.75" /><text x="148" y="424.7" class="mono" dy="0.35em" font-size="11" font-weight="400"><tspan fill="#8a8a8c">+ </tspan><tspan fill="#5D6864">code</tspan></text><text x="148" y="444.7" class="mono" dy="0.35em" font-size="11" font-weight="400"><tspan fill="#8a8a8c">+ </tspan><tspan fill="#5D6864">tier</tspan></text><line x1="140" y1="458.7" x2="260" y2="458.7" stroke="#D3DDD7" stroke-width="0.75" /></g><text x="219.705" y="255.35" font-size="11" text-anchor="middle" font-weight="400" fill="#5D6864" dy="3.85">emits</text><text x="126" y="162.9" font-size="11" text-anchor="middle" font-weight="400" fill="#5D6864" dy="3.85">1</text><text x="186" y="363.8" font-size="11" text-anchor="middle" font-weight="400" fill="#5D6864" dy="3.85">*</text></svg></div></div>
+  </div>
+</section>
+<section class="comparison-case" id="er" aria-labelledby="comparison-er-title">
+  <header class="comparison-case-head">
+    <h2 id="comparison-er-title">ER</h2>
+    <button class="comparison-focus" type="button" data-comparison-focus aria-label="Open ER comparison larger" title="Open larger comparison"><span aria-hidden="true">⤢</span></button>
+  </header>
+  <div class="comparison-grid">
+    <div class="comparison-panel"><h3>Mermaid</h3><div class="comparison-render"><pre class="mermaid comparison-mermaid" id="comparison-mermaid-er">erDiagram
+  FAMILY ||--o{ DIAGRAM : accepts
+  DIAGRAM ||--o{ WARNING : reports
+  DIAGRAM ||--o{ RENDER : produces
+  FAMILY {
+    string id PK
+    string name
+  }
+  DIAGRAM {
+    string id PK
+    string source
+    string kind
+  }
+  WARNING {
+    string code PK
+    string tier
+  }
+  RENDER {
+    string format PK
+    string hash
+  }</pre></div></div>
+    <div class="comparison-panel"><h3>Beautiful Mermaid</h3><div class="comparison-render"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 970.4479999999999 306" width="970.4479999999999" height="306" style="--bg:#FFFFFF;--fg:#27272A;--line:#8B9791;--accent:#1A7351;--muted:#5D6864;--surface:#F8FAF8;--border:#D3DDD7;background:var(--bg)" role="img" aria-labelledby="comparison-beautiful-er-svg-title comparison-beautiful-er-svg-desc"><title id="comparison-beautiful-er-svg-title">Beautiful Mermaid ER</title><desc id="comparison-beautiful-er-svg-desc">ER rendered by Beautiful Mermaid.</desc>
+<style>
+  text { font-family: 'Avenir Next', system-ui, sans-serif; }
+  .mono { font-family: 'JetBrains Mono', 'SF Mono', 'Fira Code', ui-monospace, monospace; }
+  svg {
+    /* Derived from --bg and --fg (overridable via --line, --accent, etc.) */
+    --_text:          var(--fg);
+    --_text-sec:      var(--muted, color-mix(in srgb, var(--fg) 60%, var(--bg)));
+    --_text-muted:    var(--muted, color-mix(in srgb, var(--fg) 40%, var(--bg)));
+    --_text-faint:    color-mix(in srgb, var(--fg) 25%, var(--bg));
+    --_line:          var(--line, color-mix(in srgb, var(--fg) 50%, var(--bg)));
+    --_arrow:         var(--accent, color-mix(in srgb, var(--fg) 85%, var(--bg)));
+    --_node-fill:     var(--surface, color-mix(in srgb, var(--fg) 3%, var(--bg)));
+    --_node-stroke:   var(--border, color-mix(in srgb, var(--fg) 20%, var(--bg)));
+    --_group-fill:    var(--bg);
+    --_group-hdr:     color-mix(in srgb, var(--fg) 5%, var(--bg));
+    --_inner-stroke:  color-mix(in srgb, var(--fg) 12%, var(--bg));
+    --_key-badge:     color-mix(in srgb, var(--fg) 10%, var(--bg));
+  }
+</style>
+<defs>
+</defs>
+<polyline class="er-relationship" data-entity1="FAMILY" data-entity2="DIAGRAM" data-cardinality1="one" data-cardinality2="zero-many" data-identifying="true" data-label="accepts" points="180,95.66666666666667 407.666,95.66666666666667" fill="none" stroke="var(--_line)" stroke-width="1" />
+<polyline class="er-relationship" data-entity1="DIAGRAM" data-entity2="WARNING" data-cardinality1="one" data-cardinality2="zero-many" data-identifying="true" data-label="reports" points="547.6659999999999,79 783.6479999999999,79" fill="none" stroke="var(--_line)" stroke-width="1" />
+<polyline class="er-relationship" data-entity1="DIAGRAM" data-entity2="RENDER" data-cardinality1="one" data-cardinality2="zero-many" data-identifying="true" data-label="produces" points="547.6659999999999,112.33333333333333 557.6659999999999,112.33333333333333 557.6659999999999,227 783.6479999999999,227" fill="none" stroke="var(--_line)" stroke-width="1" />
+<g class="entity" data-id="FAMILY" data-label="FAMILY">
+  <rect x="40" y="56.66666666666667" width="140" height="78" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="1" />
+  <rect x="40" y="56.66666666666667" width="140" height="34" rx="0" ry="0" fill="var(--_group-hdr)" stroke="var(--_node-stroke)" stroke-width="1" />
+  <text x="110" y="73.66666666666667" text-anchor="middle" font-size="13" font-weight="700" fill="var(--_text)" dy="4.55">FAMILY</text>
+  <line x1="40" y1="90.66666666666667" x2="180" y2="90.66666666666667" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <rect x="46" y="94.66666666666667" width="22.31" height="14" rx="2" ry="2" fill="var(--_key-badge)" />
+  <text x="57.155" y="101.66666666666667" text-anchor="middle" dy="0.35em" font-size="9" font-weight="600" fill="var(--_text-sec)">PK</text>
+  <text x="76.31" y="101.66666666666667" class="mono" dy="0.35em" font-size="11" font-weight="400"><tspan fill="var(--_text-muted)">string</tspan></text>
+  <text x="172" y="101.66666666666667" class="mono" text-anchor="end" dy="0.35em" font-size="11" font-weight="400"><tspan fill="var(--_text-sec)">id</tspan></text>
+  <text x="48" y="123.66666666666667" class="mono" dy="0.35em" font-size="11" font-weight="400"><tspan fill="var(--_text-muted)">string</tspan></text>
+  <text x="172" y="123.66666666666667" class="mono" text-anchor="end" dy="0.35em" font-size="11" font-weight="400"><tspan fill="var(--_text-sec)">name</tspan></text>
+</g>
+<g class="entity" data-id="DIAGRAM" data-label="DIAGRAM">
+  <rect x="407.666" y="45.66666666666667" width="140" height="100" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="1" />
+  <rect x="407.666" y="45.66666666666667" width="140" height="34" rx="0" ry="0" fill="var(--_group-hdr)" stroke="var(--_node-stroke)" stroke-width="1" />
+  <text x="477.666" y="62.66666666666667" text-anchor="middle" font-size="13" font-weight="700" fill="var(--_text)" dy="4.55">DIAGRAM</text>
+  <line x1="407.666" y1="79.66666666666667" x2="547.6659999999999" y2="79.66666666666667" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <rect x="413.666" y="83.66666666666667" width="22.31" height="14" rx="2" ry="2" fill="var(--_key-badge)" />
+  <text x="424.82099999999997" y="90.66666666666667" text-anchor="middle" dy="0.35em" font-size="9" font-weight="600" fill="var(--_text-sec)">PK</text>
+  <text x="443.976" y="90.66666666666667" class="mono" dy="0.35em" font-size="11" font-weight="400"><tspan fill="var(--_text-muted)">string</tspan></text>
+  <text x="539.6659999999999" y="90.66666666666667" class="mono" text-anchor="end" dy="0.35em" font-size="11" font-weight="400"><tspan fill="var(--_text-sec)">id</tspan></text>
+  <text x="415.666" y="112.66666666666667" class="mono" dy="0.35em" font-size="11" font-weight="400"><tspan fill="var(--_text-muted)">string</tspan></text>
+  <text x="539.6659999999999" y="112.66666666666667" class="mono" text-anchor="end" dy="0.35em" font-size="11" font-weight="400"><tspan fill="var(--_text-sec)">source</tspan></text>
+  <text x="415.666" y="134.66666666666669" class="mono" dy="0.35em" font-size="11" font-weight="400"><tspan fill="var(--_text-muted)">string</tspan></text>
+  <text x="539.6659999999999" y="134.66666666666669" class="mono" text-anchor="end" dy="0.35em" font-size="11" font-weight="400"><tspan fill="var(--_text-sec)">kind</tspan></text>
+</g>
+<g class="entity" data-id="WARNING" data-label="WARNING">
+  <rect x="783.6479999999999" y="40" width="140" height="78" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="1" />
+  <rect x="783.6479999999999" y="40" width="140" height="34" rx="0" ry="0" fill="var(--_group-hdr)" stroke="var(--_node-stroke)" stroke-width="1" />
+  <text x="853.6479999999999" y="57" text-anchor="middle" font-size="13" font-weight="700" fill="var(--_text)" dy="4.55">WARNING</text>
+  <line x1="783.6479999999999" y1="74" x2="923.6479999999999" y2="74" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <rect x="789.6479999999999" y="78" width="22.31" height="14" rx="2" ry="2" fill="var(--_key-badge)" />
+  <text x="800.8029999999999" y="85" text-anchor="middle" dy="0.35em" font-size="9" font-weight="600" fill="var(--_text-sec)">PK</text>
+  <text x="819.9579999999999" y="85" class="mono" dy="0.35em" font-size="11" font-weight="400"><tspan fill="var(--_text-muted)">string</tspan></text>
+  <text x="915.6479999999999" y="85" class="mono" text-anchor="end" dy="0.35em" font-size="11" font-weight="400"><tspan fill="var(--_text-sec)">code</tspan></text>
+  <text x="791.6479999999999" y="107" class="mono" dy="0.35em" font-size="11" font-weight="400"><tspan fill="var(--_text-muted)">string</tspan></text>
+  <text x="915.6479999999999" y="107" class="mono" text-anchor="end" dy="0.35em" font-size="11" font-weight="400"><tspan fill="var(--_text-sec)">tier</tspan></text>
+</g>
+<g class="entity" data-id="RENDER" data-label="RENDER">
+  <rect x="783.6479999999999" y="188" width="146.8" height="78" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="1" />
+  <rect x="783.6479999999999" y="188" width="146.8" height="34" rx="0" ry="0" fill="var(--_group-hdr)" stroke="var(--_node-stroke)" stroke-width="1" />
+  <text x="857.0479999999999" y="205" text-anchor="middle" font-size="13" font-weight="700" fill="var(--_text)" dy="4.55">RENDER</text>
+  <line x1="783.6479999999999" y1="222" x2="930.4479999999999" y2="222" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <rect x="789.6479999999999" y="226" width="22.31" height="14" rx="2" ry="2" fill="var(--_key-badge)" />
+  <text x="800.8029999999999" y="233" text-anchor="middle" dy="0.35em" font-size="9" font-weight="600" fill="var(--_text-sec)">PK</text>
+  <text x="819.9579999999999" y="233" class="mono" dy="0.35em" font-size="11" font-weight="400"><tspan fill="var(--_text-muted)">string</tspan></text>
+  <text x="922.4479999999999" y="233" class="mono" text-anchor="end" dy="0.35em" font-size="11" font-weight="400"><tspan fill="var(--_text-sec)">format</tspan></text>
+  <text x="791.6479999999999" y="255" class="mono" dy="0.35em" font-size="11" font-weight="400"><tspan fill="var(--_text-muted)">string</tspan></text>
+  <text x="922.4479999999999" y="255" class="mono" text-anchor="end" dy="0.35em" font-size="11" font-weight="400"><tspan fill="var(--_text-sec)">hash</tspan></text>
+</g>
+<line x1="184" y1="89.66666666666667" x2="184" y2="101.66666666666667" stroke="var(--_line)" stroke-width="1.25" />
+<line x1="188" y1="89.66666666666667" x2="188" y2="101.66666666666667" stroke="var(--_line)" stroke-width="1.25" />
+<line x1="403.666" y1="102.66666666666667" x2="391.666" y2="95.66666666666667" stroke="var(--_line)" stroke-width="1.25" />
+<line x1="403.666" y1="95.66666666666667" x2="391.666" y2="95.66666666666667" stroke="var(--_line)" stroke-width="1.25" />
+<line x1="403.666" y1="88.66666666666667" x2="391.666" y2="95.66666666666667" stroke="var(--_line)" stroke-width="1.25" />
+<circle cx="387.666" cy="95.66666666666667" r="4" fill="var(--bg)" stroke="var(--_line)" stroke-width="1.25" />
+<line x1="551.6659999999999" y1="73" x2="551.6659999999999" y2="85" stroke="var(--_line)" stroke-width="1.25" />
+<line x1="555.6659999999999" y1="73" x2="555.6659999999999" y2="85" stroke="var(--_line)" stroke-width="1.25" />
+<line x1="779.6479999999999" y1="86" x2="767.6479999999999" y2="79" stroke="var(--_line)" stroke-width="1.25" />
+<line x1="779.6479999999999" y1="79" x2="767.6479999999999" y2="79" stroke="var(--_line)" stroke-width="1.25" />
+<line x1="779.6479999999999" y1="72" x2="767.6479999999999" y2="79" stroke="var(--_line)" stroke-width="1.25" />
+<circle cx="763.6479999999999" cy="79" r="4" fill="var(--bg)" stroke="var(--_line)" stroke-width="1.25" />
+<line x1="551.6659999999999" y1="106.33333333333333" x2="551.6659999999999" y2="118.33333333333333" stroke="var(--_line)" stroke-width="1.25" />
+<line x1="555.6659999999999" y1="106.33333333333333" x2="555.6659999999999" y2="118.33333333333333" stroke="var(--_line)" stroke-width="1.25" />
+<line x1="779.6479999999999" y1="234" x2="767.6479999999999" y2="227" stroke="var(--_line)" stroke-width="1.25" />
+<line x1="779.6479999999999" y1="227" x2="767.6479999999999" y2="227" stroke="var(--_line)" stroke-width="1.25" />
+<line x1="779.6479999999999" y1="220" x2="767.6479999999999" y2="227" stroke="var(--_line)" stroke-width="1.25" />
+<circle cx="763.6479999999999" cy="227" r="4" fill="var(--bg)" stroke="var(--_line)" stroke-width="1.25" />
+<rect x="269.99999999999994" y="85.51666666666667" width="47.666000000000004" height="20.3" rx="2" ry="2" fill="var(--bg)" stroke="var(--_inner-stroke)" stroke-width="0.5" />
+<text x="293.83299999999997" y="95.66666666666667" text-anchor="middle" font-size="11" font-weight="400" fill="var(--_text-muted)" dy="3.8499999999999996">accepts</text>
+<rect x="643.012" y="68.85" width="45.29" height="20.3" rx="2" ry="2" fill="var(--bg)" stroke="var(--_inner-stroke)" stroke-width="0.5" />
+<text x="665.6569999999999" y="79" text-anchor="middle" font-size="11" font-weight="400" fill="var(--_text-muted)" dy="3.8499999999999996">reports</text>
+<rect x="580.3326666666666" y="216.85" width="55.982" height="20.3" rx="2" ry="2" fill="var(--bg)" stroke="var(--_inner-stroke)" stroke-width="0.5" />
+<text x="608.3236666666666" y="227" text-anchor="middle" font-size="11" font-weight="400" fill="var(--_text-muted)" dy="3.8499999999999996">produces</text>
+</svg></div></div>
+    <div class="comparison-panel"><h3>Agentic Mermaid</h3><div class="comparison-render"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 970.448 306" width="970.448" height="306" style="--bg:#FFFFFF;--fg:#27272A;--line:#8B9791;--accent:#1A7351;--muted:#5D6864;--surface:#F8FAF8;--border:#D3DDD7;--font:Avenir Next;background:#FFFFFF" role="img" aria-labelledby="comparison-agentic-er-svg-title comparison-agentic-er-svg-desc"><title id="comparison-agentic-er-svg-title">Agentic Mermaid ER</title><desc id="comparison-agentic-er-svg-desc">ER rendered by Agentic Mermaid.</desc><style>
+  text { font-family: var(--font, 'Avenir Next'), system-ui, sans-serif; }
+  .mono { font-family: 'JetBrains Mono', 'SF Mono', 'Fira Code', ui-monospace, monospace; }
+  svg {
+
+    --_text:          #27272A;
+    --_text-sec:      #5D6864;
+    --_text-muted:    #5D6864;
+    --_text-faint:    #8a8a8c;
+    --_line:          #8B9791;
+    --_arrow:         #1A7351;
+    --_node-fill:     #F8FAF8;
+    --_node-stroke:   #D3DDD7;
+    --_group-fill:    #FFFFFF;
+    --_group-hdr:     #f4f4f4;
+    --_inner-stroke:  #e5e5e5;
+    --_key-badge:     #e9e9ea;
+  }
+</style><defs></defs><polyline class="er-relationship" data-entity1="FAMILY" data-entity2="DIAGRAM" data-cardinality1="one" data-cardinality2="zero-many" data-identifying="true" data-label="accepts" points="180,95.667 407.666,95.667" fill="none" stroke="#8B9791" stroke-width="1" /><polyline class="er-relationship" data-entity1="DIAGRAM" data-entity2="WARNING" data-cardinality1="one" data-cardinality2="zero-many" data-identifying="true" data-label="reports" points="547.666,79 783.648,79" fill="none" stroke="#8B9791" stroke-width="1" /><polyline class="er-relationship" data-entity1="DIAGRAM" data-entity2="RENDER" data-cardinality1="one" data-cardinality2="zero-many" data-identifying="true" data-label="produces" points="547.666,112.333 557.666,112.333 557.666,227 783.648,227" fill="none" stroke="#8B9791" stroke-width="1" /><g class="entity" data-id="FAMILY" data-label="FAMILY"><rect x="40" y="56.667" width="140" height="78" rx="0" ry="0" fill="#F8FAF8" stroke="#D3DDD7" stroke-width="1" /><path d="M40,56.667 H180 V90.667 H40 Z" fill="#f4f4f4" stroke="#D3DDD7" stroke-width="1" /><text x="110" y="73.667" text-anchor="middle" font-size="13" font-weight="700" fill="#27272A" dy="4.55">FAMILY</text><line x1="40" y1="90.667" x2="180" y2="90.667" stroke="#D3DDD7" stroke-width="0.75" /><rect x="47" y="94.667" width="22.31" height="14" rx="2" ry="2" fill="#e9e9ea" /><text x="58.155" y="101.667" text-anchor="middle" dy="0.35em" font-size="9" font-weight="600" fill="#5D6864">PK</text><text x="76.31" y="101.667" class="mono" dy="0.35em" font-size="11" font-weight="400"><tspan fill="#5D6864">string</tspan></text><text x="172" y="101.667" class="mono" text-anchor="end" dy="0.35em" font-size="11" font-weight="400"><tspan fill="#5D6864">id</tspan></text><text x="48" y="123.667" class="mono" dy="0.35em" font-size="11" font-weight="400"><tspan fill="#5D6864">string</tspan></text><text x="172" y="123.667" class="mono" text-anchor="end" dy="0.35em" font-size="11" font-weight="400"><tspan fill="#5D6864">name</tspan></text></g><g class="entity" data-id="DIAGRAM" data-label="DIAGRAM"><rect x="407.666" y="45.667" width="140" height="100" rx="0" ry="0" fill="#F8FAF8" stroke="#D3DDD7" stroke-width="1" /><path d="M407.666,45.667 H547.666 V79.667 H407.666 Z" fill="#f4f4f4" stroke="#D3DDD7" stroke-width="1" /><text x="477.666" y="62.667" text-anchor="middle" font-size="13" font-weight="700" fill="#27272A" dy="4.55">DIAGRAM</text><line x1="407.666" y1="79.667" x2="547.666" y2="79.667" stroke="#D3DDD7" stroke-width="0.75" /><rect x="414.666" y="83.667" width="22.31" height="14" rx="2" ry="2" fill="#e9e9ea" /><text x="425.821" y="90.667" text-anchor="middle" dy="0.35em" font-size="9" font-weight="600" fill="#5D6864">PK</text><text x="443.976" y="90.667" class="mono" dy="0.35em" font-size="11" font-weight="400"><tspan fill="#5D6864">string</tspan></text><text x="539.666" y="90.667" class="mono" text-anchor="end" dy="0.35em" font-size="11" font-weight="400"><tspan fill="#5D6864">id</tspan></text><text x="415.666" y="112.667" class="mono" dy="0.35em" font-size="11" font-weight="400"><tspan fill="#5D6864">string</tspan></text><text x="539.666" y="112.667" class="mono" text-anchor="end" dy="0.35em" font-size="11" font-weight="400"><tspan fill="#5D6864">source</tspan></text><text x="415.666" y="134.667" class="mono" dy="0.35em" font-size="11" font-weight="400"><tspan fill="#5D6864">string</tspan></text><text x="539.666" y="134.667" class="mono" text-anchor="end" dy="0.35em" font-size="11" font-weight="400"><tspan fill="#5D6864">kind</tspan></text></g><g class="entity" data-id="WARNING" data-label="WARNING"><rect x="783.648" y="40" width="140" height="78" rx="0" ry="0" fill="#F8FAF8" stroke="#D3DDD7" stroke-width="1" /><path d="M783.648,40 H923.648 V74 H783.648 Z" fill="#f4f4f4" stroke="#D3DDD7" stroke-width="1" /><text x="853.648" y="57" text-anchor="middle" font-size="13" font-weight="700" fill="#27272A" dy="4.55">WARNING</text><line x1="783.648" y1="74" x2="923.648" y2="74" stroke="#D3DDD7" stroke-width="0.75" /><rect x="790.648" y="78" width="22.31" height="14" rx="2" ry="2" fill="#e9e9ea" /><text x="801.803" y="85" text-anchor="middle" dy="0.35em" font-size="9" font-weight="600" fill="#5D6864">PK</text><text x="819.958" y="85" class="mono" dy="0.35em" font-size="11" font-weight="400"><tspan fill="#5D6864">string</tspan></text><text x="915.648" y="85" class="mono" text-anchor="end" dy="0.35em" font-size="11" font-weight="400"><tspan fill="#5D6864">code</tspan></text><text x="791.648" y="107" class="mono" dy="0.35em" font-size="11" font-weight="400"><tspan fill="#5D6864">string</tspan></text><text x="915.648" y="107" class="mono" text-anchor="end" dy="0.35em" font-size="11" font-weight="400"><tspan fill="#5D6864">tier</tspan></text></g><g class="entity" data-id="RENDER" data-label="RENDER"><rect x="783.648" y="188" width="146.8" height="78" rx="0" ry="0" fill="#F8FAF8" stroke="#D3DDD7" stroke-width="1" /><path d="M783.648,188 H930.448 V222 H783.648 Z" fill="#f4f4f4" stroke="#D3DDD7" stroke-width="1" /><text x="857.048" y="205" text-anchor="middle" font-size="13" font-weight="700" fill="#27272A" dy="4.55">RENDER</text><line x1="783.648" y1="222" x2="930.448" y2="222" stroke="#D3DDD7" stroke-width="0.75" /><rect x="790.648" y="226" width="22.31" height="14" rx="2" ry="2" fill="#e9e9ea" /><text x="801.803" y="233" text-anchor="middle" dy="0.35em" font-size="9" font-weight="600" fill="#5D6864">PK</text><text x="819.958" y="233" class="mono" dy="0.35em" font-size="11" font-weight="400"><tspan fill="#5D6864">string</tspan></text><text x="922.448" y="233" class="mono" text-anchor="end" dy="0.35em" font-size="11" font-weight="400"><tspan fill="#5D6864">format</tspan></text><text x="791.648" y="255" class="mono" dy="0.35em" font-size="11" font-weight="400"><tspan fill="#5D6864">string</tspan></text><text x="922.448" y="255" class="mono" text-anchor="end" dy="0.35em" font-size="11" font-weight="400"><tspan fill="#5D6864">hash</tspan></text></g><line x1="184" y1="89.667" x2="184" y2="101.667" stroke="#8B9791" stroke-width="1.25" /><line x1="188" y1="89.667" x2="188" y2="101.667" stroke="#8B9791" stroke-width="1.25" /><line x1="403.666" y1="102.667" x2="391.666" y2="95.667" stroke="#8B9791" stroke-width="1.25" /><line x1="403.666" y1="95.667" x2="391.666" y2="95.667" stroke="#8B9791" stroke-width="1.25" /><line x1="403.666" y1="88.667" x2="391.666" y2="95.667" stroke="#8B9791" stroke-width="1.25" /><circle cx="387.666" cy="95.667" r="4" fill="#FFFFFF" stroke="#8B9791" stroke-width="1.25" /><line x1="551.666" y1="73" x2="551.666" y2="85" stroke="#8B9791" stroke-width="1.25" /><line x1="555.666" y1="73" x2="555.666" y2="85" stroke="#8B9791" stroke-width="1.25" /><line x1="779.648" y1="86" x2="767.648" y2="79" stroke="#8B9791" stroke-width="1.25" /><line x1="779.648" y1="79" x2="767.648" y2="79" stroke="#8B9791" stroke-width="1.25" /><line x1="779.648" y1="72" x2="767.648" y2="79" stroke="#8B9791" stroke-width="1.25" /><circle cx="763.648" cy="79" r="4" fill="#FFFFFF" stroke="#8B9791" stroke-width="1.25" /><line x1="551.666" y1="106.333" x2="551.666" y2="118.333" stroke="#8B9791" stroke-width="1.25" /><line x1="555.666" y1="106.333" x2="555.666" y2="118.333" stroke="#8B9791" stroke-width="1.25" /><line x1="779.648" y1="234" x2="767.648" y2="227" stroke="#8B9791" stroke-width="1.25" /><line x1="779.648" y1="227" x2="767.648" y2="227" stroke="#8B9791" stroke-width="1.25" /><line x1="779.648" y1="220" x2="767.648" y2="227" stroke="#8B9791" stroke-width="1.25" /><circle cx="763.648" cy="227" r="4" fill="#FFFFFF" stroke="#8B9791" stroke-width="1.25" /><rect x="270" y="85.517" width="47.666" height="20.3" rx="2" ry="2" fill="#FFFFFF" stroke="#e5e5e5" stroke-width="0.5" /><text x="293.833" y="95.667" text-anchor="middle" font-size="11" font-weight="400" fill="#5D6864" dy="3.85">accepts</text><rect x="643.012" y="68.85" width="45.29" height="20.3" rx="2" ry="2" fill="#FFFFFF" stroke="#e5e5e5" stroke-width="0.5" /><text x="665.657" y="79" text-anchor="middle" font-size="11" font-weight="400" fill="#5D6864" dy="3.85">reports</text><rect x="580.333" y="216.85" width="55.982" height="20.3" rx="2" ry="2" fill="#FFFFFF" stroke="#e5e5e5" stroke-width="0.5" /><text x="608.324" y="227" text-anchor="middle" font-size="11" font-weight="400" fill="#5D6864" dy="3.85">produces</text></svg></div></div>
+  </div>
+</section>
+<section class="comparison-case" id="xychart" aria-labelledby="comparison-xychart-title">
+  <header class="comparison-case-head">
+    <h2 id="comparison-xychart-title">XY Chart</h2>
+    <button class="comparison-focus" type="button" data-comparison-focus aria-label="Open XY Chart comparison larger" title="Open larger comparison"><span aria-hidden="true">⤢</span></button>
+  </header>
+  <div class="comparison-grid">
+    <div class="comparison-panel"><h3>Mermaid</h3><div class="comparison-render"><pre class="mermaid comparison-mermaid" id="comparison-mermaid-xychart">xychart
+  title "Layout score"
+  x-axis [Mermaid, Beautiful, Agentic]
+  y-axis "score" 0 --&gt; 100
+  bar [68, 74, 91]
+  line [64, 77, 94]</pre></div></div>
+    <div class="comparison-panel"><h3>Beautiful Mermaid</h3><div class="comparison-render"><svg data-xychart-colors="1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 750 492" width="750" height="492" style="--bg:#FFFFFF;--fg:#27272A;--line:#8B9791;--accent:#1A7351;--muted:#5D6864;--surface:#F8FAF8;--border:#D3DDD7;background:var(--bg)" role="img" aria-labelledby="comparison-beautiful-xychart-svg-title comparison-beautiful-xychart-svg-desc"><title id="comparison-beautiful-xychart-svg-title">Beautiful Mermaid XY Chart</title><desc id="comparison-beautiful-xychart-svg-desc">XY Chart rendered by Beautiful Mermaid.</desc>
+<style>
+  text { font-family: 'Avenir Next', system-ui, sans-serif; }
+  svg {
+    /* Derived from --bg and --fg (overridable via --line, --accent, etc.) */
+    --_text:          var(--fg);
+    --_text-sec:      var(--muted, color-mix(in srgb, var(--fg) 60%, var(--bg)));
+    --_text-muted:    var(--muted, color-mix(in srgb, var(--fg) 40%, var(--bg)));
+    --_text-faint:    color-mix(in srgb, var(--fg) 25%, var(--bg));
+    --_line:          var(--line, color-mix(in srgb, var(--fg) 50%, var(--bg)));
+    --_arrow:         var(--accent, color-mix(in srgb, var(--fg) 85%, var(--bg)));
+    --_node-fill:     var(--surface, color-mix(in srgb, var(--fg) 3%, var(--bg)));
+    --_node-stroke:   var(--border, color-mix(in srgb, var(--fg) 20%, var(--bg)));
+    --_group-fill:    var(--bg);
+    --_group-hdr:     color-mix(in srgb, var(--fg) 5%, var(--bg));
+    --_inner-stroke:  color-mix(in srgb, var(--fg) 12%, var(--bg));
+    --_key-badge:     color-mix(in srgb, var(--fg) 10%, var(--bg));
+  }
+</style>
+<style>
+  .xychart-grid { fill: var(--_inner-stroke); stroke: none; opacity: 0.65; }
+  .xychart-bar { stroke-width: 1.5; }
+  .xychart-line { fill: none; stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round; }
+  .xychart-line-shadow { fill: none; stroke-width: 5; stroke-linecap: round; stroke-linejoin: round; opacity: 0.12; }
+  .xychart-dot { stroke: var(--bg); stroke-width: 2; }
+  .xychart-label { fill: var(--_text-muted); }
+  .xychart-axis-title { fill: var(--_text-sec); }
+  .xychart-title { fill: var(--_text); }
+  svg {
+    --xychart-color-0: var(--accent, #3b82f6);
+    --xychart-bar-fill-0: color-mix(in srgb, var(--bg) 75%, var(--xychart-color-0) 25%);
+    --xychart-color-1: #219258;
+    --xychart-bar-fill-1: color-mix(in srgb, var(--bg) 75%, var(--xychart-color-1) 25%);
+  }
+  .xychart-bar.xychart-color-0 { stroke: var(--xychart-color-0); fill: var(--xychart-bar-fill-0); }
+  path.xychart-color-0, line.xychart-color-0 { stroke: var(--xychart-color-0); }
+  circle.xychart-color-0 { fill: var(--xychart-color-0); }
+  .xychart-bar.xychart-color-1 { stroke: var(--xychart-color-1); fill: var(--xychart-bar-fill-1); }
+  path.xychart-color-1, line.xychart-color-1 { stroke: var(--xychart-color-1); }
+  circle.xychart-color-1 { fill: var(--xychart-color-1); }
+</style>
+<circle cx="128" cy="92" r="1.5" class="xychart-grid"/>
+<circle cx="148" cy="92" r="1.5" class="xychart-grid"/>
+<circle cx="168" cy="92" r="1.5" class="xychart-grid"/>
+<circle cx="188" cy="92" r="1.5" class="xychart-grid"/>
+<circle cx="208" cy="92" r="1.5" class="xychart-grid"/>
+<circle cx="228" cy="92" r="1.5" class="xychart-grid"/>
+<circle cx="248" cy="92" r="1.5" class="xychart-grid"/>
+<circle cx="268" cy="92" r="1.5" class="xychart-grid"/>
+<circle cx="288" cy="92" r="1.5" class="xychart-grid"/>
+<circle cx="308" cy="92" r="1.5" class="xychart-grid"/>
+<circle cx="328" cy="92" r="1.5" class="xychart-grid"/>
+<circle cx="348" cy="92" r="1.5" class="xychart-grid"/>
+<circle cx="368" cy="92" r="1.5" class="xychart-grid"/>
+<circle cx="388" cy="92" r="1.5" class="xychart-grid"/>
+<circle cx="408" cy="92" r="1.5" class="xychart-grid"/>
+<circle cx="428" cy="92" r="1.5" class="xychart-grid"/>
+<circle cx="448" cy="92" r="1.5" class="xychart-grid"/>
+<circle cx="468" cy="92" r="1.5" class="xychart-grid"/>
+<circle cx="488" cy="92" r="1.5" class="xychart-grid"/>
+<circle cx="508" cy="92" r="1.5" class="xychart-grid"/>
+<circle cx="528" cy="92" r="1.5" class="xychart-grid"/>
+<circle cx="548" cy="92" r="1.5" class="xychart-grid"/>
+<circle cx="568" cy="92" r="1.5" class="xychart-grid"/>
+<circle cx="588" cy="92" r="1.5" class="xychart-grid"/>
+<circle cx="608" cy="92" r="1.5" class="xychart-grid"/>
+<circle cx="628" cy="92" r="1.5" class="xychart-grid"/>
+<circle cx="648" cy="92" r="1.5" class="xychart-grid"/>
+<circle cx="668" cy="92" r="1.5" class="xychart-grid"/>
+<circle cx="688" cy="92" r="1.5" class="xychart-grid"/>
+<circle cx="708" cy="92" r="1.5" class="xychart-grid"/>
+<circle cx="728" cy="92" r="1.5" class="xychart-grid"/>
+<circle cx="128" cy="114.7" r="1.5" class="xychart-grid"/>
+<circle cx="148" cy="114.7" r="1.5" class="xychart-grid"/>
+<circle cx="168" cy="114.7" r="1.5" class="xychart-grid"/>
+<circle cx="188" cy="114.7" r="1.5" class="xychart-grid"/>
+<circle cx="208" cy="114.7" r="1.5" class="xychart-grid"/>
+<circle cx="228" cy="114.7" r="1.5" class="xychart-grid"/>
+<circle cx="248" cy="114.7" r="1.5" class="xychart-grid"/>
+<circle cx="268" cy="114.7" r="1.5" class="xychart-grid"/>
+<circle cx="288" cy="114.7" r="1.5" class="xychart-grid"/>
+<circle cx="308" cy="114.7" r="1.5" class="xychart-grid"/>
+<circle cx="328" cy="114.7" r="1.5" class="xychart-grid"/>
+<circle cx="348" cy="114.7" r="1.5" class="xychart-grid"/>
+<circle cx="368" cy="114.7" r="1.5" class="xychart-grid"/>
+<circle cx="388" cy="114.7" r="1.5" class="xychart-grid"/>
+<circle cx="408" cy="114.7" r="1.5" class="xychart-grid"/>
+<circle cx="428" cy="114.7" r="1.5" class="xychart-grid"/>
+<circle cx="448" cy="114.7" r="1.5" class="xychart-grid"/>
+<circle cx="468" cy="114.7" r="1.5" class="xychart-grid"/>
+<circle cx="488" cy="114.7" r="1.5" class="xychart-grid"/>
+<circle cx="508" cy="114.7" r="1.5" class="xychart-grid"/>
+<circle cx="528" cy="114.7" r="1.5" class="xychart-grid"/>
+<circle cx="548" cy="114.7" r="1.5" class="xychart-grid"/>
+<circle cx="568" cy="114.7" r="1.5" class="xychart-grid"/>
+<circle cx="588" cy="114.7" r="1.5" class="xychart-grid"/>
+<circle cx="608" cy="114.7" r="1.5" class="xychart-grid"/>
+<circle cx="628" cy="114.7" r="1.5" class="xychart-grid"/>
+<circle cx="648" cy="114.7" r="1.5" class="xychart-grid"/>
+<circle cx="668" cy="114.7" r="1.5" class="xychart-grid"/>
+<circle cx="688" cy="114.7" r="1.5" class="xychart-grid"/>
+<circle cx="708" cy="114.7" r="1.5" class="xychart-grid"/>
+<circle cx="728" cy="114.7" r="1.5" class="xychart-grid"/>
+<circle cx="128" cy="137.3" r="1.5" class="xychart-grid"/>
+<circle cx="148" cy="137.3" r="1.5" class="xychart-grid"/>
+<circle cx="168" cy="137.3" r="1.5" class="xychart-grid"/>
+<circle cx="188" cy="137.3" r="1.5" class="xychart-grid"/>
+<circle cx="208" cy="137.3" r="1.5" class="xychart-grid"/>
+<circle cx="228" cy="137.3" r="1.5" class="xychart-grid"/>
+<circle cx="248" cy="137.3" r="1.5" class="xychart-grid"/>
+<circle cx="268" cy="137.3" r="1.5" class="xychart-grid"/>
+<circle cx="288" cy="137.3" r="1.5" class="xychart-grid"/>
+<circle cx="308" cy="137.3" r="1.5" class="xychart-grid"/>
+<circle cx="328" cy="137.3" r="1.5" class="xychart-grid"/>
+<circle cx="348" cy="137.3" r="1.5" class="xychart-grid"/>
+<circle cx="368" cy="137.3" r="1.5" class="xychart-grid"/>
+<circle cx="388" cy="137.3" r="1.5" class="xychart-grid"/>
+<circle cx="408" cy="137.3" r="1.5" class="xychart-grid"/>
+<circle cx="428" cy="137.3" r="1.5" class="xychart-grid"/>
+<circle cx="448" cy="137.3" r="1.5" class="xychart-grid"/>
+<circle cx="468" cy="137.3" r="1.5" class="xychart-grid"/>
+<circle cx="488" cy="137.3" r="1.5" class="xychart-grid"/>
+<circle cx="508" cy="137.3" r="1.5" class="xychart-grid"/>
+<circle cx="528" cy="137.3" r="1.5" class="xychart-grid"/>
+<circle cx="548" cy="137.3" r="1.5" class="xychart-grid"/>
+<circle cx="568" cy="137.3" r="1.5" class="xychart-grid"/>
+<circle cx="588" cy="137.3" r="1.5" class="xychart-grid"/>
+<circle cx="608" cy="137.3" r="1.5" class="xychart-grid"/>
+<circle cx="628" cy="137.3" r="1.5" class="xychart-grid"/>
+<circle cx="648" cy="137.3" r="1.5" class="xychart-grid"/>
+<circle cx="668" cy="137.3" r="1.5" class="xychart-grid"/>
+<circle cx="688" cy="137.3" r="1.5" class="xychart-grid"/>
+<circle cx="708" cy="137.3" r="1.5" class="xychart-grid"/>
+<circle cx="728" cy="137.3" r="1.5" class="xychart-grid"/>
+<circle cx="128" cy="160" r="1.5" class="xychart-grid"/>
+<circle cx="148" cy="160" r="1.5" class="xychart-grid"/>
+<circle cx="168" cy="160" r="1.5" class="xychart-grid"/>
+<circle cx="188" cy="160" r="1.5" class="xychart-grid"/>
+<circle cx="208" cy="160" r="1.5" class="xychart-grid"/>
+<circle cx="228" cy="160" r="1.5" class="xychart-grid"/>
+<circle cx="248" cy="160" r="1.5" class="xychart-grid"/>
+<circle cx="268" cy="160" r="1.5" class="xychart-grid"/>
+<circle cx="288" cy="160" r="1.5" class="xychart-grid"/>
+<circle cx="308" cy="160" r="1.5" class="xychart-grid"/>
+<circle cx="328" cy="160" r="1.5" class="xychart-grid"/>
+<circle cx="348" cy="160" r="1.5" class="xychart-grid"/>
+<circle cx="368" cy="160" r="1.5" class="xychart-grid"/>
+<circle cx="388" cy="160" r="1.5" class="xychart-grid"/>
+<circle cx="408" cy="160" r="1.5" class="xychart-grid"/>
+<circle cx="428" cy="160" r="1.5" class="xychart-grid"/>
+<circle cx="448" cy="160" r="1.5" class="xychart-grid"/>
+<circle cx="468" cy="160" r="1.5" class="xychart-grid"/>
+<circle cx="488" cy="160" r="1.5" class="xychart-grid"/>
+<circle cx="508" cy="160" r="1.5" class="xychart-grid"/>
+<circle cx="528" cy="160" r="1.5" class="xychart-grid"/>
+<circle cx="548" cy="160" r="1.5" class="xychart-grid"/>
+<circle cx="568" cy="160" r="1.5" class="xychart-grid"/>
+<circle cx="588" cy="160" r="1.5" class="xychart-grid"/>
+<circle cx="608" cy="160" r="1.5" class="xychart-grid"/>
+<circle cx="628" cy="160" r="1.5" class="xychart-grid"/>
+<circle cx="648" cy="160" r="1.5" class="xychart-grid"/>
+<circle cx="668" cy="160" r="1.5" class="xychart-grid"/>
+<circle cx="688" cy="160" r="1.5" class="xychart-grid"/>
+<circle cx="708" cy="160" r="1.5" class="xychart-grid"/>
+<circle cx="728" cy="160" r="1.5" class="xychart-grid"/>
+<circle cx="128" cy="182.7" r="1.5" class="xychart-grid"/>
+<circle cx="148" cy="182.7" r="1.5" class="xychart-grid"/>
+<circle cx="168" cy="182.7" r="1.5" class="xychart-grid"/>
+<circle cx="188" cy="182.7" r="1.5" class="xychart-grid"/>
+<circle cx="208" cy="182.7" r="1.5" class="xychart-grid"/>
+<circle cx="228" cy="182.7" r="1.5" class="xychart-grid"/>
+<circle cx="248" cy="182.7" r="1.5" class="xychart-grid"/>
+<circle cx="268" cy="182.7" r="1.5" class="xychart-grid"/>
+<circle cx="288" cy="182.7" r="1.5" class="xychart-grid"/>
+<circle cx="308" cy="182.7" r="1.5" class="xychart-grid"/>
+<circle cx="328" cy="182.7" r="1.5" class="xychart-grid"/>
+<circle cx="348" cy="182.7" r="1.5" class="xychart-grid"/>
+<circle cx="368" cy="182.7" r="1.5" class="xychart-grid"/>
+<circle cx="388" cy="182.7" r="1.5" class="xychart-grid"/>
+<circle cx="408" cy="182.7" r="1.5" class="xychart-grid"/>
+<circle cx="428" cy="182.7" r="1.5" class="xychart-grid"/>
+<circle cx="448" cy="182.7" r="1.5" class="xychart-grid"/>
+<circle cx="468" cy="182.7" r="1.5" class="xychart-grid"/>
+<circle cx="488" cy="182.7" r="1.5" class="xychart-grid"/>
+<circle cx="508" cy="182.7" r="1.5" class="xychart-grid"/>
+<circle cx="528" cy="182.7" r="1.5" class="xychart-grid"/>
+<circle cx="548" cy="182.7" r="1.5" class="xychart-grid"/>
+<circle cx="568" cy="182.7" r="1.5" class="xychart-grid"/>
+<circle cx="588" cy="182.7" r="1.5" class="xychart-grid"/>
+<circle cx="608" cy="182.7" r="1.5" class="xychart-grid"/>
+<circle cx="628" cy="182.7" r="1.5" class="xychart-grid"/>
+<circle cx="648" cy="182.7" r="1.5" class="xychart-grid"/>
+<circle cx="668" cy="182.7" r="1.5" class="xychart-grid"/>
+<circle cx="688" cy="182.7" r="1.5" class="xychart-grid"/>
+<circle cx="708" cy="182.7" r="1.5" class="xychart-grid"/>
+<circle cx="728" cy="182.7" r="1.5" class="xychart-grid"/>
+<circle cx="128" cy="205.3" r="1.5" class="xychart-grid"/>
+<circle cx="148" cy="205.3" r="1.5" class="xychart-grid"/>
+<circle cx="168" cy="205.3" r="1.5" class="xychart-grid"/>
+<circle cx="188" cy="205.3" r="1.5" class="xychart-grid"/>
+<circle cx="208" cy="205.3" r="1.5" class="xychart-grid"/>
+<circle cx="228" cy="205.3" r="1.5" class="xychart-grid"/>
+<circle cx="248" cy="205.3" r="1.5" class="xychart-grid"/>
+<circle cx="268" cy="205.3" r="1.5" class="xychart-grid"/>
+<circle cx="288" cy="205.3" r="1.5" class="xychart-grid"/>
+<circle cx="308" cy="205.3" r="1.5" class="xychart-grid"/>
+<circle cx="328" cy="205.3" r="1.5" class="xychart-grid"/>
+<circle cx="348" cy="205.3" r="1.5" class="xychart-grid"/>
+<circle cx="368" cy="205.3" r="1.5" class="xychart-grid"/>
+<circle cx="388" cy="205.3" r="1.5" class="xychart-grid"/>
+<circle cx="408" cy="205.3" r="1.5" class="xychart-grid"/>
+<circle cx="428" cy="205.3" r="1.5" class="xychart-grid"/>
+<circle cx="448" cy="205.3" r="1.5" class="xychart-grid"/>
+<circle cx="468" cy="205.3" r="1.5" class="xychart-grid"/>
+<circle cx="488" cy="205.3" r="1.5" class="xychart-grid"/>
+<circle cx="508" cy="205.3" r="1.5" class="xychart-grid"/>
+<circle cx="528" cy="205.3" r="1.5" class="xychart-grid"/>
+<circle cx="548" cy="205.3" r="1.5" class="xychart-grid"/>
+<circle cx="568" cy="205.3" r="1.5" class="xychart-grid"/>
+<circle cx="588" cy="205.3" r="1.5" class="xychart-grid"/>
+<circle cx="608" cy="205.3" r="1.5" class="xychart-grid"/>
+<circle cx="628" cy="205.3" r="1.5" class="xychart-grid"/>
+<circle cx="648" cy="205.3" r="1.5" class="xychart-grid"/>
+<circle cx="668" cy="205.3" r="1.5" class="xychart-grid"/>
+<circle cx="688" cy="205.3" r="1.5" class="xychart-grid"/>
+<circle cx="708" cy="205.3" r="1.5" class="xychart-grid"/>
+<circle cx="728" cy="205.3" r="1.5" class="xychart-grid"/>
+<circle cx="128" cy="228" r="1.5" class="xychart-grid"/>
+<circle cx="148" cy="228" r="1.5" class="xychart-grid"/>
+<circle cx="168" cy="228" r="1.5" class="xychart-grid"/>
+<circle cx="188" cy="228" r="1.5" class="xychart-grid"/>
+<circle cx="208" cy="228" r="1.5" class="xychart-grid"/>
+<circle cx="228" cy="228" r="1.5" class="xychart-grid"/>
+<circle cx="248" cy="228" r="1.5" class="xychart-grid"/>
+<circle cx="268" cy="228" r="1.5" class="xychart-grid"/>
+<circle cx="288" cy="228" r="1.5" class="xychart-grid"/>
+<circle cx="308" cy="228" r="1.5" class="xychart-grid"/>
+<circle cx="328" cy="228" r="1.5" class="xychart-grid"/>
+<circle cx="348" cy="228" r="1.5" class="xychart-grid"/>
+<circle cx="368" cy="228" r="1.5" class="xychart-grid"/>
+<circle cx="388" cy="228" r="1.5" class="xychart-grid"/>
+<circle cx="408" cy="228" r="1.5" class="xychart-grid"/>
+<circle cx="428" cy="228" r="1.5" class="xychart-grid"/>
+<circle cx="448" cy="228" r="1.5" class="xychart-grid"/>
+<circle cx="468" cy="228" r="1.5" class="xychart-grid"/>
+<circle cx="488" cy="228" r="1.5" class="xychart-grid"/>
+<circle cx="508" cy="228" r="1.5" class="xychart-grid"/>
+<circle cx="528" cy="228" r="1.5" class="xychart-grid"/>
+<circle cx="548" cy="228" r="1.5" class="xychart-grid"/>
+<circle cx="568" cy="228" r="1.5" class="xychart-grid"/>
+<circle cx="588" cy="228" r="1.5" class="xychart-grid"/>
+<circle cx="608" cy="228" r="1.5" class="xychart-grid"/>
+<circle cx="628" cy="228" r="1.5" class="xychart-grid"/>
+<circle cx="648" cy="228" r="1.5" class="xychart-grid"/>
+<circle cx="668" cy="228" r="1.5" class="xychart-grid"/>
+<circle cx="688" cy="228" r="1.5" class="xychart-grid"/>
+<circle cx="708" cy="228" r="1.5" class="xychart-grid"/>
+<circle cx="728" cy="228" r="1.5" class="xychart-grid"/>
+<circle cx="128" cy="250.7" r="1.5" class="xychart-grid"/>
+<circle cx="148" cy="250.7" r="1.5" class="xychart-grid"/>
+<circle cx="168" cy="250.7" r="1.5" class="xychart-grid"/>
+<circle cx="188" cy="250.7" r="1.5" class="xychart-grid"/>
+<circle cx="208" cy="250.7" r="1.5" class="xychart-grid"/>
+<circle cx="228" cy="250.7" r="1.5" class="xychart-grid"/>
+<circle cx="248" cy="250.7" r="1.5" class="xychart-grid"/>
+<circle cx="268" cy="250.7" r="1.5" class="xychart-grid"/>
+<circle cx="288" cy="250.7" r="1.5" class="xychart-grid"/>
+<circle cx="308" cy="250.7" r="1.5" class="xychart-grid"/>
+<circle cx="328" cy="250.7" r="1.5" class="xychart-grid"/>
+<circle cx="348" cy="250.7" r="1.5" class="xychart-grid"/>
+<circle cx="368" cy="250.7" r="1.5" class="xychart-grid"/>
+<circle cx="388" cy="250.7" r="1.5" class="xychart-grid"/>
+<circle cx="408" cy="250.7" r="1.5" class="xychart-grid"/>
+<circle cx="428" cy="250.7" r="1.5" class="xychart-grid"/>
+<circle cx="448" cy="250.7" r="1.5" class="xychart-grid"/>
+<circle cx="468" cy="250.7" r="1.5" class="xychart-grid"/>
+<circle cx="488" cy="250.7" r="1.5" class="xychart-grid"/>
+<circle cx="508" cy="250.7" r="1.5" class="xychart-grid"/>
+<circle cx="528" cy="250.7" r="1.5" class="xychart-grid"/>
+<circle cx="548" cy="250.7" r="1.5" class="xychart-grid"/>
+<circle cx="568" cy="250.7" r="1.5" class="xychart-grid"/>
+<circle cx="588" cy="250.7" r="1.5" class="xychart-grid"/>
+<circle cx="608" cy="250.7" r="1.5" class="xychart-grid"/>
+<circle cx="628" cy="250.7" r="1.5" class="xychart-grid"/>
+<circle cx="648" cy="250.7" r="1.5" class="xychart-grid"/>
+<circle cx="668" cy="250.7" r="1.5" class="xychart-grid"/>
+<circle cx="688" cy="250.7" r="1.5" class="xychart-grid"/>
+<circle cx="708" cy="250.7" r="1.5" class="xychart-grid"/>
+<circle cx="728" cy="250.7" r="1.5" class="xychart-grid"/>
+<circle cx="128" cy="273.3" r="1.5" class="xychart-grid"/>
+<circle cx="148" cy="273.3" r="1.5" class="xychart-grid"/>
+<circle cx="168" cy="273.3" r="1.5" class="xychart-grid"/>
+<circle cx="188" cy="273.3" r="1.5" class="xychart-grid"/>
+<circle cx="208" cy="273.3" r="1.5" class="xychart-grid"/>
+<circle cx="228" cy="273.3" r="1.5" class="xychart-grid"/>
+<circle cx="248" cy="273.3" r="1.5" class="xychart-grid"/>
+<circle cx="268" cy="273.3" r="1.5" class="xychart-grid"/>
+<circle cx="288" cy="273.3" r="1.5" class="xychart-grid"/>
+<circle cx="308" cy="273.3" r="1.5" class="xychart-grid"/>
+<circle cx="328" cy="273.3" r="1.5" class="xychart-grid"/>
+<circle cx="348" cy="273.3" r="1.5" class="xychart-grid"/>
+<circle cx="368" cy="273.3" r="1.5" class="xychart-grid"/>
+<circle cx="388" cy="273.3" r="1.5" class="xychart-grid"/>
+<circle cx="408" cy="273.3" r="1.5" class="xychart-grid"/>
+<circle cx="428" cy="273.3" r="1.5" class="xychart-grid"/>
+<circle cx="448" cy="273.3" r="1.5" class="xychart-grid"/>
+<circle cx="468" cy="273.3" r="1.5" class="xychart-grid"/>
+<circle cx="488" cy="273.3" r="1.5" class="xychart-grid"/>
+<circle cx="508" cy="273.3" r="1.5" class="xychart-grid"/>
+<circle cx="528" cy="273.3" r="1.5" class="xychart-grid"/>
+<circle cx="548" cy="273.3" r="1.5" class="xychart-grid"/>
+<circle cx="568" cy="273.3" r="1.5" class="xychart-grid"/>
+<circle cx="588" cy="273.3" r="1.5" class="xychart-grid"/>
+<circle cx="608" cy="273.3" r="1.5" class="xychart-grid"/>
+<circle cx="628" cy="273.3" r="1.5" class="xychart-grid"/>
+<circle cx="648" cy="273.3" r="1.5" class="xychart-grid"/>
+<circle cx="668" cy="273.3" r="1.5" class="xychart-grid"/>
+<circle cx="688" cy="273.3" r="1.5" class="xychart-grid"/>
+<circle cx="708" cy="273.3" r="1.5" class="xychart-grid"/>
+<circle cx="728" cy="273.3" r="1.5" class="xychart-grid"/>
+<circle cx="128" cy="296" r="1.5" class="xychart-grid"/>
+<circle cx="148" cy="296" r="1.5" class="xychart-grid"/>
+<circle cx="168" cy="296" r="1.5" class="xychart-grid"/>
+<circle cx="188" cy="296" r="1.5" class="xychart-grid"/>
+<circle cx="208" cy="296" r="1.5" class="xychart-grid"/>
+<circle cx="228" cy="296" r="1.5" class="xychart-grid"/>
+<circle cx="248" cy="296" r="1.5" class="xychart-grid"/>
+<circle cx="268" cy="296" r="1.5" class="xychart-grid"/>
+<circle cx="288" cy="296" r="1.5" class="xychart-grid"/>
+<circle cx="308" cy="296" r="1.5" class="xychart-grid"/>
+<circle cx="328" cy="296" r="1.5" class="xychart-grid"/>
+<circle cx="348" cy="296" r="1.5" class="xychart-grid"/>
+<circle cx="368" cy="296" r="1.5" class="xychart-grid"/>
+<circle cx="388" cy="296" r="1.5" class="xychart-grid"/>
+<circle cx="408" cy="296" r="1.5" class="xychart-grid"/>
+<circle cx="428" cy="296" r="1.5" class="xychart-grid"/>
+<circle cx="448" cy="296" r="1.5" class="xychart-grid"/>
+<circle cx="468" cy="296" r="1.5" class="xychart-grid"/>
+<circle cx="488" cy="296" r="1.5" class="xychart-grid"/>
+<circle cx="508" cy="296" r="1.5" class="xychart-grid"/>
+<circle cx="528" cy="296" r="1.5" class="xychart-grid"/>
+<circle cx="548" cy="296" r="1.5" class="xychart-grid"/>
+<circle cx="568" cy="296" r="1.5" class="xychart-grid"/>
+<circle cx="588" cy="296" r="1.5" class="xychart-grid"/>
+<circle cx="608" cy="296" r="1.5" class="xychart-grid"/>
+<circle cx="628" cy="296" r="1.5" class="xychart-grid"/>
+<circle cx="648" cy="296" r="1.5" class="xychart-grid"/>
+<circle cx="668" cy="296" r="1.5" class="xychart-grid"/>
+<circle cx="688" cy="296" r="1.5" class="xychart-grid"/>
+<circle cx="708" cy="296" r="1.5" class="xychart-grid"/>
+<circle cx="728" cy="296" r="1.5" class="xychart-grid"/>
+<circle cx="128" cy="318.7" r="1.5" class="xychart-grid"/>
+<circle cx="148" cy="318.7" r="1.5" class="xychart-grid"/>
+<circle cx="168" cy="318.7" r="1.5" class="xychart-grid"/>
+<circle cx="188" cy="318.7" r="1.5" class="xychart-grid"/>
+<circle cx="208" cy="318.7" r="1.5" class="xychart-grid"/>
+<circle cx="228" cy="318.7" r="1.5" class="xychart-grid"/>
+<circle cx="248" cy="318.7" r="1.5" class="xychart-grid"/>
+<circle cx="268" cy="318.7" r="1.5" class="xychart-grid"/>
+<circle cx="288" cy="318.7" r="1.5" class="xychart-grid"/>
+<circle cx="308" cy="318.7" r="1.5" class="xychart-grid"/>
+<circle cx="328" cy="318.7" r="1.5" class="xychart-grid"/>
+<circle cx="348" cy="318.7" r="1.5" class="xychart-grid"/>
+<circle cx="368" cy="318.7" r="1.5" class="xychart-grid"/>
+<circle cx="388" cy="318.7" r="1.5" class="xychart-grid"/>
+<circle cx="408" cy="318.7" r="1.5" class="xychart-grid"/>
+<circle cx="428" cy="318.7" r="1.5" class="xychart-grid"/>
+<circle cx="448" cy="318.7" r="1.5" class="xychart-grid"/>
+<circle cx="468" cy="318.7" r="1.5" class="xychart-grid"/>
+<circle cx="488" cy="318.7" r="1.5" class="xychart-grid"/>
+<circle cx="508" cy="318.7" r="1.5" class="xychart-grid"/>
+<circle cx="528" cy="318.7" r="1.5" class="xychart-grid"/>
+<circle cx="548" cy="318.7" r="1.5" class="xychart-grid"/>
+<circle cx="568" cy="318.7" r="1.5" class="xychart-grid"/>
+<circle cx="588" cy="318.7" r="1.5" class="xychart-grid"/>
+<circle cx="608" cy="318.7" r="1.5" class="xychart-grid"/>
+<circle cx="628" cy="318.7" r="1.5" class="xychart-grid"/>
+<circle cx="648" cy="318.7" r="1.5" class="xychart-grid"/>
+<circle cx="668" cy="318.7" r="1.5" class="xychart-grid"/>
+<circle cx="688" cy="318.7" r="1.5" class="xychart-grid"/>
+<circle cx="708" cy="318.7" r="1.5" class="xychart-grid"/>
+<circle cx="728" cy="318.7" r="1.5" class="xychart-grid"/>
+<circle cx="128" cy="341.3" r="1.5" class="xychart-grid"/>
+<circle cx="148" cy="341.3" r="1.5" class="xychart-grid"/>
+<circle cx="168" cy="341.3" r="1.5" class="xychart-grid"/>
+<circle cx="188" cy="341.3" r="1.5" class="xychart-grid"/>
+<circle cx="208" cy="341.3" r="1.5" class="xychart-grid"/>
+<circle cx="228" cy="341.3" r="1.5" class="xychart-grid"/>
+<circle cx="248" cy="341.3" r="1.5" class="xychart-grid"/>
+<circle cx="268" cy="341.3" r="1.5" class="xychart-grid"/>
+<circle cx="288" cy="341.3" r="1.5" class="xychart-grid"/>
+<circle cx="308" cy="341.3" r="1.5" class="xychart-grid"/>
+<circle cx="328" cy="341.3" r="1.5" class="xychart-grid"/>
+<circle cx="348" cy="341.3" r="1.5" class="xychart-grid"/>
+<circle cx="368" cy="341.3" r="1.5" class="xychart-grid"/>
+<circle cx="388" cy="341.3" r="1.5" class="xychart-grid"/>
+<circle cx="408" cy="341.3" r="1.5" class="xychart-grid"/>
+<circle cx="428" cy="341.3" r="1.5" class="xychart-grid"/>
+<circle cx="448" cy="341.3" r="1.5" class="xychart-grid"/>
+<circle cx="468" cy="341.3" r="1.5" class="xychart-grid"/>
+<circle cx="488" cy="341.3" r="1.5" class="xychart-grid"/>
+<circle cx="508" cy="341.3" r="1.5" class="xychart-grid"/>
+<circle cx="528" cy="341.3" r="1.5" class="xychart-grid"/>
+<circle cx="548" cy="341.3" r="1.5" class="xychart-grid"/>
+<circle cx="568" cy="341.3" r="1.5" class="xychart-grid"/>
+<circle cx="588" cy="341.3" r="1.5" class="xychart-grid"/>
+<circle cx="608" cy="341.3" r="1.5" class="xychart-grid"/>
+<circle cx="628" cy="341.3" r="1.5" class="xychart-grid"/>
+<circle cx="648" cy="341.3" r="1.5" class="xychart-grid"/>
+<circle cx="668" cy="341.3" r="1.5" class="xychart-grid"/>
+<circle cx="688" cy="341.3" r="1.5" class="xychart-grid"/>
+<circle cx="708" cy="341.3" r="1.5" class="xychart-grid"/>
+<circle cx="728" cy="341.3" r="1.5" class="xychart-grid"/>
+<circle cx="128" cy="364" r="1.5" class="xychart-grid"/>
+<circle cx="148" cy="364" r="1.5" class="xychart-grid"/>
+<circle cx="168" cy="364" r="1.5" class="xychart-grid"/>
+<circle cx="188" cy="364" r="1.5" class="xychart-grid"/>
+<circle cx="208" cy="364" r="1.5" class="xychart-grid"/>
+<circle cx="228" cy="364" r="1.5" class="xychart-grid"/>
+<circle cx="248" cy="364" r="1.5" class="xychart-grid"/>
+<circle cx="268" cy="364" r="1.5" class="xychart-grid"/>
+<circle cx="288" cy="364" r="1.5" class="xychart-grid"/>
+<circle cx="308" cy="364" r="1.5" class="xychart-grid"/>
+<circle cx="328" cy="364" r="1.5" class="xychart-grid"/>
+<circle cx="348" cy="364" r="1.5" class="xychart-grid"/>
+<circle cx="368" cy="364" r="1.5" class="xychart-grid"/>
+<circle cx="388" cy="364" r="1.5" class="xychart-grid"/>
+<circle cx="408" cy="364" r="1.5" class="xychart-grid"/>
+<circle cx="428" cy="364" r="1.5" class="xychart-grid"/>
+<circle cx="448" cy="364" r="1.5" class="xychart-grid"/>
+<circle cx="468" cy="364" r="1.5" class="xychart-grid"/>
+<circle cx="488" cy="364" r="1.5" class="xychart-grid"/>
+<circle cx="508" cy="364" r="1.5" class="xychart-grid"/>
+<circle cx="528" cy="364" r="1.5" class="xychart-grid"/>
+<circle cx="548" cy="364" r="1.5" class="xychart-grid"/>
+<circle cx="568" cy="364" r="1.5" class="xychart-grid"/>
+<circle cx="588" cy="364" r="1.5" class="xychart-grid"/>
+<circle cx="608" cy="364" r="1.5" class="xychart-grid"/>
+<circle cx="628" cy="364" r="1.5" class="xychart-grid"/>
+<circle cx="648" cy="364" r="1.5" class="xychart-grid"/>
+<circle cx="668" cy="364" r="1.5" class="xychart-grid"/>
+<circle cx="688" cy="364" r="1.5" class="xychart-grid"/>
+<circle cx="708" cy="364" r="1.5" class="xychart-grid"/>
+<circle cx="728" cy="364" r="1.5" class="xychart-grid"/>
+<circle cx="128" cy="386.7" r="1.5" class="xychart-grid"/>
+<circle cx="148" cy="386.7" r="1.5" class="xychart-grid"/>
+<circle cx="168" cy="386.7" r="1.5" class="xychart-grid"/>
+<circle cx="188" cy="386.7" r="1.5" class="xychart-grid"/>
+<circle cx="208" cy="386.7" r="1.5" class="xychart-grid"/>
+<circle cx="228" cy="386.7" r="1.5" class="xychart-grid"/>
+<circle cx="248" cy="386.7" r="1.5" class="xychart-grid"/>
+<circle cx="268" cy="386.7" r="1.5" class="xychart-grid"/>
+<circle cx="288" cy="386.7" r="1.5" class="xychart-grid"/>
+<circle cx="308" cy="386.7" r="1.5" class="xychart-grid"/>
+<circle cx="328" cy="386.7" r="1.5" class="xychart-grid"/>
+<circle cx="348" cy="386.7" r="1.5" class="xychart-grid"/>
+<circle cx="368" cy="386.7" r="1.5" class="xychart-grid"/>
+<circle cx="388" cy="386.7" r="1.5" class="xychart-grid"/>
+<circle cx="408" cy="386.7" r="1.5" class="xychart-grid"/>
+<circle cx="428" cy="386.7" r="1.5" class="xychart-grid"/>
+<circle cx="448" cy="386.7" r="1.5" class="xychart-grid"/>
+<circle cx="468" cy="386.7" r="1.5" class="xychart-grid"/>
+<circle cx="488" cy="386.7" r="1.5" class="xychart-grid"/>
+<circle cx="508" cy="386.7" r="1.5" class="xychart-grid"/>
+<circle cx="528" cy="386.7" r="1.5" class="xychart-grid"/>
+<circle cx="548" cy="386.7" r="1.5" class="xychart-grid"/>
+<circle cx="568" cy="386.7" r="1.5" class="xychart-grid"/>
+<circle cx="588" cy="386.7" r="1.5" class="xychart-grid"/>
+<circle cx="608" cy="386.7" r="1.5" class="xychart-grid"/>
+<circle cx="628" cy="386.7" r="1.5" class="xychart-grid"/>
+<circle cx="648" cy="386.7" r="1.5" class="xychart-grid"/>
+<circle cx="668" cy="386.7" r="1.5" class="xychart-grid"/>
+<circle cx="688" cy="386.7" r="1.5" class="xychart-grid"/>
+<circle cx="708" cy="386.7" r="1.5" class="xychart-grid"/>
+<circle cx="728" cy="386.7" r="1.5" class="xychart-grid"/>
+<circle cx="128" cy="409.3" r="1.5" class="xychart-grid"/>
+<circle cx="148" cy="409.3" r="1.5" class="xychart-grid"/>
+<circle cx="168" cy="409.3" r="1.5" class="xychart-grid"/>
+<circle cx="188" cy="409.3" r="1.5" class="xychart-grid"/>
+<circle cx="208" cy="409.3" r="1.5" class="xychart-grid"/>
+<circle cx="228" cy="409.3" r="1.5" class="xychart-grid"/>
+<circle cx="248" cy="409.3" r="1.5" class="xychart-grid"/>
+<circle cx="268" cy="409.3" r="1.5" class="xychart-grid"/>
+<circle cx="288" cy="409.3" r="1.5" class="xychart-grid"/>
+<circle cx="308" cy="409.3" r="1.5" class="xychart-grid"/>
+<circle cx="328" cy="409.3" r="1.5" class="xychart-grid"/>
+<circle cx="348" cy="409.3" r="1.5" class="xychart-grid"/>
+<circle cx="368" cy="409.3" r="1.5" class="xychart-grid"/>
+<circle cx="388" cy="409.3" r="1.5" class="xychart-grid"/>
+<circle cx="408" cy="409.3" r="1.5" class="xychart-grid"/>
+<circle cx="428" cy="409.3" r="1.5" class="xychart-grid"/>
+<circle cx="448" cy="409.3" r="1.5" class="xychart-grid"/>
+<circle cx="468" cy="409.3" r="1.5" class="xychart-grid"/>
+<circle cx="488" cy="409.3" r="1.5" class="xychart-grid"/>
+<circle cx="508" cy="409.3" r="1.5" class="xychart-grid"/>
+<circle cx="528" cy="409.3" r="1.5" class="xychart-grid"/>
+<circle cx="548" cy="409.3" r="1.5" class="xychart-grid"/>
+<circle cx="568" cy="409.3" r="1.5" class="xychart-grid"/>
+<circle cx="588" cy="409.3" r="1.5" class="xychart-grid"/>
+<circle cx="608" cy="409.3" r="1.5" class="xychart-grid"/>
+<circle cx="628" cy="409.3" r="1.5" class="xychart-grid"/>
+<circle cx="648" cy="409.3" r="1.5" class="xychart-grid"/>
+<circle cx="668" cy="409.3" r="1.5" class="xychart-grid"/>
+<circle cx="688" cy="409.3" r="1.5" class="xychart-grid"/>
+<circle cx="708" cy="409.3" r="1.5" class="xychart-grid"/>
+<circle cx="728" cy="409.3" r="1.5" class="xychart-grid"/>
+<circle cx="128" cy="432" r="1.5" class="xychart-grid"/>
+<circle cx="148" cy="432" r="1.5" class="xychart-grid"/>
+<circle cx="168" cy="432" r="1.5" class="xychart-grid"/>
+<circle cx="188" cy="432" r="1.5" class="xychart-grid"/>
+<circle cx="208" cy="432" r="1.5" class="xychart-grid"/>
+<circle cx="228" cy="432" r="1.5" class="xychart-grid"/>
+<circle cx="248" cy="432" r="1.5" class="xychart-grid"/>
+<circle cx="268" cy="432" r="1.5" class="xychart-grid"/>
+<circle cx="288" cy="432" r="1.5" class="xychart-grid"/>
+<circle cx="308" cy="432" r="1.5" class="xychart-grid"/>
+<circle cx="328" cy="432" r="1.5" class="xychart-grid"/>
+<circle cx="348" cy="432" r="1.5" class="xychart-grid"/>
+<circle cx="368" cy="432" r="1.5" class="xychart-grid"/>
+<circle cx="388" cy="432" r="1.5" class="xychart-grid"/>
+<circle cx="408" cy="432" r="1.5" class="xychart-grid"/>
+<circle cx="428" cy="432" r="1.5" class="xychart-grid"/>
+<circle cx="448" cy="432" r="1.5" class="xychart-grid"/>
+<circle cx="468" cy="432" r="1.5" class="xychart-grid"/>
+<circle cx="488" cy="432" r="1.5" class="xychart-grid"/>
+<circle cx="508" cy="432" r="1.5" class="xychart-grid"/>
+<circle cx="528" cy="432" r="1.5" class="xychart-grid"/>
+<circle cx="548" cy="432" r="1.5" class="xychart-grid"/>
+<circle cx="568" cy="432" r="1.5" class="xychart-grid"/>
+<circle cx="588" cy="432" r="1.5" class="xychart-grid"/>
+<circle cx="608" cy="432" r="1.5" class="xychart-grid"/>
+<circle cx="628" cy="432" r="1.5" class="xychart-grid"/>
+<circle cx="648" cy="432" r="1.5" class="xychart-grid"/>
+<circle cx="668" cy="432" r="1.5" class="xychart-grid"/>
+<circle cx="688" cy="432" r="1.5" class="xychart-grid"/>
+<circle cx="708" cy="432" r="1.5" class="xychart-grid"/>
+<circle cx="728" cy="432" r="1.5" class="xychart-grid"/>
+<path d="M208,208.8 Q208,200.8 216,200.8 L240,200.8 Q248,200.8 248,208.8 L248,424 Q248,432 240,432 L216,432 Q208,432 208,424 Z" class="xychart-bar xychart-color-0" data-value="68" data-label="Mermaid"/>
+<path d="M408,188.4 Q408,180.4 416,180.4 L440,180.4 Q448,180.4 448,188.4 L448,424 Q448,432 440,432 L416,432 Q408,432 408,424 Z" class="xychart-bar xychart-color-0" data-value="74" data-label="Beautiful"/>
+<path d="M608,130.6 Q608,122.6 616,122.6 L640,122.6 Q648,122.6 648,130.6 L648,424 Q648,432 640,432 L616,432 Q608,432 608,424 Z" class="xychart-bar xychart-color-0" data-value="91" data-label="Agentic"/>
+<path d="M228,214.4 C294.7,200.8 361.3,187.2 428,170.2 C494.7,153.2 561.3,132.8 628,112.4" class="xychart-line-shadow xychart-color-1" transform="translate(0,2)"/>
+<path d="M228,214.4 C294.7,200.8 361.3,187.2 428,170.2 C494.7,153.2 561.3,132.8 628,112.4" class="xychart-line xychart-color-1"/>
+<circle cx="228" cy="214.4" r="5" class="xychart-dot xychart-color-1" data-value="64" data-label="Mermaid"/>
+<circle cx="428" cy="170.2" r="5" class="xychart-dot xychart-color-1" data-value="77" data-label="Beautiful"/>
+<circle cx="628" cy="112.4" r="5" class="xychart-dot xychart-color-1" data-value="94" data-label="Agentic"/>
+<text x="228" y="450" text-anchor="middle" font-size="14" font-weight="400" dy="0.35em" class="xychart-label">Mermaid</text>
+<text x="428" y="450" text-anchor="middle" font-size="14" font-weight="400" dy="0.35em" class="xychart-label">Beautiful</text>
+<text x="628" y="450" text-anchor="middle" font-size="14" font-weight="400" dy="0.35em" class="xychart-label">Agentic</text>
+<text x="110" y="432" text-anchor="end" font-size="14" font-weight="400" dy="0.35em" class="xychart-label">0</text>
+<text x="110" y="364" text-anchor="end" font-size="14" font-weight="400" dy="0.35em" class="xychart-label">20</text>
+<text x="110" y="296" text-anchor="end" font-size="14" font-weight="400" dy="0.35em" class="xychart-label">40</text>
+<text x="110" y="228" text-anchor="end" font-size="14" font-weight="400" dy="0.35em" class="xychart-label">60</text>
+<text x="110" y="160" text-anchor="end" font-size="14" font-weight="400" dy="0.35em" class="xychart-label">80</text>
+<text x="110" y="92" text-anchor="end" font-size="14" font-weight="400" dy="0.35em" class="xychart-label">100</text>
+<text x="26" y="262" text-anchor="middle" transform="rotate(-90,26,262)" font-size="15" font-weight="500" dy="0.35em" class="xychart-axis-title">score</text>
+<text x="375" y="40" text-anchor="middle" font-size="18" font-weight="600" dy="0.35em" class="xychart-title">Layout score</text>
+<rect x="314.65999999999997" y="71" width="14" height="14" rx="3" class="xychart-bar xychart-color-0"/>
+<text x="334.65999999999997" y="78" text-anchor="start" font-size="14" font-weight="400" dy="0.35em" class="xychart-label">Bar 1</text>
+<line x1="380.73199999999997" y1="78" x2="394.73199999999997" y2="78" stroke-width="2.5" stroke-linecap="round" class="xychart-legend-line xychart-color-1"/>
+<text x="400.73199999999997" y="78" text-anchor="start" font-size="14" font-weight="400" dy="0.35em" class="xychart-label">Line 1</text>
+</svg></div></div>
+    <div class="comparison-panel"><h3>Agentic Mermaid</h3><div class="comparison-render"><svg data-xychart-colors="1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 700 500" width="100%" height="100%" style="--bg:#FFFFFF;--fg:#27272A;--line:#8B9791;--accent:#1A7351;--muted:#5D6864;--surface:#F8FAF8;--border:#D3DDD7;--font:Avenir Next;background:#FFFFFF;max-width:700px" id="comparison-agentic-xychart-comparison-agentic-xychart-mermaid-1ghqw7r" class="xychart" aria-roledescription="xychart" role="img" aria-labelledby="comparison-agentic-xychart-svg-title comparison-agentic-xychart-svg-desc"><title id="comparison-agentic-xychart-svg-title">Agentic Mermaid XY Chart</title><desc id="comparison-agentic-xychart-svg-desc">XY Chart rendered by Agentic Mermaid.</desc><style>
+  text { font-family: var(--font, 'Avenir Next'), system-ui, sans-serif; }
+  svg {
+
+    --_text:          #27272A;
+    --_text-sec:      #5D6864;
+    --_text-muted:    #5D6864;
+    --_text-faint:    #8a8a8c;
+    --_line:          #8B9791;
+    --_arrow:         #1A7351;
+    --_node-fill:     #F8FAF8;
+    --_node-stroke:   #D3DDD7;
+    --_group-fill:    #FFFFFF;
+    --_group-hdr:     #f4f4f4;
+    --_inner-stroke:  #e5e5e5;
+    --_key-badge:     #e9e9ea;
+  }
+</style><style>
+  .xychart-grid { stroke: #e1e1e1; stroke-width: 1; }
+  .xychart-axis-line { fill: none; }
+  .xychart-tick { fill: none; }
+  .xychart-x-axis-line { stroke: #5D6864; }
+  .xychart-y-axis-line { stroke: #5D6864; }
+  .xychart-x-tick { stroke: #5D6864; }
+  .xychart-y-tick { stroke: #5D6864; }
+  .xychart-bar { stroke: none; }
+  .xychart-line { fill: none; stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; }
+  .xychart-dot { stroke: #FFFFFF; stroke-width: 2; }
+  .xychart-label { fill: #27272A; }
+  .xychart-x-label { fill: #27272A; }
+  .xychart-y-label { fill: #27272A; }
+  .xychart-axis-title { fill: #27272A; }
+  .xychart-x-axis-title { fill: #27272A; }
+  .xychart-y-axis-title { fill: #27272A; }
+  .xychart-title { fill: #27272A; }
+  .xychart-data-label { fill: #27272A; pointer-events: none; }
+  svg {
+    --xychart-color-0: #1A7351;
+    --xychart-color-1: #219258;
+  }
+  .xychart-bar.xychart-color-0 { fill: #1A7351; }
+  path.xychart-color-0, line.xychart-color-0 { stroke: #1A7351; }
+  circle.xychart-color-0 { fill: #1A7351; }
+  .xychart-bar.xychart-color-1 { fill: #219258; }
+  path.xychart-color-1, line.xychart-color-1 { stroke: #219258; }
+  circle.xychart-color-1 { fill: #219258; }
+</style><line x1="63.24" y1="469" x2="700" y2="469" class="xychart-grid"/><line x1="63.24" y1="426.1" x2="700" y2="426.1" class="xychart-grid"/><line x1="63.24" y1="383.2" x2="700" y2="383.2" class="xychart-grid"/><line x1="63.24" y1="340.3" x2="700" y2="340.3" class="xychart-grid"/><line x1="63.24" y1="297.4" x2="700" y2="297.4" class="xychart-grid"/><line x1="63.24" y1="254.5" x2="700" y2="254.5" class="xychart-grid"/><line x1="63.24" y1="211.6" x2="700" y2="211.6" class="xychart-grid"/><line x1="63.24" y1="168.7" x2="700" y2="168.7" class="xychart-grid"/><line x1="63.24" y1="125.8" x2="700" y2="125.8" class="xychart-grid"/><line x1="63.24" y1="82.9" x2="700" y2="82.9" class="xychart-grid"/><line x1="63.24" y1="40" x2="700" y2="40" class="xychart-grid"/><line x1="63.24" y1="470" x2="700" y2="470" class="xychart-axis-line xychart-x-axis-line" stroke-width="2"/><line x1="169.37" y1="471" x2="169.37" y2="476" class="xychart-tick xychart-x-tick" stroke-width="2"/><line x1="381.62" y1="471" x2="381.62" y2="476" class="xychart-tick xychart-x-tick" stroke-width="2"/><line x1="593.87" y1="471" x2="593.87" y2="476" class="xychart-tick xychart-x-tick" stroke-width="2"/><line x1="62.24" y1="40" x2="62.24" y2="469" class="xychart-axis-line xychart-y-axis-line" stroke-width="2"/><line x1="61.24" y1="469" x2="56.24" y2="469" class="xychart-tick xychart-y-tick" stroke-width="2"/><line x1="61.24" y1="426.1" x2="56.24" y2="426.1" class="xychart-tick xychart-y-tick" stroke-width="2"/><line x1="61.24" y1="383.2" x2="56.24" y2="383.2" class="xychart-tick xychart-y-tick" stroke-width="2"/><line x1="61.24" y1="340.3" x2="56.24" y2="340.3" class="xychart-tick xychart-y-tick" stroke-width="2"/><line x1="61.24" y1="297.4" x2="56.24" y2="297.4" class="xychart-tick xychart-y-tick" stroke-width="2"/><line x1="61.24" y1="254.5" x2="56.24" y2="254.5" class="xychart-tick xychart-y-tick" stroke-width="2"/><line x1="61.24" y1="211.6" x2="56.24" y2="211.6" class="xychart-tick xychart-y-tick" stroke-width="2"/><line x1="61.24" y1="168.7" x2="56.24" y2="168.7" class="xychart-tick xychart-y-tick" stroke-width="2"/><line x1="61.24" y1="125.8" x2="56.24" y2="125.8" class="xychart-tick xychart-y-tick" stroke-width="2"/><line x1="61.24" y1="82.9" x2="56.24" y2="82.9" class="xychart-tick xychart-y-tick" stroke-width="2"/><line x1="61.24" y1="40" x2="56.24" y2="40" class="xychart-tick xychart-y-tick" stroke-width="2"/><rect x="68.55" y="177.28" width="201.64" height="291.72" class="xychart-bar xychart-color-0" data-value="68" data-label="Mermaid"/><rect x="280.8" y="151.54" width="201.64" height="317.46" class="xychart-bar xychart-color-0" data-value="74" data-label="Beautiful"/><rect x="493.05" y="78.61" width="201.64" height="390.39" class="xychart-bar xychart-color-0" data-value="91" data-label="Agentic"/><path d="M169.37,194.44 L381.62,138.67 L593.87,65.74" class="xychart-line xychart-color-1"/><text x="169.37" y="495" text-anchor="middle" font-size="14" font-weight="400" dy="0.35em" class="xychart-label xychart-x-label">Mermaid</text><text x="381.622" y="495" text-anchor="middle" font-size="14" font-weight="400" dy="0.35em" class="xychart-label xychart-x-label">Beautiful</text><text x="593.874" y="495" text-anchor="middle" font-size="14" font-weight="400" dy="0.35em" class="xychart-label xychart-x-label">Agentic</text><text x="51.244" y="469" text-anchor="end" dominant-baseline="middle" font-size="14" font-weight="400" class="xychart-label xychart-y-label">0</text><text x="51.244" y="426.1" text-anchor="end" dominant-baseline="middle" font-size="14" font-weight="400" class="xychart-label xychart-y-label">10</text><text x="51.244" y="383.2" text-anchor="end" dominant-baseline="middle" font-size="14" font-weight="400" class="xychart-label xychart-y-label">20</text><text x="51.244" y="340.3" text-anchor="end" dominant-baseline="middle" font-size="14" font-weight="400" class="xychart-label xychart-y-label">30</text><text x="51.244" y="297.4" text-anchor="end" dominant-baseline="middle" font-size="14" font-weight="400" class="xychart-label xychart-y-label">40</text><text x="51.244" y="254.5" text-anchor="end" dominant-baseline="middle" font-size="14" font-weight="400" class="xychart-label xychart-y-label">50</text><text x="51.244" y="211.6" text-anchor="end" dominant-baseline="middle" font-size="14" font-weight="400" class="xychart-label xychart-y-label">60</text><text x="51.244" y="168.7" text-anchor="end" dominant-baseline="middle" font-size="14" font-weight="400" class="xychart-label xychart-y-label">70</text><text x="51.244" y="125.8" text-anchor="end" dominant-baseline="middle" font-size="14" font-weight="400" class="xychart-label xychart-y-label">80</text><text x="51.244" y="82.9" text-anchor="end" dominant-baseline="middle" font-size="14" font-weight="400" class="xychart-label xychart-y-label">90</text><text x="51.244" y="40" text-anchor="end" dominant-baseline="middle" font-size="14" font-weight="400" class="xychart-label xychart-y-label">100</text><text x="17.8" y="254.5" text-anchor="middle" transform="rotate(-90,17.8,254.5)" font-size="16" font-weight="400" dy="0.35em" class="xychart-axis-title xychart-y-axis-title">score</text><text x="350" y="30" text-anchor="middle" font-size="20" font-weight="500" dy="0.35em" class="xychart-title">Layout score</text></svg></div></div>
+  </div>
+</section>
+<section class="comparison-case comparison-case-omits-beautiful" id="timeline" aria-labelledby="comparison-timeline-title">
+  <header class="comparison-case-head">
+    <h2 id="comparison-timeline-title">Timeline</h2>
+    <button class="comparison-focus" type="button" data-comparison-focus aria-label="Open Timeline comparison larger" title="Open larger comparison"><span aria-hidden="true">⤢</span></button>
+  </header>
+  <p class="comparison-note">Beautiful Mermaid does not render this family; only Mermaid and Agentic Mermaid are shown.</p>
+  <div class="comparison-grid">
+    <div class="comparison-panel"><h3>Mermaid</h3><div class="comparison-render"><pre class="mermaid comparison-mermaid" id="comparison-mermaid-timeline">timeline
+  title Diagram edit loop
+  Source : Mermaid text
+  Parse : typed model
+  Mutate : one operation
+  Verify : structural warnings
+  Render : SVG : ASCII : PNG</pre></div></div>
+    <div class="comparison-panel"><h3>Agentic Mermaid</h3><div class="comparison-render"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 802.24 333.8" width="802.24" height="333.8" style="--bg:#FFFFFF;--fg:#27272A;--line:#8B9791;--accent:#1A7351;--muted:#5D6864;--surface:#F8FAF8;--border:#D3DDD7;--font:Avenir Next;background:#FFFFFF" role="img" aria-labelledby="comparison-agentic-timeline-svg-title comparison-agentic-timeline-svg-desc"><title id="comparison-agentic-timeline-svg-title">Agentic Mermaid Timeline</title><desc id="comparison-agentic-timeline-svg-desc">Timeline rendered by Agentic Mermaid.</desc><style>
+  text { font-family: var(--font, 'Avenir Next'), system-ui, sans-serif; }
+  svg {
+
+    --_text:          #27272A;
+    --_text-sec:      #5D6864;
+    --_text-muted:    #5D6864;
+    --_text-faint:    #8a8a8c;
+    --_line:          #8B9791;
+    --_arrow:         #1A7351;
+    --_node-fill:     #F8FAF8;
+    --_node-stroke:   #D3DDD7;
+    --_group-fill:    #FFFFFF;
+    --_group-hdr:     #f4f4f4;
+    --_inner-stroke:  #e5e5e5;
+    --_key-badge:     #e9e9ea;
+  }
+</style><style>
+  .timeline-title { fill: #27272A; }
+  .timeline-rail { stroke: #8B9791; stroke-width: 1.5; stroke-linecap: round; }
+  .timeline-section-bg { fill: #f9fbf9; stroke: #D3DDD7; stroke-width: 1; }
+  .timeline-section-band { fill: #edf4f1; stroke: #D3DDD7; stroke-width: 1; }
+  .timeline-section-label { fill: #5D6864; }
+  .timeline-stem { stroke: #678b7d; stroke-width: 1.125; stroke-dasharray: 3 4; }
+  .timeline-marker-ring { fill: #FFFFFF; stroke: #1A7351; stroke-width: 1.5; }
+  .timeline-marker-core { fill: #1A7351; }
+  .timeline-period-pill { fill: #eff5f3; stroke: #d1e3dc; stroke-width: 1; }
+  .timeline-period-text { fill: #27272A; }
+  .timeline-event-card { fill: #F8FAF8; stroke: #D3DDD7; stroke-width: 1; }
+  .timeline-event-text { fill: #5D6864; }
+</style><title id="comparison-agentic-timeline-comparison-agentic-timeline-tl-12qwljx-title">Diagram edit loop</title><line class="timeline-rail" x1="96" y1="133" x2="706.24" y2="133" /><g class="timeline-period" data-id="period-0" data-label="Source" data-family="0" style="--tl-accent:#1A7351;--tl-fill:#F8FAF8;--tl-label:#27272A;--tl-line:#8B9791;--tl-section-bg:#ffffff;--tl-section-band:#fefefe;--tl-pill-fill:#fefefe;--tl-pill-stroke:#b2bbb6;--tl-event-fill:#f8faf8"><line class="timeline-stem" x1="96" y1="141" x2="96" y2="151" /><rect class="timeline-period-pill" x="59.5" y="75.4" width="73" height="35.6" rx="0" ry="0" /><text x="96" y="93.2" class="timeline-period-text" text-anchor="middle" font-size="12" font-weight="600" dy="4.2">Source</text><circle class="timeline-marker-ring" cx="96" cy="133" r="8" /><circle class="timeline-marker-core" cx="96" cy="133" r="4.5" /><g class="timeline-event" data-id="event-0" data-period="Source" data-family="0"><rect class="timeline-event-card" x="32" y="161" width="128" height="35.6" rx="0" ry="0" /><text x="46" y="178.8" class="timeline-event-text" text-anchor="start" font-size="12" font-weight="400" dy="4.2">Mermaid text</text></g></g><g class="timeline-period" data-id="period-1" data-label="Parse" data-family="1" style="--tl-accent:#1A7351;--tl-fill:#F8FAF8;--tl-label:#27272A;--tl-line:#8B9791;--tl-section-bg:#ffffff;--tl-section-band:#fefefe;--tl-pill-fill:#fefefe;--tl-pill-stroke:#b2bbb6;--tl-event-fill:#f8faf8"><line class="timeline-stem" x1="248" y1="141" x2="248" y2="151" /><rect class="timeline-period-pill" x="212" y="75.4" width="72" height="35.6" rx="0" ry="0" /><text x="248" y="93.2" class="timeline-period-text" text-anchor="middle" font-size="12" font-weight="600" dy="4.2">Parse</text><circle class="timeline-marker-ring" cx="248" cy="133" r="8" /><circle class="timeline-marker-core" cx="248" cy="133" r="4.5" /><g class="timeline-event" data-id="event-1" data-period="Parse" data-family="1"><rect class="timeline-event-card" x="184" y="161" width="128" height="35.6" rx="0" ry="0" /><text x="198" y="178.8" class="timeline-event-text" text-anchor="start" font-size="12" font-weight="400" dy="4.2">typed model</text></g></g><g class="timeline-period" data-id="period-2" data-label="Mutate" data-family="2" style="--tl-accent:#1A7351;--tl-fill:#F8FAF8;--tl-label:#27272A;--tl-line:#8B9791;--tl-section-bg:#ffffff;--tl-section-band:#fefefe;--tl-pill-fill:#fefefe;--tl-pill-stroke:#b2bbb6;--tl-event-fill:#f8faf8"><line class="timeline-stem" x1="400" y1="141" x2="400" y2="151" /><rect class="timeline-period-pill" x="364" y="75.4" width="72" height="35.6" rx="0" ry="0" /><text x="400" y="93.2" class="timeline-period-text" text-anchor="middle" font-size="12" font-weight="600" dy="4.2">Mutate</text><circle class="timeline-marker-ring" cx="400" cy="133" r="8" /><circle class="timeline-marker-core" cx="400" cy="133" r="4.5" /><g class="timeline-event" data-id="event-2" data-period="Mutate" data-family="2"><rect class="timeline-event-card" x="336" y="161" width="128" height="35.6" rx="0" ry="0" /><text x="350" y="178.8" class="timeline-event-text" text-anchor="start" font-size="12" font-weight="400" dy="4.2">one operation</text></g></g><g class="timeline-period" data-id="period-3" data-label="Verify" data-family="3" style="--tl-accent:#1A7351;--tl-fill:#F8FAF8;--tl-label:#27272A;--tl-line:#8B9791;--tl-section-bg:#ffffff;--tl-section-band:#fefefe;--tl-pill-fill:#fefefe;--tl-pill-stroke:#b2bbb6;--tl-event-fill:#f8faf8"><line class="timeline-stem" x1="553.12" y1="141" x2="553.12" y2="151" /><rect class="timeline-period-pill" x="517.12" y="75.4" width="72" height="35.6" rx="0" ry="0" /><text x="553.12" y="93.2" class="timeline-period-text" text-anchor="middle" font-size="12" font-weight="600" dy="4.2">Verify</text><circle class="timeline-marker-ring" cx="553.12" cy="133" r="8" /><circle class="timeline-marker-core" cx="553.12" cy="133" r="4.5" /><g class="timeline-event" data-id="event-3" data-period="Verify" data-family="3"><rect class="timeline-event-card" x="488" y="161" width="130.24" height="35.6" rx="0" ry="0" /><text x="502" y="178.8" class="timeline-event-text" text-anchor="start" font-size="12" font-weight="400" dy="4.2">structural warnings</text></g></g><g class="timeline-period" data-id="period-4" data-label="Render" data-family="4" style="--tl-accent:#1A7351;--tl-fill:#F8FAF8;--tl-label:#27272A;--tl-line:#8B9791;--tl-section-bg:#ffffff;--tl-section-band:#fefefe;--tl-pill-fill:#fefefe;--tl-pill-stroke:#b2bbb6;--tl-event-fill:#f8faf8"><line class="timeline-stem" x1="706.24" y1="141" x2="706.24" y2="151" /><rect class="timeline-period-pill" x="669.74" y="75.4" width="73" height="35.6" rx="0" ry="0" /><text x="706.24" y="93.2" class="timeline-period-text" text-anchor="middle" font-size="12" font-weight="600" dy="4.2">Render</text><circle class="timeline-marker-ring" cx="706.24" cy="133" r="8" /><circle class="timeline-marker-core" cx="706.24" cy="133" r="4.5" /><g class="timeline-event" data-id="event-4" data-period="Render" data-family="4"><rect class="timeline-event-card" x="642.24" y="161" width="128" height="35.6" rx="0" ry="0" /><text x="656.24" y="178.8" class="timeline-event-text" text-anchor="start" font-size="12" font-weight="400" dy="4.2">SVG</text></g><g class="timeline-event" data-id="event-5" data-period="Render" data-family="4"><rect class="timeline-event-card" x="642.24" y="206.6" width="128" height="35.6" rx="0" ry="0" /><text x="656.24" y="224.4" class="timeline-event-text" text-anchor="start" font-size="12" font-weight="400" dy="4.2">ASCII</text></g><g class="timeline-event" data-id="event-6" data-period="Render" data-family="4"><rect class="timeline-event-card" x="642.24" y="252.2" width="128" height="35.6" rx="0" ry="0" /><text x="656.24" y="270" class="timeline-event-text" text-anchor="start" font-size="12" font-weight="400" dy="4.2">PNG</text></g></g><text x="401.12" y="39.7" class="timeline-title" text-anchor="middle" font-size="18" font-weight="600" dy="6.3">Diagram edit loop</text></svg></div></div>
+  </div>
+</section>
+<section class="comparison-case comparison-case-omits-beautiful" id="journey" aria-labelledby="comparison-journey-title">
+  <header class="comparison-case-head">
+    <h2 id="comparison-journey-title">Journey</h2>
+    <button class="comparison-focus" type="button" data-comparison-focus aria-label="Open Journey comparison larger" title="Open larger comparison"><span aria-hidden="true">⤢</span></button>
+  </header>
+  <p class="comparison-note">Beautiful Mermaid does not render this family; only Mermaid and Agentic Mermaid are shown.</p>
+  <div class="comparison-grid">
+    <div class="comparison-panel"><h3>Mermaid</h3><div class="comparison-render"><pre class="mermaid comparison-mermaid" id="comparison-mermaid-journey">journey
+  title Agent editing a diagram
+  section Guess
+    Rewrite whole diagram: 2: Agent
+    Ask human to inspect: 1: Reviewer
+  section Verify
+    Parse source: 5: Agent
+    Mutate target: 5: Agent
+    Check warnings: 5: Agent</pre></div></div>
+    <div class="comparison-panel"><h3>Agentic Mermaid</h3><div class="comparison-render"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 632.366 446.6" width="632.366" height="446.6" style="--bg:#FFFFFF;--fg:#27272A;--line:#8B9791;--accent:#1A7351;--muted:#5D6864;--surface:#F8FAF8;--border:#D3DDD7;--font:Avenir Next;background:#FFFFFF" role="img" aria-roledescription="user journey" aria-labelledby="comparison-agentic-journey-svg-title comparison-agentic-journey-svg-desc"><title id="comparison-agentic-journey-svg-title">Agentic Mermaid Journey</title><desc id="comparison-agentic-journey-svg-desc">Journey rendered by Agentic Mermaid.</desc><title id="comparison-agentic-journey-comparison-agentic-journey-journey-1n2ahcq-title">Agent editing a diagram</title><style>
+  text { font-family: var(--font, 'Avenir Next'), system-ui, sans-serif; }
+  svg {
+
+    --_text:          #27272A;
+    --_text-sec:      #5D6864;
+    --_text-muted:    #5D6864;
+    --_text-faint:    #8a8a8c;
+    --_line:          #8B9791;
+    --_arrow:         #1A7351;
+    --_node-fill:     #F8FAF8;
+    --_node-stroke:   #D3DDD7;
+    --_group-fill:    #FFFFFF;
+    --_group-hdr:     #f4f4f4;
+    --_inner-stroke:  #e5e5e5;
+    --_key-badge:     #e9e9ea;
+  }
+</style><style>
+  .journey-title { fill: #27272A; }
+  .journey-section-bg { fill: #f9fbf9; stroke: #D3DDD7; stroke-width: 1; }
+  .journey-section-band { fill: #edf4f1; stroke: #D3DDD7; stroke-width: 1; }
+  .journey-section-label { fill: #5D6864; }
+  .journey-task-card { fill: #F8FAF8; stroke: #D3DDD7; stroke-width: 1; }
+  .journey-task-text { fill: #27272A; }
+  .journey-score-cell-filled { fill: #1A7351; stroke: #1A7351; stroke-width: 1; }
+  .journey-score-cell-empty { fill: #fcfdfc; stroke: #dbe3de; stroke-width: 1; }
+  .journey-actor-pill { fill: #edf4f1; stroke: #cde0d9; stroke-width: 1; }
+  .journey-actor-text { fill: #5D6864; }
+</style><g class="journey-section" data-id="section-0" data-label="Guess"><rect class="journey-section-bg" x="32" y="75.4" width="284.366" height="250" rx="0" ry="0" /><path class="journey-section-band" d="M32,75.4 H316.366 V103 H32 Z" /><text x="44" y="89.2" class="journey-section-label" text-anchor="start" font-size="12" font-weight="600" dy="4.2">Guess</text></g><g class="journey-section" data-id="section-1" data-label="Verify"><rect class="journey-section-bg" x="344.366" y="75.4" width="256" height="343.2" rx="0" ry="0" /><path class="journey-section-band" d="M344.366,75.4 H600.366 V103 H344.366 Z" /><text x="356.366" y="89.2" class="journey-section-label" text-anchor="start" font-size="12" font-weight="600" dy="4.2">Verify</text></g><g class="journey-task" data-id="task-0" data-score="2" data-section="Guess" data-actors="Agent"><rect class="journey-task-card" x="50" y="135" width="248.366" height="79.2" rx="0" ry="0" /><text x="64" y="155.45" class="journey-task-text" text-anchor="start" font-size="13" font-weight="500" dy="4.55">Rewrite whole diagram</text><rect class="journey-score-cell-filled" x="214.366" y="150.45" width="10" height="10" rx="2" ry="2" /><rect class="journey-score-cell-filled" x="229.366" y="150.45" width="10" height="10" rx="2" ry="2" /><rect class="journey-score-cell-empty" x="244.366" y="150.45" width="10" height="10" rx="2" ry="2" /><rect class="journey-score-cell-empty" x="259.366" y="150.45" width="10" height="10" rx="2" ry="2" /><rect class="journey-score-cell-empty" x="274.366" y="150.45" width="10" height="10" rx="2" ry="2" /><g class="journey-actor" data-actor="Agent"><rect class="journey-actor-pill" x="64" y="175.9" width="48.01" height="26.3" rx="13.15" ry="13.15" /><text x="88.005" y="189.05" class="journey-actor-text" text-anchor="middle" font-size="11" font-weight="600" dy="3.85">Agent</text></g></g><g class="journey-task" data-id="task-1" data-score="1" data-section="Guess" data-actors="Reviewer"><rect class="journey-task-card" x="50" y="228.2" width="248.366" height="79.2" rx="0" ry="0" /><text x="64" y="248.65" class="journey-task-text" text-anchor="start" font-size="13" font-weight="500" dy="4.55">Ask human to inspect</text><rect class="journey-score-cell-filled" x="214.366" y="243.65" width="10" height="10" rx="2" ry="2" /><rect class="journey-score-cell-empty" x="229.366" y="243.65" width="10" height="10" rx="2" ry="2" /><rect class="journey-score-cell-empty" x="244.366" y="243.65" width="10" height="10" rx="2" ry="2" /><rect class="journey-score-cell-empty" x="259.366" y="243.65" width="10" height="10" rx="2" ry="2" /><rect class="journey-score-cell-empty" x="274.366" y="243.65" width="10" height="10" rx="2" ry="2" /><g class="journey-actor" data-actor="Reviewer"><rect class="journey-actor-pill" x="64" y="269.1" width="67.81" height="26.3" rx="13.15" ry="13.15" /><text x="97.905" y="282.25" class="journey-actor-text" text-anchor="middle" font-size="11" font-weight="600" dy="3.85">Reviewer</text></g></g><g class="journey-task" data-id="task-2" data-score="5" data-section="Verify" data-actors="Agent"><rect class="journey-task-card" x="362.366" y="135" width="220" height="79.2" rx="0" ry="0" /><text x="376.366" y="155.45" class="journey-task-text" text-anchor="start" font-size="13" font-weight="500" dy="4.55">Parse source</text><rect class="journey-score-cell-filled" x="498.366" y="150.45" width="10" height="10" rx="2" ry="2" /><rect class="journey-score-cell-filled" x="513.366" y="150.45" width="10" height="10" rx="2" ry="2" /><rect class="journey-score-cell-filled" x="528.366" y="150.45" width="10" height="10" rx="2" ry="2" /><rect class="journey-score-cell-filled" x="543.366" y="150.45" width="10" height="10" rx="2" ry="2" /><rect class="journey-score-cell-filled" x="558.366" y="150.45" width="10" height="10" rx="2" ry="2" /><g class="journey-actor" data-actor="Agent"><rect class="journey-actor-pill" x="376.366" y="175.9" width="48.01" height="26.3" rx="13.15" ry="13.15" /><text x="400.371" y="189.05" class="journey-actor-text" text-anchor="middle" font-size="11" font-weight="600" dy="3.85">Agent</text></g></g><g class="journey-task" data-id="task-3" data-score="5" data-section="Verify" data-actors="Agent"><rect class="journey-task-card" x="362.366" y="228.2" width="220" height="79.2" rx="0" ry="0" /><text x="376.366" y="248.65" class="journey-task-text" text-anchor="start" font-size="13" font-weight="500" dy="4.55">Mutate target</text><rect class="journey-score-cell-filled" x="498.366" y="243.65" width="10" height="10" rx="2" ry="2" /><rect class="journey-score-cell-filled" x="513.366" y="243.65" width="10" height="10" rx="2" ry="2" /><rect class="journey-score-cell-filled" x="528.366" y="243.65" width="10" height="10" rx="2" ry="2" /><rect class="journey-score-cell-filled" x="543.366" y="243.65" width="10" height="10" rx="2" ry="2" /><rect class="journey-score-cell-filled" x="558.366" y="243.65" width="10" height="10" rx="2" ry="2" /><g class="journey-actor" data-actor="Agent"><rect class="journey-actor-pill" x="376.366" y="269.1" width="48.01" height="26.3" rx="13.15" ry="13.15" /><text x="400.371" y="282.25" class="journey-actor-text" text-anchor="middle" font-size="11" font-weight="600" dy="3.85">Agent</text></g></g><g class="journey-task" data-id="task-4" data-score="5" data-section="Verify" data-actors="Agent"><rect class="journey-task-card" x="362.366" y="321.4" width="220" height="79.2" rx="0" ry="0" /><text x="376.366" y="341.85" class="journey-task-text" text-anchor="start" font-size="13" font-weight="500" dy="4.55">Check warnings</text><rect class="journey-score-cell-filled" x="498.366" y="336.85" width="10" height="10" rx="2" ry="2" /><rect class="journey-score-cell-filled" x="513.366" y="336.85" width="10" height="10" rx="2" ry="2" /><rect class="journey-score-cell-filled" x="528.366" y="336.85" width="10" height="10" rx="2" ry="2" /><rect class="journey-score-cell-filled" x="543.366" y="336.85" width="10" height="10" rx="2" ry="2" /><rect class="journey-score-cell-filled" x="558.366" y="336.85" width="10" height="10" rx="2" ry="2" /><g class="journey-actor" data-actor="Agent"><rect class="journey-actor-pill" x="376.366" y="362.3" width="48.01" height="26.3" rx="13.15" ry="13.15" /><text x="400.371" y="375.45" class="journey-actor-text" text-anchor="middle" font-size="11" font-weight="600" dy="3.85">Agent</text></g></g><text x="316.183" y="39.7" class="journey-title" text-anchor="middle" font-size="18" font-weight="600" dy="6.3">Agent editing a diagram</text></svg></div></div>
+  </div>
+</section>
+<section class="comparison-case comparison-case-omits-beautiful" id="architecture" aria-labelledby="comparison-architecture-title">
+  <header class="comparison-case-head">
+    <h2 id="comparison-architecture-title">Architecture</h2>
+    <button class="comparison-focus" type="button" data-comparison-focus aria-label="Open Architecture comparison larger" title="Open larger comparison"><span aria-hidden="true">⤢</span></button>
+  </header>
+  <p class="comparison-note">Beautiful Mermaid does not render this family; only Mermaid and Agentic Mermaid are shown.</p>
+  <div class="comparison-grid">
+    <div class="comparison-panel"><h3>Mermaid</h3><div class="comparison-render"><pre class="mermaid comparison-mermaid" id="comparison-mermaid-architecture">architecture-beta
+  group client(cloud)[Client]
+  group app(cloud)[Application]
+  group data(database)[Data]
+  service browser(server)[Browser] in client
+  service web(server)[Web App] in app
+  service api(server)[API] in app
+  service queue(server)[Queue] in app
+  service db(database)[Postgres] in data
+  browser:R --&gt; L:web
+  web:R --&gt; L:api
+  api:B --&gt; T:queue
+  api:R --&gt; L:db
+  queue:R --&gt; L:db</pre></div></div>
+    <div class="comparison-panel"><h3>Agentic Mermaid</h3><div class="comparison-render"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1050.424 205.5" width="1050.424" height="205.5" style="--bg:#FFFFFF;--fg:#27272A;--line:#8B9791;--accent:#1A7351;--muted:#5D6864;--surface:#F8FAF8;--border:#D3DDD7;--font:Avenir Next;background:#FFFFFF;--arch-group-fill:#F8FAF8;--arch-group-stroke:#D3DDD7;--arch-service-fill:#F8FAF8;--arch-service-stroke:#D3DDD7" role="img" aria-labelledby="comparison-agentic-architecture-svg-title comparison-agentic-architecture-svg-desc"><title id="comparison-agentic-architecture-svg-title">Agentic Mermaid Architecture</title><desc id="comparison-agentic-architecture-svg-desc">Architecture rendered by Agentic Mermaid.</desc><style>
+  text { font-family: var(--font, 'Avenir Next'), system-ui, sans-serif; }
+  svg {
+
+    --_text:          #27272A;
+    --_text-sec:      #5D6864;
+    --_text-muted:    #5D6864;
+    --_text-faint:    #8a8a8c;
+    --_line:          #8B9791;
+    --_arrow:         #1A7351;
+    --_node-fill:     #F8FAF8;
+    --_node-stroke:   #D3DDD7;
+    --_group-fill:    #FFFFFF;
+    --_group-hdr:     #f4f4f4;
+    --_inner-stroke:  #e5e5e5;
+    --_key-badge:     #e9e9ea;
+  }
+</style><style>
+  .architecture-group-frame { fill: #F8FAF8; stroke: none; }
+  .architecture-group-band { fill: #edf3f0; stroke: none; }
+  .architecture-group-outline { fill: none; stroke: #D3DDD7; stroke-width: 1; }
+  .architecture-group-label { fill: #5D6864; }
+  .architecture-service-card { fill: #F8FAF8; stroke: none; }
+  .architecture-service-outline { fill: none; stroke: #D3DDD7; stroke-width: 1; }
+  .architecture-service-label { fill: #27272A; }
+  .architecture-edge { fill: none; stroke: #8B9791; stroke-width: 1; stroke-linejoin: round; }
+  .architecture-edge-label-bg { fill: #fefefe; stroke: #eaeceb; stroke-width: 0.75; }
+  .architecture-edge-label-text { fill: #5D6864; }
+  .architecture-junction-ring { fill: #FFFFFF; stroke: #1A7351; stroke-width: 1.25; }
+  .architecture-junction-core { fill: #c8ddd5; stroke: #1A7351; stroke-width: 0.75; }
+  .architecture-icon-mark { fill: none; stroke: #1A7351; stroke-width: 1.25; stroke-linecap: round; stroke-linejoin: round; }
+  .architecture-icon-glyph { fill: #1A7351; }
+</style><defs><marker id="comparison-agentic-architecture-comparison-agentic-architecture-architecture-arrow-end" markerWidth="8" markerHeight="5" refX="7" refY="2.5" orient="auto"><polygon points="0 0, 8 2.5, 0 5" fill="#1A7351" stroke="#1A7351" stroke-width="0.75" stroke-linejoin="round" /></marker><marker id="comparison-agentic-architecture-comparison-agentic-architecture-architecture-arrow-start" markerWidth="8" markerHeight="5" refX="1" refY="2.5" orient="auto-start-reverse"><polygon points="8 0, 0 2.5, 8 5" fill="#1A7351" stroke="#1A7351" stroke-width="0.75" stroke-linejoin="round" /></marker></defs><g class="architecture-group" data-id="client" data-label="Client"><rect class="architecture-group-frame" x="40" y="40" width="159.82" height="108" rx="0" ry="0" /><path class="architecture-group-band" d="M40,40 H199.82 V68 H40 Z" /><rect class="architecture-group-outline" x="40" y="40" width="159.82" height="108" rx="0" ry="0" /><g class="architecture-icon" data-icon="cloud"><circle class="architecture-icon-mark" cx="55.35" cy="54.294" r="2.355" /><circle class="architecture-icon-mark" cx="58.294" cy="52.822" r="2.944" /><circle class="architecture-icon-mark" cx="60.944" cy="54.294" r="2.208" /><path class="architecture-icon-mark" d="M 52.995 56.355 H 62.858" /></g><text x="76" y="54" class="architecture-group-label" text-anchor="start" font-size="12" font-weight="600" dy="4.2">Client</text></g><g class="architecture-group" data-id="app" data-label="Application"><rect class="architecture-group-frame" x="267.82" y="40" width="511.82" height="125.5" rx="0" ry="0" /><path class="architecture-group-band" d="M267.82,40 H779.64 V68 H267.82 Z" /><rect class="architecture-group-outline" x="267.82" y="40" width="511.82" height="125.5" rx="0" ry="0" /><g class="architecture-icon" data-icon="cloud"><circle class="architecture-icon-mark" cx="283.17" cy="54.294" r="2.355" /><circle class="architecture-icon-mark" cx="286.114" cy="52.822" r="2.944" /><circle class="architecture-icon-mark" cx="288.764" cy="54.294" r="2.208" /><path class="architecture-icon-mark" d="M 280.815 56.355 H 290.678" /></g><text x="303.82" y="54" class="architecture-group-label" text-anchor="start" font-size="12" font-weight="600" dy="4.2">Application</text></g><g class="architecture-group" data-id="data" data-label="Data"><rect class="architecture-group-frame" x="847.64" y="44.75" width="162.784" height="108" rx="0" ry="0" /><path class="architecture-group-band" d="M847.64,44.75 H1010.424 V72.75 H847.64 Z" /><rect class="architecture-group-outline" x="847.64" y="44.75" width="162.784" height="108" rx="0" ry="0" /><g class="architecture-icon" data-icon="database"><ellipse class="architecture-icon-mark" cx="865.64" cy="56.395" rx="3.533" ry="1.472" /><path class="architecture-icon-mark" d="M 862.107 56.395 V 61.694" /><path class="architecture-icon-mark" d="M 869.173 56.395 V 61.694" /><ellipse class="architecture-icon-mark" cx="865.64" cy="59.044" rx="3.533" ry="1.472" /><ellipse class="architecture-icon-mark" cx="865.64" cy="61.694" rx="3.533" ry="1.472" /></g><text x="883.64" y="58.75" class="architecture-group-label" text-anchor="start" font-size="12" font-weight="600" dy="4.2">Data</text></g><polyline class="architecture-edge" data-from="browser" data-to="web" data-from-side="R" data-to-side="L" data-from-boundary="item" data-to-boundary="item" points="183.82,108 283.82,108" marker-end="url(#comparison-agentic-architecture-comparison-agentic-architecture-architecture-arrow-end)" /><polyline class="architecture-edge" data-from="web" data-to="api" data-from-side="R" data-to-side="L" data-from-boundary="item" data-to-boundary="item" points="411.64,108 467.64,108" marker-end="url(#comparison-agentic-architecture-comparison-agentic-architecture-architecture-arrow-end)" /><polyline class="architecture-edge" data-from="api" data-to="queue" data-from-side="B" data-to-side="T" data-from-boundary="item" data-to-boundary="item" points="527.64,132 527.64,116.75 703.64,116.75 703.64,101.5" marker-end="url(#comparison-agentic-architecture-comparison-agentic-architecture-architecture-arrow-end)" /><polyline class="architecture-edge" data-from="api" data-to="db" data-from-side="R" data-to-side="L" data-from-boundary="item" data-to-boundary="item" points="587.64,108 725.64,108 725.64,112.75 863.64,112.75" marker-end="url(#comparison-agentic-architecture-comparison-agentic-architecture-architecture-arrow-end)" /><polyline class="architecture-edge" data-from="queue" data-to="db" data-from-side="R" data-to-side="L" data-from-boundary="item" data-to-boundary="item" points="763.64,125.5 813.64,125.5 813.64,112.75 863.64,112.75" marker-end="url(#comparison-agentic-architecture-comparison-agentic-architecture-architecture-arrow-end)" /><g class="architecture-service" data-id="browser" data-label="Browser"><rect class="architecture-service-card" x="56" y="84" width="127.82" height="48" rx="0" ry="0" /><rect class="architecture-service-outline" x="56" y="84" width="127.82" height="48" rx="0" ry="0" /><g class="architecture-icon" data-icon="server"><rect class="architecture-icon-mark" x="81.04" y="103.68" width="7.92" height="8.64" rx="0" ry="0" /><path class="architecture-icon-mark" d="M 82.12 106.56 H 87.88" /><path class="architecture-icon-mark" d="M 82.12 109.08 H 87.88" /></g><text x="108" y="108" class="architecture-service-label" text-anchor="start" font-size="13" font-weight="500" dy="4.55">Browser</text></g><g class="architecture-service" data-id="web" data-label="Web App"><rect class="architecture-service-card" x="283.82" y="84" width="127.82" height="48" rx="0" ry="0" /><rect class="architecture-service-outline" x="283.82" y="84" width="127.82" height="48" rx="0" ry="0" /><g class="architecture-icon" data-icon="server"><rect class="architecture-icon-mark" x="308.86" y="103.68" width="7.92" height="8.64" rx="0" ry="0" /><path class="architecture-icon-mark" d="M 309.94 106.56 H 315.7" /><path class="architecture-icon-mark" d="M 309.94 109.08 H 315.7" /></g><text x="335.82" y="108" class="architecture-service-label" text-anchor="start" font-size="13" font-weight="500" dy="4.55">Web App</text></g><g class="architecture-service" data-id="api" data-label="API"><rect class="architecture-service-card" x="467.64" y="84" width="120" height="48" rx="0" ry="0" /><rect class="architecture-service-outline" x="467.64" y="84" width="120" height="48" rx="0" ry="0" /><g class="architecture-icon" data-icon="server"><rect class="architecture-icon-mark" x="492.68" y="103.68" width="7.92" height="8.64" rx="0" ry="0" /><path class="architecture-icon-mark" d="M 493.76 106.56 H 499.52" /><path class="architecture-icon-mark" d="M 493.76 109.08 H 499.52" /></g><text x="519.64" y="108" class="architecture-service-label" text-anchor="start" font-size="13" font-weight="500" dy="4.55">API</text></g><g class="architecture-service" data-id="queue" data-label="Queue"><rect class="architecture-service-card" x="643.64" y="101.5" width="120" height="48" rx="0" ry="0" /><rect class="architecture-service-outline" x="643.64" y="101.5" width="120" height="48" rx="0" ry="0" /><g class="architecture-icon" data-icon="server"><rect class="architecture-icon-mark" x="668.68" y="121.18" width="7.92" height="8.64" rx="0" ry="0" /><path class="architecture-icon-mark" d="M 669.76 124.06 H 675.52" /><path class="architecture-icon-mark" d="M 669.76 126.58 H 675.52" /></g><text x="695.64" y="125.5" class="architecture-service-label" text-anchor="start" font-size="13" font-weight="500" dy="4.55">Queue</text></g><g class="architecture-service" data-id="db" data-label="Postgres"><rect class="architecture-service-card" x="863.64" y="88.75" width="130.784" height="48" rx="0" ry="0" /><rect class="architecture-service-outline" x="863.64" y="88.75" width="130.784" height="48" rx="0" ry="0" /><g class="architecture-icon" data-icon="database"><ellipse class="architecture-icon-mark" cx="892.64" cy="109.87" rx="4.32" ry="1.8" /><path class="architecture-icon-mark" d="M 888.32 109.87 V 116.35" /><path class="architecture-icon-mark" d="M 896.96 109.87 V 116.35" /><ellipse class="architecture-icon-mark" cx="892.64" cy="113.11" rx="4.32" ry="1.8" /><ellipse class="architecture-icon-mark" cx="892.64" cy="116.35" rx="4.32" ry="1.8" /></g><text x="915.64" y="112.75" class="architecture-service-label" text-anchor="start" font-size="13" font-weight="500" dy="4.55">Postgres</text></g></svg></div></div>
+  </div>
+</section>
+<section class="comparison-case comparison-case-omits-beautiful" id="pie" aria-labelledby="comparison-pie-title">
+  <header class="comparison-case-head">
+    <h2 id="comparison-pie-title">Pie</h2>
+    <button class="comparison-focus" type="button" data-comparison-focus aria-label="Open Pie comparison larger" title="Open larger comparison"><span aria-hidden="true">⤢</span></button>
+  </header>
+  <p class="comparison-note">Beautiful Mermaid does not render this family; only Mermaid and Agentic Mermaid are shown.</p>
+  <div class="comparison-grid">
+    <div class="comparison-panel"><h3>Mermaid</h3><div class="comparison-render"><pre class="mermaid comparison-mermaid" id="comparison-mermaid-pie">pie showData
+  title Output formats
+  "SVG" : 42
+  "PNG" : 28
+  "ASCII" : 18
+  "Unicode" : 12</pre></div></div>
+    <div class="comparison-panel"><h3>Agentic Mermaid</h3><div class="comparison-render"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 402.14 276" width="402.14" height="276" style="--bg:#FFFFFF;--fg:#27272A;--line:#8B9791;--accent:#1A7351;--muted:#5D6864;--surface:#F8FAF8;--border:#D3DDD7;--font:Avenir Next;background:#FFFFFF" role="img" aria-roledescription="pie chart" aria-labelledby="comparison-agentic-pie-svg-title comparison-agentic-pie-svg-desc"><title id="comparison-agentic-pie-svg-title">Agentic Mermaid Pie</title><desc id="comparison-agentic-pie-svg-desc">Pie rendered by Agentic Mermaid.</desc><style>
+  text { font-family: var(--font, 'Avenir Next'), system-ui, sans-serif; }
+  svg {
+
+    --_text:          #27272A;
+    --_text-sec:      #5D6864;
+    --_text-muted:    #5D6864;
+    --_text-faint:    #8a8a8c;
+    --_line:          #8B9791;
+    --_arrow:         #1A7351;
+    --_node-fill:     #F8FAF8;
+    --_node-stroke:   #D3DDD7;
+    --_group-fill:    #FFFFFF;
+    --_group-hdr:     #f4f4f4;
+    --_inner-stroke:  #e5e5e5;
+    --_key-badge:     #e9e9ea;
+  }
+</style><style>
+  .pie-slice { stroke: #FFFFFF; stroke-width: 1.5; }
+  .pie-legend-swatch { stroke: #D3DDD7; stroke-width: 1; }
+  .pie-legend-text { fill: #27272A; }
+  .pie-title { fill: #27272A; }
+</style><path class="pie-slice" d="M 119 157 L 119 62 A 95 95 0 0 1 164.77 240.25 Z" fill="#1A7351" data-label="SVG" data-value="42" data-percent="42.0%" /><path class="pie-slice" d="M 119 157 L 164.77 240.25 A 95 95 0 0 1 28.65 186.36 Z" fill="#219258" data-label="PNG" data-value="28" data-percent="28.0%" /><path class="pie-slice" d="M 119 157 L 28.65 186.36 A 95 95 0 0 1 53.97 87.75 Z" fill="#72dfcb" data-label="ASCII" data-value="18" data-percent="18.0%" /><path class="pie-slice" d="M 119 157 L 53.97 87.75 A 95 95 0 0 1 119 62 Z" fill="#186834" data-label="Unicode" data-value="12" data-percent="12.0%" /><rect class="pie-legend-swatch" x="246" y="117" width="14" height="14" rx="2" ry="2" fill="#1A7351" /><text x="268" y="124" class="pie-legend-text" text-anchor="start" dominant-baseline="middle" font-size="13" font-weight="500" dy="4.55">SVG [42] (42.0%)</text><rect class="pie-legend-swatch" x="246" y="139" width="14" height="14" rx="2" ry="2" fill="#219258" /><text x="268" y="146" class="pie-legend-text" text-anchor="start" dominant-baseline="middle" font-size="13" font-weight="500" dy="4.55">PNG [28] (28.0%)</text><rect class="pie-legend-swatch" x="246" y="161" width="14" height="14" rx="2" ry="2" fill="#72dfcb" /><text x="268" y="168" class="pie-legend-text" text-anchor="start" dominant-baseline="middle" font-size="13" font-weight="500" dy="4.55">ASCII [18] (18.0%)</text><rect class="pie-legend-swatch" x="246" y="183" width="14" height="14" rx="2" ry="2" fill="#186834" /><text x="268" y="190" class="pie-legend-text" text-anchor="start" dominant-baseline="middle" font-size="13" font-weight="500" dy="4.55">Unicode [12] (12.0%)</text><text x="201.07" y="33" class="pie-title" text-anchor="middle" dominant-baseline="middle" font-size="18" font-weight="600" dy="6.3">Output formats</text></svg></div></div>
+  </div>
+</section>
+<section class="comparison-case comparison-case-omits-beautiful" id="quadrant" aria-labelledby="comparison-quadrant-title">
+  <header class="comparison-case-head">
+    <h2 id="comparison-quadrant-title">Quadrant</h2>
+    <button class="comparison-focus" type="button" data-comparison-focus aria-label="Open Quadrant comparison larger" title="Open larger comparison"><span aria-hidden="true">⤢</span></button>
+  </header>
+  <p class="comparison-note">Beautiful Mermaid does not render this family; only Mermaid and Agentic Mermaid are shown.</p>
+  <div class="comparison-grid">
+    <div class="comparison-panel"><h3>Mermaid</h3><div class="comparison-render"><pre class="mermaid comparison-mermaid" id="comparison-mermaid-quadrant">quadrantChart
+  title Edit decisions
+  x-axis Low confidence --&gt; High confidence
+  y-axis Low reversibility --&gt; High reversibility
+  quadrant-1 Commit
+  quadrant-2 Review
+  quadrant-3 Ask
+  quadrant-4 Repair
+  typed mutate: [0.82, 0.78]
+  source rewrite: [0.24, 0.22]
+  verify warnings: [0.71, 0.48]</pre></div></div>
+    <div class="comparison-panel"><h3>Agentic Mermaid</h3><div class="comparison-render"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 456 492" width="456" height="492" style="--bg:#FFFFFF;--fg:#27272A;--line:#8B9791;--accent:#1A7351;--muted:#5D6864;--surface:#F8FAF8;--border:#D3DDD7;--font:Avenir Next;background:#FFFFFF" role="img" aria-roledescription="quadrant chart" aria-labelledby="comparison-agentic-quadrant-svg-title comparison-agentic-quadrant-svg-desc"><title id="comparison-agentic-quadrant-svg-title">Agentic Mermaid Quadrant</title><desc id="comparison-agentic-quadrant-svg-desc">Quadrant rendered by Agentic Mermaid.</desc><style>
+  text { font-family: var(--font, 'Avenir Next'), system-ui, sans-serif; }
+  svg {
+
+    --_text:          #27272A;
+    --_text-sec:      #5D6864;
+    --_text-muted:    #5D6864;
+    --_text-faint:    #8a8a8c;
+    --_line:          #8B9791;
+    --_arrow:         #1A7351;
+    --_node-fill:     #F8FAF8;
+    --_node-stroke:   #D3DDD7;
+    --_group-fill:    #FFFFFF;
+    --_group-hdr:     #f4f4f4;
+    --_inner-stroke:  #e5e5e5;
+    --_key-badge:     #e9e9ea;
+  }
+</style><style>
+  .quadrant-region { stroke: none; }
+  .quadrant-divider { stroke: #8B9791; stroke-width: 1; }
+  .quadrant-border { stroke: #D3DDD7; stroke-width: 2; }
+  .quadrant-label { fill: #5D6864; }
+  .quadrant-point { fill: #1A7351; stroke: #FFFFFF; stroke-width: 1; }
+  .quadrant-point-label { fill: #27272A; }
+  .quadrant-axis-label { fill: #5D6864; }
+  .quadrant-title { fill: #27272A; }
+</style><rect class="quadrant-region" x="52" y="60" width="190" height="190" fill="#f4f8f6" data-quadrant="2" /><rect class="quadrant-region" x="242" y="60" width="190" height="190" fill="#e8f1ee" data-quadrant="1" /><rect class="quadrant-region" x="52" y="250" width="190" height="190" fill="#e8f1ee" data-quadrant="3" /><rect class="quadrant-region" x="242" y="250" width="190" height="190" fill="#f4f8f6" data-quadrant="4" /><line class="quadrant-divider" x1="242" y1="60" x2="242" y2="440" /><line class="quadrant-divider" x1="52" y1="250" x2="432" y2="250" /><rect class="quadrant-border" x="52" y="60" width="380" height="380" fill="none" /><text x="147" y="155" class="quadrant-label" text-anchor="middle" dominant-baseline="middle" font-size="15" font-weight="600" dy="5.25">Review</text><text x="337" y="155" class="quadrant-label" text-anchor="middle" dominant-baseline="middle" font-size="15" font-weight="600" dy="5.25">Commit</text><text x="147" y="345" class="quadrant-label" text-anchor="middle" dominant-baseline="middle" font-size="15" font-weight="600" dy="5.25">Ask</text><text x="337" y="345" class="quadrant-label" text-anchor="middle" dominant-baseline="middle" font-size="15" font-weight="600" dy="5.25">Repair</text><circle class="quadrant-point" cx="363.6" cy="143.6" r="6" data-label="typed mutate" data-x="0.82" data-y="0.78" /><text x="373.6" y="143.6" class="quadrant-point-label" text-anchor="start" dominant-baseline="middle" font-size="12" font-weight="500" dy="4.2">typed mutate</text><circle class="quadrant-point" cx="143.2" cy="356.4" r="6" data-label="source rewrite" data-x="0.24" data-y="0.22" /><text x="143.2" y="373.55" class="quadrant-point-label" text-anchor="middle" dominant-baseline="middle" font-size="12" font-weight="500" dy="4.2">source rewrite</text><circle class="quadrant-point" cx="321.8" cy="257.6" r="6" data-label="verify warnings" data-x="0.71" data-y="0.48" /><text x="331.8" y="257.6" class="quadrant-point-label" text-anchor="start" dominant-baseline="middle" font-size="12" font-weight="500" dy="4.2">verify warnings</text><text class="quadrant-axis-label" x="56" y="457" text-anchor="start" font-size="13" font-weight="500">Low confidence</text><text class="quadrant-axis-label" x="428" y="457" text-anchor="end" font-size="13" font-weight="500">High confidence</text><text class="quadrant-axis-label" x="37" y="436" text-anchor="start" font-size="13" font-weight="500" transform="rotate(-90 37 436)">Low reversibility</text><text class="quadrant-axis-label" x="37" y="64" text-anchor="end" font-size="13" font-weight="500" transform="rotate(-90 37 64)">High reversibility</text><text x="242" y="33" class="quadrant-title" text-anchor="middle" dominant-baseline="middle" font-size="18" font-weight="600" dy="6.3">Edit decisions</text></svg></div></div>
+  </div>
+</section>
+<section class="comparison-case comparison-case-omits-beautiful" id="gantt" aria-labelledby="comparison-gantt-title">
+  <header class="comparison-case-head">
+    <h2 id="comparison-gantt-title">Gantt</h2>
+    <button class="comparison-focus" type="button" data-comparison-focus aria-label="Open Gantt comparison larger" title="Open larger comparison"><span aria-hidden="true">⤢</span></button>
+  </header>
+  <p class="comparison-note">Beautiful Mermaid does not render this family; only Mermaid and Agentic Mermaid are shown.</p>
+  <div class="comparison-grid">
+    <div class="comparison-panel"><h3>Mermaid</h3><div class="comparison-render"><pre class="mermaid comparison-mermaid" id="comparison-mermaid-gantt">gantt
+  title Release train
+  dateFormat YYYY-MM-DD
+  excludes weekends
+  section Build
+    Parser        :done, p1, 2024-01-08, 2024-01-10
+    Layout pass   :active, l1, 2024-01-11, 3d
+    Verify        :v1, after l1, 2d
+  section Ship
+    Review        :crit, r1, after v1, 2d
+    Release       :milestone, m1, after r1, 0d</pre></div></div>
+    <div class="comparison-panel"><h3>Agentic Mermaid</h3><div class="comparison-render"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 312" width="720" height="312" style="--bg:#FFFFFF;--fg:#27272A;--line:#8B9791;--accent:#1A7351;--muted:#5D6864;--surface:#F8FAF8;--border:#D3DDD7;--font:Avenir Next;background:#FFFFFF" role="img" aria-labelledby="comparison-agentic-gantt-svg-title comparison-agentic-gantt-svg-desc"><title id="comparison-agentic-gantt-svg-title">Agentic Mermaid Gantt</title><desc id="comparison-agentic-gantt-svg-desc">Gantt rendered by Agentic Mermaid.</desc><style>
+  text { font-family: var(--font, 'Avenir Next'), system-ui, sans-serif; }
+  svg {
+
+    --_text:          #27272A;
+    --_text-sec:      #5D6864;
+    --_text-muted:    #5D6864;
+    --_text-faint:    #8a8a8c;
+    --_line:          #8B9791;
+    --_arrow:         #1A7351;
+    --_node-fill:     #F8FAF8;
+    --_node-stroke:   #D3DDD7;
+    --_group-fill:    #FFFFFF;
+    --_group-hdr:     #f4f4f4;
+    --_inner-stroke:  #e5e5e5;
+    --_key-badge:     #e9e9ea;
+  }
+</style><style>
+  .gantt-section-band { fill: #F8FAF8; opacity: 0.07; }
+  .gantt-grid-line { stroke: #8B9791; stroke-width: 1; opacity: 0.45; }
+  .gantt-bar { fill: #1A7351; stroke: none; opacity: 0.92; }
+  .gantt-bar-active { fill: #1A7351; stroke: #27272A; stroke-width: 1.5; opacity: 1; }
+  .gantt-bar-done { fill: #5D6864; opacity: 0.55; }
+  .gantt-bar-crit { fill: #27272A; stroke: #1A7351; stroke-width: 1.5; opacity: 0.95; }
+  .gantt-milestone { fill: #1A7351; stroke: #27272A; stroke-width: 1; }
+  .gantt-milestone-crit { fill: #27272A; stroke: #1A7351; stroke-width: 1.5; }
+  .gantt-vert-marker { stroke: #8B9791; stroke-width: 2; stroke-dasharray: 6 3; }
+  .gantt-today-marker { stroke: #1A7351; stroke-width: 2; stroke-dasharray: 4 3; }
+  .gantt-title { fill: #27272A; }
+  .gantt-section-label { fill: #27272A; }
+  .gantt-task-label { fill: #27272A; }
+  .gantt-axis-label { fill: #5D6864; }
+</style><rect class="gantt-section-band" x="104" y="50" width="600" height="120" /><line class="gantt-grid-line" x1="404" y1="50" x2="404" y2="272" /><text class="gantt-axis-label" x="404" y="284" text-anchor="middle" dominant-baseline="middle" font-size="11" font-weight="500">01-14</text><text class="gantt-section-label" x="8" y="65" text-anchor="start" dominant-baseline="middle" font-size="13" font-weight="600">Build</text><text class="gantt-section-label" x="8" y="191" text-anchor="start" dominant-baseline="middle" font-size="13" font-weight="600">Ship</text><text class="gantt-task-label" x="16" y="91" text-anchor="start" dominant-baseline="middle" font-size="13" font-weight="500">Parser</text><text class="gantt-task-label" x="16" y="121" text-anchor="start" dominant-baseline="middle" font-size="13" font-weight="500">Layout pass</text><text class="gantt-task-label" x="16" y="151" text-anchor="start" dominant-baseline="middle" font-size="13" font-weight="500">Verify</text><text class="gantt-task-label" x="16" y="217" text-anchor="start" dominant-baseline="middle" font-size="13" font-weight="500">Review</text><text class="gantt-task-label" x="16" y="247" text-anchor="start" dominant-baseline="middle" font-size="13" font-weight="500">Release</text><rect class="gantt-bar gantt-bar-done" x="104" y="80" width="100" height="22" rx="3" ry="3" data-task="p1" /><rect class="gantt-bar gantt-bar-active" x="254" y="110" width="250" height="22" rx="3" ry="3" data-task="l1" /><rect class="gantt-bar" x="504" y="140" width="100" height="22" rx="3" ry="3" data-task="v1" /><rect class="gantt-bar gantt-bar-crit" x="604" y="206" width="100" height="22" rx="3" ry="3" data-task="r1" /><path class="gantt-milestone" d="M 693 236 L 704 247 L 693 258 L 682 247 Z" data-task="m1" /><text class="gantt-title" x="360" y="18" text-anchor="middle" dominant-baseline="middle" font-size="17" font-weight="600">Release train</text></svg></div></div>
+  </div>
+</section>
+<dialog class="comparison-dialog" data-comparison-dialog aria-labelledby="comparison-dialog-title">
+  <form class="comparison-dialog-bar" method="dialog">
+    <div>
+      <h2 id="comparison-dialog-title">Comparison</h2>
+      <p class="comparison-dialog-note" data-comparison-dialog-note hidden></p>
+    </div>
+    <button class="comparison-dialog-close" type="submit">Close</button>
+  </form>
+  <div class="comparison-dialog-body" data-comparison-dialog-body></div>
+</dialog>
+<script src="/vendor/mermaid-74d7c46dabca.min.js"></script>
+<script>
+if (window.mermaid) {
+  window.mermaid.initialize({ startOnLoad: false, securityLevel: 'strict', deterministicIds: true, deterministicIDSeed: 'agentic-mermaid-comparisons', theme: 'base', themeVariables: { fontFamily: 'Avenir Next, Segoe UI, system-ui, sans-serif' } });
+  window.mermaid.run({ querySelector: '.comparison-mermaid' }).catch(function() {});
+}
+(function () {
+  var dialog = document.querySelector('[data-comparison-dialog]');
+  if (!dialog || typeof dialog.showModal !== 'function') return;
+  var body = dialog.querySelector('[data-comparison-dialog-body]');
+  var title = dialog.querySelector('#comparison-dialog-title');
+  var note = dialog.querySelector('[data-comparison-dialog-note]');
+  var current = null;
+  function restore() {
+    if (!current) return;
+    current.marker.parentNode.replaceChild(current.grid, current.marker);
+    current = null;
+  }
+  document.querySelectorAll('[data-comparison-focus]').forEach(function (button) {
+    button.addEventListener('click', function () {
+      restore();
+      var section = button.closest('.comparison-case');
+      var grid = section && section.querySelector('.comparison-grid');
+      if (!section || !grid || !body) return;
+      var marker = document.createComment('comparison-grid');
+      grid.parentNode.insertBefore(marker, grid);
+      body.appendChild(grid);
+      title.textContent = section.querySelector('h2').textContent;
+      var noteText = section.querySelector('.comparison-note')?.textContent || '';
+      note.textContent = noteText;
+      note.hidden = !noteText;
+      current = { grid: grid, marker: marker };
+      dialog.showModal();
+    });
+  });
+  dialog.addEventListener('close', restore);
+  dialog.addEventListener('click', function (event) {
+    if (event.target === dialog) dialog.close();
+  });
+})();
+</script>
+</div>
+</main>
+<footer><div class="footlinks"><a href="/warnings/">Warnings</a><span class="sep">&middot;</span><a href="/errors/">Errors</a><span class="sep">&middot;</span><a href="/releases/">Releases</a><span class="sep">&middot;</span><a href="/security/">Security</a><span class="sep">&middot;</span><a href="https://github.com/adewale/beautiful-mermaid">GitHub</a></div><div class="footlinks"><a href="/llms.txt">llms.txt</a><span class="sep">&middot;</span><a href="/agent-instructions.md">agent-instructions.md</a><span class="sep">&middot;</span><a href="/capabilities.json">capabilities.json</a><span class="sep">&middot;</span><a href="/examples/index.json">examples.json</a><span class="sep">&middot;</span><a href="/skills/agentic-mermaid-diagram-workflow/SKILL.md">workflow skill</a></div></footer>
+<script src="/shader-mark.js"></script>
+<script src="/theme.js"></script>
+</body>
+</html>

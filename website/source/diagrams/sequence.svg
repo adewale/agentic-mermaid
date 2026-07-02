@@ -1,0 +1,54 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 311.762 280" width="311.762" height="280" style="--bg:#FFFFFF;--fg:#1b2a25;--font:'DejaVu Sans';background:transparent">
+<style>
+  text { font-family: var(--font, 'Inter'), system-ui, sans-serif; }
+  svg {
+    /* Derived from --bg and --fg (overridable via --line, --accent, etc.) */
+    --_text:          #1b2a25;
+    --_text-sec:      #7d7d7f;
+    --_text-muted:    #a9a9aa;
+    --_text-faint:    #c9c9ca;
+    --_line:          #939395;
+    --_arrow:         #47474a;
+    --_node-fill:     #f9f9f9;
+    --_node-stroke:   #d4d4d4;
+    --_group-fill:    #FFFFFF;
+    --_group-hdr:     #f4f4f4;
+    --_inner-stroke:  #e5e5e5;
+    --_key-badge:     #e9e9ea;
+  }
+</style>
+<defs>
+  <marker id="seq-arrow" markerWidth="8" markerHeight="5" refX="8" refY="2.5" orient="auto-start-reverse">
+    <polygon points="0 0, 8 2.5, 0 5" fill="#47474a" />
+  </marker>
+  <marker id="seq-arrow-open" markerWidth="8" markerHeight="5" refX="8" refY="2.5" orient="auto-start-reverse">
+    <polyline points="0 0, 8 2.5, 0 5" fill="none" stroke="#47474a" stroke-width="1" />
+  </marker>
+</defs>
+<line class="lifeline" data-actor="A" x1="70" y1="70" x2="70" y2="250" stroke="#939395" stroke-width="0.75" stroke-dasharray="6 4" />
+<line class="lifeline" data-actor="AM" x1="215.881" y1="70" x2="215.881" y2="250" stroke="#939395" stroke-width="0.75" stroke-dasharray="6 4" />
+<g class="message" data-from="A" data-to="AM" data-label="verify(source)" data-line-style="solid" data-arrow-head="filled" data-self="false">
+  <line x1="70" y1="90" x2="215.881" y2="90" stroke="#939395" stroke-width="1" marker-end="url(#seq-arrow)" />
+  <text x="142.9405" y="80" font-size="11" text-anchor="middle" font-weight="400" fill="#a9a9aa" dy="3.8499999999999996">verify(source)</text>
+</g>
+<g class="message" data-from="AM" data-to="A" data-label="warnings[]" data-line-style="dashed" data-arrow-head="filled" data-self="false">
+  <line x1="215.881" y1="130" x2="70" y2="130" stroke="#939395" stroke-width="1" stroke-dasharray="6 4" marker-end="url(#seq-arrow)" />
+  <text x="142.9405" y="120" font-size="11" text-anchor="middle" font-weight="400" fill="#a9a9aa" dy="3.8499999999999996">warnings[]</text>
+</g>
+<g class="message" data-from="A" data-to="AM" data-label="mutate(addEdge)" data-line-style="solid" data-arrow-head="filled" data-self="false">
+  <line x1="70" y1="170" x2="215.881" y2="170" stroke="#939395" stroke-width="1" marker-end="url(#seq-arrow)" />
+  <text x="142.9405" y="160" font-size="11" text-anchor="middle" font-weight="400" fill="#a9a9aa" dy="3.8499999999999996">mutate(addEdge)</text>
+</g>
+<g class="message" data-from="AM" data-to="A" data-label="ValidDiagram" data-line-style="dashed" data-arrow-head="filled" data-self="false">
+  <line x1="215.881" y1="210" x2="70" y2="210" stroke="#939395" stroke-width="1" stroke-dasharray="6 4" marker-end="url(#seq-arrow)" />
+  <text x="142.9405" y="200" font-size="11" text-anchor="middle" font-weight="400" fill="#a9a9aa" dy="3.8499999999999996">ValidDiagram</text>
+</g>
+<g class="actor" data-id="A" data-label="Agent" data-type="participant">
+  <rect x="30" y="30" width="80" height="40" rx="4" ry="4" fill="#f9f9f9" stroke="#d4d4d4" stroke-width="1" />
+  <text x="70" y="50" font-size="13" text-anchor="middle" font-weight="500" fill="#1b2a25" dy="4.55">Agent</text>
+</g>
+<g class="actor" data-id="AM" data-label="Agentic Mermaid" data-type="participant">
+  <rect x="150" y="30" width="131.762" height="40" rx="4" ry="4" fill="#f9f9f9" stroke="#d4d4d4" stroke-width="1" />
+  <text x="215.881" y="50" font-size="13" text-anchor="middle" font-weight="500" fill="#1b2a25" dy="4.55">Agentic Mermaid</text>
+</g>
+</svg>

@@ -112,10 +112,10 @@ export function renderQuadrantSvg(
     parts.push(
       renderMultilineText(
         point.label,
-        point.cx + point.radius + 4,
-        point.cy,
+        point.labelX,
+        point.labelY,
         style.nodeLabelFontSize,
-        `class="quadrant-point-label" text-anchor="start" dominant-baseline="middle" ` +
+        `class="quadrant-point-label" text-anchor="${point.labelAnchor}" dominant-baseline="middle" ` +
           `font-size="${style.nodeLabelFontSize}" font-weight="${style.nodeLabelFontWeight}"${letterAttr(style.nodeLetterSpacing)}`,
       ),
     )

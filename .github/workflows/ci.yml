@@ -35,16 +35,17 @@ jobs:
         # locate under-tested files — it is deliberately NOT a quality target:
         # line coverage is weakly correlated with fault detection once suite
         # size is controlled (Inozemtseva & Holmes, ICSE 2014). The real
-        # adequacy signal is the mutation score, which runs nightly
-        # (nightly-route-mutation.yml) because a full run is too slow to gate
-        # every PR. See docs/testing-strategy.md.
+        # adequacy signal is the mutation score. The nightly broad lane
+        # (nightly-route-mutation.yml) currently times out before producing it
+        # (every run cancelled at the 90-min cap since 2026-06-19; the sharding
+        # fix is PR #63) — regenerate scores locally per docs/mutation-testing.md.
         run: bun test --coverage --coverage-reporter=text src/__tests__/
 
       - name: Adequacy signal reminder
         # Surface where the trustworthy adequacy number lives so a green
         # coverage column is not mistaken for a strong suite.
         run: |
-          echo "::notice title=Adequacy signal::Line coverage above is a finder, not a target. The mutation score (nightly-route-mutation.yml) is the adequacy signal — see docs/testing-strategy.md."
+          echo "::notice title=Adequacy signal::Line coverage above is a finder, not a target. The mutation score is the adequacy signal — but the nightly lane currently times out (PR #63 has the sharding fix); regenerate locally per docs/mutation-testing.md."
 
       - name: Type check
         run: bun x tsc --noEmit
@@ -54,18 +55,10 @@ jobs:
         # assets/hero.png (diagram SVG + ASCII) — no fonts/rasterization needed.
         run: bun run hero:check
 
-      - name: Check the registry-driven mockup site is current
-        # mockups/ gallery tiles, families table, and agent surfaces are
-        # generated from the family registry + capabilities + MCP tools. This
-        # re-runs the generator in --check mode and fails if a committed file
-        # drifted (e.g. a new family, a capability change, or a renderer change
-        # that wasn't regenerated). Regenerate with `bun run site`.
-        run: bun run site:check
-
       - name: Check the Workers Static Assets website is current
-        # website/public is generated from the mockup source plus product truth
-        # (capabilities, examples, skills, schemas, recipes). The check also
-        # rejects stale/orphan generated files and placeholder public links.
+        # website/public is generated from website/source plus product truth
+        # (capabilities, examples, skills). The check also rejects stale/orphan
+        # generated files and placeholder public links.
         run: bun run website:check
 
       - name: Golden snapshot drift is a hard gate (reviewed-token required)
@@ -109,7 +102,7 @@ jobs:
       - name: Run browser E2E tests
         run: cd e2e && bun test browser.test.ts --timeout 600000
 
-  # Fast incremental mutation gate. The broad route/ascii lanes stay nightly
+  # Fast incremental mutation gate. The broad route lanes stay nightly
   # (too slow to gate every PR); this lane mutates the small, pure faithfulness/
   # ranking core (structural-count.ts + faithfulnessWarning + rankWarnings) with
   # a sub-second unit runner — measured ~96% kill in ~1 min, gated by

@@ -10,6 +10,10 @@ function read(rel: string) {
   return readFileSync(join(SITE, rel), 'utf8')
 }
 
+function readRepo(rel: string) {
+  return readFileSync(join(REPO, rel), 'utf8')
+}
+
 function files(dir = SITE, prefix = ''): string[] {
   return readdirSync(dir).flatMap((name) => {
     const abs = join(dir, name)
@@ -57,6 +61,17 @@ describe('Workers Static Assets website contract', () => {
     expect(readFileSync(join(REPO, 'package.json'), 'utf8')).toContain('wrangler@latest dev --port 9095 --ip 127.0.0.1')
   })
 
+  test('Workers website source no longer depends on mockups', () => {
+    expect(existsSync(join(REPO, 'website/source/pages/home.html'))).toBe(true)
+    expect(existsSync(join(REPO, 'website/source/assets/styles.css'))).toBe(true)
+    const checkedFiles = ['website/build.ts', 'website/README.md', 'package.json', '.github/workflows/ci.yml', 'eval/agent-usage/homepage-prompt.ts']
+    for (const rel of checkedFiles) {
+      const text = readRepo(rel)
+      expect({ rel, hasMockupDependency: /mockups\/(?:site-gen|home\.html)|join\([^\n]*['"]mockups['"]|\bMOCKUPS\b|readMock\b|copyMockFile\b/.test(text) }).toEqual({ rel, hasMockupDependency: false })
+    }
+    expect(readRepo('package.json')).toContain('"site:check": "bun run website:check"')
+  })
+
   test('required human and machine routes are generated', () => {
     const routes = [
       'index.html', 'editor/index.html', 'about/index.html', 'docs/getting-started/index.html', 'docs/families/index.html',
@@ -64,7 +79,7 @@ describe('Workers Static Assets website contract', () => {
       'docs/mcp/index.html', 'docs/ascii/index.html', 'docs/theming/index.html',
       'docs/config/index.html', 'docs/react/index.html', 'docs/quality/index.html',
       'docs/fork-differences/index.html', 'docs/vocabulary/index.html',
-      'warnings/index.html', 'errors/index.html', 'examples/index.html', 'evidence/index.html',
+      'warnings/index.html', 'errors/index.html', 'examples/index.html', 'comparisons/index.html', 'evidence/index.html',
       'security/index.html', 'releases/index.html', 'skills/index.html',
       'llms.txt', 'agent-instructions.md', 'capabilities.json', 'examples/index.json',
       'skills/agentic-mermaid-diagram-workflow/SKILL.md', '_headers', '_redirects',
@@ -191,6 +206,7 @@ describe('Workers Static Assets website contract', () => {
       const html = read(rel)
       const masthead = html.match(/<header class="masthead"[\s\S]*?<\/header>/)?.[0] ?? ''
       expect(masthead).toContain('href="/examples/"')
+      expect(masthead).toContain('href="/comparisons/"')
       expect(masthead).toContain('href="/about/"')
       expect(masthead).toContain('<a class="link-editor" href="/editor/">Open editor</a>')
       expect(masthead).not.toContain('github.com')
@@ -206,6 +222,9 @@ describe('Workers Static Assets website contract', () => {
     const examplesMasthead = read('examples/index.html').match(/<header class="masthead"[\s\S]*?<\/header>/)?.[0] ?? ''
     expect(examplesMasthead).toContain('href="/examples/"')
     expect(examplesMasthead).toContain('aria-current="page"')
+    const comparisonsMasthead = read('comparisons/index.html').match(/<header class="masthead"[\s\S]*?<\/header>/)?.[0] ?? ''
+    expect(comparisonsMasthead).toContain('href="/comparisons/"')
+    expect(comparisonsMasthead).toContain('aria-current="page"')
     expect(read('about/index.html')).toContain('<a aria-current="page" href="/about/">About</a>')
     expect(read('docs/index.html')).toContain('<a aria-current="page" href="/docs/">Docs</a>')
     expect(read('_redirects')).not.toContain('/agents')
@@ -238,15 +257,46 @@ describe('Workers Static Assets website contract', () => {
     expect(styles).toContain('.doc { max-width: var(--content-max);')
     expect(styles).toContain('.meta-label, .agent-kicker')
     expect(styles).toContain('overflow-wrap: break-word')
-    // Narrow screens scroll the Unicode diagram instead of shrinking the
-    // type below readability; the floor is clamped at 0.55rem.
-    expect(styles).toContain('.unicode-diagram { overflow-x: auto; }')
-    expect(styles).toContain('font-size: clamp(0.55rem, 1.2vw, 0.68rem)')
+    expect(styles).toContain('.unicode-diagram { overflow-x: auto; -webkit-overflow-scrolling: touch; }')
     expect(styles).not.toContain('overflow-wrap: anywhere')
     expect(styles).not.toContain('transition: background-color 0.2s ease')
     expect(styles).not.toContain('transition: opacity 0.35s ease')
     expect(styles).not.toContain('text-transform: uppercase')
     expect(styles).not.toMatch(/font-size: (?:11|12|13|14)px/)
+  })
+
+  test('comparisons page renders available engines and omits unsupported Beautiful Mermaid panels', () => {
+    const comparisons = read('comparisons/index.html')
+    const mermaidRuntime = files().filter((f) => /^vendor\/mermaid-[a-f0-9]{12}\.min\.js$/.test(f))
+    expect(mermaidRuntime.length).toBe(1)
+    expect(comparisons).toContain(`src="/${mermaidRuntime[0]}"`)
+    expect(comparisons.match(/class="comparison-case(?: |")/g)?.length).toBe(12)
+    expect(comparisons.match(/class="comparison-panel"/g)?.length).toBe(30)
+    expect(comparisons.match(/<button class="comparison-focus"/g)?.length).toBe(12)
+    expect(comparisons).not.toContain('>Focus view</button>')
+    expect(comparisons).toContain('aria-label="Open Flowchart comparison larger"')
+    expect(comparisons).toContain('data-comparison-dialog')
+    for (const id of ['flowchart', 'state', 'sequence', 'class', 'er', 'xychart', 'timeline', 'journey', 'architecture', 'pie', 'quadrant', 'gantt']) {
+      expect(comparisons).toContain(`id="${id}"`)
+      expect(comparisons).toContain(`id="comparison-mermaid-${id}"`)
+      expect(comparisons).toContain(`comparison-agentic-${id}-svg-title`)
+    }
+    for (const id of ['flowchart', 'state', 'sequence', 'class', 'er', 'xychart']) {
+      const section = comparisons.match(new RegExp(`<section[^>]*id="${id}"[\\s\\S]*?<\\/section>`))?.[0] ?? ''
+      expect(section).toContain('<h3>Beautiful Mermaid</h3>')
+      expect(section).not.toContain('comparison-note')
+    }
+    for (const id of ['timeline', 'journey', 'architecture', 'pie', 'quadrant', 'gantt']) {
+      const section = comparisons.match(new RegExp(`<section[^>]*id="${id}"[\\s\\S]*?<\\/section>`))?.[0] ?? ''
+      expect(section).not.toContain('<h3>Beautiful Mermaid</h3>')
+      expect(section).toContain('comparison-note')
+    }
+    expect(comparisons).toContain('Beautiful Mermaid does not render this family')
+    expect(comparisons).toContain('window.mermaid.run')
+    expect(comparisons).not.toContain('comparison-empty')
+    expect(comparisons).not.toContain('fonts.googleapis.com')
+    expect(comparisons).not.toContain('@import url(')
+    expect(comparisons).not.toContain('principled decision')
   })
 
   test('examples page carries the agent task and a per-family render anchor', () => {
@@ -358,8 +408,12 @@ describe('Workers Static Assets website contract', () => {
     expect(read('docs/getting-started/index.html')).toContain('Self-hosting over stdio is the default path')
     expect(editor).toContain('aria-haspopup="menu"')
     expect(editor).toContain('role="dialog" aria-modal="false" aria-labelledby="color-popup-title" aria-hidden="true"')
+    expect(editor).toContain('class="status-left" role="status" aria-live="polite" aria-atomic="true"')
+    expect(editor).toContain('id="verify-bar" role="status" aria-live="polite" aria-atomic="true"')
     expect(editorAll).toContain('ensurePreviewSvgAccessibility')
     expect(editorAll).toContain('fitUnicodeOutput')
+    expect(editorAll).toContain('ensureTextOutputs')
+    expect(editorAll).toContain('markTextOutputsDirty')
   })
 
   test('warning pages carry real per-code content, badges, and social metadata ships site-wide', () => {
@@ -394,5 +448,21 @@ describe('Workers Static Assets website contract', () => {
     expect(text).not.toContain('TODO.md')
     expect(text).not.toContain('evals/')
     expect(text).toContain('/capabilities.json')
+  })
+
+  test('audit fixes give public proof diagrams accessible names and immutable editor assets', () => {
+    const home = read('index.html')
+    const examples = read('examples/index.html')
+    const worker = readFileSync(join(REPO, 'website/src/worker.js'), 'utf8')
+    expect(home).toContain('role="img" aria-labelledby="edit-loop-svg-title edit-loop-svg-desc"')
+    expect(home).toContain('<title id="edit-loop-svg-title">Agentic Mermaid edit loop</title>')
+    expect(examples).toContain('role="img" aria-labelledby="example-flowchart-basic-svg-title example-flowchart-basic-svg-desc"')
+    expect(examples).toContain('<title id="example-flowchart-basic-svg-title">Flowchart diagram</title>')
+    expect(read('_headers')).not.toContain('Cache-Control')
+    expect(worker).toContain("headers.delete('Cache-Control')")
+    expect(worker).toContain("/^\\/(?:editor\\/editor-[a-f0-9]{12}|vendor\\/mermaid-[a-f0-9]{12}\\.min)\\.js$/i.test(pathname)")
+    expect(worker).toContain("public, max-age=31536000, immutable")
+    expect(read('shader-mark.js')).toContain('runs a short sweep only on direct hover/focus')
+    expect(read('shader-mark.js')).not.toContain('requestAnimationFrame(frame);\n    }\n    requestAnimationFrame(frame);')
   })
 })

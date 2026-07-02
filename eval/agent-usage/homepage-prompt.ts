@@ -12,7 +12,7 @@ function decodeHtml(text: string): string {
     .replace(/&#39;/g, "'")
 }
 
-export function extractHomepageAgentPrompt(html = readFileSync(join(REPO, 'mockups/home.html'), 'utf8')): string {
+export function extractHomepageAgentPrompt(html = readFileSync(join(REPO, 'website/source/pages/home.html'), 'utf8')): string {
   const match = html.match(/<code id="home-agent-prompt">([\s\S]*?)<\/code>/)
   if (!match) throw new Error('home-agent-prompt not found')
   return decodeHtml(match[1]!).trim()

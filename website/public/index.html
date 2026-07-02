@@ -20,7 +20,7 @@
 <body>
 <a class="skip-link" href="#main">Skip to content</a>
 
-<header class="masthead"><div class="bar"><a class="brand" href="/"><span class="mark"></span> Agentic&nbsp;Mermaid</a><span class="links"><a href="/about/">About</a><a href="/examples/">Examples</a><a href="/docs/">Docs</a><a class="link-editor" href="/editor/">Open editor</a></span></div><hr></header>
+<header class="masthead"><div class="bar"><a class="brand" href="/"><span class="mark"></span> Agentic&nbsp;Mermaid</a><span class="links"><a href="/about/">About</a><a href="/examples/">Examples</a><a href="/comparisons/">Comparisons</a><a href="/docs/">Docs</a><a class="link-editor" href="/editor/">Open editor</a></span></div><hr></header>
 
 <main id="main" class="doc home-main">
 
@@ -83,7 +83,9 @@ Do not modify project files unless the user explicitly asked you to change files
 
   <figure>
     <div class="plate dia-plate">
-      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 994.975 209.186" width="994.975" height="209.186" style="--font:Inter">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 994.975 209.186" width="994.975" height="209.186" style="--font:Inter" role="img" aria-labelledby="edit-loop-svg-title edit-loop-svg-desc">
+<title id="edit-loop-svg-title">Agentic Mermaid edit loop</title>
+<desc id="edit-loop-svg-desc">Source flows through parse, narrow, mutate, verify, and serialize to render, with warnings routed back for another edit.</desc>
 <style>
   text { font-family: var(--font, 'Inter'), system-ui, sans-serif; }
   svg {
@@ -249,8 +251,7 @@ execute(`
     <li><a href="/evidence/"><strong>Curated</strong> quality evidence</a></li>
   </ul>
 
-
-  <p>The loop diagram at the top of the page again — same source, same layout — as Unicode text:</p>
+  <p>The loop figure at the top of the page again — same source, same layout. The same diagram as Unicode text:</p>
   <pre class="unicode-diagram"><code>┌─────────────┐     ┌───────┐     ┌────────┐     ┌──────────┐     ◇────────◇     ┌────────────────────┐
 │             │     │       │     │        │     │          │     │        │     │                    │
 │ Source .mmd ├────►│ parse ├────►│ narrow ├────►│  mutate  ├────►│ verify ├─ok─►│ serialize → render │

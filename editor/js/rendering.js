@@ -20,7 +20,7 @@ function hexToRgb(hex) {
 function chromeThemeColors() {
   // Paper (light) / Dusk (dark) — the exact brand triplets the public site
   // ships as its chrome. Keep these in lockstep with the site's [data-theme]
-  // "dusk" block and the :root Paper defaults in mockups/styles.css.
+  // "dusk" block and the :root Paper defaults in website/source/assets/styles.css.
   return isDark
     ? { bg: "#2A2521", fg: "#E9DFCC", accent: "#CC8A57" }
     : { bg: "#F5F0E4", fg: "#221E16", accent: "#9A4A24" };
@@ -93,16 +93,25 @@ function buildOptions() {
 }
 
 function setTextOutputs(unicode, ascii) {
-  // Direct writes invalidate any pending lazy render — the panes now show
-  // exactly what the caller asked for (placeholder or error copy).
-  pendingTextSource = null;
-  textRenderedFor.unicode = null;
-  textRenderedFor.ascii = null;
   if (unicodeOutput) {
     unicodeOutput.style.fontSize = '';
-    unicodeOutput.textContent = unicode || "Render a valid diagram to see Unicode output.";
+    unicodeOutput.textContent = unicode || "Select Unicode to render text output.";
   }
-  if (asciiOutput) asciiOutput.textContent = ascii || "Render a valid diagram to see ASCII output.";
+  if (asciiOutput) asciiOutput.textContent = ascii || "Select ASCII to render text output.";
+}
+
+var textOutputCacheKey = "";
+
+function textOutputKey(source) {
+  return source + "\n" + JSON.stringify(buildOptions());
+}
+
+function activeCanvasFormat() {
+  return typeof currentCanvasFormat === "string" ? currentCanvasFormat : "diagram";
+}
+
+function markTextOutputsDirty() {
+  textOutputCacheKey = "";
 }
 
 var VERIFY_TIER_BY_CODE = {
@@ -311,18 +320,12 @@ function fitUnicodeOutput() {
   });
 }
 
-// Text outputs render lazily. renderMermaidAscii is synchronous, so rendering
-// both formats eagerly after every SVG render froze the whole tab on large
-// pastes; instead doRender records the source and only the format whose canvas
-// view is actually visible renders. The `hidden` attribute on the
-// [data-canvas-view] wrappers (toggled by selectCanvasFormat in buttons.js) is
-// the view state; a MutationObserver below renders stale output on view switch.
-// ~300 statement lines ≈ 1.5s of synchronous layout per format (measured on a
-// linear flowchart chain) — past that the pane shows a structured too-large
-// message instead of freezing the tab.
+// Text outputs render lazily: doRender only marks them dirty, and they render
+// when a text canvas view is actually active (doRender's activeCanvasFormat
+// check, or buttons.js calling ensureTextOutputs on view switch). Past the
+// line cap the pane shows a structured too-large message instead of running
+// renderMermaidAscii synchronously on a huge diagram.
 var TEXT_RENDER_MAX_LINES = 300;
-var pendingTextSource = null;
-var textRenderedFor = { unicode: null, ascii: null };
 
 function countSourceLines(source) {
   var lines = String(source || "").split("\n");
@@ -331,54 +334,51 @@ function countSourceLines(source) {
   return n;
 }
 
-function textViewWrap(format) {
-  return document.getElementById(format + "-output-wrap");
-}
-
-function renderTextOutput(format) {
-  var source = pendingTextSource;
-  if (source == null || !renderMermaidAscii) return;
-  if (textRenderedFor[format] === source) return;
-  var el = format === "ascii" ? asciiOutput : unicodeOutput;
-  if (!el) return;
-  textRenderedFor[format] = source;
+function renderTextOutputs(source) {
+  if (!renderMermaidAscii) return;
+  var key = textOutputKey(source);
+  if (textOutputCacheKey === key) {
+    if (activeCanvasFormat() === "unicode") fitUnicodeOutput();
+    return;
+  }
   var lines = countSourceLines(source);
   if (lines > TEXT_RENDER_MAX_LINES) {
-    el.textContent = "Diagram too large for text rendering (" + lines + " lines > " + TEXT_RENDER_MAX_LINES + " line limit). The SVG preview is still available; for text output use the CLI: am render diagram.mmd --format " + format + ".";
+    textOutputCacheKey = key;
+    var tooLarge = function(format) {
+      return "Diagram too large for text rendering (" + lines + " lines > " + TEXT_RENDER_MAX_LINES + " line limit). The SVG preview is still available; for text output use the CLI: am render diagram.mmd --format " + format + ".";
+    };
+    setTextOutputs(tooLarge("unicode"), tooLarge("ascii"));
     return;
   }
   try {
-    var opts = Object.assign({}, buildOptions(), { colorMode: "none", useAscii: format === "ascii" });
-    if (format === "unicode") unicodeOutput.style.fontSize = '';
-    el.textContent = renderMermaidAscii(source, opts);
-    if (format === "unicode") fitUnicodeOutput();
+    var opts = Object.assign({}, buildOptions(), { colorMode: "none" });
+    setTextOutputs(
+      renderMermaidAscii(source, Object.assign({}, opts, { useAscii: false })),
+      renderMermaidAscii(source, Object.assign({}, opts, { useAscii: true })),
+    );
+    textOutputCacheKey = key;
+    if (activeCanvasFormat() === "unicode") fitUnicodeOutput();
   } catch (err) {
-    el.textContent = "Text output failed: " + String(err || "unknown error");
+    textOutputCacheKey = "";
+    setTextOutputs("Text output failed: " + String(err || "unknown error"), "Text output failed: " + String(err || "unknown error"));
   }
 }
 
-function renderTextOutputs(source) {
-  pendingTextSource = source;
-  textRenderedFor.unicode = null;
-  textRenderedFor.ascii = null;
-  ["unicode", "ascii"].forEach(function(format) {
-    var wrap = textViewWrap(format);
-    if (wrap && !wrap.hidden) renderTextOutput(format);
-  });
+function ensureTextOutputs(source) {
+  source = source || editor.value.trim();
+  if (!source) {
+    markTextOutputsDirty();
+    setTextOutputs("", "");
+    return;
+  }
+  renderTextOutputs(source);
 }
-
-["unicode", "ascii"].forEach(function(format) {
-  var wrap = textViewWrap(format);
-  if (!wrap || typeof MutationObserver === "undefined") return;
-  new MutationObserver(function() {
-    if (!wrap.hidden) renderTextOutput(format);
-  }).observe(wrap, { attributes: true, attributeFilter: ["hidden"] });
-});
 
 async function doRender() {
   var source = editor.value.trim();
   if (!source) {
     previewInner.innerHTML = emptyPreviewHtml();
+    markTextOutputsDirty();
     setTextOutputs("", "");
     statusText.textContent = "Ready";
     statusText.className = "";
@@ -407,7 +407,8 @@ async function doRender() {
     statusDot.className = "status-dot ok";
     renderTime.textContent = "Rendered in " + ms + "ms";
     updateVerifyPanel(source);
-    renderTextOutputs(source);
+    markTextOutputsDirty();
+    if (activeCanvasFormat() !== "diagram") renderTextOutputs(source);
     if (typeof updateExportAvailability === "function") updateExportAvailability();
     updateHash();
   } catch (err) {
@@ -419,6 +420,7 @@ async function doRender() {
     statusText.className = "status-err";
     statusDot.className = "status-dot err";
     renderTime.textContent = "Failed in " + ms + "ms";
+    markTextOutputsDirty();
     resetVerifyPanel("Parse or render failed");
     setVerifyTier(verifyTierStructural, verifyStructural, "err", "Fix source first");
     setTextOutputs("Fix the render error to see Unicode output.", "Fix the render error to see ASCII output.");

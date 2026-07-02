@@ -2957,8 +2957,8 @@ body {
   </div>
 
   <div class="status-bar">
-    <div class="status-left">
-      <span class="status-dot" id="status-dot"></span>
+    <div class="status-left" role="status" aria-live="polite" aria-atomic="true">
+      <span class="status-dot" id="status-dot" aria-hidden="true"></span>
       <span id="status-text">Ready</span>
     </div>
     <div class="status-right">
@@ -3032,7 +3032,7 @@ body {
     <pre class="text-canvas" id="ascii-output-wrap" data-canvas-view="ascii" aria-label="ASCII output" hidden><code id="ascii-output">Render a valid diagram to see ASCII output.</code></pre>
   </div>
 
-  <div class="verify-bar" id="verify-bar" aria-label="Verification status">
+  <div class="verify-bar" id="verify-bar" role="status" aria-live="polite" aria-atomic="true" aria-label="Verification status">
     <span class="verify-verdict" id="verify-summary">Waiting for source</span>
     <div class="verify-tiers" role="list" aria-label="Warning tiers">
       <span class="verify-tier idle" id="verify-tier-structural" role="listitem"><span class="verify-dot" aria-hidden="true"></span>Structural<i id="verify-structural">Not run</i></span>
@@ -3058,6 +3058,6 @@ body {
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
 <!-- Bundled renderer -->
-<script type="module" src="/editor/editor-072d668f47ab.js"></script>
+<script type="module" src="/editor/editor-be6244569b65.js"></script>
 </body>
 </html>
