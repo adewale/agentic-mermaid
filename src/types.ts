@@ -492,4 +492,21 @@ export interface RenderOptions {
    * `todayMarker off` disables it even when a clock is supplied.
    */
   ganttToday?: string
+
+  /**
+   * Aesthetic style for the rendered diagram (hand-rendered/NPR styles).
+   * 'crisp' (or unset) is the default renderer, byte-identical to previous
+   * releases. Other values select a registered style from the aesthetic
+   * registry (e.g. 'hand-drawn', 'excalidraw', 'pen-and-ink', 'tufte'); the
+   * style's palette composes with the user's theme — any color option or
+   * themeVariable you set wins over the style's defaults. Unknown names throw.
+   */
+  aesthetic?: string
+
+  /**
+   * Deterministic re-roll seed for stochastic aesthetics (editor "shuffle").
+   * The same source + options + seed always produces identical bytes; the
+   * crisp path ignores it. Default 0.
+   */
+  seed?: number
 }

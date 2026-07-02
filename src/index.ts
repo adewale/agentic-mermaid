@@ -48,6 +48,71 @@ import { readThemeValue, resolveDiagramColors } from './color-resolver.ts'
 import { getFamily } from './render-family-hooks.ts'
 import type { FamilyLayoutResult } from './agent/families.ts'
 import type { DiagramKind } from './agent/types.ts'
+import { getAesthetic, knownAesthetics } from './scene/style-registry.ts'
+import type { AestheticStyle } from './scene/style-registry.ts'
+import { getBackend } from './scene/backend.ts'
+import './scene/rough-backend.ts'
+
+export { registerAesthetic, getAesthetic, knownAesthetics } from './scene/style-registry.ts'
+export type { AestheticStyle } from './scene/style-registry.ts'
+export { registerBackend, getBackend, DefaultBackend } from './scene/backend.ts'
+export type { StyleBackend, StyleBackendContext } from './scene/backend.ts'
+export type { SceneDoc, SceneNode, SemanticChannels, SceneRole } from './scene/ir.ts'
+
+/**
+ * Resolve RenderOptions.aesthetic to a registered style, or undefined for the
+ * crisp default. Unknown names throw with the known list (fail loud — a
+ * silently-crisp fallback would erode trust in style coverage, SPEC §13).
+ */
+function resolveAestheticOption(name: string | undefined): AestheticStyle | undefined {
+  if (!name || name === 'crisp' || name === 'default') return undefined
+  const spec = getAesthetic(name)
+  if (!spec) {
+    throw new Error(`Unknown aesthetic "${name}". Known aesthetics: ${knownAesthetics().join(', ')}`)
+  }
+  return spec
+}
+
+/**
+ * Compose an aesthetic's defaults UNDER the user's options (style × theme
+ * composition, SPEC §3.7): explicit user colors/font/role-styles win; unset
+ * channels fall back to the style's palette instead of the stock defaults.
+ * Runs BEFORE color resolution and layout so fonts and paddings affect
+ * text metrics (§9).
+ */
+function applyAestheticDefaults(options: RenderOptions, spec: AestheticStyle, themeVars?: Record<string, unknown>): RenderOptions {
+  const out: RenderOptions = { ...options }
+  // Mermaid themeVariables keys per channel — user-authored theming beats the
+  // style's palette, same as explicit color options (mirrors resolveDiagramColors).
+  const CHANNEL_THEME_KEYS: Record<string, string[]> = {
+    bg: ['background', 'mainBkg'],
+    fg: ['primaryTextColor', 'textColor', 'nodeTextColor'],
+    line: ['lineColor', 'defaultLinkColor'],
+    accent: ['arrowheadColor', 'primaryColor'],
+    muted: ['secondaryTextColor', 'tertiaryTextColor'],
+    surface: ['primaryColor', 'nodeBkg', 'mainBkg'],
+    border: ['primaryBorderColor', 'secondaryBorderColor'],
+  }
+  const themed = (channel: string) => CHANNEL_THEME_KEYS[channel]!.some(k => themeVars?.[k] !== undefined)
+  const channels = ['bg', 'fg', 'line', 'accent', 'muted', 'surface', 'border'] as const
+  for (const channel of channels) {
+    if (out[channel] === undefined && !themed(channel) && spec.colors[channel] !== undefined) {
+      out[channel] = spec.colors[channel]
+    }
+  }
+  if (out.font === undefined && spec.font !== undefined) out.font = spec.font
+  if (spec.style) {
+    const roles = ['text', 'node', 'edge', 'group'] as const
+    const merged: NonNullable<RenderOptions['style']> = { ...spec.style, ...out.style }
+    for (const role of roles) {
+      if (spec.style[role] || out.style?.[role]) {
+        merged[role] = { ...spec.style[role], ...out.style?.[role] } as never
+      }
+    }
+    out.style = merged
+  }
+  return out
+}
 
 function normalizeFamilyLayoutResult(
   result: FamilyLayoutResult | PositionedDiagram,
@@ -217,17 +282,28 @@ export function renderMermaidSVG(
   text = decodeXML(text)
   const normalizedSource = normalizeMermaidSource(text, options.mermaidConfig ?? {})
 
-  const font = options.font
-    ?? normalizedSource.config.fontFamily
-    ?? readThemeValue(normalizedSource.config.themeVariables, 'fontFamily')
-    ?? 'Inter'
   // #7645/#7695: strict security mode disables the Google Fonts @import and
   // strips any external-fetch refs introduced by user theme/config values. The
   // --font CSS variable still declares the family; xmlns http:// is a namespace
   // declaration, not a fetch.
-  const effectiveOptions: RenderOptions = options.security === 'strict'
+  let effectiveOptions: RenderOptions = options.security === 'strict'
     ? { ...options, embedFontImport: false }
     : options
+  // Aesthetic styles resolve BEFORE colors and layout: the style's palette and
+  // font are defaults under the user's own options (style × theme, SPEC §3.7),
+  // and fonts affect text metrics. The crisp path is untouched.
+  const aesthetic = resolveAestheticOption(options.aesthetic)
+  if (aesthetic) {
+    effectiveOptions = applyAestheticDefaults(effectiveOptions, aesthetic, normalizedSource.config.themeVariables)
+  }
+  // Font precedence: explicit option > mermaid config/themeVariables >
+  // aesthetic default > 'Inter'. (applyAestheticDefaults only fills
+  // effectiveOptions.font when options.font was unset.)
+  const font = options.font
+    ?? normalizedSource.config.fontFamily
+    ?? readThemeValue(normalizedSource.config.themeVariables, 'fontFamily')
+    ?? effectiveOptions.font
+    ?? 'Inter'
   const colors = resolveDiagramColors(effectiveOptions, normalizedSource.config, font)
   const diagramType = detectDiagramTypeFromFirstLine(normalizedSource.firstLine) ?? 'flowchart'
   const lines = normalizedSource.lines
@@ -265,12 +341,23 @@ export function renderMermaidSVG(
 
   const layout = normalizeFamilyLayoutResult(family.layout({
     source: normalizedSource,
-    options,
+    options: effectiveOptions,
     renderOptions,
     colors,
   }))
   const renderColors = layout.colors ?? colors
-  const rawSvg = family.renderSvg(renderContext(layout.positioned, renderColors, layout.options ?? renderOptions))
+  const ctx = renderContext(layout.positioned, renderColors, layout.options ?? renderOptions)
+  let rawSvg: string
+  if (aesthetic && aesthetic.backend !== 'default' && family.lowerScene) {
+    // Styled path: lower to the SceneGraph and serialize with the style's
+    // backend. Falls through to crisp when the family has no lowering yet
+    // (capability gating — never fail silently on a family/style combo).
+    const backend = getBackend(aesthetic.backend)
+    if (!backend) throw new Error(`Aesthetic "${aesthetic.name}" selects unregistered backend "${aesthetic.backend}"`)
+    rawSvg = backend.render(family.lowerScene(ctx), { seed: options.seed ?? 0, style: aesthetic })
+  } else {
+    rawSvg = family.renderSvg(ctx)
+  }
   return resolve(rawSvg, renderColors, layout.injectAccessibility ?? true)
 }
 
