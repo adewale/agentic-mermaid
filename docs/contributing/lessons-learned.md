@@ -34,6 +34,15 @@ input class turned out to break certificate completeness (#83) and stack labels
 the same evidence bar as a fix: either the input is genuinely invalid, or the
 class gets an owner issue.
 
+**Fixing one flaky suite does not fix the policy.** Hours after the
+route-contracts seeds were pinned (#86), a *different* property file
+(`property-mermaid-source-and-parser.test.ts`) failed CI on a rolled seed — its
+generator emitted grammar-ambiguous ids (`s---Py3` reads as the link
+`s --- Py3`, in this engine and in Mermaid) that only rare seeds produce. Two
+sub-lessons: property generators must be constrained to inputs whose expected
+behavior is actually unambiguous, and a determinism policy has to be applied as
+a sweep (every fast-check suite), not incident-by-incident.
+
 **An invariant enforced by a random property is a lottery, not a gate.**
 Certificate completeness was guarded only by an unpinned fast-check property —
 it fired roughly one CI run in seven, which reads as "flaky CI" rather than

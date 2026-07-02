@@ -97,6 +97,14 @@ deliberately after visual review (parallel labels part cleanly).
 minimum-gap question), #89 (#26's four promised follow-ups), #90 (architecture
 service/group containment breach with deterministic repro).
 
+### Found during execution
+PR #91's first CI run rolled a seed that failed a THIRD unpinned property
+suite (the parser Cartesian-product property) — a pre-existing generator bug
+(grammar-ambiguous ids with interior hyphen runs) fixed on the #91 branch with
+the same pin-and-constrain policy. Confirms the residual: the repo's remaining
+fast-check suites should get the seed policy as a sweep (noted in
+lessons-learned).
+
 ### WS6 — This commit
 CHANGELOG updated; docs/contributing/lessons-learned.md added; consistency
 sweep findings fixed (see the commit touching the affected docs).
