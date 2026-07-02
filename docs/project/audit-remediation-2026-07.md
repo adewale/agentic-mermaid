@@ -103,7 +103,10 @@ suite (the parser Cartesian-product property) — a pre-existing generator bug
 (grammar-ambiguous ids with interior hyphen runs) fixed on the #91 branch with
 the same pin-and-constrain policy. Confirms the residual: the repo's remaining
 fast-check suites should get the seed policy as a sweep (noted in
-lessons-learned).
+lessons-learned). *Resolved post-remediation:* the sweep landed as a repo-wide
+`bun test` preload pin with an `AM_FC_SEED` escape hatch, two meta-gates, and
+a 1,368-run multi-seed hunt (zero latent failures) — see
+`docs/testing-strategy.md` §4 and the CHANGELOG entry.
 
 ### WS6 — This commit
 CHANGELOG updated; docs/contributing/lessons-learned.md added; consistency

@@ -140,6 +140,32 @@ must agree." This sidesteps the oracle problem without a human:
 is not compared). That is the natural next place to *extend* the metamorphic
 set, since the technique is the same.
 
+### Seed policy: pinned gates, rolling finders
+
+Every fast-check suite runs at one pinned global seed, set process-wide by
+`src/__tests__/fc-seed.preload.ts` (wired via `bunfig.toml` `[test].preload`;
+default seed `20260702`). A red property in CI is therefore a real,
+reproducible counterexample — never a seed lottery. The 2026-07 audit caught
+three suites flaking on rolled seeds (the route-contracts certificate property
+at ~1 CI run in 7, issue #83; the parser Cartesian-product property; both now
+pin the exact seed that exposed their bug, scoped via save/restore so the
+global policy survives them).
+
+- Reproduce a specific roll: `AM_FC_SEED=<int> bun test <file>`.
+- Finder mode (deliberate randomness): `AM_FC_SEED=random bun test src/__tests__/`.
+- The policy is itself gated: `fc-seed-policy.test.ts` fails if the preload is
+  unwired; `zzz-fc-seed-policy-epilogue.test.ts` (alphabetically last) fails if
+  any suite wipes the pin instead of restoring it.
+
+Pinning is for *holding* known ground; randomness is for *finding* new
+counterexamples ("an invariant enforced by a random property is a lottery,
+not a gate" — `docs/contributing/lessons-learned.md`). Rolling seeds belong in
+finder lanes: the deep-fuzz scripts under `eval/`, or deliberate
+`AM_FC_SEED=random` sweeps. Before the pin was frozen, every unpinned suite was
+swept across 48/24/12 seeds (scaled by runtime; 1,368 suite-runs total) with
+zero failures — the pin does not freeze a known-bad ticket, and the sweep is
+repeatable from the same knob.
+
 ## 5. Pseudo-oracles — is the suite itself strong enough?
 
 Tests can be green and still worthless. Two gates test the tests:
