@@ -191,6 +191,30 @@ the real `globalThis`, breakout rejected) is what the e2e pins; the unit suite
 pins the pure, runtime-neutral pieces (`neutralizeGlobalsOn` on a throwaway
 target, `userModuleSources` rejection, the log cap).
 
+**Post-review hardening (external audit, round 5 — transport abuse/conformance):**
+
+- **Batch fan-out cap.** A JSON-RPC array ran every item under `Promise.all`,
+  so one 128 KB body could pack many `tools/call` items that each spin a
+  billable isolate/render — a single request amplifying past the per-IP WAF
+  limit. `MAX_BATCH_ITEMS` (20) now bounds a batch, refused with 400 before any
+  item runs.
+- **`MCP-Protocol-Version` validation + 2025-06-18 batch rule.** The transport
+  now rejects an explicit unsupported version header with 400, and — because
+  MCP 2025-06-18 *removed* JSON-RPC batching — refuses an array body when the
+  header pins that revision. Older negotiated versions (2024-11-05 / 2025-03-26,
+  or no header) may still batch, so existing clients are unaffected.
+- **CORS Origin validation.** Wildcard `Access-Control-Allow-Origin: *` on a
+  public, credential-less endpoint is not itself an access-control hole — CORS
+  gates only browser reads and never the agent/server clients that ignore it —
+  but `*` does let an arbitrary site silently drive a *visitor's* browser
+  against the endpoint (distributed across visitor IPs, diluting the per-IP WAF
+  limit). CORS is now **reflective with Origin validation**: a no-Origin client
+  (agent/server) still gets `*`; a browser Origin is echoed only when it is
+  same-origin / localhost / allowlisted (`agenticmermaid.dev`); a disallowed
+  browser Origin gets no `Access-Control-Allow-Origin` and a 403. This follows
+  the MCP Streamable HTTP Origin-validation guidance without breaking any
+  non-browser client (the website itself does not call `/mcp` from the browser).
+
 ## Transport: stateless Streamable HTTP
 
 Unchanged from the original plan and still the cheapest correct choice — the

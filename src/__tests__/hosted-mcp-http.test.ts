@@ -4,7 +4,7 @@
 // same match/put contract) and the execute sandbox (call-recording).
 
 import { describe, expect, test } from 'bun:test'
-import { createMcpHandler, MAX_MCP_BODY_BYTES, type McpCache } from '../../website/src/mcp-handler.ts'
+import { createMcpHandler, MAX_MCP_BODY_BYTES, MAX_BATCH_ITEMS, type McpCache } from '../../website/src/mcp-handler.ts'
 import type { HostedMcpContext } from '../mcp/hosted-server.ts'
 
 const FLOW = 'flowchart LR\n  A --> B'
@@ -146,6 +146,85 @@ describe('JSON-RPC round trips', () => {
   test('empty batches are -32600', async () => {
     const { handler } = makeHandler()
     expect((await handler(post([]))).status).toBe(400)
+  })
+
+  test('a batch over the fan-out cap is refused before any tool runs', async () => {
+    const { handler, executeCalls } = makeHandler()
+    const overCap = Array.from({ length: MAX_BATCH_ITEMS + 1 }, (_, i) => call('execute', { code: `${i}` }, i))
+    const res = await handler(post(overCap))
+    expect(res.status).toBe(400)
+    expect(((await res.json()) as any).error.message).toContain(`${MAX_BATCH_ITEMS}`)
+    expect(executeCalls).toHaveLength(0) // nothing executed — cap is enforced up front
+  })
+
+  test('a batch exactly at the cap still runs', async () => {
+    const { handler } = makeHandler()
+    const atCap = Array.from({ length: MAX_BATCH_ITEMS }, (_, i) => rpc('ping', undefined, i))
+    const res = await handler(post(atCap))
+    expect(res.status).toBe(200)
+    expect((await res.json()) as any[]).toHaveLength(MAX_BATCH_ITEMS)
+  })
+})
+
+describe('protocol-version header validation', () => {
+  test('a supported version header is accepted', async () => {
+    const { handler } = makeHandler()
+    const res = await handler(post(rpc('ping'), { 'mcp-protocol-version': '2025-03-26' }))
+    expect(res.status).toBe(200)
+  })
+
+  test('an unsupported version header is 400 before any work', async () => {
+    const { handler, executeCalls } = makeHandler()
+    const res = await handler(post(call('execute', { code: '1' }), { 'mcp-protocol-version': '1999-01-01' }))
+    expect(res.status).toBe(400)
+    expect(((await res.json()) as any).error.message).toContain('1999-01-01')
+    expect(executeCalls).toHaveLength(0)
+  })
+
+  test('a 2025-06-18 client cannot batch (batching was removed in that revision)', async () => {
+    const { handler } = makeHandler()
+    const res = await handler(post([rpc('ping', undefined, 'a'), rpc('ping', undefined, 'b')], { 'mcp-protocol-version': '2025-06-18' }))
+    expect(res.status).toBe(400)
+    expect(((await res.json()) as any).error.message).toContain('2025-06-18')
+  })
+
+  test('a batch with no version header still works (pre-2025-06-18 semantics)', async () => {
+    const { handler } = makeHandler()
+    const res = await handler(post([rpc('ping', undefined, 'a'), rpc('ping', undefined, 'b')]))
+    expect(res.status).toBe(200)
+    expect(((await res.json()) as any[]).map(r => r.id)).toEqual(['a', 'b'])
+  })
+})
+
+describe('CORS Origin validation', () => {
+  test('a request with no Origin (agent/server) keeps wildcard CORS', async () => {
+    const { handler } = makeHandler()
+    const res = await handler(post(rpc('ping')))
+    expect(res.status).toBe(200)
+    expect(res.headers.get('access-control-allow-origin')).toBe('*')
+  })
+
+  test('an allowlisted browser Origin is echoed back, not wildcarded', async () => {
+    const { handler } = makeHandler()
+    const res = await handler(post(rpc('ping'), { origin: 'https://agenticmermaid.dev' }))
+    expect(res.status).toBe(200)
+    expect(res.headers.get('access-control-allow-origin')).toBe('https://agenticmermaid.dev')
+    expect(res.headers.get('vary')).toContain('Origin')
+  })
+
+  test('a disallowed cross-origin browser request is 403 with no ACAO, before any tool runs', async () => {
+    const { handler, executeCalls } = makeHandler()
+    const res = await handler(post(call('execute', { code: '1' }), { origin: 'https://evil.example' }))
+    expect(res.status).toBe(403)
+    expect(res.headers.get('access-control-allow-origin')).toBeNull()
+    expect(executeCalls).toHaveLength(0)
+  })
+
+  test('a disallowed Origin is refused on the OPTIONS preflight too (no ACAO granted)', async () => {
+    const { handler } = makeHandler()
+    const res = await handler(new Request('https://agenticmermaid.dev/mcp', { method: 'OPTIONS', headers: { origin: 'https://evil.example' } }))
+    expect(res.status).toBe(204)
+    expect(res.headers.get('access-control-allow-origin')).toBeNull()
   })
 
   test('tool errors still travel as 200-with-isError, not HTTP failures', async () => {
