@@ -203,3 +203,58 @@ describe('deterministic-response caching', () => {
     expect(cache.store.size).toBe(0)
   })
 })
+
+describe('cache-key normalization (cost control)', () => {
+  test('unknown arguments cannot bust the cache', async () => {
+    const cache = makeCache()
+    const { handler, executeCalls } = makeHandler({ cache })
+    await handler(post(call('execute', { code: '1 + 1', nonce: 'a' })))
+    await handler(post(call('execute', { code: '1 + 1', nonce: 'b' })))
+    await handler(post(call('execute', { code: '1 + 1' })))
+    expect(executeCalls).toHaveLength(1)
+    expect(cache.store.size).toBe(1)
+  })
+
+  test('a differing timeoutMs does not split the execute cache', async () => {
+    const cache = makeCache()
+    const { handler, executeCalls } = makeHandler({ cache })
+    await handler(post(call('execute', { code: '1 + 1', timeoutMs: 1000 })))
+    await handler(post(call('execute', { code: '1 + 1', timeoutMs: 30000 })))
+    expect(executeCalls).toHaveLength(1)
+  })
+
+  test('out-of-range scale values that clamp to the same effective scale share one entry', async () => {
+    const cache = makeCache()
+    const pngCalls: number[] = []
+    const { handler } = makeHandler({
+      cache,
+      context: { renderPng: async (_s, opts) => { pngCalls.push(opts.scale ?? -1); return new Uint8Array([1]) } },
+    })
+    await handler(post(call('render_png', { source: FLOW, scale: 100 })))
+    await handler(post(call('render_png', { source: FLOW, scale: 999 })))
+    expect(pngCalls).toEqual([8]) // both clamp to 8; second is a cache hit
+    expect(cache.store.size).toBe(1)
+  })
+
+  test('semantically distinct calls still get distinct entries', async () => {
+    const cache = makeCache()
+    const { handler } = makeHandler({ cache })
+    await handler(post(call('describe', { source: FLOW })))
+    await handler(post(call('describe', { source: 'flowchart TD\n  X --> Y' })))
+    expect(cache.store.size).toBe(2)
+  })
+
+  test('unknown tool names bypass the cache without a lookup or store', async () => {
+    const cache = makeCache()
+    let matches = 0
+    const spied: McpCache = {
+      match: async k => { matches++; return cache.match(k) },
+      put: (k, r) => cache.put(k, r),
+    }
+    const { handler } = makeHandler({ cache: spied })
+    const res = await handler(post(call('render_gif', { source: FLOW })))
+    expect(((await res.json()) as any).error.code).toBe(-32602)
+    expect(matches).toBe(0)
+    expect(cache.store.size).toBe(0)
+  })
+})

@@ -6,7 +6,7 @@
 import { describe, expect, test } from 'bun:test'
 import {
   handleHostedRequest, HOSTED_TOOLS, MAX_CODE_BYTES, MAX_SOURCE_BYTES,
-  SUPPORTED_PROTOCOL_VERSIONS, type HostedMcpContext, type ExecuteResult,
+  SUPPORTED_PROTOCOL_VERSIONS, cacheKeyFor, type HostedMcpContext, type ExecuteResult,
 } from '../mcp/hosted-server.ts'
 import type { JsonRpcRequest } from '../mcp/protocol.ts'
 import pkg from '../../package.json'
@@ -233,5 +233,62 @@ describe('hosted render_png', () => {
     expect(p.ok).toBe(false)
     expect(p.error.code).toBe('PNG_RENDER_FAILED')
     expect(p.error.message).toContain('wasm init failed')
+  })
+})
+
+describe('cacheKeyFor (normalized, output-affecting arguments)', () => {
+  test('drops unknown keys so junk arguments map to the same key', () => {
+    expect(cacheKeyFor('describe', { source: FLOW, nonce: 'x', foo: 1 }))
+      .toEqual(cacheKeyFor('describe', { source: FLOW }))
+  })
+
+  test('execute keys on code only — timeoutMs does not participate', () => {
+    expect(cacheKeyFor('execute', { code: '1 + 1', timeoutMs: 100 }))
+      .toEqual(cacheKeyFor('execute', { code: '1 + 1', timeoutMs: 30000 }))
+    expect(cacheKeyFor('execute', { code: '1 + 1' }))
+      .not.toEqual(cacheKeyFor('execute', { code: '2 + 2' }))
+  })
+
+  test('render_png clamps scale into the key so out-of-range values collapse', () => {
+    expect(cacheKeyFor('render_png', { source: FLOW, scale: 100 }))
+      .toEqual(cacheKeyFor('render_png', { source: FLOW, scale: 999 }))
+    expect(cacheKeyFor('render_png', { source: FLOW, scale: 100 }))
+      .toEqual(cacheKeyFor('render_png', { source: FLOW, scale: 8 }))
+    // a non-clamped in-range scale stays distinct
+    expect(cacheKeyFor('render_png', { source: FLOW, scale: 2 }))
+      .not.toEqual(cacheKeyFor('render_png', { source: FLOW, scale: 4 }))
+  })
+
+  test('render_png background and source both participate in the key', () => {
+    expect(cacheKeyFor('render_png', { source: FLOW, background: 'white' }))
+      .not.toEqual(cacheKeyFor('render_png', { source: FLOW, background: 'black' }))
+    expect(cacheKeyFor('render_png', { source: FLOW }))
+      .not.toEqual(cacheKeyFor('render_png', { source: 'flowchart TD\n  X --> Y' }))
+  })
+
+  test('render_svg keeps only known theme/bg/fg inputs', () => {
+    expect(cacheKeyFor('render_svg', { source: FLOW, bg: '#000', junk: 1 }))
+      .toEqual({ t: 'render_svg', source: FLOW, bg: '#000' })
+    expect(cacheKeyFor('render_svg', { source: FLOW, theme: 'a' }))
+      .not.toEqual(cacheKeyFor('render_svg', { source: FLOW, theme: 'b' }))
+  })
+
+  test('render_ascii distinguishes the charset', () => {
+    expect(cacheKeyFor('render_ascii', { source: FLOW, useAscii: true }))
+      .not.toEqual(cacheKeyFor('render_ascii', { source: FLOW }))
+  })
+
+  test('returns null for uncacheable calls (unknown tool, missing arg, bad output)', () => {
+    expect(cacheKeyFor('render_gif', { source: FLOW })).toBeNull()
+    expect(cacheKeyFor(undefined, {})).toBeNull()
+    expect(cacheKeyFor('describe', {})).toBeNull()
+    expect(cacheKeyFor('execute', { code: 42 })).toBeNull()
+    expect(cacheKeyFor('render_png', { source: FLOW, output: 'file' })).toBeNull()
+  })
+
+  test('distinct tools never collide on identical source', () => {
+    const keys = ['render_svg', 'render_ascii', 'verify', 'describe']
+      .map(t => JSON.stringify(cacheKeyFor(t, { source: FLOW })))
+    expect(new Set(keys).size).toBe(keys.length)
   })
 })

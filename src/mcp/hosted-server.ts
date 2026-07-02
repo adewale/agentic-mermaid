@@ -199,6 +199,69 @@ function svgOptions(args: Record<string, unknown>): Record<string, string> {
   return opts
 }
 
+// ---- Effective (normalized) arguments -------------------------------------
+// The output of each tool depends only on these values. Handlers AND the cache
+// key derive from the same helpers so a cached response can never diverge from
+// what a recompute would produce.
+
+/** Clamp `scale` into the documented range; undefined when not a finite number. */
+export function effectivePngScale(args: Record<string, unknown>): number | undefined {
+  return typeof args.scale === 'number' && Number.isFinite(args.scale)
+    ? Math.min(Math.max(args.scale, MIN_PNG_SCALE), MAX_PNG_SCALE)
+    : undefined
+}
+
+/** Known, output-affecting SVG inputs only (string-typed). Theme *validity* is
+ * checked in svgOptions at render time — an invalid theme errors (uncacheable),
+ * so the key just needs to reflect the requested values, not validate them. */
+function effectiveSvgArgs(args: Record<string, unknown>): Record<string, string> {
+  const out: Record<string, string> = {}
+  if (typeof args.theme === 'string') out.theme = args.theme
+  if (typeof args.bg === 'string') out.bg = args.bg
+  if (typeof args.fg === 'string') out.fg = args.fg
+  return out
+}
+
+/**
+ * Canonical cache-key inputs for a tools/call: the normalized, output-affecting
+ * arguments only. Unknown keys are dropped and values are clamped/defaulted the
+ * same way the handler will, so semantically identical calls — an extra
+ * `nonce`, an out-of-range `scale`, a differing `timeoutMs` — collapse to one
+ * cache entry. Returns null when the call must not be cached (unknown tool, a
+ * missing/ill-typed required arg, or a non-base64 render_png output — all of
+ * which produce error results, and errors are never cached). This is the
+ * public-compute cost-control invariant: callers cannot bust the cache, or
+ * force recompute, with junk or out-of-range arguments.
+ */
+export function cacheKeyFor(name: string | undefined, args: Record<string, unknown>): unknown | null {
+  switch (name) {
+    // timeoutMs is a compute budget, not an input: identical code is one entry.
+    // A cached success is the true deterministic result, returned regardless of
+    // the requested budget (free and correct); a call that would time out
+    // produces an error and is never cached, so it cannot poison this entry.
+    case 'execute':
+      return typeof args.code === 'string' ? { t: 'execute', code: args.code } : null
+    case 'render_svg':
+      return typeof args.source === 'string' ? { t: 'render_svg', source: args.source, ...effectiveSvgArgs(args) } : null
+    case 'render_ascii':
+      return typeof args.source === 'string' ? { t: 'render_ascii', source: args.source, useAscii: args.useAscii === true } : null
+    case 'render_png': {
+      if (typeof args.source !== 'string') return null
+      const output = args.output ?? (args as { outputMode?: unknown }).outputMode
+      if (output !== undefined && output !== 'base64') return null
+      const key: Record<string, unknown> = { t: 'render_png', source: args.source, scale: effectivePngScale(args) }
+      if (typeof args.background === 'string') key.background = args.background
+      return key
+    }
+    case 'verify':
+      return typeof args.source === 'string' ? { t: 'verify', source: args.source } : null
+    case 'describe':
+      return typeof args.source === 'string' ? { t: 'describe', source: args.source } : null
+    default:
+      return null
+  }
+}
+
 /** Shared shape for the pure source→payload tools: validate, cap, run, wrap errors. */
 function sourceTool(id: number | string | null, args: Record<string, unknown>, errorCode: string, run: (source: string) => { ok: boolean } & Record<string, unknown>): JsonRpcResponse {
   const source = args.source
@@ -252,9 +315,7 @@ async function handleRenderPng(id: number | string | null, args: Record<string, 
     return toolResult(id, { ok: false as const, error: { code: 'PNG_UNAVAILABLE', message: 'PNG rendering is not enabled on this host' } }, true)
   }
   try {
-    const scale = typeof args.scale === 'number' && Number.isFinite(args.scale)
-      ? Math.min(Math.max(args.scale, MIN_PNG_SCALE), MAX_PNG_SCALE)
-      : undefined
+    const scale = effectivePngScale(args)
     const background = typeof args.background === 'string' ? args.background : undefined
     const png = await context.renderPng(source, { scale, background })
     return toolResult(id, { ok: true as const, png_base64: base64Encode(png) }, false)

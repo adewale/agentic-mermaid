@@ -9,7 +9,7 @@
 // (injected) Cache API keyed on a hash of the canonicalized call — repeat
 // renders skip compute and repeat execute calls skip the dynamic isolate.
 
-import { handleHostedRequest, type HostedMcpContext } from '../../src/mcp/hosted-server.ts'
+import { handleHostedRequest, cacheKeyFor, type HostedMcpContext } from '../../src/mcp/hosted-server.ts'
 import { reply, rpcError, type JsonRpcRequest, type JsonRpcResponse } from '../../src/mcp/protocol.ts'
 import { readCapped } from './execute-loader.ts'
 
@@ -76,7 +76,14 @@ export function createMcpHandler(options: McpHandlerOptions): (request: Request)
   }
 
   async function handleCachedToolCall(req: JsonRpcRequest): Promise<JsonRpcResponse | null> {
-    const key = new Request(`https://mcp-cache.agenticmermaid.dev/${encodeURIComponent(cacheVersion)}/${await sha256Hex(JSON.stringify(sortKeys(req.params)))}`)
+    // Key on the normalized, output-affecting arguments (not raw params): junk
+    // or out-of-range args cannot bust the cache or force recompute. A null
+    // canonical form means "not cacheable" — run the request directly (it will
+    // error, and errors are not cached anyway).
+    const p = req.params as { name?: string; arguments?: Record<string, unknown> } | undefined
+    const canonical = cacheKeyFor(p?.name, p?.arguments ?? {})
+    if (canonical === null) return handleHostedRequest(req, context)
+    const key = new Request(`https://mcp-cache.agenticmermaid.dev/${encodeURIComponent(cacheVersion)}/${await sha256Hex(JSON.stringify(sortKeys(canonical)))}`)
     try {
       const hit = await cache!.match(key)
       if (hit) return reply(req.id ?? null, await hit.json())

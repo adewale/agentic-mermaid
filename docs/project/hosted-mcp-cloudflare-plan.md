@@ -95,16 +95,39 @@ Known, documented divergences from local `execute`:
    at 2 MB, with the parent's capped stream-read of the isolate response as
    the backstop. The vm sandbox has no output caps.
 
-Post-review hardening (external audit): isolate IDs and the /mcp response
-cache carry a `deployTag` — package version **plus a hash of the harness
-bundle** — because the Worker Loader contract is that one ID always maps to
-the same WorkerCode; without the hash, a harness/SDK change that ships
-without a version bump could keep serving stale warm isolates and stale
-cached results. Request bodies and isolate responses are stream-read with
-hard byte caps (no buffering past the limit), `render_png` clamps `scale`
-to 0.1–8 and enforces a ~16.7 MP output-pixel budget, and the e2e probe
-pins workerd's codegen bans (`eval`, `Function` constructor) plus the log
-cap against a live isolate.
+Post-review hardening (external audit, round 1): Worker Loader isolate IDs
+carry a `deployTag` — package version **plus a hash of the harness bundle** —
+because the Worker Loader contract is that one ID always maps to the same
+WorkerCode; without the hash, a harness/SDK change that ships without a
+version bump could keep serving stale warm isolates. Request bodies and
+isolate responses are stream-read with hard byte caps (no buffering past the
+limit), `render_png` clamps `scale` to 0.1–8 and enforces a ~16.7 MP
+output-pixel budget, and the e2e probe pins workerd's codegen bans (`eval`,
+`Function` constructor) plus the log cap against a live isolate.
+
+Post-review hardening (external audit, round 2):
+
+- **Full-deploy cache version.** The harness hash covers Code Mode isolate
+  IDs, but the /mcp *response* cache also stores `render_svg` / `verify` /
+  `describe` / `render_png` results, whose implementations live in
+  `hosted-server.ts`, `mcp-handler.ts`, `png-wasm.ts`, and the wasm/fonts —
+  none of which are in the harness bundle. `cacheVersion` is now a
+  `DEPLOY_VERSION` computed at build time (`website/src/deploy-hash.ts`,
+  emitted to `generated/deploy-version.ts`): a length-prefixed SHA-256 over
+  the **bundled worker JS closure + harness + wasm + fonts**. Any change to
+  any hosted tool, the transport, the PNG path, or an asset moves it and
+  invalidates cached results, version bump or not. Isolate IDs keep the
+  narrower harness hash (they *are* just harness + user module).
+- **Cache keys from normalized effective arguments.** The key was a hash of
+  raw `req.params`; handlers drop unknown args and clamp `scale`/`timeoutMs`,
+  so a caller could add `{ nonce }` or vary an out-of-range `scale` to force
+  recompute and defeat the cost control. `cacheKeyFor` (in `hosted-server.ts`,
+  the single source of truth the handlers also use for clamping) now derives
+  the key from only the output-affecting arguments, normalized: unknown keys
+  dropped, `scale` clamped, `timeoutMs` excluded from `execute` (it is a
+  budget, not an input). Calls it deems uncacheable (unknown tool, missing
+  required arg, non-base64 `render_png` output) bypass the cache and run
+  directly — they error, and errors were never cached.
 
 ## Transport: stateless Streamable HTTP
 
