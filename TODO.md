@@ -94,8 +94,8 @@ dependents after. IDs are stable names, not an ordering.
   bench now pins upstream Mermaid at `a2d9686451df7c4644a3eeca20535bbd4c5776b0`,
   provides `bun run harvest:upstream` and `bun run harvest:upstream:refresh-check`,
   records a family-by-family manifest for all 1,170 considered parser/DB
-  blocks, imports 488 source blocks, accounts for 682 exclusions, and leaves
-  0 deferred blocks. The executable gate covers 483 cases including the
+  blocks, imports 658 source blocks, accounts for 512 exclusions, and leaves
+  0 deferred blocks. The executable gate covers 648 cases including the
   68-case Gantt companion bench. Local compatibility exclusions carry BUILD-20
   tracking metadata, exact case assertions are enforced, and `ratchet.json`
   prevents imported coverage from falling or local-gap budgets from growing.

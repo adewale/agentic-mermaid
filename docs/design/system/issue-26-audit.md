@@ -230,5 +230,5 @@ property/mutation/golden guidance):
    for the orthogonalizer). Mutation-lane coverage still pending.
 5. **Property generators** don't sample the wider edge-syntax vocabulary
    (bidi/dotted/thick/markers/`&`).
-6. **Route-lane mutation score** at 54.31% with re-run pending; survivor
+6. **Route-lane mutation score** at 50.69% (1381/2740 at 526d9cf; was 54.31% at 0b43c90 before the slanted-family batch grew the denominator); survivor
    harvest is the declared next batch.

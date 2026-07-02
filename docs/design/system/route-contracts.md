@@ -789,7 +789,10 @@ in sync by `src/__tests__/layout-pass-docsync.test.ts` (regenerate with
   `directLaneClear` (node, label, channel, span blockers each),
   straightener safety (no straightening without proof; label capacity).
 - **Property tests (fast-check)**: random small DAG-ish flowcharts —
-  certificates exist for every edge; no primary-forward hitch survives when
+  certificates exist for every edge (a post-freeze repair that re-routes an
+  edge re-certifies it via `recertifyReroutedEdge`; gated deterministically by
+  `certificate-completeness.test.ts` — corpus, shrunk #83 repros, fixed-seed
+  duplicate-edge sweep); no primary-forward hitch survives when
   the prover says the lane is clear; straightened endpoints remain on shape
   boundaries; repeated runs byte-identical (determinism).
 - **Goldens**: ASCII goldens must not change (`goldens:ascii:check`); SVG
