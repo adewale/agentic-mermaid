@@ -101,6 +101,21 @@ describe('method and header validation', () => {
     const res = await handler(post({ id: 1, method: 'ping' })) // missing jsonrpc
     expect(((await res.json()) as any).error.code).toBe(-32600)
   })
+
+  test('HTTP-level error responses still carry CORS so a browser client can read them', async () => {
+    // 405/415/413/400 all flow through the same json() helper; a browser fetch
+    // needs the CORS header on the error too or it never sees the status.
+    const { handler } = makeHandler()
+    const errorResponses = [
+      await handler(new Request('https://agenticmermaid.dev/mcp')), // 405
+      await handler(post('x', { 'content-type': 'text/plain' })), // 415
+      await handler(post('{"jsonrpc": "2.0",')), // 400 parse error
+    ]
+    for (const res of errorResponses) {
+      expect(res.status).toBeGreaterThanOrEqual(400)
+      expect(res.headers.get('access-control-allow-origin')).toBe('*')
+    }
+  })
 })
 
 describe('JSON-RPC round trips', () => {

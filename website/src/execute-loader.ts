@@ -81,7 +81,12 @@ function isSyntaxStartupFailure(message: string): boolean {
   return /SyntaxError/i.test(message)
 }
 
-export function createLoaderExecute(loader: WorkerLoaderBinding, harnessSource: string): (code: string, timeoutMs: number) => Promise<ExecuteResult> {
+// Extra wall-clock margin over the isolate's cpuMs budget before the parent
+// gives up on a hung fetch. Overridable for tests (a hung fake loader would
+// otherwise force a multi-second wait).
+export const DEFAULT_BACKSTOP_MARGIN_MS = 1_500
+
+export function createLoaderExecute(loader: WorkerLoaderBinding, harnessSource: string, backstopMarginMs: number = DEFAULT_BACKSTOP_MARGIN_MS): (code: string, timeoutMs: number) => Promise<ExecuteResult> {
   const tag = deployTag(harnessSource)
   return async (code, timeoutMs) => {
     const hash = await sha256Hex(code)
@@ -99,11 +104,18 @@ export function createLoaderExecute(loader: WorkerLoaderBinding, harnessSource: 
       const entrypoint = stub.getEntrypoint(null, { limits: { cpuMs: timeoutMs, subRequests: 0 } })
       // cpuMs is the real budget (enforced in production); the wall-clock race
       // is a backstop for environments that don't enforce isolate limits
-      // (wrangler dev) and for loader hangs, so /mcp always answers.
-      const response = await Promise.race([
-        entrypoint.fetch('https://execute.internal/', { method: 'POST' }),
-        new Promise<never>((_, reject) => setTimeout(() => reject(new Error(`execute exceeded its ${timeoutMs}ms CPU budget`)), timeoutMs + 1_500)),
-      ])
+      // (wrangler dev) and for loader hangs, so /mcp always answers. Clear the
+      // timer once the race settles so a winning fetch leaves no dangling timer.
+      let timer: ReturnType<typeof setTimeout> | undefined
+      let response: Response
+      try {
+        response = await Promise.race([
+          entrypoint.fetch('https://execute.internal/', { method: 'POST' }),
+          new Promise<never>((_, reject) => { timer = setTimeout(() => reject(new Error(`execute exceeded its ${timeoutMs}ms CPU budget`)), timeoutMs + backstopMarginMs) }),
+        ])
+      } finally {
+        if (timer !== undefined) clearTimeout(timer)
+      }
       if (!response.ok) return { ok: false, error: `sandbox returned HTTP ${response.status}`, logs: [] }
       // Outputs are bounded like inputs, without buffering past the cap: the
       // harness also caps logs/results at the source, so this is the backstop
@@ -112,7 +124,16 @@ export function createLoaderExecute(loader: WorkerLoaderBinding, harnessSource: 
       if (text === null) {
         return { ok: false, error: `sandbox result exceeded ${MAX_RESULT_BYTES} bytes; reduce console output or returned data`, logs: [] }
       }
-      const result = JSON.parse(text) as ExecuteResult
+      // An empty or non-JSON body is a malformed isolate response, not a syntax
+      // error in the agent's code — route it to the clean malformed-result
+      // message instead of leaking a raw JSON.parse error through failure().
+      if (text === '') return { ok: false, error: 'sandbox returned a malformed result', logs: [] }
+      let result: ExecuteResult
+      try {
+        result = JSON.parse(text) as ExecuteResult
+      } catch {
+        return { ok: false, error: 'sandbox returned a malformed result', logs: [] }
+      }
       if (typeof result?.ok !== 'boolean') return { ok: false, error: 'sandbox returned a malformed result', logs: [] }
       return result
     }

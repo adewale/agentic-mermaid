@@ -155,6 +155,42 @@ low-severity refinements it surfaced):**
   primary defense against a determined attacker and remains a launch
   requirement.
 
+**Post-review hardening (external audit, round 4 — full-PR multi-agent audit,
+5 lenses):** one P1 (wrapper-breakout containment) and a set of low-severity
+test-coverage and transport refinements. The verified fixes:
+
+- **Wrapper-breakout containment, stated honestly.** Agent code is concatenated
+  into an ES module, so code that closes the harness function early with `}`
+  reaches module scope. Two layers close what the isolate boundary already
+  bounds: (1) the harness wraps the user function in **parentheses** (an
+  expression position), which makes an injected top-level `import`/`export`/`;`
+  a **SyntaxError** — so a `import ... from 'cloudflare:sockets'` breakout fails
+  the isolate start rather than running; and (2) `hardenIsolateGlobals()` runs
+  at isolate startup, **before** `user.js` is dynamically imported, and strips
+  capability globals (`fetch`, `caches`, `crypto`, `connect`, …) plus
+  `Error.prepareStackTrace`. A comma+IIFE tail can still *run* at eval time, but
+  only against stripped capabilities. These are **defense in depth** — the
+  guaranteed boundary remains the isolate config (`globalOutbound: null`, empty
+  env, no bindings, `cpuMs`). `NEUTRALIZED_ISOLATE_GLOBALS` is restricted to
+  globals provably unused by the harness and the pure SDK at run time (verified
+  by the wrangler e2e, which still renders after hardening).
+- **Test-coverage gaps closed.** The Promise.race wall-clock backstop, the
+  empty/non-JSON isolate-body malformed guard, `readCapped`'s byte-exact cap
+  (boundary + cross-chunk + UTF-8 straddle), multi-chunk base64 encoding, and
+  CORS headers on HTTP-level error responses now have discriminating tests
+  (each fails when its mechanism is removed).
+- **Transport nits.** The Promise.race timer is cleared in a `finally` so a
+  winning fetch leaves no dangling timer, and an empty/non-JSON isolate body
+  degrades to `sandbox returned a malformed result` instead of leaking a raw
+  `JSON.parse` error.
+
+Residual honesty: `website/e2e-mcp.sh` is a **manual** probe run against a live
+`wrangler dev` (it needs the Worker Loader), **not** a CI gate; the CI gate is
+`bun test src/__tests__/`. The isolate-level containment (globals stripped on
+the real `globalThis`, breakout rejected) is what the e2e pins; the unit suite
+pins the pure, runtime-neutral pieces (`neutralizeGlobalsOn` on a throwaway
+target, `userModuleSources` rejection, the log cap).
+
 ## Transport: stateless Streamable HTTP
 
 Unchanged from the original plan and still the cheapest correct choice — the

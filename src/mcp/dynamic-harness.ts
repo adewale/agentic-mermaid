@@ -12,7 +12,14 @@
 // The isolate is created with `globalOutbound: null`, an empty env, and cpuMs
 // limits — the harness only has to run the code and report the result.
 
-import { runUserCode } from './harness-runtime.ts'
+import { runUserCode, hardenIsolateGlobals } from './harness-runtime.ts'
+
+// Run at isolate startup — BEFORE the dynamic import below evaluates user.js —
+// so a wrapper breakout into top-level module scope sees stripped capability
+// globals. This is the harness (main) module's top level; user.js is not a
+// static dependency, so it evaluates only at the `import()` in fetch(), after
+// this has run. Defense in depth on top of the isolate's `globalOutbound: null`.
+hardenIsolateGlobals()
 
 export default {
   async fetch(): Promise<Response> {

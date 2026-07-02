@@ -4,7 +4,7 @@
 // every isolate request; real loader behavior is covered by website/e2e-mcp.sh.
 
 import { describe, expect, test } from 'bun:test'
-import { createLoaderExecute, deployTag, DYNAMIC_WORKER_COMPAT_DATE, MAX_RESULT_BYTES, type WorkerLoaderBinding } from '../../website/src/execute-loader.ts'
+import { createLoaderExecute, deployTag, DYNAMIC_WORKER_COMPAT_DATE, MAX_RESULT_BYTES, readCapped, type WorkerLoaderBinding } from '../../website/src/execute-loader.ts'
 import pkg from '../../package.json'
 
 interface IsolateRequest { id: string; modules: Record<string, string>; globalOutbound: unknown; limits?: { cpuMs?: number; subRequests?: number } }
@@ -124,6 +124,22 @@ describe('hosted execute loader glue', () => {
     expect(result).toEqual({ ok: false, error: 'sandbox returned a malformed result', logs: [] })
   })
 
+  test('an empty isolate body is a malformed result, not a leaked JSON.parse error', async () => {
+    // Guards the empty/non-JSON body path: a 200 with no body must not surface
+    // a raw `Unexpected end of JSON input` through failure().
+    const { loader } = makeLoader(() => new Response('', { headers: { 'content-type': 'application/json' } }))
+    const execute = createLoaderExecute(loader, 'H')
+    const result = await execute('1', 5000)
+    expect(result).toEqual({ ok: false, error: 'sandbox returned a malformed result', logs: [] })
+  })
+
+  test('a non-JSON isolate body is a malformed result, not a leaked parse error', async () => {
+    const { loader } = makeLoader(() => new Response('not json at all', { headers: { 'content-type': 'application/json' } }))
+    const execute = createLoaderExecute(loader, 'H')
+    const result = await execute('1', 5000)
+    expect(result).toEqual({ ok: false, error: 'sandbox returned a malformed result', logs: [] })
+  })
+
   test('non-OK sandbox responses degrade to a structured error', async () => {
     const { loader } = makeLoader(() => new Response('nope', { status: 500 }))
     const execute = createLoaderExecute(loader, 'H')
@@ -134,5 +150,58 @@ describe('hosted execute loader glue', () => {
   test('the isolate compatibility date matches the parent wrangler config', async () => {
     const wrangler = await Bun.file(new URL('../../website/wrangler.jsonc', import.meta.url).pathname).text()
     expect(wrangler).toContain(`"compatibility_date": "${DYNAMIC_WORKER_COMPAT_DATE}"`)
+  })
+
+  test('a hung isolate fetch is cut off by the wall-clock backstop, not left pending', async () => {
+    // cpuMs is the real budget in production; wrangler dev does not enforce it,
+    // so a loader hang must still resolve the call via the Promise.race timer.
+    // Deleting that race would leave this hanging forever (test times out) —
+    // the test discriminates the backstop from a no-op. A tiny backstopMargin
+    // keeps the wait sub-second.
+    const loader: WorkerLoaderBinding = {
+      get() {
+        return { getEntrypoint() { return { fetch: () => new Promise<Response>(() => {}) } } }
+      },
+    }
+    const execute = createLoaderExecute(loader, 'H', 20)
+    const result = await execute('1 + 1', 30)
+    expect(result.ok).toBe(false)
+    expect(result.error).toBe('Script execution exceeded its 30ms CPU budget')
+  })
+})
+
+describe('readCapped', () => {
+  function streamOf(chunks: Uint8Array[]): ReadableStream<Uint8Array> {
+    return new ReadableStream({
+      start(controller) {
+        for (const c of chunks) controller.enqueue(c)
+        controller.close()
+      },
+    })
+  }
+
+  test('a null body reads as the empty string', async () => {
+    expect(await readCapped(null, 10)).toBe('')
+  })
+
+  test('a body exactly at the cap is accepted; one byte over is rejected', async () => {
+    const bytes = new Uint8Array(16).fill(0x61) // 16 × 'a'
+    expect(await readCapped(streamOf([bytes]), 16)).toBe('a'.repeat(16))
+    expect(await readCapped(streamOf([bytes]), 15)).toBeNull()
+  })
+
+  test('the cap counts bytes across chunk boundaries, not per chunk', async () => {
+    // Two 10-byte chunks against a 15-byte cap must overrun (the naive per-chunk
+    // check would let both through).
+    const chunk = new Uint8Array(10).fill(0x62)
+    expect(await readCapped(streamOf([chunk, chunk]), 15)).toBeNull()
+  })
+
+  test('a multi-byte UTF-8 char split across chunks decodes correctly', async () => {
+    // '€' is E2 82 AC; split it across two chunks so decoding must join them.
+    const euro = new TextEncoder().encode('€') // 3 bytes
+    const a = euro.subarray(0, 1)
+    const b = euro.subarray(1)
+    expect(await readCapped(streamOf([a, b]), 10)).toBe('€')
   })
 })

@@ -89,6 +89,17 @@ check 'Function-constructor codegen is unavailable in the isolate' '\"ok\":false
 check 'log spam is truncated at the cap' 'logs truncated' \
   "$(j '{"jsonrpc":"2.0","id":17,"method":"tools/call","params":{"name":"execute","arguments":{"code":"for (let i = 0; i < 2000; i++) console.log(\"x\", i); return 1"}}}')"
 
+# Security: a wrapper-breakout that injects a top-level `import` of a workerd
+# built-in must NOT run — the parenthesized wrap makes it a SyntaxError, so the
+# isolate fails to start and execute returns an error, not a success.
+check 'import-injection breakout is rejected (not executed)' '\"ok\":false' \
+  "$(j '{"jsonrpc":"2.0","id":18,"method":"tools/call","params":{"name":"execute","arguments":{"code":"return 1 } ; import { connect } from \"cloudflare:sockets\" ; function _p(){ "}}}')"
+
+# The SDK still renders after hardenIsolateGlobals() stripped fetch/crypto/etc.
+# from the live isolate — proves the neutralization did not break rendering.
+check 'execute renders through the SDK after global hardening' 'C[New]' \
+  "$(j '{"jsonrpc":"2.0","id":19,"method":"tools/call","params":{"name":"execute","arguments":{"code":"const r = mermaid.parseMermaid(\"flowchart TD\\n  A --> B\"); const m = mermaid.mutate(r.value, { kind: \"add_node\", id: \"C\", label: \"New\" }); return mermaid.serializeMermaid(m.value)"}}}')"
+
 check 'oversized bodies are 413' '413' \
   "$(python3 -c "import json; print(json.dumps({'jsonrpc':'2.0','id':1,'method':'tools/call','params':{'name':'describe','arguments':{'source':'x'*200000}}}))" | curl -sS --max-time 10 -o /dev/null -w '%{http_code}' -X POST "$MCP" -H 'content-type: application/json' --data @-)"
 

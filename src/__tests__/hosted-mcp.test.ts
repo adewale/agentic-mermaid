@@ -205,6 +205,19 @@ describe('hosted render_png', () => {
     expect(ctx.pngCalls).toEqual([{ source: FLOW, scale: 3, background: '#fff' }])
   })
 
+  test('a PNG larger than one base64 chunk round-trips byte-for-byte', async () => {
+    // base64Encode spreads each 0x8000-byte slice through String.fromCharCode;
+    // a payload spanning several chunks (plus a partial tail) exercises the
+    // boundary joins. A wrong chunk stride would drop or duplicate bytes.
+    const big = new Uint8Array(0x8000 * 2 + 123)
+    for (let i = 0; i < big.length; i++) big[i] = i % 256
+    const ctx = makeContext({ renderPng: async () => big })
+    const p = payloadOf(await handleHostedRequest(call('render_png', { source: FLOW }), ctx))
+    expect(p.ok).toBe(true)
+    const decoded = Uint8Array.from(atob(p.png_base64), c => c.charCodeAt(0))
+    expect(decoded).toEqual(big)
+  })
+
   test('scale is clamped into the documented 0.1-8 range before rasterizing', async () => {
     const ctx = makeContext()
     await handleHostedRequest(call('render_png', { source: FLOW, scale: 100 }), ctx)
