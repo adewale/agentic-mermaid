@@ -10,9 +10,12 @@ import { createHash } from 'node:crypto'
  * A single content hash over every part of the deployed compute that can
  * change a cached tools/call response: the bundled worker JS closure
  * (transport, hosted-server, PNG path, raster budget, SDK), the Code Mode
- * harness, the resvg wasm module, and the fonts. Any of them changing — with
- * or without a package-version bump — moves the version and invalidates the
- * /mcp response cache. Deterministic: same inputs → same output.
+ * harness, the resvg wasm module, the fonts, and the main worker's
+ * compatibility_date (a deploy-controlled runtime input outside every
+ * artifact). Any of them changing — with or without a package-version bump —
+ * moves the version and invalidates the /mcp response cache. Deterministic:
+ * same inputs → same output. `parts` is caller-defined and order-fixed; the
+ * hasher itself is agnostic to what each part is.
  */
 export function computeDeployVersion(version: string, parts: Uint8Array[]): string {
   const h = createHash('sha256')

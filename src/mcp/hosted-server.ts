@@ -222,16 +222,34 @@ function effectiveSvgArgs(args: Record<string, unknown>): Record<string, string>
   return out
 }
 
+/** The scale the renderer actually uses: the clamped value, or the default 2
+ * when absent/non-numeric (png-wasm applies `?? 2`). Keying on the *resolved*
+ * value collapses an omitted `scale` and an explicit `scale: 2` — which render
+ * identically — into one cache entry. */
+export const DEFAULT_PNG_SCALE = 2
+function keyPngScale(args: Record<string, unknown>): number {
+  return effectivePngScale(args) ?? DEFAULT_PNG_SCALE
+}
+
 /**
  * Canonical cache-key inputs for a tools/call: the normalized, output-affecting
- * arguments only. Unknown keys are dropped and values are clamped/defaulted the
- * same way the handler will, so semantically identical calls — an extra
- * `nonce`, an out-of-range `scale`, a differing `timeoutMs` — collapse to one
- * cache entry. Returns null when the call must not be cached (unknown tool, a
- * missing/ill-typed required arg, or a non-base64 render_png output — all of
- * which produce error results, and errors are never cached). This is the
- * public-compute cost-control invariant: callers cannot bust the cache, or
- * force recompute, with junk or out-of-range arguments.
+ * inputs only. Non-output-affecting ARGUMENTS are dropped or normalized so that
+ * semantically identical calls collapse to one cache entry — an extra `nonce`,
+ * an out-of-range or omitted `scale`, a differing `timeoutMs` all share a key.
+ * Returns null when the call must not be cached (unknown tool, a missing/ill-typed
+ * required arg, or a non-base64 render_png output — all of which produce error
+ * results, and errors are never cached).
+ *
+ * Scope of the cost-control guarantee: it covers ARGUMENTS, not the `source`/
+ * `code` payload, which is keyed VERBATIM by design. Keying on the raw payload
+ * is what makes a cached response provably correspond to what that exact input
+ * renders — canonicalizing the payload (e.g. stripping Mermaid comments) is
+ * deliberately avoided because two payloads that canonicalize alike are not
+ * guaranteed to render byte-identically, and a wrong cached result is far worse
+ * than a missed dedup. A caller can therefore still force recompute by varying
+ * insignificant payload bytes (comments/whitespace); that residual is bounded
+ * by the endpoint's WAF rate limit (the actual abuse backstop; see
+ * website/README.md), not by the cache.
  */
 export function cacheKeyFor(name: string | undefined, args: Record<string, unknown>): unknown | null {
   switch (name) {
@@ -239,6 +257,9 @@ export function cacheKeyFor(name: string | undefined, args: Record<string, unkno
     // A cached success is the true deterministic result, returned regardless of
     // the requested budget (free and correct); a call that would time out
     // produces an error and is never cached, so it cannot poison this entry.
+    // (Code Mode is intended for deterministic SDK workflows; a non-deterministic
+    // body — Date/Math.random — has its first result frozen for the cache TTL,
+    // as it did before this change, since execute results were always cached.)
     case 'execute':
       return typeof args.code === 'string' ? { t: 'execute', code: args.code } : null
     case 'render_svg':
@@ -249,7 +270,7 @@ export function cacheKeyFor(name: string | undefined, args: Record<string, unkno
       if (typeof args.source !== 'string') return null
       const output = args.output ?? (args as { outputMode?: unknown }).outputMode
       if (output !== undefined && output !== 'base64') return null
-      const key: Record<string, unknown> = { t: 'render_png', source: args.source, scale: effectivePngScale(args) }
+      const key: Record<string, unknown> = { t: 'render_png', source: args.source, scale: keyPngScale(args) }
       if (typeof args.background === 'string') key.background = args.background
       return key
     }

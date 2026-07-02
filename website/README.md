@@ -39,7 +39,7 @@ Unit coverage: `src/__tests__/hosted-mcp.test.ts` (tool surface), `hosted-mcp-ht
 
 ## Launch checklist (dashboard-side, not in repo)
 
-- **WAF rate-limiting rule** on `POST /mcp` (e.g. 60 req/min per IP). `/mcp` is public, unauthenticated compute; body caps, input caps, edge caching, and isolate CPU budgets bound each request, but the rate limit is the abuse backstop and lives in the dashboard.
+- **WAF rate-limiting rule** on `POST /mcp` (e.g. 60 req/min per IP). `/mcp` is public, unauthenticated compute; body caps, input caps, edge caching, and isolate CPU budgets bound each request, but the rate limit is the abuse backstop and lives in the dashboard. The response cache dedups repeat traffic but keys on the raw `source`/`code` payload (by design, for correctness), so it does **not** stop an attacker who varies insignificant payload bytes to force recompute — the rate limit is what bounds that.
 - Watch Workers observability for `execute` isolate failures and CPU-limit terminations in the first week.
 
 ## Local-dev limitation

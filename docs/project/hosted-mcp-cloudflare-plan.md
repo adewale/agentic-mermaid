@@ -114,9 +114,10 @@ Post-review hardening (external audit, round 2):
   none of which are in the harness bundle. `cacheVersion` is now a
   `DEPLOY_VERSION` computed at build time (`website/src/deploy-hash.ts`,
   emitted to `generated/deploy-version.ts`): a length-prefixed SHA-256 over
-  the **bundled worker JS closure + harness + wasm + fonts**. Any change to
-  any hosted tool, the transport, the PNG path, or an asset moves it and
-  invalidates cached results, version bump or not. Isolate IDs keep the
+  the **bundled worker JS closure + harness + wasm + fonts + the main
+  worker's `compatibility_date`**. Any change to any hosted tool, the
+  transport, the PNG path, an asset, or the worker's runtime semantics moves
+  it and invalidates cached results, version bump or not. Isolate IDs keep the
   narrower harness hash (they *are* just harness + user module).
 - **Cache keys from normalized effective arguments.** The key was a hash of
   raw `req.params`; handlers drop unknown args and clamp `scale`/`timeoutMs`,
@@ -124,10 +125,35 @@ Post-review hardening (external audit, round 2):
   recompute and defeat the cost control. `cacheKeyFor` (in `hosted-server.ts`,
   the single source of truth the handlers also use for clamping) now derives
   the key from only the output-affecting arguments, normalized: unknown keys
-  dropped, `scale` clamped, `timeoutMs` excluded from `execute` (it is a
-  budget, not an input). Calls it deems uncacheable (unknown tool, missing
-  required arg, non-base64 `render_png` output) bypass the cache and run
-  directly — they error, and errors were never cached.
+  dropped, `scale` clamped and defaulted to its resolved value (omitted and
+  explicit `scale: 2` share one entry), `timeoutMs` excluded from `execute`
+  (it is a budget, not an input). Calls it deems uncacheable (unknown tool,
+  missing required arg, non-base64 `render_png` output) bypass the cache and
+  run directly — they error, and errors were never cached.
+
+**Scope of the cost-control guarantee (external audit, round 3 — adversarial
+multi-agent verification found no correctness/poisoning bug; these are the
+low-severity refinements it surfaced):**
+
+- The normalization covers **arguments**, not the `source`/`code` payload,
+  which is keyed **verbatim by design**. Keying on the raw payload is what
+  makes a cached response provably correspond to what that exact input
+  renders; canonicalizing the payload (e.g. stripping Mermaid comments) is
+  deliberately avoided because two payloads that canonicalize alike are not
+  guaranteed to render byte-identically — a wrong cached result is far worse
+  than a missed dedup. A caller can therefore still force recompute by varying
+  insignificant payload bytes (comments/trailing whitespace). That residual is
+  bounded by the **WAF rate limit** (the actual abuse backstop; see
+  `website/README.md`), not by the cache.
+- `execute` is cached on `code` alone. Code Mode is intended for deterministic
+  SDK workflows; a non-deterministic body (`Date`/`Math.random`) has its first
+  result frozen for the cache TTL. This is pre-existing — `execute` results
+  were always cached — and inherent to caching arbitrary code; it is not a
+  cross-caller integrity issue (identical `code` → identical key by definition).
+- The response cache is a **cost optimization for legitimate repeat traffic**,
+  not the abuse control. The WAF rate-limiting rule on `POST /mcp` is the
+  primary defense against a determined attacker and remains a launch
+  requirement.
 
 ## Transport: stateless Streamable HTTP
 

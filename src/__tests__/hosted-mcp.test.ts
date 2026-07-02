@@ -266,6 +266,26 @@ describe('cacheKeyFor (normalized, output-affecting arguments)', () => {
       .not.toEqual(cacheKeyFor('render_png', { source: 'flowchart TD\n  X --> Y' }))
   })
 
+  test('render_png omitted scale and explicit default scale collapse to one entry', () => {
+    // both render at scale 2 (png-wasm applies `?? 2`), so they must share a key
+    const absent = cacheKeyFor('render_png', { source: FLOW }) as Record<string, unknown>
+    expect(absent.scale).toBe(2)
+    expect(absent).toEqual(cacheKeyFor('render_png', { source: FLOW, scale: 2 }) as Record<string, unknown>)
+    // a non-numeric scale also resolves to the default 2
+    expect(cacheKeyFor('render_png', { source: FLOW, scale: 'big' }) as Record<string, unknown>)
+      .toEqual(cacheKeyFor('render_png', { source: FLOW, scale: 2 }) as Record<string, unknown>)
+  })
+
+  test('the source/code payload is keyed verbatim (comment junk is NOT normalized)', () => {
+    // Documented scope limit: argument junk collapses, but insignificant source
+    // bytes do not — keying on raw source keeps a cached result provably correct
+    // for that exact input. The rate limit, not the cache, bounds this.
+    expect(cacheKeyFor('render_svg', { source: 'flowchart LR\n  A --> B' }))
+      .not.toEqual(cacheKeyFor('render_svg', { source: 'flowchart LR\n  A --> B\n%% c' }))
+    expect(cacheKeyFor('execute', { code: '1 + 1' }))
+      .not.toEqual(cacheKeyFor('execute', { code: '1 + 1 ' }))
+  })
+
   test('render_svg keeps only known theme/bg/fg inputs', () => {
     expect(cacheKeyFor('render_svg', { source: FLOW, bg: '#000', junk: 1 }))
       .toEqual({ t: 'render_svg', source: FLOW, bg: '#000' })
