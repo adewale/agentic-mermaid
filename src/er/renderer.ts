@@ -96,9 +96,13 @@ export function renderErSvg(
     parts.push(renderCardinality(rel, style))
   }
 
-  // 4. Relationship labels
+  // 4. Relationship labels — positions are collision-separated first: two
+  // relationships between the same entity pair both put their labels at the
+  // route midpoint otherwise (2026-07 overlap audit: 15% of fuzzed ER
+  // diagrams print relationship labels on top of each other).
+  const labelPos = separateRelationshipLabels(diagram, style)
   for (const rel of diagram.relationships) {
-    parts.push(renderRelationshipLabel(rel, style))
+    parts.push(renderRelationshipLabel(rel, style, labelPos.get(rel)))
   }
 
   parts.push('</svg>')
@@ -267,10 +271,63 @@ function renderRelationshipLine(rel: PositionedErRelationship, style: ResolvedRe
 }
 
 /** Render a relationship label at the midpoint (supports multi-line) */
-function renderRelationshipLabel(rel: PositionedErRelationship, style: ResolvedRenderStyle): string {
+/**
+ * Deterministic label separation: center-out arc positions along each
+ * relationship's own polyline; the first whose pill clears every earlier pill
+ * and every entity box wins; the midpoint stays when nothing clears (surfaced
+ * by eval/overlap-audit rather than hidden).
+ */
+function separateRelationshipLabels(
+  diagram: PositionedErDiagram,
+  style: ResolvedRenderStyle,
+): Map<PositionedErRelationship, { x: number; y: number }> {
+  interface Box { x0: number; y0: number; x1: number; y1: number }
+  const out = new Map<PositionedErRelationship, { x: number; y: number }>()
+  const intersects = (a: Box, b: Box): boolean =>
+    Math.min(a.x1, b.x1) - Math.max(a.x0, b.x0) > 0.5 && Math.min(a.y1, b.y1) - Math.max(a.y0, b.y0) > 0.5
+  const entityBoxes: Box[] = diagram.entities.map(e => ({ x0: e.x, y0: e.y, x1: e.x + e.width, y1: e.y + e.height }))
+  const placed: Box[] = []
+  for (const rel of diagram.relationships) {
+    if (!rel.label || rel.points.length < 2) continue
+    const m = measureMultilineText(rel.label, style.edgeLabelFontSize, style.edgeLabelFontWeight)
+    const bgW = m.width + 8, bgH = m.height + 6
+    const boxAt = (cx: number, cy: number): Box => ({ x0: cx - bgW / 2, y0: cy - bgH / 2, x1: cx + bgW / 2, y1: cy + bgH / 2 })
+    const collides = (b: Box): boolean => placed.some(o => intersects(b, o)) || entityBoxes.some(o => intersects(b, o))
+    const pts = rel.points
+    const segLens: number[] = []
+    let total = 0
+    for (let i = 1; i < pts.length; i++) { const l = Math.hypot(pts[i]!.x - pts[i - 1]!.x, pts[i]!.y - pts[i - 1]!.y); segLens.push(l); total += l }
+    const at = (dist: number): { x: number; y: number } => {
+      let d = dist
+      for (let i = 0; i < segLens.length; i++) {
+        if (d <= segLens[i]! || i === segLens.length - 1) {
+          const t = segLens[i]! === 0 ? 0 : Math.max(0, Math.min(1, d / segLens[i]!))
+          return { x: pts[i]!.x + (pts[i + 1]!.x - pts[i]!.x) * t, y: pts[i]!.y + (pts[i + 1]!.y - pts[i]!.y) * t }
+        }
+        d -= segLens[i]!
+      }
+      return pts[pts.length - 1]!
+    }
+    const mid = midpoint(pts)
+    let chosen = { x: mid.x, y: mid.y }
+    let chosenBox = boxAt(mid.x, mid.y)
+    if (collides(chosenBox)) {
+      for (const f of [0.4, 0.6, 0.3, 0.7, 0.25, 0.75, 0.2, 0.8, 0.15, 0.85]) {
+        const q = at(total * f)
+        const b = boxAt(q.x, q.y)
+        if (!collides(b)) { chosen = q; chosenBox = b; break }
+      }
+    }
+    placed.push(chosenBox)
+    out.set(rel, chosen)
+  }
+  return out
+}
+
+function renderRelationshipLabel(rel: PositionedErRelationship, style: ResolvedRenderStyle, at?: { x: number; y: number }): string {
   if (!rel.label || rel.points.length < 2) return ''
 
-  const mid = midpoint(rel.points)
+  const mid = at ?? midpoint(rel.points)
   const metrics = measureMultilineText(rel.label, style.edgeLabelFontSize, style.edgeLabelFontWeight)
 
   // Background pill for readability

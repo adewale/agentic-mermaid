@@ -1,3 +1,4 @@
+import { estimateTextWidth } from '../styles.ts'
 import type { Point, RenderOptions } from '../types.ts'
 import type { ArchitectureLayoutMetrics } from './config.ts'
 import { layoutGraphSync } from '../layout-engine.ts'
@@ -123,6 +124,7 @@ export function layoutArchitectureDiagram(
   const edges = diagram.edges.map((edge) =>
     routeArchitectureEdge(edge, servicesById, serviceBounds, junctionBounds, flatGroups)
   )
+  separateEdgeLabels(edges, services)
 
   let width = positioned.width
   let height = positioned.height
@@ -231,6 +233,59 @@ function routeArchitectureEdge(
     hasArrowEnd: edge.hasArrowEnd,
     points,
     labelPosition: edge.label ? edgeMidpoint(points) : undefined,
+  }
+}
+
+/**
+ * Edge labels default to their route midpoints; two edges running the same
+ * corridor put both labels in the same spot (2026-07 overlap audit: the
+ * curated Event Spine sample's `private link`/`persists events` pair, 37% of
+ * fuzzed diagrams). Slide the later label along its OWN polyline to the first
+ * arc position (center-out, deterministic) whose box clears every earlier
+ * label box and every service box; leave it when nothing clears (surfaced by
+ * eval/overlap-audit rather than hidden).
+ */
+function separateEdgeLabels(edges: PositionedArchitectureEdge[], services: PositionedArchitectureService[]): void {
+  interface Box { x0: number; y0: number; x1: number; y1: number }
+  const FS = 11, PAD = 6
+  const boxAt = (label: string, cx: number, cy: number): Box => {
+    const w = estimateTextWidth(label, FS, 400) + PAD * 2
+    const h = FS + PAD * 2
+    return { x0: cx - w / 2, y0: cy - h / 2, x1: cx + w / 2, y1: cy + h / 2 }
+  }
+  const intersects = (a: Box, b: Box): boolean =>
+    Math.min(a.x1, b.x1) - Math.max(a.x0, b.x0) > 0.5 && Math.min(a.y1, b.y1) - Math.max(a.y0, b.y0) > 0.5
+  const serviceBoxes: Box[] = services.map(sv => ({ x0: sv.x, y0: sv.y, x1: sv.x + sv.width, y1: sv.y + sv.height }))
+  const labeled = edges.filter(e => e.label && e.labelPosition && e.points.length >= 2)
+  const placed: Box[] = []
+  for (const edge of labeled) {
+    const current = boxAt(edge.label!, edge.labelPosition!.x, edge.labelPosition!.y)
+    const collides = (b: Box): boolean => placed.some(o => intersects(b, o)) || serviceBoxes.some(o => intersects(b, o))
+    if (!collides(current)) { placed.push(current); continue }
+    // Arc-length candidates along the polyline, center-out.
+    const pts = edge.points
+    const segLens: number[] = []
+    let total = 0
+    for (let i = 1; i < pts.length; i++) { const l = Math.hypot(pts[i]!.x - pts[i - 1]!.x, pts[i]!.y - pts[i - 1]!.y); segLens.push(l); total += l }
+    const at = (dist: number): { x: number; y: number } => {
+      let d = dist
+      for (let i = 0; i < segLens.length; i++) {
+        if (d <= segLens[i]! || i === segLens.length - 1) {
+          const t = segLens[i]! === 0 ? 0 : Math.max(0, Math.min(1, d / segLens[i]!))
+          return { x: pts[i]!.x + (pts[i + 1]!.x - pts[i]!.x) * t, y: pts[i]!.y + (pts[i + 1]!.y - pts[i]!.y) * t }
+        }
+        d -= segLens[i]!
+      }
+      return pts[pts.length - 1]!
+    }
+    const fractions = [0.5, 0.4, 0.6, 0.3, 0.7, 0.25, 0.75, 0.2, 0.8, 0.15, 0.85]
+    let chosen = current
+    for (const f of fractions) {
+      const q = at(total * f)
+      const b = boxAt(edge.label!, q.x, q.y)
+      if (!collides(b)) { edge.labelPosition = { x: q.x, y: q.y }; chosen = b; break }
+    }
+    placed.push(chosen)
   }
 }
 

@@ -7,6 +7,7 @@ import type {
 } from './types.ts'
 import type { RenderOptions } from '../types.ts'
 import { measureTextWidth } from '../text-metrics.ts'
+import { resolveRenderStyle } from '../styles.ts'
 
 // ============================================================================
 // Quadrant chart layout engine
@@ -46,8 +47,9 @@ function round(n: number): number {
  */
 export function layoutQuadrantChart(
   chart: QuadrantChart,
-  _options: RenderOptions = {},
+  options: RenderOptions = {},
 ): PositionedQuadrantChart {
+  const style = resolveRenderStyle(options)
   const titleHeight = chart.title ? Q.titleFontSize + Q.titleGap : 0
 
   const plotX = Q.paddingX + Q.yAxisGutter
@@ -82,14 +84,65 @@ export function layoutQuadrantChart(
   })
 
   // Points. y is inverted (ny=1 → top of plot).
-  const points: PositionedQuadrantPoint[] = chart.points.map(p => ({
-    label: p.label,
-    nx: p.x,
-    ny: p.y,
-    cx: round(plotX + p.x * size),
-    cy: round(plotY + (1 - p.y) * size),
-    radius: Q.pointRadius,
-  }))
+  // Label placement is collision-aware (2026-07 overlap audit: 89% of fuzzed
+  // quadrant charts had point labels colliding with each other, the quadrant
+  // labels, or the canvas edge). Candidates are tried right → left → below →
+  // above of the point; the first whose box clears every already-placed label
+  // box, every point circle, every quadrant label, and the canvas bounds wins.
+  // When nothing clears, the label keeps the right-hand slot clamped into the
+  // canvas (best effort, surfaced by eval/overlap-audit rather than hidden).
+  const fs = style.nodeLabelFontSize
+  const fw = style.nodeLabelFontWeight
+  const lineGap = 4
+  interface Box { x0: number; y0: number; x1: number; y1: number }
+  const intersects = (a: Box, b: Box): boolean =>
+    Math.min(a.x1, b.x1) - Math.max(a.x0, b.x0) > 0.5 && Math.min(a.y1, b.y1) - Math.max(a.y0, b.y0) > 0.5
+  const placedBoxes: Box[] = regions
+    .filter(r => r.label)
+    .map(r => {
+      const w = measureTextWidth(r.label!, Q.quadrantFontSize, 600)
+      return { x0: r.labelX - w / 2, y0: r.labelY - Q.quadrantFontSize * 0.75, x1: r.labelX + w / 2, y1: r.labelY + Q.quadrantFontSize * 0.75 }
+    })
+  const pointBoxes: Box[] = chart.points.map(p => {
+    const cx = plotX + p.x * size, cy = plotY + (1 - p.y) * size, r = Q.pointRadius + 1
+    return { x0: cx - r, y0: cy - r, x1: cx + r, y1: cy + r }
+  })
+  const canvas: Box = { x0: 2, y0: 2, x1: width - 2, y1: height - 2 }
+  const points: PositionedQuadrantPoint[] = chart.points.map(p => {
+    const cx = round(plotX + p.x * size)
+    const cy = round(plotY + (1 - p.y) * size)
+    const w = measureTextWidth(p.label, fs, fw)
+    const h = fs * 1.1
+    const gap = Q.pointRadius + lineGap
+    const candidates: Array<{ x: number; y: number; anchor: 'start' | 'end' | 'middle'; box: Box }> = [
+      { x: cx + gap, y: cy, anchor: 'start', box: { x0: cx + gap, y0: cy - h / 2, x1: cx + gap + w, y1: cy + h / 2 } },
+      { x: cx - gap, y: cy, anchor: 'end', box: { x0: cx - gap - w, y0: cy - h / 2, x1: cx - gap, y1: cy + h / 2 } },
+      { x: cx, y: cy + gap + h / 2, anchor: 'middle', box: { x0: cx - w / 2, y0: cy + gap, x1: cx + w / 2, y1: cy + gap + h } },
+      { x: cx, y: cy - gap - h / 2, anchor: 'middle', box: { x0: cx - w / 2, y0: cy - gap - h, x1: cx + w / 2, y1: cy - gap } },
+    ]
+    const clear = (b: Box): boolean =>
+      b.x0 >= canvas.x0 && b.y0 >= canvas.y0 && b.x1 <= canvas.x1 && b.y1 <= canvas.y1 &&
+      !placedBoxes.some(o => intersects(b, o)) && !pointBoxes.some(o => intersects(b, o))
+    let chosen = candidates.find(c => clear(c.box))
+    if (!chosen) {
+      // Best effort: right-hand slot clamped into the canvas.
+      const c0 = candidates[0]!
+      const dx = Math.min(0, canvas.x1 - c0.box.x1)
+      chosen = { ...c0, x: c0.x + dx, box: { ...c0.box, x0: c0.box.x0 + dx, x1: c0.box.x1 + dx } }
+    }
+    placedBoxes.push(chosen.box)
+    return {
+      label: p.label,
+      nx: p.x,
+      ny: p.y,
+      cx,
+      cy,
+      radius: Q.pointRadius,
+      labelX: round(chosen.x),
+      labelY: round(chosen.y),
+      labelAnchor: chosen.anchor,
+    }
+  })
 
   // Axis labels.
   const axisLabels: PositionedQuadrantAxisLabel[] = []

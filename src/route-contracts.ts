@@ -2556,6 +2556,114 @@ export function repairLabelsOffOwnRoute(
   }
 }
 
+/**
+ * Post-freeze label repair for pill-vs-pill collisions ACROSS edges. The
+ * shared-trunk repair separates labels whose ROUTES share a trunk; parallel
+ * edges that were split into adjacent lanes have distinct routes, but every
+ * label still sits at its own route midpoint — the midpoints are one lane gap
+ * apart while a pill is ~3 gaps tall, so the pills stack (the 2026-07 overlap
+ * audit: 70% of fuzzed state diagrams, plus curated corpus state/flowchart
+ * cases — reciprocal `start`/`cancel` pairs, feedback `pass`/`fail` pairs).
+ * Resolution slides the LATER edge's label along its OWN route (labelOffRoute
+ * stays satisfied by construction) to the nearest slot whose pill clears every
+ * other pill and every node; if the later edge has no clear slot, the earlier
+ * edge tries; when neither clears, both stay (honest residual, surfaced by
+ * eval/overlap-audit). Fires only on measured pill intersection, so
+ * label-clean layouts are byte-identical.
+ */
+export function separateEdgeLabelPills(
+  positioned: { nodes: PositionedNode[]; edges: PositionedEdge[]; groups: PositionedGroup[] },
+  graph: MermaidGraph,
+  style: LabelMetricsStyle = resolveRenderStyle({}),
+): void {
+  const labeled = positioned.edges.filter(e => e.label && e.labelPosition && e.points.length >= 2)
+  if (labeled.length < 2) return
+  // The renderer's halo pads the pill by a further max(4, 2×strokeWidth) per
+  // side (renderEdgeLabel); separating inner pills can still leave the DRAWN
+  // halos touching. Inflate by the thick-edge worst case so cleared means
+  // visually cleared.
+  const HALO = 8
+  const rectOf = (e: PositionedEdge): { x: number; y: number; w: number; h: number } | null => {
+    const r = labelRect(e, style)
+    return r && { x: r.x - HALO, y: r.y - HALO, w: r.w + 2 * HALO, h: r.h + 2 * HALO }
+  }
+  const intersects = (a: { x: number; y: number; w: number; h: number }, b: { x: number; y: number; w: number; h: number }): boolean =>
+    Math.min(a.x + a.w, b.x + b.w) - Math.max(a.x, b.x) > 0.5 &&
+    Math.min(a.y + a.h, b.y + b.h) - Math.max(a.y, b.y) > 0.5
+
+  // Unlike the other label repairs, do NOT exempt the edge's own endpoints: a
+  // slid label that clears its sibling pill by parking its halo on the target
+  // node has traded one occlusion for another (the audit's state-corpus case).
+  const haloOverAnyNode = (inner: { x: number; y: number; w: number; h: number }): boolean =>
+    positioned.nodes.some(n =>
+      inner.x - HALO < n.x + n.width && inner.x + inner.w + HALO > n.x &&
+      inner.y - HALO < n.y + n.height && inner.y + inner.h + HALO > n.y)
+
+  const trySlide = (edge: PositionedEdge, others: PositionedEdge[]): boolean => {
+    const m = measureMultilineText(edge.label!, style.edgeLabelFontSize, style.edgeLabelFontWeight)
+    const pw = m.width + 2 * LABEL_PILL_PADDING, ph = m.height + 2 * LABEL_PILL_PADDING
+    const clearAt = (x: number, y: number): boolean => {
+      const inner = pillRect(x, y, m)
+      if (haloOverAnyNode(inner)) return false
+      const pill = { x: inner.x - HALO, y: inner.y - HALO, w: inner.w + 2 * HALO, h: inner.h + 2 * HALO }
+      for (const o of others) {
+        const r = rectOf(o)
+        if (r && intersects(pill, r)) return false
+      }
+      return true
+    }
+    const segs: Array<{ a: Point; b: Point; vertical: boolean; len: number; i: number }> = []
+    for (let i = 1; i < edge.points.length; i++) {
+      const a = edge.points[i - 1]!, b = edge.points[i]!
+      const vertical = Math.abs(a.x - b.x) < EPS
+      if (vertical || Math.abs(a.y - b.y) < EPS) segs.push({ a, b, vertical, len: Math.abs(a.x - b.x) + Math.abs(a.y - b.y), i })
+    }
+    segs.sort((p, q) => q.len - p.len || p.i - q.i)
+    // Offset ladder: on-route first, then perpendicular offsets up to the
+    // rubric's labelOffRoute allowance (ph/2 + 4, the same formula
+    // repairLabelsOffOwnRoute enforces) — a labeled reciprocal pair whose
+    // lanes sit closer than two pill widths has NO on-route solution, but
+    // ±(allow-1) of lateral headroom per label is enough to part them while
+    // labelOffRoute stays satisfied by construction.
+    const allow = ph / 2 + 4
+    for (const d of [0, allow - 1, -(allow - 1), (allow - 1) / 2, -(allow - 1) / 2]) {
+      for (const seg of segs) {
+        const half = (seg.vertical ? ph : pw) / 2
+        if (seg.len <= 2 * half) continue // pill can't sit here without overhanging a bend
+        const nx = seg.vertical ? 1 : 0, ny = seg.vertical ? 0 : 1 // unit perpendicular
+        const tMargin = half / seg.len
+        const ts: number[] = []
+        const N = 11
+        for (let k = 0; k < N; k++) ts.push(tMargin + (1 - 2 * tMargin) * (k / (N - 1)))
+        ts.sort((a, b) => Math.abs(a - 0.5) - Math.abs(b - 0.5))
+        for (const t of ts) {
+          const cx = seg.a.x + (seg.b.x - seg.a.x) * t + nx * d
+          const cy = seg.a.y + (seg.b.y - seg.a.y) * t + ny * d
+          if (clearAt(cx, cy)) { edge.labelPosition = { x: cx, y: cy }; return true }
+        }
+      }
+    }
+    return false
+  }
+
+  // Up to three sweeps: resolving one pair can expose (or clear) another; the
+  // slide target is always a fully-clear slot, so sweeps strictly reduce the
+  // conflict set and the cap is a defensive bound, not an expected exit.
+  for (let sweep = 0; sweep < 3; sweep++) {
+    let conflicts = 0
+    for (let i = 0; i < labeled.length; i++) {
+      for (let j = i + 1; j < labeled.length; j++) {
+        const a = labeled[i]!, b = labeled[j]!
+        const ra = rectOf(a), rb = rectOf(b)
+        if (!ra || !rb || !intersects(ra, rb)) continue
+        conflicts++
+        if (!trySlide(b, labeled.filter(e => e !== b))) trySlide(a, labeled.filter(e => e !== a))
+      }
+    }
+    if (conflicts === 0) break
+  }
+}
+
 export function auditRouteContracts(
   positioned: { nodes: PositionedNode[]; edges: PositionedEdge[]; groups: PositionedGroup[] },
   graph: MermaidGraph,

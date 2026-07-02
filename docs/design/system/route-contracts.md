@@ -772,7 +772,8 @@ in sync by `src/__tests__/layout-pass-docsync.test.ts` (regenerate with
 19. `rerouteEdgesThroughNodes` - re-route an edge left running through a node by a node-mover (honorLinkRankDistance/alignPortLanes) around the obstacle (edge-only, freeze-safe)
 20. `repairLabelsOnSharedTrunks` - re-slot a labeled edge whose pill sits on a trunk shared with another edge (label-only, freeze-safe)
 21. `repairLabelsOffOwnRoute` - re-slot a labeled edge whose pill sits off its OWN route onto it — ELK offset placement on an already-straight edge (label-only, freeze-safe)
-22. `translateGeometryToNonNegativeOrigin` - shift whole graph to a non-negative origin (allowed after freeze)
+22. `separateEdgeLabelPills` - slide colliding edge-label pills along their own routes into clear slots — parallel/reciprocal lane labels stack at midpoints (label-only, freeze-safe)
+23. `translateGeometryToNonNegativeOrigin` - shift whole graph to a non-negative origin (allowed after freeze)
 
 <!-- LAYOUT-PIPELINE:end -->
 
