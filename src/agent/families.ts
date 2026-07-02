@@ -16,6 +16,7 @@ import type {
 } from './types.ts'
 import type { PositionedDiagram, RenderContext, RenderOptions } from '../types.ts'
 import type { DiagramColors } from '../theme.ts'
+import type { SceneDoc } from '../scene/ir.ts'
 import type { NormalizedMermaidSource } from '../mermaid-source.ts'
 import type { AsciiConfig, AsciiTheme, ColorMode } from '../ascii/types.ts'
 
@@ -92,6 +93,12 @@ export interface FamilyPlugin {
   layout?: (ctx: FamilyLayoutContext) => FamilyLayoutResult | PositionedDiagram
   /** Optional: family-specific SVG renderer fed by a positioned layout result. */
   renderSvg?: (ctx: RenderContext<PositionedDiagram>) => string
+  /**
+   * Optional: family-specific SceneGraph lowering (SPEC §3.1). Produces the
+   * semantic render-mark tree that style backends consume; renderSvg for a
+   * lowered family is DefaultBackend serialization of this scene.
+   */
+  lowerScene?: (ctx: RenderContext<PositionedDiagram>) => SceneDoc
   /** Optional: family-specific ASCII renderer. */
   renderAscii?: (ctx: AsciiContext) => string
 }

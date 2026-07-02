@@ -7,7 +7,8 @@ import type { DiagramColors } from './theme.ts'
 
 import { parseMermaid } from './parser.ts'
 import { layoutGraphSync } from './layout-engine.ts'
-import { renderSvg } from './renderer.ts'
+import { renderSvg, lowerGraphScene } from './renderer.ts'
+import type { SceneDoc } from './scene/ir.ts'
 
 import { parseSequenceDiagram } from './sequence/parser.ts'
 import { layoutSequenceDiagram } from './sequence/layout.ts'
@@ -57,9 +58,14 @@ import { renderArchitectureAscii } from './ascii/architecture.ts'
 import { diagramColorsToAsciiTheme } from './ascii/ansi.ts'
 
 type SvgRenderer<TPositioned extends PositionedDiagram> = (ctx: RenderContext<TPositioned>) => string
+type SceneLowerer<TPositioned extends PositionedDiagram> = (ctx: RenderContext<TPositioned>) => SceneDoc
 
 function svg<TPositioned extends PositionedDiagram>(renderer: SvgRenderer<TPositioned>): FamilyPlugin['renderSvg'] {
   return (ctx) => renderer(ctx as RenderContext<TPositioned>)
+}
+
+function scene<TPositioned extends PositionedDiagram>(lowerer: SceneLowerer<TPositioned>): FamilyPlugin['lowerScene'] {
+  return (ctx) => lowerer(ctx as RenderContext<TPositioned>)
 }
 
 function layoutResult<TPositioned extends PositionedDiagram>(
@@ -71,7 +77,7 @@ function layoutResult<TPositioned extends PositionedDiagram>(
 
 function registerRenderHooks(
   id: DiagramKind,
-  hooks: Pick<FamilyPlugin, 'layout' | 'renderSvg' | 'renderAscii'>,
+  hooks: Pick<FamilyPlugin, 'layout' | 'renderSvg' | 'renderAscii' | 'lowerScene'>,
 ): void {
   const base = getFamily(id)
   if (!base) throw new Error(`Cannot register render hooks for unknown family ${id}`)
@@ -138,12 +144,14 @@ function renderArchitectureAsciiWithContext(ctx: AsciiContext): string {
 registerRenderHooks('flowchart', {
   layout: layoutFlowchart,
   renderSvg: svg(renderSvg),
+  lowerScene: scene(lowerGraphScene),
   renderAscii: renderFlowchartAscii,
 })
 
 registerRenderHooks('state', {
   layout: layoutFlowchart,
   renderSvg: svg(renderSvg),
+  lowerScene: scene(lowerGraphScene),
   renderAscii: renderFlowchartAscii,
 })
 
