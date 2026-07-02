@@ -1089,9 +1089,9 @@ const WARNING_DETAIL: Record<string, { what: string; triggers: string; fix: stri
     example: 'flowchart LR\n  %% review note that structured serialization drops\n  A[Start] --> B[Done]',
   },
   UNSUPPORTED_SYNTAX: {
-    what: 'the source uses a construct that is preserved verbatim but not modeled or rendered locally.',
-    triggers: 'Flowchart <code>click</code>/<code>href</code> directives, edge IDs and edge metadata, v11 <code>@{ shape: … }</code> node metadata, and markdown strings — each warning names the syntax and line.',
-    fix: 'Remove the directive if local rendering fidelity matters, or keep it knowing the local renderer ignores it; edits touching those lines need source-level editing rather than typed mutations.',
+    what: 'the source uses syntax or content the local structured model cannot faithfully express.',
+    triggers: 'Flowchart <code>click</code>/<code>href</code> directives, edge IDs and edge metadata, v11 <code>@{ shape: … }</code> node metadata, markdown strings, unclosed delimiters that would silently drop content, or <code>syntax: "empty_layout"</code> when content-bearing source lays out to a 0×0 canvas with no nodes, edges, or groups.',
+    fix: 'For preserved Mermaid syntax, remove the directive if local rendering fidelity matters, or keep it knowing the local renderer ignores it; edits touching those lines need source-level editing rather than typed mutations. For <code>empty_layout</code>, inspect the warning message and <code>verify.layout</code>, then repair the malformed or unsupported source before accepting the artifact.',
     example: 'flowchart LR\n  A[Start] --> B[Docs]\n  click B "https://example.com"',
   },
   CONTENT_DROPPED_ON_ROUNDTRIP: {
