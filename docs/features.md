@@ -43,11 +43,21 @@ or preserves source verbatim. Constructs are never silently dropped.
 
 Agentic Mermaid outputs **SVG, PNG, ASCII, Unicode, and JSON layout** from the same renderer foundation.
 
+- **Styles** — every SVG/PNG render accepts `style`: a full look
+  (`hand-drawn`, `excalidraw`, `pen-and-ink`, `freehand`, `watercolor`,
+  `blueprint`, `tufte`), any theme name (a theme is a palette-only style),
+  an inline JSON record, or a stack merged left → right
+  (`{ style: ['hand-drawn', 'dracula'] }`). `seed` re-rolls styled ink and
+  never moves layout. CLI: `am render --style … --seed N`, `am styles`;
+  MCP render tools take `style`/`seed`; RENDER_FAILED-gated verify means a
+  clean verify proves the styled source renders. Authoring guide + rubric:
+  `docs/style-authoring.md`.
+
 - **SVG** — `renderMermaidSVG` (`compact`, `security:'strict'`, CSS
   variable fonts, `idPrefix` namespacing). CLI exposes `--security strict`.
 - **ASCII / Unicode** — `renderMermaidASCII` (CJK/emoji width, FE0F/ZWJ,
   `maxWidth` wrapping, trunk-shared fanouts).
-- **PNG** — `renderMermaidPNG(source, { fitTo, background })` or `am render diagram.mmd --format png --output diagram.png` (offline `@resvg/resvg-js`, bundled DejaVu,
+- **PNG** — `renderMermaidPNG(source, { fitTo, background, style, seed, fontDirs })` or `am render diagram.mmd --format png --output diagram.png` (offline `@resvg/resvg-js`; bundled DejaVu plus the built-in style faces,
   cross-runtime deterministic on same-machine x86_64/ARM64 where Node + built `dist/` are present).
 - **JSON layout** — `layoutMermaid` / `am render --format json`; add `--certificates` (or `layoutMermaid(d, { debug: true })`) to include opt-in graph route certificates, family edge-route certificates (class/ER/architecture/sequence), region-containment certificates (timeline/charts), V1 region/action sidecars, exact ports, and side/slot/role assignments where applicable.
 - **ASCII with metadata** — `renderMermaidASCIIWithMeta` → `{ ascii, regions, warnings, routeParity }`

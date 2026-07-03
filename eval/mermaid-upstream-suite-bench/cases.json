@@ -14244,5 +14244,25 @@
         "Q2"
       ]
     }
+  },
+  {
+    "id": "pie-upstream-should-handle-simple-pie-with-zero-slice-value",
+    "family": "pie",
+    "source": "pie title Default text position: Animal adoption\n        accTitle: simple pie char demo\n        accDescr: pie chart with 3 sections: dogs, cats, rats. Most are dogs.\n         \"dogs\" : 0\n        \"rats\" : 40.12",
+    "upstream": {
+      "repo": "mermaid-js/mermaid",
+      "files": [
+        "packages/mermaid/src/diagrams/pie/pie.spec.ts"
+      ],
+      "blocks": [
+        "packages/mermaid/src/diagrams/pie/pie.spec.ts :: should handle simple pie with zero slice value"
+      ]
+    },
+    "assertions": {
+      "expectStructured": false,
+      "nodeCount": 2,
+      "edgeCount": 0,
+      "groupCount": 0
+    }
   }
 ]

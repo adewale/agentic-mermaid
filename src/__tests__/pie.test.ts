@@ -90,8 +90,7 @@ describe('pie parser — happy paths', () => {
 
 describe('pie parser — sad paths error loudly', () => {
   const bad: Array<{ name: string; src: string; match: RegExp }> = [
-    { name: 'negative value', src: 'pie\n  "A" : -5', match: /positive numbers/i },
-    { name: 'zero value', src: 'pie\n  "A" : 0', match: /positive numbers/i },
+    { name: 'negative value', src: 'pie\n  "A" : -5', match: /non-negative numbers/i },
     { name: 'non-numeric value', src: 'pie\n  "A" : five', match: /invalid value/i },
     { name: 'missing colon', src: 'pie\n  "A" 5', match: /Unrecognized pie chart line/i },
     { name: 'unquoted label', src: 'pie\n  A : 5', match: /Invalid pie entry/i },
@@ -107,7 +106,12 @@ describe('pie parser — sad paths error loudly', () => {
 
   it('a malformed entry in the middle is not silently dropped', () => {
     // The bad middle line must abort the whole parse, not yield 2 good slices.
-    expect(() => parse('pie\n  "A" : 1\n  "B" : -2\n  "C" : 3')).toThrow(/positive numbers/i)
+    expect(() => parse('pie\n  "A" : 1\n  "B" : -2\n  "C" : 3')).toThrow(/non-negative numbers/i)
+  })
+
+  it('a zero-value slice is legal (upstream parity): zero-width wedge, label kept', () => {
+    const chart = parse('pie\n  "A" : 60\n  "B" : 0')
+    expect(chart.entries.map(e => [e.label, e.value])).toEqual([['A', 60], ['B', 0]])
   })
 })
 

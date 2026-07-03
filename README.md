@@ -33,7 +33,8 @@ Agents should not guess from pixels, concatenate strings, or regenerate whole di
 - **12 diagram families** — flowchart, state, architecture, sequence, class, ER, timeline, journey, XY chart, pie, quadrant, and Gantt.
 - **SVG, PNG, ASCII, Unicode, JSON** — one deterministic layout foundation for page, terminal, and agent workflows.
 - **Synchronous, zero-DOM SVG renderer** — no Puppeteer, no browser flash.
-- **21 built-in themes + Shiki compatibility** — theme from two colors or a VS Code theme.
+- **Composable styles** — `{ style: ['hand-drawn', 'dracula'] }` stacks a look over a palette; 7 full looks (hand-drawn, excalidraw, pen-and-ink, freehand, watercolor, blueprint, tufte), and custom styles are plain JSON records any agent can author (`docs/style-authoring.md`). `seed` re-rolls the ink, never the layout.
+- **21 built-in themes + Shiki compatibility** — a theme is a palette-only style: theme from two colors or a VS Code theme.
 - **Agent-native editing** — typed mutation for all twelve renderable families (flowchart/state, sequence, timeline, class, ER, journey, architecture, XY chart, pie, quadrant, Gantt); source-level round-trip only for opaque fallbacks (unmodeled syntax).
 - **CLI + MCP + library** — `am`, `agentic-mermaid-mcp`, `agentic-mermaid`, and `agentic-mermaid/agent`.
 

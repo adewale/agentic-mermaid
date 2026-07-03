@@ -9505,38 +9505,5 @@
       "priority": "P2",
       "target": "convert-to-case"
     }
-  },
-  {
-    "id": "pie-upstream-should-handle-simple-pie-with-zero-slice-value",
-    "families": [
-      "pie"
-    ],
-    "reason": "local-verify-gap",
-    "summary": "Upstream-valid source the local render parser rejects (Pie slice \"dogs\" has invalid value \"0\". Values must be positive numbers (greater than zero).). Verify now reports Tier-1 RENDER_FAILED for it, so it no longer imports as a green case; closing the renderer gap re-imports it.",
-    "blockCount": 1,
-    "upstream": {
-      "repo": "mermaid-js/mermaid",
-      "files": [
-        "packages/mermaid/src/diagrams/pie/pie.spec.ts"
-      ],
-      "blocks": [
-        "packages/mermaid/src/diagrams/pie/pie.spec.ts :: should handle simple pie with zero slice value"
-      ]
-    },
-    "source": "pie title Default text position: Animal adoption\n        accTitle: simple pie char demo\n        accDescr: pie chart with 3 sections: dogs, cats, rats. Most are dogs.\n         \"dogs\" : 0\n        \"rats\" : 40.12",
-    "ours": {
-      "parseOk": true,
-      "structured": false,
-      "verifyOk": false,
-      "layoutOk": true,
-      "roundtripOk": true
-    },
-    "tracking": {
-      "issue": "#60",
-      "owner": "BUILD-20",
-      "lane": "pie-parity",
-      "priority": "P2",
-      "target": "convert-to-case"
-    }
   }
 ]

@@ -288,7 +288,7 @@ at layout time, and no width budget for CJK/long words.
   (`string.length` width assumptions on fullwidth text).
 - Fixture/test: structurally avoided here — text is plain SVG `<text>`
   measured by deterministic metrics (`src/text-metrics.ts`), never
-  `foreignObject`; PNG embeds pinned DejaVu fonts so rasterization cannot
+  `foreignObject`; PNG embeds pinned fonts (DejaVu default plus the built-in style faces) so rasterization cannot
   font-substitute. Guards: Tier 1 `LABEL_OVERFLOW`, `labelLegibility` ≥85%
   gate, CJK fullwidth handling
   (`src/__tests__/ascii-cjk-width.test.ts`, upstream #119 class), ER/class

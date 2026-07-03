@@ -272,9 +272,9 @@
       "family": "pie",
       "status": "full-harvest-accounted",
       "consideredBlocks": 14,
-      "importedCases": 10,
-      "importedBlocks": 10,
-      "excludedBlocks": 4,
+      "importedCases": 11,
+      "importedBlocks": 11,
+      "excludedBlocks": 3,
       "deferredBlocks": 0,
       "files": [
         {

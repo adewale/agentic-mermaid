@@ -540,9 +540,11 @@ describe('root docs consistency', () => {
 describe('spec honesty', () => {
   test('spec no longer claims a seed drives layout', () => {
     const spec = readFileSync(join(REPO, 'AGENT_NATIVE.md'), 'utf8')
-    // The withSeededRandom apparatus is gone; spec should say determinism is structural.
+    // The withSeededRandom apparatus is gone; spec should say determinism is
+    // structural. "layout seed" (not bare "seed"): the render option seed is
+    // a STYLE seed that re-rolls ink, and the spec must not deny it exists.
     expect(spec).not.toContain('withSeededRandom(ctx.rng, fn)')
-    expect(spec.toLowerCase()).toContain('there is no seed')
+    expect(spec.toLowerCase()).toContain('there is no layout seed')
   })
 
   test('spec does not expose removed VerifyOptions layoutContext API', () => {

@@ -30,7 +30,9 @@ regenerate an existing diagram from scratch when a typed edit path exists.
 New diagrams: author Mermaid source directly, then parse, verify, and render.
 Existing structured diagrams: parse → narrow (${STRUCTURED_NARROWERS}) → mutate
 → verify → serialize. Run verify at every commit point and never serialize a
-diagram whose verify result you have not inspected.
+diagram whose verify result you have not inspected. For styled output pass
+\`style\` (a name like \`hand-drawn\`, a JSON record, or a stack) and \`seed\`
+to any render call — \`npx agentic-mermaid styles\` lists what is available.
 
 Useful entrypoints:
 

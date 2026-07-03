@@ -1,8 +1,10 @@
 # Styles: the composable look system — naming, model, and rollout plan
 
-Status: plan, v2 (PR #60 ships the engine; this document plans the product
-surface). Nothing has been released — no npm versions, no tags — so every
-decision below is free: we are designing the API we want, not migrating one.
+Status: v2, largely executed on PR #60 — the engine, the consolidated
+`style` primitive, and the product surfaces (CLI `--style`/`--seed` +
+`am styles`, MCP style args + typed SDK declaration, editor style picker
+with seed re-roll, agent docs) have landed; steps below are annotated.
+Nothing has shipped to npm yet, so remaining decisions stay free.
 
 The engine work is done: every diagram family lowers to a SceneGraph of
 semantic marks, and pluggable backends serialize those marks — crisp (the
@@ -18,11 +20,11 @@ anticipated can emerge.
 
 ## 1. One concept: style. A theme is a kind of style.
 
-Today the repo has three overlapping vocabularies: *themes* (the `THEMES`
-palette record + `themeVariables` + color options), *role style options*
-(`RenderOptions.style: DiagramStyleOptions`), and the new unreleased
-*aesthetics*. Three words, three shapes, three precedence stories — for what
-is one question: **how should this diagram look?**
+The repo used to have three overlapping vocabularies: *themes* (the
+`THEMES` palette record + `themeVariables` + color options), *role style
+options* (the old `RenderOptions.style: DiagramStyleOptions`), and the
+pre-consolidation *aesthetics*. Three words, three shapes, three precedence
+stories — for what is one question: **how should this diagram look?**
 
 We collapse them into one primitive:
 

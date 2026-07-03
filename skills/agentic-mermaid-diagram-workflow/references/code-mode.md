@@ -45,7 +45,7 @@ mermaid.renderMermaidSVG(input, { security?: 'default'|'strict', idPrefix?, gant
 
 Agentic Mermaid outputs SVG, PNG, ASCII, Unicode, and JSON layout. In Code Mode, render SVG and text through `mermaid.*`: `renderMermaidASCII(input, { useAscii: true })` returns ASCII and `useAscii: false` returns Unicode box-drawing text. Use the narrow MCP `render_png` helper or host/library code for PNG binary output; JSON layout is available on `verifyMermaid(...).layout` and through the CLI/library layout APIs. `MermaidRuntimeConfig` matches the runtime config surface: arbitrary Mermaid config keys plus `theme`, `fontFamily`, `themeVariables`, `timeline`, `xyChart`, `gantt`, `useMaxWidth`, `useWidth`, and `themeCSS`. `ganttToday` is a render option, not a clock read; pass it when a Gantt `todayMarker` should render.
 
-All SDK methods are synchronous and pure. Code Mode does not support `async`/`await`, Promise jobs, or dynamic import. Layout is deterministic; there is no seed.
+All SDK methods are synchronous and pure. Code Mode does not support `async`/`await`, Promise jobs, or dynamic import. Layout is deterministic; there is no layout seed (the render option `seed` only re-rolls ink of styled looks — `style: name | record | stack` — and never moves geometry).
 
 ## New diagram pattern
 

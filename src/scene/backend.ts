@@ -17,7 +17,7 @@ import type { StyleSpec } from './style-registry.ts'
 export interface StyleBackendContext {
   /** User-supplied deterministic re-roll seed (RenderOptions.seed). */
   seed: number
-  /** The selected aesthetic (undefined on the crisp default path). */
+  /** The selected style (undefined on the crisp default path). */
   style?: StyleSpec
 }
 

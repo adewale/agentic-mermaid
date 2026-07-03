@@ -64,6 +64,12 @@ Top-level:
 - `fontFamily`
 - `fontSize`
 
+(The composable look system is a *render option*, not Mermaid config:
+`RenderOptions.style` — name | JSON record | stack — and
+`RenderOptions.seed`; see `docs/style-authoring.md`. Mermaid
+`themeVariables` and explicit color options still win over a style's
+palette, preserving Mermaid compatibility.)
+
 Family-specific:
 
 - `xyChart.width`, `xyChart.height`, `xyChart.chartOrientation`, `xyChart.showDataLabel`, `xyChart.titlePadding`, `xyChart.xAxisLabelPadding`, `xyChart.yAxisLabelPadding`, `xyChart.plotReservedSpacePercent`, `xyChart.plotColorPalette`, `xyChart.useMaxWidth`, `xyChart.useWidth`

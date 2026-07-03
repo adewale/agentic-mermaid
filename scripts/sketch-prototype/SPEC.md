@@ -1,6 +1,6 @@
 # Hand-rendered (NPR) styles for agentic-mermaid — build specification
 
-Status: design spec (prototype lives alongside in `scripts/sketch-prototype/`).
+Status: design spec, implemented — the engine shipped in `src/scene/` behind the public `style`/`seed` render options (§11 tracks phase status); the prototype alongside remains the research record.
 Goal: make diagram *aesthetic* a first-class, pluggable dimension — hand-drawn,
 pen-and-ink, Tufte, brush, sumi-e, blueprint, watercolor, stipple, comic,
 chalkboard, woodcut, risograph, crayon, … — across **all** diagram families,
@@ -79,7 +79,7 @@ its positioned result to SceneGraph marks, and the selected backend serializes
 those marks.
 
 The current Agentic Mermaid crisp renderer is implemented by `DefaultBackend`
-(selected by public `aesthetic:'crisp'`); rough.js is implemented by
+(selected by public `style:'crisp'`); rough.js is implemented by
 `RoughBackend`; pressure-sensitive freehand strokes are a native `HybridBackend`
 capability. They are peers behind the same semantic contract, not "default SVG"
 plus an after-the-fact effect.
@@ -238,7 +238,7 @@ Built-in backends:
 
 | Backend | Role | Notes |
 |---|---|---|
-| `DefaultBackend` (`id:'default'`) | Agentic Mermaid crisp SVG | Byte-identical default path selected by `aesthetic:'crisp'`; owns precise SVG primitives, current themes, markers, labels, and accessibility. |
+| `DefaultBackend` (`id:'default'`) | Agentic Mermaid crisp SVG | Byte-identical default path selected by `style:'crisp'`; owns precise SVG primitives, current themes, markers, labels, and accessibility. |
 | `RoughBackend` (`id:'rough'`) | rough.js-backed sketch geometry | Uses rough.js OpSets for sketchy lines, polygons, ellipses, arbitrary paths, hachure/cross-hatch/dots; Agentic Mermaid still owns semantics and output guarantees. |
 | `HybridBackend` (`id:'hybrid'`) | rough/native NPR composition | Delegates sketch strokes/fills to `RoughBackend`, then adds native marks rough.js does not provide: watercolor, blue-noise stipple, halftone, perfect-freehand ribbons, brush ribbons, grain, misregistration, label halos. |
 
@@ -1176,7 +1176,7 @@ semantic dispatch.
    (src/scene/style-registry.ts) with registerStyle (consolidated from the
    interim registerAesthetic naming), public RenderOptions.style/seed,
    style×theme composition via stacking, and
-   styled-output.test.ts goldens (16 fixtures × 7 aesthetics).*
+   styled-output.test.ts goldens (16 fixtures × 7 styles).*
 4. **`HybridBackend` extensions** (`freehand` via perfect-freehand,
    `brush`/`wash`/`stipple`/`halftone`, compositors, reviewed font assets such
    as Excalifont) → ship the remaining styles. *Status: PARTIALLY IMPLEMENTED —

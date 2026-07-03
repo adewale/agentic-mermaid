@@ -93,14 +93,17 @@ export function parsePieChart(lines: string[]): PieChart {
       if (!NUMBER_RE.test(rawValue)) {
         throw new Error(
           `Pie slice "${label}" has invalid value "${rawValue}". ` +
-            'Values must be positive numbers (greater than zero).',
+            'Values must be non-negative numbers.',
         )
       }
       const value = Number.parseFloat(rawValue)
-      if (!Number.isFinite(value) || value <= 0) {
+      // Upstream parity: a zero-value slice is legal (renders as a zero-width
+      // wedge whose label still appears in the legend); only negatives and
+      // non-numbers are rejected.
+      if (!Number.isFinite(value) || value < 0) {
         throw new Error(
           `Pie slice "${label}" has invalid value "${rawValue}". ` +
-            'Values must be positive numbers (greater than zero).',
+            'Values must be non-negative numbers.',
         )
       }
       entries.push({ label, value })

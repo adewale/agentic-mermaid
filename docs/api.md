@@ -53,6 +53,11 @@ deterministic same-machine output: DejaVu Sans (default) plus the faces the
 built-in styles reference (Caveat, EB Garamond, Architects Daughter, Share
 Tech Mono — see `assets/fonts/FONT-LICENSES.md`). A style whose `font` is
 neither bundled nor supplied via `fontDirs` rasterizes with DejaVu Sans.
+Note for third-party rasterizers: the SVG declares fonts as
+`font-family: var(--font, 'Face')`, and static rasterizers (resvg, librsvg)
+do not resolve CSS custom properties — `renderMermaidPNG` inlines the
+resolved family before rasterizing; do the same if you feed the raw SVG to
+your own pipeline.
 
 ### ASCII / Unicode
 

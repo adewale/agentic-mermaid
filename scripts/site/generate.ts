@@ -462,7 +462,7 @@ export async function generateHtml(options: GenerateHtmlOptions = {}): Promise<s
       display: flex;
       gap: 0.3rem;
     }
-    /* Hide inline theme pills on smaller screens, show only "15 Themes" dropdown */
+    /* Hide inline theme pills on smaller screens, show only the themes dropdown */
     @media (max-width: 1024px) {
       .theme-pills-inline {
         display: none;
