@@ -72,7 +72,10 @@ describe('mermaid-js docs corpus (271 examples, 12 families)', () => {
     timeline:     { minParse: 1.00, minVerify: 1.00, minRoundTrip: 1.00 },
     journey:      { minParse: 1.00, minVerify: 1.00, minRoundTrip: 1.00 },
     xychart:      { minParse: 1.00, minVerify: 1.00, minRoundTrip: 1.00 },
-    architecture: { minParse: 1.00, minVerify: 1.00, minRoundTrip: 1.00 },
+    // minVerify 0.50: 3/6 official architecture examples use alignment
+    // edges the local render parser rejects — verify now honestly reports
+    // RENDER_FAILED for them (ledgered in divergences.json).
+    architecture: { minParse: 1.00, minVerify: 0.50, minRoundTrip: 1.00 },
     pie:          { minParse: 1.00, minVerify: 1.00, minRoundTrip: 1.00 },
     quadrant:     { minParse: 1.00, minVerify: 1.00, minRoundTrip: 1.00 },
     // Gantt entries were appended from syntax/gantt.md (11 unique examples,

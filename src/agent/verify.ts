@@ -92,10 +92,14 @@ export function verifyMermaid(input: ValidDiagram | string, opts: VerifyOptions 
  * verify-before-commit and shipped unrenderable quadrant/architecture
  * diagrams). A clean verify now proves the canonical source actually renders.
  * Skipped when verify already failed — the render error would only repeat a
- * diagnosis the caller already has to act on.
+ * diagnosis the caller already has to act on — and when the caller
+ * suppressed ANY error-severity code: suppression means "I acknowledge this
+ * failure class, proceed", and the gate must not resurrect the acknowledged
+ * failure under a different name (e.g. suppress UNRESOLVABLE_SCHEDULE on a
+ * gantt whose render still throws for exactly that reason).
  */
 function withRenderParity(input: ValidDiagram | string, result: VerifyResult, opts: VerifyOptions): VerifyResult {
-  if (!result.ok || (opts.suppress ?? []).includes('RENDER_FAILED')) return result
+  if (!result.ok || (opts.suppress ?? []).some(code => code === 'RENDER_FAILED' || WARNING_SEVERITY[code] === 'error')) return result
   const source = typeof input === 'string' ? input : serializeMermaid(input)
   try {
     renderMermaidSVG(source)
