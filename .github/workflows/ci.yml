@@ -107,6 +107,12 @@ jobs:
       - name: Run single-binary E2E tests
         run: cd e2e && bun test single-binary.e2e.test.ts --timeout 180000
 
+      - name: Run dist-artifact differential fuzz (built bundle under plain Node)
+        # Builds dist/ and fuzzes the shipped bundle under Node against the
+        # source build (crash parity across families + byte-equality on
+        # flowcharts). The runner's preinstalled `node` satisfies findNodeBinary.
+        run: cd e2e && bun test dist-artifact-fuzz.e2e.test.ts --timeout 400000
+
       - name: Run browser E2E tests
         run: cd e2e && bun test browser.test.ts --timeout 600000
 
