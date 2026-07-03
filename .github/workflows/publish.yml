@@ -14,10 +14,17 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+        with:
+          # Full history so the golden-drift gate can diff the release commit
+          # (it degrades to HEAD-diff logic outside of `push` events).
+          fetch-depth: 0
 
       - name: Setup Bun
         uses: oven-sh/setup-bun@v1
         with:
+          # Pin to the runtime ci.yml validates on. ci.yml documents that
+          # `latest` moved underneath a PR and made coverage runs flaky, so the
+          # release path must not ship on a runtime CI calls known-bad.
           bun-version: 1.3.13
 
       - name: Setup Node.js (for npm publish)
@@ -29,9 +36,27 @@ jobs:
       - name: Install dependencies
         run: bun install
 
+      # --- Release gate: mirror ci.yml's deterministic `test` job so a tagged
+      # release cannot publish a commit that would fail CI. (The browser/CLI
+      # e2e lane still runs on main via ci.yml; it exercises the source bins,
+      # not the npm artifact.)
       - name: Run tests
         run: bun test src/__tests__/
 
+      - name: Type check
+        run: bun x tsc --noEmit
+
+      - name: Check README hero image is current with the renderer
+        run: bun run hero:check
+
+      - name: Check the Workers Static Assets website is current
+        run: bun run website:check
+
+      - name: Golden snapshot drift gate
+        run: bun run scripts/ci/golden-drift.ts
+
+      - name: Incremental mutation lane (faithfulness + ranking core)
+        run: npx stryker run stryker.incremental.config.json
 
       - name: Build distributable
         run: bun run build

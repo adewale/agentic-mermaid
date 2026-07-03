@@ -77,6 +77,7 @@ co-locates them.
 | [`contributing/visual-review-evidence.md`](./contributing/visual-review-evidence.md) | Which reproducible visual artifacts are required for layout/rendering changes. |
 | [`contributing/diagram-family-citizenship.md`](./contributing/diagram-family-citizenship.md) | Enforced good-citizen checklist and matrix for family/surface drift (issue #41). |
 | [`contributing/harvesting-upstream-tests.md`](./contributing/harvesting-upstream-tests.md) | How to vendor upstream/fork test suites into an executable compatibility bench. |
+| [`contributing/releasing.md`](./contributing/releasing.md) | How to cut an npm release (GitHub Release → provenance publish) and flip the "published" copy. |
 | [`layout-characterization/README.md`](./layout-characterization/README.md) | Layout and visual testing approach: properties, contact sheets, raster contracts, and approval artifacts. |
 | [`project/design.md`](./project/design.md) | Historical/design notes (editor UI design system). |
 | [`project/divergences.md`](./project/divergences.md) | Deliberate divergences and guardrails. |

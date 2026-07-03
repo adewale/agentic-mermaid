@@ -4,7 +4,7 @@
 
 Agentic Mermaid is an open-source Mermaid rendering and editing toolkit, forked from [`lukilabs/beautiful-mermaid`](https://github.com/lukilabs/beautiful-mermaid), for producing deterministic **SVG, PNG, ASCII, Unicode, and JSON layout** outputs plus agent-verifiable structured edits.
 
-Published as `agentic-mermaid`; the GitHub repository and Pages path currently remain `adewale/beautiful-mermaid` / `https://adewale.github.io/beautiful-mermaid/`.
+Will be published to npm as `agentic-mermaid` — **not yet on npm; install from source for now** (see [Installation](#installation)). The GitHub repository and Pages path currently remain `adewale/beautiful-mermaid` / `https://adewale.github.io/beautiful-mermaid/`.
 
 ![Agentic Mermaid: Mermaid source plus typed edit ops on the left, the verified SVG render in the middle, and the same diagram as ASCII on the right](assets/hero.png)
 
@@ -40,23 +40,30 @@ Agents should not guess from pixels, concatenate strings, or regenerate whole di
 
 ## Installation
 
+> **Status:** the npm package is not yet published. Install from source until
+> `agentic-mermaid@0.1.0` lands on npm.
+
 ```bash
-npm install agentic-mermaid
-# or
-bun add agentic-mermaid
-# or
-pnpm add agentic-mermaid
+git clone https://github.com/adewale/beautiful-mermaid
+cd beautiful-mermaid
+bun install
+bun run build
 ```
 
-CLI/MCP binaries installed from the package:
+From a source checkout, run the CLI/MCP bins through Bun:
 
 ```bash
+bun run bin/am.ts --help
+bun run bin/agentic-mermaid-mcp.ts   # MCP stdio server
+```
+
+Once published, install the package and use the Node-runnable bins directly:
+
+```bash
+npm install agentic-mermaid       # or: bun add agentic-mermaid / pnpm add agentic-mermaid
 am --help
-agentic-mermaid --help
 agentic-mermaid-mcp
 ```
-
-Published package bins are Node-runnable; `bin/*.ts` remains available for local Bun development.
 
 ## Output quick starts
 
@@ -119,7 +126,7 @@ am preview diagram.mmd --security strict --open
 am mutate diagram.mmd --op '{"kind":"add_node","id":"Cache","label":"Cache"}' --json
 ```
 
-Zero-install prompt for a coding agent: read `https://adewale.github.io/beautiful-mermaid/llms.txt` and follow the parse → narrow → mutate → verify → serialize workflow. To wire Agentic Mermaid into another repo, run `npx agentic-mermaid init-agent`; it writes a non-clobbering `AGENTS.md` section, root `skills/` bundle, and `.mcp.json` sample.
+Zero-install prompt for a coding agent: read `https://adewale.github.io/beautiful-mermaid/llms.txt` and follow the parse → narrow → mutate → verify → serialize workflow. To wire Agentic Mermaid into another repo, run `am init-agent` from a source build (or `npx agentic-mermaid init-agent` once the package is published); it writes a non-clobbering `AGENTS.md` section, root `skills/` bundle, and `.mcp.json` sample.
 
 Use strict `preview` for human inspection and `mutate --op/--ops` for verified one-shot or batched edits.
 

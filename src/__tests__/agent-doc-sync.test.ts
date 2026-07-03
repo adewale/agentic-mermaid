@@ -728,10 +728,13 @@ describe('shipped distribution artifacts present', () => {
     expect(pkg.files).toContain('assets/fonts/')
     for (const doc of ['TODO.md', 'SECURITY.md', 'docs/', 'skills/', 'evals/']) expect(pkg.files).toContain(doc)
     for (const removedRootDoc of ['FEATURES.md', 'FORK_DIFFERENCES.md', 'QUALITY.md']) expect(pkg.files).not.toContain(removedRootDoc)
+    // Paths are in npm's canonical (no `./`) form after `npm pkg fix`; both
+    // forms resolve identically at install, and the canonical form keeps
+    // `npm publish` from emitting an auto-correct warning.
     expect(pkg.bin).toEqual({
-      am: './dist/am.js',
-      'agentic-mermaid': './dist/am.js',
-      'agentic-mermaid-mcp': './dist/agentic-mermaid-mcp.js',
+      am: 'dist/am.js',
+      'agentic-mermaid': 'dist/am.js',
+      'agentic-mermaid-mcp': 'dist/agentic-mermaid-mcp.js',
     })
     expect(pkg.publishConfig).toMatchObject({ access: 'public', provenance: true })
     expect(pkg.engines.node).toBe('>=18')
