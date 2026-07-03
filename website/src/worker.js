@@ -54,6 +54,14 @@ function withHeaders(response, pathname) {
 export default {
   async fetch(request, env) {
     const url = new URL(request.url)
+
+    // Canonical host redirect. This must run before Static Assets so the
+    // homepage and other asset-backed paths do not serve duplicate www content.
+    if (url.hostname === 'www.agentic-mermaid.dev') {
+      url.hostname = 'agentic-mermaid.dev'
+      return Response.redirect(url.toString(), 301)
+    }
+
     const pathname = url.pathname.replace(/\/$/, '') || '/'
 
     const redirectTo = redirects.get(url.pathname) || redirects.get(pathname)

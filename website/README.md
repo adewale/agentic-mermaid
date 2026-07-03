@@ -1,14 +1,14 @@
 # Agentic Mermaid website
 
-Cloudflare Workers Static Assets site for `agenticmermaid.dev`, generated from website-owned source files and aligned to the website spec in PR #27.
+Cloudflare Workers Static Assets site for `agentic-mermaid.dev`, generated from website-owned source files and aligned to the website spec in PR #27.
 
 ## Shape
 
 - `source/` — website-owned source pages, assets, and diagram seeds.
 - `public/` — built static assets served by Cloudflare's asset binding.
-- `src/worker.js` — tiny Worker for the dynamic fallback surface (`/mcp` returns an honest 501 until the optional hosted MCP is implemented). Static asset requests stay on Cloudflare's asset path.
-- `wrangler.jsonc` — Workers Static Assets config with an `ASSETS` binding. Cloudflare recommends JSONC for new Wrangler projects.
-- `build.ts` — converts `website/source/` HTML into clean production routes, generates the agent surfaces required by the spec, and emits `_headers` / `_redirects` for the static hot path.
+- `src/worker.js` — Worker-first shell for canonical host/path redirects, security/cache headers, and the dynamic fallback surface (`/mcp` returns an honest 501 until the optional hosted MCP is implemented).
+- `wrangler.jsonc` — Workers Static Assets config with custom domains, an `ASSETS` binding, and `run_worker_first: true` so redirects and headers wrap asset responses.
+- `build.ts` — converts `website/source/` HTML into clean production routes, generates the agent surfaces required by the spec, and emits `_headers` / `_redirects` for local/static parity.
 
 ## Routes
 
@@ -41,6 +41,7 @@ Direct Wrangler (this project intentionally uses `wrangler@latest`; `wrangler.js
 ```bash
 cd website
 WRANGLER_SEND_METRICS=false npx --yes wrangler@latest dev --port 9095 --ip 127.0.0.1
+WRANGLER_SEND_METRICS=false npx --yes wrangler@latest deploy
 ```
 
 The static site does not expose hosted Code Mode, arbitrary code execution, or a REST render API. The optional hosted MCP route is not enabled in this preview; the worker returns a 501 with local-first guidance at `/mcp`.
