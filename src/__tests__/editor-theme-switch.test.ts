@@ -8,7 +8,9 @@
  * the render theme while the chrome triplet stays pinned to the brand.
  *
  * Serves website/public like website-browser-a11y.test.ts, and skips the same
- * way when Playwright's Chromium is not installed (CI's unit job).
+ * way when Playwright's Chromium is not installed (CI's unit job). Set
+ * AM_CHROMIUM=/path/to/chrome to run against a system Chromium when the
+ * pinned Playwright browser build is absent (e.g. sandboxed containers).
  */
 import { afterAll, beforeAll, describe, expect, test } from 'bun:test'
 import { existsSync } from 'node:fs'
@@ -22,10 +24,12 @@ let server: ReturnType<typeof Bun.serve>
 let browser: Browser
 let baseUrl = ''
 
-const haveBrowser = (() => {
-  try { return existsSync(chromium.executablePath()) } catch { return false }
+const chromiumExecutable = (() => {
+  const override = process.env.AM_CHROMIUM
+  if (override) return existsSync(override) ? override : null
+  try { return existsSync(chromium.executablePath()) ? undefined : null } catch { return null }
 })()
-const describeBrowser = haveBrowser ? describe : describe.skip
+const describeBrowser = chromiumExecutable === null ? describe.skip : describe
 
 const mime: Record<string, string> = {
   '.html': 'text/html; charset=utf-8',
@@ -54,11 +58,25 @@ const TOKYO_ARROW = 'rgb(122, 162, 247)'      // #7AA2F7
 const PINE_LIGHT = '#1B6E52'
 const PINE_DARK = '#6FC2A2'
 
-async function arrowFill(page: Page) {
-  return page.evaluate(() => {
-    const poly = document.querySelector('.preview-inner svg marker polygon')
-    return poly ? getComputedStyle(poly).fill : ''
-  })
+/**
+ * Wait until the preview's arrowheads render in `want`, then return.
+ *
+ * One primitive for every diagram-state wait, including the very first render:
+ * "the arrow is terracotta" IS the readiness condition, so there is no separate
+ * existence wait. Deliberately waitForFunction, never waitForSelector — the
+ * arrowhead lives inside <marker> defs, which have no bounding box, so
+ * Playwright's selector engine considers it permanently invisible and a
+ * default visibility wait would hang on an already-correct render.
+ */
+async function expectArrowFill(page: Page, want: string) {
+  await page.waitForFunction(
+    (fill) => {
+      const poly = document.querySelector('.preview-inner svg marker polygon')
+      return poly !== null && getComputedStyle(poly).fill === fill
+    },
+    want,
+    { timeout: 15_000 },
+  )
 }
 
 async function chrome(page: Page) {
@@ -89,7 +107,8 @@ describeBrowser('editor theme switcher re-themes the diagram, never the chrome',
       },
     })
     baseUrl = `http://${server.hostname}:${server.port}`
-    browser = await chromium.launch({ headless: true })
+    // null (no usable browser) never reaches here: describeBrowser skips first.
+    browser = await chromium.launch({ headless: true, executablePath: chromiumExecutable ?? undefined })
   }, 30_000)
 
   afterAll(async () => {
@@ -100,38 +119,21 @@ describeBrowser('editor theme switcher re-themes the diagram, never the chrome',
   test('Paper → tokyo-night → Paper tracks in the artwork while the chrome stays Kiln', async () => {
     const page = await browser.newPage({ viewport: { width: 1440, height: 900 } })
     await page.goto(baseUrl + '/editor/', { waitUntil: 'networkidle' })
-    // 'attached', not the default 'visible': <marker> content has no bounding
-    // box, so a visibility wait never resolves even once the render is in.
-    await page.waitForSelector('.preview-inner svg marker polygon', { state: 'attached', timeout: 15_000 })
 
     // Default render theme is Paper: terracotta arrowheads, light Kiln chrome.
-    expect(await arrowFill(page)).toBe(PAPER_ARROW)
+    await expectArrowFill(page, PAPER_ARROW)
     expect(await chrome(page)).toEqual({ accent: PINE_LIGHT, bg: '#F8F4F0', scheme: 'light' })
 
     // Switching to a dark render theme re-themes the diagram…
     await pickTheme(page, 'tokyo-night')
-    await page.waitForFunction(
-      (want) => {
-        const poly = document.querySelector('.preview-inner svg marker polygon')
-        return poly !== null && getComputedStyle(poly).fill === want
-      },
-      TOKYO_ARROW,
-      { timeout: 10_000 },
-    )
+    await expectArrowFill(page, TOKYO_ARROW)
     // …while the shell keeps the light Kiln brand: the user's colour-mode
     // toggle owns the chrome scheme, the diagram theme never does.
     expect(await chrome(page)).toEqual({ accent: PINE_LIGHT, bg: '#F8F4F0', scheme: 'light' })
 
     // And back: the artwork returns to terracotta, the chrome never moved.
     await pickTheme(page, 'paper')
-    await page.waitForFunction(
-      (want) => {
-        const poly = document.querySelector('.preview-inner svg marker polygon')
-        return poly !== null && getComputedStyle(poly).fill === want
-      },
-      PAPER_ARROW,
-      { timeout: 10_000 },
-    )
+    await expectArrowFill(page, PAPER_ARROW)
     expect(await chrome(page)).toEqual({ accent: PINE_LIGHT, bg: '#F8F4F0', scheme: 'light' })
 
     // The dark-mode toggle is what re-grounds the chrome (to Charcoal + dark
@@ -143,14 +145,7 @@ describeBrowser('editor theme switcher re-themes the diagram, never the chrome',
       { timeout: 5_000 },
     )
     expect((await chrome(page)).scheme).toBe('dark')
-    await page.waitForFunction(
-      (want) => {
-        const poly = document.querySelector('.preview-inner svg marker polygon')
-        return poly !== null && getComputedStyle(poly).fill === want
-      },
-      PAPER_ARROW,
-      { timeout: 10_000 },
-    )
+    await expectArrowFill(page, PAPER_ARROW)
     await page.close()
   }, 60_000)
 })
