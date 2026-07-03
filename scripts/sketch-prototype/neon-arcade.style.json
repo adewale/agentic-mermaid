@@ -1,0 +1,19 @@
+{
+  "name": "neon-arcade",
+  "blurb": "1980s synthwave aesthetic: bright neon strokes on dark midnight blue, inspired by arcade cabinet screens and cyberpunk culture.",
+  "colors": {
+    "bg": "#0a0e27",
+    "fg": "#e8e8ff",
+    "line": "#ff10f0",
+    "accent": "#00ffff",
+    "muted": "#8a68cc",
+    "surface": "#1a1f3a",
+    "border": "#ff10f0"
+  },
+  "font": "Courier",
+  "stroke": "crisp",
+  "strokeWidth": 2.0,
+  "fill": "solid",
+  "intent": "premium",
+  "mono": false
+}
