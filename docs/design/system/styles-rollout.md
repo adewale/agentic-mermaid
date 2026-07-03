@@ -24,13 +24,18 @@ reach for, and the word the docs, CLI, and MCP schema should share. Nothing
 has been published to npm from this branch, so the rename costs nothing.
 
 The naming collision with the existing `RenderOptions.style`
-(`DiagramStyleOptions` role overrides) is resolved by **unifying** the two —
-they were always the same concept at different depths:
+(`DiagramStyleOptions` role overrides) dissolves once we note that nothing
+has ever been published — the npm name has no releases, there are no git
+tags, and the only callers of the current option are in this repo. There is
+no legacy to preserve, so instead of a compatibility union we **subsume**
+role overrides into `StyleSpec`: every field is optional (backend defaults
+to `'default'`), and the role keys (`text`/`node`/`edge`/`group`) live on
+the spec directly.
 
 ```ts
 // after the rename
 interface RenderOptions {
-  style?: string | StyleSpec | DiagramStyleOptions
+  style?: string | StyleSpec   // one type, no discrimination needed
   seed?: number
 }
 ```
@@ -38,11 +43,14 @@ interface RenderOptions {
 - `style: 'hand-drawn'` — a registered style by name.
 - `style: { name: 'brand', backend: 'rough', colors: {…}, … }` — an inline
   custom style (see §3).
-- `style: { node: { cornerRadius: 8 } }` — the legacy role-override object,
-  unchanged behavior. Runtime discrimination is trivial: a `StyleSpec` has
-  `backend`/`name`; a role-override object has only `text|node|edge|group`.
-  `StyleSpec` gains a `roles?: DiagramStyleOptions` field, so role overrides
-  become part of a full style rather than a competing mechanism.
+- `style: { node: { cornerRadius: 8 } }` — still valid, and not a special
+  case: it is simply an anonymous style that only sets role overrides on
+  the default backend. The old `DiagramStyleOptions` shape is a subset of
+  `StyleSpec` by construction.
+
+In-repo callers of the current option (poster/characterization scripts,
+mocks, tests) are updated in the same change; anyone installing from git
+gets the new shape with the rename, before any release exists.
 
 Rename checklist: `AestheticStyle` → `StyleSpec`; `registerAesthetic/
 getAesthetic/knownAesthetics` → `registerStyle/getStyle/knownStyles`;
@@ -50,7 +58,7 @@ getAesthetic/knownAesthetics` → `registerStyle/getStyle/knownStyles`;
 styled-output baseline keys (regenerate under `[approve-goldens]`),
 `docs/style-authoring.md`, SPEC references, and the PR description. The
 internal `src/styles.ts` (`resolveRenderStyle`) keeps its name — it becomes
-the resolver for the `roles` layer.
+the resolver for the role-override layer of a style.
 
 ## 2. Styles vs themes — the user-facing model
 
