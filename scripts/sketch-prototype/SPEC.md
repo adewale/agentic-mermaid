@@ -1107,7 +1107,15 @@ semantic dispatch.
    bands / quadrant plates / xychart bars grew phantom borders). The `<path>`
    pass keeps its stroke synthesis for now: pie wedges (`fill` attr, no stroke)
    and class-styled xychart lines are exactly the semantic blindness the IR
-   resolves — passing them through would un-style pie and chart series;
+   resolves — passing them through would un-style pie and chart series.
+   **Documented consequence (PR-60 review):** marks painted ONLY via family
+   CSS classes — xychart bars are the canonical case — pass through crisp
+   under every prototype style; the prototype cannot restyle paint it cannot
+   see in attributes without reintroducing the phantom-border bug. Pinned by
+   the "class-painted xychart bars pass through unstyled" test in
+   `styles.test.ts`. The production SceneGraph lowering carries their
+   semantic paint on the marks; tonal re-rendering of class-painted chart
+   marks is phase-5 work;
    (c) preserve source `stroke-width` as a ratio on open strokes
    (`effective = style.strokeWidth × sourceWidth`, source base = 1) so thick
    edges and `linkStyle` widths survive, and inject
