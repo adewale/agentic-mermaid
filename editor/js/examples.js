@@ -464,7 +464,7 @@ function loadEditorExample(id) {
   updateCursorPos();
   scheduleRender(0);
   updateHash();
-  showToast('Loaded ' + example.label);
+  showToast('Loaded ' + example.label + '.');
 }
 
 var examplesSidebar = document.getElementById('examples-sidebar');

@@ -6,7 +6,7 @@ function writeClipboardText(value, success, failure, sourceBtn) {
   }
   navigator.clipboard.writeText(value).then(function() {
     setCopyFeedback(sourceBtn, 'ok');
-    showToast(success || 'Copied!');
+    showToast(success || 'Copied.');
     if (typeof setExportDropdownOpen === 'function') setExportDropdownOpen(false, false);
   }).catch(function() {
     setCopyFeedback(sourceBtn, 'err');

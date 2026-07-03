@@ -119,7 +119,10 @@
   --accent-press: var(--accent-hover); --ease: cubic-bezier(0.22, 1, 0.36, 1);
   --radius-card: var(--radius-lg); --radius-input: var(--radius-md);
   --control-bg: var(--surface); --control-bg-hover: var(--chip); --control-fg: var(--ink-soft); --control-border: var(--line-strong);
-  --popover-bg: var(--surface); --shadow-control: 0 0 0 1px var(--line); --shadow-popover: 0 18px 44px rgba(0,0,0,0.28);
+  --popover-bg: var(--surface); --shadow-control: 0 0 0 1px var(--line);
+  /* layered like --card-shadow: hairline ring, near shadow, far ambient — one
+     heavy blur alone reads flat */
+  --shadow-popover: 0 0 0 1px rgba(0,0,0,0.05), 0 4px 10px rgba(0,0,0,0.10), 0 18px 44px rgba(0,0,0,0.18);
   --sp-1: 4px; --sp-2: 8px; --sp-3: 12px; --sp-4: 16px; --sp-5: 20px; --sp-6: 24px; --sp-7: 32px; --sp-8: 40px; --sp-9: 56px;
   --t-display: clamp(2.7rem, 6.5vw, 4rem);
   --t-h1: clamp(2.2rem, 4.2vw, 3rem);
@@ -746,3 +749,29 @@ footer { max-width: var(--content-max); margin: 0 auto; padding: 28px var(--page
   .skip-link, .footlinks + .footlinks { display: none; }
   a { color: inherit; text-decoration-color: currentColor; }
 }
+
+/* ---- /about/design — the design-language reference. Every specimen reads the
+   live tokens (var(--…)), so this page cannot drift from the system it documents. */
+.dz-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: var(--sp-3); margin: var(--sp-4) 0 var(--sp-6); }
+.dz-swatch { border: 1px solid var(--line); border-radius: var(--radius-md); overflow: hidden; background: var(--surface); }
+.dz-swatch .chip { height: 52px; border-bottom: 1px solid var(--line); }
+.dz-swatch .meta { padding: 7px 10px; display: flex; flex-direction: column; gap: 1px; }
+.dz-swatch .meta b { font-family: var(--mono); font-size: var(--t-label); font-weight: 650; color: var(--ink); }
+.dz-swatch .meta span { font-family: var(--mono); font-size: 0.72rem; color: var(--ink-faint); }
+.dz-type-row { display: flex; align-items: baseline; gap: var(--sp-4); padding: var(--sp-3) 0; border-bottom: 1px solid var(--line); }
+.dz-type-row .spec { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dz-type-row .tok { font-family: var(--mono); font-size: var(--t-label); color: var(--ink-faint); text-align: right; white-space: nowrap; }
+.dz-radii { display: flex; gap: var(--sp-4); align-items: flex-end; flex-wrap: wrap; margin: var(--sp-4) 0; }
+.dz-radius { width: 84px; height: 56px; background: var(--surface); border: 1px solid var(--line-strong); display: grid; place-items: center; font-family: var(--mono); font-size: var(--t-label); color: var(--ink-soft); }
+.dz-nest { display: inline-grid; place-items: center; padding: 6px; border: 1px solid var(--line-strong); border-radius: var(--radius-lg); background: var(--surface); }
+.dz-nest > span { display: block; padding: 8px 14px; background: var(--chip); border-radius: calc(var(--radius-lg) - 7px); font-family: var(--mono); font-size: var(--t-label); color: var(--ink-soft); }
+.dz-shadows { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: var(--sp-5); margin: var(--sp-4) 0 var(--sp-6); }
+.dz-shadow { height: 72px; border-radius: var(--radius-lg); background: var(--surface); display: grid; place-items: center; font-family: var(--mono); font-size: var(--t-label); color: var(--ink-soft); }
+.dz-motion { display: flex; gap: var(--sp-3); align-items: center; flex-wrap: wrap; margin: var(--sp-4) 0; }
+.dz-press { min-height: var(--control-h); padding: 0 var(--control-px); border: 1px solid var(--control-border); border-radius: var(--radius-md); background: var(--control-bg); color: var(--control-fg); font-family: var(--sans); font-size: var(--t-control); font-weight: 650; cursor: pointer; transition: background var(--dur-control) var(--ease-out), transform var(--dur-press) var(--ease-out); }
+.dz-press:hover { background: var(--control-bg-hover); color: var(--ink); }
+.dz-press:active { transform: scale(0.96); }
+.dz-mark-row { display: flex; align-items: center; gap: var(--sp-4); margin: var(--sp-4) 0; }
+.dz-icons { display: flex; gap: var(--sp-4); align-items: center; color: var(--ink-soft); }
+.dz-voice li { margin-bottom: var(--sp-2); }
+.dz-voice code { font-size: 0.9em; }

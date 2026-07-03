@@ -64,7 +64,7 @@
   --bg3: color-mix(in srgb, var(--t-bg) 97%, var(--t-fg));
   --bg-hover: color-mix(in srgb, var(--t-bg) 92%, var(--t-fg));
   --foreground-5: color-mix(in srgb, var(--t-fg) 5%, var(--t-bg));
-  --border: color-mix(in srgb, var(--t-fg) 12%, var(--t-bg));
+  --border: color-mix(in srgb, var(--t-fg) 13%, var(--t-bg));   /* same 13% hairline as the site --line */
   --line-strong: color-mix(in srgb, var(--t-fg) 24%, var(--t-bg));
   --fg: var(--t-fg);
   /* Muted ramp mirrors the site shell: soft ≈80% mix, faint ≈64% mix.

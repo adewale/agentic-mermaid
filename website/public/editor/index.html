@@ -75,7 +75,7 @@
   --bg3: color-mix(in srgb, var(--t-bg) 97%, var(--t-fg));
   --bg-hover: color-mix(in srgb, var(--t-bg) 92%, var(--t-fg));
   --foreground-5: color-mix(in srgb, var(--t-fg) 5%, var(--t-bg));
-  --border: color-mix(in srgb, var(--t-fg) 12%, var(--t-bg));
+  --border: color-mix(in srgb, var(--t-fg) 13%, var(--t-bg));   /* same 13% hairline as the site --line */
   --line-strong: color-mix(in srgb, var(--t-fg) 24%, var(--t-bg));
   --fg: var(--t-fg);
   /* Muted ramp mirrors the site shell: soft ≈80% mix, faint ≈64% mix.
@@ -2250,6 +2250,24 @@ body {
   box-shadow: var(--shadow-popover);
   z-index: 3000;
 }
+
+/* Popovers enter from their trigger: one short ease-out fade/scale, with the
+   transform origin at the anchoring corner so the menu grows out of its button.
+   Exits stay instant — dismissal should never lag. The global reduced-motion
+   override in variables.css flattens these to 0.01ms. */
+@keyframes popover-in {
+  from { opacity: 0; transform: translateY(-2px) scale(0.98); }
+}
+:where(.export-dropdown, .theme-dropdown-menu, .font-popup, .color-popup).open {
+  animation: popover-in var(--dur-control) var(--ease-out);
+}
+.export-dropdown.open, .theme-dropdown-menu.open { transform-origin: top right; }
+.font-popup.open, .color-popup.open { transform-origin: top left; }
+/* The centered dialog keeps its translate while scaling in. */
+@keyframes dialog-in {
+  from { opacity: 0; transform: translate(-50%, -50%) scale(0.98); }
+}
+.shortcuts-dialog.open { animation: dialog-in var(--dur-ui) var(--ease-out); }
 :where(.preview-label, .panel-title, .verify-label, .text-output-label, .example-category-title, .font-section-label, .color-palette-title, .placeholder-kicker) {
   color: var(--fg3);
   font-family: var(--font-mono);
@@ -2550,7 +2568,7 @@ body {
         viewBox="0 0 24 24"
         fill="none"
         stroke="currentColor"
-        stroke-width="2.5"
+        stroke-width="2"
         stroke-linecap="round"
         stroke-linejoin="round"
       >
@@ -2649,7 +2667,7 @@ body {
         viewBox="0 0 24 24"
         fill="none"
         stroke="currentColor"
-        stroke-width="2.5"
+        stroke-width="2"
         stroke-linecap="round"
         stroke-linejoin="round"
       >
@@ -2779,9 +2797,9 @@ body {
         </svg>
         <span class="export-item-label">Scale</span>
         <div class="size-pills" id="size-pills" role="group" aria-label="PNG export scale">
-          <button class="size-pill" type="button" data-scale="1">1x</button>
-          <button class="size-pill" type="button" data-scale="2">2x</button>
-          <button class="size-pill active" type="button" data-scale="4">4x</button>
+          <button class="size-pill" type="button" data-scale="1">1&times;</button>
+          <button class="size-pill" type="button" data-scale="2">2&times;</button>
+          <button class="size-pill active" type="button" data-scale="4">4&times;</button>
         </div>
       </div>
     </div>
@@ -3173,6 +3191,6 @@ body {
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
 <!-- Bundled renderer -->
-<script type="module" src="/editor/editor-deb780199845.js"></script>
+<script type="module" src="/editor/editor-00e361790c72.js"></script>
 </body>
 </html>

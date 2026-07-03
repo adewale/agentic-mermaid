@@ -1936,7 +1936,7 @@ function loadEditorExample(id) {
   updateCursorPos();
   scheduleRender(0);
   updateHash();
-  showToast('Loaded ' + example.label);
+  showToast('Loaded ' + example.label + '.');
 }
 
 var examplesSidebar = document.getElementById('examples-sidebar');
@@ -2602,7 +2602,7 @@ function writeClipboardText(value, success, failure, sourceBtn) {
   }
   navigator.clipboard.writeText(value).then(function() {
     setCopyFeedback(sourceBtn, 'ok');
-    showToast(success || 'Copied!');
+    showToast(success || 'Copied.');
     if (typeof setExportDropdownOpen === 'function') setExportDropdownOpen(false, false);
   }).catch(function() {
     setCopyFeedback(sourceBtn, 'err');
@@ -2906,7 +2906,7 @@ function exportPNG() {
     var a = document.createElement('a');
     a.href = url; a.download = 'diagram.png'; a.click();
     URL.revokeObjectURL(url);
-    showToast('PNG saved (' + exportScale + 'x)');
+    showToast('PNG saved (' + exportScale + '×).');
     setExportDropdownOpen(false, false);
   });
 }
@@ -2919,7 +2919,7 @@ function exportSVG() {
   var a = document.createElement('a');
   a.href = url; a.download = 'diagram.svg'; a.click();
   URL.revokeObjectURL(url);
-  showToast('SVG saved!');
+  showToast('SVG saved.');
   setExportDropdownOpen(false, false);
 }
 
@@ -2942,7 +2942,7 @@ function copyPNG() {
   });
   navigator.clipboard.write([new ClipboardItem({ 'image/png': blobPromise })]).then(function() {
     setCopyFeedback(copyPngBtn, 'ok');
-    showToast('PNG copied (' + exportScale + 'x)');
+    showToast('PNG copied (' + exportScale + '×).');
     setExportDropdownOpen(false, false);
   }).catch(function() {
     setCopyFeedback(copyPngBtn, 'err');
