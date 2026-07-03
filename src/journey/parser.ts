@@ -124,8 +124,11 @@ export function parseJourneyDiagram(lines: string[]): JourneyDiagram {
     }
   }
 
-  if (diagram.sections.length === 0 || diagram.sections.every(section => section.tasks.length === 0)) {
-    throw new Error('Journey diagram must include at least one scored task')
+  // Upstream parity: a journey with a title/acc metadata but no tasks still
+  // renders (as its header furniture). Only a journey with NOTHING — no
+  // sections, no tasks, no title — is unrenderable.
+  if (diagram.sections.length === 0 && !diagram.title && diagram.sections.every(section => section.tasks.length === 0) && !diagram.accessibilityTitle && !diagram.accessibilityDescription) {
+    throw new Error('Journey diagram must include at least one scored task, a section, or a title')
   }
 
   return diagram

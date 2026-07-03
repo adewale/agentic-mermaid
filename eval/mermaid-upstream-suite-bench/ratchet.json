@@ -2,34 +2,63 @@
   "version": 1,
   "upstreamRevision": "a2d9686451df7c4644a3eeca20535bbd4c5776b0",
   "budgets": {
-    "importedCaseFloor": 648,
-    "importedBlockFloor": 658,
+    "importedCaseFloor": 641,
+    "importedBlockFloor": 651,
     "localGaps": {
-      "totalBlocks": 0,
-      "byReason": {},
-      "byFamily": {},
+      "totalBlocks": 7,
+      "byReason": {
+        "local-verify-gap": 7
+      },
+      "byFamily": {
+        "architecture": 4,
+        "er": 1,
+        "flowchart": 1,
+        "pie": 1
+      },
       "byFamilyReason": {
-        "architecture": {},
-        "class": {},
-        "er": {},
-        "flowchart": {},
-        "journey": {},
-        "quadrant": {},
-        "sequence": {},
-        "state": {},
-        "timeline": {},
-        "xychart": {}
+        "architecture": {
+          "local-verify-gap": 4
+        },
+        "er": {
+          "local-verify-gap": 1
+        },
+        "flowchart": {
+          "local-verify-gap": 1
+        },
+        "pie": {
+          "local-verify-gap": 1
+        }
       }
     }
   },
   "observed": {
-    "importedCases": 648,
-    "importedBlocks": 658,
+    "importedCases": 641,
+    "importedBlocks": 651,
     "localGaps": {
-      "totalBlocks": 0,
-      "byReason": {},
-      "byFamily": {},
-      "byFamilyReason": {}
+      "totalBlocks": 7,
+      "byReason": {
+        "local-verify-gap": 7
+      },
+      "byFamily": {
+        "architecture": 4,
+        "er": 1,
+        "flowchart": 1,
+        "pie": 1
+      },
+      "byFamilyReason": {
+        "architecture": {
+          "local-verify-gap": 4
+        },
+        "er": {
+          "local-verify-gap": 1
+        },
+        "flowchart": {
+          "local-verify-gap": 1
+        },
+        "pie": {
+          "local-verify-gap": 1
+        }
+      }
     }
   }
 }

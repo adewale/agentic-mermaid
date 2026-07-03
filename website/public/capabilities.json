@@ -16,7 +16,8 @@
         "add_edge",
         "remove_edge"
       ],
-      "editPolicy": "structured-when-narrowed"
+      "editPolicy": "structured-when-narrowed",
+      "example": "flowchart TD\n  A[Start] --> B{Ship?}\n  B -->|yes| C[Deploy]\n  B -->|no| D[Fix]"
     },
     {
       "id": "state",
@@ -35,7 +36,8 @@
         "set_transition_label",
         "make_composite"
       ],
-      "editPolicy": "structured-when-narrowed"
+      "editPolicy": "structured-when-narrowed",
+      "example": "stateDiagram-v2\n  [*] --> Draft\n  Draft --> Review : submit\n  Review --> [*] : approve"
     },
     {
       "id": "sequence",
@@ -51,7 +53,8 @@
         "remove_message",
         "set_message_text"
       ],
-      "editPolicy": "structured-when-narrowed"
+      "editPolicy": "structured-when-narrowed",
+      "example": "sequenceDiagram\n  participant U as User\n  participant S as Server\n  U->>S: request\n  S-->>U: response"
     },
     {
       "id": "timeline",
@@ -72,7 +75,8 @@
         "remove_event",
         "set_event_text"
       ],
-      "editPolicy": "structured-when-narrowed"
+      "editPolicy": "structured-when-narrowed",
+      "example": "timeline\n  title Roadmap\n  2025 : Alpha : Beta\n  2026 : GA"
     },
     {
       "id": "class",
@@ -93,7 +97,8 @@
         "add_note",
         "remove_note"
       ],
-      "editPolicy": "structured-when-narrowed"
+      "editPolicy": "structured-when-narrowed",
+      "example": "classDiagram\n  class Account {\n    +id: string\n    +close() void\n  }\n  Account <|-- Savings"
     },
     {
       "id": "er",
@@ -111,7 +116,8 @@
         "add_relation",
         "remove_relation"
       ],
-      "editPolicy": "structured-when-narrowed"
+      "editPolicy": "structured-when-narrowed",
+      "example": "erDiagram\n  CUSTOMER ||--o{ ORDER : places\n  ORDER {\n    string id\n  }"
     },
     {
       "id": "journey",
@@ -132,7 +138,8 @@
         "set_task_actors",
         "rename_actor"
       ],
-      "editPolicy": "structured-when-narrowed"
+      "editPolicy": "structured-when-narrowed",
+      "example": "journey\n  title Checkout\n  section Browse\n    Find product: 4: Shopper\n  section Buy\n    Pay: 3: Shopper"
     },
     {
       "id": "architecture",
@@ -153,7 +160,8 @@
         "add_edge",
         "remove_edge"
       ],
-      "editPolicy": "structured-when-narrowed"
+      "editPolicy": "structured-when-narrowed",
+      "example": "architecture-beta\n  group api(cloud)[API]\n  service db(database)[Database] in api\n  service disk(disk)[Storage] in api\n  db:L -- R:disk"
     },
     {
       "id": "xychart",
@@ -172,7 +180,8 @@
         "set_series_name",
         "reorder_series"
       ],
-      "editPolicy": "structured-when-narrowed"
+      "editPolicy": "structured-when-narrowed",
+      "example": "xychart-beta\n  title \"Revenue\"\n  x-axis [Q1, Q2, Q3]\n  y-axis \"USD\" 0 --> 100\n  bar [45, 62, 80]"
     },
     {
       "id": "pie",
@@ -190,7 +199,8 @@
         "set_slice_value",
         "reorder_slice"
       ],
-      "editPolicy": "structured-when-narrowed"
+      "editPolicy": "structured-when-narrowed",
+      "example": "pie title Plans\n  \"Free\" : 60\n  \"Pro\" : 30\n  \"Enterprise\" : 10"
     },
     {
       "id": "quadrant",
@@ -208,7 +218,8 @@
         "move_point",
         "rename_point"
       ],
-      "editPolicy": "structured-when-narrowed"
+      "editPolicy": "structured-when-narrowed",
+      "example": "quadrantChart\n  title Prioritize\n  x-axis Low Effort --> High Effort\n  y-axis Low Value --> High Value\n  Quick win: [0.2, 0.8]\n  Money pit: [0.8, 0.2]"
     },
     {
       "id": "gantt",
@@ -228,7 +239,8 @@
         "set_task_status",
         "set_task_dates"
       ],
-      "editPolicy": "structured-when-narrowed"
+      "editPolicy": "structured-when-narrowed",
+      "example": "gantt\n  title Plan\n  dateFormat YYYY-MM-DD\n  section Build\n  Implement :a1, 2026-01-05, 5d\n  Review :after a1, 2d"
     }
   ],
   "warningCodes": [
@@ -239,6 +251,11 @@
     },
     {
       "code": "UNRESOLVABLE_SCHEDULE",
+      "tier": "structural",
+      "severity": "error"
+    },
+    {
+      "code": "RENDER_FAILED",
       "tier": "structural",
       "severity": "error"
     },

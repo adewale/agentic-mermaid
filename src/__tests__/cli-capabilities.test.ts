@@ -92,3 +92,27 @@ describe('am capabilities', () => {
     for (const format of cap.outputFormats) expect(outputFormats.has(format)).toBe(true)
   })
 })
+
+describe('family examples', () => {
+  it('every built-in family ships a canonical example that parses, verifies clean, and renders', async () => {
+    const { parseMermaid } = await import('../agent/parse.ts')
+    const { verifyMermaid } = await import('../agent/verify.ts')
+    const { renderMermaidSVG } = await import('../index.ts')
+    const cap = buildCapabilities()
+    for (const family of cap.families) {
+      expect({ id: family.id, hasExample: typeof family.example === 'string' && family.example.length > 0 })
+        .toEqual({ id: family.id, hasExample: true })
+      const parsed = parseMermaid(family.example!)
+      expect({ id: family.id, parseOk: parsed.ok }).toEqual({ id: family.id, parseOk: true })
+      if (!parsed.ok) continue
+      // The example must be the family's kind, verify with ZERO warnings
+      // (it's the syntax agents copy — it must be beyond reproach), and
+      // render (implied by the verify RENDER_FAILED gate, asserted anyway).
+      expect({ id: family.id, kind: String(parsed.value.kind) }).toEqual({ id: family.id, kind: family.id })
+      const v = verifyMermaid(parsed.value)
+      expect({ id: family.id, ok: v.ok, warnings: v.warnings.map(w => w.code) })
+        .toEqual({ id: family.id, ok: true, warnings: [] })
+      expect(renderMermaidSVG(family.example!).length).toBeGreaterThan(100)
+    }
+  })
+})

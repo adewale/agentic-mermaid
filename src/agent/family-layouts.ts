@@ -82,6 +82,13 @@ import type { GanttEndExpr, GanttLayoutResult, GanttModel, GanttModelSection, Ga
 
 function f(n: number): Finite { return toFinite(Math.round(n)) }
 
+/** Round a span against its rounded start. Rounding x and width
+ *  independently can shift the far edge ±1px away from rounded edge
+ *  endpoints, which fires the class/ER anchor tripwires (TOL 0.5) on
+ *  geometry that sits exactly on-boundary pre-rounding — observed live on
+ *  an onboarding-probe ER diagram. Used where edgeAnchors checks run. */
+function fSpan(start: number, length: number): Finite { return toFinite(Math.round(start + length) - Math.round(start)) }
+
 /**
  * Family-aware RenderedLayout adapter. Dispatches on body kind; for the
  * renderable non-graph families it layouts from d.canonicalSource (which is
@@ -115,7 +122,7 @@ function classToRendered(d: ValidDiagram, opts: { debug?: boolean } = {}): Rende
   try {
     const positioned = layoutClassDiagram(parseClassDiagram(toMermaidLines(d.canonicalSource)))
     const nodes: RenderedLayoutNode[] = positioned.classes.map(c => ({
-      id: c.id, x: f(c.x), y: f(c.y), w: f(c.width), h: f(c.height), shape: 'rectangle', label: c.label,
+      id: c.id, x: f(c.x), y: f(c.y), w: fSpan(c.x, c.width), h: fSpan(c.y, c.height), shape: 'rectangle', label: c.label,
     }))
     const boxById = new Map(positioned.classes.map(c => [c.id, { x: c.x, y: c.y, width: c.width, height: c.height }]))
     const edges: RenderedLayoutEdge[] = positioned.relationships.map((r, i) => ({
@@ -134,7 +141,7 @@ function erToRendered(d: ValidDiagram, opts: { debug?: boolean } = {}): Rendered
   try {
     const positioned = layoutErDiagram(parseErDiagram(toMermaidLines(d.canonicalSource)))
     const nodes: RenderedLayoutNode[] = positioned.entities.map(e => ({
-      id: e.id, x: f(e.x), y: f(e.y), w: f(e.width), h: f(e.height), shape: 'rectangle', label: e.label,
+      id: e.id, x: f(e.x), y: f(e.y), w: fSpan(e.x, e.width), h: fSpan(e.y, e.height), shape: 'rectangle', label: e.label,
     }))
     const boxById = new Map(positioned.entities.map(e => [e.id, { x: e.x, y: e.y, width: e.width, height: e.height }]))
     const edges: RenderedLayoutEdge[] = positioned.relationships.map((r, i) => ({

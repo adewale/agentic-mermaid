@@ -777,6 +777,7 @@ export type WarningTier = 'structural' | 'geometric' | 'lint'
 export type Tier1WarningCode =
   | 'EMPTY_DIAGRAM' | 'EDGE_MISANCHORED' | 'OFF_CANVAS'
   | 'GROUP_BREACH' | 'UNKNOWN_SHAPE' | 'LABEL_OVERFLOW' | 'UNRESOLVABLE_SCHEDULE'
+  | 'RENDER_FAILED'
 export type Tier2WarningCode =
   | 'NODE_OVERLAP' | 'ROUTE_SELF_CROSS' | 'ROUTE_HITCH'
   | 'ROUTE_UNEXPLAINED_BEND' | 'ROUTE_LABEL_ON_SHARED_TRUNK'
@@ -803,6 +804,16 @@ export type LayoutWarning =
    * "verify ok but render throws" seam for structured gantt bodies.
    */
   | { code: 'UNRESOLVABLE_SCHEDULE'; reason: string }
+  /**
+   * The diagram parses on the agent side (possibly with unmodeled syntax
+   * preserved verbatim) but the STRICT render parser throws on its canonical
+   * source — `am render` would exit 4. Generalizes UNRESOLVABLE_SCHEDULE's
+   * "verify ok but render throws" seam-closing to every family: found live
+   * when onboarding agents followed verify-before-commit and still shipped
+   * unrenderable quadrant/architecture diagrams. `reason` carries the
+   * renderer's error message.
+   */
+  | { code: 'RENDER_FAILED'; reason: string }
   | { code: 'NODE_OVERLAP'; a: NodeId; b: NodeId; areaPx: number }
   | { code: 'ROUTE_SELF_CROSS'; edge: EdgeId; count: number }
   | { code: 'ROUTE_HITCH'; edge: EdgeId; deviationPx: number }
@@ -828,6 +839,7 @@ export type LayoutWarning =
 export const WARNING_SEVERITY: Record<WarningCode, WarningSeverity> = {
   EMPTY_DIAGRAM: 'error',
   UNRESOLVABLE_SCHEDULE: 'error',
+  RENDER_FAILED: 'error',
   EDGE_MISANCHORED: 'error',
   OFF_CANVAS: 'error',
   GROUP_BREACH: 'error',
@@ -852,6 +864,7 @@ export const WARNING_SEVERITY: Record<WarningCode, WarningSeverity> = {
 export const WARNING_TIER: Record<WarningCode, WarningTier> = {
   EMPTY_DIAGRAM: 'structural',
   UNRESOLVABLE_SCHEDULE: 'structural',
+  RENDER_FAILED: 'structural',
   EDGE_MISANCHORED: 'structural',
   OFF_CANVAS: 'structural',
   GROUP_BREACH: 'structural',

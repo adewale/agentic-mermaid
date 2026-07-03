@@ -20,7 +20,7 @@ import type {
   MutationError, Result, MutableValidDiagram,
 } from '../agent/types.ts'
 import { WARNING_SEVERITY, WARNING_TIER } from '../agent/types.ts'
-import { BUILTIN_FAMILY_METADATA, knownFamilies, getFamily } from '../agent/families.ts'
+import { BUILTIN_FAMILY_METADATA, builtinFamilyMetadata, knownFamilies, getFamily } from '../agent/families.ts'
 import type { BuiltinFamilyId } from '../agent/families.ts'
 import '../agent/families-builtin.ts'
 import { AGENT_INSTRUCTIONS } from './agent-instructions.ts'
@@ -147,8 +147,9 @@ With --json, the svg/ascii/unicode forms wrap output as {"<format>": "..."}.`,
   verify: `am verify <file|-> [--suppress A,B] [--label-cap N]
 Always emits JSON: {ok, warnings[], layout}.
 Tier-1 error codes flip ok=false:
-EMPTY_DIAGRAM, EDGE_MISANCHORED, OFF_CANVAS, GROUP_BREACH. Warning codes:
-UNKNOWN_SHAPE, LABEL_OVERFLOW (char-cap), UNRESOLVABLE_SCHEDULE,
+EMPTY_DIAGRAM, EDGE_MISANCHORED, OFF_CANVAS, GROUP_BREACH, UNRESOLVABLE_SCHEDULE,
+RENDER_FAILED (source verifies structurally but the render parser rejects it). Warning codes:
+UNKNOWN_SHAPE, LABEL_OVERFLOW (char-cap),
 NODE_OVERLAP, ROUTE_SELF_CROSS, ROUTE_HITCH, ROUTE_UNEXPLAINED_BEND, ROUTE_LABEL_ON_SHARED_TRUNK,
 ROUTE_CONTAINER_MISANCHOR, ROUTE_SHAPE_MISANCHOR, ROUTE_STALE_AFTER_NODE_MOVE,
 DUPLICATE_EDGE, UNREACHABLE_NODE, DECISION_BRANCH_UNLABELED, COMMENT_DROPPED, UNSUPPORTED_SYNTAX,
@@ -644,6 +645,9 @@ interface FamilyCapability {
   hasExtractLabels: boolean
   mutationOps: string[]
   editPolicy: FamilyEditPolicy
+  /** Minimal canonical source (header + core syntax); absent for
+   *  registered non-builtin families that don't declare one. */
+  example?: string
 }
 
 interface WarningCodeCapability {
@@ -703,6 +707,7 @@ export function buildCapabilities(): CapabilitiesEnvelope {
       hasExtractLabels: Boolean(p.extractLabels),
       mutationOps,
       editPolicy,
+      example: builtinFamilyMetadata(id)?.example,
     }
   })
   const warningCodes: WarningCodeCapability[] = (Object.keys(WARNING_SEVERITY) as WarningCode[]).map(code => ({

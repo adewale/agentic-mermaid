@@ -69,6 +69,14 @@ export function parseQuadrantChart(lines: string[]): QuadrantChart {
     // source fidelity in the agent path (which falls back to opaque for style).
     if (/^classDef\s+[A-Za-z_][\w-]*\s+.+$/i.test(line)) continue
 
+    // Mermaid-universal accessibility directives: accept and skip
+    // accTitle/accDescr lines and accDescr { … } blocks, same as classDef.
+    if (/^acc(Title|Descr)\s*:/i.test(line)) continue
+    if (/^accDescr\s*\{/i.test(line)) {
+      while (i < lines.length && !lines[i]!.includes('}')) i++
+      continue
+    }
+
     let m: RegExpMatchArray | null
 
     if ((m = line.match(TITLE_RE))) {

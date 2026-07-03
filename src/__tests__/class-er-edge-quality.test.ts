@@ -14,6 +14,8 @@
 // worth its risk. Until then, this guard keeps their edge quality from
 // silently regressing.
 import { describe, expect, it } from 'bun:test'
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
 import { parseClassDiagram } from '../class/parser.ts'
 import { layoutClassDiagram } from '../class/layout.ts'
 import { parseErDiagram } from '../er/parser.ts'
@@ -113,5 +115,19 @@ describe('ER diagram relationship edges are orthogonal and clean (ELK direct, no
     expect(defects.diagonals).toBe(0)
     expect(defects.duplicates).toBe(0)
     expect(defects.shortRoutes).toBe(0)
+  })
+})
+
+describe('rounding-consistent anchor spans', () => {
+  it('the onboarding-probe ER diagram verifies without anchor false positives', () => {
+    // Regression: erToRendered rounded x and width independently, shifting
+    // the rect edge ±1px away from rounded endpoints and firing
+    // ROUTE_SHAPE_MISANCHOR (TOL 0.5) on geometry that is exactly
+    // on-boundary pre-rounding. fSpan rounds spans against their rounded
+    // start, so anchors and edges agree.
+    const probe = JSON.parse(readFileSync(join(import.meta.dir, '..', '..', 'docs', 'pr-assets', 'onboarding-probes', 'probe-a.json'), 'utf8')) as { diagrams: { er: string } }
+    const result = verifyMermaid(probe.diagrams.er)
+    expect(result.ok).toBe(true)
+    expect(result.warnings.filter(w => w.code === 'ROUTE_SHAPE_MISANCHOR')).toEqual([])
   })
 })

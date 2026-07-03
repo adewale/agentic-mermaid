@@ -654,13 +654,14 @@ describe('skill eval manifest coverage', () => {
 describe('shipped distribution artifacts present', () => {
   test('skill bundle + workflow + examples', () => {
     // No committed Claude hooks/settings or bundled agents/worktrees may ship.
-    // An empty local .claude directory is harmless because Git does not track it.
-    if (existsSync(join(REPO, '.claude'))) {
-      const entries = readdirSync(join(REPO, '.claude'))
-      expect(entries.sort()).toEqual([])
-    }
-    expect(existsSync(join(REPO, '.claude/settings.local.json'))).toBe(false)
-    expect(existsSync(join(REPO, '.agents'))).toBe(false)
+    // Check what Git TRACKS, not what sits on disk: agent harnesses drop
+    // untracked session files (settings.local.json, task locks) into .claude/
+    // and a disk-based check fails on developer machines for files that could
+    // never ship.
+    const trackedClaude = spawnSync('git', ['ls-files', '.claude'], { cwd: REPO, encoding: 'utf8' })
+    expect((trackedClaude.stdout ?? '').trim()).toBe('')
+    const trackedAgents = spawnSync('git', ['ls-files', '.agents'], { cwd: REPO, encoding: 'utf8' })
+    expect((trackedAgents.stdout ?? '').trim()).toBe('')
     expect(existsSync(join(REPO, 'skills/README.md'))).toBe(true)
     expect(existsSync(join(REPO, 'skills/agentic-mermaid-diagram-workflow/SKILL.md'))).toBe(true)
     expect(existsSync(join(REPO, 'skills/agentic-mermaid-live-editor/SKILL.md'))).toBe(true)

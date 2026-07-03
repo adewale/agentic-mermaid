@@ -65,6 +65,15 @@ export function parsePieChart(lines: string[]): PieChart {
     const line = lines[i]!.trim()
     if (line.length === 0 || line.startsWith('%%')) continue
 
+    // Mermaid-universal accessibility directives are valid in every family:
+    // accept and skip accTitle/accDescr lines and accDescr { … } blocks
+    // (sequence models them fully; pie has no aria slot to carry them yet).
+    if (/^acc(Title|Descr)\s*:/i.test(line)) continue
+    if (/^accDescr\s*\{/i.test(line)) {
+      while (i < lines.length && !lines[i]!.includes('}')) i++
+      continue
+    }
+
     // showData may also appear as a standalone directive on its own line.
     if (/^showData\s*$/i.test(line)) {
       showData = true

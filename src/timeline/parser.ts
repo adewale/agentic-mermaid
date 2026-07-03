@@ -143,11 +143,28 @@ export function parseTimelineDiagram(lines: string[]): TimelineDiagram {
       continue
     }
 
+    // Upstream parity: a bare line (no colon) is a period with no events —
+    // mermaid renders these, and the upstream suite's two-task sections rely
+    // on it. Malformed colon lines still fall through to the loud throw.
+    if (!line.includes(':') && line.trim().length > 0) {
+      const period: TimelinePeriod = {
+        id: `period-${periodIndex++}`,
+        label: normalizeBrTags(line.trim()),
+        events: [],
+      }
+      ensureSection().periods.push(period)
+      currentPeriod = period
+      continue
+    }
+
     throw new Error(`Unsupported timeline syntax: "${line}"`)
   }
 
-  if (diagram.sections.length === 0 || diagram.sections.every(section => section.periods.length === 0)) {
-    throw new Error('Timeline diagram must include at least one period with events')
+  // Upstream parity: a timeline with a title or sections but no periods still
+  // renders (as its header/section furniture). Only a timeline with NOTHING
+  // is unrenderable.
+  if (diagram.sections.length === 0 && !diagram.title && !diagram.accessibilityTitle && !diagram.accessibilityDescription) {
+    throw new Error('Timeline diagram must include at least one period, section, or title')
   }
 
   return diagram

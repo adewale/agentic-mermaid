@@ -88,3 +88,34 @@ describe('verify — empty layouts never verify clean', () => {
   // degrading to 0x0 means the syntax is unmodeled, not that the diagram is
   // empty — the docs-corpus floors pin that behavior.
 })
+
+describe('render-parity gate (RENDER_FAILED)', () => {
+  // The seam found by the onboarding probes: agents followed
+  // verify-before-commit and still shipped sources the render parser
+  // rejects. A clean verify must prove the diagram actually renders.
+  test('unrenderable-but-parseable sources flip ok with RENDER_FAILED', () => {
+    const cases = [
+      'quadrantChart\n  title T\n  x-axis L --> R\n  y-axis B --> T2\n  Company A: 0.8, 0.75', // missing [x, y] brackets
+      'architecture-beta\n  service a(database)[A]\n  end', // stray end
+    ]
+    for (const source of cases) {
+      const r = verifyMermaid(source)
+      expect({ source, ok: r.ok, hasRenderFailed: r.warnings.some(w => w.code === 'RENDER_FAILED') })
+        .toEqual({ source, ok: false, hasRenderFailed: true })
+      const reason = (r.warnings.find(w => w.code === 'RENDER_FAILED') as { reason?: string }).reason
+      expect(reason && reason.length > 0).toBe(true)
+    }
+  })
+
+  test('suppressing RENDER_FAILED restores the old lenient verdict', () => {
+    const r = verifyMermaid('quadrantChart\n  title T\n  x-axis L --> R\n  y-axis B --> T2\n  P: 0.5, 0.5', { suppress: ['RENDER_FAILED'] })
+    expect(r.warnings.map(w => w.code)).not.toContain('RENDER_FAILED')
+  })
+
+  test('renderable diagrams never carry RENDER_FAILED', () => {
+    for (const source of ['graph TD\n  A-->B', 'pie title P\n  "a" : 1', 'timeline\n  title T\n  2024 : x']) {
+      const r = verifyMermaid(source)
+      expect({ source, codes: r.warnings.map(w => w.code) }).toEqual({ source, codes: [] })
+    }
+  })
+})
