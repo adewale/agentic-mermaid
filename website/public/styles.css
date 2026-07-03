@@ -107,7 +107,7 @@
   /* Functional / semantic hues — solid ink for status text + a soft --*-tint
      fill for badges and validation panels. In lockstep with editor/css/variables.css
      (enforced by chrome-token-lockstep.test.ts). Light-polarity ink on Stone clears
-     AA for small text: success 5.9:1, info 4.7:1, warn 5.2:1, danger 6.1:1. Each
+     AA for small text: success 5.9:1, info 4.8:1, warn 5.4:1, danger 6.3:1. Each
      -tint is a 14% wash of the same hue on --bg, so ink stays ~12:1 on a filled
      badge. Success sits at OkLCH h141, kept ≥20° from the pine accent (h166) so
      links and success states never read as one colour. Dark pastels live in
@@ -148,7 +148,8 @@
 }
 
 /* every renderer theme, as a triplet (bg / fg / accent). set [data-theme] on
-   <html>; default (:root above) is Paper. order: light, then dark. */
+   <html>; the default (:root above) is the Kiln Stone chrome, not a renderer
+   theme. order: light, then dark. */
 [data-theme="pine-light"]        { --bg:#F4F8F6; --fg:#16231E; --accent:#1A7351; }
 [data-theme="zinc-light"]        { --bg:#FFFFFF; --fg:#27272A; --accent:#2563EB; }
 [data-theme="github-light"]      { --bg:#FFFFFF; --fg:#1F2328; --accent:#0969DA; }

@@ -61,7 +61,7 @@ mechanism would have added the inconsistency it meant to prevent.
 **Consistency work starts with a census, not a scroll-through.** Grep every
 value class and count occurrences (radii, durations, easings, font sizes,
 press scales, icon strokes, z-indexes, gaps) — the count-one entries are the
-findings. This surfaced 58 untokenized transition durations, five press
+findings. This surfaced 58 untokenized transition durations, three press
 scales where the system wanted one, five icon stroke weights where two were
 deliberate, and seven magic z-indexes with an accidental popover-above-popover
 ordering. Eyeballing pages finds none of these reliably.

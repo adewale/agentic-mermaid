@@ -145,7 +145,11 @@
   border-right: 0;
   border-bottom: 0;
   transform: translateX(-50%) rotate(45deg);
-  z-index: calc(var(--z-popover-nested) + 1);
+  /* Paints above topbar siblings only: .topbar's own z-index makes it a
+     stacking context, so no value here can reach the sidebar's tier — the
+     fixed-position sidebar (root context, --z-popover-nested) always covers
+     the caret's protruding tip. */
+  z-index: 1;
 }
 
 .spacer {
@@ -194,7 +198,7 @@
   flex-shrink: 0;
   /* Neutral fill for the Default theme (inline style overrides it), and a
      double ring (--line-strong + --line halo) so the swatch reads as a
-     control even when its fill matches the Paper chrome. */
+     control even when its fill matches the Kiln Stone chrome. */
   background: var(--paper);
   border: 1px solid var(--line-strong);
   box-shadow: 0 0 0 1px var(--line);

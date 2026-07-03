@@ -98,6 +98,11 @@ var fontPopupController = createPopupController({
   closePeersOnOpen: false,
   visibility: { focusSelector: '#font-search' },
   beforeOpen: function() {
+    // The colour picker is the one peer sharing the nested tier (both skip the
+    // global peer-close so they don't dismiss the settings panel). Close it
+    // here, or the two pickers contest the same z-index and DOM order decides
+    // which paints on top — not the one that was opened last and holds focus.
+    if (typeof closeColorPopup === 'function') closeColorPopup(false);
     buildFontList('');
     fontSearch.value = '';
     positionAnchoredPopup(fontPopup, fontSelectBtn, { width: 220, height: 320 });

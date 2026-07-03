@@ -142,8 +142,8 @@
 
   /* Functional / semantic hues — a solid ink for status text and dots, plus a
    * soft --*-tint fill for badges and validation panels. Solid inks all clear
-   * WCAG AA for small text on the light Stone chrome (success 5.9:1, info 4.7:1,
-   * warn 5.2:1, danger 6.1:1); the tint is a 14% wash of the same hue on the
+   * WCAG AA for small text on the light Stone chrome (success 5.9:1, info 4.8:1,
+   * warn 5.4:1, danger 6.3:1); the tint is a 14% wash of the same hue on the
    * panel, so ink stays ~12:1 on a filled badge. Success sits at OkLCH h141 —
    * a true leaf green kept ≥20° from the pine accent (h166) so links and
    * success states never read as one colour. The dark block flips the inks
@@ -172,6 +172,13 @@
  * info 8.4:1, warn 8.7:1, danger 7.4:1 — all clear AA for small status text.
  * Dark success holds h143, ≥20° from the dark pine accent (h167). */
 :root[data-scheme="dark"] {
+  /* The Kiln Charcoal triplet. chromeThemeColors() in rendering.js sets the
+   * same values as inline styles whenever it flips the scheme (inline wins);
+   * declaring them here keeps the dark chrome in CSS too, pinned to the JS
+   * copy by chrome-token-lockstep.test.ts. The dark accent IS --brand-pine. */
+  --t-bg: #17130D;
+  --t-fg: #EBE7E0;
+  --t-accent: #6FC2A2;
   --success: #6CBF68;
   --info:    #78B4EA;
   --warn:    #E0A75A;
@@ -435,7 +442,11 @@ body {
   border-right: 0;
   border-bottom: 0;
   transform: translateX(-50%) rotate(45deg);
-  z-index: calc(var(--z-popover-nested) + 1);
+  /* Paints above topbar siblings only: .topbar's own z-index makes it a
+     stacking context, so no value here can reach the sidebar's tier — the
+     fixed-position sidebar (root context, --z-popover-nested) always covers
+     the caret's protruding tip. */
+  z-index: 1;
 }
 
 .spacer {
@@ -484,7 +495,7 @@ body {
   flex-shrink: 0;
   /* Neutral fill for the Default theme (inline style overrides it), and a
      double ring (--line-strong + --line halo) so the swatch reads as a
-     control even when its fill matches the Paper chrome. */
+     control even when its fill matches the Kiln Stone chrome. */
   background: var(--paper);
   border: 1px solid var(--line-strong);
   box-shadow: 0 0 0 1px var(--line);
@@ -1560,12 +1571,15 @@ body {
 
 /* Advisory / error tiers get a soft --*-tint pill so a validation state reads at
    a glance; "Clear" and idle tiers stay quiet (dot only), keeping the all-clear
-   bar calm. */
+   bar calm. The tint fill costs contrast, so the tier name steps up from the
+   bar's --fg3 (4.7:1 on --bg2 but 3.9:1 on the tints — under AA) to --fg2,
+   which holds 6.6:1 light / 7.7:1 dark on both fills. */
 .verify-tier.warn,
 .verify-tier.err {
   padding: 1px 9px;
   border-radius: var(--radius-pill);
   border: 1px solid transparent;
+  color: var(--fg2);
 }
 .verify-tier.warn { background: var(--warn-tint); border-color: color-mix(in srgb, var(--warn) 22%, transparent); }
 .verify-tier.err  { background: var(--danger-tint); border-color: color-mix(in srgb, var(--danger) 22%, transparent); }
@@ -2239,6 +2253,14 @@ body {
   background: var(--accent);
   color: var(--paper);
 }
+/* forced-colors neutralizes the accent fill that is the active pill's only
+   marker; the system selection pair keeps the chosen scale visible */
+@media (forced-colors: active) {
+  .size-pill.active {
+    background: SelectedItem;
+    color: SelectedItemText;
+  }
+}
 .size-pill:active {
   transform: scale(0.96);
 }
@@ -2334,9 +2356,11 @@ body {
   .export-item,
   .font-select-btn,
   .color-edit-btn,
-  .color-clear-btn { min-height: 44px; }
+  .color-clear-btn,
+  .size-pill { min-height: 44px; }
   .toolbar-btn,
-  .export-chevron { min-width: 44px; }
+  .export-chevron,
+  .size-pill { min-width: 44px; }
   /* iOS zooms the page when a focused field renders under 16px; hold every
      editable surface at 16px on touch devices so focus never jumps the view.
      The line-number gutter shares the textarea's metrics, so it moves with it. */
@@ -2845,9 +2869,9 @@ body {
         </svg>
         <span class="export-item-label">Scale</span>
         <div class="size-pills" id="size-pills" role="group" aria-label="PNG export scale">
-          <button class="size-pill" type="button" data-scale="1">1&times;</button>
-          <button class="size-pill" type="button" data-scale="2">2&times;</button>
-          <button class="size-pill active" type="button" data-scale="4">4&times;</button>
+          <button class="size-pill" type="button" data-scale="1" aria-pressed="false">1&times;</button>
+          <button class="size-pill" type="button" data-scale="2" aria-pressed="false">2&times;</button>
+          <button class="size-pill active" type="button" data-scale="4" aria-pressed="true">4&times;</button>
         </div>
       </div>
     </div>
@@ -2943,7 +2967,7 @@ body {
     <div class="config-head">
       <span>Diagram settings</span>
       <button class="config-close" id="settings-close-btn" type="button" aria-label="Close settings">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
       </button>
     </div>
     <!-- Colors section -->
@@ -3192,7 +3216,7 @@ body {
       </button>
     </div>
     <button class="toolbar-btn" id="copy-text-output-btn" type="button" title="Copy SVG markup" aria-label="Copy SVG markup">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
         <rect x="9" y="9" width="13" height="13" rx="2" />
         <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
       </svg>
@@ -3239,6 +3263,6 @@ body {
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
 <!-- Bundled renderer -->
-<script type="module" src="/editor/editor-00e361790c72.js"></script>
+<script type="module" src="/editor/editor-44e1fc640e6f.js"></script>
 </body>
 </html>

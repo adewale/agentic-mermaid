@@ -134,6 +134,14 @@
   background: var(--accent);
   color: var(--paper);
 }
+/* forced-colors neutralizes the accent fill that is the active pill's only
+   marker; the system selection pair keeps the chosen scale visible */
+@media (forced-colors: active) {
+  .size-pill.active {
+    background: SelectedItem;
+    color: SelectedItemText;
+  }
+}
 .size-pill:active {
   transform: scale(0.96);
 }

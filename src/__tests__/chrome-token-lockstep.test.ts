@@ -50,6 +50,20 @@ describe('editor and site chrome share one brand system', () => {
     expect(cssHex(editorCss, 'brand-on')).toBe(cssHex(siteCss, 'brand-on'))
   })
 
+  test('dark chrome triplet matches editor CSS and rendering.js; its accent is the brand pine', () => {
+    // The site shell is light-only, so the Charcoal triplet lives in two
+    // places: editor/css/variables.css [data-scheme="dark"] and the isDark
+    // branch of chromeThemeColors() (whose inline styles win at runtime).
+    const js = renderingJs.match(/\?\s*{\s*bg:\s*"(#[0-9a-fA-F]{6})",\s*fg:\s*"(#[0-9a-fA-F]{6})",\s*accent:\s*"(#[0-9a-fA-F]{6})"\s*}/)
+    expect(Boolean(js), 'dark triplet in chromeThemeColors()').toBe(true)
+    const dark = { bg: js![1]!.toUpperCase(), fg: js![2]!.toUpperCase(), accent: js![3]!.toUpperCase() }
+    const editorDark = darkBlock(editorCss)
+    expect({ bg: cssHex(editorDark, 't-bg'), fg: cssHex(editorDark, 't-fg'), accent: cssHex(editorDark, 't-accent') }).toEqual(dark)
+    // The dark accent IS the brand chip colour, in both stylesheets.
+    expect(cssHex(editorCss, 'brand-pine'), 'editor --brand-pine').toBe(dark.accent)
+    expect(cssHex(siteCss, 'brand-pine'), 'site --brand-pine').toBe(dark.accent)
+  })
+
   test('functional hues match in both polarities', () => {
     for (const name of ['success', 'info', 'warn', 'danger']) {
       expect(cssHex(editorCss, name), `light --${name}`).toBe(cssHex(siteCss, name))
@@ -74,11 +88,16 @@ describe('editor and site chrome share one brand system', () => {
       const h = (Math.atan2(bb, a) * 180) / Math.PI
       return h < 0 ? h + 360 : h
     }
-    const lightGap = Math.abs(hue(cssHex(siteCss, 'accent')) - hue(cssHex(siteCss, 'success')))
+    // Angular distance, so hues straddling 0°/360° can't fake a wide gap.
+    const gap = (a: number, b: number): number => {
+      const d = Math.abs(a - b) % 360
+      return Math.min(d, 360 - d)
+    }
+    const lightGap = gap(hue(cssHex(siteCss, 'accent')), hue(cssHex(siteCss, 'success')))
     expect(lightGap).toBeGreaterThanOrEqual(20)
     const darkAccent = renderingJs.match(/\?\s*{\s*bg:\s*"#[0-9a-fA-F]{6}",\s*fg:\s*"#[0-9a-fA-F]{6}",\s*accent:\s*"(#[0-9a-fA-F]{6})"/)
     expect(Boolean(darkAccent)).toBe(true)
-    const darkGap = Math.abs(hue(darkAccent![1]!.toUpperCase()) - hue(cssHex(darkBlock(siteCss), 'success')))
+    const darkGap = gap(hue(darkAccent![1]!.toUpperCase()), hue(cssHex(darkBlock(siteCss), 'success')))
     expect(darkGap).toBeGreaterThanOrEqual(20)
   })
 

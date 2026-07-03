@@ -342,12 +342,15 @@
 
 /* Advisory / error tiers get a soft --*-tint pill so a validation state reads at
    a glance; "Clear" and idle tiers stay quiet (dot only), keeping the all-clear
-   bar calm. */
+   bar calm. The tint fill costs contrast, so the tier name steps up from the
+   bar's --fg3 (4.7:1 on --bg2 but 3.9:1 on the tints — under AA) to --fg2,
+   which holds 6.6:1 light / 7.7:1 dark on both fills. */
 .verify-tier.warn,
 .verify-tier.err {
   padding: 1px 9px;
   border-radius: var(--radius-pill);
   border: 1px solid transparent;
+  color: var(--fg2);
 }
 .verify-tier.warn { background: var(--warn-tint); border-color: color-mix(in srgb, var(--warn) 22%, transparent); }
 .verify-tier.err  { background: var(--danger-tint); border-color: color-mix(in srgb, var(--danger) 22%, transparent); }

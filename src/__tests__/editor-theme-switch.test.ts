@@ -26,7 +26,12 @@ let baseUrl = ''
 
 const chromiumExecutable = (() => {
   const override = process.env.AM_CHROMIUM
-  if (override) return existsSync(override) ? override : null
+  // An explicit override that points nowhere is a broken opt-in — fail loudly
+  // rather than describe.skip, or a typo'd path masquerades as a green run.
+  if (override) {
+    if (!existsSync(override)) throw new Error(`AM_CHROMIUM is set but no executable exists at: ${override}`)
+    return override
+  }
   try { return existsSync(chromium.executablePath()) ? undefined : null } catch { return null }
 })()
 const describeBrowser = chromiumExecutable === null ? describe.skip : describe

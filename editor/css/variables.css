@@ -131,8 +131,8 @@
 
   /* Functional / semantic hues — a solid ink for status text and dots, plus a
    * soft --*-tint fill for badges and validation panels. Solid inks all clear
-   * WCAG AA for small text on the light Stone chrome (success 5.9:1, info 4.7:1,
-   * warn 5.2:1, danger 6.1:1); the tint is a 14% wash of the same hue on the
+   * WCAG AA for small text on the light Stone chrome (success 5.9:1, info 4.8:1,
+   * warn 5.4:1, danger 6.3:1); the tint is a 14% wash of the same hue on the
    * panel, so ink stays ~12:1 on a filled badge. Success sits at OkLCH h141 —
    * a true leaf green kept ≥20° from the pine accent (h166) so links and
    * success states never read as one colour. The dark block flips the inks
@@ -161,6 +161,13 @@
  * info 8.4:1, warn 8.7:1, danger 7.4:1 — all clear AA for small status text.
  * Dark success holds h143, ≥20° from the dark pine accent (h167). */
 :root[data-scheme="dark"] {
+  /* The Kiln Charcoal triplet. chromeThemeColors() in rendering.js sets the
+   * same values as inline styles whenever it flips the scheme (inline wins);
+   * declaring them here keeps the dark chrome in CSS too, pinned to the JS
+   * copy by chrome-token-lockstep.test.ts. The dark accent IS --brand-pine. */
+  --t-bg: #17130D;
+  --t-fg: #EBE7E0;
+  --t-accent: #6FC2A2;
   --success: #6CBF68;
   --info:    #78B4EA;
   --warn:    #E0A75A;
