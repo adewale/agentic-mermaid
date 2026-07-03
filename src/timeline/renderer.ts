@@ -3,6 +3,7 @@ import type { RenderContext } from '../types.ts'
 import type { DiagramColors } from '../theme.ts'
 import { svgOpenTag, buildStyleBlock, buildShadowDefs } from '../theme.ts'
 import { TIMELINE_STYLE_DEFAULTS } from './layout.ts'
+import { buildAccessibilityAttrs } from '../shared/svg-a11y.ts'
 import { renderMultilineText, escapeXml } from '../multiline-utils.ts'
 import { STROKE_WIDTHS, resolveRenderStyle } from '../styles.ts'
 import type { RenderStyleDefaults, ResolvedRenderStyle } from '../styles.ts'
@@ -532,20 +533,6 @@ function readTimelineScale(
   if (!themeVariables) return undefined
   const value = themeVariables[`${prefix}${index}`]
   return typeof value === 'string' && value.length > 0 ? value : undefined
-}
-
-function buildAccessibilityAttrs(
-  title: string | undefined,
-  description: string | undefined,
-  titleId: string,
-  descId: string,
-): Record<string, string> {
-  if (!title && !description) return {}
-
-  const attrs: Record<string, string> = { role: 'img' }
-  if (title) attrs['aria-labelledby'] = titleId
-  if (description) attrs['aria-describedby'] = descId
-  return attrs
 }
 
 function hashTimeline(diagram: { width: number; height: number; sections: Array<{ periods: unknown[] }> }): string {

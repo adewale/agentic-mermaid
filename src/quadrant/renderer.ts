@@ -283,8 +283,9 @@ function openQuadrantSvgTag(
   colors: DiagramColors,
   transparent: boolean,
 ): string {
-  const attrs = ['role="img"', 'aria-roledescription="quadrant chart"']
-  return svgOpenTag(chart.width, chart.height, colors, transparent).replace('>', ` ${attrs.join(' ')}>`)
+  return svgOpenTag(chart.width, chart.height, colors, transparent, {
+    attrs: { role: 'img', 'aria-roledescription': 'quadrant chart' },
+  })
 }
 
 /**

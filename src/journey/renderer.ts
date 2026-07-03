@@ -3,6 +3,7 @@ import type { RenderContext } from '../types.ts'
 import type { DiagramColors } from '../theme.ts'
 import { svgOpenTag, buildStyleBlock, buildShadowDefs } from '../theme.ts'
 import { JOURNEY_STYLE_DEFAULTS } from './layout.ts'
+import { buildAccessibilityAttrs } from '../shared/svg-a11y.ts'
 import { renderMultilineText, escapeXml } from '../multiline-utils.ts'
 import { STROKE_WIDTHS, resolveRenderStyle } from '../styles.ts'
 import type { RenderStyleDefaults, ResolvedRenderStyle } from '../styles.ts'
@@ -162,12 +163,9 @@ function openJourneySvgTag(
   titleId: string,
   descId: string,
 ): string {
-  const attrs = ['role="img"', 'aria-roledescription="user journey"']
-  if (accessibility.title) attrs.push(`aria-labelledby="${titleId}"`)
-  if (accessibility.description) attrs.push(`aria-describedby="${descId}"`)
-
-  return svgOpenTag(diagram.width, diagram.height, colors, transparent)
-    .replace('>', ` ${attrs.join(' ')}>`)
+  return svgOpenTag(diagram.width, diagram.height, colors, transparent, {
+    attrs: buildAccessibilityAttrs(accessibility.title, accessibility.description, titleId, descId, 'user journey'),
+  })
 }
 
 function journeyStyles(style: ResolvedRenderStyle): string {

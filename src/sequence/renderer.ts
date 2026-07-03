@@ -4,6 +4,7 @@ import { svgOpenTag, buildStyleBlock, buildShadowDefs } from '../theme.ts'
 import { FONT_SIZES, FONT_WEIGHTS, STROKE_WIDTHS, ARROW_HEAD, estimateTextWidth, TEXT_BASELINE_SHIFT, resolveRenderStyle } from '../styles.ts'
 import type { RenderStyleDefaults, ResolvedRenderStyle } from '../styles.ts'
 import { SEQUENCE_STYLE_DEFAULTS } from './layout.ts'
+import { buildAccessibilityAttrs } from '../shared/svg-a11y.ts'
 import { renderMultilineText, escapeXml as escapeXmlUtil } from '../multiline-utils.ts'
 import type { MarkerRef, SceneDoc, SceneNode } from '../scene/ir.ts'
 import * as marks from '../scene/marks.ts'
@@ -596,19 +597,6 @@ const escapeXml = escapeXmlUtil
 /**
  * Escape a string for use as an XML/HTML attribute value.
  */
-function buildAccessibilityAttrs(
-  title: string | undefined,
-  description: string | undefined,
-  titleId: string,
-  descId: string,
-): Record<string, string> {
-  if (!title && !description) return {}
-  const attrs: Record<string, string> = { role: 'img' }
-  if (title) attrs['aria-labelledby'] = titleId
-  if (description) attrs['aria-describedby'] = descId
-  return attrs
-}
-
 function hashAccessibility(...values: Array<string | number>): string {
   let h = 0x811c9dc5
   const text = values.join('|')
