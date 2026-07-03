@@ -1,204 +1,213 @@
-# Styles: naming, model, and rollout plan
+# Styles: the composable look system — naming, model, and rollout plan
 
-Status: plan (PR #60 ships the engine; this document plans the product surface).
+Status: plan, v2 (PR #60 ships the engine; this document plans the product
+surface). Nothing has been released — no npm versions, no tags — so every
+decision below is free: we are designing the API we want, not migrating one.
 
 The engine work is done: every diagram family lowers to a SceneGraph of
 semantic marks, and pluggable backends serialize those marks — crisp (the
 unchanged default), rough.js sketch, and hybrid (pressure ribbons, washes).
-This plan covers what we call the feature, how it relates to themes, how it
-reaches users through every surface of the package, and how we explain it.
 
-**The headline is custom styles.** The built-in styles (hand-drawn,
-excalidraw, pen-and-ink, freehand, watercolor, blueprint, tufte) are proof
-and starting points — the product is that users *and their agents* construct
-their own styles as data records instead of being restricted to the default
-look plus a theme list.
+**The headline is what users and their agents can construct, not what we
+ship.** The built-in looks (hand-drawn, excalidraw, pen-and-ink, freehand,
+watercolor, blueprint, tufte) are proof and raw material. The product is a
+small set of primitives with one combination rule, from which looks we never
+anticipated can emerge.
 
 ---
 
-## 1. One word: "style"
+## 1. One concept: style. A theme is a kind of style.
 
-The current (unreleased) API calls the feature `aesthetic`. Before anything
-ships we rename every public surface to **style** — the word users already
-reach for, and the word the docs, CLI, and MCP schema should share. Nothing
-has been published to npm from this branch, so the rename costs nothing.
+Today the repo has three overlapping vocabularies: *themes* (the `THEMES`
+palette record + `themeVariables` + color options), *role style options*
+(`RenderOptions.style: DiagramStyleOptions`), and the new unreleased
+*aesthetics*. Three words, three shapes, three precedence stories — for what
+is one question: **how should this diagram look?**
 
-The naming collision with the existing `RenderOptions.style`
-(`DiagramStyleOptions` role overrides) dissolves once we note that nothing
-has ever been published — the npm name has no releases, there are no git
-tags, and the only callers of the current option are in this repo. There is
-no legacy to preserve, so instead of a compatibility union we **subsume**
-role overrides into `StyleSpec`: every field is optional (backend defaults
-to `'default'`), and the role keys (`text`/`node`/`edge`/`group`) live on
-the spec directly.
+We collapse them into one primitive:
+
+> A **style** is a partial description of how diagrams look. Every field is
+> optional. A style that only sets colors is what people call a *theme*. A
+> style that only sets `node.cornerRadius` is a tweak. A style that sets
+> stroke character, fills, typography, and a palette is a full look.
 
 ```ts
-// after the rename
-interface RenderOptions {
-  style?: string | StyleSpec   // one type, no discrimination needed
-  seed?: number
+interface StyleSpec {
+  // identity (optional — anonymous inline styles are fine)
+  name?: string
+  blurb?: string
+
+  // palette — the seven tokens every mark references
+  colors?: { bg?; fg?; line?; accent?; muted?; surface?; border? }
+
+  // typography
+  font?: string
+
+  // mark treatment (what the sketch backends read)
+  stroke?: 'crisp' | 'jittered' | 'freehand'
+  fill?: 'none' | 'hachure' | 'solid' | 'wash'
+  roughness?; bowing?; passes?; strokeWidth?; hachureAngle?; hachureGap?;
+  fillWeight?; washOpacity?; washEdge?
+  backdrop?: 'plain' | 'paper-ruled' | 'grid'
+
+  // per-role overrides (the old DiagramStyleOptions, subsumed)
+  text?; node?; edge?; group?
+
+  // advisory metadata (documented, never read by the engine)
+  intent?: 'premium' | 'draft' | 'lofi'
+  mono?: boolean
 }
 ```
 
-- `style: 'hand-drawn'` — a registered style by name.
-- `style: { name: 'brand', backend: 'rough', colors: {…}, … }` — an inline
-  custom style (see §3).
-- `style: { node: { cornerRadius: 8 } }` — still valid, and not a special
-  case: it is simply an anonymous style that only sets role overrides on
-  the default backend. The old `DiagramStyleOptions` shape is a subset of
-  `StyleSpec` by construction.
+So the answer to "what is the right relationship between styles and themes"
+is: **subsumption, not orthogonality**. A theme is a palette-only style.
+The existing `THEMES` entries register into the style registry at startup
+(their names keep working everywhere a style name is accepted), and
+`themeVariables`/color options remain as the *last* override layer for
+Mermaid compatibility. One registry, one lookup (`getStyle`), one list
+(`knownStyles`) — and the docs answer the theme question in a sentence
+instead of a precedence table.
 
-In-repo callers of the current option (poster/characterization scripts,
-mocks, tests) are updated in the same change; anyone installing from git
-gets the new shape with the rename, before any release exists.
+## 2. One combination rule: the stack
 
-Rename checklist: `AestheticStyle` → `StyleSpec`; `registerAesthetic/
-getAesthetic/knownAesthetics` → `registerStyle/getStyle/knownStyles`;
-`RenderOptions.aesthetic` → folded into `style`; error messages, tests,
-styled-output baseline keys (regenerate under `[approve-goldens]`),
-`docs/style-authoring.md`, SPEC references, and the PR description. The
-internal `src/styles.ts` (`resolveRenderStyle`) keeps its name — it becomes
-the resolver for the role-override layer of a style.
-
-## 2. Styles vs themes — the user-facing model
-
-One table carries the whole explanation:
-
-|  | **Theme** | **Style** |
-|---|---|---|
-| Answers | *What colors?* | *How is it drawn?* |
-| Controls | palette tokens: `bg`, `fg`, `line`, `accent`, `muted`, `surface`, `border` | stroke character (crisp / jittered / freehand ribbon), fills (none / hachure / solid / wash), typography, line weights, corner radii, page furniture (ruled paper, drafting grid), label treatment |
-| Today | `THEMES`, `themeVariables`, color options — unchanged | new: built-in names or your own `StyleSpec` |
-| Default | light palette | `crisp` — byte-identical to every previous release |
-
-**How they interact:** orthogonally, mediated by the same tokens. A style
-carries a *default* palette (hand-drawn's warm paper and black ink) so it
-looks right with zero configuration — but any channel the user sets through
-a theme, `themeVariables`, or a color option **wins over the style's
-default**, channel by channel. That yields *any style × any theme*:
-`{ style: 'hand-drawn', bg: '#0f172a', fg: '#e2e8f0' }` is hand-drawn on
-your dark palette. (Enforced by tests: user colors and `themeVariables`
-beat the style palette.)
-
-Three guarantees hold for every style, built-in or custom:
-
-1. **Readable by construction** — text is never perturbed, gets a
-   page-colored halo, and sits above all marks; axes/grids/chrome stay
-   crisp; WCAG contrast is CI-gated.
-2. **Deterministic** — same source + options + `seed` ⇒ identical bytes.
-   `seed` is a *shuffle*: it re-rolls the ink wobble, never the layout.
-   Styled output is cacheable, diffable, and golden-testable.
-3. **Semantics survive** — markers, `class`/`data-*` attributes, hit
-   geometry, ARIA, and strict-security guarantees pass through every
-   backend.
-
-## 3. Custom styles — the primary value
-
-A style is a data record, so constructing one requires no engine knowledge:
+The public option takes a name, a spec, or a **stack** of them:
 
 ```ts
-import { renderMermaidSVG } from 'agentic-mermaid'
+interface RenderOptions {
+  style?: StyleInput | StyleInput[]   // StyleInput = string | StyleSpec
+  seed?: number                        // re-rolls ink wobble, never layout
+}
 
-// Inline, no registration — the one-shot path for agents:
-const svg = renderMermaidSVG(source, {
-  style: {
-    name: 'acme-brand',
-    backend: 'rough',
-    intent: 'draft',
-    colors: { bg: '#fffdf7', fg: '#1c1917', accent: '#e11d48' },
-    font: 'Caveat',
-    roughness: 0.8,
-    fill: 'hachure',
-    backdrop: 'grid',
-  },
-})
+// a full look
+renderMermaidSVG(src, { style: 'hand-drawn' })
 
-// Or register once, use by name everywhere:
-registerStyle(acmeBrand)
-renderMermaidSVG(source, { style: 'acme-brand' })
+// hand-drawn geometry × dracula palette — "any style × any theme" is just stacking
+renderMermaidSVG(src, { style: ['hand-drawn', 'dracula'] })
+
+// stack a shared brand fragment and a local tweak on top
+renderMermaidSVG(src, { style: ['hand-drawn', acmeBrand, { node: { cornerRadius: 0 } }] })
 ```
 
-Work items that make this the headline rather than a footnote:
+Merging is left→right, per field, shallow within each role — the CSS
+intuition everyone already has. The full precedence story becomes one line:
 
-- **Inline `StyleSpec` in `RenderOptions.style`** (engine already supports
-  the object; the option today only takes names).
-- **JSON style packs**: `validateStyleSpec(json)` + a documented JSON schema
-  so styles can live in files, repos, and prompts. Packs are declarative and
-  safe — no arbitrary defs/XML/URLs; strict-security compatible.
-- **Agent authoring loop**: `docs/style-authoring.md` (already written: the
-  spec template, the parameter reference, and the quality rubric with worked
-  good/bad examples) gets linked from `llms.txt` and
-  `Instructions_for_agents.md`, so an agent can construct a style from docs
-  alone, render it, and self-check contrast — the same loop that produced
-  the 31-style prototype poster.
+```
+defaults  <  style stack (left → right)  <  themeVariables  <  explicit color options
+```
 
-## 4. npm package changes
+This one rule replaces: a theme option, a style option, a role-override
+option, and any future "variant"/"overrides" parameters. It is also the
+agent-native shape: an agent composes a look by concatenating fragments it
+was given, retrieved, or wrote itself.
 
-Ship as a **minor** release of `agentic-mermaid` (additive; crisp default
+## 3. Simplifications this unlocks (missed in plan v1)
+
+1. **No `backend` field for authors.** Which backend a style needs is
+   derivable from what it asks for: `stroke: 'freehand'` or `fill: 'wash'`
+   ⇒ hybrid; any rough parameter or `stroke: 'jittered'` ⇒ rough; otherwise
+   ⇒ default. Authors describe the *look*; the engine picks the machinery.
+   (An explicit `backend` override remains for code-backed extensions, but
+   it disappears from the tutorial path.)
+2. **No aesthetic/style/theme triage.** One word in the API, the CLI, the
+   MCP schema, the docs. `THEMES` stays exported for compatibility of
+   in-repo code but is defined *as* registered palette-only styles.
+3. **No compatibility shims anywhere** — pre-release, the in-repo callers
+   of the old option just update.
+4. **`intent`/`mono` demote to advisory metadata.** The engine never
+   branches on them; they exist for pickers, galleries, and the authoring
+   rubric. (The mono *contract* stays a test on built-ins, not an engine
+   switch.)
+5. **One registry, one gallery.** `knownStyles()` drives the CLI list, the
+   editor picker, and the poster harness — registering a style is the only
+   step to appear in all three.
+6. **Fragments are the sharing unit.** A JSON file with three fields is a
+   complete, valid, shareable style. Packs are just arrays of named
+   fragments — no schemaVersion ceremony until a real need appears.
+
+## 4. Designed for emergence
+
+Following the "design for emergence" argument (UX Mag): when user needs are
+heterogeneous and unpredictable — and custom looks are exactly that — ship
+simple elements and combination rules, not finished solutions; keep the
+floor low, the ceiling high, and the walls wide.
+
+- **Low floor**: `style: 'hand-drawn'` — one string.
+- **Wide walls**: fragments compose across axes we don't enumerate. A
+  palette fragment × a line-character fragment × a typography fragment × a
+  role tweak — we ship seven full looks, but the space users can reach is
+  the product of every fragment anyone writes. Nobody designs "corporate
+  memo hand-drawn dark"; it emerges from a stack.
+- **High ceiling**: `registerBackend` + the SceneGraph types for the rare
+  code-backed capability (a new fill algorithm, a layout-aware dialect).
+  Styles stay data; code is the escape hatch, not the path.
+- **Safety rails that make wild combinations viable**: the WCAG contrast
+  audit and text-halo policy hold for *any* stack, so experimentation
+  cannot produce unreadable output silently — the guardrail is what makes
+  handing the crayons over safe.
+- **Reproducible sharing**: determinism means `(source, stack, seed)` is a
+  complete, portable description of an image. A gist with a JSON fragment
+  IS the artifact. This is the hashtag/spreadsheet property: the unit of
+  user invention is trivially copyable.
+- **Agents as the emergence engine**: `docs/style-authoring.md` (spec
+  template + quality rubric + worked good/bad examples) is linked from
+  `llms.txt` and the agent instructions, so an agent can author a fragment
+  from a sentence ("make it look like our brand deck"), render it, check
+  contrast, and iterate — the loop that produced the 31-style prototype,
+  now available to every user's agent.
+- **Deliberately not built** (over-specification kills emergence): no
+  inheritance/`extends` graphs (stacking covers it), no per-diagram-family
+  style hooks in v1, no marketplace/registry service — a JSON fragment in
+  a repo is the distribution mechanism until the community proves a need.
+
+## 5. npm package changes
+
+First release ships as `agentic-mermaid` **0.x minor** (crisp default
 byte-identical, corpus-gated):
 
-- **New API**: `RenderOptions.style` (name | `StyleSpec`, where a role-only
-  object is itself a valid spec),
-  `RenderOptions.seed`, `registerStyle`, `getStyle`, `knownStyles`,
-  `validateStyleSpec`, and — for the rare code-backed extension —
-  `registerBackend`/`StyleBackend` plus the SceneGraph types
-  (`SceneDoc`, `SceneNode`, `SemanticChannels`, `SceneRole`).
-- **New runtime dependencies**: `roughjs@4.6.6` (pinned exactly — seeded
-  geometry must not shift under a bump) and `perfect-freehand@1.2.3`. They
-  must be `dependencies`, not devDependencies, because the package's `bun`
-  export condition resolves raw `src/*.ts`; the Node dist bundles them
-  (~80 KB minified). If crisp-only consumers ever object to the weight, a
-  `agentic-mermaid/styles` subpath split is the escape hatch — not needed
-  at current size.
-- **Docs shipped with the package**: README gains the style matrix image, a
-  five-line quick start, and a custom-style example; `docs/api.md` documents
-  the option; CHANGELOG explains the style/theme model in three sentences.
-- **Versioned determinism note**: styled bytes are stable *per pinned
-  dependency versions*; a roughjs bump is treated as a golden-fixture change
-  (`[approve-goldens]`).
-- **Not in this release**: styled PNG (needs the font decision below);
-  removal of anything — there are no deprecations because `aesthetic` never
-  shipped.
+- **API**: `RenderOptions.style` (name | spec | stack), `RenderOptions.seed`,
+  `registerStyle`, `getStyle`, `knownStyles`, `validateStyleSpec` (JSON
+  schema included in the package), and for extensions `registerBackend`,
+  `StyleBackend`, plus SceneGraph types (`SceneDoc`, `SceneNode`,
+  `SemanticChannels`, `SceneRole`). `THEMES` remains, redefined as
+  palette-only styles.
+- **Runtime dependencies**: `roughjs@4.6.6` and `perfect-freehand@1.2.3`,
+  pinned exactly — seeded geometry must not shift under a bump; a bump is a
+  golden-fixture change (`[approve-goldens]`). They are `dependencies`
+  because the `bun` export condition resolves raw `src/*.ts`; the Node dist
+  bundles them (~80 KB minified). A `agentic-mermaid/styles` subpath split
+  is the escape hatch if crisp-only weight ever matters.
+- **Docs in the box**: README leads with the matrix image, a one-string
+  quick start, and a *custom fragment stack* example; `docs/api.md` gets the
+  option + precedence line; CHANGELOG states the model in three sentences.
+- **Deferred**: styled PNG parity (blocked on bundling the OFL faces as
+  reviewed production assets — notices already exist); CLI/MCP surfaces
+  land in the rollout below.
 
-## 5. Surface rollout, custom-first
+## 6. Rollout, emergence-first
 
-1. **Rename + inline specs + JSON validation** (§1, §3) — everything else
-   builds on the final vocabulary.
-2. **Agent surface**: the MCP render tool and the agent SDK accept `style`
-   (a name **or an inline `StyleSpec` object**) and `seed`; the SDK
-   declaration explains the model in two sentences and points at the
-   authoring guide. Agents are the most prolific custom-style constructors —
-   this surface is where "construct your own" becomes real.
-3. **CLI**: `am render --style <name|path/to/style.json> --seed <n>`, plus
-   `am styles [--json]` to list what's registered (blurbs + intent labels).
-   PNG threading lands here, with an explicit font-fallback warning until §6.
-4. **Live editor**: a style picker, a 🎲 shuffle button (bumps `seed`), and a
-   style-JSON pane — paste or edit a `StyleSpec`, watch it apply live. This
-   is both the demo and the custom-style playground.
-5. **README + gallery**: matrix image up top; each built-in style gets a
-   thumbnail, its intent label, and one sentence on when to use it.
-6. **Production fonts for PNG**: bundle the OFL faces a style references
-   (Caveat, EB Garamond, Share Tech Mono, Architects Daughter) as reviewed
-   assets with license files (the OFL notices already exist), or document
-   the DejaVu fallback. This is the last blocker for styled PNG parity.
+1. **Collapse the primitives**: rename `aesthetic` → `style`; make all
+   `StyleSpec` fields optional with role keys on the spec; implement the
+   stack merge; register `THEMES` as styles; infer backends. (Everything
+   else builds on the final shape.)
+2. **Agent surface**: MCP render tool + SDK declaration accept `style`
+   (name | spec | stack) and `seed`; authoring guide linked for agents.
+3. **CLI**: `am render --style <name|file.json>` (repeatable = stack),
+   `--seed`, `am styles [--json]`; PNG threading with an explicit
+   font-fallback warning.
+4. **Editor**: style picker, 🎲 shuffle, and a fragment pane — paste or edit
+   JSON, watch it stack live. The custom-look playground is the demo.
+5. **README + gallery** generated from the registry.
+6. **Fonts for PNG parity** (OFL faces as reviewed assets).
 
-## 6. How we explain it
+## 7. How we explain it
 
-- **Lead with the picture and the sentence**: the 8×12 matrix image, then —
-  *"Pick a style, or write your own: a style is a small data record that
-  controls how every diagram type is drawn; your theme still controls the
-  colors."*
-- **Crisp stays the default** — say it explicitly, with the receipts
-  (corpus-verified byte identity). Styles are opt-in; nothing changes for
-  existing users. Uniform coverage across all 12 diagram types is the
-  differentiator to state plainly (partial coverage is what eroded trust in
-  ecosystem precedents).
-- **Intent labels as guidance**: `draft` styles (hand-drawn, excalidraw,
-  freehand) say *"critique the structure, not the pixels"*; `premium`
-  (tufte, pen-and-ink, blueprint, watercolor) are for publishing; `lofi`
-  inverts polish on purpose. Users pick by intent, not by scrolling a menu.
-- **`seed` is "shuffle the ink, not the layout"** — one sentence that
-  pre-empts the determinism worry.
-- **Custom styles get the second headline, not an appendix**: the README
-  example is a *custom* style, and the authoring guide (with its quality
-  rubric) is linked wherever styles are mentioned.
+- One sentence: *"A style is a small data record describing how diagrams
+  look; stack styles to combine them — a color-only style is a theme."*
+- Crisp stays the default, stated with receipts (corpus-verified byte
+  identity), and styling covers **all 12 diagram types uniformly**.
+- Three promises for any stack: **readable** (halos + WCAG gate),
+  **deterministic** (`seed` shuffles ink, never layout — cacheable,
+  diffable, golden-testable), **portable** (a JSON fragment + seed
+  reproduces the image anywhere).
+- The README example is a custom fragment stack, not a built-in name —
+  the message *is* the primary value.
