@@ -92,8 +92,14 @@
   --radius-lg: 12px;
   --radius-pill: 999px;
   --radius: var(--radius-md);
-  /* Shared motion curve — same value as the site shell's --ease-out. */
+  /* Shared motion system — same values as the site shell (styles.css :root),
+     so editor and site interactions share one tempo. ui: page-level fades;
+     control: hover/background shifts; press: the :active scale. */
+  --ease-standard: ease;
   --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --dur-ui: 0.2s;
+  --dur-control: 0.16s;
+  --dur-press: 0.1s;
   --control-h: 40px;
   --control-px: 12px;
   --control-bg: var(--surface);
@@ -169,8 +175,8 @@ body {
   flex-direction: column;
   height: 100vh;
   transition:
-    background 0.2s,
-    color 0.2s;
+    background var(--dur-ui),
+    color var(--dur-ui);
 }
 
 .sr-only {
@@ -185,9 +191,10 @@ body {
   border: 0;
 }
 
+/* Same focus recipe as the site shell: full-strength accent ring, 3px offset. */
 :where(button, a, input, textarea, [tabindex]):focus-visible {
-  outline: 2px solid color-mix(in srgb, var(--accent) 72%, var(--paper));
-  outline-offset: 2px;
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
 }
 
 :where(button, input, textarea):disabled,

@@ -221,7 +221,7 @@ pre, pre code, code, blockquote, th, td, hr, figure .plate, footer, .footlinks a
 html { -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility; font-kerning: normal; }
 body { margin: 0; background: var(--paper); color: var(--ink); font-family: var(--sans); font-size: var(--t-body); line-height: var(--lh-body); font-feature-settings: "kern" 1, "liga" 1; }
 ::selection { background: color-mix(in srgb, var(--accent) 22%, var(--bg)); color: var(--ink); }
-.skip-link { position: fixed; left: 12px; top: 12px; z-index: 50; transform: translateY(-160%); padding: 8px 10px; border-radius: 8px; background: var(--paper); color: var(--link); box-shadow: 0 0 0 1px var(--line-strong); }
+.skip-link { position: fixed; left: 12px; top: 12px; z-index: 50; transform: translateY(-160%); padding: 8px 10px; border-radius: var(--radius-md); background: var(--paper); color: var(--link); box-shadow: 0 0 0 1px var(--line-strong); }
 .skip-link:focus { transform: translateY(0); }
 :target { scroll-margin-top: 24px; }
 .gallery figure:target, table tr:target { outline: 2px solid var(--accent); outline-offset: 4px; }
@@ -249,7 +249,7 @@ body::before { content: ""; position: fixed; inset: 0; pointer-events: none; z-i
 .masthead .bar { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
 .brand { display: inline-flex; align-items: center; gap: 7px; font-family: var(--serif); font-weight: 600; font-size: 1.125rem; line-height: var(--lh-tight); letter-spacing: -0.01em; color: var(--ink); text-decoration: none; }
 .brand:hover { color: var(--ink); text-decoration: none; }
-.brand .mark { width: 24px; height: 24px; border-radius: 6px; background: var(--brand-pine); color: var(--brand-on); display: inline-grid; place-items: center; }
+.brand .mark { width: 24px; height: 24px; border-radius: var(--radius-sm); background: var(--brand-pine); color: var(--brand-on); display: inline-grid; place-items: center; }
 .mark { position: relative; overflow: hidden; box-shadow: 0 0 0 1px var(--mark-ring); }
 .mark > canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
 .mark > .glyph { position: absolute; inset: 0; z-index: 1; display: grid; place-items: center; }
@@ -306,7 +306,7 @@ hr { border: 0; margin: var(--sp-6) 0; }
 .primary-action:hover { background: var(--accent-hover); color: var(--bg); text-decoration: none; transform: translateY(-1px); }
 .secondary-action { border: 1px solid var(--control-border); background: var(--control-bg); color: var(--control-fg); }
 .secondary-action:hover { background: var(--control-bg-hover); color: var(--ink); text-decoration: none; transform: translateY(-1px); }
-.primary-action:active, .secondary-action:active { transform: scale(0.97); }
+.primary-action:active, .secondary-action:active { transform: scale(0.96); }
 .page-actions .copy-prompt-status { flex-basis: 100%; padding: 0; }
 .start-rail { list-style: none; padding: 0; margin: 8px 0 20px; border-top: 1px solid var(--line); }
 .start-rail li { margin: 0; padding: 14px 0; border-bottom: 1px solid var(--line); }
@@ -688,7 +688,7 @@ footer { max-width: var(--content-max); margin: 0 auto; padding: 28px var(--page
   transform: translateY(-1px);
 }
 .copy-prompt-btn:active,
-.masthead .links .link-editor:active { transform: scale(0.97); }
+.masthead .links .link-editor:active { transform: scale(0.96); }
 .copy-prompt-btn[data-copy-state="ok"] { color: var(--success); background: var(--success-tint); border-color: color-mix(in srgb, var(--success) 30%, var(--control-border)); }
 .copy-prompt-btn[data-copy-state="err"], .prompt-action[data-copy-state="err"] { color: var(--danger); }
 :where(.meta-label, .agent-kicker, .section-kicker, .copy-prompt-label, .gallery-prompt span, .gallery-ops span, .example-prompt span, .example-trace span) {

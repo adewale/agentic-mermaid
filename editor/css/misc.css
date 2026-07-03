@@ -74,17 +74,20 @@
 .shortcuts-dialog-close {
   width: 28px;
   height: 28px;
+  position: relative;
   border: none;
   border-radius: var(--radius-sm);
   background: transparent;
   color: var(--fg3);
-  font-size: 16px;
+  font-size: 1rem;
   font-family: inherit;
   cursor: pointer;
   transition:
-    color 0.15s,
-    background 0.15s;
+    color var(--dur-control),
+    background var(--dur-control);
 }
+/* invisible halo lifts the 28px visual to a 40px hit target */
+.shortcuts-dialog-close::after { content: ""; position: absolute; inset: -6px; }
 .shortcuts-dialog-close:hover {
   background: var(--control-bg-hover);
   color: var(--fg);

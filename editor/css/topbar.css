@@ -21,7 +21,7 @@
   height: var(--control-h);
   color: var(--ink);
   font-family: var(--font-serif);
-  font-size: 18px;
+  font-size: 1.125rem;   /* same size as the site masthead .brand */
   font-weight: 600;
   line-height: 1;
   text-decoration: none;
@@ -32,7 +32,7 @@
   text-decoration: none;
 }
 .app-brand:active {
-  transform: scale(0.98);
+  transform: scale(0.96);
 }
 .app-mark {
   width: 24px;
@@ -88,7 +88,8 @@
   min-height: 32px;
   padding: 0 12px;
   border: none;
-  border-radius: var(--radius-md);
+  /* concentric with the switch: outer radius − 1px border − 3px padding */
+  border-radius: calc(var(--radius-lg) - 4px);
   background: transparent;
   color: var(--control-fg);
   font-size: var(--t-control);
@@ -98,10 +99,10 @@
   white-space: nowrap;
   user-select: none;
   transition:
-    color 0.15s,
-    background 0.15s,
-    box-shadow 0.15s,
-    transform 0.1s;
+    color var(--dur-control),
+    background var(--dur-control),
+    box-shadow var(--dur-control),
+    transform var(--dur-press);
 }
 .mode-option:hover {
   color: var(--fg);
@@ -168,9 +169,9 @@
   white-space: nowrap;
   user-select: none;
   transition:
-    color 0.15s,
-    background 0.15s,
-    transform 0.1s;
+    color var(--dur-control),
+    background var(--dur-control),
+    transform var(--dur-press);
 }
 .theme-dropdown-btn:hover {
   color: var(--ink);
@@ -196,7 +197,7 @@
   height: 10px;
   color: var(--fg4);
   flex-shrink: 0;
-  transition: transform 0.15s;
+  transition: transform var(--dur-control);
 }
 .theme-dropdown-btn.open svg {
   transform: rotate(180deg);
@@ -227,7 +228,8 @@
   gap: 8px;
   padding: 7px 28px 7px 8px;
   border: none;
-  border-radius: var(--radius-sm);
+  /* concentric with the menu: outer radius − 1px border − 6px padding */
+  border-radius: calc(var(--radius-lg) - 7px);
   background: transparent;
   color: var(--fg);
   font-size: var(--t-label);
@@ -239,8 +241,8 @@
   width: 100%;
   user-select: none;
   transition:
-    background 0.15s,
-    transform 0.1s;
+    background var(--dur-control),
+    transform var(--dur-press);
 }
 .theme-dropdown-item:hover {
   background: var(--control-bg-hover);
@@ -292,10 +294,10 @@
   user-select: none;
   text-decoration: none;
   transition:
-    color 0.15s,
-    background 0.15s,
-    opacity 0.15s,
-    transform 0.1s;
+    color var(--dur-control),
+    background var(--dur-control),
+    opacity var(--dur-control),
+    transform var(--dur-press);
 }
 .btn:hover {
   color: var(--ink);
@@ -329,9 +331,9 @@
   opacity: 1;
   filter: blur(0);
   transition:
-    opacity 0.18s var(--ease-out),
-    transform 0.18s var(--ease-out),
-    filter 0.18s var(--ease-out);
+    opacity var(--dur-ui) var(--ease-out),
+    transform var(--dur-ui) var(--ease-out),
+    filter var(--dur-ui) var(--ease-out);
 }
 #dark-light-btn #icon-sun,
 #dark-light-btn.is-dark #icon-moon {

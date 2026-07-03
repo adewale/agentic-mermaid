@@ -42,13 +42,16 @@
   justify-content: center;
   width: 32px;
   height: 32px;
+  position: relative;
   border: none;
   border-radius: var(--radius-sm);
   background: transparent;
   color: var(--fg3);
   cursor: pointer;
-  transition: color 0.15s var(--ease-out), background 0.15s var(--ease-out);
+  transition: color var(--dur-control) var(--ease-out), background var(--dur-control) var(--ease-out);
 }
+/* invisible halo lifts the 32px visual to a 40px hit target */
+.config-close::after { content: ""; position: absolute; inset: -4px; }
 .config-close:hover { color: var(--fg); background: var(--control-bg-hover); }
 .config-close svg { width: 15px; height: 15px; }
 
@@ -87,7 +90,7 @@
   font-size: var(--t-label);
   font-family: var(--font-mono);
   cursor: pointer;
-  transition: border-color 0.15s var(--ease-out), background 0.15s var(--ease-out);
+  transition: border-color var(--dur-control) var(--ease-out), background var(--dur-control) var(--ease-out);
   min-width: 100px;
   justify-content: flex-end;
 }
@@ -111,7 +114,7 @@
   justify-content: space-between;
   margin-bottom: 0.5rem;
 }
-.padding-row label { font-size: 0.8rem; color: var(--fg); }
+.padding-row label { font-size: var(--t-label); color: var(--fg); }
 .padding-num {
   width: 56px;
   height: 28px;
@@ -171,11 +174,11 @@
   font-size: var(--t-label);
   font-weight: 600;
   cursor: pointer;
-  transition: color 0.15s var(--ease-out), background 0.15s var(--ease-out), border-color 0.15s var(--ease-out), transform 0.1s var(--ease-out);
+  transition: color var(--dur-control) var(--ease-out), background var(--dur-control) var(--ease-out), border-color var(--dur-control) var(--ease-out), transform var(--dur-press) var(--ease-out);
 }
 .config-reset-btn:hover {
   color: var(--fg);
   background: var(--control-bg-hover);
   border-color: var(--line-strong);
 }
-.config-reset-btn:active { transform: scale(0.98); }
+.config-reset-btn:active { transform: scale(0.96); }

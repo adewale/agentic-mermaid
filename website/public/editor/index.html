@@ -103,8 +103,14 @@
   --radius-lg: 12px;
   --radius-pill: 999px;
   --radius: var(--radius-md);
-  /* Shared motion curve — same value as the site shell's --ease-out. */
+  /* Shared motion system — same values as the site shell (styles.css :root),
+     so editor and site interactions share one tempo. ui: page-level fades;
+     control: hover/background shifts; press: the :active scale. */
+  --ease-standard: ease;
   --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --dur-ui: 0.2s;
+  --dur-control: 0.16s;
+  --dur-press: 0.1s;
   --control-h: 40px;
   --control-px: 12px;
   --control-bg: var(--surface);
@@ -180,8 +186,8 @@ body {
   flex-direction: column;
   height: 100vh;
   transition:
-    background 0.2s,
-    color 0.2s;
+    background var(--dur-ui),
+    color var(--dur-ui);
 }
 
 .sr-only {
@@ -196,9 +202,10 @@ body {
   border: 0;
 }
 
+/* Same focus recipe as the site shell: full-strength accent ring, 3px offset. */
 :where(button, a, input, textarea, [tabindex]):focus-visible {
-  outline: 2px solid color-mix(in srgb, var(--accent) 72%, var(--paper));
-  outline-offset: 2px;
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
 }
 
 :where(button, input, textarea):disabled,
@@ -279,7 +286,7 @@ body {
   height: var(--control-h);
   color: var(--ink);
   font-family: var(--font-serif);
-  font-size: 18px;
+  font-size: 1.125rem;   /* same size as the site masthead .brand */
   font-weight: 600;
   line-height: 1;
   text-decoration: none;
@@ -290,7 +297,7 @@ body {
   text-decoration: none;
 }
 .app-brand:active {
-  transform: scale(0.98);
+  transform: scale(0.96);
 }
 .app-mark {
   width: 24px;
@@ -346,7 +353,8 @@ body {
   min-height: 32px;
   padding: 0 12px;
   border: none;
-  border-radius: var(--radius-md);
+  /* concentric with the switch: outer radius − 1px border − 3px padding */
+  border-radius: calc(var(--radius-lg) - 4px);
   background: transparent;
   color: var(--control-fg);
   font-size: var(--t-control);
@@ -356,10 +364,10 @@ body {
   white-space: nowrap;
   user-select: none;
   transition:
-    color 0.15s,
-    background 0.15s,
-    box-shadow 0.15s,
-    transform 0.1s;
+    color var(--dur-control),
+    background var(--dur-control),
+    box-shadow var(--dur-control),
+    transform var(--dur-press);
 }
 .mode-option:hover {
   color: var(--fg);
@@ -426,9 +434,9 @@ body {
   white-space: nowrap;
   user-select: none;
   transition:
-    color 0.15s,
-    background 0.15s,
-    transform 0.1s;
+    color var(--dur-control),
+    background var(--dur-control),
+    transform var(--dur-press);
 }
 .theme-dropdown-btn:hover {
   color: var(--ink);
@@ -454,7 +462,7 @@ body {
   height: 10px;
   color: var(--fg4);
   flex-shrink: 0;
-  transition: transform 0.15s;
+  transition: transform var(--dur-control);
 }
 .theme-dropdown-btn.open svg {
   transform: rotate(180deg);
@@ -485,7 +493,8 @@ body {
   gap: 8px;
   padding: 7px 28px 7px 8px;
   border: none;
-  border-radius: var(--radius-sm);
+  /* concentric with the menu: outer radius − 1px border − 6px padding */
+  border-radius: calc(var(--radius-lg) - 7px);
   background: transparent;
   color: var(--fg);
   font-size: var(--t-label);
@@ -497,8 +506,8 @@ body {
   width: 100%;
   user-select: none;
   transition:
-    background 0.15s,
-    transform 0.1s;
+    background var(--dur-control),
+    transform var(--dur-press);
 }
 .theme-dropdown-item:hover {
   background: var(--control-bg-hover);
@@ -550,10 +559,10 @@ body {
   user-select: none;
   text-decoration: none;
   transition:
-    color 0.15s,
-    background 0.15s,
-    opacity 0.15s,
-    transform 0.1s;
+    color var(--dur-control),
+    background var(--dur-control),
+    opacity var(--dur-control),
+    transform var(--dur-press);
 }
 .btn:hover {
   color: var(--ink);
@@ -587,9 +596,9 @@ body {
   opacity: 1;
   filter: blur(0);
   transition:
-    opacity 0.18s var(--ease-out),
-    transform 0.18s var(--ease-out),
-    filter 0.18s var(--ease-out);
+    opacity var(--dur-ui) var(--ease-out),
+    transform var(--dur-ui) var(--ease-out),
+    filter var(--dur-ui) var(--ease-out);
 }
 #dark-light-btn #icon-sun,
 #dark-light-btn.is-dark #icon-moon {
@@ -852,9 +861,9 @@ body {
   min-height: 72px;
   text-wrap: pretty;
   transition:
-    background 0.15s,
-    box-shadow 0.15s,
-    transform 0.1s;
+    background var(--dur-control),
+    box-shadow var(--dur-control),
+    transform var(--dur-press);
 }
 .example-dropdown-item:hover,
 .example-dropdown-item.active {
@@ -918,9 +927,9 @@ body {
   text-align: left;
   cursor: pointer;
   transition:
-    color 0.15s,
-    background 0.15s,
-    transform 0.1s;
+    color var(--dur-control),
+    background var(--dur-control),
+    transform var(--dur-press);
 }
 .example-clear-btn:hover {
   color: var(--fg);
@@ -959,7 +968,7 @@ body {
   background: transparent;
   color: var(--fg2);
   cursor: pointer;
-  transition: color 0.15s, background 0.15s;
+  transition: color var(--dur-control), background var(--dur-control);
 }
 .icon-btn:hover { color: var(--fg); background: var(--control-bg-hover); }
 .icon-btn svg { width: 14px; height: 14px; }
@@ -979,7 +988,7 @@ body {
   background: transparent;
   cursor: col-resize;
   flex-shrink: 0;
-  transition: background 0.15s;
+  transition: background var(--dur-control);
   position: relative;
   z-index: 10;
   margin-left: -4px;
@@ -1114,8 +1123,8 @@ body {
   padding: 2px 10px;
   cursor: pointer;
   transition:
-    color 0.15s,
-    background 0.15s;
+    color var(--dur-control),
+    background var(--dur-control);
 }
 .draft-discard-btn:hover {
   background: var(--control-bg-hover);
@@ -1226,9 +1235,9 @@ body {
   cursor: pointer;
   user-select: none;
   transition:
-    opacity 0.15s,
-    background 0.15s,
-    transform 0.1s;
+    opacity var(--dur-control),
+    background var(--dur-control),
+    transform var(--dur-press);
 }
 .toolbar-btn:hover {
   opacity: 1;
@@ -1258,7 +1267,7 @@ body {
   background: transparent;
   padding: 0;
   cursor: pointer;
-  transition: color 0.15s;
+  transition: color var(--dur-control);
 }
 .zoom-label:hover {
   color: var(--fg);
@@ -1311,7 +1320,7 @@ body {
 
 .preview-error {
   color: color-mix(in srgb, var(--danger) 82%, var(--fg));
-  font-size: 0.875rem;
+  font-size: var(--t-sm);
   line-height: 1.5;
   padding: 1.25rem;
   background: var(--danger-tint);
@@ -1339,7 +1348,7 @@ body {
   background: color-mix(in srgb, var(--danger) 5%, var(--paper));
   color: color-mix(in srgb, var(--danger) 80%, var(--fg));
   font-family: var(--font-mono);
-  font-size: 0.8125rem;
+  font-size: var(--t-label);
   white-space: pre-wrap;
   overflow-x: auto;
 }
@@ -1352,7 +1361,7 @@ body {
   border: 1px solid var(--line);
   box-shadow: none;
   color: var(--fg4);
-  font-size: 0.875rem;
+  font-size: var(--t-sm);
   text-align: center;
   display: flex;
   flex-direction: column;
@@ -1369,7 +1378,7 @@ body {
 }
 .placeholder-title {
   color: var(--fg);
-  font-size: 20px;
+  font-size: 1.25rem;
   line-height: 1.18;
   text-wrap: balance;
 }
@@ -1398,8 +1407,8 @@ body {
   cursor: pointer;
   box-shadow: var(--shadow-minimal);
   transition:
-    background 0.15s,
-    transform 0.1s;
+    background var(--dur-control),
+    transform var(--dur-press);
 }
 .placeholder-example-btn:hover {
   background: var(--control-bg-hover);
@@ -1419,8 +1428,8 @@ body {
   font-weight: 700;
   cursor: pointer;
   transition:
-    background 0.15s,
-    transform 0.1s;
+    background var(--dur-control),
+    transform var(--dur-press);
 }
 .placeholder-chip:hover {
   background: color-mix(in srgb, var(--accent) 14%, var(--paper));
@@ -1442,7 +1451,8 @@ body {
   min-height: 30px;
   padding: 0 11px;
   border: none;
-  border-radius: var(--radius-md);
+  /* concentric with the switch: outer radius − 1px border − 3px padding */
+  border-radius: calc(var(--radius-lg) - 4px);
   background: transparent;
   color: var(--control-fg);
   font: inherit;
@@ -1450,7 +1460,7 @@ body {
   font-weight: 500;
   cursor: pointer;
   white-space: nowrap;
-  transition: color 0.15s, background 0.15s, box-shadow 0.15s, transform 0.1s;
+  transition: color var(--dur-control), background var(--dur-control), box-shadow var(--dur-control), transform var(--dur-press);
 }
 .format-option:hover { color: var(--fg); }
 .format-option.is-active {
@@ -1495,6 +1505,8 @@ body {
   background: var(--bg2);
   font-size: var(--t-label);
   line-height: var(--lh-ui);
+  /* render time and note counts change every render — keep digits from shifting */
+  font-variant-numeric: tabular-nums;
 }
 .verify-verdict { color: var(--fg2); font-weight: 650; }
 .verify-tiers { margin-left: auto; display: flex; align-items: center; gap: 13px; flex-wrap: wrap; }
@@ -1556,8 +1568,8 @@ body {
   padding: 2px 10px;
   cursor: pointer;
   transition:
-    color 0.15s,
-    background 0.15s;
+    color var(--dur-control),
+    background var(--dur-control);
 }
 .verify-details-btn:hover {
   background: var(--control-bg-hover);
@@ -1698,13 +1710,16 @@ body {
   justify-content: center;
   width: 32px;
   height: 32px;
+  position: relative;
   border: none;
   border-radius: var(--radius-sm);
   background: transparent;
   color: var(--fg3);
   cursor: pointer;
-  transition: color 0.15s var(--ease-out), background 0.15s var(--ease-out);
+  transition: color var(--dur-control) var(--ease-out), background var(--dur-control) var(--ease-out);
 }
+/* invisible halo lifts the 32px visual to a 40px hit target */
+.config-close::after { content: ""; position: absolute; inset: -4px; }
 .config-close:hover { color: var(--fg); background: var(--control-bg-hover); }
 .config-close svg { width: 15px; height: 15px; }
 
@@ -1743,7 +1758,7 @@ body {
   font-size: var(--t-label);
   font-family: var(--font-mono);
   cursor: pointer;
-  transition: border-color 0.15s var(--ease-out), background 0.15s var(--ease-out);
+  transition: border-color var(--dur-control) var(--ease-out), background var(--dur-control) var(--ease-out);
   min-width: 100px;
   justify-content: flex-end;
 }
@@ -1767,7 +1782,7 @@ body {
   justify-content: space-between;
   margin-bottom: 0.5rem;
 }
-.padding-row label { font-size: 0.8rem; color: var(--fg); }
+.padding-row label { font-size: var(--t-label); color: var(--fg); }
 .padding-num {
   width: 56px;
   height: 28px;
@@ -1827,14 +1842,14 @@ body {
   font-size: var(--t-label);
   font-weight: 600;
   cursor: pointer;
-  transition: color 0.15s var(--ease-out), background 0.15s var(--ease-out), border-color 0.15s var(--ease-out), transform 0.1s var(--ease-out);
+  transition: color var(--dur-control) var(--ease-out), background var(--dur-control) var(--ease-out), border-color var(--dur-control) var(--ease-out), transform var(--dur-press) var(--ease-out);
 }
 .config-reset-btn:hover {
   color: var(--fg);
   background: var(--control-bg-hover);
   border-color: var(--line-strong);
 }
-.config-reset-btn:active { transform: scale(0.98); }
+.config-reset-btn:active { transform: scale(0.96); }
 
 
 .color-popup {
@@ -1861,11 +1876,14 @@ body {
 .color-popup-title { font-size: var(--t-label); font-weight: 600; color: var(--fg); }
 .color-popup-close {
   width: 22px; height: 22px;
+  position: relative;
   display: flex; align-items: center; justify-content: center;
   border: none; border-radius: var(--radius-sm);
   background: transparent; color: var(--fg2);
   cursor: pointer; font-size: 1rem; line-height: 1;
 }
+/* invisible halo lifts the 22px visual to a 40px hit target */
+.color-popup-close::after { content: ""; position: absolute; inset: -9px; }
 .color-popup-close:hover { background: var(--control-bg-hover); color: var(--fg); }
 
 .color-hex-row {
@@ -1928,7 +1946,7 @@ body {
   border-radius: var(--radius-sm);
   border: 1px solid var(--line-strong);
   cursor: pointer;
-  transition: transform 0.1s, box-shadow 0.1s;
+  transition: transform var(--dur-press), box-shadow var(--dur-press);
 }
 .color-swatch-btn:hover {
   transform: scale(1.15);
@@ -1959,7 +1977,7 @@ body {
   cursor: pointer;
   min-width: 120px;
   justify-content: space-between;
-  transition: border-color 0.15s;
+  transition: border-color var(--dur-control);
 }
 .font-select-btn:hover {
   background: var(--control-bg-hover);
@@ -1987,7 +2005,8 @@ body {
   padding: 0 0.5rem 0 2rem;
   background: var(--control-bg);
   border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
+  /* concentric with the popup: outer radius − 1px border − 0.5rem padding */
+  border-radius: calc(var(--radius-lg) - 1px - 0.5rem);
   color: var(--fg);
   font-size: var(--t-label);
   font-family: inherit;
@@ -2020,14 +2039,14 @@ body {
   min-height: 40px;
   padding: 0.4rem 0.5rem;
   border: 0;
-  border-radius: var(--radius-sm);
+  border-radius: calc(var(--radius-lg) - 1px - 0.5rem);
   background: transparent;
   cursor: pointer;
   font: inherit;
-  font-size: 0.82rem;
+  font-size: var(--t-label);
   color: var(--fg);
   text-align: left;
-  transition: background 0.12s;
+  transition: background var(--dur-press);
 }
 .font-item:hover { background: var(--control-bg-hover); }
 .font-item.active { background: color-mix(in srgb, var(--accent) 12%, var(--paper)); color: var(--accent); }
@@ -2081,7 +2100,8 @@ body {
   width: 100%;
   padding: 7px 8px;
   border: none;
-  border-radius: var(--radius-sm);
+  /* concentric with the dropdown: outer radius − 1px border − 6px padding */
+  border-radius: calc(var(--radius-lg) - 7px);
   background: transparent;
   color: var(--fg);
   font-size: var(--t-control);
@@ -2090,8 +2110,8 @@ body {
   text-align: left;
   user-select: none;
   transition:
-    background 0.15s,
-    transform 0.1s;
+    background var(--dur-control),
+    transform var(--dur-press);
 }
 .export-item:hover {
   background: var(--control-bg-hover);
@@ -2166,9 +2186,9 @@ body {
   font-family: inherit;
   cursor: pointer;
   transition:
-    color 0.15s,
-    background 0.15s,
-    transform 0.1s;
+    color var(--dur-control),
+    background var(--dur-control),
+    transform var(--dur-press);
   font-variant-numeric: tabular-nums;
 }
 .size-pill:hover {
@@ -2338,17 +2358,20 @@ body {
 .shortcuts-dialog-close {
   width: 28px;
   height: 28px;
+  position: relative;
   border: none;
   border-radius: var(--radius-sm);
   background: transparent;
   color: var(--fg3);
-  font-size: 16px;
+  font-size: 1rem;
   font-family: inherit;
   cursor: pointer;
   transition:
-    color 0.15s,
-    background 0.15s;
+    color var(--dur-control),
+    background var(--dur-control);
 }
+/* invisible halo lifts the 28px visual to a 40px hit target */
+.shortcuts-dialog-close::after { content: ""; position: absolute; inset: -6px; }
 .shortcuts-dialog-close:hover {
   background: var(--control-bg-hover);
   color: var(--fg);

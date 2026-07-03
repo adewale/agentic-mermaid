@@ -120,9 +120,9 @@
   min-height: 72px;
   text-wrap: pretty;
   transition:
-    background 0.15s,
-    box-shadow 0.15s,
-    transform 0.1s;
+    background var(--dur-control),
+    box-shadow var(--dur-control),
+    transform var(--dur-press);
 }
 .example-dropdown-item:hover,
 .example-dropdown-item.active {
@@ -186,9 +186,9 @@
   text-align: left;
   cursor: pointer;
   transition:
-    color 0.15s,
-    background 0.15s,
-    transform 0.1s;
+    color var(--dur-control),
+    background var(--dur-control),
+    transform var(--dur-press);
 }
 .example-clear-btn:hover {
   color: var(--fg);
@@ -227,7 +227,7 @@
   background: transparent;
   color: var(--fg2);
   cursor: pointer;
-  transition: color 0.15s, background 0.15s;
+  transition: color var(--dur-control), background var(--dur-control);
 }
 .icon-btn:hover { color: var(--fg); background: var(--control-bg-hover); }
 .icon-btn svg { width: 14px; height: 14px; }
@@ -247,7 +247,7 @@
   background: transparent;
   cursor: col-resize;
   flex-shrink: 0;
-  transition: background 0.15s;
+  transition: background var(--dur-control);
   position: relative;
   z-index: 10;
   margin-left: -4px;

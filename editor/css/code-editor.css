@@ -83,8 +83,8 @@
   padding: 2px 10px;
   cursor: pointer;
   transition:
-    color 0.15s,
-    background 0.15s;
+    color var(--dur-control),
+    background var(--dur-control);
 }
 .draft-discard-btn:hover {
   background: var(--control-bg-hover);
