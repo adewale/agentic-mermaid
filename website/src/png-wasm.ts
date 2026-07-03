@@ -16,11 +16,16 @@ import { assertRasterBudget } from './raster-budget.ts'
 
 let ready: Promise<void> | undefined
 
-export async function renderMermaidPNGWasm(source: string, opts: { scale?: number; background?: string } = {}): Promise<Uint8Array> {
+export async function renderMermaidPNGWasm(source: string, opts: { scale?: number; background?: string; style?: unknown; seed?: number } = {}): Promise<Uint8Array> {
   // initWasm throws if called twice; keep a single init promise per isolate.
   ready ??= Promise.resolve(initWasm(resvgWasmModule))
   await ready
-  const svg = renderMermaidSVG(source, { embedFontImport: false })
+  const svg = renderMermaidSVG(source, { embedFontImport: false, style: opts.style as never, seed: opts.seed })
+    // resvg has no CSS custom-property support; inline the resolved family
+    // (the renderer always emits it as the var() fallback literal). Hosted
+    // rasterization only embeds DejaVu, so styled fonts still substitute —
+    // documented; the local server bundles the style faces.
+    .replace(/var\(--font,\s*('[^']*')\)/g, '$1')
   assertRasterBudget(svg, opts.scale ?? 2)
   const resvg = new Resvg(svg, {
     background: opts.background ?? 'white',

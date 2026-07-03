@@ -24,6 +24,8 @@ you haven't inspected.
 
 - render --format svg, ascii, unicode, json [--security strict] — render a diagram
 - render --format png --output file.png — render one input to PNG (no PNG bytes on stdout, no multi-input/watch)
+- render --style <names|file.json> --seed N — styled svg/png; comma-separate to stack (--style hand-drawn,dracula)
+- styles [--json] — list registered styles (default + full looks + palette-only themes)
 - parse — diagram → ValidDiagram JSON
 - verify — structural validation (exit 3 if invalid)
 - mutate --op '<json>' / --ops '<json array|file>' — apply typed mutation(s), verify, then emit source

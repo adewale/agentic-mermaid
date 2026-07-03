@@ -76,6 +76,8 @@ async function getHashSource() {
     var obj = JSON.parse(decoded);
     if (obj && obj.source) {
       if (obj.theme) { state.theme = obj.theme; }
+      if (obj.style) { state.style = obj.style; }
+      if (typeof obj.seed === 'number') { state.seed = obj.seed; }
       if (hasOwnConfig(obj.config)) { state.config = obj.config; }
       return obj.source;
     }
@@ -93,6 +95,8 @@ var hashUpdateToken = 0;
 function updateHash() {
   var obj = { source: editor.value };
   if (state.theme) obj.theme = state.theme;
+  if (state.style && state.style !== 'crisp') obj.style = state.style;
+  if (state.seed) obj.seed = state.seed;
   if (hasOwnConfig(state.config)) obj.config = state.config;
   // Compression is async; the token drops stale writes when edits overlap.
   var token = ++hashUpdateToken;
@@ -115,6 +119,8 @@ function saveEditorDraft() {
     localStorage.setItem(DRAFT_STORAGE_KEY, JSON.stringify({
       source: editor.value,
       config: state.config,
+      style: state.style !== 'crisp' ? state.style : undefined,
+      seed: state.seed || undefined,
       savedAt: Date.now(),
     }));
   } catch(e) {}

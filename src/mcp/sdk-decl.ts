@@ -326,7 +326,7 @@ declare const mermaid: {
   analyzeMermaid(d: ValidDiagram): DiagramAnalysis
   analyzeMermaidSource(source: string): Result<DiagramAnalysis, { code: string; message: string }[]>
   serializeMermaid(d: ValidDiagram): string
-  renderMermaidSVG(input: ValidDiagram | string, opts?: { security?: 'default' | 'strict'; idPrefix?: string; ganttToday?: string; mermaidConfig?: MermaidRuntimeConfig }): string
+  renderMermaidSVG(input: ValidDiagram | string, opts?: { security?: 'default' | 'strict'; idPrefix?: string; ganttToday?: string; mermaidConfig?: MermaidRuntimeConfig; style?: StyleInput | StyleInput[]; seed?: number }): string
   renderMermaidASCII(input: ValidDiagram | string, opts?: { useAscii?: boolean; ganttToday?: string; mermaidConfig?: MermaidRuntimeConfig }): string
 }
 

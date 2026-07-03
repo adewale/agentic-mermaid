@@ -117,6 +117,111 @@ applyThemeToPage(state.theme);
 updateThemeButton();
 setThemeMenuOpen(false, false);
 
+// ── Style dropdown (the LOOK — hand-drawn, watercolor, …) ───────────────────
+// Mirrors the theme dropdown: style picks the mark treatment, theme picks the
+// palette; buildOptions stacks them (theme colors win by render precedence).
+var styleBtnLabel = document.getElementById("style-btn-label");
+var styleDropdownBtn = document.getElementById("style-dropdown-btn");
+var styleMenu = document.getElementById("style-dropdown-menu");
+var seedShuffleBtn = document.getElementById("seed-shuffle-btn");
+
+function updateStyleButton() {
+  var key = state.style || "crisp";
+  styleBtnLabel.textContent =
+    styleDropdownBtn.getAttribute("data-label-" + key) || key;
+  styleMenu.querySelectorAll(".theme-dropdown-item").forEach(function (item) {
+    var active = (item.dataset.style || "crisp") === key;
+    item.classList.toggle("active", active);
+    item.setAttribute("aria-selected", active ? "true" : "false");
+    item.tabIndex = styleMenu.classList.contains("open") && active ? 0 : -1;
+  });
+  // The ink seed only means something for a styled look.
+  if (seedShuffleBtn) seedShuffleBtn.hidden = key === "crisp";
+}
+
+function setStyle(key) {
+  state.style = key || "crisp";
+  if (state.style !== "crisp") {
+    localStorage.setItem("bm-editor-style", state.style);
+  } else {
+    localStorage.removeItem("bm-editor-style");
+  }
+  updateStyleButton();
+  scheduleRender(0);
+}
+
+var styleMenuPopup = createPopupController({
+  popup: styleMenu,
+  trigger: styleDropdownBtn,
+  visibility: { manageTabStops: false },
+  afterOpen: function(meta) {
+    syncStyleMenuTabStops(true);
+    if (meta && meta.focusFirst) {
+      var active = styleMenu.querySelector(".theme-dropdown-item.active") || styleMenu.querySelector(".theme-dropdown-item");
+      if (active) active.focus();
+    }
+  },
+  afterClose: function() { syncStyleMenuTabStops(false); },
+  contains: function(target) { return !!target.closest("#style-dropdown-wrap"); },
+});
+
+function syncStyleMenuTabStops(open) {
+  styleMenu.querySelectorAll(".theme-dropdown-item").forEach(function(item) {
+    var active = item.classList.contains("active");
+    item.tabIndex = open && active ? 0 : -1;
+  });
+}
+
+function setStyleMenuOpen(open, focusActive) {
+  styleMenuPopup.setOpen(open, { focusFirst: !!focusActive });
+}
+
+styleMenu.addEventListener("click", function (e) {
+  var item = e.target.closest(".theme-dropdown-item");
+  if (!item) return;
+  setStyle(item.dataset.style || "crisp");
+  setStyleMenuOpen(false, false);
+  styleDropdownBtn.focus();
+});
+
+styleMenu.addEventListener("keydown", function(e) {
+  var items = Array.prototype.slice.call(styleMenu.querySelectorAll(".theme-dropdown-item"));
+  var current = document.activeElement && document.activeElement.classList.contains("theme-dropdown-item") ? document.activeElement : null;
+  var index = Math.max(0, items.indexOf(current));
+  if (["ArrowDown", "ArrowUp", "Home", "End"].includes(e.key)) {
+    e.preventDefault();
+    var next = index;
+    if (e.key === "Home") next = 0;
+    else if (e.key === "End") next = items.length - 1;
+    else next = (index + (e.key === "ArrowDown" ? 1 : -1) + items.length) % items.length;
+    items[next].tabIndex = 0;
+    items[next].focus();
+  }
+  if (e.key === "Enter" || e.key === " ") {
+    e.preventDefault();
+    if (current) current.click();
+  }
+});
+
+styleMenu.querySelectorAll(".theme-dropdown-item").forEach(function (item) {
+  var key = item.dataset.style || "crisp";
+  styleDropdownBtn.setAttribute("data-label-" + key, item.textContent.trim());
+});
+
+if (seedShuffleBtn) {
+  seedShuffleBtn.addEventListener("click", function () {
+    // Deterministic walk, not random: the same clicks reproduce the same ink.
+    state.seed = (state.seed | 0) + 1;
+    scheduleRender(0);
+    if (typeof scheduleDraftSave === 'function') scheduleDraftSave();
+  });
+}
+
+var savedStyle = localStorage.getItem("bm-editor-style") || "";
+if (savedStyle) state.style = savedStyle;
+updateStyleButton();
+setStyleMenuOpen(false, false);
+
 // Load from URL hash or start on an on-brand default so the editor opens with
 // the loop already working (a rendered diagram, verify results, and on-demand
 // text outputs) instead of five empty states. The default is the product's own
@@ -203,6 +308,8 @@ function shouldOpenEmptyEditor() {
     if (draft) {
       editor.value = draft.source;
       if (hasOwnConfig(draft.config)) state.config = draft.config;
+      if (draft.style) state.style = draft.style;
+      if (typeof draft.seed === 'number') state.seed = draft.seed;
       refreshAllColorUIs();
       showDraftRestoredNotice();
       // A restored draft means a returning editor: on mobile, put Source (and

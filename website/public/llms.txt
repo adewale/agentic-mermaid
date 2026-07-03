@@ -9,6 +9,8 @@ Start here:
 - /examples/index.json – the same example IDs and sources loaded by the editor
 - /skills/agentic-mermaid-diagram-workflow/SKILL.md – optional workflow skill for skills-capable agents
 
+Styles: every render accepts style (a name like hand-drawn/watercolor/blueprint or any theme name, an inline JSON record, or a stack merged left-to-right) plus seed to re-roll styled ink; layout never moves. A colors-only style is a theme. Authoring guide: docs/style-authoring.md in the package.
+
 Stop rules:
 - Verify before serialize, render, commit, or return.
 - Do not fabricate ValidDiagram objects. Parse first.

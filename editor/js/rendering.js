@@ -93,6 +93,13 @@ function buildOptions() {
     if (t.surface) opts.surface = t.surface;
     if (t.border) opts.border = t.border;
   }
+  // Style = the LOOK (hand-drawn, watercolor, ...); theme = the PALETTE.
+  // Explicit theme colors above win over the style's own palette by render
+  // precedence, so any look stacks with any theme.
+  if (state.style && state.style !== "crisp") {
+    opts.style = state.style;
+    opts.seed = state.seed || 0;
+  }
   return Object.assign(opts, state.config);
 }
 

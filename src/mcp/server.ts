@@ -86,6 +86,8 @@ Agentic Mermaid outputs SVG, PNG, ASCII, Unicode, and JSON layout. For non-PNG o
         source: { type: 'string', description: 'Mermaid source.' },
         scale: { type: 'number', description: 'Output scale multiplier (default 2 — retina).' },
         background: { type: 'string', description: "CSS color string (default 'white')." },
+        style: { description: 'Style: a name (hand-drawn, watercolor, …, or any theme name), an inline style record, or an array stack merged left → right.' },
+        seed: { type: 'number', description: 'Re-rolls ink wobble of styled looks; never moves layout.' },
         output: { type: 'string', enum: ['base64', 'file', 'url'], description: 'PNG return mode (default base64).' },
       },
       required: ['source'],
@@ -166,11 +168,13 @@ function handleRenderPng(id: number | string | null, args: Record<string, unknow
   const source = (args as { source?: string }).source
   const scale = (args as { scale?: number }).scale
   const background = (args as { background?: string }).background
+  const style = (args as { style?: import('../scene/style-registry.ts').StyleInput | import('../scene/style-registry.ts').StyleInput[] }).style
+  const seed = (args as { seed?: number }).seed
   const output = String((args as { output?: string; outputMode?: string }).output ?? (args as { outputMode?: string }).outputMode ?? 'base64')
   if (typeof source !== 'string') return error(id, -32602, 'render_png requires `source` (string)')
   if (!['base64', 'file', 'url'].includes(output)) return error(id, -32602, 'render_png output must be one of: base64, file, url')
   try {
-    const png = renderMermaidPNG(source, { scale, background })
+    const png = renderMermaidPNG(source, { scale, background, style, seed })
     if (output === 'base64') {
       const png_base64 = Buffer.from(png).toString('base64')
       const payload = { ok: true as const, png_base64 }
