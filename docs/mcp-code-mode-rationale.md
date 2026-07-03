@@ -2,6 +2,8 @@
 
 `agentic-mermaid-mcp` is intentionally Code Mode first. Its primary tool is `execute(code)`, which runs synchronous JavaScript against the typed `mermaid.*` SDK in a local `node:vm` sandbox. This is a local implementation inspired by Code Mode as a product shape; it is not Cloudflare Codemode, not backed by `@cloudflare/codemode`, and not an OS/container security boundary. The helper tools (`render_png` and `describe`) are narrow conveniences, not a second full authoring API.
 
+There is now also a **hosted** MCP at `https://agentic-mermaid.dev/mcp` (stateless Streamable HTTP; see [`docs/project/hosted-mcp-cloudflare-plan.md`](./project/hosted-mcp-cloudflare-plan.md)). It keeps `execute` but runs agent code in a per-request Cloudflare Dynamic Worker isolate (`globalOutbound: null`, empty env, `cpuMs` budget) instead of a local `node:vm` — there the isolate configuration *is* the security boundary — and adds direct `render_svg`/`render_ascii`/`render_png`/`verify`/`describe` tools so the common render/verify paths avoid a billable isolate. Both share the same hardened `mermaid.*` facade; their semantics are pinned against each other by a differential test suite.
+
 ## Why the MCP server exists
 
 Agents often need a multi-step diagram transaction:

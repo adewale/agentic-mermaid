@@ -3,7 +3,13 @@
 # (AM_FC_SEED=random rolls fresh seeds; see docs/testing-strategy.md).
 preload = ["./src/__tests__/fc-seed.preload.ts"]
 coverage = true
-coverageReporter = ["text", "lcov"]
+# lcov only: the text reporter's giant padded table intermittently kills
+# bun's stdout writer (`error: An internal error occurred (WriteFailed)`,
+# exit 1 with zero test failures) — reproduced twice on CI's piped output
+# (runs 28576001032, 28576303182) and once locally. This bunfig list also
+# overrides any --coverage-reporter CLI flag, so it must be fixed here.
+# Read coverage from coverage/lcov.info.
+coverageReporter = ["lcov"]
 
 # Only measure coverage on production source, not test files or scripts
 coverageSkipTestFiles = true

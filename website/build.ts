@@ -7,6 +7,7 @@ import { verifyMermaid } from '../src/agent/index.ts'
 import { buildCapabilities } from '../src/cli/index.ts'
 import { renderMermaidASCII, renderMermaidSVG } from '../src/index.ts'
 import { namespaceSvgIds } from '../src/renderer.ts'
+import { computeDeployVersion } from './src/deploy-hash.ts'
 
 const ROOT = join(import.meta.dir, '..')
 const SOURCE = join(import.meta.dir, 'source')
@@ -878,7 +879,7 @@ for (const file of skillFiles) {
 }
 
 // Public llms.txt must not expose repo-only backlog/eval/contributor surfaces.
-const publicLlms = `# Agentic Mermaid\n\nAgentic Mermaid renders, verifies, and safely edits Mermaid diagrams locally. Use the package, CLI, or self-hosted MCP; the website is documentation plus a browser-local editor, not a REST render API.\n\nStart here:\n- /agent-instructions.md – compact operating guide for agents\n- /capabilities.json – authoritative family/output/mutation/warning contract\n- /examples/index.json – the same example IDs and sources loaded by the editor\n- /skills/agentic-mermaid-diagram-workflow/SKILL.md – optional workflow skill for skills-capable agents\n\nStop rules:\n- Verify before serialize, render, commit, or return.\n- Do not fabricate ValidDiagram objects. Parse first.\n- Prefer local library, CLI, or self-hosted MCP.\n- Do not call this website as a render API or arbitrary-code execution backend.\n`;
+const publicLlms = `# Agentic Mermaid\n\nAgentic Mermaid renders, verifies, and safely edits Mermaid diagrams. Use the package, CLI, the hosted MCP at /mcp, or a self-hosted MCP; the website is documentation plus a browser-local editor, not a REST render API.\n\nStart here:\n- /mcp \u2013 hosted MCP endpoint (stateless streamable HTTP JSON-RPC; tools: execute, render_svg, render_ascii, render_png, verify, describe)\n- /agent-instructions.md – compact operating guide for agents\n- /capabilities.json – authoritative family/output/mutation/warning contract\n- /examples/index.json – the same example IDs and sources loaded by the editor\n- /skills/agentic-mermaid-diagram-workflow/SKILL.md – optional workflow skill for skills-capable agents\n\nStop rules:\n- Verify before serialize, render, commit, or return.\n- Do not fabricate ValidDiagram objects. Parse first.\n- Prefer the local library, CLI, or MCP; the hosted /mcp endpoint covers the same tools with 64KB input caps.\n- Call /mcp with MCP JSON-RPC only; the website is not a REST render API.\n`;
 await emit('llms.txt', publicLlms)
 await emit('agent-instructions.md', await Bun.file(join(ROOT, 'Instructions_for_agents.md')).text())
 
@@ -998,9 +999,9 @@ MMD</code></pre></li>
 bun run bin/am.ts render diagram.mmd --format svg --output diagram.svg
 bun run bin/am.ts render diagram.mmd --format unicode</code></pre></li>
 <li><strong>Ask an agent for the smallest edit.</strong><p>Paste your task and source into the homepage agent prompt, and require the agent to return Updated Mermaid, Verification, and Trace.</p><a class="go" href="/#home-agent-prompt">Get the agent prompt on the homepage</a></li>
-<li><strong>Optional: wire local MCP.</strong><p>Self-hosting over stdio is the default path. The website is documentation plus a browser-local editor; it is not a render API and it does not run hosted Code Mode.</p>
+<li><strong>Optional: wire MCP.</strong><p>Self-hosting over stdio is the default path; a hosted MCP endpoint is also available at <code>https://agentic-mermaid.dev/mcp</code> (streamable HTTP).</p>
 ${mcpConfigCardHtml('getting-started')}
-<pre><code>bun run bin/agentic-mermaid-mcp.ts</code></pre><p>Use stdio MCP from the cloned repo. The hosted Workers site intentionally does not enable Code Mode or a render API.</p></li>
+<pre><code>bun run bin/agentic-mermaid-mcp.ts</code></pre><p>Use stdio MCP from the cloned repo, or point an MCP client at the hosted endpoint.</p></li>
 </ol>
 ${docsIndex}`
 
@@ -1011,7 +1012,7 @@ const docPages = [
   ['docs/api/index.html', 'Library API', 'Use agentic-mermaid and agentic-mermaid/agent from local JS or TS.', '<p>Import rendering helpers from <code>agentic-mermaid</code> and typed parse/mutate/verify helpers from <code>agentic-mermaid/agent</code>.</p>' + docsIndex],
   ['docs/source-level/index.html', 'Source-level edits', 'When a family or construct cannot be narrowed safely, preserve source deliberately.', '<p>Opaque fallback bodies round-trip losslessly, but they do not expose structured mutation. Edit their preserved source only when the task explicitly asks for source-level changes, then parse and verify before returning artifacts.</p>' + docsIndex],
   ['docs/cli/index.html', 'CLI', 'Use the am CLI for local rendering, verification, batch checks, and Markdown rendering.', '<pre><code>am verify diagram.mmd\nam render diagram.mmd --format svg --output diagram.svg\nam render diagram.mmd --format unicode</code></pre>' + docsIndex],
-  ['docs/mcp/index.html', 'MCP', 'Self-host the MCP over stdio; HTTP is explicit opt-in.', '<p>The local MCP tools are <code>execute</code>, <code>render_png</code>, and <code>describe</code>. Multi-step parse/narrow/mutate/verify workflows run inside <code>execute(code)</code> on your machine or inside your own MCP host.</p><p><strong>The public website does not execute Code Mode.</strong> The deployed <code>/mcp</code> route returns <code>501 hosted_mcp_not_enabled</code>; use stdio MCP from a local checkout unless you deliberately self-host HTTP.</p>' + docsIndex],
+  ['docs/mcp/index.html', 'MCP', 'Hosted MCP at /mcp, plus a local stdio server.', '<p>The hosted MCP endpoint is <code>https://agentic-mermaid.dev/mcp</code>: stateless streamable HTTP (JSON-RPC over POST, no sessions). Hosted tools: <code>execute</code>, <code>render_svg</code>, <code>render_ascii</code>, <code>render_png</code>, <code>verify</code>, and <code>describe</code>. Deterministic responses are edge-cached, inputs are capped at 64KB, and Code Mode <code>execute</code> runs in an isolated on-demand Worker with network access disabled and a CPU budget.</p><p>The local MCP tools are <code>execute</code>, <code>render_png</code>, and <code>describe</code>. Multi-step parse/narrow/mutate/verify workflows run inside <code>execute(code)</code>. For file/URL PNG artifacts, diagrams beyond the hosted caps, or offline use, run the stdio server from the repo: <code>bun run bin/agentic-mermaid-mcp.ts</code>.</p>' + docsIndex],
   ['docs/ascii/index.html', 'ASCII and Unicode', 'Text output is first-class for terminals, PR comments, and agent review.', '<pre><code>am render diagram.mmd --format ascii\nam render diagram.mmd --format unicode</code></pre>' + docsIndex],
   ['docs/theming/index.html', 'Theming', 'Themes derive diagram colours from bg, fg, and accent tokens.', '<p>The browser editor exposes renderer themes; SVG output can also inherit CSS variables for live theming.</p>' + docsIndex],
   ['docs/config/index.html', 'Config', 'Mermaid frontmatter and init directives are normalized before rendering.', '<p>Use checked Mermaid config/frontmatter where supported; unsupported syntax is preserved or reported rather than silently dropped.</p>' + docsIndex],
@@ -1019,7 +1020,7 @@ const docPages = [
   ['docs/quality/index.html', 'Quality', 'Determinism, verify warnings, and layout metrics make diagram edits reviewable.', '<p><code>verify.ok</code> is a gate, not a promise of visual perfection. Include SVG/PNG/ASCII artifacts for human review when the change is visual.</p>' + docsIndex],
   ['docs/fork-differences/index.html', 'Fork differences', 'Agentic Mermaid adds typed editing, deterministic verification, CLI, MCP, and more families.', '<p>See the repository docs for the detailed upstream comparison; this public route keeps the product difference discoverable.</p>' + docsIndex],
   ['docs/vocabulary/index.html', 'Vocabulary', 'Shared terms for humans and agents.', '<dl><dt>narrow</dt><dd>Resolve a parsed diagram to a family-specific typed surface.</dd><dt>verify</dt><dd>Return structural, geometric, and lint warnings before artifacts are trusted.</dd><dt>opaque fallback</dt><dd>Preserve unsupported syntax losslessly when structured mutation is unavailable.</dd></dl>' + docsIndex],
-  ['security/index.html', 'Security and privacy', 'The site is static/local-first and does not run hosted Code Mode.', '<p>Source stays in the browser for the editor. The preview has no hosted render API; <code>/mcp</code> returns a 501 until a bounded hosted MCP is deliberately implemented.</p>'],
+  ['security/index.html', 'Security and privacy', 'The editor stays browser-local; the hosted MCP is bounded and stateless.', '<p>Source stays in the browser for the editor. There is no REST render API. The hosted MCP at <code>/mcp</code> accepts JSON-RPC only, caps request bodies at 128KB and tool inputs at 64KB, and runs Code Mode <code>execute</code> in an isolated on-demand Worker with network access disabled, an empty environment, and a CPU budget.</p>'],
   ['releases/index.html', 'Releases', 'Current package and site build metadata.', `<pre><code>package: ${packageJson.name}@${packageJson.version}\ngit: ${generatedFrom.gitSha}\nbuild: ${generatedFrom.buildTime}</code></pre>`],
   ['evidence/index.html', 'Evidence', 'Quality evidence is curated, not raw private prompts.', '<p>Use CI, generated artifacts, and deterministic metrics to review changes. Private eval prompts and holdbacks are not public site content.</p>'],
   ['examples/index.html', 'Examples', 'Proof that each editor source parses, renders, and carries an agent task you can replay.', examplesShowcaseHtml(EDITOR_EXAMPLES), '/examples/'],
@@ -1262,6 +1263,85 @@ const redirectLines = [
 ].join('\n')
 await emit('_redirects', redirectLines)
 
+// ---- Worker artifacts (website/src/generated) ------------------------------
+// The /mcp Worker needs the Code Mode harness bundled for the dynamic-worker
+// isolate, the resvg wasm module, and the DejaVu fonts. They live under
+// src/generated (not public/): they are Worker modules, not servable assets.
+const SRC_GENERATED = join(import.meta.dir, 'src', 'generated')
+const workerGenerated = new Map<string, Buffer>()
+
+async function emitWorkerArtifact(rel: string, content: Buffer) {
+  workerGenerated.set(rel, content)
+  if (CHECK) return
+  const dest = join(SRC_GENERATED, rel)
+  await mkdir(dirname(dest), { recursive: true })
+  await writeFile(dest, content)
+}
+
+{
+  const harnessBuild = await Bun.build({
+    entrypoints: [join(ROOT, 'src', 'mcp', 'dynamic-harness.ts')],
+    target: 'browser',
+    format: 'esm',
+    minify: true,
+    // The agent-code module exists only inside the Worker Loader's
+    // per-isolate module registry; the import must survive bundling.
+    external: ['*user.js'],
+  })
+  if (!harnessBuild.success || harnessBuild.outputs.length !== 1) {
+    throw new Error(`execute-harness bundle failed: ${harnessBuild.logs.join('\n')}`)
+  }
+  const harness = Buffer.from(await harnessBuild.outputs[0]!.text())
+  if (!harness.includes('import("./user.js")')) throw new Error('execute-harness bundle lost the ./user.js import')
+  const resvgWasm = Buffer.from(await Bun.file(join(ROOT, 'node_modules', '@resvg', 'resvg-wasm', 'index_bg.wasm')).arrayBuffer())
+  const fontRegular = Buffer.from(await Bun.file(join(ROOT, 'assets', 'fonts', 'DejaVuSans.ttf')).arrayBuffer())
+  const fontBold = Buffer.from(await Bun.file(join(ROOT, 'assets', 'fonts', 'DejaVuSans-Bold.ttf')).arrayBuffer())
+  await emitWorkerArtifact('execute-harness.js.txt', harness)
+  await emitWorkerArtifact('resvg.wasm', resvgWasm)
+  await emitWorkerArtifact('DejaVuSans.ttf', fontRegular)
+  await emitWorkerArtifact('DejaVuSans-Bold.ttf', fontBold)
+
+  // Full-deploy version for the /mcp response cache. Bundle the worker's own
+  // JS closure (transport, hosted-server, PNG path, raster budget, SDK) and
+  // hash it together with the harness + wasm + fonts. Unlike the harness-only
+  // hash used for Worker Loader isolate IDs, this changes when ANY hosted tool
+  // implementation, transport, or asset changes — so a deploy that touches
+  // hosted-server.ts / mcp-handler.ts / png-wasm.ts without moving the harness
+  // still invalidates cached render_svg/verify/describe/render_png results.
+  const workerBuild = await Bun.build({
+    entrypoints: [join(import.meta.dir, 'src', 'worker.ts')],
+    target: 'browser',
+    format: 'esm',
+    minify: true,
+    // Assets + the generated version constant stay external: the constant is
+    // what we are computing, so it must not feed its own hash. (Glob form —
+    // bun resolves bare relative specifiers, so a literal path would not match.)
+    external: ['*.wasm', '*.ttf', '*.js.txt', '*deploy-version.ts'],
+  })
+  if (!workerBuild.success || workerBuild.outputs.length < 1) {
+    throw new Error(`worker bundle failed: ${workerBuild.logs.join('\n')}`)
+  }
+  const workerJs = Buffer.from(await workerBuild.outputs[0]!.text())
+  if (!workerJs.includes('render_svg') || !workerJs.includes('PNG_RENDER_FAILED')) {
+    throw new Error('worker bundle is missing the hosted MCP surface; deploy hash would be blind to it')
+  }
+  // The main worker's compatibility_date is a deploy-controlled runtime input
+  // that lives in config, not in any bundled artifact — the one output-relevant
+  // setting the worker JS hash cannot see. Fold it in so a compat-date bump
+  // (which can shift workerd JS semantics) also invalidates cached results.
+  const wranglerText = await Bun.file(join(import.meta.dir, 'wrangler.jsonc')).text()
+  const compatDate = wranglerText.match(/"compatibility_date"\s*:\s*"([^"]+)"/)?.[1] ?? ''
+  const deployVersion = computeDeployVersion(packageJson.version, [workerJs, harness, resvgWasm, fontRegular, fontBold, new TextEncoder().encode(compatDate)])
+  await emitWorkerArtifact('deploy-version.ts', Buffer.from(
+    '// Generated by website/build.ts — do not edit.\n' +
+    '// Full-deploy content hash (worker JS closure + harness + wasm + fonts +\n' +
+    '// main-worker compatibility_date). Used as the /mcp response-cache version\n' +
+    '// so any change to the hosted tool surface, transport, PNG path, SDK, or\n' +
+    '// worker runtime semantics invalidates cached tool results.\n' +
+    `export const DEPLOY_VERSION = '${deployVersion}'\n`,
+  ))
+}
+
 function assertNoPlaceholders() {
   const offenders: string[] = []
   for (const [rel, content] of generated) {
@@ -1303,6 +1383,11 @@ if (CHECK) {
   await walk(OUT)
   const unexpected = actual.filter((rel) => !generated.has(rel))
   if (unexpected.length) stale.push(...unexpected.map((f) => `unexpected:${f}`))
+  for (const [rel, expected] of workerGenerated) {
+    const file = Bun.file(join(SRC_GENERATED, rel))
+    if (!await file.exists()) { stale.push(`src/generated/${rel}`); continue }
+    if (!Buffer.from(await file.arrayBuffer()).equals(expected)) stale.push(`src/generated/${rel}`)
+  }
   if (stale.length) {
     console.error(`website/build --check: ${stale.length} stale or unexpected file(s):\n  ${stale.join('\n  ')}\nRegenerate with \`bun run website\`.`)
     process.exit(1)

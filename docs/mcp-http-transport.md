@@ -2,6 +2,8 @@
 
 `agentic-mermaid-mcp` defaults to stdio for local MCP clients. Use HTTP/SSE only when a client needs a reachable endpoint or when PNG artifacts should be fetched by file/URL instead of returned as large base64 strings.
 
+> Looking for a zero-setup endpoint? A **hosted** MCP already runs at `https://agentic-mermaid.dev/mcp` (`claude mcp add --transport http agentic-mermaid https://agentic-mermaid.dev/mcp`). It is a different implementation — stateless Streamable HTTP, Cloudflare-backed, inputs capped at 64KB, and no file/URL PNG artifacts (base64 only). See [`docs/project/hosted-mcp-cloudflare-plan.md`](./project/hosted-mcp-cloudflare-plan.md). Run the local server below when you need file/URL artifacts, larger inputs, offline use, or your own auth.
+
 ## Start the server
 
 Loopback/local development:

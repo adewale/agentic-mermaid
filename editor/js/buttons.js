@@ -58,8 +58,8 @@ function buildAgentTaskPrompt() {
     + (source || '')
     + '\n```\n\n'
     + 'Environment:\n'
-    + '- Do not assume this repository is checked out. Use one local channel available to you: installed `agentic-mermaid/agent`, this repo\'s `./src/agent/index.ts`, the CLI (`am` or `bun run bin/am.ts`), or self-hosted MCP Code Mode. The public website does not execute Code Mode; `/mcp` is intentionally disabled.\n'
-    + '- Do not call the website as a render API. If no local Agentic Mermaid channel is available, do not fabricate verification; return the best Mermaid source and say `not verified — Agentic Mermaid unavailable` with what you tried.\n'
+    + '- Do not assume this repository is checked out. Use one channel available to you: installed `agentic-mermaid/agent`, this repo\'s `./src/agent/index.ts`, the CLI (`am` or `bun run bin/am.ts`), self-hosted MCP Code Mode, or the hosted MCP at `https://agentic-mermaid.dev/mcp` (stateless streamable HTTP JSON-RPC). The website exposes no REST render API — `/mcp` speaks MCP only.\n'
+    + '- If no Agentic Mermaid channel is available (local or the hosted MCP), do not fabricate verification; return the best Mermaid source and say `not verified — Agentic Mermaid unavailable` with what you tried.\n'
     + '- Library imports, when available: `parseMermaid`, `verifyMermaid`, `serializeMermaid`, `mutate`, and `as*` helpers from `agentic-mermaid/agent`.\n\n'
     + 'Workflow:\n'
     + '1. For a new diagram, author Mermaid source directly from the supplied context, then parse it with `parseMermaid`.\n'
@@ -71,7 +71,7 @@ function buildAgentTaskPrompt() {
     + '   - In chat, return exactly these sections: Updated Mermaid, Verification, Trace.\n'
     + '   - In self-hosted MCP/Code Mode `execute(code)`, return an object with `{ source }` after verification, or `{ error, warnings }`; do not return prose from inside code.\n'
     + '7. In Updated Mermaid, include only the final Mermaid source in a ```mermaid fence. Do not return SVG, PNG, ASCII, or Unicode unless requested.\n'
-    + '8. In Trace, name the local channel and exact calls/ops used: `parseMermaid`, the `as*` helper, `mutate({ kind: ... })`, `verifyMermaid`, and `serializeMermaid`; for new diagrams say `no mutate`.\n\n'
+    + '8. In Trace, name the channel and exact calls/ops used: `parseMermaid`, the `as*` helper, `mutate({ kind: ... })`, `verifyMermaid`, and `serializeMermaid`; for new diagrams say `no mutate`.\n\n'
     + 'Do not modify project files unless the user explicitly asked you to change files.';
 }
 

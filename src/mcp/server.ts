@@ -7,14 +7,14 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { URL } from 'node:url'
 import { executeInSandbox } from './sandbox.ts'
+import { reply, rpcError as error, type JsonRpcRequest, type JsonRpcResponse } from './protocol.ts'
 import { SDK_DECLARATION } from './sdk-decl.ts'
 import { createArtifactStore, type ArtifactRecord, type ArtifactStore } from './artifacts.ts'
 import { renderMermaidPNG } from '../agent/png.ts'
 import { BUILTIN_FAMILY_METADATA } from '../agent/families.ts'
 import pkg from '../../package.json'
 
-export interface JsonRpcRequest { jsonrpc: '2.0'; id?: number | string | null; method: string; params?: unknown }
-export interface JsonRpcResponse { jsonrpc: '2.0'; id: number | string | null; result?: unknown; error?: { code: number; message: string; data?: unknown } }
+export type { JsonRpcRequest, JsonRpcResponse } from './protocol.ts'
 
 export interface McpRequestContext {
   artifactStore?: ArtifactStore
@@ -198,9 +198,6 @@ function getDefaultArtifactStore(): ArtifactStore {
   defaultArtifactStore ??= createArtifactStore({ dir: join(tmpdir(), 'agentic-mermaid-mcp-artifacts') })
   return defaultArtifactStore
 }
-
-function reply(id: number | string | null, result: unknown): JsonRpcResponse { return { jsonrpc: '2.0', id, result } }
-function error(id: number | string | null, code: number, message: string): JsonRpcResponse { return { jsonrpc: '2.0', id, error: { code, message } } }
 
 // Force the native resvg (`@resvg/resvg-js`) addon to load NOW, before the
 // server starts handling requests. On Bun, the addon's first `dlopen` — which

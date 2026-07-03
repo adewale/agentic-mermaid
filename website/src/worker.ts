@@ -1,3 +1,18 @@
+// Website Worker: static assets on Cloudflare's asset path, plus the hosted
+// MCP endpoint at /mcp (stateless Streamable HTTP; see mcp-handler.ts).
+
+import { createMcpHandler, type McpCache } from './mcp-handler.ts'
+import { createLoaderExecute, type WorkerLoaderBinding } from './execute-loader.ts'
+import { renderMermaidPNGWasm } from './png-wasm.ts'
+import executeHarness from './generated/execute-harness.js.txt'
+import { DEPLOY_VERSION } from './generated/deploy-version.ts'
+
+interface Env {
+  ASSETS: { fetch(request: Request): Promise<Response> }
+  LOADER: WorkerLoaderBinding
+}
+interface ExecutionContext { waitUntil(promise: Promise<unknown>): void }
+
 // Renamed/consolidated routes. Examples absorbed the gallery; Families folded
 // into the docs; Why became About. Mirrors the static _redirects file.
 const redirects = new Map([
@@ -27,7 +42,7 @@ const csp = [
   "form-action 'none'",
 ].join('; ')
 
-function withHeaders(response, pathname) {
+function withHeaders(response: Response, pathname: string): Response {
   const headers = new Headers(response.headers)
   headers.set('X-Content-Type-Options', 'nosniff')
   headers.set('Referrer-Policy', 'strict-origin-when-cross-origin')
@@ -52,7 +67,7 @@ function withHeaders(response, pathname) {
 }
 
 export default {
-  async fetch(request, env) {
+  async fetch(request: Request, env: Env, ctx?: ExecutionContext): Promise<Response> {
     const url = new URL(request.url)
 
     // Canonical host redirect. This must run before Static Assets so the
@@ -65,27 +80,31 @@ export default {
     const pathname = url.pathname.replace(/\/$/, '') || '/'
 
     const redirectTo = redirects.get(url.pathname) || redirects.get(pathname)
-    if (redirectTo) return Response.redirect(new URL(redirectTo + url.search + url.hash, url), 308)
+    if (redirectTo) return Response.redirect(new URL(redirectTo + url.search + url.hash, url).toString(), 308)
     if ((cleanRoutes.has(pathname) || /^\/(warnings|errors)\/[^/.]+$/.test(pathname)) && !url.pathname.endsWith('/')) {
-      return Response.redirect(new URL(pathname + '/' + url.search + url.hash, url), 308)
+      return Response.redirect(new URL(pathname + '/' + url.search + url.hash, url).toString(), 308)
     }
 
-    if (url.pathname === '/mcp' || url.pathname.startsWith('/mcp/')) {
-      return new Response(JSON.stringify({
-        error: 'hosted_mcp_not_enabled',
-        message: 'This Workers Static Assets preview does not enable the optional hosted MCP route. Use local agentic-mermaid-mcp over stdio.',
-        recommended: 'self-host',
-      }, null, 2) + '\n', {
-        status: 501,
-        headers: {
-          'content-type': 'application/json; charset=utf-8',
-          'access-control-allow-origin': '*',
-          'cache-control': 'no-store',
-          'x-content-type-options': 'nosniff',
-          'referrer-policy': 'strict-origin-when-cross-origin',
-          'permissions-policy': 'camera=(), microphone=(), geolocation=(), payment=(), usb=()',
+    if (pathname === '/mcp') {
+      const handler = createMcpHandler({
+        context: {
+          execute: createLoaderExecute(env.LOADER, executeHarness),
+          renderPng: renderMermaidPNGWasm,
         },
+        // `caches` is a workerd global; guard it so the worker imports and runs
+        // off-runtime (bun/node tests), where the response cache is disabled.
+        // Cast because the root tsconfig types `caches` as the DOM CacheStorage
+        // (no `.default`); workerd/miniflare provide the default cache.
+        cache: typeof caches !== 'undefined' ? (caches as unknown as { default: McpCache }).default : undefined,
+        // Full-deploy hash (see generated/deploy-version.ts): busts cached
+        // results whenever any hosted tool, transport, PNG path, or SDK
+        // changes. Isolate IDs use the harness hash inside createLoaderExecute.
+        cacheVersion: DEPLOY_VERSION,
+        // ctx is absent when the worker is driven directly in tests; then the
+        // handler awaits cache writes inline instead of deferring them.
+        waitUntil: ctx ? (p => ctx.waitUntil(p)) : undefined,
       })
+      return handler(request)
     }
 
     const response = await env.ASSETS.fetch(request)

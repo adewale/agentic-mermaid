@@ -36,7 +36,7 @@ function editorExampleIds() {
 }
 
 async function websiteWorker(): Promise<{ fetch: (request: Request, env: any) => Promise<Response> }> {
-  return (await import('../../website/src/worker.js')).default
+  return (await import('../../website/src/worker.ts')).default
 }
 
 describe('Workers Static Assets website contract', () => {
@@ -59,7 +59,8 @@ describe('Workers Static Assets website contract', () => {
 
   test('Wrangler uses Worker-first Static Assets custom-domain config', () => {
     expect(existsSync(join(REPO, 'website/wrangler.toml'))).toBe(false)
-    const config = JSON.parse(readFileSync(join(REPO, 'website/wrangler.jsonc'), 'utf8'))
+    const jsonc = readFileSync(join(REPO, 'website/wrangler.jsonc'), 'utf8')
+    const config = JSON.parse(jsonc.replace(/^\s*\/\/.*$/gm, ''))
     expect(config.compatibility_date).toBe('2026-06-27')
     expect(config.routes).toEqual([
       { pattern: 'agentic-mermaid.dev', custom_domain: true },
@@ -69,7 +70,11 @@ describe('Workers Static Assets website contract', () => {
     expect(config.preview_urls).toBe(false)
     expect(config.observability).toEqual({ enabled: true })
     expect(config.version_metadata).toEqual({ binding: 'CF_VERSION_METADATA' })
+    // run_worker_first so the redirects/headers and the /mcp handler wrap asset
+    // responses (the hosted MCP must reach the worker before Static Assets).
     expect(config.assets).toEqual({ directory: './public', binding: 'ASSETS', run_worker_first: true })
+    // Hosted MCP contract: the Worker Loader binding backs Code Mode execute.
+    expect(config.worker_loaders).toEqual([{ binding: 'LOADER' }])
     expect(readFileSync(join(REPO, 'package.json'), 'utf8')).toContain('wrangler@latest dev --port 9095 --ip 127.0.0.1')
   })
 
@@ -103,10 +108,12 @@ describe('Workers Static Assets website contract', () => {
     const js = await worker.fetch(new Request('https://agentic-mermaid.dev/editor/editor-abcdef123456.js'), env(() => new Response('export {}', { headers: { 'content-type': 'text/javascript; charset=utf-8' } })))
     expect(js.headers.get('cache-control')).toBe('public, max-age=31536000, immutable')
 
+    // /mcp is the live hosted MCP endpoint (stateless, POST-only) — no longer
+    // the 501 placeholder. A GET is 405 and never touches Static Assets.
     assetFetches = 0
     const mcp = await worker.fetch(new Request('https://agentic-mermaid.dev/mcp'), env(() => new Response('should not run')))
-    expect(mcp.status).toBe(501)
-    expect(await mcp.json()).toMatchObject({ error: 'hosted_mcp_not_enabled' })
+    expect(mcp.status).toBe(405)
+    expect(((await mcp.json()) as any).error.message).toContain('stateless')
     expect(assetFetches).toBe(0)
   })
 
@@ -187,11 +194,12 @@ describe('Workers Static Assets website contract', () => {
     expect(home).toContain('&lt;replace with the requested diagram goal or edit&gt;')
     expect(home).toContain('Context:')
     expect(home).toContain('Do not assume this repository is checked out')
-    expect(home).toContain('one local channel available to you')
+    expect(home).toContain('one channel available to you')
+    expect(home).toContain('the hosted MCP at `https://agentic-mermaid.dev/mcp`')
     expect(home).toContain('For a new diagram, author Mermaid source directly')
     expect(home).toContain('Mutation ops use a `kind` discriminator')
     expect(home).toContain('return an object with `{ source }`')
-    expect(home).toContain('In Trace, name the local channel and exact calls/ops used')
+    expect(home).toContain('In Trace, name the channel and exact calls/ops used')
     expect(home).toContain('Agentic Mermaid treats Mermaid source as the durable interface')
     // Setup moved off the homepage: the MCP config card lives on Getting
     // started, and home carries a single pointer line instead of a section.
@@ -229,7 +237,7 @@ describe('Workers Static Assets website contract', () => {
     expect(read(editorScript)).toContain('Create or edit a Mermaid diagram')
     expect(read(editorScript)).toContain('Do not assume this repository is checked out')
     expect(read(editorScript)).toContain('return an object with `{ source }`')
-    expect(read(editorScript)).toContain('In Trace, name the local channel and exact calls/ops used')
+    expect(read(editorScript)).toContain('In Trace, name the channel and exact calls/ops used')
     expect(read(editorScript)).toContain('source-level fallback')
     expect(read(editorScript)).toContain('createPopupController')
     expect(read(editorScript)).toContain('URLSearchParams(window.location.search).get(\'example\')')
@@ -446,12 +454,15 @@ describe('Workers Static Assets website contract', () => {
     }
   })
 
-  test('MCP claims stay local-first without a stale public harness manifest', () => {
+  test('MCP claims cover the hosted endpoint without a stale public harness manifest', () => {
     expect(existsSync(join(SITE, 'harnesses.json'))).toBe(false)
     const publicText = files().filter((f) => /\.(html|json|md|txt)$/.test(f)).map(read).join('\n')
     expect(publicText).toContain('execute</code>, <code>render_png</code>, and <code>describe</code>')
-    expect(publicText).toContain('The public website does not execute Code Mode')
-    expect(publicText).toContain('<code>/mcp</code> route returns <code>501 hosted_mcp_not_enabled</code>')
+    expect(publicText).toContain('https://agentic-mermaid.dev/mcp')
+    expect(publicText).toContain('render_svg')
+    expect(publicText).toContain('render_ascii')
+    // The 501 placeholder era is over; no page may still claim it.
+    expect(publicText).not.toContain('returns a 501')
     expect(publicText).not.toContain('render verify describe mutate')
     expect(publicText).not.toContain('The skill never runs Code Mode')
   })
@@ -535,7 +546,7 @@ describe('Workers Static Assets website contract', () => {
   test('audit fixes give public proof diagrams accessible names and immutable editor assets', () => {
     const home = read('index.html')
     const examples = read('examples/index.html')
-    const worker = readFileSync(join(REPO, 'website/src/worker.js'), 'utf8')
+    const worker = readFileSync(join(REPO, 'website/src/worker.ts'), 'utf8')
     expect(home).toContain('role="img" aria-labelledby="edit-loop-svg-title edit-loop-svg-desc"')
     expect(home).toContain('<title id="edit-loop-svg-title">Agentic Mermaid edit loop</title>')
     expect(examples).toContain('role="img" aria-labelledby="example-flowchart-basic-svg-title example-flowchart-basic-svg-desc"')

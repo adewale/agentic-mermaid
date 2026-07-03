@@ -1,7 +1,7 @@
 {
   "$schema": "./node_modules/wrangler/config-schema.json",
   "name": "agentic-mermaid-website",
-  "main": "src/worker.js",
+  "main": "src/worker.ts",
   "compatibility_date": "2026-06-27",
   "routes": [
     { "pattern": "agentic-mermaid.dev", "custom_domain": true },
@@ -14,6 +14,19 @@
   "assets": {
     "directory": "./public",
     "binding": "ASSETS",
+    // Worker-first so the canonical redirects and security/cache headers wrap
+    // asset responses, and so /mcp reaches the hosted MCP handler before Static
+    // Assets. (Static-asset paths still return from the ASSETS binding.)
     "run_worker_first": true
-  }
+  },
+  // Hosted MCP: Code Mode `execute` runs agent JavaScript in on-demand
+  // isolates via the Worker Loader (Dynamic Workers, Workers Paid plan).
+  "worker_loaders": [
+    { "binding": "LOADER" }
+  ],
+  // Wrangler's default rules already treat *.txt as Text and *.wasm as
+  // CompiledWasm; the fonts need an explicit Data rule.
+  "rules": [
+    { "type": "Data", "globs": ["**/*.ttf"], "fallthrough": false }
+  ]
 }
