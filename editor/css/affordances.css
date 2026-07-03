@@ -42,8 +42,26 @@
   border: 1px solid var(--control-border);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-popover);
-  z-index: 3000;
+  z-index: var(--z-popover-nested);
 }
+
+/* Popovers enter from their trigger: one short ease-out fade/scale, with the
+   transform origin at the anchoring corner so the menu grows out of its button.
+   Exits stay instant — dismissal should never lag. The global reduced-motion
+   override in variables.css flattens these to 0.01ms. */
+@keyframes popover-in {
+  from { opacity: 0; transform: translateY(-2px) scale(0.98); }
+}
+:where(.export-dropdown, .theme-dropdown-menu, .font-popup, .color-popup).open {
+  animation: popover-in var(--dur-control) var(--ease-out);
+}
+.export-dropdown.open, .theme-dropdown-menu.open { transform-origin: top right; }
+.font-popup.open, .color-popup.open { transform-origin: top left; }
+/* The centered dialog keeps its translate while scaling in. */
+@keyframes dialog-in {
+  from { opacity: 0; transform: translate(-50%, -50%) scale(0.98); }
+}
+.shortcuts-dialog.open { animation: dialog-in var(--dur-ui) var(--ease-out); }
 :where(.preview-label, .panel-title, .verify-label, .text-output-label, .example-category-title, .font-section-label, .color-palette-title, .placeholder-kicker) {
   color: var(--fg3);
   font-family: var(--font-mono);
@@ -70,7 +88,17 @@
   .export-item,
   .font-select-btn,
   .color-edit-btn,
-  .color-clear-btn { min-height: 44px; }
+  .color-clear-btn,
+  .size-pill { min-height: 44px; }
   .toolbar-btn,
-  .export-chevron { min-width: 44px; }
+  .export-chevron,
+  .size-pill { min-width: 44px; }
+  /* iOS zooms the page when a focused field renders under 16px; hold every
+     editable surface at 16px on touch devices so focus never jumps the view.
+     The line-number gutter shares the textarea's metrics, so it moves with it. */
+  .code-editor,
+  .line-numbers,
+  .font-search,
+  .padding-num,
+  .color-hex-input { font-size: 16px; }
 }

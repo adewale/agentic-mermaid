@@ -21,7 +21,7 @@
   border: 1px solid var(--control-border);
   border-radius: var(--radius-lg);
   padding: 6px;
-  z-index: 2000;
+  z-index: var(--z-popover);
   flex-direction: column;
   box-shadow: var(--shadow-popover);
 }
@@ -35,7 +35,8 @@
   width: 100%;
   padding: 7px 8px;
   border: none;
-  border-radius: var(--radius-sm);
+  /* concentric with the dropdown: outer radius − 1px border − 6px padding */
+  border-radius: calc(var(--radius-lg) - 7px);
   background: transparent;
   color: var(--fg);
   font-size: var(--t-control);
@@ -44,8 +45,8 @@
   text-align: left;
   user-select: none;
   transition:
-    background 0.15s,
-    transform 0.1s;
+    background var(--dur-control),
+    transform var(--dur-press);
 }
 .export-item:hover {
   background: var(--control-bg-hover);
@@ -120,9 +121,9 @@
   font-family: inherit;
   cursor: pointer;
   transition:
-    color 0.15s,
-    background 0.15s,
-    transform 0.1s;
+    color var(--dur-control),
+    background var(--dur-control),
+    transform var(--dur-press);
   font-variant-numeric: tabular-nums;
 }
 .size-pill:hover {
@@ -132,6 +133,14 @@
 .size-pill.active {
   background: var(--accent);
   color: var(--paper);
+}
+/* forced-colors neutralizes the accent fill that is the active pill's only
+   marker; the system selection pair keeps the chosen scale visible */
+@media (forced-colors: active) {
+  .size-pill.active {
+    background: SelectedItem;
+    color: SelectedItemText;
+  }
 }
 .size-pill:active {
   transform: scale(0.96);

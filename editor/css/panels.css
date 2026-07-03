@@ -12,6 +12,7 @@
   left: var(--examples-left, 16px);
   width: var(--examples-width, min(360px, calc(100vw - 24px)));
   max-height: var(--examples-max-height, calc(100vh - 72px));
+  max-height: var(--examples-max-height, calc(100dvh - 72px));
   overflow: hidden;
   border: 1px solid var(--control-border);
   border-radius: var(--radius-lg);
@@ -26,7 +27,7 @@
     opacity 0.16s var(--ease-out),
     transform 0.18s var(--ease-out),
     visibility 0s linear 0.18s;
-  z-index: 3000;
+  z-index: var(--z-popover-nested);
 }
 .examples-sidebar.open {
   opacity: 1;
@@ -120,9 +121,9 @@
   min-height: 72px;
   text-wrap: pretty;
   transition:
-    background 0.15s,
-    box-shadow 0.15s,
-    transform 0.1s;
+    background var(--dur-control),
+    box-shadow var(--dur-control),
+    transform var(--dur-press);
 }
 .example-dropdown-item:hover,
 .example-dropdown-item.active {
@@ -137,7 +138,7 @@
 .example-item-title {
   display: inline-flex;
   align-items: center;
-  gap: 7px;
+  gap: 8px;
   font-weight: 600;
   line-height: 1.25;
   text-wrap: balance;
@@ -186,9 +187,9 @@
   text-align: left;
   cursor: pointer;
   transition:
-    color 0.15s,
-    background 0.15s,
-    transform 0.1s;
+    color var(--dur-control),
+    background var(--dur-control),
+    transform var(--dur-press);
 }
 .example-clear-btn:hover {
   color: var(--fg);
@@ -227,7 +228,7 @@
   background: transparent;
   color: var(--fg2);
   cursor: pointer;
-  transition: color 0.15s, background 0.15s;
+  transition: color var(--dur-control), background var(--dur-control);
 }
 .icon-btn:hover { color: var(--fg); background: var(--control-bg-hover); }
 .icon-btn svg { width: 14px; height: 14px; }
@@ -247,7 +248,7 @@
   background: transparent;
   cursor: col-resize;
   flex-shrink: 0;
-  transition: background 0.15s;
+  transition: background var(--dur-control);
   position: relative;
   z-index: 10;
   margin-left: -4px;

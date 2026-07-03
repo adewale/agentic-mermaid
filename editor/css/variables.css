@@ -7,11 +7,15 @@
 }
 
 :root {
-  /* Shared site foundation: editor chrome uses the same Paper tokens as the public pages.
-     The diagram theme dropdown changes render output, not the app shell. */
-  --t-bg: #F5F0E4;
-  --t-fg: #221E16;
-  --t-accent: #9A4A24;
+  /* Shared app-shell foundation, in lockstep with the public site — the Kiln
+     brand: a warm-neutral Stone ground (light) / warm Charcoal (dark), with the
+     independent Pine accent. Distinct from the terracotta diagram theme, which
+     now lives on only as the "paper" render theme. The theme dropdown changes
+     render output, never the app shell. rendering.js swaps in the Charcoal
+     ground for dark mode; these defaults are the Stone (light) values. */
+  --t-bg: #F8F4F0;       /* Kiln Stone (was Paper #F5F0E4) */
+  --t-fg: #26201B;
+  --t-accent: #1B6E52;   /* Pine brand accent — mirrors :root --accent in styles.css */
   --brand-pine: #6FC2A2;
   --brand-on: #0A4434;
   --font-serif: Charter, 'Bitstream Charter', 'Iowan Old Style', 'Palatino Linotype', Palatino, Georgia, serif;
@@ -60,17 +64,18 @@
   --bg3: color-mix(in srgb, var(--t-bg) 97%, var(--t-fg));
   --bg-hover: color-mix(in srgb, var(--t-bg) 92%, var(--t-fg));
   --foreground-5: color-mix(in srgb, var(--t-fg) 5%, var(--t-bg));
-  --border: color-mix(in srgb, var(--t-fg) 12%, var(--t-bg));
+  --border: color-mix(in srgb, var(--t-fg) 13%, var(--t-bg));   /* same 13% hairline as the site --line */
   --line-strong: color-mix(in srgb, var(--t-fg) 24%, var(--t-bg));
   --fg: var(--t-fg);
   /* Muted ramp mirrors the site shell: soft ≈80% mix, faint ≈64% mix.
-   * Verified on Paper (#F5F0E4): soft 8.01:1 (≥7:1), faint 4.74:1 (≥4.5:1). */
+   * Verified on Kiln Stone (#F8F4F0): soft 7.97:1 (≥7:1), faint 4.73:1 (≥4.5:1);
+   * on Charcoal (#17130D) both rise (soft 9.9:1, faint 6.7:1). */
   --fg2: color-mix(in srgb, var(--t-fg) 80%, var(--t-bg));
   --fg3: color-mix(in srgb, var(--t-fg) 64%, var(--t-bg));
   --fg4: color-mix(in srgb, var(--t-fg) 70%, var(--t-bg));
   --accent: var(--t-accent);
   --accent2: color-mix(in srgb, var(--t-accent) 80%, var(--t-bg));
-  --blue: var(--t-accent);
+  --blue: var(--info);
 
   /* Site-name aliases for shared primitives. */
   --paper: var(--t-bg);
@@ -87,8 +92,23 @@
   --radius-lg: 12px;
   --radius-pill: 999px;
   --radius: var(--radius-md);
-  /* Shared motion curve — same value as the site shell's --ease-out. */
+  /* Shared motion system — same values as the site shell (styles.css :root),
+     so editor and site interactions share one tempo. ui: page-level fades;
+     control: hover/background shifts; press: the :active scale. */
+  --ease-standard: ease;
   --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --dur-ui: 0.2s;
+  --dur-control: 0.16s;
+  --dur-press: 0.1s;
+  /* Stacking scale. Anchored popovers sit at --z-popover; the font/colour
+     pickers open from inside the settings popover, so they get the nested
+     tier. Dialog, toast, and skip-link stack above everything in that order. */
+  --z-topbar: 100;
+  --z-popover: 2000;
+  --z-popover-nested: 3000;
+  --z-dialog: 4000;
+  --z-toast: 9000;
+  --z-skip-link: 10000;
   --control-h: 40px;
   --control-px: 12px;
   --control-bg: var(--surface);
@@ -109,12 +129,25 @@
   --lh-code: 1.6;
   --lh-ui: 1.35;
 
-  /* Semantic status colors. Darkened enough for text as well as dots on the
-   * light Paper chrome: green and warn both clear WCAG AA for small status text.
-   * Dusk restores brighter hues below where light-on-dark reads better. */
-  --green: #166534;
-  --warn: #92400E;
-  --red: #b91c1c;
+  /* Functional / semantic hues — a solid ink for status text and dots, plus a
+   * soft --*-tint fill for badges and validation panels. Solid inks all clear
+   * WCAG AA for small text on the light Stone chrome (success 5.9:1, info 4.8:1,
+   * warn 5.4:1, danger 6.3:1); the tint is a 14% wash of the same hue on the
+   * panel, so ink stays ~12:1 on a filled badge. Success sits at OkLCH h141 —
+   * a true leaf green kept ≥20° from the pine accent (h166) so links and
+   * success states never read as one colour. The dark block flips the inks
+   * brighter; the tints re-derive automatically. --green / --red stay as
+   * aliases so existing status rules keep resolving. */
+  --success: #296C1E;
+  --info:    #1F6FB0;
+  --warn:    #8A5A12;
+  --danger:  #A0352A;
+  --success-tint: color-mix(in srgb, var(--success) 14%, var(--bg2));
+  --info-tint:    color-mix(in srgb, var(--info)    14%, var(--bg2));
+  --warn-tint:    color-mix(in srgb, var(--warn)    14%, var(--bg2));
+  --danger-tint:  color-mix(in srgb, var(--danger)  14%, var(--bg2));
+  --green: var(--success);
+  --red:   var(--danger);
 
   /* Preview canvas: a matte so the diagram artboard reads as the artifact,
      not a shape floating in the chrome. The diagram keeps its own Paper bg. */
@@ -122,11 +155,23 @@
   --shadow-artboard: 0 1px 2px rgba(0, 0, 0, 0.04), 0 12px 30px -14px rgba(0, 0, 0, 0.2);
 }
 
-/* Dusk chrome (dark-mode.js sets data-scheme): brighter status hues read
- * better here — green 4.60:1 and warn 4.76:1 against the dark --bg2. */
+/* Charcoal chrome (rendering.js sets data-scheme): brighter status inks read
+ * better on the dark --bg2. Only the solid inks flip; the --*-tint fills re-derive
+ * from these plus the dark ground. On Kiln Charcoal (#17130D): success 8.2:1,
+ * info 8.4:1, warn 8.7:1, danger 7.4:1 — all clear AA for small status text.
+ * Dark success holds h143, ≥20° from the dark pine accent (h167). */
 :root[data-scheme="dark"] {
-  --green: #16a34a;
-  --warn: #D97706;
+  /* The Kiln Charcoal triplet. chromeThemeColors() in rendering.js sets the
+   * same values as inline styles whenever it flips the scheme (inline wins);
+   * declaring them here keeps the dark chrome in CSS too, pinned to the JS
+   * copy by chrome-token-lockstep.test.ts. The dark accent IS --brand-pine. */
+  --t-bg: #17130D;
+  --t-fg: #EBE7E0;
+  --t-accent: #6FC2A2;
+  --success: #6CBF68;
+  --info:    #78B4EA;
+  --warn:    #E0A75A;
+  --danger:  #E58C82;
 }
 
 html,
@@ -147,10 +192,13 @@ body {
   color: var(--fg);
   display: flex;
   flex-direction: column;
+  /* dvh tracks the real visible height on mobile (URL bar collapse); the vh
+     line stays as the fallback for engines without dynamic viewport units */
   height: 100vh;
+  height: 100dvh;
   transition:
-    background 0.2s,
-    color 0.2s;
+    background var(--dur-ui),
+    color var(--dur-ui);
 }
 
 .sr-only {
@@ -165,9 +213,10 @@ body {
   border: 0;
 }
 
+/* Same focus recipe as the site shell: full-strength accent ring, 3px offset. */
 :where(button, a, input, textarea, [tabindex]):focus-visible {
-  outline: 2px solid color-mix(in srgb, var(--accent) 72%, var(--paper));
-  outline-offset: 2px;
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
 }
 
 :where(button, input, textarea):disabled,
@@ -217,6 +266,16 @@ body {
     --popover-bg: Canvas;
     --shadow-control: none;
     --shadow-popover: none;
+    /* status hues collapse to system inks; tint fills drop to Canvas so text
+       renders CanvasText-on-Canvas rather than on an unforced pastel */
+    --success: CanvasText;
+    --info: LinkText;
+    --warn: CanvasText;
+    --danger: CanvasText;
+    --success-tint: Canvas;
+    --info-tint: Canvas;
+    --warn-tint: Canvas;
+    --danger-tint: Canvas;
   }
   :where(button, a, input, textarea, [tabindex]):focus-visible {
     outline: 2px solid Highlight;

@@ -275,7 +275,7 @@ function mastheadHtml(currentHref = '') {
 // deliberately — the website contract test forbids repository chrome in the
 // masthead, so the footer is the one place the repo link ships.
 function footerHtml() {
-  return `<footer><div class="footlinks"><a href="/warnings/">Warnings</a><span class="sep">&middot;</span><a href="/errors/">Errors</a><span class="sep">&middot;</span><a href="/releases/">Releases</a><span class="sep">&middot;</span><a href="/security/">Security</a><span class="sep">&middot;</span><a href="https://github.com/adewale/beautiful-mermaid">GitHub</a></div><div class="footlinks"><a href="/llms.txt">llms.txt</a><span class="sep">&middot;</span><a href="/agent-instructions.md">agent-instructions.md</a><span class="sep">&middot;</span><a href="/capabilities.json">capabilities.json</a><span class="sep">&middot;</span><a href="/examples/index.json">examples.json</a><span class="sep">&middot;</span><a href="/skills/agentic-mermaid-diagram-workflow/SKILL.md">workflow skill</a></div></footer>`
+  return `<footer><div class="footlinks"><a href="/warnings/">Warnings</a><span class="sep">&middot;</span><a href="/errors/">Errors</a><span class="sep">&middot;</span><a href="/releases/">Releases</a><span class="sep">&middot;</span><a href="/security/">Security</a><span class="sep">&middot;</span><a href="/about/design/">Design</a><span class="sep">&middot;</span><a href="https://github.com/adewale/beautiful-mermaid">GitHub</a></div><div class="footlinks"><a href="/llms.txt">llms.txt</a><span class="sep">&middot;</span><a href="/agent-instructions.md">agent-instructions.md</a><span class="sep">&middot;</span><a href="/capabilities.json">capabilities.json</a><span class="sep">&middot;</span><a href="/examples/index.json">examples.json</a><span class="sep">&middot;</span><a href="/skills/agentic-mermaid-diagram-workflow/SKILL.md">workflow skill</a></div></footer>`
 }
 
 // Single page header contract: h1 + lead, then an optional meta row
@@ -291,6 +291,7 @@ function pageShell(title: string, lead: string, body: string, currentHref = '', 
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light">
 <meta name="description" content="${escapeAttr(lead)}">
 <title>${escapeHtml(fullTitle)}</title>
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
@@ -812,13 +813,17 @@ function addWorkflowSvgA11y(svg: string) {
     return `<svg${attrs}${role}${label}>\n<title id="edit-loop-svg-title">Agentic Mermaid edit loop</title>\n<desc id="edit-loop-svg-desc">Source flows through parse, narrow, mutate, verify, and serialize to render, with warnings routed back for another edit.</desc>`
   })
 }
-const workflowThemeableSvg = addWorkflowSvgA11y(renderMermaidSVG(workflowSource,
-  { bg: 'var(--bg)', fg: 'var(--fg)', accent: 'var(--accent)', transparent: true })
-  .replace('--bg:var(--bg);--fg:var(--fg);--accent:var(--accent);', '')
-  .split('\n').filter((line) => !line.includes('fonts.googleapis.com')).join('\n'))
+// The hero is artwork, not chrome. It used to render with var(--bg/--fg/--accent)
+// and inherit the page tokens — invisible while the chrome accent WAS the Paper
+// terracotta, but when the shell moved to the Pine brand the hero silently
+// re-themed with it, violating the design contract ("diagram themes colour the
+// artwork, never this shell"). Bake the Paper render theme instead, exactly like
+// the about-page diagrams (ABOUT_DIAGRAM_THEME below).
+const workflowPaperSvg = addWorkflowSvgA11y(renderMermaidSVG(workflowSource,
+  { bg: '#F5F0E4', fg: '#221E16', accent: '#9A4A24', transparent: true, security: 'strict', embedFontImport: false }))
 function injectWorkflowSvg(html: string) {
   return html.replace(/<div class="plate dia-plate">[\s\S]*?<\/div>|<div class="plate"><div class="dia-wrap">[\s\S]*?<\/div><\/div>/,
-    `<div class="plate dia-plate">\n      ${workflowThemeableSvg}\n    </div>`)
+    `<div class="plate dia-plate">\n      ${workflowPaperSvg}\n    </div>`)
 }
 function injectWorkflowUnicode(html: string) {
   const unicode = renderMermaidASCII(workflowSource, { useAscii: false })
@@ -846,7 +851,12 @@ await emit('editor/index.html', await generateEditorHtml())
 for (const asset of ['favicon.svg', 'styles.css', 'theme.js', 'shader-mark.js']) await copySourceAsset(asset)
 for (const asset of ['favicon.ico', 'apple-touch-icon.png', 'og-image.png']) await copyFileFrom(join(ROOT, 'public', asset), asset)
 await copyDir(SOURCE_DIAGRAMS, 'diagrams')
-await emit('diagrams/workflow-themeable.svg', workflowThemeableSvg)
+// Standalone var()-token demo of the live-theming feature (set --bg/--fg/--accent
+// on a parent to re-theme it). This is the one place a var-driven render belongs;
+// the home hero deliberately stopped using it (see workflowPaperSvg above).
+await emit('diagrams/workflow-themeable.svg', addWorkflowSvgA11y(renderMermaidSVG(workflowSource,
+  { bg: 'var(--bg)', fg: 'var(--fg)', accent: 'var(--accent)', transparent: true, embedFontImport: false })
+  .replace('--bg:var(--bg);--fg:var(--fg);--accent:var(--accent);', '')))
 
 const capabilities = { ...rawCapabilities, generatedFrom }
 await emitJson('capabilities.json', capabilities)
@@ -1005,8 +1015,94 @@ ${mcpConfigCardHtml('getting-started')}
 </ol>
 ${docsIndex}`
 
+// /about/design — the design-language reference. Specimens read the live CSS
+// tokens (var(--…)) rather than repeating hex, so the page cannot drift from
+// the stylesheet it documents; hex appears only as the label under a swatch.
+const designLead = 'The tokens, type, and motion the site and editor share — documented with the same variables that render this page. Diagram themes are deliberately absent: they colour the artwork, never this shell.'
+const designBody = `
+<h2>Three layers, one seam</h2>
+<p>The stylesheet separates <strong>brand</strong> (the mark, the grain, the type — constants no theme may set), <strong>theme</strong> (a <code>--bg</code>/<code>--fg</code>/<code>--accent</code> triplet everything else derives from), and <strong>scheme</strong> (light/dark polarity). The seam means a renderer theme can restyle a diagram plate without touching the logo or the shell — the same isolation the editor uses when its theme dropdown changes render output but never the app chrome.</p>
+
+<h2>Colour</h2>
+<p>The shell is warm stone and ink; one derived ramp covers text, borders, and surfaces. Ink steps keep WCAG AA: soft 8.0:1, faint 5.3:1 on the ground.</p>
+<div class="dz-grid">
+  <div class="dz-swatch"><div class="chip" style="background:var(--paper)"></div><div class="meta"><b>--paper</b><span>#F8F4F0 · ground</span></div></div>
+  <div class="dz-swatch"><div class="chip" style="background:var(--ink)"></div><div class="meta"><b>--ink</b><span>#26201B · text</span></div></div>
+  <div class="dz-swatch"><div class="chip" style="background:var(--ink-soft)"></div><div class="meta"><b>--ink-soft</b><span>fg 80% · secondary</span></div></div>
+  <div class="dz-swatch"><div class="chip" style="background:var(--ink-faint)"></div><div class="meta"><b>--ink-faint</b><span>fg 68% · captions</span></div></div>
+  <div class="dz-swatch"><div class="chip" style="background:var(--surface)"></div><div class="meta"><b>--surface</b><span>fg 5% · cards</span></div></div>
+  <div class="dz-swatch"><div class="chip" style="background:var(--chip)"></div><div class="meta"><b>--chip</b><span>fg 9% · hover</span></div></div>
+  <div class="dz-swatch"><div class="chip" style="background:var(--line)"></div><div class="meta"><b>--line</b><span>fg 13% · hairline</span></div></div>
+  <div class="dz-swatch"><div class="chip" style="background:var(--accent)"></div><div class="meta"><b>--accent</b><span>#1B6E52 · pine, 5.7:1</span></div></div>
+</div>
+<p>The pine accent carries links, buttons, and focus. It sits in the hue region no diagram theme's accent occupies (the renderer accents cluster warm at 21–58° and cool at 217–318°), so chrome and artwork never read as one palette. The brand chip is its own token pair — <code>--brand-pine</code>/<code>--brand-on</code> — outside the theme layer entirely.</p>
+<h3>Functional colour</h3>
+<p>Four hues carry meaning only, each with a solid ink for text and a 14% tint for fills. On this ground the inks measure success 5.9:1, info 4.8:1, warn 5.4:1, danger 6.3:1. Success is a true leaf green held at least 20° of OkLCH hue from the pine accent, so a link and a confirmation never read as the same colour.</p>
+<div class="dz-grid">
+  <div class="dz-swatch"><div class="chip" style="background:var(--success)"></div><div class="meta"><b>--success</b><span>copied, verified</span></div></div>
+  <div class="dz-swatch"><div class="chip" style="background:var(--info)"></div><div class="meta"><b>--info</b><span>notices, drafts</span></div></div>
+  <div class="dz-swatch"><div class="chip" style="background:var(--warn)"></div><div class="meta"><b>--warn</b><span>advisories</span></div></div>
+  <div class="dz-swatch"><div class="chip" style="background:var(--danger)"></div><div class="meta"><b>--danger</b><span>errors</span></div></div>
+  <div class="dz-swatch"><div class="chip" style="background:var(--success-tint)"></div><div class="meta"><b>--success-tint</b><span>14% fill</span></div></div>
+  <div class="dz-swatch"><div class="chip" style="background:var(--info-tint)"></div><div class="meta"><b>--info-tint</b><span>14% fill</span></div></div>
+  <div class="dz-swatch"><div class="chip" style="background:var(--warn-tint)"></div><div class="meta"><b>--warn-tint</b><span>14% fill</span></div></div>
+  <div class="dz-swatch"><div class="chip" style="background:var(--danger-tint)"></div><div class="meta"><b>--danger-tint</b><span>14% fill</span></div></div>
+</div>
+
+<h2>Typography</h2>
+<p>Charter carries reading, Avenir carries controls, SF Mono carries code and data. Headings track tighter as they grow (<code>--track-heading</code> −0.018em, <code>--track-display</code> −0.022em) and balance their line breaks; body text wraps pretty at a 46.25rem measure. Anywhere digits change — render times, scales, tables — <code>tabular-nums</code> keeps them from shifting the layout.</p>
+<div class="dz-type-row"><span class="spec" style="font-family:var(--serif);font-size:var(--t-h2);font-weight:600;letter-spacing:var(--track-heading)">Charter — headings and prose</span><span class="tok">--serif · --t-h2</span></div>
+<div class="dz-type-row"><span class="spec" style="font-family:var(--sans);font-size:var(--t-body);font-weight:650">Avenir Next — controls and labels</span><span class="tok">--sans · --t-body</span></div>
+<div class="dz-type-row"><span class="spec" style="font-family:var(--mono);font-size:var(--t-mono)">SF Mono — code, tokens, 0123456789</span><span class="tok">--mono · --t-mono</span></div>
+
+<h2>Space, radii, and nesting</h2>
+<p>Spacing runs a 4px-based scale (<code>--sp-1</code> 4px → <code>--sp-9</code> 56px). Radii come in three sizes plus a pill; nested corners are derived, not matched: <code>inner&nbsp;=&nbsp;outer&nbsp;−&nbsp;border&nbsp;−&nbsp;padding</code>, written as a <code>calc()</code> so the derivation is visible in the stylesheet.</p>
+<div class="dz-radii">
+  <div class="dz-radius" style="border-radius:var(--radius-sm)">sm 6</div>
+  <div class="dz-radius" style="border-radius:var(--radius-md)">md 8</div>
+  <div class="dz-radius" style="border-radius:var(--radius-lg)">lg 12</div>
+  <div class="dz-radius" style="border-radius:var(--radius-pill)">pill</div>
+  <div class="dz-nest"><span>lg − 1 − 6 = 5</span></div>
+</div>
+
+<h2>Elevation</h2>
+<p>Shadows are layered — a hairline ring, a near shadow, a far ambient — because one heavy blur reads flat. Controls sit on a ring alone; cards add the near layer; popovers add the far one.</p>
+<div class="dz-shadows">
+  <div class="dz-shadow" style="box-shadow:var(--shadow-control)">control</div>
+  <div class="dz-shadow" style="box-shadow:var(--card-shadow)">card</div>
+  <div class="dz-shadow" style="box-shadow:var(--shadow-popover)">popover</div>
+</div>
+
+<h2>Motion</h2>
+<p>Three durations, one curve. Presses run <code>--dur-press</code> 0.1s, control state changes <code>--dur-control</code> 0.16s, page-level fades <code>--dur-ui</code> 0.2s, all on <code>--ease-out</code> <code>cubic-bezier(0.22,&nbsp;1,&nbsp;0.36,&nbsp;1)</code> — fast start, soft landing, the curve for anything answering the user. Every press lands at <code>scale(0.96)</code>. Popovers enter with a short fade-and-scale from the corner that anchors them and exit instantly; <code>prefers-reduced-motion</code> flattens all of it.</p>
+<div class="dz-motion">
+  <button class="dz-press" type="button">Press me — 0.96 at 0.1s</button>
+  <span style="font-family:var(--mono);font-size:var(--t-label);color:var(--ink-faint)">hover 0.16s · enter 0.16s ease-out · exit instant</span>
+</div>
+
+<h2>Iconography</h2>
+<p>Interface icons are hairline strokes with round caps and joins: <code>stroke-width</code> 2 up to 14px, 1.75 from 15px, so optical weight stays even as size grows. The graph mark is exempt — it is brand art with its own drawn weights, isolated in the brand layer.</p>
+<div class="dz-mark-row">
+  <span class="mark" style="width:32px;height:32px;border-radius:var(--radius-md);background:var(--brand-pine);display:inline-grid;place-items:center"></span>
+  <span class="dz-icons">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="2"/></svg>
+  </span>
+</div>
+
+<h2>Voice</h2>
+<p>Interface copy states what happened and, on failure, what to do next.</p>
+<ul class="dz-voice">
+<li>Confirmations are calm sentences: <code>SVG saved.</code> <code>PNG copied (2×).</code> — periods, no exclamation marks, a real multiplication sign.</li>
+<li>Errors name the unmet condition: <code>Load or write a diagram before exporting.</code> rather than an apology.</li>
+<li>Status is concrete: <code>Verified: no warnings</code>, <code>Rendered in 12ms</code> — a measurement, not an adjective.</li>
+</ul>
+<p class="muted">Diagram themes (paper, dusk, tokyo-night, …) are documented in <a href="/docs/theming/">theming</a>; they colour rendered diagrams and stay out of this shell by construction.</p>`
+
 const docPages = [
   ['about/index.html', 'About Agentic Mermaid', aboutLead, aboutBody, '/about/'],
+  ['about/design/index.html', 'Design language', designLead, designBody, '/about/'],
   ['docs/getting-started/index.html', 'Getting started', 'From Mermaid source to a verified local render, then to an agent-safe edit loop.', gettingStartedBody, '/docs/'],
   ['docs/families/index.html', 'Diagram families', familiesLead, familiesReferenceHtml(), '/docs/'],
   ['docs/api/index.html', 'Library API', 'Use agentic-mermaid and agentic-mermaid/agent from local JS or TS.', '<p>Import rendering helpers from <code>agentic-mermaid</code> and typed parse/mutate/verify helpers from <code>agentic-mermaid/agent</code>.</p>' + docsIndex],

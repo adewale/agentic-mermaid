@@ -60,8 +60,9 @@
   align-items: center;
   gap: 10px;
   padding: 5px 12px;
-  border-top: 1px solid var(--border);
-  background: var(--bg2);
+  /* an informational banner — soft --info-tint wash with an info-toned rule */
+  border-top: 1px solid color-mix(in srgb, var(--info) 28%, transparent);
+  background: var(--info-tint);
   color: var(--fg2);
   font-size: var(--t-label);
   line-height: var(--lh-ui);
@@ -82,8 +83,8 @@
   padding: 2px 10px;
   cursor: pointer;
   transition:
-    color 0.15s,
-    background 0.15s;
+    color var(--dur-control),
+    background var(--dur-control);
 }
 .draft-discard-btn:hover {
   background: var(--control-bg-hover);
@@ -95,7 +96,9 @@
   align-items: center;
   justify-content: space-between;
   padding: 0 0.75rem;
-  height: 28px;
+  /* env() is 0 without a home indicator; with one, the bar grows to clear it */
+  padding-bottom: env(safe-area-inset-bottom);
+  min-height: 28px;
   font-family: var(--font-mono);
   font-size: var(--t-label);
   color: var(--fg3);

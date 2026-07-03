@@ -24,6 +24,10 @@ var colorPopupController = createPopupController({
   triggerEvents: false,
   visibility: { focusSelector: '#color-hex-input' },
   beforeOpen: function() {
+    // Mirror of the font picker's beforeOpen: the two nested pickers share the
+    // --z-popover-nested tier, so whichever opens closes the other rather than
+    // letting DOM order decide which paints on top.
+    if (typeof closeFontPopup === 'function') closeFontPopup(false);
     positionAnchoredPopup(colorPopup, activeColorAnchor, { width: 240, height: 400 });
   },
   afterOpen: function() {

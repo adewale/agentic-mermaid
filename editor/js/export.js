@@ -48,8 +48,11 @@ document.getElementById('size-pills').addEventListener('click', function(e) {
   var pill = e.target.closest('.size-pill');
   if (!pill) return;
   exportScale = parseInt(pill.dataset.scale, 10);
-  document.querySelectorAll('.size-pill').forEach(function(p) { p.classList.remove('active'); });
-  pill.classList.add('active');
+  document.querySelectorAll('.size-pill').forEach(function(p) {
+    var on = p === pill;
+    p.classList.toggle('active', on);
+    p.setAttribute('aria-pressed', on ? 'true' : 'false');
+  });
 });
 
 function getSvgEl() {
@@ -98,7 +101,7 @@ function exportPNG() {
     var a = document.createElement('a');
     a.href = url; a.download = 'diagram.png'; a.click();
     URL.revokeObjectURL(url);
-    showToast('PNG saved (' + exportScale + 'x)');
+    showToast('PNG saved (' + exportScale + '×).');
     setExportDropdownOpen(false, false);
   });
 }
@@ -111,7 +114,7 @@ function exportSVG() {
   var a = document.createElement('a');
   a.href = url; a.download = 'diagram.svg'; a.click();
   URL.revokeObjectURL(url);
-  showToast('SVG saved!');
+  showToast('SVG saved.');
   setExportDropdownOpen(false, false);
 }
 
@@ -134,7 +137,7 @@ function copyPNG() {
   });
   navigator.clipboard.write([new ClipboardItem({ 'image/png': blobPromise })]).then(function() {
     setCopyFeedback(copyPngBtn, 'ok');
-    showToast('PNG copied (' + exportScale + 'x)');
+    showToast('PNG copied (' + exportScale + '×).');
     setExportDropdownOpen(false, false);
   }).catch(function() {
     setCopyFeedback(copyPngBtn, 'err');
@@ -145,7 +148,7 @@ function copyPNG() {
 function copyURL(sourceBtn) {
   // updateHash compresses asynchronously; wait so the copied URL is current.
   Promise.resolve(updateHash()).then(function() {
-    writeClipboardText(window.location.href, 'Share link copied to clipboard!', 'Copy link failed.', sourceBtn);
+    writeClipboardText(window.location.href, 'Share link copied.', 'Copy link failed.', sourceBtn);
   });
 }
 

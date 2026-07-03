@@ -1,12 +1,19 @@
 .topbar {
   display: flex;
   align-items: center;
+  /* wrap instead of clipping: at tablet widths (761–1000px) the full control
+     row exceeds the viewport, and without wrap the tail buttons are
+     unreachable — there is no horizontal scroll here */
+  flex-wrap: wrap;
   gap: 0.5rem;
   min-height: 52px;
   padding: 0 1rem;
+  /* clears the notch in landscape; env() is 0 on devices without one */
+  padding-left: calc(1rem + env(safe-area-inset-left));
+  padding-right: calc(1rem + env(safe-area-inset-right));
   background: transparent;
   flex-shrink: 0;
-  z-index: 100;
+  z-index: var(--z-topbar);
 }
 .topbar button,
 .topbar a {
@@ -17,11 +24,11 @@
 .app-brand {
   display: inline-flex;
   align-items: center;
-  gap: 7px;
+  gap: 8px;
   height: var(--control-h);
   color: var(--ink);
   font-family: var(--font-serif);
-  font-size: 18px;
+  font-size: 1.125rem;   /* same size as the site masthead .brand */
   font-weight: 600;
   line-height: 1;
   text-decoration: none;
@@ -32,7 +39,7 @@
   text-decoration: none;
 }
 .app-brand:active {
-  transform: scale(0.98);
+  transform: scale(0.96);
 }
 .app-mark {
   width: 24px;
@@ -88,7 +95,8 @@
   min-height: 32px;
   padding: 0 12px;
   border: none;
-  border-radius: var(--radius-md);
+  /* concentric with the switch: outer radius − 1px border − 3px padding */
+  border-radius: calc(var(--radius-lg) - 4px);
   background: transparent;
   color: var(--control-fg);
   font-size: var(--t-control);
@@ -98,10 +106,10 @@
   white-space: nowrap;
   user-select: none;
   transition:
-    color 0.15s,
-    background 0.15s,
-    box-shadow 0.15s,
-    transform 0.1s;
+    color var(--dur-control),
+    background var(--dur-control),
+    box-shadow var(--dur-control),
+    transform var(--dur-press);
 }
 .mode-option:hover {
   color: var(--fg);
@@ -137,7 +145,11 @@
   border-right: 0;
   border-bottom: 0;
   transform: translateX(-50%) rotate(45deg);
-  z-index: 3001;
+  /* Paints above topbar siblings only: .topbar's own z-index makes it a
+     stacking context, so no value here can reach the sidebar's tier — the
+     fixed-position sidebar (root context, --z-popover-nested) always covers
+     the caret's protruding tip. */
+  z-index: 1;
 }
 
 .spacer {
@@ -168,9 +180,9 @@
   white-space: nowrap;
   user-select: none;
   transition:
-    color 0.15s,
-    background 0.15s,
-    transform 0.1s;
+    color var(--dur-control),
+    background var(--dur-control),
+    transform var(--dur-press);
 }
 .theme-dropdown-btn:hover {
   color: var(--ink);
@@ -186,7 +198,7 @@
   flex-shrink: 0;
   /* Neutral fill for the Default theme (inline style overrides it), and a
      double ring (--line-strong + --line halo) so the swatch reads as a
-     control even when its fill matches the Paper chrome. */
+     control even when its fill matches the Kiln Stone chrome. */
   background: var(--paper);
   border: 1px solid var(--line-strong);
   box-shadow: 0 0 0 1px var(--line);
@@ -196,7 +208,7 @@
   height: 10px;
   color: var(--fg4);
   flex-shrink: 0;
-  transition: transform 0.15s;
+  transition: transform var(--dur-control);
 }
 .theme-dropdown-btn.open svg {
   transform: rotate(180deg);
@@ -211,7 +223,7 @@
   border: 1px solid var(--control-border);
   border-radius: var(--radius-lg);
   padding: 6px;
-  z-index: 2000;
+  z-index: var(--z-popover);
   flex-direction: column;
   box-shadow: var(--shadow-popover);
   max-height: 400px;
@@ -227,7 +239,8 @@
   gap: 8px;
   padding: 7px 28px 7px 8px;
   border: none;
-  border-radius: var(--radius-sm);
+  /* concentric with the menu: outer radius − 1px border − 6px padding */
+  border-radius: calc(var(--radius-lg) - 7px);
   background: transparent;
   color: var(--fg);
   font-size: var(--t-label);
@@ -239,8 +252,8 @@
   width: 100%;
   user-select: none;
   transition:
-    background 0.15s,
-    transform 0.1s;
+    background var(--dur-control),
+    transform var(--dur-press);
 }
 .theme-dropdown-item:hover {
   background: var(--control-bg-hover);
@@ -292,10 +305,10 @@
   user-select: none;
   text-decoration: none;
   transition:
-    color 0.15s,
-    background 0.15s,
-    opacity 0.15s,
-    transform 0.1s;
+    color var(--dur-control),
+    background var(--dur-control),
+    opacity var(--dur-control),
+    transform var(--dur-press);
 }
 .btn:hover {
   color: var(--ink);
@@ -329,9 +342,9 @@
   opacity: 1;
   filter: blur(0);
   transition:
-    opacity 0.18s var(--ease-out),
-    transform 0.18s var(--ease-out),
-    filter 0.18s var(--ease-out);
+    opacity var(--dur-ui) var(--ease-out),
+    transform var(--dur-ui) var(--ease-out),
+    filter var(--dur-ui) var(--ease-out);
 }
 #dark-light-btn #icon-sun,
 #dark-light-btn.is-dark #icon-moon {
@@ -367,6 +380,8 @@
   .topbar {
     gap: 0.25rem;
     padding: 8px 10px;
+    padding-left: calc(10px + env(safe-area-inset-left));
+    padding-right: calc(10px + env(safe-area-inset-right));
     flex-wrap: wrap;
     align-content: center;
     overflow: visible;

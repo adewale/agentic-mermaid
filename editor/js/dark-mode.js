@@ -21,8 +21,9 @@ function applyColorMode(dark, force) {
   // prefers-color-scheme instead of freezing on first load.
   if (force) localStorage.setItem("bm-editor-dark", dark ? "true" : "false");
 
-  // Page chrome follows the site Paper/Dusk palette. The diagram theme is controlled
-  // separately by the dropdown so color mode does not silently rewrite diagrams.
+  // Page chrome follows the Kiln brand (Stone/Charcoal + Pine). The diagram theme
+  // is controlled separately by the dropdown so color mode does not silently
+  // rewrite diagrams.
   applyThemeToPage(state.theme);
   // These may not exist yet during initial load – guarded calls
   if (typeof updateThemeButton === "function") updateThemeButton();

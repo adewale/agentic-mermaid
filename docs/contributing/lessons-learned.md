@@ -4,6 +4,68 @@ Process lessons this repo has paid for, so they only have to be paid for once.
 Each entry names the incident that taught it. Add new lessons at the top with a
 date; do not delete old ones — supersede them in place.
 
+## 2026-07 — the brand-system and chrome-polish passes
+
+**Design intent and shipped hex drift apart; compute claims on what shipped.**
+The pine accent was chosen 28° of OkLCH hue from the semantic success green —
+in the design tool. The shipped hexes had converged to 15° apart (11° in dark
+mode): links and "Copied" confirmations read as one colour, worse for
+deuteranopes, and the review that picked pine had cited the design-intent
+number. The separation now lives as an executable claim
+(`chrome-token-lockstep.test.ts` asserts ≥ 20° on the shipped values). Rule:
+any colour-relationship claim is computed on the committed hex, and if the
+relationship matters, it becomes a test.
+
+**A "keep in lockstep" comment is a hope; a test is a guarantee.** Three files
+carried the shared chrome tokens (site stylesheet, editor stylesheet, and the
+editor's `chromeThemeColors()` in JS), synchronized only by comments — and a
+12% vs 13% hairline drift had already shipped that way. The lockstep test now
+extracts the triplet, brand chip, functional hues (both polarities), radii,
+motion tokens, and the hairline mix from all three sources and asserts
+equality. Corollary: the first draft of that test was itself rejected by the
+repo's test-quality lint (`toBeTruthy`) — new guard code has to pass the
+house's existing guards.
+
+**A rebrand includes the assets nobody opens.** Months of chrome work shipped
+while `og-image.png` still read "Beautiful Mermaid — by the team at Craft":
+the upstream project's card, wrong name, pre-fork palette, posted on every
+social share of the site. The CSS was audited to the percent; the PNG was
+never looked at. Rule: a brand change enumerates its raster/social surfaces —
+og-image, touch icons, favicon, README-rendered artifacts, repo social
+preview — and someone *views* each one.
+
+**Breakpoint boundaries hide unreachable controls; probe them mechanically.**
+Between 761 and ~1000px the editor topbar clipped with no scroll path — Copy
+agent prompt and Export Image were simply unreachable on an iPad portrait,
+8px above the mobile breakpoint. Nothing failed: no overflow, no console
+error, desktop and phone both fine. The check that catches it is mechanical
+(every interactive element's bounding rect inside `innerWidth`, sampled just
+above each breakpoint), and the fix is a policy, not a tweak: toolbars either
+wrap or scroll; they never assume they fit.
+
+**When one value moves, its coupled values move with it.** The iOS input-zoom
+fix (16px fields under coarse pointers) would have silently desynced the
+line-number gutter, which shares the textarea's font metrics row-for-row; the
+`forced-colors` block predated the new functional tokens and left them
+unmapped under Windows High Contrast. Both were caught only by asking "what
+else derives from or aligns with this?" before shipping. Same failure shape
+in both: a correct local change, an unenumerated dependency.
+
+**Verify a suspected gap exists before fixing it.** A review flagged popover
+keyboard handling (Escape, focus restore) as unaudited. The audit found a
+shared `createPopupController` already covering all seven popovers, including
+roving tabindex in the theme listbox. "Audited, no change needed" is a
+result worth reporting; patching per-component without looking for the shared
+mechanism would have added the inconsistency it meant to prevent.
+
+**Consistency work starts with a census, not a scroll-through.** Grep every
+value class and count occurrences (radii, durations, easings, font sizes,
+press scales, icon strokes, z-indexes, gaps) — the count-one entries are the
+findings. This surfaced 58 untokenized transition durations, three press
+scales where the system wanted one, five icon stroke weights where two were
+deliberate, and seven magic z-indexes with an accidental popover-above-popover
+ordering. Eyeballing pages finds none of these reliably.
+
 ## 2026-07 — the label-overlap audit and remediation
 
 **A metric you never measure is a defect class you ship.** No gate measured

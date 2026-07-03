@@ -6,7 +6,7 @@ function writeClipboardText(value, success, failure, sourceBtn) {
   }
   navigator.clipboard.writeText(value).then(function() {
     setCopyFeedback(sourceBtn, 'ok');
-    showToast(success || 'Copied!');
+    showToast(success || 'Copied.');
     if (typeof setExportDropdownOpen === 'function') setExportDropdownOpen(false, false);
   }).catch(function() {
     setCopyFeedback(sourceBtn, 'err');
@@ -15,7 +15,7 @@ function writeClipboardText(value, success, failure, sourceBtn) {
 }
 
 function copySource() {
-  writeClipboardText(editor.value, 'Source copied!', 'Copy source failed.', copySourceBtn);
+  writeClipboardText(editor.value, 'Source copied.', 'Copy source failed.', copySourceBtn);
 }
 
 function mermaidBodyStart(source) {
@@ -76,7 +76,7 @@ function buildAgentTaskPrompt() {
 }
 
 function copyAgentTask() {
-  writeClipboardText(buildAgentTaskPrompt(), 'Agent task prompt copied!', 'Copy agent task failed.', copyAgentTaskBtn);
+  writeClipboardText(buildAgentTaskPrompt(), 'Agent task prompt copied.', 'Copy agent task failed.', copyAgentTaskBtn);
 }
 
 function clearEditor() {
@@ -105,7 +105,7 @@ if (copyAgentTaskBtn) copyAgentTaskBtn.addEventListener('click', copyAgentTask);
 // lands on the button that was actually clicked.
 var agentPromptTopbarBtn = document.getElementById('agent-prompt-topbar-btn');
 if (agentPromptTopbarBtn) agentPromptTopbarBtn.addEventListener('click', function() {
-  writeClipboardText(buildAgentTaskPrompt(), 'Agent task prompt copied!', 'Copy agent task failed.', agentPromptTopbarBtn);
+  writeClipboardText(buildAgentTaskPrompt(), 'Agent task prompt copied.', 'Copy agent task failed.', agentPromptTopbarBtn);
 });
 
 var currentCanvasFormat = 'diagram';
@@ -162,12 +162,12 @@ if (copyTextOutputBtn) copyTextOutputBtn.addEventListener('click', function() {
       showToast('Render a diagram before copying its SVG.');
       return;
     }
-    writeClipboardText(new XMLSerializer().serializeToString(svgEl), 'SVG markup copied!', 'Copy SVG failed.', copyTextOutputBtn);
+    writeClipboardText(new XMLSerializer().serializeToString(svgEl), 'SVG markup copied.', 'Copy SVG failed.', copyTextOutputBtn);
     return;
   }
   var el = document.getElementById(currentCanvasFormat + '-output');
   var name = currentCanvasFormat === 'ascii' ? 'ASCII' : 'Unicode';
-  writeClipboardText(el ? el.textContent : '', name + ' output copied!', 'Copy ' + name + ' failed.', copyTextOutputBtn);
+  writeClipboardText(el ? el.textContent : '', name + ' output copied.', 'Copy ' + name + ' failed.', copyTextOutputBtn);
 });
 
 document.addEventListener('click', function(e) {

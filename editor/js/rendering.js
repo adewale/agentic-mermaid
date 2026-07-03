@@ -18,12 +18,16 @@ function hexToRgb(hex) {
 }
 
 function chromeThemeColors() {
-  // Paper (light) / Dusk (dark) — the exact brand triplets the public site
-  // ships as its chrome. Keep these in lockstep with the site's [data-theme]
-  // "dusk" block and the :root Paper defaults in website/source/assets/styles.css.
+  // App-shell chrome: the Kiln brand — a warm-neutral Stone (light) / Charcoal
+  // (dark) ground with the independent Pine accent, NOT the terracotta of the
+  // "paper" diagram theme. Both triplets live in editor/css/variables.css
+  // (:root light, [data-scheme="dark"] Charcoal); the light one also mirrors
+  // :root in website/source/assets/styles.css, whose shell is light-only.
+  // chrome-token-lockstep.test.ts pins all of it. Pine accent clears WCAG AA
+  // on both grounds (5.7:1 on Stone, 8.7:1 on Charcoal).
   return isDark
-    ? { bg: "#2A2521", fg: "#E9DFCC", accent: "#CC8A57" }
-    : { bg: "#F5F0E4", fg: "#221E16", accent: "#9A4A24" };
+    ? { bg: "#17130D", fg: "#EBE7E0", accent: "#6FC2A2" }
+    : { bg: "#F8F4F0", fg: "#26201B", accent: "#1B6E52" };
 }
 
 function applyThemeToPage(themeKey) {

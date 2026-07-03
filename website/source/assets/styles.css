@@ -71,19 +71,20 @@
 }
 
 /* ============================ 2 · THEME ============================
-   Default palette is Paper — a warm cream-and-ink ground with a terracotta
-   accent. Every theme below sets only the triplet; the hierarchy is derived
-   once, here, from those three values, so it recomputes automatically whenever
-   a [data-theme] block swaps them. Pine (our green) lives on as
-   [data-theme="pine-light"] / [data-theme="pine-dark"]. */
+   Default palette is the app shell: a warm cream-and-ink Paper ground with the
+   independent Pine brand accent. Every theme below sets only the triplet; the
+   hierarchy is derived once, here, from those three values, so it recomputes
+   automatically whenever a [data-theme] block swaps them. The terracotta that
+   used to sit in the shell now lives on only as the "paper" render theme; Pine
+   is also selectable as [data-theme="pine-light"] / [data-theme="pine-dark"]. */
 :root {
-  --bg:     #F5F0E4;
-  --fg:     #221E16;
-  --accent: #9A4A24;
+  --bg:     #F8F4F0;   /* Kiln Stone — a cleaner, lower-chroma warm neutral (was Paper #F5F0E4) */
+  --fg:     #26201B;
+  --accent: #1B6E52;   /* Pine brand accent (was terracotta #9A4A24, now render-theme only). 5.7:1 on Stone. */
 
   /* derived hierarchy — a coherent mono ramp from the triplet. The three ink
-     steps stay visibly distinct on Paper: ink 14.6:1, soft 8.0:1 (≥7:1),
-     faint 5.4:1 on --bg and 4.9:1 on --surface (≥4.5:1 AA for muted text). */
+     steps stay visibly distinct on Stone: ink 14.7:1, soft 8.0:1 (≥7:1),
+     faint 5.3:1 on --bg and 4.9:1 on --surface (≥4.5:1 AA for muted text). */
   --paper:        var(--bg);
   --ink:          var(--fg);
   --ink-soft:     color-mix(in srgb, var(--fg) 80%, var(--bg));
@@ -103,15 +104,27 @@
   --accent-tint:  color-mix(in srgb, var(--accent) 14%, var(--bg));
   --code-fg:      var(--fg);
 
-  /* status + terminal + legacy tokens (kept stable / derived across themes).
-     Light-polarity status ink on Paper: danger 6.5:1, warn 6.0:1 (the dark
-     pastels live in the [data-scheme="dark"] block). */
-  --warn: #7E5214; --warn-tint: color-mix(in srgb, var(--warn) 14%, var(--bg)); --danger: #96352A;
+  /* Functional / semantic hues — solid ink for status text + a soft --*-tint
+     fill for badges and validation panels. In lockstep with editor/css/variables.css
+     (enforced by chrome-token-lockstep.test.ts). Light-polarity ink on Stone clears
+     AA for small text: success 5.9:1, info 4.8:1, warn 5.4:1, danger 6.3:1. Each
+     -tint is a 14% wash of the same hue on --bg, so ink stays ~12:1 on a filled
+     badge. Success sits at OkLCH h141, kept ≥20° from the pine accent (h166) so
+     links and success states never read as one colour. Dark pastels live in
+     [data-scheme="dark"]; the tints re-derive automatically. */
+  --success: #296C1E; --info: #1F6FB0; --warn: #8A5A12; --danger: #A0352A;
+  --success-tint: color-mix(in srgb, var(--success) 14%, var(--bg));
+  --info-tint:    color-mix(in srgb, var(--info)    14%, var(--bg));
+  --warn-tint:    color-mix(in srgb, var(--warn)    14%, var(--bg));
+  --danger-tint:  color-mix(in srgb, var(--danger)  14%, var(--bg));
   --term-bg: var(--code-bg); --term-fg: var(--fg); --term-dim: var(--ink-soft); --term-accent: var(--accent);
   --accent-press: var(--accent-hover); --ease: cubic-bezier(0.22, 1, 0.36, 1);
   --radius-card: var(--radius-lg); --radius-input: var(--radius-md);
   --control-bg: var(--surface); --control-bg-hover: var(--chip); --control-fg: var(--ink-soft); --control-border: var(--line-strong);
-  --popover-bg: var(--surface); --shadow-control: 0 0 0 1px var(--line); --shadow-popover: 0 18px 44px rgba(0,0,0,0.28);
+  --popover-bg: var(--surface); --shadow-control: 0 0 0 1px var(--line);
+  /* layered like --card-shadow: hairline ring, near shadow, far ambient — one
+     heavy blur alone reads flat */
+  --shadow-popover: 0 0 0 1px rgba(0,0,0,0.05), 0 4px 10px rgba(0,0,0,0.10), 0 18px 44px rgba(0,0,0,0.18);
   --sp-1: 4px; --sp-2: 8px; --sp-3: 12px; --sp-4: 16px; --sp-5: 20px; --sp-6: 24px; --sp-7: 32px; --sp-8: 40px; --sp-9: 56px;
   --t-display: clamp(2.7rem, 6.5vw, 4rem);
   --t-h1: clamp(2.2rem, 4.2vw, 3rem);
@@ -135,7 +148,8 @@
 }
 
 /* every renderer theme, as a triplet (bg / fg / accent). set [data-theme] on
-   <html>; default (:root above) is Paper. order: light, then dark. */
+   <html>; the default (:root above) is the Kiln Stone chrome, not a renderer
+   theme. order: light, then dark. */
 [data-theme="pine-light"]        { --bg:#F4F8F6; --fg:#16231E; --accent:#1A7351; }
 [data-theme="zinc-light"]        { --bg:#FFFFFF; --fg:#27272A; --accent:#2563EB; }
 [data-theme="github-light"]      { --bg:#FFFFFF; --fg:#1F2328; --accent:#0969DA; }
@@ -184,8 +198,10 @@
   --card-shadow: 0 0 0 1px rgba(255,255,255,0.08);
   --code-bg:    color-mix(in srgb, var(--bg) 82%, #000);
   --grain:      0.07;                           /* light noise on a dark base reads strongly */
-  /* dark polarity flips the status inks back to pastels on a dark tint */
-  --warn: #E0A75A; --warn-tint: #2A2418; --danger: #E08A80;
+  /* dark polarity flips the status inks to brighter pastels; the --*-tint fills
+     re-derive from these plus the dark ground, so only the inks flip here.
+     Dark success holds h143, ≥20° from the dark pine accent. */
+  --success: #6CBF68; --info: #78B4EA; --warn: #E0A75A; --danger: #E58C82;
 }
 
 /* keep native UI (scrollbars, form controls, the canvas) in the right polarity
@@ -212,7 +228,7 @@ pre, pre code, code, blockquote, th, td, hr, figure .plate, footer, .footlinks a
 html { -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility; font-kerning: normal; }
 body { margin: 0; background: var(--paper); color: var(--ink); font-family: var(--sans); font-size: var(--t-body); line-height: var(--lh-body); font-feature-settings: "kern" 1, "liga" 1; }
 ::selection { background: color-mix(in srgb, var(--accent) 22%, var(--bg)); color: var(--ink); }
-.skip-link { position: fixed; left: 12px; top: 12px; z-index: 50; transform: translateY(-160%); padding: 8px 10px; border-radius: 8px; background: var(--paper); color: var(--link); box-shadow: 0 0 0 1px var(--line-strong); }
+.skip-link { position: fixed; left: 12px; top: 12px; z-index: 50; transform: translateY(-160%); padding: 8px 10px; border-radius: var(--radius-md); background: var(--paper); color: var(--link); box-shadow: 0 0 0 1px var(--line-strong); }
 .skip-link:focus { transform: translateY(0); }
 :target { scroll-margin-top: 24px; }
 .gallery figure:target, table tr:target { outline: 2px solid var(--accent); outline-offset: 4px; }
@@ -240,7 +256,7 @@ body::before { content: ""; position: fixed; inset: 0; pointer-events: none; z-i
 .masthead .bar { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
 .brand { display: inline-flex; align-items: center; gap: 7px; font-family: var(--serif); font-weight: 600; font-size: 1.125rem; line-height: var(--lh-tight); letter-spacing: -0.01em; color: var(--ink); text-decoration: none; }
 .brand:hover { color: var(--ink); text-decoration: none; }
-.brand .mark { width: 24px; height: 24px; border-radius: 6px; background: var(--brand-pine); color: var(--brand-on); display: inline-grid; place-items: center; }
+.brand .mark { width: 24px; height: 24px; border-radius: var(--radius-sm); background: var(--brand-pine); color: var(--brand-on); display: inline-grid; place-items: center; }
 .mark { position: relative; overflow: hidden; box-shadow: 0 0 0 1px var(--mark-ring); }
 .mark > canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
 .mark > .glyph { position: absolute; inset: 0; z-index: 1; display: grid; place-items: center; }
@@ -297,7 +313,7 @@ hr { border: 0; margin: var(--sp-6) 0; }
 .primary-action:hover { background: var(--accent-hover); color: var(--bg); text-decoration: none; transform: translateY(-1px); }
 .secondary-action { border: 1px solid var(--control-border); background: var(--control-bg); color: var(--control-fg); }
 .secondary-action:hover { background: var(--control-bg-hover); color: var(--ink); text-decoration: none; transform: translateY(-1px); }
-.primary-action:active, .secondary-action:active { transform: scale(0.97); }
+.primary-action:active, .secondary-action:active { transform: scale(0.96); }
 .page-actions .copy-prompt-status { flex-basis: 100%; padding: 0; }
 .start-rail { list-style: none; padding: 0; margin: 8px 0 20px; border-top: 1px solid var(--line); }
 .start-rail li { margin: 0; padding: 14px 0; border-bottom: 1px solid var(--line); }
@@ -679,8 +695,8 @@ footer { max-width: var(--content-max); margin: 0 auto; padding: 28px var(--page
   transform: translateY(-1px);
 }
 .copy-prompt-btn:active,
-.masthead .links .link-editor:active { transform: scale(0.97); }
-.copy-prompt-btn[data-copy-state="ok"] { color: var(--link); }
+.masthead .links .link-editor:active { transform: scale(0.96); }
+.copy-prompt-btn[data-copy-state="ok"] { color: var(--success); background: var(--success-tint); border-color: color-mix(in srgb, var(--success) 30%, var(--control-border)); }
 .copy-prompt-btn[data-copy-state="err"], .prompt-action[data-copy-state="err"] { color: var(--danger); }
 :where(.meta-label, .agent-kicker, .section-kicker, .copy-prompt-label, .gallery-prompt span, .gallery-ops span, .example-prompt span, .example-trace span) {
   color: var(--ink-soft);
@@ -711,7 +727,10 @@ footer { max-width: var(--content-max); margin: 0 auto; padding: 28px var(--page
 :where(.copy-prompt-status, .muted, small, figcaption) { color: var(--ink-faint); }
 
 @media (forced-colors: active) {
-  :root { --paper: Canvas; --ink: CanvasText; --ink-soft: CanvasText; --ink-faint: CanvasText; --surface: Canvas; --chip: Canvas; --line: CanvasText; --line-strong: CanvasText; --link: LinkText; --control-bg: ButtonFace; --control-bg-hover: ButtonFace; --control-fg: ButtonText; --control-border: ButtonText; --diagram-bg: Canvas; --popover-bg: Canvas; }
+  :root { --paper: Canvas; --ink: CanvasText; --ink-soft: CanvasText; --ink-faint: CanvasText; --surface: Canvas; --chip: Canvas; --line: CanvasText; --line-strong: CanvasText; --link: LinkText; --control-bg: ButtonFace; --control-bg-hover: ButtonFace; --control-fg: ButtonText; --control-border: ButtonText; --diagram-bg: Canvas; --popover-bg: Canvas;
+    /* status hues collapse to system inks; tints drop to Canvas */
+    --success: CanvasText; --info: LinkText; --warn: CanvasText; --danger: CanvasText;
+    --success-tint: Canvas; --info-tint: Canvas; --warn-tint: Canvas; --danger-tint: Canvas; }
   body::before { display: none; }
   .mark { forced-color-adjust: auto; box-shadow: 0 0 0 1px ButtonText; }
   .masthead .links .link-editor,
@@ -737,3 +756,29 @@ footer { max-width: var(--content-max); margin: 0 auto; padding: 28px var(--page
   .skip-link, .footlinks + .footlinks { display: none; }
   a { color: inherit; text-decoration-color: currentColor; }
 }
+
+/* ---- /about/design — the design-language reference. Every specimen reads the
+   live tokens (var(--…)), so this page cannot drift from the system it documents. */
+.dz-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: var(--sp-3); margin: var(--sp-4) 0 var(--sp-6); }
+.dz-swatch { border: 1px solid var(--line); border-radius: var(--radius-md); overflow: hidden; background: var(--surface); }
+.dz-swatch .chip { height: 52px; border-bottom: 1px solid var(--line); }
+.dz-swatch .meta { padding: 7px 10px; display: flex; flex-direction: column; gap: 1px; }
+.dz-swatch .meta b { font-family: var(--mono); font-size: var(--t-label); font-weight: 650; color: var(--ink); }
+.dz-swatch .meta span { font-family: var(--mono); font-size: 0.72rem; color: var(--ink-faint); }
+.dz-type-row { display: flex; align-items: baseline; gap: var(--sp-4); padding: var(--sp-3) 0; border-bottom: 1px solid var(--line); }
+.dz-type-row .spec { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dz-type-row .tok { font-family: var(--mono); font-size: var(--t-label); color: var(--ink-faint); text-align: right; white-space: nowrap; }
+.dz-radii { display: flex; gap: var(--sp-4); align-items: flex-end; flex-wrap: wrap; margin: var(--sp-4) 0; }
+.dz-radius { width: 84px; height: 56px; background: var(--surface); border: 1px solid var(--line-strong); display: grid; place-items: center; font-family: var(--mono); font-size: var(--t-label); color: var(--ink-soft); }
+.dz-nest { display: inline-grid; place-items: center; padding: 6px; border: 1px solid var(--line-strong); border-radius: var(--radius-lg); background: var(--surface); }
+.dz-nest > span { display: block; padding: 8px 14px; background: var(--chip); border-radius: calc(var(--radius-lg) - 7px); font-family: var(--mono); font-size: var(--t-label); color: var(--ink-soft); }
+.dz-shadows { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: var(--sp-5); margin: var(--sp-4) 0 var(--sp-6); }
+.dz-shadow { height: 72px; border-radius: var(--radius-lg); background: var(--surface); display: grid; place-items: center; font-family: var(--mono); font-size: var(--t-label); color: var(--ink-soft); }
+.dz-motion { display: flex; gap: var(--sp-3); align-items: center; flex-wrap: wrap; margin: var(--sp-4) 0; }
+.dz-press { min-height: var(--control-h); padding: 0 var(--control-px); border: 1px solid var(--control-border); border-radius: var(--radius-md); background: var(--control-bg); color: var(--control-fg); font-family: var(--sans); font-size: var(--t-control); font-weight: 650; cursor: pointer; transition: background var(--dur-control) var(--ease-out), transform var(--dur-press) var(--ease-out); }
+.dz-press:hover { background: var(--control-bg-hover); color: var(--ink); }
+.dz-press:active { transform: scale(0.96); }
+.dz-mark-row { display: flex; align-items: center; gap: var(--sp-4); margin: var(--sp-4) 0; }
+.dz-icons { display: flex; gap: var(--sp-4); align-items: center; color: var(--ink-soft); }
+.dz-voice li { margin-bottom: var(--sp-2); }
+.dz-voice code { font-size: 0.9em; }
