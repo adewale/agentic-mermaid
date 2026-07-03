@@ -27,6 +27,6 @@
       "RENDER_FAILED"
     ],
     "upstreamBehavior": "Mermaid's architecture syntax supports alignment edges (`align` between groups/services). Agentic Mermaid parses and round-trips these sources, but the local render parser rejects the `align` edge source, so verify reports Tier-1 RENDER_FAILED (a clean verify must prove the source renders).",
-    "notes": "Executable ledger: closing the architecture align-edge render gap re-imports these (tracked with the BUILD-20 upstream-suite exclusions carrying the same reason)."
+    "notes": "Executable ledger: closing the architecture align-edge render gap (#101) re-imports these; the BUILD-20 upstream-suite exclusions carry the same issue."
   }
 ]

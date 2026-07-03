@@ -1,4 +1,5 @@
 import type { QuadrantChart, QuadrantAxis, QuadrantPoint } from './types.ts'
+import { accessibilityDirectiveEnd } from '../shared/accessibility-directives.ts'
 import { normalizeBrTags } from '../multiline-utils.ts'
 
 // ============================================================================
@@ -69,13 +70,10 @@ export function parseQuadrantChart(lines: string[]): QuadrantChart {
     // source fidelity in the agent path (which falls back to opaque for style).
     if (/^classDef\s+[A-Za-z_][\w-]*\s+.+$/i.test(line)) continue
 
-    // Mermaid-universal accessibility directives: accept and skip
-    // accTitle/accDescr lines and accDescr { … } blocks, same as classDef.
-    if (/^acc(Title|Descr)\s*:/i.test(line)) continue
-    if (/^accDescr\s*\{/i.test(line)) {
-      while (i < lines.length && !lines[i]!.includes('}')) i++
-      continue
-    }
+    // Mermaid-universal accessibility directives: accept and skip, same as
+    // classDef (sequence models them fully; quadrant has no aria slot yet).
+    const accEnd = accessibilityDirectiveEnd(lines, i)
+    if (accEnd !== -1) { i = accEnd; continue }
 
     let m: RegExpMatchArray | null
 

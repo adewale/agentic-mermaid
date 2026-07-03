@@ -21,7 +21,7 @@ import type {
 } from '../agent/types.ts'
 import { WARNING_SEVERITY, WARNING_TIER } from '../agent/types.ts'
 import { BUILTIN_FAMILY_METADATA, builtinFamilyMetadata, knownFamilies, getFamily } from '../agent/families.ts'
-import { knownStyles, getStyle, validateStyleSpec, inferBackend, resolveStyleStack } from '../scene/style-registry.ts'
+import { knownStyles, getStyle, validateStyleSpec, inferBackend, resolveStyleStack, styleKind } from '../scene/style-registry.ts'
 import type { StyleInput, StyleSpec } from '../scene/style-registry.ts'
 import type { BuiltinFamilyId } from '../agent/families.ts'
 import '../agent/families-builtin.ts'
@@ -318,7 +318,7 @@ function cmdRender(args: ParsedArgs, json: boolean): number {
     const results = args.positional.map((file, index) => {
       try {
         const src = readSourceArg(file)
-        const output = renderMultiInputOnce(src, format, { security, certificates: args.flags.certificates === true, style, seed })
+        const output = renderSourceToFormat(src, format, { security, certificates: args.flags.certificates === true, style, seed })
         return { index, file, ok: true, output }
       } catch (e) {
         const parseEnvelope = e as { ok?: false; error?: { code?: string; message?: string; details?: unknown } }
@@ -360,34 +360,32 @@ function cmdRender(args: ParsedArgs, json: boolean): number {
     // raster artifact explicitly to the requested output path.
     return renderPngSync(source, { scale, background, style, seed }, outFile, json)
   }
-  if (format === 'json') {
-    // Loop 9 M3 — structured layout JSON. parseMermaid → layoutMermaid →
-    // emit nodes/edges/groups/bounds with stable key ordering.
-    const layout = layoutMermaid(parsed.value, { debug: args.flags.certificates === true })
-    process.stdout.write(JSON.stringify(layout) + '\n')
+  // Loop 9 M3/M4, #7645: json = layout shape; unicode is the default text
+  // renderer; `--security strict` strips external-fetch refs from SVG.
+  const out = renderSourceToFormat(source, format, { security, certificates: args.flags.certificates === true, style, seed })
+  if (typeof out !== 'string') {
+    process.stdout.write(JSON.stringify(out) + '\n')
     return EXIT_OK
   }
-  if (format === 'ascii' || format === 'unicode') {
-    // Loop 9 M4 — `unicode` is the default ASCII renderer (Unicode box
-    // drawing). `ascii` flips the useAscii bit for pure 7-bit output.
-    const ascii = renderMermaidASCII(source, { useAscii: format === 'ascii' })
-    process.stdout.write(json ? JSON.stringify({ [format]: ascii }) + '\n' : (ascii.endsWith('\n') ? ascii : ascii + '\n'))
-    return EXIT_OK
-  }
-  // #7645/#7695: `--security strict` → no external-fetch refs in the SVG.
-  const svg = renderMermaidSVG(source, { security, style, seed })
-  process.stdout.write(json ? JSON.stringify({ svg }) + '\n' : (svg.endsWith('\n') ? svg : svg + '\n'))
+  process.stdout.write(json ? JSON.stringify({ [format]: out }) + '\n' : (out.endsWith('\n') ? out : out + '\n'))
   return EXIT_OK
 }
 
-function renderMultiInputOnce(source: string, format: string, opts: { security?: 'default' | 'strict'; certificates?: boolean; style?: StyleInput[]; seed?: number } = {}): unknown {
-  if (format === 'svg') return renderMermaidSVG(source, { security: opts.security, style: opts.style, seed: opts.seed })
+interface RenderFormatOptions { security?: 'default' | 'strict'; certificates?: boolean; style?: StyleInput[]; seed?: number }
+
+/** The ONE format dispatch behind every render path — single-input,
+ *  multi-input, and watch differ only in I/O and error envelopes, so they
+ *  share this core instead of re-enumerating formats (the style/seed
+ *  threading previously had to touch three copies). JSON parse failures
+ *  throw the structured envelope; callers decide how to surface it. */
+function renderSourceToFormat(source: string, format: string, opts: RenderFormatOptions = {}): string | object {
+  if (format === 'ascii' || format === 'unicode') return renderMermaidASCII(source, { useAscii: format === 'ascii' })
   if (format === 'json') {
     const parsed = parseMermaid(source)
     if (!parsed.ok) throw parseErrorEnvelope(parsed.error)
     return layoutMermaid(parsed.value, { debug: opts.certificates === true })
   }
-  return renderMermaidASCII(source, { useAscii: format === 'ascii' })
+  return renderMermaidSVG(source, { security: opts.security, style: opts.style, seed: opts.seed })
 }
 
 /**
@@ -395,14 +393,17 @@ function renderMultiInputOnce(source: string, format: string, opts: { security?:
  * requested format, returns the output string. Extracted so it's unit-testable
  * without fs.watch timing.
  */
-export function renderFileOnce(file: string, format: string, opts: { security?: 'default' | 'strict'; certificates?: boolean; style?: StyleInput[]; seed?: number } = {}): string {
+export function renderFileOnce(file: string, format: string, opts: RenderFormatOptions = {}): string {
   const src = readFileSync(file, 'utf8')
-  if (format === 'ascii' || format === 'unicode') return renderMermaidASCII(src, { useAscii: format === 'ascii' })
-  if (format === 'json') {
-    const p = parseMermaid(src)
-    return p.ok ? JSON.stringify(layoutMermaid(p.value, { debug: opts.certificates === true })) : JSON.stringify(parseErrorEnvelope(p.error))
+  try {
+    const out = renderSourceToFormat(src, format, opts)
+    return typeof out === 'string' ? out : JSON.stringify(out)
+  } catch (e) {
+    // Watch mode wants a printable line, not a throw: the structured JSON
+    // parse envelope serializes; real render errors keep propagating.
+    if ((e as { ok?: boolean; error?: unknown })?.ok === false) return JSON.stringify(e)
+    throw e
   }
-  return renderMermaidSVG(src, { security: opts.security, style: opts.style, seed: opts.seed })
 }
 
 function cmdRenderWatch(file: string, format: string, args: ParsedArgs, _json: boolean, opts: { security?: 'default' | 'strict'; certificates?: boolean; style?: StyleInput[]; seed?: number } = {}): number {
@@ -771,12 +772,6 @@ function parseStyleFlag(value: string): StyleInput[] {
     }
     return entry
   })
-}
-
-/** A palette-only spec is what people call a theme; anything that also sets
- *  stroke/fill/typography/roles is a full look. */
-function styleKind(spec: StyleSpec): 'look' | 'theme' {
-  return Object.keys(spec).every(k => k === 'name' || k === 'blurb' || k === 'colors') ? 'theme' : 'look'
 }
 
 function cmdStyles(json: boolean): number {

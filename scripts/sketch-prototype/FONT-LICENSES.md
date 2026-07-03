@@ -3,19 +3,16 @@
 The `.ttf` files in this directory are research/evidence fixtures for the
 sketch prototype's reproducible posters and contact sheets (see SPEC §9).
 The four faces referenced by built-in styles (Caveat, EB Garamond,
-Architects Daughter, Share Tech Mono) also ship as reviewed production
-assets in `assets/fonts/` (see the notice there); the rest remain
-prototype-only fixtures. Each is redistributed unmodified from Google
+Architects Daughter, Share Tech Mono) live ONLY in `assets/fonts/` as
+reviewed production assets (see the notice there) — the prototype harnesses
+reference them from there, so no bytes are duplicated. The faces below
+remain prototype-only fixtures. Each is redistributed unmodified from Google
 Fonts under the SIL Open Font License, Version 1.1 (OFL-1.1), whose full text
 is reproduced at the bottom of this file as required by OFL condition 2.
 
 | File | Typeface | Copyright / Reserved Font Name | Source |
 |---|---|---|---|
-| `Caveat.ttf` | Caveat | Copyright 2014 The Caveat Project Authors (https://github.com/googlefonts/caveat) | fonts.google.com/specimen/Caveat |
-| `EBGaramond.ttf` | EB Garamond | Copyright 2017 The EB Garamond Project Authors (https://github.com/octaviopardo/EBGaramond12) | fonts.google.com/specimen/EB+Garamond |
-| `ShareTechMono.ttf` | Share Tech Mono | Copyright (c) 2012, Carrois Type Design, Ralph du Carrois, with Reserved Font Name 'Share' | fonts.google.com/specimen/Share+Tech+Mono |
 | `Fraunces.ttf` | Fraunces | Copyright 2020 The Fraunces Project Authors (https://github.com/undercasetype/Fraunces) | fonts.google.com/specimen/Fraunces |
-| `ArchitectsDaughter.ttf` | Architects Daughter | Copyright (c) 2010, Kimberly Geswein (kimberlygeswein.com) | fonts.google.com/specimen/Architects+Daughter |
 | `Cinzel.ttf` | Cinzel | Copyright 2021 The Cinzel Project Authors (https://github.com/NDISCOVER/Cinzel) | fonts.google.com/specimen/Cinzel |
 | `Fredoka.ttf` | Fredoka | Copyright 2021 The Fredoka Project Authors (https://github.com/hafontia-zz/Fredoka) | fonts.google.com/specimen/Fredoka |
 | `BalsamiqSans.ttf` | Balsamiq Sans | Copyright 2020 The Balsamiq Sans Project Authors (https://github.com/balsamiq/balsamiqsans) | fonts.google.com/specimen/Balsamiq+Sans |

@@ -18,7 +18,7 @@
  */
 
 import { THEMES } from '../../src/theme.ts'
-import { knownStyles, getStyle } from '../../src/scene/style-registry.ts'
+import { knownStyles, getStyle, styleKind } from '../../src/scene/style-registry.ts'
 
 const THEME_LABELS: Record<string, string> = {
   'paper': 'Paper',
@@ -112,11 +112,7 @@ const STYLE_LABELS: Record<string, string> = {
  *  theme picker; the style picker chooses the LOOK, the theme picker the
  *  palette, and render-option precedence stacks them (theme colors win). */
 function styleItemsHtml(): string {
-  const looks = knownStyles().filter(name => {
-    if (name === 'crisp') return true
-    const spec = getStyle(name)!
-    return Object.keys(spec).some(k => k !== 'name' && k !== 'blurb' && k !== 'colors')
-  })
+  const looks = knownStyles().filter(name => name === 'crisp' || styleKind(getStyle(name)!) === 'look')
   return looks.map((key, i) =>
     `<button class="theme-dropdown-item${i === 0 ? ' active' : ''}" type="button" role="option" aria-selected="${i === 0 ? 'true' : 'false'}" data-style="${key}">${STYLE_LABELS[key] ?? key}</button>`,
   ).join('\n      ')

@@ -28,6 +28,7 @@ import type { ValidDiagram } from './types.ts'
 import type { StyleInput } from '../scene/style-registry.ts'
 import { serializeMermaid } from './serialize.ts'
 import { renderMermaidSVG } from '../index.ts'
+import { inlineFontVarForRaster } from '../theme.ts'
 
 export interface PngOptions {
   /** Output scale multiplier (default 2 — retina). */
@@ -85,13 +86,9 @@ export function renderMermaidPNG(input: ValidDiagram | string, opts: PngOptions 
   // Google Fonts during rasterization. CSS-variable fonts (Loop 8 M2) means
   // the SVG still declares its font-family preference via --font.
   const source = typeof input === 'string' ? input : serializeMermaid(input)
-  const svg = renderMermaidSVG(source, { embedFontImport: false, style: opts.style, seed: opts.seed })
-    // resvg/usvg has no CSS custom-property support, so `font-family:
-    // var(--font, 'Caveat')` never matches a bundled face and every styled
-    // look silently rasterized as DejaVu. The renderer always emits the
-    // resolved family as the var() fallback literal (src/theme.ts), so
-    // inline it for rasterization only — SVG output bytes are untouched.
-    .replace(/var\(--font,\s*('[^']*')\)/g, '$1')
+  const svg = inlineFontVarForRaster(
+    renderMermaidSVG(source, { embedFontImport: false, style: opts.style, seed: opts.seed }),
+  )
 
   const scale = opts.scale ?? 2
   const fontDir = resolveFontDir()

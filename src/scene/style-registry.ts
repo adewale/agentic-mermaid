@@ -160,6 +160,14 @@ function withDefaultBackendStrokeWidth(spec: StyleSpec): DiagramStyleOptions {
   }
 }
 
+/** A palette-only spec is what people call a THEME; anything that also sets
+ *  stroke/fill/typography/roles is a full LOOK. One predicate, shared by the
+ *  CLI's `am styles` listing and the editor's style picker, so the two
+ *  surfaces can never disagree about what counts as a look. */
+export function styleKind(spec: StyleSpec): 'look' | 'theme' {
+  return Object.keys(spec).every(k => k === 'name' || k === 'blurb' || k === 'colors') ? 'theme' : 'look'
+}
+
 /** True when a merged spec changes anything beyond role overrides/metadata —
  *  i.e. when rendering must go through the styled scene path. Role-only
  *  specs stay on the crisp path (byte-identical to previous releases). */

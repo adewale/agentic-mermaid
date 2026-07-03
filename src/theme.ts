@@ -329,6 +329,19 @@ function isColorDark(color: string): boolean {
  * a parent element, it's used directly. When unset, the fallback computes
  * a blended value from --fg and --bg using color-mix().
  */
+/**
+ * Inline the `--font` CSS variable for static rasterizers. The renderer emits
+ * `font-family: var(--font, 'Face')` (see the declaration in buildStyleBlock)
+ * so browsers can live-swap the family — but resvg/librsvg have no CSS
+ * custom-property support, so the declaration never matches and every face
+ * silently falls back. The resolved family is always present as the var()
+ * fallback literal; substituting it is raster-only and leaves SVG output
+ * byte-identical. Both PNG paths (napi and wasm) share this one workaround.
+ */
+export function inlineFontVarForRaster(svg: string): string {
+  return svg.replace(/var\(--font,\s*('[^']*')\)/g, '$1')
+}
+
 export function buildStyleBlock(font: string, hasMonoFont: boolean, shadow?: boolean, embedFontImport: boolean = true): string {
   // CLI / PNG path sets embedFontImport=false explicitly to render offline /
   // CSP-friendly; library default preserves wire compatibility (existing SVG
