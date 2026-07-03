@@ -31,7 +31,7 @@ import type { StyleBackend, StyleBackendContext } from './backend.ts'
 import { registerBackend, composeGroup, pageRectFor } from './backend.ts'
 import { nodeSeed } from './seed.ts'
 import { topLevelElements } from './fidelity.ts'
-import type { AestheticStyle } from './style-registry.ts'
+import type { StyleSpec } from './style-registry.ts'
 
 const gen = new RoughGenerator()
 
@@ -70,7 +70,7 @@ export interface RoughParams {
  *  RoughBackend uses pure rough.js. */
 export type GeometrySketcher = (
   geom: Geometry,
-  opts: { seed: number; stroke: string; width: number; fill: string | undefined; p: RoughParams; style: AestheticStyle | undefined; dash: string | undefined },
+  opts: { seed: number; stroke: string; width: number; fill: string | undefined; p: RoughParams; style: StyleSpec | undefined; dash: string | undefined },
 ) => string | null
 
 /** Per-render walk state — threaded, never module-global, so backends can
@@ -81,7 +81,7 @@ interface Walk {
   sketcher?: GeometrySketcher
 }
 
-function paramsOf(style: AestheticStyle | undefined): RoughParams {
+function paramsOf(style: StyleSpec | undefined): RoughParams {
   return {
     roughness: style?.roughness ?? 1.0,
     bowing: style?.bowing ?? 1,
@@ -282,7 +282,7 @@ function haloText(node: TextMark): string {
   return node.crisp.replace(/<text /g, '<text paint-order="stroke" stroke="var(--bg)" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" ')
 }
 
-function backdropFor(style: AestheticStyle | undefined, doc: SceneDoc): string {
+function backdropFor(style: StyleSpec | undefined, doc: SceneDoc): string {
   const kind = style?.backdrop ?? 'plain'
   if (kind === 'paper-ruled') {
     const lines: string[] = ['<g data-backdrop="paper-ruled">']

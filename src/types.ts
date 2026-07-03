@@ -1,6 +1,7 @@
 import type { MermaidRuntimeConfig } from './mermaid-source.ts'
 import type { DiagramColors } from './theme.ts'
 import type { ArchitectureVisualConfig } from './architecture/config.ts'
+import type { StyleInput } from './scene/style-registry.ts'
 
 // ============================================================================
 // Parsed graph — logical structure extracted from Mermaid text
@@ -418,8 +419,18 @@ export interface RenderOptions {
   /** Font family for all text. Default: 'Inter' */
   font?: string
 
-  /** Role-based SVG style overrides. Diagram families consume the semantic roles they support. */
-  style?: DiagramStyleOptions
+  /**
+   * How the diagram looks: a registered style name ('hand-drawn', 'tufte',
+   * any THEMES palette name like 'dracula'), an inline StyleSpec, or a STACK
+   * of either merged left-to-right ({ style: ['hand-drawn', 'dracula'] } is
+   * hand-drawn geometry with the dracula palette). A colors-only style is a
+   * theme; an object with only text/node/edge/group role overrides is also a
+   * valid (anonymous) style and keeps the byte-identical crisp path.
+   * Precedence: defaults < style stack < themeVariables < explicit color
+   * options. Unknown names throw. Unset (or 'crisp') = the default renderer,
+   * byte-identical to previous releases.
+   */
+  style?: StyleInput | StyleInput[]
 
   /** Canvas padding in px. Default: 40 */
   padding?: number
@@ -494,19 +505,10 @@ export interface RenderOptions {
   ganttToday?: string
 
   /**
-   * Aesthetic style for the rendered diagram (hand-rendered/NPR styles).
-   * 'crisp' (or unset) is the default renderer, byte-identical to previous
-   * releases. Other values select a registered style from the aesthetic
-   * registry (e.g. 'hand-drawn', 'excalidraw', 'pen-and-ink', 'tufte'); the
-   * style's palette composes with the user's theme — any color option or
-   * themeVariable you set wins over the style's defaults. Unknown names throw.
-   */
-  aesthetic?: string
-
-  /**
-   * Deterministic re-roll seed for stochastic aesthetics (editor "shuffle").
-   * The same source + options + seed always produces identical bytes; the
-   * crisp path ignores it. Default 0.
+   * Deterministic re-roll seed for stochastic styles (editor "shuffle").
+   * The same source + options + seed always produces identical bytes; it
+   * re-rolls ink wobble only — layout never moves. The crisp path ignores
+   * it. Default 0.
    */
   seed?: number
 }

@@ -496,8 +496,10 @@ Extend `RenderOptions` (`src/types.ts`) and resolve in `resolveRenderStyle`:
 
 ```ts
 interface RenderOptions {
-  // …existing…
-  aesthetic?: string | StyleSpec      // 'hand-drawn' | 'tufte' | custom spec
+  // …existing…  (IMPLEMENTED as `style`, consolidated: name | spec | stack,
+  // with themes registered as palette-only styles and backends inferred —
+  // see docs/design/system/styles-rollout.md)
+  style?: string | StyleSpec | (string | StyleSpec)[]
   seed?: number                        // deterministic re-roll (editor "shuffle")
 }
 ```
@@ -1171,8 +1173,9 @@ semantic dispatch.
    stay crisp; label halos; markerUnits injection; invisible carrier preserves
    markers/data-*/hit geometry; paint truth parsed from each mark's own crisp
    element so stroke="none" never grows an outline), style registry
-   (src/scene/style-registry.ts) with registerAesthetic, public
-   RenderOptions.aesthetic/seed, style×theme composition, and
+   (src/scene/style-registry.ts) with registerStyle (consolidated from the
+   interim registerAesthetic naming), public RenderOptions.style/seed,
+   style×theme composition via stacking, and
    styled-output.test.ts goldens (16 fixtures × 7 aesthetics).*
 4. **`HybridBackend` extensions** (`freehand` via perfect-freehand,
    `brush`/`wash`/`stipple`/`halftone`, compositors, reviewed font assets such

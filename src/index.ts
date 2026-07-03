@@ -48,40 +48,25 @@ import { CHANNEL_THEME_KEYS, readThemeValue, resolveDiagramColors } from './colo
 import { getFamily } from './render-family-hooks.ts'
 import type { FamilyLayoutResult } from './agent/families.ts'
 import type { DiagramKind } from './agent/types.ts'
-import { getAesthetic, knownAesthetics } from './scene/style-registry.ts'
-import type { AestheticStyle } from './scene/style-registry.ts'
+import { resolveStyleStack, isStyledSpec, inferBackend } from './scene/style-registry.ts'
+import type { StyleSpec } from './scene/style-registry.ts'
 import { getBackend } from './scene/backend.ts'
 import './scene/rough-backend.ts'
 import './scene/hybrid-backend.ts'
 
-export { registerAesthetic, getAesthetic, knownAesthetics } from './scene/style-registry.ts'
-export type { AestheticStyle } from './scene/style-registry.ts'
+export { registerStyle, getStyle, knownStyles, validateStyleSpec, resolveStyleStack, inferBackend } from './scene/style-registry.ts'
+export type { StyleSpec, StyleInput } from './scene/style-registry.ts'
 export { registerBackend, getBackend, DefaultBackend } from './scene/backend.ts'
 export type { StyleBackend, StyleBackendContext } from './scene/backend.ts'
 export type { SceneDoc, SceneNode, SemanticChannels, SceneRole } from './scene/ir.ts'
 
 /**
- * Resolve RenderOptions.aesthetic to a registered style, or undefined for the
- * crisp default. Unknown names throw with the known list (fail loud — a
- * silently-crisp fallback would erode trust in style coverage, SPEC §13).
+ * Compose a merged style's defaults UNDER the user's options (the stack is
+ * one layer below Mermaid compatibility: defaults < style stack <
+ * themeVariables < explicit color options). Runs BEFORE color resolution and
+ * layout so fonts and paddings affect text metrics (SPEC §9).
  */
-function resolveAestheticOption(name: string | undefined): AestheticStyle | undefined {
-  if (!name || name === 'crisp' || name === 'default') return undefined
-  const spec = getAesthetic(name)
-  if (!spec) {
-    throw new Error(`Unknown aesthetic "${name}". Known aesthetics: ${knownAesthetics().join(', ')}`)
-  }
-  return spec
-}
-
-/**
- * Compose an aesthetic's defaults UNDER the user's options (style × theme
- * composition, SPEC §3.7): explicit user colors/font/role-styles win; unset
- * channels fall back to the style's palette instead of the stock defaults.
- * Runs BEFORE color resolution and layout so fonts and paddings affect
- * text metrics (§9).
- */
-function applyAestheticDefaults(options: RenderOptions, spec: AestheticStyle, themeVars?: Record<string, unknown>): RenderOptions {
+function applyStyleDefaults(options: RenderOptions, spec: StyleSpec, themeVars?: Record<string, unknown>): RenderOptions {
   const out: RenderOptions = { ...options }
   // User-authored themeVariables beat the style's palette, same as explicit
   // color options — CHANNEL_THEME_KEYS is the shared key map that
@@ -89,21 +74,11 @@ function applyAestheticDefaults(options: RenderOptions, spec: AestheticStyle, th
   const themed = (channel: keyof typeof CHANNEL_THEME_KEYS) => CHANNEL_THEME_KEYS[channel].some(k => themeVars?.[k] !== undefined)
   const channels = ['bg', 'fg', 'line', 'accent', 'muted', 'surface', 'border'] as const
   for (const channel of channels) {
-    if (out[channel] === undefined && !themed(channel) && spec.colors[channel] !== undefined) {
+    if (out[channel] === undefined && !themed(channel) && spec.colors?.[channel] !== undefined) {
       out[channel] = spec.colors[channel]
     }
   }
   if (out.font === undefined && spec.font !== undefined) out.font = spec.font
-  if (spec.style) {
-    const roles = ['text', 'node', 'edge', 'group'] as const
-    const merged: NonNullable<RenderOptions['style']> = { ...spec.style, ...out.style }
-    for (const role of roles) {
-      if (spec.style[role] || out.style?.[role]) {
-        merged[role] = { ...spec.style[role], ...out.style?.[role] } as never
-      }
-    }
-    out.style = merged
-  }
   return out
 }
 
@@ -282,15 +257,22 @@ export function renderMermaidSVG(
   let effectiveOptions: RenderOptions = options.security === 'strict'
     ? { ...options, embedFontImport: false }
     : options
-  // Aesthetic styles resolve BEFORE colors and layout: the style's palette and
-  // font are defaults under the user's own options (style × theme, SPEC §3.7),
-  // and fonts affect text metrics. The crisp path is untouched.
-  const aesthetic = resolveAestheticOption(options.aesthetic)
-  if (aesthetic) {
-    effectiveOptions = applyAestheticDefaults(effectiveOptions, aesthetic, normalizedSource.config.themeVariables)
+  // The style stack resolves BEFORE colors and layout: names come from the
+  // registry, fragments merge left → right, and the merged palette/font are
+  // defaults under the user's own options and themeVariables. A spec that
+  // only carries role overrides stays on the byte-identical crisp path.
+  const mergedStyle = resolveStyleStack(options.style)
+  const styled = mergedStyle !== undefined && isStyledSpec(mergedStyle)
+  if (mergedStyle) {
+    // Renderers read the role overrides (text/node/edge/group) from
+    // options.style; a StyleSpec carries them directly.
+    effectiveOptions = { ...effectiveOptions, style: mergedStyle }
+  }
+  if (styled) {
+    effectiveOptions = applyStyleDefaults(effectiveOptions, mergedStyle, normalizedSource.config.themeVariables)
   }
   // Font precedence: explicit option > mermaid config/themeVariables >
-  // aesthetic default > 'Inter'. (applyAestheticDefaults only fills
+  // style default > 'Inter'. (applyStyleDefaults only fills
   // effectiveOptions.font when options.font was unset.)
   const font = options.font
     ?? normalizedSource.config.fontFamily
@@ -341,18 +323,20 @@ export function renderMermaidSVG(
   const renderColors = layout.colors ?? colors
   const ctx = renderContext(layout.positioned, renderColors, layout.options ?? renderOptions)
   let rawSvg: string
-  if (aesthetic && !family.lowerScene) {
+  if (styled && !family.lowerScene) {
     // Capability gating (SPEC §13): partial coverage that silently falls back
     // to crisp erodes trust — an unsupported family/style combo fails loud.
     // Every built-in family registers a lowering; this guards external
     // registerFamily plugins that haven't added one yet.
-    throw new Error(`Family "${diagramType}" does not support aesthetic rendering (no SceneGraph lowering registered). Render without the aesthetic option, or register a lowerScene hook for the family.`)
+    throw new Error(`Family "${diagramType}" does not support styled rendering (no SceneGraph lowering registered). Render without the style option, or register a lowerScene hook for the family.`)
   }
-  if (aesthetic && family.lowerScene) {
-    // Styled path: lower to the SceneGraph and serialize with the style's backend.
-    const backend = getBackend(aesthetic.backend)
-    if (!backend) throw new Error(`Aesthetic "${aesthetic.name}" selects unregistered backend "${aesthetic.backend}"`)
-    rawSvg = backend.render(family.lowerScene(ctx), { seed: effectiveOptions.seed ?? 0, style: aesthetic })
+  if (styled && family.lowerScene) {
+    // Styled path: lower to the SceneGraph and serialize with the backend the
+    // merged style implies (authors describe the look, never the machinery).
+    const backendId = inferBackend(mergedStyle!)
+    const backend = getBackend(backendId)
+    if (!backend) throw new Error(`Style "${mergedStyle!.name ?? '(inline)'}" requires unregistered backend "${backendId}"`)
+    rawSvg = backend.render(family.lowerScene(ctx), { seed: effectiveOptions.seed ?? 0, style: mergedStyle })
   } else {
     rawSvg = family.renderSvg(ctx)
   }

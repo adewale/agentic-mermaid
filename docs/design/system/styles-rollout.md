@@ -188,7 +188,10 @@ byte-identical, corpus-gated):
 1. **Collapse the primitives**: rename `aesthetic` → `style`; make all
    `StyleSpec` fields optional with role keys on the spec; implement the
    stack merge; register `THEMES` as styles; infer backends. (Everything
-   else builds on the final shape.)
+   else builds on the final shape.) *Status: DONE — resolveStyleStack /
+   styleRolesOf / inferBackend / validateStyleSpec in
+   src/scene/style-registry.ts; RenderOptions.style is the union; proven a
+   pure refactor by the styled-output baseline passing unregenerated.*
 2. **Agent surface**: MCP render tool + SDK declaration accept `style`
    (name | spec | stack) and `seed`; authoring guide linked for agents.
 3. **CLI**: `am render --style <name|file.json>` (repeatable = stack),

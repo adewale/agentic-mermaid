@@ -8,6 +8,8 @@
 // ============================================================================
 
 import { measureTextWidth } from './text-metrics'
+import { styleRolesOf } from './scene/style-registry.ts'
+import type { StyleInput } from './scene/style-registry.ts'
 import type { DiagramStyleOptions, TextTransform } from './types.ts'
 
 /** Average character width in px at the given font size and weight (proportional font) */
@@ -106,7 +108,9 @@ export const FLOWCHART_DOTTED_DASH = {
 // ============================================================================
 
 export interface RenderStyleOptions {
-  style?: DiagramStyleOptions
+  /** A style input (name | spec | stack); only its role overrides
+   *  (text/node/edge/group) are read here — normalized via styleRolesOf. */
+  style?: StyleInput | StyleInput[]
 }
 
 export interface RenderStyleDefaults {
@@ -240,10 +244,11 @@ export function resolveRenderStyle(
   options: RenderStyleOptions = {},
   defaults: RenderStyleDefaults = FLOWCHART_STYLE_DEFAULTS,
 ): ResolvedRenderStyle {
-  const text = options.style?.text
-  const node = options.style?.node
-  const edge = options.style?.edge
-  const group = options.style?.group
+  const roles = styleRolesOf(options.style)
+  const text = roles?.text
+  const node = roles?.node
+  const edge = roles?.edge
+  const group = roles?.group
   const explicitGroupPaddingX = nonNegativeNumber(undefined, group?.paddingX)
   const cornerRadius = defaults.nodeCornerRadius == null
     ? nonNegativeNumber(undefined, node?.cornerRadius)

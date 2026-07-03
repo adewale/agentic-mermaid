@@ -78,6 +78,7 @@ describeMermaid, asciiToMermaid, verifyNoExternalRefs } from 'agentic-mermaid/ag
 - docs/api.md — library/CLI/MCP API reference, including SVG/PNG/ASCII output
 - docs/diagram-families.md — family examples and edit policy
 - docs/theming.md — themes, CSS variables, and Shiki compatibility
+- docs/style-authoring.md — styles: the composable look system (a theme is a palette-only style; stack names/specs; author custom styles as data records with the quality rubric)
 - docs/quality.md — determinism + "good looking" rubric
 - TODO.md — only active backlog
 - SECURITY.md — threat model + strict-mode guarantee

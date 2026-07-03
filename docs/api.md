@@ -87,7 +87,8 @@ const ascii = renderMermaidASCII(`flowchart LR
 | `surface` | `string?` | — | Node fill tint. |
 | `border` | `string?` | — | Node stroke color. |
 | `font` | `string` | `Inter` | Font family. |
-| `style` | `DiagramStyleOptions` | — | Role-based style overrides. |
+| `style` | `string \| StyleSpec \| (string \| StyleSpec)[]` | — | How the diagram looks: a registered style name (`'hand-drawn'`, `'tufte'`, any theme palette like `'dracula'`), an inline `StyleSpec`, or a stack merged left→right (`['hand-drawn', 'dracula']`). A role-overrides-only object is a valid style and keeps the byte-identical crisp path. See `docs/style-authoring.md`. |
+| `seed` | `number` | `0` | Deterministic re-roll for stochastic styles — shuffles ink wobble, never layout. |
 | `transparent` | `boolean` | `false` | Transparent SVG background. |
 | `padding` | `number` | `40` | Canvas padding. |
 | `nodeSpacing` | `number` | `24` | Horizontal sibling spacing. |
@@ -102,7 +103,8 @@ const ascii = renderMermaidASCII(`flowchart LR
 | `security` | `'default' | 'strict'` | `'default'` | `strict` disables external-fetch references. |
 | `ganttToday` | `string` | unset | Explicit "today" for the Gantt `todayMarker` (date in the diagram's `dateFormat` or ISO `YYYY-MM-DD`). Gantt never reads the wall clock; without this the marker is not drawn. |
 
-`DiagramStyleOptions` is role-based:
+A `StyleSpec` may also carry per-role overrides (a role-only object is
+itself a valid style):
 
 | Role | Fields |
 |---|---|

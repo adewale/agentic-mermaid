@@ -12,13 +12,13 @@
 
 import type { SceneDoc, SceneNode } from './ir.ts'
 import { indentLines } from './marks.ts'
-import type { AestheticStyle } from './style-registry.ts'
+import type { StyleSpec } from './style-registry.ts'
 
 export interface StyleBackendContext {
   /** User-supplied deterministic re-roll seed (RenderOptions.seed). */
   seed: number
   /** The selected aesthetic (undefined on the crisp default path). */
-  style?: AestheticStyle
+  style?: StyleSpec
 }
 
 export interface StyleBackend {
