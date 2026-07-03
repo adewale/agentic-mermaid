@@ -592,7 +592,7 @@ describe('browser: random theme button', () => {
 
 describe('browser: live editor integration', () => {
 
-  it('opens /editor to the default loop diagram on Paper chrome', async () => {
+  it('opens /editor to the default loop diagram on the Kiln Stone chrome', async () => {
     await gotoApp(`${BASE}/editor`)
     await page.waitForSelector('#code-editor', { timeout: 30_000 })
     await waitForEditorRender(60_000)
@@ -601,8 +601,8 @@ describe('browser: live editor integration', () => {
     // rendered, so the loop "just works" on first paint instead of a blank canvas.
     expect(await page.inputValue('#code-editor')).toContain('flowchart TD')
     expect(await page.evaluate(() => document.querySelector('#preview-inner svg') !== null)).toBe(true)
-    // Chrome is the brand Paper light theme, independent of the diagram theme.
-    expect(await page.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue('--t-bg').trim())).toBe('#F5F0E4')
+    // Chrome is the Kiln Stone brand (light), independent of the diagram theme.
+    expect(await page.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue('--t-bg').trim())).toBe('#F8F4F0')
     // The default diagram theme is applied automatically, so nothing is persisted.
     expect(await page.evaluate(() => localStorage.getItem('bm-editor-theme'))).toBeNull()
   }, 60_000)
@@ -746,7 +746,7 @@ describe('browser: live editor integration', () => {
     await waitForEditorRender(60_000)
 
     expect(await page.evaluate(() => localStorage.getItem('bm-editor-theme'))).toBe('salmon')
-    expect(await page.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue('--t-bg').trim())).toBe('#F5F0E4')
+    expect(await page.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue('--t-bg').trim())).toBe('#F8F4F0')
   }, 120_000)
 
   it('examples sidebar keeps the selected theme and exposes blank reset without a floating source toolbar', async () => {
@@ -755,7 +755,7 @@ describe('browser: live editor integration', () => {
 
     await page.click('#theme-dropdown-btn')
     await page.click('.theme-dropdown-item[data-theme="salmon"]')
-    // The diagram recolors to salmon; the editor chrome stays Paper.
+    // The diagram recolors to salmon; the editor chrome stays Kiln Stone.
     await page.waitForFunction(
       () => (document.querySelector('#preview-inner svg')?.getAttribute('style') ?? '').includes('--bg: #FFFBF5'),
       undefined,
@@ -802,8 +802,8 @@ describe('browser: live editor integration', () => {
       { timeout: 60_000 },
     )
     expect(await page.inputValue('#code-editor')).toContain('stateDiagram-v2')
-    // Chrome stays Paper; the example kept the salmon diagram theme (not overridden).
-    expect(await page.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue('--t-bg').trim())).toBe('#F5F0E4')
+    // Chrome stays Kiln Stone; the example kept the salmon diagram theme (not overridden).
+    expect(await page.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue('--t-bg').trim())).toBe('#F8F4F0')
     expect(await page.evaluate(() => localStorage.getItem('bm-editor-theme'))).toBe('salmon')
 
     // Selecting the example closed the sidebar; re-open it to reach the blank reset.
@@ -851,7 +851,7 @@ describe('browser: live editor integration', () => {
 
     await page.click('#theme-dropdown-btn')
     await page.click('.theme-dropdown-item[data-theme="dracula"]')
-    // Diagram theme becomes dracula (recolors the SVG); chrome stays Paper.
+    // Diagram theme becomes dracula (recolors the SVG); chrome stays Kiln Stone.
     await page.waitForFunction(
       () => (document.querySelector('#preview-inner svg')?.getAttribute('style') ?? '').includes('--bg: #282a36'),
       undefined,
