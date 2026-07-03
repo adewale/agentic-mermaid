@@ -874,12 +874,14 @@ function hexToRgb(hex) {
 }
 
 function chromeThemeColors() {
-  // Paper (light) / Dusk (dark) — the exact brand triplets the public site
-  // ships as its chrome. Keep these in lockstep with the site's [data-theme]
-  // "dusk" block and the :root Paper defaults in website/source/assets/styles.css.
+  // App-shell chrome: a warm Paper (light) / Dusk (dark) ground with the
+  // independent Pine brand accent — NOT the terracotta of the "paper" diagram
+  // theme. Keep in lockstep with the :root/[data-scheme] chrome in
+  // website/source/assets/styles.css and editor/css/variables.css. Pine accent
+  // clears WCAG AA on both grounds (5.4:1 on Paper, 7.2:1 on Dusk).
   return isDark
-    ? { bg: "#2A2521", fg: "#E9DFCC", accent: "#CC8A57" }
-    : { bg: "#F5F0E4", fg: "#221E16", accent: "#9A4A24" };
+    ? { bg: "#2A2521", fg: "#E9DFCC", accent: "#6FC2A2" }
+    : { bg: "#F5F0E4", fg: "#221E16", accent: "#1B6E52" };
 }
 
 function applyThemeToPage(themeKey) {

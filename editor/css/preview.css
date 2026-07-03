@@ -138,12 +138,12 @@
 .preview-inner[hidden] { display: none; }
 
 .preview-error {
-  color: color-mix(in srgb, var(--red) 82%, var(--fg));
+  color: color-mix(in srgb, var(--danger) 82%, var(--fg));
   font-size: 0.875rem;
   line-height: 1.5;
   padding: 1.25rem;
-  background: color-mix(in srgb, var(--red) 6%, var(--bg2));
-  border: 1px solid color-mix(in srgb, var(--red) 16%, transparent);
+  background: var(--danger-tint);
+  border: 1px solid color-mix(in srgb, var(--danger) 22%, transparent);
   border-radius: var(--radius-lg);
   white-space: normal;
   max-width: 640px;
@@ -164,8 +164,8 @@
   display: block;
   padding: 0.75rem;
   border-radius: var(--radius-md);
-  background: color-mix(in srgb, var(--red) 5%, var(--paper));
-  color: color-mix(in srgb, var(--red) 80%, var(--fg));
+  background: color-mix(in srgb, var(--danger) 5%, var(--paper));
+  color: color-mix(in srgb, var(--danger) 80%, var(--fg));
   font-family: var(--font-mono);
   font-size: 0.8125rem;
   white-space: pre-wrap;

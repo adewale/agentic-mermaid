@@ -71,15 +71,16 @@
 }
 
 /* ============================ 2 · THEME ============================
-   Default palette is Paper — a warm cream-and-ink ground with a terracotta
-   accent. Every theme below sets only the triplet; the hierarchy is derived
-   once, here, from those three values, so it recomputes automatically whenever
-   a [data-theme] block swaps them. Pine (our green) lives on as
-   [data-theme="pine-light"] / [data-theme="pine-dark"]. */
+   Default palette is the app shell: a warm cream-and-ink Paper ground with the
+   independent Pine brand accent. Every theme below sets only the triplet; the
+   hierarchy is derived once, here, from those three values, so it recomputes
+   automatically whenever a [data-theme] block swaps them. The terracotta that
+   used to sit in the shell now lives on only as the "paper" render theme; Pine
+   is also selectable as [data-theme="pine-light"] / [data-theme="pine-dark"]. */
 :root {
   --bg:     #F5F0E4;
   --fg:     #221E16;
-  --accent: #9A4A24;
+  --accent: #1B6E52;   /* Pine brand accent (was terracotta #9A4A24, now render-theme only). 5.4:1 on Paper. */
 
   /* derived hierarchy — a coherent mono ramp from the triplet. The three ink
      steps stay visibly distinct on Paper: ink 14.6:1, soft 8.0:1 (≥7:1),
@@ -103,10 +104,17 @@
   --accent-tint:  color-mix(in srgb, var(--accent) 14%, var(--bg));
   --code-fg:      var(--fg);
 
-  /* status + terminal + legacy tokens (kept stable / derived across themes).
-     Light-polarity status ink on Paper: danger 6.5:1, warn 6.0:1 (the dark
-     pastels live in the [data-scheme="dark"] block). */
-  --warn: #7E5214; --warn-tint: color-mix(in srgb, var(--warn) 14%, var(--bg)); --danger: #96352A;
+  /* Functional / semantic hues — solid ink for status text + a soft --*-tint
+     fill for badges and validation panels. In lockstep with editor/css/variables.css.
+     Light-polarity ink on Paper clears AA for small text: success 6.3:1, info 4.7:1,
+     warn 5.2:1, danger 6.1:1. Each -tint is a 14% wash of the same hue on --bg, so
+     ink stays ~12:1 on a filled badge. Dark pastels live in [data-scheme="dark"];
+     the tints re-derive from the flipped inks + ground automatically. */
+  --success: #166534; --info: #1F6FB0; --warn: #8A5A12; --danger: #A0352A;
+  --success-tint: color-mix(in srgb, var(--success) 14%, var(--bg));
+  --info-tint:    color-mix(in srgb, var(--info)    14%, var(--bg));
+  --warn-tint:    color-mix(in srgb, var(--warn)    14%, var(--bg));
+  --danger-tint:  color-mix(in srgb, var(--danger)  14%, var(--bg));
   --term-bg: var(--code-bg); --term-fg: var(--fg); --term-dim: var(--ink-soft); --term-accent: var(--accent);
   --accent-press: var(--accent-hover); --ease: cubic-bezier(0.22, 1, 0.36, 1);
   --radius-card: var(--radius-lg); --radius-input: var(--radius-md);
@@ -184,8 +192,9 @@
   --card-shadow: 0 0 0 1px rgba(255,255,255,0.08);
   --code-bg:    color-mix(in srgb, var(--bg) 82%, #000);
   --grain:      0.07;                           /* light noise on a dark base reads strongly */
-  /* dark polarity flips the status inks back to pastels on a dark tint */
-  --warn: #E0A75A; --warn-tint: #2A2418; --danger: #E08A80;
+  /* dark polarity flips the status inks to brighter pastels; the --*-tint fills
+     re-derive from these plus the dark ground, so only the inks flip here */
+  --success: #5FBE86; --info: #78B4EA; --warn: #E0A75A; --danger: #E58C82;
 }
 
 /* keep native UI (scrollbars, form controls, the canvas) in the right polarity
@@ -680,7 +689,7 @@ footer { max-width: var(--content-max); margin: 0 auto; padding: 28px var(--page
 }
 .copy-prompt-btn:active,
 .masthead .links .link-editor:active { transform: scale(0.97); }
-.copy-prompt-btn[data-copy-state="ok"] { color: var(--link); }
+.copy-prompt-btn[data-copy-state="ok"] { color: var(--success); }
 .copy-prompt-btn[data-copy-state="err"], .prompt-action[data-copy-state="err"] { color: var(--danger); }
 :where(.meta-label, .agent-kicker, .section-kicker, .copy-prompt-label, .gallery-prompt span, .gallery-ops span, .example-prompt span, .example-trace span) {
   color: var(--ink-soft);
