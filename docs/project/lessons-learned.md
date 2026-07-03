@@ -877,3 +877,72 @@ The lesson for long-lived branches: re-merge `main` periodically not just for co
 but because new *gates* land on `main` and apply retroactively to your merge — and
 after the merge, re-run the equivalence gate and tracker to prove the merge did not
 perturb your own subsystem (it didn't: byte-exact, zero drift) before trusting green.
+
+## PR #94 lesson — a public compute endpoint is a security *and* a cost surface, and the boundary must be named honestly
+
+Shipping the hosted MCP endpoint (`https://agenticmermaid.dev/mcp`) turned a
+static site into public, unauthenticated compute: agent JavaScript runs in a
+per-request Dynamic Worker isolate. That changed the failure modes from "wrong
+pixels" to "wrong containment claim" and "unbounded bill," and five rounds of
+external audit taught lessons that generalize beyond this endpoint.
+
+**Name the real boundary; everything else is defense in depth, and saying so is
+the honest move.** The temptation was to describe the harness's global-shadowing
+and wrapper tricks as "the sandbox." They are not. The guaranteed boundary is the
+isolate configuration — `globalOutbound: null`, empty env, no bindings, `cpuMs` —
+enforced by workerd, not by our code. A round-5 finding proved it: a
+comma+IIFE breakout still *runs* at eval time; the parenthesized wrap only makes
+`import`/statement injection a `SyntaxError`, and `hardenIsolateGlobals()` only
+strips capability globals *best-effort*. The right response was not to claim the
+layers close the hole but to document that they are DiD on top of the isolate,
+which remains the thing an attacker cannot defeat. A security note that overstates
+containment is worse than none: it invites reliance the code cannot honor.
+
+**CORS is not an access-control boundary for a public credential-less endpoint —
+and knowing that is what makes the "fix" correct.** An auditor flagged wildcard
+`Access-Control-Allow-Origin: *` as exposing the endpoint. But CORS gates only
+*browser* cross-origin reads; agents, servers, and curl ignore it entirely, so it
+never gated the primary threat (an attacker calling from their own machines —
+bounded by the WAF, not CORS). The one real vector `*` enables is a malicious site
+driving its *visitors'* browsers against the endpoint. So the correct fix is
+narrow: reflective CORS with Origin validation that keeps `*` for no-Origin
+(non-browser) clients and 403s disallowed browser Origins — closing the browser
+vector without breaking the actual consumers. Applying a finding literally
+("lock down CORS") would have broken every agent client for no security gain;
+applying it *understood* fixed the real thing.
+
+**Distinguish a CI gate from a manual probe, out loud.** `website/e2e-mcp.sh`
+exercises the real isolate (breakout rejected, globals stripped, SDK still
+renders) but needs a live `wrangler dev` with the Worker Loader, so it is **not**
+in CI — the CI gate is `bun test src/__tests__/`. Comments that said "covered by
+e2e" read as "covered by CI" and were quietly corrected. When a claim of coverage
+is load-bearing for trust, state exactly *which* harness proves it and whether
+that harness runs automatically.
+
+**Cache correctness on a deploy is a versioning problem, not a TTL problem.** Two
+audit rounds converged on the same class of bug: a warm isolate or a cached
+response can serve *stale code* after a deploy that doesn't bump the package
+version. The fix is to key both the isolate ID and the response cache on a
+content hash of what actually executes — the harness bundle for isolates, and a
+full-deploy hash (bundled worker JS + harness + wasm + fonts + `compatibility_date`)
+for responses — so any change to any hosted surface invalidates without a manual
+version bump. Time-based expiry does not fix a correctness bug; identity does.
+
+**Committed build artifacts make every rebase commit a conflict.** Rebasing this
+branch onto a moved `main` conflicted on the generated harness bundle and
+deploy-hash at *multiple* commits, because both sides regenerate them. Hand-merging
+a minified bundle is pointless. The reliable technique: resolve generated-file
+conflicts mechanically (take either side to get past the commit), let the rebase
+finish, then run one authoritative `bun run website` at the tip and fold the fresh
+artifacts into the final commit so `website:check` is green. Only the tip's
+artifacts have to be correct; intermediate commits' generated files are throwaway.
+The counterpart source lesson: keep the deterministic *source* in the diff and
+treat committed build outputs as regenerable, never as things to merge by hand.
+
+**Cost is a first-class design axis, and pure tools are the lever.** Hosted
+`execute` spins a billable isolate; the direct `render_svg`/`render_ascii`/
+`render_png`/`verify`/`describe` tools cost one ordinary Worker invocation and are
+edge-cacheable. Splitting the surface so the common render/verify paths never touch
+an isolate — plus a batch fan-out cap so one request cannot spawn N isolates — is
+what keeps a public endpoint affordable. On a metered platform, "which calls are
+free" is part of the API design, not an afterthought.

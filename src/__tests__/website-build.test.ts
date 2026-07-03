@@ -143,11 +143,12 @@ describe('Workers Static Assets website contract', () => {
     expect(home).toContain('&lt;replace with the requested diagram goal or edit&gt;')
     expect(home).toContain('Context:')
     expect(home).toContain('Do not assume this repository is checked out')
-    expect(home).toContain('one local channel available to you')
+    expect(home).toContain('one channel available to you')
+    expect(home).toContain('the hosted MCP at `https://agenticmermaid.dev/mcp`')
     expect(home).toContain('For a new diagram, author Mermaid source directly')
     expect(home).toContain('Mutation ops use a `kind` discriminator')
     expect(home).toContain('return an object with `{ source }`')
-    expect(home).toContain('In Trace, name the local channel and exact calls/ops used')
+    expect(home).toContain('In Trace, name the channel and exact calls/ops used')
     expect(home).toContain('Agentic Mermaid treats Mermaid source as the durable interface')
     // Setup moved off the homepage: the MCP config card lives on Getting
     // started, and home carries a single pointer line instead of a section.
@@ -185,7 +186,7 @@ describe('Workers Static Assets website contract', () => {
     expect(read(editorScript)).toContain('Create or edit a Mermaid diagram')
     expect(read(editorScript)).toContain('Do not assume this repository is checked out')
     expect(read(editorScript)).toContain('return an object with `{ source }`')
-    expect(read(editorScript)).toContain('In Trace, name the local channel and exact calls/ops used')
+    expect(read(editorScript)).toContain('In Trace, name the channel and exact calls/ops used')
     expect(read(editorScript)).toContain('source-level fallback')
     expect(read(editorScript)).toContain('createPopupController')
     expect(read(editorScript)).toContain('URLSearchParams(window.location.search).get(\'example\')')

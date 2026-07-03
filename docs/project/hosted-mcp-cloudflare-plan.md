@@ -1,5 +1,12 @@
 # Hosted MCP on Cloudflare: plan
 
+> **Status: shipped (PR #94).** This began as a design plan and is now the
+> as-built record of the hosted MCP endpoint live at
+> `https://agenticmermaid.dev/mcp`. The "Where we start" section below is
+> preserved as the pre-build starting point; the "Post-review hardening"
+> sections (rounds 1–5) track the audit findings applied after the initial
+> build.
+
 Plan for turning the website's `/mcp` 501 placeholder into a real hosted MCP
 endpoint at `https://agenticmermaid.dev/mcp`. The account is on the **Workers
 Paid plan with Dynamic Workers** (<https://developers.cloudflare.com/dynamic-workers/>),
@@ -10,8 +17,8 @@ dynamic Worker instead of being local-only.
 ## Where we start
 
 - The website is a Cloudflare Worker with Static Assets
-  (`website/wrangler.jsonc`, `website/src/worker.js`); `/mcp` currently
-  returns an honest 501.
+  (`website/wrangler.jsonc`, `website/src/worker.js` at the time — now
+  `worker.ts`); `/mcp` returned an honest 501 before this work.
 - The MCP server (`src/mcp/server.ts`) has a transport-agnostic JSON-RPC core,
   `handleRequest(req, context)`, plus stdio and node HTTP/SSE transports.
 - Tools today: `execute` (Code Mode in a hardened `node:vm` sandbox),
@@ -307,8 +314,8 @@ instead of deleting the undeletable `self`).
    layer, loader-backed `execute`, wasm `render_png`. `wrangler.jsonc` gains
    `worker_loaders`, text/data module rules for the harness and font, and
    keeps Static Assets.
-5. **Tests** as described under verification; update
-   `src/__tests__/website-build.test.ts` where it asserts the 501.
+5. **Tests** as described under verification; `src/__tests__/website-build.test.ts`
+   now asserts the live hosted endpoint (the 501 assertion it carried is gone).
 6. **cfdoctor audit + wrangler dev e2e**, fix findings.
 7. **Docs**: `website/README.md`, `docs/mcp-http-transport.md` cross-link, a
    hosted-MCP section documenting the endpoint, tool surface, limits,
