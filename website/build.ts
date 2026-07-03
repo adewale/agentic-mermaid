@@ -339,7 +339,6 @@ const generatedFrom = {
   buildTime: process.env.SITE_BUILD_TIME ?? 'development',
 }
 const npmPublished = process.env.SITE_NPM_STATUS === 'published' || process.env.SITE_NPM_PUBLISHED === '1'
-const npmChecked = process.env.SITE_NPM_CHECKED ?? 'not checked in local build'
 const installCommand = npmPublished
   ? 'npm i agentic-mermaid'
   : 'git clone https://github.com/adewale/beautiful-mermaid && cd beautiful-mermaid && bun install && bun run build'

@@ -65,6 +65,12 @@ am --help
 agentic-mermaid-mcp
 ```
 
+> **ESM-only.** `agentic-mermaid` ships ES modules (there is no CommonJS build);
+> `require()` consumers should use dynamic `import()` instead. Requires Node ≥ 18.
+>
+> The `am …` commands shown below assume the published bin. **From a source
+> checkout, run them as `bun run bin/am.ts …`** instead.
+
 ## Output quick starts
 
 Use `agentic-mermaid/agent` when you want all output formats and the structured edit API in one import path.

@@ -207,7 +207,11 @@ describe('installed tarball — am bin', () => {
     const lines: string[] = []
     const asciiAt = new Map<number, string>() // line index -> source
     flow.forEach((src) => { asciiAt.set(lines.length, src); lines.push(JSON.stringify({ op: 'render', source: src, options: { ascii: true } })) })
-    fc.sample(mixedArb, 20).forEach(src => lines.push(JSON.stringify({ op: fc.sample(fc.constantFrom('render', 'verify', 'parse', 'serialize'), 1)[0], source: src })))
+    // Sample sources and ops in ONE draw each — `fc.sample(arb, 1)` inside a loop
+    // re-seeds from the pinned global seed every call and returns the same pick.
+    const mixedSrcs = fc.sample(mixedArb, 20)
+    const mixedOps = fc.sample(fc.constantFrom('render', 'verify', 'parse', 'serialize'), 20)
+    mixedSrcs.forEach((src, k) => lines.push(JSON.stringify({ op: mixedOps[k], source: src })))
     for (const bad of ['not json at all', '{"op":123}', '{"nope":1}', '[]', 'null']) lines.push(bad)
 
     const r = spawnSync(NODE!, [amBin, 'batch', '--jsonl'], { cwd: work, input: lines.join('\n') + '\n', encoding: 'utf8', timeout: RUN_TIMEOUT_MS, maxBuffer: 64 * 1024 * 1024 })
@@ -220,8 +224,13 @@ describe('installed tarball — am bin', () => {
       const res = JSON.parse(line) as { ok: boolean; op?: string; data?: { ascii?: string }; error?: { code?: string } }
       expect(typeof res.ok).toBe('boolean')
       if (!res.ok) expect(typeof res.error?.code).toBe('string')
-      if (asciiAt.has(i) && res.ok && res.data?.ascii !== undefined) {
-        if (sha(res.data.ascii) !== refAscii(asciiAt.get(i)!)) mismatches.push({ i, src: asciiAt.get(i) })
+      if (asciiAt.has(i)) {
+        // A valid flowchart ASCII render must SUCCEED and carry `ascii` — assert
+        // unconditionally so a regression that drops the field (still ok:true)
+        // can't let the differential pass vacuously.
+        expect(res.ok).toBe(true)
+        expect(typeof res.data?.ascii).toBe('string')
+        if (sha(res.data!.ascii!) !== refAscii(asciiAt.get(i)!)) mismatches.push({ i, src: asciiAt.get(i) })
       }
     })
     expect(mismatches).toEqual([])
