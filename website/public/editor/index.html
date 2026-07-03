@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <meta name="description" content="Agentic Mermaid renders, verifies, and edits Mermaid diagrams locally, with compact agent instructions for CLI, library, and MCP use.">
   <title>Agentic Mermaid – Live Editor</title>
   <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
@@ -18,15 +18,11 @@
 }
 
 :root {
-  /* Shared app-shell foundation, in lockstep with the public site — the Kiln
-     brand: a warm-neutral Stone ground (light) / warm Charcoal (dark), with the
-     independent Pine accent. Distinct from the terracotta diagram theme, which
-     now lives on only as the "paper" render theme. The theme dropdown changes
-     render output, never the app shell. rendering.js swaps in the Charcoal
-     ground for dark mode; these defaults are the Stone (light) values. */
-  --t-bg: #F8F4F0;       /* Kiln Stone (was Paper #F5F0E4) */
-  --t-fg: #26201B;
-  --t-accent: #1B6E52;   /* Pine brand accent — mirrors :root --accent in styles.css */
+  /* Shared site foundation: editor chrome uses the same Paper tokens as the public pages.
+     The diagram theme dropdown changes render output, not the app shell. */
+  --t-bg: #F5F0E4;
+  --t-fg: #221E16;
+  --t-accent: #9A4A24;
   --brand-pine: #6FC2A2;
   --brand-on: #0A4434;
   --font-serif: Charter, 'Bitstream Charter', 'Iowan Old Style', 'Palatino Linotype', Palatino, Georgia, serif;
@@ -75,18 +71,17 @@
   --bg3: color-mix(in srgb, var(--t-bg) 97%, var(--t-fg));
   --bg-hover: color-mix(in srgb, var(--t-bg) 92%, var(--t-fg));
   --foreground-5: color-mix(in srgb, var(--t-fg) 5%, var(--t-bg));
-  --border: color-mix(in srgb, var(--t-fg) 13%, var(--t-bg));   /* same 13% hairline as the site --line */
+  --border: color-mix(in srgb, var(--t-fg) 12%, var(--t-bg));
   --line-strong: color-mix(in srgb, var(--t-fg) 24%, var(--t-bg));
   --fg: var(--t-fg);
   /* Muted ramp mirrors the site shell: soft ≈80% mix, faint ≈64% mix.
-   * Verified on Kiln Stone (#F8F4F0): soft 7.97:1 (≥7:1), faint 4.73:1 (≥4.5:1);
-   * on Charcoal (#17130D) both rise (soft 9.9:1, faint 6.7:1). */
+   * Verified on Paper (#F5F0E4): soft 8.01:1 (≥7:1), faint 4.74:1 (≥4.5:1). */
   --fg2: color-mix(in srgb, var(--t-fg) 80%, var(--t-bg));
   --fg3: color-mix(in srgb, var(--t-fg) 64%, var(--t-bg));
   --fg4: color-mix(in srgb, var(--t-fg) 70%, var(--t-bg));
   --accent: var(--t-accent);
   --accent2: color-mix(in srgb, var(--t-accent) 80%, var(--t-bg));
-  --blue: var(--info);
+  --blue: var(--t-accent);
 
   /* Site-name aliases for shared primitives. */
   --paper: var(--t-bg);
@@ -103,23 +98,8 @@
   --radius-lg: 12px;
   --radius-pill: 999px;
   --radius: var(--radius-md);
-  /* Shared motion system — same values as the site shell (styles.css :root),
-     so editor and site interactions share one tempo. ui: page-level fades;
-     control: hover/background shifts; press: the :active scale. */
-  --ease-standard: ease;
+  /* Shared motion curve — same value as the site shell's --ease-out. */
   --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
-  --dur-ui: 0.2s;
-  --dur-control: 0.16s;
-  --dur-press: 0.1s;
-  /* Stacking scale. Anchored popovers sit at --z-popover; the font/colour
-     pickers open from inside the settings popover, so they get the nested
-     tier. Dialog, toast, and skip-link stack above everything in that order. */
-  --z-topbar: 100;
-  --z-popover: 2000;
-  --z-popover-nested: 3000;
-  --z-dialog: 4000;
-  --z-toast: 9000;
-  --z-skip-link: 10000;
   --control-h: 40px;
   --control-px: 12px;
   --control-bg: var(--surface);
@@ -140,25 +120,12 @@
   --lh-code: 1.6;
   --lh-ui: 1.35;
 
-  /* Functional / semantic hues — a solid ink for status text and dots, plus a
-   * soft --*-tint fill for badges and validation panels. Solid inks all clear
-   * WCAG AA for small text on the light Stone chrome (success 5.9:1, info 4.8:1,
-   * warn 5.4:1, danger 6.3:1); the tint is a 14% wash of the same hue on the
-   * panel, so ink stays ~12:1 on a filled badge. Success sits at OkLCH h141 —
-   * a true leaf green kept ≥20° from the pine accent (h166) so links and
-   * success states never read as one colour. The dark block flips the inks
-   * brighter; the tints re-derive automatically. --green / --red stay as
-   * aliases so existing status rules keep resolving. */
-  --success: #296C1E;
-  --info:    #1F6FB0;
-  --warn:    #8A5A12;
-  --danger:  #A0352A;
-  --success-tint: color-mix(in srgb, var(--success) 14%, var(--bg2));
-  --info-tint:    color-mix(in srgb, var(--info)    14%, var(--bg2));
-  --warn-tint:    color-mix(in srgb, var(--warn)    14%, var(--bg2));
-  --danger-tint:  color-mix(in srgb, var(--danger)  14%, var(--bg2));
-  --green: var(--success);
-  --red:   var(--danger);
+  /* Semantic status colors. Darkened enough for text as well as dots on the
+   * light Paper chrome: green and warn both clear WCAG AA for small status text.
+   * Dusk restores brighter hues below where light-on-dark reads better. */
+  --green: #166534;
+  --warn: #92400E;
+  --red: #b91c1c;
 
   /* Preview canvas: a matte so the diagram artboard reads as the artifact,
      not a shape floating in the chrome. The diagram keeps its own Paper bg. */
@@ -166,23 +133,11 @@
   --shadow-artboard: 0 1px 2px rgba(0, 0, 0, 0.04), 0 12px 30px -14px rgba(0, 0, 0, 0.2);
 }
 
-/* Charcoal chrome (rendering.js sets data-scheme): brighter status inks read
- * better on the dark --bg2. Only the solid inks flip; the --*-tint fills re-derive
- * from these plus the dark ground. On Kiln Charcoal (#17130D): success 8.2:1,
- * info 8.4:1, warn 8.7:1, danger 7.4:1 — all clear AA for small status text.
- * Dark success holds h143, ≥20° from the dark pine accent (h167). */
+/* Dusk chrome (dark-mode.js sets data-scheme): brighter status hues read
+ * better here — green 4.60:1 and warn 4.76:1 against the dark --bg2. */
 :root[data-scheme="dark"] {
-  /* The Kiln Charcoal triplet. chromeThemeColors() in rendering.js sets the
-   * same values as inline styles whenever it flips the scheme (inline wins);
-   * declaring them here keeps the dark chrome in CSS too, pinned to the JS
-   * copy by chrome-token-lockstep.test.ts. The dark accent IS --brand-pine. */
-  --t-bg: #17130D;
-  --t-fg: #EBE7E0;
-  --t-accent: #6FC2A2;
-  --success: #6CBF68;
-  --info:    #78B4EA;
-  --warn:    #E0A75A;
-  --danger:  #E58C82;
+  --green: #16a34a;
+  --warn: #D97706;
 }
 
 html,
@@ -203,13 +158,10 @@ body {
   color: var(--fg);
   display: flex;
   flex-direction: column;
-  /* dvh tracks the real visible height on mobile (URL bar collapse); the vh
-     line stays as the fallback for engines without dynamic viewport units */
   height: 100vh;
-  height: 100dvh;
   transition:
-    background var(--dur-ui),
-    color var(--dur-ui);
+    background 0.2s,
+    color 0.2s;
 }
 
 .sr-only {
@@ -224,10 +176,9 @@ body {
   border: 0;
 }
 
-/* Same focus recipe as the site shell: full-strength accent ring, 3px offset. */
 :where(button, a, input, textarea, [tabindex]):focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 3px;
+  outline: 2px solid color-mix(in srgb, var(--accent) 72%, var(--paper));
+  outline-offset: 2px;
 }
 
 :where(button, input, textarea):disabled,
@@ -277,16 +228,6 @@ body {
     --popover-bg: Canvas;
     --shadow-control: none;
     --shadow-popover: none;
-    /* status hues collapse to system inks; tint fills drop to Canvas so text
-       renders CanvasText-on-Canvas rather than on an unforced pastel */
-    --success: CanvasText;
-    --info: LinkText;
-    --warn: CanvasText;
-    --danger: CanvasText;
-    --success-tint: Canvas;
-    --info-tint: Canvas;
-    --warn-tint: Canvas;
-    --danger-tint: Canvas;
   }
   :where(button, a, input, textarea, [tabindex]):focus-visible {
     outline: 2px solid Highlight;
@@ -298,19 +239,12 @@ body {
 .topbar {
   display: flex;
   align-items: center;
-  /* wrap instead of clipping: at tablet widths (761–1000px) the full control
-     row exceeds the viewport, and without wrap the tail buttons are
-     unreachable — there is no horizontal scroll here */
-  flex-wrap: wrap;
   gap: 0.5rem;
   min-height: 52px;
   padding: 0 1rem;
-  /* clears the notch in landscape; env() is 0 on devices without one */
-  padding-left: calc(1rem + env(safe-area-inset-left));
-  padding-right: calc(1rem + env(safe-area-inset-right));
   background: transparent;
   flex-shrink: 0;
-  z-index: var(--z-topbar);
+  z-index: 100;
 }
 .topbar button,
 .topbar a {
@@ -321,11 +255,11 @@ body {
 .app-brand {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
+  gap: 7px;
   height: var(--control-h);
   color: var(--ink);
   font-family: var(--font-serif);
-  font-size: 1.125rem;   /* same size as the site masthead .brand */
+  font-size: 18px;
   font-weight: 600;
   line-height: 1;
   text-decoration: none;
@@ -336,7 +270,7 @@ body {
   text-decoration: none;
 }
 .app-brand:active {
-  transform: scale(0.96);
+  transform: scale(0.98);
 }
 .app-mark {
   width: 24px;
@@ -392,8 +326,7 @@ body {
   min-height: 32px;
   padding: 0 12px;
   border: none;
-  /* concentric with the switch: outer radius − 1px border − 3px padding */
-  border-radius: calc(var(--radius-lg) - 4px);
+  border-radius: var(--radius-md);
   background: transparent;
   color: var(--control-fg);
   font-size: var(--t-control);
@@ -403,10 +336,10 @@ body {
   white-space: nowrap;
   user-select: none;
   transition:
-    color var(--dur-control),
-    background var(--dur-control),
-    box-shadow var(--dur-control),
-    transform var(--dur-press);
+    color 0.15s,
+    background 0.15s,
+    box-shadow 0.15s,
+    transform 0.1s;
 }
 .mode-option:hover {
   color: var(--fg);
@@ -442,11 +375,7 @@ body {
   border-right: 0;
   border-bottom: 0;
   transform: translateX(-50%) rotate(45deg);
-  /* Paints above topbar siblings only: .topbar's own z-index makes it a
-     stacking context, so no value here can reach the sidebar's tier — the
-     fixed-position sidebar (root context, --z-popover-nested) always covers
-     the caret's protruding tip. */
-  z-index: 1;
+  z-index: 3001;
 }
 
 .spacer {
@@ -477,9 +406,9 @@ body {
   white-space: nowrap;
   user-select: none;
   transition:
-    color var(--dur-control),
-    background var(--dur-control),
-    transform var(--dur-press);
+    color 0.15s,
+    background 0.15s,
+    transform 0.1s;
 }
 .theme-dropdown-btn:hover {
   color: var(--ink);
@@ -495,7 +424,7 @@ body {
   flex-shrink: 0;
   /* Neutral fill for the Default theme (inline style overrides it), and a
      double ring (--line-strong + --line halo) so the swatch reads as a
-     control even when its fill matches the Kiln Stone chrome. */
+     control even when its fill matches the Paper chrome. */
   background: var(--paper);
   border: 1px solid var(--line-strong);
   box-shadow: 0 0 0 1px var(--line);
@@ -505,7 +434,7 @@ body {
   height: 10px;
   color: var(--fg4);
   flex-shrink: 0;
-  transition: transform var(--dur-control);
+  transition: transform 0.15s;
 }
 .theme-dropdown-btn.open svg {
   transform: rotate(180deg);
@@ -520,7 +449,7 @@ body {
   border: 1px solid var(--control-border);
   border-radius: var(--radius-lg);
   padding: 6px;
-  z-index: var(--z-popover);
+  z-index: 2000;
   flex-direction: column;
   box-shadow: var(--shadow-popover);
   max-height: 400px;
@@ -536,8 +465,7 @@ body {
   gap: 8px;
   padding: 7px 28px 7px 8px;
   border: none;
-  /* concentric with the menu: outer radius − 1px border − 6px padding */
-  border-radius: calc(var(--radius-lg) - 7px);
+  border-radius: var(--radius-sm);
   background: transparent;
   color: var(--fg);
   font-size: var(--t-label);
@@ -549,8 +477,8 @@ body {
   width: 100%;
   user-select: none;
   transition:
-    background var(--dur-control),
-    transform var(--dur-press);
+    background 0.15s,
+    transform 0.1s;
 }
 .theme-dropdown-item:hover {
   background: var(--control-bg-hover);
@@ -602,10 +530,10 @@ body {
   user-select: none;
   text-decoration: none;
   transition:
-    color var(--dur-control),
-    background var(--dur-control),
-    opacity var(--dur-control),
-    transform var(--dur-press);
+    color 0.15s,
+    background 0.15s,
+    opacity 0.15s,
+    transform 0.1s;
 }
 .btn:hover {
   color: var(--ink);
@@ -639,9 +567,9 @@ body {
   opacity: 1;
   filter: blur(0);
   transition:
-    opacity var(--dur-ui) var(--ease-out),
-    transform var(--dur-ui) var(--ease-out),
-    filter var(--dur-ui) var(--ease-out);
+    opacity 0.18s var(--ease-out),
+    transform 0.18s var(--ease-out),
+    filter 0.18s var(--ease-out);
 }
 #dark-light-btn #icon-sun,
 #dark-light-btn.is-dark #icon-moon {
@@ -677,8 +605,6 @@ body {
   .topbar {
     gap: 0.25rem;
     padding: 8px 10px;
-    padding-left: calc(10px + env(safe-area-inset-left));
-    padding-right: calc(10px + env(safe-area-inset-right));
     flex-wrap: wrap;
     align-content: center;
     overflow: visible;
@@ -798,7 +724,6 @@ body {
   left: var(--examples-left, 16px);
   width: var(--examples-width, min(360px, calc(100vw - 24px)));
   max-height: var(--examples-max-height, calc(100vh - 72px));
-  max-height: var(--examples-max-height, calc(100dvh - 72px));
   overflow: hidden;
   border: 1px solid var(--control-border);
   border-radius: var(--radius-lg);
@@ -813,7 +738,7 @@ body {
     opacity 0.16s var(--ease-out),
     transform 0.18s var(--ease-out),
     visibility 0s linear 0.18s;
-  z-index: var(--z-popover-nested);
+  z-index: 3000;
 }
 .examples-sidebar.open {
   opacity: 1;
@@ -907,9 +832,9 @@ body {
   min-height: 72px;
   text-wrap: pretty;
   transition:
-    background var(--dur-control),
-    box-shadow var(--dur-control),
-    transform var(--dur-press);
+    background 0.15s,
+    box-shadow 0.15s,
+    transform 0.1s;
 }
 .example-dropdown-item:hover,
 .example-dropdown-item.active {
@@ -924,7 +849,7 @@ body {
 .example-item-title {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
+  gap: 7px;
   font-weight: 600;
   line-height: 1.25;
   text-wrap: balance;
@@ -973,9 +898,9 @@ body {
   text-align: left;
   cursor: pointer;
   transition:
-    color var(--dur-control),
-    background var(--dur-control),
-    transform var(--dur-press);
+    color 0.15s,
+    background 0.15s,
+    transform 0.1s;
 }
 .example-clear-btn:hover {
   color: var(--fg);
@@ -1014,7 +939,7 @@ body {
   background: transparent;
   color: var(--fg2);
   cursor: pointer;
-  transition: color var(--dur-control), background var(--dur-control);
+  transition: color 0.15s, background 0.15s;
 }
 .icon-btn:hover { color: var(--fg); background: var(--control-bg-hover); }
 .icon-btn svg { width: 14px; height: 14px; }
@@ -1034,7 +959,7 @@ body {
   background: transparent;
   cursor: col-resize;
   flex-shrink: 0;
-  transition: background var(--dur-control);
+  transition: background 0.15s;
   position: relative;
   z-index: 10;
   margin-left: -4px;
@@ -1146,9 +1071,8 @@ body {
   align-items: center;
   gap: 10px;
   padding: 5px 12px;
-  /* an informational banner — soft --info-tint wash with an info-toned rule */
-  border-top: 1px solid color-mix(in srgb, var(--info) 28%, transparent);
-  background: var(--info-tint);
+  border-top: 1px solid var(--border);
+  background: var(--bg2);
   color: var(--fg2);
   font-size: var(--t-label);
   line-height: var(--lh-ui);
@@ -1169,8 +1093,8 @@ body {
   padding: 2px 10px;
   cursor: pointer;
   transition:
-    color var(--dur-control),
-    background var(--dur-control);
+    color 0.15s,
+    background 0.15s;
 }
 .draft-discard-btn:hover {
   background: var(--control-bg-hover);
@@ -1182,9 +1106,7 @@ body {
   align-items: center;
   justify-content: space-between;
   padding: 0 0.75rem;
-  /* env() is 0 without a home indicator; with one, the bar grows to clear it */
-  padding-bottom: env(safe-area-inset-bottom);
-  min-height: 28px;
+  height: 28px;
   font-family: var(--font-mono);
   font-size: var(--t-label);
   color: var(--fg3);
@@ -1283,9 +1205,9 @@ body {
   cursor: pointer;
   user-select: none;
   transition:
-    opacity var(--dur-control),
-    background var(--dur-control),
-    transform var(--dur-press);
+    opacity 0.15s,
+    background 0.15s,
+    transform 0.1s;
 }
 .toolbar-btn:hover {
   opacity: 1;
@@ -1315,7 +1237,7 @@ body {
   background: transparent;
   padding: 0;
   cursor: pointer;
-  transition: color var(--dur-control);
+  transition: color 0.15s;
 }
 .zoom-label:hover {
   color: var(--fg);
@@ -1367,12 +1289,12 @@ body {
 .preview-inner[hidden] { display: none; }
 
 .preview-error {
-  color: color-mix(in srgb, var(--danger) 82%, var(--fg));
-  font-size: var(--t-sm);
+  color: color-mix(in srgb, var(--red) 82%, var(--fg));
+  font-size: 0.875rem;
   line-height: 1.5;
   padding: 1.25rem;
-  background: var(--danger-tint);
-  border: 1px solid color-mix(in srgb, var(--danger) 22%, transparent);
+  background: color-mix(in srgb, var(--red) 6%, var(--bg2));
+  border: 1px solid color-mix(in srgb, var(--red) 16%, transparent);
   border-radius: var(--radius-lg);
   white-space: normal;
   max-width: 640px;
@@ -1393,10 +1315,10 @@ body {
   display: block;
   padding: 0.75rem;
   border-radius: var(--radius-md);
-  background: color-mix(in srgb, var(--danger) 5%, var(--paper));
-  color: color-mix(in srgb, var(--danger) 80%, var(--fg));
+  background: color-mix(in srgb, var(--red) 5%, var(--paper));
+  color: color-mix(in srgb, var(--red) 80%, var(--fg));
   font-family: var(--font-mono);
-  font-size: var(--t-label);
+  font-size: 0.8125rem;
   white-space: pre-wrap;
   overflow-x: auto;
 }
@@ -1409,7 +1331,7 @@ body {
   border: 1px solid var(--line);
   box-shadow: none;
   color: var(--fg4);
-  font-size: var(--t-sm);
+  font-size: 0.875rem;
   text-align: center;
   display: flex;
   flex-direction: column;
@@ -1426,7 +1348,7 @@ body {
 }
 .placeholder-title {
   color: var(--fg);
-  font-size: 1.25rem;
+  font-size: 20px;
   line-height: 1.18;
   text-wrap: balance;
 }
@@ -1455,8 +1377,8 @@ body {
   cursor: pointer;
   box-shadow: var(--shadow-minimal);
   transition:
-    background var(--dur-control),
-    transform var(--dur-press);
+    background 0.15s,
+    transform 0.1s;
 }
 .placeholder-example-btn:hover {
   background: var(--control-bg-hover);
@@ -1476,8 +1398,8 @@ body {
   font-weight: 700;
   cursor: pointer;
   transition:
-    background var(--dur-control),
-    transform var(--dur-press);
+    background 0.15s,
+    transform 0.1s;
 }
 .placeholder-chip:hover {
   background: color-mix(in srgb, var(--accent) 14%, var(--paper));
@@ -1499,8 +1421,7 @@ body {
   min-height: 30px;
   padding: 0 11px;
   border: none;
-  /* concentric with the switch: outer radius − 1px border − 3px padding */
-  border-radius: calc(var(--radius-lg) - 4px);
+  border-radius: var(--radius-md);
   background: transparent;
   color: var(--control-fg);
   font: inherit;
@@ -1508,7 +1429,7 @@ body {
   font-weight: 500;
   cursor: pointer;
   white-space: nowrap;
-  transition: color var(--dur-control), background var(--dur-control), box-shadow var(--dur-control), transform var(--dur-press);
+  transition: color 0.15s, background 0.15s, box-shadow 0.15s, transform 0.1s;
 }
 .format-option:hover { color: var(--fg); }
 .format-option.is-active {
@@ -1549,18 +1470,14 @@ body {
   flex-wrap: wrap;
   min-height: 34px;
   padding: 5px 12px;
-  /* grows past the home indicator on devices with one; env() is 0 elsewhere */
-  padding-bottom: calc(5px + env(safe-area-inset-bottom));
   border-top: 1px solid var(--border);
   background: var(--bg2);
   font-size: var(--t-label);
   line-height: var(--lh-ui);
-  /* render time and note counts change every render — keep digits from shifting */
-  font-variant-numeric: tabular-nums;
 }
 .verify-verdict { color: var(--fg2); font-weight: 650; }
-.verify-tiers { margin-left: auto; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
-.verify-tier { display: inline-flex; align-items: center; gap: 6px; color: var(--fg3); white-space: nowrap; }
+.verify-tiers { margin-left: auto; display: flex; align-items: center; gap: 13px; flex-wrap: wrap; }
+.verify-tier { display: inline-flex; align-items: center; gap: 5px; color: var(--fg3); white-space: nowrap; }
 .verify-tier i { font-style: normal; color: var(--fg4); }
 .verify-tier.idle { color: var(--fg3); }
 .verify-tier.idle i { color: var(--fg3); }
@@ -1568,21 +1485,6 @@ body {
 .verify-tier.ok .verify-dot { background: var(--green); }
 .verify-tier.warn .verify-dot { background: var(--warn); }
 .verify-tier.err .verify-dot { background: var(--red); }
-
-/* Advisory / error tiers get a soft --*-tint pill so a validation state reads at
-   a glance; "Clear" and idle tiers stay quiet (dot only), keeping the all-clear
-   bar calm. The tint fill costs contrast, so the tier name steps up from the
-   bar's --fg3 (4.7:1 on --bg2 but 3.9:1 on the tints — under AA) to --fg2,
-   which holds 6.6:1 light / 7.7:1 dark on both fills. */
-.verify-tier.warn,
-.verify-tier.err {
-  padding: 1px 9px;
-  border-radius: var(--radius-pill);
-  border: 1px solid transparent;
-  color: var(--fg2);
-}
-.verify-tier.warn { background: var(--warn-tint); border-color: color-mix(in srgb, var(--warn) 22%, transparent); }
-.verify-tier.err  { background: var(--danger-tint); border-color: color-mix(in srgb, var(--danger) 22%, transparent); }
 
 /* One-time settle when a tier transitions warnings -> Clear (rendering.js adds
    .tier-cleared). Transform/opacity only; inert if the class never appears. */
@@ -1621,8 +1523,8 @@ body {
   padding: 2px 10px;
   cursor: pointer;
   transition:
-    color var(--dur-control),
-    background var(--dur-control);
+    color 0.15s,
+    background 0.15s;
 }
 .verify-details-btn:hover {
   background: var(--control-bg-hover);
@@ -1727,13 +1629,12 @@ body {
   position: fixed;
   top: var(--settings-top, 60px);
   left: var(--settings-left, 16px);
-  z-index: var(--z-popover);
+  z-index: 2000;
   display: none;
   flex-direction: column;
   gap: 0;
   width: var(--settings-width, min(360px, calc(100vw - 24px)));
   max-height: var(--settings-max-height, calc(100vh - 72px));
-  max-height: var(--settings-max-height, calc(100dvh - 72px));
   overflow-y: auto;
   background: var(--popover-bg);
   border: 1px solid var(--control-border);
@@ -1764,16 +1665,13 @@ body {
   justify-content: center;
   width: 32px;
   height: 32px;
-  position: relative;
   border: none;
   border-radius: var(--radius-sm);
   background: transparent;
   color: var(--fg3);
   cursor: pointer;
-  transition: color var(--dur-control) var(--ease-out), background var(--dur-control) var(--ease-out);
+  transition: color 0.15s var(--ease-out), background 0.15s var(--ease-out);
 }
-/* invisible halo lifts the 32px visual to a 40px hit target */
-.config-close::after { content: ""; position: absolute; inset: -4px; }
 .config-close:hover { color: var(--fg); background: var(--control-bg-hover); }
 .config-close svg { width: 15px; height: 15px; }
 
@@ -1802,7 +1700,7 @@ body {
 .color-edit-btn {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 0.4rem;
   height: 28px;
   padding: 0 0.5rem 0 0.35rem;
   background: var(--control-bg);
@@ -1812,7 +1710,7 @@ body {
   font-size: var(--t-label);
   font-family: var(--font-mono);
   cursor: pointer;
-  transition: border-color var(--dur-control) var(--ease-out), background var(--dur-control) var(--ease-out);
+  transition: border-color 0.15s var(--ease-out), background 0.15s var(--ease-out);
   min-width: 100px;
   justify-content: flex-end;
 }
@@ -1836,7 +1734,7 @@ body {
   justify-content: space-between;
   margin-bottom: 0.5rem;
 }
-.padding-row label { font-size: var(--t-label); color: var(--fg); }
+.padding-row label { font-size: 0.8rem; color: var(--fg); }
 .padding-num {
   width: 56px;
   height: 28px;
@@ -1896,20 +1794,20 @@ body {
   font-size: var(--t-label);
   font-weight: 600;
   cursor: pointer;
-  transition: color var(--dur-control) var(--ease-out), background var(--dur-control) var(--ease-out), border-color var(--dur-control) var(--ease-out), transform var(--dur-press) var(--ease-out);
+  transition: color 0.15s var(--ease-out), background 0.15s var(--ease-out), border-color 0.15s var(--ease-out), transform 0.1s var(--ease-out);
 }
 .config-reset-btn:hover {
   color: var(--fg);
   background: var(--control-bg-hover);
   border-color: var(--line-strong);
 }
-.config-reset-btn:active { transform: scale(0.96); }
+.config-reset-btn:active { transform: scale(0.98); }
 
 
 .color-popup {
   display: none;
   position: fixed;
-  z-index: var(--z-popover-nested);
+  z-index: 3000;
   background: var(--popover-bg);
   border: 1px solid var(--control-border);
   border-radius: var(--radius-lg);
@@ -1917,7 +1815,7 @@ body {
   width: 240px;
   box-shadow: var(--shadow-popover);
   flex-direction: column;
-  gap: 10px;
+  gap: 0.6rem;
 }
 .color-popup.open { display: flex; }
 
@@ -1930,19 +1828,16 @@ body {
 .color-popup-title { font-size: var(--t-label); font-weight: 600; color: var(--fg); }
 .color-popup-close {
   width: 22px; height: 22px;
-  position: relative;
   display: flex; align-items: center; justify-content: center;
   border: none; border-radius: var(--radius-sm);
   background: transparent; color: var(--fg2);
   cursor: pointer; font-size: 1rem; line-height: 1;
 }
-/* invisible halo lifts the 22px visual to a 40px hit target */
-.color-popup-close::after { content: ""; position: absolute; inset: -9px; }
 .color-popup-close:hover { background: var(--control-bg-hover); color: var(--fg); }
 
 .color-hex-row {
   display: flex;
-  gap: 6px;
+  gap: 0.4rem;
   align-items: center;
 }
 .color-native {
@@ -2000,7 +1895,7 @@ body {
   border-radius: var(--radius-sm);
   border: 1px solid var(--line-strong);
   cursor: pointer;
-  transition: transform var(--dur-press), box-shadow var(--dur-press);
+  transition: transform 0.1s, box-shadow 0.1s;
 }
 .color-swatch-btn:hover {
   transform: scale(1.15);
@@ -2020,7 +1915,7 @@ body {
 .font-select-btn {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 0.4rem;
   min-height: 40px;
   padding: 0 0.5rem;
   background: var(--control-bg);
@@ -2031,7 +1926,7 @@ body {
   cursor: pointer;
   min-width: 120px;
   justify-content: space-between;
-  transition: border-color var(--dur-control);
+  transition: border-color 0.15s;
 }
 .font-select-btn:hover {
   background: var(--control-bg-hover);
@@ -2042,7 +1937,7 @@ body {
 .font-popup {
   display: none;
   position: fixed;
-  z-index: var(--z-popover-nested);
+  z-index: 3000;
   background: var(--popover-bg);
   border: 1px solid var(--control-border);
   border-radius: var(--radius-lg);
@@ -2059,8 +1954,7 @@ body {
   padding: 0 0.5rem 0 2rem;
   background: var(--control-bg);
   border: 1px solid var(--border);
-  /* concentric with the popup: outer radius − 1px border − 0.5rem padding */
-  border-radius: calc(var(--radius-lg) - 1px - 0.5rem);
+  border-radius: var(--radius-sm);
   color: var(--fg);
   font-size: var(--t-label);
   font-family: inherit;
@@ -2093,14 +1987,14 @@ body {
   min-height: 40px;
   padding: 0.4rem 0.5rem;
   border: 0;
-  border-radius: calc(var(--radius-lg) - 1px - 0.5rem);
+  border-radius: var(--radius-sm);
   background: transparent;
   cursor: pointer;
   font: inherit;
-  font-size: var(--t-label);
+  font-size: 0.82rem;
   color: var(--fg);
   text-align: left;
-  transition: background var(--dur-press);
+  transition: background 0.12s;
 }
 .font-item:hover { background: var(--control-bg-hover); }
 .font-item.active { background: color-mix(in srgb, var(--accent) 12%, var(--paper)); color: var(--accent); }
@@ -2140,7 +2034,7 @@ body {
   border: 1px solid var(--control-border);
   border-radius: var(--radius-lg);
   padding: 6px;
-  z-index: var(--z-popover);
+  z-index: 2000;
   flex-direction: column;
   box-shadow: var(--shadow-popover);
 }
@@ -2154,8 +2048,7 @@ body {
   width: 100%;
   padding: 7px 8px;
   border: none;
-  /* concentric with the dropdown: outer radius − 1px border − 6px padding */
-  border-radius: calc(var(--radius-lg) - 7px);
+  border-radius: var(--radius-sm);
   background: transparent;
   color: var(--fg);
   font-size: var(--t-control);
@@ -2164,8 +2057,8 @@ body {
   text-align: left;
   user-select: none;
   transition:
-    background var(--dur-control),
-    transform var(--dur-press);
+    background 0.15s,
+    transform 0.1s;
 }
 .export-item:hover {
   background: var(--control-bg-hover);
@@ -2240,9 +2133,9 @@ body {
   font-family: inherit;
   cursor: pointer;
   transition:
-    color var(--dur-control),
-    background var(--dur-control),
-    transform var(--dur-press);
+    color 0.15s,
+    background 0.15s,
+    transform 0.1s;
   font-variant-numeric: tabular-nums;
 }
 .size-pill:hover {
@@ -2252,14 +2145,6 @@ body {
 .size-pill.active {
   background: var(--accent);
   color: var(--paper);
-}
-/* forced-colors neutralizes the accent fill that is the active pill's only
-   marker; the system selection pair keeps the chosen scale visible */
-@media (forced-colors: active) {
-  .size-pill.active {
-    background: SelectedItem;
-    color: SelectedItemText;
-  }
 }
 .size-pill:active {
   transform: scale(0.96);
@@ -2310,26 +2195,8 @@ body {
   border: 1px solid var(--control-border);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-popover);
-  z-index: var(--z-popover-nested);
+  z-index: 3000;
 }
-
-/* Popovers enter from their trigger: one short ease-out fade/scale, with the
-   transform origin at the anchoring corner so the menu grows out of its button.
-   Exits stay instant — dismissal should never lag. The global reduced-motion
-   override in variables.css flattens these to 0.01ms. */
-@keyframes popover-in {
-  from { opacity: 0; transform: translateY(-2px) scale(0.98); }
-}
-:where(.export-dropdown, .theme-dropdown-menu, .font-popup, .color-popup).open {
-  animation: popover-in var(--dur-control) var(--ease-out);
-}
-.export-dropdown.open, .theme-dropdown-menu.open { transform-origin: top right; }
-.font-popup.open, .color-popup.open { transform-origin: top left; }
-/* The centered dialog keeps its translate while scaling in. */
-@keyframes dialog-in {
-  from { opacity: 0; transform: translate(-50%, -50%) scale(0.98); }
-}
-.shortcuts-dialog.open { animation: dialog-in var(--dur-ui) var(--ease-out); }
 :where(.preview-label, .panel-title, .verify-label, .text-output-label, .example-category-title, .font-section-label, .color-palette-title, .placeholder-kicker) {
   color: var(--fg3);
   font-family: var(--font-mono);
@@ -2356,19 +2223,9 @@ body {
   .export-item,
   .font-select-btn,
   .color-edit-btn,
-  .color-clear-btn,
-  .size-pill { min-height: 44px; }
+  .color-clear-btn { min-height: 44px; }
   .toolbar-btn,
-  .export-chevron,
-  .size-pill { min-width: 44px; }
-  /* iOS zooms the page when a focused field renders under 16px; hold every
-     editable surface at 16px on touch devices so focus never jumps the view.
-     The line-number gutter shares the textarea's metrics, so it moves with it. */
-  .code-editor,
-  .line-numbers,
-  .font-search,
-  .padding-num,
-  .color-hex-input { font-size: 16px; }
+  .export-chevron { min-width: 44px; }
 }
 
 
@@ -2376,7 +2233,7 @@ body {
   position: fixed;
   left: 12px;
   top: 12px;
-  z-index: var(--z-skip-link);
+  z-index: 10000;
   transform: translateY(-160%);
   padding: 8px 10px;
   border-radius: var(--radius-md);
@@ -2392,7 +2249,7 @@ body {
    footer (28px) so a toast never sits on the verify verdict. */
 .toast {
   position: fixed;
-  bottom: calc(34px + 28px + 14px + env(safe-area-inset-bottom));
+  bottom: calc(34px + 28px + 14px);
   left: 50%;
   transform: translateX(-50%) translateY(0);
   background: var(--popover-bg);
@@ -2406,7 +2263,7 @@ body {
   transition:
     opacity 0.2s,
     transform 0.2s;
-  z-index: var(--z-toast);
+  z-index: 9999;
   box-shadow: var(--shadow-popover);
 }
 .toast.show {
@@ -2429,7 +2286,7 @@ body {
   border: 1px solid var(--control-border);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-popover);
-  z-index: var(--z-dialog);
+  z-index: 4000;
 }
 .shortcuts-dialog.open {
   display: block;
@@ -2448,20 +2305,17 @@ body {
 .shortcuts-dialog-close {
   width: 28px;
   height: 28px;
-  position: relative;
   border: none;
   border-radius: var(--radius-sm);
   background: transparent;
   color: var(--fg3);
-  font-size: 1rem;
+  font-size: 16px;
   font-family: inherit;
   cursor: pointer;
   transition:
-    color var(--dur-control),
-    background var(--dur-control);
+    color 0.15s,
+    background 0.15s;
 }
-/* invisible halo lifts the 28px visual to a 40px hit target */
-.shortcuts-dialog-close::after { content: ""; position: absolute; inset: -6px; }
 .shortcuts-dialog-close:hover {
   background: var(--control-bg-hover);
   color: var(--fg);
@@ -2640,7 +2494,7 @@ body {
         viewBox="0 0 24 24"
         fill="none"
         stroke="currentColor"
-        stroke-width="2"
+        stroke-width="2.5"
         stroke-linecap="round"
         stroke-linejoin="round"
       >
@@ -2739,7 +2593,7 @@ body {
         viewBox="0 0 24 24"
         fill="none"
         stroke="currentColor"
-        stroke-width="2"
+        stroke-width="2.5"
         stroke-linecap="round"
         stroke-linejoin="round"
       >
@@ -2869,9 +2723,9 @@ body {
         </svg>
         <span class="export-item-label">Scale</span>
         <div class="size-pills" id="size-pills" role="group" aria-label="PNG export scale">
-          <button class="size-pill" type="button" data-scale="1" aria-pressed="false">1&times;</button>
-          <button class="size-pill" type="button" data-scale="2" aria-pressed="false">2&times;</button>
-          <button class="size-pill active" type="button" data-scale="4" aria-pressed="true">4&times;</button>
+          <button class="size-pill" type="button" data-scale="1">1x</button>
+          <button class="size-pill" type="button" data-scale="2">2x</button>
+          <button class="size-pill active" type="button" data-scale="4">4x</button>
         </div>
       </div>
     </div>
@@ -2967,7 +2821,7 @@ body {
     <div class="config-head">
       <span>Diagram settings</span>
       <button class="config-close" id="settings-close-btn" type="button" aria-label="Close settings">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
       </button>
     </div>
     <!-- Colors section -->
@@ -3216,7 +3070,7 @@ body {
       </button>
     </div>
     <button class="toolbar-btn" id="copy-text-output-btn" type="button" title="Copy SVG markup" aria-label="Copy SVG markup">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
         <rect x="9" y="9" width="13" height="13" rx="2" />
         <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
       </svg>
@@ -3263,6 +3117,6 @@ body {
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
 <!-- Bundled renderer -->
-<script type="module" src="/editor/editor-44e1fc640e6f.js"></script>
+<script type="module" src="/editor/editor-05e1ac4384c1.js"></script>
 </body>
 </html>
