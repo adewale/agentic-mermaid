@@ -24,6 +24,21 @@ dependents after. IDs are stable names, not an ordering.
   `agentic-mermaid/agent`, `am`, or `agentic-mermaid-mcp` in a real agent,
   TUI, CI gate, or editor integration outside this repo. Unblocked
   substantially by BUILD-7 (remote MCP reachability).
+- [ ] **DEC-2 — Add the WAF rate-limit rule on `POST /mcp` before announcing
+  the hosted endpoint** (`owner-decision`). The hosted MCP (`#94`,
+  `https://agentic-mermaid.dev/mcp`) is public, unauthenticated compute. Body /
+  input / output caps, the batch fan-out cap, edge caching, isolate CPU
+  budgets, and CORS Origin validation bound each request in code, but the abuse
+  backstop is a **dashboard** WAF rate-limit rule (e.g. 60 req/min per IP) that
+  cannot live in the repo. Don't announce the endpoint until it is live. See
+  the launch checklist in `website/README.md`.
+- [ ] **DEC-3 — Verify the `worker_loaders` (`LOADER`) binding resolves in
+  production** (`owner-decision`). Dynamic Workers needs the Workers Paid plan
+  with the Worker Loader feature enabled on the account; a deploy can succeed
+  with the binding declared but unprovisioned, and Code Mode `execute` is the
+  only tool that touches it (the pure tools pass even when `LOADER` is missing).
+  After the first deploy, run one `execute` call (e.g. `website/e2e-mcp.sh`
+  against the live URL) and confirm it returns a value, not a loader error.
 
 ## 1. Ready build backlog
 
