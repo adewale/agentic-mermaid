@@ -35,6 +35,10 @@ function editorExampleIds() {
   return [...src.slice(start, end).matchAll(/\bid:\s*'([^']+)'/g)].map((m) => m[1]!)
 }
 
+async function websiteWorker(): Promise<{ fetch: (request: Request, env: any) => Promise<Response> }> {
+  return (await import('../../website/src/worker.ts')).default
+}
+
 describe('Workers Static Assets website contract', () => {
   test('Cloudflare MCP config follows the official agent setup endpoints', () => {
     const expected = {
@@ -53,17 +57,64 @@ describe('Workers Static Assets website contract', () => {
     }
   })
 
-  test('Wrangler uses the JSONC Static Assets config', () => {
+  test('Wrangler uses Worker-first Static Assets custom-domain config', () => {
     expect(existsSync(join(REPO, 'website/wrangler.toml'))).toBe(false)
     const jsonc = readFileSync(join(REPO, 'website/wrangler.jsonc'), 'utf8')
     const config = JSON.parse(jsonc.replace(/^\s*\/\/.*$/gm, ''))
     expect(config.compatibility_date).toBe('2026-06-27')
-    expect(config.assets).toEqual({ directory: './public', binding: 'ASSETS' })
-    // Hosted MCP contract: the Worker Loader binding backs Code Mode execute,
-    // and observability stays on for the public compute endpoint.
-    expect(config.worker_loaders).toEqual([{ binding: 'LOADER' }])
+    expect(config.routes).toEqual([
+      { pattern: 'agentic-mermaid.dev', custom_domain: true },
+      { pattern: 'www.agentic-mermaid.dev', custom_domain: true },
+    ])
+    expect(config.workers_dev).toBe(false)
+    expect(config.preview_urls).toBe(false)
     expect(config.observability).toEqual({ enabled: true })
+    expect(config.version_metadata).toEqual({ binding: 'CF_VERSION_METADATA' })
+    // run_worker_first so the redirects/headers and the /mcp handler wrap asset
+    // responses (the hosted MCP must reach the worker before Static Assets).
+    expect(config.assets).toEqual({ directory: './public', binding: 'ASSETS', run_worker_first: true })
+    // Hosted MCP contract: the Worker Loader binding backs Code Mode execute.
+    expect(config.worker_loaders).toEqual([{ binding: 'LOADER' }])
     expect(readFileSync(join(REPO, 'package.json'), 'utf8')).toContain('wrangler@latest dev --port 9095 --ip 127.0.0.1')
+  })
+
+  test('Worker-first routing canonicalizes hosts, preserves path redirects, and wraps assets with headers', async () => {
+    const worker = await websiteWorker()
+    let assetFetches = 0
+    const env = (response: () => Response) => ({
+      ASSETS: {
+        fetch: async () => {
+          assetFetches++
+          return response()
+        },
+      },
+    })
+
+    const www = await worker.fetch(new Request('https://www.agentic-mermaid.dev/docs?ref=nav#top'), env(() => new Response('duplicate')))
+    expect(www.status).toBe(301)
+    expect(www.headers.get('location')).toBe('https://agentic-mermaid.dev/docs?ref=nav#top')
+    expect(assetFetches).toBe(0)
+
+    const slash = await worker.fetch(new Request('https://agentic-mermaid.dev/editor?empty=1'), env(() => new Response('editor')))
+    expect(slash.status).toBe(308)
+    expect(slash.headers.get('location')).toBe('https://agentic-mermaid.dev/editor/?empty=1')
+
+    const html = await worker.fetch(new Request('https://agentic-mermaid.dev/'), env(() => new Response('<!doctype html>', { headers: { 'content-type': 'text/html; charset=utf-8' } })))
+    expect(html.status).toBe(200)
+    expect(html.headers.get('content-security-policy')).toContain("default-src 'self'")
+    expect(html.headers.get('x-content-type-options')).toBe('nosniff')
+    expect(html.headers.get('cache-control')).toBe('no-cache')
+
+    const js = await worker.fetch(new Request('https://agentic-mermaid.dev/editor/editor-abcdef123456.js'), env(() => new Response('export {}', { headers: { 'content-type': 'text/javascript; charset=utf-8' } })))
+    expect(js.headers.get('cache-control')).toBe('public, max-age=31536000, immutable')
+
+    // /mcp is the live hosted MCP endpoint (stateless, POST-only) — no longer
+    // the 501 placeholder. A GET is 405 and never touches Static Assets.
+    assetFetches = 0
+    const mcp = await worker.fetch(new Request('https://agentic-mermaid.dev/mcp'), env(() => new Response('should not run')))
+    expect(mcp.status).toBe(405)
+    expect(((await mcp.json()) as any).error.message).toContain('stateless')
+    expect(assetFetches).toBe(0)
   })
 
   test('Workers website source no longer depends on mockups', () => {
@@ -144,7 +195,7 @@ describe('Workers Static Assets website contract', () => {
     expect(home).toContain('Context:')
     expect(home).toContain('Do not assume this repository is checked out')
     expect(home).toContain('one channel available to you')
-    expect(home).toContain('the hosted MCP at `https://agenticmermaid.dev/mcp`')
+    expect(home).toContain('the hosted MCP at `https://agentic-mermaid.dev/mcp`')
     expect(home).toContain('For a new diagram, author Mermaid source directly')
     expect(home).toContain('Mutation ops use a `kind` discriminator')
     expect(home).toContain('return an object with `{ source }`')
@@ -407,7 +458,7 @@ describe('Workers Static Assets website contract', () => {
     expect(existsSync(join(SITE, 'harnesses.json'))).toBe(false)
     const publicText = files().filter((f) => /\.(html|json|md|txt)$/.test(f)).map(read).join('\n')
     expect(publicText).toContain('execute</code>, <code>render_png</code>, and <code>describe</code>')
-    expect(publicText).toContain('https://agenticmermaid.dev/mcp')
+    expect(publicText).toContain('https://agentic-mermaid.dev/mcp')
     expect(publicText).toContain('render_svg')
     expect(publicText).toContain('render_ascii')
     // The 501 placeholder era is over; no page may still claim it.

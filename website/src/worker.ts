@@ -1,7 +1,7 @@
 // Website Worker: static assets on Cloudflare's asset path, plus the hosted
 // MCP endpoint at /mcp (stateless Streamable HTTP; see mcp-handler.ts).
 
-import { createMcpHandler } from './mcp-handler.ts'
+import { createMcpHandler, type McpCache } from './mcp-handler.ts'
 import { createLoaderExecute, type WorkerLoaderBinding } from './execute-loader.ts'
 import { renderMermaidPNGWasm } from './png-wasm.ts'
 import executeHarness from './generated/execute-harness.js.txt'
@@ -67,8 +67,16 @@ function withHeaders(response: Response, pathname: string): Response {
 }
 
 export default {
-  async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
+  async fetch(request: Request, env: Env, ctx?: ExecutionContext): Promise<Response> {
     const url = new URL(request.url)
+
+    // Canonical host redirect. This must run before Static Assets so the
+    // homepage and other asset-backed paths do not serve duplicate www content.
+    if (url.hostname === 'www.agentic-mermaid.dev') {
+      url.hostname = 'agentic-mermaid.dev'
+      return Response.redirect(url.toString(), 301)
+    }
+
     const pathname = url.pathname.replace(/\/$/, '') || '/'
 
     const redirectTo = redirects.get(url.pathname) || redirects.get(pathname)
@@ -83,12 +91,18 @@ export default {
           execute: createLoaderExecute(env.LOADER, executeHarness),
           renderPng: renderMermaidPNGWasm,
         },
-        cache: caches.default,
+        // `caches` is a workerd global; guard it so the worker imports and runs
+        // off-runtime (bun/node tests), where the response cache is disabled.
+        // Cast because the root tsconfig types `caches` as the DOM CacheStorage
+        // (no `.default`); workerd/miniflare provide the default cache.
+        cache: typeof caches !== 'undefined' ? (caches as unknown as { default: McpCache }).default : undefined,
         // Full-deploy hash (see generated/deploy-version.ts): busts cached
         // results whenever any hosted tool, transport, PNG path, or SDK
         // changes. Isolate IDs use the harness hash inside createLoaderExecute.
         cacheVersion: DEPLOY_VERSION,
-        waitUntil: p => ctx.waitUntil(p),
+        // ctx is absent when the worker is driven directly in tests; then the
+        // handler awaits cache writes inline instead of deferring them.
+        waitUntil: ctx ? (p => ctx.waitUntil(p)) : undefined,
       })
       return handler(request)
     }

@@ -1,4 +1,4 @@
-// Hosted MCP server core — the tool surface served at agenticmermaid.dev/mcp
+// Hosted MCP server core — the tool surface served at agentic-mermaid.dev/mcp
 // by the Cloudflare website Worker. Runtime-neutral: pure tools run inline;
 // `execute` and `render_png` are injected by the host (the Worker backs them
 // with a Dynamic Worker isolate and resvg-wasm; tests back them with fakes).
@@ -45,7 +45,7 @@ const DEFAULT_EXECUTE_TIMEOUT_MS = 5_000
 export const MIN_PNG_SCALE = 0.1
 export const MAX_PNG_SCALE = 8
 
-const TOO_LARGE_HINT = 'input exceeds the hosted size cap; run the local agentic-mermaid CLI or stdio MCP server instead (see https://agenticmermaid.dev/docs/mcp/)'
+const TOO_LARGE_HINT = 'input exceeds the hosted size cap; run the local agentic-mermaid CLI or stdio MCP server instead (see https://agentic-mermaid.dev/docs/mcp/)'
 
 export const HOSTED_TOOLS = [
   {
@@ -143,7 +143,7 @@ LLM context compaction without re-parsing.`,
   },
 ]
 
-const INSTRUCTIONS = `agentic-mermaid hosted MCP server (stateless). Direct tools render_svg, render_ascii, render_png, verify, and describe cover plain render/verify calls cheaply and are edge-cached (layout is deterministic; there is no seed). execute runs synchronous JavaScript against the typed mermaid.* SDK in an isolated on-demand sandbox for parse→narrow→mutate workflows; async/await and Promise jobs are not supported, and network access is disabled. Inputs are capped at 64KB; for bigger diagrams, Code Mode artifacts, or file/URL PNG output, run the local stdio server (see https://agenticmermaid.dev/docs/mcp/).`
+const INSTRUCTIONS = `agentic-mermaid hosted MCP server (stateless). Direct tools render_svg, render_ascii, render_png, verify, and describe cover plain render/verify calls cheaply and are edge-cached (layout is deterministic; there is no seed). execute runs synchronous JavaScript against the typed mermaid.* SDK in an isolated on-demand sandbox for parse→narrow→mutate workflows; async/await and Promise jobs are not supported, and network access is disabled. Inputs are capped at 64KB; for bigger diagrams, Code Mode artifacts, or file/URL PNG output, run the local stdio server (see https://agentic-mermaid.dev/docs/mcp/).`
 
 export async function handleHostedRequest(req: JsonRpcRequest, context: HostedMcpContext): Promise<JsonRpcResponse | null> {
   const id = req.id ?? null

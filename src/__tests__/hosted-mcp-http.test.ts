@@ -38,7 +38,7 @@ function makeHandler(overrides: { cache?: McpCache; context?: Partial<HostedMcpC
 
 function post(body: unknown, headers: Record<string, string> = {}): Request {
   const text = typeof body === 'string' ? body : JSON.stringify(body)
-  return new Request('https://agenticmermaid.dev/mcp', {
+  return new Request('https://agentic-mermaid.dev/mcp', {
     method: 'POST',
     headers: { 'content-type': 'application/json', ...headers },
     body: text,
@@ -51,7 +51,7 @@ const call = (name: string, args: Record<string, unknown>, id: number | string =
 describe('method and header validation', () => {
   test('OPTIONS preflight answers CORS without touching the server', async () => {
     const { handler } = makeHandler()
-    const res = await handler(new Request('https://agenticmermaid.dev/mcp', { method: 'OPTIONS' }))
+    const res = await handler(new Request('https://agentic-mermaid.dev/mcp', { method: 'OPTIONS' }))
     expect(res.status).toBe(204)
     expect(res.headers.get('access-control-allow-origin')).toBe('*')
     expect(res.headers.get('access-control-allow-methods')).toContain('POST')
@@ -59,7 +59,7 @@ describe('method and header validation', () => {
 
   test('GET is 405: stateless server, no server-initiated stream', async () => {
     const { handler } = makeHandler()
-    const res = await handler(new Request('https://agenticmermaid.dev/mcp'))
+    const res = await handler(new Request('https://agentic-mermaid.dev/mcp'))
     expect(res.status).toBe(405)
     expect(((await res.json()) as any).error.message).toContain('stateless')
   })
@@ -75,7 +75,7 @@ describe('method and header validation', () => {
     const big = JSON.stringify(call('describe', { source: 'x'.repeat(MAX_MCP_BODY_BYTES) }))
     const declared = await handler(post(big))
     expect(declared.status).toBe(413)
-    const undeclared = await handler(new Request('https://agenticmermaid.dev/mcp', {
+    const undeclared = await handler(new Request('https://agentic-mermaid.dev/mcp', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       // A stream hides the length until read.
@@ -107,7 +107,7 @@ describe('method and header validation', () => {
     // needs the CORS header on the error too or it never sees the status.
     const { handler } = makeHandler()
     const errorResponses = [
-      await handler(new Request('https://agenticmermaid.dev/mcp')), // 405
+      await handler(new Request('https://agentic-mermaid.dev/mcp')), // 405
       await handler(post('x', { 'content-type': 'text/plain' })), // 415
       await handler(post('{"jsonrpc": "2.0",')), // 400 parse error
     ]
@@ -206,9 +206,9 @@ describe('CORS Origin validation', () => {
 
   test('an allowlisted browser Origin is echoed back, not wildcarded', async () => {
     const { handler } = makeHandler()
-    const res = await handler(post(rpc('ping'), { origin: 'https://agenticmermaid.dev' }))
+    const res = await handler(post(rpc('ping'), { origin: 'https://agentic-mermaid.dev' }))
     expect(res.status).toBe(200)
-    expect(res.headers.get('access-control-allow-origin')).toBe('https://agenticmermaid.dev')
+    expect(res.headers.get('access-control-allow-origin')).toBe('https://agentic-mermaid.dev')
     expect(res.headers.get('vary')).toContain('Origin')
   })
 
@@ -222,7 +222,7 @@ describe('CORS Origin validation', () => {
 
   test('a disallowed Origin is refused on the OPTIONS preflight too (no ACAO granted)', async () => {
     const { handler } = makeHandler()
-    const res = await handler(new Request('https://agenticmermaid.dev/mcp', { method: 'OPTIONS', headers: { origin: 'https://evil.example' } }))
+    const res = await handler(new Request('https://agentic-mermaid.dev/mcp', { method: 'OPTIONS', headers: { origin: 'https://evil.example' } }))
     expect(res.status).toBe(204)
     expect(res.headers.get('access-control-allow-origin')).toBeNull()
   })

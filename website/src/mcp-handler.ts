@@ -47,7 +47,7 @@ const CORS_BASE = {
 // clients (agents, servers, curl) send no Origin and are always allowed — CORS
 // governs only browser reads and cannot gate them anyway. An Origin-bearing
 // (browser) caller is checked against this set plus same-origin and localhost.
-const STATIC_ALLOWED_ORIGINS = new Set(['https://agenticmermaid.dev'])
+const STATIC_ALLOWED_ORIGINS = new Set(['https://agentic-mermaid.dev'])
 
 function isOriginAllowed(origin: string, host: string | null): boolean {
   if (STATIC_ALLOWED_ORIGINS.has(origin)) return true
@@ -123,7 +123,7 @@ export function createMcpHandler(options: McpHandlerOptions): (request: Request)
     const p = req.params as { name?: string; arguments?: Record<string, unknown> } | undefined
     const canonical = cacheKeyFor(p?.name, p?.arguments ?? {})
     if (canonical === null) return handleHostedRequest(req, context)
-    const key = new Request(`https://mcp-cache.agenticmermaid.dev/${encodeURIComponent(cacheVersion)}/${await sha256Hex(JSON.stringify(sortKeys(canonical)))}`)
+    const key = new Request(`https://mcp-cache.agentic-mermaid.dev/${encodeURIComponent(cacheVersion)}/${await sha256Hex(JSON.stringify(sortKeys(canonical)))}`)
     try {
       const hit = await cache!.match(key)
       if (hit) return reply(req.id ?? null, await hit.json())

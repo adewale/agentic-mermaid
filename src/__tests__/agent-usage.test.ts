@@ -159,7 +159,7 @@ describe('homepage prompt eval contract', () => {
     expect(prompt).toContain('Create or edit a Mermaid diagram')
     expect(prompt).toContain('Do not assume this repository is checked out')
     expect(prompt).toContain('one channel available to you')
-    expect(prompt).toContain('the hosted MCP at `https://agenticmermaid.dev/mcp`')
+    expect(prompt).toContain('the hosted MCP at `https://agentic-mermaid.dev/mcp`')
     expect(prompt).toContain('Library imports, when available')
     expect(prompt).toContain('For a new diagram, author Mermaid source directly')
     expect(prompt).toContain('Mutation ops use a `kind` discriminator')

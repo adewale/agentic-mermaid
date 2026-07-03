@@ -60,7 +60,7 @@ Mermaid source (for edits; leave blank for a new diagram):
 ```
 
 Environment:
-- Do not assume this repository is checked out. Use one channel available to you: installed `agentic-mermaid/agent`, this repo's `./src/agent/index.ts`, the CLI (`am` or `bun run bin/am.ts`), self-hosted MCP Code Mode, or the hosted MCP at `https://agenticmermaid.dev/mcp` (stateless streamable HTTP JSON-RPC). The website exposes no REST render API — `/mcp` speaks MCP only.
+- Do not assume this repository is checked out. Use one channel available to you: installed `agentic-mermaid/agent`, this repo's `./src/agent/index.ts`, the CLI (`am` or `bun run bin/am.ts`), self-hosted MCP Code Mode, or the hosted MCP at `https://agentic-mermaid.dev/mcp` (stateless streamable HTTP JSON-RPC). The website exposes no REST render API — `/mcp` speaks MCP only.
 - If no Agentic Mermaid channel is available (local or the hosted MCP), do not fabricate verification; return the best Mermaid source and say `not verified — Agentic Mermaid unavailable` with what you tried.
 - Library imports, when available: `parseMermaid`, `verifyMermaid`, `serializeMermaid`, `mutate`, and `as*` helpers from `agentic-mermaid/agent`.
 
@@ -225,7 +225,7 @@ const next = serializeMermaid(r.value)</code></pre>
       </div>
       <div class="tab-panel" role="tabpanel" id="channel-panel-mcp" aria-labelledby="channel-tab-mcp" tabindex="0">
         <p class="meta-label tab-panel-label">MCP</p>
-        <pre><code><span class="c">// MCP Code Mode: the hosted MCP at https://agenticmermaid.dev/mcp, or a self-hosted server.</span>
+        <pre><code><span class="c">// MCP Code Mode: the hosted MCP at https://agentic-mermaid.dev/mcp, or a self-hosted server.</span>
 <span class="c">// The whole loop runs in one execute(code) call.</span>
 execute(`
   const flow = asFlowchart(parseMermaid(source).value)

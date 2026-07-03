@@ -37,7 +37,7 @@ export function homepagePromptChecklist(prompt = extractHomepageAgentPrompt()): 
     'one channel available to you',
     'installed `agentic-mermaid/agent`',
     'CLI (`am` or `bun run bin/am.ts`)',
-    'the hosted MCP at `https://agenticmermaid.dev/mcp`',
+    'the hosted MCP at `https://agentic-mermaid.dev/mcp`',
     'no REST render API',
     'do not fabricate verification',
     'Library imports, when available',

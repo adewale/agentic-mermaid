@@ -2,13 +2,13 @@
 
 > **Status: shipped (PR #94).** This began as a design plan and is now the
 > as-built record of the hosted MCP endpoint live at
-> `https://agenticmermaid.dev/mcp`. The "Where we start" section below is
+> `https://agentic-mermaid.dev/mcp`. The "Where we start" section below is
 > preserved as the pre-build starting point; the "Post-review hardening"
 > sections (rounds 1–5) track the audit findings applied after the initial
 > build.
 
 Plan for turning the website's `/mcp` 501 placeholder into a real hosted MCP
-endpoint at `https://agenticmermaid.dev/mcp`. The account is on the **Workers
+endpoint at `https://agentic-mermaid.dev/mcp`. The account is on the **Workers
 Paid plan with Dynamic Workers** (<https://developers.cloudflare.com/dynamic-workers/>),
 which changes the earlier free-tier plan in one fundamental way: hosted Code
 Mode (`execute`) is now viable — agent-supplied JavaScript runs in an isolated
@@ -217,7 +217,7 @@ target, `userModuleSources` rejection, the log cap).
   against the endpoint (distributed across visitor IPs, diluting the per-IP WAF
   limit). CORS is now **reflective with Origin validation**: a no-Origin client
   (agent/server) still gets `*`; a browser Origin is echoed only when it is
-  same-origin / localhost / allowlisted (`agenticmermaid.dev`); a disallowed
+  same-origin / localhost / allowlisted (`agentic-mermaid.dev`); a disallowed
   browser Origin gets no `Access-Control-Allow-Origin` and a 403. This follows
   the MCP Streamable HTTP Origin-validation guidance without breaking any
   non-browser client (the website itself does not call `/mcp` from the browser).

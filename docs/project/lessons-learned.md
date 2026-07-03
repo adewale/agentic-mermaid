@@ -880,7 +880,7 @@ perturb your own subsystem (it didn't: byte-exact, zero drift) before trusting g
 
 ## PR #94 lesson — a public compute endpoint is a security *and* a cost surface, and the boundary must be named honestly
 
-Shipping the hosted MCP endpoint (`https://agenticmermaid.dev/mcp`) turned a
+Shipping the hosted MCP endpoint (`https://agentic-mermaid.dev/mcp`) turned a
 static site into public, unauthenticated compute: agent JavaScript runs in a
 per-request Dynamic Worker isolate. That changed the failure modes from "wrong
 pixels" to "wrong containment claim" and "unbounded bill," and five rounds of

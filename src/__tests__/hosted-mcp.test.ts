@@ -148,7 +148,7 @@ describe('hosted pure tools', () => {
       const big = payloadOf(await handleHostedRequest(call(name, { source: 'flowchart TD\n' + 'x'.repeat(MAX_SOURCE_BYTES) }), makeContext()))
       expect(big.ok).toBe(false)
       expect(big.error.code).toBe('SOURCE_TOO_LARGE')
-      expect(big.error.message).toContain('agenticmermaid.dev/docs/mcp')
+      expect(big.error.message).toContain('agentic-mermaid.dev/docs/mcp')
     }
   })
 })

@@ -58,7 +58,7 @@ function buildAgentTaskPrompt() {
     + (source || '')
     + '\n```\n\n'
     + 'Environment:\n'
-    + '- Do not assume this repository is checked out. Use one channel available to you: installed `agentic-mermaid/agent`, this repo\'s `./src/agent/index.ts`, the CLI (`am` or `bun run bin/am.ts`), self-hosted MCP Code Mode, or the hosted MCP at `https://agenticmermaid.dev/mcp` (stateless streamable HTTP JSON-RPC). The website exposes no REST render API — `/mcp` speaks MCP only.\n'
+    + '- Do not assume this repository is checked out. Use one channel available to you: installed `agentic-mermaid/agent`, this repo\'s `./src/agent/index.ts`, the CLI (`am` or `bun run bin/am.ts`), self-hosted MCP Code Mode, or the hosted MCP at `https://agentic-mermaid.dev/mcp` (stateless streamable HTTP JSON-RPC). The website exposes no REST render API — `/mcp` speaks MCP only.\n'
     + '- If no Agentic Mermaid channel is available (local or the hosted MCP), do not fabricate verification; return the best Mermaid source and say `not verified — Agentic Mermaid unavailable` with what you tried.\n'
     + '- Library imports, when available: `parseMermaid`, `verifyMermaid`, `serializeMermaid`, `mutate`, and `as*` helpers from `agentic-mermaid/agent`.\n\n'
     + 'Workflow:\n'

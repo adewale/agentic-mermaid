@@ -4,7 +4,7 @@ This is the canonical agent-use guide. The same content is emitted by `am --agen
 
 ## Quick start
 
-Choose the narrowest channel. New diagrams: author Mermaid source directly, then parse/verify/render. Existing structured diagrams: parse → narrow → mutate → verify → serialize. Code Mode/library are best for multi-step edits; CLI is best for one-shot verify/render/preview. Code Mode exposes `mermaid.*`; library users import the same names from `agentic-mermaid/agent`. A hosted MCP at `agenticmermaid.dev/mcp` (stateless Streamable HTTP JSON-RPC) exposes six tools — `execute` (Code Mode), `render_svg`, `render_ascii`, `render_png`, `verify`, `describe` — with 64KB input caps; prefer the local library, CLI, or a self-hosted MCP and reach for the hosted endpoint only when you cannot install. Agentic Mermaid outputs ASCII, PNG, and SVG; Unicode text and JSON layout are also available.
+Choose the narrowest channel. New diagrams: author Mermaid source directly, then parse/verify/render. Existing structured diagrams: parse → narrow → mutate → verify → serialize. Code Mode/library are best for multi-step edits; CLI is best for one-shot verify/render/preview. Code Mode exposes `mermaid.*`; library users import the same names from `agentic-mermaid/agent`. A hosted MCP at `agentic-mermaid.dev/mcp` (stateless Streamable HTTP JSON-RPC) exposes six tools — `execute` (Code Mode), `render_svg`, `render_ascii`, `render_png`, `verify`, `describe` — with 64KB input caps; prefer the local library, CLI, or a self-hosted MCP and reach for the hosted endpoint only when you cannot install. Agentic Mermaid outputs ASCII, PNG, and SVG; Unicode text and JSON layout are also available.
 
 ```ts
 const source = 'flowchart TD\n  API --> DB'
