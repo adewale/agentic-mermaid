@@ -866,12 +866,16 @@ function hexToRgb(hex) {
 }
 
 function chromeThemeColors() {
-  // Paper (light) / Dusk (dark) — the exact brand triplets the public site
-  // ships as its chrome. Keep these in lockstep with the site's [data-theme]
-  // "dusk" block and the :root Paper defaults in website/source/assets/styles.css.
+  // App-shell chrome: the Kiln brand — a warm-neutral Stone (light) / Charcoal
+  // (dark) ground with the independent Pine accent, NOT the terracotta of the
+  // "paper" diagram theme. Both triplets live in editor/css/variables.css
+  // (:root light, [data-scheme="dark"] Charcoal); the light one also mirrors
+  // :root in website/source/assets/styles.css, whose shell is light-only.
+  // chrome-token-lockstep.test.ts pins all of it. Pine accent clears WCAG AA
+  // on both grounds (5.7:1 on Stone, 8.7:1 on Charcoal).
   return isDark
-    ? { bg: "#2A2521", fg: "#E9DFCC", accent: "#CC8A57" }
-    : { bg: "#F5F0E4", fg: "#221E16", accent: "#9A4A24" };
+    ? { bg: "#17130D", fg: "#EBE7E0", accent: "#6FC2A2" }
+    : { bg: "#F8F4F0", fg: "#26201B", accent: "#1B6E52" };
 }
 
 function applyThemeToPage(themeKey) {
@@ -1926,7 +1930,7 @@ function loadEditorExample(id) {
   updateCursorPos();
   scheduleRender(0);
   updateHash();
-  showToast('Loaded ' + example.label);
+  showToast('Loaded ' + example.label + '.');
 }
 
 var examplesSidebar = document.getElementById('examples-sidebar');
@@ -2263,6 +2267,10 @@ var colorPopupController = createPopupController({
   triggerEvents: false,
   visibility: { focusSelector: '#color-hex-input' },
   beforeOpen: function() {
+    // Mirror of the font picker's beforeOpen: the two nested pickers share the
+    // --z-popover-nested tier, so whichever opens closes the other rather than
+    // letting DOM order decide which paints on top.
+    if (typeof closeFontPopup === 'function') closeFontPopup(false);
     positionAnchoredPopup(colorPopup, activeColorAnchor, { width: 240, height: 400 });
   },
   afterOpen: function() {
@@ -2447,6 +2455,11 @@ var fontPopupController = createPopupController({
   closePeersOnOpen: false,
   visibility: { focusSelector: '#font-search' },
   beforeOpen: function() {
+    // The colour picker is the one peer sharing the nested tier (both skip the
+    // global peer-close so they don't dismiss the settings panel). Close it
+    // here, or the two pickers contest the same z-index and DOM order decides
+    // which paints on top — not the one that was opened last and holds focus.
+    if (typeof closeColorPopup === 'function') closeColorPopup(false);
     buildFontList('');
     fontSearch.value = '';
     positionAnchoredPopup(fontPopup, fontSelectBtn, { width: 220, height: 320 });
@@ -2592,7 +2605,7 @@ function writeClipboardText(value, success, failure, sourceBtn) {
   }
   navigator.clipboard.writeText(value).then(function() {
     setCopyFeedback(sourceBtn, 'ok');
-    showToast(success || 'Copied!');
+    showToast(success || 'Copied.');
     if (typeof setExportDropdownOpen === 'function') setExportDropdownOpen(false, false);
   }).catch(function() {
     setCopyFeedback(sourceBtn, 'err');
@@ -2601,7 +2614,7 @@ function writeClipboardText(value, success, failure, sourceBtn) {
 }
 
 function copySource() {
-  writeClipboardText(editor.value, 'Source copied!', 'Copy source failed.', copySourceBtn);
+  writeClipboardText(editor.value, 'Source copied.', 'Copy source failed.', copySourceBtn);
 }
 
 function mermaidBodyStart(source) {
@@ -2662,7 +2675,7 @@ function buildAgentTaskPrompt() {
 }
 
 function copyAgentTask() {
-  writeClipboardText(buildAgentTaskPrompt(), 'Agent task prompt copied!', 'Copy agent task failed.', copyAgentTaskBtn);
+  writeClipboardText(buildAgentTaskPrompt(), 'Agent task prompt copied.', 'Copy agent task failed.', copyAgentTaskBtn);
 }
 
 function clearEditor() {
@@ -2691,7 +2704,7 @@ if (copyAgentTaskBtn) copyAgentTaskBtn.addEventListener('click', copyAgentTask);
 // lands on the button that was actually clicked.
 var agentPromptTopbarBtn = document.getElementById('agent-prompt-topbar-btn');
 if (agentPromptTopbarBtn) agentPromptTopbarBtn.addEventListener('click', function() {
-  writeClipboardText(buildAgentTaskPrompt(), 'Agent task prompt copied!', 'Copy agent task failed.', agentPromptTopbarBtn);
+  writeClipboardText(buildAgentTaskPrompt(), 'Agent task prompt copied.', 'Copy agent task failed.', agentPromptTopbarBtn);
 });
 
 var currentCanvasFormat = 'diagram';
@@ -2748,12 +2761,12 @@ if (copyTextOutputBtn) copyTextOutputBtn.addEventListener('click', function() {
       showToast('Render a diagram before copying its SVG.');
       return;
     }
-    writeClipboardText(new XMLSerializer().serializeToString(svgEl), 'SVG markup copied!', 'Copy SVG failed.', copyTextOutputBtn);
+    writeClipboardText(new XMLSerializer().serializeToString(svgEl), 'SVG markup copied.', 'Copy SVG failed.', copyTextOutputBtn);
     return;
   }
   var el = document.getElementById(currentCanvasFormat + '-output');
   var name = currentCanvasFormat === 'ascii' ? 'ASCII' : 'Unicode';
-  writeClipboardText(el ? el.textContent : '', name + ' output copied!', 'Copy ' + name + ' failed.', copyTextOutputBtn);
+  writeClipboardText(el ? el.textContent : '', name + ' output copied.', 'Copy ' + name + ' failed.', copyTextOutputBtn);
 });
 
 document.addEventListener('click', function(e) {
@@ -2846,8 +2859,11 @@ document.getElementById('size-pills').addEventListener('click', function(e) {
   var pill = e.target.closest('.size-pill');
   if (!pill) return;
   exportScale = parseInt(pill.dataset.scale, 10);
-  document.querySelectorAll('.size-pill').forEach(function(p) { p.classList.remove('active'); });
-  pill.classList.add('active');
+  document.querySelectorAll('.size-pill').forEach(function(p) {
+    var on = p === pill;
+    p.classList.toggle('active', on);
+    p.setAttribute('aria-pressed', on ? 'true' : 'false');
+  });
 });
 
 function getSvgEl() {
@@ -2896,7 +2912,7 @@ function exportPNG() {
     var a = document.createElement('a');
     a.href = url; a.download = 'diagram.png'; a.click();
     URL.revokeObjectURL(url);
-    showToast('PNG saved (' + exportScale + 'x)');
+    showToast('PNG saved (' + exportScale + '×).');
     setExportDropdownOpen(false, false);
   });
 }
@@ -2909,7 +2925,7 @@ function exportSVG() {
   var a = document.createElement('a');
   a.href = url; a.download = 'diagram.svg'; a.click();
   URL.revokeObjectURL(url);
-  showToast('SVG saved!');
+  showToast('SVG saved.');
   setExportDropdownOpen(false, false);
 }
 
@@ -2932,7 +2948,7 @@ function copyPNG() {
   });
   navigator.clipboard.write([new ClipboardItem({ 'image/png': blobPromise })]).then(function() {
     setCopyFeedback(copyPngBtn, 'ok');
-    showToast('PNG copied (' + exportScale + 'x)');
+    showToast('PNG copied (' + exportScale + '×).');
     setExportDropdownOpen(false, false);
   }).catch(function() {
     setCopyFeedback(copyPngBtn, 'err');
@@ -2943,7 +2959,7 @@ function copyPNG() {
 function copyURL(sourceBtn) {
   // updateHash compresses asynchronously; wait so the copied URL is current.
   Promise.resolve(updateHash()).then(function() {
-    writeClipboardText(window.location.href, 'Share link copied to clipboard!', 'Copy link failed.', sourceBtn);
+    writeClipboardText(window.location.href, 'Share link copied.', 'Copy link failed.', sourceBtn);
   });
 }
 
@@ -3094,8 +3110,9 @@ function applyColorMode(dark, force) {
   // prefers-color-scheme instead of freezing on first load.
   if (force) localStorage.setItem("bm-editor-dark", dark ? "true" : "false");
 
-  // Page chrome follows the site Paper/Dusk palette. The diagram theme is controlled
-  // separately by the dropdown so color mode does not silently rewrite diagrams.
+  // Page chrome follows the Kiln brand (Stone/Charcoal + Pine). The diagram theme
+  // is controlled separately by the dropdown so color mode does not silently
+  // rewrite diagrams.
   applyThemeToPage(state.theme);
   // These may not exist yet during initial load – guarded calls
   if (typeof updateThemeButton === "function") updateThemeButton();
