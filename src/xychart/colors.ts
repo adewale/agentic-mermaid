@@ -10,6 +10,7 @@
 // ============================================================================
 
 /** Default accent for charts when the theme doesn't provide one. */
+import { parseHex, toHex, mixHex, isSixDigitHex } from '../shared/color-math.ts'
 export const CHART_ACCENT_FALLBACK = '#3b82f6' // blue-500
 
 // ---------------------------------------------------------------------------
@@ -17,10 +18,10 @@ export const CHART_ACCENT_FALLBACK = '#3b82f6' // blue-500
 // ---------------------------------------------------------------------------
 
 function hexToHsl(hex: string): [number, number, number] {
-  const h = hex.replace('#', '')
-  const ri = parseInt(h.substring(0, 2), 16) / 255
-  const gi = parseInt(h.substring(2, 4), 16) / 255
-  const bi = parseInt(h.substring(4, 6), 16) / 255
+  const [r8, g8, b8] = parseHex(hex)
+  const ri = r8 / 255
+  const gi = g8 / 255
+  const bi = b8 / 255
 
   const max = Math.max(ri, gi, bi)
   const min = Math.min(ri, gi, bi)
@@ -63,27 +64,13 @@ function hslToHex(h: number, s: number, l: number): string {
 // Hex ↔ RGB conversion
 // ---------------------------------------------------------------------------
 
-function hexToRgb(hex: string): [number, number, number] {
-  const h = hex.replace('#', '')
-  return [
-    parseInt(h.substring(0, 2), 16),
-    parseInt(h.substring(2, 4), 16),
-    parseInt(h.substring(4, 6), 16),
-  ]
-}
-
-function rgbToHex(r: number, g: number, b: number): string {
-  const toHex = (v: number) => Math.round(Math.max(0, Math.min(255, v))).toString(16).padStart(2, '0')
-  return `#${toHex(r)}${toHex(g)}${toHex(b)}`
-}
-
 // ---------------------------------------------------------------------------
 // Public API
 // ---------------------------------------------------------------------------
 
 /** Check whether a string is a valid 6-digit hex color (e.g. "#3b82f6"). */
 export function isValidHex(color: string): boolean {
-  return /^#[0-9a-fA-F]{6}$/.test(color)
+  return isSixDigitHex(color)
 }
 
 /**
@@ -99,10 +86,7 @@ export function isDarkBackground(bgHex: string): boolean {
  * Equivalent to alpha-compositing fg over bg at the given opacity.
  */
 export function mixHexColors(bgHex: string, fgHex: string, ratio: number): string {
-  const [br, bg, bb] = hexToRgb(bgHex)
-  const [fr, fg, fb] = hexToRgb(fgHex)
-  const inv = 1 - ratio
-  return rgbToHex(br * inv + fr * ratio, bg * inv + fg * ratio, bb * inv + fb * ratio)
+  return mixHex(fgHex, bgHex, ratio * 100)
 }
 
 /**
