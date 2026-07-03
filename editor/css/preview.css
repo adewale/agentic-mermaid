@@ -320,6 +320,8 @@
   flex-wrap: wrap;
   min-height: 34px;
   padding: 5px 12px;
+  /* grows past the home indicator on devices with one; env() is 0 elsewhere */
+  padding-bottom: calc(5px + env(safe-area-inset-bottom));
   border-top: 1px solid var(--border);
   background: var(--bg2);
   font-size: var(--t-label);

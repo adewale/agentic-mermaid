@@ -91,4 +91,12 @@
   .color-clear-btn { min-height: 44px; }
   .toolbar-btn,
   .export-chevron { min-width: 44px; }
+  /* iOS zooms the page when a focused field renders under 16px; hold every
+     editable surface at 16px on touch devices so focus never jumps the view.
+     The line-number gutter shares the textarea's metrics, so it moves with it. */
+  .code-editor,
+  .line-numbers,
+  .font-search,
+  .padding-num,
+  .color-hex-input { font-size: 16px; }
 }

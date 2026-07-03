@@ -4,6 +4,9 @@
   gap: 0.5rem;
   min-height: 52px;
   padding: 0 1rem;
+  /* clears the notch in landscape; env() is 0 on devices without one */
+  padding-left: calc(1rem + env(safe-area-inset-left));
+  padding-right: calc(1rem + env(safe-area-inset-right));
   background: transparent;
   flex-shrink: 0;
   z-index: 100;
@@ -369,6 +372,8 @@
   .topbar {
     gap: 0.25rem;
     padding: 8px 10px;
+    padding-left: calc(10px + env(safe-area-inset-left));
+    padding-right: calc(10px + env(safe-area-inset-right));
     flex-wrap: wrap;
     align-content: center;
     overflow: visible;

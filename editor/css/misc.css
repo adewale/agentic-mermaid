@@ -18,7 +18,7 @@
    footer (28px) so a toast never sits on the verify verdict. */
 .toast {
   position: fixed;
-  bottom: calc(34px + 28px + 14px);
+  bottom: calc(34px + 28px + 14px + env(safe-area-inset-bottom));
   left: 50%;
   transform: translateX(-50%) translateY(0);
   background: var(--popover-bg);

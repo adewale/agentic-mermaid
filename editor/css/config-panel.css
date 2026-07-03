@@ -12,6 +12,7 @@
   gap: 0;
   width: var(--settings-width, min(360px, calc(100vw - 24px)));
   max-height: var(--settings-max-height, calc(100vh - 72px));
+  max-height: var(--settings-max-height, calc(100dvh - 72px));
   overflow-y: auto;
   background: var(--popover-bg);
   border: 1px solid var(--control-border);

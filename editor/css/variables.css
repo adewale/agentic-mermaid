@@ -173,7 +173,10 @@ body {
   color: var(--fg);
   display: flex;
   flex-direction: column;
+  /* dvh tracks the real visible height on mobile (URL bar collapse); the vh
+     line stays as the fallback for engines without dynamic viewport units */
   height: 100vh;
+  height: 100dvh;
   transition:
     background var(--dur-ui),
     color var(--dur-ui);

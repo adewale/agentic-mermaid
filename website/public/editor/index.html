@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
 <meta name="description" content="Agentic Mermaid renders, verifies, and edits Mermaid diagrams locally, with compact agent instructions for CLI, library, and MCP use.">
   <title>Agentic Mermaid – Live Editor</title>
   <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
@@ -184,7 +184,10 @@ body {
   color: var(--fg);
   display: flex;
   flex-direction: column;
+  /* dvh tracks the real visible height on mobile (URL bar collapse); the vh
+     line stays as the fallback for engines without dynamic viewport units */
   height: 100vh;
+  height: 100dvh;
   transition:
     background var(--dur-ui),
     color var(--dur-ui);
@@ -269,6 +272,9 @@ body {
   gap: 0.5rem;
   min-height: 52px;
   padding: 0 1rem;
+  /* clears the notch in landscape; env() is 0 on devices without one */
+  padding-left: calc(1rem + env(safe-area-inset-left));
+  padding-right: calc(1rem + env(safe-area-inset-right));
   background: transparent;
   flex-shrink: 0;
   z-index: 100;
@@ -634,6 +640,8 @@ body {
   .topbar {
     gap: 0.25rem;
     padding: 8px 10px;
+    padding-left: calc(10px + env(safe-area-inset-left));
+    padding-right: calc(10px + env(safe-area-inset-right));
     flex-wrap: wrap;
     align-content: center;
     overflow: visible;
@@ -753,6 +761,7 @@ body {
   left: var(--examples-left, 16px);
   width: var(--examples-width, min(360px, calc(100vw - 24px)));
   max-height: var(--examples-max-height, calc(100vh - 72px));
+  max-height: var(--examples-max-height, calc(100dvh - 72px));
   overflow: hidden;
   border: 1px solid var(--control-border);
   border-radius: var(--radius-lg);
@@ -1136,7 +1145,9 @@ body {
   align-items: center;
   justify-content: space-between;
   padding: 0 0.75rem;
-  height: 28px;
+  /* env() is 0 without a home indicator; with one, the bar grows to clear it */
+  padding-bottom: env(safe-area-inset-bottom);
+  min-height: 28px;
   font-family: var(--font-mono);
   font-size: var(--t-label);
   color: var(--fg3);
@@ -1501,6 +1512,8 @@ body {
   flex-wrap: wrap;
   min-height: 34px;
   padding: 5px 12px;
+  /* grows past the home indicator on devices with one; env() is 0 elsewhere */
+  padding-bottom: calc(5px + env(safe-area-inset-bottom));
   border-top: 1px solid var(--border);
   background: var(--bg2);
   font-size: var(--t-label);
@@ -1680,6 +1693,7 @@ body {
   gap: 0;
   width: var(--settings-width, min(360px, calc(100vw - 24px)));
   max-height: var(--settings-max-height, calc(100vh - 72px));
+  max-height: var(--settings-max-height, calc(100dvh - 72px));
   overflow-y: auto;
   background: var(--popover-bg);
   border: 1px solid var(--control-border);
@@ -2297,6 +2311,14 @@ body {
   .color-clear-btn { min-height: 44px; }
   .toolbar-btn,
   .export-chevron { min-width: 44px; }
+  /* iOS zooms the page when a focused field renders under 16px; hold every
+     editable surface at 16px on touch devices so focus never jumps the view.
+     The line-number gutter shares the textarea's metrics, so it moves with it. */
+  .code-editor,
+  .line-numbers,
+  .font-search,
+  .padding-num,
+  .color-hex-input { font-size: 16px; }
 }
 
 
@@ -2320,7 +2342,7 @@ body {
    footer (28px) so a toast never sits on the verify verdict. */
 .toast {
   position: fixed;
-  bottom: calc(34px + 28px + 14px);
+  bottom: calc(34px + 28px + 14px + env(safe-area-inset-bottom));
   left: 50%;
   transform: translateX(-50%) translateY(0);
   background: var(--popover-bg);

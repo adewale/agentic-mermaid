@@ -96,7 +96,9 @@
   align-items: center;
   justify-content: space-between;
   padding: 0 0.75rem;
-  height: 28px;
+  /* env() is 0 without a home indicator; with one, the bar grows to clear it */
+  padding-bottom: env(safe-area-inset-bottom);
+  min-height: 28px;
   font-family: var(--font-mono);
   font-size: var(--t-label);
   color: var(--fg3);

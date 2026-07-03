@@ -12,6 +12,7 @@
   left: var(--examples-left, 16px);
   width: var(--examples-width, min(360px, calc(100vw - 24px)));
   max-height: var(--examples-max-height, calc(100vh - 72px));
+  max-height: var(--examples-max-height, calc(100dvh - 72px));
   overflow: hidden;
   border: 1px solid var(--control-border);
   border-radius: var(--radius-lg);
