@@ -113,6 +113,12 @@ jobs:
         # flowcharts). The runner's preinstalled `node` satisfies findNodeBinary.
         run: cd e2e && bun test dist-artifact-fuzz.e2e.test.ts --timeout 400000
 
+      - name: Run tarball-consumer fuzz (npm pack -> install -> drive bins under Node)
+        # Packs, installs into a clean project, and fuzzes the installed library
+        # + `am`/`agentic-mermaid-mcp` bins as spawned Node processes — the real
+        # consumer path (exports resolution, files[], bin linking, native deps).
+        run: cd e2e && bun test tarball-consumer-fuzz.e2e.test.ts --timeout 600000
+
       - name: Run browser E2E tests
         run: cd e2e && bun test browser.test.ts --timeout 600000
 
