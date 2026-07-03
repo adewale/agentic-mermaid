@@ -6,7 +6,7 @@
   position: fixed;
   top: var(--settings-top, 60px);
   left: var(--settings-left, 16px);
-  z-index: 2000;
+  z-index: var(--z-popover);
   display: none;
   flex-direction: column;
   gap: 0;
@@ -81,7 +81,7 @@
 .color-edit-btn {
   display: flex;
   align-items: center;
-  gap: 0.4rem;
+  gap: 6px;
   height: 28px;
   padding: 0 0.5rem 0 0.35rem;
   background: var(--control-bg);

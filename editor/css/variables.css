@@ -100,6 +100,15 @@
   --dur-ui: 0.2s;
   --dur-control: 0.16s;
   --dur-press: 0.1s;
+  /* Stacking scale. Anchored popovers sit at --z-popover; the font/colour
+     pickers open from inside the settings popover, so they get the nested
+     tier. Dialog, toast, and skip-link stack above everything in that order. */
+  --z-topbar: 100;
+  --z-popover: 2000;
+  --z-popover-nested: 3000;
+  --z-dialog: 4000;
+  --z-toast: 9000;
+  --z-skip-link: 10000;
   --control-h: 40px;
   --control-px: 12px;
   --control-bg: var(--surface);
@@ -122,12 +131,14 @@
 
   /* Functional / semantic hues — a solid ink for status text and dots, plus a
    * soft --*-tint fill for badges and validation panels. Solid inks all clear
-   * WCAG AA for small text on the light Paper chrome (success 6.3:1, info 4.7:1,
+   * WCAG AA for small text on the light Stone chrome (success 5.9:1, info 4.7:1,
    * warn 5.2:1, danger 6.1:1); the tint is a 14% wash of the same hue on the
-   * panel, so ink stays ~12:1 on a filled badge. Dusk flips the inks brighter
-   * below where light-on-dark reads better; the tints re-derive automatically.
-   * --green / --red stay as aliases so existing status rules keep resolving. */
-  --success: #166534;
+   * panel, so ink stays ~12:1 on a filled badge. Success sits at OkLCH h141 —
+   * a true leaf green kept ≥20° from the pine accent (h166) so links and
+   * success states never read as one colour. The dark block flips the inks
+   * brighter; the tints re-derive automatically. --green / --red stay as
+   * aliases so existing status rules keep resolving. */
+  --success: #296C1E;
   --info:    #1F6FB0;
   --warn:    #8A5A12;
   --danger:  #A0352A;
@@ -146,10 +157,11 @@
 
 /* Charcoal chrome (rendering.js sets data-scheme): brighter status inks read
  * better on the dark --bg2. Only the solid inks flip; the --*-tint fills re-derive
- * from these plus the dark ground. On Kiln Charcoal (#17130D): success 8.1:1,
- * info 8.4:1, warn 8.7:1, danger 7.4:1 — all clear AA for small status text. */
+ * from these plus the dark ground. On Kiln Charcoal (#17130D): success 8.2:1,
+ * info 8.4:1, warn 8.7:1, danger 7.4:1 — all clear AA for small status text.
+ * Dark success holds h143, ≥20° from the dark pine accent (h167). */
 :root[data-scheme="dark"] {
-  --success: #5FBE86;
+  --success: #6CBF68;
   --info:    #78B4EA;
   --warn:    #E0A75A;
   --danger:  #E58C82;
@@ -247,6 +259,16 @@ body {
     --popover-bg: Canvas;
     --shadow-control: none;
     --shadow-popover: none;
+    /* status hues collapse to system inks; tint fills drop to Canvas so text
+       renders CanvasText-on-Canvas rather than on an unforced pastel */
+    --success: CanvasText;
+    --info: LinkText;
+    --warn: CanvasText;
+    --danger: CanvasText;
+    --success-tint: Canvas;
+    --info-tint: Canvas;
+    --warn-tint: Canvas;
+    --danger-tint: Canvas;
   }
   :where(button, a, input, textarea, [tabindex]):focus-visible {
     outline: 2px solid Highlight;

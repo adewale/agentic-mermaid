@@ -21,7 +21,7 @@
   border: 1px solid var(--control-border);
   border-radius: var(--radius-lg);
   padding: 6px;
-  z-index: 2000;
+  z-index: var(--z-popover);
   flex-direction: column;
   box-shadow: var(--shadow-popover);
 }

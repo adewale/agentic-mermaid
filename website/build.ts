@@ -291,6 +291,7 @@ function pageShell(title: string, lead: string, body: string, currentHref = '', 
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light">
 <meta name="description" content="${escapeAttr(lead)}">
 <title>${escapeHtml(fullTitle)}</title>
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
@@ -1027,7 +1028,7 @@ const designBody = `
 </div>
 <p>The pine accent carries links, buttons, and focus. It sits in the hue region no diagram theme's accent occupies (the renderer accents cluster warm at 21–58° and cool at 217–318°), so chrome and artwork never read as one palette. The brand chip is its own token pair — <code>--brand-pine</code>/<code>--brand-on</code> — outside the theme layer entirely.</p>
 <h3>Functional colour</h3>
-<p>Four hues carry meaning only, each with a solid ink for text and a 14% tint for fills. On this ground the inks measure success 6.3:1, info 4.7:1, warn 5.2:1, danger 6.1:1.</p>
+<p>Four hues carry meaning only, each with a solid ink for text and a 14% tint for fills. On this ground the inks measure success 5.9:1, info 4.7:1, warn 5.2:1, danger 6.1:1. Success is a true leaf green held at least 20° of OkLCH hue from the pine accent, so a link and a confirmation never read as the same colour.</p>
 <div class="dz-grid">
   <div class="dz-swatch"><div class="chip" style="background:var(--success)"></div><div class="meta"><b>--success</b><span>copied, verified</span></div></div>
   <div class="dz-swatch"><div class="chip" style="background:var(--info)"></div><div class="meta"><b>--info</b><span>notices, drafts</span></div></div>

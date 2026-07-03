@@ -1,7 +1,7 @@
 .color-popup {
   display: none;
   position: fixed;
-  z-index: 3000;
+  z-index: var(--z-popover-nested);
   background: var(--popover-bg);
   border: 1px solid var(--control-border);
   border-radius: var(--radius-lg);
@@ -9,7 +9,7 @@
   width: 240px;
   box-shadow: var(--shadow-popover);
   flex-direction: column;
-  gap: 0.6rem;
+  gap: 10px;
 }
 .color-popup.open { display: flex; }
 
@@ -34,7 +34,7 @@
 
 .color-hex-row {
   display: flex;
-  gap: 0.4rem;
+  gap: 6px;
   align-items: center;
 }
 .color-native {

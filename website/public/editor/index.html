@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content" />
 <meta name="description" content="Agentic Mermaid renders, verifies, and edits Mermaid diagrams locally, with compact agent instructions for CLI, library, and MCP use.">
   <title>Agentic Mermaid – Live Editor</title>
   <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
@@ -111,6 +111,15 @@
   --dur-ui: 0.2s;
   --dur-control: 0.16s;
   --dur-press: 0.1s;
+  /* Stacking scale. Anchored popovers sit at --z-popover; the font/colour
+     pickers open from inside the settings popover, so they get the nested
+     tier. Dialog, toast, and skip-link stack above everything in that order. */
+  --z-topbar: 100;
+  --z-popover: 2000;
+  --z-popover-nested: 3000;
+  --z-dialog: 4000;
+  --z-toast: 9000;
+  --z-skip-link: 10000;
   --control-h: 40px;
   --control-px: 12px;
   --control-bg: var(--surface);
@@ -133,12 +142,14 @@
 
   /* Functional / semantic hues — a solid ink for status text and dots, plus a
    * soft --*-tint fill for badges and validation panels. Solid inks all clear
-   * WCAG AA for small text on the light Paper chrome (success 6.3:1, info 4.7:1,
+   * WCAG AA for small text on the light Stone chrome (success 5.9:1, info 4.7:1,
    * warn 5.2:1, danger 6.1:1); the tint is a 14% wash of the same hue on the
-   * panel, so ink stays ~12:1 on a filled badge. Dusk flips the inks brighter
-   * below where light-on-dark reads better; the tints re-derive automatically.
-   * --green / --red stay as aliases so existing status rules keep resolving. */
-  --success: #166534;
+   * panel, so ink stays ~12:1 on a filled badge. Success sits at OkLCH h141 —
+   * a true leaf green kept ≥20° from the pine accent (h166) so links and
+   * success states never read as one colour. The dark block flips the inks
+   * brighter; the tints re-derive automatically. --green / --red stay as
+   * aliases so existing status rules keep resolving. */
+  --success: #296C1E;
   --info:    #1F6FB0;
   --warn:    #8A5A12;
   --danger:  #A0352A;
@@ -157,10 +168,11 @@
 
 /* Charcoal chrome (rendering.js sets data-scheme): brighter status inks read
  * better on the dark --bg2. Only the solid inks flip; the --*-tint fills re-derive
- * from these plus the dark ground. On Kiln Charcoal (#17130D): success 8.1:1,
- * info 8.4:1, warn 8.7:1, danger 7.4:1 — all clear AA for small status text. */
+ * from these plus the dark ground. On Kiln Charcoal (#17130D): success 8.2:1,
+ * info 8.4:1, warn 8.7:1, danger 7.4:1 — all clear AA for small status text.
+ * Dark success holds h143, ≥20° from the dark pine accent (h167). */
 :root[data-scheme="dark"] {
-  --success: #5FBE86;
+  --success: #6CBF68;
   --info:    #78B4EA;
   --warn:    #E0A75A;
   --danger:  #E58C82;
@@ -258,6 +270,16 @@ body {
     --popover-bg: Canvas;
     --shadow-control: none;
     --shadow-popover: none;
+    /* status hues collapse to system inks; tint fills drop to Canvas so text
+       renders CanvasText-on-Canvas rather than on an unforced pastel */
+    --success: CanvasText;
+    --info: LinkText;
+    --warn: CanvasText;
+    --danger: CanvasText;
+    --success-tint: Canvas;
+    --info-tint: Canvas;
+    --warn-tint: Canvas;
+    --danger-tint: Canvas;
   }
   :where(button, a, input, textarea, [tabindex]):focus-visible {
     outline: 2px solid Highlight;
@@ -269,6 +291,10 @@ body {
 .topbar {
   display: flex;
   align-items: center;
+  /* wrap instead of clipping: at tablet widths (761–1000px) the full control
+     row exceeds the viewport, and without wrap the tail buttons are
+     unreachable — there is no horizontal scroll here */
+  flex-wrap: wrap;
   gap: 0.5rem;
   min-height: 52px;
   padding: 0 1rem;
@@ -277,7 +303,7 @@ body {
   padding-right: calc(1rem + env(safe-area-inset-right));
   background: transparent;
   flex-shrink: 0;
-  z-index: 100;
+  z-index: var(--z-topbar);
 }
 .topbar button,
 .topbar a {
@@ -288,7 +314,7 @@ body {
 .app-brand {
   display: inline-flex;
   align-items: center;
-  gap: 7px;
+  gap: 8px;
   height: var(--control-h);
   color: var(--ink);
   font-family: var(--font-serif);
@@ -409,7 +435,7 @@ body {
   border-right: 0;
   border-bottom: 0;
   transform: translateX(-50%) rotate(45deg);
-  z-index: 3001;
+  z-index: calc(var(--z-popover-nested) + 1);
 }
 
 .spacer {
@@ -483,7 +509,7 @@ body {
   border: 1px solid var(--control-border);
   border-radius: var(--radius-lg);
   padding: 6px;
-  z-index: 2000;
+  z-index: var(--z-popover);
   flex-direction: column;
   box-shadow: var(--shadow-popover);
   max-height: 400px;
@@ -776,7 +802,7 @@ body {
     opacity 0.16s var(--ease-out),
     transform 0.18s var(--ease-out),
     visibility 0s linear 0.18s;
-  z-index: 3000;
+  z-index: var(--z-popover-nested);
 }
 .examples-sidebar.open {
   opacity: 1;
@@ -887,7 +913,7 @@ body {
 .example-item-title {
   display: inline-flex;
   align-items: center;
-  gap: 7px;
+  gap: 8px;
   font-weight: 600;
   line-height: 1.25;
   text-wrap: balance;
@@ -1522,8 +1548,8 @@ body {
   font-variant-numeric: tabular-nums;
 }
 .verify-verdict { color: var(--fg2); font-weight: 650; }
-.verify-tiers { margin-left: auto; display: flex; align-items: center; gap: 13px; flex-wrap: wrap; }
-.verify-tier { display: inline-flex; align-items: center; gap: 5px; color: var(--fg3); white-space: nowrap; }
+.verify-tiers { margin-left: auto; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.verify-tier { display: inline-flex; align-items: center; gap: 6px; color: var(--fg3); white-space: nowrap; }
 .verify-tier i { font-style: normal; color: var(--fg4); }
 .verify-tier.idle { color: var(--fg3); }
 .verify-tier.idle i { color: var(--fg3); }
@@ -1687,7 +1713,7 @@ body {
   position: fixed;
   top: var(--settings-top, 60px);
   left: var(--settings-left, 16px);
-  z-index: 2000;
+  z-index: var(--z-popover);
   display: none;
   flex-direction: column;
   gap: 0;
@@ -1762,7 +1788,7 @@ body {
 .color-edit-btn {
   display: flex;
   align-items: center;
-  gap: 0.4rem;
+  gap: 6px;
   height: 28px;
   padding: 0 0.5rem 0 0.35rem;
   background: var(--control-bg);
@@ -1869,7 +1895,7 @@ body {
 .color-popup {
   display: none;
   position: fixed;
-  z-index: 3000;
+  z-index: var(--z-popover-nested);
   background: var(--popover-bg);
   border: 1px solid var(--control-border);
   border-radius: var(--radius-lg);
@@ -1877,7 +1903,7 @@ body {
   width: 240px;
   box-shadow: var(--shadow-popover);
   flex-direction: column;
-  gap: 0.6rem;
+  gap: 10px;
 }
 .color-popup.open { display: flex; }
 
@@ -1902,7 +1928,7 @@ body {
 
 .color-hex-row {
   display: flex;
-  gap: 0.4rem;
+  gap: 6px;
   align-items: center;
 }
 .color-native {
@@ -1980,7 +2006,7 @@ body {
 .font-select-btn {
   display: flex;
   align-items: center;
-  gap: 0.4rem;
+  gap: 6px;
   min-height: 40px;
   padding: 0 0.5rem;
   background: var(--control-bg);
@@ -2002,7 +2028,7 @@ body {
 .font-popup {
   display: none;
   position: fixed;
-  z-index: 3000;
+  z-index: var(--z-popover-nested);
   background: var(--popover-bg);
   border: 1px solid var(--control-border);
   border-radius: var(--radius-lg);
@@ -2100,7 +2126,7 @@ body {
   border: 1px solid var(--control-border);
   border-radius: var(--radius-lg);
   padding: 6px;
-  z-index: 2000;
+  z-index: var(--z-popover);
   flex-direction: column;
   box-shadow: var(--shadow-popover);
 }
@@ -2262,7 +2288,7 @@ body {
   border: 1px solid var(--control-border);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-popover);
-  z-index: 3000;
+  z-index: var(--z-popover-nested);
 }
 
 /* Popovers enter from their trigger: one short ease-out fade/scale, with the
@@ -2326,7 +2352,7 @@ body {
   position: fixed;
   left: 12px;
   top: 12px;
-  z-index: 10000;
+  z-index: var(--z-skip-link);
   transform: translateY(-160%);
   padding: 8px 10px;
   border-radius: var(--radius-md);
@@ -2356,7 +2382,7 @@ body {
   transition:
     opacity 0.2s,
     transform 0.2s;
-  z-index: 9999;
+  z-index: var(--z-toast);
   box-shadow: var(--shadow-popover);
 }
 .toast.show {
@@ -2379,7 +2405,7 @@ body {
   border: 1px solid var(--control-border);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-popover);
-  z-index: 4000;
+  z-index: var(--z-dialog);
 }
 .shortcuts-dialog.open {
   display: block;

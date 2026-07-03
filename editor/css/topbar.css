@@ -1,6 +1,10 @@
 .topbar {
   display: flex;
   align-items: center;
+  /* wrap instead of clipping: at tablet widths (761–1000px) the full control
+     row exceeds the viewport, and without wrap the tail buttons are
+     unreachable — there is no horizontal scroll here */
+  flex-wrap: wrap;
   gap: 0.5rem;
   min-height: 52px;
   padding: 0 1rem;
@@ -9,7 +13,7 @@
   padding-right: calc(1rem + env(safe-area-inset-right));
   background: transparent;
   flex-shrink: 0;
-  z-index: 100;
+  z-index: var(--z-topbar);
 }
 .topbar button,
 .topbar a {
@@ -20,7 +24,7 @@
 .app-brand {
   display: inline-flex;
   align-items: center;
-  gap: 7px;
+  gap: 8px;
   height: var(--control-h);
   color: var(--ink);
   font-family: var(--font-serif);
@@ -141,7 +145,7 @@
   border-right: 0;
   border-bottom: 0;
   transform: translateX(-50%) rotate(45deg);
-  z-index: 3001;
+  z-index: calc(var(--z-popover-nested) + 1);
 }
 
 .spacer {
@@ -215,7 +219,7 @@
   border: 1px solid var(--control-border);
   border-radius: var(--radius-lg);
   padding: 6px;
-  z-index: 2000;
+  z-index: var(--z-popover);
   flex-direction: column;
   box-shadow: var(--shadow-popover);
   max-height: 400px;

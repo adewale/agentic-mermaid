@@ -105,12 +105,14 @@
   --code-fg:      var(--fg);
 
   /* Functional / semantic hues — solid ink for status text + a soft --*-tint
-     fill for badges and validation panels. In lockstep with editor/css/variables.css.
-     Light-polarity ink on Paper clears AA for small text: success 6.3:1, info 4.7:1,
-     warn 5.2:1, danger 6.1:1. Each -tint is a 14% wash of the same hue on --bg, so
-     ink stays ~12:1 on a filled badge. Dark pastels live in [data-scheme="dark"];
-     the tints re-derive from the flipped inks + ground automatically. */
-  --success: #166534; --info: #1F6FB0; --warn: #8A5A12; --danger: #A0352A;
+     fill for badges and validation panels. In lockstep with editor/css/variables.css
+     (enforced by chrome-token-lockstep.test.ts). Light-polarity ink on Stone clears
+     AA for small text: success 5.9:1, info 4.7:1, warn 5.2:1, danger 6.1:1. Each
+     -tint is a 14% wash of the same hue on --bg, so ink stays ~12:1 on a filled
+     badge. Success sits at OkLCH h141, kept ≥20° from the pine accent (h166) so
+     links and success states never read as one colour. Dark pastels live in
+     [data-scheme="dark"]; the tints re-derive automatically. */
+  --success: #296C1E; --info: #1F6FB0; --warn: #8A5A12; --danger: #A0352A;
   --success-tint: color-mix(in srgb, var(--success) 14%, var(--bg));
   --info-tint:    color-mix(in srgb, var(--info)    14%, var(--bg));
   --warn-tint:    color-mix(in srgb, var(--warn)    14%, var(--bg));
@@ -196,8 +198,9 @@
   --code-bg:    color-mix(in srgb, var(--bg) 82%, #000);
   --grain:      0.07;                           /* light noise on a dark base reads strongly */
   /* dark polarity flips the status inks to brighter pastels; the --*-tint fills
-     re-derive from these plus the dark ground, so only the inks flip here */
-  --success: #5FBE86; --info: #78B4EA; --warn: #E0A75A; --danger: #E58C82;
+     re-derive from these plus the dark ground, so only the inks flip here.
+     Dark success holds h143, ≥20° from the dark pine accent. */
+  --success: #6CBF68; --info: #78B4EA; --warn: #E0A75A; --danger: #E58C82;
 }
 
 /* keep native UI (scrollbars, form controls, the canvas) in the right polarity
@@ -723,7 +726,10 @@ footer { max-width: var(--content-max); margin: 0 auto; padding: 28px var(--page
 :where(.copy-prompt-status, .muted, small, figcaption) { color: var(--ink-faint); }
 
 @media (forced-colors: active) {
-  :root { --paper: Canvas; --ink: CanvasText; --ink-soft: CanvasText; --ink-faint: CanvasText; --surface: Canvas; --chip: Canvas; --line: CanvasText; --line-strong: CanvasText; --link: LinkText; --control-bg: ButtonFace; --control-bg-hover: ButtonFace; --control-fg: ButtonText; --control-border: ButtonText; --diagram-bg: Canvas; --popover-bg: Canvas; }
+  :root { --paper: Canvas; --ink: CanvasText; --ink-soft: CanvasText; --ink-faint: CanvasText; --surface: Canvas; --chip: Canvas; --line: CanvasText; --line-strong: CanvasText; --link: LinkText; --control-bg: ButtonFace; --control-bg-hover: ButtonFace; --control-fg: ButtonText; --control-border: ButtonText; --diagram-bg: Canvas; --popover-bg: Canvas;
+    /* status hues collapse to system inks; tints drop to Canvas */
+    --success: CanvasText; --info: LinkText; --warn: CanvasText; --danger: CanvasText;
+    --success-tint: Canvas; --info-tint: Canvas; --warn-tint: Canvas; --danger-tint: Canvas; }
   body::before { display: none; }
   .mark { forced-color-adjust: auto; box-shadow: 0 0 0 1px ButtonText; }
   .masthead .links .link-editor,

@@ -42,7 +42,7 @@
   border: 1px solid var(--control-border);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-popover);
-  z-index: 3000;
+  z-index: var(--z-popover-nested);
 }
 
 /* Popovers enter from their trigger: one short ease-out fade/scale, with the

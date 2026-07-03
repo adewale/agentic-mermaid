@@ -330,8 +330,8 @@
   font-variant-numeric: tabular-nums;
 }
 .verify-verdict { color: var(--fg2); font-weight: 650; }
-.verify-tiers { margin-left: auto; display: flex; align-items: center; gap: 13px; flex-wrap: wrap; }
-.verify-tier { display: inline-flex; align-items: center; gap: 5px; color: var(--fg3); white-space: nowrap; }
+.verify-tiers { margin-left: auto; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.verify-tier { display: inline-flex; align-items: center; gap: 6px; color: var(--fg3); white-space: nowrap; }
 .verify-tier i { font-style: normal; color: var(--fg4); }
 .verify-tier.idle { color: var(--fg3); }
 .verify-tier.idle i { color: var(--fg3); }
