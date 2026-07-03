@@ -137,7 +137,8 @@ Work items that make this the headline rather than a footnote:
 Ship as a **minor** release of `agentic-mermaid` (additive; crisp default
 byte-identical, corpus-gated):
 
-- **New API**: `RenderOptions.style` (name | `StyleSpec` | role overrides),
+- **New API**: `RenderOptions.style` (name | `StyleSpec`, where a role-only
+  object is itself a valid spec),
   `RenderOptions.seed`, `registerStyle`, `getStyle`, `knownStyles`,
   `validateStyleSpec`, and — for the rare code-backed extension —
   `registerBackend`/`StyleBackend` plus the SceneGraph types
