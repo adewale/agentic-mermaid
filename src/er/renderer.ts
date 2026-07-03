@@ -3,6 +3,7 @@ import type { RenderContext } from '../types.ts'
 import { svgOpenTag, buildStyleBlock, buildShadowDefs } from '../theme.ts'
 import { FONT_SIZES, FONT_WEIGHTS, STROKE_WIDTHS, estimateTextWidth, TEXT_BASELINE_SHIFT, resolveRenderStyle } from '../styles.ts'
 import type { RenderStyleDefaults, ResolvedRenderStyle } from '../styles.ts'
+import { ER_STYLE_DEFAULTS } from './layout.ts'
 import { renderMultilineText, escapeXml as escapeXmlUtil } from '../multiline-utils.ts'
 import { measureMultilineText } from '../text-metrics.ts'
 import { topRoundedRectPath } from '../svg-paths.ts'
@@ -29,24 +30,6 @@ import { DefaultBackend } from '../scene/backend.ts'
 //   4. Relationship labels
 // ============================================================================
 
-
-const ER_STYLE_DEFAULTS: RenderStyleDefaults = {
-  nodeLabelFontSize: FONT_SIZES.nodeLabel,
-  edgeLabelFontSize: FONT_SIZES.edgeLabel,
-  groupHeaderFontSize: FONT_SIZES.groupHeader,
-  nodeLabelFontWeight: 700,
-  edgeLabelFontWeight: FONT_WEIGHTS.edgeLabel,
-  groupHeaderFontWeight: FONT_WEIGHTS.groupHeader,
-  nodePaddingX: 14,
-  nodePaddingY: 8,
-  nodeCornerRadius: 0,
-  nodeLineWidth: STROKE_WIDTHS.outerBox,
-  edgeLineWidth: STROKE_WIDTHS.connector,
-  groupCornerRadius: 0,
-  groupPaddingX: 14,
-  groupPaddingY: 8,
-  groupLineWidth: STROKE_WIDTHS.outerBox,
-}
 
 /** Font sizes specific to ER diagrams */
 const ER_FONT = {

@@ -52,7 +52,8 @@ const JY = {
   actorMinWidth: 44,
 } as const
 
-const JOURNEY_STYLE_DEFAULTS: RenderStyleDefaults = {
+/** Shared by layout (sizing) and renderer (drawing) — keep it single-sourced. */
+export const JOURNEY_STYLE_DEFAULTS: RenderStyleDefaults = {
   nodeLabelFontSize: JY.taskFontSize,
   edgeLabelFontSize: JY.actorFontSize,
   groupHeaderFontSize: JY.sectionFontSize,

@@ -55,7 +55,8 @@ const TL = {
   eventGap: 10,
 } as const
 
-const TIMELINE_STYLE_DEFAULTS: RenderStyleDefaults = {
+/** Shared by layout (sizing) and renderer (drawing) — keep it single-sourced. */
+export const TIMELINE_STYLE_DEFAULTS: RenderStyleDefaults = {
   nodeLabelFontSize: TL.eventFontSize,
   edgeLabelFontSize: TL.pillFontSize,
   groupHeaderFontSize: TL.sectionFontSize,

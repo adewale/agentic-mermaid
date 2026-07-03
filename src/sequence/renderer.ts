@@ -3,30 +3,12 @@ import type { RenderContext } from '../types.ts'
 import { svgOpenTag, buildStyleBlock, buildShadowDefs } from '../theme.ts'
 import { FONT_SIZES, FONT_WEIGHTS, STROKE_WIDTHS, ARROW_HEAD, estimateTextWidth, TEXT_BASELINE_SHIFT, resolveRenderStyle } from '../styles.ts'
 import type { RenderStyleDefaults, ResolvedRenderStyle } from '../styles.ts'
+import { SEQUENCE_STYLE_DEFAULTS } from './layout.ts'
 import { renderMultilineText, escapeXml as escapeXmlUtil } from '../multiline-utils.ts'
 import type { MarkerRef, SceneDoc, SceneNode } from '../scene/ir.ts'
 import * as marks from '../scene/marks.ts'
 import { DefaultBackend } from '../scene/backend.ts'
 
-
-const SEQUENCE_STYLE_DEFAULTS: RenderStyleDefaults = {
-  nodeLabelFontSize: FONT_SIZES.nodeLabel,
-  edgeLabelFontSize: FONT_SIZES.edgeLabel,
-  groupHeaderFontSize: FONT_SIZES.edgeLabel,
-  nodeLabelFontWeight: FONT_WEIGHTS.nodeLabel,
-  edgeLabelFontWeight: FONT_WEIGHTS.edgeLabel,
-  groupHeaderFontWeight: FONT_WEIGHTS.groupHeader,
-  nodePaddingX: 16,
-  nodePaddingY: 6,
-  nodeCornerRadius: 4,
-  nodeLineWidth: STROKE_WIDTHS.outerBox,
-  edgeLineWidth: STROKE_WIDTHS.connector,
-  groupCornerRadius: 0,
-  groupPaddingX: 10,
-  groupPaddingY: 8,
-  groupLabelPaddingX: 6,
-  groupLineWidth: STROKE_WIDTHS.outerBox,
-}
 
 // ============================================================================
 // Sequence diagram SVG renderer

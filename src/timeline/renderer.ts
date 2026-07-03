@@ -2,6 +2,7 @@ import type { PositionedTimelineDiagram, PositionedTimelineSection, PositionedTi
 import type { RenderContext } from '../types.ts'
 import type { DiagramColors } from '../theme.ts'
 import { svgOpenTag, buildStyleBlock, buildShadowDefs } from '../theme.ts'
+import { TIMELINE_STYLE_DEFAULTS } from './layout.ts'
 import { renderMultilineText, escapeXml } from '../multiline-utils.ts'
 import { STROKE_WIDTHS, resolveRenderStyle } from '../styles.ts'
 import type { RenderStyleDefaults, ResolvedRenderStyle } from '../styles.ts'
@@ -41,25 +42,6 @@ const TL = {
   markerOuterRadius: 8,
   markerInnerRadius: 4.5,
 } as const
-
-const TIMELINE_STYLE_DEFAULTS: RenderStyleDefaults = {
-  nodeLabelFontSize: TL.eventFontSize,
-  edgeLabelFontSize: TL.pillFontSize,
-  groupHeaderFontSize: TL.sectionFontSize,
-  nodeLabelFontWeight: TL.eventFontWeight,
-  edgeLabelFontWeight: TL.pillFontWeight,
-  groupHeaderFontWeight: TL.sectionFontWeight,
-  nodePaddingX: 14,
-  nodePaddingY: 10,
-  nodeCornerRadius: 0,
-  nodeLineWidth: STROKE_WIDTHS.outerBox,
-  edgeLineWidth: 1.5,
-  groupCornerRadius: 0,
-  groupPaddingX: 18,
-  groupPaddingY: 18,
-  groupLabelPaddingX: 12,
-  groupLineWidth: STROKE_WIDTHS.outerBox,
-}
 
 interface TimelineFamilyPalette {
   accent: string

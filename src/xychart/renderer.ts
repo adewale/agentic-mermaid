@@ -3,6 +3,7 @@ import type { RenderContext, RenderOptions } from '../types.ts'
 import { svgOpenTag, buildStyleBlock } from '../theme.ts'
 import { TEXT_BASELINE_SHIFT, estimateTextWidth, STROKE_WIDTHS, resolveRenderStyle } from '../styles.ts'
 import type { RenderStyleDefaults } from '../styles.ts'
+import { XY_STYLE_DEFAULTS } from './layout.ts'
 import { getSeriesColor, CHART_ACCENT_FALLBACK } from './colors.ts'
 import type { MarkPaint, SceneDoc, SceneNode } from '../scene/ir.ts'
 import * as marks from '../scene/marks.ts'
@@ -31,23 +32,6 @@ const CHART_FONT = {
   dotRadius: 4,
   lineWidth: 3,
 } as const
-
-const XY_STYLE_DEFAULTS: RenderStyleDefaults = {
-  nodeLabelFontSize: 14,
-  edgeLabelFontSize: 16,
-  groupHeaderFontSize: 20,
-  nodeLabelFontWeight: CHART_FONT.labelWeight,
-  edgeLabelFontWeight: CHART_FONT.axisTitleWeight,
-  groupHeaderFontWeight: CHART_FONT.titleWeight,
-  nodePaddingX: 0,
-  nodePaddingY: 0,
-  nodeLineWidth: 0,
-  edgeLineWidth: CHART_FONT.lineWidth,
-  groupCornerRadius: 0,
-  groupPaddingX: 0,
-  groupPaddingY: 0,
-  groupLineWidth: STROKE_WIDTHS.outerBox,
-}
 
 const TIP = {
   fontSize: 15,

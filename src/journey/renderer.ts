@@ -2,6 +2,7 @@ import type { PositionedJourneyDiagram, PositionedJourneySection, PositionedJour
 import type { RenderContext } from '../types.ts'
 import type { DiagramColors } from '../theme.ts'
 import { svgOpenTag, buildStyleBlock, buildShadowDefs } from '../theme.ts'
+import { JOURNEY_STYLE_DEFAULTS } from './layout.ts'
 import { renderMultilineText, escapeXml } from '../multiline-utils.ts'
 import { STROKE_WIDTHS, resolveRenderStyle } from '../styles.ts'
 import type { RenderStyleDefaults, ResolvedRenderStyle } from '../styles.ts'
@@ -39,25 +40,6 @@ const JY = {
   actorFontSize: 11,
   actorFontWeight: 600,
 } as const
-
-const JOURNEY_STYLE_DEFAULTS: RenderStyleDefaults = {
-  nodeLabelFontSize: JY.taskFontSize,
-  edgeLabelFontSize: JY.actorFontSize,
-  groupHeaderFontSize: JY.sectionFontSize,
-  nodeLabelFontWeight: JY.taskFontWeight,
-  edgeLabelFontWeight: JY.actorFontWeight,
-  groupHeaderFontWeight: JY.sectionFontWeight,
-  nodePaddingX: JY.taskPadX,
-  nodePaddingY: JY.taskPadY,
-  nodeCornerRadius: 0,
-  nodeLineWidth: STROKE_WIDTHS.outerBox,
-  edgeLineWidth: STROKE_WIDTHS.connector,
-  groupCornerRadius: 0,
-  groupPaddingX: 18,
-  groupPaddingY: 18,
-  groupLabelPaddingX: 12,
-  groupLineWidth: STROKE_WIDTHS.outerBox,
-}
 
 /** Journey scores are on a 1..5 scale; channels carry them normalized. */
 const JOURNEY_MAX_SCORE = 5

@@ -3,7 +3,7 @@ import type { RenderContext } from '../types.ts'
 import { svgOpenTag, buildStyleBlock, buildShadowDefs } from '../theme.ts'
 import { FONT_SIZES, FONT_WEIGHTS, STROKE_WIDTHS, TEXT_BASELINE_SHIFT, resolveRenderStyle } from '../styles.ts'
 import type { RenderStyleDefaults, ResolvedRenderStyle } from '../styles.ts'
-import { CLS } from './layout.ts'
+import { CLS, CLASS_STYLE_DEFAULTS } from './layout.ts'
 import { renderMultilineText, escapeXml as escapeXmlUtil } from '../multiline-utils.ts'
 import { topRoundedRectPath } from '../svg-paths.ts'
 import type { MarkerRef, SceneDoc, SceneNode } from '../scene/ir.ts'
@@ -29,24 +29,6 @@ import { DefaultBackend } from '../scene/backend.ts'
 //   4. Labels and cardinality
 // ============================================================================
 
-
-const CLASS_STYLE_DEFAULTS: RenderStyleDefaults = {
-  nodeLabelFontSize: FONT_SIZES.nodeLabel,
-  edgeLabelFontSize: FONT_SIZES.edgeLabel,
-  groupHeaderFontSize: FONT_SIZES.groupHeader,
-  nodeLabelFontWeight: 700,
-  edgeLabelFontWeight: FONT_WEIGHTS.edgeLabel,
-  groupHeaderFontWeight: FONT_WEIGHTS.groupHeader,
-  nodePaddingX: CLS.boxPadX,
-  nodePaddingY: CLS.sectionPadY,
-  nodeCornerRadius: 0,
-  nodeLineWidth: STROKE_WIDTHS.outerBox,
-  edgeLineWidth: STROKE_WIDTHS.connector,
-  groupCornerRadius: 0,
-  groupPaddingX: CLS.boxPadX,
-  groupPaddingY: CLS.sectionPadY,
-  groupLineWidth: STROKE_WIDTHS.outerBox,
-}
 
 /** Font sizes specific to class diagrams */
 const CLS_FONT = {
