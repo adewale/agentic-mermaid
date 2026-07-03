@@ -9,6 +9,7 @@ import { parseMermaid as parseValidDiagram } from './parse.ts'
 import { serializeMermaid } from './serialize.ts'
 import { countStructuralElements, faithfulnessWarning } from './structural-count.ts'
 import { layoutGraphSync } from '../layout-engine.ts'
+import { renderMermaidSVG } from '../index.ts'
 import { parseMermaid as parseFlowchartLegacy } from '../parser.ts'
 import { auditRouteContracts, findRouteHitches } from '../route-contracts.ts'
 import type {
@@ -80,6 +81,36 @@ function roundtripFaithfulnessWarnings(d: ValidDiagram): LayoutWarning[] {
 }
 
 export function verifyMermaid(input: ValidDiagram | string, opts: VerifyOptions = {}): VerifyResult {
+  return withRenderParity(input, verifyStructure(input, opts), opts)
+}
+
+/**
+ * Render-parity gate — generalizes UNRESOLVABLE_SCHEDULE's seam-closing to
+ * every family. The agent parser preserves unmodeled syntax verbatim, but the
+ * render parser is strict, so a diagram could verify clean and still make
+ * `am render` exit 4 (observed live: onboarding agents followed
+ * verify-before-commit and shipped unrenderable quadrant/architecture
+ * diagrams). A clean verify now proves the canonical source actually renders.
+ * Skipped when verify already failed — the render error would only repeat a
+ * diagnosis the caller already has to act on — and when the caller
+ * suppressed ANY error-severity code: suppression means "I acknowledge this
+ * failure class, proceed", and the gate must not resurrect the acknowledged
+ * failure under a different name (e.g. suppress UNRESOLVABLE_SCHEDULE on a
+ * gantt whose render still throws for exactly that reason).
+ */
+function withRenderParity(input: ValidDiagram | string, result: VerifyResult, opts: VerifyOptions): VerifyResult {
+  if (!result.ok || (opts.suppress ?? []).some(code => code === 'RENDER_FAILED' || WARNING_SEVERITY[code] === 'error')) return result
+  const source = typeof input === 'string' ? input : serializeMermaid(input)
+  try {
+    renderMermaidSVG(source)
+    return result
+  } catch (e) {
+    const reason = e instanceof Error ? e.message : String(e)
+    return { ...result, ok: false, warnings: [...result.warnings, { code: 'RENDER_FAILED', reason }] }
+  }
+}
+
+function verifyStructure(input: ValidDiagram | string, opts: VerifyOptions = {}): VerifyResult {
   const d = typeof input === 'string' ? unwrap(input) : input
   if (!d) return finalize([{ code: 'EMPTY_DIAGRAM' }], emptyRenderedLayout('flowchart'), opts)
 

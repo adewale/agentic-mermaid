@@ -135,8 +135,12 @@ describe('parseJourneyDiagram', () => {
       Do work: 3: Me`)).toThrow('missing a closing "}"')
   })
 
-  it('throws when the diagram has no tasks', () => {
-    expect(() => parse(`journey
-      title Empty`)).toThrow('Journey diagram must include at least one scored task')
+  it('renders title-only diagrams as header furniture (upstream parity)', () => {
+    expect(parse(`journey
+      title Empty`).title).toBe('Empty')
+  })
+
+  it('still throws when the diagram carries nothing at all', () => {
+    expect(() => parse(`journey`)).toThrow('Journey diagram must include at least one scored task, a section, or a title')
   })
 })

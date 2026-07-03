@@ -7,6 +7,8 @@ var DEFAULT_EDITOR_THEME = "paper";
 
 var state = {
   theme: DEFAULT_EDITOR_THEME,
+  style: "crisp",
+  seed: 0,
   zoom: 1,
   config: {},
 };

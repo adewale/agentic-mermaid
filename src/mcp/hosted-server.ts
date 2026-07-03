@@ -11,6 +11,8 @@
 
 import { parseMermaid } from '../agent/parse.ts'
 import { verifyMermaid } from '../agent/verify.ts'
+import { validateStyleSpec } from '../scene/style-registry.ts'
+import type { StyleInput } from '../scene/style-registry.ts'
 import { describeMermaidSource } from '../agent/describe.ts'
 import { renderMermaidSVG, renderMermaidASCII } from '../agent/core.ts'
 import { THEMES } from '../theme.ts'
@@ -26,7 +28,7 @@ export interface HostedMcpContext {
   /** Run Code Mode JavaScript. Hosted: a Dynamic Worker isolate. */
   execute(code: string, timeoutMs: number): Promise<ExecuteResult>
   /** Rasterize SVG to PNG bytes. Hosted: resvg-wasm. Absent → render_png reports unavailable. */
-  renderPng?(source: string, opts: { scale?: number; background?: string }): Promise<Uint8Array>
+  renderPng?(source: string, opts: { scale?: number; background?: string; style?: StyleInput | StyleInput[]; seed?: number }): Promise<Uint8Array>
 }
 
 const SERVER_NAME = 'agentic-mermaid-mcp'
@@ -81,6 +83,8 @@ Layout is deterministic: identical input produces identical geometry.`,
         theme: { type: 'string', description: `Named theme (one of: ${Object.keys(THEMES).join(', ')}).` },
         bg: { type: 'string', description: 'Background CSS color (overrides theme).' },
         fg: { type: 'string', description: 'Foreground CSS color (overrides theme).' },
+        style: { description: 'Style: a name (hand-drawn, excalidraw, pen-and-ink, freehand, watercolor, blueprint, tufte, or any theme name), an inline style record, or an array stack merged left → right. A colors-only style is a theme.' },
+        seed: { type: 'number', description: 'Re-rolls ink wobble of styled looks; never moves layout.' },
       },
       required: ['source'],
     },
@@ -110,6 +114,8 @@ byte-determinism contract. For file/URL artifacts use the local stdio server.`,
         source: { type: 'string', description: 'Mermaid source.' },
         scale: { type: 'number', description: 'Output scale multiplier (default 2 — retina; clamped to 0.1–8).' },
         background: { type: 'string', description: "CSS color string (default 'white')." },
+        style: { description: 'Style name | record | stack (same as render_svg). Hosted rasterization substitutes DejaVu for styled fonts; use the local server for bundled style faces.' },
+        seed: { type: 'number', description: 'Ink seed for styled looks.' },
       },
       required: ['source'],
     },
@@ -143,7 +149,7 @@ LLM context compaction without re-parsing.`,
   },
 ]
 
-const INSTRUCTIONS = `agentic-mermaid hosted MCP server (stateless). Direct tools render_svg, render_ascii, render_png, verify, and describe cover plain render/verify calls cheaply and are edge-cached (layout is deterministic; there is no seed). execute runs synchronous JavaScript against the typed mermaid.* SDK in an isolated on-demand sandbox for parse→narrow→mutate workflows; async/await and Promise jobs are not supported, and network access is disabled. Inputs are capped at 64KB; for bigger diagrams, Code Mode artifacts, or file/URL PNG output, run the local stdio server (see https://agentic-mermaid.dev/docs/mcp/).`
+const INSTRUCTIONS = `agentic-mermaid hosted MCP server (stateless). Direct tools render_svg, render_ascii, render_png, verify, and describe cover plain render/verify calls cheaply and are edge-cached (layout is deterministic; there is no layout seed — the library's optional style seed only re-rolls ink of styled looks). execute runs synchronous JavaScript against the typed mermaid.* SDK in an isolated on-demand sandbox for parse→narrow→mutate workflows; async/await and Promise jobs are not supported, and network access is disabled. Inputs are capped at 64KB; for bigger diagrams, Code Mode artifacts, or file/URL PNG output, run the local stdio server (see https://agentic-mermaid.dev/docs/mcp/).`
 
 export async function handleHostedRequest(req: JsonRpcRequest, context: HostedMcpContext): Promise<JsonRpcResponse | null> {
   const id = req.id ?? null
@@ -188,15 +194,33 @@ async function handleToolCall(id: number | string | null, params: unknown, conte
   }
 }
 
-function svgOptions(args: Record<string, unknown>): Record<string, string> {
+function svgOptions(args: Record<string, unknown>): Record<string, unknown> {
   const theme = args.theme
   if (theme !== undefined && (typeof theme !== 'string' || !(theme in THEMES))) {
     throw new Error(`unknown theme; expected one of: ${Object.keys(THEMES).join(', ')}`)
   }
-  const opts: Record<string, string> = typeof theme === 'string' ? { ...THEMES[theme] } as unknown as Record<string, string> : {}
+  const opts: Record<string, unknown> = typeof theme === 'string' ? { ...THEMES[theme] } as unknown as Record<string, unknown> : {}
   if (typeof args.bg === 'string') opts.bg = args.bg
   if (typeof args.fg === 'string') opts.fg = args.fg
+  const style = normalizeStyleArg(args.style)
+  if (style !== undefined) opts.style = style
+  if (typeof args.seed === 'number' && Number.isFinite(args.seed)) opts.seed = args.seed
   return opts
+}
+
+/** Validate an untrusted style argument: names pass through (unknown names
+ *  fail loudly inside resolveStyleStack with the known list), inline records
+ *  and stacks are checked with validateStyleSpec so junk is a tool error,
+ *  not a render throw. */
+function normalizeStyleArg(raw: unknown): StyleInput | StyleInput[] | undefined {
+  if (raw === undefined || raw === null) return undefined
+  const entries = Array.isArray(raw) ? raw : [raw]
+  for (const entry of entries) {
+    if (typeof entry === 'string') continue
+    const problems = validateStyleSpec(entry)
+    if (problems.length > 0) throw new Error(`invalid style record: ${problems.join('; ')}`)
+  }
+  return entries as StyleInput[]
 }
 
 // ---- Effective (normalized) arguments -------------------------------------
@@ -219,6 +243,10 @@ function effectiveSvgArgs(args: Record<string, unknown>): Record<string, string>
   if (typeof args.theme === 'string') out.theme = args.theme
   if (typeof args.bg === 'string') out.bg = args.bg
   if (typeof args.fg === 'string') out.fg = args.fg
+  // Output-affecting style knobs: key on the requested values verbatim
+  // (JSON-canonical); validity is checked at render time like theme.
+  if (args.style !== undefined) out.style = JSON.stringify(args.style)
+  if (typeof args.seed === 'number' && Number.isFinite(args.seed)) out.seed = String(args.seed)
   return out
 }
 
@@ -272,6 +300,8 @@ export function cacheKeyFor(name: string | undefined, args: Record<string, unkno
       if (output !== undefined && output !== 'base64') return null
       const key: Record<string, unknown> = { t: 'render_png', source: args.source, scale: keyPngScale(args) }
       if (typeof args.background === 'string') key.background = args.background
+      if (args.style !== undefined) key.style = JSON.stringify(args.style)
+      if (typeof args.seed === 'number' && Number.isFinite(args.seed)) key.seed = args.seed
       return key
     }
     case 'verify':
@@ -338,7 +368,9 @@ async function handleRenderPng(id: number | string | null, args: Record<string, 
   try {
     const scale = effectivePngScale(args)
     const background = typeof args.background === 'string' ? args.background : undefined
-    const png = await context.renderPng(source, { scale, background })
+    const style = normalizeStyleArg(args.style)
+    const seed = typeof args.seed === 'number' && Number.isFinite(args.seed) ? args.seed : undefined
+    const png = await context.renderPng(source, { scale, background, style, seed })
     return toolResult(id, { ok: true as const, png_base64: base64Encode(png) }, false)
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e)

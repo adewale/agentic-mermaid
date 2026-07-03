@@ -16,6 +16,20 @@ export interface ExecuteResult { ok: boolean; value?: unknown; logs?: string[]; 
 const SAFE_GLOBALS = {}
 
 export async function executeInSandbox(code: string, opts: ExecuteOptions = {}): Promise<ExecuteResult> {
+  try {
+    return runInSandbox(code, opts)
+  } finally {
+    // Bun defect (verified on 1.3.13/1.3.14): the node:vm `timeout` watchdog
+    // is NOT disarmed when the script completes — at its original deadline it
+    // uncatchably terminates whatever host JS is running, which killed
+    // CPU-heavy synchronous work that followed a sandbox call. One macrotask
+    // turn fully disarms it; microtasks (`await Promise.resolve()`) do not.
+    // Keep the `timeout` option itself — it is a security boundary.
+    await new Promise(resolve => setTimeout(resolve, 0))
+  }
+}
+
+function runInSandbox(code: string, opts: ExecuteOptions = {}): ExecuteResult {
   const timeoutMs = opts.timeoutMs ?? 5000
   const trace: ExecutionTraceCall[] = []
   const early = (error: string): ExecuteResult => opts.trace ? { ok: false, error, logs: [], trace } : { ok: false, error, logs: [] }

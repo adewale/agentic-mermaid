@@ -540,9 +540,11 @@ describe('root docs consistency', () => {
 describe('spec honesty', () => {
   test('spec no longer claims a seed drives layout', () => {
     const spec = readFileSync(join(REPO, 'AGENT_NATIVE.md'), 'utf8')
-    // The withSeededRandom apparatus is gone; spec should say determinism is structural.
+    // The withSeededRandom apparatus is gone; spec should say determinism is
+    // structural. "layout seed" (not bare "seed"): the render option seed is
+    // a STYLE seed that re-rolls ink, and the spec must not deny it exists.
     expect(spec).not.toContain('withSeededRandom(ctx.rng, fn)')
-    expect(spec.toLowerCase()).toContain('there is no seed')
+    expect(spec.toLowerCase()).toContain('there is no layout seed')
   })
 
   test('spec does not expose removed VerifyOptions layoutContext API', () => {
@@ -654,13 +656,14 @@ describe('skill eval manifest coverage', () => {
 describe('shipped distribution artifacts present', () => {
   test('skill bundle + workflow + examples', () => {
     // No committed Claude hooks/settings or bundled agents/worktrees may ship.
-    // An empty local .claude directory is harmless because Git does not track it.
-    if (existsSync(join(REPO, '.claude'))) {
-      const entries = readdirSync(join(REPO, '.claude'))
-      expect(entries.sort()).toEqual([])
-    }
-    expect(existsSync(join(REPO, '.claude/settings.local.json'))).toBe(false)
-    expect(existsSync(join(REPO, '.agents'))).toBe(false)
+    // Check what Git TRACKS, not what sits on disk: agent harnesses drop
+    // untracked session files (settings.local.json, task locks) into .claude/
+    // and a disk-based check fails on developer machines for files that could
+    // never ship.
+    const trackedClaude = spawnSync('git', ['ls-files', '.claude'], { cwd: REPO, encoding: 'utf8' })
+    expect((trackedClaude.stdout ?? '').trim()).toBe('')
+    const trackedAgents = spawnSync('git', ['ls-files', '.agents'], { cwd: REPO, encoding: 'utf8' })
+    expect((trackedAgents.stdout ?? '').trim()).toBe('')
     expect(existsSync(join(REPO, 'skills/README.md'))).toBe(true)
     expect(existsSync(join(REPO, 'skills/agentic-mermaid-diagram-workflow/SKILL.md'))).toBe(true)
     expect(existsSync(join(REPO, 'skills/agentic-mermaid-live-editor/SKILL.md'))).toBe(true)

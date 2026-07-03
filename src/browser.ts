@@ -11,6 +11,7 @@ import { renderMermaidSVGAsync } from './index.ts'
 import { verifyMermaid } from './agent/verify.ts'
 import { renderMermaidASCII, diagramColorsToAsciiTheme } from './ascii/index.ts'
 import { THEMES } from './theme.ts'
+import { knownStyles, getStyle } from './scene/style-registry.ts'
 import { getSeriesColor, CHART_ACCENT_FALLBACK } from './xychart/colors.ts'
 
 declare const window: unknown
@@ -21,6 +22,8 @@ declare const window: unknown
   renderMermaidASCII,
   diagramColorsToAsciiTheme,
   THEMES,
+  knownStyles,
+  getStyle,
   getSeriesColor,
   CHART_ACCENT_FALLBACK,
 }

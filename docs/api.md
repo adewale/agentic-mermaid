@@ -44,8 +44,20 @@ writeFileSync('diagram.png', png)
 | `scale` | `number` | `2` | Zoom multiplier when `fitTo` is not set. |
 | `background` | `string` | `'white'` | PNG background color. |
 | `fitTo` | `{ width?: number; height?: number }` | — | Constrain output to a width or height. |
+| `style` | `StyleInput \| StyleInput[]` | — | Style name \| spec \| stack, same as `RenderOptions.style`. |
+| `seed` | `number` | `0` | Ink-wobble seed for styled looks, same as `RenderOptions.seed`. |
+| `fontDirs` | `string[]` | — | Extra font directories for custom styles that reference unbundled families. |
 
-PNG rasterization uses offline `@resvg/resvg-js` with bundled DejaVu fonts for deterministic same-machine output.
+PNG rasterization uses offline `@resvg/resvg-js` with bundled fonts for
+deterministic same-machine output: DejaVu Sans (default) plus the faces the
+built-in styles reference (Caveat, EB Garamond, Architects Daughter, Share
+Tech Mono — see `assets/fonts/FONT-LICENSES.md`). A style whose `font` is
+neither bundled nor supplied via `fontDirs` rasterizes with DejaVu Sans.
+Note for third-party rasterizers: the SVG declares fonts as
+`font-family: var(--font, 'Face')`, and static rasterizers (resvg, librsvg)
+do not resolve CSS custom properties — `renderMermaidPNG` inlines the
+resolved family before rasterizing; do the same if you feed the raw SVG to
+your own pipeline.
 
 ### ASCII / Unicode
 
@@ -87,7 +99,8 @@ const ascii = renderMermaidASCII(`flowchart LR
 | `surface` | `string?` | — | Node fill tint. |
 | `border` | `string?` | — | Node stroke color. |
 | `font` | `string` | `Inter` | Font family. |
-| `style` | `DiagramStyleOptions` | — | Role-based style overrides. |
+| `style` | `string \| StyleSpec \| (string \| StyleSpec)[]` | — | How the diagram looks: a registered style name (`'hand-drawn'`, `'tufte'`, any theme palette like `'dracula'`), an inline `StyleSpec`, or a stack merged left→right (`['hand-drawn', 'dracula']`). A role-overrides-only object is a valid style and keeps the byte-identical crisp path. See `docs/style-authoring.md`. |
+| `seed` | `number` | `0` | Deterministic re-roll for stochastic styles — shuffles ink wobble, never layout. |
 | `transparent` | `boolean` | `false` | Transparent SVG background. |
 | `padding` | `number` | `40` | Canvas padding. |
 | `nodeSpacing` | `number` | `24` | Horizontal sibling spacing. |
@@ -102,7 +115,8 @@ const ascii = renderMermaidASCII(`flowchart LR
 | `security` | `'default' | 'strict'` | `'default'` | `strict` disables external-fetch references. |
 | `ganttToday` | `string` | unset | Explicit "today" for the Gantt `todayMarker` (date in the diagram's `dateFormat` or ISO `YYYY-MM-DD`). Gantt never reads the wall clock; without this the marker is not drawn. |
 
-`DiagramStyleOptions` is role-based:
+A `StyleSpec` may also carry per-role overrides (a role-only object is
+itself a valid style):
 
 | Role | Fields |
 |---|---|

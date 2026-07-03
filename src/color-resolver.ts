@@ -21,6 +21,19 @@ const MERMAID_THEME_COLORS: Record<string, DiagramColors> = {
   forest: { bg: '#f0fdf4', fg: '#14532d', line: '#4d7c0f', accent: '#15803d', muted: '#65a30d', border: '#86efac' },
 }
 
+/** Mermaid themeVariables keys read per DiagramColors channel — the single
+ *  source of truth shared by resolveDiagramColors and the aesthetic-defaults
+ *  composition in index.ts (user theming must beat style palettes). */
+export const CHANNEL_THEME_KEYS = {
+  bg: ['background', 'mainBkg'],
+  fg: ['primaryTextColor', 'textColor', 'nodeTextColor'],
+  line: ['lineColor', 'defaultLinkColor'],
+  accent: ['arrowheadColor', 'primaryColor'],
+  muted: ['secondaryTextColor', 'tertiaryTextColor'],
+  surface: ['primaryColor', 'nodeBkg', 'mainBkg'],
+  border: ['primaryBorderColor', 'secondaryBorderColor'],
+} as const
+
 /**
  * The internal color waist: every public color dialect is normalized to
  * DiagramColors before layout/render code sees it.
@@ -34,13 +47,13 @@ export function resolveDiagramColors(
   const vars = config.themeVariables
 
   return {
-    bg: options.bg ?? readThemeValue(vars, 'background', 'mainBkg') ?? theme?.bg ?? DEFAULTS.bg,
-    fg: options.fg ?? readThemeValue(vars, 'primaryTextColor', 'textColor', 'nodeTextColor') ?? theme?.fg ?? DEFAULTS.fg,
-    line: options.line ?? readThemeValue(vars, 'lineColor', 'defaultLinkColor') ?? theme?.line,
-    accent: options.accent ?? readThemeValue(vars, 'arrowheadColor', 'primaryColor') ?? theme?.accent,
-    muted: options.muted ?? readThemeValue(vars, 'secondaryTextColor', 'tertiaryTextColor') ?? theme?.muted,
-    surface: options.surface ?? readThemeValue(vars, 'primaryColor', 'nodeBkg', 'mainBkg') ?? theme?.surface,
-    border: options.border ?? readThemeValue(vars, 'primaryBorderColor', 'secondaryBorderColor') ?? theme?.border,
+    bg: options.bg ?? readThemeValue(vars, ...CHANNEL_THEME_KEYS.bg) ?? theme?.bg ?? DEFAULTS.bg,
+    fg: options.fg ?? readThemeValue(vars, ...CHANNEL_THEME_KEYS.fg) ?? theme?.fg ?? DEFAULTS.fg,
+    line: options.line ?? readThemeValue(vars, ...CHANNEL_THEME_KEYS.line) ?? theme?.line,
+    accent: options.accent ?? readThemeValue(vars, ...CHANNEL_THEME_KEYS.accent) ?? theme?.accent,
+    muted: options.muted ?? readThemeValue(vars, ...CHANNEL_THEME_KEYS.muted) ?? theme?.muted,
+    surface: options.surface ?? readThemeValue(vars, ...CHANNEL_THEME_KEYS.surface) ?? theme?.surface,
+    border: options.border ?? readThemeValue(vars, ...CHANNEL_THEME_KEYS.border) ?? theme?.border,
     shadow: options.shadow ?? theme?.shadow,
     font,
     embedFontImport: options.embedFontImport,

@@ -35,7 +35,7 @@ This changelog tracks user-facing changes for **Agentic Mermaid**, a fork of `lu
   - `verifyMermaid` → structured `LayoutWarning` codes in three tiers (Tier 1 structural/reliable, Tier 2 geometric/advisory, Tier 3 lint/advisory). No vision/PNG needed.
   - `mutate` → typed, family-narrowed structural edits for all twelve renderable families: flowchart/state, sequence (segment-preserving, BUILD-18), timeline, class, ER, journey, architecture, xychart, pie, quadrant, and gantt. Diagrams with unmodeled constructs use a lossless source-level/opaque body with no structured mutation exposed.
   - `serializeMermaid` / `synthesizeFromGraph` → round-trip back to canonical Mermaid source.
-  - Deterministic layout JSON, verified byte-identical across processes (ELK is configured for model-order layout; there is no seed).
+  - Deterministic layout JSON, verified byte-identical across processes (ELK is configured for model-order layout; there is no layout seed).
 - **`am` CLI**: `render`, `preview` (strict standalone HTML + optional `--open`), `verify`, `parse`, `serialize`, `mutate` (single `--op` or batched `--ops`, verify-before-emit), `format`, `describe`, `capabilities`, `batch` (including mutate), `render-markdown`, `llms-txt`, `init-agent`, `--json`, per-command `--help`, and `--agent-instructions`.
 - **Node-runnable package bins**: `am`, `agentic-mermaid`, and `agentic-mermaid-mcp` point to built `dist/*.js` entrypoints for npm/npx consumers while Bun `bin/*.ts` files remain for local development.
 - **Hosted agent manifests**: GitHub Pages publishes `/llms.txt` and `/agent-instructions.md` for zero-install agent onboarding.

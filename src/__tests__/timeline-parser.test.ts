@@ -148,13 +148,20 @@ describe('parseTimelineDiagram', () => {
       : orphaned event`)).toThrow('Timeline continuation found before any period was declared')
   })
 
-  it('throws on unsupported timeline syntax instead of silently ignoring it', () => {
-    expect(() => parse(`timeline
-      release now`)).toThrow('Unsupported timeline syntax: "release now"')
+  it('treats a bare colon-free line as a period with no events (upstream parity)', () => {
+    const d = parse(`timeline
+      section S
+      release now`)
+    expect(d.sections[0]!.periods.map(p => ({ label: p.label, events: p.events.length })))
+      .toEqual([{ label: 'release now', events: 0 }])
   })
 
-  it('throws when the diagram has no periods', () => {
-    expect(() => parse(`timeline
-      title Empty`)).toThrow('Timeline diagram must include at least one period with events')
+  it('renders title-only diagrams as header furniture (upstream parity)', () => {
+    expect(parse(`timeline
+      title Empty`).title).toBe('Empty')
+  })
+
+  it('still throws when the diagram carries nothing at all', () => {
+    expect(() => parse(`timeline`)).toThrow('Timeline diagram must include at least one period, section, or title')
   })
 })

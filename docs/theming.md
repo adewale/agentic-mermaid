@@ -2,6 +2,12 @@
 
 Agentic Mermaid themes start from a two-color contract (`bg`, `fg`) and can be enriched with optional semantic slots. This keeps diagrams usable in live editors, documentation pages, and agent-generated artifacts without requiring a large design-token object.
 
+> **Themes are styles.** Every built-in theme also registers as a
+> palette-only *style*, so its name works anywhere a style is accepted and
+> composes with full looks by stacking: `{ style: ['hand-drawn', 'dracula'] }`
+> renders hand-drawn geometry with the Dracula palette. See
+> [docs/style-authoring.md](./style-authoring.md) for the full model.
+
 ## Two-color foundation
 
 ```ts

@@ -63,46 +63,6 @@
     }
   },
   {
-    "id": "architecture-upstream-should-handle-title-on-another-line",
-    "family": "architecture",
-    "source": "architecture-beta\n            title Simple Architecture Diagram",
-    "upstream": {
-      "repo": "mermaid-js/mermaid",
-      "files": [
-        "packages/mermaid/src/diagrams/architecture/architecture.spec.ts"
-      ],
-      "blocks": [
-        "packages/mermaid/src/diagrams/architecture/architecture.spec.ts :: should handle title on another line"
-      ]
-    },
-    "assertions": {
-      "expectStructured": false,
-      "nodeCount": 0,
-      "edgeCount": 0,
-      "groupCount": 0
-    }
-  },
-  {
-    "id": "architecture-upstream-should-not-collide-with-services-whose-id-starts-with-row-or-column",
-    "family": "architecture",
-    "source": "architecture-beta\n  service rowspan(server)[Rowspan]\n  service columnar(server)[Columnar]\n  align row rowspan columnar",
-    "upstream": {
-      "repo": "mermaid-js/mermaid",
-      "files": [
-        "packages/mermaid/src/diagrams/architecture/architecture.spec.ts"
-      ],
-      "blocks": [
-        "packages/mermaid/src/diagrams/architecture/architecture.spec.ts :: should not collide with services whose id starts with row or column"
-      ]
-    },
-    "assertions": {
-      "expectStructured": false,
-      "nodeCount": 0,
-      "edgeCount": 0,
-      "groupCount": 0
-    }
-  },
-  {
     "id": "architecture-upstream-should-not-crash-with-group-name-prefix-matching-a-service-name-issue-7408",
     "family": "architecture",
     "source": "architecture-beta\n  group app_env(cloud)[App Env]\n  service app(server)[Web App] in app_env\n  service db(database)[DB] in app_env\n  service api(server)[API] in app_env\n  junction mid in app_env\n  app:B -- T:mid\n  mid:R -- L:db\n  mid:B -- T:api",
@@ -128,26 +88,6 @@
         "API",
         "App Env"
       ]
-    }
-  },
-  {
-    "id": "architecture-upstream-should-parse-a-column-alignment",
-    "family": "architecture",
-    "source": "architecture-beta\n  service a(server)[A]\n  service b(server)[B]\n  align column a b",
-    "upstream": {
-      "repo": "mermaid-js/mermaid",
-      "files": [
-        "packages/mermaid/src/diagrams/architecture/architecture.spec.ts"
-      ],
-      "blocks": [
-        "packages/mermaid/src/diagrams/architecture/architecture.spec.ts :: should parse a column alignment"
-      ]
-    },
-    "assertions": {
-      "expectStructured": false,
-      "nodeCount": 0,
-      "edgeCount": 0,
-      "groupCount": 0
     }
   },
   {
@@ -180,26 +120,6 @@
         "PE Blob",
         "PE Bus"
       ]
-    }
-  },
-  {
-    "id": "architecture-upstream-should-parse-a-row-alignment-and-expose-it-via-getlayouthints",
-    "family": "architecture",
-    "source": "architecture-beta\n  group api(cloud)[API]\n  service db1(database)[DB1] in api\n  service db2(database)[DB2] in api\n  service db3(database)[DB3] in api\n  align row db1 db2 db3",
-    "upstream": {
-      "repo": "mermaid-js/mermaid",
-      "files": [
-        "packages/mermaid/src/diagrams/architecture/architecture.spec.ts"
-      ],
-      "blocks": [
-        "packages/mermaid/src/diagrams/architecture/architecture.spec.ts :: should parse a row alignment and expose it via getLayoutHints"
-      ]
-    },
-    "assertions": {
-      "expectStructured": false,
-      "nodeCount": 0,
-      "edgeCount": 0,
-      "groupCount": 0
     }
   },
   {
@@ -1454,26 +1374,6 @@
     }
   },
   {
-    "id": "er-upstream-should-correctly-parse-direction-rl-inside-a-subgraph",
-    "family": "er",
-    "source": "erDiagram subgraph WithRL\ndirection RL\nA\nB\nend",
-    "upstream": {
-      "repo": "mermaid-js/mermaid",
-      "files": [
-        "packages/mermaid/src/diagrams/er/parser/subgraph.spec.js"
-      ],
-      "blocks": [
-        "packages/mermaid/src/diagrams/er/parser/subgraph.spec.js :: should correctly parse direction RL inside a subgraph"
-      ]
-    },
-    "assertions": {
-      "expectStructured": false,
-      "nodeCount": 0,
-      "edgeCount": 0,
-      "groupCount": 0
-    }
-  },
-  {
     "id": "er-upstream-should-handle-1-alias-directly-followed-by-identifying-relationship-operator",
     "family": "er",
     "source": "erDiagram\nCUSTOMER 1--one or more DELIVERY-ADDRESS : has",
@@ -2549,26 +2449,6 @@
         "for E",
         "for D"
       ]
-    }
-  },
-  {
-    "id": "flowchart-upstream-markdown-formatting-in-nodes-and-labels",
-    "family": "flowchart",
-    "source": "flowchart\nA[\"`The cat in **the** hat`\"]-- \"`The *bat* in the chat`\" -->B[\"The dog in the hog\"] -- \"The rat in the mat\" -->C;",
-    "upstream": {
-      "repo": "mermaid-js/mermaid",
-      "files": [
-        "packages/mermaid/src/diagrams/flowchart/parser/flow-md-string.spec.js"
-      ],
-      "blocks": [
-        "packages/mermaid/src/diagrams/flowchart/parser/flow-md-string.spec.js :: markdown formatting in nodes and labels"
-      ]
-    },
-    "assertions": {
-      "expectStructured": false,
-      "nodeCount": 0,
-      "edgeCount": 0,
-      "groupCount": 0
     }
   },
   {
@@ -7312,7 +7192,7 @@
       "expectStructured": false,
       "nodeCount": 0,
       "edgeCount": 0,
-      "groupCount": 0
+      "groupCount": 1
     }
   },
   {
@@ -7354,7 +7234,7 @@
     },
     "assertions": {
       "expectStructured": false,
-      "nodeCount": 0,
+      "nodeCount": 2,
       "edgeCount": 0,
       "groupCount": 0
     }
@@ -7398,7 +7278,7 @@
     },
     "assertions": {
       "expectStructured": false,
-      "nodeCount": 0,
+      "nodeCount": 2,
       "edgeCount": 0,
       "groupCount": 0
     }
@@ -7418,7 +7298,7 @@
     },
     "assertions": {
       "expectStructured": false,
-      "nodeCount": 0,
+      "nodeCount": 2,
       "edgeCount": 0,
       "groupCount": 0
     }
@@ -7493,26 +7373,6 @@
         "ash (60.0%)",
         "bat (40.0%)"
       ]
-    }
-  },
-  {
-    "id": "pie-upstream-should-handle-simple-pie-with-zero-slice-value",
-    "family": "pie",
-    "source": "pie title Default text position: Animal adoption\n        accTitle: simple pie char demo\n        accDescr: pie chart with 3 sections: dogs, cats, rats. Most are dogs.\n         \"dogs\" : 0\n        \"rats\" : 40.12",
-    "upstream": {
-      "repo": "mermaid-js/mermaid",
-      "files": [
-        "packages/mermaid/src/diagrams/pie/pie.spec.ts"
-      ],
-      "blocks": [
-        "packages/mermaid/src/diagrams/pie/pie.spec.ts :: should handle simple pie with zero slice value"
-      ]
-    },
-    "assertions": {
-      "expectStructured": false,
-      "nodeCount": 0,
-      "edgeCount": 0,
-      "groupCount": 0
     }
   },
   {
@@ -13321,9 +13181,9 @@
     },
     "assertions": {
       "expectStructured": false,
-      "nodeCount": 0,
+      "nodeCount": 2,
       "edgeCount": 0,
-      "groupCount": 0
+      "groupCount": 1
     }
   },
   {
@@ -13397,9 +13257,9 @@
     },
     "assertions": {
       "expectStructured": false,
-      "nodeCount": 0,
+      "nodeCount": 4,
       "edgeCount": 0,
-      "groupCount": 0
+      "groupCount": 2
     }
   },
   {
@@ -13419,7 +13279,7 @@
       "expectStructured": false,
       "nodeCount": 0,
       "edgeCount": 0,
-      "groupCount": 0
+      "groupCount": 1
     }
   },
   {
@@ -13439,7 +13299,7 @@
       "expectStructured": false,
       "nodeCount": 0,
       "edgeCount": 0,
-      "groupCount": 0
+      "groupCount": 1
     }
   },
   {
@@ -14383,6 +14243,26 @@
         "Q1",
         "Q2"
       ]
+    }
+  },
+  {
+    "id": "pie-upstream-should-handle-simple-pie-with-zero-slice-value",
+    "family": "pie",
+    "source": "pie title Default text position: Animal adoption\n        accTitle: simple pie char demo\n        accDescr: pie chart with 3 sections: dogs, cats, rats. Most are dogs.\n         \"dogs\" : 0\n        \"rats\" : 40.12",
+    "upstream": {
+      "repo": "mermaid-js/mermaid",
+      "files": [
+        "packages/mermaid/src/diagrams/pie/pie.spec.ts"
+      ],
+      "blocks": [
+        "packages/mermaid/src/diagrams/pie/pie.spec.ts :: should handle simple pie with zero slice value"
+      ]
+    },
+    "assertions": {
+      "expectStructured": false,
+      "nodeCount": 2,
+      "edgeCount": 0,
+      "groupCount": 0
     }
   }
 ]

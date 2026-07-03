@@ -27,7 +27,6 @@ import { parseArchitectureBody, renderArchitecture, mutateArchitecture, verifyAr
 import { parseXyChartBody, renderXyChart, mutateXyChart, verifyXyChart } from './xychart-body.ts'
 import { parsePieBody, renderPie, mutatePie, verifyPie } from './pie-body.ts'
 import { parseQuadrantBody, renderQuadrant, mutateQuadrant, verifyQuadrant } from './quadrant-body.ts'
-import { parseQuadrantChart } from '../quadrant/parser.ts'
 import { parseStateBody, renderState, mutateState, verifyState } from './state-body.ts'
 import { parseGanttBody, renderGantt, mutateGantt, verifyGantt } from './gantt-body.ts'
 import { parseFlowchartBody, renderFlowchart, mutateFlowchart, buildFlowchartSourceMap, type FlowchartBody } from './flowchart-body.ts'
@@ -753,16 +752,9 @@ function extractQuadrantLabels(source: string): ExtractedLabel[] {
 function verifyOpaqueQuadrant(body: DiagramBody): LayoutWarning[] {
   if (body.kind !== 'opaque' || body.family !== 'quadrant') return []
   const warnings: LayoutWarning[] = []
-  try {
-    parseQuadrantChart(body.source.split(/\r?\n/))
-  } catch (e) {
-    warnings.push({
-      code: 'UNSUPPORTED_SYNTAX',
-      syntax: 'quadrant_unrenderable_opaque',
-      message: `Quadrant source is preserved as opaque, but local rendering may reject it: ${e instanceof Error ? e.message : String(e)}`,
-    })
-    return warnings
-  }
+  // Unrenderable opaque sources are the universal render-parity gate's job
+  // (Tier-1 RENDER_FAILED in verifyMermaid) — this hook's remaining value is
+  // the style-metadata lint, which scans raw lines and needs no parse.
 
   let sawPointStyle = false
   let sawClassDef = false

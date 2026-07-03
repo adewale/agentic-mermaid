@@ -24,7 +24,7 @@ function loadCorpus(): CorpusEntry[] {
   return existsSync(CORPUS_PATH) ? JSON.parse(readFileSync(CORPUS_PATH, 'utf8')) : []
 }
 
-const EXPECTED_CORPUS_RENDERED = 265
+const EXPECTED_CORPUS_RENDERED = 266
 const EXPECTED_CORPUS_ASCII_ERRORS = [
   'architecture:syntax/architecture.md:1',
   'architecture:syntax/architecture.md:2',
@@ -35,7 +35,8 @@ const EXPECTED_CORPUS_ASCII_ERRORS = [
   // wall-clock fallback (GANTT_BAD_DATE) — see eval/mermaid-gantt-bench e9.
   'gantt:syntax/gantt.md:10',
   'gantt:syntax/gantt.md:6',
-  'timeline:syntax/timeline.md:5',
+  // timeline:syntax/timeline.md:5 rendered as of the upstream-parity fixes
+  // (direction tokens after the timeline header are accepted and ignored).
 ]
 
 function corpusKey(entry: CorpusEntry): string { return `${entry.family}:${entry.origin}:${entry.index}` }

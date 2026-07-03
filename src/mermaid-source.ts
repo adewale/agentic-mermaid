@@ -534,7 +534,8 @@ export function detectDiagramTypeFromFirstLine(firstLine: string): RoutedDiagram
   if (/^xychart(-beta)?\b/.test(line)) return 'xychart'
   if (/^pie\b/.test(line)) return 'pie'
   if (/^quadrantchart\s*$/.test(line)) return 'quadrant'
-  if (/^timeline\s*$/.test(line)) return 'timeline'
+  // Upstream accepts (and ignores) a direction token after the header.
+  if (/^timeline(?:\s+(?:td|tb|lr|bt|rl))?\s*$/.test(line)) return 'timeline'
   if (/^gantt\s*$/.test(line)) return 'gantt'
   if (/^journey\s*$/.test(line)) return 'journey'
   if (/^sequencediagram\s*$/.test(line)) return 'sequence'

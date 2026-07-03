@@ -44,10 +44,43 @@ import type { PositionedDiagram, RenderContext, RenderOptions } from './types.ts
 import type { DiagramColors } from './theme.ts'
 import { inlineResolvedColors } from './theme.ts'
 import { normalizeMermaidSource, detectDiagramTypeFromFirstLine } from './mermaid-source.ts'
-import { readThemeValue, resolveDiagramColors } from './color-resolver.ts'
+import { CHANNEL_THEME_KEYS, readThemeValue, resolveDiagramColors } from './color-resolver.ts'
 import { getFamily } from './render-family-hooks.ts'
 import type { FamilyLayoutResult } from './agent/families.ts'
 import type { DiagramKind } from './agent/types.ts'
+import { resolveStyleStack, isStyledSpec, inferBackend } from './scene/style-registry.ts'
+import type { StyleSpec } from './scene/style-registry.ts'
+import { getBackend } from './scene/backend.ts'
+import './scene/rough-backend.ts'
+import './scene/hybrid-backend.ts'
+
+export { registerStyle, getStyle, knownStyles, validateStyleSpec, resolveStyleStack, inferBackend } from './scene/style-registry.ts'
+export type { StyleSpec, StyleInput } from './scene/style-registry.ts'
+export { registerBackend, getBackend, DefaultBackend } from './scene/backend.ts'
+export type { StyleBackend, StyleBackendContext } from './scene/backend.ts'
+export type { SceneDoc, SceneNode, SemanticChannels, SceneRole } from './scene/ir.ts'
+
+/**
+ * Compose a merged style's defaults UNDER the user's options (the stack is
+ * one layer below Mermaid compatibility: defaults < style stack <
+ * themeVariables < explicit color options). Runs BEFORE color resolution and
+ * layout so fonts and paddings affect text metrics (SPEC §9).
+ */
+function applyStyleDefaults(options: RenderOptions, spec: StyleSpec, themeVars?: Record<string, unknown>): RenderOptions {
+  const out: RenderOptions = { ...options }
+  // User-authored themeVariables beat the style's palette, same as explicit
+  // color options — CHANNEL_THEME_KEYS is the shared key map that
+  // resolveDiagramColors reads from.
+  const themed = (channel: keyof typeof CHANNEL_THEME_KEYS) => CHANNEL_THEME_KEYS[channel].some(k => themeVars?.[k] !== undefined)
+  const channels = ['bg', 'fg', 'line', 'accent', 'muted', 'surface', 'border'] as const
+  for (const channel of channels) {
+    if (out[channel] === undefined && !themed(channel) && spec.colors?.[channel] !== undefined) {
+      out[channel] = spec.colors[channel]
+    }
+  }
+  if (out.font === undefined && spec.font !== undefined) out.font = spec.font
+  return out
+}
 
 function normalizeFamilyLayoutResult(
   result: FamilyLayoutResult | PositionedDiagram,
@@ -217,17 +250,35 @@ export function renderMermaidSVG(
   text = decodeXML(text)
   const normalizedSource = normalizeMermaidSource(text, options.mermaidConfig ?? {})
 
-  const font = options.font
-    ?? normalizedSource.config.fontFamily
-    ?? readThemeValue(normalizedSource.config.themeVariables, 'fontFamily')
-    ?? 'Inter'
   // #7645/#7695: strict security mode disables the Google Fonts @import and
   // strips any external-fetch refs introduced by user theme/config values. The
   // --font CSS variable still declares the family; xmlns http:// is a namespace
   // declaration, not a fetch.
-  const effectiveOptions: RenderOptions = options.security === 'strict'
+  let effectiveOptions: RenderOptions = options.security === 'strict'
     ? { ...options, embedFontImport: false }
     : options
+  // The style stack resolves BEFORE colors and layout: names come from the
+  // registry, fragments merge left → right, and the merged palette/font are
+  // defaults under the user's own options and themeVariables. A spec that
+  // only carries role overrides stays on the byte-identical crisp path.
+  const mergedStyle = resolveStyleStack(options.style)
+  const styled = mergedStyle !== undefined && isStyledSpec(mergedStyle)
+  if (mergedStyle) {
+    // Renderers read the role overrides (text/node/edge/group) from
+    // options.style; a StyleSpec carries them directly.
+    effectiveOptions = { ...effectiveOptions, style: mergedStyle }
+  }
+  if (styled) {
+    effectiveOptions = applyStyleDefaults(effectiveOptions, mergedStyle, normalizedSource.config.themeVariables)
+  }
+  // Font precedence: explicit option > mermaid config/themeVariables >
+  // style default > 'Inter'. (applyStyleDefaults only fills
+  // effectiveOptions.font when options.font was unset.)
+  const font = options.font
+    ?? normalizedSource.config.fontFamily
+    ?? readThemeValue(normalizedSource.config.themeVariables, 'fontFamily')
+    ?? effectiveOptions.font
+    ?? 'Inter'
   const colors = resolveDiagramColors(effectiveOptions, normalizedSource.config, font)
   const diagramType = detectDiagramTypeFromFirstLine(normalizedSource.firstLine) ?? 'flowchart'
   const lines = normalizedSource.lines
@@ -265,12 +316,30 @@ export function renderMermaidSVG(
 
   const layout = normalizeFamilyLayoutResult(family.layout({
     source: normalizedSource,
-    options,
+    options: effectiveOptions,
     renderOptions,
     colors,
   }))
   const renderColors = layout.colors ?? colors
-  const rawSvg = family.renderSvg(renderContext(layout.positioned, renderColors, layout.options ?? renderOptions))
+  const ctx = renderContext(layout.positioned, renderColors, layout.options ?? renderOptions)
+  let rawSvg: string
+  if (styled && !family.lowerScene) {
+    // Capability gating (SPEC §13): partial coverage that silently falls back
+    // to crisp erodes trust — an unsupported family/style combo fails loud.
+    // Every built-in family registers a lowering; this guards external
+    // registerFamily plugins that haven't added one yet.
+    throw new Error(`Family "${diagramType}" does not support styled rendering (no SceneGraph lowering registered). Render without the style option, or register a lowerScene hook for the family.`)
+  }
+  if (styled && family.lowerScene) {
+    // Styled path: lower to the SceneGraph and serialize with the backend the
+    // merged style implies (authors describe the look, never the machinery).
+    const backendId = inferBackend(mergedStyle!)
+    const backend = getBackend(backendId)
+    if (!backend) throw new Error(`Style "${mergedStyle!.name ?? '(inline)'}" requires unregistered backend "${backendId}"`)
+    rawSvg = backend.render(family.lowerScene(ctx), { seed: effectiveOptions.seed ?? 0, style: mergedStyle })
+  } else {
+    rawSvg = family.renderSvg(ctx)
+  }
   return resolve(rawSvg, renderColors, layout.injectAccessibility ?? true)
 }
 

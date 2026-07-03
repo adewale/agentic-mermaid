@@ -285,6 +285,12 @@
 }
 
 /* Buttons – match showcase secondary button style */
+/* `display: inline-flex` would beat the UA's [hidden] rule — keep the
+   attribute honest for conditionally-present controls (seed shuffle). */
+.btn[hidden] {
+  display: none;
+}
+
 .btn {
   display: inline-flex;
   align-items: center;

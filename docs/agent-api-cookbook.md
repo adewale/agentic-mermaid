@@ -279,8 +279,9 @@ Tier 1 warnings are reliable structural/source checks. Do not suppress Tier 1 er
 | `UNKNOWN_SHAPE` | Shape fell back because the name is unrecognized |
 | `LABEL_OVERFLOW` | Label exceeds `labelCharCap` |
 | `UNRESOLVABLE_SCHEDULE` | Gantt parses but its schedule cannot resolve; render would fail |
+| `RENDER_FAILED` | Any family: verifies structurally but the strict render parser rejects the canonical source; `reason` carries the renderer error |
 
-Tier 2 warnings are advisory geometric checks for flowchart/state: `NODE_OVERLAP`, `ROUTE_SELF_CROSS`, and the route-contract tripwires `ROUTE_HITCH`, `ROUTE_UNEXPLAINED_BEND`, `ROUTE_LABEL_ON_SHARED_TRUNK`, `ROUTE_CONTAINER_MISANCHOR`, `ROUTE_SHAPE_MISANCHOR`, `ROUTE_STALE_AFTER_NODE_MOVE`.
+Tier 2 warnings are advisory geometric checks — route tripwires for flowchart/state, plus boundary-anchor/overlap checks on class/ER entity boxes: `NODE_OVERLAP`, `ROUTE_SELF_CROSS`, and the route-contract tripwires `ROUTE_HITCH`, `ROUTE_UNEXPLAINED_BEND`, `ROUTE_LABEL_ON_SHARED_TRUNK`, `ROUTE_CONTAINER_MISANCHOR`, `ROUTE_SHAPE_MISANCHOR`, `ROUTE_STALE_AFTER_NODE_MOVE`.
 
 Tier 3 warnings are advisory lint checks for common agent mistakes or source-preserved Mermaid syntax that is not fully modeled: `DUPLICATE_EDGE`, `UNREACHABLE_NODE`, `DECISION_BRANCH_UNLABELED`, `COMMENT_DROPPED`, `UNSUPPORTED_SYNTAX`, `CONTENT_DROPPED_ON_ROUNDTRIP`. They do not flip `verify.ok`, but they are worth fixing when the caller asks for clean maintainable diagrams.
 

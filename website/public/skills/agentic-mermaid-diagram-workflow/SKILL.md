@@ -5,7 +5,7 @@ description: Agent-agnostic skill for authoring and editing Mermaid diagrams wit
 
 # Agentic Mermaid — diagram workflow
 
-An agent-agnostic typed editing surface for Mermaid. New diagrams can be authored as Mermaid source and verified/rendered directly. Existing modeled diagrams can be parsed to a `ValidDiagram`, mutated with typed ops, verified structurally (not as subjective visual scoring), and serialized back to canonical source. Agentic Mermaid outputs SVG, PNG, ASCII, Unicode, and JSON layout; layout is deterministic — verified cross-process, no seed.
+An agent-agnostic typed editing surface for Mermaid. New diagrams can be authored as Mermaid source and verified/rendered directly. Existing modeled diagrams can be parsed to a `ValidDiagram`, mutated with typed ops, verified structurally (not as subjective visual scoring), and serialized back to canonical source. Agentic Mermaid outputs SVG, PNG, ASCII, Unicode, and JSON layout; layout is deterministic — verified cross-process, no layout seed. Styled looks (`style` render option: name | spec | stack, e.g. `['hand-drawn', 'dracula']`) accept an ink `seed` that re-rolls wobble without ever moving layout; see docs/style-authoring.md.
 
 ## Pick a channel
 

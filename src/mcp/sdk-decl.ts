@@ -326,7 +326,7 @@ declare const mermaid: {
   analyzeMermaid(d: ValidDiagram): DiagramAnalysis
   analyzeMermaidSource(source: string): Result<DiagramAnalysis, { code: string; message: string }[]>
   serializeMermaid(d: ValidDiagram): string
-  renderMermaidSVG(input: ValidDiagram | string, opts?: { security?: 'default' | 'strict'; idPrefix?: string; ganttToday?: string; mermaidConfig?: MermaidRuntimeConfig }): string
+  renderMermaidSVG(input: ValidDiagram | string, opts?: { security?: 'default' | 'strict'; idPrefix?: string; ganttToday?: string; mermaidConfig?: MermaidRuntimeConfig; style?: StyleInput | StyleInput[]; seed?: number }): string
   renderMermaidASCII(input: ValidDiagram | string, opts?: { useAscii?: boolean; ganttToday?: string; mermaidConfig?: MermaidRuntimeConfig }): string
 }
 
@@ -345,6 +345,10 @@ declare const mermaid: {
 //    bodies (unmodeled syntax) are source-level only; if explicitly edited as
 //    text, re-parse and verify before returning.
 // 4. verify.ok is structural, not a visual-quality score; inspect warnings/layout or render artifacts for layout quality.
-// 5. Layout is deterministic; there is no seed. Gantt never reads the wall
-//    clock; pass render option ganttToday to draw a deterministic today marker.
+// 5. Layout is deterministic and never seeded. The render option seed only
+//    re-rolls stochastic ink of styled looks (render option style: a name,
+//    an inline style record, or a stack merged left-to-right; a colors-only
+//    style is a theme); geometry is identical for identical input. Gantt
+//    never reads the wall clock; pass render option ganttToday to draw a
+//    deterministic today marker.
 `

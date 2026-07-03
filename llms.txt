@@ -24,6 +24,8 @@ you haven't inspected.
 
 - render --format svg, ascii, unicode, json [--security strict] — render a diagram
 - render --format png --output file.png — render one input to PNG (no PNG bytes on stdout, no multi-input/watch)
+- render --style <names|file.json> --seed N — styled svg/png; comma-separate to stack (--style hand-drawn,dracula)
+- styles [--json] — list registered styles (default + full looks + palette-only themes)
 - parse — diagram → ValidDiagram JSON
 - verify — structural validation (exit 3 if invalid)
 - mutate --op '<json>' / --ops '<json array|file>' — apply typed mutation(s), verify, then emit source
@@ -60,14 +62,26 @@ Opaque-fallback bodies (unmodeled syntax) round-trip losslessly via preserved so
 
 ## Warning codes
 
-EMPTY_DIAGRAM (structural/error), UNRESOLVABLE_SCHEDULE (structural/error), EDGE_MISANCHORED (structural/error), OFF_CANVAS (structural/error), GROUP_BREACH (structural/error), UNKNOWN_SHAPE (structural/warning), LABEL_OVERFLOW (structural/warning), NODE_OVERLAP (geometric/warning), ROUTE_SELF_CROSS (geometric/warning), ROUTE_HITCH (geometric/warning), ROUTE_UNEXPLAINED_BEND (geometric/warning), ROUTE_LABEL_ON_SHARED_TRUNK (geometric/warning), ROUTE_CONTAINER_MISANCHOR (geometric/warning), ROUTE_SHAPE_MISANCHOR (geometric/warning), ROUTE_STALE_AFTER_NODE_MOVE (geometric/warning), DUPLICATE_EDGE (lint/warning), UNREACHABLE_NODE (lint/warning), DECISION_BRANCH_UNLABELED (lint/warning), COMMENT_DROPPED (lint/warning), UNSUPPORTED_SYNTAX (lint/warning), CONTENT_DROPPED_ON_ROUNDTRIP (lint/warning)
+EMPTY_DIAGRAM (structural/error), UNRESOLVABLE_SCHEDULE (structural/error), RENDER_FAILED (structural/error), EDGE_MISANCHORED (structural/error), OFF_CANVAS (structural/error), GROUP_BREACH (structural/error), UNKNOWN_SHAPE (structural/warning), LABEL_OVERFLOW (structural/warning), NODE_OVERLAP (geometric/warning), ROUTE_SELF_CROSS (geometric/warning), ROUTE_HITCH (geometric/warning), ROUTE_UNEXPLAINED_BEND (geometric/warning), ROUTE_LABEL_ON_SHARED_TRUNK (geometric/warning), ROUTE_CONTAINER_MISANCHOR (geometric/warning), ROUTE_SHAPE_MISANCHOR (geometric/warning), ROUTE_STALE_AFTER_NODE_MOVE (geometric/warning), DUPLICATE_EDGE (lint/warning), UNREACHABLE_NODE (lint/warning), DECISION_BRANCH_UNLABELED (lint/warning), COMMENT_DROPPED (lint/warning), UNSUPPORTED_SYNTAX (lint/warning), CONTENT_DROPPED_ON_ROUNDTRIP (lint/warning)
 
 ## Library
 
 `import { parseMermaid, mutate, verifyMermaid, analyzeMermaid,
 analyzeMermaidSource, serializeMermaid, renderMermaidASCII,
 renderMermaidPNG, renderMermaidSVG, renderMermaidASCIIWithMeta,
-describeMermaid, asciiToMermaid, verifyNoExternalRefs } from 'agentic-mermaid/agent'`
+describeMermaid, asciiToMermaid, verifyNoExternalRefs,
+registerStyle, knownStyles, validateStyleSpec } from 'agentic-mermaid/agent'`
+
+## Styles
+
+Every render call accepts style: a name ('hand-drawn', 'excalidraw',
+'pen-and-ink', 'freehand', 'watercolor', 'blueprint', 'tufte', or any theme
+name — a theme is a palette-only style), an inline JSON spec, or a stack
+merged left → right ({ style: ['hand-drawn', 'dracula'] }). seed re-rolls
+ink wobble, never layout — (source, style, seed) reproduces an image
+exactly. Custom styles are data: validateStyleSpec(json) checks untrusted
+records, registerStyle({ name, … }) makes them addressable by name.
+Authoring guide + quality rubric: docs/style-authoring.md.
 
 ## Docs
 
@@ -78,6 +92,7 @@ describeMermaid, asciiToMermaid, verifyNoExternalRefs } from 'agentic-mermaid/ag
 - docs/api.md — library/CLI/MCP API reference, including SVG/PNG/ASCII output
 - docs/diagram-families.md — family examples and edit policy
 - docs/theming.md — themes, CSS variables, and Shiki compatibility
+- docs/style-authoring.md — styles: the composable look system (a theme is a palette-only style; stack names/specs; author custom styles as data records with the quality rubric)
 - docs/quality.md — determinism + "good looking" rubric
 - TODO.md — only active backlog
 - SECURITY.md — threat model + strict-mode guarantee

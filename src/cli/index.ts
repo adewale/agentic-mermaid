@@ -20,7 +20,9 @@ import type {
   MutationError, Result, MutableValidDiagram,
 } from '../agent/types.ts'
 import { WARNING_SEVERITY, WARNING_TIER } from '../agent/types.ts'
-import { BUILTIN_FAMILY_METADATA, knownFamilies, getFamily } from '../agent/families.ts'
+import { BUILTIN_FAMILY_METADATA, builtinFamilyMetadata, knownFamilies, getFamily } from '../agent/families.ts'
+import { knownStyles, getStyle, validateStyleSpec, inferBackend, resolveStyleStack, styleKind } from '../scene/style-registry.ts'
+import type { StyleInput, StyleSpec } from '../scene/style-registry.ts'
 import type { BuiltinFamilyId } from '../agent/families.ts'
 import '../agent/families-builtin.ts'
 import { AGENT_INSTRUCTIONS } from './agent-instructions.ts'
@@ -52,6 +54,7 @@ export const FLAG_SPECS: Record<string, { arg?: string }> = {
   'watch': {}, 'open': {}, 'force': {}, 'canonical-wrapper': {},
   // value flags (placeholder = what the usage shows after the flag)
   'suppress': { arg: 'CODES' }, 'label-cap': { arg: 'N' }, 'op': { arg: 'JSON' },
+  'style': { arg: 'NAMES|file' }, 'seed': { arg: 'N' },
   'ops': { arg: 'JSON|file' }, 'output': { arg: 'FILE' }, 'format': { arg: 'fmt' },
   'security': { arg: 'mode' }, 'dir': { arg: 'DIR' },
 }
@@ -107,6 +110,7 @@ Commands:
   capabilities           Emit JSON describing families + warning codes + mutation ops
   batch                  Read JSONL ops from stdin; emit one JSON envelope per line
   render-markdown <file> Render fenced mermaid blocks in Markdown (SVG or --ascii)
+  styles                 List registered styles (looks + themes); see also render --style
   llms-txt               Emit the agent discovery digest
   init-agent             Write a repo-local agent drop-in (AGENTS section, skill, MCP config)
 
@@ -118,6 +122,8 @@ Flags:
   --output <FILE>        For render png / preview output path
   --open                 For preview: open generated HTML in browser
   --force                For init-agent: refresh generated skill/MCP files
+  --style <NAMES|file>   For render svg/png: style stack — comma-separated names and/or .json spec files
+  --seed <N>             For render svg/png: re-roll ink wobble of styled looks (never layout)
   --suppress <CODES>     For verify: comma-separated WarningCodes to suppress
   --label-cap <N>        For verify: LABEL_OVERFLOW char cap (default 40)
   --certificates         For render --format json: include route/family certificates
@@ -140,15 +146,27 @@ Render a diagram. Default is SVG.
   --format json     Layout JSON (nodes, edges, groups, bounds)
   --certificates     With --format json, include route/family certificates
   --format png      PNG bytes; requires --output <file.png>; no watch/multi-input
+  --style <S>       Style stack: comma-separated names and/or .json spec files,
+                    merged left → right (e.g. --style hand-drawn,dracula or
+                    --style ./brand.json). Applies to svg/png. See: am styles
+  --seed <N>        Re-roll ink wobble of styled looks; never moves layout
   --security strict Remove external-fetch refs from SVG output
   --watch           Re-render one input file on change (non-PNG only)
 Multiple inputs emit a JSON results array for non-PNG formats.
 With --json, the svg/ascii/unicode forms wrap output as {"<format>": "..."}.`,
+  styles: `am styles [--json]
+List every registered style. A style is a partial description of how diagrams
+look; a colors-only style is a theme, a full look sets stroke/fill/typography
+too. Stack them with render --style (e.g. --style hand-drawn,dracula) and
+re-roll ink with --seed. Custom styles are JSON records (docs/style-authoring.md);
+pass a .json file path anywhere a name is accepted.
+With --json: [{ name, kind: default|look|theme, backend, intent?, blurb }].`,
   verify: `am verify <file|-> [--suppress A,B] [--label-cap N]
 Always emits JSON: {ok, warnings[], layout}.
 Tier-1 error codes flip ok=false:
-EMPTY_DIAGRAM, EDGE_MISANCHORED, OFF_CANVAS, GROUP_BREACH. Warning codes:
-UNKNOWN_SHAPE, LABEL_OVERFLOW (char-cap), UNRESOLVABLE_SCHEDULE,
+EMPTY_DIAGRAM, EDGE_MISANCHORED, OFF_CANVAS, GROUP_BREACH, UNRESOLVABLE_SCHEDULE,
+RENDER_FAILED (source verifies structurally but the render parser rejects it). Warning codes:
+UNKNOWN_SHAPE, LABEL_OVERFLOW (char-cap),
 NODE_OVERLAP, ROUTE_SELF_CROSS, ROUTE_HITCH, ROUTE_UNEXPLAINED_BEND, ROUTE_LABEL_ON_SHARED_TRUNK,
 ROUTE_CONTAINER_MISANCHOR, ROUTE_SHAPE_MISANCHOR, ROUTE_STALE_AFTER_NODE_MOVE,
 DUPLICATE_EDGE, UNREACHABLE_NODE, DECISION_BRANCH_UNLABELED, COMMENT_DROPPED, UNSUPPORTED_SYNTAX,
@@ -229,6 +247,7 @@ export function runCli(argv: string[]): number {
       case 'format': return cmdFormat(args)
       case 'describe': return cmdDescribe(args, json)
       case 'capabilities': return cmdCapabilities()
+      case 'styles': return cmdStyles(json)
       case 'llms-txt': return cmdLlmsTxt()
       case 'init-agent': return cmdInitAgent(args, json)
       case 'batch': return cmdBatch()
@@ -265,6 +284,27 @@ function cmdRender(args: ParsedArgs, json: boolean): number {
     return EXIT_ARG_ERROR
   }
 
+  // --style: a stack of names and/or .json spec files; fail fast (exit 2) on
+  // unknown names or invalid specs instead of surfacing an internal error.
+  let style: StyleInput[] | undefined
+  if (typeof args.flags.style === 'string') {
+    try {
+      style = parseStyleFlag(args.flags.style)
+      resolveStyleStack(style)
+    } catch (e) {
+      process.stderr.write(`am render --style: ${e instanceof Error ? e.message : String(e)}\n`)
+      return EXIT_ARG_ERROR
+    }
+    if (format === 'ascii' || format === 'unicode' || format === 'json') {
+      process.stderr.write(`am render: --style applies to svg/png output; ignored for --format ${format}\n`)
+    }
+  }
+  const seed = typeof args.flags.seed === 'string' ? Number(args.flags.seed) : undefined
+  if (seed !== undefined && !Number.isFinite(seed)) {
+    process.stderr.write('am render --seed expects a finite number\n')
+    return EXIT_ARG_ERROR
+  }
+
   if (args.positional.length > 1 && format === 'png') {
     process.stderr.write('am render --format png accepts exactly one input; run once per file with a distinct --output path\n')
     return EXIT_ARG_ERROR
@@ -278,7 +318,7 @@ function cmdRender(args: ParsedArgs, json: boolean): number {
     const results = args.positional.map((file, index) => {
       try {
         const src = readSourceArg(file)
-        const output = renderMultiInputOnce(src, format, { security, certificates: args.flags.certificates === true })
+        const output = renderSourceToFormat(src, format, { security, certificates: args.flags.certificates === true, style, seed })
         return { index, file, ok: true, output }
       } catch (e) {
         const parseEnvelope = e as { ok?: false; error?: { code?: string; message?: string; details?: unknown } }
@@ -298,7 +338,7 @@ function cmdRender(args: ParsedArgs, json: boolean): number {
     return EXIT_ARG_ERROR
   }
   if (args.flags.watch && typeof args.positional[0] === 'string' && args.positional[0] !== '-') {
-    return cmdRenderWatch(args.positional[0], format, args, json, { security, certificates: args.flags.certificates === true })
+    return cmdRenderWatch(args.positional[0], format, args, json, { security, certificates: args.flags.certificates === true, style, seed })
   }
 
   const source = readSourceArg(args.positional[0])
@@ -318,36 +358,34 @@ function cmdRender(args: ParsedArgs, json: boolean): number {
     const background = typeof args.flags.bg === 'string' ? args.flags.bg : 'white'
     // PNG render is native-sync via resvg; keep bytes off stdout and write the
     // raster artifact explicitly to the requested output path.
-    return renderPngSync(source, { scale, background }, outFile, json)
+    return renderPngSync(source, { scale, background, style, seed }, outFile, json)
   }
-  if (format === 'json') {
-    // Loop 9 M3 — structured layout JSON. parseMermaid → layoutMermaid →
-    // emit nodes/edges/groups/bounds with stable key ordering.
-    const layout = layoutMermaid(parsed.value, { debug: args.flags.certificates === true })
-    process.stdout.write(JSON.stringify(layout) + '\n')
+  // Loop 9 M3/M4, #7645: json = layout shape; unicode is the default text
+  // renderer; `--security strict` strips external-fetch refs from SVG.
+  const out = renderSourceToFormat(source, format, { security, certificates: args.flags.certificates === true, style, seed })
+  if (typeof out !== 'string') {
+    process.stdout.write(JSON.stringify(out) + '\n')
     return EXIT_OK
   }
-  if (format === 'ascii' || format === 'unicode') {
-    // Loop 9 M4 — `unicode` is the default ASCII renderer (Unicode box
-    // drawing). `ascii` flips the useAscii bit for pure 7-bit output.
-    const ascii = renderMermaidASCII(source, { useAscii: format === 'ascii' })
-    process.stdout.write(json ? JSON.stringify({ [format]: ascii }) + '\n' : (ascii.endsWith('\n') ? ascii : ascii + '\n'))
-    return EXIT_OK
-  }
-  // #7645/#7695: `--security strict` → no external-fetch refs in the SVG.
-  const svg = renderMermaidSVG(source, { security })
-  process.stdout.write(json ? JSON.stringify({ svg }) + '\n' : (svg.endsWith('\n') ? svg : svg + '\n'))
+  process.stdout.write(json ? JSON.stringify({ [format]: out }) + '\n' : (out.endsWith('\n') ? out : out + '\n'))
   return EXIT_OK
 }
 
-function renderMultiInputOnce(source: string, format: string, opts: { security?: 'default' | 'strict'; certificates?: boolean } = {}): unknown {
-  if (format === 'svg') return renderMermaidSVG(source, { security: opts.security })
+interface RenderFormatOptions { security?: 'default' | 'strict'; certificates?: boolean; style?: StyleInput[]; seed?: number }
+
+/** The ONE format dispatch behind every render path — single-input,
+ *  multi-input, and watch differ only in I/O and error envelopes, so they
+ *  share this core instead of re-enumerating formats (the style/seed
+ *  threading previously had to touch three copies). JSON parse failures
+ *  throw the structured envelope; callers decide how to surface it. */
+function renderSourceToFormat(source: string, format: string, opts: RenderFormatOptions = {}): string | object {
+  if (format === 'ascii' || format === 'unicode') return renderMermaidASCII(source, { useAscii: format === 'ascii' })
   if (format === 'json') {
     const parsed = parseMermaid(source)
     if (!parsed.ok) throw parseErrorEnvelope(parsed.error)
     return layoutMermaid(parsed.value, { debug: opts.certificates === true })
   }
-  return renderMermaidASCII(source, { useAscii: format === 'ascii' })
+  return renderMermaidSVG(source, { security: opts.security, style: opts.style, seed: opts.seed })
 }
 
 /**
@@ -355,17 +393,20 @@ function renderMultiInputOnce(source: string, format: string, opts: { security?:
  * requested format, returns the output string. Extracted so it's unit-testable
  * without fs.watch timing.
  */
-export function renderFileOnce(file: string, format: string, opts: { security?: 'default' | 'strict'; certificates?: boolean } = {}): string {
+export function renderFileOnce(file: string, format: string, opts: RenderFormatOptions = {}): string {
   const src = readFileSync(file, 'utf8')
-  if (format === 'ascii' || format === 'unicode') return renderMermaidASCII(src, { useAscii: format === 'ascii' })
-  if (format === 'json') {
-    const p = parseMermaid(src)
-    return p.ok ? JSON.stringify(layoutMermaid(p.value, { debug: opts.certificates === true })) : JSON.stringify(parseErrorEnvelope(p.error))
+  try {
+    const out = renderSourceToFormat(src, format, opts)
+    return typeof out === 'string' ? out : JSON.stringify(out)
+  } catch (e) {
+    // Watch mode wants a printable line, not a throw: the structured JSON
+    // parse envelope serializes; real render errors keep propagating.
+    if ((e as { ok?: boolean; error?: unknown })?.ok === false) return JSON.stringify(e)
+    throw e
   }
-  return renderMermaidSVG(src, { security: opts.security })
 }
 
-function cmdRenderWatch(file: string, format: string, args: ParsedArgs, _json: boolean, opts: { security?: 'default' | 'strict'; certificates?: boolean } = {}): number {
+function cmdRenderWatch(file: string, format: string, args: ParsedArgs, _json: boolean, opts: { security?: 'default' | 'strict'; certificates?: boolean; style?: StyleInput[]; seed?: number } = {}): number {
   const outFile = typeof args.flags.output === 'string' ? args.flags.output : ''
   const emit = () => {
     try {
@@ -381,7 +422,7 @@ function cmdRenderWatch(file: string, format: string, args: ParsedArgs, _json: b
   return EXIT_OK
 }
 
-function renderPngSync(source: string, opts: { scale: number; background: string }, outFile: string, json: boolean): number {
+function renderPngSync(source: string, opts: { scale: number; background: string; style?: StyleInput[]; seed?: number }, outFile: string, json: boolean): number {
   try {
     const png = renderMermaidPNG(source, opts)
     writeFileSync(outFile, png)
@@ -644,6 +685,9 @@ interface FamilyCapability {
   hasExtractLabels: boolean
   mutationOps: string[]
   editPolicy: FamilyEditPolicy
+  /** Minimal canonical source (header + core syntax); absent for
+   *  registered non-builtin families that don't declare one. */
+  example?: string
 }
 
 interface WarningCodeCapability {
@@ -703,6 +747,7 @@ export function buildCapabilities(): CapabilitiesEnvelope {
       hasExtractLabels: Boolean(p.extractLabels),
       mutationOps,
       editPolicy,
+      example: builtinFamilyMetadata(id)?.example,
     }
   })
   const warningCodes: WarningCodeCapability[] = (Object.keys(WARNING_SEVERITY) as WarningCode[]).map(code => ({
@@ -711,6 +756,48 @@ export function buildCapabilities(): CapabilitiesEnvelope {
     severity: WARNING_SEVERITY[code],
   }))
   return { sdkVersion, families, warningCodes, outputFormats: ['svg', 'ascii', 'unicode', 'png', 'json'] }
+}
+
+/** Resolve the --style flag: comma-separated style names and/or .json spec
+ *  files forming a stack (merged left → right by resolveStyleStack). JSON
+ *  specs are validated before use so bad files are arg errors, not throws. */
+function parseStyleFlag(value: string): StyleInput[] {
+  return value.split(',').map(entry => entry.trim()).filter(Boolean).map(entry => {
+    if (entry.endsWith('.json') || existsSync(entry)) {
+      if (!existsSync(entry)) throw new Error(`style spec file not found: ${entry}`)
+      const spec = JSON.parse(readFileSync(entry, 'utf8')) as unknown
+      const problems = validateStyleSpec(spec)
+      if (problems.length > 0) throw new Error(`invalid style spec ${entry}: ${problems.join('; ')}`)
+      return spec as StyleSpec
+    }
+    return entry
+  })
+}
+
+function cmdStyles(json: boolean): number {
+  const rows = knownStyles().map(name => {
+    if (name === 'crisp') {
+      return { name, kind: 'default' as const, backend: 'default' as const, blurb: 'The byte-identical default renderer (style unset).' }
+    }
+    const spec = getStyle(name)!
+    return {
+      name,
+      kind: styleKind(spec),
+      backend: inferBackend(spec),
+      ...(spec.intent ? { intent: spec.intent } : {}),
+      blurb: spec.blurb ?? '',
+    }
+  })
+  if (json) {
+    process.stdout.write(JSON.stringify(rows) + '\n')
+    return EXIT_OK
+  }
+  const nameWidth = Math.max(...rows.map(r => r.name.length))
+  for (const r of rows) {
+    process.stdout.write(`${r.name.padEnd(nameWidth)}  ${r.kind.padEnd(7)}  ${r.blurb}\n`)
+  }
+  process.stdout.write(`\nStack styles with: am render <file> --style <name[,name|file.json...]> [--seed N]\nAuthor your own: docs/style-authoring.md (JSON records; validate with validateStyleSpec).\n`)
+  return EXIT_OK
 }
 
 function cmdCapabilities(): number {
@@ -758,6 +845,8 @@ you haven't inspected.
 
 - render --format svg, ascii, unicode, json [--security strict] — render a diagram
 - render --format png --output file.png — render one input to PNG (no PNG bytes on stdout, no multi-input/watch)
+- render --style <names|file.json> --seed N — styled svg/png; comma-separate to stack (--style hand-drawn,dracula)
+- styles [--json] — list registered styles (default + full looks + palette-only themes)
 - parse — diagram → ValidDiagram JSON
 - verify — structural validation (exit 3 if invalid)
 - mutate --op '<json>' / --ops '<json array|file>' — apply typed mutation(s), verify, then emit source
@@ -801,7 +890,19 @@ ${codes}
 \`import { parseMermaid, mutate, verifyMermaid, analyzeMermaid,
 analyzeMermaidSource, serializeMermaid, renderMermaidASCII,
 renderMermaidPNG, renderMermaidSVG, renderMermaidASCIIWithMeta,
-describeMermaid, asciiToMermaid, verifyNoExternalRefs } from 'agentic-mermaid/agent'\`
+describeMermaid, asciiToMermaid, verifyNoExternalRefs,
+registerStyle, knownStyles, validateStyleSpec } from 'agentic-mermaid/agent'\`
+
+## Styles
+
+Every render call accepts style: a name ('hand-drawn', 'excalidraw',
+'pen-and-ink', 'freehand', 'watercolor', 'blueprint', 'tufte', or any theme
+name — a theme is a palette-only style), an inline JSON spec, or a stack
+merged left → right ({ style: ['hand-drawn', 'dracula'] }). seed re-rolls
+ink wobble, never layout — (source, style, seed) reproduces an image
+exactly. Custom styles are data: validateStyleSpec(json) checks untrusted
+records, registerStyle({ name, … }) makes them addressable by name.
+Authoring guide + quality rubric: docs/style-authoring.md.
 
 ## Docs
 
@@ -812,6 +913,7 @@ describeMermaid, asciiToMermaid, verifyNoExternalRefs } from 'agentic-mermaid/ag
 - docs/api.md — library/CLI/MCP API reference, including SVG/PNG/ASCII output
 - docs/diagram-families.md — family examples and edit policy
 - docs/theming.md — themes, CSS variables, and Shiki compatibility
+- docs/style-authoring.md — styles: the composable look system (a theme is a palette-only style; stack names/specs; author custom styles as data records with the quality rubric)
 - docs/quality.md — determinism + "good looking" rubric
 - TODO.md — only active backlog
 - SECURITY.md — threat model + strict-mode guarantee
