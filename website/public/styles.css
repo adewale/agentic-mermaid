@@ -78,13 +78,13 @@
    used to sit in the shell now lives on only as the "paper" render theme; Pine
    is also selectable as [data-theme="pine-light"] / [data-theme="pine-dark"]. */
 :root {
-  --bg:     #F5F0E4;
-  --fg:     #221E16;
-  --accent: #1B6E52;   /* Pine brand accent (was terracotta #9A4A24, now render-theme only). 5.4:1 on Paper. */
+  --bg:     #F8F4F0;   /* Kiln Stone — a cleaner, lower-chroma warm neutral (was Paper #F5F0E4) */
+  --fg:     #26201B;
+  --accent: #1B6E52;   /* Pine brand accent (was terracotta #9A4A24, now render-theme only). 5.7:1 on Stone. */
 
   /* derived hierarchy — a coherent mono ramp from the triplet. The three ink
-     steps stay visibly distinct on Paper: ink 14.6:1, soft 8.0:1 (≥7:1),
-     faint 5.4:1 on --bg and 4.9:1 on --surface (≥4.5:1 AA for muted text). */
+     steps stay visibly distinct on Stone: ink 14.7:1, soft 8.0:1 (≥7:1),
+     faint 5.3:1 on --bg and 4.9:1 on --surface (≥4.5:1 AA for muted text). */
   --paper:        var(--bg);
   --ink:          var(--fg);
   --ink-soft:     color-mix(in srgb, var(--fg) 80%, var(--bg));
@@ -689,7 +689,7 @@ footer { max-width: var(--content-max); margin: 0 auto; padding: 28px var(--page
 }
 .copy-prompt-btn:active,
 .masthead .links .link-editor:active { transform: scale(0.97); }
-.copy-prompt-btn[data-copy-state="ok"] { color: var(--success); }
+.copy-prompt-btn[data-copy-state="ok"] { color: var(--success); background: var(--success-tint); border-color: color-mix(in srgb, var(--success) 30%, var(--control-border)); }
 .copy-prompt-btn[data-copy-state="err"], .prompt-action[data-copy-state="err"] { color: var(--danger); }
 :where(.meta-label, .agent-kicker, .section-kicker, .copy-prompt-label, .gallery-prompt span, .gallery-ops span, .example-prompt span, .example-trace span) {
   color: var(--ink-soft);

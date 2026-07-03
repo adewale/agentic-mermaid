@@ -262,7 +262,7 @@ describe('Workers Static Assets website contract', () => {
     expect(docs).toContain('class="doc"')
     expect(docs).toContain('Docs index')
     expect(editor).toContain('class="app-brand"')
-    expect(editor).toContain('--t-bg: #F5F0E4')
+    expect(editor).toContain('--t-bg: #F8F4F0')
     expect(editor).toContain('--control-bg: var(--surface)')
     expect(editor).toContain('top: var(--examples-top, 60px)')
     expect(editor).toContain('left: var(--examples-left, 16px)')

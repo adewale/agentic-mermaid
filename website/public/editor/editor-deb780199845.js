@@ -874,14 +874,14 @@ function hexToRgb(hex) {
 }
 
 function chromeThemeColors() {
-  // App-shell chrome: a warm Paper (light) / Dusk (dark) ground with the
-  // independent Pine brand accent — NOT the terracotta of the "paper" diagram
-  // theme. Keep in lockstep with the :root/[data-scheme] chrome in
-  // website/source/assets/styles.css and editor/css/variables.css. Pine accent
-  // clears WCAG AA on both grounds (5.4:1 on Paper, 7.2:1 on Dusk).
+  // App-shell chrome: the Kiln brand — a warm-neutral Stone (light) / Charcoal
+  // (dark) ground with the independent Pine accent, NOT the terracotta of the
+  // "paper" diagram theme. Keep in lockstep with the :root/[data-scheme] chrome
+  // in website/source/assets/styles.css and editor/css/variables.css. Pine accent
+  // clears WCAG AA on both grounds (5.7:1 on Stone, 8.7:1 on Charcoal).
   return isDark
-    ? { bg: "#2A2521", fg: "#E9DFCC", accent: "#6FC2A2" }
-    : { bg: "#F5F0E4", fg: "#221E16", accent: "#1B6E52" };
+    ? { bg: "#17130D", fg: "#EBE7E0", accent: "#6FC2A2" }
+    : { bg: "#F8F4F0", fg: "#26201B", accent: "#1B6E52" };
 }
 
 function applyThemeToPage(themeKey) {

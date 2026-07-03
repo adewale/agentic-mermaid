@@ -60,8 +60,9 @@
   align-items: center;
   gap: 10px;
   padding: 5px 12px;
-  border-top: 1px solid var(--border);
-  background: var(--bg2);
+  /* an informational banner — soft --info-tint wash with an info-toned rule */
+  border-top: 1px solid color-mix(in srgb, var(--info) 28%, transparent);
+  background: var(--info-tint);
   color: var(--fg2);
   font-size: var(--t-label);
   line-height: var(--lh-ui);

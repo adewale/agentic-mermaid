@@ -18,13 +18,14 @@
 }
 
 :root {
-  /* Shared app-shell foundation, in lockstep with the public site. The warm
-     Paper ground is the neutral; the accent is the independent Pine brand, not
-     the terracotta diagram theme (which now lives on only as the "paper" theme
-     in the render dropdown). The theme dropdown changes render output, never the
-     app shell. */
-  --t-bg: #F5F0E4;
-  --t-fg: #221E16;
+  /* Shared app-shell foundation, in lockstep with the public site — the Kiln
+     brand: a warm-neutral Stone ground (light) / warm Charcoal (dark), with the
+     independent Pine accent. Distinct from the terracotta diagram theme, which
+     now lives on only as the "paper" render theme. The theme dropdown changes
+     render output, never the app shell. rendering.js swaps in the Charcoal
+     ground for dark mode; these defaults are the Stone (light) values. */
+  --t-bg: #F8F4F0;       /* Kiln Stone (was Paper #F5F0E4) */
+  --t-fg: #26201B;
   --t-accent: #1B6E52;   /* Pine brand accent — mirrors :root --accent in styles.css */
   --brand-pine: #6FC2A2;
   --brand-on: #0A4434;
@@ -78,7 +79,8 @@
   --line-strong: color-mix(in srgb, var(--t-fg) 24%, var(--t-bg));
   --fg: var(--t-fg);
   /* Muted ramp mirrors the site shell: soft ≈80% mix, faint ≈64% mix.
-   * Verified on Paper (#F5F0E4): soft 8.01:1 (≥7:1), faint 4.74:1 (≥4.5:1). */
+   * Verified on Kiln Stone (#F8F4F0): soft 7.97:1 (≥7:1), faint 4.73:1 (≥4.5:1);
+   * on Charcoal (#17130D) both rise (soft 9.9:1, faint 6.7:1). */
   --fg2: color-mix(in srgb, var(--t-fg) 80%, var(--t-bg));
   --fg3: color-mix(in srgb, var(--t-fg) 64%, var(--t-bg));
   --fg4: color-mix(in srgb, var(--t-fg) 70%, var(--t-bg));
@@ -147,10 +149,10 @@
   --shadow-artboard: 0 1px 2px rgba(0, 0, 0, 0.04), 0 12px 30px -14px rgba(0, 0, 0, 0.2);
 }
 
-/* Dusk chrome (rendering.js sets data-scheme): brighter status inks read better
- * on the dark --bg2. Only the solid inks flip; the --*-tint fills re-derive from
- * these plus the dark ground. On Dusk (#2A2521): success 6.6:1, info 6.9:1,
- * warn 7.1:1, danger 6.1:1 — all clear AA for small status text. */
+/* Charcoal chrome (rendering.js sets data-scheme): brighter status inks read
+ * better on the dark --bg2. Only the solid inks flip; the --*-tint fills re-derive
+ * from these plus the dark ground. On Kiln Charcoal (#17130D): success 8.1:1,
+ * info 8.4:1, warn 8.7:1, danger 7.4:1 — all clear AA for small status text. */
 :root[data-scheme="dark"] {
   --success: #5FBE86;
   --info:    #78B4EA;
@@ -1089,8 +1091,9 @@ body {
   align-items: center;
   gap: 10px;
   padding: 5px 12px;
-  border-top: 1px solid var(--border);
-  background: var(--bg2);
+  /* an informational banner — soft --info-tint wash with an info-toned rule */
+  border-top: 1px solid color-mix(in srgb, var(--info) 28%, transparent);
+  background: var(--info-tint);
   color: var(--fg2);
   font-size: var(--t-label);
   line-height: var(--lh-ui);
@@ -1503,6 +1506,18 @@ body {
 .verify-tier.ok .verify-dot { background: var(--green); }
 .verify-tier.warn .verify-dot { background: var(--warn); }
 .verify-tier.err .verify-dot { background: var(--red); }
+
+/* Advisory / error tiers get a soft --*-tint pill so a validation state reads at
+   a glance; "Clear" and idle tiers stay quiet (dot only), keeping the all-clear
+   bar calm. */
+.verify-tier.warn,
+.verify-tier.err {
+  padding: 1px 9px;
+  border-radius: var(--radius-pill);
+  border: 1px solid transparent;
+}
+.verify-tier.warn { background: var(--warn-tint); border-color: color-mix(in srgb, var(--warn) 22%, transparent); }
+.verify-tier.err  { background: var(--danger-tint); border-color: color-mix(in srgb, var(--danger) 22%, transparent); }
 
 /* One-time settle when a tier transitions warnings -> Clear (rendering.js adds
    .tier-cleared). Transform/opacity only; inert if the class never appears. */
@@ -3135,6 +3150,6 @@ body {
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
 <!-- Bundled renderer -->
-<script type="module" src="/editor/editor-f480b8366bda.js"></script>
+<script type="module" src="/editor/editor-deb780199845.js"></script>
 </body>
 </html>
