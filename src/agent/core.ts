@@ -56,6 +56,10 @@ export { asciiToMermaid } from '../ascii/reverse.ts'
 
 import { renderMermaidSVG as _svg } from '../index.ts'
 export { verifyNoExternalRefs } from '../index.ts'
+// Style system — agents reach the library through this entry, so the style
+// registry must be importable here too, not only from the main entry.
+export { registerStyle, getStyle, knownStyles, validateStyleSpec, resolveStyleStack, inferBackend } from '../scene/style-registry.ts'
+export type { StyleSpec, StyleInput } from '../scene/style-registry.ts'
 import { renderMermaidASCII as _ascii } from '../ascii/index.ts'
 import { layoutGraphSync } from '../layout-engine.ts'
 import { parseMermaid as parseFlowchartLegacy } from '../parser.ts'

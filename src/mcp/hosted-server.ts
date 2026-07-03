@@ -143,7 +143,7 @@ LLM context compaction without re-parsing.`,
   },
 ]
 
-const INSTRUCTIONS = `agentic-mermaid hosted MCP server (stateless). Direct tools render_svg, render_ascii, render_png, verify, and describe cover plain render/verify calls cheaply and are edge-cached (layout is deterministic; there is no seed). execute runs synchronous JavaScript against the typed mermaid.* SDK in an isolated on-demand sandbox for parse→narrow→mutate workflows; async/await and Promise jobs are not supported, and network access is disabled. Inputs are capped at 64KB; for bigger diagrams, Code Mode artifacts, or file/URL PNG output, run the local stdio server (see https://agentic-mermaid.dev/docs/mcp/).`
+const INSTRUCTIONS = `agentic-mermaid hosted MCP server (stateless). Direct tools render_svg, render_ascii, render_png, verify, and describe cover plain render/verify calls cheaply and are edge-cached (layout is deterministic; there is no layout seed — the library's optional style seed only re-rolls ink of styled looks). execute runs synchronous JavaScript against the typed mermaid.* SDK in an isolated on-demand sandbox for parse→narrow→mutate workflows; async/await and Promise jobs are not supported, and network access is disabled. Inputs are capped at 64KB; for bigger diagrams, Code Mode artifacts, or file/URL PNG output, run the local stdio server (see https://agentic-mermaid.dev/docs/mcp/).`
 
 export async function handleHostedRequest(req: JsonRpcRequest, context: HostedMcpContext): Promise<JsonRpcResponse | null> {
   const id = req.id ?? null

@@ -184,6 +184,15 @@ describe('style consolidation', () => {
     expect(svg).toContain('data-backdrop="page"')
   })
 
+  test('strokeWidth is honored on the default backend via role line widths', () => {
+    // Found by the Haiku emergence probe: a crisp-stroke style with
+    // strokeWidth used to be silently inert on the inferred default backend.
+    const svg = renderMermaidSVG(source, { style: { colors: { bg: '#0a0e27' }, strokeWidth: 2 } })
+    expect(svg).toContain('stroke-width="2"')
+    const overridden = renderMermaidSVG(source, { style: { strokeWidth: 2, node: { lineWidth: 0.5 } } })
+    expect(overridden).toContain('stroke-width="0.5"') // explicit role width wins
+  })
+
   test('validateStyleSpec accepts fragments and rejects junk', () => {
     expect(validateStyleSpec({ colors: { bg: '#fff' }, stroke: 'jittered' })).toEqual([])
     expect(validateStyleSpec({ node: { cornerRadius: 4 } })).toEqual([])
@@ -191,6 +200,22 @@ describe('style consolidation', () => {
     expect(validateStyleSpec({ colors: { background: '#fff' } }).length).toBeGreaterThan(0)
     expect(validateStyleSpec({ evil: '<script>' }).length).toBeGreaterThan(0)
     expect(validateStyleSpec('hand-drawn').length).toBeGreaterThan(0)
+  })
+})
+
+describe('bundled fonts', () => {
+  test('every typeface a built-in look references ships in assets/fonts', () => {
+    // PNG rasterization loads assets/fonts with loadSystemFonts: false — a
+    // look whose face is missing there silently falls back to DejaVu Sans.
+    const fontsDir = join(import.meta.dir, '..', '..', 'assets', 'fonts')
+    for (const name of LOOKS) {
+      const font = getStyle(name)?.font
+      if (!font) continue
+      const file = join(fontsDir, `${font.replace(/ /g, '')}.ttf`)
+      if (!existsSync(file)) {
+        throw new Error(`style "${name}" references font "${font}" but ${file} is not bundled`)
+      }
+    }
   })
 })
 

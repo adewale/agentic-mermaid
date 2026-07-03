@@ -67,7 +67,19 @@ EMPTY_DIAGRAM (structural/error), UNRESOLVABLE_SCHEDULE (structural/error), EDGE
 `import { parseMermaid, mutate, verifyMermaid, analyzeMermaid,
 analyzeMermaidSource, serializeMermaid, renderMermaidASCII,
 renderMermaidPNG, renderMermaidSVG, renderMermaidASCIIWithMeta,
-describeMermaid, asciiToMermaid, verifyNoExternalRefs } from 'agentic-mermaid/agent'`
+describeMermaid, asciiToMermaid, verifyNoExternalRefs,
+registerStyle, knownStyles, validateStyleSpec } from 'agentic-mermaid/agent'`
+
+## Styles
+
+Every render call accepts style: a name ('hand-drawn', 'excalidraw',
+'pen-and-ink', 'freehand', 'watercolor', 'blueprint', 'tufte', or any theme
+name — a theme is a palette-only style), an inline JSON spec, or a stack
+merged left → right ({ style: ['hand-drawn', 'dracula'] }). seed re-rolls
+ink wobble, never layout — (source, style, seed) reproduces an image
+exactly. Custom styles are data: validateStyleSpec(json) checks untrusted
+records, registerStyle({ name, … }) makes them addressable by name.
+Authoring guide + quality rubric: docs/style-authoring.md.
 
 ## Docs
 

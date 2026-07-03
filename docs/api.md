@@ -44,8 +44,15 @@ writeFileSync('diagram.png', png)
 | `scale` | `number` | `2` | Zoom multiplier when `fitTo` is not set. |
 | `background` | `string` | `'white'` | PNG background color. |
 | `fitTo` | `{ width?: number; height?: number }` | — | Constrain output to a width or height. |
+| `style` | `StyleInput \| StyleInput[]` | — | Style name \| spec \| stack, same as `RenderOptions.style`. |
+| `seed` | `number` | `0` | Ink-wobble seed for styled looks, same as `RenderOptions.seed`. |
+| `fontDirs` | `string[]` | — | Extra font directories for custom styles that reference unbundled families. |
 
-PNG rasterization uses offline `@resvg/resvg-js` with bundled DejaVu fonts for deterministic same-machine output.
+PNG rasterization uses offline `@resvg/resvg-js` with bundled fonts for
+deterministic same-machine output: DejaVu Sans (default) plus the faces the
+built-in styles reference (Caveat, EB Garamond, Architects Daughter, Share
+Tech Mono — see `assets/fonts/FONT-LICENSES.md`). A style whose `font` is
+neither bundled nor supplied via `fontDirs` rasterizes with DejaVu Sans.
 
 ### ASCII / Unicode
 

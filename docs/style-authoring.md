@@ -66,9 +66,9 @@ on the crisp default backend with your palette and typography.
 |---|---|
 | identity | `name`, `blurb` (required only for `registerStyle`) |
 | palette | `colors: { bg, fg, line, accent, muted, surface, border }` — all optional |
-| typography | `font` |
-| stroke | `stroke: 'crisp' \| 'jittered' \| 'freehand'`, `roughness`, `bowing`, `passes` (1 = single pass, 2 = sketchy double stroke), `strokeWidth` |
-| fill | `fill: 'none' \| 'hachure' \| 'solid' \| 'wash'`, `hachureAngle`, `hachureGap`, `fillWeight`, `washOpacity`, `washEdge` |
+| typography | `font` — SVG always declares it; for PNG the faces built-in looks use are bundled (Caveat, EB Garamond, Architects Daughter, Share Tech Mono), other families need the `fontDirs` PNG option or fall back to DejaVu Sans |
+| stroke | `stroke: 'crisp' \| 'jittered' \| 'freehand'`, `roughness`, `bowing`, `passes` (1 = single pass, 2 = sketchy double stroke), `strokeWidth` — works on every backend (on the default backend it sets the role line widths; explicit `node`/`edge`/`group.lineWidth` win) |
+| fill | `fill: 'none' \| 'hachure' \| 'solid' \| 'wash'`, `hachureAngle`, `hachureGap`, `fillWeight`, `washOpacity`, `washEdge` — `fill` picks the *sketch* fill algorithm; the default backend already paints flat `surface` fills, so `'solid'` is its native behavior and `'none'` only changes output on sketch backends |
 | page | `backdrop: 'plain' \| 'paper-ruled' \| 'grid'` |
 | role overrides | `text`, `node`, `edge`, `group` (font sizes, line widths, corner radii, paddings per semantic role) |
 | advisory | `intent: 'premium' \| 'draft' \| 'lofi'`, `mono` — read by pickers and the rubric below, never by the engine |

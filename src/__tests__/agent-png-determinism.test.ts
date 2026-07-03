@@ -58,3 +58,17 @@ describe('PNG in-process determinism', () => {
     expect(sha256(s1a)).not.toBe(sha256(s2a))
   })
 })
+
+describe('styled PNG', () => {
+  test('style + seed thread through to rasterization deterministically', async () => {
+    const a = await renderMermaidPNG(FIXTURE, { style: 'hand-drawn', seed: 1 })
+    const b = await renderMermaidPNG(FIXTURE, { style: 'hand-drawn', seed: 1 })
+    expect(sha256(a)).toBe(sha256(b))
+    expect(a.length).toBe(b.length)
+    // A different seed re-rolls the ink; crisp differs from styled entirely.
+    const reseeded = await renderMermaidPNG(FIXTURE, { style: 'hand-drawn', seed: 2 })
+    expect(sha256(a)).not.toBe(sha256(reseeded))
+    const crisp = await renderMermaidPNG(FIXTURE)
+    expect(sha256(a)).not.toBe(sha256(crisp))
+  })
+})

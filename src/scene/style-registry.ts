@@ -140,8 +140,24 @@ export function resolveStyleStack(input: StyleInput | StyleInput[] | undefined):
  *  This is the single reader used by resolveRenderStyle and family layouts. */
 export function styleRolesOf(input: StyleInput | StyleInput[] | undefined): DiagramStyleOptions | undefined {
   if (input === undefined) return undefined
-  if (typeof input !== 'string' && !Array.isArray(input)) return input
-  return resolveStyleStack(input)
+  const spec = typeof input !== 'string' && !Array.isArray(input) ? input : resolveStyleStack(input)
+  return spec === undefined ? undefined : withDefaultBackendStrokeWidth(spec)
+}
+
+/** On the default backend, `strokeWidth` seeds the role line widths so the
+ *  knob works on every backend (sketch backends read it directly; without
+ *  this it would be silently inert on crisp output). Explicit role widths
+ *  win. Sketch paths pass through untouched — their crisp underlay must not
+ *  double-scale what the backend already applies via strokeWidth. */
+function withDefaultBackendStrokeWidth(spec: StyleSpec): DiagramStyleOptions {
+  const width = spec.strokeWidth
+  if (width === undefined || !(width > 0) || inferBackend(spec) !== 'default') return spec
+  return {
+    ...spec,
+    node: { lineWidth: width, ...spec.node },
+    edge: { lineWidth: width, ...spec.edge },
+    group: { lineWidth: width, ...spec.group },
+  }
 }
 
 /** True when a merged spec changes anything beyond role overrides/metadata —

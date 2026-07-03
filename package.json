@@ -2,7 +2,7 @@
   "name": "agentic-mermaid",
   "version": "0.1.0",
   "license": "MIT",
-  "description": "Agentic Mermaid: render, verify, and safely edit Mermaid diagrams as ASCII, PNG, SVG, or structured agent workflows.",
+  "description": "Agentic Mermaid: render, verify, and safely edit Mermaid diagrams as ASCII, PNG, SVG, or structured agent workflows — with composable styles (hand-drawn, excalidraw, watercolor, or your own as JSON).",
   "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -64,7 +64,13 @@
     "gantt-chart",
     "state-diagram",
     "visualization",
-    "theming"
+    "theming",
+    "styles",
+    "hand-drawn",
+    "sketch",
+    "excalidraw",
+    "watercolor",
+    "llms-txt"
   ],
   "author": "Adewale",
   "files": [

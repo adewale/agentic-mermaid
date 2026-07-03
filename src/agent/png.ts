@@ -25,6 +25,7 @@ import { join, dirname } from 'node:path'
 import { existsSync } from 'node:fs'
 import { Resvg } from '@resvg/resvg-js'
 import type { ValidDiagram } from './types.ts'
+import type { StyleInput } from '../scene/style-registry.ts'
 import { serializeMermaid } from './serialize.ts'
 import { renderMermaidSVG } from '../index.ts'
 
@@ -35,6 +36,15 @@ export interface PngOptions {
   background?: string
   /** Constrain output dimensions; otherwise honors scale on the SVG bounds. */
   fitTo?: { width?: number; height?: number }
+  /** Style name | spec | stack, same as RenderOptions.style. Faces referenced
+   *  by the built-in looks are bundled in assets/fonts/; other families fall
+   *  back to DejaVu Sans unless supplied via fontDirs. */
+  style?: StyleInput | StyleInput[]
+  /** Ink-wobble seed for styled looks, same as RenderOptions.seed. */
+  seed?: number
+  /** Extra font directories searched in addition to the bundled ones —
+   *  the escape hatch for custom styles that reference unbundled families. */
+  fontDirs?: string[]
 }
 
 /**
@@ -75,7 +85,13 @@ export function renderMermaidPNG(input: ValidDiagram | string, opts: PngOptions 
   // Google Fonts during rasterization. CSS-variable fonts (Loop 8 M2) means
   // the SVG still declares its font-family preference via --font.
   const source = typeof input === 'string' ? input : serializeMermaid(input)
-  const svg = renderMermaidSVG(source, { embedFontImport: false })
+  const svg = renderMermaidSVG(source, { embedFontImport: false, style: opts.style, seed: opts.seed })
+    // resvg/usvg has no CSS custom-property support, so `font-family:
+    // var(--font, 'Caveat')` never matches a bundled face and every styled
+    // look silently rasterized as DejaVu. The renderer always emits the
+    // resolved family as the var() fallback literal (src/theme.ts), so
+    // inline it for rasterization only — SVG output bytes are untouched.
+    .replace(/var\(--font,\s*('[^']*')\)/g, '$1')
 
   const scale = opts.scale ?? 2
   const fontDir = resolveFontDir()
@@ -89,9 +105,10 @@ export function renderMermaidPNG(input: ValidDiagram | string, opts: PngOptions 
         : { mode: 'zoom' as const, value: scale },
     font: {
       loadSystemFonts: false,
-      // Bundled fonts (DejaVu Sans + Bold) for cross-runtime determinism.
-      // Falls back to resvg's built-in fonts if directory not found.
-      fontDirs: fontDir ? [fontDir] : [],
+      // Bundled fonts (DejaVu Sans + the faces built-in styles reference)
+      // for cross-runtime determinism, plus caller-supplied directories.
+      // Falls back to resvg's built-in fonts if nothing is found.
+      fontDirs: [...(fontDir ? [fontDir] : []), ...(opts.fontDirs ?? [])],
       defaultFontFamily: 'DejaVu Sans',
     },
   }
