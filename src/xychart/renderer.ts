@@ -4,6 +4,7 @@ import { svgOpenTag, buildStyleBlock } from '../theme.ts'
 import { TEXT_BASELINE_SHIFT, estimateTextWidth, STROKE_WIDTHS, resolveRenderStyle } from '../styles.ts'
 import type { RenderStyleDefaults } from '../styles.ts'
 import { XY_STYLE_DEFAULTS } from './layout.ts'
+import { escapeXml } from '../multiline-utils.ts'
 import { getSeriesColor, CHART_ACCENT_FALLBACK } from './colors.ts'
 import type { MarkPaint, SceneDoc, SceneNode } from '../scene/ir.ts'
 import * as marks from '../scene/marks.ts'
@@ -577,13 +578,6 @@ function letterAttr(value: number): string {
   return value !== 0 ? ` letter-spacing="${value}"` : ''
 }
 
-function escapeXml(text: string): string {
-  return text
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-}
 
 function buildSvgMetadata(chart: PositionedXYChart): {
   openTag: Parameters<typeof svgOpenTag>[4]

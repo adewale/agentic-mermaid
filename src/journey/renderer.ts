@@ -4,11 +4,12 @@ import type { DiagramColors } from '../theme.ts'
 import { svgOpenTag, buildStyleBlock, buildShadowDefs } from '../theme.ts'
 import { JOURNEY_STYLE_DEFAULTS } from './layout.ts'
 import { buildAccessibilityAttrs } from '../shared/svg-a11y.ts'
-import { renderMultilineText, escapeXml } from '../multiline-utils.ts'
+import { escapeAttr, renderMultilineText, escapeXml } from '../multiline-utils.ts'
 import { STROKE_WIDTHS, resolveRenderStyle } from '../styles.ts'
 import type { RenderStyleDefaults, ResolvedRenderStyle } from '../styles.ts'
 import { topRoundedRectPath } from '../svg-paths.ts'
 import type { SceneDoc, SceneNode, SemanticChannels } from '../scene/ir.ts'
+import { hashId } from '../scene/seed.ts'
 import * as marks from '../scene/marks.ts'
 import { DefaultBackend } from '../scene/backend.ts'
 
@@ -68,7 +69,7 @@ export function lowerJourneyScene(
   const style = resolveRenderStyle(options, JOURNEY_STYLE_DEFAULTS)
 
   const accessibility = buildJourneyAccessibility(diagram)
-  const uid = `journey-${hashJourney(diagram)}`
+  const uid = `journey-${hashId(diagram.width, diagram.height, diagram.sections.map(s => s.tasks.length).join(','))}`
   const titleId = `${uid}-title`
   const descId = `${uid}-desc`
   const journeyCss = journeyStyles(style)
@@ -409,16 +410,4 @@ function letterAttr(value: number): string {
   return value !== 0 ? ` letter-spacing="${value}"` : ''
 }
 
-function hashJourney(diagram: PositionedJourneyDiagram): string {
-  let h = 0x811c9dc5
-  const s = `${diagram.width}|${diagram.height}|${diagram.sections.map(s => s.tasks.length).join(',')}`
-  for (let i = 0; i < s.length; i++) {
-    h ^= s.charCodeAt(i)
-    h = Math.imul(h, 0x01000193)
-  }
-  return (h >>> 0).toString(36)
-}
 
-function escapeAttr(text: string): string {
-  return escapeXml(text)
-}

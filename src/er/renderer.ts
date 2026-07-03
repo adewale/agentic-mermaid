@@ -5,10 +5,11 @@ import { FONT_SIZES, FONT_WEIGHTS, STROKE_WIDTHS, estimateTextWidth, TEXT_BASELI
 import type { RenderStyleDefaults, ResolvedRenderStyle } from '../styles.ts'
 import { ER_STYLE_DEFAULTS } from './layout.ts'
 import { buildAccessibilityAttrs } from '../shared/svg-a11y.ts'
-import { renderMultilineText, escapeXml as escapeXmlUtil } from '../multiline-utils.ts'
+import { renderMultilineText, escapeAttr, escapeXml as escapeXmlUtil } from '../multiline-utils.ts'
 import { measureMultilineText } from '../text-metrics.ts'
 import { topRoundedRectPath } from '../svg-paths.ts'
 import type { Geometry, SceneDoc, SceneNode } from '../scene/ir.ts'
+import { hashId } from '../scene/seed.ts'
 import * as marks from '../scene/marks.ts'
 import { DefaultBackend } from '../scene/backend.ts'
 
@@ -70,7 +71,7 @@ export function lowerErScene(
   const transparent = options.transparent ?? false
   const parts: SceneNode[] = []
   const style = resolveRenderStyle(options, ER_STYLE_DEFAULTS)
-  const uid = `er-${hashAccessibility(diagram.width, diagram.height, diagram.entities.length, diagram.relationships.length)}`
+  const uid = `er-${hashId(diagram.width, diagram.height, diagram.entities.length, diagram.relationships.length)}`
   const titleId = `${uid}-title`
   const descId = `${uid}-desc`
   const rootAttrs = buildAccessibilityAttrs(diagram.accessibilityTitle, diagram.accessibilityDescription, titleId, descId)
@@ -781,23 +782,7 @@ function letterAttr(value: number): string {
 // Use shared escapeXml from multiline-utils
 const escapeXml = escapeXmlUtil
 
-function hashAccessibility(...values: Array<string | number>): string {
-  let h = 0x811c9dc5
-  const text = values.join('|')
-  for (let i = 0; i < text.length; i++) {
-    h ^= text.charCodeAt(i)
-    h = Math.imul(h, 0x01000193)
-  }
-  return (h >>> 0).toString(36)
-}
 
 /**
  * Escape a string for use as an XML/HTML attribute value.
  */
-function escapeAttr(value: string): string {
-  return value
-    .replace(/&/g, '&amp;')
-    .replace(/"/g, '&quot;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-}

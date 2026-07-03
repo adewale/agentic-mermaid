@@ -19,6 +19,11 @@ export function seedFrom(s: string): number {
   return h >>> 0
 }
 
+/** Stable short id fragment: FNV-1a of the '|'-joined parts, base-36. */
+export function hashId(...parts: Array<string | number>): string {
+  return seedFrom(parts.join('|')).toString(36)
+}
+
 /** mulberry32 — small, fast, deterministic PRNG over a 32-bit seed. */
 export function makeRng(seed: number): () => number {
   let a = seed >>> 0

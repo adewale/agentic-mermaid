@@ -46,6 +46,15 @@ export function escapeXml(text: string): string {
     .replace(/'/g, '&#39;')
 }
 
+/**
+ * Escape text for use inside a double-quoted XML attribute. The escape set is
+ * the same one escapeXml uses — a superset of what attributes strictly need —
+ * so element text and attribute values stay consistent everywhere.
+ */
+export function escapeAttr(text: string): string {
+  return escapeXml(text)
+}
+
 // ============================================================================
 // Inline formatting: <b>, <i>, <u>, <s> → SVG tspan attributes
 // ============================================================================
