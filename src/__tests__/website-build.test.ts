@@ -271,6 +271,20 @@ describe('Workers Static Assets website contract', () => {
     expect(editor).not.toContain('id="pan-btn" type="button" title="Pan (hold to drag)" aria-label="Pan preview">')
   })
 
+  test('home hero is baked Paper artwork; the themeable demo asset keeps its var tokens', () => {
+    // The hero once rendered with var(--bg/--fg/--accent) and silently re-themed
+    // when the chrome accent moved to Pine. The design contract is the reverse:
+    // diagram themes colour the artwork, the shell never does. Baked terracotta
+    // in the hero; live var() tokens only in the standalone themeable demo.
+    const home = read('index.html')
+    const hero = home.match(/<div class="plate dia-plate">[\s\S]*?<\/svg>/)?.[0] ?? ''
+    expect(hero).toContain('#9A4A24')
+    expect(/var\(--(accent|bg|fg)[,)]/.test(hero)).toBe(false)
+    const themeable = read('diagrams/workflow-themeable.svg')
+    expect(themeable).toContain('var(--accent')
+    expect(themeable).toContain('var(--fg)')
+  })
+
   test('masthead exposes examples and the editor without repository chrome', () => {
     for (const rel of ['index.html', 'docs/index.html', 'about/index.html', 'examples/index.html', 'skills/agentic-mermaid-diagram-workflow/index.html']) {
       const html = read(rel)

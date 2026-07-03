@@ -813,13 +813,17 @@ function addWorkflowSvgA11y(svg: string) {
     return `<svg${attrs}${role}${label}>\n<title id="edit-loop-svg-title">Agentic Mermaid edit loop</title>\n<desc id="edit-loop-svg-desc">Source flows through parse, narrow, mutate, verify, and serialize to render, with warnings routed back for another edit.</desc>`
   })
 }
-const workflowThemeableSvg = addWorkflowSvgA11y(renderMermaidSVG(workflowSource,
-  { bg: 'var(--bg)', fg: 'var(--fg)', accent: 'var(--accent)', transparent: true })
-  .replace('--bg:var(--bg);--fg:var(--fg);--accent:var(--accent);', '')
-  .split('\n').filter((line) => !line.includes('fonts.googleapis.com')).join('\n'))
+// The hero is artwork, not chrome. It used to render with var(--bg/--fg/--accent)
+// and inherit the page tokens — invisible while the chrome accent WAS the Paper
+// terracotta, but when the shell moved to the Pine brand the hero silently
+// re-themed with it, violating the design contract ("diagram themes colour the
+// artwork, never this shell"). Bake the Paper render theme instead, exactly like
+// the about-page diagrams (ABOUT_DIAGRAM_THEME below).
+const workflowPaperSvg = addWorkflowSvgA11y(renderMermaidSVG(workflowSource,
+  { bg: '#F5F0E4', fg: '#221E16', accent: '#9A4A24', transparent: true, security: 'strict', embedFontImport: false }))
 function injectWorkflowSvg(html: string) {
   return html.replace(/<div class="plate dia-plate">[\s\S]*?<\/div>|<div class="plate"><div class="dia-wrap">[\s\S]*?<\/div><\/div>/,
-    `<div class="plate dia-plate">\n      ${workflowThemeableSvg}\n    </div>`)
+    `<div class="plate dia-plate">\n      ${workflowPaperSvg}\n    </div>`)
 }
 function injectWorkflowUnicode(html: string) {
   const unicode = renderMermaidASCII(workflowSource, { useAscii: false })
@@ -847,7 +851,12 @@ await emit('editor/index.html', await generateEditorHtml())
 for (const asset of ['favicon.svg', 'styles.css', 'theme.js', 'shader-mark.js']) await copySourceAsset(asset)
 for (const asset of ['favicon.ico', 'apple-touch-icon.png', 'og-image.png']) await copyFileFrom(join(ROOT, 'public', asset), asset)
 await copyDir(SOURCE_DIAGRAMS, 'diagrams')
-await emit('diagrams/workflow-themeable.svg', workflowThemeableSvg)
+// Standalone var()-token demo of the live-theming feature (set --bg/--fg/--accent
+// on a parent to re-theme it). This is the one place a var-driven render belongs;
+// the home hero deliberately stopped using it (see workflowPaperSvg above).
+await emit('diagrams/workflow-themeable.svg', addWorkflowSvgA11y(renderMermaidSVG(workflowSource,
+  { bg: 'var(--bg)', fg: 'var(--fg)', accent: 'var(--accent)', transparent: true, embedFontImport: false })
+  .replace('--bg:var(--bg);--fg:var(--fg);--accent:var(--accent);', '')))
 
 const capabilities = { ...rawCapabilities, generatedFrom }
 await emitJson('capabilities.json', capabilities)
