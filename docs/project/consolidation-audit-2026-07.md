@@ -1,5 +1,20 @@
 # Consolidation audit — 2026-07-03
 
+> **Remediation status (2026-07-04).** Landed on this branch, each with
+> red→green or byte-equivalence evidence: 1.2 (STYLE_DEFAULTS single-sourced;
+> class/er bold-title sizing fixed), 1.3 (one escape set in multiline-utils,
+> property-tested), 1.4 (shared/color-math.ts, property-tested), 1.5 (a11y —
+> the central injector's aria-describedby bug and five families' double
+> injection fixed; all-family conformance gate added), 2.1 partially
+> (serialize chain, verify aliases, mutate overload — and the chain's missing
+> pie/quadrant entries were a live bug, INVALID_PAYLOAD on valid payloads),
+> 2.2 (aliases from metadata), 2.5 (DiagramKind reuse + metadata-derived
+> tables in facade and CLI), 4.1 partially (dead agent/ser2 configs deleted).
+> `consolidation-gate.test.ts` pins the single-source invariants against
+> recurrence. Still open: 1.1 (shape outlines), 1.6 (accTitle regex), 2.3
+> (MCP tool descriptions), 2.4 (MCP bin shim), 2.6, 2.7, Tier 3 body-utils,
+> the stryker lane generator, and all Tier 4 owner decisions.
+
 Scope: full-repo audit for duplication whose elimination improves consistency,
 coherence, and cohesion. Five parallel sweeps: per-family diagram modules, the
 agent surface (`src/agent/` + `route-contracts.ts`), the rendering/theming
