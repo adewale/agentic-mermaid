@@ -8,22 +8,23 @@
   "types": "dist/index.d.ts",
   "exports": {
     ".": {
+      "types": "./dist/index.d.ts",
       "bun": "./src/index.ts",
       "import": "./dist/index.js",
-      "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
     },
     "./agent": {
+      "types": "./dist/agent.d.ts",
       "bun": "./src/agent/index.ts",
       "import": "./dist/agent.js",
-      "types": "./dist/agent.d.ts",
       "default": "./dist/agent.js"
-    }
+    },
+    "./package.json": "./package.json"
   },
   "bin": {
-    "am": "./dist/am.js",
-    "agentic-mermaid": "./dist/am.js",
-    "agentic-mermaid-mcp": "./dist/agentic-mermaid-mcp.js"
+    "am": "dist/am.js",
+    "agentic-mermaid": "dist/am.js",
+    "agentic-mermaid-mcp": "dist/agentic-mermaid-mcp.js"
   },
   "engines": {
     "node": ">=18"
@@ -34,11 +35,11 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/adewale/beautiful-mermaid"
+    "url": "git+https://github.com/adewale/beautiful-mermaid.git"
   },
   "homepage": "https://adewale.github.io/beautiful-mermaid/",
   "bugs": {
-    "url": "https://github.com/adewale/beautiful-mermaid"
+    "url": "https://github.com/adewale/beautiful-mermaid/issues"
   },
   "keywords": [
     "mermaid",
