@@ -84,8 +84,27 @@ describe('hosted execute loader glue', () => {
     expect(requests[1]!.modules['user.js']).not.toContain('return (')
   })
 
+  test('a bare parser startup failure also falls back to the statement-form isolate', async () => {
+    const { loader, requests } = makeLoader(req =>
+      req.id.includes('-e-')
+        ? new Error("Unexpected token 'const'")
+        : okResponse({ ok: true, value: 42, logs: [] }))
+    const execute = createLoaderExecute(loader, 'H')
+    const result = await execute('const x = 42; return x', 5000)
+    expect(result).toEqual({ ok: true, value: 42, logs: [] })
+    expect(requests.map(r => r.id.includes('-e-') ? 'e' : 's')).toEqual(['e', 's'])
+  })
+
   test('a double SyntaxError reports the statement attempt message, stripped of the startup preamble', async () => {
     const { loader } = makeLoader(() => new Error("Failed to start Worker:\nUncaught SyntaxError: Unexpected token ')'\n  at user.js:1"))
+    const execute = createLoaderExecute(loader, 'H')
+    const result = await execute('return ) === (', 5000)
+    expect(result.ok).toBe(false)
+    expect(result.error).toBe("Unexpected token ')'")
+  })
+
+  test('a double bare parser startup failure reports the statement attempt message', async () => {
+    const { loader } = makeLoader(() => new Error("Unexpected token ')'"))
     const execute = createLoaderExecute(loader, 'H')
     const result = await execute('return ) === (', 5000)
     expect(result.ok).toBe(false)

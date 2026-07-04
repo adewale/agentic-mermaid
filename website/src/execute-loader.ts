@@ -79,6 +79,9 @@ export async function readCapped(body: ReadableStream<Uint8Array> | null, maxByt
 
 function isSyntaxStartupFailure(message: string): boolean {
   return /SyntaxError/i.test(message)
+    || /\bUnexpected token\b/i.test(message)
+    || /\bInvalid or unexpected token\b/i.test(message)
+    || /\bUnexpected end of input\b/i.test(message)
 }
 
 // Extra wall-clock margin over the isolate's cpuMs budget before the parent
@@ -160,7 +163,11 @@ function failure(message: string, timeoutMs: number): ExecuteResult {
     return { ok: false, error: `Script execution exceeded its ${timeoutMs}ms CPU budget`, logs: [] }
   }
   // Strip workerd's startup preamble so syntax errors read like the sandbox's.
-  const syntax = message.match(/SyntaxError:\s*(.*)/)
-  if (syntax) return { ok: false, error: syntax[1]!.split('\n')[0]!, logs: [] }
+  // Production Worker Loader sometimes omits the `SyntaxError:` prefix and
+  // throws the parser message directly, e.g. `Unexpected token 'const'`.
+  if (isSyntaxStartupFailure(message)) {
+    const syntax = message.match(/SyntaxError:\s*(.*)/)
+    return { ok: false, error: (syntax?.[1] ?? message).split('\n')[0]!, logs: [] }
+  }
   return { ok: false, error: `sandbox error: ${message}`, logs: [] }
 }
