@@ -11,6 +11,7 @@ import { executeInSandbox } from '../mcp/sandbox.ts'
 import { handleRequest } from '../mcp/server.ts'
 import { parseMermaid, verifyMermaid, serializeMermaid } from '../agent/index.ts'
 import { asFlowchart } from '../agent/types.ts'
+import { handleHostedRequest } from '../mcp/hosted-server.ts'
 
 const REPO = join(import.meta.dir, '..', '..')
 
@@ -216,6 +217,33 @@ describe('homepage prompt eval contract', () => {
     const reparsed = parseMermaid(round)
     expect(reparsed.ok).toBe(true)
     if (reparsed.ok) expect(asFlowchart(reparsed.value)?.body.graph.nodes.size).toBe(3)
+  })
+
+  test('the hosted MCP call shape quoted by the prompt works verbatim', async () => {
+    // The prompt quotes an exact JSON-RPC body so agents stop rediscovering
+    // the transport. Run that literal body through the hosted handler: if the
+    // tool name, argument shape, or handshake-free contract drifts, this fails
+    // before the prompt lies to anyone.
+    const prompt = extractHomepageAgentPrompt()
+    const quoted = prompt.match(/\{"jsonrpc":"2\.0"[^`]*\}/)?.[0]
+    expect(quoted).toBeDefined()
+    // verify/tools-list never reach Code Mode, so the execute stub must not run.
+    const context = { execute: async () => { throw new Error('unexpected execute') } }
+    const res = await handleHostedRequest(JSON.parse(quoted!), context) as {
+      result?: { content: Array<{ text: string }>; isError?: boolean }
+      error?: unknown
+    }
+    expect(res.error).toBeUndefined()
+    expect(res.result?.isError).toBe(false)
+    expect(JSON.parse(res.result!.content[0]!.text).ok).toBe(true)
+    // Every tool the prompt lists exists on the hosted server.
+    const list = await handleHostedRequest({ jsonrpc: '2.0', id: 2, method: 'tools/list' }, context) as {
+      result?: { tools: Array<{ name: string }> }
+    }
+    const names = new Set(list.result!.tools.map(t => t.name))
+    for (const tool of ['execute', 'render_svg', 'render_ascii', 'render_png', 'verify', 'describe']) {
+      expect({ tool, listed: names.has(tool) }).toEqual({ tool, listed: true })
+    }
   })
 })
 

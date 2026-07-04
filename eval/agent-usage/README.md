@@ -101,6 +101,39 @@ in `agent-usage-live.test.ts`. Direct API-backed Anthropic/OpenAI-compatible
 transcripts remain on-demand because they require credentials and are
 nondeterministic; PR CI keeps deterministic replay checks.
 
+## Comparing prompt variants (is a change better or worse?)
+
+Prompt changes are gated three ways, cheapest-first:
+
+1. **Contract tests (CI, deterministic).** `homepagePromptChecklist` pins every
+   load-bearing phrase of the homepage prompt; `agent-usage.test.ts` fails when
+   a required piece disappears. Truth-pinning tests execute the prompt's
+   factual claims against the real implementation (authoring facts against the
+   SDK, the quoted hosted-MCP JSON-RPC body against `handleHostedRequest`), so
+   the prompt cannot claim something the tool does not do.
+2. **Replay of committed transcripts (CI, deterministic).** Stored subagent and
+   live transcripts re-run through the finalize gates and the trace linter on
+   every test run; a change that would have flipped a past-good response
+   surfaces here without any model calls.
+3. **Paired live runs (on demand).** To compare prompt variant A against
+   variant B: at variant A run `prepare --surface homepage` with a fixed case
+   list, dispatch every `requests/*.md` to a fresh subagent, run `finalize`;
+   repeat at variant B with the same cases, harness, and model. Follow the
+   `evals/shared-benchmark.json` run policy (≥3 runs per variant, 5
+   recommended) because single runs are noise. Compare `ok` rate and the
+   `taskOk`/`traceOk` split per case, plus response length as a proxy for
+   discovery cost. Commit both transcript sets so the comparison replays
+   deterministically in layer 2.
+
+Known blind spots of the stored case set: it measures task success and
+response shape on fully specified tasks. It does not yet measure discovery
+cost (turns/tokens spent before the first productive call), underspecified-task
+handling (does the agent ask instead of guessing when placeholders are left
+unreplaced), or repo-grounding honesty (are architecture claims traceable to
+inspected source). A variant comparison cannot detect regressions on an axis
+with no cases — add adversarial cases for those axes before trusting a
+comparison on them.
+
 Run deterministic layers: `bun run eval/agent-usage/harness.ts`
 Run stored Code Mode eval: `bun run eval/agent-usage/run.ts`
 Prepare/finalize subagent transcript capture: `bun run eval:agent-subagent -- prepare` / `bun run eval:agent-subagent -- finalize --run-dir <dir>`
