@@ -37,6 +37,27 @@ describe('sandbox — happy', () => {
     expect(renderMermaidSVG(r1.value)).toContain('Cache')
     expect(renderMermaidASCII(r1.value, { useAscii: true })).toContain('Cache')
   })
+  test('blank-slate workflow: buildMermaid result is trusted and chains into mutate', async () => {
+    const r = await executeInSandbox(`
+      const b = mermaid.buildMermaid('flowchart', [
+        { kind: 'add_node', id: 'A', label: 'Start' },
+        { kind: 'add_edge', from: 'A', to: 'B', label: 'go' },
+      ], { direction: 'LR' })
+      if (!b.ok) return { error: b.error }
+      const r1 = mermaid.mutate(b.value, { kind: 'add_node', id: 'C', label: 'Cache' })
+      const v = mermaid.verifyMermaid(r1.value); if (!v.ok) return { warnings: v.warnings }
+      return { source: mermaid.serializeMermaid(r1.value) }
+    `)
+    expect(r.ok && (r.value as any).source).toBe('flowchart LR\n  A[Start] -->|go| B\n  C[Cache]\n')
+  })
+  test('createMermaid result is trusted by mutate/serialize', async () => {
+    const r = await executeInSandbox(`
+      const d = mermaid.createMermaid('pie')
+      const m = mermaid.mutate(d, { kind: 'add_slice', label: 'A', value: 5 })
+      return { ok: m.ok, source: mermaid.serializeMermaid(m.value) }
+    `)
+    expect(r.ok && (r.value as any).source).toBe('pie\n  "A" : 5\n')
+  })
   test('console captured', async () => {
     const r = await executeInSandbox(`console.log('a','b'); return 1`)
     expect(r.logs).toEqual(['a b'])

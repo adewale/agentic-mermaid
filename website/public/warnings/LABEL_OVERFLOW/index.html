@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="color-scheme" content="light">
-<meta name="description" content="LABEL_OVERFLOW is a structural warning: a label is longer than the character cap (default 40), which hurts layout and readability.">
+<meta name="description" content="LABEL_OVERFLOW is a structural warning: a label’s longest rendered line exceeds the character cap (default 40), which hurts layout and readability. The count measures what the renderer draws: &lt;code&gt;&amp;lt;br&amp;gt;&lt;/code&gt; starts a new line, XML entities like &lt;code&gt;&amp;amp;#160;&lt;/code&gt; count as one character, and formatting tags are stripped.">
 <title>LABEL_OVERFLOW – Agentic Mermaid</title>
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <link rel="icon" href="/favicon.ico" type="image/x-icon">
@@ -14,7 +14,7 @@
 <link rel="alternate" type="application/json" href="/capabilities.json">
 <link rel="alternate" type="text/markdown" href="/agent-instructions.md">
 <meta property="og:title" content="LABEL_OVERFLOW – Agentic Mermaid">
-<meta property="og:description" content="LABEL_OVERFLOW is a structural warning: a label is longer than the character cap (default 40), which hurts layout and readability.">
+<meta property="og:description" content="LABEL_OVERFLOW is a structural warning: a label’s longest rendered line exceeds the character cap (default 40), which hurts layout and readability. The count measures what the renderer draws: &lt;code&gt;&amp;lt;br&amp;gt;&lt;/code&gt; starts a new line, XML entities like &lt;code&gt;&amp;amp;#160;&lt;/code&gt; count as one character, and formatting tags are stripped.">
 <meta property="og:type" content="website">
 <meta name="twitter:card" content="summary_large_image">
 </head>
@@ -24,9 +24,9 @@
 <main id="main" class="doc">
 <section class="page-header">
 <h1>LABEL_OVERFLOW</h1>
-<p class="lead">LABEL_OVERFLOW is a structural warning: a label is longer than the character cap (default 40), which hurts layout and readability.</p>
+<p class="lead">LABEL_OVERFLOW is a structural warning: a label’s longest rendered line exceeds the character cap (default 40), which hurts layout and readability. The count measures what the renderer draws: &lt;code&gt;&amp;lt;br&amp;gt;&lt;/code&gt; starts a new line, XML entities like &lt;code&gt;&amp;amp;#160;&lt;/code&gt; count as one character, and formatting tags are stripped.</p>
 </section>
-<p><strong>What triggers it.</strong> Prose sentences pasted into node labels, edge labels, message text, or section/period titles — common when an agent copies requirement text verbatim into the diagram.</p>
+<p><strong>What triggers it.</strong> Prose sentences pasted into node labels, edge labels, message text, or section/period titles — common when an agent copies requirement text verbatim into the diagram. Multi-line labels fire only when a single rendered line exceeds the cap.</p>
 <p><strong>How to fix it.</strong> Shorten the text with <code>set_label</code>, <code>set_message_text</code>, or the matching family mutation; raise <code>labelCharCap</code> in <code>VerifyOptions</code> only when long labels are genuinely intended.</p>
 <h2>See it fire</h2>
 <p>This minimal source triggers <code>LABEL_OVERFLOW</code> — checked at build time against the same engine the editor runs.</p>

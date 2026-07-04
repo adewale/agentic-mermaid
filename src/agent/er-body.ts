@@ -20,6 +20,7 @@ import type {
   ErMutationOp, MutationError, Result, LayoutWarning, VerifyOptions,
 } from './types.ts'
 import { ok, err, DEFAULT_LABEL_CHAR_CAP } from './types.ts'
+import { labelOverflowWarning } from './label-metrics.ts'
 
 // ---- Parser ---------------------------------------------------------------
 
@@ -115,7 +116,9 @@ export function renderEr(body: ErBody): string {
     const right = RIGHT_GLYPH[r.rightCard]
     const link = r.dashed ? '..' : '--'
     const label = r.label ? r.label : ''
-    lines.push(`  ${r.from} ${left}${link}${right} ${r.to} : ${label.includes(' ') ? `"${label}"` : label}`)
+    // An empty label serializes as `: ""` — the parser strips the quotes back
+    // to undefined, and a bare trailing `:` would not re-parse (opaque fallback).
+    lines.push(`  ${r.from} ${left}${link}${right} ${r.to} : ${label === '' || label.includes(' ') ? `"${label}"` : label}`)
   }
   return lines.join('\n') + '\n'
 }
@@ -197,10 +200,13 @@ export function verifyErBody(body: ErBody, opts: VerifyOptions): LayoutWarning[]
     return warnings
   }
   const ids = new Set(body.entities.map(e => e.id))
+  const overflow = (target: string, text: string) => {
+    const w = labelOverflowWarning(target, text, cap)
+    if (w) warnings.push(w)
+  }
   for (const e of body.entities) {
     for (let i = 0; i < e.attributes.length; i++) {
-      const a = e.attributes[i]!
-      if (a.text.length > cap) warnings.push({ code: 'LABEL_OVERFLOW', target: `${e.id}#a${i}`, charCount: a.text.length, limit: cap })
+      overflow(`${e.id}#a${i}`, e.attributes[i]!.text)
     }
   }
   for (let i = 0; i < body.relations.length; i++) {
@@ -211,9 +217,7 @@ export function verifyErBody(body: ErBody, opts: VerifyOptions): LayoutWarning[]
         from: ids.has(r.from) ? r.from : undefined, to: ids.has(r.to) ? r.to : undefined,
       })
     }
-    if (r.label && r.label.length > cap) {
-      warnings.push({ code: 'LABEL_OVERFLOW', target: `rel#${i}`, charCount: r.label.length, limit: cap })
-    }
+    if (r.label) overflow(`rel#${i}`, r.label)
   }
   return warnings
 }

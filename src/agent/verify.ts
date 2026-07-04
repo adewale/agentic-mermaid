@@ -2,7 +2,9 @@
 // verifyMermaid — Tier 1 (source/structure) + Tier 2 (geometric) + Tier 3 (lint).
 //
 // v4: no LayoutContext, no seed wrapper (ELK is deterministic on its own).
-// LABEL_OVERFLOW is a source-based char-count check (Tier 1).
+// LABEL_OVERFLOW is a rendered-line char-count check (Tier 1): the cap applies
+// to the longest displayed line (entities decoded, <br> splits), not raw
+// source chars — see label-metrics.ts.
 // ============================================================================
 
 import { parseMermaid as parseValidDiagram } from './parse.ts'
@@ -20,6 +22,7 @@ import { WARNING_SEVERITY, DEFAULT_LABEL_CHAR_CAP } from './types.ts'
 import { positionedToRenderedLayout, emptyRenderedLayout } from './layout-to-rendered.ts'
 import { layoutFamilyToRendered, ganttGeometryWarnings, ganttScheduleWarning, layoutGeometryWarnings } from './family-layouts.ts'
 import { getFamily, extractLabelsGeneric, builtinFamilyMetadata } from './families.ts'
+import { labelOverflowWarning } from './label-metrics.ts'
 import { stateBodyToGraph } from './state-body.ts'
 import { flowchartUnsupportedSyntaxWarnings } from './flowchart-unsupported.ts'
 import './families-builtin.ts'  // registers built-in families at import time
@@ -178,11 +181,12 @@ function verifyStructure(input: ValidDiagram | string, opts: VerifyOptions = {})
     const warnings: LayoutWarning[] = isEmpty ? [{ code: 'EMPTY_DIAGRAM' }] : []
     const seen = new Set<string>()
     for (const lbl of labels) {
-      if (lbl.text.length <= cap) continue
+      const w = labelOverflowWarning(lbl.target, lbl.text, cap)
+      if (!w) continue
       const key = `${lbl.target}:${lbl.text}`
       if (seen.has(key)) continue
       seen.add(key)
-      warnings.push({ code: 'LABEL_OVERFLOW', target: lbl.target, charCount: lbl.text.length, limit: cap })
+      warnings.push(w)
     }
     // QUAL-1: opaque bodies of renderable families (pie/quadrant always, and
     // class/er/journey/architecture/xychart when unmodeled) still produce a
@@ -228,12 +232,12 @@ function verifyGraph(graph: import('../types.ts').MermaidGraph, kind: ValidDiagr
   }
   for (const [id, node] of graph.nodes) {
     if (!KNOWN_SHAPES.has(node.shape)) warnings.push({ code: 'UNKNOWN_SHAPE', node: id, shape: String(node.shape) })
-    if (node.label.length > cap) warnings.push({ code: 'LABEL_OVERFLOW', target: id, charCount: node.label.length, limit: cap })
+    const w = labelOverflowWarning(id, node.label, cap)
+    if (w) warnings.push(w)
   }
   for (const edge of graph.edges) {
-    if (edge.label && edge.label.length > cap) {
-      warnings.push({ code: 'LABEL_OVERFLOW', target: `${edge.source}->${edge.target}`, charCount: edge.label.length, limit: cap })
-    }
+    const w = edge.label ? labelOverflowWarning(`${edge.source}->${edge.target}`, edge.label, cap) : null
+    if (w) warnings.push(w)
   }
   for (const n of positioned.nodes) {
     // Report x and y independently so a node off-canvas on both axes surfaces
@@ -404,18 +408,16 @@ function verifyTimeline(d: ValidDiagram & { body: import('./types.ts').TimelineB
   const warnings: LayoutWarning[] = []
   const hasContent = body.sections.some(s => s.periods.length > 0) || body.title !== undefined
   if (!hasContent) return finalize([{ code: 'EMPTY_DIAGRAM' }], layout, opts)
-  if (body.title !== undefined && body.title.length > cap) {
-    warnings.push({ code: 'LABEL_OVERFLOW', target: 'title', charCount: body.title.length, limit: cap })
+  const overflow = (target: string, text: string | undefined) => {
+    const w = text !== undefined ? labelOverflowWarning(target, text, cap) : null
+    if (w) warnings.push(w)
   }
+  overflow('title', body.title)
   for (const s of body.sections) {
-    if (s.label !== undefined && s.label.length > cap) {
-      warnings.push({ code: 'LABEL_OVERFLOW', target: s.id, charCount: s.label.length, limit: cap })
-    }
+    overflow(s.id, s.label)
     for (const p of s.periods) {
-      if (p.label.length > cap) warnings.push({ code: 'LABEL_OVERFLOW', target: p.id, charCount: p.label.length, limit: cap })
-      for (const e of p.events) {
-        if (e.text.length > cap) warnings.push({ code: 'LABEL_OVERFLOW', target: e.id, charCount: e.text.length, limit: cap })
-      }
+      overflow(p.id, p.label)
+      for (const e of p.events) overflow(e.id, e.text)
     }
   }
   return finalize(dedupedConcat(warnings, layoutGeometryWarnings(layout, { nodeOverlaps: true, groupContainment: true })), layout, opts)
@@ -442,10 +444,12 @@ function verifySequence(d: ValidDiagram & { body: SequenceBody }, cap: number, o
         from: ids.has(m.from) ? m.from : undefined, to: ids.has(m.to) ? m.to : undefined,
       })
     }
-    if (m.text.length > cap) warnings.push({ code: 'LABEL_OVERFLOW', target: `msg#${i}:${m.from}->${m.to}`, charCount: m.text.length, limit: cap })
+    const w = labelOverflowWarning(`msg#${i}:${m.from}->${m.to}`, m.text, cap)
+    if (w) warnings.push(w)
   })
   for (const p of body.participants) {
-    if (p.label.length > cap) warnings.push({ code: 'LABEL_OVERFLOW', target: p.id, charCount: p.label.length, limit: cap })
+    const w = labelOverflowWarning(p.id, p.label, cap)
+    if (w) warnings.push(w)
   }
   // BUILD-18: opaque-block segments (Note/alt/loop/par/title lines) still get
   // universal LABEL_OVERFLOW via the family's label extractor, so the safety
@@ -458,11 +462,12 @@ function verifySequence(d: ValidDiagram & { body: SequenceBody }, cap: number, o
     const labels = (plugin?.extractLabels ?? extractLabelsGeneric)(opaqueLines.join('\n'))
     const seen = new Set<string>()
     for (const lbl of labels) {
-      if (lbl.text.length <= cap) continue
+      const w = labelOverflowWarning(lbl.target, lbl.text, cap)
+      if (!w) continue
       const key = `${lbl.target}:${lbl.text}`
       if (seen.has(key)) continue
       seen.add(key)
-      warnings.push({ code: 'LABEL_OVERFLOW', target: lbl.target, charCount: lbl.text.length, limit: cap })
+      warnings.push(w)
     }
   }
   // The empty-layout tripwire only arms when there is no structured content:

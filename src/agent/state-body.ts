@@ -41,6 +41,7 @@ import type {
   MutationError, Result, LayoutWarning, VerifyOptions,
 } from './types.ts'
 import { ok, err, DEFAULT_LABEL_CHAR_CAP } from './types.ts'
+import { labelOverflowWarning } from './label-metrics.ts'
 import { normalizeBrTags } from '../multiline-utils.ts'
 
 // ---- Identifiers ------------------------------------------------------------
@@ -557,7 +558,8 @@ export function verifyState(body: StateBody, opts: VerifyOptions): LayoutWarning
     return [{ code: 'EMPTY_DIAGRAM' }]
   }
   const overflow = (target: string, text: string) => {
-    if (text.length > cap) warnings.push({ code: 'LABEL_OVERFLOW', target, charCount: text.length, limit: cap })
+    const w = labelOverflowWarning(target, text, cap)
+    if (w) warnings.push(w)
   }
   // A transition endpoint may reference ANY state in the tree (cross-boundary
   // transitions to/from composite children are legal mermaid), plus the

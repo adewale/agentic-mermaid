@@ -267,7 +267,8 @@ type GanttMutationOp =
   | { kind: 'set_task_dates'; sectionIndex: number; taskIndex: number; start?: string | null; end?: string }
 
 // Tier 1 (structural, reliable): EMPTY_DIAGRAM, EDGE_MISANCHORED, OFF_CANVAS,
-//   GROUP_BREACH, UNKNOWN_SHAPE, LABEL_OVERFLOW (source-based char-cap),
+//   GROUP_BREACH, UNKNOWN_SHAPE, LABEL_OVERFLOW (rendered-line char count:
+//   <br> splits lines, XML entities decode to one char),
 //   UNRESOLVABLE_SCHEDULE (gantt: parses but schedule cannot resolve; render would fail).
 // Tier 2 (geometric, advisory): NODE_OVERLAP, ROUTE_SELF_CROSS, and the
 // route-contract tripwires ROUTE_HITCH, ROUTE_UNEXPLAINED_BEND,
@@ -296,8 +297,19 @@ interface DiagramAnalysis {
   gantt?: { criticalPathTaskIds: string[]; slackByTaskId: Record<string, number>; projectStart: number; projectEnd: number; entryTaskIds: string[]; sinkTaskIds: string[] }
 }
 
+type AnyMutationOp = FlowchartMutationOp | StateMutationOp | SequenceMutationOp | TimelineMutationOp
+                   | ClassMutationOp | ErMutationOp | JourneyMutationOp | ArchitectureMutationOp
+                   | XyChartMutationOp | PieMutationOp | QuadrantMutationOp | GanttMutationOp
+
 declare const mermaid: {
   parseMermaid(source: string): Result<ValidDiagram, { code: string; message: string }[]>
+  // Blank-slate authoring: createMermaid returns an empty structured diagram
+  // for any DiagramKind (already narrowed — pass it straight to mutate).
+  // buildMermaid folds a typed op list over that empty diagram; on failure the
+  // error carries opIndex of the op that failed. direction applies to
+  // flowchart/state only.
+  createMermaid(kind: DiagramKind, opts?: { direction?: 'TD' | 'TB' | 'LR' | 'BT' | 'RL' }): ValidDiagram
+  buildMermaid(kind: DiagramKind, ops: AnyMutationOp[], opts?: { direction?: 'TD' | 'TB' | 'LR' | 'BT' | 'RL' }): Result<ValidDiagram, { code: string; message: string; opIndex: number }>
   asFlowchart(d: ValidDiagram): FlowchartValidDiagram | null
   asState(d: ValidDiagram):     StateValidDiagram | null
   asSequence(d: ValidDiagram):  SequenceValidDiagram | null
@@ -331,7 +343,9 @@ declare const mermaid: {
 }
 
 // Conventions:
-// 1. For new diagrams, author Mermaid source directly, then parse/verify/render.
+// 1. For new diagrams, use buildMermaid(kind, ops) — or createMermaid(kind)
+//    then mutate step by step — and verify/render the result. Hand-author
+//    Mermaid source only for syntax the typed ops do not model.
 // 2. For existing structured diagrams, use mutate() + verify + serializeMermaid();
 //    do not regenerate/concatenate source when a typed op exists.
 // 3. mutate works on flowchart, state, simple sequence, timeline, class, ER,

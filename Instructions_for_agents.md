@@ -4,7 +4,7 @@ This is the canonical agent-use guide. The same content is emitted by `am --agen
 
 ## Quick start
 
-Choose the narrowest channel. New diagrams: author Mermaid source directly, then parse/verify/render. Existing structured diagrams: parse → narrow → mutate → verify → serialize. Code Mode/library are best for multi-step edits; CLI is best for one-shot verify/render/preview. Code Mode exposes `mermaid.*`; library users import the same names from `agentic-mermaid/agent`. A hosted MCP at `agentic-mermaid.dev/mcp` (stateless Streamable HTTP JSON-RPC) exposes six tools — `execute` (Code Mode), `render_svg`, `render_ascii`, `render_png`, `verify`, `describe` — with 64KB input caps; the call shape is a plain POST (stateless, no initialize handshake): `POST /mcp` with `content-type: application/json` and body `{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"verify","arguments":{"source":"flowchart TD\n  A --> B"}}}`. Prefer the local library, CLI, or a self-hosted MCP and reach for the hosted endpoint only when you cannot install. Agentic Mermaid outputs ASCII, PNG, and SVG; Unicode text and JSON layout are also available. Flowchart authoring facts: quote any label carrying punctuation (`id["HTTPS /api/sessions*"]`); `\n` inside a quoted label is a line break and canonicalizes to `<br>` on serialize; `subgraph id["Title"] … end` groups nodes; labeled and dotted edges are `A -- "label" --> B`, `A -.-> B`, and `A -. "label" .-> B`.
+Choose the narrowest channel. New diagrams: build with `buildMermaid(kind, ops)` — or `createMermaid(kind)` then typed mutations — and verify/render the result; author Mermaid source directly only for syntax the typed ops do not model. Existing structured diagrams: parse → narrow → mutate → verify → serialize. Code Mode/library are best for multi-step edits; CLI is best for one-shot verify/render/preview. Code Mode exposes `mermaid.*`; library users import the same names from `agentic-mermaid/agent`. A hosted MCP at `agentic-mermaid.dev/mcp` (stateless Streamable HTTP JSON-RPC) exposes six tools — `execute` (Code Mode), `render_svg`, `render_ascii`, `render_png`, `verify`, `describe` — with 64KB input caps; the call shape is a plain POST (stateless, no initialize handshake): `POST /mcp` with `content-type: application/json` and body `{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"verify","arguments":{"source":"flowchart TD\n  A --> B"}}}`. Prefer the local library, CLI, or a self-hosted MCP and reach for the hosted endpoint only when you cannot install. Agentic Mermaid outputs ASCII, PNG, and SVG; Unicode text and JSON layout are also available. Flowchart authoring facts: quote any label carrying punctuation (`id["HTTPS /api/sessions*"]`); `\n` inside a quoted label is a line break and canonicalizes to `<br>` on serialize; `subgraph id["Title"] … end` groups nodes; labeled and dotted edges are `A -- "label" --> B`, `A -.-> B`, and `A -. "label" .-> B`.
 
 ```ts
 const source = 'flowchart TD\n  API --> DB'
@@ -23,6 +23,22 @@ if (!verify.ok) return { phase: 'verify', warnings: verify.warnings }
 return { source: mermaid.serializeMermaid(d1.value) }
 ```
 
+Blank-slate authoring stays on the typed path — no hand-written source:
+
+```ts
+const built = mermaid.buildMermaid('flowchart', [
+  { kind: 'add_node', id: 'API', label: 'API' },
+  { kind: 'add_node', id: 'DB', label: 'DB' },
+  { kind: 'add_edge', from: 'API', to: 'DB' },
+], { direction: 'LR' })
+if (!built.ok) return { phase: 'build', error: built.error }
+
+const check = mermaid.verifyMermaid(built.value)
+if (!check.ok) return { phase: 'verify', warnings: check.warnings }
+
+return { source: mermaid.serializeMermaid(built.value) }
+```
+
 Use `asFlowchart` / `asState` / `asSequence` / `asTimeline` / `asClass` / `asEr` / `asJourney` / `asArchitecture` / `asXyChart` / `asPie` / `asQuadrant` / `asGantt` before mutating existing diagrams. State diagrams own a dedicated body: `asState` narrows them and state-shaped ops (`add_state`, `add_transition`, `make_composite`, …) apply; `asFlowchart` returns null on a state diagram. Sequence diagrams are segment-preserving: one with `Note`/`alt`/`loop`/`par`/`activate`/`autonumber`/`title` still narrows via `asSequence` and keeps its participant/message ops while those unmodeled lines ride along verbatim; `remove_message`/`set_message_text` indexes address only top-level messages (messages inside an `alt`/`loop` block are not touched); only an un-segmentable sequence (e.g. an unbalanced `end`) falls back to opaque. Gantt charts are segment-preserving too: title/section/task ops stay live while calendar directives (`dateFormat`, `excludes`, …), `click` lines, and comments ride along verbatim; gantt rendering never reads the wall clock — pass `ganttToday` to draw the today marker. In Code Mode, SDK-returned diagrams are read-only; structured edits must go through `mermaid.mutate`. Opaque-fallback bodies (any unmodeled syntax) round-trip losslessly as source-level bodies but do not expose structured mutation; return an unsupported-family result unless the task explicitly asks for source-level editing, then re-parse and verify before returning.
 
 ## The verify-before-commit rule
@@ -31,7 +47,7 @@ Run `verifyMermaid` at every commit point — anywhere the result would be saved
 
 ## Tier 1 vs Tier 2 vs Tier 3 warnings
 
-Tier 1 (structural, reliable, universal): `EMPTY_DIAGRAM`, `EDGE_MISANCHORED`, `OFF_CANVAS`, `GROUP_BREACH`, `UNKNOWN_SHAPE`, `LABEL_OVERFLOW` (source-based char-count check over the total label — line breaks included, not per rendered line; default cap 40, raise via `labelCharCap` / `am verify --label-cap N` when long labels are intentional instead of truncating the user's text), `UNRESOLVABLE_SCHEDULE` (gantt: parses but the schedule cannot resolve — render would fail; `reason` names the `GANTT_*` error), `RENDER_FAILED` (any family: the source verifies structurally but the strict render parser throws, so rendering would fail; `reason` carries the renderer error — a clean verify proves the diagram actually renders). Applies to every family. Never suppress Tier 1 errors.
+Tier 1 (structural, reliable, universal): `EMPTY_DIAGRAM`, `EDGE_MISANCHORED`, `OFF_CANVAS`, `GROUP_BREACH`, `UNKNOWN_SHAPE`, `LABEL_OVERFLOW` (rendered-line char count over the longest displayed line — `<br>`/`\n` split lines, XML entities decode to one char, formatting tags strip; default cap 40, raise via `labelCharCap` / `am verify --label-cap N` when long labels are intentional instead of truncating the user's text), `UNRESOLVABLE_SCHEDULE` (gantt: parses but the schedule cannot resolve — render would fail; `reason` names the `GANTT_*` error), `RENDER_FAILED` (any family: the source verifies structurally but the strict render parser throws, so rendering would fail; `reason` carries the renderer error — a clean verify proves the diagram actually renders). Applies to every family. Never suppress Tier 1 errors.
 
 Tier 2 (geometric, advisory, flowchart-specific): `NODE_OVERLAP`, `ROUTE_SELF_CROSS`, plus the route-contract tripwires `ROUTE_HITCH`, `ROUTE_UNEXPLAINED_BEND`, `ROUTE_LABEL_ON_SHARED_TRUNK`, `ROUTE_CONTAINER_MISANCHOR`, `ROUTE_SHAPE_MISANCHOR`, `ROUTE_STALE_AFTER_NODE_MOVE` (docs/design/system/route-contracts.md — the layout pipeline upholds these itself, so they fire only on pipeline regressions). Route tripwires fire for flowchart/state; class and ER additionally run boundary-anchor and overlap checks (`ROUTE_SHAPE_MISANCHOR`, `NODE_OVERLAP` on class/entity boxes). For other families, geometric concerns surface via perceptual metrics (`measureQuality(layoutMermaid(d))`). See `docs/quality.md`. Don't gate CI on Tier 2 alone.
 
@@ -63,5 +79,5 @@ Every library render call accepts `style`: a built-in name (`hand-drawn`, `excal
 - Regenerating an existing parsed diagram instead of mutating it. Defeats round-trip; produces noise.
 - Verifying only after a long risky edit chain. Loses precision about which op broke it.
 - Serializing before reading `verify.ok` / `verify.warnings` / `verify.layout`.
-- Concatenating source to edit an existing structured diagram when a typed `mutate` op exists. Direct source authoring is fine for new diagrams.
+- Concatenating source to edit an existing structured diagram when a typed `mutate` op exists. For new diagrams prefer `buildMermaid`/`createMermaid`; direct source authoring is fine for unmodeled syntax.
 - Calling `mutate` on an opaque-fallback body; the structured-family narrower returns null for unmodeled syntax, so edit its preserved source instead.

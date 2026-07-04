@@ -306,7 +306,7 @@ export async function startHttpServer(options: HttpMcpOptions = {}): Promise<Htt
 
 export async function runHttp(options: HttpMcpOptions = {}): Promise<void> {
   const started = await startHttpServer(options)
-  process.stderr.write(`agentic-mermaid-mcp HTTP/SSE listening at ${started.url} (SSE: ${started.url}/sse)\n`)
+  process.stderr.write(`agentic-mermaid-mcp HTTP/SSE listening at ${started.url} (SSE: ${started.url}/sse, plain JSON-RPC: ${started.url}/rpc)\n`)
   return new Promise<void>(resolve => {
     const shutdown = () => { started.close().finally(resolve) }
     process.once('SIGINT', shutdown)

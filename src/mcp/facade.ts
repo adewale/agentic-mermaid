@@ -9,6 +9,7 @@ import { BUILTIN_FAMILY_METADATA } from '../agent/families.ts'
 
 export type ExecutionTraceCall =
   | { verb: 'parse'; diagram?: number; source?: string }
+  | { verb: 'create'; family?: DiagramKind; diagram?: number; ops?: number; ok?: boolean }
   | { verb: 'narrow'; family: DiagramKind; input?: number; ok: boolean }
   | { verb: 'mutate'; body: DiagramKind | 'opaque'; input?: number; output?: number; opKind?: string; fingerprint?: string }
   | { verb: 'verify'; diagram?: number; ok?: boolean; inspected?: boolean; fingerprint?: string }
@@ -251,6 +252,8 @@ export function createTracingMermaid(trace?: ExecutionTraceCall[], makeSandboxEr
   const push = (call: ExecutionTraceCall) => { trace?.push(call) }
   const sdkTarget = {
     parseMermaid: mermaid.parseMermaid,
+    createMermaid: mermaid.createMermaid,
+    buildMermaid: mermaid.buildMermaid,
     asFlowchart: mermaid.asFlowchart,
     asState: mermaid.asState,
     asSequence: mermaid.asSequence,
@@ -285,6 +288,24 @@ export function createTracingMermaid(trace?: ExecutionTraceCall[], makeSandboxEr
       if (r.ok) trustDiagram(r.value)
       const diagram = r.ok ? idOf(r.value) : undefined
       push({ verb: 'parse', diagram, source: r.ok ? (r.value.body.kind === 'opaque' ? r.value.body.source : r.value.canonicalSource) : undefined })
+      return harden(r)
+    })
+    else if (prop === 'createMermaid') value = harden((kind: unknown, opts?: unknown) => {
+      assertOpen()
+      const r = hostCall(() => target.createMermaid(kind as DiagramKind, jsonClone(opts) as Parameters<typeof target.createMermaid>[1]))
+      trustDiagram(r)
+      push({ verb: 'create', family: FAMILY_KINDS.has(kind as DiagramKind) ? (kind as DiagramKind) : undefined, diagram: idOf(r), ok: true })
+      return harden(r)
+    })
+    else if (prop === 'buildMermaid') value = harden((kind: unknown, ops: unknown, opts?: unknown) => {
+      assertOpen()
+      const opsForHost = jsonClone(ops) as Parameters<typeof target.buildMermaid>[1]
+      const r = hostCall(() => target.buildMermaid(kind as DiagramKind, opsForHost, jsonClone(opts) as Parameters<typeof target.buildMermaid>[2]))
+      if (r.ok) trustDiagram(r.value)
+      push({
+        verb: 'create', family: FAMILY_KINDS.has(kind as DiagramKind) ? (kind as DiagramKind) : undefined,
+        diagram: r.ok ? idOf(r.value) : undefined, ops: Array.isArray(ops) ? ops.length : undefined, ok: r.ok,
+      })
       return harden(r)
     })
     else if (typeof prop === 'string' && prop.startsWith('as') && prop in target) {

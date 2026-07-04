@@ -3,6 +3,19 @@
 `agentic-mermaid-mcp` defaults to stdio for local MCP clients. Use HTTP/SSE only when a client needs a reachable endpoint or when PNG artifacts should be fetched by file/URL instead of returned as large base64 strings.
 
 > Looking for a zero-setup endpoint? A **hosted** MCP already runs at `https://agentic-mermaid.dev/mcp` (`claude mcp add --transport http agentic-mermaid https://agentic-mermaid.dev/mcp`). It is a different implementation — stateless Streamable HTTP, Cloudflare-backed, inputs capped at 64KB, and no file/URL PNG artifacts (base64 only). See [`docs/project/hosted-mcp-cloudflare-plan.md`](./project/hosted-mcp-cloudflare-plan.md). Run the local server below when you need file/URL artifacts, larger inputs, offline use, or your own auth.
+>
+> **Privacy:** every hosted call (`execute`, `render_*`, `verify`, `describe`) sends your diagram source or code to the agentic-mermaid.dev server, and successful responses are edge-cached for up to a day. For diagrams that must not leave your machine, use the library, the CLI, or the local stdio/HTTP server on this page — the pipeline is fully local and needs no network.
+
+## Which endpoint returns plain JSON?
+
+Two transports, two framings — pick by what your client expects:
+
+| You are… | Use | Response framing |
+|---|---|---|
+| An MCP client (Claude Code, MCP SDKs) | hosted `/mcp`, or local `/sse` + `/message` | Handled by the client. |
+| A script POSTing JSON-RPC yourself | hosted `POST /mcp`, or local `POST /rpc` | Plain `application/json` — `json.loads` the body directly. |
+
+The local `/sse` + `/message` pair is the MCP SSE session transport: `POST /message` returns only `202 {"ok":true}`, and the actual JSON-RPC response arrives on the open `/sse` stream framed as SSE events (`event: message` / `data: {...}` lines). If you find yourself stripping `data:` prefixes before parsing, switch to `POST /rpc` (local) or `POST /mcp` (hosted) — both reply with an unframed JSON body.
 
 ## Start the server
 
@@ -27,8 +40,8 @@ HTTP endpoints:
 |---|---|
 | `GET /health` | Readiness probe, returns `{ "ok": true }`. |
 | `GET /sse` | MCP SSE session endpoint. First event contains the `/message?sessionId=...` URL. |
-| `POST /message?sessionId=...` | JSON-RPC requests for an SSE session. Responses are emitted on the SSE stream. |
-| `POST /rpc` | Direct JSON-RPC endpoint for tests/simple integrations. |
+| `POST /message?sessionId=...` | JSON-RPC requests for an SSE session. The HTTP response is just `202 {"ok":true}`; the JSON-RPC response is emitted on the SSE stream as `event: message` / `data:` frames. |
+| `POST /rpc` | Direct JSON-RPC endpoint for tests/scripts/simple integrations. Replies with plain `application/json` (no SSE framing). |
 | `GET /artifacts/<name>` | Fetch managed artifacts returned by `render_png` `output: "url"`. |
 
 `/rpc` and `/message` require `content-type: application/json`; browser-simple `text/plain` form posts are rejected. Non-loopback hosts require `Authorization: Bearer <token>`.

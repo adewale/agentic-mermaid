@@ -768,10 +768,26 @@ describe('verify', () => {
     const r = verifyMermaid(''); expect(r.ok).toBe(false)
     expect(r.warnings.some(w => w.code === 'EMPTY_DIAGRAM')).toBe(true)
   })
-  test('LABEL_OVERFLOW source-based, reliable', () => {
+  test('LABEL_OVERFLOW rendered-line count, reliable', () => {
     const r = verifyMermaid(`flowchart TD\n  A[${'X'.repeat(60)}] --> B`)
     const o = r.warnings.find(w => w.code === 'LABEL_OVERFLOW')
     expect(o && o.code === 'LABEL_OVERFLOW' && o.charCount === 60 && o.limit === 40).toBe(true)
+  })
+  test('LABEL_OVERFLOW ignores <br/> markup: cap applies per rendered line', () => {
+    // 60 source chars, but rendered as two 27-char lines — no warning.
+    const r = verifyMermaid(`flowchart TD\n  A[${'X'.repeat(27)}<br/>${'Y'.repeat(27)}] --> B`)
+    expect(r.warnings.some(w => w.code === 'LABEL_OVERFLOW')).toBe(false)
+  })
+  test('LABEL_OVERFLOW counts numeric entities as one rendered char', () => {
+    // 10 words joined by &#160; — 75 source chars, 21 rendered chars.
+    const label = Array.from({ length: 11 }, () => 'w').join('&#160;')
+    const r = verifyMermaid(`flowchart TD\n  A[${label}] --> B`)
+    expect(r.warnings.some(w => w.code === 'LABEL_OVERFLOW')).toBe(false)
+  })
+  test('LABEL_OVERFLOW still fires when one rendered line exceeds the cap', () => {
+    const r = verifyMermaid(`flowchart TD\n  A[short<br/>${'X'.repeat(45)}] --> B`)
+    const o = r.warnings.find(w => w.code === 'LABEL_OVERFLOW')
+    expect(o && o.code === 'LABEL_OVERFLOW' && o.charCount === 45 && o.limit === 40).toBe(true)
   })
   test('LABEL_OVERFLOW custom cap', () => {
     expect(verifyMermaid('flowchart TD\n  A[longish] --> B', { labelCharCap: 3 }).warnings.some(w => w.code === 'LABEL_OVERFLOW')).toBe(true)
