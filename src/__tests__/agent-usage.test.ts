@@ -7,6 +7,7 @@ import { runAllScenarios, lintAgentTrace, type SdkCall } from '../../eval/agent-
 import { DEFAULT_CASES, requiresStructuredMutation, runAgentUsageEval } from '../../eval/agent-usage/run.ts'
 import { AGENT_USAGE_SUPPORTED_FAMILIES, scoreAgentUsageRenderedQuality } from '../../eval/agent-usage/render-quality.ts'
 import { extractHomepageAgentPrompt, homepagePromptChecklist } from '../../eval/agent-usage/homepage-prompt.ts'
+import { buildSubagentPromptEvalRequest, extractBareTask } from '../../eval/agent-usage/capture-subagent-prompt-eval.ts'
 import { executeInSandbox } from '../mcp/sandbox.ts'
 import { handleRequest } from '../mcp/server.ts'
 import { parseMermaid, verifyMermaid, serializeMermaid } from '../agent/index.ts'
@@ -244,6 +245,24 @@ describe('homepage prompt eval contract', () => {
     for (const tool of ['execute', 'render_svg', 'render_ascii', 'render_png', 'verify', 'describe']) {
       expect({ tool, listed: names.has(tool) }).toEqual({ tool, listed: true })
     }
+  })
+
+  test('the no-docs baseline surface carries the bare task and zero product guidance', () => {
+    for (const c of DEFAULT_CASES) {
+      const bare = extractBareTask(c.prompt)
+      expect({ id: c.id, hasTask: bare.task.length > 0, hasContext: bare.context.length > 0 })
+        .toEqual({ id: c.id, hasTask: true, hasContext: true })
+      expect({ id: c.id, sourceMatchesInput: (bare.source ?? undefined) === (c.input ?? undefined) })
+        .toEqual({ id: c.id, sourceMatchesInput: true })
+      const request = buildSubagentPromptEvalRequest(c, 'none', 'chat')
+      // The baseline exists to measure what the docs add; any leaked guidance
+      // (product name, channels, workflow, response contract) poisons it.
+      for (const leak of ['Agentic Mermaid', 'agentic-mermaid', 'parseMermaid', 'verifyMermaid', 'am capabilities', 'Updated Mermaid', 'Trace']) {
+        expect({ id: c.id, leak, leaked: request.includes(leak) }).toEqual({ id: c.id, leak, leaked: false })
+      }
+      expect(request).toContain(bare.task)
+    }
+    expect(() => buildSubagentPromptEvalRequest(DEFAULT_CASES[0]!, 'none', 'code')).toThrow('chat-only')
   })
 })
 
