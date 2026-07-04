@@ -9,7 +9,7 @@ import type {
 } from './types.ts'
 import { ok, err } from './types.ts'
 import YAML from 'yaml'
-import { getFamily } from './families.ts'
+import { getFamily, knownFamilies } from './families.ts'
 import './families-builtin.ts'  // registers built-in family serialize hooks
 
 // Re-export for callers that used the previous in-tree serializer home.
@@ -126,7 +126,11 @@ export function synthesizeFromGraph(payload: ValidDiagramPayload): Result<ValidD
         linkStyles: toLinkStyleMap(sg.linkStyles),
       },
     }
-  } else if (payload.body.kind === 'state' || payload.body.kind === 'sequence' || payload.body.kind === 'timeline' || payload.body.kind === 'class' || payload.body.kind === 'er' || payload.body.kind === 'journey' || payload.body.kind === 'architecture' || payload.body.kind === 'xychart' || payload.body.kind === 'gantt' || payload.body.kind === 'opaque') {
+  } else if (payload.body.kind === 'opaque' || knownFamilies().includes(payload.body.kind)) {
+    // Structured bodies pass through verbatim (flowchart is rebuilt above).
+    // Membership is derived from the family registry rather than a hand-kept
+    // kind list — the old list silently dropped pie and quadrant payloads to
+    // INVALID_PAYLOAD, and would have done the same to any new family.
     body = payload.body
   } else {
     return err([{ code: 'INVALID_PAYLOAD', message: 'unknown body kind' }])

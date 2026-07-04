@@ -19,7 +19,7 @@ import type {
 import { WARNING_SEVERITY, DEFAULT_LABEL_CHAR_CAP } from './types.ts'
 import { positionedToRenderedLayout, emptyRenderedLayout } from './layout-to-rendered.ts'
 import { layoutFamilyToRendered, ganttGeometryWarnings, ganttScheduleWarning, layoutGeometryWarnings } from './family-layouts.ts'
-import { getFamily, extractLabelsGeneric } from './families.ts'
+import { getFamily, extractLabelsGeneric, builtinFamilyMetadata } from './families.ts'
 import { stateBodyToGraph } from './state-body.ts'
 import { flowchartUnsupportedSyntaxWarnings } from './flowchart-unsupported.ts'
 import './families-builtin.ts'  // registers built-in families at import time
@@ -38,19 +38,10 @@ function opaqueSourceHasOnlyHeader(kind: ValidDiagram['kind'], source: string): 
   if (statements.length === 0) return true
   if (statements.length > 1) return false
   const header = statements[0]!.toLowerCase()
-  const aliases: Record<string, string[]> = {
-    flowchart: ['flowchart', 'graph'],
-    state: ['statediagram', 'statediagram-v2'],
-    sequence: ['sequencediagram'],
-    timeline: ['timeline'],
-    class: ['classdiagram'],
-    er: ['erdiagram'],
-    journey: ['journey'],
-    xychart: ['xychart', 'xychart-beta'],
-    pie: ['pie'],
-    architecture: ['architecture-beta'],
-  }
-  return (aliases[kind] ?? [kind]).some(alias => header === alias || header.startsWith(`${alias} `))
+  // Header aliases come from the family metadata table — the single source of
+  // truth — instead of a third hand-encoding of the same strings.
+  const aliases = (builtinFamilyMetadata(kind)?.headers ?? [kind]).map(h => h.toLowerCase())
+  return aliases.some(alias => header === alias || header.startsWith(`${alias} `))
 }
 
 /**

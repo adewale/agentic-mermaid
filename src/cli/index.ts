@@ -13,10 +13,8 @@ import { verifyMermaid } from '../agent/verify.ts'
 import { renderMermaidSVG, renderMermaidASCII, renderMermaidPNG, layoutMermaid } from '../agent/index.ts'
 import { describeMermaid } from '../agent/describe.ts'
 import { collectBatched } from '../shared/batched.ts'
-import { asFlowchart, asState, asSequence, asTimeline, asClass, asEr, asJourney, asArchitecture, asXyChart, asPie, asQuadrant, asGantt } from '../agent/types.ts'
 import type {
-  ValidDiagram, WarningCode,
-  FlowchartMutationOp, StateMutationOp, SequenceMutationOp, TimelineMutationOp, ClassMutationOp, ErMutationOp, JourneyMutationOp, ArchitectureMutationOp, XyChartMutationOp, PieMutationOp, QuadrantMutationOp, GanttMutationOp, AnyMutationOp,
+  ValidDiagram, WarningCode, AnyMutationOp,
   MutationError, Result, MutableValidDiagram,
 } from '../agent/types.ts'
 import { WARNING_SEVERITY, WARNING_TIER } from '../agent/types.ts'
@@ -492,35 +490,18 @@ function parseMutationOpsFlag(args: ParsedArgs): Result<AnyMutationOp[], CliMuta
 }
 
 function mutateAny(d: ValidDiagram, op: AnyMutationOp): Result<MutableValidDiagram, CliMutationError> {
-  const flow = asFlowchart(d)
-  if (flow) return mutate(flow, op as FlowchartMutationOp)
-  // asState BEFORE the others: state diagrams own a dedicated StateBody and take
-  // state-shaped ops (asFlowchart now returns null on them — BUILD-19).
-  const state = asState(d)
-  if (state) return mutate(state, op as StateMutationOp)
-  const seq = asSequence(d)
-  if (seq) return mutate(seq, op as SequenceMutationOp)
-  const timeline = asTimeline(d)
-  if (timeline) return mutate(timeline, op as TimelineMutationOp)
-  const klass = asClass(d)
-  if (klass) return mutate(klass, op as ClassMutationOp)
-  const er = asEr(d)
-  if (er) return mutate(er, op as ErMutationOp)
-  const journey = asJourney(d)
-  if (journey) return mutate(journey, op as JourneyMutationOp)
-  const architecture = asArchitecture(d)
-  if (architecture) return mutate(architecture, op as ArchitectureMutationOp)
-  const xychart = asXyChart(d)
-  if (xychart) return mutate(xychart, op as XyChartMutationOp)
-  const pie = asPie(d)
-  if (pie) return mutate(pie, op as PieMutationOp)
-  const quadrant = asQuadrant(d)
-  if (quadrant) return mutate(quadrant, op as QuadrantMutationOp)
-  const gantt = asGantt(d)
-  if (gantt) return mutate(gantt, op as GanttMutationOp)
+  // mutate() dispatches to the family's registered mutator by diagram kind,
+  // so the CLI only rules out what the registry cannot handle: opaque bodies
+  // (source-preserved syntax has no structured ops) and families without a
+  // mutate hook. The per-family narrowing cascade this replaces re-encoded
+  // the family list a 13th time.
+  const plugin = getFamily(d.kind)
+  if (d.body.kind !== 'opaque' && plugin?.mutate && plugin.serialize) {
+    return mutate(d as MutableValidDiagram, op)
+  }
   return {
     ok: false,
-    error: { code: 'UNSUPPORTED_FAMILY', message: `mutate supports flowchart, state, sequence, timeline, class, ER, journey, architecture, xychart, pie, quadrant, and gantt diagrams; got ${d.kind}${d.body.kind === 'opaque' ? ' (source-level/opaque body — structured mutation is not exposed for this family or syntax)' : ''}` },
+    error: { code: 'UNSUPPORTED_FAMILY', message: `mutate supports ${knownFamilies().join(', ')} diagrams; got ${d.kind}${d.body.kind === 'opaque' ? ' (source-level/opaque body — structured mutation is not exposed for this family or syntax)' : ''}` },
   }
 }
 

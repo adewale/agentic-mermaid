@@ -4,11 +4,13 @@
 // wrapping. Must stay free of node:* imports so it bundles for workerd.
 
 import * as mermaid from '../agent/core.ts'
+import type { DiagramKind } from '../agent/types.ts'
+import { BUILTIN_FAMILY_METADATA } from '../agent/families.ts'
 
 export type ExecutionTraceCall =
   | { verb: 'parse'; diagram?: number; source?: string }
-  | { verb: 'narrow'; family: 'flowchart' | 'state' | 'sequence' | 'timeline' | 'class' | 'er' | 'journey' | 'architecture' | 'xychart' | 'pie' | 'quadrant' | 'gantt'; input?: number; ok: boolean }
-  | { verb: 'mutate'; body: 'flowchart' | 'state' | 'sequence' | 'timeline' | 'class' | 'er' | 'journey' | 'architecture' | 'xychart' | 'pie' | 'quadrant' | 'gantt' | 'opaque'; input?: number; output?: number; opKind?: string; fingerprint?: string }
+  | { verb: 'narrow'; family: DiagramKind; input?: number; ok: boolean }
+  | { verb: 'mutate'; body: DiagramKind | 'opaque'; input?: number; output?: number; opKind?: string; fingerprint?: string }
   | { verb: 'verify'; diagram?: number; ok?: boolean; inspected?: boolean; fingerprint?: string }
   | { verb: 'verify_inspect'; diagram?: number; property: 'ok' | 'warnings' | 'layout' }
   | { verb: 'analyze'; diagram?: number; source?: string; ok?: boolean; fingerprint?: string }
@@ -244,7 +246,7 @@ export function createTracingMermaid(trace?: ExecutionTraceCall[], makeSandboxEr
   const fingerprint = (value: unknown): string | undefined => fingerprintDiagram(rawOf(value))
   const bodyKind = (value: unknown): TraceMutationBody => {
     const kind = (value as { body?: { kind?: string } } | undefined)?.body?.kind
-    return (kind === 'flowchart' || kind === 'state' || kind === 'sequence' || kind === 'timeline' || kind === 'class' || kind === 'er' || kind === 'journey' || kind === 'architecture' || kind === 'xychart' || kind === 'pie' || kind === 'quadrant' || kind === 'gantt') ? kind : 'opaque'
+    return kind != null && FAMILY_KINDS.has(kind as DiagramKind) ? (kind as DiagramKind) : 'opaque'
   }
   const push = (call: ExecutionTraceCall) => { trace?.push(call) }
   const sdkTarget = {
@@ -389,21 +391,15 @@ function fingerprintDiagram(value: unknown): string | undefined {
   try { return JSON.stringify(value, jsonReplacer) } catch { return undefined }
 }
 
+/** Kind/narrower lookup tables derived from the family metadata (single source of truth). */
+const FAMILY_KINDS: ReadonlySet<DiagramKind> = new Set(BUILTIN_FAMILY_METADATA.map(m => m.id))
+const NARROWER_TO_FAMILY: ReadonlyMap<string, DiagramKind> = new Map(
+  BUILTIN_FAMILY_METADATA.map(m => [m.narrower, m.id]),
+)
+
 function narrowerFamily(prop: string | symbol): TraceNarrowFamily {
-  switch (prop) {
-    case 'asFlowchart': return 'flowchart'
-    case 'asState': return 'state'
-    case 'asSequence': return 'sequence'
-    case 'asTimeline': return 'timeline'
-    case 'asClass': return 'class'
-    case 'asJourney': return 'journey'
-    case 'asArchitecture': return 'architecture'
-    case 'asXyChart': return 'xychart'
-    case 'asPie': return 'pie'
-    case 'asQuadrant': return 'quadrant'
-    case 'asGantt': return 'gantt'
-    default: return 'er'
-  }
+  // Unknown props keep the historical 'er' fallback (asEr was the switch default).
+  return NARROWER_TO_FAMILY.get(String(prop)) ?? 'er'
 }
 
 /**
