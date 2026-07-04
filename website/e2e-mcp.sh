@@ -101,7 +101,7 @@ check 'execute renders through the SDK after global hardening' 'C[New]' \
   "$(j '{"jsonrpc":"2.0","id":19,"method":"tools/call","params":{"name":"execute","arguments":{"code":"const r = mermaid.parseMermaid(\"flowchart TD\\n  A --> B\"); const m = mermaid.mutate(r.value, { kind: \"add_node\", id: \"C\", label: \"New\" }); return mermaid.serializeMermaid(m.value)"}}}')"
 
 check 'oversized bodies are 413' '413' \
-  "$(python3 -c "import json; print(json.dumps({'jsonrpc':'2.0','id':1,'method':'tools/call','params':{'name':'describe','arguments':{'source':'x'*200000}}}))" | curl -sS --max-time 10 -o /dev/null -w '%{http_code}' -X POST "$MCP" -H 'content-type: application/json' --data @-)"
+  "$(python3 -c 'import json; print(json.dumps({"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"describe","arguments":{"source":"x"*200000}}}))' | curl -sS --max-time 10 -o /dev/null -w '%{http_code}' -X POST "$MCP" -H 'content-type: application/json' --data @-)"
 
 # A disallowed cross-origin browser Origin is refused (MCP Origin validation).
 # A no-Origin client (every default curl above) is unaffected.
@@ -114,6 +114,6 @@ check 'an unsupported MCP-Protocol-Version is 400' '400' \
 
 # A batch beyond the fan-out cap is refused before any tool runs.
 check 'an over-cap batch is 400' '400' \
-  "$(python3 -c "import json; print(json.dumps([{'jsonrpc':'2.0','id':i,'method':'ping'} for i in range(25)]))" | curl -sS --max-time 10 -o /dev/null -w '%{http_code}' -X POST "$MCP" -H 'content-type: application/json' --data @-)"
+  "$(python3 -c 'import json; print(json.dumps([{"jsonrpc":"2.0","id":i,"method":"ping"} for i in range(25)]))' | curl -sS --max-time 10 -o /dev/null -w '%{http_code}' -X POST "$MCP" -H 'content-type: application/json' --data @-)"
 
 echo "e2e-mcp: $pass checks passed"
