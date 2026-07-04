@@ -1,0 +1,21 @@
+Updated Mermaid
+
+```mermaid
+gantt
+  dateFormat YYYY-MM-DD
+  section Build
+  Core :core, 2024-01-01, 2d
+  Docs :docs, after core, 2d
+```
+
+Verification
+
+- `verifyMermaid` on the serialized output: `ok: true`, zero findings, zero warnings.
+- The Docs task carries task id `docs`, starts `after core` (so it begins when Core ends, 2024-01-03), and runs for `2d`. Core is unchanged.
+- Note: the serializer canonicalizes task indentation to two spaces (the original source indented tasks four); the diagram content is otherwise identical plus the new task.
+
+Trace
+
+- Channel: local repository library (`./src/agent/index.ts` — `agentic-mermaid/agent` surface), run with Bun.
+- Calls: `parseMermaid(source)` → `asGantt(...)` → `mutate({ kind: "add_task", sectionIndex: 0, label: "Docs", taskId: "docs", start: "after core", end: "2d" })` → `serializeMermaid(...)` → `verifyMermaid(...)`.
+- Ops were looked up in the local `GanttMutationOp` type; the single `add_task` op succeeded on the first attempt (no source-level fallback).

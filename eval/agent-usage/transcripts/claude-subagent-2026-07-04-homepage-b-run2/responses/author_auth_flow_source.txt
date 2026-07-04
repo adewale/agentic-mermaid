@@ -1,0 +1,28 @@
+Updated Mermaid
+
+```mermaid
+flowchart TD
+  User([User]) --> Login[Login Page]
+  Login --> Creds{Credentials valid?}
+  Creds -->|invalid| Login
+  Creds -->|valid| MFA{MFA enabled?}
+  MFA -->|yes| Code[Enter MFA Code]
+  Code --> CodeCheck{Code valid?}
+  CodeCheck -->|invalid| Code
+  CodeCheck -->|valid| Session[Create Session]
+  MFA -->|no| Session
+  Session --> Dashboard
+```
+
+Verification
+
+- `verifyMermaid` returned `ok: true` with zero warnings; a full layout certificate was produced (8 nodes, 10 edges, no overlaps flagged).
+- Every node and edge maps to a supplied fact: User → Login Page; invalid credentials loop back to Login Page; valid credentials go to the MFA check; MFA users enter a code; invalid code loops back to Enter MFA Code; valid code creates a session; the no-MFA path goes straight to Create Session; Create Session → Dashboard. No invented entities.
+- Assumptions: the context does not name the decision points, so I modeled the three implicit branchings as decision diamonds ("Credentials valid?", "MFA enabled?", "Code valid?") — the smallest reading that carries the valid/invalid and MFA/no-MFA branches. Abstraction level is a single user-facing login flow throughout.
+- The source above is the canonical `serializeMermaid` output, so it round-trips exactly.
+
+Trace
+
+- Channel: library import `agentic-mermaid/agent` (probe 1 responded; stopped discovery there).
+- Calls: authored source from context → `parseMermaid(source)` (ok) → `asFlowchart(parsed.value)` (narrowed, 10 edges) → `verifyMermaid(parsed.value)` (ok, no warnings) → `serializeMermaid(parsed.value)` for the returned source.
+- New diagram: no mutate.

@@ -1,0 +1,23 @@
+Updated Mermaid
+
+```mermaid
+flowchart TD
+  API --> Cache
+  Cache --> DB
+```
+
+Verification
+
+- `verifyMermaid` returned `ok: true` with no findings (no warnings, no errors).
+- Both existing node labels are preserved: `API` and `DB` keep their original bare-id labels exactly as in the input. The direct `API --> DB` edge was removed and replaced by `API --> Cache --> DB`.
+- Assumption: `Cache` uses the same bare-id label style as the existing nodes, keeping the diagram at one consistent abstraction level.
+
+Trace
+
+- Channel: `agentic-mermaid/agent` library import (first probe responded; no further discovery).
+- Calls run: `parseMermaid(source)` → `asFlowchart(...)` → four mutations:
+  - `mutate({ kind: "remove_edge", id: "API->DB" })`
+  - `mutate({ kind: "add_node", id: "Cache", label: "Cache" })`
+  - `mutate({ kind: "add_edge", from: "API", to: "Cache" })`
+  - `mutate({ kind: "add_edge", from: "Cache", to: "DB" })`
+  - then `verifyMermaid(diagram)` → `serializeMermaid(diagram)`.

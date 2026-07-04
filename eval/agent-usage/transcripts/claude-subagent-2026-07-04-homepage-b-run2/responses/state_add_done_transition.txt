@@ -1,0 +1,18 @@
+Updated Mermaid
+
+```mermaid
+stateDiagram-v2
+  [*] --> Idle
+  Idle --> Processing : start
+  Processing --> [*] : done
+```
+
+Verification
+
+- `verifyMermaid` on the serialized output: `ok: true`, no warnings.
+- Both existing transitions (`[*] --> Idle`, `Idle --> Processing : start`) are unchanged; the only addition is the completion path `Processing --> [*] : done`.
+
+Trace
+
+- Channel: installed `agentic-mermaid/agent` library (first probe succeeded; no CLI or hosted MCP needed).
+- Calls: `parseMermaid(source)` → `asState(parsed.value)` → `mutate(state, { kind: "add_transition", from: "Processing", to: "[*]", label: "done" })` → `serializeMermaid(mutated.value)` → `verifyMermaid(out)`.

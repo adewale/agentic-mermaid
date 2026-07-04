@@ -1,0 +1,24 @@
+Updated Mermaid
+
+```mermaid
+erDiagram
+  CUSTOMER {
+    string id
+  }
+  ORDER {
+    string id
+  }
+```
+
+Verification
+
+`verifyMermaid` on the serialized output: `ok: true`, no warnings. As specified in Context, no relation was added between CUSTOMER and ORDER — the ORDER entity stands alone with a single `string id` attribute, and the existing CUSTOMER entity is unchanged.
+
+Trace
+
+Channel: library import (`agentic-mermaid/agent`, resolved to this repo's `src/agent/index.ts` — first probe succeeded, no further discovery). Calls run:
+- `parseMermaid(source)` — parsed the existing ER diagram
+- `asEr(parsed.value)` — narrowed to the ER diagram type
+- `mutate(er, { kind: "add_entity", id: "ORDER", attributes: ["string id"] })` — structured mutation, succeeded
+- `serializeMermaid(mutated.value)` — produced the source above
+- `verifyMermaid(serialized)` — `ok: true`, zero warnings
