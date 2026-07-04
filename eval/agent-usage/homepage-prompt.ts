@@ -51,7 +51,7 @@ export function homepagePromptChecklist(prompt = extractHomepageAgentPrompt()): 
     'canonical form is `<br>`',
     'labeled edges `A -- "label" --> B`',
     'dotted edges `A -.-> B` and `A -. "label" .-> B`',
-    '`LABEL_OVERFLOW` counts total label characters, line breaks included',
+    '`LABEL_OVERFLOW` counts the longest rendered line, not raw source',
     'verifyMermaid(d, { labelCharCap: N })',
     'am verify --label-cap N',
     'am verify <file> --json',

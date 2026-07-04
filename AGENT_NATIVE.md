@@ -193,6 +193,8 @@ type MutableValidDiagram =
 parseMermaid(source: string):                                Result<ValidDiagram, ParseError[]>
 serializeMermaid(d: ValidDiagram):                           string
 synthesizeFromGraph(payload):                                Result<ValidDiagram, ParseError[]>
+createMermaid(kind, opts?):                                  MutableValidDiagram   // empty structured diagram; overloads narrow per kind
+buildMermaid(kind, ops, opts?):                              Result<MutableValidDiagram, MutationError & { opIndex: number }>
 mutate(d: FlowchartValidDiagram, op: FlowchartMutationOp):   Result<FlowchartValidDiagram, MutationError>
 mutate(d: StateValidDiagram,     op: StateMutationOp):       Result<StateValidDiagram, MutationError>
 mutate(d: SequenceValidDiagram,  op: SequenceMutationOp):    Result<SequenceValidDiagram, MutationError>
@@ -378,7 +380,7 @@ Two contracts:
 
 For any opaque fallback, cross-cutting edits are source-level only: operate against preserved source intentionally, then re-parse and verify before returning. Every renderable family now ships structured mutation; a new family follows the same pattern as its definition of done: narrowed type + body parser + serializer + per-family ops + verify hook + round-trip property tests + doc sync (most recently gantt). See `docs/contributing/adding-diagram-types.md`.
 
-Convention bans constructing `ValidDiagram` outside `parseMermaid`, `mutate`, and `synthesizeFromGraph`.
+Convention bans constructing `ValidDiagram` outside `parseMermaid`, `mutate`, `synthesizeFromGraph`, and `createMermaid`/`buildMermaid`.
 
 ---
 
@@ -424,6 +426,12 @@ asGantt(d: ValidDiagram):     GanttValidDiagram | null
 // Build a ValidDiagram from a JSON-safe graph payload without re-parsing
 // source. Used by `am parse | am serialize` shell pipelines.
 synthesizeFromGraph(payload: ValidDiagramPayload): Result<ValidDiagram, ParseError[]>
+
+// Blank-slate authoring on the typed path: an empty structured diagram for
+// any built-in family (overloads narrow the return per kind), and a fold of
+// typed ops over that empty diagram. Errors carry the failing op's index.
+createMermaid(kind: DiagramKind, opts?: { direction?: Direction }): MutableValidDiagram
+buildMermaid(kind: DiagramKind, ops: AnyMutationOp[], opts?: { direction?: Direction }): Result<MutableValidDiagram, MutationError & { opIndex: number }>
 
 // VerifyOptions carries the only real knob: the label character cap.
 interface VerifyOptions { suppress?: WarningCode[]; labelCharCap?: number }  // default cap 40
@@ -479,7 +487,7 @@ Agent-contract CLI verbs for explicit self-discovery, summaries, and batch opera
 
 The canonical runtime guide lives in `Instructions_for_agents.md` and is emitted byte-for-byte by `am --agent-instructions`; this spec intentionally does not duplicate the full snippet. The stable contract is:
 
-1. For new diagrams, author Mermaid source directly, then `parseMermaid` / `verifyMermaid` / render or return it.
+1. For new diagrams, `buildMermaid(kind, ops)` — or `createMermaid(kind)` then typed mutations — then `verifyMermaid` / render or return it. Author Mermaid source directly only for syntax the typed ops do not model.
 2. For existing diagrams, `parseMermaid(source)` → `ValidDiagram`.
 3. Narrow with `asFlowchart` / `asState` / `asSequence` / `asTimeline` / `asClass` / `asEr` / `asJourney` / `asArchitecture` / `asXyChart` / `asPie` / `asQuadrant` / `asGantt`; `null` means no structured mutation for that body.
 4. Apply typed `mutate` ops only to narrowed mutable bodies; Code Mode SDK-returned diagrams are read-only to block direct IR edits.
@@ -543,7 +551,7 @@ MermaidSeqBench is wired as an external corpus signal; live model transcript eva
 - **Sequence parsing is lossless** — segment-preserving structured body (BUILD-18): Note/alt/loop/etc. ride along verbatim as opaque-block segments while the structured ops stay live; only un-segmentable input falls back to whole-body opaque; never silently drops constructs.
 - **Substrate enforcement is a real grep test** that runs under `bun test`, not an ESLint config that was never installed.
 - **`synthesizeFromGraph`** lets `am parse | am serialize` round-trip without `canonicalSource` on the wire.
-- **`LABEL_OVERFLOW` is a source-based char-count check** (Tier 1, reliable), not a font-metric heuristic.
+- **`LABEL_OVERFLOW` is a rendered-line char-count check** (Tier 1, reliable), not a font-metric heuristic: the cap applies to the longest displayed line (XML entities decode, `<br>` splits lines, formatting tags strip), not raw source chars.
 - **`Finite` branded type** enforced at every coordinate emission.
 - **Deliverable completeness:** CHANGELOG entry, README section, an `examples/` script, per-verb CLI `--help`, and a [`docs/fork-differences.md`](./docs/fork-differences.md) mention all ship with the code.
 - **Test honesty:** the tautological seed-variance test is gone; a fault-injection pass proves the suite has teeth.

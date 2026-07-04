@@ -26,6 +26,7 @@ import type {
   GanttStatement, GanttMutationOp, MutationError, Result, VerifyOptions, LayoutWarning,
 } from './types.ts'
 import { ok, err } from './types.ts'
+import { labelOverflowWarning } from './label-metrics.ts'
 import { parseGanttTaskMeta, renderGanttTaskMeta, GANTT_TASK_TAGS, type ParsedTaskMeta } from '../gantt/parser.ts'
 
 // Directive openers that are NEVER task lines even though they may contain `:`
@@ -453,16 +454,14 @@ export function verifyGantt(body: GanttBody, opts: VerifyOptions): LayoutWarning
     return [{ code: 'EMPTY_DIAGRAM' }]
   }
 
-  if (body.title !== undefined && body.title.length > cap) {
-    warnings.push({ code: 'LABEL_OVERFLOW', target: 'title', charCount: body.title.length, limit: cap })
+  const overflow = (target: string, text: string) => {
+    const w = labelOverflowWarning(target, text, cap)
+    if (w) warnings.push(w)
   }
+  if (body.title !== undefined) overflow('title', body.title)
   for (const s of body.sections) {
-    if (s.label !== undefined && s.label.length > cap) {
-      warnings.push({ code: 'LABEL_OVERFLOW', target: s.id, charCount: s.label.length, limit: cap })
-    }
-    for (const t of s.tasks) {
-      if (t.label.length > cap) warnings.push({ code: 'LABEL_OVERFLOW', target: t.id, charCount: t.label.length, limit: cap })
-    }
+    if (s.label !== undefined) overflow(s.id, s.label)
+    for (const t of s.tasks) overflow(t.id, t.label)
   }
 
   // Known ids: structured tasks + task-shaped opaque lines (a malformed task

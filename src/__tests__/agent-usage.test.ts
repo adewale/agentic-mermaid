@@ -202,11 +202,12 @@ describe('homepage prompt eval contract', () => {
     expect(flow?.body.graph.nodes.get('worker')?.label).toBe(workerLabel)
     expect(flow?.body.graph.edges.map(e => e.label)).toContain('reads diagnostics')
 
-    // LABEL_OVERFLOW counts total label characters (line breaks included) and
-    // stays advisory: verify.ok remains true.
+    // LABEL_OVERFLOW counts the longest RENDERED line (a \n splits the label
+    // into display lines) and stays advisory: verify.ok remains true.
+    const longestLine = Math.max(...workerLabel.split('\n').map(l => l.length))
     const verified = verifyMermaid(parsed.value)
     expect(verified.ok).toBe(true)
-    expect(verified.warnings).toContainEqual({ code: 'LABEL_OVERFLOW', target: 'worker', charCount: workerLabel.length, limit: 40 })
+    expect(verified.warnings).toContainEqual({ code: 'LABEL_OVERFLOW', target: 'worker', charCount: longestLine, limit: 40 })
 
     // labelCharCap is the sanctioned escape hatch for intentionally long labels.
     const capped = verifyMermaid(parsed.value, { labelCharCap: 80 })

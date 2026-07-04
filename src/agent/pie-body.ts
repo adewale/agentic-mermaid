@@ -27,6 +27,7 @@ import type {
   MutationError, Result, LayoutWarning, VerifyOptions,
 } from './types.ts'
 import { ok, err, DEFAULT_LABEL_CHAR_CAP } from './types.ts'
+import { labelOverflowWarning } from './label-metrics.ts'
 
 // ---- Number format ----------------------------------------------------------
 //
@@ -258,7 +259,8 @@ export function verifyPie(body: PieBody, opts: VerifyOptions): LayoutWarning[] {
   const cap = opts.labelCharCap ?? DEFAULT_LABEL_CHAR_CAP
   const warnings: LayoutWarning[] = []
   const overflow = (target: string, text: string) => {
-    if (text.length > cap) warnings.push({ code: 'LABEL_OVERFLOW', target, charCount: text.length, limit: cap })
+    const w = labelOverflowWarning(target, text, cap)
+    if (w) warnings.push(w)
   }
   if (body.slices.length === 0) warnings.push({ code: 'EMPTY_DIAGRAM' })
   if (body.title !== undefined) overflow('title', body.title)

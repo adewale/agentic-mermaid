@@ -71,7 +71,7 @@ Environment:
 Authoring facts (already verified — do not spend turns rediscovering them):
 - Families: flowchart, sequence, state, class, ER, journey, timeline, gantt, pie, quadrant, xychart, architecture.
 - Flowchart syntax that parses, renders, and round-trips: `subgraph id["Title"] … end`; quoted labels for punctuation (`id["HTTPS /api/sessions*"]`); multi-line labels via `\n` inside a quoted label (canonical form is `&lt;br&gt;`); labeled edges `A -- "label" --&gt; B`; dotted edges `A -.-&gt; B` and `A -. "label" .-&gt; B`.
-- Warnings never flip `verify.ok` unless their severity is error. `LABEL_OVERFLOW` counts total label characters, line breaks included (default cap 40, not per rendered line); when long labels are intentional, raise the cap (`verifyMermaid(d, { labelCharCap: N })`, `am verify --label-cap N`) and say so in Trace — do not truncate the user's text to silence the warning.
+- Warnings never flip `verify.ok` unless their severity is error. `LABEL_OVERFLOW` counts the longest rendered line, not raw source (default cap 40; `<br>`/`\n` split lines, XML entities decode to one char, formatting tags strip); when long labels are intentional, raise the cap (`verifyMermaid(d, { labelCharCap: N })`, `am verify --label-cap N`) and say so in Trace — do not truncate the user's text to silence the warning.
 - CLI verification: `am verify &lt;file&gt; --json` (exit 3 only on error-severity findings); `am render &lt;file&gt; --format ascii` is a fast visual sanity check.
 
 Grounding and scope:

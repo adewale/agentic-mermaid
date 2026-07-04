@@ -31,6 +31,7 @@ import type {
   ClassMutationOp, MutationError, Result, LayoutWarning, VerifyOptions,
 } from './types.ts'
 import { ok, err, DEFAULT_LABEL_CHAR_CAP } from './types.ts'
+import { labelOverflowWarning } from './label-metrics.ts'
 
 // ---- Parser ---------------------------------------------------------------
 
@@ -282,18 +283,17 @@ export function verifyClass(body: ClassBody, opts: VerifyOptions): LayoutWarning
     return warnings
   }
 
-  if (body.title && body.title.length > cap) {
-    warnings.push({ code: 'LABEL_OVERFLOW', target: 'title', charCount: body.title.length, limit: cap })
+  const overflow = (target: string, text: string) => {
+    const w = labelOverflowWarning(target, text, cap)
+    if (w) warnings.push(w)
   }
+  if (body.title) overflow('title', body.title)
 
   const ids = new Set(body.classes.map(c => c.id))
   for (const c of body.classes) {
-    if (c.label && c.label.length > cap) {
-      warnings.push({ code: 'LABEL_OVERFLOW', target: c.id, charCount: c.label.length, limit: cap })
-    }
+    if (c.label) overflow(c.id, c.label)
     for (let i = 0; i < c.members.length; i++) {
-      const m = c.members[i]!
-      if (m.length > cap) warnings.push({ code: 'LABEL_OVERFLOW', target: `${c.id}#m${i}`, charCount: m.length, limit: cap })
+      overflow(`${c.id}#m${i}`, c.members[i]!)
     }
   }
   for (let i = 0; i < body.relations.length; i++) {
@@ -304,13 +304,11 @@ export function verifyClass(body: ClassBody, opts: VerifyOptions): LayoutWarning
         from: ids.has(r.from) ? r.from : undefined, to: ids.has(r.to) ? r.to : undefined,
       })
     }
-    if (r.label && r.label.length > cap) {
-      warnings.push({ code: 'LABEL_OVERFLOW', target: `rel#${i}`, charCount: r.label.length, limit: cap })
-    }
+    if (r.label) overflow(`rel#${i}`, r.label)
   }
   for (let i = 0; i < body.notes.length; i++) {
     const n = body.notes[i]!
-    if (n.text.length > cap) warnings.push({ code: 'LABEL_OVERFLOW', target: `note#${i}`, charCount: n.text.length, limit: cap })
+    overflow(`note#${i}`, n.text)
     if (n.for && !ids.has(n.for)) {
       warnings.push({ code: 'EDGE_MISANCHORED', edge: `note#${i}->${n.for}`, from: undefined, to: undefined })
     }

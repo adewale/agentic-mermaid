@@ -35,6 +35,8 @@ export type {
 export { WARNING_SEVERITY, WARNING_TIER, DEFAULT_LABEL_CHAR_CAP, ok, err, toFinite, asFlowchart, asState, asSequence, asTimeline, asClass, asEr, asJourney, asArchitecture, asXyChart, asPie, asQuadrant, asGantt } from './types.ts'
 export { parseMermaid } from './parse.ts'
 export { serializeMermaid, synthesizeFromGraph } from './serialize.ts'
+export { createMermaid, buildMermaid } from './create.ts'
+export type { CreateMermaidOptions, BuildError } from './create.ts'
 export { mutate, edgeIdOf } from './mutate.ts'
 export { verifyMermaid } from './verify.ts'
 export { measureQuality, checkQuality, DEFAULT_BOUNDS, BOUND_PROVENANCE } from './quality.ts'

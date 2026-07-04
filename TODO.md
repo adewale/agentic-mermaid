@@ -52,6 +52,18 @@ dependents after. IDs are stable names, not an ordering.
   managed store with safe tracked names, MIME type, byte count, SHA-256, size
   limit, and TTL checks. Tests cover file output, URL fetch-back, auth/body
   gates, tracked artifact serving, and SSE session lifecycle.
+- [ ] **BUILD-24 — Layout hints: rank/group pinning and edge-length
+  preferences** (`todo`). Direct agent feedback (2026-07): an agent deleted a
+  real edge because the auto-layout drew its feedback loop as a long,
+  confusing route — the only lever it had was removing information. Give
+  agents structural levers instead: per-node rank/layer pinning, "keep these
+  nodes adjacent" grouping hints, and a "keep this edge short" preference,
+  carried as typed metadata (not source hacks) and honored by the ELK
+  pipeline deterministically. Design questions: hint syntax in Mermaid source
+  (frontmatter? comment directives?) vs. render-option-only; interaction with
+  the determinism contract (hints must be part of the input, never ambient);
+  which ELK knobs (`org.eclipse.elk.layered.layering.*`, `priority`,
+  `desiredEdgeLength`) map cleanly. Scope the first slice to flowchart/state.
 - [ ] **BUILD-2 — `process --mode validate|canonicalize` triage** (`todo`).
   Current verbs are `verify` and `format`; do not add another command until it
   proves agent value. Needed: inventory overlap with `verify`, `format`,
