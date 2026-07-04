@@ -1,0 +1,20 @@
+Updated Mermaid
+
+```mermaid
+sequenceDiagram
+  A->>B: hi
+  end
+  B-->>A: yo
+  B-->>A: ok
+```
+
+Verification
+
+`verifyMermaid` on the updated source: `ok: true`, no warnings. The layout confirms the new message renders as the third and final message (`msg#2: B->A "ok"`) after `hi` and `yo`, with both participants A and B intact. Every existing line — including the stray `end` — is preserved byte-for-byte; the only change is the one appended line.
+
+Trace
+
+Channel: local library import (`./src/agent/index.ts`, first probe succeeded — no further discovery).
+- `parseMermaid(source)` → `ok: true`, but the sequence body parses as `opaque` (the stray `end` prevents structured decomposition) and `asSequence(...)` returned `null`, so no typed mutation op is available on this input.
+- **source-level fallback**: appended `  B-->>A: ok` as the final line, touching nothing else.
+- `verifyMermaid(updated)` → `ok: true`, zero warnings.

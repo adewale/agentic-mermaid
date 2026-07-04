@@ -1,0 +1,20 @@
+Updated Mermaid
+
+```mermaid
+sequenceDiagram
+  A->>B: hi
+  end
+  B-->>A: yo
+  B-->>A: ok
+```
+
+Verification
+
+`verifyMermaid` on the updated source: `ok: true`, zero warnings. Every existing line is preserved byte-for-byte — including the stray `end` on line 3, kept as the user maintains it — and `B-->>A: ok` is appended as the final top-level message.
+
+Trace
+
+- Channel: this repo's library, `./src/agent/index.ts` (probed `agentic-mermaid/agent` first — not installed; the repo CLI/library responded next, stopped there).
+- `parseMermaid(source)` → `ok: true`, but the stray `end` forced an opaque body (`body.kind: "opaque"`), so `asSequence` narrowing failed and no typed `mutate` op (e.g. `add_message`) could apply to this input.
+- **source-level fallback**: smallest possible edit — appended one line `  B-->>A: ok` after the last existing line; nothing else touched.
+- `verifyMermaid(updated)` → `ok: true`, no warnings.

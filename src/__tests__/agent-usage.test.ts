@@ -4,11 +4,15 @@ import { describe, test, expect } from 'bun:test'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { runAllScenarios, lintAgentTrace, type SdkCall } from '../../eval/agent-usage/harness.ts'
-import { DEFAULT_CASES, requiresStructuredMutation, runAgentUsageEval } from '../../eval/agent-usage/run.ts'
+import { DEFAULT_CASES, KNOWLEDGE_CASES, checkAgentUsageTaskSource, requiresStructuredMutation, runAgentUsageEval } from '../../eval/agent-usage/run.ts'
 import { AGENT_USAGE_SUPPORTED_FAMILIES, scoreAgentUsageRenderedQuality } from '../../eval/agent-usage/render-quality.ts'
 import { extractHomepageAgentPrompt, homepagePromptChecklist } from '../../eval/agent-usage/homepage-prompt.ts'
+import { buildSubagentPromptEvalRequest, extractBareTask } from '../../eval/agent-usage/capture-subagent-prompt-eval.ts'
 import { executeInSandbox } from '../mcp/sandbox.ts'
 import { handleRequest } from '../mcp/server.ts'
+import { parseMermaid, verifyMermaid, serializeMermaid } from '../agent/index.ts'
+import { asFlowchart } from '../agent/types.ts'
+import { handleHostedRequest } from '../mcp/hosted-server.ts'
 
 const REPO = join(import.meta.dir, '..', '..')
 
@@ -164,12 +168,123 @@ describe('homepage prompt eval contract', () => {
     expect(prompt).toContain('For a new diagram, author Mermaid source directly')
     expect(prompt).toContain('Mutation ops use a `kind` discriminator')
     expect(prompt).toContain('return an object with `{ source }`')
-    expect(prompt).toContain('In Trace, name the channel and exact calls/ops used')
+    expect(prompt).toContain('In Trace, name the channel and the calls/ops you actually ran')
     expect(prompt).toContain('For an existing diagram, parse it')
     for (const c of DEFAULT_CASES) {
       expect({ id: c.id, hasPrompt: c.prompt.includes('Create or edit a Mermaid diagram') }).toEqual({ id: c.id, hasPrompt: true })
       expect({ id: c.id, unresolved: /<replace with|<include the facts|<paste existing/.test(c.prompt) }).toEqual({ id: c.id, unresolved: false })
     }
+  })
+
+  test('authoring facts stated by the prompt are true', () => {
+    // Mirrors the prompt's "Authoring facts" section: each claim below is a
+    // fact agents previously burned tokens rediscovering. If a claim stops
+    // holding, fix the prompt in website/source/pages/home.html too.
+    const workerLabel = 'Cloudflare Worker\nHTTP router, API routes, SPA asset server'
+    const src = [
+      'flowchart LR',
+      '  subgraph edge["Cloudflare edge"]',
+      '    worker["Cloudflare Worker\\nHTTP router, API routes, SPA asset server"]',
+      '    kv["Cloudflare KV: SESSIONS"]',
+      '  end',
+      '  debug["Debug tools"]',
+      '  worker -- "create session, fallback reads" --> kv',
+      '  debug -. "reads diagnostics" .-> worker',
+    ].join('\n')
+
+    // Quoted punctuation labels, \n line breaks, subgraphs, and labeled solid/
+    // dotted edges all parse into the structured flowchart body (not opaque).
+    const parsed = parseMermaid(src)
+    expect(parsed.ok).toBe(true)
+    if (!parsed.ok) return
+    const flow = asFlowchart(parsed.value)
+    expect(flow?.body.kind).toBe('flowchart')
+    expect(flow?.body.graph.nodes.get('worker')?.label).toBe(workerLabel)
+    expect(flow?.body.graph.edges.map(e => e.label)).toContain('reads diagnostics')
+
+    // LABEL_OVERFLOW counts total label characters (line breaks included) and
+    // stays advisory: verify.ok remains true.
+    const verified = verifyMermaid(parsed.value)
+    expect(verified.ok).toBe(true)
+    expect(verified.warnings).toContainEqual({ code: 'LABEL_OVERFLOW', target: 'worker', charCount: workerLabel.length, limit: 40 })
+
+    // labelCharCap is the sanctioned escape hatch for intentionally long labels.
+    const capped = verifyMermaid(parsed.value, { labelCharCap: 80 })
+    expect(capped.warnings.filter(w => w.code === 'LABEL_OVERFLOW')).toEqual([])
+
+    // \n canonicalizes to <br> on serialize and the result still parses.
+    const round = serializeMermaid(parsed.value)
+    expect(round).toContain('<br>')
+    const reparsed = parseMermaid(round)
+    expect(reparsed.ok).toBe(true)
+    if (reparsed.ok) expect(asFlowchart(reparsed.value)?.body.graph.nodes.size).toBe(3)
+  })
+
+  test('the hosted MCP call shape quoted by the prompt works verbatim', async () => {
+    // The prompt quotes an exact JSON-RPC body so agents stop rediscovering
+    // the transport. Run that literal body through the hosted handler: if the
+    // tool name, argument shape, or handshake-free contract drifts, this fails
+    // before the prompt lies to anyone.
+    const prompt = extractHomepageAgentPrompt()
+    const quoted = prompt.match(/\{"jsonrpc":"2\.0"[^`]*\}/)?.[0]
+    expect(quoted).toBeDefined()
+    // verify/tools-list never reach Code Mode, so the execute stub must not run.
+    const context = { execute: async () => { throw new Error('unexpected execute') } }
+    const res = await handleHostedRequest(JSON.parse(quoted!), context) as {
+      result?: { content: Array<{ text: string }>; isError?: boolean }
+      error?: unknown
+    }
+    expect(res.error).toBeUndefined()
+    expect(res.result?.isError).toBe(false)
+    expect(JSON.parse(res.result!.content[0]!.text).ok).toBe(true)
+    // Every tool the prompt lists exists on the hosted server.
+    const list = await handleHostedRequest({ jsonrpc: '2.0', id: 2, method: 'tools/list' }, context) as {
+      result?: { tools: Array<{ name: string }> }
+    }
+    const names = new Set(list.result!.tools.map(t => t.name))
+    for (const tool of ['execute', 'render_svg', 'render_ascii', 'render_png', 'verify', 'describe']) {
+      expect({ tool, listed: names.has(tool) }).toEqual({ tool, listed: true })
+    }
+  })
+
+  test('the no-docs baseline surface carries the bare task and zero product guidance', () => {
+    for (const c of DEFAULT_CASES) {
+      const bare = extractBareTask(c.prompt)
+      expect({ id: c.id, hasTask: bare.task.length > 0, hasContext: bare.context.length > 0 })
+        .toEqual({ id: c.id, hasTask: true, hasContext: true })
+      expect({ id: c.id, sourceMatchesInput: (bare.source ?? undefined) === (c.input ?? undefined) })
+        .toEqual({ id: c.id, sourceMatchesInput: true })
+      const request = buildSubagentPromptEvalRequest(c, 'none', 'chat')
+      // The baseline exists to measure what the docs add; any leaked guidance
+      // (product name, channels, workflow, response contract) poisons it.
+      for (const leak of ['Agentic Mermaid', 'agentic-mermaid', 'parseMermaid', 'verifyMermaid', 'am capabilities', 'Updated Mermaid', 'Trace']) {
+        expect({ id: c.id, leak, leaked: request.includes(leak) }).toEqual({ id: c.id, leak, leaked: false })
+      }
+      expect(request).toContain(bare.task)
+    }
+    expect(() => buildSubagentPromptEvalRequest(DEFAULT_CASES[0]!, 'none', 'code')).toThrow('chat-only')
+  })
+
+  test('knowledge-proof cases discriminate: tool-backed answers pass, plausible naive answers fail', async () => {
+    // The stored Code Mode scripts (the docs-informed route) must satisfy
+    // their own oracles end-to-end through the sandbox and trace linter.
+    const summary = await runAgentUsageEval(KNOWLEDGE_CASES)
+    for (const r of summary.results) {
+      expect({ id: r.id, ok: r.ok, error: r.error }).toEqual({ id: r.id, ok: true, error: undefined })
+    }
+    // A structurally correct edit that keeps the input's messy style (quoted
+    // labels, literal \n, four-space indent) is what a no-docs agent returns;
+    // it must fail the canonical fixed-point oracle.
+    const naiveCanonical = 'flowchart TD\n    api["API"] --> logs["Log store\\nretention: 30 days"]\n    api --> Cache\n    Cache --> db["DB"]'
+    expect(checkAgentUsageTaskSource('canonical_add_cache_messy', naiveCanonical)).toBe(false)
+    // A regenerating agent "repairs" the stray end; the oracle requires it
+    // preserved verbatim.
+    const cleanedStray = 'sequenceDiagram\n  A->>B: hi\n  B-->>A: yo\n  B-->>A: ok'
+    expect(checkAgentUsageTaskSource('stray_end_source_fallback', cleanedStray)).toBe(false)
+    // Knowledge cases are opt-in by explicit id and never dilute the default
+    // sets that other suites iterate.
+    const defaultIds = new Set(DEFAULT_CASES.map(c => c.id))
+    for (const c of KNOWLEDGE_CASES) expect({ id: c.id, inDefaults: defaultIds.has(c.id) }).toEqual({ id: c.id, inDefaults: false })
   })
 })
 

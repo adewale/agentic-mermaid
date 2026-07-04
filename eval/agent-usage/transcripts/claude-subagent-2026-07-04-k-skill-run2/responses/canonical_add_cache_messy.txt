@@ -1,0 +1,19 @@
+Updated Mermaid
+
+```mermaid
+flowchart TD
+  api[API] --> logs[Log store<br>retention: 30 days]
+  api --> Cache
+  Cache --> db[DB]
+```
+
+Verification
+
+- `verifyMermaid` → `ok: true`, zero warnings.
+- The source above is the exact canonical output of `serializeMermaid` (101 bytes, including a trailing newline). Canonicalization normalized the messy input: irregular spacing collapsed to two-space indentation, quotes dropped from labels that don't need them, and the `\n` inside the logs label became the canonical `<br>` form — the full label text "Log store / retention: 30 days" is preserved verbatim, as is the logs node and the `api --> logs` edge.
+- The direct `api --> db` edge is removed; the path is now `api --> Cache --> db`.
+
+Trace
+
+- Channel: local library (`src/agent/index.ts` in the checked-out repo, first probe hit).
+- Calls: `parseMermaid(source)` → `asFlowchart` → `mutate({ kind: 'remove_edge', id: 'api->db' })` → `mutate({ kind: 'add_node', id: 'Cache', label: 'Cache' })` → `mutate({ kind: 'add_edge', from: 'api', to: 'Cache' })` → `mutate({ kind: 'add_edge', from: 'Cache', to: 'db' })` → `verifyMermaid` → `serializeMermaid`.

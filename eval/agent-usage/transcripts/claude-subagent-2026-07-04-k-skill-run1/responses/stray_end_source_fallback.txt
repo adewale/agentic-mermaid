@@ -1,0 +1,20 @@
+Updated Mermaid
+
+```mermaid
+sequenceDiagram
+  A->>B: hi
+  end
+  B-->>A: yo
+  B-->>A: ok
+```
+
+Verification
+
+- `parseMermaid` → ok, family `sequence`; `asSequence` returned null, confirming the stray `end` makes this an un-segmentable/opaque body with no structured mutation available — so this is a **source-level fallback**, the smallest possible edit (one appended line).
+- `verifyMermaid` → `ok: true`, zero warnings.
+- `serializeMermaid` round-trips the edited source verbatim — every existing line, including the stray `end`, is preserved exactly as written; `B-->>A: ok` is the final top-level message.
+
+Trace
+
+- Channel: this repo's library at `./src/agent/index.ts` (probed `agentic-mermaid/agent` import first; not installed).
+- Calls: `parseMermaid(original)`, `asSequence(d)` → null (opaque), source-level append of `  B-->>A: ok`, `parseMermaid(edited)`, `verifyMermaid(d)` → ok, no warnings, `serializeMermaid(d)` → verbatim match. No `mutate` — no typed op fits an opaque body.

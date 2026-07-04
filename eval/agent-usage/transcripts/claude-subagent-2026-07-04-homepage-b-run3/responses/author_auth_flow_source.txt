@@ -1,0 +1,28 @@
+Updated Mermaid
+
+```mermaid
+flowchart TD
+  User([User]) --> Login[Login Page]
+  Login --> Creds{Credentials valid?}
+  Creds -- "invalid" --> Login
+  Creds -- "valid" --> MFA{MFA enabled?}
+  MFA -- "yes" --> Code[Enter MFA Code]
+  Code --> CodeCheck{Code valid?}
+  CodeCheck -- "invalid" --> Code
+  CodeCheck -- "valid" --> Session[Create Session]
+  MFA -- "no" --> Session
+  Session --> Dashboard[Dashboard]
+```
+
+Verification
+
+- `verifyMermaid` on the parsed diagram: `ok: true`, zero warnings (no label overflow, no unreachable nodes, no unlabeled decision branches).
+- All eight supplied facts map to edges: open Login Page; invalid credentials loop back to Login Page; valid credentials go to the MFA check; MFA users enter a code; invalid code loops back to Enter MFA Code; valid code creates a session; non-MFA users go straight to Create Session; session leads to Dashboard.
+- Assumptions: the context is a single user-facing login flow, so I kept one abstraction level (screens/checks) and modeled the two validations ("Credentials valid?", "Code valid?") and the MFA branch as decision diamonds with labeled yes/no/valid/invalid branches; no nodes beyond the stated facts were added.
+- Round-trip check: `serializeMermaid(parseMermaid(source))` reproduces the same structure (edge labels canonicalize to `-->|label|` form) — no content dropped.
+
+Trace
+
+- Channel probe: (1) `import "agentic-mermaid/agent"` — module not installed; (2) CLI/repo channel responded: `bun run bin/am.ts capabilities --json` returned the flowchart family with parse/verify/mutate support. Used the repo library (`src/agent/index.ts`) from there.
+- Calls run: `parseMermaid(source)` → ok; `asFlowchart(diagram)` → flowchart; `verifyMermaid(diagram)` → `ok: true`, `warnings: []`; `serializeMermaid(diagram)` for the round-trip check.
+- New diagram authored directly from context — no mutate.

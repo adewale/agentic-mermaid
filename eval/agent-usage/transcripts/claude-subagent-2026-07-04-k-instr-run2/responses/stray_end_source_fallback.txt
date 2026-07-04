@@ -1,0 +1,19 @@
+Updated Mermaid
+
+```mermaid
+sequenceDiagram
+  A->>B: hi
+  end
+  B-->>A: yo
+  B-->>A: ok
+```
+
+Verification
+
+- `verifyMermaid` on the edited diagram: `ok: true`, zero warnings (no Tier 1/2/3 findings).
+- Round-trip check: `serializeMermaid(parseMermaid(edited))` reproduces the edited source byte-verbatim, so the stray `end` and every existing line are preserved exactly as written.
+- Structured mutation was not available on this input: the stray `end` with no opening block makes the sequence un-segmentable, so `asSequence` returned `null` (opaque fallback) — exactly the documented behavior. Per the fallback rule I made the smallest source-level edit instead: **source-level fallback** — appended one line, `  B-->>A: ok`, after the last existing line; nothing else changed.
+
+Trace
+
+Channel: local library, this repo's `src/agent/index.ts` (the `agentic-mermaid/agent` surface — first probe that responded). Calls actually run: `parseMermaid(original)` → ok, kind `sequence`; `asSequence(d)` → `null` (opaque fallback, so no `mutate`); source-level append of `B-->>A: ok`; `parseMermaid(edited)` → ok; `verifyMermaid(d)` → ok, no warnings; `serializeMermaid(d)` → byte-identical to the edited source.

@@ -1,0 +1,12 @@
+Treating the mutation as structured operations on the parsed graph:
+
+1. **Parse** — nodes: `API`, `DB`; edges: `API --> DB`.
+2. **Mutate** — add node `Cache`; remove edge `API --> DB`; add edges `API --> Cache` and `Cache --> DB`.
+3. **Verify** — nodes = {API, Cache, DB}, labels unchanged; no direct `API --> DB` edge remains; path API → Cache → DB is connected; direction `TD` preserved.
+4. **Serialize** back to Mermaid source.
+
+```mermaid
+flowchart TD
+  API --> Cache
+  Cache --> DB
+```

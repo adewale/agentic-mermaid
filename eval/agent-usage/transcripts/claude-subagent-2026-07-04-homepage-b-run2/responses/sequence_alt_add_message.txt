@@ -1,0 +1,23 @@
+Updated Mermaid
+
+```mermaid
+sequenceDiagram
+  A->>B: hi
+  alt ok
+    B-->>A: yes
+  end
+  A->>B: bye
+```
+
+Verification
+
+`verifyMermaid` on the serialized output returned `ok: true` with zero warnings. The new `A->>B: bye` message was added as a top-level statement (it appends after the `alt` block, not inside it), and the `alt ok … end` block is preserved verbatim, character for character, in its original position.
+
+Trace
+
+Channel: `agentic-mermaid/agent` library import (resolved via this repo's `src/agent/index.ts`; the bare specifier only resolves from the package root). Calls run:
+- `parseMermaid(source)` → ok
+- `asSequence(parsed.value)` to narrow to the sequence surface
+- `mutate(seq, { kind: 'add_message', from: 'A', to: 'B', text: 'bye' })` → ok (structured mutation, no source-level fallback)
+- `serializeMermaid(mutated.value)`
+- `verifyMermaid(serialized)` → `ok: true`, `warnings: []`

@@ -1,0 +1,18 @@
+Working from the task text: the diagram's top-level statement list is `[message A->>B: hi, alt block]`. The structured mutation appends a new top-level message node `{ from: A, to: B, arrow: ->>, text: "bye" }` to the end of that list — as a sibling of the alt block, not a child of it.
+
+Verification of the mutated structure:
+- Top level now has 3 statements: message `A->>B: hi`, the alt block, message `A->>B: bye`.
+- The alt block is untouched: one branch labeled `ok` containing exactly `B-->>A: yes`, closed by `end` — byte-for-byte identical to the input.
+- Participants A and B already exist; no new declarations needed.
+- The new message sits after `end`, so it is unambiguously outside the alt block when serialized.
+
+Serialized result:
+
+```mermaid
+sequenceDiagram
+  A->>B: hi
+  alt ok
+    B-->>A: yes
+  end
+  A->>B: bye
+```

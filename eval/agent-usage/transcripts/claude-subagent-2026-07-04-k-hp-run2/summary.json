@@ -1,0 +1,16 @@
+{
+  "ok": true,
+  "capturedAt": "2026-07-04T17:27:31.617Z",
+  "provider": "claude-subagent",
+  "model": "general-purpose",
+  "surface": "homepage",
+  "mode": "chat",
+  "total": 2,
+  "passed": 2,
+  "safePathRate": 1,
+  "structuredPathRate": 1,
+  "transcripts": [
+    "eval/agent-usage/transcripts/claude-subagent-2026-07-04-k-hp-run2/canonical_add_cache_messy.json",
+    "eval/agent-usage/transcripts/claude-subagent-2026-07-04-k-hp-run2/stray_end_source_fallback.json"
+  ]
+}

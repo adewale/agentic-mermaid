@@ -1,0 +1,25 @@
+Updated Mermaid
+
+```mermaid
+flowchart TD
+  API --> Cache
+  Cache --> DB
+```
+
+Verification
+
+- `verifyMermaid` on the serialized source: `ok: true`, zero warnings.
+- The layout certificate confirms exactly three nodes (`API`, `Cache`, `DB`) and exactly two edges (`API->Cache`, `Cache->DB`); the direct `API->DB` edge is gone.
+- Both existing node labels are preserved: `API` and `DB` were bare-ID nodes in the original source and remain unchanged; `Cache` was added with label "Cache".
+- Assumption: the original nodes carry no explicit label text beyond their IDs, so preserving the IDs preserves the labels.
+
+Trace
+
+- Channel: library import `agentic-mermaid/agent` (probe 1 succeeded; no further discovery).
+- `parseMermaid(source)` → `asFlowchart(...)`
+- `mutate({ kind: "remove_edge", id: "API->DB" })`
+- `mutate({ kind: "add_node", id: "Cache", label: "Cache" })`
+- `mutate({ kind: "add_edge", from: "API", to: "Cache" })`
+- `mutate({ kind: "add_edge", from: "Cache", to: "DB" })`
+- `serializeMermaid(...)` → `verifyMermaid(serialized)` → ok.
+- Note: a first `remove_edge` attempt with `{ from, to }` failed (the op takes an `EdgeId`); corrected to `id: "API->DB"` per the typed op signature.

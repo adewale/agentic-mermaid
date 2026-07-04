@@ -1,0 +1,23 @@
+Updated Mermaid
+
+```mermaid
+stateDiagram-v2
+  [*] --> Idle
+  Idle --> Processing : start
+  Processing --> [*] : done
+```
+
+Verification
+
+- `verifyMermaid` on the mutated diagram: `ok: true`, zero warnings.
+- The layout confirms the new path: nodes `_start`, `Idle`, `Processing`, `_end` with edge `Processing->_end` labeled `done`.
+- Existing transitions are untouched — `[*] --> Idle` and `Idle --> Processing : start` round-trip byte-identical in the serialized output; the only change is the appended completion transition.
+
+Trace
+
+- Channel: `agentic-mermaid/agent` library (resolved via this repo's `src/agent/index.ts`; the bare package import responded to the probe but wasn't resolvable from the scratchpad script's path).
+- `parseMermaid(source)` → ok, state diagram.
+- `asState(parsed.value)` → StateBody.
+- `mutate(state, { kind: "add_transition", from: "Processing", to: "[*]", label: "done" })` → ok (op shape confirmed against `StateMutationOp` in `src/agent/types.ts`; `[*]` is a valid endpoint).
+- `verifyMermaid(mutated.value)` → ok, no warnings.
+- `serializeMermaid(mutated.value)` → final source above.

@@ -1,0 +1,20 @@
+Working from the task text alone (no diagram tooling available), I performed the edit as a structured mutation conceptually and verified the result by inspection.
+
+**Mutation applied:** `addEntity` — insert entity `ORDER` with one attribute `{ type: "string", name: "id" }`. No relationship added, per the task.
+
+**Verification:**
+- Entities present: `CUSTOMER` (unchanged, attribute `string id`) and `ORDER` (attribute `string id`) — 2 entities, 0 relationships, as intended.
+- `ORDER` is a valid Mermaid ER entity name; syntax of each attribute row is `<type> <name>`, which both entities satisfy.
+- Existing `CUSTOMER` block untouched; diagram header `erDiagram` preserved.
+
+**Serialized result:**
+
+```mermaid
+erDiagram
+  CUSTOMER {
+    string id
+  }
+  ORDER {
+    string id
+  }
+```

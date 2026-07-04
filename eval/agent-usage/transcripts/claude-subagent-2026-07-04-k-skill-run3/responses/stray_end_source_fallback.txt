@@ -1,0 +1,21 @@
+Updated Mermaid
+
+```mermaid
+sequenceDiagram
+  A->>B: hi
+  end
+  B-->>A: yo
+  B-->>A: ok
+```
+
+Verification
+
+- `parseMermaid` on the original succeeds (`kind: sequence`), but `asSequence` returns null: the stray `end` with no opening block makes the body un-segmentable, so it is an opaque fallback with no structured mutation. Per your instruction I made the smallest source-level edit instead — **source-level fallback**: appended the single line `  B-->>A: ok` after the last message; every existing line, including the stray `end`, is byte-for-byte unchanged.
+- `parseMermaid` on the edited source: ok.
+- `verifyMermaid`: `ok: true`, zero warnings.
+- `serializeMermaid` round-trips the edited source verbatim, confirming nothing (including the stray `end`) is normalized away.
+
+Trace
+
+- Channel: Agentic Mermaid library (`agentic-mermaid/agent`, resolved via the local checkout's `src/agent/index.ts`), run with bun.
+- Calls: `parseMermaid(original)` → `asSequence(...)` → null (opaque, no typed op available) → source-level append of one line → `parseMermaid(edited)` → `verifyMermaid(edited)` (ok, no warnings) → `serializeMermaid(edited)` verbatim round-trip check. No `mutate` — structured mutation is not offered on this input.

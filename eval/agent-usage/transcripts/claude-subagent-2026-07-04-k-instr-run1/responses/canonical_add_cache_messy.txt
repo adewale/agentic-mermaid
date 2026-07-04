@@ -1,0 +1,20 @@
+Updated Mermaid
+
+```mermaid
+flowchart TD
+  api[API] --> logs[Log store<br>retention: 30 days]
+  api --> Cache
+  Cache --> db[DB]
+```
+
+Verification
+
+- `verifyMermaid` after the mutation chain: `ok: true`, zero warnings (no Tier 1/2/3 findings).
+- The returned source is the exact bytes `serializeMermaid` emitted, and it is a canonical fixed point: re-parsing it and serializing again is byte-identical, and the re-parsed diagram also verifies clean.
+- The `logs` node and its full label are preserved; the `\n` in the original quoted label canonicalizes to `<br>` as documented. The irregular spacing and quoted-label forms from the input are normalized by canonical serialization. The direct `api → db` edge is gone; flow is now `api → Cache → db`, with `api → logs` untouched.
+
+Trace
+
+- Channel: local library import `agentic-mermaid/agent` (first probe succeeded; stopped discovering there).
+- Calls: `parseMermaid(source)` → `asFlowchart(d.value)` → `mutate({ kind: "add_node", id: "Cache", label: "Cache" })` → `mutate({ kind: "remove_edge", id: "api->db" })` → `mutate({ kind: "add_edge", from: "api", to: "Cache" })` → `mutate({ kind: "add_edge", from: "Cache", to: "db" })` → `verifyMermaid(d)` → `serializeMermaid(d)`.
+- One correction along the way: flowchart `remove_edge` takes an edge id (`"api->db"`), not `from`/`to` fields; the first attempt with `from/to` failed and was retried with the id form.

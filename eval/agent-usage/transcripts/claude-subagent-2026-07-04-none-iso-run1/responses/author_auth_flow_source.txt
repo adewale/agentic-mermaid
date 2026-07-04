@@ -1,0 +1,27 @@
+```mermaid
+flowchart TD
+    A([User]) --> B[Login Page]
+    B --> C{Credentials valid?}
+    C -- Invalid --> B
+    C -- Valid --> D{MFA enabled?}
+    D -- Yes --> E[Enter MFA Code]
+    E --> F{Code valid?}
+    F -- Invalid --> E
+    F -- Valid --> G[Create Session]
+    D -- No --> G
+    G --> H[Dashboard]
+```
+
+Verification against the stated facts:
+
+- **User opens Login Page** — `A --> B` covers the user's entry to the Login Page.
+- **Invalid credentials return to Login Page** — `C -- Invalid --> B` loops back.
+- **Valid credentials check MFA** — `C -- Valid --> D` leads to the MFA decision.
+- **MFA users enter a code** — `D -- Yes --> E` routes to Enter MFA Code.
+- **Invalid code returns to Enter MFA Code** — `F -- Invalid --> E` loops back.
+- **Valid code creates a session** — `F -- Valid --> G`.
+- **Users without MFA create a session** — `D -- No --> G`.
+- **Session leads to Dashboard** — `G --> H`.
+
+Parse check: the source is valid Mermaid flowchart syntax (`flowchart TD` header; stadium, rectangle, and diamond node shapes; labeled edges via `--
+label -->` form), with all eight facts represented as edges, no dangling nodes, and no extra assumptions beyond a start actor node. Since this is a new diagram authored from scratch, no mutation of an existing diagram was involved.

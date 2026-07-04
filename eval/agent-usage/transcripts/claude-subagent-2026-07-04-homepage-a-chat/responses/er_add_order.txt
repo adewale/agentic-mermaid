@@ -1,0 +1,23 @@
+Updated Mermaid
+
+```mermaid
+erDiagram
+  CUSTOMER {
+    string id
+  }
+  ORDER {
+    string id
+  }
+```
+
+Verification
+
+- `verifyMermaid` on the mutated diagram: `ok: true`, zero warnings.
+- The ORDER entity was added via a single typed mutation with a `string id` attribute; CUSTOMER is untouched and, per the task, no relation was added.
+- Assumption: the attribute is spelled `string id` (type then name), matching the existing CUSTOMER attribute style.
+
+Trace
+
+- Channel: library import `agentic-mermaid/agent` (first probe succeeded; it resolves to this checkout's `src/agent/index.ts`).
+- Calls: `parseMermaid(source)` → `asEr(diagram)` → `mutate(er, { kind: "add_entity", id: "ORDER", attributes: ["string id"] })` → `verifyMermaid(mutated)` → `serializeMermaid(mutated)`.
+- Note: `mutate` accepts one op at a time (`mutate(d, op)`), and the ER op set includes `add_entity` with an optional `attributes: string[]` — a single op covered both the entity and its attribute.

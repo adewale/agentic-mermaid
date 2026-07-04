@@ -1,0 +1,18 @@
+Updated Mermaid
+
+```mermaid
+stateDiagram-v2
+  [*] --> Idle
+  Idle --> Processing : start
+  Processing --> [*] : done
+```
+
+Verification
+
+- `verifyMermaid` on the serialized source: `ok: true`, zero warnings.
+- Both existing transitions (`[*] --> Idle`, `Idle --> Processing : start`) are unchanged; the mutation only appended the completion path. Layout resolves cleanly with the `done` transition ending at the state-end node.
+
+Trace
+
+- Channel: repository agent library (`./src/agent/index.ts` imported via Bun; the installed `agentic-mermaid/agent` package was probed first and was unavailable).
+- Calls: `parseMermaid(source)` → `asState(doc)` → `mutate(doc, { kind: "add_transition", from: "Processing", to: "[*]", label: "done" })` → `serializeMermaid(doc)` → `verifyMermaid(serialized)`.

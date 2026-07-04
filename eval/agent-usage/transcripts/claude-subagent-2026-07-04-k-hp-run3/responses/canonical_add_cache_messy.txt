@@ -1,0 +1,20 @@
+Updated Mermaid
+
+```mermaid
+flowchart TD
+  api[API] --> logs[Log store<br>retention: 30 days]
+  api --> Cache
+  Cache --> db[DB]
+```
+
+Verification
+
+- `verifyMermaid` on the edited diagram: `ok: true`, zero warnings.
+- Round-trip check: re-parsing the emitted source and calling `serializeMermaid` again reproduces byte-identical output (`true`), so the block above is the exact canonical serialization (it ends with a trailing newline after the last line).
+- The direct `api --> db` edge is removed; `api --> Cache --> db` is in place; the `logs` node keeps its full label — the source's `\n` becomes `<br>` in canonical form, which is the documented canonical representation of the line break, not a text change.
+- Canonical form also drops redundant label quoting and irregular spacing, and omits the `Cache` label since it equals the node id; the parsed graph is unchanged by these normalizations.
+
+Trace
+
+- Channel: repo library import (`/home/user/beautiful-mermaid/src/agent/index.ts`, first probe — `agentic-mermaid/agent` resolved from the repo root) via a scratchpad Bun script; no project files modified.
+- Calls: `parseMermaid(original)` → `asFlowchart` → `mutate({ kind: "remove_edge", id: "api->db" })` → `mutate({ kind: "add_node", id: "Cache", label: "Cache" })` → `mutate({ kind: "add_edge", from: "api", to: "Cache" })` → `mutate({ kind: "add_edge", from: "Cache", to: "db" })` → `verifyMermaid` → `serializeMermaid`, plus the round-trip re-parse/re-serialize check above.

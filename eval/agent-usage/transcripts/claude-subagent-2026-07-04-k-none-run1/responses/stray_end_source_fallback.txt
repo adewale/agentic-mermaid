@@ -1,0 +1,11 @@
+I appended `B-->>A: ok` as the final top-level line via a minimal source-level edit (no structured mutation tooling was available for this input, and the stray `end` would likely make it reject the diagram anyway). Every existing line — including the stray `end`, which you maintain deliberately — is preserved exactly as written, and the new message uses the same two-space indentation as the surrounding messages.
+
+```mermaid
+sequenceDiagram
+  A->>B: hi
+  end
+  B-->>A: yo
+  B-->>A: ok
+```
+
+Note: the stray `end` (with no opening `loop`/`alt`/`opt` block) is a Mermaid parse error, so standard renderers will reject this source. It was kept unchanged per your instruction.

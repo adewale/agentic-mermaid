@@ -1,0 +1,20 @@
+Updated Mermaid
+
+```mermaid
+sequenceDiagram
+  A->>B: hi
+  end
+  B-->>A: yo
+  B-->>A: ok
+```
+
+Verification
+
+`verifyMermaid` returns `ok: true` with zero warnings. The layout confirms the appended message is present and last: three messages in order — `A->B: hi`, `B->A: yo`, `B->A: ok`. All four original lines are preserved byte-for-byte (checked programmatically), including the stray `end` you asked to keep; the only change is the one appended line.
+
+Trace
+
+- Channel: this repo's library, `./src/agent/index.ts` (probed first per the discovery order; installed `agentic-mermaid/agent` was not available).
+- `parseMermaid(original)` → ok, but the body parses as `kind: "opaque"` because of the stray `end`, and `asSequence(...)` returns `null` — so no typed `mutate` op is available on this input.
+- **source-level fallback**: appended the single line `  B-->>A: ok` to the end of the source (smallest possible edit, matching the existing two-space indentation).
+- `verifyMermaid(updated)` → `ok: true`, no warnings; `parseMermaid(updated)` → ok.

@@ -1,0 +1,36 @@
+**Structured mutation**
+
+Parsed model of the existing diagram:
+
+- States: `[*]` (start), `Idle`, `Processing`
+- Transitions:
+  1. `[*] --> Idle`
+  2. `Idle --> Processing` (label: `start`)
+
+Applied mutation — append one transition, touching nothing else:
+
+```json
+{
+  "op": "addTransition",
+  "from": "Processing",
+  "to": "[*]",
+  "label": "done"
+}
+```
+
+**Verification**
+
+- Transition count: 2 → 3 (exactly one added)
+- Existing transitions 1 and 2 unchanged (endpoints and label intact)
+- New transition endpoints resolve: `Processing` exists; `[*]` in target position is the final state — valid in stateDiagram-v2
+- No duplicate `Processing --> [*] : done` transition; no dangling states introduced
+- Diagram now has a complete lifecycle path: start → Idle → Processing → end
+
+**Serialized result**
+
+```mermaid
+stateDiagram-v2
+  [*] --> Idle
+  Idle --> Processing : start
+  Processing --> [*] : done
+```

@@ -1,6 +1,6 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { isAbsolute, join, relative } from 'node:path'
-import { DEFAULT_CASES, checkAgentUsageTaskSource, requiresStructuredMutation, runAgentUsageEval, type AgentUsageEvalCase, type AgentUsageEvalResult } from './run.ts'
+import { DEFAULT_CASES, KNOWLEDGE_CASES, checkAgentUsageTaskSource, requiresStructuredMutation, runAgentUsageEval, type AgentUsageEvalCase, type AgentUsageEvalResult } from './run.ts'
 import { extractCodeModeScript } from './live.ts'
 import { SDK_DECLARATION } from '../../src/mcp/sdk-decl.ts'
 import { parseMermaid, verifyMermaid } from '../../src/agent/index.ts'
@@ -9,7 +9,7 @@ const REPO = join(import.meta.dir, '..', '..')
 const TRANSCRIPT_ROOT = join(import.meta.dir, 'transcripts')
 const MANIFEST_FILE = 'subagent-prompt-eval.json'
 
-type PromptEvalSurface = 'homepage' | 'instructions' | 'skill'
+type PromptEvalSurface = 'homepage' | 'instructions' | 'skill' | 'none'
 type PromptEvalMode = 'code' | 'chat'
 
 export interface SubagentPromptEvalRequest {
@@ -91,7 +91,10 @@ function readRepo(relPath: string) {
 }
 
 function selectedCases(caseIds?: string[]): AgentUsageEvalCase[] {
-  const cases = caseIds?.length ? DEFAULT_CASES.filter(c => caseIds.includes(c.id)) : DEFAULT_CASES
+  // Knowledge-proof cases join only by explicit id: the no-id default stays
+  // DEFAULT_CASES so existing prepare invocations keep their case set.
+  const pool = [...DEFAULT_CASES, ...KNOWLEDGE_CASES]
+  const cases = caseIds?.length ? pool.filter(c => caseIds.includes(c.id)) : DEFAULT_CASES
   if (caseIds?.length) {
     const found = new Set(cases.map(c => c.id))
     const missing = caseIds.filter(id => !found.has(id))
@@ -115,7 +118,43 @@ function surfaceContext(surface: PromptEvalSurface): string {
   ].map(([path, text]) => `# ${path}\n\n${String(text).trim()}`).join('\n\n---\n\n')
 }
 
+/**
+ * Recover the bare task from a populated homepage prompt. The template
+ * headers are pinned by homepagePromptChecklist, so this split is stable.
+ * Used by the `none` surface, which must not carry any product guidance.
+ */
+export function extractBareTask(prompt: string): { task: string; context: string; source?: string } {
+  const task = prompt.match(/(?:^|\n)Task:\n([\s\S]*?)\n\nContext:/)?.[1]?.trim()
+  const context = prompt.match(/\nContext:\n([\s\S]*?)\n\nMermaid source/)?.[1]?.trim()
+  const source = prompt.match(/\nMermaid source[^\n]*\n```mermaid\n([\s\S]*?)```/)?.[1]?.trim()
+  if (!task || !context) throw new Error('Prompt does not carry the pinned Task:/Context: template headers')
+  return { task, context, source: source || undefined }
+}
+
+/**
+ * No-docs baseline: the bare task with zero Agentic Mermaid guidance (no
+ * product name, no channels, no workflow). The only harness contract is the
+ * mermaid fence, without which the grader could not extract an answer at all.
+ */
+function buildBareTaskRequest(c: AgentUsageEvalCase): string {
+  const { task, context, source } = extractBareTask(c.prompt)
+  return `Diagram task eval. The request below is your complete task; do not use any product documentation beyond it.
+
+Task ID: ${c.id}
+Task:
+${task}
+
+Context:
+${context}
+${source ? `\nExisting Mermaid source to edit:\n\`\`\`mermaid\n${source}\n\`\`\`\n` : ''}
+Return your final Mermaid diagram source in a \`\`\`mermaid fence.`
+}
+
 export function buildSubagentPromptEvalRequest(c: AgentUsageEvalCase, surface: PromptEvalSurface = 'homepage', mode: PromptEvalMode = 'code'): string {
+  if (surface === 'none') {
+    if (mode !== 'chat') throw new Error('--surface none is chat-only: Code Mode ships the SDK declaration, which is guidance')
+    return buildBareTaskRequest(c)
+  }
   if (mode === 'chat') {
     return `${SUBAGENT_PROMPT_EVAL_PARENT_CONTEXT}
 
@@ -245,7 +284,11 @@ function chatTraceOk(id: string, text: string): boolean {
   return true
 }
 
-function scoreChatResponse(c: AgentUsageEvalCase, rawResponse: string): { result: AgentUsageEvalResult; source?: string } {
+function scoreChatResponse(c: AgentUsageEvalCase, rawResponse: string, surface: PromptEvalSurface): { result: AgentUsageEvalResult; source?: string } {
+  // The no-docs baseline never saw the response-format contract, so grading it
+  // on Updated Mermaid/Verification/Trace shape would be meaningless: traceOk
+  // is reported for the record but only the task oracle gates ok.
+  const shapeRequired = surface !== 'none'
   const source = extractUpdatedMermaidSource(rawResponse)
   if (!source) return { result: { id: c.id, ok: false, taskOk: false, traceOk: false, findings: [], error: 'Updated Mermaid mermaid fence not found' } }
   const parsed = parseMermaid(source)
@@ -254,7 +297,7 @@ function scoreChatResponse(c: AgentUsageEvalCase, rawResponse: string): { result
   if (!verified.ok) return { result: { id: c.id, ok: false, taskOk: false, traceOk: chatTraceOk(c.id, rawResponse), findings: [], error: `verify failed: ${verified.warnings.map(w => w.code).join(', ')}` }, source }
   const taskOk = checkAgentUsageTaskSource(c.id, source)
   const traceOk = chatTraceOk(c.id, rawResponse)
-  return { result: { id: c.id, ok: taskOk && traceOk, taskOk, traceOk, findings: [], error: taskOk ? undefined : 'task oracle rejected Updated Mermaid source' }, source }
+  return { result: { id: c.id, ok: taskOk && (traceOk || !shapeRequired), taskOk, traceOk, findings: [], error: taskOk ? undefined : 'task oracle rejected Updated Mermaid source' }, source }
 }
 
 function writeTranscript(runDir: string, manifest: SubagentPromptEvalManifest, c: AgentUsageEvalCase, rawResponse: string, script: string, result: AgentUsageEvalResult, extractedSource?: string) {
@@ -283,7 +326,7 @@ function writeTranscript(runDir: string, manifest: SubagentPromptEvalManifest, c
 export async function finalizeSubagentPromptEval(opts: FinalizeSubagentPromptEvalOptions): Promise<SubagentPromptEvalSummary> {
   const runDir = abs(opts.runDir)
   const manifest = loadManifest(runDir)
-  const byId = new Map(DEFAULT_CASES.map(c => [c.id, c]))
+  const byId = new Map([...DEFAULT_CASES, ...KNOWLEDGE_CASES].map(c => [c.id, c]))
   let passed = 0
   let tracePassed = 0
   let structuredCases = 0
@@ -298,7 +341,7 @@ export async function finalizeSubagentPromptEval(opts: FinalizeSubagentPromptEva
     const script = manifest.mode === 'code' ? extractCodeModeScript(rawResponse) : ''
     const scored = manifest.mode === 'code'
       ? { result: (await runAgentUsageEval([{ ...c, script }])).results[0]!, source: undefined }
-      : scoreChatResponse(c, rawResponse)
+      : scoreChatResponse(c, rawResponse, manifest.surface)
     const result = scored.result
     if (result.ok) passed++
     if (result.traceOk) tracePassed++
@@ -353,7 +396,7 @@ function parseCaseIds(args: string[]) {
 
 function parseSurface(args: string[]): PromptEvalSurface {
   const value = argValue(args, '--surface') ?? 'homepage'
-  if (value !== 'homepage' && value !== 'instructions' && value !== 'skill') throw new Error(`Unsupported --surface ${value}. Use homepage, instructions, or skill.`)
+  if (value !== 'homepage' && value !== 'instructions' && value !== 'skill' && value !== 'none') throw new Error(`Unsupported --surface ${value}. Use homepage, instructions, skill, or none (no-docs baseline, chat-only).`)
   return value
 }
 
@@ -365,13 +408,13 @@ function parseMode(args: string[]): PromptEvalMode {
 
 function usage() {
   return `Usage:
-  bun run eval:agent-subagent -- prepare [--provider pi-subagent] [--model delegate] [--surface homepage|instructions|skill] [--mode code|chat] [--cases id1,id2] [--out-dir dir]
+  bun run eval:agent-subagent -- prepare [--provider pi-subagent] [--model delegate] [--surface homepage|instructions|skill|none] [--mode code|chat] [--cases id1,id2] [--out-dir dir]
   bun run eval:agent-subagent -- record --run-dir dir --case id [--response-file file]
   bun run eval:agent-subagent -- finalize --run-dir dir
 
 Prepare writes requests under eval/agent-usage/transcripts/<provider>-<timestamp>/requests/.
 Dispatch each request to a fresh subagent in Pi, Claude, Codex, or another harness, save exact raw responses under responses/, then finalize.
-Finalize writes one transcript JSON per case plus summary.json and exits nonzero when the existing oracle rejects any response. Use --mode chat to test the raw public prompt response shape; use --mode code for executable Code Mode transcripts.`
+Finalize writes one transcript JSON per case plus summary.json and exits nonzero when the existing oracle rejects any response. Use --mode chat to test the raw public prompt response shape; use --mode code for executable Code Mode transcripts. --surface none is the chat-only no-docs baseline: the bare task with zero product guidance, graded on the task oracle alone.`
 }
 
 async function readStdin(): Promise<string> {

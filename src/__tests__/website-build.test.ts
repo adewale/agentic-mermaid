@@ -199,7 +199,7 @@ describe('Workers Static Assets website contract', () => {
     expect(home).toContain('For a new diagram, author Mermaid source directly')
     expect(home).toContain('Mutation ops use a `kind` discriminator')
     expect(home).toContain('return an object with `{ source }`')
-    expect(home).toContain('In Trace, name the channel and exact calls/ops used')
+    expect(home).toContain('In Trace, name the channel and the calls/ops you actually ran')
     expect(home).toContain('Agentic Mermaid treats Mermaid source as the durable interface')
     // Setup moved off the homepage: the MCP config card lives on Getting
     // started, and home carries a single pointer line instead of a section.

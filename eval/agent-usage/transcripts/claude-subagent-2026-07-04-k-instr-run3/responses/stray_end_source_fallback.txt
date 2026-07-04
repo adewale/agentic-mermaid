@@ -1,0 +1,23 @@
+Everything checks out — the only serialization difference is a trailing newline; every line is byte-identical.
+
+## Updated Mermaid
+
+```mermaid
+sequenceDiagram
+  A->>B: hi
+  end
+  B-->>A: yo
+  B-->>A: ok
+```
+
+## Verification
+
+- `parseMermaid` on the original source: ok, `kind: sequence`.
+- `asSequence` returned **null** — the stray `end` makes the sequence un-segmentable, so it parses as an opaque-fallback body with no structured mutation surface. Structured mutation is therefore not supported on this input.
+- **Source-level fallback**: appended one line, `  B-->>A: ok`, after the last existing line. No other bytes changed — the stray `end` and all existing lines are preserved exactly as written, per the context instruction.
+- `parseMermaid` on the edited source: ok. `verifyMermaid`: `ok: true`, zero warnings (no Tier 1/2/3 findings).
+- `serializeMermaid` round-trips the edited source byte-for-byte except for a trailing newline, confirming the opaque body is preserved losslessly.
+
+## Trace
+
+Channel: local `agentic-mermaid/agent` library (this repo's `src/agent/index.ts`; the `agentic-mermaid/agent` import self-resolves here since the checkout is the package itself). Calls: `parseMermaid(original)` → `asSequence(d0.value)` (returned null → opaque fallback) → source-level edit (append one line) → `parseMermaid(edited)` → `verifyMermaid(d1.value)` (ok, no warnings) → `serializeMermaid(d1.value)`. No `mutate` — none is available on an opaque-fallback body.

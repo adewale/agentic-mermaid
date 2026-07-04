@@ -1,0 +1,15 @@
+Done. I performed the edit through the structured mutation pipeline in `/home/user/beautiful-mermaid/src/agent/` rather than by string editing:
+
+1. **Parse** — `parseMermaid` on the original source; narrowed with `asSequence`. The alt block is captured as an opaque statement block, so it survives untouched.
+2. **Mutate** — `mutate(seq, { kind: 'add_message', from: 'A', to: 'B', text: 'bye', style: 'sync' })` (`->>` is the `sync` style). The `add_message` op appends a top-level statement (`src/agent/sequence-body.ts`, case `'add_message'`), so the new message lands outside the alt block by construction.
+3. **Verify** — `verifyMermaid` returned `ok: true` with zero warnings; the layout shows three messages (`hi`, `yes` inside the alt region, `bye` below it) and the `alt ok` group intact.
+4. **Serialize** — `serializeMermaid` produced the output below; the alt block lines are byte-identical to the input.
+
+```mermaid
+sequenceDiagram
+  A->>B: hi
+  alt ok
+    B-->>A: yes
+  end
+  A->>B: bye
+```

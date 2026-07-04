@@ -1,0 +1,23 @@
+Updated Mermaid
+
+```mermaid
+sequenceDiagram
+  A->>B: hi
+  alt ok
+    B-->>A: yes
+  end
+  A->>B: bye
+```
+
+Verification
+
+`verifyMermaid` on the mutated diagram returned `ok: true` with zero warnings. The layout certificate confirms the new message is top-level: the `alt` group spans y 118–178 and the `bye` message renders at y 198, outside the block. The alt block round-tripped verbatim — the parser holds it as an opaque block (`alt ok` / `B-->>A: yes` / `end`), and the serialized output reproduces those lines unchanged. The new message was appended after the alt block, matching the context that it belongs at top level.
+
+Trace
+
+Channel: `agentic-mermaid/agent` library import (probe 1 responded; resolved to this repo's `src/agent/index.ts`). Calls run:
+- `parseMermaid(source)` → ok
+- `asSequence(diagram)` → narrowed to sequence
+- `mutate(seq, { kind: "add_message", from: "A", to: "B", text: "bye", style: "sync" })` → ok (`sync` = `->>`)
+- `verifyMermaid(mutated)` → ok, warnings: []
+- `serializeMermaid(mutated)` → source above

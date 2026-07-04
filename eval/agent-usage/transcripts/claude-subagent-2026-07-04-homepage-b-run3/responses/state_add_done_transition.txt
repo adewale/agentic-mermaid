@@ -1,0 +1,21 @@
+Updated Mermaid
+
+```mermaid
+stateDiagram-v2
+  [*] --> Idle
+  Idle --> Processing : start
+  Processing --> [*] : done
+```
+
+Verification
+
+`verifyMermaid` on the serialized output returned `ok: true` with zero warnings. The layout confirms the completion path: the final-state node (`state-end`) is present and the edge `Processing -> _end` carries the label `done`. Both existing transitions (`[*] --> Idle`, `Idle --> Processing : start`) are untouched — the mutation only appended the new transition.
+
+Trace
+
+- Channel: repo-local library import (`./src/agent/index.ts`; the installed `agentic-mermaid/agent` package was probed first and was not available).
+- `parseMermaid(source)` → ok, state diagram with states `Idle`, `Processing` and 2 transitions.
+- `asState(parsed.value)` to narrow to the state-diagram type.
+- `mutate(state, { kind: "add_transition", from: "Processing", to: "[*]", label: "done" })` → ok. (A first attempt with `kind: "add_edge"` was rejected as an unknown op for state diagrams; `add_transition` is the state-family op.)
+- `serializeMermaid(mutated)` → canonical source above.
+- `verifyMermaid(serialized)` → `ok: true`, no warnings.

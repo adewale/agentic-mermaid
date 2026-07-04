@@ -1,0 +1,22 @@
+Updated Mermaid
+
+```mermaid
+sequenceDiagram
+  A->>B: hi
+  alt ok
+    B-->>A: yes
+  end
+  A->>B: bye
+```
+
+Verification
+
+- `verifyMermaid` on the serialized output: `ok: true`, zero warnings.
+- The new message `A->>B: bye` was appended at top level (after the `alt` block), not inside it.
+- The `alt ok … end` block is preserved verbatim — same lines, same order, same indentation as the input.
+
+Trace
+
+- Channel: library import from this repo's agent surface (`/home/user/beautiful-mermaid/src/agent/index.ts`, the `agentic-mermaid/agent` module).
+- Calls: `parseMermaid(source)` → `asSequence(parsed.value)` → `mutate(seq, { kind: "add_message", from: "A", to: "B", text: "bye" })` → `serializeMermaid(result.value)` → `verifyMermaid(serialized)`.
+- `add_message` defaults to the solid-arrow style, matching the requested `A->>B: bye`; no source-level fallback needed.

@@ -1,0 +1,9 @@
+Structured mutation isn't available for this input — the stray `end` (with no opening block) makes the source unparseable as a well-formed sequence diagram, so a typed edit path can't be used. I made the smallest source-level edit instead: appended one line at the end with the same two-space indentation, leaving every existing line byte-for-byte unchanged, including the stray `end`.
+
+```mermaid
+sequenceDiagram
+  A->>B: hi
+  end
+  B-->>A: yo
+  B-->>A: ok
+```
