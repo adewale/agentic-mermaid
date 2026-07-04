@@ -4,7 +4,7 @@ import { describe, test, expect } from 'bun:test'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { runAllScenarios, lintAgentTrace, type SdkCall } from '../../eval/agent-usage/harness.ts'
-import { DEFAULT_CASES, requiresStructuredMutation, runAgentUsageEval } from '../../eval/agent-usage/run.ts'
+import { DEFAULT_CASES, KNOWLEDGE_CASES, checkAgentUsageTaskSource, requiresStructuredMutation, runAgentUsageEval } from '../../eval/agent-usage/run.ts'
 import { AGENT_USAGE_SUPPORTED_FAMILIES, scoreAgentUsageRenderedQuality } from '../../eval/agent-usage/render-quality.ts'
 import { extractHomepageAgentPrompt, homepagePromptChecklist } from '../../eval/agent-usage/homepage-prompt.ts'
 import { buildSubagentPromptEvalRequest, extractBareTask } from '../../eval/agent-usage/capture-subagent-prompt-eval.ts'
@@ -263,6 +263,28 @@ describe('homepage prompt eval contract', () => {
       expect(request).toContain(bare.task)
     }
     expect(() => buildSubagentPromptEvalRequest(DEFAULT_CASES[0]!, 'none', 'code')).toThrow('chat-only')
+  })
+
+  test('knowledge-proof cases discriminate: tool-backed answers pass, plausible naive answers fail', async () => {
+    // The stored Code Mode scripts (the docs-informed route) must satisfy
+    // their own oracles end-to-end through the sandbox and trace linter.
+    const summary = await runAgentUsageEval(KNOWLEDGE_CASES)
+    for (const r of summary.results) {
+      expect({ id: r.id, ok: r.ok, error: r.error }).toEqual({ id: r.id, ok: true, error: undefined })
+    }
+    // A structurally correct edit that keeps the input's messy style (quoted
+    // labels, literal \n, four-space indent) is what a no-docs agent returns;
+    // it must fail the canonical fixed-point oracle.
+    const naiveCanonical = 'flowchart TD\n    api["API"] --> logs["Log store\\nretention: 30 days"]\n    api --> Cache\n    Cache --> db["DB"]'
+    expect(checkAgentUsageTaskSource('canonical_add_cache_messy', naiveCanonical)).toBe(false)
+    // A regenerating agent "repairs" the stray end; the oracle requires it
+    // preserved verbatim.
+    const cleanedStray = 'sequenceDiagram\n  A->>B: hi\n  B-->>A: yo\n  B-->>A: ok'
+    expect(checkAgentUsageTaskSource('stray_end_source_fallback', cleanedStray)).toBe(false)
+    // Knowledge cases are opt-in by explicit id and never dilute the default
+    // sets that other suites iterate.
+    const defaultIds = new Set(DEFAULT_CASES.map(c => c.id))
+    for (const c of KNOWLEDGE_CASES) expect({ id: c.id, inDefaults: defaultIds.has(c.id) }).toEqual({ id: c.id, inDefaults: false })
   })
 })
 

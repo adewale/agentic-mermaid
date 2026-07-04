@@ -1,6 +1,6 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { isAbsolute, join, relative } from 'node:path'
-import { DEFAULT_CASES, checkAgentUsageTaskSource, requiresStructuredMutation, runAgentUsageEval, type AgentUsageEvalCase, type AgentUsageEvalResult } from './run.ts'
+import { DEFAULT_CASES, KNOWLEDGE_CASES, checkAgentUsageTaskSource, requiresStructuredMutation, runAgentUsageEval, type AgentUsageEvalCase, type AgentUsageEvalResult } from './run.ts'
 import { extractCodeModeScript } from './live.ts'
 import { SDK_DECLARATION } from '../../src/mcp/sdk-decl.ts'
 import { parseMermaid, verifyMermaid } from '../../src/agent/index.ts'
@@ -91,7 +91,10 @@ function readRepo(relPath: string) {
 }
 
 function selectedCases(caseIds?: string[]): AgentUsageEvalCase[] {
-  const cases = caseIds?.length ? DEFAULT_CASES.filter(c => caseIds.includes(c.id)) : DEFAULT_CASES
+  // Knowledge-proof cases join only by explicit id: the no-id default stays
+  // DEFAULT_CASES so existing prepare invocations keep their case set.
+  const pool = [...DEFAULT_CASES, ...KNOWLEDGE_CASES]
+  const cases = caseIds?.length ? pool.filter(c => caseIds.includes(c.id)) : DEFAULT_CASES
   if (caseIds?.length) {
     const found = new Set(cases.map(c => c.id))
     const missing = caseIds.filter(id => !found.has(id))
@@ -323,7 +326,7 @@ function writeTranscript(runDir: string, manifest: SubagentPromptEvalManifest, c
 export async function finalizeSubagentPromptEval(opts: FinalizeSubagentPromptEvalOptions): Promise<SubagentPromptEvalSummary> {
   const runDir = abs(opts.runDir)
   const manifest = loadManifest(runDir)
-  const byId = new Map(DEFAULT_CASES.map(c => [c.id, c]))
+  const byId = new Map([...DEFAULT_CASES, ...KNOWLEDGE_CASES].map(c => [c.id, c]))
   let passed = 0
   let tracePassed = 0
   let structuredCases = 0

@@ -1,0 +1,24 @@
+{
+  "schemaVersion": 1,
+  "capturedAt": "2026-07-04T17:27:31.385Z",
+  "provider": "claude-subagent",
+  "model": "general-purpose",
+  "surface": "homepage",
+  "mode": "chat",
+  "cases": [
+    "canonical_add_cache_messy",
+    "stray_end_source_fallback"
+  ],
+  "requests": [
+    {
+      "caseId": "canonical_add_cache_messy",
+      "requestPath": "eval/agent-usage/transcripts/claude-subagent-2026-07-04-k-hp-run1/requests/canonical_add_cache_messy.md",
+      "responsePath": "eval/agent-usage/transcripts/claude-subagent-2026-07-04-k-hp-run1/responses/canonical_add_cache_messy.txt"
+    },
+    {
+      "caseId": "stray_end_source_fallback",
+      "requestPath": "eval/agent-usage/transcripts/claude-subagent-2026-07-04-k-hp-run1/requests/stray_end_source_fallback.md",
+      "responsePath": "eval/agent-usage/transcripts/claude-subagent-2026-07-04-k-hp-run1/responses/stray_end_source_fallback.txt"
+    }
+  ]
+}

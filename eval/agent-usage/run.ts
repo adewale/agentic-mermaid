@@ -1,5 +1,6 @@
 import { executeInSandbox } from '../../src/mcp/sandbox.ts'
 import { parseMermaid } from '../../src/agent/parse.ts'
+import { serializeMermaid } from '../../src/agent/serialize.ts'
 import { asFlowchart, asState, asSequence, asTimeline, asClass, asEr, asJourney, asArchitecture, asXyChart, asPie, asQuadrant, asGantt, type DiagramKind } from '../../src/agent/types.ts'
 import { lintAgentTrace, type SdkCall, type AntiPattern } from './harness.ts'
 import { buildHomepageAgentPromptTask } from './homepage-prompt.ts'
@@ -333,6 +334,69 @@ export const DEFAULT_CASES: AgentUsageEvalCase[] = [
 ]
 
 
+// Knowledge-proof cases: the correct output depends on facts only the
+// Agentic Mermaid docs/tooling carry (canonical serialization rules, the
+// opaque-fallback contract), so a no-docs agent fails on taskOk. The stored
+// DEFAULT_CASES saturate — every arm including the isolated no-docs baseline
+// passes them on model knowledge (claude-subagent-2026-07-04-none-iso-*) —
+// so surface comparisons need these to rank surfaces by task outcome.
+// Not part of DEFAULT_CASES: the render-quality and family-coverage suites
+// iterate DEFAULT_CASES, and these two exist for surface comparison only.
+const KNOWLEDGE_MESSY_FLOWCHART = 'flowchart TD\n    api["API"]   -->    db["DB"]\n    api --> logs["Log store\\nretention: 30 days"]'
+const KNOWLEDGE_STRAY_END_SEQUENCE = 'sequenceDiagram\n  A->>B: hi\n  end\n  B-->>A: yo'
+
+export const KNOWLEDGE_CASES: AgentUsageEvalCase[] = [
+  {
+    id: 'canonical_add_cache_messy',
+    family: 'flowchart',
+    prompt: promptTask(
+      'Insert Cache between api and db (api → Cache → db, removing the direct api → db edge) and return the CANONICAL Agentic Mermaid serialization of the result — the exact bytes serializeMermaid emits.',
+      'The existing flowchart uses irregular spacing, quoted labels, and a \\n line break inside the logs label. Keep the logs node and its full label text. The returned source must be byte-identical to the canonical Agentic Mermaid serialization of the edited diagram.',
+      KNOWLEDGE_MESSY_FLOWCHART,
+    ),
+    input: KNOWLEDGE_MESSY_FLOWCHART,
+    script: `
+      const r0 = mermaid.parseMermaid(${JSON.stringify(KNOWLEDGE_MESSY_FLOWCHART)})
+      if (!r0.ok) return { error: 'parse' }
+      const flow = mermaid.asFlowchart(r0.value)
+      if (!flow) return { error: 'not-flowchart' }
+      const r1 = mermaid.mutate(flow, { kind: 'remove_edge', id: 'api->db' })
+      if (!r1.ok) return { error: r1.error }
+      const r2 = mermaid.mutate(r1.value, { kind: 'add_node', id: 'Cache', label: 'Cache' })
+      if (!r2.ok) return { error: r2.error }
+      const r3 = mermaid.mutate(r2.value, { kind: 'add_edge', from: 'api', to: 'Cache' })
+      if (!r3.ok) return { error: r3.error }
+      const r4 = mermaid.mutate(r3.value, { kind: 'add_edge', from: 'Cache', to: 'db' })
+      if (!r4.ok) return { error: r4.error }
+      const verify = mermaid.verifyMermaid(r4.value)
+      if (!verify.ok) return { error: 'verify', warnings: verify.warnings }
+      return { source: mermaid.serializeMermaid(r4.value) }
+    `,
+  },
+  {
+    id: 'stray_end_source_fallback',
+    family: 'sequence',
+    prompt: promptTask(
+      'Append the message B-->>A: ok as the final top-level message, preserving every existing line exactly as written.',
+      'This sequence diagram contains a stray end line with no opening block — keep it: it is part of the diagram as the user maintains it. Use structured mutation if the tooling supports it on this input; otherwise make the smallest source-level edit and say so.',
+      KNOWLEDGE_STRAY_END_SEQUENCE,
+    ),
+    input: KNOWLEDGE_STRAY_END_SEQUENCE,
+    script: `
+      const src = ${JSON.stringify(KNOWLEDGE_STRAY_END_SEQUENCE)}
+      const r0 = mermaid.parseMermaid(src)
+      if (!r0.ok) return { error: 'parse' }
+      if (mermaid.asSequence(r0.value)) return { error: 'expected opaque fallback for the stray end' }
+      const edited = src + '\\n  B-->>A: ok'
+      const r1 = mermaid.parseMermaid(edited)
+      if (!r1.ok) return { error: 'reparse' }
+      const verify = mermaid.verifyMermaid(r1.value)
+      if (!verify.ok) return { error: 'verify', warnings: verify.warnings }
+      return { source: mermaid.serializeMermaid(r1.value) }
+    `,
+  },
+]
+
 export async function runAgentUsageEval(cases: AgentUsageEvalCase[] = DEFAULT_CASES): Promise<AgentUsageEvalSummary> {
   const results: AgentUsageEvalResult[] = []
   for (const c of cases) {
@@ -357,6 +421,8 @@ export function requiresStructuredMutation(id: string): boolean {
 
 const STRUCTURED_CASES = new Set([
   'cache_between_api_and_db',
+  'canonical_add_cache_messy',
+  'stray_end_source_fallback',
   'state_add_done_transition',
   'sequence_alt_add_message',
   'timeline_add_event',
@@ -373,7 +439,7 @@ const STRUCTURED_CASES = new Set([
 type MutableFamily = Extract<SdkCall, { verb: 'narrow' }>['family']
 
 function defaultInput(id: string): string | undefined {
-  return DEFAULT_CASES.find(c => c.id === id)?.input
+  return [...DEFAULT_CASES, ...KNOWLEDGE_CASES].find(c => c.id === id)?.input
 }
 
 function canonicalInput(input: string): string {
@@ -442,10 +508,25 @@ function checkSourceAuthoringTrace(trace: SdkCall[]): boolean {
     && trace.some(c => c.verb === 'verify_inspect' && c.diagram === diagram)
 }
 
+function checkOpaqueFallbackTrace(trace: SdkCall[]): boolean {
+  // Source-level fallback on an opaque body: no structured mutation may run;
+  // the edited source must be re-parsed and that diagram's verify result
+  // inspected before returning. Serialize is allowed — opaque serialization
+  // is the preserved source.
+  if (trace.some(c => c.verb === 'mutate')) return false
+  const parses = trace.filter((c): c is Extract<SdkCall, { verb: 'parse' }> => c.verb === 'parse')
+  const last = parses[parses.length - 1]
+  if (!last || last.diagram === undefined) return false
+  return trace.some(c => c.verb === 'verify' && c.diagram === last.diagram && c.ok === true)
+    && trace.some(c => c.verb === 'verify_inspect' && c.diagram === last.diagram)
+}
+
 function checkTrace(id: string, input: string | undefined, trace: SdkCall[]): boolean {
   if (id.startsWith('author_')) return checkSourceAuthoringTrace(trace)
   if (!input) return false
   if (id === 'cache_between_api_and_db') return checkMutationTrace(id, input, 'flowchart', trace) && hasMutationOps(trace, input, ['add_node', 'remove_edge', 'add_edge', 'add_edge'])
+  if (id === 'canonical_add_cache_messy') return checkMutationTrace(id, input, 'flowchart', trace) && hasMutationOps(trace, input, ['remove_edge', 'add_node', 'add_edge', 'add_edge'])
+  if (id === 'stray_end_source_fallback') return checkOpaqueFallbackTrace(trace)
   if (id === 'state_add_done_transition') return checkMutationTrace(id, input, 'state', trace) && hasMutationOps(trace, input, ['add_transition'])
   if (id === 'timeline_add_event') return checkMutationTrace(id, input, 'timeline', trace) && hasMutationOps(trace, input, ['add_event'])
   if (id === 'class_add_duck') return checkMutationTrace(id, input, 'class', trace) && hasMutationOps(trace, input, ['add_class'])
@@ -550,6 +631,33 @@ function checkTask(id: string, input: string | undefined, value: unknown, trace:
     const parsed = parseMermaid(source)
     const body = parsed.ok ? asState(parsed.value)?.body : undefined
     return Boolean(body?.transitions.some(t => t.from === 'Processing' && t.to === '[*]' && t.label === 'done'))
+  }
+  if (id === 'canonical_add_cache_messy') {
+    const source = serializedSource(value, trace)
+    if (!source) return false
+    const parsed = parseMermaid(source)
+    if (!parsed.ok) return false
+    const graph = asFlowchart(parsed.value)?.body.graph
+    if (!graph?.nodes.has('Cache')) return false
+    const edges = new Set(graph.edges.map(e => `${e.source}->${e.target}`))
+    if (!edges.has('api->Cache') || !edges.has('Cache->db') || edges.has('api->db')) return false
+    if (graph.nodes.get('logs')?.label !== 'Log store\nretention: 30 days') return false
+    // Canonical fixed point: the returned bytes are exactly what
+    // serializeMermaid emits for this diagram (unquoted-where-possible
+    // labels, <br> line breaks, two-space indent). This is the knowledge
+    // component — the structural checks above pass on model knowledge alone.
+    return serializeMermaid(parsed.value).trim() === source.trim()
+  }
+  if (id === 'stray_end_source_fallback') {
+    const source = serializedSource(value, trace)
+    if (!source) return false
+    const lines = source.split('\n').map(l => l.trim()).filter(Boolean)
+    const expected = ['sequenceDiagram', 'A->>B: hi', 'end', 'B-->>A: yo', 'B-->>A: ok']
+    // Every original line preserved verbatim and in order — including the
+    // stray `end` a regenerating agent would "fix" — plus the appended
+    // message, and nothing else.
+    if (lines.length !== expected.length || !expected.every((l, i) => lines[i] === l)) return false
+    return parseMermaid(source).ok
   }
   if (id === 'timeline_add_event') {
     const source = serializedSource(value, trace)
