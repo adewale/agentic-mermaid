@@ -2,11 +2,14 @@ import type { PositionedJourneyDiagram, PositionedJourneySection, PositionedJour
 import type { RenderContext } from '../types.ts'
 import type { DiagramColors } from '../theme.ts'
 import { svgOpenTag, buildStyleBlock, buildShadowDefs } from '../theme.ts'
-import { renderMultilineText, escapeXml } from '../multiline-utils.ts'
+import { JOURNEY_STYLE_DEFAULTS } from './layout.ts'
+import { buildAccessibilityAttrs } from '../shared/svg-a11y.ts'
+import { escapeAttr, renderMultilineText, escapeXml } from '../multiline-utils.ts'
 import { STROKE_WIDTHS, resolveRenderStyle } from '../styles.ts'
 import type { RenderStyleDefaults, ResolvedRenderStyle } from '../styles.ts'
 import { topRoundedRectPath } from '../svg-paths.ts'
 import type { SceneDoc, SceneNode, SemanticChannels } from '../scene/ir.ts'
+import { hashId } from '../scene/seed.ts'
 import * as marks from '../scene/marks.ts'
 import { DefaultBackend } from '../scene/backend.ts'
 
@@ -40,25 +43,6 @@ const JY = {
   actorFontWeight: 600,
 } as const
 
-const JOURNEY_STYLE_DEFAULTS: RenderStyleDefaults = {
-  nodeLabelFontSize: JY.taskFontSize,
-  edgeLabelFontSize: JY.actorFontSize,
-  groupHeaderFontSize: JY.sectionFontSize,
-  nodeLabelFontWeight: JY.taskFontWeight,
-  edgeLabelFontWeight: JY.actorFontWeight,
-  groupHeaderFontWeight: JY.sectionFontWeight,
-  nodePaddingX: JY.taskPadX,
-  nodePaddingY: JY.taskPadY,
-  nodeCornerRadius: 0,
-  nodeLineWidth: STROKE_WIDTHS.outerBox,
-  edgeLineWidth: STROKE_WIDTHS.connector,
-  groupCornerRadius: 0,
-  groupPaddingX: 18,
-  groupPaddingY: 18,
-  groupLabelPaddingX: 12,
-  groupLineWidth: STROKE_WIDTHS.outerBox,
-}
-
 /** Journey scores are on a 1..5 scale; channels carry them normalized. */
 const JOURNEY_MAX_SCORE = 5
 
@@ -85,7 +69,7 @@ export function lowerJourneyScene(
   const style = resolveRenderStyle(options, JOURNEY_STYLE_DEFAULTS)
 
   const accessibility = buildJourneyAccessibility(diagram)
-  const uid = `journey-${hashJourney(diagram)}`
+  const uid = `journey-${hashId(diagram.width, diagram.height, diagram.sections.map(s => s.tasks.length).join(','))}`
   const titleId = `${uid}-title`
   const descId = `${uid}-desc`
   const journeyCss = journeyStyles(style)
@@ -180,12 +164,9 @@ function openJourneySvgTag(
   titleId: string,
   descId: string,
 ): string {
-  const attrs = ['role="img"', 'aria-roledescription="user journey"']
-  if (accessibility.title) attrs.push(`aria-labelledby="${titleId}"`)
-  if (accessibility.description) attrs.push(`aria-describedby="${descId}"`)
-
-  return svgOpenTag(diagram.width, diagram.height, colors, transparent)
-    .replace('>', ` ${attrs.join(' ')}>`)
+  return svgOpenTag(diagram.width, diagram.height, colors, transparent, {
+    attrs: buildAccessibilityAttrs(accessibility.title, accessibility.description, titleId, descId, 'user journey'),
+  })
 }
 
 function journeyStyles(style: ResolvedRenderStyle): string {
@@ -429,16 +410,4 @@ function letterAttr(value: number): string {
   return value !== 0 ? ` letter-spacing="${value}"` : ''
 }
 
-function hashJourney(diagram: PositionedJourneyDiagram): string {
-  let h = 0x811c9dc5
-  const s = `${diagram.width}|${diagram.height}|${diagram.sections.map(s => s.tasks.length).join(',')}`
-  for (let i = 0; i < s.length; i++) {
-    h ^= s.charCodeAt(i)
-    h = Math.imul(h, 0x01000193)
-  }
-  return (h >>> 0).toString(36)
-}
 
-function escapeAttr(text: string): string {
-  return escapeXml(text)
-}

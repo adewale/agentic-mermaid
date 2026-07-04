@@ -26,7 +26,8 @@ import { formatTickValue, getCategoryLabels, getDataCount, getDataXValues, getPo
 
 const BAR_PADDING_PERCENT = 0.05
 
-const XY_STYLE_DEFAULTS: RenderStyleDefaults = {
+/** Shared by layout (sizing) and renderer (drawing) — keep it single-sourced. */
+export const XY_STYLE_DEFAULTS: RenderStyleDefaults = {
   nodeLabelFontSize: 14,
   edgeLabelFontSize: 16,
   groupHeaderFontSize: 20,
@@ -36,7 +37,7 @@ const XY_STYLE_DEFAULTS: RenderStyleDefaults = {
   nodePaddingX: 0,
   nodePaddingY: 0,
   nodeLineWidth: 0,
-  edgeLineWidth: 2,
+  edgeLineWidth: 3, // matches the drawn series stroke (CHART_FONT.lineWidth)
   groupCornerRadius: 0,
   groupPaddingX: 0,
   groupPaddingY: 0,

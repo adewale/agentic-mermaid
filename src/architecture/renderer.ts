@@ -9,10 +9,11 @@ import type { ArchitectureVisualConfig } from './config.ts'
 import { DEFAULT_ARCHITECTURE_VISUAL } from './config.ts'
 import type { Point, RenderContext } from '../types.ts'
 import { svgOpenTag, buildStyleBlock } from '../theme.ts'
-import { renderMultilineText, renderMultilineTextWithBackground, escapeXml } from '../multiline-utils.ts'
+import { escapeAttr, renderMultilineText, renderMultilineTextWithBackground, escapeXml } from '../multiline-utils.ts'
 import { measureMultilineText } from '../text-metrics.ts'
 import { topRoundedRectPath } from '../svg-paths.ts'
 import type { MarkerRef, SceneDoc, SceneNode } from '../scene/ir.ts'
+import { hashId } from '../scene/seed.ts'
 import * as marks from '../scene/marks.ts'
 import { DefaultBackend } from '../scene/backend.ts'
 
@@ -62,7 +63,7 @@ export function lowerArchitectureScene(
 
   const hasTitle = Boolean(diagram.accessibilityTitle)
   const hasDesc = Boolean(diagram.accessibilityDescription)
-  const uid = `arch-${hashDiagram(diagram)}`
+  const uid = `arch-${hashId(diagram.width, diagram.height, diagram.services.map(s => s.id).join(','), diagram.groups.map(g => g.id).join(','))}`
   const titleId = `${uid}-title`
   const descId = `${uid}-desc`
   const a11yAttrs: Record<string, string | undefined> = {}
@@ -615,16 +616,4 @@ function transformText(text: string, transform: string | undefined): string {
   }
 }
 
-function escapeAttr(text: string): string {
-  return escapeXml(text)
-}
 
-function hashDiagram(diagram: PositionedArchitectureDiagram): string {
-  let h = 0x811c9dc5
-  const s = `${diagram.width}|${diagram.height}|${diagram.services.map(s => s.id).join(',')}|${diagram.groups.map(g => g.id).join(',')}`
-  for (let i = 0; i < s.length; i++) {
-    h ^= s.charCodeAt(i)
-    h = Math.imul(h, 0x01000193)
-  }
-  return (h >>> 0).toString(36)
-}

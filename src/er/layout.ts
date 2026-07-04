@@ -27,11 +27,12 @@ const ER = {
   layerSpacing: 90,
 } as const
 
-const ER_STYLE_DEFAULTS: RenderStyleDefaults = {
+/** Shared by layout (sizing) and renderer (drawing) — keep it single-sourced. */
+export const ER_STYLE_DEFAULTS: RenderStyleDefaults = {
   nodeLabelFontSize: FONT_SIZES.nodeLabel,
   edgeLabelFontSize: FONT_SIZES.edgeLabel,
   groupHeaderFontSize: FONT_SIZES.groupHeader,
-  nodeLabelFontWeight: FONT_WEIGHTS.nodeLabel,
+  nodeLabelFontWeight: 700, // entity headers are drawn bold; measure them bold too
   edgeLabelFontWeight: FONT_WEIGHTS.edgeLabel,
   groupHeaderFontWeight: FONT_WEIGHTS.groupHeader,
   nodePaddingX: ER.boxPadX,

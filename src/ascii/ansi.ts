@@ -6,6 +6,7 @@
 // for browser rendering.
 // ============================================================================
 
+import { parseHex, mixHex, luma255 } from '../shared/color-math.ts'
 import type { CharRole, AsciiTheme, ColorMode } from './types.ts'
 import type { DiagramColors } from '../theme.ts'
 import { MIX } from '../theme.ts'
@@ -38,12 +39,7 @@ export const DEFAULT_ASCII_THEME: AsciiTheme = {
 // ============================================================================
 
 /** Mix fg into bg at a given percentage (replicates CSS color-mix(in srgb)). */
-function mixColors(fg: string, bg: string, pct: number): string {
-  const f = parseHex(fg), b = parseHex(bg)
-  const mix = (a: number, z: number) => Math.round(a * (pct / 100) + z * (1 - pct / 100))
-  const r = mix(f.r, b.r), g = mix(f.g, b.g), bl = mix(f.b, b.b)
-  return '#' + [r, g, bl].map(c => c.toString(16).padStart(2, '0')).join('')
-}
+const mixColors = mixHex
 
 /**
  * Derive an AsciiTheme from SVG DiagramColors using the same mixing ratios.
@@ -124,26 +120,6 @@ export function detectColorMode(): ColorMode {
 // Hex color parsing
 // ============================================================================
 
-/**
- * Parse a hex color string to RGB values.
- * Supports both 3-char (#RGB) and 6-char (#RRGGBB) formats.
- */
-function parseHex(hex: string): { r: number; g: number; b: number } {
-  const h = hex.replace('#', '')
-  if (h.length === 3) {
-    return {
-      r: parseInt(h[0]! + h[0]!, 16),
-      g: parseInt(h[1]! + h[1]!, 16),
-      b: parseInt(h[2]! + h[2]!, 16),
-    }
-  }
-  return {
-    r: parseInt(h.substring(0, 2), 16),
-    g: parseInt(h.substring(2, 4), 16),
-    b: parseInt(h.substring(4, 6), 16),
-  }
-}
-
 // ============================================================================
 // ANSI escape code generation
 // ============================================================================
@@ -158,7 +134,7 @@ const RESET = `${ESC}0m`
  * Format: ESC[38;2;R;G;Bm
  */
 function truecolorFg(hex: string): string {
-  const { r, g, b } = parseHex(hex)
+  const [r, g, b] = parseHex(hex)
   return `${ESC}38;2;${r};${g};${b}m`
 }
 
@@ -201,7 +177,7 @@ function rgbTo256(r: number, g: number, b: number): number {
  * Format: ESC[38;5;Nm
  */
 function ansi256Fg(hex: string): string {
-  const { r, g, b } = parseHex(hex)
+  const [r, g, b] = parseHex(hex)
   const index = rgbTo256(r, g, b)
   return `${ESC}38;5;${index}m`
 }
@@ -215,8 +191,8 @@ function ansi256Fg(hex: string): string {
  * 8-15 = bright versions
  */
 function ansi16Fg(hex: string): string {
-  const { r, g, b } = parseHex(hex)
-  const luma = 0.299 * r + 0.587 * g + 0.114 * b
+  const [r, g, b] = parseHex(hex)
+  const luma = luma255(r, g, b)
 
   // Determine brightness (use bright colors for better visibility)
   const bright = luma > 100 ? 0 : 60 // 60 = bright variant offset

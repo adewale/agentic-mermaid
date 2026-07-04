@@ -7,12 +7,13 @@ import { describeMermaidSource, describeMermaidTree } from '../agent/describe.ts
 import { parseMermaid } from '../agent/parse.ts'
 
 describe('#7254/#7255 SVG accessibility', () => {
-  test('accTitle → <title>, accDescr → <desc>, role + aria-labelledby on root', () => {
+  test('accTitle → <title>, accDescr → <desc>, role + ARIA references on root', () => {
     const svg = renderMermaidSVG('flowchart TD\n accTitle: Login Flow\n accDescr: How a user logs in\n A[Start] --> B[End]')
     expect(svg).toContain('<title id="svg-title">Login Flow</title>')
     expect(svg).toContain('<desc id="svg-desc">How a user logs in</desc>')
     expect(svg).toContain('role="img"')
-    expect(svg).toContain('aria-labelledby="svg-title svg-desc"')
+    expect(svg).toContain('aria-labelledby="svg-title"')
+    expect(svg).toContain('aria-describedby="svg-desc"')
   })
 
   test('accDescr block form is captured', () => {

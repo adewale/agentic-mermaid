@@ -2,12 +2,15 @@ import type { PositionedTimelineDiagram, PositionedTimelineSection, PositionedTi
 import type { RenderContext } from '../types.ts'
 import type { DiagramColors } from '../theme.ts'
 import { svgOpenTag, buildStyleBlock, buildShadowDefs } from '../theme.ts'
-import { renderMultilineText, escapeXml } from '../multiline-utils.ts'
+import { TIMELINE_STYLE_DEFAULTS } from './layout.ts'
+import { buildAccessibilityAttrs } from '../shared/svg-a11y.ts'
+import { escapeAttr, renderMultilineText, escapeXml } from '../multiline-utils.ts'
 import { STROKE_WIDTHS, resolveRenderStyle } from '../styles.ts'
 import type { RenderStyleDefaults, ResolvedRenderStyle } from '../styles.ts'
 import type { MermaidThemeVariables, TimelineRuntimeConfig } from '../mermaid-source.ts'
 import { topRoundedRectPath } from '../svg-paths.ts'
 import type { SceneDoc, SceneNode } from '../scene/ir.ts'
+import { hashId } from '../scene/seed.ts'
 import * as marks from '../scene/marks.ts'
 import { DefaultBackend } from '../scene/backend.ts'
 
@@ -41,25 +44,6 @@ const TL = {
   markerOuterRadius: 8,
   markerInnerRadius: 4.5,
 } as const
-
-const TIMELINE_STYLE_DEFAULTS: RenderStyleDefaults = {
-  nodeLabelFontSize: TL.eventFontSize,
-  edgeLabelFontSize: TL.pillFontSize,
-  groupHeaderFontSize: TL.sectionFontSize,
-  nodeLabelFontWeight: TL.eventFontWeight,
-  edgeLabelFontWeight: TL.pillFontWeight,
-  groupHeaderFontWeight: TL.sectionFontWeight,
-  nodePaddingX: 14,
-  nodePaddingY: 10,
-  nodeCornerRadius: 0,
-  nodeLineWidth: STROKE_WIDTHS.outerBox,
-  edgeLineWidth: 1.5,
-  groupCornerRadius: 0,
-  groupPaddingX: 18,
-  groupPaddingY: 18,
-  groupLabelPaddingX: 12,
-  groupLineWidth: STROKE_WIDTHS.outerBox,
-}
 
 interface TimelineFamilyPalette {
   accent: string
@@ -97,7 +81,7 @@ export function lowerTimelineScene(
   const accessibleDescription = diagram.accessibilityDescription
   const familyPalettes = getTimelineFamilyPalettes(timelineConfig, themeVariables)
   const allowMulticolor = !(timelineConfig.disableMulticolor && !useSectionFamilies)
-  const uid = `tl-${hashTimeline(diagram)}`
+  const uid = `tl-${hashId(diagram.width, diagram.height, diagram.sections.map(s => s.periods.length).join(','))}`
   const titleId = `${uid}-title`
   const descId = `${uid}-desc`
   const rootAttrs = buildAccessibilityAttrs(accessibleTitle, accessibleDescription, titleId, descId)
@@ -552,30 +536,4 @@ function readTimelineScale(
   return typeof value === 'string' && value.length > 0 ? value : undefined
 }
 
-function buildAccessibilityAttrs(
-  title: string | undefined,
-  description: string | undefined,
-  titleId: string,
-  descId: string,
-): Record<string, string> {
-  if (!title && !description) return {}
 
-  const attrs: Record<string, string> = { role: 'img' }
-  if (title) attrs['aria-labelledby'] = titleId
-  if (description) attrs['aria-describedby'] = descId
-  return attrs
-}
-
-function hashTimeline(diagram: { width: number; height: number; sections: Array<{ periods: unknown[] }> }): string {
-  let h = 0x811c9dc5
-  const s = `${diagram.width}|${diagram.height}|${diagram.sections.map(s => s.periods.length).join(',')}`
-  for (let i = 0; i < s.length; i++) {
-    h ^= s.charCodeAt(i)
-    h = Math.imul(h, 0x01000193)
-  }
-  return (h >>> 0).toString(36)
-}
-
-function escapeAttr(text: string): string {
-  return escapeXml(text)
-}

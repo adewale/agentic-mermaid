@@ -1,4 +1,5 @@
 import type { MermaidGraph, RenderOptions } from './types.ts'
+import { tryParseHex, luma255 } from './shared/color-math.ts'
 import type { DiagramColors } from './theme.ts'
 import { DEFAULTS, THEMES } from './theme.ts'
 import type { MermaidRuntimeConfig, MermaidThemeVariables } from './mermaid-source.ts'
@@ -119,17 +120,8 @@ export function resolveEdgeInlineStyle(
 }
 
 function parseHexToRgb(hex: string): { r: number; g: number; b: number } | null {
-  const match = hex.match(/^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$/)
-  if (!match) return null
-  const raw = match[1]!
-  const full = raw.length === 3
-    ? raw.split('').map(ch => ch + ch).join('')
-    : raw
-  return {
-    r: Number.parseInt(full.slice(0, 2), 16),
-    g: Number.parseInt(full.slice(2, 4), 16),
-    b: Number.parseInt(full.slice(4, 6), 16),
-  }
+  const rgb = tryParseHex(hex)
+  return rgb ? { r: rgb[0], g: rgb[1], b: rgb[2] } : null
 }
 
 function parseRgbFunction(color: string): { r: number; g: number; b: number } | null {
@@ -146,7 +138,7 @@ function parseRgbFunction(color: string): { r: number; g: number; b: number } | 
 export function contrastTextColor(fill: string): string | undefined {
   const rgb = parseHexToRgb(fill) ?? parseRgbFunction(fill)
   if (!rgb) return undefined
-  const brightness = (rgb.r * 299 + rgb.g * 587 + rgb.b * 114) / 1000
+  const brightness = luma255(rgb.r, rgb.g, rgb.b)
   return brightness > 140 ? '#000000' : '#FFFFFF'
 }
 

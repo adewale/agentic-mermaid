@@ -31,11 +31,12 @@ export const CLS = {
   layerSpacing: 60,
 } as const
 
-const CLASS_STYLE_DEFAULTS: RenderStyleDefaults = {
+/** Shared by layout (sizing) and renderer (drawing) — keep it single-sourced. */
+export const CLASS_STYLE_DEFAULTS: RenderStyleDefaults = {
   nodeLabelFontSize: FONT_SIZES.nodeLabel,
   edgeLabelFontSize: FONT_SIZES.edgeLabel,
   groupHeaderFontSize: FONT_SIZES.groupHeader,
-  nodeLabelFontWeight: FONT_WEIGHTS.nodeLabel,
+  nodeLabelFontWeight: 700, // class titles are drawn bold; measure them bold too
   edgeLabelFontWeight: FONT_WEIGHTS.edgeLabel,
   groupHeaderFontWeight: FONT_WEIGHTS.groupHeader,
   nodePaddingX: CLS.boxPadX,

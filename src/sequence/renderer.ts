@@ -3,30 +3,14 @@ import type { RenderContext } from '../types.ts'
 import { svgOpenTag, buildStyleBlock, buildShadowDefs } from '../theme.ts'
 import { FONT_SIZES, FONT_WEIGHTS, STROKE_WIDTHS, ARROW_HEAD, estimateTextWidth, TEXT_BASELINE_SHIFT, resolveRenderStyle } from '../styles.ts'
 import type { RenderStyleDefaults, ResolvedRenderStyle } from '../styles.ts'
-import { renderMultilineText, escapeXml as escapeXmlUtil } from '../multiline-utils.ts'
+import { SEQUENCE_STYLE_DEFAULTS } from './layout.ts'
+import { buildAccessibilityAttrs } from '../shared/svg-a11y.ts'
+import { renderMultilineText, escapeAttr, escapeXml as escapeXmlUtil } from '../multiline-utils.ts'
 import type { MarkerRef, SceneDoc, SceneNode } from '../scene/ir.ts'
+import { hashId } from '../scene/seed.ts'
 import * as marks from '../scene/marks.ts'
 import { DefaultBackend } from '../scene/backend.ts'
 
-
-const SEQUENCE_STYLE_DEFAULTS: RenderStyleDefaults = {
-  nodeLabelFontSize: FONT_SIZES.nodeLabel,
-  edgeLabelFontSize: FONT_SIZES.edgeLabel,
-  groupHeaderFontSize: FONT_SIZES.edgeLabel,
-  nodeLabelFontWeight: FONT_WEIGHTS.nodeLabel,
-  edgeLabelFontWeight: FONT_WEIGHTS.edgeLabel,
-  groupHeaderFontWeight: FONT_WEIGHTS.groupHeader,
-  nodePaddingX: 16,
-  nodePaddingY: 6,
-  nodeCornerRadius: 4,
-  nodeLineWidth: STROKE_WIDTHS.outerBox,
-  edgeLineWidth: STROKE_WIDTHS.connector,
-  groupCornerRadius: 0,
-  groupPaddingX: 10,
-  groupPaddingY: 8,
-  groupLabelPaddingX: 6,
-  groupLineWidth: STROKE_WIDTHS.outerBox,
-}
 
 // ============================================================================
 // Sequence diagram SVG renderer
@@ -75,7 +59,7 @@ export function lowerSequenceScene(
   const transparent = options.transparent ?? false
   const parts: SceneNode[] = []
   const style = resolveRenderStyle(options, SEQUENCE_STYLE_DEFAULTS)
-  const uid = `seq-${hashAccessibility(diagram.width, diagram.height, diagram.actors.length, diagram.messages.length)}`
+  const uid = `seq-${hashId(diagram.width, diagram.height, diagram.actors.length, diagram.messages.length)}`
   const titleId = `${uid}-title`
   const descId = `${uid}-desc`
   const rootAttrs = buildAccessibilityAttrs(diagram.accessibilityTitle, diagram.accessibilityDescription, titleId, descId)
@@ -614,33 +598,4 @@ const escapeXml = escapeXmlUtil
 /**
  * Escape a string for use as an XML/HTML attribute value.
  */
-function buildAccessibilityAttrs(
-  title: string | undefined,
-  description: string | undefined,
-  titleId: string,
-  descId: string,
-): Record<string, string> {
-  if (!title && !description) return {}
-  const attrs: Record<string, string> = { role: 'img' }
-  if (title) attrs['aria-labelledby'] = titleId
-  if (description) attrs['aria-describedby'] = descId
-  return attrs
-}
 
-function hashAccessibility(...values: Array<string | number>): string {
-  let h = 0x811c9dc5
-  const text = values.join('|')
-  for (let i = 0; i < text.length; i++) {
-    h ^= text.charCodeAt(i)
-    h = Math.imul(h, 0x01000193)
-  }
-  return (h >>> 0).toString(36)
-}
-
-function escapeAttr(value: string): string {
-  return value
-    .replace(/&/g, '&amp;')
-    .replace(/"/g, '&quot;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-}

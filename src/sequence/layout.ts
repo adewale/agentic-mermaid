@@ -50,7 +50,8 @@ const SEQ = {
   noteGap: 10,
 } as const
 
-const SEQUENCE_STYLE_DEFAULTS: RenderStyleDefaults = {
+/** Shared by layout (sizing) and renderer (drawing) — keep it single-sourced. */
+export const SEQUENCE_STYLE_DEFAULTS: RenderStyleDefaults = {
   nodeLabelFontSize: FONT_SIZES.nodeLabel,
   edgeLabelFontSize: FONT_SIZES.edgeLabel,
   groupHeaderFontSize: FONT_SIZES.edgeLabel,
@@ -59,6 +60,8 @@ const SEQUENCE_STYLE_DEFAULTS: RenderStyleDefaults = {
   groupHeaderFontWeight: FONT_WEIGHTS.groupHeader,
   nodePaddingX: SEQ.actorPadX,
   nodePaddingY: SEQ.notePadY,
+  nodeCornerRadius: 4,
+  nodeLineWidth: STROKE_WIDTHS.outerBox,
   edgeLineWidth: STROKE_WIDTHS.connector,
   groupCornerRadius: 0,
   groupPaddingX: SEQ.blockPadX,

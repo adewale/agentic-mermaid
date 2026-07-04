@@ -3,10 +3,12 @@ import type { RenderContext } from '../types.ts'
 import { svgOpenTag, buildStyleBlock, buildShadowDefs } from '../theme.ts'
 import { FONT_SIZES, FONT_WEIGHTS, STROKE_WIDTHS, TEXT_BASELINE_SHIFT, resolveRenderStyle } from '../styles.ts'
 import type { RenderStyleDefaults, ResolvedRenderStyle } from '../styles.ts'
-import { CLS } from './layout.ts'
-import { renderMultilineText, escapeXml as escapeXmlUtil } from '../multiline-utils.ts'
+import { CLS, CLASS_STYLE_DEFAULTS } from './layout.ts'
+import { buildAccessibilityAttrs } from '../shared/svg-a11y.ts'
+import { renderMultilineText, escapeAttr, escapeXml as escapeXmlUtil } from '../multiline-utils.ts'
 import { topRoundedRectPath } from '../svg-paths.ts'
 import type { MarkerRef, SceneDoc, SceneNode } from '../scene/ir.ts'
+import { hashId } from '../scene/seed.ts'
 import * as marks from '../scene/marks.ts'
 import { DefaultBackend } from '../scene/backend.ts'
 
@@ -29,24 +31,6 @@ import { DefaultBackend } from '../scene/backend.ts'
 //   4. Labels and cardinality
 // ============================================================================
 
-
-const CLASS_STYLE_DEFAULTS: RenderStyleDefaults = {
-  nodeLabelFontSize: FONT_SIZES.nodeLabel,
-  edgeLabelFontSize: FONT_SIZES.edgeLabel,
-  groupHeaderFontSize: FONT_SIZES.groupHeader,
-  nodeLabelFontWeight: 700,
-  edgeLabelFontWeight: FONT_WEIGHTS.edgeLabel,
-  groupHeaderFontWeight: FONT_WEIGHTS.groupHeader,
-  nodePaddingX: CLS.boxPadX,
-  nodePaddingY: CLS.sectionPadY,
-  nodeCornerRadius: 0,
-  nodeLineWidth: STROKE_WIDTHS.outerBox,
-  edgeLineWidth: STROKE_WIDTHS.connector,
-  groupCornerRadius: 0,
-  groupPaddingX: CLS.boxPadX,
-  groupPaddingY: CLS.sectionPadY,
-  groupLineWidth: STROKE_WIDTHS.outerBox,
-}
 
 /** Font sizes specific to class diagrams */
 const CLS_FONT = {
@@ -80,7 +64,7 @@ export function lowerClassScene(
   const transparent = options.transparent ?? false
   const parts: SceneNode[] = []
   const style = resolveRenderStyle(options, CLASS_STYLE_DEFAULTS)
-  const uid = `class-${hashAccessibility(diagram.width, diagram.height, diagram.classes.length, diagram.relationships.length)}`
+  const uid = `class-${hashId(diagram.width, diagram.height, diagram.classes.length, diagram.relationships.length)}`
   const titleId = `${uid}-title`
   const descId = `${uid}-desc`
   const rootAttrs = buildAccessibilityAttrs(diagram.accessibilityTitle, diagram.accessibilityDescription, titleId, descId)
@@ -645,37 +629,8 @@ function letterAttr(value: number): string {
 // Use shared escapeXml from multiline-utils
 const escapeXml = escapeXmlUtil
 
-function buildAccessibilityAttrs(
-  title: string | undefined,
-  description: string | undefined,
-  titleId: string,
-  descId: string,
-): Record<string, string> {
-  if (!title && !description) return {}
-  const attrs: Record<string, string> = { role: 'img' }
-  if (title) attrs['aria-labelledby'] = titleId
-  if (description) attrs['aria-describedby'] = descId
-  return attrs
-}
-
-function hashAccessibility(...values: Array<string | number>): string {
-  let h = 0x811c9dc5
-  const text = values.join('|')
-  for (let i = 0; i < text.length; i++) {
-    h ^= text.charCodeAt(i)
-    h = Math.imul(h, 0x01000193)
-  }
-  return (h >>> 0).toString(36)
-}
 
 /**
  * Escape a string for use as an XML/HTML attribute value.
  * Escapes quotes and ampersands to prevent attribute injection.
  */
-function escapeAttr(value: string): string {
-  return value
-    .replace(/&/g, '&amp;')
-    .replace(/"/g, '&quot;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-}

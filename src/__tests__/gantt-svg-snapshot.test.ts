@@ -103,7 +103,8 @@ describe('renderMermaidSVG — gantt', () => {
     `)
     expect(svg).toContain('<title id="svg-title">Q1 plan</title>')
     expect(svg).toContain('<desc id="svg-desc">Two-task schedule</desc>')
-    expect(svg).toContain('aria-labelledby="svg-title svg-desc"')
+    expect(svg).toContain('aria-labelledby="svg-title"')
+    expect(svg).toContain('aria-describedby="svg-desc"')
     expect(svg).toContain('role="img"')
   })
 

@@ -26,6 +26,10 @@ export function mutate(d: XyChartValidDiagram, op: XyChartMutationOp): Result<Xy
 export function mutate(d: PieValidDiagram, op: PieMutationOp): Result<PieValidDiagram, MutationError>
 export function mutate(d: QuadrantValidDiagram, op: QuadrantMutationOp): Result<QuadrantValidDiagram, MutationError>
 export function mutate(d: GanttValidDiagram, op: GanttMutationOp): Result<GanttValidDiagram, MutationError>
+// General form for callers holding the union (e.g. the CLI): dispatch is by
+// registry at runtime either way, so kind-agnostic call sites don't need a
+// per-family narrowing cascade.
+export function mutate(d: MutableValidDiagram, op: AnyMutationOp): Result<MutableValidDiagram, MutationError>
 export function mutate(
   d: MutableValidDiagram,
   op: AnyMutationOp,

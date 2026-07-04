@@ -117,22 +117,29 @@ function escapeXmlText(s: string): string {
 }
 
 /**
- * #7254/#7255: inject `<title>`/`<desc>` + `role="img"` + `aria-labelledby`
- * into the root <svg>. Localized post-pass (mirrors namespaceSvgIds) so we
- * don't thread accessibility through every family renderer. The title/desc ids
- * carry the same idPrefix as the rest of the doc to stay collision-free.
+ * #7254/#7255: inject `<title>`/`<desc>` + `role="img"` + `aria-labelledby`/
+ * `aria-describedby` into the root <svg>. Localized post-pass (mirrors
+ * namespaceSvgIds) so we don't thread accessibility through every family
+ * renderer. Renderers that do thread it (sequence, class, er, timeline,
+ * journey, xychart, architecture) already carry the aria wiring on the root,
+ * which is how this pass knows to leave their output alone. The title/desc
+ * ids carry the same idPrefix as the rest of the doc to stay collision-free.
  */
 function injectAccessibility(svg: string, acc: { title?: string; descr?: string }, idPrefix: string): string {
   const titleId = `${idPrefix}svg-title`
   const descId = `${idPrefix}svg-desc`
-  const labelledby: string[] = []
+  const rootAttrs: string[] = []
   const children: string[] = []
-  if (acc.title) { labelledby.push(titleId); children.push(`<title id="${titleId}">${escapeXmlText(acc.title)}</title>`) }
-  if (acc.descr) { labelledby.push(descId); children.push(`<desc id="${descId}">${escapeXmlText(acc.descr)}</desc>`) }
+  if (acc.title) { rootAttrs.push(`aria-labelledby="${titleId}"`); children.push(`<title id="${titleId}">${escapeXmlText(acc.title)}</title>`) }
+  if (acc.descr) { rootAttrs.push(`aria-describedby="${descId}"`); children.push(`<desc id="${descId}">${escapeXmlText(acc.descr)}</desc>`) }
   if (children.length === 0) return svg
-  // Add role + aria-labelledby to the opening <svg …> tag (once).
+  // Add role + aria references to the opening <svg …> tag (once).
   svg = svg.replace(/<svg\b([^>]*)>/, (full, attrs: string) => {
-    const add = `${/\brole=/.test(attrs) ? '' : ' role="img"'} aria-labelledby="${labelledby.join(' ')}"`
+    // The family renderer already wired accessibility on the root; injecting
+    // again would duplicate <title>/<desc> and root attributes (a duplicated
+    // attribute is not even well-formed XML).
+    if (/\baria-(?:labelledby|describedby)=/.test(attrs)) return full
+    const add = `${/\brole=/.test(attrs) ? '' : ' role="img"'} ${rootAttrs.join(' ')}`
     return `<svg${attrs}${add}>${children.join('')}`
   })
   return svg

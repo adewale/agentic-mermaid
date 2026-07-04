@@ -23,6 +23,8 @@
  * from Shiki themes or custom palettes. Each falls back to a color-mix()
  * derivation from bg + fg if not set.
  */
+import { parseHex, toHex, mixHex, isHexColor, luma255 } from './shared/color-math.ts'
+
 export interface DiagramColors {
   /** Background color → CSS variable --bg */
   bg: string
@@ -315,11 +317,8 @@ export function buildShadowDefs(colors: DiagramColors): string {
 function isColorDark(color: string): boolean {
   const hex = color.replace('#', '')
   if (hex.length < 6) return false
-  const r = parseInt(hex.slice(0, 2), 16)
-  const g = parseInt(hex.slice(2, 4), 16)
-  const b = parseInt(hex.slice(4, 6), 16)
-  // Relative luminance approximation
-  return (0.299 * r + 0.587 * g + 0.114 * b) / 255 < 0.4
+  const [r, g, b] = parseHex(color)
+  return luma255(r, g, b) / 255 < 0.4
 }
 
 /**
@@ -456,39 +455,6 @@ export function svgOpenTag(
 // derived colors to hex and inline them into the SVG string, making it render
 // correctly everywhere.
 // ============================================================================
-
-function parseHex(hex: string): [number, number, number] {
-  const h = hex.replace('#', '')
-  const full = h.length === 3
-    ? h[0]! + h[0]! + h[1]! + h[1]! + h[2]! + h[2]!
-    : h
-  return [
-    parseInt(full.slice(0, 2), 16),
-    parseInt(full.slice(2, 4), 16),
-    parseInt(full.slice(4, 6), 16),
-  ]
-}
-
-function toHex(r: number, g: number, b: number): string {
-  return '#' + [r, g, b]
-    .map(c => Math.round(Math.max(0, Math.min(255, c))).toString(16).padStart(2, '0'))
-    .join('')
-}
-
-function mixHex(color1: string, color2: string, pct1: number): string {
-  const [r1, g1, b1] = parseHex(color1)
-  const [r2, g2, b2] = parseHex(color2)
-  const p = pct1 / 100
-  return toHex(
-    r1 * p + r2 * (1 - p),
-    g1 * p + g2 * (1 - p),
-    b1 * p + b2 * (1 - p),
-  )
-}
-
-function isHexColor(s: string): boolean {
-  return /^#[0-9a-fA-F]{3,8}$/.test(s)
-}
 
 /**
  * All derived diagram colors resolved to concrete hex values.
