@@ -61,6 +61,12 @@ Environment:
 - If no Agentic Mermaid channel is available (local or the hosted MCP), do not fabricate verification; return the best Mermaid source and say `not verified — Agentic Mermaid unavailable` with what you tried.
 - Library imports, when available: `parseMermaid`, `verifyMermaid`, `serializeMermaid`, `mutate`, and `as*` helpers from `agentic-mermaid/agent`.
 
+Authoring facts (already verified — do not spend turns rediscovering them):
+- Families: flowchart, sequence, state, class, ER, journey, timeline, gantt, pie, quadrant, xychart, architecture.
+- Flowchart syntax that parses, renders, and round-trips: `subgraph id["Title"] … end`; quoted labels for punctuation (`id["HTTPS /api/sessions*"]`); multi-line labels via `\n` inside a quoted label (canonical form is `&lt;br&gt;`); labeled edges `A -- "label" --&gt; B`; dotted edges `A -.-&gt; B` and `A -. "label" .-&gt; B`.
+- Warnings never flip `verify.ok` unless their severity is error. `LABEL_OVERFLOW` counts total label characters, line breaks included (default cap 40, not per rendered line); when long labels are intentional, raise the cap (`verifyMermaid(d, { labelCharCap: N })`, `am verify --label-cap N`) and say so in Trace — do not truncate the user's text to silence the warning.
+- CLI verification: `am verify &lt;file&gt; --json` (exit 3 only on error-severity findings); `am render &lt;file&gt; --format ascii` is a fast visual sanity check.
+
 Workflow:
 1. For a new diagram, author Mermaid source directly from the supplied context, then parse it with `parseMermaid`.
 2. For an existing diagram, parse it, narrow with the matching `as*` helper (`asFlowchart`, `asSequence`, `asGantt`, etc.), and prefer the smallest `mutate(...)` operation.

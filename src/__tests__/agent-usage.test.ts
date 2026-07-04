@@ -9,6 +9,8 @@ import { AGENT_USAGE_SUPPORTED_FAMILIES, scoreAgentUsageRenderedQuality } from '
 import { extractHomepageAgentPrompt, homepagePromptChecklist } from '../../eval/agent-usage/homepage-prompt.ts'
 import { executeInSandbox } from '../mcp/sandbox.ts'
 import { handleRequest } from '../mcp/server.ts'
+import { parseMermaid, verifyMermaid, serializeMermaid } from '../agent/index.ts'
+import { asFlowchart } from '../agent/types.ts'
 
 const REPO = join(import.meta.dir, '..', '..')
 
@@ -170,6 +172,50 @@ describe('homepage prompt eval contract', () => {
       expect({ id: c.id, hasPrompt: c.prompt.includes('Create or edit a Mermaid diagram') }).toEqual({ id: c.id, hasPrompt: true })
       expect({ id: c.id, unresolved: /<replace with|<include the facts|<paste existing/.test(c.prompt) }).toEqual({ id: c.id, unresolved: false })
     }
+  })
+
+  test('authoring facts stated by the prompt are true', () => {
+    // Mirrors the prompt's "Authoring facts" section: each claim below is a
+    // fact agents previously burned tokens rediscovering. If a claim stops
+    // holding, fix the prompt in website/source/pages/home.html too.
+    const workerLabel = 'Cloudflare Worker\nHTTP router, API routes, SPA asset server'
+    const src = [
+      'flowchart LR',
+      '  subgraph edge["Cloudflare edge"]',
+      '    worker["Cloudflare Worker\\nHTTP router, API routes, SPA asset server"]',
+      '    kv["Cloudflare KV: SESSIONS"]',
+      '  end',
+      '  debug["Debug tools"]',
+      '  worker -- "create session, fallback reads" --> kv',
+      '  debug -. "reads diagnostics" .-> worker',
+    ].join('\n')
+
+    // Quoted punctuation labels, \n line breaks, subgraphs, and labeled solid/
+    // dotted edges all parse into the structured flowchart body (not opaque).
+    const parsed = parseMermaid(src)
+    expect(parsed.ok).toBe(true)
+    if (!parsed.ok) return
+    const flow = asFlowchart(parsed.value)
+    expect(flow?.body.kind).toBe('flowchart')
+    expect(flow?.body.graph.nodes.get('worker')?.label).toBe(workerLabel)
+    expect(flow?.body.graph.edges.map(e => e.label)).toContain('reads diagnostics')
+
+    // LABEL_OVERFLOW counts total label characters (line breaks included) and
+    // stays advisory: verify.ok remains true.
+    const verified = verifyMermaid(parsed.value)
+    expect(verified.ok).toBe(true)
+    expect(verified.warnings).toContainEqual({ code: 'LABEL_OVERFLOW', target: 'worker', charCount: workerLabel.length, limit: 40 })
+
+    // labelCharCap is the sanctioned escape hatch for intentionally long labels.
+    const capped = verifyMermaid(parsed.value, { labelCharCap: 80 })
+    expect(capped.warnings.filter(w => w.code === 'LABEL_OVERFLOW')).toEqual([])
+
+    // \n canonicalizes to <br> on serialize and the result still parses.
+    const round = serializeMermaid(parsed.value)
+    expect(round).toContain('<br>')
+    const reparsed = parseMermaid(round)
+    expect(reparsed.ok).toBe(true)
+    if (reparsed.ok) expect(asFlowchart(reparsed.value)?.body.graph.nodes.size).toBe(3)
   })
 })
 
