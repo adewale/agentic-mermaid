@@ -1,0 +1,10 @@
+```mermaid
+flowchart TD
+    api["API"] --> cache["Cache"]
+    cache --> db["DB"]
+    api --> logs["Log store\nretention: 30 days"]
+```
+
+Edits applied, per canonical serialization rules: the direct `api → db` edge was removed and replaced by `api → cache` and `cache → db`, with the new node given a lowercase id and quoted label (`cache["Cache"]`) to match the existing node convention; irregular spacing around arrows was collapsed to single spaces with a plain `-->`; labels remain double-quoted and attached at each node's first occurrence; the `logs` node keeps its full label including the literal `\n` line break (`"Log store\nretention: 30 days"`); statement order preserves the original edge order with the inserted hop taking the place of the removed edge; indentation is normalized to four spaces under the `flowchart TD` header.
+
+One honest caveat: I had no access to the `serializeMermaid` implementation or product docs in this evaluation, so the byte-exact canonical conventions (indent width, node-declaration-vs-inline-label style, whether `\n` is rewritten) are inferred from the source's own conventions rather than verified against the serializer.

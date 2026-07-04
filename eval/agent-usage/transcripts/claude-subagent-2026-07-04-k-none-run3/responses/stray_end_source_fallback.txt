@@ -1,0 +1,11 @@
+Structured mutation isn't available for this input — a stray `end` with no opening block makes the source unparseable as a well-formed block tree, so I made the smallest source-level edit instead: appended one line at the end, matching the existing two-space indentation, with every existing line preserved byte-for-byte (including the stray `end`).
+
+```mermaid
+sequenceDiagram
+  A->>B: hi
+  end
+  B-->>A: yo
+  B-->>A: ok
+```
+
+Note: the stray `end` is retained as requested, though standard Mermaid renderers will report a parse error on it; the appended `B-->>A: ok` is the final top-level message.

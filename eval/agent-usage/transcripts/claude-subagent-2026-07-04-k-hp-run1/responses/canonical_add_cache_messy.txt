@@ -1,0 +1,22 @@
+Updated Mermaid
+
+```mermaid
+flowchart TD
+  api[API] --> logs[Log store<br>retention: 30 days]
+  api --> Cache
+  Cache --> db[DB]
+```
+
+(The canonical bytes end with a trailing newline after the last line; total 101 bytes.)
+
+Verification
+
+- `verifyMermaid` on the edited diagram: `ok: true`, zero warnings.
+- The returned source is the exact `serializeMermaid` output, confirmed as a canonical fixed point: re-parsing these bytes and re-serializing reproduces them byte-identically.
+- Canonicalization effects, as expected: irregular spacing normalized to 2-space indent and single-space arrows; quotes dropped from labels that need no escaping (`api[API]`, `db[DB]`); the `\n` in the logs label converted to canonical `<br>` with the full text "Log store / retention: 30 days" preserved; `Cache` serialized bare since its label equals its id.
+- Structure: direct `api → db` edge removed; `api → Cache → db` inserted; `api → logs` untouched.
+
+Trace
+
+- Channel: library import from this repo's `src/agent/index.ts` (probe step 1 — `agentic-mermaid/agent` not installed, repo source responded; stopped discovering there).
+- Calls: `parseMermaid(source)` → `asFlowchart` → `mutate({ kind: "remove_edge", id: "api->db" })` → `mutate({ kind: "add_node", id: "Cache", label: "Cache" })` → `mutate({ kind: "add_edge", from: "api", to: "Cache" })` → `mutate({ kind: "add_edge", from: "Cache", to: "db" })` → `verifyMermaid` → `serializeMermaid`, plus a parse→serialize round-trip check on the emitted bytes.

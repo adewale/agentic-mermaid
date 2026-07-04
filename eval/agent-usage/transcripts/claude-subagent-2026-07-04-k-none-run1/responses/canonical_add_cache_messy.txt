@@ -1,0 +1,8 @@
+```mermaid
+flowchart TD
+  api["API"] --> Cache["Cache"]
+  Cache --> db["DB"]
+  api --> logs["Log store\nretention: 30 days"]
+```
+
+The direct `api --> db` edge is removed and replaced by `api --> Cache` and `Cache --> db`, preserving the original edge ordering (the api→db path first, then the logs edge). The serialization is normalized to canonical form: two-space indentation, a single space around each `-->`, every node's label attached in quoted bracket form at its first mention, and the `logs` node's full label — including the `\n` line break and "retention: 30 days" text — kept byte-for-byte.

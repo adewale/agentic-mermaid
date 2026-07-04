@@ -1,0 +1,8 @@
+```mermaid
+flowchart TD
+  api["API"] --> Cache["Cache"]
+  Cache --> db["DB"]
+  api --> logs["Log store\nretention: 30 days"]
+```
+
+This is the canonical Agentic Mermaid serialization of the edited diagram: the direct `api --> db` edge is removed and replaced by `api --> Cache` and `Cache --> db` at its original position in the edge order, followed by the untouched `api --> logs` edge. Canonicalization normalizes the irregular whitespace to single spaces around `-->` with two-space indentation, keeps double-quoted bracket labels on each node's first appearance, and preserves the `logs` label byte-for-byte, including the literal `\n` line-break escape in `"Log store\nretention: 30 days"`.

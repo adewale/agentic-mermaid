@@ -1,0 +1,19 @@
+Updated Mermaid
+
+```mermaid
+flowchart TD
+  api[API] --> logs[Log store<br>retention: 30 days]
+  api --> Cache
+  Cache --> db[DB]
+```
+
+Verification
+
+- `verifyMermaid` on the edited diagram: `ok: true`, zero warnings (the logs label is 28 characters, under the 40-char cap).
+- The source above is the exact `serializeMermaid` output, confirmed as a byte-identical fixed point: re-parsing it and re-serializing returns the same bytes (including the trailing newline after `Cache --> db[DB]`).
+- Canonicalization notes: the irregular spacing collapses to two-space indent with single-spaced arrows; quotes are dropped from labels that don't need them; labels identical to the node id (`Cache`) serialize bare; the `\n` in the logs label becomes `<br>`, the canonical multi-line form — the full label text "Log store / retention: 30 days" is preserved.
+
+Trace
+
+- Channel: installed `agentic-mermaid/agent` library (first probe responded; no CLI or hosted MCP needed).
+- Calls: `parseMermaid(source)` → `asFlowchart(...)` → `mutate({ kind: "remove_edge", id: "api->db" })` → `mutate({ kind: "add_node", id: "Cache", label: "Cache" })` → `mutate({ kind: "add_edge", from: "api", to: "Cache" })` → `mutate({ kind: "add_edge", from: "Cache", to: "db" })` → `verifyMermaid(diagram)` → `serializeMermaid(diagram)`, plus a parse→serialize round-trip of the emitted bytes as a fixed-point check.
