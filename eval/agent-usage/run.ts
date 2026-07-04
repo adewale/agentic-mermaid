@@ -485,7 +485,7 @@ function checkAuthFlowSourceTask(value: unknown): boolean {
   const idMatching = (pattern: RegExp) => [...labels.entries()].find(([, label]) => pattern.test(label))?.[0]
   const user = idMatching(/^User$/i)
   const login = idMatching(/^Login Page$/i)
-  const credentials = idMatching(/Valid Credentials\?/i)
+  const credentials = idMatching(/Valid Credentials\?|Credentials Valid\?/i)
   const mfa = idMatching(/MFA Enabled\?/i)
   const enterMfa = idMatching(/^Enter MFA Code$/i)
   const code = idMatching(/Code Valid\?|Valid Code\?/i)

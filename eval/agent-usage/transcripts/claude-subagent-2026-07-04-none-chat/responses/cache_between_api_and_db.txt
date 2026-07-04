@@ -1,0 +1,14 @@
+Done. I performed the edit as a structured mutation rather than a text edit, then verified and serialized:
+
+1. **Parse** — parsed the existing source to a typed flowchart graph; confirmed nodes `API` and `DB` (labels "API", "DB") and the direct edge with id `API->DB`.
+2. **Structured mutation** — applied one ops batch: `remove_edge {id: "API->DB"}`, `add_node {id: "Cache", label: "Cache"}`, `add_edge {from: "API", to: "Cache"}`, `add_edge {from: "Cache", to: "DB"}`.
+3. **Verify** — verifier returned `ok: true` with zero warnings; layout shows the three nodes with labels API, Cache, DB preserved and the two new edges routed API→Cache→DB.
+4. **Serialize** — round-tripped the ValidDiagram JSON through the canonical serializer; output is stable/idempotent.
+
+Both existing node labels are preserved, and the direct API→DB edge is replaced by the two-hop path through Cache.
+
+```mermaid
+flowchart TD
+  API --> Cache
+  Cache --> DB
+```

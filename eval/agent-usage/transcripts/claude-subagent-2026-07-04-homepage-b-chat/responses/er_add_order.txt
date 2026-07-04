@@ -1,0 +1,21 @@
+Updated Mermaid
+
+```mermaid
+erDiagram
+  CUSTOMER {
+    string id
+  }
+  ORDER {
+    string id
+  }
+```
+
+Verification
+
+- `verifyMermaid` on the mutated diagram: `ok: true`, zero warnings.
+- CUSTOMER is untouched; ORDER was added with a single `string id` attribute and no relation, per the task context.
+
+Trace
+
+- Channel: library import `agentic-mermaid/agent` (probe 1 responded; stopped discovery there).
+- Calls: `parseMermaid(source)` → `asEr(...)` → `mutate(er, { kind: "add_entity", id: "ORDER", attributes: ["string id"] })` → `verifyMermaid(mutated)` → `serializeMermaid(mutated)`.

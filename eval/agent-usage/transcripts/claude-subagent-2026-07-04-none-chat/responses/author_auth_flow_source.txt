@@ -1,0 +1,17 @@
+I authored the Auth Flow flowchart, parsed it with `am parse` (clean ValidDiagram, 8 nodes / 10 edges as intended), and verified it with `am verify` (`ok: true`, zero warnings, exit code 0). No mutate was used since there was no existing diagram.
+
+All facts are covered: User opens Login Page; a credentials check loops back to Login Page on invalid and proceeds to the MFA check on valid; MFA users enter a code, with invalid codes looping back to Enter MFA Code and valid codes creating a session; non-MFA users go straight to Create Session; the session leads to Dashboard.
+
+```mermaid
+flowchart TD
+  User((User)) --> Login[Login Page]
+  Login --> Creds{Credentials valid?}
+  Creds -- Invalid --> Login
+  Creds -- Valid --> MFA{MFA enabled?}
+  MFA -- Yes --> Code[Enter MFA Code]
+  Code --> CodeCheck{Code valid?}
+  CodeCheck -- Invalid --> Code
+  CodeCheck -- Valid --> Session[Create Session]
+  MFA -- No --> Session
+  Session --> Dashboard[Dashboard]
+```

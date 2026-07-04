@@ -1,0 +1,27 @@
+Updated Mermaid
+
+```mermaid
+flowchart TD
+  User([User]) --> Login[Login Page]
+  Login --> CredCheck{Credentials valid?}
+  CredCheck -->|invalid| Login
+  CredCheck -->|valid| MfaCheck{MFA enabled?}
+  MfaCheck -->|yes| EnterCode[Enter MFA Code]
+  EnterCode --> CodeCheck{Code valid?}
+  CodeCheck -->|invalid| EnterCode
+  CodeCheck -->|valid| Session[Create Session]
+  MfaCheck -->|no| Session
+  Session --> Dashboard
+```
+
+Verification
+
+- `verifyMermaid` returned `ok: true` with **zero warnings**; layout computed cleanly (8 nodes, 10 edges, no error- or warning-severity findings).
+- Every node and edge maps to a supplied fact: User → Login Page (opens); invalid credentials loop back to Login Page; valid credentials go to the MFA check; MFA users go to Enter MFA Code; invalid code loops back to Enter MFA Code; valid code goes to Create Session; non-MFA users go straight to Create Session; Session → Dashboard. No invented nodes or relationships.
+- Assumptions: the context implies two decisions, so I modeled "credentials valid?" and "MFA enabled?"/"code valid?" as explicit diamond decision nodes with yes/no and valid/invalid edge labels — this stays at the single user-flow abstraction level the facts describe.
+
+Trace
+
+- Channel: this repo's local library, `./src/agent/index.ts` (probe 1 succeeded — `agentic-mermaid/agent` API available locally, so discovery stopped there).
+- Calls run: authored source directly from context → `parseMermaid(source)` (ok) → `asFlowchart(diagram)` (narrowed successfully) → `verifyMermaid(diagram)` (ok, no warnings) → `serializeMermaid(diagram)` (canonical form above).
+- `no mutate` — new diagram, no existing source to preserve.

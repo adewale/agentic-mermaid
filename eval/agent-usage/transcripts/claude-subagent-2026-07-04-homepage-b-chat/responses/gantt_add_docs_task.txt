@@ -1,0 +1,17 @@
+Updated Mermaid
+
+```mermaid
+gantt
+  dateFormat YYYY-MM-DD
+  section Build
+  Core :core, 2024-01-01, 2d
+  Docs :docs, after core, 2d
+```
+
+Verification
+
+`verifyMermaid` returned `ok: true` with no findings. The Docs task was added inside the Build section with task id `docs`, start `after core`, and duration `2d`; the existing Core task is unchanged. Note the serializer emits Agentic Mermaid's canonical two-space indentation for task lines (semantics identical to the input).
+
+Trace
+
+Channel: `agentic-mermaid/agent` library import (resolved to this repo's `src/agent/index.ts`). Calls: `parseMermaid(source)` → `asGantt(...)` → `mutate(g, { kind: "add_task", sectionIndex: 0, label: "Docs", taskId: "docs", start: "after core", end: "2d" })` → `verifyMermaid(...)` → `serializeMermaid(...)`.

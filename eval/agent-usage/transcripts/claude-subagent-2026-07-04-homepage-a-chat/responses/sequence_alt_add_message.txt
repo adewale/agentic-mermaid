@@ -1,0 +1,21 @@
+Updated Mermaid
+
+```mermaid
+sequenceDiagram
+  A->>B: hi
+  alt ok
+    B-->>A: yes
+  end
+  A->>B: bye
+```
+
+Verification
+
+- `verifyMermaid` on the mutated diagram: `ok: true`, zero warnings.
+- The new message landed at top level: the verified layout shows `msg#2: A->B "bye"` as a top-level message after the alt block, and the alt group (`block#0:alt`, label "ok") still contains only `B-->>A: yes`.
+- The alt block is preserved verbatim in the serialized source (`alt ok` / `B-->>A: yes` / `end`, unchanged indentation and arrow styles).
+
+Trace
+
+- Channel: `agentic-mermaid/agent` library (resolved to this repo's `src/agent/index.ts` via the package self-reference), run with Bun.
+- `parseMermaid(source)` → `asSequence(diagram)` → `mutate(seq, { kind: "add_message", from: "A", to: "B", text: "bye", style: "sync" })` (`sync` = `->>`, per `SequenceMutationOp`/`SequenceMessageStyle` in the agent types) → `verifyMermaid(mutated)` → `serializeMermaid(mutated)`.

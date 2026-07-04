@@ -1,0 +1,13 @@
+I performed the edit through the library's structured mutation surface rather than by string-editing the source:
+
+1. **Parse**: `parseMermaid` on the existing source, narrowed with `asState` to a `StateValidDiagram`.
+2. **Mutate**: `mutate(state, { kind: 'add_transition', from: 'Processing', to: '[*]', label: 'done' })` — a typed `StateMutationOp` that appends the completion transition without touching the existing ones.
+3. **Verify**: `verifyMermaid` on the mutated diagram returned `ok = true` with zero warnings.
+4. **Serialize**: `serializeMermaid` produced the final source. The two original transitions are preserved byte-for-byte and the new transition is appended.
+
+```mermaid
+stateDiagram-v2
+  [*] --> Idle
+  Idle --> Processing : start
+  Processing --> [*] : done
+```

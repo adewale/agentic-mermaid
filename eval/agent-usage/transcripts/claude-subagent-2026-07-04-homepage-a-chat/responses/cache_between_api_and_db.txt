@@ -1,0 +1,20 @@
+Updated Mermaid
+
+```mermaid
+flowchart TD
+  API --> Cache
+  Cache --> DB
+```
+
+Verification
+
+- `verifyMermaid` on the mutated document: `ok: true`, zero warnings.
+- Layout confirms the intended topology: nodes `API`, `Cache`, `DB` with exactly two edges, `API->Cache` and `Cache->DB`; the direct `API->DB` edge is gone.
+- Both existing node labels are preserved (`API` and `DB` carried their original implicit labels; only the new `Cache` node and its edges were introduced).
+- Assumption: the source diagram used bare IDs as labels, so preserving labels means keeping `API` and `DB` unchanged; `Cache` was given the plain label "Cache" and the default rectangle shape to match the existing style.
+
+Trace
+
+- Channel: local library import of this repo's `./src/agent/index.ts` (probe order stopped at channel 1; `agentic-mermaid/agent` package import fell through to the repo source).
+- Calls: `parseMermaid(source)` → `asFlowchart(doc)` → `edgeIdOf(edge)` (resolved existing edge id `API->DB`) → four `mutate(...)` ops: `{ kind: "add_node", id: "Cache", label: "Cache" }`, `{ kind: "remove_edge", id: "API->DB" }`, `{ kind: "add_edge", from: "API", to: "Cache" }`, `{ kind: "add_edge", from: "Cache", to: "DB" }` → `verifyMermaid(doc)` → `serializeMermaid(doc)`.
+- All mutations were typed operations; no source-level fallback needed.

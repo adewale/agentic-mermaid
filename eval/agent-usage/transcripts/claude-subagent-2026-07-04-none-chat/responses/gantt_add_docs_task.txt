@@ -1,0 +1,14 @@
+I used the structured mutation workflow against the agent API in `src/agent/core.ts`:
+
+1. **Parse** — `parseMermaid(source)` + `asGantt(...)` produced a typed Gantt body with one section `Build` containing task `core` (start `2024-01-01`, end `2d`).
+2. **Mutate** — applied a single typed op: `mutate(gantt, { kind: 'add_task', sectionIndex: 0, taskId: 'docs', label: 'Docs', start: 'after core', end: '2d' })`. The op passed the round-trip validation and returned `ok`.
+3. **Verify** — `verifyMermaid(...)` returned `ok: true` with zero warnings (no `EDGE_MISANCHORED`, so the `after core` reference resolves). The verified layout confirms correct scheduling: `core` occupies x 62–362 and `docs` starts at x 362, i.e. Docs begins exactly where Core ends, inside the `Build` section group.
+4. **Serialize** — `serializeMermaid(...)` emitted the canonical source below, preserving the `dateFormat` directive verbatim.
+
+```mermaid
+gantt
+  dateFormat YYYY-MM-DD
+  section Build
+  Core :core, 2024-01-01, 2d
+  Docs :docs, after core, 2d
+```

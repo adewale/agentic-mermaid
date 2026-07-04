@@ -1,0 +1,16 @@
+Completed via the structured mutation pipeline (`parseMermaid` → `mutate` → `verifyMermaid` → `serializeMermaid` from `src/agent/index.ts`):
+
+1. **Parsed** the existing source into a structured ER body (`kind: 'er'`, entities: `CUSTOMER`).
+2. **Mutated** with `{ kind: 'add_entity', id: 'ORDER', attributes: ['string id'] }` — returned `ok`, entities now `[CUSTOMER, ORDER]`.
+3. **Verified** — zero warnings (no `LABEL_OVERFLOW`, no `EDGE_MISANCHORED`, no `EMPTY_DIAGRAM`).
+4. **Serialized** — output below also re-parses cleanly (round-trip stable). No relation added, per the task.
+
+```mermaid
+erDiagram
+  CUSTOMER {
+    string id
+  }
+  ORDER {
+    string id
+  }
+```

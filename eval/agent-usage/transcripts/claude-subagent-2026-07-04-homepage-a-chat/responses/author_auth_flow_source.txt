@@ -1,0 +1,26 @@
+Updated Mermaid
+
+```mermaid
+flowchart TD
+  User([User]) --> Login[Login Page]
+  Login --> CredCheck{Credentials valid?}
+  CredCheck -- "invalid" --> Login
+  CredCheck -- "valid" --> MfaCheck{MFA enabled?}
+  MfaCheck -- "yes" --> EnterCode[Enter MFA Code]
+  EnterCode --> CodeCheck{Code valid?}
+  CodeCheck -- "invalid" --> EnterCode
+  CodeCheck -- "valid" --> Session[Create Session]
+  MfaCheck -- "no" --> Session
+  Session --> Dashboard[Dashboard]
+```
+
+Verification
+
+- `verifyMermaid` returned `ok: true` with zero warnings; the layout certificate places all 8 nodes and 10 edges (bounds 344×1332).
+- Every node and edge maps to a supplied fact: User → Login Page; invalid credentials loop back to Login Page; valid credentials proceed to the MFA check; MFA users enter a code; invalid code returns to Enter MFA Code; valid code creates a session; the no-MFA branch goes straight to Create Session; Create Session → Dashboard.
+- Assumptions: the facts imply two validity decisions (credentials, MFA code) and one branch point (MFA enabled or not), so I modeled those as diamond decision nodes with yes/no and valid/invalid edge labels; "check MFA" is read as "is MFA enabled for this user?". The whole diagram stays at one abstraction level (user-facing login flow); no extra nodes were invented.
+
+Trace
+
+- Channel: library import `agentic-mermaid/agent` (channel 1 in the probe order; it resolved on the first probe, so no CLI or hosted-MCP probing was needed).
+- Calls: authored the source directly from the context, then `parseMermaid(source)` (ok), `asFlowchart(result.value)` to narrow, `verifyMermaid(diagram)` (ok, no warnings — no label-cap override needed, longest label is 17 chars), and `serializeMermaid(diagram)` to confirm the source round-trips (it re-emits with the equivalent `-->|label|` edge form). New diagram, so no mutate.

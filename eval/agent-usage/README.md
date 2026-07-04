@@ -83,6 +83,11 @@ Use `--surface homepage`, `--surface instructions`, or `--surface skill` to test
 which agent-facing context is sufficient. The homepage surface uses the exact
 populated homepage prompt from `DEFAULT_CASES`; the instructions and skill
 surfaces inline the corresponding repository docs in the request.
+`--surface none` (chat-only) is the no-docs baseline: the bare task with zero
+product guidance, graded on the task oracle alone. Every surface comparison
+should anchor on it — a surface earns its tokens only by beating it. Caveat
+when dispatching subagents inside this checkout: they can self-discover the
+repo's tooling, so treat the baseline's taskOk as an upper bound.
 
 The real API-backed question — "does a frontier model, given only
 Instructions_for_agents.md + a task, choose the right safe path?" — is handled

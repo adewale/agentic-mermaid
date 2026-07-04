@@ -1,0 +1,17 @@
+Updated Mermaid
+
+```mermaid
+gantt
+  dateFormat YYYY-MM-DD
+  section Build
+  Core :core, 2024-01-01, 2d
+  Docs :docs, after core, 2d
+```
+
+Verification
+
+`verifyMermaid` on the mutated diagram: `ok = true`, zero warnings. The new task resolves its schedule (`after core` → starts 2024-01-03, duration 2d) with no `UNRESOLVABLE_SCHEDULE` or other structural findings. Assumption: Docs belongs in the existing Build section (the only section in the chart), appended after Core.
+
+Trace
+
+Channel: local library import from this repo's `./src/agent/index.ts` (first probe succeeded; no further discovery). Calls: `parseMermaid(source)` → `asGantt(diagram)` → `mutate(gantt, { kind: "add_task", sectionIndex: 0, label: "Docs", taskId: "docs", start: "after core", end: "2d" })` → `verifyMermaid(mutated)` → `serializeMermaid(mutated)`.

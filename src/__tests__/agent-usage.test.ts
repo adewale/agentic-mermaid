@@ -168,7 +168,7 @@ describe('homepage prompt eval contract', () => {
     expect(prompt).toContain('For a new diagram, author Mermaid source directly')
     expect(prompt).toContain('Mutation ops use a `kind` discriminator')
     expect(prompt).toContain('return an object with `{ source }`')
-    expect(prompt).toContain('In Trace, name the channel and exact calls/ops used')
+    expect(prompt).toContain('In Trace, name the channel and the calls/ops you actually ran')
     expect(prompt).toContain('For an existing diagram, parse it')
     for (const c of DEFAULT_CASES) {
       expect({ id: c.id, hasPrompt: c.prompt.includes('Create or edit a Mermaid diagram') }).toEqual({ id: c.id, hasPrompt: true })

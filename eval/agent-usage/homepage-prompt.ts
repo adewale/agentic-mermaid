@@ -85,7 +85,7 @@ export function homepagePromptChecklist(prompt = extractHomepageAgentPrompt()): 
     'Verification',
     'Trace',
     'final Mermaid source in a ```mermaid fence',
-    'In Trace, name the channel and exact calls/ops used',
+    'In Trace, name the channel and the calls/ops you actually ran',
     'mutate({ kind: ... })',
     'for new diagrams say `no mutate`',
     'Do not modify project files',
