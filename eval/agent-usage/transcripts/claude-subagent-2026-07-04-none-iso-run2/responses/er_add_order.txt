@@ -1,0 +1,25 @@
+Task complete. I treated the edit as a structured mutation against the diagram's entity model rather than freehand text editing:
+
+**Mutation applied:**
+- `addEntity` — name: `ORDER`
+- `addAttribute` — entity: `ORDER`, type: `string`, name: `id`
+- No relationship added, per the task scope.
+
+**Verification:**
+- Entities present: `CUSTOMER`, `ORDER` (2 total, no duplicates).
+- `CUSTOMER` unchanged: one attribute, `string id`.
+- `ORDER` has exactly one attribute, `string id`.
+- Relationship count: 0, as required.
+- Syntax check: valid `erDiagram` — entity blocks with `type name` attribute lines; `ORDER` is an acceptable entity name in Mermaid ER diagrams.
+
+**Serialized result:**
+
+```mermaid
+erDiagram
+  CUSTOMER {
+    string id
+  }
+  ORDER {
+    string id
+  }
+```

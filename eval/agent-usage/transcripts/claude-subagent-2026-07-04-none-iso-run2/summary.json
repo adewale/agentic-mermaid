@@ -1,0 +1,20 @@
+{
+  "ok": true,
+  "capturedAt": "2026-07-04T16:17:19.323Z",
+  "provider": "claude-subagent",
+  "model": "general-purpose",
+  "surface": "none",
+  "mode": "chat",
+  "total": 6,
+  "passed": 6,
+  "safePathRate": 0,
+  "structuredPathRate": 0,
+  "transcripts": [
+    "eval/agent-usage/transcripts/claude-subagent-2026-07-04-none-iso-run2/cache_between_api_and_db.json",
+    "eval/agent-usage/transcripts/claude-subagent-2026-07-04-none-iso-run2/state_add_done_transition.json",
+    "eval/agent-usage/transcripts/claude-subagent-2026-07-04-none-iso-run2/sequence_alt_add_message.json",
+    "eval/agent-usage/transcripts/claude-subagent-2026-07-04-none-iso-run2/er_add_order.json",
+    "eval/agent-usage/transcripts/claude-subagent-2026-07-04-none-iso-run2/gantt_add_docs_task.json",
+    "eval/agent-usage/transcripts/claude-subagent-2026-07-04-none-iso-run2/author_auth_flow_source.json"
+  ]
+}

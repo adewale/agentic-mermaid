@@ -1,0 +1,48 @@
+{
+  "schemaVersion": 1,
+  "capturedAt": "2026-07-04T16:17:19.799Z",
+  "provider": "claude-subagent",
+  "model": "general-purpose",
+  "surface": "homepage",
+  "mode": "chat",
+  "cases": [
+    "cache_between_api_and_db",
+    "state_add_done_transition",
+    "sequence_alt_add_message",
+    "er_add_order",
+    "gantt_add_docs_task",
+    "author_auth_flow_source"
+  ],
+  "requests": [
+    {
+      "caseId": "cache_between_api_and_db",
+      "requestPath": "eval/agent-usage/transcripts/claude-subagent-2026-07-04-homepage-b-run3/requests/cache_between_api_and_db.md",
+      "responsePath": "eval/agent-usage/transcripts/claude-subagent-2026-07-04-homepage-b-run3/responses/cache_between_api_and_db.txt"
+    },
+    {
+      "caseId": "state_add_done_transition",
+      "requestPath": "eval/agent-usage/transcripts/claude-subagent-2026-07-04-homepage-b-run3/requests/state_add_done_transition.md",
+      "responsePath": "eval/agent-usage/transcripts/claude-subagent-2026-07-04-homepage-b-run3/responses/state_add_done_transition.txt"
+    },
+    {
+      "caseId": "sequence_alt_add_message",
+      "requestPath": "eval/agent-usage/transcripts/claude-subagent-2026-07-04-homepage-b-run3/requests/sequence_alt_add_message.md",
+      "responsePath": "eval/agent-usage/transcripts/claude-subagent-2026-07-04-homepage-b-run3/responses/sequence_alt_add_message.txt"
+    },
+    {
+      "caseId": "er_add_order",
+      "requestPath": "eval/agent-usage/transcripts/claude-subagent-2026-07-04-homepage-b-run3/requests/er_add_order.md",
+      "responsePath": "eval/agent-usage/transcripts/claude-subagent-2026-07-04-homepage-b-run3/responses/er_add_order.txt"
+    },
+    {
+      "caseId": "gantt_add_docs_task",
+      "requestPath": "eval/agent-usage/transcripts/claude-subagent-2026-07-04-homepage-b-run3/requests/gantt_add_docs_task.md",
+      "responsePath": "eval/agent-usage/transcripts/claude-subagent-2026-07-04-homepage-b-run3/responses/gantt_add_docs_task.txt"
+    },
+    {
+      "caseId": "author_auth_flow_source",
+      "requestPath": "eval/agent-usage/transcripts/claude-subagent-2026-07-04-homepage-b-run3/requests/author_auth_flow_source.md",
+      "responsePath": "eval/agent-usage/transcripts/claude-subagent-2026-07-04-homepage-b-run3/responses/author_auth_flow_source.txt"
+    }
+  ]
+}

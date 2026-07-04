@@ -1,0 +1,16 @@
+Structured mutation applied: appended a task node to the `Build` section with id `docs`, title `Docs`, start expressed as the dependency `after core`, and duration `2d`.
+
+Verification (against the task model before serializing):
+- Section `Build` now contains two tasks in order: `core`, `docs`.
+- `docs.start` resolves via the `after core` dependency to `core.end`; `core` runs 2024-01-01 for 2d, so `docs` spans 2024-01-03 to 2024-01-05.
+- Task ids are unique (`core`, `docs`); no dependency cycles; `dateFormat YYYY-MM-DD` unchanged.
+
+Serialized result:
+
+```mermaid
+gantt
+  dateFormat YYYY-MM-DD
+  section Build
+    Core :core, 2024-01-01, 2d
+    Docs :docs, after core, 2d
+```

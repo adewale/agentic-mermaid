@@ -1,0 +1,26 @@
+```mermaid
+flowchart TD
+    User([User]) --> Login[Login Page]
+    Login --> Creds{Credentials valid?}
+    Creds -- No --> Login
+    Creds -- Yes --> MFA{MFA enabled?}
+    MFA -- Yes --> Code[Enter MFA Code]
+    Code --> CodeCheck{Code valid?}
+    CodeCheck -- No --> Code
+    CodeCheck -- Yes --> Session[Create Session]
+    MFA -- No --> Session
+    Session --> Dashboard([Dashboard])
+```
+
+Verification against the stated facts (parsed and checked node-by-node, since no diagram tooling is available in this environment):
+
+1. User opens Login Page — `User --> Login` ✓
+2. Invalid credentials return to Login Page — `Creds -- No --> Login` ✓
+3. Valid credentials check MFA — `Creds -- Yes --> MFA` ✓
+4. MFA users enter a code — `MFA -- Yes --> Code` ✓
+5. Invalid code returns to Enter MFA Code — `CodeCheck -- No --> Code` ✓
+6. Valid code creates a session — `CodeCheck -- Yes --> Session` ✓
+7. Users without MFA create a session — `MFA -- No --> Session` ✓
+8. Session leads to Dashboard — `Session --> Dashboard` ✓
+
+Syntax check: valid `flowchart TD` header; all node IDs are alphanumeric; decision nodes use `{...}`, process nodes `[...]`, terminals `([...])`; edge labels use the `-- text -->` form; all 8 facts map to exactly one edge each with no extras. The diagram was authored fresh (no mutate), as required.

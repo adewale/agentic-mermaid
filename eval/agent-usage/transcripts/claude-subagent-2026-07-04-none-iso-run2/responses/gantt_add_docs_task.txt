@@ -1,0 +1,26 @@
+Task complete. I treated the edit as a structured mutation on the parsed diagram model rather than a text splice, then verified and serialized.
+
+**Structured mutation applied:**
+- Target: section `Build` (the only section)
+- Operation: append task node
+  - label: `Docs`
+  - id: `docs`
+  - start: dependency reference `after core` (instead of an absolute date, so Docs always begins when Core ends)
+  - duration: `2d`
+
+**Verification (model-level checks):**
+- `docs` id is unique — no collision with existing `core`.
+- Dependency `after core` resolves: `core` exists in the same diagram, so the reference is valid and acyclic.
+- Duration `2d` is well-formed under Mermaid gantt duration grammar.
+- Computed schedule: Core runs 2024-01-01 for 2d (ends 2024-01-03 exclusive), so Docs resolves to start 2024-01-03 and end 2024-01-05 — "after core" as required.
+- `dateFormat YYYY-MM-DD` and section structure unchanged; edit is additive only.
+
+**Serialized result:**
+
+```mermaid
+gantt
+  dateFormat YYYY-MM-DD
+  section Build
+    Core :core, 2024-01-01, 2d
+    Docs :docs, after core, 2d
+```

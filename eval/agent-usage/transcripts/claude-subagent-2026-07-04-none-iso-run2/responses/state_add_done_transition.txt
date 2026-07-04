@@ -1,0 +1,12 @@
+Applying the structured mutation to the state diagram model:
+
+- **Mutation**: `addTransition({ from: "Processing", to: "[*]", label: "done" })` — a single additive edge to the final state.
+- **Verify**: model now contains exactly three transitions — `[*] --> Idle` and `Idle --> Processing : start` are unchanged; the new `Processing --> [*] : done` gives Processing a completion path to the final state. No states were renamed, removed, or reordered.
+- **Serialize**: emitting the model back to Mermaid source.
+
+```mermaid
+stateDiagram-v2
+  [*] --> Idle
+  Idle --> Processing : start
+  Processing --> [*] : done
+```

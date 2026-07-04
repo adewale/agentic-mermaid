@@ -1,0 +1,17 @@
+Working from the task text: the diagram's top-level statement list is `[message(A->>B: hi), alt-block(ok)]`. The structured mutation appends a new top-level statement `message(A->>B: bye)` to the end of that list — as a sibling of the alt block, not a child of it.
+
+Verification of the mutated structure:
+- Participants A and B already exist; no new participant declarations needed.
+- Top level now has two messages plus the alt block; the alt block's contents (`alt ok` / `B-->>A: yes` / `end`) are untouched and serialize verbatim, including its original two-space and four-space indentation.
+- The new message sits at top-level indentation (two spaces), outside the `alt ... end` span, so it cannot be parsed as part of the alt branch.
+
+Serialized result:
+
+```mermaid
+sequenceDiagram
+  A->>B: hi
+  alt ok
+    B-->>A: yes
+  end
+  A->>B: bye
+```

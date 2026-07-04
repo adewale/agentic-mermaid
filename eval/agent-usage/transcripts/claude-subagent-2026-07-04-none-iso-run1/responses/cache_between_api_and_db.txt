@@ -1,0 +1,20 @@
+Task complete. Applying the requested structured mutation to the existing flowchart:
+
+**Mutation steps:**
+1. Parse: graph = `flowchart TD` with nodes {API, DB}, edges {API → DB}.
+2. `addNode(Cache)` — insert new node `Cache`.
+3. `removeEdge(API → DB)` — delete the direct connection.
+4. `addEdge(API → Cache)`, `addEdge(Cache → DB)` — route through the cache.
+
+**Verification:**
+- Nodes: {API, Cache, DB} — both original node labels preserved, one node added.
+- Edges: {API → Cache, Cache → DB} — direct API → DB edge no longer present.
+- Graph is connected and acyclic; path API → Cache → DB exists as required.
+
+**Serialized result:**
+
+```mermaid
+flowchart TD
+  API --> Cache
+  Cache --> DB
+```
