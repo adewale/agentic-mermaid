@@ -1,0 +1,21 @@
+Updated Mermaid
+
+```mermaid
+flowchart TD
+  api[API] --> logs[Log store<br>retention: 30 days]
+  api --> Cache
+  Cache --> db[DB]
+```
+
+Verification
+
+- `verifyMermaid` on the mutated diagram: `ok: true`, zero warnings.
+- Canonical fixed point confirmed: re-parsing and re-serializing the output (`am format`) reproduces it byte-for-byte (`cmp` reports identical), including the trailing newline after the last line.
+- Canonicalization notes (expected, not data loss): the serializer drops quotes on labels without punctuation needing them (`api[API]`, `db[DB]`), collapses the `Cache` node to a bare id since its label equals its id, normalizes the irregular spacing, and rewrites the `\n` inside the logs label to its canonical `<br>` form — the full logs label text "Log store / retention: 30 days" is preserved.
+- Structure: direct `api → db` edge removed; `api → Cache → db` in place; `api → logs` untouched.
+
+Trace
+
+- Channel: repository library, `./src/agent/index.ts` (run with `bun`); channel probe stopped at the first working option.
+- Calls: `parseMermaid(source)` → `asFlowchart` → `mutate({ kind: 'remove_edge', id: 'api->db' })` → `mutate({ kind: 'add_node', id: 'Cache', label: 'Cache' })` → `mutate({ kind: 'add_edge', from: 'api', to: 'Cache' })` → `mutate({ kind: 'add_edge', from: 'Cache', to: 'db' })` → `verifyMermaid` → `serializeMermaid`.
+- Secondary check: `bun run bin/am.ts format` round-trip + `cmp` for byte-identity.

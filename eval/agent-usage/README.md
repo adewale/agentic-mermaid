@@ -132,10 +132,19 @@ Prompt changes are gated three ways, cheapest-first:
 
 Knowledge-proof cases close the taskOk blind spot: `KNOWLEDGE_CASES` in
 `run.ts` (opt-in via `--cases canonical_add_cache_messy,stray_end_source_fallback`)
-hinge on facts only the docs/tooling carry. First measured separation
-(claude-subagent-2026-07-04-k-* transcripts, three paired runs): the isolated
-no-docs baseline scores 3/6 (canonical serialization fails every time) while
-the homepage-prompt arm scores 6/6 with safePathRate 1.0.
+hinge on facts only the docs/tooling carry. Four-surface matrix
+(claude-subagent-2026-07-04-k-* transcripts, 3 runs per arm, same harness):
+
+| Surface | taskOk | safePathRate | mean tokens/case |
+|---|---|---|---|
+| none (isolated) | 3/6 | 0 | ~20.7k |
+| homepage | 6/6 | 1.0 | ~28.8k |
+| instructions | 6/6 | 1.0 | ~33.8k |
+| skill | 6/6 | 1.0 | ~35.9k |
+
+The no-docs baseline fails canonical serialization every time; every
+doc-bearing surface fixes it. At equal outcome the compact homepage prompt was
+the cheapest surface. Single-model harness, n=3: direction, not magnitudes.
 
 Known blind spots of the stored case set: it measures task success and
 response shape on fully specified tasks. It does not yet measure discovery

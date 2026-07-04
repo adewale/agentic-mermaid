@@ -1,0 +1,31 @@
+Done — the edit went through the structured mutate path and verify was clean.
+
+## Updated Mermaid
+
+```mermaid
+flowchart TD
+  api[API] --> logs[Log store<br>retention: 30 days]
+  api --> Cache
+  Cache --> db[DB]
+```
+
+These are the exact bytes `serializeMermaid` emits (the file ends with a trailing newline after the last line). Canonicalization notes: the irregular spacing collapsed to two-space indent, the quoted labels serialized to their canonical unquoted bracket form, and the `\n` inside the logs label canonicalized to `<br>` — the full "Log store / retention: 30 days" text is preserved.
+
+## Verification
+
+- `verify.ok: true`, `warnings: []` — no Tier 1/2/3 findings.
+- Structure after edit: `api → Cache → db` (direct `api → db` edge removed), `api → logs` untouched, logs label text intact.
+
+## Trace
+
+Channel: local library (this repo's `src/agent/index.ts`, run via `bun`).
+
+Calls, in order:
+1. `parseMermaid(source)` → ok
+2. `asFlowchart(d0.value)` → flowchart narrowed
+3. `mutate({ kind: 'add_node', id: 'Cache', label: 'Cache' })`
+4. `mutate({ kind: 'remove_edge', id: 'api->db' })`
+5. `mutate({ kind: 'add_edge', from: 'api', to: 'Cache' })`
+6. `mutate({ kind: 'add_edge', from: 'Cache', to: 'db' })`
+7. `verifyMermaid(d)` → `ok: true`, no warnings
+8. `serializeMermaid(d)` → the source above

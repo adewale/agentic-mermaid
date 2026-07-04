@@ -1,0 +1,27 @@
+Updated Mermaid
+
+```mermaid
+flowchart TD
+  api[API] --> logs[Log store<br>retention: 30 days]
+  api --> Cache
+  Cache --> db[DB]
+```
+
+Verification
+
+- `verifyMermaid` after all four mutations: `ok: true`, zero warnings (no Tier 1/2/3 findings).
+- Canonical fixed point confirmed: re-parsing the emitted source and re-serializing reproduces it byte-identical (the exact bytes end with a trailing `\n`).
+- The `logs` node and its full label are preserved; the `\n` in `"Log store\nretention: 30 days"` canonicalizes to `<br>` as documented, and the canonical serializer drops now-unneeded quotes and the irregular spacing (`api["API"]` → `api[API]`, etc.) — that is the exact `serializeMermaid` output, not a hand edit.
+- The direct `api → db` edge is removed; flow is now `api → Cache → db`, with `api → logs` untouched.
+
+Trace
+
+Channel: local library (`parseMermaid`/`asFlowchart`/`mutate`/`verifyMermaid`/`serializeMermaid` from this repo's `./src/agent/index.ts`, run via `bun`). Calls, in order:
+1. `parseMermaid(source)` → ok
+2. `asFlowchart(d)` → narrowed
+3. `mutate({ kind: 'add_node', id: 'Cache', label: 'Cache' })`
+4. `mutate({ kind: 'remove_edge', id: 'api->db' })`
+5. `mutate({ kind: 'add_edge', from: 'api', to: 'Cache' })`
+6. `mutate({ kind: 'add_edge', from: 'Cache', to: 'db' })`
+7. `verifyMermaid(d)` → `ok: true`, `warnings: []`
+8. `serializeMermaid(d)` → the source above (plus a re-parse/re-serialize fixed-point check)

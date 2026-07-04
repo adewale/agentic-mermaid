@@ -1,0 +1,28 @@
+The only difference is a trailing newline — every line is preserved verbatim. Here is the result.
+
+## Updated Mermaid
+
+```mermaid
+sequenceDiagram
+  A->>B: hi
+  end
+  B-->>A: yo
+  B-->>A: ok
+```
+
+## Verification
+
+- `parseMermaid` on the edited source: ok, kind `sequence`.
+- `verifyMermaid`: `ok: true`, zero warnings.
+- Round-trip check: `serializeMermaid(parseMermaid(edited))` reproduces the edited source byte-for-byte except for a trailing newline — every existing line, including the stray `end`, is preserved exactly as written.
+- **Source-level fallback**: this diagram's unbalanced `end` makes it an un-segmentable sequence body, so `asSequence` returned `null` (opaque fallback — no structured mutation is offered on this input). Per the fallback rule I made the smallest possible source edit: appended one line, `  B-->>A: ok`, after the last existing line. Nothing else was touched.
+
+## Trace
+
+- Channel: **library** — `agentic-mermaid/agent` (resolved via this repo's `src/agent/index.ts` entrypoint; the bare import probe responded first, so no CLI or hosted-MCP probing was needed).
+- Calls run:
+  1. `parseMermaid(source)` → ok (`kind: 'sequence'`).
+  2. `asSequence(parsed.value)` → `null` → structured mutation unavailable on this input.
+  3. Source-level fallback: appended `  B-->>A: ok` as the final line (no `mutate` op ran).
+  4. `parseMermaid(edited)` → ok; `verifyMermaid` → `ok: true`, `warnings: []`.
+  5. `serializeMermaid` round-trip confirmed verbatim preservation of all original lines.
