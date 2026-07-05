@@ -45,8 +45,17 @@ dependents after. IDs are stable names, not an ordering.
   XSD), submit it manually in Google Search Console → Sitemaps and Bing
   Webmaster Tools → Sitemaps. Both require a signed-in, ownership-verified
   account, and the anonymous ping endpoints are retired, so this cannot be
-  automated in the repo. Optionally add a `Sitemap:` directive to `robots.txt`
-  for auto-discovery (note the live `robots.txt` is Cloudflare-managed).
+  automated in the repo.
+- [ ] **DEC-5 — Add the `Sitemap:` line in the Cloudflare dashboard**
+  (`owner-decision`). Production serves Cloudflare's *managed* content-signals
+  `robots.txt` (verified live: the "content signals" template, no `Sitemap:`
+  line), which the edge is likely to serve in preference to any repo
+  `website/public/robots.txt`. So the reliable way to make the sitemap
+  auto-discoverable is to add `Sitemap: https://agentic-mermaid.dev/sitemap.xml`
+  via the Cloudflare dashboard's managed robots.txt (Manage robots.txt), which
+  also keeps the content-signals reservation intact. If this is done, the repo
+  `public/robots.txt` becomes redundant and should be removed to avoid two
+  competing files.
 
 ## 1. Ready build backlog
 
