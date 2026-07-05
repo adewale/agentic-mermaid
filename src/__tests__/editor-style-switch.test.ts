@@ -102,7 +102,7 @@ async function topbarSlots(page: Page) {
       const r = el.getBoundingClientRect()
       return { x: Math.round(r.x), y: Math.round(r.y) }
     }
-    return { theme: at('theme-dropdown-btn'), style: at('style-dropdown-btn'), share: at('share-btn') }
+    return { theme: at('theme-dropdown-btn'), style: at('style-dropdown-btn'), examples: at('examples-sidebar-btn') }
   })
 }
 

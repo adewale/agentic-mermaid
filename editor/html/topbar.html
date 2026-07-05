@@ -40,8 +40,6 @@
 
   <div class="spacer"></div>
 
-  <button class="btn" id="shortcuts-btn" type="button" title="Keyboard shortcuts (?)" aria-label="Keyboard shortcuts" aria-haspopup="dialog" aria-expanded="false" aria-controls="shortcuts-dialog">?</button>
-
   <button class="btn" id="dark-light-btn" type="button" title="Toggle dark/light mode">
     <svg
       id="icon-moon"
@@ -126,21 +124,6 @@
   </button>
 
   <div class="topbar-sep"></div>
-
-  <button class="btn" id="share-btn" type="button" title="Copy a shareable link to this diagram">
-    <svg
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      stroke-width="2"
-      stroke-linecap="round"
-      stroke-linejoin="round"
-    >
-      <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
-      <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
-    </svg>
-    <span>Share</span>
-  </button>
 
   <!-- Second entry point for the agent handoff (wide viewports only; CSS hides
        it below 1100px). Shares copyAgentTask with #copy-agent-prompt-btn. -->
@@ -329,9 +312,12 @@
     </div>
   </div>
 
-  <!-- Keyboard shortcuts cheat sheet. Opened by the "?" button or the "?" key
-       (outside the source editor); follows the shared popup contract. -->
-  <div class="shortcuts-dialog" id="shortcuts-dialog" role="dialog" aria-modal="false" aria-labelledby="shortcuts-dialog-title" aria-hidden="true" inert>
+  <!-- Keyboard shortcuts cheat sheet. Opened by the "?" key (outside the source
+       editor); a full-screen scrim overlays the editor with a centered panel,
+       Gmail-style. Follows the shared popup contract (inert/aria-hidden closed,
+       Escape closes). -->
+  <div class="shortcuts-dialog" id="shortcuts-dialog" role="dialog" aria-modal="true" aria-labelledby="shortcuts-dialog-title" aria-hidden="true" inert>
+    <div class="shortcuts-dialog-panel">
     <div class="shortcuts-dialog-header">
       <span class="shortcuts-dialog-title" id="shortcuts-dialog-title">Keyboard shortcuts</span>
       <button class="shortcuts-dialog-close" id="shortcuts-dialog-close" type="button" aria-label="Close keyboard shortcuts">×</button>
@@ -373,5 +359,6 @@
       <span class="shortcut-desc">Open this cheat sheet</span>
     </div>
     <p class="shortcuts-dialog-note">On Windows and Linux, use Ctrl in place of ⌘.</p>
+    </div>
   </div>
 </header>

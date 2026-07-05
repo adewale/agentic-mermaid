@@ -343,12 +343,6 @@
   padding: 0;
   position: relative;
 }
-#shortcuts-btn {
-  width: 40px;
-  min-width: 40px;
-  padding: 0;
-  font-size: var(--t-sm);
-}
 #dark-light-btn svg {
   position: absolute;
   top: 50%;
@@ -389,15 +383,6 @@
   #agent-prompt-topbar-btn {
     display: inline-flex;
   }
-}
-
-/* Reserve the Share label's "Copied" width so copy feedback can't grow the
-   button and nudge the theme/style dropdowns. em-based on purpose: the
-   ≤760px rule below zeroes the button font-size for the icon-only square, and
-   an em reservation collapses to 0 with it, so the mobile layout is untouched. */
-#share-btn span {
-  min-width: 3.6em;
-  text-align: center;
 }
 
 @media (max-width: 760px) {
@@ -448,21 +433,6 @@
     order: 1;
     width: var(--control-h);
     min-width: var(--control-h);
-  }
-  /* Touch devices have no keyboard shortcuts to look up. */
-  #shortcuts-btn {
-    display: none;
-  }
-  #share-btn {
-    order: 1;
-    width: var(--control-h);
-    min-width: var(--control-h);
-    padding: 0;
-    font-size: 0;
-    gap: 0;
-  }
-  #share-btn svg {
-    margin: 0;
   }
   .theme-dropdown-wrap {
     display: block;

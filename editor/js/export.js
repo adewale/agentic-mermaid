@@ -153,13 +153,11 @@ function copyURL(sourceBtn) {
 }
 
 var copyLinkBtn = document.getElementById('copy-link-btn');
-var shareBtn = document.getElementById('share-btn');
 
 document.getElementById('export-png-btn').addEventListener('click', exportPNG);
 document.getElementById('export-svg-btn').addEventListener('click', exportSVG);
 if (copyPngBtn) copyPngBtn.addEventListener('click', copyPNG);
 copyLinkBtn.addEventListener('click', function() { copyURL(copyLinkBtn); });
-if (shareBtn) shareBtn.addEventListener('click', function() { copyURL(shareBtn); });
 updateExportAvailability();
 
 document.addEventListener('keydown', function(e) {
