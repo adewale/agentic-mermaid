@@ -103,8 +103,8 @@ Flowchart essentials: quote any label carrying punctuation (`id["HTTPS /api/sess
 
 ## Step 3 — Do the task (the one safe loop)
 
-- **For a new diagram, author Mermaid source directly** from the Context — or build it with `buildMermaid(kind, ops)` — then parse it. No mutation ceremony.
-- **For an existing diagram, parse it,** narrow with the matching `as*` helper (`asFlowchart`, `asSequence`, `asGantt`, …), and prefer the smallest `mutate(...)` operation over rewriting source. State diagrams narrow via `asState` (not `asFlowchart`). Mutation ops use a `kind` discriminator (for example `{ kind: "add_edge", from, to, label }`).
+- **For a new diagram, author Mermaid source directly** from the Context — or build it with `buildMermaid(kind, ops)` — then parse it. No mutation ceremony. Match the family to the request and open with that family's own header keyword (e.g. `architecture-beta`, `classDiagram`, `stateDiagram-v2`) — do not default to `flowchart`/`graph`; check `agent-instructions.md` for the family's exact edge syntax (class inheritance is `Base &lt;|-- Derived`).
+- **For an existing diagram, parse it,** narrow with the matching `as*` helper (`asFlowchart`, `asSequence`, `asGantt`, …), and prefer the smallest `mutate(...)` operation over rewriting source. Inside `execute`, call `mutate(...)` on the parsed diagram — do not hand-assemble a new source string, even for a trivial-looking edit. State diagrams narrow via `asState` (not `asFlowchart`). Mutation ops use a `kind` discriminator (for example `{ kind: "add_edge", from, to, label }`).
 - If no typed operation fits, make the smallest source-level edit and say `source-level fallback`.
 
 ## Step 4 — Verify before you return

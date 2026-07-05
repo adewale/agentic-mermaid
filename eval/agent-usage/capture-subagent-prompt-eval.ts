@@ -293,9 +293,25 @@ function chatTraceOk(id: string, text: string): boolean {
   // than hand-writing Mermaid from memory.
   if (!/verifyMermaid/i.test(text) && !bundledVerify) return false
   if (requiresStructuredMutation(id)) {
-    // Existing structured diagram: the safe loop parses the input then mutates.
-    if (!/parseMermaid/i.test(text)) return false
-    return /(mutate\s*\(|\bmutate\b|source-level fallback)/i.test(text)
+    // Existing structured diagram: confirm the response drove the typed Agentic
+    // Mermaid surface — parse/narrow, mutate, or a declared source-level fallback —
+    // rather than hand-writing Mermaid from memory. Any one of these tokens is
+    // sufficient: the `parseMermaid` call, a family narrower (`asTimeline()`,
+    // `asFlowchart`, …), a `mutate(...)` call or a `mutate`/`mutated`/`mutating`/
+    // `mutation` mention, a typed op literal (`{ kind: "add_event", … }` — only
+    // obtainable by calling mutate/buildMermaid with a real op), or an explicit
+    // `source-level fallback`. A hand-written source ("wrote it directly from the
+    // description") carries none of these, so it still fails; a correct structured
+    // edit narrated in prose ("Narrowed with asTimeline(), Mutated with
+    // { kind: 'add_event' }") now passes rather than being rejected for writing
+    // "Parsed"/"Mutated" instead of the exact camelCase identifiers. taskOk remains
+    // the independent diagram-correctness signal.
+    return /parseMermaid/i.test(text)
+      || /\bas(?:Flowchart|Sequence|State|Class|Er|Journey|Timeline|Gantt|Pie|Quadrant|XyChart|Architecture)\b/.test(text)
+      || /mutate\s*\(/i.test(text)
+      || /\bmutat(?:e|ed|es|ing|ion)\b/i.test(text)
+      || /\bkind\b\s*[:=]\s*["'][a-z]+_[a-z]/i.test(text)
+      || /source-level fallback/i.test(text)
   }
   // New diagram: any trusted construction is a safe path — author source then
   // `parseMermaid`, the endorsed typed builders `buildMermaid`/`createMermaid`
