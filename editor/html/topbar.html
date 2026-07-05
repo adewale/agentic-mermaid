@@ -40,8 +40,6 @@
 
   <div class="spacer"></div>
 
-  <button class="btn" id="shortcuts-btn" type="button" title="Keyboard shortcuts (?)" aria-label="Keyboard shortcuts" aria-haspopup="dialog" aria-expanded="false" aria-controls="shortcuts-dialog">?</button>
-
   <button class="btn" id="dark-light-btn" type="button" title="Toggle dark/light mode">
     <svg
       id="icon-moon"
@@ -75,46 +73,45 @@
     </svg>
   </button>
 
-  <div class="theme-dropdown-wrap" id="theme-dropdown-wrap">
-    <button class="theme-dropdown-btn" id="theme-dropdown-btn" type="button" aria-haspopup="listbox" aria-expanded="false" aria-controls="theme-dropdown-menu">
-      <span class="theme-swatch" id="theme-btn-swatch"></span>
-      <span class="sr-only">Diagram theme: </span><span id="theme-btn-label">Default</span>
-      <svg
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        stroke-width="2"
-        stroke-linecap="round"
-        stroke-linejoin="round"
-      >
-        <polyline points="6 9 12 15 18 9" />
-      </svg>
-    </button>
-    <div class="theme-dropdown-menu" id="theme-dropdown-menu" role="listbox" aria-label="Theme" aria-hidden="true" inert>
-      {{THEME_ITEMS}}
+  <!-- Diagram look: Style (texture) and Theme (palette) fused into one split
+       pill. Each half is its own labelled dropdown trigger; the wrap ids and
+       button ids are unchanged so the popup controllers keep working. -->
+  <div class="axis-pill" role="group" aria-label="Diagram look">
+    <div class="theme-dropdown-wrap axis-half" id="style-dropdown-wrap">
+      <button class="axis-btn" id="style-dropdown-btn" type="button" aria-haspopup="listbox" aria-expanded="false" aria-controls="style-dropdown-menu">
+        <span class="axis-text">
+          <span class="axis-label" aria-hidden="true">Style</span>
+          <span class="sr-only">Diagram style: </span><span class="axis-value" id="style-btn-label">Crisp</span>
+        </span>
+        <svg class="axis-caret" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="6 9 12 15 18 9" />
+        </svg>
+      </button>
+      <div class="theme-dropdown-menu" id="style-dropdown-menu" role="listbox" aria-label="Style" aria-hidden="true" inert>
+        {{STYLE_ITEMS}}
+      </div>
+    </div>
+
+    <span class="axis-divider" aria-hidden="true"></span>
+
+    <div class="theme-dropdown-wrap axis-half" id="theme-dropdown-wrap">
+      <button class="axis-btn" id="theme-dropdown-btn" type="button" aria-haspopup="listbox" aria-expanded="false" aria-controls="theme-dropdown-menu">
+        <span class="theme-swatch" id="theme-btn-swatch"></span>
+        <span class="axis-text">
+          <span class="axis-label" aria-hidden="true">Palette</span>
+          <span class="sr-only">Diagram palette: </span><span class="axis-value" id="theme-btn-label">Default</span>
+        </span>
+        <svg class="axis-caret" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="6 9 12 15 18 9" />
+        </svg>
+      </button>
+      <div class="theme-dropdown-menu" id="theme-dropdown-menu" role="listbox" aria-label="Palette" aria-hidden="true" inert>
+        {{THEME_ITEMS}}
+      </div>
     </div>
   </div>
 
-  <div class="theme-dropdown-wrap" id="style-dropdown-wrap">
-    <button class="theme-dropdown-btn" id="style-dropdown-btn" type="button" aria-haspopup="listbox" aria-expanded="false" aria-controls="style-dropdown-menu">
-      <span class="sr-only">Diagram style: </span><span id="style-btn-label">Crisp</span>
-      <svg
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        stroke-width="2"
-        stroke-linecap="round"
-        stroke-linejoin="round"
-      >
-        <polyline points="6 9 12 15 18 9" />
-      </svg>
-    </button>
-    <div class="theme-dropdown-menu" id="style-dropdown-menu" role="listbox" aria-label="Style" aria-hidden="true" inert>
-      {{STYLE_ITEMS}}
-    </div>
-  </div>
-
-  <button class="btn" id="seed-shuffle-btn" type="button" title="Re-roll the ink of the current style (never moves layout)" aria-label="Re-roll style ink" hidden>
+  <button class="btn seed-shuffle-btn is-inactive" id="seed-shuffle-btn" type="button" title="Re-roll the ink of the current style (never moves layout)" aria-label="Re-roll style ink" aria-hidden="true" tabindex="-1" inert>
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
       <rect x="3" y="3" width="18" height="18" rx="3" />
       <circle cx="8.5" cy="8.5" r="1.2" fill="currentColor" stroke="none" />
@@ -126,21 +123,6 @@
   </button>
 
   <div class="topbar-sep"></div>
-
-  <button class="btn" id="share-btn" type="button" title="Copy a shareable link to this diagram">
-    <svg
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      stroke-width="2"
-      stroke-linecap="round"
-      stroke-linejoin="round"
-    >
-      <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
-      <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
-    </svg>
-    <span>Share</span>
-  </button>
 
   <!-- Second entry point for the agent handoff (wide viewports only; CSS hides
        it below 1100px). Shares copyAgentTask with #copy-agent-prompt-btn. -->
@@ -329,9 +311,12 @@
     </div>
   </div>
 
-  <!-- Keyboard shortcuts cheat sheet. Opened by the "?" button or the "?" key
-       (outside the source editor); follows the shared popup contract. -->
-  <div class="shortcuts-dialog" id="shortcuts-dialog" role="dialog" aria-modal="false" aria-labelledby="shortcuts-dialog-title" aria-hidden="true" inert>
+  <!-- Keyboard shortcuts cheat sheet. Opened by the "?" key (outside the source
+       editor); a full-screen scrim overlays the editor with a centered panel,
+       Gmail-style. Follows the shared popup contract (inert/aria-hidden closed,
+       Escape closes). -->
+  <div class="shortcuts-dialog" id="shortcuts-dialog" role="dialog" aria-modal="true" aria-labelledby="shortcuts-dialog-title" aria-hidden="true" inert>
+    <div class="shortcuts-dialog-panel">
     <div class="shortcuts-dialog-header">
       <span class="shortcuts-dialog-title" id="shortcuts-dialog-title">Keyboard shortcuts</span>
       <button class="shortcuts-dialog-close" id="shortcuts-dialog-close" type="button" aria-label="Close keyboard shortcuts">×</button>
@@ -373,5 +358,6 @@
       <span class="shortcut-desc">Open this cheat sheet</span>
     </div>
     <p class="shortcuts-dialog-note">On Windows and Linux, use Ctrl in place of ⌘.</p>
+    </div>
   </div>
 </header>

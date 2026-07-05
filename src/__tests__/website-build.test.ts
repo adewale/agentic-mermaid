@@ -297,7 +297,14 @@ describe('Workers Static Assets website contract', () => {
     expect(read(editorScript)).toContain('URLSearchParams(window.location.search).get(\'example\')')
     expect(editor).toContain('id="copy-agent-prompt-btn"')
     expect(editor).toContain('class="app-brand" aria-label="Agentic Mermaid Editor home"')
-    expect(editor).toContain('<span class="sr-only">Diagram theme: </span><span id="theme-btn-label">Default</span>')
+    // Right half is labelled "Palette" (visible + a11y); code ids stay theme-*.
+    expect(editor).toContain('<span class="axis-label" aria-hidden="true">Palette</span>')
+    expect(editor).toContain('<span class="sr-only">Diagram palette: </span><span class="axis-value" id="theme-btn-label">Default</span>')
+    expect(editor).toContain('id="theme-dropdown-menu" role="listbox" aria-label="Palette"')
+    // Style and Palette are fused into one split pill (both dropdown ids preserved).
+    expect(editor).toContain('class="axis-pill" role="group" aria-label="Diagram look"')
+    expect(editor).toContain('id="style-dropdown-btn"')
+    expect(editor).toContain('id="theme-dropdown-btn"')
     expect(editor).not.toContain('aria-label="Agentic Mermaid homepage"')
     expect(editor).not.toContain('aria-label="Diagram theme"')
     expect(editor).toContain('id="copy-text-output-btn" type="button" title="Copy SVG markup" aria-label="Copy SVG markup"')
@@ -557,6 +564,23 @@ describe('Workers Static Assets website contract', () => {
     expect(editorAll).toContain('/^xychart(?:-beta)?\\b/.test(first)')
     expect(theme).not.toContain('am-theme')
     expect(theme).toContain("name + ' copied to clipboard.'")
+    // Copy feedback must reserve the button's resting width before swapping in the
+    // shorter "Copied" label, so the hero's flex neighbours don't slide sideways.
+    expect(theme).toContain("btn.style.minWidth = Math.ceil(btn.getBoundingClientRect().width)")
+    expect(theme).toContain("btn.style.minWidth = ''")
+    // The editor's copy feedback (setCopyFeedback) reserves width the same way, so
+    // the topbar's labelled Copy agent prompt button can't slide its neighbours.
+    expect(editorAll).toContain("btn.style.minWidth = Math.ceil(btn.getBoundingClientRect().width)")
+    // The Share and "?" buttons are gone from the topbar; copy-link lives on in
+    // the export dropdown and the cheat sheet is reached by the "?" key alone.
+    expect(editor).not.toContain('id="share-btn"')
+    expect(editor).not.toContain('id="shortcuts-btn"')
+    expect(editor).toContain('id="copy-link-btn"')
+    // "?" opens the cheat sheet without a trigger button, and it renders as a
+    // Gmail-style scrim + panel (aria-modal, backdrop click closes).
+    expect(editorAll).toContain("shortcutsReturnFocus = document.activeElement")
+    expect(editor).toContain('id="shortcuts-dialog" role="dialog" aria-modal="true"')
+    expect(editor).toContain('class="shortcuts-dialog-panel"')
     expect(styles).toContain('@media (forced-colors: active)')
     expect(styles).toContain('.warning-table thead { display: none; }')
     expect(read('warnings/index.html')).toContain('<td data-label="Code">')

@@ -177,25 +177,35 @@ document.addEventListener('click', function(e) {
   if (typeof setExamplesSidebarOpen === 'function') setExamplesSidebarOpen(false);
 });
 
-// Keyboard-shortcut cheat sheet — same popup contract as the other popovers:
-// inert + aria-hidden when closed, Escape closes, focus returns to the opener.
-var shortcutsBtn = document.getElementById('shortcuts-btn');
+// Keyboard-shortcut cheat sheet — reachable only via the "?" key (there is no
+// topbar button). Same popup contract as the other popovers: inert +
+// aria-hidden when closed, Escape or a scrim click closes, focus returns to
+// wherever it was when "?" was pressed.
 var shortcutsDialog = document.getElementById('shortcuts-dialog');
 var shortcutsDialogClose = document.getElementById('shortcuts-dialog-close');
+var shortcutsReturnFocus = null;
 
-var shortcutsPopup = (shortcutsBtn && shortcutsDialog && typeof createPopupController === 'function')
+var shortcutsPopup = (shortcutsDialog && typeof createPopupController === 'function')
   ? createPopupController({
       popup: shortcutsDialog,
-      trigger: shortcutsBtn,
-      visibility: { manageTabStops: true, toggleTriggerClass: false },
+      visibility: { manageTabStops: true },
       afterOpen: function() {
         if (shortcutsDialogClose) shortcutsDialogClose.focus();
+      },
+      afterClose: function() {
+        if (shortcutsReturnFocus && typeof shortcutsReturnFocus.focus === 'function') shortcutsReturnFocus.focus();
+        shortcutsReturnFocus = null;
       },
     })
   : null;
 
 if (shortcutsDialogClose) shortcutsDialogClose.addEventListener('click', function() {
-  if (shortcutsPopup) shortcutsPopup.close({ source: 'close-button', restoreFocus: true });
+  if (shortcutsPopup) shortcutsPopup.close({ source: 'close-button' });
+});
+
+// Click on the scrim (outside the panel) closes, like a modal backdrop.
+if (shortcutsDialog) shortcutsDialog.addEventListener('click', function(e) {
+  if (e.target === shortcutsDialog && shortcutsPopup) shortcutsPopup.close({ source: 'backdrop' });
 });
 
 document.addEventListener('keydown', function(e) {
@@ -206,5 +216,6 @@ document.addEventListener('keydown', function(e) {
   // as the cheat-sheet shortcut when focus is outside editable controls.
   if (tag === 'TEXTAREA' || tag === 'INPUT' || tag === 'SELECT' || (target && target.isContentEditable)) return;
   e.preventDefault();
+  shortcutsReturnFocus = document.activeElement;
   shortcutsPopup.open({ source: 'keyboard' });
 });

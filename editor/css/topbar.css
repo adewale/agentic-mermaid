@@ -20,6 +20,15 @@
   box-sizing: border-box;
 }
 
+/* The re-roll (🎲) button reserves its topbar slot even while inactive (the
+   crisp default) rather than using `hidden`, so selecting a style fills the
+   slot instead of reflowing the wrap-prone bar — on narrow mobile the theme
+   dropdown would otherwise jump a full row. Toggled in init.js. */
+#seed-shuffle-btn.is-inactive {
+  visibility: hidden;
+  pointer-events: none;
+}
+
 /* Brand – same quiet document primitive as the public site. */
 .app-brand {
   display: inline-flex;
@@ -160,59 +169,94 @@
 .theme-dropdown-wrap {
   position: relative;
 }
-.theme-dropdown-btn {
+/* Split pill: Style (texture) + Theme (palette) fused into one control with a
+   hairline divider. Each half is its own dropdown trigger; only one bordered
+   pill instead of two separate dropdown buttons. */
+.axis-pill {
   display: flex;
-  align-items: center;
-  gap: 8px;
+  align-items: stretch;
   height: var(--control-h);
-  min-width: 148px;
-  justify-content: space-between;
-  padding: 0 var(--control-px);
   border: 1px solid var(--control-border);
   border-radius: var(--radius-md);
   background: var(--control-bg);
-  box-shadow: none;
+}
+.axis-half {
+  display: flex;
+}
+.axis-divider {
+  width: 1px;
+  align-self: stretch;
+  margin: 6px 0;
+  background: var(--control-border);
+  flex: none;
+}
+.axis-btn {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  height: 100%;
+  padding: 0 10px;
+  border: none;
+  background: transparent;
   color: var(--control-fg);
-  font-size: var(--t-control);
-  font-weight: 500;
   font-family: inherit;
   cursor: pointer;
   white-space: nowrap;
   user-select: none;
   transition:
     color var(--dur-control),
-    background var(--dur-control),
-    transform var(--dur-press);
+    background var(--dur-control);
 }
-.theme-dropdown-btn:hover {
-  color: var(--ink);
-  background: var(--control-bg-hover);
+.axis-half:first-child .axis-btn { border-radius: calc(var(--radius-md) - 1px) 0 0 calc(var(--radius-md) - 1px); }
+.axis-half:last-child .axis-btn { border-radius: 0 calc(var(--radius-md) - 1px) calc(var(--radius-md) - 1px) 0; }
+.axis-btn:hover { color: var(--ink); background: var(--control-bg-hover); }
+.axis-btn.open { color: var(--ink); background: var(--control-bg-hover); }
+.axis-text {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  line-height: 1.08;
 }
-.theme-dropdown-btn:active {
-  transform: scale(0.96);
+.axis-label {
+  font-size: 0.58rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  font-weight: 600;
+  color: var(--fg4);
 }
-.theme-dropdown-btn .theme-swatch {
-  width: 12px;
-  height: 12px;
+.axis-value {
+  font-size: var(--t-control);
+  font-weight: 550;
+  color: var(--control-fg);
+}
+.axis-btn .theme-swatch {
+  width: 13px;
+  height: 13px;
   border-radius: 50%;
   flex-shrink: 0;
   /* Neutral fill for the Default theme (inline style overrides it), and a
-     double ring (--line-strong + --line halo) so the swatch reads as a
-     control even when its fill matches the Kiln Stone chrome. */
+     double ring so the swatch reads as a control even against the chrome. */
   background: var(--paper);
   border: 1px solid var(--line-strong);
   box-shadow: 0 0 0 1px var(--line);
 }
-.theme-dropdown-btn svg {
+.axis-caret {
   width: 10px;
   height: 10px;
+  margin-left: auto;
   color: var(--fg4);
   flex-shrink: 0;
   transition: transform var(--dur-control);
 }
-.theme-dropdown-btn.open svg {
-  transform: rotate(180deg);
-}
+.axis-btn.open .axis-caret { transform: rotate(180deg); }
+/* Reserve each half at its widest label so selecting a value never resizes the
+   half or shifts its neighbour (the old dropdowns used a fixed min-width too).
+   Together the halves ~match the footprint of the two buttons they replace. */
+#style-dropdown-wrap .axis-btn { min-width: 132px; }
+#theme-dropdown-wrap .axis-btn { min-width: 158px; }
+/* The left half anchors its menu to the left edge; the right half keeps the
+   shared right-anchored default below. */
+#style-dropdown-wrap .theme-dropdown-menu { left: 0; right: auto; }
 .theme-dropdown-menu {
   display: none;
   position: absolute;
@@ -334,12 +378,6 @@
   padding: 0;
   position: relative;
 }
-#shortcuts-btn {
-  width: 40px;
-  min-width: 40px;
-  padding: 0;
-  font-size: var(--t-sm);
-}
 #dark-light-btn svg {
   position: absolute;
   top: 50%;
@@ -431,25 +469,34 @@
     width: var(--control-h);
     min-width: var(--control-h);
   }
-  /* Touch devices have no keyboard shortcuts to look up. */
-  #shortcuts-btn {
-    display: none;
-  }
-  #share-btn {
+  /* Touch: unfuse the pill. Two adjacent half-targets sharing a divider are a
+     mis-tap hazard on a phone (NN/g's split-button "fat-finger" caution), so
+     below the tablet breakpoint the pill becomes two full-width stacked
+     controls, each its own bordered ≥44px trigger opening the same sheet. */
+  .axis-pill {
     order: 1;
-    width: var(--control-h);
-    min-width: var(--control-h);
-    padding: 0;
-    font-size: 0;
-    gap: 0;
+    flex: 1 0 100%;
+    flex-direction: column;
+    align-items: stretch;
+    height: auto;
+    gap: 8px;
+    border: none;
+    background: transparent;
   }
-  #share-btn svg {
-    margin: 0;
+  .axis-divider { display: none; }
+  .axis-half { display: block; }
+  .axis-btn {
+    width: 100%;
+    min-height: var(--control-h);
+    padding: 0 12px;
+    border: 1px solid var(--control-border);
+    background: var(--control-bg);
   }
-  .theme-dropdown-wrap {
-    display: block;
-    order: 1;
-  }
+  #style-dropdown-wrap .axis-btn,
+  #theme-dropdown-wrap .axis-btn { min-width: 0; }
+  /* each control is fully rounded now, not a pill half */
+  .axis-half:first-child .axis-btn,
+  .axis-half:last-child .axis-btn { border-radius: var(--radius-md); }
   .export-wrap {
     order: 1;
     margin-left: 0;
@@ -458,18 +505,6 @@
     width: var(--control-h);
     min-width: var(--control-h);
   }
-  .theme-dropdown-btn {
-    min-width: var(--control-h);
-    width: var(--control-h);
-    padding: 0;
-    justify-content: center;
-  }
-  /* The swatch is the whole control here (label + chevron are hidden), so
-     give it more presence inside the touch-sized button. */
-  .theme-dropdown-btn .theme-swatch {
-    width: 16px;
-    height: 16px;
-  }
   .theme-dropdown-menu {
     position: fixed;
     top: 58px;
@@ -477,10 +512,8 @@
     right: 10px;
     max-height: min(70vh, 420px);
   }
-  #theme-btn-label,
-  .theme-dropdown-btn svg {
-    display: none;
-  }
+  /* Both controls' sheets span the row on mobile. */
+  #style-dropdown-wrap .theme-dropdown-menu { left: 10px; right: 10px; }
   #export-main-btn {
     width: var(--control-h);
     padding: 0;
