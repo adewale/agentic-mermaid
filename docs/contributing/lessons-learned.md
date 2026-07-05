@@ -8,6 +8,56 @@ date; do not delete old ones — supersede them in place.
 > cumulative fork narrative (loops 1–22), see
 > [`../project/lessons-learned.md`](../project/lessons-learned.md).
 
+## 2026-07 — the layout-shift audit and look-control rework
+
+**User-initiated layout shift is CLS-exempt but still visible jank — diff
+positions, don't trust the metric.** A whole-site audit read CLS 0.000
+everywhere, yet clicking the home "Use with an agent" button slid its
+neighbours 83px, selecting a diagram style reflowed the wrapped mobile topbar
+by a full row (the theme dropdown jumped 284px), and the editor's "Copy agent
+prompt" slid 81px. All fired within 500ms of the click, so `hadRecentInput`
+flagged them out of the Core Web Vitals number. Rule: to audit click-induced
+shift, diff each anchor's bounding rect before/after the interaction and read
+the raw (unfiltered) `layout-shift` entries — CLS alone certifies nothing about
+what the user sees at the moment they click.
+
+**A width reservation is only correct once you check every breakpoint it
+crosses.** The Share button grew ~7px when its label became "Copied"; the
+obvious fix — a permanent inline `min-width` — would have overridden the
+≤760px `font-size:0` rule and broken the mobile icon-only square, because
+inline styles beat media queries. Reserving the label's width in `em` instead
+collapsed to 0 exactly when the mobile rule zeroed the font. Rule: prefer a
+unit/property the responsive rules can still override, and verify the
+reservation at each breakpoint it passes through before shipping it.
+
+**A layout invariant stated in a component's own copy is a test spec.** The
+seed-shuffle button's tooltip said "(never moves layout)" — true when clicked,
+false when it *appeared*, which is what reflowed the topbar. The existing
+style-switch test asserted "the chrome never moves" but only compared colours,
+so the regression passed straight through it. Rule: when a component claims a
+layout invariant (in a tooltip, a comment, or a test's own name), the guarding
+test must assert positions, not a proxy like colour.
+
+**Restructure by re-wrapping markup and re-scoping CSS; touch the JS only when
+an id or class contract actually changes.** Fusing the Style and Theme
+dropdowns into one split pill kept every button/wrap/menu id and the `.open`
+class the shared popup controller toggles, so selection, keyboard, and focus
+logic ran unchanged — the only rename was a CSS-only button class. Rule: when
+JS binds elements by id and toggles known classes, a visual restructure is a
+markup + CSS job; reading the id/class contracts first tells you whether the JS
+is even in scope.
+
+**Label from the code's own vocabulary, and check the word against its sibling
+controls.** "Theme" for the palette axis collided with the adjacent light/dark
+toggle and with Mermaid's `themeVariables`, and was category-muddy (internally
+a theme is a palette-only style) — while the style registry, CLI, and docs
+already called it a "palette." Relabelling to "Palette" was three visible
+strings with no code rename: there is no public `theme` render field, and
+renaming `state.theme` / `data-theme` / the localStorage key would have broken
+saved editor state and share links. Rule: audit where a term is actually used
+before putting it on a control; a user-facing label is not an API, and the two
+are allowed to differ.
+
 ## 2026-07 — the brand-system and chrome-polish passes
 
 **Design intent and shipped hex drift apart; compute claims on what shipped.**
