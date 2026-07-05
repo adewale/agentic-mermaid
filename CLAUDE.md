@@ -18,10 +18,12 @@ editing surface. Source lives in `src/`; the layout pipeline is in
 - `bunx tsc --noEmit` — typecheck.
 - `bun run track` — heuristic layout-quality tracker (improvements/regressions vs baseline).
 - `bun run bin/am.ts render <file> --format png --output out.png` — render a diagram.
-- `bun run website` — regenerate the committed website bundle. **Required after any
-  `src/` change**: CI's `website:check` fails when the checked-in editor bundle no
-  longer matches the source (this has silently broken `main` before — run it before
-  every push that touches `src/`).
+- `bun run website` — build the Cloudflare Workers site into `website/public/`, a
+  **gitignored build artifact** (rebuilt at deploy by `deploy-cloudflare.yml`, and
+  on-demand by the test preload `src/__tests__/website-public.preload.ts`). You do
+  not commit it. `website:check` pins only the committed `website/src/generated`
+  worker inputs (wasm/harness/fonts/compat-date + the deploy-version stamp) against
+  source — run `bun run website` after changing those so the stamp stays in sync.
 
 Layout is **deterministic**: identical input must produce identical geometry.
 

@@ -61,3 +61,6 @@ dist/am
 # the repo's distribution policy ships skills under skills/ instead)
 .agents/
 skills-lock.json
+
+# Generated Cloudflare site bundle (built by `bun run website`, at deploy, and by the test preload)
+website/public/
