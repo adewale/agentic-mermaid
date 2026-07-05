@@ -12,6 +12,7 @@ import type {
 import { ok, err } from './types.ts'
 import { wrapperPrefix } from './serialize.ts'
 import { getFamily } from './families.ts'
+import { validateOp, hasOpSchema } from './op-schema.ts'
 import './families-builtin.ts'  // registers built-in family mutate hooks
 
 export function mutate(d: FlowchartValidDiagram, op: FlowchartMutationOp): Result<FlowchartValidDiagram, MutationError>
@@ -49,6 +50,28 @@ export function mutate(
     return ok({ ...d, body: r.value, canonicalSource } as MutableValidDiagram)
   }
   return err({ code: 'INVALID_OP', message: `Unsupported mutable diagram kind: ${d.kind}` })
+}
+
+/**
+ * mutate with a shape check in front — the one choke point every UNTYPED edit
+ * path funnels through (the declarative applyOps/buildChecked entrypoints and
+ * the Code Mode facade). Typed callers keep using `mutate` directly, where the
+ * compiler already guarantees op shape; `mutateChecked` restores that guarantee
+ * at the boundaries where ops arrive as raw JSON.
+ *
+ * `validateOp` proves the op's SHAPE (field names, primitive types, enums)
+ * BEFORE the mutator runs, so a malformed op is rejected with a prescriptive
+ * INVALID_OP error instead of silently mangling the diagram. Semantics — does
+ * the referenced node exist, is the id a duplicate — stay in the mutator, which
+ * runs second on a shape-proven op. Result shape is identical to `mutate`, so
+ * this is a drop-in wherever the raw mutator was called with untyped ops.
+ */
+export function mutateChecked(d: MutableValidDiagram, op: unknown): Result<MutableValidDiagram, MutationError> {
+  if (hasOpSchema(d.kind)) {
+    const invalid = validateOp(d.kind, op)
+    if (invalid) return err(invalid)
+  }
+  return mutate(d, op as AnyMutationOp)
 }
 
 // Flowchart graph mutation + helpers live in flowchart-body.ts; edgeIdOf is

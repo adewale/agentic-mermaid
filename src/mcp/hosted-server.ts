@@ -11,6 +11,8 @@
 
 import { parseMermaid } from '../agent/parse.ts'
 import { verifyMermaid } from '../agent/verify.ts'
+import { applyOps } from '../agent/apply.ts'
+import { MUTATION_OPS_BY_FAMILY } from '../agent/mutation-ops.ts'
 import { validateStyleSpec } from '../scene/style-registry.ts'
 import type { StyleInput } from '../scene/style-registry.ts'
 import { describeMermaidSource, describeMermaid } from '../agent/describe.ts'
@@ -49,6 +51,15 @@ export const MIN_PNG_SCALE = 0.1
 export const MAX_PNG_SCALE = 8
 
 const TOO_LARGE_HINT = 'input exceeds the hosted size cap; run the local agentic-mermaid CLI or stdio MCP server instead (see https://agentic-mermaid.dev/docs/mcp/)'
+
+// The structured op menu, family → op kinds, embedded in the declarative tool
+// descriptions so a caller knows which ops exist without a discovery round-trip.
+// Field names are omitted here on purpose: a wrong/missing field comes back as a
+// prescriptive INVALID_OP error that names the exact field, which is the signal
+// a caller actually corrects from.
+const OP_MENU = Object.entries(MUTATION_OPS_BY_FAMILY)
+  .map(([family, ops]) => `  ${family}: ${ops.join(', ')}`)
+  .join('\n')
 
 export const HOSTED_TOOLS = [
   {
@@ -151,6 +162,45 @@ LLM context compaction without re-parsing.`,
       required: ['source'],
     },
   },
+  {
+    name: 'mutate',
+    description: `Apply a list of structured edit ops to an existing Mermaid \`source\` and
+return the edited diagram. This is the declarative counterpart to \`execute\`:
+plain JSON in, plain JSON out, no sandbox. Prefer it for straightforward edits;
+reserve \`execute\` for logic the ops don't express.
+Returns { ok, family, source, verify:{ ok, warnings } } on success, or
+{ ok:false, family, opIndex, error } — where \`error\` names the offending field
+and lists the valid ones — when an op is malformed or cannot apply. Ops apply in
+order and are all-or-nothing: the first failing op stops the batch (its position
+is \`opIndex\`) and the input is left untouched.
+Each op is { "kind": <op>, …fields }. Op kinds by family:
+${OP_MENU}`,
+    inputSchema: {
+      type: 'object',
+      properties: {
+        source: { type: 'string', description: 'Mermaid source to edit.' },
+        ops: { type: 'array', items: { type: 'object' }, description: 'Ordered list of edit ops; each is { kind, ...fields }.' },
+      },
+      required: ['source', 'ops'],
+    },
+  },
+  {
+    name: 'build',
+    description: `Author a new Mermaid diagram from blank by folding a list of structured ops
+over an empty diagram of \`family\`. The declarative counterpart to hand-writing
+source. Returns the same envelope as \`mutate\`:
+{ ok, family, source, verify } or { ok:false, family, opIndex, error }.
+Op kinds by family:
+${OP_MENU}`,
+    inputSchema: {
+      type: 'object',
+      properties: {
+        family: { type: 'string', description: `Diagram family to author (one of: ${Object.keys(MUTATION_OPS_BY_FAMILY).join(', ')}).` },
+        ops: { type: 'array', items: { type: 'object' }, description: 'Ordered list of ops; each is { kind, ...fields }.' },
+      },
+      required: ['family', 'ops'],
+    },
+  },
 ]
 
 const INSTRUCTIONS = `agentic-mermaid hosted MCP server (stateless). Direct tools render_svg, render_ascii, render_png, verify, and describe cover plain render/verify calls cheaply and are edge-cached (layout is deterministic; there is no layout seed — the library's optional style seed only re-rolls ink of styled looks). execute runs synchronous JavaScript against the typed mermaid.* SDK in an isolated on-demand sandbox for parse→narrow→mutate workflows; async/await and Promise jobs are not supported, and network access is disabled. Inputs are capped at 64KB; for bigger diagrams, Code Mode artifacts, or file/URL PNG output, run the local stdio server (see https://agentic-mermaid.dev/docs/mcp/).`
@@ -205,6 +255,8 @@ async function handleToolCall(id: number | string | null, params: unknown, conte
       return { ok: v.ok, family: parsed.value.kind, summary: describeMermaid(parsed.value), warnings: v.warnings, layout: { bounds: v.layout.bounds, nodes: v.layout.nodes.length, edges: v.layout.edges.length } }
     })
     case 'describe': return sourceTool(id, args, 'DESCRIBE_FAILED', source => ({ ok: true as const, text: describeMermaidSource(source) }))
+    case 'mutate': return handleApplyOps(id, args, 'source')
+    case 'build': return handleApplyOps(id, args, 'family')
     default: return rpcError(id, -32602, `Unknown tool: ${name ?? '<none>'}`)
   }
 }
@@ -341,6 +393,30 @@ export function cacheKeyFor(name: string | undefined, args: Record<string, unkno
     default:
       return null
   }
+}
+
+/** Declarative structured-edit tools (`mutate`, `build`): validate the required
+ *  argument + the ops array, cap payload size, then hand off to the ONE checked
+ *  core (applyOps) that the Code Mode facade also funnels through. The canonical
+ *  OpEnvelope is returned verbatim; `isError` mirrors `!envelope.ok`. */
+function handleApplyOps(id: number | string | null, args: Record<string, unknown>, mode: 'source' | 'family'): JsonRpcResponse {
+  const ops = args.ops
+  if (!Array.isArray(ops)) return rpcError(id, -32602, `${mode === 'source' ? 'mutate' : 'build'} requires \`ops\` (array)`)
+  if (mode === 'source') {
+    if (typeof args.source !== 'string') return rpcError(id, -32602, 'mutate requires `source` (string)')
+    if (utf8Bytes(args.source) > MAX_SOURCE_BYTES) {
+      return toolResult(id, { ok: false as const, family: null, error: { code: 'SOURCE_TOO_LARGE', message: TOO_LARGE_HINT } }, true)
+    }
+  } else if (typeof args.family !== 'string') {
+    return rpcError(id, -32602, 'build requires `family` (string)')
+  }
+  if (utf8Bytes(JSON.stringify(ops)) > MAX_SOURCE_BYTES) {
+    return toolResult(id, { ok: false as const, family: null, error: { code: 'OPS_TOO_LARGE', message: TOO_LARGE_HINT } }, true)
+  }
+  const envelope = mode === 'source'
+    ? applyOps({ source: args.source as string, ops })
+    : applyOps({ family: args.family as string, ops })
+  return toolResult(id, envelope, !envelope.ok)
 }
 
 /** Shared shape for the pure source→payload tools: validate, cap, run, wrap errors. */

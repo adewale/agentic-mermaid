@@ -300,7 +300,10 @@ export function createTracingMermaid(trace?: ExecutionTraceCall[], makeSandboxEr
     else if (prop === 'buildMermaid') value = harden((kind: unknown, ops: unknown, opts?: unknown) => {
       assertOpen()
       const opsForHost = jsonClone(ops) as Parameters<typeof target.buildMermaid>[1]
-      const r = hostCall(() => target.buildMermaid(kind as DiagramKind, opsForHost, jsonClone(opts) as Parameters<typeof target.buildMermaid>[2]))
+      // buildChecked shape-validates each op before the mutator, so a malformed
+      // op fails with a prescriptive INVALID_OP error instead of silently
+      // building a mangled diagram — the same check the declarative path uses.
+      const r = hostCall(() => mermaid.buildChecked(kind as DiagramKind, opsForHost as unknown[], jsonClone(opts) as Parameters<typeof target.buildMermaid>[2]))
       if (r.ok) trustDiagram(r.value)
       push({
         verb: 'create', family: FAMILY_KINDS.has(kind as DiagramKind) ? (kind as DiagramKind) : undefined,
@@ -326,7 +329,10 @@ export function createTracingMermaid(trace?: ExecutionTraceCall[], makeSandboxEr
         verb: 'mutate', body: bodyKind(rawOf(d)), input: idOf(d), opKind: typeof opForHost === 'object' && opForHost && 'kind' in opForHost ? String((opForHost as { kind: unknown }).kind) : undefined,
       }
       push(call)
-      const r = hostCall(() => target.mutate(rawOf(d), opForHost))
+      // mutateChecked runs the shape validator before the mutator: the SAME
+      // choke point the declarative applyOps path funnels through, so an op
+      // rejected here is rejected identically there (no second validator).
+      const r = hostCall(() => mermaid.mutateChecked(rawOf(d), opForHost))
       if (r.ok) {
         trustDiagram(r.value)
         call.output = idOf(r.value)

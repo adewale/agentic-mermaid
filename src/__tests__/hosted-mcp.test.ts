@@ -67,10 +67,10 @@ describe('hosted MCP handshake', () => {
     expect(result.instructions).toContain('render_svg')
   })
 
-  test('tools/list exposes exactly the hosted six-tool surface', async () => {
+  test('tools/list exposes exactly the hosted tool surface', async () => {
     const res = await handleHostedRequest(rpc('tools/list'), makeContext())
     const names = (res?.result as any).tools.map((t: { name: string }) => t.name)
-    expect(names).toEqual(['execute', 'render_svg', 'render_ascii', 'render_png', 'verify', 'describe'])
+    expect(names).toEqual(['execute', 'render_svg', 'render_ascii', 'render_png', 'verify', 'describe', 'mutate', 'build'])
     expect((res?.result as any).tools).toBe(HOSTED_TOOLS)
   })
 
@@ -168,6 +168,47 @@ describe('hosted pure tools', () => {
       expect(big.error.code).toBe('SOURCE_TOO_LARGE')
       expect(big.error.message).toContain('agentic-mermaid.dev/docs/mcp')
     }
+  })
+})
+
+describe('hosted declarative mutate/build tools', () => {
+  test('build authors a diagram from ops and returns the canonical envelope', async () => {
+    const res = await handleHostedRequest(call('build', { family: 'class', ops: [
+      { kind: 'add_class', id: 'Duck' }, { kind: 'add_member', class: 'Duck', text: '+quack()' },
+    ] }), makeContext())
+    const p = payloadOf(res)
+    expect(p.isError).toBe(false)
+    expect(p.ok).toBe(true)
+    expect(p.family).toBe('class')
+    expect(p.source).toContain('Duck')
+    expect(p.verify).toHaveProperty('ok')
+  })
+
+  test('mutate edits existing source', async () => {
+    const res = await handleHostedRequest(call('mutate', { source: 'classDiagram\n  class Animal', ops: [{ kind: 'add_class', id: 'Dog' }] }), makeContext())
+    const p = payloadOf(res)
+    expect(p.ok).toBe(true)
+    expect(p.source).toContain('class Dog')
+  })
+
+  test('a malformed op is a prescriptive in-band error (isError), not a mangled diagram', async () => {
+    const res = await handleHostedRequest(call('build', { family: 'class', ops: [{ kind: 'add_class', name: 'Duck' }] }), makeContext())
+    const p = payloadOf(res)
+    expect(p.isError).toBe(true)
+    expect(p.ok).toBe(false)
+    expect(p.opIndex).toBe(0)
+    expect(p.error.message).toContain('Valid fields: id, label, members')
+    expect(p.error.message).not.toContain('undefined')
+  })
+
+  test('mutate requires source+ops; build requires family+ops', async () => {
+    expect((await handleHostedRequest(call('mutate', { ops: [] }), makeContext()))?.error?.code).toBe(-32602)
+    expect((await handleHostedRequest(call('build', { family: 'class' }), makeContext()))?.error?.code).toBe(-32602)
+  })
+
+  test('tool descriptions embed the op menu so ops are discoverable', () => {
+    const build = HOSTED_TOOLS.find(t => t.name === 'build')!
+    expect(build.description).toContain('class: set_title, add_class')
   })
 })
 
