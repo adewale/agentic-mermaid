@@ -416,7 +416,7 @@ describe('vocabulary doc-sync', () => {
     // BUILD-19: state owns a dedicated body. Docs that advertise state mutation
     // must say the path is asState (not asFlowchart), or agents either conclude
     // state is not mutable or reach for the wrong narrower.
-    for (const file of ['Instructions_for_agents.md', 'llms.txt', 'skills/agentic-mermaid-diagram-workflow/SKILL.md']) {
+    for (const file of ['Instructions_for_agents.md', 'llms.txt', 'skills/agentic-mermaid-diagram-workflow/SKILL.md', 'website/source/start.md']) {
       const text = readFileSync(join(REPO, file), 'utf8')
       expect({ file, documentsStateNarrowing: /[Ss]tate.*asState|asState.*(narrows?|state)/s.test(text) }).toEqual({ file, documentsStateNarrowing: true })
     }

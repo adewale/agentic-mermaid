@@ -41,66 +41,12 @@
           <span>Copy agent prompt</span>
         </button>
       </div>
-      <pre class="agent-prompt agent-prompt-pointer"><code id="home-agent-pointer">Render or edit a Mermaid diagram with Agentic Mermaid.
-Fetch https://agentic-mermaid.dev/start.md and follow it.
-
-Task:
-&lt;describe the diagram goal or edit&gt;
-
-Context:
-&lt;the facts, labels, relationships, and constraints the diagram should express&gt;
-
-Mermaid source (for edits; leave blank for a new diagram):
-```mermaid
-&lt;paste existing Mermaid source here, or leave blank&gt;
-```</code></pre>
+      <pre class="agent-prompt agent-prompt-pointer"><code id="home-agent-pointer">{{AGENT_POINTER}}</code></pre>
       <details class="prompt-details">
         <summary><span class="prompt-summary-closed">Show the full self-contained prompt</span><span class="prompt-summary-open">Hide the full prompt</span></summary>
         <p class="prompt-details-note">The prompt above fetches <code>start.md</code>, so agents always get the current instructions and it stays short. This full version inlines the entire protocol for agents that cannot fetch a URL.</p>
         <button class="copy-prompt-btn copy-prompt-btn-secondary" type="button" data-copy-target="home-agent-prompt" data-copy-name="Full agent prompt" aria-describedby="home-card-copy-status"><span class="copy-prompt-icon" aria-hidden="true"></span><span>Copy full prompt</span></button>
-        <pre class="agent-prompt"><code id="home-agent-prompt">Create or edit a Mermaid diagram with Agentic Mermaid.
-
-Task:
-&lt;replace with the requested diagram goal or edit&gt;
-
-Context:
-&lt;include the facts, labels, relationships, and constraints the diagram should express&gt;
-
-Mermaid source (for edits; leave blank for a new diagram):
-```mermaid
-&lt;paste existing Mermaid source here, or leave blank for a new diagram&gt;
-```
-
-If any `&lt;…&gt;` placeholder above is still unreplaced, do not author a generic diagram — reply asking for the missing details. The only real placeholders are the three `&lt;…&gt;` tokens in the Task, Context, and Mermaid source blocks above; angle brackets inside the Authoring facts below (such as `&lt;br&gt;`) are content, not placeholders. If you are running non-interactively (CI, batch, cron) where no one can answer, name the missing details and then produce a clearly labeled best-effort draft marked `assumptions unconfirmed` rather than stalling.
-
-Environment:
-- Do not assume this repository is checked out. Use one channel available to you — pick whichever actually exists, not all will: installed `agentic-mermaid/agent`; only if this repo is checked out, its `./src/agent/index.ts` or the CLI (`am` or `bun run bin/am.ts`); self-hosted MCP Code Mode; or the hosted MCP at `https://agentic-mermaid.dev/mcp` (stateless streamable HTTP JSON-RPC). The website exposes no REST render API — `/mcp` speaks MCP only.
-- Confidentiality: the hosted MCP — and any `npx`/`npm` install traffic — leaves the machine. If Task or Context holds private, internal, or proprietary material (internal service names, non-public URLs, anything secret-adjacent), prefer a local channel and treat the hosted MCP as opt-in — do not POST that material to `agentic-mermaid.dev` unless the user has accepted using an external service.
-- Probe once, in order: (1) if you can execute JS/TS, import `agentic-mermaid/agent`, (2) `am capabilities --json` (or `npx agentic-mermaid capabilities --json`), (3) the hosted MCP. Use the first channel that responds and stop discovering — spend your turns on the diagram, not on tool exploration. Chat-only with no shell or code sandbox: skip straight to the hosted MCP over HTTP. Channels can differ in version; if a live channel contradicts the Authoring facts below, trust the channel and note the mismatch in Trace.
-- Hosted MCP call shape (stateless, no initialize handshake needed): POST to `https://agentic-mermaid.dev/mcp` with `content-type: application/json` and body `{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"verify","arguments":{"source":"flowchart TD\n  A --&gt; B"}}}`. Tools: `execute`, `render_svg`, `render_ascii`, `render_png`, `verify`, `describe` (64KB input cap). The hosted MCP has no `capabilities` tool: to discover mutation ops over it, run the typed edit inside `execute` (Code Mode imports the library and can read op types) or use `describe` to inspect structure; if neither fits, take the source-level fallback.
-- If no Agentic Mermaid channel is available (local or the hosted MCP), do not fabricate verification; return the best Mermaid source and say `not verified — Agentic Mermaid unavailable` with what you tried. You may run a clearly labeled secondary check (for example another Mermaid parser) and report it as secondary, never as Agentic Mermaid verification. Unverified, your syntax is most reliable for flowchart; the other families (whose exact syntax the Authoring facts below do not spell out) are likelier to drift, so treat non-flowchart output as unverified with extra caution.
-- Library imports, when available: `parseMermaid`, `verifyMermaid`, `serializeMermaid`, `mutate`, and `as*` helpers from `agentic-mermaid/agent`.
-
-Authoring facts (already verified — do not spend turns rediscovering them):
-- Families: flowchart, sequence, state, class, ER, journey, timeline, gantt, pie, quadrant, xychart, architecture.
-- Flowchart syntax that parses, renders, and round-trips: `subgraph id["Title"] … end`; quoted labels for punctuation (`id["HTTPS /api/sessions*"]`); multi-line labels via `\n` inside a quoted label (canonical form is `&lt;br&gt;`); labeled edges `A -- "label" --&gt; B`; dotted edges `A -.-&gt; B` and `A -. "label" .-&gt; B`.
-- Warnings never flip `verify.ok` unless their severity is error. `LABEL_OVERFLOW` counts the longest rendered line, not raw source (default cap 40; `<br>`/`\n` split lines, XML entities decode to one char, formatting tags strip); when long labels are intentional, raise the cap (`verifyMermaid(d, { labelCharCap: N })`, `am verify --label-cap N`) and say so in Trace — do not truncate the user's text to silence the warning.
-- CLI verification: `am verify &lt;file&gt; --json` (exit 3 only on error-severity findings); `am render &lt;file&gt; --format ascii` is a fast visual sanity check. These take a file path — when you only hold a source string, use the `verify` / `render_ascii` tools (library or MCP) or write the source to a temp file first.
-
-Grounding and scope:
-- If the diagram describes a repository, codebase, or URL you can access, inspect the actual source first. Every node and edge must be traceable to the supplied context or to something you inspected — do not invent nodes or relationships. Mark uncertain relationships (dotted edge, `?` in the label) or leave them out.
-- If Context does not state the abstraction level (system architecture, data flow, implementation detail, class model), the required entities and relationships, or things to omit, choose the smallest consistent reading, keep the whole diagram at one abstraction level, and state your assumptions in Verification.
-- When the diagram is based on inspected source, add a Sources section after Trace listing the files or paths that back the main nodes.
-
-Workflow (the one safe loop is parse → narrow → mutate → verify → serialize; everything else is your judgment):
-1. For a new diagram, author Mermaid source directly from the supplied context, then parse it with `parseMermaid` — no mutation ceremony; return the source you authored (or its `serializeMermaid` round-trip if you want canonical `&lt;br&gt;` form — pick one and stay consistent). For an existing diagram, parse it, narrow with the matching `as*` helper (`asFlowchart`, `asSequence`, `asGantt`, etc.), and prefer the smallest `mutate(...)` operation over rewriting source. Mutation ops use a `kind` discriminator (for example `{ kind: "add_edge", from, to, label }`); look ops up in local types or `am capabilities --json` only when you cannot infer one. The canonical op and family-syntax reference is the source repository `github.com/adewale/beautiful-mermaid` (npm `agentic-mermaid`) — consult it only as a last resort when you have no local channel and cannot infer an op, not as a routine channel.
-2. If no typed operation fits, or no Agentic Mermaid channel is available, make the smallest source-level edit and say `source-level fallback`.
-3. Run `verifyMermaid` before anything you return. Warnings are signals, not commands: fix what one mechanical attempt can fix, and report the rest with your reasoning rather than guessing or silently truncating the user's content.
-4. Return mode: pick the shape by how you hand back the result, not which channel you used.
-   - In chat, return exactly these sections (this also covers a CLI or library run whose result you summarize as prose): Updated Mermaid, Verification, Trace (plus Sources when Grounding and scope requires it). In Updated Mermaid, include only the final Mermaid source in a ```mermaid fence — no SVG, PNG, ASCII, or Unicode unless requested. In Trace, name the channel and the calls/ops you actually ran, e.g. `mutate({ kind: ... })`; for new diagrams say `no mutate`; if no channel was available, name the channels you probed and any secondary check.
-   - In self-hosted MCP/Code Mode `execute(code)` — and likewise the hosted MCP `execute` tool — return an object with `{ source }` after verification, or `{ error, warnings }`; do not return prose from inside code.
-
-Do not modify project files unless the user explicitly asked you to change files.</code></pre>
+        <pre class="agent-prompt"><code id="home-agent-prompt">{{AGENT_FULL_PROMPT}}</code></pre>
       </details>
       <p class="copy-prompt-status" id="home-card-copy-status" role="status" aria-live="polite"></p>
     </div>

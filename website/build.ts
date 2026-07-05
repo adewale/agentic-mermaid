@@ -8,6 +8,7 @@ import { buildCapabilities } from '../src/cli/index.ts'
 import { renderMermaidASCII, renderMermaidSVG } from '../src/index.ts'
 import { namespaceSvgIds } from '../src/renderer.ts'
 import { computeDeployVersion } from './src/deploy-hash.ts'
+import { HOMEPAGE_AGENT_POINTER, buildHomepageFullPrompt } from '../eval/agent-usage/homepage-prompt.ts'
 
 const ROOT = join(import.meta.dir, '..')
 const SOURCE = join(import.meta.dir, 'source')
@@ -841,7 +842,15 @@ for (const [source, target] of pageOutputs) {
   // one canonical human + machine link rows.
   html = html.replace(/<footer>[\s\S]*?<\/footer>/, () => footerHtml())
   html = injectWorkflowSvg(html)
-  if (source === 'home.html') html = injectLoopRail(injectWorkflowUnicode(html))
+  if (source === 'home.html') {
+    // The agent pointer (primary CTA) and the inline fallback prompt are both
+    // derived from website/source/start.md so they cannot drift from the hosted
+    // bootstrap. Inject them here rather than hand-maintaining copies in the page.
+    html = html
+      .replace('{{AGENT_POINTER}}', escapeHtml(HOMEPAGE_AGENT_POINTER))
+      .replace('{{AGENT_FULL_PROMPT}}', escapeHtml(buildHomepageFullPrompt()))
+    html = injectLoopRail(injectWorkflowUnicode(html))
+  }
   if (source === 'docs-article.html') html = injectDocsIndex(injectLoopHeadings(html))
   await emit(target, html)
 }
