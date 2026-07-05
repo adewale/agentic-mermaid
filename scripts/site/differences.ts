@@ -21,6 +21,7 @@
 
 import { THEMES } from '../../src/theme.ts'
 import { renderMermaidSVG } from '../../src/index.ts'
+import { HEX_TO_RGB_JS } from './client-color.ts'
 import upstreamLayout from './upstream-layout-snapshots.json' with { type: 'json' }
 
 // The palette the inlined figures are rendered in. The page defaults to this
@@ -743,15 +744,7 @@ ${cardsHtml}
     var THEMES = ${themesJson};
     var DEFAULT_PAGE_THEME = '${DEFAULT_THEME_KEY}';
 
-    function hexToRgb(hex) {
-      if (!hex || typeof hex !== 'string') return null;
-      var value = hex.trim();
-      if (value[0] === '#') value = value.slice(1);
-      if (value.length === 3) value = value[0]+value[0]+value[1]+value[1]+value[2]+value[2];
-      var num = parseInt(value, 16);
-      if (isNaN(num)) return null;
-      return { r: (num >> 16) & 255, g: (num >> 8) & 255, b: num & 255 };
-    }
+    ${HEX_TO_RGB_JS}
 
     function setShadowVars(theme) {
       var body = document.body;

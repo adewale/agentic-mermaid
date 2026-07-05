@@ -10,6 +10,7 @@
  */
 
 import { xychartSamples } from './xychart-samples-data.ts'
+import { HEX_TO_RGB_JS } from './client-color.ts'
 import { THEMES } from '../../src/theme.ts'
 import { createHighlighter } from 'shiki'
 
@@ -579,16 +580,7 @@ ${sampleCards}
   var THEMES = ${themesJson};
   var chartInstances = [];
 
-  function hexToRgb(hex) {
-    if (!hex || typeof hex !== 'string') return null;
-    var v = hex.trim();
-    if (v[0] === '#') v = v.slice(1);
-    if (v.length === 3) v = v[0]+v[0]+v[1]+v[1]+v[2]+v[2];
-    if (v.length !== 6) return null;
-    var n = parseInt(v, 16);
-    if (Number.isNaN(n)) return null;
-    return { r: (n >> 16) & 255, g: (n >> 8) & 255, b: n & 255 };
-  }
+  ${HEX_TO_RGB_JS}
 
   function setShadowVars(theme) {
     var body = document.body;

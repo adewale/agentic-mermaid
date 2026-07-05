@@ -16,6 +16,7 @@
  */
 
 import { samples } from './samples-data.ts'
+import { HEX_TO_RGB_JS } from './client-color.ts'
 import { THEMES } from '../../src/theme.ts'
 import { createHighlighter } from 'shiki'
 
@@ -1533,22 +1534,7 @@ ${bundleJs}
 
   var totalTimingEl = document.getElementById('total-timing');
 
-  function hexToRgb(hex) {
-    if (!hex || typeof hex !== 'string') return null;
-    var value = hex.trim();
-    if (value[0] === '#') value = value.slice(1);
-    if (value.length === 3) {
-      value = value[0] + value[0] + value[1] + value[1] + value[2] + value[2];
-    }
-    if (value.length !== 6) return null;
-    var intValue = parseInt(value, 16);
-    if (Number.isNaN(intValue)) return null;
-    return {
-      r: (intValue >> 16) & 255,
-      g: (intValue >> 8) & 255,
-      b: intValue & 255,
-    };
-  }
+  ${HEX_TO_RGB_JS}
 
   var DEFAULT_PAGE_THEME = '${DEFAULT_THEME_KEY}';
   var activeThemeKey = '';
