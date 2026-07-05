@@ -12,7 +12,7 @@ The canonical live site is **[agentic-mermaid.dev](https://agentic-mermaid.dev/)
 
 Alongside the static surface (the public website, machine-readable manifests, schemas, recipes, and skill files), the Cloudflare Worker serves a stateless hosted MCP endpoint at `/mcp` (`https://agentic-mermaid.dev/mcp`) — six tools including Code Mode `execute` in per-request Dynamic Worker isolates. There is still no REST render API: `/mcp` speaks MCP JSON-RPC only.
 
-The older `scripts/site/*` generators (the GitHub Pages gallery and the standalone `differences.ts` fork-comparison page) remain as local dev/preview tools; GitHub Pages is no longer a deployed surface.
+The older `scripts/site/generate.ts` GitHub Pages samples gallery remains as a local dev/preview tool (served by `bun run dev`, exercised by `e2e/browser.test.ts`); GitHub Pages is no longer a deployed surface.
 
 ## Agent-native workflow (largest fork-vs-upstream gap)
 

@@ -522,14 +522,28 @@ invariants against recurrence.
   `e2e/browser.test.ts`). (Related audit Tier-4 items already resolved:
   `mockups/` deleted, `evals/`→`skill-evals/` renamed, dead scripts +
   `stryker.linkrank` removed, `pr11-reviewer-guide.md` retired.)
-- [ ] **CONS-91 — Finish retiring the Pages pipeline** (`todo`). Now that
-  Cloudflare is canonical: (a) migrate `bun run dev` and `e2e/browser.test.ts`
-  off `scripts/site/generate.ts` so the Pages-only generators
-  (`generate.ts`, `differences.ts`, `xychart-test.ts`, `client-color.ts`) can be
-  deleted — note `samples-data.ts` is shared with eval tooling and stays; and
-  (b) un-commit the 6.8MB `website/public` bundle (build-at-deploy), which
-  requires inverting CI so `bun run website` runs before `bun test` (the build
-  test reads the committed bundle) and rewriting the `website:check` contract.
+- [x] **CONS-91b — Un-commit the `website/public` bundle** (`done`). The 6.8MB
+  Cloudflare bundle is now gitignored and built on demand: at deploy by
+  `deploy-cloudflare.yml`, and for the five tests that read it by the preload
+  `src/__tests__/website-public.preload.ts`. `website:check` now pins only the
+  committed `website/src/generated` worker inputs.
+- [x] **CONS-91a-partial — Delete the low-coupling Pages generators** (`done`).
+  Removed `scripts/site/differences.ts`, `xychart-test.ts`, and their exclusive
+  data (`xychart-samples-data.ts`, `upstream-layout-snapshots.json`,
+  `capture-upstream-layout.ts`); rewrote `comparison-differences-sync.test.ts`
+  to keep the `comparison.md`↔registry guard.
+- [ ] **CONS-91c — Retire `scripts/site/generate.ts` (samples gallery)**
+  (`owner-decision`). Unlike the two above, `generate.ts` is not dead: it backs
+  the Pages **samples gallery**, its **1,121-line `e2e/browser.test.ts`**
+  browser suite (gallery + editor, ≥90 SVGs, category filters, theme
+  persistence), and `bun run dev`. Deleting it removes that surface and its
+  browser coverage. To retire it, first migrate the browser coverage onto the
+  Cloudflare site (`website/public` home/editor/examples) and point `bun run
+  dev` at `website:dev`; then delete `generate.ts` + `client-color.ts` and
+  repoint the citizenship matrix's `generatedSite` evidence (currently
+  `generate.ts` + `property-html-generator.test.ts`) to `website/build.ts` +
+  `website-build.test.ts`. `samples-data.ts` is shared with eval tooling and
+  stays regardless.
 
 ## 6. Non-goals
 
