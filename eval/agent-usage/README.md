@@ -124,7 +124,7 @@ Prompt changes are gated three ways, cheapest-first:
    variant B: at variant A run `prepare --surface homepage` with a fixed case
    list, dispatch every `requests/*.md` to a fresh subagent, run `finalize`;
    repeat at variant B with the same cases, harness, and model. Follow the
-   `evals/shared-benchmark.json` run policy (≥3 runs per variant, 5
+   `skill-evals/shared-benchmark.json` run policy (≥3 runs per variant, 5
    recommended) because single runs are noise. Compare `ok` rate and the
    `taskOk`/`traceOk` split per case, plus response length as a proxy for
    discovery cost. Commit both transcript sets so the comparison replays

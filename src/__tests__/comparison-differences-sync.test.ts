@@ -7,8 +7,10 @@
 // removing a renderable family fails CI unless docs/comparison.md is updated.
 //
 // (The former scripts/site/differences.ts checks were retired with that Pages
-// generator; the Cloudflare /comparisons page renders every family from the
-// registry via website/build.ts, covered by website-build.test.ts.)
+// generator. The Cloudflare site's family coverage is pinned elsewhere: the
+// /comparisons page renders a curated per-family COMPARISON_CASES set, the
+// families-reference lead count is derived from the registry in website/build.ts,
+// and both are checked by website-build.test.ts + the citizenship matrix.)
 
 import { describe, test, expect } from 'bun:test'
 import { readFileSync } from 'node:fs'
