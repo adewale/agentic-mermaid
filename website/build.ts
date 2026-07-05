@@ -1458,25 +1458,9 @@ const sitemapXml = [
 ].join('\n')
 await emit('sitemap.xml', sitemapXml)
 
-// ---- robots.txt ------------------------------------------------------------
-// Point crawlers at the sitemap (the discovery path that does not need a
-// signed-in Search Console / Webmaster Tools account — see TODO DEC-4). The
-// content-signals block below preserves the Cloudflare-managed reservation of
-// rights so serving our own robots.txt does not silently drop it. NOTE: if the
-// zone's managed robots.txt is set to override, that edge file wins over this
-// asset; add the Sitemap line in the Cloudflare dashboard in that case.
-const robotsTxt = [
-  '# robots.txt for agentic-mermaid.dev',
-  '# Content signals (search / ai-input / ai-train) are managed at the Cloudflare',
-  '# zone level; any restrictions expressed there are express reservations of',
-  '# rights under Article 4 of EU Directive 2019/790.',
-  'User-agent: *',
-  'Allow: /',
-  '',
-  `Sitemap: ${SITE_ORIGIN}/sitemap.xml`,
-  '',
-].join('\n')
-await emit('robots.txt', robotsTxt)
+// No repo robots.txt: production serves Cloudflare's managed content-signals
+// robots.txt at the edge, which would override an asset here. The sitemap's
+// `Sitemap:` line is added via the Cloudflare dashboard instead (TODO DEC-5).
 
 // ---- Worker artifacts (website/src/generated) ------------------------------
 // The /mcp Worker needs the Code Mode harness bundled for the dynamic-worker

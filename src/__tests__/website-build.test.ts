@@ -136,7 +136,7 @@ describe('Workers Static Assets website contract', () => {
       'docs/quality/index.html', 'docs/fork-differences/index.html',
       'warnings/index.html', 'errors/index.html', 'examples/index.html', 'comparisons/index.html',
       'llms.txt', 'agent-instructions.md', 'capabilities.json', 'examples/index.json',
-      'sitemap.xml', 'robots.txt',
+      'sitemap.xml',
       'skills/agentic-mermaid-diagram-workflow/SKILL.md', '_headers', '_redirects',
     ]
     for (const route of routes) expect({ route, exists: existsSync(join(SITE, route)) }).toEqual({ route, exists: true })

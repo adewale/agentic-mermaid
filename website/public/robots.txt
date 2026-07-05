@@ -1,8 +1,0 @@
-# robots.txt for agentic-mermaid.dev
-# Content signals (search / ai-input / ai-train) are managed at the Cloudflare
-# zone level; any restrictions expressed there are express reservations of
-# rights under Article 4 of EU Directive 2019/790.
-User-agent: *
-Allow: /
-
-Sitemap: https://agentic-mermaid.dev/sitemap.xml

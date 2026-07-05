@@ -53,9 +53,9 @@ dependents after. IDs are stable names, not an ordering.
   `website/public/robots.txt`. So the reliable way to make the sitemap
   auto-discoverable is to add `Sitemap: https://agentic-mermaid.dev/sitemap.xml`
   via the Cloudflare dashboard's managed robots.txt (Manage robots.txt), which
-  also keeps the content-signals reservation intact. If this is done, the repo
-  `public/robots.txt` becomes redundant and should be removed to avoid two
-  competing files.
+  also keeps the content-signals reservation intact. The repo deliberately ships
+  no `robots.txt` (it would only collide with the managed one), so the dashboard
+  is the single source for this line.
 
 ## 1. Ready build backlog
 
