@@ -199,7 +199,7 @@ function parseArchitectureEdge(
 function parseSourceEndpoint(token: string): ArchitectureEndpoint {
   const match = token.trim().match(SOURCE_RE)
   if (!match) {
-    throw new Error(`Invalid architecture edge source "${token}"`)
+    throw new Error(`Invalid architecture edge source "${token}" — expected id then side, e.g. "api:R" in "api:R -- L:db"`)
   }
 
   return {
@@ -212,7 +212,7 @@ function parseSourceEndpoint(token: string): ArchitectureEndpoint {
 function parseTargetEndpoint(token: string): ArchitectureEndpoint {
   const match = token.trim().match(TARGET_RE)
   if (!match) {
-    throw new Error(`Invalid architecture edge target "${token}"`)
+    throw new Error(`Invalid architecture edge target "${token}" — expected side then id, e.g. "L:db" in "api:R -- L:db"`)
   }
 
   return {
