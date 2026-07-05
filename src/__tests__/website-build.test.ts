@@ -510,6 +510,11 @@ describe('Workers Static Assets website contract', () => {
     // The editor's copy feedback (setCopyFeedback) reserves width the same way, so
     // the topbar's labelled Copy agent prompt button can't slide its neighbours.
     expect(editorAll).toContain("btn.style.minWidth = Math.ceil(btn.getBoundingClientRect().width)")
+    // The Share button grows on "Copied" (wider than "Share"), which min-width
+    // can't cap; its label reserves that width in em so the ≤760px font-size:0
+    // rule collapses the reservation and the mobile icon-only square is kept.
+    expect(editor).toContain('#share-btn span')
+    expect(editor).toMatch(/#share-btn span\s*\{[^}]*min-width:\s*3\.6em/)
     expect(styles).toContain('@media (forced-colors: active)')
     expect(styles).toContain('.warning-table thead { display: none; }')
     expect(read('warnings/index.html')).toContain('<td data-label="Code">')

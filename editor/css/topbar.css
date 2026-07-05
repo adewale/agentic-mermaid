@@ -391,6 +391,15 @@
   }
 }
 
+/* Reserve the Share label's "Copied" width so copy feedback can't grow the
+   button and nudge the theme/style dropdowns. em-based on purpose: the
+   ≤760px rule below zeroes the button font-size for the icon-only square, and
+   an em reservation collapses to 0 with it, so the mobile layout is untouched. */
+#share-btn span {
+  min-width: 3.6em;
+  text-align: center;
+}
+
 @media (max-width: 760px) {
   .topbar {
     gap: 0.25rem;
