@@ -24,6 +24,7 @@
 // loud render-time error.
 // ============================================================================
 
+import { unknownOpMessage } from './mutation-ops.ts'
 import type {
   QuadrantBody, QuadrantAxis, QuadrantMutationOp,
   MutationError, Result, LayoutWarning, VerifyOptions,
@@ -302,7 +303,7 @@ export function mutateQuadrant(body: QuadrantBody, op: QuadrantMutationOp): Resu
     }
     default: {
       const _x: never = op
-      return err({ code: 'INVALID_OP', message: `Unknown op: ${JSON.stringify(_x)}` })
+      return err({ code: 'INVALID_OP', message: unknownOpMessage('quadrant', _x) })
     }
   }
 

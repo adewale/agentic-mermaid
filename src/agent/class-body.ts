@@ -26,6 +26,7 @@
 //   - styled / classDef
 // ============================================================================
 
+import { unknownOpMessage } from './mutation-ops.ts'
 import type {
   ClassBody, ClassNode, ClassRelation, ClassRelationKind, ClassNote,
   ClassMutationOp, MutationError, Result, LayoutWarning, VerifyOptions,
@@ -268,7 +269,7 @@ export function mutateClass(body: ClassBody, op: ClassMutationOp): Result<ClassB
       return ok(b)
     }
     default:
-      return err({ code: 'INVALID_OP', message: `unknown class op: ${(op as { kind: string }).kind}` })
+      return err({ code: 'INVALID_OP', message: unknownOpMessage('class', op) })
   }
 }
 

@@ -197,8 +197,7 @@ it as {ok,text}. --format json emits the structured AX tree
 {kind,nodes,edges,entryPoints,sinks}; with --json it wraps as {ok,tree}.`,
   capabilities: `am capabilities [--json]
 Emits a single JSON object describing the SDK's capability surface:
-  { sdkVersion, families: [{ id, hasParse, hasSerialize, hasMutate,
-    hasVerify, hasExtractLabels, mutationOps, editPolicy }],
+  { sdkVersion, families: [{ id, hasMutate, hasExtractLabels, mutationOps, editPolicy, example }],
     warningCodes: [{ code, tier, severity }],
     outputFormats: ["svg", "ascii", "unicode", "png", "json"] }
 editPolicy is "structured-when-narrowed" or "source-level-only". Use this to
@@ -659,10 +658,7 @@ type FamilyEditPolicy = 'structured-when-narrowed' | 'source-level-only'
 
 interface FamilyCapability {
   id: string
-  hasParse: boolean
-  hasSerialize: boolean
   hasMutate: boolean
-  hasVerify: boolean
   hasExtractLabels: boolean
   mutationOps: string[]
   editPolicy: FamilyEditPolicy
@@ -684,20 +680,12 @@ interface CapabilitiesEnvelope {
   outputFormats: string[]
 }
 
-export const MUTATION_OPS_BY_FAMILY = {
-  flowchart: ['add_node', 'remove_node', 'rename_node', 'set_label', 'add_edge', 'remove_edge'],
-  state: ['add_state', 'remove_state', 'rename_state', 'set_state_label', 'add_transition', 'remove_transition', 'set_transition_label', 'make_composite'],
-  sequence: ['add_participant', 'remove_participant', 'add_message', 'remove_message', 'set_message_text'],
-  timeline: ['set_title', 'add_section', 'remove_section', 'set_section_label', 'add_period', 'remove_period', 'set_period_label', 'add_event', 'remove_event', 'set_event_text'],
-  class: ['set_title', 'add_class', 'remove_class', 'rename_class', 'add_member', 'remove_member', 'add_relation', 'remove_relation', 'add_note', 'remove_note'],
-  er: ['add_entity', 'remove_entity', 'rename_entity', 'add_attribute', 'remove_attribute', 'add_relation', 'remove_relation'],
-  journey: ['set_title', 'add_section', 'remove_section', 'set_section_label', 'add_task', 'remove_task', 'set_task_text', 'set_task_score', 'set_task_actors', 'rename_actor'],
-  architecture: ['add_service', 'remove_service', 'rename_service', 'set_service_label', 'set_service_icon', 'move_service', 'add_group', 'remove_group', 'add_edge', 'remove_edge'],
-  xychart: ['set_title', 'set_x_axis', 'set_y_axis', 'add_series', 'remove_series', 'set_series_values', 'set_series_name', 'reorder_series'],
-  pie: ['set_title', 'set_show_data', 'add_slice', 'remove_slice', 'rename_slice', 'set_slice_value', 'reorder_slice'],
-  quadrant: ['set_title', 'set_axis_labels', 'set_quadrant_label', 'add_point', 'remove_point', 'move_point', 'rename_point'],
-  gantt: ['set_title', 'add_section', 'rename_section', 'remove_section', 'add_task', 'remove_task', 'rename_task', 'set_task_status', 'set_task_dates'],
-} as const satisfies Record<BuiltinFamilyId, readonly string[]>
+// Source of truth now lives in the agent layer (src/agent/mutation-ops.ts) so
+// the mutators can name their valid ops in errors; imported and re-exported here
+// to keep the capabilities envelope and existing `from '../cli/index.ts'`
+// importers working.
+import { MUTATION_OPS_BY_FAMILY } from '../agent/mutation-ops.ts'
+export { MUTATION_OPS_BY_FAMILY }
 
 type MutableFamilyId = keyof typeof MUTATION_OPS_BY_FAMILY
 
@@ -719,12 +707,11 @@ export function buildCapabilities(): CapabilitiesEnvelope {
       id,
       // Capabilities describe the public agent surface, not whether the
       // implementation currently lives in a FamilyPlugin hook or central
-      // dispatch. All registered families parse, serialize, verify, render,
-      // and round-trip through parseMermaid/serializeMermaid/verifyMermaid.
-      hasParse: true,
-      hasSerialize: true,
+      // dispatch. Every registered family parses, serializes, verifies, and
+      // renders — so those constant booleans are omitted (they read as a
+      // "probe-me" menu with nothing to branch on). Only what actually varies
+      // is emitted: whether structured mutation and label extraction apply.
       hasMutate: mutableFamilies.has(id),
-      hasVerify: true,
       hasExtractLabels: Boolean(p.extractLabels),
       mutationOps,
       editPolicy,

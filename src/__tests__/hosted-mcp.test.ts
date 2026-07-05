@@ -125,6 +125,20 @@ describe('hosted pure tools', () => {
     expect(p.layout.nodes).toBe(3)
     expect(p.layout.edges).toBe(2)
     expect(p.layout.bounds.w).toBeGreaterThan(0)
+    // The result echoes the detected family + a summary so ok:true is never a
+    // silent pass on the wrong diagram type.
+    expect(p.family).toBe('flowchart')
+    expect(typeof p.summary).toBe('string')
+    expect(p.summary.length).toBeGreaterThan(0)
+  })
+
+  test('verify echoes the detected family so a wrong-type diagram is self-evident', async () => {
+    // Asked (elsewhere) for an architecture diagram but authored a flowchart:
+    // verify still passes structurally, but the echoed family reveals the mismatch.
+    const p = payloadOf(await handleHostedRequest(call('verify', { source: 'graph TD\n  API --> DB' }), makeContext()))
+    expect(p.ok).toBe(true)
+    expect(p.family).toBe('flowchart')
+    expect(p.summary.toLowerCase()).toContain('flowchart')
   })
 
   test('verify surfaces parse errors as structured payloads, not crashes', async () => {
@@ -133,6 +147,10 @@ describe('hosted pure tools', () => {
     expect(p.isError).toBe(true)
     expect(p.errors.length).toBeGreaterThan(0)
     expect(typeof p.errors[0].message).toBe('string')
+    // Self-describing: the header names a known family, so the failure response
+    // carries that family's canonical example to author from.
+    expect(p.family).toBe('flowchart')
+    expect(p.example).toContain('flowchart')
   })
 
   test('describe summarizes a diagram', async () => {

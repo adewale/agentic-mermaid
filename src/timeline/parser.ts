@@ -1,5 +1,6 @@
 import type { TimelineDiagram, TimelineSection, TimelinePeriod, TimelineEvent } from './types.ts'
 import { normalizeBrTags } from '../multiline-utils.ts'
+import { syntaxError } from '../shared/syntax-error.ts'
 
 // ============================================================================
 // Timeline diagram parser
@@ -123,7 +124,11 @@ export function parseTimelineDiagram(lines: string[]): TimelineDiagram {
       const events = splitTimelineEvents(periodMatch[2]!)
 
       if (!periodLabel) {
-        throw new Error(`Invalid timeline period: "${line}"`)
+        throw syntaxError({
+          what: `Invalid timeline period: "${line}"`,
+          expectedForm: 'Period : Event[ : Event…]',
+          example: '2025 : Launch : Beta',
+        })
       }
 
       const period: TimelinePeriod = {
@@ -157,7 +162,11 @@ export function parseTimelineDiagram(lines: string[]): TimelineDiagram {
       continue
     }
 
-    throw new Error(`Unsupported timeline syntax: "${line}"`)
+    throw syntaxError({
+      what: `Unsupported timeline syntax: "${line}"`,
+      expectedForm: 'a title, a section, or a period (Period : Event…)',
+      example: '2025 : Launch',
+    })
   }
 
   // Upstream parity: a timeline with a title or sections but no periods still
@@ -179,7 +188,11 @@ function splitTimelineEvents(raw: string): string[] {
     if (index >= raw.length) break
 
     if (raw[index] !== ':') {
-      throw new Error(`Invalid timeline event list: "${raw}"`)
+      throw syntaxError({
+        what: `Invalid timeline event list: "${raw}"`,
+        expectedForm: 'events separated by " : "',
+        example: 'Launch : Beta',
+      })
     }
 
     index++

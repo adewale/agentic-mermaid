@@ -25,6 +25,7 @@
 // unchanged — the legacy renderer keeps parsing the canonical source we emit.
 // ============================================================================
 
+import { unknownOpMessage } from './mutation-ops.ts'
 import type {
   XyChartBody, XyChartAxis, XyChartSeries, XyChartMutationOp,
   MutationError, Result, LayoutWarning, VerifyOptions,
@@ -411,7 +412,7 @@ export function mutateXyChart(body: XyChartBody, op: XyChartMutationOp): Result<
     }
     default: {
       const _x: never = op
-      return err({ code: 'INVALID_OP', message: `Unknown op: ${JSON.stringify(_x)}` })
+      return err({ code: 'INVALID_OP', message: unknownOpMessage('xychart', _x) })
     }
   }
 

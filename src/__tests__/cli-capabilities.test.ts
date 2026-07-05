@@ -30,9 +30,9 @@ describe('am capabilities', () => {
     const mutable = new Set(Object.keys(MUTATION_OPS_BY_FAMILY))
     for (const f of cap.families) {
       expect(typeof f.id).toBe('string')
-      expect(f.hasParse).toBe(true)
-      expect(f.hasSerialize).toBe(true)
-      expect(f.hasVerify).toBe(true)
+      // hasParse/hasSerialize/hasVerify were dropped — they were true for every
+      // family (dead info that read as a probe-me menu). Only varying fields remain.
+      expect('hasParse' in f).toBe(false)
       expect(f.hasMutate).toBe(mutable.has(f.id))
       expect(typeof f.hasExtractLabels).toBe('boolean')
       expect(f.mutationOps).toEqual(f.id in MUTATION_OPS_BY_FAMILY ? [...MUTATION_OPS_BY_FAMILY[f.id as keyof typeof MUTATION_OPS_BY_FAMILY]] : [])

@@ -13,7 +13,8 @@ import { parseMermaid } from '../agent/parse.ts'
 import { verifyMermaid } from '../agent/verify.ts'
 import { validateStyleSpec } from '../scene/style-registry.ts'
 import type { StyleInput } from '../scene/style-registry.ts'
-import { describeMermaidSource } from '../agent/describe.ts'
+import { describeMermaidSource, describeMermaid } from '../agent/describe.ts'
+import { BUILTIN_FAMILY_METADATA } from '../agent/families.ts'
 import { renderMermaidSVG, renderMermaidASCII } from '../agent/core.ts'
 import { THEMES } from '../theme.ts'
 import { unsupportedCodeReason } from './facade.ts'
@@ -123,8 +124,11 @@ byte-determinism contract. For file/URL artifacts use the local stdio server.`,
   {
     name: 'verify',
     description: `Parse and verify a Mermaid diagram without rendering it. Returns
-{ ok, warnings, layout: { bounds, nodes, edges } } for valid diagrams and
-{ ok: false, errors } for parse failures. Warnings use the layout-rubric codes.`,
+{ ok, family, summary, warnings, layout: { bounds, nodes, edges } } for valid
+diagrams and { ok: false, errors } for parse failures. \`family\` is the detected
+diagram family and \`summary\` a one-line description — check them: ok:true only
+means the diagram is structurally valid, not that it is the kind you intended.
+Warnings use the layout-rubric codes.`,
     inputSchema: {
       type: 'object',
       properties: {
@@ -185,13 +189,39 @@ async function handleToolCall(id: number | string | null, params: unknown, conte
     case 'render_png': return handleRenderPng(id, args, context)
     case 'verify': return sourceTool(id, args, 'VERIFY_FAILED', source => {
       const parsed = parseMermaid(source)
-      if (!parsed.ok) return { ok: false as const, errors: parsed.error }
+      if (!parsed.ok) {
+        // Self-describing tool: when the header names a known family, hand back
+        // that family's canonical example so a failed authoring attempt gets the
+        // correct dialect in the same response — no need to fetch capabilities.json.
+        const hint = familyExampleForSource(source)
+        return { ok: false as const, errors: parsed.error, ...(hint ?? {}) }
+      }
       const v = verifyMermaid(parsed.value)
-      return { ok: v.ok, warnings: v.warnings, layout: { bounds: v.layout.bounds, nodes: v.layout.nodes.length, edges: v.layout.edges.length } }
+      // Echo the detected family + a one-line summary so `ok:true` is never a
+      // silent pass on the wrong kind of diagram: an agent that asked for an
+      // architecture diagram and reads `family:"flowchart"` here sees the
+      // mismatch in the same result it was already going to read, without
+      // having to know to call `describe` separately.
+      return { ok: v.ok, family: parsed.value.kind, summary: describeMermaid(parsed.value), warnings: v.warnings, layout: { bounds: v.layout.bounds, nodes: v.layout.nodes.length, edges: v.layout.edges.length } }
     })
     case 'describe': return sourceTool(id, args, 'DESCRIBE_FAILED', source => ({ ok: true as const, text: describeMermaidSource(source) }))
     default: return rpcError(id, -32602, `Unknown tool: ${name ?? '<none>'}`)
   }
+}
+
+/**
+ * When a source's header names a known family, return that family's id and its
+ * canonical (verified) example so a parse failure can hand back the correct
+ * dialect in the same response. Matched by the family's own header keyword, so a
+ * `graph`/`flowchart`/`architecture-beta`/… first line resolves deterministically.
+ */
+function familyExampleForSource(source: string): { family: string; example: string } | undefined {
+  const first = source.split('\n').map(l => l.trim()).find(l => l.length > 0) ?? ''
+  const header = first.split(/\s+/)[0] ?? ''
+  for (const f of BUILTIN_FAMILY_METADATA) {
+    if (f.headers.some(h => header === h)) return { family: f.id, example: f.example }
+  }
+  return undefined
 }
 
 function svgOptions(args: Record<string, unknown>): Record<string, unknown> {
