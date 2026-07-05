@@ -61,3 +61,8 @@ dist/am
 # the repo's distribution policy ships skills under skills/ instead)
 .agents/
 skills-lock.json
+
+# Ephemeral agent-usage run dirs. Only curated runs (claude-subagent-*/pi-subagent-*)
+# are committed as replay fixtures; ad-hoc third-party (no-repo, hosted-MCP) runs are
+# transient scratch — grading is read off, the dir is not shipped.
+eval/agent-usage/transcripts/norepo-*/
