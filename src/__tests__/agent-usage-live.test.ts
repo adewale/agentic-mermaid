@@ -95,6 +95,33 @@ describe('live agent-usage eval harness', () => {
     expect(transcript.result.ok).toBe(true)
   })
 
+  test('new-diagram authoring via buildMermaid or the CLI satisfies the chat trace check; no-tool does not', async () => {
+    // The canonical guide authors new diagrams with buildMermaid/createMermaid
+    // (no parse) or verifies via the CLI; the chat trace check must accept those
+    // safe paths, not just literal parseMermaid+verifyMermaid, while still
+    // rejecting hand-written Mermaid produced without engaging the tool.
+    const id = 'author_state_source'
+    const source = 'stateDiagram-v2\n  [*] --> Red\n  Red --> Green\n  Green --> Yellow\n  Yellow --> Red'
+    const body = (verification: string, trace: string) =>
+      `## Updated Mermaid\n\n\`\`\`mermaid\n${source}\n\`\`\`\n\n## Verification\n${verification}\n\n## Trace\n${trace}\n`
+    const run = async (response: string) => {
+      const dir = mkdtempSync(join(tmpdir(), 'am-trace-eval-'))
+      const manifest = prepareSubagentPromptEval({ outDir: dir, provider: 'claude-subagent', model: 't', surface: 'homepage', mode: 'chat', caseIds: [id], capturedAt: '2026-06-30T00:00:00.000Z' })
+      writeFileSync(manifest.requests[0]!.responsePath, response)
+      await finalizeSubagentPromptEval({ runDir: dir })
+      return JSON.parse(readFileSync(join(dir, `${id}.json`), 'utf8')).result as { ok: boolean; taskOk: boolean; traceOk: boolean }
+    }
+    // buildMermaid authoring, no parseMermaid — the endorsed new-diagram path.
+    const built = await run(body('verifyMermaid returned ok: true, warnings: [].', "Built the diagram with buildMermaid('state', [...]) via the library, then verifyMermaid (ok) and serializeMermaid. A new diagram from typed ops, no mutate."))
+    expect({ ok: built.ok, taskOk: built.taskOk, traceOk: built.traceOk }).toEqual({ ok: true, taskOk: true, traceOk: true })
+    // CLI verification of authored source — the CLI parses the source itself.
+    const cli = await run(body('Verified with `bun run bin/am.ts verify traffic.mmd --json`: ok true, warnings [].', 'Authored the source from Context and verified with the am CLI (am verify). No mutate — new diagram.'))
+    expect({ ok: cli.ok, taskOk: cli.taskOk, traceOk: cli.traceOk }).toEqual({ ok: true, taskOk: true, traceOk: true })
+    // Hand-written with no tool engagement — must still fail the trace check.
+    const naive = await run(body('Looks correct.', 'Wrote this state diagram directly from the description.'))
+    expect({ taskOk: naive.taskOk, traceOk: naive.traceOk, ok: naive.ok }).toEqual({ taskOk: true, traceOk: false, ok: false })
+  })
+
   test('config resolver fails closed without a live API key', () => {
     expect(() => resolveLiveModelConfig({}, ['--provider', 'anthropic', '--model', 'test-model'])).toThrow('Missing API key')
   })

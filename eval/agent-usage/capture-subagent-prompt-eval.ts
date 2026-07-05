@@ -279,9 +279,25 @@ function chatTraceOk(id: string, text: string): boolean {
   if (!/(?:^|\n)\s*(?:#+\s*)?Updated Mermaid\b/i.test(text)) return false
   if (!/(?:^|\n)\s*(?:#+\s*)?Verification\b/i.test(text)) return false
   if (!/(?:^|\n)\s*(?:#+\s*)?Trace\b/i.test(text)) return false
-  if (!/parseMermaid/i.test(text) || !/verifyMermaid/i.test(text)) return false
-  if (requiresStructuredMutation(id) && !/(mutate\s*\(|\bmutate\b|source-level fallback)/i.test(text)) return false
-  return true
+  // The CLI verifies by parsing the source itself, so `am verify` is both
+  // verification evidence and (for a new diagram) construction evidence.
+  const cliVerify = /\bam\b[^\n]*\bverify\b/i.test(text) || /bin\/am\.ts[^\n]*\bverify\b/i.test(text)
+  // Verification evidence: the library verifier or its CLI equivalent. The
+  // harness independently re-parses and re-verifies the returned source, so this
+  // only confirms the model engaged Agentic Mermaid rather than hand-writing
+  // Mermaid from memory.
+  if (!/verifyMermaid/i.test(text) && !cliVerify) return false
+  if (requiresStructuredMutation(id)) {
+    // Existing structured diagram: the safe loop parses the input then mutates.
+    if (!/parseMermaid/i.test(text)) return false
+    return /(mutate\s*\(|\bmutate\b|source-level fallback)/i.test(text)
+  }
+  // New diagram: any trusted construction is a safe path — author source then
+  // `parseMermaid`, the endorsed typed builders `buildMermaid`/`createMermaid`
+  // (which construct a ValidDiagram directly, no parse), or the CLI (`am verify`
+  // parses the authored source itself). Requiring parseMermaid here wrongly
+  // failed the builder and CLI paths the guide recommends.
+  return /parseMermaid/i.test(text) || /buildMermaid/i.test(text) || /createMermaid/i.test(text) || cliVerify
 }
 
 function scoreChatResponse(c: AgentUsageEvalCase, rawResponse: string, surface: PromptEvalSurface): { result: AgentUsageEvalResult; source?: string } {
