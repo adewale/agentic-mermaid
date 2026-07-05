@@ -8,6 +8,52 @@ date; do not delete old ones — supersede them in place.
 > cumulative fork narrative (loops 1–22), see
 > [`../project/lessons-learned.md`](../project/lessons-learned.md).
 
+## 2026-07 — the website consolidation PR (#113)
+
+**A long-running branch that commits generated output collides catastrophically
+with a base that stops committing it — keep website changes source-only.** PR
+#113 committed the whole `website/public` bundle (100+ files) across nine
+commits. Meanwhile `main` (#110) had made `website/public` a gitignored build
+artifact, rebuilt by the test preload and at deploy. The result was a "dirty"
+PR whose merge was ~20 modify/delete conflicts on generated pages — the actual
+change (five source files) was buried under hundreds of artifact diffs.
+Resolution was to adopt the artifact model (`git rm -r website/public`, keep
+only `build.ts`, `source/pages`, the contract test, and `TODO.md`), which
+collapsed the PR from ~86 changed files to 5. Rule: never commit
+`website/public`; a website PR's diff is source only. A committed generated
+bundle turns every base change into a conflict and hides the real edit in noise.
+
+**Deterministic build + `website:check` can pass on wrong-but-deterministic
+output — assert content, not existence.** The sitemap (the PR's headline
+feature) shipped with only an `existsSync` gate. Because the build is
+deterministic and `website:check` only diffs regenerated-vs-committed output, a
+stale or malformed sitemap would regenerate identically and pass every gate —
+the wrong output is reproduced, not caught. A multi-agent audit flagged it; the
+fix asserts the sitemap lists exactly the live pages (no removed routes, no
+machine artifacts, one `<loc>` per page) and was verified red→green by injecting
+a removed route. Rule: for generated content, the test must *discriminate*
+correct from incorrect output, because determinism guarantees a wrong generator
+passes a same-vs-same check.
+
+**`bun test` green is not `tsc` green, and a piped exit code lies.** A new test
+passed `bun test` but failed strict `bun x tsc --noEmit` — a `matchAll` capture
+group is typed `string | undefined`. It nearly shipped because
+`bunx tsc … | tail` printed "exit: 0": the pipeline's status was `tail`'s, not
+tsc's, masking two real type errors. Rule: run the actual CI gate
+(`bun x tsc --noEmit`) after adding tests, and read `${PIPESTATUS[0]}` (or drop
+the pipe) so a tool's failure is never hidden behind a successful `tail`/`grep`.
+
+**Check what the platform already serves before adding a competing file.**
+Production serves Cloudflare's *managed* content-signals `robots.txt` at the
+edge; a repo `website/public/robots.txt` would likely have been shadowed and
+never delivered its `Sitemap:` line. A live `curl` settled it — the repo file
+was removed and the directive routed to the Cloudflare dashboard (TODO DEC-5).
+Corollary: for platform-managed surfaces (robots.txt, headers, redirects),
+verify the live response before shipping an asset that may never win. And a
+related cleanup that landed the same PR: hand-maintained parallel route lists
+drift (the `_redirects` list had silently dropped `/about/design`) — derive
+them from one source (here, the emitted-pages map) to delete the drift class.
+
 ## 2026-07 — the brand-system and chrome-polish passes
 
 **Design intent and shipped hex drift apart; compute claims on what shipped.**
