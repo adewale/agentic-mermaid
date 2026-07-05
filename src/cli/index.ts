@@ -903,7 +903,7 @@ Authoring guide + quality rubric: docs/style-authoring.md.
 - docs/mcp-code-mode-rationale.md — MCP surface rationale
 - docs/agent-workflow-examples.md — runnable MCP/CLI + agent-improvement examples
 - skills/ — agent-agnostic SKILL.md bundles for diagram workflow and live-editor development
-- evals/ — skill-eval-harness manifest, fixtures, and benchmark instructions
+- skill-evals/ — skill-eval-harness manifest, fixtures, and benchmark instructions
 `
 }
 

@@ -1450,7 +1450,7 @@ function assertContractShapes() {
   for (const [name, obj] of Object.entries({ capabilities, examples })) {
     if (!(obj as any).generatedFrom) throw new Error(`${name} missing generatedFrom`)
   }
-  if (publicLlms.includes('TODO.md') || publicLlms.includes('evals/')) throw new Error('public llms.txt exposes repo-only surfaces')
+  if (publicLlms.includes('TODO.md') || publicLlms.includes('skill-evals/')) throw new Error('public llms.txt exposes repo-only surfaces')
 }
 assertNoPlaceholders()
 assertContractShapes()

@@ -2,6 +2,8 @@
 
 **Status.** Architecture/spec rationale for the merged agent-native surface on `main`. Current capabilities live in [`docs/features.md`](./docs/features.md); active work lives only in [`TODO.md`](./TODO.md). Not intended for upstream.
 
+**System architecture overview.** For the how-the-engine-works entry point — the rendered three-stacks diagram and the routing/layout design docs — start at [`docs/design/system/README.md`](./docs/design/system/README.md).
+
 **Thesis.** Agents authoring Mermaid diagrams today regenerate the whole source on every edit, or render to PNG and read it back with vision. The Beautiful Mermaid renderer foundation already fixed the worst of the rendering side (sync + DOM-free + ASCII). Agentic Mermaid adds the editing surface — structured verification, typed mutation, round-trippable IR — so an agent can edit one node and trust the result without ever opening an image.
 
 ---

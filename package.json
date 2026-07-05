@@ -81,7 +81,7 @@
     "assets/hero.png",
     "docs/",
     "skills/",
-    "evals/",
+    "skill-evals/",
     "examples/agent-loop.ts",
     "examples/mcp-vs-cli-complex-diagrams.ts",
     "examples/agent-improve-auth-flow.ts",

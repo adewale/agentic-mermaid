@@ -138,6 +138,15 @@ Use strict `preview` for human inspection and `mutate --op/--ops` for verified o
 
 For multi-step MCP edits, connect `agentic-mermaid-mcp` and use Code Mode `execute(code)` with the same `mermaid.*` SDK names. Stdio is the default transport; `agentic-mermaid-mcp --transport http` starts HTTP/SSE and managed PNG file/URL artifacts. See the [agent API cookbook](./docs/agent-api-cookbook.md) for copy-pasteable library, CLI, and MCP recipes.
 
+## MCP server
+
+Agentic Mermaid ships a Model Context Protocol server so MCP-capable agents can render and safely edit diagrams without shelling out.
+
+- **Self-hosted (default).** `agentic-mermaid-mcp` runs a stdio server exposing `execute` (Code Mode sandbox), `render_png`, and `describe`. Add `--transport http` for HTTP/SSE with managed PNG file/URL artifacts. See [`docs/mcp-http-transport.md`](./docs/mcp-http-transport.md) and [`docs/mcp-code-mode-rationale.md`](./docs/mcp-code-mode-rationale.md).
+- **Hosted.** A stateless streamable-HTTP endpoint is available at `https://agentic-mermaid.dev/mcp` (tools: `execute`, `render_svg`, `render_ascii`, `render_png`, `verify`, `describe`; 64 KB input caps). It runs the same SDK surface as the local server — call it with MCP JSON-RPC only; it is not a REST render API.
+
+Local-first is the default posture: prefer the library, CLI, or a self-hosted MCP for anything sensitive; the hosted endpoint is a public, unauthenticated convenience covering the same tools.
+
 ## Structured edit example
 
 ```ts
@@ -185,6 +194,7 @@ See [diagram families](./docs/diagram-families.md) for examples and compatibilit
 
 ## More documentation
 
+- [System architecture](./docs/design/system/README.md) — **start here** for how the engine works: the rendered three-stacks overview (dogfooded, drift-proof) routing to the design and route-contract docs.
 - [API reference](./docs/api.md) — renderers, agent API, options, CLI/MCP pointers.
 - [Agent API cookbook](./docs/agent-api-cookbook.md) — practical recipes for agents.
 - [Theming](./docs/theming.md) — two-color themes, built-ins, Shiki compatibility.

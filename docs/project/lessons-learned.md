@@ -4,6 +4,10 @@ This document replaces the Loop 1 retrospective. It is the cumulative
 narrative across the agentic-mermaid fork. Each section reflects what a
 critic or implementer wished they had known when they started.
 
+> **Scope.** This is the long-form fork narrative. For dated, incident-tagged
+> contributor process lessons ("add new at the top"), see
+> [`../contributing/lessons-learned.md`](../contributing/lessons-learned.md).
+
 ## (a) What we wish we'd known
 
 When we started this fork we built a class diagram parser, then an ER

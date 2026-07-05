@@ -41,5 +41,5 @@ produced *by* the system, and pinned the same way we pin layout determinism.
 - [`layout-guarantees-and-robustness.md`](./layout-guarantees-and-robustness.md) — literature + industry synthesis: which invariants we can guarantee by construction vs. only optimize-and-certify, and the path to fuzz-robustness.
 - [`source-preservation-ladder.md`](./source-preservation-ladder.md) — the structured\|opaque family-adoption contract (L0–L4).
 
-> These design docs are co-located here in `design/system/` — the
-> [documentation reorganization plan](../../project/doc-reorg-plan.md) moved them in Phase 1.
+> These design docs are co-located here in `design/system/`; per-family notes live in
+> [`../families/`](../families/README.md).

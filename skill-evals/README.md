@@ -13,7 +13,7 @@ The public tune split now includes:
 - Adversarial rows for source concatenation, skipping verify, editing generated `editor.html`, and using `type` instead of `kind`.
 - Fixture-backed artifact rows under [`fixtures/`](./fixtures/) that require changed Mermaid/source plus `verifyMermaid` evidence.
 
-The manifest also contains private `prompt_ref` stubs for `holdout` and `holdback`. Those paths are intentionally under ignored `evals/private/`; keep real hidden prompts and answer keys out of public commits.
+The manifest also contains private `prompt_ref` stubs for `holdout` and `holdback`. Those paths are intentionally under ignored `skill-evals/private/`; keep real hidden prompts and answer keys out of public commits.
 
 ## Harness
 
@@ -26,20 +26,20 @@ uvx --from git+https://github.com/adewale/skill-eval-harness.git@v0.1.1 skill-be
 Validate and audit the public manifest:
 
 ```bash
-skill-benchmark validate evals/shared-benchmark.json
-skill-benchmark audit-manifest evals/shared-benchmark.json --format markdown --out /tmp/agentic-mermaid-skill-audit.md
+skill-benchmark validate skill-evals/shared-benchmark.json
+skill-benchmark audit-manifest skill-evals/shared-benchmark.json --format markdown --out /tmp/agentic-mermaid-skill-audit.md
 ```
 
-Use strict hidden-prompt validation only in a private eval workspace where `evals/private/...` exists:
+Use strict hidden-prompt validation only in a private eval workspace where `skill-evals/private/...` exists:
 
 ```bash
-skill-benchmark validate evals/shared-benchmark.json --strict-holdback
+skill-benchmark validate skill-evals/shared-benchmark.json --strict-holdback
 ```
 
 Prepare visible tune tasks with repeated runs:
 
 ```bash
-skill-benchmark prepare evals/shared-benchmark.json \
+skill-benchmark prepare skill-evals/shared-benchmark.json \
   --split tune \
   --runs-per-variant 5 \
   --out /tmp/agentic-mermaid-skill-tasks.jsonl
@@ -50,7 +50,7 @@ Use 3 runs per variant for cheap iteration; use 5 for pre-merge/release evidence
 Run autonomous trigger/no-trigger checks separately:
 
 ```bash
-skill-pi-trigger-eval evals/shared-benchmark.json \
+skill-pi-trigger-eval skill-evals/shared-benchmark.json \
   --split tune \
   --runs-per-query 5 \
   --out /tmp/agentic-mermaid-trigger-report.json
@@ -59,7 +59,7 @@ skill-pi-trigger-eval evals/shared-benchmark.json \
 After running the prepared tasks with a coding-agent runner, grade with:
 
 ```bash
-skill-benchmark benchmark evals/shared-benchmark.json \
+skill-benchmark benchmark skill-evals/shared-benchmark.json \
   --runs /tmp/agentic-mermaid-skill-runs \
   --split tune \
   --out /tmp/agentic-mermaid-skill-benchmark.json

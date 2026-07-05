@@ -1,5 +1,5 @@
 // Mermaid link grammar: variable-length operators and the invisible link.
-// The audit (docs/design/system/issue-26-audit.md) recorded these as parser gaps —
+// The issue-#26 audit (see git history / issue #26) recorded these as parser gaps —
 // `~~~` silently dropped, `---->` misparsed into a phantom `-` node, and
 // `-..->`/`====>` dropped entirely. These tests pin the fix: every supported
 // link length and the invisible link parse into a correct edge, render

@@ -4,6 +4,10 @@ Process lessons this repo has paid for, so they only have to be paid for once.
 Each entry names the incident that taught it. Add new lessons at the top with a
 date; do not delete old ones — supersede them in place.
 
+> **Scope.** This is the dated contributor process log. For the long-form
+> cumulative fork narrative (loops 1–22), see
+> [`../project/lessons-learned.md`](../project/lessons-learned.md).
+
 ## 2026-07 — the brand-system and chrome-polish passes
 
 **Design intent and shipped hex drift apart; compute claims on what shipped.**
