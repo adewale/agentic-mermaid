@@ -243,8 +243,11 @@ describe('Workers Static Assets website contract', () => {
     expect(read(editorScript)).toContain('URLSearchParams(window.location.search).get(\'example\')')
     expect(editor).toContain('id="copy-agent-prompt-btn"')
     expect(editor).toContain('class="app-brand" aria-label="Agentic Mermaid Editor home"')
-    expect(editor).toContain('<span class="sr-only">Diagram theme: </span><span class="axis-value" id="theme-btn-label">Default</span>')
-    // Style and Theme are fused into one split pill (both dropdown ids preserved).
+    // Right half is labelled "Palette" (visible + a11y); code ids stay theme-*.
+    expect(editor).toContain('<span class="axis-label" aria-hidden="true">Palette</span>')
+    expect(editor).toContain('<span class="sr-only">Diagram palette: </span><span class="axis-value" id="theme-btn-label">Default</span>')
+    expect(editor).toContain('id="theme-dropdown-menu" role="listbox" aria-label="Palette"')
+    // Style and Palette are fused into one split pill (both dropdown ids preserved).
     expect(editor).toContain('class="axis-pill" role="group" aria-label="Diagram look"')
     expect(editor).toContain('id="style-dropdown-btn"')
     expect(editor).toContain('id="theme-dropdown-btn"')

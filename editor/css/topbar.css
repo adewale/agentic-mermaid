@@ -469,10 +469,34 @@
     width: var(--control-h);
     min-width: var(--control-h);
   }
-  /* The split pill travels as one unit on the wrapping topbar. */
+  /* Touch: unfuse the pill. Two adjacent half-targets sharing a divider are a
+     mis-tap hazard on a phone (NN/g's split-button "fat-finger" caution), so
+     below the tablet breakpoint the pill becomes two full-width stacked
+     controls, each its own bordered ≥44px trigger opening the same sheet. */
   .axis-pill {
     order: 1;
+    flex: 1 0 100%;
+    flex-direction: column;
+    align-items: stretch;
+    height: auto;
+    gap: 8px;
+    border: none;
+    background: transparent;
   }
+  .axis-divider { display: none; }
+  .axis-half { display: block; }
+  .axis-btn {
+    width: 100%;
+    min-height: var(--control-h);
+    padding: 0 12px;
+    border: 1px solid var(--control-border);
+    background: var(--control-bg);
+  }
+  #style-dropdown-wrap .axis-btn,
+  #theme-dropdown-wrap .axis-btn { min-width: 0; }
+  /* each control is fully rounded now, not a pill half */
+  .axis-half:first-child .axis-btn,
+  .axis-half:last-child .axis-btn { border-radius: var(--radius-md); }
   .export-wrap {
     order: 1;
     margin-left: 0;
@@ -481,14 +505,6 @@
     width: var(--control-h);
     min-width: var(--control-h);
   }
-  .axis-btn {
-    padding: 0 8px;
-  }
-  /* Compact the halves: drop the mini-labels and carets, keep swatch + value. */
-  .axis-label,
-  .axis-caret {
-    display: none;
-  }
   .theme-dropdown-menu {
     position: fixed;
     top: 58px;
@@ -496,7 +512,7 @@
     right: 10px;
     max-height: min(70vh, 420px);
   }
-  /* Both halves' fixed sheets span the row on mobile. */
+  /* Both controls' sheets span the row on mobile. */
   #style-dropdown-wrap .theme-dropdown-menu { left: 10px; right: 10px; }
   #export-main-btn {
     width: var(--control-h);
