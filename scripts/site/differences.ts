@@ -302,13 +302,13 @@ function buildHtml(): string {
   <link rel="apple-touch-icon" href="apple-touch-icon.png" />
   <meta property="og:title" content="What's different in this fork — Agentic Mermaid" />
   <meta property="og:description" content="What Agentic Mermaid adds on top of Beautiful Mermaid: six more diagram families, a typed parse-and-edit API, verification, byte-identical output, PNG/JSON output, a role-keyed style option, and a CLI plus MCP server." />
-  <meta property="og:image" content="https://adewale.github.io/beautiful-mermaid/og-image.png" />
+  <meta property="og:image" content="https://agentic-mermaid.dev/og-image.png" />
   <meta property="og:type" content="website" />
-  <meta property="og:url" content="https://adewale.github.io/beautiful-mermaid/differences" />
+  <meta property="og:url" content="https://agentic-mermaid.dev/comparisons/" />
   <meta name="twitter:card" content="summary_large_image" />
   <meta name="twitter:title" content="What's different in this fork — Agentic Mermaid" />
   <meta name="twitter:description" content="Agentic Mermaid vs Beautiful Mermaid, at a glance." />
-  <meta name="twitter:image" content="https://adewale.github.io/beautiful-mermaid/og-image.png" />
+  <meta name="twitter:image" content="https://agentic-mermaid.dev/og-image.png" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />

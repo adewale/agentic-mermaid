@@ -329,13 +329,13 @@ export async function generateHtml(options: GenerateHtmlOptions = {}): Promise<s
   <link rel="apple-touch-icon" href="/mermaid/apple-touch-icon.png" />
   <meta property="og:title" content="Agentic Mermaid" />
   <meta property="og:description" content="Open source diagram rendering library built for the AI era. Ultra-fast, fully themeable, outputs to SVG and ASCII." />
-  <meta property="og:image" content="https://adewale.github.io/beautiful-mermaid/og-image.png" />
+  <meta property="og:image" content="https://agentic-mermaid.dev/og-image.png" />
   <meta property="og:type" content="website" />
-  <meta property="og:url" content="https://adewale.github.io/beautiful-mermaid/" />
+  <meta property="og:url" content="https://agentic-mermaid.dev/" />
   <meta name="twitter:card" content="summary_large_image" />
   <meta name="twitter:title" content="Agentic Mermaid" />
   <meta name="twitter:description" content="Mermaid rendering, made beautiful. Ultra-fast, fully themeable, outputs to SVG and ASCII." />
-  <meta name="twitter:image" content="https://adewale.github.io/beautiful-mermaid/og-image.png" />
+  <meta name="twitter:image" content="https://agentic-mermaid.dev/og-image.png" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
@@ -1484,7 +1484,7 @@ export async function generateHtml(options: GenerateHtmlOptions = {}): Promise<s
         agent at the hosted contract — no clone, no manual install.
       </p>
       <pre>When editing Mermaid diagrams, use Agentic Mermaid.
-Read https://adewale.github.io/beautiful-mermaid/llms.txt and follow its
+Read https://agentic-mermaid.dev/llms.txt and follow its
 parse → narrow → mutate → verify → serialize workflow. For new diagrams,
 author source directly, then verify and render.</pre>
       <p class="agent-cta-foot">

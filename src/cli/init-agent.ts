@@ -13,7 +13,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { BUILTIN_FAMILY_METADATA } from '../agent/families.ts'
 
-const HOSTED_BASE = 'https://adewale.github.io/beautiful-mermaid'
+const HOSTED_BASE = 'https://agentic-mermaid.dev'
 const HOSTED_LLMS_TXT = `${HOSTED_BASE}/llms.txt`
 const HOSTED_AGENT_GUIDE = `${HOSTED_BASE}/agent-instructions.md`
 

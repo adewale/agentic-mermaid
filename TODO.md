@@ -512,14 +512,24 @@ invariants against recurrence.
   Generate them from the citizenship matrix. Caveat: the citizenship test and
   matrix hard-code the config filenames, so a generator must keep on-disk names
   or update both in lockstep.
-- [ ] **CONS-90 — Two website pipelines** (`owner-decision`). `scripts/site/*`
-  builds root `public/` for GitHub Pages (`pages.yml`, the one that
-  auto-deploys); `website/build.ts` builds `website/public/` for Cloudflare
-  Workers (`wrangler.jsonc`, gated by `website:check` but never auto-deployed —
-  `deploy` is a no-op `echo`). Pick one destination and retire the other
-  pipeline. (Related audit Tier-4 items now resolved: `mockups/` deleted,
-  `evals/`→`skill-evals/` renamed, dead scripts + `stryker.linkrank` removed,
-  `pr11-reviewer-guide.md` retired.)
+- [x] **CONS-90 — Website pipelines: Cloudflare chosen as canonical** (`done`).
+  agentic-mermaid.dev (Cloudflare Workers, `website/build.ts`) is now the
+  canonical live site: homepage/links/`HOSTED_BASE` repointed,
+  `.github/workflows/deploy-cloudflare.yml` added (auto-deploys on `main`; needs
+  `CLOUDFLARE_API_TOKEN` + `CLOUDFLARE_ACCOUNT_ID` repo secrets), and the GitHub
+  Pages deploy (`pages.yml`, `build:site`) retired. The `scripts/site/*`
+  generators stay as dev/preview tools (still used by `bun run dev` and
+  `e2e/browser.test.ts`). (Related audit Tier-4 items already resolved:
+  `mockups/` deleted, `evals/`→`skill-evals/` renamed, dead scripts +
+  `stryker.linkrank` removed, `pr11-reviewer-guide.md` retired.)
+- [ ] **CONS-91 — Finish retiring the Pages pipeline** (`todo`). Now that
+  Cloudflare is canonical: (a) migrate `bun run dev` and `e2e/browser.test.ts`
+  off `scripts/site/generate.ts` so the Pages-only generators
+  (`generate.ts`, `differences.ts`, `xychart-test.ts`, `client-color.ts`) can be
+  deleted — note `samples-data.ts` is shared with eval tooling and stays; and
+  (b) un-commit the 6.8MB `website/public` bundle (build-at-deploy), which
+  requires inverting CI so `bun run website` runs before `bun test` (the build
+  test reads the committed bundle) and rewriting the `website:check` contract.
 
 ## 6. Non-goals
 
