@@ -2,9 +2,8 @@
  * Sample definitions for the Agentic Mermaid visual test suite.
  *
  * Shared by:
- *   - scripts/site/generate.ts — generates the HTML visual test page
  *   - eval/benchmark/sample-bench.ts — runs performance benchmarks in Bun
- *   - scripts/dev.ts — dev server with live reload
+ *   - eval/overlap-audit/ and eval/ugly-detector/ — layout / aesthetic audits
  *
  * Every supported feature, shape, edge type, block construct, and theme
  * variant is exercised by at least one sample.

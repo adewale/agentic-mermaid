@@ -4,7 +4,7 @@
 // Exposes renderMermaid and renderMermaidAscii on window.__mermaid so they
 // can be called from inline <script> tags in samples.html.
 //
-// Bundled via `Bun.build({ target: 'browser' })` in scripts/site/generate.ts.
+// Bundled via `Bun.build({ target: 'browser' })` in scripts/site/editor.ts and website/build.ts.
 // ============================================================================
 
 import { renderMermaidSVGAsync } from './index.ts'

@@ -243,8 +243,8 @@
           "status": "satisfied",
           "evidence": [
             "scripts/site/samples-data.ts",
-            "scripts/site/generate.ts",
-            "src/__tests__/property-html-generator.test.ts"
+            "website/build.ts",
+            "src/__tests__/website-build.test.ts"
           ]
         },
         "distributionPackage": {
@@ -413,8 +413,8 @@
           "status": "satisfied",
           "evidence": [
             "scripts/site/samples-data.ts",
-            "scripts/site/generate.ts",
-            "src/__tests__/property-html-generator.test.ts"
+            "website/build.ts",
+            "src/__tests__/website-build.test.ts"
           ]
         },
         "distributionPackage": {
@@ -583,8 +583,8 @@
           "status": "satisfied",
           "evidence": [
             "scripts/site/samples-data.ts",
-            "scripts/site/generate.ts",
-            "src/__tests__/property-html-generator.test.ts"
+            "website/build.ts",
+            "src/__tests__/website-build.test.ts"
           ]
         },
         "distributionPackage": {
@@ -751,8 +751,8 @@
           "status": "satisfied",
           "evidence": [
             "scripts/site/samples-data.ts",
-            "scripts/site/generate.ts",
-            "src/__tests__/property-html-generator.test.ts"
+            "website/build.ts",
+            "src/__tests__/website-build.test.ts"
           ]
         },
         "distributionPackage": {
@@ -920,8 +920,8 @@
           "status": "satisfied",
           "evidence": [
             "scripts/site/samples-data.ts",
-            "scripts/site/generate.ts",
-            "src/__tests__/property-html-generator.test.ts"
+            "website/build.ts",
+            "src/__tests__/website-build.test.ts"
           ]
         },
         "distributionPackage": {
@@ -1089,8 +1089,8 @@
           "status": "satisfied",
           "evidence": [
             "scripts/site/samples-data.ts",
-            "scripts/site/generate.ts",
-            "src/__tests__/property-html-generator.test.ts"
+            "website/build.ts",
+            "src/__tests__/website-build.test.ts"
           ]
         },
         "distributionPackage": {
@@ -1257,8 +1257,8 @@
           "status": "satisfied",
           "evidence": [
             "scripts/site/samples-data.ts",
-            "scripts/site/generate.ts",
-            "src/__tests__/property-html-generator.test.ts"
+            "website/build.ts",
+            "src/__tests__/website-build.test.ts"
           ]
         },
         "distributionPackage": {
@@ -1425,8 +1425,8 @@
           "status": "satisfied",
           "evidence": [
             "scripts/site/samples-data.ts",
-            "scripts/site/generate.ts",
-            "src/__tests__/property-html-generator.test.ts"
+            "website/build.ts",
+            "src/__tests__/website-build.test.ts"
           ]
         },
         "distributionPackage": {
@@ -1594,8 +1594,8 @@
           "status": "satisfied",
           "evidence": [
             "scripts/site/samples-data.ts",
-            "scripts/site/generate.ts",
-            "src/__tests__/property-html-generator.test.ts"
+            "website/build.ts",
+            "src/__tests__/website-build.test.ts"
           ]
         },
         "distributionPackage": {
@@ -1762,8 +1762,8 @@
           "status": "satisfied",
           "evidence": [
             "scripts/site/samples-data.ts",
-            "scripts/site/generate.ts",
-            "src/__tests__/property-html-generator.test.ts"
+            "website/build.ts",
+            "src/__tests__/website-build.test.ts"
           ]
         },
         "distributionPackage": {
@@ -1930,8 +1930,8 @@
           "status": "satisfied",
           "evidence": [
             "scripts/site/samples-data.ts",
-            "scripts/site/generate.ts",
-            "src/__tests__/property-html-generator.test.ts"
+            "website/build.ts",
+            "src/__tests__/website-build.test.ts"
           ]
         },
         "distributionPackage": {
@@ -2102,8 +2102,8 @@
           "status": "satisfied",
           "evidence": [
             "scripts/site/samples-data.ts",
-            "scripts/site/generate.ts",
-            "src/__tests__/property-html-generator.test.ts"
+            "website/build.ts",
+            "src/__tests__/website-build.test.ts"
           ]
         },
         "distributionPackage": {

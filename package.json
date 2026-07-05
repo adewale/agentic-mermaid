@@ -101,9 +101,8 @@
   "scripts": {
     "test": "bun test --coverage src/__tests__/",
     "test:browser": "cd e2e && bun test . --timeout 600000",
-    "samples": "bun run scripts/site/generate.ts",
     "editor": "bun run scripts/site/editor.ts",
-    "dev": "bun run scripts/dev.ts",
+    "dev": "bun run website:dev",
     "bench": "bun run eval/benchmark/sample-bench.ts",
     "harvest:upstream": "bun run eval/mermaid-upstream-suite-bench/harvest.ts",
     "harvest:upstream:refresh-check": "bun run eval/mermaid-upstream-suite-bench/refresh-check.ts",

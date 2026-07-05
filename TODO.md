@@ -532,18 +532,15 @@ invariants against recurrence.
   data (`xychart-samples-data.ts`, `upstream-layout-snapshots.json`,
   `capture-upstream-layout.ts`); rewrote `comparison-differences-sync.test.ts`
   to keep the `comparison.md`↔registry guard.
-- [ ] **CONS-91c — Retire `scripts/site/generate.ts` (samples gallery)**
-  (`owner-decision`). Unlike the two above, `generate.ts` is not dead: it backs
-  the Pages **samples gallery**, its **1,121-line `e2e/browser.test.ts`**
-  browser suite (gallery + editor, ≥90 SVGs, category filters, theme
-  persistence), and `bun run dev`. Deleting it removes that surface and its
-  browser coverage. To retire it, first migrate the browser coverage onto the
-  Cloudflare site (`website/public` home/editor/examples) and point `bun run
-  dev` at `website:dev`; then delete `generate.ts` + `client-color.ts` and
-  repoint the citizenship matrix's `generatedSite` evidence (currently
-  `generate.ts` + `property-html-generator.test.ts`) to `website/build.ts` +
-  `website-build.test.ts`. `samples-data.ts` is shared with eval tooling and
-  stays regardless.
+- [x] **CONS-91c — Retire `scripts/site/generate.ts` (samples gallery)**
+  (`done`). Migrated `e2e/browser.test.ts` down to the editor-only suite (the
+  editor is built by `editor.ts`, which stays; the gallery-specific blocks were
+  removed — validated at 10 browser tests passing), pointed `bun run dev` at
+  `website:dev`, and deleted `generate.ts`, `client-color.ts`, `scripts/dev.ts`,
+  and `property-html-generator.test.ts` (+ the `samples` script). The
+  citizenship matrix's `generatedSite` evidence now cites `website/build.ts` +
+  `website-build.test.ts`. `samples-data.ts` stays (shared with eval tooling).
+  The GitHub Pages pipeline is fully retired.
 
 ## 6. Non-goals
 
