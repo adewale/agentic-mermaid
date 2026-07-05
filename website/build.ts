@@ -275,7 +275,7 @@ function mastheadHtml(currentHref = '') {
 // deliberately — the website contract test forbids repository chrome in the
 // masthead, so the footer is the one place the repo link ships.
 function footerHtml() {
-  return `<footer><div class="footlinks"><a href="/warnings/">Warnings</a><span class="sep">&middot;</span><a href="/errors/">Errors</a><span class="sep">&middot;</span><a href="/releases/">Releases</a><span class="sep">&middot;</span><a href="/security/">Security</a><span class="sep">&middot;</span><a href="/about/design/">Design</a><span class="sep">&middot;</span><a href="https://github.com/adewale/beautiful-mermaid">GitHub</a></div><div class="footlinks"><a href="/llms.txt">llms.txt</a><span class="sep">&middot;</span><a href="/agent-instructions.md">agent-instructions.md</a><span class="sep">&middot;</span><a href="/capabilities.json">capabilities.json</a><span class="sep">&middot;</span><a href="/examples/index.json">examples.json</a><span class="sep">&middot;</span><a href="/skills/agentic-mermaid-diagram-workflow/SKILL.md">workflow skill</a></div></footer>`
+  return `<footer><div class="footlinks"><a href="/warnings/">Warnings</a><span class="sep">&middot;</span><a href="/errors/">Errors</a><span class="sep">&middot;</span><a href="/skills/agentic-mermaid-diagram-workflow/">Skill</a><span class="sep">&middot;</span><a href="/about/design/">Design</a><span class="sep">&middot;</span><a href="https://github.com/adewale/beautiful-mermaid">GitHub</a></div><div class="footlinks"><a href="/llms.txt">llms.txt</a><span class="sep">&middot;</span><a href="/agent-instructions.md">agent-instructions.md</a><span class="sep">&middot;</span><a href="/capabilities.json">capabilities.json</a><span class="sep">&middot;</span><a href="/examples/index.json">examples.json</a><span class="sep">&middot;</span><a href="/skills/agentic-mermaid-diagram-workflow/SKILL.md">workflow skill</a></div></footer>`
 }
 
 // Single page header contract: h1 + lead, then an optional meta row
@@ -329,6 +329,17 @@ function escapeHtml(s: string) {
 }
 function escapeAttr(s: string) {
   return escapeHtml(s).replace(/"/g, '&quot;')
+}
+// The WARNING_DETAIL prose is authored as inline HTML (<code> spans, entities)
+// for the web pages; render it as plain Markdown for the .md siblings. Decode
+// &amp; last so pre-encoded entities like &amp;#160; survive as literal text.
+function inlineHtmlToMarkdown(s: string) {
+  return s
+    .replace(/<a href="([^"]+)">(.*?)<\/a>/g, '[$2]($1)')
+    .replace(/<code>(.*?)<\/code>/g, '`$1`')
+    .replace(/&lt;/g, '<').replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"').replace(/&#39;/g, "'")
+    .replace(/&amp;/g, '&')
 }
 
 const packageJson = JSON.parse(await Bun.file(join(ROOT, 'package.json')).text())
@@ -799,7 +810,7 @@ function injectLoopHeadings(html: string) {
 // with a leading rule) and the docs article gets it injected at build time —
 // same single-source pattern as the loop rail — so the source page's
 // hand-baked list can never drift from the pages that actually ship.
-const docsIndexBody = '<h2>Docs index</h2><ul class="doc-index doc-index-grouped"><li><strong>Start</strong><ul><li><a href="/docs/getting-started/">Getting started</a></li><li><a href="/docs/families/">Diagram families</a></li><li><a href="/examples/">Examples</a></li></ul></li><li><strong>Use locally</strong><ul><li><a href="/docs/api/">Library API</a></li><li><a href="/docs/cli/">CLI</a></li><li><a href="/docs/mcp/">MCP</a></li><li><a href="/docs/react/">React</a></li></ul></li><li><strong>Debug</strong><ul><li><a href="/warnings/">Warnings</a></li><li><a href="/errors/">Errors</a></li><li><a href="/docs/quality/">Quality</a></li><li><a href="/docs/source-level/">Source-level edits</a></li></ul></li><li><strong>Reference</strong><ul><li><a href="/docs/ascii/">ASCII and Unicode</a></li><li><a href="/docs/theming/">Theming</a></li><li><a href="/docs/config/">Config</a></li><li><a href="/docs/vocabulary/">Vocabulary</a></li><li><a href="/docs/fork-differences/">Fork differences</a></li></ul></li></ul>'
+const docsIndexBody = '<h2>Docs index</h2><ul class="doc-index doc-index-grouped"><li><strong>Start</strong><ul><li><a href="/docs/getting-started/">Getting started</a></li><li><a href="/docs/families/">Diagram families</a></li><li><a href="/examples/">Examples</a></li></ul></li><li><strong>Use locally</strong><ul><li><a href="/docs/api/">Library API</a></li><li><a href="/docs/cli/">CLI</a></li><li><a href="/docs/mcp/">MCP</a></li></ul></li><li><strong>Debug</strong><ul><li><a href="/warnings/">Warnings</a></li><li><a href="/errors/">Errors</a></li><li><a href="/docs/quality/">Quality</a></li></ul></li><li><strong>Reference</strong><ul><li><a href="/docs/ascii/">ASCII and Unicode</a></li><li><a href="/docs/theming/">Theming</a></li><li><a href="/docs/fork-differences/">Fork differences</a></li></ul></li></ul>'
 const docsIndex = '<hr>' + docsIndexBody
 function injectDocsIndex(html: string) {
   return html.replace(/<h2>Docs index<\/h2>\s*<ul class="doc-index">[\s\S]*?<\/ul>/, docsIndexBody)
@@ -858,7 +869,9 @@ await emit('diagrams/workflow-themeable.svg', addWorkflowSvgA11y(renderMermaidSV
   .replace('--bg:var(--bg);--fg:var(--fg);--accent:var(--accent);', '')))
 
 const capabilities = { ...rawCapabilities, generatedFrom }
-await emitJson('capabilities.json', capabilities)
+// capabilities.json is emitted later (after the WARNING_DETAIL table), once each
+// warningCodes entry is enriched with its what/triggers/fix prose so the JSON is
+// a full machine surface — not just code/tier/severity.
 
 const examples = {
   generatedFrom,
@@ -1016,6 +1029,9 @@ bun run bin/am.ts render diagram.mmd --format unicode</code></pre></li>
 ${mcpConfigCardHtml('getting-started')}
 <pre><code>bun run bin/agentic-mermaid-mcp.ts</code></pre><p>Use stdio MCP from the cloned repo, or point an MCP client at the hosted endpoint.</p></li>
 </ol>
+<h2>Vocabulary</h2>
+<p>Shared terms for humans and agents, used across these docs.</p>
+<dl><dt>narrow</dt><dd>Resolve a parsed diagram to a family-specific typed surface.</dd><dt>verify</dt><dd>Return structural, geometric, and lint warnings before artifacts are trusted.</dd><dt>opaque fallback</dt><dd>Preserve unsupported syntax losslessly when structured mutation is unavailable.</dd></dl>
 ${docsIndex}`
 
 // /about/design — the design-language reference. Specimens read the live CSS
@@ -1108,23 +1124,15 @@ const docPages = [
   ['about/design/index.html', 'Design language', designLead, designBody, '/about/'],
   ['docs/getting-started/index.html', 'Getting started', 'From Mermaid source to a verified local render, then to an agent-safe edit loop.', gettingStartedBody, '/docs/'],
   ['docs/families/index.html', 'Diagram families', familiesLead, familiesReferenceHtml(), '/docs/'],
-  ['docs/api/index.html', 'Library API', 'Use agentic-mermaid and agentic-mermaid/agent from local JS or TS.', '<p>Import rendering helpers from <code>agentic-mermaid</code> and typed parse/mutate/verify helpers from <code>agentic-mermaid/agent</code>.</p>' + docsIndex],
-  ['docs/source-level/index.html', 'Source-level edits', 'When a family or construct cannot be narrowed safely, preserve source deliberately.', '<p>Opaque fallback bodies round-trip losslessly, but they do not expose structured mutation. Edit their preserved source only when the task explicitly asks for source-level changes, then parse and verify before returning artifacts.</p>' + docsIndex],
-  ['docs/cli/index.html', 'CLI', 'Use the am CLI for local rendering, verification, batch checks, and Markdown rendering.', '<pre><code>am verify diagram.mmd\nam render diagram.mmd --format svg --output diagram.svg\nam render diagram.mmd --format unicode</code></pre>' + docsIndex],
+  ['docs/api/index.html', 'Library API', 'Use agentic-mermaid and agentic-mermaid/agent from local JS or TS.', '<p>Import rendering helpers from <code>agentic-mermaid</code> and typed parse/mutate/verify helpers from <code>agentic-mermaid/agent</code>. Everything runs locally with no network.</p>\n<pre><code>import { renderMermaidSVG, renderMermaidASCII } from \'agentic-mermaid\'\nimport { parseMermaid, verifyMermaid } from \'agentic-mermaid/agent\'\n\nconst src = \'flowchart LR\\n  A[Idea] --&gt; B[Ship]\'\nconst svg = renderMermaidSVG(src)           // also renderMermaidASCII / unicode\nconst { ok, warnings } = verifyMermaid(src) // structured, tiered warnings</code></pre>\n<p>Render helpers return strings (SVG, ASCII, Unicode); the agent surface returns typed diagrams plus structured verify warnings. <strong>In React</strong>, call the same helpers in your component and inject the SVG — private diagrams never leave the browser or your own infrastructure. <strong>Config:</strong> supported Mermaid frontmatter and <code>init</code> directives are normalized before rendering; unsupported syntax is preserved or reported, never silently dropped.</p>' + docsIndex],
+  ['docs/cli/index.html', 'CLI', 'Use the am CLI for local rendering, verification, batch checks, and Markdown rendering.', '<p>The <code>am</code> CLI wraps the library for local rendering, verification, and batch checks. In the cloned repo, <code>am</code> is <code>bun run bin/am.ts</code>.</p>\n<pre><code>am verify diagram.mmd                # structural + geometric + lint warnings\nam verify diagram.mmd --json         # machine-readable for agents\nam render diagram.mmd --format svg --output diagram.svg\nam render diagram.mmd --format png --output diagram.png\nam render diagram.mmd --format ascii # or --format unicode</code></pre>\n<p>Prefer <code>--json</code> in agent loops so you can branch on <code>verify.ok</code> and the stable warning codes instead of parsing prose.</p>' + docsIndex],
   ['docs/mcp/index.html', 'MCP', 'Hosted MCP at /mcp, plus a local stdio server.', '<p>The hosted MCP endpoint is <code>https://agentic-mermaid.dev/mcp</code>: stateless streamable HTTP (JSON-RPC over POST, no sessions). Hosted tools: <code>execute</code>, <code>render_svg</code>, <code>render_ascii</code>, <code>render_png</code>, <code>verify</code>, and <code>describe</code>. Deterministic responses are edge-cached, inputs are capped at 64KB, and Code Mode <code>execute</code> runs in an isolated on-demand Worker with network access disabled and a CPU budget.</p><p>The local MCP tools are <code>execute</code>, <code>render_png</code>, and <code>describe</code>. Multi-step parse/narrow/mutate/verify workflows run inside <code>execute(code)</code>. For file/URL PNG artifacts, diagrams beyond the hosted caps, or offline use, run the stdio server from the repo: <code>bun run bin/agentic-mermaid-mcp.ts</code>.</p><p><strong>Privacy:</strong> every hosted tool call sends your diagram source (or Code Mode code) to this site\u2019s server, and successful responses are edge-cached for up to a day. For diagrams that must not leave your machine, use the library, the CLI, or the local stdio server \u2014 the pipeline is fully local and needs no network.</p><p><strong>Response framing:</strong> the hosted <code>/mcp</code> endpoint always replies with plain <code>application/json</code> \u2014 no SSE <code>data:</code> framing \u2014 so scripts can parse the body directly. The local HTTP transport\u2019s <code>/sse</code> + <code>/message</code> pair delivers responses as SSE events on the open stream; script writers who want unframed JSON should POST to its <code>/rpc</code> endpoint instead.</p>' + docsIndex],
-  ['docs/ascii/index.html', 'ASCII and Unicode', 'Text output is first-class for terminals, PR comments, and agent review.', '<pre><code>am render diagram.mmd --format ascii\nam render diagram.mmd --format unicode</code></pre>' + docsIndex],
+  ['docs/ascii/index.html', 'ASCII and Unicode', 'Text output is first-class for terminals, PR comments, and agent review.', '<p>Text output is first-class, not a fallback: ASCII (portable 7-bit) and Unicode (box-drawing) renders drop straight into terminals, PR comments, commit messages, and agent transcripts where an SVG cannot go.</p>\n<pre><code>am render diagram.mmd --format ascii    # portable, 7-bit\nam render diagram.mmd --format unicode  # sharper box-drawing glyphs</code></pre>\n<p>The text path is deterministic like the SVG path, so the same source always yields the same characters — reviewable in a plain diff. The ASCII engine is ported from mermaid-ascii; see <a href="/about/">About</a> for the lineage.</p>' + docsIndex],
   ['docs/theming/index.html', 'Theming and styles', 'A style describes how diagrams look; a colors-only style is a theme.', '<p>One primitive covers every look: a <strong>style</strong> is a partial, composable description of how diagrams render — palette, typography, stroke character, fills. A style that only sets colours is what people call a <em>theme</em>; full looks like <code>hand-drawn</code>, <code>watercolor</code>, or <code>blueprint</code> also change the mark treatment. Styles stack left \u2192 right (<code>{ style: [\'hand-drawn\', \'dracula\'] }</code> is hand-drawn geometry in the dracula palette), the optional <code>seed</code> re-rolls styled ink without ever moving layout, and custom styles are plain JSON records. The browser editor exposes both pickers \u2014 Style chooses the look, Theme chooses the palette \u2014 and SVG output can also inherit CSS variables for live theming.</p>' + docsIndex],
-  ['docs/config/index.html', 'Config', 'Mermaid frontmatter and init directives are normalized before rendering.', '<p>Use checked Mermaid config/frontmatter where supported; unsupported syntax is preserved or reported rather than silently dropped.</p>' + docsIndex],
-  ['docs/react/index.html', 'React', 'Render locally in React without using the website as a backend.', '<p>Import the library in your app and render SVG/PNG locally. Keep private diagrams in the browser or your own infrastructure.</p>' + docsIndex],
-  ['docs/quality/index.html', 'Quality', 'Determinism, verify warnings, and layout metrics make diagram edits reviewable.', '<p><code>verify.ok</code> is a gate, not a promise of visual perfection. Include SVG/PNG/ASCII artifacts for human review when the change is visual.</p>' + docsIndex],
-  ['docs/fork-differences/index.html', 'Fork differences', 'Agentic Mermaid adds typed editing, deterministic verification, CLI, MCP, and more families.', '<p>See the repository docs for the detailed upstream comparison; this public route keeps the product difference discoverable.</p>' + docsIndex],
-  ['docs/vocabulary/index.html', 'Vocabulary', 'Shared terms for humans and agents.', '<dl><dt>narrow</dt><dd>Resolve a parsed diagram to a family-specific typed surface.</dd><dt>verify</dt><dd>Return structural, geometric, and lint warnings before artifacts are trusted.</dd><dt>opaque fallback</dt><dd>Preserve unsupported syntax losslessly when structured mutation is unavailable.</dd></dl>' + docsIndex],
-  ['security/index.html', 'Security and privacy', 'The editor stays browser-local; the hosted MCP is bounded and stateless.', '<p>Source stays in the browser for the editor. There is no REST render API. The hosted MCP at <code>/mcp</code> accepts JSON-RPC only, caps request bodies at 128KB and tool inputs at 64KB, and runs Code Mode <code>execute</code> in an isolated on-demand Worker with network access disabled, an empty environment, and a CPU budget.</p><p>Calling the hosted MCP means your diagram source or code travels to this site\u2019s server, and successful responses are edge-cached for up to a day. If a diagram must stay local, use the library, the CLI, or a self-hosted MCP server \u2014 rendering and verification never require the network.</p>'],
-  ['releases/index.html', 'Releases', 'Current package and site build metadata.', `<pre><code>package: ${packageJson.name}@${packageJson.version}\ngit: ${generatedFrom.gitSha}\nbuild: ${generatedFrom.buildTime}</code></pre>`],
-  ['evidence/index.html', 'Evidence', 'Quality evidence is curated, not raw private prompts.', '<p>Use CI, generated artifacts, and deterministic metrics to review changes. Private eval prompts and holdbacks are not public site content.</p>'],
+  ['docs/quality/index.html', 'Quality', 'Determinism, verify warnings, and layout metrics make diagram edits reviewable.', '<p><code>verify.ok</code> is a gate, not a promise of visual perfection. Include SVG/PNG/ASCII artifacts for human review when the change is visual.</p>\n<p><strong>Warnings are tiered</strong> so an agent knows how to react: <em>structural</em> problems can block a safe return and should be fixed first; <em>geometric</em> warnings ask for visual review; <em>lint</em> warnings mean a smaller or cleaner edit. Every code has a page under <a href="/warnings/">warnings</a> with what triggers it and how to clear it.</p>\n<p><strong>Evidence is curated, not raw private prompts:</strong> rely on CI, deterministic layout metrics, and generated artifacts to review a change. Private eval prompts and holdbacks are not public site content.</p>' + docsIndex],
+  ['docs/fork-differences/index.html', 'Fork differences', 'Agentic Mermaid adds typed editing, deterministic verification, CLI, MCP, and more families.', '<p>Agentic Mermaid (<code>agentic-mermaid</code>) forks <a href="https://github.com/lukilabs/beautiful-mermaid">beautiful-mermaid</a> for a job the render-only original did not have: programs that draw and check diagrams with no person watching.</p>\n<ul>\n<li><strong>Typed agent surface.</strong> A render-only library forces an agent to regenerate a whole diagram to change one node. Here new diagrams are authored as source then parsed/verified/rendered, and existing diagrams go parse → narrow → mutate → verify → serialize via <code>agentic-mermaid/agent</code>. All twelve families are structured-when-narrowed; unmodeled syntax still round-trips losslessly as opaque fallback.</li>\n<li><strong>Deterministic, verifiable layout.</strong> Layout is byte-identical across processes, and <code>verifyMermaid</code> returns structured warnings in three tiers (structural, geometric, lint) plus perceptual quality metrics.</li>\n<li><strong>More families.</strong> Adds timeline, journey, architecture, pie, quadrant, and Gantt on top of the upstream six (flowchart, state, sequence, class, ER, and XY chart) — twelve in all.</li>\n<li><strong>Tools.</strong> An <code>am</code> CLI, an <code>agentic-mermaid-mcp</code> Code Mode MCP server (stdio + opt-in HTTP/SSE), and a hosted MCP endpoint at <code>/mcp</code>. There is no REST render API.</li>\n<li><strong>Semantic SVG styling.</strong> A role-based style API (<code>text</code>/<code>node</code>/<code>edge</code>/<code>group</code>) describes meaning rather than SVG element names.</li>\n</ul>\n<p>See <a href="/docs/families/">diagram families</a> for the full family list and <a href="/about/">About</a> for the lineage.</p>' + docsIndex],
   ['examples/index.html', 'Examples', 'Proof that each editor source parses, renders, and carries an agent task you can replay.', examplesShowcaseHtml(EDITOR_EXAMPLES), '/examples/'],
   ['comparisons/index.html', 'Comparisons', 'One source per family, rendered three ways.', comparisonsHtml(), '/comparisons/'],
-  ['skills/index.html', 'Skills', 'Optional workflow skill.', '<p>The public skill is <a href="/skills/agentic-mermaid-diagram-workflow/">agentic-mermaid-diagram-workflow</a>. Use it when an agent supports skills; otherwise the homepage prompt and <code>agent-instructions.md</code> are the primary agent context.</p>'],
 ]
 // Prev/next pager for the manual pages under /docs/, in docPages order with no
 // wrap: the first page has only next, the last only prev. About and the other
@@ -1266,7 +1274,26 @@ const WARNING_DETAIL: Record<string, { what: string; triggers: string; fix: stri
     triggers: 'A serializer defect on unusual syntax: the faithfulness tally before and after the round trip disagrees. This is a tripwire that guards every verify; it should not fire on supported syntax.',
     fix: 'Do not serialize the typed tree for this diagram — fall back to source-level edits so nothing is lost, and report the source; the before/after counts on the warning pinpoint what vanished.',
   },
+  RENDER_FAILED: {
+    what: 'the diagram parsed, but rendering to the requested format threw before producing an artifact.',
+    triggers: 'A construct that parses but the renderer cannot lay out or rasterize — an unsupported combination reaching the SVG/PNG path, or a size/raster budget hit on a very large diagram. Not reachable from small well-formed source in normal operation.',
+    fix: 'Return the structured error and the source rather than a fabricated artifact; simplify or split the diagram, drop the construct named in the message, or fall back to a lighter format (SVG or ASCII before PNG). A reproducible failure on stable source is a renderer bug worth reporting.',
+  },
 }
+
+// Fold the warning prose into capabilities.warningCodes so capabilities.json is
+// a full machine surface (code + tier + severity + what/triggers/fix), matching
+// the HTML pages and their .md siblings. Prose is stored as Markdown, not the
+// page HTML, so an agent gets clean text.
+for (const w of capabilities.warningCodes as Array<Record<string, unknown>>) {
+  const d = WARNING_DETAIL[w.code as string]
+  if (!d) continue
+  w.what = inlineHtmlToMarkdown(d.what)
+  w.triggers = inlineHtmlToMarkdown(d.triggers)
+  w.fix = inlineHtmlToMarkdown(d.fix)
+  if (d.example) w.example = d.example
+}
+await emitJson('capabilities.json', capabilities)
 
 // Build-time check: emit the firing demo only if the example really fires the
 // code against the current engine. A stale example degrades to prose, never to
@@ -1319,17 +1346,65 @@ for (const w of capabilities.warningCodes) {
   await emitShell(`warnings/${w.code}/index.html`, w.code, lead, `${detailHtml}${demo}
 <p>Run <code>am verify diagram.mmd --json</code>, inspect this code, and apply the smallest source or typed mutation that clears it. If it persists after two mechanical attempts, return the warning and ask for human review.</p>
 <p class="muted">In the cloned repo, <code>am</code> is <code>bun run bin/am.ts</code>.</p>
+<p class="muted">Machine-readable: <a href="/warnings/${w.code}/index.md">this page as Markdown</a>.</p>
 <p class="muted">Back to <a href="/warnings/">all warning codes</a>, or <a href="${GENERIC_EDITOR_HREF}">open the editor</a> to watch this warning clear as you edit.</p>`)
+  // Markdown sibling: the same triage prose an agent gets from verify, without
+  // scraping HTML. Discoverable via the link above and served as text/markdown.
+  const md = [`# ${w.code}`, '', `> ${inlineHtmlToMarkdown(lead)}`, '',
+    `- **Tier:** ${w.tier}`, `- **Severity:** ${w.severity}`, '']
+  if (detail) {
+    md.push('## What triggers it', '', inlineHtmlToMarkdown(detail.triggers), '')
+    md.push('## How to fix it', '', inlineHtmlToMarkdown(detail.fix), '')
+    if (detail.example) md.push('## Example', '', '```mermaid', detail.example, '```', '')
+  }
+  md.push('Run `am verify diagram.mmd --json`, inspect this code, and apply the smallest source or typed mutation that clears it. If it persists after two mechanical attempts, return the warning and ask for human review.', '',
+    `Full page: https://agentic-mermaid.dev/warnings/${w.code}/`, '')
+  await emit(`warnings/${w.code}/index.md`, md.join('\n'))
 }
 console.log(`website/build: ${firingDemos}/${capabilities.warningCodes.length} warning pages carry a build-time-verified firing demo`)
-const errors = [
-  ['parse-error', 'Parse error', 'The source could not be parsed. Preserve the source and point to the line/column when available.'],
-  ['mutation-error', 'Mutation error', 'A typed mutation was invalid for the narrowed family or target.'],
-  ['render-error', 'Render error', 'Rendering failed after parse. Return the error and source; do not fabricate an artifact.'],
-  ['verify-failed', 'Verify failed', 'The diagram parsed but verification returned blocking structural warnings.'],
+// Each error is a distinct recovery path, not a shared boilerplate page:
+// `desc` is the one-line for the index, `recover` is the page's guidance, and
+// `related` links the verify code(s) that surface the same failure.
+const errors: Array<{ id: string; title: string; desc: string; recover: string; related?: string }> = [
+  {
+    id: 'parse-error', title: 'Parse error',
+    desc: 'The source could not be parsed. Preserve the source and point to the line/column when available.',
+    recover: 'The source is not valid Mermaid for any known family, so it never became a diagram. Preserve the original text and surface the parser’s line/column; fix the offending line, or return the failure untouched rather than guessing a rewrite that changes intent.',
+    related: 'Often pairs with <a href="/warnings/UNSUPPORTED_SYNTAX/">UNSUPPORTED_SYNTAX</a> when syntax parses in mermaid.js but not the structured model.',
+  },
+  {
+    id: 'mutation-error', title: 'Mutation error',
+    desc: 'A typed mutation was invalid for the narrowed family or target.',
+    recover: 'A typed edit was rejected because it does not apply to the narrowed family or its target does not exist (e.g. <code>set_label</code> on a missing node id). Re-narrow the parsed diagram, confirm the target id against the current model, and fall back to editing the preserved source directly when the construct is not structurally modeled (opaque fallback).',
+    related: 'See the <a href="/docs/api/">library API</a> for the typed parse → narrow → mutate → verify surface.',
+  },
+  {
+    id: 'render-error', title: 'Render error',
+    desc: 'Rendering failed after parse. Return the error and source; do not fabricate an artifact.',
+    recover: 'The diagram parsed but rendering to SVG/PNG/text threw before an artifact existed. Return the error and the source — never a fabricated image; simplify or split the diagram, or retry a lighter format (SVG or ASCII before PNG).',
+    related: 'Surfaces as the <a href="/warnings/RENDER_FAILED/">RENDER_FAILED</a> verify code.',
+  },
+  {
+    id: 'verify-failed', title: 'Verify failed',
+    desc: 'The diagram parsed but verification returned blocking structural warnings.',
+    recover: 'The diagram parsed and rendered, but <code>verify.ok</code> is false because a structural-tier warning is blocking. Inspect <code>verify.warnings</code>, fix the structural codes first, then re-verify before trusting the artifact.',
+    related: 'Every code is documented under <a href="/warnings/">warnings</a>; start with the structural tier.',
+  },
 ]
-await emitShell('errors/index.html', 'Errors', 'Error pages explain recovery paths for local CLI, library, and MCP use.', `<ul>${errors.map(([id, title, desc]) => `<li><a href="/errors/${id}/">${title}</a> – ${desc}</li>`).join('')}</ul>`)
-for (const [id, title, desc] of errors) await emitShell(`errors/${id}/index.html`, title, desc, `<pre><code>am verify diagram.mmd --json</code></pre><p>Return the structured error to the caller when a safe automatic fix is not obvious.</p><p class="muted">Back to <a href="/errors/">all errors</a>, or <a href="${GENERIC_EDITOR_HREF}">open the editor</a> to reproduce the failure as you type.</p>`)
+await emitShell('errors/index.html', 'Errors', 'Error pages explain recovery paths for local CLI, library, and MCP use.', `<ul>${errors.map((e) => `<li><a href="/errors/${e.id}/">${e.title}</a> – ${e.desc}</li>`).join('')}</ul>`)
+for (const e of errors) {
+  await emitShell(`errors/${e.id}/index.html`, e.title, e.desc, `<p>${e.recover}</p>
+${e.related ? `<p>${e.related}</p>\n` : ''}<pre><code>am verify diagram.mmd --json</code></pre><p>Return the structured error to the caller when a safe automatic fix is not obvious.</p>
+<p class="muted">Machine-readable: <a href="/errors/${e.id}/index.md">this page as Markdown</a>.</p>
+<p class="muted">Back to <a href="/errors/">all errors</a>, or <a href="${GENERIC_EDITOR_HREF}">open the editor</a> to reproduce the failure as you type.</p>`)
+  // Markdown sibling (item 7): same recovery guidance without scraping HTML.
+  const md = [`# ${e.title}`, '', `> ${inlineHtmlToMarkdown(e.desc)}`, '',
+    '## How to recover', '', inlineHtmlToMarkdown(e.recover), '']
+  if (e.related) md.push('## Related', '', inlineHtmlToMarkdown(e.related), '')
+  md.push('```', 'am verify diagram.mmd --json', '```', '',
+    `Full page: https://agentic-mermaid.dev/errors/${e.id}/`, '')
+  await emit(`errors/${e.id}/index.md`, md.join('\n'))
+}
 
 const securityHeaders = [
   '/*',
@@ -1350,17 +1425,46 @@ const securityHeaders = [
 ].join('\n')
 await emit('_headers', securityHeaders)
 
-const cleanRoutes = ['about', 'editor', 'docs', 'skills', 'skills/agentic-mermaid-diagram-workflow', 'docs/getting-started', 'docs/api', 'docs/families', 'docs/source-level', 'docs/cli', 'docs/mcp', 'docs/ascii', 'docs/theming', 'docs/config', 'docs/react', 'docs/quality', 'docs/fork-differences', 'docs/vocabulary', 'warnings', 'errors', 'examples', 'comparisons', 'evidence', 'security', 'releases']
+// Single source of truth for the trailing-slash redirects: every emitted page
+// lives at <dir>/index.html, so its clean route is that directory. Derive the
+// list from the generated pages instead of hand-maintaining it (which had
+// drifted — /about/design was missing a redirect). Per-code warning/error pages
+// are covered by the :code / :kind splat rules below, so exclude their subpaths.
+const pageRoutes = [...generated.keys()]
+  .filter((rel) => rel.endsWith('/index.html'))
+  .map((rel) => rel.slice(0, -'/index.html'.length))
+  .filter((dir) => dir && !dir.startsWith('warnings/') && !dir.startsWith('errors/'))
+  .sort()
 const redirectLines = [
-  ...cleanRoutes.map((r) => `/${r} /${r}/ 308`),
+  ...pageRoutes.map((r) => `/${r} /${r}/ 308`),
   '/warnings/:code /warnings/:code/ 308', '/errors/:kind /errors/:kind/ 308',
-  '/why /about/ 308', '/why/ /about/ 308',
-  // Examples absorbed the gallery; Families folded into the docs.
-  '/gallery /examples/ 308', '/gallery/ /examples/ 308',
-  '/families /docs/families/ 308', '/families/ /docs/families/ 308',
   '',
 ].join('\n')
 await emit('_redirects', redirectLines)
+
+// ---- sitemap.xml -----------------------------------------------------------
+// Every page is emitted as <dir>/index.html, so its canonical URL is the clean
+// directory path. Derive the sitemap from the `generated` map rather than a
+// hand-kept list so new pages are picked up automatically. No <lastmod>: the
+// committed build uses buildTime='development', and a per-build timestamp would
+// make the bundle non-deterministic and break `website:check`.
+const SITE_ORIGIN = 'https://agentic-mermaid.dev'
+const sitemapUrls = [...generated.keys()]
+  .filter((rel) => rel === 'index.html' || rel.endsWith('/index.html'))
+  .map((rel) => SITE_ORIGIN + '/' + rel.replace(/index\.html$/, ''))
+  .sort()
+const sitemapXml = [
+  '<?xml version="1.0" encoding="UTF-8"?>',
+  '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">',
+  ...sitemapUrls.map((loc) => `  <url><loc>${loc}</loc></url>`),
+  '</urlset>',
+  '',
+].join('\n')
+await emit('sitemap.xml', sitemapXml)
+
+// No repo robots.txt: production serves Cloudflare's managed content-signals
+// robots.txt at the edge, which would override an asset here. The sitemap's
+// `Sitemap:` line is added via the Cloudflare dashboard instead (TODO DEC-5).
 
 // ---- Worker artifacts (website/src/generated) ------------------------------
 // The /mcp Worker needs the Code Mode harness bundled for the dynamic-worker
