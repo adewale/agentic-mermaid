@@ -4,7 +4,7 @@ import { describe, test, expect } from 'bun:test'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { runAllScenarios, lintAgentTrace, type SdkCall } from '../../eval/agent-usage/harness.ts'
-import { DEFAULT_CASES, KNOWLEDGE_CASES, checkAgentUsageTaskSource, requiresStructuredMutation, runAgentUsageEval } from '../../eval/agent-usage/run.ts'
+import { DEFAULT_CASES, KNOWLEDGE_CASES, CREATE_CASES, checkAgentUsageTaskSource, requiresStructuredMutation, runAgentUsageEval } from '../../eval/agent-usage/run.ts'
 import { AGENT_USAGE_SUPPORTED_FAMILIES, scoreAgentUsageRenderedQuality } from '../../eval/agent-usage/render-quality.ts'
 import { extractHomepageAgentPrompt, homepagePromptChecklist } from '../../eval/agent-usage/homepage-prompt.ts'
 import { buildSubagentPromptEvalRequest, extractBareTask } from '../../eval/agent-usage/capture-subagent-prompt-eval.ts'
@@ -293,6 +293,20 @@ describe('stored agent-usage eval', () => {
   test('structured default cases cover every supported diagram family', () => {
     const covered = new Set(DEFAULT_CASES.filter(c => requiresStructuredMutation(c.id)).map(c => c.family).filter(Boolean))
     expect([...covered].sort()).toEqual([...AGENT_USAGE_SUPPORTED_FAMILIES].sort())
+  })
+
+  test('create cases cover every supported family and pass the authoring oracle', async () => {
+    // Authoring (create) coverage mirrors the mutate coverage above: the two
+    // author_* cases in DEFAULT_CASES (flowchart, sequence) plus CREATE_CASES
+    // (the other ten) must span every family, and every authored fixture must
+    // parse, verify, and satisfy its structural oracle.
+    const authored = [...DEFAULT_CASES, ...CREATE_CASES].filter(c => !c.input && c.family)
+    expect(new Set(authored.map(c => c.family))).toEqual(new Set(AGENT_USAGE_SUPPORTED_FAMILIES))
+    const summary = await runAgentUsageEval(CREATE_CASES)
+    expect({ ok: summary.ok, passed: summary.passed, total: summary.total })
+      .toEqual({ ok: true, passed: CREATE_CASES.length, total: CREATE_CASES.length })
+    for (const r of summary.results) expect({ id: r.id, ok: r.ok, taskOk: r.taskOk, traceOk: r.traceOk })
+      .toEqual({ id: r.id, ok: true, taskOk: true, traceOk: true })
   })
 
   test('default eval outputs render into safe, non-empty SVGs with expected labels', async () => {
