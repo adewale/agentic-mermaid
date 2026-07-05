@@ -4,11 +4,11 @@
 
 ## How to recover
 
-A typed edit was rejected because it does not apply to the narrowed family or its target does not exist (e.g. `set_label` on a missing node id). Re-narrow the parsed diagram, confirm the target id against the current model, and fall back to a source-level edit when the construct is not structurally modeled.
+A typed edit was rejected because it does not apply to the narrowed family or its target does not exist (e.g. `set_label` on a missing node id). Re-narrow the parsed diagram, confirm the target id against the current model, and fall back to editing the preserved source directly when the construct is not structurally modeled (opaque fallback).
 
 ## Related
 
-For constructs that cannot be narrowed at all, see [source-level edits](/docs/source-level/).
+See the [library API](/docs/api/) for the typed parse → narrow → mutate → verify surface.
 
 ```
 am verify diagram.mmd --json
