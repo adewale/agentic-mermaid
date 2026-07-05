@@ -28,6 +28,7 @@ const routeMap: Record<string, string> = {
   'llms.txt': '/llms.txt',
   'agent-instructions.md': '/agent-instructions.md',
   'capabilities.json': '/capabilities.json',
+  'start.md': '/start.md',
 
 }
 
@@ -888,9 +889,10 @@ for (const file of skillFiles) {
 }
 
 // Public llms.txt must not expose repo-only backlog/eval/contributor surfaces.
-const publicLlms = `# Agentic Mermaid\n\nAgentic Mermaid renders, verifies, and safely edits Mermaid diagrams. Use the package, CLI, the hosted MCP at /mcp, or a self-hosted MCP; the website is documentation plus a browser-local editor, not a REST render API.\n\nStart here:\n- /mcp \u2013 hosted MCP endpoint (stateless streamable HTTP JSON-RPC; tools: execute, render_svg, render_ascii, render_png, verify, describe)\n- /agent-instructions.md – compact operating guide for agents\n- /capabilities.json – authoritative family/output/mutation/warning contract\n- /examples/index.json – the same example IDs and sources loaded by the editor\n- /skills/agentic-mermaid-diagram-workflow/SKILL.md – optional workflow skill for skills-capable agents\n\nStyles: every render accepts style (a name like hand-drawn/watercolor/blueprint or any theme name, an inline JSON record, or a stack merged left-to-right) plus seed to re-roll styled ink; layout never moves. A colors-only style is a theme. Authoring guide: docs/style-authoring.md in the package.\n\nStop rules:\n- Verify before serialize, render, commit, or return.\n- Do not fabricate ValidDiagram objects. Parse first.\n- Prefer the local library, CLI, or MCP; the hosted /mcp endpoint covers the same tools with 64KB input caps.\n- Call /mcp with MCP JSON-RPC only; the website is not a REST render API.\n`;
+const publicLlms = `# Agentic Mermaid\n\nAgentic Mermaid renders, verifies, and safely edits Mermaid diagrams. Use the package, CLI, the hosted MCP at /mcp, or a self-hosted MCP; the website is documentation plus a browser-local editor, not a REST render API.\n\nStart here:\n- /start.md \u2013 copy-and-follow bootstrap: pick a channel, learn the surface, run the safe loop\n- /mcp \u2013 hosted MCP endpoint (stateless streamable HTTP JSON-RPC; tools: execute, render_svg, render_ascii, render_png, verify, describe)\n- /agent-instructions.md – compact operating guide for agents\n- /capabilities.json – authoritative family/output/mutation/warning contract\n- /examples/index.json – the same example IDs and sources loaded by the editor\n- /skills/agentic-mermaid-diagram-workflow/SKILL.md – optional workflow skill for skills-capable agents\n\nStyles: every render accepts style (a name like hand-drawn/watercolor/blueprint or any theme name, an inline JSON record, or a stack merged left-to-right) plus seed to re-roll styled ink; layout never moves. A colors-only style is a theme. Authoring guide: docs/style-authoring.md in the package.\n\nStop rules:\n- Verify before serialize, render, commit, or return.\n- Do not fabricate ValidDiagram objects. Parse first.\n- Prefer the local library, CLI, or MCP; the hosted /mcp endpoint covers the same tools with 64KB input caps.\n- Call /mcp with MCP JSON-RPC only; the website is not a REST render API.\n`;
 await emit('llms.txt', publicLlms)
 await emit('agent-instructions.md', await Bun.file(join(ROOT, 'Instructions_for_agents.md')).text())
+await emit('start.md', await Bun.file(join(SOURCE, 'start.md')).text())
 
 // Spec route coverage pages.
 const aboutLead = 'Agentic Mermaid is a fork of beautiful-mermaid, aimed at a job the original did not have: programs that draw and check diagrams with no person watching. It renders without a browser, reports its own layout errors, and edits diagrams as a typed tree.'

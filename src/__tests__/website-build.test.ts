@@ -184,7 +184,7 @@ describe('Workers Static Assets website contract', () => {
     expect(homeMain.indexOf('Use with an agent')).toBeLessThan(homeMain.indexOf('Try editor'))
     expect(homeMain.indexOf('Try editor')).toBeLessThan(homeMain.indexOf('Install locally'))
     expect(home).toContain('href="/editor/?empty=1">Try editor</a>')
-    expect(homeMain.indexOf('data-copy-target="home-agent-prompt"')).toBeLessThan(homeMain.indexOf('href="/editor/?empty=1"'))
+    expect(homeMain.indexOf('data-copy-target="home-agent-pointer"')).toBeLessThan(homeMain.indexOf('href="/editor/?empty=1"'))
     expect(homeMain.indexOf('href="/editor/?empty=1"')).toBeLessThan(homeMain.indexOf('href="/docs/getting-started/"'))
     expect(home).not.toContain('Give this to an agent')
     expect(home).not.toContain('This prompt is intentionally complete')

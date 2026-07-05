@@ -25,7 +25,7 @@
     <h1><span class="line">Stop regenerating the whole diagram</span> <span class="line">to move one node.</span></h1>
     <p class="lead">Agentic Mermaid treats Mermaid source as the durable interface: agents parse the existing <code>.mmd</code>, make the smallest typed change, verify it, and return source you can review.</p>
     <div class="page-actions" aria-label="Primary paths">
-      <button class="primary-action prompt-action" type="button" data-copy-target="home-agent-prompt" data-copy-name="Agent prompt" aria-describedby="home-copy-status"><span class="copy-prompt-icon" aria-hidden="true"></span><span>Use with an agent</span></button>
+      <button class="primary-action prompt-action" type="button" data-copy-target="home-agent-pointer" data-copy-name="Agent prompt" aria-describedby="home-copy-status"><span class="copy-prompt-icon" aria-hidden="true"></span><span>Use with an agent</span></button>
       <a class="secondary-action" href="/editor/?empty=1">Try editor</a>
       <a class="secondary-action" href="/docs/getting-started/">Install locally</a>
       <span class="copy-prompt-status" id="home-copy-status" role="status" aria-live="polite"></span>
@@ -36,13 +36,28 @@
     <div class="copy-prompt-card copy-prompt-primary" data-copy-widget data-copy-name="Agent prompt">
       <div class="copy-prompt-bar">
         <span class="copy-prompt-label meta-label">Agent prompt</span>
-        <button class="copy-prompt-btn" type="button" data-copy-target="home-agent-prompt" data-copy-name="Agent prompt" aria-describedby="home-card-copy-status">
+        <button class="copy-prompt-btn" type="button" data-copy-target="home-agent-pointer" data-copy-name="Agent prompt" aria-describedby="home-card-copy-status">
           <span class="copy-prompt-icon" aria-hidden="true"></span>
           <span>Copy agent prompt</span>
         </button>
       </div>
+      <pre class="agent-prompt agent-prompt-pointer"><code id="home-agent-pointer">Render or edit a Mermaid diagram with Agentic Mermaid.
+Fetch https://agentic-mermaid.dev/start.md and follow it.
+
+Task:
+&lt;describe the diagram goal or edit&gt;
+
+Context:
+&lt;the facts, labels, relationships, and constraints the diagram should express&gt;
+
+Mermaid source (for edits; leave blank for a new diagram):
+```mermaid
+&lt;paste existing Mermaid source here, or leave blank&gt;
+```</code></pre>
       <details class="prompt-details">
-        <summary><span class="prompt-summary-closed">Show the full prompt</span><span class="prompt-summary-open">Hide the full prompt</span></summary>
+        <summary><span class="prompt-summary-closed">Show the full self-contained prompt</span><span class="prompt-summary-open">Hide the full prompt</span></summary>
+        <p class="prompt-details-note">The prompt above fetches <code>start.md</code>, so agents always get the current instructions and it stays short. This full version inlines the entire protocol for agents that cannot fetch a URL.</p>
+        <button class="copy-prompt-btn copy-prompt-btn-secondary" type="button" data-copy-target="home-agent-prompt" data-copy-name="Full agent prompt" aria-describedby="home-card-copy-status"><span class="copy-prompt-icon" aria-hidden="true"></span><span>Copy full prompt</span></button>
         <pre class="agent-prompt"><code id="home-agent-prompt">Create or edit a Mermaid diagram with Agentic Mermaid.
 
 Task:
@@ -204,6 +219,7 @@ execute(`
     <p class="muted">Most agents only need the prompt. When they need durable context, keep the set small and tested.</p>
     <nav class="agent-entrypoints" aria-label="Agent entrypoints">
       <strong>Machine context</strong>
+      <a href="start.md">start.md</a>
       <a href="llms.txt">llms.txt</a>
       <a href="agent-instructions.md">agent-instructions.md</a>
       <a href="capabilities.json">capabilities.json</a>
