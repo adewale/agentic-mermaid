@@ -503,6 +503,10 @@ describe('Workers Static Assets website contract', () => {
     expect(editorAll).toContain('/^xychart(?:-beta)?\\b/.test(first)')
     expect(theme).not.toContain('am-theme')
     expect(theme).toContain("name + ' copied to clipboard.'")
+    // Copy feedback must reserve the button's resting width before swapping in the
+    // shorter "Copied" label, so the hero's flex neighbours don't slide sideways.
+    expect(theme).toContain("btn.style.minWidth = Math.ceil(btn.getBoundingClientRect().width)")
+    expect(theme).toContain("btn.style.minWidth = ''")
     expect(styles).toContain('@media (forced-colors: active)')
     expect(styles).toContain('.warning-table thead { display: none; }')
     expect(read('warnings/index.html')).toContain('<td data-label="Code">')
