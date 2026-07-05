@@ -135,8 +135,17 @@ function updateStyleButton() {
     item.setAttribute("aria-selected", active ? "true" : "false");
     item.tabIndex = styleMenu.classList.contains("open") && active ? 0 : -1;
   });
-  // The ink seed only means something for a styled look.
-  if (seedShuffleBtn) seedShuffleBtn.hidden = key === "crisp";
+  // The ink seed only means something for a styled look. Toggle an inactive
+  // state that keeps the button's topbar slot reserved (see topbar.css) instead
+  // of using `hidden`, so selecting a style fills the slot rather than reflowing
+  // the wrap-prone mobile topbar (the theme dropdown jumps a full row otherwise).
+  if (seedShuffleBtn) {
+    var seedInactive = key === "crisp";
+    seedShuffleBtn.classList.toggle("is-inactive", seedInactive);
+    seedShuffleBtn.setAttribute("aria-hidden", seedInactive ? "true" : "false");
+    seedShuffleBtn.tabIndex = seedInactive ? -1 : 0;
+    seedShuffleBtn.inert = seedInactive;
+  }
 }
 
 function setStyle(key) {
