@@ -15,14 +15,13 @@ This skill is for coding agents modifying the repository. It is not tied to Clau
 
 | File | Role |
 |------|------|
-| `scripts/site/editor.ts` | **Source of truth** — generates `editor.html` at build time |
+| `scripts/site/editor.ts` | **Source of truth** — generates `editor.html` at build time (also used by `website/build.ts` for the Cloudflare `/editor`) |
 | `editor.html` | Generated output — never edit directly |
-| `scripts/dev.ts` | Dev server; builds both `editor.html` and `index.html` in parallel, serves `/` → samples showcase and `/editor` → live editor |
 | `src/browser.ts` | Bundles the renderer for the browser as `window.__mermaid` |
 | `src/types.ts` | `RenderOptions` — all supported render options |
 | `src/theme.ts` | `THEMES`, `buildStyleBlock`, `svgOpenTag` — CSS variable system |
 | `src/styles.ts` | `STROKE_WIDTHS`, `FONT_SIZES` — hardcoded constants |
-| `scripts/site/samples-data.ts` | Sample presets used by the showcase; editor uses its own inline `SAMPLES` array |
+| `scripts/site/samples-data.ts` | Sample presets used by eval tooling; the editor uses its own inline `SAMPLES` array |
 
 ## Build cycle
 
@@ -33,8 +32,8 @@ scripts/site/editor.ts  ──Bun.build──►  src/browser.ts bundle (inline 
 
 Run manually:
 ```bash
-bun run editor   # generates editor.html once
-bun run dev      # watches src/ + scripts/site/editor.ts, live-reloads browser
+bun run editor       # generates editor.html once
+bun run website:dev  # wrangler dev server for the Cloudflare site (serves /editor and the rest)
 ```
 
 **Always rebuild after editing `scripts/site/editor.ts`.** The HTML file is the deployed artifact.

@@ -57,7 +57,7 @@ Gantt is the bar for a new family entering the system:
 - compatibility: `eval/mermaid-gantt-bench/` has cases plus executable exclusions; `src/__tests__/gantt-upstream-bench.test.ts` runs it;
 - properties: `src/__tests__/property-gantt-schedule.test.ts` includes the CPM shadow-model property;
 - evidence: SVG snapshots, ASCII/Unicode goldens, `docs/assets/improvements/gantt-family.png`, and `mutation-test:gantt` cover reviewer-visible and sabotage paths;
-- editor/evals/docs: editor examples, eval fixtures, docs, `llms.txt`, and MCP/Code Mode surfaces are all registry-checked.
+- editor/skill-evals/docs: editor examples, eval fixtures, docs, `llms.txt`, and MCP/Code Mode surfaces are all registry-checked.
 
 ## Non-Gantt audit: XY chart
 

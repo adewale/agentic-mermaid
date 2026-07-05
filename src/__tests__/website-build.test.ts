@@ -553,7 +553,7 @@ describe('Workers Static Assets website contract', () => {
   test('public llms.txt omits repo-only backlog and eval surfaces', () => {
     const text = read('llms.txt')
     expect(text).not.toContain('TODO.md')
-    expect(text).not.toContain('evals/')
+    expect(text).not.toContain('skill-evals/')
     expect(text).toContain('/capabilities.json')
   })
 

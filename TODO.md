@@ -3,13 +3,14 @@
 `TODO.md` is the only active backlog. No other root doc may carry unchecked
 project TODOs. Docs map: `docs/features.md` = current capabilities;
 `docs/project/divergences.md` = implementation history;
-`docs/project/lessons-learned.md` = process lessons; `AGENT_NATIVE.md` =
-architecture/spec rationale; `Instructions_for_agents.md` = runtime guide;
-`CHANGELOG.md` = user-facing release notes; `docs/README.md` = documentation
-index; `docs/issue-derived-test-cases.md` = evidence inventory, not backlog;
-`docs/mcp-code-mode-rationale.md` = MCP surface rationale, not backlog;
-`docs/agent-workflow-examples.md` = runnable example index, not backlog;
-`docs/pr11-reviewer-guide.md` = merged PR #11 review/audit map, not backlog.
+`docs/project/lessons-learned.md` = cumulative fork narrative (loops 1–22);
+`docs/contributing/lessons-learned.md` = dated contributor process lessons;
+`AGENT_NATIVE.md` = architecture/spec rationale; `Instructions_for_agents.md`
+= runtime guide; `CHANGELOG.md` = user-facing release notes; `docs/README.md`
+= documentation index; `docs/issue-derived-test-cases.md` = evidence
+inventory, not backlog; `docs/mcp-code-mode-rationale.md` = MCP surface
+rationale, not backlog; `docs/agent-workflow-examples.md` = runnable example
+index, not backlog.
 
 Status legend: `todo` | `blocked` | `owner-decision` | `parked` | `done`
 (checked items record recently completed backlog with their evidence; prune
@@ -460,7 +461,88 @@ _No active blocked items._
   and owner. (QuadrantChart was promoted to BUILD-11; fan-in grouping was
   PARK-1, promoted to BUILD-9.)
 
-## 5. Non-goals
+## 5. Consolidation / dedup backlog
+
+Open items carried over from the 2026-07 consolidation audit (the audit doc has
+been retired; its landed items shipped, these remain). Each is a
+zero-behavior-change or bounded dedup with a red→green or byte-equivalence gate
+expected. `consolidation-gate.test.ts` pins the already-single-sourced
+invariants against recurrence.
+
+- [ ] **CONS-11 — One shape-outline module** (`todo`). Every non-rectangular
+  flowchart silhouette is authored twice: the emitter in `src/renderer.ts` and
+  the edge clipper in `src/shape-clipping.ts` (hexagon `h/4`, cylinder `ry=7`,
+  trapezoid `w*0.15`, asymmetric `12`, diamond, stadium). Extract one
+  `shapeOutline(shape, x, y, w, h)` returning canonical vertices/cap radii;
+  renderer maps to SVG, clipper ray-intersects the same vertices.
+- [ ] **CONS-16 — Modeling `accTitle`/`accDescr` parser** (`todo`). The
+  directive regex has drifted (`xychart`/`agent` accept optional colon;
+  `architecture`/`timeline`/`gantt` require it) and the `accDescr { … }` block
+  scan is copy-pasted. Extend `src/shared/accessibility-directives.ts` with a
+  modeling `parseAccessibilityDirective(lines, i)` used by all parsers; pick one
+  colon rule consciously.
+- [ ] **CONS-23 — Shared MCP tool descriptions/dispatch** (`todo`).
+  `src/mcp/server.ts` and `src/mcp/hosted-server.ts` re-declare byte-identical
+  tool descriptions/schemas + JSON-RPC dispatch (the hosted-vs-local behavior
+  split is intentional; the scaffolding is not). Extract a `TOOL_DESCRIPTIONS`
+  module + a `dispatchRpc` helper so a new tool is declared once.
+- [ ] **CONS-24 — MCP bin shim** (`todo`). `bin/agentic-mermaid-mcp.ts` and
+  `src/mcp/mcp-bin.ts` copy ~40 lines of flag parsing / `--help` / `main()`.
+  Export `runMcpCli(argv)` and make both files 3-line shims — the existing
+  `bin/am.ts` → `src/cli/index.ts:runCli` pattern.
+- [ ] **CONS-26 — Unify agent vs legacy per-family parsers** (`owner-decision`,
+  architectural). The agent `*-body.ts` parsers re-encode grammars that
+  `src/<family>/parser.ts` already owns, kept in sync only by differential
+  tests. Build agent bodies as a projection of the legacy parser's AST so the
+  legacy parser is the single grammar authority. Schedule separately.
+- [ ] **CONS-27 — Canonical minimal diagram per family** (`todo`). The
+  "minimal diagram" is authored in 5 places (`families.ts` `example`,
+  `editor/js/examples.js`, `website/build.ts` `COMPARISON_CASES`, two test
+  fixture helpers) and has drifted. Make `BUILTIN_FAMILY_METADATA[].example`
+  canonical and derive `COMPARISON_CASES` + fixtures from it.
+- [ ] **CONS-30 — `agent/body-utils.ts` extraction** (`todo`). Mechanical,
+  high-confidence dedup inside `src/agent/`: the LABEL_OVERFLOW closure (×6), the
+  id allocator (×5), byte-identical `set_title` (×7), `pie-body` ≡ `quadrant-body`
+  collection ops, the source-map builders, and the `extractLabels` frame (~12×).
+  Also FNV-1a hash re-rolled in 6 family renderers → import `seedFrom`
+  (`scene/seed.ts`), and ~47 hand-built `color-mix(in srgb, …)` strings → a
+  shared `cssMix`.
+- [ ] **CONS-40 — Generate the per-family stryker configs** (`todo`). The ~16
+  `stryker.<family>.config.json` lanes are pure `family → globs → tests` data.
+  Generate them from the citizenship matrix. Caveat: the citizenship test and
+  matrix hard-code the config filenames, so a generator must keep on-disk names
+  or update both in lockstep.
+- [x] **CONS-90 — Website pipelines: Cloudflare chosen as canonical** (`done`).
+  agentic-mermaid.dev (Cloudflare Workers, `website/build.ts`) is now the
+  canonical live site: homepage/links/`HOSTED_BASE` repointed,
+  `.github/workflows/deploy-cloudflare.yml` added (auto-deploys on `main`; needs
+  `CLOUDFLARE_API_TOKEN` + `CLOUDFLARE_ACCOUNT_ID` repo secrets), and the GitHub
+  Pages deploy (`pages.yml`, `build:site`) retired. The `scripts/site/*`
+  generators stay as dev/preview tools (still used by `bun run dev` and
+  `e2e/browser.test.ts`). (Related audit Tier-4 items already resolved:
+  `mockups/` deleted, `evals/`→`skill-evals/` renamed, dead scripts +
+  `stryker.linkrank` removed, `pr11-reviewer-guide.md` retired.)
+- [x] **CONS-91b — Un-commit the `website/public` bundle** (`done`). The 6.8MB
+  Cloudflare bundle is now gitignored and built on demand: at deploy by
+  `deploy-cloudflare.yml`, and for the five tests that read it by the preload
+  `src/__tests__/website-public.preload.ts`. `website:check` now pins only the
+  committed `website/src/generated` worker inputs.
+- [x] **CONS-91a-partial — Delete the low-coupling Pages generators** (`done`).
+  Removed `scripts/site/differences.ts`, `xychart-test.ts`, and their exclusive
+  data (`xychart-samples-data.ts`, `upstream-layout-snapshots.json`,
+  `capture-upstream-layout.ts`); rewrote `comparison-differences-sync.test.ts`
+  to keep the `comparison.md`↔registry guard.
+- [x] **CONS-91c — Retire `scripts/site/generate.ts` (samples gallery)**
+  (`done`). Migrated `e2e/browser.test.ts` down to the editor-only suite (the
+  editor is built by `editor.ts`, which stays; the gallery-specific blocks were
+  removed — validated at 10 browser tests passing), pointed `bun run dev` at
+  `website:dev`, and deleted `generate.ts`, `client-color.ts`, `scripts/dev.ts`,
+  and `property-html-generator.test.ts` (+ the `samples` script). The
+  citizenship matrix's `generatedSite` evidence now cites `website/build.ts` +
+  `website-build.test.ts`. `samples-data.ts` stays (shared with eval tooling).
+  The GitHub Pages pipeline is fully retired.
+
+## 6. Non-goals
 
 - Do not port Vercel-specific package rename, committed `dist/`, `.vercel`, or Vercel branding.
 - Do not fold `zhenhuaa/mdv` wholesale into this package; terminal Markdown

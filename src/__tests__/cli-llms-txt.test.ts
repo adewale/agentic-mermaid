@@ -41,7 +41,7 @@ describe('#6430 llms.txt', () => {
     expect(txt.toLowerCase()).toContain('security')
     expect(txt).toContain('docs/agent-api-cookbook.md')
     expect(txt).toContain('skills/')
-    expect(txt).toContain('evals/')
+    expect(txt).toContain('skill-evals/')
   })
 
   test('committed llms.txt snapshot is in sync with the generator', () => {

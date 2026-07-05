@@ -1,10 +1,11 @@
 /**
- * Browser E2E tests using Playwright as a library with bun:test.
+ * Browser E2E tests for the live editor, using Playwright with bun:test.
  *
- * These tests open the generated index.html in a real browser and verify:
- * - All diagrams render (SVG + ASCII)
- * - Theme switching works and persists across reloads
- * - Interactive features (dropdowns, edit dialog) function correctly
+ * These open the editor (built by scripts/site/editor.ts — the same generator
+ * the Cloudflare site ships) in a real browser and verify:
+ * - The editor renders diagrams (incl. fork-added families) through the bundle
+ * - Theme registry, examples sidebar, mobile pane tabs, and topbar behavior
+ * - Visual-regression baselines for styled renders
  *
  * Requires: Playwright browsers installed (`bunx playwright install chromium`).
  * Run:  bun run test:browser
@@ -46,18 +47,6 @@ let cdpSession: CDPSession | null = null
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
-
-/** Wait for diagrams to finish rendering using Playwright's waitForFunction. */
-async function waitForRender(timeoutMs = 30_000): Promise<void> {
-  await page.waitForFunction(
-    () => {
-      const el = document.getElementById('total-timing')
-      return el?.textContent?.includes('rendered in') ?? false
-    },
-    undefined,
-    { timeout: timeoutMs },
-  )
-}
 
 /** Wait for the live editor preview to show a successful SVG render. */
 async function waitForEditorRender(timeoutMs = 30_000): Promise<void> {
@@ -198,14 +187,9 @@ async function comparePngScreenshots(
 let server: ReturnType<typeof Bun.serve>
 
 beforeAll(async () => {
-  // Ensure generated pages exist
-  const indexPath = join(ROOT, 'index.html')
-  if (!(await Bun.file(indexPath).exists())) {
-    const proc = Bun.spawn(['bun', 'run', join(ROOT, 'scripts/site/generate.ts')], {
-      cwd: ROOT, stdout: 'inherit', stderr: 'inherit',
-    })
-    await proc.exited
-  }
+  // The live editor is built by scripts/site/editor.ts — the same generator the
+  // Cloudflare site uses — so these tests exercise the shipped editor. Build the
+  // standalone editor.html if it isn't already present.
   const editorPath = join(ROOT, 'editor.html')
   if (!(await Bun.file(editorPath).exists())) {
     const proc = Bun.spawn(['bun', 'run', join(ROOT, 'scripts/site/editor.ts')], {
@@ -217,20 +201,15 @@ beforeAll(async () => {
   // Ensure screenshot dir exists
   await Bun.spawn(['mkdir', '-p', SCREENSHOT_DIR]).exited
 
-  // Start a simple static file server
+  // Serve the editor at /editor plus root public/ assets.
   const served = serveWithAvailablePort({
     preferredPort: PREFERRED_PORT,
     async fetch(req) {
       const url = new URL(req.url)
-      const route = url.pathname === '/'
-        ? 'index.html'
-        : url.pathname === '/editor'
-          ? 'editor.html'
-          : url.pathname
+      const route = url.pathname === '/editor' ? 'editor.html' : url.pathname
       const filePath = join(ROOT, route)
       const file = Bun.file(filePath)
       if (await file.exists()) return new Response(file)
-      // Try public/ for static assets
       const pubFile = Bun.file(join(ROOT, 'public', url.pathname))
       if (await pubFile.exists()) return new Response(pubFile)
       return new Response('Not found', { status: 404 })
@@ -239,15 +218,14 @@ beforeAll(async () => {
   server = served.server
   BASE = served.base
 
-  // Launch Playwright browser
+  // Launch Playwright browser and warm up the editor.
   browser = await chromium.launch()
   context = await browser.newContext()
   page = await context.newPage()
   cdpSession = await context.newCDPSession(page)
 
-  // Open the page and wait for rendering
-  await gotoApp(BASE)
-  await waitForRender(60_000)
+  await gotoApp(`${BASE}/editor`)
+  await waitForEditorRender(60_000)
 }, 120_000)
 
 afterAll(async () => {
@@ -266,329 +244,6 @@ afterAll(async () => {
 // ---------------------------------------------------------------------------
 // Tests
 // ---------------------------------------------------------------------------
-
-describe('browser: page loads and renders', () => {
-
-  it('page title is correct', async () => {
-    const title = await page.title()
-    expect(title).toContain('Agentic Mermaid')
-  }, 60_000)
-
-  it('all SVG diagrams rendered (no empty containers)', async () => {
-    const count = await page.evaluate(
-      () => document.querySelectorAll('.svg-container svg').length,
-    )
-    expect(count).toBeGreaterThanOrEqual(90)
-  }, 60_000)
-
-  it('all ASCII panels rendered', async () => {
-    const count = await page.evaluate(
-      () => Array.from(document.querySelectorAll('[id^="ascii-"]'))
-        .filter(el => el.textContent!.trim().length > 0).length,
-    )
-    expect(count).toBeGreaterThanOrEqual(80)
-  }, 60_000)
-
-  it('no render errors visible', async () => {
-    const errors = await page.evaluate(
-      () => document.querySelectorAll('.render-error').length,
-    )
-    expect(errors).toBe(0)
-  }, 60_000)
-
-  it('timing banner shows completion', async () => {
-    const text = await page.evaluate(
-      () => document.getElementById('total-timing')?.textContent || '',
-    )
-    expect(text).toContain('rendered in')
-  }, 60_000)
-
-  it('homepage defaults to Paper chrome, uses fork-owned copy, and reports the rendered example count accurately', async () => {
-    await page.evaluate(() => localStorage.removeItem('mermaid-theme'))
-    await gotoApp(BASE)
-    await waitForRender(60_000)
-
-    expect(await page.evaluate(() => getComputedStyle(document.body).getPropertyValue('--t-bg').trim())).toBe('#F5F0E4')
-    expect(await page.evaluate(() => localStorage.getItem('mermaid-theme'))).toBeNull()
-
-    const text = await page.evaluate(() => document.body.textContent || '')
-    expect(text).not.toContain('by Craft')
-    expect(text).not.toContain('Use in Craft')
-    expect(text).not.toContain('Built by the team')
-    expect(text).not.toContain('Craft Docs')
-    expect(text).not.toContain('open Contents → Role Styles')
-
-    const sectionCount = await page.evaluate(() => document.querySelectorAll('section.sample').length)
-    const timing = await page.evaluate(() => document.getElementById('total-timing')?.textContent || '')
-    expect(timing).toContain(`${sectionCount} examples rendered in`)
-  }, 120_000)
-
-  it('homepage sample search and category filters narrow the showcase', async () => {
-    await gotoApp(BASE)
-    await waitForRender(60_000)
-
-    await page.fill('#sample-search', 'timeline')
-    const searchVisible = await page.evaluate(() => Array.from(document.querySelectorAll('section.sample[data-category]')).filter(el => !(el as HTMLElement).hidden).length)
-    expect(searchVisible).toBeGreaterThan(0)
-    expect(searchVisible).toBeLessThan(await page.evaluate(() => document.querySelectorAll('section.sample[data-category]').length))
-
-    await page.click('.sample-filter-pill[data-filter="Role Styles"]')
-    const visibleCategories = await page.evaluate(() => Array.from(document.querySelectorAll('section.sample[data-category]')).filter(el => !(el as HTMLElement).hidden).map(el => (el as HTMLElement).dataset.category))
-    expect(new Set(visibleCategories)).toEqual(new Set(['Role Styles']))
-  }, 120_000)
-
-})
-
-describe('browser: theme switching', () => {
-
-  it('Default theme pill restores white background', async () => {
-    // Ensure we're on default
-    await page.evaluate(() =>
-      (document.querySelector('[data-theme=""]') as HTMLElement)?.click(),
-    )
-    await page.waitForFunction(
-      () => getComputedStyle(document.body).getPropertyValue('--t-bg').trim() === '#FFFFFF',
-      undefined,
-      { timeout: 10_000 },
-    )
-    const bg = await page.evaluate(
-      () => getComputedStyle(document.body).getPropertyValue('--t-bg').trim(),
-    )
-    expect(bg).toBe('#FFFFFF')
-  }, 60_000)
-
-  it('clicking Dracula pill switches to dark theme', async () => {
-    await page.evaluate(() =>
-      (document.querySelector('[data-theme="dracula"]') as HTMLElement)?.click(),
-    )
-    await page.waitForFunction(
-      () => getComputedStyle(document.body).getPropertyValue('--t-bg').trim() === '#282a36',
-      undefined,
-      { timeout: 30_000 },
-    )
-    const bg = await page.evaluate(
-      () => getComputedStyle(document.body).getPropertyValue('--t-bg').trim(),
-    )
-    expect(bg).toBe('#282a36')
-  }, 120_000)
-
-  it('theme is persisted to localStorage', async () => {
-    const saved = await page.evaluate(() => localStorage.getItem('mermaid-theme'))
-    expect(saved).toBe('dracula')
-  }, 60_000)
-
-  it('theme persists across page reload', async () => {
-    await gotoApp(BASE)
-    await waitForRender(60_000)
-
-    const bg = await page.evaluate(
-      () => getComputedStyle(document.body).getPropertyValue('--t-bg').trim(),
-    )
-    expect(bg).toBe('#282a36')
-
-    const saved = await page.evaluate(() => localStorage.getItem('mermaid-theme'))
-    expect(saved).toBe('dracula')
-  }, 90_000)
-
-  it('switching back to Default restores white', async () => {
-    await page.evaluate(() =>
-      (document.querySelector('[data-theme=""]') as HTMLElement)?.click(),
-    )
-    await page.waitForFunction(
-      () => getComputedStyle(document.body).getPropertyValue('--t-bg').trim() === '#FFFFFF',
-      undefined,
-      { timeout: 30_000 },
-    )
-    const bg = await page.evaluate(
-      () => getComputedStyle(document.body).getPropertyValue('--t-bg').trim(),
-    )
-    expect(bg).toBe('#FFFFFF')
-
-    const saved = await page.evaluate(() => localStorage.getItem('mermaid-theme'))
-    expect(saved).toBeNull()
-  }, 120_000)
-
-})
-
-describe('browser: dropdowns', () => {
-
-  it('More themes dropdown opens and closes', async () => {
-    await page.evaluate(() => document.getElementById('theme-more-btn')?.click())
-    await page.waitForFunction(
-      () => document.getElementById('theme-more-dropdown')?.classList.contains('open') === true,
-      undefined,
-      { timeout: 10_000 },
-    )
-    expect(await page.evaluate(
-      () => document.getElementById('theme-more-dropdown')?.classList.contains('open'),
-    )).toBe(true)
-
-    await page.keyboard.press('Escape')
-    await page.waitForFunction(
-      () => document.getElementById('theme-more-dropdown')?.classList.contains('open') === false,
-      undefined,
-      { timeout: 10_000 },
-    )
-    expect(await page.evaluate(
-      () => document.getElementById('theme-more-dropdown')?.classList.contains('open'),
-    )).toBe(false)
-  }, 60_000)
-
-  it('Contents dropdown opens, shows links, and closes', async () => {
-    await page.evaluate(() => document.getElementById('contents-btn')?.click())
-    await page.waitForFunction(
-      () => document.getElementById('mega-menu')?.classList.contains('open') === true,
-      undefined,
-      { timeout: 10_000 },
-    )
-    expect(await page.evaluate(
-      () => document.getElementById('mega-menu')?.classList.contains('open'),
-    )).toBe(true)
-
-    const linkCount = await page.evaluate(
-      () => document.querySelectorAll('#mega-menu a').length,
-    )
-    expect(linkCount).toBeGreaterThan(0)
-
-    await page.keyboard.press('Escape')
-    await page.waitForFunction(
-      () => document.getElementById('mega-menu')?.classList.contains('open') === false,
-      undefined,
-      { timeout: 10_000 },
-    )
-    expect(await page.evaluate(
-      () => document.getElementById('mega-menu')?.classList.contains('open'),
-    )).toBe(false)
-  }, 60_000)
-
-  it('Brand badge has no Craft icon or dropdown', async () => {
-    expect(await page.evaluate(() => document.querySelector('#brand-badge svg') === null)).toBe(true)
-    expect(await page.evaluate(() => document.getElementById('brand-dropdown') === null)).toBe(true)
-    expect(await page.evaluate(() => document.getElementById('brand-badge')?.textContent?.trim())).toBe('Agentic Mermaid')
-  }, 60_000)
-
-})
-
-describe('browser: edit dialog', () => {
-
-  it('edit dialog opens, edits, saves, and re-renders', async () => {
-    // Ensure clean page state
-    await gotoApp(BASE)
-    await waitForRender(60_000)
-
-    // Click the first edit button
-    const idx = await page.evaluate(() => {
-      const btn = document.querySelector('.edit-btn[data-sample]') as HTMLElement | null
-      if (btn) {
-        btn.click()
-        return parseInt(btn.dataset.sample!, 10)
-      }
-      return -1
-    })
-    if (idx < 0) return
-
-    // The click triggers openEditDialog which is synchronous
-    await page.waitForFunction(
-      () => document.getElementById('edit-overlay')?.classList.contains('open') === true,
-      undefined,
-      { timeout: 10_000 },
-    )
-    expect(await page.evaluate(
-      () => document.getElementById('edit-overlay')?.classList.contains('open') || false,
-    )).toBe(true)
-
-    // Verify textarea has content
-    const sourceLen = await page.evaluate(
-      () => (document.getElementById('edit-dialog-textarea') as HTMLTextAreaElement)?.value?.length || 0,
-    )
-    expect(sourceLen).toBeGreaterThan(10)
-
-    // Edit source and save
-    await page.evaluate(() => {
-      const ta = document.getElementById('edit-dialog-textarea') as HTMLTextAreaElement | null
-      if (ta) ta.value = 'graph TD\n  X[Edited] --> Y[Works]'
-    })
-    await page.evaluate(() => {
-      const btn = document.getElementById('edit-dialog-save') as HTMLElement | null
-      if (btn) btn.click()
-    })
-
-    // Wait for dialog close
-    await page.waitForFunction(
-      () => document.getElementById('edit-overlay')?.classList.contains('open') === false,
-      undefined,
-      { timeout: 30_000 },
-    )
-    const closed = await page.evaluate(
-      () => !document.getElementById('edit-overlay')?.classList.contains('open'),
-    )
-    expect(closed).toBe(true)
-
-    const hasEdited = await page.evaluate(
-      (i: number) => (document.getElementById('svg-' + i)?.innerHTML || '').includes('Edited'),
-      idx,
-    )
-    expect(hasEdited).toBe(true)
-  }, 120_000)
-
-  it('cancel closes the dialog', async () => {
-    // Open the dialog first
-    await page.evaluate(() => {
-      const btn = document.querySelector('.edit-btn[data-sample]') as HTMLElement | null
-      if (btn) btn.click()
-    })
-    await page.waitForFunction(
-      () => document.getElementById('edit-overlay')?.classList.contains('open') === true,
-      undefined,
-      { timeout: 10_000 },
-    )
-
-    await page.evaluate(() => {
-      const btn = document.getElementById('edit-dialog-cancel') as HTMLElement | null
-      if (btn) btn.click()
-    })
-    await page.waitForFunction(
-      () => document.getElementById('edit-overlay')?.classList.contains('open') === false,
-      undefined,
-      { timeout: 10_000 },
-    )
-    expect(await page.evaluate(
-      () => !document.getElementById('edit-overlay')?.classList.contains('open'),
-    )).toBe(true)
-  }, 120_000)
-
-})
-
-describe('browser: random theme button', () => {
-
-  it('random theme button changes the theme', async () => {
-    // Fresh page load on default theme
-    await gotoApp(BASE)
-    await waitForRender(60_000)
-
-    const savedBefore = await page.evaluate(() => localStorage.getItem('mermaid-theme'))
-    expect(savedBefore).toBeNull()
-
-    // Click random -- this triggers a theme change + re-renders. Some valid light
-    // themes also use a white background, so assert the persisted theme key rather
-    // than coupling this test to background color.
-    await page.evaluate(() => document.getElementById('random-theme-btn')?.click())
-    await page.waitForFunction(
-      () => localStorage.getItem('mermaid-theme') !== null,
-      undefined,
-      { timeout: 30_000 },
-    )
-    const savedAfter = await page.evaluate(() => localStorage.getItem('mermaid-theme'))
-    const themeKeys = await page.evaluate(() =>
-      Array.from(document.querySelectorAll<HTMLElement>('[data-theme]'))
-        .map(el => el.dataset.theme)
-        .filter((theme): theme is string => typeof theme === 'string' && theme.length > 0),
-    )
-    expect(savedAfter).not.toBeNull()
-    expect(themeKeys).toContain(savedAfter)
-  }, 120_000)
-
-})
 
 describe('browser: live editor integration', () => {
 
@@ -1052,70 +707,4 @@ describe('browser: visual regression', () => {
       expect(diff.diffRatio).toBeLessThanOrEqual(ROUNDED_FILL_SCREENSHOT_MAX_DIFF)
     }
   }, 240_000)
-
-  it('default theme screenshot matches baseline', async () => {
-    // Fresh page load -- no pending re-renders
-    await gotoApp(BASE)
-    await waitForRender(60_000)
-
-    const currentPath = await takeScreenshot('current-default')
-    const baselinePath = join(SCREENSHOT_DIR, 'baseline-default.png')
-
-    if (!(await Bun.file(baselinePath).exists())) {
-      if (process.env.UPDATE_BASELINES) {
-        await Bun.write(baselinePath, Bun.file(currentPath))
-        console.log('  Created baseline: baseline-default.png')
-        return
-      }
-      throw new Error(
-        'Missing baseline screenshot: baseline-default.png. ' +
-        'Run with UPDATE_BASELINES=1 to create it.',
-      )
-    }
-
-    // Pixel-level diff requires additional dependencies (e.g. pixelmatch).
-    // For now, verify the screenshot was taken successfully.
-    const currentFile = Bun.file(currentPath)
-    expect(await currentFile.exists()).toBe(true)
-    expect(currentFile.size).toBeGreaterThan(0)
-    console.log('  Screenshot captured; pixel-diff comparison skipped (no pixelmatch dep).')
-  }, 120_000)
-
-  it('dracula theme screenshot matches baseline', async () => {
-    // Fresh page load, then switch to Dracula and wait for re-render
-    await gotoApp(BASE)
-    await waitForRender(60_000)
-    await page.evaluate(() =>
-      (document.querySelector('[data-theme="dracula"]') as HTMLElement)?.click(),
-    )
-    // Wait for Dracula theme CSS var to be applied
-    await page.waitForFunction(
-      () => getComputedStyle(document.body).getPropertyValue('--t-bg').trim() === '#282a36',
-      undefined,
-      { timeout: 30_000 },
-    )
-
-    const currentPath = await takeScreenshot('current-dracula')
-    const baselinePath = join(SCREENSHOT_DIR, 'baseline-dracula.png')
-
-    if (!(await Bun.file(baselinePath).exists())) {
-      if (process.env.UPDATE_BASELINES) {
-        await Bun.write(baselinePath, Bun.file(currentPath))
-        console.log('  Created baseline: baseline-dracula.png')
-        return
-      }
-      throw new Error(
-        'Missing baseline screenshot: baseline-dracula.png. ' +
-        'Run with UPDATE_BASELINES=1 to create it.',
-      )
-    }
-
-    // Pixel-level diff requires additional dependencies (e.g. pixelmatch).
-    // For now, verify the screenshot was taken successfully.
-    const currentFile = Bun.file(currentPath)
-    expect(await currentFile.exists()).toBe(true)
-    expect(currentFile.size).toBeGreaterThan(0)
-    console.log('  Screenshot captured; pixel-diff comparison skipped (no pixelmatch dep).')
-  }, 120_000)
-
 })

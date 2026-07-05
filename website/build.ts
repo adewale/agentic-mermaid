@@ -1450,44 +1450,27 @@ function assertContractShapes() {
   for (const [name, obj] of Object.entries({ capabilities, examples })) {
     if (!(obj as any).generatedFrom) throw new Error(`${name} missing generatedFrom`)
   }
-  if (publicLlms.includes('TODO.md') || publicLlms.includes('evals/')) throw new Error('public llms.txt exposes repo-only surfaces')
+  if (publicLlms.includes('TODO.md') || publicLlms.includes('skill-evals/')) throw new Error('public llms.txt exposes repo-only surfaces')
 }
 assertNoPlaceholders()
 assertContractShapes()
 
 if (CHECK) {
+  // website/public is a build artifact (gitignored, rebuilt at deploy and by
+  // the test preload), so it is not drift-checked here. Only the worker's
+  // committed src/generated inputs — imported by src/worker.ts and needed for
+  // typecheck — are pinned against the source.
   const stale: string[] = []
-  for (const [rel, expected] of generated) {
-    const file = Bun.file(join(OUT, rel))
-    const exists = await file.exists()
-    if (!exists) { stale.push(rel); continue }
-    const actual = Buffer.from(await file.arrayBuffer())
-    const exp = Buffer.isBuffer(expected) ? expected : Buffer.from(expected)
-    if (!actual.equals(exp)) stale.push(rel)
-  }
-  const actual: string[] = []
-  async function walk(abs: string, prefix = '') {
-    if (!await Bun.file(abs).exists()) return
-    for (const ent of await readdir(abs, { withFileTypes: true })) {
-      const rel = prefix ? `${prefix}/${ent.name}` : ent.name
-      const child = join(abs, ent.name)
-      if (ent.isDirectory()) await walk(child, rel)
-      else actual.push(rel)
-    }
-  }
-  await walk(OUT)
-  const unexpected = actual.filter((rel) => !generated.has(rel))
-  if (unexpected.length) stale.push(...unexpected.map((f) => `unexpected:${f}`))
   for (const [rel, expected] of workerGenerated) {
     const file = Bun.file(join(SRC_GENERATED, rel))
     if (!await file.exists()) { stale.push(`src/generated/${rel}`); continue }
     if (!Buffer.from(await file.arrayBuffer()).equals(expected)) stale.push(`src/generated/${rel}`)
   }
   if (stale.length) {
-    console.error(`website/build --check: ${stale.length} stale or unexpected file(s):\n  ${stale.join('\n  ')}\nRegenerate with \`bun run website\`.`)
+    console.error(`website/build --check: ${stale.length} stale src/generated file(s):\n  ${stale.join('\n  ')}\nRegenerate with \`bun run website\`.`)
     process.exit(1)
   }
-  console.log(`website/build --check: ${generated.size} files in sync.`)
+  console.log(`website/build --check: ${workerGenerated.size} src/generated file(s) in sync (website/public is a build artifact, not checked).`)
 } else {
   console.log(`website/build: wrote ${generated.size} files to website/public`)
 }

@@ -1,7 +1,7 @@
 /**
  * Consolidation gate — keeps eliminated duplication from creeping back.
  *
- * The 2026-07 consolidation audit (docs/project/consolidation-audit-2026-07.md)
+ * The 2026-07 consolidation audit (open items live in TODO.md §5; audit retired)
  * found the same primitives re-implemented across families, and several of the
  * copies had silently diverged (class/er measured titles at the wrong weight,
  * four escapeAttr copies dropped the apostrophe escape, two luminance formulas

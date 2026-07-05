@@ -28,15 +28,14 @@ Narrow lanes for PR-scale survivor harvests:
 bun run mutation-test:links            # text-embedded link-length parsing
 bun run mutation-test:routes:certs     # route-certificate finality + stale-route audit
 bun run mutation-test:routes:subgraph  # subgraph endpoint/LCA routing
-npx stryker run stryker.linkrank.config.json  # honorLinkRankDistance packing repair + reconnect fallbacks (issue #81 fix)
 bun run sabotage:routes                # one-line revert checks against committed HEAD; expects focused tests to fail
 ```
 
 The JSON report lands in `reports/mutation/` (gitignored). Beyond the lanes
 documented here, `stryker.*.config.json` also covers the per-family parsers
 (state/sequence/timeline/class/er/journey/pie/quadrant/gantt via
-`mutation-test:families`), characterization, agent, ser2, link-grammar, and
-linkrank lanes — see `package.json` scripts for the full index. Broad route lanes
+`mutation-test:families`), characterization, and the link-grammar lane — see
+`package.json` scripts for the full index. Broad route lanes
 are intentionally not part of the PR gate, but `.github/workflows/nightly-route-mutation.yml`
 runs `mutation-test:routes`, `mutation-test:routes:certs`,
 `mutation-test:routes:subgraph`, and `sabotage:routes` nightly and on manual
