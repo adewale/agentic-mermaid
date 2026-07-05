@@ -73,42 +73,41 @@
     </svg>
   </button>
 
-  <div class="theme-dropdown-wrap" id="theme-dropdown-wrap">
-    <button class="theme-dropdown-btn" id="theme-dropdown-btn" type="button" aria-haspopup="listbox" aria-expanded="false" aria-controls="theme-dropdown-menu">
-      <span class="theme-swatch" id="theme-btn-swatch"></span>
-      <span class="sr-only">Diagram theme: </span><span id="theme-btn-label">Default</span>
-      <svg
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        stroke-width="2"
-        stroke-linecap="round"
-        stroke-linejoin="round"
-      >
-        <polyline points="6 9 12 15 18 9" />
-      </svg>
-    </button>
-    <div class="theme-dropdown-menu" id="theme-dropdown-menu" role="listbox" aria-label="Theme" aria-hidden="true" inert>
-      {{THEME_ITEMS}}
+  <!-- Diagram look: Style (texture) and Theme (palette) fused into one split
+       pill. Each half is its own labelled dropdown trigger; the wrap ids and
+       button ids are unchanged so the popup controllers keep working. -->
+  <div class="axis-pill" role="group" aria-label="Diagram look">
+    <div class="theme-dropdown-wrap axis-half" id="style-dropdown-wrap">
+      <button class="axis-btn" id="style-dropdown-btn" type="button" aria-haspopup="listbox" aria-expanded="false" aria-controls="style-dropdown-menu">
+        <span class="axis-text">
+          <span class="axis-label" aria-hidden="true">Style</span>
+          <span class="sr-only">Diagram style: </span><span class="axis-value" id="style-btn-label">Crisp</span>
+        </span>
+        <svg class="axis-caret" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="6 9 12 15 18 9" />
+        </svg>
+      </button>
+      <div class="theme-dropdown-menu" id="style-dropdown-menu" role="listbox" aria-label="Style" aria-hidden="true" inert>
+        {{STYLE_ITEMS}}
+      </div>
     </div>
-  </div>
 
-  <div class="theme-dropdown-wrap" id="style-dropdown-wrap">
-    <button class="theme-dropdown-btn" id="style-dropdown-btn" type="button" aria-haspopup="listbox" aria-expanded="false" aria-controls="style-dropdown-menu">
-      <span class="sr-only">Diagram style: </span><span id="style-btn-label">Crisp</span>
-      <svg
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        stroke-width="2"
-        stroke-linecap="round"
-        stroke-linejoin="round"
-      >
-        <polyline points="6 9 12 15 18 9" />
-      </svg>
-    </button>
-    <div class="theme-dropdown-menu" id="style-dropdown-menu" role="listbox" aria-label="Style" aria-hidden="true" inert>
-      {{STYLE_ITEMS}}
+    <span class="axis-divider" aria-hidden="true"></span>
+
+    <div class="theme-dropdown-wrap axis-half" id="theme-dropdown-wrap">
+      <button class="axis-btn" id="theme-dropdown-btn" type="button" aria-haspopup="listbox" aria-expanded="false" aria-controls="theme-dropdown-menu">
+        <span class="theme-swatch" id="theme-btn-swatch"></span>
+        <span class="axis-text">
+          <span class="axis-label" aria-hidden="true">Theme</span>
+          <span class="sr-only">Diagram theme: </span><span class="axis-value" id="theme-btn-label">Default</span>
+        </span>
+        <svg class="axis-caret" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="6 9 12 15 18 9" />
+        </svg>
+      </button>
+      <div class="theme-dropdown-menu" id="theme-dropdown-menu" role="listbox" aria-label="Theme" aria-hidden="true" inert>
+        {{THEME_ITEMS}}
+      </div>
     </div>
   </div>
 
