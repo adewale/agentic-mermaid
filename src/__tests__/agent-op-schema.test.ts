@@ -10,8 +10,9 @@ import { describe, test, expect } from 'bun:test'
 import { applyOps, mutateChecked, validateOp, opMenu, hasOpSchema } from '../agent/core.ts'
 import { parseMermaid } from '../agent/parse.ts'
 import { createMermaid } from '../agent/create.ts'
+import { mutateSource } from '../cli/index.ts'
 import { MUTATION_OPS_BY_FAMILY } from '../agent/mutation-ops.ts'
-import type { MutableValidDiagram } from '../agent/types.ts'
+import type { AnyMutationOp, MutableValidDiagram } from '../agent/types.ts'
 
 const errMsg = (e: unknown): string => (e as { message?: string })?.message ?? ''
 
@@ -84,6 +85,16 @@ describe('one shared choke point — byte-identical rejection (§6)', () => {
     expect(declarative.ok).toBe(false)
     if (codeMode.ok || declarative.ok) return
     expect(errMsg(codeMode.error)).toBe(errMsg(declarative.error))
+  })
+
+  test('the CLI --op/--ops path shares the choke point (no silent mangle)', () => {
+    // mutateSource backs `am mutate`; its ops arrive as untyped JSON. It must
+    // reject the same bad op the same way, not build `class undefined`.
+    const r = mutateSource('classDiagram\n  class Animal', [{ kind: 'add_class', name: 'Duck' } as unknown as AnyMutationOp])
+    expect(r.ok).toBe(false)
+    if (r.ok) return
+    expect(r.error.message).toContain('Unknown field "name"')
+    expect(JSON.stringify(r)).not.toContain('class undefined')
   })
 
   test('validateOp is the single source of the rejection (removing it lets the bad op through)', () => {

@@ -8,7 +8,7 @@ import { join, resolve } from 'node:path'
 import { tmpdir } from 'node:os'
 import { parseMermaid } from '../agent/parse.ts'
 import { serializeMermaid, synthesizeFromGraph } from '../agent/serialize.ts'
-import { mutate } from '../agent/mutate.ts'
+import { mutateChecked } from '../agent/mutate.ts'
 import { verifyMermaid } from '../agent/verify.ts'
 import { renderMermaidSVG, renderMermaidASCII, renderMermaidPNG, layoutMermaid } from '../agent/index.ts'
 import { describeMermaid } from '../agent/describe.ts'
@@ -496,7 +496,10 @@ function mutateAny(d: ValidDiagram, op: AnyMutationOp): Result<MutableValidDiagr
   // the family list a 13th time.
   const plugin = getFamily(d.kind)
   if (d.body.kind !== 'opaque' && plugin?.mutate && plugin.serialize) {
-    return mutate(d as MutableValidDiagram, op)
+    // `--op`/`--ops` arrive as untyped JSON, so the CLI funnels through the same
+    // mutateChecked choke point the MCP paths use: shape is validated (a wrong/
+    // missing/mistyped field is a prescriptive INVALID_OP) before the mutator.
+    return mutateChecked(d as MutableValidDiagram, op)
   }
   return {
     ok: false,

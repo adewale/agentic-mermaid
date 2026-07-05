@@ -54,10 +54,11 @@ export function mutate(
 
 /**
  * mutate with a shape check in front — the one choke point every UNTYPED edit
- * path funnels through (the declarative applyOps/buildChecked entrypoints and
- * the Code Mode facade). Typed callers keep using `mutate` directly, where the
- * compiler already guarantees op shape; `mutateChecked` restores that guarantee
- * at the boundaries where ops arrive as raw JSON.
+ * path funnels through: the declarative applyOps/buildChecked entrypoints, the
+ * Code Mode facade, and the CLI `--op`/`--ops` path. Typed callers keep using
+ * `mutate` directly, where the compiler already guarantees op shape;
+ * `mutateChecked` restores that guarantee at the boundaries where ops arrive as
+ * raw JSON.
  *
  * `validateOp` proves the op's SHAPE (field names, primitive types, enums)
  * BEFORE the mutator runs, so a malformed op is rejected with a prescriptive
