@@ -507,6 +507,9 @@ describe('Workers Static Assets website contract', () => {
     // shorter "Copied" label, so the hero's flex neighbours don't slide sideways.
     expect(theme).toContain("btn.style.minWidth = Math.ceil(btn.getBoundingClientRect().width)")
     expect(theme).toContain("btn.style.minWidth = ''")
+    // The editor's copy feedback (setCopyFeedback) reserves width the same way, so
+    // the topbar's labelled Copy agent prompt button can't slide its neighbours.
+    expect(editorAll).toContain("btn.style.minWidth = Math.ceil(btn.getBoundingClientRect().width)")
     expect(styles).toContain('@media (forced-colors: active)')
     expect(styles).toContain('.warning-table thead { display: none; }')
     expect(read('warnings/index.html')).toContain('<td data-label="Code">')

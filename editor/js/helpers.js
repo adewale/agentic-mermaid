@@ -149,6 +149,10 @@ function setCopyFeedback(btn, state) {
   var label = copyFeedbackLabel(btn);
   if (!label) return;
   if (!btn.dataset.copyOriginalLabel) btn.dataset.copyOriginalLabel = label.textContent || '';
+  // Pin the resting width before swapping in the shorter "Copied" label, so a
+  // labelled topbar button (e.g. Copy agent prompt) can't shrink and slide its
+  // flex neighbours ~80px sideways for the feedback window. Released on restore.
+  if (!btn.style.minWidth) btn.style.minWidth = Math.ceil(btn.getBoundingClientRect().width) + 'px';
   btn.dataset.copyState = state;
   label.textContent = state === 'ok' ? 'Copied' : 'Copy failed';
   window.clearTimeout(btn._copyFeedbackTimer);
@@ -156,6 +160,7 @@ function setCopyFeedback(btn, state) {
     label.textContent = btn.dataset.copyOriginalLabel || '';
     delete btn.dataset.copyState;
     delete btn.dataset.copyOriginalLabel;
+    btn.style.minWidth = '';
   }, 1800);
 }
 
