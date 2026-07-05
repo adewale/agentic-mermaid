@@ -205,7 +205,7 @@
         "evalFixture": {
           "status": "satisfied",
           "evidence": [
-            "evals/shared-benchmark.json",
+            "skill-evals/shared-benchmark.json",
             "src/__tests__/agent-doc-sync.test.ts"
           ]
         },
@@ -243,8 +243,8 @@
           "status": "satisfied",
           "evidence": [
             "scripts/site/samples-data.ts",
-            "scripts/site/generate.ts",
-            "src/__tests__/property-html-generator.test.ts"
+            "website/build.ts",
+            "src/__tests__/website-build.test.ts"
           ]
         },
         "distributionPackage": {
@@ -376,7 +376,7 @@
         "evalFixture": {
           "status": "satisfied",
           "evidence": [
-            "evals/shared-benchmark.json",
+            "skill-evals/shared-benchmark.json",
             "src/__tests__/agent-doc-sync.test.ts"
           ]
         },
@@ -413,8 +413,8 @@
           "status": "satisfied",
           "evidence": [
             "scripts/site/samples-data.ts",
-            "scripts/site/generate.ts",
-            "src/__tests__/property-html-generator.test.ts"
+            "website/build.ts",
+            "src/__tests__/website-build.test.ts"
           ]
         },
         "distributionPackage": {
@@ -544,7 +544,7 @@
         "evalFixture": {
           "status": "satisfied",
           "evidence": [
-            "evals/shared-benchmark.json",
+            "skill-evals/shared-benchmark.json",
             "src/__tests__/agent-doc-sync.test.ts"
           ]
         },
@@ -583,8 +583,8 @@
           "status": "satisfied",
           "evidence": [
             "scripts/site/samples-data.ts",
-            "scripts/site/generate.ts",
-            "src/__tests__/property-html-generator.test.ts"
+            "website/build.ts",
+            "src/__tests__/website-build.test.ts"
           ]
         },
         "distributionPackage": {
@@ -714,7 +714,7 @@
         "evalFixture": {
           "status": "satisfied",
           "evidence": [
-            "evals/shared-benchmark.json",
+            "skill-evals/shared-benchmark.json",
             "src/__tests__/agent-doc-sync.test.ts"
           ]
         },
@@ -751,8 +751,8 @@
           "status": "satisfied",
           "evidence": [
             "scripts/site/samples-data.ts",
-            "scripts/site/generate.ts",
-            "src/__tests__/property-html-generator.test.ts"
+            "website/build.ts",
+            "src/__tests__/website-build.test.ts"
           ]
         },
         "distributionPackage": {
@@ -882,7 +882,7 @@
         "evalFixture": {
           "status": "satisfied",
           "evidence": [
-            "evals/shared-benchmark.json",
+            "skill-evals/shared-benchmark.json",
             "src/__tests__/agent-doc-sync.test.ts"
           ]
         },
@@ -920,8 +920,8 @@
           "status": "satisfied",
           "evidence": [
             "scripts/site/samples-data.ts",
-            "scripts/site/generate.ts",
-            "src/__tests__/property-html-generator.test.ts"
+            "website/build.ts",
+            "src/__tests__/website-build.test.ts"
           ]
         },
         "distributionPackage": {
@@ -1051,7 +1051,7 @@
         "evalFixture": {
           "status": "satisfied",
           "evidence": [
-            "evals/shared-benchmark.json",
+            "skill-evals/shared-benchmark.json",
             "src/__tests__/agent-doc-sync.test.ts"
           ]
         },
@@ -1089,8 +1089,8 @@
           "status": "satisfied",
           "evidence": [
             "scripts/site/samples-data.ts",
-            "scripts/site/generate.ts",
-            "src/__tests__/property-html-generator.test.ts"
+            "website/build.ts",
+            "src/__tests__/website-build.test.ts"
           ]
         },
         "distributionPackage": {
@@ -1220,7 +1220,7 @@
         "evalFixture": {
           "status": "satisfied",
           "evidence": [
-            "evals/shared-benchmark.json",
+            "skill-evals/shared-benchmark.json",
             "src/__tests__/agent-doc-sync.test.ts"
           ]
         },
@@ -1257,8 +1257,8 @@
           "status": "satisfied",
           "evidence": [
             "scripts/site/samples-data.ts",
-            "scripts/site/generate.ts",
-            "src/__tests__/property-html-generator.test.ts"
+            "website/build.ts",
+            "src/__tests__/website-build.test.ts"
           ]
         },
         "distributionPackage": {
@@ -1388,7 +1388,7 @@
         "evalFixture": {
           "status": "satisfied",
           "evidence": [
-            "evals/shared-benchmark.json",
+            "skill-evals/shared-benchmark.json",
             "src/__tests__/agent-doc-sync.test.ts"
           ]
         },
@@ -1425,8 +1425,8 @@
           "status": "satisfied",
           "evidence": [
             "scripts/site/samples-data.ts",
-            "scripts/site/generate.ts",
-            "src/__tests__/property-html-generator.test.ts"
+            "website/build.ts",
+            "src/__tests__/website-build.test.ts"
           ]
         },
         "distributionPackage": {
@@ -1556,7 +1556,7 @@
         "evalFixture": {
           "status": "satisfied",
           "evidence": [
-            "evals/shared-benchmark.json",
+            "skill-evals/shared-benchmark.json",
             "src/__tests__/agent-doc-sync.test.ts"
           ]
         },
@@ -1594,8 +1594,8 @@
           "status": "satisfied",
           "evidence": [
             "scripts/site/samples-data.ts",
-            "scripts/site/generate.ts",
-            "src/__tests__/property-html-generator.test.ts"
+            "website/build.ts",
+            "src/__tests__/website-build.test.ts"
           ]
         },
         "distributionPackage": {
@@ -1725,7 +1725,7 @@
         "evalFixture": {
           "status": "satisfied",
           "evidence": [
-            "evals/shared-benchmark.json",
+            "skill-evals/shared-benchmark.json",
             "src/__tests__/agent-doc-sync.test.ts"
           ]
         },
@@ -1762,8 +1762,8 @@
           "status": "satisfied",
           "evidence": [
             "scripts/site/samples-data.ts",
-            "scripts/site/generate.ts",
-            "src/__tests__/property-html-generator.test.ts"
+            "website/build.ts",
+            "src/__tests__/website-build.test.ts"
           ]
         },
         "distributionPackage": {
@@ -1893,7 +1893,7 @@
         "evalFixture": {
           "status": "satisfied",
           "evidence": [
-            "evals/shared-benchmark.json",
+            "skill-evals/shared-benchmark.json",
             "src/__tests__/agent-doc-sync.test.ts"
           ]
         },
@@ -1930,8 +1930,8 @@
           "status": "satisfied",
           "evidence": [
             "scripts/site/samples-data.ts",
-            "scripts/site/generate.ts",
-            "src/__tests__/property-html-generator.test.ts"
+            "website/build.ts",
+            "src/__tests__/website-build.test.ts"
           ]
         },
         "distributionPackage": {
@@ -2063,7 +2063,7 @@
         "evalFixture": {
           "status": "satisfied",
           "evidence": [
-            "evals/shared-benchmark.json",
+            "skill-evals/shared-benchmark.json",
             "src/__tests__/agent-doc-sync.test.ts"
           ]
         },
@@ -2102,8 +2102,8 @@
           "status": "satisfied",
           "evidence": [
             "scripts/site/samples-data.ts",
-            "scripts/site/generate.ts",
-            "src/__tests__/property-html-generator.test.ts"
+            "website/build.ts",
+            "src/__tests__/website-build.test.ts"
           ]
         },
         "distributionPackage": {

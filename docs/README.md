@@ -31,14 +31,12 @@ This directory holds the long-form documentation. The root README is intentional
 | [`mcp-http-transport.md`](./mcp-http-transport.md) | HTTP/SSE MCP quickstart, artifact outputs, options, and security defaults. |
 | [`agent-workflow-examples.md`](./agent-workflow-examples.md) | Runnable MCP/CLI and improvement-loop examples. |
 | [`../skills/`](../skills/) | Agent-agnostic skill bundles. |
-| [`../evals/`](../evals/) | Skill eval manifest, fixtures, and benchmark instructions. |
+| [`../skill-evals/`](../skill-evals/) | Skill eval manifest, fixtures, and benchmark instructions. |
 
 ## Contributor / project docs
 
 The design docs split into two tiers — **system** (how the engine works, cross-cutting) and
-**per-family** (how one diagram type works). See
-[`project/doc-reorg-plan.md`](./project/doc-reorg-plan.md) for the migration that physically
-co-locates them.
+**per-family** (how one diagram type works).
 
 ### System design — how the engine works
 
@@ -51,8 +49,6 @@ co-locates them.
 | [`design/system/layout-rubric.md`](./design/system/layout-rubric.md) | Deterministic layout-quality rubric: metrics, CI gates, and property oracles. |
 | [`design/system/source-preservation-ladder.md`](./design/system/source-preservation-ladder.md) | The structured\|opaque family-adoption contract (levels L0–L4). |
 | [`design/system/ugly-layouts.md`](./design/system/ugly-layouts.md) | Ugly-layout detector: catalogued failure shapes and heuristics. |
-| [`design/system/issue-26-audit.md`](./design/system/issue-26-audit.md) | Flowchart principled-layout heuristics inventory and conformance review (issue #26). |
-| [`design/system/issue-26-38-closure.md`](./design/system/issue-26-38-closure.md) | Principled-layout closure-decision ledger (issues #26/#38). |
 
 ### Per-family design notes
 
@@ -66,8 +62,7 @@ co-locates them.
 | [`design/families/xychart.md`](./design/families/xychart.md) | XY chart implementation notes. |
 | [`design/families/flowchart-parser-conformance.md`](./design/families/flowchart-parser-conformance.md) | Flowchart syntax conformance catalogue and unsupported-syntax warning policy (issue #36). |
 
-> All per-family notes now live in `design/families/` and all cross-cutting notes in `design/system/`
-> (the [doc-reorg plan](./project/doc-reorg-plan.md) Phase 1 migration is complete).
+> All per-family notes live in `design/families/` and all cross-cutting notes in `design/system/`.
 
 ### Project & process
 
@@ -79,15 +74,12 @@ co-locates them.
 | [`contributing/harvesting-upstream-tests.md`](./contributing/harvesting-upstream-tests.md) | How to vendor upstream/fork test suites into an executable compatibility bench. |
 | [`contributing/releasing.md`](./contributing/releasing.md) | How to cut an npm release (GitHub Release → provenance publish) and flip the "published" copy. |
 | [`layout-characterization/README.md`](./layout-characterization/README.md) | Layout and visual testing approach: properties, contact sheets, raster contracts, and approval artifacts. |
-| [`project/design.md`](./project/design.md) | Historical/design notes (editor UI design system). |
 | [`project/divergences.md`](./project/divergences.md) | Deliberate divergences and guardrails. |
-| [`project/product.md`](./project/product.md) | Product brief. |
-| [`project/lessons-learned.md`](./project/lessons-learned.md) | Implementation lessons. |
-| [`project/doc-reorg-plan.md`](./project/doc-reorg-plan.md) | Plan to separate per-family from system docs (this reorg). |
+| [`project/lessons-learned.md`](./project/lessons-learned.md) | Cumulative fork implementation narrative (loops 1–22). |
+| [`contributing/lessons-learned.md`](./contributing/lessons-learned.md) | Dated contributor process lessons (newest first). |
 | [`project/dogfooding-docs-strategy.md`](./project/dogfooding-docs-strategy.md) | How we render and pin our own docs with our own tools. |
 | [`issue-derived-test-cases.md`](./issue-derived-test-cases.md) | Issue-derived regression coverage map. |
 | [`mermaid-layout-complaints.md`](./mermaid-layout-complaints.md) | Mermaid layout complaint catalog, root causes, and coverage scorecard. |
-| [`pr11-reviewer-guide.md`](./pr11-reviewer-guide.md) | Historical PR #11 reviewer map. |
 
 ## Root docs kept intentionally
 
@@ -97,3 +89,5 @@ co-locates them.
 - [`../TODO.md`](../TODO.md) — only active backlog with unchecked boxes.
 - [`../Instructions_for_agents.md`](../Instructions_for_agents.md) — canonical agent guide emitted by CLI.
 - [`../AGENT_NATIVE.md`](../AGENT_NATIVE.md) — agent-native architecture/spec entrypoint.
+- [`../PRODUCT.md`](../PRODUCT.md) — canonical product brief (brand register).
+- [`../DESIGN.md`](../DESIGN.md) — canonical website design system.

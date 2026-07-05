@@ -976,7 +976,11 @@ const FAMILY_REFERENCE: Array<[id: string, label: string, draws: string]> = [
   ['quadrant', 'Quadrant', 'Two-axis priority map with labeled regions and points.'],
   ['gantt', 'Gantt', 'Sections, dependencies, status tags, and a milestone.'],
 ]
-const familiesLead = 'Twelve families share one deterministic layout engine. Each parses from Mermaid text and renders to SVG, PNG, ASCII, Unicode, and layout JSON from the same positioned model.'
+// Number-word for the family count, derived from the registry so the published
+// prose can't drift from BUILTIN_FAMILY_METADATA (adding a family updates this).
+const FAMILY_COUNT_WORDS = ['zero', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten', 'eleven', 'twelve', 'thirteen', 'fourteen', 'fifteen', 'sixteen', 'seventeen', 'eighteen', 'nineteen', 'twenty']
+const familyCountWord = FAMILY_COUNT_WORDS[BUILTIN_FAMILY_METADATA.length] ?? String(BUILTIN_FAMILY_METADATA.length)
+const familiesLead = `${familyCountWord.charAt(0).toUpperCase()}${familyCountWord.slice(1)} families share one deterministic layout engine. Each parses from Mermaid text and renders to SVG, PNG, ASCII, Unicode, and layout JSON from the same positioned model.`
 function familiesReferenceHtml() {
   const rows = FAMILY_REFERENCE.map(([id, label, draws]) => `<tr id="${id}"><td><strong>${escapeHtml(label)}</strong></td><td>${escapeHtml(draws)}</td></tr>`).join('')
   return `<p>Every family carries a route certificate: a machine-checkable claim about how its edges were routed — orthogonal boxes for class and ER, lifelines for sequence, side-anchored links for architecture. That certificate is what lets <code>verify</code> answer in tiers instead of guessing.</p>
@@ -1554,44 +1558,27 @@ function assertContractShapes() {
   for (const [name, obj] of Object.entries({ capabilities, examples })) {
     if (!(obj as any).generatedFrom) throw new Error(`${name} missing generatedFrom`)
   }
-  if (publicLlms.includes('TODO.md') || publicLlms.includes('evals/')) throw new Error('public llms.txt exposes repo-only surfaces')
+  if (publicLlms.includes('TODO.md') || publicLlms.includes('skill-evals/')) throw new Error('public llms.txt exposes repo-only surfaces')
 }
 assertNoPlaceholders()
 assertContractShapes()
 
 if (CHECK) {
+  // website/public is a build artifact (gitignored, rebuilt at deploy and by
+  // the test preload), so it is not drift-checked here. Only the worker's
+  // committed src/generated inputs — imported by src/worker.ts and needed for
+  // typecheck — are pinned against the source.
   const stale: string[] = []
-  for (const [rel, expected] of generated) {
-    const file = Bun.file(join(OUT, rel))
-    const exists = await file.exists()
-    if (!exists) { stale.push(rel); continue }
-    const actual = Buffer.from(await file.arrayBuffer())
-    const exp = Buffer.isBuffer(expected) ? expected : Buffer.from(expected)
-    if (!actual.equals(exp)) stale.push(rel)
-  }
-  const actual: string[] = []
-  async function walk(abs: string, prefix = '') {
-    if (!await Bun.file(abs).exists()) return
-    for (const ent of await readdir(abs, { withFileTypes: true })) {
-      const rel = prefix ? `${prefix}/${ent.name}` : ent.name
-      const child = join(abs, ent.name)
-      if (ent.isDirectory()) await walk(child, rel)
-      else actual.push(rel)
-    }
-  }
-  await walk(OUT)
-  const unexpected = actual.filter((rel) => !generated.has(rel))
-  if (unexpected.length) stale.push(...unexpected.map((f) => `unexpected:${f}`))
   for (const [rel, expected] of workerGenerated) {
     const file = Bun.file(join(SRC_GENERATED, rel))
     if (!await file.exists()) { stale.push(`src/generated/${rel}`); continue }
     if (!Buffer.from(await file.arrayBuffer()).equals(expected)) stale.push(`src/generated/${rel}`)
   }
   if (stale.length) {
-    console.error(`website/build --check: ${stale.length} stale or unexpected file(s):\n  ${stale.join('\n  ')}\nRegenerate with \`bun run website\`.`)
+    console.error(`website/build --check: ${stale.length} stale src/generated file(s):\n  ${stale.join('\n  ')}\nRegenerate with \`bun run website\`.`)
     process.exit(1)
   }
-  console.log(`website/build --check: ${generated.size} files in sync.`)
+  console.log(`website/build --check: ${workerGenerated.size} src/generated file(s) in sync (website/public is a build artifact, not checked).`)
 } else {
   console.log(`website/build: wrote ${generated.size} files to website/public`)
 }

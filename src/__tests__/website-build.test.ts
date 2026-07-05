@@ -153,7 +153,7 @@ describe('Workers Static Assets website contract', () => {
   })
 
   test('sitemap.xml lists exactly the live HTML pages and no machine artifacts', () => {
-    const locs = [...read('sitemap.xml').matchAll(/<loc>([^<]+)<\/loc>/g)].map((m) => m[1])
+    const locs = [...read('sitemap.xml').matchAll(/<loc>([^<]+)<\/loc>/g)].map((m) => m[1]!)
     expect(new Set(locs).size).toBe(locs.length)                  // no duplicate URLs
     for (const loc of locs) expect({ loc, ok: loc.startsWith('https://agentic-mermaid.dev/') }).toEqual({ loc, ok: true })
     expect(locs).toContain('https://agentic-mermaid.dev/')        // homepage
@@ -607,7 +607,7 @@ describe('Workers Static Assets website contract', () => {
   test('public llms.txt omits repo-only backlog and eval surfaces', () => {
     const text = read('llms.txt')
     expect(text).not.toContain('TODO.md')
-    expect(text).not.toContain('evals/')
+    expect(text).not.toContain('skill-evals/')
     expect(text).toContain('/capabilities.json')
   })
 

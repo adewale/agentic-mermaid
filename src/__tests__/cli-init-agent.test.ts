@@ -33,7 +33,7 @@ describe('initAgentFiles', () => {
       const agentsText = readFileSync(agents, 'utf8')
       expect(agentsText).toContain(AGENTS_MARKER)
       expect(agentsText).toContain('parse → narrow')
-      expect(agentsText).toContain('https://adewale.github.io/beautiful-mermaid/llms.txt')
+      expect(agentsText).toContain('https://agentic-mermaid.dev/llms.txt')
       expect(agentsText).toContain('npx agentic-mermaid --agent-instructions')
 
       const skillText = readFileSync(skill, 'utf8')

@@ -1,6 +1,6 @@
 // ============================================================================
-// Direct coverage for the three layout heuristics that the issue-#26 audit
-// (docs/design/system/issue-26-audit.md, section (b) rows #13, #18, #20) flagged as
+// Direct coverage for the three layout heuristics that the issue-#26 layout-heuristics
+// audit (section (b) rows #13, #18, #20; see git history / issue #26) flagged as
 // "documented but tested only indirectly via the rubric hard metrics".
 //
 // Each heuristic previously rode on the rubric battery's aggregate
