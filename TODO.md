@@ -462,6 +462,16 @@ dependents after. IDs are stable names, not an ordering.
   regeneration, CLI misuse, serialize-without-verify, ignored verify results,
   and opaque mutation attempts. `agent-usage.test.ts` now classifies/replays
   the corpus so known-bad paths stay failing. Fed BUILD-8 lint-code selection.
+- [ ] **EVAL-3 — Eval the `agentic-mermaid-diagram-workflow` skill for
+  helpfulness** (`todo`). The public skill
+  (`website/public/skills/agentic-mermaid-diagram-workflow/SKILL.md` +
+  `references/`) is the site's main agent call-to-action, now linked from the
+  footer. Verify it actually improves outcomes: run agent-usage cases with vs.
+  without the skill loaded and compare on task success, verify-before-return
+  discipline, Code-Mode vs. prose answers, and source-level-vs-structured edit
+  choice — reuse the EVAL-1/EVAL-2 sandbox, task oracle, and trace linter.
+  Fold any skill gaps back into `SKILL.md`/`references/`; keep or cut the
+  footer link based on whether it demonstrably helps.
 
 ## 3. Blocked / external resource needed
 
