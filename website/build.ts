@@ -1441,14 +1441,6 @@ const redirectLines = [
   // Examples absorbed the gallery; Families folded into the docs.
   '/gallery /examples/ 308', '/gallery/ /examples/ 308',
   '/families /docs/families/ 308', '/families/ /docs/families/ 308',
-  // Consolidated routes — kept as redirects so old URLs never 404. React +
-  // Config folded into the API doc; Vocabulary into Getting started; Evidence
-  // into Quality; Releases demoted to the capabilities manifest.
-  '/docs/react /docs/api/ 308', '/docs/react/ /docs/api/ 308',
-  '/docs/config /docs/api/ 308', '/docs/config/ /docs/api/ 308',
-  '/docs/vocabulary /docs/getting-started/ 308', '/docs/vocabulary/ /docs/getting-started/ 308',
-  '/evidence /docs/quality/ 308', '/evidence/ /docs/quality/ 308',
-  '/releases /capabilities.json 308', '/releases/ /capabilities.json 308',
   '',
 ].join('\n')
 await emit('_redirects', redirectLines)

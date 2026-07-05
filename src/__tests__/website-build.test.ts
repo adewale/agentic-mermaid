@@ -141,15 +141,12 @@ describe('Workers Static Assets website contract', () => {
       'skills/agentic-mermaid-diagram-workflow/SKILL.md', '_headers', '_redirects',
     ]
     for (const route of routes) expect({ route, exists: existsSync(join(SITE, route)) }).toEqual({ route, exists: true })
-    // Consolidated away (July 2026): React + Config folded into the API doc,
-    // Vocabulary into Getting started, Evidence into Quality, Releases demoted
-    // to capabilities.json. They must 308-redirect, not 404 — see _redirects.
+    // Consolidated away: React + Config folded into the API doc, Vocabulary
+    // into Getting started, Evidence into Quality, Releases demoted to
+    // capabilities.json. The site has not launched, so these routes are simply
+    // gone — no backwards-compat redirects.
     const consolidated = ['docs/config/index.html', 'docs/react/index.html', 'docs/vocabulary/index.html', 'evidence/index.html', 'releases/index.html']
     for (const route of consolidated) expect({ route, exists: existsSync(join(SITE, route)) }).toEqual({ route, exists: false })
-    const redirects = readRepo('website/public/_redirects')
-    for (const from of ['/docs/config', '/docs/react', '/docs/vocabulary', '/evidence', '/releases']) {
-      expect({ from, redirected: redirects.includes(`${from} `) }).toEqual({ from, redirected: true })
-    }
     expect(existsSync(join(SITE, 'install/index.html'))).toBe(false)
     expect(existsSync(join(SITE, 'agents/index.html'))).toBe(false)
     expect(existsSync(join(SITE, 'agents/harnesses/index.html'))).toBe(false)
