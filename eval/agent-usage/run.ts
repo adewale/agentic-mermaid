@@ -304,7 +304,7 @@ export const DEFAULT_CASES: AgentUsageEvalCase[] = [
     family: 'flowchart',
     prompt: promptTask(
       'Create a new Auth Flow flowchart as Mermaid source, parse it, verify it, then return the source. Do not use mutate because there is no existing diagram to preserve.',
-      'Diagram these facts: User opens Login Page; invalid credentials return to Login Page; valid credentials check MFA; MFA users enter a code; invalid code returns to Enter MFA Code; valid code creates a session; users without MFA create a session; session leads to Dashboard.',
+      'Diagram this login flow with one node per described step. Nodes: User; Login Page; a "Valid Credentials?" decision; an "MFA Enabled?" decision; Enter MFA Code; a "Code Valid?" decision; Create Session; Dashboard. Edges: User to Login Page; Login Page to Valid Credentials?; Valid Credentials? on No back to Login Page; Valid Credentials? on Yes to MFA Enabled?; MFA Enabled? on Yes to Enter MFA Code; Enter MFA Code to Code Valid?; Code Valid? on No back to Enter MFA Code; MFA Enabled? on No to Create Session; Code Valid? on Yes to Create Session; Create Session to Dashboard.',
     ),
     script: `
       const source = '---\\ntitle: Auth Flow\\n---\\nflowchart LR\\n  A[User] --> B[Login Page]\\n  B --> C{Valid Credentials?}\\n  C -->|No| B\\n  C -->|Yes| D{MFA Enabled?}\\n  D -->|Yes| E[Enter MFA Code]\\n  E --> F{Code Valid?}\\n  F -->|No| E\\n  D -->|No| G[Create Session]\\n  F -->|Yes| G\\n  G --> H[Dashboard]'
