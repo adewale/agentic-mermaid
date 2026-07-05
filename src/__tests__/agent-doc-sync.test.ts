@@ -9,6 +9,7 @@ import { AGENT_INSTRUCTIONS } from '../cli/agent-instructions.ts'
 import { AGENTS_SNIPPET, INIT_SKILL_MD } from '../cli/init-agent.ts'
 import { COMMAND_HELP, MUTATION_OPS_BY_FAMILY, buildCapabilities } from '../cli/index.ts'
 import { SDK_DECLARATION } from '../mcp/sdk-decl.ts'
+import { HOSTED_TOOLS } from '../mcp/hosted-server.ts'
 import { WARNING_SEVERITY, WARNING_TIER } from '../agent/types.ts'
 import {
   asFlowchart, asState, asSequence, asTimeline, asClass, asEr,
@@ -420,6 +421,44 @@ describe('vocabulary doc-sync', () => {
       const text = readFileSync(join(REPO, file), 'utf8')
       expect({ file, documentsStateNarrowing: /[Ss]tate.*asState|asState.*(narrows?|state)/s.test(text) }).toEqual({ file, documentsStateNarrowing: true })
     }
+  })
+})
+
+describe('start.md bootstrap claims stay true', () => {
+  // start.md is the hosted bootstrap the homepage pointer fetches and the source
+  // the inline homepage prompt is composed from. It is deliberately condensed —
+  // it does NOT enumerate every narrower/warning code (it points at
+  // capabilities.json for those), so it does not belong in the exhaustive
+  // reference-doc loops above. Instead, pin every claim it DOES make: whatever
+  // families, narrowers, warning codes, and tools it names must be real, and the
+  // family list (which it states in full) must stay complete.
+  const START = readFileSync(join(REPO, 'website/source/start.md'), 'utf8')
+
+  test('the family list it states is complete and valid', () => {
+    const listed = START.match(/Families:\s*([^.\n]+)/)?.[1] ?? ''
+    const named = new Set(listed.split(',').map(s => s.trim().toLowerCase()).filter(Boolean))
+    const known = new Set([...knownFamilies()].map(k => k.toLowerCase()))
+    expect(named).toEqual(known)
+  })
+
+  test('every as* narrower it names is a real narrower', () => {
+    const real = new Set(Object.values(MUTABLE_FAMILY_DOCS).map(d => d.narrower))
+    const named = [...START.matchAll(/\bas[A-Z][A-Za-z]*\b/g)].map(m => m[0])
+    expect(named.length).toBeGreaterThan(0)
+    for (const n of named) expect({ narrower: n, real: real.has(n) }).toEqual({ narrower: n, real: true })
+  })
+
+  test('every warning code it names is a real code', () => {
+    const codes = new Set(Object.keys(WARNING_SEVERITY))
+    const named = [...START.matchAll(/\b[A-Z]{2,}(?:_[A-Z]+)+\b/g)].map(m => m[0])
+    expect(named.length).toBeGreaterThan(0) // at least LABEL_OVERFLOW
+    for (const c of named) expect({ code: c, real: codes.has(c) }).toEqual({ code: c, real: true })
+  })
+
+  test('the hosted MCP tools it lists match the server exactly', () => {
+    const sentence = START.match(/Tools:\s*([^.\n]+)/)?.[1] ?? ''
+    const named = new Set([...sentence.matchAll(/`([a-z_]+)`/g)].map(m => m[1]))
+    expect(named).toEqual(new Set(HOSTED_TOOLS.map(t => t.name)))
   })
 })
 
