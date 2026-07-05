@@ -1358,6 +1358,26 @@ const redirectLines = [
 ].join('\n')
 await emit('_redirects', redirectLines)
 
+// ---- sitemap.xml -----------------------------------------------------------
+// Every page is emitted as <dir>/index.html, so its canonical URL is the clean
+// directory path. Derive the sitemap from the `generated` map rather than a
+// hand-kept list so new pages are picked up automatically. No <lastmod>: the
+// committed build uses buildTime='development', and a per-build timestamp would
+// make the bundle non-deterministic and break `website:check`.
+const SITE_ORIGIN = 'https://agentic-mermaid.dev'
+const sitemapUrls = [...generated.keys()]
+  .filter((rel) => rel === 'index.html' || rel.endsWith('/index.html'))
+  .map((rel) => SITE_ORIGIN + '/' + rel.replace(/index\.html$/, ''))
+  .sort()
+const sitemapXml = [
+  '<?xml version="1.0" encoding="UTF-8"?>',
+  '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">',
+  ...sitemapUrls.map((loc) => `  <url><loc>${loc}</loc></url>`),
+  '</urlset>',
+  '',
+].join('\n')
+await emit('sitemap.xml', sitemapXml)
+
 // ---- Worker artifacts (website/src/generated) ------------------------------
 // The /mcp Worker needs the Code Mode harness bundled for the dynamic-worker
 // isolate, the resvg wasm module, and the DejaVu fonts. They live under
