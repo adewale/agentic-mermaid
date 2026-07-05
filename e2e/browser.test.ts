@@ -60,22 +60,15 @@ async function waitForEditorRender(timeoutMs = 30_000): Promise<void> {
   )
 }
 
-/** Take a screenshot to a named file. */
-async function takeScreenshot(name: string): Promise<string> {
-  const path = join(SCREENSHOT_DIR, `${name}.png`)
-  await page.screenshot({ path })
-  return path
-}
-
 /**
  * Navigate to the local app without waiting for the page's load event.
  *
- * The generated showcase/editor pages run large module scripts and render many
- * SVGs before `load` can fire. On GitHub's slower Chromium runners that makes
+ * The generated editor page runs large module scripts and renders many SVGs
+ * before `load` can fire. On GitHub's slower Chromium runners that makes
  * Playwright's default `page.goto(..., waitUntil: "load")` flaky and leaves the
  * shared page in a pending-navigation state after one timeout. These tests wait
- * for app-specific readiness (`waitForRender`, `waitForEditorRender`, or a
- * selector) after navigation, so committing the response is the useful boundary.
+ * for app-specific readiness (`waitForEditorRender` or a selector) after
+ * navigation, so committing the response is the useful boundary.
  *
  * The page also embeds many SVGs whose Google Font imports can keep Chromium's
  * previous document in a loading state even after the app reports that rendering
