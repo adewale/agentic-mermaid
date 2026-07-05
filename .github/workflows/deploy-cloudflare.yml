@@ -2,8 +2,11 @@ name: Deploy website to Cloudflare
 
 # The canonical live site is agentic-mermaid.dev — a Cloudflare Workers Static
 # Assets deployment (website/build.ts -> website/public) that also serves the
-# hosted MCP endpoint at /mcp. This workflow builds the bundle and deploys it
-# with wrangler on every push to main.
+# hosted MCP endpoint at /mcp. This workflow rebuilds the bundle and deploys it
+# with wrangler.
+#
+# Gated on a successful CI run for the same commit on main, so a red commit
+# never reaches the live site. Also runnable manually via workflow_dispatch.
 #
 # Requires two repository secrets: CLOUDFLARE_API_TOKEN (a token with the
 # Workers Scripts:Edit permission) and CLOUDFLARE_ACCOUNT_ID.
@@ -13,18 +16,9 @@ name: Deploy website to Cloudflare
 # announcing the endpoint — deploying does not set those up.
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - 'website/**'
-      - 'editor/**'
-      - 'src/**'
-      - 'skills/**'
-      - 'docs/**'
-      - 'skill-evals/**'
-      - 'llms.txt'
-      - 'package.json'
-      - '.github/workflows/deploy-cloudflare.yml'
+  workflow_run:
+    workflows: ["CI"]
+    types: [completed]
   workflow_dispatch:
 
 concurrency:
@@ -33,11 +27,21 @@ concurrency:
 
 jobs:
   deploy:
+    # Deploy on a manual dispatch, or when CI succeeded on main.
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.workflow_run.conclusion == 'success' &&
+       github.event.workflow_run.head_branch == 'main')
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          # For a workflow_run trigger, build the exact commit CI validated.
+          ref: ${{ github.event.workflow_run.head_sha || github.ref }}
       - name: Setup Bun
         uses: oven-sh/setup-bun@v1
+        with:
+          bun-version: 1.3.13
       - name: Install dependencies
         run: bun install
       - name: Build the site bundle

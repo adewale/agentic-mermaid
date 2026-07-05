@@ -963,7 +963,11 @@ const FAMILY_REFERENCE: Array<[id: string, label: string, draws: string]> = [
   ['quadrant', 'Quadrant', 'Two-axis priority map with labeled regions and points.'],
   ['gantt', 'Gantt', 'Sections, dependencies, status tags, and a milestone.'],
 ]
-const familiesLead = 'Twelve families share one deterministic layout engine. Each parses from Mermaid text and renders to SVG, PNG, ASCII, Unicode, and layout JSON from the same positioned model.'
+// Number-word for the family count, derived from the registry so the published
+// prose can't drift from BUILTIN_FAMILY_METADATA (adding a family updates this).
+const FAMILY_COUNT_WORDS = ['zero', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten', 'eleven', 'twelve', 'thirteen', 'fourteen', 'fifteen', 'sixteen', 'seventeen', 'eighteen', 'nineteen', 'twenty']
+const familyCountWord = FAMILY_COUNT_WORDS[BUILTIN_FAMILY_METADATA.length] ?? String(BUILTIN_FAMILY_METADATA.length)
+const familiesLead = `${familyCountWord.charAt(0).toUpperCase()}${familyCountWord.slice(1)} families share one deterministic layout engine. Each parses from Mermaid text and renders to SVG, PNG, ASCII, Unicode, and layout JSON from the same positioned model.`
 function familiesReferenceHtml() {
   const rows = FAMILY_REFERENCE.map(([id, label, draws]) => `<tr id="${id}"><td><strong>${escapeHtml(label)}</strong></td><td>${escapeHtml(draws)}</td></tr>`).join('')
   return `<p>Every family carries a route certificate: a machine-checkable claim about how its edges were routed — orthogonal boxes for class and ER, lifelines for sequence, side-anchored links for architecture. That certificate is what lets <code>verify</code> answer in tiers instead of guessing.</p>
