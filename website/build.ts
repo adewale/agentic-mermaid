@@ -330,6 +330,16 @@ function escapeHtml(s: string) {
 function escapeAttr(s: string) {
   return escapeHtml(s).replace(/"/g, '&quot;')
 }
+// The WARNING_DETAIL prose is authored as inline HTML (<code> spans, entities)
+// for the web pages; render it as plain Markdown for the .md siblings. Decode
+// &amp; last so pre-encoded entities like &amp;#160; survive as literal text.
+function inlineHtmlToMarkdown(s: string) {
+  return s
+    .replace(/<code>(.*?)<\/code>/g, '`$1`')
+    .replace(/&lt;/g, '<').replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"').replace(/&#39;/g, "'")
+    .replace(/&amp;/g, '&')
+}
 
 const packageJson = JSON.parse(await Bun.file(join(ROOT, 'package.json')).text())
 const rawCapabilities = buildCapabilities()
@@ -1315,7 +1325,20 @@ for (const w of capabilities.warningCodes) {
   await emitShell(`warnings/${w.code}/index.html`, w.code, lead, `${detailHtml}${demo}
 <p>Run <code>am verify diagram.mmd --json</code>, inspect this code, and apply the smallest source or typed mutation that clears it. If it persists after two mechanical attempts, return the warning and ask for human review.</p>
 <p class="muted">In the cloned repo, <code>am</code> is <code>bun run bin/am.ts</code>.</p>
+<p class="muted">Machine-readable: <a href="/warnings/${w.code}/index.md">this page as Markdown</a>.</p>
 <p class="muted">Back to <a href="/warnings/">all warning codes</a>, or <a href="${GENERIC_EDITOR_HREF}">open the editor</a> to watch this warning clear as you edit.</p>`)
+  // Markdown sibling: the same triage prose an agent gets from verify, without
+  // scraping HTML. Discoverable via the link above and served as text/markdown.
+  const md = [`# ${w.code}`, '', `> ${inlineHtmlToMarkdown(lead)}`, '',
+    `- **Tier:** ${w.tier}`, `- **Severity:** ${w.severity}`, '']
+  if (detail) {
+    md.push('## What triggers it', '', inlineHtmlToMarkdown(detail.triggers), '')
+    md.push('## How to fix it', '', inlineHtmlToMarkdown(detail.fix), '')
+    if (detail.example) md.push('## Example', '', '```mermaid', detail.example, '```', '')
+  }
+  md.push('Run `am verify diagram.mmd --json`, inspect this code, and apply the smallest source or typed mutation that clears it. If it persists after two mechanical attempts, return the warning and ask for human review.', '',
+    `Full page: https://agentic-mermaid.dev/warnings/${w.code}/`, '')
+  await emit(`warnings/${w.code}/index.md`, md.join('\n'))
 }
 console.log(`website/build: ${firingDemos}/${capabilities.warningCodes.length} warning pages carry a build-time-verified firing demo`)
 const errors = [
