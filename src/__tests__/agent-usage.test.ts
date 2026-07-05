@@ -6,7 +6,7 @@ import { join } from 'node:path'
 import { runAllScenarios, lintAgentTrace, type SdkCall } from '../../eval/agent-usage/harness.ts'
 import { DEFAULT_CASES, KNOWLEDGE_CASES, CREATE_CASES, checkAgentUsageTaskSource, requiresStructuredMutation, runAgentUsageEval } from '../../eval/agent-usage/run.ts'
 import { AGENT_USAGE_SUPPORTED_FAMILIES, scoreAgentUsageRenderedQuality } from '../../eval/agent-usage/render-quality.ts'
-import { extractHomepageAgentPrompt, homepagePromptChecklist } from '../../eval/agent-usage/homepage-prompt.ts'
+import { extractHomepageAgentPrompt, homepagePromptChecklist, HOMEPAGE_AGENT_POINTER, buildHomepageFullPrompt, readStartMd } from '../../eval/agent-usage/homepage-prompt.ts'
 import { buildSubagentPromptEvalRequest, extractBareTask } from '../../eval/agent-usage/capture-subagent-prompt-eval.ts'
 import { executeInSandbox } from '../mcp/sandbox.ts'
 import { handleRequest } from '../mcp/server.ts'
@@ -173,6 +173,24 @@ describe('homepage prompt eval contract', () => {
     for (const c of DEFAULT_CASES) {
       expect({ id: c.id, hasPrompt: c.prompt.includes('Create or edit a Mermaid diagram') }).toEqual({ id: c.id, hasPrompt: true })
       expect({ id: c.id, unresolved: /<replace with|<include the facts|<paste existing/.test(c.prompt) }).toEqual({ id: c.id, unresolved: false })
+    }
+  })
+
+  test('the pointer and the graded inline prompt are one fetch flow, both derived from start.md', () => {
+    // The homepage primary CTA is a short pointer that tells an agent to fetch
+    // start.md; the eval grades the inline fallback (buildHomepageFullPrompt).
+    // This proves those two surfaces are the same protocol: the inline prompt
+    // embeds the entire start.md body, and the pointer targets that same hosted
+    // file with the same fill-in slots — so grading the inline prompt grades
+    // exactly what an agent gets by following the pointer.
+    const startBody = readStartMd().replace(/^#[^\n]*\n+/, '').trim()
+    const inline = buildHomepageFullPrompt()
+    expect(inline.includes(startBody)).toBe(true)
+    expect(HOMEPAGE_AGENT_POINTER).toContain('Fetch https://agentic-mermaid.dev/start.md and follow it')
+    expect(HOMEPAGE_AGENT_POINTER).toContain('<replace with the requested diagram goal or edit>')
+    for (const shared of ['Create or edit a Mermaid diagram with Agentic Mermaid.', 'Task:', 'Context:', 'Mermaid source (for edits; leave blank for a new diagram):']) {
+      expect({ shared, inPointer: HOMEPAGE_AGENT_POINTER.includes(shared), inInline: inline.includes(shared) })
+        .toEqual({ shared, inPointer: true, inInline: true })
     }
   })
 

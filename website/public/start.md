@@ -31,9 +31,11 @@ Flowchart essentials: quote any label carrying punctuation (`id["HTTPS /api/sess
 
 Run `verifyMermaid` at every commit point; never serialize a diagram whose verify result you have not inspected. Warnings are signals, not commands: `LABEL_OVERFLOW` counts the longest rendered line (default cap 40) — raise the cap (`verifyMermaid(d, { labelCharCap: N })`, `am verify --label-cap N`) for intentionally long labels rather than truncating the user's text. If no Agentic Mermaid channel is available, do not fabricate verification: return the best source, say `not verified — Agentic Mermaid unavailable` with what you tried, and treat non-flowchart families with extra caution since their syntax is likelier to drift.
 
+Before returning, confirm the specific change the task asked for is actually present — the exact labels, values, and edge endpoints — not just that the diagram verifies. `verify.ok` is structural; it does not check that you made the right edit.
+
 ## Grounding and scope
 
-If the diagram describes a repository, codebase, or URL you can inspect, read the real source first. Every node and edge must trace to the supplied Context or to something you inspected — do not invent nodes or relationships; mark uncertain ones (dotted edge, `?` in the label) or leave them out. If Context omits the abstraction level or scope, take the smallest consistent reading, keep the whole diagram at one abstraction level, and state your assumptions in Verification. When the diagram is based on inspected source, add a Sources section listing the files.
+If the diagram describes a repository, codebase, or URL you can inspect, read the real source first. Every node and edge must trace to the supplied Context or to something you inspected — do not invent nodes or relationships; mark uncertain ones (dotted edge, `?` in the label) or leave them out. When Context enumerates specific entities, steps, or relationships, model each one as its own node/edge — do not merge or drop described elements to simplify. If Context omits the abstraction level or scope, take the smallest consistent reading, keep the whole diagram at one abstraction level, and state your assumptions in Verification. When the diagram is based on inspected source, add a Sources section listing the files.
 
 ## Return
 
