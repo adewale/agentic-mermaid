@@ -662,10 +662,16 @@ function checkApiSequenceSourceTask(value: unknown): boolean {
   return participants.has('User')
     && participants.has('App')
     && participants.has('API')
+    // Context describes the flow in lowercase prose ("render SVG … a download").
+    // Match each message by its key phrase on the correctly-directed edge, case-
+    // insensitively and by containment — as the User->App `export` check already
+    // does. Requiring an exact Title-case label rejected diagrams faithful to the
+    // Context whose agents kept the prose casing ("render SVG") or phrasing
+    // ("returns SVG string"); the from/to direction plus the phrase is the signal.
     && body.messages.some(m => m.from === 'User' && m.to === 'App' && /\bexport\b/i.test(m.text))
-    && body.messages.some(m => m.from === 'App' && m.to === 'API' && m.text === 'Render SVG')
-    && body.messages.some(m => m.from === 'API' && m.to === 'App' && m.text === 'SVG string')
-    && body.messages.some(m => m.from === 'App' && m.to === 'User' && m.text === 'Download')
+    && body.messages.some(m => m.from === 'App' && m.to === 'API' && /render\s+svg/i.test(m.text))
+    && body.messages.some(m => m.from === 'API' && m.to === 'App' && /svg\s+string/i.test(m.text))
+    && body.messages.some(m => m.from === 'App' && m.to === 'User' && /\bdownload\b/i.test(m.text))
 }
 
 function serializedSource(value: unknown, trace: SdkCall[]): string | undefined {
