@@ -117,6 +117,10 @@ describe('live agent-usage eval harness', () => {
     // CLI verification of authored source — the CLI parses the source itself.
     const cli = await run(body('Verified with `bun run bin/am.ts verify traffic.mmd --json`: ok true, warnings [].', 'Authored the source from Context and verified with the am CLI (am verify). No mutate — new diagram.'))
     expect({ ok: cli.ok, taskOk: cli.taskOk, traceOk: cli.traceOk }).toEqual({ ok: true, taskOk: true, traceOk: true })
+    // Hosted MCP verification — the third-party channel (no repo, no npm). The
+    // /mcp verify tool parses the source itself; no verifyMermaid/am verify token.
+    const mcp = await run(body('Verified via the hosted MCP: the /mcp verify tool returned ok true, warnings [].', 'Authored the source from Context and verified it with the hosted MCP verify tool at agentic-mermaid.dev/mcp. No mutate — new diagram.'))
+    expect({ ok: mcp.ok, taskOk: mcp.taskOk, traceOk: mcp.traceOk }).toEqual({ ok: true, taskOk: true, traceOk: true })
     // Hand-written with no tool engagement — must still fail the trace check.
     const naive = await run(body('Looks correct.', 'Wrote this state diagram directly from the description.'))
     expect({ taskOk: naive.taskOk, traceOk: naive.traceOk, ok: naive.ok }).toEqual({ taskOk: true, traceOk: false, ok: false })
