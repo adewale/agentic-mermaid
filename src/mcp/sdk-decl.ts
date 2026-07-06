@@ -149,7 +149,7 @@ type FlowchartMutationOp =
   | { kind: 'remove_node'; id: string }
   | { kind: 'rename_node'; from: string; to: string }
   | { kind: 'set_label'; target: string; label: string }
-  | { kind: 'add_edge'; from: string; to: string; label?: string; style?: 'solid' | 'dotted' | 'thick' }
+  | { kind: 'add_edge'; from: string; to: string; label?: string; style?: 'solid' | 'dotted' | 'thick' | 'invisible' }
   | { kind: 'remove_edge'; id: string }
 
 type StateMutationOp =

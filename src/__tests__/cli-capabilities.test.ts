@@ -40,6 +40,38 @@ describe('am capabilities', () => {
     }
   })
 
+  it('advertises op FIELD SHAPES (opFields) so a model fills an op without guessing', () => {
+    const cap = buildCapabilities()
+    for (const [family, ops] of Object.entries(MUTATION_OPS_BY_FAMILY)) {
+      const entry = cap.families.find(f => f.id === family)!
+      // opFields keys must be exactly the mutation ops, each with typed fields.
+      expect(Object.keys(entry.opFields ?? {}).sort()).toEqual([...ops].sort())
+      for (const fields of Object.values(entry.opFields!)) {
+        for (const fd of fields) {
+          expect(typeof fd.name).toBe('string')
+          expect(typeof fd.required).toBe('boolean')
+          expect(typeof fd.type).toBe('string')
+        }
+      }
+    }
+    // Enum vocabularies are spelled out inline in the type (the thing a model
+    // most needs and could not previously discover): e.g. class add_relation.relKind.
+    const relKind = (cap.families.find(f => f.id === 'class')!.opFields?.add_relation ?? []).find(f => f.name === 'relKind')
+    expect(relKind?.type).toContain('inheritance')
+    expect(relKind?.type).toContain('composition')
+    // xychart add_series uses the surprising `kind2` field — surfaced, not guessed.
+    expect((cap.families.find(f => f.id === 'xychart')!.opFields?.add_series ?? []).some(f => f.name === 'kind2')).toBe(true)
+  })
+
+  it('advertises the narrower and header keyword(s) for every builtin family', () => {
+    const cap = buildCapabilities()
+    for (const f of cap.families) {
+      expect(typeof f.narrower).toBe('string')
+      expect(f.narrower!.startsWith('as')).toBe(true)
+      expect(Array.isArray(f.headers) && f.headers!.length > 0).toBe(true)
+    }
+  })
+
   it('advertises mutation ops for every mutable family', () => {
     const cap = buildCapabilities()
     for (const [family, ops] of Object.entries(MUTATION_OPS_BY_FAMILY)) {

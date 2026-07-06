@@ -664,7 +664,19 @@ interface FamilyCapability {
   hasMutate: boolean
   hasExtractLabels: boolean
   mutationOps: string[]
+  /** Full field shapes for each op — { opKind: [{name, required, type}] }, with
+   *  enum vocabularies spelled out inline in `type`. Lets a model fill an op
+   *  correctly on the first try instead of guessing field names/values and
+   *  learning them only from the INVALID_OP error. Absent for source-level-only
+   *  families (no structured ops). */
+  opFields?: Record<string, OpFieldDoc[]>
   editPolicy: FamilyEditPolicy
+  /** The `as*` narrower to call before structured mutation (e.g. `asState`). */
+  narrower?: string
+  /** Mermaid header keyword(s) that open this family (e.g. `stateDiagram-v2`,
+   *  `architecture-beta`) — so a model authoring from blank opens with the right
+   *  header instead of inferring it from `example` or defaulting to flowchart. */
+  headers?: readonly string[]
   /** Minimal canonical source (header + core syntax); absent for
    *  registered non-builtin families that don't declare one. */
   example?: string
@@ -689,6 +701,7 @@ interface CapabilitiesEnvelope {
 // importers working.
 import { MUTATION_OPS_BY_FAMILY } from '../agent/mutation-ops.ts'
 export { MUTATION_OPS_BY_FAMILY }
+import { describeOps, hasOpSchema, type OpFieldDoc } from '../agent/op-schema.ts'
 
 type MutableFamilyId = keyof typeof MUTATION_OPS_BY_FAMILY
 
@@ -717,7 +730,10 @@ export function buildCapabilities(): CapabilitiesEnvelope {
       hasMutate: mutableFamilies.has(id),
       hasExtractLabels: Boolean(p.extractLabels),
       mutationOps,
+      opFields: hasOpSchema(id) ? describeOps(id) : undefined,
       editPolicy,
+      narrower: builtinFamilyMetadata(id)?.narrower,
+      headers: builtinFamilyMetadata(id)?.headers,
       example: builtinFamilyMetadata(id)?.example,
     }
   })

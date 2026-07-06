@@ -206,9 +206,11 @@ describe('hosted declarative mutate/build tools', () => {
     expect((await handleHostedRequest(call('build', { family: 'class' }), makeContext()))?.error?.code).toBe(-32602)
   })
 
-  test('tool descriptions embed the op menu so ops are discoverable', () => {
+  test('tool descriptions embed the op menu WITH field signatures so ops are fillable first-try', () => {
     const build = HOSTED_TOOLS.find(t => t.name === 'build')!
-    expect(build.description).toContain('class: set_title, add_class')
+    // Field names inline (not just op names) — the discovery gap the eval surfaced.
+    expect(build.description).toContain('add_class(id, label?, members?)')
+    expect(build.description).toContain('add_series(kind2, name?, values)')
   })
 })
 

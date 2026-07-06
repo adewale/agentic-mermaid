@@ -13,6 +13,7 @@ import { parseMermaid } from '../agent/parse.ts'
 import { verifyMermaid } from '../agent/verify.ts'
 import { applyOps } from '../agent/apply.ts'
 import { MUTATION_OPS_BY_FAMILY } from '../agent/mutation-ops.ts'
+import { opSignatures, type OpFamily } from '../agent/op-schema.ts'
 import { validateStyleSpec } from '../scene/style-registry.ts'
 import type { StyleInput } from '../scene/style-registry.ts'
 import { describeMermaidSource, describeMermaid } from '../agent/describe.ts'
@@ -52,13 +53,13 @@ export const MAX_PNG_SCALE = 8
 
 const TOO_LARGE_HINT = 'input exceeds the hosted size cap; run the local agentic-mermaid CLI or stdio MCP server instead (see https://agentic-mermaid.dev/docs/mcp/)'
 
-// The structured op menu, family → op kinds, embedded in the declarative tool
-// descriptions so a caller knows which ops exist without a discovery round-trip.
-// Field names are omitted here on purpose: a wrong/missing field comes back as a
-// prescriptive INVALID_OP error that names the exact field, which is the signal
-// a caller actually corrects from.
-const OP_MENU = Object.entries(MUTATION_OPS_BY_FAMILY)
-  .map(([family, ops]) => `  ${family}: ${ops.join(', ')}`)
+// The structured op menu, family → op signatures with field names, embedded in
+// the declarative tool descriptions so a caller can fill an op correctly on the
+// first try (optional fields carry `?`). Enum vocabularies and exact types are
+// left to `am capabilities --json` (`families[].opFields`) and the prescriptive
+// INVALID_OP error, so the inline menu stays compact.
+const OP_MENU = Object.keys(MUTATION_OPS_BY_FAMILY)
+  .map(family => `  ${family}: ${opSignatures(family as OpFamily).join(', ')}`)
   .join('\n')
 
 export const HOSTED_TOOLS = [

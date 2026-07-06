@@ -397,3 +397,30 @@ export function opMenu(family: OpFamily): Record<string, string[]> {
   }
   return out
 }
+
+/** One field of an op, as a model needs it to fill the op correctly: the name,
+ *  whether it is required, and a human type that spells out enum values inline
+ *  (e.g. `one of "inheritance", "composition", …`). */
+export interface OpFieldDoc { name: string; required: boolean; type: string }
+
+/** Full field shapes for every op of a family — the thing a model must know to
+ *  author a correct op without guessing (which the prescriptive INVALID_OP error
+ *  only teaches AFTER a wrong guess). Surfaced in `am capabilities --json` and
+ *  the declarative MCP tool descriptions so field names, required-ness, and enum
+ *  vocabularies are discoverable up front. */
+export function describeOps(family: OpFamily): Record<string, OpFieldDoc[]> {
+  const out: Record<string, OpFieldDoc[]> = {}
+  for (const [kind, spec] of Object.entries(SCHEMAS[family])) {
+    out[kind] = Object.entries(spec.fields).map(([name, f]) => ({ name, required: f.required, type: typeName(f) }))
+  }
+  return out
+}
+
+/** Compact one-line signatures for a family's ops — `add_relation(from, to,
+ *  relKind, label?)` — for embedding in a tool description. Optional fields carry
+ *  a trailing `?`; enum values are left to `describeOps`/the error to keep the
+ *  menu short. */
+export function opSignatures(family: OpFamily): string[] {
+  const menu = opMenu(family)
+  return Object.entries(menu).map(([kind, fields]) => `${kind}(${fields.join(', ')})`)
+}
