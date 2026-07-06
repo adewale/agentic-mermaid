@@ -179,6 +179,21 @@ function verifyStructure(input: ValidDiagram | string, opts: VerifyOptions = {})
     const plugin = getFamily(d.kind)
     const labels = (plugin?.extractLabels ?? extractLabelsGeneric)(d.body.source)
     const warnings: LayoutWarning[] = isEmpty ? [{ code: 'EMPTY_DIAGRAM' }] : []
+    // Systemic silent-opaque signal: a non-empty opaque body means the parser
+    // met syntax it does not model and preserved the diagram verbatim, so the
+    // `as*` narrower returns null and typed mutation is unavailable. Flowchart
+    // and quadrant already emit a MORE SPECIFIC UNSUPPORTED_SYNTAX naming the
+    // exact construct (via sourceWarnings / the quadrant verify hook, both in
+    // pluginWarnings) — do not double-flag those. This one line generalizes
+    // that announcement to the other families (class/state/er/xychart/pie/
+    // journey/timeline/architecture/sequence) that used to fall opaque silently.
+    if (!isEmpty && !pluginWarnings.some(w => w.code === 'UNSUPPORTED_SYNTAX')) {
+      warnings.push({
+        code: 'UNSUPPORTED_SYNTAX',
+        syntax: `${d.kind}_opaque`,
+        message: `This ${d.kind} diagram uses syntax the structured parser does not model; it is preserved verbatim as source. Typed mutation (the ${d.kind} \`as*\` narrower) is unavailable — edit the source directly, or verify/render it as-is.`,
+      })
+    }
     const seen = new Set<string>()
     for (const lbl of labels) {
       const w = labelOverflowWarning(lbl.target, lbl.text, cap)

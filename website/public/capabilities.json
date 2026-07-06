@@ -28,7 +28,8 @@
           {
             "name": "shape",
             "required": false,
-            "type": "one of \"rectangle\", \"service\", \"rounded\", \"diamond\", \"stadium\", \"circle\", \"subroutine\", \"doublecircle\", \"hexagon\", \"cylinder\", \"asymmetric\", \"trapezoid\", \"trapezoid-alt\", \"lean-r\", \"lean-l\", \"state-start\", \"state-end\""
+            "type": "one of \"rectangle\", \"service\", \"rounded\", \"diamond\", \"stadium\", \"circle\", \"subroutine\", \"doublecircle\", \"hexagon\", \"cylinder\", \"asymmetric\", \"trapezoid\", \"trapezoid-alt\", \"lean-r\", \"lean-l\", \"state-start\", \"state-end\"",
+            "note": "default: rectangle"
           },
           {
             "name": "parent",
@@ -86,7 +87,8 @@
           {
             "name": "style",
             "required": false,
-            "type": "one of \"solid\", \"dotted\", \"thick\", \"invisible\""
+            "type": "one of \"solid\", \"dotted\", \"thick\", \"invisible\"",
+            "note": "default: solid"
           }
         ],
         "remove_edge": [
@@ -320,7 +322,8 @@
           {
             "name": "style",
             "required": false,
-            "type": "one of \"sync\", \"reply\", \"async\", \"async-dashed\", \"lost\", \"lost-dashed\""
+            "type": "one of \"sync\", \"reply\", \"async\", \"async-dashed\", \"lost\", \"lost-dashed\"",
+            "note": "default: sync"
           }
         ],
         "remove_message": [
@@ -648,7 +651,7 @@
       "headers": [
         "classDiagram"
       ],
-      "example": "classDiagram\n  class Account {\n    +id: string\n    +close() void\n  }\n  Account <|-- Savings"
+      "example": "classDiagram\n  class Account {\n    +id: string\n    +close() void\n  }\n  Account <|-- Savings\n  Account \"1\" o-- \"*\" Transaction : logs"
     },
     {
       "id": "er",
@@ -830,7 +833,8 @@
           {
             "name": "score",
             "required": true,
-            "type": "number"
+            "type": "number",
+            "note": "integer 1..5"
           },
           {
             "name": "actors",
@@ -881,7 +885,8 @@
           {
             "name": "score",
             "required": true,
-            "type": "number"
+            "type": "number",
+            "note": "integer 1..5"
           }
         ],
         "set_task_actors": [
@@ -1141,7 +1146,8 @@
           {
             "name": "kind2",
             "required": true,
-            "type": "one of \"bar\", \"line\""
+            "type": "one of \"bar\", \"line\"",
+            "note": "series type — the field is named kind2, not kind"
           },
           {
             "name": "name",
@@ -1243,7 +1249,8 @@
           {
             "name": "value",
             "required": true,
-            "type": "number"
+            "type": "number",
+            "note": "> 0, finite"
           }
         ],
         "remove_slice": [
@@ -1274,7 +1281,8 @@
           {
             "name": "value",
             "required": true,
-            "type": "number"
+            "type": "number",
+            "note": "> 0, finite"
           }
         ],
         "reorder_slice": [
@@ -1356,12 +1364,14 @@
           {
             "name": "x",
             "required": true,
-            "type": "number"
+            "type": "number",
+            "note": "0..1"
           },
           {
             "name": "y",
             "required": true,
-            "type": "number"
+            "type": "number",
+            "note": "0..1"
           }
         ],
         "remove_point": [
@@ -1380,12 +1390,14 @@
           {
             "name": "x",
             "required": true,
-            "type": "number"
+            "type": "number",
+            "note": "0..1"
           },
           {
             "name": "y",
             "required": true,
-            "type": "number"
+            "type": "number",
+            "note": "0..1"
           }
         ],
         "rename_point": [
@@ -1481,12 +1493,14 @@
           {
             "name": "start",
             "required": false,
-            "type": "string"
+            "type": "string",
+            "note": "date, or \"after <taskId>\""
           },
           {
             "name": "end",
             "required": true,
-            "type": "string"
+            "type": "string",
+            "note": "date, a duration like \"3d\", or \"until <taskId>\""
           }
         ],
         "remove_task": [

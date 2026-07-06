@@ -46,6 +46,11 @@ type FieldType =
 type FieldSpec = FieldType & {
   /** required = must be present and non-undefined. Optional fields may be omitted. */
   required: boolean
+  /** Optional human note surfaced in discovery: a value constraint the MUTATOR
+   *  (not this shape layer) enforces (e.g. "1..5"), or the default applied when
+   *  an optional field is omitted (e.g. "default: rectangle"). Descriptive only
+   *  — the mutator remains the single enforcement point. */
+  note?: string
 }
 
 interface OpSpec {
@@ -82,15 +87,18 @@ const strArr = (required = true): FieldSpec => ({ type: 'string-array', required
 const numArr = (required = true): FieldSpec => ({ type: 'number-array', required })
 const objOrNull = (required = true): FieldSpec => ({ type: 'object-or-null', required })
 const oneOf = (values: readonly string[], required = true, nullable = false): FieldSpec => ({ type: 'enum', values, nullable, required })
+/** Attach a discovery note (mutator-enforced constraint or omit-default) to a
+ *  field spec without changing its shape validation. */
+const withNote = (spec: FieldSpec, note: string): FieldSpec => ({ ...spec, note })
 
 // ---- Per-op schemas (transcribed from the *MutationOp unions in types.ts) ---
 
 const FLOWCHART_SCHEMA: Record<string, OpSpec> = {
-  add_node:    { fields: { id: str(), label: str(), shape: oneOf(NODE_SHAPES, false), parent: str(false) } },
+  add_node:    { fields: { id: str(), label: str(), shape: withNote(oneOf(NODE_SHAPES, false), 'default: rectangle'), parent: str(false) } },
   remove_node: { fields: { id: str() } },
   rename_node: { fields: { from: str(), to: str() } },
   set_label:   { fields: { target: str(), label: str() } },
-  add_edge:    { fields: { from: str(), to: str(), label: str(false), style: oneOf(EDGE_STYLES, false) } },
+  add_edge:    { fields: { from: str(), to: str(), label: str(false), style: withNote(oneOf(EDGE_STYLES, false), 'default: solid') } },
   remove_edge: { fields: { id: str() } },
 }
 
@@ -108,7 +116,7 @@ const STATE_SCHEMA: Record<string, OpSpec> = {
 const SEQUENCE_SCHEMA: Record<string, OpSpec> = {
   add_participant:  { fields: { id: str(), label: str(false), participantKind: oneOf(PARTICIPANT_KINDS, false) } },
   remove_participant: { fields: { id: str() } },
-  add_message:      { fields: { from: str(), to: str(), text: str(), style: oneOf(SEQUENCE_MESSAGE_STYLES, false) } },
+  add_message:      { fields: { from: str(), to: str(), text: str(), style: withNote(oneOf(SEQUENCE_MESSAGE_STYLES, false), 'default: sync') } },
   remove_message:   { fields: { index: num() } },
   set_message_text: { fields: { index: num(), text: str() } },
 }
@@ -154,10 +162,10 @@ const JOURNEY_SCHEMA: Record<string, OpSpec> = {
   add_section:       { fields: { label: str() } },
   remove_section:    { fields: { index: num() } },
   set_section_label: { fields: { index: num(), label: str() } },
-  add_task:          { fields: { sectionIndex: num(), text: str(), score: num(), actors: strArr(false) } },
+  add_task:          { fields: { sectionIndex: num(), text: str(), score: withNote(num(), 'integer 1..5'), actors: strArr(false) } },
   remove_task:       { fields: { sectionIndex: num(), taskIndex: num() } },
   set_task_text:     { fields: { sectionIndex: num(), taskIndex: num(), text: str() } },
-  set_task_score:    { fields: { sectionIndex: num(), taskIndex: num(), score: num() } },
+  set_task_score:    { fields: { sectionIndex: num(), taskIndex: num(), score: withNote(num(), 'integer 1..5') } },
   set_task_actors:   { fields: { sectionIndex: num(), taskIndex: num(), actors: strArr() } },
   rename_actor:      { fields: { from: str(), to: str() } },
 }
@@ -179,7 +187,7 @@ const XYCHART_SCHEMA: Record<string, OpSpec> = {
   set_title:         { fields: { title: strOrNull() } },
   set_x_axis:        { fields: { axis: objOrNull() } },
   set_y_axis:        { fields: { axis: objOrNull() } },
-  add_series:        { fields: { kind2: oneOf(SERIES_KINDS), name: strOrNull(false), values: numArr() } },
+  add_series:        { fields: { kind2: withNote(oneOf(SERIES_KINDS), 'series type — the field is named kind2, not kind'), name: strOrNull(false), values: numArr() } },
   remove_series:     { fields: { index: num() } },
   set_series_values: { fields: { index: num(), values: numArr() } },
   set_series_name:   { fields: { index: num(), name: strOrNull() } },
@@ -189,10 +197,10 @@ const XYCHART_SCHEMA: Record<string, OpSpec> = {
 const PIE_SCHEMA: Record<string, OpSpec> = {
   set_title:       { fields: { title: strOrNull() } },
   set_show_data:   { fields: { showData: bool() } },
-  add_slice:       { fields: { label: str(), value: num() } },
+  add_slice:       { fields: { label: str(), value: withNote(num(), '> 0, finite') } },
   remove_slice:    { fields: { label: str() } },
   rename_slice:    { fields: { from: str(), to: str() } },
-  set_slice_value: { fields: { label: str(), value: num() } },
+  set_slice_value: { fields: { label: str(), value: withNote(num(), '> 0, finite') } },
   reorder_slice:   { fields: { from: num(), to: num() } },
 }
 
@@ -200,9 +208,9 @@ const QUADRANT_SCHEMA: Record<string, OpSpec> = {
   set_title:           { fields: { title: strOrNull() } },
   set_axis_labels:     { fields: { axis: oneOf(AXIS_KINDS), near: strOrNull(), far: strOrNull(false) } },
   set_quadrant_label:  { fields: { quadrant: num(), label: strOrNull() } },
-  add_point:           { fields: { label: str(), x: num(), y: num() } },
+  add_point:           { fields: { label: str(), x: withNote(num(), '0..1'), y: withNote(num(), '0..1') } },
   remove_point:        { fields: { label: str() } },
-  move_point:          { fields: { label: str(), x: num(), y: num() } },
+  move_point:          { fields: { label: str(), x: withNote(num(), '0..1'), y: withNote(num(), '0..1') } },
   rename_point:        { fields: { from: str(), to: str() } },
 }
 
@@ -211,7 +219,7 @@ const GANTT_SCHEMA: Record<string, OpSpec> = {
   add_section:     { fields: { label: str() } },
   rename_section:  { fields: { index: num(), label: str() } },
   remove_section:  { fields: { index: num() } },
-  add_task:        { fields: { sectionIndex: num(), label: str(), taskId: str(false), tags: strArr(false), start: str(false), end: str() } },
+  add_task:        { fields: { sectionIndex: num(), label: str(), taskId: str(false), tags: strArr(false), start: withNote(str(false), 'date, or "after <taskId>"'), end: withNote(str(), 'date, a duration like "3d", or "until <taskId>"') } },
   remove_task:     { fields: { sectionIndex: num(), taskIndex: num() } },
   rename_task:     { fields: { sectionIndex: num(), taskIndex: num(), label: str() } },
   set_task_status: { fields: { sectionIndex: num(), taskIndex: num(), status: oneOf(GANTT_STATUSES, true, true) } },
@@ -401,7 +409,7 @@ export function opMenu(family: OpFamily): Record<string, string[]> {
 /** One field of an op, as a model needs it to fill the op correctly: the name,
  *  whether it is required, and a human type that spells out enum values inline
  *  (e.g. `one of "inheritance", "composition", …`). */
-export interface OpFieldDoc { name: string; required: boolean; type: string }
+export interface OpFieldDoc { name: string; required: boolean; type: string; note?: string }
 
 /** Full field shapes for every op of a family — the thing a model must know to
  *  author a correct op without guessing (which the prescriptive INVALID_OP error
@@ -411,7 +419,7 @@ export interface OpFieldDoc { name: string; required: boolean; type: string }
 export function describeOps(family: OpFamily): Record<string, OpFieldDoc[]> {
   const out: Record<string, OpFieldDoc[]> = {}
   for (const [kind, spec] of Object.entries(SCHEMAS[family])) {
-    out[kind] = Object.entries(spec.fields).map(([name, f]) => ({ name, required: f.required, type: typeName(f) }))
+    out[kind] = Object.entries(spec.fields).map(([name, f]) => ({ name, required: f.required, type: typeName(f), ...(f.note !== undefined ? { note: f.note } : {}) }))
   }
   return out
 }

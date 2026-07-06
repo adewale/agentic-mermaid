@@ -273,6 +273,11 @@ export function createTracingMermaid(trace?: ExecutionTraceCall[], makeSandboxEr
     serializeMermaid: mermaid.serializeMermaid,
     renderMermaidSVG: mermaid.renderMermaidSVG,
     renderMermaidASCII: mermaid.renderMermaidASCII,
+    // Read-only op discovery: field shapes / enum values / constraint notes and
+    // compact signatures for a family's ops, so a Code Mode script can look up
+    // exact op shapes at runtime instead of guessing (or triggering INVALID_OP).
+    describeOps: mermaid.describeOps,
+    opSignatures: mermaid.opSignatures,
   } as unknown as typeof mermaid
   const sdkProps = new Set<string | symbol>(Reflect.ownKeys(sdkTarget))
 
@@ -389,6 +394,12 @@ export function createTracingMermaid(trace?: ExecutionTraceCall[], makeSandboxEr
       assertOpen()
       if (input && typeof input === 'object') requireTrustedDiagram(input, String(prop))
       return hostCall(() => ((target as any)[prop] as (diagram: any, options?: any) => unknown)(rawOf(input), jsonClone(opts)))
+    })
+    else if (prop === 'describeOps' || prop === 'opSignatures') value = harden((family: any) => {
+      assertOpen()
+      if (typeof family !== 'string') throw sandboxError(`Code Mode ${String(prop)} family must be a string`)
+      // Pure lookup over static op schemas — no diagram, no trace, read-only.
+      return harden(hostCall(() => ((target as any)[prop] as (f: string) => unknown)(family)))
     })
     sdkValues.set(prop, value)
     return value

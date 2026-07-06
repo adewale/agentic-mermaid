@@ -340,6 +340,13 @@ declare const mermaid: {
   serializeMermaid(d: ValidDiagram): string
   renderMermaidSVG(input: ValidDiagram | string, opts?: { security?: 'default' | 'strict'; idPrefix?: string; ganttToday?: string; mermaidConfig?: MermaidRuntimeConfig; style?: StyleInput | StyleInput[]; seed?: number }): string
   renderMermaidASCII(input: ValidDiagram | string, opts?: { useAscii?: boolean; ganttToday?: string; mermaidConfig?: MermaidRuntimeConfig }): string
+  // Op discovery — look up exact op shapes at runtime instead of guessing.
+  // describeOps returns every op's field names, required-ness, inlined enum
+  // values, and constraint/default notes (e.g. score "integer 1..5", shape
+  // "default: rectangle"); opSignatures returns compact one-liners like
+  // "add_point(label, x, y)". Read these before authoring an unfamiliar op.
+  describeOps(family: DiagramKind): Record<string, { name: string; required: boolean; type: string; note?: string }[]>
+  opSignatures(family: DiagramKind): string[]
 }
 
 // Conventions:

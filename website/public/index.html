@@ -86,7 +86,7 @@ These are the official Agentic Mermaid agent instructions. The facts below are v
 
 Do not assume this repository is checked out. Use one channel available to you — pick the first that actually exists and stop probing, so you spend your turns on the diagram, not on tool exploration:
 
-1. **Library imports, when available** (if you can run JS/TS): `parseMermaid`, `verifyMermaid`, `serializeMermaid`, `mutate`, `buildMermaid`, and the `as*` helpers from `agentic-mermaid/agent` when it is installed, or from this repo's `./src/agent/index.ts` when the repo is checked out.
+1. **Library imports, when available** (if you can run JS/TS): `parseMermaid`, `verifyMermaid`, `serializeMermaid`, `mutate`, `buildMermaid`, the `as*` helpers, and the op-discovery helpers `describeOps(family)` / `opSignatures(family)` (exact op fields, enum values, and constraint notes) from `agentic-mermaid/agent` when it is installed, or from this repo's `./src/agent/index.ts` when the repo is checked out.
 2. **CLI:** `am …` or `npx agentic-mermaid …`.
 3. **the hosted MCP at `https://agentic-mermaid.dev/mcp`** — stateless streamable HTTP JSON-RPC, no initialize handshake. Tools: `execute`, `render_svg`, `render_ascii`, `render_png`, `verify`, `describe`, `mutate`, `build` (64 KB input cap). `mutate` (edit a `source`) and `build` (author from a `family`) apply a JSON op list declaratively and return `{ ok, family, source, verify }` — prefer them for structured edits and reserve `execute` for logic the ops don't express. Call shape: `POST /mcp` with `content-type: application/json` and body `{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"verify","arguments":{"source":"flowchart TD\n  A --&gt; B"}}}`.
 
