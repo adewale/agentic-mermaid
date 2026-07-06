@@ -63,6 +63,9 @@ dist/am
 skills-lock.json
 
 # Ephemeral agent-usage run dirs. Only curated runs (claude-subagent-*/pi-subagent-*)
-# are committed as replay fixtures; ad-hoc third-party (no-repo, hosted-MCP) runs are
-# transient scratch — grading is read off, the dir is not shipped.
+# are committed as replay fixtures; ad-hoc third-party (no-repo, hosted-MCP) and
+# local in-checkout (haiku-local-*/claude-local-*) runs are transient scratch —
+# grading is read off, the dir is not shipped.
 eval/agent-usage/transcripts/norepo-*/
+eval/agent-usage/transcripts/haiku-local-*/
+eval/agent-usage/transcripts/claude-local-*/

@@ -126,6 +126,34 @@ describe('live agent-usage eval harness', () => {
     expect({ taskOk: naive.taskOk, traceOk: naive.traceOk, ok: naive.ok }).toEqual({ taskOk: true, traceOk: false, ok: false })
   })
 
+  test('the declarative edit path (am mutate / MCP mutate / applyOps) satisfies the chat trace check', async () => {
+    // The prompt now recommends the declarative mutate/build tools: they apply a
+    // JSON op list and return { ok, family, source, verify }, verifying
+    // internally (and the CLI emits source only when verify succeeds). So using
+    // one is BOTH verification and structured-mutation evidence — the grader must
+    // credit it for a structured-mutation case, not just literal am verify.
+    const id = 'class_add_duck'
+    const source = 'classDiagram\n  class Animal\n  class Duck {\n    +quack()\n  }'
+    const body = (trace: string) =>
+      `## Updated Mermaid\n\n\`\`\`mermaid\n${source}\n\`\`\`\n\n## Verification\nok: true, warnings: [].\n\n## Trace\n${trace}\n`
+    const run = async (response: string) => {
+      const dir = mkdtempSync(join(tmpdir(), 'am-decl-eval-'))
+      const manifest = prepareSubagentPromptEval({ outDir: dir, provider: 'claude-subagent', model: 't', surface: 'homepage', mode: 'chat', caseIds: [id], capturedAt: '2026-06-30T00:00:00.000Z' })
+      writeFileSync(manifest.requests[0]!.responsePath, response)
+      await finalizeSubagentPromptEval({ runDir: dir })
+      return JSON.parse(readFileSync(join(dir, `${id}.json`), 'utf8')).result as { ok: boolean; taskOk: boolean; traceOk: boolean }
+    }
+    // CLI declarative: `am mutate --ops` applies the ops and verifies internally.
+    const cli = await run(body('Channel: CLI. Ran `bun run bin/am.ts mutate animal.mmd --ops ops.json --json` with ops [{ kind: "add_class", id: "Duck" }, { kind: "add_member", class: "Duck", text: "+quack()" }]; it returned ok with the verified source.'))
+    expect({ ok: cli.ok, taskOk: cli.taskOk, traceOk: cli.traceOk }).toEqual({ ok: true, taskOk: true, traceOk: true })
+    // Hosted MCP declarative tool.
+    const mcp = await run(body('Channel: hosted MCP. tools/call {"name":"mutate","arguments":{"source":"classDiagram...","ops":[...]}} at /mcp returned { ok, family, source, verify }.'))
+    expect({ ok: mcp.ok, taskOk: mcp.taskOk, traceOk: mcp.traceOk }).toEqual({ ok: true, taskOk: true, traceOk: true })
+    // Library declarative applyOps.
+    const lib = await run(body('Channel: library. applyOps({ source, ops: [{ kind: "add_class", id: "Duck" }, { kind: "add_member", class: "Duck", text: "+quack()" }] }) from ./src/agent returned { ok, family, source, verify }.'))
+    expect({ ok: lib.ok, taskOk: lib.taskOk, traceOk: lib.traceOk }).toEqual({ ok: true, taskOk: true, traceOk: true })
+  })
+
   test('config resolver fails closed without a live API key', () => {
     expect(() => resolveLiveModelConfig({}, ['--provider', 'anthropic', '--model', 'test-model'])).toThrow('Missing API key')
   })

@@ -699,7 +699,10 @@ const CREATE_ORACLES: Record<string, (source: string) => boolean> = {
   author_class_source: s => {
     const b = narrow(s, asClass)?.body
     const animal = b?.classes.find(c => c.id === 'Animal')
-    return Boolean(animal?.members.includes('+speak()') && b!.classes.some(c => c.id === 'Dog'))
+    // A `speak()` method, however the model formatted it — `+speak()`,
+    // `+speak() void`, `+speak(): void`. An exact `+speak()` match false-rejects
+    // a correct diagram that annotated a return type.
+    return Boolean(animal?.members.some(m => /\bspeak\s*\(/i.test(m)) && b!.classes.some(c => c.id === 'Dog'))
   },
   author_er_source: s => {
     const ids = new Set(narrow(s, asEr)?.body.entities.map(e => e.id))

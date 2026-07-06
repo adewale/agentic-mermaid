@@ -283,10 +283,26 @@ function chatTraceOk(id: string, text: string): boolean {
   // Mode execute) both parse the source themselves, so either is verification
   // evidence and — for a new diagram — construction evidence.
   const cliVerify = /\bam\b[^\n]*\bverify\b/i.test(text) || /bin\/am\.ts[^\n]*\bverify\b/i.test(text)
+    // A trace that declares the CLI command path and names a backtick-quoted
+    // `verify` op (on its own line, as agents commonly format the op list) is
+    // CLI verification evidence too. The backtick guard avoids matching the
+    // required `Verification` section header, which is never backtick-quoted.
+    || (/bin\/am\.ts/.test(text) && /`verify`/i.test(text))
   const mcpVerify = /"name"\s*:\s*"verify"/.test(text)
     || (/\/mcp\b/i.test(text) && /\bverif(?:y|ied|ication)\b/i.test(text))
     || (/hosted mcp/i.test(text) && /\bverif/i.test(text))
-  const bundledVerify = cliVerify || mcpVerify
+  // The declarative edit path — CLI `am mutate`/`am build`, the hosted MCP
+  // `mutate`/`build` tools, and the library `applyOps` — applies a JSON op list
+  // and returns `{ ok, family, source, verify }`: it runs verifyMermaid
+  // internally (and the CLI emits source only when verify succeeds), so using it
+  // is BOTH verification evidence and structured-mutation evidence. The prompt
+  // now recommends this path, so a grader that ignored it would penalize the
+  // endorsed route.
+  const declarativeEdit = /\bam\b[^\n]*\b(?:mutate|build)\b/i.test(text)
+    || /bin\/am\.ts[^\n]*\b(?:mutate|build)\b/i.test(text)
+    || /"name"\s*:\s*"(?:mutate|build)"/.test(text)
+    || /\bapplyOps\s*\(/i.test(text)
+  const bundledVerify = cliVerify || mcpVerify || declarativeEdit
   // Verification evidence: any Agentic Mermaid verification channel — library,
   // CLI, or hosted MCP. The harness independently re-parses and re-verifies the
   // returned source, so this only confirms the model engaged the tool rather
@@ -312,6 +328,7 @@ function chatTraceOk(id: string, text: string): boolean {
       || /\bmutat(?:e|ed|es|ing|ion)\b/i.test(text)
       || /\bkind\b\s*[:=]\s*["'][a-z]+_[a-z]/i.test(text)
       || /source-level fallback/i.test(text)
+      || declarativeEdit
   }
   // New diagram: any trusted construction is a safe path — author source then
   // `parseMermaid`, the endorsed typed builders `buildMermaid`/`createMermaid`
