@@ -468,6 +468,46 @@ describe('start.md bootstrap claims stay true', () => {
   })
 })
 
+describe('hosted-tool enumeration does not rot', () => {
+  // The hosted tool list was restated as prose across ~8 docs; only start.md and
+  // the agent guide were pinned, so the rest silently drifted to a stale "six
+  // tools" TWICE (see lessons-learned "guard the invariant not the instance").
+  // `render_svg` and `render_ascii` are HOSTED-ONLY tools (the local stdio server
+  // has neither), so any shipped doc that names one is describing the hosted
+  // surface and MUST also name the newer declarative tools — else it has rotted.
+  const HOSTED_ONLY = HOSTED_TOOLS.map(t => t.name).filter(n => n === 'render_svg' || n === 'render_ascii')
+  const REQUIRED_IF_HOSTED = ['mutate', 'build'] // the tools that keep getting dropped
+
+  function shippedDocs(dir: string, acc: string[] = []): string[] {
+    for (const e of readdirSync(join(REPO, dir), { withFileTypes: true })) {
+      const rel = join(dir, e.name)
+      // Skip generated copies (regenerated + website:check-gated), deps, and
+      // frozen eval transcript artifacts.
+      if (/node_modules|website\/public|agent-usage\/transcripts/.test(rel)) continue
+      if (e.isDirectory()) shippedDocs(rel, acc)
+      else if (e.name.endsWith('.md')) acc.push(rel)
+    }
+    return acc
+  }
+
+  test('every doc that names a hosted-only tool also names mutate + build', () => {
+    const docs = [...shippedDocs('docs'), ...shippedDocs('skills'), ...shippedDocs('website/source'),
+      'website/README.md', 'eval/agent-usage/RUNBOOK.md', 'Instructions_for_agents.md', 'README.md']
+    let checked = 0
+    for (const rel of docs) {
+      const path = join(REPO, rel)
+      if (!existsSync(path)) continue
+      const text = readFileSync(path, 'utf8')
+      if (!HOSTED_ONLY.some(t => text.includes(t))) continue // not a hosted-surface doc
+      checked++
+      for (const tool of REQUIRED_IF_HOSTED) {
+        expect({ doc: rel, names: tool, present: text.includes(tool) }).toEqual({ doc: rel, names: tool, present: true })
+      }
+    }
+    expect(checked).toBeGreaterThanOrEqual(4) // start.md, agent guide, README, mcp-code-mode-rationale, …
+  })
+})
+
 describe('root docs consistency', () => {
   test('TODO.md is the only root markdown file with unchecked backlog boxes', () => {
     for (const name of readdirSync(REPO).filter(f => f.endsWith('.md'))) {

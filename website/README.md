@@ -14,7 +14,7 @@ Cloudflare Workers Static Assets site for `agentic-mermaid.dev`, generated from 
 - `wrangler.jsonc` — custom domains (`agentic-mermaid.dev`, `www`), Static Assets binding with `run_worker_first: true`, `worker_loaders` binding (`LOADER`, requires the Workers Paid plan with Dynamic Workers), a Data rule for fonts, observability on.
 - `build.ts` — converts `website/source/` HTML into clean production routes, generates the agent surfaces required by the spec, emits `_headers` / `_redirects`, and builds the `src/generated/` worker artifacts.
 
-The MCP server core lives in `src/mcp/hosted-server.ts` (repo root `src/`), shared with the unit tests; the Worker only wires transports and bindings. Hosted tools: `execute`, `render_svg`, `render_ascii`, `render_png`, `verify`, `describe`. Tool inputs are capped at 64KB, request bodies at 128KB.
+The MCP server core lives in `src/mcp/hosted-server.ts` (repo root `src/`), shared with the unit tests; the Worker only wires transports and bindings. Hosted tools: `execute`, `render_svg`, `render_ascii`, `render_png`, `verify`, `describe`, `mutate`, `build`. Tool inputs are capped at 64KB, request bodies at 128KB.
 
 ## Routes
 
