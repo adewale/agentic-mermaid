@@ -55,7 +55,10 @@ describe('LAYOUT_PIPELINE manifest', () => {
 })
 
 describe('runPipeline invariant enforcement', () => {
-  interface TestCtx extends PassContextBase { log: string[] }
+  interface TestCtx extends PassContextBase {
+    log: string[]
+    edges?: Array<{ points: Array<{ x: number; y: number }>; routeCertificate?: unknown }>
+  }
   const mkPass = (over: Partial<LayoutPass<TestCtx>> & { id: string }): LayoutPass<TestCtx> => ({
     doc: '', after: [], mutates: ['edges'], determinism: 'in-place',
     run: c => { c.log.push(over.id) }, ...over,
@@ -87,6 +90,46 @@ describe('runPipeline invariant enforcement', () => {
     expect(() => runPipeline(ctx, [
       mkPass({ id: 'freeze', freezesNodes: true }),
       mkPass({ id: 'translate', mutates: ['translate'], run: moveFirstNode }),
+    ], { checkInvariants: true })).not.toThrow()
+  })
+
+  test('checkInvariants throws when a post-freeze edge rewrite drops its certificate', () => {
+    const ctx: TestCtx = {
+      frozen: false,
+      nodes: [],
+      edges: [{ points: [{ x: 0, y: 0 }, { x: 10, y: 0 }], routeCertificate: { invariant: 'straight' } }],
+      log: [],
+    }
+    expect(() => runPipeline(ctx, [
+      mkPass({ id: 'freeze', freezesNodes: true }),
+      mkPass({
+        id: 'bad-edge-rewrite',
+        mutates: ['edges'],
+        run: c => {
+          c.edges![0]!.points = [{ x: 0, y: 0 }, { x: 5, y: 5 }, { x: 10, y: 0 }]
+          c.edges![0]!.routeCertificate = undefined
+        },
+      }),
+    ], { checkInvariants: true })).toThrow(/routeCertificate/)
+  })
+
+  test('checkInvariants allows a post-freeze edge rewrite that reissues a certificate', () => {
+    const ctx: TestCtx = {
+      frozen: false,
+      nodes: [],
+      edges: [{ points: [{ x: 0, y: 0 }, { x: 10, y: 0 }], routeCertificate: { invariant: 'straight' } }],
+      log: [],
+    }
+    expect(() => runPipeline(ctx, [
+      mkPass({ id: 'freeze', freezesNodes: true }),
+      mkPass({
+        id: 'good-edge-rewrite',
+        mutates: ['edges'],
+        run: c => {
+          c.edges![0]!.points = [{ x: 0, y: 0 }, { x: 5, y: 5 }, { x: 10, y: 0 }]
+          c.edges![0]!.routeCertificate = { invariant: 'explained-detour' }
+        },
+      }),
     ], { checkInvariants: true })).not.toThrow()
   })
 

@@ -31,6 +31,7 @@ import type {
   RenderOptions,
   NodeShape,
   DiamondFacet,
+  RouteClass,
 } from './types.ts'
 import { ARROW_HEAD, FLOWCHART_DOTTED_DASH, resolveRenderStyle } from './styles.ts'
 import type { ResolvedRenderStyle } from './styles.ts'
@@ -262,11 +263,20 @@ interface RoutePortHint {
   edgeIndex: number
   endpoint: 'source' | 'target'
   slotIndex: number
+  routeClass: RouteClass
+  constraint: 'FIXED_SIDE' | 'FIXED_ORDER'
+}
+
+interface RoutePortRelaxation {
+  edgeIndex: number
+  routeClass: RouteClass
+  reason: 'self-loop' | 'missing-node' | 'subgraph-endpoint' | 'direction-override-node' | 'unsupported-route-class' | 'unsupported-shape' | 'unsafe-non-primary-incident'
 }
 
 interface RoutePortHints {
   byEndpoint: Map<string, RoutePortHint>
   byNode: Map<string, RoutePortHint[]>
+  relaxations: RoutePortRelaxation[]
 }
 
 /** Dimensions of the layout-only ELK label injected to balance a fan-in rank. */
@@ -648,36 +658,60 @@ function routeHintSides(direction: Direction, routeClass: ReturnType<typeof clas
   return sides
 }
 
+function supportsPreLayoutFeedbackPorts(node: MermaidNode | undefined): boolean {
+  return node?.shape === 'rectangle' || node?.shape === 'diamond'
+}
+
 export function buildRoutePortHints(graph: MermaidGraph, subgraphIds: Set<string>): RoutePortHints {
   const classes = classifyRoutes(graph)
-  // Fixed-side ports are useful pre-layout hints for straight primary DAGs.
-  // Mixed graphs are handled per edge: a primary-forward edge may receive a
-  // hint only when neither endpoint participates in a non-primary route. This
-  // keeps feedback/container/cross-hierarchy lanes owned by the final
-  // certifying repair pass while still allowing independent DAG components in
-  // the same diagram to benefit from ELK side hints.
+  // Fixed-side ports are useful pre-layout hints when the route class has a
+  // stable semantic side. Primary-forward edges use the flow sides; feedback
+  // uses the flipped sides. Container, cross-hierarchy and self-loop routes are
+  // still relaxed to the final certifying repair pass because their attachment
+  // side depends on compound/family geometry rather than node-local flow.
   const nonPrimaryIncident = new Set<string>()
+  const unsafeIncident = new Set<string>()
   const directionOverrideNodes = directedSubgraphNodeIds(graph.subgraphs)
   for (let edgeIndex = 0; edgeIndex < graph.edges.length; edgeIndex++) {
     const edge = graph.edges[edgeIndex]!
-    if ((classes[edgeIndex] ?? 'primary-forward') === 'primary-forward') continue
-    nonPrimaryIncident.add(edge.source)
-    nonPrimaryIncident.add(edge.target)
+    const routeClass = classes[edgeIndex] ?? 'primary-forward'
+    if (routeClass !== 'primary-forward') {
+      nonPrimaryIncident.add(edge.source)
+      nonPrimaryIncident.add(edge.target)
+    }
+    if (routeClass !== 'primary-forward' && routeClass !== 'feedback') {
+      unsafeIncident.add(edge.source)
+      unsafeIncident.add(edge.target)
+    }
   }
   const drafts: RoutePortHint[] = []
+  const relaxations: RoutePortRelaxation[] = []
   const safeId = (id: string) => id.replace(/[^A-Za-z0-9_\-]/g, '_')
+  const relax = (edgeIndex: number, routeClass: RouteClass, reason: RoutePortRelaxation['reason']): void => {
+    relaxations.push({ edgeIndex, routeClass, reason })
+  }
   for (let edgeIndex = 0; edgeIndex < graph.edges.length; edgeIndex++) {
     const edge = graph.edges[edgeIndex]!
-    if (edge.source === edge.target) continue
-    if (!graph.nodes.has(edge.source) || !graph.nodes.has(edge.target)) continue
-    if (subgraphIds.has(edge.source) || subgraphIds.has(edge.target)) continue
     const routeClass = classes[edgeIndex] ?? 'primary-forward'
-    if (routeClass !== 'primary-forward') continue
-    if (nonPrimaryIncident.has(edge.source) || nonPrimaryIncident.has(edge.target)) continue
-    if (directionOverrideNodes.has(edge.source) || directionOverrideNodes.has(edge.target)) continue
+    if (edge.source === edge.target) { relax(edgeIndex, routeClass, 'self-loop'); continue }
+    if (subgraphIds.has(edge.source) || subgraphIds.has(edge.target)) { relax(edgeIndex, routeClass, 'subgraph-endpoint'); continue }
+    if (!graph.nodes.has(edge.source) || !graph.nodes.has(edge.target)) { relax(edgeIndex, routeClass, 'missing-node'); continue }
+    if (routeClass !== 'primary-forward' && routeClass !== 'feedback') { relax(edgeIndex, routeClass, 'unsupported-route-class'); continue }
+    if (routeClass === 'primary-forward' && (nonPrimaryIncident.has(edge.source) || nonPrimaryIncident.has(edge.target))) {
+      relax(edgeIndex, routeClass, 'unsafe-non-primary-incident')
+      continue
+    }
+    if (routeClass === 'feedback' && edge.label) { relax(edgeIndex, routeClass, 'unsupported-route-class'); continue }
+    if (routeClass === 'feedback' &&
+      (!supportsPreLayoutFeedbackPorts(graph.nodes.get(edge.source)) || !supportsPreLayoutFeedbackPorts(graph.nodes.get(edge.target)))) {
+      relax(edgeIndex, routeClass, 'unsupported-shape')
+      continue
+    }
+    if (unsafeIncident.has(edge.source) || unsafeIncident.has(edge.target)) { relax(edgeIndex, routeClass, 'unsafe-non-primary-incident'); continue }
+    if (directionOverrideNodes.has(edge.source) || directionOverrideNodes.has(edge.target)) { relax(edgeIndex, routeClass, 'direction-override-node'); continue }
     const sides = routeHintSides(graph.direction, routeClass)
-    drafts.push({ nodeId: edge.source, portId: `rp_${safeId(edge.source)}_${edgeIndex}_s`, side: sides.source, edgeIndex, endpoint: 'source', slotIndex: 0 })
-    drafts.push({ nodeId: edge.target, portId: `rp_${safeId(edge.target)}_${edgeIndex}_t`, side: sides.target, edgeIndex, endpoint: 'target', slotIndex: 0 })
+    drafts.push({ nodeId: edge.source, portId: `rp_${safeId(edge.source)}_${edgeIndex}_s`, side: sides.source, edgeIndex, endpoint: 'source', slotIndex: 0, routeClass, constraint: 'FIXED_SIDE' })
+    drafts.push({ nodeId: edge.target, portId: `rp_${safeId(edge.target)}_${edgeIndex}_t`, side: sides.target, edgeIndex, endpoint: 'target', slotIndex: 0, routeClass, constraint: 'FIXED_SIDE' })
   }
 
   const byNode = new Map<string, RoutePortHint[]>()
@@ -694,11 +728,14 @@ export function buildRoutePortHints(graph: MermaidGraph, subgraphIds: Set<string
       entry.slotIndex = next
       perSide.set(entry.side, next + 1)
     }
+    for (const entry of entries) {
+      entry.constraint = 'FIXED_SIDE'
+    }
   }
 
   const byEndpoint = new Map<string, RoutePortHint>()
   for (const draft of drafts) byEndpoint.set(endpointKey(draft.edgeIndex, draft.endpoint), draft)
-  return { byEndpoint, byNode }
+  return { byEndpoint, byNode, relaxations }
 }
 
 function sideSort(side: 'N' | 'E' | 'S' | 'W'): number {
@@ -728,7 +765,8 @@ function nodeToElkLeaf(id: string, node: MermaidNode, style: ResolvedRenderStyle
   }
   const ports = hints.byNode.get(id)
   if (ports && ports.length > 0) {
-    elkNode.layoutOptions = { ...(elkNode.layoutOptions ?? {}), 'elk.portConstraints': 'FIXED_SIDE' }
+    const constraint = ports.some(p => p.constraint === 'FIXED_ORDER') ? 'FIXED_ORDER' : 'FIXED_SIDE'
+    elkNode.layoutOptions = { ...(elkNode.layoutOptions ?? {}), 'elk.portConstraints': constraint }
     ;(elkNode as unknown as Record<string, unknown>).ports = ports.map(p => ({
       id: p.portId,
       width: 0,

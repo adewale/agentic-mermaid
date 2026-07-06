@@ -376,12 +376,38 @@ describe('certificates', () => {
   })
 
   it('pre-layout port hints apply per independent primary edge, not whole-graph all-or-nothing', () => {
-    const graph = parseMermaid('flowchart LR\n  A --> B\n  C --> D\n  D --> C')
+    const graph = parseMermaid('flowchart LR\n  A --> B\n  C --> D\n  D --> D')
     const hints = buildRoutePortHints(graph, new Set())
     expect(hints.byEndpoint.get('0:source')).toMatchObject({ nodeId: 'A', side: 'E' })
     expect(hints.byEndpoint.get('0:target')).toMatchObject({ nodeId: 'B', side: 'W' })
     expect(hints.byEndpoint.has('1:source')).toBe(false)
-    expect(hints.byEndpoint.has('2:source')).toBe(false)
+    expect(hints.relaxations).toContainEqual({ edgeIndex: 2, routeClass: 'self-loop', reason: 'self-loop' })
+  })
+
+  it('pre-layout port hints include eligible unlabeled feedback with flipped sides', () => {
+    const graph = parseMermaid('flowchart LR\n  A --> B\n  B --> A')
+    const hints = buildRoutePortHints(graph, new Set())
+    expect(hints.byEndpoint.has('0:source')).toBe(false)
+    expect(hints.byEndpoint.get('1:source')).toMatchObject({ nodeId: 'B', side: 'W', routeClass: 'feedback', constraint: 'FIXED_SIDE' })
+    expect(hints.byEndpoint.get('1:target')).toMatchObject({ nodeId: 'A', side: 'E', routeClass: 'feedback', constraint: 'FIXED_SIDE' })
+    expect(hints.relaxations).toContainEqual({ edgeIndex: 0, routeClass: 'primary-forward', reason: 'unsafe-non-primary-incident' })
+    expect(hints.relaxations.some(r => r.edgeIndex === 1)).toBe(false)
+  })
+
+  it('pre-layout feedback port hints keep duplicate returns fixed-side while preserving deterministic slots', () => {
+    const graph = parseMermaid('flowchart LR\n  A --> B\n  B --> A\n  B --> A')
+    const hints = buildRoutePortHints(graph, new Set())
+    expect(hints.byEndpoint.get('1:source')).toMatchObject({ nodeId: 'B', side: 'W', routeClass: 'feedback', constraint: 'FIXED_SIDE', slotIndex: 0 })
+    expect(hints.byEndpoint.get('2:source')).toMatchObject({ nodeId: 'B', side: 'W', routeClass: 'feedback', constraint: 'FIXED_SIDE', slotIndex: 1 })
+    expect(hints.byEndpoint.get('1:target')).toMatchObject({ nodeId: 'A', side: 'E', routeClass: 'feedback', constraint: 'FIXED_SIDE', slotIndex: 0 })
+    expect(hints.byEndpoint.get('2:target')).toMatchObject({ nodeId: 'A', side: 'E', routeClass: 'feedback', constraint: 'FIXED_SIDE', slotIndex: 1 })
+  })
+
+  it('pre-layout port hints expose relaxation diagnostics for unsupported route classes', () => {
+    const graph = parseMermaid('flowchart TD\n  Start --> Box\n  subgraph Box\n    Work\n  end')
+    const hints = buildRoutePortHints(graph, new Set(['Box']))
+    expect(hints.byEndpoint.has('0:source')).toBe(false)
+    expect(hints.relaxations).toContainEqual({ edgeIndex: 0, routeClass: 'container', reason: 'subgraph-endpoint' })
   })
 
   it('pre-layout port hints skip nodes inside direction-override subgraphs', () => {

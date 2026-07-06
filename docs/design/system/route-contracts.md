@@ -324,11 +324,15 @@ capacities) and Visio connection points with static vs dynamic glue:
   reinterpret the V1 `sourcePort`/`targetPort` vocabulary; it is the stable
   bridge for debugging and for feeding port intent into placement.
 - Pre-layout placement now consumes a conservative slice of the same intent:
-  primary-forward edges get ELK `FIXED_SIDE` node-port hints (`E/W` for LR/RL,
-  `S/N` for TD/BT) only when neither endpoint participates in a non-primary
-  route. Cyclic, feedback, container, and cross-hierarchy lanes deliberately
-  skip those hints so outer-channel and family-specific contracts cannot be
-  stolen by stale pre-layout ports.
+  primary-forward edges get ELK node-port hints on the flow sides (`E/W` for
+  LR/RL, `S/N` for TD/BT), and eligible unlabeled rectangle/diamond feedback
+  edges get flipped-side `FIXED_SIDE` hints on the return lane. Duplicate
+  feedback ports also record deterministic side slots, but feedback
+  `FIXED_ORDER` remains deferred: the measured contact-sheet duplicate-feedback
+  case regressed when ELK was allowed to enforce order. Self-loop, labeled
+  feedback, non-rect/diamond feedback, container, cross-hierarchy and
+  direction-override cases are explicitly relaxed and recorded as diagnostics,
+  leaving family-specific contracts to the final certificate pass.
 
 State diagrams inherit all graph certificates through their projected graphs
 (`stateBodyToGraph` → `layoutGraphSync`). Non-graph families expose
@@ -716,12 +720,14 @@ bbox today and warning on every one would be noise, not signal.
 
 Still deliberately out of scope:
 
-- Broad ELK port mutation. A conservative `FIXED_SIDE` hint now runs only for
-  primary-forward edges whose endpoints are not incident to feedback/container/
-  cross-hierarchy routes, where it agrees with route intent and cannot steal
-  outer lanes. Cyclic, feedback, container, cross-hierarchy and family-rerouted
-  cases remain owned by the certifying repair pass; `FIXED_POS`
-  everywhere would still fight ELK's crossing minimization.
+- Broad ELK port mutation beyond node-local primary/feedback semantics. The
+  implemented hint layer now emits `FIXED_SIDE` for eligible primary-forward
+  routes and for the narrow unlabeled rectangle/diamond feedback slice, while
+  labeled feedback, non-rect/diamond feedback, self-loop, container,
+  cross-hierarchy and family-rerouted cases remain owned by the certifying
+  repair pass. Feedback `FIXED_ORDER` is still gated on new evidence: applying
+  it to duplicate feedback lanes regressed `contact-sheet/AQ` in `bun run
+  track`. `FIXED_POS` everywhere would still fight ELK's crossing minimization.
 
 ## 8. Pipeline placement
 
@@ -807,7 +813,7 @@ in sync by `src/__tests__/layout-pass-docsync.test.ts` (regenerate with
 |---|---|
 | Phase 0 — diagnostics (classification + certificates) | implemented |
 | Phase 1 — validation warnings | complete: all six ROUTE_* codes implemented as zero-noise tripwires |
-| Phase 2 — semantic `FIXED_SIDE` ports | conservative slice implemented: primary-forward edges feed inferred source/target side intent to ELK fixed-side ports only when neither endpoint participates in a non-primary route; cycles/feedback/container/cross-hierarchy rely on final certificates |
+| Phase 2 — semantic `FIXED_SIDE` / `FIXED_ORDER` ports | conservative slice implemented: primary-forward edges feed inferred source/target side intent to ELK fixed-side ports; eligible unlabeled rectangle/diamond feedback routes now feed flipped-side `FIXED_SIDE` ports with deterministic slot diagnostics; feedback `FIXED_ORDER` remains deferred after measured corpus regression; labeled feedback, unsupported-shape feedback, self-loop/container/cross-hierarchy/direction-override relaxations rely on final certificates |
 | Phase 3 — certifying simplifier | implemented (proof-free + proof-carrying layers) |
 | Phase 4 — bundle contract | first slice implemented: bundled paths are proved clear of nodes, blocked members fall out of the bundle; per-trunk certificates deferred |
 | Phase 5 — family adoption | state composites (`stateBodyToGraph`) flow through graph route contracts and certificates; architecture now emits family-specific endpoint-side certificates in debug layouts; class/ER keep their own ELK engines and emit family-specific orthogonal-box certificates plus rendered-layout geometry tripwires; sequence emits lifeline-message certificates; timeline/charts emit family element-containment layout certificates |
