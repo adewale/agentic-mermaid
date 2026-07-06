@@ -57,6 +57,16 @@ Write ONLY the resulting chat response (Updated Mermaid / Verification / Trace)
 to <run-dir>/responses/<case>.txt. Modify no other file; scratch in /tmp.
 ```
 
+**Observed tool-use (recommended for CLI-channel runs):** set
+`AM_TRACE_LOG=<run-dir>/traces/<case>.jsonl` in the agent's environment before it
+runs `am`. The CLI appends each verb it runs there, and `finalize` grades
+`traceOk` from those **real calls** instead of inferring tool use from the
+`Trace` prose — which is phrasing-sensitive (a valid `am verify` written as
+`` `verify /tmp/f` `` slips past the text heuristic). With no log, `finalize`
+falls back to the prose heuristic and marks the run `traceSource: "narrated"`.
+Code mode (`--mode code`) is always observed: it replays the script through the
+sandbox trace linter.
+
 **Without the repo (true third party):** the npm package is unpublished, so the
 only channel is the hosted MCP. This measures whether the agent can drive the
 HTTP MCP itself — the honest from-scratch condition.
@@ -93,16 +103,24 @@ safePathRate / structuredPathRate`; exits nonzero if any case fails.
 
 ## Step 5 — Read results
 
-`summary.json` has totals. Each `<case>.json` has
-`.result.{ ok, taskOk, traceOk, error }`:
+`summary.json` reports the two axes **separately** — read `taskOkRate` first.
+Each `<case>.json` has `.result.{ ok, taskOk, traceOk, error }`:
 
-- **`taskOk`** — the returned diagram is structurally correct. The real
-  capability signal: the harness independently parses and verifies every
-  returned diagram, so this does not depend on trusting the agent's narration.
-- **`traceOk`** — the response shows the agent engaged Agentic Mermaid on the
-  safe path (library / CLI / hosted MCP verify; and `mutate` for existing
-  diagrams) rather than hand-writing Mermaid from memory.
-- **`ok`** = `taskOk && traceOk`.
+- **`taskOk` / `taskOkRate`** — PRIMARY. The returned diagram is structurally
+  correct. The real capability signal: the harness independently parses and
+  verifies every returned diagram, so it does not depend on trusting narration.
+  `summary.ok` gates on this (every case `taskOk`), so a correct diagram with a
+  terse `Trace` no longer reads as a failure.
+- **`traceOk` / `traceOkRate`** — SECONDARY. The agent engaged Agentic Mermaid
+  on the safe path (verify; and `mutate`/`build` for existing diagrams) rather
+  than hand-writing from memory. Trust it according to `summary.traceSource`:
+  `observed` (real `am` verbs via `AM_TRACE_LOG`, or the replayed code-mode
+  trace) is ground truth; `narrated` is a phrasing-sensitive prose heuristic —
+  a `traceOk` dip under `narrated` is often a narration artifact, not a
+  capability change, so confirm against `taskOk` before reading it as a
+  regression.
+- **`passed`** — the composite (`taskOk && traceOk`) count, kept for continuity;
+  not the headline.
 
 Break it down by create vs mutate:
 

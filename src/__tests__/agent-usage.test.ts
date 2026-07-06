@@ -1,13 +1,15 @@
 // Loop 13 M6: agent-usage validation harness — scenarios + anti-pattern linter.
 
 import { describe, test, expect } from 'bun:test'
-import { readFileSync } from 'node:fs'
+import { readFileSync, mkdtempSync, writeFileSync as fsWriteFileSync, readFileSync as fsReadFileSync, rmSync, existsSync as fsExistsSync } from 'node:fs'
+import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { runAllScenarios, lintAgentTrace, type SdkCall } from '../../eval/agent-usage/harness.ts'
 import { DEFAULT_CASES, KNOWLEDGE_CASES, CREATE_CASES, checkAgentUsageTaskSource, requiresStructuredMutation, runAgentUsageEval } from '../../eval/agent-usage/run.ts'
 import { AGENT_USAGE_SUPPORTED_FAMILIES, scoreAgentUsageRenderedQuality } from '../../eval/agent-usage/render-quality.ts'
 import { extractHomepageAgentPrompt, homepagePromptChecklist, HOMEPAGE_AGENT_POINTER, buildHomepageFullPrompt, readStartMd } from '../../eval/agent-usage/homepage-prompt.ts'
-import { buildSubagentPromptEvalRequest, extractBareTask } from '../../eval/agent-usage/capture-subagent-prompt-eval.ts'
+import { buildSubagentPromptEvalRequest, extractBareTask, prepareSubagentPromptEval, finalizeSubagentPromptEval } from '../../eval/agent-usage/capture-subagent-prompt-eval.ts'
+import { runCli } from '../cli/index.ts'
 import { executeInSandbox } from '../mcp/sandbox.ts'
 import { handleRequest } from '../mcp/server.ts'
 import { parseMermaid, verifyMermaid, serializeMermaid } from '../agent/index.ts'
@@ -671,5 +673,71 @@ describe('real Code Mode trace instrumentation', () => {
     const replay = await executeInSandbox(code, { trace: true })
     expect(replay.value).toEqual(payload.value)
     expect(lintAgentTrace(replay.trace as SdkCall[])).toEqual([])
+  })
+})
+
+// The eval scores two independent axes — taskOk (is the diagram correct? graded
+// by the task oracle, channel-independent) and traceOk (did the agent engage the
+// safe path?). Merging them into one pass/fail let a terse-but-honest Trace sink
+// a correct diagram. These pin the split (#1) and the OBSERVED tool-use signal
+// (#2): traceOk is read from real `am` verbs (AM_TRACE_LOG) when present, so it
+// no longer depends on how the model phrased its Trace prose.
+describe('eval metric split (taskOk primary) + observed tool-use', () => {
+  test('am CLI logs invoked verbs to AM_TRACE_LOG, and nothing when unset', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'am-trace-'))
+    const log = join(dir, 'calls.jsonl')
+    const origWrite = process.stdout.write.bind(process.stdout)
+    // Suppress the command's own stdout; we only care about the side log.
+    ;(process.stdout as unknown as { write: (s: string) => boolean }).write = () => true
+    try {
+      process.env.AM_TRACE_LOG = log
+      runCli(['capabilities'])
+      runCli(['styles'])
+      delete process.env.AM_TRACE_LOG
+      runCli(['capabilities']) // unset → must not append
+    } finally {
+      ;(process.stdout as unknown as { write: typeof origWrite }).write = origWrite
+      delete process.env.AM_TRACE_LOG
+    }
+    const verbs = fsReadFileSync(log, 'utf8').trim().split('\n').map(l => JSON.parse(l).verb)
+    expect(verbs).toEqual(['capabilities', 'styles'])
+    rmSync(dir, { recursive: true, force: true })
+  })
+
+  test('a correct diagram with a terse trace passes the correctness gate; observed log overrides prose', async () => {
+    const runDir = mkdtempSync(join(tmpdir(), 'subeval-'))
+    prepareSubagentPromptEval({
+      provider: 'unit', model: 'unit', surface: 'homepage', mode: 'chat',
+      caseIds: ['cache_between_api_and_db', 'pie_add_docs_slice'],
+      outDir: runDir, capturedAt: '2020-01-01T00:00:00.000Z',
+    })
+    // Both diagrams are CORRECT, but the Trace phrases the path inside backticks
+    // with `am` and `verify` on different lines — the narrated heuristic misses it.
+    const terse = (src: string) =>
+      `Updated Mermaid\n\`\`\`mermaid\n${src}\n\`\`\`\nVerification\nStructurally valid.\n` +
+      'Trace\n- Channel: CLI (`bun run bin/am.ts`)\n- Ran: `mutate d.mmd --op {...}` then `verify /tmp/out.mmd`'
+    fsWriteFileSync(join(runDir, 'responses', 'cache_between_api_and_db.txt'), terse('flowchart TD\n  API --> Cache\n  Cache --> DB'))
+    fsWriteFileSync(join(runDir, 'responses', 'pie_add_docs_slice.txt'), terse('pie\n  "Build" : 5\n  "Test" : 2\n  "Docs" : 3'))
+    // OBSERVED tool-use log for the cache case only (a real mutate + verify).
+    fsWriteFileSync(join(runDir, 'traces', 'cache_between_api_and_db.jsonl'), '{"verb":"mutate"}\n{"verb":"verify"}\n')
+
+    const summary = await finalizeSubagentPromptEval({ runDir })
+    // Correctness gate passes: both diagrams are right, regardless of narration.
+    expect({ ok: summary.ok, taskOk: summary.taskOk, total: summary.total }).toEqual({ ok: true, taskOk: 2, total: 2 })
+    expect(summary.taskOkRate).toBe(1)
+    // One case graded from the observed log, one from prose → mixed.
+    expect(summary.traceSource).toBe('mixed')
+
+    const read = (id: string) => JSON.parse(fsReadFileSync(join(runDir, `${id}.json`), 'utf8')).result
+    // Observed: real verbs → traceOk true despite the terse prose.
+    expect(read('cache_between_api_and_db').traceOk).toBe(true)
+    // Narrated: no log → the prose heuristic misses the backtick-wrapped path.
+    expect(read('pie_add_docs_slice').traceOk).toBe(false)
+    // Both are diagram-correct either way — the split keeps that visible.
+    expect(read('cache_between_api_and_db').taskOk).toBe(true)
+    expect(read('pie_add_docs_slice').taskOk).toBe(true)
+
+    rmSync(runDir, { recursive: true, force: true })
+    expect(fsExistsSync(runDir)).toBe(false)
   })
 })

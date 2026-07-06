@@ -26,6 +26,12 @@ export interface AgentUsageEvalResult {
 export interface AgentUsageEvalSummary {
   ok: boolean
   total: number
+  /** PRIMARY: diagrams the task oracle accepts (correctness, independent of how
+   *  tool use was narrated). Trace here is the replayed sandbox trace, so the
+   *  two axes are separable rather than merged into one pass/fail. */
+  taskPassed: number
+  taskOkRate: number
+  /** Composite (taskOk && traceOk) count — the strict gate for stored scripts. */
   passed: number
   /** Any safe route: direct source authoring for new diagrams, refusal for opaque, or structured mutation for editable inputs. */
   safePathRate: number
@@ -475,10 +481,11 @@ export async function runAgentUsageEval(cases: AgentUsageEvalCase[] = DEFAULT_CA
     results.push({ id: c.id, ok: Boolean(exec.ok && taskOk && traceOk), taskOk, traceOk, findings, error: exec.ok ? undefined : exec.error })
   }
   const passed = results.filter(r => r.ok).length
+  const taskPassed = results.filter(r => r.taskOk).length
   const safePathRate = results.filter(r => r.traceOk).length / Math.max(1, results.length)
   const structuredCases = results.filter(r => requiresStructuredMutation(r.id))
   const structuredPathRate = structuredCases.filter(r => r.traceOk).length / Math.max(1, structuredCases.length)
-  return { ok: passed === results.length, total: results.length, passed, safePathRate, structuredPathRate, results }
+  return { ok: passed === results.length, total: results.length, taskPassed, taskOkRate: taskPassed / Math.max(1, results.length), passed, safePathRate, structuredPathRate, results }
 }
 
 export function requiresStructuredMutation(id: string): boolean {
