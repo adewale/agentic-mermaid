@@ -72,3 +72,4 @@ eval/agent-usage/transcripts/claude-local-*/
 eval/agent-usage/transcripts/opus-local-*/
 eval/agent-usage/transcripts/sonnet-local-*/
 eval/agent-usage/transcripts/opusfull-local-*/
+eval/agent-usage/transcripts/*-rerun-*/
