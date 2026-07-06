@@ -403,6 +403,17 @@ describe('certificates', () => {
     expect(hints.byEndpoint.get('2:target')).toMatchObject({ nodeId: 'A', side: 'E', routeClass: 'feedback', constraint: 'FIXED_SIDE', slotIndex: 1 })
   })
 
+  it('pre-layout port hints upgrade only planner-owned primary duplicate faces to fixed order', () => {
+    const graph = parseMermaid('flowchart LR\n  A --> C\n  A --> C\n  B --> C')
+    const hints = buildRoutePortHints(graph, new Set())
+    expect(hints.byEndpoint.get('0:source')).toMatchObject({ nodeId: 'A', side: 'E', constraint: 'FIXED_ORDER', orderReason: 'primary-duplicate-face', slotIndex: 0 })
+    expect(hints.byEndpoint.get('1:source')).toMatchObject({ nodeId: 'A', side: 'E', constraint: 'FIXED_ORDER', orderReason: 'primary-duplicate-face', slotIndex: 1 })
+    expect(hints.byEndpoint.get('0:target')).toMatchObject({ nodeId: 'C', side: 'W', constraint: 'FIXED_ORDER', orderReason: 'primary-duplicate-face', slotIndex: 0 })
+    expect(hints.byEndpoint.get('1:target')).toMatchObject({ nodeId: 'C', side: 'W', constraint: 'FIXED_ORDER', orderReason: 'primary-duplicate-face', slotIndex: 1 })
+    expect(hints.byEndpoint.get('2:target')).toMatchObject({ nodeId: 'C', side: 'W', constraint: 'FIXED_ORDER', orderReason: 'primary-duplicate-face', slotIndex: 2 })
+    expect(hints.byEndpoint.get('2:source')).toMatchObject({ nodeId: 'B', side: 'E', constraint: 'FIXED_SIDE', slotIndex: 0 })
+  })
+
   it('pre-layout port hints expose relaxation diagnostics for unsupported route classes', () => {
     const graph = parseMermaid('flowchart TD\n  Start --> Box\n  subgraph Box\n    Work\n  end')
     const hints = buildRoutePortHints(graph, new Set(['Box']))
@@ -911,6 +922,23 @@ describe('duplicate parallel edges (fast-check counterexample, pinned)', () => {
     // a single coincident entry port rather than fanning across the hub side.
     const maxSep = Math.max(...ends.flatMap((p, i) => ends.slice(i + 1).map(q => Math.hypot(p.x - q.x, p.y - q.y))))
     expect(maxSep).toBeLessThan(1)
+  })
+
+  it('separates mixed labeled and unlabeled duplicate lanes before route certification', () => {
+    const source = [
+      'flowchart TD',
+      '  A["ok"]', '  B["ok"]', '  C["ok"]', '  D["ok"]', '  E{"rendered"}', '  F["ok"]', '  G["ok"]',
+      '  A --> B', '  A --> C', '  A --> D', '  A --> E', '  E --> F', '  A --> G', '  E -->|no| F',
+    ].join('\n')
+    const graph = parseMermaid(source)
+    const positioned = layoutGraphSync(graph)
+    const dups = positioned.edges
+      .filter(e => e.source === 'E' && e.target === 'F')
+      .sort((a, b) => (a.edgeIndex ?? 0) - (b.edgeIndex ?? 0))
+    expect(dups.length).toBe(2)
+    expect(JSON.stringify(dups[0]!.points)).not.toBe(JSON.stringify(dups[1]!.points))
+    expect(dups.find(e => e.label)?.routeCertificate?.invariant).toBe('bundle')
+    expect(auditRouteContracts(positioned, graph).filter(f => f.code === 'ROUTE_LABEL_ON_SHARED_TRUNK')).toEqual([])
   })
 
   // When a duplicate pair feeds a hub that is cross-axis OFFSET from the source
