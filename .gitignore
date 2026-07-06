@@ -69,3 +69,4 @@ skills-lock.json
 eval/agent-usage/transcripts/norepo-*/
 eval/agent-usage/transcripts/haiku-local-*/
 eval/agent-usage/transcripts/claude-local-*/
+eval/agent-usage/transcripts/opus-local-*/
