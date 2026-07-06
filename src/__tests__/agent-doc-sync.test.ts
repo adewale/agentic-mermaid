@@ -52,6 +52,12 @@ describe('Instructions_for_agents.md', () => {
     const guide = readFileSync(join(REPO, 'Instructions_for_agents.md'), 'utf8')
     expect(AGENT_INSTRUCTIONS).toEqual(guide)
   })
+  test('names every hosted MCP tool (so a new tool cannot silently drift the guide)', () => {
+    for (const tool of HOSTED_TOOLS) {
+      expect({ tool: tool.name, named: AGENT_INSTRUCTIONS.includes(`\`${tool.name}\``) })
+        .toEqual({ tool: tool.name, named: true })
+    }
+  })
   test('quick-start examples verify before every serialize', () => {
     const guide = readFileSync(join(REPO, 'Instructions_for_agents.md'), 'utf8')
     const snippets = Array.from(guide.matchAll(/```ts\n([\s\S]*?)\n```/g)).map(m => m[1]!)

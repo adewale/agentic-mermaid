@@ -61,6 +61,25 @@ describe('op-schema shape validation (§1–3, §5)', () => {
     expect(r.opIndex).toBe(2)
   })
 
+  test('enum checks that overlap a mutator are caught by validateOp first (one phrasing on untyped paths)', () => {
+    // The per-family mutators keep their own enum backstops (e.g. architecture
+    // validSide, xychart kind2). On an untyped path validateOp must fire first,
+    // so the caller always sees ONE consistent enum error, never the mutator's
+    // differently-worded one. Guards the choke point against a bypass reappearing.
+    const side = applyOps({ family: 'architecture', ops: [
+      { kind: 'add_service', id: 'api' }, { kind: 'add_service', id: 'db' },
+      { kind: 'add_edge', from: 'api', to: 'db', fromSide: 'X', toSide: 'R' },
+    ] })
+    expect(side.ok).toBe(false)
+    if (!side.ok) {
+      expect((side.error as { reason?: string }).reason).toBe('wrong_type')
+      expect(errMsg(side.error)).toContain('must be one of "L", "R", "T", "B"')
+    }
+    const series = applyOps({ family: 'xychart', ops: [{ kind: 'add_series', kind2: 'pie', values: [1] }] })
+    expect(series.ok).toBe(false)
+    if (!series.ok) expect((series.error as { reason?: string }).reason).toBe('wrong_type')
+  })
+
   test('a semantic (not shape) error still flows through from the mutator', () => {
     // Shape is valid; the class does not exist → the mutator, not the validator,
     // rejects it. Proves the two layers compose (shape first, semantics second).
