@@ -393,10 +393,14 @@ function scoreChatResponse(c: AgentUsageEvalCase, rawResponse: string, surface: 
   // on Updated Mermaid/Verification/Trace shape would be meaningless: traceOk
   // is reported for the record but only the task oracle gates ok.
   const shapeRequired = surface !== 'none'
-  // traceOk is OBSERVED from the CLI log when present (phrasing-independent),
-  // otherwise NARRATED from the Trace prose (phrasing-sensitive).
-  const traceObserved = observedVerbs != null
-  const traceOk = traceObserved ? observedTraceOk(c.id, observedVerbs!) : chatTraceOk(c.id, rawResponse)
+  // traceOk: an OBSERVED CLI log CONFIRMS tool use (phrasing-independent, ground
+  // truth), but its ABSENCE cannot refute — the agent may have verified/mutated
+  // through the library or hosted MCP, which the `am` log can't see (e.g. it ran
+  // `am capabilities` for discovery, then used the library for the edit). So the
+  // observed signal is positive-only; when it does not confirm, fall back to the
+  // NARRATED prose heuristic. `traceObserved` marks a positive observation.
+  const traceObserved = observedVerbs != null && observedTraceOk(c.id, observedVerbs)
+  const traceOk = traceObserved || chatTraceOk(c.id, rawResponse)
   const source = extractUpdatedMermaidSource(rawResponse)
   if (!source) return { result: { id: c.id, ok: false, taskOk: false, traceOk, findings: [], error: 'Updated Mermaid mermaid fence not found' }, traceObserved }
   const parsed = parseMermaid(source)
