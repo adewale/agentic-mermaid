@@ -57,15 +57,23 @@ Write ONLY the resulting chat response (Updated Mermaid / Verification / Trace)
 to <run-dir>/responses/<case>.txt. Modify no other file; scratch in /tmp.
 ```
 
-**Observed tool-use (recommended for CLI-channel runs):** set
+**Observed tool-use (recommended):** set
 `AM_TRACE_LOG=<run-dir>/traces/<case>.jsonl` in the agent's environment before it
-runs `am`. The CLI appends each verb it runs there, and `finalize` grades
-`traceOk` from those **real calls** instead of inferring tool use from the
-`Trace` prose — which is phrasing-sensitive (a valid `am verify` written as
-`` `verify /tmp/f` `` slips past the text heuristic). With no log, `finalize`
-falls back to the prose heuristic and marks the run `traceSource: "narrated"`.
-Code mode (`--mode code`) is always observed: it replays the script through the
-sandbox trace linter.
+works. Every in-process channel writes to that one sink — the `am` CLI, the
+library functions (`verifyMermaid`/`mutate`/`buildMermaid`/…, since they all go
+through the instrumented leaves in `src/agent/trace-log.ts`), the hosted MCP
+`verify`/`mutate`/`build` tools (which route through those same library leaves),
+and the Code Mode facade — so it no longer matters which channel the agent
+picks. `finalize` grades `traceOk` from those **real calls** instead of inferring
+tool use from the `Trace` prose (phrasing-sensitive: a valid `am verify` written
+as `` `verify /tmp/f` `` slips past the text heuristic).
+
+The observed signal is **positive-only**: a logged verify/mutate/build CONFIRMS
+tool use (`traceSource: "observed"`), but its absence does NOT refute — `finalize`
+falls back to the prose heuristic (`traceSource: "narrated"`), since a truly
+un-instrumentable third party (hosted MCP over the network, no shared filesystem)
+can't write to the log. Code mode (`--mode code`) is always observed: it replays
+the script through the sandbox trace linter.
 
 **Without the repo (true third party):** the npm package is unpublished, so the
 only channel is the hosted MCP. This measures whether the agent can drive the

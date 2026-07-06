@@ -12,7 +12,7 @@ import { buildSubagentPromptEvalRequest, extractBareTask, prepareSubagentPromptE
 import { runCli } from '../cli/index.ts'
 import { executeInSandbox } from '../mcp/sandbox.ts'
 import { handleRequest } from '../mcp/server.ts'
-import { parseMermaid, verifyMermaid, serializeMermaid } from '../agent/index.ts'
+import { parseMermaid, verifyMermaid, serializeMermaid, mutate, buildMermaid } from '../agent/index.ts'
 import { asFlowchart } from '../agent/types.ts'
 import { handleHostedRequest } from '../mcp/hosted-server.ts'
 
@@ -701,6 +701,34 @@ describe('eval metric split (taskOk primary) + observed tool-use', () => {
     }
     const verbs = fsReadFileSync(log, 'utf8').trim().split('\n').map(l => JSON.parse(l).verb)
     expect(verbs).toEqual(['capabilities', 'styles'])
+    rmSync(dir, { recursive: true, force: true })
+  })
+
+  test('the library and hosted-MCP channels log through the SAME sink (not just the CLI)', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'am-sink-'))
+    const log = join(dir, 'calls.jsonl')
+    const verbs = () => new Set(fsReadFileSync(log, 'utf8').trim().split('\n').filter(Boolean).map(l => JSON.parse(l).verb))
+    try {
+      process.env.AM_TRACE_LOG = log
+      // Library channel: direct imports from agentic-mermaid/agent.
+      const p = parseMermaid('flowchart TD\n  A --> B')
+      expect(p.ok).toBe(true)
+      if (p.ok) { const f = asFlowchart(p.value); if (f) mutate(f, { kind: 'add_node', id: 'C', label: 'C' }); verifyMermaid(p.value) }
+      buildMermaid('pie', [{ kind: 'add_slice', label: 'X', value: 1 }])
+      // Hosted MCP channel: the declarative mutate tool routes through the same
+      // library leaves (applyOps -> mutate + verifyMermaid), so it logs too.
+      await handleHostedRequest(
+        { jsonrpc: '2.0', id: 1, method: 'tools/call', params: { name: 'mutate', arguments: { source: 'flowchart TD\n  A --> B', ops: [{ kind: 'add_node', id: 'C', label: 'C' }] } } },
+        { execute: async () => { throw new Error('unused') } },
+      )
+    } finally {
+      delete process.env.AM_TRACE_LOG
+    }
+    // verify (library + hosted), mutate (library + hosted), build (buildMermaid) all observed.
+    const seen = verbs()
+    expect(seen.has('verify')).toBe(true)
+    expect(seen.has('mutate')).toBe(true)
+    expect(seen.has('build')).toBe(true)
     rmSync(dir, { recursive: true, force: true })
   })
 

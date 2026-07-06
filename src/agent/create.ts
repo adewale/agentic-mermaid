@@ -19,6 +19,7 @@ import type {
 } from './types.ts'
 import { ok, err } from './types.ts'
 import { serializeMermaid } from './serialize.ts'
+import { logToolInvocation } from './trace-log.ts'
 import { mutate } from './mutate.ts'
 import type { Direction } from '../types.ts'
 
@@ -67,6 +68,7 @@ export function createMermaid(kind: 'quadrant', opts?: CreateMermaidOptions): Qu
 export function createMermaid(kind: 'gantt', opts?: CreateMermaidOptions): GanttValidDiagram
 export function createMermaid(kind: DiagramKind, opts?: CreateMermaidOptions): MutableValidDiagram
 export function createMermaid(kind: DiagramKind, opts: CreateMermaidOptions = {}): MutableValidDiagram {
+  logToolInvocation('build') // also covers buildMermaid/buildChecked, which route through here
   const body = emptyBody(kind, opts) as ReturnType<typeof emptyBody> | undefined
   // The switch is TS-exhaustive but callers reach this from untyped surfaces
   // (Code Mode, CLI), so fail loudly on an unknown kind.

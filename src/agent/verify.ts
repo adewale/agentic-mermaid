@@ -9,6 +9,7 @@
 
 import { parseMermaid as parseValidDiagram } from './parse.ts'
 import { serializeMermaid } from './serialize.ts'
+import { logToolInvocation } from './trace-log.ts'
 import { countStructuralElements, faithfulnessWarning } from './structural-count.ts'
 import { layoutGraphSync } from '../layout-engine.ts'
 import { renderMermaidSVG } from '../index.ts'
@@ -75,6 +76,7 @@ function roundtripFaithfulnessWarnings(d: ValidDiagram): LayoutWarning[] {
 }
 
 export function verifyMermaid(input: ValidDiagram | string, opts: VerifyOptions = {}): VerifyResult {
+  logToolInvocation('verify')
   return withRenderParity(input, verifyStructure(input, opts), opts)
 }
 

@@ -11,6 +11,7 @@ import type {
 } from './types.ts'
 import { ok, err } from './types.ts'
 import { wrapperPrefix } from './serialize.ts'
+import { logToolInvocation } from './trace-log.ts'
 import { getFamily } from './families.ts'
 import { validateOp, hasOpSchema } from './op-schema.ts'
 import './families-builtin.ts'  // registers built-in family mutate hooks
@@ -35,6 +36,7 @@ export function mutate(
   d: MutableValidDiagram,
   op: AnyMutationOp,
 ): Result<MutableValidDiagram, MutationError> {
+  logToolInvocation('mutate')
   // Every structured family mutates through its FamilyPlugin hook, then
   // rebuilds canonicalSource from the new body so a mutated diagram never
   // carries stale source. Lookup is by DIAGRAM kind, not body kind. State

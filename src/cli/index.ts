@@ -2,11 +2,12 @@
 // am — agentic-mermaid CLI (v4).
 // ============================================================================
 
-import { readFileSync, existsSync, writeFileSync, mkdtempSync, watch, appendFileSync } from 'node:fs'
+import { readFileSync, existsSync, writeFileSync, mkdtempSync, watch } from 'node:fs'
 import { spawnSync } from 'node:child_process'
 import { join, resolve } from 'node:path'
 import { tmpdir } from 'node:os'
 import { parseMermaid } from '../agent/parse.ts'
+import { logToolInvocation } from '../agent/trace-log.ts'
 import { serializeMermaid, synthesizeFromGraph } from '../agent/serialize.ts'
 import { mutateChecked } from '../agent/mutate.ts'
 import { verifyMermaid } from '../agent/verify.ts'
@@ -223,14 +224,6 @@ without clobbering by default:
 the AGENTS.md section is always appended only once, guarded by a marker.`,
 }
 
-/** Append `{verb}` to the file named by AM_TRACE_LOG, if set. Best-effort:
- *  a logging failure must never affect the command's own exit code. */
-function logCliInvocation(verb: string): void {
-  const path = process.env.AM_TRACE_LOG
-  if (!path) return
-  try { appendFileSync(path, JSON.stringify({ verb }) + '\n') } catch { /* logging is best-effort */ }
-}
-
 export function runCli(argv: string[]): number {
   const args = parseArgs(argv)
   if (args.flags['agent-instructions']) { process.stdout.write(AGENT_INSTRUCTIONS); return EXIT_OK }
@@ -242,11 +235,11 @@ export function runCli(argv: string[]): number {
   }
   const json = Boolean(args.flags.json)
   // Opt-in invocation logging: when AM_TRACE_LOG names a file, append one JSON
-  // line per real command run. This is the OBSERVED tool-use signal for the
-  // agent-usage eval — ground truth about which verbs an agent actually drove
-  // (verify/mutate/build), so grading no longer has to infer tool use from the
-  // model's Trace prose. No-op (and never throws) when the env var is unset.
-  logCliInvocation(args.command)
+  // line per real command run. Shares the sink with the library and hosted MCP
+  // (src/agent/trace-log.ts) so the agent-usage eval can grade traceOk from
+  // observed calls on ANY channel. The library verify/mutate/create the CLI
+  // commands call also log, so `am verify`/`am mutate` are covered even here.
+  logToolInvocation(args.command)
   try {
     switch (args.command) {
       case 'render': return cmdRender(args, json)
