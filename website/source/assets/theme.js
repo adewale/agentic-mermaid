@@ -18,6 +18,11 @@
 
   function setCopyState(btn, state, original) {
     const label = state === 'ok' ? 'Copied' : 'Copy failed';
+    // Pin the resting width before swapping in the shorter "Copied" / "Copy failed"
+    // label, so the button can't shrink and slide its flex neighbours (the hero's
+    // "Try editor" / "Install locally" links) sideways for the 1.8s feedback window.
+    // The resting label is always the widest state, so this only ever reserves space.
+    if (!btn.style.minWidth) btn.style.minWidth = Math.ceil(btn.getBoundingClientRect().width) + 'px';
     btn.dataset.copyState = state;
     const text = btn.querySelector('span:last-child');
     if (text) text.textContent = label;
@@ -31,6 +36,7 @@
       if (text) text.textContent = original;
       else btn.textContent = original;
       if (status) status.textContent = '';
+      btn.style.minWidth = '';
     }, 1800);
   }
 

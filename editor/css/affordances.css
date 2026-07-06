@@ -57,11 +57,15 @@
 }
 .export-dropdown.open, .theme-dropdown-menu.open { transform-origin: top right; }
 .font-popup.open, .color-popup.open { transform-origin: top left; }
-/* The centered dialog keeps its translate while scaling in. */
+/* The scrim fades in; the centered panel fades and scales up behind it. */
 @keyframes dialog-in {
-  from { opacity: 0; transform: translate(-50%, -50%) scale(0.98); }
+  from { opacity: 0; }
+}
+@keyframes dialog-panel-in {
+  from { opacity: 0; transform: scale(0.98) translateY(4px); }
 }
 .shortcuts-dialog.open { animation: dialog-in var(--dur-ui) var(--ease-out); }
+.shortcuts-dialog.open .shortcuts-dialog-panel { animation: dialog-panel-in var(--dur-ui) var(--ease-out); }
 :where(.preview-label, .panel-title, .verify-label, .text-output-label, .example-category-title, .font-section-label, .color-palette-title, .placeholder-kicker) {
   color: var(--fg3);
   font-family: var(--font-mono);

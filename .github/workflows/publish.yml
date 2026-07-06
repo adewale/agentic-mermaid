@@ -45,6 +45,11 @@ jobs:
 
       # --- Release gate: mirror ci.yml's deterministic `test` job so a tagged
       # release cannot publish a commit that would fail CI.
+      # Runs before the test step, whose preload overwrites the committed worker
+      # inputs this check pins.
+      - name: Check the committed website worker inputs are current
+        run: bun run website:check
+
       - name: Run tests
         run: bun test src/__tests__/
 
@@ -53,9 +58,6 @@ jobs:
 
       - name: Check README hero image is current with the renderer
         run: bun run hero:check
-
-      - name: Check the Workers Static Assets website is current
-        run: bun run website:check
 
       - name: Golden snapshot drift gate
         run: bun run scripts/ci/golden-drift.ts

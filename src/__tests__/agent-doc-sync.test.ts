@@ -743,7 +743,7 @@ describe('detector drift guard (agent vs shared router)', () => {
 
 describe('skill eval manifest coverage', () => {
   test('covers families, channels, adversarial/no-trigger cases, fixtures, and hidden splits', () => {
-    const manifestText = readFileSync(join(REPO, 'evals/shared-benchmark.json'), 'utf8')
+    const manifestText = readFileSync(join(REPO, 'skill-evals/shared-benchmark.json'), 'utf8')
     const manifest = JSON.parse(manifestText)
     const cases = manifest.cases as Array<{ id: string; split: string; kind: string; tags?: string[]; files?: string[]; prompt?: string; prompt_ref?: string }>
     const tags = new Set(cases.flatMap(c => c.tags ?? []))
@@ -767,7 +767,7 @@ describe('skill eval manifest coverage', () => {
     for (const c of cases.filter(c => c.split === 'holdout' || c.split === 'holdback')) {
       expect({ id: c.id, publicPrompt: Boolean(c.prompt), privateRef: c.prompt_ref?.startsWith('private/') }).toEqual({ id: c.id, publicPrompt: false, privateRef: true })
     }
-    for (const c of cases.flatMap(c => c.files ?? [])) expect(existsSync(join(REPO, 'evals', c))).toBe(true)
+    for (const c of cases.flatMap(c => c.files ?? [])) expect(existsSync(join(REPO, 'skill-evals', c))).toBe(true)
     expect(manifest.run_policy.minimum_runs_per_variant).toBeGreaterThanOrEqual(3)
     expect(manifest.run_policy.recommended_runs_per_variant).toBeGreaterThanOrEqual(5)
   })
@@ -846,7 +846,7 @@ describe('shipped distribution artifacts present', () => {
   test('npm package includes bundled PNG fonts and delegated docs', () => {
     const pkg = JSON.parse(readFileSync(join(REPO, 'package.json'), 'utf8'))
     expect(pkg.files).toContain('assets/fonts/')
-    for (const doc of ['TODO.md', 'SECURITY.md', 'docs/', 'skills/', 'evals/']) expect(pkg.files).toContain(doc)
+    for (const doc of ['TODO.md', 'SECURITY.md', 'docs/', 'skills/', 'skill-evals/']) expect(pkg.files).toContain(doc)
     for (const removedRootDoc of ['FEATURES.md', 'FORK_DIFFERENCES.md', 'QUALITY.md']) expect(pkg.files).not.toContain(removedRootDoc)
     // Paths are in npm's canonical (no `./`) form after `npm pkg fix`; both
     // forms resolve identically at install, and the canonical form keeps

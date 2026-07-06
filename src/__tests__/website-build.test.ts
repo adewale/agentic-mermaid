@@ -131,20 +131,74 @@ describe('Workers Static Assets website contract', () => {
   test('required human and machine routes are generated', () => {
     const routes = [
       'index.html', 'editor/index.html', 'about/index.html', 'docs/getting-started/index.html', 'docs/families/index.html',
-      'docs/index.html', 'docs/api/index.html', 'docs/source-level/index.html', 'docs/cli/index.html',
+      'docs/index.html', 'docs/api/index.html', 'docs/cli/index.html',
       'docs/mcp/index.html', 'docs/ascii/index.html', 'docs/theming/index.html',
-      'docs/config/index.html', 'docs/react/index.html', 'docs/quality/index.html',
-      'docs/fork-differences/index.html', 'docs/vocabulary/index.html',
-      'warnings/index.html', 'errors/index.html', 'examples/index.html', 'comparisons/index.html', 'evidence/index.html',
-      'security/index.html', 'releases/index.html', 'skills/index.html',
+      'docs/quality/index.html', 'docs/fork-differences/index.html',
+      'warnings/index.html', 'errors/index.html', 'examples/index.html', 'comparisons/index.html',
       'llms.txt', 'agent-instructions.md', 'capabilities.json', 'examples/index.json',
+      'sitemap.xml',
       'skills/agentic-mermaid-diagram-workflow/SKILL.md', '_headers', '_redirects',
     ]
     for (const route of routes) expect({ route, exists: existsSync(join(SITE, route)) }).toEqual({ route, exists: true })
+    // Removed: React + Config folded into the API doc, Vocabulary into Getting
+    // started, Evidence into Quality, Releases demoted to capabilities.json,
+    // and Skills / Security / Source-level pruned. The site has not launched, so
+    // these routes are simply gone — no backwards-compat redirects.
+    const consolidated = ['docs/config/index.html', 'docs/react/index.html', 'docs/vocabulary/index.html', 'evidence/index.html', 'releases/index.html', 'skills/index.html', 'security/index.html', 'docs/source-level/index.html']
+    for (const route of consolidated) expect({ route, exists: existsSync(join(SITE, route)) }).toEqual({ route, exists: false })
     expect(existsSync(join(SITE, 'install/index.html'))).toBe(false)
     expect(existsSync(join(SITE, 'agents/index.html'))).toBe(false)
     expect(existsSync(join(SITE, 'agents/harnesses/index.html'))).toBe(false)
     expect(existsSync(join(SITE, 'agents/workflow/index.html'))).toBe(false)
+  })
+
+  test('sitemap.xml lists exactly the live HTML pages and no machine artifacts', () => {
+    const locs = [...read('sitemap.xml').matchAll(/<loc>([^<]+)<\/loc>/g)].map((m) => m[1]!)
+    expect(new Set(locs).size).toBe(locs.length)                  // no duplicate URLs
+    for (const loc of locs) expect({ loc, ok: loc.startsWith('https://agentic-mermaid.dev/') }).toEqual({ loc, ok: true })
+    expect(locs).toContain('https://agentic-mermaid.dev/')        // homepage
+    expect(locs).toContain('https://agentic-mermaid.dev/docs/api/')
+    for (const gone of ['/security/', '/skills/', '/docs/source-level/', '/evidence/', '/releases/', '/docs/react/', '/docs/config/', '/docs/vocabulary/']) {
+      expect({ gone, listed: locs.includes(`https://agentic-mermaid.dev${gone}`) }).toEqual({ gone, listed: false })
+    }
+    // machine artifacts (json/md/txt/xml) must never appear as sitemap URLs
+    for (const loc of locs) expect({ loc, machine: /\.(json|md|txt|xml)$/.test(loc) }).toEqual({ loc, machine: false })
+    // exactly one <loc> per emitted index.html page
+    const pageCount = files().filter((r) => r === 'index.html' || r.endsWith('/index.html')).length
+    expect(locs.length).toBe(pageCount)
+  })
+
+  test('robots.txt is not shipped from the repo (Cloudflare serves the managed one)', () => {
+    expect(existsSync(join(SITE, 'robots.txt'))).toBe(false)
+  })
+
+  test('every warning and error page has a Markdown sibling with prose', () => {
+    const codes = readdirSync(join(SITE, 'warnings')).filter((n) => existsSync(join(SITE, 'warnings', n, 'index.html')))
+    expect(codes.length).toBeGreaterThanOrEqual(22)
+    for (const code of codes) {
+      const md = read(`warnings/${code}/index.md`)
+      expect({ code, ok: md.startsWith(`# ${code}`) && md.includes('am verify') }).toEqual({ code, ok: true })
+    }
+    for (const id of ['parse-error', 'mutation-error', 'render-error', 'verify-failed']) {
+      const md = read(`errors/${id}/index.md`)
+      expect({ id, ok: md.includes('## How to recover') }).toEqual({ id, ok: true })
+    }
+  })
+
+  test('capabilities.json warning codes carry what/triggers/fix prose as clean text', () => {
+    const cap = JSON.parse(read('capabilities.json'))
+    const sample = cap.warningCodes.find((w: { code: string }) => w.code === 'LABEL_OVERFLOW')
+    expect(Boolean(sample)).toBe(true)
+    for (const field of ['what', 'triggers', 'fix'] as const) {
+      expect({ field, filled: typeof sample[field] === 'string' && sample[field].length > 20 }).toEqual({ field, filled: true })
+    }
+    expect(sample.fix.includes('<code>')).toBe(false)             // Markdown, not page HTML
+  })
+
+  test('the four error pages are differentiated, not shared boilerplate', () => {
+    const body = (id: string) => read(`errors/${id}/index.html`).replace(/[\s\S]*<\/section>/, '').replace(/<\/main>[\s\S]*/, '')
+    const bodies = ['parse-error', 'mutation-error', 'render-error', 'verify-failed'].map(body)
+    expect(new Set(bodies).size).toBe(4)
   })
 
   test('all generated pages use the trident favicon assets', () => {
@@ -252,7 +306,14 @@ describe('Workers Static Assets website contract', () => {
     expect(read(editorScript)).toContain('URLSearchParams(window.location.search).get(\'example\')')
     expect(editor).toContain('id="copy-agent-prompt-btn"')
     expect(editor).toContain('class="app-brand" aria-label="Agentic Mermaid Editor home"')
-    expect(editor).toContain('<span class="sr-only">Diagram theme: </span><span id="theme-btn-label">Default</span>')
+    // Right half is labelled "Palette" (visible + a11y); code ids stay theme-*.
+    expect(editor).toContain('<span class="axis-label" aria-hidden="true">Palette</span>')
+    expect(editor).toContain('<span class="sr-only">Diagram palette: </span><span class="axis-value" id="theme-btn-label">Default</span>')
+    expect(editor).toContain('id="theme-dropdown-menu" role="listbox" aria-label="Palette"')
+    // Style and Palette are fused into one split pill (both dropdown ids preserved).
+    expect(editor).toContain('class="axis-pill" role="group" aria-label="Diagram look"')
+    expect(editor).toContain('id="style-dropdown-btn"')
+    expect(editor).toContain('id="theme-dropdown-btn"')
     expect(editor).not.toContain('aria-label="Agentic Mermaid homepage"')
     expect(editor).not.toContain('aria-label="Diagram theme"')
     expect(editor).toContain('id="copy-text-output-btn" type="button" title="Copy SVG markup" aria-label="Copy SVG markup"')
@@ -512,6 +573,23 @@ describe('Workers Static Assets website contract', () => {
     expect(editorAll).toContain('/^xychart(?:-beta)?\\b/.test(first)')
     expect(theme).not.toContain('am-theme')
     expect(theme).toContain("name + ' copied to clipboard.'")
+    // Copy feedback must reserve the button's resting width before swapping in the
+    // shorter "Copied" label, so the hero's flex neighbours don't slide sideways.
+    expect(theme).toContain("btn.style.minWidth = Math.ceil(btn.getBoundingClientRect().width)")
+    expect(theme).toContain("btn.style.minWidth = ''")
+    // The editor's copy feedback (setCopyFeedback) reserves width the same way, so
+    // the topbar's labelled Copy agent prompt button can't slide its neighbours.
+    expect(editorAll).toContain("btn.style.minWidth = Math.ceil(btn.getBoundingClientRect().width)")
+    // The Share and "?" buttons are gone from the topbar; copy-link lives on in
+    // the export dropdown and the cheat sheet is reached by the "?" key alone.
+    expect(editor).not.toContain('id="share-btn"')
+    expect(editor).not.toContain('id="shortcuts-btn"')
+    expect(editor).toContain('id="copy-link-btn"')
+    // "?" opens the cheat sheet without a trigger button, and it renders as a
+    // Gmail-style scrim + panel (aria-modal, backdrop click closes).
+    expect(editorAll).toContain("shortcutsReturnFocus = document.activeElement")
+    expect(editor).toContain('id="shortcuts-dialog" role="dialog" aria-modal="true"')
+    expect(editor).toContain('class="shortcuts-dialog-panel"')
     expect(styles).toContain('@media (forced-colors: active)')
     expect(styles).toContain('.warning-table thead { display: none; }')
     expect(read('warnings/index.html')).toContain('<td data-label="Code">')
@@ -562,7 +640,7 @@ describe('Workers Static Assets website contract', () => {
   test('public llms.txt omits repo-only backlog and eval surfaces', () => {
     const text = read('llms.txt')
     expect(text).not.toContain('TODO.md')
-    expect(text).not.toContain('evals/')
+    expect(text).not.toContain('skill-evals/')
     expect(text).toContain('/capabilities.json')
   })
 

@@ -90,6 +90,22 @@ async function svgInk(page: Page) {
   })
 }
 
+/** Topbar control anchors. A style change reveals the seed button; because that
+ *  button reserves its slot even while inactive, none of these controls may move
+ *  when a look is picked. Before the slot was reserved the theme/style dropdowns
+ *  slid ~48px on desktop and the theme dropdown jumped a whole row on portrait. */
+async function topbarSlots(page: Page) {
+  return page.evaluate(() => {
+    const at = (id: string) => {
+      const el = document.getElementById(id)
+      if (!el) return null
+      const r = el.getBoundingClientRect()
+      return { x: Math.round(r.x), y: Math.round(r.y) }
+    }
+    return { theme: at('theme-dropdown-btn'), style: at('style-dropdown-btn'), examples: at('examples-sidebar-btn') }
+  })
+}
+
 describeBrowser('editor style switcher restyles the artwork, never the chrome', () => {
   beforeAll(async () => {
     server = Bun.serve({
@@ -118,6 +134,7 @@ describeBrowser('editor style switcher restyles the artwork, never the chrome', 
     await waitForBackdrop(page, null)
     expect(await page.isHidden('#seed-shuffle-btn')).toBe(true)
     const kiln = await chrome(page)
+    const slotsBefore = await topbarSlots(page)
 
     // Pick the hand-drawn look: the paper-ruled backdrop appears and the
     // seed control becomes meaningful.
@@ -125,6 +142,10 @@ describeBrowser('editor style switcher restyles the artwork, never the chrome', 
     await page.click('.theme-dropdown-item[data-style="hand-drawn"]')
     await waitForBackdrop(page, 'paper-ruled')
     expect(await page.isVisible('#seed-shuffle-btn')).toBe(true)
+
+    // Revealing the seed button must not reflow the topbar: its slot is reserved
+    // while inactive, so every control stays exactly where it was.
+    expect(await topbarSlots(page)).toEqual(slotsBefore)
 
     // The seed re-rolls the ink: sketch geometry changes on shuffle.
     const inkBefore = await svgInk(page)
@@ -148,5 +169,23 @@ describeBrowser('editor style switcher restyles the artwork, never the chrome', 
     await page.click('.theme-dropdown-item[data-style="crisp"]')
     await waitForBackdrop(page, null)
     expect(await page.isHidden('#seed-shuffle-btn')).toBe(true)
+  }, 60_000)
+
+  test('style switch does not reflow the wrap-prone mobile topbar (portrait)', async () => {
+    // Portrait is the worst case: the topbar wraps to several rows, so an
+    // unreserved seed button shifted the whole wrap — the theme dropdown jumped
+    // a full row (~284px) when a style was picked. The reserved slot holds it.
+    const page = await browser.newPage({ viewport: { width: 390, height: 844 } })
+    await page.goto(baseUrl + '/editor/', { waitUntil: 'networkidle' })
+    await waitForBackdrop(page, null)
+    expect(await page.isHidden('#seed-shuffle-btn')).toBe(true)
+    const before = await topbarSlots(page)
+
+    await page.click('#style-dropdown-btn')
+    await page.click('.theme-dropdown-item[data-style="hand-drawn"]')
+    await waitForBackdrop(page, 'paper-ruled')
+    expect(await page.isVisible('#seed-shuffle-btn')).toBe(true)
+    expect(await topbarSlots(page)).toEqual(before)
+    await page.close()
   }, 60_000)
 })

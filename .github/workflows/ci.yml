@@ -30,6 +30,13 @@ jobs:
       - name: Install dependencies
         run: bun install
 
+      # Must run before the test step: the test preload rebuilds website/public
+      # and re-emits website/src/generated, overwriting the committed worker
+      # inputs (wasm/harness/fonts/deploy-version) this check pins against
+      # source — so drift has to be caught before the rebuild runs.
+      - name: Check the committed website worker inputs are current
+        run: bun run website:check
+
       - name: Run tests (coverage = under-tested finder, NOT an adequacy target)
         # The pass/fail of this suite is the gate. Coverage is printed only to
         # locate under-tested files — it is deliberately NOT a quality target:
@@ -62,12 +69,6 @@ jobs:
         # Compares a deterministic fingerprint of the renderer output behind
         # assets/hero.png (diagram SVG + ASCII) — no fonts/rasterization needed.
         run: bun run hero:check
-
-      - name: Check the Workers Static Assets website is current
-        # website/public is generated from website/source plus product truth
-        # (capabilities, examples, skills). The check also rejects stale/orphan
-        # generated files and placeholder public links.
-        run: bun run website:check
 
       - name: Golden snapshot drift is a hard gate (reviewed-token required)
         # The decision logic lives in scripts/ci/golden-drift.ts and is

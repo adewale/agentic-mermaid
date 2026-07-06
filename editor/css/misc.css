@@ -41,24 +41,34 @@
 }
 
 /* Keyboard shortcuts cheat sheet dialog */
+/* Gmail-style cheat sheet: a full-screen scrim dims the editor behind a
+   centered, semi-opaque frosted panel. Opened only by the "?" key. */
 .shortcuts-dialog {
   display: none;
   position: fixed;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
+  inset: 0;
+  z-index: var(--z-dialog);
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  background: rgba(12, 14, 18, 0.5);
+  -webkit-backdrop-filter: blur(2px);
+  backdrop-filter: blur(2px);
+}
+.shortcuts-dialog.open {
+  display: flex;
+}
+.shortcuts-dialog-panel {
   width: min(400px, calc(100vw - 32px));
-  max-height: min(70vh, 480px);
+  max-height: min(80vh, 520px);
   overflow-y: auto;
-  padding: 14px;
-  background: var(--popover-bg);
+  padding: 14px 16px;
+  background: color-mix(in srgb, var(--popover-bg) 88%, transparent);
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
   border: 1px solid var(--control-border);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-popover);
-  z-index: var(--z-dialog);
-}
-.shortcuts-dialog.open {
-  display: block;
 }
 .shortcuts-dialog-header {
   display: flex;

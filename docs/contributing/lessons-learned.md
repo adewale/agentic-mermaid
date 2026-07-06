@@ -4,6 +4,106 @@ Process lessons this repo has paid for, so they only have to be paid for once.
 Each entry names the incident that taught it. Add new lessons at the top with a
 date; do not delete old ones — supersede them in place.
 
+> **Scope.** This is the dated contributor process log. For the long-form
+> cumulative fork narrative (loops 1–22), see
+> [`../project/lessons-learned.md`](../project/lessons-learned.md).
+
+## 2026-07 — the layout-shift audit and look-control rework
+
+**User-initiated layout shift is CLS-exempt but still visible jank — diff
+positions, don't trust the metric.** A whole-site audit read CLS 0.000
+everywhere, yet clicking the home "Use with an agent" button slid its
+neighbours 83px, selecting a diagram style reflowed the wrapped mobile topbar
+by a full row (the theme dropdown jumped 284px), and the editor's "Copy agent
+prompt" slid 81px. All fired within 500ms of the click, so `hadRecentInput`
+flagged them out of the Core Web Vitals number. Rule: to audit click-induced
+shift, diff each anchor's bounding rect before/after the interaction and read
+the raw (unfiltered) `layout-shift` entries — CLS alone certifies nothing about
+what the user sees at the moment they click.
+
+**A width reservation is only correct once you check every breakpoint it
+crosses.** The Share button grew ~7px when its label became "Copied"; the
+obvious fix — a permanent inline `min-width` — would have overridden the
+≤760px `font-size:0` rule and broken the mobile icon-only square, because
+inline styles beat media queries. Reserving the label's width in `em` instead
+collapsed to 0 exactly when the mobile rule zeroed the font. Rule: prefer a
+unit/property the responsive rules can still override, and verify the
+reservation at each breakpoint it passes through before shipping it.
+
+**A layout invariant stated in a component's own copy is a test spec.** The
+seed-shuffle button's tooltip said "(never moves layout)" — true when clicked,
+false when it *appeared*, which is what reflowed the topbar. The existing
+style-switch test asserted "the chrome never moves" but only compared colours,
+so the regression passed straight through it. Rule: when a component claims a
+layout invariant (in a tooltip, a comment, or a test's own name), the guarding
+test must assert positions, not a proxy like colour.
+
+**Restructure by re-wrapping markup and re-scoping CSS; touch the JS only when
+an id or class contract actually changes.** Fusing the Style and Theme
+dropdowns into one split pill kept every button/wrap/menu id and the `.open`
+class the shared popup controller toggles, so selection, keyboard, and focus
+logic ran unchanged — the only rename was a CSS-only button class. Rule: when
+JS binds elements by id and toggles known classes, a visual restructure is a
+markup + CSS job; reading the id/class contracts first tells you whether the JS
+is even in scope.
+
+**Label from the code's own vocabulary, and check the word against its sibling
+controls.** "Theme" for the palette axis collided with the adjacent light/dark
+toggle and with Mermaid's `themeVariables`, and was category-muddy (internally
+a theme is a palette-only style) — while the style registry, CLI, and docs
+already called it a "palette." Relabelling to "Palette" was three visible
+strings with no code rename: there is no public `theme` render field, and
+renaming `state.theme` / `data-theme` / the localStorage key would have broken
+saved editor state and share links. Rule: audit where a term is actually used
+before putting it on a control; a user-facing label is not an API, and the two
+are allowed to differ.
+
+## 2026-07 — the website consolidation PR (#113)
+
+**A long-running branch that commits generated output collides catastrophically
+with a base that stops committing it — keep website changes source-only.** PR
+#113 committed the whole `website/public` bundle (100+ files) across nine
+commits. Meanwhile `main` (#110) had made `website/public` a gitignored build
+artifact, rebuilt by the test preload and at deploy. The result was a "dirty"
+PR whose merge was ~20 modify/delete conflicts on generated pages — the actual
+change (five source files) was buried under hundreds of artifact diffs.
+Resolution was to adopt the artifact model (`git rm -r website/public`, keep
+only `build.ts`, `source/pages`, the contract test, and `TODO.md`), which
+collapsed the PR from ~86 changed files to 5. Rule: never commit
+`website/public`; a website PR's diff is source only. A committed generated
+bundle turns every base change into a conflict and hides the real edit in noise.
+
+**Deterministic build + `website:check` can pass on wrong-but-deterministic
+output — assert content, not existence.** The sitemap (the PR's headline
+feature) shipped with only an `existsSync` gate. Because the build is
+deterministic and `website:check` only diffs regenerated-vs-committed output, a
+stale or malformed sitemap would regenerate identically and pass every gate —
+the wrong output is reproduced, not caught. A multi-agent audit flagged it; the
+fix asserts the sitemap lists exactly the live pages (no removed routes, no
+machine artifacts, one `<loc>` per page) and was verified red→green by injecting
+a removed route. Rule: for generated content, the test must *discriminate*
+correct from incorrect output, because determinism guarantees a wrong generator
+passes a same-vs-same check.
+
+**`bun test` green is not `tsc` green, and a piped exit code lies.** A new test
+passed `bun test` but failed strict `bun x tsc --noEmit` — a `matchAll` capture
+group is typed `string | undefined`. It nearly shipped because
+`bunx tsc … | tail` printed "exit: 0": the pipeline's status was `tail`'s, not
+tsc's, masking two real type errors. Rule: run the actual CI gate
+(`bun x tsc --noEmit`) after adding tests, and read `${PIPESTATUS[0]}` (or drop
+the pipe) so a tool's failure is never hidden behind a successful `tail`/`grep`.
+
+**Check what the platform already serves before adding a competing file.**
+Production serves Cloudflare's *managed* content-signals `robots.txt` at the
+edge; a repo `website/public/robots.txt` would likely have been shadowed and
+never delivered its `Sitemap:` line. A live `curl` settled it — the repo file
+was removed and the directive routed to the Cloudflare dashboard (TODO DEC-5).
+Corollary: for platform-managed surfaces (robots.txt, headers, redirects),
+verify the live response before shipping an asset that may never win. And a
+related cleanup that landed the same PR: hand-maintained parallel route lists
+drift (the `_redirects` list had silently dropped `/about/design`) — derive
+them from one source (here, the emitted-pages map) to delete the drift class.
+
 ## 2026-07 — the brand-system and chrome-polish passes
 
 **Design intent and shipped hex drift apart; compute claims on what shipped.**

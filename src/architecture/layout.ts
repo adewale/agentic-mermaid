@@ -196,10 +196,16 @@ function expandSingleGroup(
 
   if (childBounds.length === 0) return group
 
-  const minX = Math.min(group.x, ...childBounds.map(child => child.x))
-  const minY = Math.min(group.y, ...childBounds.map(child => child.y))
-  const maxX = Math.max(group.x + group.width, ...childBounds.map(child => child.x + child.width))
-  const maxY = Math.max(group.y + group.height, ...childBounds.map(child => child.y + child.height))
+  // Re-fit the group around its members with a GROUP_EDGE_PAD interior margin.
+  // The graph projection can seat a wider member flush against (or poking past)
+  // the group box on same-side edge patterns; padding every member edge keeps
+  // each service fully inside the drawable interior instead of drawn onto the
+  // group border (#90). The graph engine already reserves the header strip, so
+  // the padded top never rises above group.y and the header stays clear.
+  const minX = Math.min(group.x, ...childBounds.map(child => child.x - GROUP_EDGE_PAD))
+  const minY = Math.min(group.y, ...childBounds.map(child => child.y - GROUP_EDGE_PAD))
+  const maxX = Math.max(group.x + group.width, ...childBounds.map(child => child.x + child.width + GROUP_EDGE_PAD))
+  const maxY = Math.max(group.y + group.height, ...childBounds.map(child => child.y + child.height + GROUP_EDGE_PAD))
 
   group.x = minX
   group.y = minY

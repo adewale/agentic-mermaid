@@ -200,7 +200,6 @@ describeBrowser('website browser accessibility smoke', () => {
         '#settings-btn',
         '#dark-light-btn',
         '#theme-dropdown-btn',
-        '#share-btn',
         '#export-main-btn',
         '#export-chevron-btn',
         '#mode-source',

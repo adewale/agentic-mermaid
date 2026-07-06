@@ -42,16 +42,16 @@
   </marker>
 </defs>
 <g class="architecture-group" data-id="api" data-label="API">
-  <rect class="architecture-group-frame" x="40" y="40" width="152" height="108" rx="0" ry="0" />
-  <path class="architecture-group-band" d="M40,40 H192 V68 H40 Z" />
-  <rect class="architecture-group-outline" x="40" y="40" width="152" height="108" rx="0" ry="0" />
+  <rect class="architecture-group-frame" x="38" y="40" width="156" height="110" rx="0" ry="0" />
+  <path class="architecture-group-band" d="M38,40 H194 V68 H38 Z" />
+  <rect class="architecture-group-outline" x="38" y="40" width="156" height="110" rx="0" ry="0" />
   <g class="architecture-icon" data-icon="cloud">
-  <circle class="architecture-icon-mark" cx="55.3504" cy="54.2944" r="2.3552" />
-<circle class="architecture-icon-mark" cx="58.2944" cy="52.8224" r="2.9440000000000004" />
-<circle class="architecture-icon-mark" cx="60.944" cy="54.2944" r="2.208" />
-<path class="architecture-icon-mark" d="M 52.9952 56.355199999999996 H 62.8576" />
+  <circle class="architecture-icon-mark" cx="53.3504" cy="54.2944" r="2.3552" />
+<circle class="architecture-icon-mark" cx="56.2944" cy="52.8224" r="2.9440000000000004" />
+<circle class="architecture-icon-mark" cx="58.944" cy="54.2944" r="2.208" />
+<path class="architecture-icon-mark" d="M 50.9952 56.355199999999996 H 60.8576" />
 </g>
-  <text x="76" y="54" class="architecture-group-label" text-anchor="start" font-size="12" font-weight="600" dy="4.199999999999999">API</text>
+  <text x="74" y="54" class="architecture-group-label" text-anchor="start" font-size="12" font-weight="600" dy="4.199999999999999">API</text>
 </g>
 <polyline class="architecture-edge" data-from="app" data-to="db" data-from-side="R" data-to-side="L" data-from-boundary="item" data-to-boundary="item" points="176,108 254,108" marker-end="url(#char-architecture-architecture-arrow-end)" />
 <g class="architecture-service" data-id="db" data-label="DB">
