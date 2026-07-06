@@ -256,7 +256,7 @@ export function hasOpSchema(family: string): family is OpFamily {
  */
 export interface OpValidationError {
   code: 'INVALID_OP'
-  /** 'unknown_kind' | 'unknown_field' | 'missing_field' | 'wrong_type' | 'require_one_of' */
+  /** 'expected_single_op' | 'unknown_kind' | 'unknown_field' | 'missing_field' | 'wrong_type' | 'require_one_of' */
   reason: string
   message: string
   family: OpFamily
@@ -325,7 +325,12 @@ function matchesType(spec: FieldType, value: unknown): boolean {
  */
 export function validateOp(family: OpFamily, op: unknown): OpValidationError | null {
   const schema = SCHEMAS[family]
-  if (!op || typeof op !== 'object' || Array.isArray(op)) {
+  // An op array is the common "apply these ops" slip — give it a dedicated
+  // reason so a caller can branch on it, and a message that names the batch fix.
+  if (Array.isArray(op)) {
+    return { code: 'INVALID_OP', reason: 'expected_single_op', family, message: unknownOpMessage(family, op), validFields: Object.keys(schema) }
+  }
+  if (!op || typeof op !== 'object') {
     return { code: 'INVALID_OP', reason: 'unknown_kind', family, message: unknownOpMessage(family, op), validFields: Object.keys(schema) }
   }
   const rec = op as Record<string, unknown>
