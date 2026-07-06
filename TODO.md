@@ -53,7 +53,7 @@ dependents after. IDs are stable names, not an ordering.
   limit, and TTL checks. Tests cover file output, URL fetch-back, auth/body
   gates, tracked artifact serving, and SSE session lifecycle.
 - [ ] **BUILD-25 — Structured coverage for the last silent-opaque constructs**
-  (`todo`, needs legacy-renderer support first). The systemic `UNSUPPORTED_SYNTAX`
+  (`todo`, needs legacy-renderer support first; tracked as **#118**). The systemic `UNSUPPORTED_SYNTAX`
   warning (2026-07) now announces every opaque fallback, so these are visible but
   still source-only. Promoting them to structured is blocked on the LEGACY parser/
   renderer, which drops them today (verified): class generic type params

@@ -189,10 +189,12 @@ ${U.comment}`:U.comment}this.doc.range[2]=U.offset;break}default:this.errors.pus
     Find product: 4: Shopper
   section Buy
     Pay: 3: Shopper`},{id:"architecture",label:"Architecture",headers:["architecture-beta"],narrower:"asArchitecture",editorDiagramType:"Architecture",editorExampleId:"architecture-basic",editorGlyph:"A",example:`architecture-beta
-  group api(cloud)[API]
-  service db(database)[Database] in api
-  service disk(disk)[Storage] in api
-  db:L -- R:disk`},{id:"xychart",label:"XY chart",headers:["xychart","xychart-beta"],narrower:"asXyChart",editorDiagramType:"XY Chart",editorExampleId:"xychart-basic",editorGlyph:"XY",example:`xychart-beta
+  group backend(cloud)[Backend]
+  service api(server)[API] in backend
+  service db(database)[Database] in backend
+  service cache(disk)[Cache] in backend
+  api:R --> L:db
+  api:B -[reads]-> T:cache`},{id:"xychart",label:"XY chart",headers:["xychart","xychart-beta"],narrower:"asXyChart",editorDiagramType:"XY Chart",editorExampleId:"xychart-basic",editorGlyph:"XY",example:`xychart-beta
   title "Revenue"
   x-axis [Q1, Q2, Q3]
   y-axis "USD" 0 --> 100

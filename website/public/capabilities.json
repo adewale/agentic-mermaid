@@ -1104,7 +1104,7 @@
       "headers": [
         "architecture-beta"
       ],
-      "example": "architecture-beta\n  group api(cloud)[API]\n  service db(database)[Database] in api\n  service disk(disk)[Storage] in api\n  db:L -- R:disk"
+      "example": "architecture-beta\n  group backend(cloud)[Backend]\n  service api(server)[API] in backend\n  service db(database)[Database] in backend\n  service cache(disk)[Cache] in backend\n  api:R --> L:db\n  api:B -[reads]-> T:cache"
     },
     {
       "id": "xychart",
