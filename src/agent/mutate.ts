@@ -36,7 +36,19 @@ export function mutate(
   d: MutableValidDiagram,
   op: AnyMutationOp,
 ): Result<MutableValidDiagram, MutationError> {
-  logToolInvocation('mutate')
+  // Log the OUTCOME (not just the call): an `{ok:false}` trace line records a
+  // failed op attempt — the observable signal the agent-usage eval reads to
+  // measure a run's op-error rate directly, rather than inferring retries from
+  // excess mutate-call counts.
+  const r = applyOneMutation(d, op)
+  logToolInvocation('mutate', r.ok)
+  return r
+}
+
+function applyOneMutation(
+  d: MutableValidDiagram,
+  op: AnyMutationOp,
+): Result<MutableValidDiagram, MutationError> {
   // Every structured family mutates through its FamilyPlugin hook, then
   // rebuilds canonicalSource from the new body so a mutated diagram never
   // carries stale source. Lookup is by DIAGRAM kind, not body kind. State
@@ -72,7 +84,10 @@ export function mutate(
 export function mutateChecked(d: MutableValidDiagram, op: unknown): Result<MutableValidDiagram, MutationError> {
   if (hasOpSchema(d.kind)) {
     const invalid = validateOp(d.kind, op)
-    if (invalid) return err(invalid)
+    // A shape rejection short-circuits before `mutate`, so record the failed
+    // attempt here — otherwise checked-path errors (e.g. the op-array slip)
+    // would go uncounted in the op-error rate.
+    if (invalid) { logToolInvocation('mutate', false); return err(invalid) }
   }
   return mutate(d, op as AnyMutationOp)
 }

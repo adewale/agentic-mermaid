@@ -28,9 +28,16 @@ function resolveAppend(): AppendFn | null {
   return appendFn
 }
 
-/** Append `{verb}` to $AM_TRACE_LOG if set. No-op when unset or off-node. */
-export function logToolInvocation(verb: string): void {
+/**
+ * Append `{verb}` (or `{verb, ok}`) to $AM_TRACE_LOG if set. No-op when unset or
+ * off-node. Pass `ok` for verbs whose outcome is meaningful (mutate/build): an
+ * `{ok:false}` line records a FAILED op attempt, so the eval can measure a run's
+ * error rate from observed failures rather than inferring retries from call
+ * counts. Verbs with no natural pass/fail (verify, capabilities) omit it.
+ */
+export function logToolInvocation(verb: string, ok?: boolean): void {
   const path = (globalThis as { process?: { env?: Record<string, string | undefined> } }).process?.env?.AM_TRACE_LOG
   if (!path) return
-  try { resolveAppend()?.(path, JSON.stringify({ verb }) + '\n') } catch { /* best-effort */ }
+  const record = ok === undefined ? { verb } : { verb, ok }
+  try { resolveAppend()?.(path, JSON.stringify(record) + '\n') } catch { /* best-effort */ }
 }
