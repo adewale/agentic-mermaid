@@ -508,6 +508,41 @@ describe('hosted-tool enumeration does not rot', () => {
   })
 })
 
+describe('family/op-count prose does not rot', () => {
+  // Same failure mode as the hosted-tool list: a count restated in prose is not
+  // pinned to its code source, so adding a 13th family or an op silently
+  // falsifies "12 families" / "97 ops total" / a per-family "(N ops)"
+  // parenthetical. Guard the counts the way the tool list is guarded — against
+  // the enumerations in code, not a frozen literal.
+  const familyCount = BUILTIN_FAMILY_METADATA.length
+  const totalOps = Object.values(MUTATION_OPS_BY_FAMILY).reduce((n, ops) => n + ops.length, 0)
+
+  test('comparison.md family and op totals match code', () => {
+    const text = readFileSync(join(REPO, 'docs/comparison.md'), 'utf8')
+    expect(text).toContain(`${familyCount} of ${familyCount} families`)
+    expect(text).toContain(`${totalOps} ops total`)
+  })
+
+  test('fork-differences.md per-family op counts match MUTATION_OPS_BY_FAMILY', () => {
+    const text = readFileSync(join(REPO, 'docs/fork-differences.md'), 'utf8')
+    // "Twelve of the twelve" scales with the family count via the number word.
+    const word: Record<number, string> = { 11: 'Eleven', 12: 'Twelve', 13: 'Thirteen' }
+    expect(text).toContain(`${word[familyCount]} of the ${word[familyCount]!.toLowerCase()} families`)
+    // Each family appears as "<prose label> (<count>…)"; the phrasing after the
+    // number varies (" ops", " via `asX`", or a bare close-paren), so guard the
+    // label+count prefix — that pins the number without freezing the wording.
+    const proseLabel: Record<DiagramKind, string> = {
+      flowchart: 'flowchart', state: 'state', sequence: 'sequence', timeline: 'timeline',
+      class: 'class', er: 'ER', journey: 'journey', architecture: 'architecture',
+      xychart: 'XY chart', pie: 'pie', quadrant: 'quadrant', gantt: 'Gantt',
+    }
+    for (const [id, ops] of Object.entries(MUTATION_OPS_BY_FAMILY) as [DiagramKind, readonly unknown[]][]) {
+      const label = proseLabel[id]
+      expect({ family: id, prose: text.includes(`${label} (${ops.length}`) }).toEqual({ family: id, prose: true })
+    }
+  })
+})
+
 describe('root docs consistency', () => {
   test('TODO.md is the only root markdown file with unchecked backlog boxes', () => {
     for (const name of readdirSync(REPO).filter(f => f.endsWith('.md'))) {
