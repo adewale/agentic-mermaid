@@ -107,13 +107,13 @@ const STYLE_LABELS: Record<string, string> = {
   'blueprint': 'Blueprint',
   'tufte': 'Tufte',
   'accessible-high-contrast': 'High Contrast',
-  'print-grayscale': 'Print Grayscale',
+  'patent-drawing': 'Patent Drawing',
   'status-dashboard': 'Status Dashboard',
-  'dense-ops-terminal': 'Ops Terminal',
+  'ops-schematic': 'Ops Schematic',
   'chalkboard': 'Chalkboard',
   'risograph': 'Risograph',
-  'vellum-architecture': 'Vellum Architecture',
-  'editorial-report': 'Editorial Report',
+  'architectural-plan': 'Architectural Plan',
+  'publication-figure': 'Publication Figure',
 }
 
 /** Full looks only — palette-only styles ARE the themes and already have the

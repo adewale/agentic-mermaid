@@ -28,13 +28,13 @@ const LOOKS = [
   'blueprint',
   'tufte',
   'accessible-high-contrast',
-  'print-grayscale',
+  'patent-drawing',
   'status-dashboard',
-  'dense-ops-terminal',
+  'ops-schematic',
   'chalkboard',
   'risograph',
-  'vellum-architecture',
-  'editorial-report',
+  'architectural-plan',
+  'publication-figure',
 ]
 
 function fixtureSources(): Array<{ name: string; source: string }> {
@@ -170,6 +170,27 @@ describe('style consolidation', () => {
     expect(stacked).toBe(renderMermaidSVG(source, { style: ['hand-drawn', 'dracula'] }))
   })
 
+  test('coverage looks keep structural ink on the active theme foreground', () => {
+    const themes = ['github-light', 'nord-light', 'dracula']
+    const coverageLooks = [
+      'accessible-high-contrast',
+      'patent-drawing',
+      'status-dashboard',
+      'ops-schematic',
+      'chalkboard',
+      'risograph',
+      'architectural-plan',
+      'publication-figure',
+    ]
+    for (const themeName of themes) {
+      const themeFg = getStyle(themeName)!.colors!.fg!
+      for (const style of coverageLooks) {
+        const svg = renderMermaidSVG(source, { style: [style, themeName] })
+        expect(svg).toContain(`stroke="${themeFg}"`)
+      }
+    }
+  })
+
   test('an inline fragment on top of a stack wins per field', () => {
     const merged = resolveStyleStack(['hand-drawn', { roughness: 2.5, colors: { accent: '#ff0000' } }])!
     expect(merged.roughness).toBe(2.5)
@@ -262,11 +283,11 @@ const LOOKS_WITH_BACKENDS = [
   { style: 'blueprint', backend: 'rough' },
   { style: 'tufte', backend: 'default' },
   { style: 'accessible-high-contrast', backend: 'default' },
-  { style: 'print-grayscale', backend: 'rough' },
+  { style: 'patent-drawing', backend: 'rough' },
   { style: 'status-dashboard', backend: 'default' },
-  { style: 'dense-ops-terminal', backend: 'rough' },
+  { style: 'ops-schematic', backend: 'rough' },
   { style: 'chalkboard', backend: 'rough' },
   { style: 'risograph', backend: 'rough' },
-  { style: 'vellum-architecture', backend: 'rough' },
-  { style: 'editorial-report', backend: 'default' },
+  { style: 'architectural-plan', backend: 'rough' },
+  { style: 'publication-figure', backend: 'default' },
 ] as const

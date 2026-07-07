@@ -76,7 +76,7 @@
         <rect x="390" y="0" width="300" height="62" fill="#fff0dc" stroke="#d1ad78"/>
         <text x="12" y="27" font-family="DejaVu Sans" font-size="15" fill="#211f1b">Stroke</text>
         <text x="110" y="22" font-family="DejaVu Sans" font-size="12" fill="#211f1b">Crisp, jittered rough.js, freehand;</text>
-        <text x="110" y="41" font-family="DejaVu Sans" font-size="12" fill="#211f1b">new chalk, print, riso, terminal dialects.</text>
+        <text x="110" y="41" font-family="DejaVu Sans" font-size="12" fill="#211f1b">new chalk, patent, riso, schematic dialects.</text>
         <text x="405" y="22" font-family="DejaVu Sans" font-size="12" fill="#211f1b">True chalk/brush/calligraphy</text>
         <text x="405" y="41" font-family="DejaVu Sans" font-size="12" fill="#211f1b">and halftone line backends.</text>
       </g>
@@ -87,7 +87,7 @@
         <rect x="390" y="0" width="300" height="62" fill="#fff0dc" stroke="#d1ad78"/>
         <text x="12" y="27" font-family="DejaVu Sans" font-size="15" fill="#211f1b">Fill</text>
         <text x="110" y="22" font-family="DejaVu Sans" font-size="12" fill="#211f1b">None, solid, hachure, wash;</text>
-        <text x="110" y="41" font-family="DejaVu Sans" font-size="12" fill="#211f1b">print/riso styles teach hatch hierarchy.</text>
+        <text x="110" y="41" font-family="DejaVu Sans" font-size="12" fill="#211f1b">patent/riso styles teach hatch hierarchy.</text>
         <text x="405" y="22" font-family="DejaVu Sans" font-size="12" fill="#211f1b">Dot shading, contours, material</text>
         <text x="405" y="41" font-family="DejaVu Sans" font-size="12" fill="#211f1b">textures, gradient rules.</text>
       </g>
@@ -98,7 +98,7 @@
         <rect x="390" y="0" width="300" height="62" fill="#fff0dc" stroke="#d1ad78"/>
         <text x="12" y="27" font-family="DejaVu Sans" font-size="15" fill="#211f1b">Page</text>
         <text x="110" y="22" font-family="DejaVu Sans" font-size="12" fill="#211f1b">Plain, ruled, grid, transparent;</text>
-        <text x="110" y="41" font-family="DejaVu Sans" font-size="12" fill="#211f1b">vellum/chalk/ops use page context.</text>
+        <text x="110" y="41" font-family="DejaVu Sans" font-size="12" fill="#211f1b">chalk/ops/architecture use page context.</text>
         <text x="405" y="22" font-family="DejaVu Sans" font-size="12" fill="#211f1b">Notebook/vellum as real backdrops,</text>
         <text x="405" y="41" font-family="DejaVu Sans" font-size="12" fill="#211f1b">print profiles, dark host demos.</text>
       </g>
@@ -109,7 +109,7 @@
         <rect x="390" y="0" width="300" height="62" fill="#fff0dc" stroke="#d1ad78"/>
         <text x="12" y="27" font-family="DejaVu Sans" font-size="15" fill="#211f1b">Type</text>
         <text x="110" y="22" font-family="DejaVu Sans" font-size="12" fill="#211f1b">Bundled faces plus density, a11y,</text>
-        <text x="110" y="41" font-family="DejaVu Sans" font-size="12" fill="#211f1b">terminal, report, and drafting presets.</text>
+        <text x="110" y="41" font-family="DejaVu Sans" font-size="12" fill="#211f1b">schematic, report, and drafting presets.</text>
         <text x="405" y="22" font-family="DejaVu Sans" font-size="12" fill="#211f1b">Brand typography recipes and</text>
         <text x="405" y="41" font-family="DejaVu Sans" font-size="12" fill="#211f1b">thumbnail-size proof pages.</text>
       </g>

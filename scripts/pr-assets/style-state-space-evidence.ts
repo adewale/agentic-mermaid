@@ -28,13 +28,13 @@ const FONT_FILES = [
 
 const NEW_STYLES = [
   { name: 'accessible-high-contrast', label: 'Accessible high contrast', note: 'large labels + heavy strokes' },
-  { name: 'print-grayscale', label: 'Print grayscale', note: 'monochrome hachure proof' },
+  { name: 'patent-drawing', label: 'Patent drawing', note: 'print-safe ink + hatching' },
   { name: 'status-dashboard', label: 'Status dashboard', note: 'dark operational modules' },
-  { name: 'dense-ops-terminal', label: 'Dense ops terminal', note: 'compact mono dark grid' },
+  { name: 'ops-schematic', label: 'Ops schematic', note: 'compact mono trace map' },
   { name: 'chalkboard', label: 'Chalkboard', note: 'chalk strokes on slate' },
   { name: 'risograph', label: 'Risograph', note: 'two-ink poster hachure' },
-  { name: 'vellum-architecture', label: 'Vellum architecture', note: 'technical drafting sheet' },
-  { name: 'editorial-report', label: 'Editorial report', note: 'polished report figure' },
+  { name: 'architectural-plan', label: 'Architectural plan', note: 'square technical linework' },
+  { name: 'publication-figure', label: 'Publication figure', note: 'polished report figure' },
 ] as const
 
 const PALETTE_CASES = [
@@ -87,7 +87,7 @@ const COVERAGE: CoveragePoint[] = [
     before: 2.7,
     after: 3.2,
     target: 4,
-    coveredNow: ['Crisp, jittered rough.js, freehand;', 'new chalk, print, riso, terminal dialects.'],
+    coveredNow: ['Crisp, jittered rough.js, freehand;', 'new chalk, patent, riso, schematic dialects.'],
     missing: ['True chalk/brush/calligraphy', 'and halftone line backends.'],
   },
   {
@@ -96,7 +96,7 @@ const COVERAGE: CoveragePoint[] = [
     before: 2.6,
     after: 3,
     target: 4,
-    coveredNow: ['None, solid, hachure, wash;', 'print/riso styles teach hatch hierarchy.'],
+    coveredNow: ['None, solid, hachure, wash;', 'patent/riso styles teach hatch hierarchy.'],
     missing: ['Dot shading, contours, material', 'textures, gradient rules.'],
   },
   {
@@ -105,7 +105,7 @@ const COVERAGE: CoveragePoint[] = [
     before: 1.8,
     after: 2.4,
     target: 3.5,
-    coveredNow: ['Plain, ruled, grid, transparent;', 'vellum/chalk/ops use page context.'],
+    coveredNow: ['Plain, ruled, grid, transparent;', 'chalk/ops/architecture use page context.'],
     missing: ['Notebook/vellum as real backdrops,', 'print profiles, dark host demos.'],
   },
   {
@@ -114,7 +114,7 @@ const COVERAGE: CoveragePoint[] = [
     before: 2.1,
     after: 3.2,
     target: 3.5,
-    coveredNow: ['Bundled faces plus density, a11y,', 'terminal, report, and drafting presets.'],
+    coveredNow: ['Bundled faces plus density, a11y,', 'schematic, report, and drafting presets.'],
     missing: ['Brand typography recipes and', 'thumbnail-size proof pages.'],
   },
   {
