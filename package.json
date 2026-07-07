@@ -36,11 +36,11 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/adewale/beautiful-mermaid.git"
+    "url": "git+https://github.com/adewale/agentic-mermaid.git"
   },
   "homepage": "https://agentic-mermaid.dev/",
   "bugs": {
-    "url": "https://github.com/adewale/beautiful-mermaid/issues"
+    "url": "https://github.com/adewale/agentic-mermaid/issues"
   },
   "keywords": [
     "mermaid",

@@ -13,8 +13,8 @@ no browser — every function below runs synchronously in Node, Bun, or the brow
 The npm package is not yet published — install from source for now:
 
 ```bash
-git clone https://github.com/adewale/beautiful-mermaid
-cd beautiful-mermaid && bun install && bun run build
+git clone https://github.com/adewale/agentic-mermaid
+cd agentic-mermaid && bun install && bun run build
 ```
 
 Once published, install it directly (the import paths below are unchanged):

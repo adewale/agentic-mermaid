@@ -1,6 +1,6 @@
 # Gantt support specification
 
-Status: design spec. Target implementation branch: after [PR #22](https://github.com/adewale/beautiful-mermaid/pull/22) or any equivalent merge of the family-plugin/quality-adapter work. This document is a contract for the first Gantt implementation and for follow-up work. It is not a backlog.
+Status: design spec. Target implementation branch: after [PR #22](https://github.com/adewale/agentic-mermaid/pull/22) or any equivalent merge of the family-plugin/quality-adapter work. This document is a contract for the first Gantt implementation and for follow-up work. It is not a backlog.
 
 ## Scope
 
@@ -40,7 +40,7 @@ Recurring user pressure in Mermaid core:
 
 - [`lukilabs/beautiful-mermaid#59`](https://github.com/lukilabs/beautiful-mermaid/issues/59) requests “All Mermaid v11 diagrams” and includes a concrete Gantt sample with `interactive: true`.
 - [`lukilabs/beautiful-mermaid` `phase1-charts`](https://github.com/lukilabs/beautiful-mermaid/tree/phase1-charts) contains branch-only Gantt code: `src/gantt/parser.ts`, `src/gantt/layout.ts`, `src/gantt/renderer.ts`, `src/ascii/gantt.ts`, and `src/__tests__/gantt.test.ts`. It is useful prior art, but it predates Agentic Mermaid’s current source normalization, strict-security pass, agent surface, golden fixtures, and deterministic-output requirements.
-- Agentic Mermaid’s current [`TODO.md`](../../../TODO.md) lists Gantt under BUILD-5 alongside pie, mindmap, and gitgraph. [PR #22](https://github.com/adewale/beautiful-mermaid/pull/22) adds the family-plugin consolidation, opaque fallback pattern, layout-quality adapters, and family-usage counter that Gantt should build on.
+- Agentic Mermaid’s current [`TODO.md`](../../../TODO.md) lists Gantt under BUILD-5 alongside pie, mindmap, and gitgraph. [PR #22](https://github.com/adewale/agentic-mermaid/pull/22) adds the family-plugin consolidation, opaque fallback pattern, layout-quality adapters, and family-usage counter that Gantt should build on.
 
 ### Mermaid ASCII and terminal-renderer forks
 

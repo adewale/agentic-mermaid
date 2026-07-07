@@ -8,7 +8,7 @@ This appendix records the wider research requested after the initial Gantt spec:
 
 Search channels:
 
-- GitHub issue/PR searches across `mermaid-js/mermaid`, `lukilabs/beautiful-mermaid`, `adewale/beautiful-mermaid`, and Mermaid ASCII forks.
+- GitHub issue/PR searches across `mermaid-js/mermaid`, `lukilabs/beautiful-mermaid`, `adewale/agentic-mermaid`, and Mermaid ASCII forks.
 - Crossref DOI search for Gantt, task schedules, project scheduling, timeline visualization, critical path, uncertainty, and resource-constrained scheduling.
 - Official product docs and feature pages for commercial Gantt/timeline tools.
 - Local source inspection of `upstream/phase1-charts`, `pgavlin/mermaid-ascii`, `kais-radwan/ascii-mermaid`, `razor-ai/ascii-mermaid`, and `mermaid-ast`.

@@ -1,6 +1,6 @@
 # What is different about this fork?
 
-This document describes **Agentic Mermaid**, the `adewale/beautiful-mermaid` fork, relative to upstream `lukilabs/beautiful-mermaid`. It is intentionally product/documentation focused; upstreamable changes should still be split into small PRs.
+This document describes **Agentic Mermaid**, the `adewale/agentic-mermaid` fork, relative to upstream `lukilabs/beautiful-mermaid`. It is intentionally product/documentation focused; upstreamable changes should still be split into small PRs.
 
 ## Live site
 
@@ -125,7 +125,7 @@ Users can discover fork features through:
   *definition-scope* membership with no surprising re-parenting when a node is
   mentioned again inside a container, consistent with the fork's goal of
   predictable, source-preserving behavior rather than Mermaid pixel/layout parity
-  (see [#38](https://github.com/adewale/beautiful-mermaid/issues/38)). Mermaid's own
+  (see [#38](https://github.com/adewale/agentic-mermaid/issues/38)). Mermaid's own
   users report *its* behavior as a bug (`mermaid-js/mermaid#738`, `#2707`). The rule
   is inherited from upstream Beautiful Mermaid (introduced in its v1.0.0 rewrite),
   not fork-invented, and is guarded by `src/__tests__/parser.test.ts` — a node
