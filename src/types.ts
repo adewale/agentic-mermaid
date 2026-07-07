@@ -345,6 +345,8 @@ export interface TextRoleStyle {
   fontWeight?: number
   /** Letter spacing in px for this semantic text role. */
   letterSpacing?: number
+  /** Visible label text transform for this semantic text role. */
+  textTransform?: TextTransform
   /** Text fill color for this semantic role. */
   textColor?: string
 }
@@ -378,8 +380,6 @@ export interface EdgeRoleStyle extends TextRoleStyle {
 export interface GroupRoleStyle extends TextRoleStyle, BoxRoleStyle {
   /** Header/label font family override. Defaults to the main font. */
   fontFamily?: string
-  /** Header/label text transform. */
-  textTransform?: TextTransform
   /** Border stroke width in px for group-like containers. */
   lineWidth?: number
   /** Header/band fill color for group-like containers. */

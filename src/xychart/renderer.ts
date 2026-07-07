@@ -1,7 +1,7 @@
 import type { PositionedBar, PositionedXYChart } from './types.ts'
 import type { RenderContext, RenderOptions } from '../types.ts'
 import { svgOpenTag, buildStyleBlock } from '../theme.ts'
-import { TEXT_BASELINE_SHIFT, estimateTextWidth, STROKE_WIDTHS, resolveRenderStyle } from '../styles.ts'
+import { TEXT_BASELINE_SHIFT, applyTextTransform, estimateTextWidth, STROKE_WIDTHS, resolveRenderStyle } from '../styles.ts'
 import type { RenderStyleDefaults } from '../styles.ts'
 import { XY_STYLE_DEFAULTS } from './layout.ts'
 import { escapeXml } from '../multiline-utils.ts'
@@ -220,12 +220,13 @@ export function lowerXYChartScene(
   if (chart.config.showDataLabel) {
     const labelSeriesCount = new Map<number, number>()
     for (const label of buildBarDataLabels(chart.bars, chart.horizontal ?? false)) {
+      const text = applyTextTransform(label.text, style.nodeTextTransform)
       const catIndex = labelSeriesCount.get(label.bar.seriesIndex) ?? 0
       labelSeriesCount.set(label.bar.seriesIndex, catIndex + 1)
       parts.push(marks.text({
         id: `label:bar:${label.bar.seriesIndex}:${label.bar.label ?? catIndex}`,
         role: 'label',
-        text: label.text,
+        text,
         x: label.x,
         y: label.y,
         fontSize: label.fontSize,
@@ -235,7 +236,7 @@ export function lowerXYChartScene(
       },
         `<text x="${r(label.x)}" y="${r(label.y)}" text-anchor="${label.anchor}" ` +
         `${label.dominantBaseline ? `dominant-baseline="${label.dominantBaseline}" ` : ''}` +
-        `font-size="${label.fontSize}" font-weight="${style.nodeLabelFontWeight}"${letterAttr(style.nodeLetterSpacing)} class="xychart-data-label">${escapeXml(label.text)}</text>`,
+        `font-size="${label.fontSize}" font-weight="${style.nodeLabelFontWeight}"${letterAttr(style.nodeLetterSpacing)} class="xychart-data-label">${escapeXml(text)}</text>`,
       ))
     }
   }
@@ -245,11 +246,12 @@ export function lowerXYChartScene(
 
   if (chart.xAxis.title) {
     const title = chart.xAxis.title
+    const text = applyTextTransform(title.text, style.edgeTextTransform)
     const transform = title.rotate ? ` transform="rotate(${title.rotate},${title.x},${title.y})"` : ''
     parts.push(marks.text({
       id: 'axis:x:title',
       role: 'axis',
-      text: title.text,
+      text,
       x: title.x,
       y: title.y,
       fontSize: chart.xAxis.config.titleFontSize,
@@ -258,17 +260,18 @@ export function lowerXYChartScene(
     },
       `<text x="${title.x}" y="${title.y}" text-anchor="middle"${transform} ` +
       `font-size="${chart.xAxis.config.titleFontSize}" font-weight="${style.edgeLabelFontWeight}"${letterAttr(style.edgeLetterSpacing)} ` +
-      `dy="${TEXT_BASELINE_SHIFT}" class="xychart-axis-title xychart-x-axis-title">${escapeXml(title.text)}</text>`,
+      `dy="${TEXT_BASELINE_SHIFT}" class="xychart-axis-title xychart-x-axis-title">${escapeXml(text)}</text>`,
     ))
   }
 
   if (chart.yAxis.title) {
     const title = chart.yAxis.title
+    const text = applyTextTransform(title.text, style.edgeTextTransform)
     const transform = title.rotate ? ` transform="rotate(${title.rotate},${title.x},${title.y})"` : ''
     parts.push(marks.text({
       id: 'axis:y:title',
       role: 'axis',
-      text: title.text,
+      text,
       x: title.x,
       y: title.y,
       fontSize: chart.yAxis.config.titleFontSize,
@@ -277,15 +280,16 @@ export function lowerXYChartScene(
     },
       `<text x="${title.x}" y="${title.y}" text-anchor="middle"${transform} ` +
       `font-size="${chart.yAxis.config.titleFontSize}" font-weight="${style.edgeLabelFontWeight}"${letterAttr(style.edgeLetterSpacing)} ` +
-      `dy="${TEXT_BASELINE_SHIFT}" class="xychart-axis-title xychart-y-axis-title">${escapeXml(title.text)}</text>`,
+      `dy="${TEXT_BASELINE_SHIFT}" class="xychart-axis-title xychart-y-axis-title">${escapeXml(text)}</text>`,
     ))
   }
 
   if (chart.title) {
+    const title = applyTextTransform(chart.title.text, style.groupTextTransform)
     parts.push(marks.text({
       id: 'title',
       role: 'title',
-      text: chart.title.text,
+      text: title,
       x: chart.title.x,
       y: chart.title.y,
       fontSize: chart.config.titleFontSize,
@@ -294,7 +298,7 @@ export function lowerXYChartScene(
     },
       `<text x="${chart.title.x}" y="${chart.title.y}" text-anchor="middle" ` +
       `font-size="${chart.config.titleFontSize}" font-weight="${style.groupHeaderFontWeight}"${letterAttr(style.groupLetterSpacing)} ` +
-      `dy="${TEXT_BASELINE_SHIFT}" class="xychart-title">${escapeXml(chart.title.text)}</text>`,
+      `dy="${TEXT_BASELINE_SHIFT}" class="xychart-title">${escapeXml(title)}</text>`,
     ))
   }
 
@@ -348,12 +352,13 @@ function lowerAxisLabels(
   fill: string,
 ): void {
   for (const tick of ticks) {
+    const label = applyTextTransform(tick.label, style.edgeTextTransform)
     const middleBaseline = tick.textAnchor === 'end' ? ' dominant-baseline="middle"' : ''
     const dy = tick.textAnchor === 'end' ? '' : ` dy="${TEXT_BASELINE_SHIFT}"`
     parts.push(marks.text({
       id: `axis:${axisName}:label:${tick.label}`,
       role: 'axis',
-      text: tick.label,
+      text: label,
       x: tick.labelX,
       y: tick.labelY,
       fontSize,
@@ -362,7 +367,7 @@ function lowerAxisLabels(
     },
       `<text x="${tick.labelX}" y="${tick.labelY}" text-anchor="${tick.textAnchor}"${middleBaseline} ` +
       `font-size="${fontSize}" font-weight="${style.nodeLabelFontWeight}"${letterAttr(style.nodeLetterSpacing)}${dy} class="xychart-label xychart-${axisName}-label">` +
-      `${escapeXml(tick.label)}</text>`,
+      `${escapeXml(label)}</text>`,
     ))
   }
 }

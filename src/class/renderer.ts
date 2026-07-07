@@ -1,7 +1,7 @@
 import type { PositionedClassDiagram, PositionedClassNode, PositionedClassRelationship, ClassMember, RelationshipType } from './types.ts'
 import type { RenderContext } from '../types.ts'
 import { svgOpenTag, buildStyleBlock, buildShadowDefs } from '../theme.ts'
-import { FONT_SIZES, FONT_WEIGHTS, STROKE_WIDTHS, TEXT_BASELINE_SHIFT, resolveRenderStyle } from '../styles.ts'
+import { FONT_SIZES, FONT_WEIGHTS, STROKE_WIDTHS, TEXT_BASELINE_SHIFT, applyTextTransform, resolveRenderStyle } from '../styles.ts'
 import type { RenderStyleDefaults, ResolvedRenderStyle } from '../styles.ts'
 import { CLS, CLASS_STYLE_DEFAULTS } from './layout.ts'
 import { buildAccessibilityAttrs } from '../shared/svg-a11y.ts'
@@ -240,19 +240,20 @@ function renderClassBox(cls: PositionedClassNode, style: ResolvedRenderStyle): S
 
   // Class name (supports multi-line via <br> tags)
   const nameColor = style.nodeTextColor ?? 'var(--_text)'
+  const label = applyTextTransform(cls.label, style.nodeTextTransform)
   children.push({
     indent: 2,
     node: marks.text({
       id: `class:${cls.id}:name`,
       role: 'label',
-      text: cls.label,
+      text: label,
       x: x + width / 2,
       y: nameY,
       fontSize: style.nodeLabelFontSize,
       anchor: 'middle',
       paint: { fill: nameColor },
     }, renderMultilineText(
-      cls.label,
+      label,
       x + width / 2,
       nameY,
       style.nodeLabelFontSize,
@@ -511,16 +512,17 @@ function renderRelationshipLabels(rel: PositionedClassRelationship, style: Resol
   // Label — prefer layout-computed position (collision-aware), fall back to midpoint
   if (rel.label) {
     const pos = rel.labelPosition ?? midpoint(rel.points)
+    const label = applyTextTransform(rel.label, style.edgeTextTransform)
     out.push(marks.text({
       id: `rel-label:${key}`,
       role: 'label',
-      text: rel.label,
+      text: label,
       x: pos.x,
       y: pos.y - 8,
       fontSize: style.edgeLabelFontSize,
       anchor: 'middle',
       paint: { fill: textColor },
-    }, renderMultilineText(rel.label, pos.x, pos.y - 8, style.edgeLabelFontSize, textAttrs)))
+    }, renderMultilineText(label, pos.x, pos.y - 8, style.edgeLabelFontSize, textAttrs)))
   }
 
   // From cardinality (near start)

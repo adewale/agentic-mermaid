@@ -33,7 +33,7 @@ import type {
   DiamondFacet,
   RouteClass,
 } from './types.ts'
-import { ARROW_HEAD, FLOWCHART_DOTTED_DASH, resolveRenderStyle } from './styles.ts'
+import { ARROW_HEAD, FLOWCHART_DOTTED_DASH, applyTextTransform, resolveRenderStyle } from './styles.ts'
 import type { ResolvedRenderStyle } from './styles.ts'
 import { measureMultilineText } from './text-metrics.ts'
 import { elkLayoutSync } from './elk-instance.ts'
@@ -178,7 +178,7 @@ function sourceAwareNodeOrder(nodeIds: string[], edges: Array<Pick<MermaidEdge, 
 
 function estimateNodeSize(id: string, label: string, shape: string, style: ResolvedRenderStyle): { width: number; height: number } {
   void id
-  const metrics = measureMultilineText(label, style.nodeLabelFontSize, style.nodeLabelFontWeight)
+  const metrics = measureMultilineText(applyTextTransform(label, style.nodeTextTransform), style.nodeLabelFontSize, style.nodeLabelFontWeight)
 
   let width = metrics.width + style.nodePaddingX * 2
   let height = metrics.height + style.nodePaddingY * 2
@@ -359,7 +359,8 @@ function corankFanInBalancingLabels(
     let width = 0
     let height = 0
     for (const i of labeled) {
-      const metrics = measureMultilineText(graph.edges[i]!.label!, style.edgeLabelFontSize, style.edgeLabelFontWeight)
+      const label = applyTextTransform(graph.edges[i]!.label!, style.edgeTextTransform)
+      const metrics = measureMultilineText(label, style.edgeLabelFontSize, style.edgeLabelFontWeight)
       width = Math.max(width, metrics.width + 8)
       height = Math.max(height, metrics.height + 6)
     }
@@ -606,9 +607,10 @@ function mermaidToElk(
       targets: [routePortHints.byEndpoint.get(endpointKey(index, 'target'))?.portId ?? edge.target],
     }
     if (edge.label && !layoutEnvFlag('APL_DECOUPLE_LABELS')) {
-      const metrics = measureMultilineText(edge.label, style.edgeLabelFontSize, style.edgeLabelFontWeight)
+      const label = applyTextTransform(edge.label, style.edgeTextTransform)
+      const metrics = measureMultilineText(label, style.edgeLabelFontSize, style.edgeLabelFontWeight)
       elkEdge.labels = [{
-        text: edge.label,
+        text: label,
         width: metrics.width + 8,
         height: metrics.height + 6,
         layoutOptions: {
@@ -863,9 +865,10 @@ function crossHierarchyElkEdge(
     targets: targetSubgraph && targetSubgraph !== hostSubgraph ? [`${targetSubgraph}_in_${index}`] : [edge.target],
   }
   if (edge.label && !layoutEnvFlag('APL_DECOUPLE_LABELS')) {
-    const metrics = measureMultilineText(edge.label, style.edgeLabelFontSize, style.edgeLabelFontWeight)
+    const label = applyTextTransform(edge.label, style.edgeTextTransform)
+    const metrics = measureMultilineText(label, style.edgeLabelFontSize, style.edgeLabelFontWeight)
     elkEdge.labels = [{
-      text: edge.label,
+      text: label,
       width: metrics.width + 8,
       height: metrics.height + 6,
       layoutOptions: {
@@ -966,9 +969,10 @@ function subgraphToElk(
       targets: [routePortHints.byEndpoint.get(endpointKey(index, 'target'))?.portId ?? edge.target],
     }
     if (edge.label && !layoutEnvFlag('APL_DECOUPLE_LABELS')) {
-      const metrics = measureMultilineText(edge.label, style.edgeLabelFontSize, style.edgeLabelFontWeight)
+      const label = applyTextTransform(edge.label, style.edgeTextTransform)
+      const metrics = measureMultilineText(label, style.edgeLabelFontSize, style.edgeLabelFontWeight)
       elkEdge.labels = [{
-        text: edge.label,
+        text: label,
         width: metrics.width + 8,
         height: metrics.height + 6,
         layoutOptions: {

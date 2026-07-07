@@ -8,7 +8,7 @@ import type {
 } from './types.ts'
 import type { RenderOptions } from '../types.ts'
 import { measureMultilineText, measureTextWidth } from '../text-metrics.ts'
-import { STROKE_WIDTHS, resolveRenderStyle } from '../styles.ts'
+import { STROKE_WIDTHS, applyTextTransform, resolveRenderStyle } from '../styles.ts'
 import type { RenderStyleDefaults } from '../styles.ts'
 import { stripFormattingTags } from '../multiline-utils.ts'
 
@@ -109,13 +109,16 @@ export function layoutJourneyDiagram(
   const hasNamedSections = diagram.sections.some(section => !!section.label)
   const showSectionFrames = diagram.sections.length > 1 || hasNamedSections
 
-  const titleMetrics = diagram.title
-    ? measureMultilineText(diagram.title, JY.titleFontSize, JY.titleFontWeight)
+  const titleText = diagram.title
+    ? applyTextTransform(diagram.title, style.groupTextTransform)
+    : undefined
+  const titleMetrics = titleText
+    ? measureMultilineText(titleText, JY.titleFontSize, JY.titleFontWeight)
     : undefined
 
   const headerHeights = diagram.sections
     .map(section => section.label
-      ? measureMultilineText(section.label, style.groupHeaderFontSize, style.groupHeaderFontWeight).height + Math.max(0, style.groupPaddingY / 3) * 2
+      ? measureMultilineText(applyTextTransform(section.label, style.groupTextTransform), style.groupHeaderFontSize, style.groupHeaderFontWeight).height + Math.max(0, style.groupPaddingY / 3) * 2
       : 0)
   const sectionHeaderHeight = hasNamedSections
     ? Math.max(JY.sectionHeaderMinHeight, ...headerHeights)
@@ -123,21 +126,23 @@ export function layoutJourneyDiagram(
 
   const sectionMetrics: SectionMetric[] = diagram.sections.map(section => {
     const headerWidth = section.label
-      ? measureMultilineText(section.label, style.groupHeaderFontSize, style.groupHeaderFontWeight).width + style.groupLabelPaddingX * 2
+      ? measureMultilineText(applyTextTransform(section.label, style.groupTextTransform), style.groupHeaderFontSize, style.groupHeaderFontWeight).width + style.groupLabelPaddingX * 2
       : 0
 
     const taskMetrics: TaskMetric[] = section.tasks.map(task => {
-      const text = measureMultilineText(task.text, style.nodeLabelFontSize, style.nodeLabelFontWeight)
+      const taskText = applyTextTransform(task.text, style.nodeTextTransform)
+      const text = measureMultilineText(taskText, style.nodeLabelFontSize, style.nodeLabelFontWeight)
       const topAreaHeight = Math.max(text.height, JY.scoreCellSize)
 
       const actorPills: ActorPillMetric[] = task.actors.map(actor => {
-        const plain = stripFormattingTags(actor)
+        const label = applyTextTransform(actor, style.edgeTextTransform)
+        const plain = stripFormattingTags(label)
         const width = Math.max(
           JY.actorMinWidth,
           measureTextWidth(plain, style.edgeLabelFontSize, style.edgeLabelFontWeight) + JY.actorPadX * 2,
         )
-        const height = measureMultilineText(actor, style.edgeLabelFontSize, style.edgeLabelFontWeight).height + JY.actorPadY * 2
-        return { label: actor, width, height }
+        const height = measureMultilineText(label, style.edgeLabelFontSize, style.edgeLabelFontWeight).height + JY.actorPadY * 2
+        return { label, width, height }
       })
 
       const actorRowWidth = actorPills.reduce((sum, pill, index) => {
@@ -240,7 +245,7 @@ export function layoutJourneyDiagram(
       tasks.push({
         id: task.id,
         sectionId: section.id,
-        text: task.text,
+        text: applyTextTransform(task.text, style.nodeTextTransform),
         score: task.score,
         actors: task.actors,
         x: sectionInnerX,
@@ -258,7 +263,7 @@ export function layoutJourneyDiagram(
 
     sections.push({
       id: section.id,
-      label: section.label,
+      label: section.label ? applyTextTransform(section.label, style.groupTextTransform) : undefined,
       x: cursorX,
       y: contentTop,
       width: sectionWidth,
@@ -279,9 +284,9 @@ export function layoutJourneyDiagram(
   return {
     width,
     height,
-    title: diagram.title
+    title: titleText
       ? {
-          text: diagram.title,
+          text: titleText,
           x: width / 2,
           y: JY.paddingY + titleMetrics!.height / 2,
         }

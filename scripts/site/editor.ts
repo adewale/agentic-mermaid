@@ -106,14 +106,22 @@ const STYLE_LABELS: Record<string, string> = {
   'watercolor': 'Watercolor',
   'blueprint': 'Blueprint',
   'tufte': 'Tufte',
-  'accessible-high-contrast': 'High Contrast',
-  'patent-drawing': 'Patent Drawing',
-  'status-dashboard': 'Status Dashboard',
-  'ops-schematic': 'Ops Schematic',
+  'accessible-high-contrast': 'Accessible Contrast',
+  'patent-drawing': 'Patent Hatching',
+  'status-dashboard': 'Dark Ops Dashboard',
+  'ops-schematic': 'Compact Trace Map',
   'chalkboard': 'Chalkboard',
-  'risograph': 'Risograph',
-  'architectural-plan': 'Architectural Plan',
-  'publication-figure': 'Publication Figure',
+  'risograph': 'Riso Print',
+  'architectural-plan': 'Plan Drafting',
+  'publication-figure': 'Report Figure',
+}
+
+function escapeHtmlAttr(value: string): string {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/"/g, '&quot;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
 }
 
 /** Full looks only — palette-only styles ARE the themes and already have the
@@ -121,9 +129,12 @@ const STYLE_LABELS: Record<string, string> = {
  *  palette, and render-option precedence stacks them (theme colors win). */
 function styleItemsHtml(): string {
   const looks = knownStyles().filter(name => name === 'crisp' || styleKind(getStyle(name)!) === 'look')
-  return looks.map((key, i) =>
-    `<button class="theme-dropdown-item${i === 0 ? ' active' : ''}" type="button" role="option" aria-selected="${i === 0 ? 'true' : 'false'}" data-style="${key}">${STYLE_LABELS[key] ?? key}</button>`,
-  ).join('\n      ')
+  return looks.map((key, i) => {
+    const spec = key === 'crisp' ? undefined : getStyle(key)
+    const label = STYLE_LABELS[key] ?? key
+    const hint = spec?.blurb ? `${label}: ${spec.blurb}` : label
+    return `<button class="theme-dropdown-item${i === 0 ? ' active' : ''}" type="button" role="option" aria-selected="${i === 0 ? 'true' : 'false'}" data-style="${key}" title="${escapeHtmlAttr(hint)}" aria-label="${escapeHtmlAttr(hint)}">${label}</button>`
+  }).join('\n      ')
 }
 
 async function readHtmlPartials(themeItems: string): Promise<{

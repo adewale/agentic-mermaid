@@ -70,7 +70,7 @@ on the crisp default backend with your palette and typography.
 | stroke | `stroke: 'crisp' \| 'jittered' \| 'freehand'`, `roughness`, `bowing`, `passes` (1 = single pass, 2 = sketchy double stroke), `strokeWidth` — works on every backend (on the default backend it sets the role line widths; explicit `node`/`edge`/`group.lineWidth` win) |
 | fill | `fill: 'none' \| 'hachure' \| 'solid' \| 'wash'`, `hachureAngle`, `hachureGap`, `fillWeight`, `washOpacity`, `washEdge` — `fill` picks the *sketch* fill algorithm; the default backend already paints flat `surface` fills, so `'solid'` is its native behavior and `'none'` only changes output on sketch backends |
 | page | `backdrop: 'plain' \| 'paper-ruled' \| 'grid'` |
-| role overrides | `text`, `node`, `edge`, `group` (font sizes, line widths, corner radii, paddings per semantic role) |
+| role overrides | `text`, `node`, `edge`, `group` (font sizes, label transforms, line widths, corner radii, paddings per semantic role) |
 | advisory | `intent: 'premium' \| 'draft' \| 'lofi'`, `mono` — read by pickers and the rubric below, never by the engine |
 | expert | `backend` — overrides inference; only needed for code-backed extensions |
 
@@ -118,7 +118,7 @@ judgement.
 ## Verify before you ship
 
 ```bash
-bun run style:audit                         # role-token propagation + contrast
+bun run style:audit                         # element role coverage + role-token propagation + contrast + label transforms
 bun test src/__tests__/styled-output.test.ts   # determinism + goldens + composition
 bun test src/__tests__/scene-fidelity.test.ts  # semantic/crisp agreement
 bun test src/__tests__/svg-equivalence.test.ts # crisp path untouched

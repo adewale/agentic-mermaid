@@ -120,9 +120,9 @@ itself a valid style):
 
 | Role | Fields |
 |---|---|
-| `style.text` | `fontSize`, `fontWeight`, `letterSpacing` |
-| `style.node` | `fontSize`, `fontWeight`, `letterSpacing`, `paddingX`, `paddingY`, `cornerRadius`, `lineWidth` |
-| `style.edge` | `fontSize`, `fontWeight`, `letterSpacing`, `lineWidth`, `bendRadius` |
+| `style.text` | `fontSize`, `fontWeight`, `letterSpacing`, `textTransform` |
+| `style.node` | `fontSize`, `fontWeight`, `letterSpacing`, `textTransform`, `paddingX`, `paddingY`, `cornerRadius`, `lineWidth` |
+| `style.edge` | `fontSize`, `fontWeight`, `letterSpacing`, `textTransform`, `lineWidth`, `bendRadius` |
 | `style.group` | `fontSize`, `fontWeight`, `letterSpacing`, `fontFamily`, `textTransform`, `paddingX`, `paddingY`, `cornerRadius`, `borderColor`, `lineWidth` |
 
 ## Agent edit API

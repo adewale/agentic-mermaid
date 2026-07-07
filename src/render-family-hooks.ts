@@ -229,6 +229,7 @@ registerRenderHooks('gantt', {
   layout: ctx => {
     const pipeline = buildGanttRenderPipeline(ctx.source.lines, ctx.source.frontmatter, {
       clock: { today: ctx.options.ganttToday },
+      layout: { renderOptions: ctx.options },
     })
     return layoutResult(pipeline.positioned)
   },

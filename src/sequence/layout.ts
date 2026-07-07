@@ -1,6 +1,6 @@
 import type { SequenceDiagram, PositionedSequenceDiagram, PositionedActor, Lifeline, PositionedMessage, Activation, PositionedBlock, PositionedNote } from './types.ts'
 import type { RenderOptions } from '../types.ts'
-import { estimateTextWidth, FONT_SIZES, FONT_WEIGHTS, STROKE_WIDTHS, resolveRenderStyle } from '../styles.ts'
+import { applyTextTransform, estimateTextWidth, FONT_SIZES, FONT_WEIGHTS, STROKE_WIDTHS, resolveRenderStyle } from '../styles.ts'
 import type { RenderStyleDefaults } from '../styles.ts'
 import { measureMultilineText } from '../text-metrics.ts'
 
@@ -96,7 +96,7 @@ export function layoutSequenceDiagram(
 
   // 1. Calculate actor widths and assign horizontal positions (center X)
   const actorWidths = diagram.actors.map(a => {
-    const textW = estimateTextWidth(a.label, style.nodeLabelFontSize, style.nodeLabelFontWeight)
+    const textW = estimateTextWidth(applyTextTransform(a.label, style.nodeTextTransform), style.nodeLabelFontSize, style.nodeLabelFontWeight)
     return Math.max(textW + style.nodePaddingX * 2, 80)
   })
 
@@ -167,11 +167,12 @@ export function layoutSequenceDiagram(
   const nestingOffset = 4 // Horizontal offset per nesting level
 
   const positionNote = (note: typeof diagram.notes[number], noteY: number): PositionedNote => {
+    const noteText = applyTextTransform(note.text, style.nodeTextTransform)
     const noteW = Math.max(
       SEQ.noteWidth,
-      estimateTextWidth(note.text, style.nodeLabelFontSize, style.nodeLabelFontWeight) + style.nodePaddingX * 2
+      estimateTextWidth(noteText, style.nodeLabelFontSize, style.nodeLabelFontWeight) + style.nodePaddingX * 2
     )
-    const noteH = measureMultilineText(note.text, style.nodeLabelFontSize, style.nodeLabelFontWeight).height + style.nodePaddingY * 2
+    const noteH = measureMultilineText(noteText, style.nodeLabelFontSize, style.nodeLabelFontWeight).height + style.nodePaddingY * 2
     const firstActorIdx = actorIndex.get(note.actorIds[0] ?? '') ?? 0
     let noteX: number
     if (note.position === 'left') {
@@ -345,12 +346,12 @@ export function layoutSequenceDiagram(
       // and message label occupy the same horizontal region, which would
       // cause vertical text overlap at the default 8px baseline gap.
       if (d.label && msg?.label) {
-        const divLabelText = `[${d.label}]`
+        const divLabelText = applyTextTransform(`[${d.label}]`, style.edgeTextTransform)
         const divLabelW = estimateTextWidth(divLabelText, style.edgeLabelFontSize, style.edgeLabelFontWeight)
         const divLabelLeft = blockLeft + 8
         const divLabelRight = divLabelLeft + divLabelW
 
-        const msgLabelW = estimateTextWidth(msg.label, style.edgeLabelFontSize, style.edgeLabelFontWeight)
+        const msgLabelW = estimateTextWidth(applyTextTransform(msg.label, style.edgeTextTransform), style.edgeLabelFontSize, style.edgeLabelFontWeight)
         // Self-messages render labels at x1 + 36 (left-aligned); normal
         // messages center the label between the two actor lifelines.
         const msgLabelLeft = msg.isSelf
@@ -411,7 +412,7 @@ export function layoutSequenceDiagram(
       const loopW = 30 // matches renderer loopW
       const labelPadding = 8
       const labelLeft = m.x1 + loopW + labelPadding
-      const labelWidth = estimateTextWidth(m.label, style.edgeLabelFontSize, style.edgeLabelFontWeight)
+      const labelWidth = estimateTextWidth(applyTextTransform(m.label, style.edgeTextTransform), style.edgeLabelFontSize, style.edgeLabelFontWeight)
       globalMaxX = Math.max(globalMaxX, labelLeft + labelWidth + 8) // +8 for safety margin
     }
   }

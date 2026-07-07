@@ -1,7 +1,7 @@
 import type { PositionedErDiagram, PositionedErEntity, PositionedErRelationship, ErAttribute, Cardinality } from './types.ts'
 import type { RenderContext } from '../types.ts'
 import { svgOpenTag, buildStyleBlock, buildShadowDefs } from '../theme.ts'
-import { FONT_SIZES, FONT_WEIGHTS, STROKE_WIDTHS, estimateTextWidth, TEXT_BASELINE_SHIFT, resolveRenderStyle } from '../styles.ts'
+import { FONT_SIZES, FONT_WEIGHTS, STROKE_WIDTHS, estimateTextWidth, TEXT_BASELINE_SHIFT, applyTextTransform, resolveRenderStyle } from '../styles.ts'
 import type { RenderStyleDefaults, ResolvedRenderStyle } from '../styles.ts'
 import { ER_STYLE_DEFAULTS } from './layout.ts'
 import { buildAccessibilityAttrs } from '../shared/svg-a11y.ts'
@@ -194,19 +194,20 @@ function renderEntityBox(entity: PositionedErEntity, style: ResolvedRenderStyle)
 
   // Entity name (supports multi-line via <br> tags)
   const nameColor = style.nodeTextColor ?? 'var(--_text)'
+  const displayLabel = applyTextTransform(label, style.nodeTextTransform)
   children.push({
     indent: 2,
     node: marks.text({
       id: `entity-name:${id}`,
       role: 'label',
-      text: label,
+      text: displayLabel,
       x: x + width / 2,
       y: y + headerHeight / 2,
       fontSize: style.nodeLabelFontSize,
       anchor: 'middle',
       paint: { fill: nameColor },
     }, renderMultilineText(
-      label,
+      displayLabel,
       x + width / 2,
       y + headerHeight / 2,
       style.nodeLabelFontSize,
@@ -449,7 +450,7 @@ function separateRelationshipLabels(
   const placed: Box[] = []
   for (const rel of diagram.relationships) {
     if (!rel.label || rel.points.length < 2) continue
-    const m = measureMultilineText(rel.label, style.edgeLabelFontSize, style.edgeLabelFontWeight)
+    const m = measureMultilineText(applyTextTransform(rel.label, style.edgeTextTransform), style.edgeLabelFontSize, style.edgeLabelFontWeight)
     const bgW = m.width + 8, bgH = m.height + 6
     const boxAt = (cx: number, cy: number): Box => ({ x0: cx - bgW / 2, y0: cy - bgH / 2, x1: cx + bgW / 2, y1: cy + bgH / 2 })
     const collides = (b: Box): boolean => placed.some(o => intersects(b, o)) || entityBoxes.some(o => intersects(b, o))
@@ -493,7 +494,8 @@ function renderRelationshipLabel(rel: PositionedErRelationship, style: ResolvedR
   }
 
   const mid = at ?? midpoint(rel.points)
-  const metrics = measureMultilineText(rel.label, style.edgeLabelFontSize, style.edgeLabelFontWeight)
+  const displayLabel = applyTextTransform(rel.label, style.edgeTextTransform)
+  const metrics = measureMultilineText(displayLabel, style.edgeLabelFontSize, style.edgeLabelFontWeight)
 
   // Background pill for readability
   const bgW = metrics.width + 8
@@ -512,13 +514,13 @@ function renderRelationshipLabel(rel: PositionedErRelationship, style: ResolvedR
   const label = marks.text({
     id: sceneId,
     role: 'label',
-    text: rel.label,
+    text: displayLabel,
     x: mid.x,
     y: mid.y,
     fontSize: style.edgeLabelFontSize,
     anchor: 'middle',
     paint: { fill: labelColor },
-  }, renderMultilineText(rel.label, mid.x, mid.y, style.edgeLabelFontSize,
+  }, renderMultilineText(displayLabel, mid.x, mid.y, style.edgeLabelFontSize,
     `text-anchor="middle" font-size="${style.edgeLabelFontSize}" font-weight="${style.edgeLabelFontWeight}"${letterAttr(style.edgeLetterSpacing)} fill="${escapeAttr(labelColor)}"`))
 
   return [pill, label]

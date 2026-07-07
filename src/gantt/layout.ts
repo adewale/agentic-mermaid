@@ -14,7 +14,9 @@ import type {
   GanttSectionBand, GanttVertLayout, GanttTick, GanttTickUnit, EpochMs,
 } from './types.ts'
 import { DAY_MS, dayOfWeek, WEEKDAY_INDEX, formatGanttInstant, startOfDay } from './schedule.ts'
-import { estimateTextWidth } from '../styles.ts'
+import { applyTextTransform, estimateTextWidth, resolveRenderStyle, STROKE_WIDTHS } from '../styles.ts'
+import type { RenderStyleDefaults, ResolvedRenderStyle } from '../styles.ts'
+import type { RenderOptions } from '../types.ts'
 
 export const GANTT_MAX_TICKS = 120
 
@@ -25,6 +27,8 @@ export interface GanttLayoutOptions {
   barHeight?: number
   /** Resolved clock instant (schedule.today). */
   today?: EpochMs
+  /** Render options whose style roles affect label and axis geometry. */
+  renderOptions?: RenderOptions
 }
 
 const GL = {
@@ -39,6 +43,23 @@ const GL = {
   labelFontSize: 13,
   sectionFontSize: 13,
 } as const
+
+export const GANTT_STYLE_DEFAULTS: RenderStyleDefaults = {
+  nodeLabelFontSize: GL.labelFontSize,
+  edgeLabelFontSize: 11,
+  groupHeaderFontSize: GL.sectionFontSize,
+  nodeLabelFontWeight: 500,
+  edgeLabelFontWeight: 500,
+  groupHeaderFontWeight: 600,
+  nodePaddingX: 0,
+  nodePaddingY: 0,
+  nodeLineWidth: STROKE_WIDTHS.innerBox,
+  edgeLineWidth: STROKE_WIDTHS.connector,
+  groupCornerRadius: 0,
+  groupPaddingX: 0,
+  groupPaddingY: 0,
+  groupLineWidth: STROKE_WIDTHS.outerBox,
+}
 
 const TICK_UNIT_MS: Record<GanttTickUnit, number> = {
   millisecond: 1,
@@ -68,6 +89,50 @@ interface TickPlan {
   unit: GanttTickUnit
   count: number
   format: string
+}
+
+const INLINE_FORMAT_TAG = /<\/?(?:b|strong|i|em|u|s|del)\s*>/gi
+
+export function resolveGanttRenderStyle(options: RenderOptions = {}): ResolvedRenderStyle {
+  return resolveRenderStyle(options, GANTT_STYLE_DEFAULTS)
+}
+
+export function ganttTitleFontSize(style: ResolvedRenderStyle): number {
+  return Math.max(17, style.groupHeaderFontSize)
+}
+
+export function ganttTitleY(style: ResolvedRenderStyle): number {
+  const titleHeight = ganttTitleHeight(style)
+  return titleHeight === GL.titleHeight ? 18 : titleHeight / 2
+}
+
+export function ganttAxisLabelOffset(style: ResolvedRenderStyle): number {
+  return Math.max(10, style.edgeLabelFontSize * 0.75)
+}
+
+export function ganttMeasureTextWidth(
+  text: string,
+  fontSize: number,
+  fontWeight: number,
+  letterSpacing = 0,
+): number {
+  const plain = text.replace(INLINE_FORMAT_TAG, '')
+  const codepoints = [...plain].length
+  const tracking = Math.max(0, codepoints - 1) * letterSpacing
+  return Math.max(0, estimateTextWidth(plain, fontSize, fontWeight) + tracking)
+}
+
+function ganttTitleHeight(style: ResolvedRenderStyle): number {
+  return Math.max(GL.titleHeight, Math.ceil(ganttTitleFontSize(style) * 1.3) + 8)
+}
+
+function ganttAxisHeight(style: ResolvedRenderStyle): number {
+  return Math.max(GL.axisHeight, Math.ceil(ganttAxisLabelOffset(style) + style.edgeLabelFontSize * 0.65 + 4))
+}
+
+function ganttRowHeight(style: ResolvedRenderStyle, barHeight: number): number {
+  const labelLineHeight = Math.max(style.nodeLabelFontSize, style.groupHeaderFontSize) * 1.3
+  return Math.ceil(Math.max(barHeight, labelLineHeight)) + GL.rowGap
 }
 
 /**
@@ -176,9 +241,10 @@ export function packCompactLanes(tasks: Array<{ start: EpochMs; end: EpochMs }>)
 }
 
 export function layoutGantt(model: GanttModel, schedule: GanttSchedule, options: GanttLayoutOptions = {}): GanttLayoutResult {
+  const style = resolveGanttRenderStyle(options.renderOptions)
   const compact = options.compact ?? (model.displayMode === 'compact')
   const barHeight = options.barHeight ?? model.barHeight ?? GL.barHeight
-  const rowH = barHeight + GL.rowGap
+  const rowH = ganttRowHeight(style, barHeight)
 
   const vertTasks = schedule.tasks.filter(t => t.tags.includes('vert'))
   const rowTasks = schedule.tasks.filter(t => !t.tags.includes('vert'))
@@ -186,10 +252,14 @@ export function layoutGantt(model: GanttModel, schedule: GanttSchedule, options:
   // ---- label column ---------------------------------------------------------
   let labelColumnWidth = 0
   for (const t of rowTasks) {
-    labelColumnWidth = Math.max(labelColumnWidth, estimateTextWidth(t.label, GL.labelFontSize, 500))
+    const label = applyTextTransform(t.label, style.nodeTextTransform)
+    labelColumnWidth = Math.max(labelColumnWidth, ganttMeasureTextWidth(label, style.nodeLabelFontSize, style.nodeLabelFontWeight, style.nodeLetterSpacing))
   }
   for (const s of model.sections) {
-    if (s.label) labelColumnWidth = Math.max(labelColumnWidth, estimateTextWidth(s.label, GL.sectionFontSize, 600))
+    if (s.label) {
+      const label = applyTextTransform(s.label, style.groupTextTransform)
+      labelColumnWidth = Math.max(labelColumnWidth, ganttMeasureTextWidth(label, style.groupHeaderFontSize, style.groupHeaderFontWeight, style.groupLetterSpacing))
+    }
   }
   labelColumnWidth = Math.ceil(labelColumnWidth) + GL.labelGap
 
@@ -197,8 +267,9 @@ export function layoutGantt(model: GanttModel, schedule: GanttSchedule, options:
   const plotX = GL.padding + labelColumnWidth
   const plotW = Math.max(120, width - plotX - GL.padding)
 
-  const titleH = model.title ? GL.titleHeight : 0
-  const topAxisH = model.topAxis ? GL.axisHeight : 0
+  const titleH = model.title ? ganttTitleHeight(style) : 0
+  const axisH = ganttAxisHeight(style)
+  const topAxisH = model.topAxis ? axisH : 0
   const plotY = GL.padding + titleH + topAxisH
 
   const span = schedule.timeMax - schedule.timeMin
@@ -263,7 +334,7 @@ export function layoutGantt(model: GanttModel, schedule: GanttSchedule, options:
   }
 
   const plotH = Math.max(rowH, y - plotY)
-  const height = plotY + plotH + GL.axisHeight + GL.padding
+  const height = plotY + plotH + axisH + GL.padding
 
   // ---- ticks / markers --------------------------------------------------------
   const ticks: GanttTick[] = resolveTicks(schedule, model).map(t => ({

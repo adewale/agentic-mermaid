@@ -7,7 +7,7 @@ import type {
 } from './types.ts'
 import type { RenderOptions } from '../types.ts'
 import { measureTextWidth } from '../text-metrics.ts'
-import { resolveRenderStyle } from '../styles.ts'
+import { applyTextTransform, resolveRenderStyle } from '../styles.ts'
 
 // ============================================================================
 // Quadrant chart layout engine
@@ -100,7 +100,7 @@ export function layoutQuadrantChart(
   const placedBoxes: Box[] = regions
     .filter(r => r.label)
     .map(r => {
-      const w = measureTextWidth(r.label!, Q.quadrantFontSize, 600)
+      const w = measureTextWidth(applyTextTransform(r.label!, style.groupTextTransform), Q.quadrantFontSize, 600)
       return { x0: r.labelX - w / 2, y0: r.labelY - Q.quadrantFontSize * 0.75, x1: r.labelX + w / 2, y1: r.labelY + Q.quadrantFontSize * 0.75 }
     })
   const pointBoxes: Box[] = chart.points.map(p => {
@@ -111,7 +111,8 @@ export function layoutQuadrantChart(
   const points: PositionedQuadrantPoint[] = chart.points.map(p => {
     const cx = round(plotX + p.x * size)
     const cy = round(plotY + (1 - p.y) * size)
-    const w = measureTextWidth(p.label, fs, fw)
+    const label = applyTextTransform(p.label, style.nodeTextTransform)
+    const w = measureTextWidth(label, fs, fw)
     const h = fs * 1.1
     const gap = Q.pointRadius + lineGap
     const candidates: Array<{ x: number; y: number; anchor: 'start' | 'end' | 'middle'; box: Box }> = [
@@ -132,7 +133,7 @@ export function layoutQuadrantChart(
     }
     placedBoxes.push(chosen.box)
     return {
-      label: p.label,
+      label,
       nx: p.x,
       ny: p.y,
       cx,

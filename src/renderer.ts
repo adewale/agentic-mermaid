@@ -1,6 +1,6 @@
 import type { PositionedGraph, PositionedNode, PositionedEdge, PositionedGroup, Point, EdgeMarker, RenderContext } from './types.ts'
 import { svgOpenTag, buildStyleBlock, buildShadowDefs } from './theme.ts'
-import { STROKE_WIDTHS, ARROW_HEAD, FLOWCHART_DOTTED_DASH, resolveRenderStyle } from './styles.ts'
+import { STROKE_WIDTHS, ARROW_HEAD, FLOWCHART_DOTTED_DASH, applyTextTransform, resolveRenderStyle } from './styles.ts'
 import type { ResolvedRenderStyle } from './styles.ts'
 import { measureMultilineText } from './text-metrics.ts'
 import { renderMultilineText, renderMultilineTextWithBackground, escapeAttr, escapeXml } from './multiline-utils.ts'
@@ -294,7 +294,7 @@ function renderGroup(group: PositionedGroup, font: string, style: ResolvedRender
   })
 
   // Header label (supports multi-line via <br> tags)
-  const headerText = transformText(group.label, style.groupTextTransform)
+  const headerText = applyTextTransform(group.label, style.groupTextTransform)
   const headerTextColor = style.groupTextColor ?? 'var(--_text-sec)'
   children.push({
     indent: 2,
@@ -563,7 +563,7 @@ function renderEdgeLabel(edge: PositionedEdge, font: string, style: ResolvedRend
   // Use layout-computed label position when available (layout-aware, avoids collisions).
   // Fall back to geometric midpoint of the edge polyline.
   const mid = edge.labelPosition ?? edgeMidpoint(edge.points)
-  const label = edge.label!
+  const label = applyTextTransform(edge.label!, style.edgeTextTransform)
   const padding = 8
   const strokeWidth = edge.style === 'thick' ? style.lineWidth * 2 : style.lineWidth
   const haloPadding = padding + Math.max(4, strokeWidth * 2)
@@ -611,7 +611,7 @@ function renderEdgeLabel(edge: PositionedEdge, font: string, style: ResolvedRend
   return marks.group({
     id: sceneId,
     role: 'edge-label',
-    open: `<g class="edge-label" data-from="${escapeAttr(edge.source)}" data-to="${escapeAttr(edge.target)}" data-label="${escapeAttr(label)}">`,
+    open: `<g class="edge-label" data-from="${escapeAttr(edge.source)}" data-to="${escapeAttr(edge.target)}" data-label="${escapeAttr(edge.label!)}">`,
     close: '</g>',
     children: [
       { indent: 2, node: halo },
@@ -1061,18 +1061,19 @@ function renderNodeLabel(node: PositionedNode, font: string, style: ResolvedRend
 
   const rawTextColor = resolveInlineNodeTextColor(node.inlineStyle, style.nodeTextColor ?? 'var(--_text)')
   const textColor = escapeAttr(rawTextColor)
+  const label = applyTextTransform(node.label, style.nodeTextTransform)
 
   return marks.text({
     id: `node-label:${node.id}`,
     role: 'label',
-    text: node.label,
+    text: label,
     x: cx,
     y: cy,
     fontSize: style.nodeLabelFontSize,
     anchor: 'middle',
     paint: { fill: rawTextColor },
   }, renderMultilineText(
-    node.label,
+    label,
     cx,
     cy,
     style.nodeLabelFontSize,
@@ -1083,19 +1084,6 @@ function renderNodeLabel(node: PositionedNode, font: string, style: ResolvedRend
 // ============================================================================
 // Utilities
 // ============================================================================
-
-function transformText(text: string, transform: string | undefined): string {
-  switch (transform?.toLowerCase()) {
-    case 'uppercase':
-      return text.toUpperCase()
-    case 'lowercase':
-      return text.toLowerCase()
-    case 'capitalize':
-      return text.replace(/\b\p{L}/gu, ch => ch.toUpperCase())
-    default:
-      return text
-  }
-}
 
 /**
  * Escape a string for use as an XML/HTML attribute value.

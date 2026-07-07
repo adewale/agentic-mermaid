@@ -36,6 +36,35 @@ describe('gantt layout — plot geometry', () => {
     }
   })
 
+  test('transformed style typography expands labels, rows, and axis lanes before rendering', () => {
+    const src = `gantt
+      title quarterly shipping plan
+      dateFormat YYYY-MM-DD
+      axisFormat %b
+      topAxis
+      section shipping phase
+        deliberately wide task label :a, 2024-01-01, 12d
+        follow up review :b, after a, 7d
+    `
+    const base = layoutOf(src).layout
+    const styled = layoutOf(src, {
+      renderOptions: {
+        style: {
+          text: { textTransform: 'uppercase', letterSpacing: 4 },
+          node: { fontSize: 24, fontWeight: 700 },
+          edge: { fontSize: 30, fontWeight: 700 },
+          group: { fontSize: 28, fontWeight: 700 },
+        },
+      },
+    }).layout
+
+    expect(styled.labelColumnWidth).toBeGreaterThan(base.labelColumnWidth)
+    expect(styled.plot.x).toBeGreaterThan(base.plot.x)
+    expect(styled.plot.y).toBeGreaterThan(base.plot.y)
+    expect(styled.height).toBeGreaterThan(base.height)
+    expect(styled.rows[1]!.y - styled.rows[0]!.y).toBeGreaterThan(base.rows[1]!.y - base.rows[0]!.y)
+  })
+
   test('section bands tile the plot vertically and own their rows', () => {
     const { layout } = layoutOf(BASIC)
     expect(layout.sections).toHaveLength(2)

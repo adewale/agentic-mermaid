@@ -5,7 +5,7 @@ import { svgOpenTag, buildStyleBlock, buildShadowDefs } from '../theme.ts'
 import { renderMultilineText, escapeXml } from '../multiline-utils.ts'
 import { formatPieValue, formatPiePercent } from './layout.ts'
 import { getSeriesColor, CHART_ACCENT_FALLBACK, isValidHex } from '../xychart/colors.ts'
-import { STROKE_WIDTHS, resolveRenderStyle } from '../styles.ts'
+import { STROKE_WIDTHS, applyTextTransform, resolveRenderStyle } from '../styles.ts'
 import type { RenderStyleDefaults, ResolvedRenderStyle } from '../styles.ts'
 import type { SceneDoc, SceneNode } from '../scene/ir.ts'
 import * as marks from '../scene/marks.ts'
@@ -150,7 +150,7 @@ export function lowerPieScene(
       `<rect class="pie-legend-swatch" x="${item.x}" y="${item.y}" width="${item.swatchSize}" height="${item.swatchSize}" rx="2" ry="2" fill="${fill}" />`,
     ))
     const valuePart = chart.showData ? ` [${formatPieValue(item.value)}]` : ''
-    const text = `${item.label}${valuePart} (${formatPiePercent(item.fraction)})`
+    const text = applyTextTransform(`${item.label}${valuePart} (${formatPiePercent(item.fraction)})`, style.nodeTextTransform)
     parts.push(marks.text(
       {
         id: occurrenceId('legend-label', item.label),
@@ -176,11 +176,12 @@ export function lowerPieScene(
 
   // Title.
   if (chart.title) {
+    const title = applyTextTransform(chart.title.text, style.groupTextTransform)
     parts.push(marks.text(
       {
         id: 'title',
         role: 'title',
-        text: chart.title.text,
+        text: title,
         x: chart.title.x,
         y: chart.title.y,
         fontSize: style.groupHeaderFontSize,
@@ -189,7 +190,7 @@ export function lowerPieScene(
         paint: { fill: style.groupTextColor ?? style.nodeTextColor ?? 'var(--_text)' },
       },
       renderMultilineText(
-        chart.title.text,
+        title,
         chart.title.x,
         chart.title.y,
         style.groupHeaderFontSize,

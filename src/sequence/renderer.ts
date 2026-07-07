@@ -1,7 +1,7 @@
 import type { PositionedSequenceDiagram, PositionedActor, Lifeline, PositionedMessage, Activation, PositionedBlock, PositionedNote } from './types.ts'
 import type { RenderContext } from '../types.ts'
 import { svgOpenTag, buildStyleBlock, buildShadowDefs } from '../theme.ts'
-import { FONT_SIZES, FONT_WEIGHTS, STROKE_WIDTHS, ARROW_HEAD, estimateTextWidth, TEXT_BASELINE_SHIFT, resolveRenderStyle } from '../styles.ts'
+import { FONT_SIZES, FONT_WEIGHTS, STROKE_WIDTHS, ARROW_HEAD, estimateTextWidth, TEXT_BASELINE_SHIFT, applyTextTransform, resolveRenderStyle } from '../styles.ts'
 import type { RenderStyleDefaults, ResolvedRenderStyle } from '../styles.ts'
 import { SEQUENCE_STYLE_DEFAULTS } from './layout.ts'
 import { buildAccessibilityAttrs } from '../shared/svg-a11y.ts'
@@ -182,6 +182,7 @@ function renderActor(actor: PositionedActor, style: ResolvedRenderStyle): SceneN
     `<g class="actor" data-id="${escapeAttr(id)}" data-label="${escapeAttr(label)}" data-type="${type}">`
 
   const rawTextColor = style.nodeTextColor ?? 'var(--_text)'
+  const displayLabel = applyTextTransform(label, style.nodeTextTransform)
   const labelAttrs =
     `font-size="${style.nodeLabelFontSize}" text-anchor="middle" font-weight="${style.nodeLabelFontWeight}"${letterAttr(style.nodeLetterSpacing)} fill="${escapeAttr(rawTextColor)}"`
 
@@ -216,14 +217,14 @@ function renderActor(actor: PositionedActor, style: ResolvedRenderStyle): SceneN
       node: marks.text({
         id: `actor:${id}:label`,
         role: 'label',
-        text: label,
+        text: displayLabel,
         x,
         y: y + height + 14,
         fontSize: style.nodeLabelFontSize,
         anchor: 'middle',
         paint: { fill: rawTextColor },
         channels: { category: id },
-      }, renderMultilineText(label, x, y + height + 14, style.nodeLabelFontSize, labelAttrs)),
+      }, renderMultilineText(displayLabel, x, y + height + 14, style.nodeLabelFontSize, labelAttrs)),
     })
   } else {
     // Participant: rectangle box with label (supports multi-line)
@@ -248,14 +249,14 @@ function renderActor(actor: PositionedActor, style: ResolvedRenderStyle): SceneN
       node: marks.text({
         id: `actor:${id}:label`,
         role: 'label',
-        text: label,
+        text: displayLabel,
         x,
         y: y + height / 2,
         fontSize: style.nodeLabelFontSize,
         anchor: 'middle',
         paint: { fill: rawTextColor },
         channels: { category: id },
-      }, renderMultilineText(label, x, y + height / 2, style.nodeLabelFontSize, labelAttrs)),
+      }, renderMultilineText(displayLabel, x, y + height / 2, style.nodeLabelFontSize, labelAttrs)),
     })
   }
 
@@ -320,6 +321,7 @@ function renderMessage(msg: PositionedMessage, style: ResolvedRenderStyle, scene
   }
   const rawStroke = style.edgeStrokeColor ?? 'var(--_line)'
   const rawTextColor = style.edgeTextColor ?? 'var(--_text-muted)'
+  const displayLabel = applyTextTransform(msg.label, style.edgeTextTransform)
   const linePaint = {
     stroke: rawStroke,
     strokeWidth: String(style.lineWidth),
@@ -365,13 +367,13 @@ function renderMessage(msg: PositionedMessage, style: ResolvedRenderStyle, scene
       node: marks.text({
         id: `${sceneId}:label`,
         role: 'label',
-        text: msg.label,
+        text: displayLabel,
         x: msg.x1 + loopW + labelPadding,
         y: msg.y + loopH / 2,
         fontSize: style.edgeLabelFontSize,
         anchor: 'start',
         paint: { fill: rawTextColor },
-      }, renderMultilineText(msg.label, msg.x1 + loopW + labelPadding, msg.y + loopH / 2, style.edgeLabelFontSize,
+      }, renderMultilineText(displayLabel, msg.x1 + loopW + labelPadding, msg.y + loopH / 2, style.edgeLabelFontSize,
         `font-size="${style.edgeLabelFontSize}" text-anchor="start" font-weight="${style.edgeLabelFontWeight}"${letterAttr(style.edgeLetterSpacing)} fill="${escapeAttr(rawTextColor)}"`)),
     })
   } else {
@@ -396,13 +398,13 @@ function renderMessage(msg: PositionedMessage, style: ResolvedRenderStyle, scene
       node: marks.text({
         id: `${sceneId}:label`,
         role: 'label',
-        text: msg.label,
+        text: displayLabel,
         x: midX,
         y: msg.y - 10,
         fontSize: style.edgeLabelFontSize,
         anchor: 'middle',
         paint: { fill: rawTextColor },
-      }, renderMultilineText(msg.label, midX, msg.y - 10, style.edgeLabelFontSize,
+      }, renderMultilineText(displayLabel, midX, msg.y - 10, style.edgeLabelFontSize,
         `font-size="${style.edgeLabelFontSize}" text-anchor="middle" font-weight="${style.edgeLabelFontWeight}"${letterAttr(style.edgeLetterSpacing)} fill="${escapeAttr(rawTextColor)}"`)),
     })
   }
@@ -445,7 +447,7 @@ function renderBlock(block: PositionedBlock, style: ResolvedRenderStyle, sceneId
 
   // Type label tab (top-left corner)
   // For multi-line block labels, we use the first line for the tab but show full label
-  const labelText = `${block.type}${block.label ? ` [${block.label}]` : ''}`
+  const labelText = applyTextTransform(`${block.type}${block.label ? ` [${block.label}]` : ''}`, style.groupTextTransform)
   const firstLine = labelText.split('\n')[0]!
   const tabWidth = estimateTextWidth(firstLine, style.groupHeaderFontSize, style.groupHeaderFontWeight) + style.groupPaddingX * 2
   const tabHeight = Math.max(18, style.groupHeaderFontSize + style.groupPaddingY)
@@ -505,19 +507,20 @@ function renderBlock(block: PositionedBlock, style: ResolvedRenderStyle, sceneId
         `stroke="${escapeAttr(rawDividerStroke)}" stroke-width="${dividerStrokeWidth}" stroke-dasharray="6 4" />`),
     })
     if (divider.label) {
+      const label = applyTextTransform(`[${divider.label}]`, style.edgeTextTransform)
       // Divider label supports multi-line
       children.push({
         indent: 2,
         node: marks.text({
           id: `${dividerId}:label`,
           role: 'label',
-          text: `[${divider.label}]`,
+          text: label,
           x: block.x + 8,
           y: divider.y + 14,
           fontSize: style.edgeLabelFontSize,
           anchor: 'start',
           paint: { fill: rawDividerText },
-        }, renderMultilineText(`[${divider.label}]`, block.x + 8, divider.y + 14, style.edgeLabelFontSize,
+        }, renderMultilineText(label, block.x + 8, divider.y + 14, style.edgeLabelFontSize,
           `font-size="${style.edgeLabelFontSize}" text-anchor="start" font-weight="${style.edgeLabelFontWeight}"${letterAttr(style.edgeLetterSpacing)} fill="${escapeAttr(rawDividerText)}"`)),
       })
     }
@@ -548,6 +551,7 @@ function renderNote(note: PositionedNote, style: ResolvedRenderStyle, sceneId: s
   const rawStroke = style.nodeBorderColor ?? 'var(--_node-stroke)'
   const rawTextColor = style.nodeTextColor ?? 'var(--_text-muted)'
   const radius = style.cornerRadius ?? 0
+  const displayText = applyTextTransform(note.text, style.nodeTextTransform)
 
   return marks.group({
     id: sceneId,
@@ -571,13 +575,13 @@ function renderNote(note: PositionedNote, style: ResolvedRenderStyle, sceneId: s
         node: marks.text({
           id: `${sceneId}:text`,
           role: 'label',
-          text: note.text,
+          text: displayText,
           x: x + w / 2,
           y: y + h / 2,
           fontSize: style.nodeLabelFontSize,
           anchor: 'middle',
           paint: { fill: rawTextColor },
-        }, renderMultilineText(note.text, x + w / 2, y + h / 2, style.nodeLabelFontSize,
+        }, renderMultilineText(displayText, x + w / 2, y + h / 2, style.nodeLabelFontSize,
           `font-size="${style.nodeLabelFontSize}" text-anchor="middle" font-weight="${style.nodeLabelFontWeight}"${letterAttr(style.nodeLetterSpacing)} fill="${escapeAttr(rawTextColor)}"`)),
       },
     ],
@@ -598,4 +602,3 @@ const escapeXml = escapeXmlUtil
 /**
  * Escape a string for use as an XML/HTML attribute value.
  */
-
