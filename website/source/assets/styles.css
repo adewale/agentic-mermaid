@@ -14,6 +14,13 @@
                                     diagram plates, the mark ring, and code.
 */
 
+@font-face { font-family: 'Caveat'; src: url('/fonts/Caveat.ttf') format('truetype'); font-weight: 400 700; font-style: normal; font-display: swap; }
+@font-face { font-family: 'EB Garamond'; src: url('/fonts/EBGaramond.ttf') format('truetype'); font-weight: 400 700; font-style: normal; font-display: swap; }
+@font-face { font-family: 'Architects Daughter'; src: url('/fonts/ArchitectsDaughter.ttf') format('truetype'); font-weight: 400; font-style: normal; font-display: swap; }
+@font-face { font-family: 'Share Tech Mono'; src: url('/fonts/ShareTechMono.ttf') format('truetype'); font-weight: 400; font-style: normal; font-display: swap; }
+@font-face { font-family: 'DejaVu Sans'; src: url('/fonts/DejaVuSans.ttf') format('truetype'); font-weight: 400; font-style: normal; font-display: swap; }
+@font-face { font-family: 'DejaVu Sans'; src: url('/fonts/DejaVuSans-Bold.ttf') format('truetype'); font-weight: 700; font-style: normal; font-display: swap; }
+
 /* ============================ 1 · BRAND ============================
    Isolated from every theme and scheme. The brand elements (.brand .mark,
    body::before, the type) read ONLY from this layer, never from
@@ -595,16 +602,26 @@ td code { font-size: var(--t-label); }
 .tier-geometric, .sev-warning { color: var(--warn); }
 .tier-lint { color: var(--accent); }
 
-/* Examples page jump index: one row per category above the 17k-px showcase. */
-.example-tools, .warning-tools { display: grid; gap: 6px; margin: 0 0 var(--sp-4); max-width: 32rem; }
-.example-tools label, .warning-tools label { color: var(--ink-soft); font-family: var(--mono); font-size: var(--t-label); line-height: var(--lh-ui); }
-.example-tools input, .warning-tools input { min-height: var(--control-h); width: 100%; padding: 0 12px; border: 1px solid var(--control-border); border-radius: var(--radius-md); background: var(--control-bg); color: var(--ink); font: inherit; font-size: var(--t-sm); }
-.example-tools input:focus-visible, .warning-tools input:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
-.example-toc { margin: 0 0 var(--sp-7); padding: var(--sp-3) var(--sp-4); border: 1px solid var(--surface-border); border-radius: var(--radius-md); background: var(--surface-card); font-size: var(--t-sm); line-height: 1.55; }
-.example-toc p { margin: var(--sp-1) 0; }
-.example-toc a { color: var(--ink-soft); }
-.example-toc a:hover { color: var(--link); }
-.example-toc strong { color: var(--ink); }
+/* Examples page jump index: family cards above the long proof page. */
+.warning-tools { display: grid; gap: 6px; margin: 0 0 var(--sp-4); max-width: 32rem; }
+.warning-tools label { color: var(--ink-soft); font-family: var(--mono); font-size: var(--t-label); line-height: var(--lh-ui); }
+.warning-tools input { min-height: var(--control-h); width: 100%; padding: 0 12px; border: 1px solid var(--control-border); border-radius: var(--radius-md); background: var(--control-bg); color: var(--ink); font: inherit; font-size: var(--t-sm); }
+.warning-tools input:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+.example-jump { margin: 0 0 var(--sp-7); padding: var(--sp-4); border: 1px solid var(--surface-border); border-radius: var(--radius-lg); background: var(--surface-card); box-shadow: var(--shadow-hairline); }
+.example-jump-title { margin: 0 0 var(--sp-3); color: var(--ink); font-family: var(--sans); font-size: var(--t-sm); font-weight: 700; line-height: var(--lh-ui); }
+.example-jump-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.example-jump-card { display: grid; gap: 4px; min-width: 0; padding: 10px 12px; border: 1px solid var(--surface-border); border-radius: var(--radius-md); background: var(--bg); color: var(--ink-soft); text-decoration: none; }
+.example-jump-card strong { color: var(--ink); font-size: var(--t-sm); line-height: var(--lh-ui); }
+.example-jump-card span { font-size: var(--t-label); line-height: 1.35; }
+.example-jump-card:hover { border-color: color-mix(in srgb, var(--accent) 34%, var(--line)); color: var(--link); text-decoration: none; }
+.example-jump-more { margin-top: var(--sp-4); padding-top: var(--sp-3); border-top: 1px solid var(--surface-border); font-size: var(--t-sm); line-height: 1.55; }
+.example-jump-more p { margin: var(--sp-1) 0; }
+.example-jump-more .sep { margin: 0 0.4em; color: var(--line-strong); }
+.example-jump-more a { color: var(--ink-soft); }
+.example-jump-more a:hover { color: var(--link); }
+.example-jump-more strong { color: var(--ink); }
+@media (max-width: 760px) { .example-jump-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 480px) { .example-jump-grid { grid-template-columns: 1fr; } }
 
 @media (max-width: 640px) {
   .warning-table { display: block; }

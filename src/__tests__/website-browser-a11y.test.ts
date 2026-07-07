@@ -30,6 +30,7 @@ const mime: Record<string, string> = {
   '.svg': 'image/svg+xml',
   '.png': 'image/png',
   '.ico': 'image/x-icon',
+  '.ttf': 'font/ttf',
   '.txt': 'text/plain; charset=utf-8',
   '.md': 'text/markdown; charset=utf-8',
 }
@@ -110,7 +111,7 @@ describeBrowser('website browser accessibility smoke', () => {
 
   test('public routes have named controls, valid ARIA references, and no mobile horizontal overflow', async () => {
     const page = await browser.newPage({ viewport: { width: 390, height: 900 } })
-    for (const route of ['/', '/examples/', '/comparisons/', '/about/', '/docs/getting-started/', '/docs/families/#gantt', '/docs/', '/skills/agentic-mermaid-diagram-workflow/']) {
+    for (const route of ['/', '/examples/#gantt', '/comparisons/', '/about/', '/docs/getting-started/', '/docs/', '/skills/agentic-mermaid-diagram-workflow/']) {
       await page.goto(baseUrl + route, { waitUntil: 'networkidle' })
       expect({ route, unnamed: await namedControls(page) }).toEqual({ route, unnamed: [] })
       expect({ route, broken: await brokenAriaControls(page) }).toEqual({ route, broken: [] })
@@ -189,6 +190,19 @@ describeBrowser('website browser accessibility smoke', () => {
     await page.waitForFunction(() => document.querySelector('#preview-placeholder'))
     expect(await page.locator('#code-editor').inputValue()).toBe('')
     expect(await page.locator('#preview-placeholder .placeholder-title').textContent()).toContain('No diagram yet')
+    await page.close()
+  }, 30_000)
+
+  test('editor share links restore style state and styled label fonts', async () => {
+    const page = await browser.newPage({ viewport: { width: 1280, height: 900 } })
+    const hash = 'deflate:PY5BDoIwEEWvMumaegAXnkAIgYRNZTHCIARoybRIkLD1AB7Rk5iWxOV_7yf_b8KamSsSZ9EMZqlaZAfX7KYBcpUHBadxrEuQ8gKpmpAtlV6ngSRKI7NZAkoCitU4O3RHKw6o2J7EXbPuHhUgJZg-iExZ4g6H7kXwfX-ASdfE5b-2IOtOP-yxJSLhWhr92QknYhEJ69bB56rFob8b5FrsPw'
+    await page.goto(baseUrl + '/editor/#' + hash, { waitUntil: 'networkidle' })
+    await page.locator('#preview-inner svg text').first().waitFor({ state: 'visible', timeout: 10_000 })
+    await page.waitForFunction(() => document.fonts.check('16px Caveat'))
+    expect(await page.locator('#style-btn-label').textContent()).toBe('Chalkboard')
+    expect(await page.locator('#theme-btn-label').textContent()).toBe('Paper')
+    const labelFont = await page.locator('#preview-inner svg text').first().evaluate((el) => getComputedStyle(el).fontFamily)
+    expect(labelFont).toContain('Caveat')
     await page.close()
   }, 30_000)
 

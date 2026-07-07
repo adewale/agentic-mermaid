@@ -160,7 +160,7 @@ describe('Workers Static Assets website contract', () => {
 
   test('required human and machine routes are generated', () => {
     const routes = [
-      'index.html', 'editor/index.html', 'about/index.html', 'docs/getting-started/index.html', 'docs/families/index.html',
+      'index.html', 'editor/index.html', 'about/index.html', 'docs/getting-started/index.html',
       'docs/index.html', 'docs/api/index.html', 'docs/cli/index.html',
       'docs/mcp/index.html', 'docs/ascii/index.html', 'docs/theming/index.html',
       'docs/custom-styles/index.html', 'docs/quality/index.html', 'docs/fork-differences/index.html',
@@ -175,7 +175,7 @@ describe('Workers Static Assets website contract', () => {
     // started, Evidence into Quality, Releases demoted to capabilities.json,
     // and Skills / Security / Source-level pruned. The site has not launched, so
     // these routes are simply gone — no backwards-compat redirects.
-    const consolidated = ['docs/config/index.html', 'docs/react/index.html', 'docs/vocabulary/index.html', 'evidence/index.html', 'releases/index.html', 'skills/index.html', 'security/index.html', 'docs/source-level/index.html']
+    const consolidated = ['docs/config/index.html', 'docs/react/index.html', 'docs/vocabulary/index.html', 'evidence/index.html', 'releases/index.html', 'skills/index.html', 'security/index.html', 'docs/source-level/index.html', 'docs/families/index.html']
     for (const route of consolidated) expect({ route, exists: existsSync(join(SITE, route)) }).toEqual({ route, exists: false })
     expect(existsSync(join(SITE, 'install/index.html'))).toBe(false)
     expect(existsSync(join(SITE, 'agents/index.html'))).toBe(false)
@@ -190,7 +190,7 @@ describe('Workers Static Assets website contract', () => {
     expect(locs).toContain('https://agentic-mermaid.dev/')        // homepage
     expect(locs).toContain('https://agentic-mermaid.dev/docs/api/')
     expect(locs).toContain('https://agentic-mermaid.dev/docs/custom-styles/')
-    for (const gone of ['/security/', '/skills/', '/docs/source-level/', '/evidence/', '/releases/', '/docs/react/', '/docs/config/', '/docs/vocabulary/']) {
+    for (const gone of ['/security/', '/skills/', '/docs/source-level/', '/docs/families/', '/evidence/', '/releases/', '/docs/react/', '/docs/config/', '/docs/vocabulary/']) {
       expect({ gone, listed: locs.includes(`https://agentic-mermaid.dev${gone}`) }).toEqual({ gone, listed: false })
     }
     // machine artifacts (json/md/txt/xml) must never appear as sitemap URLs
@@ -241,6 +241,16 @@ describe('Workers Static Assets website contract', () => {
     expect(existsSync(join(SITE, 'apple-touch-icon.png'))).toBe(true)
     const offenders = files().filter((f) => f.endsWith('.html') && !read(f).includes('href="/favicon.svg"'))
     expect(offenders).toEqual([])
+  })
+
+  test('public site ships the diagram fonts used by built-in looks', () => {
+    const styles = read('styles.css')
+    for (const font of ['Caveat', 'EB Garamond', 'Architects Daughter', 'Share Tech Mono', 'DejaVu Sans']) {
+      expect(styles).toContain(`font-family: '${font}'`)
+    }
+    for (const rel of ['fonts/Caveat.ttf', 'fonts/EBGaramond.ttf', 'fonts/ArchitectsDaughter.ttf', 'fonts/ShareTechMono.ttf', 'fonts/DejaVuSans.ttf', 'fonts/DejaVuSans-Bold.ttf']) {
+      expect({ rel, exists: existsSync(join(SITE, rel)) }).toEqual({ rel, exists: true })
+    }
   })
 
   test('public html has no placeholder links or breadcrumb slugs', () => {
@@ -388,11 +398,12 @@ describe('Workers Static Assets website contract', () => {
     expect(editor).not.toContain('id="pan-btn" type="button" title="Pan (hold to drag)" aria-label="Pan preview">')
   })
 
-  test('home hero is baked Paper artwork; the themeable demo asset keeps its var tokens', () => {
+  test('home hero is baked artwork; the themeable demo asset keeps its var tokens', () => {
     // The hero once rendered with var(--bg/--fg/--accent) and silently re-themed
     // when the chrome accent moved to Pine. The design contract is the reverse:
     // diagram themes colour the artwork, the shell never does. Baked terracotta
-    // in the hero; live var() tokens only in the standalone themeable demo.
+    // ink with shell-ground halos in the hero; live var() tokens only in the
+    // standalone themeable demo.
     const home = read('index.html')
     const hero = home.match(/<div class="plate dia-plate">[\s\S]*?<\/svg>/)?.[0] ?? ''
     expect(hero).toContain('#9A4A24')
@@ -420,6 +431,14 @@ describe('Workers Static Assets website contract', () => {
       // Gallery and Families were consolidated out of the top-level nav.
       expect(masthead).not.toContain('href="/gallery/"')
       expect(masthead).not.toContain('href="/families/"')
+      const footer = html.match(/<footer>[\s\S]*?<\/footer>/)?.[0] ?? ''
+      expect(footer).toContain('href="/examples/"')
+      expect(footer).toContain('href="/docs/"')
+      expect(footer).toContain('href="/editor/?empty=1"')
+      expect(footer).toContain('github.com/adewale/agentic-mermaid')
+      expect(footer).not.toContain('/llms.txt')
+      expect(footer).not.toContain('/capabilities.json')
+      expect(footer).not.toContain('/agent-instructions.md')
     }
     const examplesMasthead = read('examples/index.html').match(/<header class="masthead"[\s\S]*?<\/header>/)?.[0] ?? ''
     expect(examplesMasthead).toContain('href="/examples/"')
@@ -429,6 +448,8 @@ describe('Workers Static Assets website contract', () => {
     expect(comparisonsMasthead).toContain('aria-current="page"')
     expect(read('about/index.html')).toContain('<a aria-current="page" href="/about/">About</a>')
     expect(read('docs/index.html')).toContain('<a aria-current="page" href="/docs/">Docs</a>')
+    expect(read('_redirects')).toContain('/docs/families /examples/ 308')
+    expect(read('_redirects')).toContain('/families /examples/ 308')
     expect(read('_redirects')).not.toContain('/agents')
     expect(read('_redirects')).not.toContain('agents-workflow')
     expect(read('_redirects')).not.toContain('.html')
@@ -574,8 +595,11 @@ describe('Workers Static Assets website contract', () => {
     expect(styled.slice(0, styled.indexOf('</article>'))).not.toContain('class="example-prompt"')
     const styles = read('styles.css')
     expect(styles).toContain('.example-prompt, .example-trace')
-    expect(examples).toContain('id="example-filter"')
-    expect(examples).toContain('data-example-filter')
+    expect(examples).toContain('class="example-jump"')
+    expect(examples).toContain('Jump to a diagram family')
+    expect(examples).not.toContain('id="example-filter"')
+    expect(examples).not.toContain('data-example-filter')
+    expect(styles).not.toContain('.example-tools')
   })
 
   test('editor mode switch is not a pseudo-tabset', () => {
@@ -645,11 +669,11 @@ describe('Workers Static Assets website contract', () => {
     expect(examplesHtml).not.toContain('#3b82f6')
     for (const example of examplesIndex.examples) {
       const renderAnchor = example.renderUrl.split('#')[1]
-      const familyId = example.docs.split('#')[1]
+      const docsAnchor = example.docs.split('#')[1]
       expect(example.renderUrl.startsWith('/examples/#')).toBe(true)
       expect(examplesHtml).toContain(`id="${renderAnchor}"`)
-      expect(example.docs.startsWith('/docs/families/#')).toBe(true)
-      expect(read('docs/families/index.html')).toContain(`id="${familyId}"`)
+      expect(example.docs.startsWith('/examples/#')).toBe(true)
+      expect(examplesHtml).toContain(`id="${docsAnchor}"`)
       expect(example.editorUrl).toContain('/editor/?example=')
     }
   })
@@ -761,7 +785,7 @@ describe('Workers Static Assets website contract', () => {
     const warningsIndex = read('warnings/index.html')
     expect(warningsIndex).toContain('class="tier-badge tier-structural"')
     expect(warningsIndex).toContain('class="sev-badge sev-warning"')
-    expect(read('examples/index.html')).toContain('class="example-toc"')
+    expect(read('examples/index.html')).toContain('class="example-jump"')
     for (const rel of ['index.html', 'docs/index.html', 'editor/index.html', 'warnings/NODE_OVERLAP/index.html']) {
       const html = read(rel)
       expect({ rel, og: html.includes('property="og:title"') }).toEqual({ rel, og: true })

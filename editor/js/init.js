@@ -303,6 +303,7 @@ function shouldOpenEmptyEditor() {
     editor.value = hashSource;
     applyThemeToPage(state.theme);
     updateThemeButton();
+    updateStyleButton();
     refreshAllColorUIs();
   } else if (queryExampleId && typeof loadEditorExample === 'function' && findEditorExample(queryExampleId)) {
     loadEditorExample(queryExampleId);
@@ -319,6 +320,7 @@ function shouldOpenEmptyEditor() {
       if (hasOwnConfig(draft.config)) state.config = draft.config;
       if (draft.style) state.style = draft.style;
       if (typeof draft.seed === 'number') state.seed = draft.seed;
+      updateStyleButton();
       refreshAllColorUIs();
       showDraftRestoredNotice();
       // A restored draft means a returning editor: on mobile, put Source (and
