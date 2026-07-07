@@ -510,21 +510,19 @@ const mermaidRuntimeRel = `vendor/mermaid-${sha256(mermaidRuntimeBytes).slice(0,
 type ComparisonCase = { id: string; family: string; source: string }
 const COMPARISON_CASES: ComparisonCase[] = [
   { id: 'flowchart', family: 'Flowchart', source: `flowchart LR
-  Start([Start]) --> Parse[Parse]
-  Parse --> Decision{Valid?}
-  Decision -->|yes| Cache[(Cache)]
-  Decision -->|retry| Parse
-  Decision -->|no| Error[Return error]
-  Cache --> API[API]
-  API --> DB[(Database)]
-  API --> Queue[[Queue]]
-  Queue --> Worker[Worker]
-  Worker --> DB
-  DB --> Done([Done])` },
+  Source([Source]) --> Parse[Parse]
+  Parse --> Verify{Warnings?}
+  Verify -->|none| Render[Render]
+  Verify -->|repair| Mutate[Mutate]
+  Mutate --> Parse
+  Render --> Cache[(Cache)]
+  Render --> Ship([Ship])` },
   { id: 'state', family: 'State', source: `stateDiagram-v2
+  direction LR
   [*] --> Idle
   Idle --> Running: start
   state Running {
+    direction LR
     [*] --> Fetch
     Fetch --> Verify
     Verify --> Fetch: retry
@@ -609,15 +607,12 @@ const COMPARISON_CASES: ComparisonCase[] = [
     Mutate target: 5: Agent
     Check warnings: 5: Agent` },
   { id: 'architecture', family: 'Architecture', source: `architecture-beta
-  group client(cloud)[Client]
   group app(cloud)[Application]
   group data(database)[Data]
-  service browser(server)[Browser] in client
   service web(server)[Web App] in app
   service api(server)[API] in app
   service queue(server)[Queue] in app
   service db(database)[Postgres] in data
-  browser:R --> L:web
   web:R --> L:api
   api:B --> T:queue
   api:R --> L:db
@@ -668,8 +663,11 @@ function comparisonBeautifulRender(c: ComparisonCase) {
     return { supported: false, html: '' }
   }
 }
-function comparisonPanel(label: string, body: string) {
-  return `<div class="comparison-panel"><h3>${escapeHtml(label)}</h3><div class="comparison-render">${body}</div></div>`
+function comparisonPanel(engine: string, label: string, body: string) {
+  return `<div class="comparison-panel" data-comparison-engine="${escapeAttr(engine)}"><h3>${escapeHtml(label)}</h3><div class="comparison-render">${body}</div></div>`
+}
+function comparisonEditorHref(source: string) {
+  return `/editor/#${btoa(unescape(encodeURIComponent(source)))}`
 }
 const COMPARISON_TAKEAWAYS: Record<string, string> = {
   flowchart: 'Compare edge routing, label stability, and whether dense fan-out still reads without browser-dependent drift.',
@@ -690,19 +688,18 @@ function comparisonsHtml() {
     const beautiful = comparisonBeautifulRender(c)
     const takeaway = COMPARISON_TAKEAWAYS[c.id] ?? 'Compare deterministic local rendering against the browser/runtime render.'
     const panels = [
-      comparisonPanel('Mermaid', `<pre class="mermaid comparison-mermaid" id="comparison-mermaid-${escapeAttr(c.id)}">${escapeHtml(c.source)}</pre>`),
-      beautiful.supported ? comparisonPanel('Beautiful Mermaid', beautiful.html) : '',
-      comparisonPanel('Agentic Mermaid', comparisonAgenticSvg(c)),
+      comparisonPanel('mermaid', 'Mermaid', `<pre class="mermaid comparison-mermaid" id="comparison-mermaid-${escapeAttr(c.id)}">${escapeHtml(c.source)}</pre>`),
+      beautiful.supported ? comparisonPanel('beautiful', 'Beautiful Mermaid', beautiful.html) : '',
+      comparisonPanel('agentic', 'Agentic Mermaid', comparisonAgenticSvg(c)),
     ].filter(Boolean).join('\n    ')
     const note = beautiful.supported ? '' : '\n  <p class="comparison-note">Beautiful Mermaid does not render this family; only Mermaid and Agentic Mermaid are shown.</p>'
     return `
-<section class="comparison-case${beautiful.supported ? '' : ' comparison-case-omits-beautiful'}" id="${escapeAttr(c.id)}" aria-labelledby="comparison-${escapeAttr(c.id)}-title">
+<section class="comparison-case${beautiful.supported ? '' : ' comparison-case-omits-beautiful'}" id="${escapeAttr(c.id)}" aria-labelledby="comparison-${escapeAttr(c.id)}-title" data-comparison-editor-href="${escapeAttr(comparisonEditorHref(c.source))}">
   <header class="comparison-case-head">
     <h2 id="comparison-${escapeAttr(c.id)}-title">${escapeHtml(c.family)}</h2>
-    <button class="comparison-focus" type="button" data-comparison-focus aria-label="Open ${escapeAttr(c.family)} comparison larger" title="Open larger comparison"><span aria-hidden="true">⤢</span></button>
   </header>
   <p class="comparison-takeaway"><strong>What to look for.</strong> ${escapeHtml(takeaway)}</p>${note}
-  <div class="comparison-grid">
+  <div class="comparison-grid" data-comparison-lightbox-panel>
     ${panels}
   </div>
 </section>`
@@ -764,28 +761,317 @@ function comparisonsHtml() {
   var title = dialog.querySelector('#comparison-dialog-title');
   var note = dialog.querySelector('[data-comparison-dialog-note]');
   var current = null;
+  var ENGINES = {
+    agentic: 'Agentic Mermaid',
+    mermaid: 'Mermaid',
+    beautiful: 'Beautiful Mermaid'
+  };
+  var PAIRS = [
+    { value: 'agentic-mermaid', label: 'AM vs Mermaid', engines: ['agentic', 'mermaid'] },
+    { value: 'agentic-beautiful', label: 'AM vs BM', engines: ['agentic', 'beautiful'] },
+    { value: 'mermaid-beautiful', label: 'Mermaid vs BM', engines: ['mermaid', 'beautiful'] }
+  ];
+  function makeButton(text, attrs) {
+    var button = document.createElement('button');
+    button.type = 'button';
+    button.textContent = text;
+    Object.keys(attrs || {}).forEach(function (key) { button.setAttribute(key, attrs[key]); });
+    return button;
+  }
+  function buildControls() {
+    var controls = document.createElement('div');
+    controls.className = 'comparison-detail-controls';
+
+    var pairField = document.createElement('fieldset');
+    pairField.className = 'comparison-pair-control';
+    var legend = document.createElement('legend');
+    legend.textContent = 'Pair';
+    pairField.appendChild(legend);
+    var pairOptions = document.createElement('div');
+    pairOptions.className = 'comparison-pair-options';
+    PAIRS.forEach(function (pair) {
+      var label = document.createElement('label');
+      var input = document.createElement('input');
+      input.type = 'radio';
+      input.name = 'comparison-pair';
+      input.value = pair.value;
+      label.appendChild(input);
+      var span = document.createElement('span');
+      span.textContent = pair.label;
+      label.appendChild(span);
+      pairOptions.appendChild(label);
+    });
+    pairField.appendChild(pairOptions);
+
+    var tabs = document.createElement('div');
+    tabs.className = 'comparison-detail-tabs';
+    tabs.setAttribute('role', 'tablist');
+    tabs.setAttribute('aria-label', 'Detail view');
+    tabs.appendChild(makeButton('Side by side', { role: 'tab', 'aria-selected': 'true', 'data-detail-tab': 'compare' }));
+    tabs.appendChild(makeButton('First', { role: 'tab', 'aria-selected': 'false', 'data-detail-tab': 'first' }));
+    tabs.appendChild(makeButton('Second', { role: 'tab', 'aria-selected': 'false', 'data-detail-tab': 'second' }));
+
+    var zoom = document.createElement('div');
+    zoom.className = 'comparison-zoom-control';
+    var zoomLabel = document.createElement('label');
+    zoomLabel.setAttribute('for', 'comparison-detail-zoom');
+    zoomLabel.textContent = 'Zoom';
+    var zoomRow = document.createElement('div');
+    zoomRow.className = 'comparison-zoom-row';
+    zoomRow.appendChild(makeButton('-', { 'aria-label': 'Zoom out', 'data-zoom-step': '-0.25' }));
+    var zoomInput = document.createElement('input');
+    zoomInput.id = 'comparison-detail-zoom';
+    zoomInput.type = 'range';
+    zoomInput.min = '0.5';
+    zoomInput.max = '3';
+    zoomInput.step = '0.25';
+    zoomInput.value = '1';
+    zoomInput.setAttribute('data-comparison-zoom', '');
+    zoomRow.appendChild(zoomInput);
+    zoomRow.appendChild(makeButton('+', { 'aria-label': 'Zoom in', 'data-zoom-step': '0.25' }));
+    var zoomValue = document.createElement('span');
+    zoomValue.className = 'comparison-zoom-value';
+    zoomValue.setAttribute('data-comparison-zoom-value', '');
+    zoomValue.textContent = '100%';
+    zoomRow.appendChild(zoomValue);
+    zoomRow.appendChild(makeButton('Reset', { 'aria-label': 'Reset zoom', 'data-zoom-reset': '' }));
+    zoom.appendChild(zoomLabel);
+    zoom.appendChild(zoomRow);
+
+    var sourceTools = document.createElement('div');
+    sourceTools.className = 'comparison-source-tools';
+    sourceTools.setAttribute('data-comparison-source-tools', '');
+    var sourceLink = document.createElement('a');
+    sourceLink.className = 'comparison-source-action';
+    sourceLink.textContent = 'Open in Editor';
+    sourceLink.setAttribute('data-comparison-source-editor', '');
+    sourceLink.href = '#';
+    sourceTools.appendChild(sourceLink);
+
+    controls.appendChild(pairField);
+    controls.appendChild(tabs);
+    controls.appendChild(sourceTools);
+    controls.appendChild(zoom);
+    return controls;
+  }
+  function panelFor(grid, engine) {
+    return grid.querySelector('[data-comparison-engine="' + engine + '"]');
+  }
+  function pairAvailable(grid, pair) {
+    return pair.engines.every(function (engine) { return !!panelFor(grid, engine); });
+  }
+  function selectedPair(grid, requested) {
+    var found = PAIRS.find(function (pair) { return pair.value === requested && pairAvailable(grid, pair); });
+    return found || PAIRS.find(function (pair) { return pairAvailable(grid, pair); }) || PAIRS[0];
+  }
+  function updatePairInputs(controls, grid, activePair) {
+    controls.querySelectorAll('input[name="comparison-pair"]').forEach(function (input) {
+      var pair = PAIRS.find(function (candidate) { return candidate.value === input.value; });
+      var available = !!pair && pairAvailable(grid, pair);
+      input.disabled = !available;
+      input.checked = activePair.value === input.value;
+      input.parentElement.toggleAttribute('data-unavailable', !available);
+    });
+  }
+  function updateTabs(controls, pair, view) {
+    controls.querySelectorAll('[data-detail-tab]').forEach(function (tab) {
+      var tabView = tab.getAttribute('data-detail-tab');
+      if (tabView === 'first') tab.textContent = ENGINES[pair.engines[0]];
+      if (tabView === 'second') tab.textContent = ENGINES[pair.engines[1]];
+      tab.setAttribute('aria-selected', String(tabView === view));
+    });
+  }
+  function clampZoom(value) {
+    var zoom = Number(value);
+    if (!Number.isFinite(zoom)) return 1;
+    return Math.min(3, Math.max(0.5, Math.round(zoom * 4) / 4));
+  }
+  function panelAspect(panel) {
+    var svg = panel && panel.querySelector('svg');
+    if (!svg) return 1;
+    var viewBox = svg.getAttribute('viewBox');
+    var parts = viewBox ? viewBox.trim().split(/\\s+/).map(Number) : [];
+    var width = parts[2];
+    var height = parts[3];
+    if (width > 0 && height > 0) return width / height;
+    var box = svg.getBoundingClientRect();
+    return box.height > 0 ? box.width / box.height : 1;
+  }
+  function fitWidthForPanel(panel) {
+    var render = panel && panel.querySelector('.comparison-render');
+    var renderBox = render && render.getBoundingClientRect();
+    var renderWidth = renderBox ? renderBox.width : 0;
+    var renderHeight = renderBox ? renderBox.height : 0;
+    if (!renderWidth || !renderHeight) return 100;
+    var aspect = panelAspect(panel);
+    var singleView = current && current.grid.getAttribute('data-detail-view') !== 'compare';
+    var shortLandscape = window.innerHeight < 480 && window.innerWidth > window.innerHeight;
+    var minTargetHeight = shortLandscape ? (singleView ? 220 : 160) : (singleView ? 360 : 260);
+    var targetHeight = Math.max(minTargetHeight, renderHeight * (singleView ? 0.82 : 0.74));
+    var widthPx = targetHeight * aspect;
+    return Math.min(6400, Math.max(renderWidth, widthPx));
+  }
+  function applyZoom() {
+    if (!current) return;
+    current.zoom = clampZoom(current.zoom);
+    var percent = Math.round(current.zoom * 100);
+    current.grid.setAttribute('data-comparison-zoom', String(current.zoom));
+    current.grid.querySelectorAll('.comparison-panel').forEach(function (panel) {
+      var fit = panel.hidden ? 0 : fitWidthForPanel(panel);
+      if (fit) panel.style.setProperty('--comparison-panel-zoom-width', Math.round(fit * current.zoom) + 'px');
+      else panel.style.removeProperty('--comparison-panel-zoom-width');
+    });
+    var zoomInput = current.controls.querySelector('[data-comparison-zoom]');
+    var zoomValue = current.controls.querySelector('[data-comparison-zoom-value]');
+    if (zoomInput) zoomInput.value = String(current.zoom);
+    if (zoomValue) zoomValue.textContent = percent + '%';
+  }
+  function refreshFit() {
+    if (!current) return;
+    applyZoom();
+  }
+  function editorHrefForSection(section) {
+    return section ? section.getAttribute('data-comparison-editor-href') || '/editor/' : '/editor/';
+  }
+  function updateSourceControls() {
+    if (!current) return;
+    var link = current.controls.querySelector('[data-comparison-source-editor]');
+    if (link) {
+      link.href = current.editorHref || '/editor/';
+      link.setAttribute('aria-label', 'Open ' + current.family + ' Mermaid source in the editor');
+    }
+  }
+  function applyDetailState() {
+    if (!current) return;
+    current.pair = selectedPair(current.grid, current.pair && current.pair.value);
+    current.view = current.view || 'compare';
+    updatePairInputs(current.controls, current.grid, current.pair);
+    updateTabs(current.controls, current.pair, current.view);
+    current.grid.setAttribute('data-comparison-pair', current.pair.value);
+    current.grid.setAttribute('data-detail-view', current.view);
+    current.grid.querySelectorAll('.comparison-panel').forEach(function (panel) {
+      var engine = panel.getAttribute('data-comparison-engine');
+      var slot = current.pair.engines.indexOf(engine);
+      var visible = slot !== -1 && (current.view === 'compare' || (current.view === 'first' && slot === 0) || (current.view === 'second' && slot === 1));
+      panel.hidden = !visible;
+      if (slot === 0) panel.setAttribute('data-comparison-slot', 'first');
+      else if (slot === 1) panel.setAttribute('data-comparison-slot', 'second');
+      else panel.removeAttribute('data-comparison-slot');
+    });
+    applyZoom();
+  }
+  function resetGrid(grid) {
+    grid.removeAttribute('data-comparison-pair');
+    grid.removeAttribute('data-detail-view');
+    grid.removeAttribute('data-comparison-zoom');
+    grid.querySelectorAll('.comparison-panel').forEach(function (panel) {
+      panel.hidden = false;
+      panel.removeAttribute('data-comparison-slot');
+      panel.style.removeProperty('--comparison-panel-zoom-width');
+    });
+  }
+  function lightboxOpenLabel(group) {
+    var section = group.closest('.comparison-case');
+    var family = section && section.querySelector('h2') ? section.querySelector('h2').textContent : 'comparison';
+    return 'Open ' + family + ' comparison lightbox';
+  }
+  function setLightboxTriggers(section, enabled) {
+    if (!section) return;
+    var group = section.querySelector('[data-comparison-lightbox-panel]');
+    if (!group) return;
+    if (enabled) {
+      group.setAttribute('role', 'button');
+      group.setAttribute('tabindex', '0');
+      group.setAttribute('aria-label', lightboxOpenLabel(group));
+    } else {
+      group.removeAttribute('role');
+      group.removeAttribute('tabindex');
+      group.removeAttribute('aria-label');
+    }
+  }
   function restore() {
     if (!current) return;
+    document.documentElement.style.overflow = current.previousOverflow || '';
+    resetGrid(current.grid);
+    body.textContent = '';
     current.marker.parentNode.replaceChild(current.grid, current.marker);
+    setLightboxTriggers(current.section, true);
     current = null;
   }
-  document.querySelectorAll('[data-comparison-focus]').forEach(function (button) {
-    button.addEventListener('click', function () {
-      restore();
-      var section = button.closest('.comparison-case');
-      var grid = section && section.querySelector('.comparison-grid');
-      if (!section || !grid || !body) return;
-      var marker = document.createComment('comparison-grid');
-      grid.parentNode.insertBefore(marker, grid);
-      body.appendChild(grid);
-      title.textContent = section.querySelector('h2').textContent;
-      var noteText = section.querySelector('.comparison-note')?.textContent || section.querySelector('.comparison-takeaway')?.textContent || '';
-      note.textContent = noteText;
-      note.hidden = !noteText;
-      current = { grid: grid, marker: marker };
-      dialog.showModal();
+  function openComparison(section) {
+    restore();
+    var grid = section && section.querySelector('.comparison-grid');
+    if (!section || !grid || !body) return;
+    setLightboxTriggers(section, false);
+    var marker = document.createComment('comparison-grid');
+    grid.parentNode.insertBefore(marker, grid);
+    var controls = buildControls();
+    body.appendChild(controls);
+    body.appendChild(grid);
+    var family = section.querySelector('h2').textContent;
+    title.textContent = family;
+    var noteText = section.querySelector('.comparison-note')?.textContent || section.querySelector('.comparison-takeaway')?.textContent || '';
+    note.textContent = noteText;
+    note.hidden = !noteText;
+    current = { section: section, grid: grid, marker: marker, controls: controls, family: family, editorHref: editorHrefForSection(section), pair: null, view: 'compare', zoom: 1, previousOverflow: document.documentElement.style.overflow };
+    document.documentElement.style.overflow = 'hidden';
+    controls.addEventListener('input', function (event) {
+      var target = event.target;
+      if (!target || !target.matches || !target.matches('[data-comparison-zoom]')) return;
+      current.zoom = clampZoom(target.value);
+      applyZoom();
+    });
+    controls.addEventListener('change', function (event) {
+      var target = event.target;
+      if (!target || target.name !== 'comparison-pair') return;
+      current.pair = selectedPair(current.grid, target.value);
+      current.view = 'compare';
+      current.zoom = 1;
+      applyDetailState();
+    });
+    controls.addEventListener('click', function (event) {
+      var target = event.target;
+      if (!target || !target.closest) return;
+      var zoomStep = target.closest('[data-zoom-step]');
+      if (zoomStep) {
+        current.zoom = clampZoom((current.zoom || 1) + Number(zoomStep.getAttribute('data-zoom-step')));
+        applyZoom();
+        return;
+      }
+      var zoomReset = target.closest('[data-zoom-reset]');
+      if (zoomReset) {
+        current.zoom = 1;
+        refreshFit();
+        return;
+      }
+      var tab = target.closest('[data-detail-tab]');
+      if (!tab) return;
+      current.view = tab.getAttribute('data-detail-tab') || 'compare';
+      applyDetailState();
+    });
+    dialog.showModal();
+    updateSourceControls();
+    applyDetailState();
+    setTimeout(refreshFit, 80);
+    setTimeout(refreshFit, 400);
+    setTimeout(refreshFit, 1200);
+  }
+  document.querySelectorAll('.comparison-case').forEach(function (section) {
+    setLightboxTriggers(section, true);
+  });
+  document.querySelectorAll('[data-comparison-lightbox-panel]').forEach(function (group) {
+    group.addEventListener('click', function () {
+      if (group.closest('[data-comparison-dialog]')) return;
+      openComparison(group.closest('.comparison-case'));
+    });
+    group.addEventListener('keydown', function (event) {
+      if (group.closest('[data-comparison-dialog]')) return;
+      if (event.key !== 'Enter' && event.key !== ' ') return;
+      event.preventDefault();
+      openComparison(group.closest('.comparison-case'));
     });
   });
+  window.addEventListener('resize', refreshFit);
   dialog.addEventListener('close', restore);
   dialog.addEventListener('click', function (event) {
     if (event.target === dialog) dialog.close();

@@ -16,7 +16,7 @@ What it demonstrates:
 - CLI path: `am mutate auth-flow.mmd --ops ops.json --json` applies the same mutation batch and verifies before emitting source.
 - The example asserts both channels produce byte-identical Mermaid source for multiple non-trivial cases: an Auth Flow with decisions/feedback loops and an Order Domain ER diagram.
 
-This is the intended equivalence story: MCP Code Mode and CLI/library can create the same diagram, while MCP non-Code-Mode helpers remain narrow (`render_png`, `describe`).
+This is the intended local equivalence story: MCP Code Mode and CLI/library can create the same diagram. The local non-Code-Mode helpers remain narrow (`render_png`, `describe`); the hosted `/mcp` endpoint additionally offers direct pure render/verify/describe tools plus declarative `mutate`/`build` for bounded structured edits.
 
 ## Improve a diagram through an agent loop
 
@@ -35,7 +35,7 @@ What it demonstrates:
 3. It spots problems: long decision labels and wide LR layout.
 4. It applies a second mutation batch (`set_label`) to improve readability while preserving structure.
 5. It reassesses impact: warnings and longest-label length decrease, and bounds shrink.
-6. It writes final render artifacts. SVG/ASCII come from Code Mode; PNG is rendered by the host from the verified final source, matching the MCP helper rationale that binary output should stay a narrow helper/host responsibility.
+6. It writes final render artifacts. SVG/ASCII come from Code Mode; PNG is rendered by the host from the verified final source, matching the local MCP helper rationale that binary output should stay a narrow helper/host responsibility. On the hosted endpoint, direct `render_svg`/`render_ascii`/`render_png` tools cover the same artifact path without a Code Mode isolate.
    - `auth-flow-before.mmd`
    - `auth-flow-improved.mmd`
    - `auth-flow-improved.svg`

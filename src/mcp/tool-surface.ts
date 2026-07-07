@@ -1,0 +1,125 @@
+import { reply, rpcError, type JsonRpcRequest, type JsonRpcResponse } from './protocol.ts'
+import pkg from '../../package.json'
+
+export interface McpToolDefinition {
+  name: string
+  description: string
+  inputSchema: Record<string, unknown>
+}
+
+export interface McpServerSurface<Context> {
+  protocolVersion: string | ((params: unknown) => string)
+  tools: McpToolDefinition[]
+  instructions: string
+  handleToolCall(id: number | string | null, params: unknown, context: Context): JsonRpcResponse | Promise<JsonRpcResponse>
+}
+
+export const MCP_SERVER_NAME = 'agentic-mermaid-mcp'
+// Derived from package.json so every MCP handshake reports the same package
+// version as the published npm artifact.
+export const MCP_SERVER_VERSION = pkg.version
+
+export async function dispatchMcpRequest<Context>(req: JsonRpcRequest, context: Context, surface: McpServerSurface<Context>): Promise<JsonRpcResponse | null> {
+  const id = req.id ?? null
+  switch (req.method) {
+    case 'initialize': {
+      const protocolVersion = typeof surface.protocolVersion === 'function'
+        ? surface.protocolVersion(req.params)
+        : surface.protocolVersion
+      return reply(id, {
+        protocolVersion,
+        serverInfo: { name: MCP_SERVER_NAME, version: MCP_SERVER_VERSION },
+        capabilities: { tools: {} },
+        instructions: surface.instructions,
+      })
+    }
+    case 'notifications/initialized': return null
+    case 'ping': return reply(id, {})
+    case 'tools/list': return reply(id, { tools: surface.tools })
+    case 'tools/call': return await surface.handleToolCall(id, req.params, context)
+    case 'prompts/list': return reply(id, { prompts: [] })
+    case 'resources/list': return reply(id, { resources: [] })
+    default: return rpcError(id, -32601, `Method not found: ${req.method}`)
+  }
+}
+
+export function createExecuteTool(options: { sdkDeclaration: string; hosted?: boolean }): McpToolDefinition {
+  const hostedNote = options.hosted
+    ? `Hosted note: execute runs in an on-demand isolate and costs more than the direct
+render_svg/render_ascii/render_png/verify/describe tools — prefer those for plain
+render/verify calls. For straightforward structured edits, prefer the declarative
+mutate/build tools; reserve execute for logic the ops don't express.
+
+`
+    : ''
+  const timeoutDescription = options.hosted
+    ? 'Optional CPU-time budget (default 5000ms, max 30000ms).'
+    : 'Optional hard timeout (default 5000ms).'
+  const runtime = options.hosted ? 'an isolated sandbox' : 'a sandboxed node:vm context'
+  return {
+    name: 'execute',
+    description: `Run synchronous JavaScript against the mermaid SDK in ${runtime}.
+Code runs as an expression or statement body — return the final value. Promise jobs,
+async/await, and dynamic import are not supported.
+Multi-step diagram edits should be one execute() call. The SDK declaration is
+TypeScript-shaped for guidance; the sandbox does not transpile type annotations.
+${hostedNote}SDK declaration:
+${options.sdkDeclaration}`,
+    inputSchema: {
+      type: 'object',
+      properties: {
+        code: { type: 'string', description: 'JavaScript to execute; mermaid.* SDK is global.' },
+        timeoutMs: { type: 'number', description: timeoutDescription },
+      },
+      required: ['code'],
+    },
+  }
+}
+
+export function createRenderPngTool(mode: 'local' | 'hosted'): McpToolDefinition {
+  const hosted = mode === 'hosted'
+  return {
+    name: 'render_png',
+    description: hosted
+      ? `Rasterize a Mermaid source string to PNG. Returns { ok, png_base64 }.
+Hosted rendering uses resvg-wasm with bundled fonts; bytes may differ from the
+local napi renderer, so hosted PNG is a convenience surface, not part of the
+byte-determinism contract. For file/URL artifacts use the local stdio server.`
+      : `Rasterize a Mermaid source string to PNG. By default returns base64-encoded PNG bytes.
+Set output to "file" or "url" to write a managed artifact instead; artifact responses include
+{path?, url?, mimeType, bytes, sha256}. File/URL artifacts are generated under the MCP server's
+artifact directory with safe names, size limits, and TTL cleanup.
+Uses bundled resvg + DejaVu Sans for same-machine cross-runtime determinism where verified.
+Agentic Mermaid outputs SVG, PNG, ASCII, Unicode, and JSON layout. For non-PNG output, use execute() with mermaid.renderMermaidSVG, mermaid.renderMermaidASCII (useAscii true for ASCII, false for Unicode), or verifyMermaid(...).layout — those are streaming text/data and don't need a dedicated tool.`,
+    inputSchema: {
+      type: 'object',
+      properties: {
+        source: { type: 'string', description: 'Mermaid source.' },
+        scale: { type: 'number', description: hosted ? 'Output scale multiplier (default 2 — retina; clamped to 0.1–8).' : 'Output scale multiplier (default 2 — retina).' },
+        background: { type: 'string', description: "CSS color string (default 'white')." },
+        style: { description: hosted ? 'Style name | record | stack (same as render_svg). Hosted rasterization bundles the built-in style faces; custom unbundled fonts fall back to DejaVu.' : 'Style: a name (hand-drawn, watercolor, …, or any theme name), an inline style record, or an array stack merged left → right.' },
+        seed: { type: 'number', description: hosted ? 'Ink seed for styled looks.' : 'Re-rolls ink wobble of styled looks; never moves layout.' },
+        ...(hosted ? {} : { output: { type: 'string', enum: ['base64', 'file', 'url'], description: 'PNG return mode (default base64).' } }),
+      },
+      required: ['source'],
+    },
+  }
+}
+
+export function createDescribeTool(): McpToolDefinition {
+  return {
+    name: 'describe',
+    description: `Describe a Mermaid diagram. format=text returns { ok, text } with
+one or two summary sentences; format=json returns { ok, tree } with the AX tree;
+format=facts returns { ok, facts } with deterministic semantic fact lines for
+machine checking (for example edge A -> B : label, member Duck +quack()).`,
+    inputSchema: {
+      type: 'object',
+      properties: {
+        source: { type: 'string', description: 'Mermaid source.' },
+        format: { type: 'string', enum: ['text', 'json', 'facts'], description: 'text (default), json AX tree, or facts semantic read-back.' },
+      },
+      required: ['source'],
+    },
+  }
+}

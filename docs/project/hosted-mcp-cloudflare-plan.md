@@ -42,14 +42,19 @@ dynamic Worker instead of being local-only.
 | `render_svg` | — (use execute) | pure, hosted-only |
 | `render_ascii` | — (use execute) | pure, hosted-only |
 | `verify` | — (use execute) | pure, hosted-only |
+| `mutate` | — (use execute or CLI `am mutate`) | hosted-only declarative structured edit of an existing `source`; applies an op list, verifies, emits `{ ok, family, source, verify }` only on success |
+| `build` | — (use execute or CLI/library `buildMermaid`) | hosted-only declarative authoring from a `family` + op list; same verified envelope as `mutate` |
 
-The three hosted-only pure tools exist for cost, not philosophy: locally,
-`execute` is free, so Code Mode stays the single entry point
+The three hosted-only pure render/verify tools exist for cost, not philosophy:
+locally, `execute` is free, so Code Mode stays the single entry point
 (`docs/mcp-code-mode-rationale.md` still holds). Hosted, every `execute`
 spins/bills a dynamic Worker, so the common render/verify paths get direct
 tools that cost one ordinary Worker invocation and are edge-cacheable. The
-implementations live in the shared hosted core (`src/mcp/hosted-server.ts`),
-not the website, so there is exactly one implementation of each.
+`mutate`/`build` tools are the deliberate structured-edit exception: they give
+weak clients a verified op-list path without asking them to write JavaScript,
+while still funneling through the same typed mutation core. The implementations
+live in the shared hosted core (`src/mcp/hosted-server.ts`), not the website, so
+there is exactly one implementation of each.
 
 ## Hosted `execute` via Dynamic Workers
 
@@ -238,8 +243,9 @@ tools are pure functions of their inputs:
   requests skip compute entirely; for `execute` they also skip the dynamic
   Worker, which is the biggest cost lever.
 - Hygiene: 128 KB body cap, 64 KB Mermaid-source/code caps with structured
-  errors pointing at the local CLI, `content-type` enforcement, CORS `*`
-  (public, credential-less, read-only compute), one WAF rate-limiting rule
+  errors pointing at the local CLI, `content-type` enforcement, Origin-validated
+  CORS (no-Origin agent/server clients keep `*`; allowed browser origins are
+  echoed; disallowed browser origins get 403), one WAF rate-limiting rule
   (e.g. 60 req/min/IP on `POST /mcp`, configured in the dashboard and
   recorded in `website/README.md`).
 
@@ -302,7 +308,7 @@ instead of deleting the undeletable `self`).
    resvg into every graph). `server.ts`/`sandbox.ts` keep their exports and
    behavior; existing tests untouched.
 2. **Hosted core** `src/mcp/hosted-server.ts`: `handleHostedRequest(req,
-   context)` with the six-tool surface; `execute` and `render_png` accept
+   context)` with the eight-tool surface; `execute` and `render_png` accept
    injected implementations so the core stays runtime-neutral and testable in
    `bun test`.
 3. **Harness** `src/mcp/dynamic-harness.ts` (entry compiled to a single text

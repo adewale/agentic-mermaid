@@ -9,13 +9,13 @@ import { URL } from 'node:url'
 import { executeInSandbox } from './sandbox.ts'
 import { reply, rpcError as error, type JsonRpcRequest, type JsonRpcResponse } from './protocol.ts'
 import { SDK_DECLARATION } from './sdk-decl.ts'
+import { createDescribeTool, createExecuteTool, createRenderPngTool, dispatchMcpRequest, type McpServerSurface } from './tool-surface.ts'
 import { createArtifactStore, type ArtifactRecord, type ArtifactStore } from './artifacts.ts'
 import { renderMermaidPNG } from '../agent/png.ts'
 import { describeMermaidSource, describeMermaid } from '../agent/describe.ts'
 import { describeMermaidFacts } from '../agent/facts.ts'
 import { parseMermaid } from '../agent/parse.ts'
 import { BUILTIN_FAMILY_METADATA } from '../agent/families.ts'
-import pkg from '../../package.json'
 
 export type { JsonRpcRequest, JsonRpcResponse } from './protocol.ts'
 
@@ -43,10 +43,6 @@ export interface HttpMcpServer {
   close(): Promise<void>
 }
 
-const SERVER_NAME = 'agentic-mermaid-mcp'
-// Derived from package.json so the MCP handshake version always matches the
-// published npm package and cannot drift.
-const SERVER_VERSION = pkg.version
 const PROTOCOL_VERSION = '2024-11-05'
 const MAX_RPC_BODY_BYTES = 1024 * 1024
 const MAX_SANDBOX_TIMEOUT_MS = 30_000
@@ -55,85 +51,28 @@ class HttpStatusError extends Error {
   constructor(readonly status: number, message: string) { super(message) }
 }
 
-const TOOLS = [
-  {
-    name: 'execute',
-    description: `Run synchronous JavaScript against the mermaid SDK in a sandboxed node:vm context.
-Code runs as an expression or statement body — return the final value. Promise jobs,
-async/await, and dynamic import are not supported.
-Multi-step diagram edits should be one execute() call. The SDK declaration is
-TypeScript-shaped for guidance; the sandbox does not transpile type annotations.
-
-SDK declaration:
-${SDK_DECLARATION}`,
-    inputSchema: {
-      type: 'object',
-      properties: {
-        code: { type: 'string', description: 'JavaScript to execute; mermaid.* SDK is global.' },
-        timeoutMs: { type: 'number', description: 'Optional hard timeout (default 5000ms).' },
-      },
-      required: ['code'],
-    },
-  },
-  {
-    name: 'render_png',
-    description: `Rasterize a Mermaid source string to PNG. By default returns base64-encoded PNG bytes.
-Set output to "file" or "url" to write a managed artifact instead; artifact responses include
-{path?, url?, mimeType, bytes, sha256}. File/URL artifacts are generated under the MCP server's
-artifact directory with safe names, size limits, and TTL cleanup.
-Uses bundled resvg + DejaVu Sans for same-machine cross-runtime determinism where verified.
-Agentic Mermaid outputs SVG, PNG, ASCII, Unicode, and JSON layout. For non-PNG output, use execute() with mermaid.renderMermaidSVG, mermaid.renderMermaidASCII (useAscii true for ASCII, false for Unicode), or verifyMermaid(...).layout — those are streaming text/data and don't need a dedicated tool.`,
-    inputSchema: {
-      type: 'object',
-      properties: {
-        source: { type: 'string', description: 'Mermaid source.' },
-        scale: { type: 'number', description: 'Output scale multiplier (default 2 — retina).' },
-        background: { type: 'string', description: "CSS color string (default 'white')." },
-        style: { description: 'Style: a name (hand-drawn, watercolor, …, or any theme name), an inline style record, or an array stack merged left → right.' },
-        seed: { type: 'number', description: 'Re-rolls ink wobble of styled looks; never moves layout.' },
-        output: { type: 'string', enum: ['base64', 'file', 'url'], description: 'PNG return mode (default base64).' },
-      },
-      required: ['source'],
-    },
-  },
-  {
-    name: 'describe',
-    description: `Describe a Mermaid diagram. format=text returns { ok, text };
-format=json returns { ok, tree } with the AX tree; format=facts returns
-{ ok, facts } with deterministic semantic fact lines for machine checking.`,
-    inputSchema: {
-      type: 'object',
-      properties: {
-        source: { type: 'string', description: 'Mermaid source.' },
-        format: { type: 'string', enum: ['text', 'json', 'facts'], description: 'text (default), json AX tree, or facts semantic read-back.' },
-      },
-      required: ['source'],
-    },
-  },
+export const LOCAL_TOOLS = [
+  createExecuteTool({ sdkDeclaration: SDK_DECLARATION }),
+  createRenderPngTool('local'),
+  createDescribeTool(),
 ]
 
 let defaultArtifactStore: ArtifactStore | undefined
 const MCP_NARROWERS = BUILTIN_FAMILY_METADATA.map(f => f.narrower).join('/')
 
-export async function handleRequest(req: JsonRpcRequest, context: McpRequestContext = {}): Promise<JsonRpcResponse | null> {
-  const id = req.id ?? null
-  switch (req.method) {
-    case 'initialize':
-      return reply(id, {
-        protocolVersion: PROTOCOL_VERSION,
-        serverInfo: { name: SERVER_NAME, version: SERVER_VERSION },
-        capabilities: { tools: {} },
-        instructions: `agentic-mermaid Code Mode server. Primary tool execute runs synchronous JavaScript against the typed mermaid.* SDK in a sandbox; async/await and Promise jobs are not supported. render_png and describe are narrow helpers. render_png can return base64, managed file paths, or managed URLs when the transport config provides an artifact store. mutate is overloaded by family; narrow via ${MCP_NARROWERS}. Every built-in renderable family ships a typed path when the body narrows; only opaque fallback bodies are source-level only. Layout is deterministic; there is no layout seed (the optional style seed only re-rolls ink of styled looks, never geometry).`,
-      })
-    case 'notifications/initialized': return null
-    case 'ping': return reply(id, {})
-    case 'tools/list': return reply(id, { tools: TOOLS })
-    case 'tools/call': return await handleToolCall(id, req.params, context)
-    case 'prompts/list': return reply(id, { prompts: [] })
-    case 'resources/list': return reply(id, { resources: [] })
-    default: return error(id, -32601, `Method not found: ${req.method}`)
-  }
+const LOCAL_INSTRUCTIONS = `agentic-mermaid Code Mode server. Primary tool execute runs synchronous JavaScript against the typed mermaid.* SDK in a sandbox; async/await and Promise jobs are not supported. render_png and describe are narrow helpers. render_png can return base64, managed file paths, or managed URLs when the transport config provides an artifact store. mutate is overloaded by family; narrow via ${MCP_NARROWERS}. Every built-in renderable family ships a typed path when the body narrows; only opaque fallback bodies are source-level only. Layout is deterministic; there is no layout seed (the optional style seed only re-rolls ink of styled looks, never geometry).`
+
+const LOCAL_SURFACE: McpServerSurface<McpRequestContext> = {
+  protocolVersion: PROTOCOL_VERSION,
+  tools: LOCAL_TOOLS,
+  instructions: LOCAL_INSTRUCTIONS,
+  handleToolCall,
 }
+
+export async function handleRequest(req: JsonRpcRequest, context: McpRequestContext = {}): Promise<JsonRpcResponse | null> {
+  return dispatchMcpRequest(req, context, LOCAL_SURFACE)
+}
+
 
 async function handleToolCall(id: number | string | null, params: unknown, context: McpRequestContext): Promise<JsonRpcResponse> {
   const p = params as { name?: string; arguments?: Record<string, unknown> } | undefined

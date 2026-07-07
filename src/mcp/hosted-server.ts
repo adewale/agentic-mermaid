@@ -22,10 +22,10 @@ import { BUILTIN_FAMILY_METADATA } from '../agent/families.ts'
 import { renderMermaidSVG, renderMermaidASCII } from '../agent/core.ts'
 import { THEMES } from '../theme.ts'
 import { unsupportedCodeReason } from './facade.ts'
-import { reply, rpcError, toolResult, type JsonRpcRequest, type JsonRpcResponse } from './protocol.ts'
+import { rpcError, toolResult, type JsonRpcRequest, type JsonRpcResponse } from './protocol.ts'
 import { SDK_DECLARATION } from './sdk-decl.ts'
+import { createDescribeTool, createExecuteTool, createRenderPngTool, dispatchMcpRequest, type McpServerSurface } from './tool-surface.ts'
 import type { ExecuteResult } from './sandbox.ts'
-import pkg from '../../package.json'
 
 export type { ExecuteResult }
 
@@ -36,8 +36,6 @@ export interface HostedMcpContext {
   renderPng?(source: string, opts: { scale?: number; background?: string; style?: StyleInput | StyleInput[]; seed?: number }): Promise<Uint8Array>
 }
 
-const SERVER_NAME = 'agentic-mermaid-mcp'
-const SERVER_VERSION = pkg.version
 // Streamable HTTP clients negotiate 2025-03-26+; the node transports pin
 // 2024-11-05. Echo whichever supported version the client offers.
 export const SUPPORTED_PROTOCOL_VERSIONS = ['2024-11-05', '2025-03-26', '2025-06-18']
@@ -64,28 +62,7 @@ const OP_MENU = Object.keys(MUTATION_OPS_BY_FAMILY)
   .join('\n')
 
 export const HOSTED_TOOLS = [
-  {
-    name: 'execute',
-    description: `Run synchronous JavaScript against the mermaid SDK in an isolated sandbox.
-Code runs as an expression or statement body — return the final value. Promise jobs,
-async/await, and dynamic import are not supported.
-Multi-step diagram edits should be one execute() call. The SDK declaration is
-TypeScript-shaped for guidance; the sandbox does not transpile type annotations.
-Hosted note: execute runs in an on-demand isolate and costs more than the direct
-render_svg/render_ascii/render_png/verify/describe tools — prefer those for plain
-render/verify calls and reserve execute for parse→narrow→mutate workflows.
-
-SDK declaration:
-${SDK_DECLARATION}`,
-    inputSchema: {
-      type: 'object',
-      properties: {
-        code: { type: 'string', description: 'JavaScript to execute; mermaid.* SDK is global.' },
-        timeoutMs: { type: 'number', description: 'Optional CPU-time budget (default 5000ms, max 30000ms).' },
-      },
-      required: ['code'],
-    },
-  },
+  createExecuteTool({ sdkDeclaration: SDK_DECLARATION, hosted: true }),
   {
     name: 'render_svg',
     description: `Render a Mermaid source string to themeable SVG. Returns { ok, svg }.
@@ -116,24 +93,7 @@ useAscii true → plain ASCII (+,-,|); false/absent → Unicode box drawing (┌
       required: ['source'],
     },
   },
-  {
-    name: 'render_png',
-    description: `Rasterize a Mermaid source string to PNG. Returns { ok, png_base64 }.
-Hosted rendering uses resvg-wasm with bundled fonts; bytes may differ from the
-local napi renderer, so hosted PNG is a convenience surface, not part of the
-byte-determinism contract. For file/URL artifacts use the local stdio server.`,
-    inputSchema: {
-      type: 'object',
-      properties: {
-        source: { type: 'string', description: 'Mermaid source.' },
-        scale: { type: 'number', description: 'Output scale multiplier (default 2 — retina; clamped to 0.1–8).' },
-        background: { type: 'string', description: "CSS color string (default 'white')." },
-        style: { description: 'Style name | record | stack (same as render_svg). Hosted rasterization bundles the built-in style faces; custom unbundled fonts fall back to DejaVu.' },
-        seed: { type: 'number', description: 'Ink seed for styled looks.' },
-      },
-      required: ['source'],
-    },
-  },
+  createRenderPngTool('hosted'),
   {
     name: 'verify',
     description: `Parse and verify a Mermaid diagram without rendering it. Returns
@@ -150,21 +110,7 @@ Warnings use the layout-rubric codes.`,
       required: ['source'],
     },
   },
-  {
-    name: 'describe',
-    description: `Describe a Mermaid diagram. format=text returns { ok, text } with
-one or two summary sentences; format=json returns { ok, tree } with the AX tree;
-format=facts returns { ok, facts } with deterministic semantic fact lines for
-machine checking (for example edge A -> B : label, member Duck +quack()).`,
-    inputSchema: {
-      type: 'object',
-      properties: {
-        source: { type: 'string', description: 'Mermaid source.' },
-        format: { type: 'string', enum: ['text', 'json', 'facts'], description: 'text (default), json AX tree, or facts semantic read-back.' },
-      },
-      required: ['source'],
-    },
-  },
+  createDescribeTool(),
   {
     name: 'mutate',
     description: `Apply a list of structured edit ops to an existing Mermaid \`source\` and
@@ -206,30 +152,24 @@ ${OP_MENU}`,
   },
 ]
 
-const INSTRUCTIONS = `agentic-mermaid hosted MCP server (stateless). Direct tools render_svg, render_ascii, render_png, verify, and describe cover plain render/verify calls cheaply and are edge-cached (layout is deterministic; there is no layout seed — the library's optional style seed only re-rolls ink of styled looks). execute runs synchronous JavaScript against the typed mermaid.* SDK in an isolated on-demand sandbox for parse→narrow→mutate workflows; async/await and Promise jobs are not supported, and network access is disabled. Inputs are capped at 64KB; for bigger diagrams, Code Mode artifacts, or file/URL PNG output, run the local stdio server (see https://agentic-mermaid.dev/docs/mcp/).`
+const INSTRUCTIONS = `agentic-mermaid hosted MCP server (stateless). Direct tools render_svg, render_ascii, render_png, verify, and describe cover plain render/verify calls cheaply and are edge-cached (layout is deterministic; there is no layout seed — the library's optional style seed only re-rolls ink of styled looks). Declarative mutate/build apply typed op lists and verify before emitting source; prefer them for straightforward structured edits. execute runs synchronous JavaScript against the typed mermaid.* SDK in an isolated on-demand sandbox for logic the ops don't express; async/await and Promise jobs are not supported, and network access is disabled. Inputs are capped at 64KB; for bigger diagrams, Code Mode artifacts, or file/URL PNG output, run the local stdio server (see https://agentic-mermaid.dev/docs/mcp/).`
+
+function hostedProtocolVersion(params: unknown): string {
+  const offered = (params as { protocolVersion?: unknown } | undefined)?.protocolVersion
+  return typeof offered === 'string' && SUPPORTED_PROTOCOL_VERSIONS.includes(offered) ? offered : DEFAULT_PROTOCOL_VERSION
+}
+
+const HOSTED_SURFACE: McpServerSurface<HostedMcpContext> = {
+  protocolVersion: hostedProtocolVersion,
+  tools: HOSTED_TOOLS,
+  instructions: INSTRUCTIONS,
+  handleToolCall,
+}
 
 export async function handleHostedRequest(req: JsonRpcRequest, context: HostedMcpContext): Promise<JsonRpcResponse | null> {
-  const id = req.id ?? null
-  switch (req.method) {
-    case 'initialize': {
-      const offered = (req.params as { protocolVersion?: unknown } | undefined)?.protocolVersion
-      const protocolVersion = typeof offered === 'string' && SUPPORTED_PROTOCOL_VERSIONS.includes(offered) ? offered : DEFAULT_PROTOCOL_VERSION
-      return reply(id, {
-        protocolVersion,
-        serverInfo: { name: SERVER_NAME, version: SERVER_VERSION },
-        capabilities: { tools: {} },
-        instructions: INSTRUCTIONS,
-      })
-    }
-    case 'notifications/initialized': return null
-    case 'ping': return reply(id, {})
-    case 'tools/list': return reply(id, { tools: HOSTED_TOOLS })
-    case 'tools/call': return await handleToolCall(id, req.params, context)
-    case 'prompts/list': return reply(id, { prompts: [] })
-    case 'resources/list': return reply(id, { resources: [] })
-    default: return rpcError(id, -32601, `Method not found: ${req.method}`)
-  }
+  return dispatchMcpRequest(req, context, HOSTED_SURFACE)
 }
+
 
 async function handleToolCall(id: number | string | null, params: unknown, context: HostedMcpContext): Promise<JsonRpcResponse> {
   const p = params as { name?: string; arguments?: Record<string, unknown> } | undefined

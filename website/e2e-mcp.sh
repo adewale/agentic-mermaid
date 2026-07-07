@@ -32,7 +32,7 @@ check() { # label expected actual
 check 'initialize negotiates 2025-03-26' '"protocolVersion":"2025-03-26"' \
   "$(j '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-03-26","capabilities":{},"clientInfo":{"name":"e2e","version":"0"}}}')"
 
-check 'tools/list has the six-tool surface' '"render_svg"' \
+check 'tools/list has the hosted tool surface' '"render_svg"' \
   "$(j '{"jsonrpc":"2.0","id":2,"method":"tools/list"}')"
 
 check 'render_svg renders' '<svg' \
@@ -46,6 +46,12 @@ check 'verify returns a layout summary' '\"nodes\":3' \
 
 check 'describe summarizes' 'flowchart' \
   "$(j '{"jsonrpc":"2.0","id":6,"method":"tools/call","params":{"name":"describe","arguments":{"source":"flowchart TD\n  A --> B"}}}')"
+
+check 'build authors with structured ops' 'class Duck' \
+  "$(j '{"jsonrpc":"2.0","id":"build","method":"tools/call","params":{"name":"build","arguments":{"family":"class","ops":[{"kind":"add_class","id":"Duck"},{"kind":"add_member","class":"Duck","text":"+quack()"}]}}}')"
+
+check 'mutate edits with structured ops' 'class Dog' \
+  "$(j '{"jsonrpc":"2.0","id":"mutate","method":"tools/call","params":{"name":"mutate","arguments":{"source":"classDiagram\n  class Animal","ops":[{"kind":"add_class","id":"Dog"}]}}}')"
 
 check 'render_png returns base64 PNG (wasm)' '\"png_base64\":\"iVBOR' \
   "$(j '{"jsonrpc":"2.0","id":7,"method":"tools/call","params":{"name":"render_png","arguments":{"source":"flowchart LR\n  A --> B"}}}')"

@@ -19,10 +19,11 @@ For brand-new diagrams, author Mermaid source directly, then parse/verify/render
 | Channel | Use when | Surface |
 |---|---|---|
 | Library | You can run TypeScript/JavaScript | `import ... from 'agentic-mermaid/agent'` |
-| MCP Code Mode | An agent needs multi-step edits in one sandboxed call | `agentic-mermaid-mcp`, global `mermaid.*` |
+| MCP Code Mode | An agent needs multi-step edits in one sandboxed call | local `agentic-mermaid-mcp`, global `mermaid.*` |
+| Hosted MCP | No local install is available, or a client wants bounded HTTP tools | `https://agentic-mermaid.dev/mcp` tools: `execute`, render/verify/describe, `mutate`, `build` |
 | CLI | Shell-only verification, rendering, preview, or one-shot mutation | `am ...` |
 
-All three channels expose the same contract: parse, optionally narrow, mutate, verify, serialize/render. Agentic Mermaid outputs SVG, PNG, ASCII, Unicode, and JSON layout.
+All channels expose the same core contract: parse, optionally narrow, mutate, verify, serialize/render. Agentic Mermaid outputs SVG, PNG, ASCII, Unicode, and JSON layout.
 
 ## Recipe: author a new diagram
 
@@ -214,10 +215,11 @@ am render diagram.mmd --format ascii > diagram.txt
 
 MCP channel:
 
-- Use Code Mode for parse/narrow/mutate/verify/serialize.
-- Use the `render_png` helper for base64 PNG bytes when the host needs a raster artifact.
-- In HTTP/SSE mode, use `render_png` with `output: "file"` or `output: "url"` when the host wants a managed artifact instead of inline base64.
-- Use Code Mode or library/CLI for SVG and ASCII artifacts.
+- Local MCP: use Code Mode for parse/narrow/mutate/verify/serialize.
+- Local MCP: use the `render_png` helper for base64 PNG bytes when the host needs a raster artifact.
+- Local HTTP/SSE mode: use `render_png` with `output: "file"` or `output: "url"` when the host wants a managed artifact instead of inline base64.
+- Hosted MCP: use direct `render_svg`, `render_ascii`, `render_png`, `verify`, and `describe` for one-shot work; use declarative `mutate`/`build` for straightforward op-list edits; reserve hosted `execute` for logic those tools do not express.
+- Use local library/CLI/MCP for sensitive diagrams, offline work, larger inputs, or local file/URL PNG artifacts.
 
 ## Recipe: MCP Code Mode
 

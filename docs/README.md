@@ -30,7 +30,8 @@ This directory holds the long-form documentation. The root README is intentional
 | [`agent-api-cookbook.md`](./agent-api-cookbook.md) | Copy-pasteable library/CLI/MCP recipes. |
 | [`agent-mutation-policy.md`](./agent-mutation-policy.md) | Structured-vs-source-level edit policy. |
 | [`mcp-code-mode-rationale.md`](./mcp-code-mode-rationale.md) | Why MCP is Code Mode first. |
-| [`mcp-http-transport.md`](./mcp-http-transport.md) | HTTP/SSE MCP quickstart, artifact outputs, options, and security defaults. |
+| [`mcp-http-transport.md`](./mcp-http-transport.md) | Local HTTP/SSE MCP quickstart plus hosted `/mcp` call-shape notes. |
+| [`project/hosted-mcp-cloudflare-plan.md`](./project/hosted-mcp-cloudflare-plan.md) | As-built hosted MCP record: Dynamic Workers `execute`, pure tools, limits, cache, and non-goals. |
 | [`agent-workflow-examples.md`](./agent-workflow-examples.md) | Runnable MCP/CLI and improvement-loop examples. |
 | [`../skills/`](../skills/) | Agent-agnostic skill bundles. |
 | [`../skill-evals/`](../skill-evals/) | Skill eval manifest, fixtures, and benchmark instructions. |

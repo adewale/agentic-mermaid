@@ -2,7 +2,8 @@
 
 import { describe, test, expect } from 'bun:test'
 import { executeInSandbox } from '../mcp/sandbox.ts'
-import { handleRequest } from '../mcp/server.ts'
+import { handleRequest, LOCAL_TOOLS } from '../mcp/server.ts'
+import { parseMcpCliOptions, runMcpCli } from '../mcp/mcp-cli.ts'
 import { runCli } from '../cli/index.ts'
 import { BUILTIN_FAMILY_METADATA } from '../agent/families.ts'
 import pkg from '../../package.json'
@@ -404,6 +405,7 @@ describe('MCP — JSON-RPC happy + sad', () => {
     const r = await handleRequest({ jsonrpc: '2.0', id: 2, method: 'tools/list' })
     const tools = (r!.result as any).tools
     // Loop 9 M1 + M12: render_png and describe joined execute.
+    expect(tools).toBe(LOCAL_TOOLS)
     expect(tools.map((t: any) => t.name)).toEqual(['execute', 'render_png', 'describe'])
     for (const token of [
       ...BUILTIN_FAMILY_METADATA.map(f => f.narrower),
@@ -442,6 +444,44 @@ describe('MCP — JSON-RPC happy + sad', () => {
   test('malformed params on tools/call do not throw', async () => {
     const r = await handleRequest({ jsonrpc: '2.0', id: 7, method: 'tools/call', params: null })
     expect(r!.error).toBeDefined()
+  })
+})
+
+describe('MCP bin shim', () => {
+  test('parseMcpCliOptions is the shared flag parser for both bins', () => {
+    const parsed = parseMcpCliOptions([
+      '--http', '--host', '0.0.0.0', '--port', '3001', '--artifact-dir', '/tmp/am',
+      '--public-url', 'https://example.test/artifacts', '--max-artifact-bytes', '123',
+      '--artifact-ttl-ms', '456', '--max-rpc-body-bytes', '789', '--auth-token', 'secret',
+      '--max-sandbox-timeout-ms', '1000',
+    ])
+    expect(parsed.transport).toBe('http')
+    expect(parsed.httpOptions).toEqual({
+      host: '0.0.0.0',
+      port: 3001,
+      artifactDir: '/tmp/am',
+      publicUrl: 'https://example.test/artifacts',
+      maxArtifactBytes: 123,
+      artifactTtlMs: 456,
+      maxRpcBodyBytes: 789,
+      authToken: 'secret',
+      maxSandboxTimeoutMs: 1000,
+    })
+  })
+
+  test('runMcpCli handles help and bad flags without launching a server', async () => {
+    const out: string[] = []
+    const err: string[] = []
+    const io = {
+      stdout: { write: (s: string) => { out.push(s); return true } },
+      stderr: { write: (s: string) => { err.push(s); return true } },
+    }
+    expect(await runMcpCli(['--help'], io)).toBe(0)
+    expect(out.join('')).toContain('agentic-mermaid-mcp')
+    expect(await runMcpCli(['--transport', 'smtp'], io)).toBe(1)
+    expect(err.join('')).toContain('unknown transport: smtp')
+    expect(await runMcpCli(['--port', '70000'], io)).toBe(1)
+    expect(err.join('')).toContain('--port must be an integer between 0 and 65535')
   })
 })
 
