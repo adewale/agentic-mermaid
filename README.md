@@ -143,9 +143,9 @@ For multi-step MCP edits, connect `agentic-mermaid-mcp` and use Code Mode `execu
 Agentic Mermaid ships a Model Context Protocol server so MCP-capable agents can render and safely edit diagrams without shelling out.
 
 - **Self-hosted (default).** `agentic-mermaid-mcp` runs a stdio server exposing `execute` (Code Mode sandbox), `render_png`, and `describe`. Add `--transport http` for HTTP/SSE with managed PNG file/URL artifacts. See [`docs/mcp-http-transport.md`](./docs/mcp-http-transport.md) and [`docs/mcp-code-mode-rationale.md`](./docs/mcp-code-mode-rationale.md).
-- **Hosted.** A stateless streamable-HTTP endpoint is available at `https://agentic-mermaid.dev/mcp` (tools: `execute`, `render_svg`, `render_ascii`, `render_png`, `verify`, `describe`; 64 KB input caps). It runs the same SDK surface as the local server — call it with MCP JSON-RPC only; it is not a REST render API.
+- **Hosted.** A stateless Streamable HTTP endpoint is available at `https://agentic-mermaid.dev/mcp` (tools: `execute`, `render_svg`, `render_ascii`, `render_png`, `verify`, `describe`, `mutate`, `build`; 64 KB input caps). It is MCP JSON-RPC only, not a REST render API. Hosted `execute` runs the same `mermaid.*` facade in a Cloudflare Dynamic Worker isolate with no network; hosted PNG returns base64 only.
 
-Local-first is the default posture: prefer the library, CLI, or a self-hosted MCP for anything sensitive; the hosted endpoint is a public, unauthenticated convenience covering the same tools.
+Local-first is the default posture: prefer the library, CLI, or a self-hosted MCP for anything sensitive, offline, larger than the hosted caps, or needing local PNG file/URL artifacts. The hosted endpoint is a public, unauthenticated convenience for zero-install render/verify/describe and bounded structured edits.
 
 ## Structured edit example
 

@@ -102,11 +102,19 @@ Exit codes 0/2/3/4; parse and verify-failure errors include structured `error.de
 
 ## MCP server
 
-Code Mode `execute(code)` (JavaScript in a `node:vm` sandbox with a typed
-`mermaid.*` SDK declaration), plus narrow helper tools: `render_png` and
-`describe`. The server supports stdio by default and HTTP/SSE via
-`agentic-mermaid-mcp --transport http`; `render_png` can return base64 bytes or
-managed file/URL artifacts with MIME type, byte count, and SHA-256 metadata.
+Local `agentic-mermaid-mcp` is Code Mode-first: `execute(code)` runs synchronous
+JavaScript in a local `node:vm` sandbox with a typed `mermaid.*` SDK declaration,
+plus narrow `render_png` and `describe` helpers. It supports stdio by default and
+HTTP/SSE via `agentic-mermaid-mcp --transport http`; local `render_png` can
+return base64 bytes or managed file/URL artifacts with MIME type, byte count, and
+SHA-256 metadata.
+
+The hosted endpoint at `https://agentic-mermaid.dev/mcp` is stateless
+Streamable HTTP. It exposes eight bounded MCP JSON-RPC tools: `execute` in a
+Cloudflare Dynamic Worker isolate, pure `render_svg` / `render_ascii` /
+`render_png` / `verify` / `describe`, and declarative `mutate` / `build` for
+structured edits. Hosted inputs are capped at 64 KB, PNG is base64-only, and the
+endpoint is a convenience surface rather than a REST render API.
 
 ## Distribution
 

@@ -1,6 +1,6 @@
 # MCP Code Mode rationale
 
-`agentic-mermaid-mcp` is intentionally Code Mode first. Its primary tool is `execute(code)`, which runs synchronous JavaScript against the typed `mermaid.*` SDK in a local `node:vm` sandbox. This is a local implementation inspired by Code Mode as a product shape; it is not Cloudflare Codemode, not backed by `@cloudflare/codemode`, and not an OS/container security boundary. The helper tools (`render_png` and `describe`) are narrow conveniences, not a second full authoring API.
+Local `agentic-mermaid-mcp` is intentionally Code Mode first. Its primary tool is `execute(code)`, which runs synchronous JavaScript against the typed `mermaid.*` SDK in a local `node:vm` sandbox. This is a local implementation inspired by Code Mode as a product shape; it is not Cloudflare Codemode, not backed by `@cloudflare/codemode`, and not an OS/container security boundary. The local helper tools (`render_png` and `describe`) are narrow conveniences, not a second full authoring API.
 
 There is now also a **hosted** MCP at `https://agentic-mermaid.dev/mcp` (stateless Streamable HTTP; see [`docs/project/hosted-mcp-cloudflare-plan.md`](./project/hosted-mcp-cloudflare-plan.md)). It keeps `execute` but runs agent code in a per-request Cloudflare Dynamic Worker isolate (`globalOutbound: null`, empty env, `cpuMs` budget) instead of a local `node:vm` — there the isolate configuration *is* the security boundary — and adds direct `render_svg`/`render_ascii`/`render_png`/`verify`/`describe` tools so the common render/verify paths avoid a billable isolate, plus the declarative `mutate`/`build` tools (see below). Both share the same hardened `mermaid.*` facade; their semantics are pinned against each other by a differential test suite.
 
@@ -39,12 +39,16 @@ workflow that (a) is common, (b) needs no arbitrary logic, and (c) a weak model
 gets wrong through `execute`. For everything richer, use `execute`, the CLI
 (`am mutate --ops`, `am verify`, `am render`), or a library import.
 
-## What the helper MCP tools are for
+## What the non-Code-Mode MCP tools are for
+
+Local MCP keeps only two helpers:
 
 - `render_png(source)` exists because PNG is binary output and returning base64 from a dedicated MCP tool is simpler than putting binary handling into Code Mode snippets. For clients that cannot comfortably carry large base64 payloads, `render_png({source, output:"file"})` writes a managed local artifact and `output:"url"` returns an HTTP-served artifact when the server runs with HTTP/SSE transport.
 - `describe(source)` exists because one-shot natural-language summaries are common for screen readers, docs, and context compaction.
 
-Both helpers consume source. They are not intended to independently author or mutate diagrams. Managed artifacts are generated under the server artifact directory with safe names, size limits, TTL cleanup, MIME type, byte count, and SHA-256 metadata; they are not arbitrary user-chosen file writes.
+The hosted endpoint adds direct pure tools (`render_svg`, `render_ascii`, `render_png`, `verify`, `describe`) because every hosted `execute` spins a Dynamic Worker isolate; common render/verify calls should be ordinary Worker invocations and edge-cacheable. Hosted `mutate` and `build` are the only declarative authoring tools, and they exist to apply typed op lists with the verify-before-emit contract without asking a weaker model to write JavaScript. They do not introduce a separate mutation engine.
+
+Local managed artifacts are generated under the server artifact directory with safe names, size limits, TTL cleanup, MIME type, byte count, and SHA-256 metadata; they are not arbitrary user-chosen file writes. Hosted `render_png` returns base64 only.
 
 ## Equivalence example
 
@@ -53,7 +57,7 @@ Both helpers consume source. They are not intended to independently author or mu
 - MCP Code Mode: `tools/call execute` runs parse → narrow → mutate[] → verify → serialize.
 - CLI: `am mutate <diagram>.mmd --ops ops.json --json` runs the same typed mutation batch and verify-before-emit contract.
 
-The example asserts that both channels produce byte-identical Mermaid source for every case. This is the supported equivalence story: **MCP Code Mode and CLI/library can produce the same diagrams**, while MCP helper tools remain intentionally narrow.
+The example asserts that both channels produce byte-identical Mermaid source for every case. This is the supported equivalence story: **MCP Code Mode and CLI/library can produce the same diagrams**. Hosted `mutate`/`build` are a bounded shortcut for the same typed op-list workflows, not a replacement for Code Mode when custom control flow is needed.
 
 ## Transports
 
@@ -94,4 +98,4 @@ npx -y agentic-mermaid-mcp --transport http --host 127.0.0.1 --port 3000
 
 ## When to add more MCP tools
 
-Add a non-Code-Mode MCP tool only with evidence that a real client cannot use `execute` or the CLI/library path. Until then, keep the MCP surface small: one compositional tool plus narrow helpers for binary output and summaries.
+Add another non-Code-Mode MCP tool only with evidence that a real client cannot use `execute`, hosted `mutate`/`build`, or the CLI/library path. Until then, keep the surface small: one compositional tool, direct pure render/verify/describe tools where they avoid hosted isolate cost, and the two declarative structured-edit tools.
