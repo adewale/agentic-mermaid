@@ -281,6 +281,8 @@ function renderEntityBox(entity: PositionedErEntity, style: ResolvedRenderStyle)
 function renderAttribute(attr: ErAttribute, entityId: string, boxX: number, y: number, boxWidth: number, style: ResolvedRenderStyle): SceneNode[] {
   const rowNodes: SceneNode[] = []
   const attrId = `attr:${entityId}:${attr.name}`
+  const attrTextColor = style.nodeTextColor ?? 'var(--_text-sec)'
+  const attrTypeColor = style.nodeTextColor ?? 'var(--_text-muted)'
 
   // Key badges on the left (keep proportional font — they're visual tags, not code)
   let keyWidth = 0
@@ -304,10 +306,10 @@ function renderAttribute(attr: ErAttribute, entityId: string, boxX: number, y: n
       y,
       fontSize: ER_FONT.keySize,
       anchor: 'middle',
-      paint: { fill: 'var(--_text-sec)' },
+      paint: { fill: attrTextColor },
     },
       `<text x="${badgeX + keyWidth / 2}" y="${y}" text-anchor="middle" dy="${TEXT_BASELINE_SHIFT}" ` +
-      `font-size="${ER_FONT.keySize}" font-weight="${ER_FONT.keyWeight}" fill="var(--_text-sec)">${attr.keys.join(',')}</text>`))
+      `font-size="${ER_FONT.keySize}" font-weight="${ER_FONT.keyWeight}" fill="${escapeAttr(attrTextColor)}">${attr.keys.join(',')}</text>`))
   }
 
   // Type (left-aligned after keys, monospace with syntax highlighting)
@@ -320,11 +322,11 @@ function renderAttribute(attr: ErAttribute, entityId: string, boxX: number, y: n
     y,
     fontSize: ER_FONT.attrSize,
     anchor: 'start',
-    paint: { fill: 'var(--_text-muted)' },
+    paint: { fill: attrTypeColor },
   },
     `<text x="${typeX}" y="${y}" class="mono" dy="${TEXT_BASELINE_SHIFT}" ` +
     `font-size="${ER_FONT.attrSize}" font-weight="${ER_FONT.attrWeight}">` +
-    `<tspan fill="var(--_text-muted)">${escapeXml(attr.type)}</tspan></text>`))
+    `<tspan fill="${escapeAttr(attrTypeColor)}">${escapeXml(attr.type)}</tspan></text>`))
 
   // Name (right-aligned, monospace with syntax highlighting)
   const nameX = boxX + boxWidth - Math.max(8, style.nodePaddingX / 2)
@@ -336,11 +338,11 @@ function renderAttribute(attr: ErAttribute, entityId: string, boxX: number, y: n
     y,
     fontSize: ER_FONT.attrSize,
     anchor: 'end',
-    paint: { fill: 'var(--_text-sec)' },
+    paint: { fill: attrTextColor },
   },
     `<text x="${nameX}" y="${y}" class="mono" text-anchor="end" dy="${TEXT_BASELINE_SHIFT}" ` +
     `font-size="${ER_FONT.attrSize}" font-weight="${ER_FONT.attrWeight}">` +
-    `<tspan fill="var(--_text-sec)">${escapeXml(attr.name)}</tspan></text>`))
+    `<tspan fill="${escapeAttr(attrTextColor)}">${escapeXml(attr.name)}</tspan></text>`))
 
   // Wrap in a group if there's a comment (for tooltip support)
   const hasComment = attr.comment && attr.comment.length > 0

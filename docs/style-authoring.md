@@ -118,6 +118,7 @@ judgement.
 ## Verify before you ship
 
 ```bash
+bun run style:audit                         # role-token propagation + contrast
 bun test src/__tests__/styled-output.test.ts   # determinism + goldens + composition
 bun test src/__tests__/scene-fidelity.test.ts  # semantic/crisp agreement
 bun test src/__tests__/svg-equivalence.test.ts # crisp path untouched
