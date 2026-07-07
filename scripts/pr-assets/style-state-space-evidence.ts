@@ -421,8 +421,10 @@ mkdirSync(OUT_DIR, { recursive: true })
 generateStyleGallery()
 generatePaletteGallery()
 writeCoverageArtifacts()
-console.log('wrote docs/pr-assets/new-style-gallery.png')
-console.log('wrote docs/pr-assets/new-style-palette-gallery.png')
-console.log('wrote docs/pr-assets/style-state-space-before.png')
-console.log('wrote docs/pr-assets/style-state-space-after.png')
-console.log('wrote docs/pr-assets/style-state-space-before-after.png')
+process.stdout.write([
+  'wrote docs/pr-assets/new-style-gallery.png',
+  'wrote docs/pr-assets/new-style-palette-gallery.png',
+  'wrote docs/pr-assets/style-state-space-before.png',
+  'wrote docs/pr-assets/style-state-space-after.png',
+  'wrote docs/pr-assets/style-state-space-before-after.png',
+].join('\n') + '\n')
