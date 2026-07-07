@@ -12,7 +12,7 @@ am serialize                  ValidDiagram JSON (stdin) → canonical source
 am mutate <file|-> --op JSON  one MutationOp → verify → new source
 am mutate <file|-> --ops JSON|file  many MutationOps → verify → new source
 am format <file|->            idempotent reformat
-am describe <file|->          prose summary or --format json AX tree
+am describe <file|->          prose summary, --format json AX tree, or --format facts semantic facts
 am capabilities --json        families, editPolicy, mutationOps, warning codes, formats
 am batch --jsonl              JSONL stdin → JSONL envelopes (render/verify/parse/serialize/mutate)
 am render-markdown <file.md> [--ascii]  render fenced Mermaid blocks

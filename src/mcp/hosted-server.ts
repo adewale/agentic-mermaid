@@ -17,6 +17,7 @@ import { opSignatures, type OpFamily } from '../agent/op-schema.ts'
 import { validateStyleSpec } from '../scene/style-registry.ts'
 import type { StyleInput } from '../scene/style-registry.ts'
 import { describeMermaidSource, describeMermaid } from '../agent/describe.ts'
+import { describeMermaidFacts } from '../agent/facts.ts'
 import { BUILTIN_FAMILY_METADATA } from '../agent/families.ts'
 import { renderMermaidSVG, renderMermaidASCII } from '../agent/core.ts'
 import { THEMES } from '../theme.ts'
@@ -151,14 +152,15 @@ Warnings use the layout-rubric codes.`,
   },
   {
     name: 'describe',
-    description: `Produce a natural-language summary of a Mermaid diagram. Returns
-{ ok, text } with one or two sentences per family covering entities, edges,
-and notable structure. Intended for screen-reader output, doc generation, and
-LLM context compaction without re-parsing.`,
+    description: `Describe a Mermaid diagram. format=text returns { ok, text } with
+one or two summary sentences; format=json returns { ok, tree } with the AX tree;
+format=facts returns { ok, facts } with deterministic semantic fact lines for
+machine checking (for example edge A -> B : label, member Duck +quack()).`,
     inputSchema: {
       type: 'object',
       properties: {
         source: { type: 'string', description: 'Mermaid source.' },
+        format: { type: 'string', enum: ['text', 'json', 'facts'], description: 'text (default), json AX tree, or facts semantic read-back.' },
       },
       required: ['source'],
     },
@@ -255,7 +257,7 @@ async function handleToolCall(id: number | string | null, params: unknown, conte
       // having to know to call `describe` separately.
       return { ok: v.ok, family: parsed.value.kind, summary: describeMermaid(parsed.value), warnings: v.warnings, layout: { bounds: v.layout.bounds, nodes: v.layout.nodes.length, edges: v.layout.edges.length } }
     })
-    case 'describe': return sourceTool(id, args, 'DESCRIBE_FAILED', source => ({ ok: true as const, text: describeMermaidSource(source) }))
+    case 'describe': return sourceTool(id, args, 'DESCRIBE_FAILED', source => describePayload(source, args))
     case 'mutate': return handleApplyOps(id, args, 'source')
     case 'build': return handleApplyOps(id, args, 'family')
     default: return rpcError(id, -32602, `Unknown tool: ${name ?? '<none>'}`)
@@ -275,6 +277,21 @@ function familyExampleForSource(source: string): { family: string; example: stri
     if (f.headers.some(h => header === h)) return { family: f.id, example: f.example }
   }
   return undefined
+}
+
+function describeFormat(args: Record<string, unknown>): 'text' | 'json' | 'facts' {
+  const format = args.format ?? 'text'
+  if (format === 'text' || format === 'json' || format === 'facts') return format
+  throw new Error('describe format must be one of: text, json, facts')
+}
+
+function describePayload(source: string, args: Record<string, unknown>): { ok: boolean } & Record<string, unknown> {
+  const format = describeFormat(args)
+  if (format === 'text') return { ok: true as const, text: describeMermaidSource(source) }
+  const parsed = parseMermaid(source)
+  if (!parsed.ok) return { ok: false as const, errors: parsed.error }
+  if (format === 'facts') return { ok: true as const, facts: describeMermaidFacts(parsed.value) }
+  return { ok: true as const, tree: JSON.parse(describeMermaid(parsed.value, { format: 'json' })) }
 }
 
 function svgOptions(args: Record<string, unknown>): Record<string, unknown> {
@@ -389,8 +406,13 @@ export function cacheKeyFor(name: string | undefined, args: Record<string, unkno
     }
     case 'verify':
       return typeof args.source === 'string' ? { t: 'verify', source: args.source } : null
-    case 'describe':
-      return typeof args.source === 'string' ? { t: 'describe', source: args.source } : null
+    case 'describe': {
+      if (typeof args.source !== 'string') return null
+      const format = args.format ?? 'text'
+      return format === 'text' || format === 'json' || format === 'facts'
+        ? { t: 'describe', source: args.source, format }
+        : null
+    }
     default:
       return null
   }

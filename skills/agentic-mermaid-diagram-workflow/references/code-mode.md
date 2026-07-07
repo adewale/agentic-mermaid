@@ -38,6 +38,8 @@ mermaid.mutate(pie,      PieMutationOp):       Result<PieValidDiagram, MutationE
 mermaid.mutate(quad,     QuadrantMutationOp):  Result<QuadrantValidDiagram, MutationError>
 mermaid.mutate(gantt,    GanttMutationOp):     Result<GanttValidDiagram, MutationError>
 mermaid.verifyMermaid(input, { suppress?, labelCharCap? }): VerifyResult
+mermaid.describeMermaidFacts(d): string[]
+mermaid.checkMermaid(d, spec): { ok: boolean; missing: string[]; unexpected: string[]; facts: string[] }
 mermaid.serializeMermaid(d): string
 mermaid.renderMermaidASCII(input, { useAscii?: boolean, ganttToday?: string, mermaidConfig?: MermaidRuntimeConfig }): string
 mermaid.renderMermaidSVG(input, { security?: 'default'|'strict', idPrefix?, ganttToday?: string, mermaidConfig?: MermaidRuntimeConfig }): string
@@ -115,4 +117,4 @@ return sources.map(src => {
 Conventions: return the final value; do not use imports or type annotations in
 Code Mode; do not use `async`/`await` or Promise jobs; for new diagrams, author
 source then parse/verify; for existing modeled diagrams, narrow before mutate and
-verify before every serialize; `verify.ok` is structural rather than visual, so inspect layout/render artifacts for visual tasks; for an opaque-fallback body (any unmodeled syntax, where the narrower returns null), return an explicit unsupported-family result unless the task requested source-level editing and you can re-parse + verify afterward.
+verify before every serialize; `verify.ok` is structural rather than visual or semantic, so inspect layout/render artifacts for visual tasks and use `checkMermaid` facts for task-critical meaning; for an opaque-fallback body (any unmodeled syntax, where the narrower returns null), return an explicit unsupported-family result unless the task requested source-level editing and you can re-parse + verify afterward.

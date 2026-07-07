@@ -153,10 +153,17 @@ describe('hosted pure tools', () => {
     expect(p.example).toContain('flowchart')
   })
 
-  test('describe summarizes a diagram', async () => {
-    const p = payloadOf(await handleHostedRequest(call('describe', { source: FLOW }), makeContext()))
-    expect(p.ok).toBe(true)
-    expect(p.text).toContain('flowchart')
+  test('describe summarizes a diagram and can return json or facts', async () => {
+    const text = payloadOf(await handleHostedRequest(call('describe', { source: FLOW }), makeContext()))
+    expect(text.ok).toBe(true)
+    expect(text.text).toContain('flowchart')
+    const tree = payloadOf(await handleHostedRequest(call('describe', { source: FLOW, format: 'json' }), makeContext()))
+    expect(tree.ok).toBe(true)
+    expect(tree.tree.kind).toBe('flowchart')
+    const facts = payloadOf(await handleHostedRequest(call('describe', { source: FLOW, format: 'facts' }), makeContext()))
+    expect(facts.ok).toBe(true)
+    expect(facts.facts).toContain('edge A -> B')
+    expect(facts.facts).toContain('edge B -> C : yes')
   })
 
   test('pure tools reject missing source and cap oversized source', async () => {
@@ -384,5 +391,11 @@ describe('cacheKeyFor (normalized, output-affecting arguments)', () => {
     const keys = ['render_svg', 'render_ascii', 'verify', 'describe']
       .map(t => JSON.stringify(cacheKeyFor(t, { source: FLOW })))
     expect(new Set(keys).size).toBe(keys.length)
+  })
+
+  test('describe format participates in the cache key', () => {
+    expect(cacheKeyFor('describe', { source: FLOW })).toEqual(cacheKeyFor('describe', { source: FLOW, format: 'text' }))
+    expect(cacheKeyFor('describe', { source: FLOW, format: 'facts' })).not.toEqual(cacheKeyFor('describe', { source: FLOW, format: 'json' }))
+    expect(cacheKeyFor('describe', { source: FLOW, format: 'bad' })).toBeNull()
   })
 })

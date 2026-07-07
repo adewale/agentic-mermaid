@@ -2,6 +2,7 @@ import { executeInSandbox } from '../../src/mcp/sandbox.ts'
 import { parseMermaid } from '../../src/agent/parse.ts'
 import { serializeMermaid } from '../../src/agent/serialize.ts'
 import { asFlowchart, asState, asSequence, asTimeline, asClass, asEr, asJourney, asArchitecture, asXyChart, asPie, asQuadrant, asGantt, type DiagramKind, type ValidDiagram } from '../../src/agent/types.ts'
+import { checkMermaidSource, type CheckMermaidSpec } from '../../src/agent/facts.ts'
 import { lintAgentTrace, type SdkCall, type AntiPattern } from './harness.ts'
 import { buildHomepageAgentPromptTask } from './homepage-prompt.ts'
 
@@ -90,6 +91,8 @@ export const DEFAULT_CASES: AgentUsageEvalCase[] = [
       if (!r1.ok) return { error: r1.error }
       const verify = mermaid.verifyMermaid(r1.value)
       if (!verify.ok) return { error: 'verify', warnings: verify.warnings }
+      const semantic = mermaid.checkMermaid(r1.value, ['edge Processing -> [*] : done'])
+      if (!semantic.ok) return { error: 'semantic', missing: semantic.missing, unexpected: semantic.unexpected }
       return { source: mermaid.serializeMermaid(r1.value) }
     `,
   },
@@ -153,6 +156,8 @@ export const DEFAULT_CASES: AgentUsageEvalCase[] = [
       if (!r1.ok) return { error: r1.error }
       const verify = mermaid.verifyMermaid(r1.value)
       if (!verify.ok) return { error: 'verify', warnings: verify.warnings }
+      const semantic = mermaid.checkMermaid(r1.value, ['class Duck', 'member Duck +quack()'])
+      if (!semantic.ok) return { error: 'semantic', missing: semantic.missing, unexpected: semantic.unexpected }
       return { source: mermaid.serializeMermaid(r1.value) }
     `,
   },
@@ -302,6 +307,8 @@ export const DEFAULT_CASES: AgentUsageEvalCase[] = [
       if (!r1.ok) return { error: r1.error }
       const verify = mermaid.verifyMermaid(r1.value)
       if (!verify.ok) return { error: 'verify', warnings: verify.warnings }
+      const semantic = mermaid.checkMermaid(r1.value, ['task Docs id docs', 'task Docs start after core', 'task Docs end 2d'])
+      if (!semantic.ok) return { error: 'semantic', missing: semantic.missing, unexpected: semantic.unexpected }
       return { source: mermaid.serializeMermaid(r1.value) }
     `,
   },
@@ -685,6 +692,11 @@ function serializedSource(value: unknown, trace: SdkCall[]): string | undefined 
   return returnedSerializedSource(value, trace)
 }
 
+function sourceSatisfiesFacts(source: string, spec: CheckMermaidSpec): boolean {
+  const checked = checkMermaidSource(source, spec)
+  return checked.ok && checked.value.ok
+}
+
 export function checkAgentUsageTaskSource(id: string, source: string): boolean {
   const fakeSerializeTrace = [{ verb: 'serialize', diagram: 'final', source }] as SdkCall[]
   return checkTask(id, defaultInput(id), { source }, fakeSerializeTrace)
@@ -768,10 +780,7 @@ function checkTask(id: string, input: string | undefined, value: unknown, trace:
   }
   if (id === 'state_add_done_transition') {
     const source = serializedSource(value, trace)
-    if (!source) return false
-    const parsed = parseMermaid(source)
-    const body = parsed.ok ? asState(parsed.value)?.body : undefined
-    return Boolean(body?.transitions.some(t => t.from === 'Processing' && t.to === '[*]' && t.label === 'done'))
+    return Boolean(source && sourceSatisfiesFacts(source, ['edge Processing -> [*] : done']))
   }
   if (id === 'canonical_add_cache_messy') {
     const source = serializedSource(value, trace)
@@ -809,11 +818,7 @@ function checkTask(id: string, input: string | undefined, value: unknown, trace:
   }
   if (id === 'class_add_duck') {
     const source = serializedSource(value, trace)
-    if (!source) return false
-    const parsed = parseMermaid(source)
-    const body = parsed.ok ? asClass(parsed.value)?.body : undefined
-    const duck = body?.classes.find(c => c.id === 'Duck')
-    return Boolean(duck?.members.includes('+quack()'))
+    return Boolean(source && sourceSatisfiesFacts(source, ['class Duck', 'member Duck +quack()']))
   }
   if (id === 'er_add_order') {
     const source = serializedSource(value, trace)
@@ -861,10 +866,7 @@ function checkTask(id: string, input: string | undefined, value: unknown, trace:
   }
   if (id === 'gantt_add_docs_task') {
     const source = serializedSource(value, trace)
-    if (!source) return false
-    const parsed = parseMermaid(source)
-    const body = parsed.ok ? asGantt(parsed.value)?.body : undefined
-    return Boolean(body?.sections[0]?.tasks.some(t => t.label === 'Docs' && t.taskId === 'docs' && t.start === 'after core' && t.end === '2d'))
+    return Boolean(source && sourceSatisfiesFacts(source, ['task Docs id docs', 'task Docs start after core', 'task Docs end 2d']))
   }
   if (id === 'sequence_alt_add_message') {
     const source = serializedSource(value, trace)

@@ -135,6 +135,8 @@ import {
   verifyMermaid,
   analyzeMermaid,
   analyzeMermaidSource,
+  describeMermaidFacts,
+  checkMermaid,
   serializeMermaid,
 } from 'agentic-mermaid/agent'
 ```
@@ -147,11 +149,12 @@ Core functions:
 | `asFlowchart(d)` / `asState(d)` / `asSequence(d)` / `asTimeline(d)` / `asClass(d)` / `asEr(d)` / `asJourney(d)` / `asArchitecture(d)` / `asXyChart(d)` / `asPie(d)` / `asQuadrant(d)` / `asGantt(d)` | Narrow to a mutable family or return `null`. |
 | `mutate(d, op)` | Apply a kind-discriminated typed mutation. |
 | `verifyMermaid(d)` | Return structural warnings and layout evidence. |
-| `analyzeMermaid(d)` / `analyzeMermaidSource(source)` | Return deterministic non-rendering facts: feedback edges, source-only action records, and Gantt critical-path/slack summary when available. |
+| `analyzeMermaid(d)` / `analyzeMermaidSource(source)` | Return deterministic non-rendering analysis: feedback edges, source-only action records, and Gantt critical-path/slack summary when available. |
+| `describeMermaidFacts(d)` / `checkMermaid(d, spec)` | Return deterministic semantic fact lines, or check required/forbidden facts such as `edge Processing -> [*] : done`, `member Duck +quack()`, `task Docs start after core`. |
 | `serializeMermaid(d)` | Emit source only after verifying. |
 | `layoutMermaid(d)` | Return layout JSON for quality/inspection; `layoutMermaid(d, { debug: true })` includes graph route certificates, family edge-route certificates (class/ER/architecture/sequence), region-containment certificates (timeline/charts), and V1 region/action sidecars. Edge certificates include exact ports plus side/slot/role port assignments where applicable. |
 | `measureQuality(layout)` / `checkQuality(layout)` | Perceptual quality metrics. |
-| `describeMermaid(d, { format })` | Prose or AX-tree summary. |
+| `describeMermaid(d, { format })` | Prose, AX-tree, or facts summary (`format: "text" | "json" | "facts"`). |
 
 Typed mutation families:
 
@@ -180,6 +183,7 @@ am render diagram.mmd --format png --output diagram.png
 am render diagram.mmd --format ascii > diagram.txt
 am render diagram.mmd --format json --certificates > layout-with-routes.json
 am verify diagram.mmd
+am describe diagram.mmd --format facts
 am mutate diagram.mmd --op '{"kind":"add_node","id":"Cache","label":"Cache"}' --json
 am capabilities --json
 am init-agent --dir . --json
@@ -195,6 +199,6 @@ The published package exposes Node-runnable bins: `am`, `agentic-mermaid`, and `
 
 - `execute(code)` — primary Code Mode tool with global `mermaid.*` SDK.
 - `render_png` — narrow helper returning base64 PNG bytes, or managed file/URL artifacts via `output: "file"|"url"`.
-- `describe` — narrow summary helper.
+- `describe` — narrow summary helper; pass `format: "facts"` for deterministic semantic fact lines.
 
 Use Code Mode for multi-step parse/narrow/mutate/verify/serialize loops. Use `render_png` or host/library code for binary PNG output. The default transport is stdio; `agentic-mermaid-mcp --transport http --host 127.0.0.1 --port 3000` starts the HTTP/SSE transport. HTTP mode serves managed artifacts from `/artifacts/<name>` with MIME type, byte count, and SHA-256 metadata in tool responses. Non-loopback HTTP binding requires `--auth-token`. See [`mcp-http-transport.md`](./mcp-http-transport.md) for JSON-RPC examples and option details.

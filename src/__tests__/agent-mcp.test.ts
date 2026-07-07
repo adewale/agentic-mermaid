@@ -419,6 +419,11 @@ describe('MCP — JSON-RPC happy + sad', () => {
     expect((r!.result as any).isError).toBe(false)
     expect(JSON.parse((r!.result as any).content[0].text).value).toBe(true)
   })
+  test('tools/call describe supports facts format', async () => {
+    const r = await handleRequest({ jsonrpc: '2.0', id: 30, method: 'tools/call', params: { name: 'describe', arguments: { source: 'classDiagram\n  class Duck {\n    +quack()\n  }', format: 'facts' } } })
+    expect((r!.result as any).isError).toBe(false)
+    expect(JSON.parse((r!.result as any).content[0].text).facts).toContain('member Duck +quack()')
+  })
   test('unknown tool → error', async () => {
     const r = await handleRequest({ jsonrpc: '2.0', id: 4, method: 'tools/call', params: { name: 'nope', arguments: {} } })
     expect(r!.error).toBeDefined()
