@@ -30,6 +30,8 @@ export type SdkCall =
   | { verb: 'verify'; diagram?: DiagramRef; ok?: boolean; inspected?: boolean; fingerprint?: string }
   | { verb: 'verify_inspect'; diagram?: DiagramRef; property: 'ok' | 'warnings' | 'layout' }
   | { verb: 'analyze'; diagram?: DiagramRef; source?: string; ok?: boolean; fingerprint?: string }
+  | { verb: 'facts'; diagram?: DiagramRef; source?: string; ok?: boolean; fingerprint?: string }
+  | { verb: 'check'; diagram?: DiagramRef; source?: string; ok?: boolean; fingerprint?: string }
   | { verb: 'serialize'; diagram?: DiagramRef; source?: string; fingerprint?: string }
   | { verb: 'string_concat' }   // the agent built source by hand
   | { verb: 'regenerate' }      // the agent re-emitted whole source from scratch

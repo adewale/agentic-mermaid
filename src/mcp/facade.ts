@@ -15,6 +15,8 @@ export type ExecutionTraceCall =
   | { verb: 'verify'; diagram?: number; ok?: boolean; inspected?: boolean; fingerprint?: string }
   | { verb: 'verify_inspect'; diagram?: number; property: 'ok' | 'warnings' | 'layout' }
   | { verb: 'analyze'; diagram?: number; source?: string; ok?: boolean; fingerprint?: string }
+  | { verb: 'facts'; diagram?: number; source?: string; ok?: boolean; fingerprint?: string }
+  | { verb: 'check'; diagram?: number; source?: string; ok?: boolean; fingerprint?: string }
   | { verb: 'serialize'; diagram?: number; source?: string; fingerprint?: string }
 
 type TraceMutationBody = Extract<ExecutionTraceCall, { verb: 'mutate' }>['body']
@@ -270,6 +272,10 @@ export function createTracingMermaid(trace?: ExecutionTraceCall[], makeSandboxEr
     verifyMermaid: mermaid.verifyMermaid,
     analyzeMermaid: mermaid.analyzeMermaid,
     analyzeMermaidSource: mermaid.analyzeMermaidSource,
+    describeMermaidFacts: mermaid.describeMermaidFacts,
+    describeMermaidFactsSource: mermaid.describeMermaidFactsSource,
+    checkMermaid: mermaid.checkMermaid,
+    checkMermaidSource: mermaid.checkMermaidSource,
     serializeMermaid: mermaid.serializeMermaid,
     renderMermaidSVG: mermaid.renderMermaidSVG,
     renderMermaidASCII: mermaid.renderMermaidASCII,
@@ -381,6 +387,34 @@ export function createTracingMermaid(trace?: ExecutionTraceCall[], makeSandboxEr
       if (typeof source !== 'string') throw sandboxError('Code Mode analyzeMermaidSource source must be a string')
       const r = hostCall(() => target.analyzeMermaidSource(source))
       push({ verb: 'analyze', source, ok: r.ok })
+      return harden(r)
+    })
+    else if (prop === 'describeMermaidFacts') value = harden((d: any) => {
+      assertOpen()
+      requireTrustedDiagram(d, 'describeMermaidFacts')
+      const r = hostCall(() => target.describeMermaidFacts(rawOf(d)))
+      push({ verb: 'facts', diagram: idOf(d), ok: true, fingerprint: fingerprint(d) })
+      return harden(r)
+    })
+    else if (prop === 'describeMermaidFactsSource') value = harden((source: string) => {
+      assertOpen()
+      if (typeof source !== 'string') throw sandboxError('Code Mode describeMermaidFactsSource source must be a string')
+      const r = hostCall(() => target.describeMermaidFactsSource(source))
+      push({ verb: 'facts', source, ok: r.ok })
+      return harden(r)
+    })
+    else if (prop === 'checkMermaid') value = harden((d: any, spec: any) => {
+      assertOpen()
+      requireTrustedDiagram(d, 'checkMermaid')
+      const r = hostCall(() => target.checkMermaid(rawOf(d), jsonClone(spec) as Parameters<typeof target.checkMermaid>[1]))
+      push({ verb: 'check', diagram: idOf(d), ok: r.ok, fingerprint: fingerprint(d) })
+      return harden(r)
+    })
+    else if (prop === 'checkMermaidSource') value = harden((source: string, spec: any) => {
+      assertOpen()
+      if (typeof source !== 'string') throw sandboxError('Code Mode checkMermaidSource source must be a string')
+      const r = hostCall(() => target.checkMermaidSource(source, jsonClone(spec) as Parameters<typeof target.checkMermaidSource>[1]))
+      push({ verb: 'check', source, ok: r.ok ? r.value.ok : false })
       return harden(r)
     })
     else if (prop === 'serializeMermaid') value = harden((d: any) => {

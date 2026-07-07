@@ -7,7 +7,7 @@ import { join } from 'node:path'
 import { runAllScenarios, lintAgentTrace, type SdkCall } from '../../eval/agent-usage/harness.ts'
 import { DEFAULT_CASES, KNOWLEDGE_CASES, CREATE_CASES, checkAgentUsageTaskSource, requiresStructuredMutation, runAgentUsageEval } from '../../eval/agent-usage/run.ts'
 import { AGENT_USAGE_SUPPORTED_FAMILIES, scoreAgentUsageRenderedQuality } from '../../eval/agent-usage/render-quality.ts'
-import { extractHomepageAgentPrompt, homepagePromptChecklist, HOMEPAGE_AGENT_POINTER, buildHomepageFullPrompt, readStartMd } from '../../eval/agent-usage/homepage-prompt.ts'
+import { extractHomepageAgentPrompt, homepagePromptChecklist, HOMEPAGE_AGENT_POINTER, buildHomepageFullPrompt, readStartMd, applyHomepagePromptVariant } from '../../eval/agent-usage/homepage-prompt.ts'
 import { buildSubagentPromptEvalRequest, extractBareTask, prepareSubagentPromptEval, finalizeSubagentPromptEval } from '../../eval/agent-usage/capture-subagent-prompt-eval.ts'
 import { runCli } from '../cli/index.ts'
 import { executeInSandbox } from '../mcp/sandbox.ts'
@@ -176,6 +176,47 @@ describe('homepage prompt eval contract', () => {
       expect({ id: c.id, hasPrompt: c.prompt.includes('Create or edit a Mermaid diagram') }).toEqual({ id: c.id, hasPrompt: true })
       expect({ id: c.id, unresolved: /<replace with|<include the facts|<paste existing/.test(c.prompt) }).toEqual({ id: c.id, unresolved: false })
     }
+  })
+
+  test('homepage prompt variants remove only eval-targeted semantic read-back guidance', () => {
+    const baseline = buildHomepageFullPrompt()
+    const treatment = applyHomepagePromptVariant(baseline, 'no-semantic-readback')
+    const removed = 'Before returning, confirm the specific change the task asked for is actually present'
+    expect(baseline).toContain(removed)
+    expect(treatment).not.toContain(removed)
+    for (const heldConstant of [
+      'Do not assume this repository is checked out',
+      'am capabilities --json',
+      'Run `verifyMermaid` at every commit point',
+      'return an object with `{ source }`',
+      'Updated Mermaid',
+    ]) {
+      expect({ heldConstant, baseline: baseline.includes(heldConstant), treatment: treatment.includes(heldConstant) })
+        .toEqual({ heldConstant, baseline: true, treatment: true })
+    }
+    expect(() => applyHomepagePromptVariant('not the homepage prompt', 'no-semantic-readback')).toThrow('semantic read-back guidance')
+  })
+
+  test('subagent prompt capture records the homepage prompt variant in requests and manifest', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'am-prompt-variant-'))
+    const c = DEFAULT_CASES.find(c => c.id === 'state_add_done_transition')!
+    const manifest = prepareSubagentPromptEval({
+      outDir: dir,
+      provider: 'unit',
+      model: 'unit',
+      surface: 'homepage',
+      mode: 'code',
+      promptVariant: 'no-semantic-readback',
+      caseIds: [c.id],
+      capturedAt: '2026-07-04T00:00:00.000Z',
+    })
+    const request = readFileSync(manifest.requests[0]!.requestPath, 'utf8')
+    expect(manifest.promptVariant).toBe('no-semantic-readback')
+    expect(JSON.parse(readFileSync(join(dir, 'subagent-prompt-eval.json'), 'utf8')).promptVariant).toBe('no-semantic-readback')
+    expect(request).toContain('Task prompt under test:')
+    expect(request).toContain('Run `verifyMermaid` at every commit point')
+    expect(request).not.toContain('Before returning, confirm the specific change')
+    rmSync(dir, { recursive: true, force: true })
   })
 
   test('the pointer and the graded inline prompt are one fetch flow, both derived from start.md', () => {

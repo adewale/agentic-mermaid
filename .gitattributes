@@ -1,3 +1,4 @@
 # Generated browser bundles can contain significant whitespace or third-party minified code.
 website/public/editor/*.js binary
 website/public/vendor/*.min.js binary
+website/src/generated/execute-harness.js.txt -whitespace

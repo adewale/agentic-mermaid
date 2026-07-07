@@ -192,10 +192,11 @@ Parse then re-serialize. Idempotent. The leading source wrapper (frontmatter,
 %%{init}%% directives, comments before the header) is preserved byte-verbatim
 by default; --canonical-wrapper instead synthesizes Mermaid's documented shape
 (title/displayMode top-level, everything else under config:, directives folded).`,
-  describe: `am describe <file|-> [--format text|json] [--json]
+  describe: `am describe <file|-> [--format text|json|facts] [--json]
 Summarize a Mermaid diagram. Text format emits prose by default; --json wraps
 it as {ok,text}. --format json emits the structured AX tree
-{kind,nodes,edges,entryPoints,sinks}; with --json it wraps as {ok,tree}.`,
+{kind,nodes,edges,entryPoints,sinks}; with --json it wraps as {ok,tree}.
+--format facts emits deterministic semantic fact lines; with --json it wraps as {ok,facts}.`,
   capabilities: `am capabilities [--json]
 Emits a single JSON object describing the SDK's capability surface:
   { sdkVersion, families: [{ id, hasMutate, hasExtractLabels, mutationOps, editPolicy, example }],
@@ -644,7 +645,14 @@ function cmdFormat(args: ParsedArgs): number {
 
 function cmdDescribe(args: ParsedArgs, json: boolean): number {
   const source = readSourceArg(args.positional[0])
-  const format = args.flags.format === 'json' ? 'json' as const : 'text' as const
+  const rawFormat = args.flags.format
+  const format = rawFormat === 'json' || rawFormat === 'facts' || rawFormat === 'text' || rawFormat === undefined
+    ? (rawFormat ?? 'text') as 'text' | 'json' | 'facts'
+    : undefined
+  if (!format) {
+    process.stderr.write('am describe --format must be one of: text, json, facts\n')
+    return EXIT_ARG_ERROR
+  }
   const parsed = parseMermaid(source)
   if (!parsed.ok) {
     const env = parseErrorEnvelope(parsed.error)
@@ -656,6 +664,11 @@ function cmdDescribe(args: ParsedArgs, json: boolean): number {
   if (format === 'json') {
     const tree = JSON.parse(described)
     process.stdout.write(JSON.stringify(json ? { ok: true, tree } : tree) + '\n')
+    return EXIT_OK
+  }
+  if (format === 'facts') {
+    const facts = described.split('\n').filter(Boolean)
+    process.stdout.write(json ? JSON.stringify({ ok: true, facts }) + '\n' : facts.join('\n') + '\n')
     return EXIT_OK
   }
   process.stdout.write(json ? JSON.stringify({ ok: true, text: described }) + '\n' : described + '\n')
@@ -846,7 +859,7 @@ you haven't inspected.
 - mutate --op '<json>' / --ops '<json array|file>' — apply typed mutation(s), verify, then emit source
 - preview [--output file.html] [--open] — standalone strict-mode HTML preview for user inspection
 - format — normalize / canonicalize source
-- describe [--format text|json] — natural-language or AX-tree summary
+- describe [--format text|json|facts] — natural-language, AX-tree, or semantic facts summary
 - capabilities --json — machine-readable capability envelope incl. editPolicy + mutationOps
 - batch --jsonl — bulk render/verify/parse/serialize/mutate ops, one JSON envelope per line
 - render-markdown <file.md> [--ascii] — render fenced mermaid blocks, skip invalid ones

@@ -16,14 +16,15 @@ import type {
   ClassValidDiagram, ErValidDiagram,
 } from './types.ts'
 import { getFamily, extractLabelsGeneric } from './families.ts'
+import { describeMermaidFacts } from './facts.ts'
 import './families-builtin.ts'
 import { parseGanttModel } from '../gantt/parser.ts'
 import { resolveGanttSchedule, formatGanttInstant } from '../gantt/schedule.ts'
 import { toMermaidLines } from '../mermaid-source.ts'
 
 export interface DescribeOptions {
-  /** 'text' (default): prose summary. 'json': structured AX tree (#7349). */
-  format?: 'text' | 'json'
+  /** 'text' (default): prose summary. 'json': structured AX tree (#7349). 'facts': deterministic semantic facts. */
+  format?: 'text' | 'json' | 'facts'
 }
 
 /** Structured accessibility tree (#7349): the graph as a list of nodes + edges. */
@@ -42,6 +43,7 @@ export function describeMermaidSource(source: string, opts: DescribeOptions = {}
     if (opts.format === 'json') {
       return JSON.stringify({ error: first?.message ?? 'parse error', nodes: [], edges: [] })
     }
+    if (opts.format === 'facts') return `error parse ${first?.message ?? 'parse error'}`
     return `Unparseable Mermaid source: ${first?.message ?? 'parse error'}.`
   }
   return describeMermaid(r.value, opts)
@@ -49,6 +51,7 @@ export function describeMermaidSource(source: string, opts: DescribeOptions = {}
 
 export function describeMermaid(d: ValidDiagram, opts: DescribeOptions = {}): string {
   if (opts.format === 'json') return JSON.stringify(describeMermaidTree(d))
+  if (opts.format === 'facts') return describeMermaidFacts(d).join('\n')
   if (d.body.kind === 'flowchart') return describeFlowchart(d as FlowchartValidDiagram)
   if (d.body.kind === 'state') return describeState(d.body)
   if (d.body.kind === 'sequence') return describeSequence(d as SequenceValidDiagram)
