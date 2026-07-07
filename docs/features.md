@@ -45,13 +45,16 @@ Agentic Mermaid outputs **SVG, PNG, ASCII, Unicode, and JSON layout** from the s
 
 - **Styles** — every SVG/PNG render accepts `style`: a full look
   (`hand-drawn`, `excalidraw`, `pen-and-ink`, `freehand`, `watercolor`,
-  `blueprint`, `tufte`), any theme name (a theme is a palette-only style),
-  an inline JSON record, or a stack merged left → right
+  `blueprint`, `tufte`, `accessible-high-contrast`, `patent-drawing`,
+  `status-dashboard`, `ops-schematic`, `chalkboard`, `risograph`,
+  `architectural-plan`, `publication-figure`), any theme name (a theme is a
+  palette-only style), an inline JSON record, or a stack merged left → right
   (`{ style: ['hand-drawn', 'dracula'] }`). `seed` re-rolls styled ink and
   never moves layout. CLI: `am render --style … --seed N`, `am styles`;
   MCP render tools take `style`/`seed`; RENDER_FAILED-gated verify means a
-  clean verify proves the styled source renders. Authoring guide + rubric:
-  `docs/style-authoring.md`.
+  clean verify proves the styled source renders. Authoring guide, schema, and
+  cookbook: `docs/style-authoring.md`, `docs/schemas/style-spec.schema.json`,
+  and `docs/custom-style-cookbook.md`.
 
 - **SVG** — `renderMermaidSVG` (`compact`, `security:'strict'`, CSS
   variable fonts, `idPrefix` namespacing). CLI exposes `--security strict`.

@@ -1,0 +1,153 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://agentic-mermaid.dev/schemas/style-spec.schema.json",
+  "title": "Agentic Mermaid StyleSpec",
+  "description": "A declarative style record for Agentic Mermaid SVG/PNG rendering. A style can be a palette, a full look, or a small role override.",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "$schema": {
+      "type": "string",
+      "description": "Optional editor metadata. The renderer ignores it."
+    },
+    "name": {
+      "type": "string",
+      "description": "Required only when registering the style by name."
+    },
+    "blurb": {
+      "type": "string"
+    },
+    "colors": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "bg": { "type": "string" },
+        "fg": { "type": "string" },
+        "line": { "type": "string" },
+        "accent": { "type": "string" },
+        "muted": { "type": "string" },
+        "surface": { "type": "string" },
+        "border": { "type": "string" }
+      }
+    },
+    "font": { "type": "string" },
+    "stroke": {
+      "enum": ["crisp", "jittered", "freehand"]
+    },
+    "roughness": { "type": "number" },
+    "bowing": { "type": "number" },
+    "passes": { "type": "number" },
+    "strokeWidth": { "type": "number" },
+    "fill": {
+      "enum": ["none", "hachure", "solid", "wash"]
+    },
+    "hachureAngle": { "type": "number" },
+    "hachureGap": { "type": "number" },
+    "fillWeight": { "type": "number" },
+    "washOpacity": { "type": "number" },
+    "washEdge": { "type": "number" },
+    "backdrop": {
+      "enum": ["plain", "paper-ruled", "grid"]
+    },
+    "backend": {
+      "enum": ["default", "rough", "hybrid"],
+      "description": "Expert override. Most styles should omit it and let the renderer infer the backend."
+    },
+    "intent": {
+      "enum": ["premium", "draft", "lofi"]
+    },
+    "mono": {
+      "type": "boolean"
+    },
+    "text": {
+      "$ref": "#/$defs/textRoleStyle"
+    },
+    "node": {
+      "$ref": "#/$defs/nodeRoleStyle"
+    },
+    "edge": {
+      "$ref": "#/$defs/edgeRoleStyle"
+    },
+    "group": {
+      "$ref": "#/$defs/groupRoleStyle"
+    }
+  },
+  "$defs": {
+    "textTransform": {
+      "enum": ["uppercase", "lowercase", "capitalize"]
+    },
+    "textRoleStyle": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "fontSize": { "type": "number" },
+        "fontWeight": { "type": "number" },
+        "letterSpacing": { "type": "number" },
+        "textTransform": { "$ref": "#/$defs/textTransform" },
+        "textColor": { "type": "string" }
+      }
+    },
+    "boxRoleStyle": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "paddingX": { "type": "number" },
+        "paddingY": { "type": "number" },
+        "cornerRadius": { "type": "number" },
+        "lineWidth": { "type": "number" },
+        "fillColor": { "type": "string" },
+        "borderColor": { "type": "string" }
+      }
+    },
+    "nodeRoleStyle": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "fontSize": { "type": "number" },
+        "fontWeight": { "type": "number" },
+        "letterSpacing": { "type": "number" },
+        "textTransform": { "$ref": "#/$defs/textTransform" },
+        "textColor": { "type": "string" },
+        "paddingX": { "type": "number" },
+        "paddingY": { "type": "number" },
+        "cornerRadius": { "type": "number" },
+        "lineWidth": { "type": "number" },
+        "fillColor": { "type": "string" },
+        "borderColor": { "type": "string" }
+      }
+    },
+    "edgeRoleStyle": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "fontSize": { "type": "number" },
+        "fontWeight": { "type": "number" },
+        "letterSpacing": { "type": "number" },
+        "textTransform": { "$ref": "#/$defs/textTransform" },
+        "textColor": { "type": "string" },
+        "lineWidth": { "type": "number" },
+        "bendRadius": { "type": "number" },
+        "strokeColor": { "type": "string" }
+      }
+    },
+    "groupRoleStyle": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "fontSize": { "type": "number" },
+        "fontWeight": { "type": "number" },
+        "letterSpacing": { "type": "number" },
+        "textTransform": { "$ref": "#/$defs/textTransform" },
+        "textColor": { "type": "string" },
+        "paddingX": { "type": "number" },
+        "paddingY": { "type": "number" },
+        "cornerRadius": { "type": "number" },
+        "lineWidth": { "type": "number" },
+        "fillColor": { "type": "string" },
+        "borderColor": { "type": "string" },
+        "fontFamily": { "type": "string" },
+        "headerFillColor": { "type": "string" }
+      }
+    }
+  }
+}
