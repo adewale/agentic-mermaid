@@ -21,6 +21,7 @@
 // structured bodies serialize-idempotent by construction.
 // ============================================================================
 
+import { unknownOpMessage } from './mutation-ops.ts'
 import type {
   GanttBody, GanttBodySection, GanttBodyTask, GanttBodyTaskTag,
   GanttStatement, GanttMutationOp, MutationError, Result, VerifyOptions, LayoutWarning,
@@ -405,7 +406,7 @@ export function mutateGantt(input: GanttBody, op: GanttMutationOp): Result<Gantt
     }
     default: {
       const _x: never = op
-      return err({ code: 'INVALID_OP', message: `Unknown op: ${JSON.stringify(_x)}` })
+      return err({ code: 'INVALID_OP', message: unknownOpMessage('gantt', _x) })
     }
   }
   return ok(body)

@@ -22,6 +22,7 @@
 // structured lines).
 // ============================================================================
 
+import { unknownOpMessage } from './mutation-ops.ts'
 import type {
   SequenceBody, SequenceParticipant, SequenceMessage, SequenceMessageStyle,
   SequenceStatement, SequenceMutationOp, MutationError, Result,
@@ -274,7 +275,7 @@ export function mutateSequence(body: SequenceBody, op: SequenceMutationOp): Resu
     }
     default: {
       const _x: never = op
-      return err({ code: 'INVALID_OP', message: `Unknown op: ${JSON.stringify(_x)}` })
+      return err({ code: 'INVALID_OP', message: unknownOpMessage('sequence', _x) })
     }
   }
   return ok({ kind: 'sequence', participants, messages, statements })

@@ -1,7 +1,7 @@
 import { executeInSandbox } from '../../src/mcp/sandbox.ts'
 import { parseMermaid } from '../../src/agent/parse.ts'
 import { serializeMermaid } from '../../src/agent/serialize.ts'
-import { asFlowchart, asState, asSequence, asTimeline, asClass, asEr, asJourney, asArchitecture, asXyChart, asPie, asQuadrant, asGantt, type DiagramKind } from '../../src/agent/types.ts'
+import { asFlowchart, asState, asSequence, asTimeline, asClass, asEr, asJourney, asArchitecture, asXyChart, asPie, asQuadrant, asGantt, type DiagramKind, type ValidDiagram } from '../../src/agent/types.ts'
 import { lintAgentTrace, type SdkCall, type AntiPattern } from './harness.ts'
 import { buildHomepageAgentPromptTask } from './homepage-prompt.ts'
 
@@ -26,6 +26,12 @@ export interface AgentUsageEvalResult {
 export interface AgentUsageEvalSummary {
   ok: boolean
   total: number
+  /** PRIMARY: diagrams the task oracle accepts (correctness, independent of how
+   *  tool use was narrated). Trace here is the replayed sandbox trace, so the
+   *  two axes are separable rather than merged into one pass/fail. */
+  taskPassed: number
+  taskOkRate: number
+  /** Composite (taskOk && traceOk) count — the strict gate for stored scripts. */
   passed: number
   /** Any safe route: direct source authoring for new diagrams, refusal for opaque, or structured mutation for editable inputs. */
   safePathRate: number
@@ -304,7 +310,7 @@ export const DEFAULT_CASES: AgentUsageEvalCase[] = [
     family: 'flowchart',
     prompt: promptTask(
       'Create a new Auth Flow flowchart as Mermaid source, parse it, verify it, then return the source. Do not use mutate because there is no existing diagram to preserve.',
-      'Diagram these facts: User opens Login Page; invalid credentials return to Login Page; valid credentials check MFA; MFA users enter a code; invalid code returns to Enter MFA Code; valid code creates a session; users without MFA create a session; session leads to Dashboard.',
+      'Diagram this login flow with one node per described step. Nodes: User; Login Page; a "Valid Credentials?" decision; an "MFA Enabled?" decision; Enter MFA Code; a "Code Valid?" decision; Create Session; Dashboard. Edges: User to Login Page; Login Page to Valid Credentials?; Valid Credentials? on No back to Login Page; Valid Credentials? on Yes to MFA Enabled?; MFA Enabled? on Yes to Enter MFA Code; Enter MFA Code to Code Valid?; Code Valid? on No back to Enter MFA Code; MFA Enabled? on No to Create Session; Code Valid? on Yes to Create Session; Create Session to Dashboard.',
     ),
     script: `
       const source = '---\\ntitle: Auth Flow\\n---\\nflowchart LR\\n  A[User] --> B[Login Page]\\n  B --> C{Valid Credentials?}\\n  C -->|No| B\\n  C -->|Yes| D{MFA Enabled?}\\n  D -->|Yes| E[Enter MFA Code]\\n  E --> F{Code Valid?}\\n  F -->|No| E\\n  D -->|No| G[Create Session]\\n  F -->|Yes| G\\n  G --> H[Dashboard]'
@@ -344,6 +350,72 @@ export const DEFAULT_CASES: AgentUsageEvalCase[] = [
 // iterate DEFAULT_CASES, and these two exist for surface comparison only.
 const KNOWLEDGE_MESSY_FLOWCHART = 'flowchart TD\n    api["API"]   -->    db["DB"]\n    api --> logs["Log store\\nretention: 30 days"]'
 const KNOWLEDGE_STRAY_END_SEQUENCE = 'sequenceDiagram\n  A->>B: hi\n  end\n  B-->>A: yo'
+
+// New-diagram authoring, one per family: given only the prompt, author valid
+// Mermaid source directly (no mutation ceremony), parse, verify, return it.
+// Together with the structured mutate cases in DEFAULT_CASES (plus the two
+// author_* cases there for flowchart/sequence), these cover create for all 12
+// families. Kept OUT of DEFAULT_CASES so the deterministic baseline and the
+// committed all-family transcript still pin DEFAULT_CASES exactly; the subagent
+// eval pool includes them so live models can be graded on authoring.
+function authorCase(id: string, family: DiagramKind, task: string, context: string, source: string): AgentUsageEvalCase {
+  return {
+    id,
+    family,
+    prompt: promptTask(task, context),
+    script: `
+      const source = ${JSON.stringify(source)}
+      const parsed = mermaid.parseMermaid(source)
+      if (!parsed.ok) return { error: parsed.error }
+      const verify = mermaid.verifyMermaid(parsed.value)
+      if (!verify.ok) return { error: 'verify', warnings: verify.warnings }
+      return { source }
+    `,
+  }
+}
+
+export const CREATE_CASES: AgentUsageEvalCase[] = [
+  authorCase('author_state_source', 'state',
+    'Create a new state diagram from the context as Mermaid source, verify it, then return the source. Do not use mutate because there is no existing diagram to preserve.',
+    'Diagram a traffic light: start in Red; Red goes to Green; Green goes to Yellow; Yellow goes back to Red.',
+    'stateDiagram-v2\n  [*] --> Red\n  Red --> Green\n  Green --> Yellow\n  Yellow --> Red'),
+  authorCase('author_class_source', 'class',
+    'Create a new class diagram from the context as Mermaid source, verify it, then return the source. Do not use mutate because there is no existing diagram to preserve.',
+    'Model an Animal class with a name field and a speak() method, and a Dog class that inherits from Animal.',
+    'classDiagram\n  class Animal {\n    +String name\n    +speak()\n  }\n  class Dog\n  Animal <|-- Dog'),
+  authorCase('author_er_source', 'er',
+    'Create a new entity-relationship diagram from the context as Mermaid source, verify it, then return the source. Do not use mutate because there is no existing diagram to preserve.',
+    'Model these entities: a CUSTOMER places many ORDERs; each ORDER contains one PRODUCT.',
+    'erDiagram\n  CUSTOMER ||--o{ ORDER : places\n  ORDER ||--|| PRODUCT : contains'),
+  authorCase('author_journey_source', 'journey',
+    'Create a new user-journey diagram from the context as Mermaid source, verify it, then return the source. Do not use mutate because there is no existing diagram to preserve.',
+    'A Checkout journey with a Shopping section containing two tasks by actor Me: Browse (score 5) and Pay (score 3).',
+    'journey\n  title Checkout\n  section Shopping\n    Browse: 5: Me\n    Pay: 3: Me'),
+  authorCase('author_timeline_source', 'timeline',
+    'Create a new timeline diagram from the context as Mermaid source, verify it, then return the source. Do not use mutate because there is no existing diagram to preserve.',
+    'A product timeline: in 2023, Launch; in 2024, Growth.',
+    'timeline\n  title Product\n  2023 : Launch\n  2024 : Growth'),
+  authorCase('author_gantt_source', 'gantt',
+    'Create a new gantt chart from the context as Mermaid source, verify it, then return the source. Do not use mutate because there is no existing diagram to preserve.',
+    'A project with a Build section: Design takes 2 days starting 2024-01-01, then Code takes 3 days after Design.',
+    'gantt\n  dateFormat YYYY-MM-DD\n  section Build\n  Design :d1, 2024-01-01, 2d\n  Code :after d1, 3d'),
+  authorCase('author_pie_source', 'pie',
+    'Create a new pie chart from the context as Mermaid source, verify it, then return the source. Do not use mutate because there is no existing diagram to preserve.',
+    'A pie chart titled Traffic with three slices: Direct 40, Search 35, Social 25.',
+    'pie title Traffic\n  "Direct" : 40\n  "Search" : 35\n  "Social" : 25'),
+  authorCase('author_quadrant_source', 'quadrant',
+    'Create a new quadrant chart from the context as Mermaid source, verify it, then return the source. Do not use mutate because there is no existing diagram to preserve.',
+    'A Priorities quadrant chart: x-axis Low Effort to High Effort, y-axis Low Value to High Value; place Feature A at (0.3, 0.8) and Feature B at (0.7, 0.2).',
+    'quadrantChart\n  title Priorities\n  x-axis Low Effort --> High Effort\n  y-axis Low Value --> High Value\n  "Feature A": [0.3, 0.8]\n  "Feature B": [0.7, 0.2]'),
+  authorCase('author_xychart_source', 'xychart',
+    'Create a new xy chart from the context as Mermaid source, verify it, then return the source. Do not use mutate because there is no existing diagram to preserve.',
+    'A monthly revenue bar chart across Jan, Feb, Mar with a Revenue bar series of 100, 150, 200.',
+    'xychart-beta\n  x-axis [Jan, Feb, Mar]\n  bar Revenue [100, 150, 200]'),
+  authorCase('author_architecture_source', 'architecture',
+    'Create a new architecture diagram from the context as Mermaid source, verify it, then return the source. Do not use mutate because there is no existing diagram to preserve.',
+    'An architecture with an API server and a database, with the API connected to the DB.',
+    'architecture-beta\n  service api(server)[API]\n  service db(database)[DB]\n  api:R --> L:db'),
+]
 
 export const KNOWLEDGE_CASES: AgentUsageEvalCase[] = [
   {
@@ -409,10 +481,11 @@ export async function runAgentUsageEval(cases: AgentUsageEvalCase[] = DEFAULT_CA
     results.push({ id: c.id, ok: Boolean(exec.ok && taskOk && traceOk), taskOk, traceOk, findings, error: exec.ok ? undefined : exec.error })
   }
   const passed = results.filter(r => r.ok).length
+  const taskPassed = results.filter(r => r.taskOk).length
   const safePathRate = results.filter(r => r.traceOk).length / Math.max(1, results.length)
   const structuredCases = results.filter(r => requiresStructuredMutation(r.id))
   const structuredPathRate = structuredCases.filter(r => r.traceOk).length / Math.max(1, structuredCases.length)
-  return { ok: passed === results.length, total: results.length, passed, safePathRate, structuredPathRate, results }
+  return { ok: passed === results.length, total: results.length, taskPassed, taskOkRate: taskPassed / Math.max(1, results.length), passed, safePathRate, structuredPathRate, results }
 }
 
 export function requiresStructuredMutation(id: string): boolean {
@@ -596,10 +669,16 @@ function checkApiSequenceSourceTask(value: unknown): boolean {
   return participants.has('User')
     && participants.has('App')
     && participants.has('API')
+    // Context describes the flow in lowercase prose ("render SVG … a download").
+    // Match each message by its key phrase on the correctly-directed edge, case-
+    // insensitively and by containment — as the User->App `export` check already
+    // does. Requiring an exact Title-case label rejected diagrams faithful to the
+    // Context whose agents kept the prose casing ("render SVG") or phrasing
+    // ("returns SVG string"); the from/to direction plus the phrase is the signal.
     && body.messages.some(m => m.from === 'User' && m.to === 'App' && /\bexport\b/i.test(m.text))
-    && body.messages.some(m => m.from === 'App' && m.to === 'API' && m.text === 'Render SVG')
-    && body.messages.some(m => m.from === 'API' && m.to === 'App' && m.text === 'SVG string')
-    && body.messages.some(m => m.from === 'App' && m.to === 'User' && m.text === 'Download')
+    && body.messages.some(m => m.from === 'App' && m.to === 'API' && /render\s+svg/i.test(m.text))
+    && body.messages.some(m => m.from === 'API' && m.to === 'App' && /svg\s+string/i.test(m.text))
+    && body.messages.some(m => m.from === 'App' && m.to === 'User' && /\bdownload\b/i.test(m.text))
 }
 
 function serializedSource(value: unknown, trace: SdkCall[]): string | undefined {
@@ -611,7 +690,69 @@ export function checkAgentUsageTaskSource(id: string, source: string): boolean {
   return checkTask(id, defaultInput(id), { source }, fakeSerializeTrace)
 }
 
+// Per-family authoring oracles: the returned source must model the described
+// entities/relationships. Structural (not byte-exact), matching the spirit of
+// the two flowchart/sequence author oracles.
+function narrow<T>(source: string, as: (d: ValidDiagram) => T | null): T | null {
+  const parsed = parseMermaid(source)
+  return parsed.ok ? as(parsed.value) : null
+}
+const dequote = (s: string) => s.replace(/^"|"$/g, '')
+const CREATE_ORACLES: Record<string, (source: string) => boolean> = {
+  author_state_source: s => {
+    const t = new Set(narrow(s, asState)?.body.transitions.map(x => `${x.from}->${x.to}`))
+    return ['Red->Green', 'Green->Yellow', 'Yellow->Red'].every(e => t.has(e))
+  },
+  author_class_source: s => {
+    const b = narrow(s, asClass)?.body
+    const animal = b?.classes.find(c => c.id === 'Animal')
+    // A `speak()` method, however the model formatted it — `+speak()`,
+    // `+speak() void`, `+speak(): void`. An exact `+speak()` match false-rejects
+    // a correct diagram that annotated a return type.
+    return Boolean(animal?.members.some(m => /\bspeak\s*\(/i.test(m)) && b!.classes.some(c => c.id === 'Dog'))
+  },
+  author_er_source: s => {
+    const ids = new Set(narrow(s, asEr)?.body.entities.map(e => e.id))
+    return ['CUSTOMER', 'ORDER', 'PRODUCT'].every(x => ids.has(x))
+  },
+  author_journey_source: s => {
+    const section = narrow(s, asJourney)?.body.sections.find(x => x.label === 'Shopping')
+    const tasks = new Set(section?.tasks.map(t => t.text))
+    return Boolean(section && ['Browse', 'Pay'].every(x => tasks.has(x)))
+  },
+  author_timeline_source: s => {
+    const events = new Set(narrow(s, asTimeline)?.body.sections.flatMap(x => x.periods.flatMap(p => p.events.map(e => e.text))))
+    return ['Launch', 'Growth'].every(x => events.has(x))
+  },
+  author_gantt_source: s => {
+    const tasks = new Set(narrow(s, asGantt)?.body.sections.flatMap(x => x.tasks.map(t => t.label)))
+    return ['Design', 'Code'].every(x => tasks.has(x))
+  },
+  author_pie_source: s => {
+    const slices = new Map(narrow(s, asPie)?.body.slices.map(x => [x.label, x.value]))
+    return slices.get('Direct') === 40 && slices.get('Search') === 35 && slices.get('Social') === 25
+  },
+  author_quadrant_source: s => {
+    const labels = new Set(narrow(s, asQuadrant)?.body.points.map(p => dequote(p.label)))
+    return ['Feature A', 'Feature B'].every(x => labels.has(x))
+  },
+  author_xychart_source: s => {
+    const series = narrow(s, asXyChart)?.body.series
+    return Boolean(series?.some(x => x.values.length === 3 && x.values[0] === 100 && x.values[2] === 200))
+  },
+  author_architecture_source: s => {
+    const b = narrow(s, asArchitecture)?.body
+    const ids = new Set(b?.services.map(x => x.id))
+    return ids.has('api') && ids.has('db') && Boolean(b?.edges.some(e => e.source.id === 'api' && e.target.id === 'db'))
+  },
+}
+
 function checkTask(id: string, input: string | undefined, value: unknown, trace: SdkCall[]): boolean {
+  const createOracle = CREATE_ORACLES[id]
+  if (createOracle) {
+    const source = (value as { source?: unknown } | undefined)?.source
+    return typeof source === 'string' && parseMermaid(source).ok && createOracle(source)
+  }
   if (id === 'author_auth_flow_source') return checkAuthFlowSourceTask(value)
   if (id === 'author_api_sequence_source') return checkApiSequenceSourceTask(value)
   if (!input) return false

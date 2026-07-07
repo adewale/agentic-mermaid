@@ -371,9 +371,9 @@ describe('sequence mutate — five ops', () => {
 
 describe('opaque-fallback round-trip (journey/xychart/architecture promoted by BUILD-15/16/17)', () => {
   // A clean xychart is now structured (BUILD-16); only unmodeled xychart syntax
-  // (here: a quoted title) stays on the source-level/opaque path.
+  // (here: an accTitle directive) stays on the source-level/opaque path.
   const cases = [
-    ['xychart', 'xychart-beta\n  title "Sales"\n  x-axis [Jan, Feb]\n  bar [1, 2]'],
+    ['xychart', 'xychart-beta\n  accTitle: unmodeled directive\n  x-axis [Jan, Feb]\n  bar [1, 2]'],
   ] as const
 
   for (const [family, src] of cases) {

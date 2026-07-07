@@ -11,9 +11,13 @@
 
 import { parseMermaid } from '../agent/parse.ts'
 import { verifyMermaid } from '../agent/verify.ts'
+import { applyOps } from '../agent/apply.ts'
+import { MUTATION_OPS_BY_FAMILY } from '../agent/mutation-ops.ts'
+import { opSignatures, type OpFamily } from '../agent/op-schema.ts'
 import { validateStyleSpec } from '../scene/style-registry.ts'
 import type { StyleInput } from '../scene/style-registry.ts'
-import { describeMermaidSource } from '../agent/describe.ts'
+import { describeMermaidSource, describeMermaid } from '../agent/describe.ts'
+import { BUILTIN_FAMILY_METADATA } from '../agent/families.ts'
 import { renderMermaidSVG, renderMermaidASCII } from '../agent/core.ts'
 import { THEMES } from '../theme.ts'
 import { unsupportedCodeReason } from './facade.ts'
@@ -48,6 +52,15 @@ export const MIN_PNG_SCALE = 0.1
 export const MAX_PNG_SCALE = 8
 
 const TOO_LARGE_HINT = 'input exceeds the hosted size cap; run the local agentic-mermaid CLI or stdio MCP server instead (see https://agentic-mermaid.dev/docs/mcp/)'
+
+// The structured op menu, family → op signatures with field names, embedded in
+// the declarative tool descriptions so a caller can fill an op correctly on the
+// first try (optional fields carry `?`). Enum vocabularies and exact types are
+// left to `am capabilities --json` (`families[].opFields`) and the prescriptive
+// INVALID_OP error, so the inline menu stays compact.
+const OP_MENU = Object.keys(MUTATION_OPS_BY_FAMILY)
+  .map(family => `  ${family}: ${opSignatures(family as OpFamily).join(', ')}`)
+  .join('\n')
 
 export const HOSTED_TOOLS = [
   {
@@ -105,7 +118,7 @@ useAscii true → plain ASCII (+,-,|); false/absent → Unicode box drawing (┌
   {
     name: 'render_png',
     description: `Rasterize a Mermaid source string to PNG. Returns { ok, png_base64 }.
-Hosted rendering uses resvg-wasm with bundled DejaVu Sans; bytes may differ from the
+Hosted rendering uses resvg-wasm with bundled fonts; bytes may differ from the
 local napi renderer, so hosted PNG is a convenience surface, not part of the
 byte-determinism contract. For file/URL artifacts use the local stdio server.`,
     inputSchema: {
@@ -114,7 +127,7 @@ byte-determinism contract. For file/URL artifacts use the local stdio server.`,
         source: { type: 'string', description: 'Mermaid source.' },
         scale: { type: 'number', description: 'Output scale multiplier (default 2 — retina; clamped to 0.1–8).' },
         background: { type: 'string', description: "CSS color string (default 'white')." },
-        style: { description: 'Style name | record | stack (same as render_svg). Hosted rasterization substitutes DejaVu for styled fonts; use the local server for bundled style faces.' },
+        style: { description: 'Style name | record | stack (same as render_svg). Hosted rasterization bundles the built-in style faces; custom unbundled fonts fall back to DejaVu.' },
         seed: { type: 'number', description: 'Ink seed for styled looks.' },
       },
       required: ['source'],
@@ -123,8 +136,11 @@ byte-determinism contract. For file/URL artifacts use the local stdio server.`,
   {
     name: 'verify',
     description: `Parse and verify a Mermaid diagram without rendering it. Returns
-{ ok, warnings, layout: { bounds, nodes, edges } } for valid diagrams and
-{ ok: false, errors } for parse failures. Warnings use the layout-rubric codes.`,
+{ ok, family, summary, warnings, layout: { bounds, nodes, edges } } for valid
+diagrams and { ok: false, errors } for parse failures. \`family\` is the detected
+diagram family and \`summary\` a one-line description — check them: ok:true only
+means the diagram is structurally valid, not that it is the kind you intended.
+Warnings use the layout-rubric codes.`,
     inputSchema: {
       type: 'object',
       properties: {
@@ -145,6 +161,45 @@ LLM context compaction without re-parsing.`,
         source: { type: 'string', description: 'Mermaid source.' },
       },
       required: ['source'],
+    },
+  },
+  {
+    name: 'mutate',
+    description: `Apply a list of structured edit ops to an existing Mermaid \`source\` and
+return the edited diagram. This is the declarative counterpart to \`execute\`:
+plain JSON in, plain JSON out, no sandbox. Prefer it for straightforward edits;
+reserve \`execute\` for logic the ops don't express.
+Returns { ok, family, source, verify:{ ok, warnings } } on success, or
+{ ok:false, family, opIndex, error } — where \`error\` names the offending field
+and lists the valid ones — when an op is malformed or cannot apply. Ops apply in
+order and are all-or-nothing: the first failing op stops the batch (its position
+is \`opIndex\`) and the input is left untouched.
+Each op is { "kind": <op>, …fields }. Op kinds by family:
+${OP_MENU}`,
+    inputSchema: {
+      type: 'object',
+      properties: {
+        source: { type: 'string', description: 'Mermaid source to edit.' },
+        ops: { type: 'array', items: { type: 'object' }, description: 'Ordered list of edit ops; each is { kind, ...fields }.' },
+      },
+      required: ['source', 'ops'],
+    },
+  },
+  {
+    name: 'build',
+    description: `Author a new Mermaid diagram from blank by folding a list of structured ops
+over an empty diagram of \`family\`. The declarative counterpart to hand-writing
+source. Returns the same envelope as \`mutate\`:
+{ ok, family, source, verify } or { ok:false, family, opIndex, error }.
+Op kinds by family:
+${OP_MENU}`,
+    inputSchema: {
+      type: 'object',
+      properties: {
+        family: { type: 'string', description: `Diagram family to author (one of: ${Object.keys(MUTATION_OPS_BY_FAMILY).join(', ')}).` },
+        ops: { type: 'array', items: { type: 'object' }, description: 'Ordered list of ops; each is { kind, ...fields }.' },
+      },
+      required: ['family', 'ops'],
     },
   },
 ]
@@ -185,13 +240,41 @@ async function handleToolCall(id: number | string | null, params: unknown, conte
     case 'render_png': return handleRenderPng(id, args, context)
     case 'verify': return sourceTool(id, args, 'VERIFY_FAILED', source => {
       const parsed = parseMermaid(source)
-      if (!parsed.ok) return { ok: false as const, errors: parsed.error }
+      if (!parsed.ok) {
+        // Self-describing tool: when the header names a known family, hand back
+        // that family's canonical example so a failed authoring attempt gets the
+        // correct dialect in the same response — no need to fetch capabilities.json.
+        const hint = familyExampleForSource(source)
+        return { ok: false as const, errors: parsed.error, ...(hint ?? {}) }
+      }
       const v = verifyMermaid(parsed.value)
-      return { ok: v.ok, warnings: v.warnings, layout: { bounds: v.layout.bounds, nodes: v.layout.nodes.length, edges: v.layout.edges.length } }
+      // Echo the detected family + a one-line summary so `ok:true` is never a
+      // silent pass on the wrong kind of diagram: an agent that asked for an
+      // architecture diagram and reads `family:"flowchart"` here sees the
+      // mismatch in the same result it was already going to read, without
+      // having to know to call `describe` separately.
+      return { ok: v.ok, family: parsed.value.kind, summary: describeMermaid(parsed.value), warnings: v.warnings, layout: { bounds: v.layout.bounds, nodes: v.layout.nodes.length, edges: v.layout.edges.length } }
     })
     case 'describe': return sourceTool(id, args, 'DESCRIBE_FAILED', source => ({ ok: true as const, text: describeMermaidSource(source) }))
+    case 'mutate': return handleApplyOps(id, args, 'source')
+    case 'build': return handleApplyOps(id, args, 'family')
     default: return rpcError(id, -32602, `Unknown tool: ${name ?? '<none>'}`)
   }
+}
+
+/**
+ * When a source's header names a known family, return that family's id and its
+ * canonical (verified) example so a parse failure can hand back the correct
+ * dialect in the same response. Matched by the family's own header keyword, so a
+ * `graph`/`flowchart`/`architecture-beta`/… first line resolves deterministically.
+ */
+function familyExampleForSource(source: string): { family: string; example: string } | undefined {
+  const first = source.split('\n').map(l => l.trim()).find(l => l.length > 0) ?? ''
+  const header = first.split(/\s+/)[0] ?? ''
+  for (const f of BUILTIN_FAMILY_METADATA) {
+    if (f.headers.some(h => header === h)) return { family: f.id, example: f.example }
+  }
+  return undefined
 }
 
 function svgOptions(args: Record<string, unknown>): Record<string, unknown> {
@@ -311,6 +394,30 @@ export function cacheKeyFor(name: string | undefined, args: Record<string, unkno
     default:
       return null
   }
+}
+
+/** Declarative structured-edit tools (`mutate`, `build`): validate the required
+ *  argument + the ops array, cap payload size, then hand off to the ONE checked
+ *  core (applyOps) that the Code Mode facade also funnels through. The canonical
+ *  OpEnvelope is returned verbatim; `isError` mirrors `!envelope.ok`. */
+function handleApplyOps(id: number | string | null, args: Record<string, unknown>, mode: 'source' | 'family'): JsonRpcResponse {
+  const ops = args.ops
+  if (!Array.isArray(ops)) return rpcError(id, -32602, `${mode === 'source' ? 'mutate' : 'build'} requires \`ops\` (array)`)
+  if (mode === 'source') {
+    if (typeof args.source !== 'string') return rpcError(id, -32602, 'mutate requires `source` (string)')
+    if (utf8Bytes(args.source) > MAX_SOURCE_BYTES) {
+      return toolResult(id, { ok: false as const, family: null, error: { code: 'SOURCE_TOO_LARGE', message: TOO_LARGE_HINT } }, true)
+    }
+  } else if (typeof args.family !== 'string') {
+    return rpcError(id, -32602, 'build requires `family` (string)')
+  }
+  if (utf8Bytes(JSON.stringify(ops)) > MAX_SOURCE_BYTES) {
+    return toolResult(id, { ok: false as const, family: null, error: { code: 'OPS_TOO_LARGE', message: TOO_LARGE_HINT } }, true)
+  }
+  const envelope = mode === 'source'
+    ? applyOps({ source: args.source as string, ops })
+    : applyOps({ family: args.family as string, ops })
+  return toolResult(id, envelope, !envelope.ok)
 }
 
 /** Shared shape for the pure source→payload tools: validate, cap, run, wrap errors. */

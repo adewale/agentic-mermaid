@@ -950,3 +950,70 @@ edge-cacheable. Splitting the surface so the common render/verify paths never to
 an isolate — plus a batch fan-out cap so one request cannot spawn N isolates — is
 what keeps a public endpoint affordable. On a metered platform, "which calls are
 free" is part of the API design, not an afterthought.
+
+## Agent-edit boundary lesson — a compile-time guarantee is only as strong as the runtime boundary that re-checks it
+
+The typed `mutate` surface is correctness-by-construction — *for callers the
+compiler checks*. But agents reach it through untyped JSON (MCP, CLI, Code Mode),
+where there is no compiler, so the guarantee silently degrades to unchecked: an op
+like `{ kind:"add_class", name:"Duck" }` (using `name` where `id` is expected)
+slipped past and the mutator produced `class undefined`. A live eval with a weak
+model is what surfaced it; the fix and the way we validated it generalize.
+
+**Validate at the choke point where types are lost, not everywhere and not
+nowhere.** The naive options were both wrong: folding shape validation into the
+low-level `mutate()` makes every compiler-checked internal caller pay for (and risk
+false-rejection from) a check it doesn't need; leaving it out entirely is the bug.
+The right placement is a single `mutateChecked` at the *trust boundary* — the one
+function every untyped path (declarative `applyOps`/`build`, the Code Mode facade,
+the CLI `--ops`) funnels through — so a bad op is rejected identically no matter how
+it arrives, and the typed path stays untouched. "Where do the guarantees stop being
+free?" is the question that locates the check.
+
+**Ground "buy vs build" in the actual code, not the abstract capability.** The MCP
+TS SDK + Zod were the obvious "buy" for validation/discovery — until we read the
+code they'd land in: the hosted server is hand-rolled JSON-RPC precisely so it runs
+runtime-neutral on workerd and stays edge-cacheable, and the ~90 op types are
+hand-written unions. Both the SDK transport and a Zod rewrite fight that
+architecture, while the *capabilities* they promised (input validation, in-band
+`isError` self-correction, `tools/list` discovery, declarative tools) were
+deliverable natively in a day. The decision flipped only once the plan was grounded
+in the files it would touch.
+
+**Marshal at the boundary you own, and build the shared DTO first.** Code Mode
+`return diagram` failed `non-serializable` because the SDK object is a hardened
+provenance proxy over Maps. Building the canonical `{ ok, family, source, verify }`
+envelope *first* made the marshalling fix fall out for free — the host-side
+marshaller just reuses that envelope, so `return d` and the declarative tool now
+emit the identical shape. That also settled a build-vs-buy: a bespoke one-way
+serializer beat adopting Cap'n Web / Cloudflare Code Mode, which invert the sync
+model, are Workers-only, and rebuild IP (the provenance set, the determinism) we
+already own. Reach for the RPC framework only when you actually need bidirectional
+stubs; a single return-marshal is not that.
+
+**A grader drifts as the product grows; a correct-but-new path reads as failure.**
+Re-running the eval after adding the declarative tools, a *correct* Haiku answer
+scored `traceOk:false` — the grader credited only `am verify`, not the now-endorsed
+`am mutate`/MCP `mutate`/`applyOps` path, which verify internally. A second case
+false-failed on an oracle that exact-matched `+speak()` and rejected a valid
+`+speak() void`. Fixing false-negatives is not gaming the metric — it is what keeps
+the metric measuring capability — but the discipline is to *separate* them from
+genuine model misses (a dropped `done` label, an absolute date where `after core`
+was asked) and leave those failing. Confirm the split by running a stronger model:
+Opus passed exactly the cases Haiku missed, proving they were capability, not
+tooling.
+
+**A claim guarded by one test silently drifts; guard the invariant.** Adding the
+tools updated `start.md` (which a doc-sync test pins) but left the canonical agent
+guide saying "six tools" — untested, so it rotted. The fix was not just to correct
+the number but to add a test asserting the guide names *every* `HOSTED_TOOLS` entry,
+so the next tool can't drift it. Pin the property, not the instance.
+
+**Fuzz the untyped boundary — that is precisely what fuzzing is for, and the
+discriminating invariant is "success implies validity."** Example tests proved the
+fix on the cases we imagined; only property fuzz (arbitrary malformed ops across all
+12 families) proved the two things that actually matter at a hostile boundary: it
+never throws, and *a successful apply implies the op passed shape validation* — the
+machine statement of "no silent mangle." That invariant is what goes red when the
+validator is removed, which is how you know the fuzz is discriminating and not a
+tautology.

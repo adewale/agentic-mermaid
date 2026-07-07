@@ -67,10 +67,10 @@ describe('hosted MCP handshake', () => {
     expect(result.instructions).toContain('render_svg')
   })
 
-  test('tools/list exposes exactly the hosted six-tool surface', async () => {
+  test('tools/list exposes exactly the hosted tool surface', async () => {
     const res = await handleHostedRequest(rpc('tools/list'), makeContext())
     const names = (res?.result as any).tools.map((t: { name: string }) => t.name)
-    expect(names).toEqual(['execute', 'render_svg', 'render_ascii', 'render_png', 'verify', 'describe'])
+    expect(names).toEqual(['execute', 'render_svg', 'render_ascii', 'render_png', 'verify', 'describe', 'mutate', 'build'])
     expect((res?.result as any).tools).toBe(HOSTED_TOOLS)
   })
 
@@ -125,6 +125,20 @@ describe('hosted pure tools', () => {
     expect(p.layout.nodes).toBe(3)
     expect(p.layout.edges).toBe(2)
     expect(p.layout.bounds.w).toBeGreaterThan(0)
+    // The result echoes the detected family + a summary so ok:true is never a
+    // silent pass on the wrong diagram type.
+    expect(p.family).toBe('flowchart')
+    expect(typeof p.summary).toBe('string')
+    expect(p.summary.length).toBeGreaterThan(0)
+  })
+
+  test('verify echoes the detected family so a wrong-type diagram is self-evident', async () => {
+    // Asked (elsewhere) for an architecture diagram but authored a flowchart:
+    // verify still passes structurally, but the echoed family reveals the mismatch.
+    const p = payloadOf(await handleHostedRequest(call('verify', { source: 'graph TD\n  API --> DB' }), makeContext()))
+    expect(p.ok).toBe(true)
+    expect(p.family).toBe('flowchart')
+    expect(p.summary.toLowerCase()).toContain('flowchart')
   })
 
   test('verify surfaces parse errors as structured payloads, not crashes', async () => {
@@ -133,6 +147,10 @@ describe('hosted pure tools', () => {
     expect(p.isError).toBe(true)
     expect(p.errors.length).toBeGreaterThan(0)
     expect(typeof p.errors[0].message).toBe('string')
+    // Self-describing: the header names a known family, so the failure response
+    // carries that family's canonical example to author from.
+    expect(p.family).toBe('flowchart')
+    expect(p.example).toContain('flowchart')
   })
 
   test('describe summarizes a diagram', async () => {
@@ -150,6 +168,49 @@ describe('hosted pure tools', () => {
       expect(big.error.code).toBe('SOURCE_TOO_LARGE')
       expect(big.error.message).toContain('agentic-mermaid.dev/docs/mcp')
     }
+  })
+})
+
+describe('hosted declarative mutate/build tools', () => {
+  test('build authors a diagram from ops and returns the canonical envelope', async () => {
+    const res = await handleHostedRequest(call('build', { family: 'class', ops: [
+      { kind: 'add_class', id: 'Duck' }, { kind: 'add_member', class: 'Duck', text: '+quack()' },
+    ] }), makeContext())
+    const p = payloadOf(res)
+    expect(p.isError).toBe(false)
+    expect(p.ok).toBe(true)
+    expect(p.family).toBe('class')
+    expect(p.source).toContain('Duck')
+    expect(p.verify).toHaveProperty('ok')
+  })
+
+  test('mutate edits existing source', async () => {
+    const res = await handleHostedRequest(call('mutate', { source: 'classDiagram\n  class Animal', ops: [{ kind: 'add_class', id: 'Dog' }] }), makeContext())
+    const p = payloadOf(res)
+    expect(p.ok).toBe(true)
+    expect(p.source).toContain('class Dog')
+  })
+
+  test('a malformed op is a prescriptive in-band error (isError), not a mangled diagram', async () => {
+    const res = await handleHostedRequest(call('build', { family: 'class', ops: [{ kind: 'add_class', name: 'Duck' }] }), makeContext())
+    const p = payloadOf(res)
+    expect(p.isError).toBe(true)
+    expect(p.ok).toBe(false)
+    expect(p.opIndex).toBe(0)
+    expect(p.error.message).toContain('Valid fields: id, label, members')
+    expect(p.error.message).not.toContain('undefined')
+  })
+
+  test('mutate requires source+ops; build requires family+ops', async () => {
+    expect((await handleHostedRequest(call('mutate', { ops: [] }), makeContext()))?.error?.code).toBe(-32602)
+    expect((await handleHostedRequest(call('build', { family: 'class' }), makeContext()))?.error?.code).toBe(-32602)
+  })
+
+  test('tool descriptions embed the op menu WITH field signatures so ops are fillable first-try', () => {
+    const build = HOSTED_TOOLS.find(t => t.name === 'build')!
+    // Field names inline (not just op names) — the discovery gap the eval surfaced.
+    expect(build.description).toContain('add_class(id, label?, members?)')
+    expect(build.description).toContain('add_series(kind2, name?, values)')
   })
 })
 

@@ -55,15 +55,15 @@
   <text x="76" y="54" class="architecture-group-label" text-anchor="start" font-size="12" font-weight="600" dy="4.199999999999999">Edge</text>
 </g>
 <g class="architecture-group" data-id="app" data-label="Application">
-  <rect class="architecture-group-frame" x="40" y="76" width="380.58500000000004" height="110" rx="0" ry="0" />
-  <path class="architecture-group-band" d="M40,76 H420.58500000000004 V104 H40 Z" />
-  <rect class="architecture-group-outline" x="40" y="76" width="380.58500000000004" height="110" rx="0" ry="0" />
+  <rect class="architecture-group-frame" x="38" y="76" width="384.58500000000004" height="112" rx="0" ry="0" />
+  <path class="architecture-group-band" d="M38,76 H422.58500000000004 V104 H38 Z" />
+  <rect class="architecture-group-outline" x="38" y="76" width="384.58500000000004" height="112" rx="0" ry="0" />
   <g class="architecture-icon" data-icon="server">
-  <rect class="architecture-icon-mark" x="54.7616" y="86.4672" width="6.4768" height="7.0656" rx="0" ry="0" />
-<path class="architecture-icon-mark" d="M 55.644800000000004 88.8224 H 60.355199999999996" />
-<path class="architecture-icon-mark" d="M 55.644800000000004 90.8832 H 60.355199999999996" />
+  <rect class="architecture-icon-mark" x="52.7616" y="86.4672" width="6.4768" height="7.0656" rx="0" ry="0" />
+<path class="architecture-icon-mark" d="M 53.644800000000004 88.8224 H 58.355199999999996" />
+<path class="architecture-icon-mark" d="M 53.644800000000004 90.8832 H 58.355199999999996" />
 </g>
-  <text x="76" y="90" class="architecture-group-label" text-anchor="start" font-size="12" font-weight="600" dy="4.199999999999999">Application</text>
+  <text x="74" y="90" class="architecture-group-label" text-anchor="start" font-size="12" font-weight="600" dy="4.199999999999999">Application</text>
 </g>
 <polyline class="architecture-edge" data-from="api" data-to="db" data-from-side="R" data-to-side="L" data-from-boundary="item" data-to-boundary="item" points="191.971,146 337.278,146 337.278,158 482.58500000000004,158" marker-end="url(#architecture-arrow-end)" />
 <polyline class="architecture-edge" data-from="api" data-to="bus" data-from-side="B" data-to-side="T" data-from-boundary="item" data-to-boundary="item" data-label="async fan-out" points="123.9855,170 123.9855,147 390.58500000000004,147 390.58500000000004,120" marker-end="url(#architecture-arrow-end)" />
