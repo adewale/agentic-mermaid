@@ -118,7 +118,7 @@ useAscii true → plain ASCII (+,-,|); false/absent → Unicode box drawing (┌
   {
     name: 'render_png',
     description: `Rasterize a Mermaid source string to PNG. Returns { ok, png_base64 }.
-Hosted rendering uses resvg-wasm with bundled DejaVu Sans; bytes may differ from the
+Hosted rendering uses resvg-wasm with bundled fonts; bytes may differ from the
 local napi renderer, so hosted PNG is a convenience surface, not part of the
 byte-determinism contract. For file/URL artifacts use the local stdio server.`,
     inputSchema: {
@@ -127,7 +127,7 @@ byte-determinism contract. For file/URL artifacts use the local stdio server.`,
         source: { type: 'string', description: 'Mermaid source.' },
         scale: { type: 'number', description: 'Output scale multiplier (default 2 — retina; clamped to 0.1–8).' },
         background: { type: 'string', description: "CSS color string (default 'white')." },
-        style: { description: 'Style name | record | stack (same as render_svg). Hosted rasterization substitutes DejaVu for styled fonts; use the local server for bundled style faces.' },
+        style: { description: 'Style name | record | stack (same as render_svg). Hosted rasterization bundles the built-in style faces; custom unbundled fonts fall back to DejaVu.' },
         seed: { type: 'number', description: 'Ink seed for styled looks.' },
       },
       required: ['source'],
