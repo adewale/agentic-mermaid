@@ -3,6 +3,12 @@ export const SDK_DECLARATION = `// Mermaid agent SDK available as the global \`m
 // Code Mode is synchronous: async/await, Promise jobs, and dynamic import are not supported.
 
 type Result<T, E> = { ok: true; value: T } | { ok: false; error: E }
+type CheckMermaidSpec = string[] | {
+  include?: string[]; expected?: string[]; required?: string[]; require?: string[]
+  exclude?: string[]; absent?: string[]; forbidden?: string[]; forbid?: string[]; unexpected?: string[]
+  exact?: boolean
+}
+interface CheckMermaidResult { ok: boolean; missing: string[]; unexpected: string[]; facts: string[] }
 
 type MermaidConfigScalar = string | number | boolean | null
 type MermaidConfigValue = MermaidConfigScalar | MermaidConfigValue[] | { [key: string]: MermaidConfigValue | undefined }
@@ -337,6 +343,10 @@ declare const mermaid: {
   verifyMermaid(input: ValidDiagram | string, opts?: { suppress?: WarningCode[]; labelCharCap?: number }): VerifyResult
   analyzeMermaid(d: ValidDiagram): DiagramAnalysis
   analyzeMermaidSource(source: string): Result<DiagramAnalysis, { code: string; message: string }[]>
+  describeMermaidFacts(d: ValidDiagram): string[]
+  describeMermaidFactsSource(source: string): Result<string[], { code: string; message: string }[]>
+  checkMermaid(d: ValidDiagram, spec: CheckMermaidSpec): CheckMermaidResult
+  checkMermaidSource(source: string, spec: CheckMermaidSpec): Result<CheckMermaidResult, { code: string; message: string }[]>
   serializeMermaid(d: ValidDiagram): string
   renderMermaidSVG(input: ValidDiagram | string, opts?: { security?: 'default' | 'strict'; idPrefix?: string; ganttToday?: string; mermaidConfig?: MermaidRuntimeConfig; style?: StyleInput | StyleInput[]; seed?: number }): string
   renderMermaidASCII(input: ValidDiagram | string, opts?: { useAscii?: boolean; ganttToday?: string; mermaidConfig?: MermaidRuntimeConfig }): string
@@ -366,6 +376,8 @@ declare const mermaid: {
 //    bodies (unmodeled syntax) are source-level only; if explicitly edited as
 //    text, re-parse and verify before returning.
 // 4. verify.ok is structural, not a visual-quality score; inspect warnings/layout or render artifacts for layout quality.
+//    For semantic task correctness, read back deterministic facts or check them:
+//    checkMermaid(d, ['edge Processing -> [*] : done', 'member Duck +quack()']).
 // 5. Layout is deterministic and never seeded. The render option seed only
 //    re-rolls stochastic ink of styled looks (render option style: a name,
 //    an inline style record, or a stack merged left-to-right; a colors-only

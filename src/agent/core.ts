@@ -31,6 +31,7 @@ export type {
   DiagramAnalysis, DiagramActionRecord, DiagramActionKind, DiagramActionSecurity, FeedbackEdgeAnalysis, GanttScheduleAnalysisSummary,
   Finite,
 } from './types.ts'
+export type { MermaidFact, CheckMermaidSpec, CheckMermaidObjectSpec, CheckMermaidResult } from './facts.ts'
 
 export { WARNING_SEVERITY, WARNING_TIER, DEFAULT_LABEL_CHAR_CAP, ok, err, toFinite, asFlowchart, asState, asSequence, asTimeline, asClass, asEr, asJourney, asArchitecture, asXyChart, asPie, asQuadrant, asGantt } from './types.ts'
 export { parseMermaid } from './parse.ts'
@@ -53,6 +54,7 @@ export type { FamilyPlugin, ExtractedLabel, BuiltinFamilyMetadata, BuiltinFamily
 export { renderMermaidASCIIWithMeta, ASCII_ROUTE_PARITY_CONTRACT } from '../ascii/meta.ts'
 export type { AsciiRegion, AsciiWithMeta, RegionKind, AsciiWarning, AsciiWarningCode } from '../ascii/meta.ts'
 export { describeMermaid, describeMermaidSource, describeMermaidTree } from './describe.ts'
+export { describeMermaidFacts, describeMermaidFactsSource, checkMermaid, checkMermaidSource } from './facts.ts'
 export { analyzeMermaid, analyzeMermaidSource, collectActionRecords } from './analyze.ts'
 export { TEXT_MEASUREMENT_CONTRACT, measureText, measureTextWidth } from '../text-metrics.ts'
 export type { TextMeasurementContract, TextMeasurementInput, TextMeasurementResult } from '../text-metrics.ts'

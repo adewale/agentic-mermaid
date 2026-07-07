@@ -121,11 +121,16 @@ Prompt changes are gated three ways, cheapest-first:
    every test run; a change that would have flipped a past-good response
    surfaces here without any model calls.
 3. **Paired live runs (on demand).** To compare prompt variant A against
-   variant B: at variant A run `prepare --surface homepage` with a fixed case
-   list, dispatch every `requests/*.md` to a fresh subagent, run `finalize`;
-   repeat at variant B with the same cases, harness, and model. Follow the
-   `skill-evals/shared-benchmark.json` run policy (≥3 runs per variant, 5
-   recommended) because single runs are noise. Compare `ok` rate and the
+   variant B: run `prepare --surface homepage --prompt-variant baseline` with a
+   fixed case list, dispatch every `requests/*.md` to a fresh subagent, run
+   `finalize`; repeat with `--prompt-variant no-semantic-readback` and the same
+   cases, harness, and model. The treatment removes only the semantic read-back
+   paragraph ("Before returning, confirm the specific change...") from the
+   populated homepage prompt; it does not edit `website/source/start.md`. Follow
+   the `skill-evals/shared-benchmark.json` run policy (≥3 runs per variant, 5
+   recommended) because single runs are noise. Prefer `--mode code` when the
+   question allows it so `traceSource` is `observed`; otherwise report when chat
+   runs fall back to narrated Trace prose. Compare `ok` rate and the
    `taskOk`/`traceOk` split per case, plus response length as a proxy for
    discovery cost. Commit both transcript sets so the comparison replays
    deterministically in layer 2.

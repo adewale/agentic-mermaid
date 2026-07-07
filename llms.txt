@@ -31,7 +31,7 @@ you haven't inspected.
 - mutate --op '<json>' / --ops '<json array|file>' — apply typed mutation(s), verify, then emit source
 - preview [--output file.html] [--open] — standalone strict-mode HTML preview for user inspection
 - format — normalize / canonicalize source
-- describe [--format text|json] — natural-language or AX-tree summary
+- describe [--format text|json|facts] — natural-language, AX-tree, or semantic facts summary
 - capabilities --json — machine-readable capability envelope incl. editPolicy + mutationOps
 - batch --jsonl — bulk render/verify/parse/serialize/mutate ops, one JSON envelope per line
 - render-markdown <file.md> [--ascii] — render fenced mermaid blocks, skip invalid ones

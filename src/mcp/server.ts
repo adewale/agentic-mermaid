@@ -11,6 +11,9 @@ import { reply, rpcError as error, type JsonRpcRequest, type JsonRpcResponse } f
 import { SDK_DECLARATION } from './sdk-decl.ts'
 import { createArtifactStore, type ArtifactRecord, type ArtifactStore } from './artifacts.ts'
 import { renderMermaidPNG } from '../agent/png.ts'
+import { describeMermaidSource, describeMermaid } from '../agent/describe.ts'
+import { describeMermaidFacts } from '../agent/facts.ts'
+import { parseMermaid } from '../agent/parse.ts'
 import { BUILTIN_FAMILY_METADATA } from '../agent/families.ts'
 import pkg from '../../package.json'
 
@@ -95,14 +98,14 @@ Agentic Mermaid outputs SVG, PNG, ASCII, Unicode, and JSON layout. For non-PNG o
   },
   {
     name: 'describe',
-    description: `Produce a natural-language summary of a Mermaid diagram. Returns
-{ ok, text } with one or two sentences per family covering entities, edges,
-and notable structure. Intended for screen-reader output, doc generation, and
-LLM context compaction without re-parsing.`,
+    description: `Describe a Mermaid diagram. format=text returns { ok, text };
+format=json returns { ok, tree } with the AX tree; format=facts returns
+{ ok, facts } with deterministic semantic fact lines for machine checking.`,
     inputSchema: {
       type: 'object',
       properties: {
         source: { type: 'string', description: 'Mermaid source.' },
+        format: { type: 'string', enum: ['text', 'json', 'facts'], description: 'text (default), json AX tree, or facts semantic read-back.' },
       },
       required: ['source'],
     },
@@ -151,10 +154,8 @@ async function handleToolCall(id: number | string | null, params: unknown, conte
     const source = (args as { source?: string }).source
     if (typeof source !== 'string') return error(id, -32602, 'describe requires `source` (string)')
     try {
-      const { describeMermaidSource } = require('../agent/describe.ts') as typeof import('../agent/describe.ts')
-      const text = describeMermaidSource(source)
-      const payload = { ok: true as const, text }
-      return reply(id, { content: [{ type: 'text', text: JSON.stringify(payload) }], isError: false })
+      const payload = describePayload(source, args)
+      return reply(id, { content: [{ type: 'text', text: JSON.stringify(payload) }], isError: !payload.ok })
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e)
       const payload = { ok: false as const, error: { code: 'DESCRIBE_FAILED', message: msg } }
@@ -162,6 +163,21 @@ async function handleToolCall(id: number | string | null, params: unknown, conte
     }
   }
   return error(id, -32602, `Unknown tool: ${name ?? '<none>'}`)
+}
+
+function describeFormat(args: Record<string, unknown>): 'text' | 'json' | 'facts' {
+  const format = args.format ?? 'text'
+  if (format === 'text' || format === 'json' || format === 'facts') return format
+  throw new Error('describe format must be one of: text, json, facts')
+}
+
+function describePayload(source: string, args: Record<string, unknown>): { ok: boolean } & Record<string, unknown> {
+  const format = describeFormat(args)
+  if (format === 'text') return { ok: true as const, text: describeMermaidSource(source) }
+  const parsed = parseMermaid(source)
+  if (!parsed.ok) return { ok: false as const, errors: parsed.error }
+  if (format === 'facts') return { ok: true as const, facts: describeMermaidFacts(parsed.value) }
+  return { ok: true as const, tree: JSON.parse(describeMermaid(parsed.value, { format: 'json' })) }
 }
 
 function handleRenderPng(id: number | string | null, args: Record<string, unknown>, context: McpRequestContext): JsonRpcResponse {

@@ -4,6 +4,7 @@ import { DEFAULT_CASES, KNOWLEDGE_CASES, CREATE_CASES, checkAgentUsageTaskSource
 import { extractCodeModeScript } from './live.ts'
 import { SDK_DECLARATION } from '../../src/mcp/sdk-decl.ts'
 import { parseMermaid, verifyMermaid } from '../../src/agent/index.ts'
+import { HOMEPAGE_PROMPT_VARIANTS, applyHomepagePromptVariant, type HomepagePromptVariant } from './homepage-prompt.ts'
 
 const REPO = join(import.meta.dir, '..', '..')
 const TRANSCRIPT_ROOT = join(import.meta.dir, 'transcripts')
@@ -11,6 +12,7 @@ const MANIFEST_FILE = 'subagent-prompt-eval.json'
 
 type PromptEvalSurface = 'homepage' | 'instructions' | 'skill' | 'none'
 type PromptEvalMode = 'code' | 'chat'
+type PromptEvalVariant = HomepagePromptVariant
 
 export interface SubagentPromptEvalRequest {
   caseId: string
@@ -25,6 +27,7 @@ export interface SubagentPromptEvalManifest {
   model: string
   surface: PromptEvalSurface
   mode: PromptEvalMode
+  promptVariant: PromptEvalVariant
   cases: string[]
   requests: SubagentPromptEvalRequest[]
 }
@@ -35,6 +38,7 @@ export interface PrepareSubagentPromptEvalOptions {
   model?: string
   surface?: PromptEvalSurface
   mode?: PromptEvalMode
+  promptVariant?: PromptEvalVariant
   caseIds?: string[]
   capturedAt?: string
 }
@@ -54,6 +58,7 @@ export interface SubagentPromptEvalSummary {
   model: string
   surface: PromptEvalSurface
   mode: PromptEvalMode
+  promptVariant: PromptEvalVariant
   total: number
   /** PRIMARY metric: diagrams the task oracle accepts. */
   taskOk: number
@@ -136,6 +141,10 @@ function surfaceContext(surface: PromptEvalSurface): string {
   ].map(([path, text]) => `# ${path}\n\n${String(text).trim()}`).join('\n\n---\n\n')
 }
 
+function promptForVariant(prompt: string, surface: PromptEvalSurface, variant: PromptEvalVariant): string {
+  return surface === 'homepage' ? applyHomepagePromptVariant(prompt, variant) : prompt
+}
+
 /**
  * Recover the bare task from a populated homepage prompt. The template
  * headers are pinned by homepagePromptChecklist, so this split is stable.
@@ -168,7 +177,7 @@ ${source ? `\nExisting Mermaid source to edit:\n\`\`\`mermaid\n${source}\n\`\`\`
 Return your final Mermaid diagram source in a \`\`\`mermaid fence.`
 }
 
-export function buildSubagentPromptEvalRequest(c: AgentUsageEvalCase, surface: PromptEvalSurface = 'homepage', mode: PromptEvalMode = 'code'): string {
+export function buildSubagentPromptEvalRequest(c: AgentUsageEvalCase, surface: PromptEvalSurface = 'homepage', mode: PromptEvalMode = 'code', promptVariant: PromptEvalVariant = 'baseline'): string {
   if (surface === 'none') {
     if (mode !== 'chat') throw new Error('--surface none is chat-only: Code Mode ships the SDK declaration, which is guidance')
     return buildBareTaskRequest(c)
@@ -183,7 +192,7 @@ ${surfaceContext(surface)}
 
 Task ID: ${c.id}
 Task prompt under test:
-${c.prompt}
+${promptForVariant(c.prompt, surface, promptVariant)}
 
 Return the human-facing response requested by the prompt.`
   }
@@ -198,7 +207,7 @@ ${surfaceContext(surface)}
 
 Task ID: ${c.id}
 Task prompt under test:
-${c.prompt}
+${promptForVariant(c.prompt, surface, promptVariant)}
 ${c.input ? `\nInput Mermaid source, repeated for exactness:\n\`\`\`mermaid\n${c.input}\n\`\`\`\n` : ''}
 SDK declaration available in Code Mode:
 ${SDK_DECLARATION}
@@ -234,6 +243,7 @@ function writeRunReadme(outDir: string, manifest: SubagentPromptEvalManifest) {
     `Model: ${manifest.model}`,
     `Surface: ${manifest.surface}`,
     `Mode: ${manifest.mode}`,
+    `Prompt variant: ${manifest.promptVariant}`,
     '',
     'Requests:',
     ...manifest.requests.map(r => `- ${r.caseId}: ${rel(r.requestPath)} → ${rel(r.responsePath)}`),
@@ -247,6 +257,7 @@ export function prepareSubagentPromptEval(opts: PrepareSubagentPromptEvalOptions
   const model = opts.model ?? 'fresh-subagent'
   const surface = opts.surface ?? 'homepage'
   const mode = opts.mode ?? 'code'
+  const promptVariant = opts.promptVariant ?? 'baseline'
   const capturedAt = opts.capturedAt ?? new Date().toISOString()
   const outDir = opts.outDir ? abs(opts.outDir) : defaultOutDir(provider, capturedAt)
   const requestsDir = join(outDir, 'requests')
@@ -264,11 +275,11 @@ export function prepareSubagentPromptEval(opts: PrepareSubagentPromptEvalOptions
   for (const c of cases) {
     const requestPath = join(requestsDir, `${c.id}.md`)
     const responsePath = join(responsesDir, `${c.id}.txt`)
-    writeFileSync(requestPath, buildSubagentPromptEvalRequest(c, surface, mode) + '\n')
+    writeFileSync(requestPath, buildSubagentPromptEvalRequest(c, surface, mode, promptVariant) + '\n')
     requests.push({ caseId: c.id, requestPath, responsePath })
   }
 
-  const manifest: SubagentPromptEvalManifest = { schemaVersion: 1, capturedAt, provider, model, surface, mode, cases: cases.map(c => c.id), requests }
+  const manifest: SubagentPromptEvalManifest = { schemaVersion: 1, capturedAt, provider, model, surface, mode, promptVariant, cases: cases.map(c => c.id), requests }
   writeFileSync(join(outDir, MANIFEST_FILE), JSON.stringify({ ...manifest, requests: manifest.requests.map(r => ({ ...r, requestPath: rel(r.requestPath), responsePath: rel(r.responsePath) })) }, null, 2) + '\n')
   writeRunReadme(outDir, manifest)
   return manifest
@@ -282,6 +293,7 @@ function loadManifest(runDir: string): SubagentPromptEvalManifest {
   return {
     ...raw,
     mode: raw.mode ?? 'code',
+    promptVariant: raw.promptVariant ?? 'baseline',
     requests: raw.requests.map(r => ({ ...r, requestPath: abs(r.requestPath), responsePath: abs(r.responsePath) })),
   }
 }
@@ -420,9 +432,10 @@ function writeTranscript(runDir: string, manifest: SubagentPromptEvalManifest, c
     caseId: c.id,
     task: { prompt: c.prompt, input: c.input },
     mode: manifest.mode,
+    promptVariant: manifest.promptVariant,
     prompts: {
-      system: `${SUBAGENT_PROMPT_EVAL_PARENT_CONTEXT}\nSurface: ${manifest.surface}. Mode: ${manifest.mode}. Pi/Claude/Codex hidden subagent system prompts are not exposed here.`,
-      user: buildSubagentPromptEvalRequest(c, manifest.surface, manifest.mode),
+      system: `${SUBAGENT_PROMPT_EVAL_PARENT_CONTEXT}\nSurface: ${manifest.surface}. Mode: ${manifest.mode}. Prompt variant: ${manifest.promptVariant}. Pi/Claude/Codex hidden subagent system prompts are not exposed here.`,
+      user: buildSubagentPromptEvalRequest(c, manifest.surface, manifest.mode, manifest.promptVariant),
     },
     rawResponse,
     script,
@@ -489,6 +502,7 @@ export async function finalizeSubagentPromptEval(opts: FinalizeSubagentPromptEva
     model: manifest.model,
     surface: manifest.surface,
     mode: manifest.mode,
+    promptVariant: manifest.promptVariant,
     total,
     taskOk: taskPassed,
     taskOkRate: taskPassed / Math.max(1, total),
@@ -540,15 +554,21 @@ function parseMode(args: string[]): PromptEvalMode {
   return value
 }
 
+function parsePromptVariant(args: string[]): PromptEvalVariant {
+  const value = argValue(args, '--prompt-variant') ?? 'baseline'
+  if ((HOMEPAGE_PROMPT_VARIANTS as readonly string[]).includes(value)) return value as PromptEvalVariant
+  throw new Error(`Unsupported --prompt-variant ${value}. Use ${HOMEPAGE_PROMPT_VARIANTS.join(', ')}.`)
+}
+
 function usage() {
   return `Usage:
-  bun run eval:agent-subagent -- prepare [--provider pi-subagent] [--model delegate] [--surface homepage|instructions|skill|none] [--mode code|chat] [--cases id1,id2] [--out-dir dir]
+  bun run eval:agent-subagent -- prepare [--provider pi-subagent] [--model delegate] [--surface homepage|instructions|skill|none] [--mode code|chat] [--prompt-variant baseline|no-semantic-readback] [--cases id1,id2] [--out-dir dir]
   bun run eval:agent-subagent -- record --run-dir dir --case id [--response-file file]
   bun run eval:agent-subagent -- finalize --run-dir dir
 
 Prepare writes requests under eval/agent-usage/transcripts/<provider>-<timestamp>/requests/.
 Dispatch each request to a fresh subagent in Pi, Claude, Codex, or another harness, save exact raw responses under responses/, then finalize.
-Finalize writes one transcript JSON per case plus summary.json and exits nonzero when the existing oracle rejects any response. Use --mode chat to test the raw public prompt response shape; use --mode code for executable Code Mode transcripts. --surface none is the chat-only no-docs baseline: the bare task with zero product guidance, graded on the task oracle alone.`
+Finalize writes one transcript JSON per case plus summary.json and exits nonzero when the existing oracle rejects any response. Use --mode chat to test the raw public prompt response shape; use --mode code for executable Code Mode transcripts. --surface none is the chat-only no-docs baseline: the bare task with zero product guidance, graded on the task oracle alone. --prompt-variant is eval-only and transforms the populated homepage prompt without editing website/source/start.md.`
 }
 
 async function readStdin(): Promise<string> {
@@ -572,6 +592,7 @@ if (import.meta.main) {
         model: argValue(rest, '--model') ?? 'fresh-subagent',
         surface: parseSurface(rest),
         mode: parseMode(rest),
+        promptVariant: parsePromptVariant(rest),
         caseIds: parseCaseIds(rest),
         outDir: argValue(rest, '--out-dir'),
       })
