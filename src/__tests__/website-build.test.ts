@@ -133,9 +133,9 @@ describe('Workers Static Assets website contract', () => {
       'index.html', 'editor/index.html', 'about/index.html', 'docs/getting-started/index.html', 'docs/families/index.html',
       'docs/index.html', 'docs/api/index.html', 'docs/cli/index.html',
       'docs/mcp/index.html', 'docs/ascii/index.html', 'docs/theming/index.html',
-      'docs/quality/index.html', 'docs/fork-differences/index.html',
+      'docs/custom-styles/index.html', 'docs/quality/index.html', 'docs/fork-differences/index.html',
       'warnings/index.html', 'errors/index.html', 'examples/index.html', 'comparisons/index.html',
-      'llms.txt', 'agent-instructions.md', 'capabilities.json', 'examples/index.json',
+      'llms.txt', 'agent-instructions.md', 'capabilities.json', 'examples/index.json', 'schemas/style-spec.schema.json',
       'sitemap.xml',
       'skills/agentic-mermaid-diagram-workflow/SKILL.md', '_headers', '_redirects',
     ]
@@ -158,6 +158,7 @@ describe('Workers Static Assets website contract', () => {
     for (const loc of locs) expect({ loc, ok: loc.startsWith('https://agentic-mermaid.dev/') }).toEqual({ loc, ok: true })
     expect(locs).toContain('https://agentic-mermaid.dev/')        // homepage
     expect(locs).toContain('https://agentic-mermaid.dev/docs/api/')
+    expect(locs).toContain('https://agentic-mermaid.dev/docs/custom-styles/')
     for (const gone of ['/security/', '/skills/', '/docs/source-level/', '/evidence/', '/releases/', '/docs/react/', '/docs/config/', '/docs/vocabulary/']) {
       expect({ gone, listed: locs.includes(`https://agentic-mermaid.dev${gone}`) }).toEqual({ gone, listed: false })
     }
@@ -590,6 +591,25 @@ describe('Workers Static Assets website contract', () => {
       expect(example.docs.startsWith('/docs/families/#')).toBe(true)
       expect(read('docs/families/index.html')).toContain(`id="${familyId}"`)
       expect(example.editorUrl).toContain('/editor/?example=')
+    }
+  })
+
+  test('custom style docs publish schema, examples, and screenshots', () => {
+    const schema = JSON.parse(read('schemas/style-spec.schema.json'))
+    expect(schema.$id).toBe('https://agentic-mermaid.dev/schemas/style-spec.schema.json')
+    const page = read('docs/custom-styles/index.html')
+    expect(page).toContain('/schemas/style-spec.schema.json')
+    expect(page).toContain('/examples/styles/transit-route-map.style.json')
+    expect(page).toContain('/docs/assets/style-cookbook/transit-route-map.png')
+    for (const rel of [
+      'examples/styles/transit-route-map.style.json',
+      'examples/styles/mid-century-report.style.json',
+      'examples/styles/star-chart-atlas.style.json',
+      'docs/assets/style-cookbook/transit-route-map.png',
+      'docs/assets/style-cookbook/mid-century-report.png',
+      'docs/assets/style-cookbook/star-chart-atlas.png',
+    ]) {
+      expect({ rel, exists: existsSync(join(SITE, rel)) }).toEqual({ rel, exists: true })
     }
   })
 

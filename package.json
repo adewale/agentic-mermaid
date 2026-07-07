@@ -19,6 +19,7 @@
       "import": "./dist/agent.js",
       "default": "./dist/agent.js"
     },
+    "./style-spec.schema.json": "./docs/schemas/style-spec.schema.json",
     "./package.json": "./package.json"
   },
   "bin": {
@@ -80,6 +81,7 @@
     "assets/fonts/",
     "assets/hero.png",
     "docs/",
+    "examples/styles/",
     "skills/",
     "skill-evals/",
     "examples/agent-loop.ts",

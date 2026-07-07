@@ -125,6 +125,13 @@ itself a valid style):
 | `style.edge` | `fontSize`, `fontWeight`, `letterSpacing`, `textTransform`, `lineWidth`, `bendRadius` |
 | `style.group` | `fontSize`, `fontWeight`, `letterSpacing`, `fontFamily`, `textTransform`, `paddingX`, `paddingY`, `cornerRadius`, `borderColor`, `lineWidth` |
 
+For JSON files, use
+[`docs/schemas/style-spec.schema.json`](./schemas/style-spec.schema.json). The
+same schema is exported from the npm package as
+`agentic-mermaid/style-spec.schema.json`; see
+[`custom-style-cookbook.md`](./custom-style-cookbook.md) for complete style
+files and screenshots.
+
 ## Agent edit API
 
 ```ts

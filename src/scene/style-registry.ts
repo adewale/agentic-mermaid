@@ -22,6 +22,8 @@ import { THEMES } from '../theme.ts'
 /** A partial, composable description of how diagrams look. Extends the role
  *  overrides (text/node/edge/group), so a role-only object IS a valid style. */
 export interface StyleSpec extends DiagramStyleOptions {
+  /** Optional JSON Schema pointer for file-backed styles. Ignored at render time. */
+  $schema?: string
   // identity — optional; anonymous inline styles are fine
   name?: string
   blurb?: string
@@ -165,7 +167,7 @@ function withDefaultBackendStrokeWidth(spec: StyleSpec): DiagramStyleOptions {
  *  CLI's `am styles` listing and the editor's style picker, so the two
  *  surfaces can never disagree about what counts as a look. */
 export function styleKind(spec: StyleSpec): 'look' | 'theme' {
-  return Object.keys(spec).every(k => k === 'name' || k === 'blurb' || k === 'colors') ? 'theme' : 'look'
+  return Object.keys(spec).every(k => k === '$schema' || k === 'name' || k === 'blurb' || k === 'colors') ? 'theme' : 'look'
 }
 
 /** True when a merged spec changes anything beyond role overrides/metadata —
@@ -176,12 +178,18 @@ export function isStyledSpec(spec: StyleSpec): boolean {
 }
 
 const KNOWN_KEYS = new Set([
-  'name', 'blurb', 'colors', 'font',
+  '$schema', 'name', 'blurb', 'colors', 'font',
   'stroke', 'roughness', 'bowing', 'passes', 'strokeWidth',
   'fill', 'hachureAngle', 'hachureGap', 'fillWeight', 'washOpacity', 'washEdge',
   'backdrop', 'backend', 'intent', 'mono',
   'text', 'node', 'edge', 'group',
 ])
+const TEXT_ROLE_KEYS = ['fontSize', 'fontWeight', 'letterSpacing', 'textTransform', 'textColor'] as const
+const BOX_ROLE_KEYS = ['paddingX', 'paddingY', 'cornerRadius', 'lineWidth', 'fillColor', 'borderColor'] as const
+const EDGE_ROLE_KEYS = ['lineWidth', 'bendRadius', 'strokeColor'] as const
+const GROUP_ROLE_KEYS = ['fontFamily', 'headerFillColor'] as const
+const NUMBER_ROLE_KEYS = new Set(['fontSize', 'fontWeight', 'letterSpacing', 'paddingX', 'paddingY', 'cornerRadius', 'lineWidth', 'bendRadius'])
+const STRING_ROLE_KEYS = new Set(['textColor', 'fillColor', 'borderColor', 'strokeColor', 'fontFamily', 'headerFillColor'])
 
 /** Validate an untrusted (e.g. JSON) style record. Returns human-readable
  *  problems; [] means the record is a usable StyleSpec. Declarative-only by
@@ -199,7 +207,7 @@ export function validateStyleSpec(value: unknown): string[] {
   const num = (k: string) => spec[k] === undefined || (typeof spec[k] === 'number' && Number.isFinite(spec[k] as number)) || problems.push(`"${k}" must be a finite number`)
   const oneOf = (k: string, allowed: string[]) =>
     spec[k] === undefined || (typeof spec[k] === 'string' && allowed.includes(spec[k] as string)) || problems.push(`"${k}" must be one of ${allowed.join(' | ')}`)
-  str('name'); str('blurb'); str('font')
+  str('$schema'); str('name'); str('blurb'); str('font')
   num('roughness'); num('bowing'); num('passes'); num('strokeWidth')
   num('hachureAngle'); num('hachureGap'); num('fillWeight'); num('washOpacity'); num('washEdge')
   oneOf('stroke', ['crisp', 'jittered', 'freehand'])
@@ -218,6 +226,30 @@ export function validateStyleSpec(value: unknown): string[] {
       }
     }
   }
+  const role = (k: 'text' | 'node' | 'edge' | 'group', allowed: readonly string[]) => {
+    const value = spec[k]
+    if (value === undefined) return
+    if (typeof value !== 'object' || value === null || Array.isArray(value)) {
+      problems.push(`"${k}" must be an object of role style fields`)
+      return
+    }
+    const style = value as Record<string, unknown>
+    for (const [field, fieldValue] of Object.entries(style)) {
+      if (!allowed.includes(field)) {
+        problems.push(`unknown ${k} style field "${field}"`)
+      } else if (NUMBER_ROLE_KEYS.has(field) && !(typeof fieldValue === 'number' && Number.isFinite(fieldValue))) {
+        problems.push(`"${k}.${field}" must be a finite number`)
+      } else if (STRING_ROLE_KEYS.has(field) && typeof fieldValue !== 'string') {
+        problems.push(`"${k}.${field}" must be a string`)
+      } else if (field === 'textTransform' && !(typeof fieldValue === 'string' && ['uppercase', 'lowercase', 'capitalize'].includes(fieldValue))) {
+        problems.push(`"${k}.textTransform" must be one of uppercase | lowercase | capitalize`)
+      }
+    }
+  }
+  role('text', TEXT_ROLE_KEYS)
+  role('node', [...TEXT_ROLE_KEYS, ...BOX_ROLE_KEYS])
+  role('edge', [...TEXT_ROLE_KEYS, ...EDGE_ROLE_KEYS])
+  role('group', [...TEXT_ROLE_KEYS, ...BOX_ROLE_KEYS, ...GROUP_ROLE_KEYS])
   return problems
 }
 

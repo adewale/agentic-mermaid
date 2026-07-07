@@ -1,0 +1,55 @@
+{
+  "$schema": "https://agentic-mermaid.dev/schemas/style-spec.schema.json",
+  "name": "star-chart-atlas",
+  "blurb": "Celestial atlas: dark sky, faint grid, pale-gold labels, and quiet rough linework.",
+  "colors": {
+    "bg": "#0b1026",
+    "fg": "#ece4c4",
+    "line": "#8a96c0",
+    "accent": "#f0d98a",
+    "muted": "#8993bd",
+    "surface": "#101733",
+    "border": "#cfc69e"
+  },
+  "font": "EB Garamond",
+  "stroke": "jittered",
+  "roughness": 0.35,
+  "bowing": 0.4,
+  "passes": 1,
+  "strokeWidth": 1.2,
+  "fill": "none",
+  "backdrop": "grid",
+  "intent": "premium",
+  "node": {
+    "fontSize": 15,
+    "fontWeight": 700,
+    "paddingX": 26,
+    "paddingY": 14,
+    "cornerRadius": 16,
+    "lineWidth": 1.3,
+    "fillColor": "var(--bg)",
+    "borderColor": "var(--accent)",
+    "textColor": "var(--fg)"
+  },
+  "edge": {
+    "fontSize": 12,
+    "fontWeight": 600,
+    "lineWidth": 1.4,
+    "bendRadius": 12,
+    "strokeColor": "var(--line)",
+    "textColor": "var(--fg)"
+  },
+  "group": {
+    "fontSize": 13,
+    "fontWeight": 700,
+    "textTransform": "uppercase",
+    "letterSpacing": 0.08,
+    "paddingX": 24,
+    "paddingY": 22,
+    "cornerRadius": 16,
+    "lineWidth": 1.2,
+    "fillColor": "#101733",
+    "borderColor": "#6f789d",
+    "textColor": "var(--fg)"
+  }
+}

@@ -79,6 +79,12 @@ of problems (`[]` = usable). Specs are declarative-only — no field can carry
 markup, scripts, or URLs, so they are safe to load from files and prompts and
 compatible with `security: 'strict'`.
 
+For file-backed styles, use the schema at
+[`docs/schemas/style-spec.schema.json`](./schemas/style-spec.schema.json), also
+published as `agentic-mermaid/style-spec.schema.json`. The
+[`custom style cookbook`](./custom-style-cookbook.md) has complete JSON files,
+screenshots, and CLI commands.
+
 Only a genuinely **new capability** (a new fill algorithm, compositor, or
 layout-aware dialect) justifies code: implement `StyleBackend`, call
 `registerBackend(...)`, and keep the determinism rule (seed in, bytes out).
