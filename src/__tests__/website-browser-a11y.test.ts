@@ -151,14 +151,15 @@ describeBrowser('website browser accessibility smoke', () => {
       const body = getComputedStyle(document.body)
       const doc = document.querySelector('.doc') as HTMLElement
       const lead = document.querySelector('.home-main .page-header > .lead') as HTMLElement
-      const code = document.querySelector('.agent-prompt code') as HTMLElement
+      const codeBlock = document.querySelector('.channels pre') as HTMLElement
+      const code = codeBlock.querySelector('code') as HTMLElement
       const h1 = document.querySelector('h1') as HTMLElement
       const unicode = document.querySelector('.unicode-diagram') as HTMLElement
       return {
         bodyLine: Number.parseFloat(body.lineHeight) / Number.parseFloat(body.fontSize),
         docWidth: doc.getBoundingClientRect().width,
         leadWidth: lead.getBoundingClientRect().width,
-        codeWrap: getComputedStyle(code).overflowWrap,
+        codeOverflowX: getComputedStyle(codeBlock).overflowX,
         codeLigatures: getComputedStyle(code).fontFeatureSettings,
         h1Tracking: Number.parseFloat(getComputedStyle(h1).letterSpacing),
         unicodeOverflow: unicode.scrollWidth - unicode.clientWidth,
@@ -171,7 +172,7 @@ describeBrowser('website browser accessibility smoke', () => {
     expect(metrics.docWidth).toBeGreaterThanOrEqual(1000)
     expect(metrics.docWidth).toBeLessThanOrEqual(1008)
     expect(metrics.leadWidth).toBeGreaterThanOrEqual(950)
-    expect(metrics.codeWrap).toBe('break-word')
+    expect(metrics.codeOverflowX).toBe('auto')
     expect(metrics.codeLigatures).toContain('"liga" 0')
     expect(metrics.unicodeOverflow).toBeGreaterThanOrEqual(0)
     expect(metrics.unicodeOverflowX).toBe('auto')

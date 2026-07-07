@@ -41,14 +41,16 @@
   }
 
   function initCopyButtons() {
-    document.querySelectorAll('[data-copy-target]').forEach((btn) => {
+    document.querySelectorAll('[data-copy-target], [data-copy-text]').forEach((btn) => {
       btn.addEventListener('click', () => {
+        const inline = btn.getAttribute('data-copy-text');
         const id = btn.getAttribute('data-copy-target');
         const target = id ? document.getElementById(id) : null;
-        if (!target) return;
+        const value = inline != null ? inline : (target ? target.textContent || '' : '');
+        if (!value) return;
         const text = btn.querySelector('span:last-child');
         const original = text ? text.textContent : btn.textContent;
-        copyText(target.textContent || '').then(() => {
+        copyText(value).then(() => {
           setCopyState(btn, 'ok', original);
         }).catch(() => {
           setCopyState(btn, 'err', original);

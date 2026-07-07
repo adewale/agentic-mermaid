@@ -10,7 +10,7 @@ import { namespaceSvgIds } from '../src/renderer.ts'
 import { HOSTED_TOOLS } from '../src/mcp/hosted-server.ts'
 import { MCP_SERVER_NAME, MCP_SERVER_VERSION } from '../src/mcp/tool-surface.ts'
 import { computeDeployVersion } from './src/deploy-hash.ts'
-import { HOMEPAGE_AGENT_POINTER, buildHomepageFullPrompt } from '../eval/agent-usage/homepage-prompt.ts'
+import { HOMEPAGE_AGENT_POINTER } from '../eval/agent-usage/homepage-prompt.ts'
 
 const ROOT = join(import.meta.dir, '..')
 const SOURCE = join(import.meta.dir, 'source')
@@ -1235,9 +1235,9 @@ if (!CHECK) await rm(OUT, { recursive: true, force: true })
 await emit(mermaidRuntimeRel, mermaidRuntimeBytes)
 
 // Core source-derived pages.
-// #9 — single source of truth for the parse->serialize loop, rendered at two
-// densities: the compact rail on the home page and the section headings in the
-// docs manual. Editing a label or summary here updates both, so they can't drift.
+// #9 — single source of truth for the parse->serialize loop in the docs manual.
+// The homepage now leads with the creator workflow (prompt, style, verify), while
+// the manual keeps the lower-level typed-edit sequence in sync from here.
 const LOOP_STEPS = [
   { label: 'Parse', short: 'Read the source into a typed model; unmodeled syntax round-trips as preserved source.' },
   { label: 'Narrow', short: 'Resolve the one node or edge the edit touches via the matching family surface (<code>asFlowchart</code>, <code>asSequence</code>, …).' },
@@ -1245,10 +1245,6 @@ const LOOP_STEPS = [
   { label: 'Verify', short: 'Read structural, geometric, and lint warnings before serializing or rendering artifacts.' },
   { label: 'Serialize', short: 'Write the typed model back to Mermaid source, then render only when an artifact is needed.' },
 ] as const
-function injectLoopRail(html: string) {
-  const items = LOOP_STEPS.map((s) => `      <li><strong>${s.label}.</strong> ${s.short}</li>`).join('\n')
-  return html.replace(/<ol class="quick-steps">[\s\S]*?<\/ol>/, `<ol class="quick-steps">\n${items}\n    </ol>`)
-}
 function injectLoopHeadings(html: string) {
   return LOOP_STEPS.reduce((h, s, i) => h.replace(new RegExp(`<h2>${i + 1} &middot; [^<]*</h2>`), `<h2>${i + 1} &middot; ${s.label}</h2>`), html)
 }
@@ -1298,13 +1294,10 @@ for (const [source, target] of pageOutputs) {
   html = html.replace(/<footer>[\s\S]*?<\/footer>/, () => footerHtml())
   html = injectWorkflowSvg(html)
   if (source === 'home.html') {
-    // The agent pointer (primary CTA) and the inline fallback prompt are both
-    // derived from website/source/start.md so they cannot drift from the hosted
-    // bootstrap. Inject them here rather than hand-maintaining copies in the page.
-    html = html
-      .replace('{{AGENT_POINTER}}', escapeHtml(HOMEPAGE_AGENT_POINTER))
-      .replace('{{AGENT_FULL_PROMPT}}', escapeHtml(buildHomepageFullPrompt()))
-    html = injectLoopRail(injectWorkflowUnicode(html))
+    // The agent pointer (primary CTA) is intentionally a single fetch instruction;
+    // start.md stays the canonical protocol instead of being duplicated inline.
+    html = html.replace('{{AGENT_POINTER}}', escapeAttr(HOMEPAGE_AGENT_POINTER))
+    html = injectWorkflowUnicode(html)
   }
   if (source === 'docs-article.html') html = injectDocsIndex(injectLoopHeadings(html))
   await emit(target, html)
@@ -1528,7 +1521,7 @@ await emit('agent-instructions.md', await Bun.file(join(ROOT, 'Instructions_for_
 await emit('start.md', await Bun.file(join(SOURCE, 'start.md')).text())
 
 // Spec route coverage pages.
-const aboutLead = 'Agentic Mermaid is a fork of beautiful-mermaid, aimed at a job the original did not have: programs that draw and check diagrams with no person watching. It renders without a browser, reports its own layout errors, and edits diagrams as a typed tree.'
+const aboutLead = 'Beautiful diagrams, made with your agent. Agentic Mermaid turns Mermaid source into styled SVG, PNG, ASCII, Unicode, and JSON layout outputs, with verified edits and custom palettes built into the loop.'
 // The brand Paper palette, hex-resolved. The public site is light-only, so these
 // diagrams render once in Paper rather than carrying a var()-token SVG: page-level
 // custom properties do not inherit into an inlined SVG here, which would leave
@@ -1543,11 +1536,11 @@ function aboutDiagram(source: string, id: string) {
   return `<figure class="about-diagram">${svg}</figure>`
 }
 const aboutBody = `
-<h2>An agent writes a diagram it cannot see</h2>
-<p>When a coding agent emits a Mermaid block, it is working blind. mermaid.js renders in a browser, so the only way to know whether an edge landed on the right node, or whether two boxes overlap, is to start a headless Chrome, rasterize, and look at the picture. An agent in the middle of a task has no picture to look at, so the diagram ships and the break surfaces when a person opens the page. Agentic Mermaid takes the browser out of the path and hands the agent something it can read instead.</p>
+<h2>A diagram should look ready when the agent returns it</h2>
+<p>You should be able to ask for an architecture map, a launch timeline, or a product flow and get back a diagram that fits the page around it. Agentic Mermaid gives the agent the diagram language, the style controls, the renderer, and the verification step in one workflow. The result is Mermaid source you can keep editing plus SVG, PNG, ASCII, Unicode, or layout JSON for the place it needs to go.</p>
 
-<h2>The same source renders the same way</h2>
-<p>The layout is a pure function of the source and the theme tokens. Render twice and the geometry is byte-identical, on any machine, with nothing measuring text in a browser. Because the bytes are stable, a rendered SVG can be committed and diffed in review, a PNG can be cached by the hash of its source, and a render can gate a CI job without flaking. mermaid.js holds none of this: its layout moves between versions and depends on the browser doing the measurement.</p>
+<h2>The same source can wear your brand</h2>
+<p>Styles are data: a named look, a palette-only theme, a JSON record, or a stack of those pieces. Text, nodes, edges, groups, fills, strokes, and typography can follow your house style without touching the diagram's meaning. Render twice and the geometry is byte-identical; change the palette and the boxes stay put.</p>
 <pre><code>am render diagram.mmd --format svg > a.svg
 am render diagram.mmd --format svg > b.svg
 diff a.svg b.svg        # no output: identical bytes, every run, no browser</code></pre>
@@ -1567,13 +1560,13 @@ if (!verifyMermaid(r.value).ok) throw new Error('mutation left it broken')
 const next = serializeMermaid(r.value)                 // typed tree back to text</code></pre>
 
 <h2>One source, five surfaces</h2>
-<p>The same parsed diagram serializes to SVG for a web page, PNG for a document, ASCII and Unicode for a terminal, and JSON for the raw layout coordinates. The text forms are the ones agents actually use: an agent reading a pull request or a CI log sees the diagram as box-drawing characters it can parse, where an image tag would be a dead link. The editor renders all three from the one source in the box on the left, so the Diagram, Unicode, and ASCII tabs are the same diagram under three encodings.</p>
+<p>The same parsed diagram serializes to SVG for a web page, PNG for a deck or document, ASCII and Unicode for a terminal, and JSON for raw layout coordinates. The text forms are the ones agents actually use: an agent reading a pull request or a CI log sees the diagram as box-drawing characters it can parse, where an image tag would be a dead link. The editor renders all three from the one source in the box on the left, so the Diagram, Unicode, and ASCII tabs are the same diagram under three encodings.</p>
 <pre><code>am render flow.mmd --format svg    > flow.svg
 am render flow.mmd --format png    > flow.png
 am render flow.mmd --format ascii          # box-drawing, into the terminal</code></pre>
 
 <h2>The loop</h2>
-<p>These are one loop. An agent parses the source, narrows it with <code>asFlowchart</code>, mutates a node, verifies the result, and serializes it back, then renders the same bytes every time and reads the ASCII when it cannot open an image. It runs the whole loop with no browser and without asking a person whether the picture looks right. That last part is what beautiful-mermaid had no reason to do, and the reason this fork exists.</p>
+<p>These are one loop. An agent writes or parses the source, narrows it when an edit is typed, applies the requested change, verifies the result, and renders with the chosen style. The trust layer is what lets the pleasant part work: you can ask for a branded diagram without accepting a silent source rewrite.</p>
 ${aboutDiagram('flowchart LR\n  Parse --> Narrow\n  Narrow --> Mutate\n  Mutate --> Verify\n  Verify -- ok --> Serialize\n  Verify -- warnings --> Narrow', 'loop')}
 <p class="muted">The loop itself, drawn by Agentic Mermaid at build time from six lines of Mermaid.</p>
 
@@ -1634,19 +1627,19 @@ function mcpConfigCardHtml(idPrefix: string) {
 <p class="copy-prompt-status" id="${idPrefix}-mcp-copy-status" role="status" aria-live="polite"></p>
 </div>`
 }
-const gettingStartedBody = `<p>Start with Mermaid source, not a screenshot. Render it locally, then give an agent the prompt from the homepage when you want an edit.</p>
+const gettingStartedBody = `<p>Start with a diagram goal and a style. Render locally, then give an agent the homepage prompt when you want it to create or edit the source.</p>
 <ol class="start-rail">
 <li><strong>Install Agentic Mermaid.</strong><p>${escapeHtml(installNotice)}</p><pre><code>${escapeHtml(installCommand)}</code></pre></li>
-<li><strong>Create a diagram.</strong><pre><code>cat > diagram.mmd &lt;&lt;'MMD'
+<li><strong>Create a diagram.</strong><p>This first pass uses source directly. Add <code>--style watercolor</code>, <code>--style blueprint</code>, or a JSON style file when you render.</p><pre><code>cat > diagram.mmd &lt;&lt;'MMD'
 flowchart LR
   Idea[Idea] --&gt; Draft[Draft]
   Draft --&gt; Review{Review}
   Review --&gt;|ok| Ship[Ship]
 MMD</code></pre></li>
 <li><strong>Verify, then render.</strong><pre><code>bun run bin/am.ts verify diagram.mmd --json
-bun run bin/am.ts render diagram.mmd --format svg --output diagram.svg
+bun run bin/am.ts render diagram.mmd --format svg --style publication-figure --output diagram.svg
 bun run bin/am.ts render diagram.mmd --format unicode</code></pre></li>
-<li><strong>Ask an agent for the smallest edit.</strong><p>Paste your task and source into the homepage agent prompt, and require the agent to return Updated Mermaid, Verification, and Trace.</p><a class="go" href="/#home-agent-prompt">Get the agent prompt on the homepage</a></li>
+<li><strong>Ask an agent for the smallest edit.</strong><p>Paste your task and source with the homepage fetch prompt, and require the agent to follow <code>start.md</code>.</p><a class="go" href="/">Get the agent prompt on the homepage</a></li>
 <li><strong>Optional: wire MCP.</strong><p>Self-hosting over stdio is the default path; a hosted MCP endpoint is also available at <code>https://agentic-mermaid.dev/mcp</code> (streamable HTTP).</p>
 ${mcpConfigCardHtml('getting-started')}
 <pre><code>bun run bin/agentic-mermaid-mcp.ts</code></pre><p>Use stdio MCP from the cloned repo, or point an MCP client at the hosted endpoint.</p></li>
@@ -1757,7 +1750,7 @@ const customStylesBody = [
 const docPages = [
   ['about/index.html', 'About Agentic Mermaid', aboutLead, aboutBody, '/about/'],
   ['about/design/index.html', 'Design language', designLead, designBody, '/about/'],
-  ['docs/getting-started/index.html', 'Getting started', 'From Mermaid source to a verified local render, then to an agent-safe edit loop.', gettingStartedBody, '/docs/'],
+  ['docs/getting-started/index.html', 'Getting started', 'From a prompt and style choice to a verified local render, then to an agent-safe edit loop.', gettingStartedBody, '/docs/'],
   ['docs/families/index.html', 'Diagram families', familiesLead, familiesReferenceHtml(), '/docs/'],
   ['docs/api/index.html', 'Library API', 'Use agentic-mermaid and agentic-mermaid/agent from local JS or TS.', '<p>Import rendering helpers from <code>agentic-mermaid</code> and typed parse/mutate/verify helpers from <code>agentic-mermaid/agent</code>. Everything runs locally with no network.</p>\n<pre><code>import { renderMermaidSVG, renderMermaidASCII } from \'agentic-mermaid\'\nimport { parseMermaid, verifyMermaid } from \'agentic-mermaid/agent\'\n\nconst src = \'flowchart LR\\n  A[Idea] --&gt; B[Ship]\'\nconst svg = renderMermaidSVG(src)           // also renderMermaidASCII / unicode\nconst { ok, warnings } = verifyMermaid(src) // structured, tiered warnings</code></pre>\n<p>Render helpers return strings (SVG, ASCII, Unicode); the agent surface returns typed diagrams plus structured verify warnings. <strong>In React</strong>, call the same helpers in your component and inject the SVG — private diagrams never leave the browser or your own infrastructure. <strong>Config:</strong> supported Mermaid frontmatter and <code>init</code> directives are normalized before rendering; unsupported syntax is preserved or reported, never silently dropped.</p>' + docsIndex],
   ['docs/cli/index.html', 'CLI', 'Use the am CLI for local rendering, verification, batch checks, and Markdown rendering.', '<p>The <code>am</code> CLI wraps the library for local rendering, verification, and batch checks. In the cloned repo, <code>am</code> is <code>bun run bin/am.ts</code>.</p>\n<pre><code>am verify diagram.mmd                # structural + geometric + lint warnings\nam verify diagram.mmd --json         # machine-readable for agents\nam render diagram.mmd --format svg --output diagram.svg\nam render diagram.mmd --format png --output diagram.png\nam render diagram.mmd --format ascii # or --format unicode</code></pre>\n<p>Prefer <code>--json</code> in agent loops so you can branch on <code>verify.ok</code> and the stable warning codes instead of parsing prose.</p>' + docsIndex],
@@ -1766,7 +1759,7 @@ const docPages = [
   ['docs/theming/index.html', 'Theming and styles', 'A style describes how diagrams look; a colors-only style is a theme.', '<p>One primitive covers every look: a <strong>style</strong> is a partial, composable description of how diagrams render — palette, typography, stroke character, fills. A style that only sets colours is what people call a <em>theme</em>; full looks like <code>hand-drawn</code>, <code>watercolor</code>, or <code>blueprint</code> also change the mark treatment. Styles stack left \u2192 right (<code>{ style: [\'hand-drawn\', \'dracula\'] }</code> is hand-drawn geometry in the dracula palette), the optional <code>seed</code> re-rolls styled ink without ever moving layout, and custom styles are plain JSON records. Use <a href="/docs/custom-styles/">Custom styles</a> for schema, complete JSON examples, and screenshots. The browser editor exposes both pickers \u2014 Style chooses the look, Theme chooses the palette \u2014 and SVG output can also inherit CSS variables for live theming.</p>' + docsIndex],
   ['docs/custom-styles/index.html', 'Custom styles', 'Author JSON style files, validate them with the schema, and compare cookbook screenshots.', customStylesBody + docsIndex],
   ['docs/quality/index.html', 'Quality', 'Determinism, verify warnings, and layout metrics make diagram edits reviewable.', '<p><code>verify.ok</code> is a gate, not a promise of visual perfection. Include SVG/PNG/ASCII artifacts for human review when the change is visual.</p>\n<p><strong>Warnings are tiered</strong> so an agent knows how to react: <em>structural</em> problems can block a safe return and should be fixed first; <em>geometric</em> warnings ask for visual review; <em>lint</em> warnings mean a smaller or cleaner edit. Every code has a page under <a href="/warnings/">warnings</a> with what triggers it and how to clear it.</p>\n<p><strong>Evidence is curated, not raw private prompts:</strong> rely on CI, deterministic layout metrics, and generated artifacts to review a change. Private eval prompts and holdbacks are not public site content.</p>' + docsIndex],
-  ['docs/fork-differences/index.html', 'Fork differences', 'Agentic Mermaid adds typed editing, deterministic verification, CLI, MCP, and more families.', '<p>Agentic Mermaid (<code>agentic-mermaid</code>) forks <a href="https://github.com/lukilabs/beautiful-mermaid">beautiful-mermaid</a> for a job the render-only original did not have: programs that draw and check diagrams with no person watching.</p>\n<ul>\n<li><strong>Typed agent surface.</strong> A render-only library forces an agent to regenerate a whole diagram to change one node. Here new diagrams are authored as source then parsed/verified/rendered, and existing diagrams go parse → narrow → mutate → verify → serialize via <code>agentic-mermaid/agent</code>. All twelve families are structured-when-narrowed; unmodeled syntax still round-trips losslessly as opaque fallback.</li>\n<li><strong>Deterministic, verifiable layout.</strong> Layout is byte-identical across processes, and <code>verifyMermaid</code> returns structured warnings in three tiers (structural, geometric, lint) plus perceptual quality metrics.</li>\n<li><strong>More families.</strong> Adds timeline, journey, architecture, pie, quadrant, and Gantt on top of the upstream six (flowchart, state, sequence, class, ER, and XY chart) — twelve in all.</li>\n<li><strong>Tools.</strong> An <code>am</code> CLI, an <code>agentic-mermaid-mcp</code> Code Mode MCP server (stdio + opt-in HTTP/SSE), and a hosted MCP endpoint at <code>/mcp</code>. There is no REST render API.</li>\n<li><strong>Semantic SVG styling.</strong> A role-based style API (<code>text</code>/<code>node</code>/<code>edge</code>/<code>group</code>) describes meaning rather than SVG element names.</li>\n</ul>\n<p>See <a href="/docs/families/">diagram families</a> for the full family list and <a href="/about/">About</a> for the lineage.</p>' + docsIndex],
+  ['docs/fork-differences/index.html', 'Fork differences', 'Agentic Mermaid adds styled rendering, typed editing, deterministic verification, CLI, MCP, and more families.', '<p>Agentic Mermaid (<code>agentic-mermaid</code>) forks <a href="https://github.com/lukilabs/beautiful-mermaid">beautiful-mermaid</a> for a job the render-only original did not have: agents creating polished, branded diagrams that stay editable as Mermaid source.</p>\n<ul>\n<li><strong>Typed agent surface.</strong> A render-only library forces an agent to regenerate a whole diagram to change one node. Here new diagrams are authored as source then parsed/verified/rendered, and existing diagrams go parse → narrow → mutate → verify → serialize via <code>agentic-mermaid/agent</code>. All twelve families are structured-when-narrowed; unmodeled syntax still round-trips losslessly as opaque fallback.</li>\n<li><strong>Deterministic, verifiable layout.</strong> Layout is byte-identical across processes, and <code>verifyMermaid</code> returns structured warnings in three tiers (structural, geometric, lint) plus perceptual quality metrics.</li>\n<li><strong>More families.</strong> Adds timeline, journey, architecture, pie, quadrant, and Gantt on top of the upstream six (flowchart, state, sequence, class, ER, and XY chart) — twelve in all.</li>\n<li><strong>Tools.</strong> An <code>am</code> CLI, an <code>agentic-mermaid-mcp</code> Code Mode MCP server (stdio + opt-in HTTP/SSE), and a hosted MCP endpoint at <code>/mcp</code>. There is no REST render API.</li>\n<li><strong>Semantic SVG styling.</strong> A role-based style API (<code>text</code>/<code>node</code>/<code>edge</code>/<code>group</code>) describes meaning rather than SVG element names.</li>\n</ul>\n<p>See <a href="/docs/families/">diagram families</a> for the full family list and <a href="/about/">About</a> for the lineage.</p>' + docsIndex],
   ['examples/index.html', 'Examples', 'Proof that each editor source parses, renders, and carries an agent task you can replay.', examplesShowcaseHtml(EDITOR_EXAMPLES), '/examples/'],
   ['comparisons/index.html', 'Comparisons', 'One source per family, rendered three ways.', comparisonsHtml(), '/comparisons/'],
 ]

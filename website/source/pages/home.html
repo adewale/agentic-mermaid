@@ -22,82 +22,62 @@
 <main class="doc home-main">
 
   <section class="page-header" data-copy-widget data-copy-name="Agent prompt">
-    <h1><span class="line">Stop regenerating the whole diagram</span> <span class="line">to move one node.</span></h1>
-    <p class="lead">Agentic Mermaid treats Mermaid source as the durable interface: agents parse the existing <code>.mmd</code>, make the smallest typed change, verify it, and return source you can review.</p>
+    <h1><span class="line">Beautiful diagrams,</span> <span class="line">made with your agent.</span></h1>
+    <p class="lead">Describe the diagram, choose a look, and let your agent produce Mermaid source plus a polished render. Agentic Mermaid keeps layout deterministic, style configurable, and edits verified before they come back to you.</p>
     <div class="page-actions" aria-label="Primary paths">
-      <button class="primary-action prompt-action" type="button" data-copy-target="home-agent-pointer" data-copy-name="Agent prompt" aria-describedby="home-copy-status"><span class="copy-prompt-icon" aria-hidden="true"></span><span>Use with an agent</span></button>
+      <button class="primary-action prompt-action" type="button" data-copy-text="{{AGENT_POINTER}}" data-copy-name="Agent prompt" aria-describedby="home-copy-status"><span class="copy-prompt-icon" aria-hidden="true"></span><span>Use with an agent</span></button>
       <a class="secondary-action" href="/editor/?empty=1">Try editor</a>
       <a class="secondary-action" href="/docs/getting-started/">Install locally</a>
       <span class="copy-prompt-status" id="home-copy-status" role="status" aria-live="polite"></span>
     </div>
   </section>
 
-  <section class="agent-hero agent-hero-primary agent-prompt-first" aria-label="Agent prompt">
-    <div class="copy-prompt-card copy-prompt-primary" data-copy-widget data-copy-name="Agent prompt">
-      <div class="copy-prompt-bar">
-        <span class="copy-prompt-label meta-label">Agent prompt</span>
-        <button class="copy-prompt-btn" type="button" data-copy-target="home-agent-pointer" data-copy-name="Agent prompt" aria-describedby="home-card-copy-status">
-          <span class="copy-prompt-icon" aria-hidden="true"></span>
-          <span>Copy agent prompt</span>
-        </button>
-      </div>
-      <pre class="agent-prompt agent-prompt-pointer"><code id="home-agent-pointer">{{AGENT_POINTER}}</code></pre>
-      <details class="prompt-details">
-        <summary><span class="prompt-summary-closed">Show the full self-contained prompt</span><span class="prompt-summary-open">Hide the full prompt</span></summary>
-        <p class="prompt-details-note">The prompt above fetches <code>start.md</code>, so agents always get the current instructions and it stays short. This full version inlines the entire protocol for agents that cannot fetch a URL.</p>
-        <button class="copy-prompt-btn copy-prompt-btn-secondary" type="button" data-copy-target="home-agent-prompt" data-copy-name="Full agent prompt" aria-describedby="home-card-copy-status"><span class="copy-prompt-icon" aria-hidden="true"></span><span>Copy full prompt</span></button>
-        <pre class="agent-prompt"><code id="home-agent-prompt">{{AGENT_FULL_PROMPT}}</code></pre>
-      </details>
-      <p class="copy-prompt-status" id="home-card-copy-status" role="status" aria-live="polite"></p>
-    </div>
-  </section>
-
   <figure>
     <div class="plate dia-plate"></div>
-    <figcaption>The agent edit loop, rendered to SVG. <a class="go" href="/editor/#Zmxvd2NoYXJ0IExSCiAgU1tTb3VyY2UgLm1tZF0gLS0+IFBbcGFyc2VdCiAgUCAtLT4gTltuYXJyb3ddCiAgTiAtLT4gTVttdXRhdGVdCiAgTSAtLT4gVnt2ZXJpZnl9CiAgViAtLSBvayAtLT4gUltzZXJpYWxpemUg4oaSIHJlbmRlcl0KICBWIC0tIHdhcm5pbmdzIC0tPiBO">Edit this diagram in the editor</a></figcaption>
+    <figcaption>The agent workflow, rendered to SVG with the site palette. <a class="go" href="/editor/#Zmxvd2NoYXJ0IExSCiAgU1tTb3VyY2UgLm1tZF0gLS0+IFBbcGFyc2VdCiAgUCAtLT4gTltuYXJyb3ddCiAgTiAtLT4gTVttdXRhdGVdCiAgTSAtLT4gVnt2ZXJpZnl9CiAgViAtLSBvayAtLT4gUltzZXJpYWxpemUg4oaSIHJlbmRlcl0KICBWIC0tIHdhcm5pbmdzIC0tPiBO">Edit this diagram in the editor</a></figcaption>
   </figure>
 
   <section class="quick-start" aria-labelledby="quick-start-title">
     <p class="section-kicker">Agent quick start</p>
-    <h2 id="quick-start-title">Parse, mutate, verify</h2>
+    <h2 id="quick-start-title">Prompt, style, verify</h2>
     <ol class="quick-steps">
-      <li><strong>Parse source.</strong> Start from Mermaid text, not a screenshot or regenerated guess.</li>
-      <li><strong>Narrow intent.</strong> Use the matching family surface such as <code>asFlowchart</code>, <code>asSequence</code>, or <code>asGantt</code>.</li>
-      <li><strong>Mutate deliberately.</strong> Change the requested node, edge, task, relation, or event while preserving unmodeled syntax.</li>
-      <li><strong>Verify before return.</strong> Read structural, geometric, and lint warnings before serializing or rendering artifacts.</li>
+      <li><strong>Describe the diagram.</strong> Ask for an architecture map, product flow, timeline, Gantt plan, or sequence.</li>
+      <li><strong>Pick the look.</strong> Use a built-in style such as <code>watercolor</code>, <code>blueprint</code>, or <code>publication-figure</code>, or pass your own JSON palette.</li>
+      <li><strong>Let the agent edit.</strong> Existing diagrams go through typed mutation; new diagrams start as Mermaid source and then get checked.</li>
+      <li><strong>Verify before export.</strong> Render SVG or PNG only after warnings are read and the source still says what you asked for.</li>
     </ol>
     <p class="agent-trace" aria-label="Expected agent trace"><span>parseMermaid</span><span>asFlowchart</span><span>mutate(add_edge)</span><span>verifyMermaid</span><span>serializeMermaid</span></p>
   </section>
 
   <section class="why-typed" aria-labelledby="why-typed-title">
-    <p class="section-kicker">The problem</p>
-    <h2 id="why-typed-title">Why typed edits, not regeneration</h2>
-    <p>Ask an agent to add one edge and most tools make it rewrite the whole file. Every line it did not need to touch gets re-rolled: a <code>%%</code> comment disappears, a label is paraphrased, an edge points at a node that no longer exists — and nothing fails, because nothing was checked.</p>
+    <p class="section-kicker">Strengths</p>
+    <h2 id="why-typed-title">Polished output, deterministic source, agent-safe edits.</h2>
+    <p>Agentic Mermaid combines a Mermaid parser, deterministic renderer, style system, and verification loop. Your agent can create a diagram, apply a named look or brand palette, export the artifact you need, and keep the Mermaid source reviewable for the next edit.</p>
     <div class="contrast-grid">
       <div class="contrast-col">
-        <p class="meta-label">Regenerate the source</p>
+        <p class="meta-label">Beautiful renders</p>
         <ul>
-          <li>Every line rewritten; the diff is the whole file.</li>
-          <li>Comments and unmodeled syntax silently re-rolled.</li>
-          <li>Nothing checks the result before it ships.</li>
+          <li>Built-in looks cover docs, decks, reports, terminals, sketches, and blueprints.</li>
+          <li>Palette themes and custom JSON styles encode brand colors, typography, nodes, edges, and groups.</li>
+          <li>SVG, PNG, ASCII, Unicode, and JSON layout come from the same deterministic model.</li>
         </ul>
       </div>
       <div class="contrast-col contrast-col-mutate">
-        <p class="meta-label">Mutate the typed model</p>
+        <p class="meta-label">Agent-native control</p>
         <ul>
-          <li>One operation — <code>mutate(flow, { kind: 'add_edge', from: 'API', to: 'Cache' })</code> — applies or returns a structured error; it cannot half-apply.</li>
-          <li>Unmodeled syntax rides along verbatim.</li>
-          <li><code>verifyMermaid</code> gates serialize with tiered warnings and stable codes.</li>
+          <li>Typed parse and mutate helpers make Mermaid source the durable interface.</li>
+          <li><code>verifyMermaid</code> reports structural, geometric, and lint warnings with stable codes.</li>
+          <li><code>start.md</code>, CLI, library, and MCP surfaces give agents one tested operating path.</li>
         </ul>
       </div>
     </div>
-    <p class="muted">The diff is the edit you asked for, nothing else. Structured mutation covers most families in full; where only a modeled subset exists, edits fall back to deliberate source-level changes on the preserved source.</p>
+    <p class="muted">The result is source you can review, renders you can ship, and an edit loop your agent can repeat.</p>
   </section>
 
   <section class="channels" aria-labelledby="channels-title">
     <p class="section-kicker">Same loop, every channel</p>
-    <h2 id="channels-title">One edit, three channels</h2>
-    <p>The same typed edit — parse, add an edge, verify, return source — through whichever channel the agent already has.</p>
+    <h2 id="channels-title">One request, three channels</h2>
+    <p>The same request — make the diagram, apply the look, verify the source, return the render path — through whichever channel your agent already has.</p>
     <div class="tabbed-card" data-tabs>
       <div class="tab-bar" role="tablist" aria-label="Channels">
         <button type="button" role="tab" id="channel-tab-library" aria-controls="channel-panel-library" aria-selected="true">Library</button>
@@ -139,16 +119,16 @@ execute(`
 
   <p class="muted">Install locally in <a href="/docs/getting-started/">Getting started</a>: clone, build, and wire the stdio MCP in two minutes.</p>
 
-  <h2>One source, five outputs</h2>
-  <p>Every family renders to vector, raster, and text from one layout, byte-identical across processes. Outputs: SVG, PNG, ASCII, Unicode, and JSON layout, across twelve diagram families.</p>
+  <h2>One source, your visual language</h2>
+  <p>Render SVG for docs, PNG for decks, ASCII or Unicode for review, and JSON layout for tooling. Use a named look, a palette-only theme, or a custom JSON style checked into your repo. A style seed changes texture; it never moves boxes.</p>
 
   <ul class="fact-strip" aria-label="Capability evidence">
     <li><a href="/docs/families/"><strong>12</strong> diagram families</a></li>
+    <li><a href="/docs/theming/"><strong>15</strong> built-in looks</a></li>
+    <li><a href="/docs/theming/"><strong>21</strong> palette themes</a></li>
+    <li><a href="/docs/custom-styles/"><strong>JSON</strong> custom styles</a></li>
     <li><a href="/examples/"><strong>5</strong> outputs per source</a></li>
-    <li><a href="/about/"><strong>Byte-identical</strong> renders, no browser</a></li>
-    <li><a href="/warnings/"><strong>Tiered</strong> warnings, stable codes</a></li>
-    <li><a href="/docs/quality/"><strong>Deterministic</strong> layout metrics</a></li>
-    <li><a href="/docs/quality/"><strong>Curated</strong> quality evidence</a></li>
+    <li><a href="/warnings/"><strong>Verified</strong> source before export</a></li>
   </ul>
 
   <p>The loop figure at the top of the page again — same source, same layout. The same diagram as Unicode text:</p>

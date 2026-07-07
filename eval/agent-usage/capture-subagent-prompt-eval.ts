@@ -4,7 +4,7 @@ import { DEFAULT_CASES, KNOWLEDGE_CASES, CREATE_CASES, checkAgentUsageTaskSource
 import { extractCodeModeScript } from './live.ts'
 import { SDK_DECLARATION } from '../../src/mcp/sdk-decl.ts'
 import { parseMermaid, verifyMermaid } from '../../src/agent/index.ts'
-import { HOMEPAGE_PROMPT_VARIANTS, applyHomepagePromptVariant, type HomepagePromptVariant } from './homepage-prompt.ts'
+import { HOMEPAGE_PROMPT_VARIANTS, type HomepagePromptVariant } from './homepage-prompt.ts'
 
 const REPO = join(import.meta.dir, '..', '..')
 const TRANSCRIPT_ROOT = join(import.meta.dir, 'transcripts')
@@ -129,7 +129,7 @@ function selectedCases(caseIds?: string[]): AgentUsageEvalCase[] {
 
 function surfaceContext(surface: PromptEvalSurface): string {
   if (surface === 'homepage') {
-    return 'The populated homepage prompt appears under “Task prompt under test” below. Do not use any other product guidance.'
+    return 'The homepage prompt under test is fetch-only. Follow it as a normal user prompt; do not use product guidance except what that prompt tells you to fetch.'
   }
   if (surface === 'instructions') {
     return `# Instructions_for_agents.md\n\n${readRepo('Instructions_for_agents.md').trim()}`
@@ -142,13 +142,16 @@ function surfaceContext(surface: PromptEvalSurface): string {
 }
 
 function promptForVariant(prompt: string, surface: PromptEvalSurface, variant: PromptEvalVariant): string {
-  return surface === 'homepage' ? applyHomepagePromptVariant(prompt, variant) : prompt
+  if (surface === 'homepage' && variant !== 'baseline') {
+    throw new Error('--prompt-variant is not compatible with the fetch-only homepage surface; compare start.md variants separately')
+  }
+  return prompt
 }
 
 /**
- * Recover the bare task from a populated homepage prompt. The template
- * headers are pinned by homepagePromptChecklist, so this split is stable.
- * Used by the `none` surface, which must not carry any product guidance.
+ * Recover the bare task from an eval prompt. The homepage CTA is fetch-only;
+ * task/context/source headers are appended by buildHomepageAgentPromptTask so
+ * this split stays stable for the no-docs baseline.
  */
 export function extractBareTask(prompt: string): { task: string; context: string; source?: string } {
   const task = prompt.match(/(?:^|\n)Task:\n([\s\S]*?)\n\nContext:/)?.[1]?.trim()
@@ -568,7 +571,7 @@ function usage() {
 
 Prepare writes requests under eval/agent-usage/transcripts/<provider>-<timestamp>/requests/.
 Dispatch each request to a fresh subagent in Pi, Claude, Codex, or another harness, save exact raw responses under responses/, then finalize.
-Finalize writes one transcript JSON per case plus summary.json and exits nonzero when the existing oracle rejects any response. Use --mode chat to test the raw public prompt response shape; use --mode code for executable Code Mode transcripts. --surface none is the chat-only no-docs baseline: the bare task with zero product guidance, graded on the task oracle alone. --prompt-variant is eval-only and transforms the populated homepage prompt without editing website/source/start.md.`
+Finalize writes one transcript JSON per case plus summary.json and exits nonzero when the existing oracle rejects any response. Use --mode chat to test the raw public prompt response shape; use --mode code for executable Code Mode transcripts. --surface none is the chat-only no-docs baseline: the bare task with zero product guidance, graded on the task oracle alone. The homepage surface is fetch-only; compare start.md variants separately rather than with --prompt-variant.`
 }
 
 async function readStdin(): Promise<string> {
