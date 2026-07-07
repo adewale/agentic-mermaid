@@ -274,7 +274,7 @@ interface RoutePortHint {
 interface RoutePortRelaxation {
   edgeIndex: number
   routeClass: RouteClass
-  reason: 'self-loop' | 'missing-node' | 'subgraph-endpoint' | 'direction-override-node' | 'unsupported-route-class' | 'unsupported-shape' | 'unsafe-non-primary-incident'
+  reason: 'self-loop' | 'missing-node' | 'subgraph-endpoint' | 'direction-override-node' | 'unsupported-route-class' | 'unsupported-shape' | 'unsafe-non-primary-incident' | 'labeled-reciprocal-primary'
 }
 
 interface RoutePortHints {
@@ -705,9 +705,11 @@ export function buildRoutePortHints(graph: MermaidGraph, subgraphIds: Set<string
   const nonPrimaryIncident = new Set<string>()
   const unsafeIncident = new Set<string>()
   const directionOverrideNodes = directedSubgraphNodeIds(graph.subgraphs)
+  const labeledPrimaryPairs = new Set<string>()
   for (let edgeIndex = 0; edgeIndex < graph.edges.length; edgeIndex++) {
     const edge = graph.edges[edgeIndex]!
     const routeClass = classes[edgeIndex] ?? 'primary-forward'
+    if (routeClass === 'primary-forward' && edge.label) labeledPrimaryPairs.add(`${edge.source}\u0000${edge.target}`)
     if (routeClass !== 'primary-forward') {
       nonPrimaryIncident.add(edge.source)
       nonPrimaryIncident.add(edge.target)
@@ -735,6 +737,10 @@ export function buildRoutePortHints(graph: MermaidGraph, subgraphIds: Set<string
       continue
     }
     if (routeClass === 'feedback' && edge.label) { relax(edgeIndex, routeClass, 'unsupported-route-class'); continue }
+    if (routeClass === 'feedback' && labeledPrimaryPairs.has(`${edge.target}\u0000${edge.source}`)) {
+      relax(edgeIndex, routeClass, 'labeled-reciprocal-primary')
+      continue
+    }
     if (routeClass === 'feedback' &&
       (!supportsPreLayoutFeedbackPorts(graph.nodes.get(edge.source)) || !supportsPreLayoutFeedbackPorts(graph.nodes.get(edge.target)))) {
       relax(edgeIndex, routeClass, 'unsupported-shape')
