@@ -17,6 +17,7 @@
 // ============================================================================
 
 import { parseMermaid as parseFlowchartLegacy } from '../parser.ts'
+import { unknownOpMessage } from './mutation-ops.ts'
 import type { MermaidGraph, MermaidNode, MermaidEdge, MermaidSubgraph } from '../types.ts'
 import type {
   DiagramBody, FlowchartMutationOp, MutationError, ParseError, Result, SourceMap,
@@ -310,7 +311,7 @@ export function mutateFlowchart(body: FlowchartBody, op: FlowchartMutationOp): R
     }
     default: {
       const _x: never = op
-      return err({ code: 'INVALID_OP', message: `Unknown op: ${JSON.stringify(_x)}` })
+      return err({ code: 'INVALID_OP', message: unknownOpMessage('flowchart', _x) })
     }
   }
 }

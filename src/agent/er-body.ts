@@ -15,6 +15,7 @@
 //   - directives like `title`
 // ============================================================================
 
+import { unknownOpMessage } from './mutation-ops.ts'
 import type {
   ErBody, ErEntity, ErRelation, ErCardinality, ErAttribute,
   ErMutationOp, MutationError, Result, LayoutWarning, VerifyOptions,
@@ -186,7 +187,7 @@ export function mutateEr(body: ErBody, op: ErMutationOp): Result<ErBody, Mutatio
       return ok(b)
     }
     default:
-      return err({ code: 'INVALID_OP', message: `unknown ER op: ${(op as { kind: string }).kind}` })
+      return err({ code: 'INVALID_OP', message: unknownOpMessage('er', op) })
   }
 }
 

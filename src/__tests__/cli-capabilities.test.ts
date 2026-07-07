@@ -30,13 +30,45 @@ describe('am capabilities', () => {
     const mutable = new Set(Object.keys(MUTATION_OPS_BY_FAMILY))
     for (const f of cap.families) {
       expect(typeof f.id).toBe('string')
-      expect(f.hasParse).toBe(true)
-      expect(f.hasSerialize).toBe(true)
-      expect(f.hasVerify).toBe(true)
+      // hasParse/hasSerialize/hasVerify were dropped — they were true for every
+      // family (dead info that read as a probe-me menu). Only varying fields remain.
+      expect('hasParse' in f).toBe(false)
       expect(f.hasMutate).toBe(mutable.has(f.id))
       expect(typeof f.hasExtractLabels).toBe('boolean')
       expect(f.mutationOps).toEqual(f.id in MUTATION_OPS_BY_FAMILY ? [...MUTATION_OPS_BY_FAMILY[f.id as keyof typeof MUTATION_OPS_BY_FAMILY]] : [])
       expect(f.editPolicy).toBe(mutable.has(f.id) ? 'structured-when-narrowed' : 'source-level-only')
+    }
+  })
+
+  it('advertises op FIELD SHAPES (opFields) so a model fills an op without guessing', () => {
+    const cap = buildCapabilities()
+    for (const [family, ops] of Object.entries(MUTATION_OPS_BY_FAMILY)) {
+      const entry = cap.families.find(f => f.id === family)!
+      // opFields keys must be exactly the mutation ops, each with typed fields.
+      expect(Object.keys(entry.opFields ?? {}).sort()).toEqual([...ops].sort())
+      for (const fields of Object.values(entry.opFields!)) {
+        for (const fd of fields) {
+          expect(typeof fd.name).toBe('string')
+          expect(typeof fd.required).toBe('boolean')
+          expect(typeof fd.type).toBe('string')
+        }
+      }
+    }
+    // Enum vocabularies are spelled out inline in the type (the thing a model
+    // most needs and could not previously discover): e.g. class add_relation.relKind.
+    const relKind = (cap.families.find(f => f.id === 'class')!.opFields?.add_relation ?? []).find(f => f.name === 'relKind')
+    expect(relKind?.type).toContain('inheritance')
+    expect(relKind?.type).toContain('composition')
+    // xychart add_series uses the surprising `kind2` field — surfaced, not guessed.
+    expect((cap.families.find(f => f.id === 'xychart')!.opFields?.add_series ?? []).some(f => f.name === 'kind2')).toBe(true)
+  })
+
+  it('advertises the narrower and header keyword(s) for every builtin family', () => {
+    const cap = buildCapabilities()
+    for (const f of cap.families) {
+      expect(typeof f.narrower).toBe('string')
+      expect(f.narrower!.startsWith('as')).toBe(true)
+      expect(Array.isArray(f.headers) && f.headers!.length > 0).toBe(true)
     }
   })
 

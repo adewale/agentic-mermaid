@@ -36,6 +36,7 @@
 // the id first would otherwise pin the label to the bare id.
 // ============================================================================
 
+import { unknownOpMessage } from './mutation-ops.ts'
 import type {
   StateBody, StateNode, StateTransition, StateMutationOp,
   MutationError, Result, LayoutWarning, VerifyOptions,
@@ -492,7 +493,7 @@ export function mutateState(body: StateBody, op: StateMutationOp): Result<StateB
     }
     default: {
       const _x: never = op
-      return err({ code: 'INVALID_OP', message: `Unknown op: ${JSON.stringify(_x)}` })
+      return err({ code: 'INVALID_OP', message: unknownOpMessage('state', _x) })
     }
   }
 

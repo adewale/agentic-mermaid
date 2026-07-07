@@ -22,6 +22,7 @@
 // loud error at render time.
 // ============================================================================
 
+import { unknownOpMessage } from './mutation-ops.ts'
 import type {
   PieBody, PieMutationOp,
   MutationError, Result, LayoutWarning, VerifyOptions,
@@ -240,7 +241,7 @@ export function mutatePie(body: PieBody, op: PieMutationOp): Result<PieBody, Mut
     }
     default: {
       const _x: never = op
-      return err({ code: 'INVALID_OP', message: `Unknown op: ${JSON.stringify(_x)}` })
+      return err({ code: 'INVALID_OP', message: unknownOpMessage('pie', _x) })
     }
   }
 

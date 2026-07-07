@@ -2,7 +2,7 @@
 
 `agentic-mermaid-mcp` is intentionally Code Mode first. Its primary tool is `execute(code)`, which runs synchronous JavaScript against the typed `mermaid.*` SDK in a local `node:vm` sandbox. This is a local implementation inspired by Code Mode as a product shape; it is not Cloudflare Codemode, not backed by `@cloudflare/codemode`, and not an OS/container security boundary. The helper tools (`render_png` and `describe`) are narrow conveniences, not a second full authoring API.
 
-There is now also a **hosted** MCP at `https://agentic-mermaid.dev/mcp` (stateless Streamable HTTP; see [`docs/project/hosted-mcp-cloudflare-plan.md`](./project/hosted-mcp-cloudflare-plan.md)). It keeps `execute` but runs agent code in a per-request Cloudflare Dynamic Worker isolate (`globalOutbound: null`, empty env, `cpuMs` budget) instead of a local `node:vm` — there the isolate configuration *is* the security boundary — and adds direct `render_svg`/`render_ascii`/`render_png`/`verify`/`describe` tools so the common render/verify paths avoid a billable isolate. Both share the same hardened `mermaid.*` facade; their semantics are pinned against each other by a differential test suite.
+There is now also a **hosted** MCP at `https://agentic-mermaid.dev/mcp` (stateless Streamable HTTP; see [`docs/project/hosted-mcp-cloudflare-plan.md`](./project/hosted-mcp-cloudflare-plan.md)). It keeps `execute` but runs agent code in a per-request Cloudflare Dynamic Worker isolate (`globalOutbound: null`, empty env, `cpuMs` budget) instead of a local `node:vm` — there the isolate configuration *is* the security boundary — and adds direct `render_svg`/`render_ascii`/`render_png`/`verify`/`describe` tools so the common render/verify paths avoid a billable isolate, plus the declarative `mutate`/`build` tools (see below). Both share the same hardened `mermaid.*` facade; their semantics are pinned against each other by a differential test suite.
 
 ## Why the MCP server exists
 
@@ -16,17 +16,28 @@ Agents often need a multi-step diagram transaction:
 
 As separate MCP tools, that workflow becomes many tool calls and loses useful in-call state. In Code Mode it is one call: the agent writes the small algorithm and the server preserves lineage/tracing inside the execution.
 
-## Why there is no parallel non-Code-Mode authoring surface
+## Code Mode first, plus a narrow declarative edit surface
 
-We deliberately do **not** expose `parse`, `mutate`, `verify`, `serialize`, `render_svg`, and every future operation as separate MCP tools. A full non-Code-Mode MCP surface would create:
+Code Mode stays the primary tool for multi-step logic. But `execute` asks the
+model to write correct sandboxed JavaScript, and a weaker model drives that
+poorly (serialization pitfalls, provenance rules, sync-only constraints) when
+all it wanted was to apply a few structured edits. So the hosted surface adds
+exactly **two** declarative tools — `mutate` (edit a `source`) and `build`
+(author from a `family`) — that take a JSON op list and return one canonical
+`{ ok, family, source, verify }` envelope. They run verify internally and only
+emit source when it passes, so the verify-before-commit contract holds without
+the model writing it. Both funnel through the same validated `mutateChecked`
+core as Code Mode's `mermaid.mutate`, so an op is rejected identically either
+way — there is no second implementation to drift.
 
-- tool/schema explosion;
-- extra round trips for every edit;
-- weaker diagram lineage between calls;
-- more chances to serialize before verify is inspected;
-- another public API that must stay in lockstep with the library, CLI, docs, and capability JSON.
-
-The non-Code-Mode path is the **CLI or library import**, not a second MCP toolset. Use `am` when the agent has shell access and wants explicit verbs such as `am verify`, `am mutate --ops`, `am render`, or `am preview`. Use the library when the agent can run JS/TS directly. Use MCP `execute` when an MCP client should compose the SDK in one sandboxed call.
+We still do **not** explode the surface into `parse`/`narrow`/`serialize`/… as
+separate tools: those are the composable steps `execute` exists to sequence in
+one call, and a full per-operation MCP API would multiply round trips, weaken
+in-call lineage, and be another public contract to keep in lockstep. `mutate`
+and `build` are the deliberate exception because a *structured edit* is the one
+workflow that (a) is common, (b) needs no arbitrary logic, and (c) a weak model
+gets wrong through `execute`. For everything richer, use `execute`, the CLI
+(`am mutate --ops`, `am verify`, `am render`), or a library import.
 
 ## What the helper MCP tools are for
 

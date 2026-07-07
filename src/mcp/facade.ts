@@ -273,6 +273,11 @@ export function createTracingMermaid(trace?: ExecutionTraceCall[], makeSandboxEr
     serializeMermaid: mermaid.serializeMermaid,
     renderMermaidSVG: mermaid.renderMermaidSVG,
     renderMermaidASCII: mermaid.renderMermaidASCII,
+    // Read-only op discovery: field shapes / enum values / constraint notes and
+    // compact signatures for a family's ops, so a Code Mode script can look up
+    // exact op shapes at runtime instead of guessing (or triggering INVALID_OP).
+    describeOps: mermaid.describeOps,
+    opSignatures: mermaid.opSignatures,
   } as unknown as typeof mermaid
   const sdkProps = new Set<string | symbol>(Reflect.ownKeys(sdkTarget))
 
@@ -300,7 +305,10 @@ export function createTracingMermaid(trace?: ExecutionTraceCall[], makeSandboxEr
     else if (prop === 'buildMermaid') value = harden((kind: unknown, ops: unknown, opts?: unknown) => {
       assertOpen()
       const opsForHost = jsonClone(ops) as Parameters<typeof target.buildMermaid>[1]
-      const r = hostCall(() => target.buildMermaid(kind as DiagramKind, opsForHost, jsonClone(opts) as Parameters<typeof target.buildMermaid>[2]))
+      // buildChecked shape-validates each op before the mutator, so a malformed
+      // op fails with a prescriptive INVALID_OP error instead of silently
+      // building a mangled diagram — the same check the declarative path uses.
+      const r = hostCall(() => mermaid.buildChecked(kind as DiagramKind, opsForHost as unknown[], jsonClone(opts) as Parameters<typeof target.buildMermaid>[2]))
       if (r.ok) trustDiagram(r.value)
       push({
         verb: 'create', family: FAMILY_KINDS.has(kind as DiagramKind) ? (kind as DiagramKind) : undefined,
@@ -326,7 +334,10 @@ export function createTracingMermaid(trace?: ExecutionTraceCall[], makeSandboxEr
         verb: 'mutate', body: bodyKind(rawOf(d)), input: idOf(d), opKind: typeof opForHost === 'object' && opForHost && 'kind' in opForHost ? String((opForHost as { kind: unknown }).kind) : undefined,
       }
       push(call)
-      const r = hostCall(() => target.mutate(rawOf(d), opForHost))
+      // mutateChecked runs the shape validator before the mutator: the SAME
+      // choke point the declarative applyOps path funnels through, so an op
+      // rejected here is rejected identically there (no second validator).
+      const r = hostCall(() => mermaid.mutateChecked(rawOf(d), opForHost))
       if (r.ok) {
         trustDiagram(r.value)
         call.output = idOf(r.value)
@@ -384,11 +395,46 @@ export function createTracingMermaid(trace?: ExecutionTraceCall[], makeSandboxEr
       if (input && typeof input === 'object') requireTrustedDiagram(input, String(prop))
       return hostCall(() => ((target as any)[prop] as (diagram: any, options?: any) => unknown)(rawOf(input), jsonClone(opts)))
     })
+    else if (prop === 'describeOps' || prop === 'opSignatures') value = harden((family: any) => {
+      assertOpen()
+      if (typeof family !== 'string') throw sandboxError(`Code Mode ${String(prop)} family must be a string`)
+      // Pure lookup over static op schemas — no diagram, no trace, read-only.
+      return harden(hostCall(() => ((target as any)[prop] as (f: string) => unknown)(family)))
+    })
     sdkValues.set(prop, value)
     return value
   }
 
-  return new Proxy(sdkTarget, {
+  // Marshal a Code Mode RETURN value at the boundary the host owns. A sandbox
+  // that returns a live SDK diagram (or a Result wrapping one) can't be JSON-
+  // stringified — it is a hardened provenance proxy over Maps, and the verify
+  // proxy actively throws once the SDK is closed. Rather than surface the raw
+  // "non-serializable" failure, marshal the ONE shape agents naturally return —
+  // a trusted diagram — to the SAME canonical envelope the declarative mutate/
+  // build tools emit: { ok, family, source, verify }. Everything else passes
+  // through untouched (plain data already stringifies; genuinely unserializable
+  // values still error, now with a prescriptive hint — see codeModeReturnHint).
+  // Runs host-side on the RAW object, so it is safe after the SDK is closed.
+  const marshalResult = (value: unknown): unknown => {
+    try {
+      const rawObj = rawOf(value)
+      // Unwrap a Result<diagram> ({ ok:true, value:<diagram> }) to the diagram.
+      const candidate = rawObj && typeof rawObj === 'object' && !Array.isArray(rawObj)
+        && (rawObj as { ok?: unknown }).ok === true && 'value' in (rawObj as object)
+        ? rawOf((rawObj as { value: unknown }).value)
+        : rawObj
+      if (isDiagramLike(candidate) && trusted.has(candidate as object)) {
+        const d = candidate as unknown as Parameters<typeof mermaid.serializeMermaid>[0] & { kind: DiagramKind }
+        return { ok: true, family: d.kind, source: mermaid.serializeMermaid(d), verify: mermaid.verifySummary(mermaid.verifyMermaid(d)) }
+      }
+    } catch {
+      // A returned value whose inspection trips a post-close proxy guard (e.g. a
+      // verify result) is not a plain diagram — fall through and let the normal
+      // serializer produce the prescriptive non-serializable error.
+    }
+    return value
+  }
+  const proxy = new Proxy(sdkTarget, {
     get(target, prop) { return sdkValue(target, prop) },
     set() { return readonly() },
     deleteProperty() { return readonly() },
@@ -404,7 +450,32 @@ export function createTracingMermaid(trace?: ExecutionTraceCall[], makeSandboxEr
     has(_target, prop) { return sdkProps.has(prop) && !forbidden(prop) },
     ownKeys() { return Array.from(sdkProps) },
   }) as typeof mermaid
+  resultMarshallers.set(proxy, marshalResult)
+  return proxy
 }
+
+/** Per-facade result marshallers, keyed by the SDK proxy handed to a sandbox.
+ *  Host-only: the sandbox never sees this map; the runner looks up the marshaller
+ *  for its facade and applies it to the returned value before serialization. */
+const resultMarshallers = new WeakMap<object, (value: unknown) => unknown>()
+
+/**
+ * Marshal a Code Mode return `value` produced against `sdk` (the proxy from
+ * createTracingMermaid): a trusted diagram (or Result wrapping one) becomes the
+ * canonical { ok, family, source, verify } envelope; anything else is returned
+ * unchanged. The single boundary both runners (node:vm sandbox and the workerd
+ * harness) call before serializing a result.
+ */
+export function marshalCodeModeResult(sdk: unknown, value: unknown): unknown {
+  const fn = sdk && typeof sdk === 'object' ? resultMarshallers.get(sdk as object) : undefined
+  return fn ? fn(value) : value
+}
+
+/** A one-line, prescriptive tail for a `non-serializable:` error: point the
+ *  caller at the plain-data return shapes that always serialize, so a returned
+ *  SDK object (verify result, narrowed view, custom nesting) is a fixable
+ *  mistake rather than a dead end. */
+export const CODE_MODE_RETURN_HINT = 'return plain data instead — e.g. serializeMermaid(d) for a diagram, or read the fields you need (verifyMermaid(d).ok, .warnings); the declarative mutate/build tools return a ready { ok, family, source, verify } envelope'
 
 function fingerprintDiagram(value: unknown): string | undefined {
   if (!value || typeof value !== 'object') return undefined

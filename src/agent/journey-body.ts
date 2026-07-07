@@ -12,6 +12,7 @@
 // legacy renderer keeps parsing canonical source.
 // ============================================================================
 
+import { unknownOpMessage } from './mutation-ops.ts'
 import type {
   JourneyBody, JourneySection, JourneyTask, JourneyMutationOp,
   MutationError, Result, LayoutWarning, VerifyOptions,
@@ -254,7 +255,7 @@ export function mutateJourney(body: JourneyBody, op: JourneyMutationOp): Result<
     }
     default: {
       const _x: never = op
-      return err({ code: 'INVALID_OP', message: `Unknown op: ${JSON.stringify(_x)}` })
+      return err({ code: 'INVALID_OP', message: unknownOpMessage('journey', _x) })
     }
   }
 

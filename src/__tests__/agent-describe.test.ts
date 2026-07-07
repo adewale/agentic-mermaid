@@ -3,7 +3,9 @@
 // surfaces in the description string.
 
 import { describe, test, expect } from 'bun:test'
-import { describeMermaidSource } from '../agent/describe.ts'
+import { describeMermaidSource, describeMermaid, describeMermaidTree } from '../agent/describe.ts'
+import { parseMermaid } from '../agent/parse.ts'
+import { BUILTIN_FAMILY_METADATA } from '../agent/families.ts'
 
 describe('describeMermaid', () => {
   test('flowchart: every node id appears in description', () => {
@@ -43,6 +45,26 @@ describe('describeMermaid', () => {
     const out = describeMermaidSource('xychart\n  title Sales\n  x-axis [Jan, Feb]\n  bar Revenue [1, 2]\n  line Forecast [2, 3]')
     for (const text of ['Sales', 'Revenue', 'Forecast']) expect(out).toContain(text)
     expect(out.toLowerCase()).toContain('xy chart')
+  })
+
+  // Family-driven: iterate the canonical family set (not a hardcoded subset) so a
+  // new or overlooked family can't silently fall through describe. This guards the
+  // bug where pie/quadrant returned "…structured editing not yet supported." in
+  // prose and an empty node list in the AX tree.
+  test('every family: prose is family-specific and the AX tree has nodes (no silent fallback)', () => {
+    for (const fam of BUILTIN_FAMILY_METADATA) {
+      const p = parseMermaid(fam.example)
+      expect({ family: fam.id, parsed: p.ok }).toEqual({ family: fam.id, parsed: true })
+      if (!p.ok) continue
+      const prose = describeMermaid(p.value)
+      expect({ family: fam.id, notSupported: /not (?:yet )?supported/i.test(prose) })
+        .toEqual({ family: fam.id, notSupported: false })
+      expect({ family: fam.id, bareFallback: prose === `A ${p.value.kind} diagram.` })
+        .toEqual({ family: fam.id, bareFallback: false })
+      const tree = describeMermaidTree(p.value)
+      expect({ family: fam.id, hasNodes: tree.nodes.length > 0 })
+        .toEqual({ family: fam.id, hasNodes: true })
+    }
   })
 
   test('unparseable source returns a non-empty error description (not a throw)', () => {

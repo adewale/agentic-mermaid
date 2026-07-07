@@ -46,9 +46,9 @@ describe('CONTENT_DROPPED_ON_ROUNDTRIP verify lint', () => {
   // Move 6: an OPAQUE body (the wrapper's `before === null` branch) must never
   // produce a faithfulness drop — its faithfulness contract is byte-verbatim,
   // owned by the round-trip-stability gate. Exercises that wrapper branch
-  // end-to-end through verify (a titled xychart falls to opaque).
+  // end-to-end through verify (an accTitle directive is unmodeled → opaque).
   test('an opaque body produces no faithfulness drop', () => {
-    const p = parseMermaid('xychart-beta\n  title "A title forces opaque"\n  bar [1, 2, 3]')
+    const p = parseMermaid('xychart-beta\n  accTitle: forces opaque\n  bar [1, 2, 3]')
     expect(p.ok).toBe(true)
     if (!p.ok) return
     expect(p.value.body.kind).toBe('opaque')

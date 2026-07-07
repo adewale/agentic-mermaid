@@ -1,5 +1,6 @@
 import type { JourneyDiagram, JourneySection, JourneyTask } from './types.ts'
 import { normalizeBrTags } from '../multiline-utils.ts'
+import { syntaxError } from '../shared/syntax-error.ts'
 
 // ============================================================================
 // Journey diagram parser
@@ -96,7 +97,11 @@ export function parseJourneyDiagram(lines: string[]): JourneyDiagram {
       const score = Number.parseInt(rawScore, 10)
 
       if (!text) {
-        throw new Error(`Invalid user journey task: "${line}"`)
+        throw syntaxError({
+          what: `Invalid user journey task: "${line}"`,
+          expectedForm: 'Task name: score: Actor[, Actor…]',
+          example: 'Pay: 3: Shopper',
+        })
       }
 
       if (!Number.isInteger(score) || score < 1 || score > 5) {

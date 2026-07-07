@@ -233,7 +233,7 @@ tools are pure functions of their inputs:
 - Protocol version negotiated from a known-good list (the core currently pins
   `2024-11-05`; Streamable HTTP clients offer `2025-03-26`+).
 - **Response caching:** layout is deterministic, so `tools/call` responses
-  (except nothing — all six tools are deterministic) are cached in the Workers
+  (except nothing — all eight tools are deterministic) are cached in the Workers
   Cache API keyed on SHA-256 of `(tool, canonicalized arguments)`. Repeat
   requests skip compute entirely; for `execute` they also skip the dynamic
   Worker, which is the biggest cost lever.

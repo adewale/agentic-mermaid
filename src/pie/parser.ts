@@ -1,6 +1,7 @@
 import type { PieChart, PieEntry } from './types.ts'
 import { accessibilityDirectiveEnd } from '../shared/accessibility-directives.ts'
 import { normalizeBrTags } from '../multiline-utils.ts'
+import { syntaxError } from '../shared/syntax-error.ts'
 
 // ============================================================================
 // Pie chart parser
@@ -116,7 +117,11 @@ export function parsePieChart(lines: string[]): PieChart {
     }
 
     // Anything else is unrecognized syntax for the pie family.
-    throw new Error(`Unrecognized pie chart line: "${line}"`)
+    throw syntaxError({
+      what: `Unrecognized pie chart line: "${line}"`,
+      expectedForm: 'a title, showData, or a slice ("Label" : number)',
+      example: '"Free" : 60',
+    })
   }
 
   if (entries.length === 0) {

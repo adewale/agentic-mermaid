@@ -502,7 +502,8 @@ describe('CLI — sad paths via runCli', () => {
     expect(payload.source).toContain('line Mobile [3, 4]')
 
     const opaqueTmp = `/tmp/cli-xychart-opaque-${Date.now()}.mmd`
-    require('node:fs').writeFileSync(opaqueTmp, 'xychart-beta\n  title "Quoted"\n  bar [1, 2]\n')
+    // accTitle is an unmodeled directive → opaque (quoted text now parses structured).
+    require('node:fs').writeFileSync(opaqueTmp, 'xychart-beta\n  accTitle: Quoted\n  bar [1, 2]\n')
     const opaque = capture(() => runCli(['mutate', opaqueTmp, '--op', '{"kind":"set_title","title":"X"}', '--json']))
     expect(opaque.code).toBe(2)
     expect(JSON.parse(opaque.out).error.code).toBe('UNSUPPORTED_FAMILY')
