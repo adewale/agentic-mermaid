@@ -17,9 +17,25 @@ const FIXTURES = join(import.meta.dir, '..', '..', 'eval', 'layout-compare', 'fi
 const BASELINE = join(import.meta.dir, 'testdata', 'styled-output-baseline.json')
 const UPDATE = process.env.UPDATE_STYLED_BASELINE === '1'
 
-// The seven built-in full looks (themes register too, but the golden matrix
+// The built-in full looks (themes register too, but the golden matrix
 // pins the looks; palette-only styles are covered by the composition tests).
-const LOOKS = ['hand-drawn', 'excalidraw', 'pen-and-ink', 'freehand', 'watercolor', 'blueprint', 'tufte']
+const LOOKS = [
+  'hand-drawn',
+  'excalidraw',
+  'pen-and-ink',
+  'freehand',
+  'watercolor',
+  'blueprint',
+  'tufte',
+  'accessible-high-contrast',
+  'print-grayscale',
+  'status-dashboard',
+  'dense-ops-terminal',
+  'chalkboard',
+  'risograph',
+  'vellum-architecture',
+  'editorial-report',
+]
 
 function fixtureSources(): Array<{ name: string; source: string }> {
   return readdirSync(FIXTURES)
@@ -245,4 +261,12 @@ const LOOKS_WITH_BACKENDS = [
   { style: 'watercolor', backend: 'hybrid' },
   { style: 'blueprint', backend: 'rough' },
   { style: 'tufte', backend: 'default' },
+  { style: 'accessible-high-contrast', backend: 'default' },
+  { style: 'print-grayscale', backend: 'rough' },
+  { style: 'status-dashboard', backend: 'default' },
+  { style: 'dense-ops-terminal', backend: 'rough' },
+  { style: 'chalkboard', backend: 'rough' },
+  { style: 'risograph', backend: 'rough' },
+  { style: 'vellum-architecture', backend: 'rough' },
+  { style: 'editorial-report', backend: 'default' },
 ] as const

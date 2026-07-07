@@ -11,10 +11,12 @@ semantic marks, and pluggable backends serialize those marks — crisp (the
 unchanged default), rough.js sketch, and hybrid (pressure ribbons, washes).
 
 **The headline is what users and their agents can construct, not what we
-ship.** The built-in looks (hand-drawn, excalidraw, pen-and-ink, freehand,
-watercolor, blueprint, tufte) are proof and raw material. The product is a
-small set of primitives with one combination rule, from which looks we never
-anticipated can emerge.
+ship.** The built-in looks are proof and raw material: the original sketch
+set (hand-drawn, excalidraw, pen-and-ink, freehand, watercolor, blueprint,
+tufte) plus coverage expanders for accessibility, print, operations,
+physical media, architecture, and editorial/report figures. The product is
+a small set of primitives with one combination rule, from which looks we
+never anticipated can emerge.
 
 ---
 
@@ -136,7 +138,7 @@ floor low, the ceiling high, and the walls wide.
 - **Low floor**: `style: 'hand-drawn'` — one string.
 - **Wide walls**: fragments compose across axes we don't enumerate. A
   palette fragment × a line-character fragment × a typography fragment × a
-  role tweak — we ship seven full looks, but the space users can reach is
+  role tweak — we ship fifteen full looks, but the space users can reach is
   the product of every fragment anyone writes. Nobody designs "corporate
   memo hand-drawn dark"; it emerges from a stack.
 - **High ceiling**: `registerBackend` + the SceneGraph types for the rare

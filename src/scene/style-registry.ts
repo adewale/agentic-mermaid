@@ -354,3 +354,130 @@ registerStyle({
   group: { lineWidth: 0.8 },
   mono: true,
 })
+
+registerStyle({
+  name: 'accessible-high-contrast',
+  blurb: 'Accessibility-first: large labels, heavy strokes, white ground, colorblind-safe blue accent.',
+  intent: 'premium',
+  colors: { bg: '#ffffff', fg: '#050505', line: '#111111', accent: '#005fcc', muted: '#333333', surface: '#ffffff', border: '#050505' },
+  node: { fontSize: 17, fontWeight: 700, paddingX: 28, paddingY: 16, cornerRadius: 8, lineWidth: 2.4 },
+  edge: { fontSize: 14, fontWeight: 700, lineWidth: 2.6, bendRadius: 10 },
+  group: { fontSize: 14, fontWeight: 700, paddingX: 24, paddingY: 22, cornerRadius: 8, lineWidth: 2.2 },
+})
+
+registerStyle({
+  name: 'print-grayscale',
+  blurb: 'Print-safe monochrome: no hue dependence, soft paper, fine hachure hierarchy.',
+  intent: 'premium',
+  colors: { bg: '#fbfaf5', fg: '#111111', line: '#4a4a4a', accent: '#111111', muted: '#666666', surface: '#f2f0e8', border: '#6f6f6f' },
+  font: 'EB Garamond',
+  stroke: 'jittered',
+  roughness: 0.25,
+  bowing: 0.25,
+  passes: 1,
+  strokeWidth: 1.1,
+  fill: 'hachure',
+  hachureAngle: -35,
+  hachureGap: 8,
+  fillWeight: 0.45,
+  node: { lineWidth: 0.9, cornerRadius: 0 },
+  edge: { lineWidth: 0.95 },
+  group: { lineWidth: 0.9 },
+  mono: true,
+})
+
+registerStyle({
+  name: 'status-dashboard',
+  blurb: 'Operational dashboard: dark surface, rounded modules, bright status-friendly accent.',
+  intent: 'premium',
+  colors: { bg: '#08111f', fg: '#e6f4ff', line: '#5a7c99', accent: '#2dd4bf', muted: '#8aa6bf', surface: '#102033', border: '#2e4c63' },
+  node: { fontSize: 14, fontWeight: 700, paddingX: 24, paddingY: 13, cornerRadius: 10, lineWidth: 1.4 },
+  edge: { fontSize: 12, fontWeight: 600, lineWidth: 2, bendRadius: 14 },
+  group: { fontSize: 13, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.06, paddingX: 22, paddingY: 20, cornerRadius: 10, lineWidth: 1.3 },
+})
+
+registerStyle({
+  name: 'dense-ops-terminal',
+  blurb: 'High-density terminal operations map: compact mono labels on a dark grid.',
+  intent: 'lofi',
+  colors: { bg: '#07130f', fg: '#d2ffe7', line: '#4bb27a', accent: '#55ff99', muted: '#7dbd9c', surface: '#0b1e17', border: '#1e6148' },
+  font: 'Share Tech Mono',
+  stroke: 'jittered',
+  roughness: 0.15,
+  bowing: 0.2,
+  passes: 1,
+  strokeWidth: 1.05,
+  fill: 'none',
+  backdrop: 'grid',
+  node: { fontSize: 12, fontWeight: 600, paddingX: 14, paddingY: 7, cornerRadius: 2, lineWidth: 1 },
+  edge: { fontSize: 10, lineWidth: 1.2, bendRadius: 0 },
+  group: { fontSize: 11, fontWeight: 700, letterSpacing: 0.04, paddingX: 14, paddingY: 14, cornerRadius: 2, lineWidth: 1 },
+})
+
+registerStyle({
+  name: 'chalkboard',
+  blurb: 'Classroom chalkboard: dusty off-white strokes on green slate.',
+  intent: 'draft',
+  colors: { bg: '#17362f', fg: '#f5f1df', line: '#ece6cf', accent: '#ffe08a', muted: '#c7d2c4', surface: '#17362f', border: '#f3ecd5' },
+  font: 'Caveat',
+  stroke: 'jittered',
+  roughness: 1.25,
+  bowing: 1,
+  passes: 2,
+  strokeWidth: 1.9,
+  fill: 'none',
+  node: { fontSize: 16, fontWeight: 700, paddingX: 24, paddingY: 12 },
+  edge: { fontSize: 13, lineWidth: 1.8 },
+  group: { fontSize: 14, fontWeight: 700, paddingX: 20, paddingY: 20, lineWidth: 1.7 },
+  mono: true,
+})
+
+registerStyle({
+  name: 'risograph',
+  blurb: 'Two-ink poster print: warm stock, offset blue linework, coral accent, coarse hachure.',
+  intent: 'premium',
+  colors: { bg: '#fff5df', fg: '#2b2725', line: '#1f3d5a', accent: '#ff5a5f', muted: '#876a52', surface: '#ffd166', border: '#1f3d5a' },
+  font: 'EB Garamond',
+  stroke: 'jittered',
+  roughness: 0.7,
+  bowing: 0.55,
+  passes: 1,
+  strokeWidth: 1.5,
+  fill: 'hachure',
+  hachureAngle: 18,
+  hachureGap: 6.5,
+  fillWeight: 0.75,
+  node: { fontSize: 14, fontWeight: 700, paddingX: 24, paddingY: 13, cornerRadius: 3 },
+  edge: { fontSize: 12, lineWidth: 1.5 },
+  group: { fontSize: 13, fontWeight: 700, paddingX: 22, paddingY: 18, cornerRadius: 3 },
+})
+
+registerStyle({
+  name: 'vellum-architecture',
+  blurb: 'Architectural vellum: pale drafting sheet, fine technical strokes, translucent-feeling surfaces.',
+  intent: 'premium',
+  colors: { bg: '#f8f1dc', fg: '#263238', line: '#6a7d86', accent: '#2a6f97', muted: '#798b88', surface: '#fff8e7', border: '#76949c' },
+  font: 'Share Tech Mono',
+  stroke: 'jittered',
+  roughness: 0.2,
+  bowing: 0.25,
+  passes: 1,
+  strokeWidth: 1.05,
+  fill: 'none',
+  backdrop: 'grid',
+  node: { fontSize: 12, fontWeight: 600, paddingX: 18, paddingY: 10, cornerRadius: 0, lineWidth: 1 },
+  edge: { fontSize: 10, lineWidth: 1.1, bendRadius: 0 },
+  group: { fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.05, paddingX: 18, paddingY: 18, cornerRadius: 0, lineWidth: 1 },
+})
+
+registerStyle({
+  name: 'editorial-report',
+  blurb: 'Polished report figure: warm page, sober serif type, quiet fills, restrained red accent.',
+  intent: 'premium',
+  colors: { bg: '#fffdf7', fg: '#181715', line: '#55524c', accent: '#8b1e1e', muted: '#747068', surface: '#f7f1e7', border: '#c7bcaa' },
+  font: 'EB Garamond',
+  strokeWidth: 0.95,
+  node: { fontSize: 15, fontWeight: 600, paddingX: 26, paddingY: 14, cornerRadius: 4, lineWidth: 0.9 },
+  edge: { fontSize: 12, lineWidth: 0.9, bendRadius: 6 },
+  group: { fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.08, paddingX: 24, paddingY: 22, cornerRadius: 4, lineWidth: 0.9 },
+})

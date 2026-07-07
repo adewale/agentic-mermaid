@@ -106,6 +106,14 @@ const STYLE_LABELS: Record<string, string> = {
   'watercolor': 'Watercolor',
   'blueprint': 'Blueprint',
   'tufte': 'Tufte',
+  'accessible-high-contrast': 'High Contrast',
+  'print-grayscale': 'Print Grayscale',
+  'status-dashboard': 'Status Dashboard',
+  'dense-ops-terminal': 'Ops Terminal',
+  'chalkboard': 'Chalkboard',
+  'risograph': 'Risograph',
+  'vellum-architecture': 'Vellum Architecture',
+  'editorial-report': 'Editorial Report',
 }
 
 /** Full looks only — palette-only styles ARE the themes and already have the
