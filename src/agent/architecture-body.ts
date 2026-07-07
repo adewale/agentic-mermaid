@@ -16,6 +16,7 @@
 // — the legacy renderer keeps parsing the canonical source this module emits.
 // ============================================================================
 
+import { unknownOpMessage } from './mutation-ops.ts'
 import type {
   ArchitectureBody, ArchitectureGroup, ArchitectureService, ArchitectureJunction,
   ArchitectureEdge, ArchitectureSide, ArchitectureMutationOp,
@@ -413,7 +414,7 @@ export function mutateArchitecture(body: ArchitectureBody, op: ArchitectureMutat
     }
     default: {
       const _x: never = op
-      return err({ code: 'INVALID_OP', message: `Unknown op: ${JSON.stringify(_x)}` })
+      return err({ code: 'INVALID_OP', message: unknownOpMessage('architecture', _x) })
     }
   }
 

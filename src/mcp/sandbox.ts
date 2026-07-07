@@ -1,7 +1,7 @@
 // Code Mode sandbox: run agent-supplied JavaScript in a node:vm context.
 
 import vm from 'node:vm'
-import { createTracingMermaid, expressionFirstWraps, unsupportedCodeReason } from './facade.ts'
+import { createTracingMermaid, expressionFirstWraps, unsupportedCodeReason, marshalCodeModeResult, CODE_MODE_RETURN_HINT } from './facade.ts'
 
 import type { ExecutionTraceCall } from './facade.ts'
 export type { ExecutionTraceCall } from './facade.ts'
@@ -175,12 +175,15 @@ function runInSandbox(code: string, opts: ExecuteOptions = {}): ExecuteResult {
   // conversion may invoke sandbox getters/proxy traps, and those must not be
   // able to perform late verify/serialize/mutate work after the commit point.
   sdkClosed = true
+  // Marshal a returned SDK diagram to the canonical plain-JSON envelope before
+  // serialization (host-side, on the raw object). Non-SDK values pass through.
+  const marshalled = marshalCodeModeResult(sandbox.mermaid, result)
   let stringified: string | undefined
   try {
-    sandbox.__pi_result = result
+    sandbox.__pi_result = marshalled
     stringified = vm.runInContext('__pi_stringify_result(__pi_result)', context, { timeout: timeoutMs }) as string | undefined
   } catch (e) {
-    return withTrace({ ok: false, error: `non-serializable: ${errorMessage(e)}`, logs: readLogs() })
+    return withTrace({ ok: false, error: `non-serializable: ${errorMessage(e)} — ${CODE_MODE_RETURN_HINT}`, logs: readLogs() })
   } finally {
     try { sandbox.__pi_result = undefined } catch {}
   }

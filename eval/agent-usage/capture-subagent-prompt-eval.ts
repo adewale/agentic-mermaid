@@ -1,6 +1,6 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { isAbsolute, join, relative } from 'node:path'
-import { DEFAULT_CASES, KNOWLEDGE_CASES, checkAgentUsageTaskSource, requiresStructuredMutation, runAgentUsageEval, type AgentUsageEvalCase, type AgentUsageEvalResult } from './run.ts'
+import { DEFAULT_CASES, KNOWLEDGE_CASES, CREATE_CASES, checkAgentUsageTaskSource, requiresStructuredMutation, runAgentUsageEval, type AgentUsageEvalCase, type AgentUsageEvalResult } from './run.ts'
 import { extractCodeModeScript } from './live.ts'
 import { SDK_DECLARATION } from '../../src/mcp/sdk-decl.ts'
 import { parseMermaid, verifyMermaid } from '../../src/agent/index.ts'
@@ -44,6 +44,10 @@ export interface FinalizeSubagentPromptEvalOptions {
 }
 
 export interface SubagentPromptEvalSummary {
+  /** Correctness gate: every returned diagram is structurally correct
+   *  (taskOk === total). Driven by the independent task oracle, NOT by whether
+   *  the model's Trace prose named the right calls — a correct diagram with a
+   *  terse trace no longer sinks the run. */
   ok: boolean
   capturedAt: string
   provider: string
@@ -51,6 +55,20 @@ export interface SubagentPromptEvalSummary {
   surface: PromptEvalSurface
   mode: PromptEvalMode
   total: number
+  /** PRIMARY metric: diagrams the task oracle accepts. */
+  taskOk: number
+  taskOkRate: number
+  /** SECONDARY metric: cases that show safe-path tool engagement. In code mode
+   *  and when an AM_TRACE_LOG is present this is OBSERVED (real calls); in chat
+   *  mode without a log it is NARRATED (inferred from the Trace prose) and thus
+   *  phrasing-sensitive — see traceSource. */
+  traceOk: number
+  traceOkRate: number
+  /** How traceOk was determined: 'observed' (replayed sandbox trace or a CLI
+   *  AM_TRACE_LOG), 'narrated' (Trace-prose heuristic), or 'mixed'. */
+  traceSource: 'observed' | 'narrated' | 'mixed'
+  /** Composite (taskOk && traceOk) count, kept for continuity — no longer the
+   *  headline, since a narration miss must not read as a capability failure. */
   passed: number
   safePathRate: number
   structuredPathRate: number
@@ -93,7 +111,7 @@ function readRepo(relPath: string) {
 function selectedCases(caseIds?: string[]): AgentUsageEvalCase[] {
   // Knowledge-proof cases join only by explicit id: the no-id default stays
   // DEFAULT_CASES so existing prepare invocations keep their case set.
-  const pool = [...DEFAULT_CASES, ...KNOWLEDGE_CASES]
+  const pool = [...DEFAULT_CASES, ...KNOWLEDGE_CASES, ...CREATE_CASES]
   const cases = caseIds?.length ? pool.filter(c => caseIds.includes(c.id)) : DEFAULT_CASES
   if (caseIds?.length) {
     const found = new Set(cases.map(c => c.id))
@@ -235,6 +253,11 @@ export function prepareSubagentPromptEval(opts: PrepareSubagentPromptEvalOptions
   const responsesDir = join(outDir, 'responses')
   mkdirSync(requestsDir, { recursive: true })
   mkdirSync(responsesDir, { recursive: true })
+  // Landing spot for OBSERVED tool-use logs. When a run dispatches each subagent
+  // with `AM_TRACE_LOG=<run-dir>/traces/<case>.jsonl` in its env, the `am` CLI
+  // appends the verbs it actually ran here, and finalize grades traceOk from
+  // those ground-truth calls instead of the Trace prose (see RUNBOOK).
+  mkdirSync(join(outDir, 'traces'), { recursive: true })
 
   const cases = selectedCases(opts.caseIds)
   const requests: SubagentPromptEvalRequest[] = []
@@ -279,25 +302,113 @@ function chatTraceOk(id: string, text: string): boolean {
   if (!/(?:^|\n)\s*(?:#+\s*)?Updated Mermaid\b/i.test(text)) return false
   if (!/(?:^|\n)\s*(?:#+\s*)?Verification\b/i.test(text)) return false
   if (!/(?:^|\n)\s*(?:#+\s*)?Trace\b/i.test(text)) return false
-  if (!/parseMermaid/i.test(text) || !/verifyMermaid/i.test(text)) return false
-  if (requiresStructuredMutation(id) && !/(mutate\s*\(|\bmutate\b|source-level fallback)/i.test(text)) return false
+  // The CLI (`am verify`) and the hosted MCP (`/mcp` verify tool or its Code
+  // Mode execute) both parse the source themselves, so either is verification
+  // evidence and — for a new diagram — construction evidence.
+  const cliVerify = /\bam\b[^\n]*\bverify\b/i.test(text) || /bin\/am\.ts[^\n]*\bverify\b/i.test(text)
+    // A trace that declares the CLI command path and names a backtick-quoted
+    // `verify` op (on its own line, as agents commonly format the op list) is
+    // CLI verification evidence too. The backtick guard avoids matching the
+    // required `Verification` section header, which is never backtick-quoted.
+    || (/bin\/am\.ts/.test(text) && /`verify`/i.test(text))
+  const mcpVerify = /"name"\s*:\s*"verify"/.test(text)
+    || (/\/mcp\b/i.test(text) && /\bverif(?:y|ied|ication)\b/i.test(text))
+    || (/hosted mcp/i.test(text) && /\bverif/i.test(text))
+  // The declarative edit path — CLI `am mutate`/`am build`, the hosted MCP
+  // `mutate`/`build` tools, and the library `applyOps` — applies a JSON op list
+  // and returns `{ ok, family, source, verify }`: it runs verifyMermaid
+  // internally (and the CLI emits source only when verify succeeds), so using it
+  // is BOTH verification evidence and structured-mutation evidence. The prompt
+  // now recommends this path, so a grader that ignored it would penalize the
+  // endorsed route.
+  const declarativeEdit = /\bam\b[^\n]*\b(?:mutate|build)\b/i.test(text)
+    || /bin\/am\.ts[^\n]*\b(?:mutate|build)\b/i.test(text)
+    || /"name"\s*:\s*"(?:mutate|build)"/.test(text)
+    || /\bapplyOps\s*\(/i.test(text)
+  const bundledVerify = cliVerify || mcpVerify || declarativeEdit
+  // Verification evidence: any Agentic Mermaid verification channel — library,
+  // CLI, or hosted MCP. The harness independently re-parses and re-verifies the
+  // returned source, so this only confirms the model engaged the tool rather
+  // than hand-writing Mermaid from memory.
+  if (!/verifyMermaid/i.test(text) && !bundledVerify) return false
+  if (requiresStructuredMutation(id)) {
+    // Existing structured diagram: confirm the response drove the typed Agentic
+    // Mermaid surface — parse/narrow, mutate, or a declared source-level fallback —
+    // rather than hand-writing Mermaid from memory. Any one of these tokens is
+    // sufficient: the `parseMermaid` call, a family narrower (`asTimeline()`,
+    // `asFlowchart`, …), a `mutate(...)` call or a `mutate`/`mutated`/`mutating`/
+    // `mutation` mention, a typed op literal (`{ kind: "add_event", … }` — only
+    // obtainable by calling mutate/buildMermaid with a real op), or an explicit
+    // `source-level fallback`. A hand-written source ("wrote it directly from the
+    // description") carries none of these, so it still fails; a correct structured
+    // edit narrated in prose ("Narrowed with asTimeline(), Mutated with
+    // { kind: 'add_event' }") now passes rather than being rejected for writing
+    // "Parsed"/"Mutated" instead of the exact camelCase identifiers. taskOk remains
+    // the independent diagram-correctness signal.
+    return /parseMermaid/i.test(text)
+      || /\bas(?:Flowchart|Sequence|State|Class|Er|Journey|Timeline|Gantt|Pie|Quadrant|XyChart|Architecture)\b/.test(text)
+      || /mutate\s*\(/i.test(text)
+      || /\bmutat(?:e|ed|es|ing|ion)\b/i.test(text)
+      || /\bkind\b\s*[:=]\s*["'][a-z]+_[a-z]/i.test(text)
+      || /source-level fallback/i.test(text)
+      || declarativeEdit
+  }
+  // New diagram: any trusted construction is a safe path — author source then
+  // `parseMermaid`, the endorsed typed builders `buildMermaid`/`createMermaid`
+  // (which construct a ValidDiagram directly, no parse), or a channel that
+  // parses the authored source itself (CLI `am verify` or the hosted MCP verify
+  // tool). Requiring parseMermaid here wrongly failed the builder, CLI, and
+  // hosted-MCP paths the prompt recommends.
+  return /parseMermaid/i.test(text) || /buildMermaid/i.test(text) || /createMermaid/i.test(text) || bundledVerify
+}
+
+/** Read the OBSERVED tool-use log for a case (verbs the `am` CLI actually ran),
+ *  or null if no log was captured for this run. */
+function readObservedVerbs(runDir: string, caseId: string): string[] | null {
+  const path = join(abs(runDir), 'traces', `${caseId}.jsonl`)
+  if (!existsSync(path)) return null
+  const raw = readFileSync(path, 'utf8').trim()
+  if (!raw) return null
+  const verbs: string[] = []
+  for (const line of raw.split('\n')) {
+    try { const v = (JSON.parse(line) as { verb?: unknown }).verb; if (typeof v === 'string') verbs.push(v) } catch { /* skip malformed line */ }
+  }
+  return verbs.length ? verbs : null
+}
+
+/** traceOk from OBSERVED CLI verbs — ground truth, no prose. verify/mutate/build
+ *  is verification evidence (mutate/build run verify internally); an edit case
+ *  additionally needs a structured mutate/build. Mirrors chatTraceOk's channel
+ *  semantics on the actual calls. */
+function observedTraceOk(id: string, verbs: string[]): boolean {
+  const has = (v: string) => verbs.includes(v)
+  const bundledVerify = has('verify') || has('mutate') || has('build')
+  if (!bundledVerify) return false
+  if (requiresStructuredMutation(id)) return has('mutate') || has('build')
   return true
 }
 
-function scoreChatResponse(c: AgentUsageEvalCase, rawResponse: string, surface: PromptEvalSurface): { result: AgentUsageEvalResult; source?: string } {
+function scoreChatResponse(c: AgentUsageEvalCase, rawResponse: string, surface: PromptEvalSurface, observedVerbs?: string[] | null): { result: AgentUsageEvalResult; source?: string; traceObserved: boolean } {
   // The no-docs baseline never saw the response-format contract, so grading it
   // on Updated Mermaid/Verification/Trace shape would be meaningless: traceOk
   // is reported for the record but only the task oracle gates ok.
   const shapeRequired = surface !== 'none'
+  // traceOk: an OBSERVED CLI log CONFIRMS tool use (phrasing-independent, ground
+  // truth), but its ABSENCE cannot refute — the agent may have verified/mutated
+  // through the library or hosted MCP, which the `am` log can't see (e.g. it ran
+  // `am capabilities` for discovery, then used the library for the edit). So the
+  // observed signal is positive-only; when it does not confirm, fall back to the
+  // NARRATED prose heuristic. `traceObserved` marks a positive observation.
+  const traceObserved = observedVerbs != null && observedTraceOk(c.id, observedVerbs)
+  const traceOk = traceObserved || chatTraceOk(c.id, rawResponse)
   const source = extractUpdatedMermaidSource(rawResponse)
-  if (!source) return { result: { id: c.id, ok: false, taskOk: false, traceOk: false, findings: [], error: 'Updated Mermaid mermaid fence not found' } }
+  if (!source) return { result: { id: c.id, ok: false, taskOk: false, traceOk, findings: [], error: 'Updated Mermaid mermaid fence not found' }, traceObserved }
   const parsed = parseMermaid(source)
-  if (!parsed.ok) return { result: { id: c.id, ok: false, taskOk: false, traceOk: chatTraceOk(c.id, rawResponse), findings: [], error: `parse failed: ${String((parsed.error as { message?: unknown }).message ?? parsed.error)}` }, source }
+  if (!parsed.ok) return { result: { id: c.id, ok: false, taskOk: false, traceOk, findings: [], error: `parse failed: ${String((parsed.error as { message?: unknown }).message ?? parsed.error)}` }, source, traceObserved }
   const verified = verifyMermaid(parsed.value)
-  if (!verified.ok) return { result: { id: c.id, ok: false, taskOk: false, traceOk: chatTraceOk(c.id, rawResponse), findings: [], error: `verify failed: ${verified.warnings.map(w => w.code).join(', ')}` }, source }
+  if (!verified.ok) return { result: { id: c.id, ok: false, taskOk: false, traceOk, findings: [], error: `verify failed: ${verified.warnings.map(w => w.code).join(', ')}` }, source, traceObserved }
   const taskOk = checkAgentUsageTaskSource(c.id, source)
-  const traceOk = chatTraceOk(c.id, rawResponse)
-  return { result: { id: c.id, ok: taskOk && (traceOk || !shapeRequired), taskOk, traceOk, findings: [], error: taskOk ? undefined : 'task oracle rejected Updated Mermaid source' }, source }
+  return { result: { id: c.id, ok: taskOk && (traceOk || !shapeRequired), taskOk, traceOk, findings: [], error: taskOk ? undefined : 'task oracle rejected Updated Mermaid source' }, source, traceObserved }
 }
 
 function writeTranscript(runDir: string, manifest: SubagentPromptEvalManifest, c: AgentUsageEvalCase, rawResponse: string, script: string, result: AgentUsageEvalResult, extractedSource?: string) {
@@ -326,11 +437,17 @@ function writeTranscript(runDir: string, manifest: SubagentPromptEvalManifest, c
 export async function finalizeSubagentPromptEval(opts: FinalizeSubagentPromptEvalOptions): Promise<SubagentPromptEvalSummary> {
   const runDir = abs(opts.runDir)
   const manifest = loadManifest(runDir)
-  const byId = new Map([...DEFAULT_CASES, ...KNOWLEDGE_CASES].map(c => [c.id, c]))
+  const byId = new Map([...DEFAULT_CASES, ...KNOWLEDGE_CASES, ...CREATE_CASES].map(c => [c.id, c]))
   let passed = 0
+  let taskPassed = 0
   let tracePassed = 0
   let structuredCases = 0
   let structuredPassed = 0
+  // Code mode observes the real replayed sandbox trace; chat mode observes only
+  // when an AM_TRACE_LOG was captured for the case. Track which so the summary
+  // can flag whether traceOk is ground truth or a prose heuristic.
+  let observedCount = 0
+  let narratedCount = 0
   const transcriptFiles: string[] = []
 
   for (const req of manifest.requests) {
@@ -339,12 +456,21 @@ export async function finalizeSubagentPromptEval(opts: FinalizeSubagentPromptEva
     if (!existsSync(req.responsePath)) throw new Error(`Missing raw subagent response for ${req.caseId}: ${rel(req.responsePath)}`)
     const rawResponse = readFileSync(req.responsePath, 'utf8')
     const script = manifest.mode === 'code' ? extractCodeModeScript(rawResponse) : ''
-    const scored = manifest.mode === 'code'
-      ? { result: (await runAgentUsageEval([{ ...c, script }])).results[0]!, source: undefined }
-      : scoreChatResponse(c, rawResponse, manifest.surface)
+    let traceObserved: boolean
+    let scored: { result: AgentUsageEvalResult; source?: string }
+    if (manifest.mode === 'code') {
+      scored = { result: (await runAgentUsageEval([{ ...c, script }])).results[0]!, source: undefined }
+      traceObserved = true // replayed through the sandbox trace linter
+    } else {
+      const chat = scoreChatResponse(c, rawResponse, manifest.surface, readObservedVerbs(runDir, c.id))
+      scored = { result: chat.result, source: chat.source }
+      traceObserved = chat.traceObserved
+    }
     const result = scored.result
     if (result.ok) passed++
+    if (result.taskOk) taskPassed++
     if (result.traceOk) tracePassed++
+    if (traceObserved) observedCount++; else narratedCount++
     if (requiresStructuredMutation(c.id)) {
       structuredCases++
       if (result.traceOk) structuredPassed++
@@ -353,14 +479,22 @@ export async function finalizeSubagentPromptEval(opts: FinalizeSubagentPromptEva
   }
 
   const total = manifest.requests.length
+  const traceSource: 'observed' | 'narrated' | 'mixed' =
+    observedCount === 0 ? 'narrated' : narratedCount === 0 ? 'observed' : 'mixed'
   const summary: SubagentPromptEvalSummary = {
-    ok: passed === total,
+    // Correctness gate — a narration miss no longer sinks the run.
+    ok: taskPassed === total,
     capturedAt: manifest.capturedAt,
     provider: manifest.provider,
     model: manifest.model,
     surface: manifest.surface,
     mode: manifest.mode,
     total,
+    taskOk: taskPassed,
+    taskOkRate: taskPassed / Math.max(1, total),
+    traceOk: tracePassed,
+    traceOkRate: tracePassed / Math.max(1, total),
+    traceSource,
     passed,
     safePathRate: tracePassed / Math.max(1, total),
     structuredPathRate: structuredPassed / Math.max(1, structuredCases),

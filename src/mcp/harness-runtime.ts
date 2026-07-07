@@ -7,7 +7,7 @@
 // for behavioral parity with sandbox.ts: same hardened facade, same console
 // coercion, same result serialization, same error surface.
 
-import { createTracingMermaid } from './facade.ts'
+import { createTracingMermaid, marshalCodeModeResult, CODE_MODE_RETURN_HINT } from './facade.ts'
 import type { ExecuteResult } from './sandbox.ts'
 
 // Hosted output bounds, enforced at the source (inside the isolate) so a
@@ -180,16 +180,19 @@ export function runUserCode(fn: unknown): ExecuteResult {
   closed = true
 
   if (result === undefined) return { ok: true, value: null, logs }
+  // Marshal a returned SDK diagram to the canonical envelope (parity with the
+  // node:vm sandbox); non-SDK values pass through to the normal serializer.
+  const marshalled = marshalCodeModeResult(mermaid, result)
   let stringified: string | undefined
   try {
-    stringified = JSON.stringify(result, (_k, v) => {
+    stringified = JSON.stringify(marshalled, (_k, v) => {
       const tag = toStringTag(v)
       if (tag === '[object Map]') return Object.fromEntries(v as Map<unknown, unknown>)
       if (tag === '[object Set]') return Array.from(v as Set<unknown>)
       return v
     })
   } catch (e) {
-    return { ok: false, error: `non-serializable: ${formatHarnessError(e)}`, logs }
+    return { ok: false, error: `non-serializable: ${formatHarnessError(e)} — ${CODE_MODE_RETURN_HINT}`, logs }
   }
   if (stringified === undefined) return { ok: true, value: null, logs }
   if (stringified.length > MAX_RESULT_BYTES) {

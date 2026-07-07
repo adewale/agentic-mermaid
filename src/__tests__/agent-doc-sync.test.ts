@@ -9,6 +9,7 @@ import { AGENT_INSTRUCTIONS } from '../cli/agent-instructions.ts'
 import { AGENTS_SNIPPET, INIT_SKILL_MD } from '../cli/init-agent.ts'
 import { COMMAND_HELP, MUTATION_OPS_BY_FAMILY, buildCapabilities } from '../cli/index.ts'
 import { SDK_DECLARATION } from '../mcp/sdk-decl.ts'
+import { HOSTED_TOOLS } from '../mcp/hosted-server.ts'
 import { WARNING_SEVERITY, WARNING_TIER } from '../agent/types.ts'
 import {
   asFlowchart, asState, asSequence, asTimeline, asClass, asEr,
@@ -50,6 +51,12 @@ describe('Instructions_for_agents.md', () => {
   test('byte-matches am --agent-instructions exactly', () => {
     const guide = readFileSync(join(REPO, 'Instructions_for_agents.md'), 'utf8')
     expect(AGENT_INSTRUCTIONS).toEqual(guide)
+  })
+  test('names every hosted MCP tool (so a new tool cannot silently drift the guide)', () => {
+    for (const tool of HOSTED_TOOLS) {
+      expect({ tool: tool.name, named: AGENT_INSTRUCTIONS.includes(`\`${tool.name}\``) })
+        .toEqual({ tool: tool.name, named: true })
+    }
   })
   test('quick-start examples verify before every serialize', () => {
     const guide = readFileSync(join(REPO, 'Instructions_for_agents.md'), 'utf8')
@@ -416,9 +423,122 @@ describe('vocabulary doc-sync', () => {
     // BUILD-19: state owns a dedicated body. Docs that advertise state mutation
     // must say the path is asState (not asFlowchart), or agents either conclude
     // state is not mutable or reach for the wrong narrower.
-    for (const file of ['Instructions_for_agents.md', 'llms.txt', 'skills/agentic-mermaid-diagram-workflow/SKILL.md']) {
+    for (const file of ['Instructions_for_agents.md', 'llms.txt', 'skills/agentic-mermaid-diagram-workflow/SKILL.md', 'website/source/start.md']) {
       const text = readFileSync(join(REPO, file), 'utf8')
       expect({ file, documentsStateNarrowing: /[Ss]tate.*asState|asState.*(narrows?|state)/s.test(text) }).toEqual({ file, documentsStateNarrowing: true })
+    }
+  })
+})
+
+describe('start.md bootstrap claims stay true', () => {
+  // start.md is the hosted bootstrap the homepage pointer fetches and the source
+  // the inline homepage prompt is composed from. It is deliberately condensed —
+  // it does NOT enumerate every narrower/warning code (it points at
+  // capabilities.json for those), so it does not belong in the exhaustive
+  // reference-doc loops above. Instead, pin every claim it DOES make: whatever
+  // families, narrowers, warning codes, and tools it names must be real, and the
+  // family list (which it states in full) must stay complete.
+  const START = readFileSync(join(REPO, 'website/source/start.md'), 'utf8')
+
+  test('the family list it states is complete and valid', () => {
+    const listed = START.match(/Families:\s*([^.\n]+)/)?.[1] ?? ''
+    const named = new Set(listed.split(',').map(s => s.trim().toLowerCase()).filter(Boolean))
+    const known = new Set([...knownFamilies()].map(k => k.toLowerCase()))
+    expect(named).toEqual(known)
+  })
+
+  test('every as* narrower it names is a real narrower', () => {
+    const real = new Set(Object.values(MUTABLE_FAMILY_DOCS).map(d => d.narrower))
+    const named = [...START.matchAll(/\bas[A-Z][A-Za-z]*\b/g)].map(m => m[0])
+    expect(named.length).toBeGreaterThan(0)
+    for (const n of named) expect({ narrower: n, real: real.has(n) }).toEqual({ narrower: n, real: true })
+  })
+
+  test('every warning code it names is a real code', () => {
+    const codes = new Set(Object.keys(WARNING_SEVERITY))
+    const named = [...START.matchAll(/\b[A-Z]{2,}(?:_[A-Z]+)+\b/g)].map(m => m[0])
+    expect(named.length).toBeGreaterThan(0) // at least LABEL_OVERFLOW
+    for (const c of named) expect({ code: c, real: codes.has(c) }).toEqual({ code: c, real: true })
+  })
+
+  test('the hosted MCP tools it lists match the server exactly', () => {
+    const sentence = START.match(/Tools:\s*([^.\n]+)/)?.[1] ?? ''
+    const named = new Set([...sentence.matchAll(/`([a-z_]+)`/g)].map(m => m[1]))
+    expect(named).toEqual(new Set(HOSTED_TOOLS.map(t => t.name)))
+  })
+})
+
+describe('hosted-tool enumeration does not rot', () => {
+  // The hosted tool list was restated as prose across ~8 docs; only start.md and
+  // the agent guide were pinned, so the rest silently drifted to a stale "six
+  // tools" TWICE (see lessons-learned "guard the invariant not the instance").
+  // `render_svg` and `render_ascii` are HOSTED-ONLY tools (the local stdio server
+  // has neither), so any shipped doc that names one is describing the hosted
+  // surface and MUST also name the newer declarative tools — else it has rotted.
+  const HOSTED_ONLY = HOSTED_TOOLS.map(t => t.name).filter(n => n === 'render_svg' || n === 'render_ascii')
+  const REQUIRED_IF_HOSTED = ['mutate', 'build'] // the tools that keep getting dropped
+
+  function shippedDocs(dir: string, acc: string[] = []): string[] {
+    for (const e of readdirSync(join(REPO, dir), { withFileTypes: true })) {
+      const rel = join(dir, e.name)
+      // Skip generated copies (regenerated + website:check-gated), deps, and
+      // frozen eval transcript artifacts.
+      if (/node_modules|website\/public|agent-usage\/transcripts/.test(rel)) continue
+      if (e.isDirectory()) shippedDocs(rel, acc)
+      else if (e.name.endsWith('.md')) acc.push(rel)
+    }
+    return acc
+  }
+
+  test('every doc that names a hosted-only tool also names mutate + build', () => {
+    const docs = [...shippedDocs('docs'), ...shippedDocs('skills'), ...shippedDocs('website/source'),
+      'website/README.md', 'eval/agent-usage/RUNBOOK.md', 'Instructions_for_agents.md', 'README.md']
+    let checked = 0
+    for (const rel of docs) {
+      const path = join(REPO, rel)
+      if (!existsSync(path)) continue
+      const text = readFileSync(path, 'utf8')
+      if (!HOSTED_ONLY.some(t => text.includes(t))) continue // not a hosted-surface doc
+      checked++
+      for (const tool of REQUIRED_IF_HOSTED) {
+        expect({ doc: rel, names: tool, present: text.includes(tool) }).toEqual({ doc: rel, names: tool, present: true })
+      }
+    }
+    expect(checked).toBeGreaterThanOrEqual(4) // start.md, agent guide, README, mcp-code-mode-rationale, …
+  })
+})
+
+describe('family/op-count prose does not rot', () => {
+  // Same failure mode as the hosted-tool list: a count restated in prose is not
+  // pinned to its code source, so adding a 13th family or an op silently
+  // falsifies "12 families" / "97 ops total" / a per-family "(N ops)"
+  // parenthetical. Guard the counts the way the tool list is guarded — against
+  // the enumerations in code, not a frozen literal.
+  const familyCount = BUILTIN_FAMILY_METADATA.length
+  const totalOps = Object.values(MUTATION_OPS_BY_FAMILY).reduce((n, ops) => n + ops.length, 0)
+
+  test('comparison.md family and op totals match code', () => {
+    const text = readFileSync(join(REPO, 'docs/comparison.md'), 'utf8')
+    expect(text).toContain(`${familyCount} of ${familyCount} families`)
+    expect(text).toContain(`${totalOps} ops total`)
+  })
+
+  test('fork-differences.md per-family op counts match MUTATION_OPS_BY_FAMILY', () => {
+    const text = readFileSync(join(REPO, 'docs/fork-differences.md'), 'utf8')
+    // "Twelve of the twelve" scales with the family count via the number word.
+    const word: Record<number, string> = { 11: 'Eleven', 12: 'Twelve', 13: 'Thirteen' }
+    expect(text).toContain(`${word[familyCount]} of the ${word[familyCount]!.toLowerCase()} families`)
+    // Each family appears as "<prose label> (<count>…)"; the phrasing after the
+    // number varies (" ops", " via `asX`", or a bare close-paren), so guard the
+    // label+count prefix — that pins the number without freezing the wording.
+    const proseLabel: Record<DiagramKind, string> = {
+      flowchart: 'flowchart', state: 'state', sequence: 'sequence', timeline: 'timeline',
+      class: 'class', er: 'ER', journey: 'journey', architecture: 'architecture',
+      xychart: 'XY chart', pie: 'pie', quadrant: 'quadrant', gantt: 'Gantt',
+    }
+    for (const [id, ops] of Object.entries(MUTATION_OPS_BY_FAMILY) as [DiagramKind, readonly unknown[]][]) {
+      const label = proseLabel[id]
+      expect({ family: id, prose: text.includes(`${label} (${ops.length}`) }).toEqual({ family: id, prose: true })
     }
   })
 })

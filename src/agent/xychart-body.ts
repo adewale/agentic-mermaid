@@ -25,6 +25,7 @@
 // unchanged — the legacy renderer keeps parsing the canonical source we emit.
 // ============================================================================
 
+import { unknownOpMessage } from './mutation-ops.ts'
 import type {
   XyChartBody, XyChartAxis, XyChartSeries, XyChartMutationOp,
   MutationError, Result, LayoutWarning, VerifyOptions,
@@ -70,6 +71,26 @@ function isBareText(value: string): boolean {
   return value.length > 0 && BARE_TEXT_RE.test(value) && !value.includes('-->')
 }
 
+/** Strip a single layer of matching surrounding quotes. Mermaid's xychart
+ *  syntax quotes text (and the family's own example does), so a model that
+ *  quotes a title/axis/series name must not silently drop the whole chart to an
+ *  opaque body. We accept quoted text whose inner content is otherwise bare and
+ *  serialize it back canonically (unquoted); quoted text that still isn't bare
+ *  after unquoting (embedded quotes/brackets/`-->`) legitimately stays opaque. */
+function unquote(value: string): string {
+  const v = value.trim()
+  if (v.length >= 2 && ((v[0] === '"' && v.endsWith('"')) || (v[0] === "'" && v.endsWith("'")))) {
+    return v.slice(1, -1).trim()
+  }
+  return v
+}
+
+/** Unquote then validate as bare text; returns the bare token or null. */
+function bareToken(value: string): string | null {
+  const t = unquote(value)
+  return isBareText(t) ? t : null
+}
+
 function parseNumber(token: string): number | null {
   if (!new RegExp(`^${NUMBER}$`).test(token)) return null
   const n = Number.parseFloat(token)
@@ -82,8 +103,9 @@ function parseCategories(inner: string): string[] | null {
   const parts = inner.split(',').map(p => p.trim())
   const out: string[] = []
   for (const p of parts) {
-    if (!isBareText(p)) return null
-    out.push(p)
+    const t = bareToken(p)
+    if (t === null) return null
+    out.push(t)
   }
   return out.length > 0 ? out : null
 }
@@ -101,8 +123,9 @@ function parseAxis(rawValue: string, axisName: 'x' | 'y'): XyChartAxis | null {
     const categories = parseCategories(catMatch[2]!)
     if (!categories) return null
     if (namePart.length > 0) {
-      if (!isBareText(namePart)) return null
-      return { name: namePart, categories }
+      const name = bareToken(namePart)
+      if (name === null) return null
+      return { name, categories }
     }
     return { categories }
   }
@@ -127,15 +150,16 @@ function parseAxis(rawValue: string, axisName: 'x' | 'y'): XyChartAxis | null {
     const max = parseNumber(after)
     const lastSpace = before.lastIndexOf(' ')
     if (lastSpace < 0 || max === null) return null
-    const name = before.slice(0, lastSpace).trim()
+    const name = bareToken(before.slice(0, lastSpace).trim())
     const min = parseNumber(before.slice(lastSpace + 1).trim())
-    if (min === null || !isBareText(name)) return null
+    if (min === null || name === null) return null
     return { name, range: { min, max } }
   }
 
   // Name only (no range, no categories) — legacy accepts this for either axis
   // (y-axis name only, x-axis title only).
-  if (isBareText(value)) return { name: value }
+  const nameOnly = bareToken(value)
+  if (nameOnly !== null) return { name: nameOnly }
   return null
 }
 
@@ -148,8 +172,9 @@ function parseSeries(line: string, idx: number): XyChartSeries | null {
   const namePart = m[2]?.trim()
   let name: string | undefined
   if (namePart !== undefined && namePart.length > 0) {
-    if (!isBareText(namePart)) return null
-    name = namePart
+    const t = bareToken(namePart)
+    if (t === null) return null
+    name = t
   }
   const values: number[] = []
   for (const tok of m[3]!.split(',').map(t => t.trim())) {
@@ -180,8 +205,8 @@ export function parseXyChartBody(lines: string[]): XyChartBody | null {
 
     const titleMatch = line.match(/^title\s+(.+)$/)
     if (titleMatch) {
-      const title = normalizeText(titleMatch[1]!)
-      if (!isBareText(title)) return null
+      const title = bareToken(normalizeText(titleMatch[1]!))
+      if (title === null) return null
       body.title = title
       continue
     }
@@ -411,7 +436,7 @@ export function mutateXyChart(body: XyChartBody, op: XyChartMutationOp): Result<
     }
     default: {
       const _x: never = op
-      return err({ code: 'INVALID_OP', message: `Unknown op: ${JSON.stringify(_x)}` })
+      return err({ code: 'INVALID_OP', message: unknownOpMessage('xychart', _x) })
     }
   }
 

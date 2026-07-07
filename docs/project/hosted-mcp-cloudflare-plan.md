@@ -37,7 +37,7 @@ dynamic Worker instead of being local-only.
 | Tool | Local implementation | Hosted implementation |
 |---|---|---|
 | `execute` | `node:vm` hardened sandbox | **Dynamic Worker** per code hash: harness module (SDK bundle + the same hardened facade) + agent code as a module, `globalOutbound: null`, `limits: { cpuMs, subRequests: 0 }` |
-| `render_png` | native `@resvg/resvg-js` | `@resvg/resvg-wasm` + bundled DejaVu Sans (convenience surface; wasm output is not covered by the byte-determinism contract) |
+| `render_png` | native `@resvg/resvg-js` | `@resvg/resvg-wasm` + bundled DejaVu Sans and built-in style faces (convenience surface; wasm output is not covered by the byte-determinism contract) |
 | `describe` | pure | same code, unchanged |
 | `render_svg` | — (use execute) | pure, hosted-only |
 | `render_ascii` | — (use execute) | pure, hosted-only |
@@ -233,7 +233,7 @@ tools are pure functions of their inputs:
 - Protocol version negotiated from a known-good list (the core currently pins
   `2024-11-05`; Streamable HTTP clients offer `2025-03-26`+).
 - **Response caching:** layout is deterministic, so `tools/call` responses
-  (except nothing — all six tools are deterministic) are cached in the Workers
+  (except nothing — all eight tools are deterministic) are cached in the Workers
   Cache API keyed on SHA-256 of `(tool, canonicalized arguments)`. Repeat
   requests skip compute entirely; for `execute` they also skip the dynamic
   Worker, which is the biggest cost lever.

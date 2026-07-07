@@ -35,7 +35,7 @@ describe('countStructuralElements — exact projection per family', () => {
   })
 
   test('opaque bodies return null (no fabricated count)', () => {
-    const p = parseMermaid('xychart-beta\n  title "Has a title ⇒ opaque"\n  bar [1,2]')
+    const p = parseMermaid('xychart-beta\n  accTitle: forces opaque\n  bar [1,2]')
     expect(p.ok).toBe(true)
     if (p.ok) expect(countStructuralElements(p.value)).toBeNull()
   })

@@ -59,8 +59,14 @@ export function describeMermaid(d: ValidDiagram, opts: DescribeOptions = {}): st
   if (d.body.kind === 'architecture') return describeArchitecture(d.body)
   if (d.body.kind === 'xychart') return describeXyChart(d.body)
   if (d.body.kind === 'gantt') return describeGantt(d as ValidDiagram & { body: import('./types.ts').GanttBody })
+  if (d.body.kind === 'pie') return describePie(d.body)
+  if (d.body.kind === 'quadrant') return describeQuadrant(d.body)
   if (d.body.kind === 'opaque') return describeOpaque(d.kind, d.body.source)
-  return `A ${d.kind} diagram (structured editing not yet supported).`
+  // Exhaustiveness guard: a new family must declare its prose here. This is why
+  // pie/quadrant silently fell through to a "not yet supported" line for months.
+  const _never: never = d.body
+  void _never
+  return `A ${d.kind} diagram.`
 }
 
 /**
@@ -126,10 +132,21 @@ export function describeMermaidTree(d: ValidDiagram): DescribeTree {
         }
       }
     }
+  } else if (d.body.kind === 'pie') {
+    // Slices are the nodes of a pie AX tree; charts have no edges.
+    for (const sl of d.body.slices) tree.nodes.push({ id: sl.id, label: `${sl.label} (${sl.value})` })
+  } else if (d.body.kind === 'quadrant') {
+    // Plotted points are the nodes; quadrant charts have no edges.
+    d.body.points.forEach((p, i) => tree.nodes.push({ id: `point-${i}`, label: `${p.label} [${p.x}, ${p.y}]` }))
   } else if (d.body.kind === 'opaque') {
     const plugin = getFamily(d.kind)
     const labels = (plugin?.extractLabels ?? extractLabelsGeneric)(d.body.source)
     labels.forEach((label, index) => tree.nodes.push({ id: label.target || `label-${index}`, label: label.text }))
+  } else {
+    // Exhaustiveness guard: a new structured family must add a node/edge branch
+    // above rather than silently producing an empty accessibility tree.
+    const _never: never = d.body
+    void _never
   }
   // Entry points (no incoming) and sinks (no outgoing) from the edge list.
   const incoming = new Set(tree.edges.map(e => e.to))
@@ -257,6 +274,22 @@ function describeXyChart(body: import('./types.ts').XyChartBody): string {
   if (axes.length > 0) s += ` Axes — ${axes.join('; ')}.`
   const seriesStr = series.map(se => `${se.kind}${se.name ? ` ${se.name}` : ''} [${se.values.join(', ')}]`)
   if (seriesStr.length > 0) s += ` Series: ${seriesStr.join('; ')}.`
+  return s
+}
+
+function describePie(body: import('./types.ts').PieBody): string {
+  let s = `A pie chart${body.title ? ` titled "${body.title}"` : ''} with ${body.slices.length} slices.`
+  const sliceStr = body.slices.map(sl => `${sl.label} (${sl.value})`)
+  if (sliceStr.length > 0) s += ` Slices: ${sliceStr.join(', ')}.`
+  return s
+}
+
+function describeQuadrant(body: import('./types.ts').QuadrantBody): string {
+  let s = `A quadrant chart${body.title ? ` titled "${body.title}"` : ''} with ${body.points.length} points.`
+  const regions = body.quadrants.filter((q): q is string => Boolean(q))
+  if (regions.length > 0) s += ` Quadrants: ${regions.join(', ')}.`
+  const pointStr = body.points.map(p => `${p.label} [${p.x}, ${p.y}]`)
+  if (pointStr.length > 0) s += ` Points: ${pointStr.join(', ')}.`
   return s
 }
 

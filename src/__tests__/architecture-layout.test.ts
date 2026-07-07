@@ -114,6 +114,35 @@ describe('layoutArchitectureDiagram', () => {
     )
   })
 
+  // #90: on same-side edge patterns the graph projection can seat a wider
+  // member flush against the group box, so `expandGroupBounds` re-fit it onto
+  // the border (0px clearance) — the service outline drawn on the group border.
+  // Re-fit now pads every member by GROUP_EDGE_PAD; assert each service keeps
+  // that clearance inside the drawable interior. Reverting the pad leaves s0
+  // flush against g0's right border (right clearance 0) and fails this test.
+  it('keeps grouped services a full GROUP_EDGE_PAD inside the group border (#90)', () => {
+    const PAD = 18 // GROUP_EDGE_PAD
+    const result = layout(`architecture-beta
+      group g0(cloud)[retry]
+      group g1(cloud)[process the request]
+      service s0(internet)[reads profiles] in g0
+      service s1(server)[x] in g1
+      service s2(database)[q] in g0
+      service s3(disk)[done] in g1
+      service s4(internet)[errors] in g0
+      s2:L --> T:s3
+      s2:R -[fan out]-> B:s3`)
+
+    const groupById = new Map(result.groups.map(g => [g.id, g]))
+    for (const service of result.services) {
+      const group = groupById.get(service.parentId!)!
+      expect(service.x - group.x).toBeGreaterThanOrEqual(PAD)
+      expect(group.x + group.width - (service.x + service.width)).toBeGreaterThanOrEqual(PAD)
+      expect(group.y + group.height - (service.y + service.height)).toBeGreaterThanOrEqual(PAD)
+      expect(service.y - group.y).toBeGreaterThanOrEqual(PAD)
+    }
+  })
+
   it('routes group-boundary edges from the enclosing group frame', () => {
     const result = layout(`architecture-beta
       group storage(cloud)[Storage]

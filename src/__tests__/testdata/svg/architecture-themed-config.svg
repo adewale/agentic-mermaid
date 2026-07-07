@@ -44,16 +44,16 @@
 </defs>
 <g class="architecture-group" data-id="edge" data-label="Edge
 Layer">
-  <rect class="architecture-group-frame" x="60" y="60" width="228.784" height="111" rx="0" ry="0" />
-  <path class="architecture-group-band" d="M60,60 H288.784 V95 H60 Z" />
-  <rect class="architecture-group-outline" x="60" y="60" width="228.784" height="111" rx="0" ry="0" />
+  <rect class="architecture-group-frame" x="58" y="60" width="232.784" height="113" rx="0" ry="0" />
+  <path class="architecture-group-band" d="M58,60 H290.784 V95 H58 Z" />
+  <rect class="architecture-group-outline" x="58" y="60" width="232.784" height="113" rx="0" ry="0" />
   <g class="architecture-icon" data-icon="cloud">
-  <circle class="architecture-icon-mark" cx="77.6912" cy="77.9232" r="3.3856" />
-<circle class="architecture-icon-mark" cx="81.9232" cy="75.8072" r="4.232" />
-<circle class="architecture-icon-mark" cx="85.732" cy="77.9232" r="3.174" />
-<path class="architecture-icon-mark" d="M 74.3056 80.8856 H 88.4828" />
+  <circle class="architecture-icon-mark" cx="75.6912" cy="77.9232" r="3.3856" />
+<circle class="architecture-icon-mark" cx="79.9232" cy="75.8072" r="4.232" />
+<circle class="architecture-icon-mark" cx="83.732" cy="77.9232" r="3.174" />
+<path class="architecture-icon-mark" d="M 72.3056 80.8856 H 86.4828" />
 </g>
-  <text x="96" y="77.5" class="architecture-group-label" text-anchor="start" font-size="15" font-weight="600"><tspan x="96" dy="-4.5">Edge</tspan><tspan x="96" dy="19.5">Layer</tspan></text>
+  <text x="94" y="77.5" class="architecture-group-label" text-anchor="start" font-size="15" font-weight="600"><tspan x="94" dy="-4.5">Edge</tspan><tspan x="94" dy="19.5">Layer</tspan></text>
 </g>
 <polyline class="architecture-edge" data-from="api" data-to="db" data-from-side="R" data-to-side="L" data-from-boundary="item" data-to-boundary="item" data-label="reads &lt;records&gt;" points="272.784,131 520.4559999999999,131" marker-end="url(#architecture-arrow-end)" />
 <rect x="336.78399999999993" y="114.9" width="119.672" height="32.2" class="architecture-edge-label-bg" rx="0" ry="0" />

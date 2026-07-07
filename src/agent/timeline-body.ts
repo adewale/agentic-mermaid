@@ -5,6 +5,7 @@
 // makes the caller fall back to a lossless opaque body.
 // ============================================================================
 
+import { unknownOpMessage } from './mutation-ops.ts'
 import type {
   TimelineBody, TimelineSection, TimelinePeriod, TimelineEvent,
   TimelineMutationOp, MutationError, Result,
@@ -272,7 +273,7 @@ export function mutateTimeline(input: TimelineBody, op: TimelineMutationOp): Res
     }
     default: {
       const _x: never = op
-      return err({ code: 'INVALID_OP', message: `Unknown op: ${JSON.stringify(_x)}` })
+      return err({ code: 'INVALID_OP', message: unknownOpMessage('timeline', _x) })
     }
   }
   return ok(body)

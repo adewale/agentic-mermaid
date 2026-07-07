@@ -61,6 +61,9 @@ const EQUIVALENT_CASES: Array<[label: string, code: string]> = [
   ['SDK mutate adds a node', `${PARSE}; const m = mermaid.mutate(r.value, { kind: 'add_node', id: 'C', label: 'New' }); return { ok: m.ok, source: m.ok ? mermaid.serializeMermaid(m.value) : null }`],
   ['SDK render through execute', `${PARSE}; return mermaid.renderMermaidSVG(r.value).length`],
   ['SDK verify warnings shape', `${PARSE}; const v = mermaid.verifyMermaid(r.value); return { ok: v.ok, warnings: v.warnings.length }`],
+  ['returning a diagram marshals to the canonical envelope', `${PARSE}; return r.value`],
+  ['returning a mutate Result marshals to the canonical envelope', `${PARSE}; return mermaid.mutate(mermaid.asFlowchart(r.value), { kind: 'add_node', id: 'C', label: 'New' })`],
+  ['returning a verify result is a prescriptive non-serializable error', `${PARSE}; return mermaid.verifyMermaid(r.value)`],
   ['verify rejects untrusted diagram objects', "return mermaid.verifyMermaid({ body: {}, canonicalSource: 'x' }).ok"],
   ['SDK results are read-only', `${PARSE}; r.value.meta.comments.push('x'); return 1`],
   ['user exception surfaces its message', "throw new Error('boom')"],
@@ -112,6 +115,28 @@ describe('hosted execute ≡ vm sandbox', () => {
     for (const r of [local, hosted]) {
       expect(r.ok).toBe(false)
       expect(r.error).toContain('must come from mermaid.parseMermaid(...)')
+    }
+  })
+
+  test('a returned diagram marshals to the { ok, family, source, verify } envelope in both', async () => {
+    const code = `${PARSE}; return r.value`
+    for (const r of [await executeInSandbox(code), await executeHosted(code)]) {
+      expect(r.ok).toBe(true)
+      const v = r.value as { ok: boolean; family: string; source: string; verify: { ok: boolean } }
+      expect(v.family).toBe('flowchart')
+      expect(v.source).toContain('A --> B')
+      expect(v.verify.ok).toBe(true)
+      // Pure JSON: the marshalled envelope round-trips losslessly.
+      expect(JSON.parse(JSON.stringify(v))).toEqual(v)
+    }
+  })
+
+  test('a returned verify result fails with the prescriptive plain-data hint in both', async () => {
+    const code = `${PARSE}; return mermaid.verifyMermaid(r.value)`
+    for (const r of [await executeInSandbox(code), await executeHosted(code)]) {
+      expect(r.ok).toBe(false)
+      expect(r.error).toContain('non-serializable')
+      expect(r.error).toContain('return plain data')
     }
   })
 })

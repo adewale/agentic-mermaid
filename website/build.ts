@@ -8,6 +8,7 @@ import { buildCapabilities } from '../src/cli/index.ts'
 import { renderMermaidASCII, renderMermaidSVG } from '../src/index.ts'
 import { namespaceSvgIds } from '../src/renderer.ts'
 import { computeDeployVersion } from './src/deploy-hash.ts'
+import { HOMEPAGE_AGENT_POINTER, buildHomepageFullPrompt } from '../eval/agent-usage/homepage-prompt.ts'
 
 const ROOT = join(import.meta.dir, '..')
 const SOURCE = join(import.meta.dir, 'source')
@@ -16,6 +17,14 @@ const SOURCE_ASSETS = join(SOURCE, 'assets')
 const SOURCE_DIAGRAMS = join(SOURCE, 'diagrams')
 const OUT = join(import.meta.dir, 'public')
 const CHECK = process.argv.includes('--check')
+const HOSTED_FONT_FILES = [
+  'DejaVuSans.ttf',
+  'DejaVuSans-Bold.ttf',
+  'Caveat.ttf',
+  'EBGaramond.ttf',
+  'ArchitectsDaughter.ttf',
+  'ShareTechMono.ttf',
+]
 
 type FileContent = string | Buffer
 const generated = new Map<string, FileContent>()
@@ -28,6 +37,7 @@ const routeMap: Record<string, string> = {
   'llms.txt': '/llms.txt',
   'agent-instructions.md': '/agent-instructions.md',
   'capabilities.json': '/capabilities.json',
+  'start.md': '/start.md',
 
 }
 
@@ -851,7 +861,15 @@ for (const [source, target] of pageOutputs) {
   // one canonical human + machine link rows.
   html = html.replace(/<footer>[\s\S]*?<\/footer>/, () => footerHtml())
   html = injectWorkflowSvg(html)
-  if (source === 'home.html') html = injectLoopRail(injectWorkflowUnicode(html))
+  if (source === 'home.html') {
+    // The agent pointer (primary CTA) and the inline fallback prompt are both
+    // derived from website/source/start.md so they cannot drift from the hosted
+    // bootstrap. Inject them here rather than hand-maintaining copies in the page.
+    html = html
+      .replace('{{AGENT_POINTER}}', escapeHtml(HOMEPAGE_AGENT_POINTER))
+      .replace('{{AGENT_FULL_PROMPT}}', escapeHtml(buildHomepageFullPrompt()))
+    html = injectLoopRail(injectWorkflowUnicode(html))
+  }
   if (source === 'docs-article.html') html = injectDocsIndex(injectLoopHeadings(html))
   await emit(target, html)
 }
@@ -901,9 +919,10 @@ for (const file of skillFiles) {
 }
 
 // Public llms.txt must not expose repo-only backlog/eval/contributor surfaces.
-const publicLlms = `# Agentic Mermaid\n\nAgentic Mermaid renders, verifies, and safely edits Mermaid diagrams. Use the package, CLI, the hosted MCP at /mcp, or a self-hosted MCP; the website is documentation plus a browser-local editor, not a REST render API.\n\nStart here:\n- /mcp \u2013 hosted MCP endpoint (stateless streamable HTTP JSON-RPC; tools: execute, render_svg, render_ascii, render_png, verify, describe)\n- /agent-instructions.md – compact operating guide for agents\n- /capabilities.json – authoritative family/output/mutation/warning contract\n- /examples/index.json – the same example IDs and sources loaded by the editor\n- /skills/agentic-mermaid-diagram-workflow/SKILL.md – optional workflow skill for skills-capable agents\n\nStyles: every render accepts style (a name like hand-drawn/watercolor/blueprint or any theme name, an inline JSON record, or a stack merged left-to-right) plus seed to re-roll styled ink; layout never moves. A colors-only style is a theme. Authoring guide: docs/style-authoring.md in the package.\n\nStop rules:\n- Verify before serialize, render, commit, or return.\n- Do not fabricate ValidDiagram objects. Parse first.\n- Prefer the local library, CLI, or MCP; the hosted /mcp endpoint covers the same tools with 64KB input caps.\n- Call /mcp with MCP JSON-RPC only; the website is not a REST render API.\n`;
+const publicLlms = `# Agentic Mermaid\n\nAgentic Mermaid renders, verifies, and safely edits Mermaid diagrams. Use the package, CLI, the hosted MCP at /mcp, or a self-hosted MCP; the website is documentation plus a browser-local editor, not a REST render API.\n\nStart here:\n- /start.md \u2013 copy-and-follow bootstrap: pick a channel, learn the surface, run the safe loop\n- /mcp \u2013 hosted MCP endpoint (stateless streamable HTTP JSON-RPC; tools: execute, render_svg, render_ascii, render_png, verify, describe)\n- /agent-instructions.md – compact operating guide for agents\n- /capabilities.json – authoritative family/output/mutation/warning contract\n- /examples/index.json – the same example IDs and sources loaded by the editor\n- /skills/agentic-mermaid-diagram-workflow/SKILL.md – optional workflow skill for skills-capable agents\n\nStyles: every render accepts style (a name like hand-drawn/watercolor/blueprint or any theme name, an inline JSON record, or a stack merged left-to-right) plus seed to re-roll styled ink; layout never moves. A colors-only style is a theme. Authoring guide: docs/style-authoring.md in the package.\n\nStop rules:\n- Verify before serialize, render, commit, or return.\n- Do not fabricate ValidDiagram objects. Parse first.\n- Prefer the local library, CLI, or MCP; the hosted /mcp endpoint covers the same tools with 64KB input caps.\n- Call /mcp with MCP JSON-RPC only; the website is not a REST render API.\n`;
 await emit('llms.txt', publicLlms)
 await emit('agent-instructions.md', await Bun.file(join(ROOT, 'Instructions_for_agents.md')).text())
+await emit('start.md', await Bun.file(join(SOURCE, 'start.md')).text())
 
 // Spec route coverage pages.
 const aboutLead = 'Agentic Mermaid is a fork of beautiful-mermaid, aimed at a job the original did not have: programs that draw and check diagrams with no person watching. It renders without a browser, reports its own layout errors, and edits diagrams as a typed tree.'
@@ -1468,7 +1487,7 @@ await emit('sitemap.xml', sitemapXml)
 
 // ---- Worker artifacts (website/src/generated) ------------------------------
 // The /mcp Worker needs the Code Mode harness bundled for the dynamic-worker
-// isolate, the resvg wasm module, and the DejaVu fonts. They live under
+// isolate, the resvg wasm module, and the bundled PNG fonts. They live under
 // src/generated (not public/): they are Worker modules, not servable assets.
 const SRC_GENERATED = join(import.meta.dir, 'src', 'generated')
 const workerGenerated = new Map<string, Buffer>()
@@ -1494,15 +1513,18 @@ async function emitWorkerArtifact(rel: string, content: Buffer) {
   if (!harnessBuild.success || harnessBuild.outputs.length !== 1) {
     throw new Error(`execute-harness bundle failed: ${harnessBuild.logs.join('\n')}`)
   }
-  const harness = Buffer.from(await harnessBuild.outputs[0]!.text())
+  const harness = Buffer.from((await harnessBuild.outputs[0]!.text()).replace(/[ \t]+$/gm, ''))
   if (!harness.includes('import("./user.js")')) throw new Error('execute-harness bundle lost the ./user.js import')
   const resvgWasm = Buffer.from(await Bun.file(join(ROOT, 'node_modules', '@resvg', 'resvg-wasm', 'index_bg.wasm')).arrayBuffer())
-  const fontRegular = Buffer.from(await Bun.file(join(ROOT, 'assets', 'fonts', 'DejaVuSans.ttf')).arrayBuffer())
-  const fontBold = Buffer.from(await Bun.file(join(ROOT, 'assets', 'fonts', 'DejaVuSans-Bold.ttf')).arrayBuffer())
+  const hostedFonts = await Promise.all(
+    HOSTED_FONT_FILES.map(async name => ({
+      name,
+      bytes: Buffer.from(await Bun.file(join(ROOT, 'assets', 'fonts', name)).arrayBuffer()),
+    })),
+  )
   await emitWorkerArtifact('execute-harness.js.txt', harness)
   await emitWorkerArtifact('resvg.wasm', resvgWasm)
-  await emitWorkerArtifact('DejaVuSans.ttf', fontRegular)
-  await emitWorkerArtifact('DejaVuSans-Bold.ttf', fontBold)
+  for (const font of hostedFonts) await emitWorkerArtifact(font.name, font.bytes)
 
   // Full-deploy version for the /mcp response cache. Bundle the worker's own
   // JS closure (transport, hosted-server, PNG path, raster budget, SDK) and
@@ -1534,7 +1556,13 @@ async function emitWorkerArtifact(rel: string, content: Buffer) {
   // (which can shift workerd JS semantics) also invalidates cached results.
   const wranglerText = await Bun.file(join(import.meta.dir, 'wrangler.jsonc')).text()
   const compatDate = wranglerText.match(/"compatibility_date"\s*:\s*"([^"]+)"/)?.[1] ?? ''
-  const deployVersion = computeDeployVersion(packageJson.version, [workerJs, harness, resvgWasm, fontRegular, fontBold, new TextEncoder().encode(compatDate)])
+  const deployVersion = computeDeployVersion(packageJson.version, [
+    workerJs,
+    harness,
+    resvgWasm,
+    ...hostedFonts.map(font => font.bytes),
+    new TextEncoder().encode(compatDate),
+  ])
   await emitWorkerArtifact('deploy-version.ts', Buffer.from(
     '// Generated by website/build.ts — do not edit.\n' +
     '// Full-deploy content hash (worker JS closure + harness + wasm + fonts +\n' +

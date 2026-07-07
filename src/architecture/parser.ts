@@ -1,5 +1,6 @@
 import type { MermaidGraph, MermaidSubgraph, Direction } from '../types.ts'
 import { normalizeBrTags } from '../multiline-utils.ts'
+import { syntaxError } from '../shared/syntax-error.ts'
 import type {
   ArchitectureChildRef,
   ArchitectureDiagram,
@@ -149,7 +150,12 @@ function ensureIdentifierAvailable(
   junctions: Map<string, ArchitectureJunction>,
 ): void {
   if (groups.has(id) || services.has(id) || junctions.has(id)) {
-    throw new Error(`Duplicate architecture identifier "${id}"`)
+    throw syntaxError({
+      what: `Duplicate architecture identifier "${id}"`,
+      expectedForm: 'a unique id for each service, group, and junction',
+      example: `${id}2`,
+      known: [...groups.keys(), ...services.keys(), ...junctions.keys()],
+    })
   }
 }
 
@@ -159,7 +165,12 @@ function ensureParentGroup(
   line: string,
 ): void {
   if (parentId && !groups.has(parentId)) {
-    throw new Error(`Unknown architecture group "${parentId}" in line "${line}"`)
+    throw syntaxError({
+      what: `Unknown architecture group "${parentId}" in line "${line}"`,
+      expectedForm: 'a group declared earlier with group id(icon)[Label]',
+      example: `group ${parentId}(cloud)[${parentId}]`,
+      known: [...groups.keys()],
+    })
   }
 }
 
@@ -183,7 +194,11 @@ function parseArchitectureEdge(
 ): ArchitectureEdge {
   const match = line.match(/^(\S+)\s+(.+)\s+(\S+)$/)
   if (!match) {
-    throw new Error(`Invalid architecture syntax: "${line}"`)
+    throw syntaxError({
+      what: `Invalid architecture edge: "${line}"`,
+      expectedForm: 'source:SIDE <op> SIDE:target, where SIDE is L, R, T, or B',
+      example: 'api:R --> L:db',
+    })
   }
 
   const source = parseSourceEndpoint(match[1]!)
@@ -199,7 +214,7 @@ function parseArchitectureEdge(
 function parseSourceEndpoint(token: string): ArchitectureEndpoint {
   const match = token.trim().match(SOURCE_RE)
   if (!match) {
-    throw new Error(`Invalid architecture edge source "${token}"`)
+    throw new Error(`Invalid architecture edge source "${token}" — expected id then side, e.g. "api:R" in "api:R -- L:db"`)
   }
 
   return {
@@ -212,7 +227,7 @@ function parseSourceEndpoint(token: string): ArchitectureEndpoint {
 function parseTargetEndpoint(token: string): ArchitectureEndpoint {
   const match = token.trim().match(TARGET_RE)
   if (!match) {
-    throw new Error(`Invalid architecture edge target "${token}"`)
+    throw new Error(`Invalid architecture edge target "${token}" — expected side then id, e.g. "L:db" in "api:R -- L:db"`)
   }
 
   return {
@@ -232,7 +247,11 @@ function parseEdgeOperator(token: string): Pick<ArchitectureEdge, 'label' | 'has
 
   const labelMatch = trimmed.match(/^(<)?-\[(.*)\]-(>)?$/)
   if (!labelMatch) {
-    throw new Error(`Invalid architecture edge operator "${token}"`)
+    throw syntaxError({
+      what: `Invalid architecture edge operator "${token}"`,
+      expectedForm: 'one of --, -->, <--, <-->, or -[label]-',
+      example: 'api:R --> L:db',
+    })
   }
 
   const label = normalizeBrTags(labelMatch[2] ?? '').trim() || undefined
@@ -253,7 +272,12 @@ function validateEndpoint(
   const junction = junctions.get(endpoint.id)
 
   if (!service && !junction) {
-    throw new Error(`Unknown architecture item "${endpoint.id}" in line "${line}"`)
+    throw syntaxError({
+      what: `Unknown architecture item "${endpoint.id}" in line "${line}"`,
+      expectedForm: 'a service or junction declared earlier',
+      example: `service ${endpoint.id}(server)[${endpoint.id}]`,
+      known: [...services.keys(), ...junctions.keys()],
+    })
   }
 
   if (endpoint.boundary === 'group') {

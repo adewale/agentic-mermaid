@@ -238,7 +238,7 @@ describe('Workers Static Assets website contract', () => {
     expect(homeMain.indexOf('Use with an agent')).toBeLessThan(homeMain.indexOf('Try editor'))
     expect(homeMain.indexOf('Try editor')).toBeLessThan(homeMain.indexOf('Install locally'))
     expect(home).toContain('href="/editor/?empty=1">Try editor</a>')
-    expect(homeMain.indexOf('data-copy-target="home-agent-prompt"')).toBeLessThan(homeMain.indexOf('href="/editor/?empty=1"'))
+    expect(homeMain.indexOf('data-copy-target="home-agent-pointer"')).toBeLessThan(homeMain.indexOf('href="/editor/?empty=1"'))
     expect(homeMain.indexOf('href="/editor/?empty=1"')).toBeLessThan(homeMain.indexOf('href="/docs/getting-started/"'))
     expect(home).not.toContain('Give this to an agent')
     expect(home).not.toContain('This prompt is intentionally complete')
@@ -274,6 +274,15 @@ describe('Workers Static Assets website contract', () => {
     expect(home.indexOf('id="home-agent-prompt"')).toBeLessThan(home.indexOf('id="quick-start-title"'))
     expect(home.indexOf('id="machine-context-title"')).toBeGreaterThan(home.indexOf('One source, five outputs'))
     expect(gettingStarted).toContain('Get the agent prompt on the homepage')
+    // Fetch flow: the primary CTA points at a hosted bootstrap that is actually
+    // served and is byte-identical to the source the eval composes from — so
+    // "fetch start.md" resolves to exactly the protocol under test.
+    expect(home).toContain('Fetch https://agentic-mermaid.dev/start.md and follow it')
+    const served = read('start.md')
+    expect(served).toContain('# Skill: Create or edit a Mermaid diagram with Agentic Mermaid')
+    expect(served).toContain('## Step 1 — Establish one channel')
+    expect(served).toContain('## Return')
+    expect(served.trim()).toBe(readFileSync(join(REPO, 'website/source/start.md'), 'utf8').trim())
     expect(read('docs/getting-started/index.html')).toContain('From Mermaid source to a verified local render')
     expect(home).toContain('/examples/index.json')
     expect(home).toContain('/skills/agentic-mermaid-diagram-workflow/SKILL.md')

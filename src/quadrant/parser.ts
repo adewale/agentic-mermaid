@@ -1,6 +1,7 @@
 import type { QuadrantChart, QuadrantAxis, QuadrantPoint } from './types.ts'
 import { accessibilityDirectiveEnd } from '../shared/accessibility-directives.ts'
 import { normalizeBrTags } from '../multiline-utils.ts'
+import { syntaxError } from '../shared/syntax-error.ts'
 
 // ============================================================================
 // Quadrant chart parser
@@ -123,7 +124,11 @@ export function parseQuadrantChart(lines: string[]): QuadrantChart {
       )
     }
 
-    throw new Error(`Unrecognized quadrant chart line: "${line}"`)
+    throw syntaxError({
+      what: `Unrecognized quadrant chart line: "${line}"`,
+      expectedForm: 'a title, x-axis/y-axis, a quadrant-N label, or a point (Label: [x, y])',
+      example: 'Quick win: [0.2, 0.8]',
+    })
   }
 
   return { title, xAxis, yAxis, quadrants, points }

@@ -110,8 +110,6 @@ describe('xychart structured-or-opaque fallback', () => {
   const opaqueCases: Array<[string, string]> = [
     ['accTitle line', 'xychart-beta\n  accTitle: Accessible\n  bar [1, 2]'],
     ['accDescr block', 'xychart-beta\n  accDescr {\n    desc\n  }\n  bar [1, 2]'],
-    ['quoted title', 'xychart-beta\n  title "Quoted"\n  bar [1, 2]'],
-    ['quoted category', 'xychart-beta\n  x-axis ["Jan", "Feb"]\n  bar [1, 2]'],
     ['multi-statement semicolon', 'xychart-beta\n  title T; bar [1, 2]'],
     ['unmodeled token (curve)', 'xychart-beta\n  bar [1, 2]\n  curve basis'],
     ['non-numeric series value', 'xychart-beta\n  bar [1, two, 3]'],
@@ -126,6 +124,30 @@ describe('xychart structured-or-opaque fallback', () => {
       expect(r.value.body.kind).toBe('opaque')
       expect(asXyChart(r.value)).toBeNull()
       expect(serializeMermaid(r.value).trimEnd()).toBe(src)
+    })
+  }
+
+  // Mermaid's xychart syntax quotes text, and the family's own example did too —
+  // quoting must NOT drop the whole chart to opaque (it caused an eval failure).
+  // Quoted title/axis/series/category parse STRUCTURED and canonicalize unquoted.
+  const quotedStructured: Array<[string, string]> = [
+    ['quoted title', 'xychart-beta\n  title "Monthly Revenue"\n  bar [1, 2]'],
+    ['quoted category', 'xychart-beta\n  x-axis ["Jan", "Feb"]\n  bar [1, 2]'],
+    ['quoted named range axis', 'xychart-beta\n  y-axis "Revenue" 0 --> 200\n  bar [1, 2]'],
+    ['quoted series name', 'xychart-beta\n  bar "Revenue" [1, 2]'],
+  ]
+  for (const [name, src] of quotedStructured) {
+    test(`${name} parses STRUCTURED (quotes accepted, not opaque)`, () => {
+      const r = parseMermaid(src)
+      expect(r.ok).toBe(true)
+      if (!r.ok) return
+      expect(r.value.body.kind).toBe('xychart')
+      expect(asXyChart(r.value)).not.toBeNull()
+      // Canonicalizes unquoted, and the round-trip re-parses structured.
+      const out = serializeMermaid(r.value)
+      expect(out).not.toContain('"')
+      const re = parseMermaid(out)
+      expect(re.ok && re.value.body.kind).toBe('xychart')
     })
   }
 })
