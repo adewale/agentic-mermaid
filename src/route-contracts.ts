@@ -2404,52 +2404,6 @@ export function repairLabelsOnSharedTrunks(
       }
     }
 
-    if (!fixed) {
-      // The trunk is shared along the whole route — the signature of a duplicate
-      // edge (same endpoints drawn twice, one labeled). Relocation cannot help,
-      // so offset this labeled edge into a parallel lane and label the lane.
-      // Gated on a straight route whose conflict is a true duplicate, so it never
-      // fires on the (already audit-clean) corpus and cannot regress it.
-      const dup = sharedTrunkConflict(edge, positioned.edges, style)
-      if (dup && dup.source === edge.source && dup.target === edge.target && edge.points.length === 2) {
-        const a = edge.points[0]!, b = edge.points[1]!
-        const vertical = Math.abs(a.x - b.x) < EPS
-        if (vertical || Math.abs(a.y - b.y) < EPS) {
-          const inset = Math.min(14, (vertical ? Math.abs(b.y - a.y) : Math.abs(b.x - a.x)) / 3)
-          const segHitsNode = (p: Point, q: Point, n: PositionedNode): boolean =>
-            Math.max(p.x, q.x) + 4 > n.x && Math.min(p.x, q.x) - 4 < n.x + n.width &&
-            Math.max(p.y, q.y) + 4 > n.y && Math.min(p.y, q.y) - 4 < n.y + n.height
-          const savedPts = edge.points, savedCert = edge.routeCertificate
-          for (const gap of [18, -18, 26, -26]) {
-            let pts: Point[], laneMid: Point
-            if (vertical) {
-              const lane = a.x + gap, dir = Math.sign(b.y - a.y) || 1
-              const y1 = a.y + dir * inset, y2 = b.y - dir * inset
-              pts = [a, { x: a.x, y: y1 }, { x: lane, y: y1 }, { x: lane, y: y2 }, { x: b.x, y: y2 }, b]
-              laneMid = { x: lane, y: (y1 + y2) / 2 }
-            } else {
-              const lane = a.y + gap, dir = Math.sign(b.x - a.x) || 1
-              const x1 = a.x + dir * inset, x2 = b.x - dir * inset
-              pts = [a, { x: x1, y: a.y }, { x: x1, y: lane }, { x: x2, y: lane }, { x: x2, y: b.y }, b]
-              laneMid = { x: (x1 + x2) / 2, y: lane }
-            }
-            if (positioned.nodes.some(n => n.id !== edge.source && n.id !== edge.target &&
-              pts.slice(1).some((q, k) => segHitsNode(pts[k]!, q, n)))) continue
-            edge.points = simplifyPolyline(pts)
-            edge.labelPosition = laneMid
-            edge.routeCertificate = undefined
-            if (!sharedTrunkConflict(edge, positioned.edges, style) && !pillOverNode(pillRect(laneMid.x, laneMid.y, m), edge)) {
-              recertifyReroutedEdge(edge, savedCert)
-              fixed = true
-              break
-            }
-            edge.points = savedPts
-            edge.routeCertificate = savedCert
-          }
-        }
-      }
-    }
-
     if (!fixed) edge.labelPosition = saved // nowhere unambiguous on this route — leave as placed
   }
 }

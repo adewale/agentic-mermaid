@@ -2155,10 +2155,124 @@ export function applyParallelDuplicateLanes(
   // Forward uses the flow sides; feedback uses their opposites.
   const exitSide = (n: PositionedNode, back: boolean) => (sourceOnHigh !== back ? highSide(n) : lowSide(n))
   const entrySide = (n: PositionedNode, back: boolean) => (targetOnLow !== back ? lowSide(n) : highSide(n))
+  const preSeparated = new Set<PositionedEdge>()
+  const routesShareCollinearRun = (a: PositionedEdge, b: PositionedEdge): boolean => {
+    for (let i = 1; i < a.points.length; i++) {
+      const a0 = a.points[i - 1]!, a1 = a.points[i]!
+      const aVertical = Math.abs(a0.x - a1.x) < 0.5
+      const aHorizontal = Math.abs(a0.y - a1.y) < 0.5
+      if (!aVertical && !aHorizontal) continue
+      for (let j = 1; j < b.points.length; j++) {
+        const b0 = b.points[j - 1]!, b1 = b.points[j]!
+        if (aVertical) {
+          if (Math.abs(b0.x - b1.x) >= 0.5 || Math.abs(a0.x - b0.x) >= 1) continue
+          const overlap = Math.min(Math.max(a0.y, a1.y), Math.max(b0.y, b1.y)) -
+            Math.max(Math.min(a0.y, a1.y), Math.min(b0.y, b1.y))
+          if (overlap > 1) return true
+        } else if (aHorizontal) {
+          if (Math.abs(b0.y - b1.y) >= 0.5 || Math.abs(a0.y - b0.y) >= 1) continue
+          const overlap = Math.min(Math.max(a0.x, a1.x), Math.max(b0.x, b1.x)) -
+            Math.max(Math.min(a0.x, a1.x), Math.min(b0.x, b1.x))
+          if (overlap > 1) return true
+        }
+      }
+    }
+    return false
+  }
+
+  // Mixed labeled+unlabeled duplicates used to fall through every pre-freeze
+  // lane splitter: the labeled member was not eligible for duplicate lanes,
+  // and the lone unlabeled member was not a duplicate by itself. The
+  // post-freeze shared-trunk label repair then had to reroute geometry. Own the
+  // exact-pair case here instead, before route certificates are issued.
+  const byDirectedPair = new Map<string, PositionedEdge[]>()
+  for (const edge of edges) {
+    if (edge.source === edge.target) continue
+    const source = nodeMap.get(edge.source)
+    const target = nodeMap.get(edge.target)
+    if (!source || !target) continue
+    if (!PORT_EXACT.has(source.shape) || !PORT_EXACT.has(target.shape)) continue
+    if (nodeInsideGroups(source, groups) || nodeInsideGroups(target, groups)) continue
+    const forwardGap = (entrySide(target, false) - exitSide(source, false)) * f.sign
+    const feedbackGap = (exitSide(source, true) - entrySide(target, true)) * f.sign
+    if (forwardGap <= BASE_GAP && feedbackGap <= BASE_GAP) continue
+    const key = `${edge.source}\0${edge.target}`
+    if (!byDirectedPair.has(key)) byDirectedPair.set(key, [])
+    byDirectedPair.get(key)!.push(edge)
+  }
+
+  const separateMixedPair = (bucket: PositionedEdge[], back: boolean): boolean => {
+    if (bucket.length < 2) return false
+    if (!bucket.some(edge => edge.label) || !bucket.some(edge => !edge.label)) return false
+    if (!bucket.some(edge => edge.label && bucket.some(other => !other.label && routesShareCollinearRun(edge, other)))) return false
+    bucket.sort((a, b) => (a.edgeIndex ?? 0) - (b.edgeIndex ?? 0))
+    const source = nodeMap.get(bucket[0]!.source)!
+    const target = nodeMap.get(bucket[0]!.target)!
+    const exitMain = exitSide(source, back)
+    const entryMain = entrySide(target, back)
+    const k = bucket.length
+    const sep = Math.min(TARGET_SEP, (Math.min(crossSize(source), crossSize(target)) - 2 * MARGIN) / (k - 1))
+    if (sep < 4) return false
+    const sourceCenter = source[f.cross] + crossSize(source) / 2
+    const targetCenter = target[f.cross] + crossSize(target) / 2
+
+    const lanes: Array<{ edge: PositionedEdge; sCross: number; tCross: number }> = []
+    const col: number[] = []
+    for (let i = 0; i < k; i++) {
+      const sCross = sourceCenter + (i - (k - 1) / 2) * sep
+      const tCross = targetCenter + (i - (k - 1) / 2) * sep
+      let jog = exitMain + (back ? -1 : 1) * f.sign * (BASE_GAP + i * sep)
+      const lo = Math.min(exitMain, entryMain), hi = Math.max(exitMain, entryMain)
+      if (jog <= lo + 4 || jog >= hi - 4) jog = (exitMain + entryMain) / 2
+      lanes.push({ edge: bucket[i]!, sCross, tCross })
+      col.push(jog)
+    }
+    if (lanes[0]!.tCross - lanes[0]!.sCross > 0) col.reverse()
+
+    const proposed: Array<{ edge: PositionedEdge; points: Point[] }> = []
+    for (let i = 0; i < k; i++) {
+      const { edge, sCross, tCross } = lanes[i]!
+      const jog = col[i]!
+      const raw = Math.abs(sCross - tCross) <= 0.5
+        ? [mk(exitMain, sCross), mk(entryMain, tCross)]
+        : [mk(exitMain, sCross), mk(jog, sCross), mk(jog, tCross), mk(entryMain, tCross)]
+      const clipped = simplifyPolyline(
+        clipEdgeToShape(
+          clipEdgeToShape(raw, source, true),
+          target,
+          false,
+        ),
+      )
+      if (clipped.length < 2 ||
+        !onShapeOutline(source, clipped[0]!) ||
+        !onShapeOutline(target, clipped[clipped.length - 1]!) ||
+        !routeClearOfNodes(clipped, nodes, new Set([source.id, target.id]))) {
+        return false
+      }
+      proposed.push({ edge, points: clipped })
+    }
+    for (const { edge, points } of proposed) {
+      edge.points = points
+      edge.labelPosition = edge.label ? longestSegmentMidpoint(points) : undefined
+      edge.routeCertificate = undefined
+      bundled.add(edge)
+      preSeparated.add(edge)
+    }
+    return true
+  }
+
+  for (const bucket of byDirectedPair.values()) {
+    const source = nodeMap.get(bucket[0]!.source)
+    const target = nodeMap.get(bucket[0]!.target)
+    if (!source || !target) continue
+    const back = !((entrySide(target, false) - exitSide(source, false)) * f.sign > BASE_GAP)
+    separateMixedPair(bucket, back)
+  }
 
   const fwdByTarget = new Map<string, PositionedEdge[]>()
   const backByTarget = new Map<string, PositionedEdge[]>()
   for (const edge of edges) {
+    if (preSeparated.has(edge)) continue
     if (edge.source === edge.target || edge.label) continue
     const source = nodeMap.get(edge.source)
     const target = nodeMap.get(edge.target)

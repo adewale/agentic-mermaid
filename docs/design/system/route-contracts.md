@@ -328,7 +328,10 @@ capacities) and Visio connection points with static vs dynamic glue:
   LR/RL, `S/N` for TD/BT), and eligible unlabeled rectangle/diamond feedback
   edges without a labeled reciprocal primary get flipped-side `FIXED_SIDE`
   hints on the return lane. Duplicate
-  feedback ports also record deterministic side slots, but feedback
+  primary-forward faces owned by the duplicate-lane planner now upgrade to
+  `FIXED_ORDER` only when the whole node-side order is certified: unlabeled,
+  rectangle-local, primary-forward, and containing a real duplicate pair.
+  Duplicate feedback ports still record deterministic side slots, but feedback
   `FIXED_ORDER` remains deferred: the measured contact-sheet duplicate-feedback
   case regressed when ELK was allowed to enforce order. Self-loop, labeled
   feedback, labeled-reciprocal feedback, non-rect/diamond feedback, container,
@@ -726,13 +729,15 @@ Still deliberately out of scope:
 
 - Broad ELK port mutation beyond node-local primary/feedback semantics. The
   implemented hint layer now emits `FIXED_SIDE` for eligible primary-forward
-  routes and for the narrow unlabeled rectangle/diamond feedback slice, while
-  labeled feedback, labeled-reciprocal feedback, non-rect/diamond feedback,
-  self-loop, container, cross-hierarchy and family-rerouted cases remain owned
-  by the certifying repair pass. Feedback `FIXED_ORDER` is still gated on new
-  evidence: applying it to duplicate feedback lanes regressed
-  `contact-sheet/AQ` in `bun run track`. `FIXED_POS` everywhere would still
-  fight ELK's crossing minimization.
+  routes, upgrades duplicate primary-forward faces to `FIXED_ORDER` only when
+  the pre-freeze duplicate-lane planner owns the whole side order, and emits
+  `FIXED_SIDE` for the narrow unlabeled rectangle/diamond feedback slice
+  without a labeled reciprocal primary. Labeled feedback, labeled-reciprocal
+  feedback, non-rect/diamond feedback, self-loop, container, cross-hierarchy
+  and family-rerouted cases remain owned by the certifying repair pass.
+  Feedback `FIXED_ORDER` is still gated on new evidence: applying it to
+  duplicate feedback lanes regressed `contact-sheet/AQ` in `bun run track`.
+  `FIXED_POS` everywhere would still fight ELK's crossing minimization.
 
 ## 8. Pipeline placement
 
@@ -818,7 +823,7 @@ in sync by `src/__tests__/layout-pass-docsync.test.ts` (regenerate with
 |---|---|
 | Phase 0 — diagnostics (classification + certificates) | implemented |
 | Phase 1 — validation warnings | complete: all six ROUTE_* codes implemented as zero-noise tripwires |
-| Phase 2 — semantic `FIXED_SIDE` / `FIXED_ORDER` ports | conservative slice implemented: primary-forward edges feed inferred source/target side intent to ELK fixed-side ports; eligible unlabeled rectangle/diamond feedback routes without a labeled reciprocal primary now feed flipped-side `FIXED_SIDE` ports with deterministic slot diagnostics; feedback `FIXED_ORDER` remains deferred after measured corpus regression; labeled feedback, labeled-reciprocal feedback, unsupported-shape feedback, self-loop/container/cross-hierarchy/direction-override relaxations rely on final certificates |
+| Phase 2 — semantic `FIXED_SIDE` / `FIXED_ORDER` ports | conservative slice implemented: primary-forward edges feed inferred source/target side intent to ELK fixed-side ports; duplicate primary-forward faces owned by the pre-freeze duplicate-lane planner upgrade to `FIXED_ORDER`; eligible unlabeled rectangle/diamond feedback routes without a labeled reciprocal primary feed flipped-side `FIXED_SIDE` ports with deterministic slot diagnostics; feedback `FIXED_ORDER` remains deferred after measured corpus regression; labeled feedback, labeled-reciprocal feedback, unsupported-shape feedback, self-loop/container/cross-hierarchy/direction-override relaxations rely on final certificates |
 | Phase 3 — certifying simplifier | implemented (proof-free + proof-carrying layers) |
 | Phase 4 — bundle contract | first slice implemented: bundled paths are proved clear of nodes, blocked members fall out of the bundle; per-trunk certificates deferred |
 | Phase 5 — family adoption | state composites (`stateBodyToGraph`) flow through graph route contracts and certificates; architecture now emits family-specific endpoint-side certificates in debug layouts; class/ER keep their own ELK engines and emit family-specific orthogonal-box certificates plus rendered-layout geometry tripwires; sequence emits lifeline-message certificates; timeline/charts emit family element-containment layout certificates |
