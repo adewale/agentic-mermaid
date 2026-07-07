@@ -17,9 +17,25 @@ const FIXTURES = join(import.meta.dir, '..', '..', 'eval', 'layout-compare', 'fi
 const BASELINE = join(import.meta.dir, 'testdata', 'styled-output-baseline.json')
 const UPDATE = process.env.UPDATE_STYLED_BASELINE === '1'
 
-// The seven built-in full looks (themes register too, but the golden matrix
+// The built-in full looks (themes register too, but the golden matrix
 // pins the looks; palette-only styles are covered by the composition tests).
-const LOOKS = ['hand-drawn', 'excalidraw', 'pen-and-ink', 'freehand', 'watercolor', 'blueprint', 'tufte']
+const LOOKS = [
+  'hand-drawn',
+  'excalidraw',
+  'pen-and-ink',
+  'freehand',
+  'watercolor',
+  'blueprint',
+  'tufte',
+  'accessible-high-contrast',
+  'patent-drawing',
+  'status-dashboard',
+  'ops-schematic',
+  'chalkboard',
+  'risograph',
+  'architectural-plan',
+  'publication-figure',
+]
 
 function fixtureSources(): Array<{ name: string; source: string }> {
   return readdirSync(FIXTURES)
@@ -154,6 +170,27 @@ describe('style consolidation', () => {
     expect(stacked).toBe(renderMermaidSVG(source, { style: ['hand-drawn', 'dracula'] }))
   })
 
+  test('coverage looks keep structural ink on the active theme foreground', () => {
+    const themes = ['github-light', 'nord-light', 'dracula']
+    const coverageLooks = [
+      'accessible-high-contrast',
+      'patent-drawing',
+      'status-dashboard',
+      'ops-schematic',
+      'chalkboard',
+      'risograph',
+      'architectural-plan',
+      'publication-figure',
+    ]
+    for (const themeName of themes) {
+      const themeFg = getStyle(themeName)!.colors!.fg!
+      for (const style of coverageLooks) {
+        const svg = renderMermaidSVG(source, { style: [style, themeName] })
+        expect(svg).toContain(`stroke="${themeFg}"`)
+      }
+    }
+  })
+
   test('an inline fragment on top of a stack wins per field', () => {
     const merged = resolveStyleStack(['hand-drawn', { roughness: 2.5, colors: { accent: '#ff0000' } }])!
     expect(merged.roughness).toBe(2.5)
@@ -245,4 +282,12 @@ const LOOKS_WITH_BACKENDS = [
   { style: 'watercolor', backend: 'hybrid' },
   { style: 'blueprint', backend: 'rough' },
   { style: 'tufte', backend: 'default' },
+  { style: 'accessible-high-contrast', backend: 'default' },
+  { style: 'patent-drawing', backend: 'rough' },
+  { style: 'status-dashboard', backend: 'default' },
+  { style: 'ops-schematic', backend: 'rough' },
+  { style: 'chalkboard', backend: 'rough' },
+  { style: 'risograph', backend: 'rough' },
+  { style: 'architectural-plan', backend: 'rough' },
+  { style: 'publication-figure', backend: 'default' },
 ] as const

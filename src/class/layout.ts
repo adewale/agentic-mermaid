@@ -10,7 +10,7 @@
 import type { ElkNode, ElkExtendedEdge } from 'elkjs'
 import type { ClassDiagram, ClassNode, ClassMember, PositionedClassDiagram, PositionedClassNode, PositionedClassRelationship } from './types.ts'
 import type { RenderOptions, Point } from '../types.ts'
-import { estimateTextWidth, estimateMonoTextWidth, FONT_SIZES, FONT_WEIGHTS, STROKE_WIDTHS, resolveRenderStyle } from '../styles.ts'
+import { applyTextTransform, estimateTextWidth, estimateMonoTextWidth, FONT_SIZES, FONT_WEIGHTS, STROKE_WIDTHS, resolveRenderStyle } from '../styles.ts'
 import type { RenderStyleDefaults } from '../styles.ts'
 import { measureMultilineText } from '../text-metrics.ts'
 import { elkLayoutSync } from '../elk-instance.ts'
@@ -61,9 +61,10 @@ function buildClassElkGraph(
   const classSizes: ClassSizeMap = new Map()
 
   for (const cls of diagram.classes) {
+    const label = applyTextTransform(cls.label, style.nodeTextTransform)
     const headerBaseHeight = Math.max(
       CLS.headerBaseHeight,
-      measureMultilineText(cls.label, style.nodeLabelFontSize, style.nodeLabelFontWeight).height + style.nodePaddingY * 2,
+      measureMultilineText(label, style.nodeLabelFontSize, style.nodeLabelFontWeight).height + style.nodePaddingY * 2,
     )
     const headerHeight = cls.annotation
       ? headerBaseHeight + CLS.annotationHeight
@@ -77,7 +78,7 @@ function buildClassElkGraph(
       ? cls.methods.length * CLS.memberRowHeight + style.nodePaddingY
       : CLS.emptySectionHeight
 
-    const headerTextW = estimateTextWidth(cls.label, style.nodeLabelFontSize, style.nodeLabelFontWeight)
+    const headerTextW = estimateTextWidth(label, style.nodeLabelFontSize, style.nodeLabelFontWeight)
     const maxAttrW = maxMemberWidth(cls.attributes)
     const maxMethodW = maxMemberWidth(cls.methods)
     const width = Math.max(CLS.minWidth, headerTextW + style.nodePaddingX * 2, maxAttrW + style.nodePaddingX * 2, maxMethodW + style.nodePaddingX * 2)
@@ -110,8 +111,9 @@ function buildClassElkGraph(
     const rel = diagram.relationships[i]!
     const edge: ElkExtendedEdge = { id: `e${i}`, sources: [rel.from], targets: [rel.to] }
     if (rel.label) {
-      const metrics = measureMultilineText(rel.label, style.edgeLabelFontSize, style.edgeLabelFontWeight)
-      edge.labels = [{ text: rel.label, width: metrics.width + 8, height: metrics.height + 6 }]
+      const label = applyTextTransform(rel.label, style.edgeTextTransform)
+      const metrics = measureMultilineText(label, style.edgeLabelFontSize, style.edgeLabelFontWeight)
+      edge.labels = [{ text: label, width: metrics.width + 8, height: metrics.height + 6 }]
     }
     elkGraph.edges!.push(edge)
   }

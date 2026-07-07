@@ -1,6 +1,6 @@
 import type { DiagramColors } from '../theme.ts'
 import type { MermaidFrontmatterMap, MermaidConfigValue } from '../mermaid-source.ts'
-import type { RenderOptions } from '../types.ts'
+import type { RenderOptions, TextTransform } from '../types.ts'
 import { resolveRenderStyle } from '../styles.ts'
 import type { RenderStyleDefaults } from '../styles.ts'
 
@@ -10,7 +10,7 @@ export interface ArchitectureVisualConfig {
   groupFontWeight: number
   groupLetterSpacing: number
   groupFont?: string
-  groupTextTransform?: 'uppercase' | 'lowercase' | 'capitalize'
+  groupTextTransform?: TextTransform
   groupPaddingX: number
   groupPaddingY: number
   groupLabelPaddingX: number
@@ -20,6 +20,7 @@ export interface ArchitectureVisualConfig {
   serviceFontSize: number
   serviceFontWeight: number
   serviceLetterSpacing: number
+  serviceTextTransform?: TextTransform
   servicePaddingX: number
   servicePaddingY: number
   serviceCornerRadius: number
@@ -28,6 +29,7 @@ export interface ArchitectureVisualConfig {
   edgeFontSize: number
   edgeFontWeight: number
   edgeLetterSpacing: number
+  edgeTextTransform?: TextTransform
   edgeLineWidth: number
   edgeBendRadius: number
   edgeStroke?: string
@@ -48,7 +50,7 @@ export interface ArchitectureLayoutMetrics {
   groupFontWeight: number
   groupLetterSpacing: number
   groupFont?: string
-  groupTextTransform?: 'uppercase' | 'lowercase' | 'capitalize'
+  groupTextTransform?: TextTransform
   groupPaddingX: number
   groupPaddingY: number
   groupCornerRadius: number
@@ -56,6 +58,7 @@ export interface ArchitectureLayoutMetrics {
   serviceFontSize: number
   serviceFontWeight: number
   serviceLetterSpacing: number
+  serviceTextTransform?: TextTransform
   servicePaddingX: number
   servicePaddingY: number
   serviceCornerRadius: number
@@ -63,6 +66,7 @@ export interface ArchitectureLayoutMetrics {
   edgeFontSize: number
   edgeFontWeight: number
   edgeLetterSpacing: number
+  edgeTextTransform?: TextTransform
   edgeLineWidth: number
   edgeBendRadius: number
 }
@@ -177,6 +181,7 @@ export function resolveArchitectureVisualConfig(
     serviceFontSize: style.nodeLabelFontSize,
     serviceFontWeight: style.nodeLabelFontWeight,
     serviceLetterSpacing: style.nodeLetterSpacing,
+    serviceTextTransform: style.nodeTextTransform,
     servicePaddingX: style.nodePaddingX,
     servicePaddingY: style.nodePaddingY,
     serviceCornerRadius: style.cornerRadius ?? 0,
@@ -184,6 +189,7 @@ export function resolveArchitectureVisualConfig(
     edgeFontSize: style.edgeLabelFontSize,
     edgeFontWeight: style.edgeLabelFontWeight,
     edgeLetterSpacing: style.edgeLetterSpacing,
+    edgeTextTransform: style.edgeTextTransform,
     edgeLineWidth: style.lineWidth,
     edgeBendRadius: style.edgeBendRadius,
     iconSize,
@@ -222,6 +228,7 @@ export function architectureLayoutMetrics(visual: ArchitectureVisualConfig): Arc
     serviceFontSize: visual.serviceFontSize,
     serviceFontWeight: visual.serviceFontWeight,
     serviceLetterSpacing: visual.serviceLetterSpacing,
+    serviceTextTransform: visual.serviceTextTransform,
     servicePaddingX: visual.servicePaddingX,
     servicePaddingY: visual.servicePaddingY,
     serviceCornerRadius: visual.serviceCornerRadius,
@@ -229,6 +236,7 @@ export function architectureLayoutMetrics(visual: ArchitectureVisualConfig): Arc
     edgeFontSize: visual.edgeFontSize,
     edgeFontWeight: visual.edgeFontWeight,
     edgeLetterSpacing: visual.edgeLetterSpacing,
+    edgeTextTransform: visual.edgeTextTransform,
     edgeLineWidth: visual.edgeLineWidth,
     edgeBendRadius: visual.edgeBendRadius,
   }

@@ -119,6 +119,7 @@
     "hero:check": "bun run scripts/site/hero.ts --check",
     "site": "bun run website",
     "site:check": "bun run website:check",
+    "style:audit": "bun test src/__tests__/style-role-audit.test.ts",
     "sketch:check": "bun test scripts/sketch-prototype/styles.test.ts && bun run scripts/sketch-prototype/contrast-audit.ts",
     "characterization:check": "bun run scripts/characterization/contact-sheet.ts --check && bun run scripts/characterization/contact-sheet-families.ts --check && bun run scripts/characterization/visual-quality.ts --check",
     "mutation-test": "npx stryker run",

@@ -8,6 +8,36 @@ date; do not delete old ones — supersede them in place.
 > cumulative fork narrative (loops 1–22), see
 > [`../project/lessons-learned.md`](../project/lessons-learned.md).
 
+## 2026-07 — style coverage and typography semantics
+
+**A style transform is a semantic contract, not a blanket SVG rewrite.**
+The first style-coverage pass made typography expressive enough to expose an
+important boundary: class names, entity names, relationship labels, section
+labels, chart titles, and task labels are diagram labels; class members and ER
+attributes are schema/code-like literals. Uppercasing `Account` to `ACCOUNT`
+is a look. Uppercasing `displayName`, `createdAt`, `orderId`, or
+`closeAccount(reason: string)` destroys authored signal. Rule: label transforms
+apply to labels; syntax-like internals still participate in role-token paint
+and contrast audits, but keep authored casing unless a future explicit
+`member`/`attribute`/`syntaxText` policy says otherwise.
+
+**Measure the text the renderer will actually draw.** Aggressive typography is
+not layout-neutral: uppercase, weight, letter spacing, and compact labels all
+change measured width and row/axis/title budgets. The Gantt fix had to measure
+the transformed/tracked text, not the Mermaid source token, before rendering
+compact task labels and axes. Rule: any layout that reserves space for text
+must run the same transform path that the renderer uses, or the style will pass
+unit tests while visibly clipping in the editor.
+
+**Coverage evidence has to separate plumbing, readability, and taste.** The
+state-space diagram and galleries explain what the style catalog covers, but
+the durable gate is `style:audit`: every built-in family is rendered with
+sentinel role tokens, role propagation is checked, and contrast floors are
+enforced. Visual galleries answer "are these looks differentiated?"; the audit
+answers "does the style system reach the elements it claims to reach?" Keep
+both, and be explicit about the remaining gap: arbitrary user-authored
+style/palette stacks are not yet universally WCAG-proved.
+
 ## 2026-07 — the layout-shift audit and look-control rework
 
 **User-initiated layout shift is CLS-exempt but still visible jank — diff

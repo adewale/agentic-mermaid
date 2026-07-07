@@ -11,10 +11,12 @@ semantic marks, and pluggable backends serialize those marks — crisp (the
 unchanged default), rough.js sketch, and hybrid (pressure ribbons, washes).
 
 **The headline is what users and their agents can construct, not what we
-ship.** The built-in looks (hand-drawn, excalidraw, pen-and-ink, freehand,
-watercolor, blueprint, tufte) are proof and raw material. The product is a
-small set of primitives with one combination rule, from which looks we never
-anticipated can emerge.
+ship.** The built-in looks are proof and raw material: the original sketch
+set (hand-drawn, excalidraw, pen-and-ink, freehand, watercolor, blueprint,
+tufte) plus coverage expanders for accessibility, print, operations,
+physical media, architecture, and editorial/report figures. The product is
+a small set of primitives with one combination rule, from which looks we
+never anticipated can emerge.
 
 ---
 
@@ -136,16 +138,17 @@ floor low, the ceiling high, and the walls wide.
 - **Low floor**: `style: 'hand-drawn'` — one string.
 - **Wide walls**: fragments compose across axes we don't enumerate. A
   palette fragment × a line-character fragment × a typography fragment × a
-  role tweak — we ship seven full looks, but the space users can reach is
+  role tweak — we ship fifteen full looks, but the space users can reach is
   the product of every fragment anyone writes. Nobody designs "corporate
   memo hand-drawn dark"; it emerges from a stack.
 - **High ceiling**: `registerBackend` + the SceneGraph types for the rare
   code-backed capability (a new fill algorithm, a layout-aware dialect).
   Styles stay data; code is the escape hatch, not the path.
-- **Safety rails that make wild combinations viable**: the WCAG contrast
-  audit and text-halo policy hold for *any* stack, so experimentation
-  cannot produce unreadable output silently — the guardrail is what makes
-  handing the crayons over safe.
+- **Safety rails that make wild combinations viable**: the prototype WCAG
+  contrast audit and text-halo policy showed the right contract. Production
+  now has deterministic stacking and built-in looks that route structural
+  ink through the active theme foreground; a full arbitrary-stack WCAG gate
+  remains the missing guardrail.
 - **Reproducible sharing**: determinism means `(source, stack, seed)` is a
   complete, portable description of an image. A gist with a JSON fragment
   IS the artifact. This is the hashtag/spreadsheet property: the unit of
@@ -210,9 +213,11 @@ byte-identical, corpus-gated):
   look; stack styles to combine them — a color-only style is a theme."*
 - Crisp stays the default, stated with receipts (corpus-verified byte
   identity), and styling covers **all 12 diagram types uniformly**.
-- Three promises for any stack: **readable** (halos + WCAG gate),
+- Three promises for the supported path: **readable** built-in stacks
+  (halos, theme-friendly structural ink, and generated evidence),
   **deterministic** (`seed` shuffles ink, never layout — cacheable,
   diffable, golden-testable), **portable** (a JSON fragment + seed
-  reproduces the image anywhere).
+  reproduces the image anywhere). A full WCAG gate for arbitrary user
+  fragments is still a follow-up.
 - The README example is a custom fragment stack, not a built-in name —
   the message *is* the primary value.

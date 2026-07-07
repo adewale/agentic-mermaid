@@ -11,6 +11,7 @@ import type { Point, RenderContext } from '../types.ts'
 import { svgOpenTag, buildStyleBlock } from '../theme.ts'
 import { escapeAttr, renderMultilineText, renderMultilineTextWithBackground, escapeXml } from '../multiline-utils.ts'
 import { measureMultilineText } from '../text-metrics.ts'
+import { applyTextTransform } from '../styles.ts'
 import { topRoundedRectPath } from '../svg-paths.ts'
 import type { MarkerRef, SceneDoc, SceneNode } from '../scene/ir.ts'
 import { hashId } from '../scene/seed.ts'
@@ -216,7 +217,7 @@ function lowerGroup(group: PositionedArchitectureGroup, visual: ArchitectureVisu
     })
   }
 
-  const labelText = transformText(group.label, visual.groupTextTransform)
+  const labelText = applyTextTransform(group.label, visual.groupTextTransform)
   const labelX = group.x + (group.icon ? 36 : visual.groupLabelPaddingX)
   const labelY = group.y + visual.groupHeaderHeight / 2
   children.push({
@@ -298,19 +299,20 @@ function lowerService(service: PositionedArchitectureService, visual: Architectu
   }
 
   const labelY = service.y + service.height / 2
+  const labelText = applyTextTransform(service.label, visual.serviceTextTransform)
   children.push({
     indent: 2,
     node: marks.text({
       id: `service-label:${service.id}`,
       role: 'label',
-      text: service.label,
+      text: labelText,
       x: labelX,
       y: labelY,
       fontSize: visual.serviceFontSize,
       anchor: 'start',
       paint: { fill: 'var(--arch-service-label, var(--_text))' },
     }, renderMultilineText(
-      service.label,
+      labelText,
       labelX,
       labelY,
       visual.serviceFontSize,
@@ -406,7 +408,7 @@ function lowerEdge(edge: PositionedArchitectureEdge, visual: ArchitectureVisualC
 }
 
 function lowerEdgeLabel(edge: PositionedArchitectureEdge, visual: ArchitectureVisualConfig, sceneId: string): SceneNode[] {
-  const label = edge.label!
+  const label = applyTextTransform(edge.label!, visual.edgeTextTransform)
   const mid = edge.labelPosition ?? edgeMidpoint(edge.points)
   const metrics = measureMultilineText(label, visual.edgeFontSize, visual.edgeFontWeight)
   const padding = 7
@@ -606,14 +608,4 @@ function pointToward(from: Point, to: Point, distance: number): Point {
 function letterAttr(value: number): string {
   return value !== 0 ? ` letter-spacing="${value}"` : ''
 }
-
-function transformText(text: string, transform: string | undefined): string {
-  switch (transform) {
-    case 'uppercase': return text.toUpperCase()
-    case 'lowercase': return text.toLowerCase()
-    case 'capitalize': return text.replace(/\b\p{L}/gu, ch => ch.toUpperCase())
-    default: return text
-  }
-}
-
 

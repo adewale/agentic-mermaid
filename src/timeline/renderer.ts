@@ -189,39 +189,39 @@ function timelinePaints(style: ResolvedRenderStyle) {
     title: { fill: style.groupTextColor ?? style.nodeTextColor ?? 'var(--_text)' },
     rail: { stroke: style.edgeStrokeColor ?? 'var(--_line)', strokeWidth: String(style.lineWidth) },
     sectionBg: {
-      fill: `var(--tl-section-bg, ${style.groupFillColor ?? 'color-mix(in srgb, var(--_node-fill) 88%, var(--bg))'})`,
-      stroke: `var(--tl-line, ${style.groupBorderColor ?? 'var(--_node-stroke)'})`,
+      fill: style.groupFillColor ?? 'var(--tl-section-bg, color-mix(in srgb, var(--_node-fill) 88%, var(--bg)))',
+      stroke: style.groupBorderColor ?? 'var(--tl-line, var(--_node-stroke))',
       strokeWidth: String(style.groupLineWidth),
     },
     sectionBand: {
-      fill: `var(--tl-section-band, ${style.groupHeaderFillColor ?? 'color-mix(in srgb, var(--_arrow) 8%, var(--bg))'})`,
-      stroke: `var(--tl-line, ${style.groupBorderColor ?? 'var(--_node-stroke)'})`,
+      fill: style.groupHeaderFillColor ?? 'var(--tl-section-band, color-mix(in srgb, var(--_arrow) 8%, var(--bg)))',
+      stroke: style.groupBorderColor ?? 'var(--tl-line, var(--_node-stroke))',
       strokeWidth: String(style.groupLineWidth),
     },
-    sectionLabel: { fill: `var(--tl-label, ${style.groupTextColor ?? 'var(--_text-sec)'})` },
+    sectionLabel: { fill: style.groupTextColor ?? 'var(--tl-label, var(--_text-sec))' },
     stem: {
-      stroke: `var(--tl-line, ${style.edgeStrokeColor ?? 'color-mix(in srgb, var(--_arrow) 32%, var(--_line))'})`,
+      stroke: style.edgeStrokeColor ?? 'var(--tl-line, color-mix(in srgb, var(--_arrow) 32%, var(--_line)))',
       strokeWidth: String(Math.max(1, style.lineWidth * 0.75)),
       strokeDasharray: '3 4',
     },
     markerRing: {
       fill: 'var(--bg)',
-      stroke: `var(--tl-line, ${style.edgeStrokeColor ?? 'var(--_arrow)'})`,
+      stroke: style.edgeStrokeColor ?? 'var(--tl-line, var(--_arrow))',
       strokeWidth: '1.5',
     },
-    markerCore: { fill: `var(--tl-accent, ${style.edgeStrokeColor ?? 'var(--_arrow)'})` },
+    markerCore: { fill: style.edgeStrokeColor ?? 'var(--tl-accent, var(--_arrow))' },
     pill: {
-      fill: `var(--tl-pill-fill, ${style.nodeFillColor ?? 'color-mix(in srgb, var(--_arrow) 7%, var(--bg))'})`,
-      stroke: `var(--tl-pill-stroke, ${style.nodeBorderColor ?? 'color-mix(in srgb, var(--_arrow) 20%, var(--bg))'})`,
+      fill: style.nodeFillColor ?? 'var(--tl-pill-fill, color-mix(in srgb, var(--_arrow) 7%, var(--bg)))',
+      stroke: style.nodeBorderColor ?? 'var(--tl-pill-stroke, color-mix(in srgb, var(--_arrow) 20%, var(--bg)))',
       strokeWidth: String(style.nodeLineWidth),
     },
-    periodText: { fill: `var(--tl-label, ${style.nodeTextColor ?? 'var(--_text)'})` },
+    periodText: { fill: style.nodeTextColor ?? 'var(--tl-label, var(--_text))' },
     eventCard: {
-      fill: `var(--tl-event-fill, ${style.nodeFillColor ?? 'var(--_node-fill)'})`,
-      stroke: `var(--tl-line, ${style.nodeBorderColor ?? 'var(--_node-stroke)'})`,
+      fill: style.nodeFillColor ?? 'var(--tl-event-fill, var(--_node-fill))',
+      stroke: style.nodeBorderColor ?? 'var(--tl-line, var(--_node-stroke))',
       strokeWidth: String(style.nodeLineWidth),
     },
-    eventText: { fill: `var(--tl-label, ${style.nodeTextColor ?? 'var(--_text-muted)'})` },
+    eventText: { fill: style.nodeTextColor ?? 'var(--tl-label, var(--_text-muted))' },
   }
 }
 
@@ -231,16 +231,16 @@ function timelineStyles(style: ResolvedRenderStyle): string {
   return `<style>
   .timeline-title { fill: ${style.groupTextColor ?? style.nodeTextColor ?? 'var(--_text)'}; }
   .timeline-rail { stroke: ${style.edgeStrokeColor ?? 'var(--_line)'}; stroke-width: ${style.lineWidth}; stroke-linecap: round; }
-  .timeline-section-bg { fill: var(--tl-section-bg, ${style.groupFillColor ?? 'color-mix(in srgb, var(--_node-fill) 88%, var(--bg))'}); stroke: var(--tl-line, ${style.groupBorderColor ?? 'var(--_node-stroke)'}); stroke-width: ${style.groupLineWidth}; }
-  .timeline-section-band { fill: var(--tl-section-band, ${style.groupHeaderFillColor ?? 'color-mix(in srgb, var(--_arrow) 8%, var(--bg))'}); stroke: var(--tl-line, ${style.groupBorderColor ?? 'var(--_node-stroke)'}); stroke-width: ${style.groupLineWidth}; }
-  .timeline-section-label { fill: var(--tl-label, ${style.groupTextColor ?? 'var(--_text-sec)'}); }
-  .timeline-stem { stroke: var(--tl-line, ${style.edgeStrokeColor ?? 'color-mix(in srgb, var(--_arrow) 32%, var(--_line))'}); stroke-width: ${Math.max(1, style.lineWidth * 0.75)}; stroke-dasharray: 3 4; }
-  .timeline-marker-ring { fill: var(--bg); stroke: var(--tl-line, ${style.edgeStrokeColor ?? 'var(--_arrow)'}); stroke-width: 1.5; }
-  .timeline-marker-core { fill: var(--tl-accent, ${style.edgeStrokeColor ?? 'var(--_arrow)'}); }
-  .timeline-period-pill { fill: var(--tl-pill-fill, ${style.nodeFillColor ?? 'color-mix(in srgb, var(--_arrow) 7%, var(--bg))'}); stroke: var(--tl-pill-stroke, ${style.nodeBorderColor ?? 'color-mix(in srgb, var(--_arrow) 20%, var(--bg))'}); stroke-width: ${style.nodeLineWidth}; }
-  .timeline-period-text { fill: var(--tl-label, ${style.nodeTextColor ?? 'var(--_text)'}); }
-  .timeline-event-card { fill: var(--tl-event-fill, ${style.nodeFillColor ?? 'var(--_node-fill)'}); stroke: var(--tl-line, ${style.nodeBorderColor ?? 'var(--_node-stroke)'}); stroke-width: ${style.nodeLineWidth}; }
-  .timeline-event-text { fill: var(--tl-label, ${style.nodeTextColor ?? 'var(--_text-muted)'}); }
+  .timeline-section-bg { fill: ${style.groupFillColor ?? 'var(--tl-section-bg, color-mix(in srgb, var(--_node-fill) 88%, var(--bg)))'}; stroke: ${style.groupBorderColor ?? 'var(--tl-line, var(--_node-stroke))'}; stroke-width: ${style.groupLineWidth}; }
+  .timeline-section-band { fill: ${style.groupHeaderFillColor ?? 'var(--tl-section-band, color-mix(in srgb, var(--_arrow) 8%, var(--bg)))'}; stroke: ${style.groupBorderColor ?? 'var(--tl-line, var(--_node-stroke))'}; stroke-width: ${style.groupLineWidth}; }
+  .timeline-section-label { fill: ${style.groupTextColor ?? 'var(--tl-label, var(--_text-sec))'}; }
+  .timeline-stem { stroke: ${style.edgeStrokeColor ?? 'var(--tl-line, color-mix(in srgb, var(--_arrow) 32%, var(--_line)))'}; stroke-width: ${Math.max(1, style.lineWidth * 0.75)}; stroke-dasharray: 3 4; }
+  .timeline-marker-ring { fill: var(--bg); stroke: ${style.edgeStrokeColor ?? 'var(--tl-line, var(--_arrow))'}; stroke-width: 1.5; }
+  .timeline-marker-core { fill: ${style.edgeStrokeColor ?? 'var(--tl-accent, var(--_arrow))'}; }
+  .timeline-period-pill { fill: ${style.nodeFillColor ?? 'var(--tl-pill-fill, color-mix(in srgb, var(--_arrow) 7%, var(--bg)))'}; stroke: ${style.nodeBorderColor ?? 'var(--tl-pill-stroke, color-mix(in srgb, var(--_arrow) 20%, var(--bg)))'}; stroke-width: ${style.nodeLineWidth}; }
+  .timeline-period-text { fill: ${style.nodeTextColor ?? 'var(--tl-label, var(--_text))'}; }
+  .timeline-event-card { fill: ${style.nodeFillColor ?? 'var(--tl-event-fill, var(--_node-fill))'}; stroke: ${style.nodeBorderColor ?? 'var(--tl-line, var(--_node-stroke))'}; stroke-width: ${style.nodeLineWidth}; }
+  .timeline-event-text { fill: ${style.nodeTextColor ?? 'var(--tl-label, var(--_text-muted))'}; }
 </style>`
 }
 
@@ -535,5 +535,4 @@ function readTimelineScale(
   const value = themeVariables[`${prefix}${index}`]
   return typeof value === 'string' && value.length > 0 ? value : undefined
 }
-
 

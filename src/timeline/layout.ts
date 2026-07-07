@@ -7,7 +7,7 @@ import type {
 } from './types.ts'
 import type { RenderOptions } from '../types.ts'
 import { measureMultilineText, measureTextWidth } from '../text-metrics.ts'
-import { STROKE_WIDTHS, resolveRenderStyle } from '../styles.ts'
+import { STROKE_WIDTHS, applyTextTransform, resolveRenderStyle } from '../styles.ts'
 import type { RenderStyleDefaults } from '../styles.ts'
 import { stripFormattingTags } from '../multiline-utils.ts'
 
@@ -106,7 +106,7 @@ export function layoutTimelineDiagram(
   const sectionHeaderHeight = hasNamedSections ? Math.max(TL.sectionHeaderHeight, style.groupHeaderFontSize + style.groupPaddingY) : 0
   const sectionPadX = showSectionFrames ? style.groupPaddingX : 0
   const titleText = diagram.title
-    ? wrapTimelineText(diagram.title, TL.titleWrapWidth, TL.titleFontSize, TL.titleFontWeight)
+    ? wrapTimelineText(applyTextTransform(diagram.title, style.groupTextTransform), TL.titleWrapWidth, TL.titleFontSize, TL.titleFontWeight)
     : undefined
 
   const titleMetrics = titleText
@@ -115,16 +115,16 @@ export function layoutTimelineDiagram(
 
   const metrics: SectionMetric[] = diagram.sections.map(section => {
     const wrappedSectionLabel = section.label
-      ? wrapTimelineText(section.label, TL.sectionWrapWidth, style.groupHeaderFontSize, style.groupHeaderFontWeight)
+      ? wrapTimelineText(applyTextTransform(section.label, style.groupTextTransform), TL.sectionWrapWidth, style.groupHeaderFontSize, style.groupHeaderFontWeight)
       : undefined
     const periodMetrics: PeriodMetric[] = section.periods.map(period => {
-      const wrappedPeriodLabel = wrapTimelineText(period.label, TL.pillWrapWidth, style.edgeLabelFontSize, style.edgeLabelFontWeight)
+      const wrappedPeriodLabel = wrapTimelineText(applyTextTransform(period.label, style.edgeTextTransform), TL.pillWrapWidth, style.edgeLabelFontSize, style.edgeLabelFontWeight)
       const pillText = measureMultilineText(wrappedPeriodLabel, style.edgeLabelFontSize, style.edgeLabelFontWeight)
       const pillWidth = Math.max(TL.pillMinWidth, pillText.width + style.nodePaddingX * 2)
       const pillHeight = pillText.height + style.nodePaddingY * 2
 
       const eventMetrics = period.events.map(event => {
-        const wrappedEventText = wrapTimelineText(event.text, TL.eventWrapWidth, style.nodeLabelFontSize, style.nodeLabelFontWeight)
+        const wrappedEventText = wrapTimelineText(applyTextTransform(event.text, style.nodeTextTransform), TL.eventWrapWidth, style.nodeLabelFontSize, style.nodeLabelFontWeight)
         const text = measureMultilineText(wrappedEventText, style.nodeLabelFontSize, style.nodeLabelFontWeight)
         return {
           text: wrappedEventText,

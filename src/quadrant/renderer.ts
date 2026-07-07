@@ -4,7 +4,7 @@ import type { DiagramColors } from '../theme.ts'
 import { svgOpenTag, buildStyleBlock, buildShadowDefs } from '../theme.ts'
 import { renderMultilineText, escapeXml } from '../multiline-utils.ts'
 import { QUADRANT_METRICS } from './layout.ts'
-import { STROKE_WIDTHS, resolveRenderStyle } from '../styles.ts'
+import { STROKE_WIDTHS, applyTextTransform, resolveRenderStyle } from '../styles.ts'
 import type { RenderStyleDefaults, ResolvedRenderStyle } from '../styles.ts'
 import type { SceneDoc, SceneNode } from '../scene/ir.ts'
 import * as marks from '../scene/marks.ts'
@@ -166,11 +166,12 @@ export function lowerQuadrantScene(
   // Quadrant labels.
   for (const region of chart.regions) {
     if (!region.label) continue
+    const label = applyTextTransform(region.label, style.groupTextTransform)
     parts.push(marks.text(
       {
         id: `quadrant-label:${region.number}`,
         role: 'label',
-        text: region.label,
+        text: label,
         x: region.labelX,
         y: region.labelY,
         fontSize: style.groupHeaderFontSize,
@@ -179,7 +180,7 @@ export function lowerQuadrantScene(
         channels: { category: region.label },
       },
       renderMultilineText(
-        region.label,
+        label,
         region.labelX,
         region.labelY,
         style.groupHeaderFontSize,
@@ -229,6 +230,7 @@ export function lowerQuadrantScene(
 
   // Axis labels.
   for (const axis of chart.axisLabels) {
+    const label = applyTextTransform(axis.text, style.edgeTextTransform)
     // y-axis labels sit in the left gutter and are rotated upright.
     const isYAxis = axis.x < plot.x
     const transform = isYAxis ? ` transform="rotate(-90 ${axis.x} ${axis.y})"` : ''
@@ -236,7 +238,7 @@ export function lowerQuadrantScene(
       {
         id: `axis:${axis.text}`,
         role: 'axis',
-        text: axis.text,
+        text: label,
         x: axis.x,
         y: axis.y,
         fontSize: style.edgeLabelFontSize,
@@ -245,17 +247,18 @@ export function lowerQuadrantScene(
       },
       `<text class="quadrant-axis-label" x="${axis.x}" y="${axis.y}" ` +
         `text-anchor="${axis.anchor}" font-size="${style.edgeLabelFontSize}" font-weight="${style.edgeLabelFontWeight}"${letterAttr(style.edgeLetterSpacing)}${transform}>` +
-        `${escapeXml(axis.text)}</text>`,
+        `${escapeXml(label)}</text>`,
     ))
   }
 
   // Title.
   if (chart.title) {
+    const title = applyTextTransform(chart.title.text, style.groupTextTransform)
     parts.push(marks.text(
       {
         id: 'title',
         role: 'title',
-        text: chart.title.text,
+        text: title,
         x: chart.title.x,
         y: chart.title.y,
         fontSize: QUADRANT_METRICS.titleFontSize,
@@ -263,7 +266,7 @@ export function lowerQuadrantScene(
         paint: { fill: style.groupTextColor ?? style.nodeTextColor ?? 'var(--_text)' },
       },
       renderMultilineText(
-        chart.title.text,
+        title,
         chart.title.x,
         chart.title.y,
         QUADRANT_METRICS.titleFontSize,

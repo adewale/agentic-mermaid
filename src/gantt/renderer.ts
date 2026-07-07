@@ -27,39 +27,19 @@
 // ============================================================================
 
 import type { GanttLayoutResult } from './types.ts'
+import { ganttAxisLabelOffset, ganttMeasureTextWidth, ganttTitleFontSize, ganttTitleY, resolveGanttRenderStyle } from './layout.ts'
 import type { RenderContext } from '../types.ts'
 import { svgOpenTag, buildStyleBlock } from '../theme.ts'
 import { escapeXml } from '../multiline-utils.ts'
-import { estimateTextWidth, STROKE_WIDTHS, resolveRenderStyle } from '../styles.ts'
-import type { RenderStyleDefaults, ResolvedRenderStyle } from '../styles.ts'
+import { applyTextTransform } from '../styles.ts'
+import type { ResolvedRenderStyle } from '../styles.ts'
 import type { MarkPaint, SceneDoc, SceneNode, SemanticChannels } from '../scene/ir.ts'
 import * as marks from '../scene/marks.ts'
 import { DefaultBackend } from '../scene/backend.ts'
 
 const GS = {
-  titleFontSize: 17,
-  sectionFontSize: 13,
-  labelFontSize: 13,
-  axisFontSize: 11,
   barRadius: 3,
 } as const
-
-const GANTT_STYLE_DEFAULTS: RenderStyleDefaults = {
-  nodeLabelFontSize: GS.labelFontSize,
-  edgeLabelFontSize: GS.axisFontSize,
-  groupHeaderFontSize: GS.sectionFontSize,
-  nodeLabelFontWeight: 500,
-  edgeLabelFontWeight: 500,
-  groupHeaderFontWeight: 600,
-  nodePaddingX: 0,
-  nodePaddingY: 0,
-  nodeLineWidth: STROKE_WIDTHS.innerBox,
-  edgeLineWidth: STROKE_WIDTHS.connector,
-  groupCornerRadius: 0,
-  groupPaddingX: 0,
-  groupPaddingY: 0,
-  groupLineWidth: STROKE_WIDTHS.outerBox,
-}
 
 /** Resolved paint tokens shared by the CSS block and the scene-mark paints,
  *  so styled backends see exactly the colors the crisp classes apply. */
@@ -211,7 +191,7 @@ export function lowerGanttScene(
   const { positioned: layout, colors, options } = ctx
   const font = colors.font ?? 'Inter'
   const transparent = options.transparent ?? false
-  const style = resolveRenderStyle(options, GANTT_STYLE_DEFAULTS)
+  const style = resolveGanttRenderStyle(options)
   const palette = ganttPalette(style)
   const parts: SceneNode[] = []
 
@@ -269,10 +249,13 @@ export function lowerGanttScene(
   }
 
   // Axis labels: bottom always; top additionally under `topAxis`.
+  const axisOffset = ganttAxisLabelOffset(style)
+  const bottomAxisOffset = axisOffset === 10 && style.edgeLabelFontSize === 11 ? 12 : Math.max(12, axisOffset)
   for (const tick of layout.ticks) {
-    parts.push(textMark(`axis:${tick.time}:bottom`, 'axis', tick.x, plotBottom + 12, tick.label, 'gantt-axis-label', style.edgeLabelFontSize, style.edgeLabelFontWeight, palette.axisText, 'middle', style.edgeLetterSpacing))
+    const label = applyTextTransform(tick.label, style.edgeTextTransform)
+    parts.push(textMark(`axis:${tick.time}:bottom`, 'axis', tick.x, plotBottom + bottomAxisOffset, label, 'gantt-axis-label', style.edgeLabelFontSize, style.edgeLabelFontWeight, palette.axisText, 'middle', style.edgeLetterSpacing))
     if (layout.topAxis) {
-      parts.push(textMark(`axis:${tick.time}:top`, 'axis', tick.x, plot.y - 10, tick.label, 'gantt-axis-label', style.edgeLabelFontSize, style.edgeLabelFontWeight, palette.axisText, 'middle', style.edgeLetterSpacing))
+      parts.push(textMark(`axis:${tick.time}:top`, 'axis', tick.x, plot.y - axisOffset, label, 'gantt-axis-label', style.edgeLabelFontSize, style.edgeLabelFontWeight, palette.axisText, 'middle', style.edgeLetterSpacing))
     }
   }
 
@@ -280,9 +263,10 @@ export function lowerGanttScene(
   const sectionLabelOccurrence = new Map<string, number>()
   for (const s of layout.sections) {
     if (s.label !== undefined) {
+      const label = applyTextTransform(s.label, style.groupTextTransform)
       const k = sectionLabelOccurrence.get(s.label) ?? 0
       sectionLabelOccurrence.set(s.label, k + 1)
-      parts.push(textMark(`section-label:${s.label}#${k}`, 'section', 8, s.y + layout.barHeight / 2 + 4, s.label, 'gantt-section-label', style.groupHeaderFontSize, style.groupHeaderFontWeight, palette.groupText, 'start', style.groupLetterSpacing, { category: s.label }))
+      parts.push(textMark(`section-label:${s.label}#${k}`, 'section', 8, s.y + layout.barHeight / 2 + 4, label, 'gantt-section-label', style.groupHeaderFontSize, style.groupHeaderFontWeight, palette.groupText, 'start', style.groupLetterSpacing, { category: s.label }))
     }
   }
   // Compact mode packs several tasks into one lane, so the fixed left-column
@@ -299,7 +283,8 @@ export function lowerGanttScene(
   }
   if (!layout.compact) {
     for (const bar of layout.bars) {
-      parts.push(textMark(taskLabelId(bar.id ?? bar.label), 'label', 16, bar.y + bar.h / 2, bar.label, 'gantt-task-label', style.nodeLabelFontSize, style.nodeLabelFontWeight, palette.taskText, 'start', style.nodeLetterSpacing))
+      const label = applyTextTransform(bar.label, style.nodeTextTransform)
+      parts.push(textMark(taskLabelId(bar.id ?? bar.label), 'label', 16, bar.y + bar.h / 2, label, 'gantt-task-label', style.nodeLabelFontSize, style.nodeLabelFontWeight, palette.taskText, 'start', style.nodeLetterSpacing))
     }
   } else {
     const byRow = new Map<number, typeof layout.bars>()
@@ -311,18 +296,19 @@ export function lowerGanttScene(
     for (const row of byRow.values()) {
       row.sort((a, b) => a.x - b.x)
       row.forEach((bar, i) => {
-        const w = estimateTextWidth(bar.label, style.nodeLabelFontSize, style.nodeLabelFontWeight)
+        const label = applyTextTransform(bar.label, style.nodeTextTransform)
+        const w = ganttMeasureTextWidth(label, style.nodeLabelFontSize, style.nodeLabelFontWeight, style.nodeLetterSpacing)
         const cy = bar.y + bar.h / 2
         const leftLimit = i > 0 ? row[i - 1]!.x + row[i - 1]!.w + 4 : 2
         const rightLimit = i + 1 < row.length ? row[i + 1]!.x - 4 : layout.width - 2
         if (bar.x - 6 - w >= leftLimit) {
-          parts.push(textMark(taskLabelId(bar.id ?? bar.label), 'label', bar.x - 6, cy, bar.label, 'gantt-task-label', style.nodeLabelFontSize, style.nodeLabelFontWeight, palette.taskText, 'end', style.nodeLetterSpacing))
+          parts.push(textMark(taskLabelId(bar.id ?? bar.label), 'label', bar.x - 6, cy, label, 'gantt-task-label', style.nodeLabelFontSize, style.nodeLabelFontWeight, palette.taskText, 'end', style.nodeLetterSpacing))
         } else if (bar.x + bar.w + 6 + w <= rightLimit) {
-          parts.push(textMark(taskLabelId(bar.id ?? bar.label), 'label', bar.x + bar.w + 6, cy, bar.label, 'gantt-task-label', style.nodeLabelFontSize, style.nodeLabelFontWeight, palette.taskText, 'start', style.nodeLetterSpacing))
+          parts.push(textMark(taskLabelId(bar.id ?? bar.label), 'label', bar.x + bar.w + 6, cy, label, 'gantt-task-label', style.nodeLabelFontSize, style.nodeLabelFontWeight, palette.taskText, 'start', style.nodeLetterSpacing))
         } else {
           // No clear slot beside the bar — keep the legacy column (surfaced by
           // eval/overlap-audit rather than hidden).
-          parts.push(textMark(taskLabelId(bar.id ?? bar.label), 'label', 16, cy, bar.label, 'gantt-task-label', style.nodeLabelFontSize, style.nodeLabelFontWeight, palette.taskText, 'start', style.nodeLetterSpacing))
+          parts.push(textMark(taskLabelId(bar.id ?? bar.label), 'label', 16, cy, label, 'gantt-task-label', style.nodeLabelFontSize, style.nodeLabelFontWeight, palette.taskText, 'start', style.nodeLetterSpacing))
         }
       })
     }
@@ -396,7 +382,11 @@ export function lowerGanttScene(
       geometry: { kind: 'line', x1: r(v.x), y1: r(plot.y), x2: r(v.x), y2: r(plotBottom) },
       paint: vertPaint,
     }, `<line class="gantt-vert-marker" x1="${r(v.x)}" y1="${r(plot.y)}" x2="${r(v.x)}" y2="${r(plotBottom)}" />`))
-    parts.push(textMark(`vert-label:${v.label}#${k}`, 'axis', v.x, plot.y - (layout.topAxis ? 24 : 8), v.label, 'gantt-axis-label', style.edgeLabelFontSize, Math.max(style.edgeLabelFontWeight, 600), palette.axisText, 'middle', style.edgeLetterSpacing))
+    const label = applyTextTransform(v.label, style.edgeTextTransform)
+    const vertOffset = layout.topAxis
+      ? Math.max(24, axisOffset + style.edgeLabelFontSize * 1.25)
+      : (axisOffset === 10 && style.edgeLabelFontSize === 11 ? 8 : axisOffset)
+    parts.push(textMark(`vert-label:${v.label}#${k}`, 'axis', v.x, plot.y - vertOffset, label, 'gantt-axis-label', style.edgeLabelFontSize, Math.max(style.edgeLabelFontWeight, 600), palette.axisText, 'middle', style.edgeLetterSpacing))
   }
 
   // Today marker — only with a supplied clock.
@@ -414,7 +404,8 @@ export function lowerGanttScene(
   }
 
   if (layout.title) {
-    parts.push(textMark('title', 'title', layout.width / 2, 18, layout.title, 'gantt-title', GS.titleFontSize, Math.max(style.groupHeaderFontWeight, 600), palette.titleFill, 'middle', style.groupLetterSpacing))
+    const title = applyTextTransform(layout.title, style.groupTextTransform)
+    parts.push(textMark('title', 'title', layout.width / 2, ganttTitleY(style), title, 'gantt-title', ganttTitleFontSize(style), Math.max(style.groupHeaderFontWeight, 600), palette.titleFill, 'middle', style.groupLetterSpacing))
   }
 
   parts.push(marks.raw({ id: 'svg-close', role: 'chrome' }, '</svg>'))

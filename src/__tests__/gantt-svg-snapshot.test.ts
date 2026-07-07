@@ -117,6 +117,21 @@ describe('renderMermaidSVG — gantt', () => {
     expect(plotBottom).toBeGreaterThan(60)
   })
 
+  it('applies edge text transforms to axis and vert marker labels', () => {
+    const svg = renderMermaidSVG(`gantt
+      dateFormat YYYY-MM-DD
+      axisFormat %b
+      topAxis
+      A :a, 2024-01-01, 40d
+      cut over :vert, v, 2024-01-15, 0d
+    `, {
+      style: { edge: { textTransform: 'uppercase' } },
+    })
+
+    expect(svg).toContain('>JAN</text>')
+    expect(svg).toContain('>CUT OVER</text>')
+  })
+
   it('compact frontmatter packs rows (shorter SVG than standard)', () => {
     const body = 'gantt\n  dateFormat YYYY-MM-DD\n  section S\n    One :a, 2024-01-01, 5d\n    Two :b, 2024-01-03, 6d\n    Three :c, 2024-01-08, 4d'
     const compact = renderMermaidSVG(`---\ndisplayMode: compact\n---\n${body}`)

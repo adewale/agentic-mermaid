@@ -120,6 +120,8 @@ export interface RenderStyleDefaults {
   nodeLabelFontWeight: number
   edgeLabelFontWeight: number
   groupHeaderFontWeight: number
+  nodeTextTransform?: TextTransform
+  edgeTextTransform?: TextTransform
   nodeLetterSpacing?: number
   edgeLetterSpacing?: number
   groupLetterSpacing?: number
@@ -155,6 +157,8 @@ export interface ResolvedRenderStyle {
   nodeLabelFontWeight: number
   edgeLabelFontWeight: number
   groupHeaderFontWeight: number
+  nodeTextTransform?: TextTransform
+  edgeTextTransform?: TextTransform
   nodeLetterSpacing: number
   edgeLetterSpacing: number
   groupLetterSpacing: number
@@ -240,6 +244,26 @@ function textTransform(...values: Array<string | undefined>): TextTransform | un
   return undefined
 }
 
+const INLINE_FORMAT_TAG = /(<\/?(?:b|strong|i|em|u|s|del)\s*>)/gi
+
+export function applyTextTransform(text: string, transform: TextTransform | undefined): string {
+  if (!transform) return text
+  const transformPlain = (chunk: string): string => {
+    switch (transform) {
+      case 'uppercase':
+        return chunk.toUpperCase()
+      case 'lowercase':
+        return chunk.toLowerCase()
+      case 'capitalize':
+        return chunk.replace(/\b\p{L}/gu, ch => ch.toUpperCase())
+    }
+  }
+  return text
+    .split(INLINE_FORMAT_TAG)
+    .map(part => /^<\/?(?:b|strong|i|em|u|s|del)\s*>$/i.test(part) ? part : transformPlain(part))
+    .join('')
+}
+
 export function resolveRenderStyle(
   options: RenderStyleOptions = {},
   defaults: RenderStyleDefaults = FLOWCHART_STYLE_DEFAULTS,
@@ -261,6 +285,8 @@ export function resolveRenderStyle(
     nodeLabelFontWeight: positiveNumber(defaults.nodeLabelFontWeight, node?.fontWeight, text?.fontWeight),
     edgeLabelFontWeight: positiveNumber(defaults.edgeLabelFontWeight, edge?.fontWeight, text?.fontWeight),
     groupHeaderFontWeight: positiveNumber(defaults.groupHeaderFontWeight, group?.fontWeight, text?.fontWeight),
+    nodeTextTransform: textTransform(node?.textTransform, text?.textTransform, defaults.nodeTextTransform),
+    edgeTextTransform: textTransform(edge?.textTransform, text?.textTransform, defaults.edgeTextTransform),
     nodeLetterSpacing: finiteNumber(node?.letterSpacing) ?? finiteNumber(text?.letterSpacing) ?? defaults.nodeLetterSpacing ?? 0,
     edgeLetterSpacing: finiteNumber(edge?.letterSpacing) ?? finiteNumber(text?.letterSpacing) ?? defaults.edgeLetterSpacing ?? 0,
     groupLetterSpacing: finiteNumber(group?.letterSpacing) ?? finiteNumber(text?.letterSpacing) ?? defaults.groupLetterSpacing ?? 0,
@@ -277,7 +303,7 @@ export function resolveRenderStyle(
     edgeStrokeColor: finiteString(edge?.strokeColor, defaults.edgeStrokeColor),
     edgeTextColor: finiteString(edge?.textColor, text?.textColor, defaults.edgeTextColor),
     groupFont: finiteString(group?.fontFamily, defaults.groupFont),
-    groupTextTransform: textTransform(group?.textTransform, defaults.groupTextTransform),
+    groupTextTransform: textTransform(group?.textTransform, text?.textTransform, defaults.groupTextTransform),
     groupCornerRadius: nonNegativeNumber(defaults.groupCornerRadius, group?.cornerRadius),
     groupBorderColor: finiteString(group?.borderColor, defaults.groupBorderColor),
     groupFillColor: finiteString(group?.fillColor, defaults.groupFillColor),

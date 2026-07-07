@@ -109,6 +109,12 @@ function firstSubgraphRect(svg: string, id = 'backend') {
   }
 }
 
+function visibleText(svg: string): string[] {
+  return [...svg.matchAll(/<text[^>]*>(.*?)<\/text>/gs)]
+    .map(match => match[1]!.replace(/<[^>]+>/g, ''))
+    .filter(Boolean)
+}
+
 describe('RenderOptions semantic style roles', () => {
   it('applies typography, node geometry, and edge stroke knobs through the public SVG API', () => {
     const source = 'graph TD\n  A[Configurable Node] -->|route| B[End]'
@@ -308,6 +314,47 @@ describe('RenderOptions semantic style roles', () => {
     expect(styled).toContain('font-size="18" font-weight="700"')
     expect(styled).toContain('font-family="Geist Mono"')
     expect(styled).toContain('>BACKEND</text>')
+  })
+
+  it('applies node and edge label transforms while preserving authored data labels', () => {
+    const source = 'graph TD\n  A[alpha node] -->|next hop| B[beta node]'
+    const styled = renderMermaidSVG(source, {
+      style: {
+        node: { textTransform: 'uppercase' },
+        edge: { textTransform: 'uppercase' },
+      },
+    })
+
+    expect(styled).toContain('>ALPHA NODE</text>')
+    expect(styled).toContain('>BETA NODE</text>')
+    expect(styled).toContain('>NEXT HOP</text>')
+    expect(styled).toContain('data-label="alpha node"')
+    expect(styled).toContain('data-label="next hop"')
+  })
+
+  it('applies shared text transforms across visible labels in every SVG diagram family', () => {
+    const style = { text: { textTransform: 'uppercase' as const } }
+    const cases = [
+      ['flowchart', 'flowchart TD\n  a[alpha node] -->|next hop| b[beta node]\n  subgraph zone [backend zone]\n    a\n  end', ['BACKEND ZONE', 'ALPHA NODE', 'NEXT HOP']],
+      ['state', 'stateDiagram-v2\n  [*] --> draft\n  draft --> review : submit form', ['DRAFT', 'REVIEW', 'SUBMIT FORM']],
+      ['sequence', 'sequenceDiagram\n  participant alice as first actor\n  participant bob as second actor\n  alice->>bob: request data\n  note over bob: cached note', ['FIRST ACTOR', 'REQUEST DATA', 'CACHED NOTE']],
+      ['timeline', 'timeline\n  title release plan\n  section release lane\n  2026 : alpha event', ['RELEASE PLAN', 'RELEASE LANE', 'ALPHA EVENT']],
+      ['class', 'classDiagram\n  class account\n  class ledger\n  account --> ledger : posts entry', ['ACCOUNT', 'LEDGER', 'POSTS ENTRY']],
+      ['er', 'erDiagram\n  customer ||--o{ order : places order', ['CUSTOMER', 'ORDER', 'PLACES ORDER']],
+      ['journey', 'journey\n  title checkout path\n  section browse shop\n    find item: 4: shopper role', ['CHECKOUT PATH', 'BROWSE SHOP', 'FIND ITEM', 'SHOPPER ROLE']],
+      ['architecture', 'architecture-beta\n  group backend(cloud)[backend group]\n  service api(server)[api service] in backend\n  service db(database)[data store] in backend\n  api:R -[read call]-> L:db', ['BACKEND GROUP', 'API SERVICE', 'READ CALL']],
+      ['xychart', 'xychart-beta\n  title sales report\n  x-axis [jan, feb]\n  y-axis "total units" 0 --> 10\n  line [3, 7]', ['SALES REPORT', 'JAN', 'TOTAL UNITS']],
+      ['pie', 'pie title plan mix\n  "free tier" : 6\n  "pro tier" : 4', ['PLAN MIX', 'FREE TIER (60.0%)', 'PRO TIER (40.0%)']],
+      ['quadrant', 'quadrantChart\n  title priority map\n  x-axis low effort --> high effort\n  y-axis low value --> high value\n  quadrant-1 quick wins\n  quadrant-2 big bets\n  quadrant-3 chores\n  quadrant-4 traps\n  test point: [0.7, 0.8]', ['PRIORITY MAP', 'QUICK WINS', 'TEST POINT']],
+      ['gantt', 'gantt\n  dateFormat YYYY-MM-DD\n  title project plan\n  section build lane\n    write spec :spec, 2026-01-01, 2d', ['PROJECT PLAN', 'BUILD LANE', 'WRITE SPEC']],
+    ] as const
+
+    for (const [name, source, expectations] of cases) {
+      const texts = visibleText(renderMermaidSVG(source, { embedFontImport: false, style }))
+      for (const expected of expectations) {
+        expect(texts, `${name} visible text should include ${expected}`).toContain(expected)
+      }
+    }
   })
 
   it('applies semantic style roles across SVG diagram families', () => {

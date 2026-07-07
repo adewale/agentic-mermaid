@@ -1,4 +1,4 @@
-import { estimateTextWidth } from '../styles.ts'
+import { applyTextTransform, estimateTextWidth } from '../styles.ts'
 import type { Point, RenderOptions } from '../types.ts'
 import type { ArchitectureLayoutMetrics } from './config.ts'
 import { layoutGraphSync } from '../layout-engine.ts'
@@ -60,6 +60,7 @@ export function layoutArchitectureDiagram(
         fontSize: metrics.serviceFontSize,
         fontWeight: metrics.serviceFontWeight,
         letterSpacing: metrics.serviceLetterSpacing,
+        textTransform: metrics.serviceTextTransform,
         paddingX: metrics.servicePaddingX,
         paddingY: metrics.servicePaddingY,
         cornerRadius: metrics.serviceCornerRadius,
@@ -69,6 +70,7 @@ export function layoutArchitectureDiagram(
         fontSize: metrics.edgeFontSize,
         fontWeight: metrics.edgeFontWeight,
         letterSpacing: metrics.edgeLetterSpacing,
+        textTransform: metrics.edgeTextTransform,
         lineWidth: metrics.edgeLineWidth,
         bendRadius: metrics.edgeBendRadius,
       },
@@ -124,7 +126,7 @@ export function layoutArchitectureDiagram(
   const edges = diagram.edges.map((edge) =>
     routeArchitectureEdge(edge, servicesById, serviceBounds, junctionBounds, flatGroups)
   )
-  separateEdgeLabels(edges, services)
+  separateEdgeLabels(edges, services, metrics)
 
   let width = positioned.width
   let height = positioned.height
@@ -251,11 +253,18 @@ function routeArchitectureEdge(
  * label box and every service box; leave it when nothing clears (surfaced by
  * eval/overlap-audit rather than hidden).
  */
-function separateEdgeLabels(edges: PositionedArchitectureEdge[], services: PositionedArchitectureService[]): void {
+function separateEdgeLabels(
+  edges: PositionedArchitectureEdge[],
+  services: PositionedArchitectureService[],
+  metrics?: ArchitectureLayoutMetrics,
+): void {
   interface Box { x0: number; y0: number; x1: number; y1: number }
-  const FS = 11, PAD = 6
+  const FS = metrics?.edgeFontSize ?? 11
+  const FW = metrics?.edgeFontWeight ?? 400
+  const PAD = 6
   const boxAt = (label: string, cx: number, cy: number): Box => {
-    const w = estimateTextWidth(label, FS, 400) + PAD * 2
+    const visible = applyTextTransform(label, metrics?.edgeTextTransform)
+    const w = estimateTextWidth(visible, FS, FW) + PAD * 2
     const h = FS + PAD * 2
     return { x0: cx - w / 2, y0: cy - h / 2, x1: cx + w / 2, y1: cy + h / 2 }
   }

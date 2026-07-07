@@ -354,3 +354,128 @@ registerStyle({
   group: { lineWidth: 0.8 },
   mono: true,
 })
+
+registerStyle({
+  name: 'accessible-high-contrast',
+  blurb: 'Accessibility-first: large labels, heavy strokes, white ground, colorblind-safe blue accent.',
+  intent: 'premium',
+  colors: { bg: '#ffffff', fg: '#050505', line: '#111111', accent: '#005fcc', muted: '#333333', surface: '#ffffff', border: '#050505' },
+  node: { fontSize: 17, fontWeight: 700, textColor: 'var(--fg)', paddingX: 28, paddingY: 16, cornerRadius: 8, lineWidth: 2.4, borderColor: 'var(--fg)' },
+  edge: { fontSize: 14, fontWeight: 700, textColor: 'var(--fg)', lineWidth: 2.6, bendRadius: 10, strokeColor: 'var(--fg)' },
+  group: { fontSize: 14, fontWeight: 700, textColor: 'var(--fg)', paddingX: 24, paddingY: 22, cornerRadius: 8, lineWidth: 2.2, borderColor: 'var(--fg)' },
+})
+
+registerStyle({
+  name: 'patent-drawing',
+  blurb: 'Print-safe patent figure: uniform ink, strong outlines, tone via oblique hatching.',
+  intent: 'premium',
+  colors: { bg: '#ffffff', fg: '#111111', line: '#111111', accent: '#111111', muted: '#444444', surface: '#ffffff', border: '#111111' },
+  font: 'EB Garamond',
+  stroke: 'jittered',
+  roughness: 0.3,
+  bowing: 0.2,
+  passes: 1,
+  strokeWidth: 1.35,
+  fill: 'hachure',
+  hachureAngle: -50,
+  hachureGap: 7,
+  fillWeight: 0.65,
+  node: { fontSize: 14, fontWeight: 600, textColor: 'var(--fg)', paddingX: 24, paddingY: 13, lineWidth: 1.35, cornerRadius: 0, borderColor: 'var(--fg)' },
+  edge: { fontSize: 12, textColor: 'var(--fg)', lineWidth: 1.45, bendRadius: 0, strokeColor: 'var(--fg)' },
+  group: { fontSize: 12, fontWeight: 700, textColor: 'var(--fg)', paddingX: 22, paddingY: 18, lineWidth: 1.35, cornerRadius: 0, borderColor: 'var(--fg)' },
+  mono: true,
+})
+
+registerStyle({
+  name: 'status-dashboard',
+  blurb: 'Operational dashboard: dark surface, rounded modules, bright status-friendly accent.',
+  intent: 'premium',
+  colors: { bg: '#08111f', fg: '#e6f4ff', line: '#5a7c99', accent: '#2dd4bf', muted: '#8aa6bf', surface: '#102033', border: '#2e4c63' },
+  node: { fontSize: 14, fontWeight: 700, textColor: 'var(--fg)', paddingX: 24, paddingY: 13, cornerRadius: 10, lineWidth: 1.4, borderColor: 'var(--fg)' },
+  edge: { fontSize: 12, fontWeight: 600, textColor: 'var(--fg)', lineWidth: 2, bendRadius: 14, strokeColor: 'var(--fg)' },
+  group: { fontSize: 13, fontWeight: 700, textColor: 'var(--fg)', textTransform: 'uppercase', letterSpacing: 0.06, paddingX: 22, paddingY: 20, cornerRadius: 10, lineWidth: 1.3, borderColor: 'var(--fg)' },
+})
+
+registerStyle({
+  name: 'ops-schematic',
+  blurb: 'Dense operational schematic: compact mono labels, sturdy traces, theme-friendly geometry.',
+  intent: 'lofi',
+  colors: { bg: '#f8faf7', fg: '#17211c', line: '#24523b', accent: '#0f766e', muted: '#4f665a', surface: '#f0f5ef', border: '#24523b' },
+  font: 'Share Tech Mono',
+  stroke: 'jittered',
+  roughness: 0.18,
+  bowing: 0.2,
+  passes: 1,
+  strokeWidth: 1.6,
+  fill: 'none',
+  node: { fontSize: 12, fontWeight: 700, textTransform: 'uppercase', textColor: 'var(--fg)', paddingX: 16, paddingY: 8, cornerRadius: 2, lineWidth: 1.6, borderColor: 'var(--fg)' },
+  edge: { fontSize: 10, fontWeight: 700, textTransform: 'uppercase', textColor: 'var(--fg)', lineWidth: 1.8, bendRadius: 0, strokeColor: 'var(--fg)' },
+  group: { fontSize: 11, fontWeight: 700, textColor: 'var(--fg)', textTransform: 'uppercase', letterSpacing: 0.05, paddingX: 16, paddingY: 16, cornerRadius: 2, lineWidth: 1.5, borderColor: 'var(--fg)' },
+})
+
+registerStyle({
+  name: 'chalkboard',
+  blurb: 'Classroom chalkboard: dusty off-white strokes on green slate.',
+  intent: 'draft',
+  colors: { bg: '#17362f', fg: '#f5f1df', line: '#ece6cf', accent: '#ffe08a', muted: '#c7d2c4', surface: '#17362f', border: '#f3ecd5' },
+  font: 'Caveat',
+  stroke: 'jittered',
+  roughness: 1.25,
+  bowing: 1,
+  passes: 2,
+  strokeWidth: 1.9,
+  fill: 'none',
+  node: { fontSize: 16, fontWeight: 700, textColor: 'var(--fg)', paddingX: 24, paddingY: 12, borderColor: 'var(--fg)' },
+  edge: { fontSize: 13, textColor: 'var(--fg)', lineWidth: 1.8, strokeColor: 'var(--fg)' },
+  group: { fontSize: 14, fontWeight: 700, textColor: 'var(--fg)', paddingX: 20, paddingY: 20, lineWidth: 1.7, borderColor: 'var(--fg)' },
+  mono: true,
+})
+
+registerStyle({
+  name: 'risograph',
+  blurb: 'Two-ink poster print: warm stock, offset blue linework, coral accent, coarse hachure.',
+  intent: 'premium',
+  colors: { bg: '#fff5df', fg: '#2b2725', line: '#1f3d5a', accent: '#ff5a5f', muted: '#876a52', surface: '#ffd166', border: '#1f3d5a' },
+  font: 'EB Garamond',
+  stroke: 'jittered',
+  roughness: 0.7,
+  bowing: 0.55,
+  passes: 1,
+  strokeWidth: 1.5,
+  fill: 'hachure',
+  hachureAngle: 18,
+  hachureGap: 6.5,
+  fillWeight: 0.75,
+  node: { fontSize: 14, fontWeight: 700, textColor: 'var(--fg)', paddingX: 24, paddingY: 13, cornerRadius: 3, borderColor: 'var(--fg)' },
+  edge: { fontSize: 12, textColor: 'var(--fg)', lineWidth: 1.5, strokeColor: 'var(--fg)' },
+  group: { fontSize: 13, fontWeight: 700, textColor: 'var(--fg)', paddingX: 22, paddingY: 18, cornerRadius: 3, borderColor: 'var(--fg)' },
+})
+
+registerStyle({
+  name: 'architectural-plan',
+  blurb: 'Architectural plan: square technical linework, uppercase mono labels, room-like frames.',
+  intent: 'premium',
+  colors: { bg: '#fbf7ea', fg: '#202a2f', line: '#38535e', accent: '#1f6f8b', muted: '#60727a', surface: '#fffaf0', border: '#38535e' },
+  font: 'Share Tech Mono',
+  stroke: 'jittered',
+  roughness: 0.18,
+  bowing: 0.25,
+  passes: 1,
+  strokeWidth: 1.45,
+  fill: 'none',
+  node: { fontSize: 12, fontWeight: 700, textTransform: 'uppercase', textColor: 'var(--fg)', paddingX: 20, paddingY: 10, cornerRadius: 0, lineWidth: 1.45, borderColor: 'var(--fg)' },
+  edge: { fontSize: 10, fontWeight: 700, textTransform: 'uppercase', textColor: 'var(--fg)', lineWidth: 1.55, bendRadius: 0, strokeColor: 'var(--fg)' },
+  group: { fontSize: 11, fontWeight: 700, textColor: 'var(--fg)', textTransform: 'uppercase', letterSpacing: 0.06, paddingX: 20, paddingY: 20, cornerRadius: 0, lineWidth: 1.45, borderColor: 'var(--fg)' },
+})
+
+registerStyle({
+  name: 'publication-figure',
+  blurb: 'Polished publication figure: serif labels, confident rules, rounded boxes, one quiet accent.',
+  intent: 'premium',
+  colors: { bg: '#fffdf8', fg: '#171512', line: '#24211d', accent: '#1d4ed8', muted: '#5f5a52', surface: '#faf5ea', border: '#24211d' },
+  font: 'EB Garamond',
+  strokeWidth: 1.45,
+  node: { fontSize: 15, fontWeight: 700, textColor: 'var(--fg)', paddingX: 26, paddingY: 14, cornerRadius: 7, lineWidth: 1.45, borderColor: 'var(--fg)' },
+  edge: { fontSize: 12, fontWeight: 600, textColor: 'var(--fg)', lineWidth: 1.45, bendRadius: 8, strokeColor: 'var(--fg)' },
+  group: { fontSize: 12, fontWeight: 700, textColor: 'var(--fg)', textTransform: 'uppercase', letterSpacing: 0.08, paddingX: 24, paddingY: 22, cornerRadius: 7, lineWidth: 1.35, borderColor: 'var(--fg)' },
+})
