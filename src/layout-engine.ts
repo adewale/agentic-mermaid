@@ -261,10 +261,14 @@ interface RoutePortHint {
   portId: string
   side: 'N' | 'E' | 'S' | 'W'
   edgeIndex: number
+  sourceId: string
+  targetId: string
   endpoint: 'source' | 'target'
   slotIndex: number
   routeClass: RouteClass
+  labeled: boolean
   constraint: 'FIXED_SIDE' | 'FIXED_ORDER'
+  orderReason?: 'primary-duplicate-face'
 }
 
 interface RoutePortRelaxation {
@@ -662,6 +666,35 @@ function supportsPreLayoutFeedbackPorts(node: MermaidNode | undefined): boolean 
   return node?.shape === 'rectangle' || node?.shape === 'diamond'
 }
 
+function supportsPreLayoutFixedOrderPorts(node: MermaidNode | undefined): boolean {
+  return node?.shape === 'rectangle'
+}
+
+function certifiesPrimaryDuplicateFaceOrder(entries: RoutePortHint[]): boolean {
+  if (entries.length < 2) return false
+  if (!entries.every(entry => entry.routeClass === 'primary-forward' && !entry.labeled)) return false
+  const side = entries[0]!.side
+  if (!entries.every(entry => entry.side === side)) return false
+
+  const pairCounts = new Map<string, number>()
+  for (const entry of entries) {
+    const pairKey = `${entry.sourceId}\0${entry.targetId}`
+    pairCounts.set(pairKey, (pairCounts.get(pairKey) ?? 0) + 1)
+  }
+  const hasDuplicatePair = [...pairCounts.values()].some(count => count >= 2)
+  if (!hasDuplicatePair) return false
+
+  // Target-side fan-in with a duplicate pair is exactly the face owned by
+  // applyParallelDuplicateLanes. Source-side ordering is safe only when every
+  // source-side port belongs to a duplicated directed pair; otherwise an
+  // unrelated fan-out would be ordered before the lane planner owns it.
+  if (entries.every(entry => entry.endpoint === 'target')) return true
+  if (entries.every(entry => entry.endpoint === 'source')) {
+    return entries.every(entry => (pairCounts.get(`${entry.sourceId}\0${entry.targetId}`) ?? 0) >= 2)
+  }
+  return false
+}
+
 export function buildRoutePortHints(graph: MermaidGraph, subgraphIds: Set<string>): RoutePortHints {
   const classes = classifyRoutes(graph)
   // Fixed-side ports are useful pre-layout hints when the route class has a
@@ -716,8 +749,32 @@ export function buildRoutePortHints(graph: MermaidGraph, subgraphIds: Set<string
     if (unsafeIncident.has(edge.source) || unsafeIncident.has(edge.target)) { relax(edgeIndex, routeClass, 'unsafe-non-primary-incident'); continue }
     if (directionOverrideNodes.has(edge.source) || directionOverrideNodes.has(edge.target)) { relax(edgeIndex, routeClass, 'direction-override-node'); continue }
     const sides = routeHintSides(graph.direction, routeClass)
-    drafts.push({ nodeId: edge.source, portId: `rp_${safeId(edge.source)}_${edgeIndex}_s`, side: sides.source, edgeIndex, endpoint: 'source', slotIndex: 0, routeClass, constraint: 'FIXED_SIDE' })
-    drafts.push({ nodeId: edge.target, portId: `rp_${safeId(edge.target)}_${edgeIndex}_t`, side: sides.target, edgeIndex, endpoint: 'target', slotIndex: 0, routeClass, constraint: 'FIXED_SIDE' })
+    drafts.push({
+      nodeId: edge.source,
+      portId: `rp_${safeId(edge.source)}_${edgeIndex}_s`,
+      side: sides.source,
+      edgeIndex,
+      sourceId: edge.source,
+      targetId: edge.target,
+      endpoint: 'source',
+      slotIndex: 0,
+      routeClass,
+      labeled: Boolean(edge.label),
+      constraint: 'FIXED_SIDE',
+    })
+    drafts.push({
+      nodeId: edge.target,
+      portId: `rp_${safeId(edge.target)}_${edgeIndex}_t`,
+      side: sides.target,
+      edgeIndex,
+      sourceId: edge.source,
+      targetId: edge.target,
+      endpoint: 'target',
+      slotIndex: 0,
+      routeClass,
+      labeled: Boolean(edge.label),
+      constraint: 'FIXED_SIDE',
+    })
   }
 
   const byNode = new Map<string, RoutePortHint[]>()
@@ -734,8 +791,16 @@ export function buildRoutePortHints(graph: MermaidGraph, subgraphIds: Set<string
       entry.slotIndex = next
       perSide.set(entry.side, next + 1)
     }
+    const ordered = supportsPreLayoutFixedOrderPorts(graph.nodes.get(entries[0]!.nodeId)) &&
+      certifiesPrimaryDuplicateFaceOrder(entries)
     for (const entry of entries) {
-      entry.constraint = 'FIXED_SIDE'
+      if (ordered) {
+        entry.constraint = 'FIXED_ORDER'
+        entry.orderReason = 'primary-duplicate-face'
+      } else {
+        entry.constraint = 'FIXED_SIDE'
+        entry.orderReason = undefined
+      }
     }
   }
 
