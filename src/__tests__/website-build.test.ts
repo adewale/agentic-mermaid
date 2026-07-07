@@ -505,6 +505,8 @@ describe('Workers Static Assets website contract', () => {
     expect(styles).toContain('.comparison-source-tools')
     expect(styles).not.toContain('.comparison-source-actions')
     expect(styles).toContain('@media (max-height: 480px) and (orientation: landscape)')
+    expect(styles).toContain('grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto')
+    expect(styles).toContain('overflow-x: visible')
     expect(styles).toContain('.comparison-case > .comparison-grid[data-comparison-lightbox-panel]')
     expect(styles).toContain('cursor: zoom-in')
     expect(styles).not.toContain('.comparison-grid .comparison-panel[data-comparison-lightbox-panel]')
