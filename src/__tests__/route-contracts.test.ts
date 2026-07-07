@@ -394,6 +394,14 @@ describe('certificates', () => {
     expect(hints.relaxations.some(r => r.edgeIndex === 1)).toBe(false)
   })
 
+  it('pre-layout feedback port hints relax when a labeled reciprocal primary owns the lane', () => {
+    const graph = parseMermaid('flowchart LR\n  A -->|go| B\n  B --> A')
+    const hints = buildRoutePortHints(graph, new Set())
+    expect(hints.byEndpoint.has('1:source')).toBe(false)
+    expect(hints.byEndpoint.has('1:target')).toBe(false)
+    expect(hints.relaxations).toContainEqual({ edgeIndex: 1, routeClass: 'feedback', reason: 'labeled-reciprocal-primary' })
+  })
+
   it('pre-layout feedback port hints keep duplicate returns fixed-side while preserving deterministic slots', () => {
     const graph = parseMermaid('flowchart LR\n  A --> B\n  B --> A\n  B --> A')
     const hints = buildRoutePortHints(graph, new Set())
