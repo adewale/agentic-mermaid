@@ -512,7 +512,7 @@ describe('browser: live editor integration', () => {
     await page.waitForFunction(
       () => {
         const html = document.querySelector('#preview-inner svg')?.outerHTML ?? ''
-        return html.includes('Styled Adoption')
+        return html.includes('STYLED ADOPTION')
           && html.includes('xychart-bar')
           && html.includes('stroke-width: 2.25')
       },
