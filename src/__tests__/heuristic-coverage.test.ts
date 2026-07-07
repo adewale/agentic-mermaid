@@ -259,21 +259,13 @@ describe('ELK degradation ladder — layoutGraphSync crash-freedom', () => {
     assertFinitePositionedGraph(layoutGraphSync(graph))
   }
 
-  it('issue #34: tier-0 ELK hitbox crash succeeds via the feedbackEdges-off fallback', () => {
+  it('issue #34: tier-0 ELK hitbox fixture is now avoided by route port hints', () => {
     const graph = parseMermaid(ELK_TIER0_HITBOX_CRASH)
 
-    // The committed fixture proves the real bundled-ELK crash at the default
-    // option set. This is the edge the older broad stress tests could not pin.
-    expect(() => elkLayoutSync(convertToElkFormat(graph))).toThrow(/Invalid hitboxes|IllegalStateException/)
-
-    // The first degraded option set is sufficient: disabling ELK's feedback
-    // edge router makes the same graph lay out cleanly.
-    const fallbackAttempt = convertToElkFormat(graph)
-    fallbackAttempt.layoutOptions = {
-      ...fallbackAttempt.layoutOptions,
-      'elk.layered.feedbackEdges': 'false',
-    }
-    expect(() => elkLayoutSync(fallbackAttempt)).not.toThrow()
+    // Issue #117's narrow feedback-port slice gives ELK enough endpoint intent
+    // that this historic tier-0 crash fixture no longer reaches the fallback
+    // ladder. Keep the fixture pinned so dropping those hints reopens #34.
+    expect(() => elkLayoutSync(convertToElkFormat(graph))).not.toThrow()
 
     const positioned = layoutGraphSync(graph)
     assertFinitePositionedGraph(positioned)

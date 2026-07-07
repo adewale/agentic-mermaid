@@ -533,8 +533,8 @@ exports[`contact sheet — pinned geometry (re-pin deliberately, review the shee
 exports[`contact sheet — pinned geometry (re-pin deliberately, review the sheet) G — bi-directional diamonds — parallel lines on facet-mid ports 1`] = `
 {
   "bounds": {
-    "h": 181,
-    "w": 333,
+    "h": 171,
+    "w": 309,
   },
   "edges": [
     {
@@ -543,11 +543,11 @@ exports[`contact sheet — pinned geometry (re-pin deliberately, review the shee
       "label": undefined,
       "path": [
         [
-          119,
+          107,
           63,
         ],
         [
-          212,
+          200,
           63,
         ],
       ],
@@ -559,11 +559,11 @@ exports[`contact sheet — pinned geometry (re-pin deliberately, review the shee
       "label": undefined,
       "path": [
         [
-          212,
+          200,
           108,
         ],
         [
-          119,
+          107,
           108,
         ],
       ],
@@ -579,7 +579,7 @@ exports[`contact sheet — pinned geometry (re-pin deliberately, review the shee
       "label": "One",
       "shape": "diamond",
       "w": 90,
-      "x": 52,
+      "x": 40,
       "y": 41,
     },
     {
@@ -588,7 +588,7 @@ exports[`contact sheet — pinned geometry (re-pin deliberately, review the shee
       "label": "Two",
       "shape": "diamond",
       "w": 91,
-      "x": 190,
+      "x": 178,
       "y": 40,
     },
   ],
@@ -599,8 +599,8 @@ exports[`contact sheet — pinned geometry (re-pin deliberately, review the shee
 exports[`contact sheet — pinned geometry (re-pin deliberately, review the sheet) H — bi-directional rects — two EQUAL parallel lines 1`] = `
 {
   "bounds": {
-    "h": 127,
-    "w": 285,
+    "h": 117,
+    "w": 261,
   },
   "edges": [
     {
@@ -609,11 +609,11 @@ exports[`contact sheet — pinned geometry (re-pin deliberately, review the shee
       "label": undefined,
       "path": [
         [
-          118,
+          106,
           52,
         ],
         [
-          166,
+          154,
           52,
         ],
       ],
@@ -625,11 +625,11 @@ exports[`contact sheet — pinned geometry (re-pin deliberately, review the shee
       "label": undefined,
       "path": [
         [
-          166,
+          154,
           64,
         ],
         [
-          118,
+          106,
           64,
         ],
       ],
@@ -645,7 +645,7 @@ exports[`contact sheet — pinned geometry (re-pin deliberately, review the shee
       "label": "One",
       "shape": "rectangle",
       "w": 66,
-      "x": 52,
+      "x": 40,
       "y": 40,
     },
     {
@@ -654,7 +654,7 @@ exports[`contact sheet — pinned geometry (re-pin deliberately, review the shee
       "label": "Two",
       "shape": "rectangle",
       "w": 67,
-      "x": 166,
+      "x": 154,
       "y": 40,
     },
   ],
@@ -5819,8 +5819,8 @@ exports[`contact sheet — pinned geometry (re-pin deliberately, review the shee
 exports[`contact sheet — pinned geometry (re-pin deliberately, review the sheet) AQ — duplicate feedback pair — separated back-edge lanes 1`] = `
 {
   "bounds": {
-    "h": 139,
-    "w": 296,
+    "h": 117,
+    "w": 248,
   },
   "edges": [
     {
@@ -5829,11 +5829,11 @@ exports[`contact sheet — pinned geometry (re-pin deliberately, review the shee
       "label": undefined,
       "path": [
         [
-          124,
+          100,
           58,
         ],
         [
-          172,
+          148,
           58,
         ],
       ],
@@ -5845,11 +5845,11 @@ exports[`contact sheet — pinned geometry (re-pin deliberately, review the shee
       "label": undefined,
       "path": [
         [
-          172,
+          148,
           51,
         ],
         [
-          124,
+          100,
           51,
         ],
       ],
@@ -5861,11 +5861,11 @@ exports[`contact sheet — pinned geometry (re-pin deliberately, review the shee
       "label": undefined,
       "path": [
         [
-          172,
+          148,
           65,
         ],
         [
-          124,
+          100,
           65,
         ],
       ],
@@ -5881,7 +5881,7 @@ exports[`contact sheet — pinned geometry (re-pin deliberately, review the shee
       "label": "a",
       "shape": "rectangle",
       "w": 60,
-      "x": 64,
+      "x": 40,
       "y": 40,
     },
     {
@@ -5890,7 +5890,7 @@ exports[`contact sheet — pinned geometry (re-pin deliberately, review the shee
       "label": "b",
       "shape": "rectangle",
       "w": 60,
-      "x": 172,
+      "x": 148,
       "y": 40,
     },
   ],

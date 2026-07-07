@@ -21,6 +21,10 @@ export type MetricBudget = 'improve-only' | { worsenBy: number }
 export interface PassContextBase {
   frozen: boolean
   nodes: ReadonlyArray<{ x: number; y: number; width: number; height: number }>
+  edges?: ReadonlyArray<{
+    points?: ReadonlyArray<{ x: number; y: number }>
+    routeCertificate?: unknown
+  }>
 }
 
 export interface LayoutPass<C extends PassContextBase> {
@@ -52,6 +56,9 @@ export interface RunOptions<C extends PassContextBase> {
 const freezeSafe = (mutates: PassEffect[]): boolean =>
   mutates.every(m => m === 'translate' || m === 'edges')
 
+const routeKey = (edge: { points?: ReadonlyArray<{ x: number; y: number }> }): string =>
+  edge.points?.map(p => `${p.x},${p.y}`).join('|') ?? ''
+
 /**
  * Run `passes` over `ctx` in array order. The array IS the execution path; with
  * `checkInvariants` the runner also enforces the §3 contract (ordering + freeze).
@@ -82,6 +89,9 @@ export function runPipeline<C extends PassContextBase>(
     const before = guardFreeze
       ? ctx.nodes.map(n => ({ x: n.x, y: n.y, width: n.width, height: n.height }))
       : undefined
+    const beforeEdges = opts.checkInvariants === true && ctx.frozen && pass.mutates.includes('edges') && ctx.edges
+      ? ctx.edges.map(routeKey)
+      : undefined
 
     pass.run(ctx)
 
@@ -94,6 +104,19 @@ export function runPipeline<C extends PassContextBase>(
           throw new Error(
             `LayoutPass freeze: '${pass.id}' moved node geometry after the route-contract freeze ` +
               `(only translate/edge passes are allowed; declare 'translate' in mutates if this is a uniform shift)`,
+          )
+        }
+      }
+    }
+
+    if (beforeEdges && ctx.edges) {
+      for (let i = 0; i < beforeEdges.length; i++) {
+        const edge = ctx.edges[i]
+        if (!edge) continue
+        if (beforeEdges[i] !== routeKey(edge) && edge.routeCertificate === undefined) {
+          throw new Error(
+            `LayoutPass certificate: '${pass.id}' rewrote edge geometry after the route-contract freeze ` +
+              'without re-issuing routeCertificate',
           )
         }
       }
