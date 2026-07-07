@@ -8,8 +8,11 @@ name: Deploy website to Cloudflare
 # Gated on a successful CI run for the same commit on main, so a red commit
 # never reaches the live site. Also runnable manually via workflow_dispatch.
 #
-# Requires two repository secrets: CLOUDFLARE_API_TOKEN (a token with the
-# Workers Scripts:Edit permission) and CLOUDFLARE_ACCOUNT_ID.
+# Requires two repository secrets to publish from GitHub: CLOUDFLARE_API_TOKEN
+# (a token with the Workers Scripts:Edit permission) and CLOUDFLARE_ACCOUNT_ID.
+# If either secret is absent, the workflow exits green with a warning instead of
+# making the repository's build status red; publish manually with Wrangler or add
+# the secrets to re-enable automatic deploys.
 #
 # Note: /mcp is public, unauthenticated compute. Keep the DEC-2 WAF rate-limit
 # rule and DEC-3 worker_loaders binding (see TODO.md) provisioned before
@@ -33,22 +36,42 @@ jobs:
       (github.event.workflow_run.conclusion == 'success' &&
        github.event.workflow_run.head_branch == 'main')
     runs-on: ubuntu-latest
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      WRANGLER_SEND_METRICS: 'false'
     steps:
+      - name: Check Cloudflare deployment secrets
+        id: cloudflare-secrets
+        run: |
+          if [ -z "$CLOUDFLARE_API_TOKEN" ] || [ -z "$CLOUDFLARE_ACCOUNT_ID" ]; then
+            echo "available=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::Skipping Cloudflare deploy because CLOUDFLARE_API_TOKEN and/or CLOUDFLARE_ACCOUNT_ID is not configured."
+            {
+              echo "### Cloudflare deploy skipped"
+              echo ""
+              echo 'GitHub Actions is missing `CLOUDFLARE_API_TOKEN` and/or `CLOUDFLARE_ACCOUNT_ID`.'
+              echo 'Add those repository secrets to publish automatically, or deploy manually with `cd website && WRANGLER_SEND_METRICS=false npx --yes wrangler@latest deploy`.'
+            } >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "available=true" >> "$GITHUB_OUTPUT"
+          fi
       - uses: actions/checkout@v4
+        if: steps.cloudflare-secrets.outputs.available == 'true'
         with:
           # For a workflow_run trigger, build the exact commit CI validated.
           ref: ${{ github.event.workflow_run.head_sha || github.ref }}
       - name: Setup Bun
+        if: steps.cloudflare-secrets.outputs.available == 'true'
         uses: oven-sh/setup-bun@v1
         with:
           bun-version: 1.3.13
       - name: Install dependencies
+        if: steps.cloudflare-secrets.outputs.available == 'true'
         run: bun install
       - name: Build the site bundle
+        if: steps.cloudflare-secrets.outputs.available == 'true'
         run: bun run website
       - name: Deploy to Cloudflare Workers
-        env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          WRANGLER_SEND_METRICS: 'false'
+        if: steps.cloudflare-secrets.outputs.available == 'true'
         run: cd website && npx --yes wrangler@latest deploy
