@@ -447,7 +447,7 @@ There is no `LayoutContext`, no `SeededRNG`, no `Clock`, no font-metric table in
 
 ## Compatibility choices from the Beautiful Mermaid foundation
 
-- **Agent surface exposed via the `./agent` subpath export** on the `agentic-mermaid` package. Agentic Mermaid is the product/docs name and npm identity; the repository path currently remains `adewale/beautiful-mermaid`. The subpath export keeps renderer and agent surfaces side by side.
+- **Agent surface exposed via the `./agent` subpath export** on the `agentic-mermaid` package. Agentic Mermaid is the product/docs name, npm identity, and repository path (`adewale/agentic-mermaid`). The subpath export keeps renderer and agent surfaces side by side.
 - **Deterministic layout, verified.** Layout JSON is byte-identical across processes because ELK is configured for model-order layout with no random seed (see § (1)). No seed parameter is exposed because none affects output. Cross-machine byte equality across different CPU float behavior is not claimed; structural determinism within an ELK version is guaranteed and tested cross-process.
 - **IDs are content-hashed and stable** across runs (within an ELK version).
 - **`MermaidGraph` is kept** as an exported type — `ValidDiagram` wraps it in `body.graph` for flowchart, rather than replacing it. The original spec called for removal; the implementation showed it would break 61 test files and the Craft Agents consumer. The wrapping shape costs nothing.

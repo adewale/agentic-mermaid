@@ -443,7 +443,7 @@ dependents after. IDs are stable names, not an ordering.
   The 2A destination (segment-preserving comment retention) is tracked under
   the BUILD-18 follow-up below.
 - [x] **BUILD-23 — `@{ ... }` node metadata safety floor** (`done`). Issue
-  <https://github.com/adewale/beautiful-mermaid/issues/29>. Mermaid v11.3+
+  <https://github.com/adewale/agentic-mermaid/issues/29>. Mermaid v11.3+
   typed-shape syntax no longer silently drops edges/targets or fabricates
   phantom metadata-key nodes in the covered repros: parser/tokenization keeps
   metadata attached to the intended node or preserves unsupported forms

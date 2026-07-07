@@ -1,6 +1,6 @@
 # Changelog
 
-This changelog tracks user-facing changes for **Agentic Mermaid**, a fork of `lukilabs/beautiful-mermaid` maintained in the `adewale/beautiful-mermaid` repo and published as the `agentic-mermaid` npm package. Upstream-focused PR branches keep their own minimal histories.
+This changelog tracks user-facing changes for **Agentic Mermaid**, a fork of `lukilabs/beautiful-mermaid` maintained in the `adewale/agentic-mermaid` repo and published as the `agentic-mermaid` npm package. Upstream-focused PR branches keep their own minimal histories.
 
 ## Unreleased
 
@@ -31,7 +31,7 @@ This changelog tracks user-facing changes for **Agentic Mermaid**, a fork of `lu
 - Family-plugin dispatch consolidation (BUILD-3): parse, serialize, and mutate for ALL families — including flowchart/state — now route through the `FamilyPlugin` registry; adding a structured family is one body module plus one registration. Flowchart and state register as two plugins sharing one implementation over the legacy graph body, with the serialized header bound per kind; dispatch is by diagram kind, the plugin contract gained `canonicalSource`/multi-error parse and an optional `buildSourceMap` hook. Mutation now rebuilds `canonicalSource` uniformly, so mutated sequence/flowchart/state diagrams no longer carry stale source.
 - **Pie chart family** (`pie`): renders Mermaid pie charts to SVG/PNG/ASCII. Supports the `pie` header with optional `showData` and `title`, plus `"label" : value` entries (positive numbers). SVG draws clockwise slices with a theme-derived palette and a percentage legend; ASCII draws a proportional bar list. Pie is structured-when-narrowed via `asPie` (7 ops). Malformed entries fall back to a lossless opaque body rather than being silently dropped. Adds the first slice of BUILD-5; see `eval/family-usage/` for the family-usage evidence step.
 - Layout before/after comparison harness (`eval/layout-compare/run.ts`): snapshots the docs corpus + targeted fixtures (SVG, ASCII, perceptual metrics) per git state and emits a side-by-side HTML report with metric deltas and a regression exit code. Geometry tests now also pin subgraph `direction` support — honored even when an inner node links outward, which Mermaid itself does not solve (mermaid-js#2509).
-- **Breaking package identity**: first Agentic Mermaid release is prepared as `agentic-mermaid@0.1.0`; package imports are now `agentic-mermaid` and `agentic-mermaid/agent` while the GitHub repo remains `adewale/beautiful-mermaid`.
+- **Breaking package identity**: first Agentic Mermaid release is prepared as `agentic-mermaid@0.1.0`; package imports are now `agentic-mermaid` and `agentic-mermaid/agent`, and the GitHub repo is `adewale/agentic-mermaid`.
 - **Agent-native surface** (`agentic-mermaid/agent` subpath export): a typed editing API for agents and tools.
   - `parseMermaid` → sealed `ValidDiagram` IR carrying frontmatter, init directives, comments, accessibility, and the canonical source.
   - `verifyMermaid` → structured `LayoutWarning` codes in three tiers (Tier 1 structural/reliable, Tier 2 geometric/advisory, Tier 3 lint/advisory). No vision/PNG needed.
@@ -40,12 +40,12 @@ This changelog tracks user-facing changes for **Agentic Mermaid**, a fork of `lu
   - Deterministic layout JSON, verified byte-identical across processes (ELK is configured for model-order layout; there is no layout seed).
 - **`am` CLI**: `render`, `preview` (strict standalone HTML + optional `--open`), `verify`, `parse`, `serialize`, `mutate` (single `--op` or batched `--ops`, verify-before-emit), `format`, `describe`, `capabilities`, `batch` (including mutate), `render-markdown`, `llms-txt`, `init-agent`, `--json`, per-command `--help`, and `--agent-instructions`.
 - **Node-runnable package bins**: `am`, `agentic-mermaid`, and `agentic-mermaid-mcp` point to built `dist/*.js` entrypoints for npm/npx consumers while Bun `bin/*.ts` files remain for local development.
-- **Hosted agent manifests**: GitHub Pages publishes `/llms.txt` and `/agent-instructions.md` for zero-install agent onboarding.
+- **Hosted agent manifests**: the Agentic Mermaid website publishes `/llms.txt` and `/agent-instructions.md` for zero-install agent onboarding.
 - **Publish hardening**: package metadata and release workflow support public npm provenance (`publishConfig.provenance`, GitHub OIDC `id-token`, build-before-publish, and `npm publish --provenance`).
 - **`agentic-mermaid-mcp`**: a Code Mode MCP server (one JavaScript `execute` tool, `node:vm` sandbox, typed SDK declaration) so agents compose the whole verify-before-commit loop in one round-trip.
 - **`Instructions_for_agents.md`** and agent-agnostic skill bundles under `skills/`.
 - See [`AGENT_NATIVE.md`](./AGENT_NATIVE.md) for the design, [`examples/agent-loop.ts`](./examples/agent-loop.ts) for a runnable walkthrough, [`examples/mcp-vs-cli-complex-diagrams.ts`](./examples/mcp-vs-cli-complex-diagrams.ts) for MCP-vs-CLI parity, and [`examples/agent-improve-auth-flow.ts`](./examples/agent-improve-auth-flow.ts) for create → assess → mutate → reassess → render.
-- Live editor deployment on GitHub Pages at <https://adewale.github.io/beautiful-mermaid/editor>.
+- Live editor deployment at <https://agentic-mermaid.dev/editor>.
 - Editor examples palette with presets for every supported diagram family: flowchart, state, architecture, sequence, class, ER, timeline, journey, xychart, pie, quadrant, and gantt.
 - Semantic role-based SVG styling via `options.style.text`, `options.style.node`, `options.style.edge`, and `options.style.group`.
 - Role-style showcase samples in the live gallery under **Contents → Role Styles**.

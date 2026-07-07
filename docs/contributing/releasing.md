@@ -17,7 +17,7 @@ automatically** (no `--provenance` flag).
 - **Register the trusted publisher on npmjs.com.** On the (first-time: create the
   placeholder package, or use the org's package settings) package's
   Settings → Publishing access → "Add trusted publisher" → GitHub Actions, set:
-  organization/user `adewale`, repository `beautiful-mermaid`, workflow filename
+  organization/user `adewale`, repository `agentic-mermaid`, workflow filename
   `publish.yml` (leave environment blank). This must be done before the first
   `npm publish` or it fails with an auth error.
 - **The GitHub repo must be public.** Provenance writes to a public transparency
@@ -25,7 +25,7 @@ automatically** (no `--provenance` flag).
   publishing works but without provenance.
 - **Three-way repository match.** The OIDC token's repo, the npmjs.com
   trusted-publisher config, and `package.json#repository.url`
-  (`git+https://github.com/adewale/beautiful-mermaid.git`) must all agree — they do.
+  (`git+https://github.com/adewale/agentic-mermaid.git`) must all agree — they do.
 - **Account 2FA** on the publishing account (WebAuthn/FIDO; TOTP is being
   deprecated).
 - `npm view agentic-mermaid version` — confirm the version isn't already

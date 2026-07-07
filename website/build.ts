@@ -285,7 +285,7 @@ function mastheadHtml(currentHref = '') {
 // deliberately — the website contract test forbids repository chrome in the
 // masthead, so the footer is the one place the repo link ships.
 function footerHtml() {
-  return `<footer><div class="footlinks"><a href="/warnings/">Warnings</a><span class="sep">&middot;</span><a href="/errors/">Errors</a><span class="sep">&middot;</span><a href="/skills/agentic-mermaid-diagram-workflow/">Skill</a><span class="sep">&middot;</span><a href="/about/design/">Design</a><span class="sep">&middot;</span><a href="https://github.com/adewale/beautiful-mermaid">GitHub</a></div><div class="footlinks"><a href="/llms.txt">llms.txt</a><span class="sep">&middot;</span><a href="/agent-instructions.md">agent-instructions.md</a><span class="sep">&middot;</span><a href="/capabilities.json">capabilities.json</a><span class="sep">&middot;</span><a href="/examples/index.json">examples.json</a><span class="sep">&middot;</span><a href="/skills/agentic-mermaid-diagram-workflow/SKILL.md">workflow skill</a></div></footer>`
+  return `<footer><div class="footlinks"><a href="/warnings/">Warnings</a><span class="sep">&middot;</span><a href="/errors/">Errors</a><span class="sep">&middot;</span><a href="/skills/agentic-mermaid-diagram-workflow/">Skill</a><span class="sep">&middot;</span><a href="/about/design/">Design</a><span class="sep">&middot;</span><a href="https://github.com/adewale/agentic-mermaid">GitHub</a></div><div class="footlinks"><a href="/llms.txt">llms.txt</a><span class="sep">&middot;</span><a href="/agent-instructions.md">agent-instructions.md</a><span class="sep">&middot;</span><a href="/capabilities.json">capabilities.json</a><span class="sep">&middot;</span><a href="/examples/index.json">examples.json</a><span class="sep">&middot;</span><a href="/skills/agentic-mermaid-diagram-workflow/SKILL.md">workflow skill</a></div></footer>`
 }
 
 // Single page header contract: h1 + lead, then an optional meta row
@@ -362,7 +362,7 @@ const generatedFrom = {
 const npmPublished = process.env.SITE_NPM_STATUS === 'published' || process.env.SITE_NPM_PUBLISHED === '1'
 const installCommand = npmPublished
   ? 'npm i agentic-mermaid'
-  : 'git clone https://github.com/adewale/beautiful-mermaid && cd beautiful-mermaid && bun install && bun run build'
+  : 'git clone https://github.com/adewale/agentic-mermaid && cd agentic-mermaid && bun install && bun run build'
 const installNotice = npmPublished
   ? 'The npm package is marked published for this build.'
   : 'The npm package is not yet published; install from source.'

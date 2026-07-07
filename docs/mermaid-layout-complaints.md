@@ -12,12 +12,12 @@ Companions:
   coverage map for specific upstream issues.
 - [`quality.md`](./quality.md) — the project's definition of "good looking" and
   its metric gates.
-- [Issue #25](https://github.com/adewale/beautiful-mermaid/issues/25) and
-  [issue #26](https://github.com/adewale/beautiful-mermaid/issues/26) — the
+- [Issue #25](https://github.com/adewale/agentic-mermaid/issues/25) and
+  [issue #26](https://github.com/adewale/agentic-mermaid/issues/26) — the
   principled routing/contract specs that several entries below point into.
-- [PR #24](https://github.com/adewale/beautiful-mermaid/pull/24) — the Gantt
+- [PR #24](https://github.com/adewale/agentic-mermaid/pull/24) — the Gantt
   spec and implementation, the model for chart-family layout contracts.
-- [Issue #41](https://github.com/adewale/beautiful-mermaid/issues/41) — the
+- [Issue #41](https://github.com/adewale/agentic-mermaid/issues/41) — the
   diagram-family citizenship matrix that now keeps supported families honest
   about parser, serializer, renderer, verifier, and test obligations.
 

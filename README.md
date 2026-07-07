@@ -4,7 +4,7 @@
 
 Agentic Mermaid is an open-source Mermaid rendering and editing toolkit, forked from [`lukilabs/beautiful-mermaid`](https://github.com/lukilabs/beautiful-mermaid), for producing deterministic **SVG, PNG, ASCII, Unicode, and JSON layout** outputs plus agent-verifiable structured edits.
 
-Will be published to npm as `agentic-mermaid` — **not yet on npm; install from source for now** (see [Installation](#installation)). The GitHub repository is `adewale/beautiful-mermaid`; the canonical live site is [`agentic-mermaid.dev`](https://agentic-mermaid.dev/), a Cloudflare Workers deployment.
+Will be published to npm as `agentic-mermaid` — **not yet on npm; install from source for now** (see [Installation](#installation)). The GitHub repository is `adewale/agentic-mermaid`; the canonical live site is [`agentic-mermaid.dev`](https://agentic-mermaid.dev/), a Cloudflare Workers deployment.
 
 ![Agentic Mermaid: Mermaid source plus typed edit ops on the left, the verified SVG render in the middle, and the same diagram as ASCII on the right](assets/hero.png)
 
@@ -44,8 +44,8 @@ Agents should not guess from pixels, concatenate strings, or regenerate whole di
 > `agentic-mermaid@0.1.0` lands on npm.
 
 ```bash
-git clone https://github.com/adewale/beautiful-mermaid
-cd beautiful-mermaid
+git clone https://github.com/adewale/agentic-mermaid
+cd agentic-mermaid
 bun install
 bun run build
 ```
