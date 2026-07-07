@@ -217,6 +217,24 @@ describe('bundled fonts', () => {
       }
     }
   })
+
+  test('hosted PNG worker bundles every built-in style face', () => {
+    const hostedPng = readFileSync(join(import.meta.dir, '..', '..', 'website', 'src', 'png-wasm.ts'), 'utf8')
+    const websiteBuild = readFileSync(join(import.meta.dir, '..', '..', 'website', 'build.ts'), 'utf8')
+    const generatedDir = join(import.meta.dir, '..', '..', 'website', 'src', 'generated')
+    const styleFontFiles = Array.from(new Set(
+      LOOKS
+        .map(name => getStyle(name)?.font)
+        .filter((font): font is string => Boolean(font))
+        .map(font => `${font.replace(/ /g, '')}.ttf`),
+    ))
+
+    for (const file of styleFontFiles) {
+      expect(hostedPng).toContain(`./generated/${file}`)
+      expect(websiteBuild).toContain(`'${file}'`)
+      expect(existsSync(join(generatedDir, file))).toBe(true)
+    }
+  })
 })
 
 const LOOKS_WITH_BACKENDS = [

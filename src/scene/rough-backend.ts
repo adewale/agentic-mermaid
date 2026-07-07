@@ -16,13 +16,11 @@
 // markers, class/data-* attributes, and hit geometry under the sketch.
 //
 // Paint truth comes from the mark's own crisp element attributes (parsed with
-// the owned-format element parser, not blind regexes): a child with
+// the owned-format element parser, not blind regexes), with semantic MarkPaint
+// as the fallback for class-painted marks: a child with
 // stroke="none" — or an author-suppressed stroke-width of 0 — never grows a
 // synthesized outline, and fills keep their semantic colors (gantt status,
-// pie slices) unless the style's fill policy redraws them. Marks painted only
-// via family CSS classes (no fill/stroke attributes) stay crisp; giving those
-// the tonal treatment is the SPEC §11 phase-5 upgrade (the lowering already
-// carries their semantic paint).
+// pie slices) unless the style's fill policy redraws them.
 // ============================================================================
 
 import { RoughGenerator } from 'roughjs/bin/generator'
@@ -194,6 +192,21 @@ function strokeWidthRatio(attr: string | undefined): number {
   return parsed
 }
 
+function attrOrPaint(attrValue: string | undefined, paintValue: string | undefined): string | undefined {
+  return attrValue !== undefined ? attrValue : paintValue
+}
+
+function suppressStroke(element: string, tag: string): string {
+  if (/style="/.test(element)) {
+    return element.replace(/style="([^"]*)"/, (_match, style: string) => {
+      const separator = style.trim().length === 0 || /;\s*$/.test(style) ? '' : ';'
+      return `style="${style}${separator}stroke:none"`
+    })
+  }
+
+  return injectAttrs(element, tag, 'style="stroke:none"')
+}
+
 function sketchShape(node: ShapeMark, walk: Walk): string {
   const p = walk.p
   const els = topLevelElements(node.crisp)
@@ -205,31 +218,39 @@ function sketchShape(node: ShapeMark, walk: Walk): string {
   const out: string[] = []
   for (let i = 0; i < geoms.length; i++) {
     const el = els[i]!
-    const elStroke = el.attrs.get('stroke')
-    const elFill = el.attrs.get('fill')
+    const stroke = attrOrPaint(el.attrs.get('stroke'), node.paint.stroke)
+    const fill = attrOrPaint(el.attrs.get('fill'), node.paint.fill)
     const seed = nodeSeed(walk.ctx.seed, node.id, `outline:${i}`) || 1
-    const widthRatio = strokeWidthRatio(el.attrs.get('stroke-width'))
-    const hasStroke = elStroke !== undefined && elStroke !== 'none' && widthRatio > 0
-    const hasFill = elFill !== undefined && elFill !== 'none'
+    const widthRatio = strokeWidthRatio(attrOrPaint(el.attrs.get('stroke-width'), node.paint.strokeWidth))
+    const dash = attrOrPaint(el.attrs.get('stroke-dasharray'), node.paint.strokeDasharray)
+    const hasStroke = stroke !== undefined && stroke !== 'none' && widthRatio > 0
+    const hasFill = fill !== undefined && fill !== 'none'
     // Fill policy: 'none' keeps boxes open (people write inside them);
     // semantic value fills (status colors, slice hues) are preserved either
     // solid-crisp (fill:'none' style keeps the region honest via the crisp
     // element) or re-rendered as hachure/solid sketch fill.
-    const wantFill = hasFill && p.fill !== 'none' ? elFill : undefined
+    const wantFill = hasFill && p.fill !== 'none' ? fill : undefined
     if (!hasStroke) {
       // Stroke-less element (gantt bands, halo chips, state-start dots,
       // width-0 borders): never synthesize an outline (Phase 0 lesson b).
+      if (wantFill) {
+        const sketchedFill = sketchGeometryVia(walk, geoms[i]!, seed, 'none', 0, wantFill, dash)
+        if (sketchedFill) {
+          out.push(sketchedFill)
+          continue
+        }
+      }
       out.push(crispElementOf(i))
       continue
     }
     const width = Math.max(0.6, Math.min(p.strokeWidth * widthRatio, p.strokeWidth * 4))
-    const sketched = sketchGeometryVia(walk, geoms[i]!, seed, elStroke!, width, wantFill, el.attrs.get('stroke-dasharray'))
+    const sketched = sketchGeometryVia(walk, geoms[i]!, seed, stroke!, width, wantFill, dash)
     if (!sketched) { out.push(crispElementOf(i)); continue }
     // Value-colored solid fills stay: when the style suppresses sketch fills
     // but the element carries a non-default fill, under-paint it crisply so
     // semantic color survives (status bars, quadrant plates).
-    if (hasFill && p.fill === 'none' && !isBoxFill(elFill!)) {
-      out.push(crispElementOf(i).replace(/ stroke="[^"]*"/, ' stroke="none"'))
+    if (hasFill && p.fill === 'none' && !isBoxFill(fill!)) {
+      out.push(suppressStroke(crispElementOf(i), el.tag))
     }
     out.push(sketched)
   }
@@ -247,12 +268,12 @@ function sketchConnector(node: ConnectorMark, walk: Walk): string {
   const els = topLevelElements(node.crisp)
   const el = els[0]
   if (!el) return node.crisp
-  const stroke = el.attrs.get('stroke') ?? 'var(--_line)'
-  const widthRatio = strokeWidthRatio(el.attrs.get('stroke-width'))
+  const stroke = attrOrPaint(el.attrs.get('stroke'), node.paint.stroke) ?? 'var(--_line)'
+  const widthRatio = strokeWidthRatio(attrOrPaint(el.attrs.get('stroke-width'), node.paint.strokeWidth))
   if (widthRatio <= 0) return node.crisp // author-suppressed stroke stays suppressed
   const width = walk.p.strokeWidth * widthRatio
   const seed = nodeSeed(walk.ctx.seed, node.id, 'stroke') || 1
-  const dash = el.attrs.get('stroke-dasharray')
+  const dash = attrOrPaint(el.attrs.get('stroke-dasharray'), node.paint.strokeDasharray)
   let sketched = ''
   const geom = node.geometry
   if (geom.kind === 'polyline') {
