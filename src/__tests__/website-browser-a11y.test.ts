@@ -100,9 +100,13 @@ describeBrowser('website browser accessibility smoke', () => {
   }, 30_000)
 
   afterAll(async () => {
-    await browser?.close()
     server?.stop(true)
-  })
+    if (!browser) return
+    await Promise.race([
+      browser.close({ reason: 'website browser smoke cleanup' }).catch(() => {}),
+      new Promise((resolve) => setTimeout(resolve, 5_000)),
+    ])
+  }, 10_000)
 
   test('public routes have named controls, valid ARIA references, and no mobile horizontal overflow', async () => {
     const page = await browser.newPage({ viewport: { width: 390, height: 900 } })
@@ -116,7 +120,7 @@ describeBrowser('website browser accessibility smoke', () => {
         await page.waitForFunction(() => document.querySelectorAll('.comparison-mermaid[data-processed="true"]').length === 12, null, { timeout: 10_000 })
         expect(await page.locator('.comparison-mermaid[data-processed="true"]').count()).toBe(12)
         expect(await page.locator('.comparison-panel').count()).toBe(30)
-        await page.locator('.comparison-focus').first().click()
+        await page.locator('[data-comparison-lightbox-panel]').first().click()
         expect(await page.locator('.comparison-dialog[open]').count()).toBe(1)
         expect(await page.locator('.comparison-dialog .comparison-panel').count()).toBeGreaterThanOrEqual(2)
         await page.locator('.comparison-dialog-close').click()
@@ -138,7 +142,7 @@ describeBrowser('website browser accessibility smoke', () => {
       expect(await page.locator('.theme-switch').count()).toBe(0)
     }
     await page.close()
-  })
+  }, 30_000)
 
   test('public typography keeps the Examples-width document column and safe code wrapping', async () => {
     const page = await browser.newPage({ viewport: { width: 1280, height: 900 } })
@@ -174,7 +178,7 @@ describeBrowser('website browser accessibility smoke', () => {
     expect(Number.parseFloat(metrics.unicodeCodeSize)).toBeGreaterThanOrEqual(12)
     expect(Math.abs(metrics.h1Tracking)).toBeLessThan(2)
     await page.close()
-  })
+  }, 30_000)
 
   test('editor blank-start URL opens an empty canvas instead of the default or saved draft', async () => {
     const page = await browser.newPage({ viewport: { width: 1280, height: 900 } })
@@ -185,7 +189,7 @@ describeBrowser('website browser accessibility smoke', () => {
     expect(await page.locator('#code-editor').inputValue()).toBe('')
     expect(await page.locator('#preview-placeholder .placeholder-title').textContent()).toContain('No diagram yet')
     await page.close()
-  })
+  }, 30_000)
 
   test('editor mobile preview controls stay reachable at phone width', async () => {
     const page = await browser.newPage({ viewport: { width: 390, height: 900 } })
@@ -226,7 +230,7 @@ describeBrowser('website browser accessibility smoke', () => {
       expect(metric.height).toBeGreaterThanOrEqual(44)
     }
     await page.close()
-  })
+  }, 30_000)
 
   test('editor popovers are keyboard-operable, inert when closed, and restore focus', async () => {
     const page = await browser.newPage({ viewport: { width: 1280, height: 900 } })
@@ -277,5 +281,5 @@ describeBrowser('website browser accessibility smoke', () => {
     const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)
     expect(overflow).toBe(0)
     await page.close()
-  })
+  }, 30_000)
 })

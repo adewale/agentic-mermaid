@@ -42,7 +42,7 @@ changelogs for the current state.
 | Deterministic output | Not a goal (browser/layout variance) | Mostly stable, not a tested guarantee | ✅ byte-identical across runs/processes, CI-gated |
 | Round-trip guarantee (parse → serialize keeps your source) | — | — | ✅ verbatim for unmodeled syntax, canonical for structured bodies |
 | CLI | `mermaid-cli` (`mmdc`, Puppeteer-based) | — | `am` (render/verify/mutate/batch/preview/…, single-binary build) |
-| MCP / agent surface | Official hosted MCP (validation, PNG, Mermaid Chart integration) | — | Code Mode `execute()` MCP (stdio + HTTP/SSE), `llms.txt`, agent skill |
+| MCP / agent surface | Official hosted MCP (validation, PNG, Mermaid Chart integration) | — | Local Code Mode MCP (`execute`, `render_png`, `describe`) plus hosted `/mcp` (`execute`, render/verify/describe, `mutate`/`build`), `llms.txt`, agent skill |
 | Interactivity (click handlers, animations) | ✅ | Partial (tooltips) | Inherited where upstream has it; not a focus |
 | Ecosystem & docs | Vast — the de-facto standard, GitHub/GitLab/Notion render it natively | Growing, popular for terminal/AI use | Small; this repo |
 
@@ -68,8 +68,9 @@ an agent to eyeball pixels; `serializeMermaid` round-trips losslessly
 (structured-or-opaque: anything the parser doesn't model is preserved
 verbatim, never silently dropped). Plus offline PNG, JSON layout, an `am`
 CLI built for agents (exit codes, JSONL batch, `capabilities --json`
-self-discovery), a Code Mode MCP server, and tested byte-identical
-determinism. Neither upstream project needed any of this: both serve humans who write
+self-discovery), a local Code Mode MCP server, a bounded hosted MCP endpoint
+for zero-install render/verify/describe and structured edits, and tested
+byte-identical determinism. Neither upstream project needed any of this: both serve humans who write
 diagrams once, while this surface serves programs that edit them repeatedly.
 
 ## Choosing

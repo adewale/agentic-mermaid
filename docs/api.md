@@ -195,10 +195,12 @@ PNG is single-input and requires `--output` so binary bytes are never accidental
 
 The published package exposes Node-runnable bins: `am`, `agentic-mermaid`, and `agentic-mermaid-mcp`.
 
-`agentic-mermaid-mcp` exposes:
+Local `agentic-mermaid-mcp` is Code Mode-first and exposes:
 
 - `execute(code)` — primary Code Mode tool with global `mermaid.*` SDK.
 - `render_png` — narrow helper returning base64 PNG bytes, or managed file/URL artifacts via `output: "file"|"url"`.
 - `describe` — narrow summary helper; pass `format: "facts"` for deterministic semantic fact lines.
 
-Use Code Mode for multi-step parse/narrow/mutate/verify/serialize loops. Use `render_png` or host/library code for binary PNG output. The default transport is stdio; `agentic-mermaid-mcp --transport http --host 127.0.0.1 --port 3000` starts the HTTP/SSE transport. HTTP mode serves managed artifacts from `/artifacts/<name>` with MIME type, byte count, and SHA-256 metadata in tool responses. Non-loopback HTTP binding requires `--auth-token`. See [`mcp-http-transport.md`](./mcp-http-transport.md) for JSON-RPC examples and option details.
+Use Code Mode for multi-step parse/narrow/mutate/verify/serialize loops. Use `render_png` or host/library code for binary PNG output. The default transport is stdio; `agentic-mermaid-mcp --transport http --host 127.0.0.1 --port 3000` starts the HTTP/SSE transport. HTTP mode serves managed artifacts from `/artifacts/<name>` with MIME type, byte count, and SHA-256 metadata in tool responses. Non-loopback HTTP binding requires `--auth-token`.
+
+A hosted Streamable HTTP endpoint also runs at `https://agentic-mermaid.dev/mcp`. It is MCP JSON-RPC only (not REST), stateless, public/unauthenticated, and capped at 64 KB inputs. Hosted tools are `execute`, `render_svg`, `render_ascii`, `render_png`, `verify`, `describe`, `mutate`, and `build`; hosted `execute` uses a Cloudflare Dynamic Worker isolate with no network, and hosted `render_png` returns base64 only. Prefer local CLI/library/MCP for sensitive diagrams, offline work, larger inputs, or file/URL PNG artifacts. See [`mcp-http-transport.md`](./mcp-http-transport.md) for JSON-RPC examples and option details.
