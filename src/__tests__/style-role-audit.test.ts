@@ -9,7 +9,7 @@ import { getFamily } from '../render-family-hooks.ts'
 import type { MarkPaint, SceneDoc, SceneNode } from '../scene/ir.ts'
 import type { DiagramColors } from '../theme.ts'
 import { resolveColors } from '../theme.ts'
-import type { PositionedDiagram, RenderOptions } from '../types.ts'
+import type { DiagramStyleOptions, PositionedDiagram, RenderOptions } from '../types.ts'
 import { isHexColor, mixHex } from '../shared/color-math.ts'
 
 const WCAG_TEXT_AA = 4.5
@@ -29,36 +29,38 @@ const TOKENS = {
   groupText: '#052e16',
 } as const
 
+const AUDIT_STYLE: DiagramStyleOptions = {
+  node: {
+    fillColor: TOKENS.nodeFill,
+    borderColor: TOKENS.nodeStroke,
+    textColor: TOKENS.nodeText,
+    lineWidth: 2,
+  },
+  edge: {
+    strokeColor: TOKENS.edgeStroke,
+    textColor: TOKENS.edgeText,
+    lineWidth: 3,
+  },
+  group: {
+    fillColor: TOKENS.groupFill,
+    headerFillColor: TOKENS.groupHeader,
+    borderColor: TOKENS.groupStroke,
+    textColor: TOKENS.groupText,
+    lineWidth: 2,
+  },
+}
+
 const AUDIT_OPTIONS: RenderOptions = {
   bg: TOKENS.bg,
   fg: TOKENS.fg,
   embedFontImport: false,
-  style: {
-    node: {
-      fillColor: TOKENS.nodeFill,
-      borderColor: TOKENS.nodeStroke,
-      textColor: TOKENS.nodeText,
-      lineWidth: 2,
-    },
-    edge: {
-      strokeColor: TOKENS.edgeStroke,
-      textColor: TOKENS.edgeText,
-      lineWidth: 3,
-    },
-    group: {
-      fillColor: TOKENS.groupFill,
-      headerFillColor: TOKENS.groupHeader,
-      borderColor: TOKENS.groupStroke,
-      textColor: TOKENS.groupText,
-      lineWidth: 2,
-    },
-  },
+  style: AUDIT_STYLE,
 }
 
 const TRANSFORM_AUDIT_OPTIONS: RenderOptions = {
   ...AUDIT_OPTIONS,
   style: {
-    ...AUDIT_OPTIONS.style,
+    ...AUDIT_STYLE,
     text: { textTransform: 'uppercase' },
   },
 }
@@ -520,7 +522,7 @@ function roleCoverage(entries: LoweredCase[]): Record<string, string[]> {
   return Object.fromEntries(Object.entries(out).map(([family, roles]) => [family, [...roles].sort()]))
 }
 
-function shouldAuditTextTransform(mark: AuditedMark): boolean {
+function shouldAuditTextTransform(mark: AuditedMark): mark is AuditedMark & { kind: 'text'; text: string } {
   if (mark.kind !== 'text' || !mark.text) return false
   if (mark.role === 'member' || mark.role === 'attribute' || mark.role === 'cardinality') return false
   return /[a-z]/.test(mark.text)
