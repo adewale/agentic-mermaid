@@ -104,11 +104,16 @@ describe('Workers Static Assets website contract', () => {
     expect(slash.status).toBe(308)
     expect(slash.headers.get('location')).toBe('https://agentic-mermaid.dev/editor/?empty=1')
 
+    const aboutSlash = await worker.fetch(new Request('https://agentic-mermaid.dev/about'), env(() => new Response('about')))
+    expect(aboutSlash.status).toBe(308)
+    expect(aboutSlash.headers.get('location')).toBe('https://agentic-mermaid.dev/about/')
+
     assetFetches = 0
-    const removedFamilyRedirect = await worker.fetch(new Request('https://agentic-mermaid.dev/docs/families'), env(() => new Response('not found', { status: 404 })))
-    expect(removedFamilyRedirect.status).toBe(404)
-    expect(removedFamilyRedirect.headers.get('location')).toBe(null)
-    expect(assetFetches).toBe(1)
+    for (const gone of ['/families', '/families/', '/docs/families', '/docs/source-level', '/docs/config', '/docs/react', '/docs/vocabulary', '/security', '/skills', '/evidence', '/releases']) {
+      const removedRedirect = await worker.fetch(new Request(`https://agentic-mermaid.dev${gone}`), env(() => new Response('not found', { status: 404 })))
+      expect({ gone, status: removedRedirect.status, location: removedRedirect.headers.get('location') }).toEqual({ gone, status: 404, location: null })
+    }
+    expect(assetFetches).toBe(11)
 
     const html = await worker.fetch(new Request('https://agentic-mermaid.dev/'), env(() => new Response('<!doctype html>', { headers: { 'content-type': 'text/html; charset=utf-8' } })))
     expect(html.status).toBe(200)
