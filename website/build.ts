@@ -925,6 +925,39 @@ const COMPARISON_TAKEAWAYS: Record<string, string> = {
   quadrant: 'Points and axes remain inspectable source, not a static image pasted into docs.',
   gantt: 'Schedule resolution is verified locally so bad dependencies can fail before an agent returns source.',
 }
+const COMPARISON_STYLE_ROWS = [
+  {
+    tool: 'Mermaid',
+    surface: 'Theme config, themeVariables, directives, and CSS in the host page.',
+    use: 'Best when the destination already renders Mermaid and owns the visual shell.',
+    agent: 'Agents should hand back Mermaid source plus the target app\'s theme config; styling is usually applied by the embedding page or Mermaid CLI wrapper.',
+  },
+  {
+    tool: 'Beautiful Mermaid',
+    surface: 'Browserless SVG and text rendering with a two-colour theme foundation, named themes, Shiki/VS Code palette extraction, and CSS-variable SVGs.',
+    use: 'Best for render-only jobs on the upstream core families when you want a synchronous TypeScript renderer.',
+    agent: 'Agents can request a render with colour/theme options, but there is no typed edit/verify loop or reusable style stack contract.',
+  },
+  {
+    tool: 'Agentic Mermaid',
+    surface: 'Composable style stacks: built-in looks, palette-only themes, custom JSON styles, semantic role overrides, and deterministic seed.',
+    use: 'Best when the agent edits the source, verifies it, then applies appearance as render options.',
+    agent: 'Agents pass options such as style: [\'publication-figure\', \'github-light\'] or --style publication-figure,github-light; the Mermaid source stays structural.',
+  },
+] as const
+function comparisonStyleSupportHtml() {
+  return `<section class="comparison-style-matrix" aria-labelledby="comparison-style-matrix-title">
+<h2 id="comparison-style-matrix-title">Styling and theming support</h2>
+<p>The render rows above compare one source family by family. Styling is a separate capability: how much appearance can be passed as configuration instead of edited into Mermaid source.</p>
+<div class="table-scroll"><table class="comparison-style-table">
+<thead><tr><th>Tool</th><th>Styling surface</th><th>Use it when</th><th>Agent handoff</th></tr></thead>
+<tbody>
+${COMPARISON_STYLE_ROWS.map((row) => `<tr><th scope="row">${escapeHtml(row.tool)}</th><td>${escapeHtml(row.surface)}</td><td>${escapeHtml(row.use)}</td><td>${escapeHtml(row.agent)}</td></tr>`).join('\n')}
+</tbody>
+</table></div>
+<p class="muted">Short version: Mermaid owns the broad ecosystem renderer, Beautiful Mermaid owns browserless render-only theming for its families, and Agentic Mermaid adds the agent contract: typed edits first, style/theme render options second.</p>
+</section>`
+}
 function comparisonsHtml() {
   const sections = COMPARISON_CASES.map((c) => {
     const beautiful = comparisonBeautifulRender(c)
@@ -954,6 +987,7 @@ function comparisonsHtml() {
 <li>The runtime Mermaid panels are progressive enhancement: source stays visible even before the browser renderer loads.</li>
 </ul>
 </div><div class="comparisons" data-mermaid-runtime="/${mermaidRuntimeRel}">${sections}
+${comparisonStyleSupportHtml()}
 <dialog class="comparison-dialog" data-comparison-dialog aria-labelledby="comparison-dialog-title">
   <form class="comparison-dialog-bar" method="dialog">
     <div>
@@ -1365,6 +1399,53 @@ function addWorkflowSvgA11y(svg: string) {
 // shell ground for transparent label halos.
 const workflowPaperSvg = addWorkflowSvgA11y(renderMermaidSVG(workflowSource,
   { bg: '#F8F4F0', fg: '#221E16', accent: '#9A4A24', transparent: true, security: 'strict', embedFontImport: false }))
+const HOME_STYLE_SHOWCASE_SOURCE = `flowchart TD
+  Task[Task] --> Agent[Agent]
+  Agent --> Source[Mermaid source]
+  Source --> Render[Styled render]`
+const HOME_STYLE_SHOWCASE_COMBOS = [
+  { label: 'Sketch note', look: 'watercolor', theme: 'paper', seed: 4, blurb: 'For whiteboards, docs drafts, and agent working notes.' },
+  { label: 'Report figure', look: 'publication-figure', theme: 'github-light', seed: 0, blurb: 'For specs, READMEs, and reviewable product documents.' },
+  { label: 'Ops map', look: 'ops-schematic', theme: 'nord-light', seed: 8, blurb: 'For traces, runbooks, and compact engineering diagrams.' },
+] as const
+function renderHomeStyleShowcaseSvg(combo: (typeof HOME_STYLE_SHOWCASE_COMBOS)[number]) {
+  const svg = renderMermaidSVG(HOME_STYLE_SHOWCASE_SOURCE, {
+    style: [combo.look, combo.theme],
+    seed: combo.seed,
+    security: 'strict',
+    compact: true,
+    embedFontImport: false,
+    idPrefix: `home-style-${combo.look}-`,
+  }).replace(/[ \t]+$/gm, '')
+  return addSvgAccessibleName(
+    svg,
+    `home-style-${combo.look}`,
+    `${combo.label} diagram in ${displayStyleName(combo.look)} and ${displayStyleName(combo.theme)}`,
+    `The same Mermaid source rendered with ${combo.look}, ${combo.theme}, and seed ${combo.seed}.`,
+  )
+}
+function homeStyleShowcaseHtml() {
+  return `<div class="home-style-showcase-grid">
+${HOME_STYLE_SHOWCASE_COMBOS.map((combo) => {
+  return `<article class="home-style-card">
+  <div class="home-style-render">${renderHomeStyleShowcaseSvg(combo)}</div>
+  <div class="home-style-card-body">
+    <h3>${escapeHtml(combo.label)}</h3>
+    <p>${escapeHtml(combo.blurb)}</p>
+    <ul class="home-style-meta" aria-label="${escapeAttr(combo.label)} render options">
+      <li><span>Style</span><code>${escapeHtml(combo.look)}</code></li>
+      <li><span>Theme</span><code>${escapeHtml(combo.theme)}</code></li>
+      <li><span>Seed</span><code>${combo.seed}</code></li>
+    </ul>
+    <a class="go" href="${escapeAttr(editorStateHref({ source: HOME_STYLE_SHOWCASE_SOURCE, style: combo.look, theme: combo.theme, seed: combo.seed }))}">Open this look</a>
+  </div>
+</article>`
+}).join('\n')}
+</div>`
+}
+function injectHomeStyleShowcase(html: string) {
+  return html.replace('{{HOME_STYLE_SHOWCASE}}', homeStyleShowcaseHtml())
+}
 function injectWorkflowSvg(html: string) {
   return html.replace(/<div class="plate dia-plate">[\s\S]*?<\/div>|<div class="plate"><div class="dia-wrap">[\s\S]*?<\/div><\/div>/,
     `<div class="plate dia-plate">\n      ${workflowPaperSvg}\n    </div>`)
@@ -1388,6 +1469,7 @@ for (const [source, target] of pageOutputs) {
     // The agent pointer (primary CTA) is intentionally a single fetch instruction;
     // start.md stays the canonical protocol instead of being duplicated inline.
     html = html.replace('{{AGENT_POINTER}}', escapeAttr(HOMEPAGE_AGENT_POINTER))
+    html = injectHomeStyleShowcase(html)
     html = injectWorkflowUnicode(html)
   }
   if (source === 'docs-article.html') html = injectDocsIndex(injectLoopHeadings(html))
