@@ -395,7 +395,12 @@ describe('Workers Static Assets website contract', () => {
     expect(home).not.toContain('<details class="prompt-details">')
     expect(home.indexOf('data-copy-text="Fetch https://agentic-mermaid.dev/start.md and follow it."')).toBeLessThan(home.indexOf('id="quick-start-title"'))
     expect(home.indexOf('id="machine-context-title"')).toBeGreaterThan(home.indexOf('One source, your visual language'))
-    expect(gettingStarted).toContain('Get the agent prompt on the homepage')
+    expect(gettingStarted).toContain('do not copy a long prompt from this page')
+    expect(gettingStarted).toContain('Give it three things: your task, the Mermaid source, and one bootstrap line')
+    expect(gettingStarted).toContain('Paste the task, paste the Mermaid source, then add this line')
+    expect(gettingStarted).toContain('Fetch https://agentic-mermaid.dev/start.md and follow it.')
+    expect(gettingStarted).toContain('That line is the only prompt to copy from this page')
+    expect(gettingStarted).toContain('Copy this line on the homepage')
     // Fetch flow: the primary CTA points at a hosted bootstrap that is actually
     // served and byte-identical to the source the eval treats as the canonical
     // protocol. The homepage does not inline a second copy.

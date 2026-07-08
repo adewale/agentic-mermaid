@@ -1601,7 +1601,7 @@ function mcpConfigCardHtml(idPrefix: string) {
 <p class="copy-prompt-status" id="${idPrefix}-mcp-copy-status" role="status" aria-live="polite"></p>
 </div>`
 }
-const gettingStartedBody = `<p>Start with a diagram goal and a style. Render locally, then give an agent the homepage prompt when you want it to create or edit the source.</p>
+const gettingStartedBody = `<p>Use this page to install the tool and render once yourself. When you hand work to an agent, do not copy a long prompt from this page. Give it three things: your task, the Mermaid source, and one bootstrap line that tells it to fetch the maintained instructions.</p>
 <ol class="start-rail">
 <li><strong>Install Agentic Mermaid.</strong><p>${escapeHtml(installNotice)}</p><pre><code>${escapeHtml(installCommand)}</code></pre></li>
 <li><strong>Create a diagram.</strong><p>This first pass uses source directly. Add <code>--style watercolor</code>, <code>--style blueprint</code>, or a JSON style file when you render.</p><pre><code>cat > diagram.mmd &lt;&lt;'MMD'
@@ -1613,7 +1613,7 @@ MMD</code></pre></li>
 <li><strong>Verify, then render.</strong><pre><code>bun run bin/am.ts verify diagram.mmd --json
 bun run bin/am.ts render diagram.mmd --format svg --style publication-figure --output diagram.svg
 bun run bin/am.ts render diagram.mmd --format unicode</code></pre></li>
-<li><strong>Ask an agent for the smallest edit.</strong><p>Paste your task and source with the homepage fetch prompt, and require the agent to follow <code>start.md</code>.</p><a class="go" href="/">Get the agent prompt on the homepage</a></li>
+<li><strong>Hand the edit to an agent.</strong><p>Paste the task, paste the Mermaid source, then add this line:</p><pre><code>${escapeHtml(HOMEPAGE_AGENT_POINTER)}</code></pre><p>That line is the only prompt to copy from this page. The fetched file tells the agent how to choose library, CLI, or MCP and verify before returning, so this page does not duplicate the protocol.</p><a class="go" href="/">Copy this line on the homepage</a></li>
 <li><strong>Optional: wire MCP.</strong><p>Self-hosting over stdio is the default path; a hosted MCP endpoint is also available at <code>https://agentic-mermaid.dev/mcp</code> (streamable HTTP).</p>
 ${mcpConfigCardHtml('getting-started')}
 <pre><code>bun run bin/agentic-mermaid-mcp.ts</code></pre><p>Use stdio MCP from the cloned repo, or point an MCP client at the hosted endpoint.</p></li>
