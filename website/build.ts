@@ -941,21 +941,21 @@ const COMPARISON_STYLE_ROWS = [
   {
     tool: 'Agentic Mermaid',
     surface: 'Composable style stacks: built-in looks, palette-only themes, custom JSON styles, semantic role overrides, and deterministic seed.',
-    use: 'Best when the agent edits the source, verifies it, then applies appearance as render options.',
-    agent: 'Agents pass options such as style: [\'publication-figure\', \'github-light\'] or --style publication-figure,github-light; the Mermaid source stays structural.',
+    use: 'Best when an agent must edit source safely and then render with a chosen look.',
+    agent: 'Agents pass style options such as style: [\'publication-figure\', \'github-light\'] or --style publication-figure,github-light; the Mermaid source keeps the structure only.',
   },
 ] as const
 function comparisonStyleSupportHtml() {
   return `<section class="comparison-style-matrix" aria-labelledby="comparison-style-matrix-title">
 <h2 id="comparison-style-matrix-title">Styling and theming support</h2>
-<p>The render rows above compare one source family by family. Styling is a separate capability: how much appearance can be passed as configuration instead of edited into Mermaid source.</p>
+<p>The render rows above compare one source family by family. This table asks a different question: where do color, font, and style choices live, and can an agent pass them without changing Mermaid source?</p>
 <div class="table-scroll"><table class="comparison-style-table">
 <thead><tr><th>Tool</th><th>Styling surface</th><th>Use it when</th><th>Agent handoff</th></tr></thead>
 <tbody>
 ${COMPARISON_STYLE_ROWS.map((row) => `<tr><th scope="row">${escapeHtml(row.tool)}</th><td>${escapeHtml(row.surface)}</td><td>${escapeHtml(row.use)}</td><td>${escapeHtml(row.agent)}</td></tr>`).join('\n')}
 </tbody>
 </table></div>
-<p class="muted">Short version: Mermaid owns the broad ecosystem renderer, Beautiful Mermaid owns browserless render-only theming for its families, and Agentic Mermaid adds the agent contract: typed edits first, style/theme render options second.</p>
+<p class="muted">Summary: Mermaid gives you the broadest hosted and embedded renderer. Beautiful Mermaid gives you browserless render-only theming for its families. Agentic Mermaid adds the safe agent sequence: edit typed source, verify it, then pass style/theme render options.</p>
 </section>`
 }
 function comparisonsHtml() {
@@ -1740,7 +1740,7 @@ am render flow.mmd --format png    > flow.png
 am render flow.mmd --format ascii          # box-drawing, into the terminal</code></pre>
 
 <h2>The loop</h2>
-<p>These are one loop. An agent writes or parses the source, narrows it when an edit is typed, applies the requested change, verifies the result, and renders with the chosen style. The trust layer is what lets the pleasant part work: you can ask for a branded diagram without accepting a silent source rewrite.</p>
+<p>These are one loop. An agent writes or parses the source, narrows it when an edit is typed, applies the requested change, verifies the result, and renders with the chosen style. Because verification runs before rendering, you can ask for a branded diagram without accepting a silent source rewrite.</p>
 ${aboutDiagram('flowchart LR\n  Parse --> Narrow\n  Narrow --> Mutate\n  Mutate --> Verify\n  Verify -- ok --> Serialize\n  Verify -- warnings --> Narrow', 'loop')}
 <p class="muted">The loop itself, drawn by Agentic Mermaid at build time from six lines of Mermaid.</p>
 

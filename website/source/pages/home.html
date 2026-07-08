@@ -123,12 +123,12 @@ execute(`
     <div class="home-style-showcase-head">
       <div>
         <p class="section-kicker">Style × theme</p>
-        <h2 id="home-style-showcase-title">One source, your visual language</h2>
-        <p>Render SVG for docs, PNG for decks, ASCII or Unicode for review, and layout JSON when tooling needs coordinates. Use a named look, a palette-only theme, or a custom JSON style checked into your repo. A style seed changes texture; it never moves boxes.</p>
+        <h2 id="home-style-showcase-title">One source, three looks</h2>
+        <p>Render SVG for docs, PNG for decks, ASCII or Unicode for review, and layout JSON when tooling needs coordinates. To change the look, pass a style stack in render options; examples include <code>watercolor,paper</code> and <code>ops-schematic,nord-light</code> stacks. Seed changes only sketch noise; node positions and edge routes stay fixed.</p>
       </div>
       <a class="go" href="/examples/#examples-style-theme-combinations">See all family combinations</a>
     </div>
-    <p class="muted">Same Mermaid source, three render options. Agents change the look by passing style, theme, and seed — not by rewriting the diagram.</p>
+    <p class="muted">Each card uses the same Mermaid source with different render options. Agents pass style, theme, and seed in the render call instead of rewriting labels or edges for visual changes.</p>
     {{HOME_STYLE_SHOWCASE}}
   </section>
 
