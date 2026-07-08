@@ -119,27 +119,14 @@ describeBrowser('website browser accessibility smoke', () => {
       const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)
       expect({ route, overflow }).toEqual({ route, overflow: 0 })
       if (route === '/comparisons/') {
-        await page.waitForFunction(() => document.querySelectorAll('.comparison-mermaid[data-processed="true"]').length === 12, null, { timeout: 10_000 })
-        expect(await page.locator('.comparison-mermaid[data-processed="true"]').count()).toBe(12)
+        await page.waitForFunction(() => document.querySelectorAll('.comparison-mermaid[data-processed="true"]').length === 13, null, { timeout: 10_000 })
+        expect(await page.locator('.comparison-mermaid[data-processed="true"]').count()).toBe(13)
         expect(await page.locator('.comparison-panel').count()).toBe(30)
         await page.locator('[data-comparison-lightbox-panel]').first().click()
         expect(await page.locator('.comparison-dialog[open]').count()).toBe(1)
         expect(await page.locator('.comparison-dialog .comparison-panel').count()).toBeGreaterThanOrEqual(2)
         await page.locator('.comparison-dialog-close').click()
         expect(await page.locator('.comparison-dialog[open]').count()).toBe(0)
-      }
-      if (route === '/') {
-        const unicodeMetrics = await page.locator('.unicode-diagram').evaluate((el) => {
-          const code = el.querySelector('code') as HTMLElement
-          return {
-            overflowX: getComputedStyle(el).overflowX,
-            codeSize: Number.parseFloat(getComputedStyle(code).fontSize),
-            containedOverflow: el.scrollWidth - el.clientWidth,
-          }
-        })
-        expect({ route, overflowX: unicodeMetrics.overflowX }).toEqual({ route, overflowX: 'auto' })
-        expect(unicodeMetrics.codeSize).toBeGreaterThanOrEqual(12)
-        expect(unicodeMetrics.containedOverflow).toBeGreaterThanOrEqual(0)
       }
       expect(await page.locator('.theme-switch').count()).toBe(0)
     }
@@ -156,7 +143,6 @@ describeBrowser('website browser accessibility smoke', () => {
       const codeBlock = document.querySelector('.channels pre') as HTMLElement
       const code = codeBlock.querySelector('code') as HTMLElement
       const h1 = document.querySelector('h1') as HTMLElement
-      const unicode = document.querySelector('.unicode-diagram') as HTMLElement
       return {
         bodyLine: Number.parseFloat(body.lineHeight) / Number.parseFloat(body.fontSize),
         docWidth: doc.getBoundingClientRect().width,
@@ -164,9 +150,6 @@ describeBrowser('website browser accessibility smoke', () => {
         codeOverflowX: getComputedStyle(codeBlock).overflowX,
         codeLigatures: getComputedStyle(code).fontFeatureSettings,
         h1Tracking: Number.parseFloat(getComputedStyle(h1).letterSpacing),
-        unicodeOverflow: unicode.scrollWidth - unicode.clientWidth,
-        unicodeOverflowX: getComputedStyle(unicode).overflowX,
-        unicodeCodeSize: getComputedStyle(unicode.querySelector('code') as HTMLElement).fontSize,
       }
     })
     expect(metrics.bodyLine).toBeGreaterThanOrEqual(1.55)
@@ -176,9 +159,6 @@ describeBrowser('website browser accessibility smoke', () => {
     expect(metrics.leadWidth).toBeGreaterThanOrEqual(950)
     expect(metrics.codeOverflowX).toBe('auto')
     expect(metrics.codeLigatures).toContain('"liga" 0')
-    expect(metrics.unicodeOverflow).toBeGreaterThanOrEqual(0)
-    expect(metrics.unicodeOverflowX).toBe('auto')
-    expect(Number.parseFloat(metrics.unicodeCodeSize)).toBeGreaterThanOrEqual(12)
     expect(Math.abs(metrics.h1Tracking)).toBeLessThan(2)
     await page.close()
   }, 30_000)

@@ -62,7 +62,7 @@
           <li>SVG and PNG serve pages and decks; ASCII, Unicode, and layout JSON serve review tools and agents.</li>
         </ul>
       </div>
-      <div class="contrast-col contrast-col-mutate">
+      <div class="contrast-col">
         <p class="meta-label">Agent-native control</p>
         <ul>
           <li>Typed parse and mutate helpers make Mermaid source the durable interface.</li>
@@ -125,7 +125,7 @@ execute(`
         <h2 id="home-style-showcase-title">One source, three styles</h2>
         <p>Render SVG for docs, PNG for decks, ASCII or Unicode for review, and layout JSON when tooling needs coordinates. To change visual treatment, pass a style stack in render options; examples include <code>watercolor,paper</code> and <code>ops-schematic,nord-light</code>. Seed changes only sketch noise; node positions and edge routes stay fixed.</p>
       </div>
-      <a class="go" href="/examples/#examples-style-theme-combinations">See all family combinations</a>
+      <a class="go" href="/examples/#examples-style-palette-combinations">See all style/palette examples</a>
     </div>
     <p class="muted">Each card uses the same Mermaid source with different render options. Agents pass style, palette, and seed in the render call instead of rewriting labels or edges for visual changes.</p>
     {{HOME_STYLE_SHOWCASE}}
@@ -139,15 +139,6 @@ execute(`
     <li><a href="/examples/"><strong>5</strong> outputs per source</a></li>
     <li><a href="/warnings/"><strong>Verified</strong> source before export</a></li>
   </ul>
-
-  <p>The loop figure at the top of the page again — same source, same layout. The same diagram as Unicode text:</p>
-  <pre class="unicode-diagram"><code>┌─────────────┐     ┌───────┐     ┌────────┐     ┌──────────┐     ◇────────◇     ┌────────────────────┐
-│             │     │       │     │        │     │          │     │        │     │                    │
-│ Source .mmd ├────►│ parse ├────►│ narrow ├────►│  mutate  ├────►│ verify ├─ok─►│ serialize → render │
-│             │     │       │     │        │     │          │     │        │     │                    │
-└─────────────┘     └───────┘     └────────┘     └──────────┘     ◇────┬───◇     └────────────────────┘
-                                       ▲                               │
-                                       └───────────warnings────────────┘</code></pre>
 
   <section class="machine-context" aria-labelledby="machine-context-title">
     <h2 id="machine-context-title">Machine-readable context</h2>

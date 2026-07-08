@@ -76,9 +76,9 @@ applyThemeToPage(state.theme);
 updateThemeButton();
 setThemeMenuOpen(false, false);
 
-// ── Style dropdown (the LOOK — hand-drawn, watercolor, …) ───────────────────
-// Mirrors the theme dropdown: style picks the mark treatment, theme picks the
-// palette; buildOptions stacks them (theme colors win by render precedence).
+// ── Style dropdown (renderer treatment — hand-drawn, watercolor, …) ─────────
+// Mirrors the Palette dropdown: style picks mark treatment, palette picks
+// colors; buildOptions stacks them (palette colors win by render precedence).
 var styleBtnLabel = document.getElementById("style-btn-label");
 var styleDropdownBtn = document.getElementById("style-dropdown-btn");
 var styleMenu = document.getElementById("style-dropdown-menu");

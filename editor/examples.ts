@@ -100,11 +100,11 @@ export const EDITOR_EXAMPLES = [
     +renderSVG(source) string
     +renderASCII(source) string
   }
-  class Theme {
+  class Palette {
     +bg string
     +fg string
   }
-  Renderer --> Theme : uses`,
+  Renderer --> Palette : uses`,
   },
   {
     id: 'er-basic',
@@ -201,7 +201,7 @@ export const EDITOR_EXAMPLES = [
   quadrant-4 Quick wins
   SVG export: [0.78, 0.28]
   MCP setup: [0.62, 0.72]
-  Theme polish: [0.35, 0.24]`,
+  Palette polish: [0.35, 0.24]`,
   },
   {
     id: 'gantt-basic',
