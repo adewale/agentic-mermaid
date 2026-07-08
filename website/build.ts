@@ -420,6 +420,7 @@ function mastheadHtml(currentHref = '') {
     ['/examples/', 'Examples', ''],
     ['/comparisons/', 'Comparisons', ''],
     ['/docs/', 'Docs', ''],
+    ['https://github.com/adewale/agentic-mermaid', 'GitHub', ''],
     [GENERIC_EDITOR_HREF, 'Open editor', 'link-editor'],
   ] as const
   const nav = links.map(([href, label, cls]) => {
@@ -427,14 +428,6 @@ function mastheadHtml(currentHref = '') {
     return `<a ${attrs ? attrs + ' ' : ''}href="${href}">${label}</a>`
   }).join('')
   return `<header class="masthead"><div class="bar"><a class="brand" href="/"><span class="mark"></span> Agentic&nbsp;Mermaid</a><span class="links">${nav}</span></div><hr></header>`
-}
-
-// One quiet footer shared by every shipped page. Machine-readable files live
-// in the homepage agent context, llms.txt discovery links, and docs pages where
-// they have surrounding instructions; the footer stays human wayfinding plus
-// the repository link.
-function footerHtml() {
-  return `<footer><div class="footlinks"><a href="/examples/">Examples</a><span class="sep">&middot;</span><a href="/docs/">Docs</a><span class="sep">&middot;</span><a href="${GENERIC_EDITOR_HREF}">Open editor</a><span class="sep">&middot;</span><a href="https://github.com/adewale/agentic-mermaid">GitHub</a></div></footer>`
 }
 
 // Single page header contract: h1 + lead, then an optional meta row
@@ -471,7 +464,6 @@ ${mastheadHtml(currentHref)}
 ${meta ? `<p class="page-meta">${meta}</p>\n` : ''}${actions ? `<div class="page-actions">${actions}</div>\n` : ''}</section>
 ${body}
 </main>
-${footerHtml()}
 <script src="/shader-mark.js"></script>
 <script src="/theme.js"></script>
 </body>
@@ -602,24 +594,26 @@ function exampleFamilyDescription(familyId: string, fallback: string) {
 }
 // Examples is now the family-discovery surface: jump cards replace the removed
 // Diagram families page and the old search box.
+function exampleJumpCard(example: any, description: string) {
+  return `<a class="example-jump-card" href="#${escapeAttr(exampleAnchor(example))}"><strong>${escapeHtml(example.label)}</strong><span>${escapeHtml(description)}</span></a>`
+}
 function examplesJumpHtml(groups: Map<string, any[]>) {
+  const sections: string[] = []
   const familyExamples = groups.get('Supported diagrams') ?? []
-  const familyCards = familyExamples.map((example) => {
-    const family = familyForExample(example)
-    const description = family ? exampleFamilyDescription(family.id, example.description ?? example.label) : (example.description ?? example.label)
-    return `<a class="example-jump-card" href="#${escapeAttr(exampleAnchor(example))}"><strong>${escapeHtml(example.label)}</strong><span>${escapeHtml(description)}</span></a>`
-  }).join('')
-  const otherRows = Array.from(groups)
-    .filter(([category]) => category !== 'Supported diagrams')
-    .map(([category, examples]) => {
-      const links = examples.map((example) => `<a href="#${escapeAttr(exampleAnchor(example))}">${escapeHtml(example.label)}</a>`).join('<span class="sep">&middot;</span>')
-      return `<p><strong>${escapeHtml(exampleCategoryLabel(category))}</strong>: ${links}</p>`
-    }).join('\n')
-  return `<nav class="example-jump" aria-label="Jump to examples">
-<p class="example-jump-title">Jump to a diagram family</p>
-<div class="example-jump-grid">${familyCards}</div>
-${otherRows ? `<div class="example-jump-more">${otherRows}</div>` : ''}
-</nav>`
+  if (familyExamples.length) {
+    const cards = familyExamples.map((example) => {
+      const family = familyForExample(example)
+      const description = family ? exampleFamilyDescription(family.id, example.description ?? example.label) : (example.description ?? example.label)
+      return exampleJumpCard(example, description)
+    }).join('')
+    sections.push(`<section class="example-jump-section" aria-labelledby="example-jump-families"><p class="example-jump-title" id="example-jump-families">Jump to a diagram family</p><div class="example-jump-grid">${cards}</div></section>`)
+  }
+  for (const [category, examples] of groups) {
+    if (category === 'Supported diagrams') continue
+    const cards = examples.map((example) => exampleJumpCard(example, example.description ?? example.label)).join('')
+    sections.push(`<section class="example-jump-section" aria-labelledby="${escapeAttr(exampleCategoryId(category))}-jump"><p class="example-jump-title" id="${escapeAttr(exampleCategoryId(category))}-jump">${escapeHtml(exampleCategoryLabel(category))}</p><div class="example-jump-grid">${cards}</div></section>`)
+  }
+  return `<nav class="example-jump" aria-label="Jump to examples">${sections.join('\n')}</nav>`
 }
 function examplesShowcaseHtml(editorExamples: any[]) {
   const groups = new Map<string, any[]>()
@@ -1292,9 +1286,8 @@ for (const [source, target] of pageOutputs) {
   // Source pages can carry hand-baked mastheads that predate newer routes.
   // Swap in the one canonical masthead so every shipped page shares one nav.
   html = html.replace(/<header class="masthead">[\s\S]*?<\/header>/, () => mastheadHtml(currentHref))
-  // Same treatment for the hand-baked footers: every shipped page carries the
-  // one canonical human + machine link rows.
-  html = html.replace(/<footer>[\s\S]*?<\/footer>/, () => footerHtml())
+  // Source pages can carry hand-baked footers that predate the footerless shell.
+  html = html.replace(/<footer>[\s\S]*?<\/footer>/, '')
   html = injectWorkflowSvg(html)
   if (source === 'home.html') {
     // The agent pointer (primary CTA) is intentionally a single fetch instruction;
@@ -1596,7 +1589,7 @@ const FAMILY_REFERENCE: Array<[id: string, label: string, draws: string]> = [
 // prose cannot drift from BUILTIN_FAMILY_METADATA.
 const FAMILY_COUNT_WORDS = ['zero', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten', 'eleven', 'twelve', 'thirteen', 'fourteen', 'fifteen', 'sixteen', 'seventeen', 'eighteen', 'nineteen', 'twenty']
 const familyCountWord = FAMILY_COUNT_WORDS[BUILTIN_FAMILY_METADATA.length] ?? String(BUILTIN_FAMILY_METADATA.length)
-const examplesLead = `${familyCountWord.charAt(0).toUpperCase()}${familyCountWord.slice(1)} diagram families plus style presets, each with source, an agent task, and a build-time render.`
+const examplesLead = `${familyCountWord.charAt(0).toUpperCase()}${familyCountWord.slice(1)} diagram families with agent tasks, plus style presets that reuse the same role-based style data across families.`
 // The MCP config copy-card, same widget contract as the homepage prompt card
 // (data-copy-widget + data-copy-target + copy-prompt-btn, wired by theme.js).
 // Getting started is the canonical setup home for this config.
@@ -2058,8 +2051,6 @@ const pageRoutes = [...generated.keys()]
 const legacyRedirectLines = [
   '/why /about/ 308', '/why/ /about/ 308',
   '/gallery /examples/ 308', '/gallery/ /examples/ 308',
-  '/families /examples/ 308', '/families/ /examples/ 308',
-  '/docs/families /examples/ 308', '/docs/families/ /examples/ 308',
 ]
 const redirectLines = [
   ...legacyRedirectLines,

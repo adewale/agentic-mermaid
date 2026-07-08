@@ -58,8 +58,7 @@
   --wide-max: 960px;
   --wide-width: min(var(--wide-max), calc(100vw - var(--page-gutter) - var(--page-gutter)));
   --content-max: calc(var(--wide-max) + var(--page-gutter) + var(--page-gutter));
-  /* One site column: pages, masthead, footer, and Examples share the same
-     960px content span; --wide-width keeps full-bleed media inside the viewport. */
+  /* One site column: pages, masthead, and Examples share the same 960px content span; --wide-width keeps full-bleed media inside the viewport. */
   --measure: var(--wide-width);
   --ease-standard: ease;
   --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
@@ -226,7 +225,7 @@
 }
 
 body, .doc, .masthead, .masthead .links a, h1, h2, h3, p, a, strong, .lead, .muted,
-pre, pre code, code, blockquote, th, td, hr, figure .plate, footer, .footlinks a, .footlinks .sep,
+pre, pre code, code, blockquote, th, td, hr, figure .plate,
 .brand {
   transition: background-color var(--dur-ui) var(--ease-standard), color var(--dur-ui) var(--ease-standard), border-color var(--dur-ui) var(--ease-standard);
 }
@@ -608,18 +607,13 @@ td code { font-size: var(--t-label); }
 .warning-tools input { min-height: var(--control-h); width: 100%; padding: 0 12px; border: 1px solid var(--control-border); border-radius: var(--radius-md); background: var(--control-bg); color: var(--ink); font: inherit; font-size: var(--t-sm); }
 .warning-tools input:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
 .example-jump { margin: 0 0 var(--sp-7); padding: var(--sp-4); border: 1px solid var(--surface-border); border-radius: var(--radius-lg); background: var(--surface-card); box-shadow: var(--shadow-hairline); }
+.example-jump-section + .example-jump-section { margin-top: var(--sp-4); padding-top: var(--sp-3); border-top: 1px solid var(--surface-border); }
 .example-jump-title { margin: 0 0 var(--sp-3); color: var(--ink); font-family: var(--sans); font-size: var(--t-sm); font-weight: 700; line-height: var(--lh-ui); }
 .example-jump-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
 .example-jump-card { display: grid; gap: 4px; min-width: 0; padding: 10px 12px; border: 1px solid var(--surface-border); border-radius: var(--radius-md); background: var(--bg); color: var(--ink-soft); text-decoration: none; }
 .example-jump-card strong { color: var(--ink); font-size: var(--t-sm); line-height: var(--lh-ui); }
 .example-jump-card span { font-size: var(--t-label); line-height: 1.35; }
 .example-jump-card:hover { border-color: color-mix(in srgb, var(--accent) 34%, var(--line)); color: var(--link); text-decoration: none; }
-.example-jump-more { margin-top: var(--sp-4); padding-top: var(--sp-3); border-top: 1px solid var(--surface-border); font-size: var(--t-sm); line-height: 1.55; }
-.example-jump-more p { margin: var(--sp-1) 0; }
-.example-jump-more .sep { margin: 0 0.4em; color: var(--line-strong); }
-.example-jump-more a { color: var(--ink-soft); }
-.example-jump-more a:hover { color: var(--link); }
-.example-jump-more strong { color: var(--ink); }
 @media (max-width: 760px) { .example-jump-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media (max-width: 480px) { .example-jump-grid { grid-template-columns: 1fr; } }
 
@@ -693,12 +687,6 @@ figcaption { color: var(--ink-faint); font-size: var(--t-label); line-height: 1.
 @media (max-width: 720px) {
   .gallery { grid-template-columns: 1fr; gap: 28px; }
 }
-
-footer { max-width: var(--content-max); margin: 0 auto; padding: 28px var(--page-gutter) 56px; }
-.footlinks { display: flex; gap: 18px; flex-wrap: wrap; font-size: var(--t-sm); }
-.footlinks + .footlinks { margin-top: 8px; }
-.footlinks a { color: var(--ink-soft); }
-.footlinks .sep { color: var(--line-strong); }
 
 @media (max-width: 640px) {
   body { font-size: 1rem; }
@@ -794,7 +782,7 @@ footer { max-width: var(--content-max); margin: 0 auto; padding: 28px var(--page
 :where(.gallery .plate, figure .plate, .sidenote, .marginnote) {
   border-color: var(--surface-border);
 }
-:where(.agent-entrypoints, .footlinks) {
+:where(.agent-entrypoints) {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -830,7 +818,7 @@ footer { max-width: var(--content-max); margin: 0 auto; padding: 28px var(--page
   body { background: #fff; color: #000; }
   body::before { display: none; }                    /* no grain on paper */
   .masthead .links, .page-actions, .copy-prompt-btn, .copy-prompt-status,
-  .skip-link, .footlinks + .footlinks { display: none; }
+  .skip-link { display: none; }
   a { color: inherit; text-decoration-color: currentColor; }
 }
 

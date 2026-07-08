@@ -104,6 +104,12 @@ describe('Workers Static Assets website contract', () => {
     expect(slash.status).toBe(308)
     expect(slash.headers.get('location')).toBe('https://agentic-mermaid.dev/editor/?empty=1')
 
+    assetFetches = 0
+    const removedFamilyRedirect = await worker.fetch(new Request('https://agentic-mermaid.dev/docs/families'), env(() => new Response('not found', { status: 404 })))
+    expect(removedFamilyRedirect.status).toBe(404)
+    expect(removedFamilyRedirect.headers.get('location')).toBe(null)
+    expect(assetFetches).toBe(1)
+
     const html = await worker.fetch(new Request('https://agentic-mermaid.dev/'), env(() => new Response('<!doctype html>', { headers: { 'content-type': 'text/html; charset=utf-8' } })))
     expect(html.status).toBe(200)
     expect(html.headers.get('content-security-policy')).toContain("default-src 'self'")
@@ -413,7 +419,7 @@ describe('Workers Static Assets website contract', () => {
     expect(themeable).toContain('var(--fg)')
   })
 
-  test('masthead exposes examples and the editor without repository chrome', () => {
+  test('masthead exposes examples, repository, and the editor with no footer chrome', () => {
     for (const rel of ['index.html', 'docs/index.html', 'about/index.html', 'examples/index.html', 'skills/agentic-mermaid-diagram-workflow/index.html']) {
       const html = read(rel)
       const masthead = html.match(/<header class="masthead"[\s\S]*?<\/header>/)?.[0] ?? ''
@@ -422,23 +428,22 @@ describe('Workers Static Assets website contract', () => {
       expect(masthead).toContain('href="/about/"')
       expect(masthead).toContain('<a class="link-editor" href="/editor/?empty=1">Open editor</a>')
       expect(masthead).not.toContain('href="/editor/">Open editor</a>')
-      expect(masthead).not.toContain('github.com')
+      const docsIndex = masthead.indexOf('href="/docs/"')
+      const githubIndex = masthead.indexOf('href="https://github.com/adewale/agentic-mermaid"')
+      const editorIndex = masthead.indexOf('href="/editor/?empty=1"')
+      expect(docsIndex).toBeGreaterThanOrEqual(0)
+      expect(githubIndex).toBeGreaterThan(docsIndex)
+      expect(editorIndex).toBeGreaterThan(githubIndex)
       expect(html).not.toContain('<a href="/install/">Install</a>')
       expect(html).not.toContain('<a href="/agents/">Agents</a>')
       expect(html).not.toContain('class="crumb"')
       expect(html).not.toContain('Agentic Mermaid</a> /')
       expect(html).not.toContain('class="theme-switch"')
+      expect(html).not.toContain('<footer')
+      expect(html).not.toContain('class="footlinks"')
       // Gallery and Families were consolidated out of the top-level nav.
       expect(masthead).not.toContain('href="/gallery/"')
       expect(masthead).not.toContain('href="/families/"')
-      const footer = html.match(/<footer>[\s\S]*?<\/footer>/)?.[0] ?? ''
-      expect(footer).toContain('href="/examples/"')
-      expect(footer).toContain('href="/docs/"')
-      expect(footer).toContain('href="/editor/?empty=1"')
-      expect(footer).toContain('github.com/adewale/agentic-mermaid')
-      expect(footer).not.toContain('/llms.txt')
-      expect(footer).not.toContain('/capabilities.json')
-      expect(footer).not.toContain('/agent-instructions.md')
     }
     const examplesMasthead = read('examples/index.html').match(/<header class="masthead"[\s\S]*?<\/header>/)?.[0] ?? ''
     expect(examplesMasthead).toContain('href="/examples/"')
@@ -448,14 +453,20 @@ describe('Workers Static Assets website contract', () => {
     expect(comparisonsMasthead).toContain('aria-current="page"')
     expect(read('about/index.html')).toContain('<a aria-current="page" href="/about/">About</a>')
     expect(read('docs/index.html')).toContain('<a aria-current="page" href="/docs/">Docs</a>')
-    expect(read('_redirects')).toContain('/docs/families /examples/ 308')
-    expect(read('_redirects')).toContain('/families /examples/ 308')
+    expect(read('_redirects')).toContain('/why /about/ 308')
+    expect(read('_redirects')).toContain('/gallery /examples/ 308')
+    expect(read('_redirects')).not.toContain('/docs/families /examples/ 308')
+    expect(read('_redirects')).not.toContain('/docs/families/ /examples/ 308')
+    expect(read('_redirects')).not.toContain('/families /examples/ 308')
+    expect(read('_redirects')).not.toContain('/families/ /examples/ 308')
     expect(read('_redirects')).not.toContain('/agents')
     expect(read('_redirects')).not.toContain('agents-workflow')
     expect(read('_redirects')).not.toContain('.html')
     expect(read('_redirects')).not.toContain('/home')
     const styles = read('styles.css')
     expect(styles).toContain('.masthead .links .link-editor')
+    expect(styles).not.toContain('footlinks')
+    expect(styles).not.toContain('footer {')
     expect(styles).not.toContain('.crumb')
     expect(styles).not.toContain('Legacy components')
     expect(styles).not.toContain('.nav {')
@@ -597,9 +608,15 @@ describe('Workers Static Assets website contract', () => {
     expect(styles).toContain('.example-prompt, .example-trace')
     expect(examples).toContain('class="example-jump"')
     expect(examples).toContain('Jump to a diagram family')
+    const jump = examples.match(/<nav class="example-jump"[\s\S]*?<\/nav>/)?.[0] ?? ''
+    expect(jump).toContain('<p class="example-jump-title" id="examples-role-style-presets-jump">Role style presets</p>')
+    expect(jump).toContain('href="#styled-flowchart"><strong>Styled flowchart</strong><span>Flowchart using semantic node, edge, text, and group roles.</span>')
+    expect(jump).toContain('href="#styled-xychart"><strong>Styled xychart</strong><span>XY chart title, axes, grid, and series labels with shared roles.</span>')
+    expect(jump).not.toContain('class="example-jump-more"')
     expect(examples).not.toContain('id="example-filter"')
     expect(examples).not.toContain('data-example-filter')
     expect(styles).not.toContain('.example-tools')
+    expect(styles).not.toContain('.example-jump-more')
   })
 
   test('editor mode switch is not a pseudo-tabset', () => {
