@@ -299,7 +299,7 @@ registerStyle({
 
 registerStyle({
   name: 'excalidraw',
-  blurb: 'Virtual whiteboard look — rough strokes, pastel hachure fills.',
+  blurb: 'Virtual whiteboard style — rough strokes, pastel hachure fills.',
   intent: 'draft',
   colors: { bg: '#ffffff', fg: '#1e1e1e', line: '#1e1e1e', accent: '#4263eb', surface: '#f1f3f5' },
   font: 'Caveat',

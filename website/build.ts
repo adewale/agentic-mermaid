@@ -677,14 +677,14 @@ function examplesJumpHtml(groups: Map<string, any[]>, styleThemeCombos: ReturnTy
     sections.push(`<section class="example-jump-section" aria-labelledby="${escapeAttr(exampleCategoryId(category))}-jump"><p class="example-jump-title" id="${escapeAttr(exampleCategoryId(category))}-jump">${escapeHtml(exampleCategoryLabel(category))}</p><div class="example-jump-grid">${cards}</div></section>`)
   }
   const styleThemeCards = styleThemeCombos.map((combo) => `<a class="example-jump-card" href="#${escapeAttr(combo.id)}"><strong>${escapeHtml(combo.family.editorDiagramType)}</strong><span>${escapeHtml(`${displayStyleName(combo.look)} × ${displayStyleName(combo.theme)}`)}</span></a>`).join('')
-  sections.push(`<section class="example-jump-section" aria-labelledby="examples-style-theme-combinations-jump"><p class="example-jump-title" id="examples-style-theme-combinations-jump">Style × theme combinations</p><div class="example-jump-grid">${styleThemeCards}</div></section>`)
+  sections.push(`<section class="example-jump-section" aria-labelledby="examples-style-theme-combinations-jump"><p class="example-jump-title" id="examples-style-theme-combinations-jump">Style × palette combinations</p><div class="example-jump-grid">${styleThemeCards}</div></section>`)
   return `<nav class="example-jump" aria-label="Jump to examples">${sections.join('\n')}</nav>`
 }
 
 function styleThemeExamplesHtml(combos: ReturnType<typeof styleThemeExamples>) {
   return `<section class="example-group" aria-labelledby="examples-style-theme-combinations">
-<h2 id="examples-style-theme-combinations">Style × theme combinations</h2>
-<p class="muted">Each card uses one supported family, one named look, and one palette-only theme. Agents pass this as render options; they do not edit Mermaid source just to change appearance.</p>
+<h2 id="examples-style-theme-combinations">Style × palette combinations</h2>
+<p class="muted">Each card uses one supported family, one named style, and one palette. Agents pass this as render options; they do not edit Mermaid source just to change appearance.</p>
 ${combos.map((combo) => {
   const look = displayStyleName(combo.look)
   const theme = displayStyleName(combo.theme)
@@ -695,7 +695,7 @@ ${combos.map((combo) => {
     <div>
       <p class="example-meta">${escapeHtml(combo.family.editorDiagramType)}</p>
       <h3>${escapeHtml(`${combo.family.editorDiagramType}: ${look} × ${theme}`)}</h3>
-      <p>${escapeHtml(`The Mermaid source stays the same; the render call supplies ${combo.look} for the look and ${combo.theme} for the palette.`)}</p>
+      <p>${escapeHtml(`The Mermaid source stays the same; the render call supplies ${combo.look} as the style and ${combo.theme} as the palette.`)}</p>
       <p class="example-trace"><span>Render options</span> <code>${escapeHtml(styleCode)}</code></p>
     </div>
     <a class="go" href="${escapeAttr(editorStateHref({ source: combo.example.source, style: combo.look, theme: combo.theme, seed: combo.seed }))}">Open styled</a>
@@ -913,7 +913,7 @@ function comparisonEditorHref(source: string) {
 }
 const COMPARISON_TAKEAWAYS: Record<string, string> = {
   flowchart: 'Compare edge routing, label stability, and whether dense fan-out still reads without browser-dependent drift.',
-  state: 'Look for nested-state containment and transition labels that remain readable as the lifecycle grows.',
+  state: 'Check nested-state containment and transition labels that remain readable as the lifecycle grows.',
   sequence: 'Check participant alignment, block labels, and warning paths: this is the common agent-edit audit loop.',
   class: 'Compare relationship routing and member-box spacing on a compact class model.',
   er: 'Inspect cardinality labels and orthogonal routes across a wide schema.',
@@ -940,22 +940,22 @@ const COMPARISON_STYLE_ROWS = [
   },
   {
     tool: 'Agentic Mermaid',
-    surface: 'Composable style stacks: built-in looks, palette-only themes, custom JSON styles, semantic role overrides, and deterministic seed.',
-    use: 'Best when an agent must edit source safely and then render with a chosen look.',
+    surface: 'Composable style stacks: built-in styles, palettes, custom JSON styles, semantic role overrides, and deterministic seed.',
+    use: 'Best when an agent must edit source safely and then render with a chosen style and palette.',
     agent: 'Agents pass style options such as style: [\'publication-figure\', \'github-light\'] or --style publication-figure,github-light; the Mermaid source keeps the structure only.',
   },
 ] as const
 function comparisonStyleSupportHtml() {
   return `<section class="comparison-style-matrix" aria-labelledby="comparison-style-matrix-title">
-<h2 id="comparison-style-matrix-title">Styling and theming support</h2>
-<p>The render rows above compare one source family by family. This table asks a different question: where do color, font, and style choices live, and can an agent pass them without changing Mermaid source?</p>
+<h2 id="comparison-style-matrix-title">Style and palette support</h2>
+<p>The render rows above compare one source family by family. This table asks a different question: where do style, color, and font choices live, and can an agent pass them without changing Mermaid source?</p>
 <div class="table-scroll"><table class="comparison-style-table">
 <thead><tr><th>Tool</th><th>Styling surface</th><th>Use it when</th><th>Agent handoff</th></tr></thead>
 <tbody>
 ${COMPARISON_STYLE_ROWS.map((row) => `<tr><th scope="row">${escapeHtml(row.tool)}</th><td>${escapeHtml(row.surface)}</td><td>${escapeHtml(row.use)}</td><td>${escapeHtml(row.agent)}</td></tr>`).join('\n')}
 </tbody>
 </table></div>
-<p class="muted">Summary: Mermaid gives you the broadest hosted and embedded renderer. Beautiful Mermaid gives you browserless render-only theming for its families. Agentic Mermaid adds the safe agent sequence: edit typed source, verify it, then pass style/theme render options.</p>
+<p class="muted">Summary: Mermaid gives you the broadest hosted and embedded renderer. Beautiful Mermaid gives you browserless render-only theming for its families. Agentic Mermaid adds the safe agent sequence: edit typed source, verify it, then pass style and palette render options.</p>
 </section>`
 }
 function comparisonsHtml() {
@@ -973,7 +973,7 @@ function comparisonsHtml() {
   <header class="comparison-case-head">
     <h2 id="comparison-${escapeAttr(c.id)}-title">${escapeHtml(c.family)}</h2>
   </header>
-  <p class="comparison-takeaway"><strong>What to look for.</strong> ${escapeHtml(takeaway)}</p>${note}
+  <p class="comparison-takeaway"><strong>Review focus.</strong> ${escapeHtml(takeaway)}</p>${note}
   <div class="comparison-grid" data-comparison-lightbox-panel>
     ${panels}
   </div>
@@ -1434,10 +1434,10 @@ ${HOME_STYLE_SHOWCASE_COMBOS.map((combo) => {
     <p>${escapeHtml(combo.blurb)}</p>
     <ul class="home-style-meta" aria-label="${escapeAttr(combo.label)} render options">
       <li><span>Style</span><code>${escapeHtml(combo.look)}</code></li>
-      <li><span>Theme</span><code>${escapeHtml(combo.theme)}</code></li>
+      <li><span>Palette</span><code>${escapeHtml(combo.theme)}</code></li>
       <li><span>Seed</span><code>${combo.seed}</code></li>
     </ul>
-    <a class="go" href="${escapeAttr(editorStateHref({ source: HOME_STYLE_SHOWCASE_SOURCE, style: combo.look, theme: combo.theme, seed: combo.seed }))}">Open this look</a>
+    <a class="go" href="${escapeAttr(editorStateHref({ source: HOME_STYLE_SHOWCASE_SOURCE, style: combo.look, theme: combo.theme, seed: combo.seed }))}">Open this style</a>
   </div>
 </article>`
 }).join('\n')}
@@ -1710,11 +1710,11 @@ function aboutDiagram(source: string, id: string) {
   return `<figure class="about-diagram">${svg}</figure>`
 }
 const aboutBody = `
-<h2>A diagram should look ready when the agent returns it</h2>
+<h2>A diagram should be ready when the agent returns it</h2>
 <p>Ask for an architecture map, a launch timeline, or a product flow and the agent should return source you can keep editing plus an artifact you can use. Agentic Mermaid gives that agent the diagram language, style controls, renderer, and verification step in one workflow: SVG or PNG for pages and decks, ASCII or Unicode for text review, and layout JSON when a tool needs coordinates.</p>
 
 <h2>The same source can wear your brand</h2>
-<p>Styles are data: a named look, a palette-only theme, a JSON record, or a stack of those pieces. Text, nodes, edges, groups, fills, strokes, and typography can follow your house style without touching the diagram's meaning. Render twice and the geometry is byte-identical; change the palette and the boxes stay put.</p>
+<p>Styles are data: a named style, a palette-only style, a JSON record, or a stack of those pieces. Text, nodes, edges, groups, fills, strokes, and typography can follow your house style without touching the diagram's meaning. Render twice and the geometry is byte-identical; change the palette and the boxes stay put.</p>
 <pre><code>am render diagram.mmd --format svg > a.svg
 am render diagram.mmd --format svg > b.svg
 diff a.svg b.svg        # no output: identical bytes, every run, no browser</code></pre>
@@ -1808,8 +1808,8 @@ bun run bin/am.ts render diagram.mmd --format unicode</code></pre></li>
 ${mcpConfigCardHtml('getting-started')}
 <pre><code>bun run bin/agentic-mermaid-mcp.ts</code></pre><p>Use stdio MCP from the cloned repo, or point an MCP client at the hosted endpoint.</p></li>
 </ol>
-<h2>Agent style/theme recipe</h2>
-<p>Keep appearance out of the Mermaid source. Ask the agent to edit structure with typed ops, verify the result, and pass the look as render options.</p>
+<h2>Agent style/palette recipe</h2>
+<p>Keep appearance out of the Mermaid source. Ask the agent to edit structure with typed ops, verify the result, and pass style and palette as render options.</p>
 <pre><code>// Library or Code Mode
 renderMermaidSVG(source, {
   style: ['ops-schematic', 'nord-light'],
@@ -1825,7 +1825,7 @@ bun run bin/am.ts render diagram.mmd --format svg --style ops-schematic,nord-lig
   "style": ["ops-schematic", "nord-light"],
   "seed": 0
 }</code></pre>
-<p>A style name chooses the look. A theme name is a palette-only style. In the editor those are two controls; in API, CLI, and MCP calls, agents can send the stack directly.</p>
+<p>A style name chooses stroke, fill, typography, and renderer treatment. A palette-only style such as <code>nord-light</code> supplies colors. In the editor those controls are Style and Palette; in API, CLI, and MCP calls, agents can send the stack directly.</p>
 <h2>Vocabulary</h2>
 <p>Shared terms for humans and agents, used across these docs.</p>
 <dl><dt>narrow</dt><dd>Resolve a parsed diagram to a family-specific typed surface.</dd><dt>verify</dt><dd>Return structural, geometric, and lint warnings before artifacts are trusted.</dd><dt>opaque fallback</dt><dd>Preserve unsupported syntax losslessly when structured mutation is unavailable.</dd></dl>
@@ -1917,7 +1917,7 @@ const designBody = `
 <p class="muted">Diagram styles and themes (hand-drawn, watercolor, paper, dusk, tokyo-night, …) are documented in <a href="/docs/theming/">theming</a>; they style rendered diagrams and stay out of this shell by construction.</p>`
 
 const customStylesBody = [
-  '<p>Custom styles are plain JSON files passed to <code>--style</code>. Keep them in source control, add a <code>seed</code> when the look uses sketch variation, and validate the file before using it from an untrusted source.</p>',
+  '<p>Custom styles are plain JSON files passed to <code>--style</code>. Keep them in source control, add a <code>seed</code> when the style uses sketch variation, and validate the file before using it from an untrusted source.</p>',
   '<pre><code>am render diagram.mmd --format png --style examples/styles/transit-route-map.style.json --seed 11 --output diagram.png</code></pre>',
   '<p>Use the public schema at <a href="/schemas/style-spec.schema.json"><code>/schemas/style-spec.schema.json</code></a>. The same file is exported from the npm package as <code>agentic-mermaid/style-spec.schema.json</code>, so editors can map either the hosted URL or the package export.</p>',
   '<h2>Cookbook examples</h2>',
@@ -1937,7 +1937,7 @@ const docPages = [
   ['docs/cli/index.html', 'CLI', 'Use the am CLI for local rendering, verification, batch checks, and Markdown rendering.', '<p>The <code>am</code> CLI wraps the library for local rendering, verification, and batch checks. In the cloned repo, <code>am</code> is <code>bun run bin/am.ts</code>.</p>\n<pre><code>am verify diagram.mmd                # structural + geometric + lint warnings\nam verify diagram.mmd --json         # machine-readable for agents\nam render diagram.mmd --format svg --output diagram.svg\nam render diagram.mmd --format png --output diagram.png\nam render diagram.mmd --format ascii # or --format unicode</code></pre>\n<p>Prefer <code>--json</code> in agent loops so you can branch on <code>verify.ok</code> and the stable warning codes instead of parsing prose.</p>' + docsIndex],
   ['docs/mcp/index.html', 'MCP', 'Hosted MCP at /mcp, plus a local stdio server.', '<p>The hosted MCP endpoint is <code>https://agentic-mermaid.dev/mcp</code>: stateless streamable HTTP (JSON-RPC over POST, no sessions). Hosted tools: <code>execute</code>, <code>render_svg</code>, <code>render_ascii</code>, <code>render_png</code>, <code>verify</code>, <code>describe</code>, <code>mutate</code>, and <code>build</code>. Pass <code>format: &quot;facts&quot;</code> to <code>describe</code> for deterministic semantic read-back. Deterministic responses are edge-cached, inputs are capped at 64KB, and Code Mode <code>execute</code> runs in an isolated on-demand Worker with network access disabled and a CPU budget.</p><p>The local MCP tools are <code>execute</code>, <code>render_png</code>, and <code>describe</code>. Multi-step parse/narrow/mutate/verify workflows run inside <code>execute(code)</code>; local <code>describe</code> also supports <code>format: &quot;facts&quot;</code>. For file/URL PNG artifacts, diagrams beyond the hosted caps, or offline use, run the stdio server from the repo: <code>bun run bin/agentic-mermaid-mcp.ts</code>.</p><p><strong>Privacy:</strong> every hosted tool call sends your diagram source (or Code Mode code) to this site\u2019s server, and successful responses are edge-cached for up to a day. For diagrams that must not leave your machine, use the library, the CLI, or the local stdio server \u2014 the pipeline is fully local and needs no network.</p><p><strong>Response framing:</strong> the hosted <code>/mcp</code> endpoint always replies with plain <code>application/json</code> \u2014 no SSE <code>data:</code> framing \u2014 so scripts can parse the body directly. The local HTTP transport\u2019s <code>/sse</code> + <code>/message</code> pair delivers responses as SSE events on the open stream; script writers who want unframed JSON should POST to its <code>/rpc</code> endpoint instead.</p>' + docsIndex],
   ['docs/ascii/index.html', 'ASCII and Unicode', 'Text output is first-class for terminals, PR comments, and agent review.', '<p>Text output is first-class, not a fallback: ASCII (portable 7-bit) and Unicode (box-drawing) renders drop straight into terminals, PR comments, commit messages, and agent transcripts where an SVG cannot go.</p>\n<pre><code>am render diagram.mmd --format ascii    # portable, 7-bit\nam render diagram.mmd --format unicode  # sharper box-drawing glyphs</code></pre>\n<p>The text path is deterministic like the SVG path, so the same source always yields the same characters — reviewable in a plain diff. The ASCII engine is ported from mermaid-ascii; see <a href="/about/">About</a> for the lineage.</p>' + docsIndex],
-  ['docs/theming/index.html', 'Theming and styles', 'A style describes how diagrams look; a colors-only style is a theme.', '<p>One primitive covers every look: a <strong>style</strong> is a partial, composable description of how diagrams render — palette, typography, stroke character, fills. A style that only sets colours is what people call a <em>theme</em>; full looks like <code>hand-drawn</code>, <code>watercolor</code>, or <code>blueprint</code> also change the mark treatment. Styles stack left \u2192 right (<code>{ style: [\'hand-drawn\', \'dracula\'] }</code> is hand-drawn geometry in the dracula palette), the optional <code>seed</code> re-rolls styled ink without ever moving layout, and custom styles are plain JSON records. Use <a href="/docs/custom-styles/">Custom styles</a> for schema, complete JSON examples, and screenshots. The browser editor exposes both pickers \u2014 Style chooses the look, Theme chooses the palette \u2014 and SVG output can also inherit CSS variables for live theming.</p>' + docsIndex],
+  ['docs/theming/index.html', 'Theming and styles', 'A style describes diagram rendering; a colors-only style is a palette.', '<p>One primitive covers visual rendering: a <strong>style</strong> is a partial, composable description of palette, typography, stroke character, and fills. A style that only sets colours is a palette. Styles such as <code>hand-drawn</code>, <code>watercolor</code>, and <code>blueprint</code> also change renderer treatment. Styles stack left \u2192 right (<code>{ style: [\'hand-drawn\', \'dracula\'] }</code> gives hand-drawn geometry with the dracula palette), the optional <code>seed</code> re-rolls styled ink without moving layout, and custom styles are plain JSON records. Use <a href="/docs/custom-styles/">Custom styles</a> for schema, complete JSON examples, and screenshots. The browser editor exposes both pickers: Style chooses renderer treatment; Palette chooses colors. SVG output can also inherit CSS variables for live theming.</p>' + docsIndex],
   ['docs/custom-styles/index.html', 'Custom styles', 'Author JSON style files, validate them with the schema, and compare cookbook screenshots.', customStylesBody + docsIndex],
   ['docs/quality/index.html', 'Quality', 'Determinism, verify warnings, and layout metrics make diagram edits reviewable.', '<p><code>verify.ok</code> is a gate, not a promise of visual perfection. Include SVG/PNG/ASCII artifacts for human review when the change is visual.</p>\n<p><strong>Warnings are tiered</strong> so an agent knows how to react: <em>structural</em> problems can block a safe return and should be fixed first; <em>geometric</em> warnings ask for visual review; <em>lint</em> warnings mean a smaller or cleaner edit. Every code has a page under <a href="/warnings/">warnings</a> with what triggers it and how to clear it.</p>\n<p><strong>Evidence is curated, not raw private prompts:</strong> rely on CI, deterministic layout metrics, and generated artifacts to review a change. Private eval prompts and holdbacks are not public site content.</p>' + docsIndex],
   ['docs/fork-differences/index.html', 'Fork differences', 'Agentic Mermaid adds styled rendering, typed editing, deterministic verification, CLI, MCP, and more families.', '<p>Agentic Mermaid (<code>agentic-mermaid</code>) forks <a href="https://github.com/lukilabs/beautiful-mermaid">beautiful-mermaid</a> for a job the render-only original did not have: agents creating polished, branded diagrams that stay editable as Mermaid source.</p>\n<ul>\n<li><strong>Typed agent surface.</strong> A render-only library forces an agent to regenerate a whole diagram to change one node. Here new diagrams are authored as source then parsed/verified/rendered, and existing diagrams go parse → narrow → mutate → verify → serialize via <code>agentic-mermaid/agent</code>. All twelve families are structured-when-narrowed; unmodeled syntax still round-trips losslessly as opaque fallback.</li>\n<li><strong>Deterministic, verifiable layout.</strong> Layout is byte-identical across processes, and <code>verifyMermaid</code> returns structured warnings in three tiers (structural, geometric, lint) plus perceptual quality metrics.</li>\n<li><strong>More families.</strong> Adds timeline, journey, architecture, pie, quadrant, and Gantt on top of the upstream six (flowchart, state, sequence, class, ER, and XY chart) — twelve in all.</li>\n<li><strong>Tools.</strong> An <code>am</code> CLI, an <code>agentic-mermaid-mcp</code> Code Mode MCP server (stdio + opt-in HTTP/SSE), and a hosted MCP endpoint at <code>/mcp</code>. There is no REST render API.</li>\n<li><strong>Semantic SVG styling.</strong> A role-based style API (<code>text</code>/<code>node</code>/<code>edge</code>/<code>group</code>) describes meaning rather than SVG element names.</li>\n</ul>\n<p>See <a href="/examples/">examples</a> for the family list and rendered source, and <a href="/about/">About</a> for the lineage.</p>' + docsIndex],

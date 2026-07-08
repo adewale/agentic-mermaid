@@ -23,7 +23,7 @@
 
   <section class="page-header" data-copy-widget data-copy-name="Agent prompt">
     <h1><span class="line">Beautiful diagrams,</span> <span class="line">made with your agent.</span></h1>
-    <p class="lead">Describe the diagram, choose a look, and let your agent produce Mermaid source plus a polished render. Agentic Mermaid keeps layout deterministic, style configurable, and edits verified before they come back to you.</p>
+    <p class="lead">Describe the diagram, choose a style and palette, and let your agent produce Mermaid source plus a polished render. Agentic Mermaid keeps layout deterministic, style configurable, and edits verified before they come back to you.</p>
     <div class="page-actions" aria-label="Primary paths">
       <button class="primary-action prompt-action" type="button" data-copy-text="{{AGENT_POINTER}}" data-copy-name="Agent prompt" aria-describedby="home-copy-status"><span class="copy-prompt-icon" aria-hidden="true"></span><span>Use with an agent</span></button>
       <a class="secondary-action" href="/editor/?empty=1">Try editor</a>
@@ -42,7 +42,7 @@
     <h2 id="quick-start-title">Prompt, style, verify</h2>
     <ol class="quick-steps">
       <li><strong>Describe the diagram.</strong> Ask for an architecture map, product flow, timeline, Gantt plan, or sequence.</li>
-      <li><strong>Pick the look.</strong> Use a built-in style such as <code>watercolor</code>, <code>blueprint</code>, or <code>publication-figure</code>, or pass your own JSON palette.</li>
+      <li><strong>Pick style and palette.</strong> Use a built-in style such as <code>watercolor</code>, <code>blueprint</code>, or <code>publication-figure</code>, then add a palette such as <code>paper</code> or <code>nord-light</code>.</li>
       <li><strong>Let the agent edit.</strong> Existing diagrams go through typed mutation; new diagrams start as Mermaid source and then get checked.</li>
       <li><strong>Verify before export.</strong> Render SVG or PNG only after warnings are read and the source still says what you asked for.</li>
     </ol>
@@ -52,12 +52,12 @@
   <section class="why-typed" aria-labelledby="why-typed-title">
     <p class="section-kicker">Strengths</p>
     <h2 id="why-typed-title">Polished output, deterministic source, agent-safe edits.</h2>
-    <p>Agentic Mermaid combines a Mermaid parser, deterministic renderer, style system, and verification loop. Your agent can create a diagram, apply a named look or brand palette, export the artifact you need, and keep the Mermaid source reviewable for the next edit.</p>
+    <p>Agentic Mermaid combines a Mermaid parser, deterministic renderer, style system, and verification loop. Your agent can create a diagram, apply a style and brand palette, export the artifact you need, and keep the Mermaid source reviewable for the next edit.</p>
     <div class="contrast-grid">
       <div class="contrast-col">
         <p class="meta-label">Beautiful renders</p>
         <ul>
-          <li>Built-in looks cover docs, decks, reports, terminals, sketches, and blueprints.</li>
+          <li>Built-in styles cover docs, decks, reports, terminals, sketches, and blueprints.</li>
           <li>Palette themes and custom JSON styles encode brand colors, typography, nodes, edges, and groups.</li>
           <li>SVG and PNG serve pages and decks; ASCII, Unicode, and layout JSON serve review tools and agents.</li>
         </ul>
@@ -75,9 +75,8 @@
   </section>
 
   <section class="channels" aria-labelledby="channels-title">
-    <p class="section-kicker">Same loop, every channel</p>
     <h2 id="channels-title">One request, three channels</h2>
-    <p>The same request — make the diagram, apply the look, verify the source, return the render path — through whichever channel your agent already has.</p>
+    <p>Ask the agent to make the diagram, set style and palette, verify the source, and return the render path through whichever channel it already has.</p>
     <div class="tabbed-card" data-tabs>
       <div class="tab-bar" role="tablist" aria-label="Channels">
         <button type="button" role="tab" id="channel-tab-library" aria-controls="channel-panel-library" aria-selected="true">Library</button>
@@ -122,20 +121,20 @@ execute(`
   <section class="home-style-showcase" aria-labelledby="home-style-showcase-title">
     <div class="home-style-showcase-head">
       <div>
-        <p class="section-kicker">Style × theme</p>
-        <h2 id="home-style-showcase-title">One source, three looks</h2>
-        <p>Render SVG for docs, PNG for decks, ASCII or Unicode for review, and layout JSON when tooling needs coordinates. To change the look, pass a style stack in render options; examples include <code>watercolor,paper</code> and <code>ops-schematic,nord-light</code> stacks. Seed changes only sketch noise; node positions and edge routes stay fixed.</p>
+        <p class="section-kicker">Style × palette</p>
+        <h2 id="home-style-showcase-title">One source, three styles</h2>
+        <p>Render SVG for docs, PNG for decks, ASCII or Unicode for review, and layout JSON when tooling needs coordinates. To change visual treatment, pass a style stack in render options; examples include <code>watercolor,paper</code> and <code>ops-schematic,nord-light</code>. Seed changes only sketch noise; node positions and edge routes stay fixed.</p>
       </div>
       <a class="go" href="/examples/#examples-style-theme-combinations">See all family combinations</a>
     </div>
-    <p class="muted">Each card uses the same Mermaid source with different render options. Agents pass style, theme, and seed in the render call instead of rewriting labels or edges for visual changes.</p>
+    <p class="muted">Each card uses the same Mermaid source with different render options. Agents pass style, palette, and seed in the render call instead of rewriting labels or edges for visual changes.</p>
     {{HOME_STYLE_SHOWCASE}}
   </section>
 
   <ul class="fact-strip" aria-label="Capability evidence">
     <li><a href="/examples/"><strong>12</strong> diagram families</a></li>
-    <li><a href="/docs/theming/"><strong>15</strong> built-in looks</a></li>
-    <li><a href="/docs/theming/"><strong>21</strong> palette themes</a></li>
+    <li><a href="/docs/theming/"><strong>15</strong> built-in styles</a></li>
+    <li><a href="/docs/theming/"><strong>21</strong> palettes</a></li>
     <li><a href="/docs/custom-styles/"><strong>JSON</strong> custom styles</a></li>
     <li><a href="/examples/"><strong>5</strong> outputs per source</a></li>
     <li><a href="/warnings/"><strong>Verified</strong> source before export</a></li>
