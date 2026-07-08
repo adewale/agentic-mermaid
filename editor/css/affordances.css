@@ -37,13 +37,13 @@
   border-radius: var(--radius-sm);
   font-family: var(--font-sans);
 }
-:where(.examples-sidebar, .export-dropdown, .theme-dropdown-menu, .font-popup, .color-popup) {
+:where(.examples-sidebar, .config-panel, .shortcuts-dialog-panel, .export-dropdown, .theme-dropdown-menu, .font-popup, .color-popup) {
   background: var(--popover-bg);
   border: 1px solid var(--control-border);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-popover);
-  z-index: var(--z-popover-nested);
 }
+:where(.export-dropdown, .theme-dropdown-menu, .font-popup, .color-popup) { z-index: var(--z-popover-nested); }
 
 /* Popovers enter from their trigger: one short ease-out fade/scale, with the
    transform origin at the anchoring corner so the menu grows out of its button.
@@ -74,7 +74,7 @@
   letter-spacing: 0;
   text-transform: none;
 }
-:where(.preview-error, .preview-placeholder, .verify-tier, .text-canvas, .examples-sidebar, .font-popup, .color-popup, .export-dropdown, .theme-dropdown-menu) { border-color: var(--line); }
+:where(.preview-error, .preview-placeholder, .verify-tier, .text-canvas, .examples-sidebar, .config-panel, .shortcuts-dialog-panel, .font-popup, .color-popup, .export-dropdown, .theme-dropdown-menu) { border-color: var(--line); }
 :where(.preview-error-detail, .text-canvas, .preview-footer, .zoom-label) {
   font-family: var(--font-mono);
   font-variant-numeric: tabular-nums;

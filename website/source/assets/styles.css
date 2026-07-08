@@ -341,8 +341,28 @@ hr { border: 0; margin: var(--sp-6) 0; }
 .workflow-list { padding-left: 22px; }
 .workflow-list li { margin: 9px 0; }
 .section-kicker { margin: 0 0 8px; color: var(--ink-soft); font-family: var(--mono); font-size: var(--t-label); font-weight: 650; line-height: var(--lh-ui); }
-.quick-start { margin: var(--sp-7) 0 var(--sp-6); padding: var(--sp-4); border: 1px solid var(--surface-border); border-radius: var(--radius-lg); background: var(--surface-card); box-shadow: var(--shadow-hairline); }
+.quick-start { margin: var(--sp-7) 0 var(--sp-6); }
 .quick-start h2 { margin-top: 0; }
+
+/* ---- surface primitives: panels share one shell, then opt into layout/content. ---- */
+:where(.surface-panel, .quick-start, .agent-hero-primary, .copy-prompt-card, .tabbed-card, .example-jump, .example-source, .example-render, .comparison-summary, .warning-guide, .comparison-panel, .contrast-col) {
+  border: 1px solid var(--surface-border);
+  border-radius: var(--radius-lg);
+  background: var(--surface-card);
+  box-shadow: var(--shadow-hairline);
+}
+:where(.surface-panel-pad, .quick-start, .agent-hero-primary, .example-jump, .comparison-summary, .warning-guide, .contrast-col) { padding: var(--sp-4); }
+:where(.surface-panel-clip, .copy-prompt-card, .tabbed-card, .example-render, .comparison-panel) { overflow: hidden; }
+:where(.surface-panel-subtle, .comparison-case > .comparison-grid) {
+  border: 1px solid var(--surface-border);
+  border-radius: var(--radius-lg);
+  background: var(--surface-subtle);
+  box-shadow: var(--shadow-hairline);
+}
+:where(.media-frame, figure .plate, .gallery .plate) {
+  border-radius: var(--radius-lg);
+  box-shadow: var(--card-shadow);
+}
 .quick-steps { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px 18px; padding: 0; margin: 16px 0 16px; list-style: none; }
 .quick-steps li { margin: 0; padding-top: 10px; border-top: 1px solid var(--surface-border); }
 .quick-steps strong { display: block; margin-bottom: 2px; }
@@ -363,9 +383,9 @@ hr { border: 0; margin: var(--sp-6) 0; }
 .example-prompt span, .example-trace span { display: inline-block; min-width: 52px; margin-right: 6px; }
 .example-trace code { font-size: var(--t-label); white-space: normal; }
 .example-sample-grid { display: grid; grid-template-columns: minmax(220px, 0.9fr) minmax(0, 1.35fr); gap: 18px; align-items: stretch; }
-.example-source, .example-render { min-width: 0; margin: 0; border: 1px solid var(--surface-border); border-radius: var(--radius-lg); background: var(--surface-card); box-shadow: var(--shadow-hairline); }
+.example-source, .example-render { min-width: 0; margin: 0; }
 .example-source pre { height: 100%; min-height: 280px; max-height: 520px; margin: 0; border: 0; border-radius: var(--radius-lg); background: transparent; overflow: auto; }
-.example-render { display: grid; grid-template-rows: minmax(260px, 1fr) auto; overflow: hidden; }
+.example-render { display: grid; grid-template-rows: minmax(260px, 1fr) auto; }
 .example-svg { display: grid; align-items: center; justify-items: center; min-height: 260px; padding: 18px; background: var(--diagram-bg); overflow: auto; }
 .example-svg svg { display: block; width: 100%; max-width: 100%; height: auto; }
 .example-render figcaption { margin: 0; padding: 10px 12px; border-top: 1px solid var(--line); color: var(--ink-faint); font-size: var(--t-label); line-height: var(--lh-ui); }
@@ -385,7 +405,7 @@ hr { border: 0; margin: var(--sp-6) 0; }
 .comparison-source-action { min-height: 44px; display: inline-flex; align-items: center; justify-content: center; padding: 0 12px; border: 1px solid var(--control-border); border-radius: var(--radius-md); background: var(--control-bg); color: var(--control-fg); font-family: var(--sans); font-size: var(--t-label); font-weight: 700; line-height: var(--lh-ui); text-decoration: none; white-space: nowrap; cursor: pointer; box-shadow: var(--shadow-hairline); }
 .comparison-source-action:hover { background: var(--control-bg-hover); color: var(--ink); text-decoration: none; }
 .comparison-source-action:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-.comparison-summary, .warning-guide { margin: var(--sp-5) 0 var(--sp-6); padding: var(--sp-4); border: 1px solid var(--surface-border); border-radius: var(--radius-lg); background: var(--surface-card); box-shadow: var(--shadow-hairline); }
+.comparison-summary, .warning-guide { margin: var(--sp-5) 0 var(--sp-6); }
 .comparison-summary p, .warning-guide p { max-width: var(--prose-max); }
 .comparison-summary ul { margin-bottom: 0; }
 .comparison-takeaway { margin: -4px 0 12px; max-width: 70ch; color: var(--ink-soft); font-size: var(--t-sm); line-height: 1.5; }
@@ -393,11 +413,11 @@ hr { border: 0; margin: var(--sp-6) 0; }
 .comparison-dialog-close { min-height: 40px; padding: 0 12px; border: 1px solid var(--control-border); border-radius: var(--radius-md); background: var(--control-bg); color: var(--control-fg); font-family: var(--sans); font-size: var(--t-label); font-weight: 700; cursor: pointer; }
 .comparison-dialog-close:hover { background: var(--control-bg-hover); color: var(--ink); }
 .comparison-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px; align-items: stretch; }
-.comparison-case > .comparison-grid { padding: 10px; border: 1px solid var(--surface-border); border-radius: var(--radius-lg); background: var(--surface-subtle); box-shadow: var(--shadow-hairline); }
+.comparison-case > .comparison-grid { padding: 10px; }
 .comparison-case > .comparison-grid[data-comparison-lightbox-panel] { cursor: zoom-in; transition: border-color var(--dur-control) var(--ease-out), background-color var(--dur-control) var(--ease-out), box-shadow var(--dur-control) var(--ease-out); }
 .comparison-case > .comparison-grid[data-comparison-lightbox-panel]:hover,
 .comparison-case > .comparison-grid[data-comparison-lightbox-panel]:focus-visible { border-color: var(--control-border); background: var(--surface-raised); }
-.comparison-panel { min-width: 0; display: grid; grid-template-rows: auto minmax(260px, 1fr); border: 1px solid var(--surface-border); border-radius: var(--radius-lg); background: var(--surface-card); box-shadow: var(--shadow-hairline); overflow: hidden; }
+.comparison-panel { min-width: 0; display: grid; grid-template-rows: auto minmax(260px, 1fr); }
 .comparison-panel h3 { margin: 0; padding: 10px 12px; border-bottom: 1px solid var(--line); color: var(--ink-faint); font-family: var(--sans); font-size: var(--t-label); line-height: var(--lh-ui); font-weight: 650; }
 .comparison-render { min-width: 0; min-height: 260px; display: grid; place-items: center; padding: 12px; background: var(--diagram-bg); overflow: auto; }
 .comparison-render svg { display: block; max-width: 100%; height: auto; }
@@ -469,20 +489,13 @@ hr { border: 0; margin: var(--sp-6) 0; }
 
 /* ---- agent-first prompt surfaces ---- */
 .agent-hero { margin: 12px 0 20px; }
-.agent-hero-primary { margin: var(--sp-6) 0 var(--sp-4); padding: var(--sp-4); border: 1px solid var(--surface-border); border-radius: var(--radius-lg); background: var(--surface-card); box-shadow: var(--shadow-hairline); }
+.agent-hero-primary { margin: var(--sp-6) 0 var(--sp-4); }
 .agent-hero-primary h2 { margin-top: 0; }
 .agent-prompt-first { margin-top: var(--sp-4); }
 .agent-hero-primary .copy-prompt-primary { border-color: color-mix(in srgb, var(--accent) 45%, var(--line-strong)); }
 .agent-hero-head p { margin-bottom: 14px; }
 .meta-label, .agent-kicker { margin: 0 0 8px; line-height: var(--lh-ui); }
-.copy-prompt-card {
-  overflow: hidden;
-  margin: var(--sp-4) 0 var(--sp-3);
-  border: 1px solid var(--surface-border);
-  border-radius: var(--radius-lg);
-  background: var(--surface-card);
-  box-shadow: var(--shadow-hairline);
-}
+.copy-prompt-card { margin: var(--sp-4) 0 var(--sp-3); }
 .copy-prompt-bar {
   display: flex;
   align-items: center;
@@ -540,7 +553,6 @@ hr { border: 0; margin: var(--sp-6) 0; }
 /* ---- why typed edits: regenerate vs mutate, side by side ---- */
 .why-typed { margin: var(--sp-9) 0 var(--sp-6); }
 .contrast-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; margin: var(--sp-5) 0 var(--sp-4); }
-.contrast-col { padding: var(--sp-4); border: 1px solid var(--surface-border); border-radius: var(--radius-lg); background: var(--surface-card); box-shadow: var(--shadow-hairline); }
 .contrast-col > .meta-label { margin: 0 0 10px; }
 .contrast-col ul { margin: 0; padding-left: 18px; }
 .contrast-col li { margin: 6px 0; font-size: var(--t-sm); line-height: 1.5; }
@@ -551,7 +563,7 @@ hr { border: 0; margin: var(--sp-6) 0; }
    Without JS the panels stack with their own labels; theme.js adds
    .tabs-ready, reveals the tab bar, and drives panel visibility. ---- */
 .channels { margin: var(--sp-9) 0 var(--sp-6); }
-.tabbed-card { overflow: hidden; margin: var(--sp-4) 0 var(--sp-3); border: 1px solid var(--surface-border); border-radius: var(--radius-lg); background: var(--surface-card); box-shadow: var(--shadow-hairline); }
+.tabbed-card { margin: var(--sp-4) 0 var(--sp-3); }
 .tab-bar { display: flex; flex-wrap: wrap; gap: 6px; padding: 8px; border-bottom: 1px solid var(--line); }
 .tab-bar [role="tab"] { min-height: var(--control-h); padding: 0 var(--control-px); border: 1px solid transparent; border-radius: var(--radius-md); background: transparent; color: var(--ink-faint); font-family: var(--sans); font-size: var(--t-control); font-weight: 700; cursor: pointer; transition: background-color var(--dur-control) var(--ease-out), color var(--dur-control) var(--ease-out); }
 .tab-bar [role="tab"]:hover { background: var(--control-bg-hover); color: var(--ink); }
@@ -606,7 +618,7 @@ td code { font-size: var(--t-label); }
 .warning-tools label { color: var(--ink-soft); font-family: var(--mono); font-size: var(--t-label); line-height: var(--lh-ui); }
 .warning-tools input { min-height: var(--control-h); width: 100%; padding: 0 12px; border: 1px solid var(--control-border); border-radius: var(--radius-md); background: var(--control-bg); color: var(--ink); font: inherit; font-size: var(--t-sm); }
 .warning-tools input:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
-.example-jump { margin: 0 0 var(--sp-7); padding: var(--sp-4); border: 1px solid var(--surface-border); border-radius: var(--radius-lg); background: var(--surface-card); box-shadow: var(--shadow-hairline); }
+.example-jump { margin: 0 0 var(--sp-7); }
 .example-jump-section + .example-jump-section { margin-top: var(--sp-4); padding-top: var(--sp-3); border-top: 1px solid var(--surface-border); }
 .example-jump-title { margin: 0 0 var(--sp-3); color: var(--ink); font-family: var(--sans); font-size: var(--t-sm); font-weight: 700; line-height: var(--lh-ui); }
 .example-jump-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
@@ -628,7 +640,7 @@ td code { font-size: var(--t-label); }
 
 /* ---- figures: diagrams inline like images, on an untinted plate ---- */
 figure { margin: var(--sp-6) 0; }
-figure .plate { background: var(--diagram-bg); border-radius: var(--radius-lg); padding: var(--sp-4); box-shadow: var(--card-shadow); }
+figure .plate { background: var(--diagram-bg); padding: var(--sp-4); }
 /* a themeable inline diagram inherits --bg/--fg/--accent. Keep the visible
    plate on the same --bg as the SVG so label halos are not a homepage-only skin. */
 figure .plate.dia-plate { background: var(--bg); }
@@ -681,7 +693,7 @@ figcaption { color: var(--ink-faint); font-size: var(--t-label); line-height: 1.
 .gallery-prompt, .gallery-ops { margin: 0 0 7px; color: var(--ink-soft); font-size: var(--t-sm); line-height: 1.46; }
 .gallery-prompt span, .gallery-ops span { display: inline-block; min-width: 52px; margin-right: 6px; }
 .gallery-ops code { font-size: var(--t-label); white-space: normal; }
-.gallery .plate { background: var(--surface-card); padding: clamp(12px, 2vw, 18px); border-radius: var(--radius-lg); box-shadow: var(--card-shadow); overflow: hidden; }
+.gallery .plate { background: var(--surface-card); padding: clamp(12px, 2vw, 18px); overflow: hidden; }
 .gallery .plate svg, .gallery .plate img { display: block; width: 100%; max-width: 100%; height: auto; margin: 0 auto; }
 .gallery figcaption b { color: var(--ink); font-weight: 700; }
 @media (max-width: 720px) {
@@ -799,7 +811,21 @@ figcaption { color: var(--ink-faint); font-size: var(--t-label); line-height: 1.
   body::before { display: none; }
   .mark { forced-color-adjust: auto; box-shadow: 0 0 0 1px ButtonText; }
   .masthead .links .link-editor,
+  .surface-panel,
+  .surface-panel-subtle,
+  .media-frame,
+  .quick-start,
+  .agent-hero-primary,
   .copy-prompt-card,
+  .tabbed-card,
+  .example-jump,
+  .example-source,
+  .example-render,
+  .comparison-summary,
+  .warning-guide,
+  .comparison-panel,
+  .comparison-case > .comparison-grid,
+  .contrast-col,
   .copy-prompt-btn,
   pre,
   code,
