@@ -505,7 +505,7 @@ export interface RenderOptions {
   ganttToday?: string
 
   /**
-   * Deterministic re-roll seed for stochastic styles (editor "shuffle").
+   * Deterministic re-roll seed for stochastic styles.
    * The same source + options + seed always produces identical bytes; it
    * re-rolls ink wobble only — layout never moves. The crisp path ignores
    * it. Default 0.

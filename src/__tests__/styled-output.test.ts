@@ -11,7 +11,9 @@ import { describe, test, expect } from 'bun:test'
 import { createHash } from 'node:crypto'
 import { readFileSync, writeFileSync, existsSync, readdirSync } from 'node:fs'
 import { join } from 'node:path'
-import { renderMermaidSVG, verifyNoExternalRefs, getStyle, inferBackend, resolveStyleStack, validateStyleSpec } from '../index.ts'
+import { HOSTED_FONT_FACES, HOSTED_FONT_FILES } from '../font-manifest.ts'
+import { renderMermaidSVG, verifyNoExternalRefs, getStyle, inferBackend, knownStyles, resolveStyleStack, validateStyleSpec } from '../index.ts'
+import { styleKind } from '../scene/style-registry.ts'
 
 const FIXTURES = join(import.meta.dir, '..', '..', 'eval', 'layout-compare', 'fixtures')
 const BASELINE = join(import.meta.dir, 'testdata', 'styled-output-baseline.json')
@@ -37,6 +39,18 @@ const LOOKS = [
   'publication-figure',
 ]
 
+function registeredLooks() {
+  return knownStyles().filter((name) => name !== 'crisp' && styleKind(getStyle(name)!) === 'look')
+}
+
+function builtInLookFonts() {
+  return Array.from(new Set(LOOKS.map((name) => getStyle(name)?.font).filter((font): font is string => Boolean(font))))
+}
+
+function hostedFacesForFamily(family: string) {
+  return HOSTED_FONT_FACES.filter((font) => font.family === family)
+}
+
 function fixtureSources(): Array<{ name: string; source: string }> {
   return readdirSync(FIXTURES)
     .filter(f => f.endsWith('.mmd'))
@@ -46,6 +60,10 @@ function fixtureSources(): Array<{ name: string; source: string }> {
 
 describe('styled output', () => {
   const fixtures = fixtureSources()
+
+  test('the golden matrix includes every registered built-in look', () => {
+    expect(new Set(LOOKS)).toEqual(new Set(registeredLooks()))
+  })
 
   test('every style × fixture is hash-stable against the committed baseline', () => {
     const records: Record<string, string> = {}
@@ -246,34 +264,27 @@ describe('style consolidation', () => {
 })
 
 describe('bundled fonts', () => {
-  test('every typeface a built-in look references ships in assets/fonts', () => {
-    // PNG rasterization loads assets/fonts with loadSystemFonts: false — a
-    // look whose face is missing there silently falls back to DejaVu Sans.
-    const fontsDir = join(import.meta.dir, '..', '..', 'assets', 'fonts')
-    for (const name of LOOKS) {
-      const font = getStyle(name)?.font
-      if (!font) continue
-      const file = join(fontsDir, `${font.replace(/ /g, '')}.ttf`)
-      if (!existsSync(file)) {
-        throw new Error(`style "${name}" references font "${font}" but ${file} is not bundled`)
-      }
+  test('every typeface a built-in look references is declared in the hosted font manifest', () => {
+    for (const font of builtInLookFonts()) {
+      expect({ font, hostedFaces: hostedFacesForFamily(font).map((face) => face.file) }).not.toEqual({ font, hostedFaces: [] })
     }
   })
 
-  test('hosted PNG worker bundles every built-in style face', () => {
-    const hostedPng = readFileSync(join(import.meta.dir, '..', '..', 'website', 'src', 'png-wasm.ts'), 'utf8')
-    const websiteBuild = readFileSync(join(import.meta.dir, '..', '..', 'website', 'build.ts'), 'utf8')
-    const generatedDir = join(import.meta.dir, '..', '..', 'website', 'src', 'generated')
-    const styleFontFiles = Array.from(new Set(
-      LOOKS
-        .map(name => getStyle(name)?.font)
-        .filter((font): font is string => Boolean(font))
-        .map(font => `${font.replace(/ /g, '')}.ttf`),
-    ))
+  test('every hosted typeface ships in assets/fonts', () => {
+    // PNG rasterization loads assets/fonts with loadSystemFonts: false — a
+    // look whose face is missing there silently falls back to DejaVu Sans.
+    const fontsDir = join(import.meta.dir, '..', '..', 'assets', 'fonts')
+    for (const file of HOSTED_FONT_FILES) {
+      expect({ file, exists: existsSync(join(fontsDir, file)) }).toEqual({ file, exists: true })
+    }
+  })
 
-    for (const file of styleFontFiles) {
+  test('hosted PNG worker bundles every hosted style/default face', () => {
+    const hostedPng = readFileSync(join(import.meta.dir, '..', '..', 'website', 'src', 'png-wasm.ts'), 'utf8')
+    const generatedDir = join(import.meta.dir, '..', '..', 'website', 'src', 'generated')
+
+    for (const file of HOSTED_FONT_FILES) {
       expect(hostedPng).toContain(`./generated/${file}`)
-      expect(websiteBuild).toContain(`'${file}'`)
       expect(existsSync(join(generatedDir, file))).toBe(true)
     }
   })

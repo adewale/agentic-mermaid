@@ -202,8 +202,8 @@ byte-identical, corpus-gated):
 3. **CLI**: `am render --style <name|file.json>` (repeatable = stack),
    `--seed`, `am styles [--json]`; PNG threading with an explicit
    font-fallback warning.
-4. **Editor**: style picker, 🎲 shuffle, and a fragment pane — paste or edit
-   JSON, watch it stack live. The custom-look playground is the demo.
+4. **Editor**: style picker and palette picker for built-in looks; `seed` stays
+   an API/CLI/share-link field rather than a persistent topbar control.
 5. **README + gallery** generated from the registry.
 6. **Fonts for PNG parity** (OFL faces as reviewed assets).
 

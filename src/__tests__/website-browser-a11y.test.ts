@@ -2,6 +2,7 @@ import { afterAll, beforeAll, describe, expect, test } from 'bun:test'
 import { existsSync } from 'node:fs'
 import { extname, join, normalize } from 'node:path'
 import { chromium, type Browser, type Page } from 'playwright'
+import { HOSTED_FONT_FACES } from '../font-manifest.ts'
 
 const REPO = join(import.meta.dir, '..', '..')
 const SITE = join(REPO, 'website', 'public')
@@ -193,6 +194,35 @@ describeBrowser('website browser accessibility smoke', () => {
     await page.close()
   }, 30_000)
 
+  test('editor loads every self-hosted diagram font face it advertises', async () => {
+    const page = await browser.newPage({ viewport: { width: 1280, height: 900 } })
+    await page.goto(baseUrl + '/editor/?empty=1', { waitUntil: 'networkidle' })
+    const results = await page.evaluate(async (faces) => {
+      return Promise.all(faces.map(async (face) => {
+        const response = await fetch(`/fonts/${face.file}`)
+        const weights = face.weight.split(/\s+/)
+        const requestedWeight = weights.includes('700') ? '700' : (weights[0] || '400')
+        const descriptor = `${face.style} ${requestedWeight} 16px "${face.family}"`
+        const loaded = await document.fonts.load(descriptor)
+        return {
+          family: face.family,
+          file: face.file,
+          weight: face.weight,
+          style: face.style,
+          requestedWeight,
+          fetchOk: response.ok,
+          checkOk: document.fonts.check(descriptor),
+          loadedFaces: loaded.map((font) => ({ family: font.family.replace(/["']/g, ''), weight: font.weight, style: font.style, status: font.status })),
+        }
+      }))
+    }, HOSTED_FONT_FACES)
+    for (const result of results) {
+      expect(result).toMatchObject({ fetchOk: true, checkOk: true })
+      expect(result.loadedFaces.some((font) => font.family === result.family && font.status === 'loaded' && font.style === result.style)).toBe(true)
+    }
+    await page.close()
+  }, 30_000)
+
   test('editor share links restore style state and styled label fonts', async () => {
     const page = await browser.newPage({ viewport: { width: 1280, height: 900 } })
     const hash = 'deflate:PY5BDoIwEEWvMumaegAXnkAIgYRNZTHCIARoybRIkLD1AB7Rk5iWxOV_7yf_b8KamSsSZ9EMZqlaZAfX7KYBcpUHBadxrEuQ8gKpmpAtlV6ngSRKI7NZAkoCitU4O3RHKw6o2J7EXbPuHhUgJZg-iExZ4g6H7kXwfX-ASdfE5b-2IOtOP-yxJSLhWhr92QknYhEJ69bB56rFob8b5FrsPw'
@@ -203,6 +233,25 @@ describeBrowser('website browser accessibility smoke', () => {
     expect(await page.locator('#theme-btn-label').textContent()).toBe('Paper')
     const labelFont = await page.locator('#preview-inner svg text').first().evaluate((el) => getComputedStyle(el).fontFamily)
     expect(labelFont).toContain('Caveat')
+    await page.close()
+  }, 30_000)
+
+  test('editor share links apply compact schematic label typography in the browser', async () => {
+    const page = await browser.newPage({ viewport: { width: 1280, height: 900 } })
+    const hash = 'deflate:RY6xDoIwFEV_5eXNdDcMGqGsLriYykDKkzZCS9pnjKH8uykOjuec5OauGP0raMISH5N_a9MHhqu8O4CzarkP3IEQR6hWSdpG691py7HKNt0oJqiV9MCGgI11Y_evF59AqvZpF7C8-3rfalTjhp3lj7FANjTnE86HQUx2NIwFRv5MWfoliqgNzT1bnT3RgOVh-wI'
+    await page.goto(baseUrl + '/editor/#' + hash, { waitUntil: 'networkidle' })
+    await page.locator('#preview-inner svg text').first().waitFor({ state: 'visible', timeout: 10_000 })
+    await page.waitForFunction(() => document.fonts.check('12px "Share Tech Mono"'))
+    expect(await page.locator('#style-btn-label').textContent()).toBe('Compact Trace Map')
+    expect(await page.locator('#theme-btn-label').textContent()).toBe('Nord Light')
+    const label = await page.locator('#preview-inner svg text', { hasText: 'START' }).first().evaluate((el) => {
+      const style = getComputedStyle(el)
+      return { text: el.textContent, fontFamily: style.fontFamily, fontWeight: style.fontWeight, fontSize: style.fontSize }
+    })
+    expect(label.text).toBe('START')
+    expect(label.fontFamily).toContain('Share Tech Mono')
+    expect(Number.parseInt(label.fontWeight, 10)).toBeGreaterThanOrEqual(700)
+    expect(label.fontSize).toBe('12px')
     await page.close()
   }, 30_000)
 

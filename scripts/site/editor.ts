@@ -17,6 +17,8 @@
  *   - editor/html/ – HTML partials (topbar, left-panel, right-panel)
  */
 
+import { EDITOR_EXAMPLES, EDITOR_SEMANTIC_STYLE } from '../../editor/examples.ts'
+import { HOSTED_FONT_FACES, hostedFontFaceCss } from '../../src/font-manifest.ts'
 import { THEMES } from '../../src/theme.ts'
 import { knownStyles, getStyle, styleKind } from '../../src/scene/style-registry.ts'
 
@@ -53,7 +55,11 @@ async function readFile(relativePath: string): Promise<string> {
   return file.text()
 }
 
-async function readCssFiles(): Promise<string> {
+async function readSharedBrowserFile(relativePath: string): Promise<string> {
+  return Bun.file(new URL(`../../shared/browser/${relativePath}`, import.meta.url)).text()
+}
+
+async function readCssFiles(fontPrefix: string): Promise<string> {
   const order = [
     'css/variables.css',
     'css/topbar.css',
@@ -68,7 +74,23 @@ async function readCssFiles(): Promise<string> {
     'css/misc.css',
   ]
   const parts = await Promise.all(order.map(f => readFile(f)))
-  return parts.join('\n\n')
+  return hostedFontFaceCss(fontPrefix) + '\n\n' + parts.join('\n\n')
+}
+
+function editorExamplesDataJs(): string {
+  return `var EDITOR_SEMANTIC_STYLE = ${JSON.stringify(EDITOR_SEMANTIC_STYLE, null, 2)};\nvar EDITOR_EXAMPLES = ${JSON.stringify(EDITOR_EXAMPLES, null, 2)};`
+}
+
+function editorFontDataJs(): string {
+  const hostedFamilies = Array.from(new Set(HOSTED_FONT_FACES.map(font => font.family)))
+  const hosted = hostedFamilies.map(family => ({ name: family, value: family, group: 'Self-hosted' }))
+  const system = [
+    { name: 'System UI', value: 'system-ui', group: 'System' },
+    { name: 'Arial', value: 'Arial', group: 'System' },
+    { name: 'Georgia', value: 'Georgia', group: 'System' },
+    { name: 'Courier New', value: 'Courier New', group: 'System' },
+  ]
+  return `var EDITOR_PRESET_FONTS = ${JSON.stringify([...hosted, ...system], null, 2)};`
 }
 
 async function readJsFiles(): Promise<string> {
@@ -93,8 +115,11 @@ async function readJsFiles(): Promise<string> {
     'js/dark-mode.js',
     'js/init.js',
   ]
-  const parts = await Promise.all(order.map(f => readFile(f)))
-  return parts.join('\n\n')
+  const [copyFeedback, ...parts] = await Promise.all([
+    readSharedBrowserFile('copy-feedback.js'),
+    ...order.map(f => readFile(f)),
+  ])
+  return [copyFeedback, editorExamplesDataJs(), editorFontDataJs(), ...parts].join('\n\n')
 }
 
 const STYLE_LABELS: Record<string, string> = {
@@ -157,6 +182,7 @@ async function readHtmlPartials(themeItems: string): Promise<{
 // ── Main ──────────────────────────────────────────────────────────────────────
 
 async function generateEditorHtml(): Promise<string> {
+  const fontPrefix = process.env.AM_EDITOR_FONT_PREFIX || 'assets/fonts/'
   const buildResult = await Bun.build({
     entrypoints: [new URL('../../src/browser.ts', import.meta.url).pathname],
     target: 'browser',
@@ -179,7 +205,7 @@ async function generateEditorHtml(): Promise<string> {
   ].join('\n      ')
 
   const [css, appJs, html] = await Promise.all([
-    readCssFiles(),
+    readCssFiles(fontPrefix),
     readJsFiles(),
     readHtmlPartials(themeItems),
   ])

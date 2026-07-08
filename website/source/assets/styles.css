@@ -14,13 +14,6 @@
                                     diagram plates, the mark ring, and code.
 */
 
-@font-face { font-family: 'Caveat'; src: url('/fonts/Caveat.ttf') format('truetype'); font-weight: 400 700; font-style: normal; font-display: swap; }
-@font-face { font-family: 'EB Garamond'; src: url('/fonts/EBGaramond.ttf') format('truetype'); font-weight: 400 700; font-style: normal; font-display: swap; }
-@font-face { font-family: 'Architects Daughter'; src: url('/fonts/ArchitectsDaughter.ttf') format('truetype'); font-weight: 400; font-style: normal; font-display: swap; }
-@font-face { font-family: 'Share Tech Mono'; src: url('/fonts/ShareTechMono.ttf') format('truetype'); font-weight: 400; font-style: normal; font-display: swap; }
-@font-face { font-family: 'DejaVu Sans'; src: url('/fonts/DejaVuSans.ttf') format('truetype'); font-weight: 400; font-style: normal; font-display: swap; }
-@font-face { font-family: 'DejaVu Sans'; src: url('/fonts/DejaVuSans-Bold.ttf') format('truetype'); font-weight: 700; font-style: normal; font-display: swap; }
-
 /* ============================ 1 · BRAND ============================
    Isolated from every theme and scheme. The brand elements (.brand .mark,
    body::before, the type) read ONLY from this layer, never from
@@ -314,12 +307,8 @@ hr { border: 0; margin: var(--sp-6) 0; }
 @media (max-width: 640px) { .go { white-space: normal; } }
 .go::after { content: " \2192"; }
 .page-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 12px; margin: 22px 0 0; }
-.primary-action, .secondary-action { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: var(--control-h); padding: 0 12px; border-radius: var(--radius-md); font-family: var(--sans); font-size: var(--t-control); font-weight: 700; text-decoration: none; cursor: pointer; transition: background-color var(--dur-control) var(--ease-out), color var(--dur-control) var(--ease-out), border-color var(--dur-control) var(--ease-out), transform var(--dur-press) var(--ease-out); }
-.primary-action { border: 1px solid color-mix(in srgb, var(--accent) 42%, var(--surface-border-strong)); background: var(--accent); color: var(--bg); }
-.primary-action:hover { background: var(--accent-hover); color: var(--bg); text-decoration: none; transform: translateY(-1px); }
-.secondary-action { border: 1px solid var(--control-border); background: var(--control-bg); color: var(--control-fg); }
-.secondary-action:hover { background: var(--control-bg-hover); color: var(--ink); text-decoration: none; transform: translateY(-1px); }
-.primary-action:active, .secondary-action:active { transform: scale(0.96); }
+.primary-action { border-color: color-mix(in srgb, var(--accent) 42%, var(--surface-border-strong)); background: var(--accent); color: var(--bg); }
+.primary-action:hover { background: var(--accent-hover); color: var(--bg); }
 .page-actions .copy-prompt-status { flex-basis: 100%; padding: 0; }
 .start-rail { list-style: none; padding: 0; margin: 8px 0 20px; border-top: 1px solid var(--line); }
 .start-rail li { margin: 0; padding: 14px 0; border-bottom: 1px solid var(--line); }
@@ -402,16 +391,15 @@ hr { border: 0; margin: var(--sp-6) 0; }
 .comparison-case-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 14px; }
 .comparison-case-head h2 { margin: 0; }
 .comparison-source-tools { display: flex; align-items: center; justify-content: flex-end; gap: 6px; flex-wrap: wrap; }
-.comparison-source-action { min-height: 44px; display: inline-flex; align-items: center; justify-content: center; padding: 0 12px; border: 1px solid var(--control-border); border-radius: var(--radius-md); background: var(--control-bg); color: var(--control-fg); font-family: var(--sans); font-size: var(--t-label); font-weight: 700; line-height: var(--lh-ui); text-decoration: none; white-space: nowrap; cursor: pointer; box-shadow: var(--shadow-hairline); }
-.comparison-source-action:hover { background: var(--control-bg-hover); color: var(--ink); text-decoration: none; }
+.comparison-source-action { min-height: 44px; padding: 0 12px; background: var(--control-bg); color: var(--control-fg); font-size: var(--t-label); line-height: var(--lh-ui); white-space: nowrap; box-shadow: var(--shadow-hairline); }
+.comparison-source-action:hover { background: var(--control-bg-hover); color: var(--ink); }
 .comparison-source-action:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .comparison-summary, .warning-guide { margin: var(--sp-5) 0 var(--sp-6); }
 .comparison-summary p, .warning-guide p { max-width: var(--prose-max); }
 .comparison-summary ul { margin-bottom: 0; }
 .comparison-takeaway { margin: -4px 0 12px; max-width: 70ch; color: var(--ink-soft); font-size: var(--t-sm); line-height: 1.5; }
 .comparison-note { margin: -6px 0 12px; color: var(--ink-faint); font-size: var(--t-label); line-height: var(--lh-ui); }
-.comparison-dialog-close { min-height: 40px; padding: 0 12px; border: 1px solid var(--control-border); border-radius: var(--radius-md); background: var(--control-bg); color: var(--control-fg); font-family: var(--sans); font-size: var(--t-label); font-weight: 700; cursor: pointer; }
-.comparison-dialog-close:hover { background: var(--control-bg-hover); color: var(--ink); }
+.comparison-dialog-close { min-height: 40px; padding: 0 12px; font-size: var(--t-label); }
 .comparison-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px; align-items: stretch; }
 .comparison-case > .comparison-grid { padding: 10px; }
 .comparison-case > .comparison-grid[data-comparison-lightbox-panel] { cursor: zoom-in; transition: border-color var(--dur-control) var(--ease-out), background-color var(--dur-control) var(--ease-out), box-shadow var(--dur-control) var(--ease-out); }
@@ -504,15 +492,6 @@ hr { border: 0; margin: var(--sp-6) 0; }
   min-height: 52px;
   padding: 7px 8px 7px 14px;
   border-bottom: 1px solid var(--line);
-}
-.copy-prompt-btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  padding: 0 var(--control-px);
-  cursor: pointer;
-  transition: background-color var(--dur-control) var(--ease-out), color var(--dur-control) var(--ease-out), transform var(--dur-press) var(--ease-out);
 }
 .copy-prompt-icon {
   width: 13px;
@@ -751,28 +730,29 @@ figcaption { color: var(--ink-faint); font-size: var(--t-label); line-height: 1.
 
 /* Shared affordance primitives: keep links, controls, metadata, surfaces, and
    status feedback on one visual contract instead of page-specific one-offs. */
-.copy-prompt-btn,
-.masthead .links .link-editor {
+:where(.control-button, .primary-action, .secondary-action, .copy-prompt-btn, .comparison-source-action, .comparison-dialog-close, .dz-press, .masthead .links .link-editor) {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   min-height: var(--control-h);
   border: 1px solid var(--control-border);
   border-radius: var(--radius-md);
-  background: var(--control-bg);
-  color: var(--control-fg);
   font-family: var(--sans);
   font-size: var(--t-control);
   font-weight: 700;
   text-decoration: none;
-  transition: background-color var(--dur-control) var(--ease-out), color var(--dur-control) var(--ease-out), transform var(--dur-press) var(--ease-out);
+  cursor: pointer;
+  transition: background-color var(--dur-control) var(--ease-out), color var(--dur-control) var(--ease-out), border-color var(--dur-control) var(--ease-out), transform var(--dur-press) var(--ease-out);
 }
-.copy-prompt-btn:hover,
-.masthead .links .link-editor:hover {
-  background: var(--control-bg-hover);
-  color: var(--ink);
+:where(.primary-action, .secondary-action, .copy-prompt-btn) { gap: 8px; padding: 0 var(--control-px); }
+:where(.control-button, .secondary-action, .copy-prompt-btn, .comparison-dialog-close, .dz-press, .masthead .links .link-editor) { background: var(--control-bg); color: var(--control-fg); }
+:where(.control-button:hover, .secondary-action:hover, .copy-prompt-btn:hover, .comparison-dialog-close:hover, .dz-press:hover, .masthead .links .link-editor:hover) { background: var(--control-bg-hover); color: var(--ink); }
+.primary-action { border-color: color-mix(in srgb, var(--accent) 42%, var(--surface-border-strong)); }
+:where(.control-button:hover, .primary-action:hover, .secondary-action:hover, .copy-prompt-btn:hover, .comparison-source-action:hover, .comparison-dialog-close:hover, .dz-press:hover, .masthead .links .link-editor:hover) {
   text-decoration: none;
   transform: translateY(-1px);
 }
-.copy-prompt-btn:active,
-.masthead .links .link-editor:active { transform: scale(0.96); }
+:where(.control-button:active, .primary-action:active, .secondary-action:active, .copy-prompt-btn:active, .comparison-source-action:active, .comparison-dialog-close:active, .dz-press:active, .masthead .links .link-editor:active) { transform: scale(0.96); }
 .copy-prompt-btn[data-copy-state="ok"] { color: var(--success); background: var(--success-tint); border-color: color-mix(in srgb, var(--success) 30%, var(--control-border)); }
 .copy-prompt-btn[data-copy-state="err"], .prompt-action[data-copy-state="err"] { color: var(--danger); }
 :where(.meta-label, .agent-kicker, .section-kicker, .copy-prompt-label, .gallery-prompt span, .gallery-ops span, .example-prompt span, .example-trace span) {
@@ -866,9 +846,7 @@ figcaption { color: var(--ink-faint); font-size: var(--t-label); line-height: 1.
 .dz-shadows { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: var(--sp-5); margin: var(--sp-4) 0 var(--sp-6); }
 .dz-shadow { height: 72px; border-radius: var(--radius-lg); background: var(--surface); display: grid; place-items: center; font-family: var(--mono); font-size: var(--t-label); color: var(--ink-soft); }
 .dz-motion { display: flex; gap: var(--sp-3); align-items: center; flex-wrap: wrap; margin: var(--sp-4) 0; }
-.dz-press { min-height: var(--control-h); padding: 0 var(--control-px); border: 1px solid var(--control-border); border-radius: var(--radius-md); background: var(--control-bg); color: var(--control-fg); font-family: var(--sans); font-size: var(--t-control); font-weight: 650; cursor: pointer; transition: background var(--dur-control) var(--ease-out), transform var(--dur-press) var(--ease-out); }
-.dz-press:hover { background: var(--control-bg-hover); color: var(--ink); }
-.dz-press:active { transform: scale(0.96); }
+.dz-press { padding: 0 var(--control-px); font-weight: 650; }
 .dz-mark-row { display: flex; align-items: center; gap: var(--sp-4); margin: var(--sp-4) 0; }
 .dz-icons { display: flex; gap: var(--sp-4); align-items: center; color: var(--ink-soft); }
 .dz-voice li { margin-bottom: var(--sp-2); }

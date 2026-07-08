@@ -111,34 +111,7 @@
     </div>
   </div>
 
-  <button class="btn seed-shuffle-btn is-inactive" id="seed-shuffle-btn" type="button" title="Re-roll the ink of the current style (never moves layout)" aria-label="Re-roll style ink" aria-hidden="true" tabindex="-1" inert>
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-      <rect x="3" y="3" width="18" height="18" rx="3" />
-      <circle cx="8.5" cy="8.5" r="1.2" fill="currentColor" stroke="none" />
-      <circle cx="15.5" cy="8.5" r="1.2" fill="currentColor" stroke="none" />
-      <circle cx="12" cy="12" r="1.2" fill="currentColor" stroke="none" />
-      <circle cx="8.5" cy="15.5" r="1.2" fill="currentColor" stroke="none" />
-      <circle cx="15.5" cy="15.5" r="1.2" fill="currentColor" stroke="none" />
-    </svg>
-  </button>
-
   <div class="topbar-sep"></div>
-
-  <!-- Second entry point for the agent handoff (wide viewports only; CSS hides
-       it below 1100px). Shares copyAgentTask with #copy-agent-prompt-btn. -->
-  <button class="btn" id="agent-prompt-topbar-btn" type="button" title="Copies a ready-to-paste prompt — your diagram, your task, and the editing rules — for a coding agent like Claude Code or Cursor">
-    <svg
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      stroke-width="2"
-      stroke-linecap="round"
-      stroke-linejoin="round"
-    >
-      <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
-    </svg>
-    <span>Copy agent prompt</span>
-  </button>
 
   <div class="export-wrap" id="export-wrap">
     <button class="btn" id="export-main-btn" type="button" title="Save PNG (⌘S)" disabled aria-disabled="true">
@@ -268,21 +241,6 @@
         </svg>
         <span class="export-item-label">Copy link</span>
       </button>
-      <button class="export-item" id="copy-agent-prompt-btn" type="button" title="Copies a ready-to-paste prompt — your diagram, your task, and the editing rules — for a coding agent like Claude Code or Cursor">
-        <svg
-          class="export-item-icon"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="1.75"
-          stroke-linecap="round"
-          stroke-linejoin="round"
-        >
-          <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
-        </svg>
-        <span class="export-item-label">Copy agent prompt</span>
-      </button>
-
       <div class="export-divider"></div>
 
       <div class="export-size-row">

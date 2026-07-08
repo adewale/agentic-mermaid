@@ -500,7 +500,7 @@ interface RenderOptions {
   // with themes registered as palette-only styles and backends inferred —
   // see docs/design/system/styles-rollout.md)
   style?: string | StyleSpec | (string | StyleSpec)[]
-  seed?: number                        // deterministic re-roll (editor "shuffle")
+  seed?: number                        // deterministic re-roll (API/CLI/share-link state)
 }
 ```
 

@@ -6,11 +6,14 @@ import { BUILTIN_FAMILY_METADATA } from '../src/agent/families.ts'
 import { verifyMermaid } from '../src/agent/index.ts'
 import { buildCapabilities } from '../src/cli/index.ts'
 import { renderMermaidASCII, renderMermaidSVG } from '../src/index.ts'
+import { HOSTED_FONT_FILES, hostedFontFaceCss } from '../src/font-manifest.ts'
 import { namespaceSvgIds } from '../src/renderer.ts'
 import { HOSTED_TOOLS } from '../src/mcp/hosted-server.ts'
 import { MCP_SERVER_NAME, MCP_SERVER_VERSION } from '../src/mcp/tool-surface.ts'
 import { computeDeployVersion } from './src/deploy-hash.ts'
+import { CLEAN_PAGE_ROUTES, DYNAMIC_CLEAN_REDIRECT_LINES, staticRedirectLines } from './src/site-routes.ts'
 import { HOMEPAGE_AGENT_POINTER } from '../eval/agent-usage/homepage-prompt.ts'
+import { EDITOR_EXAMPLES } from '../editor/examples.ts'
 
 const ROOT = join(import.meta.dir, '..')
 const SOURCE = join(import.meta.dir, 'source')
@@ -20,14 +23,6 @@ const SOURCE_DIAGRAMS = join(SOURCE, 'diagrams')
 const OUT = join(import.meta.dir, 'public')
 const CHECK = process.argv.includes('--check')
 const PUBLIC_ONLY = process.argv.includes('--public-only')
-const HOSTED_FONT_FILES = [
-  'DejaVuSans.ttf',
-  'DejaVuSans-Bold.ttf',
-  'Caveat.ttf',
-  'EBGaramond.ttf',
-  'ArchitectsDaughter.ttf',
-  'ShareTechMono.ttf',
-]
 
 type FileContent = string | Buffer
 const generated = new Map<string, FileContent>()
@@ -359,6 +354,19 @@ async function copySourceAsset(rel: string, destRel = rel) {
   await copyFileFrom(join(SOURCE_ASSETS, rel), destRel)
 }
 
+async function emitStylesheet() {
+  const css = await Bun.file(join(SOURCE_ASSETS, 'styles.css')).text()
+  await emit('styles.css', hostedFontFaceCss('/fonts/') + '\n' + css)
+}
+
+async function emitThemeScript() {
+  const [copyFeedback, theme] = await Promise.all([
+    Bun.file(join(ROOT, 'shared', 'browser', 'copy-feedback.js')).text(),
+    Bun.file(join(SOURCE_ASSETS, 'theme.js')).text(),
+  ])
+  await emit('theme.js', copyFeedback + '\n' + theme)
+}
+
 async function copyDir(srcAbs: string, destRel: string) {
   async function walk(abs: string, rel: string) {
     for (const ent of await readdir(abs, { withFileTypes: true })) {
@@ -375,29 +383,11 @@ function sha256(text: string | Buffer) {
   return createHash('sha256').update(text).digest('hex')
 }
 
-function extractBalancedLiteral(src: string, marker: string, open: string, close: string): string {
-  const lb = src.indexOf(open, src.indexOf(marker))
-  let depth = 0, q: string | null = null
-  for (let i = lb; i < src.length; i++) {
-    const c = src[i]
-    if (q) { if (c === '\\') { i++; continue } if (c === q) q = null; continue }
-    if (c === "'" || c === '"' || c === '`') { q = c; continue }
-    if (c === '/' && src[i + 1] === '/') { const nl = src.indexOf('\n', i); i = nl < 0 ? src.length : nl; continue }
-    if (c === '/' && src[i + 1] === '*') { const e = src.indexOf('*/', i + 2); i = e < 0 ? src.length : e + 1; continue }
-    if (c === open) depth++
-    else if (c === close && --depth === 0) return src.slice(lb, i + 1)
-  }
-  throw new Error('could not extract ' + marker)
-}
-function extractArrayLiteral(src: string, marker: string): string {
-  return extractBalancedLiteral(src, marker, '[', ']')
-}
-function extractObjectLiteral(src: string, marker: string): string {
-  return extractBalancedLiteral(src, marker, '{', '}')
-}
-
 async function generateEditorHtml() {
-  const result = Bun.spawnSync(['bun', 'run', 'scripts/site/editor.ts'], { cwd: ROOT })
+  const result = Bun.spawnSync(['bun', 'run', 'scripts/site/editor.ts'], {
+    cwd: ROOT,
+    env: { ...process.env, AM_EDITOR_FONT_PREFIX: '/fonts/' },
+  })
   if (result.exitCode !== 0) {
     throw new Error(`scripts/site/editor.ts failed:\n${result.stderr.toString()}`)
   }
@@ -509,9 +499,6 @@ const installNotice = npmPublished
   ? 'The npm package is marked published for this build.'
   : 'The npm package is not yet published; install from source.'
 
-const examplesSrc = await Bun.file(join(ROOT, 'editor/js/examples.js')).text()
-const EDITOR_SEMANTIC_STYLE: any = new Function('return (' + extractObjectLiteral(examplesSrc, 'EDITOR_SEMANTIC_STYLE =') + ');')()
-const EDITOR_EXAMPLES: any[] = new Function('EDITOR_SEMANTIC_STYLE', 'return (' + extractArrayLiteral(examplesSrc, 'EDITOR_EXAMPLES =') + ');')(EDITOR_SEMANTIC_STYLE)
 const familyByExampleId = new Map<string, any>(BUILTIN_FAMILY_METADATA.map((f) => [f.editorExampleId, f]))
 const familyByDiagramType: Record<string, string> = {
   Flowchart: 'flowchart', State: 'state', Architecture: 'architecture', Sequence: 'sequence', Class: 'class', ER: 'er', Timeline: 'timeline', Journey: 'journey', 'XY Chart': 'xychart', Pie: 'pie', Quadrant: 'quadrant', Gantt: 'gantt',
@@ -1301,7 +1288,9 @@ for (const [source, target] of pageOutputs) {
 await emit('editor/index.html', await generateEditorHtml())
 
 // Static assets.
-for (const asset of ['favicon.svg', 'styles.css', 'theme.js', 'shader-mark.js']) await copySourceAsset(asset)
+await emitStylesheet()
+await emitThemeScript()
+for (const asset of ['favicon.svg', 'shader-mark.js']) await copySourceAsset(asset)
 for (const asset of ['favicon.ico', 'apple-touch-icon.png', 'og-image.png']) await copyFileFrom(join(ROOT, 'public', asset), asset)
 for (const font of HOSTED_FONT_FILES) await copyFileFrom(join(ROOT, 'assets', 'fonts', font), `fonts/${font}`)
 await copyDir(SOURCE_DIAGRAMS, 'diagrams')
@@ -2038,24 +2027,15 @@ const securityHeaders = [
 ].join('\n')
 await emit('_headers', securityHeaders)
 
-// Single source of truth for the trailing-slash redirects: every emitted page
-// lives at <dir>/index.html, so its clean route is that directory. Derive the
-// list from the generated pages instead of hand-maintaining it (which had
-// drifted — /about/design was missing a redirect). Per-code warning/error pages
-// are covered by the :code / :kind splat rules below, so exclude their subpaths.
-const pageRoutes = [...generated.keys()]
-  .filter((rel) => rel.endsWith('/index.html'))
-  .map((rel) => rel.slice(0, -'/index.html'.length))
-  .filter((dir) => dir && !dir.startsWith('warnings/') && !dir.startsWith('errors/'))
-  .sort()
-const legacyRedirectLines = [
-  '/why /about/ 308', '/why/ /about/ 308',
-  '/gallery /examples/ 308', '/gallery/ /examples/ 308',
-]
+// Shared route manifest: the Worker and the generated _redirects file use the
+// same clean-route list. Assert the manifest only names pages that this build
+// actually emitted (root index excluded because it has no clean-route redirect).
+for (const route of CLEAN_PAGE_ROUTES) {
+  if (!generated.has(`${route}/index.html`)) throw new Error(`route manifest names missing page: ${route}/index.html`)
+}
 const redirectLines = [
-  ...legacyRedirectLines,
-  ...pageRoutes.map((r) => `/${r} /${r}/ 308`),
-  '/warnings/:code /warnings/:code/ 308', '/errors/:kind /errors/:kind/ 308',
+  ...staticRedirectLines(),
+  ...DYNAMIC_CLEAN_REDIRECT_LINES,
   '',
 ].join('\n')
 await emit('_redirects', redirectLines)

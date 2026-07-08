@@ -2,7 +2,10 @@ import { describe, expect, test } from 'bun:test'
 import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs'
 import { join } from 'node:path'
 import { gzipSync } from 'node:zlib'
+import { EDITOR_EXAMPLES } from '../../editor/examples.ts'
 import { createWebsiteWorker } from '../../website/src/worker-core.ts'
+import { CLEAN_PAGE_ROUTES, DYNAMIC_CLEAN_REDIRECT_LINES, staticRedirectLines } from '../../website/src/site-routes.ts'
+import { HOSTED_FONT_FACES, HOSTED_FONT_FILES } from '../font-manifest.ts'
 
 const REPO = join(import.meta.dir, '..', '..')
 const SITE = join(REPO, 'website', 'public')
@@ -30,10 +33,39 @@ function editorScriptRel(editorHtml = read('editor/index.html')) {
 }
 
 function editorExampleIds() {
-  const src = readFileSync(join(REPO, 'editor/js/examples.js'), 'utf8')
-  const start = src.indexOf('var EDITOR_EXAMPLES = [')
-  const end = src.indexOf('];', start)
-  return [...src.slice(start, end).matchAll(/\bid:\s*'([^']+)'/g)].map((m) => m[1]!)
+  return EDITOR_EXAMPLES.map((example) => example.id)
+}
+
+function readJsonGlobal<T>(script: string, name: string): T {
+  const marker = `var ${name} = `
+  const start = script.indexOf(marker)
+  expect({ name, present: start >= 0 }).toEqual({ name, present: true })
+  const valueStart = start + marker.length
+  let depth = 0
+  let inString = false
+  let escaped = false
+  for (let i = valueStart; i < script.length; i++) {
+    const ch = script[i]!
+    if (inString) {
+      if (escaped) escaped = false
+      else if (ch === '\\') escaped = true
+      else if (ch === '"') inString = false
+      continue
+    }
+    if (ch === '"') { inString = true; continue }
+    if (ch === '[' || ch === '{') depth++
+    else if (ch === ']' || ch === '}') depth--
+    else if (ch === ';' && depth === 0) return JSON.parse(script.slice(valueStart, i)) as T
+  }
+  throw new Error(`could not parse generated ${name} JSON global`)
+}
+
+function staticCleanRoutesFromGeneratedPages() {
+  return files()
+    .filter((f) => f.endsWith('/index.html'))
+    .map((f) => f.replace(/\/index\.html$/, ''))
+    .filter((route) => route !== '' && !/^warnings\/[^/]+$/.test(route) && !/^errors\/[^/]+$/.test(route))
+    .sort()
 }
 
 async function websiteWorker(): Promise<{ fetch: (request: Request, env: any) => Promise<Response> }> {
@@ -254,14 +286,38 @@ describe('Workers Static Assets website contract', () => {
     expect(offenders).toEqual([])
   })
 
-  test('public site ships the diagram fonts used by built-in looks', () => {
+  test('public site and editor ship the diagram fonts used by built-in looks', () => {
     const styles = read('styles.css')
-    for (const font of ['Caveat', 'EB Garamond', 'Architects Daughter', 'Share Tech Mono', 'DejaVu Sans']) {
-      expect(styles).toContain(`font-family: '${font}'`)
+    const editor = read('editor/index.html')
+    expect(readRepo('website/source/assets/styles.css')).not.toContain('@font-face')
+    for (const font of HOSTED_FONT_FACES) {
+      const publicFace = `@font-face { font-family: '${font.family}'; src: url('/fonts/${font.file}') format('truetype'); font-weight: ${font.weight}; font-style: ${font.style}; font-display: swap; }`
+      expect(styles).toContain(publicFace)
+      expect(editor).toContain(publicFace)
     }
-    for (const rel of ['fonts/Caveat.ttf', 'fonts/EBGaramond.ttf', 'fonts/ArchitectsDaughter.ttf', 'fonts/ShareTechMono.ttf', 'fonts/DejaVuSans.ttf', 'fonts/DejaVuSans-Bold.ttf']) {
+    for (const file of HOSTED_FONT_FILES) {
+      const rel = `fonts/${file}`
       expect({ rel, exists: existsSync(join(SITE, rel)) }).toEqual({ rel, exists: true })
     }
+    const editorScript = read(editorScriptRel(editor))
+    const presetFonts = readJsonGlobal<Array<{ name: string; value: string; group: string }>>(editorScript, 'EDITOR_PRESET_FONTS')
+    const hostedFamilies = Array.from(new Set(HOSTED_FONT_FACES.map((font) => font.family)))
+    expect(presetFonts.filter((font) => font.group === 'Self-hosted').map((font) => font.value)).toEqual(hostedFamilies)
+    const allowedSystem = new Set(['system-ui', 'Arial', 'Georgia', 'Courier New'])
+    for (const font of presetFonts) {
+      expect({ font: font.value, hostedOrSystem: hostedFamilies.includes(font.value) || allowedSystem.has(font.value) }).toEqual({ font: font.value, hostedOrSystem: true })
+    }
+    expect(editorScript).not.toContain('Poppins')
+    const editorBuilder = readFileSync(join(REPO, 'scripts/site/editor.ts'), 'utf8')
+    const websiteBuilder = readFileSync(join(REPO, 'website/build.ts'), 'utf8')
+    expect(editorBuilder).toContain("AM_EDITOR_FONT_PREFIX || 'assets/fonts/'")
+    expect(websiteBuilder).toContain("AM_EDITOR_FONT_PREFIX: '/fonts/'")
+  })
+
+  test('generated public text assets do not depend on external font imports', () => {
+    const scanned = files().filter((f) => /\.(html|svg|css|md|txt|json)$/.test(f))
+    const offenders = scanned.filter((f) => /fonts\.googleapis\.com|fonts\.gstatic\.com|@import\s+url\(['"]https:\/\/fonts/i.test(read(f)))
+    expect(offenders).toEqual([])
   })
 
   test('public html has no placeholder links or breadcrumb slugs', () => {
@@ -364,15 +420,11 @@ describe('Workers Static Assets website contract', () => {
     expect(examples).toContain('<p class="example-trace"><span>Trace</span> <code>asFlowchart')
     const editorScript = editorScriptRel(editor)
     expect(existsSync(join(SITE, editorScript))).toBe(true)
-    expect(read(editorScript)).toContain('buildAgentTaskPrompt')
-    expect(read(editorScript)).toContain('Create or edit a Mermaid diagram')
-    expect(read(editorScript)).toContain('Do not assume this repository is checked out')
-    expect(read(editorScript)).toContain('return an object with `{ source }`')
-    expect(read(editorScript)).toContain('In Trace, name the channel and exact calls/ops used')
-    expect(read(editorScript)).toContain('source-level fallback')
     expect(read(editorScript)).toContain('createPopupController')
     expect(read(editorScript)).toContain('URLSearchParams(window.location.search).get(\'example\')')
-    expect(editor).toContain('id="copy-agent-prompt-btn"')
+    expect(read(editorScript)).not.toContain('buildAgentTaskPrompt')
+    expect(editor).not.toContain('Copy agent prompt')
+    expect(editor).not.toContain('id="copy-agent-prompt-btn"')
     expect(editor).toContain('class="app-brand" aria-label="Agentic Mermaid Editor home"')
     // Right half is labelled "Palette" (visible + a11y); code ids stay theme-*.
     expect(editor).toContain('<span class="axis-label" aria-hidden="true">Palette</span>')
@@ -467,6 +519,10 @@ describe('Workers Static Assets website contract', () => {
     expect(comparisonsMasthead).toContain('aria-current="page"')
     expect(read('about/index.html')).toContain('<a aria-current="page" href="/about/">About</a>')
     expect(read('docs/index.html')).toContain('<a aria-current="page" href="/docs/">Docs</a>')
+    const expectedRedirects = [...staticRedirectLines(), ...DYNAMIC_CLEAN_REDIRECT_LINES]
+    expect(read('_redirects').trim().split('\n')).toEqual(expectedRedirects)
+    expect([...CLEAN_PAGE_ROUTES].sort()).toEqual(staticCleanRoutesFromGeneratedPages())
+    for (const route of CLEAN_PAGE_ROUTES) expect(existsSync(join(SITE, route, 'index.html'))).toBe(true)
     expect(read('_redirects')).toContain('/why /about/ 308')
     expect(read('_redirects')).toContain('/gallery /examples/ 308')
     expect(read('_redirects')).not.toContain('/docs/families /examples/ 308')
@@ -643,8 +699,10 @@ describe('Workers Static Assets website contract', () => {
     expect(editor).not.toContain('mobile-view-switch')
     expect(editor).not.toContain('data-left-panel')
     expect(editor).toContain('id="settings-btn"')
-    expect(editor).toContain('<span>Copy agent prompt</span>')
+    expect(editor).not.toContain('<span>Copy agent prompt</span>')
     expect(editor).not.toContain('<span>Agent prompt</span>')
+    expect(editor).not.toContain('id="seed-shuffle-btn"')
+    expect(editor).not.toContain('Re-roll style ink')
     expect(editor).toContain('id="config-view" role="dialog" aria-modal="false" aria-label="Diagram settings" hidden aria-hidden="true" inert')
     const editorRuntime = read(editorScriptRel(editor))
     expect(editorRuntime).toContain('positionSettingsPanel')
@@ -691,6 +749,10 @@ describe('Workers Static Assets website contract', () => {
     expect(capabilities.warningCodes.map((warning: any) => warning.tier)).toContain('structural')
     const examplesIndex = JSON.parse(read('examples/index.json'))
     expect(examplesIndex.examples.map((example: any) => example.id)).toEqual(editorExampleIds())
+    const editorRuntime = read(editorScriptRel(read('editor/index.html')))
+    expect(editorRuntime.indexOf('var EDITOR_EXAMPLES = ')).toBeGreaterThanOrEqual(0)
+    expect(editorRuntime.indexOf('var EDITOR_EXAMPLES = ')).toBeLessThan(editorRuntime.indexOf('function cloneEditorConfig'))
+    expect(readJsonGlobal<unknown>(editorRuntime, 'EDITOR_EXAMPLES')).toEqual(JSON.parse(JSON.stringify(EDITOR_EXAMPLES)))
     const examplesHtml = read('examples/index.html')
     expect(examplesHtml).toContain('id="styled-xychart"')
     expect(examplesHtml).toContain('Build-time proof: rendered from the same source the editor loads.')
@@ -755,6 +817,7 @@ describe('Workers Static Assets website contract', () => {
     const editorAll = editor + '\n' + editorRuntime
     const styles = read('styles.css')
     const theme = read('theme.js')
+    const copyFeedback = readRepo('shared/browser/copy-feedback.js').trimEnd()
     const home = read('index.html')
     expect(editor).toContain('id="examples-sidebar" aria-label="Example diagrams" aria-hidden="true" inert')
     expect(editor).toContain('id="config-view" role="dialog" aria-modal="false" aria-label="Diagram settings" hidden aria-hidden="true" inert')
@@ -762,15 +825,19 @@ describe('Workers Static Assets website contract', () => {
     expect(editorAll).toContain('setSettingsOpen(false);')
     expect(editorAll).not.toContain("e.key.toLowerCase() === 'c'")
     expect(editorAll).not.toContain('aria-keyshortcuts="Meta+C Control+C"')
-    expect(editorAll).toContain('/^xychart(?:-beta)?\\b/.test(first)')
     expect(theme).not.toContain('am-theme')
+    expect(theme.startsWith(copyFeedback)).toBe(true)
+    expect(editorAll).toContain(copyFeedback)
+    expect(theme.match(/function setCopyFeedback/g)?.length).toBe(1)
+    expect(editorAll.match(/function setCopyFeedback/g)?.length).toBe(1)
+    expect(readRepo('editor/js/helpers.js')).not.toContain('function setCopyFeedback')
     expect(theme).toContain("name + ' copied to clipboard.'")
     // Copy feedback must reserve the button's resting width before swapping in the
     // shorter "Copied" label, so the hero's flex neighbours don't slide sideways.
     expect(theme).toContain("btn.style.minWidth = Math.ceil(btn.getBoundingClientRect().width)")
     expect(theme).toContain("btn.style.minWidth = ''")
-    // The editor's copy feedback (setCopyFeedback) reserves width the same way, so
-    // the topbar's labelled Copy agent prompt button can't slide its neighbours.
+    // The editor's shared copy feedback reserves width the same way for labelled
+    // copy buttons before swapping in the shorter feedback text.
     expect(editorAll).toContain("btn.style.minWidth = Math.ceil(btn.getBoundingClientRect().width)")
     // The Share and "?" buttons are gone from the topbar; copy-link lives on in
     // the export dropdown and the cheat sheet is reached by the "?" key alone.

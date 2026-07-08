@@ -40,59 +40,18 @@ function setTheme(key) {
   scheduleRender(0);
 }
 
-var themeMenuPopup = createPopupController({
+var themeMenuPopup = createListboxPopupController({
   popup: themeMenu,
   trigger: themeDropdownBtn,
-  visibility: { manageTabStops: false },
-  afterOpen: function(meta) {
-    syncThemeMenuTabStops(true);
-    if (meta && meta.focusFirst) {
-      var active = themeMenu.querySelector(".theme-dropdown-item.active") || themeMenu.querySelector(".theme-dropdown-item");
-      if (active) active.focus();
-    }
-  },
-  afterClose: function() { syncThemeMenuTabStops(false); },
+  itemSelector: '.theme-dropdown-item',
+  activeSelector: '.theme-dropdown-item.active',
   contains: function(target) { return !!target.closest("#theme-dropdown-wrap"); },
+  onSelect: function(item) { setTheme(item.dataset.theme || ""); },
 });
-
-function syncThemeMenuTabStops(open) {
-  themeMenu.querySelectorAll(".theme-dropdown-item").forEach(function(item) {
-    var active = item.classList.contains("active");
-    item.tabIndex = open && active ? 0 : -1;
-  });
-}
 
 function setThemeMenuOpen(open, focusActive) {
   themeMenuPopup.setOpen(open, { focusFirst: !!focusActive });
 }
-
-// Click item
-themeMenu.addEventListener("click", function (e) {
-  var item = e.target.closest(".theme-dropdown-item");
-  if (!item) return;
-  setTheme(item.dataset.theme || "");
-  setThemeMenuOpen(false, false);
-  themeDropdownBtn.focus();
-});
-
-themeMenu.addEventListener("keydown", function(e) {
-  var items = Array.prototype.slice.call(themeMenu.querySelectorAll(".theme-dropdown-item"));
-  var current = document.activeElement && document.activeElement.classList.contains("theme-dropdown-item") ? document.activeElement : null;
-  var index = Math.max(0, items.indexOf(current));
-  if (["ArrowDown", "ArrowUp", "Home", "End"].includes(e.key)) {
-    e.preventDefault();
-    var next = index;
-    if (e.key === "Home") next = 0;
-    else if (e.key === "End") next = items.length - 1;
-    else next = (index + (e.key === "ArrowDown" ? 1 : -1) + items.length) % items.length;
-    items[next].tabIndex = 0;
-    items[next].focus();
-  }
-  if (e.key === "Enter" || e.key === " ") {
-    e.preventDefault();
-    if (current) current.click();
-  }
-});
 
 // Store label data for lookup
 themeMenu.querySelectorAll(".theme-dropdown-item").forEach(function (item) {
@@ -123,7 +82,6 @@ setThemeMenuOpen(false, false);
 var styleBtnLabel = document.getElementById("style-btn-label");
 var styleDropdownBtn = document.getElementById("style-dropdown-btn");
 var styleMenu = document.getElementById("style-dropdown-menu");
-var seedShuffleBtn = document.getElementById("seed-shuffle-btn");
 
 function updateStyleButton() {
   var key = state.style || "crisp";
@@ -135,17 +93,6 @@ function updateStyleButton() {
     item.setAttribute("aria-selected", active ? "true" : "false");
     item.tabIndex = styleMenu.classList.contains("open") && active ? 0 : -1;
   });
-  // The ink seed only means something for a styled look. Toggle an inactive
-  // state that keeps the button's topbar slot reserved (see topbar.css) instead
-  // of using `hidden`, so selecting a style fills the slot rather than reflowing
-  // the wrap-prone mobile topbar (the theme dropdown jumps a full row otherwise).
-  if (seedShuffleBtn) {
-    var seedInactive = key === "crisp";
-    seedShuffleBtn.classList.toggle("is-inactive", seedInactive);
-    seedShuffleBtn.setAttribute("aria-hidden", seedInactive ? "true" : "false");
-    seedShuffleBtn.tabIndex = seedInactive ? -1 : 0;
-    seedShuffleBtn.inert = seedInactive;
-  }
 }
 
 function setStyle(key) {
@@ -159,72 +106,23 @@ function setStyle(key) {
   scheduleRender(0);
 }
 
-var styleMenuPopup = createPopupController({
+var styleMenuPopup = createListboxPopupController({
   popup: styleMenu,
   trigger: styleDropdownBtn,
-  visibility: { manageTabStops: false },
-  afterOpen: function(meta) {
-    syncStyleMenuTabStops(true);
-    if (meta && meta.focusFirst) {
-      var active = styleMenu.querySelector(".theme-dropdown-item.active") || styleMenu.querySelector(".theme-dropdown-item");
-      if (active) active.focus();
-    }
-  },
-  afterClose: function() { syncStyleMenuTabStops(false); },
+  itemSelector: '.theme-dropdown-item',
+  activeSelector: '.theme-dropdown-item.active',
   contains: function(target) { return !!target.closest("#style-dropdown-wrap"); },
+  onSelect: function(item) { setStyle(item.dataset.style || "crisp"); },
 });
-
-function syncStyleMenuTabStops(open) {
-  styleMenu.querySelectorAll(".theme-dropdown-item").forEach(function(item) {
-    var active = item.classList.contains("active");
-    item.tabIndex = open && active ? 0 : -1;
-  });
-}
 
 function setStyleMenuOpen(open, focusActive) {
   styleMenuPopup.setOpen(open, { focusFirst: !!focusActive });
 }
 
-styleMenu.addEventListener("click", function (e) {
-  var item = e.target.closest(".theme-dropdown-item");
-  if (!item) return;
-  setStyle(item.dataset.style || "crisp");
-  setStyleMenuOpen(false, false);
-  styleDropdownBtn.focus();
-});
-
-styleMenu.addEventListener("keydown", function(e) {
-  var items = Array.prototype.slice.call(styleMenu.querySelectorAll(".theme-dropdown-item"));
-  var current = document.activeElement && document.activeElement.classList.contains("theme-dropdown-item") ? document.activeElement : null;
-  var index = Math.max(0, items.indexOf(current));
-  if (["ArrowDown", "ArrowUp", "Home", "End"].includes(e.key)) {
-    e.preventDefault();
-    var next = index;
-    if (e.key === "Home") next = 0;
-    else if (e.key === "End") next = items.length - 1;
-    else next = (index + (e.key === "ArrowDown" ? 1 : -1) + items.length) % items.length;
-    items[next].tabIndex = 0;
-    items[next].focus();
-  }
-  if (e.key === "Enter" || e.key === " ") {
-    e.preventDefault();
-    if (current) current.click();
-  }
-});
-
 styleMenu.querySelectorAll(".theme-dropdown-item").forEach(function (item) {
   var key = item.dataset.style || "crisp";
   styleDropdownBtn.setAttribute("data-label-" + key, item.textContent.trim());
 });
-
-if (seedShuffleBtn) {
-  seedShuffleBtn.addEventListener("click", function () {
-    // Deterministic walk, not random: the same clicks reproduce the same ink.
-    state.seed = (state.seed | 0) + 1;
-    scheduleRender(0);
-    if (typeof scheduleDraftSave === 'function') scheduleDraftSave();
-  });
-}
 
 var savedStyle = localStorage.getItem("bm-editor-style") || "";
 if (savedStyle) state.style = savedStyle;
