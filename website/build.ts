@@ -545,6 +545,14 @@ function renderExampleSvg(example: any) {
     `Build-time render of the ${example.diagramType ?? 'Mermaid'} example loaded by the editor.`,
   )
 }
+
+function encodeEditorStateHash(state: Record<string, unknown>) {
+  return Buffer.from(JSON.stringify(state), 'utf8').toString('base64')
+}
+
+function editorStateHref(state: Record<string, unknown>) {
+  return `/editor/#${encodeEditorStateHash(state)}`
+}
 // Per-family agent task: a plausible prompt and the trace an agent runs before
 // it returns source. Absorbed from the former Gallery page so the unified
 // Examples page carries the agentic narrative — prompt, trace, render, deep
@@ -579,12 +587,80 @@ function exampleCategoryLabel(category: string) {
 function exampleFamilyDescription(familyId: string, fallback: string) {
   return FAMILY_REFERENCE.find(([id]) => id === familyId)?.[2] ?? fallback
 }
+
+const STYLE_THEME_PAIR_BY_FAMILY: Record<string, { look: string; theme: string; seed: number }> = {
+  flowchart: { look: 'watercolor', theme: 'paper', seed: 4 },
+  state: { look: 'chalkboard', theme: 'dusk', seed: 2 },
+  architecture: { look: 'blueprint', theme: 'nord', seed: 1 },
+  sequence: { look: 'publication-figure', theme: 'github-light', seed: 0 },
+  class: { look: 'patent-drawing', theme: 'paper', seed: 6 },
+  er: { look: 'risograph', theme: 'salmon', seed: 5 },
+  timeline: { look: 'hand-drawn', theme: 'catppuccin-latte', seed: 3 },
+  journey: { look: 'status-dashboard', theme: 'github-dark', seed: 0 },
+  xychart: { look: 'accessible-high-contrast', theme: 'zinc-light', seed: 0 },
+  pie: { look: 'pen-and-ink', theme: 'tufte', seed: 7 },
+  quadrant: { look: 'ops-schematic', theme: 'nord-light', seed: 8 },
+  gantt: { look: 'architectural-plan', theme: 'solarized-light', seed: 9 },
+}
+
+const STYLE_THEME_LABELS: Record<string, string> = {
+  'accessible-high-contrast': 'Accessible Contrast',
+  'architectural-plan': 'Plan Drafting',
+  'catppuccin-latte': 'Catppuccin Latte',
+  'github-dark': 'GitHub Dark',
+  'github-light': 'GitHub Light',
+  'hand-drawn': 'Hand-drawn',
+  'ops-schematic': 'Compact Trace Map',
+  'patent-drawing': 'Patent Hatching',
+  'pen-and-ink': 'Pen & ink',
+  'publication-figure': 'Report Figure',
+  'risograph': 'Riso Print',
+  'solarized-light': 'Solarized Light',
+  'status-dashboard': 'Dark Ops Dashboard',
+  'zinc-light': 'Zinc Light',
+}
+
+function displayStyleName(name: string) {
+  return STYLE_THEME_LABELS[name] ?? name.split('-').map((part) => part.charAt(0).toUpperCase() + part.slice(1)).join(' ')
+}
+
+function styleThemeExamples(editorExamples: any[]) {
+  const byFamily = new Map<string, any>()
+  for (const example of editorExamples) {
+    const family = familyForExample(example)
+    if (example.category === 'Supported diagrams' && family) byFamily.set(family.id, example)
+  }
+  return BUILTIN_FAMILY_METADATA.map((family) => {
+    const example = byFamily.get(family.id)
+    const pair = STYLE_THEME_PAIR_BY_FAMILY[family.id]
+    if (!example || !pair) throw new Error(`missing style/theme example wiring for ${family.id}`)
+    return { ...pair, family, example, id: `style-theme-${family.id}` }
+  })
+}
+
+function renderStyleThemeSvg(combo: ReturnType<typeof styleThemeExamples>[number]) {
+  const svg = renderMermaidSVG(combo.example.source, {
+    style: [combo.look, combo.theme],
+    seed: combo.seed,
+    interactive: Boolean(combo.example.options?.interactive),
+    security: 'strict',
+    compact: true,
+    embedFontImport: false,
+    idPrefix: `example-${combo.id}-`,
+  }).replace(/[ \t]+$/gm, '')
+  return addSvgAccessibleName(
+    svg,
+    `example-${combo.id}`,
+    `${combo.family.editorDiagramType} ${displayStyleName(combo.look)} ${displayStyleName(combo.theme)} diagram`,
+    `Build-time render of ${combo.family.editorDiagramType} with ${combo.look} style and ${combo.theme} theme.`,
+  )
+}
 // Examples is now the family-discovery surface: jump cards replace the removed
 // Diagram families page and the old search box.
 function exampleJumpCard(example: any, description: string) {
   return `<a class="example-jump-card" href="#${escapeAttr(exampleAnchor(example))}"><strong>${escapeHtml(example.label)}</strong><span>${escapeHtml(description)}</span></a>`
 }
-function examplesJumpHtml(groups: Map<string, any[]>) {
+function examplesJumpHtml(groups: Map<string, any[]>, styleThemeCombos: ReturnType<typeof styleThemeExamples>) {
   const sections: string[] = []
   const familyExamples = groups.get('Supported diagrams') ?? []
   if (familyExamples.length) {
@@ -600,8 +676,39 @@ function examplesJumpHtml(groups: Map<string, any[]>) {
     const cards = examples.map((example) => exampleJumpCard(example, example.description ?? example.label)).join('')
     sections.push(`<section class="example-jump-section" aria-labelledby="${escapeAttr(exampleCategoryId(category))}-jump"><p class="example-jump-title" id="${escapeAttr(exampleCategoryId(category))}-jump">${escapeHtml(exampleCategoryLabel(category))}</p><div class="example-jump-grid">${cards}</div></section>`)
   }
+  const styleThemeCards = styleThemeCombos.map((combo) => `<a class="example-jump-card" href="#${escapeAttr(combo.id)}"><strong>${escapeHtml(combo.family.editorDiagramType)}</strong><span>${escapeHtml(`${displayStyleName(combo.look)} × ${displayStyleName(combo.theme)}`)}</span></a>`).join('')
+  sections.push(`<section class="example-jump-section" aria-labelledby="examples-style-theme-combinations-jump"><p class="example-jump-title" id="examples-style-theme-combinations-jump">Style × theme combinations</p><div class="example-jump-grid">${styleThemeCards}</div></section>`)
   return `<nav class="example-jump" aria-label="Jump to examples">${sections.join('\n')}</nav>`
 }
+
+function styleThemeExamplesHtml(combos: ReturnType<typeof styleThemeExamples>) {
+  return `<section class="example-group" aria-labelledby="examples-style-theme-combinations">
+<h2 id="examples-style-theme-combinations">Style × theme combinations</h2>
+<p class="muted">Each card uses one supported family, one named look, and one palette-only theme. Agents pass this as render options; they do not edit Mermaid source just to change appearance.</p>
+${combos.map((combo) => {
+  const look = displayStyleName(combo.look)
+  const theme = displayStyleName(combo.theme)
+  const styleCode = `style: ['${combo.look}', '${combo.theme}'], seed: ${combo.seed}`
+  return `
+<article class="example-sample" id="${escapeAttr(combo.id)}">
+  <header class="example-sample-head">
+    <div>
+      <p class="example-meta">${escapeHtml(combo.family.editorDiagramType)}</p>
+      <h3>${escapeHtml(`${combo.family.editorDiagramType}: ${look} × ${theme}`)}</h3>
+      <p>${escapeHtml(`The Mermaid source stays the same; the render call supplies ${combo.look} for the look and ${combo.theme} for the palette.`)}</p>
+      <p class="example-trace"><span>Render options</span> <code>${escapeHtml(styleCode)}</code></p>
+    </div>
+    <a class="go" href="${escapeAttr(editorStateHref({ source: combo.example.source, style: combo.look, theme: combo.theme, seed: combo.seed }))}">Open styled</a>
+  </header>
+  <div class="example-sample-grid">
+    <section class="example-source" aria-label="${escapeAttr(combo.family.editorDiagramType)} Mermaid source"><pre><code>${escapeHtml(String(combo.example.source ?? '').trim())}</code></pre></section>
+    <figure class="example-render"><div class="example-svg">${renderStyleThemeSvg(combo)}</div><figcaption>Build-time proof: same source, render options <code>${escapeHtml(styleCode)}</code>.</figcaption></figure>
+  </div>
+</article>`
+}).join('')}
+</section>`
+}
+
 function examplesShowcaseHtml(editorExamples: any[]) {
   const groups = new Map<string, any[]>()
   for (const example of editorExamples) {
@@ -609,7 +716,8 @@ function examplesShowcaseHtml(editorExamples: any[]) {
     if (!groups.has(category)) groups.set(category, [])
     groups.get(category)!.push(example)
   }
-  return '<div class="example-showcase">' + examplesJumpHtml(groups) + Array.from(groups, ([category, examples]) => `
+  const combos = styleThemeExamples(editorExamples)
+  return '<div class="example-showcase">' + examplesJumpHtml(groups, combos) + Array.from(groups, ([category, examples]) => `
 <section class="example-group" aria-labelledby="${escapeAttr(exampleCategoryId(category))}">
 <h2 id="${escapeAttr(exampleCategoryId(category))}">${escapeHtml(exampleCategoryLabel(category))}</h2>
 <p class="muted">${category === 'Role style presets' ? 'These load role-style presets in the editor. This page renders them with one fixed review theme so the proof stays visually comparable.' : 'One proof per diagram family: the exact editor source, an agent task, the trace before return, and a build-time render from that same source.'}</p>
@@ -635,7 +743,7 @@ ${examples.map((example) => {
   </div>
 </article>`
 }).join('')}
-</section>`).join('\n') + '\n</div>'
+</section>`).join('\n') + '\n' + styleThemeExamplesHtml(combos) + '\n</div>'
 }
 
 const mermaidRuntimeBytes = Buffer.from(await Bun.file(join(ROOT, 'node_modules/mermaid/dist/mermaid.min.js')).arrayBuffer())
@@ -1618,6 +1726,24 @@ bun run bin/am.ts render diagram.mmd --format unicode</code></pre></li>
 ${mcpConfigCardHtml('getting-started')}
 <pre><code>bun run bin/agentic-mermaid-mcp.ts</code></pre><p>Use stdio MCP from the cloned repo, or point an MCP client at the hosted endpoint.</p></li>
 </ol>
+<h2>Agent style/theme recipe</h2>
+<p>Keep appearance out of the Mermaid source. Ask the agent to edit structure with typed ops, verify the result, and pass the look as render options.</p>
+<pre><code>// Library or Code Mode
+renderMermaidSVG(source, {
+  style: ['ops-schematic', 'nord-light'],
+  seed: 0,
+  security: 'strict'
+})</code></pre>
+<pre><code># CLI
+bun run bin/am.ts styles --json
+bun run bin/am.ts render diagram.mmd --format svg --style ops-schematic,nord-light --output diagram.svg</code></pre>
+<pre><code>// Hosted MCP render_svg arguments
+{
+  "source": "flowchart TD\\n  A --> B",
+  "style": ["ops-schematic", "nord-light"],
+  "seed": 0
+}</code></pre>
+<p>A style name chooses the look. A theme name is a palette-only style. In the editor those are two controls; in API, CLI, and MCP calls, agents can send the stack directly.</p>
 <h2>Vocabulary</h2>
 <p>Shared terms for humans and agents, used across these docs.</p>
 <dl><dt>narrow</dt><dd>Resolve a parsed diagram to a family-specific typed surface.</dd><dt>verify</dt><dd>Return structural, geometric, and lint warnings before artifacts are trusted.</dd><dt>opaque fallback</dt><dd>Preserve unsupported syntax losslessly when structured mutation is unavailable.</dd></dl>

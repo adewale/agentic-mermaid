@@ -401,6 +401,12 @@ describe('Workers Static Assets website contract', () => {
     expect(gettingStarted).toContain('Fetch https://agentic-mermaid.dev/start.md and follow it.')
     expect(gettingStarted).toContain('That line is the only prompt to copy from this page')
     expect(gettingStarted).toContain('Copy this line on the homepage')
+    expect(gettingStarted).toContain('Agent style/theme recipe')
+    expect(gettingStarted).toContain('Keep appearance out of the Mermaid source')
+    expect(gettingStarted).toContain("style: ['ops-schematic', 'nord-light']")
+    expect(gettingStarted).toContain('--style ops-schematic,nord-light')
+    expect(gettingStarted).toContain('Hosted MCP render_svg arguments')
+    expect(gettingStarted).toContain('A style name chooses the look. A theme name is a palette-only style.')
     // Fetch flow: the primary CTA points at a hosted bootstrap that is actually
     // served and byte-identical to the source the eval treats as the canonical
     // protocol. The homepage does not inline a second copy.
@@ -687,6 +693,14 @@ describe('Workers Static Assets website contract', () => {
     expect(jump).toContain('<p class="example-jump-title" id="examples-role-style-presets-jump">Role style presets</p>')
     expect(jump).toContain('href="#styled-flowchart"><strong>Styled flowchart</strong><span>Flowchart using semantic node, edge, text, and group roles.</span>')
     expect(jump).toContain('href="#styled-xychart"><strong>Styled xychart</strong><span>XY chart title, axes, grid, and series labels with shared roles.</span>')
+    expect(jump).toContain('<p class="example-jump-title" id="examples-style-theme-combinations-jump">Style × theme combinations</p>')
+    for (const id of ['flowchart', 'state', 'architecture', 'sequence', 'class', 'er', 'timeline', 'journey', 'xychart', 'pie', 'quadrant', 'gantt']) {
+      expect(examples).toContain(`<article class="example-sample" id="style-theme-${id}">`)
+      expect(jump).toContain(`href="#style-theme-${id}"`)
+    }
+    expect(examples).toContain('Agents pass this as render options; they do not edit Mermaid source just to change appearance.')
+    expect(examples).toContain("<code>style: ['ops-schematic', 'nord-light'], seed: 8</code>")
+    expect(examples).toContain('Open styled</a>')
     expect(jump).not.toContain('class="example-jump-more"')
     expect(examples).not.toContain('id="example-filter"')
     expect(examples).not.toContain('data-example-filter')
@@ -763,8 +777,9 @@ describe('Workers Static Assets website contract', () => {
     expect(examplesHtml).toContain('Build-time proof: rendered from the same source the editor loads.')
     expect(examplesHtml).toContain('--accent:#1A7351')
     expect(examplesHtml).toContain('one fixed review theme so the proof stays visually comparable')
-    expect(examplesHtml).not.toContain('#f97316')
-    expect(examplesHtml).not.toContain('#3b82f6')
+    const roleStyleProofs = examplesHtml.slice(0, examplesHtml.indexOf('id="examples-style-theme-combinations"'))
+    expect(roleStyleProofs).not.toContain('#f97316')
+    expect(roleStyleProofs).not.toContain('#3b82f6')
     for (const example of examplesIndex.examples) {
       const renderAnchor = example.renderUrl.split('#')[1]
       const docsAnchor = example.docs.split('#')[1]
