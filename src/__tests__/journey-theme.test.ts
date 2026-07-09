@@ -59,28 +59,19 @@ journey
     expect(svg).not.toContain('NaN')
   })
 
-  it('lets explicit Mermaid journey config override style-derived journey colors', () => {
+  it('lets explicit Mermaid journey config override named style colors', () => {
     const svg = renderMermaidSVG(`%%{init: {"journey": {"actorColours": ["#123456"], "sectionFills": ["#331122"], "sectionColours": ["#fedcba"], "titleColor": "#0f172a"}}}%%
 journey
   title Configured Journey
   section Login
-    Open app: 5: Primary Actor`, {
-      style: {
-        group: {
-          fillColor: '#000000',
-          headerFillColor: '#111111',
-          borderColor: '#222222',
-          textColor: '#333333',
-        },
-      },
-    })
+    Open app: 5: Primary Actor`, { style: 'status-dashboard' })
 
     expect(svg).toContain('.journey-actor-0 { fill: #123456; }')
     expect(svg).toContain('.journey-section-0 { fill: #331122;')
     expect(svg).toContain('.journey-section-label-0 { fill: #fedcba; }')
     expect(svg).toContain('.journey-title { fill: #0f172a; }')
-    expect(svg).not.toContain('.journey-section-0 { fill: #000000;')
-    expect(svg).not.toContain('.journey-section-label-0 { fill: #333333; }')
+    expect(svg).not.toContain('.journey-section-0 { fill: #102033;')
+    expect(svg).not.toContain('.journey-section-label-0 { fill: #e6f4ff; }')
   })
 
   it('uses Agentic palette/style colors for Journey-specific channels', () => {
