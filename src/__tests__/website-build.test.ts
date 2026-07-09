@@ -879,10 +879,10 @@ describe('Workers Static Assets website contract', () => {
     expect(publicText).not.toContain('The skill never runs Code Mode')
   })
 
-  test('unverified npm publication does not produce npm install copy', () => {
+  test('published npm release copy is present', () => {
     const publicText = files().filter((f) => /\.(html|json|md|txt)$/.test(f)).map(read).join('\n')
-    expect(publicText).not.toContain('npm i agentic-mermaid')
-    expect(publicText).not.toContain('npx agentic-mermaid-mcp')
+    expect(publicText).toContain('npm i agentic-mermaid')
+    expect(publicText).not.toContain('The npm package is not yet published; install from source.')
   })
 
   test('audit fixes keep hidden UI inert, shortcuts scoped, and mobile tables responsive', () => {

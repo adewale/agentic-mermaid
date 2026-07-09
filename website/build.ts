@@ -492,12 +492,14 @@ const generatedFrom = {
   gitSha: process.env.SITE_GIT_SHA ?? 'development',
   buildTime: process.env.SITE_BUILD_TIME ?? 'development',
 }
-const npmPublished = process.env.SITE_NPM_STATUS === 'published' || process.env.SITE_NPM_PUBLISHED === '1'
+const npmPublished = process.env.SITE_NPM_STATUS === 'source'
+  ? false
+  : process.env.SITE_NPM_STATUS === 'published' || process.env.SITE_NPM_PUBLISHED !== '0'
 const installCommand = npmPublished
   ? 'npm i agentic-mermaid'
   : 'git clone https://github.com/adewale/agentic-mermaid && cd agentic-mermaid && bun install && bun run build'
 const installNotice = npmPublished
-  ? 'The npm package is marked published for this build.'
+  ? 'Install the published npm package.'
   : 'The npm package is not yet published; install from source.'
 
 const familyByExampleId = new Map<string, any>(BUILTIN_FAMILY_METADATA.map((f) => [f.editorExampleId, f]))
