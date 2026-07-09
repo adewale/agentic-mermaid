@@ -115,6 +115,10 @@ export interface JourneySection {
 export interface JourneyBody {
   kind: 'journey'
   title?: string
+  /** Optional accessibility title from Mermaid accTitle. */
+  accessibilityTitle?: string
+  /** Optional accessibility description from Mermaid accDescr. */
+  accessibilityDescription?: string
   sections: JourneySection[]
 }
 

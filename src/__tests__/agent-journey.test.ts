@@ -60,15 +60,93 @@ describe('journey structured parse', () => {
     expect(d2.body).toEqual(d.body)
     expect(serializeMermaid(d2)).toBe(out)
   })
+
+  test('models Mermaid accessibility directives without falling back to opaque', () => {
+    const d = journey(`journey
+      title My working day
+      accTitle: Accessible journey
+      accDescr {
+        A compact summary
+        of the working day
+      }
+      Wake: 3: Me`)
+    expect(d.body.accessibilityTitle).toBe('Accessible journey')
+    expect(d.body.accessibilityDescription).toBe('A compact summary\nof the working day')
+    const out = serializeMermaid(d)
+    expect(out).toContain('accTitle: Accessible journey')
+    expect(out).toContain('accDescr {')
+    expect(journey(out).body).toEqual(d.body)
+  })
+
+  test('models title-only journeys as renderable header furniture', () => {
+    const d = journey('journey\n  title Only a title')
+    expect(d.body.title).toBe('Only a title')
+    expect(d.body.sections).toEqual([])
+  })
+
+  test('preserves Mermaid literal title and accessibility punctuation structurally', () => {
+    const d = journey(`journey
+      title Book #2: subtitle &amp; notes
+      accTitle: Book #2: accessible subtitle
+      accDescr: Literal #2: keep &amp; entity text
+      Read: 3: Editor`)
+
+    expect(d.body.title).toBe('Book #2: subtitle &amp; notes')
+    expect(d.body.accessibilityTitle).toBe('Book #2: accessible subtitle')
+    expect(d.body.accessibilityDescription).toBe('Literal #2: keep &amp; entity text')
+    expect(serializeMermaid(d)).toContain('title Book #2: subtitle &amp; notes')
+  })
+
+  test('preserves Journey multiline label semantics through parse and serialize', () => {
+    const d = journey(`journey
+      title Product<br>journey
+      section Go<br>work
+      Make<br>tea: 5: Me<br>Team`)
+
+    expect(d.body.title).toBe('Product\njourney')
+    expect(d.body.sections[0]!.label).toBe('Go\nwork')
+    expect(d.body.sections[0]!.tasks[0]!.text).toBe('Make\ntea')
+    expect(d.body.sections[0]!.tasks[0]!.actors).toEqual(['Me / Team'])
+    const out = serializeMermaid(d)
+    expect(out).toContain('title Product<br>journey')
+    expect(out).toContain('section Go<br>work')
+    expect(out).toContain('Make<br>tea: 5: Me / Team')
+    expect(journey(out).body).toEqual(d.body)
+  })
+
+  test('preserves quotes as Journey literal text', () => {
+    const d = journey(`journey
+      title "My working day"
+      section "Go to work"
+      "Make tea": 5: "Me"`)
+
+    expect(d.body.title).toBe('"My working day"')
+    expect(d.body.sections[0]!.label).toBe('"Go to work"')
+    expect(d.body.sections[0]!.tasks[0]!.text).toBe('"Make tea"')
+    expect(d.body.sections[0]!.tasks[0]!.actors).toEqual(['"Me"'])
+    expect(serializeMermaid(d)).toContain('"Make tea": 5: "Me"')
+  })
+
+  test('preserves actor names containing colons after the score separator', () => {
+    const d = journey(`journey
+      section Support
+      Triage ticket: 2: Agent: Tier 1, Escalation: API`)
+
+    expect(d.body.sections[0]!.tasks[0]!.actors).toEqual(['Agent: Tier 1', 'Escalation: API'])
+    expect(serializeMermaid(d)).toContain('Triage ticket: 2: Agent: Tier 1, Escalation: API')
+  })
 })
 
 describe('journey structured-or-opaque fallback', () => {
   const opaqueCases: Array<[string, string]> = [
-    ['accTitle line', 'journey\n  accTitle: Accessible\n  Wake: 3: Me'],
+    ['unclosed accDescr block', 'journey\n  accDescr {\n    Accessible\n  Wake: 3: Me'],
     ['out-of-range score', 'journey\n  Wake: 9: Me'],
     ['non-integer score line', 'journey\n  Wake: high: Me'],
     ['header suffix', 'journey EXTRA\n  Alpha: 3: Me'],
-    ['no scored tasks', 'journey\n  title Only a title'],
+    ['no modeled content', 'journey\n  %% comment only'],
+    ['unknown colonless body line', 'journey\n  section S\n  nonsense\n  Task: 3: Me'],
+    ['section label with colon', 'journey\n  section A:B\n  Task: 3: Me'],
+    ['accTitle without colon', 'journey\n  accTitle Missing colon\n  Task: 3: Me'],
   ]
   for (const [name, src] of opaqueCases) {
     test(`${name} falls back to opaque and round-trips verbatim`, () => {
@@ -80,6 +158,32 @@ describe('journey structured-or-opaque fallback', () => {
       expect(serializeMermaid(r.value).trimEnd()).toBe(src)
     })
   }
+
+  test('invalid scores get a Journey-specific unsupported-syntax diagnostic', () => {
+    const parsed = parseMermaid('journey\n  Wake: 6: Me')
+    expect(parsed.ok).toBe(true)
+    if (!parsed.ok) return
+
+    const verify = verifyMermaid(parsed.value)
+    expect(verify.warnings).toContainEqual(expect.objectContaining({
+      code: 'UNSUPPORTED_SYNTAX',
+      syntax: 'journey_invalid_score',
+      line: 2,
+    }))
+    expect(verify.warnings).not.toContainEqual(expect.objectContaining({
+      code: 'UNSUPPORTED_SYNTAX',
+      syntax: 'journey_opaque',
+    }))
+  })
+
+  test('hash and percent comments do not force opaque fallback', () => {
+    const d = journey(`journey
+      # hash comment
+      % percent comment
+      Task: 3: Me`)
+    expect(d.body.sections[0]!.tasks[0]!.text).toBe('Task')
+    expect(serializeMermaid(d)).toBe('journey\n    Task: 3: Me\n')
+  })
 })
 
 describe('journey mutation ops', () => {
@@ -126,6 +230,7 @@ describe('journey mutation ops', () => {
       [{ kind: 'remove_section', index: 9 }, 'SECTION_NOT_FOUND'],
       [{ kind: 'remove_task', sectionIndex: 0, taskIndex: 9 }, 'TASK_NOT_FOUND'],
       [{ kind: 'set_task_score', sectionIndex: 0, taskIndex: 0, score: 6 }, 'INVALID_OP'],
+      [{ kind: 'add_section', label: 'has: colon' }, 'INVALID_OP'],
       [{ kind: 'add_task', sectionIndex: 0, text: 'has: colon', score: 3 }, 'INVALID_OP'],
       [{ kind: 'rename_actor', from: 'Nobody', to: 'Anyone' }, 'ACTOR_NOT_FOUND'],
     ]
@@ -153,6 +258,18 @@ describe('journey verify + render', () => {
     const v = verifyMermaid(d)
     expect(v.ok).toBe(true)
     expect(serializeMermaid(d)).toContain('Sleep: 5: Me')
+  })
+
+  test('verify treats Mermaid header-furniture journeys as renderable', () => {
+    for (const src of [
+      'journey\n  title Adding journey diagram functionality to mermaid',
+      'journey\n  accTitle: Accessible journey',
+      'journey\n  section Order from website',
+    ]) {
+      const d = journey(src)
+      const v = verifyMermaid(d)
+      expect({ src, ok: v.ok, codes: v.warnings.map(w => w.code) }).toEqual({ src, ok: true, codes: [] })
+    }
   })
 
   test('LABEL_OVERFLOW fires on an over-cap task text', () => {

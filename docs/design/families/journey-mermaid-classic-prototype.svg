@@ -1,0 +1,163 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1120" height="640" viewBox="0 0 1120 640" role="img" aria-labelledby="title desc">
+  <title id="title">Mermaid-style Journey diagram prototype</title>
+  <desc id="desc">A prototype Journey diagram using Mermaid's visual metaphor: actor legend at left, horizontal section spans, task boxes in source order, score-positioned sentiment marks, and a forward baseline.</desc>
+  <defs>
+    <marker id="arrowhead" markerWidth="10" markerHeight="8" refX="9" refY="4" orient="auto">
+      <path d="M0,0 L10,4 L0,8 Z" fill="#4b5563" />
+    </marker>
+    <filter id="softShadow" x="-10%" y="-10%" width="120%" height="130%">
+      <feDropShadow dx="0" dy="2" stdDeviation="2" flood-color="#111827" flood-opacity="0.12" />
+    </filter>
+    <style>
+      .bg { fill: #fffdfb; }
+      .title { fill: #1f2937; font: 700 24px system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+      .subtitle { fill: #6b7280; font: 500 12px system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+      .legend-title { fill: #374151; font: 700 13px system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+      .legend-label { fill: #374151; font: 500 13px system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+      .section-label { fill: #1f2937; font: 700 14px system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+      .task { fill: #ffffff; stroke: #cbd5e1; stroke-width: 1.2; filter: url(#softShadow); }
+      .task-label { fill: #1f2937; font: 650 13px system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+      .task-meta { fill: #6b7280; font: 500 11px system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+      .track { stroke: #cbd5e1; stroke-width: 1.2; stroke-dasharray: 4 6; }
+      .guide { stroke: #e5e7eb; stroke-width: 1; }
+      .score-label { fill: #9ca3af; font: 600 10px system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+      .baseline { stroke: #4b5563; stroke-width: 2.2; marker-end: url(#arrowhead); }
+      .face { fill: #facc15; stroke: #8a6d1d; stroke-width: 1.2; }
+      .face-eye { fill: #3f3f46; }
+      .face-mouth { fill: none; stroke: #3f3f46; stroke-width: 1.6; stroke-linecap: round; }
+      .section-discover { fill: #e8f3ff; stroke: #93c5fd; }
+      .section-try { fill: #eaf7ee; stroke: #86efac; }
+      .section-recover { fill: #fff0dd; stroke: #fdba74; }
+      .actor-user { fill: #2563eb; }
+      .actor-support { fill: #16a34a; }
+      .actor-ops { fill: #d97706; }
+    </style>
+  </defs>
+
+  <rect class="bg" x="0" y="0" width="1120" height="640" />
+  <text class="title" x="220" y="42">Checkout support journey</text>
+  <text class="subtitle" x="220" y="64">Mermaid-style score curve, not task cards</text>
+
+  <g aria-label="Actor legend">
+    <text class="legend-title" x="40" y="122">Actors</text>
+    <circle class="actor-user" cx="48" cy="148" r="6" />
+    <text class="legend-label" x="66" y="153">User</text>
+    <circle class="actor-support" cx="48" cy="176" r="6" />
+    <text class="legend-label" x="66" y="181">Support</text>
+    <circle class="actor-ops" cx="48" cy="204" r="6" />
+    <text class="legend-label" x="66" y="209">Ops</text>
+  </g>
+
+  <g aria-label="Section spans">
+    <rect class="section-discover" x="210" y="84" width="294" height="52" rx="6" />
+    <text class="section-label" x="357" y="116" text-anchor="middle">Discover</text>
+    <rect class="section-try" x="510" y="84" width="294" height="52" rx="6" />
+    <text class="section-label" x="657" y="116" text-anchor="middle">Try</text>
+    <rect class="section-recover" x="810" y="84" width="294" height="52" rx="6" />
+    <text class="section-label" x="957" y="116" text-anchor="middle">Recover</text>
+  </g>
+
+  <g aria-label="Score guide">
+    <line class="guide" x1="198" y1="294" x2="1084" y2="294" />
+    <line class="guide" x1="198" y1="334" x2="1084" y2="334" />
+    <line class="guide" x1="198" y1="374" x2="1084" y2="374" />
+    <line class="guide" x1="198" y1="414" x2="1084" y2="414" />
+    <line class="guide" x1="198" y1="454" x2="1084" y2="454" />
+    <text class="score-label" x="176" y="298">5</text>
+    <text class="score-label" x="176" y="338">4</text>
+    <text class="score-label" x="176" y="378">3</text>
+    <text class="score-label" x="176" y="418">2</text>
+    <text class="score-label" x="176" y="458">1</text>
+  </g>
+
+  <line class="baseline" x1="200" y1="512" x2="1084" y2="512" />
+
+  <g aria-label="Tasks">
+    <g transform="translate(220 166)">
+      <rect class="task" x="0" y="0" width="124" height="72" rx="5" />
+      <text class="task-label" x="62" y="27" text-anchor="middle">Find docs</text>
+      <text class="task-meta" x="62" y="49" text-anchor="middle">score 4</text>
+      <circle class="actor-user" cx="54" cy="61" r="4" />
+      <line class="track" x1="62" y1="74" x2="62" y2="346" />
+    </g>
+    <g transform="translate(370 166)">
+      <rect class="task" x="0" y="0" width="124" height="72" rx="5" />
+      <text class="task-label" x="62" y="27" text-anchor="middle">Choose setup</text>
+      <text class="task-meta" x="62" y="49" text-anchor="middle">score 3</text>
+      <circle class="actor-user" cx="47" cy="61" r="4" />
+      <circle class="actor-support" cx="62" cy="61" r="4" />
+      <line class="track" x1="62" y1="74" x2="62" y2="346" />
+    </g>
+    <g transform="translate(520 166)">
+      <rect class="task" x="0" y="0" width="124" height="72" rx="5" />
+      <text class="task-label" x="62" y="27" text-anchor="middle">Run install</text>
+      <text class="task-meta" x="62" y="49" text-anchor="middle">score 2</text>
+      <circle class="actor-user" cx="47" cy="61" r="4" />
+      <circle class="actor-ops" cx="62" cy="61" r="4" />
+      <line class="track" x1="62" y1="74" x2="62" y2="346" />
+    </g>
+    <g transform="translate(670 166)">
+      <rect class="task" x="0" y="0" width="124" height="72" rx="5" />
+      <text class="task-label" x="62" y="27" text-anchor="middle">First render</text>
+      <text class="task-meta" x="62" y="49" text-anchor="middle">score 5</text>
+      <circle class="actor-user" cx="54" cy="61" r="4" />
+      <line class="track" x1="62" y1="74" x2="62" y2="346" />
+    </g>
+    <g transform="translate(820 166)">
+      <rect class="task" x="0" y="0" width="124" height="72" rx="5" />
+      <text class="task-label" x="62" y="27" text-anchor="middle">Hit error</text>
+      <text class="task-meta" x="62" y="49" text-anchor="middle">score 1</text>
+      <circle class="actor-user" cx="47" cy="61" r="4" />
+      <circle class="actor-support" cx="62" cy="61" r="4" />
+      <line class="track" x1="62" y1="74" x2="62" y2="346" />
+    </g>
+    <g transform="translate(970 166)">
+      <rect class="task" x="0" y="0" width="124" height="72" rx="5" />
+      <text class="task-label" x="62" y="27" text-anchor="middle">Recover flow</text>
+      <text class="task-meta" x="62" y="49" text-anchor="middle">score 4</text>
+      <circle class="actor-user" cx="39" cy="61" r="4" />
+      <circle class="actor-support" cx="54" cy="61" r="4" />
+      <circle class="actor-ops" cx="69" cy="61" r="4" />
+      <line class="track" x1="62" y1="74" x2="62" y2="346" />
+    </g>
+  </g>
+
+  <g aria-label="Score markers">
+    <g transform="translate(282 334)">
+      <circle class="face" cx="0" cy="0" r="18" />
+      <circle class="face-eye" cx="-6" cy="-5" r="2" />
+      <circle class="face-eye" cx="6" cy="-5" r="2" />
+      <path class="face-mouth" d="M-8,5 Q0,12 8,5" />
+    </g>
+    <g transform="translate(432 374)">
+      <circle class="face" cx="0" cy="0" r="18" />
+      <circle class="face-eye" cx="-6" cy="-5" r="2" />
+      <circle class="face-eye" cx="6" cy="-5" r="2" />
+      <path class="face-mouth" d="M-8,6 L8,6" />
+    </g>
+    <g transform="translate(582 414)">
+      <circle class="face" cx="0" cy="0" r="18" />
+      <circle class="face-eye" cx="-6" cy="-5" r="2" />
+      <circle class="face-eye" cx="6" cy="-5" r="2" />
+      <path class="face-mouth" d="M-8,10 Q0,2 8,10" />
+    </g>
+    <g transform="translate(732 294)">
+      <circle class="face" cx="0" cy="0" r="18" />
+      <circle class="face-eye" cx="-6" cy="-5" r="2" />
+      <circle class="face-eye" cx="6" cy="-5" r="2" />
+      <path class="face-mouth" d="M-9,4 Q0,14 9,4" />
+    </g>
+    <g transform="translate(882 454)">
+      <circle class="face" cx="0" cy="0" r="18" />
+      <circle class="face-eye" cx="-6" cy="-5" r="2" />
+      <circle class="face-eye" cx="6" cy="-5" r="2" />
+      <path class="face-mouth" d="M-9,11 Q0,0 9,11" />
+    </g>
+    <g transform="translate(1032 334)">
+      <circle class="face" cx="0" cy="0" r="18" />
+      <circle class="face-eye" cx="-6" cy="-5" r="2" />
+      <circle class="face-eye" cx="6" cy="-5" r="2" />
+      <path class="face-mouth" d="M-8,5 Q0,12 8,5" />
+    </g>
+  </g>
+</svg>

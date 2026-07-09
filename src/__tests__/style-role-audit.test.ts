@@ -148,7 +148,7 @@ const FAMILY_AUDIT_FIXTURES: Record<BuiltinFamilyId, FamilyAuditFixture[]> = {
   }`,
   }],
   journey: [{
-    name: 'title, sections, task cards, scores, and actor pills',
+    name: 'title, section spans, task boxes, score markers, and actor dots',
     source: `journey
   title Checkout
   section Browse
@@ -221,7 +221,7 @@ const EXPECTED_ROLE_COVERAGE: Record<BuiltinFamilyId, string[]> = {
   timeline: ['shape:event', 'shape:group-header', 'shape:period', 'shape:rail', 'shape:section', 'text:group-header', 'text:label', 'text:title'],
   class: ['connector:relationship', 'shape:chrome', 'shape:class-box', 'shape:group-header', 'text:cardinality', 'text:label', 'text:member'],
   er: ['connector:relationship', 'shape:cardinality', 'shape:chrome', 'shape:entity', 'shape:group-header', 'text:attribute', 'text:label'],
-  journey: ['shape:actor-pill', 'shape:group-header', 'shape:score', 'shape:section', 'shape:task', 'text:actor-pill', 'text:group-header', 'text:label', 'text:title'],
+  journey: ['connector:grid', 'connector:marker-line', 'connector:rail', 'shape:actor', 'shape:group-header', 'shape:score', 'shape:section', 'shape:task', 'text:axis', 'text:group-header', 'text:label', 'text:legend', 'text:title'],
   architecture: ['connector:edge', 'shape:chrome', 'shape:group', 'shape:group-header', 'shape:junction', 'shape:service', 'text:label'],
   xychart: ['connector:series', 'shape:axis', 'shape:bar', 'shape:grid', 'text:axis', 'text:title'],
   pie: ['shape:legend', 'shape:pie-slice', 'text:legend', 'text:title'],
@@ -372,6 +372,7 @@ function contrast(a: string, b: string): number {
 function textBucket(mark: AuditedMark): RoleBucket {
   if (mark.id.startsWith('block:') && mark.id.includes(':divider')) return 'edge'
   if (mark.id.startsWith('block:')) return 'group'
+  if (mark.id.startsWith('actor-legend-')) return 'group'
   if (
     mark.role === 'actor-pill' ||
     mark.role === 'group-header' ||
@@ -400,6 +401,7 @@ function textExpectation(mark: AuditedMark): PaintExpectation {
 
 function shapeExpectations(mark: AuditedMark): PaintExpectation[] {
   if (mark.role === 'chrome') return []
+  if (mark.role === 'actor') return []
   if (mark.role === 'grid' || mark.role === 'rail' || mark.role === 'marker-line') {
     return [{ field: 'stroke', expected: TOKENS.edgeStroke, background: TOKENS.bg, minContrast: WCAG_NON_TEXT, label: 'edge/grid stroke' }]
   }
@@ -470,6 +472,9 @@ function shapeExpectations(mark: AuditedMark): PaintExpectation[] {
 function connectorExpectation(mark: AuditedMark): PaintExpectation {
   if (mark.role === 'series') {
     return { field: 'stroke', expected: TOKENS.edgeStroke, background: TOKENS.bg, minContrast: WCAG_NON_TEXT, label: 'data series stroke', exact: false }
+  }
+  if (mark.role === 'grid' || mark.role === 'marker-line') {
+    return { field: 'stroke', expected: TOKENS.edgeStroke, background: TOKENS.bg, minContrast: WCAG_NON_TEXT, label: `${mark.role} stroke`, exact: false }
   }
   return { field: 'stroke', expected: TOKENS.edgeStroke, background: TOKENS.bg, minContrast: WCAG_NON_TEXT, label: `${mark.role} stroke` }
 }

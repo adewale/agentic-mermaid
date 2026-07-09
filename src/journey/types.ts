@@ -45,6 +45,8 @@ export interface PositionedJourneyDiagram extends PositionedDiagram {
   title?: PositionedJourneyTitle
   accessibilityTitle?: string
   accessibilityDescription?: string
+  actors: PositionedJourneyActor[]
+  scoreGuide: PositionedJourneyScoreGuide
   sections: PositionedJourneySection[]
 }
 
@@ -61,11 +63,45 @@ export interface PositionedJourneySection {
   y: number
   width: number
   height: number
-  /** Whether to render a framed background for this section. */
+  labelX: number
+  labelY: number
+  /** Whether to render a section span for this section. */
   framed: boolean
-  /** Height of the section header band. 0 when there is no visible header row. */
+  /** Height of the section span. 0 when there is no visible span. */
   headerHeight: number
   tasks: PositionedJourneyTask[]
+}
+
+export interface PositionedJourneyActor {
+  label: string
+  x: number
+  y: number
+  colorIndex: number
+}
+
+export interface PositionedJourneyScoreGuide {
+  x: number
+  y: number
+  width: number
+  height: number
+  ticks: PositionedJourneyScoreTick[]
+  baseline: PositionedJourneyBaseline
+}
+
+export interface PositionedJourneyScoreTick {
+  score: number
+  x1: number
+  x2: number
+  y: number
+  labelX: number
+  labelY: number
+}
+
+export interface PositionedJourneyBaseline {
+  x1: number
+  y1: number
+  x2: number
+  y2: number
 }
 
 export interface PositionedJourneyTask {
@@ -80,21 +116,29 @@ export interface PositionedJourneyTask {
   height: number
   textX: number
   textY: number
-  scoreCells: PositionedJourneyScoreCell[]
-  actorPills: PositionedJourneyActorPill[]
+  centerX: number
+  track: PositionedJourneyTrack
+  marker: PositionedJourneyScoreMarker
+  actorDots: PositionedJourneyActorDot[]
 }
 
-export interface PositionedJourneyScoreCell {
+export interface PositionedJourneyTrack {
   x: number
-  y: number
-  size: number
-  filled: boolean
+  y1: number
+  y2: number
 }
 
-export interface PositionedJourneyActorPill {
+export interface PositionedJourneyScoreMarker {
+  cx: number
+  cy: number
+  r: number
+  score: number
+}
+
+export interface PositionedJourneyActorDot {
   label: string
+  colorIndex: number
   x: number
   y: number
-  width: number
-  height: number
+  r: number
 }

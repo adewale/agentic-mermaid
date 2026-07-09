@@ -3,6 +3,7 @@
  */
 import { describe, it, expect } from 'bun:test'
 import { renderMermaidASCII } from '../ascii/index.ts'
+import { visualWidth } from '../ascii/width.ts'
 
 function render(text: string, options: Parameters<typeof renderMermaidASCII>[1] = {}): string {
   return renderMermaidASCII(text, { colorMode: 'none', ...options })
@@ -62,6 +63,18 @@ describe('journey ASCII', () => {
 
     expect(result).toContain('Make')
     expect(result).toContain('tea')
+  })
+
+  it('wraps long Journey task and actor labels by terminal display width', () => {
+    const result = render(`journey
+      section サポート
+      国際化🙂担当チームがレビューする長いタスク名: 4: 国際化🙂担当チーム, レビュー担当`, { maxWidth: 32 })
+
+    expect(result).toContain('国際化')
+    expect(result).toContain('🙂')
+    for (const line of result.split('\n')) {
+      expect(visualWidth(line)).toBeLessThanOrEqual(32)
+    }
   })
 
   it('supports themed HTML output and escapes labels safely', () => {

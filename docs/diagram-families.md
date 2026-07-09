@@ -12,7 +12,7 @@ Agentic Mermaid supports Mermaid's common diagram families through a split pipel
 | Timeline | `timeline` | SVG/PNG/ASCII | ✓ | Supports sections, periods, events, title changes. |
 | Class | `classDiagram` | SVG/PNG/ASCII | ✓ | Classes, members, relations, notes. |
 | ER | `erDiagram` | SVG/PNG/ASCII | ✓ | Entities, attributes, relations. |
-| Journey | `journey` | SVG/PNG/ASCII | structured (10 ops) | `asJourney` narrows simple title/section/task journeys; unmodeled syntax (accTitle/accDescr) stays opaque. |
+| Journey | `journey` | SVG/PNG/ASCII | structured (10 ops) | `asJourney` narrows documented Journey syntax: title, accTitle/accDescr, sections, scored tasks, and actors. |
 | XY chart | `xychart`, `xychart-beta` | SVG/PNG/ASCII | structured (8 ops) | Vertical/horizontal bar/line/mixed charts; modeled subset is structurally mutable via `asXyChart`. |
 | Pie | `pie` | SVG/PNG/ASCII | structured (7 ops) | `asPie` narrows title/showData/slices; malformed entries and accTitle/accDescr stay opaque. |
 | Quadrant | `quadrantChart` | SVG/PNG/ASCII | structured (7 ops) | `asQuadrant` narrows title/axes/quadrant labels/points; styling and out-of-range coords stay opaque. |
@@ -98,7 +98,9 @@ journey
     Pay: 3: Customer, Gateway
 ```
 
-Journey diagrams narrow via `asJourney` and expose 10 structured ops (sections, tasks, scores, actors). Unmodeled syntax (accTitle/accDescr) falls back to a lossless opaque body.
+Journey diagrams narrow via `asJourney` and expose 10 structured ops (sections, tasks, scores, actors). Documented Mermaid accessibility directives (`accTitle`, inline `accDescr`, and block `accDescr { ... }`) stay structured and round-trip through canonical serialization. Malformed or unknown Journey syntax falls back to a lossless opaque body.
+
+SVG rendering uses Mermaid's left-to-right Journey metaphor rather than the older Agentic card layout: sections span task columns, actors appear in a left legend, per-task actor dots show participation, and scores map to sentiment markers on a progression baseline. Mermaid `journey` config fields for actor colors, section fills/text colors, task/title fonts, task spacing, and actor label width are honored. Agentic Mermaid `style` and palette colors also reach Journey-specific surfaces such as section spans, actor dots, score markers, and the baseline.
 
 ## XY chart
 

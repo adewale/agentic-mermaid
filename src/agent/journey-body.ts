@@ -3,13 +3,16 @@
 //
 // Modeled grammar (mirrors the legacy renderer parser, src/journey/parser.ts):
 //   title <text>
+//   accTitle: <text>
+//   accDescr: <text>
+//   accDescr { <multiline text> }
 //   section <label>
 //   <task text>: <score 1..5>[: <actor>[, <actor>…]]
 //
-// Structured-or-opaque: any other non-blank, non-comment line (accTitle,
-// accDescr, unmodeled syntax, out-of-range scores) returns null so the caller
-// falls back to a lossless opaque body. Render support stays unchanged — the
-// legacy renderer keeps parsing canonical source.
+// Structured-or-opaque: any other non-blank, non-comment line (unmodeled
+// syntax, out-of-range scores) returns null so the caller falls back to a
+// lossless opaque body. Render support stays unchanged — the legacy renderer
+// keeps parsing canonical source.
 // ============================================================================
 
 import { unknownOpMessage } from './mutation-ops.ts'
@@ -23,11 +26,34 @@ import { labelOverflowWarning } from './label-metrics.ts'
 // ---- Parser -----------------------------------------------------------------
 
 const TITLE_RE = /^title\s+(.+)$/i
+const ACC_LINE_RE = (directive: 'accTitle' | 'accDescr') => new RegExp(`^${directive}\\s*:[ \\t]*(.+)$`, 'i')
 const SECTION_RE = /^section\s+(.+)$/i
 const TASK_RE = /^(.+?)\s*:\s*([0-9]+)\s*(?::\s*(.*))?$/
 
 function normalizeText(value: string): string {
-  return value.split(/\r?\n/).map(part => part.trim()).filter(Boolean).join(' ')
+  return normalizeJourneyLabel(value).split(/\r?\n/).map(part => part.trim()).filter(Boolean).join('\n')
+}
+
+function normalizeActorText(value: string): string {
+  return normalizeText(value).split(/\r?\n/).map(part => part.trim()).filter(Boolean).join(' / ')
+}
+
+function normalizeJourneyLabel(label: string): string {
+  return label
+    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/\\n/g, '\n')
+    .replace(/<\/?(?:sub|sup|small|mark)\s*>/gi, '')
+    .replace(/\*\*(.+?)\*\*/g, '<b>$1</b>')
+    .replace(/(?<!\*)\*([^\s*](?:[^*]*[^\s*])?)\*(?!\*)/g, '<i>$1</i>')
+    .replace(/~~(.+?)~~/g, '<s>$1</s>')
+}
+
+function formatJourneyInline(value: string): string {
+  return value.split(/\r?\n/).map(part => part.trim()).join('<br>')
+}
+
+function isJourneyComment(line: string): boolean {
+  return line.startsWith('%%') || line.startsWith('#') || line.startsWith('%')
 }
 
 function validScore(score: number): boolean {
@@ -52,15 +78,38 @@ export function parseJourneyBody(lines: string[]): JourneyBody | null {
     return currentSection
   }
 
-  for (const raw of lines) {
+  for (let i = 0; i < lines.length; i++) {
+    const raw = lines[i]!
     const line = raw.trim()
     if (!line) continue
-    if (line.startsWith('%%')) continue
+    if (isJourneyComment(line)) continue
+
+    const accTitle = parseAccessibilityLine(line, 'accTitle')
+    if (accTitle !== undefined) {
+      body.accessibilityTitle = accTitle
+      continue
+    }
+
+    const accDescrStart = line.match(/^accDescr\s*:?\s*\{\s*(.*)$/i)
+    if (accDescrStart) {
+      const initial = accDescrStart[1] ?? ''
+      const parsed = collectAccessibilityBlock(initial, lines, i)
+      if (!parsed) return null
+      body.accessibilityDescription = normalizeAccessibilityText(parsed.text)
+      i = parsed.nextIndex
+      continue
+    }
+
+    const accDescr = parseAccessibilityLine(line, 'accDescr')
+    if (accDescr !== undefined) {
+      body.accessibilityDescription = accDescr
+      continue
+    }
 
     const tm = line.match(TITLE_RE)
     if (tm) {
       const title = normalizeText(tm[1]!)
-      if (!title || title.includes(':')) return null
+      if (!title) return null
       body.title = title
       continue
     }
@@ -68,7 +117,7 @@ export function parseJourneyBody(lines: string[]): JourneyBody | null {
     const sm = line.match(SECTION_RE)
     if (sm) {
       const label = normalizeText(sm[1]!)
-      if (!label) return null
+      if (!label || label.includes(':')) return null
       currentSection = { id: `section-${sIdx++}`, label, tasks: [] }
       body.sections.push(currentSection)
       continue
@@ -78,23 +127,24 @@ export function parseJourneyBody(lines: string[]): JourneyBody | null {
     if (km) {
       const text = normalizeText(km[1]!)
       const score = Number.parseInt(km[2]!, 10)
-      if (!text || text.includes(':') || !validScore(score)) return null
+      if (!text || !validScore(score)) return null
       const actors = (km[3] ?? '')
         .split(',')
-        .map(normalizeText)
+        .map(normalizeActorText)
         .filter(Boolean)
-      if (actors.some(a => a.includes(':'))) return null
       implicitSection().tasks.push({ id: `task-${tIdx++}`, text, score, actors })
       continue
     }
 
-    // Unmodeled line (accTitle/accDescr/anything else) → opaque fallback.
+    // Unmodeled line (anything else) → opaque fallback.
     return null
   }
 
-  // The legacy renderer rejects journeys without a single scored task;
-  // model the same floor so structured bodies always render.
-  if (body.sections.every(s => s.tasks.length === 0)) return null
+  // Upstream parity: title/acc metadata-only journeys are renderable header
+  // furniture. A truly empty journey still stays opaque for source fidelity.
+  if (body.sections.length === 0 && body.sections.every(s => s.tasks.length === 0) && !body.title && !body.accessibilityTitle && !body.accessibilityDescription) {
+    return null
+  }
 
   return body
 }
@@ -103,12 +153,24 @@ export function parseJourneyBody(lines: string[]): JourneyBody | null {
 
 export function renderJourney(body: JourneyBody): string {
   const lines: string[] = ['journey']
-  if (body.title) lines.push(`  title ${body.title}`)
+  if (body.title) lines.push(`  title ${formatJourneyInline(body.title)}`)
+  if (body.accessibilityTitle) lines.push(`  accTitle: ${formatJourneyInline(body.accessibilityTitle)}`)
+  if (body.accessibilityDescription) {
+    if (body.accessibilityDescription.includes('\n')) {
+      lines.push('  accDescr {')
+      for (const line of body.accessibilityDescription.split(/\r?\n/)) {
+        lines.push(`    ${line.trim()}`)
+      }
+      lines.push('  }')
+    } else {
+      lines.push(`  accDescr: ${formatJourneyInline(body.accessibilityDescription)}`)
+    }
+  }
   for (const section of body.sections) {
-    if (section.label !== undefined) lines.push(`  section ${section.label}`)
+    if (section.label !== undefined) lines.push(`  section ${formatJourneyInline(section.label)}`)
     for (const task of section.tasks) {
       const actors = task.actors.length > 0 ? `: ${task.actors.join(', ')}` : ''
-      lines.push(`    ${task.text}: ${task.score}${actors}`)
+      lines.push(`    ${formatJourneyInline(task.text)}: ${task.score}${actors}`)
     }
   }
   return lines.join('\n') + '\n'
@@ -120,6 +182,8 @@ function cloneJourney(b: JourneyBody): JourneyBody {
   return {
     kind: 'journey',
     title: b.title,
+    accessibilityTitle: b.accessibilityTitle,
+    accessibilityDescription: b.accessibilityDescription,
     sections: b.sections.map(s => ({
       id: s.id, label: s.label,
       tasks: s.tasks.map(t => ({ id: t.id, text: t.text, score: t.score, actors: [...t.actors] })),
@@ -151,11 +215,60 @@ function normalizeOpText(value: string, field: string, opts: { allowColon?: bool
 function normalizeActors(actors: string[] | undefined): Result<string[], MutationError> {
   const out: string[] = []
   for (const raw of actors ?? []) {
-    const a = normalizeOpText(raw, 'actor')
-    if (!a.ok) return a
-    out.push(a.value)
+    if (typeof raw !== 'string') return err({ code: 'INVALID_OP', message: 'Journey actor must be a string' })
+    const normalized = normalizeActorText(raw)
+    if (!normalized) return err({ code: 'INVALID_OP', message: 'Journey actor must be non-empty' })
+    out.push(normalized)
   }
   return ok(out)
+}
+
+function normalizeAccessibilityText(value: string): string {
+  return normalizeJourneyLabel(value)
+    .split(/\r?\n/)
+    .map(part => part.trim())
+    .filter(Boolean)
+    .join('\n')
+}
+
+function parseAccessibilityLine(
+  line: string,
+  directive: 'accTitle' | 'accDescr',
+): string | undefined {
+  const match = line.match(ACC_LINE_RE(directive))
+  return match ? normalizeAccessibilityText(match[1]!) : undefined
+}
+
+function collectAccessibilityBlock(
+  initial: string,
+  lines: string[],
+  startIndex: number,
+): { text: string; nextIndex: number } | null {
+  const initialEnd = initial.indexOf('}')
+  if (initialEnd !== -1) {
+    return {
+      text: initial.slice(0, initialEnd).trim(),
+      nextIndex: startIndex,
+    }
+  }
+
+  const parts = [initial.trim()].filter(Boolean)
+
+  for (let i = startIndex + 1; i < lines.length; i++) {
+    const line = lines[i]!
+    const end = line.indexOf('}')
+    if (end !== -1) {
+      const beforeBrace = line.slice(0, end).trim()
+      if (beforeBrace) parts.push(beforeBrace)
+      return {
+        text: parts.join('\n'),
+        nextIndex: i,
+      }
+    }
+    parts.push(line)
+  }
+
+  return null
 }
 
 export function mutateJourney(body: JourneyBody, op: JourneyMutationOp): Result<JourneyBody, MutationError> {
@@ -169,14 +282,14 @@ export function mutateJourney(body: JourneyBody, op: JourneyMutationOp): Result<
     case 'set_title': {
       if (op.title === null) delete next.title
       else {
-        const title = normalizeOpText(op.title, 'title')
+        const title = normalizeOpText(op.title, 'title', { allowColon: true })
         if (!title.ok) return title
         next.title = title.value
       }
       break
     }
     case 'add_section': {
-      const label = normalizeOpText(op.label, 'section label', { allowColon: true })
+      const label = normalizeOpText(op.label, 'section label')
       if (!label.ok) return label
       next.sections.push({ id: nextId('section'), label: label.value, tasks: [] })
       break
@@ -189,7 +302,7 @@ export function mutateJourney(body: JourneyBody, op: JourneyMutationOp): Result<
     case 'set_section_label': {
       const s = getSection(op.index)
       if (!s) return err({ code: 'SECTION_NOT_FOUND', message: `No section at index ${op.index}` })
-      const label = normalizeOpText(op.label, 'section label', { allowColon: true })
+      const label = normalizeOpText(op.label, 'section label')
       if (!label.ok) return label
       s.label = label.value
       break
@@ -237,9 +350,9 @@ export function mutateJourney(body: JourneyBody, op: JourneyMutationOp): Result<
       break
     }
     case 'rename_actor': {
-      const from = normalizeOpText(op.from, 'actor')
+      const from = normalizeOpText(op.from, 'actor', { allowColon: true })
       if (!from.ok) return from
-      const to = normalizeOpText(op.to, 'actor')
+      const to = normalizeOpText(op.to, 'actor', { allowColon: true })
       if (!to.ok) return to
       let found = false
       for (const s of next.sections) {
@@ -280,8 +393,16 @@ export function verifyJourney(body: JourneyBody, opts: VerifyOptions): LayoutWar
     const w = labelOverflowWarning(target, text, cap)
     if (w) warnings.push(w)
   }
-  if (body.sections.every(s => s.tasks.length === 0)) warnings.push({ code: 'EMPTY_DIAGRAM' })
-  if (body.title !== undefined) overflow('title', body.title)
+  const hasTask = body.sections.some(s => s.tasks.length > 0)
+  const hasHeaderFurniture = body.title !== undefined
+    || body.accessibilityTitle !== undefined
+    || body.accessibilityDescription !== undefined
+    || body.sections.length > 0
+  if (!hasTask && !hasHeaderFurniture) warnings.push({ code: 'EMPTY_DIAGRAM' })
+  if (body.title !== undefined) {
+    const w = labelOverflowWarning('title', body.title, Math.max(cap, 80))
+    if (w) warnings.push(w)
+  }
   for (const s of body.sections) {
     if (s.label !== undefined) overflow(s.id, s.label)
     for (const t of s.tasks) {

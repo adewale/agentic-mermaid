@@ -493,13 +493,50 @@ function extractJourneyLabels(source: string): ExtractedLabel[] {
   return out
 }
 
+function verifyOpaqueJourney(body: DiagramBody): LayoutWarning[] {
+  if (body.kind !== 'opaque' || body.family !== 'journey') return []
+  const warnings: LayoutWarning[] = []
+  const lines = body.source.split(/\r?\n/)
+  for (let i = 0; i < lines.length; i++) {
+    const diagnostic = invalidJourneyScoreDiagnostic(lines[i]!.trim())
+    if (!diagnostic) continue
+    warnings.push({
+      code: 'UNSUPPORTED_SYNTAX',
+      line: i + 1,
+      syntax: 'journey_invalid_score',
+      message: `Journey task "${diagnostic.text}" uses invalid score ${diagnostic.rawScore}; Mermaid Journey scores must be integers from 1 through 5.`,
+    })
+  }
+  return warnings
+}
+
+function invalidJourneyScoreDiagnostic(raw: string): { text: string; rawScore: string } | null {
+  if (!raw || raw.startsWith('%%')) return null
+  if (/^(?:journey|title|section)\b/i.test(raw)) return null
+  if (/^acc(?:Title|Descr)\b/i.test(raw)) return null
+
+  const numeric = raw.match(/^(.+?)\s*:\s*([0-9]+)\s*(?::\s*(.*))?$/)
+  if (numeric) {
+    const score = Number.parseInt(numeric[2]!, 10)
+    if (Number.isInteger(score) && score >= 1 && score <= 5) return null
+    return { text: numeric[1]!.trim(), rawScore: numeric[2]! }
+  }
+
+  const taskLike = raw.match(/^(.+?)\s*:\s*([^:]+?)(?:\s*:\s*.*)?$/)
+  if (!taskLike) return null
+  const text = taskLike[1]!.trim()
+  const rawScore = taskLike[2]!.trim()
+  if (!text || !rawScore) return null
+  return { text, rawScore }
+}
+
 registerFamily({
   id: 'journey',
   detect: l => l.startsWith('journey'),
   extractLabels: extractJourneyLabels,
   // BUILD-15: journey is structured-when-narrowed. The verify hook covers the
   // structured body; opaque fallbacks keep the universal label-extraction path.
-  verify: (body, opts) => body.kind === 'journey' ? verifyJourney(body, opts) : [],
+  verify: (body, opts) => body.kind === 'journey' ? verifyJourney(body, opts) : verifyOpaqueJourney(body),
   ...structuredFamilyHooks('journey', {
     headerOk: h => /^journey\s*$/i.test(h),
     parseBody: parseJourneyBody, serialize: renderJourney, mutate: mutateJourney,
