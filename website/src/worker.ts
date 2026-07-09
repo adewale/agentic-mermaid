@@ -85,7 +85,9 @@ export default {
       return Response.redirect(new URL(pathname + '/' + url.search + url.hash, url).toString(), 308)
     }
 
-    if (pathname === '/mcp') {
+    // `/.well-known/mcp` is the standard discovery alias for the same hosted
+    // Streamable HTTP transport as `/mcp`.
+    if (pathname === '/mcp' || pathname === '/.well-known/mcp') {
       const handler = createMcpHandler({
         context: {
           execute: createLoaderExecute(env.LOADER, executeHarness),

@@ -24,7 +24,7 @@ import { THEMES } from '../theme.ts'
 import { unsupportedCodeReason } from './facade.ts'
 import { rpcError, toolResult, type JsonRpcRequest, type JsonRpcResponse } from './protocol.ts'
 import { SDK_DECLARATION } from './sdk-decl.ts'
-import { createDescribeTool, createExecuteTool, createRenderPngTool, dispatchMcpRequest, type McpServerSurface } from './tool-surface.ts'
+import { PURE_COMPUTE_ANNOTATIONS, createDescribeTool, createExecuteTool, createRenderPngTool, dispatchMcpRequest, type McpServerSurface } from './tool-surface.ts'
 import type { ExecuteResult } from './sandbox.ts'
 
 export type { ExecuteResult }
@@ -79,6 +79,7 @@ Layout is deterministic: identical input produces identical geometry.`,
       },
       required: ['source'],
     },
+    annotations: PURE_COMPUTE_ANNOTATIONS,
   },
   {
     name: 'render_ascii',
@@ -92,6 +93,7 @@ useAscii true → plain ASCII (+,-,|); false/absent → Unicode box drawing (┌
       },
       required: ['source'],
     },
+    annotations: PURE_COMPUTE_ANNOTATIONS,
   },
   createRenderPngTool('hosted'),
   {
@@ -109,6 +111,7 @@ Warnings use the layout-rubric codes.`,
       },
       required: ['source'],
     },
+    annotations: PURE_COMPUTE_ANNOTATIONS,
   },
   createDescribeTool(),
   {
@@ -132,6 +135,7 @@ ${OP_MENU}`,
       },
       required: ['source', 'ops'],
     },
+    annotations: PURE_COMPUTE_ANNOTATIONS,
   },
   {
     name: 'build',
@@ -149,6 +153,7 @@ ${OP_MENU}`,
       },
       required: ['family', 'ops'],
     },
+    annotations: PURE_COMPUTE_ANNOTATIONS,
   },
 ]
 

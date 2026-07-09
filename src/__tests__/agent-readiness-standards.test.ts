@@ -1,0 +1,148 @@
+import { describe, expect, test } from 'bun:test'
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
+
+const REPO = join(import.meta.dir, '..', '..')
+const SITE = join(REPO, 'website', 'public')
+
+function read(rel: string) {
+  return readFileSync(join(SITE, rel), 'utf8')
+}
+
+function readJson(rel: string) {
+  return JSON.parse(read(rel))
+}
+
+function htmlJsonLd(html: string) {
+  return [...html.matchAll(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/g)].map((match) => JSON.parse(match[1]!))
+}
+
+function graphNodes(doc: any) {
+  return Array.isArray(doc['@graph']) ? doc['@graph'] : [doc]
+}
+
+function h2Sections(markdown: string) {
+  const matches = [...markdown.matchAll(/^##\s+(.+)$/gm)]
+  return matches.map((match, index) => {
+    const next = matches[index + 1]
+    return {
+      title: match[1]!,
+      body: markdown.slice(match.index! + match[0].length, next?.index ?? markdown.length).trim(),
+    }
+  })
+}
+
+function expectAbsoluteHttps(url: unknown) {
+  expect(typeof url).toBe('string')
+  expect(() => new URL(String(url))).not.toThrow()
+  expect(String(url)).toStartWith('https://')
+}
+
+describe('agent-readiness standards syntax', () => {
+  test('llms.txt follows the published parser-compatible Markdown shape', () => {
+    const text = read('llms.txt')
+    const lines = text.split(/\r?\n/)
+    expect(lines[0]).toBe('# Agentic Mermaid')
+    expect(lines[1]).toBe('')
+    expect(lines[2]).toStartWith('> ')
+    expect(lines.filter((line) => line.trim()).length).toBeGreaterThanOrEqual(5)
+
+    const sections = h2Sections(text)
+    expect(sections.map((section) => section.title)).toEqual(['Start Here', 'Optional'])
+    for (const section of sections) {
+      const items = section.body.split(/\n+/).filter((line) => line.trim())
+      expect(items.length).toBeGreaterThan(0)
+      for (const item of items) {
+        expect({ section: section.title, item, ok: /^-\s+\[[^\]]+\]\(https:\/\/[^)]+\)(?::\s+.+)?$/.test(item) })
+          .toEqual({ section: section.title, item, ok: true })
+      }
+    }
+
+    expect(read('llms.md')).toBe(text)
+    expect(read('.well-known/llms.txt')).toBe(text)
+  })
+
+  test('homepage JSON-LD is parseable and uses schema.org node types we claim', () => {
+    const docs = htmlJsonLd(read('index.html'))
+    expect(docs.length).toBeGreaterThanOrEqual(1)
+    for (const doc of docs) expect(doc['@context']).toBe('https://schema.org')
+
+    const nodes = docs.flatMap(graphNodes)
+    const byType = new Map(nodes.map((node: any) => [node['@type'], node]))
+    expect([...byType.keys()]).toEqual(expect.arrayContaining(['Organization', 'WebSite', 'SoftwareApplication', 'Service', 'WebPage', 'FAQPage']))
+
+    const organization = byType.get('Organization') as any
+    expect(organization.contactPoint['@type']).toBe('ContactPoint')
+    expectAbsoluteHttps(organization.contactPoint.url)
+    expect(organization.address['@type']).toBe('PostalAddress')
+    expect(organization.address.addressCountry).toBe('US')
+
+    const app = byType.get('SoftwareApplication') as any
+    expect(app.applicationCategory).toBe('DeveloperApplication')
+    expect(typeof app.operatingSystem).toBe('string')
+    expect(app.operatingSystem.length).toBeGreaterThan(0)
+    expect(Array.isArray(app.featureList)).toBe(true)
+    expect(app.offers['@type']).toBe('Offer')
+
+    const service = byType.get('Service') as any
+    expect(service.provider['@id']).toBe(organization['@id'])
+    expect(service.serviceType).toContain('Model Context Protocol')
+
+    const page = byType.get('WebPage') as any
+    expect(page.speakable['@type']).toBe('SpeakableSpecification')
+    expect(page.speakable.cssSelector).toEqual(expect.arrayContaining(['h1']))
+
+    const faq = byType.get('FAQPage') as any
+    expect(faq.mainEntity.every((entry: any) => entry['@type'] === 'Question' && entry.acceptedAnswer['@type'] === 'Answer')).toBe(true)
+  })
+
+  test('MCP discovery manifests expose MCP-shaped tools and Ora-style discovery records', () => {
+    const card = readJson('.well-known/mcp/server-card.json')
+    const manifest = readJson('.well-known/mcp.json')
+    const catalog = readJson('.well-known/ai-catalog.json')
+
+    expect(card).toEqual(expect.objectContaining({
+      name: 'agentic-mermaid-mcp',
+      kind: 'product',
+      transport: 'streamable-http',
+      capabilities: { tools: true, resources: false },
+    }))
+    expectAbsoluteHttps(card.url)
+    expectAbsoluteHttps(card.serverUrl)
+    expectAbsoluteHttps(card.wellKnownUrl)
+    expect(card.wellKnownUrl).toBe('https://agentic-mermaid.dev/.well-known/mcp')
+    expect(card.protocolVersions).toEqual(expect.arrayContaining(['2025-06-18']))
+
+    expect(manifest.serverUrl).toBe(card.serverUrl)
+    expect(manifest.transport).toBe(card.transport)
+    expect(manifest.tools.map((tool: any) => tool.name)).toEqual(card.tools.map((tool: any) => tool.name))
+
+    for (const tool of card.tools) {
+      expect(typeof tool.name).toBe('string')
+      expect(typeof tool.description).toBe('string')
+      expect(tool.inputSchema).toEqual(expect.objectContaining({ type: 'object' }))
+      expect(typeof tool.inputSchema.properties).toBe('object')
+      expect(Array.isArray(tool.inputSchema.required ?? [])).toBe(true)
+      expect(tool.parameters && typeof tool.parameters).toBe('object')
+      expect(tool.annotations).toEqual(expect.objectContaining({
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: expect.any(Boolean),
+        openWorldHint: false,
+      }))
+    }
+
+    expect(catalog.specVersion).toBe('1.0')
+    expect(catalog.host).toEqual(expect.objectContaining({
+      displayName: 'Agentic Mermaid',
+      identifier: 'did:web:agentic-mermaid.dev',
+    }))
+    expectAbsoluteHttps(catalog.host.documentationUrl)
+    const mcpEntry = catalog.entries.find((entry: any) => entry.type === 'application/mcp-server-card+json')
+    expect(mcpEntry).toEqual(expect.objectContaining({
+      identifier: 'urn:air:agentic-mermaid.dev:mcp:agentic-mermaid',
+      url: 'https://agentic-mermaid.dev/.well-known/mcp/server-card.json',
+    }))
+    expect(mcpEntry.capabilities).toEqual(card.tools.map((tool: any) => tool.name))
+  })
+})

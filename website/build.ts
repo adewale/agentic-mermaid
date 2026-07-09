@@ -7,6 +7,8 @@ import { verifyMermaid } from '../src/agent/index.ts'
 import { buildCapabilities } from '../src/cli/index.ts'
 import { renderMermaidASCII, renderMermaidSVG } from '../src/index.ts'
 import { namespaceSvgIds } from '../src/renderer.ts'
+import { HOSTED_TOOLS } from '../src/mcp/hosted-server.ts'
+import { MCP_SERVER_NAME, MCP_SERVER_VERSION } from '../src/mcp/tool-surface.ts'
 import { computeDeployVersion } from './src/deploy-hash.ts'
 import { HOMEPAGE_AGENT_POINTER, buildHomepageFullPrompt } from '../eval/agent-usage/homepage-prompt.ts'
 
@@ -78,6 +80,9 @@ const agentDiscoveryLinks = [
   '<link rel="alternate" type="text/plain" href="/llms.txt">',
   '<link rel="alternate" type="application/json" href="/capabilities.json">',
   '<link rel="alternate" type="text/markdown" href="/agent-instructions.md">',
+  '<link rel="alternate" type="application/json" href="/.well-known/mcp.json">',
+  '<link rel="mcp-server" type="application/mcp-server-card+json" href="/.well-known/mcp/server-card.json">',
+  '<link rel="ai-catalog" type="application/json" href="/.well-known/ai-catalog.json">',
 ].join('\n')
 
 function addHeadDescription(html: string) {
@@ -87,10 +92,9 @@ function addHeadDescription(html: string) {
   return html.replace(/<meta name="viewport"[^>]*>/, '$&\n<meta name="description" content="Agentic Mermaid renders, verifies, and edits Mermaid diagrams locally, with compact agent instructions for CLI, library, and MCP use.">')
 }
 
-// Social/canonical metadata. og:image, og:url, and rel=canonical need absolute
-// URLs, so they ship only when the deploy sets SITE_ORIGIN (same pattern as
-// SITE_GIT_SHA); the scheme-relative tags ship on every build.
-const siteOrigin = process.env.SITE_ORIGIN ?? ''
+// Social/canonical metadata. Keep the canonical public origin as the default so
+// local builds and production both ship complete entity-resolution metadata.
+const siteOrigin = process.env.SITE_ORIGIN ?? 'https://agentic-mermaid.dev'
 // titleAttr/descriptionAttr must already be attribute-escaped by the caller.
 function socialMetaTags(titleAttr: string, descriptionAttr: string, route = '') {
   const tags = [
@@ -118,6 +122,150 @@ function addSocialMeta(html: string, route = '') {
   const title = (html.match(/<title>([\s\S]*?)<\/title>/)?.[1] ?? 'Agentic Mermaid').trim().replace(/"/g, '&quot;')
   const description = html.match(/<meta name="description" content="([^"]*)"/)?.[1] ?? ''
   return html.replace('</head>', socialMetaTags(title, description, route) + '\n</head>')
+}
+
+function jsonLdScript(data: unknown) {
+  return `<script type="application/ld+json">${JSON.stringify(data).replace(/</g, '\\u003c')}</script>`
+}
+
+function decodeHtmlLite(s: string) {
+  return s
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+}
+
+function structuredDataTags(title = 'Agentic Mermaid', description = packageJson.description, route = '/') {
+  const pageUrl = siteOrigin + (route || '/')
+  const homeUrl = `${siteOrigin}/`
+  const logoUrl = `${siteOrigin}/og-image.png`
+  return jsonLdScript({
+    '@context': 'https://schema.org',
+    '@graph': [
+      {
+        '@type': 'Organization',
+        '@id': `${homeUrl}#organization`,
+        name: 'Agentic Mermaid',
+        url: homeUrl,
+        logo: logoUrl,
+        description: 'Open-source Mermaid rendering, verification, and structured editing for coding agents.',
+        sameAs: ['https://github.com/adewale/agentic-mermaid'],
+        contactPoint: {
+          '@type': 'ContactPoint',
+          contactType: 'technical support',
+          url: 'https://github.com/adewale/agentic-mermaid/issues',
+        },
+        address: {
+          '@type': 'PostalAddress',
+          addressCountry: 'US',
+        },
+      },
+      {
+        '@type': 'WebSite',
+        '@id': `${homeUrl}#website`,
+        name: 'Agentic Mermaid',
+        url: homeUrl,
+        description: packageJson.description,
+        publisher: { '@id': `${homeUrl}#organization` },
+      },
+      {
+        '@type': 'SoftwareApplication',
+        '@id': `${homeUrl}#software`,
+        name: 'Agentic Mermaid',
+        url: homeUrl,
+        description: packageJson.description,
+        applicationCategory: 'DeveloperApplication',
+        applicationSubCategory: 'Diagramming, MCP server, CLI, and library',
+        operatingSystem: 'Cross-platform',
+        softwareVersion: packageJson.version,
+        codeRepository: 'https://github.com/adewale/agentic-mermaid',
+        programmingLanguage: ['TypeScript', 'JavaScript'],
+        runtimePlatform: ['Node.js', 'Bun', 'Cloudflare Workers'],
+        isAccessibleForFree: true,
+        offers: {
+          '@type': 'Offer',
+          price: '0',
+          priceCurrency: 'USD',
+        },
+        featureList: [
+          'Parse, verify, mutate, serialize, and render Mermaid diagrams',
+          'Deterministic SVG, PNG, ASCII, Unicode, and JSON layout output',
+          'Hosted and self-hosted MCP tools for agent workflows',
+          'Structured mutation operations for supported Mermaid families',
+        ],
+        provider: { '@id': `${homeUrl}#organization` },
+        sameAs: ['https://github.com/adewale/agentic-mermaid'],
+      },
+      {
+        '@type': 'Service',
+        '@id': `${homeUrl}#hosted-mcp`,
+        name: 'Agentic Mermaid hosted MCP',
+        serviceType: 'Model Context Protocol server',
+        url: `${siteOrigin}/mcp`,
+        description: 'Stateless Streamable HTTP MCP endpoint for rendering, verifying, describing, mutating, and building Mermaid diagrams.',
+        provider: { '@id': `${homeUrl}#organization` },
+        isRelatedTo: { '@id': `${homeUrl}#software` },
+        offers: {
+          '@type': 'Offer',
+          price: '0',
+          priceCurrency: 'USD',
+        },
+      },
+      {
+        '@type': 'WebPage',
+        '@id': `${pageUrl}#webpage`,
+        url: pageUrl,
+        name: title,
+        description,
+        isPartOf: { '@id': `${homeUrl}#website` },
+        primaryImageOfPage: logoUrl,
+        about: { '@id': `${homeUrl}#software` },
+        speakable: {
+          '@type': 'SpeakableSpecification',
+          cssSelector: ['h1', '.lead', '.agent-entrypoints'],
+        },
+      },
+      {
+        '@type': 'FAQPage',
+        '@id': `${homeUrl}#faq`,
+        mainEntity: [
+          {
+            '@type': 'Question',
+            name: 'What is Agentic Mermaid?',
+            acceptedAnswer: {
+              '@type': 'Answer',
+              text: 'Agentic Mermaid is an open-source Mermaid runtime for agents. It parses, verifies, mutates, serializes, and renders diagrams without a browser.',
+            },
+          },
+          {
+            '@type': 'Question',
+            name: 'How should an agent use Agentic Mermaid?',
+            acceptedAnswer: {
+              '@type': 'Answer',
+              text: 'Use the local library, CLI, or MCP server. Parse source first, narrow to the diagram family, apply structured mutations when available, verify, then serialize or render.',
+            },
+          },
+          {
+            '@type': 'Question',
+            name: 'Where is the hosted MCP endpoint?',
+            acceptedAnswer: {
+              '@type': 'Answer',
+              text: 'The hosted stateless Streamable HTTP MCP endpoint is https://agentic-mermaid.dev/mcp, with a standard discovery alias at https://agentic-mermaid.dev/.well-known/mcp.',
+            },
+          },
+        ],
+      },
+    ],
+  })
+}
+
+function addStructuredData(html: string, route = '') {
+  if (html.includes('"@id":"https://agentic-mermaid.dev/#software"')) return html
+  const title = decodeHtmlLite((html.match(/<title>([\s\S]*?)<\/title>/)?.[1] ?? 'Agentic Mermaid').trim())
+  const description = decodeHtmlLite(html.match(/<meta name="description" content="([^"]*)"/)?.[1] ?? packageJson.description)
+  return html.replace('</head>', structuredDataTags(title, description, route || '/') + '\n</head>')
 }
 
 function addAgentDiscoveryLinks(html: string) {
@@ -163,7 +311,7 @@ function setNavCurrent(html: string, currentHref = '') {
 }
 
 function transformHtml(html: string, currentHref = '', route = ''): string {
-  return setNavCurrent(ensureMainId(addSkipLink(addAgentDiscoveryLinks(addSocialMeta(addHeadDescription(rewriteAttrs(html)), route)))), currentHref)
+  return setNavCurrent(ensureMainId(addSkipLink(addAgentDiscoveryLinks(addStructuredData(addSocialMeta(addHeadDescription(rewriteAttrs(html)), route), route)))), currentHref)
 }
 
 function transformEditorHtml(html: string): string {
@@ -310,6 +458,7 @@ function pageShell(title: string, lead: string, body: string, currentHref = '', 
 <link rel="stylesheet" href="/styles.css">
 ${agentDiscoveryLinks}
 ${socialMetaTags(escapeAttr(fullTitle), escapeAttr(lead), route)}
+${structuredDataTags(fullTitle, lead, route || '/')}
 </head>
 <body>
 <a class="skip-link" href="#main">Skip to content</a>
@@ -1201,6 +1350,134 @@ const examples = {
 }
 await emitJson('examples/index.json', examples)
 
+function compactToolDescription(description: string) {
+  const text = description.split('SDK declaration:')[0]!.replace(/\s+/g, ' ').trim()
+  return text.length > 700 ? text.slice(0, 697) + '...' : text
+}
+
+function parametersFromSchema(schema: Record<string, unknown>) {
+  const properties = schema.properties && typeof schema.properties === 'object'
+    ? schema.properties as Record<string, Record<string, unknown>>
+    : {}
+  const required = new Set(Array.isArray(schema.required) ? schema.required.map(String) : [])
+  return Object.fromEntries(Object.entries(properties).map(([name, shape]) => [
+    name,
+    { ...shape, required: required.has(name) },
+  ]))
+}
+
+const hostedToolCards = HOSTED_TOOLS.map((tool) => ({
+  name: tool.name,
+  description: compactToolDescription(tool.description),
+  annotations: tool.annotations,
+  inputSchema: tool.inputSchema,
+  parameters: parametersFromSchema(tool.inputSchema),
+}))
+
+const mcpServerCard = {
+  name: MCP_SERVER_NAME,
+  version: MCP_SERVER_VERSION,
+  kind: 'product',
+  displayName: 'Agentic Mermaid MCP',
+  description: 'Render, verify, describe, mutate, and build Mermaid diagrams through a stateless Streamable HTTP MCP server.',
+  icon: `${siteOrigin}/favicon.svg`,
+  url: `${siteOrigin}/mcp`,
+  serverUrl: `${siteOrigin}/mcp`,
+  wellKnownUrl: `${siteOrigin}/.well-known/mcp`,
+  transport: 'streamable-http',
+  protocolVersions: ['2024-11-05', '2025-03-26', '2025-06-18'],
+  instructions: 'Use Agentic Mermaid for Mermaid diagram workflows. Prefer verify, describe, render_svg, render_ascii, render_png, mutate, and build for direct work; reserve execute for synchronous Code Mode logic that the declarative tools do not express.',
+  capabilities: {
+    tools: true,
+    resources: false,
+  },
+  tools: hostedToolCards,
+  links: {
+    homepage: `${siteOrigin}/`,
+    llms: `${siteOrigin}/llms.txt`,
+    documentation: `${siteOrigin}/docs/mcp/`,
+    capabilities: `${siteOrigin}/capabilities.json`,
+    examples: `${siteOrigin}/examples/index.json`,
+    repository: 'https://github.com/adewale/agentic-mermaid',
+  },
+  generatedFrom,
+}
+
+const mcpManifest = {
+  name: MCP_SERVER_NAME,
+  version: MCP_SERVER_VERSION,
+  kind: 'product',
+  description: mcpServerCard.description,
+  icon: mcpServerCard.icon,
+  url: mcpServerCard.url,
+  serverUrl: mcpServerCard.serverUrl,
+  transport: mcpServerCard.transport,
+  capabilities: mcpServerCard.capabilities,
+  tools: hostedToolCards.map(({ inputSchema: _inputSchema, ...tool }) => tool),
+  generatedFrom,
+}
+
+const aiCatalog = {
+  specVersion: '1.0',
+  host: {
+    displayName: 'Agentic Mermaid',
+    identifier: 'did:web:agentic-mermaid.dev',
+    documentationUrl: `${siteOrigin}/docs/`,
+  },
+  entries: [
+    {
+      identifier: 'urn:air:agentic-mermaid.dev:mcp:agentic-mermaid',
+      displayName: 'Agentic Mermaid hosted MCP server',
+      type: 'application/mcp-server-card+json',
+      url: `${siteOrigin}/.well-known/mcp/server-card.json`,
+      description: mcpServerCard.description,
+      tags: ['mermaid', 'diagramming', 'mcp', 'rendering', 'verification', 'agents'],
+      capabilities: hostedToolCards.map(tool => tool.name),
+      representativeQueries: [
+        'verify this Mermaid diagram',
+        'render this diagram to SVG',
+        'add an edge to this flowchart and verify it',
+        'build a Mermaid sequence diagram from structured operations',
+      ],
+      trustManifest: {
+        identity: 'did:web:agentic-mermaid.dev',
+        identityType: 'did',
+      },
+    },
+    {
+      identifier: 'urn:air:agentic-mermaid.dev:llms',
+      displayName: 'Agentic Mermaid llms.txt',
+      type: 'text/markdown',
+      url: `${siteOrigin}/llms.txt`,
+      description: 'Navigation index for agents using Agentic Mermaid.',
+      tags: ['llms.txt', 'agent-docs', 'mermaid'],
+      representativeQueries: ['how should an agent use Agentic Mermaid'],
+      trustManifest: {
+        identity: 'did:web:agentic-mermaid.dev',
+        identityType: 'did',
+      },
+    },
+    {
+      identifier: 'urn:air:agentic-mermaid.dev:skill:diagram-workflow',
+      displayName: 'Agentic Mermaid diagram workflow skill',
+      type: 'application/ai-skill+md',
+      url: `${siteOrigin}/skills/agentic-mermaid-diagram-workflow/SKILL.md`,
+      description: 'Progressively disclosed workflow skill for authoring and editing Mermaid diagrams with Agentic Mermaid.',
+      tags: ['skill', 'mermaid', 'diagram-workflow'],
+      representativeQueries: ['create or edit a Mermaid diagram safely'],
+      trustManifest: {
+        identity: 'did:web:agentic-mermaid.dev',
+        identityType: 'did',
+      },
+    },
+  ],
+  generatedFrom,
+}
+
+await emitJson('.well-known/mcp/server-card.json', mcpServerCard)
+await emitJson('.well-known/mcp.json', mcpManifest)
+await emitJson('.well-known/ai-catalog.json', aiCatalog)
+
 const skillFiles = ['SKILL.md', 'references/cli.md', 'references/code-mode.md', 'references/flowchart.md', 'references/sequence.md', 'references/timeline.md']
 for (const file of skillFiles) {
   const text = await Bun.file(join(ROOT, 'skills/agentic-mermaid-diagram-workflow', file)).text()
@@ -1208,8 +1485,44 @@ for (const file of skillFiles) {
 }
 
 // Public llms.txt must not expose repo-only backlog/eval/contributor surfaces.
-const publicLlms = `# Agentic Mermaid\n\nAgentic Mermaid renders, verifies, and safely edits Mermaid diagrams. Use the package, CLI, the hosted MCP at /mcp, or a self-hosted MCP; the website is documentation plus a browser-local editor, not a REST render API.\n\nStart here:\n- /start.md \u2013 copy-and-follow bootstrap: pick a channel, learn the surface, run the safe loop\n- /mcp \u2013 hosted MCP endpoint (stateless streamable HTTP JSON-RPC; tools: execute, render_svg, render_ascii, render_png, verify, describe, mutate, build)\n- /agent-instructions.md – compact operating guide for agents\n- /capabilities.json – authoritative family/output/mutation/warning contract\n- /examples/index.json – the same example IDs and sources loaded by the editor\n- /skills/agentic-mermaid-diagram-workflow/SKILL.md – optional workflow skill for skills-capable agents\n\nStyles: every render accepts style (a name like hand-drawn/watercolor/blueprint or any theme name, an inline JSON record, or a stack merged left-to-right) plus seed to re-roll styled ink; layout never moves. A colors-only style is a theme. Authoring guide: docs/style-authoring.md in the package.\n\nStop rules:\n- Verify before serialize, render, commit, or return.\n- For task-critical meaning, read back facts (am describe --format facts, hosted describe with format=\"facts\", or checkMermaid).\n- Do not fabricate ValidDiagram objects. Parse first.\n- Prefer the local library, CLI, or MCP; the hosted /mcp endpoint covers the same tools with 64KB input caps.\n- Call /mcp with MCP JSON-RPC only; the website is not a REST render API.\n`;
+const publicLlms = `# Agentic Mermaid
+
+> Agent-native Mermaid runtime: parse, verify, mutate, and render diagrams through a TypeScript library, CLI, self-hosted MCP, or hosted Streamable HTTP MCP. The website is documentation plus a browser-local editor, not a REST render API.
+
+Use Agentic Mermaid when an agent needs to create, edit, verify, describe, or render Mermaid diagrams without depending on a browser. It is strongest for deterministic CI checks, structured diagram edits, read-back of semantic facts, and SVG/PNG/ASCII output from the same source.
+
+Do not use the hosted MCP for private diagrams that must stay local; use the library, CLI, or self-hosted stdio MCP instead. Do not call the website as a REST render API; /mcp speaks MCP JSON-RPC only.
+
+Safe loop:
+- Verify before serialize, render, commit, or return.
+- For task-critical meaning, read back facts with am describe --format facts, hosted describe format="facts", or checkMermaid.
+- Do not fabricate ValidDiagram objects. Parse first.
+- Prefer the local library, CLI, or MCP. The hosted /mcp endpoint covers the same core tools with 64KB input caps.
+- For straightforward edits, prefer mutate/build over execute. Reserve execute for logic the declarative ops do not express.
+
+Styling: every render accepts style (a renderer treatment like hand-drawn, watercolor, or blueprint; a palette name; an inline JSON record; or a stack merged left-to-right) plus seed to re-roll styled ink. Layout never moves. A colors-only style is a palette.
+
+## Start Here
+
+- [Agent bootstrap](https://agentic-mermaid.dev/start.md): copy-and-follow workflow for one diagram task.
+- [Hosted MCP endpoint](https://agentic-mermaid.dev/mcp): stateless Streamable HTTP JSON-RPC with execute, render_svg, render_ascii, render_png, verify, describe, mutate, and build.
+- [MCP server card](https://agentic-mermaid.dev/.well-known/mcp/server-card.json): pre-connection metadata for the hosted MCP server.
+- [MCP manifest](https://agentic-mermaid.dev/.well-known/mcp.json): compact tool manifest for agents and scanners.
+- [AI catalog](https://agentic-mermaid.dev/.well-known/ai-catalog.json): discovery index for the agent-facing resources on this domain.
+- [Agent instructions](https://agentic-mermaid.dev/agent-instructions.md): compact operating guide for agents.
+- [Capabilities](https://agentic-mermaid.dev/capabilities.json): authoritative family, output, mutation, and warning-code contract.
+- [Examples](https://agentic-mermaid.dev/examples/index.json): the same example IDs and sources loaded by the editor.
+- [Workflow skill](https://agentic-mermaid.dev/skills/agentic-mermaid-diagram-workflow/SKILL.md): optional skill for skills-capable agents.
+
+## Optional
+
+- [Documentation](https://agentic-mermaid.dev/docs/): human-readable docs for install, CLI, MCP, diagram families, and styling.
+- [Editor](https://agentic-mermaid.dev/editor/?empty=1): browser-local editor for interactive diagram authoring.
+- [GitHub repository](https://github.com/adewale/agentic-mermaid): source code, issues, and release history.
+`;
 await emit('llms.txt', publicLlms)
+await emit('llms.md', publicLlms)
+await emit('.well-known/llms.txt', publicLlms)
 await emit('agent-instructions.md', await Bun.file(join(ROOT, 'Instructions_for_agents.md')).text())
 await emit('start.md', await Bun.file(join(SOURCE, 'start.md')).text())
 
@@ -1770,10 +2083,9 @@ await emit('_redirects', redirectLines)
 // hand-kept list so new pages are picked up automatically. No <lastmod>: the
 // committed build uses buildTime='development', and a per-build timestamp would
 // make the bundle non-deterministic and break `website:check`.
-const SITE_ORIGIN = 'https://agentic-mermaid.dev'
 const sitemapUrls = [...generated.keys()]
   .filter((rel) => rel === 'index.html' || rel.endsWith('/index.html'))
-  .map((rel) => SITE_ORIGIN + '/' + rel.replace(/index\.html$/, ''))
+  .map((rel) => siteOrigin + '/' + rel.replace(/index\.html$/, ''))
   .sort()
 const sitemapXml = [
   '<?xml version="1.0" encoding="UTF-8"?>',
@@ -1886,7 +2198,7 @@ function assertNoPlaceholders() {
   if (offenders.length) throw new Error(`public HTML has placeholder href="#": ${offenders.join(', ')}`)
 }
 function assertContractShapes() {
-  for (const [name, obj] of Object.entries({ capabilities, examples })) {
+  for (const [name, obj] of Object.entries({ capabilities, examples, mcpServerCard, mcpManifest, aiCatalog })) {
     if (!(obj as any).generatedFrom) throw new Error(`${name} missing generatedFrom`)
   }
   if (publicLlms.includes('TODO.md') || publicLlms.includes('skill-evals/')) throw new Error('public llms.txt exposes repo-only surfaces')

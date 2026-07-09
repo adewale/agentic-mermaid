@@ -115,6 +115,24 @@ describe('Workers Static Assets website contract', () => {
     expect(mcp.status).toBe(405)
     expect(((await mcp.json()) as any).error.message).toContain('stateless')
     expect(assetFetches).toBe(0)
+
+    const wellKnownMcp = await worker.fetch(new Request('https://agentic-mermaid.dev/.well-known/mcp'), env(() => new Response('should not run')))
+    expect(wellKnownMcp.status).toBe(405)
+    expect(((await wellKnownMcp.json()) as any).error.message).toContain('stateless')
+    expect(assetFetches).toBe(0)
+
+    const wellKnownInitialize = await worker.fetch(new Request('https://agentic-mermaid.dev/.well-known/mcp', {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        accept: 'application/json, text/event-stream',
+      },
+      body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'initialize', params: { protocolVersion: '2025-06-18' } }),
+    }), env(() => new Response('should not run')))
+    expect(wellKnownInitialize.status).toBe(200)
+    const wellKnownPayload = await wellKnownInitialize.json() as any
+    expect(wellKnownPayload.result.serverInfo.name).toBe('agentic-mermaid-mcp')
+    expect(assetFetches).toBe(0)
   })
 
   test('Workers website source no longer depends on mockups', () => {
@@ -135,7 +153,8 @@ describe('Workers Static Assets website contract', () => {
       'docs/mcp/index.html', 'docs/ascii/index.html', 'docs/theming/index.html',
       'docs/custom-styles/index.html', 'docs/quality/index.html', 'docs/fork-differences/index.html',
       'warnings/index.html', 'errors/index.html', 'examples/index.html', 'comparisons/index.html',
-      'llms.txt', 'agent-instructions.md', 'capabilities.json', 'examples/index.json', 'schemas/style-spec.schema.json',
+      'llms.txt', 'llms.md', '.well-known/llms.txt', 'agent-instructions.md', 'capabilities.json', 'examples/index.json', 'schemas/style-spec.schema.json',
+      '.well-known/mcp.json', '.well-known/mcp/server-card.json', '.well-known/ai-catalog.json',
       'sitemap.xml',
       'skills/agentic-mermaid-diagram-workflow/SKILL.md', '_headers', '_redirects',
     ]
@@ -228,6 +247,9 @@ describe('Workers Static Assets website contract', () => {
       expect(html).toContain('<link rel="alternate" type="text/plain" href="/llms.txt">')
       expect(html).toContain('<link rel="alternate" type="application/json" href="/capabilities.json">')
       expect(html).toContain('<link rel="alternate" type="text/markdown" href="/agent-instructions.md">')
+      expect(html).toContain('<link rel="alternate" type="application/json" href="/.well-known/mcp.json">')
+      expect(html).toContain('<link rel="mcp-server" type="application/mcp-server-card+json" href="/.well-known/mcp/server-card.json">')
+      expect(html).toContain('<link rel="ai-catalog" type="application/json" href="/.well-known/ai-catalog.json">')
     }
     expect(home).toContain('id="home-agent-prompt"')
     expect(home).toContain('class="page-actions" aria-label="Primary paths"')
@@ -560,7 +582,7 @@ describe('Workers Static Assets website contract', () => {
   })
 
   test('focused agent artifacts are generated and stale machine catalogs are absent', () => {
-    for (const rel of ['capabilities.json', 'examples/index.json']) {
+    for (const rel of ['capabilities.json', 'examples/index.json', '.well-known/mcp.json', '.well-known/mcp/server-card.json', '.well-known/ai-catalog.json']) {
       const json = JSON.parse(read(rel))
       expect({ rel, generatedFrom: Boolean(json.generatedFrom) }).toEqual({ rel, generatedFrom: true })
     }
@@ -569,8 +591,22 @@ describe('Workers Static Assets website contract', () => {
     }
     expect(existsSync(join(SITE, 'skills/agentic-mermaid-diagram-workflow/SKILL.md'))).toBe(true)
     expect(read('llms.txt')).toContain('/skills/agentic-mermaid-diagram-workflow/SKILL.md')
+    expect(read('llms.txt')).toContain('[MCP server card](https://agentic-mermaid.dev/.well-known/mcp/server-card.json)')
+    expect(read('llms.md')).toBe(read('llms.txt'))
+    expect(read('.well-known/llms.txt')).toBe(read('llms.txt'))
     expect(read('llms.txt')).not.toContain('/agent-manifest.json')
     expect(read('llms.txt')).not.toContain('/recipes/index.json')
+    const mcpCard = JSON.parse(read('.well-known/mcp/server-card.json'))
+    expect(mcpCard.serverUrl).toBe('https://agentic-mermaid.dev/mcp')
+    expect(mcpCard.wellKnownUrl).toBe('https://agentic-mermaid.dev/.well-known/mcp')
+    expect(mcpCard.transport).toBe('streamable-http')
+    expect(mcpCard.tools.map((tool: any) => tool.name)).toEqual(['execute', 'render_svg', 'render_ascii', 'render_png', 'verify', 'describe', 'mutate', 'build'])
+    expect(mcpCard.tools.every((tool: any) => tool.annotations?.destructiveHint === false)).toBe(true)
+    expect(mcpCard.tools.every((tool: any) => tool.parameters && typeof tool.parameters === 'object')).toBe(true)
+    expect(read('.well-known/mcp.json')).toContain('"serverUrl": "https://agentic-mermaid.dev/mcp"')
+    const aiCatalog = JSON.parse(read('.well-known/ai-catalog.json'))
+    expect(aiCatalog.entries.map((entry: any) => entry.type)).toContain('application/mcp-server-card+json')
+    expect(aiCatalog.entries.map((entry: any) => entry.url)).toContain('https://agentic-mermaid.dev/.well-known/mcp/server-card.json')
     const capabilities = JSON.parse(read('capabilities.json'))
     expect(capabilities.families.map((family: any) => family.id)).toContain('flowchart')
     expect(capabilities.warningCodes.map((warning: any) => warning.tier)).toContain('structural')
@@ -618,6 +654,8 @@ describe('Workers Static Assets website contract', () => {
     const publicText = files().filter((f) => /\.(html|json|md|txt)$/.test(f)).map(read).join('\n')
     expect(publicText).toContain('execute</code>, <code>render_png</code>, and <code>describe</code>')
     expect(publicText).toContain('https://agentic-mermaid.dev/mcp')
+    expect(publicText).toContain('https://agentic-mermaid.dev/.well-known/mcp')
+    expect(publicText).toContain('https://agentic-mermaid.dev/.well-known/mcp/server-card.json')
     expect(publicText).toContain('render_svg')
     expect(publicText).toContain('render_ascii')
     // The 501 placeholder era is over; no page may still claim it.
@@ -704,7 +742,16 @@ describe('Workers Static Assets website contract', () => {
       const html = read(rel)
       expect({ rel, og: html.includes('property="og:title"') }).toEqual({ rel, og: true })
       expect({ rel, tw: html.includes('name="twitter:card"') }).toEqual({ rel, tw: true })
+      expect({ rel, canonical: html.includes('<link rel="canonical" href="https://agentic-mermaid.dev/') }).toEqual({ rel, canonical: true })
+      expect({ rel, image: html.includes('<meta property="og:image" content="https://agentic-mermaid.dev/og-image.png">') }).toEqual({ rel, image: true })
     }
+    const homeJsonLd = read('index.html').match(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/)?.[1]
+    expect(Boolean(homeJsonLd)).toBe(true)
+    const graph = JSON.parse(homeJsonLd!)['@graph']
+    expect(graph.map((node: any) => node['@type'])).toEqual(expect.arrayContaining(['Organization', 'SoftwareApplication', 'Service', 'WebPage', 'FAQPage']))
+    expect(graph.find((node: any) => node['@type'] === 'Organization').contactPoint.url).toBe('https://github.com/adewale/agentic-mermaid/issues')
+    expect(graph.find((node: any) => node['@type'] === 'Organization').address.addressCountry).toBe('US')
+    expect(graph.find((node: any) => node['@type'] === 'WebPage').speakable.cssSelector).toContain('h1')
     // The editor verdict is truthful copy, not the old overclaim.
     const editorScript = read(editorScriptRel())
     expect(editorScript).toContain('Verified: no warnings')
@@ -714,6 +761,12 @@ describe('Workers Static Assets website contract', () => {
 
   test('public llms.txt omits repo-only backlog and eval surfaces', () => {
     const text = read('llms.txt')
+    expect(text).toStartWith('# Agentic Mermaid\n\n> Agent-native Mermaid runtime:')
+    expect(text).toContain('[Agent bootstrap](https://agentic-mermaid.dev/start.md)')
+    expect(text).toContain('[Capabilities](https://agentic-mermaid.dev/capabilities.json)')
+    expect(text).toContain('Use Agentic Mermaid when an agent needs to create, edit, verify, describe, or render Mermaid diagrams')
+    expect(text).toContain('## Start Here')
+    expect(text).toContain('## Optional')
     expect(text).not.toContain('TODO.md')
     expect(text).not.toContain('skill-evals/')
     expect(text).toContain('/capabilities.json')
