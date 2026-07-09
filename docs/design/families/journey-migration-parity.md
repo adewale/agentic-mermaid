@@ -229,6 +229,7 @@ Adopt Mermaid's Journey visual metaphor as the default public SVG renderer.
 
 Prototype and visual evidence:
 
+- [`journey-agentic-cards-before.png`](./journey-agentic-cards-before.png)
 - [`journey-mermaid-classic-prototype.svg`](./journey-mermaid-classic-prototype.svg)
 - [`journey-mermaid-classic-prototype.png`](./journey-mermaid-classic-prototype.png)
 - [`journey-mermaid-classic-implementation.png`](./journey-mermaid-classic-implementation.png)
