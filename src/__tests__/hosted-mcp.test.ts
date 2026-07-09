@@ -72,6 +72,17 @@ describe('hosted MCP handshake', () => {
     const names = (res?.result as any).tools.map((t: { name: string }) => t.name)
     expect(names).toEqual(['execute', 'render_svg', 'render_ascii', 'render_png', 'verify', 'describe', 'mutate', 'build'])
     expect((res?.result as any).tools).toBe(HOSTED_TOOLS)
+    for (const tool of (res?.result as any).tools) {
+      expect(tool.annotations).toEqual(expect.objectContaining({
+        readOnlyHint: true,
+        destructiveHint: false,
+        openWorldHint: false,
+      }))
+    }
+    expect((res?.result as any).tools.find((tool: any) => tool.name === 'execute').annotations.idempotentHint).toBe(false)
+    for (const name of ['render_svg', 'render_ascii', 'render_png', 'verify', 'describe', 'mutate', 'build']) {
+      expect((res?.result as any).tools.find((tool: any) => tool.name === name).annotations.idempotentHint).toBe(true)
+    }
   })
 
   test('unknown methods and unknown tools are JSON-RPC errors', async () => {

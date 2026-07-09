@@ -5,6 +5,12 @@ export interface McpToolDefinition {
   name: string
   description: string
   inputSchema: Record<string, unknown>
+  annotations?: {
+    readOnlyHint?: boolean
+    destructiveHint?: boolean
+    idempotentHint?: boolean
+    openWorldHint?: boolean
+  }
 }
 
 export interface McpServerSurface<Context> {
@@ -18,6 +24,18 @@ export const MCP_SERVER_NAME = 'agentic-mermaid-mcp'
 // Derived from package.json so every MCP handshake reports the same package
 // version as the published npm artifact.
 export const MCP_SERVER_VERSION = pkg.version
+export const PURE_COMPUTE_ANNOTATIONS = {
+  readOnlyHint: true,
+  destructiveHint: false,
+  idempotentHint: true,
+  openWorldHint: false,
+} as const
+const SANDBOX_EXECUTE_ANNOTATIONS = {
+  readOnlyHint: true,
+  destructiveHint: false,
+  idempotentHint: false,
+  openWorldHint: false,
+} as const
 
 export async function dispatchMcpRequest<Context>(req: JsonRpcRequest, context: Context, surface: McpServerSurface<Context>): Promise<JsonRpcResponse | null> {
   const id = req.id ?? null
@@ -73,6 +91,7 @@ ${options.sdkDeclaration}`,
       },
       required: ['code'],
     },
+    annotations: SANDBOX_EXECUTE_ANNOTATIONS,
   }
 }
 
@@ -103,6 +122,7 @@ Agentic Mermaid outputs SVG, PNG, ASCII, Unicode, and JSON layout. For non-PNG o
       },
       required: ['source'],
     },
+    annotations: PURE_COMPUTE_ANNOTATIONS,
   }
 }
 
@@ -121,5 +141,6 @@ machine checking (for example edge A -> B : label, member Duck +quack()).`,
       },
       required: ['source'],
     },
+    annotations: PURE_COMPUTE_ANNOTATIONS,
   }
 }

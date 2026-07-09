@@ -69,6 +69,21 @@ dependents after. IDs are stable names, not an ordering.
   managed store with safe tracked names, MIME type, byte count, SHA-256, size
   limit, and TTL checks. Tests cover file output, URL fetch-back, auth/body
   gates, tracked artifact serving, and SSE session lifecycle.
+- [ ] **BUILD-27 — MCP Apps support** (`todo`). Expose an interactive
+  in-agent diagram UI through MCP Apps: `ui://` resources, correct
+  `text/html;profile=mcp-app` resource MIME type, tool `_meta.ui.resourceUri`
+  wiring, CSP for the view, and tests that the resources are reachable without
+  leaking secrets. Start with a read-only preview/verify view before adding any
+  editable surface.
+- [ ] **BUILD-28 — WebMCP support** (`todo`). Track and implement the WebMCP
+  browser-discovery path once the draft stabilizes enough to commit to a public
+  contract. Scope should cover `/.well-known/mcp` compatibility, browser-safe
+  CORS/Origin handling, and parity with the hosted Streamable HTTP tool surface.
+- [ ] **BUILD-29 — ChatGPT app listing** (`todo`). Prepare a ChatGPT app
+  listing once Agentic Mermaid has a stable in-agent UI surface. Package the
+  public description, icon, privacy/security notes, hosted MCP/App endpoints,
+  and reviewer-ready examples; do not submit until the MCP Apps/WebMCP surface
+  is production-ready.
 - [ ] **BUILD-25 — Structured coverage for the last silent-opaque constructs**
   (`todo`, needs legacy-renderer support first; tracked as **#118**). The systemic `UNSUPPORTED_SYNTAX`
   warning (2026-07) now announces every opaque fallback, so these are visible but
