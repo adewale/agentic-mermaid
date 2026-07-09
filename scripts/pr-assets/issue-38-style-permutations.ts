@@ -12,12 +12,8 @@ const OUT_FILE = 'issue-38-style-permutation-contact-sheet.png'
 export const OUTPUT_PATH = join(OUT_DIR, OUT_FILE)
 
 const OPTIONS = {
-  style: {
-    text: { fontSize: 13, letterSpacing: 0.1 },
-    node: { fontSize: 15, fontWeight: 600, letterSpacing: -0.1, paddingX: 22, paddingY: 14, cornerRadius: 16, lineWidth: 1.5 },
-    edge: { fontSize: 12, fontWeight: 600, letterSpacing: 0.1, lineWidth: 2.25, bendRadius: 12 },
-    group: { fontSize: 12, fontWeight: 700, letterSpacing: 0.8, textTransform: 'uppercase' as const, padding: 24, paddingY: 18, cornerRadius: 18, borderColor: '#f97316', lineWidth: 1.5 },
-  },
+  style: 'publication-figure',
+  seed: 3,
 }
 
 const COLORS = THEMES.salmon!

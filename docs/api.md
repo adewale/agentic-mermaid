@@ -99,7 +99,7 @@ const ascii = renderMermaidASCII(`flowchart LR
 | `surface` | `string?` | — | Node fill tint. |
 | `border` | `string?` | — | Node stroke color. |
 | `font` | `string` | `Inter` | Font family. |
-| `style` | `string \| StyleSpec \| (string \| StyleSpec)[]` | — | How the diagram looks: a registered style name (`'hand-drawn'`, `'tufte'`, any theme palette like `'dracula'`), an inline `StyleSpec`, or a stack merged left→right (`['hand-drawn', 'dracula']`). A role-overrides-only object is a valid style and keeps the byte-identical crisp path. See `docs/style-authoring.md`. |
+| `style` | `string \| StyleSpec \| (string \| StyleSpec)[]` | — | How the diagram looks: a registered style name (`'hand-drawn'`, `'tufte'`, any palette like `'dracula'`), an inline public `StyleSpec`, or a stack merged left→right (`['hand-drawn', 'dracula']`). See `docs/style-authoring.md`. |
 | `seed` | `number` | `0` | Deterministic re-roll for stochastic styles — shuffles ink wobble, never layout. |
 | `transparent` | `boolean` | `false` | Transparent SVG background. |
 | `padding` | `number` | `40` | Canvas padding. |
@@ -114,16 +114,6 @@ const ascii = renderMermaidASCII(`flowchart LR
 | `idPrefix` | `string` | `''` | Namespace generated SVG def ids. |
 | `security` | `'default' | 'strict'` | `'default'` | `strict` disables external-fetch references. |
 | `ganttToday` | `string` | unset | Explicit "today" for the Gantt `todayMarker` (date in the diagram's `dateFormat` or ISO `YYYY-MM-DD`). Gantt never reads the wall clock; without this the marker is not drawn. |
-
-A `StyleSpec` may also carry per-role overrides (a role-only object is
-itself a valid style):
-
-| Role | Fields |
-|---|---|
-| `style.text` | `fontSize`, `fontWeight`, `letterSpacing`, `textTransform` |
-| `style.node` | `fontSize`, `fontWeight`, `letterSpacing`, `textTransform`, `paddingX`, `paddingY`, `cornerRadius`, `lineWidth` |
-| `style.edge` | `fontSize`, `fontWeight`, `letterSpacing`, `textTransform`, `lineWidth`, `bendRadius` |
-| `style.group` | `fontSize`, `fontWeight`, `letterSpacing`, `fontFamily`, `textTransform`, `paddingX`, `paddingY`, `cornerRadius`, `borderColor`, `lineWidth` |
 
 For JSON files, use
 [`docs/schemas/style-spec.schema.json`](./schemas/style-spec.schema.json). The

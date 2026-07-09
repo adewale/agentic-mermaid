@@ -12,7 +12,6 @@ const DIR = import.meta.dir
 const FONTS = ['../../assets/fonts/Caveat.ttf', '../../assets/fonts/EBGaramond.ttf', '../../assets/fonts/ShareTechMono.ttf', '../../assets/fonts/ArchitectsDaughter.ttf', 'Fraunces.ttf', 'Cinzel.ttf', 'Fredoka.ttf', 'BalsamiqSans.ttf', '../../assets/fonts/DejaVuSans.ttf', '../../assets/fonts/DejaVuSans-Bold.ttf'].map(f => join(DIR, f))
 const di = Number(process.argv[2] ?? 0)
 const d = DIAGRAMS[di]!
-const TYPE_OPT = { style: { text: { fontSize: 22 }, node: { fontSize: 26, fontWeight: 600, paddingX: 22, paddingY: 14 }, edge: { fontSize: 22, fontWeight: 600 }, group: { fontSize: 22, fontWeight: 700 } } }
 const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
 
 function raster(svg: string, width: number, bg?: string) {
@@ -32,7 +31,7 @@ STYLES.forEach((st, i) => {
   P.push(`<rect x="${x}" y="${y}" width="${CW}" height="${LBL}" fill="#0c0c10"/>`)
   P.push(`<text x="${x + 12}" y="${y + 35}" font-family="DejaVu Sans" font-size="26" font-weight="bold" fill="#ffffff">${esc(st.label)}</text>`)
   try {
-    const raw = renderMermaidSVG(d.src, { bg: st.colors.bg, fg: st.colors.fg, line: st.colors.line, accent: st.colors.accent, muted: st.colors.muted, surface: st.colors.surface, border: st.colors.border, font: st.font, embedFontImport: false, transparent: true, ...TYPE_OPT, style: { ...TYPE_OPT.style, node: { ...TYPE_OPT.style.node, cornerRadius: st.nodeCornerRadius } } })
+    const raw = renderMermaidSVG(d.src, { bg: st.colors.bg, fg: st.colors.fg, line: st.colors.line, accent: st.colors.accent, muted: st.colors.muted, surface: st.colors.surface, border: st.colors.border, font: st.font, embedFontImport: false, transparent: true, style: 'publication-figure' })
     const img = raster(restyle(raw, st, { backdrop: true }), (CW - 24) * SCALE)
     const availW = CW - 24, availH = CH - LBL - 24
     const sc = Math.min(availW / (img.w / SCALE), availH / (img.h / SCALE))

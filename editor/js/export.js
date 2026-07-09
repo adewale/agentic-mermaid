@@ -39,7 +39,6 @@ function setExportDropdownOpen(open, focusFirst) {
   exportPopup.setOpen(open, { focusFirst: !!focusFirst });
 }
 
-exportDropdown.querySelectorAll('button').forEach(function(btn) { btn.setAttribute('role', 'menuitem'); });
 exportMainBtn.addEventListener('click', function() {
   exportPNG();
 });

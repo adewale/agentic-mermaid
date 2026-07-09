@@ -57,7 +57,13 @@ dependents after. IDs are stable names, not an ordering.
   no `robots.txt` (it would only collide with the managed one), so the dashboard
   is the single source for this line.
 
-## 1. Ready build backlog
+## 1. Security backlog
+
+- [ ] **SEC-1 — Sanitize editor share/draft render config before SVG insertion** (`todo`). Audit on 2026-07-09 found that `/editor/` accepts hash/draft `config`, merges it into render options, and inserts rendered SVG with `innerHTML`; malicious color/font/style values can break out of the SVG root `style` attribute and create executable SVG markup under the current CSP. Fix by allowlisting editor-restorable config keys/values, escaping SVG root styles/attrs in `svgOpenTag`, sanitizing preview SVG before insertion, and adding hostile hash/draft/browser regression tests.
+- [ ] **SEC-2 — Cap editor share-link decompression and draft restore size** (`todo`). Deflated share links and localStorage drafts currently decode/read without a byte cap, so a crafted hash or stale draft can hang the browser. Add encoded/decoded size limits, streaming abort on overflow, visible too-large errors, and tests for corrupt/oversized links and missing `DecompressionStream`.
+- [ ] **SEC-3 — Make editor autosave privacy explicit** (`todo`). The editor persists diagram source, render config, style, and seed in plaintext `localStorage` by default. Add a visible disclosure plus a clear/private-mode option or switch persistent drafts to opt-in/session-only storage.
+
+## 2. Ready build backlog
 
 - [x] **BUILD-7 — MCP reachability: streamable-HTTP/SSE transport + file/URL
   outputs** (`done`). Added opt-in HTTP/SSE transport with loopback-default
@@ -522,7 +528,7 @@ dependents after. IDs are stable names, not an ordering.
     - [ ] the new families have no browser screenshot baselines (needs a local
       browser run).
 
-## 2. Agent-usage verification backlog
+## 3. Agent-usage verification backlog
 
 - [x] **EVAL-1 — Capture subagent-backed release-model transcripts** (`done`).
   `eval/agent-usage/transcripts/pi-subagent-release-2026-06-10/` captures a
@@ -548,11 +554,11 @@ dependents after. IDs are stable names, not an ordering.
   Fold any skill gaps back into `SKILL.md`/`references/`; keep or cut the
   footer link based on whether it demonstrably helps.
 
-## 3. Blocked / external resource needed
+## 4. Blocked / external resource needed
 
 _No active blocked items._
 
-## 4. Parked / evidence-required ideas
+## 5. Parked / evidence-required ideas
 
 - [ ] **PARK-2 — `.well-known/skills` discovery** (`parked`). Watch the
   ecosystem; do not implement until a standard settles.
@@ -562,7 +568,7 @@ _No active blocked items._
   and owner. (QuadrantChart was promoted to BUILD-11; fan-in grouping was
   PARK-1, promoted to BUILD-9.)
 
-## 5. Consolidation / dedup backlog
+## 6. Consolidation / dedup backlog
 
 Open items carried over from the 2026-07 consolidation audit (the audit doc has
 been retired; its landed items shipped, these remain). Each is a
@@ -645,7 +651,7 @@ invariants against recurrence.
   `website-build.test.ts`. `samples-data.ts` stays (shared with eval tooling).
   The GitHub Pages pipeline is fully retired.
 
-## 6. Non-goals
+## 7. Non-goals
 
 - Do not port Vercel-specific package rename, committed `dist/`, `.vercel`, or Vercel branding.
 - Do not fold `zhenhuaa/mdv` wholesale into this package; terminal Markdown

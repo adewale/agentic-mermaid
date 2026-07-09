@@ -266,15 +266,9 @@ export function renderMermaidSVG(
     : options
   // The style stack resolves BEFORE colors and layout: names come from the
   // registry, fragments merge left → right, and the merged palette/font are
-  // defaults under the user's own options and themeVariables. A spec that
-  // only carries role overrides stays on the byte-identical crisp path.
+  // defaults under the user's own options and themeVariables.
   const mergedStyle = resolveStyleStack(options.style)
   const styled = mergedStyle !== undefined && isStyledSpec(mergedStyle)
-  if (mergedStyle) {
-    // Renderers read the role overrides (text/node/edge/group) from
-    // options.style; a StyleSpec carries them directly.
-    effectiveOptions = { ...effectiveOptions, style: mergedStyle }
-  }
   if (styled) {
     effectiveOptions = applyStyleDefaults(effectiveOptions, mergedStyle, normalizedSource.config.themeVariables)
   }

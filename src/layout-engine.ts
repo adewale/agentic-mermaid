@@ -35,6 +35,7 @@ import type {
 } from './types.ts'
 import { ARROW_HEAD, FLOWCHART_DOTTED_DASH, applyTextTransform, resolveRenderStyle } from './styles.ts'
 import type { ResolvedRenderStyle } from './styles.ts'
+import type { InternalStyleFace } from './scene/style-registry.ts'
 import { measureMultilineText } from './text-metrics.ts'
 import { elkLayoutSync } from './elk-instance.ts'
 import { clipEdgeToShape } from './shape-clipping.ts'
@@ -89,6 +90,8 @@ export { alignLayerNodes, orthogonalizeEdgePoints } from './layout/passes/index.
 interface LayoutEngineOptions extends RenderOptions {
   /** @internal Preserve direct child order in compound nodes for projected families. */
   preserveSubgraphChildOrder?: boolean
+  /** @internal Precomputed built-in style face for projected family layout. */
+  styleFace?: InternalStyleFace
 }
 
 type ElkConversionOptions = Required<Pick<RenderOptions, 'font' | 'padding' | 'nodeSpacing' | 'layerSpacing'>> &

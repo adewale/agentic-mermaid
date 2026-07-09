@@ -23,16 +23,14 @@ never anticipated can emerge.
 ## 1. One concept: style. A theme is a kind of style.
 
 The repo used to have three overlapping vocabularies: *themes* (the
-`THEMES` palette record + `themeVariables` + color options), *role style
-options* (the old `RenderOptions.style: DiagramStyleOptions`), and the
-pre-consolidation *aesthetics*. Three words, three shapes, three precedence
-stories — for what is one question: **how should this diagram look?**
+`THEMES` palette record + `themeVariables` + color options), early private
+role-face experiments, and the pre-consolidation *aesthetics*. Multiple words,
+shapes, and precedence stories answered one question: **how should this diagram look?**
 
 We collapse them into one primitive:
 
 > A **style** is a partial description of how diagrams look. Every field is
-> optional. A style that only sets colors is what people call a *theme*. A
-> style that only sets `node.cornerRadius` is a tweak. A style that sets
+> optional. A style that only sets colors is a palette. A style that sets
 > stroke character, fills, typography, and a palette is a full look.
 
 ```ts
@@ -53,9 +51,6 @@ interface StyleSpec {
   roughness?; bowing?; passes?; strokeWidth?; hachureAngle?; hachureGap?;
   fillWeight?; washOpacity?; washEdge?
   backdrop?: 'plain' | 'paper-ruled' | 'grid'
-
-  // per-role overrides (the old DiagramStyleOptions, subsumed)
-  text?; node?; edge?; group?
 
   // advisory metadata (documented, never read by the engine)
   intent?: 'premium' | 'draft' | 'lofi'
@@ -89,18 +84,17 @@ renderMermaidSVG(src, { style: 'hand-drawn' })
 renderMermaidSVG(src, { style: ['hand-drawn', 'dracula'] })
 
 // stack a shared brand fragment and a local tweak on top
-renderMermaidSVG(src, { style: ['hand-drawn', acmeBrand, { node: { cornerRadius: 0 } }] })
+renderMermaidSVG(src, { style: ['hand-drawn', acmeBrand, { colors: { accent: '#e11d48' } }] })
 ```
 
-Merging is left→right, per field, shallow within each role — the CSS
-intuition everyone already has. The full precedence story becomes one line:
+Merging is left→right, per field — the CSS intuition everyone already has.
+The full precedence story becomes one line:
 
 ```
 defaults  <  style stack (left → right)  <  themeVariables  <  explicit color options
 ```
 
-This one rule replaces: a theme option, a style option, a role-override
-option, and any future "variant"/"overrides" parameters. It is also the
+This one rule replaces separate theme/style/variant parameters. It is also the
 agent-native shape: an agent composes a look by concatenating fragments it
 was given, retrieved, or wrote itself.
 
@@ -137,8 +131,8 @@ floor low, the ceiling high, and the walls wide.
 
 - **Low floor**: `style: 'hand-drawn'` — one string.
 - **Wide walls**: fragments compose across axes we don't enumerate. A
-  palette fragment × a line-character fragment × a typography fragment × a
-  role tweak — we ship fifteen full looks, but the space users can reach is
+  palette fragment × a line-character fragment × a typography fragment — we
+  ship full looks, but the space users can reach is
   the product of every fragment anyone writes. Nobody designs "corporate
   memo hand-drawn dark"; it emerges from a stack.
 - **High ceiling**: `registerBackend` + the SceneGraph types for the rare
@@ -191,19 +185,18 @@ byte-identical, corpus-gated):
 ## 6. Rollout, emergence-first
 
 1. **Collapse the primitives**: rename `aesthetic` → `style`; make all
-   `StyleSpec` fields optional with role keys on the spec; implement the
-   stack merge; register `THEMES` as styles; infer backends. (Everything
-   else builds on the final shape.) *Status: DONE — resolveStyleStack /
-   styleRolesOf / inferBackend / validateStyleSpec in
-   src/scene/style-registry.ts; RenderOptions.style is the union; proven a
-   pure refactor by the styled-output baseline passing unregenerated.*
+   `StyleSpec` fields optional; implement the stack merge; register `THEMES`
+   as styles; infer backends. (Everything else builds on the final shape.)
+   *Status: DONE — resolveStyleStack / inferBackend / validateStyleSpec in
+   src/scene/style-registry.ts; RenderOptions.style is the union; public
+   role-key objects were removed before launch.*
 2. **Agent surface**: MCP render tool + SDK declaration accept `style`
    (name | spec | stack) and `seed`; authoring guide linked for agents.
 3. **CLI**: `am render --style <name|file.json>` (repeatable = stack),
    `--seed`, `am styles [--json]`; PNG threading with an explicit
    font-fallback warning.
-4. **Editor**: style picker, 🎲 shuffle, and a fragment pane — paste or edit
-   JSON, watch it stack live. The custom-look playground is the demo.
+4. **Editor**: style picker and palette picker for built-in looks; `seed` stays
+   an API/CLI/share-link field rather than a persistent topbar control.
 5. **README + gallery** generated from the registry.
 6. **Fonts for PNG parity** (OFL faces as reviewed assets).
 

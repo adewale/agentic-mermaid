@@ -2,56 +2,21 @@
    copyable agent prompts/config snippets. The public site no longer has a
    global theme picker — diagram themes live in the editor. */
 (function () {
-  function copyText(text) {
-    if (navigator.clipboard && navigator.clipboard.writeText) return navigator.clipboard.writeText(text);
-    const ta = document.createElement('textarea');
-    ta.value = text;
-    ta.setAttribute('readonly', '');
-    ta.style.position = 'fixed';
-    ta.style.left = '-9999px';
-    document.body.appendChild(ta);
-    ta.select();
-    try { document.execCommand('copy'); }
-    finally { document.body.removeChild(ta); }
-    return Promise.resolve();
-  }
-
-  function setCopyState(btn, state, original) {
-    const label = state === 'ok' ? 'Copied' : 'Copy failed';
-    // Pin the resting width before swapping in the shorter "Copied" / "Copy failed"
-    // label, so the button can't shrink and slide its flex neighbours (the hero's
-    // "Try editor" / "Install locally" links) sideways for the 1.8s feedback window.
-    // The resting label is always the widest state, so this only ever reserves space.
-    if (!btn.style.minWidth) btn.style.minWidth = Math.ceil(btn.getBoundingClientRect().width) + 'px';
-    btn.dataset.copyState = state;
-    const text = btn.querySelector('span:last-child');
-    if (text) text.textContent = label;
-    else btn.textContent = label;
-    const widget = btn.closest('[data-copy-widget]');
-    const status = widget ? widget.querySelector('[role="status"]') : null;
-    const name = btn.dataset.copyName || (widget && widget.dataset.copyName) || 'Snippet';
-    if (status) status.textContent = state === 'ok' ? name + ' copied to clipboard.' : 'Copy failed. Select the ' + name + ' and copy manually.';
-    window.setTimeout(() => {
-      delete btn.dataset.copyState;
-      if (text) text.textContent = original;
-      else btn.textContent = original;
-      if (status) status.textContent = '';
-      btn.style.minWidth = '';
-    }, 1800);
-  }
-
   function initCopyButtons() {
-    document.querySelectorAll('[data-copy-target]').forEach((btn) => {
+    document.querySelectorAll('[data-copy-target], [data-copy-text]').forEach((btn) => {
       btn.addEventListener('click', () => {
+        const inline = btn.getAttribute('data-copy-text');
         const id = btn.getAttribute('data-copy-target');
         const target = id ? document.getElementById(id) : null;
-        if (!target) return;
-        const text = btn.querySelector('span:last-child');
-        const original = text ? text.textContent : btn.textContent;
-        copyText(target.textContent || '').then(() => {
-          setCopyState(btn, 'ok', original);
+        const value = inline != null ? inline : (target ? target.textContent || '' : '');
+        if (!value) return;
+        const widget = btn.closest('[data-copy-widget]');
+        const status = widget ? widget.querySelector('[role="status"]') : null;
+        const name = btn.dataset.copyName || (widget && widget.dataset.copyName) || 'Snippet';
+        copyText(value).then(() => {
+          setCopyFeedback(btn, 'ok', { status, name });
         }).catch(() => {
-          setCopyState(btn, 'err', original);
+          setCopyFeedback(btn, 'err', { status, name });
         });
       });
     });

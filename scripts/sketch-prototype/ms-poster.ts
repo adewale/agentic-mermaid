@@ -55,7 +55,7 @@ DIAGRAMS.forEach((d, i) => {
   const y = PAD + TITLE_H + row * (CELL_H + CAP_H)
   const availW = CELL_W - 36, availH = CELL_H - 24
   try {
-    const raw = renderMermaidSVG(d.src, { bg: st.colors.bg, fg: st.colors.fg, line: st.colors.line, accent: st.colors.accent, muted: st.colors.muted, surface: st.colors.surface, border: st.colors.border, font: st.font, embedFontImport: false, transparent: true, style: { text: { fontSize: 22 }, node: { fontSize: 26, fontWeight: 600, paddingX: 22, paddingY: 14, cornerRadius: st.nodeCornerRadius }, edge: { fontSize: 22, fontWeight: 600 }, group: { fontSize: 22, fontWeight: 700 } } })
+    const raw = renderMermaidSVG(d.src, { bg: st.colors.bg, fg: st.colors.fg, line: st.colors.line, accent: st.colors.accent, muted: st.colors.muted, surface: st.colors.surface, border: st.colors.border, font: st.font, embedFontImport: false, transparent: true, style: 'publication-figure' })
     const img = raster(restyle(raw, st, { backdrop: false }), availW * SCALE)
     const sc = Math.min(availW / (img.w / SCALE), availH / (img.h / SCALE))
     const dw = (img.w / SCALE) * sc, dh = (img.h / SCALE) * sc

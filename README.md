@@ -2,9 +2,11 @@
 
 # Agentic Mermaid
 
-Agentic Mermaid is an open-source Mermaid rendering and editing toolkit, forked from [`lukilabs/beautiful-mermaid`](https://github.com/lukilabs/beautiful-mermaid), for producing deterministic **SVG, PNG, ASCII, Unicode, and JSON layout** outputs plus agent-verifiable structured edits.
+**Beautiful diagrams, made with your agent.**
 
-Will be published to npm as `agentic-mermaid` — **not yet on npm; install from source for now** (see [Installation](#installation)). The GitHub repository is `adewale/agentic-mermaid`; the canonical live site is [`agentic-mermaid.dev`](https://agentic-mermaid.dev/), a Cloudflare Workers deployment.
+Agentic Mermaid is an open-source Mermaid toolkit for people who want AI agents to create diagrams that look finished: SVG and PNG renders, ASCII and Unicode for review, deterministic layout, and Style + Palette controls for brand colors, typography, strokes, fills, and backdrops.
+
+It is forked from [`lukilabs/beautiful-mermaid`](https://github.com/lukilabs/beautiful-mermaid). It will be published to npm as `agentic-mermaid` — **not yet on npm; install from source for now** (see [Installation](#installation)). The GitHub repository is `adewale/agentic-mermaid`; the canonical live site is [`agentic-mermaid.dev`](https://agentic-mermaid.dev/), a Cloudflare Workers deployment.
 
 ![Agentic Mermaid: Mermaid source plus typed edit ops on the left, the verified SVG render in the middle, and the same diagram as ASCII on the right](assets/hero.png)
 
@@ -16,24 +18,24 @@ Docs: [docs index](./docs/) · [getting started](./docs/getting-started.md) · [
 
 ## Why Agentic Mermaid
 
-Most Mermaid tools render strings. Agentic Mermaid gives coding agents a safer workflow:
+Use it when you want to describe a diagram in plain language and get back something you can publish without a design cleanup pass.
 
-| Task | Safe path |
+| You want | Agentic Mermaid gives you |
 |---|---|
-| Create a new diagram | Write Mermaid source → `parseMermaid` → `verifyMermaid` → render/preview |
-| Edit an existing supported diagram | `parseMermaid` → family narrower → `mutate` → `verifyMermaid` → `serializeMermaid` |
-| Handle opaque fallback bodies | Preserve source, edit deliberately, then parse/verify/render |
-| Multi-step agent edits | Prefer MCP Code Mode or library imports so the loop happens in one structured execution |
-| Shell-only checks | Use `am verify`, `am mutate --op/--ops`, `am preview`, or `am batch --jsonl` |
+| An agent to draft the diagram | Mermaid source plus a verified render path |
+| Beautiful defaults | Built-in looks such as `watercolor`, `blueprint`, `hand-drawn`, and `publication-figure` |
+| Brand fit | Style + Palette stacks and custom JSON palettes you can keep in your repo |
+| Safe edits later | `parseMermaid` → family narrower → `mutate` → `verifyMermaid` → `serializeMermaid` |
+| Reviewable artifacts | SVG, PNG, ASCII, Unicode, and JSON layout from the same source |
 
-Agents should not guess from pixels, concatenate strings, or regenerate whole diagrams when a structured edit is available.
+The agent workflow is the guardrail behind the polish: agents should not guess from pixels, concatenate strings, or regenerate whole diagrams when a structured edit is available.
 
 ## Highlights
 
 - **12 diagram families** — flowchart, state, architecture, sequence, class, ER, timeline, journey, XY chart, pie, quadrant, and Gantt.
-- **SVG, PNG, ASCII, Unicode, JSON** — one deterministic layout foundation for page, terminal, and agent workflows.
+- **SVG, PNG, ASCII, Unicode, JSON** — one deterministic layout foundation for docs, decks, terminals, and agent workflows.
 - **Synchronous, zero-DOM SVG renderer** — no Puppeteer, no browser flash.
-- **Composable styles** — `{ style: ['hand-drawn', 'dracula'] }` stacks a look over a palette; 15 full looks cover sketch, watercolor, blueprint, accessibility, print, operational, physical-media, architecture, and editorial/report use cases, and custom styles are plain JSON records any agent can author (`docs/style-authoring.md`). `seed` re-rolls the ink, never the layout.
+- **Composable styles** — `{ style: ['hand-drawn', 'dracula'] }` stacks a look over a palette; 15 full looks cover sketch, watercolor, blueprint, accessibility, print, operational, physical-media, architecture, and editorial/report use cases. Custom styles are plain JSON records any agent can author (`docs/style-authoring.md`). `seed` re-rolls the ink, never the layout.
 - **21 built-in themes + Shiki compatibility** — a theme is a palette-only style: theme from two colors or a VS Code theme.
 - **Agent-native editing** — typed mutation for all twelve renderable families (flowchart/state, sequence, timeline, class, ER, journey, architecture, XY chart, pie, quadrant, Gantt); source-level round-trip only for opaque fallbacks (unmodeled syntax).
 - **CLI + MCP + library** — `am`, `agentic-mermaid-mcp`, `agentic-mermaid`, and `agentic-mermaid/agent`.
@@ -73,7 +75,7 @@ agentic-mermaid-mcp
 
 ## Output quick starts
 
-Use `agentic-mermaid/agent` when you want all output formats and the structured edit API in one import path.
+Use `agentic-mermaid/agent` when you want one import path for styled renders, output formats, and the structured edit API.
 
 ### SVG
 
@@ -207,7 +209,7 @@ See [diagram families](./docs/diagram-families.md) for examples and compatibilit
 
 ## Live editor and examples
 
-- [Sample gallery](https://agentic-mermaid.dev/) — supported families and role-style presets.
+- [Examples](https://agentic-mermaid.dev/examples/) — supported families, Style + Palette combinations, and the rich shared examples corpus.
 - [Live editor](https://agentic-mermaid.dev/editor) — SVG/PNG exports and URL sharing.
 - [`examples/agent-loop.ts`](./examples/agent-loop.ts)
 - [`examples/mcp-vs-cli-complex-diagrams.ts`](./examples/mcp-vs-cli-complex-diagrams.ts)

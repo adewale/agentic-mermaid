@@ -47,8 +47,8 @@ This changelog tracks user-facing changes for **Agentic Mermaid**, a fork of `lu
 - See [`AGENT_NATIVE.md`](./AGENT_NATIVE.md) for the design, [`examples/agent-loop.ts`](./examples/agent-loop.ts) for a runnable walkthrough, [`examples/mcp-vs-cli-complex-diagrams.ts`](./examples/mcp-vs-cli-complex-diagrams.ts) for MCP-vs-CLI parity, and [`examples/agent-improve-auth-flow.ts`](./examples/agent-improve-auth-flow.ts) for create → assess → mutate → reassess → render.
 - Live editor deployment at <https://agentic-mermaid.dev/editor>.
 - Editor examples palette with presets for every supported diagram family: flowchart, state, architecture, sequence, class, ER, timeline, journey, xychart, pie, quadrant, and gantt.
-- Semantic role-based SVG styling via `options.style.text`, `options.style.node`, `options.style.edge`, and `options.style.group`.
-- Role-style showcase samples in the live gallery under **Contents → Role Styles**.
+- Style + Palette SVG styling via named looks, palette stacks, custom public JSON style records, and deterministic `seed` values.
+- Style + Palette showcase samples in the live examples surface.
 - Fork documentation describing differences from upstream in [`docs/fork-differences.md`](./docs/fork-differences.md).
 - Product/design context documents ([`docs/project/product.md`](./docs/project/product.md), [`docs/project/design.md`](./docs/project/design.md)) for future design-system aligned work.
 - Homepage sample search and category filters for browsing the full showcase.
@@ -63,7 +63,7 @@ This changelog tracks user-facing changes for **Agentic Mermaid**, a fork of `lu
 - The website MCP and security pages now carry an explicit privacy note: hosted tool calls send diagram source/code to the server and successful responses are edge-cached; local library/CLI/stdio need no network.
 - BUILD-20 now has a checked cross-family upstream parser/DB harvest under `eval/mermaid-upstream-suite-bench/` with a pinned Mermaid revision (`a2d9686451df7c4644a3eeca20535bbd4c5776b0`), repeatable `harvest:upstream` and `harvest:upstream:refresh-check` commands, exact structural assertions, BUILD-20 ownership on local compatibility exclusions, and a family-by-family manifest accounting for all 1,170 considered upstream parser/DB blocks: 658 imported source blocks, 512 documented exclusions, and 0 deferred blocks. The executable gate covers 648 cases including the existing 68-case Gantt companion bench, and `ratchet.json` fails CI if imported coverage drops or local-gap budgets grow.
 - **Breaking (unreleased agent surface, BUILD-19): flowchart ops no longer apply to state diagrams.** `asFlowchart` now returns `null` on a state diagram (its body kind is `'state'`, not `'flowchart'`); narrow with `asState` and use the state-shaped ops instead. The CLI `MUTATION_OPS_BY_FAMILY.state` list changed from the 6 flowchart ops to the 8 new state ops, and `mutateAny` narrows `asState` before `asFlowchart`. Every agent surface that said "state shares the flowchart body / narrow via asFlowchart" is updated to the new truth.
-- SVG style customization is now role-based and diagram-family aware; removed flat render style aliases are intentionally ignored.
+- SVG appearance customization now uses Style + Palette render options; removed flat render style aliases are intentionally ignored.
 - Showcase and editor docs now point users to live examples and presets.
 - Fork docs and deploy script now treat GitHub Pages as the fork-owned site and avoid the upstream-owned Craft/Cloudflare deployment target.
 - Live editor now starts blank by default, uses salmon as the default theme, uses a larger grouped Examples palette, and includes Copy SVG alongside Save SVG/PNG export.
@@ -73,7 +73,7 @@ This changelog tracks user-facing changes for **Agentic Mermaid**, a fork of `lu
 - Editor controls, empty state, sidebar, and dropdowns received polish for concentric radii, tactile press states, smoother icon transitions, tabular numbers, and cleaner text wrapping.
 - Homepage and editor typography now use Atkinson Hyperlegible for a more distinctive, readable UI face.
 - Homepage rendering yields between sample batches to keep the page responsive while the full gallery renders.
-- Editor empty state now includes quick starter chips for Flowchart, Sequence, and Role styled examples.
+- Editor empty state now includes quick starter chips for Flowchart, Sequence, and Style + Palette examples.
 - Example rows now include compact diagram-family glyphs for faster scanning.
 - Agent-facing Code Mode examples are executable JavaScript snippets and the stored eval now checks ordered verify inspection before serialization.
 - Every built-in renderable family is structured-when-narrowed in the agent surface; source-level-only editing is reserved for opaque fallback bodies with unmodeled syntax.

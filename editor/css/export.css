@@ -110,8 +110,8 @@
   margin-left: auto;
 }
 .size-pill {
-  height: 22px;
-  padding: 0 8px;
+  min-height: 32px;
+  padding: 0 10px;
   border-radius: var(--radius-sm);
   border: none;
   background: var(--control-bg);

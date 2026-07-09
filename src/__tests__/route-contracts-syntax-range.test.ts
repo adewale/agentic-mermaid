@@ -253,11 +253,11 @@ function stableProductLoopGeometry(positioned: ReturnType<typeof layoutGraphSync
 }
 
 const PRODUCT_LOOP_STYLE_OPTIONS = {
-  style: {
+  styleFace: {
     text: { fontSize: 13, letterSpacing: 0.1 },
     node: { fontSize: 15, fontWeight: 600, letterSpacing: -0.1, paddingX: 22, paddingY: 14, cornerRadius: 16, lineWidth: 1.5 },
     edge: { fontSize: 12, fontWeight: 600, letterSpacing: 0.1, lineWidth: 2.25, bendRadius: 12 },
-    group: { fontSize: 12, fontWeight: 700, letterSpacing: 0.8, textTransform: 'uppercase' as const, padding: 24, paddingY: 18, cornerRadius: 18, borderColor: '#f97316', lineWidth: 1.5 },
+    group: { fontSize: 12, fontWeight: 700, letterSpacing: 0.8, textTransform: 'uppercase' as const, paddingX: 24, paddingY: 18, cornerRadius: 18, borderColor: '#f97316', lineWidth: 1.5 },
   },
 }
 
@@ -474,31 +474,31 @@ describe('syntax range — & multi-edge chains hit the same fan heuristics', () 
     expect(needsWorkLabel.y).toBeGreaterThanOrEqual(decisionSouth + 2)
     expect(stableProductLoopGeometry(positioned)).toEqual({
       nodes: [
-        { id: 'A', x: 70.625, y: 86, width: 162.35, height: 47.5, shape: 'rectangle' },
-        { id: 'B', x: 88.775, y: 181.5, width: 126.05, height: 126.05, shape: 'diamond' },
-        { id: 'C', x: 46.55, y: 486.15, width: 91.25, height: 47.5, shape: 'rectangle' },
-        { id: 'D', x: 165.8, y: 486.15, width: 91.25, height: 47.5, shape: 'rectangle' },
+        { id: 'A', x: 78.625, y: 86, width: 162.35, height: 47.5, shape: 'rectangle' },
+        { id: 'B', x: 96.775, y: 181.5, width: 126.05, height: 126.05, shape: 'diamond' },
+        { id: 'C', x: 54.55, y: 486.15, width: 91.25, height: 47.5, shape: 'rectangle' },
+        { id: 'D', x: 173.8, y: 486.15, width: 91.25, height: 47.5, shape: 'rectangle' },
       ],
       edges: [
         {
           source: 'A',
           target: 'B',
           label: undefined,
-          points: [{ x: 151.8, y: 133.5 }, { x: 151.8, y: 181.5 }],
+          points: [{ x: 159.8, y: 133.5 }, { x: 159.8, y: 181.5 }],
           routeCertificate: { routeClass: 'primary-forward', bendCount: 0, sourcePort: 'S', targetPort: 'N', invariant: 'straight' },
         },
         {
           source: 'B',
           target: 'C',
           label: 'yes',
-          points: [{ x: 120.288, y: 276.038 }, { x: 120.288, y: 356.55 }, { x: 92.175, y: 356.55 }, { x: 92.175, y: 486.15 }],
+          points: [{ x: 128.288, y: 276.038 }, { x: 128.288, y: 356.55 }, { x: 100.175, y: 356.55 }, { x: 100.175, y: 486.15 }],
           routeCertificate: { routeClass: 'primary-forward', bendCount: 2, sourcePort: 'SW', targetPort: 'N', invariant: 'bundle' },
         },
         {
           source: 'B',
           target: 'D',
           label: 'needs work',
-          points: [{ x: 183.313, y: 276.038 }, { x: 183.313, y: 356.55 }, { x: 211.425, y: 356.55 }, { x: 211.425, y: 486.15 }],
+          points: [{ x: 191.313, y: 276.038 }, { x: 191.313, y: 356.55 }, { x: 219.425, y: 356.55 }, { x: 219.425, y: 486.15 }],
           routeCertificate: { routeClass: 'primary-forward', bendCount: 2, sourcePort: 'SE', targetPort: 'N', invariant: 'bundle' },
         },
       ],

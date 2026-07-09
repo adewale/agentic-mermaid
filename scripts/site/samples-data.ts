@@ -20,45 +20,9 @@ export interface Sample {
   options?: RenderOptions
 }
 
-const semanticRoleShowcaseOptions = {
-  bg: '#fffaf3',
-  fg: '#2f2418',
-  line: '#b45309',
-  accent: '#ea580c',
-  muted: '#78716c',
-  surface: '#ffedd5',
-  border: '#fdba74',
-  font: 'Geist',
-  style: {
-    text: { fontSize: 13, letterSpacing: 0.1 },
-    node: {
-      fontSize: 15,
-      fontWeight: 600,
-      letterSpacing: -0.1,
-      paddingX: 22,
-      paddingY: 14,
-      cornerRadius: 16,
-      lineWidth: 1.5,
-    },
-    edge: {
-      fontSize: 12,
-      fontWeight: 600,
-      letterSpacing: 0.1,
-      lineWidth: 2.25,
-      bendRadius: 12,
-    },
-    group: {
-      fontSize: 12,
-      fontWeight: 700,
-      letterSpacing: 0.8,
-      textTransform: 'uppercase',
-      paddingX: 24,
-      paddingY: 18,
-      cornerRadius: 18,
-      borderColor: '#f97316',
-      lineWidth: 1.5,
-    },
-  },
+const stylePaletteShowcaseOptions = {
+  style: ['publication-figure', 'paper'],
+  seed: 3,
 } satisfies RenderOptions
 
 export const samples: Sample[] = [
@@ -1645,25 +1609,25 @@ gantt
   },
 
   // ══════════════════════════════════════════════════════════════════════════
-  //  SEMANTIC ROLE STYLE SHOWCASE
+  //  STYLE + PALETTE SHOWCASE
   // ══════════════════════════════════════════════════════════════════════════
 
   {
-    title: 'Style: Flowchart Roles',
-    category: 'Role Styles',
-    description: 'A flowchart using semantic `text`, `node`, `edge`, and `group` style roles instead of diagram-specific CSS selectors.',
+    title: 'Style + Palette: Flowchart',
+    category: 'Style + Palette',
+    description: 'One Mermaid source rendered with a named style and palette stack; appearance stays outside the source.',
     source: `flowchart TD
   subgraph product [Product Loop]
     A[Capture request] --> B{Ready?}
     B -->|yes| C[Ship]
     B -.->|needs work| D[Refine]
   end`,
-    options: semanticRoleShowcaseOptions,
+    options: stylePaletteShowcaseOptions,
   },
   {
-    title: 'Style: Architecture Roles',
-    category: 'Role Styles',
-    description: 'Architecture services, groups, and connectors consume the same role-based style options as flowcharts.',
+    title: 'Style + Palette: Architecture',
+    category: 'Style + Palette',
+    description: 'Architecture services, groups, and connectors use the same Style + Palette render options.',
     source: `architecture-beta
   group edge(cloud)[Edge Layer]
   group core(server)[Core Services]
@@ -1672,40 +1636,41 @@ gantt
   service db(database)[Postgres] in core
   web:R --> L:api
   api:R --> L:db`,
-    options: semanticRoleShowcaseOptions,
+    options: stylePaletteShowcaseOptions,
   },
   {
-    title: 'Style: Sequence Roles',
-    category: 'Role Styles',
-    description: 'Sequence participants use `style.node` while messages and labels use `style.edge`.',
+    title: 'Style + Palette: Sequence',
+    category: 'Style + Palette',
+    description: 'Sequence participants and messages keep their Mermaid meaning while the render call changes presentation.',
     source: `sequenceDiagram
   participant U as User
   participant E as Editor
   participant R as Renderer
-  U->>E: Change style role
-  E->>R: render(source, options.style)
+  U->>E: Pick style and palette
+  E->>R: render(source, options)
   R-->>E: SVG`,
-    options: semanticRoleShowcaseOptions,
+    options: stylePaletteShowcaseOptions,
   },
   {
-    title: 'Style: Class Roles',
-    category: 'Role Styles',
-    description: 'Class boxes, compartments, and relationships are styled through the shared semantic roles.',
+    title: 'Style + Palette: Class',
+    category: 'Style + Palette',
+    description: 'Class boxes and relationships share the same named look without source-level styling directives.',
     source: `classDiagram
   class Renderer {
     +renderSVG(source) string
     +renderASCII(source) string
   }
-  class StyleResolver {
-    +resolveRenderStyle(options) object
+  class StyleStack {
+    +style string
+    +palette string
   }
-  Renderer --> StyleResolver : uses`,
-    options: semanticRoleShowcaseOptions,
+  Renderer --> StyleStack : uses`,
+    options: stylePaletteShowcaseOptions,
   },
   {
-    title: 'Style: ER Roles',
-    category: 'Role Styles',
-    description: 'ER entities and relationships inherit the same node and edge typography/geometry controls.',
+    title: 'Style + Palette: ER',
+    category: 'Style + Palette',
+    description: 'ER entities and relationships get a publication-ready treatment from render options.',
     source: `erDiagram
   USER {
     string id PK
@@ -1721,46 +1686,46 @@ gantt
   }
   USER ||--o{ DIAGRAM : creates
   DIAGRAM ||--o{ EXPORT : renders`,
-    options: semanticRoleShowcaseOptions,
+    options: stylePaletteShowcaseOptions,
   },
   {
-    title: 'Style: Timeline Roles',
-    category: 'Role Styles',
-    description: 'Timeline periods and events use semantic card/group roles with matching layout and SVG output.',
+    title: 'Style + Palette: Timeline',
+    category: 'Style + Palette',
+    description: 'Timeline periods and events reuse the same style stack as the other families.',
     source: `timeline
   title Fork Roadmap
   section Discover
   2024 Q2 : Audit forks
           : Extract small PRs
   section Ship
-  2024 Q3 : Style roles
-          : Live editor presets`,
-    options: semanticRoleShowcaseOptions,
+  2024 Q3 : Style + Palette
+          : Live editor examples`,
+    options: stylePaletteShowcaseOptions,
   },
   {
-    title: 'Style: Journey Roles',
-    category: 'Role Styles',
-    description: 'Journey task cards, section frames, actor chips, and score blocks follow the role-based style API.',
+    title: 'Style + Palette: Journey',
+    category: 'Style + Palette',
+    description: 'Journey task cards, sections, actors, and scores inherit the named look through render options.',
     source: `journey
   title Editor adoption
   section Try
     Open preset: 5: User
-    Tune roles: 4: Designer, Developer
+    Choose palette: 4: Designer, Developer
   section Share
     Copy URL: 5: User
     Export SVG: 4: Developer`,
-    options: semanticRoleShowcaseOptions,
+    options: stylePaletteShowcaseOptions,
   },
   {
-    title: 'Style: XY Chart Roles',
-    category: 'Role Styles',
-    description: 'XY chart title, axes, grid, and series labels consume the supported shared text/group/edge roles while chart-specific config still controls axes.',
+    title: 'Style + Palette: XY Chart',
+    category: 'Style + Palette',
+    description: 'XY chart labels, axes, grid, and series render with the same style stack while chart config still controls axes.',
     source: `xychart
   title "Styled Adoption"
   x-axis [Mon, Tue, Wed, Thu, Fri]
   y-axis "Renders" 0 --> 100
   bar [25, 42, 58, 74, 88]
   line [18, 35, 52, 70, 95]`,
-    options: { ...semanticRoleShowcaseOptions, interactive: true },
+    options: { ...stylePaletteShowcaseOptions, interactive: true },
   },
 ]

@@ -11,7 +11,9 @@ import { describe, test, expect } from 'bun:test'
 import { createHash } from 'node:crypto'
 import { readFileSync, writeFileSync, existsSync, readdirSync } from 'node:fs'
 import { join } from 'node:path'
-import { renderMermaidSVG, verifyNoExternalRefs, getStyle, inferBackend, resolveStyleStack, validateStyleSpec } from '../index.ts'
+import { HOSTED_FONT_FACES, HOSTED_FONT_FILES } from '../font-manifest.ts'
+import { renderMermaidSVG, verifyNoExternalRefs, getStyle, inferBackend, knownStyles, resolveStyleStack, validateStyleSpec } from '../index.ts'
+import { styleKind } from '../scene/style-registry.ts'
 
 const FIXTURES = join(import.meta.dir, '..', '..', 'eval', 'layout-compare', 'fixtures')
 const BASELINE = join(import.meta.dir, 'testdata', 'styled-output-baseline.json')
@@ -37,6 +39,18 @@ const LOOKS = [
   'publication-figure',
 ]
 
+function registeredLooks() {
+  return knownStyles().filter((name) => name !== 'crisp' && styleKind(getStyle(name)!) === 'look')
+}
+
+function builtInLookFonts() {
+  return Array.from(new Set(LOOKS.map((name) => getStyle(name)?.font).filter((font): font is string => Boolean(font))))
+}
+
+function hostedFacesForFamily(family: string) {
+  return HOSTED_FONT_FACES.filter((font) => font.family === family)
+}
+
 function fixtureSources(): Array<{ name: string; source: string }> {
   return readdirSync(FIXTURES)
     .filter(f => f.endsWith('.mmd'))
@@ -46,6 +60,10 @@ function fixtureSources(): Array<{ name: string; source: string }> {
 
 describe('styled output', () => {
   const fixtures = fixtureSources()
+
+  test('the golden matrix includes every registered built-in look', () => {
+    expect(new Set(LOOKS)).toEqual(new Set(registeredLooks()))
+  })
 
   test('every style × fixture is hash-stable against the committed baseline', () => {
     const records: Record<string, string> = {}
@@ -141,12 +159,8 @@ describe('styled output', () => {
 describe('style consolidation', () => {
   const source = 'graph TD\n  A[Start] --> B{Choice}\n  B --> C([End])'
 
-  test('a role-only style object stays on the byte-identical crisp path', () => {
-    // The old DiagramStyleOptions shape is a valid (anonymous) StyleSpec and
-    // must keep producing the crisp renderer's exact bytes.
-    const viaStyle = renderMermaidSVG(source, { style: { node: { cornerRadius: 9 } } })
-    expect(viaStyle).toContain('rx="9"')
-    expect(viaStyle).not.toContain('data-backdrop="page"') // crisp path, no styled shell
+  test('removed role-style objects are rejected instead of silently applying', () => {
+    expect(() => renderMermaidSVG(source, { style: { node: { cornerRadius: 9 } } as any })).toThrow(/Invalid style spec/)
   })
 
   test('a theme is a style: THEMES palettes resolve by name', () => {
@@ -221,59 +235,46 @@ describe('style consolidation', () => {
     expect(svg).toContain('data-backdrop="page"')
   })
 
-  test('strokeWidth is honored on the default backend via role line widths', () => {
-    // Found by the Haiku emergence probe: a crisp-stroke style with
-    // strokeWidth used to be silently inert on the inferred default backend.
+  test('strokeWidth is honored on the default backend', () => {
     const svg = renderMermaidSVG(source, { style: { colors: { bg: '#0a0e27' }, strokeWidth: 2 } })
     expect(svg).toContain('stroke-width="2"')
-    const overridden = renderMermaidSVG(source, { style: { strokeWidth: 2, node: { lineWidth: 0.5 } } })
-    expect(overridden).toContain('stroke-width="0.5"') // explicit role width wins
   })
 
-  test('validateStyleSpec accepts fragments and rejects junk', () => {
+  test('validateStyleSpec accepts public fragments and rejects removed role keys plus junk', () => {
     expect(validateStyleSpec({ colors: { bg: '#fff' }, stroke: 'jittered' })).toEqual([])
-    expect(validateStyleSpec({ node: { cornerRadius: 4 } })).toEqual([])
     expect(validateStyleSpec({ stroke: 'wobbly' }).length).toBeGreaterThan(0)
     expect(validateStyleSpec({ colors: { background: '#fff' } }).length).toBeGreaterThan(0)
-    expect(validateStyleSpec({ node: { banana: true } }).length).toBeGreaterThan(0)
-    expect(validateStyleSpec({ edge: 'x' }).length).toBeGreaterThan(0)
-    expect(validateStyleSpec({ group: [] }).length).toBeGreaterThan(0)
-    expect(validateStyleSpec({ text: { fontSize: 'large' } }).length).toBeGreaterThan(0)
-    expect(validateStyleSpec({ edge: { textTransform: 'scream' } }).length).toBeGreaterThan(0)
+    expect(validateStyleSpec({ node: { cornerRadius: 4 } })).toContain('unknown field "node"')
+    expect(validateStyleSpec({ edge: 'x' })).toContain('unknown field "edge"')
+    expect(validateStyleSpec({ group: [] })).toContain('unknown field "group"')
+    expect(validateStyleSpec({ text: { fontSize: 'large' } })).toContain('unknown field "text"')
     expect(validateStyleSpec({ evil: '<script>' }).length).toBeGreaterThan(0)
     expect(validateStyleSpec('hand-drawn').length).toBeGreaterThan(0)
   })
 })
 
 describe('bundled fonts', () => {
-  test('every typeface a built-in look references ships in assets/fonts', () => {
-    // PNG rasterization loads assets/fonts with loadSystemFonts: false — a
-    // look whose face is missing there silently falls back to DejaVu Sans.
-    const fontsDir = join(import.meta.dir, '..', '..', 'assets', 'fonts')
-    for (const name of LOOKS) {
-      const font = getStyle(name)?.font
-      if (!font) continue
-      const file = join(fontsDir, `${font.replace(/ /g, '')}.ttf`)
-      if (!existsSync(file)) {
-        throw new Error(`style "${name}" references font "${font}" but ${file} is not bundled`)
-      }
+  test('every typeface a built-in look references is declared in the hosted font manifest', () => {
+    for (const font of builtInLookFonts()) {
+      expect({ font, hostedFaces: hostedFacesForFamily(font).map((face) => face.file) }).not.toEqual({ font, hostedFaces: [] })
     }
   })
 
-  test('hosted PNG worker bundles every built-in style face', () => {
-    const hostedPng = readFileSync(join(import.meta.dir, '..', '..', 'website', 'src', 'png-wasm.ts'), 'utf8')
-    const websiteBuild = readFileSync(join(import.meta.dir, '..', '..', 'website', 'build.ts'), 'utf8')
-    const generatedDir = join(import.meta.dir, '..', '..', 'website', 'src', 'generated')
-    const styleFontFiles = Array.from(new Set(
-      LOOKS
-        .map(name => getStyle(name)?.font)
-        .filter((font): font is string => Boolean(font))
-        .map(font => `${font.replace(/ /g, '')}.ttf`),
-    ))
+  test('every hosted typeface ships in assets/fonts', () => {
+    // PNG rasterization loads assets/fonts with loadSystemFonts: false — a
+    // look whose face is missing there silently falls back to DejaVu Sans.
+    const fontsDir = join(import.meta.dir, '..', '..', 'assets', 'fonts')
+    for (const file of HOSTED_FONT_FILES) {
+      expect({ file, exists: existsSync(join(fontsDir, file)) }).toEqual({ file, exists: true })
+    }
+  })
 
-    for (const file of styleFontFiles) {
+  test('hosted PNG worker bundles every hosted style/default face', () => {
+    const hostedPng = readFileSync(join(import.meta.dir, '..', '..', 'website', 'src', 'png-wasm.ts'), 'utf8')
+    const generatedDir = join(import.meta.dir, '..', '..', 'website', 'src', 'generated')
+
+    for (const file of HOSTED_FONT_FILES) {
       expect(hostedPng).toContain(`./generated/${file}`)
-      expect(websiteBuild).toContain(`'${file}'`)
       expect(existsSync(join(generatedDir, file))).toBe(true)
     }
   })

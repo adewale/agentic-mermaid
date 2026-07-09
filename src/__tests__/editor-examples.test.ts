@@ -2,6 +2,7 @@ import { describe, expect, test } from 'bun:test'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { runInNewContext } from 'node:vm'
+import { EDITOR_EXAMPLES } from '../../editor/examples.ts'
 import { parseMermaid, renderMermaidSVG } from '../agent/index.ts'
 import { BUILTIN_FAMILY_METADATA, knownFamilies } from '../agent/families.ts'
 import '../agent/families-builtin.ts'
@@ -21,7 +22,7 @@ interface EditorExample {
 function loadEditorExamples(): { examples: EditorExample[]; exampleGlyph: (example: { diagramType?: string }) => string } {
   const source = readFileSync(join(REPO, 'editor/js/examples.js'), 'utf8')
   const context: {
-    EDITOR_EXAMPLES?: EditorExample[]
+    EDITOR_EXAMPLES: EditorExample[]
     exampleGlyph?: (example: { diagramType?: string }) => string
     document: {
       getElementById: () => null
@@ -29,6 +30,7 @@ function loadEditorExamples(): { examples: EditorExample[]; exampleGlyph: (examp
       querySelectorAll: () => unknown[]
     }
   } = {
+    EDITOR_EXAMPLES: EDITOR_EXAMPLES as EditorExample[],
     document: {
       getElementById: () => null,
       addEventListener: () => undefined,
@@ -40,7 +42,7 @@ function loadEditorExamples(): { examples: EditorExample[]; exampleGlyph: (examp
 
   expect(Array.isArray(context.EDITOR_EXAMPLES)).toBe(true)
   expect(typeof context.exampleGlyph).toBe('function')
-  return { examples: context.EDITOR_EXAMPLES!, exampleGlyph: context.exampleGlyph! }
+  return { examples: context.EDITOR_EXAMPLES, exampleGlyph: context.exampleGlyph! }
 }
 
 describe('live editor examples', () => {

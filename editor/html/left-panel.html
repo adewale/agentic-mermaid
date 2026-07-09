@@ -75,7 +75,7 @@
       <div class="config-section-title">Typography</div>
       <div class="font-field">
         <span class="font-field-label">Font family</span>
-        <button class="font-select-btn" id="font-select-btn" type="button" aria-label="Choose diagram font family" aria-haspopup="listbox" aria-expanded="false" aria-controls="font-popup">
+        <button class="font-select-btn" id="font-select-btn" type="button" aria-label="Choose diagram font family" aria-haspopup="dialog" aria-expanded="false" aria-controls="font-popup">
           <span id="font-select-label">Default</span>
           <span class="font-select-caret">▼</span>
         </button>
@@ -186,7 +186,7 @@
   </div>
 
   <!-- Font picker popup -->
-  <div class="font-popup" id="font-popup" aria-hidden="true" inert>
+  <div class="font-popup" id="font-popup" role="dialog" aria-modal="false" aria-label="Font picker" aria-hidden="true" inert>
     <div class="font-search-wrap">
       <svg
         class="font-search-icon"

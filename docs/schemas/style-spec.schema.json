@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://agentic-mermaid.dev/schemas/style-spec.schema.json",
   "title": "Agentic Mermaid StyleSpec",
-  "description": "A declarative style record for Agentic Mermaid SVG/PNG rendering. A style can be a palette, a full look, or a small role override.",
+  "description": "A declarative style record for Agentic Mermaid SVG/PNG rendering. A style can be a palette, a full renderer look, or a small treatment fragment.",
   "type": "object",
   "additionalProperties": false,
   "properties": {
@@ -58,96 +58,6 @@
     },
     "mono": {
       "type": "boolean"
-    },
-    "text": {
-      "$ref": "#/$defs/textRoleStyle"
-    },
-    "node": {
-      "$ref": "#/$defs/nodeRoleStyle"
-    },
-    "edge": {
-      "$ref": "#/$defs/edgeRoleStyle"
-    },
-    "group": {
-      "$ref": "#/$defs/groupRoleStyle"
-    }
-  },
-  "$defs": {
-    "textTransform": {
-      "enum": ["uppercase", "lowercase", "capitalize"]
-    },
-    "textRoleStyle": {
-      "type": "object",
-      "additionalProperties": false,
-      "properties": {
-        "fontSize": { "type": "number" },
-        "fontWeight": { "type": "number" },
-        "letterSpacing": { "type": "number" },
-        "textTransform": { "$ref": "#/$defs/textTransform" },
-        "textColor": { "type": "string" }
-      }
-    },
-    "boxRoleStyle": {
-      "type": "object",
-      "additionalProperties": false,
-      "properties": {
-        "paddingX": { "type": "number" },
-        "paddingY": { "type": "number" },
-        "cornerRadius": { "type": "number" },
-        "lineWidth": { "type": "number" },
-        "fillColor": { "type": "string" },
-        "borderColor": { "type": "string" }
-      }
-    },
-    "nodeRoleStyle": {
-      "type": "object",
-      "additionalProperties": false,
-      "properties": {
-        "fontSize": { "type": "number" },
-        "fontWeight": { "type": "number" },
-        "letterSpacing": { "type": "number" },
-        "textTransform": { "$ref": "#/$defs/textTransform" },
-        "textColor": { "type": "string" },
-        "paddingX": { "type": "number" },
-        "paddingY": { "type": "number" },
-        "cornerRadius": { "type": "number" },
-        "lineWidth": { "type": "number" },
-        "fillColor": { "type": "string" },
-        "borderColor": { "type": "string" }
-      }
-    },
-    "edgeRoleStyle": {
-      "type": "object",
-      "additionalProperties": false,
-      "properties": {
-        "fontSize": { "type": "number" },
-        "fontWeight": { "type": "number" },
-        "letterSpacing": { "type": "number" },
-        "textTransform": { "$ref": "#/$defs/textTransform" },
-        "textColor": { "type": "string" },
-        "lineWidth": { "type": "number" },
-        "bendRadius": { "type": "number" },
-        "strokeColor": { "type": "string" }
-      }
-    },
-    "groupRoleStyle": {
-      "type": "object",
-      "additionalProperties": false,
-      "properties": {
-        "fontSize": { "type": "number" },
-        "fontWeight": { "type": "number" },
-        "letterSpacing": { "type": "number" },
-        "textTransform": { "$ref": "#/$defs/textTransform" },
-        "textColor": { "type": "string" },
-        "paddingX": { "type": "number" },
-        "paddingY": { "type": "number" },
-        "cornerRadius": { "type": "number" },
-        "lineWidth": { "type": "number" },
-        "fillColor": { "type": "string" },
-        "borderColor": { "type": "string" },
-        "fontFamily": { "type": "string" },
-        "headerFillColor": { "type": "string" }
-      }
     }
   }
 }

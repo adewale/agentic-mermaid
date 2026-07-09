@@ -9,10 +9,10 @@
 :root {
   /* Shared app-shell foundation, in lockstep with the public site — the Kiln
      brand: a warm-neutral Stone ground (light) / warm Charcoal (dark), with the
-     independent Pine accent. Distinct from the terracotta diagram theme, which
-     now lives on only as the "paper" render theme. The theme dropdown changes
-     render output, never the app shell. rendering.js swaps in the Charcoal
-     ground for dark mode; these defaults are the Stone (light) values. */
+     independent Pine accent. Distinct from the terracotta diagram palette,
+     which now lives on as the "paper" render palette. The Palette dropdown
+     changes render output, never the app shell. rendering.js swaps in the
+     Charcoal ground for dark mode; these defaults are the Stone (light) values. */
   --t-bg: #F8F4F0;       /* Kiln Stone (was Paper #F5F0E4) */
   --t-fg: #26201B;
   --t-accent: #1B6E52;   /* Pine brand accent — mirrors :root --accent in styles.css */

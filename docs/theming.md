@@ -132,22 +132,18 @@ const svg = renderMermaidSVG(source, colors)
 
 `fromShikiTheme(theme)` reads the editor background/foreground and token colors, then maps them to Agentic Mermaid's semantic slots.
 
-## Role-specific style options
+## Style + Palette stacks
 
-Use `style` for typography and diagram role tweaks:
+Use `style` for renderer treatment and palettes, not Mermaid source edits:
 
 ```ts
 const svg = renderMermaidSVG(source, {
-  ...THEMES['zinc-light'],
-  style: {
-    node: { fontSize: 15, cornerRadius: 14, lineWidth: 2 },
-    edge: { lineWidth: 2, bendRadius: 18 },
-    group: { textTransform: 'uppercase', letterSpacing: 0.08 },
-  },
+  style: ['publication-figure', 'zinc-light'],
+  seed: 2,
 })
 ```
 
-See [`api.md`](./api.md) for the full `RenderOptions` table.
+For per-element emphasis, keep using Mermaid-native directives such as `classDef`, `class`, `style`, and `linkStyle`. See [`api.md`](./api.md) for the full `RenderOptions` table.
 
 ## Security and fonts
 

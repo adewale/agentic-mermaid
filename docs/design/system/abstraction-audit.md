@@ -74,10 +74,10 @@ from the registry (regenerate with `UPDATE_GOLDEN=1 bun test src/__tests__/audit
   audit-time `FamilyRouteCertificate` (produced only in `agent/family-layouts.ts`);
   `layout-rubric.ts` (`assessLayout` → `RubricResult`);
   agent `verify` (3-tier `LayoutWarning`).
-- **Styling / color:** five color models — `RenderOptions`, `DiagramColors` (`theme.ts`),
-  `ResolvedColors` (`theme.ts`), `MermaidThemeVariables` (`mermaid-source.ts`),
-  `classDefs`/`nodeStyles`/`linkStyles` (`MermaidGraph`) — plus role styles `DiagramStyleOptions`
-  (`types.ts:364`) and the CSS-custom-property layer (`--bg`/`--fg` + `color-mix`).
+- **Styling / color:** the public Style + Palette surface normalizes into `DiagramColors`
+  (`theme.ts`), `ResolvedColors` (`theme.ts`), `MermaidThemeVariables` (`mermaid-source.ts`),
+  `classDefs`/`nodeStyles`/`linkStyles` (`MermaidGraph`), and the CSS-custom-property layer
+  (`--bg`/`--fg` + `color-mix`). Built-in looks also feed an internal style face.
 - **Rendering surfaces:** SVG renderers (`renderer.ts:37` `renderSvg` + 10 family `render*Svg`);
   ASCII (`AsciiGraph`/`Canvas`/`RoleCanvas` + pluggable `ShapeRenderer` registry); PNG (`agent/png.ts`).
 - **Dispatch:** SVG `switch` (`index.ts`) vs ASCII `switch` (`ascii/index.ts`) vs agent
@@ -126,11 +126,9 @@ Clean for ~7 families, broken for 4:
 ### I5 — Styling: five parallel color models; N ways to set one property
 `RenderOptions → DiagramColors → ResolvedColors` (hex, for non-browser via `inlineResolvedColors`),
 plus `MermaidThemeVariables` (frontmatter aliases) and `classDefs`/`nodeStyles`/`linkStyles`
-(inline directives). **Node fill** is reachable 5 ways (`surface`; themeVariables
-`primaryColor`/`nodeBkg`/`mainBkg`; classDef `fill:`); **group border** 3 ways
-(`RenderOptions.border`; `style.group.borderColor`; themeVariables `clusterBorder`). Role styles
-(`DiagramStyleOptions`, consumed via `resolveRenderStyle`) are a *good* abstraction but cover
-typography/spacing only, and do not reach pie/quadrant/gantt/architecture.
+(inline directives). **Node fill** is reachable through palette tokens, themeVariables, and
+classDef/style directives; **group border** is similarly split between options and themeVariables.
+The current target is one public Style + Palette boundary plus Mermaid-native per-element directives.
 
 ### I6 — "Route contracts" is two abstractions sharing one type union
 `RouteCertificate` (flowchart) is produced in the **core** (`route-contracts.ts:1169`
@@ -179,7 +177,7 @@ retrofit careful, family-by-family work behind snapshot tests rather than a swee
 3. Introduce a marker `PositionedDiagram` base and make `RenderedLayout` a documented projection.
    (Addresses I3.)
 4. Pick one color funnel (`DiagramColors` + CSS vars as the internal contract; normalize
-   themeVariables/classDefs into it at the boundary; extend role styles to carry color slots).
+   themeVariables/classDefs into it at the boundary; keep public style JSON to Style + Palette).
    (Addresses I5.)
 5. Push layering leaks back down (pie/architecture resolve colors/visual at render; xychart applies
    frontmatter as post-parse middleware like gantt). (Addresses I4.)

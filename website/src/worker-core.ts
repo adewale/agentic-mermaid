@@ -20,19 +20,17 @@ export interface WebsiteWorkerRuntime {
   deployVersion: string
 }
 
-// Renamed/consolidated routes. Examples absorbed the gallery; Families folded
-// into the docs; Why became About. Mirrors the static _redirects file.
+// Renamed/consolidated routes. Examples absorbed the gallery; Why became
+// About. Mirrors the static _redirects file.
 const redirects = new Map([
   ['/why', '/about/'], ['/why/', '/about/'],
   ['/gallery', '/examples/'], ['/gallery/', '/examples/'],
-  ['/families', '/docs/families/'], ['/families/', '/docs/families/'],
 ])
 
 const cleanRoutes = new Set([
-  '/editor', '/docs', '/skills', '/skills/agentic-mermaid-diagram-workflow',
-  '/docs/getting-started', '/docs/api', '/docs/families', '/docs/source-level', '/docs/cli', '/docs/mcp', '/docs/ascii', '/docs/theming', '/docs/custom-styles',
-  '/docs/config', '/docs/react', '/docs/quality', '/docs/fork-differences', '/docs/vocabulary',
-  '/warnings', '/errors', '/examples', '/comparisons', '/evidence', '/security', '/releases',
+  '/about', '/about/design', '/comparisons', '/docs', '/editor', '/errors', '/examples', '/warnings',
+  '/docs/getting-started', '/docs/api', '/docs/cli', '/docs/mcp', '/docs/ascii', '/docs/theming', '/docs/custom-styles',
+  '/docs/quality', '/docs/fork-differences', '/skills/agentic-mermaid-diagram-workflow',
 ])
 
 const csp = [
@@ -66,7 +64,7 @@ function withHeaders(response: Response, pathname: string): Response {
     headers.set('Cache-Control', 'no-cache')
   } else if (/^\/(?:editor\/editor-[a-f0-9]{12}|vendor\/mermaid-[a-f0-9]{12}\.min)\.js$/i.test(pathname)) {
     headers.set('Cache-Control', 'public, max-age=31536000, immutable')
-  } else if (/\.(css|js|svg)$/i.test(pathname)) {
+  } else if (/\.(css|js|svg|ttf)$/i.test(pathname)) {
     headers.set('Cache-Control', 'public, max-age=3600')
   }
 

@@ -338,65 +338,6 @@ export interface PositionedGroup {
 
 export type TextTransform = 'uppercase' | 'lowercase' | 'capitalize'
 
-export interface TextRoleStyle {
-  /** Font size in px for this semantic text role. */
-  fontSize?: number
-  /** Font weight for this semantic text role. */
-  fontWeight?: number
-  /** Letter spacing in px for this semantic text role. */
-  letterSpacing?: number
-  /** Visible label text transform for this semantic text role. */
-  textTransform?: TextTransform
-  /** Text fill color for this semantic role. */
-  textColor?: string
-}
-
-export interface BoxRoleStyle {
-  /** Horizontal padding in px for rectangular/card-like elements. */
-  paddingX?: number
-  /** Vertical padding in px for rectangular/card-like elements. */
-  paddingY?: number
-  /** Corner radius in px for rectangular/card-like elements. */
-  cornerRadius?: number
-  /** Border/stroke width in px for rectangular/card-like elements. */
-  lineWidth?: number
-  /** Fill color for rectangular/card-like elements. */
-  fillColor?: string
-  /** Border/stroke color for rectangular/card-like elements. */
-  borderColor?: string
-}
-
-export interface NodeRoleStyle extends TextRoleStyle, BoxRoleStyle {}
-
-export interface EdgeRoleStyle extends TextRoleStyle {
-  /** Connector stroke width in px. */
-  lineWidth?: number
-  /** Orthogonal connector bend radius in px. */
-  bendRadius?: number
-  /** Connector stroke color. */
-  strokeColor?: string
-}
-
-export interface GroupRoleStyle extends TextRoleStyle, BoxRoleStyle {
-  /** Header/label font family override. Defaults to the main font. */
-  fontFamily?: string
-  /** Border stroke width in px for group-like containers. */
-  lineWidth?: number
-  /** Header/band fill color for group-like containers. */
-  headerFillColor?: string
-}
-
-export interface DiagramStyleOptions {
-  /** Shared fallback text style for semantic roles that do not override it. */
-  text?: TextRoleStyle
-  /** Style for primary node/card/entity/participant/task/service-like roles. */
-  node?: NodeRoleStyle
-  /** Style for connector/message/relationship-like roles. */
-  edge?: EdgeRoleStyle
-  /** Style for subgraph/section/block/group-like container roles. */
-  group?: GroupRoleStyle
-}
-
 export interface RenderOptions {
   /** Background color → CSS variable --bg. Default: '#FFFFFF' */
   bg?: string
@@ -424,8 +365,7 @@ export interface RenderOptions {
    * any THEMES palette name like 'dracula'), an inline StyleSpec, or a STACK
    * of either merged left-to-right ({ style: ['hand-drawn', 'dracula'] } is
    * hand-drawn geometry with the dracula palette). A colors-only style is a
-   * theme; an object with only text/node/edge/group role overrides is also a
-   * valid (anonymous) style and keeps the byte-identical crisp path.
+   * palette.
    * Precedence: defaults < style stack < themeVariables < explicit color
    * options. Unknown names throw. Unset (or 'crisp') = the default renderer,
    * byte-identical to previous releases.
@@ -505,7 +445,7 @@ export interface RenderOptions {
   ganttToday?: string
 
   /**
-   * Deterministic re-roll seed for stochastic styles (editor "shuffle").
+   * Deterministic re-roll seed for stochastic styles.
    * The same source + options + seed always produces identical bytes; it
    * re-rolls ink wobble only — layout never moves. The crisp path ignores
    * it. Default 0.

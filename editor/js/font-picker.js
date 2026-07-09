@@ -1,22 +1,11 @@
-var PRESET_FONTS = [
-  { name: 'Inter',           value: 'Inter',           group: 'Sans-serif' },
-  { name: 'Geist',           value: 'Geist',           group: 'Sans-serif' },
-  { name: 'Roboto',          value: 'Roboto',          group: 'Sans-serif' },
-  { name: 'Open Sans',       value: 'Open Sans',       group: 'Sans-serif' },
-  { name: 'Lato',            value: 'Lato',            group: 'Sans-serif' },
-  { name: 'Poppins',         value: 'Poppins',         group: 'Sans-serif' },
-  { name: 'Nunito',          value: 'Nunito',          group: 'Sans-serif' },
-  { name: 'DM Sans',         value: 'DM Sans',         group: 'Sans-serif' },
-  { name: 'Space Grotesk',   value: 'Space Grotesk',   group: 'Sans-serif' },
-  { name: 'Arial',           value: 'Arial',           group: 'System' },
-  { name: 'Georgia',         value: 'Georgia',         group: 'Serif' },
-  { name: 'Merriweather',    value: 'Merriweather',    group: 'Serif' },
-  { name: 'Playfair Display',value: 'Playfair Display',group: 'Serif' },
-  { name: 'JetBrains Mono',  value: 'JetBrains Mono',  group: 'Monospace' },
-  { name: 'Fira Code',       value: 'Fira Code',       group: 'Monospace' },
-  { name: 'Source Code Pro', value: 'Source Code Pro', group: 'Monospace' },
-  { name: 'Courier New',     value: 'Courier New',     group: 'Monospace' },
-];
+var PRESET_FONTS = (typeof EDITOR_PRESET_FONTS !== 'undefined' && Array.isArray(EDITOR_PRESET_FONTS))
+  ? EDITOR_PRESET_FONTS
+  : [
+    { name: 'System UI', value: 'system-ui', group: 'System' },
+    { name: 'Arial', value: 'Arial', group: 'System' },
+    { name: 'Georgia', value: 'Georgia', group: 'System' },
+    { name: 'Courier New', value: 'Courier New', group: 'System' },
+  ];
 
 var fontPopup     = document.getElementById('font-popup');
 var fontSearch    = document.getElementById('font-search');

@@ -81,8 +81,10 @@ bun run eval:agent-subagent -- finalize --run-dir eval/agent-usage/transcripts/p
 
 Use `--surface homepage`, `--surface instructions`, or `--surface skill` to test
 which agent-facing context is sufficient. The homepage surface uses the exact
-populated homepage prompt from `DEFAULT_CASES`; the instructions and skill
-surfaces inline the corresponding repository docs in the request.
+fetch-only homepage prompt from `DEFAULT_CASES` plus the task slots; the agent
+gets product guidance by following `https://agentic-mermaid.dev/start.md`. The
+instructions and skill surfaces inline the corresponding repository docs in the
+request.
 `--surface none` (chat-only) is the no-docs baseline: the bare task with zero
 product guidance, graded on the task oracle alone. Every surface comparison
 should anchor on it — a surface earns its tokens only by beating it. Caveat
@@ -111,29 +113,29 @@ nondeterministic; PR CI keeps deterministic replay checks.
 Prompt changes are gated three ways, cheapest-first:
 
 1. **Contract tests (CI, deterministic).** `homepagePromptChecklist` pins every
-   load-bearing phrase of the homepage prompt; `agent-usage.test.ts` fails when
-   a required piece disappears. Truth-pinning tests execute the prompt's
-   factual claims against the real implementation (authoring facts against the
-   SDK, the quoted hosted-MCP JSON-RPC body against `handleHostedRequest`), so
-   the prompt cannot claim something the tool does not do.
+   load-bearing phrase of `website/source/start.md`; `agent-usage.test.ts` also
+   proves the homepage CTA is only `Fetch https://agentic-mermaid.dev/start.md
+   and follow it.` Truth-pinning tests execute the start.md factual claims
+   against the real implementation (authoring facts against the SDK, the quoted
+   hosted-MCP JSON-RPC body against `handleHostedRequest`), so the protocol
+   cannot claim something the tool does not do.
 2. **Replay of committed transcripts (CI, deterministic).** Stored subagent and
    live transcripts re-run through the finalize gates and the trace linter on
    every test run; a change that would have flipped a past-good response
    surfaces here without any model calls.
-3. **Paired live runs (on demand).** To compare prompt variant A against
-   variant B: run `prepare --surface homepage --prompt-variant baseline` with a
-   fixed case list, dispatch every `requests/*.md` to a fresh subagent, run
-   `finalize`; repeat with `--prompt-variant no-semantic-readback` and the same
-   cases, harness, and model. The treatment removes only the semantic read-back
-   paragraph ("Before returning, confirm the specific change...") from the
-   populated homepage prompt; it does not edit `website/source/start.md`. Follow
-   the `skill-evals/shared-benchmark.json` run policy (≥3 runs per variant, 5
-   recommended) because single runs are noise. Prefer `--mode code` when the
-   question allows it so `traceSource` is `observed`; otherwise report when chat
-   runs fall back to narrated Trace prose. Compare `ok` rate and the
-   `taskOk`/`traceOk` split per case, plus response length as a proxy for
-   discovery cost. Commit both transcript sets so the comparison replays
-   deterministically in layer 2.
+3. **Paired live runs (on demand).** The homepage surface is fetch-only, so
+   prompt variants now belong to `website/source/start.md` experiments rather
+   than `--surface homepage --prompt-variant`. To compare start.md variant A
+   against variant B, prepare separate request sets with the exact start.md body
+   each model will receive (or deploy a variant URL), dispatch every
+   `requests/*.md` to a fresh subagent, run `finalize`, and keep the case list,
+   harness, and model fixed. Follow the `skill-evals/shared-benchmark.json` run
+   policy (≥3 runs per variant, 5 recommended) because single runs are noise.
+   Prefer `--mode code` when the question allows it so `traceSource` is
+   `observed`; otherwise report when chat runs fall back to narrated Trace
+   prose. Compare `ok` rate and the `taskOk`/`traceOk` split per case, plus
+   response length as a proxy for discovery cost. Commit both transcript sets so
+   the comparison replays deterministically in layer 2.
 
 Knowledge-proof cases close the taskOk blind spot: `KNOWLEDGE_CASES` in
 `run.ts` (opt-in via `--cases canonical_add_cache_messy,stray_end_source_fallback`)
@@ -148,8 +150,8 @@ hinge on facts only the docs/tooling carry. Four-surface matrix
 | skill | 6/6 | 1.0 | ~35.9k |
 
 The no-docs baseline fails canonical serialization every time; every
-doc-bearing surface fixes it. At equal outcome the compact homepage prompt was
-the cheapest surface. Single-model harness, n=3: direction, not magnitudes.
+doc-bearing surface fixes it. At equal outcome the homepage/start.md surface was
+the cheapest doc-bearing surface. Single-model harness, n=3: direction, not magnitudes.
 
 Known blind spots of the stored case set: it measures task success and
 response shape on fully specified tasks. It does not yet measure discovery

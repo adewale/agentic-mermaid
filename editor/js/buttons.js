@@ -18,67 +18,6 @@ function copySource() {
   writeClipboardText(editor.value, 'Source copied.', 'Copy source failed.', copySourceBtn);
 }
 
-function mermaidBodyStart(source) {
-  var text = String(source || '').replace(/^---[\s\S]*?---\s*/, '');
-  var lines = text.split(/\r?\n/);
-  for (var i = 0; i < lines.length; i++) {
-    var line = lines[i].trim();
-    if (!line || line.indexOf('%%') === 0) continue;
-    return line;
-  }
-  return '';
-}
-
-function detectAgentFamily(source) {
-  var first = mermaidBodyStart(source).toLowerCase();
-  if (/^(graph|flowchart)\b/.test(first)) return { family: 'flowchart', narrower: 'asFlowchart' };
-  if (/^statediagram(?:-v2)?\b/.test(first)) return { family: 'state', narrower: 'asState' };
-  if (/^sequencediagram\b/.test(first)) return { family: 'sequence', narrower: 'asSequence' };
-  if (/^timeline\b/.test(first)) return { family: 'timeline', narrower: 'asTimeline' };
-  if (/^classdiagram\b/.test(first)) return { family: 'class', narrower: 'asClass' };
-  if (/^erdiagram\b/.test(first)) return { family: 'er', narrower: 'asEr' };
-  if (/^journey\b/.test(first)) return { family: 'journey', narrower: 'asJourney' };
-  if (/^architecture\b/.test(first)) return { family: 'architecture', narrower: 'asArchitecture' };
-  if (/^xychart(?:-beta)?\b/.test(first)) return { family: 'xychart', narrower: 'asXyChart' };
-  if (/^pie\b/.test(first)) return { family: 'pie', narrower: 'asPie' };
-  if (/^quadrantchart\b/.test(first)) return { family: 'quadrant', narrower: 'asQuadrant' };
-  if (/^gantt\b/.test(first)) return { family: 'gantt', narrower: 'asGantt' };
-  return { family: 'unknown', narrower: 'the matching as* helper' };
-}
-
-function buildAgentTaskPrompt() {
-  var source = editor.value.trim();
-  var detected = detectAgentFamily(source);
-  return 'Create or edit a Mermaid diagram with Agentic Mermaid.\n\n'
-    + 'Task:\n<replace with the requested diagram goal or edit>\n\n'
-    + 'Context:\n<include the facts, labels, relationships, and constraints the diagram should express>\n\n'
-    + 'Detected family: ' + detected.family + '\n'
-    + 'Expected trace: parseMermaid → ' + detected.narrower + ' → mutate(...) → verifyMermaid → serializeMermaid\n\n'
-    + 'Mermaid source (for edits; leave blank for a new diagram):\n```mermaid\n'
-    + (source || '')
-    + '\n```\n\n'
-    + 'Environment:\n'
-    + '- Do not assume this repository is checked out. Use one channel available to you: installed `agentic-mermaid/agent`, this repo\'s `./src/agent/index.ts`, the CLI (`am` or `bun run bin/am.ts`), self-hosted MCP Code Mode, or the hosted MCP at `https://agentic-mermaid.dev/mcp` (stateless streamable HTTP JSON-RPC). The website exposes no REST render API — `/mcp` speaks MCP only.\n'
-    + '- If no Agentic Mermaid channel is available (local or the hosted MCP), do not fabricate verification; return the best Mermaid source and say `not verified — Agentic Mermaid unavailable` with what you tried.\n'
-    + '- Library imports, when available: `parseMermaid`, `verifyMermaid`, `serializeMermaid`, `mutate`, and `as*` helpers from `agentic-mermaid/agent`.\n\n'
-    + 'Workflow:\n'
-    + '1. For a new diagram, author Mermaid source directly from the supplied context, then parse it with `parseMermaid`.\n'
-    + '2. For an existing diagram, parse it, narrow with the matching `as*` helper (`asFlowchart`, `asSequence`, `asGantt`, etc.), and prefer the smallest `mutate(...)` operation.\n'
-    + '3. Mutation ops use a `kind` discriminator (for example `{ kind: "add_edge", from, to, label }`). Discover exact ops from local types, `am capabilities --json`, or `/capabilities.json` when present.\n'
-    + '4. If no typed operation fits, make the smallest source-level edit and say `source-level fallback`.\n'
-    + '5. Run `verifyMermaid` on the final diagram or source. If structural warnings remain after one mechanical fix attempt, return the warnings instead of guessing.\n'
-    + '6. Return mode:\n'
-    + '   - In chat, return exactly these sections: Updated Mermaid, Verification, Trace.\n'
-    + '   - In self-hosted MCP/Code Mode `execute(code)`, return an object with `{ source }` after verification, or `{ error, warnings }`; do not return prose from inside code.\n'
-    + '7. In Updated Mermaid, include only the final Mermaid source in a ```mermaid fence. Do not return SVG, PNG, ASCII, or Unicode unless requested.\n'
-    + '8. In Trace, name the channel and exact calls/ops used: `parseMermaid`, the `as*` helper, `mutate({ kind: ... })`, `verifyMermaid`, and `serializeMermaid`; for new diagrams say `no mutate`.\n\n'
-    + 'Do not modify project files unless the user explicitly asked you to change files.';
-}
-
-function copyAgentTask() {
-  writeClipboardText(buildAgentTaskPrompt(), 'Agent task prompt copied.', 'Copy agent task failed.', copyAgentTaskBtn);
-}
-
 function clearEditor() {
   editor.value = '';
   setEditorErrorLine(0);
@@ -99,15 +38,6 @@ function clearEditor() {
 
 var copySourceBtn = document.getElementById('copy-source-btn');
 if (copySourceBtn) copySourceBtn.addEventListener('click', copySource);
-var copyAgentTaskBtn = document.getElementById('copy-agent-prompt-btn');
-if (copyAgentTaskBtn) copyAgentTaskBtn.addEventListener('click', copyAgentTask);
-// Topbar entry point for the same handoff (visible ≥1100px); copy feedback
-// lands on the button that was actually clicked.
-var agentPromptTopbarBtn = document.getElementById('agent-prompt-topbar-btn');
-if (agentPromptTopbarBtn) agentPromptTopbarBtn.addEventListener('click', function() {
-  writeClipboardText(buildAgentTaskPrompt(), 'Agent task prompt copied.', 'Copy agent task failed.', agentPromptTopbarBtn);
-});
-
 var currentCanvasFormat = 'diagram';
 var CANVAS_FORMATS = ['diagram', 'unicode', 'ascii'];
 
@@ -185,14 +115,40 @@ var shortcutsDialog = document.getElementById('shortcuts-dialog');
 var shortcutsDialogClose = document.getElementById('shortcuts-dialog-close');
 var shortcutsReturnFocus = null;
 
+function shortcutsFocusable() {
+  if (!shortcutsDialog) return [];
+  return Array.prototype.slice.call(shortcutsDialog.querySelectorAll('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'))
+    .filter(function(el) { return !el.disabled && el.offsetParent !== null; });
+}
+
+function trapShortcutsFocus(e) {
+  if (!shortcutsPopup || !shortcutsPopup.isOpen() || e.key !== 'Tab') return;
+  var focusable = shortcutsFocusable();
+  if (!focusable.length) return;
+  var first = focusable[0];
+  var last = focusable[focusable.length - 1];
+  if (!shortcutsDialog.contains(document.activeElement)) {
+    e.preventDefault();
+    first.focus();
+  } else if (e.shiftKey && document.activeElement === first) {
+    e.preventDefault();
+    last.focus();
+  } else if (!e.shiftKey && document.activeElement === last) {
+    e.preventDefault();
+    first.focus();
+  }
+}
+
 var shortcutsPopup = (shortcutsDialog && typeof createPopupController === 'function')
   ? createPopupController({
       popup: shortcutsDialog,
       visibility: { manageTabStops: true },
       afterOpen: function() {
+        document.addEventListener('keydown', trapShortcutsFocus, true);
         if (shortcutsDialogClose) shortcutsDialogClose.focus();
       },
       afterClose: function() {
+        document.removeEventListener('keydown', trapShortcutsFocus, true);
         if (shortcutsReturnFocus && typeof shortcutsReturnFocus.focus === 'function') shortcutsReturnFocus.focus();
         shortcutsReturnFocus = null;
       },

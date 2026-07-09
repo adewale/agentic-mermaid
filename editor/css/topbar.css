@@ -20,15 +20,6 @@
   box-sizing: border-box;
 }
 
-/* The re-roll (🎲) button reserves its topbar slot even while inactive (the
-   crisp default) rather than using `hidden`, so selecting a style fills the
-   slot instead of reflowing the wrap-prone bar — on narrow mobile the theme
-   dropdown would otherwise jump a full row. Toggled in init.js. */
-#seed-shuffle-btn.is-inactive {
-  visibility: hidden;
-  pointer-events: none;
-}
-
 /* Brand – same quiet document primitive as the public site. */
 .app-brand {
   display: inline-flex;
@@ -329,8 +320,8 @@
 }
 
 /* Buttons – match showcase secondary button style */
-/* `display: inline-flex` would beat the UA's [hidden] rule — keep the
-   attribute honest for conditionally-present controls (seed shuffle). */
+/* `display: inline-flex` would beat the UA's [hidden] rule; keep the
+   attribute honest if a toolbar button opts into it. */
 .btn[hidden] {
   display: none;
 }
@@ -402,24 +393,13 @@
   transform: translate(-50%, -50%) scale(1);
 }
 #export-main-btn {
-  width: 140px;
+  width: 112px;
 }
 #export-chevron-btn {
   width: 40px;
   min-width: 40px;
   padding: 0;
 }
-/* Compact agent-handoff entry point, visible only where the topbar has room;
-   the canonical item stays in the export dropdown (#copy-agent-prompt-btn). */
-#agent-prompt-topbar-btn {
-  display: none;
-}
-@media (min-width: 1100px) {
-  #agent-prompt-topbar-btn {
-    display: inline-flex;
-  }
-}
-
 @media (max-width: 760px) {
   .topbar {
     gap: 0.25rem;
@@ -515,10 +495,11 @@
   /* Both controls' sheets span the row on mobile. */
   #style-dropdown-wrap .theme-dropdown-menu { left: 10px; right: 10px; }
   #export-main-btn {
-    width: var(--control-h);
-    padding: 0;
-    font-size: 0;
-    gap: 0;
+    width: auto;
+    min-width: 96px;
+    padding: 0 12px;
+    font-size: var(--t-label);
+    gap: 8px;
   }
   #export-main-btn svg {
     margin: 0;

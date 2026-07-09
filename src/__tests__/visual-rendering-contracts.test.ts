@@ -50,24 +50,18 @@ describe('visual rendering contracts', () => {
     }
   })
 
-  it('renders architecture group border overrides as visible pixels after color inlining', () => {
+  it('renders architecture group borders from named style faces as visible pixels after color inlining', () => {
     const svg = renderMermaidSVG(
       `architecture-beta
   group edge(cloud)[Edge]
   service web(server)[Web] in edge`,
       {
-        bg: '#ffffff',
-        fg: '#111111',
-        line: '#555555',
-        accent: '#222222',
         embedFontImport: false,
-        style: {
-          group: { borderColor: '#ff00aa', lineWidth: 3 },
-        },
+        style: 'accessible-high-contrast',
       },
     )
 
-    expect(colorPixelCount(svg, hexPixel('#ff00aa')), 'architecture group border pixels').toBeGreaterThan(100)
+    expect(colorPixelCount(svg, hexPixel('#050505')), 'architecture group border pixels').toBeGreaterThan(100)
   })
 
   for (const file of visualSnapshotFiles) {
