@@ -3,6 +3,7 @@ import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs'
 import { join } from 'node:path'
 import { gzipSync } from 'node:zlib'
 import { EDITOR_EXAMPLES } from '../../editor/examples.ts'
+import { samples as RICH_EXAMPLES } from '../../scripts/site/samples-data.ts'
 import { createWebsiteWorker } from '../../website/src/worker-core.ts'
 import { CLEAN_PAGE_ROUTES, DYNAMIC_CLEAN_REDIRECT_LINES, staticRedirectLines } from '../../website/src/site-routes.ts'
 import { HOSTED_FONT_FACES, HOSTED_FONT_FILES } from '../font-manifest.ts'
@@ -34,6 +35,14 @@ function editorScriptRel(editorHtml = read('editor/index.html')) {
 
 function editorExampleIds() {
   return EDITOR_EXAMPLES.map((example) => example.id)
+}
+
+function exampleSlug(s: string) {
+  return s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
+}
+
+function richExampleId(sample: { title: string }, index: number) {
+  return `rich-${index + 1}-${exampleSlug(sample.title)}`
 }
 
 function readJsonGlobal<T>(script: string, name: string): T {
@@ -808,13 +817,23 @@ describe('Workers Static Assets website contract', () => {
     expect(editorRuntime.indexOf('var EDITOR_EXAMPLES = ')).toBeGreaterThanOrEqual(0)
     expect(editorRuntime.indexOf('var EDITOR_EXAMPLES = ')).toBeLessThan(editorRuntime.indexOf('function cloneEditorConfig'))
     expect(readJsonGlobal<unknown>(editorRuntime, 'EDITOR_EXAMPLES')).toEqual(JSON.parse(JSON.stringify(EDITOR_EXAMPLES)))
-    expect(Array.isArray(examplesIndex.richExamples)).toBe(true)
-    expect(examplesIndex.richExamples.length).toBeGreaterThan(100)
+    expect(examplesIndex.richExamples).toEqual(RICH_EXAMPLES.map((sample, index) => ({
+      id: richExampleId(sample, index),
+      category: sample.category ?? 'Examples',
+      title: sample.title,
+      description: sample.description,
+      source: String(sample.source ?? '').trim(),
+      options: sample.options ?? {},
+      renderUrl: `/examples/#${richExampleId(sample, index)}`,
+      editorUrl: expect.stringContaining('/editor/#'),
+    })))
+    expect(examplesIndex.richExamples.some((example: any) => example.category === 'Style + Palette')).toBe(true)
     const examplesHtml = read('examples/index.html')
     expect(examplesHtml).toContain('Build-time proof: rendered from the same source the editor loads.')
     expect(examplesHtml).toContain('Build-time proof from the shared examples corpus.')
     expect(examplesHtml).toContain('--accent:#1A7351')
     expect(examplesHtml).not.toContain('Role style presets')
+    expect(examplesHtml).not.toContain('semantic role')
     for (const example of examplesIndex.examples) {
       const renderAnchor = example.renderUrl.split('#')[1]
       const docsAnchor = example.docs.split('#')[1]

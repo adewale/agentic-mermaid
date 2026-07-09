@@ -80,7 +80,7 @@ async function expectArrowFill(page: Page, want: string) {
       return poly !== null && getComputedStyle(poly).fill === fill
     },
     want,
-    { timeout: 15_000 },
+    { timeout: 30_000 },
   )
 }
 

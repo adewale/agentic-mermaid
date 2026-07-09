@@ -67,14 +67,12 @@ library's spacing, contrast, and restraint.
 
 ## Style, Palette, And Mermaid Config
 
-Journey uses the same semantic style roles as the rest of the SVG pipeline:
+Journey uses the same public Style + Palette stack as the rest of the SVG
+pipeline. Named looks and palette-only styles control the family-wide treatment
+(colors, typography, strokes, fills, and page treatment) without adding
+Journey-specific public style fields.
 
-- `node` styles apply to task boxes and task labels
-- `edge` styles apply to the score guide, tracks, baseline, and score labels
-- `group` styles apply to section spans, section labels, actor legend labels,
-  and the visible title
-
-Journey-specific visual channels are also palette-aware. Section fills/bands,
+Journey-specific visual channels are palette-aware. Section fills/bands,
 section strokes, actor dots, score marker faces, score marker ink, and the
 baseline all derive from Agentic Mermaid palette tokens unless Mermaid source
 config provides a more specific Journey override.

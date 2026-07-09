@@ -25,15 +25,15 @@ const SCREENSHOT_DIR = join(ROOT, 'e2e', 'screenshots')
 // Structural SVG assertions catch the exact regression; this tolerance keeps
 // screenshot checks focused on gross visual drift rather than text antialiasing.
 const ROUNDED_FILL_SCREENSHOT_MAX_DIFF = 0.05
-const ARCHITECTURE_ROUNDED_FILL_HASH = 'eyJzb3VyY2UiOiJhcmNoaXRlY3R1cmUtYmV0YVxuICBncm91cCBlZGdlKGNsb3VkKVtFZGdlIExheWVyXVxuICBncm91cCBjb3JlKHNlcnZlcilbQ29yZSBTZXJ2aWNlc11cbiAgc2VydmljZSB3ZWIoc2VydmVyKVtXZWIgQXBwXSBpbiBlZGdlXG4gIHNlcnZpY2UgYXBpKHNlcnZlcilbQVBJXSBpbiBjb3JlXG4gIHNlcnZpY2UgZGIoZGF0YWJhc2UpW1Bvc3RncmVzXSBpbiBjb3JlXG4gIHdlYjpSIC0tPiBMOmFwaVxuICBhcGk6UiAtLT4gTDpkYiIsInRoZW1lIjoic2FsbW9uIiwiY29uZmlnIjp7InN0eWxlIjp7InRleHQiOnsiZm9udFNpemUiOjEzLCJsZXR0ZXJTcGFjaW5nIjowLjF9LCJub2RlIjp7ImZvbnRTaXplIjoxNSwiZm9udFdlaWdodCI6NjAwLCJsZXR0ZXJTcGFjaW5nIjotMC4xLCJwYWRkaW5nWCI6MjIsInBhZGRpbmdZIjoxNCwiY29ybmVyUmFkaXVzIjoxNiwibGluZVdpZHRoIjoxLjV9LCJlZGdlIjp7ImZvbnRTaXplIjoxMiwiZm9udFdlaWdodCI6NjAwLCJsZXR0ZXJTcGFjaW5nIjowLjEsImxpbmVXaWR0aCI6Mi4yNSwiYmVuZFJhZGl1cyI6MTJ9LCJncm91cCI6eyJmb250U2l6ZSI6MTIsImZvbnRXZWlnaHQiOjcwMCwibGV0dGVyU3BhY2luZyI6MC44LCJ0ZXh0VHJhbnNmb3JtIjoidXBwZXJjYXNlIiwicGFkZGluZ1giOjI0LCJwYWRkaW5nWSI6MTgsImNvcm5lclJhZGl1cyI6MTgsImJvcmRlckNvbG9yIjoiI2Y5NzMxNiIsImxpbmVXaWR0aCI6MS41fX19fQ=='
-const ROUNDED_FILL_CONFIG = {
-  style: {
-    text: { fontSize: 13, letterSpacing: 0.1 },
-    node: { fontSize: 15, fontWeight: 600, letterSpacing: -0.1, paddingX: 22, paddingY: 14, cornerRadius: 16, lineWidth: 1.5 },
-    edge: { fontSize: 12, fontWeight: 600, letterSpacing: 0.1, lineWidth: 2.25, bendRadius: 12 },
-    group: { fontSize: 12, fontWeight: 700, letterSpacing: 0.8, textTransform: 'uppercase', paddingX: 24, paddingY: 18, cornerRadius: 18, borderColor: '#f97316', lineWidth: 1.5 },
-  },
-} as const
+const ARCHITECTURE_ROUNDED_FILL_SOURCE = `architecture-beta
+  group edge(cloud)[Edge Layer]
+  group core(server)[Core Services]
+  service web(server)[Web App] in edge
+  service api(server)[API] in core
+  service db(database)[Postgres] in core
+  web:R --> L:api
+  api:R --> L:db`
+const ROUNDED_FILL_CONFIG = { style: 'status-dashboard' } as const
 
 // ---------------------------------------------------------------------------
 // Browser + page references
@@ -95,6 +95,15 @@ async function gotoApp(url: string): Promise<void> {
 
 function editorHash(source: string, config = ROUNDED_FILL_CONFIG, theme = 'salmon'): string {
   return Buffer.from(JSON.stringify({ source, theme, config }), 'utf8').toString('base64')
+}
+
+async function gotoEditorWithWarmFonts(query: string, hash: string): Promise<void> {
+  await gotoApp(`${BASE}/editor?empty=1`)
+  await page.waitForSelector('#code-editor', { timeout: 30_000 })
+  await page.evaluate(() => document.fonts?.ready)
+  await gotoApp(`${BASE}/editor${query}#${hash}`)
+  await waitForEditorRender(60_000)
+  await page.evaluate(() => document.fonts?.ready)
 }
 
 async function comparePngScreenshots(
@@ -490,7 +499,7 @@ describe('browser: live editor integration', () => {
     expect(themeAfter!.height).toBe(themeBefore!.height)
   }, 60_000)
 
-  it('loads semantic role style examples without overriding the selected theme', async () => {
+  it('loads source/config examples without overriding the selected theme', async () => {
     await gotoApp(`${BASE}/editor`)
     await page.waitForSelector('#code-editor', { timeout: 30_000 })
     // The chrome bg must not change with the diagram theme; capture it up front so
@@ -507,14 +516,15 @@ describe('browser: live editor integration', () => {
     )
 
     await page.click('#examples-sidebar-btn')
-    await page.click('#examples-sidebar .example-dropdown-item[data-example="styled-xychart"]')
+    await page.click('#examples-sidebar .example-dropdown-item[data-example="xychart-basic"]')
 
     await page.waitForFunction(
       () => {
-        const html = document.querySelector('#preview-inner svg')?.outerHTML ?? ''
-        return html.includes('STYLED ADOPTION')
+        const svg = document.querySelector('#preview-inner svg')
+        const html = svg?.outerHTML ?? ''
+        return html.includes('Weekly renders')
           && html.includes('xychart-bar')
-          && html.includes('stroke-width: 2.25')
+          && (svg?.getAttribute('style') ?? '').includes('--bg: #282a36')
       },
       undefined,
       { timeout: 60_000 },
@@ -534,14 +544,8 @@ describe('browser: live editor integration', () => {
       return JSON.parse(decodeURIComponent(escape(atob(hash))))
     })
 
-    expect(hashState.config).toMatchObject({
-      style: {
-        node: { cornerRadius: 16 },
-        edge: { lineWidth: 2.25 },
-        group: { textTransform: 'uppercase' },
-      },
-      interactive: true,
-    })
+    expect(hashState.config).toMatchObject({ interactive: true })
+    expect(hashState.config.style).toBeUndefined()
     expect(hashState.theme).toBe('dracula')
     // The diagram keeps the dracula theme; the editor chrome is unchanged by it.
     expect(await page.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue('--t-bg').trim())).toBe(chromeBg)
@@ -554,8 +558,7 @@ describe('browser: visual regression', () => {
 
   it('architecture rounded fills match screenshot baseline without decorative rails', async () => {
     await page.setViewportSize({ width: 1280, height: 720 })
-    await gotoApp(`${BASE}/editor?visual=architecture-rounded-fill#${ARCHITECTURE_ROUNDED_FILL_HASH}`)
-    await waitForEditorRender(60_000)
+    await gotoEditorWithWarmFonts('?visual=architecture-rounded-fill', editorHash(ARCHITECTURE_ROUNDED_FILL_SOURCE))
     await page.waitForFunction(
       () => {
         const svg = document.querySelector('#preview-inner svg')
@@ -614,7 +617,7 @@ describe('browser: visual regression', () => {
   end
   web --> api
   api --> db`,
-        required: ['<g class="subgraph" data-id="edge"', '<path d="M', 'A18,18'],
+        required: ['<g class="subgraph" data-id="edge"', '<path d="M', 'A10,10'],
         forbidden: ['rx="18" ry="18" fill="var(--_group-hdr)"'],
       },
       {
@@ -628,7 +631,7 @@ describe('browser: visual regression', () => {
     +request()
   }
   WebApp --> ApiService : calls`,
-        required: ['<g class="class-node"', '<path d="M', 'A16,16'],
+        required: ['<g class="class-node"', '<path d="M', 'A10,10'],
         forbidden: ['rx="16" ry="16" fill="var(--_group-hdr)"'],
       },
       {
@@ -643,7 +646,7 @@ describe('browser: visual regression', () => {
     string customer_id FK
   }
   CUSTOMER ||--o{ ORDER : places`,
-        required: ['<g class="entity"', '<path d="M', 'A16,16'],
+        required: ['<g class="entity"', '<path d="M', 'A10,10'],
         forbidden: ['rx="16" ry="16" fill="var(--_group-hdr)"'],
       },
       {
@@ -676,8 +679,7 @@ describe('browser: visual regression', () => {
     ]
 
     for (const testCase of cases) {
-      await gotoApp(`${BASE}/editor?visual=${encodeURIComponent(testCase.name)}#${editorHash(testCase.source)}`)
-      await waitForEditorRender(60_000)
+      await gotoEditorWithWarmFonts(`?visual=${encodeURIComponent(testCase.name)}`, editorHash(testCase.source))
       await page.evaluate(() => document.fonts?.ready)
       const svgHtml = await page.locator('#preview-inner svg').evaluate(el => el.outerHTML)
       for (const snippet of testCase.required) expect(svgHtml).toContain(snippet)

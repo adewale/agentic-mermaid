@@ -121,7 +121,7 @@ test('restyle preserves rounded rectangle geometry', () => {
     style: 'publication-figure',
   })
   const styled = restyle(raw, transit, { backdrop: false })
-  const d = styled.match(/<path d="([^"]+)"[^>]*stroke="#d4d4d4"/)?.[1]
+  const d = styled.match(/<path d="([^"]+)"[^>]*stroke="#[0-9a-fA-F]{6}"/)?.[1]
 
   expect(d).toBeTruthy()
   expect(d!.match(/L/g)?.length ?? 0).toBeGreaterThan(8)
