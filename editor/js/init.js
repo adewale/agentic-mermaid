@@ -204,7 +204,7 @@ function shouldOpenEmptyEditor() {
     updateStyleButton();
     if (typeof hydrateConfigControls === 'function') hydrateConfigControls(state.config);
     else refreshAllColorUIs();
-  } else if (queryExampleId && typeof loadEditorExample === 'function' && findEditorExample(queryExampleId)) {
+  } else if (!hashDecodeFailure && queryExampleId && typeof loadEditorExample === 'function' && findEditorExample(queryExampleId)) {
     loadEditorExample(queryExampleId);
     loadedInitialExample = true;
   } else if (queryEmptyEditor) {

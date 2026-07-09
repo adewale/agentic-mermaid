@@ -50,7 +50,7 @@ function renderExamplePaletteHtml() {
       + '<div class="example-category-title">' + escHtml(group.category) + '</div>'
       + '<div class="example-category-grid">'
       + group.examples.map(function(example) {
-        return '<button class="example-dropdown-item" type="button" role="menuitem" data-example="' + escAttr(example.id) + '" data-diagram="' + escAttr(example.diagramType || '') + '" title="' + escAttr(example.description || example.label) + '">'
+        return '<button class="example-dropdown-item" type="button" data-example="' + escAttr(example.id) + '" data-diagram="' + escAttr(example.diagramType || '') + '" title="' + escAttr(example.description || example.label) + '">'
           + '<span class="example-item-title"><span class="example-item-glyph" aria-hidden="true">' + escHtml(exampleGlyph(example)) + '</span>' + escHtml(example.label) + '</span>'
           + '<span class="example-item-description">' + escHtml(example.description || '') + '</span>'
           + '</button>';

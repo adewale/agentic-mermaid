@@ -174,6 +174,17 @@ describeBrowser('website browser accessibility smoke', () => {
     await page.close()
   }, 30_000)
 
+  test('editor corrupt share hashes do not load stale query examples', async () => {
+    const page = await browser.newPage({ viewport: { width: 1280, height: 900 } })
+    await page.goto(baseUrl + '/editor/?example=flowchart-basic#deflate:bad', { waitUntil: 'networkidle' })
+    await page.waitForFunction(() => (document.querySelector('#code-editor') as HTMLTextAreaElement | null)?.value.length)
+    const source = await page.locator('#code-editor').inputValue()
+    expect(source).toContain('Parse source')
+    expect(source).not.toContain('Decision?')
+    await page.waitForFunction(() => location.search === '', null, { timeout: 10_000 })
+    await page.close()
+  }, 30_000)
+
   test('editor loads every self-hosted diagram font face it advertises', async () => {
     const page = await browser.newPage({ viewport: { width: 1280, height: 900 } })
     await page.goto(baseUrl + '/editor/?empty=1', { waitUntil: 'networkidle' })
